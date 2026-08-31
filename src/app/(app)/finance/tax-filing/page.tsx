@@ -34,6 +34,9 @@ import { computeStatements } from "@/lib/closing-snapshot";
 import { listFixedAssets, faCategoryLabel } from "@/lib/fixed-assets";
 import { fetchJournalLines } from "@/lib/journal-reports";
 import { friendlyError } from "@/lib/friendly-error";
+import { downloadNtsBytes, type NtsIssue } from "@/lib/nts-efile";
+import { buildWhtEfile, type WhtEfileRow } from "@/lib/nts-wht-efile";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const won = (n: number) => `₩${Math.round(n || 0).toLocaleString("ko-KR")}`;
 const num = (n: number) => Math.round(n || 0);
@@ -163,6 +166,69 @@ export default function TaxFilingPage() {
     return { income, ...c, local, sum: c.total + local };
   }, [citStmt]);
   const [packBusy, setPackBusy] = useState(false);
+
+  //   ── 전자신고 파일 베타 (세무 4차, 결정 106) — feature_rollout 'tax_efile' 게이트: 모티브 먼저,
+  //   홈택스 변환 검증 + 세무사 검토로 실신고 1회 통과 후 전체 오픈 ──
+  const { data: efileOn = false } = useQuery({
+    queryKey: ["feature-tax-efile", companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data } = await (supabase as any).rpc("feature_on", { p_feature: "tax_efile", p_company: companyId });
+      return !!data;
+    },
+  });
+  const [efileOpen, setEfileOpen] = useState(false);
+  useModalKeys(efileOpen, () => setEfileOpen(false));
+  //   홈택스 사용자ID — 회사 상수라 브라우저에 기억해 준다(조회 조건이 아니라 설정값)
+  const [hometaxId, setHometaxId] = useState("");
+  useEffect(() => {
+    if (!efileOpen || typeof window === "undefined") return;
+    try { setHometaxId(window.localStorage.getItem(`ov.hometax-id.${companyId}`) || ""); } catch { /* 시크릿 등 */ }
+  }, [efileOpen, companyId]);
+  const { data: companyInfo } = useQuery({
+    queryKey: ["efile-company", companyId],
+    enabled: !!companyId && efileOpen,
+    queryFn: async () => {
+      const data = logRead("tax-filing:company", await (supabase as any).from("companies")
+        .select("name, business_number, representative, address, phone").eq("id", companyId!).maybeSingle());
+      return (data || null) as { name: string; business_number: string | null; representative: string | null; address: string | null; phone: string | null } | null;
+    },
+  });
+  const [efileIssues, setEfileIssues] = useState<NtsIssue[]>([]);
+  const makeEfile = () => {
+    if (!companyInfo) return;
+    try { if (typeof window !== "undefined") window.localStorage.setItem(`ov.hometax-id.${companyId}`, hometaxId.trim()); } catch { /* 무시 */ }
+    const work = aggOf(rows.filter((r) => !r.biz));
+    const biz = aggOf(rows.filter((r) => r.biz));
+    const all = aggOf(rows);
+    const efRows: WhtEfileRow[] = [
+      { code: "A01" as const, n: work.n, pay: work.taxable, tax: work.incomeTax },
+      { code: "A10" as const, n: work.n, pay: work.taxable, tax: work.incomeTax },
+      ...(biz.n > 0 ? [
+        { code: "A25" as const, n: biz.n, pay: biz.taxable, tax: biz.incomeTax },
+        { code: "A30" as const, n: biz.n, pay: biz.taxable, tax: biz.incomeTax },
+      ] : []),
+      { code: "A99" as const, n: all.n, pay: all.taxable, tax: all.incomeTax },
+    ].filter((r) => r.n > 0 || r.pay > 0 || r.tax !== 0);
+    const y = Number(month.slice(0, 4)), m = Number(month.slice(5, 7));
+    const built = buildWhtEfile({
+      bizNo: companyInfo.business_number || "",
+      hometaxId,
+      companyName: companyInfo.name || "",
+      ceoName: companyInfo.representative || "",
+      address: companyInfo.address || "", phone: companyInfo.phone || "",
+      yearMonth: month,
+      submitYm: m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`,
+      madeOn: todayKst(),
+      rows: efRows,
+    });
+    setEfileIssues(built.issues);
+    if (built.bytes) {
+      downloadNtsBytes(built.bytes, built.fileName);
+      toast(`${built.fileName} 을 내려받았습니다 — 홈택스 › 신고서 파일 변환에서 검증·제출하세요`, "success");
+      setEfileOpen(false);
+    }
+  };
 
   const T = useMemo(() => ({
     work: aggOf(rows.filter((r) => !r.biz)),
@@ -304,6 +370,39 @@ export default function TaxFilingPage() {
 
   return (
     <div className="qk-shell">
+      {/* 전자신고 파일 생성 팝업 (베타, 결정 106) — 확정은 사람: 파일을 받고 홈택스에서 검증·제출한다 */}
+      {efileOpen && (
+        <div className="inv-modal" onClick={() => setEfileOpen(false)}>
+          <div className="inv-modal-box" onClick={(e) => e.stopPropagation()}>
+            <h3 className="inv-modal-title">원천세 전자신고 파일 (베타)</h3>
+            <p className="inv-modal-desc">
+              {month} 지급분 정기(매월) 신고서를 홈택스 <b>신고서 파일 변환</b> 업로드용 전산매체(C103900)로 만듭니다.
+              내려받은 파일은 홈택스 변환 검증을 거치고, <b>첫 신고는 반드시 세무사 확인 후 제출</b>하세요.
+              연말정산·수정신고·환급신청·반기 신고는 이 파일로 안 됩니다 — 홈택스에서 직접.
+            </p>
+            <div className="inv-bom-base">
+              <label className="text-xs font-semibold text-[var(--text-dim)] whitespace-nowrap">홈택스 사용자ID</label>
+              <input className="inv-input" value={hometaxId} onChange={(e) => setHometaxId(e.target.value)}
+                placeholder="홈택스에 로그인하는 ID (파일 Header 필수값)" maxLength={20} />
+            </div>
+            <p className="inv-hint">
+              {companyInfo
+                ? <>회사 정보로 채워집니다 — 사업자번호 <b className="mono-number">{companyInfo.business_number || "(없음)"}</b> · 상호 <b>{companyInfo.name}</b> · 대표 <b>{companyInfo.representative || "(없음)"}</b>. 틀리면 회사설정에서 고치세요.</>
+                : "회사 정보를 읽는 중…"}
+            </p>
+            {efileIssues.length > 0 && (
+              <div className="inv-paste-sum">
+                <span className="inv-paste-bad">파일을 만들 수 없습니다 — {efileIssues.map((x) => `${x.field}: ${x.message}`).join(" / ")}</span>
+              </div>
+            )}
+            <div className="inv-modal-actions">
+              <span className="doc-sums-sp" />
+              <button type="button" className="btn-secondary btn-sm" onClick={() => setEfileOpen(false)}>닫기</button>
+              <button type="button" className="btn-primary btn-sm" disabled={!companyInfo} onClick={makeEfile}>파일 만들기</button>
+            </div>
+          </div>
+        </div>
+      )}
       <QueryScreen>
         <QueryHead>
           <div className="collect-tabs">
@@ -313,7 +412,13 @@ export default function TaxFilingPage() {
             <button type="button" className={tab === "stmt" ? "collect-tab collect-tab-on" : "collect-tab"} onClick={() => setTab("stmt")}>지급명세서</button>
           </div>
           {tab === "wht" && (<>
-            <QueryBar right={<button type="button" className="btn-secondary btn-sm" onClick={exportWht} title="신고서 요약 + 인별 명세 — 2개 시트">세무사 전달 엑셀</button>}>
+            <QueryBar right={<>
+              {efileOn && (
+                <button type="button" className="btn-secondary btn-sm" disabled={rows.length === 0} onClick={() => { setEfileIssues([]); setEfileOpen(true); }}
+                  title="홈택스 '신고서 파일 변환' 업로드용 전산매체 파일 (C103900) — 베타">전자신고 파일 (베타)</button>
+              )}
+              <button type="button" className="btn-secondary btn-sm" onClick={exportWht} title="신고서 요약 + 인별 명세 — 2개 시트">세무사 전달 엑셀</button>
+            </>}>
               <label className="text-xs font-semibold text-[var(--text-dim)]">지급월</label>
               <input type="month" className="inv-input fin-close-month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} aria-label="지급월" />
               <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <b className="mono-number">{dueOf(month)}</b> — 홈택스 › 신고/납부 › 원천세</span>
