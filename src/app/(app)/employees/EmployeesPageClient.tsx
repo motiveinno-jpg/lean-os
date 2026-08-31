@@ -1106,8 +1106,11 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                         const n = dayStatusCounts.get(s.value) || 0; const c = statusCssColor(s.value);
                         return (
                           <span key={s.value} className="att-cal-row" title={`${s.label} ${n}명`}>
-                            <span className="att-cal-fill" style={{ width: `${Math.max(12, Math.round((n / Math.max(1, activeEmployees.length)) * 100))}%`, background: `linear-gradient(90deg, color-mix(in srgb, ${c} 20%, transparent), color-mix(in srgb, ${c} 6%, transparent))` }}><span className="att-cal-edge" style={{ background: c }} /></span>
+                            {/*   게이지는 라벨 칩 오른쪽의 전용 트랙 안에서만 — 행 전체에 깔면 채움이 라벨 글씨를 덮는다 (2026-08-31 사장님 제보) */}
                             <span className="att-cal-chip" style={{ background: `color-mix(in srgb, ${c} 14%, transparent)`, color: c }}>{s.label}</span>
+                            <span className="att-cal-track">
+                              <span className="att-cal-fill" style={{ width: `${Math.max(12, Math.round((n / Math.max(1, activeEmployees.length)) * 100))}%`, background: `linear-gradient(90deg, color-mix(in srgb, ${c} 20%, transparent), color-mix(in srgb, ${c} 6%, transparent))` }}><span className="att-cal-edge" style={{ background: c }} /></span>
+                            </span>
                             <span className="att-cal-n">{n}</span>
                           </span>
                         );

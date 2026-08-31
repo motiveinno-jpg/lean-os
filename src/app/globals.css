@@ -9290,6 +9290,8 @@ table.table-ret-settle td { @apply text-[12px]; }
 /* 근태 › 기록 상세 달력 — 상태별 작은 상자, 워크보드 셀과 같은 톤 (2026-08-27 사장님) */
 .att-cal-rows { @apply flex flex-col gap-1 w-full; }
 .att-cal-row { @apply relative flex h-[18px] w-full items-center gap-1 overflow-hidden rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-1; }
+/* 게이지 트랙 — 라벨 칩 오른쪽 영역만. 채움(fill)의 absolute 기준이라 라벨과 절대 안 겹친다 (2026-08-31) */
+.att-cal-track { @apply relative flex-1 self-stretch overflow-hidden rounded-[5px]; }
 .att-cal-fill { @apply absolute inset-y-0 left-0 pointer-events-none; border-radius: 5px; }
 .att-cal-edge { @apply absolute inset-y-[3px] right-0 w-[2px] rounded-full opacity-90; }
 .att-cal-chip { @apply relative z-10 rounded-full px-1.5 py-[1px] text-[9px] font-bold leading-none; }
