@@ -83,7 +83,8 @@ export const TEMPLATES: Tpl[] = [
       { name: "증빙", type: "select", options: [o("todo", "수집 중", C.doing), o("done", "완료", C.done)] },
       { name: "보조금", type: "number" },
     ],
-    example: "예시 — 소상공인 홍보지원 사업",
+    //   실제 사업명 쓰지 말 것 — 모티브가 하는 사업이 그대로 노출됐던 사고(2026-08-31 사장님 지적)
+    example: "예시 — ○○ 지원사업 공고",
   },
   {
     key: "internal", icon: "🛠", name: "사내 개선·TF", cat: "프로젝트 관리",
