@@ -627,6 +627,15 @@
    검색 유입용 공개 계산기. lp4-tool(랜딩 도구 소개 카드)과 별개 네임스페이스(lp4-freetool). */
 .lp4-freetool-card { background:#fff; border:1px solid var(--line); border-radius:22px; padding:30px;
   box-shadow: 0 18px 40px -30px rgba(27,26,46,.25); }
+/* 무료 계산기 허브 (/tools, 2026-08-31) — 6개 도구를 카드 그리드로 */
+.lp4-freetool-hub { display:grid; grid-template-columns:1fr; gap:16px; margin-top:8px; }
+@media (min-width:640px){ .lp4-freetool-hub { grid-template-columns:1fr 1fr; } }
+.lp4-freetool-hubcard { display:flex; flex-direction:column; gap:8px; text-decoration:none;
+  transition: transform .12s ease, box-shadow .12s ease; }
+.lp4-freetool-hubcard:hover { transform: translateY(-2px); box-shadow: 0 22px 46px -26px rgba(27,26,46,.35); }
+.lp4-freetool-hubcard .lp4-freetool-result-num { font-size:22px; color: var(--ink); }
+.lp4-freetool-hubcard .lp4-freetool-result-cap { font-size:14px; font-weight:600; color: var(--ink2); line-height:1.6; }
+.lp4-freetool-hubcard .lp4-freetool-crosslink { margin-top:auto; font-size:13.5px; font-weight:800; color: var(--brand); }
 .lp4-freetool-fields { display:grid; grid-template-columns:1fr; gap:14px; }
 @media (min-width: 640px){ .lp4-freetool-fields { grid-template-columns:1fr 1fr; } }
 .lp4-freetool-field { display:flex; flex-direction:column; gap:7px; }

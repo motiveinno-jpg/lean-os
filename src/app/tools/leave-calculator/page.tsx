@@ -4,6 +4,7 @@
 import type { Metadata } from "next";
 import LeaveCalculatorView from "./view";
 import { FAQS } from "./faqs";
+import { toolJsonLd } from "../_seo";
 
 const SITE = "https://www.owner-view.com";
 // 루트 레이아웃 template("%s | 오너뷰")이 접미를 붙이므로 여기엔 브랜드를 안 쓴다
@@ -20,19 +21,11 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  // FAQ 구조화 데이터 — 검색 결과에 질문·답변이 바로 노출되게 (FAQPage rich result)
-  const faqJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: FAQS.map((f) => ({
-      "@type": "Question",
-      name: f.q,
-      acceptedAnswer: { "@type": "Answer", text: f.a },
-    })),
-  };
+  // 구조화 데이터 — 웹앱(무료 계산기) + 빵부스러기 + FAQ 를 한 번에 (검색 리치 결과용)
+  const jsonLd = toolJsonLd({ slug: "leave-calculator", name: "연차 계산기", desc: DESC, faqs: FAQS });
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <LeaveCalculatorView />
     </>
   );

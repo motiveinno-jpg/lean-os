@@ -52,6 +52,7 @@ const PUBLIC_ROUTES = [
   '/ai',        // AI 자동화 페이지 — 동일 (2026-07-27)
   '/maintenance',
   '/status',
+  '/tools', // 무료 계산기 허브(모음) — 검색 유입용 공개 인덱스 (2026-08-31)
   '/tools/leave-calculator', // 무료 연차 계산기 — 검색 유입용 공개 도구 (2026-08-13)
   '/tools/severance-calculator', // 무료 퇴직금 계산기 — 공개 도구 2탄 (2026-08-13)
   '/tools/insurance-calculator', // 무료 4대보험 계산기 — 공개 도구 3탄 (2026-08-13)

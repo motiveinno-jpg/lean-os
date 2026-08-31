@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import InsuranceCalculatorView from "./view";
 import { FAQS } from "./faqs";
+import { toolJsonLd } from "../_seo";
 
 const SITE = "https://www.owner-view.com";
 // 루트 레이아웃 template("%s | 오너뷰")이 접미를 붙이므로 여기엔 브랜드를 안 쓴다
@@ -18,18 +19,10 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  const faqJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: FAQS.map((f) => ({
-      "@type": "Question",
-      name: f.q,
-      acceptedAnswer: { "@type": "Answer", text: f.a },
-    })),
-  };
+  const jsonLd = toolJsonLd({ slug: "insurance-calculator", name: "4대보험 계산기", desc: DESC, faqs: FAQS });
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <InsuranceCalculatorView />
     </>
   );
