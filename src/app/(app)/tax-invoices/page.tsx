@@ -28,6 +28,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { invalidateTaxInvoiceReaders } from "@/lib/tax-invoice-invalidate";
 import { fetchPaged } from "@/lib/fetch-paged";
 import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { getCurrentUser } from "@/lib/queries";
@@ -729,7 +730,7 @@ function TaxInvoicesPageInner() {
     if (error) { toast("계정과목 지정 실패: " + error.message, "error"); return; }
     toast(`매입 세금계산서 ${ids.length}건에 '${bulkExpenseCat}' 지정 — 손익계산서에서 매출원가 대신 판관비로 반영됩니다`, "success");
     setBulkExpenseCat(""); setSelectedIds(new Set());
-    queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+    invalidateTaxInvoiceReaders(queryClient);   //   원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
   };
 
   // Deals for linking
@@ -918,7 +919,7 @@ function TaxInvoicesPageInner() {
         queryClient.setQueryData(["hometax-sync-job", activeJobId], payload.new);
         if (payload.new.status === 'completed' || payload.new.status === 'failed') {
           // 완료 시 invalidate
-          queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+          invalidateTaxInvoiceReaders(queryClient);   //   원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
           queryClient.invalidateQueries({ queryKey: ["last-hometax-sync-at"] });
           if (payload.new.status === 'completed') {
             toast(`백그라운드 동기화 완료: ${payload.new.total_synced}건`, 'success');
@@ -968,7 +969,7 @@ function TaxInvoicesPageInner() {
   const [showBulkIssue, setShowBulkIssue] = useState(false);
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+    invalidateTaxInvoiceReaders(queryClient);   //   원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
   };
 
   const createMut = useMutation({
@@ -1422,7 +1423,7 @@ function TaxInvoicesPageInner() {
     }
     setBatchIssuing(false);
     setSelectedIds(new Set());
-    queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+    invalidateTaxInvoiceReaders(queryClient);   //   원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
     toast(fail === 0 ? `${ok}건 삭제 완료` : `${ok}건 삭제, ${fail}건 실패`, fail === 0 ? "success" : "error");
   }
 
@@ -1440,7 +1441,7 @@ function TaxInvoicesPageInner() {
       }
       toast(`${ok}건 전표처리 완료${fail > 0 ? ` · ${fail}건 실패` : ""}${skip > 0 ? ` · ${skip}건 건너뜀` : ""}`, fail > 0 ? "info" : "success");
       setShowBulkVoucher(false); setBulkVoucherAccountId(""); setSelectedIds(new Set());
-      queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+      invalidateTaxInvoiceReaders(queryClient);   //   원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
     } finally { setBulkVoucherPosting(false); }
   }
 
@@ -2439,7 +2440,7 @@ function TaxInvoicesPageInner() {
           onClose={() => setDealSuggest(null)}
           onDone={() => {
             setDealSuggest(null);
-            queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+            invalidateTaxInvoiceReaders(queryClient);   //   원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
           }} />
       )}
 
@@ -2450,7 +2451,7 @@ function TaxInvoicesPageInner() {
           onDone={() => {
             setIssueConfirm(null);
             setSelectedIds(new Set());
-            queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+            invalidateTaxInvoiceReaders(queryClient);   //   원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
           }} />
       )}
 
@@ -2990,7 +2991,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
         if (alive && res.ok && json?.ok && json.invoice) {
           // 목록 캐시를 갱신하면 열려 있는 상세도 새 값으로 다시 그려진다
           //   (키가 "tax-invoices" 가 아니라 "tax-invoices-full" 이라 종전엔 갱신이 안 됐다)
-          queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+          invalidateTaxInvoiceReaders(queryClient);   //   원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
         } else if (alive && !res.ok) {
           // 조용히 삼키면 왜 안 채워지는지 알 수 없다 — 사유를 눈에 보이게(2026-08-05 사장님 제보)
           const code = json?.code || "";
@@ -3082,7 +3083,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
       if (error) throw error;
       inv.label = newLabel; // 로컬 반영 (목록 재조회 전까지)
       setBilledState(billed);
-      queryClient.invalidateQueries({ queryKey: ['tax-invoices-full'] });
+      invalidateTaxInvoiceReaders(queryClient);
       toast(`영수/청구를 '${token}'(으)로 저장했습니다`, 'success');
     } catch (e: any) {
       toast(`영수/청구 저장 실패: ${e.message}`, 'error');
@@ -3186,7 +3187,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
       const r: any = await issueTaxInvoice(inv.id);
       toast(r?.nts_confirm_no ? `홈택스 발행 완료 (승인번호 ${r.nts_confirm_no})` : '세금계산서가 발행되었습니다', 'success');
       queryClient.invalidateQueries({ queryKey: ['tax-invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['tax-invoices-full'] });
+      invalidateTaxInvoiceReaders(queryClient);
       queryClient.invalidateQueries({ queryKey: ['tax-invoice-issuance-status'] });   // 한도 칩 갱신 (2026-08-19)
       onClose();
     } catch (err: any) {
@@ -3397,7 +3398,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
                   const picked = (deals || []).find((d: any) => d.id === v);
                   inv.deal_id = v || null;
                   inv.deals = v ? { name: picked?.name } : null;
-                  queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+                  invalidateTaxInvoiceReaders(queryClient);   //   원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
                   toast(v ? `'${picked?.name || "프로젝트"}'에 연결되었습니다` : "프로젝트 연결 해제", "success");
                 }}
                 className="px-2 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text)]"
@@ -3418,7 +3419,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
                   const { error } = await (supabase).from("tax_invoices").update({ expense_category: v || null }).eq("id", inv.id);
                   if (error) { toast("계정과목 저장 실패: " + error.message, "error"); return; }
                   inv.expense_category = v || null;
-                  queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+                  invalidateTaxInvoiceReaders(queryClient);   //   원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
                   toast(v
                     ? `'${EXPENSE_CATEGORIES.find((c) => c.value === v)?.label || v}' 지정 — 손익계산서에서 매출원가 대신 판관비로 반영됩니다`
                     : "계정과목 해제 — 매입 계산서는 매출원가로 집계됩니다", "success");

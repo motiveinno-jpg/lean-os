@@ -91,18 +91,14 @@ export function ApprovalsPendingCard({ companyId }: { companyId: string }) {
         const reqs = mine.map((m: any) => ({ id: m.stepId, title: m.title, request_type: m.requestType, amount: m.amount, created_at: m.createdAt }));
         return { docs: [] as any[], reqs, total: reqs.length };
       }
-      // 문서결재(doc_approvals) + 결재허브 대기(approval_requests) — 진짜 '결재 대기'만.
-      //   (2026-08-19 사장님: payment_queue 는 지급 대기라 결재가 끝난 건이 유령처럼 남았고,
-      //    누르면 정기지출로 이동해 헷갈렸다. 오너뷰에 이체 기능이 없어 지급 대기 표시 자체가 불필요.)
-      const [docRes, reqRes] = await Promise.all([
-        db.from("doc_approvals").select("id, created_at, documents(content_type, contract_amount)")
-          .eq("company_id", companyId).eq("status", "pending").order("created_at", { ascending: false }).limit(8),
-        db.from("approval_requests").select("id, title, request_type, amount, created_at")
-          .eq("company_id", companyId).eq("status", "pending").order("created_at", { ascending: false }).limit(8),
-      ]);
-      const docs = (docRes.data || []) as any[];
+      // 결재허브 대기(approval_requests)만 — 진짜 '결재 대기'.
+      //   (2026-08-19 사장님: payment_queue 는 지급 대기라 결재가 끝난 건이 유령처럼 남아 제거.
+      //    2026-08-31: doc_approvals 도 제거 — pending→approved 전이 코드가 없고 /approvals 화면이
+      //    읽지도 않아, 잡히면 영원히 못 없애는 유령이 된다. 같은 구조의 재발 방지.)
+      const reqRes = await db.from("approval_requests").select("id, title, request_type, amount, created_at")
+        .eq("company_id", companyId).eq("status", "pending").order("created_at", { ascending: false }).limit(15);
       const reqs = (reqRes.data || []) as any[];
-      return { docs, reqs, total: docs.length + reqs.length };
+      return { docs: [] as any[], reqs, total: reqs.length };
     },
   });
   const items = [

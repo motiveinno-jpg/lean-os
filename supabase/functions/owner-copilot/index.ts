@@ -1389,18 +1389,21 @@ async function executeReadTool(
         .eq("company_id", companyId)
         .gte("start_at", `${from}T00:00:00+09:00`).lte("start_at", `${to}T23:59:59+09:00`)
         .order("start_at", { ascending: true }).limit(200),
-      admin.from("schedule_todos")
-        .select("title, done, priority, due_date")
+      //   schedule_todos(죽은 테이블 — 2026-08-10 일정 통합 후 쓰기 없음) → schedule_events 의
+      //   날짜 없는 미완료 건 = 현재 '할 일' (2026-08-31 유령 소스 스윕: 완료 불가능한 옛 할 일이
+      //   코파일럿 답변에 영구 '미완료'로 남던 것)
+      admin.from("schedule_events")
+        .select("title, completed, priority, start_at")
         .eq("company_id", companyId)
-        .or(`due_date.is.null,and(due_date.gte.${from},due_date.lte.${to})`)
-        .order("due_date", { ascending: true }).limit(200),
+        .is("start_at", null)
+        .order("priority", { ascending: false }).limit(200),
     ]);
-    const td = (todos ?? []) as { done: boolean | null }[];
+    const td = (todos ?? []) as { completed: boolean | null }[];
     return {
       period: { from, to },
       events: events ?? [],
-      todos: todos ?? [],
-      totals: { events: (events ?? []).length, todos: td.length, todos_open: td.filter((t) => !t.done).length },
+      todos: (todos ?? []).map((t: any) => ({ title: t.title, done: !!t.completed, priority: t.priority, due_date: null })),
+      totals: { events: (events ?? []).length, todos: td.length, todos_open: td.filter((t) => !t.completed).length },
     };
   }
 

@@ -100,7 +100,8 @@ function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; us
 
   const toggleDoneMut = useMutation({
     mutationFn: ({ id, completed }: { id: string; completed: boolean }) => toggleEventCompleted(id, completed),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["schedule-events"] }),
+    //   2026-08-31: schedule-events 만 지워서 목록 탭·메신저 일정·마이페이지에 완료 건이 남았다 — 아래 refresh 와 동일 범위로
+    onSuccess: () => { ["schedule-items", "schedule-events", "chat-cal-events", "chat-schedule-events", "my-todos-open"].forEach((k) => queryClient.invalidateQueries({ queryKey: [k] })); },
     onError: (e: any) => toast(`완료 처리 실패: ${e.message}`, "error"),
   });
 
@@ -301,6 +302,7 @@ function ScheduleListTab({ companyId, userId, toast, tabs }: { companyId: string
     queryClient.invalidateQueries({ queryKey: ["schedule-events"] });
     queryClient.invalidateQueries({ queryKey: ["chat-cal-events"] });
     queryClient.invalidateQueries({ queryKey: ["chat-schedule-events"] });
+    queryClient.invalidateQueries({ queryKey: ["my-todos-open"] });   //   마이페이지 '오늘 할 일' (2026-08-31)
   };
 
   const doneMut = useMutation({

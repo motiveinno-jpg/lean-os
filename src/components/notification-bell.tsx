@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import { resolveNotificationHref, type NotificationRow } from "@/lib/notification-routes";
 import { useUser } from "@/components/user-context";
@@ -28,6 +29,7 @@ function timeAgo(iso: string): string {
 }
 
 export function NotificationBell() {
+  const qc = useQueryClient();
   const { user } = useUser();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -144,6 +146,7 @@ export function NotificationBell() {
       setRows((prev) => prev?.filter((r) => r.id !== n.id) ?? prev);
       setUnread((v) => Math.max(0, v - 1));
       window.dispatchEvent(new Event("sidebar-refresh-badges"));
+      qc.invalidateQueries({ queryKey: ["notifications"] });   //   /notifications 목록에 안읽음이 남던 것 (2026-08-31)
     }
     setOpen(false);
     router.push(resolveNotificationHref(n, quoteMap));
@@ -157,6 +160,7 @@ export function NotificationBell() {
     setRows((prev) => prev?.filter((r) => r.id !== n.id) ?? prev);
     setUnread((v) => Math.max(0, v - 1));
     window.dispatchEvent(new Event("sidebar-refresh-badges"));
+    qc.invalidateQueries({ queryKey: ["notifications"] });
   };
 
   // 모두 읽음 — 이 사용자의 안읽은 알림 전체 읽음 처리
@@ -167,6 +171,7 @@ export function NotificationBell() {
     setRows([]);
     setUnread(0);
     window.dispatchEvent(new Event("sidebar-refresh-badges"));
+    qc.invalidateQueries({ queryKey: ["notifications"] });
   };
 
   return (

@@ -38,6 +38,7 @@ import { QuoteItemsTable } from "./_components/QuoteItemsTable";
 import { QuoteHeader, type QuoteHeaderData } from "./_components/QuoteHeader";
 import { QueryErrorBanner } from "@/components/query-status";
 import { supabase } from "@/lib/supabase";
+import { invalidateTaxInvoiceReaders } from "@/lib/tax-invoice-invalidate";
 import type { Json } from "@/types/models";
 import { useToast } from "@/components/toast";
 import { SortableTh, nextSort, cmp, type SortState, useColFilters } from "@/components/sortable-th";
@@ -1689,7 +1690,7 @@ function DocumentsPageInner() {
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["documents"] });
-    queryClient.invalidateQueries({ queryKey: ["tax-invoices"] });
+    invalidateTaxInvoiceReaders(queryClient);   //   (2026-08-31) 계산서 파생 화면 일괄
     queryClient.invalidateQueries({ queryKey: ["signature-requests"] });
   };
 

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { fetchTaxDeadlineChecks } from "@/lib/tax-deadline-checks";
 
 interface UpcomingScheduleCardProps {
   companyId: string;
@@ -155,10 +156,14 @@ export function UpcomingScheduleCard({ companyId, windowDays = 30 }: UpcomingSch
       const windowEndIso = fmtDateKey(windowEnd);
 
       const db = supabase;
-      const [loans, docs, vault] = await Promise.all([
+      //   2026-08-31 낡은정보 스윕: 상환 끝난 대출·해지한 구독이 만기/갱신 D-day 로 계속 뜨던 것 —
+      //   상태 필터 추가. 세금 마감은 '납부 완료' 체크(tax_deadline_checks)를 읽어 걸러낸다
+      //   (신호 6칸·브리핑은 이미 거르는데 정작 이 카드만 안 걸렀다).
+      const [loans, docs, vault, taxChecked] = await Promise.all([
         db.from("loans")
-          .select("id, name, lender, maturity_date, remaining_balance")
+          .select("id, name, lender, maturity_date, remaining_balance, status")
           .eq("company_id", companyId)
+          .or("status.eq.active,status.is.null")
           .not("maturity_date", "is", null)
           .lte("maturity_date", windowEndIso),
         db.from("documents")
@@ -169,8 +174,10 @@ export function UpcomingScheduleCard({ companyId, windowDays = 30 }: UpcomingSch
         db.from("vault_accounts")
           .select("id, service_name, renewal_date, monthly_cost")
           .eq("company_id", companyId)
+          .eq("status", "active")
           .not("renewal_date", "is", null)
           .lte("renewal_date", windowEndIso),
+        fetchTaxDeadlineChecks(companyId).catch(() => new Set<string>()),
       ]);
 
       const merged: ScheduleItem[] = [];
@@ -220,7 +227,7 @@ export function UpcomingScheduleCard({ companyId, windowDays = 30 }: UpcomingSch
         });
       });
 
-      merged.push(...buildTaxSchedules(today, windowEnd));
+      merged.push(...buildTaxSchedules(today, windowEnd).filter((t) => !taxChecked.has(t.id)));
 
       merged.sort((a, b) => a.daysLeft - b.daysLeft);
       return merged;

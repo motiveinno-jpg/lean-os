@@ -239,13 +239,10 @@ export default function DashboardPage() {
     queryFn: async () => {
       if (!companyId) return 0;
       const db: any = supabase;
-      //   payment_queue 는 결재가 끝나도 pending 으로 남는 유령 소스 — 결재 대기 위젯과 동일하게
-      //   doc_approvals + approval_requests 만 센다 (2026-08-31, 2026-08-19 위젯 결정 준용)
-      const [docRes, reqRes] = await Promise.all([
-        db.from('doc_approvals').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending'),
-        db.from('approval_requests').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending'),
-      ]);
-      return (docRes.count || 0) + (reqRes.count || 0);
+      //   approval_requests(pending)만 센다 (2026-08-31 유령 소스 스윕) — payment_queue 는 결재 후에도
+      //   pending 잔존, doc_approvals 는 pending→approved 전이 코드 자체가 없어 둘 다 못 없애는 카운트가 된다
+      const reqRes = await db.from('approval_requests').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending');
+      return reqRes.count || 0;
     },
     enabled: !!companyId,
     refetchInterval: 60_000,

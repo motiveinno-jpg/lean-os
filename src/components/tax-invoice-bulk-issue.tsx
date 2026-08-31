@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { useToast } from "@/components/toast";
 import { createTaxInvoice, issueTaxInvoice } from "@/lib/tax-invoice";
+import { invalidateTaxInvoiceReaders } from "@/lib/tax-invoice-invalidate";
 import { getTaxInvoiceIssuanceStatus } from "@/lib/billing";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
@@ -194,9 +195,7 @@ export function TaxInvoiceBulkIssueModal({ companyId, onClose }: { companyId: st
     }
     setResults(out);
     setIssuing(false);
-    queryClient.invalidateQueries({ queryKey: ["tax-invoices"] });
-    queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
-    queryClient.invalidateQueries({ queryKey: ["tax-invoice-quota"] });
+    invalidateTaxInvoiceReaders(queryClient);   //   일괄 발행 — 원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
     const ok = out.filter((x) => x.ok).length;
     const fail = out.length - ok;
     toast(

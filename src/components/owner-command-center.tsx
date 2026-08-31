@@ -76,7 +76,8 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
       setBusyId(a.id);
       await approveAction(companyId, a.type as any, a.id, userId);
     },
-    onSuccess: () => { setProcessed((n) => n + 1); toast("승인 완료", "success"); qc.invalidateQueries({ queryKey: ["ceo-pending-actions", companyId] }); },
+    //   2026-08-31: 같은 컴포넌트의 ceo-queue-count 조차 안 지워 승인해도 카운터가 안 줄었다 — 결재 캐시 일괄 무효화
+    onSuccess: () => { setProcessed((n) => n + 1); toast("승인 완료", "success"); ["ceo-pending-actions", "ceo-queue-count", "ceo-approval-summary", "approvals-pending-dashboard", "dash-approvals-pending", "my-pending-approvals", "all-requests", "approval-stats"].forEach((k) => qc.invalidateQueries({ queryKey: [k] })); window.dispatchEvent(new Event("sidebar-refresh-badges")); },
     onError: (e: any) => toast(e?.message || "승인 실패", "error"),
     onSettled: () => setBusyId(null),
   });
@@ -87,7 +88,7 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
       setBusyId(a.id);
       await rejectAction(companyId, a.type as any, a.id, userId, reason);
     },
-    onSuccess: () => { setProcessed((n) => n + 1); toast("반려 완료", "success"); qc.invalidateQueries({ queryKey: ["ceo-pending-actions", companyId] }); },
+    onSuccess: () => { setProcessed((n) => n + 1); toast("반려 완료", "success"); ["ceo-pending-actions", "ceo-queue-count", "ceo-approval-summary", "approvals-pending-dashboard", "dash-approvals-pending", "my-pending-approvals", "all-requests", "approval-stats"].forEach((k) => qc.invalidateQueries({ queryKey: [k] })); window.dispatchEvent(new Event("sidebar-refresh-badges")); },
     onError: (e: any) => toast(e?.message || "반려 실패", "error"),
     onSettled: () => setBusyId(null),
   });

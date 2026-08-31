@@ -33,6 +33,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { invalidateTaxInvoiceReaders } from "@/lib/tax-invoice-invalidate";
 import { logRead } from "@/lib/log-read";
 import { useToast } from "@/components/toast";
 import { createTaxInvoice } from "@/lib/tax-invoice";
@@ -563,7 +564,7 @@ export function BoardDocModal({
       supplyAmount: issueSupply, issueDate, label: invLabel(issueTerm), status: "draft",
       itemName: itemName || undefined, taxKind: TAX_KIND[taxType],
     });
-    qc.invalidateQueries({ queryKey: ["tax-invoices"] });
+    invalidateTaxInvoiceReaders(qc);   //   (2026-08-31) /tax-invoices 메인 목록 포함 파생 화면 일괄
     qc.invalidateQueries({ queryKey: ["pb-doc-invoices", dealId] });
     toast(`${invLabel(issueTerm)} ${won(issueSupply)}원을 발행 대기로 만들었습니다. 세금계산서 화면에서 발행하세요.`, "success");
     onIssued();

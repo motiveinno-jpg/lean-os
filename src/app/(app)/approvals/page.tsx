@@ -699,13 +699,13 @@ export default function ApprovalsPage() {
   }, []);
 
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ["my-pending-approvals"] });
-    queryClient.invalidateQueries({ queryKey: ["my-pending-approvals"] });
-    queryClient.invalidateQueries({ queryKey: ["my-requests"] });
-    queryClient.invalidateQueries({ queryKey: ["referenced-requests"] });
-    queryClient.invalidateQueries({ queryKey: ["all-requests"] });
-    queryClient.invalidateQueries({ queryKey: ["approval-stats"] });
-    queryClient.invalidateQueries({ queryKey: ["approval-policies"] });
+    //   2026-08-31: 결재 처리 후 대시보드·마이페이지·프로젝트의 결재 캐시가 최대 1분 낡아
+    //   "이미 처리한 결재가 계속 떠 있다"가 됐다 — 같은 테이블을 읽는 키 전부 + 사이드바 배지.
+    ["my-pending-approvals", "my-processed-approvals", "my-requests", "my-requests-pending", "referenced-requests",
+     "all-requests", "approval-stats", "approval-policies", "approval-timeline",
+     "approvals-pending-dashboard", "dash-approvals-pending", "ceo-pending-actions", "ceo-approval-summary", "ceo-queue-count",
+     "projecthub-approvals", "deal-approvals"].forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
+    window.dispatchEvent(new Event("sidebar-refresh-badges"));
   };
 
   // Stats — 2026-07-21 QA: 전체 현황·양식/정책(관리 탭)에서만 회사 전체 집계,

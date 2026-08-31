@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DateRangeField } from "@/components/date-range-field";
 import { friendlyError } from "@/lib/friendly-error";
 import { supabase } from "@/lib/supabase";
+import { invalidateTaxInvoiceReaders } from "@/lib/tax-invoice-invalidate";
 import { getCurrentUser } from "@/lib/queries";
 import { fetchPaged } from "@/lib/fetch-paged";
 import { QueryErrorBanner } from "@/components/query-status";
@@ -268,7 +269,7 @@ export default function EInvoicesPage() {
         queryClient.setQueryData(["einvoice-sync-job", activeJobId], payload.new);
         if (TERMINAL.has(payload.new.status)) {
           setActiveJobId(null);
-          queryClient.invalidateQueries({ queryKey: ["e-invoices"] });
+          invalidateTaxInvoiceReaders(queryClient);   //   전자계산서도 tax_invoices — 원장·요약 일괄 (2026-08-31)
           if (payload.new.status === "completed") {
             const synced = payload.new.total_synced || 0;
             const errs = payload.new.errors || [];
@@ -293,7 +294,7 @@ export default function EInvoicesPage() {
     if (!activeJob || !activeJobId) return;
     if (TERMINAL.has((activeJob as any).status)) {
       setActiveJobId(null);
-      queryClient.invalidateQueries({ queryKey: ["e-invoices"] });
+      invalidateTaxInvoiceReaders(queryClient);   //   전자계산서도 tax_invoices — 원장·요약 일괄 (2026-08-31)
       return;
     }
     const upd = (activeJob as any).updated_at ? new Date((activeJob as any).updated_at).getTime() : 0;
@@ -305,7 +306,7 @@ export default function EInvoicesPage() {
     await supabase.from("hometax_sync_jobs").update({ status: "failed", updated_at: new Date().toISOString() })
       .eq("id", jid).in("status", ["pending", "running"]);
     setActiveJobId(null);
-    queryClient.invalidateQueries({ queryKey: ["e-invoices"] });
+    invalidateTaxInvoiceReaders(queryClient);   //   전자계산서도 tax_invoices — 원장·요약 일괄 (2026-08-31)
   };
 
   // ─── 동기화 시작 (백그라운드 잡, jobType=exempt_invoice) ───

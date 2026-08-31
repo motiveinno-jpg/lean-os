@@ -7,7 +7,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { logRead } from "@/lib/log-read";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
@@ -23,7 +25,8 @@ const man = (n: number) => { const a = Math.abs(n), sg = n < 0 ? "−" : ""; ret
 const TONE_TXT: Record<Tone, string> = { g: "안정", y: "주의", r: "위험" };
 const shift = (ym: string, n: number) => { const [y, m] = ym.split("-").map(Number); const t = y * 12 + (m - 1) + n; return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, "0")}`; };
 const monthLabel = (ym: string) => `${ym.slice(0, 4)}년 ${Number(ym.slice(5))}월`;
-//   챙길 것 체크 — 이번 주(월요일 기준) 동안 숨긴다. 로컬 값(사용자·PC별). 서버 저장은 다음 단계.
+//   챙길 것 체크 — 이번 주(월요일 기준) 동안 숨긴다. 2026-08-31 서버(weekly_todo_checks) 저장으로 전환:
+//   localStorage(사용자·PC별)는 다른 기기에서 다시 나타나거나, 미해결인데 한 기기에서만 숨겨졌다.
 const weekKey = (d: string) => { const t = new Date(d + "T00:00:00"); const dow = (t.getDay() + 6) % 7; t.setDate(t.getDate() - dow); return t.toISOString().slice(0, 10); };
 
 function Pct({ cur, prev, invert }: { cur: number; prev: number; invert?: boolean }) {
@@ -40,11 +43,33 @@ export default function ManagementSummaryPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const thisMonth = todayKst().slice(0, 7);
   const [month, setMonth] = useState(thisMonth);
-  const [done, setDone] = useState<Set<string>>(new Set());
   useEffect(() => { getCurrentUser().then((u) => { if (u) { setCompanyId(u.company_id); setUserId(u.id); } }); }, []);
-  const doneKey = companyId ? `bizsum-done:${companyId}:${weekKey(todayKst())}` : null;
-  useEffect(() => { if (!doneKey) return; try { setDone(new Set(JSON.parse(localStorage.getItem(doneKey) || "[]"))); } catch { setDone(new Set()); } }, [doneKey]);
-  const toggleDone = (k: string) => setDone((d) => { const n = new Set(d); if (n.has(k)) n.delete(k); else n.add(k); if (doneKey) localStorage.setItem(doneKey, JSON.stringify([...n])); return n; });
+  const qcW = useQueryClient();
+  const wk = weekKey(todayKst());
+  const { data: done = new Set<string>() } = useQuery({
+    queryKey: ["weekly-todo-checks", companyId, wk],
+    enabled: !!companyId,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const data = logRead("reports/summary:checks", await (supabase as any).from("weekly_todo_checks")
+        .select("todo_key").eq("company_id", companyId!).eq("week_key", wk));
+      return new Set(((data || []) as { todo_key: string }[]).map((r) => r.todo_key));
+    },
+  });
+  const toggleDone = async (k: string) => {
+    if (!companyId) return;
+    try {
+      if (done.has(k)) {
+        await (supabase as any).from("weekly_todo_checks").delete()
+          .eq("company_id", companyId).eq("week_key", wk).eq("todo_key", k);
+      } else {
+        await (supabase as any).from("weekly_todo_checks").upsert(
+          { company_id: companyId, week_key: wk, todo_key: k, checked_by: userId },
+          { onConflict: "company_id,week_key,todo_key" });
+      }
+      qcW.invalidateQueries({ queryKey: ["weekly-todo-checks"] });
+    } catch { /* 실패 시 다음 클릭에서 재시도 */ }
+  };
 
   const { data: s, isLoading } = useQuery({
     queryKey: ["biz-summary", companyId, month],

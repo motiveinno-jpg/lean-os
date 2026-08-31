@@ -494,13 +494,10 @@ export function Sidebar() {
         const dismissedAt = typeof window !== 'undefined'
           ? localStorage.getItem('approvals-dismissed-at')
           : null;
-        let docQ = db.from("doc_approvals").select("id", { count: "exact", head: true })
-          .eq("approver_id", u.id).eq("status", "pending");
-        // 지급 대기(payment_queue)는 회사 전체 건이라 본인 필터가 없음 — 승인 권한 있는
-        // 대표/관리자만 카운트. 직원은 결재자도 참조자도 아닌 건이 배지에 잡히던 버그(2026-07-29).
-        const canApprovePayments = !!(u as any).is_master; // (P3) 결제 승인 배지 — 마스터 기준(멤버 perm 연동은 P4)
-        let payQ = db.from("payment_queue").select("id", { count: "exact", head: true })
-          .eq("company_id", u.company_id).eq("status", "pending");
+        //   2026-08-31 유령 소스 제거: doc_approvals 는 pending→approved 전이 코드가 저장소에 없고
+        //   /approvals 화면이 읽지도 않는다 — 배지에 잡히면 눌러도 영원히 못 없앤다(payment_queue 와 동일 구조.
+        //   payment_queue 는 결재가 끝나도 pending 으로 남아 8/19 위젯에서 제거된 소스인데 배지에 남아 있었다).
+        //   배지 = 내 결재 차례(approval_steps)만.
         let stepQ = db.from("approval_steps")
           .select("id, stage, created_at, approval_requests!inner(current_stage, status, company_id)")
           .eq("approver_id", u.id)
@@ -508,19 +505,13 @@ export function Sidebar() {
           .eq("approval_requests.status", "pending")
           .eq("approval_requests.company_id", u.company_id);
         if (dismissedAt) {
-          docQ = docQ.gt("created_at", dismissedAt);
-          payQ = payQ.gt("created_at", dismissedAt);
           stepQ = stepQ.gt("created_at", dismissedAt);
         }
-        const [{ count: docCount }, payRes, { data: pendingSteps }] = await Promise.all([
-          docQ,
-          canApprovePayments ? payQ : Promise.resolve({ count: 0 }),
-          stepQ,
-        ]);
+        const { data: pendingSteps } = await stepQ;
         const myStepCount = (pendingSteps || []).filter(
           (s: any) => s.stage === s.approval_requests?.current_stage
         ).length;
-        setApprovalsPending((docCount ?? 0) + (payRes.count ?? 0) + myStepCount);
+        setApprovalsPending(myStepCount);
       } catch {}
       // notifications unread count — 모든 역할(대표/관리자/직원) 공통
       try {
