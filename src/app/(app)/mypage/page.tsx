@@ -11,7 +11,7 @@ import { Avatar } from "@/components/avatar";
 import { QueryScreen, QueryHead, QueryBody, ResultStrip, Stat } from "@/components/query-kit";
 import Link from "next/link";
 import { getMyPendingApprovals } from "@/lib/approval-workflow";
-import { getTodos } from "@/lib/schedule";
+import { getScheduleItems } from "@/lib/schedule";
 import { todayKst } from "@/lib/kst";
 import { useToast } from "@/components/toast";
 // 개인 계정 영역 — 회사 설정에서 마이페이지로 이관(2026-07-08). 컴포넌트 위치는 유지, 마운트만 옮김.
@@ -357,7 +357,10 @@ export default function MyPage() {
     },
   });
   const signPending = signPackages.filter((p: any) => ["sent", "partially_signed"].includes(p.status) && !(p.expires_at && new Date(p.expires_at) < new Date()));
-  const { data: todosToday = [] } = useQuery({ queryKey: ["my-todos-open", userId], enabled: !!userId, staleTime: 60_000, queryFn: async () => (await getTodos(userId!)).filter((t: any) => !t.due_date || t.due_date <= todayStr) });
+  //   schedule_todos(2026-08-10 일정 통합 후 죽은 테이블) → schedule_events 로 교체 (2026-08-31) — 완료 불가능한 옛 할 일이 "처리할 것"에 영구 잔류하던 것
+  const { data: todosToday = [] } = useQuery({ queryKey: ["my-todos-open", companyId, userId], enabled: !!userId && !!companyId, staleTime: 60_000, queryFn: async () => (await getScheduleItems(companyId!, { mineOnly: true, userId: userId! }))
+    .filter((t: any) => !t.completed && (!t.start_at || String(t.start_at).slice(0, 10) <= todayStr))
+    .map((t: any) => ({ ...t, due_date: t.start_at ? String(t.start_at).slice(0, 10) : null })) });
   const { data: recentNotices = [] } = useQuery({
     queryKey: ["my-recent-notices", companyId], enabled: !!companyId, staleTime: 60_000,
     queryFn: async () => { const data = logRead("mypage:notices", await supabase.from("announcements").select("id, title, created_at").eq("company_id", companyId!).order("created_at", { ascending: false }).limit(3)); return (data || []) as any[]; },

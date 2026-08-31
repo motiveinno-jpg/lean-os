@@ -18,7 +18,11 @@ import { Fragment, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { getTodos } from "@/lib/schedule";
+//   getTodos(schedule_todos) → getScheduleItems(schedule_events) (2026-08-31): schedule_todos 는
+//   2026-08-10 일정 통합 이후 쓰기 코드가 없는 죽은 테이블 — 완료 불가능한 옛 할 일이
+//   매일 브리핑에 "기한 지남"으로 공급돼 거짓 항목을 만들었다(사장님 제보).
+import { getScheduleItems } from "@/lib/schedule";
+import { useUser } from "@/components/user-context";
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import type { CashPulseResult } from "@/lib/cash-pulse";
 import type { FounderDashboardData } from "@/lib/engines";
@@ -171,7 +175,10 @@ export function MorningBrief({
   //   훅 순서 보존을 위해 early return 앞에 선언, enabled 로 데이터 있을 때만 호출.
   const queryClient = useQueryClient();
   const [regenerating, setRegenerating] = useState(false);
-  const briefKey = ["ai-briefing", formatTodayKorean(now)];
+  const { user: briefUser } = useUser();
+  const myCompanyId = (briefUser as any)?.company_id as string | undefined;
+  //   키에 회사 id 포함 (2026-08-31) — 없으면 회사 전환(SPA화 시) 때 타사 브리핑이 캐시로 남는다
+  const briefKey = ["ai-briefing", myCompanyId, formatTodayKorean(now)];
 
   // 요청 페이로드 조립 — 최초 생성과 '다시 생성' 공용
   const buildBriefPayload = async () => {
@@ -191,35 +198,45 @@ export function MorningBrief({
     const todayStr = todayKst();
     const taxDeadlines = getUpcomingTaxDeadlines(30).slice(0, 4).map((t) => ({ title: t.title, daysLeft: t.daysLeft }));
     let todos: Array<{ title: string; priority: number; dueDate: string | null; overdue: boolean }> = [];
-    if (userId) {
+    if (userId && myCompanyId) {
       try {
-        const rows = await getTodos(userId, { includeDone: false });
-        todos = rows.slice(0, 8).map((t) => ({
+        //   살아있는 할 일(일정 통합 테이블의 내 미완료 건)만 공급 — 완료하면 다음 생성부터 빠진다
+        const rows = await getScheduleItems(myCompanyId, { mineOnly: true, userId });
+        todos = rows.filter((t) => !t.completed).slice(0, 8).map((t) => ({
           title: t.title,
           priority: t.priority,
-          dueDate: t.due_date,
-          overdue: !!t.due_date && t.due_date < todayStr,
+          dueDate: t.start_at ? String(t.start_at).slice(0, 10) : null,
+          overdue: !!t.start_at && String(t.start_at).slice(0, 10) < todayStr,
         }));
       } catch { /* 할 일 조회 실패는 무시 — 브리핑은 재무만으로도 생성 */ }
     }
     return { nums, actions: { taxDeadlines, todos }, companyName };
   };
 
-  const aiBrief = useQuery({
+  const aiBriefData = useQuery({
     queryKey: briefKey,
     enabled: hasData && !!cashPulse && aiBriefingEnabled,
     staleTime: 6 * 60 * 60 * 1000,
     retry: false,
-    queryFn: async (): Promise<string | null> => {
+    queryFn: async (): Promise<{ content: string; generatedAt: string | null } | null> => {
       const payload = await buildBriefPayload();
       if (!payload) return null;
       try {
         const { data, error } = await supabase.functions.invoke("ai-briefing", { body: payload });
-        if (error) return null;
-        return (data?.content as string) || null;
+        if (error || !data?.content) return null;
+        //   생성 시각 — "오늘 생성"으로 뭉뚱그리면 아침 스냅샷을 저녁까지 최신으로 오독한다 (2026-08-31 사장님 제보).
+        //   company_id 명시: 운영자 계정은 RLS 예외로 타사 행이 잡힐 수 있다.
+        let generatedAt: string | null = null;
+        try {
+          const { data: row } = await (supabase as any).from("ai_briefings").select("created_at")
+            .eq("company_id", myCompanyId ?? "").eq("brief_date", todayKst()).maybeSingle();
+          generatedAt = row?.created_at ?? null;
+        } catch { /* 시각 조회 실패는 표기만 생략 */ }
+        return { content: data.content as string, generatedAt };
       } catch { return null; }
     },
   }).data ?? null;
+  const aiBrief = aiBriefData?.content ?? null;
 
   // '다시 생성' — 캐시 무시하고 최신 데이터로 재생성 (오후에 상황이 바뀌었을 때)
   const regenerateBrief = async () => {
@@ -229,7 +246,7 @@ export function MorningBrief({
       const payload = await buildBriefPayload();
       if (!payload) return;
       const { data, error } = await supabase.functions.invoke("ai-briefing", { body: { ...payload, force: true } });
-      if (!error && data?.content) queryClient.setQueryData(briefKey, data.content as string);
+      if (!error && data?.content) queryClient.setQueryData(briefKey, { content: data.content as string, generatedAt: new Date().toISOString() });
     } catch { /* 실패 시 기존 브리핑 유지 */ }
     finally { setRegenerating(false); }
   };
@@ -368,7 +385,12 @@ export function MorningBrief({
   const hasExtra = Boolean(line3 || progressLine || hasTx);
 
   //   (2026-08-19) 숫자 스트립은 여기서 빠져 대시보드 층 1 '신호 6칸'(dashboard-signals.tsx)이 됐다 — 경영 요약과 같은 함수.
-  const genLabel = briefPlan ? "오늘 생성" : null;
+  //   생성 시각 명시 (2026-08-31) — 스냅샷임을 알린다. 이후 처리한 일은 ↻ 로만 갱신된다.
+  const genLabel = briefPlan
+    ? (aiBriefData?.generatedAt
+        ? `${new Date(aiBriefData.generatedAt).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" })} 생성`
+        : "오늘 생성")
+    : null;
 
   return (
     <section className="morning-brief-card glass-card brief-compact">
@@ -376,7 +398,7 @@ export function MorningBrief({
       <div className="brief-head">
         <span className="text-[13px] font-bold text-[var(--text)]">오늘 챙길 것</span>
         {aiBrief ? <span className="brief-src">AI 제안</span> : <span className="brief-src">규칙 요약</span>}
-        {genLabel && <span className="text-[11px] text-[var(--text-dim)]">{genLabel}</span>}
+        {genLabel && <span className="text-[11px] text-[var(--text-dim)]" title="이 시각의 스냅샷입니다 — 이후 처리한 일은 ↻ 다시 생성을 눌러야 반영됩니다">{genLabel}</span>}
         <span className="flex-1" />
         {aiBriefingEnabled && (
           <button type="button" onClick={regenerateBrief} disabled={regenerating} className="btn-secondary btn-sm"

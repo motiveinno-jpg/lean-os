@@ -56,23 +56,27 @@ async function collectSnapshot(admin: ReturnType<typeof createClient>, companyId
   const out: string[] = [];
   // 1) 30일+ 미수 상위 거래처 (이름·금액·최장 경과) — "누구한테 얼마 받을지"를 콕 집게
   try {
+    //   2026-08-31 정정: draft(미발행)를 미수로 세고 부분입금(settled_amount)을 안 빼던 것 —
+    //   브리핑이 실제보다 부풀린 미수를 말하는 원인. 발행분 잔액 기준으로 통일(data-health §90일 미정산과 동일 사상).
     const { data } = await admin.from("tax_invoices")
-      .select("counterparty_name, total_amount, issue_date")
+      .select("counterparty_name, total_amount, settled_amount, issue_date")
       .eq("company_id", companyId).eq("type", "sales")
-      .not("status", "in", "(matched,void)")
+      .not("status", "in", "(matched,void,draft,cancelled)")
       .lte("issue_date", d30).order("total_amount", { ascending: false }).limit(200);
     if (data && data.length) {
       const byName = new Map<string, { sum: number; oldest: string }>();
       for (const r of data as any[]) {
+        const outstanding = Number(r.total_amount || 0) - Number(r.settled_amount || 0);
+        if (outstanding <= 1) continue; // 이미 다 받은 계산서는 미수가 아니다
         const k = String(r.counterparty_name || "미상").replace(/\+/g, " ");
         const cur = byName.get(k) || { sum: 0, oldest: r.issue_date };
-        cur.sum += Number(r.total_amount || 0);
+        cur.sum += outstanding;
         if (r.issue_date < cur.oldest) cur.oldest = r.issue_date;
         byName.set(k, cur);
       }
       const top = [...byName.entries()].sort((a, b) => b[1].sum - a[1].sum).slice(0, 5);
       const days = (d: string) => Math.round((kstNow.getTime() - new Date(d).getTime()) / 86400000);
-      out.push("30일+ 미수 상위 거래처(미매칭 매출 계산서 기준):\n" +
+      out.push("30일+ 미수 상위 거래처(발행 매출 계산서의 미정산 잔액 기준):\n" +
         top.map(([n, v]) => `- ${n}: ${won(v.sum)} (최장 ${days(v.oldest)}일 경과)`).join("\n"));
     }
   } catch { /* skip */ }
@@ -91,10 +95,11 @@ async function collectSnapshot(admin: ReturnType<typeof createClient>, companyId
   // 3) 매출 추이 — 이번달 vs 지난달(전체)
   try {
     const [cur, prv] = await Promise.all([
+      //   draft(미발행)는 매출 추이에서도 제외 (2026-08-31)
       admin.from("tax_invoices").select("supply_amount").eq("company_id", companyId)
-        .eq("type", "sales").neq("status", "void").gte("issue_date", monthStart),
+        .eq("type", "sales").not("status", "in", "(void,draft,cancelled)").gte("issue_date", monthStart),
       admin.from("tax_invoices").select("supply_amount").eq("company_id", companyId)
-        .eq("type", "sales").neq("status", "void").gte("issue_date", prevStart).lt("issue_date", monthStart),
+        .eq("type", "sales").not("status", "in", "(void,draft,cancelled)").gte("issue_date", prevStart).lt("issue_date", monthStart),
     ]);
     const sum = (d: any) => (d.data || []).reduce((s: number, r: any) => s + Number(r.supply_amount || 0), 0);
     out.push(`매출(공급가): 이번달 현재 ${won(sum(cur))} / 지난달 전체 ${won(sum(prv))}`);

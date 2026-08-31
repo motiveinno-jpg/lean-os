@@ -2339,14 +2339,16 @@ export async function getCashPulseData(companyId: string, userId?: string) {
   const receivedCount = (revenue.data || []).filter((r: any) => r.status === 'received').length;
   const matchedRate = totalRevItems > 0 ? receivedCount / totalRevItems : 0;
 
-  // Pending approvals count: user-specific approval steps + doc reviews + payment queue pending
-  const pendingPaymentCount = (paymentQ.data || []).filter((p: any) => p.status === 'pending').length;
+  // Pending approvals count — 내 결재 차례(approval_steps)만 센다 (2026-08-31 정정).
+  //   payment_queue 는 "결재가 끝난 건이 유령처럼 남는" 소스라 2026-08-19에 결재 대기 위젯에서
+  //   이미 제거됐는데 여기엔 남아 '오늘 챙길 것' 규칙 브리핑의 대기 건수를 부풀렸다.
+  //   documents(status='review') 도 결재 허브와 무관한 별개 상태라 함께 뺀다.
   const myStepCount = userId
     ? (myApprovalSteps.data || []).filter(
         (s: any) => s.stage === s.approval_requests?.current_stage
       ).length
     : 0;
-  const pendingApprovalCount = myStepCount + (approvalItems.data || []).length + pendingPaymentCount;
+  const pendingApprovalCount = myStepCount;
 
   // Risk count from financial_items
   const riskCount = (riskItems.data || []).length;

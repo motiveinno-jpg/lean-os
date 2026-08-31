@@ -238,11 +238,13 @@ export default function DashboardPage() {
     queryFn: async () => {
       if (!companyId) return 0;
       const db: any = supabase;
-      const [docRes, payRes] = await Promise.all([
+      //   payment_queue 는 결재가 끝나도 pending 으로 남는 유령 소스 — 결재 대기 위젯과 동일하게
+      //   doc_approvals + approval_requests 만 센다 (2026-08-31, 2026-08-19 위젯 결정 준용)
+      const [docRes, reqRes] = await Promise.all([
         db.from('doc_approvals').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending'),
-        db.from('payment_queue').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending'),
+        db.from('approval_requests').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending'),
       ]);
-      return (docRes.count || 0) + (payRes.count || 0);
+      return (docRes.count || 0) + (reqRes.count || 0);
     },
     enabled: !!companyId,
     refetchInterval: 60_000,
@@ -855,7 +857,10 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
     setToggling(t.id);
     try {
       await toggleEventCompleted(t.id, true);
+      //   같은 schedule_events 를 읽는 캐시 전부 무효화 (2026-08-31) — schedule-items 만 지우면
+      //   일정 목록·캘린더에 완료된 건이 최대 1분+ 남아 "이미 처리한 게 보인다"가 됐다
       queryClient.invalidateQueries({ queryKey: ["schedule-items"] });
+      queryClient.invalidateQueries({ queryKey: ["schedule-events"] });
       toast("할일 완료 처리", "success");
     } catch (err: any) {
       toast(friendlyError(err, "처리에 실패했습니다"), "error");
