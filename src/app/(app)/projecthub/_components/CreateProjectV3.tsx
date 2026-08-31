@@ -12,7 +12,7 @@ import { useToast } from "@/components/toast";
 
 const db = supabase as any;
 
-export function CreateProjectV3({ companyId, onClose }: {
+export function CreateProjectV3({ companyId, userId, onClose }: {
   companyId: string; userId?: string | null; onClose: () => void;
 }) {
   const router = useRouter();
@@ -30,9 +30,16 @@ export function CreateProjectV3({ companyId, onClose }: {
       //   더 필요하면 하단 ＋새 그룹") — monday 새 보드와 같은 흐름. 3단계 기본은 폐기.
       const { data: deal, error } = await db.from("deals").insert({
         company_id: companyId, name: nm, stage: "estimate",
+        //   만든 사람이 곧 담당자 (2026-08-31 사장님: "내가 생성하면 나는 담당자로 들어가야")
+        internal_manager_id: userId ?? null,
         item_stages: [{ id: `g_${Date.now().toString(36)}`, label: "새 그룹", color: "indigo" }],
       }).select("id").single();
       if (error) throw new Error(error.message);
+      if (userId) {
+        //   참여자 표에도 넣는다 — '내 담당' 목록·담당 판정이 이 표 기준. 실패해도 생성은 유효
+        //   (internal_manager_id 가 안전판이라 담당으로는 보인다)
+        await db.from("project_members").insert({ company_id: companyId, deal_id: deal.id, user_id: userId });
+      }
       toast(`'${nm}' 프로젝트를 만들었습니다 — 표에 바로 적으면 됩니다`);
       onClose();
       router.push(`/projecthub/${deal.id}`);

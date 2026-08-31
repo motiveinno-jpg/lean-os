@@ -30,9 +30,7 @@ import { useCanAccessTab } from "@/lib/tab-access";
 import { useMyPermissions } from "@/lib/permissions";
 import { useFeature } from "@/lib/use-feature";
 import { CreateProjectV3 } from "./_components/CreateProjectV3";
-import { PerformanceDashboard } from "./_components/PerformanceDashboard";
 import { QuietCheckins } from "./_components/QuietCheckins";
-import { PeopleView } from "./_components/PeopleView";
 import { rollupProject, listStatusOf, listReasons, type ProjectRollup, type ListStatus } from "@/lib/project-list-summary";
 import { BOARD_TEMPLATES } from "@/lib/project-boards";
 // 워크플로우 보드 — 회사 전체 프로젝트를 커스텀 컬럼으로 보는 도구. 실행형 프로젝트 상세 탭에
@@ -61,7 +59,6 @@ const LENS_OPTS = [["", "전체"], ["late", "기한 지남"], ["warn", "이번 �
 export default function ProjectHubPage() {
   const { user, role } = useUser();
   const companyId = user?.company_id ?? null;
-  const isManager = true; // (P3) 프로젝트 권한 보유자 전원 관리 뷰
   const router = useRouter();
   const { toast } = useToast();
   const { allowed: tabAllowed, loading: tabLoading } = useCanAccessTab("/projecthub");
@@ -71,7 +68,6 @@ export default function ProjectHubPage() {
   const canViewAllProjects = projMaster || projHasPerm("/projecthub:all");
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
-  const [showDashboard, setShowDashboard] = useState(false); // 성과 대시보드(사람별·부서별) — 관리자 토글. 유형 폐지로 전 프로젝트 대상
   const [editDeal, setEditDeal] = useState<any | null>(null);
   const [delDeal, setDelDeal] = useState<any | null>(null);
   // 콕핏(2026-07-22) — "지금 챙길 것" 렌즈 필터 + 카드 ⋯메뉴 열림 상태
@@ -320,7 +316,6 @@ export default function ProjectHubPage() {
   //   보기(목록/담당별)는 상자 안 갈래 탭. ★ 기억하지 않는다 — 조회 화면 표준(조회값 자동 기억 금지). 기본은 목록.
   const [listView, setListView] = useState<string>("table");
   const [calMonth, setCalMonth] = useState(0); // 캘린더 보기 — 이번 달 기준 오프셋
-  const pickListView = (v: string) => setListView(v);
   // 2026-07-20 QA: 전역 검색(⌘K)에서 프로젝트 결과 클릭 시 ?q=<이름> 딥링크로 진입 —
   //   검색어를 초기값으로 물려받고, 남의 담당 프로젝트도 보이도록 내담당 필터는 해제 상태로 시작.
   const searchParams = useSearchParams();
@@ -582,7 +577,7 @@ export default function ProjectHubPage() {
   const paramsNow = { view: listView, q: search, mine: mineOnly, lens, cond: live };
   const paramsBasic = { view: "table", q: "", mine: true, lens: null, cond: EMPTY_COND };
   const applySaved = (p: Record<string, unknown>) => {
-    if (p.view === "table" || p.view === "people") setListView(p.view);
+    if (p.view === "table") setListView(p.view); // '담당별'은 2026-08-31 제거 — 저장된 내 조건에 남아 있어도 목록으로
     if (typeof p.q === "string") setSearch(p.q);
     if (typeof p.mine === "boolean") setMineOnly(p.mine);
     if (p.lens === null || typeof p.lens === "string") setLens((p.lens as ProjectStatusKey | null) ?? null);
@@ -636,18 +631,8 @@ export default function ProjectHubPage() {
       {/* ── 조회 화면 표준 — 보기 탭 · 조회 줄 · 걸린 조건 · 결과 요약 · 표 · 쪽 넘김 (2026-08-18 Wave 3) ── */}
       <QueryScreen>
         <QueryHead>
-          {/* 보기 — 둘만(목록·담당별). 보드·캘린더·분석은 계약·마감(회계) 전제라 새 구조에선 대부분 빈다 (2026-08-03) */}
-          <div className="collect-tabs no-print">
-            {([["table", "목록"], ["people", "담당별"]] as const).map(([k, label]) => (
-              <button key={k} type="button" onClick={() => pickListView(k)}
-                className={listView === k ? "collect-tab collect-tab-on" : "collect-tab"}>{label}</button>
-            ))}
-          </div>
-
+          {/* 보기 탭·성과 대시보드는 뺐다 (2026-08-31 사장님: "성과 대시보드 필요 없을 것 같아, 담당별도") — 목록 하나만 */}
           <QueryBar right={<>
-            {isManager && (
-              <button type="button" onClick={() => setShowDashboard((v) => !v)} className={`btn-sm ${showDashboard ? "btn-primary" : "btn-secondary"}`}>성과 대시보드</button>
-            )}
             <button type="button" onClick={() => setShowCreate(true)} className="btn-primary btn-sm">+ 프로젝트 생성</button>
           </>}>
             {/* 프로젝트는 기간이 없는 목록이라 조회 줄이 [검색조건] 으로 시작한다 */}
@@ -724,11 +709,6 @@ export default function ProjectHubPage() {
 
         <QueryBody>
          <div className={listView === "table" && rows.length > 0 && !isLoading ? "ev-scroll" : "ph-scroll"}>
-
-      {/* 성과 대시보드 — 사람별·부서별·입력률 집계. 유형 폐지로 전 프로젝트 대상이 됐다 */}
-      {showDashboard && companyId && (
-        <PerformanceDashboard companyId={companyId} onClose={() => setShowDashboard(false)} />
-      )}
 
       {/* 생성 v3 — feature_on 켜진 회사(모티브 먼저)는 시작 꾸러미(기획 v2.6 결정 0-7),
           나머지는 기존 템플릿 고르기 흐름 그대로 */}
@@ -839,15 +819,6 @@ export default function ProjectHubPage() {
       ) : listView === "cal" ? (
         <ProjectCalendar rows={rows as any[]} monthOffset={calMonth}
           onMonth={(d) => setCalMonth((m) => m + d)}
-          onOpen={(id) => router.push(`/projecthub/${id}`)} />
-      ) : listView === "people" ? (
-        <PeopleView rows={rows as any[]}
-          statusOf={(d: any) => statusOf(d)}
-          progressOf={(d: any) => (headlineByDeal[d.id]?.raw != null ? headlineByDeal[d.id].pct : null)}
-          outstandingOf={(id) => outstandingByDeal[id] || 0}
-          userName={(id) => userName[id || ""] || ""}
-          membersOf={(id) => membersOfDeal((rows as any[]).find((r) => r.id === id))}
-          won={won}
           onOpen={(id) => router.push(`/projecthub/${id}`)} />
       ) : (
         /* 한 리스트로 본다 — 같은 프로젝트를 위(카드)와 아래(표)로 나누니 헷갈렸다
