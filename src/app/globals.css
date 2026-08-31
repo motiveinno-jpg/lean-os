@@ -9537,3 +9537,14 @@ table.phv3-table { min-width: 640px; }
 .pjv3-sheet .pjv3-addgroup td { @apply border-r-0 px-3 py-1.5 text-left; }
 .pjv3-addgroup button { @apply rounded-lg border border-dashed border-[var(--border)] px-2.5 py-1 text-xs text-[var(--text-dim)]; font: inherit; background: none; cursor: pointer; }
 .pjv3-addgroup button:hover { @apply border-[var(--primary)] text-[var(--primary)]; }
+
+/* pjv3 — 우리 회사 양식(4단계): 저장 폼·지우기·그룹 줄 */
+.pjv3-tpl-save { @apply mb-1 flex items-center gap-1.5; }
+.pjv3-tpl-save input { @apply min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2.5 py-1.5 text-xs text-[var(--text)] outline-none placeholder:text-[var(--text-dim)]; }
+.pjv3-tpl-save input:focus { @apply border-[var(--primary)]; }
+.pjv3-tpl-save button { @apply whitespace-nowrap; }
+.pjv3-tpl-x { @apply float-right cursor-pointer rounded px-1 text-[10px] font-normal text-[var(--text-dim)]; }
+.pjv3-tpl-x:hover { @apply text-[var(--danger)]; }
+.pjv3-tpl-x.arm { @apply bg-[var(--danger)] text-white; }
+.pjv3-tpl-stagerow { @apply mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--text-dim)]; }
+.pjv3-tpl-stagerow em { @apply not-italic text-[10px]; }

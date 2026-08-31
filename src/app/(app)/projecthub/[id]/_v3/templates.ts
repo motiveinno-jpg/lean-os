@@ -15,7 +15,7 @@
 //   Evaluation·설비 요청)한 뒤 소상공인·중소기업 용어로 덜어내 8카테고리 26종으로 재설계.
 //   담당·상태·마감·금액은 내장 열이 이미 있으므로 템플릿 열과 중복시키지 않는다.
 
-import type { FieldType } from "@/lib/project-items";
+import type { FieldType, ItemStage } from "@/lib/project-items";
 
 export type TplOption = { id: string; label: string; color?: string };
 export type TplCol = { name: string; type: FieldType; options?: TplOption[] };
@@ -25,7 +25,12 @@ export type Tpl = {
   cols: TplCol[];
   /** 예시 줄 — 이름 칸에 넣을 한 건 */
   example: string;
+  /** 우리 회사 양식만 씀 — 저장 당시 그룹 구성. 빈 표에 적용할 때만 그룹까지 재현한다 */
+  stages?: ItemStage[];
 };
+
+/** '우리 회사 양식' 카테고리 이름 — monday '만든 사람: {회사}' 대응. DB(project_templates)에서 온다 */
+export const MY_TPL_CAT = "우리 회사 양식";
 
 export const TPL_CATEGORIES = [
   "프로젝트 관리", "마케팅", "콘텐츠 제작", "디자인", "소프트웨어 개발", "영업·고객", "인사", "운영·구매",

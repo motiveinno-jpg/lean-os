@@ -22,7 +22,7 @@ import { logRead } from "@/lib/log-read";
 import { friendlyError } from "@/lib/friendly-error";
 import { getCompanyUsers } from "@/lib/queries";
 import { stagesOf, FIELD_TYPES, type ItemStage, type FieldType } from "@/lib/project-items";
-import { TEMPLATES, TPL_CATEGORIES, type Tpl } from "./templates";
+import { TEMPLATES, TPL_CATEGORIES, MY_TPL_CAT, type Tpl } from "./templates";
 import type { ItemRow } from "./HubV3";
 
 const db = supabase as any;
@@ -179,11 +179,63 @@ export function TableV3() {
   const [tplCat, setTplCat] = useState<string>(TPL_CATEGORIES[0]);
   const [tplSel, setTplSel] = useState<Tpl | null>(null);
   const [tplSaving, setTplSaving] = useState(false);
-  const pickCat = (cat: string) => { setTplCat(cat); setTplSel(TEMPLATES.find((t) => t.cat === cat) ?? null); };
+
+  //   우리 회사 양식(4단계) — 지금 표의 구조(커스텀 컬럼+그룹)를 저장해 다른 프로젝트에서 재사용.
+  //   monday '만든 사람: {회사}' 대응. 값이 아니라 구조만 담는다(project_templates.spec).
+  type MyTplRow = { id: string; name: string; icon: string; spec: { cols?: Tpl["cols"]; stages?: ItemStage[] } };
+  const { data: myTplRows = [] } = useQuery({
+    queryKey: ["pjv3-mytpl", companyId],
+    enabled: !!companyId && tplOpen,
+    queryFn: async () => (logRead("pjv3:mytpl", await db.from("project_templates")
+      .select("id, name, icon, spec").eq("company_id", companyId).is("archived_at", null)
+      .order("created_at", { ascending: false })) || []) as MyTplRow[],
+  });
+  const myTpls: Tpl[] = myTplRows.map((r) => ({
+    key: `mine_${r.id}`, icon: r.icon || "⭐", name: r.name, cat: MY_TPL_CAT,
+    desc: "우리 회사가 저장한 양식", cols: r.spec?.cols || [], stages: r.spec?.stages, example: "예시 — 한 건",
+  }));
+  const catTpls = (cat: string) => (cat === MY_TPL_CAT ? myTpls : TEMPLATES.filter((t) => t.cat === cat));
+  const pickCat = (cat: string) => { setTplCat(cat); setTplSel(catTpls(cat)[0] ?? null); };
+
+  const [myTplName, setMyTplName] = useState("");
+  const [myTplDel, setMyTplDel] = useState<string | null>(null); // ✕ 두 번 눌러 확정
+  const saveAsTemplate = async () => {
+    const nm = myTplName.trim();
+    if (!nm) { toast("양식 이름을 적어 주세요"); return; }
+    const spec = {
+      cols: cols.map((c) => ({ name: c.name, type: c.type, ...((c.settings?.options?.length ? { options: c.settings.options } : {}) as object) })),
+      stages,
+    };
+    const { error } = await db.from("project_templates").insert({
+      company_id: companyId, name: nm, spec, created_by: user?.id ?? null,
+    });
+    if (error) { toast(friendlyError(error), "error"); return; }
+    setMyTplName("");
+    qc.invalidateQueries({ queryKey: ["pjv3-mytpl", companyId] });
+    toast(`'${nm}' 양식으로 저장했습니다 — 다른 프로젝트의 템플릿에서 골라 쓸 수 있습니다`, "success");
+  };
+  const deleteMyTpl = async (id: string) => {
+    if (myTplDel !== id) { setMyTplDel(id); return; } // 첫 클릭은 확인
+    setMyTplDel(null);
+    const { error } = await db.from("project_templates")
+      .update({ archived_at: new Date().toISOString() }).eq("id", id);
+    if (error) { toast(friendlyError(error), "error"); return; }
+    if (tplSel?.key === `mine_${id}`) setTplSel(null);
+    qc.invalidateQueries({ queryKey: ["pjv3-mytpl", companyId] });
+    toast("양식을 지웠습니다", "success");
+  };
   const applyTemplate = async (tpl: Tpl) => {
     if (tplSaving) return;
     setTplSaving(true);
     try {
+      //   우리 회사 양식은 그룹 구성까지 재현한다 — 단 빈 표일 때만(쓰던 표의 그룹을 덮으면 파괴)
+      let firstStageId = stages[0]?.id;
+      if (tpl.stages?.length && items.length === 0) {
+        const { error } = await db.from("deals").update({ item_stages: tpl.stages }).eq("id", dealId);
+        if (error) throw new Error(error.message);
+        firstStageId = tpl.stages[0].id;
+        qc.invalidateQueries({ queryKey: ["pjv3-deal", dealId] });
+      }
       //   같은 이름의 열이 이미 있으면 건너뛴다(deal_id+key unique) — 두 번 눌러도 안 겹치게
       const existing = new Set(cols.map((c) => c.key));
       const newCols = tpl.cols.filter((c) => !existing.has(c.name));
@@ -196,10 +248,10 @@ export function TableV3() {
         if (error) throw new Error(error.message);
       }
       //   예시 줄은 빈 표에만 — 쓰던 표에 예시가 끼면 방해다
-      if (items.length === 0 && stages[0]) {
+      if (items.length === 0 && firstStageId) {
         const { error } = await db.from("project_items").insert({
           company_id: companyId, deal_id: dealId, kind: "todo",
-          name: tpl.example, status: stages[0].id, position: 0, created_by: user?.id ?? null,
+          name: tpl.example, status: firstStageId, position: 0, created_by: user?.id ?? null,
         });
         if (error) throw new Error(error.message);
       }
@@ -522,22 +574,44 @@ export function TableV3() {
               열은 나중에 자유롭게 고치고 지워도 됩니다.
             </p>
             <div className="pjv3-tpl-layout">
-              {/* monday 템플릿 센터의 좌측 카테고리 — 실사한 일반 카테고리를 우리 업무 용어로 */}
+              {/* monday 템플릿 센터의 좌측 카테고리 — 맨 위는 '만든 사람: {회사}' 대응인 우리 회사 양식 */}
               <div className="pjv3-tpl-cats">
+                <button type="button" className={`pjv3-tpl-cat ${tplCat === MY_TPL_CAT ? "on" : ""}`} onClick={() => pickCat(MY_TPL_CAT)}>
+                  {MY_TPL_CAT}<em className="num">{myTpls.length}</em>
+                </button>
                 {TPL_CATEGORIES.map((c) => (
                   <button key={c} type="button" className={`pjv3-tpl-cat ${tplCat === c ? "on" : ""}`} onClick={() => pickCat(c)}>
                     {c}<em className="num">{TEMPLATES.filter((t) => t.cat === c).length}</em>
                   </button>
                 ))}
-                <div className="pjv3-tpl-mine">우리 회사 양식 — 자주 쓰는 표를 양식으로 저장하는 기능은 다음 단계에서 붙습니다</div>
               </div>
               <div className="pjv3-tpl-list">
-                {TEMPLATES.filter((t) => t.cat === tplCat).map((s) => (
-                  <button key={s.key} type="button" className={`pjv3-tpl-item ${tplSel?.key === s.key ? "on" : ""}`}
-                    onClick={() => setTplSel(s)}>
-                    <b>{s.icon} {s.name}</b><span>{s.desc.split(".")[0]}</span>
-                  </button>
+                {tplCat === MY_TPL_CAT && (
+                  <div className="pjv3-tpl-save">
+                    <input value={myTplName} onChange={(e) => setMyTplName(e.target.value)} placeholder="양식 이름 — 예: 우리 회사 수주 표"
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) saveAsTemplate(); }} />
+                    <button type="button" className="btn-secondary btn-sm" onClick={saveAsTemplate}
+                      title="지금 표의 열·그룹 구성을 양식으로 저장합니다(내용은 저장 안 됨)">지금 표를 양식으로 저장</button>
+                  </div>
+                )}
+                {catTpls(tplCat).map((s) => (
+                  <div key={s.key} className={`pjv3-tpl-item ${tplSel?.key === s.key ? "on" : ""}`}
+                    role="button" tabIndex={0} onClick={() => setTplSel(s)}
+                    onKeyDown={(e) => { if (e.key === "Enter") setTplSel(s); }}>
+                    <b>{s.icon} {s.name}
+                      {tplCat === MY_TPL_CAT && (
+                        <span className={`pjv3-tpl-x ${myTplDel === s.key.replace("mine_", "") ? "arm" : ""}`}
+                          title={myTplDel === s.key.replace("mine_", "") ? "한 번 더 누르면 지웁니다" : "이 양식 지우기"}
+                          onClick={(e) => { e.stopPropagation(); deleteMyTpl(s.key.replace("mine_", "")); }}>
+                          {myTplDel === s.key.replace("mine_", "") ? "한 번 더" : "✕"}
+                        </span>
+                      )}
+                    </b><span>{s.desc.split(".")[0]}</span>
+                  </div>
                 ))}
+                {tplCat === MY_TPL_CAT && myTpls.length === 0 && (
+                  <div className="pjv3-tpl-mine">아직 저장한 양식이 없습니다 — 열·그룹을 갖춘 표에서 위 버튼으로 저장하면 여기 쌓입니다</div>
+                )}
               </div>
               {tplSel && (
                 <div className="pjv3-tpl-preview">
@@ -562,6 +636,15 @@ export function TableV3() {
                       </tr></tbody>
                     </table>
                   </div>
+                  {(tplSel.stages?.length ?? 0) > 0 && (
+                    <div className="pjv3-tpl-stagerow">
+                      그룹
+                      {tplSel.stages!.map((s) => (
+                        <span key={s.id} className="pjv3-tpl-badge" style={{ background: STAGE_HEX[s.color] }}>{s.label}</span>
+                      ))}
+                      <em>빈 표에 적용할 때만 그룹까지 재현됩니다</em>
+                    </div>
+                  )}
                   <div className="phv3-modal-actions">
                     <button type="button" className="btn-secondary btn-sm" onClick={() => setTplOpen(false)}>닫기</button>
                     <button type="button" className="btn-primary btn-sm" disabled={tplSaving}
