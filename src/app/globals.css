@@ -9405,11 +9405,8 @@ table.phv3-table { min-width: 640px; }
 .phv3-stage-orange { background: var(--warning); } .phv3-stage-green { background: var(--success); }
 .phv3-stage-red { background: var(--danger); }
 
-.phv3-starter-grid { @apply mt-3 grid grid-cols-2 gap-2; }
-.phv3-starter { @apply cursor-pointer rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5 text-left; font: inherit; color: var(--text); }
-.phv3-starter:hover { @apply border-[var(--primary)] bg-[var(--primary-light)]; }
-.phv3-starter b { @apply block text-[12.5px]; }
-.phv3-starter span { @apply text-[11px] text-[var(--text-muted)]; }
+/* 꾸러미 그리드(phv3-starter*)는 2026-08-31 사장님 지시로 생성 폼에서 뺐다 — 템플릿은 표 화면 '템플릿' 팝업(pjv3-tpl*)으로 */
+.phv3-modal-actions { @apply mt-4 flex justify-end gap-2; }
 
 /* phv3 — 연결 제안함 (2단계) */
 .phv3-candwrap { @apply flex flex-col gap-2 border-b border-[var(--border)] bg-[var(--primary-light)]/40 px-5 py-3; }
@@ -9508,3 +9505,20 @@ table.phv3-table { min-width: 640px; }
 .app-zoom .pjv3-wrap { height: calc(100vh / var(--app-zoom) - 100px); }
 .pjv3-sheet thead th { position: sticky; top: 0; z-index: 5; }
 .pjv3-kbwrap { @apply min-h-0 flex-1 overflow-y-auto p-3; }
+
+/* pjv3 — 템플릿 팝업 (monday 템플릿 센터 축약: 왼쪽 목록 · 오른쪽 실물 미리보기 · 적용 하나) */
+.pjv3-tpl-modal { @apply !max-w-2xl; }
+.pjv3-tpl-layout { @apply mt-3 grid gap-3; grid-template-columns: 220px 1fr; }
+.pjv3-tpl-list { @apply flex min-h-0 flex-col gap-1.5 overflow-y-auto; max-height: 52vh; }
+.pjv3-tpl-item { @apply cursor-pointer rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2 text-left; font: inherit; color: var(--text); }
+.pjv3-tpl-item:hover { @apply border-[var(--primary)]; }
+.pjv3-tpl-item.on { @apply border-[var(--primary)] bg-[var(--primary)]/5; }
+.pjv3-tpl-item b { @apply block text-[12.5px]; }
+.pjv3-tpl-item span { @apply text-[11px] text-[var(--text-dim)]; }
+.pjv3-tpl-mine { @apply mt-1 rounded-xl border border-dashed border-[var(--border)] px-3 py-2 text-[11px] text-[var(--text-dim)]; }
+.pjv3-tpl-preview > b { @apply text-[13px]; }
+.pjv3-tpl-preview > p { @apply mb-2 mt-0.5 text-[11.5px] text-[var(--text-dim)]; }
+.pjv3-tpl-sheet { @apply overflow-hidden rounded-xl border border-[var(--border)]; }
+.pjv3-tpl-grow { @apply border-l-4 px-3 py-1.5 text-xs font-bold; }
+.pjv3-tpl-seed { @apply flex items-center gap-1.5 border-t border-[var(--border)] bg-[var(--bg-card)] px-3 py-1.5 text-xs; }
+.pjv3-tpl-seed em { @apply ml-auto text-[10px] not-italic text-[var(--text-dim)]; }

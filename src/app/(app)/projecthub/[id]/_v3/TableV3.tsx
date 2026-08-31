@@ -21,7 +21,7 @@ import { useToast } from "@/components/toast";
 import { logRead } from "@/lib/log-read";
 import { friendlyError } from "@/lib/friendly-error";
 import { getCompanyUsers } from "@/lib/queries";
-import { stagesOf, FIELD_TYPES, type ItemStage, type FieldType } from "@/lib/project-items";
+import { stagesOf, FIELD_TYPES, STARTERS, type ItemStage, type FieldType, type Starter } from "@/lib/project-items";
 import type { ItemRow } from "./HubV3";
 
 const db = supabase as any;
@@ -171,6 +171,41 @@ export function TableV3() {
     await saveItem(id, { status: stageId });
   };
 
+  // ── 템플릿 팝업 — monday 템플릿 센터 벤치마킹(2026-08-31 사장님: 생성 때 고르지 않고
+  //   버튼→팝업에서 예시를 보고 고른다). 왼쪽 목록 · 오른쪽 미리보기(단계·시작 항목 실물) · 적용 하나 ──
+  const [tplOpen, setTplOpen] = useState(false);
+  const [tplSel, setTplSel] = useState<Starter | null>(null);
+  const [tplSaving, setTplSaving] = useState(false);
+  const applyTemplate = async (st: Starter) => {
+    if (tplSaving) return;
+    setTplSaving(true);
+    try {
+      //   단계는 표가 비어 있을 때만 바꾼다 — 이미 쓰던 표의 그룹을 템플릿이 덮으면 파괴다
+      if (items.length === 0 && st.stages) {
+        const { error } = await db.from("deals").update({ item_stages: st.stages }).eq("id", dealId);
+        if (error) throw new Error(error.message);
+      }
+      if (st.seeds.length > 0) {
+        const base = items.length > 0 ? Math.max(...items.map((x) => x.position ?? 0)) + 1 : 0;
+        const rows = st.seeds.map((s, i) => ({
+          company_id: companyId, deal_id: dealId, kind: s.kind, money_kind: s.moneyKind ?? null,
+          name: s.name, status: "todo", tags: s.tags ?? [], priority: s.priority ?? null,
+          is_milestone: !!s.isMilestone, position: base + i, created_by: user?.id ?? null,
+        }));
+        const { error } = await db.from("project_items").insert(rows);
+        if (error) throw new Error(error.message);
+      }
+      toast(`'${st.name}' 템플릿을 적용했습니다 — 시작 항목 ${st.seeds.length}개를 채웠습니다`, "success");
+      setTplOpen(false); setTplSel(null);
+      qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
+      qc.invalidateQueries({ queryKey: ["pjv3-deal", dealId] });
+    } catch (e: any) {
+      toast(`적용 실패: ${e.message || e}`, "error");
+    } finally {
+      setTplSaving(false);
+    }
+  };
+
   // ── 팝(팔레트·담당·선택지·컬럼 추가) — 화면에 하나만 ──
   const [pop, setPop] = useState<Pop | null>(null);
   useEffect(() => {
@@ -282,6 +317,8 @@ export function TableV3() {
         <h1>{deal.name}</h1>
         {period && <span className="pjv3-head-sub mono-number">{period}</span>}
         <span className="pjv3-head-sub">표가 곧 입력입니다 — 다른 보기는 ＋ 보기로 켭니다</span>
+        <button type="button" className="btn-secondary btn-sm ml-auto" title="업무에 맞는 시작 양식을 예시로 보고 채웁니다"
+          onClick={() => { setTplSel(STARTERS.find((s) => s.key !== "blank") ?? null); setTplOpen(true); }}>템플릿</button>
       </div>
 
       {/* 보기 줄 — 표가 기본, 칸반은 '표를 보는 형태'(결정 130). 간트·캘린더·현황은 다음 단계 */}
@@ -420,6 +457,61 @@ export function TableV3() {
           : "셀을 누르면 그 자리에서 고칩니다 · 상태 셀은 색 팔레트 · 오른쪽 ＋로 컬럼(글·숫자·날짜·선택·사람·거래처) 추가"}
       </p>
       </div>
+
+      {/* ── 템플릿 팝업 — 왼쪽 목록에서 고르면 오른쪽에 단계·시작 항목이 실물로 미리 보인다 ── */}
+      {tplOpen && (
+        <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setTplOpen(false); }}>
+          <div className="phv3-modal pjv3-tpl-modal" role="dialog" aria-modal="true" aria-label="템플릿">
+            <h3 className="phv3-modal-title">템플릿 — 업무에 맞는 시작 양식</h3>
+            <p className="phv3-modal-desc">
+              적용하면 <b>시작 항목이 지금 표에 채워집니다</b> — 구조는 그대로라 자유롭게 고치고 지워도 됩니다.
+              {items.length > 0 && " 표에 이미 항목이 있어 단계(그룹)는 바꾸지 않고 항목만 추가합니다."}
+            </p>
+            <div className="pjv3-tpl-layout">
+              <div className="pjv3-tpl-list">
+                {STARTERS.filter((s) => s.key !== "blank").map((s) => (
+                  <button key={s.key} type="button" className={`pjv3-tpl-item ${tplSel?.key === s.key ? "on" : ""}`}
+                    onClick={() => setTplSel(s)}>
+                    <b>{s.icon} {s.name}</b><span>{s.desc}</span>
+                  </button>
+                ))}
+                <div className="pjv3-tpl-mine">우리 회사 양식 — 자주 쓰는 표를 양식으로 저장하는 기능은 다음 단계에서 붙습니다</div>
+              </div>
+              {tplSel && (
+                <div className="pjv3-tpl-preview">
+                  <b>{tplSel.icon} {tplSel.name}</b>
+                  <p>{tplSel.desc}</p>
+                  {/* 시작 항목은 전부 첫 단계에 들어간다 — 미리보기도 실물과 같은 순서(첫 띠 아래 항목, 뒤 띠는 빈 그룹) */}
+                  <div className="pjv3-tpl-sheet">
+                    {stagesOf(tplSel.stages).map((s, si) => (
+                      <div key={s.id}>
+                        <div className="pjv3-tpl-grow"
+                          style={{ borderLeftColor: STAGE_HEX[s.color], background: `color-mix(in srgb, ${STAGE_HEX[s.color]} 7%, var(--bg-card))` }}>
+                          {s.label}
+                        </div>
+                        {si === 0 && tplSel.seeds.map((sd, i) => (
+                          <div key={i} className="pjv3-tpl-seed">
+                            {sd.kind !== "todo" && (
+                              <span className={`pjv3-kind ${KIND_CHIP[sd.kind]?.cls || ""}`}>{KIND_CHIP[sd.kind]?.label}</span>
+                            )}
+                            {sd.name}
+                            {sd.isMilestone && <em>마일스톤</em>}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="phv3-modal-actions">
+                    <button type="button" className="btn-secondary btn-sm" onClick={() => setTplOpen(false)}>닫기</button>
+                    <button type="button" className="btn-primary btn-sm" disabled={tplSaving}
+                      onClick={() => applyTemplate(tplSel)}>이 템플릿 적용</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── 떠 있는 팝 — 상태·담당·선택지·컬럼 추가 ── */}
       {pop && (
