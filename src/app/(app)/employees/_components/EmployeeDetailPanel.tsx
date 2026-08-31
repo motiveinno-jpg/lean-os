@@ -3,6 +3,7 @@ import { appConfirm } from "@/components/global-confirm";
 import { Ico } from "@/components/ui-icon";
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
+import { formatPhone } from "@/lib/phone";
 
 import { useState } from "react";
 import { DateField } from "@/components/date-field";
@@ -369,7 +370,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
           </div>
           <div className="flex items-center gap-2 shrink-0 pb-0.5">
             {!isEditing && detailTab === "info" && (
-              <button onClick={() => { setEditData({ name: emp.name || "", department: emp.department || "", position: emp.position || "", job_grade: emp.job_grade || "", employment_type: emp.employment_type || "", employee_number: emp.employee_number || "", hire_date: emp.hire_date || "", email: emp.email || "", phone: emp.phone || "", birth_date: emp.birth_date || "", address: emp.address || "", emergency_contact: emp.emergency_contact || "", emergency_phone: emp.emergency_phone || "", salary: emp.salary ? String(emp.salary) : "", bank_name: emp.bank_name || "", bank_account: emp.bank_account || "", bank_holder: emp.bank_holder || "", is_4_insurance: emp.is_4_insurance ? "true" : "false", work_start_time: emp.work_start_time ? emp.work_start_time.slice(0, 5) : "", work_end_time: emp.work_end_time ? emp.work_end_time.slice(0, 5) : "" }); setAnnualSalaryInput(emp.salary ? String(Number(emp.salary) * 12) : ""); setIsEditing(true); }} className="btn-secondary btn-sm">
+              <button onClick={() => { setEditData({ name: emp.name || "", department: emp.department || "", position: emp.position || "", job_grade: emp.job_grade || "", employment_type: emp.employment_type || "", employee_number: emp.employee_number || "", hire_date: emp.hire_date || "", email: emp.email || "", phone: formatPhone(emp.phone), birth_date: emp.birth_date || "", address: emp.address || "", emergency_contact: emp.emergency_contact || "", emergency_phone: formatPhone(emp.emergency_phone), salary: emp.salary ? String(emp.salary) : "", bank_name: emp.bank_name || "", bank_account: emp.bank_account || "", bank_holder: emp.bank_holder || "", is_4_insurance: emp.is_4_insurance ? "true" : "false", work_start_time: emp.work_start_time ? emp.work_start_time.slice(0, 5) : "", work_end_time: emp.work_end_time ? emp.work_end_time.slice(0, 5) : "" }); setAnnualSalaryInput(emp.salary ? String(Number(emp.salary) * 12) : ""); setIsEditing(true); }} className="btn-secondary btn-sm">
                 수정
               </button>
             )}
@@ -471,11 +472,11 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
               <div className="grid grid-cols-2 gap-3 text-sm">
                 {isEditing ? (<>
                   <EditField label="이메일" value={editData.email} onChange={(v) => setEditData({ ...editData, email: v })} type="email" />
-                  <EditField label="전화번호" value={editData.phone} onChange={(v) => setEditData({ ...editData, phone: v })} />
+                  <EditField label="전화번호" value={editData.phone} onChange={(v) => setEditData({ ...editData, phone: formatPhone(v) })} inputMode="numeric" />
                   <EditField label="생년월일" value={editData.birth_date} onChange={(v) => setEditData({ ...editData, birth_date: v })} type="date" />
                   <EditField label="주소" value={editData.address} onChange={(v) => setEditData({ ...editData, address: v })} />
                   <EditField label="비상연락처(이름)" value={editData.emergency_contact} onChange={(v) => setEditData({ ...editData, emergency_contact: v })} />
-                  <EditField label="비상연락처(번호)" value={editData.emergency_phone} onChange={(v) => setEditData({ ...editData, emergency_phone: v })} />
+                  <EditField label="비상연락처(번호)" value={editData.emergency_phone} onChange={(v) => setEditData({ ...editData, emergency_phone: formatPhone(v) })} inputMode="numeric" />
                 </>) : (<>
                   <InfoRow label="이메일" value={emp.email} />
                   <InfoRow label="전화번호" value={emp.phone} />

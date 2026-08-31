@@ -1,5 +1,5 @@
 "use client";
-import { comparePeople } from "@/lib/people-sort";
+import { comparePeople, compareByName } from "@/lib/people-sort";
 import { logRead } from "@/lib/log-read";
 
 // 플렉스(flex.team) 스타일 구성원 디렉토리 (2026-06-12).
@@ -176,8 +176,10 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
         default: return e.name;
       }
     };
-    //   이름 정렬 = 사번 순 → 가나다 → ABC (lib/people-sort, 2026-08-27 사장님). 다른 칸은 그 칸 값 뒤에 같은 규칙
-    if (sort.key === "name" || sort.key === "employee_number") return base.filter((e) => cf.hit(colVal(e))).sort((a, b) => comparePeople(a, b) * dir);
+    //   사번 정렬 = 사번 순 → 가나다 → ABC. 이름 정렬 = **이름 가나다 → ABC**(사번 무시) (2026-08-31 사장님:
+    //   "이름으로 정렬해도 사번으로 정렬된다" 수정). 다른 칸은 그 칸 값 뒤 사번규칙으로 안정 정렬.
+    if (sort.key === "employee_number") return base.filter((e) => cf.hit(colVal(e))).sort((a, b) => comparePeople(a, b) * dir);
+    if (sort.key === "name") return base.filter((e) => cf.hit(colVal(e))).sort((a, b) => compareByName(a, b) * dir);
     return base.filter((e) => cf.hit(colVal(e))).sort((a, b) => cmp(val(a), val(b)) * dir || comparePeople(a, b));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [base, sort, cf.key]);

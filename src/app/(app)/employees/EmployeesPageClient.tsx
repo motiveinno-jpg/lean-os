@@ -52,7 +52,7 @@ import { listAppointments, appointmentLines } from "@/lib/hr-appointments";
 import { fetchRetirementEstimates } from "@/lib/retirement";
 import { RetirementDialog } from "@/components/retirement-dialog";
 import { fetchHrTodos } from "@/lib/hr-todo";
-import { comparePeople } from "@/lib/people-sort";
+import { comparePeople, compareByName } from "@/lib/people-sort";
 import { HrTodoDialog } from "@/components/hr-todo-dialog";
 import { exportToExcel } from "@/lib/excel-export";
 import { CertChoiceField, CERT_PURPOSE_OPTIONS, CERT_SUBMIT_TO_OPTIONS } from "@/components/cert-issue-fields";
@@ -1399,7 +1399,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             && (!sumCond.ratioMax || r.ratio * 100 <= Number(sumCond.ratioMax))
             && (!sumCond.hoursMin || r.totalHours >= Number(sumCond.hoursMin))
             && (!sumCond.hoursMax || r.totalHours <= Number(sumCond.hoursMax)))
-          .sort((a, b) => { const k = sumSort.key as string; if (k === "name") return comparePeople(a, b) * (sumSort.dir === "asc" ? 1 : -1); const av = (a as any)[k], bv = (b as any)[k]; const c = typeof av === "number" && typeof bv === "number" ? av - bv : cmp(av, bv); return c * (sumSort.dir === "asc" ? 1 : -1) || comparePeople(a, b); });
+          .sort((a, b) => { const k = sumSort.key as string; if (k === "name") return compareByName(a, b) * (sumSort.dir === "asc" ? 1 : -1); const av = (a as any)[k], bv = (b as any)[k]; const c = typeof av === "number" && typeof bv === "number" ? av - bv : cmp(av, bv); return c * (sumSort.dir === "asc" ? 1 : -1) || comparePeople(a, b); });
         //   부서 묶음 (2026-08-19 사장님: 부서별로 정렬하고 토글을 열면 그 부서 직원) — 부서 줄은 합계·평균, 직원 줄은 열어야 보인다
         const deptMap = new Map<string, any[]>();
         for (const r of rows) { const d = r.department || "미배정"; if (!deptMap.has(d)) deptMap.set(d, []); deptMap.get(d)!.push(r); }

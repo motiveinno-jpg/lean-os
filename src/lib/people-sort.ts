@@ -8,7 +8,15 @@ export function comparePeople(a: SortablePerson, b: SortablePerson): number {
   if (an && bn) { const c = numAware(an, bn); if (c !== 0) return c; }
   else if (an) return -1;
   else if (bn) return 1;
+  return compareByName(a, b);
+}
+
+//   ★ 이름 정렬 전용 — 사번을 보지 않고 **이름 가나다 → 영문 ABC** 로만 정렬한다 (2026-08-31 사장님).
+//     "이름" 열/정렬을 눌렀는데 사번 순으로 나오던 문제를 고친다. 동명이인만 사번으로 안정 정렬.
+export function compareByName(a: SortablePerson, b: SortablePerson): number {
   const x = (a.name || "").trim(), y = (b.name || "").trim();
   const g = nameGroup(x) - nameGroup(y); if (g !== 0) return g;
-  return nameGroup(x) === 1 ? x.localeCompare(y, "en", { sensitivity: "base" }) : x.localeCompare(y, "ko");
+  const c = nameGroup(x) === 1 ? x.localeCompare(y, "en", { sensitivity: "base" }) : x.localeCompare(y, "ko");
+  if (c !== 0) return c;
+  return numAware((a.employee_number || "").trim(), (b.employee_number || "").trim());
 }

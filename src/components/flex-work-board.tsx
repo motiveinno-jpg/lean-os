@@ -1,5 +1,5 @@
 "use client";
-import { comparePeople } from "@/lib/people-sort";
+import { comparePeople, compareByName } from "@/lib/people-sort";
 import { logRead } from "@/lib/log-read";
 
 // 플렉스(flex.team) 스타일 주간 워크보드 (2026-06-12).
@@ -221,7 +221,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
       }
       return { emp: e, total, overtime, lateDays };
     }).sort((a, b) => {
-      if (sortMode === "name") return comparePeople(a.emp as any, b.emp as any);   // 사번 순 → 가나다 → ABC (2026-08-27)
+      if (sortMode === "name") return compareByName(a.emp as any, b.emp as any);   // 가나다순(이름) — 사번 무시 (2026-08-31 사장님)
       if (sortMode === "team") {
         const t = String(a.emp.department || "힣").localeCompare(String(b.emp.department || "힣"), "ko");
         return t !== 0 ? t : comparePeople(a.emp as any, b.emp as any);
