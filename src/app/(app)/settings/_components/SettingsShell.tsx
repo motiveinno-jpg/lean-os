@@ -25,6 +25,7 @@ import { TeamManagement } from "./TeamManagement";
 import { DepartmentsTab } from "./DepartmentsTab";
 import { FormTemplateManager } from "@/components/form-template-manager";
 import { DealClassificationManager } from "./DealClassificationManager";
+import { ProjectSalesAccountCard } from "./ProjectSalesAccountCard";
 import { CompanyDeleteTab } from "./CompanyDeleteTab";
 import { CompanyInfoTab, TaxAdvisorSection, IpRestrictionSection } from "./CompanyInfoTab";
 import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
@@ -647,6 +648,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
         {tab === "chart" && companyId && (
           <div className="space-y-5">
             <ChartOfAccountsManager companyId={companyId} />
+            <ProjectSalesAccountCard companyId={companyId} />
             <DealClassificationManager companyId={companyId} />
           </div>
         )}

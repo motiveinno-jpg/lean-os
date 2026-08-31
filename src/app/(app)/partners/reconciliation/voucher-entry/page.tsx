@@ -157,7 +157,26 @@ export default function VoucherEntryPage() {
     const mk = (g: Gubun): PLine => ({ key: K++, gubun: g, account: null, partner: null, memo: "", debit: "", credit: "" });
     return t === "cash_out" ? [mk("1"), mk("1")] : t === "cash_in" ? [mk("2"), mk("2")] : [mk("3"), mk("4")];
   };
-  useEffect(() => { setPend(freshRows("transfer")); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // 프로젝트 지출 항목 → 전표 초안 프리필 (2026-08-31 개편 3단계, A3 sessionStorage 패턴 —
+  //   서버 초안 행을 만들지 않는다: 전표는 저장 즉시 장부라 초안 행이 곧 오염. 저장은 사람.)
+  //   저장 성공 시 journal_entries.deal_id 를 태그해 프로젝트 확정 집계에 잡히게 한다.
+  const [prefillDeal, setPrefillDeal] = useState<{ dealId: string; name: string } | null>(null);
+  useEffect(() => {
+    setPend(freshRows("transfer"));
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("prefill") !== "project") return;
+    try {
+      const raw = sessionStorage.getItem("gl-voucher-prefill");
+      sessionStorage.removeItem("gl-voucher-prefill");
+      if (!raw) return;
+      const pf = JSON.parse(raw) as { memo?: string; amount?: number; deal_id?: string; deal_name?: string };
+      setPend((ls) => ls.map((l, i) => i === 0
+        ? { ...l, memo: pf.memo || "", debit: pf.amount ? String(pf.amount) : "" }
+        : i === 1 && pf.amount ? { ...l, credit: String(pf.amount) } : l));
+      if (pf.deal_id) setPrefillDeal({ dealId: pf.deal_id, name: pf.deal_name || "" });
+      toast(`프로젝트 지출 초안을 채웠습니다${pf.deal_name ? ` (${pf.deal_name})` : ""} — 계정과목을 확인하고 저장하세요`, "info");
+    } catch { /* 프리필 실패면 빈 격자로 */ }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 참조 데이터 ──
   const { data: accounts = [], isFetched: acctFetched } = useQuery<Acct[]>({
@@ -560,6 +579,21 @@ export default function VoucherEntryPage() {
           if (linkErr) toast(`전표는 저장됐지만 ${linkedSrc.kind === "bank" ? "통장" : "카드"} 거래 연결에 실패했습니다: ${linkErr.message}`, "error");
           setLinkedSrc(null);
           qc.invalidateQueries({ queryKey: ["ve-import"] });
+        }
+        //   프로젝트에서 넘어온 초안이면 전표를 그 프로젝트로 태그 — 확정 비용 집계에 잡힌다.
+        //   직접 update 가 아니라 기존 하드닝 RPC(set_voucher_deal: 관리자 게이트 + deal 회사 일치)를 탄다
+        //   (2026-08-31 security-reviewer W-1 — 직접 update 는 두 검증을 모두 우회한다).
+        if (prefillDeal && newId) {
+          const { error: dealErr } = await db.rpc("set_voucher_deal", { p_entry_id: newId, p_deal_id: prefillDeal.dealId });
+          if (dealErr) {
+            const m = String(dealErr.message || "");
+            toast(m.includes("FORBIDDEN")
+              ? "전표는 저장됐습니다 — 프로젝트 연결은 관리자 권한이 필요해 건너뛰었습니다"
+              : m.includes("INVALID_DEAL")
+                ? "전표는 저장됐지만 프로젝트 연결이 거부되었습니다(우리 회사 프로젝트가 아님)"
+                : `전표는 저장됐지만 프로젝트 연결에 실패했습니다: ${m}`, "error");
+          } else toast(`프로젝트 '${prefillDeal.name}' 에 연결됐습니다 — 상세의 증빙·문서에서 확인`, "success");
+          setPrefillDeal(null);
         }
       }
       rememberMemos([...pendFilled.map((l) => l.memo), ...editIds.flatMap((id) => edits[id].lines.map((l) => l.memo))]);

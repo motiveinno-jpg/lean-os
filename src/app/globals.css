@@ -9429,3 +9429,11 @@ table.phv3-table { min-width: 640px; }
 /* phv3 — 거래처 주고받기 구획 (견적·계약 체인 임베드) */
 .phv3-quotes { @apply border-t border-[var(--border)] px-5 py-4; }
 .phv3-quotes-head { @apply mb-3 text-[13px] font-bold; }
+
+/* 회사설정 — 프로젝트 매출 기본 계정 카드 (2026-08-31 개편 3단계) */
+.proj-sales-card { @apply rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5; }
+.proj-sales-head { @apply mb-3 flex flex-col gap-1; }
+.proj-sales-title { @apply text-[13.5px] font-bold; }
+.proj-sales-sub { @apply max-w-2xl text-[12px] text-[var(--text-muted)]; }
+.proj-sales-row { @apply flex flex-wrap items-center gap-2; }
+.proj-sales-field { @apply min-w-[220px] rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] px-2.5 py-1.5 text-[12.5px] text-[var(--text)]; font: inherit; }

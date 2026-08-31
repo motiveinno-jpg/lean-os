@@ -726,11 +726,25 @@ export function HubV3() {
             ) : (
               <div className="phv3-note phv3-optnote">이 회사는 지출 결재 정책이 없어 결재 단계를 만나지 않습니다(기본값 &apos;결재 안 씀&apos;) — 회사설정 › 결재 정책에서 켤 수 있습니다.</div>
             )}
+            <button type="button" className="phv3-opt" onClick={() => {
+              const t = linkTarget;
+              setLinkTarget(null);
+              try {
+                sessionStorage.setItem("gl-voucher-prefill", JSON.stringify({
+                  memo: `${t.name}${t.partner_name ? ` (${t.partner_name})` : ""} — 프로젝트 ${deal?.name || ""}`,
+                  amount: t.plan_amount || 0, deal_id: dealId, deal_name: deal?.name || "",
+                }));
+              } catch { /* 저장 못 하면 빈 격자로 */ }
+              router.push("/partners/reconciliation/voucher-entry?prefill=project");
+            }}>
+              <b>📒 전표 입력으로 이동 — 값 채움</b>
+              <span>일반전표에 적요·금액이 채워져 열립니다. 계정과목 확인 후 저장하면 이 프로젝트로 자동 연결(A3 방식 — 초안 행을 미리 만들지 않아 장부가 오염되지 않습니다)</span>
+            </button>
             <button type="button" className="phv3-opt" onClick={() => { setLinkTarget(null); toast("여기에만 입력했습니다 — 항목의 '장부에 잇기'로 언제든 이을 수 있습니다"); }}>
               <b>✏️ 여기에만 입력</b>
               <span>예정 금액으로만 관리합니다 — 나중에 항목에서 이을 수 있어요</span>
             </button>
-            <p className="phv3-note phv3-optnote">전표 입력으로 값 채워 이동·발주서(재고)·매출 청구(거래처 주고받기)는 다음 단계에서 붙습니다.</p>
+            <p className="phv3-note phv3-optnote">매출 청구는 아래 &apos;거래처 주고받기&apos;(견적→계약→서명)가 담당합니다. 발주서(재고)는 항목에 품목 칸이 생기는 4단계에서 붙습니다.</p>
           </div>
         </div>
       )}
