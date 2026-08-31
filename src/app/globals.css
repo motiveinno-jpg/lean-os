@@ -9410,3 +9410,22 @@ table.phv3-table { min-width: 640px; }
 .phv3-starter:hover { @apply border-[var(--primary)] bg-[var(--primary-light)]; }
 .phv3-starter b { @apply block text-[12.5px]; }
 .phv3-starter span { @apply text-[11px] text-[var(--text-muted)]; }
+
+/* phv3 — 연결 제안함 (2단계) */
+.phv3-candwrap { @apply flex flex-col gap-2 border-b border-[var(--border)] bg-[var(--primary-light)]/40 px-5 py-3; }
+.phv3-cand-head { @apply text-[12.5px] font-bold; }
+.phv3-cand { @apply flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-[var(--border-light)] bg-[var(--bg-card)] px-3 py-2; }
+.phv3-cand-main { @apply flex min-w-0 flex-1 flex-col text-[12.5px]; }
+
+/* phv3 — 장부에 이어 두기 (3단계 1차) */
+.phv3-opt { @apply mt-2 flex w-full cursor-pointer flex-col gap-0.5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3.5 py-2.5 text-left; font: inherit; color: var(--text); }
+.phv3-opt:hover { @apply border-[var(--primary)] bg-[var(--primary-light)]; }
+.phv3-opt b { @apply text-[13px]; }
+.phv3-opt span { @apply text-[11.8px] font-normal text-[var(--text-muted)]; }
+.phv3-optnote { @apply mt-2; }
+.phv3-linkbtn { @apply cursor-pointer rounded-md border border-[var(--border-light)] bg-[var(--bg-card)] px-2 py-0.5 text-[11px] font-semibold text-[var(--primary)]; font: inherit; }
+.phv3-linkbtn:hover { @apply border-[var(--primary)] bg-[var(--primary-light)]; }
+
+/* phv3 — 거래처 주고받기 구획 (견적·계약 체인 임베드) */
+.phv3-quotes { @apply border-t border-[var(--border)] px-5 py-4; }
+.phv3-quotes-head { @apply mb-3 text-[13px] font-bold; }

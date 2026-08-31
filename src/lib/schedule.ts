@@ -36,6 +36,8 @@ export interface ScheduleEvent {
   priority: 0 | 1 | 2;
   position: number;
   attachments: ScheduleAttachment[];
+  /** 소속 프로젝트(deals). null = 무소속 — 2026-08-31 결정 4(연결 칸 확장) */
+  deal_id: string | null;
   completed: boolean;
   completed_at: string | null;
   created_at: string;

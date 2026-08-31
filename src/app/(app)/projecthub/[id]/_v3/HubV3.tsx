@@ -12,9 +12,13 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
+import { useMyPermissions } from "@/lib/permissions";
 import { useToast } from "@/components/toast";
 import { logRead } from "@/lib/log-read";
+import { reportError } from "@/lib/friendly-error";
 import { getCompanyUsers } from "@/lib/queries";
+import { createApprovalRequest } from "@/lib/approval-workflow";
+import { ProjectQuoteStages } from "@/components/project-quote-stages";
 import {
   KIND_TABS, INPUT_KINDS, PRIORITIES, stagesOf, stageLabel,
   type ItemKind, type ItemStage,
@@ -49,6 +53,16 @@ export function HubV3() {
   const { user } = useUser();
   const companyId = user?.company_id ?? null;
   const userId = user?.id ?? null;
+
+  // 재무 원자료(통장·카드·계산서·전표)는 그 메뉴 권한이 있어야 보인다 — 프로젝트 권한만으로
+  //   금액 원자료가 새면 안 된다 (2026-08-31 security-reviewer C-1, 기획 누락 점검 '권한' 항목).
+  //   항목·마진 집계(v_deal_pnl)는 프로젝트 화면의 몫이라 그대로 둔다(legacy 와 동일 노출 수준).
+  const { isMaster, hasMenu } = useMyPermissions();
+  const canBank = isMaster || hasMenu("/bank");
+  const canCards = isMaster || hasMenu("/cards");
+  const canTaxInv = isMaster || hasMenu("/tax-invoices");
+  const canVoucher = isMaster || hasMenu("/collect");
+  const canAnyFinance = canBank || canCards || canTaxInv;
 
   // ── 데이터 ──────────────────────────────────────────────
   const { data: deal, isLoading: dealLoading } = useQuery({
@@ -88,26 +102,174 @@ export function HubV3() {
       .select("revenue, direct_cost, margin").eq("deal_id", dealId).maybeSingle()),
   });
 
-  // 증빙·문서 (1단계: 읽기 전용 — 이미 이 프로젝트로 태그된 문서·계산서)
+  // 증빙·문서 — 이 프로젝트로 태그된 것 전부 시간순 (2단계: 소스 7종)
+  //   재무 원자료 소스는 그 메뉴 권한이 있을 때만 질의 자체를 보낸다 (C-1 — 없으면 0건 질의)
   const { data: docs = [] } = useQuery({
-    queryKey: ["phv3-docs", dealId],
+    queryKey: ["phv3-docs", dealId, canBank, canCards, canTaxInv, canVoucher],
     enabled: !!dealId,
     queryFn: async () => {
-      const [documents, taxInvoices] = await Promise.all([
+      const [documents, taxInvoices, bankTx, cardTx, expenses, vouchers, approvals] = await Promise.all([
         db.from("documents").select("id, name, content_type, created_at").eq("deal_id", dealId)
           .order("created_at", { ascending: false }).limit(100),
-        db.from("tax_invoices").select("id, type, total_amount, supply_amount, status, created_at")
+        canTaxInv ? db.from("tax_invoices").select("id, type, total_amount, supply_amount, status, issue_date, created_at")
+          .eq("deal_id", dealId).order("created_at", { ascending: false }).limit(100) : Promise.resolve({ data: [], error: null }),
+        canBank ? db.from("bank_transactions").select("id, counterparty, transaction_date, amount, created_at")
+          .eq("deal_id", dealId).order("transaction_date", { ascending: false }).limit(100) : Promise.resolve({ data: [], error: null }),
+        canCards ? db.from("card_transactions").select("id, merchant_name, transaction_date, amount, created_at")
+          .eq("deal_id", dealId).order("transaction_date", { ascending: false }).limit(100) : Promise.resolve({ data: [], error: null }),
+        db.from("expense_requests").select("id, title, amount, status, created_at")
+          .eq("deal_id", dealId).order("created_at", { ascending: false }).limit(100),
+        canVoucher ? db.from("journal_entries").select("id, description, entry_date, status, created_at")
+          .eq("deal_id", dealId).order("entry_date", { ascending: false }).limit(100) : Promise.resolve({ data: [], error: null }),
+        db.from("approval_requests").select("id, title, amount, status, created_at")
           .eq("deal_id", dealId).order("created_at", { ascending: false }).limit(100),
       ]);
-      const a = (logRead("phv3:docs", documents) || []).map((d: any) => ({
-        id: `doc-${d.id}`, when: d.created_at, label: d.name || "문서",
-        chip: d.content_type === "quote" || d.content_type === "invoice" ? "견적·청구" : "계약·문서", amt: null as number | null,
-      }));
-      const b = (logRead("phv3:taxinv", taxInvoices) || []).map((t: any) => ({
-        id: `ti-${t.id}`, when: t.created_at, label: t.type === "sales" ? "세금계산서 (매출)" : "세금계산서 (매입)",
-        chip: "세금계산서", amt: (t.total_amount ?? t.supply_amount ?? null) as number | null,
-      }));
-      return [...a, ...b].sort((x, y) => String(y.when).localeCompare(String(x.when)));
+      const rows = [
+        ...(logRead("phv3:docs", documents) || []).map((d: any) => ({
+          id: `doc-${d.id}`, when: d.created_at, label: d.name || "문서",
+          chip: d.content_type === "quote" || d.content_type === "invoice" ? "견적·청구" : "계약·문서", amt: null as number | null,
+        })),
+        ...(logRead("phv3:taxinv", taxInvoices) || []).map((t: any) => ({
+          id: `ti-${t.id}`, when: t.issue_date || t.created_at, label: t.type === "sales" ? "세금계산서 (매출)" : "세금계산서 (매입)",
+          chip: "세금계산서", amt: (t.total_amount ?? t.supply_amount ?? null) as number | null,
+        })),
+        ...(logRead("phv3:bank", bankTx) || []).map((b: any) => ({
+          id: `bk-${b.id}`, when: b.transaction_date || b.created_at, label: `통장 거래 — ${b.counterparty || ""}`,
+          chip: "통장", amt: (b.amount ?? null) as number | null,
+        })),
+        ...(logRead("phv3:card", cardTx) || []).map((c: any) => ({
+          id: `cd-${c.id}`, when: c.transaction_date || c.created_at, label: `카드 승인 — ${c.merchant_name || ""}`,
+          chip: "카드", amt: (c.amount ?? null) as number | null,
+        })),
+        ...(logRead("phv3:expense", expenses) || []).map((e: any) => ({
+          id: `ex-${e.id}`, when: e.created_at, label: `지출결의 — ${e.title || ""}${e.status ? ` (${e.status})` : ""}`,
+          chip: "결재", amt: (e.amount ?? null) as number | null,
+        })),
+        ...(logRead("phv3:voucher", vouchers) || []).map((v: any) => ({
+          id: `je-${v.id}`, when: v.entry_date || v.created_at, label: `전표 — ${v.description || ""}`,
+          chip: "전표", amt: null as number | null,
+        })),
+        ...(logRead("phv3:approvals", approvals) || []).map((a: any) => ({
+          id: `ap-${a.id}`, when: a.created_at,
+          label: `결재 — ${a.title || ""}${a.status === "approved" ? " (승인)" : a.status === "rejected" ? " (반려)" : a.status === "pending" ? " (결재 중)" : ""}`,
+          chip: "결재", amt: (a.amount ?? null) as number | null,
+        })),
+      ];
+      return rows.sort((x, y) => String(y.when).localeCompare(String(x.when)));
+    },
+  });
+
+  // ── 연결 제안 (2단계) — 거래처 이름 일치로 미연결 거래·계산서를 찾아 제안. 확정은 사람 ──
+  const partnerNames = useMemo(() => {
+    const set = new Set<string>();
+    if (partner?.name) set.add(String(partner.name).trim());
+    for (const i of items) if (i.kind === "money" && i.partner_name) set.add(i.partner_name.trim());
+    return Array.from(set).filter((n) => n.length >= 2);
+  }, [partner?.name, items]);
+
+  const [dismissed, setDismissed] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try { return JSON.parse(window.localStorage.getItem(`ov.phv3.dismiss.${dealId}`) || "[]"); } catch { return []; }
+  });
+  const dismiss = (id: string) => {
+    const next = [...dismissed, id];
+    setDismissed(next);
+    try { window.localStorage.setItem(`ov.phv3.dismiss.${dealId}`, JSON.stringify(next)); } catch { /* ignore */ }
+  };
+
+  const { data: candsRaw = [] } = useQuery({
+    queryKey: ["phv3-cands", dealId, companyId, partnerNames.join("|"), canBank, canCards, canTaxInv],
+    // 재무 메뉴 권한이 하나도 없으면 후보 조회 자체를 안 보낸다 (C-1)
+    enabled: !!companyId && partnerNames.length > 0 && canAnyFinance,
+    queryFn: async () => {
+      const [bankTx, cardTx, taxInv] = await Promise.all([
+        canBank ? db.from("bank_transactions").select("id, counterparty, transaction_date, amount")
+          .eq("company_id", companyId).is("deal_id", null)
+          .neq("mapping_status", "ignored")
+          .order("transaction_date", { ascending: false }).limit(150) : Promise.resolve({ data: [], error: null }),
+        canCards ? db.from("card_transactions").select("id, merchant_name, transaction_date, amount")
+          .eq("company_id", companyId).is("deal_id", null)
+          .neq("mapping_status", "ignored")
+          .order("transaction_date", { ascending: false }).limit(150) : Promise.resolve({ data: [], error: null }),
+        canTaxInv ? db.from("tax_invoices").select("id, type, counterparty_name, issue_date, total_amount")
+          .eq("company_id", companyId).is("deal_id", null)
+          .order("issue_date", { ascending: false }).limit(150) : Promise.resolve({ data: [], error: null }),
+      ]);
+      const hit = (who: string | null) => {
+        const w = (who || "").toLowerCase();
+        if (w.length < 2) return false;
+        return partnerNames.some((n) => w.includes(n.toLowerCase()) || n.toLowerCase().includes(w));
+      };
+      const out: { key: string; src: "bank" | "card" | "tax"; id: string; who: string; when: string; amt: number | null }[] = [];
+      for (const b of (logRead("phv3:cand-bank", bankTx) || []) as any[]) if (hit(b.counterparty))
+        out.push({ key: `bk-${b.id}`, src: "bank", id: b.id, who: b.counterparty, when: b.transaction_date, amt: b.amount });
+      for (const c of (logRead("phv3:cand-card", cardTx) || []) as any[]) if (hit(c.merchant_name))
+        out.push({ key: `cd-${c.id}`, src: "card", id: c.id, who: c.merchant_name, when: c.transaction_date, amt: c.amount });
+      for (const t of (logRead("phv3:cand-tax", taxInv) || []) as any[]) if (hit(t.counterparty_name))
+        out.push({ key: `ti-${t.id}`, src: "tax", id: t.id, who: `${t.counterparty_name} (세금계산서${t.type === "sales" ? " 매출" : " 매입"})`, when: t.issue_date, amt: t.total_amount });
+      return out.sort((x, y) => String(y.when).localeCompare(String(x.when))).slice(0, 12);
+    },
+  });
+  const cands = candsRaw.filter((c) => !dismissed.includes(c.key));
+
+  const CAND_TABLE = { bank: "bank_transactions", card: "card_transactions", tax: "tax_invoices" } as const;
+  const linkCand = useMutation({
+    mutationFn: async (c: (typeof cands)[number]) => {
+      // 감사 흔적(mapped_by/at)은 통장·카드에만 — 계산서에는 그 칸이 없다
+      const patch: Record<string, unknown> = { deal_id: dealId };
+      if (c.src !== "tax") { patch.mapped_by = userId; patch.mapped_at = new Date().toISOString(); patch.mapping_status = "manual_mapped"; }
+      // RLS 로 0행이 걸러져도 조용히 성공으로 읽히지 않게 select 로 확인 (W-4)
+      const { data: upd, error } = await db.from(CAND_TABLE[c.src]).update(patch).eq("id", c.id).select("id");
+      if (error) throw new Error(error.message);
+      if (!upd || upd.length === 0) throw new Error("연결이 거부되었습니다 — 권한을 확인해 주세요");
+      // 학습 — 통장 거래처는 기존 자동 규칙 그릇(bank_classification_rules)에 저장.
+      //   4자 미만 거래처명은 학습하지 않고(무관 거래 오태그 방지), 같은 규칙이 있으면 횟수만 올린다(W-3).
+      if (c.src === "bank" && c.who && c.who.trim().length >= 4) {
+        const { data: exist, error: exErr } = await db.from("bank_classification_rules")
+          .select("id, learned_from_count").eq("company_id", companyId)
+          .eq("match_field", "counterparty").eq("match_type", "contains").eq("match_value", c.who)
+          .limit(1);
+        if (exErr) reportError("phv3:rule-dup-check", exErr);
+        if (!exErr) {
+          if (exist && exist.length > 0) {
+            await db.from("bank_classification_rules").update({
+              assign_deal_id: dealId, is_active: true,
+              learned_from_count: (exist[0].learned_from_count || 0) + 1,
+              last_learned_at: new Date().toISOString(),
+            }).eq("id", exist[0].id);
+          } else {
+            const { error: insErr } = await db.from("bank_classification_rules").insert({
+              company_id: companyId, rule_name: `학습: ${c.who} → ${deal?.name || "프로젝트"}`,
+              match_type: "contains", match_field: "counterparty", match_value: c.who,
+              assign_deal_id: dealId, is_active: true, auto_generated: true,
+              learned_from_count: 1, last_learned_at: new Date().toISOString(),
+            });
+            if (insErr) reportError("phv3:rule-learn", insErr);
+          }
+        }
+      }
+      return c;
+    },
+    onSuccess: (c) => {
+      toast(c.src === "bank"
+        ? "연결했습니다 — 이 거래처는 규칙으로 학습해 다음부터 자동 제안됩니다"
+        : "연결했습니다 — 확정 비용 집계에 반영됩니다");
+      qc.invalidateQueries({ queryKey: ["phv3-docs", dealId] });
+      qc.invalidateQueries({ queryKey: ["phv3-cands", dealId] });
+      qc.invalidateQueries({ queryKey: ["phv3-pnl", dealId] });
+    },
+    onError: (e: any) => toast(String(e.message || e)),
+  });
+
+  // 결재 게이트 (결정 9) — 회사에 활성 지출 결재 정책이 있을 때만 상신 선택지가 열린다.
+  //   기본값은 '결재 안 씀': 정책을 만든 적 없는 회사는 이 단계를 만나지 않는다.
+  const { data: hasExpensePolicy = false } = useQuery({
+    queryKey: ["phv3-exp-policy", companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const rows = logRead("phv3:policy", await db.from("approval_policies")
+        .select("id").eq("company_id", companyId).eq("entity_type", "expense").eq("is_active", true).limit(1));
+      return ((rows || []) as any[]).length > 0;
     },
   });
 
@@ -187,17 +349,46 @@ export function HubV3() {
         const amt = Number(inAmt.replace(/[^0-9.-]/g, ""));
         if (amt) row.plan_amount = amt;
       }
-      const { error } = await db.from("project_items").insert(row);
+      const { data, error } = await db.from("project_items").insert(row).select("*").single();
       if (error) throw new Error(error.message);
-      return def;
+      return { def, row: data as ItemRow };
     },
-    onSuccess: (def) => {
+    onSuccess: ({ def, row }) => {
       setInName(""); setInAmt("");
       setTab(def.kind);
-      toast(def.kind === "money"
-        ? "입력했습니다 — 장부 초안·결재 연결은 다음 단계에서 붙습니다"
-        : "입력했습니다");
+      // 지출 항목은 저장 직후 "장부에 이어 둘까요?" — 프로젝트 안 입력이라 연결은 자동 (결정 2·9)
+      if (def.kind === "money" && def.moneyKind === "spend") setLinkTarget(row);
+      else toast("입력했습니다");
       invalidate();
+    },
+    onError: (e: any) => toast(String(e.message || e)),
+  });
+
+  // ── 장부 잇기 (3단계 1차 — 지출결의 상신) ─────────────────
+  const [linkTarget, setLinkTarget] = useState<ItemRow | null>(null);
+  const submitExpense = useMutation({
+    mutationFn: async (item: ItemRow) => {
+      if (!companyId || !userId) throw new Error("로그인이 필요합니다");
+      if (!item.plan_amount) throw new Error("금액이 없어 상신할 수 없습니다 — 항목에 예정 금액을 먼저 입력해 주세요");
+      const req = await createApprovalRequest({
+        companyId, requesterId: userId, requestType: "expense",
+        title: item.name,
+        amount: item.plan_amount,
+        description: `프로젝트 '${deal?.name || ""}' 지출${item.partner_name ? ` — 거래처 ${item.partner_name}` : ""} (프로젝트에서 상신)`,
+        dealId,
+      });
+      // 한 항목 = 상신 1회 (중복 방지, 결정 2 의 __draft_ref)
+      const { error } = await db.from("project_items")
+        .update({ draft_ref: { kind: "approval", id: req.id, at: new Date().toISOString() } })
+        .eq("id", item.id);
+      if (error) throw new Error(error.message);
+      return req;
+    },
+    onSuccess: () => {
+      setLinkTarget(null);
+      toast("지출결의로 상신했습니다 — 결재선을 타고, 승인되면 장부에 반영됩니다");
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["phv3-docs", dealId] });
     },
     onError: (e: any) => toast(String(e.message || e)),
   });
@@ -425,16 +616,31 @@ export function HubV3() {
                       <td className="phv3-dim">{i.partner_name || "—"}</td>
                       <td className="phv3-td-r phv3-num">{i.plan_amount != null ? i.plan_amount.toLocaleString("ko-KR") : "—"}</td>
                       <td className="phv3-td-r phv3-dim">—</td>
-                      <td className="phv3-td-c phv3-dim">{i.draft_ref ? "초안 연결됨" : "—"}</td>
+                      <td className="phv3-td-c" onClick={(e) => e.stopPropagation()}>
+                        {i.draft_ref
+                          ? <span className="phv3-chip phv3-chip-plan">{(i.draft_ref as any)?.kind === "approval" ? "결재 상신됨" : "초안 연결됨"}</span>
+                          : i.money_kind === "spend"
+                            ? <button type="button" className="phv3-linkbtn" onClick={() => setLinkTarget(i)}>장부에 잇기</button>
+                            : <span className="phv3-dim">—</span>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
             <div className="phv3-foot phv3-note">
-              확정 칸은 장부(전표·계산서·카드·통장)에서만 옵니다 — 항목별 확정 연결·장부 초안·결재 게이트는 다음 단계에서 붙습니다.
+              확정 칸은 장부(전표·계산서·카드·통장)에서만 옵니다 — 지출은 &apos;장부에 잇기&apos;로 결재 상신,
               여러 프로젝트에 걸친 비용은 나눠 입력하세요.
             </div>
+
+            {/* 거래처 주고받기 — 견적 → 계약 → 서명 (기존 quote_approvals 체인 재사용, 결정 6 의 집)
+                수정 요청 왕복·서명 시 전표 자동 발행은 다음 슬라이스에서 이 자리에 붙는다. */}
+            {companyId && (
+              <div className="phv3-quotes">
+                <div className="phv3-quotes-head">거래처 주고받기 — 견적 → 계약 → 서명</div>
+                <ProjectQuoteStages dealId={dealId} companyId={companyId} readonly={false} />
+              </div>
+            )}
           </div>
         )}
 
@@ -465,9 +671,26 @@ export function HubV3() {
         {/* ── 증빙·문서 ── */}
         {tab === "docs" && (
           <div>
+            {cands.length > 0 && (
+              <div className="phv3-candwrap">
+                <div className="phv3-cand-head">연결 제안 {cands.length}건 <span className="phv3-note">— 거래처 이름이 일치하는 미연결 건입니다. 확정은 사람이 합니다.</span></div>
+                {cands.map((c) => (
+                  <div key={c.key} className="phv3-cand">
+                    <div className="phv3-cand-main">
+                      <b>{c.who}</b>
+                      <span className="phv3-note">{String(c.when || "").slice(0, 10)}{c.amt != null ? ` · ${Number(c.amt).toLocaleString("ko-KR")}원` : ""} · {c.src === "bank" ? "통장" : c.src === "card" ? "카드" : "계산서"}</span>
+                    </div>
+                    <span className="phv3-chip">거래처 일치</span>
+                    <button type="button" className="btn-primary btn-sm" disabled={linkCand.isPending} onClick={() => linkCand.mutate(c)}>연결</button>
+                    <button type="button" className="btn-secondary btn-sm" onClick={() => dismiss(c.key)}>아님</button>
+                  </div>
+                ))}
+                <div className="phv3-note">&apos;아님&apos;은 이 기기에서만 기억됩니다(서버 저장은 후속). 규칙 학습은 통장 거래 연결 시 자동으로 됩니다.</div>
+              </div>
+            )}
             <div className="phv3-docs">
               {docs.length === 0 && (
-                <div className="phv3-empty">아직 이 프로젝트로 태그된 증빙·문서가 없습니다 — 연결 제안(거래처·기간·금액으로 찾아 제안)은 2단계에서 붙습니다.</div>
+                <div className="phv3-empty">아직 이 프로젝트로 태그된 증빙·문서가 없습니다 — 매출·지출 항목에 거래처를 적으면 연결 제안이 올라옵니다.</div>
               )}
               {docs.map((d: any) => (
                 <div key={d.id} className="phv3-doc">
@@ -478,10 +701,39 @@ export function HubV3() {
                 </div>
               ))}
             </div>
-            <div className="phv3-foot phv3-note">전표·통장·카드·결재·발주서까지 모으는 피드와 연결 제안은 2단계에서 완성됩니다.</div>
+            <div className="phv3-foot phv3-note">
+              계약·문서 · 세금계산서 · 통장 · 카드 · 지출결의 · 결재 · 전표를 시간순으로 모읍니다.
+              {!canAnyFinance && <> <b>통장·카드·세금 증빙과 연결 제안은 그 메뉴 권한이 있어야 보입니다</b>(회사가 부여한 권한 그대로 — 프로젝트 권한만으로 금액 원자료는 열리지 않습니다).</>}
+            </div>
           </div>
         )}
       </div>
+
+      {/* 장부에 이어 두기 — 결재 게이트 3단 분기(결정 9): 정책 있으면 상신, 없으면 여기에만 */}
+      {linkTarget && (
+        <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setLinkTarget(null); }}>
+          <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="장부에 이어 두기">
+            <h3 className="phv3-modal-title">입력했습니다 — 장부에도 이어 둘까요?</h3>
+            <p className="phv3-modal-desc">
+              {linkTarget.name}{linkTarget.plan_amount ? ` · ${won(linkTarget.plan_amount)}` : ""} — 프로젝트 안에서 입력한 항목이라 이 프로젝트로 자동 연결됩니다.
+            </p>
+            {hasExpensePolicy ? (
+              <button type="button" className="phv3-opt" disabled={submitExpense.isPending}
+                onClick={() => submitExpense.mutate(linkTarget)}>
+                <b>🧾 지출결의로 상신</b>
+                <span>회사 결재 정책에 따라 결재선을 타고, <b>승인되면 그때</b> 장부에 반영됩니다</span>
+              </button>
+            ) : (
+              <div className="phv3-note phv3-optnote">이 회사는 지출 결재 정책이 없어 결재 단계를 만나지 않습니다(기본값 &apos;결재 안 씀&apos;) — 회사설정 › 결재 정책에서 켤 수 있습니다.</div>
+            )}
+            <button type="button" className="phv3-opt" onClick={() => { setLinkTarget(null); toast("여기에만 입력했습니다 — 항목의 '장부에 잇기'로 언제든 이을 수 있습니다"); }}>
+              <b>✏️ 여기에만 입력</b>
+              <span>예정 금액으로만 관리합니다 — 나중에 항목에서 이을 수 있어요</span>
+            </button>
+            <p className="phv3-note phv3-optnote">전표 입력으로 값 채워 이동·발주서(재고)·매출 청구(거래처 주고받기)는 다음 단계에서 붙습니다.</p>
+          </div>
+        </div>
+      )}
 
       {openItem && (
         <ItemModal item={openItem} users={users} userName={userName} stages={stages}

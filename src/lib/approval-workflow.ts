@@ -369,6 +369,7 @@ export async function createApprovalRequest(params: {
   formId?: string;                          // 커스텀 결재 양식 사용 시
   customFields?: Record<string, unknown>;    // 양식 커스텀 필드 값(+휴가 구조화 데이터 등 jsonb)
   referenceUserIds?: string[];              // 참조(CC) — 결재선과 별개, 통보만 받는 인원
+  dealId?: string;                          // 프로젝트 연결 (2026-08-31 개편 2단계 — 프로젝트발 상신)
 }): Promise<ApprovalRequest> {
   const amount = params.amount ?? 0;
 
@@ -463,6 +464,8 @@ export async function createApprovalRequest(params: {
       // 참조는 요청자 화면에서 가감할 수 있으므로 넘어온 값이 우선 — 아예 안 넘겨준 호출(UI 밖 경로)만
       //   매칭된 규칙의 참조로 채운다. (2026-08-20)
       reference_user_ids: params.referenceUserIds ?? matchedRule?.reference_user_ids ?? [],
+      // 프로젝트 연결 — 값이 있을 때만 넣는다 (2026-08-31 개편 2단계, approval_requests.deal_id)
+      ...(params.dealId ? { deal_id: params.dealId } : {}),
     })
     .select()
     .single();
