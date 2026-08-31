@@ -240,9 +240,9 @@ export default function TaxFilingPage() {
   //   근로 간이지급명세서 — 인별 × 월 피벗 (지급액 = 과세, 서식 작성요령과 같다)
   const workStmt = useMemo(() => {
     const src = stmtRows.filter((r) => !r.biz);
-    const byEmp = new Map<string, { name: string; employee_number: string | null; months: Record<string, number>; total: number }>();
+    const byEmp = new Map<string, { employee_id: string; name: string; employee_number: string | null; months: Record<string, number>; total: number }>();
     for (const r of src) {
-      const cur = byEmp.get(r.employee_id) || { name: r.name, employee_number: r.employee_number, months: {}, total: 0 };
+      const cur = byEmp.get(r.employee_id) || { employee_id: r.employee_id, name: r.name, employee_number: r.employee_number, months: {}, total: 0 };
       cur.months[r.period_month] = (cur.months[r.period_month] || 0) + r.taxable;
       cur.total += r.taxable;
       byEmp.set(r.employee_id, cur);
@@ -251,6 +251,20 @@ export default function TaxFilingPage() {
   }, [stmtRows]);
   const bizStmt = useMemo(() => stmtRows.filter((r) => r.biz), [stmtRows]);
   const bizStmtT = useMemo(() => aggOf(bizStmt), [bizStmt]);
+  //   주민등록번호 등록 여부 (결정 108) — 등록된 직원 id 집합. 전문은 엑셀을 만드는 순간에만 RPC 로 받는다.
+  const { data: rrnRegistered = new Set<string>() } = useQuery({
+    queryKey: ["rrn-registered", companyId],
+    enabled: !!companyId && tab === "stmt",
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("list_rrn_registered");
+      if (error) return new Set<string>();
+      return new Set<string>(((data || []) as any[]).map((r) => (typeof r === "string" ? r : r.list_rrn_registered || r.employee_id)));
+    },
+  });
+  const stmtEmpIds = useMemo(
+    () => (stmtKind === "work" ? workStmt.map((e) => e.employee_id) : bizStmt.map((r) => r.employee_id)),
+    [stmtKind, workStmt, bizStmt]);
+  const rrnMissing = useMemo(() => stmtEmpIds.filter((id) => !rrnRegistered.has(id)).length, [stmtEmpIds, rrnRegistered]);
 
   const { toast } = useToast();
   const exportWht = () => {
@@ -281,30 +295,49 @@ export default function TaxFilingPage() {
     XLSX.utils.book_append_sheet(wb, ws2, "인별 명세");
     XLSX.writeFile(wb, `원천세신고준비_${month}.xlsx`);
   };
-  const exportStmt = () => {
+  //   지급명세서 엑셀 — 주민등록번호는 등록된 직원만 이 순간에 RPC 로 받아 채운다(결정 108: 전문 조회는 기록됨).
+  //   미등록은 빈 칸 + '(미등록)' 표기 — 세무사가 채우거나 구성원 상세에서 입력.
+  const fetchRrns = async (ids: string[]): Promise<Map<string, string>> => {
+    const target = ids.filter((id) => rrnRegistered.has(id));
+    const out = new Map<string, string>();
+    //   RPC 는 호출당 500명 상한(보안 검수 P3) — 넘으면 청크로 나눠 부른다
+    for (let i = 0; i < target.length; i += 500) {
+      const { data, error } = await (supabase as any).rpc("get_rrns_for_statement", { p_employee_ids: target.slice(i, i + 500) });
+      if (error) { toast(`주민등록번호 조회 실패 — ${friendlyError(error)}`, "error"); return new Map(); }
+      for (const r of (data || []) as any[]) out.set(r.employee_id as string, r.rrn as string);
+    }
+    return out;
+  };
+  const exportStmt = async () => {
     const wb = XLSX.utils.book_new();
     if (stmtKind === "work") {
       if (!workStmt.length) { toast("이 반기에 발송된 급여 명세가 없습니다", "info"); return; }
+      const rrn = await fetchRrns(workStmt.map((e) => e.employee_id));
       const ws = XLSX.utils.aoa_to_sheet([
         ["근로소득 간이지급명세서 준비", `${stmtYear}년 ${stmtHalf === 1 ? "상반기(1~6월)" : "하반기(7~12월)"}`, "발송된 급여 명세 기준 · 지급액=과세 (오너뷰)"], [],
-        ["이름", "사번", "주민등록번호(세무사 기입)", ...stmtMonths.map((m) => `${Number(m.slice(5, 7))}월`), "합계"],
-        ...workStmt.map((e) => [e.name, e.employee_number || "", "", ...stmtMonths.map((m) => num(e.months[m] || 0)), num(e.total)]),
+        ["이름", "사번", "주민등록번호", ...stmtMonths.map((m) => `${Number(m.slice(5, 7))}월`), "합계"],
+        ...workStmt.map((e) => [e.name, e.employee_number || "", rrn.get(e.employee_id) || "(미등록)", ...stmtMonths.map((m) => num(e.months[m] || 0)), num(e.total)]),
         ["합계", "", "", ...stmtMonths.map((m) => num(workStmt.reduce((s, e) => s + (e.months[m] || 0), 0))), num(workStmt.reduce((s, e) => s + e.total, 0))],
+        [], ["※ 주민등록번호가 포함된 파일입니다 — 보관·전달에 주의하세요. (미등록)은 구성원 상세 › 기본 정보에서 입력하면 채워집니다."],
       ]);
       ws["!cols"] = [{ wch: 12 }, { wch: 8 }, { wch: 20 }, ...stmtMonths.map(() => ({ wch: 12 })), { wch: 14 }];
       XLSX.utils.book_append_sheet(wb, ws, "근로 간이지급명세서");
       XLSX.writeFile(wb, `근로간이지급명세서_${stmtYear}_${stmtHalf === 1 ? "상반기" : "하반기"}.xlsx`);
+      if (rrn.size > 0) toast(`주민등록번호 ${rrn.size}명분이 포함됐습니다 — 조회 기록이 남습니다`, "info");
     } else {
       if (!bizStmt.length) { toast("이 달 사업소득(프리랜서) 지급 기록이 없습니다", "info"); return; }
+      const rrn = await fetchRrns(bizStmt.map((r) => r.employee_id));
       const ws = XLSX.utils.aoa_to_sheet([
         ["사업소득 간이지급명세서 준비", `${stmtMonth} 지급분`, "발송된 급여 명세 기준 (오너뷰)"], [],
-        ["이름", "사번", "주민등록번호(세무사 기입)", "지급액", "소득세(3%)", "지방소득세(0.3%)"],
-        ...bizStmt.map((r) => [r.name, r.employee_number || "", "", num(r.taxable), num(r.incomeTax), num(r.localIncomeTax)]),
+        ["이름", "사번", "주민등록번호", "지급액", "소득세(3%)", "지방소득세(0.3%)"],
+        ...bizStmt.map((r) => [r.name, r.employee_number || "", rrn.get(r.employee_id) || "(미등록)", num(r.taxable), num(r.incomeTax), num(r.localIncomeTax)]),
         ["합계", "", "", num(bizStmtT.taxable), num(bizStmtT.incomeTax), num(bizStmtT.localTax)],
+        [], ["※ 주민등록번호가 포함된 파일입니다 — 보관·전달에 주의하세요. (미등록)은 구성원 상세 › 기본 정보에서 입력하면 채워집니다."],
       ]);
       ws["!cols"] = [{ wch: 12 }, { wch: 8 }, { wch: 20 }, { wch: 14 }, { wch: 12 }, { wch: 14 }];
       XLSX.utils.book_append_sheet(wb, ws, "사업소득 간이지급명세서");
       XLSX.writeFile(wb, `사업소득간이지급명세서_${stmtMonth}.xlsx`);
+      if (rrn.size > 0) toast(`주민등록번호 ${rrn.size}명분이 포함됐습니다 — 조회 기록이 남습니다`, "info");
     }
   };
 
@@ -536,7 +569,8 @@ export default function TaxFilingPage() {
                       <div className="collect-empty">{stmtYear}년 {stmtHalf === 1 ? "상반기" : "하반기"}에 <b>발송된 급여 명세가 없습니다.</b><br />명세서를 발송한 달만 지급명세서에 잡힙니다.</div>
                     ) : (
                       <div className="pnl-panel">
-                        <h3>근로소득 간이지급명세서</h3><p>인별 월 지급액(과세) · 사번 순 — 주민등록번호는 세무사가 채웁니다. 국세청 전자제출 파일은 준비 중 — 지금은 옮겨 적거나 세무사 전달용입니다.</p>
+                        <h3>근로소득 간이지급명세서</h3><p>인별 월 지급액(과세) · 사번 순 — 주민등록번호는 엑셀에만 담깁니다(화면 비노출·조회 기록 남음).
+                          {rrnMissing > 0 ? <b className="vr-warn"> 주민번호 미등록 {rrnMissing}명 — 구성원 상세 › 기본 정보에서 입력하면 채워집니다.</b> : ` 주민번호 ${stmtEmpIds.length}명 전원 등록됨.`}</p>
                         <div className="stg-table-wrap vr-scroll">
                           <table className="ev-table ev-lined table-inv-status-sm">
                             <thead><tr><th>이름</th>{stmtMonths.map((m) => <th key={m}>{Number(m.slice(5, 7))}월</th>)}<th>합계</th></tr></thead>
@@ -559,7 +593,8 @@ export default function TaxFilingPage() {
                       <div className="collect-empty">{stmtMonth} 지급분 <b>사업소득(프리랜서) 지급 기록이 없습니다.</b><br />구성원 고용형태를 <b>프리랜서</b>로 두고 급여 명세서를 발송하면 3.3%로 계산돼 여기 잡힙니다.</div>
                     ) : (
                       <div className="pnl-panel">
-                        <h3>사업소득 간이지급명세서</h3><p>{stmtMonth} 지급분 · 사번 순 — 주민등록번호는 세무사가 채웁니다. 제출은 지급 다음 달 말일까지.</p>
+                        <h3>사업소득 간이지급명세서</h3><p>{stmtMonth} 지급분 · 사번 순 — 제출은 지급 다음 달 말일까지. 주민등록번호는 엑셀에만 담깁니다(화면 비노출·조회 기록 남음).
+                          {rrnMissing > 0 ? <b className="vr-warn"> 주민번호 미등록 {rrnMissing}명 — 구성원 상세 › 기본 정보에서 입력하면 채워집니다.</b> : ` 주민번호 ${stmtEmpIds.length}명 전원 등록됨.`}</p>
                         <div className="stg-table-wrap vr-scroll">
                           <table className="ev-table ev-lined table-inv-status-sm">
                             <thead><tr><th>이름</th><th>지급액</th><th>소득세 (3%)</th><th>지방소득세 (0.3%)</th></tr></thead>

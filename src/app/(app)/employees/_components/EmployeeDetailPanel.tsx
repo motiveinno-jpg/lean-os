@@ -486,6 +486,9 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                   <InfoRow label="전자서명" value={emp.saved_signature ? "등록됨" : "미등록"} />
                 </>)}
               </div>
+              {/* 주민등록번호 — 암호화 저장(2026-08-31 결정 108). employees 컬럼이 아니라 전용 RPC 라
+                  편집 모드와 무관하게 여기서 바로 저장·삭제한다. 화면엔 마스킹만 나온다. */}
+              <RrnField employeeId={emp.id} />
             </div>
             {/* 급여/계좌 정보 — 급여 권한자만 */}
             {!canSeeSalary ? (
@@ -1429,6 +1432,67 @@ function AdminNotesSection({ employeeId, emp, queryClient }: { employeeId: strin
 }
 
 //   D-9 인사발령 히스토리(employment_history jsonb) 는 2026-08-27 3차에서 hr_appointments 표(appointments-section.tsx)로 바뀌었다. 옛 글자는 '옛 기록 가져오기'로 옮긴다.
+
+/** 주민등록번호 — 암호화 저장 (2026-08-31 세무 결정 108).
+ *   · 지급명세서(국세청 제출) 필수값이라 받는다. 소득세법 164조 근거, 개인정보보호법 24조의2 암호화 의무.
+ *   · 화면엔 **마스킹만**(900101-1******). 저장·삭제는 SECURITY DEFINER RPC — 평문은 DB 밖으로 안 나온다.
+ *   · 전문(全文)은 지급명세서 파일을 만드는 순간에만 나오고 그때마다 접근 기록이 남는다. */
+function RrnField({ employeeId }: { employeeId: string }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState("");
+  const [busy, setBusy] = useState(false);
+  const { data: masked = null } = useQuery({
+    queryKey: ["emp-rrn-masked", employeeId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("get_employee_rrn_masked", { p_employee: employeeId });
+      if (error) return null;   // 권한 없음·미배포는 조용히 미표시(칸 자체가 힌트가 되면 안 된다)
+      return (data as string | null) ?? null;
+    },
+  });
+  const save = async (v: string | null) => {
+    setBusy(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("set_employee_rrn", { p_employee: employeeId, p_rrn: v });
+      if (error) throw error;
+      if (data && data.ok === false) { toast(data.error || "저장하지 못했습니다", "error"); return; }
+      toast(v ? "주민등록번호를 암호화해 저장했습니다" : "주민등록번호를 삭제했습니다", "success");
+      setEditing(false); setVal("");
+      qc.invalidateQueries({ queryKey: ["emp-rrn-masked", employeeId] });
+    } catch (e) { toast(friendlyError(e), "error"); } finally { setBusy(false); }
+  };
+  return (
+    <div className="mt-3 pt-3 border-t border-[var(--border)]">
+      <div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">주민등록번호 (암호화 저장)</div>
+      {editing ? (
+        <div className="flex items-center gap-1.5">
+          {/* 보안 검수 P5 — 브라우저 자동완성·비밀번호 관리자에 주민번호가 저장되지 않게 */}
+          <input value={val} onChange={(e) => setVal(e.target.value)} inputMode="numeric" maxLength={14} autoFocus
+            autoComplete="off" name="rrn-no-autofill" data-1p-ignore data-lpignore="true"
+            placeholder="숫자 13자리 (외국인등록·여권번호 가능)"
+            onKeyDown={(e) => { if (e.key === "Enter" && val.trim()) save(val); if (e.key === "Escape") { setEditing(false); setVal(""); } }}
+            className="flex-1 px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
+          <button type="button" className="btn-primary btn-sm" disabled={busy || !val.trim()} onClick={() => save(val)}>저장</button>
+          <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={() => { setEditing(false); setVal(""); }}>취소</button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          {/* '!decrypt_error' = 암호문은 있는데 복호화 실패(키 문제) — 미등록과 구별해 보여야 조용한 데이터 소실을 알아챈다 (보안 검수 P4) */}
+          <span className="text-xs mono-number">{masked === "!decrypt_error"
+            ? <span className="text-[var(--danger)]">복호화 오류 — 운영자 문의</span>
+            : masked || <span className="text-[var(--text-dim)]">미등록</span>}</span>
+          <button type="button" className="btn-secondary btn-sm" onClick={() => setEditing(true)}>{masked ? "수정" : "입력"}</button>
+          {masked && (
+            <button type="button" className="btn-secondary btn-sm" disabled={busy}
+              onClick={async () => { if (await appConfirm("주민등록번호를 삭제할까요? 지급명세서에서 이 직원의 주민번호 칸이 다시 비게 됩니다.")) save(null); }}>삭제</button>
+          )}
+        </div>
+      )}
+      <div className="text-[10px] text-[var(--text-dim)] mt-1">지급명세서(국세청 제출)에만 쓰입니다 — 암호화 저장되고 화면에는 마스킹으로만 보입니다.</div>
+    </div>
+  );
+}
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
   return (
