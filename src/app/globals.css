@@ -9440,7 +9440,7 @@ table.phv3-table { min-width: 640px; }
 
 /* ── 프로젝트 v3 — 먼데이식 표 입력 (2026-08-31 결정 130·124, docs/20260831_PLAN_projecthub_v3_impl.md 1단계) ──
    프로젝트의 기본 화면. 그룹(=단계 색 띠) + 인라인 ＋줄 + 셀 즉시 편집 + 색 상태 + 컬럼 ＋. */
-.pjv3-wrap { @apply mx-auto max-w-6xl px-4 pb-16 pt-4; }
+.pjv3-wrap { @apply px-1 pb-16 pt-1; }
 .pjv3-head { @apply mb-3 flex flex-wrap items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-5 py-4 shadow-sm; }
 .pjv3-head h1 { @apply text-lg font-bold; }
 .pjv3-head-sub { @apply text-xs text-[var(--text-dim)]; }
@@ -9448,7 +9448,7 @@ table.phv3-table { min-width: 640px; }
 .pjv3-search { @apply flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2.5 py-1.5; }
 .pjv3-search input { @apply w-40 bg-transparent text-xs outline-none; }
 .pjv3-sheetwrap { @apply overflow-x-auto rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] shadow-sm; }
-.pjv3-sheet { @apply w-full border-collapse; min-width: 760px; }
+.pjv3-sheet { @apply border-collapse; width: max-content; min-width: 100%; }
 .pjv3-sheet th { @apply whitespace-nowrap border-b border-r border-[var(--border)] bg-[var(--bg)] px-2.5 py-2 text-center text-[11px] font-semibold text-[var(--text-dim)]; }
 .pjv3-sheet th:last-child { @apply border-r-0; }
 .pjv3-sheet td { @apply h-[37px] border-b border-r border-[var(--border)] p-0 text-center text-[12.5px]; }

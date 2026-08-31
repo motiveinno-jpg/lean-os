@@ -20,7 +20,7 @@ import { useToast } from "@/components/toast";
 import { logRead } from "@/lib/log-read";
 import { friendlyError } from "@/lib/friendly-error";
 import { getCompanyUsers } from "@/lib/queries";
-import { stagesOf, FIELD_TYPES, type ItemStage, type FieldType, type ItemKind } from "@/lib/project-items";
+import { stagesOf, FIELD_TYPES, type ItemStage, type FieldType } from "@/lib/project-items";
 import type { ItemRow } from "./HubV3";
 
 const db = supabase as any;
@@ -88,17 +88,16 @@ export function TableV3() {
   const stages = useMemo(() => stagesOf(deal?.item_stages), [deal?.item_stages]);
   const userName = (id: string | null) => users.find((u) => u.id === id)?.name || "";
 
-  // ── 걸러 보기: 구분 칩(결정 136 — 옛 다중 표는 kind 로 접혔다) + 검색 ──
-  const [kindFilter, setKindFilter] = useState<"all" | ItemKind>("all");
+  // ── 검색 — 구분(kind) 칩 줄은 뺐다: v2.6 탭과 똑같이 생겨 "옛 화면 아니냐" 혼란을 줬다
+  //   (2026-08-31 사장님 지적). 돈·메모 구분은 2단계 서랍·보기에서 다룬다.
   const [q, setQ] = useState("");
   const shown = useMemo(() => items.filter((it) => {
-    if (kindFilter !== "all" && it.kind !== kindFilter) return false;
     if (!q.trim()) return true;
     const hay = [it.name, userName(it.assignee_id), ...(it.tags || []),
       ...Object.values(it.fields || {}).map((v) => String(v ?? ""))].join(" ").toLowerCase();
     return q.toLowerCase().split(/\s+/).every((w) => hay.includes(w));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [items, kindFilter, q, users]);
+  }), [items, q, users]);
   const byStage = useMemo(() => {
     const m = new Map<string, ItemRow[]>();
     for (const s of stages) m.set(s.id, []);
@@ -120,8 +119,7 @@ export function TableV3() {
   const addItem = async (stageId: string, name: string) => {
     const group = byStage.m.get(stageId) || [];
     const { error } = await db.from("project_items").insert({
-      company_id: companyId, deal_id: dealId, kind: kindFilter === "all" ? "todo" : kindFilter,
-      money_kind: kindFilter === "money" ? "spend" : null,
+      company_id: companyId, deal_id: dealId, kind: "todo",
       name, status: stageId, position: (group[group.length - 1]?.position ?? 0) + 1,
       created_by: user?.id ?? null,
     });
@@ -205,7 +203,7 @@ export function TableV3() {
     <tr key={it.id}>
       <td className="pjv3-namecell pjv3-ecell">
         <span className="flex items-center gap-1.5 px-0">
-          {kindFilter === "all" && it.kind !== "todo" && (
+          {it.kind !== "todo" && (
             <span className={`pjv3-kind ${KIND_CHIP[it.kind]?.cls || ""}`}>{KIND_CHIP[it.kind]?.label}</span>
           )}
           <span className="min-w-0 flex-1"><EditCell it={it} colKey="name" value={it.name} align="left" /></span>
@@ -251,13 +249,7 @@ export function TableV3() {
       </div>
 
       <div className="pjv3-toolbar">
-        <span className="qk-chips">
-          {([["all", "전체"], ["todo", "할 일"], ["money", "매출·지출"], ["note", "회의·메모"]] as const).map(([k, label]) => (
-            <button key={k} type="button" className={kindFilter === k ? "qk-chip qk-chip-on" : "qk-chip"}
-              onClick={() => setKindFilter(k)}>{label}</button>
-          ))}
-        </span>
-        <span className="pjv3-search">🔍<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="검색" aria-label="검색" /></span>
+        <span className="pjv3-search">🔍<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름 · 담당 · 칸에 든 글자 — 검색" aria-label="검색" /></span>
         <span className="pjv3-foot num !mt-0 ml-auto">{shown.length}건{shown.length !== items.length ? ` / 전체 ${items.length}` : ""}</span>
       </div>
 
@@ -316,7 +308,7 @@ export function TableV3() {
           </tbody>
         </table>
       </div>
-      <p className="pjv3-foot">셀을 누르면 그 자리에서 고칩니다 · 상태 셀은 색 팔레트 · 오른쪽 ＋로 컬럼 추가 · 구분(할 일/매출·지출/회의·메모)은 위 칩으로 걸러 봅니다</p>
+      <p className="pjv3-foot">셀을 누르면 그 자리에서 고칩니다 · 상태 셀은 색 팔레트 · 오른쪽 ＋로 컬럼(글·숫자·날짜·선택·사람·거래처) 추가 · 칸반·간트 같은 보기와 기능 켜기는 다음 단계에서</p>
 
       {/* ── 떠 있는 팝 — 상태·담당·선택지·컬럼 추가 ── */}
       {pop && (
