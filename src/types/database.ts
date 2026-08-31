@@ -10,679 +10,10 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.4"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
-      products: {
-        Row: {
-          barcode: string | null
-          category: string | null
-          company_id: string
-          cost_price: number | null
-          overhead_per_unit: number
-          created_at: string
-          created_by: string | null
-          id: string
-          is_active: boolean
-          memo: string | null
-          name: string
-          safety_stock: number | null
-          sale_price: number | null
-          sku: string
-          spec: string | null
-          track_stock: boolean
-          unit: string
-          updated_at: string
-        }
-        Insert: {
-          barcode?: string | null
-          category?: string | null
-          company_id: string
-          cost_price?: number | null
-          overhead_per_unit?: number
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          is_active?: boolean
-          memo?: string | null
-          name: string
-          safety_stock?: number | null
-          sale_price?: number | null
-          sku: string
-          spec?: string | null
-          track_stock?: boolean
-          unit?: string
-          updated_at?: string
-        }
-        Update: {
-          barcode?: string | null
-          category?: string | null
-          company_id?: string
-          cost_price?: number | null
-          overhead_per_unit?: number
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          is_active?: boolean
-          memo?: string | null
-          name?: string
-          safety_stock?: number | null
-          sale_price?: number | null
-          sku?: string
-          spec?: string | null
-          track_stock?: boolean
-          unit?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      warehouses: {
-        Row: {
-          code: string | null
-          company_id: string
-          created_at: string
-          id: string
-          is_active: boolean
-          is_default: boolean
-          memo: string | null
-          name: string
-        }
-        Insert: {
-          code?: string | null
-          company_id: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          is_default?: boolean
-          memo?: string | null
-          name: string
-        }
-        Update: {
-          code?: string | null
-          company_id?: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          is_default?: boolean
-          memo?: string | null
-          name?: string
-        }
-        Relationships: []
-      }
-      partner_prices: {
-        Row: {
-          company_id: string
-          id: string
-          last_doc_id: string | null
-          partner_id: string
-          product_id: string
-          side: string
-          unit_price: number
-          updated_at: string
-        }
-        Insert: {
-          company_id: string
-          id?: string
-          last_doc_id?: string | null
-          partner_id: string
-          product_id: string
-          side: string
-          unit_price: number
-          updated_at?: string
-        }
-        Update: {
-          company_id?: string
-          id?: string
-          last_doc_id?: string | null
-          partner_id?: string
-          product_id?: string
-          side?: string
-          unit_price?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      product_boms: {
-        Row: {
-          company_id: string
-          component_id: string
-          created_at: string
-          id: string
-          note: string | null
-          product_id: string
-          qty: number
-          base_qty: number
-          updated_at: string
-        }
-        Insert: {
-          company_id: string
-          component_id: string
-          created_at?: string
-          id?: string
-          note?: string | null
-          product_id: string
-          qty: number
-          base_qty?: number
-          updated_at?: string
-        }
-        Update: {
-          company_id?: string
-          component_id?: string
-          created_at?: string
-          id?: string
-          note?: string | null
-          product_id?: string
-          qty?: number
-          base_qty?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      work_orders: {
-        Row: {
-          company_id: string
-          created_at: string
-          created_by: string | null
-          due_date: string | null
-          id: string
-          note: string | null
-          order_date: string
-          planned_qty: number
-          product_id: string
-          status: string
-          updated_at: string
-          warehouse_id: string | null
-          wo_no: string
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          created_by?: string | null
-          due_date?: string | null
-          id?: string
-          note?: string | null
-          order_date?: string
-          planned_qty: number
-          product_id: string
-          status?: string
-          updated_at?: string
-          warehouse_id?: string | null
-          wo_no: string
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          created_by?: string | null
-          due_date?: string | null
-          id?: string
-          note?: string | null
-          order_date?: string
-          planned_qty?: number
-          product_id?: string
-          status?: string
-          updated_at?: string
-          warehouse_id?: string | null
-          wo_no?: string
-        }
-        Relationships: []
-      }
-      orders: {
-        Row: {
-          company_id: string
-          created_at: string
-          created_by: string | null
-          custom: Json
-          due_date: string | null
-          id: string
-          note: string | null
-          order_date: string
-          order_no: string
-          partner_id: string | null
-          partner_name: string | null
-          status: string
-          updated_at: string
-          warehouse_id: string | null
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          created_by?: string | null
-          custom?: Json
-          due_date?: string | null
-          id?: string
-          note?: string | null
-          order_date?: string
-          order_no: string
-          partner_id?: string | null
-          partner_name?: string | null
-          status?: string
-          updated_at?: string
-          warehouse_id?: string | null
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          created_by?: string | null
-          custom?: Json
-          due_date?: string | null
-          id?: string
-          note?: string | null
-          order_date?: string
-          order_no?: string
-          partner_id?: string | null
-          partner_name?: string | null
-          status?: string
-          updated_at?: string
-          warehouse_id?: string | null
-        }
-        Relationships: []
-      }
-      order_lines: {
-        Row: {
-          company_id: string
-          created_at: string
-          custom: Json
-          id: string
-          note: string | null
-          order_id: string
-          product_id: string
-          qty: number
-          sort_no: number
-          supply_amount: number
-          unit_price: number | null
-          vat_amount: number
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          custom?: Json
-          id?: string
-          note?: string | null
-          order_id: string
-          product_id: string
-          qty: number
-          sort_no?: number
-          supply_amount?: number
-          unit_price?: number | null
-          vat_amount?: number
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          custom?: Json
-          id?: string
-          note?: string | null
-          order_id?: string
-          product_id?: string
-          qty?: number
-          sort_no?: number
-          supply_amount?: number
-          unit_price?: number | null
-          vat_amount?: number
-        }
-        Relationships: []
-      }
-      form_layouts: {
-        Row: {
-          company_id: string
-          field_id: string
-          form_key: string
-          id: string
-          is_custom: boolean
-          is_on: boolean
-          name: string
-          section: string
-          sort_no: number
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          company_id: string
-          field_id: string
-          form_key: string
-          id?: string
-          is_custom?: boolean
-          is_on?: boolean
-          name: string
-          section: string
-          sort_no?: number
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          company_id?: string
-          field_id?: string
-          form_key?: string
-          id?: string
-          is_custom?: boolean
-          is_on?: boolean
-          name?: string
-          section?: string
-          sort_no?: number
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: []
-      }
-      stock_docs: {
-        Row: {
-          company_id: string
-          created_at: string
-          created_by: string | null
-          doc_date: string
-          doc_no: string
-          id: string
-          journal_entry_id: string | null
-          kind: string
-          note: string | null
-          cancel_reason: string | null
-          cancelled_at: string | null
-          cancelled_by: string | null
-          order_id: string | null
-          original_doc_id: string | null
-          partner_id: string | null
-          reason: string
-          status: string
-          tax_invoice_id: string | null
-          to_warehouse_id: string | null
-          updated_at: string
-          warehouse_id: string | null
-          work_order_id: string | null
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          created_by?: string | null
-          doc_date?: string
-          doc_no: string
-          id?: string
-          journal_entry_id?: string | null
-          kind: string
-          note?: string | null
-          cancel_reason?: string | null
-          cancelled_at?: string | null
-          cancelled_by?: string | null
-          order_id?: string | null
-          original_doc_id?: string | null
-          partner_id?: string | null
-          reason: string
-          status?: string
-          tax_invoice_id?: string | null
-          to_warehouse_id?: string | null
-          updated_at?: string
-          warehouse_id?: string | null
-          work_order_id?: string | null
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          created_by?: string | null
-          doc_date?: string
-          doc_no?: string
-          id?: string
-          journal_entry_id?: string | null
-          kind?: string
-          note?: string | null
-          cancel_reason?: string | null
-          cancelled_at?: string | null
-          cancelled_by?: string | null
-          order_id?: string | null
-          original_doc_id?: string | null
-          partner_id?: string | null
-          reason?: string
-          status?: string
-          tax_invoice_id?: string | null
-          to_warehouse_id?: string | null
-          updated_at?: string
-          warehouse_id?: string | null
-          work_order_id?: string | null
-        }
-        Relationships: []
-      }
-      stock_moves: {
-        Row: {
-          amount: number | null
-          company_id: string
-          created_at: string
-          doc_id: string
-          id: string
-          moved_at: string
-          note: string | null
-          order_line_id: string | null
-          product_id: string
-          qty: number
-          std_qty: number | null
-          overhead_unit: number | null
-          loss_reason: string | null
-          unit_price: number | null
-          vat_amount: number | null
-          warehouse_id: string
-        }
-        Insert: {
-          amount?: number | null
-          company_id: string
-          created_at?: string
-          doc_id: string
-          id?: string
-          moved_at: string
-          note?: string | null
-          order_line_id?: string | null
-          product_id: string
-          qty: number
-          std_qty?: number | null
-          overhead_unit?: number | null
-          loss_reason?: string | null
-          unit_price?: number | null
-          vat_amount?: number | null
-          warehouse_id: string
-        }
-        Update: {
-          amount?: number | null
-          company_id?: string
-          created_at?: string
-          doc_id?: string
-          id?: string
-          moved_at?: string
-          note?: string | null
-          order_line_id?: string | null
-          product_id?: string
-          qty?: number
-          std_qty?: number | null
-          overhead_unit?: number | null
-          loss_reason?: string | null
-          unit_price?: number | null
-          vat_amount?: number | null
-          warehouse_id?: string
-        }
-        Relationships: []
-      }
-      stock_counts: {
-        Row: {
-          adjust_doc_id: string | null
-          company_id: string
-          count_date: string
-          created_at: string
-          created_by: string | null
-          id: string
-          note: string | null
-          status: string
-          updated_at: string
-          warehouse_id: string | null
-        }
-        Insert: {
-          adjust_doc_id?: string | null
-          company_id: string
-          count_date?: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          note?: string | null
-          status?: string
-          updated_at?: string
-          warehouse_id?: string | null
-        }
-        Update: {
-          adjust_doc_id?: string | null
-          company_id?: string
-          count_date?: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          note?: string | null
-          status?: string
-          updated_at?: string
-          warehouse_id?: string | null
-        }
-        Relationships: []
-      }
-      stock_count_lines: {
-        Row: {
-          company_id: string
-          count_id: string
-          counted_qty: number | null
-          created_at: string
-          id: string
-          product_id: string
-          system_qty: number
-        }
-        Insert: {
-          company_id: string
-          count_id: string
-          counted_qty?: number | null
-          created_at?: string
-          id?: string
-          product_id: string
-          system_qty?: number
-        }
-        Update: {
-          company_id?: string
-          count_id?: string
-          counted_qty?: number | null
-          created_at?: string
-          id?: string
-          product_id?: string
-          system_qty?: number
-        }
-        Relationships: []
-      }
-      product_channel_codes: {
-        Row: {
-          channel: string
-          channel_product_id: string
-          channel_product_name: string | null
-          channel_sku: string | null
-          company_id: string
-          created_at: string
-          id: string
-          is_active: boolean
-          product_id: string
-          updated_at: string
-        }
-        Insert: {
-          channel: string
-          channel_product_id: string
-          channel_product_name?: string | null
-          channel_sku?: string | null
-          company_id: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          product_id: string
-          updated_at?: string
-        }
-        Update: {
-          channel?: string
-          channel_product_id?: string
-          channel_product_name?: string | null
-          channel_sku?: string | null
-          company_id?: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          product_id?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      shipping_sheet_layouts: {
-        Row: { id: string; company_id: string; name: string; columns: Json; created_by: string | null; created_at: string; updated_at: string }
-        Insert: { id?: string; company_id: string; name: string; columns?: Json; created_by?: string | null; created_at?: string; updated_at?: string }
-        Update: { id?: string; company_id?: string; name?: string; columns?: Json; created_by?: string | null; created_at?: string; updated_at?: string }
-        Relationships: []
-      }
-      channel_order_imports: {
-        Row: {
-          amount: number | null
-          buyer_name: string | null
-          recipient_name: string | null
-          recipient_phone: string | null
-          address: string | null
-          shipping_note: string | null
-          recipient_zip: string | null
-          ship_status: string
-          carrier: string | null
-          tracking_no: string | null
-          shipped_at: string | null
-          shipped_by: string | null
-          delivered_at: string | null
-          channel: string
-          channel_order_no: string
-          company_id: string
-          doc_id: string | null
-          id: string
-          imported_at: string
-          imported_by: string | null
-          order_date: string | null
-        }
-        Insert: {
-          amount?: number | null
-          buyer_name?: string | null
-          recipient_name?: string | null
-          recipient_phone?: string | null
-          address?: string | null
-          shipping_note?: string | null
-          recipient_zip?: string | null
-          ship_status?: string
-          carrier?: string | null
-          tracking_no?: string | null
-          shipped_at?: string | null
-          shipped_by?: string | null
-          delivered_at?: string | null
-          channel: string
-          channel_order_no: string
-          company_id: string
-          doc_id?: string | null
-          id?: string
-          imported_at?: string
-          imported_by?: string | null
-          order_date?: string | null
-        }
-        Update: {
-          amount?: number | null
-          buyer_name?: string | null
-          recipient_name?: string | null
-          recipient_phone?: string | null
-          address?: string | null
-          shipping_note?: string | null
-          recipient_zip?: string | null
-          ship_status?: string
-          carrier?: string | null
-          tracking_no?: string | null
-          shipped_at?: string | null
-          shipped_by?: string | null
-          delivered_at?: string | null
-          channel?: string
-          channel_order_no?: string
-          company_id?: string
-          doc_id?: string | null
-          id?: string
-          imported_at?: string
-          imported_by?: string | null
-          order_date?: string | null
-        }
-        Relationships: []
-      }
       _backup_company_20260810: {
         Row: {
           backed_up_at: string | null
@@ -727,6 +58,72 @@ export type Database = {
           created_at?: string | null
           document_id?: string | null
           id?: string | null
+          version?: number | null
+        }
+        Relationships: []
+      }
+      _bak_document_files_rollen_luke_20260824: {
+        Row: {
+          bucket: string | null
+          category: string | null
+          company_id: string | null
+          created_at: string | null
+          deal_id: string | null
+          document_id: string | null
+          file_name: string | null
+          file_size: number | null
+          file_url: string | null
+          folder_id: string | null
+          id: string | null
+          mime_type: string | null
+          parent_file_id: string | null
+          storage_path: string | null
+          tags: string[] | null
+          updated_at: string | null
+          uploaded_by: string | null
+          vault_doc_id: string | null
+          version: number | null
+        }
+        Insert: {
+          bucket?: string | null
+          category?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          deal_id?: string | null
+          document_id?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          folder_id?: string | null
+          id?: string | null
+          mime_type?: string | null
+          parent_file_id?: string | null
+          storage_path?: string | null
+          tags?: string[] | null
+          updated_at?: string | null
+          uploaded_by?: string | null
+          vault_doc_id?: string | null
+          version?: number | null
+        }
+        Update: {
+          bucket?: string | null
+          category?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          deal_id?: string | null
+          document_id?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          folder_id?: string | null
+          id?: string | null
+          mime_type?: string | null
+          parent_file_id?: string | null
+          storage_path?: string | null
+          tags?: string[] | null
+          updated_at?: string | null
+          uploaded_by?: string | null
+          vault_doc_id?: string | null
           version?: number | null
         }
         Relationships: []
@@ -944,6 +341,39 @@ export type Database = {
         }
         Relationships: []
       }
+      _bak_error_logs_resolved_20260825: {
+        Row: {
+          bulk_resolved_at: string | null
+          id: string | null
+        }
+        Insert: {
+          bulk_resolved_at?: string | null
+          id?: string | null
+        }
+        Update: {
+          bulk_resolved_at?: string | null
+          id?: string | null
+        }
+        Relationships: []
+      }
+      _bak_error_logs_resolved_20260826: {
+        Row: {
+          bulk_resolved_at: string | null
+          id: string | null
+          message: string | null
+        }
+        Insert: {
+          bulk_resolved_at?: string | null
+          id?: string | null
+          message?: string | null
+        }
+        Update: {
+          bulk_resolved_at?: string | null
+          id?: string | null
+          message?: string | null
+        }
+        Relationships: []
+      }
       _bak_sigreq_doclink_20260803: {
         Row: {
           _backed_up_at: string | null
@@ -979,6 +409,54 @@ export type Database = {
           tbl?: string | null
         }
         Relationships: []
+      }
+      account_budgets: {
+        Row: {
+          account_id: string
+          amount: number
+          company_id: string
+          id: string
+          memo: string | null
+          month: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          account_id: string
+          amount?: number
+          company_id: string
+          id?: string
+          memo?: string | null
+          month: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          company_id?: string
+          id?: string
+          memo?: string | null
+          month?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_budgets_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_budgets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       account_deletions: {
         Row: {
@@ -3589,6 +3067,47 @@ export type Database = {
           },
         ]
       }
+      biz_alert_rules: {
+        Row: {
+          company_id: string
+          enabled: boolean
+          id: string
+          kind: string
+          last_fired_on: string | null
+          threshold: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          company_id: string
+          enabled?: boolean
+          id?: string
+          kind: string
+          last_fired_on?: string | null
+          threshold: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          enabled?: boolean
+          id?: string
+          kind?: string
+          last_fired_on?: string | null
+          threshold?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "biz_alert_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       board_columns: {
         Row: {
           company_id: string
@@ -4501,6 +4020,107 @@ export type Database = {
           },
         ]
       }
+      channel_order_imports: {
+        Row: {
+          address: string | null
+          amount: number | null
+          buyer_name: string | null
+          carrier: string | null
+          channel: string
+          channel_order_no: string
+          company_id: string
+          delivered_at: string | null
+          doc_id: string | null
+          id: string
+          imported_at: string
+          imported_by: string | null
+          order_date: string | null
+          recipient_name: string | null
+          recipient_phone: string | null
+          recipient_zip: string | null
+          ship_status: string
+          shipped_at: string | null
+          shipped_by: string | null
+          shipping_note: string | null
+          tracking_no: string | null
+        }
+        Insert: {
+          address?: string | null
+          amount?: number | null
+          buyer_name?: string | null
+          carrier?: string | null
+          channel: string
+          channel_order_no: string
+          company_id: string
+          delivered_at?: string | null
+          doc_id?: string | null
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          order_date?: string | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          recipient_zip?: string | null
+          ship_status?: string
+          shipped_at?: string | null
+          shipped_by?: string | null
+          shipping_note?: string | null
+          tracking_no?: string | null
+        }
+        Update: {
+          address?: string | null
+          amount?: number | null
+          buyer_name?: string | null
+          carrier?: string | null
+          channel?: string
+          channel_order_no?: string
+          company_id?: string
+          delivered_at?: string | null
+          doc_id?: string | null
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          order_date?: string | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          recipient_zip?: string | null
+          ship_status?: string
+          shipped_at?: string | null
+          shipped_by?: string | null
+          shipping_note?: string | null
+          tracking_no?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_order_imports_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_order_imports_doc_id_fkey"
+            columns: ["doc_id"]
+            isOneToOne: false
+            referencedRelation: "stock_docs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_order_imports_imported_by_fkey"
+            columns: ["imported_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_order_imports_shipped_by_fkey"
+            columns: ["shipped_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chart_of_accounts: {
         Row: {
           account_type: string
@@ -5179,6 +4799,60 @@ export type Database = {
           },
         ]
       }
+      closing_snapshots: {
+        Row: {
+          bs: Json
+          checklist_id: string | null
+          company_id: string
+          id: string
+          month: string
+          note: string | null
+          pnl: Json
+          taken_at: string
+          taken_by: string | null
+          totals: Json
+        }
+        Insert: {
+          bs?: Json
+          checklist_id?: string | null
+          company_id: string
+          id?: string
+          month: string
+          note?: string | null
+          pnl?: Json
+          taken_at?: string
+          taken_by?: string | null
+          totals?: Json
+        }
+        Update: {
+          bs?: Json
+          checklist_id?: string | null
+          company_id?: string
+          id?: string
+          month?: string
+          note?: string | null
+          pnl?: Json
+          taken_at?: string
+          taken_by?: string | null
+          totals?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "closing_snapshots_checklist_id_fkey"
+            columns: ["checklist_id"]
+            isOneToOne: false
+            referencedRelation: "closing_checklists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "closing_snapshots_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       codef_usage: {
         Row: {
           action: string
@@ -5217,51 +4891,6 @@ export type Database = {
           },
         ]
       }
-      company_api_keys: {
-        Row: {
-          company_id: string
-          created_at: string
-          created_by: string | null
-          id: string
-          key_encrypted: string
-          key_hint: string | null
-          last_error: string | null
-          last_tested_at: string | null
-          last_used_at: string | null
-          provider: string
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          key_encrypted: string
-          key_hint?: string | null
-          last_error?: string | null
-          last_tested_at?: string | null
-          last_used_at?: string | null
-          provider: string
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          key_encrypted?: string
-          key_hint?: string | null
-          last_error?: string | null
-          last_tested_at?: string | null
-          last_used_at?: string | null
-          provider?: string
-          status?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       companies: {
         Row: {
           address: string | null
@@ -5275,6 +4904,7 @@ export type Database = {
           fax: string | null
           id: string
           industry: string | null
+          is_internal: boolean
           logo_url: string | null
           name: string
           phone: string | null
@@ -5296,6 +4926,7 @@ export type Database = {
           fax?: string | null
           id?: string
           industry?: string | null
+          is_internal?: boolean
           logo_url?: string | null
           name: string
           phone?: string | null
@@ -5317,6 +4948,7 @@ export type Database = {
           fax?: string | null
           id?: string
           industry?: string | null
+          is_internal?: boolean
           logo_url?: string | null
           name?: string
           phone?: string | null
@@ -5396,6 +5028,130 @@ export type Database = {
           trial_ends_at?: string | null
         }
         Relationships: []
+      }
+      company_api_keys: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          key_encrypted: string
+          key_hint: string | null
+          last_error: string | null
+          last_tested_at: string | null
+          last_used_at: string | null
+          provider: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_encrypted: string
+          key_hint?: string | null
+          last_error?: string | null
+          last_tested_at?: string | null
+          last_used_at?: string | null
+          provider: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_encrypted?: string
+          key_hint?: string | null
+          last_error?: string | null
+          last_tested_at?: string | null
+          last_used_at?: string | null
+          provider?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_api_keys_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_insurance_rates: {
+        Row: {
+          company_id: string
+          ei_emp: number
+          ei_er: number
+          hi_ceiling: number
+          hi_emp: number
+          hi_er: number
+          hi_floor: number
+          ia_rate: number
+          id: string
+          ltc_pct: number
+          note: string | null
+          np_ceiling: number
+          np_emp: number
+          np_er: number
+          np_floor: number
+          updated_at: string
+          updated_by: string | null
+          year: number
+        }
+        Insert: {
+          company_id: string
+          ei_emp: number
+          ei_er: number
+          hi_ceiling: number
+          hi_emp: number
+          hi_er: number
+          hi_floor: number
+          ia_rate: number
+          id?: string
+          ltc_pct: number
+          note?: string | null
+          np_ceiling: number
+          np_emp: number
+          np_er: number
+          np_floor: number
+          updated_at?: string
+          updated_by?: string | null
+          year: number
+        }
+        Update: {
+          company_id?: string
+          ei_emp?: number
+          ei_er?: number
+          hi_ceiling?: number
+          hi_emp?: number
+          hi_er?: number
+          hi_floor?: number
+          ia_rate?: number
+          id?: string
+          ltc_pct?: number
+          note?: string | null
+          np_ceiling?: number
+          np_emp?: number
+          np_er?: number
+          np_floor?: number
+          updated_at?: string
+          updated_by?: string | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_insurance_rates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_integrations: {
         Row: {
@@ -6755,6 +6511,7 @@ export type Database = {
           id: string
           internal_manager_id: string | null
           is_dormant: boolean | null
+          item_stages: Json | null
           last_activity_at: string | null
           name: string
           next_action_text: string | null
@@ -6792,6 +6549,7 @@ export type Database = {
           id?: string
           internal_manager_id?: string | null
           is_dormant?: boolean | null
+          item_stages?: Json | null
           last_activity_at?: string | null
           name: string
           next_action_text?: string | null
@@ -6829,6 +6587,7 @@ export type Database = {
           id?: string
           internal_manager_id?: string | null
           is_dormant?: boolean | null
+          item_stages?: Json | null
           last_activity_at?: string | null
           name?: string
           next_action_text?: string | null
@@ -8275,6 +8034,35 @@ export type Database = {
           },
         ]
       }
+      feature_rollout: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          feature: string
+          note: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          feature: string
+          note?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          feature?: string
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feature_rollout_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       finance_access_logs: {
         Row: {
           action: string
@@ -8424,6 +8212,156 @@ export type Database = {
           },
         ]
       }
+      fixed_asset_depreciations: {
+        Row: {
+          amount: number
+          asset_id: string
+          company_id: string
+          created_at: string
+          id: string
+          journal_entry_id: string | null
+          month: string
+        }
+        Insert: {
+          amount: number
+          asset_id: string
+          company_id: string
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          month: string
+        }
+        Update: {
+          amount?: number
+          asset_id?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          month?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fixed_asset_depreciations_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "fixed_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_asset_depreciations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_asset_depreciations_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fixed_assets: {
+        Row: {
+          accum_account_id: string | null
+          acquired_on: string
+          asset_account_id: string | null
+          category: string
+          company_id: string
+          cost: number
+          created_at: string
+          created_by: string | null
+          depr_start_month: string
+          disposal_amount: number | null
+          disposed_on: string | null
+          expense_account_id: string | null
+          id: string
+          memo: string | null
+          method: string
+          name: string
+          salvage: number
+          status: string
+          updated_at: string
+          useful_months: number
+        }
+        Insert: {
+          accum_account_id?: string | null
+          acquired_on: string
+          asset_account_id?: string | null
+          category?: string
+          company_id: string
+          cost: number
+          created_at?: string
+          created_by?: string | null
+          depr_start_month: string
+          disposal_amount?: number | null
+          disposed_on?: string | null
+          expense_account_id?: string | null
+          id?: string
+          memo?: string | null
+          method?: string
+          name: string
+          salvage?: number
+          status?: string
+          updated_at?: string
+          useful_months: number
+        }
+        Update: {
+          accum_account_id?: string | null
+          acquired_on?: string
+          asset_account_id?: string | null
+          category?: string
+          company_id?: string
+          cost?: number
+          created_at?: string
+          created_by?: string | null
+          depr_start_month?: string
+          disposal_amount?: number | null
+          disposed_on?: string | null
+          expense_account_id?: string | null
+          id?: string
+          memo?: string | null
+          method?: string
+          name?: string
+          salvage?: number
+          status?: string
+          updated_at?: string
+          useful_months?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fixed_assets_accum_account_id_fkey"
+            columns: ["accum_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_assets_asset_account_id_fkey"
+            columns: ["asset_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_assets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_assets_expense_account_id_fkey"
+            columns: ["expense_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fixed_costs: {
         Row: {
           amount: number
@@ -8473,6 +8411,63 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_layouts: {
+        Row: {
+          company_id: string
+          field_id: string
+          form_key: string
+          id: string
+          is_custom: boolean
+          is_on: boolean
+          name: string
+          section: string
+          sort_no: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          company_id: string
+          field_id: string
+          form_key: string
+          id?: string
+          is_custom?: boolean
+          is_on?: boolean
+          name: string
+          section: string
+          sort_no?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          field_id?: string
+          form_key?: string
+          id?: string
+          is_custom?: boolean
+          is_on?: boolean
+          name?: string
+          section?: string
+          sort_no?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_layouts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_layouts_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -8856,6 +8851,66 @@ export type Database = {
           },
         ]
       }
+      hr_appointments: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          department: string | null
+          effective_date: string
+          employee_id: string
+          id: string
+          kind: string
+          position: string | null
+          reason: string | null
+          salary: number | null
+          source: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          effective_date: string
+          employee_id: string
+          id?: string
+          kind: string
+          position?: string | null
+          reason?: string | null
+          salary?: number | null
+          source?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          effective_date?: string
+          employee_id?: string
+          id?: string
+          kind?: string
+          position?: string | null
+          reason?: string | null
+          salary?: number | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_appointments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_appointments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_contract_package_items: {
         Row: {
           created_at: string | null
@@ -8986,6 +9041,53 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      insurance_notices: {
+        Row: {
+          company_id: string
+          ei: number
+          hi: number
+          ia: number
+          id: string
+          month: string
+          note: string | null
+          np: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          company_id: string
+          ei?: number
+          hi?: number
+          ia?: number
+          id?: string
+          month: string
+          note?: string | null
+          np?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          ei?: number
+          hi?: number
+          ia?: number
+          id?: string
+          month?: string
+          note?: string | null
+          np?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "insurance_notices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -10344,6 +10446,153 @@ export type Database = {
         }
         Relationships: []
       }
+      order_lines: {
+        Row: {
+          company_id: string
+          created_at: string
+          custom: Json
+          id: string
+          note: string | null
+          order_id: string
+          product_id: string
+          qty: number
+          sort_no: number
+          supply_amount: number
+          unit_price: number | null
+          vat_amount: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          custom?: Json
+          id?: string
+          note?: string | null
+          order_id: string
+          product_id: string
+          qty: number
+          sort_no?: number
+          supply_amount?: number
+          unit_price?: number | null
+          vat_amount?: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          custom?: Json
+          id?: string
+          note?: string | null
+          order_id?: string
+          product_id?: string
+          qty?: number
+          sort_no?: number
+          supply_amount?: number
+          unit_price?: number | null
+          vat_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_lines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_lines_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          custom: Json
+          due_date: string | null
+          id: string
+          note: string | null
+          order_date: string
+          order_no: string
+          partner_id: string | null
+          partner_name: string | null
+          status: string
+          updated_at: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          custom?: Json
+          due_date?: string | null
+          id?: string
+          note?: string | null
+          order_date?: string
+          order_no: string
+          partner_id?: string | null
+          partner_name?: string | null
+          status?: string
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          custom?: Json
+          due_date?: string | null
+          id?: string
+          note?: string | null
+          order_date?: string
+          order_no?: string
+          partner_id?: string | null
+          partner_name?: string | null
+          status?: string
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       overtime_requests: {
         Row: {
           approved_at: string | null
@@ -10462,6 +10711,7 @@ export type Database = {
           created_at: string
           id: number
           is_auth: boolean
+          is_internal: boolean
           path: string
           referrer_host: string | null
           visitor_key: string
@@ -10471,6 +10721,7 @@ export type Database = {
           created_at?: string
           id?: number
           is_auth?: boolean
+          is_internal?: boolean
           path: string
           referrer_host?: string | null
           visitor_key: string
@@ -10480,6 +10731,7 @@ export type Database = {
           created_at?: string
           id?: number
           is_auth?: boolean
+          is_internal?: boolean
           path?: string
           referrer_host?: string | null
           visitor_key?: string
@@ -10675,6 +10927,68 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_project_margin"
             referencedColumns: ["deal_id"]
+          },
+        ]
+      }
+      partner_prices: {
+        Row: {
+          company_id: string
+          id: string
+          last_doc_id: string | null
+          partner_id: string
+          product_id: string
+          side: string
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          id?: string
+          last_doc_id?: string | null
+          partner_id: string
+          product_id: string
+          side: string
+          unit_price: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          id?: string
+          last_doc_id?: string | null
+          partner_id?: string
+          product_id?: string
+          side?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_prices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prices_last_doc_id_fkey"
+            columns: ["last_doc_id"]
+            isOneToOne: false
+            referencedRelation: "stock_docs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prices_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -11504,6 +11818,277 @@ export type Database = {
           },
         ]
       }
+      product_boms: {
+        Row: {
+          base_qty: number
+          company_id: string
+          component_id: string
+          created_at: string
+          id: string
+          note: string | null
+          product_id: string
+          qty: number
+          updated_at: string
+        }
+        Insert: {
+          base_qty?: number
+          company_id: string
+          component_id: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          product_id: string
+          qty: number
+          updated_at?: string
+        }
+        Update: {
+          base_qty?: number
+          company_id?: string
+          component_id?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          product_id?: string
+          qty?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_boms_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_boms_component_id_fkey"
+            columns: ["component_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_boms_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_channel_codes: {
+        Row: {
+          channel: string
+          channel_product_id: string
+          channel_product_name: string | null
+          channel_sku: string | null
+          company_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          product_id: string
+          updated_at: string
+        }
+        Insert: {
+          channel: string
+          channel_product_id: string
+          channel_product_name?: string | null
+          channel_sku?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          product_id: string
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          channel_product_id?: string
+          channel_product_name?: string | null
+          channel_sku?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          product_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_channel_codes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_channel_codes_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_voucher_drafts: {
+        Row: {
+          amount_cogs: number
+          amount_loss: number
+          amount_material: number
+          amount_product_valued: number
+          amount_scrap: number
+          company_id: string
+          created_at: string
+          doc_ids: string[]
+          id: string
+          journal_entry_id: string | null
+          kind: string
+          memo: string | null
+          period_from: string
+          period_to: string
+          skipped_lines: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cogs?: number
+          amount_loss?: number
+          amount_material?: number
+          amount_product_valued?: number
+          amount_scrap?: number
+          company_id: string
+          created_at?: string
+          doc_ids?: string[]
+          id?: string
+          journal_entry_id?: string | null
+          kind?: string
+          memo?: string | null
+          period_from: string
+          period_to: string
+          skipped_lines?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cogs?: number
+          amount_loss?: number
+          amount_material?: number
+          amount_product_valued?: number
+          amount_scrap?: number
+          company_id?: string
+          created_at?: string
+          doc_ids?: string[]
+          id?: string
+          journal_entry_id?: string | null
+          kind?: string
+          memo?: string | null
+          period_from?: string
+          period_to?: string
+          skipped_lines?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_voucher_drafts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_voucher_drafts_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          auto_suggest: boolean
+          barcode: string | null
+          category: string | null
+          company_id: string
+          cost_price: number | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          lead_time_days: number
+          memo: string | null
+          name: string
+          overhead_per_unit: number
+          safety_stock: number | null
+          sale_price: number | null
+          sku: string
+          spec: string | null
+          track_stock: boolean
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          auto_suggest?: boolean
+          barcode?: string | null
+          category?: string | null
+          company_id: string
+          cost_price?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          lead_time_days?: number
+          memo?: string | null
+          name: string
+          overhead_per_unit?: number
+          safety_stock?: number | null
+          sale_price?: number | null
+          sku: string
+          spec?: string | null
+          track_stock?: boolean
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          auto_suggest?: boolean
+          barcode?: string | null
+          category?: string | null
+          company_id?: string
+          cost_price?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          lead_time_days?: number
+          memo?: string | null
+          name?: string
+          overhead_per_unit?: number
+          safety_stock?: number | null
+          sale_price?: number | null
+          sku?: string
+          spec?: string | null
+          track_stock?: boolean
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       programs: {
         Row: {
           company_id: string
@@ -11988,6 +12573,177 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_project_margin"
             referencedColumns: ["deal_id"]
+          },
+        ]
+      }
+      project_items: {
+        Row: {
+          archived_at: string | null
+          assignee_id: string | null
+          body: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          deal_id: string
+          draft_ref: Json | null
+          due_date: string | null
+          fields: Json
+          followers: string[]
+          hours: number | null
+          id: string
+          is_milestone: boolean
+          kind: string
+          money_kind: string | null
+          name: string
+          parent_id: string | null
+          partner_id: string | null
+          partner_name: string | null
+          plan_amount: number | null
+          position: number
+          priority: string | null
+          source_item_id: string | null
+          start_date: string | null
+          status: string
+          tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          assignee_id?: string | null
+          body?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          deal_id: string
+          draft_ref?: Json | null
+          due_date?: string | null
+          fields?: Json
+          followers?: string[]
+          hours?: number | null
+          id?: string
+          is_milestone?: boolean
+          kind: string
+          money_kind?: string | null
+          name?: string
+          parent_id?: string | null
+          partner_id?: string | null
+          partner_name?: string | null
+          plan_amount?: number | null
+          position?: number
+          priority?: string | null
+          source_item_id?: string | null
+          start_date?: string | null
+          status?: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          assignee_id?: string | null
+          body?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string
+          draft_ref?: Json | null
+          due_date?: string | null
+          fields?: Json
+          followers?: string[]
+          hours?: number | null
+          id?: string
+          is_milestone?: boolean
+          kind?: string
+          money_kind?: string | null
+          name?: string
+          parent_id?: string | null
+          partner_id?: string | null
+          partner_name?: string | null
+          plan_amount?: number | null
+          position?: number
+          priority?: string | null
+          source_item_id?: string | null
+          start_date?: string | null
+          status?: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_items_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_items_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_items_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_items_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_items_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_items_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_items_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_items_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_items_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "project_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_items_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -12781,6 +13537,57 @@ export type Database = {
           },
         ]
       }
+      quick_notes: {
+        Row: {
+          body: string
+          color: string
+          company_id: string
+          created_at: string
+          id: string
+          pinned: boolean
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          color?: string
+          company_id: string
+          created_at?: string
+          id?: string
+          pinned?: boolean
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          color?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          pinned?: boolean
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quick_notes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quick_notes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quote_approvals: {
         Row: {
           approval_token: string
@@ -13561,6 +14368,51 @@ export type Database = {
           },
         ]
       }
+      shipping_sheet_layouts: {
+        Row: {
+          columns: Json
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          columns?: Json
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          columns?: Json
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipping_sheet_layouts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipping_sheet_layouts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       signature_requests: {
         Row: {
           batch_id: string | null
@@ -13790,6 +14642,611 @@ export type Database = {
             columns: ["signature_request_id"]
             isOneToOne: false
             referencedRelation: "signature_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_cost_layers: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          layer_date: string
+          move_id: string
+          product_id: string
+          qty_in: number
+          qty_left: number
+          seq: number
+          source: string
+          unit_cost: number | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          layer_date: string
+          move_id: string
+          product_id: string
+          qty_in: number
+          qty_left: number
+          seq: number
+          source: string
+          unit_cost?: number | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          layer_date?: string
+          move_id?: string
+          product_id?: string
+          qty_in?: number
+          qty_left?: number
+          seq?: number
+          source?: string
+          unit_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_cost_layers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_cost_layers_move_id_fkey"
+            columns: ["move_id"]
+            isOneToOne: false
+            referencedRelation: "stock_moves"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_cost_layers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_cost_revaluations: {
+        Row: {
+          cancelled_at: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          effect_amount: number
+          effect_qty: number
+          id: string
+          note: string | null
+          product_id: string
+          reason: string
+          reval_date: string
+          status: string
+          unit_cost: number
+        }
+        Insert: {
+          cancelled_at?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          effect_amount?: number
+          effect_qty?: number
+          id?: string
+          note?: string | null
+          product_id: string
+          reason?: string
+          reval_date: string
+          status?: string
+          unit_cost: number
+        }
+        Update: {
+          cancelled_at?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          effect_amount?: number
+          effect_qty?: number
+          id?: string
+          note?: string | null
+          product_id?: string
+          reason?: string
+          reval_date?: string
+          status?: string
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_cost_revaluations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_cost_revaluations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_cost_state: {
+        Row: {
+          company_id: string
+          computed_at: string
+          costs: number
+          layers: number
+          method: string
+          uncosted_moves: number
+        }
+        Insert: {
+          company_id: string
+          computed_at?: string
+          costs?: number
+          layers?: number
+          method: string
+          uncosted_moves?: number
+        }
+        Update: {
+          company_id?: string
+          computed_at?: string
+          costs?: number
+          layers?: number
+          method?: string
+          uncosted_moves?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_cost_state_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_count_lines: {
+        Row: {
+          company_id: string
+          count_id: string
+          counted_qty: number | null
+          created_at: string
+          id: string
+          product_id: string
+          system_qty: number
+        }
+        Insert: {
+          company_id: string
+          count_id: string
+          counted_qty?: number | null
+          created_at?: string
+          id?: string
+          product_id: string
+          system_qty?: number
+        }
+        Update: {
+          company_id?: string
+          count_id?: string
+          counted_qty?: number | null
+          created_at?: string
+          id?: string
+          product_id?: string
+          system_qty?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_count_lines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_count_lines_count_id_fkey"
+            columns: ["count_id"]
+            isOneToOne: false
+            referencedRelation: "stock_counts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_count_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_counts: {
+        Row: {
+          adjust_doc_id: string | null
+          company_id: string
+          count_date: string
+          created_at: string
+          created_by: string | null
+          id: string
+          note: string | null
+          status: string
+          updated_at: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          adjust_doc_id?: string | null
+          company_id: string
+          count_date?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          status?: string
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          adjust_doc_id?: string | null
+          company_id?: string
+          count_date?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          status?: string
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_counts_adjust_doc_id_fkey"
+            columns: ["adjust_doc_id"]
+            isOneToOne: false
+            referencedRelation: "stock_docs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_counts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_counts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_counts_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_docs: {
+        Row: {
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          doc_date: string
+          doc_no: string
+          id: string
+          journal_entry_id: string | null
+          kind: string
+          note: string | null
+          order_id: string | null
+          original_doc_id: string | null
+          partner_id: string | null
+          reason: string
+          status: string
+          tax_invoice_id: string | null
+          to_warehouse_id: string | null
+          updated_at: string
+          warehouse_id: string | null
+          work_order_id: string | null
+        }
+        Insert: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          doc_date?: string
+          doc_no: string
+          id?: string
+          journal_entry_id?: string | null
+          kind: string
+          note?: string | null
+          order_id?: string | null
+          original_doc_id?: string | null
+          partner_id?: string | null
+          reason: string
+          status?: string
+          tax_invoice_id?: string | null
+          to_warehouse_id?: string | null
+          updated_at?: string
+          warehouse_id?: string | null
+          work_order_id?: string | null
+        }
+        Update: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          doc_date?: string
+          doc_no?: string
+          id?: string
+          journal_entry_id?: string | null
+          kind?: string
+          note?: string | null
+          order_id?: string | null
+          original_doc_id?: string | null
+          partner_id?: string | null
+          reason?: string
+          status?: string
+          tax_invoice_id?: string | null
+          to_warehouse_id?: string | null
+          updated_at?: string
+          warehouse_id?: string | null
+          work_order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_docs_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_docs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_docs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_docs_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_docs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_docs_original_doc_id_fkey"
+            columns: ["original_doc_id"]
+            isOneToOne: false
+            referencedRelation: "stock_docs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_docs_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_docs_tax_invoice_id_fkey"
+            columns: ["tax_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "tax_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_docs_to_warehouse_id_fkey"
+            columns: ["to_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_docs_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_docs_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "v_work_order_done"
+            referencedColumns: ["work_order_id"]
+          },
+          {
+            foreignKeyName: "stock_docs_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_move_costs: {
+        Row: {
+          company_id: string
+          computed_at: string
+          cost_amount: number
+          layers: Json
+          method: string
+          move_id: string
+          moved_at: string
+          product_id: string
+          qty: number
+          qty_costed: number
+          qty_uncosted: number
+          reason: string
+          unit_cost: number | null
+        }
+        Insert: {
+          company_id: string
+          computed_at?: string
+          cost_amount?: number
+          layers?: Json
+          method: string
+          move_id: string
+          moved_at: string
+          product_id: string
+          qty: number
+          qty_costed?: number
+          qty_uncosted?: number
+          reason: string
+          unit_cost?: number | null
+        }
+        Update: {
+          company_id?: string
+          computed_at?: string
+          cost_amount?: number
+          layers?: Json
+          method?: string
+          move_id?: string
+          moved_at?: string
+          product_id?: string
+          qty?: number
+          qty_costed?: number
+          qty_uncosted?: number
+          reason?: string
+          unit_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_move_costs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_move_costs_move_id_fkey"
+            columns: ["move_id"]
+            isOneToOne: true
+            referencedRelation: "stock_moves"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_moves: {
+        Row: {
+          amount: number | null
+          company_id: string
+          created_at: string
+          doc_id: string
+          id: string
+          loss_reason: string | null
+          moved_at: string
+          note: string | null
+          order_line_id: string | null
+          overhead_unit: number | null
+          product_id: string
+          qty: number
+          std_qty: number | null
+          unit_price: number | null
+          vat_amount: number | null
+          warehouse_id: string
+        }
+        Insert: {
+          amount?: number | null
+          company_id: string
+          created_at?: string
+          doc_id: string
+          id?: string
+          loss_reason?: string | null
+          moved_at: string
+          note?: string | null
+          order_line_id?: string | null
+          overhead_unit?: number | null
+          product_id: string
+          qty: number
+          std_qty?: number | null
+          unit_price?: number | null
+          vat_amount?: number | null
+          warehouse_id: string
+        }
+        Update: {
+          amount?: number | null
+          company_id?: string
+          created_at?: string
+          doc_id?: string
+          id?: string
+          loss_reason?: string | null
+          moved_at?: string
+          note?: string | null
+          order_line_id?: string | null
+          overhead_unit?: number | null
+          product_id?: string
+          qty?: number
+          std_qty?: number | null
+          unit_price?: number | null
+          vat_amount?: number | null
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_moves_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_moves_doc_id_fkey"
+            columns: ["doc_id"]
+            isOneToOne: false
+            referencedRelation: "stock_docs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_moves_order_line_id_fkey"
+            columns: ["order_line_id"]
+            isOneToOne: false
+            referencedRelation: "order_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_moves_order_line_id_fkey"
+            columns: ["order_line_id"]
+            isOneToOne: false
+            referencedRelation: "v_order_line_used"
+            referencedColumns: ["order_line_id"]
+          },
+          {
+            foreignKeyName: "stock_moves_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_moves_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]
@@ -14540,6 +15997,78 @@ export type Database = {
           status?: string
         }
         Relationships: []
+      }
+      tax_deadline_checks: {
+        Row: {
+          checked_at: string
+          checked_by: string | null
+          company_id: string
+          deadline_id: string
+        }
+        Insert: {
+          checked_at?: string
+          checked_by?: string | null
+          company_id: string
+          deadline_id: string
+        }
+        Update: {
+          checked_at?: string
+          checked_by?: string | null
+          company_id?: string
+          deadline_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_deadline_checks_checked_by_fkey"
+            columns: ["checked_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_deadline_checks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_dup_dismissals: {
+        Row: {
+          company_id: string
+          created_at: string
+          dismissed_by: string | null
+          dup_key: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          dismissed_by?: string | null
+          dup_key: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          dismissed_by?: string | null
+          dup_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_dup_dismissals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_dup_dismissals_dismissed_by_fkey"
+            columns: ["dismissed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tax_invoice_queue: {
         Row: {
@@ -15659,6 +17188,163 @@ export type Database = {
           },
         ]
       }
+      warehouses: {
+        Row: {
+          code: string | null
+          company_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          memo: string | null
+          name: string
+        }
+        Insert: {
+          code?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          memo?: string | null
+          name: string
+        }
+        Update: {
+          code?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          memo?: string | null
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "warehouses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weekly_todo_checks: {
+        Row: {
+          checked_at: string
+          checked_by: string | null
+          company_id: string
+          todo_key: string
+          week_key: string
+        }
+        Insert: {
+          checked_at?: string
+          checked_by?: string | null
+          company_id: string
+          todo_key: string
+          week_key: string
+        }
+        Update: {
+          checked_at?: string
+          checked_by?: string | null
+          company_id?: string
+          todo_key?: string
+          week_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_todo_checks_checked_by_fkey"
+            columns: ["checked_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_todo_checks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_orders: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          id: string
+          note: string | null
+          order_date: string
+          planned_qty: number
+          product_id: string
+          status: string
+          updated_at: string
+          warehouse_id: string | null
+          wo_no: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          note?: string | null
+          order_date?: string
+          planned_qty: number
+          product_id: string
+          status?: string
+          updated_at?: string
+          warehouse_id?: string | null
+          wo_no: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          note?: string | null
+          order_date?: string
+          planned_qty?: number
+          product_id?: string
+          status?: string
+          updated_at?: string
+          warehouse_id?: string | null
+          wo_no?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_orders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_orders_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_items: {
         Row: {
           archived_at: string | null
@@ -15778,47 +17464,56 @@ export type Database = {
           },
         ]
       }
+      year_end_tax_status: {
+        Row: {
+          company_id: string
+          employee_id: string
+          id: string
+          note: string | null
+          status: string
+          updated_at: string
+          updated_by: string | null
+          year: number
+        }
+        Insert: {
+          company_id: string
+          employee_id: string
+          id?: string
+          note?: string | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          year: number
+        }
+        Update: {
+          company_id?: string
+          employee_id?: string
+          id?: string
+          note?: string | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "year_end_tax_status_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "year_end_tax_status_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      v_work_order_done: {
-        Row: {
-          company_id: string | null
-          done_qty: number | null
-          planned_qty: number | null
-          product_id: string | null
-          work_order_id: string | null
-        }
-        Relationships: []
-      }
-      v_order_line_used: {
-        Row: {
-          company_id: string | null
-          order_id: string | null
-          order_line_id: string | null
-          ordered_qty: number | null
-          product_id: string | null
-          used_qty: number | null
-        }
-        Relationships: []
-      }
-      v_stock_avg_cost: {
-        Row: {
-          avg_cost: number | null
-          company_id: string | null
-          priced_qty: number | null
-          product_id: string | null
-        }
-        Relationships: []
-      }
-      v_stock_onhand: {
-        Row: {
-          company_id: string | null
-          product_id: string | null
-          qty: number | null
-          warehouse_id: string | null
-        }
-        Relationships: []
-      }
       card_deduction_summary: {
         Row: {
           company_id: string | null
@@ -15902,6 +17597,39 @@ export type Database = {
           deal_id: string | null
         }
         Relationships: []
+      }
+      v_order_line_used: {
+        Row: {
+          company_id: string | null
+          order_id: string | null
+          order_line_id: string | null
+          ordered_qty: number | null
+          product_id: string | null
+          used_qty: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_lines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_lines_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_partner_ar_ap: {
         Row: {
@@ -16034,6 +17762,61 @@ export type Database = {
           },
         ]
       }
+      v_stock_avg_cost: {
+        Row: {
+          avg_cost: number | null
+          company_id: string | null
+          priced_qty: number | null
+          product_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_cost_layers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_cost_layers_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_stock_onhand: {
+        Row: {
+          company_id: string | null
+          product_id: string | null
+          qty: number | null
+          warehouse_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_moves_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_moves_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_moves_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_sub_deal_pnl: {
         Row: {
           actual_cost: number | null
@@ -16098,9 +17881,51 @@ export type Database = {
           },
         ]
       }
+      v_work_order_done: {
+        Row: {
+          company_id: string | null
+          done_qty: number | null
+          planned_qty: number | null
+          product_id: string | null
+          work_order_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      _acct_by: {
+        Args: { p_cfg: Json; p_company: string; p_key: string; p_name: string }
+        Returns: string
+      }
       _advisor_gate: { Args: { p_company_id: string }; Returns: string }
+      _can_write_profit: { Args: never; Returns: boolean }
+      _fa_accumulated: {
+        Args: { p_asset: string; p_before_month: string }
+        Returns: number
+      }
+      _fa_default_codes: {
+        Args: { p_category: string }
+        Returns: {
+          accum_code: string
+          asset_code: string
+          expense_code: string
+        }[]
+      }
       _seed_advisor_default_perms: {
         Args: { p_link_id: string }
         Returns: undefined
@@ -16112,6 +17937,17 @@ export type Database = {
       _seed_legal_allowances_internal: {
         Args: { p_company_id: string }
         Returns: number
+      }
+      _seed_member_default_perms: {
+        Args: { p_company: string; p_user: string }
+        Returns: undefined
+      }
+      _stock_value_asof: {
+        Args: { p_asof: string; p_company: string }
+        Returns: {
+          product_id: string
+          value: number
+        }[]
       }
       ad_account_has_secret: { Args: { p_id: string }; Returns: boolean }
       ad_account_save: {
@@ -16131,6 +17967,16 @@ export type Database = {
           api_key: string
           api_secret: string
         }[]
+      }
+      add_cost_revaluation: {
+        Args: {
+          p_date: string
+          p_note: string
+          p_product: string
+          p_reason: string
+          p_unit_cost: number
+        }
+        Returns: string
       }
       advance_deal_stages: { Args: { p_deal_id?: string }; Returns: number }
       advisor_company_bank_tx: {
@@ -16262,6 +18108,7 @@ export type Database = {
         Args: { p_company_id: string }
         Returns: number
       }
+      cancel_cost_revaluation: { Args: { p_id: string }; Returns: undefined }
       check_can_clock_in_after_hours: {
         Args: { p_employee_id: string }
         Returns: {
@@ -16341,6 +18188,25 @@ export type Database = {
       delete_document: { Args: { p_doc_id: string }; Returns: undefined }
       encrypt_credential: { Args: { p_plaintext: string }; Returns: string }
       encrypt_json_credentials: { Args: { p_creds: Json }; Returns: Json }
+      estimate_retirement: {
+        Args: { p_asof?: string; p_company: string; p_employee?: string }
+        Returns: {
+          daily_wage: number
+          days3m: number
+          employee_id: string
+          estimate: number
+          gross3m: number
+          hire_date: string
+          manual: number
+          name: string
+          source: string
+          total_days: number
+        }[]
+      }
+      feature_on: {
+        Args: { p_company: string; p_feature: string }
+        Returns: boolean
+      }
       find_account: {
         Args: { p_code: string; p_company: string; p_name: string }
         Returns: string
@@ -16352,6 +18218,10 @@ export type Database = {
           id: string
           raw_user_meta_data: Json
         }[]
+      }
+      find_masked_emails_by_name: {
+        Args: { p_name: string }
+        Returns: string[]
       }
       find_or_create_bank_partner: {
         Args: { p_bank_account_id: string }
@@ -16440,6 +18310,21 @@ export type Database = {
         Returns: Json
       }
       get_owner_project_trend: { Args: { p_period?: string }; Returns: Json }
+      get_partner_credit: {
+        Args: { p_company?: string }
+        Returns: {
+          avg_delay: number
+          grade: string
+          late_ratio: number
+          max_delay: number
+          oldest_open_days: number
+          open_amt: number
+          open_over60: number
+          open_over90: number
+          partner_id: string
+          settled_n: number
+        }[]
+      }
       get_partner_ledger_by_year: {
         Args: { p_year: number }
         Returns: {
@@ -16490,12 +18375,9 @@ export type Database = {
           latest_failed_at: string
         }[]
       }
+      get_share_by_token: { Args: { p_token: string }; Returns: Json }
       get_signature_context_by_token: {
         Args: { p_sign_token: string }
-        Returns: Json
-      }
-      get_share_by_token: {
-        Args: { p_token: string }
         Returns: Json
       }
       get_signature_request_by_token: {
@@ -16600,6 +18482,56 @@ export type Database = {
           p_send_type: string
           p_signature_request_id: string
         }
+        Returns: string
+      }
+      make_cogs_voucher_draft: {
+        Args: { p_company: string; p_from: string; p_to: string }
+        Returns: string
+      }
+      make_contract_invoice_drafts: { Args: never; Returns: number }
+      make_contract_invoice_drafts_for: {
+        Args: { p_company: string; p_today: string }
+        Returns: number
+      }
+      make_depreciation_voucher_draft: {
+        Args: { p_company: string; p_month: string }
+        Returns: string
+      }
+      make_inventory_voucher_draft: {
+        Args: { p_asof: string; p_company: string }
+        Returns: string
+      }
+      make_my_cogs_voucher_draft: {
+        Args: { p_from: string; p_to: string }
+        Returns: string
+      }
+      make_my_contract_invoice_drafts: { Args: never; Returns: number }
+      make_my_depreciation_voucher_draft: {
+        Args: { p_month: string }
+        Returns: string
+      }
+      make_my_inventory_voucher_draft: {
+        Args: { p_asof: string }
+        Returns: string
+      }
+      make_my_payroll_voucher_draft: {
+        Args: { p_month: string }
+        Returns: string
+      }
+      make_my_production_voucher_draft: {
+        Args: { p_from: string; p_to: string }
+        Returns: string
+      }
+      make_payroll_voucher_draft: {
+        Args: { p_company: string; p_month: string }
+        Returns: string
+      }
+      make_production_voucher_draft: {
+        Args: { p_company: string; p_from: string; p_to: string }
+        Returns: string
+      }
+      make_retirement_voucher_draft: {
+        Args: { p_asof: string; p_company: string }
         Returns: string
       }
       mark_attendance_late: {
@@ -16827,13 +18759,16 @@ export type Database = {
       }
       platform_ai_costs: { Args: never; Returns: Json }
       platform_analytics: {
-        Args: { p_buckets?: number; p_granularity?: string }
+        Args: { p_buckets?: number; p_granularity?: string; p_scope?: string }
         Returns: Json
       }
       platform_company_activity: { Args: never; Returns: Json }
       platform_ops_risk: { Args: never; Returns: Json }
       platform_signup_funnel: { Args: { p_days?: number }; Returns: Json }
-      platform_traffic_stats: { Args: { p_days?: number }; Returns: Json }
+      platform_traffic_stats: {
+        Args: { p_days?: number; p_scope?: string }
+        Returns: Json
+      }
       platform_usage_stats: { Args: never; Returns: Json }
       portal_leave_message: {
         Args: { p_message: string; p_token: string }
@@ -16890,10 +18825,13 @@ export type Database = {
         }
         Returns: string
       }
+      pv_is_search_referrer: { Args: { p_host: string }; Returns: boolean }
       reassign_approval_step: {
         Args: { p_new_approver_id: string; p_step_id: string }
         Returns: undefined
       }
+      rebuild_my_stock_costs: { Args: never; Returns: Json }
+      rebuild_stock_costs: { Args: { p_company: string }; Returns: Json }
       recalculate_late_status_recent: {
         Args: { p_company_id?: string; p_days?: number }
         Returns: {
@@ -16958,6 +18896,14 @@ export type Database = {
         Args: { p_invoice_id: string }
         Returns: string
       }
+      run_biz_alerts: { Args: never; Returns: number }
+      run_biz_alerts_for: {
+        Args: { p_company: string; p_today: string }
+        Returns: number
+      }
+      run_my_biz_alerts: { Args: never; Returns: number }
+      run_production_voucher_cycles: { Args: never; Returns: number }
+      run_stock_cost_rebuild_all: { Args: never; Returns: number }
       sales_code_bonus_days: { Args: { p_code: string }; Returns: number }
       save_manual_voucher: {
         Args: {

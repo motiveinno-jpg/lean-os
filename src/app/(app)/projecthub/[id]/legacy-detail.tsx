@@ -1,0 +1,2850 @@
+"use client";
+import { todayKst, kstDateStr } from "@/lib/kst";
+import { Ico } from "@/components/ui-icon";
+import { logRead } from "@/lib/log-read";
+
+// 프로젝트 상세 (라이프사이클 탭) — 기존 deal 데이터 재사용. 2026-06-17 핸드오프 v2.
+//   탭: 개요 / 견적서 / 계약 / 진행현황 / 손익. 모두 기존 테이블 읽기(연결·표시), 원본 무수정.
+//   손익(원가율) 은 journal_entries.deal_id + v_deal_pnl 추가 후 별도 단계에서 채움.
+
+import { useCallback, useMemo, useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import Link from "next/link";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { useUser } from "@/components/user-context";
+import { useToast } from "@/components/toast";
+import { AccessDenied } from "@/components/access-denied";
+import { useMyPermissions } from "@/lib/permissions";
+import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
+import { createFromTemplate, nextQuoteNumber } from "@/lib/documents";
+import { seedDefaultDocTemplates, STANDARD_CONTRACT_CONTENT } from "@/lib/default-doc-templates";
+import { useTabParam } from "@/lib/use-tab-param";
+import { DateField } from "@/components/date-field";
+import { ProjectSlideOver } from "@/components/project-slide-over";
+// 마일스톤(deal_milestones) 체크리스트·간트·캘린더 — 구 '프로젝트 운영' 탭 안에 묻혀 있던 것을
+//   이름이 맞는 '일' 자리로 옮긴다(2026-07-30). 실데이터 9건이 여기에 있다.
+import { ProjectScheduleTab } from "@/components/project-schedule-tab";
+import { SubDealsTab } from "./_components/SubDealsTab";
+import { OverviewDashboard } from "./_components/OverviewDashboard";
+import { ProjectBoards } from "./_components/ProjectBoards";
+import { ProjectMembers } from "./_components/ProjectMembers";
+import { type ProjectTabKey } from "@/lib/project-types";
+import {
+  SECTION_ORDER, SECTION_TITLE, SECTION_VIEWS,
+  viewStorageKey, type SectionKey,
+} from "@/lib/project-sections";
+import { getProjectStatus } from "@/lib/project-status";
+import { buildProjectBrief } from "@/lib/project-brief-rules";
+import { contractIncVat } from "@/lib/project-money";
+import { PerformanceTab } from "./_components/PerformanceTab";
+import { GoalOverviewTab } from "./_components/GoalOverviewTab";
+import { RadialGauge, WorkloadChart, BurnUpChart, BarList } from "@/components/charts";
+import { FormTemplateManager } from "@/components/form-template-manager";
+import { buildQuoteBlobFromDoc } from "@/lib/quote-pdf";
+import { createTaxInvoice } from "@/lib/tax-invoice";
+import { deleteDocument } from "@/lib/queries";
+import { TasksTab } from "./_components/TasksTab";
+import { TeamTab } from "./_components/TeamTab";
+import { IssuesTab } from "./_components/IssuesTab";
+import { useModalKeys } from "@/hooks/use-modal-keys";
+
+const db = supabase;
+const RAIL_KEY = "ov.projecthub.railOpen";
+
+// 상세 탭 — 여섯 자리를 네 묶음으로(2026-08-03 개편 ③). 순서는 프로젝트가 달라도 고정이고,
+//   데이터가 없는 탭도 자리를 지킨다(흐리게). 한 번 익히면 어느 프로젝트든 같은 위치다.
+// 자리 묶음 — 화면 위 탭 줄은 없앴다(2026-08-03 사장님: "프로젝트명 클릭하면 바로 템플릿이
+//   나오면 될 것 같아. 상단에 프로젝트명 나오고 바로 밑에 템플릿").
+//   프로젝트명 바로 아래가 템플릿 탭이고, 자금·설정은 머리줄 오른쪽 작은 버튼으로 옮겼다.
+//   이 배열은 어느 자리가 어느 묶음인지만 정한다(?tab= 옛 링크 호환).
+//   구 탭(개요·업무·기록)은 표와 정리가 대신한다:
+//     개요(챙길 것·진행 단계·목표) → 표의 '정리' 탭이 입력값에서 직접 만든다
+//     업무(project_tasks)        → '할 일·진행' 템플릿
+//   자리(SectionKey) 자체는 남겨 둔다 — ?tab= 옛 링크가 깨지지 않게, 그리고 되돌리기 쉽게.
+const PJ_TABS: { key: string; label: string; secs: SectionKey[] }[] = [
+  { key: "boards", label: "표", secs: ["boards"] },
+  { key: "money", label: "자금", secs: ["money"] },
+  { key: "record", label: "설정", secs: ["team"] },
+];
+//   탭에서 빠진 자리(todo·flow·work·goal)로 들어오면 표 탭이 열린다.
+const TAB_OF_SECTION = (k: SectionKey) => PJ_TABS.find((t) => t.secs.includes(k)) || PJ_TABS[0];
+
+// 견적서 기본 구조 — 프로젝트에서 바로 생성(문서함 이동 없이). 품목은 생성 후 편집기에서 추가.
+const QUOTE_CONTENT = {
+  title: "견적서",
+  sections: [
+    { title: "견적 정보", content: "공급자: {{회사명}} (대표: {{대표자명}})\n수신: {{거래처명}}\n견적일자: {{견적일자}}\n유효기간: {{유효기간}}" },
+    { title: "견적 품목", content: "[품목 테이블]\n\n※ 품목은 문서 생성 후 품목 편집 테이블에서 추가해 주세요.\n각 품목의 공급가액, 세액(10%), 합계가 자동 계산됩니다." },
+    { title: "거래 조건", content: "납품 조건: {{납품조건}}\n결제 조건: {{결제조건}}\n\n※ 상기 금액은 부가가치세 별도 금액이며, 세금계산서를 발행합니다." },
+    { title: "비고", content: "1. 본 견적서의 유효기간은 견적일로부터 {{유효기간}}입니다.\n2. 수량 및 사양 변경 시 단가가 변동될 수 있습니다.\n3. 기타 문의사항은 담당자에게 연락 바랍니다." },
+  ],
+};
+// 계약서 기본 구조 — 활성 양식이 없을 때의 기본값. 표준 전자계약서 본문(제1~10조)을 제공해
+//   "계약서 느낌"이 나도록 한다(구 빈 1줄 구조 대체). 업로드 양식 선택 시 그 양식으로 대체됨.
+const CONTRACT_CONTENT = STANDARD_CONTRACT_CONTENT;
+const won = (n: number | null | undefined) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
+const fmtDate = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : "—");
+const fmtNo = (d: any) => (d.document_number ? d.document_number : d.created_at ? String(d.created_at).slice(0, 10).replace(/-/g, "/") : "—");
+// 문서 분류: 견적서(invoice/quote) vs 계약(나머지·전자계약). content_json.type → content_type 순.
+const docKind = (d: any): "quote" | "contract" => {
+  const t = (d?.content_json?.type as string) || d?.content_type || "";
+  return t === "invoice" || t === "quote" ? "quote" : "contract";
+};
+
+// 견적 리스트 컬럼 — 노출 항목 커스터마이징(브라우저별 저장). align 'r' = 우측(금액)
+type QCol = { key: string; label: string; default: boolean; align?: "l" | "c" | "r" };
+const QUOTE_LIST_COLS: QCol[] = [
+  { key: "no", label: "견적No.", default: true, align: "l" },
+  { key: "partner", label: "거래처명", default: true, align: "l" },
+  { key: "manager", label: "사원(담당)명", default: true, align: "c" },
+  { key: "items", label: "품목명(요약)", default: true, align: "l" },
+  { key: "subdeal", label: "매출/매입 관리", default: false, align: "l" },
+  { key: "valid", label: "유효기간", default: true, align: "c" },
+  { key: "amount", label: "견적금액합계", default: true, align: "r" },
+  { key: "status", label: "진행상태", default: true, align: "c" },
+  { key: "created", label: "작성일", default: false, align: "c" },
+  //   "열람수" 열 삭제 (2026-08-31 스윕) — quote_tracking 은 쓰기 코드가 없는 죽은 테이블이라 영원히 0 이었다
+  { key: "print", label: "인쇄", default: true, align: "c" },
+];
+const QUOTE_COLS_LSKEY = "projecthub_quote_cols_v1";
+
+// content_json 에서 견적 품목/금액 추출 (필드명 방어적)
+const quoteItems = (doc: any): any[] => {
+  const cj = doc?.content_json;
+  return Array.isArray(cj?.items) ? cj.items : [];
+};
+const quoteItemSummary = (doc: any): string => {
+  const items = quoteItems(doc);
+  if (items.length === 0) return "—";
+  const first = items[0]?.name || items[0]?.품목명 || items[0]?.spec || "(품목)";
+  return items.length > 1 ? `${first} 외 ${items.length - 1}건` : String(first);
+};
+const quoteAmount = (doc: any): number => {
+  if (doc?.contract_amount != null) return Number(doc.contract_amount) || 0;
+  return quoteItems(doc).reduce((s: number, it: any) => {
+    const total = it.totalAmount ?? it.total ?? (Number(it.supplyAmount ?? Number(it.quantity || 0) * Number(it.unitPrice || 0)) + Number(it.taxAmount ?? 0));
+    return s + (Number(total) || 0);
+  }, 0);
+};
+
+type TabKey = ProjectTabKey;
+// ⚠️ 2026-07-30 탭 폐지 — 유형별로 보이는 탭이 달라 프로젝트마다 다른 앱처럼 보였고,
+//    유형은 생성 후 변경 불가라 수익형 30개가 진행률·성과에 영구히 접근할 수 없었다.
+//    한 페이지 + 자리(SECTION_ORDER) 6개로 바꾼다. 자리 순서는 절대 바뀌지 않는다.
+//
+// 내부 컴포넌트들(MoneyFlow·PipelineRibbon·SettlementPanel·MarginOnboarding·PerformanceTab)은
+//   onOpen("transactions") 처럼 기존 탭 키로 이동을 요청한다. 그 컴포넌트들을 그대로 두기 위해
+//   탭 키를 자리로 번역해 해당 자리로 스크롤한다(프롭 시그니처 무변경).
+const TAB_TO_SECTION: Record<TabKey, SectionKey> = {
+  overview: "flow",
+  quote: "money",
+  contract: "money",
+  subdeals: "money",
+  transactions: "money",
+  sales_pipeline: "money",
+  purchase_pipeline: "money",
+  subprojects: "money",
+  pnl: "team",          // 구 '프로젝트 운영'(활동·일정) → 사람과 기록
+  issues: "work",
+  tasks: "work",
+  workflow: "work",
+  performance: "goal",
+};
+
+// ── 결제 조건(선금/중도금/잔금) ──
+type PayMode = "full" | "two" | "three";
+type PayTerm = { label: string; ratio: number };
+const clampPct = (n: number) => Math.min(100, Math.max(0, Math.round(Number(n) || 0)));
+// 모드+비율 → 회차 배열(전액이면 null). 잔금은 나머지로 자동.
+function buildPaySchedule(mode: PayMode, adv: number, mid: number): PayTerm[] | null {
+  const a = clampPct(adv);
+  if (mode === "two") return [{ label: "선금", ratio: a }, { label: "잔금", ratio: 100 - a }].filter((t) => t.ratio > 0);
+  if (mode === "three") {
+    const m = clampPct(mid);
+    const bal = 100 - a - m;
+    return [{ label: "선금", ratio: a }, { label: "중도금", ratio: m }, { label: "잔금", ratio: bal }].filter((t) => t.ratio > 0);
+  }
+  return null;
+}
+// 저장된 paymentSchedule → UI 모드/비율 복원 (구 paymentRatio 2단계 하위호환).
+function readPaySchedule(cj: any): { mode: PayMode; adv: number; mid: number } {
+  const sched = cj?.paymentSchedule as PayTerm[] | undefined;
+  if (Array.isArray(sched) && sched.length >= 3) return { mode: "three", adv: sched[0]?.ratio ?? 30, mid: sched[1]?.ratio ?? 30 };
+  if (Array.isArray(sched) && sched.length === 2) return { mode: "two", adv: sched[0]?.ratio ?? 30, mid: 30 };
+  const pr = cj?.paymentRatio;
+  if (pr && typeof pr.advance === "number") return { mode: "two", adv: pr.advance, mid: 30 };
+  return { mode: "full", adv: 30, mid: 30 };
+}
+
+export default function LegacyProjectDetail() {
+  const { user } = useUser();
+  const companyId = user?.company_id ?? null;
+  const userId = user?.id ?? null;
+  // 열람 범위 — '/projecthub:all' 없으면 자기가 담당자인 프로젝트(그 하위 캠페인 포함)만 열린다(2026-07-31).
+  const { isMaster: projMaster, hasPerm: projHasPerm, loading: projPermLoading } = useMyPermissions();
+  const canViewAllProjects = projMaster || projHasPerm("/projecthub:all");
+  const role = user?.role;
+  const params = useParams();
+  const router = useRouter();
+  const dealId = String(params?.id || "");
+  // 좌측 프로젝트 레일 — 목록으로 돌아가지 않고 프로젝트를 바꾼다(먼데이 참고, 2026-08-03).
+  //   넓은 화면에서만 켠다. 좁은 화면에서는 표가 설 자리가 없어 자동으로 접힌다.
+  const [railOpen, setRailOpen] = useState(true);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(RAIL_KEY);
+    if (saved === "0") setRailOpen(false);
+    const narrow = window.matchMedia("(max-width: 1279px)");
+    const apply = () => { if (narrow.matches) setRailOpen(false); };
+    apply();
+    narrow.addEventListener("change", apply);
+    return () => narrow.removeEventListener("change", apply);
+  }, []);
+  const toggleRail = () => setRailOpen((v) => {
+    const next = !v;
+    if (typeof window !== "undefined") window.localStorage.setItem(RAIL_KEY, next ? "1" : "0");
+    return next;
+  });
+
+  // 방금 만들고 들어온 경우(목록의 만들기 → ?new=1) — 첫 한 걸음 안내 문구만 달라진다.
+  const searchParams = useSearchParams();
+  const justCreated = searchParams?.get("new") === "1";
+  // 목차에서 고른 자리(스크롤 위치 표시용). ?tab= 딥링크는 자리 키를 받는다.
+  // 기본 탭은 '표' — 프로젝트를 열면 입력 화면부터 본다(2026-08-03 기획 v2).
+  //   ?tab= 로 들어오면 그 자리가 열리므로 옛 링크는 그대로 동작한다.
+  const [sec, setSec] = useTabParam<SectionKey>("boards", { valid: SECTION_ORDER });
+  // 자리별 보기 — 사람마다 기억한다(대표는 돈=추세, 실무자는 일=칸반으로 열리게).
+  const [views, setViews] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const next: Record<string, string> = {};
+    for (const k of SECTION_ORDER) {
+      const saved = window.localStorage.getItem(viewStorageKey(`sec.${k}`, userId));
+      if (saved && SECTION_VIEWS[k].some((v) => v.key === saved)) next[k] = saved;
+    }
+    setViews(next);
+  }, [userId]);
+  const viewOf = (k: SectionKey) => views[k] || SECTION_VIEWS[k][0].key;
+  const pickView = (k: SectionKey, v: string) => {
+    setViews((prev) => ({ ...prev, [k]: v }));
+    if (typeof window !== "undefined") window.localStorage.setItem(viewStorageKey(`sec.${k}`, userId), v);
+  };
+
+  // 한 페이지라 여섯 자리가 한꺼번에 조회를 쏘면 안 된다 — 화면에 들어온 자리만 마운트한다.
+  //   처음엔 상단 세 자리(할 일·흐름·돈)만 열고, 나머지는 스크롤로 들어올 때 열린다.
+  const [openSecs, setOpenSecs] = useState<Set<SectionKey>>(() => new Set<SectionKey>(["todo", "flow", "money"]));
+  const markSecOpen = useCallback((k: SectionKey) => {
+    setOpenSecs((prev) => (prev.has(k) ? prev : new Set(prev).add(k)));
+  }, []);
+  const moneyOpen = openSecs.has("money");
+  // 데이터가 없는 자리는 한 줄 제안만 둔다(무거운 컴포넌트를 마운트하지 않는다).
+  //   ⚠️ 안 쓰는 기능이 펼쳐져 있으면 스크롤만 길어진다 — 실측 3.4화면 중 1화면이 빈 자리였다.
+  //   누르면 그 자리에서 바로 펼쳐진다(생성 때 미리 고르게 하지 않는 이유: 그 시점엔 판단 근거가 없다).
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  // 목표·실적 — 개요에서는 요약만 보여주고, 누르면 전체 보고서를 그 자리에서 펼친다
+  //   (2026-08-03 사장님 지적: "대시보드 안에 또 대시보드")
+  const [goalFull, setGoalFull] = useState(false);
+  // 목표금액 한 칸 — 내부적으로는 매출 KPI 1개로 저장한다(스키마 변경 없음)
+  const [goalInput, setGoalInput] = useState("");
+  const [savingGoal, setSavingGoal] = useState(false);
+  const saveGoalAmount = async () => {
+    const amt = Number(goalInput.replace(/[^0-9]/g, ""));
+    if (!companyId || !amt || savingGoal) return;
+    setSavingGoal(true);
+    try {
+      const { error } = await db.from("project_kpis").insert({
+        company_id: companyId, deal_id: dealId, label: "매출 목표", unit: "원",
+        target_value: amt, direction: "up", source: "revenue_auto", sort_order: 0,
+      });
+      if (error) throw new Error(error.message);
+      qc.invalidateQueries({ queryKey: ["projecthub-has-goal", dealId] });
+      qc.invalidateQueries({ queryKey: ["projecthub-status-facts", dealId] });
+      qc.invalidateQueries({ queryKey: ["project-kpis", dealId] });
+      setGoalInput("");
+      toast(`목표금액 ${won(amt)}을 정했습니다.`, "success");
+    } catch (e: any) {
+      toast(e?.message || "목표 저장 실패", "error");
+    } finally {
+      setSavingGoal(false);
+    }
+  };
+  const openNow = (k: SectionKey) => setExpanded((p) => ({ ...p, [k]: true }));
+  // 목차 클릭 → 그 자리로 스크롤(자리는 즉시 마운트한다. 스크롤 도착 전에 조회가 시작되게)
+  const goSection = useCallback((k: SectionKey) => {
+    markSecOpen(k);
+    setSec(k);
+    if (typeof document === "undefined") return;
+    // 탭이 바뀌면 그 자리는 아직 안 붙어 있을 수 있다 — 다음 프레임에 찾고, 없으면 탭 줄로 올린다
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`pj-sec-${k}`);
+      if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+      requestAnimationFrame(() => {
+        document.getElementById(`pj-sec-${k}`)?.scrollIntoView({ behavior: "smooth", block: "start" })
+          ?? document.querySelector(".pj-tabs")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+  }, [markSecOpen, setSec]);
+  // 구 탭 키로 이동을 요청하는 내부 컴포넌트용 — 탭 키를 자리로 번역한다.
+  const goTab = useCallback((t: TabKey) => goSection(TAB_TO_SECTION[t] || "flow"), [goSection]);
+
+  // 세부 프로젝트(캠페인) 추가 폼 — 금액은 생성 후 '매출/매입 관리'에서 입력
+  const [showChildForm, setShowChildForm] = useState(false);
+  const [childName, setChildName] = useState("");
+  const [creatingChild, setCreatingChild] = useState(false);
+  // 세부 프로젝트(캠페인) 생성 시 매출/매입(개요) — 저장 시 sub_deals 로 seed. 개요(참고)에만 반영, 총비용/마진(실적)엔 미반영.
+  // 세부 프로젝트 초기 금액 — 매출/매입 하나를 선택해 한 줄로 입력(거래 원장과 동일 방식). 상세는 생성 후 거래 탭에서.
+  const [childKind, setChildKind] = useState<"sales" | "purchase">("sales");
+  const [childAmt, setChildAmt] = useState("");
+  const [childVat, setChildVat] = useState<"exclude" | "include">("exclude");
+  const numComma = (s: string) => { const n = Number(String(s).replace(/[^0-9]/g, "")); return n ? n.toLocaleString("ko-KR") : ""; };
+  const resetChildForm = () => { setChildName(""); setChildAmt(""); setChildKind("sales"); setChildVat("exclude"); };
+  // 캠페인 목록 수정/삭제
+  const [editChild, setEditChild] = useState<any | null>(null);
+  const [editChildName, setEditChildName] = useState("");
+  const [editChildStage, setEditChildStage] = useState<string>("estimate");
+  const [editChildStart, setEditChildStart] = useState("");
+  const [editChildEnd, setEditChildEnd] = useState("");
+  const [savingChild, setSavingChild] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deletingChild, setDeletingChild] = useState(false);
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  // 견적 리스트 노출 컬럼 (커스터마이징) — 브라우저 localStorage 저장
+  const [visibleCols, setVisibleCols] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {};
+    QUOTE_LIST_COLS.forEach((c) => (init[c.key] = c.default));
+    return init;
+  });
+  const [showColSettings, setShowColSettings] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<any | null>(null); // 인쇄 전 견적 PDF 미리보기 팝업
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  // 견적 미리보기 — previewDoc 설정 시 실제 PDF Blob 생성 → iframe 미리보기 + 직접 인쇄/저장.
+  useEffect(() => {
+    if (!previewDoc || !companyId) { setPreviewUrl(null); setPreviewBlob(null); return; }
+    let url: string | null = null;
+    let alive = true;
+    setPreviewLoading(true); setPreviewUrl(null); setPreviewBlob(null);
+    buildQuoteBlobFromDoc(previewDoc, companyId, userId)
+      .then((blob) => { if (!alive) return; url = URL.createObjectURL(blob); setPreviewBlob(blob); setPreviewUrl(url); })
+      .catch((e) => { if (alive) toast("미리보기 생성 실패: " + (e?.message || ""), "error"); })
+      .finally(() => { if (alive) setPreviewLoading(false); });
+    return () => { alive = false; if (url) URL.revokeObjectURL(url); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewDoc, companyId]);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(QUOTE_COLS_LSKEY);
+      if (raw) setVisibleCols((prev) => ({ ...prev, ...JSON.parse(raw) }));
+    } catch { /* ignore */ }
+  }, []);
+  const toggleCol = (key: string) => {
+    setVisibleCols((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { localStorage.setItem(QUOTE_COLS_LSKEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+  const cols = useMemo(() => QUOTE_LIST_COLS.filter((c) => visibleCols[c.key]), [visibleCols]);
+  // 견적서 작성(인라인) — 문서함으로 넘어가지 않고 프로젝트에서 바로 생성
+  const [showQuoteForm, setShowQuoteForm] = useState(false);
+  const [formKind, setFormKind] = useState<"quote" | "contract">("quote"); // 견적서 탭 vs 전자계약 탭 작성 구분
+  const [quoteName, setQuoteName] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [quoteSubDealId, setQuoteSubDealId] = useState(""); // 세부 프로젝트 연결(선택, 견적서 전용)
+  const [creatingQuote, setCreatingQuote] = useState(false);
+  const [creatingContractFrom, setCreatingContractFrom] = useState<string | null>(null);
+  // 계약 결제조건 못박기 — 전액/선금·잔금/선금·중도금·잔금. 계약 content_json.paymentSchedule 로 저장.
+  const [payMode, setPayMode] = useState<PayMode>("full");
+  const [payAdv, setPayAdv] = useState(30); // 선금 %
+  const [payMid, setPayMid] = useState(30); // 중도금 %
+  const [payModalQuote, setPayModalQuote] = useState<any | null>(null); // 견적→계약 시 결제조건 모달
+  const [issuingInvoiceFrom, setIssuingInvoiceFrom] = useState<string | null>(null);
+  // 견적/계약 문서 삭제 — deleteDocument RPC(연관 정리)로 삭제. 발행된 계산서(deal 참조)는 영향 없음.
+  const [delDoc, setDelDoc] = useState<any | null>(null);
+  const [deletingDoc, setDeletingDoc] = useState(false);
+  const [tplManagerKind, setTplManagerKind] = useState<"quote" | "contract" | null>(null); // 양식 관리 모달
+  const removeDoc = async () => {
+    if (!delDoc || deletingDoc) return;
+    setDeletingDoc(true);
+    try {
+      await deleteDocument(delDoc.id);
+      qc.invalidateQueries({ queryKey: ["projecthub-docs", dealId] });
+      qc.invalidateQueries({ queryKey: ["projecthub-pipe-summary", dealId] });
+      qc.invalidateQueries({ queryKey: ["projecthub-quotes", dealId] });
+      toast("문서를 삭제했습니다.", "success");
+      setDelDoc(null);
+    } catch (e: any) {
+      toast(e?.message || "삭제 실패", "error");
+    } finally {
+      setDeletingDoc(false);
+    }
+  };
+  // 계산서 발행 모달 — 계약서의 결제조건(paymentSchedule)을 기본값으로. payMode/payAdv/payMid 공용.
+  const [invoiceModal, setInvoiceModal] = useState<any | null>(null); // 발행 대상 계약 문서
+  const openInvoiceModal = (contractDoc: any) => {
+    const r = readPaySchedule(contractDoc.content_json);
+    setPayMode(r.mode); setPayAdv(r.adv); setPayMid(r.mid);
+    setInvoiceModal(contractDoc);
+  };
+  // ★ 계약 → 계산서 발행 (P2 + 선금/중도금/잔금). 전액=1건. 분할=첫 회차(선금) 즉시 발행 + 이후 회차 초안.
+  //   status='issued'=매출 발행(리포트 매출 집계). 홈택스 실전송은 세금계산서 메뉴 소관(여기선 DB 기록만).
+  const issueInvoices = async () => {
+    const contractDoc = invoiceModal;
+    if (!companyId || !contractDoc || issuingInvoiceFrom) return;
+    const supply = quoteAmount(contractDoc) || Number(deal?.contract_total || 0);
+    if (supply <= 0) { toast("계약 금액이 없습니다. 계약서에 금액을 먼저 입력하세요.", "error"); return; }
+    const schedule = buildPaySchedule(payMode, payAdv, payMid);
+    setIssuingInvoiceFrom(contractDoc.id);
+    try {
+      const today = todayKst();
+      const cpName = partner?.name || (contractDoc.content_json as any)?.header?.partnerName || "거래처";
+      const cpBizno = partner?.business_number || undefined;
+      if (schedule && schedule.length > 0) {
+        // 금액 산출 — 반올림 오차는 마지막 회차(잔금)에서 보정해 합계=공급가 유지.
+        const dueOffsets = [7, 30, 60, 90];
+        const conditions = ["계약 후 7일 이내", "중도 진행 시점", "납품 완료 후 14일 이내"];
+        let allocated = 0;
+        const terms = schedule.map((t, i) => {
+          const amount = i === schedule.length - 1 ? supply - allocated : Math.round((supply * t.ratio) / 100);
+          allocated += amount;
+          return { ...t, amount, condition: conditions[i] || "협의", dueOffset: dueOffsets[Math.min(i, dueOffsets.length - 1)], status: (i === 0 ? "issued" : "draft") as "issued" | "draft" };
+        }).filter((t) => t.amount > 0);
+        for (const t of terms) {
+          const due = kstDateStr(new Date(Date.now() + t.dueOffset * 86400000));
+          const sched = logRead('[id]/page:sched', await db.from("deal_revenue_schedule").insert({
+            deal_id: dealId, label: `${t.label} (${t.ratio}%)`, amount: t.amount, due_date: due, status: "expected", condition_text: t.condition,
+          }).select("id").single());
+          await createTaxInvoice({
+            companyId, dealId, type: "sales", counterpartyName: cpName, counterpartyBizno: cpBizno,
+            supplyAmount: t.amount, issueDate: today, status: t.status, partnerId: deal?.partner_id || undefined,
+            label: `${deal?.name || "프로젝트"} ${t.label} 계산서`, revenueScheduleId: sched?.id || null,
+          });
+        }
+        // 계약서에 결제조건 기억(다음 발행 기본값 · 계약서 내용 반영)
+        try {
+          const cj = { ...((contractDoc.content_json as any) || {}), paymentSchedule: schedule };
+          await db.from("documents").update({ content_json: cj }).eq("id", contractDoc.id);
+          qc.invalidateQueries({ queryKey: ["projecthub-docs", dealId] });
+        } catch { /* 저장 실패는 무시 */ }
+        toast(`${terms.map((t) => `${t.label} ${won(t.amount)}`).join(" · ")} — 첫 회차 발행, 이후 초안으로 생성했습니다.`, "success");
+      } else {
+        await createTaxInvoice({
+          companyId, dealId, type: "sales", counterpartyName: cpName, counterpartyBizno: cpBizno,
+          supplyAmount: supply, issueDate: today, status: "issued", partnerId: deal?.partner_id || undefined,
+          label: `${deal?.name || "프로젝트"} 계약 기반`,
+        });
+        toast(`매출 세금계산서를 발행 등록했습니다 (${won(supply)} · 미전송). 세금계산서 메뉴에서 국세청 전송하세요.`, "success");
+      }
+      qc.invalidateQueries({ queryKey: ["projecthub-pipe-summary", dealId] });
+      setInvoiceModal(null);
+    } catch (e: any) {
+      toast(e?.message || "계산서 생성 실패", "error");
+    } finally {
+      setIssuingInvoiceFrom(null);
+    }
+  };
+  const createDoc = async () => {
+    if (!companyId || !userId || creatingQuote) return;
+    setCreatingQuote(true);
+    try {
+      const subDealId = formKind === "quote" ? (quoteSubDealId || null) : null;
+      let newId: string | null = null;
+      if (selectedTemplateId) {
+        // 선택한 양식으로 생성(양식 type → content_type 보존). 견적서면 세부 연결 부착.
+        const doc: any = await createFromTemplate({ companyId, templateId: selectedTemplateId, dealId, name: quoteName.trim() || (formKind === "quote" ? "견적서" : "계약서"), createdBy: userId });
+        newId = doc?.id || null;
+        if (subDealId && newId) await db.from("documents").update({ sub_deal_id: subDealId }).eq("id", newId);
+      } else {
+        // 기본 구조로 생성 — 견적서(invoice·품목표) / 계약서(contract·본문)
+        const { data, error } = await db.from("documents").insert({
+          company_id: companyId,
+          deal_id: dealId,
+          sub_deal_id: subDealId,
+          name: quoteName.trim() || (formKind === "quote" ? "견적서" : "계약서"),
+          status: "draft",
+          document_number: formKind === "quote" ? await nextQuoteNumber(companyId) : null,
+          content_type: formKind === "quote" ? "invoice" : "contract",
+          content_json: formKind === "quote" ? QUOTE_CONTENT : CONTRACT_CONTENT,
+          version: 1,
+          created_by: userId,
+        }).select("id").single();
+        if (error) throw error;
+        newId = data?.id || null;
+      }
+      // 계약서면 결제조건(선금/중도금/잔금) 못박기 — 회차 배열 또는 null(전액). 양식/기본 양쪽 커버.
+      if (formKind === "contract" && newId) {
+        const cur = logRead('[id]/page:cur', await db.from("documents").select("content_json").eq("id", newId).maybeSingle());
+        const cj = { ...((cur?.content_json as any) || {}), paymentSchedule: buildPaySchedule(payMode, payAdv, payMid) };
+        await db.from("documents").update({ content_json: cj }).eq("id", newId);
+      }
+      qc.invalidateQueries({ queryKey: ["projecthub-docs", dealId] });
+      setShowQuoteForm(false);
+      setQuoteName("");
+      setSelectedTemplateId("");
+      setQuoteSubDealId("");
+      // 견적서는 생성 즉시 입력 화면(문서 편집기)으로 전환. 계약서는 발송·서명 흐름이 따로라 기존 동작 유지.
+      if (formKind === "quote" && newId) {
+        router.push(`/documents?id=${newId}`);
+      } else {
+        toast("문서를 생성했습니다. 목록에서 ‘열기/편집’으로 내용을 작성하세요.", "success");
+      }
+    } catch (e: any) {
+      toast(e?.message || "문서 생성 실패", "error");
+    } finally {
+      setCreatingQuote(false);
+    }
+  };
+
+  // ★ 견적 → 계약서 원클릭 자동생성 (Phase 1) — 견적 데이터(거래처·금액·품목)를 계약 문서로 이월 + 링크.
+  //   방향(매출/매입)은 sub_deal_id 그대로 유지. 계약 PDF는 기존 buildContractVarsFromDeal 오버레이 재사용.
+  const createContractFromQuote = async (quoteDoc: any) => {
+    if (!companyId || !userId || creatingContractFrom) return;
+    setCreatingContractFrom(quoteDoc.id);
+    try {
+      const q = (quoteDoc.content_json as any) || {};
+      const amt = quoteAmount(quoteDoc);
+      const partnerName = q.header?.partnerName || partner?.name || "";
+      // 표준 전자계약서 본문 사용 + 견적 근거 조항을 앞에 추가(계약금액·거래처 이월).
+      const contractContent = {
+        ...CONTRACT_CONTENT,
+        direction: q.direction,            // 방향(매출/매입) 유지 — 파이프라인 필터용
+        // 결제조건 못박기 — 선금/중도금/잔금 회차 배열(전액이면 null). 계산서 발행이 이 값을 기본값으로 따름.
+        paymentSchedule: buildPaySchedule(payMode, payAdv, payMid),
+        header: { ...(q.header || {}) },   // 거래처·담당자·금액 이월
+        items: q.items || [],              // 견적 품목 이월(참조)
+        sections: [
+          { title: "계약 개요", content: `본 계약은 견적서(${fmtNo(quoteDoc)})에 근거한다.\n\n수신: ${partnerName || "{{거래처명}}"}\n계약금액: ${amt ? amt.toLocaleString("ko-KR") + "원 (VAT 별도)" : "{{계약금액}}원 (VAT 별도)"}` },
+          ...CONTRACT_CONTENT.sections,
+        ],
+      };
+      const { data, error } = await db.from("documents").insert({
+        company_id: companyId,
+        deal_id: dealId,
+        sub_deal_id: quoteDoc.sub_deal_id || null,   // 방향(매출/매입) 유지
+        name: `${deal?.name || "프로젝트"} 계약서`,
+        status: "draft",
+        document_number: null,
+        content_type: "contract",
+        content_json: contractContent,
+        source_document_id: quoteDoc.id,             // 견적 원본 링크
+        version: 1,
+        created_by: userId,
+      }).select("id").single();
+      if (error) throw error;
+      // P2 자동 이월 — 매출 견적이면 계약금액(매출)을 자동 반영. 비어 있고 매출형 항목도 없을 때만(이중계상 방지).
+      const isSalesQuote = q.direction !== "purchase" && (subDealOpts as any[]).find((x) => x.id === quoteDoc.sub_deal_id)?.type !== "purchase";
+      let reflected = false;
+      if (isSalesQuote && amt > 0 && !Number(deal?.contract_total || 0)) {
+        const existingSales = logRead('[id]/page:existingSales', await db.from("sub_deals").select("id").eq("parent_deal_id", dealId).eq("type", "sales").limit(1));
+        if (!existingSales?.length) {
+          await db.from("deals").update({ contract_total: amt }).eq("id", dealId);
+          qc.invalidateQueries({ queryKey: ["projecthub-deal", dealId] });
+          qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
+          reflected = true;
+        }
+      }
+      qc.invalidateQueries({ queryKey: ["projecthub-docs", dealId] });
+      toast(reflected ? `견적서로 계약서를 생성하고 계약금액(매출) ${won(amt)}을 개요에 반영했습니다.` : "견적서로 계약서를 생성했습니다. 계약 탭에서 확인·발송하세요.", "success");
+      goSection("money");
+    } catch (e: any) {
+      toast(e?.message || "계약 생성 실패", "error");
+    } finally {
+      setCreatingContractFrom(null);
+    }
+  };
+
+  // ── 첫 한 걸음 ──────────────────────────────────────────────
+  //   방금 만든 프로젝트가 빈 채로 남지 않게, 세 가지 중 하나를 이 화면에서 끝낸다.
+  //   (실측 2026-08-03: 살아 있는 프로젝트 9개 중 4개가 아무 데이터 없이 남았고, 40개 중 5개는
+  //    만든 당일 보관됐다. 마감일이 없으면 '지금 챙길 것'이 계산할 게 없어 아무 말도 못 한다.)
+  //   예전엔 제안을 눌러도 다른 자리로 스크롤만 시켜서, 실제로 채우는 사람이 거의 없었다.
+  const [savingFirst, setSavingFirst] = useState(false);
+  const addFirstTasks = async (titles: string[]) => {
+    const rows = titles.map((t) => t.trim()).filter(Boolean);
+    if (!companyId || !userId || !rows.length || savingFirst) return;
+    setSavingFirst(true);
+    try {
+      const { error } = await db.from("project_tasks").insert(rows.map((title, i) => ({
+        company_id: companyId, deal_id: dealId, title, status: "todo",
+        assignee_id: null, assignee_ids: [], due_date: null, progress: 0, position: i + 1, created_by: userId,
+      })));
+      if (error) throw new Error(error.message);
+      qc.invalidateQueries({ queryKey: ["projecthub-has-work", dealId] });
+      qc.invalidateQueries({ queryKey: ["project-tasks", dealId] });
+      toast(`할 일 ${rows.length}건을 추가했습니다. '업무'에서 담당·기한을 채우세요.`, "success");
+      goSection("work");
+    } catch (e: any) {
+      toast(e?.message || "할 일 추가 실패", "error");
+    } finally {
+      setSavingFirst(false);
+    }
+  };
+  const setFirstDue = async (date: string) => {
+    if (!date || savingFirst) return;
+    setSavingFirst(true);
+    try {
+      const { error } = await db.from("deals").update({ end_date: date }).eq("id", dealId);
+      if (error) throw new Error(error.message);
+      qc.invalidateQueries({ queryKey: ["projecthub-deal", dealId] });
+      qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
+      toast("마감일을 저장했습니다. 남은 날짜와 지연은 '확인 필요'에 표시됩니다.", "success");
+    } catch (e: any) {
+      toast(e?.message || "마감일 저장 실패", "error");
+    } finally {
+      setSavingFirst(false);
+    }
+  };
+
+  // 견적서 작성 — 모달 없이 즉시 기본 견적서 초안 생성 후 편집 화면(/documents)으로 이동.
+  //   문서번호는 기존 흐름대로 발행 시점에 부여됨.
+  const createQuoteInstant = async () => {
+    if (!companyId || !userId || creatingQuote) return;
+    setCreatingQuote(true);
+    try {
+      const { data, error } = await db.from("documents").insert({
+        company_id: companyId,
+        deal_id: dealId,
+        sub_deal_id: null,
+        name: `${deal?.name || "프로젝트"} 견적서`,
+        status: "draft",
+        document_number: await nextQuoteNumber(companyId),
+        content_type: "invoice",
+        content_json: QUOTE_CONTENT,
+        version: 1,
+        created_by: userId,
+      }).select("id").single();
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["projecthub-docs", dealId] });
+      if (data?.id) router.push(`/documents?id=${data.id}`);
+    } catch (e: any) {
+      toast(e?.message || "견적서 생성 실패", "error");
+    } finally {
+      setCreatingQuote(false);
+    }
+  };
+  // 양식 목록(계약서/견적서 등) — 없으면 기본양식 1회 시드
+  const { data: docTemplates = [], isSuccess: templatesLoaded } = useQuery({
+    queryKey: ["projecthub-doc-templates", companyId],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("doc_templates").select("id, name, type").eq("company_id", companyId ?? "").eq("is_active", true));
+      return (data || []) as any[];
+    },
+    enabled: !!companyId,
+  });
+  const quoteTemplates = useMemo(
+    () => (docTemplates as any[]).filter((t: any) => ["quote", "invoice"].includes(t.type)),
+    [docTemplates],
+  );
+  const contractTemplates = useMemo(
+    () => (docTemplates as any[]).filter((t: any) => ["contract", "agreement", "nda"].includes(t.type)),
+    [docTemplates],
+  );
+  // 작성 모달에 노출할 양식 — 견적서 탭이면 견적서 양식, 전자계약 탭이면 계약서 양식만
+  const formTemplates = formKind === "quote" ? quoteTemplates : contractTemplates;
+  const didSeedTplRef = useRef(false);
+  useEffect(() => {
+    if (!companyId || !userId || !templatesLoaded || didSeedTplRef.current) return;
+    if (quoteTemplates.length + contractTemplates.length > 0) return;
+    didSeedTplRef.current = true;
+    seedDefaultDocTemplates(companyId, userId).then(() => qc.invalidateQueries({ queryKey: ["projecthub-doc-templates", companyId] }));
+  }, [companyId, userId, templatesLoaded, quoteTemplates, contractTemplates, qc]);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+
+  const renameMut = useMutation({
+    mutationFn: async (name: string) => {
+      const { error } = await db.from("deals").update({ name: name.trim() }).eq("id", dealId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["projecthub-deal", dealId] });
+      qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
+      setEditingName(false);
+      toast("프로젝트명이 수정되었습니다", "success");
+    },
+    onError: (e: any) => toast(e?.message || "수정 실패", "error"),
+  });
+  const commitRename = () => {
+    const v = nameInput.trim();
+    if (!v || v === (deal?.name || "")) { setEditingName(false); return; }
+    renameMut.mutate(v);
+  };
+  // 진행 단계 변경 (프로젝트 운영)
+  const stageMut = useMutation({
+    mutationFn: async (newStage: ProjectStage) => {
+      const { error } = await db.from("deals").update({ stage: newStage }).eq("id", dealId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["projecthub-deal", dealId] }); qc.invalidateQueries({ queryKey: ["projecthub-deals"] }); toast("진행 단계가 변경되었습니다", "success"); },
+    onError: (e: any) => toast(e?.message || "단계 변경 실패", "error"),
+  });
+
+  const { data: deal, isLoading } = useQuery({
+    queryKey: ["projecthub-deal", dealId],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("deals").select("*").eq("id", dealId).maybeSingle());
+      return data as any;
+    },
+    enabled: !!companyId && !!dealId,
+  });
+  // 레일 목록 — 이름만. 표 개수는 목록 화면이 이미 계산하므로 여기서는 안 부른다.
+  const { data: railDeals = [] } = useQuery({
+    queryKey: ["pj-rail-deals", companyId],
+    queryFn: async () => {
+      const data = logRead('[id]/page:railDeals', await db.from("deals")
+        .select("id, name").eq("company_id", companyId!).is("archived_at", null)
+        .order("created_at", { ascending: false }).limit(50));
+      return (data || []) as any[];
+    },
+    enabled: !!companyId && railOpen,
+    staleTime: 60_000,
+  });
+
+  const { data: partner } = useQuery({
+    queryKey: ["projecthub-deal-partner", deal?.partner_id],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("partners").select("id, name, business_number, representative, contact_name, contact_email").eq("id", deal.partner_id).maybeSingle());
+      return data as any;
+    },
+    enabled: !!deal?.partner_id,
+  });
+  const { data: manager } = useQuery({
+    queryKey: ["projecthub-deal-manager", deal?.internal_manager_id],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("users").select("id, name").eq("id", deal.internal_manager_id).maybeSingle());
+      return data as any;
+    },
+    enabled: !!deal?.internal_manager_id,
+  });
+  // 회사 구성원 — 할 일 담당·성과 책임자·사람과 기록에서 모두 쓴다. 유형 조건 제거(2026-07-30).
+  const { data: companyUsers = [] } = useQuery({
+    queryKey: ["projecthub-company-users", companyId],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("users").select("id, name").eq("company_id", companyId ?? "").order("name", { ascending: true }));
+      return (data || []) as any[];
+    },
+    enabled: !!companyId,
+  });
+
+  // 상태 판정 재료 — 목록 화면과 '똑같은 규칙'으로 상태를 내려면 같은 사실이 필요하다
+  //   (2026-08-03 개편 ①: 상태는 project-status.ts 한 곳에서만 만든다).
+  //   할 일 존재 여부도 여기서 같이 받아 온다(조회 한 번 줄임).
+  const { data: facts } = useQuery({
+    queryKey: ["projecthub-status-facts", dealId],
+    queryFn: async () => {
+      const [tk, inv, buy, kpi] = await Promise.all([
+        db.from("project_tasks").select("status, due_date").eq("deal_id", dealId).is("archived_at", null),
+        db.from("tax_invoices").select("total_amount, settled_amount, issue_date, status").eq("deal_id", dealId).eq("type", "sales").neq("status", "void"),
+        // 비용(매입 계산서) — 개요 마진 타일용. 공급가 기준(마진은 회계대로 net 으로 본다)
+        db.from("tax_invoices").select("supply_amount, total_amount").eq("deal_id", dealId).eq("type", "purchase").neq("status", "void"),
+        // 목표금액 — 금액 단위(원) KPI 의 목표 합계
+        db.from("project_kpis").select("target_value, unit").eq("deal_id", dealId),
+      ]);
+      const tasks = (logRead('[id]/page:facts.tasks', tk) || []) as any[];
+      const invoices = (logRead('[id]/page:facts.invoices', inv) || []) as any[];
+      const today = todayKst();
+      let outstanding = 0, billed = 0, paid = 0;
+      let oldestUnpaidDays: number | null = null;
+      const byMonth = new Map<string, { ym: string; billed: number; paid: number }>();
+      for (const iv of invoices) {
+        if (iv.status === "draft") continue;
+        const amt = Number(iv.total_amount || 0);
+        const got = Number(iv.settled_amount || 0);
+        billed += amt; paid += got;
+        const left = amt - got;
+        if (iv.issue_date) {
+          const ym = String(iv.issue_date).slice(0, 7);
+          const m = byMonth.get(ym) || { ym, billed: 0, paid: 0 };
+          m.billed += amt; m.paid += got;
+          byMonth.set(ym, m);
+        }
+        if (left <= 1) continue;
+        outstanding += left;
+        if (!iv.issue_date) continue;
+        const days = Math.floor((new Date(`${today}T00:00:00`).getTime() - new Date(`${String(iv.issue_date).slice(0, 10)}T00:00:00`).getTime()) / 86_400_000);
+        if (oldestUnpaidDays == null || days > oldestUnpaidDays) oldestUnpaidDays = days;
+      }
+      const openTasks = tasks.filter((t) => t.status !== "done");
+      const dueDates = openTasks.map((t) => (t.due_date ? String(t.due_date).slice(0, 10) : null)).filter(Boolean).sort() as string[];
+      const purchases = (logRead('[id]/page:facts.purchases', buy) || []) as any[];
+      const costNet = purchases.reduce((n, r) => n + Number(r.supply_amount || Math.round(Number(r.total_amount || 0) / 1.1)), 0);
+      // 목표금액 = **대표 매출 목표 1개**. 합계로 잡으면 같은 매출을 자동/수동 두 지표로
+      //   재고 있을 때 목표가 두 배로 부풀어 오른다(실제 사례: 1,000만 목표가 2,000만으로 보임).
+      const moneyKpis = ((logRead('[id]/page:facts.kpis', kpi) || []) as any[]).filter((k) => (k.unit || "원") === "원");
+      const mainKpi = moneyKpis.find((k) => k.source === "revenue_auto") || moneyKpis[0];
+      const goalAmount = Number(mainKpi?.target_value || 0);
+      return {
+        costNet, goalAmount,
+        taskCount: tasks.length,
+        taskDone: tasks.filter((t) => t.status === "done").length,
+        overdueCount: openTasks.filter((t) => t.due_date && String(t.due_date).slice(0, 10) < today).length,
+        overdueTasks: openTasks.some((t) => t.due_date && String(t.due_date).slice(0, 10) < today),
+        outstanding, oldestUnpaidDays, billed, paid,
+        // 최근 6개월만 — 더 넣으면 축이 촘촘해져 안 읽힌다
+        months: [...byMonth.values()].sort((a, b) => a.ym.localeCompare(b.ym)).slice(-6),
+        nextDue: dueDates[0] || null,
+      };
+    },
+    enabled: !!companyId && !!dealId,
+  });
+  const hasWorkRow = (facts?.taskCount || 0) > 0;
+  const { data: hasGoalRow = false } = useQuery({
+    queryKey: ["projecthub-has-goal", dealId],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("project_kpis").select("id").eq("deal_id", dealId).limit(1));
+      return ((data || []) as any[]).length > 0;
+    },
+    enabled: !!companyId && !!dealId,
+  });
+
+  // 세부 프로젝트(캠페인) — 이 프로젝트를 부모로 하는 deals. 손익 롤업·목록 양쪽에 사용 → 항상 로드.
+  const { data: children = [] } = useQuery({
+    queryKey: ["projecthub-children", dealId],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("deals")
+        .select("id, name, contract_total, stage, status, start_date, end_date")
+        .eq("parent_deal_id", dealId).is("archived_at", null)
+        .order("created_at", { ascending: true }));
+      return (data || []) as any[];
+    },
+    enabled: !!companyId && !!dealId,
+  });
+  // 회사 전체 deals 트리(경량 2컬럼) — 재귀 자손 집계용. prod DB 변경 없이 클라이언트에서 관통 합산.
+  const { data: allDeals = [] } = useQuery({
+    queryKey: ["projecthub-all-deals", companyId],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("deals").select("id, parent_deal_id").eq("company_id", companyId ?? "").is("archived_at", null));
+      return (data || []) as { id: string; parent_deal_id: string | null }[];
+    },
+    enabled: !!companyId,
+    staleTime: 60_000,
+  });
+  const childrenMap = useMemo(() => {
+    const m: Record<string, string[]> = {};
+    for (const d of allDeals as any[]) { if (d.parent_deal_id) (m[d.parent_deal_id] ||= []).push(d.id); }
+    return m;
+  }, [allDeals]);
+  // dealId 의 모든 자손(직속 + 그 아래 전부). 최상위가 전 하위를 관통해 합산.
+  const descendantIds = useMemo(() => {
+    const out: string[] = []; const seen = new Set<string>();
+    const stack = [...(childrenMap[dealId] || [])];
+    while (stack.length) { const id = stack.pop()!; if (seen.has(id)) continue; seen.add(id); out.push(id); for (const c of childrenMap[id] || []) stack.push(c); }
+    return out;
+  }, [childrenMap, dealId]);
+  // 손익 집계 대상 = 자기 자신 + 모든 자손(재귀 롤업)
+  const costDealIds = useMemo(() => [dealId, ...descendantIds], [dealId, descendantIds]);
+
+  // 매출/매입 관리(sub_deals) — 자기 + 모든 캠페인 롤업. 개요=약정 마진 산출, 캠페인 목록=항목별 합.
+  //   금액은 '입력 총액'으로 저장되고 vat_type 플래그를 가짐 → 마진은 공급가액(net)으로 환산(inclusive ÷1.1).
+  const { data: subDeals = [] } = useQuery({
+    queryKey: ["projecthub-subdeals-roll", dealId, descendantIds.length],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("sub_deals")
+        .select("id, parent_deal_id, type, contract_amount, vat_type")
+        .in("parent_deal_id", costDealIds));
+      return (data || []) as any[];
+    },
+    enabled: !!companyId && !!dealId && moneyOpen,
+  });
+  // 공급가액(net) — VAT 포함 입력분은 ÷1.1, 별도면 입력값 그대로. 마진 정확성용.
+  const subNet = (s: any) => (s?.vat_type === "inclusive" ? Math.round(Number(s.contract_amount || 0) / 1.1) : Number(s.contract_amount || 0));
+  const hasInclusiveSub = useMemo(() => (subDeals as any[]).some((s) => s.vat_type === "inclusive"), [subDeals]);
+  const subSalesSum = useMemo(() => (subDeals as any[]).filter((s) => s.type === "sales").reduce((a, s) => a + subNet(s), 0), [subDeals]);
+  const subPurchaseSum = useMemo(() => (subDeals as any[]).filter((s) => s.type === "purchase").reduce((a, s) => a + subNet(s), 0), [subDeals]);
+  // 세부 프로젝트별 매출/매입 합 — 각 직속 자식의 '전체 하위 트리'를 관통 합산(공급가액 기준).
+  const subByDeal = useMemo(() => {
+    // 1) deal 별 자기 sub_deals 합
+    const own: Record<string, { sales: number; purchase: number }> = {};
+    for (const s of subDeals as any[]) {
+      const pid = s.parent_deal_id;
+      if (!own[pid]) own[pid] = { sales: 0, purchase: 0 };
+      if (s.type === "sales") own[pid].sales += subNet(s);
+      else if (s.type === "purchase") own[pid].purchase += subNet(s);
+    }
+    // 2) 각 직속 자식 → 그 서브트리(자기 + 자손) 합으로 롤업
+    const subtree = (rootId: string) => {
+      let sales = 0, purchase = 0; const seen = new Set<string>(); const stack = [rootId];
+      while (stack.length) { const id = stack.pop()!; if (seen.has(id)) continue; seen.add(id); sales += own[id]?.sales || 0; purchase += own[id]?.purchase || 0; for (const c of childrenMap[id] || []) stack.push(c); }
+      return { sales, purchase };
+    };
+    const m: Record<string, { sales: number; purchase: number }> = {};
+    for (const c of children as any[]) m[c.id] = subtree(c.id);
+    return m;
+  }, [subDeals, children, childrenMap]);
+
+  // 상위 프로젝트 (이 deal 이 세부 프로젝트일 때) — 브레드크럼·복귀 링크
+  const { data: parentDeal, isLoading: parentLoading } = useQuery({
+    queryKey: ["projecthub-parent", deal?.parent_deal_id],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("deals").select("id, name, internal_manager_id").eq("id", deal.parent_deal_id).maybeSingle());
+      return data as any;
+    },
+    enabled: !!deal?.parent_deal_id,
+  });
+
+  const createChild = async () => {
+    if (!companyId || creatingChild) return;
+    if (!childName.trim()) { toast("하위 프로젝트명을 입력하세요", "error"); return; }
+    setCreatingChild(true);
+    try {
+      // 캠페인 금액은 deals.contract_total 이 아니라 생성 후 '매출/매입 관리'(sub_deals)에 입력 → 개요 마진 자동 산출
+      // 거래처·담당자·분류는 상위 프로젝트에서 상속 (캠페인은 같은 거래처 산하가 일반적)
+      const { data, error } = await db.from("deals").insert({
+        company_id: companyId, parent_deal_id: dealId, name: childName.trim(),
+        status: "active", stage: "estimate",
+        partner_id: deal?.partner_id || null, internal_manager_id: deal?.internal_manager_id || null,
+        classification: deal?.classification || null,
+      }).select("id").single();
+      if (error) throw new Error(error.message);
+      // 매출/매입(개요) → 새 캠페인의 sub_deals 로 seed. (개요 마진에만, 실적 비용/마진엔 미반영)
+      const newChildId = data?.id;
+      if (newChildId) {
+        const amt = Number(String(childAmt).replace(/[^0-9]/g, "")) || 0;
+        if (amt > 0) {
+          const { error: seedErr } = await db.from("sub_deals").insert({
+            parent_deal_id: newChildId, name: childKind === "sales" ? "매출" : "매입", type: childKind,
+            partner_id: deal?.partner_id || null, contract_amount: amt, vat_type: childVat === "include" ? "inclusive" : "exclusive", status: "estimate",
+          });
+          if (seedErr) throw new Error(seedErr.message);
+        }
+      }
+      qc.invalidateQueries({ queryKey: ["projecthub-children", dealId] });
+      qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
+      setShowChildForm(false); resetChildForm();
+      toast("하위 프로젝트를 만들었습니다", "success");
+      if (newChildId) router.push(`/projecthub/${newChildId}`);
+    } catch (e: any) { toast(e?.message || "생성 실패", "error"); } finally { setCreatingChild(false); }
+  };
+
+  // 캠페인 수정(이름·단계·기간 — deals 직접 update). 금액은 sub_deals(매출/매입 관리) 소관이라 제외.
+  const openEditChild = (c: any) => {
+    setEditChild(c);
+    setEditChildName(c.name || "");
+    setEditChildStage(STAGE_ORDER.includes(c.stage) ? c.stage : "estimate");
+    setEditChildStart(c.start_date || "");
+    setEditChildEnd(c.end_date || "");
+  };
+  const saveChild = async () => {
+    if (!editChild || savingChild) return;
+    if (!editChildName.trim()) { toast("하위 프로젝트명을 입력하세요", "error"); return; }
+    setSavingChild(true);
+    try {
+      const { error } = await db.from("deals").update({
+        name: editChildName.trim(),
+        stage: editChildStage,
+        start_date: editChildStart || null,
+        end_date: editChildEnd || null,
+      }).eq("id", editChild.id);
+      if (error) throw new Error(error.message);
+      qc.invalidateQueries({ queryKey: ["projecthub-children", dealId] });
+      qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
+      toast("하위 프로젝트를 수정했습니다", "success");
+      setEditChild(null);
+    } catch (e: any) { toast(e?.message || "수정 실패", "error"); } finally { setSavingChild(false); }
+  };
+  // 캠페인 삭제 — 소프트 삭제(archived_at). children 쿼리가 archived_at IS NULL 만 보므로 목록에서 사라지고
+  //   회계 데이터(매출·매입·견적·계약)는 전부 보존. 상위 프로젝트 삭제(DeleteProjectModal)와 동일 정책.
+  const removeChild = async () => {
+    if (!deleteTarget || deletingChild) return;
+    setDeletingChild(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const { error } = await db.from("deals").update({ archived_at: nowIso }).eq("id", deleteTarget.id);
+      if (error) throw new Error(error.message);
+      try {
+        await db.from("audit_logs").insert({
+          company_id: companyId as string, entity_type: "deal", entity_id: deleteTarget.id, action: "delete",
+          before_json: { archived_at: null, name: deleteTarget.name },
+          after_json: { archived_at: nowIso },
+          metadata: { soft_delete: true, deal_name: deleteTarget.name, source: "projecthub-campaign-list" },
+        });
+      } catch { /* audit 실패 무시 */ }
+      qc.invalidateQueries({ queryKey: ["projecthub-children", dealId] });
+      qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
+      toast("하위 프로젝트를 삭제했습니다", "success");
+      setDeleteTarget(null);
+    } catch (e: any) { toast(e?.message || "삭제 실패", "error"); } finally { setDeletingChild(false); }
+  };
+
+  // ⚠️ 방향별 파이프라인 탭(수주/발주)은 어느 유형에도 노출되지 않는 죽은 탭이었다 → 제거.
+  //    거래 원장·문서 흐름은 모두 '돈' 자리 안에서 다룬다(2026-07-30).
+  //    돈 자리가 열렸을 때만 문서·계산서·비용 조회가 돌게 한다(한 페이지라 지연 마운트 필수).
+
+  // 견적 승인 시 계약 자동생성 토글 (company_settings.settings.auto_contract_on_approve)
+  const { data: autoContractOn = false } = useQuery({
+    queryKey: ["auto-contract-setting", companyId],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("company_settings").select("settings").eq("company_id", companyId ?? "").maybeSingle());
+      return !!((data?.settings as any)?.auto_contract_on_approve);
+    },
+    enabled: !!companyId && moneyOpen,
+  });
+  const toggleAutoContract = async (val: boolean) => {
+    if (!companyId) return;
+    const cur = logRead('[id]/page:cur', await db.from("company_settings").select("settings").eq("company_id", companyId ?? "").maybeSingle());
+    const settings = { ...((cur?.settings as any) || {}), auto_contract_on_approve: val };
+    const { error } = await db.from("company_settings").update({ settings }).eq("company_id", companyId ?? "");
+    if (error) { toast("설정 저장 실패: " + error.message, "error"); return; }
+    qc.invalidateQueries({ queryKey: ["auto-contract-setting", companyId] });
+    toast(val ? "견적 승인 시 계약서 자동 생성 — 켬" : "견적 승인 시 계약서 자동 생성 — 끔", "success");
+  };
+
+  // 견적/계약 — documents(deal_id) + quote_tracking + quote_approvals + signature_requests
+  const { data: documents = [] } = useQuery({
+    queryKey: ["projecthub-docs", dealId],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("documents").select("id, name, status, content_type, contract_amount, document_number, created_at, content_json, sub_deal_id, source_document_id").eq("deal_id", dealId).order("created_at", { ascending: false }));
+      return (data || []) as any[];
+    },
+    enabled: !!dealId && moneyOpen,
+  });
+  const docIds = useMemo(() => documents.map((d) => d.id), [documents]);
+  // 견적서 탭 / 전자계약 탭 문서 분리 — 견적서(invoice·quote) vs 계약(나머지)
+  const quoteDocs = useMemo(() => (documents as any[]).filter((d) => docKind(d) === "quote"), [documents]);
+  const contractDocs = useMemo(() => (documents as any[]).filter((d) => docKind(d) === "contract"), [documents]);
+  // 세부 프로젝트 목록(견적 작성 시 연결용) — 경량 select
+  const { data: subDealOpts = [] } = useQuery({
+    queryKey: ["sub-deals-mini", dealId],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("sub_deals").select("id, name, type").eq("parent_deal_id", dealId).order("created_at", { ascending: true }));
+      return (data || []) as { id: string; name: string; type: string | null }[];
+    },
+    enabled: !!dealId && moneyOpen,
+  });
+
+  const { data: approvals = [] } = useQuery({
+    queryKey: ["projecthub-approvals", dealId],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("quote_approvals").select("*").eq("deal_id", dealId).order("created_at", { ascending: false }));
+      return (data || []) as any[];
+    },
+    enabled: moneyOpen && !!dealId,
+  });
+  const { data: sigRequests = [] } = useQuery({
+    queryKey: ["projecthub-sigs", dealId, docIds.length],
+    queryFn: async () => {
+      if (docIds.length === 0) return [];
+      const data = logRead('[id]/page:data', await db.from("signature_requests").select("id, title, status, signer_name, signer_email, signed_at, our_signed_at, signed_contract_url, document_id").in("document_id", docIds).order("created_at", { ascending: false }));
+      return (data || []) as any[];
+    },
+    enabled: moneyOpen && docIds.length > 0,
+  });
+
+  // 손익 — 프로젝트(deal_id)에 태그된 비용처리 내역: 세금계산서(매입)·현금영수증·카드사용·수동전표
+  //   수익형(margin) 개요에서만 — 목표형/실행형은 자체 히어로 사용.
+  // ⚠️ 기존엔 '수익형' 프로젝트에서만 비용·손익을 집계했다(유형 필터). 유형 폐지로 전 프로젝트가
+  //    같은 집계를 갖는다 — 내부 프로젝트에도 경비가 붙으면 원가·마진이 잡혀야 한다.
+  const costEnabled = moneyOpen && !!dealId;
+  const { data: costInvoices = [] } = useQuery({
+    queryKey: ["projecthub-cost-inv", dealId, descendantIds.length],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("tax_invoices").select("id, issue_date, counterparty_name, supply_amount, total_amount").in("deal_id", costDealIds).eq("type", "purchase").neq("status", "void").order("issue_date", { ascending: false }));
+      return (data || []) as any[];
+    },
+    enabled: costEnabled,
+  });
+  const { data: costCash = [] } = useQuery({
+    queryKey: ["projecthub-cost-cash", dealId, descendantIds.length],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("cash_receipts").select("id, issue_date, counterparty_name, amount, supply_amount").in("deal_id", costDealIds).order("issue_date", { ascending: false }));
+      return (data || []) as any[];
+    },
+    enabled: costEnabled,
+  });
+  const { data: costCards = [] } = useQuery({
+    queryKey: ["projecthub-cost-card", dealId, descendantIds.length],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("card_transactions").select("id, transaction_date, merchant_name, amount, card_name").in("deal_id", costDealIds).is("journal_entry_id", null).order("transaction_date", { ascending: false }));
+      return (data || []) as any[];
+    },
+    enabled: costEnabled,
+  });
+  const { data: costVouchers = [] } = useQuery({
+    queryKey: ["projecthub-cost-voucher", dealId, descendantIds.length],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("journal_entries").select("id, entry_date, description, journal_lines(debit, chart_of_accounts(code, name, account_type))").in("deal_id", costDealIds).eq("source", "manual").eq("status", "confirmed").order("entry_date", { ascending: false }));
+      return (data || []) as any[];
+    },
+    enabled: costEnabled,
+  });
+
+  // 파이프라인 리본(개요) — 견적▶계약▶계산서▶정산 단계별 금액·상태 경량 집계. 수익형 개요에서만.
+  const { data: pipe } = useQuery({
+    queryKey: ["projecthub-pipe-summary", dealId, descendantIds.length],
+    queryFn: async () => {
+      const docsData = logRead('[id]/page:docsData', await db.from("documents").select("id, content_type, content_json, contract_amount, status, source_document_id, created_at").eq("deal_id", dealId).order("created_at", { ascending: false }));
+      const list = (docsData || []) as any[];
+      const quotes = list.filter((d) => docKind(d) === "quote");
+      const contracts = list.filter((d) => docKind(d) === "contract");
+      const ids = list.map((d) => d.id);
+      const [sigsRes, invRes] = await Promise.all([
+        ids.length ? db.from("signature_requests").select("id, status, signed_at, document_id").in("document_id", ids) : Promise.resolve({ data: [] as any[] }),
+        db.from("tax_invoices").select("id, supply_amount, total_amount, status, issue_date, settled_amount, settlement_status, counterparty_name").in("deal_id", costDealIds).eq("type", "sales").neq("status", "void"),
+      ]);
+      return { quotes, contracts, sigs: (sigsRes.data || []) as any[], invoices: (invRes.data || []) as any[] };
+    },
+    enabled: costEnabled,
+  });
+
+  // 모달 ESC/Enter 단축키 — 이 화면의 모든 모달은 서로 배타적으로 열리므로 개별 useModalKeys 로 등록.
+  //   deal 로딩 전에도 훅 순서 유지를 위해 조기 return(아래) 이전에 호출.
+  useModalKeys(showChildForm, () => setShowChildForm(false), creatingChild || !childName.trim() ? undefined : createChild);
+  useModalKeys(!!editChild, () => setEditChild(null), savingChild || !editChildName.trim() ? undefined : saveChild);
+  useModalKeys(!!deleteTarget, () => setDeleteTarget(null), deletingChild ? undefined : removeChild);
+  useModalKeys(!!tplManagerKind, () => setTplManagerKind(null)); // 양식 관리 — 내부 컴포넌트가 저장을 자체 처리, 주 액션 없음
+  useModalKeys(!!delDoc, () => setDelDoc(null), deletingDoc ? undefined : removeDoc);
+  useModalKeys(!!payModalQuote, () => setPayModalQuote(null),
+    (creatingContractFrom || (payMode === "three" && 100 - clampPct(payAdv) - clampPct(payMid) < 0))
+      ? undefined
+      : () => { const d = payModalQuote; setPayModalQuote(null); createContractFromQuote(d); });
+  useModalKeys(!!invoiceModal, () => setInvoiceModal(null), (() => {
+    if (!invoiceModal) return undefined;
+    const supply = quoteAmount(invoiceModal) || Number(deal?.contract_total || 0);
+    if (issuingInvoiceFrom || supply <= 0 || (payMode === "three" && 100 - clampPct(payAdv) - clampPct(payMid) < 0)) return undefined;
+    return issueInvoices;
+  })());
+  useModalKeys(showQuoteForm, () => setShowQuoteForm(false),
+    (creatingQuote || (formKind === "contract" && payMode === "three" && 100 - clampPct(payAdv) - clampPct(payMid) < 0)) ? undefined : createDoc);
+  useModalKeys(!!previewDoc, () => setPreviewDoc(null),
+    previewUrl ? () => { (document.getElementById("quote-preview-iframe") as HTMLIFrameElement | null)?.contentWindow?.print(); } : undefined);
+
+  // 접근 권한은 RouteGuard(user_tab_access grant)가 처리 — 여기서 role 하드코딩 차단 제거(담당자 직원 접근 허용)
+  if (isLoading || projPermLoading) return <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>;
+  if (!deal) return <div className="p-12 text-center text-sm text-[var(--text-muted)]">프로젝트를 찾을 수 없습니다. <Link href="/projecthub" className="text-[var(--primary)] hover:underline">목록으로</Link></div>;
+  // 열람 범위 게이트 — 전체 열람 권한이 없으면 내가 담당인 프로젝트(또는 그 하위 캠페인)만. 상위 조회 중엔 판정 보류.
+  if (!canViewAllProjects && deal.internal_manager_id !== userId) {
+    if (deal.parent_deal_id && parentLoading) return <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>;
+    if (parentDeal?.internal_manager_id !== userId) {
+      return <AccessDenied detail="내가 담당한 프로젝트만 열람할 수 있습니다. 전체 프로젝트 열람이 필요하면 마스터에게 '프로젝트 → 전체 프로젝트 열람' 권한을 요청하세요." />;
+    }
+  }
+
+  const stage = (STAGE_ORDER.includes(deal.stage) ? deal.stage : "estimate") as ProjectStage;
+  const sc = STAGE_COLOR[stage];
+  const hasChildren = (children as any[]).length > 0;
+  const ownContract = Number(deal.contract_total || 0);
+  // 확정 비용 = 프로젝트에 태그된 각 비용원 합 (카테고리별 — 같은 비용을 두 곳에 태그하면 중복이니 한 곳만)
+  const sumBy = (arr: any[], f: (x: any) => number) => arr.reduce((s, x) => s + (Number(f(x)) || 0), 0);
+  const costInvoiceSum = sumBy(costInvoices as any[], (i) => i.supply_amount || i.total_amount);
+  const costCashSum = sumBy(costCash as any[], (c) => c.supply_amount || c.amount);
+  const costCardSum = sumBy(costCards as any[], (c) => c.amount);
+  const costVoucherSum = sumBy(costVouchers as any[], (v) =>
+    (v.journal_lines || []).filter((l: any) => l.chart_of_accounts?.account_type === "expense").reduce((s: number, l: any) => s + Number(l.debit || 0), 0));
+  const totalCost = costInvoiceSum + costCashSum + costCardSum + costVoucherSum;
+  // 개요 마진 — 매출은 단일 산식(자체 계약 + 매출형 sub_deals, 캠페인 롤업). 비용은 예상(매입형)↔확정(태그전표).
+  const planRevenue = ownContract + subSalesSum;   // 계약·약정 기준 매출
+  const planCost = subPurchaseSum;                 // 예상 비용 = 매입형 sub_deals
+  // 매출 SoT(최고 확정단계) — 계산서 발행분이 있으면 그 금액, 없으면 계약·약정 금액. (P3)
+  const confirmedRevenue = ((pipe?.invoices || []) as any[]).reduce((a, i) => a + Number(i.supply_amount || 0), 0);
+  const salesSoT = confirmedRevenue > 0 ? confirmedRevenue : planRevenue;
+  const revenueBasis = confirmedRevenue > 0 ? "계산서 발행 기준" : planRevenue > 0 ? "계약·약정 기준" : "미입력";
+  const COST_SOURCES = [
+    { key: "invoice", label: "세금계산서(매입)", total: costInvoiceSum, count: costInvoices.length, items: costInvoices as any[] },
+    { key: "cash", label: "현금영수증", total: costCashSum, count: costCash.length, items: costCash as any[] },
+    { key: "card", label: "카드사용", total: costCardSum, count: costCards.length, items: costCards as any[] },
+    { key: "voucher", label: "수동 전표", total: costVoucherSum, count: costVouchers.length, items: costVouchers as any[] },
+  ];
+
+  // 문서는 방향 구분 없이 전부 보여준다(수주/발주 방향 필터는 죽은 탭과 함께 제거, 2026-07-30).
+  const quoteDocsShown = quoteDocs as any[];
+  const contractDocsShown = contractDocs as any[];
+
+  // ── 자리 노출 판정 — 유형이 아니라 데이터로 정한다 ──
+  //   돈: 계약금액·약정·문서·계산서 중 하나라도 / 일: 할 일 / 성과: 목표(KPI)
+  //   사람과 기록: 기본정보·활동은 어느 프로젝트에나 있으므로 항상 열어둔다.
+  const signals = {
+    hasMoney: ownContract > 0 || planRevenue > 0 || totalCost > 0 || (documents as any[]).length > 0,
+    hasWork: hasWorkRow,
+    hasGoal: hasGoalRow,
+    hasTeam: true,
+  };
+
+
+  // 브리핑 — **AI 토큰을 쓰지 않는다**(2026-08-03 사장님: "사실을 모아서 띄워주는 형태로").
+  //   화면이 이미 조회한 사실을 규칙으로 조립한다(project-brief-rules). 비용 0 · 지연 0 · 환각 0.
+  //   (엣지 함수 project-brief 는 배포돼 있지만 지금은 호출하지 않는다 — 필요해지면 켠다)
+  // 상태(정상·주의·지연) — 목록과 똑같은 규칙. 화면마다 다른 말을 쓰지 않는다(2026-08-03 개편 ①)
+  const status = getProjectStatus({
+    stage: deal.stage, endDate: deal.end_date, today: todayKst(),
+    overdueTasks: !!facts?.overdueTasks,
+    outstanding: facts?.outstanding ?? 0,
+    oldestUnpaidDays: facts?.oldestUnpaidDays ?? null,
+  });
+  // 규칙 브리핑 — 위 status 와 같은 사실을 쓰되, 여기서는 '요약 문장 + 잘된 점/문제/다음'으로 조립
+  const brief = buildProjectBrief({
+    contractNet: ownContract,
+    contractInc: contractIncVat(ownContract),
+    billed: facts?.billed || 0,
+    paid: facts?.paid || 0,
+    outstanding: facts?.outstanding || 0,
+    oldestUnpaidDays: facts?.oldestUnpaidDays ?? null,
+    costNet: facts?.costNet || 0,
+    goalAmount: facts?.goalAmount || 0,
+    taskCount: facts?.taskCount || 0,
+    taskDone: facts?.taskDone || 0,
+    overdueCount: facts?.overdueCount || 0,
+    daysToEnd: status.daysToEnd,
+    quietDays: null,   // 마지막 변동일은 목록에서만 계산한다(상세는 조회를 늘리지 않음)
+    finished: stage === "completed" || stage === "settlement",
+    partnerName: partner?.name || null,
+  });
+
+  return (
+    <div className={`pj-shell ${railOpen ? "pj-shell-rail" : ""}`}>
+      {railOpen && (
+        <nav className="pj-rail2" aria-label="프로젝트 목록">
+          <div className="pj-rail2-head">
+            프로젝트
+            <button type="button" onClick={toggleRail} title="목록 접기">‹‹</button>
+          </div>
+          {(railDeals as any[]).map((d) => (
+            <Link key={d.id} href={`/projecthub/${d.id}`}
+              className={`pj-rail2-item ${d.id === dealId ? "pj-rail2-on" : ""}`}>
+              {d.name || "(이름 없음)"}
+            </Link>
+          ))}
+          <Link href="/projecthub" className="pj-rail2-all">전체 목록 →</Link>
+        </nav>
+      )}
+      <div className="project-detail-page">
+      {!railOpen && (
+        <button type="button" className="pj-rail2-open" onClick={toggleRail} title="프로젝트 목록 펴기">›› 프로젝트 목록</button>
+      )}
+      {/* ══ 머리줄 — 히어로 밴드 폐지(2026-08-03 사장님: "성격이 달라져서 없어도 될 듯").
+          표(입력)가 주인공이 된 화면이라 상단은 얇게: 뒤로 · 이름 · 상태 · 거래처/담당. ══ */}
+      <div className="pj-head">
+        {deal.parent_deal_id ? (
+          <Link href={`/projecthub/${deal.parent_deal_id}?tab=subprojects`} className="pj-head-back" title="상위 프로젝트로">← {parentDeal?.name || "상위 프로젝트"}</Link>
+        ) : (
+          <Link href="/projecthub" className="pj-head-back">← 프로젝트</Link>
+        )}
+        {editingName ? (
+          <input
+            value={nameInput} autoFocus
+            onChange={(e) => setNameInput(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setEditingName(false); }}
+            className="pj-head-input"
+          />
+        ) : (
+          <h1 onClick={() => { setNameInput(deal.name || ""); setEditingName(true); }}
+            className="pj-head-name" title="클릭하여 프로젝트명 수정">
+            {deal.name || "(이름 없음)"}
+            <svg className="w-3.5 h-3.5 shrink-0 opacity-40" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" strokeLinejoin="round" /><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </h1>
+        )}
+        <span className={`ph-st ph-st-${status.key}`} title={brief.headline}>{status.label}</span>
+        <span className="pj-head-meta">{partner?.name || ""}</span>
+        {/* 오른쪽 — 참여자만. 자금·설정은 ⋯ 안에도 두지 않는다
+            (2026-08-05 사장님: "템플릿에서 그 기능을 제공하므로 오히려 혼동을 준다").
+            자리(SectionKey)는 그대로 남아 ?tab= 옛 링크와 화면 안 이동은 계속 동작한다. */}
+        <span className="pj-head-right">
+          {companyId && <ProjectMembers dealId={dealId} companyId={companyId} users={companyUsers as any[]} />}
+        </span>
+      </div>
+
+      {/* 탭 줄 없음 — 프로젝트명 바로 아래가 템플릿 탭이다(ProjectBoards 가 자기 탭을 그린다).
+          자금·설정으로 새면 그 자리만 그려지므로, 돌아오는 길을 한 줄로 남긴다. */}
+      {sec !== "boards" && (
+        <button type="button" className="pj-back-boards" onClick={() => goSection("boards")}>← 템플릿으로</button>
+      )}
+
+      <div className="pj-layout">
+        <div className="pj-secs">
+        {/* 표 — 새 프로젝트 구조의 기본 화면. 템플릿에서 만든 표에 값을 채운다(2026-08-03 기획 v2) */}
+        {/* 제목·설명 없이 바로 템플릿 탭 (2026-08-03 사장님: "프로젝트명 밑에 '표'라는 글자와
+            설명이 필요할까? 바로 템플릿이 나오면 될 것 같아") */}
+        <PjSection k="boards" bare inTab={TAB_OF_SECTION(sec).secs.includes("boards")} active={sec === "boards"} onSeen={markSecOpen}>
+          {!companyId ? null : <ProjectBoards dealId={dealId} companyId={companyId} users={companyUsers as any[]}
+            dealName={deal?.name || ""} userId={userId || undefined} dealPartnerId={deal?.partner_id || null} />}
+        </PjSection>
+
+        {/* 개요 대시보드 — 지표 타일이 맨 위, 차트는 '지금 챙길 것' 아래(2026-08-03 사장님 지시:
+            "지표는 한눈에, 뭘 해야 할지가 보이게"). 개요 탭에서만 그린다. */}
+        {TAB_OF_SECTION(sec).key === "overview" && (
+          <OverviewDashboard part="tiles" contract={ownContract} facts={facts as any} won={won}
+            endDate={deal.end_date ? String(deal.end_date).slice(0, 10) : null} daysToEnd={status.daysToEnd} />
+        )}
+
+        {/* 개요 = 같은 모양 패널이 2열로만 반복된다(2026-08-03 사장님 승인).
+            순서: 챙길 것 · 돈 흐름 / 월별 발행·입금 · 일정과 업무 / 진행 단계 · 목표와 실적.
+            다른 탭에서는 자리가 하나뿐이라 그리드가 그대로 한 칸이 된다. */}
+        <div className="pj-ov-panels">
+        {/* ⑤ 성과 — 목표·달성률·추세·분해·체크인. 구 목표형 전용에서 전 프로젝트로 개방 */}
+        <PjSection k="goal" inTab={TAB_OF_SECTION(sec).secs.includes("goal")} active={sec === "goal"} onSeen={markSecOpen}
+          views={signals.hasGoal || expanded.goal ? SECTION_VIEWS.goal : undefined} view={viewOf("goal")} onView={(v: string) => pickView("goal", v)}
+          hint={signals.hasGoal ? "회계 데이터에서 자동 반영" : undefined}>
+          {!openSecs.has("goal") ? <p className="pj-sec-empty">불러오는 중…</p>
+            : !companyId ? null
+            : !signals.hasGoal && !expanded.goal ? (
+              /* 목표금액 한 칸 — 가장 흔한 목표(금액)는 여기서 바로 넣는다(2026-08-03).
+                 자세한 지표는 '목표 설정'에서 계속 추가할 수 있다. */
+              <div className="goal-quick">
+                <label className="goal-quick-lbl">이 프로젝트로 얼마를 벌 목표인가요?</label>
+                <div className="goal-quick-row">
+                  <input value={goalInput} inputMode="numeric" placeholder="예: 20,000,000"
+                    onChange={(e) => setGoalInput(e.target.value.replace(/[^0-9]/g, "").replace(/\B(?=(\d{3})+(?!\d))/g, ","))}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) saveGoalAmount(); }}
+                    className="goal-quick-input" />
+                  <span className="goal-quick-unit">원</span>
+                  <button type="button" className="goal-quick-save" disabled={savingGoal || !goalInput.trim()} onClick={saveGoalAmount}>
+                    {savingGoal ? "저장 중…" : "목표 정하기"}
+                  </button>
+                </div>
+                <p className="goal-quick-hint">정하면 계약·매출이 목표를 얼마나 채웠는지 자동으로 계산됩니다 · 지표를 더 넣으려면 <button type="button" className="goal-quick-more" onClick={() => openNow("goal")}>목표 설정</button></p>
+              </div>
+            ) : !signals.hasGoal ? (
+              <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} users={companyUsers as any[]} onGoTab={(t) => goTab(t as TabKey)} />
+            ) : viewOf("goal") === "manage" ? (
+              <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} users={companyUsers as any[]} onGoTab={(t) => goTab(t as TabKey)} />
+            ) : (
+              <GoalOverviewTab deal={deal}
+                compact={!goalFull}
+                onExpand={() => setGoalFull(true)} />
+            )}
+        </PjSection>
+
+        {/* ① 지금 할 일 — 화면을 여는 이유. 사람이 눌러야 하는 것만 급한 순으로 */}
+        <PjSection k="todo" inTab={TAB_OF_SECTION(sec).secs.includes("todo")} active={sec === "todo"} onSeen={markSecOpen}
+          hint={signals.hasMoney || signals.hasWork ? "자동 집계" : "무엇부터 할지 골라 보세요"}>
+          <TodoQueue
+            deal={deal} pipe={pipe} won={won}
+            hasMoney={signals.hasMoney} hasWork={signals.hasWork} hasGoal={signals.hasGoal}
+            quoteCount={quoteDocsShown.length} contractCount={contractDocsShown.length}
+            onGo={goSection} onNewQuote={createQuoteInstant} creating={creatingQuote}
+            isNew={justCreated} onAddTasks={addFirstTasks} onSetDue={setFirstDue} saving={savingFirst} />
+        </PjSection>
+
+        {TAB_OF_SECTION(sec).key === "overview" && (
+          <OverviewDashboard part="charts" contract={ownContract} facts={facts as any} won={won}
+            endDate={deal.end_date ? String(deal.end_date).slice(0, 10) : null} daysToEnd={status.daysToEnd} />
+        )}
+
+        {/* ② 어디까지 왔나 — 견적→계약→진행→청구→정산 한 줄 + 단계 보정 */}
+        <PjSection k="flow" inTab={TAB_OF_SECTION(sec).secs.includes("flow")} active={sec === "flow"} onSeen={markSecOpen}
+          hint="견적 승인·서명·발행·입금 기준">
+          {signals.hasMoney ? (
+            <>
+              <PipelineRibbon pipe={pipe} contractTotal={ownContract} onOpen={goTab} />
+              <StageStepper stage={stage} onPick={(s) => !stageMut.isPending && stageMut.mutate(s)} pending={stageMut.isPending} />
+            </>
+          ) : signals.hasWork ? (
+            <StageStepper stage={stage} onPick={(s) => !stageMut.isPending && stageMut.mutate(s)} pending={stageMut.isPending} />
+          ) : (
+            <p className="pj-sec-empty">견적이나 할 일이 하나라도 생기면 여기에 진행 흐름이 나타나요.</p>
+          )}
+        </PjSection>
+        </div>
+
+        {/* ③ 돈 — 마진 콕핏 + 원장 + 문서 흐름 + 확정비용. 유형(수익형) 조건 없이 모든 프로젝트가 갖는다 */}
+        <PjSection k="money" inTab={TAB_OF_SECTION(sec).secs.includes("money")} active={sec === "money"} onSeen={markSecOpen}
+          views={SECTION_VIEWS.money} view={viewOf("money")} onView={(v: string) => pickView("money", v)}
+          hint={revenueBasis === "미입력" ? "견적서를 만들면 채워져요" : revenueBasis}>
+        {(planRevenue === 0 && totalCost === 0 && subPurchaseSum === 0 && (documents as any[]).length === 0) ? (
+          <MarginOnboarding onTab={goTab} />
+        ) : (
+        <div className="margin-overview-panel">
+          {/* ① 상태 밴드 */}
+          <MarginBand revenue={salesSoT} planCost={planCost} actualCost={totalCost} pipe={pipe} rolled={hasChildren ? (children as any[]).length : 0} />
+          {/* ② 돈 흐름 + 수익 구조 */}
+          <MoneyFlow pipe={pipe} contractTotal={ownContract} revenue={salesSoT} revenueBasis={revenueBasis} actualCost={totalCost} onOpen={goTab} />
+          {confirmedRevenue > 0 && planRevenue > 0 && Math.abs(confirmedRevenue - planRevenue) > Math.max(1000, planRevenue * 0.01) && (
+            <div className="amount-mismatch-warning glass-card">
+              <span className="shrink-0"><Ico e="⚠" /></span>
+              <span>계약·약정 매출 <b className="mono-number">{won(planRevenue)}</b> 과 계산서 발행액 <b className="mono-number">{won(confirmedRevenue)}</b> 이 다릅니다. 중간에 금액이 바뀌었다면 계약 금액 또는 발행 계산서를 확인·수정하세요.</span>
+            </div>
+          )}
+          {hasInclusiveSub && (
+            <p className="text-[11px] text-[var(--text-dim)]">※ VAT <b className="text-[var(--text-muted)]">포함</b>으로 입력한 매출/매입 항목은 <b className="text-[var(--text-muted)]">공급가액(VAT 제외)</b> 기준으로 환산해 계산됩니다.</p>
+          )}
+          {/* ④ 비용 보기 — 정산 현황 + 확정비용 구성. 접힌 '상세' 였던 것을 보기로 승격했다
+              (미수·원가는 매일 보는 숫자인데 details 안에 숨어 있었다). 기본 정보는 '사람과 기록' 으로 이동. */}
+          {viewOf("money") === "cost" && (
+            <div className="pj-detail-body">
+              <SettlementPanel pipe={pipe} contractTotal={ownContract} onOpen={goTab} />
+              <div className="grid gap-5 lg:grid-cols-3">
+                <div className="lg:col-span-2 space-y-5">
+                  <div className="cost-breakdown glass-card">
+                    <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)] flex items-center justify-between">
+                      <span className="text-xs font-bold text-[var(--text-muted)]">확정 비용 구성 <span className="font-normal text-[var(--text-dim)]">— 프로젝트에 태그된 지출</span></span>
+                      <span className="text-sm font-bold mono-number text-[var(--text)]">{won(totalCost)}</span>
+                    </div>
+                    <div className="divide-y divide-[var(--border)]/40">
+                      {COST_SOURCES.map((s) => (
+                        <details key={s.key} className="cost-source-item group">
+                          <summary className="cost-source-summary">
+                            <span className="text-[var(--text-dim)] text-[10px] group-open:rotate-90 transition-transform">▶</span>
+                            <span className="text-sm text-[var(--text)] flex-1">{s.label}</span>
+                            <span className="text-[11px] text-[var(--text-dim)]">{s.count}건</span>
+                            <span className="text-sm font-bold mono-number text-[var(--text)] w-32 text-right">{won(s.total)}</span>
+                          </summary>
+                          <div className="cost-source-detail">
+                            {s.count === 0 ? (
+                              <div className="text-[11px] text-[var(--text-dim)]">태그된 {s.label} 없음 — 각 내역 화면에서 이 프로젝트로 지정하세요.</div>
+                            ) : s.items.slice(0, 80).map((it: any) => <CostItemRow key={it.id} kind={s.key} it={it} />)}
+                          </div>
+                        </details>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-5">
+                  {/* 원가 구성 — 어디서 돈이 나갔는지 순위. 위 목록과 같은 데이터의 다른 표현 */}
+                  <div className="cost-mix glass-card">
+                    <h3 className="text-sm font-bold mb-3">원가 구성</h3>
+                    <BarList unit="원" emptyText="아직 연결된 지출이 없습니다. 각 내역 화면에서 이 프로젝트를 지정하면 여기에 모입니다."
+                      items={COST_SOURCES.filter((c) => c.total > 0).map((c) => ({ label: c.label, value: c.total }))} />
+                  </div>
+                  <div className="cost-note-card glass-card">
+                    · <b className="text-[var(--text)]">확정 비용</b> = 태그된 세금계산서·현금영수증·카드·전표 합계. 각 내역 화면에서 이 프로젝트를 지정하면 자동 집계됩니다. <b className="text-[var(--text)]">같은 지출을 두 곳에 중복 태그하지 마세요</b>(이중 계상).
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        )}
+
+      {/* ⚠️ 수주/발주 방향 파이프라인 헤더는 접근 경로가 없는 죽은 UI 였다(어느 유형에도 노출 안 됨).
+          그 안에만 있던 '견적 승인 시 계약서 자동 생성' 설정은 실제로 쓰이는 자동화라 아래 '문서' 보기로 살려 옮겼다. */}
+
+      {/* 원장 보기 — 부호 기반 매출·매입 항목(마진 산정 기준) */}
+      {viewOf("money") === "ledger" && companyId && (
+        <div className="transactions-ledger-section">
+          <div className="transactions-ledger-header">
+            <h3 className="text-sm font-bold text-[var(--text)]">거래 원장 <span className="font-normal text-[var(--text-dim)]">— 지난 입력</span></h3>
+            <span className="text-[11px] text-[var(--text-dim)]">매출·매입 항목 · 마진 산정 기준</span>
+          </div>
+          {/* 읽기 전용 — 매출·비용 입력은 템플릿에서만 한다(2026-08-03 사장님:
+              "이제 입력은 무조건 템플릿으로. 지금은 이전 로직이 같이 살아 있어 혼동을 준다").
+              이미 들어온 항목은 마진 계산에 계속 쓰이므로 지우지 않고 보이기만 한다. */}
+          <p className="pj-input-note">
+            새 매출·비용은 <b>&apos;매출 흐름&apos;</b>·<b>&apos;예산 · 지출&apos;</b> 템플릿에서 입력합니다.
+            <button type="button" onClick={() => goSection("boards")}>템플릿으로 →</button>
+          </p>
+          <SubDealsTab dealId={dealId} companyId={companyId} readOnly
+            campaignInherit={{ partnerId: deal?.partner_id || null, managerId: deal?.internal_manager_id || null, classification: deal?.classification || null }} />
+        </div>
+      )}
+
+      {viewOf("money") === "docs" && (
+        <div className="quote-list-section">
+          <label className="auto-contract-toggle">
+            <input type="checkbox" checked={autoContractOn} onChange={(e) => toggleAutoContract(e.target.checked)} className="accent-[var(--primary)]" />
+            견적 승인 시 계약서 자동 생성 (회사 전체 설정)
+          </label>
+          <div className="quote-list-toolbar">
+            {/* 견적서 '만들기' 는 여기서 뺐다 — '매출 · 청구' 템플릿의 행에서 시작한다(2026-08-03).
+                만들어진 문서를 보고 고치는 자리는 그대로 둔다. */}
+            <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 견적서·연결 문서입니다. <span className="text-[var(--text-dim)]">견적No.를 클릭하면 수정 화면으로 이동합니다.</span></p>
+            <div className="quote-list-actions">
+              <button type="button" onClick={() => goSection("boards")} className="btn-primary text-xs">＋ 템플릿에서 시작</button>
+              {companyId && <button onClick={() => setTplManagerKind("quote")} className="btn-secondary text-xs"><Ico e="📄" /> 양식 관리</button>}
+              <button onClick={() => setShowColSettings((v) => !v)}
+                className="btn-secondary text-xs"><Ico e="⚙" /> 열 설정</button>
+              {showColSettings && (
+                <>
+                  <div className="fixed inset-0 z-[60]" onClick={() => setShowColSettings(false)} />
+                  <div className="quote-col-settings-dropdown">
+                    <div className="text-[11px] font-bold text-[var(--text-muted)] px-2 py-1.5">리스트에 표시할 항목</div>
+                    {QUOTE_LIST_COLS.map((c) => (
+                      <label key={c.key} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[var(--bg-surface)] cursor-pointer text-sm">
+                        <input type="checkbox" checked={!!visibleCols[c.key]} onChange={() => toggleCol(c.key)} className="accent-[var(--primary)]" />
+                        <span className="text-[var(--text)]">{c.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {quoteDocsShown.length === 0 ? (
+            <Empty text="이 프로젝트에 연결된 견적서가 없습니다. 위 “+ 견적서 작성”으로 만들어 보세요." />
+          ) : (
+            <div className="quote-table-card glass-card">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="text-xs text-[var(--text-dim)]">
+                    {cols.map((c) => (
+                      <th key={c.key} className={`px-3 py-2.5 text-[12px] font-bold whitespace-nowrap border-b border-[var(--border)] ${c.align === "r" ? "text-center" : c.align === "c" ? "text-center" : "text-center"}`}>{c.label}</th>
+                    ))}
+                    <th className="px-3 py-2.5 text-[12px] font-bold whitespace-nowrap border-b border-[var(--border)] text-center">관리</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {quoteDocsShown.map((doc) => {
+                    const header = (doc.content_json as any)?.header || {};
+                    const st = doc.status || "—";
+                    const cellCls = (c: QCol) => `px-3 py-2.5 border-b border-[var(--border)]/40 ${c.align === "r" ? "text-right" : c.align === "c" ? "text-center" : "text-left"}`;
+                    return (
+                      <tr key={doc.id} className="hover:bg-[var(--bg-surface)]/50">
+                        {cols.map((c) => {
+                          if (c.key === "no") return <td key={c.key} className={cellCls(c)}><Link href={`/documents?id=${doc.id}`} className="font-semibold text-[var(--primary)] hover:underline whitespace-nowrap">{fmtNo(doc)}</Link></td>;
+                          if (c.key === "partner") return <td key={c.key} className={cellCls(c)}><span className="text-[var(--text)] truncate">{header.partnerName || partner?.name || "—"}</span></td>;
+                          if (c.key === "manager") return <td key={c.key} className={cellCls(c)}><span className="text-[var(--text)]">{header.manager || manager?.name || "—"}</span></td>;
+                          if (c.key === "items") return <td key={c.key} className={cellCls(c)}><span className="text-[var(--text)] truncate" title={quoteItemSummary(doc)}>{quoteItemSummary(doc)}</span></td>;
+                          if (c.key === "subdeal") { const sd = subDealOpts.find((x) => x.id === doc.sub_deal_id); return <td key={c.key} className={cellCls(c)}>{sd ? <span className="text-[11px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] whitespace-nowrap">{sd.type === "sales" ? "매출·" : sd.type === "purchase" ? "매입·" : ""}{sd.name}</span> : <span className="text-[var(--text-dim)]">—</span>}</td>; }
+                          if (c.key === "valid") return <td key={c.key} className={cellCls(c)}><span className="text-[var(--text-muted)] whitespace-nowrap">{header.validUntil ? fmtDate(header.validUntil) : "—"}</span></td>;
+                          if (c.key === "amount") { const a = quoteAmount(doc); return <td key={c.key} className={cellCls(c)}><span className="mono-number text-[var(--text)]">{a ? a.toLocaleString("ko-KR") : "—"}</span></td>; }
+                          if (c.key === "status") return <td key={c.key} className={cellCls(c)}><span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] whitespace-nowrap">{st}</span></td>;
+                          if (c.key === "created") return <td key={c.key} className={cellCls(c)}><span className="text-[var(--text-muted)] whitespace-nowrap">{fmtDate(doc.created_at)}</span></td>;
+                          if (c.key === "print") return <td key={c.key} className={cellCls(c)}><button onClick={(e) => { e.stopPropagation(); setPreviewDoc(doc); }} className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline whitespace-nowrap">인쇄</button></td>;
+                          return <td key={c.key} className={cellCls(c)}>—</td>;
+                        })}
+                        <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center whitespace-nowrap">
+                          <div className="quote-row-actions">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setPayMode("full"); setPayAdv(30); setPayMid(30); setPayModalQuote(doc); }}
+                              disabled={creatingContractFrom === doc.id}
+                              className="text-[11px] font-semibold px-2 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 disabled:opacity-50 whitespace-nowrap"
+                              title="이 견적서 내용으로 계약서를 생성합니다">
+                              {creatingContractFrom === doc.id ? "생성 중…" : "계약 생성"}
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); router.push(`/documents?id=${doc.id}`); }}
+                              className="text-[11px] px-2 py-1 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)] transition" title="견적서 수정">수정</button>
+                            <button onClick={(e) => { e.stopPropagation(); setDelDoc(doc); }}
+                              className="text-[11px] px-2 py-1 rounded-md text-[var(--danger)] hover:bg-[var(--danger)]/10 transition" title="견적서 삭제">삭제</button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {approvals.filter((a) => a.stage === "견적" || a.stage === "estimate").length > 0 && (
+            <div className="quote-approval-panel glass-card">
+              <div className="text-xs font-bold text-[var(--text-muted)] mb-2">견적 승인 흐름</div>
+              {approvals.filter((a) => a.stage === "견적" || a.stage === "estimate").map((a) => (
+                <ApprovalRow key={a.id} a={a} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 계약 */}
+      {viewOf("money") === "docs" && (
+        <div className="contract-list-section">
+          <div className="contract-list-toolbar">
+            <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 계약서·전자서명입니다. <span className="text-[var(--text-dim)]">계약서 작성·발송은 여기서 관리합니다(견적서와 분리).</span></p>
+            <div className="contract-list-actions">
+              {companyId && <button onClick={() => setTplManagerKind("contract")} className="btn-secondary text-xs"><Ico e="📄" /> 양식 관리</button>}
+              <button onClick={() => { setFormKind("contract"); setSelectedTemplateId(""); setQuoteSubDealId(""); setPayMode("full"); setPayAdv(30); setPayMid(30); setQuoteName(`${deal?.name || "프로젝트"} 계약서`); setShowQuoteForm(true); }}
+                className="btn-primary text-xs hover:opacity-90">+ 계약서 작성</button>
+              <Link href="/signatures?bulk=1" className="btn-secondary text-xs"><Ico e="📤" /> 새 계약 요청</Link>
+              <Link href="/signatures" className="btn-secondary text-xs">전자계약 메뉴 →</Link>
+            </div>
+          </div>
+
+          {/* 계약 문서 (견적서 제외) — 작성·편집 */}
+          {contractDocsShown.length > 0 && (
+            <div className="contract-doc-card glass-card">
+              <div className="contract-doc-card-header">계약 문서</div>
+              {contractDocsShown.map((doc) => (
+                <div key={doc.id} className="contract-doc-row">
+                  <Link href={`/documents?id=${doc.id}`} className="min-w-0 flex-1 text-sm text-[var(--primary)] font-medium hover:underline truncate">{doc.name || "계약서"}</Link>
+                  {doc.source_document_id && (() => {
+                    const src = (documents as any[]).find((x) => x.id === doc.source_document_id);
+                    return <Link href={`/documents?id=${doc.source_document_id}`} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] shrink-0 hover:underline" title="이 계약의 원본 견적서">← 견적 {src ? fmtNo(src) : "원본"}</Link>;
+                  })()}
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] shrink-0">{doc.status || "draft"}</span>
+                  {(() => {
+                    const cj = doc.content_json as any;
+                    const sched = cj?.paymentSchedule as PayTerm[] | undefined;
+                    if (Array.isArray(sched) && sched.length > 0) return <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-semibold shrink-0" title="이 계약의 결제 조건">{sched.map((t) => `${t.label} ${t.ratio}%`).join("·")}</span>;
+                    const pr = cj?.paymentRatio;
+                    if (pr && typeof pr.advance === "number") return <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-semibold shrink-0" title="이 계약의 결제 조건">선금 {pr.advance}%·잔금 {100 - pr.advance}%</span>;
+                    if (sched === null || pr === null) return <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] shrink-0" title="이 계약의 결제 조건">전액</span>;
+                    return null;
+                  })()}
+                  <span className="text-[11px] text-[var(--text-dim)] shrink-0 mono-number">{fmtDate(doc.created_at)}</span>
+                  <button onClick={() => openInvoiceModal(doc)} disabled={issuingInvoiceFrom === doc.id}
+                    className="text-[11px] font-semibold px-2 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 disabled:opacity-50 whitespace-nowrap shrink-0"
+                    title="이 계약금액으로 매출 세금계산서를 발행합니다(전액 또는 선금/잔금 분할)">
+                    {issuingInvoiceFrom === doc.id ? "발행 중…" : "계산서 발행"}
+                  </button>
+                  <Link href={`/documents?id=${doc.id}&print=1`} className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline shrink-0">인쇄</Link>
+                  <Link href={`/documents?id=${doc.id}`} className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] hover:underline shrink-0">수정</Link>
+                  <button onClick={() => setDelDoc(doc)} className="text-[11px] font-semibold text-[var(--danger)]/80 hover:text-[var(--danger)] shrink-0" title="계약서 삭제">삭제</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {sigRequests.length === 0 && approvals.length === 0 && contractDocs.length === 0 ? (
+            <Empty text="이 프로젝트에 연결된 계약서·전자계약 내역이 없습니다. 위 “+ 계약서 작성”으로 만들어 보세요." />
+          ) : (
+            <>
+              {sigRequests.length > 0 && (
+                <div className="signature-request-card glass-card">
+                  {sigRequests.map((s) => (
+                    <div key={s.id} className="projecthub-signature-request-row">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm text-[var(--text)] truncate">{s.title || "계약서"}</div>
+                        <div className="text-[11px] text-[var(--text-dim)]">{s.signer_name || "—"}{s.signer_email ? ` · ${s.signer_email}` : ""}</div>
+                      </div>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] shrink-0">{s.status}</span>
+                      {s.signed_at && <span className="text-[11px] text-green-500 shrink-0">서명완료 {fmtDate(s.signed_at)}</span>}
+                      {s.signed_contract_url && <a href={s.signed_contract_url} target="_blank" rel="noreferrer" className="text-[11px] text-[var(--primary)] hover:underline shrink-0">계약서</a>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {approvals.length > 0 && (
+                <div className="contract-approval-panel glass-card">
+                  <div className="text-xs font-bold text-[var(--text-muted)] mb-2">단계별 승인</div>
+                  {approvals.map((a) => <ApprovalRow key={a.id} a={a} />)}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* 하위 프로젝트 — 구 '세부 프로젝트(캠페인)'. 원장 보기 안에서 금액 롤업과 함께 본다 */}
+      {viewOf("money") === "ledger" && (
+        <div className="subprojects-section">
+          <div className="subprojects-toolbar">
+            <p className="text-xs text-[var(--text-muted)]">이 프로젝트에 속한 하위 프로젝트입니다. <span className="text-[var(--text-dim)]">행을 클릭하면 상위와 똑같은 구조로 열려요.</span></p>
+            <button onClick={() => { resetChildForm(); setChildName(`${deal.name || "프로젝트"} 세부`); setShowChildForm(true); }}
+              className="btn-primary text-xs hover:opacity-90">+ 하위 프로젝트 추가</button>
+          </div>
+
+          {showChildForm && (
+            <div className="add-subproject-modal fixed inset-0">
+              <div className="add-subproject-modal-card" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base font-bold">하위 프로젝트 추가</h3>
+                  <button onClick={() => setShowChildForm(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
+                </div>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">하위 프로젝트명 *</label>
+                <input autoFocus value={childName} onChange={(e) => setChildName(e.target.value)}
+                  placeholder="예: 2차 물량 · 봄 시즌"
+                  className="w-full h-11 px-3.5 mb-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                <div className="text-xs font-medium text-[var(--text-muted)] mb-1.5">초기 금액 <span className="font-normal text-[var(--text-dim)]">(선택 · 매출 또는 매입 하나)</span></div>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="subproject-kind-toggle">
+                    <button type="button" onClick={() => setChildKind("sales")} className={`px-3 h-10 text-xs font-bold transition ${childKind === "sales" ? "bg-[var(--success)] text-white" : "text-[var(--text-dim)] hover:bg-[var(--bg-surface)]"}`}>매출</button>
+                    <button type="button" onClick={() => setChildKind("purchase")} className={`px-3 h-10 text-xs font-bold border-l border-[var(--border)] transition ${childKind === "purchase" ? "bg-[var(--danger)] text-white" : "text-[var(--text-dim)] hover:bg-[var(--bg-surface)]"}`}>매입</button>
+                  </div>
+                  <input value={childAmt} onChange={(e) => setChildAmt(numComma(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.stopPropagation(); createChild(); } }} inputMode="numeric" placeholder={childKind === "sales" ? "받을 돈 0" : "줄 돈 0"}
+                    className={`flex-1 h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-right mono-number focus:outline-none focus:border-[var(--primary)] ${childKind === "sales" ? "text-[var(--success)]" : "text-[var(--danger)]"}`} />
+                  <select value={childVat} onChange={(e) => setChildVat(e.target.value as "exclude" | "include")} className="px-2 h-10 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[11px] text-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] shrink-0">
+                    <option value="exclude">VAT별도</option><option value="include">VAT포함</option>
+                  </select>
+                </div>
+                <p className="text-[11px] text-[var(--text-dim)] mt-2">비워도 됩니다 — 생성 후 <b className="text-[var(--text-muted)]">거래</b> 탭에서 매출·매입을 자유롭게 입력하세요. 거래처·담당자는 상위 프로젝트({partner?.name || "미지정"})에서 상속됩니다.</p>
+                <div className="flex items-center justify-end gap-2.5 mt-5">
+                  <button onClick={() => setShowChildForm(false)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
+                  <button onClick={createChild} disabled={creatingChild || !childName.trim()} className="btn-primary">{creatingChild ? "생성 중..." : "생성"}</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {(children as any[]).length === 0 ? (
+            <Empty text="세부 프로젝트가 없습니다. 위 “+ 세부 프로젝트 추가”로 만들어 보세요. 세부 프로젝트도 상위와 동일하게 거래·문서·정산을 갖습니다." />
+          ) : (
+            <div className="subprojects-table-card glass-card">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="text-xs text-[var(--text-dim)]">
+                    <th className="px-3 py-2.5 text-[12px] font-bold text-center border-b border-[var(--border)]">이름</th>
+                    <th className="px-3 py-2.5 text-[12px] font-bold text-center border-b border-[var(--border)] w-[80px]">단계</th>
+                    <th className="px-3 py-2.5 text-[12px] font-bold text-center border-b border-[var(--border)] w-[120px]">매출</th>
+                    <th className="px-3 py-2.5 text-[12px] font-bold text-center border-b border-[var(--border)] w-[120px]">마진</th>
+                    <th className="px-3 py-2.5 text-[12px] font-bold text-center border-b border-[var(--border)] w-[170px]">기간</th>
+                    <th className="px-3 py-2.5 text-[12px] font-bold text-center border-b border-[var(--border)] w-[110px]">관리</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(children as any[]).map((c) => {
+                    const cst = (STAGE_ORDER.includes(c.stage) ? c.stage : "estimate") as ProjectStage;
+                    const csc = STAGE_COLOR[cst];
+                    const cs = subByDeal[c.id] || { sales: 0, purchase: 0 };
+                    const cMargin = cs.sales - cs.purchase;
+                    return (
+                      <tr key={c.id} onClick={() => router.push(`/projecthub/${c.id}`)}
+                        className="subproject-row">
+                        <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-[var(--text)] font-medium">{c.name || "(이름 없음)"}</td>
+                        <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center"><span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${csc.bg} ${csc.text}`}>{STAGE_LABEL[cst]}</span></td>
+                        <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-right mono-number text-[var(--text)]">{won(cs.sales)}</td>
+                        <td className={`px-3 py-2.5 border-b border-[var(--border)]/40 text-right mono-number ${cMargin < 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{won(cMargin)}</td>
+                        <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-[11px] text-[var(--text-muted)] mono-number">{fmtDate(c.start_date)}{c.end_date ? ` ~ ${fmtDate(c.end_date)}` : ""}</td>
+                        <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-1">
+                            <button onClick={(e) => { e.stopPropagation(); openEditChild(c); }} className="px-2 py-1 text-[11px] rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)] transition">수정</button>
+                            <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(c); }} className="px-2 py-1 text-[11px] rounded-md text-[var(--danger)] hover:bg-[var(--danger)]/10 transition">삭제</button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="subprojects-table-footer">
+                    <td className="px-3 py-2.5 text-xs font-bold text-[var(--text-muted)]">합계 (세부 {(children as any[]).length}개)</td>
+                    <td className="px-3 py-2.5"></td>
+                    <td className="px-3 py-2.5 text-right mono-number font-bold text-[var(--text)]">{won((children as any[]).reduce((a, c) => a + (subByDeal[c.id]?.sales || 0), 0))}</td>
+                    <td className={`px-3 py-2.5 text-right mono-number font-bold ${(children as any[]).reduce((a, c) => a + ((subByDeal[c.id]?.sales || 0) - (subByDeal[c.id]?.purchase || 0)), 0) < 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{won((children as any[]).reduce((a, c) => a + ((subByDeal[c.id]?.sales || 0) - (subByDeal[c.id]?.purchase || 0)), 0))}</td>
+                    <td className="px-3 py-2.5" colSpan={2}></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+          {hasChildren && (
+            <p className="text-[11px] text-[var(--text-dim)]">※ 이 프로젝트의 개요·운영 금액·손익은 자기 자신 + <b className="text-[var(--text-muted)]">직속 세부 프로젝트</b>를 합산(롤업)해 표시됩니다.</p>
+          )}
+
+          {/* 캠페인 수정 모달 */}
+          {editChild && (
+            <div className="edit-subproject-modal fixed inset-0">
+              <div className="edit-subproject-modal-card" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base font-bold">하위 프로젝트 수정</h3>
+                  <button onClick={() => setEditChild(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
+                </div>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">하위 프로젝트명 *</label>
+                <input autoFocus value={editChildName} onChange={(e) => setEditChildName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.stopPropagation(); saveChild(); } }}
+                  className="w-full h-11 px-3.5 mb-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">진행 단계</label>
+                <select value={editChildStage} onChange={(e) => setEditChildStage(e.target.value)}
+                  className="w-full h-11 px-3 mb-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
+                  {STAGE_ORDER.map((st) => (<option key={st} value={st}>{STAGE_LABEL[st]}</option>))}
+                </select>
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">시작일</label>
+                    <DateField value={editChildStart} onChange={(e) => setEditChildStart(e.target.value)}
+                      className="w-full h-11 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">종료일</label>
+                    <DateField value={editChildEnd} onChange={(e) => setEditChildEnd(e.target.value)}
+                      className="w-full h-11 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
+                  </div>
+                </div>
+                <p className="text-[11px] text-[var(--text-dim)]">매출/매입 금액은 그 하위 프로젝트를 열어 <b className="text-[var(--text-muted)]">돈 › 원장</b>에서 수정합니다.</p>
+                <div className="flex items-center justify-end gap-2.5 mt-5">
+                  <button onClick={() => setEditChild(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
+                  <button onClick={saveChild} disabled={savingChild || !editChildName.trim()} className="btn-primary">{savingChild ? "저장 중..." : "저장"}</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 캠페인 삭제 확인 모달 */}
+          {deleteTarget && (
+            <div className="delete-subproject-modal fixed inset-0" onClick={() => setDeleteTarget(null)}>
+              <div className="delete-subproject-modal-card" onClick={(e) => e.stopPropagation()}>
+                <h3 className="text-base font-bold mb-2">하위 프로젝트 삭제</h3>
+                <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-1"><b className="text-[var(--text)]">{deleteTarget.name || "(이름 없음)"}</b> 하위 프로젝트를 목록에서 삭제할까요?</p>
+                <p className="text-[11px] text-[var(--text-dim)] mb-5">매출·매입·견적·계약 등 회계 데이터는 보존되며, 목록에서만 숨겨집니다.</p>
+                <div className="flex items-center justify-end gap-2.5">
+                  <button onClick={() => setDeleteTarget(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
+                  <button onClick={removeChild} disabled={deletingChild} className="px-6 h-10 bg-[var(--danger)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{deletingChild ? "삭제 중..." : "삭제"}</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+        </PjSection>
+
+        {/* ④ 일 — 할 일(칸반·간트)·진행률·담당자별 부하. 유형(실행형) 조건 없이 모든 프로젝트가 쓴다.
+            ⚠️ 프로젝트 안의 '워크플로우' 탭(전사 보드)은 제거했다 — 회사 전체 보드는 프로젝트
+               목록의 '보드' 보기가 맡는다(같은 컴포넌트, 위치만 이동). */}
+        <PjSection k="work" inTab={TAB_OF_SECTION(sec).secs.includes("work")} active={sec === "work"} onSeen={markSecOpen}
+          views={signals.hasWork || expanded.work ? SECTION_VIEWS.work : undefined} view={viewOf("work")} onView={(v: string) => pickView("work", v)}
+          hint={signals.hasWork ? "진행률 자동 계산" : undefined}>
+          {!openSecs.has("work") ? <p className="pj-sec-empty">불러오는 중…</p>
+            : !companyId ? null
+            : viewOf("work") === "schedule" ? (
+              <ProjectScheduleTab dealId={dealId} />
+            ) : viewOf("work") === "issues" ? (
+              <IssuesTab dealId={dealId} companyId={companyId} users={companyUsers as any[]} />
+            ) : !signals.hasWork && !expanded.work ? (
+              <button type="button" className="pj-sec-add" onClick={() => openNow("work")}>
+                ＋ <b>할 일 적기</b>
+                <span>적어두면 진행률이 저절로 계산됩니다. 담당을 지정하면 그 사람 화면에도 보여요.</span>
+              </button>
+            ) : !signals.hasWork ? (
+              <TasksTab dealId={dealId} companyId={companyId} users={companyUsers as any[]} />
+            ) : (
+              <>
+                <TasksTab dealId={dealId} companyId={companyId} users={companyUsers as any[]} />
+                {/* 진행률·상태분포·마감·담당자별 부하(번업·워크로드 차트) — 구 실행형 개요 */}
+                <DeliveryOverview deal={deal} dealId={dealId} partner={partner} manager={manager} companyUsers={companyUsers as any[]} />
+              </>
+            )}
+        </PjSection>
+
+        {/* ⑥ 사람과 기록 — 활동·일정(구 '프로젝트 운영')과 기본 정보.
+            다중 담당·부서 롤업·프로젝트 채널은 4단계에서 이 자리에 붙는다. */}
+        <PjSection k="team" inTab={TAB_OF_SECTION(sec).secs.includes("team")} active={sec === "team"} onSeen={markSecOpen}
+          views={SECTION_VIEWS.team} view={viewOf("team")} onView={(v: string) => pickView("team", v)}
+          hint="담당은 여러 명 지정할 수 있습니다 · 해제해도 이력은 남습니다">
+          {!openSecs.has("team") ? <p className="pj-sec-empty">불러오는 중…</p>
+            : viewOf("team") === "who" && companyId ? (
+              <TeamTab dealId={dealId} companyId={companyId} users={companyUsers as any[]}
+                managerId={deal.internal_manager_id} managerName={manager?.name} />
+            ) : viewOf("team") === "info" ? (
+              <div className="project-basic-info glass-card">
+                <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-bold">기본 정보</h3></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6 text-sm">
+                  <Info label="거래처" value={partner?.name || "—"} />
+                  <Info label="담당자" value={manager?.name || "—"} />
+                  <Info label="분류" value={deal.classification || "—"} />
+                  <Info label="단계" value={STAGE_LABEL[stage]} />
+                  <Info label="시작일" value={fmtDate(deal.start_date)} />
+                  <Info label="종료일" value={fmtDate(deal.end_date)} />
+                  <Info label="상태" value={deal.status || "—"} />
+                  <Info label="다음 액션" value={deal.next_action_text || "—"} />
+                </div>
+              </div>
+            ) : companyId ? (
+              <ProjectSlideOver variant="embed" dealId={dealId} companyId={companyId} onClose={() => {}} />
+            ) : null}
+        </PjSection>
+        </div>
+      </div>
+
+      {/* 문서 작성 모달 — 견적서 탭(견적서) / 전자계약 탭(계약서) 공용. formKind 로 양식·기본구조 분기 */}
+      {/* 양식 관리 모달 — 회사 견적/계약 양식 PDF 업로드·인식(버튼으로 열기, 화면 상단 점유 제거) */}
+      {tplManagerKind && companyId && (
+        <div className="template-manager-modal fixed inset-0" onClick={() => setTplManagerKind(null)}>
+          <div className="template-manager-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold">{tplManagerKind === "quote" ? "견적서" : "계약서"} 양식 관리 <span className="font-normal text-xs text-[var(--text-dim)]">회사 양식 PDF 업로드 → 자동 인식</span></h3>
+              <button onClick={() => setTplManagerKind(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
+            </div>
+            <FormTemplateManager companyId={companyId} only={tplManagerKind} />
+          </div>
+        </div>
+      )}
+
+      {/* 견적/계약 문서 삭제 확인 */}
+      {delDoc && (
+        <div className="delete-document-modal fixed inset-0" onClick={() => setDelDoc(null)}>
+          <div className="delete-document-modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold mb-2">{docKind(delDoc) === "quote" ? "견적서" : "계약서"} 삭제</h3>
+            <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-1"><b className="text-[var(--text)]">{delDoc.name || fmtNo(delDoc) || "문서"}</b> 를 삭제할까요?</p>
+            <p className="text-[11px] text-[var(--text-dim)] mb-5">문서와 연결된 추적·승인·서명요청 기록이 함께 삭제됩니다. <b className="text-[var(--text-muted)]">이미 발행된 세금계산서는 삭제되지 않습니다.</b> 되돌릴 수 없습니다.</p>
+            <div className="flex items-center justify-end gap-2.5">
+              <button onClick={() => setDelDoc(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
+              <button onClick={removeDoc} disabled={deletingDoc} className="px-6 h-10 bg-[var(--danger)] text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:brightness-110 transition">{deletingDoc ? "삭제 중..." : "삭제"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 견적 → 계약 생성 시 결제조건(선금/잔금) 못박기 모달 */}
+      {payModalQuote && (() => {
+        const supply = quoteAmount(payModalQuote);
+        return (
+          <div className="contract-payment-modal fixed inset-0">
+            <div className="contract-payment-modal-card" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-bold">계약 생성 — 결제 조건</h3>
+                <button onClick={() => setPayModalQuote(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
+              </div>
+              <div className="flex items-baseline justify-between mb-4 text-sm">
+                <span className="text-[var(--text-muted)]">견적금액(공급가)</span>
+                <span className="mono-number font-bold text-[var(--text)]">{won(supply)}</span>
+              </div>
+              <PaymentTermsField mode={payMode} onMode={setPayMode} adv={payAdv} onAdv={setPayAdv} mid={payMid} onMid={setPayMid} supply={supply} />
+              <p className="text-[11px] text-[var(--text-dim)] mt-3">이 결제 조건이 계약서에 저장되고, 계산서 발행 시 기본값으로 사용됩니다. 나중에 변경할 수 있습니다.</p>
+              <div className="flex items-center justify-end gap-2.5 mt-5">
+                <button onClick={() => setPayModalQuote(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
+                <button onClick={() => { const d = payModalQuote; setPayModalQuote(null); createContractFromQuote(d); }} disabled={!!creatingContractFrom || (payMode === "three" && 100 - clampPct(payAdv) - clampPct(payMid) < 0)}
+                  className="btn-primary">계약 생성</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 계산서 발행 모달 — 전액 또는 선금/중도금/잔금 분할. 계약서 결제조건이 기본값. */}
+      {invoiceModal && (() => {
+        const supply = quoteAmount(invoiceModal) || Number(deal?.contract_total || 0);
+        const schedule = buildPaySchedule(payMode, payAdv, payMid);
+        // 미리보기 금액(마지막 회차 보정)
+        let allocated = 0;
+        const preview = (schedule || []).map((t, i) => {
+          const amount = i === schedule!.length - 1 ? supply - allocated : Math.round((supply * t.ratio) / 100);
+          allocated += amount;
+          return { ...t, amount };
+        });
+        const existingCount = ((pipe?.invoices || []) as any[]).length;
+        return (
+          <div className="projecthub-invoice-issue-modal fixed inset-0">
+            <div className="invoice-issue-modal-card" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-bold">계산서 발행</h3>
+                <button onClick={() => setInvoiceModal(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
+              </div>
+              <div className="flex items-baseline justify-between mb-4 text-sm">
+                <span className="text-[var(--text-muted)]">계약금액(공급가)</span>
+                <span className="mono-number font-bold text-[var(--text)]">{won(supply)}</span>
+              </div>
+              <PaymentTermsField mode={payMode} onMode={setPayMode} adv={payAdv} onAdv={setPayAdv} mid={payMid} onMid={setPayMid} supply={supply} />
+              {preview.length > 0 ? (
+                <div className="invoice-schedule-preview">
+                  {preview.map((t, i) => (
+                    <div key={t.label} className="invoice-schedule-row">
+                      <span className="text-sm text-[var(--text)]">{t.label} <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ml-1 ${i === 0 ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"}`}>{i === 0 ? "즉시 발행" : "초안(입금 후 발행)"}</span></span>
+                      <span className="mono-number font-bold text-[var(--text)]">{won(t.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[12px] text-[var(--text-muted)] mt-3">계약금액 전액을 매출 세금계산서 1건으로 발행합니다(미전송).</p>
+              )}
+              {preview.length > 0 && <p className="text-[11px] text-[var(--text-dim)] mt-2">첫 회차(선금)만 즉시 발행되고, 이후 회차는 <b className="text-[var(--text-muted)]">초안</b>으로 생성됩니다. 입금 확인 후 세금계산서 메뉴에서 발행하세요.</p>}
+              {existingCount > 0 && (
+                <p className="text-[11px] text-[var(--warning)] mt-3"><Ico e="⚠" /> 이 프로젝트에 이미 발행된 매출 계산서가 {existingCount}건 있습니다. 중복 발행 시 매출이 이중 계상될 수 있습니다.</p>
+              )}
+              <div className="flex items-center justify-end gap-2.5 mt-5">
+                <button onClick={() => setInvoiceModal(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
+                <button onClick={issueInvoices} disabled={!!issuingInvoiceFrom || supply <= 0 || (payMode === "three" && 100 - clampPct(payAdv) - clampPct(payMid) < 0)}
+                  className="btn-primary">{issuingInvoiceFrom ? "발행 중…" : "발행"}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {showQuoteForm && (
+        <div className="document-create-modal fixed inset-0">
+          <div className="document-create-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold">{formKind === "quote" ? "견적서 작성" : "계약서(전자계약) 작성"}</h3>
+              <button onClick={() => setShowQuoteForm(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
+            </div>
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">양식 선택</label>
+            <select
+              value={selectedTemplateId}
+              onChange={(e) => {
+                setSelectedTemplateId(e.target.value);
+                const t = formTemplates.find((x: any) => x.id === e.target.value);
+                setQuoteName(`${deal?.name || "프로젝트"} ${t ? t.name : formKind === "quote" ? "견적서" : "계약서"}`);
+              }}
+              className="w-full h-11 px-3.5 mb-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+            >
+              <option value="">{formKind === "quote" ? "견적서 (기본 양식)" : "계약서 (기본 양식)"}</option>
+              {formTemplates.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            {formKind === "quote" && (
+              <>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">매출·매입 항목 연결 <span className="font-normal text-[var(--text-dim)]">(선택 — 견적을 특정 항목에 부착)</span></label>
+                <select
+                  value={quoteSubDealId}
+                  onChange={(e) => setQuoteSubDealId(e.target.value)}
+                  className="w-full h-11 px-3.5 mb-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+                >
+                  <option value="">프로젝트 전체 (항목 미지정)</option>
+                  {subDealOpts.map((s) => <option key={s.id} value={s.id}>{s.type === "sales" ? "[매출]" : s.type === "purchase" ? "[매입]" : ""} {s.name}</option>)}
+                </select>
+              </>
+            )}
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">문서명</label>
+            <input
+              autoFocus
+              value={quoteName}
+              onChange={(e) => setQuoteName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.stopPropagation(); createDoc(); } }}
+              placeholder={formKind === "quote" ? "견적서명" : "계약서명"}
+              className="w-full h-11 px-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
+            />
+            <p className="text-[11px] text-[var(--text-dim)] mt-2">{formKind === "quote" ? "견적서(품목·단가·부가세 표)로 생성되며, 생성 즉시 견적서 입력 화면으로 이동합니다." : "계약서(본문 텍스트)로 생성됩니다. 발송·서명은 ‘새 계약 요청 / 전자계약 메뉴’에서 진행하세요. 생성 후 목록의 ‘열기/편집’으로 작성하세요."}</p>
+            {formKind === "contract" && (
+              <div className="mt-4">
+                <PaymentTermsField mode={payMode} onMode={setPayMode} adv={payAdv} onAdv={setPayAdv} mid={payMid} onMid={setPayMid} supply={Number(deal?.contract_total || 0)} />
+              </div>
+            )}
+            <div className="flex items-center justify-end gap-2.5 mt-5">
+              <button onClick={() => setShowQuoteForm(false)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
+              <button onClick={createDoc} disabled={creatingQuote || (formKind === "contract" && payMode === "three" && 100 - clampPct(payAdv) - clampPct(payMid) < 0)} className="btn-primary">{creatingQuote ? "생성 중..." : (formKind === "quote" ? "작성하기" : "생성")}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 견적서 PDF 미리보기 팝업 (실제 인쇄될 PDF) — body 포털, 화면 중앙. 인쇄/저장 직접 처리. */}
+      {previewDoc && typeof document !== "undefined" && createPortal(
+        <div className="quote-preview-modal fixed inset-0" onClick={() => setPreviewDoc(null)}>
+          <div className="quote-preview-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] shrink-0">
+              <h2 className="text-base font-bold text-[var(--text)]">{previewDoc.name || "견적서"} <span className="text-xs font-normal text-[var(--text-dim)]">미리보기</span></h2>
+              <button onClick={() => setPreviewDoc(null)} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl">×</button>
+            </div>
+            <div className="quote-preview-body">
+              {previewLoading ? (
+                <div className="h-full flex items-center justify-center text-sm text-[var(--text-muted)]">견적서 생성 중…</div>
+              ) : previewUrl ? (
+                <iframe id="quote-preview-iframe" src={previewUrl} title="견적서 미리보기" className="w-full h-full border-0" />
+              ) : (
+                <div className="h-full flex items-center justify-center text-sm text-[var(--text-muted)]">미리보기를 불러오지 못했습니다.</div>
+              )}
+            </div>
+            <div className="quote-preview-footer">
+              <button onClick={() => setPreviewDoc(null)} className="px-4 py-2 text-sm text-[var(--text-muted)] rounded-lg hover:bg-[var(--bg-surface)]">닫기</button>
+              <button
+                disabled={!previewBlob}
+                onClick={() => {
+                  if (!previewBlob) return;
+                  const a = document.createElement("a");
+                  const u = URL.createObjectURL(previewBlob);
+                  a.href = u; a.download = `${(previewDoc.name || "견적서").replace(/[\\/:*?"<>|]/g, "_")}.pdf`; a.click();
+                  setTimeout(() => URL.revokeObjectURL(u), 1000);
+                }}
+                className="px-4 py-2 text-sm font-semibold rounded-lg border border-[var(--border)] text-[var(--text)] hover:bg-[var(--bg-surface)] disabled:opacity-50">PDF 저장</button>
+              <button
+                disabled={!previewUrl}
+                onClick={() => { (document.getElementById("quote-preview-iframe") as HTMLIFrameElement | null)?.contentWindow?.print(); }}
+                className="btn-primary">인쇄</button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+      </div>
+    </div>
+  );
+}
+
+// 결제 조건 입력 — 전액 / 선금·잔금(2단계) / 선금·중도금·잔금(3단계). 계약 작성·발행 공용.
+// ── 자리(섹션) 셸 ────────────────────────────────────────────
+//   탭을 없앤 대신 이 셸이 자리 제목·보기 전환·지연 마운트를 맡는다.
+//   한 페이지에 여섯 자리가 있으므로, 화면에 들어온 자리만 onSeen 으로 열어 조회를 시작한다.
+function PjSection({ k, inTab, active, bare, hint, views, view, onView, onSeen, children }: {
+  k: SectionKey;
+  /** 지금 열려 있는 탭에 속하는 자리인가 — 아니면 그리지 않는다(2026-08-03 개편 ③) */
+  inTab: boolean;
+  active: boolean;
+  /** 제목 줄 없이 내용만 — 템플릿 자리는 탭이 곧 제목이라 한 줄이 더 붙으면 군더더기다 */
+  bare?: boolean;
+  hint?: string;
+  views?: { key: string; label: string }[];
+  view?: string;
+  onView?: (v: string) => void;
+  onSeen: (k: SectionKey) => void;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") { onSeen(k); return; }
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) { onSeen(k); io.disconnect(); }
+    }, { rootMargin: "300px 0px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [k, onSeen]);
+  if (!inTab) return null;
+  return (
+    <div ref={ref} id={`pj-sec-${k}`} className={`pj-sec ${active ? "pj-sec-on" : ""}`}>
+      {!bare && <div className="pj-sec-head">
+        <h2 className="pj-sec-title">{SECTION_TITLE[k]}</h2>
+        {hint && <span className="pj-sec-hint">{hint}</span>}
+        {views && views.length > 1 && (
+          <div className="pj-sec-views">
+            {views.map((v) => (
+              <button key={v.key} type="button" onClick={() => onView?.(v.key)} aria-pressed={view === v.key}
+                className={`pj-sec-view ${view === v.key ? "pj-sec-view-on" : ""}`}>{v.label}</button>
+            ))}
+          </div>
+        )}
+      </div>}
+      {children}
+    </div>
+  );
+}
+
+// ── 지금 할 일 ───────────────────────────────────────────────
+//   사람이 목록을 만들지 않는다. 이미 있는 데이터(미수·마감·서명 대기·문서 유무)로만 만든다.
+//   ⚠️ 여기에 "있으면 좋은" 항목을 상상해서 넣지 말 것 — 근거 없는 줄이 하나 생기면 전체를 못 믿는다.
+//   마일스톤 기반 '청구 가능' 판정과 주간 요약 초안은 4단계에서 추가한다.
+function TodoQueue({ deal, pipe, won, hasMoney, hasWork, hasGoal, quoteCount, contractCount, onGo, onNewQuote, creating, isNew, onAddTasks, onSetDue, saving }: {
+  deal: any; pipe: any; won: (n: number | null | undefined) => string;
+  hasMoney: boolean; hasWork: boolean; hasGoal: boolean;
+  quoteCount: number; contractCount: number;
+  onGo: (k: SectionKey) => void; onNewQuote: () => void; creating: boolean;
+  isNew: boolean; onAddTasks: (titles: string[]) => void; onSetDue: (date: string) => void; saving: boolean;
+}) {
+  const today = todayKst();
+  const rows: { tone: "bad" | "warn" | "ok"; text: string; why: string; cta?: string; go?: () => void }[] = [];
+
+  const out = settleFigs(pipe).outstanding;
+  if (out > 1) rows.push({
+    tone: "bad", text: `미수 ${won(out)} — 발행했는데 아직 입금이 안 됐습니다`,
+    why: "계산서 발행액과 통장 입금(자동 매칭)의 차이", cta: "정산 보기", go: () => onGo("money"),
+  });
+
+  const end = deal?.end_date ? String(deal.end_date).slice(0, 10) : null;
+  const done = deal?.stage === "completed" || deal?.stage === "settlement";
+  if (end && !done) {
+    const d = Math.round((new Date(`${end}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86_400_000);
+    if (d < 0) rows.push({ tone: "bad", text: `마감이 ${-d}일 지났습니다`, why: `종료일 ${end}`, cta: "업무 보기", go: () => onGo("work") });
+    else if (d <= 7) rows.push({ tone: "warn", text: `마감이 ${d}일 남았습니다`, why: `종료일 ${end}`, cta: "업무 보기", go: () => onGo("work") });
+  }
+
+  if (quoteCount > 0 && contractCount === 0) rows.push({
+    tone: "warn", text: "견적은 보냈으나 계약서가 아직 없습니다",
+    why: "승인되면 계약서 초안이 자동으로 만들어져요(문서 보기에서 설정)", cta: "문서 보기", go: () => onGo("money"),
+  });
+
+  if (rows.length > 0) {
+    return (
+      <div className="pj-queue">
+        {rows.map((r, i) => (
+          <div key={i} className={`pj-queue-row pj-queue-${r.tone}`}>
+            <i className="pj-queue-stripe" />
+            <p>{r.text}<em>{r.why}</em></p>
+            {r.cta && <button type="button" className="pj-queue-cta" onClick={r.go}>{r.cta}</button>}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // 데이터가 하나도 없으면 — 첫 한 걸음(견적 / 할 일 / 마감일)을 이 화면에서 끝내게 한다.
+  if (!hasMoney && !hasWork && !hasGoal) {
+    return <FirstStep isNew={isNew} onNewQuote={onNewQuote} creating={creating}
+      onAddTasks={onAddTasks} onSetDue={onSetDue} saving={saving} endDate={deal?.end_date ? String(deal.end_date).slice(0, 10) : ""} />;
+  }
+  // 챙길 게 없을 때도 목록 모양을 유지한다 — 한 줄짜리 안내만 두면 옆 칸과 높이가 안 맞아
+  //   왼쪽이 텅 빈 것처럼 보인다(2026-08-03 사장님 지적). 무엇이 여기 올라오는지 미리 알려준다.
+  return (
+    <div className="pj-queue">
+      <div className="pj-queue-row pj-queue-none">
+        <i className="pj-queue-stripe" />
+        <p>확인할 항목이 없습니다<em>아래 상황이 생기면 여기에 표시됩니다</em></p>
+      </div>
+      {[
+        ["마감이 다가오거나 지났을 때", "종료일 기준 7일 전부터"],
+        ["입금이 지연될 때", "세금계산서 발행 후 입금이 확인되지 않으면"],
+        ["업무가 지연될 때", "담당자가 기한을 넘긴 업무가 생기면"],
+      ].map(([t, why]) => (
+        <div key={t} className="pj-queue-row pj-queue-ghost">
+          <i className="pj-queue-stripe" />
+          <p>{t}<em>{why}</em></p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// 첫 한 걸음 — 빈 프로젝트에서만 보인다. 고른 것을 그 자리에서 끝내는 게 핵심이다
+//   (예전 제안 카드는 다른 자리로 스크롤만 시켰다 → 채우지 않고 나가버렸다).
+//   목표(KPI)는 여기에 두지 않는다 — 실사용이 2건뿐이라 첫 걸음으로는 무겁고,
+//   '목표와 실적' 자리에 이미 한 줄 제안이 있다.
+const FIRST_TASK_HINTS = ["예: 요구사항 정리", "예: 견적 초안 검토", "예: 착수 일정 확정"];
+
+function FirstStep({ isNew, onNewQuote, creating, onAddTasks, onSetDue, saving, endDate }: {
+  isNew: boolean; onNewQuote: () => void; creating: boolean;
+  onAddTasks: (titles: string[]) => void; onSetDue: (date: string) => void;
+  saving: boolean; endDate: string;
+}) {
+  const [open, setOpen] = useState<"" | "task" | "due">("");
+  const [titles, setTitles] = useState<string[]>(["", "", ""]);
+  const [due, setDue] = useState(endDate);
+  const setAt = (i: number, v: string) => setTitles((prev) => prev.map((t, n) => (n === i ? v : t)));
+  const toggle = (k: "task" | "due") => setOpen((p) => (p === k ? "" : k));
+
+  return (
+    <div className="pj-first">
+      <p className="pj-first-lead">
+        {isNew ? "프로젝트를 만들었습니다. " : ""}하나만 고르면 시작 준비가 끝나요 — 나머지는 나중에 채워도 됩니다.
+      </p>
+      <div className="pj-starters">
+        <button type="button" className="pj-starter" onClick={onNewQuote} disabled={creating}>
+          <span className="pj-starter-k">보통 여기서 시작합니다</span>
+          <b>{creating ? "만드는 중…" : "견적서 만들기"}</b>
+          <span>거래처와 품목을 넣으면 공급가·부가세가 자동으로 계산됩니다. 승인되면 계약서 초안까지 만들어져요.</span>
+        </button>
+        <button type="button" className={`pj-starter ${open === "task" ? "pj-starter-on" : ""}`} onClick={() => toggle("task")}>
+          <span className="pj-starter-k">할 일부터라면</span>
+          <b>할 일 적기</b>
+          <span>세 줄만 적어도 '업무'가 열리고 진행률이 자동 계산됩니다.</span>
+        </button>
+        <button type="button" className={`pj-starter ${open === "due" ? "pj-starter-on" : ""}`} onClick={() => toggle("due")}>
+          <span className="pj-starter-k">기한부터라면</span>
+          <b>마감일 정하기</b>
+          <span>마감일이 있어야 남은 날짜와 지연이 '확인 필요'에 표시됩니다.</span>
+        </button>
+      </div>
+
+      {open === "task" && (
+        <div className="pj-first-form">
+          {titles.map((t, i) => (
+            <input key={i} value={t} onChange={(e) => setAt(i, e.target.value)} placeholder={FIRST_TASK_HINTS[i]}
+              autoFocus={i === 0} className="pj-first-input"
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && titles.some((x) => x.trim())) onAddTasks(titles); }} />
+          ))}
+          <div className="pj-first-actions">
+            <button type="button" className="pj-first-save" disabled={saving || !titles.some((t) => t.trim())} onClick={() => onAddTasks(titles)}>
+              {saving ? "저장 중…" : "할 일 추가"}
+            </button>
+            <span className="pj-first-note">담당·기한은 추가한 뒤 '업무'에서 지정하면 됩니다.</span>
+          </div>
+        </div>
+      )}
+
+      {open === "due" && (
+        <div className="pj-first-form">
+          <DateField value={due} onChange={(e) => setDue(e.target.value)} min={todayKst()} className="pj-first-input pj-first-date" />
+          <div className="pj-first-actions">
+            <button type="button" className="pj-first-save" disabled={saving || !due} onClick={() => onSetDue(due)}>
+              {saving ? "저장 중…" : "마감일 저장"}
+            </button>
+            <span className="pj-first-note">마감 7일 전부터 '확인 필요'에 표시됩니다.</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PaymentTermsField({ mode, onMode, adv, onAdv, mid, onMid, supply }: {
+  mode: PayMode; onMode: (v: PayMode) => void; adv: number; onAdv: (v: number) => void; mid: number; onMid: (v: number) => void; supply: number;
+}) {
+  const a = clampPct(adv);
+  const m = clampPct(mid);
+  const bal3 = 100 - a - m;
+  const over = mode === "three" && bal3 < 0;
+  const modes: { key: PayMode; label: string }[] = [
+    { key: "full", label: "전액" },
+    { key: "two", label: "선금·잔금" },
+    { key: "three", label: "선금·중도금·잔금" },
+  ];
+  const pctInput = (label: string, val: number, on: (v: number) => void) => (
+    <div className="payment-pct-row">
+      <span className="text-xs text-[var(--text-muted)] w-12 shrink-0">{label}</span>
+      <input type="number" min={0} max={100} value={val}
+        onChange={(e) => on(clampPct(Number(e.target.value)))}
+        className="w-20 h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-right mono-number focus:outline-none focus:border-[var(--primary)]" />
+      <span className="text-xs text-[var(--text-muted)]">%</span>
+      {supply > 0 && <span className="ml-auto text-[11px] text-[var(--text-dim)] mono-number">{won(Math.round((supply * clampPct(val)) / 100))}</span>}
+    </div>
+  );
+  return (
+    <div className="payment-terms-field">
+      <div className="text-xs font-medium text-[var(--text-muted)] mb-1.5">결제 조건 <span className="font-normal text-[var(--text-dim)]">(선금/중도금/잔금)</span></div>
+      <div className="payment-mode-selector">
+        {modes.map((mo) => (
+          <button key={mo.key} type="button" onClick={() => onMode(mo.key)}
+            className={`h-10 rounded-xl text-[12px] font-semibold border transition ${mode === mo.key ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}>{mo.label}</button>
+        ))}
+      </div>
+      {mode !== "full" && (
+        <div className="payment-percent-inputs">
+          {pctInput("선금", adv, onAdv)}
+          {mode === "three" && pctInput("중도금", mid, onMid)}
+          <div className="payment-balance-row">
+            <span className="text-xs text-[var(--text-muted)] w-12 shrink-0">잔금</span>
+            <span className={`text-sm font-semibold mono-number ${over ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{mode === "three" ? bal3 : 100 - a}%</span>
+            {over && <span className="text-[11px] text-[var(--danger)]">선금+중도금이 100%를 초과합니다</span>}
+            {!over && supply > 0 && <span className="ml-auto text-[11px] text-[var(--text-dim)] mono-number">{won(supply - Math.round((supply * a) / 100) - (mode === "three" ? Math.round((supply * m) / 100) : 0))}</span>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 마진 콕핏 — 예상→확정 한 축. 매출은 단일 산식, 비용만 예상(약정)↔확정(실적)으로 진행.
+// pipe(계산서) → 발행·입금·미수 집계 (여러 컴포넌트 공유)
+function settleFigs(pipe: any) {
+  const invoices = (pipe?.invoices || []) as any[];
+  const billed = invoices.filter((i) => !["draft", "void"].includes(i.status));
+  const billedAmt = billed.reduce((a, i) => a + Number(i.total_amount || i.supply_amount || 0), 0);
+  const paidAmt = billed.reduce((a, i) => a + Number(i.settled_amount || 0), 0);
+  const outstanding = Math.max(0, billedAmt - paidAmt);
+  return { billedAmt, paidAmt, outstanding, issuedCount: billed.length };
+}
+
+// ① 수익형 상태 밴드 — 마진율(도넛)·흑자/적자·예상 마진·수금률
+function MarginBand({ revenue, planCost, actualCost, pipe, rolled }: {
+  revenue: number; planCost: number; actualCost: number; pipe: any; rolled: number;
+}) {
+  const hasActual = actualCost > 0;
+  const headMargin = revenue - (hasActual ? actualCost : planCost);
+  const headRate = revenue > 0 ? headMargin / revenue : null;
+  const ratePct = headRate == null ? null : Math.round(headRate * 100);
+  const { billedAmt, paidAmt, outstanding } = settleFigs(pipe);
+  const collectPct = billedAmt > 0 ? Math.round((paidAmt / billedAmt) * 100) : null;
+  const loss = headMargin < 0;
+  const thin = !loss && ratePct != null && ratePct < 10;
+  const statusColor = loss ? "var(--viz-neg)" : thin ? "var(--viz-warn)" : "var(--viz-pos)";
+  const statusLabel = loss ? "적자" : thin ? "박한 마진" : "흑자";
+  return (
+    <div className="pj-band glass-card">
+      <div className="shrink-0"><RadialGauge pct={ratePct} label={`${hasActual ? "확정" : "예상"} 마진율`} size={104} color={statusColor} /></div>
+      <div className="pj-band-sep" />
+      <div className="pj-band-col">
+        <span className="pj-band-lbl">수익성 <span className="font-normal">· 공급가 기준</span>{rolled > 0 && <span className="font-normal"> · 세부 {rolled}개 합산</span>}</span>
+        <span className="pj-band-status" style={{ color: statusColor }}><span className="inline-block w-3 h-3 rounded-full" style={{ background: statusColor }} />{statusLabel}</span>
+        <span className="text-[11.5px] text-[var(--text-muted)]">마진 <b className="mono-number" style={{ color: statusColor }}>{won(headMargin)}</b></span>
+      </div>
+      <div className="pj-band-sep" />
+      <div className="pj-band-col">
+        <span className="pj-band-lbl">{hasActual ? "확정 마진 금액" : "예상 마진 금액"}</span>
+        <span className="pj-band-big mono-number" style={{ color: loss ? "var(--danger)" : "var(--text)" }}>{won(headMargin)}</span>
+        <span className="text-[11.5px] text-[var(--text-muted)]">{hasActual ? "태그된 확정 비용 반영" : "비용 태그 시 확정으로 갱신"}</span>
+      </div>
+      <div className="pj-band-sep" />
+      <div className="pj-band-col">
+        <span className="pj-band-lbl">수금률 (입금/발행)</span>
+        {collectPct == null ? <span className="text-[13px] text-[var(--text-dim)]">계산서 발행 전</span> : (<>
+          <span className="pj-band-big mono-number" style={{ color: outstanding > 1 ? "var(--viz-warn)" : "var(--viz-pos)" }}>{collectPct}%</span>
+          <div className="track" style={{ height: 7, borderRadius: 7, background: "var(--bg-surface)", overflow: "hidden", marginTop: 4 }}><div style={{ width: `${collectPct}%`, height: "100%", borderRadius: 7, background: outstanding > 1 ? "var(--viz-warn)" : "var(--viz-pos)" }} /></div>
+          <span className="text-[10.5px] text-[var(--text-dim)]">{outstanding > 1 ? `미수 ${won(outstanding)}` : "수금 완료"}</span>
+        </>)}
+      </div>
+    </div>
+  );
+}
+
+// ② 수익형 돈 흐름 — 계약→발행→입금→미수 스택 바 + 수익 구조(매출−비용=마진)
+function MoneyFlow({ pipe, contractTotal, revenue, revenueBasis, actualCost, onOpen }: {
+  pipe: any; contractTotal: number; revenue: number; revenueBasis: string; actualCost: number; onOpen: (t: TabKey) => void;
+}) {
+  const { billedAmt, paidAmt, outstanding } = settleFigs(pipe);
+  const flowBase = Math.max(contractTotal, billedAmt, 1);
+  const pctOf = (v: number) => Math.max(0, Math.min(100, (v / flowBase) * 100));
+  const margin = revenue - actualCost;
+  const marginRate = revenue > 0 ? Math.round((margin / revenue) * 100) : null;
+  const flows = [
+    { nm: "계약금액", v: contractTotal, w: contractTotal > 0 ? pctOf(contractTotal) : 0, color: "color-mix(in srgb, var(--viz-brand) 28%, transparent)", pct: null as number | null, off: 0 },
+    { nm: "계산서 발행", v: billedAmt, w: pctOf(billedAmt), color: "var(--viz-brand)", pct: contractTotal > 0 ? Math.round((billedAmt / flowBase) * 100) : null, off: 0 },
+    { nm: "실입금", v: paidAmt, w: pctOf(paidAmt), color: "var(--viz-pos)", pct: contractTotal > 0 ? Math.round((paidAmt / flowBase) * 100) : null, off: 0 },
+  ];
+  const flagMissBill = contractTotal > 0 && billedAmt < contractTotal - 1;
+  return (
+    <div className="pj-report">
+      {/* 좌: 돈 흐름 바 */}
+      <section className="pj-report-main glass-card">
+        <div className="pj-sec-head">
+          <div><h3 className="text-sm font-bold text-[var(--text)]">돈 흐름</h3><span className="pj-sec-sub">계약 → 발행 → 입금 → 미수</span></div>
+          <button onClick={() => onOpen("sales_pipeline")} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">계산서 →</button>
+        </div>
+        <div className="pj-flow">
+          {flows.map((f) => (
+            <div key={f.nm}>
+              <div className="pj-flow-row-l"><span className="font-bold text-[var(--text)]">{f.nm}{f.pct != null && <span className="text-[10.5px] text-[var(--text-dim)] ml-1.5 font-normal">{f.pct}%</span>}</span><span className="mono-number font-bold text-[var(--text-muted)]">{f.v > 0 ? won(f.v) : "—"}</span></div>
+              <div className="pj-flow-track"><i style={{ width: `${f.w}%`, background: f.color }} /></div>
+            </div>
+          ))}
+          {outstanding > 1 && (
+            <div>
+              <div className="pj-flow-row-l"><span className="font-bold" style={{ color: "var(--viz-neg)" }}>미수금<span className="text-[10.5px] ml-1.5 font-normal">{Math.round((outstanding / flowBase) * 100)}%</span></span><span className="mono-number font-bold" style={{ color: "var(--viz-neg)" }}>{won(outstanding)}</span></div>
+              <div className="pj-flow-track"><i style={{ width: `${pctOf(outstanding)}%`, marginLeft: `${pctOf(paidAmt)}%`, background: "var(--viz-neg)" }} /></div>
+            </div>
+          )}
+        </div>
+      </section>
+      {/* 우: 핵심 지표(수익 구조) + 자동 점검 */}
+      <section className="pj-report-side glass-card">
+        <div className="text-sm font-bold text-[var(--text)] mb-3">핵심 지표 <span className="text-[11px] font-normal text-[var(--text-dim)]">({revenueBasis})</span></div>
+        <div className="pj-figs">
+          <div><div className="pj-fig-l">매출</div><div className="pj-fig-v text-[var(--text)]">{won(revenue)}</div></div>
+          <div><div className="pj-fig-l">확정 비용</div><div className="pj-fig-v text-[var(--text)]">{won(actualCost)}</div></div>
+          <div><div className="pj-fig-l">마진</div><div className="pj-fig-v" style={{ color: margin < 0 ? "var(--viz-neg)" : "var(--viz-pos)" }}>{won(margin)}</div></div>
+          <div><div className="pj-fig-l">마진율</div><div className="pj-fig-v" style={{ color: margin < 0 ? "var(--viz-neg)" : "var(--viz-pos)" }}>{marginRate == null ? "—" : `${marginRate}%`}</div></div>
+        </div>
+        <div className="flex flex-col gap-1.5 mt-4 pt-3 border-t border-[var(--border)]">
+          {actualCost === 0 && <div className="text-[11.5px] text-[var(--text-dim)]">비용을 태그하면 <b className="text-[var(--text-muted)]">확정 마진</b>이 채워집니다.</div>}
+          {revenue > 0 && actualCost > 0 && margin < 0 && <div className="text-[11.5px] rounded-lg px-2.5 py-1.5 bg-[var(--danger)]/8 text-[var(--danger)] font-semibold"><Ico e="⚠" /> 비용이 매출 초과 — 적자</div>}
+          {flagMissBill && <div className="text-[11.5px] rounded-lg px-2.5 py-1.5 bg-[var(--warning)]/8 text-[var(--warning)] font-semibold">계약 대비 미발행 {won(contractTotal - billedAmt)}</div>}
+          {outstanding > 1 && <div className="text-[11.5px] rounded-lg px-2.5 py-1.5 bg-[var(--danger)]/8 text-[var(--danger)] font-semibold">미수금 {won(outstanding)}</div>}
+          {actualCost > 0 && margin >= 0 && !flagMissBill && outstanding <= 1 && <div className="text-[11.5px] text-[var(--text-dim)] flex items-center gap-1.5"><span style={{ color: "var(--viz-pos)" }}>✓</span> 특이사항 없음</div>}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// 파이프라인 리본 — 견적▶계약▶계산서▶정산 단계별 금액·상태 한 줄. 개요의 흐름 시각화(읽기).
+function PipelineRibbon({ pipe, contractTotal, onOpen }: { pipe: any; contractTotal: number; onOpen: (t: TabKey) => void }) {
+  const quotes = (pipe?.quotes || []) as any[];
+  const contracts = (pipe?.contracts || []) as any[];
+  const sigs = (pipe?.sigs || []) as any[];
+  const invoices = (pipe?.invoices || []) as any[];
+  const quoteAmt = quotes.length ? quoteAmount(quotes[0]) : 0;
+  const contractAmt = contracts.length ? (quoteAmount(contracts[0]) || contractTotal) : contractTotal;
+  const signed = sigs.some((s) => s.signed_at);
+  const invAmt = invoices.reduce((a, i) => a + Number(i.supply_amount || i.total_amount || 0), 0);
+  // 정산 — 실제 통장 입금(settled_amount) 기준. Phase 1 트리거로 입금이 프로젝트에 자동 연결됨.
+  const NOT_BILLED = ["draft", "void"];
+  const billed = invoices.filter((i) => !NOT_BILLED.includes(i.status));
+  const issuedCount = billed.length;
+  const draftCount = invoices.filter((i) => i.status === "draft").length;
+  const billedAmt = billed.reduce((a, i) => a + Number(i.total_amount || i.supply_amount || 0), 0);
+  const paidAmt = billed.reduce((a, i) => a + Number(i.settled_amount || 0), 0);
+  const outstandingAmt = Math.max(0, billedAmt - paidAmt);
+  const pending = billed.filter((i) => Number(i.total_amount || i.supply_amount || 0) - Number(i.settled_amount || 0) > 1).length;
+  const stages = [
+    { key: "quote", label: "견적", amt: quoteAmt, done: quotes.length > 0, sub: quotes.length ? `${quotes.length}건 작성` : "미작성" },
+    { key: "contract", label: "계약", amt: contractAmt, done: contracts.length > 0, sub: contracts.length ? (signed ? "서명완료" : "미서명") : "미작성" },
+    { key: "invoice", label: "계산서", amt: invAmt, done: issuedCount > 0, sub: invoices.length === 0 ? "미발행" : draftCount > 0 ? `발행 ${issuedCount}·초안 ${draftCount}` : `발행 ${issuedCount}건` },
+    { key: "settle", label: "정산", amt: paidAmt, done: issuedCount > 0 && outstandingAmt <= 1, sub: issuedCount === 0 ? "미발행" : outstandingAmt > 1 ? `미수 ${won(outstandingAmt)}` : "수금완료" },
+  ];
+  return (
+    <div className="pipeline-ribbon glass-card">
+      <div className="pipeline-ribbon-header">
+        <h3 className="text-sm font-bold text-[var(--text)]">진행 파이프라인 <span className="text-[var(--text-dim)] font-normal text-xs">견적 → 계약 → 계산서 → 정산</span></h3>
+        <button onClick={() => onOpen("sales_pipeline")} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">수주(매출) 열기 →</button>
+      </div>
+      <div className="pipeline-stages-row">
+        {stages.map((st, i) => (
+          <div key={st.key} className="pipeline-stage-item">
+            <button onClick={() => onOpen("sales_pipeline")}
+              className={`min-w-[124px] text-left px-3 py-2.5 rounded-xl border transition ${st.done ? "border-[var(--primary)]/40 bg-[var(--primary)]/5 hover:bg-[var(--primary)]/10" : "border-[var(--border)] bg-[var(--bg-surface)]/40 hover:bg-[var(--bg-surface)]"}`}>
+              <div className="flex items-center gap-1.5">
+                <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold ${st.done ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-dim)] border border-[var(--border)]"}`}>{st.done ? "✓" : i + 1}</span>
+                <span className="text-[12px] font-bold text-[var(--text)]">{st.label}</span>
+              </div>
+              <div className={`text-sm font-black mono-number mt-1 ${st.done ? "text-[var(--text)]" : "text-[var(--text-dim)]"}`}>{st.amt > 0 ? won(st.amt) : "—"}</div>
+              <div className={`text-[10px] mt-0.5 ${st.done ? "text-[var(--primary)]" : "text-[var(--text-dim)]"}`}>{st.sub}</div>
+            </button>
+            {i < stages.length - 1 && <span className="self-center mx-0.5 text-[var(--text-dim)]">▶</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 정산 현황 — 발행 → 실입금(통장 매칭) → 미수금. 계산서별 미수·연체 + 자동 점검 플래그.
+//   Phase 1 트리거로 입금이 프로젝트에 자동 연결되므로 settled_amount = 이 프로젝트로 실제 들어온 돈.
+function SettlementPanel({ pipe, contractTotal, onOpen }: { pipe: any; contractTotal: number; onOpen: (t: TabKey) => void }) {
+  const invoices = (pipe?.invoices || []) as any[];
+  const NOT_BILLED = ["draft", "void"];
+  const billed = invoices.filter((i) => !NOT_BILLED.includes(i.status));
+  if (billed.length === 0) return null; // 발행 계산서 없으면 숨김(온보딩/리본이 안내)
+
+  const billedAmt = billed.reduce((a, i) => a + Number(i.total_amount || i.supply_amount || 0), 0);
+  const paidAmt = billed.reduce((a, i) => a + Number(i.settled_amount || 0), 0);
+  const outstanding = Math.max(0, billedAmt - paidAmt);
+  const contractAmt = Number(contractTotal || 0);
+
+  const today = new Date();
+  const overdueRows = billed
+    .map((i) => {
+      const bal = Number(i.total_amount || i.supply_amount || 0) - Number(i.settled_amount || 0);
+      const days = i.issue_date ? Math.floor((today.getTime() - new Date(i.issue_date).getTime()) / 86400000) : 0;
+      return { id: i.id, counterparty_name: i.counterparty_name, issue_date: i.issue_date, bal, days };
+    })
+    .filter((r) => r.bal > 1)
+    .sort((a, b) => b.days - a.days);
+
+  // 자동 점검 플래그 — 사람이 안 찾아도 확인할 것을 띄움
+  const flags: { tone: "danger" | "warning"; text: string }[] = [];
+  if (outstanding > 1) flags.push({ tone: "danger", text: `미수금 ${won(outstanding)} — 미입금 계산서 ${overdueRows.length}건` });
+  if (contractAmt > 0 && billedAmt < contractAmt - 1) flags.push({ tone: "warning", text: `계약 대비 계산서 미발행 ${won(contractAmt - billedAmt)}` });
+  if (paidAmt - billedAmt > 1) flags.push({ tone: "warning", text: "발행보다 입금이 많음 — 계산서 발행 누락 확인" });
+
+  return (
+    <div className="settlement-panel glass-card">
+      <div className="settlement-panel-header">
+        <h3 className="text-sm font-bold text-[var(--text)]">정산 현황 <span className="text-[var(--text-dim)] font-normal text-xs">발행 → 입금 → 미수 (통장 매칭 기준)</span></h3>
+        <button onClick={() => onOpen("sales_pipeline")} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">계산서 열기 →</button>
+      </div>
+      <div className="settlement-stats-grid">
+        <SettleStat label="발행액" value={billedAmt} tone="text" />
+        <SettleStat label="실입금" value={paidAmt} tone="success" />
+        <SettleStat label="미수금" value={outstanding} tone={outstanding > 1 ? "danger" : "success"} />
+      </div>
+      {flags.length > 0 && (
+        <div className="settlement-flags-list">
+          {flags.map((f, i) => (
+            <div key={i} className={`flex items-center gap-2 text-[12px] rounded-lg px-3 py-2 ${f.tone === "danger" ? "bg-[var(--danger)]/8 text-[var(--danger)]" : "bg-[var(--warning)]/8 text-[var(--warning)]"}`}>
+              <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-current" />
+              <span>{f.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {overdueRows.length > 0 ? (
+        <div className="settlement-overdue-list">
+          {overdueRows.map((r) => (
+            <div key={r.id} className="settlement-overdue-row">
+              <span className="flex-1 min-w-0 truncate text-[var(--text)]">{r.counterparty_name || "—"}<span className="text-[var(--text-dim)]"> · {r.issue_date || ""}</span></span>
+              {r.days > 0 && <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${r.days >= 30 ? "bg-[var(--danger)]/12 text-[var(--danger)]" : "bg-[var(--warning)]/12 text-[var(--warning)]"}`}>발행 D+{r.days}</span>}
+              <span className="mono-number font-bold text-[var(--danger)] shrink-0">{won(r.bal)}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-[12px] text-[var(--text-dim)] flex items-center gap-1.5"><span className="text-[var(--success)]">✓</span> 발행된 계산서가 모두 입금 완료됐습니다.</div>
+      )}
+    </div>
+  );
+}
+
+function SettleStat({ label, value, tone }: { label: string; value: number; tone: "text" | "success" | "danger" }) {
+  const color = tone === "danger" ? "text-[var(--danger)]" : tone === "success" ? "text-[var(--success)]" : "text-[var(--text)]";
+  return (
+    <div className="settle-stat-card">
+      <div className="text-[10px] text-[var(--text-dim)] mb-0.5">{label}</div>
+      <div className={`text-sm font-black mono-number ${color}`}>{value > 0 ? won(value) : "—"}</div>
+    </div>
+  );
+}
+
+// 영업 단계 — deals.stage(대시보드·위험 판정 기준). pill + ▶ 언어.
+function StageStepper({ stage, onPick, pending }: { stage: ProjectStage; onPick: (s: ProjectStage) => void; pending: boolean }) {
+  const idx = STAGE_ORDER.indexOf(stage);
+  return (
+    <div className="stage-stepper glass-card">
+      <div className="stage-stepper-header">
+        <h3 className="text-sm font-bold text-[var(--text)]">영업 단계 <span className="text-[var(--text-dim)] font-normal text-xs">대시보드·위험 판정 기준</span></h3>
+        <span className="text-[11px] text-[var(--text-dim)]">단계를 클릭해 변경</span>
+      </div>
+      <div className="stage-stepper-steps">
+        {STAGE_ORDER.map((st, i) => (
+          <div key={st} className="flex items-center">
+            <button disabled={pending} onClick={() => onPick(st)}
+              className={`text-[11px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap transition disabled:opacity-60 ${st === stage ? "bg-[var(--primary)] text-white ring-2 ring-[var(--primary)]/30" : i < idx ? "bg-[var(--primary)]/15 text-[var(--primary)] hover:bg-[var(--primary)]/25" : "bg-[var(--bg-surface)] text-[var(--text-dim)] hover:text-[var(--text)]"}`}>
+              {STAGE_LABEL[st]}
+            </button>
+            {i < STAGE_ORDER.length - 1 && <span className={`mx-0.5 text-xs ${i < idx ? "text-[var(--primary)]" : "text-[var(--text-dim)]"}`}>▶</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 첫 진입 온보딩 — 빈 수익형 프로젝트에 흐름(입력→견적/계약→비용태그→마진) 안내.
+function MarginOnboarding({ onTab }: { onTab: (t: TabKey) => void }) {
+  const steps: { n: number; t: string; d: string; cta?: { label: string; on: () => void } }[] = [
+    { n: 1, t: "매출·매입 입력", d: "받을 돈·줄 돈을 등록하면 예상 마진이 자동 계산됩니다.", cta: { label: "수주(매출) 열기 →", on: () => onTab("sales_pipeline") } },
+    { n: 2, t: "견적·계약·발주", d: "수주는 고객 견적→계약, 발주는 협력사 매입을 각 파이프라인에서 관리합니다.", cta: { label: "발주(매입) 열기 →", on: () => onTab("purchase_pipeline") } },
+    { n: 3, t: "비용 태그", d: "세금계산서·카드·전표를 이 프로젝트로 지정하면 확정 비용이 집계됩니다." },
+    { n: 4, t: "마진 확인", d: "예상 → 확정 마진이 이 개요 화면에서 한 축으로 채워집니다." },
+  ];
+  return (
+    <div className="margin-onboarding glass-card">
+      <h3 className="text-base font-bold text-[var(--text)]">수익형 프로젝트 시작하기</h3>
+      <p className="text-xs text-[var(--text-muted)] mt-1 mb-5">계약·매출·매입으로 <b className="text-[var(--text)]">마진(수익성)</b>을 관리합니다. 아래 순서로 채워 보세요.</p>
+      <div className="margin-onboarding-steps-grid">
+        {steps.map((s) => (
+          <div key={s.n} className="margin-onboarding-step-card">
+            <span className="w-7 h-7 rounded-full bg-[var(--primary)] text-white text-sm font-bold flex items-center justify-center shrink-0">{s.n}</span>
+            <div className="min-w-0">
+              <div className="text-sm font-bold text-[var(--text)]">{s.t}</div>
+              <div className="text-[12px] text-[var(--text-muted)] mt-0.5 leading-relaxed">{s.d}</div>
+              {s.cta && <button onClick={s.cta.on} className="mt-2 text-[12px] font-semibold text-[var(--primary)] hover:underline">{s.cta.label}</button>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+function CostItemRow({ kind, it }: { kind: string; it: any }) {
+  if (kind === "invoice") return <CostRow date={it.issue_date} name={it.counterparty_name} amt={Number(it.supply_amount || it.total_amount || 0)} />;
+  if (kind === "cash") return <CostRow date={it.issue_date} name={it.counterparty_name || "현금영수증"} amt={Number(it.supply_amount || it.amount || 0)} />;
+  if (kind === "card") return <CostRow date={it.transaction_date} name={it.merchant_name || it.card_name || "카드사용"} amt={Number(it.amount || 0)} />;
+  const exp = (it.journal_lines || []).filter((l: any) => l.chart_of_accounts?.account_type === "expense").reduce((s: number, l: any) => s + Number(l.debit || 0), 0);
+  return <CostRow date={it.entry_date} name={it.description || "전표"} amt={exp} />;
+}
+function CostRow({ date, name, amt }: { date: string | null; name: string | null; amt: number }) {
+  return (
+    <div className="cost-row">
+      <span className="text-[var(--text-dim)] mono-number w-[78px] shrink-0">{date ? String(date).slice(0, 10) : "—"}</span>
+      <span className="text-[var(--text)] flex-1 truncate">{name || "—"}</span>
+      <span className="mono-number text-[var(--text-muted)] shrink-0">{Math.round(Number(amt || 0)).toLocaleString("ko-KR")}원</span>
+    </div>
+  );
+}
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="info-row">
+      <span className="text-xs text-[var(--text-muted)] w-20 shrink-0">{label}</span>
+      <span className="text-sm text-[var(--text)] min-w-0 break-words">{value}</span>
+    </div>
+  );
+}
+function Empty({ text }: { text: string }) {
+  return (
+    <div className="list-empty-state glass-card">
+      <div className="text-4xl"><Ico e="📂" /></div>
+      <div className="text-sm font-semibold text-[var(--text)]">{text}</div>
+      <div className="text-xs text-[var(--text-dim)]">추가하면 이 목록에 바로 나타납니다.</div>
+    </div>
+  );
+}
+
+// 실행형 개요 — 태스크 중심 콕핏: 진행률·상태 분포·다가오는 마감·담당자별 현황 + 실행 정보.
+//   영업 개념(단계·견적·계약)은 실행형과 무관 → 미노출. 거래처·예산은 값이 있을 때만 표시.
+//   실행 상태(진행 전/진행 중/완료)는 deals.stage 가 아니라 태스크에서 파생.
+const DELIVERY_STATUS_META: { key: string; label: string; color: string }[] = [
+  { key: "todo", label: "할 일", color: "text-[var(--text-muted)]" },
+  { key: "doing", label: "진행", color: "text-amber-500" },
+  { key: "review", label: "검토", color: "text-blue-400" },
+  { key: "done", label: "완료", color: "text-green-500" },
+];
+function DeliveryOverview({ deal, dealId, partner, manager, companyUsers }: { deal: any; dealId: string; partner: any; manager: any; companyUsers: any[] }) {
+  const today = todayKst();
+  const { data: tasks = [] } = useQuery({
+    queryKey: ["project-tasks-overview", dealId],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("project_tasks").select("id, title, status, due_date, assignee_id, assignee_ids, completed_at").eq("deal_id", dealId).is("archived_at", null));
+      return (data || []) as any[];
+    },
+    enabled: !!dealId,
+  });
+  const total = (tasks as any[]).length;
+  const done = (tasks as any[]).filter((t) => t.status === "done").length;
+  const delayed = (tasks as any[]).filter((t) => t.due_date && t.status !== "done" && String(t.due_date).slice(0, 10) < today).length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  // 상태 분포 — 태스크 탭 칸반 4컬럼과 동일 집합. 알 수 없는 status 는 '할 일'로.
+  const byStatus: Record<string, number> = { todo: 0, doing: 0, review: 0, done: 0 };
+  (tasks as any[]).forEach((t) => { byStatus[t.status === "doing" || t.status === "review" || t.status === "done" ? t.status : "todo"] += 1; });
+  // 실행 상태 (영업단계 대체) — 태스크에서 파생
+  const runState = total === 0 ? "태스크 없음" : done === total ? "완료" : byStatus.doing + byStatus.review + done > 0 ? "진행 중" : "진행 전";
+  // D-day 표기 (지연이면 D+n)
+  const dday = (d: string) => {
+    const diff = Math.round((new Date(String(d).slice(0, 10)).getTime() - new Date(today).getTime()) / 86400000);
+    return diff < 0 ? `D+${-diff}` : diff === 0 ? "D-Day" : `D-${diff}`;
+  };
+  // 다가오는 마감 — 미완료 & 마감일 있는 태스크, 지연 포함 마감일 오름차순 상위 5
+  const upcoming = (tasks as any[])
+    .filter((t) => t.status !== "done" && t.due_date)
+    .sort((a, b) => String(a.due_date).localeCompare(String(b.due_date)))
+    .slice(0, 5);
+  // 담당자별 현황 — 다중 담당(assignee_ids) 우선, 없으면 단일 assignee_id 폴백 (태스크 탭과 동일 규칙)
+  const assigneesOf = (t: any): string[] => (Array.isArray(t.assignee_ids) && t.assignee_ids.length > 0 ? t.assignee_ids : t.assignee_id ? [t.assignee_id] : []);
+  const userName = (id: string) => (companyUsers as any[]).find((u) => u.id === id)?.name || "(미상)";
+  const byAssignee: Record<string, { done: number; total: number }> = {};
+  (tasks as any[]).forEach((t) => assigneesOf(t).forEach((id) => {
+    if (!byAssignee[id]) byAssignee[id] = { done: 0, total: 0 };
+    byAssignee[id].total += 1;
+    if (t.status === "done") byAssignee[id].done += 1;
+  }));
+  const assigneeRows = Object.entries(byAssignee).sort((a, b) => b[1].total - a[1].total);
+  const budget = Number(deal.contract_total || 0);
+  const endOver = deal.end_date && String(deal.end_date).slice(0, 10) < today && runState !== "완료";
+
+  // 예상 완료 페이스 — 완료 시점 컬럼이 없어 완료수/기간진행률로 추정(기한 내/초과 판정).
+  const parseD = (s: string) => new Date(String(s).slice(0, 10) + "T00:00:00Z").getTime();
+  const DAY = 86400000;
+  let pace: { tone: "ok" | "danger" | "muted"; text: string } | null = null;
+  let periodPct: number | null = null;
+  if (deal.start_date && deal.end_date && total > 0) {
+    const s = parseD(deal.start_date), e = parseD(deal.end_date), n = parseD(today);
+    const totalDays = Math.max(1, Math.round((e - s) / DAY));
+    const elapsed = Math.max(0, Math.min(totalDays, Math.round((n - s) / DAY)));
+    periodPct = Math.round((elapsed / totalDays) * 100);
+    if (done >= total) pace = { tone: "ok", text: "완료됨" };
+    else if (elapsed <= 0) pace = { tone: "muted", text: "시작 전" };
+    else if (done === 0) pace = { tone: "danger", text: "아직 완료된 태스크 없음" };
+    else {
+      const perDay = done / elapsed, remaining = total - done;
+      const over = Math.round((elapsed + remaining / perDay) - totalDays);
+      pace = over > 0 ? { tone: "danger", text: `기한 ${over}일 초과 예상` } : { tone: "ok", text: "기한 내 완료 예상" };
+    }
+  }
+  const paceColor = pace?.tone === "danger" ? "var(--viz-neg)" : pace?.tone === "ok" ? "var(--viz-pos)" : "var(--text-dim)";
+
+  // 마감 워크로드 — 마감일 있는 태스크를 7일 창으로 버킷(완료/남음/지연)
+  const dueTasks = (tasks as any[]).filter((t) => t.due_date);
+  const workloadWeeks: { label: string; done: number; pending: number; over: number }[] = [];
+  let workloadTodayIdx = -1;
+  if (dueTasks.length > 0) {
+    const sorted = dueTasks.map((t) => String(t.due_date).slice(0, 10)).sort();
+    const s0 = parseD(sorted[0]), e0 = parseD(sorted[sorted.length - 1]), nowMs = parseD(today);
+    for (let w = 0; s0 + w * 7 * DAY <= e0; w++) {
+      const wStart = s0 + w * 7 * DAY, wEnd = wStart + 7 * DAY;
+      let d = 0, p = 0, o = 0;
+      dueTasks.forEach((t) => {
+        const dd = parseD(t.due_date);
+        if (dd < wStart || dd >= wEnd) return;
+        if (t.status === "done") d++; else if (dd < nowMs) o++; else p++;
+      });
+      const le = new Date(wStart + 6 * DAY);
+      workloadWeeks.push({ label: `~${le.getUTCMonth() + 1}/${le.getUTCDate()}`, done: d, pending: p, over: o });
+      if (nowMs >= wStart && nowMs < wEnd) workloadTodayIdx = w;
+    }
+  }
+
+  // 번업 — 완료 시점(completed_at) 누적 vs 전체 스코프. 기간(시작·종료)이 있어야 이상 페이스/마감 판단.
+  let burnup: { actual: { x: number; y: number }[]; scope: number; totalDays: number; todayX: number } | null = null;
+  if (deal.start_date && deal.end_date && total > 0) {
+    const s = parseD(deal.start_date), e = parseD(deal.end_date), n = parseD(today);
+    const totalDays = Math.max(1, Math.round((e - s) / DAY));
+    const todayX = Math.max(0, Math.min(totalDays, Math.round((n - s) / DAY)));
+    const compByDay: Record<number, number> = {};
+    (tasks as any[]).forEach((t) => {
+      if (t.status !== "done" || !t.completed_at) return;
+      const x = Math.max(0, Math.min(todayX, Math.round((parseD(t.completed_at) - s) / DAY)));
+      compByDay[x] = (compByDay[x] || 0) + 1;
+    });
+    let acc = 0; const actual: { x: number; y: number }[] = [{ x: 0, y: 0 }];
+    for (let d = 0; d <= todayX; d++) { if (compByDay[d]) { acc += compByDay[d]; actual.push({ x: d, y: acc }); } }
+    if (actual[actual.length - 1].x !== todayX) actual.push({ x: todayX, y: acc });
+    burnup = { actual, scope: total, totalDays, todayX };
+  }
+
+  const statusSegs = DELIVERY_STATUS_META.map((s) => ({ ...s, n: byStatus[s.key], bg: s.key === "todo" ? "var(--text-dim)" : s.key === "doing" ? "var(--viz-info)" : s.key === "review" ? "var(--viz-warn)" : "var(--viz-pos)" }));
+  const runColor = runState === "완료" ? "var(--viz-pos)" : delayed > 0 ? "var(--viz-warn)" : runState === "진행 중" ? "var(--viz-info)" : "var(--text-dim)";
+
+  return (
+    <div className="delivery-overview-panel space-y-5">
+      {/* ① 상태 밴드 */}
+      <div className="pj-band glass-card">
+        <div className="shrink-0"><RadialGauge pct={total > 0 ? pct : null} label="진행률" size={104} /></div>
+        <div className="pj-band-sep" />
+        <div className="pj-band-col">
+          <span className="pj-band-lbl">상태</span>
+          <span className="pj-band-status" style={{ color: runColor }}><span className="inline-block w-3 h-3 rounded-full" style={{ background: runColor }} />{runState}{delayed > 0 && ` · 지연 ${delayed}`}</span>
+          <span className="text-[11.5px] text-[var(--text-muted)]">완료 {done} / 전체 {total}</span>
+        </div>
+        <div className="pj-band-sep" />
+        <div className="pj-band-col">
+          <span className="pj-band-lbl">예상 완료 (이대로라면)</span>
+          {pace ? <span className="pj-band-big" style={{ color: paceColor }}>{pace.text}</span> : <span className="text-[12px] text-[var(--text-dim)]">기간·태스크를 설정하면 표시됩니다</span>}
+          {pace && pace.tone !== "muted" && <span className="text-[11.5px] text-[var(--text-muted)]">완료 페이스 대비 기간 진행 비교</span>}
+        </div>
+        <div className="pj-band-sep" />
+        <div className="pj-band-col">
+          <span className="pj-band-lbl">마감</span>
+          <span className="pj-band-big mono-number" style={{ color: endOver ? "var(--danger)" : "var(--text)" }}>{deal.end_date ? dday(deal.end_date) : "—"}</span>
+          {periodPct != null ? (<>
+            <div style={{ height: 7, borderRadius: 7, background: "var(--bg-surface)", overflow: "hidden", marginTop: 4 }}><div style={{ width: `${periodPct}%`, height: "100%", borderRadius: 7, background: "var(--text-dim)" }} /></div>
+            <span className="text-[10.5px] text-[var(--text-dim)]">종료 {fmtDate(deal.end_date)} · 기간 {periodPct}%</span>
+          </>) : <span className="text-[10.5px] text-[var(--text-dim)]">{deal.end_date ? `종료 ${fmtDate(deal.end_date)}` : "종료일 미설정"}</span>}
+        </div>
+      </div>
+
+      {/* ②③ 보고서형 2단 — 좌: 번업 그래프 / 우: 태스크 상태 + 담당자별 */}
+      <div className="pj-report">
+        <section className="pj-report-main glass-card">
+          {burnup ? (<>
+            <div className="pj-sec-head"><div><h3 className="text-sm font-bold text-[var(--text)]">완료 번업</h3><span className="pj-sec-sub">완료 누적 vs 전체 · 점선=이상 페이스</span></div></div>
+            <BurnUpChart actual={burnup.actual} scope={burnup.scope} totalDays={burnup.totalDays} todayX={burnup.todayX} />
+            <div className="pj-chart-legend">
+              <span className="k"><i style={{ background: "var(--viz-brand)" }} />완료 누적</span>
+              <span className="k"><i className="rounded-none w-4 h-[2px]" style={{ background: "var(--text-muted)" }} />이상 페이스</span>
+              <span className="k"><i className="rounded-none w-4 h-[2px]" style={{ background: "var(--viz-pos)" }} />전체</span>
+              <span className="k"><i className="rounded-none w-4 h-[2px]" style={{ background: paceColor }} />마감 시 예상</span>
+            </div>
+          </>) : (<>
+            <div className="pj-sec-head"><div><h3 className="text-sm font-bold text-[var(--text)]">태스크 상태</h3><span className="pj-sec-sub">전체 {total}건</span></div></div>
+            {total === 0 ? <p className="text-xs text-[var(--text-dim)]">아직 태스크가 없습니다. ‘태스크’ 탭에서 추가하세요.</p> : (<>
+              <div className="pj-stack">{statusSegs.filter((s) => s.n > 0).map((s) => (<div key={s.key} className="seg" style={{ flex: s.n, background: s.bg }}>{s.n}</div>))}</div>
+              <div className="pj-chart-legend">{statusSegs.map((s) => (<span key={s.key} className="k"><i style={{ background: s.bg }} />{s.label} {s.n}</span>))}</div>
+              <p className="text-[11px] text-[var(--text-dim)] mt-3">기간(시작·종료일)을 설정하면 완료 번업 그래프가 표시됩니다.</p>
+            </>)}
+          </>)}
+        </section>
+
+        <section className="pj-report-side glass-card gap-4">
+          {burnup && total > 0 && (
+            <div>
+              <div className="text-sm font-bold text-[var(--text)] mb-2">태스크 상태 <span className="text-[11px] font-normal text-[var(--text-dim)]">{pct}%</span></div>
+              <div className="pj-stack">{statusSegs.filter((s) => s.n > 0).map((s) => (<div key={s.key} className="seg" style={{ flex: s.n, background: s.bg }}>{s.n}</div>))}</div>
+              <div className="pj-chart-legend">{statusSegs.map((s) => (<span key={s.key} className="k"><i style={{ background: s.bg }} />{s.label} {s.n}</span>))}</div>
+            </div>
+          )}
+          <div className="flex-1">
+            <div className="text-sm font-bold text-[var(--text)] mb-2.5">담당자별 현황</div>
+            {assigneeRows.length === 0 ? <p className="text-xs text-[var(--text-dim)]">담당자가 지정된 태스크가 없습니다.</p> : (
+              <div className="space-y-2.5">
+                {assigneeRows.map(([id, v]) => {
+                  const p = v.total > 0 ? Math.round((v.done / v.total) * 100) : 0;
+                  return (
+                    <div key={id} className="assignee-progress-row">
+                      <span className="text-xs text-[var(--text)] w-20 truncate shrink-0">{userName(id)}</span>
+                      <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden"><div className="h-full rounded-full bg-[var(--viz-brand)]" style={{ width: `${p}%` }} /></div>
+                      <span className="text-[11px] mono-number text-[var(--text-muted)] w-12 text-right shrink-0">{v.done}/{v.total}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+
+      {/* ③ 다가오는 마감 (전폭) */}
+      <div className="pj-sec glass-card">
+        <div className="pj-sec-head"><div><h3 className="text-sm font-bold text-[var(--text)]">다가오는 마감</h3></div><Link href={`/projecthub/${dealId}?tab=tasks`} className="text-[11px] text-[var(--primary)] hover:underline">태스크 탭 →</Link></div>
+        {upcoming.length === 0 ? (
+          <p className="text-xs text-[var(--text-dim)]">마감일이 지정된 미완료 태스크가 없습니다.</p>
+        ) : (
+          <div className="divide-y divide-[var(--border)]/40">
+            {upcoming.map((t) => {
+              const late = String(t.due_date).slice(0, 10) < today;
+              return (
+                <div key={t.id} className="upcoming-deadline-row">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold mono-number shrink-0 ${late ? "bg-[var(--danger)]/10 text-[var(--danger)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"}`}>{dday(t.due_date)}</span>
+                  <span className="flex-1 truncate text-[var(--text)]">{t.title || "(제목 없음)"}</span>
+                  <span className="text-[11px] text-[var(--text-dim)] shrink-0">{assigneesOf(t).map(userName).join(", ") || "미지정"}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ④ 상세 — 실행 정보 */}
+      <details className="pj-details glass-card">
+        <summary>
+          <span className="flex items-center gap-2.5 flex-wrap">상세{delayed > 0 && <span className="pj-detail-chip danger">지연 {delayed}</span>}<span className="text-[11px] font-normal text-[var(--text-dim)]">· 실행 정보</span></span>
+          <span className="pj-detail-chev">▸</span>
+        </summary>
+        <div className="pj-detail-body">
+          {workloadWeeks.length > 0 && (
+            <div className="glass-card p-5">
+              <div className="pj-sec-head"><div><h3 className="text-sm font-bold text-[var(--text)]">마감 워크로드</h3><span className="pj-sec-sub">주별 예정 마감 · 완료/남음/지연</span></div></div>
+              <WorkloadChart weeks={workloadWeeks} todayIndex={workloadTodayIdx} />
+              <div className="pj-chart-legend">
+                <span className="k"><i style={{ background: "var(--success)" }} />완료</span>
+                <span className="k"><i style={{ background: "var(--text-dim)" }} />남은 태스크</span>
+                <span className="k"><i style={{ background: "var(--danger)" }} />지연(마감 초과·미완료)</span>
+              </div>
+            </div>
+          )}
+          <div className="execution-info-card glass-card">
+            <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-bold">실행 정보</h3></div>
+            <div className="pj-kv">
+              <Info label="담당자" value={manager?.name || "—"} />
+              <Info label="기간" value={deal.start_date || deal.end_date ? `${fmtDate(deal.start_date)} ~ ${fmtDate(deal.end_date)}` : "—"} />
+              <Info label="실행 상태" value={runState} />
+              {partner?.name && <Info label="거래처" value={partner.name} />}
+              {budget > 0 && <Info label="예산" value={won(budget)} />}
+            </div>
+          </div>
+          <p className="text-[11px] text-[var(--text-dim)]">※ 태스크 추가·칸반·간트는 <b className="text-[var(--text-muted)]">태스크</b> 탭에서 관리합니다.</p>
+        </div>
+      </details>
+    </div>
+  );
+}
+function ApprovalRow({ a }: { a: any }) {
+  return (
+    <div className="approval-row">
+      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] shrink-0">{a.stage || "—"}</span>
+      <span className="text-[var(--text)] flex-1 truncate">{a.recipient || a.recipient_name || "—"}</span>
+      <span className="text-[var(--text-muted)] shrink-0">{a.status || "—"}</span>
+      {(a.fully_signed_contract_url || a.signed_contract_url) && (
+        <a href={a.fully_signed_contract_url || a.signed_contract_url} target="_blank" rel="noreferrer" className="text-[var(--primary)] hover:underline shrink-0">계약서</a>
+      )}
+    </div>
+  );
+}

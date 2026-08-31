@@ -46,7 +46,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
 
   "/schedule": { group: "업무", title: "일정 / 할 일", desc: "일정과 할 일을 관리합니다." },
   "/projecthub/quotes": { group: "업무", title: "견적 수취함", desc: "협력사에서 받은 견적을 모아 봅니다." },
-  "/projecthub": { group: "업무", title: "프로젝트", desc: "프로젝트를 유형별로 관리합니다." },
+  "/projecthub": { group: "업무", title: "프로젝트", desc: "회사 일을 프로젝트 단위로 모아 관리합니다." },
   "/projects": { group: "업무", title: "워크플로우", desc: "전사 작업 보드를 봅니다." },
   "/deals": { group: "업무", title: "프로젝트", desc: "프로젝트를 관리합니다." },
   "/approvals": { group: "업무", title: "결재 허브", desc: "지출결의·문서 등 사내 결재 요청을 올리고 승인·관리합니다. (외부 계약 서명은 전자계약)" },
