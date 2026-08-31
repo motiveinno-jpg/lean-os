@@ -7512,10 +7512,12 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /*   검색조건 버튼 — 수집하기(주 실행)와 같은 파란 채움 (2026-08-13 사장님: "잘 안 보인다는 평").
      회색 바탕이라 날짜 칸의 일부처럼 읽혀 눌러 볼 생각을 못 했다. 걸린 조건 수 배지는
      파란 바탕 위라 흰 배지 + 파란 글자로 뒤집는다. */
-.qk-cond-btn { @apply inline-flex h-8 items-center gap-1.5 rounded-r-lg border-l border-[var(--primary)] bg-[var(--primary)] px-2.5 text-[11.5px] font-bold text-white transition-all; }
+.qk-cond-btn { @apply inline-flex h-8 items-center gap-1.5 rounded-lg bg-[var(--primary)] px-2.5 text-[11.5px] font-bold text-white transition-all; }
 .qk-cond-btn:hover { @apply brightness-110; }
-/*   기간 칸 없이 혼자 설 때(거래처 같은 마스터 화면) — 왼쪽도 둥글게. 기간 칸(.drf) 뒤에 붙을 때만 오른쪽만 둥글다 (2026-08-18 사장님) */
-.qk-bar-left > .qk-cond > .qk-cond-btn { @apply rounded-lg border-l-0; }
+/*   기간 칸(.drf) 끝에 trailing 으로 붙을 때만 왼쪽을 각지게 — 기간과 한 덩어리로 읽히게.
+     혼자 설 때는 어느 컨테이너에 있든 온전한 라운드가 기본이다. 예전엔 반대(기본 각짐 + .qk-bar-left 직계만 라운드)라
+     프로젝트 표처럼 qk-bar-left 밖에 놓인 화면이 왼쪽 각짐으로 새고 있었다 (2026-08-31 사장님: '회의 결정' 지적). */
+.drf .qk-cond-btn { @apply rounded-l-none rounded-r-lg border-l border-[var(--primary)]; }
 .qk-cond-btn-on { @apply brightness-95; }
 .qk-cond-n { @apply not-italic inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-[var(--primary)]; }
 

@@ -16,7 +16,10 @@ import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { fetchPaged } from "@/lib/fetch-paged";
 import { useToast } from "@/components/toast";
-import { QueryBar, ChipGroup, QuickSearch, quickSearchHit, quickTerms, ConditionPanel, ConditionRow, TokenField, AppliedChips, type AppliedChip } from "@/components/query-kit";
+import { QueryBar, ChipGroup, QuickSearch, quickSearchHit, quickTerms, ConditionPanel, ConditionRow, TokenField, AppliedChips, ExcelMenu, type AppliedChip } from "@/components/query-kit";
+import { exportToExcel } from "@/lib/excel-export";
+import { xNum, type ExcelColumn } from "@/lib/excel-io";
+import { ExcelUploadDialog } from "@/app/(app)/inventory/_components/excel-upload";
 import { DateRangeField } from "@/components/date-range-field";
 import { DateField } from "@/components/date-field";
 import { getPartners, upsertPartner } from "@/lib/partners";
@@ -117,6 +120,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const bCount = (c: BCond) => c.person.length + c.status.length + ((c.from || c.to) ? 1 : 0) + (c.mine ? 1 : 0) + (c.week ? 1 : 0) + (c.open ? 1 : 0);
   //   필터 창 — 열려 있으면 맨 앞에 둘 칸 id("" 면 첫 칸부터). 칸 머리 ⋯ 에서도 같은 창을 연다.
   const [filterPanel, setFilterPanel] = useState<string | null>(null);
+  //   엑셀 올리기 팝업 — 재고와 같은 공용 부품(ExcelUploadDialog)을 쓴다 (2026-08-31 사장님 지시)
+  const [xlsOpen, setXlsOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   //   지운 직후 한 번 뜨는 되돌리기 줄 — 놓쳐도 '지운 항목'에서 30일 안에 되살릴 수 있다
   const [undo, setUndo] = useState<{ table: string; id: string; label: string } | null>(null);
@@ -992,6 +997,52 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const modes = inputModesOf(board?.template_key);
   const wanted = viewPick || (findTemplate(board?.template_key).input || "grid");
   const view: InputMode = modes.includes(wanted) ? wanted : "grid";
+
+  // ── 엑셀 — 내려받기·양식·올리기 (2026-08-31 사장님: "우측에 엑셀 내려받기·자료올리기, 재고의 공용 부품으로") ──
+  //   머리줄은 내려받기·양식이 **같은 이름**을 쓴다 — 내려받은 파일을 고쳐 그대로 올려도 읽힌다.
+  //   같은 이름의 칸이 둘이면 (2) 를 붙여 가른다(머리 이름으로 칸을 찾으므로 겹치면 한 칸이 먹힌다).
+  //   ⚠️ 로딩 조기 return(위) 뒤라 훅을 못 쓴다 — 칸 수가 많아야 수십 개라 매 렌더 계산해도 된다.
+  const xlsLabels = (() => {
+    const seen = new Map<string, number>();
+    const uniq = (name: string) => { const n = (seen.get(name) || 0) + 1; seen.set(name, n); return n > 1 ? `${name} (${n})` : name; };
+    return { group: uniq("그룹"), name: uniq(nameLabel), cols: cols.map((c) => uniq(c.name)) };
+  })();
+  //   셀 하나를 사람이 읽는 값으로 — 담당·거래처·상태는 id 가 아니라 이름을 적는다(올릴 때도 이름으로 받는다)
+  const xlsDisplay = (c: BoardColumn, v: any): string | number => {
+    if (v == null || v === "") return "";
+    if (c.type === "person") return users.find((u) => u.id === String(v))?.name || "";
+    if (c.type === "partner") return (partners as any[]).find((p) => p.id === String(v))?.name || "";
+    if (c.type === "status") return ((c.settings?.options || []) as StatusOption[]).find((o) => o.id === String(v))?.label || String(v);
+    if (c.type === "number") { const n = Number(v); return Number.isNaN(n) ? String(v) : n; }
+    return String(v);
+  };
+  const excelDown = () => {
+    const rows = shown.map((it) => {
+      const rec: Record<string, unknown> = {
+        [xlsLabels.group]: groups.find((g) => g.id === it.group_id)?.name || "",
+        [xlsLabels.name]: it.name || "",
+      };
+      cols.forEach((c, i) => { rec[xlsLabels.cols[i]] = xlsDisplay(c, it.values?.[c.id]); });
+      return rec;
+    });
+    const sheet = (board?.name || "표").replace(/[\\/?*[\]:]/g, " ").trim().slice(0, 28) || "표";
+    exportToExcel(rows, sheet, `${dealName ? `${dealName}_` : ""}${board?.name || "표"}_${todayKst()}`);
+  };
+  //   올리기 양식 칸 — 이 표의 칸 그대로. 필수는 행 이름 하나뿐(칸은 비워도 줄이 된다)
+  const xlsCols: ExcelColumn[] = [
+    { key: "__group", label: xlsLabels.group, hint: `비우면 지금 보는 그룹으로 · ${groups.map((g) => g.name).join(" / ") || "그룹 없음"}`, example: groups[0]?.name || "" },
+    { key: "__name", label: xlsLabels.name, required: true, example: "(예시 줄 — 지우고 채우세요)" },
+    ...cols.map((c, i): ExcelColumn => ({
+      key: `c${i}`, label: xlsLabels.cols[i],
+      kind: c.type === "number" ? "number" : c.type === "date" ? "date" : "text",
+      hint: c.type === "status" ? `${((c.settings?.options || []) as StatusOption[]).map((o) => o.label).join(" / ")} 중 하나`
+        : c.type === "person" ? "구성원 이름 그대로"
+        : c.type === "partner" ? "거래처 이름 그대로" : undefined,
+      example: c.type === "status" ? (((c.settings?.options || []) as StatusOption[])[0]?.label || "")
+        : c.type === "person" ? (users[0]?.name || "")
+        : c.type === "date" ? todayKst() : "",
+    })),
+  ];
   // 칸반 열 — 흐름 컬럼의 옵션 순서, 없으면 그룹 순서
   const kanbanCols = flowCol
     ? ((flowCol.settings?.options || []) as any[]).map((o) => ({ key: String(o.id), label: String(o.label), color: String(o.color || "#C4C4C4") }))
@@ -1140,6 +1191,13 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
             <span className="ml-auto text-[11px] text-[var(--text-dim)]">{(items as BoardItem[]).filter((it) => condHit(it, bDraft)).length.toLocaleString("ko")}건</span>
             <button type="button" className="btn-primary btn-sm" onClick={applyDraft}>조회</button>
           </>}>
+          {/*  보기 형식 — 회의록·표·칸반·요약을 여기서 고른다 (2026-08-31 사장님: "보기도 검색조건에 넣어서").
+               값 하나짜리라 조회를 기다리지 않고 누르는 즉시 바뀐다(기간과 같은 규칙). */}
+          <ConditionRow label="보기" hint="누르면 바로 바뀝니다">
+            <ChipGroup value={summaryScope === "board" ? "__summary" : (summaryScope === null ? view : "")}
+              onChange={(v) => { if (v === "__summary") setSummaryScope("board"); else { setSummaryScope(null); pickView(v as InputMode); } }}
+              options={[...modes.map((v) => ({ value: v as string, label: MODE_LABEL[v] })), { value: "__summary", label: "요약" }]} />
+          </ConditionRow>
           <ConditionRow label="빠른 조건">
             <span className="qk-quicks">
               {([["mine", "내 담당"], ["week", "이번 주"], ["open", "미완료만"]] as const).map(([k, label]) => (
@@ -1165,12 +1223,14 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
           )}
         </ConditionPanel>
         <QuickSearch value={q} onApply={setQ} placeholder="이름 · 칸에 든 글자 · 담당 · 상태 — 쉼표로 여러 개, Enter" />
-        {/*  이 표를 보는 방법들 — 한 자리에 (2026-08-07 사장님 지시) */}
-        <ChipGroup value={summaryScope === "board" ? "__summary" : (summaryScope === null ? view : "")}
-          onChange={(v) => { if (v === "__summary") setSummaryScope("board"); else { setSummaryScope(null); pickView(v as InputMode); } }}
-          options={[...modes.map((v) => ({ value: v as string, label: MODE_LABEL[v] })), { value: "__summary", label: "요약" }]} />
+        {/*  보기 칩(회의록·표·칸반·요약)은 검색조건 패널 안 '보기' 줄로 옮겼다 (2026-08-31 사장님) */}
         <div className="pb-bar2-right">
           {hiddenCount > 0 && <em className="text-[11px] text-[var(--text-dim)] not-italic">{hiddenCount}건 숨김</em>}
+          {/*  엑셀 — 내려받기·양식·올리기를 한 버튼 안에(재고와 같은 공용 부품, 2026-08-31 사장님) */}
+          <ExcelMenu items={[
+            { label: "내려받기", hint: "지금 조건으로 보이는 줄을 그대로 — 담당·상태는 이름으로", count: shown.length, disabled: shown.length === 0, onClick: excelDown },
+            { label: "양식 내려받기 · 올리기", hint: "양식을 받아 채운 뒤 올리면 읽어서 보여 주고, 등록을 눌러야 저장", onClick: () => setXlsOpen(true) },
+          ]} />
           {/*  프로젝트 전체는 따로 — 표마다 한 줄인 안내판이다(다 펼치지 않는다) */}
           <button type="button" onClick={() => setSummaryScope("all")} aria-pressed={summaryScope === "all"}
             className={`pb-allsum ${summaryScope === "all" ? "pb-allsum-on" : ""}`}>전체 요약</button>
@@ -1253,6 +1313,63 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
         <QuickFilterPanel facets={facets} picked={valueFilters} focusColId={filterPanel}
           total={toggled.length} shownCount={shown.length}
           onToggle={toggleValueFilter} onClear={() => setValueFilters({})} onClose={() => setFilterPanel(null)} />
+      )}
+
+      {/* 엑셀 올리기 — 재고와 같은 공용 부품. 이 표의 칸 그대로 양식을 주고, 읽어 보여 준 뒤 등록은 사람이 누른다 (2026-08-31 사장님) */}
+      {xlsOpen && (
+        <ExcelUploadDialog<{ group_id: string; name: string; values: Record<string, any> }>
+          title={board?.name || "표"} cols={xlsCols}
+          templateName={`${board?.name || "표"}_양식`}
+          sheetName={(board?.name || "표").replace(/[\\/?*[\]:]/g, " ").trim().slice(0, 28) || "표"}
+          guide={[
+            `${xlsLabels.group} 칸을 비우면 지금 보는 그룹으로 들어갑니다.`,
+            "담당·거래처·상태는 화면에 보이는 이름 그대로 적으세요 — 다르면 그 줄이 빠지고 이유가 보입니다.",
+          ]}
+          parse={(r) => {
+            const name = String(r.__name || "").trim();
+            if (!name) return { error: `${nameLabel}이 비어 있습니다` };
+            let gidTo = (minutesGroup && groups.some((g) => g.id === minutesGroup) ? minutesGroup : groups[0]?.id) || "";
+            const gName = String(r.__group || "").trim();
+            if (gName) {
+              const g = groups.find((x) => x.name.trim() === gName);
+              if (!g) return { error: `그룹 '${gName}' 이 없습니다 — ${groups.map((x) => x.name).join(" / ")}` };
+              gidTo = g.id;
+            }
+            if (!gidTo) return { error: "그룹이 없습니다 — 표에 그룹을 먼저 만드세요" };
+            const values: Record<string, any> = {};
+            for (let i = 0; i < cols.length; i++) {
+              const c = cols[i]; const raw = String(r[`c${i}`] || "").trim();
+              if (!raw) continue;
+              if (c.type === "number") { const n = xNum(raw); if (n == null) return { error: `${c.name}: 숫자가 아닙니다 (${raw})` }; values[c.id] = n; }
+              else if (c.type === "date") { if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return { error: `${c.name}: 날짜는 ${todayKst()} 형식 (${raw})` }; values[c.id] = raw; }
+              else if (c.type === "status") {
+                const o = ((c.settings?.options || []) as StatusOption[]).find((x) => x.label.trim() === raw || x.id === raw);
+                if (!o) return { error: `${c.name}: '${raw}' 는 없는 값 — ${((c.settings?.options || []) as StatusOption[]).map((x) => x.label).join(" / ")}` };
+                values[c.id] = o.id;
+              }
+              else if (c.type === "person") { const u = users.find((x) => x.name.trim() === raw); if (!u) return { error: `${c.name}: 구성원 '${raw}' 을 못 찾았습니다` }; values[c.id] = u.id; }
+              else if (c.type === "partner") { const p = (partners as any[]).find((x) => String(x.name || "").trim() === raw); if (!p) return { error: `${c.name}: 거래처 '${raw}' 을 못 찾았습니다` }; values[c.id] = p.id; }
+              else values[c.id] = raw;
+            }
+            return { ok: { group_id: gidTo, name, values } };
+          }}
+          previewHead={[xlsLabels.group, xlsLabels.name, ...xlsLabels.cols.slice(0, 4)]}
+          previewRow={(v) => [
+            groups.find((g) => g.id === v.group_id)?.name || "",
+            v.name,
+            ...cols.slice(0, 4).map((c) => xlsDisplay(c, v.values[c.id])),
+          ]}
+          commit={async (rows) => {
+            //   자리 번호 — 걸러 보는 중이어도 그룹의 **전체** 줄 수 뒤에 붙인다(숨은 줄과 안 겹치게)
+            const base: Record<string, number> = {};
+            for (const g of groups) base[g.id] = (items as BoardItem[]).filter((it) => it.group_id === g.id).length;
+            const ins = rows.map((r) => ({ board_id: boardId, group_id: r.group_id, name: r.name, position: base[r.group_id]++, values: r.values }));
+            const { error } = await db.from("project_board_items").insert(ins);
+            if (error) throw new Error(error.message);
+            qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
+            return `${rows.length}줄을 올렸습니다`;
+          }}
+          onClose={() => setXlsOpen(false)} />
       )}
 
       {/* 문서 팝업 — 견적·계약·발행. 화면을 옮기지 않고 여기서 끝낸다 */}
