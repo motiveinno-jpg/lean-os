@@ -247,6 +247,22 @@ export function EvidenceTab({
     staleTime: 300_000,
   });
 
+  //   ★ 카드 검색조건 목록은 **회사 전체 카드**를 쓴다 (통장 계좌 목록과 같은 이유, 2026-08-31 사장님).
+  //     예전엔 조회된 거래(rows)에서만 card_name 을 뽑아, 그 기간에 안 걸린 카드는 목록에서 사라져
+  //     통장코드처럼 직접 쳐야 했다. 필터가 매칭하는 값이 거래의 card_name 이라 그 distinct 를 정본으로.
+  const { data: allCardNames = [] } = useQuery<string[]>({
+    queryKey: ["collect-all-card-names", companyId],
+    queryFn: async () => {
+      const got = await fetchAllPages<{ card_name: string | null }>((a, b) => supabase
+        .from("card_transactions").select("card_name")
+        .eq("company_id", companyId).not("card_name", "is", null)
+        .order("transaction_date", { ascending: false }).range(a, b), { cap: 100000 });
+      return [...new Set(got.rows.map((r) => r.card_name).filter(Boolean) as string[])];
+    },
+    enabled: kind === "card",
+    staleTime: 300_000,
+  });
+
   //   가맹점 과세유형(구분) — 이미 조회해 둔 것을 그린다
   const { data: merchantKinds = {} } = useQuery<Record<string, MerchantInfo>>({
     queryKey: ["merchant-kinds", companyId],
@@ -679,9 +695,9 @@ export function EvidenceTab({
     return [...m].sort((x, y) => x[0].localeCompare(y[0], "ko")).map(([v, sub]) => ({ value: v, label: v, sub }));
   }, [rows]);
   const cardOpts = useMemo(
-    () => [...new Set(rows.map((r) => r.cardName).filter(Boolean) as string[])]
+    () => [...new Set([...allCardNames, ...(rows.map((r) => r.cardName).filter(Boolean) as string[])])]
       .sort((a2, b2) => a2.localeCompare(b2, "ko")).map((c) => ({ value: c, label: c })),
-    [rows]);
+    [allCardNames, rows]);
   const acctOpts = useMemo(
     () => accounts.map((a2) => ({ value: a2.code, label: a2.name, sub: a2.code })),
     [accounts]);

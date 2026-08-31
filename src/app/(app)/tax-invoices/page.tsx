@@ -291,6 +291,27 @@ const MODIFICATION_REASONS = [
   { value: "duplicate", label: "착오에 의한 이중발급", desc: "동일 거래에 대해 이중으로 발급된 경우" },
 ];
 
+//   공급대가(부가세 포함 합계)를 넣으면 공급가액·부가세로 나눠 주는 역산 계산기 (2026-08-31 사장님).
+//     '공급가액 × 1.1' 의 반대 — 총액만 알 때 공급가액을 못 구하던 것을 돕는다. 마이너스도 지원.
+function GrossSplitCalc({ onApply }: { onApply: (supply: number) => void }) {
+  const [gross, setGross] = useState("");
+  const g = Number(gross) || 0;
+  const supply = Math.round(g / 1.1);   // 원 단위 반올림 — 부가세는 나머지로 맞춰 합계가 항상 딱 떨어지게
+  const vat = g - supply;
+  const won = (n: number) => n.toLocaleString("ko-KR");
+  return (
+    <div className="flex flex-wrap items-center gap-2 mt-2 px-2.5 py-2 rounded-lg bg-[var(--bg)] border border-dashed border-[var(--border)]">
+      <span className="text-[11px] font-bold text-[var(--text-muted)] whitespace-nowrap">🧮 공급대가(부가세 포함)로 계산</span>
+      <CurrencyInput value={gross} onValueChange={setGross} allowNegative placeholder="예: 110,000" className="tax-item-input text-right !w-32" />
+      <span className="text-[11px] text-[var(--text-dim)] whitespace-nowrap">
+        → 공급가액 <b className="text-[var(--text)] mono-number">{won(supply)}</b> · 부가세 <b className="text-[var(--text)] mono-number">{won(vat)}</b>
+      </span>
+      <button type="button" disabled={!g} onClick={() => onApply(supply)}
+        className="btn-secondary btn-sm disabled:opacity-40 whitespace-nowrap">첫 품목 단가로 넣기</button>
+    </div>
+  );
+}
+
 export default function TaxInvoicesPage() {
   const { role } = useUser();
   const { allowed: tabAllowed, loading: tabLoading } = useCanAccessTab("/tax-invoices");
@@ -576,8 +597,9 @@ function TaxInvoicesPageInner() {
 
   //   계산서 공급가액 = 품목 줄 합계. 규칙이 하나뿐이라 '계산' 버튼이 필요 없어졌다.
   const rowSupply = (r: FormRow) => r.items.reduce((s, it) => s + itemSupply(it), 0);
+  //   공급가액이 0만 아니면 된다 — 수정세금계산서·환입 등 **마이너스 계산서**를 발행할 수 있어야 한다 (2026-08-31 사장님).
   const isRowValid = (r: FormRow) =>
-    !!r.counterpartyName.trim() && !!r.issueDate && rowSupply(r) > 0;
+    !!r.counterpartyName.trim() && !!r.issueDate && rowSupply(r) !== 0;
 
   const patchItem = (rowKey: string, itemKey: string, patch: Partial<ItemLine>) =>
     setRows((rs) => rs.map((r) => (r.key === rowKey
@@ -612,7 +634,7 @@ function TaxInvoicesPageInner() {
         name: name.trim(),
         spec: spec.trim(),
         qty: qty.replace(/[^\d.]/g, "") || "1",
-        unitCost: unit.replace(/[^\d.]/g, ""),
+        unitCost: (unit.trim().startsWith("-") ? "-" : "") + unit.replace(/[^\d.]/g, ""),
       };
     });
     if (parsed.length === 0) return;
@@ -2229,7 +2251,7 @@ function TaxInvoicesPageInner() {
                                 onKeyDown={(e) => onItemKeyDown(e, row.key, it.key)}
                                 inputMode="decimal" placeholder="1" className="tax-item-input text-right" />
                               <CurrencyInput value={it.unitCost} onValueChange={(raw: string) => patchItem(row.key, it.key, { unitCost: raw })}
-                                placeholder="0" className="tax-item-input text-right" />
+                                allowNegative placeholder="0" className="tax-item-input text-right" />
                               <span className="tax-item-sum">{itemSupply(it).toLocaleString("ko-KR")}</span>
                               <button type="button" onClick={() => removeItem(row.key, it.key)} title="이 품목 줄 지우기"
                                 className="tax-item-del">✕</button>
@@ -2243,6 +2265,11 @@ function TaxInvoicesPageInner() {
                           엑셀에서 여러 줄을 <b className="text-[var(--text-muted)]">그대로 붙여넣기</b> 할 수 있습니다 · 마지막 칸에서 Tab 을 누르면 새 줄
                         </span>
                       </div>
+                      {/*   공급대가(부가세 포함 합계)만 알 때 공급가액을 역산해 첫 품목 단가에 넣는다 (2026-08-31 사장님).
+                            과세만 — 영세율·면세는 부가세가 없어 공급대가=공급가액이라 나눌 게 없다. */}
+                      {row.taxKind === "taxable" && (
+                        <GrossSplitCalc onApply={(sup) => patchItem(row.key, row.items[0].key, { qty: "1", unitCost: String(sup) })} />
+                      )}
                     </div>
                   </div>
 

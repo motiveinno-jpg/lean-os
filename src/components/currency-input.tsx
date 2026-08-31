@@ -31,7 +31,7 @@ export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
     const digits = raw.replace(/[^0-9]/g, "");
     const display = digits
       ? (neg ? "-" : "") + Number(digits).toLocaleString("ko-KR")
-      : "";
+      : (neg ? "-" : "");   // 숫자 없이 '-' 만 쳐도 '-' 를 보여 준다 (음수는 '-' 먼저 치므로)
 
     return (
       <input
@@ -46,7 +46,8 @@ export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
           const v = e.target.value;
           const isNeg = allowNegative && v.trim().startsWith("-");
           const d = v.replace(/[^0-9]/g, "");
-          onValueChange(isNeg && d ? "-" + d : d);
+          //   숫자가 아직 없어도 '-' 는 유지한다 — '-' 먼저 치고 숫자를 이어 칠 수 있게 (음수 입력 UX)
+          onValueChange(isNeg ? "-" + d : d);
         }}
         onBlur={onBlur}
         className={className}
