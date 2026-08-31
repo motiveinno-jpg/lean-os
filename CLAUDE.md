@@ -131,6 +131,10 @@
      (2026-08-12 사장님 지시: "globals.css 충돌 — 무조건 우리 배포를 우선으로 해라")
    - **그 밖의 파일에서 충돌**나면 예전 그대로 — `git rebase --abort` 후 상대에게 확인(억지로 풀지 말 것).
 5. **파일 분담이 rebase보다 중요** — 같은 파일을 동시에 안 건드리는 게 충돌 원천 차단. 전역 파일은 한 번에 한 PC만.
+   - **🔒 프로젝트 도메인은 `연준호` PC 전담 (2026-08-31 사장님: "프로젝트 메인 이 피씨로")** —
+     `src/app/(app)/projecthub/**`, `project_items`/`project_item_*` 마이그레이션·lib, v3 개편
+     (docs/20260831_PLAN_projecthub_v3_impl.md) 전부. **다른 PC 는 이 영역을 건드리지 않는다**
+     (v2.6 워크스트림 포함 — 남은 작업이 있으면 고치지 말고 사장님께 말한다).
 6. **배포 간격** — 한 PC가 push하면 Vercel 빌드 green 확인까지(2~3분) 다른 PC는 push 대기(연속 push 겹치면 Vercel thrash로 아무것도 배포 안 됨).
 7. **`git add -A` 금지** — 변경 파일 경로만 명시 add(상대 PC worktree 잡파일 오염 방지).
 8. **새 PC·새 클론이면 `bash scripts/setup-git-merge.sh` 를 한 번 실행한다.** `.gitattributes` 는 저장소에
