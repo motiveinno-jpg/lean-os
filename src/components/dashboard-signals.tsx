@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchBizSummary, type Tone } from "@/lib/biz-summary";
 import { todayKst } from "@/lib/kst";
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
+import { fetchTaxDeadlineChecks } from "@/lib/tax-deadline-checks";
 
 export function wonShort(n: number): string {
   const a = Math.abs(n);
@@ -40,7 +41,14 @@ export function DashboardSignals({ companyId, userId, forecast30, balanceFallbac
     queryFn: () => fetchBizSummary(companyId, month, userId || undefined),
     enabled: !!companyId, staleTime: 60_000,
   });
-  const nextTax = getUpcomingTaxDeadlines(60)[0] ?? null;
+  //   납부 완료로 체크한 마감은 건너뛴다 (2026-08-31) — 이미 낸 세금이 D-day 로 계속 뜨던 것
+  const { data: taxChecked = new Set<string>() } = useQuery({
+    queryKey: ["tax-deadline-checks", companyId],
+    enabled: !!companyId,
+    staleTime: 60_000,
+    queryFn: () => fetchTaxDeadlineChecks(companyId!),
+  });
+  const nextTax = getUpcomingTaxDeadlines(60).find((t) => !taxChecked.has(t.id)) ?? null;
   const balance = s ? s.cash.balance : (balanceFallback ?? 0);
   const f30 = forecast30 ?? null;
   const d30 = f30 == null ? null : f30 - balance;

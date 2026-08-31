@@ -49,6 +49,7 @@ import { ActivityCard, RecentProjects, RecentRevenue, RecentInvoices } from "@/c
 import { DashboardGrid, type CatalogWidget, type WidgetPreset } from "@/components/dashboard-grid"; // 위젯 격자 — 같은 키·순서 드래그·보기 설정
 import { BankRecentCard, ApprovalsPendingCard, EmployeesCard, PartnersCard, AnnouncementsCard, MyTasksCard, InventoryShortageCard } from "@/components/dashboard-menu-widgets"; // 카탈로그용 메뉴 위젯
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
+import { fetchTaxDeadlineChecks, setTaxDeadlineChecked } from "@/lib/tax-deadline-checks";
 import { useCompanyBizNo } from "@/lib/use-company-bizno"; // 사업자번호 미등록 유도 배너 판정
 
 // ── Formatters ──
@@ -573,7 +574,7 @@ export default function DashboardPage() {
                 render: () => <MorningBrief userName={userName} companyName={companyName} cashPulse={cashPulse} dashboard={dashboard} hasData={hasData} userId={userId ?? undefined} aiBriefingEnabled={aiBriefingEnabled} /> },
               { id: "receivables", name: "미수금", icon: "💸", desc: "미회수 합계·오래된 순 5곳·독촉 문구", category: "경영", render: () => <ReceivablesPreview companyId={companyId} companyName={companyName} /> },
               { id: "revenue", name: "이번 달 매출", icon: "💰", desc: "매출 합계·최근 내역", category: "경영", render: () => <RecentRevenue companyId={companyId} /> },
-              { id: "tax", name: "세금·납부 일정", icon: "🧾", desc: "60일 안 세금 마감", category: "경영", render: () => <TaxScheduleWidget items={taxItems} /> },
+              { id: "tax", name: "세금·납부 일정", icon: "🧾", desc: "60일 안 세금 마감 · 납부 완료 체크", category: "경영", render: () => <TaxScheduleWidget items={taxItems} companyId={companyId} userId={uid} /> },
               { id: "bank", name: "통장 거래", icon: "🏛️", desc: "최근 입출금 + 동기화·미분류", category: "자금", render: () => <BankRecentCard companyId={companyId} headExtra={bankHead} /> },
               { id: "cards", name: "카드 사용", icon: "💳", desc: "이번 달 카드별 사용액 + 동기화·미분류", category: "자금", render: () => <CardsSummaryCard companyId={companyId} headExtra={cardHead} /> },
               { id: "approvals", name: "결재 대기", icon: "🗂️", desc: "회사 결재 대기 목록", category: "업무", render: () => <ApprovalsPendingCard companyId={companyId} /> },
@@ -666,18 +667,44 @@ export default function DashboardPage() {
 // ═══ Sub-components ═══
 
 // ── 세금 일정 위젯(카탈로그용) — 다가오는 세금 마감 미리보기 ──
-function TaxScheduleWidget({ items }: { items: ReturnType<typeof getUpcomingTaxDeadlines> }) {
+function TaxScheduleWidget({ items, companyId, userId }: { items: ReturnType<typeof getUpcomingTaxDeadlines>; companyId: string | null; userId: string }) {
   //   2026-08-19 재편 — 공용 셸(ActivityCard)로. 날짜 칸 + D-day 칩
+  //   2026-08-31 — '납부 완료' 체크(회사 단위 DB): D-day 는 달력 계산이라 이미 낸 세금도 계속 떴다.
+  //     체크하면 흐리게 완료 표시(신호 6칸·AI 브리핑에서도 빠진다), 실수면 다시 눌러 해제.
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { data: checked = new Set<string>() } = useQuery({
+    queryKey: ["tax-deadline-checks", companyId],
+    enabled: !!companyId,
+    staleTime: 60_000,
+    queryFn: () => fetchTaxDeadlineChecks(companyId!),
+  });
+  const toggle = async (id: string, on: boolean) => {
+    if (!companyId) return;
+    try {
+      await setTaxDeadlineChecked(companyId, id, userId || null, on);
+      qc.invalidateQueries({ queryKey: ["tax-deadline-checks"] });
+      toast(on ? "납부 완료로 표시했습니다 — 세금 신호·브리핑에서 빠집니다" : "완료 표시를 해제했습니다", "success");
+    } catch (e: any) { toast(friendlyError(e, "표시에 실패했습니다"), "error"); }
+  };
+  const sorted = [...items].sort((a, b) => Number(checked.has(a.id)) - Number(checked.has(b.id)) || a.daysLeft - b.daysLeft);
   return (
     <ActivityCard title="세금·납부 일정" href={items[0]?.href || "/reports/vat"} summary={items.length > 0 ? "60일" : undefined} empty={items.length === 0}
       emptyText="다가오는 세금 일정이 없습니다 — 60일 안에 낼 세금이 없습니다.">
-      {items.slice(0, 15).map((t) => (
-        <Link key={t.id} href={t.href} className="dash-tax-row">
-          <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{t.title}</span>
-          <span className="text-[10px] text-[var(--text-dim)] mono-number shrink-0">{String(t.date || "").slice(5).replace("-", "/")}</span>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 font-semibold mono-number ${t.daysLeft <= 7 ? "bg-[var(--danger)]/12 text-[var(--danger)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"}`}>{t.daysLeft === 0 ? "오늘" : `D-${t.daysLeft}`}</span>
-        </Link>
-      ))}
+      {sorted.slice(0, 15).map((t) => {
+        const done = checked.has(t.id);
+        return (
+          <span key={t.id} className={done ? "dash-tax-row dash-tax-row-done" : "dash-tax-row"}>
+            <button type="button" aria-label={done ? "납부 완료 해제" : "납부 완료로 표시"}
+              title={done ? "완료 표시 해제" : "신고/납부를 마쳤으면 체크 — 세금 신호·브리핑에서 빠집니다"}
+              onClick={() => toggle(t.id, !done)}
+              className={done ? "dash-tax-chk dash-tax-chk-on" : "dash-tax-chk"}>{done ? "✓" : ""}</button>
+            <Link href={t.href} className={`min-w-0 flex-1 text-[12px] truncate ${done ? "line-through text-[var(--text-dim)]" : "text-[var(--text)]"}`}>{t.title}</Link>
+            <span className="text-[10px] text-[var(--text-dim)] mono-number shrink-0">{String(t.date || "").slice(5).replace("-", "/")}</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 font-semibold mono-number ${done ? "bg-[var(--bg-surface)] text-[var(--text-dim)]" : t.daysLeft <= 7 ? "bg-[var(--danger)]/12 text-[var(--danger)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"}`}>{done ? "완료" : t.daysLeft === 0 ? "오늘" : `D-${t.daysLeft}`}</span>
+          </span>
+        );
+      })}
     </ActivityCard>
   );
 }

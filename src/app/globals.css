@@ -8327,6 +8327,10 @@ table.dup-table { min-width: 0; }
 .dashboard-widget-tile .dashboard-todos-body { @apply flex-1 min-h-0 overflow-y-auto; }
 .activity-card-summary { @apply text-[11.5px] text-[var(--text-dim)] truncate; }
 .dash-tax-row { @apply flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition; }
+/* 납부 완료 체크 (2026-08-31) — 완료 줄은 흐리게, 체크 버튼은 워크보드 톤의 작은 사각 */
+.dash-tax-row-done { @apply opacity-60; }
+.dash-tax-chk { @apply inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border border-[var(--border)] bg-[var(--bg-card)] text-[10px] font-bold text-white transition; }
+.dash-tax-chk-on { @apply border-[var(--primary)] bg-[var(--primary)]; }
 .dashboard-widget-tile .compact-asset-row { @apply flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition; }
 /* 통장·카드 위젯 머리 — ● 7시간 전 · 미분류 8,900 · ↻ */
 .dash-chan { @apply inline-flex items-center gap-1 text-[11px] text-[var(--text-dim)] whitespace-nowrap; }
