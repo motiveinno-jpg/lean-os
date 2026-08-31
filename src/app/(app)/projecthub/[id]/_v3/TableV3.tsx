@@ -276,6 +276,8 @@ export function TableV3() {
 
   return (
     <div className="pjv3-wrap">
+      {/* 한 상자 — 제목·보기·검색·표 전부 이 안(2026-08-31 사장님: 다른 메뉴처럼 한 박스로) */}
+      <div className="pjv3-box">
       <div className="pjv3-head">
         <h1>{deal.name}</h1>
         {period && <span className="pjv3-head-sub mono-number">{period}</span>}
@@ -296,7 +298,7 @@ export function TableV3() {
 
       <div className="pjv3-toolbar">
         <span className="pjv3-search">🔍<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름 · 담당 · 칸에 든 글자 — 검색" aria-label="검색" /></span>
-        <span className="pjv3-foot num !mt-0 ml-auto">{shown.length}건{shown.length !== items.length ? ` / 전체 ${items.length}` : ""}</span>
+        <span className="pjv3-count num">{shown.length}건{shown.length !== items.length ? ` / 전체 ${items.length}` : ""}</span>
       </div>
 
       {curView === "kanban" ? (
@@ -417,6 +419,7 @@ export function TableV3() {
           ? "카드를 끌어 다른 열에 놓으면 상태가 바뀝니다(표의 상태 셀과 같은 저장) · 열 아래 칸에 적고 Enter로 추가"
           : "셀을 누르면 그 자리에서 고칩니다 · 상태 셀은 색 팔레트 · 오른쪽 ＋로 컬럼(글·숫자·날짜·선택·사람·거래처) 추가"}
       </p>
+      </div>
 
       {/* ── 떠 있는 팝 — 상태·담당·선택지·컬럼 추가 ── */}
       {pop && (
