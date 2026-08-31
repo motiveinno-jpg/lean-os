@@ -1,5 +1,6 @@
 "use client";
 import { comparePeople, compareByName } from "@/lib/people-sort";
+import { formatPhone } from "@/lib/phone";
 import { logRead } from "@/lib/log-read";
 
 // 플렉스(flex.team) 스타일 구성원 디렉토리 (2026-06-12).
@@ -326,7 +327,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
                         <td className="text-center">{etypeLabel(e.employment_type) || "—"}</td>
                         <td className="text-center mono-number">{e.hire_date || "—"}</td>
                         <td className="text-center">{tenure(e.hire_date)}</td>
-                        <td className="text-center mono-number">{e.phone || "—"}</td>
+                        <td className="text-center mono-number">{formatPhone(e.phone) || "—"}</td>
                         <td className="text-left">{e.email || "—"}</td>
                         <td className="text-center"><span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: sm.bg, color: sm.color }}>{sm.label}</span></td>
                       </tr>
@@ -453,7 +454,7 @@ function ProfilePanel({ companyId, emp, avatarUrl, isManager, onClose, onOpenCon
         <div className="flex-people-profile-info">
           <div className="text-[11px] font-bold text-[var(--text-muted)] mb-1">인사 정보</div>
           <InfoRow label="이메일" value={emp.email || "—"} />
-          <InfoRow label="연락처" value={emp.phone || "—"} />
+          <InfoRow label="연락처" value={formatPhone(emp.phone) || "—"} />
           <InfoRow label="입사일" value={emp.hire_date || "—"} />
           <InfoRow label="근속" value={tenure(emp.hire_date)} />
           <InfoRow label="고용형태" value={etypeLabel(emp.employment_type) || "—"} />

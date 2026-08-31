@@ -479,10 +479,10 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                   <EditField label="비상연락처(번호)" value={editData.emergency_phone} onChange={(v) => setEditData({ ...editData, emergency_phone: formatPhone(v) })} inputMode="numeric" />
                 </>) : (<>
                   <InfoRow label="이메일" value={emp.email} />
-                  <InfoRow label="전화번호" value={emp.phone} />
+                  <InfoRow label="전화번호" value={formatPhone(emp.phone) || undefined} />
                   <InfoRow label="생년월일" value={emp.birth_date} />
                   <InfoRow label="주소" value={emp.address} />
-                  <InfoRow label="비상연락처" value={emp.emergency_contact ? `${emp.emergency_contact} (${emp.emergency_phone || ""})` : undefined} />
+                  <InfoRow label="비상연락처" value={emp.emergency_contact ? `${emp.emergency_contact} (${formatPhone(emp.emergency_phone)})` : undefined} />
                   <InfoRow label="전자서명" value={emp.saved_signature ? "등록됨" : "미등록"} />
                 </>)}
               </div>
