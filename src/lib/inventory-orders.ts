@@ -289,6 +289,14 @@ export async function saveOrder(
   return { id: id!, orderNo };
 }
 
+/** 주문 마감/재개 (2026-08-31) — 종전엔 open 을 닫는 경로가 아예 없어, 납기 지난 주문이
+ *  AI 브리핑에 "납기가 지났는데 남은 주문"으로 영구히 떴다. 마감하면 브리핑·경고에서 빠진다. */
+export async function setOrderStatus(companyId: string, orderId: string, status: "open" | "closed") {
+  const { error } = await supabase.from("orders").update({ status })
+    .eq("company_id", companyId).eq("id", orderId);
+  if (error) throw error;
+}
+
 export async function deleteOrder(companyId: string, orderId: string) {
   //   가져간 것이 있으면 못 지운다 — 재고는 움직였는데 근거만 사라지면 장부가 거짓말을 한다.
   const used = (await listUsed(companyId, [orderId])).reduce((n, u) => n + u.used_qty, 0);

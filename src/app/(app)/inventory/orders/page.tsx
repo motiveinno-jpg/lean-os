@@ -8,7 +8,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { DocScreen, type HistRow } from "../_components/doc-screen";
 import {
-  listOrders, listOrderLines, listUsed, saveOrder, deleteOrder,
+  listOrders, listOrderLines, listUsed, saveOrder, deleteOrder, setOrderStatus,
 } from "@/lib/inventory-orders";
 import { listProducts } from "@/lib/inventory";
 import { buildQuoteBlobFromDoc } from "@/lib/quote-pdf";
@@ -78,8 +78,8 @@ export default function OrdersPage() {
             who: o.partner_name || "", label: first + (ls.length > 1 ? ` 외 ${ls.length - 1}` : ""),
             lines: ls.length,
             total: ls.reduce((n, l) => n + l.supply_amount + l.vat_amount, 0),
-            state: o.status === "cancelled" ? "취소" : rate >= 100 ? "처리 완료" : rate > 0 ? `${rate}% 처리` : "미처리",
-            stateTone: o.status === "cancelled" ? "danger" : rate >= 100 ? "ok" : "warn",
+            state: o.status === "cancelled" ? "취소" : o.status === "closed" ? "마감" : rate >= 100 ? "처리 완료" : rate > 0 ? `${rate}% 처리` : "미처리",
+            stateTone: o.status === "cancelled" ? "danger" : o.status === "closed" || rate >= 100 ? "ok" : "warn",
           };
         });
       }}
@@ -95,6 +95,21 @@ export default function OrdersPage() {
       onDelete={async ({ id, ctl }) => { await deleteOrder(ctl.companyId!, id); }}
       //   ★ 주문서는 견적 역할이라 상대에게 보낼 수 있어야 한다 — 프로젝트 견적서 PDF 부품을 그대로 쓴다(1순위 ②)
       popupExtra={({ ctl, products }) => (
+        <>
+        {/*   주문 마감 (2026-08-31 사장님 스윕) — 닫는 경로가 없어 납기 지난 주문이 AI 브리핑에 영구히 떴다.
+              더 진행하지 않을 주문은 마감 → 브리핑·납기 경고에서 빠진다. 실수면 다시 열기. */}
+        {ctl.editing && ctl.editing.status !== "cancelled" && (
+          <button type="button" className="btn-secondary btn-sm"
+            onClick={async () => {
+              const toClosed = ctl.editing!.status !== "closed";
+              try {
+                await setOrderStatus(ctl.companyId!, ctl.editing!.id, toClosed ? "closed" : "open");
+                qc.invalidateQueries({ queryKey: ["orders-list", ctl.companyId] });
+                qc.invalidateQueries({ queryKey: ["doc-hist"] });
+                toast(toClosed ? "주문을 마감했습니다 — 브리핑·납기 경고에서 빠집니다" : "주문을 다시 열었습니다", "success");
+              } catch (e) { toast(friendlyError(e, "상태 변경 실패"), "error"); }
+            }}>{ctl.editing.status === "closed" ? "마감 해제" : "주문 마감"}</button>
+        )}
         <button type="button" className="btn-secondary btn-sm"
           onClick={async () => {
             const b = ctl.build();
@@ -119,6 +134,7 @@ export default function OrdersPage() {
               setTimeout(() => URL.revokeObjectURL(url), 2000);
             } catch (e) { toast(friendlyError(e, "PDF 를 만들지 못했습니다"), "error"); }
           }}>PDF 내려받기</button>
+        </>
       )}
     />
   );

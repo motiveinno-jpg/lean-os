@@ -98,7 +98,7 @@ export default function BusinessFlowPage() {
   const monthVat = vat.find((v) => v.quarter === quarter);
   const vatDday = useMemo(() => (monthVat?.dueDate ? Math.ceil((new Date(monthVat.dueDate).getTime() - Date.now()) / 864e5) : null), [monthVat]);
   /* ⑥ 월결산 체크리스트 */
-  const { data: checklist } = useQuery({ queryKey: ["flow-closing", companyId, month], queryFn: () => getOrCreateChecklist(companyId!, month), enabled: !!companyId && view === "month", staleTime: 60_000 });
+  const { data: checklist } = useQuery({ queryKey: ["closing-checklist", companyId, month], queryFn: () => getOrCreateChecklist(companyId!, month), enabled: !!companyId && view === "month", staleTime: 60_000 });
   const closing = useMemo(() => {
     if (!checklist) return null;
     const items = (checklist.items || []) as { is_required: boolean; is_completed: boolean }[];

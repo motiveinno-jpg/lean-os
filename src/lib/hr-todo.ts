@@ -19,16 +19,39 @@ export async function fetchHrTodos(companyId: string, employees: { id: string; n
   const groups: HrTodoGroup[] = [];
 
   // ── G4 기한 ──
-  const [contracts, pkgs, holidays] = await Promise.all([
+  //   2026-08-31 스윕: 이미 처리한 일이 계속 뜨던 3건 보정 재료 — 발령(수습 전환 완료 판정)·연차 부여(1주년 완료 판정)
+  const [contracts, pkgs, holidays, appts, grants] = await Promise.all([
     logRead("hr-todo:contracts", await (supabase as any).from("employee_contracts").select("employee_id, end_date, probation_end_date, status").eq("company_id", companyId).eq("status", "active")),
     logRead("hr-todo:pkgs", await (supabase as any).from("hr_contract_packages").select("employee_id, status, sent_at").eq("company_id", companyId).eq("status", "sent")),
     logRead("hr-todo:holidays", await (supabase as any).from("holidays").select("date").eq("company_id", companyId).eq("type", "legal")),
+    logRead("hr-todo:appts", await (supabase as any).from("hr_appointments").select("employee_id, effective_date").eq("company_id", companyId)),
+    logRead("hr-todo:grants", await (supabase as any).from("leave_grants").select("employee_id, grant_date").eq("company_id", companyId).eq("grant_type", "annual")),
   ]);
   const exp: HrTodoItem[] = [], prob: HrTodoItem[] = [];
+  //   계약 만료: 직원별 **최신 계약만** 판정 — 갱신 계약을 이미 체결했는데 옛 계약 만료 알림이 계속 뜨던 것.
+  //   무기한 계약(end_date null)이 하나라도 있으면 그 직원의 만료 알림은 전부 뺀다.
+  const latestEnd = new Map<string, string | null>();
+  for (const c of ((contracts || []) as any[])) {
+    if (!latestEnd.has(c.employee_id)) latestEnd.set(c.employee_id, c.end_date ?? null);
+    else {
+      const cur = latestEnd.get(c.employee_id) ?? null;
+      if (cur !== null && (c.end_date == null || c.end_date > cur)) latestEnd.set(c.employee_id, c.end_date ?? null);
+    }
+  }
+  //   수습 전환: 수습 종료 임박(D-7) 이후 발령이 이미 있으면 처리된 것 — 발령 냈는데 7일간 계속 뜨던 것
+  const apptByEmp = new Map<string, string[]>();
+  for (const a of ((appts || []) as any[])) {
+    if (!a.effective_date) continue;
+    (apptByEmp.get(a.employee_id) ?? apptByEmp.set(a.employee_id, []).get(a.employee_id)!).push(String(a.effective_date));
+  }
   for (const c of ((contracts || []) as any[])) {
     if (!nameOf.has(c.employee_id)) continue;
-    if (c.end_date) { const n = dday(c.end_date, today); if (n >= -30 && n <= 30) exp.push({ employee_id: c.employee_id, name: nameOf.get(c.employee_id)!, text: n < 0 ? `계약 만료 ${-n}일 지남` : n === 0 ? "오늘 계약 만료" : `계약 만료 D-${n}`, date: c.end_date }); }
-    if (c.probation_end_date) { const n = dday(c.probation_end_date, today); if (n >= -7 && n <= 7) prob.push({ employee_id: c.employee_id, name: nameOf.get(c.employee_id)!, text: n < 0 ? `수습 종료 ${-n}일 지남 — 정규 전환 발령` : `수습 종료 D-${n}`, date: c.probation_end_date }); }
+    if (c.end_date && latestEnd.get(c.employee_id) === c.end_date) { const n = dday(c.end_date, today); if (n >= -30 && n <= 30) exp.push({ employee_id: c.employee_id, name: nameOf.get(c.employee_id)!, text: n < 0 ? `계약 만료 ${-n}일 지남` : n === 0 ? "오늘 계약 만료" : `계약 만료 D-${n}`, date: c.end_date }); }
+    if (c.probation_end_date) {
+      const n = dday(c.probation_end_date, today);
+      const done = (apptByEmp.get(c.employee_id) || []).some((d) => d >= addDays(c.probation_end_date, -7));
+      if (n >= -7 && n <= 7 && !done) prob.push({ employee_id: c.employee_id, name: nameOf.get(c.employee_id)!, text: n < 0 ? `수습 종료 ${-n}일 지남 — 정규 전환 발령` : `수습 종료 D-${n}`, date: c.probation_end_date });
+    }
   }
   if (exp.length) groups.push({ key: "contract_end", label: "근로계약 만료", source: "규칙", hint: "만료 30일 전부터 · 갱신 계약서를 보내거나 퇴사 처리", go: "contracts", items: exp });
   if (prob.length) groups.push({ key: "probation", label: "수습 종료", source: "규칙", hint: "7일 전부터 · 정규 전환은 이력 탭 발령으로", go: "history", items: prob });
@@ -36,7 +59,9 @@ export async function fetchHrTodos(companyId: string, employees: { id: string; n
   for (const e of active) {
     if (!e.hire_date) continue;
     const h = new Date(e.hire_date); const y1 = new Date(h); y1.setFullYear(h.getFullYear() + 1); const d1 = y1.toISOString().slice(0, 10);
-    const n = dday(d1, today); if (n >= 0 && n <= 30) anniv.push({ employee_id: e.id, name: e.name, text: `입사 1주년 D-${n} — 월 1일 연차에서 법정 연차(15일)로 바뀝니다`, date: d1 });
+    //   법정 연차(annual)를 이미 부여했으면 처리된 것 — cron/수동 부여 후에도 30일간 계속 뜨던 것 (2026-08-31)
+    const granted = ((grants || []) as any[]).some((g) => g.employee_id === e.id && String(g.grant_date) >= addDays(d1, -30));
+    const n = dday(d1, today); if (n >= 0 && n <= 30 && !granted) anniv.push({ employee_id: e.id, name: e.name, text: `입사 1주년 D-${n} — 월 1일 연차에서 법정 연차(15일)로 바뀝니다`, date: d1 });
   }
   if (anniv.length) groups.push({ key: "anniv", label: "입사 1주년(연차 전환)", source: "규칙", hint: "자동 발생 cron 이 처리하지만, 수동 부여 회사는 휴가 탭에서 확인", go: "leave", items: anniv });
   const unsigned: HrTodoItem[] = [];

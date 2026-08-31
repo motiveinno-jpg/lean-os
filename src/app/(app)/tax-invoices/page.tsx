@@ -657,13 +657,29 @@ function TaxInvoicesPageInner() {
     ensurePrintStyles();
   }, []);
 
-  // 중복 '중복아님' 처리 영구 유지 — 새로고침 후에도 숨김 유지 (localStorage, 회사별)
+  // 중복 '중복아님' 처리 — 회사 단위 DB(tax_dup_dismissals) 저장 (2026-08-31).
+  //   종전 localStorage 는 기기별이라 경리가 확인한 건이 대표 화면엔 계속 경고로 떴다.
+  //   기존 기기에 남은 localStorage 값은 1회 DB 로 승격 후 지운다.
   useEffect(() => {
     if (!companyId || typeof window === "undefined") return;
-    try {
-      const raw = localStorage.getItem(`tax-dup-dismissed-${companyId}`);
-      if (raw) setDismissedDups(new Set(JSON.parse(raw) as string[]));
-    } catch { /* noop */ }
+    (async () => {
+      try {
+        const lsKey = `tax-dup-dismissed-${companyId}`;
+        const raw = localStorage.getItem(lsKey);
+        if (raw) {
+          const keys = (JSON.parse(raw) as string[]).filter(Boolean);
+          if (keys.length) {
+            await (supabase as any).from("tax_dup_dismissals").upsert(
+              keys.map((k) => ({ company_id: companyId, dup_key: k, dismissed_by: userId ?? null })),
+              { onConflict: "company_id,dup_key" });
+          }
+          localStorage.removeItem(lsKey);
+        }
+        const { data } = await (supabase as any).from("tax_dup_dismissals")
+          .select("dup_key").eq("company_id", companyId);
+        setDismissedDups(new Set(((data || []) as { dup_key: string }[]).map((r) => r.dup_key)));
+      } catch { /* 조회 실패 시 경고 전체 노출(안전한 쪽) */ }
+    })();
   }, [companyId]);
 
   // 보기 기간 계산 — viewFromMonth ~ viewToMonth 전체. 단일 월 보고 싶으면 from=to 로 설정.
@@ -849,11 +865,14 @@ function TaxInvoicesPageInner() {
     queryKey: ["last-sync-time", companyId],
     queryFn: async () => {
       const db = supabase;
+      //   hometax_sync_log 는 쓰기 코드가 사라진 죽은 테이블 — '마지막 업데이트'가 영원히 안 떴다.
+      //   실제 수집 이력이 쌓이는 hometax_sync_jobs 로 교체 (2026-08-31 스윕).
       const data = logRead('tax-invoices/page:data', await db
-        .from('hometax_sync_log')
+        .from('hometax_sync_jobs')
         .select('completed_at')
         .eq('company_id', companyId!)
         .eq('status', 'completed')
+        .not('completed_at', 'is', null)
         .order('completed_at', { ascending: false })
         .limit(1));
       return data?.[0]?.completed_at || null;
@@ -1906,12 +1925,13 @@ function TaxInvoicesPageInner() {
                     {dup.counterpartyName} · {fmt(dup.amount)} · {dup.date}
                     <span className="ti-dup-n">{dup.count}건 동일</span>
                     <button type="button" className="ti-dup-ok"
-                      onClick={() => {
-                        setDismissedDups((prev) => {
-                          const next = new Set([...prev, dup.key]);
-                          try { localStorage.setItem(`tax-dup-dismissed-${companyId}`, JSON.stringify([...next])); } catch { /* noop */ }
-                          return next;
-                        });
+                      onClick={async () => {
+                        setDismissedDups((prev) => new Set([...prev, dup.key]));
+                        try {
+                          await (supabase as any).from("tax_dup_dismissals").upsert(
+                            { company_id: companyId, dup_key: dup.key, dismissed_by: userId ?? null },
+                            { onConflict: "company_id,dup_key" });
+                        } catch { /* 저장 실패해도 이 세션에선 숨김 유지 — 다음 로드에서 다시 뜬다 */ }
                       }}>
                       ✓ 중복 아님
                     </button>

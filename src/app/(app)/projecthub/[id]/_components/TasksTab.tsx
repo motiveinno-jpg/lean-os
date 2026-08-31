@@ -102,6 +102,14 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
   const delayedCount = (tasks as any[]).filter(isDelayed).length;
   const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
+  //   2026-08-31 스윕: project-tasks 만 지워서 목표 탭 '지연 업무'·대시보드 '내 담당 업무/할 일'에
+  //   완료한 업무가 최대 1분+ 남았다 — 같은 테이블을 읽는 키 전부 무효화.
+  const invalidateTaskReaders = () => {
+    ["project-tasks", "project-tasks-open", "project-tasks-overview", "goal-overview-overdue-tasks",
+     "projecthub-tasks", "my-project-tasks", "dash-my-tasks", "project-issues-open"]
+      .forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+  };
+
   const moveTask = async (taskId: string, newStatus: TaskStatus) => {
     const t = (tasks as any[]).find((x) => x.id === taskId);
     if (!t || t.status === newStatus) return;
@@ -111,10 +119,10 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
       const maxPos = Math.max(0, ...byStatus[newStatus].map((x) => Number(x.position || 0)));
       const { error } = await db.from("project_tasks").update({ status: newStatus, position: maxPos + 1, updated_at: new Date().toISOString() }).eq("id", taskId);
       if (error) throw new Error(error.message);
-      qc.invalidateQueries({ queryKey: ["project-tasks", dealId] });
+      invalidateTaskReaders();
     } catch (e: any) {
       toast(e?.message || "이동 실패", "error");
-      qc.invalidateQueries({ queryKey: ["project-tasks", dealId] });
+      invalidateTaskReaders();
     }
   };
 
@@ -196,7 +204,7 @@ export function TasksTab({ dealId, companyId, users }: { dealId: string; company
           task={editTask} userId={user?.id || null}
           existingCount={total}
           onClose={() => setShowForm(false)}
-          onSaved={() => { setShowForm(false); qc.invalidateQueries({ queryKey: ["project-tasks", dealId] }); }}
+          onSaved={() => { setShowForm(false); invalidateTaskReaders(); }}
         />
       )}
     </div>

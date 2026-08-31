@@ -105,7 +105,7 @@ const QUOTE_LIST_COLS: QCol[] = [
   { key: "amount", label: "견적금액합계", default: true, align: "r" },
   { key: "status", label: "진행상태", default: true, align: "c" },
   { key: "created", label: "작성일", default: false, align: "c" },
-  { key: "views", label: "열람수", default: false, align: "c" },
+  //   "열람수" 열 삭제 (2026-08-31 스윕) — quote_tracking 은 쓰기 코드가 없는 죽은 테이블이라 영원히 0 이었다
   { key: "print", label: "인쇄", default: true, align: "c" },
 ];
 const QUOTE_COLS_LSKEY = "projecthub_quote_cols_v1";
@@ -1015,15 +1015,7 @@ export default function ProjectHubDetailPage() {
     },
     enabled: !!dealId && moneyOpen,
   });
-  const { data: quoteTracking = [] } = useQuery({
-    queryKey: ["projecthub-quotes", dealId, docIds.length],
-    queryFn: async () => {
-      if (docIds.length === 0) return [];
-      const data = logRead('[id]/page:data', await db.from("quote_tracking").select("*").in("document_id", docIds));
-      return (data || []) as any[];
-    },
-    enabled: moneyOpen && docIds.length > 0,
-  });
+
   const { data: approvals = [] } = useQuery({
     queryKey: ["projecthub-approvals", dealId],
     queryFn: async () => {
@@ -1486,9 +1478,8 @@ export default function ProjectHubDetailPage() {
                 </thead>
                 <tbody>
                   {quoteDocsShown.map((doc) => {
-                    const qt = quoteTracking.find((q) => q.document_id === doc.id);
                     const header = (doc.content_json as any)?.header || {};
-                    const st = qt?.status || doc.status || "—";
+                    const st = doc.status || "—";
                     const cellCls = (c: QCol) => `px-3 py-2.5 border-b border-[var(--border)]/40 ${c.align === "r" ? "text-right" : c.align === "c" ? "text-center" : "text-left"}`;
                     return (
                       <tr key={doc.id} className="hover:bg-[var(--bg-surface)]/50">
@@ -1502,7 +1493,6 @@ export default function ProjectHubDetailPage() {
                           if (c.key === "amount") { const a = quoteAmount(doc); return <td key={c.key} className={cellCls(c)}><span className="mono-number text-[var(--text)]">{a ? a.toLocaleString("ko-KR") : "—"}</span></td>; }
                           if (c.key === "status") return <td key={c.key} className={cellCls(c)}><span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] whitespace-nowrap">{st}</span></td>;
                           if (c.key === "created") return <td key={c.key} className={cellCls(c)}><span className="text-[var(--text-muted)] whitespace-nowrap">{fmtDate(doc.created_at)}</span></td>;
-                          if (c.key === "views") return <td key={c.key} className={cellCls(c)}><span className="text-[var(--text-muted)]">{qt?.view_count ?? 0}</span></td>;
                           if (c.key === "print") return <td key={c.key} className={cellCls(c)}><button onClick={(e) => { e.stopPropagation(); setPreviewDoc(doc); }} className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline whitespace-nowrap">인쇄</button></td>;
                           return <td key={c.key} className={cellCls(c)}>—</td>;
                         })}

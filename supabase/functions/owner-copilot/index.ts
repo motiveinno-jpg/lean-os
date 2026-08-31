@@ -1419,20 +1419,22 @@ async function executeReadTool(
   if (name === "list_projects") {
     const [{ data: boards, error }, { data: items }, { data: emps }] = await Promise.all([
       admin.from("project_boards").select("id, name, created_at, archived_at").eq("company_id", companyId).limit(100),
-      admin.from("workflow_items").select("title, status, assignee_id, linked_project_id, archived_at, created_at")
-        .eq("company_id", companyId).order("created_at", { ascending: false }).limit(200),
+      //   workflow_items 는 2026-06-24 1회성 백필 뒤 쓰기가 없는 죽은 스냅샷 — 살아있는 project_tasks 로 교체 (2026-08-31 스윕)
+      admin.from("project_tasks").select("title, status, assignee_id, deal_id, archived_at, created_at")
+        .eq("company_id", companyId).is("archived_at", null).order("created_at", { ascending: false }).limit(200),
       admin.from("employees").select("id, name").eq("company_id", companyId),
     ]);
     if (error) return { error: "프로젝트 조회에 실패했습니다." };
     const nameOf = new Map(((emps ?? []) as { id: string; name: string }[]).map((e) => [e.id, e.name]));
     const boardName = new Map(((boards ?? []) as { id: string; name: string }[]).map((b) => [b.id, b.name]));
+    void boardName;
     const rows = ((items ?? []) as {
       title: string; status: string | null; assignee_id: string | null;
-      linked_project_id: string | null; archived_at: string | null;
-    }[]).filter((i) => !i.archived_at).map((i) => ({
+      deal_id: string | null; archived_at: string | null;
+    }[]).filter((i) => !i.archived_at && i.status !== "done").map((i) => ({
       title: i.title, status: i.status,
       assignee: i.assignee_id ? (nameOf.get(i.assignee_id) ?? "(미상)") : null,
-      board: i.linked_project_id ? (boardName.get(i.linked_project_id) ?? null) : null,
+      board: null as string | null,
     }));
     return {
       boards: ((boards ?? []) as { name: string; archived_at: string | null }[])

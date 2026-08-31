@@ -157,9 +157,11 @@ export default function PlatformSupportPage() {
   const answerMut = useMutation({
     mutationFn: async ({ id, answer }: { id: string; answer: string }) => {
       const me = await getCurrentUser();
+      //   2026-08-31: 답변을 저장해도 status 가 in_progress 에 머물러 '미처리 카운트'가 영영 안 줄었다
+      //   (answered 라벨·필터는 있는데 전이하는 코드가 없었음) — 답변 저장 = 답변완료 전이.
       const { error } = await db
         .from("support_tickets")
-        .update({ answer: answer.trim(), answered_by: me?.id ?? null })
+        .update({ answer: answer.trim(), answered_by: me?.id ?? null, status: "answered" })
         .eq("id", id);
       if (error) throw error;
     },
@@ -204,7 +206,7 @@ export default function PlatformSupportPage() {
           <OpsExportButton
             disabled={filtered.length === 0}
             onClick={() => exportCsv(filtered.map((t) => ({
-              상태: t.status === "open" ? "미답변" : "답변완료", 분류: t.category,
+              상태: t.status === "open" ? "미답변" : t.status === "in_progress" ? "처리중" : "답변완료", 분류: t.category,
               제목: t.subject, 내용: (t.content || "").slice(0, 200),
               회사: t.companies?.name || "", 문의자: t.users?.name || t.users?.email || "",
               접수일: t.created_at?.slice(0, 10) || "",
