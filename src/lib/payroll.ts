@@ -33,7 +33,7 @@ export async function previewPayroll(
   const rates = await fetchInsuranceRates(companyId, rateYear);
   const employees = logRead('lib/payroll:employees', await db
     .from('employees')
-    .select('id, name, salary, status, meal_allowance_included, hire_date, birth_date, non_taxable_amount, is_4_insurance, employee_number')
+    .select('id, name, salary, status, meal_allowance_included, hire_date, birth_date, non_taxable_amount, is_4_insurance, employee_number, employment_type')
     .eq('company_id', companyId)
     .in('status', ['active', 'joined', 'invited']));
 
@@ -102,12 +102,17 @@ export async function previewPayroll(
     // 입사일 이후 월만 — 해당 월 말일까지 입사한 직원
     if (monthEnd && emp.hire_date && emp.hire_date > monthEnd) continue;
 
-    // 비과세 — override 우선, 그 다음 non_taxable_amount, 없으면 meal_allowance 20만원 기본
-    const nonTaxable = ov
+    //   사업소득자(프리랜서 3.3%) — 2026-08-31 세무 2차 결정 102. 고용형태가 '프리랜서'면
+    //   간이세액표·4대보험 대신 3.3% 경로(calculatePayroll businessIncome)로 계산한다.
+    const isBiz = emp.employment_type === 'freelance';
+
+    // 비과세 — override 우선, 그 다음 non_taxable_amount, 없으면 meal_allowance 20만원 기본.
+    //   사업소득자는 비과세(식대) 개념이 없다 — 전액 지급액.
+    const nonTaxable = isBiz ? 0 : (ov
       ? ov.non_taxable_amount
       : (emp.non_taxable_amount != null
           ? Number(emp.non_taxable_amount)
-          : (emp.meal_allowance_included ? 200_000 : 0));
+          : (emp.meal_allowance_included ? 200_000 : 0)));
 
     // v4 H1: 임의 수당/공제 — calculatePayroll 호출 전에 먼저 합산해서
     //   과세 수당(allowance)을 과세소득에 반영(소득세·4대보험 자동 재계산)한다.
@@ -123,16 +128,18 @@ export async function previewPayroll(
     const deduction = valid.filter((e) => e.type === 'deduction').reduce((s, e) => s + e.amount, 0);
 
     const item = calculatePayroll(salary, emp.name, emp.id, {
-      rates, insured: emp.is_4_insurance !== false,
+      rates, insured: !isBiz && emp.is_4_insurance !== false,
       nonTaxableAmount: nonTaxable,
       dependents: 1,
       taxableAllowance: allowance, // 과세 수당 → 소득세·국민연금·건강·고용보험 자동 가산
+      businessIncome: isBiz,
     });
     item.employeeNumber = emp.employee_number || undefined;
     // 수당/공제 항목 표시 + 실수령 가감 (세금은 calculatePayroll 이 이미 반영)
+    //   ⚠️ 사업소득 경로는 수당이 지급액에 이미 들어 netPay 에 반영돼 있다 — 다시 더하면 이중 가산
     if (valid.length > 0) {
       item.extras = valid;
-      item.netPay = item.netPay + allowance - deduction;
+      item.netPay = item.netPay + (isBiz ? 0 : allowance) - deduction;
       item.deductionsTotal = item.deductionsTotal + deduction;
     }
     // 공제액 수동 수정(deduction_overrides) — 관리자가 편집모드에서 바꾼 항목만 반영(델타).

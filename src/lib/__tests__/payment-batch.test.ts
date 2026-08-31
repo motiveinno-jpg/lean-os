@@ -61,6 +61,42 @@ describe("calculatePayroll — 4대보험·소득세 (2026 요율)", () => {
   });
 });
 
+describe("calculatePayroll — 사업소득자(프리랜서 3.3%) (2026-08-31 세무 2차 결정 102)", () => {
+  it("300만 지급 — 소득세 3% 9만 + 지방 0.3% 9천, 4대보험·비과세 0, 실지급 290만 1천", () => {
+    const r = calculatePayroll(3_000_000, "프리랜서", "biz-1", { businessIncome: true, nonTaxableAmount: 200_000, dependents: 3 });
+    expect(r.businessIncome).toBe(true);
+    expect(r.incomeTax).toBe(90_000);
+    expect(r.localIncomeTax).toBe(9_000);
+    expect(r.nationalPension).toBe(0);
+    expect(r.healthInsurance).toBe(0);
+    expect(r.employmentInsurance).toBe(0);
+    expect(r.nonTaxableAmount).toBe(0);          // 비과세(식대)는 근로소득 개념 — 무시
+    expect(r.deductionsTotal).toBe(99_000);
+    expect(r.netPay).toBe(3_000_000 - 99_000);
+    expect(r.employerCosts.total).toBe(0);
+  });
+
+  it("원 단위 절사 — 1,234,567 → 소득세 37,037 · 지방 3,703", () => {
+    const r = calculatePayroll(1_234_567, "a", "biz-2", { businessIncome: true });
+    expect(r.incomeTax).toBe(37_037);
+    expect(r.localIncomeTax).toBe(3_703);
+  });
+
+  it("소액부징수 — 소득세 1,000원 미만(지급 3.3만 이하)이면 둘 다 0", () => {
+    const r = calculatePayroll(33_000, "a", "biz-3", { businessIncome: true });
+    expect(r.incomeTax).toBe(0);
+    expect(r.localIncomeTax).toBe(0);
+    expect(r.netPay).toBe(33_000);
+  });
+
+  it("수당(taxableAllowance)은 지급액에 합산돼 3.3% 대상", () => {
+    const r = calculatePayroll(2_800_000, "a", "biz-4", { businessIncome: true, taxableAllowance: 200_000 });
+    expect(r.taxableIncome).toBe(3_000_000);
+    expect(r.incomeTax).toBe(90_000);
+    expect(r.netPay).toBe(3_000_000 - 99_000);   // 수당 포함 지급액 − 세금(수당을 다시 더하면 안 된다)
+  });
+});
+
 describe("sumExtras — 임의 수당/공제 합산", () => {
   it("수당·공제 분리 합산, 음수는 0으로 클램프", () => {
     expect(sumExtras([

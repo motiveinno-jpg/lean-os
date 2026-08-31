@@ -53,6 +53,8 @@ export interface PayrollItem {
   extras?: PayrollExtra[];
   /** 사번 — 표 이름 옆 태그용 (2026-08-27) */
   employeeNumber?: string;
+  /** 사업소득자(프리랜서 3.3%) 줄 — 2026-08-31 세무 2차 결정 102. 원천세 신고서 A25 로 집계된다 */
+  businessIncome?: boolean;
   /** 2026-08-27 H9 — 전월 명세 대비 ±20% 등 이상 감지 문구(표시만) */
   warn?: string;
   employerCosts: {
@@ -157,6 +159,9 @@ export interface PayrollOptions {
   // 2026-05-22 과세 대상 임의수당 합 — 소득세·4대보험 과세소득에 가산.
   //   (비과세 수당은 nonTaxableAmount 로 따로 처리)
   taxableAllowance?: number;
+  /** 사업소득자(프리랜서) — 2026-08-31 세무 2차 결정 102. 간이세액표·4대보험 대신
+   *  지급액 × 소득세 3% + 지방소득세 0.3%. employment_type='freelance' 구성원이 이 길로 온다. */
+  businessIncome?: boolean;
 }
 
 export function calculatePayroll(
@@ -173,6 +178,25 @@ export function calculatePayroll(
     industrialAccidentRate = R.ia_rate,
     taxableAllowance = 0,
   } = options;
+
+  //   사업소득자(프리랜서 3.3%) — 결정 102. 간이세액표·4대보험·비과세(식대)는 근로소득 개념이라 전부 안 탄다.
+  //   지급액(기본급+수당) × 소득세 3%, 지방소득세는 소득세의 10%. 세액은 원 단위 절사(국세청 관행),
+  //   소득세 1,000원 미만이면 소액부징수로 둘 다 0 (소득세법 86조).
+  if (options.businessIncome) {
+    const pay = Math.max(0, baseSalary + taxableAllowance);
+    let it = Math.floor(pay * 0.03);
+    let lit = Math.floor(it * 0.1);
+    if (it < 1_000) { it = 0; lit = 0; }
+    return {
+      employeeId, employeeName: name, baseSalary,
+      nonTaxableAmount: 0, taxableIncome: pay,
+      nationalPension: 0, healthInsurance: 0, longTermCareInsurance: 0, employmentInsurance: 0,
+      incomeTax: it, localIncomeTax: lit,
+      deductionsTotal: it + lit, netPay: pay - it - lit,
+      businessIncome: true,
+      employerCosts: { nationalPension: 0, healthInsurance: 0, longTermCareInsurance: 0, employmentInsurance: 0, industrialAccident: 0, total: 0 },
+    };
+  }
 
   // 2026-05-22 (사장님 확정) 기본급 모델: baseSalary = 과세 기본급, nonTaxableAmount = 별도 비과세(식대).
   //   지급총액 = baseSalary + nonTaxableAmount (예: 기본급 230 + 식대 20 = 250).
