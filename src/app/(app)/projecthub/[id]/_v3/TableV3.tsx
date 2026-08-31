@@ -9,7 +9,8 @@
 //   · 커스텀 컬럼(project_item_columns) — 오른쪽 ＋로 추가, 값은 project_items.fields[key]
 //   · 숫자 컬럼은 아래 합계 줄
 //   데이터 모델은 v2.6(project_items)을 그대로 승계 — 이 파일은 화면만 바꾼다(결정 131·133).
-//   feature_on('projecthub_v3') 게이트 뒤에서만 렌더. 보기(칸반 등)·서랍·기능 토글은 2~3단계.
+//   feature_on('projecthub_v3') 게이트 뒤에서만 렌더. 칸반 보기는 ＋보기로 켠다(2026-08-31 사장님
+//   "목업대로 안 보인다" — 2단계 예정을 앞당김). 서랍·기록·기능 토글·간트는 2~3단계.
 
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useParams } from "next/navigation";
@@ -47,7 +48,8 @@ type Pop =
   | { kind: "status"; itemId: string; x: number; y: number }
   | { kind: "person"; itemId: string; colKey?: string; x: number; y: number }
   | { kind: "select"; itemId: string; colKey: string; x: number; y: number }
-  | { kind: "addcol"; x: number; y: number };
+  | { kind: "addcol"; x: number; y: number }
+  | { kind: "addview"; x: number; y: number };
 
 export function TableV3() {
   const params = useParams();
@@ -135,6 +137,38 @@ export function TableV3() {
     if (error) { toast(friendlyError(error), "error"); return; }
     qc.invalidateQueries({ queryKey: ["pjv3-cols", dealId] });
     toast(`'${name}' 컬럼을 추가했습니다 — 셀을 눌러 바로 채우세요`, "success");
+  };
+
+  // ── 보기 — 표가 기본(결정 130), 칸반은 ＋보기로 추가한 '보는 형태'.
+  //   추가 상태는 임시로 브라우저에 기억(3단계에서 deals.v3_views 로 팀 공유 저장 — 결정 129) ──
+  const VIEWS_LS = `ov.pjv3.views.${dealId}`;
+  const [views, setViews] = useState<string[]>([]);
+  const [curView, setCurView] = useState<"table" | "kanban">("table");
+  useEffect(() => {
+    try { const v = JSON.parse(localStorage.getItem(VIEWS_LS) || "[]"); if (Array.isArray(v)) setViews(v); } catch { /* 무시 */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dealId]);
+  const addKanban = () => {
+    const next = views.includes("kanban") ? views : [...views, "kanban"];
+    setViews(next); setCurView("kanban"); setPop(null);
+    try { localStorage.setItem(VIEWS_LS, JSON.stringify(next)); } catch { /* 무시 */ }
+  };
+  const removeView = (v: string) => {
+    const next = views.filter((x) => x !== v);
+    setViews(next); if (curView === v) setCurView("table");
+    try { localStorage.setItem(VIEWS_LS, JSON.stringify(next)); } catch { /* 무시 */ }
+  };
+
+  // ── 칸반 끌어 옮기기 — 놓는 곳의 상태로 바뀐다(표의 상태 셀과 같은 저장).
+  //   끄는 항목은 ref 로 든다 — dragstart 의 setState 가 커밋되기 전에 drop 이 오면 놓친다 ──
+  const dragIdRef = useRef<string | null>(null);
+  const [dragOverStage, setDragOverStage] = useState<string | null>(null);
+  const dropTo = async (stageId: string) => {
+    const id = dragIdRef.current; dragIdRef.current = null; setDragOverStage(null);
+    if (!id) return;
+    const it = items.find((x) => x.id === id);
+    if (!it || it.status === stageId) return;
+    await saveItem(id, { status: stageId });
   };
 
   // ── 팝(팔레트·담당·선택지·컬럼 추가) — 화면에 하나만 ──
@@ -245,7 +279,19 @@ export function TableV3() {
       <div className="pjv3-head">
         <h1>{deal.name}</h1>
         {period && <span className="pjv3-head-sub mono-number">{period}</span>}
-        <span className="pjv3-head-sub">표가 곧 입력입니다 — 칸반·간트 같은 보기와 기능 켜기는 다음 단계에서 붙습니다</span>
+        <span className="pjv3-head-sub">표가 곧 입력입니다 — 다른 보기는 ＋ 보기로 켭니다</span>
+      </div>
+
+      {/* 보기 줄 — 표가 기본, 칸반은 '표를 보는 형태'(결정 130). 간트·캘린더·현황은 다음 단계 */}
+      <div className="pjv3-views">
+        <button type="button" className={`pjv3-vchip ${curView === "table" ? "on" : ""}`} onClick={() => setCurView("table")}>표</button>
+        {views.includes("kanban") && (
+          <button type="button" className={`pjv3-vchip ${curView === "kanban" ? "on" : ""}`} onClick={() => setCurView("kanban")}>
+            칸반
+            {curView === "kanban" && <span className="x" title="이 보기 빼기" onClick={(e) => { e.stopPropagation(); removeView("kanban"); }}>✕</span>}
+          </button>
+        )}
+        <button type="button" className="pjv3-addview" onClick={(e) => setPop({ kind: "addview", ...at(e) })}>＋ 보기</button>
       </div>
 
       <div className="pjv3-toolbar">
@@ -253,6 +299,63 @@ export function TableV3() {
         <span className="pjv3-foot num !mt-0 ml-auto">{shown.length}건{shown.length !== items.length ? ` / 전체 ${items.length}` : ""}</span>
       </div>
 
+      {curView === "kanban" ? (
+        <div className="pjv3-kbwrap">
+          <div className="pjv3-kb">
+            {stages.map((s) => {
+              const group = byStage.m.get(s.id) || [];
+              return (
+                <div key={s.id} className={`pjv3-kcol ${dragOverStage === s.id ? "dragover" : ""}`}
+                  onDragOver={(e) => { e.preventDefault(); setDragOverStage(s.id); }}
+                  onDragLeave={() => setDragOverStage((cur) => (cur === s.id ? null : cur))}
+                  onDrop={() => dropTo(s.id)}>
+                  <h3><span className="dot" style={{ background: STAGE_HEX[s.color] }} />{s.label}<span className="cnt num">{group.length}</span></h3>
+                  <div className="pjv3-kcards">
+                    {group.map((it) => {
+                      const late = it.due_date && it.status !== stages[stages.length - 1]?.id && it.due_date < new Date().toISOString().slice(0, 10);
+                      return (
+                        <div key={it.id} className="pjv3-kc" draggable
+                          onDragStart={() => { dragIdRef.current = it.id; }} onDragEnd={() => { dragIdRef.current = null; setDragOverStage(null); }}>
+                          <div className="tt">{it.name}</div>
+                          {(it.assignee_id || it.due_date || it.plan_amount != null) && (
+                            <div className="meta">
+                              {userName(it.assignee_id) && <span>{userName(it.assignee_id)}</span>}
+                              {it.due_date && <span className={`mono-number ${late ? "late" : ""}`}>{it.due_date}</span>}
+                              {it.plan_amount != null && <span className="mono-number">{Number(it.plan_amount).toLocaleString("ko-KR")}</span>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="pjv3-kadd">
+                    <input placeholder={`＋ ${s.label}에 추가`}
+                      onKeyDown={(e) => {
+                        const v = (e.target as HTMLInputElement).value;
+                        if (e.key === "Enter" && !e.nativeEvent.isComposing && v.trim()) {
+                          addItem(s.id, v.trim()); (e.target as HTMLInputElement).value = "";
+                        }
+                      }} />
+                  </div>
+                </div>
+              );
+            })}
+            {byStage.etc.length > 0 && (
+              <div className={`pjv3-kcol ${dragOverStage === "__etc" ? "dragover" : ""}`}>
+                <h3><span className="dot" style={{ background: STAGE_HEX.gray }} />단계 밖<span className="cnt num">{byStage.etc.length}</span></h3>
+                <div className="pjv3-kcards">
+                  {byStage.etc.map((it) => (
+                    <div key={it.id} className="pjv3-kc" draggable
+                      onDragStart={() => { dragIdRef.current = it.id; }} onDragEnd={() => { dragIdRef.current = null; setDragOverStage(null); }}>
+                      <div className="tt">{it.name}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
       <div className="pjv3-sheetwrap">
         <table className="pjv3-sheet">
           <thead><tr>
@@ -308,7 +411,12 @@ export function TableV3() {
           </tbody>
         </table>
       </div>
-      <p className="pjv3-foot">셀을 누르면 그 자리에서 고칩니다 · 상태 셀은 색 팔레트 · 오른쪽 ＋로 컬럼(글·숫자·날짜·선택·사람·거래처) 추가 · 칸반·간트 같은 보기와 기능 켜기는 다음 단계에서</p>
+      )}
+      <p className="pjv3-foot">
+        {curView === "kanban"
+          ? "카드를 끌어 다른 열에 놓으면 상태가 바뀝니다(표의 상태 셀과 같은 저장) · 열 아래 칸에 적고 Enter로 추가"
+          : "셀을 누르면 그 자리에서 고칩니다 · 상태 셀은 색 팔레트 · 오른쪽 ＋로 컬럼(글·숫자·날짜·선택·사람·거래처) 추가"}
+      </p>
 
       {/* ── 떠 있는 팝 — 상태·담당·선택지·컬럼 추가 ── */}
       {pop && (
@@ -352,6 +460,11 @@ export function TableV3() {
               {opts.length === 0 && <div className="pjv3-pop-title">선택지가 없습니다 — 컬럼 설정은 2단계에서</div>}
             </>);
           })()}
+          {pop.kind === "addview" && (<>
+            <div className="pjv3-pop-title">보기 추가 — 표를 보는 다른 형태</div>
+            <button type="button" onClick={addKanban}>칸반 — 상태별 카드로 보고, 끌어서 옮깁니다</button>
+            <div className="pjv3-pop-title">간트·캘린더·현황은 다음 단계에서 붙습니다</div>
+          </>)}
           {pop.kind === "addcol" && <AddColPop onAdd={(name, type) => { addColumn(name, type); setPop(null); }} />}
         </div>
       )}
