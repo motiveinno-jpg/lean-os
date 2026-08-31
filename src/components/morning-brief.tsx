@@ -25,6 +25,7 @@ import { getScheduleItems } from "@/lib/schedule";
 import { useUser } from "@/components/user-context";
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import { fetchTaxDeadlineChecks } from "@/lib/tax-deadline-checks";
+import { fetchBizSummary } from "@/lib/biz-summary";
 import type { CashPulseResult } from "@/lib/cash-pulse";
 import type { FounderDashboardData } from "@/lib/engines";
 import type { YesterdayTxSummary } from "@/lib/queries";
@@ -180,6 +181,14 @@ export function MorningBrief({
   const myCompanyId = (briefUser as any)?.company_id as string | undefined;
   //   키에 회사 id 포함 (2026-08-31) — 없으면 회사 전환(SPA화 시) 때 타사 브리핑이 캐시로 남는다
   const briefKey = ["ai-briefing", myCompanyId, formatTodayKorean(now)];
+  //   30일+ 미수는 경영 요약(원장·잔액 기준)과 같은 값을 쓴다 (2026-08-31 통일) —
+  //   종전 sixPack.arOver30 은 프로젝트 수금 스케줄 기반이라 화면 숫자와 어긋났다. 캐시 키가 신호 6칸과 같아 공짜.
+  const { data: bizSum } = useQuery({
+    queryKey: ["biz-summary", myCompanyId, todayKst().slice(0, 7)],
+    queryFn: () => fetchBizSummary(myCompanyId!, todayKst().slice(0, 7), userId || undefined),
+    enabled: !!myCompanyId && hasData && aiBriefingEnabled,
+    staleTime: 60_000,
+  });
 
   // 요청 페이로드 조립 — 최초 생성과 '다시 생성' 공용
   const buildBriefPayload = async () => {
@@ -190,7 +199,7 @@ export function MorningBrief({
       forecast90: cashPulse.forecast90d,
       runwayMonths: dashboard?.sixPack.runwayMonths ?? 0,
       monthlyBurn: cashPulse.monthlyBurn,
-      arOver30: dashboard?.sixPack.arOver30 ?? 0,
+      arOver30: bizSum?.arap.over30 ?? dashboard?.sixPack.arOver30 ?? 0,
       pendingApprovals: cashPulse.pendingApprovalCount,
       riskCount: dashboard?.risks.length ?? 0,
       monthRevenue: dashboard?.growth.monthRevenue ?? 0,
@@ -226,7 +235,7 @@ export function MorningBrief({
       const payload = await buildBriefPayload();
       if (!payload) return null;
       try {
-        const { data, error } = await supabase.functions.invoke("ai-briefing", { body: payload });
+        let { data, error } = await supabase.functions.invoke("ai-briefing", { body: payload });
         if (error || !data?.content) return null;
         //   생성 시각 — "오늘 생성"으로 뭉뚱그리면 아침 스냅샷을 저녁까지 최신으로 오독한다 (2026-08-31 사장님 제보).
         //   company_id 명시: 운영자 계정은 RLS 예외로 타사 행이 잡힐 수 있다.
@@ -236,6 +245,19 @@ export function MorningBrief({
             .eq("company_id", myCompanyId ?? "").eq("brief_date", todayKst()).maybeSingle();
           generatedAt = row?.created_at ?? null;
         } catch { /* 시각 조회 실패는 표기만 생략 */ }
+        //   자동 신선도 (2026-08-31 구조 과제 2/3): 캐시 브리핑이 4시간 넘게 낡았으면 지금 숫자로 재생성.
+        //   08:00 cron 스냅샷(근사치)이 하루 종일 고정돼 "이미 처리한 일"을 긴급으로 말하던 것 —
+        //   열람 시점 기준 4시간 한도라 하루 재생성이 2~3회를 넘지 않는다(비용 상한).
+        const AGE_LIMIT_MS = 4 * 60 * 60 * 1000;
+        if (generatedAt && Date.now() - new Date(generatedAt).getTime() > AGE_LIMIT_MS) {
+          try {
+            const fresh = await supabase.functions.invoke("ai-briefing", { body: { ...payload, force: true } });
+            if (!fresh.error && fresh.data?.content) {
+              data = fresh.data;
+              generatedAt = new Date().toISOString();
+            }
+          } catch { /* 재생성 실패 시 기존 캐시 유지 */ }
+        }
         return { content: data.content as string, generatedAt };
       } catch { return null; }
     },

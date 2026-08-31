@@ -94,17 +94,23 @@ export const rangeLabel = (r: MonthRange) => r.fromYm === r.toYm ? `${Number(r.f
 export const pctChange = (cur: number, prev: number): number | null => (prev === 0 ? null : Math.round(((cur - prev) / Math.abs(prev)) * 100));
 
 // ── 살펴볼 것 재료 ────────────────────────────────────────────────────────
-/** 미수금 — 매출 세금계산서 중 아직 안 들어온 것(발행 기준). 원장이 아니라 계산서 상태를 본다: 원천이 분명해서다. */
+/** 미수금 — 발행 매출 세금계산서의 **미정산 잔액**(total − settled) 기준.
+ *  2026-08-31 통일(구조 과제 3/3): 종전엔 status 만 보고 판정해 돈을 다 받아도 status 가
+ *  issued 로 남으면 영구 미수로 셌다(부분입금도 전액으로). 미수금 위젯·AI 브리핑과 같은
+ *  "발행분 잔액" 기준으로 맞춘다 — 정산을 입력하면 즉시 빠진다. */
 export async function fetchReceivables(companyId: string): Promise<{ total: number; over30: number; over30Partners: number; rows: { name: string; amount: number; issueDate: string; days: number }[] }> {
   const data = await fetchPaged<any>("pnl-status:ar", () => supabase.from("tax_invoices")
-    .select("counterparty_name, total_amount, issue_date, status")
+    .select("counterparty_name, total_amount, supply_amount, settled_amount, issue_date, status")
     .eq("company_id", companyId).eq("type", "sales")
-    .in("status", ["issued", "sent", "pending", "overdue"]).order("id"), 50000);
+    .not("status", "in", "(void,draft,cancelled)").order("id"), 50000);
   const today = new Date();
-  const rows = ((data || []) as any[]).map((r) => {
-    const d = r.issue_date ? Math.floor((today.getTime() - new Date(r.issue_date).getTime()) / 86400000) : 0;
-    return { name: r.counterparty_name || "(미상)", amount: Number(r.total_amount || 0), issueDate: String(r.issue_date || ""), days: d };
-  });
+  const rows = ((data || []) as any[])
+    .map((r) => {
+      const d = r.issue_date ? Math.floor((today.getTime() - new Date(r.issue_date).getTime()) / 86400000) : 0;
+      const bal = Number(r.total_amount || r.supply_amount || 0) - Number(r.settled_amount || 0);
+      return { name: r.counterparty_name || "(미상)", amount: bal, issueDate: String(r.issue_date || ""), days: d };
+    })
+    .filter((r) => r.amount > 1);
   const total = rows.reduce((s, r) => s + r.amount, 0);
   const over = rows.filter((r) => r.days > 30);
   return { total, over30: over.reduce((s, r) => s + r.amount, 0), over30Partners: new Set(over.map((r) => r.name)).size, rows };
