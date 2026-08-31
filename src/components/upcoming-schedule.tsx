@@ -91,11 +91,11 @@ function buildTaxSchedules(today: Date, windowEnd: Date): ScheduleItem[] {
 
   //   연 단위 세무 기한 (2026-08-31 세무 1차, 결정 105 — 12월 결산 법인 기준):
   //     법인세 3/31 · 법인지방소득세 4/30 · 중간예납 8/31 · 근로 간이지급명세서 반기(1/31·7/31).
-  //   법인세 화면(3차)이 생기기 전까지 링크는 손익(분석)으로 — 숫자를 볼 곳이 그쪽뿐이다.
+  //   법인세는 재무 › 세무 신고 › 법인세(예상·세무사 패키지)로 — 세무 3차(2026-08-31)에서 화면이 생겼다.
   const yearly: Array<{ key: string; m: number; d: number; title: string; href: string }> = [
-    { key: "cit", m: 3, d: 31, title: "법인세 신고/납부 (12월 결산)", href: "/reports/pnl" },
-    { key: "cit-local", m: 4, d: 30, title: "법인지방소득세 신고/납부", href: "/reports/pnl" },
-    { key: "cit-interim", m: 8, d: 31, title: "법인세 중간예납", href: "/reports/pnl" },
+    { key: "cit", m: 3, d: 31, title: "법인세 신고/납부 (12월 결산)", href: "/finance/tax-filing?tab=cit" },
+    { key: "cit-local", m: 4, d: 30, title: "법인지방소득세 신고/납부", href: "/finance/tax-filing?tab=cit" },
+    { key: "cit-interim", m: 8, d: 31, title: "법인세 중간예납", href: "/finance/tax-filing?tab=cit" },
     { key: "sps-h2", m: 1, d: 31, title: "근로 간이지급명세서 제출 (하반기분)", href: "/finance/tax-filing" },
     { key: "sps-h1", m: 7, d: 31, title: "근로 간이지급명세서 제출 (상반기분)", href: "/finance/tax-filing" },
   ];

@@ -30,6 +30,10 @@ import { todayKst } from "@/lib/kst";
 import { comparePeople } from "@/lib/people-sort";
 import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup } from "@/components/query-kit";
 import { VatReturn } from "@/app/(app)/reports/vat/_components/VatReturn";
+import { computeStatements } from "@/lib/closing-snapshot";
+import { listFixedAssets, faCategoryLabel } from "@/lib/fixed-assets";
+import { fetchJournalLines } from "@/lib/journal-reports";
+import { friendlyError } from "@/lib/friendly-error";
 
 const won = (n: number) => `₩${Math.round(n || 0).toLocaleString("ko-KR")}`;
 const num = (n: number) => Math.round(n || 0);
@@ -48,6 +52,29 @@ function dueOf(month: string): string {
 /** 반기의 여섯 달 (h=1 → 01~06, h=2 → 07~12) */
 const halfMonths = (y: number, h: 1 | 2) =>
   Array.from({ length: 6 }, (_, i) => `${y}-${String(h === 1 ? i + 1 : i + 7).padStart(2, "0")}`);
+
+//   법인세 세율 구간 (2023년 개정 후) — 결정 104. 지방소득세는 산출세액의 10%(구간세율 0.9~2.4%와 같다).
+//   ⚠️ 세율이 바뀌면 여기 상수를 고친다 — 화면에 '2026년 세율 기준'을 적어 어긋남이 보이게 한다.
+const CIT_BRACKETS = [
+  { upTo: 200_000_000, rate: 0.09, label: "2억 이하" },
+  { upTo: 20_000_000_000, rate: 0.19, label: "2억 초과 ~ 200억" },
+  { upTo: 300_000_000_000, rate: 0.21, label: "200억 초과 ~ 3,000억" },
+  { upTo: Infinity, rate: 0.24, label: "3,000억 초과" },
+] as const;
+function citOf(base: number): { brackets: { label: string; rate: number; amt: number; tax: number }[]; total: number } {
+  if (base <= 0) return { brackets: [], total: 0 };
+  const brackets: { label: string; rate: number; amt: number; tax: number }[] = [];
+  let prev = 0, total = 0;
+  for (const b of CIT_BRACKETS) {
+    const amt = Math.min(base, b.upTo) - prev;
+    if (amt <= 0) break;
+    const tax = Math.floor(amt * b.rate);
+    brackets.push({ label: b.label, rate: b.rate, amt, tax });
+    total += tax;
+    prev = b.upTo;
+  }
+  return { brackets, total };
+}
 
 type WhtRow = {
   employee_id: string; name: string; employee_number: string | null;
@@ -93,9 +120,9 @@ export default function TaxFilingPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   useEffect(() => { getCurrentUser().then((u: any) => { if (u?.company_id) setCompanyId(u.company_id); }); }, []);
 
-  const [tab, setTab] = useState<"wht" | "vat" | "stmt">(() => {
+  const [tab, setTab] = useState<"wht" | "vat" | "cit" | "stmt">(() => {
     const t = searchParams?.get("tab");
-    return t === "vat" ? "vat" : t === "stmt" ? "stmt" : "wht";
+    return t === "vat" ? "vat" : t === "cit" ? "cit" : t === "stmt" ? "stmt" : "wht";
   });
   const [month, setMonth] = useState(prevMonth);
   //   부가세는 해 단위 신고 — 연도 하나만 고른다(분석 › 부가세와 같은 규칙)
@@ -121,6 +148,21 @@ export default function TaxFilingPage() {
     queryFn: async () => toWhtRows(logRead("tax-filing:stmt", await (supabase as any).from("payroll_items")
       .select(WHT_SELECT).eq("company_id", companyId!).in("period_month", stmtMonths)) as any[]),
   });
+
+  //   법인세 예상 (결정 104) — 마감·재무제표와 같은 lib(computeStatements = 확정 전표)로 연간 손익을 계산한다.
+  //   12월로 부르면 연초~연말 누적(ytd) — 진행 중인 해는 지금까지 확정분만 잡힌다.
+  const { data: citStmt, isLoading: citLoading } = useQuery({
+    queryKey: ["cit-stmt", companyId, year],
+    enabled: !!companyId && tab === "cit",
+    queryFn: () => computeStatements(companyId!, `${year}-12`),
+  });
+  const cit = useMemo(() => {
+    const income = Math.round(citStmt?.totals.ytdNet || 0);
+    const c = citOf(income);
+    const local = Math.floor(c.total * 0.1);
+    return { income, ...c, local, sum: c.total + local };
+  }, [citStmt]);
+  const [packBusy, setPackBusy] = useState(false);
 
   const T = useMemo(() => ({
     work: aggOf(rows.filter((r) => !r.biz)),
@@ -200,6 +242,63 @@ export default function TaxFilingPage() {
     }
   };
 
+  //   세무사 전달 패키지 (결정 104) — 3월에 세무사에게 보낼 것을 한 버튼에: 손익·재무상태표(계정별)·
+  //   고정자산 감가상각 명세·전표 원장. 법인세 신고서는 안 만든다 — 세무조정은 세무사의 판단이다.
+  const exportCitPack = async () => {
+    if (!companyId || packBusy) return;
+    setPackBusy(true);
+    try {
+      const stmt = citStmt || await computeStatements(companyId, `${year}-12`);
+      const [assets, lines] = await Promise.all([
+        listFixedAssets(companyId),
+        fetchJournalLines(companyId, `${year}-01-01`, `${year}-12-31`),
+      ]);
+      const wb = XLSX.utils.book_new();
+      const ws1 = XLSX.utils.aoa_to_sheet([
+        ["손익계산서 (계정별)", `${year}년 연간 · 확정 전표 기준 (오너뷰)`], [],
+        ["코드", "계정과목", "구분", "금액"],
+        ...stmt.pnl.map((l) => [l.code || "", l.name, l.nature === "revenue" ? "수익" : "비용", num(l.ytd ?? l.amount)]),
+        [],
+        ["", "수익 합계", "", num(stmt.totals.ytdRevenue)],
+        ["", "비용 합계", "", num(stmt.totals.ytdExpense)],
+        ["", "당기순이익 (세무조정 전)", "", num(stmt.totals.ytdNet)],
+      ]);
+      ws1["!cols"] = [{ wch: 8 }, { wch: 26 }, { wch: 6 }, { wch: 16 }];
+      XLSX.utils.book_append_sheet(wb, ws1, "손익계산서");
+      const natureLabel: Record<string, string> = { asset: "자산", liability: "부채", equity: "자본" };
+      const ws2 = XLSX.utils.aoa_to_sheet([
+        ["재무상태표 (계정별 잔액)", `${year}-12-31 기준 · 확정 전표 (오너뷰)`], [],
+        ["코드", "계정과목", "구분", "잔액"],
+        ...stmt.bs.map((l) => [l.code || "", l.name, natureLabel[l.nature] || l.nature, num(l.amount)]),
+        [],
+        ["", "자산 합계", "", num(stmt.totals.assets)],
+        ["", "부채 합계", "", num(stmt.totals.liabilities)],
+        ["", "자본 합계 (당기손익 포함)", "", num(stmt.totals.equity + stmt.totals.netIncome)],
+      ]);
+      ws2["!cols"] = ws1["!cols"];
+      XLSX.utils.book_append_sheet(wb, ws2, "재무상태표");
+      const ws3 = XLSX.utils.aoa_to_sheet([
+        ["고정자산 감가상각 명세", `${year}-12-31 기준 (오너뷰)`], [],
+        ["자산", "분류", "취득일", "취득가", "잔존가", "내용월수", "방법", "상각 시작", "확정 상각누계", "장부가", "상태"],
+        ...assets.map((a) => [a.name, faCategoryLabel(a.category), a.acquired_on, num(a.cost), num(a.salvage), a.useful_months, a.method === "straight" ? "정액" : "정률", a.depr_start_month, num(a.accum), num(a.book), a.status === "disposed" ? `처분 ${a.disposed_on || ""}` : "사용 중"]),
+      ]);
+      ws3["!cols"] = [{ wch: 20 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 8 }, { wch: 6 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+      XLSX.utils.book_append_sheet(wb, ws3, "고정자산 명세");
+      //   전표 원장 — 세무조정의 원재료. 너무 크면 엑셀이 안 열리므로 3만 줄에서 자르고 잘랐다고 적는다.
+      const CAP = 30_000;
+      const ws4 = XLSX.utils.aoa_to_sheet([
+        ["전표 원장", `${year}년 · 확정 전표 ${lines.length.toLocaleString("ko-KR")}줄${lines.length > CAP ? ` 중 앞 ${CAP.toLocaleString("ko-KR")}줄 (잘림 — 기간을 나눠 다시 받으세요)` : ""} (오너뷰)`], [],
+        ["일자", "전표번호", "코드", "계정과목", "차변", "대변", "거래처", "적요"],
+        ...lines.slice(0, CAP).map((l) => [l.date, l.voucherNo ?? "", l.code || "", l.name, num(l.debit), num(l.credit), l.partnerName || "", l.memo]),
+      ]);
+      ws4["!cols"] = [{ wch: 11 }, { wch: 8 }, { wch: 7 }, { wch: 20 }, { wch: 13 }, { wch: 13 }, { wch: 16 }, { wch: 30 }];
+      XLSX.utils.book_append_sheet(wb, ws4, "전표 원장");
+      XLSX.writeFile(wb, `법인세_세무사패키지_${year}.xlsx`);
+      toast(`${year}년 패키지를 내려받았습니다 — 손익·재무상태표·고정자산·전표 원장 4개 시트`, "success");
+    } catch (e) { toast(friendlyError(e), "error"); }
+    finally { setPackBusy(false); }
+  };
+
   if (!permLoading && !(isMaster || hasPerm("/finance/tax-filing")))
     return <AccessDenied detail="세무 신고 화면에 대한 권한이 없습니다. 회사 마스터에게 요청하세요." />;
 
@@ -210,6 +309,7 @@ export default function TaxFilingPage() {
           <div className="collect-tabs">
             <button type="button" className={tab === "wht" ? "collect-tab collect-tab-on" : "collect-tab"} onClick={() => setTab("wht")}>원천세</button>
             <button type="button" className={tab === "vat" ? "collect-tab collect-tab-on" : "collect-tab"} onClick={() => setTab("vat")}>부가세</button>
+            <button type="button" className={tab === "cit" ? "collect-tab collect-tab-on" : "collect-tab"} onClick={() => setTab("cit")}>법인세</button>
             <button type="button" className={tab === "stmt" ? "collect-tab collect-tab-on" : "collect-tab"} onClick={() => setTab("stmt")}>지급명세서</button>
           </div>
           {tab === "wht" && (<>
@@ -233,6 +333,26 @@ export default function TaxFilingPage() {
               </select>
             </QueryBar>
           )}
+          {tab === "cit" && (<>
+            <QueryBar right={
+              <button type="button" className="btn-secondary btn-sm" disabled={packBusy} onClick={exportCitPack}
+                title="손익계산서 · 재무상태표 · 고정자산 명세 · 전표 원장 — 4개 시트">
+                {packBusy ? "만드는 중…" : "세무사 전달 패키지"}
+              </button>
+            }>
+              <label className="text-xs font-semibold text-[var(--text-dim)]">사업연도</label>
+              <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs" aria-label="사업연도">
+                {years.map((y) => <option key={y} value={y}>{y}년</option>)}
+              </select>
+              <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <b className="mono-number">{year + 1}-03-31</b> · 지방소득세 <b className="mono-number">{year + 1}-04-30</b> — 12월 결산 기준</span>
+            </QueryBar>
+            <ResultStrip>
+              <Stat label="수익" value={won(citStmt?.totals.ytdRevenue || 0)} />
+              <Stat label="비용" value={won(citStmt?.totals.ytdExpense || 0)} />
+              <Stat label="회계이익 (세무조정 전)" value={won(cit.income)} tone={cit.income < 0 ? "minus" : undefined} />
+              <Stat label="예상 법인세+지방세" value={won(cit.sum)} tone={cit.sum ? "minus" : undefined} />
+            </ResultStrip>
+          </>)}
           {tab === "stmt" && (
             <QueryBar right={<button type="button" className="btn-secondary btn-sm" onClick={exportStmt}>세무사 전달 엑셀</button>}>
               <ChipGroup value={stmtKind} onChange={setStmtKind}
@@ -258,6 +378,51 @@ export default function TaxFilingPage() {
           <div className="ev-scroll fa-scroll">
             {tab === "vat" ? (
               <VatReturn companyId={companyId} year={year} />
+            ) : tab === "cit" ? (
+              citLoading ? <div className="collect-empty">확정 전표로 연간 손익을 계산하는 중…</div> : (
+                <div className="vr-wrap">
+                  <p className="inv-hint">
+                    {year}년 확정 전표 기준 — 재무제표·마감과 같은 계산입니다.
+                    <b className="vr-warn"> 세무조정 전 근사치입니다 — 접대비 한도·감가상각 한도·이월결손금 공제 등이 반영되지 않았습니다. 확정 세액과 신고서는 세무사가 만듭니다.</b>
+                    {" 아래 '세무사 전달 패키지'가 3월에 보낼 자료 묶음입니다. 제출은 홈택스에서."}
+                  </p>
+                  <div className="pnl-grid2">
+                    <div className="pnl-panel">
+                      <h3>예상 법인세</h3><p>2026년 세율 기준 (2억 이하 9% · 200억 이하 19% · 3,000억 이하 21% · 초과 24%)</p>
+                      <div className="stg-table-wrap vr-scroll">
+                      <table className="ev-table ev-lined table-inv-status-sm">
+                        <thead><tr><th>구간</th><th>과세표준</th><th>세율</th><th>세액</th></tr></thead>
+                        <tbody>
+                          <tr className="vr-sum"><td className="text-left">회계이익 (세무조정 전 과세표준)</td><td className="tr mono-number">{won(cit.income)}</td><td></td><td></td></tr>
+                          {cit.income <= 0 ? (
+                            <tr><td className="text-left" colSpan={3}>결손 — 산출세액 0 (이월결손금 공제·환급은 세무사가 판단합니다)</td><td className="tr mono-number">₩0</td></tr>
+                          ) : cit.brackets.map((b) => (
+                            <tr key={b.label}><td className="text-left">{b.label}</td><td className="tr mono-number">{won(b.amt)}</td><td className="tc mono-number">{Math.round(b.rate * 100)}%</td><td className="tr mono-number">{won(b.tax)}</td></tr>
+                          ))}
+                          <tr className="vr-sum"><td className="text-left">산출세액 (법인세)</td><td></td><td></td><td className="tr mono-number">{won(cit.total)}</td></tr>
+                          <tr><td className="text-left">법인지방소득세 (산출세액의 10% · 위택스)</td><td></td><td></td><td className="tr mono-number">{won(cit.local)}</td></tr>
+                          <tr className="vr-total"><td className="text-left" colSpan={3}><b>예상 합계</b></td><td className="tr mono-number"><b>{won(cit.sum)}</b></td></tr>
+                        </tbody>
+                      </table>
+                      </div>
+                    </div>
+                    <div className="pnl-panel">
+                      <h3>신고 일정 · 챙길 것</h3><p>12월 결산 법인 기준 — 대시보드 세금 일정에서 납부 완료를 체크할 수 있습니다</p>
+                      <div className="stg-table-wrap vr-scroll">
+                      <table className="ev-table ev-lined table-inv-status-sm">
+                        <thead><tr><th>무엇</th><th>기한</th><th>비고</th></tr></thead>
+                        <tbody>
+                          <tr><td className="text-left">법인세 신고·납부 (홈택스)</td><td className="tc mono-number">{year + 1}-03-31</td><td className="text-left">세무사 패키지를 2월 중 전달</td></tr>
+                          <tr><td className="text-left">법인지방소득세 (위택스)</td><td className="tc mono-number">{year + 1}-04-30</td><td className="text-left">산출세액의 10%</td></tr>
+                          <tr><td className="text-left">중간예납</td><td className="tc mono-number">{year + 1}-08-31</td><td className="text-left">보통 전년 산출세액의 절반 — 예상 <b className="mono-number">{won(Math.floor(cit.total / 2))}</b>. 가결산 방식은 세무사와 결정</td></tr>
+                        </tbody>
+                      </table>
+                      </div>
+                      <p className="inv-foot">예상세액은 자금을 미리 떼어 둘 크기를 가늠하는 용도입니다. 진행 중인 해는 지금까지 확정된 전표만 잡혀 실제 연간 이익보다 작게 보일 수 있습니다.</p>
+                    </div>
+                  </div>
+                </div>
+              )
             ) : tab === "stmt" ? (
               stmtLoading ? <div className="collect-empty">불러오는 중…</div> : (
                 <div className="vr-wrap">
