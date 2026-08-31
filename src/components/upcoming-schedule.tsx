@@ -82,9 +82,36 @@ function buildTaxSchedules(today: Date, windowEnd: Date): ScheduleItem[] {
       title: mm === 0 || mm === 6 ? "부가세 확정 신고/납부" : "부가세 예정 신고/납부",
       date: fmtDateKey(cand),
       daysLeft: daysBetween(today, cand),
-      href: "/reports/vat?tab=return",
+      //   신고서 준비는 재무 › 세무 신고로 옮겨 갔다 (2026-08-31 세무 1차, 결정 107)
+      href: "/finance/tax-filing?tab=vat",
     });
     break;
+  }
+
+  //   연 단위 세무 기한 (2026-08-31 세무 1차, 결정 105 — 12월 결산 법인 기준):
+  //     법인세 3/31 · 법인지방소득세 4/30 · 중간예납 8/31 · 근로 간이지급명세서 반기(1/31·7/31).
+  //   법인세 화면(3차)이 생기기 전까지 링크는 손익(분석)으로 — 숫자를 볼 곳이 그쪽뿐이다.
+  const yearly: Array<{ key: string; m: number; d: number; title: string; href: string }> = [
+    { key: "cit", m: 3, d: 31, title: "법인세 신고/납부 (12월 결산)", href: "/reports/pnl" },
+    { key: "cit-local", m: 4, d: 30, title: "법인지방소득세 신고/납부", href: "/reports/pnl" },
+    { key: "cit-interim", m: 8, d: 31, title: "법인세 중간예납", href: "/reports/pnl" },
+    { key: "sps-h2", m: 1, d: 31, title: "근로 간이지급명세서 제출 (하반기분)", href: "/finance/tax-filing" },
+    { key: "sps-h1", m: 7, d: 31, title: "근로 간이지급명세서 제출 (상반기분)", href: "/finance/tax-filing" },
+  ];
+  for (const y of yearly) {
+    for (const yr of [today.getFullYear(), today.getFullYear() + 1]) {
+      const cand = new Date(yr, y.m - 1, y.d);
+      if (cand < today || cand > windowEnd) continue;
+      items.push({
+        id: `${y.key}-${fmtDateKey(cand)}`,
+        type: "tax",
+        title: y.title,
+        date: fmtDateKey(cand),
+        daysLeft: daysBetween(today, cand),
+        href: y.href,
+      });
+      break;
+    }
   }
   //   4대보험(국민연금·건강·고용·산재) 고지분 — 매월 10일. 급여 초안엔 회사 부담분이 없으니 여기서 잊지 않게.
   const ins = nextOccurrence(today, 10);
@@ -104,11 +131,11 @@ function buildTaxSchedules(today: Date, windowEnd: Date): ScheduleItem[] {
     items.push({
       id: `wht-${fmtDateKey(wht)}`,
       type: "tax",
-      title: "원천세 납부",
+      title: "원천세 신고/납부",
       date: fmtDateKey(wht),
       daysLeft: daysBetween(today, wht),
-      // 원천세는 급여 원천징수분 — 세금계산서가 아니라 급여(명세) 페이지로 연결 (직원 QA #12)
-      href: "/employees?tab=payroll",
+      // 신고서가 생겼다 — 재무 › 세무 신고 › 원천세 (2026-08-31 세무 1차, 결정 101. 옛 링크는 급여 페이지였다)
+      href: "/finance/tax-filing",
     });
   }
 

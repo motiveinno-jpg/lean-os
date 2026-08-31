@@ -102,6 +102,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/partners/reconciliation/sale-purchase", label: "매입매출전표", icon: "receipt", roles: ["owner", "admin"], match: ["/partners/reconciliation/sale-purchase"] },
       //   고정자산 — 장비·차량·소프트웨어 등록 → 월 감가상각 초안 (2026-08-27 ERP 공백 ⑤). 기장 층의 끝.
       { href: "/finance/assets", label: "고정자산", icon: "box", roles: ["owner", "admin"] },
+      //   세무 신고 — 원천세·부가세 신고서 완성까지, 제출은 홈택스에서 사람 (2026-08-31 세무 1차, 결정 107)
+      { href: "/finance/tax-filing", label: "세무 신고", icon: "receipt", roles: ["owner", "admin"], layer: "신고" },
       //   정기 지출은 실적이 아니라 '예정' — 성격이 달라 맨 아래. (분석 '자금 전망' 옆으로 옮길지는 사장님 결정 대기)
       { href: "/payments", label: "정기 지출", icon: "clock", roles: ["owner", "admin"], layer: "예정" },
       //   ★ 현황 — 작성된 전표의 현황·지표. 통장·카드는 각자 화면의 개요/분석, 손익은 분석이 맡는다 (2026-08-26 사장님, 같은 날 재편).
@@ -245,7 +247,7 @@ const NAV_ITEM_COLOR: Record<string, string> = {
   "/inventory/status": "#b7791f", "/inventory/profit": "#a16207", "/inventory/products": "#d97706", "/inventory/stock": "#b45309", "/inventory/sales": "#f59e0b",
   "/inventory/orders": "#f0b429", "/inventory/purchase": "#ea9a17", "/inventory/production": "#c2740c", "/inventory/channels": "#a35f0a",
   // 자산관리 — 시안
-  "/bank": "#06b6d4", "/cards": "#0ea5e9", "/payments": "#22d3ee", "/finance/status": "#0891b2", "/finance/assets": "#0e7490",
+  "/bank": "#06b6d4", "/cards": "#0ea5e9", "/payments": "#22d3ee", "/finance/status": "#0891b2", "/finance/assets": "#0e7490", "/finance/tax-filing": "#155e75",
   // 회사 관리·도움말 — 슬레이트
   "/settings": "#64748b", "/announcements": "#94a3b8", "/billing": "#64748b",
   //   회사 설정 5그룹 (2026-08-24) — 같은 그룹이라 전부 슬레이트 계열

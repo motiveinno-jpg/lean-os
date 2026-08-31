@@ -68,6 +68,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/cards": { group: "재무", title: "카드", desc: "법인카드 사용내역을 봅니다." },
   "/payments": { group: "재무", title: "정기 지출", desc: "정기결제·고정비를 관리합니다." },
   "/finance/assets": { group: "재무", title: "고정자산", desc: "장비·차량·소프트웨어를 등록하면 달마다 감가상각 전표 초안이 생깁니다." },
+  "/finance/tax-filing": { group: "재무", title: "세무 신고", desc: "원천세·부가세 신고서를 완성해 줍니다 — 옮겨 적기만 하면 되고, 제출은 홈택스에서 합니다." },
   "/subscriptions": { group: "자금", title: "구독 관리", desc: "구독 서비스를 관리합니다." },
   "/loans": { group: "자금", title: "대출", desc: "대출 현황을 관리합니다." },
   "/vault": { group: "자금", title: "자산", desc: "회사 자산을 관리합니다." },

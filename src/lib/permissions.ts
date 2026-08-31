@@ -95,6 +95,8 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       { route: "/partners/reconciliation/voucher-entry", label: "일반전표", money: true },
       { route: "/partners/reconciliation/sale-purchase", label: "매입매출전표", money: true },
       { route: "/finance/assets", label: "고정자산", money: true, desc: "장비·차량·소프트웨어 등록 → 월 감가상각 전표 초안" },
+      //   세무 신고 (2026-08-31 세무 1차) — 급여 총액이 보이므로 급여와 같은 급의 money 권한. ★ 배포와 함께 백필 필요.
+      { route: "/finance/tax-filing", label: "세무 신고", money: true, desc: "원천세·부가세 신고서 완성 — 제출은 홈택스에서" },
       { route: "/payments", label: "정기 지출", money: true },
       //   2026-08-11 사이드바에서 내림(수집·전표 통장 탭이 대신). 주소로는 열리므로 게이트·옛 부여 키 호환을 위해 남긴다 — 표에는 안 그림
       { route: "/transactions", label: "자동 분류", money: true, hidden: true },
