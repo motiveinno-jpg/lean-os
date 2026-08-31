@@ -300,7 +300,7 @@ export function ProgressReportStageCard({
 
   const status = approval?.status;
   const showSend = !readonly && mode === "preview" && (!approval || status === "draft");
-  const showResend = !readonly && mode === "preview" && status === "rejected";
+  const showResend = !readonly && mode === "preview" && (status === "rejected" || status === "revision_requested");
 
   return (
     <div className="progress-report-stage-card">
@@ -334,10 +334,12 @@ export function ProgressReportStageCard({
         </div>
       </div>
 
-      {/* 거절 사유 — rejected 일 때만 */}
-      {status === "rejected" && approval?.decision_note && (
+      {/* 거절·수정 요청 사유 (핑퐁 왕복 — 결정 6) */}
+      {(status === "rejected" || status === "revision_requested") && approval?.decision_note && (
         <div className="progress-report-rejection-notice">
-          <div className="text-[10px] font-bold text-red-400 mb-1"><Ico e="❌" /> 거래처가 거절했습니다</div>
+          {status === "revision_requested"
+            ? <div className="text-[10px] font-bold text-amber-400 mb-1"><Ico e="🔁" /> 거래처가 수정을 요청했습니다</div>
+            : <div className="text-[10px] font-bold text-red-400 mb-1"><Ico e="❌" /> 거래처가 거절했습니다</div>}
           <div className="text-xs text-[var(--text)] whitespace-pre-wrap">{approval.decision_note}</div>
           <button
             type="button"
@@ -644,6 +646,8 @@ function statusTone(status?: string): string {
       return "bg-emerald-500/15 text-emerald-400";
     case "rejected":
       return "bg-red-500/15 text-red-400";
+    case "revision_requested":
+      return "bg-amber-500/15 text-amber-400";
     case "sent":
     case "viewed":
     case "pending_our_signature":

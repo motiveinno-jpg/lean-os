@@ -86,11 +86,14 @@ function QuoteApprovalPageInner() {
   const [state, setState] = useState<LoadState>("loading");
   const [row, setRow] = useState<ApprovalRow | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [decided, setDecided] = useState<{ decision: "approved" | "rejected"; stage_after?: string | null } | null>(
+  const [decided, setDecided] = useState<{ decision: "approved" | "rejected" | "revision_requested"; stage_after?: string | null } | null>(
     null,
   );
   const [rejectNote, setRejectNote] = useState("");
-  const [showRejectInput, setShowRejectInput] = useState(false);
+  // 사유 입력 폼 모드 — reject(거절) / revise(수정 요청, 핑퐁 결정 6). null = 버튼 줄
+  const [noteMode, setNoteMode] = useState<null | "reject" | "revise">(null);
+  const showRejectInput = noteMode !== null;
+  const setShowRejectInput = (v: boolean) => setNoteMode(v ? "reject" : null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
 
   // L 계약 서명 모달 — stage='contract' 승인 흐름
@@ -169,10 +172,14 @@ function QuoteApprovalPageInner() {
     void submit("approved");
   }
 
-  async function submit(decision: "approved" | "rejected") {
+  async function submit(decision: "approved" | "rejected" | "revision_requested") {
     if (!row || submitting) return;
     if (decision === "rejected" && !rejectNote.trim()) {
       setErrMsg("거절 사유를 입력해 주세요");
+      return;
+    }
+    if (decision === "revision_requested" && !rejectNote.trim()) {
+      setErrMsg("어떤 부분을 수정하면 좋을지 적어주세요");
       return;
     }
     // 계약 승인 — 서명 + 을 회사 정보 필수
@@ -228,7 +235,7 @@ function QuoteApprovalPageInner() {
       const { data, error } = await db.rpc("submit_quote_decision", {
         p_token: token,
         p_decision: decision,
-        p_note: decision === "rejected" ? rejectNote.trim() : undefined,
+        p_note: decision === "rejected" || decision === "revision_requested" ? rejectNote.trim() : undefined,
         p_signature_method: isContractApproval ? signatureMethod ?? undefined : undefined,
         p_signature_data_url: isContractApproval ? signatureDataUrl ?? undefined : undefined,
         p_signed_contract_url: undefined,  // PDF Storage 는 후속 라운드
@@ -251,6 +258,7 @@ function QuoteApprovalPageInner() {
           expired: "이 링크는 만료되었습니다. 발송자에게 재발송을 요청해 주세요.",
           already_decided: "이미 결정이 접수된 요청입니다.",
           invalid: "유효하지 않은 요청입니다. 발송자에게 문의해 주세요.",
+          note_required: "어떤 부분을 수정하면 좋을지 적어주세요.",
         };
         const msg = (res.code && codeMap[res.code]) || "결정 접수에 실패했습니다.";
         setErrMsg(msg);
@@ -376,12 +384,14 @@ function QuoteApprovalPageInner() {
     return (
       <Shell>
         <Notice
-          icon={decided.decision === "approved" ? "✅" : "❌"}
-          title={decided.decision === "approved" ? "승인이 접수되었습니다" : "거절이 접수되었습니다"}
+          icon={decided.decision === "approved" ? "✅" : decided.decision === "revision_requested" ? "🔁" : "❌"}
+          title={decided.decision === "approved" ? "승인이 접수되었습니다" : decided.decision === "revision_requested" ? "수정 요청을 보냈습니다" : "거절이 접수되었습니다"}
           message={
             decided.decision === "approved"
               ? "발송자에게 결과가 전달되었습니다. 다음 단계(계약)로 자동 진행됩니다."
-              : "발송자에게 사유와 함께 결과가 전달되었습니다."
+              : decided.decision === "revision_requested"
+                ? "발송자가 확인 후 수정된 버전을 다시 보내드립니다. 이 링크는 계속 열어볼 수 있습니다."
+                : "발송자에게 사유와 함께 결과가 전달되었습니다."
           }
         />
         <div className="text-center mt-4">
@@ -575,7 +585,15 @@ function QuoteApprovalPageInner() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowRejectInput(true)}
+                  onClick={() => setNoteMode("revise")}
+                  disabled={submitting}
+                  className="flex-1 py-3 rounded-lg bg-amber-50 text-amber-700 text-sm font-semibold hover:bg-amber-100 active:bg-amber-200 disabled:opacity-50 transition"
+                >
+                  수정 요청
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNoteMode("reject")}
                   disabled={submitting}
                   className="flex-1 py-3 rounded-lg bg-gray-100 text-gray-700 text-sm font-semibold hover:bg-gray-200 active:bg-gray-300 disabled:opacity-50 transition"
                 >
@@ -584,7 +602,7 @@ function QuoteApprovalPageInner() {
               </div>
             ) : (
               <div className="reject-note-form">
-                <Label>거절 사유 (필수)</Label>
+                <Label>{noteMode === "revise" ? "수정 요청 내용 (필수)" : "거절 사유 (필수)"}</Label>
                 <textarea
                   value={rejectNote}
                   onChange={(e) => setRejectNote(e.target.value)}
@@ -604,11 +622,11 @@ function QuoteApprovalPageInner() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => submit("rejected")}
+                    onClick={() => submit(noteMode === "revise" ? "revision_requested" : "rejected")}
                     disabled={submitting || !rejectNote.trim()}
-                    className="flex-1 py-2 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 disabled:opacity-50 transition"
+                    className={`flex-1 py-2 rounded-lg text-white text-xs font-bold disabled:opacity-50 transition ${noteMode === "revise" ? "bg-amber-600 hover:bg-amber-700" : "bg-red-600 hover:bg-red-700"}`}
                   >
-                    {submitting ? "처리 중…" : "거절 사유 보내기"}
+                    {submitting ? "처리 중…" : noteMode === "revise" ? "수정 요청 보내기" : "거절 사유 보내기"}
                   </button>
                 </div>
               </div>

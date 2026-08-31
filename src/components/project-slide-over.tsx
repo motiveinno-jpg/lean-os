@@ -1387,6 +1387,7 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
       if (a.viewed_at) ev.push({ key: `${a.id}-viewed`, icon: "👁", action: `${stageLabel} 거래처 열람`, target: a.recipient_name, at: a.viewed_at });
       if (a.status === "approved" && a.decided_at) ev.push({ key: `${a.id}-approved`, icon: "✅", action: `${stageLabel} 거래처 승인`, target: a.recipient_name, at: a.decided_at });
       if (a.status === "rejected" && a.decided_at) ev.push({ key: `${a.id}-rejected`, icon: "❌", action: `${stageLabel} 거래처 거절`, target: a.recipient_name, at: a.decided_at });
+      if (a.status === "revision_requested" && a.decided_at) ev.push({ key: `${a.id}-revision`, icon: "🔁", action: `${stageLabel} 거래처 수정 요청`, target: a.recipient_name, at: a.decided_at });
       if (a.our_signed_at) ev.push({ key: `${a.id}-our-signed`, icon: "✍️", action: `${stageLabel} 우리 서명 완료`, target: null, at: a.our_signed_at });
     });
     return ev.sort((x, y) => new Date(y.at).getTime() - new Date(x.at).getTime());

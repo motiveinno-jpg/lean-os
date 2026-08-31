@@ -152,6 +152,8 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
           queryClient.invalidateQueries({ queryKey: ["deals"] });
         } else if (row.status === "rejected") {
           toast(`거래처가 ${STAGE_LABEL[stage]}을(를) 거절했습니다 — 사유 확인`, "error");
+        } else if (row.status === "revision_requested") {
+          toast(`거래처가 ${STAGE_LABEL[stage]} 수정을 요청했습니다 — 내용 확인 후 다시 보내주세요`, "info");
         } else if (row.status === "viewed") {
           toast(`거래처가 ${STAGE_LABEL[stage]}을(를) 봤습니다`, "info");
         }
@@ -452,10 +454,11 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
         </div>
       </div>
 
-      {/* STEP 4: RejectedCard — 거절 사유 큼지막 */}
-      {approval?.status === "rejected" && approval.decision_note && (
+      {/* STEP 4: RejectedCard — 거절/수정 요청 사유 큼지막 (수정 요청은 핑퐁 왕복의 부드러운 변형) */}
+      {(approval?.status === "rejected" || approval?.status === "revision_requested") && approval.decision_note && (
         <RejectedCard
           note={approval.decision_note}
+          revision={approval.status === "revision_requested"}
           onEdit={() => setMode("edit")}
         />
       )}
@@ -490,7 +493,7 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
 
       {/* STEP 4: rejected 상태에서 사용자가 수정 안 하고 재발송만 원할 때 (수정 후 자동 preview 복귀하면 SendBar 가 안 보임 — approval.status='rejected' 라서)
           → 별도 ResendBar 노출: rejected + preview 모드 */}
-      {!readonly && mode === "preview" && approval?.status === "rejected" && (
+      {!readonly && mode === "preview" && (approval?.status === "rejected" || approval?.status === "revision_requested") && (
         <ResendBar
           email={recipientEmailInput}
           onEmailChange={setRecipientEmailInput}
@@ -663,13 +666,13 @@ function StatusBadge({ approval }: { approval: ApprovalLite }) {
       ? "bg-red-500/15 text-red-400 border-red-500/30"
       : status === "viewed"
       ? "bg-blue-500/15 text-blue-400 border-blue-500/30"
-      : status === "expired"
+      : status === "expired" || status === "revision_requested"
       ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
       : status === "sent"
       ? "bg-indigo-500/15 text-indigo-400 border-indigo-500/30"
       : "bg-gray-500/15 text-gray-400 border-gray-500/30";
   const icon =
-    status === "approved" ? "✅" : status === "rejected" ? "❌" : status === "viewed" ? "👁" : status === "expired" ? "⏰" : status === "sent" ? "📤" : "📝";
+    status === "approved" ? "✅" : status === "rejected" ? "❌" : status === "revision_requested" ? "🔁" : status === "viewed" ? "👁" : status === "expired" ? "⏰" : status === "sent" ? "📤" : "📝";
   return (
     <span className={`status-badge ${tone}`}>
       <span>{icon}</span>
@@ -678,11 +681,13 @@ function StatusBadge({ approval }: { approval: ApprovalLite }) {
   );
 }
 
-function RejectedCard({ note, onEdit }: { note: string; onEdit: () => void }) {
+function RejectedCard({ note, revision, onEdit }: { note: string; revision?: boolean; onEdit: () => void }) {
   return (
     <div className="rejected-card">
       <div className="rejected-card-header">
-        <span className="text-[11px] font-bold text-red-400"><Ico e="❌" /> 거래처가 거절했습니다</span>
+        {revision
+          ? <span className="text-[11px] font-bold text-amber-400"><Ico e="🔁" /> 거래처가 수정을 요청했습니다 — 반영 후 다시 보내면 왕복 이력이 남습니다</span>
+          : <span className="text-[11px] font-bold text-red-400"><Ico e="❌" /> 거래처가 거절했습니다</span>}
         <button
           type="button"
           onClick={onEdit}

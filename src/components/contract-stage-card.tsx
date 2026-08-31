@@ -286,9 +286,11 @@ export function ContractStageCard({
         {approval && <StatusBadgeMini approval={approval} />}
       </div>
 
-      {approval?.status === "rejected" && approval.decision_note && (
+      {(approval?.status === "rejected" || approval?.status === "revision_requested") && approval.decision_note && (
         <div className="contract-rejection-notice">
-          <div className="text-[11px] font-bold text-red-400 mb-1"><Ico e="❌" /> 거래처가 계약서를 거절했습니다</div>
+          {approval.status === "revision_requested"
+            ? <div className="text-[11px] font-bold text-amber-400 mb-1"><Ico e="🔁" /> 거래처가 계약서 수정을 요청했습니다</div>
+            : <div className="text-[11px] font-bold text-red-400 mb-1"><Ico e="❌" /> 거래처가 계약서를 거절했습니다</div>}
           <div className="text-[11px] text-[var(--text)] whitespace-pre-wrap break-words leading-relaxed">{approval.decision_note}</div>
         </div>
       )}
@@ -504,10 +506,10 @@ export function ContractStageCard({
         </div>
       )}
 
-      {/* 재발송 (거절 상태) */}
-      {!readonly && approval?.status === "rejected" && (
+      {/* 재발송 (거절·수정 요청 상태 — 핑퐁 왕복) */}
+      {!readonly && (approval?.status === "rejected" || approval?.status === "revision_requested") && (
         <div className="contract-resend-section">
-          <div className="text-[10px] text-amber-400 font-medium mb-1.5">거절된 계약서 — 양식·변수 수정 후 재발송</div>
+          <div className="text-[10px] text-amber-400 font-medium mb-1.5">{approval?.status === "revision_requested" ? "수정 요청된 계약서 — 반영 후 재발송 (왕복 이력이 남습니다)" : "거절된 계약서 — 양식·변수 수정 후 재발송"}</div>
           <div className="flex flex-col sm:flex-row gap-1.5">
             <input
               type="email"
@@ -708,15 +710,15 @@ function SignedContractCard({ approval }: { approval: ApprovalLite }) {
 
 function StatusBadgeMini({ approval }: { approval: ApprovalLite }) {
   const s = approval.status;
-  const label = s === "sent" && approval.recipient_email ? `발송됨 (${approval.recipient_email})` : s;
+  const label = s === "sent" && approval.recipient_email ? `발송됨 (${approval.recipient_email})` : s === "revision_requested" ? "수정 요청" : s;
   const tone =
     s === "approved" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
     : s === "rejected" ? "bg-red-500/15 text-red-400 border-red-500/30"
     : s === "viewed" ? "bg-blue-500/15 text-blue-400 border-blue-500/30"
-    : s === "expired" ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+    : s === "expired" || s === "revision_requested" ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
     : s === "sent" ? "bg-indigo-500/15 text-indigo-400 border-indigo-500/30"
     : "bg-gray-500/15 text-gray-400 border-gray-500/30";
-  const icon = s === "approved" ? "✅" : s === "rejected" ? "❌" : s === "viewed" ? "👁" : s === "expired" ? "⏰" : s === "sent" ? "📤" : "📝";
+  const icon = s === "approved" ? "✅" : s === "rejected" ? "❌" : s === "revision_requested" ? "🔁" : s === "viewed" ? "👁" : s === "expired" ? "⏰" : s === "sent" ? "📤" : "📝";
   return (
     <span className={`status-badge-mini ${tone}`}>
       <span>{icon}</span>

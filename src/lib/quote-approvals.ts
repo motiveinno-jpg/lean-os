@@ -27,7 +27,8 @@ import type { Json } from '@/types/database';
 
 export type QuoteApprovalStage = 'estimate' | 'contract' | 'progress_report' | 'completion' | 'settlement';
 export type QuoteApprovalStatus = 'draft' | 'sent' | 'viewed' | 'approved' | 'rejected' | 'expired'
-  | 'pending_our_signature' | 'fully_signed';  // L 양방향: 계약서 단계 우리(갑) 서명 대기/완료
+  | 'pending_our_signature' | 'fully_signed'   // L 양방향: 계약서 단계 우리(갑) 서명 대기/완료
+  | 'revision_requested';                      // 핑퐁(기획 결정 6): 상대가 수정을 요청 — 확인 후 새 버전 재발송
 
 export interface ApprovalLite {
   id: string;
@@ -312,6 +313,7 @@ export const STATUS_LABEL: Record<QuoteApprovalStatus, string> = {
   viewed: '거래처가 봄',
   approved: '승인됨',
   rejected: '거절됨',
+  revision_requested: '수정 요청',
   expired: '만료',
   pending_our_signature: '우리 서명 대기',
   fully_signed: '최종 성립',
