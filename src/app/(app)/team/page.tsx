@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { logRead } from "@/lib/log-read";
+import { formatPhone } from "@/lib/phone";
 
 // 직원용 구성원 디렉토리 — 읽기 전용. 누가 어느 부서/직책에 있는지만 보여준다.
 //   2026-08-19 조회 화면 표준(인사 메뉴 점검): 상자 + [검색조건(부서) · 빠른검색 · 보기 칩(리스트/카드) ‖ 인원] + 표(정렬) + 쪽. 카드는 보기 옵션.
@@ -171,7 +172,7 @@ export default function TeamPage() {
                         <td className="text-center">{e.department || <span className="text-[var(--text-dim)]">미배정</span>}</td>
                         <td className="text-center">{e.position || "—"}</td>
                         <td className="text-left">{e.email ? <a href={`mailto:${e.email}`} className="bz-link font-normal">{e.email}</a> : "—"}</td>
-                        <td className="text-center mono-number">{e.phone || "—"}</td>
+                        <td className="text-center mono-number">{formatPhone(e.phone) || "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -244,7 +245,7 @@ export default function TeamPage() {
                             <div className="text-sm font-bold truncate">{e.name || "—"}</div>
                             <div className="text-xs text-[var(--text-muted)] truncate">{e.position || "직책 미지정"}</div>
                             {e.email && <div className="text-[11px] text-[var(--text-dim)] truncate mt-1"><Ico e="✉" /> {e.email}</div>}
-                            {e.phone && <div className="text-[11px] text-[var(--text-dim)] truncate"><Ico e="📞" /> {e.phone}</div>}
+                            {e.phone && <div className="text-[11px] text-[var(--text-dim)] truncate"><Ico e="📞" /> {formatPhone(e.phone)}</div>}
                           </div>
                         </div>
                       ))}
