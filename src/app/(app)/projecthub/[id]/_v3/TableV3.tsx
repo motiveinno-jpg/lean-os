@@ -21,7 +21,8 @@ import { useToast } from "@/components/toast";
 import { logRead } from "@/lib/log-read";
 import { friendlyError } from "@/lib/friendly-error";
 import { getCompanyUsers } from "@/lib/queries";
-import { stagesOf, FIELD_TYPES, STARTERS, type ItemStage, type FieldType, type Starter } from "@/lib/project-items";
+import { stagesOf, FIELD_TYPES, type ItemStage, type FieldType } from "@/lib/project-items";
+import { TEMPLATES, type Tpl } from "./templates";
 import type { ItemRow } from "./HubV3";
 
 const db = supabase as any;
@@ -171,39 +172,70 @@ export function TableV3() {
     await saveItem(id, { status: stageId });
   };
 
-  // ── 템플릿 팝업 — monday 템플릿 센터 벤치마킹(2026-08-31 사장님: 생성 때 고르지 않고
-  //   버튼→팝업에서 예시를 보고 고른다). 왼쪽 목록 · 오른쪽 미리보기(단계·시작 항목 실물) · 적용 하나 ──
+  // ── 템플릿 팝업 — monday 템플릿 센터 벤치마킹(2026-08-31 사장님: 생성 때 고르지 않고 버튼→팝업).
+  //   템플릿은 **가로형**(사장님: "한 태스크당 업무처리를 하려면 가로로 보는 게 편함") —
+  //   항목을 세로로 시드하지 않고 **컬럼 정의**를 시드한다. 그룹은 안 건드린다(_v3/templates.ts) ──
   const [tplOpen, setTplOpen] = useState(false);
-  const [tplSel, setTplSel] = useState<Starter | null>(null);
+  const [tplSel, setTplSel] = useState<Tpl | null>(null);
   const [tplSaving, setTplSaving] = useState(false);
-  const applyTemplate = async (st: Starter) => {
+  const applyTemplate = async (tpl: Tpl) => {
     if (tplSaving) return;
     setTplSaving(true);
     try {
-      //   단계는 표가 비어 있을 때만 바꾼다 — 이미 쓰던 표의 그룹을 템플릿이 덮으면 파괴다
-      if (items.length === 0 && st.stages) {
-        const { error } = await db.from("deals").update({ item_stages: st.stages }).eq("id", dealId);
+      //   같은 이름의 열이 이미 있으면 건너뛴다(deal_id+key unique) — 두 번 눌러도 안 겹치게
+      const existing = new Set(cols.map((c) => c.key));
+      const newCols = tpl.cols.filter((c) => !existing.has(c.name));
+      if (newCols.length > 0) {
+        const base = cols.length > 0 ? Math.max(...cols.map((c) => c.position ?? 0)) + 1 : 0;
+        const { error } = await db.from("project_item_columns").insert(newCols.map((c, i) => ({
+          company_id: companyId, deal_id: dealId, key: c.name, name: c.name, type: c.type,
+          settings: c.options ? { options: c.options } : {}, position: base + i,
+        })));
         if (error) throw new Error(error.message);
       }
-      if (st.seeds.length > 0) {
-        const base = items.length > 0 ? Math.max(...items.map((x) => x.position ?? 0)) + 1 : 0;
-        const rows = st.seeds.map((s, i) => ({
-          company_id: companyId, deal_id: dealId, kind: s.kind, money_kind: s.moneyKind ?? null,
-          name: s.name, status: "todo", tags: s.tags ?? [], priority: s.priority ?? null,
-          is_milestone: !!s.isMilestone, position: base + i, created_by: user?.id ?? null,
-        }));
-        const { error } = await db.from("project_items").insert(rows);
+      //   예시 줄은 빈 표에만 — 쓰던 표에 예시가 끼면 방해다
+      if (items.length === 0 && stages[0]) {
+        const { error } = await db.from("project_items").insert({
+          company_id: companyId, deal_id: dealId, kind: "todo",
+          name: tpl.example, status: stages[0].id, position: 0, created_by: user?.id ?? null,
+        });
         if (error) throw new Error(error.message);
       }
-      toast(`'${st.name}' 템플릿을 적용했습니다 — 시작 항목 ${st.seeds.length}개를 채웠습니다`, "success");
+      toast(newCols.length > 0
+        ? `'${tpl.name}' 양식을 적용했습니다 — 열 ${newCols.length}개가 오른쪽에 붙었습니다`
+        : `'${tpl.name}' 양식의 열이 이미 다 있습니다`, "success");
       setTplOpen(false); setTplSel(null);
+      qc.invalidateQueries({ queryKey: ["pjv3-cols", dealId] });
       qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
-      qc.invalidateQueries({ queryKey: ["pjv3-deal", dealId] });
     } catch (e: any) {
       toast(`적용 실패: ${e.message || e}`, "error");
     } finally {
       setTplSaving(false);
     }
+  };
+
+  // ── 그룹(단계) — 처음엔 한 그룹, 이름은 눌러서 바꾸고 ＋ 새 그룹으로 늘린다(2026-08-31 사장님) ──
+  const [stageEdit, setStageEdit] = useState<string | null>(null);
+  const stageEditRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => { stageEditRef.current?.focus(); stageEditRef.current?.select(); }, [stageEdit]);
+  const saveStages = async (next: ItemStage[]) => {
+    const { error } = await db.from("deals").update({ item_stages: next }).eq("id", dealId);
+    if (error) { toast(friendlyError(error), "error"); return false; }
+    qc.invalidateQueries({ queryKey: ["pjv3-deal", dealId] });
+    return true;
+  };
+  const renameStage = async (id: string, label: string) => {
+    setStageEdit(null);
+    const v = label.trim();
+    const cur = stages.find((s) => s.id === id);
+    if (!v || !cur || cur.label === v) return;
+    await saveStages(stages.map((s) => (s.id === id ? { ...s, label: v } : s)));
+  };
+  const STAGE_COLORS: ItemStage["color"][] = ["indigo", "orange", "green", "red", "gray"];
+  const addStage = async () => {
+    const id = `g_${Date.now().toString(36)}`;
+    const ok = await saveStages([...stages, { id, label: "새 그룹", color: STAGE_COLORS[stages.length % STAGE_COLORS.length] }]);
+    if (ok) setStageEdit(id);
   };
 
   // ── 팝(팔레트·담당·선택지·컬럼 추가) — 화면에 하나만 ──
@@ -292,6 +324,11 @@ export function TableV3() {
         const val = raw == null ? "" : String(raw);
         if (c.type === "select") {
           const opt = (c.settings?.options || []).find((o) => o.id === val || o.label === val);
+          //   옵션에 색이 있으면 상태 셀처럼 색으로 채운다 — 가로 흐름이 색으로 읽힌다(monday 문법)
+          if (opt?.color) {
+            return <td key={c.id}><button type="button" className="pjv3-stcell" style={{ background: opt.color }}
+              onClick={(e) => setPop({ kind: "select", itemId: it.id, colKey: c.key, ...at(e) })}>{opt.label}</button></td>;
+          }
           return <td key={c.id}><button type="button" className="pjv3-cell" onClick={(e) => setPop({ kind: "select", itemId: it.id, colKey: c.key, ...at(e) })}>
             {opt?.label || val || <span className="text-[var(--text-dim)]">—</span>}</button></td>;
         }
@@ -318,7 +355,7 @@ export function TableV3() {
         {period && <span className="pjv3-head-sub mono-number">{period}</span>}
         <span className="pjv3-head-sub">표가 곧 입력입니다 — 다른 보기는 ＋ 보기로 켭니다</span>
         <button type="button" className="btn-secondary btn-sm ml-auto" title="업무에 맞는 시작 양식을 예시로 보고 채웁니다"
-          onClick={() => { setTplSel(STARTERS.find((s) => s.key !== "blank") ?? null); setTplOpen(true); }}>템플릿</button>
+          onClick={() => { setTplSel(TEMPLATES[0] ?? null); setTplOpen(true); }}>템플릿</button>
       </div>
 
       {/* 보기 줄 — 표가 기본, 칸반은 '표를 보는 형태'(결정 130). 간트·캘린더·현황은 다음 단계 */}
@@ -414,7 +451,17 @@ export function TableV3() {
                 <tr key={`g-${s.id}`}>
                   <td colSpan={totalCols} className="pjv3-grow"
                     style={{ borderLeftColor: STAGE_HEX[s.color], background: `color-mix(in srgb, ${STAGE_HEX[s.color]} 7%, var(--bg-card))` }}>
-                    {s.label}<em className="num">{group.length}</em>
+                    {stageEdit === s.id ? (
+                      <input ref={stageEditRef} className="pjv3-grow-edit" defaultValue={s.label}
+                        onBlur={(e) => renameStage(s.id, e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur();
+                          if (e.key === "Escape") setStageEdit(null);
+                        }} />
+                    ) : (
+                      <span className="pjv3-grow-label" title="눌러서 그룹 이름 바꾸기" onClick={() => setStageEdit(s.id)}>{s.label}</span>
+                    )}
+                    <em className="num">{group.length}</em>
                   </td>
                 </tr>,
                 ...group.map(renderRow),
@@ -431,6 +478,11 @@ export function TableV3() {
                 </tr>,
               ];
             })}
+            <tr key="addgroup" className="pjv3-addgroup">
+              <td colSpan={totalCols}>
+                <button type="button" onClick={addStage}>＋ 새 그룹</button>
+              </td>
+            </tr>
             {byStage.etc.length > 0 && [
               <tr key="g-etc"><td colSpan={totalCols} className="pjv3-grow" style={{ borderLeftColor: STAGE_HEX.gray }}>
                 단계 밖<em className="num">{byStage.etc.length}</em></td></tr>,
@@ -462,17 +514,17 @@ export function TableV3() {
       {tplOpen && (
         <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setTplOpen(false); }}>
           <div className="phv3-modal pjv3-tpl-modal" role="dialog" aria-modal="true" aria-label="템플릿">
-            <h3 className="phv3-modal-title">템플릿 — 업무에 맞는 시작 양식</h3>
+            <h3 className="phv3-modal-title">템플릿 — 업무에 맞는 가로 양식</h3>
             <p className="phv3-modal-desc">
-              적용하면 <b>시작 항목이 지금 표에 채워집니다</b> — 구조는 그대로라 자유롭게 고치고 지워도 됩니다.
-              {items.length > 0 && " 표에 이미 항목이 있어 단계(그룹)는 바꾸지 않고 항목만 추가합니다."}
+              적용하면 <b>처리 단계가 열(가로)로 붙습니다</b> — 한 줄이 한 건이라, 줄만 훑으면 어디까지 갔는지 보입니다.
+              열은 나중에 자유롭게 고치고 지워도 됩니다.
             </p>
             <div className="pjv3-tpl-layout">
               <div className="pjv3-tpl-list">
-                {STARTERS.filter((s) => s.key !== "blank").map((s) => (
+                {TEMPLATES.map((s) => (
                   <button key={s.key} type="button" className={`pjv3-tpl-item ${tplSel?.key === s.key ? "on" : ""}`}
                     onClick={() => setTplSel(s)}>
-                    <b>{s.icon} {s.name}</b><span>{s.desc}</span>
+                    <b>{s.icon} {s.name}</b><span>{s.desc.split(".")[0]}</span>
                   </button>
                 ))}
                 <div className="pjv3-tpl-mine">우리 회사 양식 — 자주 쓰는 표를 양식으로 저장하는 기능은 다음 단계에서 붙습니다</div>
@@ -481,25 +533,24 @@ export function TableV3() {
                 <div className="pjv3-tpl-preview">
                   <b>{tplSel.icon} {tplSel.name}</b>
                   <p>{tplSel.desc}</p>
-                  {/* 시작 항목은 전부 첫 단계에 들어간다 — 미리보기도 실물과 같은 순서(첫 띠 아래 항목, 뒤 띠는 빈 그룹) */}
-                  <div className="pjv3-tpl-sheet">
-                    {stagesOf(tplSel.stages).map((s, si) => (
-                      <div key={s.id}>
-                        <div className="pjv3-tpl-grow"
-                          style={{ borderLeftColor: STAGE_HEX[s.color], background: `color-mix(in srgb, ${STAGE_HEX[s.color]} 7%, var(--bg-card))` }}>
-                          {s.label}
-                        </div>
-                        {si === 0 && tplSel.seeds.map((sd, i) => (
-                          <div key={i} className="pjv3-tpl-seed">
-                            {sd.kind !== "todo" && (
-                              <span className={`pjv3-kind ${KIND_CHIP[sd.kind]?.cls || ""}`}>{KIND_CHIP[sd.kind]?.label}</span>
-                            )}
-                            {sd.name}
-                            {sd.isMilestone && <em>마일스톤</em>}
-                          </div>
+                  {/* 실물 미리보기 — 붙을 열 그대로, 예시 한 줄(색 옵션은 첫 값으로) */}
+                  <div className="pjv3-tpl-minisheet">
+                    <table>
+                      <thead><tr>
+                        <th className="!text-left">이름</th>
+                        {tplSel.cols.map((c) => <th key={c.name}>{c.name}</th>)}
+                      </tr></thead>
+                      <tbody><tr>
+                        <td className="!text-left">{tplSel.example}</td>
+                        {tplSel.cols.map((c) => (
+                          <td key={c.name}>
+                            {c.options?.[0]?.color
+                              ? <span className="pjv3-tpl-badge" style={{ background: c.options[0].color }}>{c.options[0].label}</span>
+                              : <span className="text-[var(--text-dim)]">{FIELD_TYPES.find((t) => t.id === c.type)?.label || "—"}</span>}
+                          </td>
                         ))}
-                      </div>
-                    ))}
+                      </tr></tbody>
+                    </table>
                   </div>
                   <div className="phv3-modal-actions">
                     <button type="button" className="btn-secondary btn-sm" onClick={() => setTplOpen(false)}>닫기</button>

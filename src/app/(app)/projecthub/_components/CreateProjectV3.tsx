@@ -26,9 +26,11 @@ export function CreateProjectV3({ companyId, onClose }: {
     if (!nm) { toast("프로젝트 이름을 입력해 주세요"); return; }
     setSaving(true);
     try {
-      //   item_stages null = 기본 3단계(대기·진행 중·완료) 워크플로우 표
+      //   그룹 하나로 시작 (2026-08-31 사장님: "처음에 한 섹션만, 이름 자유자재로 변경,
+      //   더 필요하면 하단 ＋새 그룹") — monday 새 보드와 같은 흐름. 3단계 기본은 폐기.
       const { data: deal, error } = await db.from("deals").insert({
-        company_id: companyId, name: nm, stage: "estimate", item_stages: null,
+        company_id: companyId, name: nm, stage: "estimate",
+        item_stages: [{ id: `g_${Date.now().toString(36)}`, label: "새 그룹", color: "indigo" }],
       }).select("id").single();
       if (error) throw new Error(error.message);
       toast(`'${nm}' 프로젝트를 만들었습니다 — 표에 바로 적으면 됩니다`);
@@ -46,7 +48,7 @@ export function CreateProjectV3({ companyId, onClose }: {
       <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="새 프로젝트">
         <h3 className="phv3-modal-title">새 프로젝트</h3>
         <p className="phv3-modal-desc">
-          이름만 적으면 <b>기본 워크플로우 표</b>로 시작합니다 — 쓰고 싶은 대로 쓰면 됩니다.
+          <b>그룹 하나짜리 표</b>로 시작합니다 — 그룹 이름은 눌러서 바꾸고, 아래 <b>＋ 새 그룹</b>으로 늘립니다.
           업무에 맞는 시작 양식이 필요하면 만든 뒤 표 위 <b>템플릿</b> 버튼에서 고릅니다.
         </p>
         <input

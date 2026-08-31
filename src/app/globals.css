@@ -9518,7 +9518,17 @@ table.phv3-table { min-width: 640px; }
 .pjv3-tpl-mine { @apply mt-1 rounded-xl border border-dashed border-[var(--border)] px-3 py-2 text-[11px] text-[var(--text-dim)]; }
 .pjv3-tpl-preview > b { @apply text-[13px]; }
 .pjv3-tpl-preview > p { @apply mb-2 mt-0.5 text-[11.5px] text-[var(--text-dim)]; }
-.pjv3-tpl-sheet { @apply overflow-hidden rounded-xl border border-[var(--border)]; }
-.pjv3-tpl-grow { @apply border-l-4 px-3 py-1.5 text-xs font-bold; }
-.pjv3-tpl-seed { @apply flex items-center gap-1.5 border-t border-[var(--border)] bg-[var(--bg-card)] px-3 py-1.5 text-xs; }
-.pjv3-tpl-seed em { @apply ml-auto text-[10px] not-italic text-[var(--text-dim)]; }
+/* 가로형 미리보기 — 붙을 열 그대로 한 줄 예시(사장님: 업무는 가로로) */
+.pjv3-tpl-minisheet { @apply overflow-x-auto rounded-xl border border-[var(--border)]; }
+.pjv3-tpl-minisheet table { @apply w-full border-collapse; }
+.pjv3-tpl-minisheet th { @apply whitespace-nowrap border-b border-r border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 text-center text-[10.5px] font-semibold text-[var(--text-dim)]; }
+.pjv3-tpl-minisheet td { @apply whitespace-nowrap border-r border-[var(--border)] bg-[var(--bg-card)] px-2 py-1.5 text-center text-[11px]; }
+.pjv3-tpl-minisheet th:last-child, .pjv3-tpl-minisheet td:last-child { @apply border-r-0; }
+.pjv3-tpl-badge { @apply inline-block rounded px-2 py-0.5 text-[10.5px] font-semibold text-white; }
+/* 그룹 이름 인라인 수정 + ＋ 새 그룹 (2026-08-31 사장님: 한 섹션 시작·이름 자유 변경·하단 새 그룹) */
+.pjv3-grow-label { @apply -mx-1 cursor-pointer rounded px-1; }
+.pjv3-grow-label:hover { @apply bg-[var(--bg)]/70; }
+.pjv3-grow-edit { @apply rounded border border-[var(--primary)] bg-[var(--bg-card)] px-1.5 py-0.5 text-xs font-bold text-[var(--text)] outline-none; font: inherit; }
+.pjv3-sheet .pjv3-addgroup td { @apply border-r-0 px-3 py-1.5 text-left; }
+.pjv3-addgroup button { @apply rounded-lg border border-dashed border-[var(--border)] px-2.5 py-1 text-xs text-[var(--text-dim)]; font: inherit; background: none; cursor: pointer; }
+.pjv3-addgroup button:hover { @apply border-[var(--primary)] text-[var(--primary)]; }
