@@ -22,7 +22,7 @@ import { logRead } from "@/lib/log-read";
 import { friendlyError } from "@/lib/friendly-error";
 import { getCompanyUsers } from "@/lib/queries";
 import { stagesOf, FIELD_TYPES, type ItemStage, type FieldType } from "@/lib/project-items";
-import { TEMPLATES, type Tpl } from "./templates";
+import { TEMPLATES, TPL_CATEGORIES, type Tpl } from "./templates";
 import type { ItemRow } from "./HubV3";
 
 const db = supabase as any;
@@ -176,8 +176,10 @@ export function TableV3() {
   //   템플릿은 **가로형**(사장님: "한 태스크당 업무처리를 하려면 가로로 보는 게 편함") —
   //   항목을 세로로 시드하지 않고 **컬럼 정의**를 시드한다. 그룹은 안 건드린다(_v3/templates.ts) ──
   const [tplOpen, setTplOpen] = useState(false);
+  const [tplCat, setTplCat] = useState<string>(TPL_CATEGORIES[0]);
   const [tplSel, setTplSel] = useState<Tpl | null>(null);
   const [tplSaving, setTplSaving] = useState(false);
+  const pickCat = (cat: string) => { setTplCat(cat); setTplSel(TEMPLATES.find((t) => t.cat === cat) ?? null); };
   const applyTemplate = async (tpl: Tpl) => {
     if (tplSaving) return;
     setTplSaving(true);
@@ -355,7 +357,7 @@ export function TableV3() {
         {period && <span className="pjv3-head-sub mono-number">{period}</span>}
         <span className="pjv3-head-sub">표가 곧 입력입니다 — 다른 보기는 ＋ 보기로 켭니다</span>
         <button type="button" className="btn-secondary btn-sm ml-auto" title="업무에 맞는 시작 양식을 예시로 보고 채웁니다"
-          onClick={() => { setTplSel(TEMPLATES[0] ?? null); setTplOpen(true); }}>템플릿</button>
+          onClick={() => { pickCat(TPL_CATEGORIES[0]); setTplOpen(true); }}>템플릿</button>
       </div>
 
       {/* 보기 줄 — 표가 기본, 칸반은 '표를 보는 형태'(결정 130). 간트·캘린더·현황은 다음 단계 */}
@@ -520,14 +522,22 @@ export function TableV3() {
               열은 나중에 자유롭게 고치고 지워도 됩니다.
             </p>
             <div className="pjv3-tpl-layout">
+              {/* monday 템플릿 센터의 좌측 카테고리 — 실사한 일반 카테고리를 우리 업무 용어로 */}
+              <div className="pjv3-tpl-cats">
+                {TPL_CATEGORIES.map((c) => (
+                  <button key={c} type="button" className={`pjv3-tpl-cat ${tplCat === c ? "on" : ""}`} onClick={() => pickCat(c)}>
+                    {c}<em className="num">{TEMPLATES.filter((t) => t.cat === c).length}</em>
+                  </button>
+                ))}
+                <div className="pjv3-tpl-mine">우리 회사 양식 — 자주 쓰는 표를 양식으로 저장하는 기능은 다음 단계에서 붙습니다</div>
+              </div>
               <div className="pjv3-tpl-list">
-                {TEMPLATES.map((s) => (
+                {TEMPLATES.filter((t) => t.cat === tplCat).map((s) => (
                   <button key={s.key} type="button" className={`pjv3-tpl-item ${tplSel?.key === s.key ? "on" : ""}`}
                     onClick={() => setTplSel(s)}>
                     <b>{s.icon} {s.name}</b><span>{s.desc.split(".")[0]}</span>
                   </button>
                 ))}
-                <div className="pjv3-tpl-mine">우리 회사 양식 — 자주 쓰는 표를 양식으로 저장하는 기능은 다음 단계에서 붙습니다</div>
               </div>
               {tplSel && (
                 <div className="pjv3-tpl-preview">

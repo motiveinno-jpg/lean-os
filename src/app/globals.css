@@ -9507,9 +9507,14 @@ table.phv3-table { min-width: 640px; }
 .pjv3-kbwrap { @apply min-h-0 flex-1 overflow-y-auto p-3; }
 
 /* pjv3 — 템플릿 팝업 (monday 템플릿 센터 축약: 왼쪽 목록 · 오른쪽 실물 미리보기 · 적용 하나) */
-.pjv3-tpl-modal { @apply !max-w-2xl; }
-.pjv3-tpl-layout { @apply mt-3 grid gap-3; grid-template-columns: 220px 1fr; }
-.pjv3-tpl-list { @apply flex min-h-0 flex-col gap-1.5 overflow-y-auto; max-height: 52vh; }
+.pjv3-tpl-modal { @apply !max-w-4xl; }
+.pjv3-tpl-layout { @apply mt-3 grid gap-3; grid-template-columns: 150px 210px 1fr; }
+.pjv3-tpl-cats { @apply flex min-h-0 flex-col gap-0.5 overflow-y-auto; max-height: 56vh; }
+.pjv3-tpl-cat { @apply flex cursor-pointer items-center rounded-lg px-2.5 py-1.5 text-left text-xs text-[var(--text)]; font: inherit; background: none; border: none; }
+.pjv3-tpl-cat:hover { @apply bg-[var(--bg)]; }
+.pjv3-tpl-cat.on { @apply bg-[var(--primary)]/10 font-semibold text-[var(--primary)]; }
+.pjv3-tpl-cat em { @apply ml-auto text-[10px] not-italic text-[var(--text-dim)]; }
+.pjv3-tpl-list { @apply flex min-h-0 flex-col gap-1.5 overflow-y-auto; max-height: 56vh; }
 .pjv3-tpl-item { @apply cursor-pointer rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2 text-left; font: inherit; color: var(--text); }
 .pjv3-tpl-item:hover { @apply border-[var(--primary)]; }
 .pjv3-tpl-item.on { @apply border-[var(--primary)] bg-[var(--primary)]/5; }
