@@ -1565,7 +1565,8 @@ export async function createLeaveRequest(params: {
 //   공가·병가·경조·출산 등 법정 별도 휴가는 연차와 무관한데, 종전엔 유형 무관 전부 차감됐다.
 //   annual 과 회사 커스텀 유형만 차감 유지(커스텀은 회사가 연차성으로 쓸 수 있어 기존 동작 보존).
 //   신청 시 잔여 부족 검증은 원래 annual 만 하고 있었다 — 차감·복구만 어긋나 있던 것.
-const NON_DEDUCT_LEAVE_TYPES = new Set<string>(
+//   export — 직원별 연차 표 등 '연차로 세는' 화면이 차감 규칙과 같은 기준을 쓰게 (2026-09-01)
+export const NON_DEDUCT_LEAVE_TYPES = new Set<string>(
   LEAVE_TYPES.filter((t) => t.value !== 'annual').map((t) => t.value));
 
 // 최종 승인 시 연차 used_days 1회 차감 (annual 등 잔여 추적 대상).

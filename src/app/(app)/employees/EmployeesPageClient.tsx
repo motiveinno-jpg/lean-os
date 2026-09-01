@@ -29,7 +29,7 @@ import {
   calculateAnnualLeave,
   cancelLeaveRequest, getCompanyMembers,
   getLeaveGrantMethod, setLeaveGrantMethod, type LeaveGrantMethod,
-  LEAVE_TYPES, LEAVE_UNITS, ATTENDANCE_STATUS, LEAVE_REQUEST_STATUS,
+  LEAVE_TYPES, LEAVE_UNITS, ATTENDANCE_STATUS, LEAVE_REQUEST_STATUS, NON_DEDUCT_LEAVE_TYPES,
   // Leave Promotion
   getLeavePromotionCandidates, sendLeavePromotionNotice, getLeavePromotionNotices,
 } from "@/lib/hr";
@@ -2666,6 +2666,9 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     }
     for (const req of (yearRequests as any[])) {
       if (req.status !== "approved" || !req.start_date) continue;
+      //   연차 표는 연차(차감 유형)만 센다 — 공가(예비군)·경조 등 법정 별도 휴가가 연차 일수로
+      //   합산되던 것 (2026-09-01 사장님: "예비군인데 계속 연차 2일이라고 나와"). 차감 규칙과 같은 기준.
+      if (NON_DEDUCT_LEAVE_TYPES.has(String(req.leave_type))) continue;
       const d = String(req.start_date);
       if (!d.startsWith(String(currentYear))) continue;
       const m = Number(d.slice(5, 7)) - 1;
@@ -3944,7 +3947,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                         <div className="text-xs font-semibold">
                           {r.start_date}{r.end_date && r.end_date !== r.start_date ? ` ~ ${r.end_date}` : ""} · {r.days}일
                         </div>
-                        <div className="caption">{leaveTypeLabel(r.leave_type)}</div>
+                        <div className="caption">{leaveTypeLabel(r.leave_type)}{NON_DEDUCT_LEAVE_TYPES.has(String(r.leave_type)) ? " · 연차 미차감" : ""}</div>
                       </div>
                       <span className="text-[11px] font-semibold text-[var(--success)]">
                         {r.approved_at ? `${kstDateStr(new Date(r.approved_at))} 승인` : "승인"}
