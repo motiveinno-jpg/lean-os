@@ -9596,6 +9596,12 @@ table.phv3-table { min-width: 640px; }
 .pjv3-check .pjv3-del { @apply opacity-100; }
 .pjv3-drawer-add { @apply mt-1 w-full rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg)] px-2.5 py-1.5 text-xs text-[var(--text)] outline-none placeholder:text-[var(--text-dim)]; }
 .pjv3-drawer-add:focus { @apply border-solid border-[var(--primary)]; }
+/* @멘션 — 댓글 입력에서 @를 치면 아래로 후보(2026-09-01), 기록 줄에선 @이름 진하게 */
+.pjv3-cmtwrap { @apply relative; }
+.pjv3-mention-pop { @apply absolute left-0 top-full z-30 mt-1 flex max-h-48 w-56 flex-col overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-1 shadow-2xl; }
+.pjv3-mention-pop button { @apply cursor-pointer rounded-lg px-2.5 py-1.5 text-left text-xs text-[var(--text)]; border: 0; background: none; font: inherit; }
+.pjv3-mention-pop button:hover { @apply bg-[var(--bg)]; }
+.pjv3-mention { @apply font-semibold text-[var(--primary)]; }
 .pjv3-followers { @apply flex flex-wrap items-center gap-1.5; }
 .pjv3-follower { @apply flex items-center gap-1 rounded-lg bg-[var(--bg)] px-2 py-1 text-[11px]; }
 .pjv3-follower i { @apply cursor-pointer not-italic text-[10px] text-[var(--text-dim)]; }

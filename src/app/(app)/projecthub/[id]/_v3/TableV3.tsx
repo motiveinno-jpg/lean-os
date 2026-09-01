@@ -1079,14 +1079,33 @@ export function TableV3() {
     if (error) { toast(friendlyError(error), "error"); return; }
     qc.invalidateQueries({ queryKey: ["pjv3-checks", drawerId] });
   };
+  //   @멘션(2026-09-01) — 댓글에서 @이름으로 부르면 팔로워·담당이 아니어도 알림이 간다.
+  //   이름→id 풀이는 여기(클라이언트)서 하고, 알림 합류는 comment_notify 트리거가 mentions 칸으로.
+  const [cmt, setCmt] = useState("");
+  useEffect(() => setCmt(""), [drawerId]);
+  const cmtMention = (() => { const m = cmt.match(/@([^\s@]*)$/); return m ? m[1] : null; })();
+  const mentionHits = cmtMention != null
+    ? users.filter((u) => u.name && u.name.toLowerCase().includes(cmtMention.toLowerCase())).slice(0, 6)
+    : [];
+  const pickMention = (name: string) => setCmt((v) => v.replace(/@[^\s@]*$/, `@${name} `));
   const addComment = async (body: string) => {
     if (!drawerId) return;
+    //   @이름 뒤에 글자가 이어지면(=다른 이름의 일부) 오탐이라 경계를 본다
+    const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const mentions = users
+      .filter((u) => u.name && new RegExp(`@${esc(u.name)}(?![\\w가-힣])`).test(body))
+      .map((u) => u.id);
     const { error } = await db.from("project_item_events").insert({
-      company_id: companyId, item_id: drawerId, kind: "comment", body, created_by: user?.id ?? null,
+      company_id: companyId, item_id: drawerId, kind: "comment", body, created_by: user?.id ?? null, mentions,
     });
     if (error) { toast(friendlyError(error), "error"); return; }
     qc.invalidateQueries({ queryKey: ["pjv3-events", drawerId] });
   };
+  //   기록 줄에서 @이름을 진하게 — 부른 사람이 한눈에 보이게
+  const renderCmtBody = (body: string) =>
+    body.split(/(@[^\s@]+)/g).map((tok, i) =>
+      tok.startsWith("@") && users.some((u) => u.name && tok.slice(1).startsWith(u.name))
+        ? <b key={i} className="pjv3-mention">{tok}</b> : tok);
   const toggleFollower = async (it: ItemRow, uid: string) => {
     const cur: string[] = (it as any).followers || [];
     const next = cur.includes(uid) ? cur.filter((x) => x !== uid) : [...cur, uid];
@@ -2050,16 +2069,30 @@ export function TableV3() {
               </div>
 
               <h4>기록 — 댓글과 변경이 시간순 한 줄기</h4>
-              <input className="pjv3-drawer-add" placeholder="댓글 적고 Enter"
-                onKeyDown={(e) => {
-                  const v = (e.target as HTMLInputElement).value;
-                  if (e.key === "Enter" && !e.nativeEvent.isComposing && v.trim()) { addComment(v.trim()); (e.target as HTMLInputElement).value = ""; }
-                }} />
+              <div className="pjv3-cmtwrap">
+                <input className="pjv3-drawer-add" placeholder="댓글 적고 Enter — @로 사람 부르기" value={cmt}
+                  onChange={(e) => setCmt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                      //   @ 입력 중이면 Enter 는 첫 후보를 고르는 키 — 반 쓴 이름이 그대로 나가는 사고 방지
+                      if (cmtMention != null && mentionHits.length > 0) { pickMention(mentionHits[0].name!); return; }
+                      if (cmt.trim()) { addComment(cmt.trim()); setCmt(""); }
+                    }
+                  }} />
+                {cmtMention != null && mentionHits.length > 0 && (
+                  <div className="pjv3-mention-pop">
+                    {mentionHits.map((u) => (
+                      <button key={u.id} type="button"
+                        onMouseDown={(e) => { e.preventDefault(); pickMention(u.name!); }}>{u.name}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div className="pjv3-events">
                 {events.map((ev) => (
                   <div key={ev.id} className={`pjv3-event ${ev.kind}`}>
                     {ev.kind === "comment"
-                      ? <><b>{userName(ev.created_by) || "누군가"}</b> {ev.body}</>
+                      ? <><b>{userName(ev.created_by) || "누군가"}</b> {renderCmtBody(ev.body)}</>
                       : ev.body}
                     <time className="mono-number">{ev.created_at.slice(5, 16).replace("T", " ")}</time>
                   </div>
