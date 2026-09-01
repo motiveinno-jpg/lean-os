@@ -72,7 +72,7 @@ export function TableV3() {
     queryKey: ["pjv3-deal", dealId],
     enabled: !!dealId,
     queryFn: async () => logRead("pjv3:deal", await db.from("deals")
-      .select("id, name, company_id, stage, start_date, end_date, item_stages, v3_views")
+      .select("id, name, company_id, stage, start_date, end_date, item_stages, v3_views, v3_builtin")
       .eq("id", dealId).maybeSingle()),
   });
   const { data: items = [], isLoading: itemsLoading } = useQuery({
@@ -452,19 +452,57 @@ export function TableV3() {
   };
   const colDragRef = useRef<string | null>(null);
   const [colDropAt, setColDropAt] = useState<string | null>(null);
-  const moveColumn = async (targetId: string | null) => {
-    const id = colDragRef.current; colDragRef.current = null; setColDropAt(null);
-    if (!id || id === targetId) return;
-    const dragged = cols.find((c) => c.id === id);
+
+  // ── 내장 열(담당·상태·마감·금액)도 커스텀과 똑같이 — 숨기기·이름·이동을 deals.v3_builtin 에 저장
+  //   (2026-09-01 사장님: "템플릿 기본값도 삭제·수정·열 이동 되게, 다른 항목들도 다"). '이름' 열만
+  //   항목의 정체라 고정. 숨긴 열은 오른쪽 ＋에서 되살린다 ──
+  type BuiltinId = "assignee" | "status" | "due" | "amount";
+  type BuiltinCfg = { hidden?: string[]; labels?: Record<string, string>; order?: string[] };
+  const BUILTIN_DEFS: { id: BuiltinId; label: string; minW: number; title?: string }[] = [
+    { id: "assignee", label: "담당", minW: 84 },
+    { id: "status", label: "상태", minW: 92 },
+    { id: "due", label: "마감", minW: 106 },
+    { id: "amount", label: "금액", minW: 96, title: "예정 금액 — 확정 금액은 장부(전표·계산서)가 갖습니다" },
+  ];
+  const builtinCfg: BuiltinCfg = (deal?.v3_builtin as BuiltinCfg) || {};
+  type AnyCol = { key: string; label: string; builtin?: BuiltinId; col?: ColumnDef; minW: number; title?: string };
+  const allCols: AnyCol[] = useMemo(() => {
+    const hidden = new Set(builtinCfg.hidden || []);
+    const labels = builtinCfg.labels || {};
+    const base: AnyCol[] = [
+      ...BUILTIN_DEFS.filter((b) => !hidden.has(b.id)).map((b) => ({ key: b.id, label: labels[b.id] || b.label, builtin: b.id, minW: b.minW, title: b.title })),
+      ...cols.map((c) => ({ key: c.key, label: c.name, col: c, minW: 96 })),
+    ];
+    const order = builtinCfg.order;
+    if (!order?.length) return base;
+    const idx = (k: string) => { const i = order.indexOf(k); return i < 0 ? order.length + base.findIndex((x) => x.key === k) : i; };
+    return [...base].sort((a, b) => idx(a.key) - idx(b.key));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cols, deal?.v3_builtin]);
+  const saveBuiltin = async (patch: Partial<BuiltinCfg>) => {
+    const { error } = await db.from("deals").update({ v3_builtin: { ...builtinCfg, ...patch } }).eq("id", dealId);
+    if (error) { toast(friendlyError(error), "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pjv3-deal", dealId] });
+  };
+  const hideBuiltin = async (id: BuiltinId) => {
+    await saveBuiltin({ hidden: [...(builtinCfg.hidden || []), id] });
+    toast("열을 숨겼습니다 — 오른쪽 ＋에서 되살릴 수 있습니다", "success");
+  };
+  const renameBuiltin = async (id: BuiltinId, label: string) => {
+    setColEdit(null);
+    const v = label.trim();
+    if (!v) return;
+    await saveBuiltin({ labels: { ...(builtinCfg.labels || {}), [id]: v } });
+  };
+  const moveAnyCol = async (targetKey: string | null) => {
+    const key = colDragRef.current; colDragRef.current = null; setColDropAt(null);
+    if (!key || key === targetKey) return;
+    const dragged = allCols.find((c) => c.key === key);
     if (!dragged) return;
-    const list = cols.filter((c) => c.id !== id);
-    const idx = targetId ? list.findIndex((c) => c.id === targetId) : -1;
+    const list = allCols.filter((c) => c.key !== key);
+    const idx = targetKey ? list.findIndex((c) => c.key === targetKey) : -1;
     list.splice(idx < 0 ? list.length : idx, 0, dragged);
-    const results = await Promise.all(list.map((c, i) =>
-      db.from("project_item_columns").update({ position: i }).eq("id", c.id)));
-    const failed = results.find((r: { error: unknown }) => r.error);
-    if (failed) { toast(friendlyError(failed.error), "error"); }
-    qc.invalidateQueries({ queryKey: ["pjv3-cols", dealId] });
+    await saveBuiltin({ order: list.map((c) => c.key) });
   };
 
   // ── 엑셀 — 재고 공용 부품(excel-io·ExcelUploadDialog) 재사용. 조회 줄엔 '엑셀 ▾' 하나(표준) ──
@@ -706,7 +744,7 @@ export function TableV3() {
 
   const stageOf = (id: string) => stages.find((s) => s.id === id);
   const period = [deal.start_date, deal.end_date].filter(Boolean).join(" ~ ");
-  const totalCols = 5 + cols.length + 1; // 이름·담당·상태·마감·금액 + 커스텀 + ＋
+  const totalCols = 1 + allCols.length + 1; // 이름 + (내장·커스텀 통합, 숨김 제외) + ＋
 
   const renderRow = (it: ItemRow) => (
     <tr key={it.id} className={rowDropAt === `before:${it.id}` ? "pjv3-dropbefore" : ""}
@@ -726,16 +764,26 @@ export function TableV3() {
             onClick={() => setDrawerId(it.id)}>열기</button>
         </span>
       </td>
-      <td><button type="button" className="pjv3-cell" onClick={(e) => setPop({ kind: "person", itemId: it.id, ...at(e) })}>
-        {userName(it.assignee_id) || <span className="text-[var(--text-dim)]">—</span>}</button></td>
-      <td><button type="button" className="pjv3-stcell" style={{ background: STAGE_HEX[stageOf(it.status)?.color || "gray"] }}
-        onClick={(e) => setPop({ kind: "status", itemId: it.id, ...at(e) })}>
-        {stageOf(it.status)?.label || it.status}</button></td>
-      <td className="pjv3-ecell mono-number"><EditCell it={it} colKey="due_date" value={it.due_date || ""} type="date" /></td>
-      <td className="pjv3-ecell mono-number">
-        <EditCell it={it} colKey="plan_amount" value={it.plan_amount == null ? "" : String(it.plan_amount)} type="number" />
-      </td>
-      {cols.map((c) => {
+      {allCols.map((ac) => {
+        //   내장 4열 — 통합 순서의 자리에서 그대로 렌더(숨기면 여기 안 온다)
+        if (ac.builtin === "assignee") {
+          return <td key={ac.key}><button type="button" className="pjv3-cell" onClick={(e) => setPop({ kind: "person", itemId: it.id, ...at(e) })}>
+            {userName(it.assignee_id) || <span className="text-[var(--text-dim)]">—</span>}</button></td>;
+        }
+        if (ac.builtin === "status") {
+          return <td key={ac.key}><button type="button" className="pjv3-stcell" style={{ background: STAGE_HEX[stageOf(it.status)?.color || "gray"] }}
+            onClick={(e) => setPop({ kind: "status", itemId: it.id, ...at(e) })}>
+            {stageOf(it.status)?.label || it.status}</button></td>;
+        }
+        if (ac.builtin === "due") {
+          return <td key={ac.key} className="pjv3-ecell mono-number"><EditCell it={it} colKey="due_date" value={it.due_date || ""} type="date" /></td>;
+        }
+        if (ac.builtin === "amount") {
+          return <td key={ac.key} className="pjv3-ecell mono-number">
+            <EditCell it={it} colKey="plan_amount" value={it.plan_amount == null ? "" : String(it.plan_amount)} type="number" />
+          </td>;
+        }
+        const c = ac.col!;
         const raw = (it.fields || {})[c.key];
         const val = raw == null ? "" : String(raw);
         if (c.type === "select") {
@@ -931,38 +979,34 @@ export function TableV3() {
         <table className="pjv3-sheet">
           <thead><tr>
             <th className="!text-left" style={{ minWidth: 220 }}>이름</th>
-            <th style={{ minWidth: 84 }}>담당</th>
-            <th style={{ minWidth: 92 }}>상태</th>
-            <th style={{ minWidth: 106 }}>마감</th>
-            <th style={{ minWidth: 96 }} title="예정 금액 — 확정 금액은 장부(전표·계산서)가 갖습니다">금액</th>
-            {cols.map((c) => (
-              <th key={c.id} style={{ minWidth: 96 }}
-                className={colDropAt === c.id ? "pjv3-coldrop" : ""}
-                title={`${c.name} (${FIELD_TYPES.find((t) => t.id === c.type)?.label || c.type}) — 눌러서 이름, 끌어서 순서`}
-                draggable={colEdit !== c.id}
-                onDragStart={(e) => { colDragRef.current = c.id; e.dataTransfer.setData("text/plain", c.id); }}
+            {allCols.map((ac) => (
+              <th key={ac.key} style={{ minWidth: ac.minW }}
+                className={colDropAt === ac.key ? "pjv3-coldrop" : ""}
+                title={ac.title || `${ac.label}${ac.col ? ` (${FIELD_TYPES.find((t) => t.id === ac.col!.type)?.label || ac.col!.type})` : ""} — 눌러서 이름, 끌어서 순서`}
+                draggable={colEdit !== ac.key}
+                onDragStart={(e) => { colDragRef.current = ac.key; e.dataTransfer.setData("text/plain", ac.key); }}
                 onDragEnd={() => { colDragRef.current = null; setColDropAt(null); }}
-                onDragOver={(e) => { if (colDragRef.current && colDragRef.current !== c.id) { e.preventDefault(); setColDropAt(c.id); } }}
-                onDragLeave={() => setColDropAt((cur) => (cur === c.id ? null : cur))}
-                onDrop={() => moveColumn(c.id)}>
-                {colEdit === c.id ? (
-                  <input ref={colEditRef} className="pjv3-coledit" defaultValue={c.name}
-                    onBlur={(e) => renameColumn(c, e.target.value)}
+                onDragOver={(e) => { if (colDragRef.current && colDragRef.current !== ac.key) { e.preventDefault(); setColDropAt(ac.key); } }}
+                onDragLeave={() => setColDropAt((cur) => (cur === ac.key ? null : cur))}
+                onDrop={() => moveAnyCol(ac.key)}>
+                {colEdit === ac.key ? (
+                  <input ref={colEditRef} className="pjv3-coledit" defaultValue={ac.label}
+                    onBlur={(e) => (ac.builtin ? renameBuiltin(ac.builtin, e.target.value) : renameColumn(ac.col!, e.target.value))}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur();
                       if (e.key === "Escape") setColEdit(null);
                     }} />
                 ) : (
-                  <span className="pjv3-colname" onClick={() => setColEdit(c.id)}>{c.name}</span>
+                  <span className="pjv3-colname" onClick={() => setColEdit(ac.key)}>{ac.label}</span>
                 )}
-                <button type="button" className={`pjv3-del ${delArm === `col:${c.id}` ? "arm" : ""}`}
-                  title="이 컬럼 지우기 — 칸에 적은 값은 남습니다"
-                  onClick={() => armOrRun(`col:${c.id}`, () => deleteColumn(c))}>
-                  {delArm === `col:${c.id}` ? "한 번 더" : "✕"}
+                <button type="button" className={`pjv3-del ${delArm === `col:${ac.key}` ? "arm" : ""}`}
+                  title={ac.builtin ? "이 열 숨기기 — 오른쪽 ＋에서 되살립니다" : "이 컬럼 지우기 — 칸에 적은 값은 남습니다"}
+                  onClick={() => armOrRun(`col:${ac.key}`, () => (ac.builtin ? hideBuiltin(ac.builtin!) : deleteColumn(ac.col!)))}>
+                  {delArm === `col:${ac.key}` ? "한 번 더" : "✕"}
                 </button>
               </th>
             ))}
-            <th className="pjv3-colplus" title="컬럼 추가 — 글·숫자·날짜·선택·사람·거래처"
+            <th className="pjv3-colplus" title="컬럼 추가 — 글·숫자·날짜·선택·사람·거래처 · 숨긴 열 되살리기"
               onClick={(e) => setPop({ kind: "addcol", ...at(e as unknown as React.MouseEvent) })}>＋</th>
           </tr></thead>
           <tbody>
@@ -1022,12 +1066,13 @@ export function TableV3() {
             ]}
             {(shown.length > 0 || numberCols.length > 0) && (
               <tr className="pjv3-sumrow">
-                <td className="!text-left num">{shown.length}건</td><td></td>
-                <td className="font-bold">{stages.map((s) => `${s.label} ${(byStage.m.get(s.id) || []).length}`).join(" · ")}</td>
-                <td></td>
-                <td className="mono-number font-bold">{shown.reduce((s, it) => s + (Number(it.plan_amount) || 0), 0).toLocaleString("ko-KR")}</td>
-                {cols.map((c) => <td key={c.id} className="mono-number font-bold">
-                  {c.type === "number" ? sumOf(c.key).toLocaleString("ko-KR") : ""}</td>)}
+                <td className="!text-left num">{shown.length}건</td>
+                {allCols.map((ac) => {
+                  if (ac.builtin === "status") return <td key={ac.key} className="font-bold">{stages.map((s) => `${s.label} ${(byStage.m.get(s.id) || []).length}`).join(" · ")}</td>;
+                  if (ac.builtin === "amount") return <td key={ac.key} className="mono-number font-bold">{shown.reduce((s, it) => s + (Number(it.plan_amount) || 0), 0).toLocaleString("ko-KR")}</td>;
+                  if (ac.col?.type === "number") return <td key={ac.key} className="mono-number font-bold">{sumOf(ac.col.key).toLocaleString("ko-KR")}</td>;
+                  return <td key={ac.key}></td>;
+                })}
                 <td></td>
               </tr>
             )}
@@ -1360,7 +1405,18 @@ export function TableV3() {
                 }
               }} />
           </>)}
-          {pop.kind === "addcol" && <AddColPop onAdd={(name, type) => { addColumn(name, type); setPop(null); }} />}
+          {pop.kind === "addcol" && (<>
+            {(builtinCfg.hidden?.length ?? 0) > 0 && (<>
+              <div className="pjv3-pop-title">숨긴 기본 열 — 눌러서 되살리기</div>
+              {builtinCfg.hidden!.map((h) => (
+                <button key={h} type="button"
+                  onClick={() => { saveBuiltin({ hidden: builtinCfg.hidden!.filter((x) => x !== h) }); setPop(null); }}>
+                  ↩ {(builtinCfg.labels || {})[h] || BUILTIN_DEFS.find((b) => b.id === h)?.label || h}
+                </button>
+              ))}
+            </>)}
+            <AddColPop onAdd={(name, type) => { addColumn(name, type); setPop(null); }} />
+          </>)}
         </div>
       )}
     </div>
