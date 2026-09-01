@@ -494,8 +494,8 @@ export default function ProjectHubPage() {
     queryKey: ["ph-v3items", companyId],
     queryFn: async () => {
       const data = logRead("projecthub/page:v3items", await (supabase as any).from("project_items")
-        .select("deal_id, name, status, due_date, updated_at").is("archived_at", null).eq("company_id", companyId!));
-      return (data || []) as { deal_id: string; name: string; status: string; due_date: string | null; updated_at: string }[];
+        .select("deal_id, name, status, due_date, updated_at, fields").is("archived_at", null).eq("company_id", companyId!));
+      return (data || []) as { deal_id: string; name: string; status: string; due_date: string | null; updated_at: string; fields: Record<string, unknown> | null }[];
     },
     enabled: !!companyId,
   });
@@ -524,6 +524,50 @@ export default function ProjectHubPage() {
     for (const k in m) m[k].overdue.sort((a, b) => b.days - a.days);
     return m;
   }, [v3Items, topDeals, todayStr]);
+  //   가로 단계 병목(2026-09-01 사장님 추천 2 승인) — select 컬럼을 순서대로 놓고,
+  //   앞 단계는 끝(마지막 선택지)에 도달했는데 뒷 단계는 못 간 건수 차가 가장 큰 곳을 문장으로.
+  const { data: v3Cols = [] } = useQuery({
+    queryKey: ["ph-v3cols", companyId],
+    queryFn: async () => {
+      const data = logRead("projecthub/page:v3cols", await (supabase as any).from("project_item_columns")
+        .select("deal_id, key, name, type, settings, position").is("archived_at", null)
+        .eq("company_id", companyId!).order("position"));
+      return (data || []) as { deal_id: string; key: string; name: string; type: string; settings: { options?: { id: string; label: string; color?: string }[] } | null; position: number }[];
+    },
+    enabled: !!companyId,
+  });
+  const bottleneckByDeal = useMemo(() => {
+    const colsByDeal: Record<string, typeof v3Cols> = {};
+    for (const c of v3Cols) {
+      const opts = c.settings?.options || [];
+      //   흐름 컬럼만 — 마지막 선택지가 초록(완료 톤)인 select. '유형·채널' 같은 분류 select 는
+      //   마지막 값이 완료가 아니라 병목 오탐이 난다(실측에서 '유형 2건 끝났는데…' 발견).
+      const flowish = opts.length >= 2 && (opts[opts.length - 1].color || "").toLowerCase() === "#00c875";
+      if (c.type === "select" && flowish) (colsByDeal[c.deal_id] ||= []).push(c);
+    }
+    const itemsByDeal: Record<string, typeof v3Items> = {};
+    for (const it of v3Items) (itemsByDeal[it.deal_id] ||= []).push(it);
+    const m: Record<string, { aName: string; bName: string; doneA: number; doneB: number; gap: number }> = {};
+    for (const dealId in colsByDeal) {
+      const cs = colsByDeal[dealId];
+      const its = itemsByDeal[dealId] || [];
+      if (cs.length < 2 || its.length === 0) continue;
+      const doneCount = (c: (typeof cs)[number]) => {
+        const opts = c.settings!.options!;
+        const lastId = opts[opts.length - 1].id;
+        return its.filter((it) => (it.fields || {})[c.key] === lastId).length;
+      };
+      let best: { aName: string; bName: string; doneA: number; doneB: number; gap: number } | null = null;
+      for (let i = 0; i < cs.length - 1; i++) {
+        const doneA = doneCount(cs[i]); const doneB = doneCount(cs[i + 1]);
+        const gap = doneA - doneB;
+        if (doneA > 0 && gap > 0 && (!best || gap > best.gap)) best = { aName: cs[i].name, bName: cs[i + 1].name, doneA, doneB, gap };
+      }
+      if (best) m[dealId] = best;
+    }
+    return m;
+  }, [v3Cols, v3Items]);
+
   const v3QuietDays = (d: any): number | null => {
     const at = v3ByDeal[d.id]?.lastAt;
     return at ? Math.floor((Date.now() - at) / 86400000) : null;
@@ -535,6 +579,8 @@ export default function ProjectHubPage() {
     if (v.overdue.length > 0) parts.push(
       <span className="ph-sum-warn">{`'${v.overdue[0].name}' ${v.overdue[0].days}일 지남${v.overdue.length > 1 ? ` 외 ${v.overdue.length - 1}건` : ""}`}</span>
     );
+    const bn = bottleneckByDeal[d.id];
+    if (bn) parts.push(`${bn.aName} ${bn.doneA}건 끝났는데 ${bn.bName}은 ${bn.doneB}건 — ${bn.gap}건 걸림`);
     if (v.soon > 0) parts.push(`7일 안 마감 ${v.soon}건`);
     const quiet = v3QuietDays(d);
     if (quiet != null && quiet >= 14 && v.overdue.length === 0) parts.push(<span className="ph-sum-warn">{`${quiet}일째 조용`}</span>);

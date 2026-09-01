@@ -9655,3 +9655,6 @@ table.phv3-table { min-width: 640px; }
 .ph-sum-warn { @apply font-semibold text-[var(--danger)]; }
 .ph-sum-dim { @apply text-[var(--text-dim)]; }
 .ph-quiet-old { @apply font-semibold !text-[var(--warning)]; }
+/* 목록 셀 가운데 정렬(프로젝트명·참여자·마지막 업데이트 — 2026-09-01 사장님), 요약만 왼쪽 */
+.ph-table tbody td { @apply text-center; }
+.ph-table tbody td.ph-sum { @apply !text-left; }
