@@ -23,6 +23,9 @@ import { friendlyError } from "@/lib/friendly-error";
 import { getCompanyUsers } from "@/lib/queries";
 import { stagesOf, FIELD_TYPES, type ItemStage, type FieldType } from "@/lib/project-items";
 import { TEMPLATES, TPL_CATEGORIES, MY_TPL_CAT, type Tpl } from "./templates";
+import { exportToExcel } from "@/lib/excel-export";
+import { xNum, isDate, type ExcelColumn, type ExcelRow } from "@/lib/excel-io";
+import { ExcelUploadDialog, type ParseResult } from "@/app/(app)/inventory/_components/excel-upload";
 import type { ItemRow } from "./HubV3";
 
 const db = supabase as any;
@@ -52,7 +55,8 @@ type Pop =
   | { kind: "addcol"; x: number; y: number }
   | { kind: "addview"; x: number; y: number }
   | { kind: "follower"; itemId: string; x: number; y: number }
-  | { kind: "addcal"; date: string; x: number; y: number };
+  | { kind: "addcal"; date: string; x: number; y: number }
+  | { kind: "excel"; x: number; y: number };
 
 export function TableV3() {
   const params = useParams();
@@ -67,7 +71,7 @@ export function TableV3() {
     queryKey: ["pjv3-deal", dealId],
     enabled: !!dealId,
     queryFn: async () => logRead("pjv3:deal", await db.from("deals")
-      .select("id, name, company_id, stage, start_date, end_date, item_stages")
+      .select("id, name, company_id, stage, start_date, end_date, item_stages, v3_views")
       .eq("id", dealId).maybeSingle()),
   });
   const { data: items = [], isLoading: itemsLoading } = useQuery({
@@ -157,24 +161,51 @@ export function TableV3() {
 
   // ── 보기 — 표가 기본(결정 130), 칸반은 ＋보기로 추가한 '보는 형태'.
   //   추가 상태는 임시로 브라우저에 기억(3단계에서 deals.v3_views 로 팀 공유 저장 — 결정 129) ──
-  const VIEWS_LS = `ov.pjv3.views.${dealId}`;
-  const VIEW_LABELS: Record<string, string> = { kanban: "칸반", calendar: "캘린더" };
+  //   보기 구성은 deals.v3_views 로 팀 공유(결정 129 — 2026-09-01 localStorage 임시분 대체.
+  //   임시 저장분은 승계하지 않는다: 하루짜리였고, 팀 공유가 원칙). 지금 보는 보기(curView)는
+  //   기억하지 않는다 — 조회값 자동 기억 금지, 기본은 표.
+  const VIEW_LABELS: Record<string, string> = { kanban: "칸반", calendar: "캘린더", gantt: "간트" };
   const [views, setViews] = useState<string[]>([]);
-  const [curView, setCurView] = useState<"table" | "kanban" | "calendar">("table");
+  const [curView, setCurView] = useState<"table" | "kanban" | "calendar" | "gantt">("table");
   useEffect(() => {
-    try { const v = JSON.parse(localStorage.getItem(VIEWS_LS) || "[]"); if (Array.isArray(v)) setViews(v); } catch { /* 무시 */ }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dealId]);
-  const addView = (v: "kanban" | "calendar") => {
-    const next = views.includes(v) ? views : [...views, v];
-    setViews(next); setCurView(v); setPop(null);
-    try { localStorage.setItem(VIEWS_LS, JSON.stringify(next)); } catch { /* 무시 */ }
+    if (Array.isArray(deal?.v3_views)) setViews(deal.v3_views.filter((v: unknown) => typeof v === "string"));
+  }, [deal?.v3_views]);
+  const persistViews = async (next: string[]) => {
+    setViews(next);
+    const { error } = await db.from("deals").update({ v3_views: next }).eq("id", dealId);
+    if (error) { toast(friendlyError(error), "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pjv3-deal", dealId] });
+  };
+  const addView = (v: "kanban" | "calendar" | "gantt") => {
+    setCurView(v); setPop(null);
+    if (!views.includes(v)) persistViews([...views, v]);
   };
   const removeView = (v: string) => {
-    const next = views.filter((x) => x !== v);
-    setViews(next); if (curView === v) setCurView("table");
-    try { localStorage.setItem(VIEWS_LS, JSON.stringify(next)); } catch { /* 무시 */ }
+    if (curView === v) setCurView("table");
+    persistViews(views.filter((x) => x !== v));
   };
+
+  // ── 간트 보기 — 시작일~마감일 막대(둘 중 하나만 있으면 하루짜리). 날짜 범위는 항목에서 자동 ──
+  const gantt = useMemo(() => {
+    const dated = shown.filter((it) => it.due_date || (it as any).start_date);
+    const ds = dated.flatMap((it) => [(it as any).start_date, it.due_date].filter(Boolean) as string[]);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const min = ds.length ? new Date(ds.reduce((a, b) => (a < b ? a : b))) : new Date(today);
+    let max = ds.length ? new Date(ds.reduce((a, b) => (a > b ? a : b))) : new Date(today);
+    min.setDate(min.getDate() - 3);
+    max.setDate(max.getDate() + 4);
+    if ((+max - +min) / 86400000 < 28) max = new Date(+min + 28 * 86400000);
+    if ((+max - +min) / 86400000 > 120) max = new Date(+min + 120 * 86400000);
+    const total = Math.round((+max - +min) / 86400000) + 1;
+    const pctOf = (d: string) => (Math.round((+new Date(d) - +min) / 86400000) / total) * 100;
+    const ticks: { left: number; label: string }[] = [];
+    for (let i = 0; i < total; i += 7) {
+      const t = new Date(+min + i * 86400000);
+      ticks.push({ left: (i / total) * 100, label: `${t.getMonth() + 1}/${t.getDate()}` });
+    }
+    const todayLeft = +today >= +min && +today <= +max ? (Math.round((+today - +min) / 86400000) / total) * 100 : null;
+    return { dated, undatedCount: shown.length - dated.length, pctOf, ticks, todayLeft, dayW: 100 / total };
+  }, [shown]);
 
   // ── 캘린더 보기(추천 3 승인) — 마감일 기준, 칩 클릭=서랍, 날짜 ＋로 그 날짜 마감 항목 추가 ──
   const [calMonth, setCalMonth] = useState(0);
@@ -426,6 +457,96 @@ export function TableV3() {
     qc.invalidateQueries({ queryKey: ["pjv3-cols", dealId] });
   };
 
+  // ── 엑셀 — 재고 공용 부품(excel-io·ExcelUploadDialog) 재사용. 조회 줄엔 '엑셀 ▾' 하나(표준) ──
+  const [excelUp, setExcelUp] = useState(false);
+  const exportRows = () => {
+    const data = shown.map((it) => {
+      const row: Record<string, unknown> = {
+        "그룹": stages.find((s) => s.id === it.status)?.label || it.status,
+        "이름": it.name,
+        "담당": userName(it.assignee_id) || "",
+        "마감": it.due_date || "",
+        "금액": it.plan_amount ?? "",
+      };
+      for (const c of cols) {
+        const raw = (it.fields || {})[c.key];
+        const val = raw == null ? "" : String(raw);
+        if (c.type === "select") row[c.name] = (c.settings?.options || []).find((o) => o.id === val)?.label || val;
+        else if (c.type === "person") row[c.name] = userName(val || null) || val;
+        else row[c.name] = val;
+      }
+      return row;
+    });
+    exportToExcel(data, "표", `${deal?.name || "프로젝트"}_표_${new Date().toISOString().slice(0, 10)}`);
+  };
+  const excelCols: ExcelColumn[] = [
+    { key: "group", label: "그룹", hint: `표의 그룹 이름 그대로 (${stages.map((s) => s.label).join(" / ")}) — 비우면 첫 그룹`, example: stages[0]?.label },
+    { key: "name", label: "이름", required: true, example: "○○ 건" },
+    { key: "assignee", label: "담당", hint: "구성원 이름 그대로 — 비우면 없음" },
+    { key: "due", label: "마감", kind: "date" },
+    { key: "amount", label: "금액", kind: "number" },
+    ...cols.map((c): ExcelColumn => ({
+      key: `f_${c.key}`, label: c.name,
+      kind: c.type === "number" ? "number" : c.type === "date" ? "date" : "text",
+      hint: c.type === "select" ? `다음 중 하나: ${(c.settings?.options || []).map((o) => o.label).join(" / ")}`
+        : c.type === "person" ? "구성원 이름 그대로" : undefined,
+    })),
+  ];
+  type XRow = { name: string; status: string; assignee_id: string | null; due: string | null; amount: number | null; fields: Record<string, unknown> };
+  const parseX = (row: ExcelRow): ParseResult<XRow> => {
+    const name = (row.name || "").trim();
+    if (!name) return { error: "이름이 비었습니다" };
+    let status = stages[0]?.id || "todo";
+    const g = (row.group || "").trim();
+    if (g) {
+      const st = stages.find((s) => s.label === g);
+      if (!st) return { error: `그룹 '${g}' 이(가) 표에 없습니다 — ${stages.map((s) => s.label).join("/")} 중에서` };
+      status = st.id;
+    }
+    let assignee: string | null = null;
+    const an = (row.assignee || "").trim();
+    if (an) {
+      const u = users.find((x) => (x.name || "").trim() === an);
+      if (!u) return { error: `담당 '${an}' 을(를) 구성원에서 못 찾았습니다` };
+      assignee = u.id;
+    }
+    const dueRaw = (row.due || "").trim();
+    if (dueRaw && !isDate(dueRaw)) return { error: `마감 '${dueRaw}' — 2026-09-01 형식으로` };
+    const fields: Record<string, unknown> = {};
+    for (const c of cols) {
+      const raw = (row[`f_${c.key}`] || "").trim();
+      if (!raw) continue;
+      if (c.type === "select") {
+        const opt = (c.settings?.options || []).find((o) => o.label === raw);
+        if (!opt) return { error: `'${c.name}' 칸의 '${raw}' — ${(c.settings?.options || []).map((o) => o.label).join("/")} 중에서` };
+        fields[c.key] = opt.id;
+      } else if (c.type === "person") {
+        const u = users.find((x) => (x.name || "").trim() === raw);
+        if (!u) return { error: `'${c.name}' 칸의 '${raw}' 을(를) 구성원에서 못 찾았습니다` };
+        fields[c.key] = u.id;
+      } else if (c.type === "number") {
+        fields[c.key] = xNum(raw);
+      } else if (c.type === "date") {
+        if (!isDate(raw)) return { error: `'${c.name}' 칸의 '${raw}' — 날짜 형식(YYYY-MM-DD)으로` };
+        fields[c.key] = raw;
+      } else {
+        fields[c.key] = raw;
+      }
+    }
+    return { ok: { name, status, assignee_id: assignee, due: dueRaw || null, amount: xNum(row.amount), fields } };
+  };
+  const commitX = async (rows: XRow[]) => {
+    const base = items.length > 0 ? Math.max(...items.map((x) => x.position ?? 0)) + 1 : 0;
+    const { error } = await db.from("project_items").insert(rows.map((r, i) => ({
+      company_id: companyId, deal_id: dealId, kind: "todo", name: r.name, status: r.status,
+      assignee_id: r.assignee_id, due_date: r.due, plan_amount: r.amount,
+      fields: r.fields, position: base + i, created_by: user?.id ?? null,
+    })));
+    if (error) throw new Error(error.message);
+    qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
+    return `${rows.length}줄을 표에 넣었습니다`;
+  };
+
   // ── 서랍(추천 1 = 2단계 핵심) — 줄을 열면 체크리스트·기록(댓글+변경 한 줄기)·팔로워.
   //   팔로워 알림 연동(notify 트리거 확장)은 다음 차수 ──
   const [drawerId, setDrawerId] = useState<string | null>(null);
@@ -663,10 +784,50 @@ export function TableV3() {
 
       <div className="pjv3-toolbar">
         <span className="pjv3-search">🔍<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름 · 담당 · 칸에 든 글자 — 검색" aria-label="검색" /></span>
+        <button type="button" className="btn-secondary btn-sm" onClick={(e) => setPop({ kind: "excel", ...at(e) })}>엑셀 ▾</button>
         <span className="pjv3-count num">{shown.length}건{shown.length !== items.length ? ` / 전체 ${items.length}` : ""}</span>
       </div>
 
-      {curView === "calendar" ? (
+      {curView === "gantt" ? (
+        <div className="pjv3-ganttwrap">
+          <div className="pjv3-gr pjv3-gr-head">
+            <div className="pjv3-gname">이름</div>
+            <div className="pjv3-glane pjv3-ghead">
+              {gantt.ticks.map((t) => <span key={t.label} className="tick num" style={{ left: `${t.left}%` }}>{t.label}</span>)}
+              {gantt.todayLeft != null && <span className="todayline" style={{ left: `${gantt.todayLeft}%` }} />}
+            </div>
+          </div>
+          {[...stages, { id: "__etc", label: "단계 밖", color: "gray" as const }].map((s) => {
+            const src = s.id === "__etc" ? byStage.etc : (byStage.m.get(s.id) || []);
+            const group = src.filter((it) => it.due_date || (it as any).start_date);
+            if (group.length === 0) return null;
+            return (
+              <div key={s.id}>
+                <div className="pjv3-ggroup" style={{ borderLeftColor: STAGE_HEX[s.color] }}>{s.label}</div>
+                {group.map((it) => {
+                  const a = ((it as any).start_date || it.due_date) as string;
+                  const b = (it.due_date || (it as any).start_date) as string;
+                  const [from, to] = a <= b ? [a, b] : [b, a];
+                  const left = gantt.pctOf(from);
+                  const width = Math.max(gantt.pctOf(to) - left + gantt.dayW, gantt.dayW);
+                  return (
+                    <div key={it.id} className="pjv3-gr" role="button" tabIndex={0} title="누르면 서랍 — 시작일·마감도 거기서"
+                      onClick={() => setDrawerId(it.id)}>
+                      <div className="pjv3-gname">{it.name}</div>
+                      <div className="pjv3-glane">
+                        {gantt.todayLeft != null && <span className="todayline" style={{ left: `${gantt.todayLeft}%` }} />}
+                        <span className="bar" style={{ left: `${left}%`, width: `${width}%`, background: STAGE_HEX[s.color] }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+          {gantt.dated.length === 0 && <div className="collect-empty">날짜가 있는 항목이 없습니다 — 서랍이나 마감 셀에서 날짜를 채우면 막대가 나타납니다</div>}
+          {gantt.undatedCount > 0 && <div className="pjv3-tpl-mine">시작일·마감일이 없는 항목 {gantt.undatedCount}개는 간트에 안 보입니다 — 서랍에서 날짜를 채우면 나타납니다</div>}
+        </div>
+      ) : curView === "calendar" ? (
         <div className="pjv3-calwrap">
           <div className="pjv3-calhead">
             <button type="button" onClick={() => setCalMonth((m) => m - 1)}>◀</button>
@@ -871,6 +1032,21 @@ export function TableV3() {
       </p>
       </div>
 
+      {/* ── 엑셀 올리기 — 재고 공용 다이얼로그: 양식 다운 → 채워 올리면 미리 보고 '등록'으로 확정 ── */}
+      {excelUp && deal && (
+        <ExcelUploadDialog<XRow>
+          title={`${deal.name} — 엑셀로 줄 올리기`}
+          desc="양식을 받아 채운 뒤 올리면 먼저 읽어 보여주고, 등록을 눌러야 저장됩니다."
+          cols={excelCols} templateName={`${deal.name}_표양식`} sheetName="표"
+          guide={["그룹·담당·선택 칸은 화면에 보이는 이름 그대로 적습니다."]}
+          parse={parseX}
+          previewHead={["그룹", "이름", "담당", "마감", "금액"]}
+          previewRow={(r) => [stages.find((s) => s.id === r.status)?.label || "", r.name, userName(r.assignee_id) || "—", r.due || "—", r.amount == null ? "—" : r.amount.toLocaleString("ko-KR")]}
+          commit={commitX}
+          onClose={() => setExcelUp(false)}
+        />
+      )}
+
       {/* ── 서랍 — 줄 하나를 크게: 이름·속성·체크리스트·팔로워·기록(댓글+변경 한 줄기) ── */}
       {drawerItem && (
         <>
@@ -889,7 +1065,10 @@ export function TableV3() {
                   {stages.find((s) => s.id === drawerItem.status)?.label || drawerItem.status}</button>
                 <button type="button" className="pjv3-prop" onClick={(e) => setPop({ kind: "person", itemId: drawerItem.id, ...at(e) })}>
                   담당 · {userName(drawerItem.assignee_id) || "없음"}</button>
-                <input type="date" className="pjv3-prop" aria-label="마감" value={drawerItem.due_date || ""}
+                <input type="date" className="pjv3-prop" aria-label="시작일" title="시작일 — 간트 막대의 왼쪽 끝"
+                  value={((drawerItem as any).start_date as string) || ""}
+                  onChange={(e) => saveItem(drawerItem.id, { start_date: e.target.value || null })} />
+                <input type="date" className="pjv3-prop" aria-label="마감" title="마감일" value={drawerItem.due_date || ""}
                   onChange={(e) => saveItem(drawerItem.id, { due_date: e.target.value || null })} />
               </div>
 
@@ -1132,7 +1311,13 @@ export function TableV3() {
             <div className="pjv3-pop-title">보기 추가 — 표를 보는 다른 형태</div>
             {!views.includes("kanban") && <button type="button" onClick={() => addView("kanban")}>칸반 — 상태별 카드로 보고, 끌어서 옮깁니다</button>}
             {!views.includes("calendar") && <button type="button" onClick={() => addView("calendar")}>캘린더 — 마감일 달력으로 봅니다</button>}
-            <div className="pjv3-pop-title">간트·현황은 다음 단계에서 붙습니다</div>
+            {!views.includes("gantt") && <button type="button" onClick={() => addView("gantt")}>간트 — 시작~마감 막대로 일정을 봅니다</button>}
+            <div className="pjv3-pop-title">추가한 보기는 팀 전체가 같이 봅니다 · 현황은 다음 단계에서</div>
+          </>)}
+          {pop.kind === "excel" && (<>
+            <div className="pjv3-pop-title">엑셀</div>
+            <button type="button" onClick={() => { exportRows(); setPop(null); }}>내려받기 — 지금 보이는 줄 그대로</button>
+            <button type="button" onClick={() => { setExcelUp(true); setPop(null); }}>올리기 — 양식 받아 채워서 한 번에</button>
           </>)}
           {pop.kind === "addcal" && (<>
             <div className="pjv3-pop-title">{pop.date} 마감으로 추가 — 첫 그룹에 들어갑니다</div>

@@ -9629,3 +9629,17 @@ table.phv3-table { min-width: 640px; }
 .pjv3-pop .pjv3-opt-row .pjv3-del.arm { @apply bg-[var(--danger)] text-white; }
 .pjv3-pop .pjv3-opt-manage { @apply mt-1 border-t border-[var(--border)] pt-1.5 text-[11px] text-[var(--text-dim)]; }
 .pjv3-pop .pjv3-opt-manage:hover { @apply text-[var(--primary)]; }
+
+/* pjv3 — 간트 보기(시작~마감 막대, 2026-09-01) */
+.pjv3-ganttwrap { @apply min-h-0 flex-1 overflow-y-auto p-3; }
+.pjv3-gr { @apply flex items-stretch border-b border-[var(--border)]; }
+.pjv3-gr[role="button"] { @apply cursor-pointer; }
+.pjv3-gr[role="button"]:hover { @apply bg-[var(--bg)]/60; }
+.pjv3-gr-head { @apply border-b-2; }
+.pjv3-gname { @apply w-44 flex-none truncate border-r border-[var(--border)] px-2 py-1.5 text-xs; }
+.pjv3-gr-head .pjv3-gname { @apply text-[11px] font-semibold text-[var(--text-dim)]; }
+.pjv3-glane { @apply relative min-h-[30px] flex-1; }
+.pjv3-ghead .tick { @apply absolute top-1 -translate-x-1/2 text-[10px] text-[var(--text-dim)]; }
+.pjv3-glane .todayline { @apply absolute bottom-0 top-0 w-px bg-[var(--primary)] opacity-60; }
+.pjv3-glane .bar { @apply absolute top-1/2 h-3.5 -translate-y-1/2 rounded-full opacity-90; min-width: 8px; }
+.pjv3-ggroup { @apply border-b border-l-4 border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs font-bold; }
