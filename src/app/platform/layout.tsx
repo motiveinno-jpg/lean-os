@@ -127,6 +127,17 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
     return () => { cancelled = true; };
   }, [router]);
 
+  //   세션이 도중에 바뀌면(다른 탭에서 다른 계정 로그인 등) 게이트를 다시 검사한다 (2026-09-01) —
+  //   운영자로 열어 둔 페이지가 비운영자 세션으로 RPC 를 쏴 401 여섯 발이 에러 로그에 쌓였다.
+  //   비운영자 세션이 감지되면 화면을 내리므로(denied) 하위 쿼리도 함께 언마운트된다.
+  useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      const email = session?.user?.email || "";
+      if (!session || !isOperatorEmail(email)) setStatus("denied");
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
   // 인라인 스타일 — CSS 로딩 전에도 보이도록
   if (status === "denied") {
     return (
