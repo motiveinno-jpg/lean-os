@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchLedgerArAp } from "@/lib/ledger-arap";
 import { getCurrentUser, getFounderData, getCashPulseData, saveExcelData } from "@/lib/queries";
 import { getRecurringPayments } from "@/lib/approval-center";
 import { getMonthlyTotalSalary } from "@/lib/payroll";
@@ -82,6 +83,14 @@ export default function MasterPage() {
   });
   const cashPulse: CashPulseResult | null = pulseRaw ? buildCashPulse(pulseRaw) : null;
 
+  //   밀린 미수금 — 마스터 엔진 자체 계산이 원장·대시보드와 다른 숫자를 냈다 (2026-09-01 전수점검 ①)
+  //   → 받을 돈·30일+ 는 공용 기준(lib/ledger-arap)으로 덮어쓴다.
+  const { data: arapU } = useQuery({
+    queryKey: ["ledger-arap", companyId],
+    queryFn: () => fetchLedgerArAp(companyId!),
+    enabled: !!companyId && isMaster,
+    staleTime: 60_000,
+  });
   const dashboard: FounderDashboardData = rawData
     ? buildFounderDashboard(
         rawData.currentMonth,
@@ -93,6 +102,7 @@ export default function MasterPage() {
         realBurnData || undefined,
       )
     : buildFounderDashboard(null, [], [], { monthTarget: 0, quarterTarget: 0, yearTarget: 0 }, 0, 0);
+  if (arapU) { dashboard.sixPack = { ...dashboard.sixPack, arTotal: arapU.ar, arOver30: arapU.over30 }; }
   const hasData = rawData?.hasData || false;
 
   // 엑셀 업로드 — 대시보드와 동일 파싱·저장 경로

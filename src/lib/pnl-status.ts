@@ -99,9 +99,12 @@ export const pctChange = (cur: number, prev: number): number | null => (prev ===
  *  issued 로 남으면 영구 미수로 셌다(부분입금도 전액으로). 미수금 위젯·AI 브리핑과 같은
  *  "발행분 잔액" 기준으로 맞춘다 — 정산을 입력하면 즉시 빠진다. */
 export async function fetchReceivables(companyId: string): Promise<{ total: number; over30: number; over30Partners: number; rows: { name: string; amount: number; issueDate: string; days: number }[] }> {
+  //   원장 에이징과 같은 기준(전표처리된 발행분만) — 발행만 되고 전표가 없는 계산서까지 미수로 세면
+  //   원장·경영요약과 다른(부풀린) 숫자가 됐다 (2026-09-01 전수점검 ①, 2026-08-26 사장님 기준)
   const data = await fetchPaged<any>("pnl-status:ar", () => supabase.from("tax_invoices")
     .select("counterparty_name, total_amount, supply_amount, settled_amount, issue_date, status")
     .eq("company_id", companyId).eq("type", "sales")
+    .not("journal_entry_id", "is", null)
     .not("status", "in", "(void,draft,cancelled)").order("id"), 50000);
   const today = new Date();
   const rows = ((data || []) as any[])

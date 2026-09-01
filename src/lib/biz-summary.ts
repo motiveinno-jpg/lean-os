@@ -10,7 +10,8 @@ import { getVATPreview } from "@/lib/tax-invoice";
 import { getLoanStatuses } from "@/lib/cash-budget";
 import { calcRunwayMonths, getRunwayLevel } from "@/lib/engines";
 import { fetchJournalLines, countUnposted, type JournalLine } from "@/lib/journal-reports";
-import { summarize, groupByAccount, fetchReceivables, fetchFixedCostCompare, type PnlSummary } from "@/lib/pnl-status";
+import { summarize, groupByAccount, fetchFixedCostCompare, type PnlSummary } from "@/lib/pnl-status";
+import { fetchLedgerArAp } from "@/lib/ledger-arap";
 import { todayKst } from "@/lib/kst";
 
 export type Tone = "g" | "y" | "r";
@@ -42,15 +43,16 @@ export async function fetchBizSummary(companyId: string, month: string, userId?:
   const year = Number(month.slice(0, 4));
   const monthEnd = lastDay(month);
 
-  const [pulseRaw, lines, unposted, unpostedSales, bankCur, bankPrev, ledger, recv, vat, loans] = await Promise.all([
+  const [pulseRaw, lines, unposted, unpostedSales, bankCur, bankPrev, arap0, vat, loans] = await Promise.all([
     getCashPulseData(companyId, userId),
     fetchJournalLines(companyId, `${from6}-01`, monthEnd),
     countUnposted(companyId, `${month}-01`, monthEnd),
     supabase.from("tax_invoices").select("total_amount").eq("company_id", companyId).eq("type", "sales").neq("status", "void").is("journal_entry_id", null).gte("issue_date", `${month}-01`).lte("issue_date", monthEnd),
     (supabase.from("bank_transactions").select("amount, type") as any).eq("company_id", companyId).gte("transaction_date", `${month}-01`).lte("transaction_date", monthEnd),
     (supabase.from("bank_transactions").select("amount, type") as any).eq("company_id", companyId).gte("transaction_date", `${prevMonth}-01`).lte("transaction_date", lastDay(prevMonth)),
-    supabase.rpc("get_partner_ledger_by_year", { p_year: year }),
-    fetchReceivables(companyId),
+    //   받을 돈·낼 돈 — 원장 화면과 같은 단일 기준(lib/ledger-arap). RPC 만 합산해 수동 전표 보정이
+    //   빠지면 원장과 다른 숫자(심하면 0)가 떴다 (2026-09-01 전수점검 ①)
+    fetchLedgerArAp(companyId),
     getVATPreview(companyId, year),
     getLoanStatuses(companyId),
   ]);
@@ -80,12 +82,9 @@ export async function fetchBizSummary(companyId: string, month: string, userId?:
   const unpostedSalesAmt = ((unpostedSales.data || []) as any[]).reduce((s, r) => s + Number(r.total_amount || 0), 0);
   const pnlTone: Tone = cur.operating >= 0 ? "g" : unposted.taxInvoice > 0 ? "y" : "r";
 
-  // ── 받을 돈·낼 돈 ──
-  type LR = { type: string; prior_outstanding: number; period_outstanding: number };
-  const lrows = ((ledger.data || []) as LR[]);
-  const out = (r: LR) => Number(r.prior_outstanding || 0) + Number(r.period_outstanding || 0);
-  const ar = lrows.filter((r) => r.type === "sales").reduce((s, r) => s + out(r), 0);
-  const ap = lrows.filter((r) => r.type === "purchase").reduce((s, r) => s + out(r), 0);
+  // ── 받을 돈·낼 돈 — 원장 기준 단일 값 ──
+  const ar = arap0.ar;
+  const ap = arap0.ap;
   const salary = pulseRaw?.employeeSalaryTotal ?? 0;
   const recurring = (pulseRaw?.recurringPayments || []).filter((r) => r.is_active).reduce((s, r) => s + Number(r.amount || 0), 0);
   const loanMonthly = loans.filter((l) => l.repaymentType !== "bullet").reduce((s, l) => s + Number(l.monthlyPayment || 0), 0);
@@ -93,11 +92,11 @@ export async function fetchBizSummary(companyId: string, month: string, userId?:
   //   '30일 안에 낼 돈' = 날짜가 있는 예정(급여·정기 지출·대출 월 상환·부가세 30일 내). 미지급금은 만기를 모르므로 잔액으로만 따로 보여 준다
   //   (원장 미지급 잔액이 수억이면 전부 30일 안에 나가는 것처럼 읽혀 신호가 늘 빨갛다).
   const due30 = salary + recurring + loanMonthly + vat30;
-  const arapTone: Tone = balance < due30 ? "r" : recv.over30 > 0 ? "y" : "g";
+  const arapTone: Tone = balance < due30 ? "r" : arap0.over30 > 0 ? "y" : "g";
 
   // ── 이번 주 챙길 것 (규칙 — 찾아만 놓는다, 확인은 사람이) ──
   const todos: Todo[] = [];
-  if (recv.over30 > 0) todos.push({ key: "ar30", kind: "미수", tone: "r", text: `30일 넘은 미수금 ${recv.over30Partners}곳`, sub: "세금계산서 발행일 기준", amount: recv.over30, href: "/partners/ledger" });
+  if (arap0.over30 > 0) todos.push({ key: "ar30", kind: "미수", tone: "r", text: `30일 넘은 미수금 ${arap0.over30Partners}곳`, sub: "전표처리된 세금계산서 발행일 기준", amount: arap0.over30, href: "/partners/ledger" });
   if (unposted.taxInvoice > 0) todos.push({ key: "unposted-ti", kind: "전표", tone: "y", text: `세금계산서 ${unposted.taxInvoice}건 미처리 — 손익이 실제와 다르게 보입니다`, amount: unpostedSalesAmt > 0 ? unpostedSalesAmt : undefined, href: "/collect" });
   if (unposted.card + unposted.bank > 0) todos.push({ key: "unposted-etc", kind: "전표", tone: "y", text: `카드 ${unposted.card}건 · 통장 ${unposted.bank}건 미처리`, href: "/collect" });
   if (vatNext && vatNextRaw!.netVAT > 0) todos.push({ key: "vat", kind: "세금", tone: vatNext.dday <= 14 ? "r" : "y", text: `부가세 납부 D-${vatNext.dday}`, sub: `${vatNext.due} · 예상`, amount: vatNext.amount, href: "/reports/vat" });
@@ -131,7 +130,7 @@ export async function fetchBizSummary(companyId: string, month: string, userId?:
     month, prevMonth, today,
     cash: { balance, inflow, outflow, prevNet, burn, runway, runwayAfterVat, tone: cashTone, hasBank },
     pnl: { cur, prev, series, unposted, unpostedSalesAmt, tone: pnlTone },
-    arap: { ar, ap, over30: recv.over30, over30Partners: recv.over30Partners, vatNext, salary, loanMonthly, recurring, due30, tone: arapTone },
+    arap: { ar, ap, over30: arap0.over30, over30Partners: arap0.over30Partners, vatNext, salary, loanMonthly, recurring, due30, tone: arapTone },
     todos, changes, overall,
   };
 }
