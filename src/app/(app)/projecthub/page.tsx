@@ -321,7 +321,7 @@ export default function ProjectHubPage() {
   const searchParams = useSearchParams();
   const initialQ = searchParams?.get("q") ?? "";
   const [search, setSearch] = useState(initialQ);   // 빠른검색 — 프로젝트·거래처·참여자 (쉼표 = 또는, Enter 로 반영)
-  const [mineOnly, setMineOnly] = useState(!initialQ); // 내 담당 우선(기본) — '전체'로 전환 가능
+  const [mineOnly, setMineOnly] = useState(false); // 기본 = 전체 (2026-09-01 사장님: "처음 들어가면 범위 기본값을 전체로") — '내 담당'으로 좁힐 수 있다
   //   ── 조회 화면 표준 — 검색조건(담당·거래처·템플릿)·내 조건 ──
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState<Cond>(EMPTY_COND);
@@ -329,7 +329,7 @@ export default function ProjectHubPage() {
   const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
   //   담당 범위(내 담당/전체)·상태(전체/기한 지남/이번 주/입력 전)도 검색조건 안에서 고르고 '조회'로 반영한다
   //   (2026-08-18 사장님: "검색조건 안에 담당, 전체, 기한지남 등 박스 안으로 들어가게 해야 통일성"). 초안 → 조회 시 확정.
-  const [dMine, setDMine] = useState(true);
+  const [dMine, setDMine] = useState(false);
   const [dLens, setDLens] = useState<ProjectStatusKey | null>(null);
   const userId = user?.id ?? null;
 
@@ -575,7 +575,7 @@ export default function ProjectHubPage() {
   //   내 조건 — ★ 하나가 이 화면의 기본값
   const saved = useSavedQueries("projecthub", companyId);
   const paramsNow = { view: listView, q: search, mine: mineOnly, lens, cond: live };
-  const paramsBasic = { view: "table", q: "", mine: true, lens: null, cond: EMPTY_COND };
+  const paramsBasic = { view: "table", q: "", mine: false, lens: null, cond: EMPTY_COND };
   const applySaved = (p: Record<string, unknown>) => {
     if (p.view === "table") setListView(p.view); // '담당별'은 2026-08-31 제거 — 저장된 내 조건에 남아 있어도 목록으로
     if (typeof p.q === "string") setSearch(p.q);
@@ -595,7 +595,7 @@ export default function ProjectHubPage() {
   const dropCond = (patch: Partial<Cond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
   const chips: AppliedChip[] = [
     ...quickTerms(search).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setSearch(quickTerms(search).filter((_, j) => j !== i).join(", ")) })),
-    ...(!mineOnly && canViewAllProjects ? [{ group: "범위", label: "전체", onRemove: () => { setMineOnly(true); setDMine(true); } }] : []),
+    ...(mineOnly ? [{ group: "범위", label: "내 담당", onRemove: () => { setMineOnly(false); setDMine(false); } }] : []),
     ...(lens ? [{ group: "상태", label: LENS_OPTS.find(([k]) => k === lens)?.[1] || lens, onRemove: () => { setLens(null); setDLens(null); } }] : []),
     ...live.manager.map((v) => ({ group: "담당", label: v, onRemove: () => dropCond({ manager: live.manager.filter((x) => x !== v) }) })),
     ...live.partner.map((v) => ({ group: "거래처", label: v, onRemove: () => dropCond({ partner: live.partner.filter((x) => x !== v) }) })),
@@ -636,13 +636,13 @@ export default function ProjectHubPage() {
             <button type="button" onClick={() => setShowCreate(true)} className="btn-primary btn-sm">+ 프로젝트 생성</button>
           </>}>
             {/* 프로젝트는 기간이 없는 목록이라 조회 줄이 [검색조건] 으로 시작한다 */}
-            <ConditionPanel open={panelOpen} onOpenChange={(v) => { if (v) { setDMine(mineOnly); setDLens(lens); } setPanelOpen(v); }} activeCount={condCount(live) + (lens ? 1 : 0) + (mineOnly ? 0 : 1)}
+            <ConditionPanel open={panelOpen} onOpenChange={(v) => { if (v) { setDMine(mineOnly); setDLens(lens); } setPanelOpen(v); }} activeCount={condCount(live) + (lens ? 1 : 0) + (mineOnly ? 1 : 0)}
               tabs={<SavedTabs list={saved.list} current={paramsNow} basic={paramsBasic}
                 onApply={(sv) => { applySaved(sv.params || {}); setPanelOpen(false); }}
-                onBasic={() => { setListView("table"); setMineOnly(true); setLens(null); setDMine(true); setDLens(null); clearAll(); }}
+                onBasic={() => { setListView("table"); setMineOnly(false); setLens(null); setDMine(false); setDLens(null); clearAll(); }}
                 onRemove={saved.remove} onSetDefault={saved.setDefault} />}
               foot={<>
-                <button type="button" className="btn-secondary btn-sm" disabled={condCount(draft) === 0 && dLens === null && dMine} onClick={() => { setDraft({ ...EMPTY_COND, rows: draft.rows }); setDLens(null); setDMine(true); }}>조건 지우기</button>
+                <button type="button" className="btn-secondary btn-sm" disabled={condCount(draft) === 0 && dLens === null && !dMine} onClick={() => { setDraft({ ...EMPTY_COND, rows: draft.rows }); setDLens(null); setDMine(false); }}>조건 지우기</button>
                 <ConditionSave suggest={suggestName}
                   onSave={(name, asDefault) => { saved.save(name, { view: listView, q: search, mine: dMine, lens: dLens, cond: draft }, asDefault); setLive(draft); setMineOnly(dMine); setLens(dLens); setPanelOpen(false); }} />
                 <span className="ml-auto text-[11px] text-[var(--text-dim)]">{previewCount.toLocaleString("ko")}건</span>
