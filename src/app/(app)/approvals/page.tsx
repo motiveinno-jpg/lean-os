@@ -2611,22 +2611,26 @@ function SelectWithEtc({ value, options, onChange, placeholder = "선택" }: {
   const picked = options.find((o) => raw === o) || options.find((o) => isEtcOption(o) && raw.startsWith(o)) || "";
   const etc = !!picked && isEtcOption(picked);
   const detail = etc ? raw.slice(picked.length).replace(/^\s*[:：—-]\s*/, "") : "";
+  //   '기타'를 고르면 **아래에 전체폭 입력칸**을 연다 (2026-09-01 사장님: 옆에 붙이면 field-input 의
+  //   w-full 때문에 실낱같이 찌부러져 글씨가 안 써 보였다). 세로 스택이라 크기·위치 문제도 사라진다.
   return (
-    <div className={etc ? "flex gap-2" : ""}>
+    <div className={etc ? "space-y-2" : ""}>
       <select
         value={picked}
         onChange={(e) => onChange(e.target.value)}
-        className={`field-input ${etc ? "w-[45%] shrink-0" : ""}`}
+        className="field-input"
       >
         <option value="">{placeholder}</option>
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
       </select>
       {etc && (
         <input
+          type="text"
           value={detail}
           onChange={(e) => { const t = e.target.value; onChange(t.trim() ? `${picked}: ${t}` : picked); }}
-          placeholder={`${picked} 내용을 적어주세요`}
-          className="field-input flex-1 min-w-0"
+          placeholder={`${picked} 내용을 직접 입력하세요`}
+          className="field-input"
+          autoFocus
         />
       )}
     </div>
