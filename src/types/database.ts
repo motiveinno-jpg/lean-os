@@ -6572,6 +6572,9 @@ export type Database = {
           target_amount: number | null
           target_label: string | null
           target_unit: string | null
+          v3_builtin: Json | null
+          v3_features: Json | null
+          v3_views: Json | null
           vat_type: string
         }
         Insert: {
@@ -6610,6 +6613,9 @@ export type Database = {
           target_amount?: number | null
           target_label?: string | null
           target_unit?: string | null
+          v3_builtin?: Json | null
+          v3_features?: Json | null
+          v3_views?: Json | null
           vat_type?: string
         }
         Update: {
@@ -6648,6 +6654,9 @@ export type Database = {
           target_amount?: number | null
           target_label?: string | null
           target_unit?: string | null
+          v3_builtin?: Json | null
+          v3_features?: Json | null
+          v3_views?: Json | null
           vat_type?: string
         }
         Relationships: [
@@ -12732,10 +12741,207 @@ export type Database = {
           },
         ]
       }
-      project_items: {
+      project_item_checks: {
+        Row: {
+          company_id: string
+          created_at: string
+          done: boolean
+          id: string
+          item_id: string
+          name: string
+          position: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          done?: boolean
+          id?: string
+          item_id: string
+          name: string
+          position?: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          done?: boolean
+          id?: string
+          item_id?: string
+          name?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_item_checks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_item_checks_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "project_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_item_columns: {
         Row: {
           archived_at: string | null
+          company_id: string
+          created_at: string
+          deal_id: string
+          id: string
+          key: string
+          name: string
+          position: number
+          settings: Json
+          type: string
+          width: number | null
+        }
+        Insert: {
+          archived_at?: string | null
+          company_id: string
+          created_at?: string
+          deal_id: string
+          id?: string
+          key: string
+          name: string
+          position?: number
+          settings?: Json
+          type: string
+          width?: number | null
+        }
+        Update: {
+          archived_at?: string | null
+          company_id?: string
+          created_at?: string
+          deal_id?: string
+          id?: string
+          key?: string
+          name?: string
+          position?: number
+          settings?: Json
+          type?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_item_columns_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_item_columns_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_item_columns_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_item_columns_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_item_columns_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_item_columns_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_item_columns_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+        ]
+      }
+      project_item_events: {
+        Row: {
+          body: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          item_id: string
+          kind: string
+          mentions: string[]
+          meta: Json
+        }
+        Insert: {
+          body: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_id: string
+          kind?: string
+          mentions?: string[]
+          meta?: Json
+        }
+        Update: {
+          body?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_id?: string
+          kind?: string
+          mentions?: string[]
+          meta?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_item_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_item_events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_item_events_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "project_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_items: {
+        Row: {
+          after_id: string | null
+          archived_at: string | null
           assignee_id: string | null
+          assignee_ids: string[]
           body: string | null
           company_id: string
           created_at: string
@@ -12757,6 +12963,7 @@ export type Database = {
           plan_amount: number | null
           position: number
           priority: string | null
+          recurrence: Json | null
           source_item_id: string | null
           start_date: string | null
           status: string
@@ -12764,8 +12971,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          after_id?: string | null
           archived_at?: string | null
           assignee_id?: string | null
+          assignee_ids?: string[]
           body?: string | null
           company_id: string
           created_at?: string
@@ -12787,6 +12996,7 @@ export type Database = {
           plan_amount?: number | null
           position?: number
           priority?: string | null
+          recurrence?: Json | null
           source_item_id?: string | null
           start_date?: string | null
           status?: string
@@ -12794,8 +13004,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          after_id?: string | null
           archived_at?: string | null
           assignee_id?: string | null
+          assignee_ids?: string[]
           body?: string | null
           company_id?: string
           created_at?: string
@@ -12817,6 +13029,7 @@ export type Database = {
           plan_amount?: number | null
           position?: number
           priority?: string | null
+          recurrence?: Json | null
           source_item_id?: string | null
           start_date?: string | null
           status?: string
@@ -12824,6 +13037,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "project_items_after_id_fkey"
+            columns: ["after_id"]
+            isOneToOne: false
+            referencedRelation: "project_items"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_items_assignee_id_fkey"
             columns: ["assignee_id"]
@@ -13394,6 +13614,129 @@ export type Database = {
           },
         ]
       }
+      project_surveys: {
+        Row: {
+          banner_path: string | null
+          closes_at: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          deal_id: string
+          enabled: boolean
+          id: string
+          image_paths: Json
+          intro: string
+          max_responses: number | null
+          name_label: string
+          prevent_dup: boolean
+          questions: Json
+          response_count: number
+          target_stage: string
+          title: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          banner_path?: string | null
+          closes_at?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          deal_id: string
+          enabled?: boolean
+          id?: string
+          image_paths?: Json
+          intro?: string
+          max_responses?: number | null
+          name_label?: string
+          prevent_dup?: boolean
+          questions?: Json
+          response_count?: number
+          target_stage?: string
+          title?: string
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          banner_path?: string | null
+          closes_at?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string
+          enabled?: boolean
+          id?: string
+          image_paths?: Json
+          intro?: string
+          max_responses?: number | null
+          name_label?: string
+          prevent_dup?: boolean
+          questions?: Json
+          response_count?: number
+          target_stage?: string
+          title?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_surveys_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_surveys_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_surveys_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_surveys_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_surveys_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_surveys_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_surveys_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_surveys_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+        ]
+      }
       project_tasks: {
         Row: {
           archived_at: string | null
@@ -13543,6 +13886,54 @@ export type Database = {
             columns: ["sprint_id"]
             isOneToOne: false
             referencedRelation: "project_sprints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_templates: {
+        Row: {
+          archived_at: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          icon: string
+          id: string
+          name: string
+          spec: Json
+        }
+        Insert: {
+          archived_at?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          icon?: string
+          id?: string
+          name: string
+          spec?: Json
+        }
+        Update: {
+          archived_at?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          icon?: string
+          id?: string
+          name?: string
+          spec?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -18217,6 +18608,16 @@ export type Database = {
           expense_code: string
         }[]
       }
+      _notify_signed_voucher: {
+        Args: {
+          p_company: string
+          p_deal: string
+          p_link: string
+          p_message: string
+          p_title: string
+        }
+        Returns: undefined
+      }
       _seed_advisor_default_perms: {
         Args: { p_link_id: string }
         Returns: undefined
@@ -18395,6 +18796,10 @@ export type Database = {
       }
       approve_overtime: { Args: { p_request_id: string }; Returns: undefined }
       auto_clock_out_at_work_end: { Args: never; Returns: number }
+      auto_voucher_for_signed_quote: {
+        Args: { p_approval: string }
+        Returns: Json
+      }
       backfill_bank_counterparty: {
         Args: { p_company_id: string }
         Returns: number
@@ -19133,7 +19538,7 @@ export type Database = {
       rebuild_my_stock_costs: { Args: never; Returns: Json }
       rebuild_stock_costs: { Args: { p_company: string }; Returns: Json }
       recalculate_late_status_recent: {
-        Args: { p_company_id?: string; p_days?: number }
+        Args: { p_company_id?: string; p_days: number }
         Returns: {
           demoted_to_present: number
           promoted_to_late: number
