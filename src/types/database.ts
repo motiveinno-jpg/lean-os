@@ -3443,6 +3443,7 @@ export type Database = {
         Row: {
           attachments: Json
           author_email: string | null
+          category: string | null
           author_id: string | null
           author_name: string | null
           company_id: string
@@ -3462,6 +3463,7 @@ export type Database = {
         Insert: {
           attachments?: Json
           author_email?: string | null
+          category?: string | null
           author_id?: string | null
           author_name?: string | null
           company_id: string
@@ -3481,6 +3483,7 @@ export type Database = {
         Update: {
           attachments?: Json
           author_email?: string | null
+          category?: string | null
           author_id?: string | null
           author_name?: string | null
           company_id?: string

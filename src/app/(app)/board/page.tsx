@@ -57,7 +57,11 @@ type Post = {
   poll_anonymous?: boolean | null;
   poll_deadline?: string | null; // v4 B2
   attachments?: Attachment[] | null;
+  category?: string | null; // 결정 147(드팜므 문의) — 공지/매뉴얼/교육자료/자유, null=미분류(옛 글)
 };
+
+//   카테고리 — 사내 매뉴얼 저장소 요구(결정 147). 회사별 사전은 2차, 지금은 고정 4종
+const POST_CATS = ["공지", "매뉴얼", "교육자료", "자유"] as const;
 type Comment = {
   id: string;
   post_id: string;
@@ -122,6 +126,7 @@ export default function BoardPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Post | null>(null);
   const [form, setForm] = useState({ title: "", content: "" });
+  const [postCat, setPostCat] = useState<string>(""); // "" = 미분류
   const [openId, setOpenId] = useState<string | null>(null);
   //   ?post=<id> 로 들어오면 그 글을 바로 펼친다 — 메신저에서 붙인 게시판 링크가 여기로 온다
   //   (2026-08-10). useSearchParams 대신 주소를 직접 읽는다 — 이 페이지엔 Suspense 경계가 없다.
@@ -135,12 +140,12 @@ export default function BoardPage() {
   //   보기(전체/내 글)는 조회 줄, 종류·작성자·기간은 검색조건 (2026-08-18 규칙: 값 필터는 검색조건)
   const [view, setView] = useState<"all" | "mine">("all");
   const [search, setSearch] = useState("");
-  type BCond = { kinds: string[]; authors: string[]; from: string; to: string; rows: number };
-  const BEMPTY: BCond = { kinds: [], authors: [], from: "", to: "", rows: 50 };
+  type BCond = { kinds: string[]; cats: string[]; authors: string[]; from: string; to: string; rows: number };
+  const BEMPTY: BCond = { kinds: [], cats: [], authors: [], from: "", to: "", rows: 50 };
   const [panelOpen, setPanelOpen] = useState(false);
   const [bDraft, setBDraft] = useState<BCond>(BEMPTY);
   const [bLive, setBLive] = useState<BCond>(BEMPTY);
-  const bCount = (c: BCond) => c.kinds.length + c.authors.length + ((c.from || c.to) ? 1 : 0);
+  const bCount = (c: BCond) => c.kinds.length + c.cats.length + c.authors.length + ((c.from || c.to) ? 1 : 0);
   type BSort = "title" | "author" | "created";
   const [bSort, setBSort] = useState<SortState<BSort>>({ key: "created", dir: "desc" });
   const onBSort = (k: BSort) => setBSort((c) => nextSort(c, k));
@@ -300,6 +305,7 @@ export default function BoardPage() {
 
   const resetForm = () => {
     setForm({ title: "", content: "" });
+    setPostCat("");
     setEditing(null);
     setShowForm(false);
     setEventDate("");
@@ -372,6 +378,7 @@ export default function BoardPage() {
       }
 
       const ext: Record<string, unknown> = {
+        category: postCat || null,
         event_date: eventDate || null,
         poll_question: pollQuestion.trim() || null,
         poll_options: pollQuestion.trim() ? cleanPollOptions : [],
@@ -780,6 +787,7 @@ export default function BoardPage() {
   const kindHit = (p: any, k: string) => k === "pinned" ? !!p.pinned : k === "event" ? !!p.event_date : k === "poll" ? !!p.poll_question : k === "file" ? (p.attachments?.length ?? 0) > 0 : true;
   const bHit = (p: any, c: BCond) => {
     if (c.kinds.length && !c.kinds.some((k) => kindHit(p, k))) return false;
+    if (c.cats.length && !c.cats.includes(p.category || "")) return false;
     if (c.authors.length && !c.authors.includes(authorOf(p))) return false;
     const d = String(p.created_at || "").slice(0, 10);
     if (c.from && d < c.from) return false;
@@ -806,6 +814,7 @@ export default function BoardPage() {
   const bChips: AppliedChip[] = [
     ...(search ? [{ group: "빠른검색", label: search, onRemove: () => setSearch("") }] : []),
     ...bLive.kinds.map((k) => ({ group: "종류", label: KINDS.find((x) => x.key === k)?.label || k, onRemove: () => bDrop({ kinds: bLive.kinds.filter((x) => x !== k) }) })),
+    ...bLive.cats.map((k) => ({ group: "카테고리", label: k || "미분류", onRemove: () => bDrop({ cats: bLive.cats.filter((x) => x !== k) }) })),
     ...bLive.authors.map((a) => ({ group: "작성자", label: a, onRemove: () => bDrop({ authors: bLive.authors.filter((x) => x !== a) }) })),
     ...((bLive.from || bLive.to) ? [{ group: "기간", label: `${bLive.from || "처음"} ~ ${bLive.to || "오늘"}`, onRemove: () => bDrop({ from: "", to: "" }) }] : []),
   ];
@@ -838,6 +847,15 @@ export default function BoardPage() {
                 ))}
               </span>
             </ConditionRow>
+            <ConditionRow label="카테고리" hint="여러 개 · 매뉴얼만 골라 보기">
+              <span className="qk-quicks">
+                {[...POST_CATS, ""].map((k) => (
+                  <button key={k || "none"} type="button"
+                    onClick={() => setBDraft((c) => ({ ...c, cats: c.cats.includes(k) ? c.cats.filter((x) => x !== k) : [...c.cats, k] }))}
+                    className={bDraft.cats.includes(k) ? "qk-quick qk-quick-on" : "qk-quick"}>{k || "미분류"}</button>
+                ))}
+              </span>
+            </ConditionRow>
             <ConditionRow label="작성자" hint="여러 명">
               <TokenField items={authorOpts} value={bDraft.authors} onChange={(v) => setBDraft((c) => ({ ...c, authors: v }))} placeholder="이름 일부" />
             </ConditionRow>
@@ -866,12 +884,20 @@ export default function BoardPage() {
             </h3>
             <button onClick={resetForm} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-lg" aria-label="닫기">×</button>
           </div>
-          <input
-            value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-            placeholder="제목"
-            className="field-input"
-          />
+          <div className="flex gap-2">
+            <input
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              placeholder="제목"
+              className="field-input flex-1"
+            />
+            {/* 카테고리(결정 147) — 매뉴얼·교육자료를 골라 볼 수 있게. 한 줄 셀렉트 표준 */}
+            <select value={postCat} onChange={(e) => setPostCat(e.target.value)}
+              className="field-input !w-32 flex-none" aria-label="카테고리" title="카테고리 — 검색조건에서 골라 볼 수 있습니다">
+              <option value="">미분류</option>
+              {POST_CATS.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
           {/* 본문 — 서식 편집기 (2026-07-31 사장님: 작성칸 확대 + 서식). 기존 평문 글은 plainToHtml 로 초기화 */}
           <div className="board-content-editor">
             <RichEditor
@@ -1080,6 +1106,11 @@ export default function BoardPage() {
                 <tr className={open ? "board-row board-row-open" : "board-row"} onClick={() => setOpenId(open ? null : p.id)}>
                   <td className="text-left">
                     <div className="board-post-badges">
+                      {p.category && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg)] border border-[var(--border)] text-[var(--text-dim)] font-semibold">
+                          {p.category}
+                        </span>
+                      )}
                       {p.pinned && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">
                           <Ico e="📌" tone="mono" /> 고정
@@ -1328,6 +1359,7 @@ export default function BoardPage() {
                             onClick={() => {
                               setEditing(p);
                               setForm({ title: p.title, content: plainToHtml(p.content) });
+                              setPostCat(p.category || "");
                               setEventDate(p.event_date || "");
                               setPollQuestion(p.poll_question || "");
                               setPollOptions(
