@@ -9708,6 +9708,17 @@ table.phv3-table { min-width: 640px; }
 .pjv3-pv td.zero { color: color-mix(in srgb, var(--text-dim) 45%, transparent); }
 .pjv3-pv tr.grand td { @apply border-t-2 border-[var(--border)] bg-[var(--bg)] font-extrabold; }
 .pjv3-stnote { @apply mt-2 text-[10.5px] text-[var(--text-dim)]; }
+/* 상태 보고(결정 140) — 자동 채움 카드·신호등·지난 보고 */
+.pjv3-rep-card { @apply mb-3 rounded-xl border border-[var(--border)] px-3.5 py-1; }
+.pjv3-rep-line { @apply grid gap-2.5 border-t border-[var(--border)] py-2 text-xs first:border-t-0; grid-template-columns: 92px 1fr; }
+.pjv3-rep-line .k { @apply pt-px text-[11px] text-[var(--text-dim)]; }
+.pjv3-rep-line .late { color: var(--danger, #e2445c); font-weight: 700; }
+.pjv3-rep-lights { @apply flex gap-2; }
+.pjv3-rep-light { @apply cursor-pointer rounded-lg border-[1.5px] border-[var(--border)] bg-[var(--bg-card)] px-3 py-1.5 text-xs text-[var(--text)]; font: inherit; font-size: 12px; }
+.pjv3-rep-light.blue.on { @apply border-[var(--primary)] font-bold text-[var(--primary)]; }
+.pjv3-rep-light.orange.on { border-color: #fdab3d; color: #d78400; font-weight: 700; }
+.pjv3-rep-light.red.on { border-color: #e2445c; color: #e2445c; font-weight: 700; }
+.pjv3-rep-old { @apply mb-1 flex items-center gap-2 rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-xs; }
 .pjv3-gr { @apply flex items-stretch border-b border-[var(--border)]; }
 .pjv3-gr[role="button"] { @apply cursor-pointer; }
 .pjv3-gr[role="button"]:hover { @apply bg-[var(--bg)]/60; }

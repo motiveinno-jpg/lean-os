@@ -1239,6 +1239,82 @@ export function TableV3() {
     exportToExcel(data, "집계표", `${deal?.name || "프로젝트"}_집계_${new Date().toISOString().slice(0, 10)}`);
   };
 
+  // ── 상태 보고(결정 140) — 숫자는 자동으로 채우고 신호등·코멘트만 사람이 골라 저장 ──
+  const [repOpen, setRepOpen] = useState(false);
+  type ReportRow = { id: string; title: string; signal: "blue" | "orange" | "red"; comment: string; snapshot: Record<string, unknown>; created_at: string; created_by: string | null };
+  const { data: reports = [] } = useQuery({
+    queryKey: ["pjv3-reports", dealId],
+    enabled: !!dealId && repOpen,
+    queryFn: async () => (logRead("pjv3:reports", await db.from("project_status_reports")
+      .select("id, title, signal, comment, snapshot, created_at, created_by")
+      .eq("deal_id", dealId).order("created_at", { ascending: false }).limit(10)) || []) as ReportRow[],
+  });
+  const [repForm, setRepForm] = useState({ title: "", signal: "blue" as "blue" | "orange" | "red", comment: "" });
+  //   자동 채움 — 만든 순간의 숫자(snapshot)로 보존한다. 표가 나중에 변해도 보고는 그대로
+  const repDraft = useMemo(() => {
+    const d = statusData;
+    const now = new Date();
+    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekDone = d.done.filter((it) => new Date((it as any).updated_at || 0) >= weekAgo).map((it) => it.name);
+    const lastRep = reports[0];
+    const prevDone = lastRep ? Number((lastRep.snapshot as any)?.done) : NaN;
+    return {
+      title: `${now.getMonth() + 1}월 ${Math.ceil(now.getDate() / 7)}주 보고`,
+      total: d.parents.length, done: d.done.length,
+      pct: d.parents.length ? Math.round(d.done.length / d.parents.length * 100) : 0,
+      delta: Number.isFinite(prevDone) ? d.done.length - prevDone : null,
+      weekDone,
+      late: d.late.map((it) => ({ name: it.name, due: it.due_date!.slice(5, 10), who: assigneeLabel(it) })),
+      nextDue: d.nextDue.filter((it) => it.due_date!.slice(0, 10) >= d.todayStr).slice(0, 2).map((it) => ({ name: it.name, due: it.due_date!.slice(5, 10) })),
+      quoteN: d.quoteN, contractN: d.contractN, amount: d.amount,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusData, reports]);
+  useEffect(() => {
+    if (repOpen) setRepForm({ title: repDraft.title, signal: "blue", comment: "" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repOpen]);
+  const SIGNAL_UI: Record<string, { icon: string; label: string }> = {
+    blue: { icon: "🔵", label: "순항" }, orange: { icon: "🟠", label: "주의" }, red: { icon: "🔴", label: "지연" },
+  };
+  const reportText = () => [
+    `[프로젝트 상태 보고] ${deal?.name || ""} — ${repForm.title}`,
+    `신호등: ${SIGNAL_UI[repForm.signal].icon} ${SIGNAL_UI[repForm.signal].label}`,
+    `진행: ${repDraft.total}건 중 ${repDraft.done}건 끝남(${repDraft.pct}%)${repDraft.delta != null ? ` — 지난 보고보다 ${repDraft.delta >= 0 ? "+" : ""}${repDraft.delta}건` : ""}`,
+    repDraft.weekDone.length ? `최근 7일 한 일: ${repDraft.weekDone.join(" · ")}` : "",
+    repDraft.late.length ? `밀린 것: ${repDraft.late.map((l) => `${l.name}(${l.due} 마감, ${l.who || "담당 없음"})`).join(" · ")}` : "밀린 것: 없음",
+    repDraft.nextDue.length ? `다음 마감: ${repDraft.nextDue.map((n) => `${n.due} ${n.name}`).join(" · ")}` : "",
+    featOn("billing") ? `돈: 견적 ${repDraft.quoteN}건 · 계약 ${repDraft.contractN}건 · 금액 합 ${repDraft.amount.toLocaleString("ko-KR")}원` : "",
+    repForm.comment.trim() ? `코멘트: ${repForm.comment.trim()}` : "",
+  ].filter(Boolean).join("\n");
+  const saveReport = async (shareToBoard: boolean) => {
+    const { error } = await db.from("project_status_reports").insert({
+      company_id: companyId, deal_id: dealId, title: repForm.title.trim() || repDraft.title,
+      signal: repForm.signal, comment: repForm.comment.trim(),
+      snapshot: { total: repDraft.total, done: repDraft.done, pct: repDraft.pct, late: repDraft.late, nextDue: repDraft.nextDue, weekDone: repDraft.weekDone, quoteN: repDraft.quoteN, contractN: repDraft.contractN, amount: repDraft.amount },
+      created_by: user?.id ?? null,
+    });
+    if (error) { toast(friendlyError(error), "error"); return; }
+    if (shareToBoard) {
+      const { error: be } = await db.from("board_posts").insert({
+        company_id: companyId, author_id: user?.id || null, author_name: (user as any)?.name || null, author_email: (user as any)?.email || null,
+        title: `[프로젝트 보고] ${deal?.name || ""} — ${repForm.title.trim() || repDraft.title}`,
+        content: reportText(),
+      });
+      if (be) toast(`보고는 저장됐지만 게시판 공유가 실패했습니다: ${friendlyError(be)}`, "error");
+      else toast("저장하고 게시판에도 올렸습니다", "success");
+    } else {
+      toast("보고를 저장했습니다 — 신호등 흐름이 프로젝트 건강 기록이 됩니다", "success");
+    }
+    qc.invalidateQueries({ queryKey: ["pjv3-reports", dealId] });
+  };
+  const deleteReport = async (id: string) => {
+    const { error } = await db.from("project_status_reports").delete().eq("id", id);
+    if (error) { toast(friendlyError(error), "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pjv3-reports", dealId] });
+    toast("보고를 지웠습니다", "success");
+  };
+
   // ── 팝(팔레트·담당·선택지·컬럼 추가) — 화면에 하나만 ──
   const [pop, setPop] = useState<Pop | null>(null);
   useEffect(() => {
@@ -1602,6 +1678,7 @@ export function TableV3() {
           <button type="button" className="btn-secondary btn-sm" title="외부에 링크로 설문을 보내고 응답을 이 표에 받습니다"
             onClick={() => setSvOpen(true)}>설문</button>
         )}
+        <button type="button" className="btn-secondary btn-sm" title="숫자는 자동으로 채우고 신호등·코멘트만 골라 저장" onClick={() => setRepOpen(true)}>보고</button>
         <button type="button" className="btn-secondary btn-sm" title="보관한 줄 보기·되살리기" onClick={() => setArchOpen(true)}>보관함</button>
         <span className="pjv3-count num">{shown.length}건{shown.length !== items.length ? ` / 전체 ${items.length}` : ""}</span>
       </div>
@@ -2091,6 +2168,62 @@ export function TableV3() {
               </div>
             ))}
             <div className="phv3-modal-actions"><button type="button" className="btn-secondary btn-sm" onClick={() => setArchOpen(false)}>닫기</button></div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 상태 보고 — 숫자는 자동, 신호등·코멘트는 사람(결정 140) ── */}
+      {repOpen && deal && (
+        <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setRepOpen(false); }}>
+          <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="상태 보고">
+            <h3 className="phv3-modal-title">상태 보고 — 아래 숫자는 표에서 자동으로 왔습니다</h3>
+            <div className="pjv3-sv-field"><label>보고 제목</label>
+              <input type="text" value={repForm.title} onChange={(e) => setRepForm((f) => ({ ...f, title: e.target.value }))} /></div>
+            <div className="pjv3-rep-card">
+              <div className="pjv3-rep-line"><span className="k">진행</span>
+                <span>{repDraft.total}건 중 <b>{repDraft.done}건 끝남({repDraft.pct}%)</b>{repDraft.delta != null && <> — 지난 보고보다 {repDraft.delta >= 0 ? "+" : ""}{repDraft.delta}건</>}</span></div>
+              {repDraft.weekDone.length > 0 && (
+                <div className="pjv3-rep-line"><span className="k">최근 7일 한 일</span><span>{repDraft.weekDone.join(" · ")}</span></div>
+              )}
+              <div className="pjv3-rep-line"><span className="k">밀린 것</span>
+                {repDraft.late.length === 0 ? <span>없음</span>
+                  : <span className="late">{repDraft.late.map((l) => `${l.name} — ${l.due} 마감 (${l.who || "담당 없음"})`).join(" · ")}</span>}</div>
+              {repDraft.nextDue.length > 0 && (
+                <div className="pjv3-rep-line"><span className="k">다음 마감</span><span>{repDraft.nextDue.map((n) => `${n.due} ${n.name}`).join(" · ")}</span></div>
+              )}
+              {featOn("billing") && (
+                <div className="pjv3-rep-line"><span className="k">돈</span><span>견적 {repDraft.quoteN}건 · 계약 {repDraft.contractN}건 · 금액 합 {repDraft.amount.toLocaleString("ko-KR")}원</span></div>
+              )}
+            </div>
+            <div className="pjv3-sv-field"><label>신호등 — 내가 고릅니다(자동 판정 없음)</label>
+              <div className="pjv3-rep-lights">
+                {(["blue", "orange", "red"] as const).map((s) => (
+                  <button key={s} type="button" className={`pjv3-rep-light ${s} ${repForm.signal === s ? "on" : ""}`}
+                    onClick={() => setRepForm((f) => ({ ...f, signal: s }))}>{SIGNAL_UI[s].icon} {SIGNAL_UI[s].label}</button>
+                ))}
+              </div></div>
+            <div className="pjv3-sv-field"><label>한 줄 코멘트</label>
+              <input type="text" value={repForm.comment} placeholder="예: 한빛상사 건은 고객 피드백 대기, 금주 재개 예정"
+                onChange={(e) => setRepForm((f) => ({ ...f, comment: e.target.value }))} /></div>
+            {reports.length > 0 && (
+              <div className="pjv3-sv-field"><label>지난 보고 — 신호등 흐름이 곧 프로젝트 건강 기록</label>
+                {reports.map((r) => (
+                  <div key={r.id} className="pjv3-rep-old">
+                    <span>{SIGNAL_UI[r.signal]?.icon}</span>
+                    <span className="min-w-0 flex-1 truncate">{r.title}{r.comment ? ` · ${r.comment}` : ""}</span>
+                    <span className="num text-[10px] text-[var(--text-dim)]">{r.created_at.slice(5, 10)}</span>
+                    <button type="button" className={`pjv3-del !opacity-100 ${delArm === `rep:${r.id}` ? "arm" : ""}`}
+                      onClick={() => armOrRun(`rep:${r.id}`, () => deleteReport(r.id))}>{delArm === `rep:${r.id}` ? "한 번 더" : "✕"}</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="phv3-modal-actions">
+              <button type="button" className="btn-secondary btn-sm" onClick={() => setRepOpen(false)}>닫기</button>
+              <button type="button" className="btn-secondary btn-sm" title="저장하고 게시판에 같은 내용 글을 올립니다"
+                onClick={async () => { await saveReport(true); }}>저장＋게시판 공유</button>
+              <button type="button" className="btn-primary btn-sm" onClick={async () => { await saveReport(false); }}>저장</button>
+            </div>
           </div>
         </div>
       )}
