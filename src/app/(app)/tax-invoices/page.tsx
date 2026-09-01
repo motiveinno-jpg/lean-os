@@ -2393,7 +2393,7 @@ function TaxInvoicesPageInner() {
                           allowNegative placeholder="0" className="tax-item-input tax-unitcost-input text-right w-full" />
                         <button type="button" title="공급대가(부가세 포함)로 단가 계산"
                           onClick={() => setCalcRowKey((k) => (k === row.key ? null : row.key))}
-                          className={`absolute right-1 top-1/2 -translate-y-1/2 text-[12px] leading-none ${calcRowKey === row.key ? "opacity-100" : "opacity-50 hover:opacity-100"}`}>🧮</button>
+                          className={`absolute right-1 top-1/2 -translate-y-1/2 text-[11px] font-semibold leading-none text-[var(--primary)] ${calcRowKey === row.key ? "opacity-100" : "opacity-60 hover:opacity-100"}`}>계산</button>
                       </div>
                       <span className="tax-item-sum">{(supply + taxAmt).toLocaleString("ko-KR")}</span>
                       <button type="button" onClick={() => removeRow(row.key)} title="이 계산서 줄 지우기" className="tax-item-del">✕</button>

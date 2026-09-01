@@ -9649,7 +9649,7 @@ table.phv3-table { min-width: 640px; }
 
 /* 세금계산서 여러 장 — 단가 칸(🧮 계산기 아이콘 자리 확보). .tax-item-input 의 px-2 가
    @layer 밖이라 pr-7 유틸리티를 이겨 숫자가 아이콘에 깔렸다 (2026-09-01 사장님 제보) — 뒤에 정의해 이긴다 */
-.tax-unitcost-input { @apply pr-7; }
+.tax-unitcost-input { @apply pr-10; }   /* '계산' 글자 버튼 자리 (2026-09-01 아이콘→글자) */
 /* 프로젝트 목록 — 요약 열(규칙 기반, 토큰 0. 2026-09-01 사장님 A안) */
 .ph-sum { @apply !text-left text-xs leading-relaxed; max-width: 460px; }
 .ph-sum-warn { @apply font-semibold text-[var(--danger)]; }
