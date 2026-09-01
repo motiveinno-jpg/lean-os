@@ -19,6 +19,7 @@ import { reportError } from "@/lib/friendly-error";
 import { getCompanyUsers } from "@/lib/queries";
 import { createApprovalRequest } from "@/lib/approval-workflow";
 import { ProjectQuoteStages } from "@/components/project-quote-stages";
+import { CurrencyInput } from "@/components/currency-input";
 import {
   KIND_TABS, INPUT_KINDS, PRIORITIES, stagesOf, stageLabel,
   type ItemKind, type ItemStage,
@@ -790,6 +791,22 @@ function ItemModal({ item, users, userName, stages, childItems, onClose, onPatch
   const [body, setBody] = useState(item.body || "");
   const [tags, setTags] = useState((item.tags || []).join(", "));
   const [child, setChild] = useState("");
+  //   거래처 검색 + 금액 콤마 (2026-09-01 사장님: "거래처 검색 안 됨, 금액 확인 어려움")
+  const { user: modalUser } = useUser();
+  const modalCompanyId = (modalUser as any)?.company_id as string | undefined;
+  const [partnerQ, setPartnerQ] = useState(item.partner_name || "");
+  const [partnerOpen, setPartnerOpen] = useState(false);
+  const [amountStr, setAmountStr] = useState(item.plan_amount != null ? String(item.plan_amount) : "");
+  const { data: partnerList = [] } = useQuery({
+    queryKey: ["phv3-partners", modalCompanyId],
+    enabled: !!modalCompanyId && item.kind === "money",
+    staleTime: 300_000,
+    queryFn: async () => (logRead("phv3:partners", await db.from("partners")
+      .select("id, name").eq("company_id", modalCompanyId!).eq("is_active", true).order("name").limit(500)) || []) as { id: string; name: string }[],
+  });
+  const partnerHits = partnerQ.trim()
+    ? partnerList.filter((pt) => pt.name.toLowerCase().includes(partnerQ.trim().toLowerCase()))
+    : partnerList;
   const save = () => {
     onPatch({
       name: name.trim() || item.name,
@@ -839,11 +856,26 @@ function ItemModal({ item, users, userName, stages, childItems, onClose, onPatch
           </label>
           {item.kind === "money" && (<>
             <label>거래처
-              <input className="phv3-field" defaultValue={item.partner_name || ""} onBlur={(e) => onPatch({ partner_name: e.target.value || null })} />
+              <span className="relative block">
+                <input className="phv3-field w-full" value={partnerQ} placeholder="거래처 검색"
+                  onChange={(e) => { setPartnerQ(e.target.value); setPartnerOpen(true); }}
+                  onFocus={() => setPartnerOpen(true)}
+                  onBlur={() => { setTimeout(() => setPartnerOpen(false), 150); onPatch({ partner_name: partnerQ.trim() || null }); }} />
+                {partnerOpen && partnerHits.length > 0 && (
+                  <span className="phv3-partner-drop">
+                    {partnerHits.slice(0, 10).map((pt) => (
+                      <button key={pt.id} type="button" onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => { setPartnerQ(pt.name); setPartnerOpen(false); onPatch({ partner_id: pt.id, partner_name: pt.name }); }}
+                        className="phv3-partner-opt">{pt.name}</button>
+                    ))}
+                  </span>
+                )}
+              </span>
             </label>
             <label>예정 금액
-              <input className="phv3-field phv3-right" inputMode="numeric" defaultValue={item.plan_amount ?? ""}
-                onBlur={(e) => onPatch({ plan_amount: Number(e.target.value.replace(/[^0-9.-]/g, "")) || null })} />
+              <CurrencyInput value={amountStr} onValueChange={setAmountStr}
+                onBlur={() => onPatch({ plan_amount: Number(amountStr.replace(/[^0-9.-]/g, "")) || null })}
+                placeholder="0" className="phv3-field phv3-right" />
             </label>
           </>)}
         </div>

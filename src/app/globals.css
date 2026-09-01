@@ -9643,3 +9643,6 @@ table.phv3-table { min-width: 640px; }
 .pjv3-glane .todayline { @apply absolute bottom-0 top-0 w-px bg-[var(--primary)] opacity-60; }
 .pjv3-glane .bar { @apply absolute top-1/2 h-3.5 -translate-y-1/2 rounded-full opacity-90; min-width: 8px; }
 .pjv3-ggroup { @apply border-b border-l-4 border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs font-bold; }
+/* 프로젝트 항목 팝업 — 거래처 검색 드롭 (2026-09-01) */
+.phv3-partner-drop { @apply absolute z-50 left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-lg; }
+.phv3-partner-opt { @apply block w-full text-left px-3 py-2 text-xs hover:bg-[var(--bg-surface)]; }

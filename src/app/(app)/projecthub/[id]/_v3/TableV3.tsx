@@ -51,6 +51,7 @@ type UserRow = { id: string; name: string | null; email: string | null };
 type Pop =
   | { kind: "status"; itemId: string; x: number; y: number }
   | { kind: "person"; itemId: string; colKey?: string; x: number; y: number }
+  | { kind: "partner"; itemId: string; colKey: string; x: number; y: number }
   | { kind: "select"; itemId: string; colKey: string; x: number; y: number }
   | { kind: "addcol"; x: number; y: number }
   | { kind: "addview"; x: number; y: number }
@@ -93,6 +94,15 @@ export function TableV3() {
     enabled: !!companyId,
     queryFn: () => getCompanyUsers(companyId!) as Promise<UserRow[]>,
   });
+  //   거래처 칸 검색 피커 (2026-09-01 사장님: "거래처 검색 안 됨" — 2단계 예정이던 스텁을 앞당김)
+  const { data: partners = [] } = useQuery({
+    queryKey: ["pjv3-partners", companyId],
+    enabled: !!companyId,
+    staleTime: 300_000,
+    queryFn: async () => (logRead("pjv3:partners", await db.from("partners")
+      .select("id, name").eq("company_id", companyId!).eq("is_active", true).order("name").limit(500)) || []) as { id: string; name: string }[],
+  });
+  const [partnerQ, setPartnerQ] = useState("");
 
   const stages = useMemo(() => stagesOf(deal?.item_stages), [deal?.item_stages]);
   const userName = (id: string | null) => users.find((u) => u.id === id)?.name || "";
@@ -743,7 +753,9 @@ export function TableV3() {
             {userName(val || null) || val || <span className="text-[var(--text-dim)]">—</span>}</button></td>;
         }
         if (c.type === "partner") {
-          return <td key={c.id} className="text-[var(--text-dim)]"><span className="pjv3-cell" title="거래처 칸은 2단계에서 고릅니다">{val || "—"}</span></td>;
+          return <td key={c.id}><button type="button" className="pjv3-cell"
+            onClick={(e) => { setPartnerQ(""); setPop({ kind: "partner", itemId: it.id, colKey: c.key, ...at(e) }); }}>
+            {val || <span className="text-[var(--text-dim)]">—</span>}</button></td>;
         }
         return <td key={c.id} className={`pjv3-ecell ${c.type === "number" ? "mono-number" : ""}`}>
           <EditCell it={it} colKey={c.key} value={val} type={c.type === "number" ? "number" : c.type === "date" ? "date" : "text"} /></td>;
@@ -1240,6 +1252,25 @@ export function TableV3() {
               }}>{u.name || u.email}</button>
             ))}
           </>)}
+          {pop.kind === "partner" && (() => {
+            const qStr = partnerQ.trim().toLowerCase();
+            const hits = qStr ? partners.filter((pt) => pt.name.toLowerCase().includes(qStr)) : partners;
+            return (<>
+              <div className="pjv3-pop-title">거래처 — 이름 일부로 검색해 고릅니다</div>
+              <input placeholder="거래처 검색" value={partnerQ} autoFocus aria-label="거래처 검색"
+                onChange={(e) => setPartnerQ(e.target.value)} />
+              <button type="button" className="text-[var(--text-dim)]" onClick={() => {
+                const it = items.find((x) => x.id === pop.itemId); if (it) saveField(it, pop.colKey, null); setPop(null);
+              }}>비우기</button>
+              {hits.slice(0, 20).map((pt) => (
+                <button key={pt.id} type="button" onClick={() => {
+                  const it = items.find((x) => x.id === pop.itemId); if (it) saveField(it, pop.colKey, pt.name); setPop(null);
+                }}>{pt.name}</button>
+              ))}
+              {hits.length > 20 && <div className="pjv3-pop-title">앞 20개만 — 검색으로 좁히세요</div>}
+              {hits.length === 0 && <div className="pjv3-pop-title">{partners.length === 0 ? "등록된 거래처가 없습니다 — 재무 › 거래처에서 등록" : "일치하는 거래처가 없습니다"}</div>}
+            </>);
+          })()}
           {pop.kind === "select" && (() => {
             const col = cols.find((c) => c.key === pop.colKey);
             if (!col) return null;
