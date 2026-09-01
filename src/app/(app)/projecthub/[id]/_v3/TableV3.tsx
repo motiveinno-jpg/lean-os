@@ -67,8 +67,8 @@ type Pop =
   | { kind: "files"; itemId: string; colKey: string; x: number; y: number }
   | { kind: "ovlink"; itemId: string; colKey: string; x: number; y: number }
   | { kind: "features"; x: number; y: number }
-  | { kind: "bulkstatus"; x: number; y: number }
-  | { kind: "bulkassign"; x: number; y: number };
+  | { kind: "bulkstatus"; x: number; y: number; up?: boolean }
+  | { kind: "bulkassign"; x: number; y: number; up?: boolean };
 
 export function TableV3() {
   const params = useParams();
@@ -183,7 +183,7 @@ export function TableV3() {
 
   // ── ＋ 기능(2026-09-01 오두 갭 1차) — 반복·앞뒤 순서는 켠 프로젝트에서만. 팀 공유(deals.v3_features) ──
   const features: string[] = Array.isArray(deal?.v3_features) ? deal.v3_features : [];
-  const featOn = (k: "recur" | "deps" | "billing") => features.includes(k);
+  const featOn = (k: "recur" | "deps" | "billing" | "survey") => features.includes(k);
   const toggleFeature = async (k: string) => {
     const next = features.includes(k) ? features.filter((x) => x !== k) : [...features, k];
     const { error } = await db.from("deals").update({ v3_features: next }).eq("id", dealId);
@@ -445,6 +445,8 @@ export function TableV3() {
         });
         if (error) throw new Error(error.message);
       }
+      //   설문형 양식이면 설문 기능도 같이 켠다 — 설문 버튼이 ＋기능 뒤로 숨어 못 찾는 일 방지(2026-09-01)
+      if (["svsat", "svevent", "svbook"].includes(tpl.key) && !features.includes("survey")) await toggleFeature("survey");
       toast(newCols.length > 0
         ? `'${tpl.name}' 양식을 적용했습니다 — 열 ${newCols.length}개가 오른쪽에 붙었습니다`
         : `'${tpl.name}' 양식의 열이 이미 다 있습니다`, "success");
@@ -1063,6 +1065,13 @@ export function TableV3() {
       y: Math.min(r.bottom + 4, window.innerHeight - 340) / zoom,
     };
   };
+  //   바닥 바(일괄 처리)의 팝은 버튼 '위'에 붙인다 — 하단 클램프로 화면 중간에 동떨어져 뜨던 것(2026-09-01 사장님)
+  const atUp = (e: React.MouseEvent) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const zEl = document.querySelector(".app-zoom");
+    const zoom = zEl ? parseFloat(getComputedStyle(zEl as HTMLElement).zoom as string) || 1 : 1;
+    return { x: Math.max(8, Math.min(r.left, window.innerWidth - 320)) / zoom, y: (r.top - 6) / zoom, up: true as const };
+  };
   useEffect(() => { if (!pop || pop.kind !== "select") setOptEdit(false); }, [pop]);
   useEffect(() => { setOvOpen(pop?.kind === "ovlink"); }, [pop]);
   //   상태(그룹) 팔레트도 고정이 아니다 — 이름·색·순서·추가·삭제 (2026-09-01 사장님)
@@ -1376,8 +1385,10 @@ export function TableV3() {
       <div className="pjv3-toolbar">
         <span className="pjv3-search">🔍<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름 · 담당 · 칸에 든 글자 — 검색" aria-label="검색" /></span>
         <button type="button" className="btn-secondary btn-sm" onClick={(e) => setPop({ kind: "excel", ...at(e) })}>엑셀 ▾</button>
-        <button type="button" className="btn-secondary btn-sm" title="외부에 링크로 설문을 보내고 응답을 이 표에 받습니다"
-          onClick={() => setSvOpen(true)}>설문</button>
+        {featOn("survey") && (
+          <button type="button" className="btn-secondary btn-sm" title="외부에 링크로 설문을 보내고 응답을 이 표에 받습니다"
+            onClick={() => setSvOpen(true)}>설문</button>
+        )}
         <button type="button" className="btn-secondary btn-sm" title="보관한 줄 보기·되살리기" onClick={() => setArchOpen(true)}>보관함</button>
         <span className="pjv3-count num">{shown.length}건{shown.length !== items.length ? ` / 전체 ${items.length}` : ""}</span>
       </div>
@@ -1638,16 +1649,17 @@ export function TableV3() {
       </div>
       )}
       {selIds.size > 0 && (
-        <div className="pjv3-selbar">
-          <b className="num">{selIds.size}줄</b> 골라짐
-          <button type="button" onClick={(e) => setPop({ kind: "bulkstatus", ...at(e) })}>그룹·상태 바꾸기</button>
-          <button type="button" onClick={(e) => setPop({ kind: "bulkassign", ...at(e) })}>담당 바꾸기</button>
-          <button type="button" className={delArm === "bulk:del" ? "arm" : ""}
-            onClick={() => armOrRun("bulk:del", bulkDelete)}>{delArm === "bulk:del" ? "한 번 더" : "지우기"}</button>
-          <button type="button" className="p" onClick={() => { const last = stages[stages.length - 1]; if (last) bulkStatus(last.id); }}>
-            {stages[stages.length - 1]?.label || "완료"}(으)로
-          </button>
-          <button type="button" className="x" title="선택 해제" onClick={clearSel}>✕</button>
+        <div className="pjv3-qselbar">
+          <b className="qk-selbar-n">{selIds.size}건 선택</b>
+          <div className="qk-selbar-right">
+            <button type="button" onClick={clearSel} className="qk-selbar-clear">선택 해제</button>
+            <button type="button" className="btn-secondary btn-sm" onClick={(e) => setPop({ kind: "bulkstatus", ...atUp(e) })}>그룹·상태 바꾸기</button>
+            <button type="button" className="btn-secondary btn-sm" onClick={(e) => setPop({ kind: "bulkassign", ...atUp(e) })}>담당 바꾸기</button>
+            <button type="button" className="btn-secondary btn-sm" onClick={() => armOrRun("bulk:del", bulkDelete)}>{delArm === "bulk:del" ? "한 번 더" : "지우기"}</button>
+            <button type="button" className="btn-primary btn-sm" onClick={() => { const last = stages[stages.length - 1]; if (last) bulkStatus(last.id); }}>
+              {stages[stages.length - 1]?.label || "완료"}(으)로
+            </button>
+          </div>
         </div>
       )}
       <p className="pjv3-foot">
@@ -2029,7 +2041,7 @@ export function TableV3() {
 
       {/* ── 떠 있는 팝 — 상태·담당·선택지·컬럼 추가 ── */}
       {pop && (
-        <div className={`pjv3-pop ${(pop.kind === "select" && optEdit) || (pop.kind === "status" && stEdit) ? "pjv3-pop-wide" : ""}`} style={{ left: pop.x, top: pop.y }}>
+        <div className={`pjv3-pop ${(pop.kind === "select" && optEdit) || (pop.kind === "status" && stEdit) ? "pjv3-pop-wide" : ""} ${"up" in pop && pop.up ? "pjv3-pop-up" : ""}`} style={{ left: pop.x, top: pop.y }}>
           {pop.kind === "status" && !stEdit && (<>
             <div className="pjv3-pop-title">상태 — 그룹·칸반 열이 같이 바뀝니다</div>
             {stages.map((s) => (
@@ -2167,7 +2179,7 @@ export function TableV3() {
           })()}
           {pop.kind === "features" && (<>
             <div className="pjv3-pop-title">＋ 기능 — 이 프로젝트에만 켭니다(팀 공유)</div>
-            {([["recur", "반복 작업", "서랍에 '반복' 줄 — 완료로 옮기면 다음 줄 자동"], ["deps", "앞뒤 순서", "서랍에 '앞 작업' 줄 — 안 끝났으면 알려줌"], ["billing", "견적·청구", "서랍에 '돈' 구역 — 견적→계약→계산서→입금"]] as const).map(([k, label, hint]) => (
+            {([["recur", "반복 작업", "서랍에 '반복' 줄 — 완료로 옮기면 다음 줄 자동"], ["deps", "앞뒤 순서", "서랍에 '앞 작업' 줄 — 안 끝났으면 알려줌"], ["billing", "견적·청구", "서랍에 '돈' 구역 — 견적→계약→계산서→입금"], ["survey", "설문 발송", "위에 '설문' 버튼 — 외부 링크로 받은 응답이 줄로"]] as const).map(([k, label, hint]) => (
               <button key={k} type="button" onClick={() => toggleFeature(k)}>
                 {features.includes(k) ? "✓ " : ""}{label}<small className="pjv3-typehint"> — {hint}</small>
               </button>

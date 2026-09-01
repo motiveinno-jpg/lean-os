@@ -9748,13 +9748,15 @@ table.phv3-table { min-width: 640px; }
 /* .pjv3-ecell input(셀 편집용 width/height 100%·outline)이 특이도로 이겨 체크박스가 칸 전체를 먹던 사고 — 더 높은 특이도로 원복 */
 .pjv3-ecell input.pjv3-selbox { @apply h-3.5 w-3.5 p-0; background: transparent; outline: none; }
 .pjv3-sheet tbody tr:hover .pjv3-selbox, .pjv3-selbox.show, .pjv3-selbox:checked { @apply opacity-100; }
-.pjv3-selbar { @apply mx-3 mb-2 flex shrink-0 flex-wrap items-center gap-2 rounded-2xl px-4 py-2.5 text-xs text-white shadow-lg; background: #22243a; }
-.pjv3-selbar b { color: #8ecbff; }
-.pjv3-selbar button { @apply cursor-pointer rounded-lg px-3 py-1.5 text-xs text-white; background: rgba(255, 255, 255, 0.12); border: 0; font-family: inherit; }
-.pjv3-selbar button:hover { background: rgba(255, 255, 255, 0.22); }
-.pjv3-selbar button.p { @apply bg-[var(--primary)] font-bold; }
-.pjv3-selbar button.arm { @apply bg-[var(--danger)] font-bold; }
-.pjv3-selbar button.x { @apply ml-auto; background: none; }
+/* 일괄 바 — 조회 표준 SelectionBar(qk-selbar)와 같은 옷. 상자 흐름 안이라 위치만 mx/mb (2026-09-01 사장님 '다른 메뉴 바닥 팝업과 동일하게') */
+.pjv3-qselbar {
+  @apply mx-3 mb-2 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2
+         rounded-xl border border-[var(--primary)]/35 px-3.5 py-2 shadow-xl;
+  background: color-mix(in srgb, var(--primary) 8%, var(--bg-card));
+  backdrop-filter: blur(6px);
+}
+/* 바닥 바에서 연 팝은 버튼 위로 붙는다 */
+.pjv3-pop-up { transform: translateY(calc(-100% - 6px)); }
 .pjv3-rowbadge { @apply flex-none text-[11px]; }
 .pjv3-rowbadge.dim { @apply opacity-70; }
 .pjv3-gfold { @apply mr-1 inline-block cursor-pointer text-[9px] text-[var(--text-dim)] transition-transform; background: none; border: none; }
