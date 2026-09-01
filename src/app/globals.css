@@ -9745,6 +9745,8 @@ table.phv3-table { min-width: 640px; }
 
 /* pjv3 — 오두 갭 1차: ＋기능·일괄 처리·반복/앞뒤 배지·그룹 접기·보관 (2026-09-01) */
 .pjv3-selbox { @apply h-3.5 w-3.5 flex-none cursor-pointer opacity-0 transition-opacity; accent-color: var(--primary); }
+/* .pjv3-ecell input(셀 편집용 width/height 100%·outline)이 특이도로 이겨 체크박스가 칸 전체를 먹던 사고 — 더 높은 특이도로 원복 */
+.pjv3-ecell input.pjv3-selbox { @apply h-3.5 w-3.5 p-0; background: transparent; outline: none; }
 .pjv3-sheet tbody tr:hover .pjv3-selbox, .pjv3-selbox.show, .pjv3-selbox:checked { @apply opacity-100; }
 .pjv3-selbar { @apply mx-3 mb-2 flex shrink-0 flex-wrap items-center gap-2 rounded-2xl px-4 py-2.5 text-xs text-white shadow-lg; background: #22243a; }
 .pjv3-selbar b { color: #8ecbff; }
