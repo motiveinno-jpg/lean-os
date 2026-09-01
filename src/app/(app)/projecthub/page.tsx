@@ -8,7 +8,7 @@ import { fetchPaged } from "@/lib/fetch-paged";
 //   2026-06-17 핸드오프 v2: 신규 테이블 없이 기존 deals 재사용. 목록 → 상세(탭) 구조.
 //   목록 컬럼: 프로젝트명·거래처·담당자·단계·계약금액·진행률·기간. (직접원가·원가율은 손익 단계에서 추가)
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { DateField } from "@/components/date-field";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -487,6 +487,60 @@ export default function ProjectHubPage() {
   }, [topDeals, pbBoards, pbCols, pbGroups, pbItems, todayStr]);
   const listStatusOfDeal = (d: any): ListStatus => listStatusOf(rollupByDeal[d.id] || { boardCount: 0, boardNames: [], itemCount: 0, quietDays: null, lateCount: 0, soonCount: 0, doneRate: null });
 
+  // ── 목록 '요약'(규칙 기반 — 토큰 0, 2026-09-01 사장님 A안) ──
+  //   '입력·확인 사항·마지막 입력' 열이 옛 보드(project_board_items)를 읽어 v3 표와 끊겨 있었다.
+  //   v3 project_items 를 집계해 요약 문장과 '마지막 업데이트'를 만든다 — AI 호출 없이 숫자를 문장 틀에 끼운다.
+  const { data: v3Items = [] } = useQuery({
+    queryKey: ["ph-v3items", companyId],
+    queryFn: async () => {
+      const data = logRead("projecthub/page:v3items", await (supabase as any).from("project_items")
+        .select("deal_id, name, status, due_date, updated_at").is("archived_at", null).eq("company_id", companyId!));
+      return (data || []) as { deal_id: string; name: string; status: string; due_date: string | null; updated_at: string }[];
+    },
+    enabled: !!companyId,
+  });
+  const v3ByDeal = useMemo(() => {
+    const m: Record<string, { total: number; done: number; overdue: { name: string; days: number }[]; soon: number; lastAt: number | null }> = {};
+    //   완료 판정 = 그 프로젝트 단계의 마지막 그룹(간트·표와 같은 규칙). item_stages 가 null 이면 기본 3단계의 'done'.
+    const lastStage: Record<string, string> = {};
+    for (const d of topDeals as any[]) {
+      const st = Array.isArray(d.item_stages) ? d.item_stages : null;
+      lastStage[d.id] = st?.length ? String(st[st.length - 1].id) : "done";
+    }
+    const day = 86400000;
+    for (const it of v3Items) {
+      const e = (m[it.deal_id] ||= { total: 0, done: 0, overdue: [], soon: 0, lastAt: null });
+      e.total += 1;
+      const isDone = it.status === (lastStage[it.deal_id] ?? "done");
+      if (isDone) e.done += 1;
+      if (it.due_date && !isDone) {
+        const dd = it.due_date.slice(0, 10);
+        if (dd < todayStr) e.overdue.push({ name: it.name, days: Math.max(1, Math.round((+new Date(todayStr) - +new Date(dd)) / day)) });
+        else if ((+new Date(dd) - +new Date(todayStr)) / day <= 7) e.soon += 1;
+      }
+      const t = +new Date(it.updated_at);
+      if (!e.lastAt || t > e.lastAt) e.lastAt = t;
+    }
+    for (const k in m) m[k].overdue.sort((a, b) => b.days - a.days);
+    return m;
+  }, [v3Items, topDeals, todayStr]);
+  const v3QuietDays = (d: any): number | null => {
+    const at = v3ByDeal[d.id]?.lastAt;
+    return at ? Math.floor((Date.now() - at) / 86400000) : null;
+  };
+  const v3Summary = (d: any): React.ReactNode => {
+    const v = v3ByDeal[d.id];
+    if (!v || v.total === 0) return <span className="ph-sum-dim">아직 표에 적은 것이 없습니다</span>;
+    const parts: React.ReactNode[] = [`${v.total}건 중 ${v.done}건 완료`];
+    if (v.overdue.length > 0) parts.push(
+      <span className="ph-sum-warn">{`'${v.overdue[0].name}' ${v.overdue[0].days}일 지남${v.overdue.length > 1 ? ` 외 ${v.overdue.length - 1}건` : ""}`}</span>
+    );
+    if (v.soon > 0) parts.push(`7일 안 마감 ${v.soon}건`);
+    const quiet = v3QuietDays(d);
+    if (quiet != null && quiet >= 14 && v.overdue.length === 0) parts.push(<span className="ph-sum-warn">{`${quiet}일째 조용`}</span>);
+    return <>{parts.map((p, i) => <React.Fragment key={i}>{i > 0 && <span className="ph-sum-dim"> · </span>}{p}</React.Fragment>)}</>;
+  };
+
   // 확인 사항 — 걸리는 것을 짧은 칩으로 모은다(해당되는 것 전부).
   //   상태(project-status)는 대표 사유 하나만 주므로 목록에서는 여기서 다시 모은다.
   const reasonsOf = (d: any): { text: string; tone: "risk" | "warn" | "dim" }[] => {
@@ -558,13 +612,13 @@ export default function ProjectHubPage() {
         case "progress": c = (headlineByDeal[a.id]?.pct ?? -1) - (headlineByDeal[b.id]?.pct ?? -1); break;
         case "period": c = (a.start_date || "").localeCompare(b.start_date || ""); break;
         case "items": c = (rollupByDeal[a.id]?.itemCount || 0) - (rollupByDeal[b.id]?.itemCount || 0); break;
-        case "quiet": c = (rollupByDeal[a.id]?.quietDays ?? 9999) - (rollupByDeal[b.id]?.quietDays ?? 9999); break;
+        case "quiet": c = (v3ByDeal[b.id]?.lastAt ?? 0) - (v3ByDeal[a.id]?.lastAt ?? 0); break; // 최근 움직인 것 먼저 — v3 표 기준
         default: c = Number(a.contract_total || 0) - Number(b.contract_total || 0);
       }
       if (c === 0) c = Number(a.contract_total || 0) - Number(b.contract_total || 0);
       return sortDir === "asc" ? c : -c;
     });
-  }, [topDeals, inScope, condHit, live, sortKey, sortDir, lens, partnerName, userName, pnlByDeal, headlineByDeal, outstandingByDeal, rollupByDeal, cf.key]);
+  }, [topDeals, inScope, condHit, live, sortKey, sortDir, lens, partnerName, userName, pnlByDeal, headlineByDeal, outstandingByDeal, rollupByDeal, v3ByDeal, cf.key]);
   const pager = usePager(rows, live.rows, `${listView}|${search}|${mineOnly}|${lens}|${JSON.stringify(live)}|${cf.key}`);
   const previewCount = useMemo(() => topDeals.filter((d) => inScope(d) && matchesLens(d) && condHit(d, draft)).length,
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -609,14 +663,15 @@ export default function ProjectHubPage() {
   // 상태 건수 — 표 기준(지연=기한 지남 / 주의=이번 주·오래 조용 / 시작 전=입력 없음)
   const lensCounts = useMemo(() => {
     const st: Record<string, number> = { late: 0, warn: 0, normal: 0, empty: 0 };
-    let lateItems = 0, soonItems = 0, boards = 0;
+    //   숫자도 v3 표 기준(2026-09-01) — 옛 보드 집계는 표와 끊겨 0만 보였다
+    let lateItems = 0, soonItems = 0;
     for (const d of lensScope) {
       st[listStatusOfDeal(d)]++;
-      const r = rollupByDeal[d.id];
-      if (r) { lateItems += r.lateCount; soonItems += r.soonCount; boards += r.boardCount; }
+      const v = v3ByDeal[d.id];
+      if (v) { lateItems += v.overdue.length; soonItems += v.soon; }
     }
-    return { ...st, total: lensScope.length, lateItems, soonItems, boards } as any;
-  }, [lensScope, rollupByDeal]);
+    return { ...st, total: lensScope.length, lateItems, soonItems } as any;
+  }, [lensScope, v3ByDeal]);
 
   // 유형별 요약 구획(수익형 마진합·목표형 평균달성·실행형 평균진행)은 유형 칩과 함께 폐지했다.
   //   회사 전체 집계는 목록 '차트' 보기에서 다루기로 정리(2026-07-30 기획 v3 3단계).
@@ -691,7 +746,6 @@ export default function ProjectHubPage() {
             </button>
           ) : undefined}>
             <Stat label="프로젝트" value={`${rows.length.toLocaleString("ko")}건${rows.length !== lensCounts.total ? ` / ${lensCounts.total}` : ""}`} />
-            <Stat label="템플릿" value={`${lensCounts.boards}개`} />
             <Stat label="기한 지난 줄" value={`${lensCounts.lateItems}건`} tone={lensCounts.lateItems > 0 ? "minus" : undefined} />
             <Stat label="이번 주 마감 줄" value={`${lensCounts.soonItems}건`} />
             <span className="text-[10.5px] text-[var(--text-dim)]">대표 지표는 그 프로젝트에 있는 데이터에서 자동으로 골라요 — 돈이 걸렸으면 마진율, 목표가 있으면 달성률, 할 일만 있으면 진행률</span>
@@ -830,12 +884,12 @@ export default function ProjectHubPage() {
               <tr>
                 {/* '상태(지연/주의/정상)' 열을 뺐다 — 옆 '확인 사항'이 같은 내용을 근거와 함께 적고,
                     행 왼쪽 줄무늬가 색을 이미 맡는다. 판정 단어가 셋이면 셋 다 안 읽힌다. */}
+                {/* 4열 재구성(2026-09-01 사장님): 템플릿(정체 아님)·입력(안 읽힘)·확인 사항(장문 칩) 삭제,
+                    요약(규칙 기반)이 현재 상태·특이사항을 말한다 */}
                 <SortableTh label="프로젝트" sortKey="name" sort={sort} onSort={onSort} filter={cfSpec("name")} />
-                <SortableTh label="템플릿" filter={cfSpec("template")} />
                 <SortableTh label="참여자" sortKey="manager" sort={sort} onSort={onSort} filter={cfSpec("manager")} />
-                <SortableTh label="입력" sortKey="items" sort={sort} onSort={onSort} />
-                <SortableTh label="확인 사항" sortKey="urgency" sort={sort} onSort={onSort} title="급한 순" />
-                <SortableTh label="마지막 입력" sortKey="quiet" sort={sort} onSort={onSort} />
+                <SortableTh label="마지막 업데이트" sortKey="quiet" sort={sort} onSort={onSort} />
+                <SortableTh label="요약 — 현재 상태·특이사항" />
                 <SortableTh label="" />
               </tr>
             </thead>
@@ -843,7 +897,6 @@ export default function ProjectHubPage() {
               {pager.view.map((d: any) => {
                 const r = rollupByDeal[d.id];
                 const key = listStatusOfDeal(d);
-                const reasons = listReasons(r || { boardCount: 0, boardNames: [], itemCount: 0, quietDays: null, lateCount: 0, soonCount: 0, doneRate: null });
                 return (
                   <tr key={d.id} onClick={() => { if (openMenu) { setOpenMenu(null); return; } router.push(`/projecthub/${d.id}`); }}
                     className={`ph-table-row ph-row-${key}`}>
@@ -851,11 +904,6 @@ export default function ProjectHubPage() {
                       <b>{d.name || "(이름 없음)"}</b>
                       {childCount[d.id] > 0 && <span className="ph-sub-badge">하위 {childCount[d.id]}</span>}
                       {partnerName[d.partner_id] && <span className="ph-table-partner">{partnerName[d.partner_id]}</span>}
-                    </td>
-                    <td>
-                      {r && r.boardCount > 0
-                        ? <span className="ph-reasons">{r.boardNames.slice(0, 3).map((n) => <span key={n} className="ph-reason ph-reason-dim">{n}</span>)}{r.boardCount > 3 && <span className="ph-reason ph-reason-dim">+{r.boardCount - 3}</span>}</span>
-                        : <span className="ph-table-dim">없음</span>}
                     </td>
                     <td className="ph-table-dim">
                       {(() => {
@@ -865,20 +913,10 @@ export default function ProjectHubPage() {
                         return names.length <= 2 ? names.join(", ") : `${names.slice(0, 2).join(", ")} 외 ${names.length - 2}`;
                       })()}
                     </td>
-                    <td className="ph-table-n">
-                      {/* 완료율은 뺐다 — 비용표·일정표처럼 성격이 다른 표를 섞어 낸 %는
-                          '18행 중 0%' 처럼 전체를 가리키는 것으로 오해된다(2026-08-05 실측).
-                          챙길 것은 옆 '확인 사항' 이 근거와 함께 말한다. */}
-                      {r && r.itemCount > 0 ? `${r.itemCount}행` : "—"}
+                    <td className={`ph-table-dim ${(v3QuietDays(d) ?? 0) >= 14 ? "ph-quiet-old" : ""}`}>
+                      {(() => { const qd = v3QuietDays(d); return qd == null ? "—" : qd === 0 ? "오늘" : `${qd}일 전`; })()}
                     </td>
-                    <td>
-                      {reasons.length === 0 ? <span className="ph-table-dim">특이사항 없음</span> : (
-                        <span className="ph-reasons">
-                          {reasons.map((x) => <span key={x.text} className={`ph-reason ph-reason-${x.tone}`}>{x.text}</span>)}
-                        </span>
-                      )}
-                    </td>
-                    <td className="ph-table-dim">{r?.quietDays == null ? "—" : r.quietDays === 0 ? "오늘" : `${r.quietDays}일 전`}</td>
+                    <td className="ph-sum">{v3Summary(d)}</td>
                     <td className="ph-table-kebab">
                       <button onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === d.id ? null : d.id); }} className="ph-kebab" title="수정·삭제" aria-label="더보기">⋯</button>
                       {openMenu === d.id && (
