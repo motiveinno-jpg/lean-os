@@ -51,7 +51,8 @@ type Pop =
   | { kind: "select"; itemId: string; colKey: string; x: number; y: number }
   | { kind: "addcol"; x: number; y: number }
   | { kind: "addview"; x: number; y: number }
-  | { kind: "follower"; itemId: string; x: number; y: number };
+  | { kind: "follower"; itemId: string; x: number; y: number }
+  | { kind: "addcal"; date: string; x: number; y: number };
 
 export function TableV3() {
   const params = useParams();
@@ -132,11 +133,12 @@ export function TableV3() {
   };
   const saveField = (it: ItemRow, key: string, value: unknown) =>
     saveItem(it.id, { fields: { ...(it.fields || {}), [key]: value === "" ? null : value } });
-  const addItem = async (stageId: string, name: string) => {
+  const addItem = async (stageId: string, name: string, due?: string) => {
     const group = byStage.m.get(stageId) || [];
     const { error } = await db.from("project_items").insert({
       company_id: companyId, deal_id: dealId, kind: "todo",
       name, status: stageId, position: (group[group.length - 1]?.position ?? 0) + 1,
+      due_date: due ?? null,
       created_by: user?.id ?? null,
     });
     if (error) { toast(friendlyError(error), "error"); return; }
@@ -156,15 +158,16 @@ export function TableV3() {
   // ── 보기 — 표가 기본(결정 130), 칸반은 ＋보기로 추가한 '보는 형태'.
   //   추가 상태는 임시로 브라우저에 기억(3단계에서 deals.v3_views 로 팀 공유 저장 — 결정 129) ──
   const VIEWS_LS = `ov.pjv3.views.${dealId}`;
+  const VIEW_LABELS: Record<string, string> = { kanban: "칸반", calendar: "캘린더" };
   const [views, setViews] = useState<string[]>([]);
-  const [curView, setCurView] = useState<"table" | "kanban">("table");
+  const [curView, setCurView] = useState<"table" | "kanban" | "calendar">("table");
   useEffect(() => {
     try { const v = JSON.parse(localStorage.getItem(VIEWS_LS) || "[]"); if (Array.isArray(v)) setViews(v); } catch { /* 무시 */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dealId]);
-  const addKanban = () => {
-    const next = views.includes("kanban") ? views : [...views, "kanban"];
-    setViews(next); setCurView("kanban"); setPop(null);
+  const addView = (v: "kanban" | "calendar") => {
+    const next = views.includes(v) ? views : [...views, v];
+    setViews(next); setCurView(v); setPop(null);
     try { localStorage.setItem(VIEWS_LS, JSON.stringify(next)); } catch { /* 무시 */ }
   };
   const removeView = (v: string) => {
@@ -172,6 +175,28 @@ export function TableV3() {
     setViews(next); if (curView === v) setCurView("table");
     try { localStorage.setItem(VIEWS_LS, JSON.stringify(next)); } catch { /* 무시 */ }
   };
+
+  // ── 캘린더 보기(추천 3 승인) — 마감일 기준, 칩 클릭=서랍, 날짜 ＋로 그 날짜 마감 항목 추가 ──
+  const [calMonth, setCalMonth] = useState(0);
+  const calCells = useMemo(() => {
+    const base = new Date(); base.setDate(1); base.setMonth(base.getMonth() + calMonth);
+    const y = base.getFullYear(); const m = base.getMonth();
+    const start = new Date(y, m, 1 - new Date(y, m, 1).getDay());
+    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const today = iso(new Date());
+    return {
+      y, m,
+      cells: Array.from({ length: 42 }, (_, i) => {
+        const d = new Date(start); d.setDate(start.getDate() + i);
+        return { date: iso(d), day: d.getDate(), inMonth: d.getMonth() === m, isToday: iso(d) === today };
+      }),
+    };
+  }, [calMonth]);
+  const byDue = useMemo(() => {
+    const map = new Map<string, ItemRow[]>();
+    for (const it of shown) if (it.due_date) (map.get(it.due_date) ?? map.set(it.due_date, []).get(it.due_date)!).push(it);
+    return map;
+  }, [shown]);
 
   // ── 칸반 끌어 옮기기 — 놓는 곳의 상태로 바뀐다(표의 상태 셀과 같은 저장).
   //   끄는 항목은 ref 로 든다 — dragstart 의 setState 가 커밋되기 전에 drop 이 오면 놓친다 ──
@@ -606,12 +631,13 @@ export function TableV3() {
       {/* 보기 줄 — 표가 기본, 칸반은 '표를 보는 형태'(결정 130). 간트·캘린더·현황은 다음 단계 */}
       <div className="pjv3-views">
         <button type="button" className={`pjv3-vchip ${curView === "table" ? "on" : ""}`} onClick={() => setCurView("table")}>표</button>
-        {views.includes("kanban") && (
-          <button type="button" className={`pjv3-vchip ${curView === "kanban" ? "on" : ""}`} onClick={() => setCurView("kanban")}>
-            칸반
-            {curView === "kanban" && <span className="x" title="이 보기 빼기" onClick={(e) => { e.stopPropagation(); removeView("kanban"); }}>✕</span>}
+        {views.filter((v) => VIEW_LABELS[v]).map((v) => (
+          <button key={v} type="button" className={`pjv3-vchip ${curView === v ? "on" : ""}`}
+            onClick={() => setCurView(v as "kanban" | "calendar")}>
+            {VIEW_LABELS[v]}
+            {curView === v && <span className="x" title="이 보기 빼기" onClick={(e) => { e.stopPropagation(); removeView(v); }}>✕</span>}
           </button>
-        )}
+        ))}
         <button type="button" className="pjv3-addview" onClick={(e) => setPop({ kind: "addview", ...at(e) })}>＋ 보기</button>
       </div>
 
@@ -620,7 +646,36 @@ export function TableV3() {
         <span className="pjv3-count num">{shown.length}건{shown.length !== items.length ? ` / 전체 ${items.length}` : ""}</span>
       </div>
 
-      {curView === "kanban" ? (
+      {curView === "calendar" ? (
+        <div className="pjv3-calwrap">
+          <div className="pjv3-calhead">
+            <button type="button" onClick={() => setCalMonth((m) => m - 1)}>◀</button>
+            <b className="num">{calCells.y}년 {calCells.m + 1}월</b>
+            <button type="button" onClick={() => setCalMonth((m) => m + 1)}>▶</button>
+            {calMonth !== 0 && <button type="button" className="pjv3-addview" onClick={() => setCalMonth(0)}>이번 달</button>}
+            <span className="pjv3-head-sub">마감일 기준 — 칩을 누르면 서랍, 날짜의 ＋로 그 날짜 마감 항목 추가</span>
+          </div>
+          <div className="pjv3-calgrid">
+            {["일", "월", "화", "수", "목", "금", "토"].map((d) => <div key={d} className="pjv3-caldow">{d}</div>)}
+            {calCells.cells.map((c) => {
+              const dayItems = byDue.get(c.date) || [];
+              return (
+                <div key={c.date} className={`pjv3-calcell ${c.inMonth ? "" : "out"} ${c.isToday ? "today" : ""}`}>
+                  <div className="d num">{c.day}
+                    <button type="button" className="pjv3-caladd" title="이 날짜 마감으로 추가"
+                      onClick={(e) => setPop({ kind: "addcal", date: c.date, ...at(e) })}>＋</button>
+                  </div>
+                  {dayItems.map((it) => (
+                    <button key={it.id} type="button" className="pjv3-calchip"
+                      style={{ background: STAGE_HEX[stages.find((s) => s.id === it.status)?.color || "gray"] }}
+                      title={`${it.name} — 누르면 서랍`} onClick={() => setDrawerId(it.id)}>{it.name}</button>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : curView === "kanban" ? (
         <div className="pjv3-kbwrap">
           <div className="pjv3-kb">
             {stages.map((s) => {
@@ -635,7 +690,8 @@ export function TableV3() {
                     {group.map((it) => {
                       const late = it.due_date && it.status !== stages[stages.length - 1]?.id && it.due_date < new Date().toISOString().slice(0, 10);
                       return (
-                        <div key={it.id} className="pjv3-kc" draggable
+                        <div key={it.id} className="pjv3-kc" draggable role="button" tabIndex={0}
+                          title="누르면 서랍 — 체크리스트·기록·팔로워" onClick={() => setDrawerId(it.id)}
                           onDragStart={() => { dragIdRef.current = it.id; }} onDragEnd={() => { dragIdRef.current = null; setDragOverStage(null); }}>
                           <div className="tt">{it.name}</div>
                           {(it.assignee_id || it.due_date || it.plan_amount != null) && (
@@ -666,7 +722,8 @@ export function TableV3() {
                 <h3><span className="dot" style={{ background: STAGE_HEX.gray }} />단계 밖<span className="cnt num">{byStage.etc.length}</span></h3>
                 <div className="pjv3-kcards">
                   {byStage.etc.map((it) => (
-                    <div key={it.id} className="pjv3-kc" draggable
+                    <div key={it.id} className="pjv3-kc" draggable role="button" tabIndex={0}
+                          title="누르면 서랍 — 체크리스트·기록·팔로워" onClick={() => setDrawerId(it.id)}
                       onDragStart={() => { dragIdRef.current = it.id; }} onDragEnd={() => { dragIdRef.current = null; setDragOverStage(null); }}>
                       <div className="tt">{it.name}</div>
                     </div>
@@ -787,8 +844,10 @@ export function TableV3() {
       )}
       <p className="pjv3-foot">
         {curView === "kanban"
-          ? "카드를 끌어 다른 열에 놓으면 상태가 바뀝니다(표의 상태 셀과 같은 저장) · 열 아래 칸에 적고 Enter로 추가"
-          : "셀은 눌러서 그 자리 수정 · 이름 칸 '열기'로 체크리스트·기록·팔로워 · ⋮⋮ 끌어 순서·그룹 이동 · 컬럼 머리단은 눌러 이름, 끌어 순서 · ✕는 한 번 더 눌러 지우기"}
+          ? "카드를 끌어 다른 열에 놓으면 상태가 바뀝니다(표의 상태 셀과 같은 저장) · 카드를 누르면 서랍 · 열 아래 칸에 적고 Enter로 추가"
+          : curView === "calendar"
+            ? "마감일이 있는 항목만 보입니다 — 칩을 누르면 서랍 · 날짜의 ＋로 그 날짜 마감 항목 추가"
+            : "셀은 눌러서 그 자리 수정 · 이름 칸 '열기'로 체크리스트·기록·팔로워 · ⋮⋮ 끌어 순서·그룹 이동 · 컬럼 머리단은 눌러 이름, 끌어 순서 · ✕는 한 번 더 눌러 지우기"}
       </p>
       </div>
 
@@ -1013,8 +1072,19 @@ export function TableV3() {
           </>)}
           {pop.kind === "addview" && (<>
             <div className="pjv3-pop-title">보기 추가 — 표를 보는 다른 형태</div>
-            <button type="button" onClick={addKanban}>칸반 — 상태별 카드로 보고, 끌어서 옮깁니다</button>
-            <div className="pjv3-pop-title">간트·캘린더·현황은 다음 단계에서 붙습니다</div>
+            {!views.includes("kanban") && <button type="button" onClick={() => addView("kanban")}>칸반 — 상태별 카드로 보고, 끌어서 옮깁니다</button>}
+            {!views.includes("calendar") && <button type="button" onClick={() => addView("calendar")}>캘린더 — 마감일 달력으로 봅니다</button>}
+            <div className="pjv3-pop-title">간트·현황은 다음 단계에서 붙습니다</div>
+          </>)}
+          {pop.kind === "addcal" && (<>
+            <div className="pjv3-pop-title">{pop.date} 마감으로 추가 — 첫 그룹에 들어갑니다</div>
+            <input autoFocus placeholder="이름 적고 Enter"
+              onKeyDown={(e) => {
+                const v = (e.target as HTMLInputElement).value;
+                if (e.key === "Enter" && !e.nativeEvent.isComposing && v.trim() && stages[0]) {
+                  addItem(stages[0].id, v.trim(), pop.date); setPop(null);
+                }
+              }} />
           </>)}
           {pop.kind === "addcol" && <AddColPop onAdd={(name, type) => { addColumn(name, type); setPop(null); }} />}
         </div>

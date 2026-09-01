@@ -9598,3 +9598,21 @@ table.phv3-table { min-width: 640px; }
 .pjv3-event.log { @apply bg-transparent px-1 text-[11px] text-[var(--text-dim)]; }
 .pjv3-event b { @apply mr-1; }
 .pjv3-event time { @apply ml-2 whitespace-nowrap text-[10px] text-[var(--text-dim)]; }
+
+/* pjv3 — 캘린더 보기(마감일 기준, 2026-09-01 추천 3 승인) */
+.pjv3-calwrap { @apply min-h-0 flex-1 overflow-y-auto p-3; }
+.pjv3-calhead { @apply mb-2 flex flex-wrap items-center gap-2; }
+.pjv3-calhead b { @apply text-sm; }
+.pjv3-calhead > button:not(.pjv3-addview) { @apply cursor-pointer rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2 py-0.5 text-xs text-[var(--text)]; font: inherit; font-size: 12px; }
+.pjv3-calhead > button:hover { @apply border-[var(--primary)]; }
+.pjv3-calgrid { @apply grid grid-cols-7 overflow-hidden rounded-xl border border-[var(--border)]; }
+.pjv3-caldow { @apply border-b border-r border-[var(--border)] bg-[var(--bg)] py-1 text-center text-[10.5px] font-semibold text-[var(--text-dim)]; }
+.pjv3-calcell { @apply flex min-h-[86px] flex-col gap-0.5 border-b border-r border-[var(--border)] p-1; }
+.pjv3-caldow:nth-child(7n), .pjv3-calcell:nth-child(7n+7) { border-right: 0; }
+.pjv3-calcell.out { @apply bg-[var(--bg)]/60 opacity-50; }
+.pjv3-calcell.today { box-shadow: inset 0 0 0 2px var(--primary); }
+.pjv3-calcell .d { @apply flex items-center px-0.5 text-[10.5px] text-[var(--text-dim)]; }
+.pjv3-caladd { @apply ml-auto cursor-pointer rounded px-1 text-[10px] text-[var(--text-dim)] opacity-0 transition-opacity; background: none; border: none; font: inherit; font-size: 10px; }
+.pjv3-calcell:hover .pjv3-caladd { @apply opacity-100; }
+.pjv3-caladd:hover { @apply text-[var(--primary)]; }
+.pjv3-calchip { @apply cursor-pointer truncate rounded px-1.5 py-0.5 text-left text-[10.5px] font-semibold text-white; border: none; font: inherit; font-size: 10.5px; }
