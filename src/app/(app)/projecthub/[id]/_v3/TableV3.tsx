@@ -116,13 +116,58 @@ export function TableV3() {
   // ── 검색 — 구분(kind) 칩 줄은 뺐다: v2.6 탭과 똑같이 생겨 "옛 화면 아니냐" 혼란을 줬다
   //   (2026-08-31 사장님 지적). 돈·메모 구분은 2단계 서랍·보기에서 다룬다.
   const [q, setQ] = useState("");
+  // ── 하위 작업(2026-09-01 사장님) — parent_id(v2.6 모델)로. 표·칸반·합계는 최상위 기준,
+  //   하위는 ▸ 펼침으로 부모 아래 들여서. 금액·숫자는 부모 셀에 '총(자기+하위 합)' ──
+  const childrenOf = useMemo(() => {
+    const m = new Map<string, ItemRow[]>();
+    for (const it of items) {
+      const p = (it as any).parent_id as string | null;
+      if (p) (m.get(p) ?? m.set(p, []).get(p)!).push(it);
+    }
+    for (const arr of m.values()) arr.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    return m;
+  }, [items]);
   const shown = useMemo(() => items.filter((it) => {
+    if ((it as any).parent_id) return false; // 하위는 부모 아래에서만
     if (!q.trim()) return true;
+    const kids = childrenOf.get(it.id) || [];
     const hay = [it.name, userName(it.assignee_id), ...(it.tags || []),
+      ...kids.map((k) => k.name),
       ...Object.values(it.fields || {}).map((v) => String(v ?? ""))].join(" ").toLowerCase();
     return q.toLowerCase().split(/\s+/).every((w) => hay.includes(w));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [items, q, users]);
+  }), [items, q, users, childrenOf]);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpand = (id: string) => setExpanded((s) => {
+    const n = new Set(s);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
+  /** 하위 포함 총액 — 하위가 없으면 null(직접 값 그대로 쓰라는 뜻) */
+  const rollNum = (it: ItemRow, get: (x: ItemRow) => number) => {
+    const kids = childrenOf.get(it.id);
+    if (!kids?.length) return null;
+    return get(it) + kids.reduce((s, k) => s + get(k), 0);
+  };
+  const addSubItem = async (parent: ItemRow, name: string) => {
+    const kids = childrenOf.get(parent.id) || [];
+    //   만들 때는 부모 값을 복사(사장님: "복사는 하되 자유자재로 수정") — 이후엔 완전 독립.
+    //   금액·숫자·날짜류는 비운다: 부모 금액을 복사하면 총액이 이중으로 부풀고, 날짜는 하위마다 다르다.
+    const copyFields: Record<string, unknown> = {};
+    for (const c of cols) {
+      if (["number", "formula", "auto", "files", "date"].includes(c.type)) continue;
+      const v = (parent.fields || {})[c.key];
+      if (v != null) copyFields[c.key] = v;
+    }
+    const { error } = await db.from("project_items").insert({
+      company_id: companyId, deal_id: dealId, kind: "todo", name,
+      status: parent.status, parent_id: parent.id,
+      assignee_id: parent.assignee_id, fields: copyFields,
+      position: (kids[kids.length - 1]?.position ?? 0) + 1, created_by: user?.id ?? null,
+    });
+    if (error) { toast(friendlyError(error), "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
+  };
   const byStage = useMemo(() => {
     const m = new Map<string, ItemRow[]>();
     for (const s of stages) m.set(s.id, []);
@@ -406,8 +451,10 @@ export function TableV3() {
     toast(movedCount > 0 ? `그룹을 지우고 항목 ${movedCount}개를 '${rest[0].label}'(으)로 옮겼습니다` : "그룹을 지웠습니다", "success");
   };
   const deleteItem = async (id: string) => {
+    //   부모를 지우면 하위도 같이(고아 방지) — ✕ 확인 문구가 미리 예고한다
     const { error } = await db.from("project_items")
-      .update({ archived_at: new Date().toISOString() }).eq("id", id);
+      .update({ archived_at: new Date().toISOString() })
+      .or(`id.eq.${id},parent_id.eq.${id}`);
     if (error) { toast(friendlyError(error), "error"); return; }
     qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
     toast("줄을 지웠습니다", "success");
@@ -909,9 +956,6 @@ export function TableV3() {
 
   // ── 숫자 컬럼 합계(먼데이 M6) ──
   const numberCols = cols.filter((c) => c.type === "number");
-  const sumOf = (key: string) => shown.reduce((s, it) => {
-    const v = Number((it.fields || {})[key]); return s + (Number.isFinite(v) ? v : 0);
-  }, 0);
 
   if (dealLoading || itemsLoading) return <div className="pjv3-wrap"><div className="collect-empty">불러오는 중…</div></div>;
   if (!deal) return <div className="pjv3-wrap"><div className="collect-empty">프로젝트를 찾을 수 없습니다.</div></div>;
@@ -920,16 +964,28 @@ export function TableV3() {
   const period = [deal.start_date, deal.end_date].filter(Boolean).join(" ~ ");
   const totalCols = 1 + allCols.length + 1; // 이름 + (내장·커스텀 통합, 숨김 제외) + ＋
 
-  const renderRow = (it: ItemRow) => (
-    <tr key={it.id} className={rowDropAt === `before:${it.id}` ? "pjv3-dropbefore" : ""}
-      onDragOver={(e) => { if (rowDragRef.current) { e.preventDefault(); setRowDropAt(`before:${it.id}`); } }}
+  const renderRow = (it: ItemRow, depth = 0) => {
+    const kids = depth === 0 ? (childrenOf.get(it.id) || []) : [];
+    const open = expanded.has(it.id);
+    return (
+    <tr key={it.id} className={`${rowDropAt === `before:${it.id}` ? "pjv3-dropbefore" : ""} ${depth > 0 ? "pjv3-sub" : ""}`}
+      onDragOver={(e) => { if (depth === 0 && rowDragRef.current) { e.preventDefault(); setRowDropAt(`before:${it.id}`); } }}
       onDragLeave={() => setRowDropAt((cur) => (cur === `before:${it.id}` ? null : cur))}
       onDrop={() => moveRow(`before:${it.id}`)}>
       <td className="pjv3-namecell pjv3-ecell">
         <span className="flex items-center gap-1.5 px-0">
-          <span className="pjv3-handle" title="끌어서 순서·그룹 옮기기" draggable
-            onDragStart={(e) => { rowDragRef.current = it.id; e.dataTransfer.setData("text/plain", it.id); }}
-            onDragEnd={() => { rowDragRef.current = null; setRowDropAt(null); }}>⋮⋮</span>
+          {depth === 0 && (
+            <span className="pjv3-handle" title="끌어서 순서·그룹 옮기기" draggable
+              onDragStart={(e) => { rowDragRef.current = it.id; e.dataTransfer.setData("text/plain", it.id); }}
+              onDragEnd={() => { rowDragRef.current = null; setRowDropAt(null); }}>⋮⋮</span>
+          )}
+          {depth === 0 && (
+            <button type="button" className={`pjv3-subtg ${open ? "open" : ""} ${kids.length === 0 ? "empty" : ""}`}
+              title={kids.length > 0 ? "하위 작업 펼치기/접기" : "하위 작업 만들기"}
+              onClick={() => toggleExpand(it.id)}>
+              <span className="car">▶</span>{kids.length > 0 && <span className="cnt num">{kids.length}</span>}
+            </button>
+          )}
           {it.kind !== "todo" && (
             <span className={`pjv3-kind ${KIND_CHIP[it.kind]?.cls || ""}`}>{KIND_CHIP[it.kind]?.label}</span>
           )}
@@ -953,6 +1009,14 @@ export function TableV3() {
           return <td key={ac.key} className="pjv3-ecell mono-number"><EditCell it={it} colKey="due_date" value={it.due_date || ""} type="date" /></td>;
         }
         if (ac.builtin === "amount") {
+          //   하위가 있으면 '총(자기+하위 합)' — 눌러서 부모 자신의 값을 고칠 수 있다
+          const roll = kids.length > 0 ? rollNum(it, (x) => Number(x.plan_amount) || 0) : null;
+          const editing = edit?.itemId === it.id && edit?.colKey === "plan_amount";
+          if (roll != null && !editing) {
+            return <td key={ac.key} className="pjv3-ecell mono-number">
+              <span className="pjv3-cell pjv3-rollcell" title={`자기 ${(Number(it.plan_amount) || 0).toLocaleString("ko-KR")} + 하위 ${kids.length}건 합 — 누르면 자기 값 수정`}
+                onClick={() => setEdit({ itemId: it.id, colKey: "plan_amount" })}>총 {roll.toLocaleString("ko-KR")}</span></td>;
+          }
           return <td key={ac.key} className="pjv3-ecell mono-number">
             <EditCell it={it} colKey="plan_amount" value={it.plan_amount == null ? "" : String(it.plan_amount)} type="number" />
           </td>;
@@ -1049,14 +1113,38 @@ export function TableV3() {
             onClick={(e) => { setPartnerQ(""); setPop({ kind: "partner", itemId: it.id, colKey: c.key, ...at(e) }); }}>
             {val || <span className="text-[var(--text-dim)]">—</span>}</button></td>;
         }
+        if (c.type === "number" && kids.length > 0) {
+          const roll = rollNum(it, (x) => Number((x.fields || {})[c.key]) || 0);
+          const rEditing = edit?.itemId === it.id && edit?.colKey === c.key;
+          if (roll != null && !rEditing) {
+            return <td key={c.id} className="pjv3-ecell mono-number">
+              <span className="pjv3-cell pjv3-rollcell" title={`하위 ${kids.length}건 합 포함 — 누르면 자기 값 수정`}
+                onClick={() => setEdit({ itemId: it.id, colKey: c.key })}>총 {roll.toLocaleString("ko-KR")}</span></td>;
+          }
+        }
         return <td key={c.id} className={`pjv3-ecell ${c.type === "number" ? "mono-number" : ""}`}>
           <EditCell it={it} colKey={c.key} value={val} type={c.type === "number" ? "number" : c.type === "date" ? "date" : "text"} /></td>;
       })}
       <td className="pjv3-rowdel">
-        <button type="button" className={`pjv3-del ${delArm === `item:${it.id}` ? "arm" : ""}`} title="이 줄 지우기"
+        <button type="button" className={`pjv3-del ${delArm === `item:${it.id}` ? "arm" : ""}`}
+          title={kids.length > 0 ? `이 줄 지우기 — 하위 ${kids.length}개도 같이 지워집니다` : "이 줄 지우기"}
           onClick={() => armOrRun(`item:${it.id}`, () => deleteItem(it.id))}>
-          {delArm === `item:${it.id}` ? "한 번 더" : "✕"}
+          {delArm === `item:${it.id}` ? (kids.length > 0 ? `하위 ${kids.length}개도 같이 — 한 번 더` : "한 번 더") : "✕"}
         </button>
+      </td>
+    </tr>
+  );
+  };
+  const subAddRow = (parent: ItemRow) => (
+    <tr key={`sub-${parent.id}`} className="pjv3-sub pjv3-subadd">
+      <td colSpan={totalCols}>
+        <input placeholder="＋ 하위 작업 적고 Enter — 담당·선택 값은 부모를 복사해 시작합니다"
+          onKeyDown={(e) => {
+            const v = (e.target as HTMLInputElement).value;
+            if (e.key === "Enter" && !e.nativeEvent.isComposing && v.trim()) {
+              addSubItem(parent, v.trim()); (e.target as HTMLInputElement).value = "";
+            }
+          }} />
       </td>
     </tr>
   );
@@ -1283,7 +1371,11 @@ export function TableV3() {
                     )}
                   </td>
                 </tr>,
-                ...group.map(renderRow),
+                ...group.flatMap((gi) => {
+                  const kk = childrenOf.get(gi.id) || [];
+                  const op = expanded.has(gi.id);
+                  return [renderRow(gi, 0), ...(op ? kk.map((k) => renderRow(k, 1)) : []), ...(op ? [subAddRow(gi)] : [])];
+                }),
                 <tr key={`a-${s.id}`} className={`pjv3-addrow ${rowDropAt === `end:${s.id}` ? "pjv3-dropbefore" : ""}`}
                   onDragOver={(e) => { if (rowDragRef.current) { e.preventDefault(); setRowDropAt(`end:${s.id}`); } }}
                   onDragLeave={() => setRowDropAt((cur) => (cur === `end:${s.id}` ? null : cur))}
@@ -1308,15 +1400,19 @@ export function TableV3() {
             {byStage.etc.length > 0 && [
               <tr key="g-etc"><td colSpan={totalCols} className="pjv3-grow" style={{ borderLeftColor: STAGE_HEX.gray }}>
                 단계 밖<em className="num">{byStage.etc.length}</em></td></tr>,
-              ...byStage.etc.map(renderRow),
+              ...byStage.etc.flatMap((gi) => {
+                const kk = childrenOf.get(gi.id) || [];
+                const op = expanded.has(gi.id);
+                return [renderRow(gi, 0), ...(op ? kk.map((k) => renderRow(k, 1)) : []), ...(op ? [subAddRow(gi)] : [])];
+              }),
             ]}
             {(shown.length > 0 || numberCols.length > 0) && (
               <tr className="pjv3-sumrow">
                 <td className="!text-left num">{shown.length}건</td>
                 {allCols.map((ac) => {
                   if (ac.builtin === "status") return <td key={ac.key} className="font-bold">{stages.map((s) => `${s.label} ${(byStage.m.get(s.id) || []).length}`).join(" · ")}</td>;
-                  if (ac.builtin === "amount") return <td key={ac.key} className="mono-number font-bold">{shown.reduce((s, it) => s + (Number(it.plan_amount) || 0), 0).toLocaleString("ko-KR")}</td>;
-                  if (ac.col?.type === "number") return <td key={ac.key} className="mono-number font-bold">{sumOf(ac.col.key).toLocaleString("ko-KR")}</td>;
+                  if (ac.builtin === "amount") return <td key={ac.key} className="mono-number font-bold">{shown.reduce((s, it) => s + (rollNum(it, (x) => Number(x.plan_amount) || 0) ?? (Number(it.plan_amount) || 0)), 0).toLocaleString("ko-KR")}</td>;
+                  if (ac.col?.type === "number") return <td key={ac.key} className="mono-number font-bold">{shown.reduce((s, it) => { const g = (x: ItemRow) => Number((x.fields || {})[ac.col!.key]) || 0; return s + (rollNum(it, g) ?? g(it)); }, 0).toLocaleString("ko-KR")}</td>;
                   if (ac.col?.type === "check") { const done = shown.filter((it) => (it.fields || {})[ac.col!.key] === true).length; return <td key={ac.key} className="num font-bold">{done}/{shown.length}</td>; }
                   if (ac.col?.type === "rating") { const vs = shown.map((it) => Number((it.fields || {})[ac.col!.key]) || 0).filter((v) => v > 0); return <td key={ac.key} className="num font-bold">{vs.length ? `★ ${(vs.reduce((a, b) => a + b, 0) / vs.length).toFixed(1)}` : ""}</td>; }
                   if (ac.col?.type === "formula") { const sum = shown.reduce((s, it) => { const r = fxEval(it, ac.col!); return s + (r.value ?? 0); }, 0); return <td key={ac.key} className="mono-number font-bold">{sum.toLocaleString("ko-KR")}</td>; }

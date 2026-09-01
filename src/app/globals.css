@@ -9727,3 +9727,18 @@ table.phv3-table { min-width: 640px; }
 .pjv3-sv-link { @apply mt-1 flex items-center gap-2 rounded-xl bg-[var(--bg)] px-3 py-2; }
 .pjv3-sv-link code { @apply min-w-0 flex-1 truncate text-[11px] text-[var(--primary)]; }
 .pjv3-sv-thumb { @apply h-11 w-11 flex-none rounded-lg border border-[var(--border)] object-cover; }
+
+/* pjv3 — 하위 작업(▸ 펼침·들여쓰기·총액, 2026-09-01 사장님 승인) */
+.pjv3-subtg { @apply -ml-0.5 flex flex-none cursor-pointer items-center gap-0.5 rounded px-0.5 py-0.5; background: none; border: none; }
+.pjv3-subtg .car { @apply inline-block text-[9px] text-[var(--text-dim)] transition-transform; }
+.pjv3-subtg.open .car { transform: rotate(90deg); }
+.pjv3-subtg .cnt { @apply rounded bg-[var(--primary)]/10 px-1.5 py-0.5 text-[10px] font-bold text-[var(--primary)]; }
+.pjv3-subtg.empty { @apply opacity-0 transition-opacity; }
+.pjv3-sheet tbody tr:hover .pjv3-subtg.empty { @apply opacity-60; }
+.pjv3-sheet tr.pjv3-sub td { background: color-mix(in srgb, var(--primary) 3%, var(--bg-card)); }
+.pjv3-sheet tr.pjv3-sub td.pjv3-namecell { @apply pl-9; position: relative; }
+.pjv3-sheet tr.pjv3-sub td.pjv3-namecell::before { content: ""; position: absolute; left: 18px; top: 0; bottom: 50%; width: 10px; border-left: 1.5px solid var(--border); border-bottom: 1.5px solid var(--border); border-bottom-left-radius: 6px; }
+.pjv3-sheet tr.pjv3-subadd td { @apply border-r-0 py-1.5 pl-9 text-left; background: color-mix(in srgb, var(--primary) 3%, var(--bg-card)); }
+.pjv3-sheet tr.pjv3-subadd input { @apply w-80 max-w-full rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg-card)] px-2.5 py-1 text-xs text-[var(--text)] outline-none placeholder:text-[var(--text-dim)]; }
+.pjv3-sheet tr.pjv3-subadd input:focus { @apply border-solid border-[var(--primary)]; }
+.pjv3-rollcell { @apply font-bold; }
