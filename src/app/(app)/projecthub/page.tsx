@@ -603,6 +603,119 @@ export default function ProjectHubPage() {
     const at = v3ByDeal[d.id]?.lastAt;
     return at ? Math.floor((Date.now() - at) / 86400000) : null;
   };
+  // ── 전체 현황판(결정 141·142) — 기본 판 + 내 판(위젯 카탈로그, 홈 대시보드와 같은 문법·같은 그릇) ──
+  const DASH_KEY = "pjv3-board";
+  const DASH_DEFAULT = ["nums", "progress", "load", "signal"];
+  const DASH_CATALOG: { id: string; name: string; desc: string }[] = [
+    { id: "nums", name: "숫자 카드 줄", desc: "진행 중·지남·이번 주·끝낸" },
+    { id: "progress", name: "프로젝트별 진행", desc: "완료율 낮고 지남 많은 순" },
+    { id: "load", name: "담당별 남은 일", desc: "부하가 쏠린 사람이 위" },
+    { id: "signal", name: "신호등 현황", desc: "상태 보고의 신호등 합계" },
+    { id: "due", name: "다음 마감 리스트", desc: "가까운 순 — 누르면 그 줄" },
+    { id: "money", name: "돈 흐름 띠", desc: "견적→계약(₩ 켠 프로젝트)" },
+  ];
+  const [dashOpen, setDashOpen] = useState(false);
+  const [dashEdit, setDashEdit] = useState(false);
+  const [dashCat, setDashCat] = useState(false);
+  const [dashWidgets, setDashWidgets] = useState<string[]>(DASH_DEFAULT);
+  const [dashLoaded, setDashLoaded] = useState(false);
+  //   저장 그릇은 홈 대시보드와 동일: user_preferences.dashboard_grid(화면별 키 맵) —
+  //   user_id 는 auth uid, (user_id, company_id) 유니크라 upsert 에 둘 다 + onConflict 필수
+  //   (2026-09-01 실측: onConflict 없이 upsert 하면 조용히 실패해 새로고침 후 날아간다 — dashboard-grid.tsx 와 같은 문법)
+  useEffect(() => {
+    if (!dashOpen || dashLoaded || !companyId) return;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const uid = session?.user?.id;
+      if (!uid) return;
+      const { data } = await (supabase as any).from("user_preferences").select("dashboard_grid")
+        .eq("user_id", uid).eq("company_id", companyId).maybeSingle();
+      const saved = data?.dashboard_grid?.[DASH_KEY]?.widgets;
+      if (Array.isArray(saved) && saved.length > 0) setDashWidgets(saved.filter((w: string) => DASH_CATALOG.some((c) => c.id === w)));
+      setDashLoaded(true);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dashOpen, dashLoaded, companyId]);
+  const saveDash = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user?.id;
+    if (!uid || !companyId) { toast("저장 실패 — 로그인을 확인해주세요", "error"); return; }
+    //   읽고-합치고-쓰기 — 다른 화면(홈 대시보드) 키를 보존한다
+    const { data } = await (supabase as any).from("user_preferences").select("dashboard_grid")
+      .eq("user_id", uid).eq("company_id", companyId).maybeSingle();
+    const merged = { ...(data?.dashboard_grid || {}), [DASH_KEY]: { widgets: dashWidgets } };
+    const { error } = await (supabase as any).from("user_preferences").upsert(
+      { user_id: uid, company_id: companyId, dashboard_grid: merged, updated_at: new Date().toISOString() },
+      { onConflict: "user_id,company_id" });
+    if (error) { toast("저장 실패 — 잠시 후 다시 시도해주세요", "error"); return; }
+    setDashEdit(false); setDashCat(false);
+    toast("내 판으로 저장했습니다 — 다른 사람은 기본 판 그대로입니다", "success");
+  };
+  const { data: dealSignals = [] } = useQuery({
+    queryKey: ["ph-signals", companyId],
+    enabled: !!companyId && dashOpen,
+    queryFn: async () => (logRead("projecthub/page:signals", await (supabase as any).from("project_status_reports")
+      .select("deal_id, signal, created_at").eq("company_id", companyId!)
+      .order("created_at", { ascending: false }).limit(300)) || []) as { deal_id: string; signal: "blue" | "orange" | "red"; created_at: string }[],
+  });
+  const dashData = useMemo(() => {
+    const dealName: Record<string, string> = {};
+    const lastStage: Record<string, string> = {};
+    for (const d of topDeals as any[]) {
+      dealName[d.id] = d.name || "";
+      const st = Array.isArray(d.item_stages) ? d.item_stages : null;
+      lastStage[d.id] = st?.length ? String(st[st.length - 1].id) : "done";
+    }
+    const parents = v3Items.filter((it) => !it.parent_id && dealName[it.deal_id] !== undefined);
+    const isDone = (it: (typeof parents)[number]) => it.status === (lastStage[it.deal_id] ?? "done");
+    const td = new Date();
+    const ymd = (t: Date) => `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+    const todayStr = ymd(td);
+    const in7d = new Date(); in7d.setDate(in7d.getDate() + 7);
+    const in7 = ymd(in7d);
+    const monday = new Date(); monday.setHours(0, 0, 0, 0); monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    const isLate = (it: (typeof parents)[number]) => !isDone(it) && !!it.due_date && it.due_date.slice(0, 10) < todayStr;
+    const isWeek = (it: (typeof parents)[number]) => !isDone(it) && !!it.due_date && it.due_date.slice(0, 10) >= todayStr && it.due_date.slice(0, 10) <= in7;
+    const late = parents.filter(isLate);
+    const week = parents.filter(isWeek);
+    const weekDone = parents.filter((it) => isDone(it) && new Date(it.updated_at) >= monday);
+    //   프로젝트별 진행 — 지남 많고 완료율 낮은 순(손 갈 곳이 위)
+    const per = (topDeals as any[]).map((d) => {
+      const list = parents.filter((it) => it.deal_id === d.id);
+      const dn = list.filter(isDone).length;
+      return {
+        id: d.id, name: d.name || "", total: list.length, done: dn,
+        pct: list.length ? Math.round(dn / list.length * 100) : 0,
+        late: list.filter(isLate).length, week: list.filter(isWeek).length,
+      };
+    }).filter((p) => p.total > 0).sort((a, b) => (b.late - a.late) || (a.pct - b.pct)).slice(0, 8);
+    //   담당별 남은 일(대표 기준)
+    const am = new Map<string, { name: string; open: number }>();
+    for (const it of parents) {
+      if (isDone(it)) continue;
+      const key = it.assignee_id || "";
+      const cur = am.get(key) || { name: userName[it.assignee_id || ""] || "담당 없음", open: 0 };
+      cur.open += 1; am.set(key, cur);
+    }
+    const load = [...am.values()].sort((a, b) => b.open - a.open).slice(0, 8);
+    //   신호등 — 프로젝트별 최신 보고 하나(정렬이 최신순이라 처음 만난 것)
+    const sig = new Map<string, string>();
+    for (const r of dealSignals) if (dealName[r.deal_id] !== undefined && !sig.has(r.deal_id)) sig.set(r.deal_id, r.signal);
+    const withItems = new Set(parents.map((it) => it.deal_id));
+    const signal = {
+      blue: [...sig.values()].filter((s) => s === "blue").length,
+      orange: [...sig.values()].filter((s) => s === "orange").length,
+      red: [...sig.values()].filter((s) => s === "red").length,
+      none: [...withItems].filter((id) => !sig.has(id)).length,
+    };
+    const nextDue = parents.filter((it) => !isDone(it) && it.due_date)
+      .sort((a, b) => (a.due_date! < b.due_date! ? -1 : 1)).slice(0, 6)
+      .map((it) => ({ ...it, dealName: dealName[it.deal_id], who: userName[it.assignee_id || ""] || "" }));
+    const quoteN = parents.filter((it) => (it.fields || {})["__quote"]).length;
+    const contractN = parents.filter((it) => (it.fields || {})["__contract"]).length;
+    return { activeN: (topDeals as any[]).length, late, week, weekDone, per, load, signal, nextDue, quoteN, contractN, todayStr };
+  }, [topDeals, v3Items, userName, dealSignals]);
+
   // ── 내 작업(오두 갭 2차, 2026-09-01 승인) — 전 프로젝트에서 내 담당 미완 줄만 급한 순 한 표 ──
   const [myWorkOpen, setMyWorkOpen] = useState(false);
   const myWork = useMemo(() => {
@@ -788,6 +901,8 @@ export default function ProjectHubPage() {
         <QueryHead>
           {/* 보기 탭·성과 대시보드는 뺐다 (2026-08-31 사장님: "성과 대시보드 필요 없을 것 같아, 담당별도") — 목록 하나만 */}
           <QueryBar right={<>
+            <button type="button" onClick={() => setDashOpen(true)} className="btn-secondary btn-sm"
+              title="회사의 모든 프로젝트를 한 판으로 — 기본 판, 원하면 내 판으로">현황판</button>
             <button type="button" onClick={() => setMyWorkOpen(true)} className="btn-secondary btn-sm"
               title="모든 프로젝트에서 내가 담당한 줄만 급한 순으로">내 작업{myWork.length > 0 ? ` ${myWork.length}` : ""}</button>
             <button type="button" onClick={() => setShowCreate(true)} className="btn-primary btn-sm">+ 프로젝트 생성</button>
@@ -865,6 +980,135 @@ export default function ProjectHubPage() {
 
         <QueryBody>
          <div className={listView === "table" && rows.length > 0 && !isLoading ? "ev-scroll" : "ph-scroll"}>
+
+      {/* ── 전체 현황판(결정 141·142) — 기본 판 + 위젯 카탈로그로 내 판 ── */}
+      {dashOpen && (
+        <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setDashOpen(false); }}>
+          <div className="phv3-modal pjv3-dash-modal" role="dialog" aria-modal="true" aria-label="전체 현황판">
+            <div className="pjv3-dash-head">
+              <h3 className="phv3-modal-title !mb-0">전체 현황판 — 회사의 모든 프로젝트 한 눈</h3>
+              <button type="button" className="btn-secondary btn-sm ml-auto"
+                onClick={() => { setDashEdit((v) => !v); setDashCat(false); }}>{dashEdit ? "편집 그만" : "내 판으로 고치기"}</button>
+              <button type="button" className="btn-secondary btn-sm" onClick={() => setDashOpen(false)}>닫기</button>
+            </div>
+            {dashEdit && (
+              <div className="pjv3-dash-editbar">
+                <b>편집 중 — 홈 대시보드와 같은 문법(＋위젯·↑↓·✕)</b>
+                <button type="button" className="btn-secondary btn-sm ml-auto" onClick={() => setDashCat((v) => !v)}>＋ 위젯</button>
+                <button type="button" className="btn-secondary btn-sm" onClick={() => setDashWidgets([...DASH_DEFAULT])}>기본 판으로 되돌리기</button>
+                <button type="button" className="btn-primary btn-sm" onClick={saveDash}>저장 — 내 판으로</button>
+              </div>
+            )}
+            {dashEdit && dashCat && (
+              <div className="pjv3-dash-cat">
+                {DASH_CATALOG.map((c) => (
+                  <button key={c.id} type="button" onClick={() => { setDashWidgets((w) => [...w, c.id]); setDashCat(false); }}>
+                    <b>{c.name}</b><small>{c.desc}</small>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="pjv3-dash-body">
+              {dashWidgets.map((w, i) => (
+                <div key={`${w}-${i}`} className={`pjv3-dw ${dashEdit ? "editing" : ""}`}>
+                  {dashEdit && (
+                    <div className="pjv3-dwbar">
+                      <b>{DASH_CATALOG.find((c) => c.id === w)?.name}</b>
+                      <span className="acts">
+                        <button type="button" title="위로" disabled={i === 0}
+                          onClick={() => setDashWidgets((arr) => { const n = [...arr]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; return n; })}>↑</button>
+                        <button type="button" title="아래로" disabled={i === dashWidgets.length - 1}
+                          onClick={() => setDashWidgets((arr) => { const n = [...arr]; [n[i + 1], n[i]] = [n[i], n[i + 1]]; return n; })}>↓</button>
+                        <button type="button" className="x" title="빼기"
+                          onClick={() => setDashWidgets((arr) => arr.filter((_, j) => j !== i))}>✕</button>
+                      </span>
+                    </div>
+                  )}
+                  {w === "nums" && (
+                    <div className="pjv3-strow !mb-0">
+                      <span className="pjv3-stcard" title="목록의 프로젝트 수와 같은 출처"><span className="k">진행 중 프로젝트</span><b className="v num">{dashData.activeN}</b></span>
+                      <span className="pjv3-stcard warn"><span className="k">기한 지난 줄</span><b className="v num">{dashData.late.length}</b></span>
+                      <span className="pjv3-stcard"><span className="k">7일 안 마감 줄</span><b className="v num">{dashData.week.length}</b></span>
+                      <span className="pjv3-stcard good"><span className="k">이번 주 끝낸 줄</span><b className="v num">{dashData.weekDone.length}</b></span>
+                    </div>
+                  )}
+                  {w === "progress" && (
+                    <div className="pjv3-stpanel">
+                      <h3>프로젝트별 진행 <small>지남 많고 완료율 낮은 순 — 이름을 누르면 그 프로젝트</small></h3>
+                      {dashData.per.length === 0 && <div className="pjv3-stempty">표에 줄이 있는 프로젝트가 없습니다</div>}
+                      {dashData.per.map((p) => (
+                        <button key={p.id} type="button" className="pjv3-dprow" onClick={() => router.push(`/projecthub/${p.id}`)}>
+                          <span className="min-w-0 flex-1 truncate text-left">{p.name}</span>
+                          <span className="track"><span className="fill" style={{ width: `${p.pct}%` }} /></span>
+                          <span className="pct num">{p.pct}%</span>
+                          <span className="flags">
+                            {p.late > 0 && <em className="late num">지남 {p.late}</em>}
+                            {p.late === 0 && p.week > 0 && <em className="week num">주 {p.week}</em>}
+                            {p.late === 0 && p.week === 0 && <em className="ok">순항</em>}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {w === "load" && (
+                    <div className="pjv3-stpanel">
+                      <h3>담당별 남은 일 <small>많은 순 — 부하가 쏠린 사람이 위(대표 담당 기준)</small></h3>
+                      {dashData.load.length === 0 && <div className="pjv3-stempty">남은 일이 없습니다</div>}
+                      {dashData.load.map((a) => {
+                        const max = Math.max(1, ...dashData.load.map((x) => x.open));
+                        return (
+                          <div key={a.name} className="pjv3-sthbar" style={{ cursor: "default" }}>
+                            <span className="nm">{a.name}</span>
+                            <span className="track"><span className="fill" style={{ width: `${a.open / max * 100}%`, background: "var(--primary)" }} /></span>
+                            <span className="n num">{a.open}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {w === "signal" && (
+                    <div className="pjv3-stpanel">
+                      <h3>신호등 현황 <small>각 프로젝트의 최신 상태 보고 — 보고 안 쓴 프로젝트는 ⚪</small></h3>
+                      <div className="pjv3-stmoney">
+                        <span className="mstep"><span className="t">🔵 순항</span><b className="n num">{dashData.signal.blue}</b></span>
+                        <span className="mstep"><span className="t">🟠 주의</span><b className="n num">{dashData.signal.orange}</b></span>
+                        <span className="mstep"><span className="t">🔴 지연</span><b className="n num">{dashData.signal.red}</b></span>
+                        <span className="mstep"><span className="t">⚪ 보고 없음</span><b className="n num">{dashData.signal.none}</b></span>
+                      </div>
+                    </div>
+                  )}
+                  {w === "due" && (
+                    <div className="pjv3-stpanel">
+                      <h3>다음 마감 <small>모든 프로젝트에서 가까운 순 — 누르면 그 줄 서랍</small></h3>
+                      {dashData.nextDue.length === 0 && <div className="pjv3-stempty">마감일 있는 미완 줄이 없습니다</div>}
+                      {dashData.nextDue.map((it) => (
+                        <button key={it.id} type="button" className="pjv3-stdue" onClick={() => router.push(`/projecthub/${it.deal_id}?item=${it.id}`)}>
+                          <span className={`d num ${it.due_date!.slice(0, 10) < dashData.todayStr ? "late" : ""}`}>{it.due_date!.slice(5, 10)}</span>
+                          <span className="min-w-0 flex-1 truncate text-left">{it.name}</span>
+                          {it.due_date!.slice(0, 10) < dashData.todayStr && <span className="late">지남</span>}
+                          <span className="who">{it.dealName}{it.who ? ` · ${it.who}` : ""}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {w === "money" && (
+                    <div className="pjv3-stpanel">
+                      <h3>돈 흐름 <small>견적·청구(₩)를 켠 프로젝트 합산</small></h3>
+                      <div className="pjv3-stmoney">
+                        <span className="mstep"><span className="t">견적</span><b className="n num">{dashData.quoteN}건</b></span>
+                        <span className="ar">→</span>
+                        <span className="mstep hot"><span className="t">계약</span><b className="n num">{dashData.contractN}건</b></span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {dashWidgets.length === 0 && <div className="pjv3-stempty">위젯을 다 뺐습니다 — [기본 판으로 되돌리기] 또는 ＋ 위젯</div>}
+            </div>
+            <p className="pjv3-stnote">저장하면 내 계정에만 적용됩니다 · 진행률 = 마지막 그룹(끝남) 비율, 표 집계와 같은 셈법 · 팀 공유 판은 다음 단계</p>
+          </div>
+        </div>
+      )}
 
       {/* 내 작업 — 전 프로젝트 한 표. 줄을 누르면 그 프로젝트의 서랍이 열린다(?item=) */}
       {myWorkOpen && (

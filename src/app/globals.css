@@ -9719,6 +9719,34 @@ table.phv3-table { min-width: 640px; }
 .pjv3-rep-light.orange.on { border-color: #fdab3d; color: #d78400; font-weight: 700; }
 .pjv3-rep-light.red.on { border-color: #e2445c; color: #e2445c; font-weight: 700; }
 .pjv3-rep-old { @apply mb-1 flex items-center gap-2 rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-xs; }
+/* 전체 현황판(결정 141·142) — 넓은 모달 + 위젯 빌더(홈 대시보드 문법) */
+.pjv3-dash-modal { @apply flex w-[min(1060px,94vw)] max-w-none flex-col; max-height: calc(88vh / var(--app-zoom)); }
+.pjv3-dash-head { @apply mb-3 flex items-center gap-2; }
+.pjv3-dash-editbar { @apply mb-2.5 flex items-center gap-2 rounded-xl border border-[var(--primary)]/30 bg-[var(--primary)]/6 px-3 py-2 text-xs; }
+.pjv3-dash-editbar b { @apply text-[11.5px] text-[var(--primary)]; }
+.pjv3-dash-cat { @apply mb-2.5 flex flex-wrap gap-2 rounded-xl bg-[var(--bg)] p-2.5; }
+.pjv3-dash-cat button { @apply min-w-[150px] cursor-pointer rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2 text-left; font: inherit; }
+.pjv3-dash-cat button:hover { @apply border-[var(--primary)]; }
+.pjv3-dash-cat b { @apply block text-xs text-[var(--text)]; }
+.pjv3-dash-cat small { @apply text-[10.5px] text-[var(--text-dim)]; }
+.pjv3-dash-body { @apply flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1; }
+.pjv3-dw.editing { @apply rounded-2xl border-[1.5px] border-dashed border-[var(--primary)] p-2.5; }
+.pjv3-dwbar { @apply mb-2 flex items-center gap-2 text-xs text-[var(--primary)]; }
+.pjv3-dwbar b { font-size: 11.5px; }
+.pjv3-dwbar .acts { @apply ml-auto flex gap-1; }
+.pjv3-dwbar .acts button { @apply h-6 w-7 cursor-pointer rounded-md border border-[var(--border)] bg-[var(--bg-card)] text-[11px] text-[var(--text)]; font: inherit; }
+.pjv3-dwbar .acts button:disabled { @apply cursor-default opacity-30; }
+.pjv3-dwbar .acts button.x { color: var(--danger, #e2445c); }
+.pjv3-dprow { @apply grid w-full cursor-pointer items-center gap-2.5 border-0 bg-transparent py-1.5 text-xs text-[var(--text)]; font: inherit; grid-template-columns: 1fr 130px 40px 92px; }
+.pjv3-dprow:hover { @apply text-[var(--primary)]; }
+.pjv3-dprow .track { @apply h-3 overflow-hidden rounded-md bg-[var(--bg)]; }
+.pjv3-dprow .fill { @apply block h-full rounded-md; background: #00c875; }
+.pjv3-dprow .pct { @apply text-right text-[10.5px] text-[var(--text-dim)]; }
+.pjv3-dprow .flags { @apply text-right; }
+.pjv3-dprow .flags em { @apply inline-block rounded-md px-1.5 py-0.5 text-[10px] font-bold not-italic; }
+.pjv3-dprow .flags .late { background: #fdecef; color: #e2445c; }
+.pjv3-dprow .flags .week { background: #fff4e3; color: #d78400; }
+.pjv3-dprow .flags .ok { background: #e6f9f1; color: #00a05e; }
 .pjv3-gr { @apply flex items-stretch border-b border-[var(--border)]; }
 .pjv3-gr[role="button"] { @apply cursor-pointer; }
 .pjv3-gr[role="button"]:hover { @apply bg-[var(--bg)]/60; }
