@@ -29,6 +29,19 @@ const STATUS: Record<string, { bg: string; text: string; label: string }> = {
   closed: { bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]", label: "종료" },
 };
 
+//   전역 copy-protection(body user-select:none) 아래서도 확실히 복사되게 — clipboard API 우선,
+//   막히면(권한/비보안 컨텍스트) textarea+execCommand 폴백. (2026-09-01 사장님: 문의 복사 안 됨)
+function copyText(text: string) {
+  try { navigator.clipboard?.writeText(text).catch(() => {}); } catch { /* ignore */ }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.style.position = "fixed"; ta.style.top = "-9999px"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+  } catch { /* ignore */ }
+}
+
 export default function PlatformPartnershipPage() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState<string | null>(null);
@@ -49,6 +62,7 @@ export default function PlatformPartnershipPage() {
   // 검색 (2026-07-28 전면 정비) — 회사·담당자·이메일·내용
   const [search, setSearch] = useState("");
   const [companyFilter, setCompanyFilter] = useState("all");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const companyOptions = useMemo(() => {
     const set = new Set<string>();
     items.forEach((it) => { if (it.company_name) set.add(it.company_name); });
@@ -129,7 +143,8 @@ export default function PlatformPartnershipPage() {
                         <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${st.bg} ${st.text}`}>{st.label}</span>
                         <span className="font-semibold text-[var(--text)]">{it.company_name}</span>
                       </div>
-                      <div className="text-sm text-[var(--text-muted)] mt-1.5 leading-relaxed whitespace-pre-wrap">{it.message}</div>
+                      {/*   문의 본문은 드래그 선택·복사 허용 (전역 copy-protection 예외, 2026-09-01 사장님) */}
+                      <div className="text-sm text-[var(--text-muted)] mt-1.5 leading-relaxed whitespace-pre-wrap select-text cursor-text">{it.message}</div>
                       <div className="text-xs text-[var(--text-dim)] mt-2">
                         {it.contact_name} ·{" "}
                         <a href={`mailto:${it.email}`} className="underline hover:text-[var(--text)]">{it.email}</a>
@@ -137,6 +152,25 @@ export default function PlatformPartnershipPage() {
                       </div>
                     </div>
                     <div className="platform-partnership-actions">
+                      <button
+                        onClick={() => {
+                          const text = [
+                            `회사: ${it.company_name || "-"}`,
+                            `담당: ${it.contact_name || "-"}`,
+                            `이메일: ${it.email || "-"}`,
+                            it.phone ? `연락처: ${it.phone}` : null,
+                            `접수일: ${kstDateStr(new Date(it.created_at))}`,
+                            "",
+                            it.message || "",
+                          ].filter((l) => l != null).join("\n");
+                          copyText(text);
+                          setCopiedId(it.id); setTimeout(() => setCopiedId(null), 1500);
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-dim)] hover:text-[var(--text)] transition"
+                        title="문의 내용 전체를 복사합니다"
+                      >
+                        {copiedId === it.id ? "복사됨 ✓" : "복사"}
+                      </button>
                       {["new", "contacted", "closed"].map((s) => (
                         <button
                           key={s}
