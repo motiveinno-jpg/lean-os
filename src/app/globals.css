@@ -9691,6 +9691,9 @@ table.phv3-table { min-width: 640px; }
 .svp-banner { @apply block max-h-56 w-full object-cover; }
 .svp-head { @apply px-6 pb-2 pt-6; background: linear-gradient(135deg, #5559DF, #7A7DF0); }
 .svp-head h1 { @apply pb-4 text-lg font-extrabold leading-snug text-white; }
+/* 설문 2차 — 제목 밑 마감일·남은 자리 (2026-09-01) */
+.svp-head:has(.svp-meta) h1 { @apply pb-1; }
+.svp-meta { @apply pb-4 text-xs font-semibold text-white/85; }
 .svp-body { @apply flex flex-col gap-5 px-6 py-6; }
 .svp-intro { @apply whitespace-pre-line rounded-2xl bg-[#f4f5fb] px-4 py-3.5 text-[13px] leading-relaxed text-[#22243a]; }
 .svp-img { @apply block w-full rounded-2xl; }
@@ -9724,6 +9727,13 @@ table.phv3-table { min-width: 640px; }
 .pjv3-sv-qrow .ty { @apply ml-auto text-[10px] text-[var(--text-dim)]; }
 .pjv3-sv-req { @apply cursor-pointer rounded border border-[var(--border)] bg-[var(--bg)] px-1.5 py-0.5 text-[10px] text-[var(--text-dim)]; }
 .pjv3-sv-req.on { @apply border-[var(--danger)]/40 bg-[var(--danger)]/10 font-bold text-[var(--danger)]; }
+/* 설문 2차 — 받는 조건(마감일·최대 응답·1인 1회) 한 줄 (2026-09-01) */
+.pjv3-sv-limits { @apply flex flex-wrap items-center gap-2 text-xs; }
+.pjv3-sv-limits > span { @apply text-[11px] text-[var(--text-dim)]; }
+.pjv3-sv-limits input[type="date"] { @apply rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 text-xs text-[var(--text)] outline-none; font: inherit; font-size: 12px; }
+.pjv3-sv-limits input[type="text"] { @apply !w-24; }
+.pjv3-sv-limits .chk { @apply ml-1 flex cursor-pointer items-center gap-1.5 text-xs text-[var(--text)]; }
+.pjv3-sv-hint { @apply mt-1.5 text-[10.5px] leading-relaxed text-[var(--text-dim)]; }
 .pjv3-sv-link { @apply mt-1 flex items-center gap-2 rounded-xl bg-[var(--bg)] px-3 py-2; }
 .pjv3-sv-link code { @apply min-w-0 flex-1 truncate text-[11px] text-[var(--primary)]; }
 .pjv3-sv-thumb { @apply h-11 w-11 flex-none rounded-lg border border-[var(--border)] object-cover; }

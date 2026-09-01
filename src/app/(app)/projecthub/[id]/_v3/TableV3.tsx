@@ -850,6 +850,8 @@ export function TableV3() {
     id: string; token: string; enabled: boolean; title: string; intro: string; name_label: string;
     banner_path: string | null; image_paths: string[]; questions: { key: string; required?: boolean }[];
     target_stage: string; response_count: number;
+    //   2차(2026-09-01): 받는 조건 — 마감일·정원·1인 1회. 집행은 엣지 함수가 한다
+    closes_at: string | null; max_responses: number | null; prevent_dup: boolean;
   };
   const { data: survey } = useQuery({
     queryKey: ["pjv3-survey", dealId],
@@ -860,6 +862,7 @@ export function TableV3() {
   const [svForm, setSvForm] = useState({
     title: "", intro: "", nameLabel: "성함", stage: "", banner: null as string | null,
     images: [] as string[], q: {} as Record<string, { on: boolean; required: boolean }>,
+    closesAt: "", maxResp: "", preventDup: false,
   });
   useEffect(() => {
     if (!svOpen) return;
@@ -873,6 +876,9 @@ export function TableV3() {
       banner: survey?.banner_path ?? null,
       images: (survey?.image_paths as string[]) || [],
       q: qmap,
+      closesAt: survey?.closes_at || "",
+      maxResp: survey?.max_responses != null ? String(survey.max_responses) : "",
+      preventDup: !!survey?.prevent_dup,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [svOpen, survey?.id]);
@@ -883,6 +889,10 @@ export function TableV3() {
       company_id: companyId, deal_id: dealId, title: svForm.title.trim(), intro: svForm.intro,
       name_label: svForm.nameLabel.trim() || "성함", target_stage: svForm.stage || stages[0]?.id || "",
       banner_path: svForm.banner, image_paths: svForm.images, questions,
+      closes_at: svForm.closesAt || null,
+      max_responses: svForm.maxResp.trim() !== "" && Number.isFinite(Number(svForm.maxResp)) && Number(svForm.maxResp) > 0
+        ? Math.round(Number(svForm.maxResp)) : null,
+      prevent_dup: svForm.preventDup,
       created_by: survey?.id ? undefined : user?.id ?? null,
     };
     if (enable !== undefined) payload.enabled = enable;
@@ -1767,6 +1777,22 @@ export function TableV3() {
               <select value={svForm.stage} onChange={(e) => setSvForm((f) => ({ ...f, stage: e.target.value }))}>
                 {stages.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
               </select></div>
+            <div className="pjv3-sv-field"><label>받는 조건 — 비워 두면 제한 없음</label>
+              <div className="pjv3-sv-limits">
+                <span>마감일</span>
+                <input type="date" value={svForm.closesAt} aria-label="마감일"
+                  onChange={(e) => setSvForm((f) => ({ ...f, closesAt: e.target.value }))} />
+                <span>최대 응답</span>
+                <input type="text" inputMode="numeric" placeholder="제한 없음" value={svForm.maxResp} aria-label="최대 응답 수"
+                  onChange={(e) => setSvForm((f) => ({ ...f, maxResp: e.target.value.replace(/[^0-9]/g, "") }))} />
+                <label className="chk">
+                  <input type="checkbox" checked={svForm.preventDup}
+                    onChange={(e) => setSvForm((f) => ({ ...f, preventDup: e.target.checked }))} /> 1인 1회
+                </label>
+              </div>
+              {svForm.preventDup && (
+                <p className="pjv3-sv-hint">같은 기기·같은 인터넷망의 재제출을 막습니다 — 한 사무실(같은 와이파이)의 여러 명이 한 사람으로 잡힐 수 있으니 행사 신청처럼 여럿이 함께 내는 설문에는 끄세요.</p>
+              )}</div>
             {survey?.token && (
               <div className="pjv3-sv-link">
                 <code>{surveyUrl}</code>

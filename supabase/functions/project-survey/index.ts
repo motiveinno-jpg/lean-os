@@ -23,6 +23,23 @@ const json = (o: any, s = 200) =>
 //   외부인이 답할 수 있는 타입만 — 담당·거래처·수식·자동·첨부·연결은 설문에 나가지 않는다
 const ANSWERABLE = ["text", "longtext", "number", "date", "select", "check", "rating", "url", "tel", "place"];
 
+//   설문 2차(2026-09-01) — 받는 조건 3종. 응답자가 한국이라 마감일은 KST 날짜로 비교한다.
+const kstToday = () => new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10);
+// deno-lint-ignore no-explicit-any
+const closedReason = (sv: any): string | null => {
+  if (!sv || !sv.enabled) return "off";
+  if (sv.closes_at && kstToday() > sv.closes_at) return "date";
+  if (sv.max_responses != null && (sv.response_count || 0) >= sv.max_responses) return "full";
+  return null;
+};
+//   1인 1회 — 같은 IP 의 재제출을 막는다(로그인이 없어 완벽 식별은 불가, 화면에 한계 명시).
+//   원본 IP 는 저장하지 않는다 — token 과 섞은 해시만 응답 줄 fields.__from 에 남긴다.
+const fromHash = async (token: string, req: Request): Promise<string> => {
+  const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "0";
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${token}|${ip}`));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 24);
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -31,7 +48,8 @@ Deno.serve(async (req) => {
       const token = url.searchParams.get("token") || "";
       if (!token) return json({ error: "no_token" }, 400);
       const { data: sv } = await admin.from("project_surveys").select("*").eq("token", token).maybeSingle();
-      if (!sv || !sv.enabled) return json({ error: "closed" }, 404);
+      const reason = closedReason(sv);
+      if (reason) return json({ error: "closed", reason }, 404);
       const { data: colsRaw } = await admin.from("project_item_columns")
         .select("key, name, type, settings").eq("deal_id", sv.deal_id).is("archived_at", null);
       // deno-lint-ignore no-explicit-any
@@ -51,13 +69,27 @@ Deno.serve(async (req) => {
         const u = await sign(p);
         if (u) images.push(u);
       }
-      return json({ title: sv.title, intro: sv.intro, name_label: sv.name_label || "성함", banner, images, questions });
+      return json({
+        title: sv.title, intro: sv.intro, name_label: sv.name_label || "성함", banner, images, questions,
+        closes_at: sv.closes_at || null,
+        remaining: sv.max_responses != null ? Math.max(0, sv.max_responses - (sv.response_count || 0)) : null,
+        prevent_dup: !!sv.prevent_dup,
+      });
     }
     if (req.method === "POST") {
       const body = await req.json();
       const token = String(body.token || "");
       const { data: sv } = await admin.from("project_surveys").select("*").eq("token", token).maybeSingle();
-      if (!sv || !sv.enabled) return json({ error: "closed" }, 404);
+      const reason = closedReason(sv);
+      if (reason) return json({ error: "closed", reason }, 404);
+      //   1인 1회 — 같은 해시의 응답 줄이 이미 있으면 거절(보관된 줄도 응답한 것)
+      let from: string | null = null;
+      if (sv.prevent_dup) {
+        from = await fromHash(token, req);
+        const { data: dup } = await admin.from("project_items").select("id")
+          .eq("deal_id", sv.deal_id).eq("fields->>__from", from).limit(1);
+        if ((dup || []).length > 0) return json({ error: "dup" }, 409);
+      }
       //   도배 방지(단순) — 이 프로젝트에 최근 60초 동안 30줄 넘게 들어오면 잠시 막는다
       const { count } = await admin.from("project_items").select("id", { count: "exact", head: true })
         .eq("deal_id", sv.deal_id).gte("created_at", new Date(Date.now() - 60_000).toISOString());
@@ -101,6 +133,7 @@ Deno.serve(async (req) => {
       const { data: last } = await admin.from("project_items").select("position")
         .eq("deal_id", sv.deal_id).eq("status", sv.target_stage)
         .order("position", { ascending: false }).limit(1);
+      if (from) fields["__from"] = from; // 컬럼 정의가 없는 예약 키라 표에는 안 보인다(__quote 와 같은 문법)
       const { error: ie } = await admin.from("project_items").insert({
         company_id: sv.company_id, deal_id: sv.deal_id, kind: "todo",
         name, status: sv.target_stage, fields, position: (last?.[0]?.position ?? 0) + 1,
