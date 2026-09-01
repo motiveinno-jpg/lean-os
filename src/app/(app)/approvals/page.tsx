@@ -2855,8 +2855,10 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     const dept = (currentEmployee as any)?.department || null;
     const pick = (docType: string) =>
       pickPolicyForRequester(active.filter((p: ApprovalPolicy) => p.document_type === docType), userId, dept);
-    return pick(form.requestType) || pick("default");
-  }, [policies, form.requestType, userId, currentEmployee]);
+    //   회사 양식 선택 시 requestType 은 "form:id" 라 정책 매칭이 항상 기본으로 빠졌다 (2026-09-01).
+    //   서버(createApprovalRequest)는 양식 이름을 requestType 으로 받아 매칭하므로 미리보기도 이름으로 찾는다.
+    return pick(selectedForm ? selectedForm.name : form.requestType) || pick("default");
+  }, [policies, form.requestType, selectedForm, userId, currentEmployee]);
 
   // 그 결재선 안에서 나에게 적용되는 규칙 — 미리보기 단계·참조 프리필의 기준.
   //   createApprovalRequest 서버 매칭(pickRuleForRequester)과 같은 규칙이어야 화면과 실제가 안 어긋난다. (2026-08-20)
@@ -3136,14 +3138,24 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 const matchedPolicy = (policies as ApprovalPolicy[]).find((p) => p.is_active && p.document_type === k && isCompanyWidePolicy(p)) || (policies as ApprovalPolicy[]).find((p) => p.is_active && p.document_type === k);
                 return { value: k, label: matchedPolicy?.label || v, icon: <span className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}><TypeIcon name={m.icon} className="w-3.5 h-3.5" /></span> };
               });
-              // 관리자가 만든 커스텀 정책 유형 — 내장 유형/기본 제외
-              const custom: PickOpt[] = (policies as ApprovalPolicy[])
-                .filter((p) => p.is_active && p.document_type !== "default" && p.document_type !== "line" && !(p.document_type in REQUEST_TYPE_LABELS))
-                .map((p) => ({ value: p.document_type, label: p.label || p.name, icon: <span className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${TYPE_FALLBACK.bg} ${TYPE_FALLBACK.text}`}><TypeIcon name="doc" className="w-3.5 h-3.5" /></span> }));
               //   회사 결재 양식은 요청 유형 목록에 합친다 (2026-08-18 사장님). 기본 유형에 연결된 양식(base_type)은
               //   그 유형 자리에 대신 들어가고(경비 청구를 고르면 회사 양식이 나온다), 연결 없는 양식은 뒤에 '회사 양식'으로.
               const activeForms = (customForms as ApprovalForm[]);
               const formIcon = <span className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 bg-[var(--primary)]/12 text-[var(--primary)]"><TypeIcon name="layout" className="w-3.5 h-3.5" /></span>;
+              // 관리자가 만든 커스텀 정책 유형 — 내장 유형/기본 제외.
+              //   2026-09-01 사장님: 같은 이름의 회사 양식이 있으면(예: '경조휴가' 결재선 + '경조휴가' 양식)
+              //   목록에 두 개로 떠서 헷갈렸다 — 양식 제출은 requestType=양식 이름이라 그 결재선과 자동
+              //   매칭되므로, 동명이면 **양식 항목 하나만** 보여 준다(입력 필드도 양식 쪽에 있다).
+              const formByName = new Map(activeForms.filter((f) => !f.base_type).map((f) => [f.name.trim(), f]));
+              const mergedIntoForm = new Set<string>();
+              const custom: PickOpt[] = (policies as ApprovalPolicy[])
+                .filter((p) => p.is_active && p.document_type !== "default" && p.document_type !== "line" && !(p.document_type in REQUEST_TYPE_LABELS))
+                .map((p) => {
+                  const nm = (p.label || p.name).trim();
+                  const f = formByName.get(nm) || formByName.get(String(p.document_type).trim());
+                  if (f) { mergedIntoForm.add(f.id); return { value: `form:${f.id}`, label: nm, sub: "회사 양식", icon: formIcon }; }
+                  return { value: p.document_type, label: p.label || p.name, icon: <span className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${TYPE_FALLBACK.bg} ${TYPE_FALLBACK.text}`}><TypeIcon name="doc" className="w-3.5 h-3.5" /></span> };
+                });
               const merged: PickOpt[] = [];
               for (const b of builtin) {
                 const linked = activeForms.filter((f) => f.base_type === b.value);
@@ -3151,7 +3163,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 linked.forEach((f) => merged.push({ value: `form:${f.id}`, label: b.label, sub: `회사 양식 · ${f.name}`, icon: b.icon }));
               }
               merged.push(...custom);
-              activeForms.filter((f) => !f.base_type || !(f.base_type in REQUEST_TYPE_LABELS)).forEach((f) => merged.push({ value: `form:${f.id}`, label: f.name, sub: f.category ? `회사 양식 · ${f.category}` : "회사 양식", icon: formIcon }));
+              activeForms.filter((f) => (!f.base_type || !(f.base_type in REQUEST_TYPE_LABELS)) && !mergedIntoForm.has(f.id)).forEach((f) => merged.push({ value: `form:${f.id}`, label: f.name, sub: f.category ? `회사 양식 · ${f.category}` : "회사 양식", icon: formIcon }));
               return (
                 <div className="ap-pick-row">
                   <label className="field-label">요청 유형 *</label>
