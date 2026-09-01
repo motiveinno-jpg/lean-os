@@ -179,7 +179,8 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
   //   같은 날 오전+오후 반차가 겹치면 사실상 종일이므로 full 로 승격.
   const leaveByEmpDate = useMemo(() => {
     const m = new Map<string, { kind: "full" | "am" | "pm" | "half"; tip: string; type?: string }>();
-    const TYPE_WORD: Record<string, string> = { annual: "연차", sick: "병가", family: "경조", maternity: "출산", paternity: "배우자출산", unpaid: "무급", special: "특별", official: "공가" };
+    //   bereavement(경조휴가)·personal(경조사)이 빠져 원문 코드가 그대로 떴었다 (2026-09-01 경조휴가 공가 취급 건)
+    const TYPE_WORD: Record<string, string> = { annual: "연차", sick: "병가", family: "경조", maternity: "출산", paternity: "배우자출산", unpaid: "무급", special: "특별", official: "공가", bereavement: "경조", personal: "경조사" };
     for (const l of leaves) {
       const unit = String(l.leave_unit || "");
       const partial = unit === "half_day" || unit === "two_hours" || Number(l.days) === 0.5;

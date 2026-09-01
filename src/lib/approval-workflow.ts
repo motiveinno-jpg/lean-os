@@ -474,7 +474,9 @@ export async function createApprovalRequest(params: {
   // If auto-approved, log and return
   if (isAutoApproved) {
     // 자동승인된 휴가도 연차 차감(approveStep 을 거치지 않으므로 여기서 처리)
-    if (params.requestType === 'leave' || params.requestType === 'overtime') {
+    //   커스텀 양식(form_id)도 호출 — 서버 함수가 period 필드 유무로 휴가 여부를 판단한다 (2026-09-01,
+    //   8/28에 서버 분기만 넣고 이 호출 조건을 안 넓혀 경조휴가 등 양식 결재가 근태에 반영 안 됐다)
+    if (params.requestType === 'leave' || params.requestType === 'overtime' || (request as any)?.form_id) {
       await applyApprovalSideEffects(request);
     }
     await logAudit({
@@ -820,7 +822,9 @@ export async function approveStep(
       // 휴가 결재 최종 승인 → 연차 차감(전자결재 일원화, 2026-07-15)
       const reqType = request.request_type;
       // 휴가·초과근무 최종 승인 → 연차 차감·근태 반영 (서버 함수, 승인자 권한 무관)
-      if (reqType === 'leave' || reqType === 'overtime') {
+      //   커스텀 양식(form_id)도 호출 — 서버 함수가 period 필드 유무로 휴가 여부를 판단한다 (2026-09-01,
+      //   8/28에 서버 분기만 넣고 이 호출 조건을 안 넓혀 경조휴가 등 양식 결재가 근태에 반영 안 됐다)
+      if (reqType === 'leave' || reqType === 'overtime' || (request as any).form_id) {
         await applyApprovalSideEffects(request);
       }
 
