@@ -63,7 +63,10 @@ type Pop =
   | { kind: "longtext"; itemId: string; colKey: string; x: number; y: number }
   | { kind: "formula"; colKey: string; x: number; y: number }
   | { kind: "files"; itemId: string; colKey: string; x: number; y: number }
-  | { kind: "ovlink"; itemId: string; colKey: string; x: number; y: number };
+  | { kind: "ovlink"; itemId: string; colKey: string; x: number; y: number }
+  | { kind: "features"; x: number; y: number }
+  | { kind: "bulkstatus"; x: number; y: number }
+  | { kind: "bulkassign"; x: number; y: number };
 
 export function TableV3() {
   const params = useParams();
@@ -78,7 +81,7 @@ export function TableV3() {
     queryKey: ["pjv3-deal", dealId],
     enabled: !!dealId,
     queryFn: async () => logRead("pjv3:deal", await db.from("deals")
-      .select("id, name, company_id, stage, start_date, end_date, item_stages, v3_views, v3_builtin")
+      .select("id, name, company_id, stage, start_date, end_date, item_stages, v3_views, v3_builtin, v3_features")
       .eq("id", dealId).maybeSingle()),
   });
   const { data: items = [], isLoading: itemsLoading } = useQuery({
@@ -176,11 +179,66 @@ export function TableV3() {
     return { m, etc };
   }, [shown, stages]);
 
+  // ── ＋ 기능(2026-09-01 오두 갭 1차) — 반복·앞뒤 순서는 켠 프로젝트에서만. 팀 공유(deals.v3_features) ──
+  const features: string[] = Array.isArray(deal?.v3_features) ? deal.v3_features : [];
+  const featOn = (k: "recur" | "deps") => features.includes(k);
+  const toggleFeature = async (k: string) => {
+    const next = features.includes(k) ? features.filter((x) => x !== k) : [...features, k];
+    const { error } = await db.from("deals").update({ v3_features: next }).eq("id", dealId);
+    if (error) { toast(friendlyError(error), "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pjv3-deal", dealId] });
+  };
+
+  //   반복 — 완료(마지막 그룹)로 옮기는 순간 다음 줄을 만들어 준다(만들어만 주고, 지우는 건 사람)
+  const nextRecurDue = (rec: { freq?: string; weekday?: number }, fromDue: string | null): string => {
+    const base = fromDue ? new Date(fromDue) : new Date();
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (base < today) base.setTime(today.getTime());
+    const d = new Date(base);
+    if (rec.freq === "daily") d.setDate(d.getDate() + 1);
+    else if (rec.freq === "monthly") d.setMonth(d.getMonth() + 1);
+    else { // weekly
+      const wd = rec.weekday ?? 1;
+      d.setDate(d.getDate() + ((wd - d.getDay() + 7) % 7 || 7));
+    }
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  //   앞 작업 경고 — 첫 시도는 막고 알려주고, 곧바로 다시 누르면 그대로 진행(강제 아님)
+  const depWarnRef = useRef<string | null>(null);
+
   // ── 저장 — 셀 하나가 곧 저장 단위(표가 입력이다) ──
   const saveItem = async (id: string, patch: Record<string, unknown>) => {
+    const cur = items.find((x) => x.id === id);
+    const lastStageId = stages[stages.length - 1]?.id;
+    const movingToDone = typeof patch.status === "string" && patch.status === lastStageId && cur?.status !== lastStageId;
+    //   앞 작업이 안 끝났는데 완료로 — 한 번 알리고, 다시 누르면 통과
+    if (movingToDone && featOn("deps") && (cur as any)?.after_id) {
+      const after = items.find((x) => x.id === (cur as any).after_id);
+      if (after && after.status !== lastStageId && depWarnRef.current !== id) {
+        depWarnRef.current = id;
+        setTimeout(() => { if (depWarnRef.current === id) depWarnRef.current = null; }, 5000);
+        toast(`앞 작업 '${after.name}' 이(가) 아직 안 끝났어요 — 그래도 옮기려면 한 번 더 누르세요`, "error");
+        return false;
+      }
+      depWarnRef.current = null;
+    }
     const { error } = await db.from("project_items")
       .update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id);
     if (error) { toast(friendlyError(error), "error"); return false; }
+    //   반복 — 완료로 옮겼고 반복 설정이 있으면 다음 줄 생성(반복 설정은 새 줄이 이어받는다)
+    const rec = (cur as any)?.recurrence as { freq?: string; weekday?: number } | null;
+    if (movingToDone && featOn("recur") && rec?.freq && cur) {
+      const due = nextRecurDue(rec, cur.due_date);
+      const firstStage = stages[0]?.id || cur.status;
+      await db.from("project_items").insert({
+        company_id: companyId, deal_id: dealId, kind: cur.kind, name: cur.name,
+        status: firstStage, assignee_id: cur.assignee_id, due_date: due,
+        fields: cur.fields || {}, recurrence: rec, parent_id: (cur as any).parent_id ?? null,
+        position: (cur.position ?? 0) + 0.5, created_by: user?.id ?? null,
+      });
+      await db.from("project_items").update({ recurrence: null }).eq("id", id);
+      toast(`반복 — 다음 '${due.slice(5).replace("-", "/")}' 줄을 만들었습니다`, "success");
+    }
     //   상태 변경은 기록(채터)에 log 로 남긴다 — 댓글과 한 줄기(결정 113). 실패해도 저장은 유효
     if (typeof patch.status === "string") {
       const from = items.find((x) => x.id === id)?.status;
@@ -777,6 +835,60 @@ export function TableV3() {
   };
   const surveyUrl = survey?.token ? `${typeof window !== "undefined" ? window.location.origin : ""}/survey/${survey.token}` : "";
 
+  // ── 일괄 처리(오두 갭 ①) — 줄 체크 → 바닥 SelectionBar. 완료·상태는 saveItem 루프(반복·앞뒤 규칙 공유) ──
+  const [selIds, setSelIds] = useState<Set<string>>(new Set());
+  const toggleSel = (id: string) => setSelIds((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const clearSel = () => setSelIds(new Set());
+  const bulkStatus = async (stageId: string) => {
+    for (const id of selIds) await saveItem(id, { status: stageId });
+    clearSel(); setPop(null);
+  };
+  const bulkAssign = async (uid: string | null) => {
+    const { error } = await db.from("project_items").update({ assignee_id: uid }).in("id", [...selIds]);
+    if (error) { toast(friendlyError(error), "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
+    clearSel(); setPop(null);
+  };
+  const bulkDelete = async () => {
+    const ids = [...selIds];
+    const { error } = await db.from("project_items")
+      .update({ archived_at: new Date().toISOString() })
+      .or(ids.map((id) => `id.eq.${id},parent_id.eq.${id}`).join(","));
+    if (error) { toast(friendlyError(error), "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
+    toast(`${ids.length}줄을 지웠습니다`, "success");
+    clearSel();
+  };
+
+  // ── 그룹 접기(각자 보기) + 완료 보관(마지막 그룹을 소프트로 치우기) + 보관함 모달 ──
+  const [collapsedG, setCollapsedG] = useState<Set<string>>(new Set());
+  const toggleCollapse = (id: string) => setCollapsedG((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const [archOpen, setArchOpen] = useState(false);
+  const { data: archived = [] } = useQuery({
+    queryKey: ["pjv3-archived", dealId],
+    enabled: !!dealId && archOpen,
+    queryFn: async () => (logRead("pjv3:archived", await db.from("project_items")
+      .select("id, name, archived_at").eq("deal_id", dealId).not("archived_at", "is", null)
+      .order("archived_at", { ascending: false }).limit(100)) || []) as { id: string; name: string; archived_at: string }[],
+  });
+  const restoreItem = async (id: string) => {
+    const { error } = await db.from("project_items").update({ archived_at: null }).eq("id", id);
+    if (error) { toast(friendlyError(error), "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
+    qc.invalidateQueries({ queryKey: ["pjv3-archived", dealId] });
+    toast("되살렸습니다 — 원래 그룹으로 돌아갔습니다", "success");
+  };
+  const archiveGroup = async (stageId: string) => {
+    const ids = (byStage.m.get(stageId) || []).map((x) => x.id);
+    if (ids.length === 0) return;
+    const { error } = await db.from("project_items")
+      .update({ archived_at: new Date().toISOString() })
+      .or(ids.map((id) => `id.eq.${id},parent_id.eq.${id}`).join(","));
+    if (error) { toast(friendlyError(error), "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
+    toast(`${ids.length}건을 보관했습니다 — 조회 줄 '보관함'에서 언제든 되살립니다`, "success");
+  };
+
   // ── 서랍(추천 1 = 2단계 핵심) — 줄을 열면 체크리스트·기록(댓글+변경 한 줄기)·팔로워.
   //   팔로워 알림 연동(notify 트리거 확장)은 다음 차수 ──
   const [drawerId, setDrawerId] = useState<string | null>(null);
@@ -874,9 +986,10 @@ export function TableV3() {
     //   (2026-09-01 사장님: 오른쪽 ＋ 팝이 화면 밖으로 잘리고 클릭 안 됨). 우측·하단 여유도 확보.
     const zEl = document.querySelector(".app-zoom");
     const zoom = zEl ? parseFloat(getComputedStyle(zEl as HTMLElement).zoom as string) || 1 : 1;
+    //   화면 아래쪽 버튼(SelectionBar 등)에서 열면 팝이 잘린다 — 하단 340px 안이면 시작점을 위로 당긴다
     return {
       x: Math.max(8, Math.min(r.left, window.innerWidth - 320)) / zoom,
-      y: Math.min(r.bottom + 4, window.innerHeight - 80) / zoom,
+      y: Math.min(r.bottom + 4, window.innerHeight - 340) / zoom,
     };
   };
   useEffect(() => { if (!pop || pop.kind !== "select") setOptEdit(false); }, [pop]);
@@ -980,6 +1093,10 @@ export function TableV3() {
               onDragEnd={() => { rowDragRef.current = null; setRowDropAt(null); }}>⋮⋮</span>
           )}
           {depth === 0 && (
+            <input type="checkbox" className={`pjv3-selbox ${selIds.size > 0 ? "show" : ""}`} aria-label="이 줄 고르기"
+              checked={selIds.has(it.id)} onChange={() => toggleSel(it.id)} />
+          )}
+          {depth === 0 && (
             <button type="button" className={`pjv3-subtg ${open ? "open" : ""} ${kids.length === 0 ? "empty" : ""}`}
               title={kids.length > 0 ? "하위 작업 펼치기/접기" : "하위 작업 만들기"}
               onClick={() => toggleExpand(it.id)}>
@@ -989,6 +1106,15 @@ export function TableV3() {
           {it.kind !== "todo" && (
             <span className={`pjv3-kind ${KIND_CHIP[it.kind]?.cls || ""}`}>{KIND_CHIP[it.kind]?.label}</span>
           )}
+          {featOn("recur") && (it as any).recurrence?.freq && (
+            <span className="pjv3-rowbadge" title={`반복 — ${(it as any).recurrence.freq === "daily" ? "매일" : (it as any).recurrence.freq === "monthly" ? "매월" : "매주"}. 완료로 옮기면 다음 줄이 생깁니다`}>🔁</span>
+          )}
+          {featOn("deps") && (it as any).after_id && (() => {
+            const af = items.find((x) => x.id === (it as any).after_id);
+            const lastId = stages[stages.length - 1]?.id;
+            if (!af || af.status === lastId) return null;
+            return <span className="pjv3-rowbadge dim" title={`앞 작업 '${af.name}' 이(가) 끝난 뒤`}>⛓</span>;
+          })()}
           <span className="min-w-0 flex-1"><EditCell it={it} colKey="name" value={it.name} align="left" /></span>
           <button type="button" className="pjv3-open" title="이 줄 열기 — 체크리스트·기록·팔로워"
             onClick={() => setDrawerId(it.id)}>열기</button>
@@ -1172,6 +1298,8 @@ export function TableV3() {
           </button>
         ))}
         <button type="button" className="pjv3-addview" onClick={(e) => setPop({ kind: "addview", ...at(e) })}>＋ 보기</button>
+        <button type="button" className="pjv3-addview" title="반복·앞뒤 순서 같은 기능을 이 프로젝트에만 켭니다"
+          onClick={(e) => setPop({ kind: "features", ...at(e) })}>＋ 기능{features.length > 0 && <em className="num" style={{ fontStyle: "normal" }}> {features.length}</em>}</button>
       </div>
 
       <div className="pjv3-toolbar">
@@ -1179,6 +1307,7 @@ export function TableV3() {
         <button type="button" className="btn-secondary btn-sm" onClick={(e) => setPop({ kind: "excel", ...at(e) })}>엑셀 ▾</button>
         <button type="button" className="btn-secondary btn-sm" title="외부에 링크로 설문을 보내고 응답을 이 표에 받습니다"
           onClick={() => setSvOpen(true)}>설문</button>
+        <button type="button" className="btn-secondary btn-sm" title="보관한 줄 보기·되살리기" onClick={() => setArchOpen(true)}>보관함</button>
         <span className="pjv3-count num">{shown.length}건{shown.length !== items.length ? ` / 전체 ${items.length}` : ""}</span>
       </div>
 
@@ -1344,12 +1473,16 @@ export function TableV3() {
               onClick={(e) => setPop({ kind: "addcol", ...at(e as unknown as React.MouseEvent) })}>＋</th>
           </tr></thead>
           <tbody>
-            {stages.map((s) => {
+            {stages.map((s, sIdx) => {
               const group = byStage.m.get(s.id) || [];
+              const folded = collapsedG.has(s.id);
+              const isLast = sIdx === stages.length - 1;
               return [
                 <tr key={`g-${s.id}`}>
                   <td colSpan={totalCols} className="pjv3-grow"
                     style={{ borderLeftColor: STAGE_HEX[s.color], background: `color-mix(in srgb, ${STAGE_HEX[s.color]} 7%, var(--bg-card))` }}>
+                    <button type="button" className={`pjv3-gfold ${folded ? "" : "open"}`} title={folded ? "그룹 펼치기" : "그룹 접기"}
+                      onClick={() => toggleCollapse(s.id)}>▶</button>
                     {stageEdit === s.id ? (
                       <input ref={stageEditRef} className="pjv3-grow-edit" defaultValue={s.label}
                         onBlur={(e) => renameStage(s.id, e.target.value)}
@@ -1361,6 +1494,13 @@ export function TableV3() {
                       <span className="pjv3-grow-label" title="눌러서 그룹 이름 바꾸기" onClick={() => setStageEdit(s.id)}>{s.label}</span>
                     )}
                     <em className="num">{group.length}</em>
+                    {isLast && group.length > 0 && (
+                      <button type="button" className={`pjv3-garch ${delArm === `arch:${s.id}` ? "arm" : ""}`}
+                        title="이 그룹의 줄을 보관함으로 치웁니다 — 언제든 되살릴 수 있습니다"
+                        onClick={(e) => { e.stopPropagation(); armOrRun(`arch:${s.id}`, () => archiveGroup(s.id)); }}>
+                        {delArm === `arch:${s.id}` ? `${group.length}건 보관 — 한 번 더` : "보관"}
+                      </button>
+                    )}
                     {stages.length > 1 && (
                       <button type="button"
                         className={`pjv3-del ${delArm === `stage:${s.id}` ? "arm" : ""}`}
@@ -1371,11 +1511,12 @@ export function TableV3() {
                     )}
                   </td>
                 </tr>,
-                ...group.flatMap((gi) => {
+                ...(folded ? [] : group.flatMap((gi) => {
                   const kk = childrenOf.get(gi.id) || [];
                   const op = expanded.has(gi.id);
                   return [renderRow(gi, 0), ...(op ? kk.map((k) => renderRow(k, 1)) : []), ...(op ? [subAddRow(gi)] : [])];
-                }),
+                })),
+                ...(folded ? [] : [
                 <tr key={`a-${s.id}`} className={`pjv3-addrow ${rowDropAt === `end:${s.id}` ? "pjv3-dropbefore" : ""}`}
                   onDragOver={(e) => { if (rowDragRef.current) { e.preventDefault(); setRowDropAt(`end:${s.id}`); } }}
                   onDragLeave={() => setRowDropAt((cur) => (cur === `end:${s.id}` ? null : cur))}
@@ -1389,7 +1530,7 @@ export function TableV3() {
                         }
                       }} />
                   </td>
-                </tr>,
+                </tr>]),
               ];
             })}
             <tr key="addgroup" className="pjv3-addgroup">
@@ -1425,6 +1566,19 @@ export function TableV3() {
         </table>
       </div>
       )}
+      {selIds.size > 0 && (
+        <div className="pjv3-selbar">
+          <b className="num">{selIds.size}줄</b> 골라짐
+          <button type="button" onClick={(e) => setPop({ kind: "bulkstatus", ...at(e) })}>그룹·상태 바꾸기</button>
+          <button type="button" onClick={(e) => setPop({ kind: "bulkassign", ...at(e) })}>담당 바꾸기</button>
+          <button type="button" className={delArm === "bulk:del" ? "arm" : ""}
+            onClick={() => armOrRun("bulk:del", bulkDelete)}>{delArm === "bulk:del" ? "한 번 더" : "지우기"}</button>
+          <button type="button" className="p" onClick={() => { const last = stages[stages.length - 1]; if (last) bulkStatus(last.id); }}>
+            {stages[stages.length - 1]?.label || "완료"}(으)로
+          </button>
+          <button type="button" className="x" title="선택 해제" onClick={clearSel}>✕</button>
+        </div>
+      )}
       <p className="pjv3-foot">
         {curView === "kanban"
           ? "카드를 끌어 다른 열에 놓으면 상태가 바뀝니다(표의 상태 셀과 같은 저장) · 카드를 누르면 서랍 · 열 아래 칸에 적고 Enter로 추가"
@@ -1433,6 +1587,24 @@ export function TableV3() {
             : "셀은 눌러서 그 자리 수정 · 이름 칸 '열기'로 체크리스트·기록·팔로워 · ⋮⋮ 끌어 순서·그룹 이동 · 컬럼 머리단은 눌러 이름, 끌어 순서 · ✕는 한 번 더 눌러 지우기"}
       </p>
       </div>
+
+      {/* ── 보관함 — 보관·삭제된 줄 되살리기 ── */}
+      {archOpen && (
+        <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setArchOpen(false); }}>
+          <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="보관함">
+            <h3 className="phv3-modal-title">보관함 — 되살리면 원래 그룹으로 돌아갑니다</h3>
+            {archived.length === 0 && <div className="pjv3-tpl-mine">보관된 줄이 없습니다 — 완료 그룹의 '보관'이나 줄 ✕로 치운 것이 여기 모입니다</div>}
+            {archived.map((a) => (
+              <div key={a.id} className="pjv3-arch-row">
+                <span className="min-w-0 flex-1 truncate">{a.name}</span>
+                <span className="num text-[10px] text-[var(--text-dim)]">{a.archived_at.slice(5, 10)}</span>
+                <button type="button" className="btn-secondary btn-sm" onClick={() => restoreItem(a.id)}>↩ 되살리기</button>
+              </div>
+            ))}
+            <div className="phv3-modal-actions"><button type="button" className="btn-secondary btn-sm" onClick={() => setArchOpen(false)}>닫기</button></div>
+          </div>
+        </div>
+      )}
 
       {/* ── 설문 설정 — 컬럼이 곧 질문. 저장 후 '설문 켜기'로 외부 링크가 산다 ── */}
       {svOpen && deal && (
@@ -1547,6 +1719,36 @@ export function TableV3() {
                 <input type="date" className="pjv3-prop" aria-label="마감" title="마감일" value={drawerItem.due_date || ""}
                   onChange={(e) => saveItem(drawerItem.id, { due_date: e.target.value || null })} />
               </div>
+              {featOn("recur") && (
+                <div className="pjv3-props !mt-2">
+                  <span className="pjv3-proplabel">반복</span>
+                  <select className="pjv3-prop" value={((drawerItem as any).recurrence?.freq as string) || ""}
+                    onChange={(e) => {
+                      const f = e.target.value;
+                      saveItem(drawerItem.id, { recurrence: f ? { freq: f, ...(f === "weekly" ? { weekday: ((drawerItem as any).recurrence?.weekday ?? 1) } : {}) } : null });
+                    }}>
+                    <option value="">안 함</option><option value="daily">매일</option>
+                    <option value="weekly">매주</option><option value="monthly">매월</option>
+                  </select>
+                  {((drawerItem as any).recurrence?.freq) === "weekly" && (
+                    <select className="pjv3-prop" value={String((drawerItem as any).recurrence?.weekday ?? 1)}
+                      onChange={(e) => saveItem(drawerItem.id, { recurrence: { freq: "weekly", weekday: Number(e.target.value) } })}>
+                      {["일", "월", "화", "수", "목", "금", "토"].map((d, i) => <option key={i} value={i}>{d}요일</option>)}
+                    </select>
+                  )}
+                </div>
+              )}
+              {featOn("deps") && !(drawerItem as any).parent_id && (
+                <div className="pjv3-props !mt-2">
+                  <span className="pjv3-proplabel">앞 작업</span>
+                  <select className="pjv3-prop" value={((drawerItem as any).after_id as string) || ""}
+                    onChange={(e) => saveItem(drawerItem.id, { after_id: e.target.value || null })}>
+                    <option value="">없음</option>
+                    {items.filter((x) => !(x as any).parent_id && x.id !== drawerItem.id && (x as any).after_id !== drawerItem.id)
+                      .map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                  </select>
+                </div>
+              )}
 
               <h4>체크리스트{checks.length > 0 ? ` — ${checks.filter((c) => c.done).length}/${checks.length}` : ""}</h4>
               {checks.map((c) => (
@@ -1829,6 +2031,28 @@ export function TableV3() {
               <button type="button" className="pjv3-opt-manage" onClick={() => setOptEdit(true)}>선택지 고치기 — 이름·색·순서·추가·삭제</button>
             </>);
           })()}
+          {pop.kind === "features" && (<>
+            <div className="pjv3-pop-title">＋ 기능 — 이 프로젝트에만 켭니다(팀 공유)</div>
+            {([["recur", "반복 작업", "서랍에 '반복' 줄 — 완료로 옮기면 다음 줄 자동"], ["deps", "앞뒤 순서", "서랍에 '앞 작업' 줄 — 안 끝났으면 알려줌"]] as const).map(([k, label, hint]) => (
+              <button key={k} type="button" onClick={() => toggleFeature(k)}>
+                {features.includes(k) ? "✓ " : ""}{label}<small className="pjv3-typehint"> — {hint}</small>
+              </button>
+            ))}
+          </>)}
+          {pop.kind === "bulkstatus" && (<>
+            <div className="pjv3-pop-title">고른 {selIds.size}줄을 어느 그룹으로</div>
+            {stages.map((s) => (
+              <button key={s.id} type="button" className="pjv3-pop-color" style={{ background: STAGE_HEX[s.color] }}
+                onClick={() => bulkStatus(s.id)}>{s.label}</button>
+            ))}
+          </>)}
+          {pop.kind === "bulkassign" && (<>
+            <div className="pjv3-pop-title">고른 {selIds.size}줄의 담당을</div>
+            <button type="button" className="text-[var(--text-dim)]" onClick={() => bulkAssign(null)}>없음</button>
+            {users.map((u) => (
+              <button key={u.id} type="button" onClick={() => bulkAssign(u.id)}>{u.name || u.email}</button>
+            ))}
+          </>)}
           {pop.kind === "follower" && (<>
             <div className="pjv3-pop-title">팔로워 — 눌러서 넣고 빼기(여러 명)</div>
             {users.map((u) => {
