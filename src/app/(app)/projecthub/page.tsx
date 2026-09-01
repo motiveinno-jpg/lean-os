@@ -121,8 +121,10 @@ export default function ProjectHubPage() {
     queryKey: ["ph-my-item-deals", companyId, user?.id],
     enabled: !!companyId && !!user?.id,
     queryFn: async () => {
+      //   다중 담당(assignee_ids)도 내 것 — cs = 배열 포함 (2026-09-01)
       const data = logRead("projecthub/page:my-item-deals", await (supabase as any).from("project_items")
-        .select("deal_id").eq("company_id", companyId!).eq("assignee_id", user!.id).is("archived_at", null));
+        .select("deal_id").eq("company_id", companyId!)
+        .or(`assignee_id.eq.${user!.id},assignee_ids.cs.{${user!.id}}`).is("archived_at", null));
       return [...new Set(((data || []) as { deal_id: string }[]).map((r) => r.deal_id))];
     },
   });
@@ -523,8 +525,8 @@ export default function ProjectHubPage() {
     queryKey: ["ph-v3items", companyId],
     queryFn: async () => {
       const data = logRead("projecthub/page:v3items", await (supabase as any).from("project_items")
-        .select("id, deal_id, name, status, due_date, updated_at, fields, assignee_id, parent_id").is("archived_at", null).eq("company_id", companyId!));
-      return (data || []) as { id: string; deal_id: string; name: string; status: string; due_date: string | null; updated_at: string; fields: Record<string, unknown> | null; assignee_id: string | null; parent_id: string | null }[];
+        .select("id, deal_id, name, status, due_date, updated_at, fields, assignee_id, assignee_ids, parent_id").is("archived_at", null).eq("company_id", companyId!));
+      return (data || []) as { id: string; deal_id: string; name: string; status: string; due_date: string | null; updated_at: string; fields: Record<string, unknown> | null; assignee_id: string | null; assignee_ids: string[] | null; parent_id: string | null }[];
     },
     enabled: !!companyId,
   });
@@ -613,7 +615,7 @@ export default function ProjectHubPage() {
       dealName[d.id] = d.name || "";
     }
     return v3Items
-      .filter((it) => it.assignee_id === userId && dealName[it.deal_id] !== undefined && it.status !== (lastStage[it.deal_id] ?? "done"))
+      .filter((it) => (it.assignee_id === userId || (it.assignee_ids || []).includes(userId)) && dealName[it.deal_id] !== undefined && it.status !== (lastStage[it.deal_id] ?? "done"))
       .map((it) => ({
         ...it, dealName: dealName[it.deal_id],
         overdue: !!it.due_date && it.due_date.slice(0, 10) < todayStr,

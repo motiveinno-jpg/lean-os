@@ -114,6 +114,8 @@ export function TableV3() {
       .select("id, name").eq("company_id", companyId!).eq("is_active", true).order("name").limit(500)) || []) as { id: string; name: string }[],
   });
   const [partnerQ, setPartnerQ] = useState("");
+  //   담당·팔로워 팝도 거래처처럼 검색해 고른다(2026-09-01 사장님 "사원 수 많으면 스크롤로 못 찾는다")
+  const [personQ, setPersonQ] = useState("");
 
   const stages = useMemo(() => stagesOf(deal?.item_stages), [deal?.item_stages]);
   const userName = (id: string | null) => users.find((u) => u.id === id)?.name || "";
@@ -136,7 +138,7 @@ export function TableV3() {
     if ((it as any).parent_id) return false; // 하위는 부모 아래에서만
     if (!q.trim()) return true;
     const kids = childrenOf.get(it.id) || [];
-    const hay = [it.name, userName(it.assignee_id), ...(it.tags || []),
+    const hay = [it.name, ...assigneesOf(it).map(userName), ...(it.tags || []),
       ...kids.map((k) => k.name),
       ...Object.values(it.fields || {}).map((v) => String(v ?? ""))].join(" ").toLowerCase();
     return q.toLowerCase().split(/\s+/).every((w) => hay.includes(w));
@@ -167,7 +169,7 @@ export function TableV3() {
     const { error } = await db.from("project_items").insert({
       company_id: companyId, deal_id: dealId, kind: "todo", name,
       status: parent.status, parent_id: parent.id,
-      assignee_id: parent.assignee_id, fields: copyFields,
+      assignee_id: parent.assignee_id, assignee_ids: (parent as any).assignee_ids || [], fields: copyFields,
       position: (kids[kids.length - 1]?.position ?? 0) + 1, created_by: user?.id ?? null,
     });
     if (error) { toast(friendlyError(error), "error"); return; }
@@ -243,7 +245,7 @@ export function TableV3() {
       const firstStage = stages[0]?.id || cur.status;
       await db.from("project_items").insert({
         company_id: companyId, deal_id: dealId, kind: cur.kind, name: cur.name,
-        status: firstStage, assignee_id: cur.assignee_id, due_date: due,
+        status: firstStage, assignee_id: cur.assignee_id, assignee_ids: (cur as any).assignee_ids || [], due_date: due,
         fields: cur.fields || {}, recurrence: rec, parent_id: (cur as any).parent_id ?? null,
         position: (cur.position ?? 0) + 0.5, created_by: user?.id ?? null,
       });
@@ -267,6 +269,22 @@ export function TableV3() {
   };
   const saveField = (it: ItemRow, key: string, value: unknown) =>
     saveItem(it.id, { fields: { ...(it.fields || {}), [key]: value === "" ? null : value } });
+
+  //   다중 담당(2026-09-01 사장님 "담당자가 여러 명일 수도") — assignee_ids 가 전체,
+  //   assignee_id 는 대표(배열 첫 명) 규약. 목록·내 작업·엑셀은 대표를 계속 읽어 파급이 없다.
+  const assigneesOf = (it: ItemRow): string[] => {
+    const a = ((it as any).assignee_ids || []) as string[];
+    return a.length > 0 ? a : (it.assignee_id ? [it.assignee_id] : []);
+  };
+  const assigneeLabel = (it: ItemRow): string => {
+    const names = assigneesOf(it).map(userName).filter(Boolean);
+    return names.length === 0 ? "" : names.length === 1 ? names[0] : `${names[0]} 외 ${names.length - 1}`;
+  };
+  const toggleAssignee = (it: ItemRow, uid: string) => {
+    const cur = assigneesOf(it);
+    const next = cur.includes(uid) ? cur.filter((x) => x !== uid) : [...cur, uid];
+    saveItem(it.id, { assignee_ids: next, assignee_id: next[0] ?? null });
+  };
   const addItem = async (stageId: string, name: string, due?: string) => {
     const group = byStage.m.get(stageId) || [];
     const { error } = await db.from("project_items").insert({
@@ -929,7 +947,7 @@ export function TableV3() {
     clearSel(); setPop(null);
   };
   const bulkAssign = async (uid: string | null) => {
-    const { error } = await db.from("project_items").update({ assignee_id: uid }).in("id", [...selIds]);
+    const { error } = await db.from("project_items").update({ assignee_id: uid, assignee_ids: uid ? [uid] : [] }).in("id", [...selIds]);
     if (error) { toast(friendlyError(error), "error"); return; }
     qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
     clearSel(); setPop(null);
@@ -1092,6 +1110,7 @@ export function TableV3() {
     return { x: Math.max(8, Math.min(r.left, window.innerWidth - 320)) / zoom, y: (r.top - 6) / zoom, up: true as const };
   };
   useEffect(() => { if (!pop || pop.kind !== "select") setOptEdit(false); }, [pop]);
+  useEffect(() => { if (!pop || (pop.kind !== "person" && pop.kind !== "follower")) setPersonQ(""); }, [pop]);
   useEffect(() => { setOvOpen(pop?.kind === "ovlink"); }, [pop]);
   //   상태(그룹) 팔레트도 고정이 아니다 — 이름·색·순서·추가·삭제 (2026-09-01 사장님)
   const [stEdit, setStEdit] = useState(false);
@@ -1233,8 +1252,9 @@ export function TableV3() {
       {allCols.map((ac) => {
         //   내장 4열 — 통합 순서의 자리에서 그대로 렌더(숨기면 여기 안 온다)
         if (ac.builtin === "assignee") {
-          return <td key={ac.key}><button type="button" className="pjv3-cell" onClick={(e) => setPop({ kind: "person", itemId: it.id, ...at(e) })}>
-            {userName(it.assignee_id) || <span className="text-[var(--text-dim)]">—</span>}</button></td>;
+          return <td key={ac.key}><button type="button" className="pjv3-cell" title={assigneesOf(it).map(userName).filter(Boolean).join(", ")}
+            onClick={(e) => setPop({ kind: "person", itemId: it.id, ...at(e) })}>
+            {assigneeLabel(it) || <span className="text-[var(--text-dim)]">—</span>}</button></td>;
         }
         if (ac.builtin === "status") {
           return <td key={ac.key}><button type="button" className="pjv3-stcell" style={{ background: STAGE_HEX[stageOf(it.status)?.color || "gray"] }}
@@ -1510,9 +1530,9 @@ export function TableV3() {
                           title="누르면 서랍 — 체크리스트·기록·팔로워" onClick={() => setDrawerId(it.id)}
                           onDragStart={() => { dragIdRef.current = it.id; }} onDragEnd={() => { dragIdRef.current = null; setDragOverStage(null); }}>
                           <div className="tt">{it.name}</div>
-                          {(it.assignee_id || it.due_date || it.plan_amount != null) && (
+                          {(assigneesOf(it).length > 0 || it.due_date || it.plan_amount != null) && (
                             <div className="meta">
-                              {userName(it.assignee_id) && <span>{userName(it.assignee_id)}</span>}
+                              {assigneeLabel(it) && <span>{assigneeLabel(it)}</span>}
                               {it.due_date && <span className={`mono-number ${late ? "late" : ""}`}>{it.due_date}</span>}
                               {it.plan_amount != null && <span className="mono-number">{Number(it.plan_amount).toLocaleString("ko-KR")}</span>}
                             </div>
@@ -1867,8 +1887,9 @@ export function TableV3() {
                 <button type="button" className="pjv3-stcell" style={{ background: STAGE_HEX[stages.find((s) => s.id === drawerItem.status)?.color || "gray"] }}
                   onClick={(e) => setPop({ kind: "status", itemId: drawerItem.id, ...at(e) })}>
                   {stages.find((s) => s.id === drawerItem.status)?.label || drawerItem.status}</button>
-                <button type="button" className="pjv3-prop" onClick={(e) => setPop({ kind: "person", itemId: drawerItem.id, ...at(e) })}>
-                  담당 · {userName(drawerItem.assignee_id) || "없음"}</button>
+                <button type="button" className="pjv3-prop" title={assigneesOf(drawerItem).map(userName).filter(Boolean).join(", ")}
+                  onClick={(e) => setPop({ kind: "person", itemId: drawerItem.id, ...at(e) })}>
+                  담당 · {assigneeLabel(drawerItem) || "없음"}</button>
                 <input type="date" className="pjv3-prop" aria-label="시작일" title="시작일 — 간트 막대의 왼쪽 끝"
                   value={((drawerItem as any).start_date as string) || ""}
                   onChange={(e) => saveItem(drawerItem.id, { start_date: e.target.value || null })} />
@@ -2134,21 +2155,32 @@ export function TableV3() {
               }} />
             <button type="button" onClick={() => setStEdit(false)}>← 고르기로 돌아가기</button>
           </>)}
-          {pop.kind === "person" && (<>
-            <div className="pjv3-pop-title">담당</div>
-            <button type="button" className="text-[var(--text-dim)]" onClick={() => {
-              if (pop.colKey) { const it = items.find((x) => x.id === pop.itemId); if (it) saveField(it, pop.colKey!, null); }
-              else saveItem(pop.itemId, { assignee_id: null });
-              setPop(null);
-            }}>없음</button>
-            {users.map((u) => (
-              <button key={u.id} type="button" onClick={() => {
-                if (pop.colKey) { const it = items.find((x) => x.id === pop.itemId); if (it) saveField(it, pop.colKey!, u.id); }
-                else saveItem(pop.itemId, { assignee_id: u.id });
+          {pop.kind === "person" && (() => {
+            //   내장 담당 = 여러 명(눌러서 넣고 빼기) · 사람 타입 컬럼 = 한 명 고르기. 둘 다 검색으로 좁힌다
+            const it = items.find((x) => x.id === pop.itemId);
+            const qs = personQ.trim().toLowerCase();
+            const hits = qs ? users.filter((u) => (u.name || u.email || "").toLowerCase().includes(qs)) : users;
+            const multi = !pop.colKey;
+            const cur = multi && it ? assigneesOf(it) : [];
+            return (<>
+              <div className="pjv3-pop-title">{multi ? "담당 — 눌러서 넣고 빼기(여러 명)" : "사람 — 이름으로 검색해 고릅니다"}</div>
+              <input placeholder="이름 검색" value={personQ} autoFocus aria-label="이름 검색"
+                onChange={(e) => setPersonQ(e.target.value)} />
+              <button type="button" className="text-[var(--text-dim)]" onClick={() => {
+                if (pop.colKey) { if (it) saveField(it, pop.colKey!, null); }
+                else saveItem(pop.itemId, { assignee_id: null, assignee_ids: [] });
                 setPop(null);
-              }}>{u.name || u.email}</button>
-            ))}
-          </>)}
+              }}>비우기</button>
+              {hits.slice(0, 12).map((u) => (
+                <button key={u.id} type="button" onClick={() => {
+                  if (pop.colKey) { if (it) saveField(it, pop.colKey!, u.id); setPop(null); }
+                  else if (it) toggleAssignee(it, u.id);
+                }}>{multi && cur.includes(u.id) ? "✓ " : ""}{u.name || u.email}</button>
+              ))}
+              {hits.length > 12 && <div className="pjv3-pop-title">앞 12명만 — 검색으로 좁히세요</div>}
+              {hits.length === 0 && <div className="pjv3-pop-title">일치하는 사람이 없습니다</div>}
+            </>);
+          })()}
           {pop.kind === "partner" && (() => {
             const qStr = partnerQ.trim().toLowerCase();
             const hits = qStr ? partners.filter((pt) => pt.name.toLowerCase().includes(qStr)) : partners;
@@ -2245,18 +2277,26 @@ export function TableV3() {
               <button key={u.id} type="button" onClick={() => bulkAssign(u.id)}>{u.name || u.email}</button>
             ))}
           </>)}
-          {pop.kind === "follower" && (<>
-            <div className="pjv3-pop-title">팔로워 — 눌러서 넣고 빼기(여러 명)</div>
-            {users.map((u) => {
-              const it = items.find((x) => x.id === pop.itemId);
-              const on = (((it as any)?.followers || []) as string[]).includes(u.id);
-              return (
-                <button key={u.id} type="button" onClick={() => { if (it) toggleFollower(it, u.id); }}>
-                  {on ? "✓ " : ""}{u.name || u.email}
-                </button>
-              );
-            })}
-          </>)}
+          {pop.kind === "follower" && (() => {
+            const it = items.find((x) => x.id === pop.itemId);
+            const qs = personQ.trim().toLowerCase();
+            const hits = qs ? users.filter((u) => (u.name || u.email || "").toLowerCase().includes(qs)) : users;
+            return (<>
+              <div className="pjv3-pop-title">팔로워 — 눌러서 넣고 빼기(여러 명)</div>
+              <input placeholder="이름 검색" value={personQ} autoFocus aria-label="이름 검색"
+                onChange={(e) => setPersonQ(e.target.value)} />
+              {hits.slice(0, 12).map((u) => {
+                const on = (((it as any)?.followers || []) as string[]).includes(u.id);
+                return (
+                  <button key={u.id} type="button" onClick={() => { if (it) toggleFollower(it, u.id); }}>
+                    {on ? "✓ " : ""}{u.name || u.email}
+                  </button>
+                );
+              })}
+              {hits.length > 12 && <div className="pjv3-pop-title">앞 12명만 — 검색으로 좁히세요</div>}
+              {hits.length === 0 && <div className="pjv3-pop-title">일치하는 사람이 없습니다</div>}
+            </>);
+          })()}
           {pop.kind === "addview" && (<>
             <div className="pjv3-pop-title">보기 추가 — 표를 보는 다른 형태</div>
             {!views.includes("kanban") && <button type="button" onClick={() => addView("kanban")}>칸반 — 상태별 카드로 보고, 끌어서 옮깁니다</button>}

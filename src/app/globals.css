@@ -9577,7 +9577,8 @@ table.phv3-table { min-width: 640px; }
 .pjv3-money-badge.c { @apply opacity-100; border-color: rgba(0, 200, 117, 0.5); color: #00a05e; }
 .pjv3-money-badge:hover { @apply border-[var(--primary)] text-[var(--primary)]; }
 .pjv3-drawer-veil { @apply fixed inset-0 z-30; }
-.pjv3-drawer { @apply fixed right-0 top-0 z-40 flex w-[400px] max-w-[92vw] flex-col border-l border-[var(--border)] bg-[var(--bg-card)] shadow-2xl; height: calc(100vh / var(--app-zoom)); }
+/* 너비 400 → 560: 기능(반복·앞뒤·돈)을 다 켜면 속성 칩이 줄바꿈돼 깨져 보였다(2026-09-01 사장님) */
+.pjv3-drawer { @apply fixed right-0 top-0 z-40 flex w-[560px] max-w-[96vw] flex-col border-l border-[var(--border)] bg-[var(--bg-card)] shadow-2xl; height: calc(100vh / var(--app-zoom)); }
 .pjv3-drawer-head { @apply flex shrink-0 items-center gap-2 border-b border-[var(--border)] px-4 py-3; }
 .pjv3-drawer-head input { @apply min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-1.5 py-1 text-sm font-bold text-[var(--text)] outline-none; }
 .pjv3-drawer-head input:focus { @apply border-[var(--primary)] bg-[var(--bg)]; }
