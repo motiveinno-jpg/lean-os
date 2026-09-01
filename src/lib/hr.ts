@@ -1561,8 +1561,16 @@ export async function createLeaveRequest(params: {
   return data;
 }
 
+//   연차 잔여(leave_balances)에서 차감하지 않는 유형 (2026-09-01 사장님: "공가(예비군)도 연차에 반영된다").
+//   공가·병가·경조·출산 등 법정 별도 휴가는 연차와 무관한데, 종전엔 유형 무관 전부 차감됐다.
+//   annual 과 회사 커스텀 유형만 차감 유지(커스텀은 회사가 연차성으로 쓸 수 있어 기존 동작 보존).
+//   신청 시 잔여 부족 검증은 원래 annual 만 하고 있었다 — 차감·복구만 어긋나 있던 것.
+const NON_DEDUCT_LEAVE_TYPES = new Set<string>(
+  LEAVE_TYPES.filter((t) => t.value !== 'annual').map((t) => t.value));
+
 // 최종 승인 시 연차 used_days 1회 차감 (annual 등 잔여 추적 대상).
 async function deductLeaveBalance(request: any) {
+  if (NON_DEDUCT_LEAVE_TYPES.has(String(request.leave_type))) return; // 공가 등 — 연차 잔여와 별도 관리
   const year = new Date(request.start_date).getFullYear();
   const balance = logRead('lib/hr:balance', await db
     .from('leave_balances')
@@ -1827,8 +1835,8 @@ export async function cancelLeaveRequest(id: string, opts?: {
     .eq('id', id);
   if (error) throw error;
 
-  // 승인 상태였다면 차감했던 used_days 복구
-  if (wasApproved) {
+  // 승인 상태였다면 차감했던 used_days 복구 — 차감 안 하는 유형(공가 등)은 복구도 없다 (2026-09-01)
+  if (wasApproved && !NON_DEDUCT_LEAVE_TYPES.has(String(request.leave_type))) {
     const year = new Date(request.start_date).getFullYear();
     const balance = logRead('lib/hr:balance', await db
       .from('leave_balances')
@@ -1879,7 +1887,7 @@ export async function cancelLeaveRequest(id: string, opts?: {
       type: 'approval',
       title: `${empName} - ${leaveLabel} 취소 (${Number(request.days)}일)`,
       message: uid === requesterUserId
-        ? `${period} 휴가가 취소되었습니다.${wasApproved ? ' 연차 잔여가 복구되었습니다.' : ''}${reasonSuffix}`
+        ? `${period} 휴가가 취소되었습니다.${wasApproved && !NON_DEDUCT_LEAVE_TYPES.has(String(request.leave_type)) ? ' 연차 잔여가 복구되었습니다.' : ''}${reasonSuffix}`
         : `${period}${wasApproved ? ' · 승인된 휴가 취소' : ''}${reasonSuffix}`,
       entity_type: 'leave_request',
       entity_id: request.id,
