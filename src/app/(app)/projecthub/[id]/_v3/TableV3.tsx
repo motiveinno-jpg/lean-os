@@ -184,11 +184,20 @@ export function TableV3() {
   // ── ＋ 기능(2026-09-01 오두 갭 1차) — 반복·앞뒤 순서는 켠 프로젝트에서만. 팀 공유(deals.v3_features) ──
   const features: string[] = Array.isArray(deal?.v3_features) ? deal.v3_features : [];
   const featOn = (k: "recur" | "deps" | "billing" | "survey") => features.includes(k);
+  //   토글 결과와 '어디에 생겼는지'를 바로 말해준다 — 안 그러면 눌러도 달라진 게 없어 보인다(2026-09-01 사장님)
+  const FEAT_ON_MSG: Record<string, string> = {
+    recur: "'반복 작업'을 켰습니다 — 줄 '열기' 서랍에 반복 설정이 생겼습니다",
+    deps: "'앞뒤 순서'를 켰습니다 — 줄 '열기' 서랍에 '앞 작업' 설정이 생겼습니다",
+    billing: "'견적·청구'를 켰습니다 — 줄에 ₩ 버튼이 생겼고, 누르면 견적부터 입금까지 처리합니다",
+    survey: "'설문 발송'을 켰습니다 — 위 조회 줄에 '설문' 버튼이 생겼습니다",
+  };
   const toggleFeature = async (k: string) => {
-    const next = features.includes(k) ? features.filter((x) => x !== k) : [...features, k];
+    const turningOn = !features.includes(k);
+    const next = turningOn ? [...features, k] : features.filter((x) => x !== k);
     const { error } = await db.from("deals").update({ v3_features: next }).eq("id", dealId);
     if (error) { toast(friendlyError(error), "error"); return; }
     qc.invalidateQueries({ queryKey: ["pjv3-deal", dealId] });
+    toast(turningOn ? (FEAT_ON_MSG[k] || "켰습니다") : "껐습니다 — 이 프로젝트에서만 빠지고, 쓰던 값은 남아 있습니다", "success");
   };
 
   //   반복 — 완료(마지막 그룹)로 옮기는 순간 다음 줄을 만들어 준다(만들어만 주고, 지우는 건 사람)
@@ -1206,6 +1215,17 @@ export function TableV3() {
             return <span className="pjv3-rowbadge dim" title={`앞 작업 '${af.name}' 이(가) 끝난 뒤`}>⛓</span>;
           })()}
           <span className="min-w-0 flex-1"><EditCell it={it} colKey="name" value={it.name} align="left" /></span>
+          {/* ₩ — 견적·청구를 켠 프로젝트의 들어가는 문(2026-09-01 사장님 "달라지는 게 없다" — 효과가 서랍에만 숨어 있었다).
+              문서가 붙은 줄은 항상 보이고(견적=파랑·계약=초록), 나머지는 호버에만. 누르면 서랍(돈 구역이 맨 위) */}
+          {featOn("billing") && depth === 0 && (() => {
+            const hasC = !!(it.fields as Record<string, unknown>)?.[CONTRACT_KEY];
+            const hasQ = !!(it.fields as Record<string, unknown>)?.[QUOTE_KEY];
+            return (
+              <button type="button" className={`pjv3-money-badge ${hasC ? "c" : hasQ ? "q" : ""}`}
+                title={hasC ? "계약까지 진행됨 — 돈 구역 열기" : hasQ ? "견적 있음 — 돈 구역 열기" : "이 줄로 견적부터 청구까지 — 돈 구역 열기"}
+                onClick={() => setDrawerId(it.id)}>₩</button>
+            );
+          })()}
           <button type="button" className="pjv3-open" title="이 줄 열기 — 체크리스트·기록·팔로워"
             onClick={() => setDrawerId(it.id)}>열기</button>
         </span>
@@ -2205,7 +2225,7 @@ export function TableV3() {
           })()}
           {pop.kind === "features" && (<>
             <div className="pjv3-pop-title">＋ 기능 — 이 프로젝트에만 켭니다(팀 공유)</div>
-            {([["recur", "반복 작업", "서랍에 '반복' 줄 — 완료로 옮기면 다음 줄 자동"], ["deps", "앞뒤 순서", "서랍에 '앞 작업' 줄 — 안 끝났으면 알려줌"], ["billing", "견적·청구", "서랍에 '돈' 구역 — 견적→계약→계산서→입금"], ["survey", "설문 발송", "위에 '설문' 버튼 — 외부 링크로 받은 응답이 줄로"]] as const).map(([k, label, hint]) => (
+            {([["recur", "반복 작업", "서랍에 '반복' 줄 — 완료로 옮기면 다음 줄 자동"], ["deps", "앞뒤 순서", "서랍에 '앞 작업' 줄 — 안 끝났으면 알려줌"], ["billing", "견적·청구", "줄에 ₩ 버튼 — 견적→계약→계산서→입금"], ["survey", "설문 발송", "위에 '설문' 버튼 — 외부 링크로 받은 응답이 줄로"]] as const).map(([k, label, hint]) => (
               <button key={k} type="button" onClick={() => toggleFeature(k)}>
                 {features.includes(k) ? "✓ " : ""}{label}<small className="pjv3-typehint"> — {hint}</small>
               </button>

@@ -9570,6 +9570,12 @@ table.phv3-table { min-width: 640px; }
 .pjv3-open { @apply flex-none cursor-pointer rounded-md border border-[var(--border)] bg-[var(--bg-card)] px-1.5 py-0.5 text-[10px] text-[var(--text-dim)] opacity-0 transition-opacity; font: inherit; font-size: 10px; }
 .pjv3-sheet tbody tr:hover .pjv3-open { @apply opacity-100; }
 .pjv3-open:hover { @apply border-[var(--primary)] text-[var(--primary)]; }
+/* ₩ — 견적·청구 들어가는 문(2026-09-01). 문서가 붙은 줄(.q 견적=파랑·.c 계약=초록)은 항상, 나머지는 호버에만 */
+.pjv3-money-badge { @apply flex-none cursor-pointer rounded-md border border-[var(--border)] bg-[var(--bg-card)] px-1.5 py-0.5 font-bold text-[var(--text-dim)] opacity-0 transition-opacity; font: inherit; font-size: 10px; }
+.pjv3-sheet tbody tr:hover .pjv3-money-badge { @apply opacity-100; }
+.pjv3-money-badge.q { @apply border-[var(--primary)]/45 text-[var(--primary)] opacity-100; }
+.pjv3-money-badge.c { @apply opacity-100; border-color: rgba(0, 200, 117, 0.5); color: #00a05e; }
+.pjv3-money-badge:hover { @apply border-[var(--primary)] text-[var(--primary)]; }
 .pjv3-drawer-veil { @apply fixed inset-0 z-30; }
 .pjv3-drawer { @apply fixed right-0 top-0 z-40 flex w-[400px] max-w-[92vw] flex-col border-l border-[var(--border)] bg-[var(--bg-card)] shadow-2xl; height: calc(100vh / var(--app-zoom)); }
 .pjv3-drawer-head { @apply flex shrink-0 items-center gap-2 border-b border-[var(--border)] px-4 py-3; }
