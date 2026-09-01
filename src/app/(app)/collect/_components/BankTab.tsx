@@ -923,20 +923,10 @@ export function BankTab({
               </ConditionRow>
 
               <ConditionRow label="계좌" hint="여러 개 · 눌러서 선택">
-                {/*   연결해 둔 계좌를 목록으로 펼쳐 클릭 선택 (2026-08-31 사장님: "번호를 직접 입력해야 했다").
-                      계좌가 20개를 넘는 회사만 종전 검색 입력으로. */}
-                {bankOpts.length > 0 && bankOpts.length <= 20 ? (
-                  <span className="qk-quicks">
-                    {bankOpts.map((b) => (
-                      <button key={b.value} type="button"
-                        onClick={() => setDraft((d) => ({ ...d, bank: d.bank.includes(b.value) ? d.bank.filter((x) => x !== b.value) : [...d.bank, b.value] }))}
-                        className={draft.bank.includes(b.value) ? "qk-quick qk-quick-on" : "qk-quick"}>{b.label}</button>
-                    ))}
-                  </span>
-                ) : (
-                  <TokenField items={bankOpts} value={draft.bank} onChange={setD("bank")}
-                    placeholder="계좌 별명 또는 번호 (예: 4017)" />
-                )}
+                {/*   칩 나열(8/31)은 계좌가 많으면 지저분 (2026-09-01 사장님: "목록식으로") —
+                      누르면 전체 목록이 열리는 담기 칸으로. 골라 담으면 칩으로 쌓인다. */}
+                <TokenField items={bankOpts} value={draft.bank} onChange={setD("bank")}
+                  openOnClick placeholder="누르면 계좌 목록 — 골라 담기" />
               </ConditionRow>
 
               <ConditionRow label="계정과목" hint="여러 개">

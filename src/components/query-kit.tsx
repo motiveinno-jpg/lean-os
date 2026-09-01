@@ -282,12 +282,15 @@ export type TokenItem = { value: string; label: string; sub?: string };
  */
 const TOKEN_CAP = 20;
 export function TokenField({
-  items, value, onChange, placeholder,
+  items, value, onChange, placeholder, openOnClick,
 }: {
   items: TokenItem[];
   value: string[];
   onChange: (v: string[]) => void;
   placeholder?: string;
+  /** 칸을 누르면 전체 목록을 바로 펼친다 — 카드·통장처럼 목록에서 골라 담는 칸 전용 opt-in
+   *  (2026-09-01 사장님: "클릭하면 보이는 목록식으로"). 기본값은 종전 그대로(글자를 쳐야 열림). */
+  openOnClick?: boolean;
 }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
@@ -331,7 +334,8 @@ export function TokenField({
               열려 있으면 아래 칸을 덮어, 다음 조건으로 가려면 딴 데를 한 번 눌러야 했다.
               **글자를 쳐야** 후보가 뜬다. 다 보고 싶으면 ↓ 를 누른다. */}
         <input ref={input} value={q} placeholder={value.length ? "" : placeholder}
-          onChange={(e) => { setQ(e.target.value); setOpen(e.target.value.trim().length > 0); setCur(-1); }}
+          onFocus={() => { if (openOnClick) setOpen(true); }}
+          onChange={(e) => { setQ(e.target.value); setOpen(openOnClick || e.target.value.trim().length > 0); setCur(-1); }}
           onKeyDown={(e) => {
             if (e.key === "ArrowDown" || e.key === "ArrowUp") {
               e.preventDefault();
