@@ -2114,6 +2114,13 @@ function ReferencedRequestsTab({ companyId, userId, embedded }: { companyId: str
                                 />
                               </div>
                             )}
+                            {/* 댓글 — 참조자에게만 안 보였다 (2026-09-01 사장님: "참조인도 댓글 다 확인 가능하게").
+                                내 결재함·내 요청·전체 현황과 같은 공용 스레드 그대로 — 읽기·쓰기 모두 가능 */}
+                            {!isNativeLeave && (
+                              <div className="mt-5 pt-4 border-t border-[var(--border)]">
+                                <ApprovalCommentThread requestId={req.id} />
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>
