@@ -931,7 +931,7 @@ export function EvidenceTab({
                 <button type="button" className="btn-primary btn-sm"
                   onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
               </>}>
-              <ConditionRow label="조회기간" hint="기본 1개월">
+              <ConditionRow label="조회기간">
                 <span className="qk-range-txt">{from} ~ {to}</span>
                 <DateRangeField from={from} to={to} onChange={onRange} label={null} parts="calendar" confirm />
                 <span className="qk-quicks">
@@ -949,23 +949,23 @@ export function EvidenceTab({
 
               {/*   간이·면세만 모아 보는 일이 잦다 — 부가세를 공제받지 못하는 건들이다 */}
               {kind === "card" && (
-                <ConditionRow label="구분" hint="간이·면세는 불공제">
+                <ConditionRow label="구분">
                   <ChipGroup value={draft.kind} onChange={setD("kind")} options={KIND_CHIPS} />
                 </ConditionRow>
               )}
 
-              <ConditionRow label="거래처" hint="여러 곳">
+              <ConditionRow label="거래처">
                 <TokenField items={partnerOpts} value={draft.partner} onChange={setD("partner")}
                   placeholder="" />
               </ConditionRow>
 
-              <ConditionRow label="계정과목" hint="여러 개">
+              <ConditionRow label="계정과목">
                 <TokenField items={acctOpts} value={draft.acct} onChange={setD("acct")}
                   placeholder="" />
               </ConditionRow>
 
               {kind === "card" && (
-                <ConditionRow label="카드" hint="여러 개 · 눌러서 선택">
+                <ConditionRow label="카드">
                   {/*   연결해 둔 카드를 목록으로 펼쳐 클릭 선택 (2026-08-31 사장님: "이름을 직접 입력해야 했다").
                         카드가 20장을 넘는 회사만 종전 검색 입력으로. */}
                   {/* 칩 나열은 카드가 많아 지저분 (2026-09-01 사장님) — 누르면 전체 목록이 열리는 담기 칸으로 */}
@@ -983,7 +983,7 @@ export function EvidenceTab({
                   onChange={(e) => setD("item")(e.target.value)} />
               </ConditionRow>
 
-              <ConditionRow label="합계 금액" hint="한쪽만 적어도 됩니다">
+              <ConditionRow label="합계 금액">
                 <AmountRange min={draft.min} max={draft.max} onMin={setD("min")} onMax={setD("max")} placeholders={["", ""]} />
               </ConditionRow>
             </ConditionPanel>

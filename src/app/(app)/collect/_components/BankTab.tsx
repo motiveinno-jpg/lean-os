@@ -904,7 +904,7 @@ export function BankTab({
                 <button type="button" className="btn-primary btn-sm"
                   onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
               </>}>
-              <ConditionRow label="조회기간" hint="기본 1개월">
+              <ConditionRow label="조회기간">
                 <span className="qk-range-txt">{from} ~ {to}</span>
                 <DateRangeField from={from} to={to} onChange={onRange} label={null} parts="calendar" confirm />
                 <span className="qk-quicks">
@@ -920,19 +920,19 @@ export function BankTab({
                 <ChipGroup value={draft.io} onChange={setD("io")} options={IO_CHIPS} />
               </ConditionRow>
 
-              <ConditionRow label="거래처" hint="입금자, 여러 곳">
+              <ConditionRow label="거래처">
                 <TokenField items={whoOpts} value={draft.who} onChange={setD("who")}
                   placeholder="" />
               </ConditionRow>
 
-              <ConditionRow label="계좌" hint="여러 개 · 눌러서 선택">
+              <ConditionRow label="계좌">
                 {/*   칩 나열(8/31)은 계좌가 많으면 지저분 (2026-09-01 사장님: "목록식으로") —
                       누르면 전체 목록이 열리는 담기 칸으로. 골라 담으면 칩으로 쌓인다. */}
                 <TokenField items={bankOpts} value={draft.bank} onChange={setD("bank")}
                   openOnClick placeholder="" />
               </ConditionRow>
 
-              <ConditionRow label="계정과목" hint="여러 개">
+              <ConditionRow label="계정과목">
                 <TokenField items={acctOpts} value={draft.acct} onChange={setD("acct")}
                   placeholder="" />
               </ConditionRow>
@@ -946,7 +946,7 @@ export function BankTab({
                   onChange={(e) => setD("desc")(e.target.value)} />
               </ConditionRow>
 
-              <ConditionRow label="금액" hint="입·출금 부호는 보지 않습니다">
+              <ConditionRow label="금액">
                 <AmountRange min={draft.min} max={draft.max} onMin={setD("min")} onMax={setD("max")} placeholders={["", ""]} />
               </ConditionRow>
             </ConditionPanel>
