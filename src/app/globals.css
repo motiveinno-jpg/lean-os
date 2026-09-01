@@ -9742,6 +9742,9 @@ table.phv3-table { min-width: 640px; }
 .pjv3-sv-limits .chk { @apply ml-1 flex cursor-pointer items-center gap-1.5 text-xs text-[var(--text)]; }
 .pjv3-sv-hint { @apply mt-1.5 text-[10.5px] leading-relaxed text-[var(--text-dim)]; }
 .pjv3-sv-link { @apply mt-1 flex items-center gap-2 rounded-xl bg-[var(--bg)] px-3 py-2; }
+/* 응답 요약 — 질문 타입별 간단 집계 한 줄(내려받지 않고도 흐름 보이게, 2026-09-01) */
+.pjv3-sv-sum { @apply mt-1 flex flex-wrap gap-x-4 gap-y-1 rounded-xl bg-[var(--bg)] px-3 py-2 text-[11px] text-[var(--text-dim)]; }
+.pjv3-sv-sum b { @apply mr-1 font-semibold text-[var(--text)]; }
 .pjv3-sv-link code { @apply min-w-0 flex-1 truncate text-[11px] text-[var(--primary)]; }
 .pjv3-sv-thumb { @apply h-11 w-11 flex-none rounded-lg border border-[var(--border)] object-cover; }
 

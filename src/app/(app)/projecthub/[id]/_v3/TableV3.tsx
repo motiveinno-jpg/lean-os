@@ -956,6 +956,27 @@ export function TableV3() {
     });
     exportToExcel(data, "설문 응답", `${deal?.name || "설문"}_응답_${new Date().toISOString().slice(0, 10)}`);
   };
+  //   질문 타입별 간단 집계 — 내려받지 않고도 흐름이 보이게. 글·날짜류는 요약할 수 없어 뺀다
+  const svSumFor = (c: (typeof cols)[number]): string | null => {
+    const vals = svResponses.map((it) => (it.fields || {})[c.key]).filter((v) => v != null && String(v).trim() !== "");
+    if (vals.length === 0) return null;
+    if (c.type === "rating") {
+      const avg = vals.reduce((s: number, v) => s + Number(v), 0) / vals.length;
+      return `★ ${avg.toFixed(1)} (${vals.length}명)`;
+    }
+    if (c.type === "number") return `합계 ${vals.reduce((s: number, v) => s + Number(v), 0).toLocaleString("ko-KR")}`;
+    if (c.type === "select") {
+      const cnt = new Map<string, number>();
+      for (const v of vals) cnt.set(String(v), (cnt.get(String(v)) || 0) + 1);
+      const parts = (c.settings?.options || []).filter((o) => cnt.has(o.id)).map((o) => `${o.label} ${cnt.get(o.id)}`);
+      return parts.length > 0 ? parts.join(" · ") : null;
+    }
+    if (c.type === "check") {
+      const n = vals.filter((v) => v === true || v === "true").length;
+      return n > 0 ? `예 ${n}` : null;
+    }
+    return null;
+  };
 
   // ── 일괄 처리(오두 갭 ①) — 줄 체크 → 바닥 SelectionBar. 완료·상태는 saveItem 루프(반복·앞뒤 규칙 공유) ──
   const [selIds, setSelIds] = useState<Set<string>>(new Set());
@@ -1866,6 +1887,14 @@ export function TableV3() {
                 <span className="num text-[11px] text-[var(--text-dim)]">지금까지 응답 {svResponses.length}건</span>
                 <button type="button" className="btn-secondary btn-sm ml-auto" title="응답 줄만 — 응답자·제출일·질문 컬럼"
                   onClick={exportSvResponses}>응답만 엑셀로</button>
+              </div>
+            )}
+            {svResponses.length > 0 && (
+              <div className="pjv3-sv-sum">
+                {svCols.map((c) => {
+                  const s = svSumFor(c);
+                  return s ? <span key={c.key}><b>{c.name}</b> {s}</span> : null;
+                })}
               </div>
             )}
             <p className="phv3-modal-desc !mt-2">
