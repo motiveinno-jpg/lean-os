@@ -2390,7 +2390,7 @@ function TaxInvoicesPageInner() {
                             🧮 = 공급대가(부가세 포함)로 이 줄 단가 역산 — 한 장 쓰기의 계산기와 동일 부품 */}
                       <div className="relative">
                         <CurrencyInput value={row.items[0]?.unitCost || ""} onValueChange={(raw: string) => patchItem(row.key, row.items[0].key, { unitCost: raw })}
-                          allowNegative placeholder="0" className="tax-item-input text-right w-full pr-7" />
+                          allowNegative placeholder="0" className="tax-item-input tax-unitcost-input text-right w-full" />
                         <button type="button" title="공급대가(부가세 포함)로 단가 계산"
                           onClick={() => setCalcRowKey((k) => (k === row.key ? null : row.key))}
                           className={`absolute right-1 top-1/2 -translate-y-1/2 text-[12px] leading-none ${calcRowKey === row.key ? "opacity-100" : "opacity-50 hover:opacity-100"}`}>🧮</button>

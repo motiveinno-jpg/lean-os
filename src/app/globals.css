@@ -9646,3 +9646,7 @@ table.phv3-table { min-width: 640px; }
 /* 프로젝트 항목 팝업 — 거래처 검색 드롭 (2026-09-01) */
 .phv3-partner-drop { @apply absolute z-50 left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-lg; }
 .phv3-partner-opt { @apply block w-full text-left px-3 py-2 text-xs hover:bg-[var(--bg-surface)]; }
+
+/* 세금계산서 여러 장 — 단가 칸(🧮 계산기 아이콘 자리 확보). .tax-item-input 의 px-2 가
+   @layer 밖이라 pr-7 유틸리티를 이겨 숫자가 아이콘에 깔렸다 (2026-09-01 사장님 제보) — 뒤에 정의해 이긴다 */
+.tax-unitcost-input { @apply pr-7; }
