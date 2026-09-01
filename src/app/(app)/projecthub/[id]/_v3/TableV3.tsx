@@ -688,9 +688,19 @@ export function TableV3() {
   }, [pop]);
   const at = (e: React.MouseEvent) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    return { x: Math.min(r.left, window.innerWidth - 210), y: r.bottom + 4 };
+    //   앱 전체가 zoom(--app-zoom) 안이라 fixed 좌표가 zoom 배로 다시 늘어난다 — 나눠서 보정
+    //   (2026-09-01 사장님: 오른쪽 ＋ 팝이 화면 밖으로 잘리고 클릭 안 됨). 우측·하단 여유도 확보.
+    const zEl = document.querySelector(".app-zoom");
+    const zoom = zEl ? parseFloat(getComputedStyle(zEl as HTMLElement).zoom as string) || 1 : 1;
+    return {
+      x: Math.max(8, Math.min(r.left, window.innerWidth - 320)) / zoom,
+      y: Math.min(r.bottom + 4, window.innerHeight - 80) / zoom,
+    };
   };
   useEffect(() => { if (!pop || pop.kind !== "select") setOptEdit(false); }, [pop]);
+  //   상태(그룹) 팔레트도 고정이 아니다 — 이름·색·순서·추가·삭제 (2026-09-01 사장님)
+  const [stEdit, setStEdit] = useState(false);
+  useEffect(() => { if (!pop || pop.kind !== "status") setStEdit(false); }, [pop]);
   useEffect(() => {
     //   팝(팔레트·담당 등)이 떠 있으면 Esc 는 팝만 닫는다 — 서랍까지 같이 닫히면 당황스럽다
     if (!drawerId || pop) return;
@@ -1274,13 +1284,52 @@ export function TableV3() {
 
       {/* ── 떠 있는 팝 — 상태·담당·선택지·컬럼 추가 ── */}
       {pop && (
-        <div className={`pjv3-pop ${pop.kind === "select" && optEdit ? "pjv3-pop-wide" : ""}`} style={{ left: pop.x, top: pop.y }}>
-          {pop.kind === "status" && (<>
+        <div className={`pjv3-pop ${(pop.kind === "select" && optEdit) || (pop.kind === "status" && stEdit) ? "pjv3-pop-wide" : ""}`} style={{ left: pop.x, top: pop.y }}>
+          {pop.kind === "status" && !stEdit && (<>
             <div className="pjv3-pop-title">상태 — 그룹·칸반 열이 같이 바뀝니다</div>
             {stages.map((s) => (
               <button key={s.id} type="button" className="pjv3-pop-color" style={{ background: STAGE_HEX[s.color] }}
                 onClick={() => { saveItem(pop.itemId, { status: s.id }); setPop(null); }}>{s.label}</button>
             ))}
+            <button type="button" className="pjv3-opt-manage" onClick={() => setStEdit(true)}>상태 고치기 — 이름·색·순서·추가·삭제</button>
+          </>)}
+          {pop.kind === "status" && stEdit && (<>
+            <div className="pjv3-pop-title">상태 고치기 (색은 점을 눌러 순환 — 표·칸반·간트가 같이 바뀝니다)</div>
+            {stages.map((s, i) => (
+              <div key={s.id} className="pjv3-opt-row">
+                <span className="dot" style={{ background: STAGE_HEX[s.color] }} title="색 바꾸기"
+                  onClick={() => {
+                    const next = STAGE_COLORS[(STAGE_COLORS.indexOf(s.color) + 1) % STAGE_COLORS.length];
+                    saveStages(stages.map((x) => (x.id === s.id ? { ...x, color: next } : x)));
+                  }} />
+                <input defaultValue={s.label} aria-label="상태 이름"
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    if (v && v !== s.label) saveStages(stages.map((x) => (x.id === s.id ? { ...x, label: v } : x)));
+                  }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); }} />
+                <button type="button" disabled={i === 0} title="위로"
+                  onClick={() => { const n = [...stages]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; saveStages(n); }}>↑</button>
+                <button type="button" disabled={i === stages.length - 1} title="아래로"
+                  onClick={() => { const n = [...stages]; [n[i + 1], n[i]] = [n[i], n[i + 1]]; saveStages(n); }}>↓</button>
+                {stages.length > 1 && (
+                  <button type="button" className={`pjv3-del ${delArm === `stage:${s.id}` ? "arm" : ""}`}
+                    title="지우기 — 이 상태의 항목은 맨 위 그룹으로 옮겨집니다"
+                    onClick={() => armOrRun(`stage:${s.id}`, () => deleteStage(s.id))}>
+                    {delArm === `stage:${s.id}` ? "한 번 더" : "✕"}
+                  </button>
+                )}
+              </div>
+            ))}
+            <input placeholder="＋ 새 상태 적고 Enter"
+              onKeyDown={(e) => {
+                const v = (e.target as HTMLInputElement).value;
+                if (e.key === "Enter" && !e.nativeEvent.isComposing && v.trim()) {
+                  saveStages([...stages, { id: `g_${Date.now().toString(36)}`, label: v.trim(), color: STAGE_COLORS[stages.length % STAGE_COLORS.length] }]);
+                  (e.target as HTMLInputElement).value = "";
+                }
+              }} />
+            <button type="button" onClick={() => setStEdit(false)}>← 고르기로 돌아가기</button>
           </>)}
           {pop.kind === "person" && (<>
             <div className="pjv3-pop-title">담당</div>

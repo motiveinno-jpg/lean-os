@@ -9658,3 +9658,5 @@ table.phv3-table { min-width: 640px; }
 /* 목록 셀 가운데 정렬(프로젝트명·참여자·마지막 업데이트 — 2026-09-01 사장님), 요약만 왼쪽 */
 .ph-table tbody td { @apply text-center; }
 .ph-table tbody td.ph-sum { @apply !text-left; }
+/* 팝이 길어지면 팝 안에서 스크롤 — 화면 아래로 잘리지 않게(2026-09-01) */
+.pjv3-pop { max-height: calc(70vh / var(--app-zoom)); overflow-y: auto; }
