@@ -124,10 +124,12 @@ const NTS_MODIFY_CODES: Record<string, string> = {
 function buildDetailList(invoice: any, writeDate: string, supply: string, tax: string) {
   const items = Array.isArray(invoice.items) ? invoice.items : [];
   if (items.length > 0) {
-    return items.map((it: any, i: number) => {
+    //   줄 세액은 **과세일 때만** 매긴다(영세율·면세는 합계 세액 0 → 줄도 0).
+    //   ★ 과세 판정은 tax!==0 — 음수 세액(수정·환입 계산서)도 과세다. 예전엔 tax>0 이라
+    //     마이너스 계산서의 줄 세액이 0 이 돼 '상세 세액 합계≠총세액'으로 홈택스가 거부했다 (2026-09-01).
+    const taxable = Number(tax) !== 0;
+    const lines = items.map((it: any, i: number) => {
       const lineSupply = Math.round(Number(it.supplyAmount ?? (Number(it.qty || 1) * Number(it.unitCost || 0))) || 0);
-      //   줄 세액은 과세일 때만 — 영세율·면세 계산서는 합계 세액이 0 이라 줄도 0 이 된다
-      const lineTax = Number(tax) > 0 ? Math.round(lineSupply * 0.1) : 0;
       return {
         serialNum: String(i + 1),
         purchaseDT: writeDate,
@@ -136,10 +138,17 @@ function buildDetailList(invoice: any, writeDate: string, supply: string, tax: s
         qty: String(it.qty ?? 1),
         unitCost: String(Math.round(Number(it.unitCost || 0))),
         supplyCost: String(lineSupply),
-        tax: String(lineTax),
+        tax: taxable ? Math.round(lineSupply * 0.1) : 0,
         remark: String(it.remark || ""),
       };
     });
+    //   ★ 줄 세액 합계를 총세액과 **정확히** 맞춘다 — 다줄 반올림 오차를 마지막 줄이 흡수한다.
+    //     홈택스는 상세 세액 합계와 총세액이 1원이라도 다르면 거부한다.
+    if (taxable && lines.length > 0) {
+      const sum = lines.reduce((s: number, l: any) => s + l.tax, 0);
+      lines[lines.length - 1].tax += Number(tax) - sum;
+    }
+    return lines.map((l: any) => ({ ...l, tax: String(l.tax) }));
   }
   return [{
     serialNum: "1",
