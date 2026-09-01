@@ -9660,3 +9660,6 @@ table.phv3-table { min-width: 640px; }
 .ph-table tbody td.ph-sum { @apply !text-left; }
 /* 팝이 길어지면 팝 안에서 스크롤 — 화면 아래로 잘리지 않게(2026-09-01) */
 .pjv3-pop { max-height: calc(70vh / var(--app-zoom)); overflow-y: auto; }
+
+/* 담기 칸 목록 — 아래 공간이 부족하면 위로 펼친다 (2026-09-01, TokenField dropUp) */
+.qk-tok-pop-up { @apply bottom-[calc(100%+4px)] top-auto; }

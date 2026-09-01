@@ -295,11 +295,19 @@ export function TokenField({
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [cur, setCur] = useState(-1);
+  //   목록이 화면 아래로 잘리면 위로 펼친다 (2026-09-01 사장님: "많으면 밑에 짤릴 것 같다") —
+  //   칸이 패널 아래쪽에 있을 때 아래 남은 공간이 목록 최대 높이보다 작고 위가 더 넓으면 위로.
+  const [dropUp, setDropUp] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
+    const r = box.current?.getBoundingClientRect();
+    if (r) {
+      const below = window.innerHeight - r.bottom;
+      setDropUp(below < 240 && r.top > below);
+    }
     const away = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
     document.addEventListener("mousedown", away);
     return () => document.removeEventListener("mousedown", away);
@@ -354,7 +362,7 @@ export function TokenField({
           onClick={() => onChange([])}>✕</button>
       )}
       {open && (
-        <div className="qk-tok-pop" role="listbox">
+        <div className={dropUp ? "qk-tok-pop qk-tok-pop-up" : "qk-tok-pop"} role="listbox">
           {all.length === 0 ? (
             <p className="qk-tok-none">‘{q}’ 에 맞는 것이 없습니다</p>
           ) : (<>
