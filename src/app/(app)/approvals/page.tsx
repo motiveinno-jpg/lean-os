@@ -2547,6 +2547,11 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                   currentUserId={userId}
                 />
               </div>
+              {/* 댓글 — 전체 현황 상세에는 스레드가 없어 참조 건 대화를 못 봤다 (2026-09-01 사장님:
+                  "전체현황에서도 참조건에 댓글 보이도록"). 다른 탭과 같은 공용 스레드 그대로 */}
+              <div className="mt-6 pt-5 border-t border-[var(--border)]">
+                <ApprovalCommentThread requestId={req.id} />
+              </div>
             </div>
           </div>
         );
