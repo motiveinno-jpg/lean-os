@@ -523,8 +523,8 @@ export default function ProjectHubPage() {
     queryKey: ["ph-v3items", companyId],
     queryFn: async () => {
       const data = logRead("projecthub/page:v3items", await (supabase as any).from("project_items")
-        .select("deal_id, name, status, due_date, updated_at, fields").is("archived_at", null).eq("company_id", companyId!));
-      return (data || []) as { deal_id: string; name: string; status: string; due_date: string | null; updated_at: string; fields: Record<string, unknown> | null }[];
+        .select("id, deal_id, name, status, due_date, updated_at, fields, assignee_id, parent_id").is("archived_at", null).eq("company_id", companyId!));
+      return (data || []) as { id: string; deal_id: string; name: string; status: string; due_date: string | null; updated_at: string; fields: Record<string, unknown> | null; assignee_id: string | null; parent_id: string | null }[];
     },
     enabled: !!companyId,
   });
@@ -601,6 +601,29 @@ export default function ProjectHubPage() {
     const at = v3ByDeal[d.id]?.lastAt;
     return at ? Math.floor((Date.now() - at) / 86400000) : null;
   };
+  // ── 내 작업(오두 갭 2차, 2026-09-01 승인) — 전 프로젝트에서 내 담당 미완 줄만 급한 순 한 표 ──
+  const [myWorkOpen, setMyWorkOpen] = useState(false);
+  const myWork = useMemo(() => {
+    if (!userId) return [];
+    const lastStage: Record<string, string> = {};
+    const dealName: Record<string, string> = {};
+    for (const d of topDeals as any[]) {
+      const st = Array.isArray(d.item_stages) ? d.item_stages : null;
+      lastStage[d.id] = st?.length ? String(st[st.length - 1].id) : "done";
+      dealName[d.id] = d.name || "";
+    }
+    return v3Items
+      .filter((it) => it.assignee_id === userId && dealName[it.deal_id] !== undefined && it.status !== (lastStage[it.deal_id] ?? "done"))
+      .map((it) => ({
+        ...it, dealName: dealName[it.deal_id],
+        overdue: !!it.due_date && it.due_date.slice(0, 10) < todayStr,
+      }))
+      .sort((a, b) => {
+        if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
+        return (a.due_date || "9999") < (b.due_date || "9999") ? -1 : 1;
+      });
+  }, [v3Items, topDeals, userId, todayStr]);
+
   const v3Summary = (d: any): React.ReactNode => {
     const v = v3ByDeal[d.id];
     if (!v || v.total === 0) return <span className="ph-sum-dim">아직 표에 적은 것이 없습니다</span>;
@@ -763,6 +786,8 @@ export default function ProjectHubPage() {
         <QueryHead>
           {/* 보기 탭·성과 대시보드는 뺐다 (2026-08-31 사장님: "성과 대시보드 필요 없을 것 같아, 담당별도") — 목록 하나만 */}
           <QueryBar right={<>
+            <button type="button" onClick={() => setMyWorkOpen(true)} className="btn-secondary btn-sm"
+              title="모든 프로젝트에서 내가 담당한 줄만 급한 순으로">내 작업{myWork.length > 0 ? ` ${myWork.length}` : ""}</button>
             <button type="button" onClick={() => setShowCreate(true)} className="btn-primary btn-sm">+ 프로젝트 생성</button>
           </>}>
             {/* 프로젝트는 기간이 없는 목록이라 조회 줄이 [검색조건] 으로 시작한다 */}
@@ -838,6 +863,34 @@ export default function ProjectHubPage() {
 
         <QueryBody>
          <div className={listView === "table" && rows.length > 0 && !isLoading ? "ev-scroll" : "ph-scroll"}>
+
+      {/* 내 작업 — 전 프로젝트 한 표. 줄을 누르면 그 프로젝트의 서랍이 열린다(?item=) */}
+      {myWorkOpen && (
+        <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setMyWorkOpen(false); }}>
+          <div className="phv3-modal pjv3-tpl-modal" role="dialog" aria-modal="true" aria-label="내 작업">
+            <h3 className="phv3-modal-title">내 작업 — 모든 프로젝트에서 내 담당, 급한 순</h3>
+            {myWork.length === 0 && <div className="pjv3-tpl-mine">지금 담당한 미완 작업이 없습니다</div>}
+            {myWork.length > 0 && (
+              <table className="ph-mywork">
+                <thead><tr><th className="!text-left">이름</th><th>프로젝트</th><th>마감</th></tr></thead>
+                <tbody>
+                  {myWork.slice(0, 50).map((w) => (
+                    <tr key={w.id} onClick={() => router.push(`/projecthub/${w.deal_id}?item=${w.id}`)}>
+                      <td className="!text-left">{w.parent_id ? "└ " : ""}{w.name}</td>
+                      <td><span className="ph-mywork-pj">{w.dealName}</span></td>
+                      <td className={`num ${w.overdue ? "ph-mywork-late" : ""}`}>
+                        {w.due_date ? (w.overdue ? `D+${Math.round((+new Date(todayStr) - +new Date(w.due_date.slice(0, 10))) / 86400000)}` : w.due_date.slice(5, 10)) : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {myWork.length > 50 && <div className="pjv3-tpl-mine">50건까지만 — 급한 것부터 처리하면 줄어듭니다</div>}
+            <div className="phv3-modal-actions"><button type="button" className="btn-secondary btn-sm" onClick={() => setMyWorkOpen(false)}>닫기</button></div>
+          </div>
+        </div>
+      )}
 
       {/* 생성 v3 — feature_on 켜진 회사(모티브 먼저)는 시작 꾸러미(기획 v2.6 결정 0-7),
           나머지는 기존 템플릿 고르기 흐름 그대로 */}

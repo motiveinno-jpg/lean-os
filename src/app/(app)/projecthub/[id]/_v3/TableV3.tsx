@@ -25,6 +25,8 @@ import { stagesOf, FIELD_TYPES, type ItemStage, type FieldType } from "@/lib/pro
 import { TEMPLATES, TPL_CATEGORIES, MY_TPL_CAT, type Tpl } from "./templates";
 import { evalFormula, type FormulaResult } from "./formula";
 import { downloadStoredFile } from "@/lib/file-storage";
+import { buildQuoteContent, buildContractContent, insertDocument } from "@/lib/documents";
+import { BoardDocModal, type DocKind } from "../_components/BoardDocModal";
 import { exportToExcel } from "@/lib/excel-export";
 import { xNum, isDate, type ExcelColumn, type ExcelRow } from "@/lib/excel-io";
 import { ExcelUploadDialog, type ParseResult } from "@/app/(app)/inventory/_components/excel-upload";
@@ -181,7 +183,7 @@ export function TableV3() {
 
   // ── ＋ 기능(2026-09-01 오두 갭 1차) — 반복·앞뒤 순서는 켠 프로젝트에서만. 팀 공유(deals.v3_features) ──
   const features: string[] = Array.isArray(deal?.v3_features) ? deal.v3_features : [];
-  const featOn = (k: "recur" | "deps") => features.includes(k);
+  const featOn = (k: "recur" | "deps" | "billing") => features.includes(k);
   const toggleFeature = async (k: string) => {
     const next = features.includes(k) ? features.filter((x) => x !== k) : [...features, k];
     const { error } = await db.from("deals").update({ v3_features: next }).eq("id", dealId);
@@ -672,6 +674,68 @@ export function TableV3() {
     },
   });
 
+  // ── 돈(줄에서 바로 청구, 2026-09-01 사장님 승인) — 기존 견적·계약 팝업(BoardDocModal)을
+  //   v3 줄에 그대로 연결. 연결 저장 = fields.__quote / __contract {id,no}(예약 키 — 컬럼 정의가
+  //   없으니 표에는 안 보인다). ＋기능 'billing' 을 켠 프로젝트에서만 서랍에 '돈' 구역 ──
+  const QUOTE_KEY = "__quote";
+  const CONTRACT_KEY = "__contract";
+  const { data: dealDocs = [] } = useQuery({
+    queryKey: ["pjv3-docs", dealId],
+    enabled: !!dealId && featOn("billing"),
+    queryFn: async () => (logRead("pjv3:docs", await db.from("documents")
+      .select("*").eq("deal_id", dealId).order("created_at", { ascending: false })) || []) as any[],
+  });
+  const [docModal, setDocModal] = useState<{ itemId: string; kind: DocKind; draft?: { name: string; content: any; contentType: "invoice" | "contract"; sourceDocumentId?: string | null } } | null>(null);
+  const partnerColKey = cols.find((c) => c.type === "partner")?.key;
+  const rowPartnerName = (it: ItemRow) => (partnerColKey ? String((it.fields || {})[partnerColKey] || "") : "");
+  const rowAmount = (it: ItemRow) => rollNum(it, (x) => Number(x.plan_amount) || 0) ?? (Number(it.plan_amount) || 0);
+  const docLinkOf = (it: ItemRow, key: string) => ((it.fields || {})[key] as { id?: string; no?: string } | undefined) || null;
+  const openQuoteModal = (it: ItemRow) => {
+    if (docLinkOf(it, QUOTE_KEY)?.id) { setDocModal({ itemId: it.id, kind: "quote" }); return; }
+    //   하위 작업이 있으면 하위가 품목 행으로 미리 채워진다(각 이름·금액)
+    const kids = childrenOf.get(it.id) || [];
+    const content = buildQuoteContent() as any;
+    if (kids.length > 0) {
+      content.items = kids.map((k) => {
+        const a = Number(k.plan_amount) || 0;
+        return { name: k.name, quantity: 1, unitPrice: a, supplyAmount: a, taxAmount: Math.round(a * 0.1), totalAmount: Math.round(a * 1.1) };
+      });
+    }
+    setDocModal({ itemId: it.id, kind: "quote", draft: { name: `${it.name?.trim() || deal?.name || "프로젝트"} 견적서`, content, contentType: "invoice" } });
+  };
+  const openContractModal = (it: ItemRow) => {
+    if (docLinkOf(it, CONTRACT_KEY)?.id) { setDocModal({ itemId: it.id, kind: "contract" }); return; }
+    const q = docLinkOf(it, QUOTE_KEY);
+    const quoteDoc = (dealDocs as any[]).find((d) => d.id === q?.id) || null;
+    setDocModal({
+      itemId: it.id, kind: "contract",
+      draft: {
+        name: `${it.name?.trim() || deal?.name || "프로젝트"} 계약서`, contentType: "contract",
+        sourceDocumentId: quoteDoc?.id || null,
+        content: buildContractContent({ quoteDoc, dealName: deal?.name || "", rowName: it.name || "", partnerName: rowPartnerName(it) || undefined, amount: rowAmount(it) }),
+      },
+    });
+  };
+  const createDocFromDraft = async (contentJson: any, name?: string): Promise<boolean> => {
+    const d = docModal?.draft;
+    const it = docModal ? items.find((i) => i.id === docModal.itemId) : null;
+    if (!d || !it || !user?.id) return false;
+    try {
+      const docRow = await insertDocument({
+        companyId: companyId!, dealId, userId: user.id, name: name?.trim() || d.name,
+        contentType: d.contentType, contentJson, sourceDocumentId: d.sourceDocumentId || null,
+      });
+      const key = d.contentType === "contract" ? CONTRACT_KEY : QUOTE_KEY;
+      await saveField(it, key, { id: docRow.id, no: docRow.document_number || (d.contentType === "contract" ? "계약서" : "견적서") });
+      qc.invalidateQueries({ queryKey: ["pjv3-docs", dealId] });
+      setDocModal({ itemId: it.id, kind: docModal!.kind });
+      return true;
+    } catch (e: any) {
+      toast(e?.message || "저장 실패", "error");
+      return false;
+    }
+  };
+
   // ── 엑셀 — 재고 공용 부품(excel-io·ExcelUploadDialog) 재사용. 조회 줄엔 '엑셀 ▾' 하나(표준) ──
   const [excelUp, setExcelUp] = useState(false);
   const exportRows = () => {
@@ -892,6 +956,13 @@ export function TableV3() {
   // ── 서랍(추천 1 = 2단계 핵심) — 줄을 열면 체크리스트·기록(댓글+변경 한 줄기)·팔로워.
   //   팔로워 알림 연동(notify 트리거 확장)은 다음 차수 ──
   const [drawerId, setDrawerId] = useState<string | null>(null);
+  //   내 작업 등에서 ?item= 으로 들어오면 그 줄 서랍을 바로 연다(마운트 1회 — /board 딥링크 패턴)
+  useEffect(() => {
+    try {
+      const id = new URLSearchParams(window.location.search).get("item");
+      if (id) setDrawerId(id);
+    } catch { /* 무시 */ }
+  }, []);
   const drawerItem = items.find((x) => x.id === drawerId) ?? null;
   // (서랍 Esc 닫기는 팝 선언 뒤에 — 팝이 떠 있으면 Esc 는 팝만 닫는다)
   type CheckRow = { id: string; name: string; done: boolean; position: number };
@@ -1588,6 +1659,33 @@ export function TableV3() {
       </p>
       </div>
 
+      {/* ── 견적·계약·계산서 팝업 — 기존 BoardDocModal 그대로(품목표·결제조건·PDF 미리보기·발송) ── */}
+      {docModal && deal && (() => {
+        const it = items.find((i) => i.id === docModal.itemId);
+        if (!it) return null;
+        const q = docLinkOf(it, QUOTE_KEY);
+        const c = docLinkOf(it, CONTRACT_KEY);
+        const linkedId = docModal.kind === "contract" ? c?.id : docModal.kind === "quote" ? q?.id : null;
+        const doc = (dealDocs as any[]).find((d) => d.id === linkedId) || null;
+        const quoteDoc = (dealDocs as any[]).find((d) => d.id === q?.id) || null;
+        const pName = rowPartnerName(it);
+        const pRow = partners.find((x) => x.name === pName) || null;
+        return (
+          <BoardDocModal
+            kind={docModal.kind} rowName={it.name || ""} doc={doc} draft={docModal.draft || null}
+            onCreate={createDocFromDraft}
+            amount={rowAmount(it)}
+            partnerName={pName} partnerId={pRow?.id || null}
+            companyId={companyId!} dealId={dealId} userId={user?.id}
+            quoteDoc={quoteDoc} hasContract={!!c}
+            onAmountChange={(supply) => { if ((childrenOf.get(it.id) || []).length === 0) saveItem(it.id, { plan_amount: supply }); }}
+            onQuoteReplaced={(d) => saveField(it, QUOTE_KEY, d)}
+            onClose={() => { setDocModal(null); qc.invalidateQueries({ queryKey: ["pjv3-docs", dealId] }); }}
+            onIssued={() => qc.invalidateQueries({ queryKey: ["pjv3-docs", dealId] })}
+          />
+        );
+      })()}
+
       {/* ── 보관함 — 보관·삭제된 줄 되살리기 ── */}
       {archOpen && (
         <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setArchOpen(false); }}>
@@ -1750,6 +1848,42 @@ export function TableV3() {
                 </div>
               )}
 
+              {featOn("billing") && !(drawerItem as any).parent_id && (() => {
+                const q = docLinkOf(drawerItem, QUOTE_KEY);
+                const c = docLinkOf(drawerItem, CONTRACT_KEY);
+                const qDoc = (dealDocs as any[]).find((d) => d.id === q?.id) || null;
+                const cDoc = (dealDocs as any[]).find((d) => d.id === c?.id) || null;
+                return (<>
+                  <h4>돈 — 이 줄로 견적부터 청구까지 (만든 문서는 견적·전자계약 메뉴에도 똑같이)</h4>
+                  <div className="pjv3-moneycard">
+                    {!q && (
+                      <button type="button" className="btn-primary btn-sm w-full"
+                        title="줄의 거래처·하위 작업(품목·금액)이 미리 채워진 견적 팝업이 열립니다 — 미리보기 포함"
+                        onClick={() => openQuoteModal(drawerItem)}>💰 견적서 만들기</button>
+                    )}
+                    {q && (
+                      <div className="pjv3-moneyrow">
+                        <button type="button" className="pjv3-moneylink" onClick={() => openQuoteModal(drawerItem)}>📄 견적서 {q.no || ""}</button>
+                        <span className="pjv3-moneyst">{qDoc?.status === "sent" ? "보냄" : qDoc?.status === "approved" ? "승인" : "작성됨"}</span>
+                      </div>
+                    )}
+                    {q && (
+                      <div className="pjv3-moneyrow">
+                        <button type="button" className="pjv3-moneylink" onClick={() => openContractModal(drawerItem)}>✍ {c ? `계약서 ${c.no || ""}` : "계약으로 전환"}</button>
+                        {c && <span className="pjv3-moneyst">{cDoc?.status === "signed" ? "서명 완료" : "진행 중"}</span>}
+                      </div>
+                    )}
+                    {c && (
+                      <div className="pjv3-moneyrow">
+                        <button type="button" className="pjv3-moneylink" onClick={() => setDocModal({ itemId: drawerItem.id, kind: "issue" })}>🧾 세금계산서 발행</button>
+                      </div>
+                    )}
+                    <div className="pjv3-moneyflow">
+                      <em className={q ? "on" : ""}>견적</em>→<em className={c ? "on" : ""}>계약·서명</em>→<em>계산서</em>→<em>입금</em>
+                    </div>
+                  </div>
+                </>);
+              })()}
               <h4>체크리스트{checks.length > 0 ? ` — ${checks.filter((c) => c.done).length}/${checks.length}` : ""}</h4>
               {checks.map((c) => (
                 <div key={c.id} className="pjv3-check">
@@ -2033,7 +2167,7 @@ export function TableV3() {
           })()}
           {pop.kind === "features" && (<>
             <div className="pjv3-pop-title">＋ 기능 — 이 프로젝트에만 켭니다(팀 공유)</div>
-            {([["recur", "반복 작업", "서랍에 '반복' 줄 — 완료로 옮기면 다음 줄 자동"], ["deps", "앞뒤 순서", "서랍에 '앞 작업' 줄 — 안 끝났으면 알려줌"]] as const).map(([k, label, hint]) => (
+            {([["recur", "반복 작업", "서랍에 '반복' 줄 — 완료로 옮기면 다음 줄 자동"], ["deps", "앞뒤 순서", "서랍에 '앞 작업' 줄 — 안 끝났으면 알려줌"], ["billing", "견적·청구", "서랍에 '돈' 구역 — 견적→계약→계산서→입금"]] as const).map(([k, label, hint]) => (
               <button key={k} type="button" onClick={() => toggleFeature(k)}>
                 {features.includes(k) ? "✓ " : ""}{label}<small className="pjv3-typehint"> — {hint}</small>
               </button>
