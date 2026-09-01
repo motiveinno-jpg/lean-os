@@ -388,17 +388,20 @@ export function TokenField({
 }
 
 /** 금액 범위 — 한쪽만 채워도 된다. 숫자만 남기고 쉼표로 보여 준다. */
-export function AmountRange({ min, max, onMin, onMax }: {
+export function AmountRange({ min, max, onMin, onMax, placeholders }: {
   min: string; max: string; onMin: (v: string) => void; onMax: (v: string) => void;
+  /** 칸 안 문구 — 수집·전표처럼 placeholder 를 안 쓰는 화면은 ["", ""] (2026-09-01 사장님). 기본은 종전 그대로 */
+  placeholders?: [string, string];
 }) {
+  const [phMin, phMax] = placeholders ?? ["최소", "최대"];
   const fmt = (v: string) => (v ? Number(v).toLocaleString("ko-KR") : "");
   const take = (v: string) => v.replace(/[^0-9]/g, "").slice(0, 13);
   return (
     <span className="qk-amt">
-      <input className="qk-input qk-amt-in" inputMode="numeric" placeholder="최소" aria-label="최소 금액"
+      <input className="qk-input qk-amt-in" inputMode="numeric" placeholder={phMin} aria-label="최소 금액"
         value={fmt(min)} onChange={(e) => onMin(take(e.target.value))} />
       <i>~</i>
-      <input className="qk-input qk-amt-in" inputMode="numeric" placeholder="최대" aria-label="최대 금액"
+      <input className="qk-input qk-amt-in" inputMode="numeric" placeholder={phMax} aria-label="최대 금액"
         value={fmt(max)} onChange={(e) => onMax(take(e.target.value))} />
       <em>원</em>
     </span>

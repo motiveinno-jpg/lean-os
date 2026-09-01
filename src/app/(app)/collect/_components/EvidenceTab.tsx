@@ -956,12 +956,12 @@ export function EvidenceTab({
 
               <ConditionRow label="거래처" hint="여러 곳">
                 <TokenField items={partnerOpts} value={draft.partner} onChange={setD("partner")}
-                  placeholder="거래처 이름 일부 (예: 모티)" />
+                  placeholder="" />
               </ConditionRow>
 
               <ConditionRow label="계정과목" hint="여러 개">
                 <TokenField items={acctOpts} value={draft.acct} onChange={setD("acct")}
-                  placeholder="계정과목 이름 또는 코드 (예: 831)" />
+                  placeholder="" />
               </ConditionRow>
 
               {kind === "card" && (
@@ -970,7 +970,7 @@ export function EvidenceTab({
                         카드가 20장을 넘는 회사만 종전 검색 입력으로. */}
                   {/* 칩 나열은 카드가 많아 지저분 (2026-09-01 사장님) — 누르면 전체 목록이 열리는 담기 칸으로 */}
                   <TokenField items={cardOpts} value={draft.card} onChange={setD("card")}
-                    openOnClick placeholder="누르면 카드 목록 — 골라 담기" />
+                    openOnClick placeholder="" />
                 </ConditionRow>
               )}
 
@@ -979,12 +979,12 @@ export function EvidenceTab({
               </ConditionRow>
 
               <ConditionRow label="품명">
-                <input className="qk-input w-full" value={draft.item} placeholder="예: 광고비"
+                <input className="qk-input w-full" value={draft.item} placeholder=""
                   onChange={(e) => setD("item")(e.target.value)} />
               </ConditionRow>
 
               <ConditionRow label="합계 금액" hint="한쪽만 적어도 됩니다">
-                <AmountRange min={draft.min} max={draft.max} onMin={setD("min")} onMax={setD("max")} />
+                <AmountRange min={draft.min} max={draft.max} onMin={setD("min")} onMax={setD("max")} placeholders={["", ""]} />
               </ConditionRow>
             </ConditionPanel>
           } />

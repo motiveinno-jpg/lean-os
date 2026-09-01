@@ -336,7 +336,7 @@ export function BankTab({
   });
 
   //   계좌 목록 — '조건 더보기'의 계좌 고르기용. 별명이 있으면 별명이 먼저다(사람이 부르는 이름).
-  const { data: bankAccounts = [] } = useQuery<{ id: string; label: string }[]>({
+  const { data: bankAccounts = [] } = useQuery<{ id: string; label: string; full?: string }[]>({
     queryKey: ["bank-accounts-pick", companyId],
     queryFn: async () => {
       const data = logRead("bank:accounts-pick", await supabase
@@ -346,6 +346,9 @@ export function BankTab({
         id: a.id,
         label: [a.alias || a.bank_name, a.account_number ? String(a.account_number).slice(-4) : ""]
           .filter(Boolean).join(" ···"),
+        //   검색조건 계좌 목록용 — 뒷 4자리만으론 같은 은행 계좌가 안 갈려서(4017 이 여럿) 전체 표기 (2026-09-01 사장님)
+        full: [a.alias, a.bank_name, a.account_number ? String(a.account_number) : ""]
+          .filter(Boolean).join(" · "),
       }));
     },
     staleTime: 300_000,
@@ -712,7 +715,7 @@ export function BankTab({
   //     '나온 것만' 추리면 그 400건에 안 걸린 계좌가 목록에서 통째로 사라진다 (실제로 그랬다).
   //     계좌는 개수가 적고 회사설정에 정본이 있어 전부 보여 주는 편이 맞다.
   const bankOpts = useMemo(
-    () => bankAccounts.map((b) => ({ value: b.id, label: b.label })), [bankAccounts]);
+    () => bankAccounts.map((b) => ({ value: b.id, label: (b as any).full || b.label })), [bankAccounts]);
   const acctOpts = useMemo(
     () => accounts.map((a2) => ({ value: a2.code, label: a2.name, sub: a2.code })),
     [accounts]);
@@ -919,19 +922,19 @@ export function BankTab({
 
               <ConditionRow label="거래처" hint="입금자, 여러 곳">
                 <TokenField items={whoOpts} value={draft.who} onChange={setD("who")}
-                  placeholder="입금자 이름 일부 (예: 모티)" />
+                  placeholder="" />
               </ConditionRow>
 
               <ConditionRow label="계좌" hint="여러 개 · 눌러서 선택">
                 {/*   칩 나열(8/31)은 계좌가 많으면 지저분 (2026-09-01 사장님: "목록식으로") —
                       누르면 전체 목록이 열리는 담기 칸으로. 골라 담으면 칩으로 쌓인다. */}
                 <TokenField items={bankOpts} value={draft.bank} onChange={setD("bank")}
-                  openOnClick placeholder="누르면 계좌 목록 — 골라 담기" />
+                  openOnClick placeholder="" />
               </ConditionRow>
 
               <ConditionRow label="계정과목" hint="여러 개">
                 <TokenField items={acctOpts} value={draft.acct} onChange={setD("acct")}
-                  placeholder="계정과목 이름 또는 코드 (예: 830)" />
+                  placeholder="" />
               </ConditionRow>
 
               <ConditionRow label="상태">
@@ -939,12 +942,12 @@ export function BankTab({
               </ConditionRow>
 
               <ConditionRow label="통장 적요">
-                <input className="qk-input w-full" value={draft.desc} placeholder="예: 부가세"
+                <input className="qk-input w-full" value={draft.desc} placeholder=""
                   onChange={(e) => setD("desc")(e.target.value)} />
               </ConditionRow>
 
               <ConditionRow label="금액" hint="입·출금 부호는 보지 않습니다">
-                <AmountRange min={draft.min} max={draft.max} onMin={setD("min")} onMax={setD("max")} />
+                <AmountRange min={draft.min} max={draft.max} onMin={setD("min")} onMax={setD("max")} placeholders={["", ""]} />
               </ConditionRow>
             </ConditionPanel>
           } />
