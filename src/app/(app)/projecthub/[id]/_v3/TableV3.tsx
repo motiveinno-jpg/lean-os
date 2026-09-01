@@ -134,8 +134,15 @@ export function TableV3() {
     for (const arr of m.values()) arr.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
     return m;
   }, [items]);
+  //   현황의 숫자·막대·집계표 칸을 누르면 표로 오면서 걸리는 필터 — ✕ 로 해제, 나갔다 오면 없음(자동 기억 금지)
+  const [statFilter, setStatFilter] = useState<{ label: string; pred: (it: ItemRow) => boolean } | null>(null);
+  const openFiltered = (label: string, pred: (it: ItemRow) => boolean) => {
+    setStatFilter({ label, pred });
+    setCurView("table");
+  };
   const shown = useMemo(() => items.filter((it) => {
     if ((it as any).parent_id) return false; // 하위는 부모 아래에서만
+    if (statFilter && !statFilter.pred(it)) return false;
     if (!q.trim()) return true;
     const kids = childrenOf.get(it.id) || [];
     const hay = [it.name, ...assigneesOf(it).map(userName), ...(it.tags || []),
@@ -143,7 +150,7 @@ export function TableV3() {
       ...Object.values(it.fields || {}).map((v) => String(v ?? ""))].join(" ").toLowerCase();
     return q.toLowerCase().split(/\s+/).every((w) => hay.includes(w));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [items, q, users, childrenOf]);
+  }), [items, q, users, childrenOf, statFilter]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpand = (id: string) => setExpanded((s) => {
     const n = new Set(s);
@@ -312,9 +319,9 @@ export function TableV3() {
   //   보기 구성은 deals.v3_views 로 팀 공유(결정 129 — 2026-09-01 localStorage 임시분 대체.
   //   임시 저장분은 승계하지 않는다: 하루짜리였고, 팀 공유가 원칙). 지금 보는 보기(curView)는
   //   기억하지 않는다 — 조회값 자동 기억 금지, 기본은 표.
-  const VIEW_LABELS: Record<string, string> = { kanban: "칸반", calendar: "캘린더", gantt: "간트" };
+  const VIEW_LABELS: Record<string, string> = { kanban: "칸반", calendar: "캘린더", gantt: "간트", status: "현황" };
   const [views, setViews] = useState<string[]>([]);
-  const [curView, setCurView] = useState<"table" | "kanban" | "calendar" | "gantt">("table");
+  const [curView, setCurView] = useState<"table" | "kanban" | "calendar" | "gantt" | "status">("table");
   useEffect(() => {
     if (Array.isArray(deal?.v3_views)) setViews(deal.v3_views.filter((v: unknown) => typeof v === "string"));
   }, [deal?.v3_views]);
@@ -324,7 +331,7 @@ export function TableV3() {
     if (error) { toast(friendlyError(error), "error"); return; }
     qc.invalidateQueries({ queryKey: ["pjv3-deal", dealId] });
   };
-  const addView = (v: "kanban" | "calendar" | "gantt") => {
+  const addView = (v: "kanban" | "calendar" | "gantt" | "status") => {
     setCurView(v); setPop(null);
     if (!views.includes(v)) persistViews([...views, v]);
   };
@@ -1139,6 +1146,99 @@ export function TableV3() {
     toast(`'${c.name}' 컬럼을 지웠습니다 — 칸에 적었던 값은 남아 있어 같은 이름으로 다시 만들면 보입니다`, "success");
   };
 
+  // ── 현황 보기(결정 138·139) — 프로젝트 하나의 숫자·그래프·집계표. 모든 숫자는 눌러서 표로 ──
+  const [statTab, setStatTab] = useState<"charts" | "pivot">("charts");
+  const [pvRow, setPvRow] = useState("group");
+  const [pvCol, setPvCol] = useState("assignee");
+  const [pvVal, setPvVal] = useState<"count" | "amount">("count");
+  const localYmd = (t: Date) => `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+  const statusData = useMemo(() => {
+    const parents = items.filter((it) => !(it as any).parent_id);
+    const lastId = stages[stages.length - 1]?.id;
+    const todayStr = localYmd(new Date());
+    const in7d = new Date(); in7d.setDate(in7d.getDate() + 7);
+    const in7 = localYmd(in7d);
+    const isDone = (it: ItemRow) => it.status === lastId;
+    const done = parents.filter(isDone);
+    const late = parents.filter((it) => !isDone(it) && it.due_date && it.due_date.slice(0, 10) < todayStr);
+    const week = parents.filter((it) => !isDone(it) && it.due_date && it.due_date.slice(0, 10) >= todayStr && it.due_date.slice(0, 10) <= in7);
+    const amount = parents.reduce((s, it) => s + rowAmount(it), 0);
+    const byGroup = stages.map((s) => ({ s, list: parents.filter((it) => it.status === s.id) }));
+    const etcN = parents.filter((it) => !stages.some((s) => s.id === it.status)).length;
+    //   담당별은 대표 담당 기준 — 공동 담당까지 세면 한 줄이 두 번 세어져 합이 안 맞는다
+    const am = new Map<string, { name: string; open: number; done: number }>();
+    for (const it of parents) {
+      const key = it.assignee_id || "";
+      const cur = am.get(key) || { name: userName(it.assignee_id) || "담당 없음", open: 0, done: 0 };
+      if (isDone(it)) cur.done += 1; else cur.open += 1;
+      am.set(key, cur);
+    }
+    const byAssignee = [...am.entries()].map(([id, v]) => ({ id: id || null, ...v }))
+      .sort((a, b) => (b.open + b.done) - (a.open + a.done)).slice(0, 8);
+    //   남은 일 그래프 — 주별 6주. 끝난 날짜 기록이 따로 없어 마지막 손댄 날(updated_at)로 본다(추정 — 화면에 적음)
+    const weeks: { label: string; start: Date; end: Date; done: number }[] = [];
+    const mon = new Date(); mon.setHours(0, 0, 0, 0); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
+    for (let i = 5; i >= 0; i--) {
+      const s = new Date(mon); s.setDate(s.getDate() - i * 7);
+      const e = new Date(s); e.setDate(e.getDate() + 7);
+      weeks.push({ label: `${s.getMonth() + 1}/${String(s.getDate()).padStart(2, "0")}`, start: s, end: e, done: 0 });
+    }
+    let doneBefore = 0;
+    for (const it of done) {
+      const d = new Date((it as any).updated_at || (it as any).created_at || Date.now());
+      const w = weeks.find((x) => d >= x.start && d < x.end);
+      if (w) w.done += 1; else if (d < weeks[0].start) doneBefore += 1;
+    }
+    let cum = doneBefore;
+    const flow = weeks.map((w) => { cum += w.done; return { label: w.label, done: w.done, remain: parents.length - cum }; });
+    const quoteN = parents.filter((it) => (it.fields || {})[QUOTE_KEY]).length;
+    const contractN = parents.filter((it) => (it.fields || {})[CONTRACT_KEY]).length;
+    const nextDue = parents.filter((it) => !isDone(it) && it.due_date)
+      .sort((a, b) => (a.due_date! < b.due_date! ? -1 : 1)).slice(0, 5);
+    return { parents, done, late, week, amount, byGroup, etcN, byAssignee, flow, quoteN, contractN, nextDue, todayStr, lastId };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, stages, users]);
+  //   집계 축 — 그룹·담당 + 거래처/선택형 커스텀 컬럼 전부(내가 만든 컬럼도 축이 된다)
+  const pivotAxes = useMemo(() => [
+    { id: "group", name: "그룹" },
+    { id: "assignee", name: "담당" },
+    ...cols.filter((c) => c.type === "partner" || c.type === "select").map((c) => ({ id: `col:${c.key}`, name: c.name })),
+  ], [cols]);
+  const axisValOf = (it: ItemRow, axis: string): string => {
+    if (axis === "group") return stages.find((s) => s.id === it.status)?.label || "단계 밖";
+    if (axis === "assignee") return userName(it.assignee_id) || "없음";
+    const key = axis.slice(4);
+    const c = cols.find((x) => x.key === key);
+    const raw = (it.fields || {})[key];
+    if (c?.type === "select") return (c.settings?.options || []).find((o) => o.id === raw)?.label || (raw ? String(raw) : "없음");
+    return raw ? String(raw) : "없음";
+  };
+  const pivot = useMemo(() => {
+    const parents = statusData.parents;
+    const ck = pvCol === pvRow ? "none" : pvCol; // 같은 축 두 번은 의미 없음 — 합계만
+    const rowsU = [...new Set(parents.map((it) => axisValOf(it, pvRow)))];
+    const colsU = ck === "none" ? [] : [...new Set(parents.map((it) => axisValOf(it, ck)))];
+    const val = (list: ItemRow[]) => pvVal === "amount" ? list.reduce((s, it) => s + rowAmount(it), 0) : list.length;
+    const cells = rowsU.map((rv) => {
+      const rlist = parents.filter((it) => axisValOf(it, pvRow) === rv);
+      return { rv, cols: colsU.map((cv) => ({ cv, n: val(rlist.filter((it) => axisValOf(it, ck) === cv)) })), total: val(rlist) };
+    });
+    const colTotals = colsU.map((cv) => val(parents.filter((it) => axisValOf(it, ck) === cv)));
+    return { ck, rowsU, colsU, cells, colTotals, grand: val(parents) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusData, pvRow, pvCol, pvVal, cols, stages, users]);
+  const pvFmt = (n: number) => pvVal === "amount" ? n.toLocaleString("ko-KR") : String(n);
+  const axisName = (id: string) => pivotAxes.find((a) => a.id === id)?.name || "";
+  const exportPivot = () => {
+    const data = pivot.cells.map((r) => {
+      const row: Record<string, unknown> = { [axisName(pvRow)]: r.rv };
+      r.cols.forEach((c) => { row[c.cv] = c.n; });
+      row["합계"] = r.total;
+      return row;
+    });
+    exportToExcel(data, "집계표", `${deal?.name || "프로젝트"}_집계_${new Date().toISOString().slice(0, 10)}`);
+  };
+
   // ── 팝(팔레트·담당·선택지·컬럼 추가) — 화면에 하나만 ──
   const [pop, setPop] = useState<Pop | null>(null);
   useEffect(() => {
@@ -1481,7 +1581,7 @@ export function TableV3() {
         <button type="button" className={`pjv3-vchip ${curView === "table" ? "on" : ""}`} onClick={() => setCurView("table")}>표</button>
         {views.filter((v) => VIEW_LABELS[v]).map((v) => (
           <button key={v} type="button" className={`pjv3-vchip ${curView === v ? "on" : ""}`}
-            onClick={() => setCurView(v as "kanban" | "calendar")}>
+            onClick={() => setCurView(v as "kanban" | "calendar" | "gantt" | "status")}>
             {VIEW_LABELS[v]}
             {curView === v && <span className="x" title="이 보기 빼기" onClick={(e) => { e.stopPropagation(); removeView(v); }}>✕</span>}
           </button>
@@ -1493,6 +1593,10 @@ export function TableV3() {
 
       <div className="pjv3-toolbar">
         <span className="pjv3-search">🔍<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름 · 담당 · 칸에 든 글자 — 검색" aria-label="검색" /></span>
+        {statFilter && (
+          <button type="button" className="pjv3-statchip" title="현황에서 걸린 조건 — 눌러서 해제"
+            onClick={() => setStatFilter(null)}>{statFilter.label} ✕</button>
+        )}
         <button type="button" className="btn-secondary btn-sm" onClick={(e) => setPop({ kind: "excel", ...at(e) })}>엑셀 ▾</button>
         {featOn("survey") && (
           <button type="button" className="btn-secondary btn-sm" title="외부에 링크로 설문을 보내고 응답을 이 표에 받습니다"
@@ -1502,7 +1606,173 @@ export function TableV3() {
         <span className="pjv3-count num">{shown.length}건{shown.length !== items.length ? ` / 전체 ${items.length}` : ""}</span>
       </div>
 
-      {curView === "gantt" ? (
+      {curView === "status" ? (
+        <div className="pjv3-statwrap">
+          <div className="pjv3-sttabs">
+            <button type="button" className={statTab === "charts" ? "on" : ""} onClick={() => setStatTab("charts")}>그림</button>
+            <button type="button" className={statTab === "pivot" ? "on" : ""} onClick={() => setStatTab("pivot")}>집계표</button>
+            <span className="hint">숫자·막대·칸을 누르면 표에서 그 줄들만 보입니다 — 하위는 부모 기준</span>
+          </div>
+          <div className="pjv3-strow">
+            <button type="button" className="pjv3-stcard" onClick={() => { setStatFilter(null); setCurView("table"); }}>
+              <span className="k">전체 건</span><b className="v num">{statusData.parents.length}</b></button>
+            <button type="button" className="pjv3-stcard good" onClick={() => openFiltered("끝남", (it) => it.status === statusData.lastId)}>
+              <span className="k">끝남</span><b className="v num">{statusData.done.length} <small>/ {statusData.parents.length ? Math.round(statusData.done.length / statusData.parents.length * 100) : 0}%</small></b></button>
+            <button type="button" className="pjv3-stcard warn" onClick={() => openFiltered("기한 지남", (it) => it.status !== statusData.lastId && !!it.due_date && it.due_date.slice(0, 10) < statusData.todayStr)}>
+              <span className="k">기한 지남</span><b className="v num">{statusData.late.length}</b></button>
+            <button type="button" className="pjv3-stcard" onClick={() => { const ids = new Set(statusData.week.map((x) => x.id)); openFiltered("7일 안 마감", (it) => ids.has(it.id)); }}>
+              <span className="k">7일 안 마감</span><b className="v num">{statusData.week.length}</b></button>
+            <button type="button" className="pjv3-stcard" onClick={() => openFiltered("금액 있는 줄", (it) => rowAmount(it) > 0)}>
+              <span className="k">금액 합</span><b className="v num">{statusData.amount.toLocaleString("ko-KR")}</b></button>
+          </div>
+          {statTab === "charts" ? (
+            statusData.parents.length < 3 ? (
+              <div className="pjv3-stgrid">
+                <div className="pjv3-stpanel">
+                  <h3>다음 마감 <small>줄이 3건이 안 돼 그래프 대신 숫자와 마감만 보입니다</small></h3>
+                  {statusData.nextDue.length === 0 && <div className="pjv3-stempty">마감일 있는 줄이 없습니다</div>}
+                  {statusData.nextDue.map((it) => (
+                    <button key={it.id} type="button" className="pjv3-stdue" onClick={() => setDrawerId(it.id)}>
+                      <span className={`d num ${it.due_date!.slice(0, 10) < statusData.todayStr ? "late" : ""}`}>{it.due_date!.slice(5, 10)}</span>
+                      <span className="min-w-0 flex-1 truncate text-left">{it.name}</span>
+                      {it.due_date!.slice(0, 10) < statusData.todayStr && <span className="late">지남</span>}
+                      <span className="who">{assigneeLabel(it)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+            <div className="pjv3-stgrid">
+              <div className="pjv3-stpanel">
+                <h3>그룹별 <small>막대를 누르면 그 그룹만</small></h3>
+                {statusData.byGroup.map(({ s, list }) => {
+                  const max = Math.max(1, ...statusData.byGroup.map((g) => g.list.length));
+                  return (
+                    <button key={s.id} type="button" className="pjv3-sthbar" onClick={() => openFiltered(`그룹=${s.label}`, (it) => it.status === s.id)}>
+                      <span className="nm">{s.label}</span>
+                      <span className="track"><span className="fill" style={{ width: `${list.length / max * 100}%`, background: STAGE_HEX[s.color] }} /></span>
+                      <span className="n num">{list.length}</span>
+                    </button>
+                  );
+                })}
+                {statusData.etcN > 0 && <div className="pjv3-stempty">단계 밖 {statusData.etcN}건 — 그룹을 지웠던 줄</div>}
+              </div>
+              <div className="pjv3-stpanel">
+                <h3>담당별 <small>남은 일·끝낸 일 — 대표 담당 기준</small></h3>
+                {statusData.byAssignee.map((a) => {
+                  const max = Math.max(1, ...statusData.byAssignee.map((x) => x.open + x.done));
+                  return (
+                    <button key={a.id || "none"} type="button" className="pjv3-sthbar"
+                      onClick={() => openFiltered(`담당=${a.name}`, (it) => (it.assignee_id || null) === a.id)}>
+                      <span className="nm">{a.name}</span>
+                      <span className="track">
+                        <span className="fill" style={{ width: `${a.open / max * 100}%`, background: "var(--primary)", borderRadius: a.done ? "6px 0 0 6px" : "6px" }} />
+                        <span className="fill" style={{ width: `${a.done / max * 100}%`, background: "#00C875", borderRadius: a.open ? "0 6px 6px 0" : "6px" }} />
+                      </span>
+                      <span className="n num">{a.open + a.done}</span>
+                    </button>
+                  );
+                })}
+                <div className="pjv3-stlegend"><i style={{ background: "var(--primary)" }} />남은 일 <i style={{ background: "#00C875" }} />끝낸 일</div>
+              </div>
+              <div className="pjv3-stpanel">
+                <h3>남은 일 그래프 <small>주마다 끝낸 건(막대)·남은 건(빨간 선) — 끝낸 주는 마지막 손댄 날 기준</small></h3>
+                <div className="pjv3-stflow">
+                  <svg className="rline" viewBox="0 0 100 84" preserveAspectRatio="none">
+                    <polyline points={statusData.flow.map((f, i) => {
+                      const x = 8 + i * (84 / Math.max(1, statusData.flow.length - 1));
+                      const y = 6 + (1 - f.remain / Math.max(1, statusData.parents.length)) * 58;
+                      return `${x},${y}`;
+                    }).join(" ")} />
+                  </svg>
+                  {statusData.flow.map((f) => {
+                    const max = Math.max(1, ...statusData.flow.map((x) => x.done));
+                    return (
+                      <div key={f.label} className="fcol">
+                        <span className="cnt num">{f.done}</span>
+                        <div className="bar" style={{ height: `${4 + f.done / max * 44}px`, opacity: f.done ? 1 : 0.35 }} />
+                        <span className="wk num">{f.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="pjv3-stlegend"><i style={{ background: "#00C875" }} />끝낸 건 <i style={{ background: "#E2445C" }} />남은 건(지금 {statusData.parents.length - statusData.done.length}) — 선이 안 내려가면 일이 안 줄고 있는 것</div>
+              </div>
+              <div className="pjv3-stpanel">
+                {featOn("billing") && (<>
+                  <h3>돈 흐름 <small>칸을 누르면 그 줄들만</small></h3>
+                  <div className="pjv3-stmoney">
+                    <button type="button" className="mstep" onClick={() => openFiltered("견적 붙은 줄", (it) => !!(it.fields || {})[QUOTE_KEY])}>
+                      <span className="t">견적</span><b className="n num">{statusData.quoteN}건</b></button>
+                    <span className="ar">→</span>
+                    <button type="button" className="mstep hot" onClick={() => openFiltered("계약까지 간 줄", (it) => !!(it.fields || {})[CONTRACT_KEY])}>
+                      <span className="t">계약</span><b className="n num">{statusData.contractN}건</b></button>
+                  </div>
+                </>)}
+                <h3 style={{ marginTop: featOn("billing") ? 14 : 0 }}>다음 마감 <small>가까운 순 — 누르면 그 줄 서랍</small></h3>
+                {statusData.nextDue.length === 0 && <div className="pjv3-stempty">마감일 있는 줄이 없습니다</div>}
+                {statusData.nextDue.map((it) => (
+                  <button key={it.id} type="button" className="pjv3-stdue" onClick={() => setDrawerId(it.id)}>
+                    <span className={`d num ${it.due_date!.slice(0, 10) < statusData.todayStr ? "late" : ""}`}>{it.due_date!.slice(5, 10)}</span>
+                    <span className="min-w-0 flex-1 truncate text-left">{it.name}</span>
+                    {it.due_date!.slice(0, 10) < statusData.todayStr && <span className="late">지남</span>}
+                    <span className="who">{assigneeLabel(it)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            )
+          ) : (
+            <div className="pjv3-stpivot">
+              <div className="pjv3-pvbar">
+                <label>세로</label>
+                <select value={pvRow} onChange={(e) => setPvRow(e.target.value)} aria-label="세로 축">
+                  {pivotAxes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+                <label>가로</label>
+                <select value={pvCol} onChange={(e) => setPvCol(e.target.value)} aria-label="가로 축">
+                  {pivotAxes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  <option value="none">없음(합계만)</option>
+                </select>
+                <label>값</label>
+                <select value={pvVal} onChange={(e) => setPvVal(e.target.value as "count" | "amount")} aria-label="값">
+                  <option value="count">건수</option><option value="amount">금액 합</option>
+                </select>
+                <button type="button" className="btn-secondary btn-sm ml-auto" onClick={exportPivot}>엑셀 내려받기</button>
+              </div>
+              <div className="pjv3-pvscroll">
+                <table className="pjv3-pv">
+                  <thead><tr>
+                    <th className="rowh">{axisName(pvRow)} ＼ {pivot.ck === "none" ? "합계" : axisName(pivot.ck)}</th>
+                    {pivot.colsU.map((cv) => <th key={cv}>{cv}</th>)}
+                    <th>합계</th>
+                  </tr></thead>
+                  <tbody>
+                    {pivot.cells.map((r) => (
+                      <tr key={r.rv}>
+                        <td className="rowh">{r.rv}</td>
+                        {r.cols.map((c) => (
+                          <td key={c.cv} className={c.n ? "hit" : "zero"}
+                            title={`누르면 표에서 ${axisName(pvRow)}=${r.rv} × ${axisName(pivot.ck)}=${c.cv} 줄만`}
+                            onClick={() => { if (!c.n) return; openFiltered(`${r.rv} × ${c.cv}`, (it) => axisValOf(it, pvRow) === r.rv && axisValOf(it, pivot.ck) === c.cv); }}>
+                            {c.n ? pvFmt(c.n) : "·"}</td>
+                        ))}
+                        <td className="hit total" onClick={() => openFiltered(`${axisName(pvRow)}=${r.rv}`, (it) => axisValOf(it, pvRow) === r.rv)}><b>{pvFmt(r.total)}</b></td>
+                      </tr>
+                    ))}
+                    <tr className="grand">
+                      <td className="rowh">합계</td>
+                      {pivot.colTotals.map((n, i) => <td key={i}>{pvFmt(n)}</td>)}
+                      <td><b>{pvFmt(pivot.grand)}</b></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p className="pjv3-stnote">칸을 누르면 표 보기로 가서 그 두 조건이 걸립니다 — 숫자가 어디서 왔는지 되짚을 수 있게 · 축 = 그룹·담당·거래처·선택형 커스텀 컬럼</p>
+            </div>
+          )}
+        </div>
+      ) : curView === "gantt" ? (
         <div className="pjv3-ganttwrap">
           <div className="pjv3-gr pjv3-gr-head">
             <div className="pjv3-gname">이름</div>
@@ -2393,7 +2663,8 @@ export function TableV3() {
             {!views.includes("kanban") && <button type="button" onClick={() => addView("kanban")}>칸반 — 상태별 카드로 보고, 끌어서 옮깁니다</button>}
             {!views.includes("calendar") && <button type="button" onClick={() => addView("calendar")}>캘린더 — 마감일 달력으로 봅니다</button>}
             {!views.includes("gantt") && <button type="button" onClick={() => addView("gantt")}>간트 — 시작~마감 막대로 일정을 봅니다</button>}
-            <div className="pjv3-pop-title">추가한 보기는 팀 전체가 같이 봅니다 · 현황은 다음 단계에서</div>
+            {!views.includes("status") && <button type="button" onClick={() => addView("status")}>현황 — 숫자·그래프·집계표로 모아 봅니다</button>}
+            <div className="pjv3-pop-title">추가한 보기는 팀 전체가 같이 봅니다</div>
           </>)}
           {pop.kind === "excel" && (<>
             <div className="pjv3-pop-title">엑셀</div>

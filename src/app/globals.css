@@ -9645,6 +9645,69 @@ table.phv3-table { min-width: 640px; }
 
 /* pjv3 — 간트 보기(시작~마감 막대, 2026-09-01) */
 .pjv3-ganttwrap { @apply min-h-0 flex-1 overflow-y-auto p-3; }
+
+/* ── 현황 보기(결정 138·139, 2026-09-01) — 그림·집계표. 모든 숫자는 눌러서 표로 ── */
+.pjv3-statwrap { @apply min-h-0 flex-1 overflow-y-auto p-3; }
+.pjv3-sttabs { @apply mb-3 flex items-center gap-1.5; }
+.pjv3-sttabs button { @apply cursor-pointer rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-3 py-1.5 text-xs font-semibold text-[var(--text-dim)]; font: inherit; font-size: 12px; }
+.pjv3-sttabs button.on { @apply border-[var(--primary)] bg-[var(--primary)]/8 text-[var(--primary)]; }
+.pjv3-sttabs .hint { @apply ml-auto text-[10.5px] text-[var(--text-dim)]; }
+.pjv3-strow { @apply mb-3 flex flex-wrap gap-2.5; }
+.pjv3-stcard { @apply min-w-[120px] flex-1 cursor-pointer rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5 text-left; font: inherit; }
+.pjv3-stcard:hover { @apply border-[var(--primary)]; }
+.pjv3-stcard .k { @apply block text-[10.5px] text-[var(--text-dim)]; }
+.pjv3-stcard .v { @apply mt-0.5 block text-lg font-extrabold text-[var(--text)]; }
+.pjv3-stcard .v small { @apply text-[11px] font-semibold text-[var(--text-dim)]; }
+.pjv3-stcard.warn .v { color: var(--danger, #e2445c); }
+.pjv3-stcard.good .v { color: #00a05e; }
+.pjv3-stgrid { @apply grid gap-3; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.pjv3-stpanel { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3.5; }
+.pjv3-stpanel h3 { @apply mb-2.5 text-xs font-extrabold text-[var(--text)]; }
+.pjv3-stpanel h3 small { @apply ml-1.5 font-medium text-[var(--text-dim)]; font-size: 10.5px; }
+.pjv3-sthbar { @apply grid w-full cursor-pointer items-center gap-2 border-0 bg-transparent p-0 py-1 text-xs; font: inherit; grid-template-columns: 72px 1fr 40px; }
+.pjv3-sthbar:hover .nm { @apply text-[var(--primary)]; }
+.pjv3-sthbar .nm { @apply truncate text-right text-[11px] text-[var(--text-dim)]; }
+.pjv3-sthbar .track { @apply flex h-4 overflow-hidden rounded-md bg-[var(--bg)]; }
+.pjv3-sthbar .fill { @apply h-full; }
+.pjv3-sthbar .n { @apply text-left font-bold text-[var(--text)]; }
+.pjv3-stlegend { @apply mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-[var(--text-dim)]; }
+.pjv3-stlegend i { @apply mr-1 inline-block h-2 w-2 rounded; }
+.pjv3-stflow { @apply relative flex items-end gap-2 px-1; height: 100px; }
+.pjv3-stflow .rline { @apply pointer-events-none absolute inset-0; }
+.pjv3-stflow .rline polyline { fill: none; stroke: #e2445c; stroke-width: 2; stroke-linecap: round; opacity: 0.75; }
+.pjv3-stflow .fcol { @apply relative z-[1] flex flex-1 flex-col items-center gap-1; }
+.pjv3-stflow .bar { @apply w-6 rounded-t-md; background: #00c875; }
+.pjv3-stflow .wk { @apply text-[10px] text-[var(--text-dim)]; }
+.pjv3-stflow .cnt { @apply text-[10.5px] font-bold; color: #00a05e; }
+.pjv3-stmoney { @apply flex flex-wrap items-center gap-2; }
+.pjv3-stmoney .mstep { @apply min-w-[86px] cursor-pointer rounded-lg border-[1.5px] border-[var(--border)] bg-[var(--bg-card)] px-3.5 py-2 text-center; font: inherit; }
+.pjv3-stmoney .mstep:hover { @apply border-[var(--primary)]; }
+.pjv3-stmoney .mstep .t { @apply block text-[10.5px] text-[var(--text-dim)]; }
+.pjv3-stmoney .mstep .n { @apply block text-sm font-extrabold text-[var(--text)]; }
+.pjv3-stmoney .mstep.hot { border-color: rgba(0, 200, 117, 0.5); }
+.pjv3-stmoney .mstep.hot .n { color: #00a05e; }
+.pjv3-stmoney .ar { @apply text-[var(--text-dim)]; }
+.pjv3-stdue { @apply mb-1.5 flex w-full cursor-pointer items-center gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2 text-xs text-[var(--text)]; font: inherit; }
+.pjv3-stdue:hover { @apply border-[var(--primary)]; }
+.pjv3-stdue .d { @apply w-12 flex-none whitespace-nowrap text-[var(--text-dim)]; }
+.pjv3-stdue .late { color: var(--danger, #e2445c); font-weight: 700; }
+.pjv3-stdue .who { @apply text-[10.5px] text-[var(--text-dim)]; }
+.pjv3-stempty { @apply rounded-lg bg-[var(--bg)] px-3 py-2 text-[11px] text-[var(--text-dim)]; }
+.pjv3-statchip { @apply flex-none cursor-pointer rounded-lg border border-[var(--primary)]/40 bg-[var(--primary)]/8 px-2.5 py-1.5 text-xs font-semibold text-[var(--primary)]; font: inherit; font-size: 12px; }
+/* 집계표 */
+.pjv3-pvbar { @apply mb-2.5 flex flex-wrap items-center gap-2 text-xs text-[var(--text-dim)]; }
+.pjv3-pvbar select { @apply rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2 py-1.5 text-xs text-[var(--text)] outline-none; font: inherit; font-size: 12px; }
+.pjv3-pvscroll { @apply overflow-x-auto rounded-xl border border-[var(--border)]; }
+.pjv3-pv { @apply w-full border-collapse text-xs; }
+.pjv3-pv th { @apply border-b border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-center text-[11px] font-bold text-[var(--text-dim)]; }
+.pjv3-pv th.rowh { @apply text-left; }
+.pjv3-pv td { @apply border-b border-[var(--border)] px-3 py-2 text-right tabular-nums; }
+.pjv3-pv td.rowh { @apply text-left font-bold; }
+.pjv3-pv td.hit { @apply cursor-pointer; }
+.pjv3-pv td.hit:hover { @apply bg-[var(--primary)]/8; }
+.pjv3-pv td.zero { color: color-mix(in srgb, var(--text-dim) 45%, transparent); }
+.pjv3-pv tr.grand td { @apply border-t-2 border-[var(--border)] bg-[var(--bg)] font-extrabold; }
+.pjv3-stnote { @apply mt-2 text-[10.5px] text-[var(--text-dim)]; }
 .pjv3-gr { @apply flex items-stretch border-b border-[var(--border)]; }
 .pjv3-gr[role="button"] { @apply cursor-pointer; }
 .pjv3-gr[role="button"]:hover { @apply bg-[var(--bg)]/60; }
