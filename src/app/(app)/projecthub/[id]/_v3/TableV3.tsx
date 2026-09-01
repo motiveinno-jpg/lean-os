@@ -671,6 +671,65 @@ export function TableV3() {
     return `${rows.length}줄을 표에 넣었습니다`;
   };
 
+  // ── 설문 발송(2026-09-01 사장님 승인) — 컬럼=질문, 응답 1건=줄 1개. 설정은 project_surveys,
+  //   외부 페이지 /survey/{token} 은 project-survey 엣지 함수가 담당(anon DB 접근 0) ──
+  const SV_ANSWERABLE = ["text", "longtext", "number", "date", "select", "check", "rating", "url", "tel", "place"];
+  const [svOpen, setSvOpen] = useState(false);
+  type SurveyRow = {
+    id: string; token: string; enabled: boolean; title: string; intro: string; name_label: string;
+    banner_path: string | null; image_paths: string[]; questions: { key: string; required?: boolean }[];
+    target_stage: string; response_count: number;
+  };
+  const { data: survey } = useQuery({
+    queryKey: ["pjv3-survey", dealId],
+    enabled: !!dealId && svOpen,
+    queryFn: async () => (logRead("pjv3:survey", await db.from("project_surveys")
+      .select("*").eq("deal_id", dealId).maybeSingle())) as SurveyRow | null,
+  });
+  const [svForm, setSvForm] = useState({
+    title: "", intro: "", nameLabel: "성함", stage: "", banner: null as string | null,
+    images: [] as string[], q: {} as Record<string, { on: boolean; required: boolean }>,
+  });
+  useEffect(() => {
+    if (!svOpen) return;
+    const qmap: Record<string, { on: boolean; required: boolean }> = {};
+    for (const q of survey?.questions || []) qmap[q.key] = { on: true, required: !!q.required };
+    setSvForm({
+      title: survey?.title || `${deal?.name || ""} 설문`,
+      intro: survey?.intro || "",
+      nameLabel: survey?.name_label || "성함",
+      stage: survey?.target_stage || stages[0]?.id || "",
+      banner: survey?.banner_path ?? null,
+      images: (survey?.image_paths as string[]) || [],
+      q: qmap,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [svOpen, survey?.id]);
+  const svCols = cols.filter((c) => SV_ANSWERABLE.includes(c.type));
+  const saveSurvey = async (enable?: boolean) => {
+    const questions = svCols.filter((c) => svForm.q[c.key]?.on).map((c) => ({ key: c.key, required: !!svForm.q[c.key]?.required }));
+    const payload: Record<string, unknown> = {
+      company_id: companyId, deal_id: dealId, title: svForm.title.trim(), intro: svForm.intro,
+      name_label: svForm.nameLabel.trim() || "성함", target_stage: svForm.stage || stages[0]?.id || "",
+      banner_path: svForm.banner, image_paths: svForm.images, questions,
+      created_by: survey?.id ? undefined : user?.id ?? null,
+    };
+    if (enable !== undefined) payload.enabled = enable;
+    const { error } = await db.from("project_surveys").upsert(payload, { onConflict: "deal_id" });
+    if (error) { toast(friendlyError(error), "error"); return false; }
+    qc.invalidateQueries({ queryKey: ["pjv3-survey", dealId] });
+    return true;
+  };
+  const uploadSurveyImg = async (file: File, kind: "banner" | "image") => {
+    if (file.size > 20 * 1024 * 1024) { toast("20MB까지 올릴 수 있습니다", "error"); return; }
+    const ext = (file.name.split(".").pop() || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 10);
+    const path = `${companyId}/${dealId}/survey/${crypto.randomUUID()}${ext ? `.${ext}` : ""}`;
+    const { error } = await db.storage.from("project-files").upload(path, file, { upsert: false });
+    if (error) { toast(friendlyError(error), "error"); return; }
+    setSvForm((f) => kind === "banner" ? { ...f, banner: path } : { ...f, images: [...f.images, path] });
+  };
+  const surveyUrl = survey?.token ? `${typeof window !== "undefined" ? window.location.origin : ""}/survey/${survey.token}` : "";
+
   // ── 서랍(추천 1 = 2단계 핵심) — 줄을 열면 체크리스트·기록(댓글+변경 한 줄기)·팔로워.
   //   팔로워 알림 연동(notify 트리거 확장)은 다음 차수 ──
   const [drawerId, setDrawerId] = useState<string | null>(null);
@@ -1030,6 +1089,8 @@ export function TableV3() {
       <div className="pjv3-toolbar">
         <span className="pjv3-search">🔍<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름 · 담당 · 칸에 든 글자 — 검색" aria-label="검색" /></span>
         <button type="button" className="btn-secondary btn-sm" onClick={(e) => setPop({ kind: "excel", ...at(e) })}>엑셀 ▾</button>
+        <button type="button" className="btn-secondary btn-sm" title="외부에 링크로 설문을 보내고 응답을 이 표에 받습니다"
+          onClick={() => setSvOpen(true)}>설문</button>
         <span className="pjv3-count num">{shown.length}건{shown.length !== items.length ? ` / 전체 ${items.length}` : ""}</span>
       </div>
 
@@ -1276,6 +1337,80 @@ export function TableV3() {
             : "셀은 눌러서 그 자리 수정 · 이름 칸 '열기'로 체크리스트·기록·팔로워 · ⋮⋮ 끌어 순서·그룹 이동 · 컬럼 머리단은 눌러 이름, 끌어 순서 · ✕는 한 번 더 눌러 지우기"}
       </p>
       </div>
+
+      {/* ── 설문 설정 — 컬럼이 곧 질문. 저장 후 '설문 켜기'로 외부 링크가 산다 ── */}
+      {svOpen && deal && (
+        <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setSvOpen(false); }}>
+          <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="설문 보내기">
+            <h3 className="phv3-modal-title">설문 보내기 — 응답 1건이 표의 줄 1개가 됩니다</h3>
+            <div className="pjv3-sv-field"><label>설문 제목(외부에 보임)</label>
+              <input type="text" value={svForm.title} onChange={(e) => setSvForm((f) => ({ ...f, title: e.target.value }))} /></div>
+            <div className="pjv3-sv-field"><label>안내문 — 길게 써도 됩니다(문단·줄바꿈 그대로 보임)</label>
+              <textarea rows={5} value={svForm.intro} onChange={(e) => setSvForm((f) => ({ ...f, intro: e.target.value }))}
+                placeholder={"안녕하세요, ○○입니다.\n설문 취지·경품·개인정보 안내·마감일을 자유롭게 적으세요."} /></div>
+            <div className="pjv3-sv-field"><label>배너 이미지 — 맨 위에 크게(가로형 권장)</label>
+              <div className="flex items-center gap-2">
+                {svForm.banner ? <span className="text-[11px] text-[var(--text-dim)]">배너 1장 올라감</span> : <span className="text-[11px] text-[var(--text-dim)]">없음</span>}
+                {svForm.banner && <button type="button" className="pjv3-del !opacity-100" onClick={() => setSvForm((f) => ({ ...f, banner: null }))}>✕</button>}
+                <label className="btn-secondary btn-sm ml-auto cursor-pointer">올리기
+                  <input type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSurveyImg(f, "banner"); e.target.value = ""; }} /></label>
+              </div></div>
+            <div className="pjv3-sv-field"><label>안내문 아래 이미지 — 메뉴판·약도·포스터 등 여러 장</label>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-[var(--text-dim)]">{svForm.images.length}장</span>
+                {svForm.images.length > 0 && <button type="button" className="pjv3-del !opacity-100" title="마지막 장 빼기"
+                  onClick={() => setSvForm((f) => ({ ...f, images: f.images.slice(0, -1) }))}>✕</button>}
+                <label className="btn-secondary btn-sm ml-auto cursor-pointer">＋ 추가
+                  <input type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSurveyImg(f, "image"); e.target.value = ""; }} /></label>
+              </div></div>
+            <div className="pjv3-sv-field"><label>이름 칸을 뭐라고 물을까요(항상 필수)</label>
+              <input type="text" value={svForm.nameLabel} onChange={(e) => setSvForm((f) => ({ ...f, nameLabel: e.target.value }))} /></div>
+            <div className="pjv3-sv-field"><label>질문으로 내보낼 컬럼 — 배지를 눌러 필수/선택</label>
+              {svCols.length === 0 && <div className="pjv3-tpl-mine">내보낼 수 있는 컬럼이 없습니다 — 글·선택·평점 같은 컬럼을 먼저 만드세요(담당·수식·첨부는 설문에 못 나갑니다)</div>}
+              {svCols.map((c) => {
+                const st = svForm.q[c.key] || { on: false, required: false };
+                return (
+                  <div key={c.key} className="pjv3-sv-qrow">
+                    <input type="checkbox" checked={st.on} aria-label={c.name}
+                      onChange={() => setSvForm((f) => ({ ...f, q: { ...f.q, [c.key]: { ...st, on: !st.on } } }))} />
+                    {c.name}
+                    <span className="ty">{FIELD_TYPES.find((t) => t.id === c.type)?.label}</span>
+                    {st.on && (
+                      <span className={`pjv3-sv-req ${st.required ? "on" : ""}`}
+                        onClick={() => setSvForm((f) => ({ ...f, q: { ...f.q, [c.key]: { ...st, required: !st.required } } }))}>
+                        {st.required ? "필수" : "선택"}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="pjv3-sv-field"><label>응답이 들어올 그룹</label>
+              <select value={svForm.stage} onChange={(e) => setSvForm((f) => ({ ...f, stage: e.target.value }))}>
+                {stages.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+              </select></div>
+            {survey?.token && (
+              <div className="pjv3-sv-link">
+                <code>{surveyUrl}</code>
+                <button type="button" className="btn-secondary btn-sm" onClick={() => { navigator.clipboard.writeText(surveyUrl); toast("링크를 복사했습니다 — 문자·카톡 어디든 붙여넣으세요", "success"); }}>복사</button>
+              </div>
+            )}
+            <p className="phv3-modal-desc !mt-2">
+              {survey?.enabled
+                ? <>지금 <b>켜져 있습니다</b> — 응답 {survey.response_count}건. 끄면 링크가 즉시 죽습니다.</>
+                : "링크 하나를 몇 명에게든 보내도 됩니다 — 응답자마다 줄 하나씩 쌓입니다."}
+            </p>
+            <div className="phv3-modal-actions">
+              <button type="button" className="btn-secondary btn-sm" onClick={() => setSvOpen(false)}>닫기</button>
+              {survey?.enabled && (
+                <button type="button" className="btn-secondary btn-sm" onClick={async () => { if (await saveSurvey(false)) toast("설문을 껐습니다 — 링크가 무효가 됐습니다", "success"); }}>끄기</button>
+              )}
+              <button type="button" className="btn-secondary btn-sm" onClick={async () => { if (await saveSurvey()) toast("저장했습니다", "success"); }}>저장만</button>
+              <button type="button" className="btn-primary btn-sm" onClick={async () => { if (await saveSurvey(true)) toast("설문이 켜졌습니다 — 링크를 복사해 보내세요", "success"); }}>설문 켜기</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── 엑셀 올리기 — 재고 공용 다이얼로그: 양식 다운 → 채워 올리면 미리 보고 '등록'으로 확정 ── */}
       {excelUp && deal && (

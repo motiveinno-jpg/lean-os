@@ -145,6 +145,41 @@ export const TEMPLATES: Tpl[] = [
     example: "예시 — 배너 문구 A/B",
   },
 
+  //   설문형 3종(2026-09-01) — 적용 후 [설문] 버튼으로 외부 링크를 켜면 응답이 줄로 쌓인다
+  {
+    key: "svsat", icon: "💬", name: "고객 만족도 조사", cat: "마케팅",
+    desc: "한 줄 = 응답 하나. 만족도·재이용·의견을 컬럼으로 만들고, [설문]으로 외부 링크를 보냅니다.",
+    cols: [
+      { name: "만족도", type: "rating" },
+      { name: "재이용", type: "select", options: [o("yes", "예", C.done), o("no", "아니오", C.danger), o("maybe", "고민 중", C.doing)] },
+      { name: "의견", type: "longtext" },
+      { name: "연락처", type: "tel" },
+    ],
+    example: "예시 — 김민수 님 응답",
+  },
+  {
+    key: "svevent", icon: "🎟", name: "행사 참가 신청", cat: "마케팅",
+    desc: "한 줄 = 신청 하나. 참석 여부·인원·요청사항을 설문 링크로 받습니다.",
+    cols: [
+      { name: "참석", type: "select", options: [o("yes", "참석", C.done), o("no", "불참", C.wait), o("maybe", "미정", C.doing)] },
+      { name: "인원", type: "number" },
+      { name: "연락처", type: "tel" },
+      { name: "요청사항", type: "longtext" },
+    ],
+    example: "예시 — 든든상회 2명",
+  },
+  {
+    key: "svbook", icon: "📅", name: "예약 접수", cat: "마케팅",
+    desc: "한 줄 = 예약 하나. 희망 날짜·시간대·인원을 설문 링크로 받습니다.",
+    cols: [
+      { name: "희망 날짜", type: "date" },
+      { name: "시간대", type: "select", options: [o("am", "오전", C.blue), o("pm", "오후", C.doing), o("eve", "저녁", C.danger)] },
+      { name: "인원", type: "number" },
+      { name: "연락처", type: "tel" },
+    ],
+    example: "예시 — 9/12 오후 4명",
+  },
+
   // ── 콘텐츠 제작 (monday: Content Planning · Video production · Digital asset management) ──
   {
     key: "content", icon: "✍️", name: "콘텐츠 기획·발행", cat: "콘텐츠 제작",

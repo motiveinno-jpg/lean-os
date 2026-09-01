@@ -9684,3 +9684,46 @@ table.phv3-table { min-width: 640px; }
 .pjv3-filepick { @apply mt-1 block cursor-pointer rounded-lg border border-dashed border-[var(--border)] px-2.5 py-1.5 text-center text-[11px] text-[var(--text-dim)]; }
 .pjv3-filepick:hover { @apply border-[var(--primary)] text-[var(--primary)]; }
 .pjv3-typehint { @apply font-normal text-[var(--text-dim)]; }
+
+/* svp — 설문 외부 응답 페이지(로그인 없음·모바일 우선, 2026-09-01). 앱 밖 공개 화면이라 톤만 맞춘다 */
+.svp-shell { @apply flex min-h-screen flex-col items-center bg-[#f4f5fb] px-4 py-8; }
+.svp-card { @apply w-full max-w-[440px] overflow-hidden rounded-3xl border border-[#e6e8f2] bg-white shadow-xl; }
+.svp-banner { @apply block max-h-56 w-full object-cover; }
+.svp-head { @apply px-6 pb-2 pt-6; background: linear-gradient(135deg, #5559DF, #7A7DF0); }
+.svp-head h1 { @apply pb-4 text-lg font-extrabold leading-snug text-white; }
+.svp-body { @apply flex flex-col gap-5 px-6 py-6; }
+.svp-intro { @apply whitespace-pre-line rounded-2xl bg-[#f4f5fb] px-4 py-3.5 text-[13px] leading-relaxed text-[#22243a]; }
+.svp-img { @apply block w-full rounded-2xl; }
+.svp-q label { @apply mb-2 block text-[13.5px] font-bold text-[#22243a]; }
+.svp-q label i { @apply not-italic text-[#E2445C]; }
+.svp-q input[type="text"], .svp-q input[type="date"], .svp-q textarea { @apply w-full rounded-xl border border-[#e6e8f2] px-3.5 py-2.5 text-[14px] text-[#22243a] outline-none; font: inherit; font-size: 14px; }
+.svp-q input:focus, .svp-q textarea:focus { border-color: #5559DF; }
+.svp-stars span { @apply cursor-pointer px-0.5 text-2xl text-[#e6e8f2]; }
+.svp-stars span.on { color: #FDAB3D; }
+.svp-opts { @apply flex flex-wrap gap-2; }
+.svp-opts button { @apply cursor-pointer rounded-lg border border-[#e6e8f2] bg-white px-3.5 py-2 text-[13px] text-[#22243a]; font: inherit; }
+.svp-opts button.on { border-color: #5559DF; background: rgba(85, 89, 223, 0.08); color: #5559DF; font-weight: 700; }
+.svp-check { @apply flex cursor-pointer items-center gap-2 text-[13.5px] text-[#22243a]; }
+.svp-check input { @apply h-4 w-4; accent-color: #5559DF; }
+.svp-err { @apply rounded-xl bg-[#fdecef] px-4 py-2.5 text-[12.5px] font-semibold text-[#E2445C]; }
+.svp-submit { @apply w-full cursor-pointer rounded-2xl py-3.5 text-[15px] font-extrabold text-white; background: #5559DF; border: 0; font-family: inherit; }
+.svp-submit:disabled { @apply opacity-60; }
+.svp-done { @apply px-6 py-14 text-center; }
+.svp-done-ico { @apply mb-3 text-4xl; }
+.svp-done h2 { @apply mb-1 text-lg font-extrabold text-[#22243a]; }
+.svp-done p { @apply text-[13px] text-[#8a8fa8]; }
+.svp-note { @apply mt-24 text-[13px] text-[#8a8fa8]; }
+.svp-foot { @apply mt-4 text-[11px] text-[#b0b4c8]; }
+
+/* pjv3 — 설문 설정 모달 */
+.pjv3-sv-field { @apply mb-3; }
+.pjv3-sv-field > label { @apply mb-1 block text-[11px] text-[var(--text-dim)]; }
+.pjv3-sv-field input[type="text"], .pjv3-sv-field textarea, .pjv3-sv-field select { @apply w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2.5 py-2 text-xs text-[var(--text)] outline-none; font: inherit; font-size: 12px; }
+.pjv3-sv-qrow { @apply flex items-center gap-2 rounded-lg px-1.5 py-1 text-xs; }
+.pjv3-sv-qrow:hover { @apply bg-[var(--bg)]; }
+.pjv3-sv-qrow .ty { @apply ml-auto text-[10px] text-[var(--text-dim)]; }
+.pjv3-sv-req { @apply cursor-pointer rounded border border-[var(--border)] bg-[var(--bg)] px-1.5 py-0.5 text-[10px] text-[var(--text-dim)]; }
+.pjv3-sv-req.on { @apply border-[var(--danger)]/40 bg-[var(--danger)]/10 font-bold text-[var(--danger)]; }
+.pjv3-sv-link { @apply mt-1 flex items-center gap-2 rounded-xl bg-[var(--bg)] px-3 py-2; }
+.pjv3-sv-link code { @apply min-w-0 flex-1 truncate text-[11px] text-[var(--primary)]; }
+.pjv3-sv-thumb { @apply h-11 w-11 flex-none rounded-lg border border-[var(--border)] object-cover; }
