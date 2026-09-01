@@ -937,6 +937,25 @@ export function TableV3() {
     setSvForm((f) => kind === "banner" ? { ...f, banner: path } : { ...f, images: [...f.images, path] });
   };
   const surveyUrl = survey?.token ? `${typeof window !== "undefined" ? window.location.origin : ""}/survey/${survey.token}` : "";
+  //   응답 줄(fields.__sv — 엣지가 심는 표식)만 골라 엑셀로. 표 전체 내려받기와 달리 응답자·제출일·질문만
+  const svResponses = items.filter((it) => (it.fields || {})["__sv"] === true);
+  const exportSvResponses = () => {
+    const data = svResponses.map((it) => {
+      const row: Record<string, unknown> = {
+        [survey?.name_label || "성함"]: it.name,
+        "제출일": String((it as any).created_at || "").slice(0, 10),
+      };
+      for (const c of svCols) {
+        const raw = (it.fields || {})[c.key];
+        const val = raw == null ? "" : String(raw);
+        if (c.type === "select") row[c.name] = (c.settings?.options || []).find((o) => o.id === val)?.label || val;
+        else if (c.type === "check") row[c.name] = raw === true || raw === "true" ? "예" : "아니오";
+        else row[c.name] = val;
+      }
+      return row;
+    });
+    exportToExcel(data, "설문 응답", `${deal?.name || "설문"}_응답_${new Date().toISOString().slice(0, 10)}`);
+  };
 
   // ── 일괄 처리(오두 갭 ①) — 줄 체크 → 바닥 SelectionBar. 완료·상태는 saveItem 루프(반복·앞뒤 규칙 공유) ──
   const [selIds, setSelIds] = useState<Set<string>>(new Set());
@@ -1836,7 +1855,17 @@ export function TableV3() {
             {survey?.token && (
               <div className="pjv3-sv-link">
                 <code>{surveyUrl}</code>
+                <button type="button" className="btn-secondary btn-sm" disabled={!survey.enabled}
+                  title={survey.enabled ? "외부인이 보는 화면 그대로 새 탭에" : "설문을 켠 뒤 미리보기 — 꺼진 링크는 밖에서 마감으로 보입니다"}
+                  onClick={() => window.open(surveyUrl, "_blank")}>미리보기</button>
                 <button type="button" className="btn-secondary btn-sm" onClick={() => { navigator.clipboard.writeText(surveyUrl); toast("링크를 복사했습니다 — 문자·카톡 어디든 붙여넣으세요", "success"); }}>복사</button>
+              </div>
+            )}
+            {svResponses.length > 0 && (
+              <div className="pjv3-sv-link">
+                <span className="num text-[11px] text-[var(--text-dim)]">지금까지 응답 {svResponses.length}건</span>
+                <button type="button" className="btn-secondary btn-sm ml-auto" title="응답 줄만 — 응답자·제출일·질문 컬럼"
+                  onClick={exportSvResponses}>응답만 엑셀로</button>
               </div>
             )}
             <p className="phv3-modal-desc !mt-2">

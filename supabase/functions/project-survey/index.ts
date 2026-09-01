@@ -134,6 +134,7 @@ Deno.serve(async (req) => {
         .eq("deal_id", sv.deal_id).eq("status", sv.target_stage)
         .order("position", { ascending: false }).limit(1);
       if (from) fields["__from"] = from; // 컬럼 정의가 없는 예약 키라 표에는 안 보인다(__quote 와 같은 문법)
+      fields["__sv"] = true; // 설문으로 들어온 줄 표식 — '응답만 내려받기'가 이걸 본다(같은 예약 키 문법)
       const { error: ie } = await admin.from("project_items").insert({
         company_id: sv.company_id, deal_id: sv.deal_id, kind: "todo",
         name, status: sv.target_stage, fields, position: (last?.[0]?.position ?? 0) + 1,
