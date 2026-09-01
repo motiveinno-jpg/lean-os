@@ -114,14 +114,43 @@ export default function ProjectHubPage() {
     if (list.length > 0) return list;
     return d?.internal_manager_id ? [d.internal_manager_id] : [];
   }, [membersByDeal]);
+  //   내 담당 항목이 있는 프로젝트 — 참여자 표에 없어도 항목 담당자로 지정됐으면 그 프로젝트는
+  //   보여야 한다 (2026-09-01 사장님: "참여자로 지정된 것들 많은데 하나도 안 보여" — 항목 담당만
+  //   지정되고 참여자 표는 비어 있어 직원 목록에서 통째로 빠졌다).
+  const { data: myItemDealIds = [] } = useQuery({
+    queryKey: ["ph-my-item-deals", companyId, user?.id],
+    enabled: !!companyId && !!user?.id,
+    queryFn: async () => {
+      const data = logRead("projecthub/page:my-item-deals", await (supabase as any).from("project_items")
+        .select("deal_id").eq("company_id", companyId!).eq("assignee_id", user!.id).is("archived_at", null));
+      return [...new Set(((data || []) as { deal_id: string }[]).map((r) => r.deal_id))];
+    },
+  });
+  const dealById = useMemo(() => {
+    const m: Record<string, any> = {};
+    for (const d of deals as any[]) m[d.id] = d;
+    return m;
+  }, [deals]);
+  //   자식(캠페인)에 담당 항목이 있으면 목록에 뜨는 건 상위 프로젝트이므로 부모 id 까지 포함
+  const myItemDealSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const id of myItemDealIds as string[]) {
+      s.add(id);
+      const parent = dealById[id]?.parent_deal_id;
+      if (parent) s.add(parent);
+    }
+    return s;
+  }, [myItemDealIds, dealById]);
+  //   '이 프로젝트가 내 것인가' — 참여자이거나 내 담당 항목이 있으면 내 것. 목록 스코프와 '내 담당' 칩이 같이 쓴다.
+  const isMyDeal = useCallback((d: any) => membersOfDeal(d).includes(user?.id || "") || myItemDealSet.has(d?.id), [membersOfDeal, user?.id, myItemDealSet]);
 
   // 세부 프로젝트(캠페인)는 목록에서 숨기고 상위 프로젝트만 노출. 자식 수는 배지로 표시.
   //   전체 열람 권한이 없으면 여기서 내 담당 건으로 좁힌다 — 목록·KPI·칩 카운트가 전부 이 배열을 쓰므로
   //   한 곳만 막아도 화면 전체 스코프가 맞춰진다.
   const topDeals = useMemo(
     () => (deals as any[]).filter((d) => !d.parent_deal_id
-      && (canViewAllProjects || membersOfDeal(d).includes(user?.id || ""))),
-    [deals, canViewAllProjects, user?.id, membersOfDeal],
+      && (canViewAllProjects || isMyDeal(d))),
+    [deals, canViewAllProjects, isMyDeal],
   );
   const childCount = useMemo(() => {
     const m: Record<string, number> = {};
@@ -614,10 +643,10 @@ export default function ProjectHubPage() {
   // 내 담당·검색만 보는 스코프 — 목록과 칩 카운트가 **같은 조건**을 쓰게 한 곳에 모은다.
   //   (2026-08-04: 두 군데 따로 적혀 있다가 참여자 전환 때 한쪽만 고쳐져 칩이 사라졌다)
   const inScope = useCallback((d: any) => {
-    if (mineOnly && !membersOfDeal(d).includes(userId || "")) return false;
+    if (mineOnly && !isMyDeal(d)) return false;   // 내 담당 = 참여자 또는 내 담당 항목 보유 (2026-09-01)
     if (!quickSearchHit(search, [d.name, partnerName[d.partner_id], ...membersOfDeal(d).map((id: string) => userName[id] || "")])) return false;
     return true;
-  }, [mineOnly, membersOfDeal, userId, search, partnerName, userName]);
+  }, [mineOnly, isMyDeal, membersOfDeal, search, partnerName, userName]);
   //   검색조건 — 담당(주담당)·거래처·템플릿(그 표가 붙은 프로젝트)
   const condHit = useCallback((d: any, c: Cond) => {
     if (c.manager.length && !c.manager.includes(userName[d.internal_manager_id] || "")) return false;
