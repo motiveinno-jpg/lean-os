@@ -798,8 +798,8 @@ export default function BankPage() {
             {/* 결과 요약 — 예전 stat 4 그라데이션 카드(총 자산·이번 달 수익·지출·분류 완료율)를 Stat 줄로 (2026-08-19 자금 메뉴 점검) */}
             <ResultStrip>
               <QStat label="총 자산" value={<>{fmtW(totalBalance)} <small className="font-normal text-[var(--text-dim)]">{accounts.length}개 계좌</small></>} />
-              <QStat label="이번 달 수익" value={<>+{fmtW(income)} {incomeDelta != null && <small className={`font-bold ${incomeDelta >= 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{incomeDelta >= 0 ? "▲" : "▼"}{Math.abs(incomeDelta).toFixed(1)}%</small>}</>} tone="plus" />
-              <QStat label="이번 달 지출" value={<>−{fmtW(expense)} {expenseDelta != null && <small className={`font-bold ${expenseDelta <= 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{expenseDelta >= 0 ? "▲" : "▼"}{Math.abs(expenseDelta).toFixed(1)}%</small>}</>} tone="minus" />
+              <QStat label="이번 달 수익" value={<>+{fmtW(income)} {incomeDelta != null && income > 0 && <small className={`font-bold ${incomeDelta >= 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{incomeDelta >= 0 ? "▲" : "▼"}{Math.abs(incomeDelta).toFixed(1)}%</small>}</>} tone="plus" />
+              <QStat label="이번 달 지출" value={<>−{fmtW(expense)} {expenseDelta != null && expense > 0 && <small className={`font-bold ${expenseDelta <= 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{expenseDelta >= 0 ? "▲" : "▼"}{Math.abs(expenseDelta).toFixed(1)}%</small>}</>} tone="minus" />
               <QStat label="분류 완료율" value={<>{mappingRate != null ? `${mappingRate}%` : "—"} <small className="font-normal text-[var(--text-dim)]">{flow && flow.total > 0 ? `${flow.mapped}/${flow.total}건` : "거래 없음"}</small></>} />
             </ResultStrip>
           </QueryHead>

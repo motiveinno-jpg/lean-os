@@ -64,9 +64,11 @@ export function Legend({ items }: { items: { name: string; color: string }[] }) 
 export function ColumnChart({ data, height = 200, unit = "" }: { data: Datum[]; height?: number; unit?: string }) {
   const [hover, setHover] = useState<number | null>(null);
   const max = niceMax(Math.max(1, ...data.map((d) => d.value)));
+  //   값이 전부 0이면 눈금이 "1·1·0"(0.5 반올림)으로 떠 없는 금액이 있는 것처럼 보였다 (2026-09-01 전수점검)
+  const allZero = data.every((d) => d.value <= 0);
   return (
     <div className="viz-wrap" style={{ height }}>
-      <div className="viz-yaxis"><em>{fmt(max)}</em><em>{fmt(max / 2)}</em><em>0</em></div>
+      <div className="viz-yaxis">{allZero ? <><em></em><em></em><em>0</em></> : <><em>{fmt(max)}</em><em>{fmt(max / 2)}</em><em>0</em></>}</div>
       <div className="viz-plot" onMouseLeave={() => setHover(null)}>
         <span className="viz-grid" /><span className="viz-grid viz-grid-mid" />
         {data.map((d, i) => (

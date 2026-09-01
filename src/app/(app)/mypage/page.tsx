@@ -333,7 +333,8 @@ export default function MyPage() {
 
   //   ── 내 현황(2026-08-19) — 이번 주 근무 · 내가 처리할 것(결재·서명·할 일·내 요청) · 최근 공지 ──
   const todayStr = todayKst();
-  const weekStart = (() => { const d = new Date(todayStr + "T00:00:00"); const dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow); return d.toISOString().slice(0, 10); })();
+  //   toISOString 은 UTC 로 바꿔 KST 에서 하루 밀렸다(월요일 시작인데 08/30 일요일로 표시, 2026-09-01 전수점검) — 로컬 포맷으로
+  const weekStart = (() => { const d = new Date(todayStr + "T00:00:00"); const dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
   const { data: weekRecs = [] } = useQuery({
     queryKey: ["my-week-attendance", employee?.id, weekStart],
     queryFn: async () => { const data = logRead("mypage:week", await supabase.from("attendance_records").select("date, work_hours, overtime_minutes, is_late, status").eq("employee_id", employee!.id).gte("date", weekStart).lte("date", todayStr)); return (data || []) as any[]; },

@@ -1,4 +1,5 @@
 "use client";
+import { MonthSelect } from "@/components/month-select";
 
 // ── 재무 › 고정자산 — 자산 등록 · 처분 · 월 감가상각 초안 (2026-08-27 ERP 공백 ⑤, 결정 65~69) ──
 //   조회 화면 표준: 갈래 탭(사용 중/처분) · 조회 줄(빠른검색 ‖ 상각 초안 · + 등록) · 결과 요약 · 표 · 폼은 팝업.
@@ -125,7 +126,7 @@ export default function FixedAssetsPage() {
           </div>
           <QueryBar right={<>
             <span className="fa-depr-row" title="그 달의 감가상각을 전표 초안 하나로 — 확정은 재무 › 전표 현황 › 처리할 것. 월 1일 새벽엔 지난달이 자동으로 생깁니다">
-              <input type="month" className="inv-input fin-close-month" value={deprMonth} onChange={(e) => setDeprMonth(e.target.value)} />
+              <MonthSelect className="inv-input fin-close-month" value={deprMonth} onChange={setDeprMonth} ariaLabel="상각 월" />
               <button type="button" className="btn-secondary btn-sm" disabled={busy || !active.length} onClick={makeDraft}>상각 초안</button>
             </span>
             <button type="button" className="btn-primary btn-sm" onClick={openNew}>+ 자산 등록</button>
@@ -202,7 +203,7 @@ export default function FixedAssetsPage() {
                 </select>
               </label>
               <label>취득일 <DateField value={form.acquired_on} onChange={(e: any) => setForm({ ...form, acquired_on: e.target.value })} className="inv-input" /></label>
-              <label>상각 시작 월 <input type="month" className="inv-input" value={form.depr_start_month} onChange={(e) => setForm({ ...form, depr_start_month: e.target.value })} /></label>
+              <label>상각 시작 월 <MonthSelect className="inv-input" from="2015-01" value={form.depr_start_month} onChange={(v) => setForm({ ...form, depr_start_month: v })} ariaLabel="상각 시작 월" /></label>
               <label>취득가 <input className="inv-input mono-number tr" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} placeholder="부가세 제외" /></label>
               <label>잔존가 <input className="inv-input mono-number tr" value={form.salvage} onChange={(e) => setForm({ ...form, salvage: e.target.value })} /></label>
               <label>내용월수 <input className="inv-input mono-number tr" value={form.useful_months} onChange={(e) => setForm({ ...form, useful_months: e.target.value })} placeholder="60 = 5년" /></label>

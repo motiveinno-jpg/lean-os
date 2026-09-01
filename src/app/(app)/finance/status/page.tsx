@@ -1,4 +1,5 @@
 "use client";
+import { MonthSelect } from "@/components/month-select";
 
 // ── 재무 › 현황 — **전표 현황** (2026-08-26 사장님 지시) ──────────────────────────────────
 //   149차엔 통장·카드·미수·증빙을 한데 모은 운영 콕핏이었다. 사장님: "통장·카드는 통장·카드의 분석 쪽으로,
@@ -426,7 +427,7 @@ export default function FinanceStatusPage() {
                     <div className="pnl-panel">
                       <h3>결산 초안 만들기</h3><p>월 1일 새벽에 지난달 것이 자동으로 생깁니다 — 지금 바로 만들거나 다시 만들려면 여기서. 초안 일자는 그 달 말일이라 조회 기간이 그 날을 품어야 아래 목록에 보입니다 — 확정·반려는 목록에서.</p>
                       <div className="fin-close-row">
-                        <input type="month" className="inv-input fin-close-month" value={closeMonth} onChange={(e) => setCloseMonth(e.target.value)} />
+                        <MonthSelect className="inv-input fin-close-month" value={closeMonth} onChange={setCloseMonth} ariaLabel="마감 월" />
                         <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("inventory")} title="기말 재고(층 원가)와 재고자산 계정 잔액의 차액을 전표 초안으로 — 제품·상품·원재료">{closeBusy === "inventory" ? "만드는 중…" : "재고자산 맞추기"}</button>
                         <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("payroll")} title="그 달 발급된 급여명세 합계 — 차) 직원급여 / 대) 예수금·미지급금. 개인별 금액은 전표에 싣지 않습니다">{closeBusy === "payroll" ? "만드는 중…" : "급여 전표"}</button>
                         <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("depreciation")} title="등록된 고정자산의 그 달 감가상각 — 차) 감가상각비 / 대) 감가상각누계액, 자산별 줄">{closeBusy === "depreciation" ? "만드는 중…" : "감가상각"}</button>

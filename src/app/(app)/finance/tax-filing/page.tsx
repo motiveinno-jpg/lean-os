@@ -1,4 +1,5 @@
 "use client";
+import { MonthSelect } from "@/components/month-select";
 
 // ── 재무 › 세무 신고 — 원천세 · 부가세 · 지급명세서 (2026-08-31 세무 1·2차, docs/20260831_PLAN_tax_module.md 결정 100~103·107) ──
 //
@@ -453,7 +454,7 @@ export default function TaxFilingPage() {
               <button type="button" className="btn-secondary btn-sm" onClick={exportWht} title="신고서 요약 + 인별 명세 — 2개 시트">세무사 전달 엑셀</button>
             </>}>
               <label className="text-xs font-semibold text-[var(--text-dim)]">지급월</label>
-              <input type="month" className="inv-input fin-close-month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} aria-label="지급월" />
+              <MonthSelect className="inv-input fin-close-month" value={month} onChange={(v) => v && setMonth(v)} ariaLabel="지급월" />
               <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <b className="mono-number">{dueOf(month)}</b> — 홈택스 › 신고/납부 › 원천세</span>
             </QueryBar>
             <ResultStrip>

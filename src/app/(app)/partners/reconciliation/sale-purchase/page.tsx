@@ -1136,7 +1136,8 @@ function SalePurchaseInner() {
           <span>전표건별 소계</span>
           <span className="tr">{won(debitSum)}</span>
           <span className="tr">{won(creditSum)}</span>
-          <span className={balanced ? "spv-bal spv-bal-ok" : "spv-bal"}>{balanced ? "✓ 차·대 일치" : "차·대 불일치"}</span>
+          {/* 입력 전(0/0)엔 불일치 경고를 띄우지 않는다 — 빈 화면이 오류처럼 보였다 (2026-09-01 전수점검) */}
+          <span className={debitSum === 0 && creditSum === 0 ? "spv-bal" : balanced ? "spv-bal spv-bal-ok" : "spv-bal"}>{debitSum === 0 && creditSum === 0 ? "—" : balanced ? "✓ 차·대 일치" : "차·대 불일치"}</span>
         </div>
               <p className="spv-note">
           ※ 매입매출전표는 <b>부가세가 붙는 거래</b>(세금계산서·카드·현금영수증)를 칩니다 —

@@ -2809,7 +2809,14 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
   }, [files, categoryFilter]);
 
   //   빠른검색(쉼표 = 또는) — 파일명·올린 사람·종류. 서버 검색(searchFiles)은 그대로 두고 화면에서 한 번 더 거른다
-  const kindOf = (f: any) => String(f.mime_type || "").split("/").pop() || "파일";
+  //   MIME 뒷토막 그대로면 엑셀이 "vnd.openxmlformats-…" 로 떴다 (2026-09-01 전수점검) — 파일명 확장자 우선
+  const kindOf = (f: any) => {
+    const nm = String(f.file_name || "");
+    const ext = nm.includes(".") ? nm.split(".").pop()!.toLowerCase() : "";
+    if (ext && ext.length <= 5) return ext;
+    const tail = String(f.mime_type || "").split("/").pop() || "";
+    return tail.length > 12 ? "파일" : tail || "파일";
+  };
   const cf = useColFilters();
   const colVal = (f: any) => ({ kind: kindOf(f), by: userNames[f.uploaded_by] || "" });
   const cfSpec = (k: keyof ReturnType<typeof colVal>) => cf.spec(k, (filteredFiles as any[]).map((f) => colVal(f)[k]));

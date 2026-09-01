@@ -502,7 +502,8 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
           onClose={() => setScanMiss(null)}
           onSaved={(p) => { const row = scanMiss.row; setScanMiss(null); ctl.qc.invalidateQueries({ queryKey: ["inv-products", ctl.companyId] }); choose(row, p, true); }} />
       )}
-      <table className="ev-table ev-lined table-doc">
+      {/* 칸 수가 많은 양식(이커머스 15칸)은 940px 에 눌려 칸이 쪼그라들었다 (2026-09-01 전수점검) — 지정 폭 합만큼 확보, 스크롤은 감싼 쪽이 */}
+      <table className="ev-table ev-lined table-doc" style={{ minWidth: Math.max(940, onLine.reduce((sum, f) => sum + parseInt(W[f.field_id] || "130", 10), 0) + 160) }}>
         <thead>
           <tr>
             <th className="doc-no"></th>
