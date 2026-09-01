@@ -665,7 +665,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     queryKey: ["attendance-cal-leaves", companyId, selectedMonth],
     queryFn: async () => {
       const data = await fetchPaged<any>('employees:monthLeaves', () => (supabase).from("leave_requests")
-        .select("employee_id, start_date, end_date, status")
+        .select("employee_id, start_date, end_date, status, leave_type")
         .eq("company_id", companyId).eq("status", "approved")
         .lte("start_date", monthEnd).gte("end_date", monthStart).order("start_date"), 20000);
       return data || [];
@@ -676,6 +676,19 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     const s = new Set<string>();
     for (const lv of monthLeaves as any[]) {
       if (!lv.start_date || !lv.end_date) continue;
+      let d = new Date(String(lv.start_date).slice(0, 10) + "T00:00:00Z");
+      const end = new Date(String(lv.end_date).slice(0, 10) + "T00:00:00Z");
+      let guard = 0;
+      while (d <= end && guard++ < 400) { s.add(`${lv.employee_id}:${d.toISOString().slice(0, 10)}`); d = new Date(d.getTime() + 86400000); }
+    }
+    return s;
+  }, [monthLeaves]);
+  //   월간 요약 '연차' 칼럼용 — 연차성(차감 유형)만. 공가·경조 등 법정 별도 휴가까지 연차로 세던 것
+  //   (2026-09-01, 직원별 연차 표와 같은 버그). 결근 파생(leaveDaySet)은 유형 무관 전체가 맞아 그대로.
+  const annualDaySet = useMemo(() => {
+    const s = new Set<string>();
+    for (const lv of monthLeaves as any[]) {
+      if (!lv.start_date || !lv.end_date || NON_DEDUCT_LEAVE_TYPES.has(String(lv.leave_type))) continue;
       let d = new Date(String(lv.start_date).slice(0, 10) + "T00:00:00Z");
       const end = new Date(String(lv.end_date).slice(0, 10) + "T00:00:00Z");
       let guard = 0;
@@ -1390,8 +1403,8 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
           if (dow !== 0 && dow !== 6 && !holidayDaySet.has(ds)) workdaysSoFar++;   // 공휴일 제외 (2026-08-19)
         }
         //   표 정렬·빠른검색 (2026-08-19 사장님: 직원이 많아지면 카드 격자로는 못 본다 → 표 + 정렬 + 검색)
-        //   연차 = 이 달 승인 휴가일 수(leaveDaySet — 달력이 쓰는 것과 같은 것)
-        const leaveCount = (empId: string) => { let n = 0; leaveDaySet.forEach((k: string) => { if (k.startsWith(`${empId}:${selectedMonth}-`)) n++; }); return n; };
+        //   연차 = 이 달 승인 **연차성** 휴가일 수 — 공가·경조 등 별도 휴가는 빼고 센다 (2026-09-01)
+        const leaveCount = (empId: string) => { let n = 0; annualDaySet.forEach((k: string) => { if (k.startsWith(`${empId}:${selectedMonth}-`)) n++; }); return n; };
         const rowsAll = (summary as any[]).map((s) => ({ ...s, employee_number: empById.get(s.employee_id)?.employee_number || null, ratio: workdaysSoFar > 0 ? Math.min(1, s.totalDays / workdaysSoFar) : 0, alwTotal: allowanceByEmployee.get(s.employee_id)?.total ?? 0, leaveDays: leaveCount(s.employee_id) }));
         const rows = rowsAll.filter((r) => quickSearchHit(sumQ, [r.name, r.department])
             && (sumCond.depts.length === 0 || sumCond.depts.includes(r.department || "미배정"))

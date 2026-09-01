@@ -10,7 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { fetchPaged } from "@/lib/fetch-paged";
-import { getMonthlyAttendanceSummary } from "@/lib/hr";
+import { getMonthlyAttendanceSummary, NON_DEDUCT_LEAVE_TYPES } from "@/lib/hr";
 import { downloadCsv } from "@/lib/csv-export";
 import { DateRangeField } from "@/components/date-range-field";
 import { QueryBar, ConditionPanel, ConditionRow, TokenField, QuickSearch, quickSearchHit, AppliedChips, ResultStrip, Stat, ExcelMenu, type AppliedChip } from "@/components/query-kit";
@@ -58,7 +58,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
   });
   const { data: leaves = [] } = useQuery({
     queryKey: ["att-status-leaves", companyId, rangeFrom, rangeTo],
-    queryFn: async () => (await fetchPaged("att-status:leaves", () => supabase.from("leave_requests").select("employee_id, start_date, end_date").eq("company_id", companyId).eq("status", "approved").lte("start_date", rangeTo).gte("end_date", rangeFrom).order("start_date"), 20000) || []) as any[],
+    queryFn: async () => (await fetchPaged("att-status:leaves", () => supabase.from("leave_requests").select("employee_id, start_date, end_date, leave_type").eq("company_id", companyId).eq("status", "approved").lte("start_date", rangeTo).gte("end_date", rangeFrom).order("start_date"), 20000) || []) as any[],
     enabled: !!companyId,
   });
   const { data: allowances = [] } = useQuery({
@@ -84,7 +84,8 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
   // 합치기 — 직원별 합계 + 월별
   const rowsAll = useMemo<Row[]>(() => {
     const leaveByEmpMonth = new Map<string, number>();
-    for (const lv of leaves) { if (!lv.start_date || !lv.end_date) continue; let d = new Date(String(lv.start_date).slice(0, 10) + "T00:00:00Z"); const end = new Date(String(lv.end_date).slice(0, 10) + "T00:00:00Z"); let g = 0; while (d <= end && g++ < 400) { const ds = d.toISOString().slice(0, 10); if (ds >= rangeFrom && ds <= rangeTo) { const k = `${lv.employee_id}:${ds.slice(0, 7)}`; leaveByEmpMonth.set(k, (leaveByEmpMonth.get(k) || 0) + 1); } d = new Date(d.getTime() + 86400000); } }
+    //   '연차' 칼럼은 연차성(차감 유형)만 센다 — 공가·경조 등 별도 휴가까지 연차로 세던 것 (2026-09-01, 직원별 연차 표와 같은 버그)
+    for (const lv of leaves) { if (!lv.start_date || !lv.end_date || NON_DEDUCT_LEAVE_TYPES.has(String(lv.leave_type))) continue; let d = new Date(String(lv.start_date).slice(0, 10) + "T00:00:00Z"); const end = new Date(String(lv.end_date).slice(0, 10) + "T00:00:00Z"); let g = 0; while (d <= end && g++ < 400) { const ds = d.toISOString().slice(0, 10); if (ds >= rangeFrom && ds <= rangeTo) { const k = `${lv.employee_id}:${ds.slice(0, 7)}`; leaveByEmpMonth.set(k, (leaveByEmpMonth.get(k) || 0) + 1); } d = new Date(d.getTime() + 86400000); } }
     const alwByEmpMonth = new Map<string, number>();
     for (const a of allowances) { const k = `${a.employee_id}:${a.payroll_month}`; alwByEmpMonth.set(k, (alwByEmpMonth.get(k) || 0) + Number(a.amount || 0)); }
     const empInfo = new Map<string, { name: string; department: string }>();
