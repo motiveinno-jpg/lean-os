@@ -25,7 +25,7 @@ import { DateRangeField } from "@/components/date-range-field";
 import { DateField } from "@/components/date-field";
 import { useSearchParams, useRouter } from "next/navigation";
 import { friendlyError } from "@/lib/friendly-error";
-import { useEffect, useState, useMemo, useRef } from "react";
+import { Fragment, useEffect, useState, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { invalidateTaxInvoiceReaders } from "@/lib/tax-invoice-invalidate";
@@ -293,7 +293,7 @@ const MODIFICATION_REASONS = [
 
 //   공급대가(부가세 포함 합계)를 넣으면 공급가액·부가세로 나눠 주는 역산 계산기 (2026-08-31 사장님).
 //     '공급가액 × 1.1' 의 반대 — 총액만 알 때 공급가액을 못 구하던 것을 돕는다. 마이너스도 지원.
-function GrossSplitCalc({ onApply }: { onApply: (supply: number) => void }) {
+function GrossSplitCalc({ onApply, applyLabel = "첫 품목 단가로 넣기" }: { onApply: (supply: number) => void; applyLabel?: string }) {
   const [gross, setGross] = useState("");
   const g = Number(gross) || 0;
   const supply = Math.round(g / 1.1);   // 원 단위 반올림 — 부가세는 나머지로 맞춰 합계가 항상 딱 떨어지게
@@ -307,7 +307,7 @@ function GrossSplitCalc({ onApply }: { onApply: (supply: number) => void }) {
         → 공급가액 <b className="text-[var(--text)] mono-number">{won(supply)}</b> · 부가세 <b className="text-[var(--text)] mono-number">{won(vat)}</b>
       </span>
       <button type="button" disabled={!g} onClick={() => onApply(supply)}
-        className="btn-secondary btn-sm disabled:opacity-40 whitespace-nowrap">첫 품목 단가로 넣기</button>
+        className="btn-secondary btn-sm disabled:opacity-40 whitespace-nowrap">{applyLabel}</button>
     </div>
   );
 }
@@ -587,6 +587,7 @@ function TaxInvoicesPageInner() {
   });
   const [rows, setRows] = useState<FormRow[]>(() => [blankRow()]);
   const [dropdownRowKey, setDropdownRowKey] = useState<string | null>(null);
+  const [calcRowKey, setCalcRowKey] = useState<string | null>(null);   //   여러 장 — 🧮 계산기가 펼쳐진 줄 (2026-08-31)
   //   한 장 쓰기(품목 여러 줄) / 여러 장 한꺼번에(한 줄 = 한 장) — 2026-08-10
   const [formMode, setFormMode] = useState<"single" | "multi">("single");
   const [savePartnerInfo, setSavePartnerInfo] = useState(true);
@@ -2339,7 +2340,8 @@ function TaxInvoicesPageInner() {
                   const supply = rowSupply(row);
                   const taxAmt = row.taxKind === "taxable" ? Math.round(supply * 0.1) : 0;
                   return (
-                    <div key={row.key} className="tax-multi-row">
+                    <Fragment key={row.key}>
+                    <div className="tax-multi-row">
                       <span className="tax-item-no">{i + 1}</span>
                       <select value={row.type} onChange={(e) => patchRow(row.key, { type: e.target.value as "sales" | "purchase" })}
                         className="tax-item-input">
@@ -2384,11 +2386,23 @@ function TaxInvoicesPageInner() {
                         placeholder="품목명" className="tax-item-input" />
                       <input value={row.items[0]?.qty || ""} onChange={(e) => patchItem(row.key, row.items[0].key, { qty: e.target.value })}
                         inputMode="decimal" placeholder="1" className="tax-item-input text-right" />
-                      <CurrencyInput value={row.items[0]?.unitCost || ""} onValueChange={(raw: string) => patchItem(row.key, row.items[0].key, { unitCost: raw })}
-                        placeholder="0" className="tax-item-input text-right" />
+                      {/*   allowNegative (2026-08-31 사장님) — 수정세금계산서·환입 등 마이너스 계산서를 여러 장에서도.
+                            🧮 = 공급대가(부가세 포함)로 이 줄 단가 역산 — 한 장 쓰기의 계산기와 동일 부품 */}
+                      <div className="relative">
+                        <CurrencyInput value={row.items[0]?.unitCost || ""} onValueChange={(raw: string) => patchItem(row.key, row.items[0].key, { unitCost: raw })}
+                          allowNegative placeholder="0" className="tax-item-input text-right w-full pr-7" />
+                        <button type="button" title="공급대가(부가세 포함)로 단가 계산"
+                          onClick={() => setCalcRowKey((k) => (k === row.key ? null : row.key))}
+                          className={`absolute right-1 top-1/2 -translate-y-1/2 text-[12px] leading-none ${calcRowKey === row.key ? "opacity-100" : "opacity-50 hover:opacity-100"}`}>🧮</button>
+                      </div>
                       <span className="tax-item-sum">{(supply + taxAmt).toLocaleString("ko-KR")}</span>
                       <button type="button" onClick={() => removeRow(row.key)} title="이 계산서 줄 지우기" className="tax-item-del">✕</button>
                     </div>
+                    {calcRowKey === row.key && (
+                      <GrossSplitCalc applyLabel="이 줄 단가로 넣기"
+                        onApply={(sup) => { patchItem(row.key, row.items[0].key, { unitCost: String(sup), qty: row.items[0]?.qty || "1" }); setCalcRowKey(null); }} />
+                    )}
+                    </Fragment>
                   );
                 })}
                 <div className="tax-items-foot">

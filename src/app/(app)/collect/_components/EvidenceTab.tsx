@@ -933,9 +933,21 @@ export function EvidenceTab({
               </ConditionRow>
 
               {kind === "card" && (
-                <ConditionRow label="카드" hint="여러 개">
-                  <TokenField items={cardOpts} value={draft.card} onChange={setD("card")}
-                    placeholder="카드 이름 (예: 롯데)" />
+                <ConditionRow label="카드" hint="여러 개 · 눌러서 선택">
+                  {/*   연결해 둔 카드를 목록으로 펼쳐 클릭 선택 (2026-08-31 사장님: "이름을 직접 입력해야 했다").
+                        카드가 20장을 넘는 회사만 종전 검색 입력으로. */}
+                  {cardOpts.length > 0 && cardOpts.length <= 20 ? (
+                    <span className="qk-quicks">
+                      {cardOpts.map((c) => (
+                        <button key={c.value} type="button"
+                          onClick={() => setDraft((d) => ({ ...d, card: d.card.includes(c.value) ? d.card.filter((x) => x !== c.value) : [...d.card, c.value] }))}
+                          className={draft.card.includes(c.value) ? "qk-quick qk-quick-on" : "qk-quick"}>{c.label}</button>
+                      ))}
+                    </span>
+                  ) : (
+                    <TokenField items={cardOpts} value={draft.card} onChange={setD("card")}
+                      placeholder="카드 이름 (예: 롯데)" />
+                  )}
                 </ConditionRow>
               )}
 
