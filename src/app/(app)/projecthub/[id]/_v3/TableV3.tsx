@@ -480,6 +480,25 @@ export function TableV3() {
     await saveItem(it.id, { followers: next });
   };
 
+  // ── 선택지(select 옵션) 편집 — 템플릿은 기초일 뿐, 이름·색·순서·추가·삭제 전부 사용자 것
+  //   (2026-09-01 사장님: "템플릿에서 제공하는 항목도 삭제·수정 가능하게, 위치도 자유자재로") ──
+  const OPTION_COLORS = ["#9aa0b5", "#FDAB3D", "#00C875", "#E2445C", "#5559DF", "#66CCFF"];
+  const [optEdit, setOptEdit] = useState(false);
+  const saveOptions = async (col: ColumnDef, options: NonNullable<NonNullable<ColumnDef["settings"]>["options"]>) => {
+    const { error } = await db.from("project_item_columns")
+      .update({ settings: { ...(col.settings || {}), options } }).eq("id", col.id);
+    if (error) { toast(friendlyError(error), "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pjv3-cols", dealId] });
+  };
+  const deleteOption = async (col: ColumnDef, optId: string) => {
+    //   이 값을 쓰던 칸은 비운다 — 지운 선택지 id 가 셀에 날것으로 남지 않게
+    const using = items.filter((it) => (it.fields || {})[col.key] === optId);
+    await Promise.all(using.map((it) =>
+      db.from("project_items").update({ fields: { ...(it.fields || {}), [col.key]: null } }).eq("id", it.id)));
+    await saveOptions(col, (col.settings?.options || []).filter((o) => o.id !== optId));
+    if (using.length > 0) qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
+  };
+
   const deleteColumn = async (c: ColumnDef) => {
     const { error } = await db.from("project_item_columns")
       .update({ archived_at: new Date().toISOString() }).eq("id", c.id);
@@ -502,6 +521,7 @@ export function TableV3() {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     return { x: Math.min(r.left, window.innerWidth - 210), y: r.bottom + 4 };
   };
+  useEffect(() => { if (!pop || pop.kind !== "select") setOptEdit(false); }, [pop]);
   useEffect(() => {
     //   팝(팔레트·담당 등)이 떠 있으면 Esc 는 팝만 닫는다 — 서랍까지 같이 닫히면 당황스럽다
     if (!drawerId || pop) return;
@@ -1018,7 +1038,7 @@ export function TableV3() {
 
       {/* ── 떠 있는 팝 — 상태·담당·선택지·컬럼 추가 ── */}
       {pop && (
-        <div className="pjv3-pop" style={{ left: pop.x, top: pop.y }}>
+        <div className={`pjv3-pop ${pop.kind === "select" && optEdit ? "pjv3-pop-wide" : ""}`} style={{ left: pop.x, top: pop.y }}>
           {pop.kind === "status" && (<>
             <div className="pjv3-pop-title">상태 — 그룹·칸반 열이 같이 바뀝니다</div>
             {stages.map((s) => (
@@ -1043,9 +1063,46 @@ export function TableV3() {
           </>)}
           {pop.kind === "select" && (() => {
             const col = cols.find((c) => c.key === pop.colKey);
-            const opts = col?.settings?.options || [];
+            if (!col) return null;
+            const opts = col.settings?.options || [];
+            if (optEdit) return (<>
+              <div className="pjv3-pop-title">{col.name} — 선택지 고치기 (색은 점을 눌러 순환)</div>
+              {opts.map((o, i) => (
+                <div key={o.id} className="pjv3-opt-row">
+                  <span className="dot" style={{ background: o.color || OPTION_COLORS[0] }} title="색 바꾸기"
+                    onClick={() => {
+                      const next = OPTION_COLORS[(OPTION_COLORS.indexOf(o.color || "") + 1) % OPTION_COLORS.length];
+                      saveOptions(col, opts.map((x) => (x.id === o.id ? { ...x, color: next } : x)));
+                    }} />
+                  <input defaultValue={o.label} aria-label="선택지 이름"
+                    onBlur={(e) => {
+                      const v = e.target.value.trim();
+                      if (v && v !== o.label) saveOptions(col, opts.map((x) => (x.id === o.id ? { ...x, label: v } : x)));
+                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); }} />
+                  <button type="button" disabled={i === 0} title="위로"
+                    onClick={() => { const n = [...opts]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; saveOptions(col, n); }}>↑</button>
+                  <button type="button" disabled={i === opts.length - 1} title="아래로"
+                    onClick={() => { const n = [...opts]; [n[i + 1], n[i]] = [n[i], n[i + 1]]; saveOptions(col, n); }}>↓</button>
+                  <button type="button" className={`pjv3-del ${delArm === `opt:${col.id}:${o.id}` ? "arm" : ""}`}
+                    title="지우기 — 이 값을 쓰던 칸은 비워집니다"
+                    onClick={() => armOrRun(`opt:${col.id}:${o.id}`, () => deleteOption(col, o.id))}>
+                    {delArm === `opt:${col.id}:${o.id}` ? "한 번 더" : "✕"}
+                  </button>
+                </div>
+              ))}
+              <input placeholder="＋ 선택지 적고 Enter"
+                onKeyDown={(e) => {
+                  const v = (e.target as HTMLInputElement).value;
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing && v.trim()) {
+                    saveOptions(col, [...opts, { id: `o_${Date.now().toString(36)}`, label: v.trim(), color: OPTION_COLORS[opts.length % OPTION_COLORS.length] }]);
+                    (e.target as HTMLInputElement).value = "";
+                  }
+                }} />
+              <button type="button" onClick={() => setOptEdit(false)}>← 고르기로 돌아가기</button>
+            </>);
             return (<>
-              <div className="pjv3-pop-title">{col?.name}</div>
+              <div className="pjv3-pop-title">{col.name}</div>
               <button type="button" className="text-[var(--text-dim)]" onClick={() => {
                 const it = items.find((x) => x.id === pop.itemId); if (it) saveField(it, pop.colKey, null); setPop(null);
               }}>없음</button>
@@ -1055,7 +1112,8 @@ export function TableV3() {
                   onClick={() => { const it = items.find((x) => x.id === pop.itemId); if (it) saveField(it, pop.colKey, o.id); setPop(null); }}>
                   {o.label}</button>
               ))}
-              {opts.length === 0 && <div className="pjv3-pop-title">선택지가 없습니다 — 컬럼 설정은 2단계에서</div>}
+              {opts.length === 0 && <div className="pjv3-pop-title">아직 선택지가 없습니다 — 아래에서 만드세요</div>}
+              <button type="button" className="pjv3-opt-manage" onClick={() => setOptEdit(true)}>선택지 고치기 — 이름·색·순서·추가·삭제</button>
             </>);
           })()}
           {pop.kind === "follower" && (<>

@@ -9616,3 +9616,16 @@ table.phv3-table { min-width: 640px; }
 .pjv3-calcell:hover .pjv3-caladd { @apply opacity-100; }
 .pjv3-caladd:hover { @apply text-[var(--primary)]; }
 .pjv3-calchip { @apply cursor-pointer truncate rounded px-1.5 py-0.5 text-left text-[10.5px] font-semibold text-white; border: none; font: inherit; font-size: 10.5px; }
+
+/* pjv3 — 선택지 편집(템플릿은 기초일 뿐 — 이름·색·순서·추가·삭제, 2026-09-01 사장님) */
+.pjv3-pop-wide { @apply w-72; }
+.pjv3-opt-row { @apply mb-1 flex items-center gap-1; }
+.pjv3-opt-row .dot { @apply h-4 w-4 flex-none cursor-pointer rounded-full border border-black/10; }
+.pjv3-pop .pjv3-opt-row input { @apply mb-0 min-w-0 flex-1; }
+.pjv3-pop .pjv3-opt-row button { @apply mb-0 w-auto flex-none rounded px-1 py-0.5 text-center text-[10px] text-[var(--text-dim)]; }
+.pjv3-pop .pjv3-opt-row button:disabled { @apply cursor-default opacity-30; }
+.pjv3-pop .pjv3-opt-row button:not(:disabled):hover { @apply bg-[var(--bg)] text-[var(--text)]; }
+.pjv3-opt-row .pjv3-del { @apply opacity-100; }
+.pjv3-pop .pjv3-opt-row .pjv3-del.arm { @apply bg-[var(--danger)] text-white; }
+.pjv3-pop .pjv3-opt-manage { @apply mt-1 border-t border-[var(--border)] pt-1.5 text-[11px] text-[var(--text-dim)]; }
+.pjv3-pop .pjv3-opt-manage:hover { @apply text-[var(--primary)]; }
