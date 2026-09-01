@@ -9663,3 +9663,24 @@ table.phv3-table { min-width: 640px; }
 
 /* 담기 칸 목록 — 아래 공간이 부족하면 위로 펼친다 (2026-09-01, TokenField dropUp) */
 .qk-tok-pop-up { @apply bottom-[calc(100%+4px)] top-auto; }
+/* pjv3 — 자유도 컬럼 타입(수식·체크·평점·링크·긴 글·첨부·오너뷰 연결, 2026-09-01 전부 승인) */
+.pjv3-sheet td.pjv3-checkcell { @apply text-center; }
+.pjv3-checkcell input { @apply h-4 w-4 cursor-pointer align-middle accent-[var(--primary)]; }
+.pjv3-ratecell { @apply whitespace-nowrap text-center; }
+.pjv3-ratecell span { @apply cursor-pointer px-px text-[13px] text-[var(--border)]; }
+.pjv3-ratecell span.on { @apply text-[var(--warning)]; }
+.pjv3-linkcell { @apply whitespace-nowrap; }
+.pjv3-linkcell a { @apply inline-block max-w-[180px] truncate align-middle text-xs text-[var(--primary)] underline decoration-dotted underline-offset-2; }
+.pjv3-linkedit { @apply ml-1 cursor-pointer align-middle text-[10px] text-[var(--text-dim)] opacity-0 transition-opacity; background: none; border: none; }
+.pjv3-sheet tbody tr:hover .pjv3-linkedit { @apply opacity-100; }
+.pjv3-linkedit:hover { @apply text-[var(--primary)]; }
+.pjv3-longcell .pjv3-cell { @apply block max-w-[220px] truncate; }
+.pjv3-longedit { @apply w-full rounded-lg border border-[var(--primary)] bg-[var(--bg)] px-2.5 py-2 text-xs text-[var(--text)] outline-none; font: inherit; font-size: 12px; }
+.pjv3-fxtoks { @apply mb-1 flex flex-wrap gap-1; }
+.pjv3-pop .pjv3-fxtoks button { @apply mb-0 w-auto rounded-md border border-[var(--border)] bg-[var(--bg)] px-2 py-0.5 text-[11px]; }
+.pjv3-pop .pjv3-fxtoks button:hover { @apply border-[var(--primary)] text-[var(--primary)]; }
+.pjv3-pop .pjv3-fxtoks button.on { @apply border-[var(--primary)] bg-[var(--primary)]/10 font-semibold text-[var(--primary)]; }
+.pjv3-pop .pjv3-filename { @apply mb-0 min-w-0 flex-1 truncate text-left; }
+.pjv3-filepick { @apply mt-1 block cursor-pointer rounded-lg border border-dashed border-[var(--border)] px-2.5 py-1.5 text-center text-[11px] text-[var(--text-dim)]; }
+.pjv3-filepick:hover { @apply border-[var(--primary)] text-[var(--primary)]; }
+.pjv3-typehint { @apply font-normal text-[var(--text-dim)]; }

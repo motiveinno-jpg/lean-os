@@ -23,6 +23,8 @@ import { friendlyError } from "@/lib/friendly-error";
 import { getCompanyUsers } from "@/lib/queries";
 import { stagesOf, FIELD_TYPES, type ItemStage, type FieldType } from "@/lib/project-items";
 import { TEMPLATES, TPL_CATEGORIES, MY_TPL_CAT, type Tpl } from "./templates";
+import { evalFormula, type FormulaResult } from "./formula";
+import { downloadStoredFile } from "@/lib/file-storage";
 import { exportToExcel } from "@/lib/excel-export";
 import { xNum, isDate, type ExcelColumn, type ExcelRow } from "@/lib/excel-io";
 import { ExcelUploadDialog, type ParseResult } from "@/app/(app)/inventory/_components/excel-upload";
@@ -57,7 +59,11 @@ type Pop =
   | { kind: "addview"; x: number; y: number }
   | { kind: "follower"; itemId: string; x: number; y: number }
   | { kind: "addcal"; date: string; x: number; y: number }
-  | { kind: "excel"; x: number; y: number };
+  | { kind: "excel"; x: number; y: number }
+  | { kind: "longtext"; itemId: string; colKey: string; x: number; y: number }
+  | { kind: "formula"; colKey: string; x: number; y: number }
+  | { kind: "files"; itemId: string; colKey: string; x: number; y: number }
+  | { kind: "ovlink"; itemId: string; colKey: string; x: number; y: number };
 
 export function TableV3() {
   const params = useParams();
@@ -158,10 +164,10 @@ export function TableV3() {
     if (error) { toast(friendlyError(error), "error"); return; }
     qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
   };
-  const addColumn = async (name: string, type: FieldType) => {
+  const addColumn = async (name: string, type: FieldType, settings?: Record<string, unknown>) => {
     const { error } = await db.from("project_item_columns").insert({
       company_id: companyId, deal_id: dealId, key: name, name, type,
-      settings: type === "select" ? { options: [] } : {},
+      settings: settings ?? (type === "select" ? { options: [] } : {}),
       position: (cols[cols.length - 1]?.position ?? 0) + 1,
     });
     if (error) { toast(friendlyError(error), "error"); return; }
@@ -505,6 +511,62 @@ export function TableV3() {
     await saveBuiltin({ order: list.map((c) => c.key) });
   };
 
+  // ── 컬럼 설정 저장(수식 expr 등) + 첨부파일(project-files 버킷) + 오너뷰 연결 검색 ──
+  const fxInRef = useRef<HTMLInputElement | null>(null);
+  const saveColSettings = async (col: ColumnDef, patch: Record<string, unknown>) => {
+    const { error } = await db.from("project_item_columns")
+      .update({ settings: { ...(col.settings || {}), ...patch } }).eq("id", col.id);
+    if (error) { toast(friendlyError(error), "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pjv3-cols", dealId] });
+  };
+  //   업로드는 새 uuid 경로 + upsert 금지(버킷에 UPDATE 정책이 없다 — 의도), 경로 첫 구간 = company_id(RLS)
+  const uploadItemFile = async (it: ItemRow, colKey: string, file: File) => {
+    if (file.size > 20 * 1024 * 1024) { toast("20MB까지 올릴 수 있습니다", "error"); return; }
+    //   경로에 원본 이름을 넣지 않는다 — 한글 파일명이 storage key 에서 400 (실측). 이름은 메타(fields)에만.
+    const ext = (file.name.split(".").pop() || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 10);
+    const path = `${companyId}/${dealId}/${it.id}/${crypto.randomUUID()}${ext ? `.${ext}` : ""}`;
+    const { error } = await db.storage.from("project-files").upload(path, file, { upsert: false });
+    if (error) { toast(friendlyError(error), "error"); return; }
+    const cur = Array.isArray((it.fields || {})[colKey]) ? ((it.fields || {})[colKey] as { name: string; path: string }[]) : [];
+    await saveField(it, colKey, [...cur, { name: file.name, path }]);
+    toast(`'${file.name}' 을(를) 붙였습니다`, "success");
+  };
+  const openItemFile = async (path: string) => {
+    const { data, error } = await db.storage.from("project-files").createSignedUrl(path, 3600);
+    if (error || !data?.signedUrl) { toast("파일 열기에 실패했습니다", "error"); return; }
+    window.open(data.signedUrl, "_blank");
+  };
+  const deleteItemFile = async (it: ItemRow, colKey: string, path: string) => {
+    await db.storage.from("project-files").remove([path]);
+    const cur = Array.isArray((it.fields || {})[colKey]) ? ((it.fields || {})[colKey] as { name: string; path: string }[]) : [];
+    await saveField(it, colKey, cur.filter((f) => f.path !== path));
+  };
+  const openStoredFile = (lk: { file_url?: string; title: string }) => {
+    if (lk.file_url) void downloadStoredFile(lk.file_url, lk.title);
+  };
+  const [ovQ, setOvQ] = useState("");
+  const [ovSrc, setOvSrc] = useState<"board" | "doc" | "sign">("board");
+  const [ovOpen, setOvOpen] = useState(false); // pop 은 아래에서 선언되므로(TDZ) 열림 여부만 따로 든다
+  const { data: ovResults = [] } = useQuery({
+    queryKey: ["pjv3-ov", companyId, ovSrc, ovQ],
+    enabled: !!companyId && ovOpen,
+    queryFn: async (): Promise<{ id: string; title: string; file_url?: string }[]> => {
+      if (ovSrc === "board") {
+        const d = logRead("pjv3:ovboard", await db.from("board_posts").select("id, title")
+          .eq("company_id", companyId).ilike("title", `%${ovQ}%`).order("created_at", { ascending: false }).limit(10));
+        return (d || []).map((r: { id: string; title: string }) => ({ id: r.id, title: r.title }));
+      }
+      if (ovSrc === "doc") {
+        const d = logRead("pjv3:ovdoc", await db.from("document_files").select("id, file_name, file_url")
+          .eq("company_id", companyId).ilike("file_name", `%${ovQ}%`).order("created_at", { ascending: false }).limit(10));
+        return (d || []).map((r: { id: string; file_name: string; file_url: string }) => ({ id: r.id, title: r.file_name, file_url: r.file_url }));
+      }
+      const d = logRead("pjv3:ovsign", await db.from("signature_requests").select("id, title")
+        .eq("company_id", companyId).ilike("title", `%${ovQ}%`).order("created_at", { ascending: false }).limit(10));
+      return (d || []).map((r: { id: string; title: string }) => ({ id: r.id, title: r.title }));
+    },
+  });
+
   // ── 엑셀 — 재고 공용 부품(excel-io·ExcelUploadDialog) 재사용. 조회 줄엔 '엑셀 ▾' 하나(표준) ──
   const [excelUp, setExcelUp] = useState(false);
   const exportRows = () => {
@@ -521,6 +583,11 @@ export function TableV3() {
         const val = raw == null ? "" : String(raw);
         if (c.type === "select") row[c.name] = (c.settings?.options || []).find((o) => o.id === val)?.label || val;
         else if (c.type === "person") row[c.name] = userName(val || null) || val;
+        else if (c.type === "check") row[c.name] = raw === true || raw === "true" ? "예" : "아니오";
+        else if (c.type === "formula") { const r = fxEval(it, c); row[c.name] = r.error ? "" : r.value ?? ""; }
+        else if (c.type === "auto") { const src = (c.settings as { mode?: string } | null)?.mode === "created" ? (it as any).created_at : (it as any).updated_at; row[c.name] = src ? String(src).slice(0, 10) : ""; }
+        else if (c.type === "files") row[c.name] = Array.isArray(raw) ? `파일 ${raw.length}개` : "";
+        else if (c.type === "ovlink") row[c.name] = raw && typeof raw === "object" ? (raw as { title?: string }).title || "" : "";
         else row[c.name] = val;
       }
       return row;
@@ -533,11 +600,13 @@ export function TableV3() {
     { key: "assignee", label: "담당", hint: "구성원 이름 그대로 — 비우면 없음" },
     { key: "due", label: "마감", kind: "date" },
     { key: "amount", label: "금액", kind: "number" },
-    ...cols.map((c): ExcelColumn => ({
+    //   수식·자동 날짜·첨부·오너뷰 연결은 올리기 대상이 아니다(계산·자동·복합) — 양식에서 뺀다
+    ...cols.filter((c) => !["formula", "auto", "files", "ovlink"].includes(c.type)).map((c): ExcelColumn => ({
       key: `f_${c.key}`, label: c.name,
-      kind: c.type === "number" ? "number" : c.type === "date" ? "date" : "text",
+      kind: c.type === "number" || c.type === "rating" ? "number" : c.type === "date" ? "date" : c.type === "check" ? "bool" : "text",
       hint: c.type === "select" ? `다음 중 하나: ${(c.settings?.options || []).map((o) => o.label).join(" / ")}`
-        : c.type === "person" ? "구성원 이름 그대로" : undefined,
+        : c.type === "person" ? "구성원 이름 그대로"
+        : c.type === "check" ? "예/아니오" : c.type === "rating" ? "1~5" : undefined,
     })),
   ];
   type XRow = { name: string; status: string; assignee_id: string | null; due: string | null; amount: number | null; fields: Record<string, unknown> };
@@ -562,8 +631,15 @@ export function TableV3() {
     if (dueRaw && !isDate(dueRaw)) return { error: `마감 '${dueRaw}' — 2026-09-01 형식으로` };
     const fields: Record<string, unknown> = {};
     for (const c of cols) {
+      if (["formula", "auto", "files", "ovlink"].includes(c.type)) continue; // 양식에 없는 타입
       const raw = (row[`f_${c.key}`] || "").trim();
       if (!raw) continue;
+      if (c.type === "check") { fields[c.key] = /^(예|y|yes|true|o|1)$/i.test(raw); continue; }
+      if (c.type === "rating") {
+        const n = Math.round(Number(raw));
+        if (!Number.isFinite(n) || n < 1 || n > 5) return { error: `'${c.name}' 칸의 '${raw}' — 1~5 사이 숫자로` };
+        fields[c.key] = n; continue;
+      }
       if (c.type === "select") {
         const opt = (c.settings?.options || []).find((o) => o.label === raw);
         if (!opt) return { error: `'${c.name}' 칸의 '${raw}' — ${(c.settings?.options || []).map((o) => o.label).join("/")} 중에서` };
@@ -698,6 +774,7 @@ export function TableV3() {
     };
   };
   useEffect(() => { if (!pop || pop.kind !== "select") setOptEdit(false); }, [pop]);
+  useEffect(() => { setOvOpen(pop?.kind === "ovlink"); }, [pop]);
   //   상태(그룹) 팔레트도 고정이 아니다 — 이름·색·순서·추가·삭제 (2026-09-01 사장님)
   const [stEdit, setStEdit] = useState(false);
   useEffect(() => { if (!pop || pop.kind !== "status") setStEdit(false); }, [pop]);
@@ -742,6 +819,34 @@ export function TableV3() {
         onClick={() => setEdit({ itemId: it.id, colKey })}>{shownValue || "—"}</span>
     );
   };
+
+  // ── 수식 — 저장 없이 볼 때마다 계산. 열 이름(현재 라벨)으로 참조, 수식→수식은 깊이 3까지 ──
+  const fxEval = (it: ItemRow, c: ColumnDef, depth = 0): FormulaResult => {
+    if (depth > 3) return { value: null, error: "수식이 서로를 참조하고 있어요" };
+    const expr = String((c.settings as { expr?: string } | null)?.expr || "");
+    return evalFormula(expr, (name) => {
+      const amountLabel = (builtinCfg.labels || {}).amount || "금액";
+      if (name === amountLabel || name === "금액" || name === "amount") {
+        return it.plan_amount == null ? null : Number(it.plan_amount);
+      }
+      const target = cols.find((x) => x.name === name || x.key === name);
+      if (!target) return undefined;
+      if (target.type === "number" || target.type === "rating") {
+        const v = (it.fields || {})[target.key];
+        return v == null || v === "" ? null : Number(v);
+      }
+      if (target.type === "formula" && target.key !== c.key) {
+        const r = fxEval(it, target, depth + 1);
+        return r.error ? undefined : r.value;
+      }
+      return undefined;
+    });
+  };
+  /** 수식에서 부를 수 있는 열 이름들(수식 편집 팝의 칩) */
+  const fxRefNames = [
+    (builtinCfg.labels || {}).amount || "금액",
+    ...cols.filter((c) => c.type === "number" || c.type === "rating" || c.type === "formula").map((c) => c.name),
+  ];
 
   // ── 숫자 컬럼 합계(먼데이 M6) ──
   const numberCols = cols.filter((c) => c.type === "number");
@@ -796,6 +901,76 @@ export function TableV3() {
         const c = ac.col!;
         const raw = (it.fields || {})[c.key];
         const val = raw == null ? "" : String(raw);
+        //   자유도 타입들(2026-09-01 사장님 1·2차+평점·위치 전부 승인)
+        if (c.type === "check") {
+          const on = raw === true || raw === "true";
+          return <td key={ac.key} className="pjv3-checkcell">
+            <input type="checkbox" checked={on} aria-label={c.name} onChange={() => saveField(it, c.key, !on)} /></td>;
+        }
+        if (c.type === "rating") {
+          const n = Math.max(0, Math.min(5, Number(raw) || 0));
+          return <td key={ac.key} className="pjv3-ratecell">
+            {[1, 2, 3, 4, 5].map((k) => (
+              <span key={k} className={k <= n ? "on" : ""} title={`${k}점${k === n ? " — 다시 누르면 지움" : ""}`}
+                onClick={() => saveField(it, c.key, k === n ? null : k)}>★</span>
+            ))}</td>;
+        }
+        if (c.type === "url" || c.type === "tel" || c.type === "place") {
+          if (edit?.itemId === it.id && edit?.colKey === c.key) {
+            return <td key={ac.key} className="pjv3-ecell"><EditCell it={it} colKey={c.key} value={val} type="text" /></td>;
+          }
+          if (!val) return <td key={ac.key} className="pjv3-ecell"><span className="pjv3-cell text-[var(--text-dim)]"
+            onClick={() => setEdit({ itemId: it.id, colKey: c.key })}>—</span></td>;
+          const href = c.type === "url" ? (/^https?:\/\//.test(val) ? val : `https://${val}`)
+            : c.type === "tel" ? `tel:${val.replace(/[^0-9+]/g, "")}`
+            : `https://map.naver.com/p/search/${encodeURIComponent(val)}`;
+          return <td key={ac.key} className="pjv3-linkcell">
+            <a href={href} target={c.type === "tel" ? undefined : "_blank"} rel="noreferrer"
+              title={c.type === "place" ? "누르면 네이버 지도 검색" : c.type === "tel" ? "누르면 전화 걸기" : "누르면 새 창"}>{val}</a>
+            <button type="button" className="pjv3-linkedit" title="고치기" onClick={() => setEdit({ itemId: it.id, colKey: c.key })}>✎</button>
+          </td>;
+        }
+        if (c.type === "longtext") {
+          return <td key={ac.key} className="pjv3-longcell">
+            <span className={`pjv3-cell !text-left ${val ? "" : "text-[var(--text-dim)]"}`}
+              onClick={(e) => setPop({ kind: "longtext", itemId: it.id, colKey: c.key, ...at(e) })}>{val || "—"}</span></td>;
+        }
+        if (c.type === "auto") {
+          const src = (c.settings as { mode?: string } | null)?.mode === "created" ? (it as any).created_at : (it as any).updated_at;
+          return <td key={ac.key} className="mono-number text-xs text-[var(--text-dim)]">
+            {src ? String(src).slice(5, 16).replace("T", " ") : "—"}</td>;
+        }
+        if (c.type === "formula") {
+          const r = fxEval(it, c);
+          return <td key={ac.key} className="pjv3-ecell mono-number">
+            <span className="pjv3-cell" title={r.error || `수식: ${String((c.settings as { expr?: string } | null)?.expr || "")} — 누르면 고치기`}
+              onClick={(e) => setPop({ kind: "formula", colKey: c.key, ...at(e) })}>
+              {r.error ? <span className="text-[var(--danger)]">⚠ 수식 확인</span> : r.value == null ? "—" : r.value.toLocaleString("ko-KR")}
+            </span></td>;
+        }
+        if (c.type === "files") {
+          const list = Array.isArray(raw) ? (raw as { name: string; path: string }[]) : [];
+          return <td key={ac.key}><button type="button" className="pjv3-cell"
+            onClick={(e) => setPop({ kind: "files", itemId: it.id, colKey: c.key, ...at(e) })}>
+            {list.length > 0 ? `📎 ${list.length}` : <span className="text-[var(--text-dim)]">—</span>}</button></td>;
+        }
+        if (c.type === "ovlink") {
+          const lk = raw && typeof raw === "object" && !Array.isArray(raw)
+            ? (raw as { src: string; id: string; title: string; file_url?: string }) : null;
+          return <td key={ac.key} className="pjv3-linkcell">
+            {lk ? (
+              <a href={lk.src === "board" ? `/board?post=${lk.id}` : lk.src === "sign" ? "/signatures" : "#"}
+                onClick={(e) => { if (lk.src === "doc") { e.preventDefault(); openStoredFile(lk); } }}
+                title={lk.src === "board" ? "게시글로 이동" : lk.src === "sign" ? "전자계약으로 이동" : "파일 열기"}>
+                {lk.src === "board" ? "📋" : lk.src === "sign" ? "✍" : "🗂"} {lk.title}</a>
+            ) : (
+              <span className="pjv3-cell text-[var(--text-dim)]"
+                onClick={(e) => { setOvQ(""); setPop({ kind: "ovlink", itemId: it.id, colKey: c.key, ...at(e) }); }}>—</span>
+            )}
+            {lk && <button type="button" className="pjv3-linkedit" title="바꾸기"
+              onClick={(e) => { setOvQ(""); setPop({ kind: "ovlink", itemId: it.id, colKey: c.key, ...at(e) }); }}>✎</button>}
+          </td>;
+        }
         if (c.type === "select") {
           const opt = (c.settings?.options || []).find((o) => o.id === val || o.label === val);
           //   옵션에 색이 있으면 상태 셀처럼 색으로 채운다 — 가로 흐름이 색으로 읽힌다(monday 문법)
@@ -1081,6 +1256,9 @@ export function TableV3() {
                   if (ac.builtin === "status") return <td key={ac.key} className="font-bold">{stages.map((s) => `${s.label} ${(byStage.m.get(s.id) || []).length}`).join(" · ")}</td>;
                   if (ac.builtin === "amount") return <td key={ac.key} className="mono-number font-bold">{shown.reduce((s, it) => s + (Number(it.plan_amount) || 0), 0).toLocaleString("ko-KR")}</td>;
                   if (ac.col?.type === "number") return <td key={ac.key} className="mono-number font-bold">{sumOf(ac.col.key).toLocaleString("ko-KR")}</td>;
+                  if (ac.col?.type === "check") { const done = shown.filter((it) => (it.fields || {})[ac.col!.key] === true).length; return <td key={ac.key} className="num font-bold">{done}/{shown.length}</td>; }
+                  if (ac.col?.type === "rating") { const vs = shown.map((it) => Number((it.fields || {})[ac.col!.key]) || 0).filter((v) => v > 0); return <td key={ac.key} className="num font-bold">{vs.length ? `★ ${(vs.reduce((a, b) => a + b, 0) / vs.length).toFixed(1)}` : ""}</td>; }
+                  if (ac.col?.type === "formula") { const sum = shown.reduce((s, it) => { const r = fxEval(it, ac.col!); return s + (r.value ?? 0); }, 0); return <td key={ac.key} className="mono-number font-bold">{sum.toLocaleString("ko-KR")}</td>; }
                   return <td key={ac.key}></td>;
                 })}
                 <td></td>
@@ -1454,6 +1632,75 @@ export function TableV3() {
                 }
               }} />
           </>)}
+          {pop.kind === "longtext" && (() => {
+            const it = items.find((x) => x.id === pop.itemId);
+            const col = cols.find((c) => c.key === pop.colKey);
+            if (!it || !col) return null;
+            const cur = String((it.fields || {})[pop.colKey] ?? "");
+            return (<>
+              <div className="pjv3-pop-title">{col.name} — 바깥을 누르면 저장됩니다</div>
+              <textarea className="pjv3-longedit" autoFocus defaultValue={cur} rows={6}
+                onBlur={(e) => { const v = e.target.value; if (v !== cur) saveField(it, pop.colKey, v || null); }} />
+            </>);
+          })()}
+          {pop.kind === "formula" && (() => {
+            const col = cols.find((c) => c.key === pop.colKey);
+            if (!col) return null;
+            return (<>
+              <div className="pjv3-pop-title">수식 — 열 이름과 ＋ − × ÷ ( ) 숫자 · 빈 칸을 참조한 줄은 —</div>
+              <input ref={fxInRef} defaultValue={String((col.settings as { expr?: string } | null)?.expr || "")} placeholder="예: 수량 × 단가 − 할인" />
+              <div className="pjv3-fxtoks">
+                {[...fxRefNames.filter((n) => n !== col.name), "＋", "−", "×", "÷", "(", ")"].map((t) => (
+                  <button key={t} type="button" onClick={() => { const el = fxInRef.current; if (el) { el.value = `${el.value} ${t} `.replace(/\s+/g, " "); el.focus(); } }}>{t}</button>
+                ))}
+              </div>
+              <button type="button" className="pjv3-opt-manage"
+                onClick={() => { saveColSettings(col, { expr: (fxInRef.current?.value ?? "").trim() }); setPop(null); }}>저장</button>
+            </>);
+          })()}
+          {pop.kind === "files" && (() => {
+            const it = items.find((x) => x.id === pop.itemId);
+            if (!it) return null;
+            const list = Array.isArray((it.fields || {})[pop.colKey]) ? ((it.fields || {})[pop.colKey] as { name: string; path: string }[]) : [];
+            return (<>
+              <div className="pjv3-pop-title">첨부파일 — 누르면 열기 · 20MB까지</div>
+              {list.map((f) => (
+                <div key={f.path} className="pjv3-opt-row">
+                  <button type="button" className="pjv3-filename" onClick={() => openItemFile(f.path)}>📎 {f.name}</button>
+                  <button type="button" className={`pjv3-del ${delArm === `file:${f.path}` ? "arm" : ""}`} title="지우기"
+                    onClick={() => armOrRun(`file:${f.path}`, () => deleteItemFile(it, pop.colKey, f.path))}>
+                    {delArm === `file:${f.path}` ? "한 번 더" : "✕"}
+                  </button>
+                </div>
+              ))}
+              {list.length === 0 && <div className="pjv3-pop-title">아직 없습니다</div>}
+              <label className="pjv3-filepick">＋ 파일 올리기
+                <input type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadItemFile(it, pop.colKey, f); e.target.value = ""; }} />
+              </label>
+            </>);
+          })()}
+          {pop.kind === "ovlink" && (() => {
+            const it = items.find((x) => x.id === pop.itemId);
+            if (!it) return null;
+            const cur = (it.fields || {})[pop.colKey];
+            return (<>
+              <div className="pjv3-pop-title">오너뷰에서 골라 붙이기</div>
+              <div className="pjv3-fxtoks">
+                {([["board", "게시글"], ["doc", "보관함 파일"], ["sign", "전자계약"]] as const).map(([k, l]) => (
+                  <button key={k} type="button" className={ovSrc === k ? "on" : ""} onClick={() => setOvSrc(k)}>{l}</button>
+                ))}
+              </div>
+              <input value={ovQ} onChange={(e) => setOvQ(e.target.value)} placeholder="이름 일부로 검색" autoFocus />
+              {ovResults.map((r) => (
+                <button key={r.id} type="button" onClick={() => {
+                  saveField(it, pop.colKey, { src: ovSrc, id: r.id, title: r.title, ...(r.file_url ? { file_url: r.file_url } : {}) });
+                  setPop(null);
+                }}>{r.title}</button>
+              ))}
+              {ovResults.length === 0 && <div className="pjv3-pop-title">결과가 없습니다 — 검색어를 바꿔 보세요</div>}
+              {cur != null && <button type="button" className="pjv3-opt-manage" onClick={() => { saveField(it, pop.colKey, null); setPop(null); }}>연결 풀기</button>}
+            </>);
+          })()}
           {pop.kind === "addcol" && (<>
             {(builtinCfg.hidden?.length ?? 0) > 0 && (<>
               <div className="pjv3-pop-title">숨긴 기본 열 — 눌러서 되살리기</div>
@@ -1464,7 +1711,7 @@ export function TableV3() {
                 </button>
               ))}
             </>)}
-            <AddColPop onAdd={(name, type) => { addColumn(name, type); setPop(null); }} />
+            <AddColPop fxNames={fxRefNames} onAdd={(name, type, settings) => { addColumn(name, type, settings); setPop(null); }} />
           </>)}
         </div>
       )}
@@ -1472,16 +1719,53 @@ export function TableV3() {
   );
 }
 
-/** 컬럼 추가 팝 — 이름 적고 타입 고르면 끝 (결정 125: 컬럼이 곧 구조) */
-function AddColPop({ onAdd }: { onAdd: (name: string, type: FieldType) => void }) {
+/** 컬럼 추가 팝 — 이름 적고 타입 고르면 끝 (결정 125: 컬럼이 곧 구조).
+ *  2026-09-01 확장: 그룹(기본·자유도·오너뷰 연결)으로 묶고, 수식은 식 입력·자동 날짜는 기준 선택 단계가 붙는다 */
+function AddColPop({ onAdd, fxNames }: {
+  onAdd: (name: string, type: FieldType, settings?: Record<string, unknown>) => void; fxNames: string[];
+}) {
   const [name, setName] = useState("");
+  const [step, setStep] = useState<null | "formula" | "auto">(null);
+  const [expr, setExpr] = useState("");
+  if (step === "formula") return (
+    <>
+      <div className="pjv3-pop-title">{`'${name}' 수식 — 열 이름과 ＋ − × ÷ ( ) 숫자`}</div>
+      <input autoFocus value={expr} onChange={(e) => setExpr(e.target.value)} placeholder="예: 수량 × 단가 − 할인" />
+      <div className="pjv3-fxtoks">
+        {[...fxNames, "＋", "−", "×", "÷", "(", ")"].map((t) => (
+          <button key={t} type="button" onClick={() => setExpr((v) => `${v} ${t} `.replace(/\s+/g, " "))}>{t}</button>
+        ))}
+      </div>
+      <button type="button" className={expr.trim() ? "" : "opacity-40"}
+        onClick={() => { if (expr.trim()) onAdd(name, "formula", { expr: expr.trim() }); }}>만들기</button>
+    </>
+  );
+  if (step === "auto") return (
+    <>
+      <div className="pjv3-pop-title">{`'${name}' — 어떤 날짜를 자동으로 보여줄까요`}</div>
+      <button type="button" onClick={() => onAdd(name, "auto", { mode: "created" })}>만든 날</button>
+      <button type="button" onClick={() => onAdd(name, "auto", { mode: "updated" })}>마지막 수정</button>
+    </>
+  );
   return (
     <>
       <div className="pjv3-pop-title">컬럼 추가 — 이름 적고 타입을 고르세요</div>
-      <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 광고 ID, KPI 목표" />
-      {FIELD_TYPES.map((t) => (
-        <button key={t.id} type="button" className={name.trim() ? "" : "opacity-40"}
-          onClick={() => { if (name.trim()) onAdd(name.trim(), t.id); }}>{t.label}</button>
+      <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 광고 ID, 마진" />
+      {(["기본", "자유도", "오너뷰 연결"] as const).map((g) => (
+        <div key={g}>
+          <div className="pjv3-pop-title">{g}</div>
+          {FIELD_TYPES.filter((t) => t.group === g).map((t) => (
+            <button key={t.id} type="button" className={name.trim() ? "" : "opacity-40"}
+              onClick={() => {
+                if (!name.trim()) return;
+                if (t.id === "formula") { setStep("formula"); return; }
+                if (t.id === "auto") { setStep("auto"); return; }
+                onAdd(name.trim(), t.id, undefined);
+              }}>
+              {t.label}{t.hint ? <small className="pjv3-typehint"> — {t.hint}</small> : null}
+            </button>
+          ))}
+        </div>
       ))}
     </>
   );

@@ -131,8 +131,24 @@ export const STARTERS: Starter[] = [
 ];
 
 // ── 속성필드 (결정 8-2) — 프로젝트별 추가 칸. 값은 project_items.fields jsonb ──
-export type FieldType = "text" | "number" | "date" | "select" | "person" | "partner";
-export const FIELD_TYPES: { id: FieldType; label: string }[] = [
-  { id: "text", label: "텍스트" }, { id: "number", label: "숫자" }, { id: "date", label: "날짜" },
-  { id: "select", label: "선택" }, { id: "person", label: "사람" }, { id: "partner", label: "거래처" },
+//   2026-09-01 확장(사장님 "컬럼에 사용자의 다양한 자유도" — 1·2차 전부 승인):
+//   formula(수식)·check(체크)·url(웹 링크)·tel(전화)·longtext(긴 글)·auto(자동 날짜)
+//   ·files(첨부파일)·ovlink(오너뷰 연결). DB 체크 제약은 20260901150000 이 같은 14종.
+export type FieldType = "text" | "number" | "date" | "select" | "person" | "partner"
+  | "formula" | "check" | "url" | "tel" | "longtext" | "auto" | "files" | "ovlink"
+  | "rating" | "place";
+export const FIELD_TYPES: { id: FieldType; label: string; group: "기본" | "자유도" | "오너뷰 연결"; hint?: string }[] = [
+  { id: "text", label: "텍스트", group: "기본" }, { id: "number", label: "숫자", group: "기본" },
+  { id: "date", label: "날짜", group: "기본" }, { id: "select", label: "선택", group: "기본" },
+  { id: "person", label: "사람", group: "기본" }, { id: "partner", label: "거래처", group: "기본" },
+  { id: "formula", label: "수식", group: "자유도", hint: "다른 열로 계산" },
+  { id: "check", label: "체크", group: "자유도", hint: "예/아니오" },
+  { id: "url", label: "웹 링크", group: "자유도", hint: "누르면 열림" },
+  { id: "tel", label: "전화", group: "자유도", hint: "누르면 걸기" },
+  { id: "longtext", label: "긴 글", group: "자유도", hint: "셀엔 줄임" },
+  { id: "auto", label: "자동 날짜", group: "자유도", hint: "만든 날·마지막 수정" },
+  { id: "rating", label: "평점", group: "자유도", hint: "별 1~5" },
+  { id: "place", label: "위치", group: "자유도", hint: "누르면 지도 검색" },
+  { id: "files", label: "첨부파일", group: "오너뷰 연결", hint: "줄마다 파일" },
+  { id: "ovlink", label: "오너뷰 연결", group: "오너뷰 연결", hint: "게시글·문서·전자계약" },
 ];
