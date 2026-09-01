@@ -9548,3 +9548,10 @@ table.phv3-table { min-width: 640px; }
 .pjv3-tpl-x.arm { @apply bg-[var(--danger)] text-white; }
 .pjv3-tpl-stagerow { @apply mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--text-dim)]; }
 .pjv3-tpl-stagerow em { @apply not-italic text-[10px]; }
+
+/* pjv3 — 지우기 ✕ (줄·그룹·컬럼 공용, 2026-09-01 사장님 "삭제 버튼이 없음 — 사용자 편의 무조건 고려") */
+.pjv3-del { @apply ml-1.5 cursor-pointer rounded px-1 py-0 align-middle text-[10px] font-normal text-[var(--text-dim)] opacity-0 transition-opacity; font: inherit; font-size: 10px; background: none; border: none; }
+.pjv3-sheet tbody tr:hover .pjv3-del, .pjv3-sheet th:hover .pjv3-del, td.pjv3-grow:hover .pjv3-del, .pjv3-del.arm { @apply opacity-100; }
+.pjv3-del:hover { @apply text-[var(--danger)]; }
+.pjv3-del.arm { @apply whitespace-nowrap bg-[var(--danger)] px-1.5 text-white; }
+.pjv3-sheet td.pjv3-rowdel { @apply border-r-0 px-1 text-center; min-width: 34px; }

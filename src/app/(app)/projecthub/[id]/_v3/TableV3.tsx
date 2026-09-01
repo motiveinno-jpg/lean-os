@@ -292,6 +292,49 @@ export function TableV3() {
     if (ok) setStageEdit(id);
   };
 
+  // ── 지우기 — 만들 수 있는 것(줄·그룹·컬럼)은 지울 수도 있어야 한다
+  //   (2026-09-01 사장님: "그룹을 추가하면 삭제 버튼이 없음 — 기능 추가할 때는 사용자 편의를 무조건 고려").
+  //   전부 ✕ 두 번 클릭 확정(회사 양식 지우기와 같은 패턴), 3초 지나면 해제 ──
+  const [delArm, setDelArm] = useState<string | null>(null); // "stage:…" | "item:…" | "col:…"
+  useEffect(() => {
+    if (!delArm) return;
+    const t = setTimeout(() => setDelArm(null), 3000);
+    return () => clearTimeout(t);
+  }, [delArm]);
+  const armOrRun = (key: string, run: () => void) => {
+    if (delArm !== key) { setDelArm(key); return; }
+    setDelArm(null); run();
+  };
+  const deleteStage = async (id: string) => {
+    const rest = stages.filter((s) => s.id !== id);
+    if (rest.length === 0) return; // 마지막 그룹은 못 지운다(버튼도 안 그림) — 표엔 그룹이 최소 하나
+    const movedCount = (byStage.m.get(id) || []).length;
+    if (movedCount > 0) {
+      //   항목은 지우지 않는다 — 맨 위 남는 그룹으로 옮긴다(그룹 삭제가 항목까지 지우면 파괴)
+      const { error } = await db.from("project_items").update({ status: rest[0].id })
+        .eq("deal_id", dealId).eq("status", id);
+      if (error) { toast(friendlyError(error), "error"); return; }
+    }
+    const ok = await saveStages(rest);
+    if (!ok) return;
+    qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
+    toast(movedCount > 0 ? `그룹을 지우고 항목 ${movedCount}개를 '${rest[0].label}'(으)로 옮겼습니다` : "그룹을 지웠습니다", "success");
+  };
+  const deleteItem = async (id: string) => {
+    const { error } = await db.from("project_items")
+      .update({ archived_at: new Date().toISOString() }).eq("id", id);
+    if (error) { toast(friendlyError(error), "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
+    toast("줄을 지웠습니다", "success");
+  };
+  const deleteColumn = async (c: ColumnDef) => {
+    const { error } = await db.from("project_item_columns")
+      .update({ archived_at: new Date().toISOString() }).eq("id", c.id);
+    if (error) { toast(friendlyError(error), "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pjv3-cols", dealId] });
+    toast(`'${c.name}' 컬럼을 지웠습니다 — 칸에 적었던 값은 남아 있어 같은 이름으로 다시 만들면 보입니다`, "success");
+  };
+
   // ── 팝(팔레트·담당·선택지·컬럼 추가) — 화면에 하나만 ──
   const [pop, setPop] = useState<Pop | null>(null);
   useEffect(() => {
@@ -396,7 +439,12 @@ export function TableV3() {
         return <td key={c.id} className={`pjv3-ecell ${c.type === "number" ? "mono-number" : ""}`}>
           <EditCell it={it} colKey={c.key} value={val} type={c.type === "number" ? "number" : c.type === "date" ? "date" : "text"} /></td>;
       })}
-      <td></td>
+      <td className="pjv3-rowdel">
+        <button type="button" className={`pjv3-del ${delArm === `item:${it.id}` ? "arm" : ""}`} title="이 줄 지우기"
+          onClick={() => armOrRun(`item:${it.id}`, () => deleteItem(it.id))}>
+          {delArm === `item:${it.id}` ? "한 번 더" : "✕"}
+        </button>
+      </td>
     </tr>
   );
 
@@ -494,7 +542,16 @@ export function TableV3() {
             <th style={{ minWidth: 92 }}>상태</th>
             <th style={{ minWidth: 106 }}>마감</th>
             <th style={{ minWidth: 96 }} title="예정 금액 — 확정 금액은 장부(전표·계산서)가 갖습니다">금액</th>
-            {cols.map((c) => <th key={c.id} style={{ minWidth: 96 }} title={`${c.name} (${FIELD_TYPES.find((t) => t.id === c.type)?.label || c.type})`}>{c.name}</th>)}
+            {cols.map((c) => (
+              <th key={c.id} style={{ minWidth: 96 }} title={`${c.name} (${FIELD_TYPES.find((t) => t.id === c.type)?.label || c.type})`}>
+                {c.name}
+                <button type="button" className={`pjv3-del ${delArm === `col:${c.id}` ? "arm" : ""}`}
+                  title="이 컬럼 지우기 — 칸에 적은 값은 남습니다"
+                  onClick={() => armOrRun(`col:${c.id}`, () => deleteColumn(c))}>
+                  {delArm === `col:${c.id}` ? "한 번 더" : "✕"}
+                </button>
+              </th>
+            ))}
             <th className="pjv3-colplus" title="컬럼 추가 — 글·숫자·날짜·선택·사람·거래처"
               onClick={(e) => setPop({ kind: "addcol", ...at(e as unknown as React.MouseEvent) })}>＋</th>
           </tr></thead>
@@ -516,6 +573,14 @@ export function TableV3() {
                       <span className="pjv3-grow-label" title="눌러서 그룹 이름 바꾸기" onClick={() => setStageEdit(s.id)}>{s.label}</span>
                     )}
                     <em className="num">{group.length}</em>
+                    {stages.length > 1 && (
+                      <button type="button"
+                        className={`pjv3-del ${delArm === `stage:${s.id}` ? "arm" : ""}`}
+                        title={group.length > 0 ? "이 그룹 지우기 — 항목은 맨 위 그룹으로 옮겨집니다" : "이 그룹 지우기"}
+                        onClick={(e) => { e.stopPropagation(); armOrRun(`stage:${s.id}`, () => deleteStage(s.id)); }}>
+                        {delArm === `stage:${s.id}` ? (group.length > 0 ? `${group.length}개 옮기고 지우기 — 한 번 더` : "한 번 더") : "✕"}
+                      </button>
+                    )}
                   </td>
                 </tr>,
                 ...group.map(renderRow),
@@ -560,7 +625,7 @@ export function TableV3() {
       <p className="pjv3-foot">
         {curView === "kanban"
           ? "카드를 끌어 다른 열에 놓으면 상태가 바뀝니다(표의 상태 셀과 같은 저장) · 열 아래 칸에 적고 Enter로 추가"
-          : "셀을 누르면 그 자리에서 고칩니다 · 상태 셀은 색 팔레트 · 오른쪽 ＋로 컬럼(글·숫자·날짜·선택·사람·거래처) 추가"}
+          : "셀을 누르면 그 자리에서 고칩니다 · 상태 셀은 색 팔레트 · 오른쪽 ＋로 컬럼 추가 · 줄·그룹·컬럼의 ✕는 한 번 더 눌러 지우기"}
       </p>
       </div>
 
