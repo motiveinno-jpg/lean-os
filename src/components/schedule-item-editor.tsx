@@ -19,6 +19,7 @@ import {
   getDepartments, uploadScheduleFile, VISIBILITY_LABEL,
   type EventColor, type ScheduleAttachment, type ScheduleEvent, type Visibility,
 } from "@/lib/schedule";
+import { supabase } from "@/lib/supabase";
 
 const COLORS: [EventColor, string][] = [
   ["blue", "파랑"], ["green", "초록"], ["red", "빨강"], ["amber", "노랑"], ["violet", "보라"], ["gray", "회색"],
@@ -47,6 +48,11 @@ export type ScheduleDraft = {
   targetUserIds: string[];
   targetDepartments: string[];
   attachments: ScheduleAttachment[];
+  /** 반복(결정 145) — "" = 안 함 */
+  recurFreq: "" | "daily" | "weekly" | "monthly";
+  recurWeekday: number;
+  /** 알림 — "" = 없음, 'morning' = 당일 아침 8:30. 반복 일정은 저장 시 비워진다(1차 미지원) */
+  reminder: string;
 };
 
 /** 저장된 일정 → 편집용 초안. 새로 만들 때는 날짜만 넣어 부르면 된다. */
@@ -63,6 +69,9 @@ export function draftFromEvent(e?: Partial<ScheduleEvent> | null, fallback?: { f
     targetUserIds: e?.target_user_ids || [],
     targetDepartments: e?.target_departments || [],
     attachments: e?.attachments || [],
+    recurFreq: (e?.recurrence?.freq as ScheduleDraft["recurFreq"]) || "",
+    recurWeekday: e?.recurrence?.weekday ?? new Date(`${from || "2026-01-05"}T00:00:00`).getDay(),
+    reminder: e?.reminder || "",
   };
 }
 
@@ -117,6 +126,17 @@ export function ScheduleItemEditor({
   const canSave = !!draft.title.trim() && !!companyId && !!userId && !saving;
   useModalKeys(true, onClose, canSave ? onSave : undefined);
 
+  //   알림 발송은 feature_rollout('schedule_reminders') 게이트(모티브 먼저) — 안 켜진 회사엔 칸 자체를 숨긴다
+  const { data: remindReady = false } = useQuery({
+    queryKey: ["feat-schedule-reminders", companyId],
+    enabled: !!companyId,
+    staleTime: 10 * 60_000,
+    queryFn: async () => {
+      const { data } = await (supabase as any).rpc("feature_on", { p_feature: "schedule_reminders", p_company: companyId });
+      return data === true;
+    },
+  });
+
   const { data: users = [] } = useQuery({
     queryKey: ["company-users", companyId],
     queryFn: () => getCompanyUsers(companyId!),
@@ -136,6 +156,15 @@ export function ScheduleItemEditor({
     if (draft.visibility !== "departments" && draft.targetDepartments.length) set({ targetDepartments: [] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft.visibility]);
+
+  //   시작 날짜를 바꾸면 반복 요일을 그 날짜의 요일로 맞춘다 — 9/03(목)을 넣었는데 수요일로
+  //   반복되는 사고 방지(2026-09-01 실측서 잡음). 요일을 따로 고른 뒤라도 날짜가 우선.
+  useEffect(() => {
+    if (!draft.from) return;
+    const wd = new Date(`${draft.from}T00:00:00`).getDay();
+    if (!Number.isNaN(wd) && wd !== draft.recurWeekday) set({ recurWeekday: wd });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.from]);
 
   const toggleUser = (id: string) => set({
     targetUserIds: draft.targetUserIds.includes(id)
@@ -220,6 +249,41 @@ export function ScheduleItemEditor({
           </div>
         </div>
         {!draft.from && <p className="sched-note">날짜를 비우면 달력에 안 뜨고 <b>목록에만</b> 남습니다.</p>}
+
+        {/* 반복(결정 145) — 한 건으로 저장되고 달력이 회차를 펼친다. 고치면 모든 회차 반영 */}
+        <div className="sched-field">
+          <span>반복</span>
+          <div className="sched-range">
+            <select className="sched-in" value={draft.recurFreq} disabled={!draft.from} aria-label="반복"
+              onChange={(e) => set({ recurFreq: e.target.value as ScheduleDraft["recurFreq"] })}>
+              <option value="">안 함</option>
+              <option value="daily">매일</option>
+              <option value="weekly">매주</option>
+              <option value="monthly">매월</option>
+            </select>
+            {draft.recurFreq === "weekly" && (
+              <select className="sched-in" value={String(draft.recurWeekday)} aria-label="반복 요일"
+                onChange={(e) => set({ recurWeekday: Number(e.target.value) })}>
+                {["일", "월", "화", "수", "목", "금", "토"].map((d, i) => <option key={i} value={i}>{d}요일</option>)}
+              </select>
+            )}
+          </div>
+        </div>
+        {draft.recurFreq && <p className="sched-note">한 건으로 저장되고 달력에 회차로 펼쳐 보입니다 — <b>고치거나 지우면 모든 회차</b>에 적용됩니다. 매월 반복은 그 날짜가 없는 달(31일 등)엔 건너뜁니다.</p>}
+
+        {/* 알림 — 발송 게이트가 켜진 회사에만 보인다(안 켜진 회사에 보여주면 거짓말) */}
+        {remindReady && (
+          <div className="sched-field">
+            <span>알림</span>
+            <select className="sched-in" value={draft.reminder} disabled={!draft.from || !!draft.recurFreq} aria-label="알림"
+              onChange={(e) => set({ reminder: e.target.value })}>
+              <option value="">없음</option>
+              <option value="morning">당일 아침 8:30</option>
+            </select>
+          </div>
+        )}
+        {remindReady && !!draft.recurFreq && <p className="sched-note">반복 일정 알림은 다음 단계에서 — 지금은 단발 일정만 알림이 갑니다.</p>}
+        {remindReady && !draft.recurFreq && draft.reminder && <p className="sched-note">알림은 <b>나에게</b> 옵니다(알림 벨).</p>}
 
         <div className="sched-field">
           <span>공유 범위</span>

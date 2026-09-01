@@ -16,6 +16,13 @@ export const VISIBILITY_LABEL: Record<Visibility, string> = {
 /** 일정에 붙인 파일 — documents 버킷의 schedule/ 아래에 올라간다 */
 export type ScheduleAttachment = { url: string; name: string; size?: number };
 
+/** 반복(결정 145) — 행을 늘리지 않는다. 원본 한 건이 규칙을 담고, 달력이 회차를 펼쳐 보여준다.
+ *  프로젝트 v3 항목의 recurrence 와 같은 문법. */
+export type ScheduleRecurrence = { freq: "daily" | "weekly" | "monthly"; weekday?: number } | null;
+
+/** 가상 회차 id(`{uuid}@{날짜}`) → 원본 id. 수정·삭제·완료는 전부 원본 한 건에 적용된다. */
+const realId = (id: string) => id.split("@")[0];
+
 /** 일정 한 건. **'할 일' 이라는 구분은 없다** — start_at 이 없으면 목록에만, 있으면 달력에도 뜬다. */
 export interface ScheduleEvent {
   id: string;
@@ -40,6 +47,10 @@ export interface ScheduleEvent {
   deal_id: string | null;
   completed: boolean;
   completed_at: string | null;
+  /** 반복 규칙(결정 145) — null = 반복 없음 */
+  recurrence: ScheduleRecurrence;
+  /** 알림 — 'morning'(당일 아침 8:30) 등. null = 없음. 발송은 DB 크론(schedule_reminders_tick) */
+  reminder: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -48,7 +59,7 @@ export async function toggleEventCompleted(id: string, completed: boolean): Prom
   const { error } = await db
     .from("schedule_events")
     .update({ completed, completed_at: completed ? new Date().toISOString() : null })
-    .eq("id", id);
+    .eq("id", realId(id));
   if (error) throw error;
 }
 
@@ -91,14 +102,52 @@ export async function getMonthEvents(
   }
   const { data, error } = await q.order("start_at");
   if (error) throw error;
-  const rows = (data || []) as ScheduleEvent[];
-  return rows.filter((e) => {
-    // 일정의 표시 종료 시점: 기간 일정이면 end_at, 아니면 start_at
+  const rows = (data || []) as unknown as ScheduleEvent[];
+  const monthStart = new Date(year, monthIdx0, 1);
+  const monthEnd = new Date(year, monthIdx0 + 1, 1);
+  const out: ScheduleEvent[] = [];
+  for (const e of rows) {
     const effectiveEnd = e.end_at ?? e.start_at;
-    if (!effectiveEnd) return false;
-    // 이번 달과 한 칸이라도 겹치면 포함
-    return effectiveEnd >= start;
-  });
+    const inMonth = !!effectiveEnd && effectiveEnd >= start;
+    if (!e.recurrence?.freq) {
+      if (inMonth) out.push(e);
+      continue;
+    }
+    //   반복(결정 145) — 원본 회차는 원본 행이, 이후 회차는 여기서 펼친 가상 행이 담당.
+    //   가상 행의 id 는 `{원본id}@{날짜}` — 수정·삭제·완료는 realId() 로 원본에 간다(회차 전체 반영).
+    if (inMonth) out.push(e);
+    out.push(...expandRecurrence(e, monthStart, monthEnd));
+  }
+  return out.sort((a, b) => String(a.start_at).localeCompare(String(b.start_at)));
+}
+
+/** 반복 일정의 이번 달 가상 회차 — 행을 만들지 않고 보여주기만 한다(결정 145).
+ *  매월 반복은 그 날짜가 없는 달(31일 등)에는 건너뛴다 — 억지로 말일로 옮기지 않는다. */
+function expandRecurrence(e: ScheduleEvent, monthStart: Date, monthEnd: Date): ScheduleEvent[] {
+  const rec = e.recurrence;
+  if (!rec?.freq || !e.start_at) return [];
+  const base = new Date(e.start_at);
+  if (Number.isNaN(base.getTime())) return [];
+  const durMs = e.end_at ? Math.max(0, new Date(e.end_at).getTime() - base.getTime()) : 0;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const occ: ScheduleEvent[] = [];
+  for (const d = new Date(monthStart); d < monthEnd; d.setDate(d.getDate() + 1)) {
+    if (d.getTime() <= base.getTime()) continue; // 원본 이전·당일은 원본 몫
+    const hit = rec.freq === "daily"
+      || (rec.freq === "weekly" && d.getDay() === (rec.weekday ?? base.getDay()))
+      || (rec.freq === "monthly" && d.getDate() === base.getDate());
+    if (!hit) continue;
+    const s = new Date(d); s.setHours(base.getHours(), base.getMinutes(), 0, 0);
+    const ymd = `${s.getFullYear()}-${pad(s.getMonth() + 1)}-${pad(s.getDate())}`;
+    occ.push({
+      ...e,
+      id: `${e.id}@${ymd}`,
+      start_at: `${ymd}T${pad(s.getHours())}:${pad(s.getMinutes())}:00`,
+      end_at: durMs > 0 ? (() => { const t = new Date(s.getTime() + durMs); return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}T${pad(t.getHours())}:${pad(t.getMinutes())}:00`; })() : null,
+    });
+    if (occ.length >= 62) break; // 안전 상한 — 한 달에 이보다 많을 수 없다
+  }
+  return occ;
 }
 
 export async function upsertEvent(input: {
@@ -119,6 +168,10 @@ export async function upsertEvent(input: {
   targetDepartments?: string[];
   priority?: 0 | 1 | 2;
   attachments?: ScheduleAttachment[];
+  /** 반복 규칙(결정 145) — 넘기지 않으면 반복 없음으로 저장 */
+  recurrence?: ScheduleRecurrence;
+  /** 알림('morning' 등) — 반복 일정은 화면이 null 로 보낸다(1차 미지원) */
+  reminder?: string | null;
 }): Promise<ScheduleEvent> {
   const visibility: Visibility = input.visibility ?? "private";
   const row: any = {
@@ -137,15 +190,19 @@ export async function upsertEvent(input: {
     attachments: input.attachments ?? [],
     //   하위호환 — 옛 코드가 is_shared 를 읽는 곳이 남아 있어 같은 뜻으로 맞춰 둔다
     is_shared: visibility === "company",
+    recurrence: input.recurrence ?? null,
+    reminder: input.reminder ?? null,
+    //   알림을 새로 걸거나 날짜를 바꾸면 다시 보낼 수 있게 발송 기록을 비운다
+    reminded_at: null,
   };
-  if (input.id) row.id = input.id;
+  if (input.id) row.id = realId(input.id);
   const { data, error } = await db.from("schedule_events").upsert(row).select().single();
   if (error) throw error;
-  return data as ScheduleEvent;
+  return data as unknown as ScheduleEvent;
 }
 
 export async function deleteEvent(id: string): Promise<void> {
-  const { error } = await db.from("schedule_events").delete().eq("id", id);
+  const { error } = await db.from("schedule_events").delete().eq("id", realId(id));
   if (error) throw error;
 }
 
@@ -273,7 +330,7 @@ export async function getScheduleItems(
   if (opts?.mineOnly) q = q.eq("user_id", opts?.userId ?? "00000000-0000-0000-0000-000000000000");
   const { data, error } = await q;
   if (error) throw error;
-  const rows = (data || []) as ScheduleEvent[];
+  const rows = (data || []) as unknown as ScheduleEvent[];
   return rows.sort((a, b) => {
     if (a.completed !== b.completed) return a.completed ? 1 : -1;
     //   날짜 없는 것은 맨 뒤 — 언제 할지 정하지 않은 일이다

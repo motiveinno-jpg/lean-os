@@ -14790,6 +14790,9 @@ export type Database = {
           is_shared: boolean
           position: number
           priority: number
+          recurrence: Json | null
+          reminder: string | null
+          reminded_at: string | null
           start_at: string | null
           target_departments: string[]
           target_user_ids: string[]
@@ -14813,6 +14816,9 @@ export type Database = {
           is_shared?: boolean
           position?: number
           priority?: number
+          recurrence?: Json | null
+          reminder?: string | null
+          reminded_at?: string | null
           start_at?: string | null
           target_departments?: string[]
           target_user_ids?: string[]
@@ -14836,6 +14842,9 @@ export type Database = {
           is_shared?: boolean
           position?: number
           priority?: number
+          recurrence?: Json | null
+          reminder?: string | null
+          reminded_at?: string | null
           start_at?: string | null
           target_departments?: string[]
           target_user_ids?: string[]
