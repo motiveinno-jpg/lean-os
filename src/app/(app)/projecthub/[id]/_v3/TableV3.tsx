@@ -50,7 +50,8 @@ type Pop =
   | { kind: "person"; itemId: string; colKey?: string; x: number; y: number }
   | { kind: "select"; itemId: string; colKey: string; x: number; y: number }
   | { kind: "addcol"; x: number; y: number }
-  | { kind: "addview"; x: number; y: number };
+  | { kind: "addview"; x: number; y: number }
+  | { kind: "follower"; itemId: string; x: number; y: number };
 
 export function TableV3() {
   const params = useParams();
@@ -114,6 +115,18 @@ export function TableV3() {
     const { error } = await db.from("project_items")
       .update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id);
     if (error) { toast(friendlyError(error), "error"); return false; }
+    //   상태 변경은 기록(채터)에 log 로 남긴다 — 댓글과 한 줄기(결정 113). 실패해도 저장은 유효
+    if (typeof patch.status === "string") {
+      const from = items.find((x) => x.id === id)?.status;
+      if (from && from !== patch.status) {
+        const lbl = (sid: string) => stages.find((s) => s.id === sid)?.label || sid;
+        await db.from("project_item_events").insert({
+          company_id: companyId, item_id: id, kind: "log",
+          body: `상태: ${lbl(from)} → ${lbl(patch.status)}`, created_by: user?.id ?? null,
+        });
+        qc.invalidateQueries({ queryKey: ["pjv3-events", id] });
+      }
+    }
     qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
     return true;
   };
@@ -327,6 +340,121 @@ export function TableV3() {
     qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
     toast("줄을 지웠습니다", "success");
   };
+  // ── 줄 끌어 옮기기 — ⋮⋮ 핸들로 다른 줄 앞·그룹 끝에 놓는다. 그룹이 바뀌면 상태도 같이
+  //   (2026-09-01 사장님 승인 추천 2). 순서는 그룹 안 0..n 재부여(그룹 항목 수가 작아 일괄로 충분) ──
+  const rowDragRef = useRef<string | null>(null);
+  const [rowDropAt, setRowDropAt] = useState<string | null>(null); // "before:<itemId>" | "end:<stageId>"
+  const moveRow = async (target: string) => {
+    const id = rowDragRef.current; rowDragRef.current = null; setRowDropAt(null);
+    if (!id) return;
+    const it = items.find((x) => x.id === id);
+    if (!it) return;
+    let stageId: string; let list: ItemRow[];
+    if (target.startsWith("end:")) {
+      stageId = target.slice(4);
+      list = (byStage.m.get(stageId) || []).filter((x) => x.id !== id);
+      list.push(it);
+    } else {
+      const beforeId = target.slice("before:".length);
+      if (beforeId === id) return;
+      const before = items.find((x) => x.id === beforeId);
+      if (!before) return;
+      stageId = before.status;
+      const group = byStage.m.get(stageId) ?? byStage.etc;
+      list = group.filter((x) => x.id !== id);
+      const idx = list.findIndex((x) => x.id === beforeId);
+      list.splice(idx < 0 ? list.length : idx, 0, it);
+    }
+    const results = await Promise.all(list.map((x, i) =>
+      db.from("project_items").update({ position: i, ...(x.id === id ? { status: stageId } : {}) }).eq("id", x.id)));
+    const failed = results.find((r: { error: unknown }) => r.error);
+    if (failed) { toast(friendlyError(failed.error), "error"); }
+    qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
+  };
+
+  // ── 컬럼 이름 바꾸기·끌어 옮기기 (추천 3) — key 는 그대로 둔다(값 fields[key] 연결이 끊기지 않게) ──
+  const [colEdit, setColEdit] = useState<string | null>(null);
+  const colEditRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => { colEditRef.current?.focus(); colEditRef.current?.select(); }, [colEdit]);
+  const renameColumn = async (c: ColumnDef, name: string) => {
+    setColEdit(null);
+    const v = name.trim();
+    if (!v || v === c.name) return;
+    const { error } = await db.from("project_item_columns").update({ name: v }).eq("id", c.id);
+    if (error) { toast(friendlyError(error), "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pjv3-cols", dealId] });
+  };
+  const colDragRef = useRef<string | null>(null);
+  const [colDropAt, setColDropAt] = useState<string | null>(null);
+  const moveColumn = async (targetId: string | null) => {
+    const id = colDragRef.current; colDragRef.current = null; setColDropAt(null);
+    if (!id || id === targetId) return;
+    const dragged = cols.find((c) => c.id === id);
+    if (!dragged) return;
+    const list = cols.filter((c) => c.id !== id);
+    const idx = targetId ? list.findIndex((c) => c.id === targetId) : -1;
+    list.splice(idx < 0 ? list.length : idx, 0, dragged);
+    const results = await Promise.all(list.map((c, i) =>
+      db.from("project_item_columns").update({ position: i }).eq("id", c.id)));
+    const failed = results.find((r: { error: unknown }) => r.error);
+    if (failed) { toast(friendlyError(failed.error), "error"); }
+    qc.invalidateQueries({ queryKey: ["pjv3-cols", dealId] });
+  };
+
+  // ── 서랍(추천 1 = 2단계 핵심) — 줄을 열면 체크리스트·기록(댓글+변경 한 줄기)·팔로워.
+  //   팔로워 알림 연동(notify 트리거 확장)은 다음 차수 ──
+  const [drawerId, setDrawerId] = useState<string | null>(null);
+  const drawerItem = items.find((x) => x.id === drawerId) ?? null;
+  // (서랍 Esc 닫기는 팝 선언 뒤에 — 팝이 떠 있으면 Esc 는 팝만 닫는다)
+  type CheckRow = { id: string; name: string; done: boolean; position: number };
+  type EventRow = { id: string; kind: string; body: string; created_by: string | null; created_at: string };
+  const { data: checks = [] } = useQuery({
+    queryKey: ["pjv3-checks", drawerId],
+    enabled: !!drawerId,
+    queryFn: async () => (logRead("pjv3:checks", await db.from("project_item_checks")
+      .select("id, name, done, position").eq("item_id", drawerId)
+      .order("position").order("created_at")) || []) as CheckRow[],
+  });
+  const { data: events = [] } = useQuery({
+    queryKey: ["pjv3-events", drawerId],
+    enabled: !!drawerId,
+    queryFn: async () => (logRead("pjv3:events", await db.from("project_item_events")
+      .select("id, kind, body, created_by, created_at").eq("item_id", drawerId)
+      .order("created_at", { ascending: false })) || []) as EventRow[],
+  });
+  const addCheck = async (name: string) => {
+    if (!drawerId) return;
+    const { error } = await db.from("project_item_checks").insert({
+      company_id: companyId, item_id: drawerId, name,
+      position: (checks[checks.length - 1]?.position ?? 0) + 1,
+    });
+    if (error) { toast(friendlyError(error), "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pjv3-checks", drawerId] });
+  };
+  const toggleCheck = async (c: CheckRow) => {
+    const { error } = await db.from("project_item_checks").update({ done: !c.done }).eq("id", c.id);
+    if (error) { toast(friendlyError(error), "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pjv3-checks", drawerId] });
+  };
+  const deleteCheck = async (id: string) => {
+    const { error } = await db.from("project_item_checks").delete().eq("id", id);
+    if (error) { toast(friendlyError(error), "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pjv3-checks", drawerId] });
+  };
+  const addComment = async (body: string) => {
+    if (!drawerId) return;
+    const { error } = await db.from("project_item_events").insert({
+      company_id: companyId, item_id: drawerId, kind: "comment", body, created_by: user?.id ?? null,
+    });
+    if (error) { toast(friendlyError(error), "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pjv3-events", drawerId] });
+  };
+  const toggleFollower = async (it: ItemRow, uid: string) => {
+    const cur: string[] = (it as any).followers || [];
+    const next = cur.includes(uid) ? cur.filter((x) => x !== uid) : [...cur, uid];
+    await saveItem(it.id, { followers: next });
+  };
+
   const deleteColumn = async (c: ColumnDef) => {
     const { error } = await db.from("project_item_columns")
       .update({ archived_at: new Date().toISOString() }).eq("id", c.id);
@@ -349,6 +477,13 @@ export function TableV3() {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     return { x: Math.min(r.left, window.innerWidth - 210), y: r.bottom + 4 };
   };
+  useEffect(() => {
+    //   팝(팔레트·담당 등)이 떠 있으면 Esc 는 팝만 닫는다 — 서랍까지 같이 닫히면 당황스럽다
+    if (!drawerId || pop) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setDrawerId(null); };
+    document.addEventListener("keydown", esc);
+    return () => document.removeEventListener("keydown", esc);
+  }, [drawerId, pop]);
 
   // ── 셀 인라인 편집(글·숫자·날짜) — 누르면 그 자리가 입력칸 ──
   const [edit, setEdit] = useState<{ itemId: string; colKey: string } | null>(null);
@@ -398,13 +533,21 @@ export function TableV3() {
   const totalCols = 5 + cols.length + 1; // 이름·담당·상태·마감·금액 + 커스텀 + ＋
 
   const renderRow = (it: ItemRow) => (
-    <tr key={it.id}>
+    <tr key={it.id} className={rowDropAt === `before:${it.id}` ? "pjv3-dropbefore" : ""}
+      onDragOver={(e) => { if (rowDragRef.current) { e.preventDefault(); setRowDropAt(`before:${it.id}`); } }}
+      onDragLeave={() => setRowDropAt((cur) => (cur === `before:${it.id}` ? null : cur))}
+      onDrop={() => moveRow(`before:${it.id}`)}>
       <td className="pjv3-namecell pjv3-ecell">
         <span className="flex items-center gap-1.5 px-0">
+          <span className="pjv3-handle" title="끌어서 순서·그룹 옮기기" draggable
+            onDragStart={(e) => { rowDragRef.current = it.id; e.dataTransfer.setData("text/plain", it.id); }}
+            onDragEnd={() => { rowDragRef.current = null; setRowDropAt(null); }}>⋮⋮</span>
           {it.kind !== "todo" && (
             <span className={`pjv3-kind ${KIND_CHIP[it.kind]?.cls || ""}`}>{KIND_CHIP[it.kind]?.label}</span>
           )}
           <span className="min-w-0 flex-1"><EditCell it={it} colKey="name" value={it.name} align="left" /></span>
+          <button type="button" className="pjv3-open" title="이 줄 열기 — 체크리스트·기록·팔로워"
+            onClick={() => setDrawerId(it.id)}>열기</button>
         </span>
       </td>
       <td><button type="button" className="pjv3-cell" onClick={(e) => setPop({ kind: "person", itemId: it.id, ...at(e) })}>
@@ -543,8 +686,25 @@ export function TableV3() {
             <th style={{ minWidth: 106 }}>마감</th>
             <th style={{ minWidth: 96 }} title="예정 금액 — 확정 금액은 장부(전표·계산서)가 갖습니다">금액</th>
             {cols.map((c) => (
-              <th key={c.id} style={{ minWidth: 96 }} title={`${c.name} (${FIELD_TYPES.find((t) => t.id === c.type)?.label || c.type})`}>
-                {c.name}
+              <th key={c.id} style={{ minWidth: 96 }}
+                className={colDropAt === c.id ? "pjv3-coldrop" : ""}
+                title={`${c.name} (${FIELD_TYPES.find((t) => t.id === c.type)?.label || c.type}) — 눌러서 이름, 끌어서 순서`}
+                draggable={colEdit !== c.id}
+                onDragStart={(e) => { colDragRef.current = c.id; e.dataTransfer.setData("text/plain", c.id); }}
+                onDragEnd={() => { colDragRef.current = null; setColDropAt(null); }}
+                onDragOver={(e) => { if (colDragRef.current && colDragRef.current !== c.id) { e.preventDefault(); setColDropAt(c.id); } }}
+                onDragLeave={() => setColDropAt((cur) => (cur === c.id ? null : cur))}
+                onDrop={() => moveColumn(c.id)}>
+                {colEdit === c.id ? (
+                  <input ref={colEditRef} className="pjv3-coledit" defaultValue={c.name}
+                    onBlur={(e) => renameColumn(c, e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur();
+                      if (e.key === "Escape") setColEdit(null);
+                    }} />
+                ) : (
+                  <span className="pjv3-colname" onClick={() => setColEdit(c.id)}>{c.name}</span>
+                )}
                 <button type="button" className={`pjv3-del ${delArm === `col:${c.id}` ? "arm" : ""}`}
                   title="이 컬럼 지우기 — 칸에 적은 값은 남습니다"
                   onClick={() => armOrRun(`col:${c.id}`, () => deleteColumn(c))}>
@@ -584,7 +744,10 @@ export function TableV3() {
                   </td>
                 </tr>,
                 ...group.map(renderRow),
-                <tr key={`a-${s.id}`} className="pjv3-addrow">
+                <tr key={`a-${s.id}`} className={`pjv3-addrow ${rowDropAt === `end:${s.id}` ? "pjv3-dropbefore" : ""}`}
+                  onDragOver={(e) => { if (rowDragRef.current) { e.preventDefault(); setRowDropAt(`end:${s.id}`); } }}
+                  onDragLeave={() => setRowDropAt((cur) => (cur === `end:${s.id}` ? null : cur))}
+                  onDrop={() => moveRow(`end:${s.id}`)}>
                   <td colSpan={totalCols}>
                     <input placeholder={`＋ ${s.label}에 적고 Enter — 담당·마감은 셀에서 바로`}
                       onKeyDown={(e) => {
@@ -625,9 +788,81 @@ export function TableV3() {
       <p className="pjv3-foot">
         {curView === "kanban"
           ? "카드를 끌어 다른 열에 놓으면 상태가 바뀝니다(표의 상태 셀과 같은 저장) · 열 아래 칸에 적고 Enter로 추가"
-          : "셀을 누르면 그 자리에서 고칩니다 · 상태 셀은 색 팔레트 · 오른쪽 ＋로 컬럼 추가 · 줄·그룹·컬럼의 ✕는 한 번 더 눌러 지우기"}
+          : "셀은 눌러서 그 자리 수정 · 이름 칸 '열기'로 체크리스트·기록·팔로워 · ⋮⋮ 끌어 순서·그룹 이동 · 컬럼 머리단은 눌러 이름, 끌어 순서 · ✕는 한 번 더 눌러 지우기"}
       </p>
       </div>
+
+      {/* ── 서랍 — 줄 하나를 크게: 이름·속성·체크리스트·팔로워·기록(댓글+변경 한 줄기) ── */}
+      {drawerItem && (
+        <>
+          <div className="pjv3-drawer-veil" onClick={() => setDrawerId(null)} />
+          <div className="pjv3-drawer" role="dialog" aria-label={drawerItem.name}>
+            <div className="pjv3-drawer-head">
+              <input key={drawerItem.id} defaultValue={drawerItem.name} aria-label="이름"
+                onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== drawerItem.name) saveItem(drawerItem.id, { name: v }); }}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); }} />
+              <button type="button" className="pjv3-drawer-x" onClick={() => setDrawerId(null)}>✕</button>
+            </div>
+            <div className="pjv3-drawer-body">
+              <div className="pjv3-props">
+                <button type="button" className="pjv3-stcell" style={{ background: STAGE_HEX[stages.find((s) => s.id === drawerItem.status)?.color || "gray"] }}
+                  onClick={(e) => setPop({ kind: "status", itemId: drawerItem.id, ...at(e) })}>
+                  {stages.find((s) => s.id === drawerItem.status)?.label || drawerItem.status}</button>
+                <button type="button" className="pjv3-prop" onClick={(e) => setPop({ kind: "person", itemId: drawerItem.id, ...at(e) })}>
+                  담당 · {userName(drawerItem.assignee_id) || "없음"}</button>
+                <input type="date" className="pjv3-prop" aria-label="마감" value={drawerItem.due_date || ""}
+                  onChange={(e) => saveItem(drawerItem.id, { due_date: e.target.value || null })} />
+              </div>
+
+              <h4>체크리스트{checks.length > 0 ? ` — ${checks.filter((c) => c.done).length}/${checks.length}` : ""}</h4>
+              {checks.map((c) => (
+                <div key={c.id} className="pjv3-check">
+                  <label>
+                    <input type="checkbox" checked={c.done} onChange={() => toggleCheck(c)} />
+                    <span className={c.done ? "done" : ""}>{c.name}</span>
+                  </label>
+                  <button type="button" className={`pjv3-del ${delArm === `check:${c.id}` ? "arm" : ""}`} title="지우기"
+                    onClick={() => armOrRun(`check:${c.id}`, () => deleteCheck(c.id))}>
+                    {delArm === `check:${c.id}` ? "한 번 더" : "✕"}
+                  </button>
+                </div>
+              ))}
+              <input className="pjv3-drawer-add" placeholder="＋ 체크 항목 적고 Enter"
+                onKeyDown={(e) => {
+                  const v = (e.target as HTMLInputElement).value;
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing && v.trim()) { addCheck(v.trim()); (e.target as HTMLInputElement).value = ""; }
+                }} />
+
+              <h4>팔로워 — 이 줄의 변화를 같이 보는 사람</h4>
+              <div className="pjv3-followers">
+                {(((drawerItem as any).followers || []) as string[]).map((uid) => (
+                  <span key={uid} className="pjv3-follower">{userName(uid) || "?"}
+                    <i title="빼기" onClick={() => toggleFollower(drawerItem, uid)}>✕</i></span>
+                ))}
+                <button type="button" className="pjv3-addview" onClick={(e) => setPop({ kind: "follower", itemId: drawerItem.id, ...at(e) })}>＋ 사람</button>
+              </div>
+
+              <h4>기록 — 댓글과 변경이 시간순 한 줄기</h4>
+              <input className="pjv3-drawer-add" placeholder="댓글 적고 Enter"
+                onKeyDown={(e) => {
+                  const v = (e.target as HTMLInputElement).value;
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing && v.trim()) { addComment(v.trim()); (e.target as HTMLInputElement).value = ""; }
+                }} />
+              <div className="pjv3-events">
+                {events.map((ev) => (
+                  <div key={ev.id} className={`pjv3-event ${ev.kind}`}>
+                    {ev.kind === "comment"
+                      ? <><b>{userName(ev.created_by) || "누군가"}</b> {ev.body}</>
+                      : ev.body}
+                    <time className="mono-number">{ev.created_at.slice(5, 16).replace("T", " ")}</time>
+                  </div>
+                ))}
+                {events.length === 0 && <div className="pjv3-tpl-mine">아직 기록이 없습니다 — 첫 댓글을 남겨 보세요</div>}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ── 템플릿 팝업 — 왼쪽 목록에서 고르면 오른쪽에 단계·시작 항목이 실물로 미리 보인다 ── */}
       {tplOpen && (
@@ -764,6 +999,18 @@ export function TableV3() {
               {opts.length === 0 && <div className="pjv3-pop-title">선택지가 없습니다 — 컬럼 설정은 2단계에서</div>}
             </>);
           })()}
+          {pop.kind === "follower" && (<>
+            <div className="pjv3-pop-title">팔로워 — 눌러서 넣고 빼기(여러 명)</div>
+            {users.map((u) => {
+              const it = items.find((x) => x.id === pop.itemId);
+              const on = (((it as any)?.followers || []) as string[]).includes(u.id);
+              return (
+                <button key={u.id} type="button" onClick={() => { if (it) toggleFollower(it, u.id); }}>
+                  {on ? "✓ " : ""}{u.name || u.email}
+                </button>
+              );
+            })}
+          </>)}
           {pop.kind === "addview" && (<>
             <div className="pjv3-pop-title">보기 추가 — 표를 보는 다른 형태</div>
             <button type="button" onClick={addKanban}>칸반 — 상태별 카드로 보고, 끌어서 옮깁니다</button>

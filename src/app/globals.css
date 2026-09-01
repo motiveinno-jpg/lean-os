@@ -9555,3 +9555,46 @@ table.phv3-table { min-width: 640px; }
 .pjv3-del:hover { @apply text-[var(--danger)]; }
 .pjv3-del.arm { @apply whitespace-nowrap bg-[var(--danger)] px-1.5 text-white; }
 .pjv3-sheet td.pjv3-rowdel { @apply border-r-0 px-1 text-center; min-width: 34px; }
+
+/* pjv3 — 줄 ⋮⋮ 끌기·컬럼 개명/이동 (2026-09-01 추천 2·3 승인) */
+.pjv3-handle { @apply -ml-1 mr-0.5 cursor-grab select-none text-[10px] leading-none text-[var(--text-dim)] opacity-0 transition-opacity; }
+.pjv3-sheet tbody tr:hover .pjv3-handle { @apply opacity-100; }
+.pjv3-handle:active { @apply cursor-grabbing; }
+.pjv3-sheet tr.pjv3-dropbefore td { box-shadow: inset 0 2px 0 var(--primary); }
+.pjv3-sheet th.pjv3-coldrop { box-shadow: inset 2px 0 0 var(--primary); }
+.pjv3-colname { @apply -mx-0.5 cursor-pointer rounded px-0.5; }
+.pjv3-colname:hover { @apply bg-[var(--bg-card)]; }
+.pjv3-coledit { @apply w-24 rounded border border-[var(--primary)] bg-[var(--bg-card)] px-1 py-0.5 text-[11px] font-semibold text-[var(--text)] outline-none; font: inherit; font-size: 11px; }
+
+/* pjv3 — 서랍(줄 하나 크게: 체크리스트·기록·팔로워, 2026-09-01 추천 1 승인) */
+.pjv3-open { @apply flex-none cursor-pointer rounded-md border border-[var(--border)] bg-[var(--bg-card)] px-1.5 py-0.5 text-[10px] text-[var(--text-dim)] opacity-0 transition-opacity; font: inherit; font-size: 10px; }
+.pjv3-sheet tbody tr:hover .pjv3-open { @apply opacity-100; }
+.pjv3-open:hover { @apply border-[var(--primary)] text-[var(--primary)]; }
+.pjv3-drawer-veil { @apply fixed inset-0 z-30; }
+.pjv3-drawer { @apply fixed right-0 top-0 z-40 flex w-[400px] max-w-[92vw] flex-col border-l border-[var(--border)] bg-[var(--bg-card)] shadow-2xl; height: calc(100vh / var(--app-zoom)); }
+.pjv3-drawer-head { @apply flex shrink-0 items-center gap-2 border-b border-[var(--border)] px-4 py-3; }
+.pjv3-drawer-head input { @apply min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-1.5 py-1 text-sm font-bold text-[var(--text)] outline-none; }
+.pjv3-drawer-head input:focus { @apply border-[var(--primary)] bg-[var(--bg)]; }
+.pjv3-drawer-x { @apply cursor-pointer text-base leading-none text-[var(--text-dim)]; background: none; border: none; }
+.pjv3-drawer-x:hover { @apply text-[var(--text)]; }
+.pjv3-drawer-body { @apply min-h-0 flex-1 overflow-y-auto px-4 pb-5 pt-3; }
+.pjv3-drawer-body h4 { @apply mb-1.5 mt-4 text-[11px] font-bold text-[var(--text-dim)]; }
+.pjv3-props { @apply flex flex-wrap items-center gap-1.5; }
+.pjv3-props .pjv3-stcell { @apply w-auto rounded-lg px-3; }
+.pjv3-prop { @apply cursor-pointer rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2.5 py-1.5 text-xs text-[var(--text)]; font: inherit; font-size: 12px; }
+.pjv3-prop:hover { @apply border-[var(--primary)]; }
+.pjv3-check { @apply flex items-center gap-1.5 py-1; }
+.pjv3-check label { @apply flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-xs; }
+.pjv3-check .done { @apply text-[var(--text-dim)] line-through; }
+.pjv3-check .pjv3-del { @apply opacity-100; }
+.pjv3-drawer-add { @apply mt-1 w-full rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg)] px-2.5 py-1.5 text-xs text-[var(--text)] outline-none placeholder:text-[var(--text-dim)]; }
+.pjv3-drawer-add:focus { @apply border-solid border-[var(--primary)]; }
+.pjv3-followers { @apply flex flex-wrap items-center gap-1.5; }
+.pjv3-follower { @apply flex items-center gap-1 rounded-lg bg-[var(--bg)] px-2 py-1 text-[11px]; }
+.pjv3-follower i { @apply cursor-pointer not-italic text-[10px] text-[var(--text-dim)]; }
+.pjv3-follower i:hover { @apply text-[var(--danger)]; }
+.pjv3-events { @apply mt-2 flex flex-col gap-1.5; }
+.pjv3-event { @apply rounded-lg bg-[var(--bg)] px-2.5 py-1.5 text-xs; }
+.pjv3-event.log { @apply bg-transparent px-1 text-[11px] text-[var(--text-dim)]; }
+.pjv3-event b { @apply mr-1; }
+.pjv3-event time { @apply ml-2 whitespace-nowrap text-[10px] text-[var(--text-dim)]; }
