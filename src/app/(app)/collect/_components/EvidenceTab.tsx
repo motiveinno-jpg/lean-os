@@ -264,6 +264,36 @@ export function EvidenceTab({
     enabled: kind === "card",
     staleTime: 300_000,
   });
+  //   원천 카드명(거래의 card_name) → 카드 탭에서 지은 이름 (2026-09-01 사장님: "카드탭에 저장된
+  //   카드별 이름으로"). 거래의 card_id 로 corporate_cards 를 찾되, 한 원천명이 여러 카드에 걸리면
+  //   ('BC카드' 같은 무말단 이름) 어느 카드인지 못 정하므로 원천명 그대로 둔다.
+  const { data: cardLabelMap = {} } = useQuery<Record<string, string>>({
+    queryKey: ["collect-card-label-map", companyId],
+    queryFn: async () => {
+      const [pairs, corp] = await Promise.all([
+        fetchAllPages<{ card_name: string | null; card_id: string | null }>((a, b) => supabase
+          .from("card_transactions").select("card_name, card_id")
+          .eq("company_id", companyId).not("card_name", "is", null).not("card_id", "is", null)
+          .order("transaction_date", { ascending: false }).range(a, b), { cap: 100000 }),
+        supabase.from("corporate_cards").select("id, card_name").eq("company_id", companyId),
+      ]);
+      const corpName = new Map<string, string>(((corp.data || []) as { id: string; card_name: string | null }[]).map((c) => [c.id, c.card_name || ""]));
+      const idsByName = new Map<string, Set<string>>();
+      for (const p of pairs.rows) {
+        if (!p.card_name || !p.card_id) continue;
+        (idsByName.get(p.card_name) ?? idsByName.set(p.card_name, new Set()).get(p.card_name)!).add(p.card_id);
+      }
+      const out: Record<string, string> = {};
+      for (const [nm, ids] of idsByName) {
+        if (ids.size !== 1) continue;
+        const label = corpName.get([...ids][0]);
+        if (label && label !== nm) out[nm] = label;
+      }
+      return out;
+    },
+    enabled: kind === "card",
+    staleTime: 300_000,
+  });
 
   //   가맹점 과세유형(구분) — 이미 조회해 둔 것을 그린다
   const { data: merchantKinds = {} } = useQuery<Record<string, MerchantInfo>>({
@@ -698,10 +728,12 @@ export function EvidenceTab({
     for (const r of rows) if (r.partnerName && !m.has(r.partnerName)) m.set(r.partnerName, r.bizno || "");
     return [...m].sort((x, y) => x[0].localeCompare(y[0], "ko")).map(([v, sub]) => ({ value: v, label: v, sub }));
   }, [rows]);
+  //   칩 라벨은 카드 탭에서 지은 이름, 필터 값(value)은 거래의 원천 card_name 그대로 — 매칭 로직 무변경
   const cardOpts = useMemo(
     () => [...new Set([...allCardNames, ...(rows.map((r) => r.cardName).filter(Boolean) as string[])])]
-      .sort((a2, b2) => a2.localeCompare(b2, "ko")).map((c) => ({ value: c, label: c })),
-    [allCardNames, rows]);
+      .map((c) => ({ value: c, label: cardLabelMap[c] || c }))
+      .sort((a2, b2) => a2.label.localeCompare(b2.label, "ko")),
+    [allCardNames, rows, cardLabelMap]);
   const acctOpts = useMemo(
     () => accounts.map((a2) => ({ value: a2.code, label: a2.name, sub: a2.code })),
     [accounts]);
@@ -848,7 +880,7 @@ export function EvidenceTab({
     })),
     ...live.partner.map((v) => ({ group: "거래처", label: v, onRemove: () => drop({ partner: live.partner.filter((x) => x !== v) }) })),
     ...live.acct.map((v) => ({ group: "계정", label: accounts.find((a2) => a2.code === v)?.name ?? v, onRemove: () => drop({ acct: live.acct.filter((x) => x !== v) }) })),
-    ...live.card.map((v) => ({ group: "카드", label: v, onRemove: () => drop({ card: live.card.filter((x) => x !== v) }) })),
+    ...live.card.map((v) => ({ group: "카드", label: cardLabelMap[v] || v, onRemove: () => drop({ card: live.card.filter((x) => x !== v) }) })),
     ...(live.kind ? [{ group: "구분", label: live.kind, onRemove: () => drop({ kind: "" }) }] : []),
     ...(live.dir !== "all" ? [{ group: "매출·매입", label: live.dir === "sale" ? "매출" : "매입", onRemove: () => drop({ dir: "all" as const }) }] : []),
     ...(live.todo !== "todo" ? [{ group: "상태", label: "전체", onRemove: () => drop({ todo: "todo" as const }) }] : []),
