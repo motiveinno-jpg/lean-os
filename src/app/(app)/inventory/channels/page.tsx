@@ -277,10 +277,11 @@ export default function ChannelsPage() {
                   <button type="button" className="pjv3-stcard" title="주문 금액 합 — 채널 수수료 정산 전" onClick={() => goList(stCh || undefined)}>
                     <span className="k">주문 금액</span><b className="v num">{won(stData.amount)}</b>
                     <span className="text-[10px] text-[var(--text-dim)]">{stData.total ? `평균 ${won(stData.amount / stData.total)}원/건` : "—"}</span></button>
-                  <button type="button" className={`pjv3-stcard ${stData.pending > 0 ? "warn" : ""}`} onClick={() => setTab("ship")}>
+                  <button type="button" className={`pjv3-stcard ${stData.pending > 0 ? "warn" : ""}`}
+                    onClick={() => { ship.setView("pending"); setTab("ship"); }}>
                     <span className="k">출고 대기</span><b className="v num">{won(stData.pending)}건</b>
                     <span className="text-[10px] text-[var(--text-dim)]">{stData.pendingOld > 0 ? <>2일+ 경과 <b className="text-[var(--danger)]">{stData.pendingOld}건</b></> : "밀린 것 없음"}</span></button>
-                  <button type="button" className="pjv3-stcard good" onClick={() => setTab("ship")}>
+                  <button type="button" className="pjv3-stcard good" onClick={() => { ship.setView("done"); setTab("ship"); }}>
                     <span className="k">배송 완료율</span><b className="v num">{stData.total ? Math.round(stData.done / stData.total * 100) : 0}%</b>
                     <span className="text-[10px] text-[var(--text-dim)]">기간 내 {won(stData.done)}/{won(stData.total)}</span></button>
                   <button type="button" className={`pjv3-stcard ${counts.allCodes === 0 ? "warn" : ""}`} onClick={() => setTab("codes")}>
@@ -330,13 +331,14 @@ export default function ChannelsPage() {
                     </div>
                     <h3 className="!mt-4">배송 흐름 <small>기간 내 — 칸을 누르면 출고 처리로</small></h3>
                     <div className="pjv3-stmoney">
-                      <button type="button" className={`mstep ${stData.pending > 0 ? "ch-st-warn" : ""}`} onClick={() => setTab("ship")}>
+                      <button type="button" className={`mstep ${stData.pending > 0 ? "ch-st-warn" : ""}`}
+                        onClick={() => { ship.setView("pending"); setTab("ship"); }}>
                         <span className="t">출고 대기</span><b className="n num">{won(stData.pending)}</b></button>
                       <span className="ar">→</span>
-                      <button type="button" className="mstep" onClick={() => setTab("ship")}>
+                      <button type="button" className="mstep" onClick={() => { ship.setView("shipped"); setTab("ship"); }}>
                         <span className="t">발송됨</span><b className="n num">{won(stData.shipped)}</b></button>
                       <span className="ar">→</span>
-                      <button type="button" className="mstep hot" onClick={() => setTab("ship")}>
+                      <button type="button" className="mstep hot" onClick={() => { ship.setView("done"); setTab("ship"); }}>
                         <span className="t">배송 완료</span><b className="n num">{won(stData.done)}</b></button>
                     </div>
                   </div>
@@ -349,7 +351,13 @@ export default function ChannelsPage() {
                       <span className={`text-[11px] ${s.ageDays >= 3 ? "font-bold text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>
                         마지막 등록 {s.at.slice(5, 16).replace("T", " ")}{s.ageDays >= 3 ? ` — ${s.ageDays}일 전` : ""}{s.api ? " · API 연동 가능 채널" : ""}
                       </span>
-                      <button type="button" className="btn-secondary btn-sm ml-auto" onClick={() => setTab("import")}>가져오기로</button>
+                      {/* API 채널은 가져오기 갈래로 오면서 API 팝업이 바로 열린다 — 클릭 한 번 절약 */}
+                      {s.api ? (
+                        <button type="button" className="btn-secondary btn-sm ml-auto" title="가져오기 갈래에서 API 수집 창이 바로 열립니다"
+                          onClick={() => { setTab("import"); grid.openApiFetch(); }}>지금 수집</button>
+                      ) : (
+                        <button type="button" className="btn-secondary btn-sm ml-auto" onClick={() => setTab("import")}>가져오기로</button>
+                      )}
                     </div>
                   ))}
                   {stData.sync.length === 0 && <div className="collect-empty">아직 등록된 채널이 없습니다</div>}
@@ -713,7 +721,8 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
       })()}
     </>
   );
-  return { head, body, dialogs };
+  //   openApiFetch — 현황 갈래의 [지금 수집]이 가져오기 갈래로 오면서 API 팝업을 바로 연다(결정 148 후속)
+  return { head, body, dialogs, openApiFetch: () => setImportOpen("api") };
 }
 
 type FieldPick = { on: string[]; off: string[] };
@@ -1018,7 +1027,8 @@ function useShipPanel({ companyId, userId, imports, products, canWrite, onDone }
       )}
     </>
   );
-  return { head, body, pagerEl, selbar, dialogs };
+  //   setView — 현황 갈래의 배송 숫자가 그 상태 보기로 바로 열게(결정 148 후속)
+  return { head, body, pagerEl, selbar, dialogs, setView };
 }
 
 /** 송장 양식 고르기 — 표준 택배사 양식 + 내 양식. 미리보기(열 머리글)와 [양식 만들기/고치기] */
