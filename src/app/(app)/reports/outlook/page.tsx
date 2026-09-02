@@ -7,6 +7,7 @@
 //   시나리오는 '보기 설정' 문법(ConditionPanel label) — 고르고 → 적용, 걸린 칩, 기본으로. 실제 숫자는 안 바뀐다.
 
 import { useEffect, useMemo, useState } from "react";
+import { DateField } from "@/components/date-field";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
@@ -112,7 +113,7 @@ export default function OutlookPage() {
             <ConditionRow label="추가 자금" hint="대표 가수금·대출 실행 등 한 건">
               <span className="ol-extra">
                 <input type="number" className="qk-input" placeholder="금액" value={draft.extraIn?.amount || ""} onChange={(e) => setDraft((d) => ({ ...d, extraIn: { date: d.extraIn?.date || addDays(data?.today || "2026-01-01", 30), label: d.extraIn?.label || "추가 자금", amount: Number(e.target.value) } }))} />
-                <input type="date" className="qk-input" value={draft.extraIn?.date || ""} onChange={(e) => setDraft((d) => ({ ...d, extraIn: { amount: d.extraIn?.amount || 0, label: d.extraIn?.label || "추가 자금", date: e.target.value } }))} />
+                <DateField className="qk-input" value={draft.extraIn?.date || ""} onChange={(e) => setDraft((d) => ({ ...d, extraIn: { amount: d.extraIn?.amount || 0, label: d.extraIn?.label || "추가 자금", date: e.target.value } }))} />
                 <input type="text" className="qk-input" placeholder="이름" value={draft.extraIn?.label || ""} onChange={(e) => setDraft((d) => ({ ...d, extraIn: { amount: d.extraIn?.amount || 0, date: d.extraIn?.date || "", label: e.target.value } }))} />
                 {draft.extraIn && <button type="button" className="btn-secondary btn-sm" onClick={() => setDraft((d) => ({ ...d, extraIn: null }))}>지움</button>}
               </span>
@@ -120,7 +121,7 @@ export default function OutlookPage() {
             <ConditionRow label="큰 지출" hint="장비 구입·미지급 정산 등 한 건">
               <span className="ol-extra">
                 <input type="number" className="qk-input" placeholder="금액" value={draft.extraOut?.amount || ""} onChange={(e) => setDraft((d) => ({ ...d, extraOut: { date: d.extraOut?.date || addDays(data?.today || "2026-01-01", 30), label: d.extraOut?.label || "큰 지출", amount: Number(e.target.value) } }))} />
-                <input type="date" className="qk-input" value={draft.extraOut?.date || ""} onChange={(e) => setDraft((d) => ({ ...d, extraOut: { amount: d.extraOut?.amount || 0, label: d.extraOut?.label || "큰 지출", date: e.target.value } }))} />
+                <DateField className="qk-input" value={draft.extraOut?.date || ""} onChange={(e) => setDraft((d) => ({ ...d, extraOut: { amount: d.extraOut?.amount || 0, label: d.extraOut?.label || "큰 지출", date: e.target.value } }))} />
                 <input type="text" className="qk-input" placeholder="이름" value={draft.extraOut?.label || ""} onChange={(e) => setDraft((d) => ({ ...d, extraOut: { amount: d.extraOut?.amount || 0, date: d.extraOut?.date || "", label: e.target.value } }))} />
                 {draft.extraOut && <button type="button" className="btn-secondary btn-sm" onClick={() => setDraft((d) => ({ ...d, extraOut: null }))}>지움</button>}
               </span>

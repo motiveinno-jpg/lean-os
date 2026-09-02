@@ -9,6 +9,7 @@
 //   상태는 useStockCount 훅 하나에 모으고, 화면 조각 둘이 그것을 나눠 쓴다.
 
 import { ExcelPasteHelper } from "./excel-paste-helper";
+import { DateField } from "@/components/date-field";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
@@ -357,7 +358,7 @@ export function NewCountDialog({ ctl, warehouses }: { ctl: CountCtl; warehouses:
             {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select></label>
         <label className="inv-field"><span>일자 *</span>
-          <input type="date" className="field-input" value={countDate} onChange={(e) => setCountDate(e.target.value)} /></label>
+          <DateField className="field-input" value={countDate} onChange={(e) => setCountDate(e.target.value)} /></label>
         <label className="inv-check">
           <input type="checkbox" checked={includeAll} onChange={(e) => setIncludeAll(e.target.checked)} />
           <span><b>재고 0인 품목까지</b> 깔기 <em>— 창고를 통째로 셀 때. 꺼 두면 지금 그 창고에 잡혀 있는 품목만 나옵니다.</em></span>

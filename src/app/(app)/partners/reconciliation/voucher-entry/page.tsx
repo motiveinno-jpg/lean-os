@@ -1,5 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
+import { DateField } from "@/components/date-field";
 import { Ico } from "@/components/ui-icon";
 import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
@@ -981,9 +982,9 @@ export default function VoucherEntryPage() {
                 <tr key={l.key} className="border-b border-[var(--border)]/40 transition-colors focus-within:bg-[var(--primary)]/[0.04]"
                   onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, rowId: `p:${l.key}` }); }}>
                   <td className={`${TD} w-[126px]`}>
-                    {/* 줄마다 날짜 — 같은 날짜 줄이 한 장. Enter 는 윗줄 날짜를 내린다 */}
-                    <input type="date" value={l.date} onChange={(e) => setPendLine(l.key, { date: e.target.value })}
-                      data-vcell={`date-${i}`} aria-label="전표 일자" className={`${IN} ve-row-date`} />
+                    {/* 줄마다 날짜 — 같은 날짜 줄이 한 장. 우리 달력(DateField)으로 통일 (2026-09-02 사장님: 옛 기본 달력 삭제) */}
+                    <DateField value={l.date} onChange={(e) => setPendLine(l.key, { date: e.target.value })}
+                      title="전표 일자" className={`${IN} ve-row-date`} />
                   </td>
                   <td className="px-2 py-1 text-center text-[var(--text-dim)] mono-number">{i + 1}</td>
                   <td className={`${TD} w-[68px]`}>

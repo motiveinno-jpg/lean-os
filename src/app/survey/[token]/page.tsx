@@ -5,6 +5,7 @@
 //   모바일 우선. 배너 → 제목 → 장문 안내 → 이미지들 → 질문 → 보내기.
 
 import { useEffect, useMemo, useState } from "react";
+import { DateField } from "@/components/date-field";
 import { useParams } from "next/navigation";
 
 type Q = { key: string; name: string; type: string; options: { id: string; label: string; color?: string }[]; required: boolean };
@@ -155,7 +156,7 @@ export default function SurveyPage() {
               ) : q.type === "longtext" ? (
                 <textarea rows={3} value={String(answers[q.key] ?? "")} onChange={(e) => set(q.key, e.target.value)} placeholder="자유롭게 적어주세요" />
               ) : q.type === "date" ? (
-                <input type="date" value={String(answers[q.key] ?? "")} onChange={(e) => set(q.key, e.target.value)} />
+                <DateField value={String(answers[q.key] ?? "")} onChange={(e) => set(q.key, e.target.value)} />
               ) : q.type === "number" ? (
                 <input type="text" inputMode="decimal" value={String(answers[q.key] ?? "")} onChange={(e) => set(q.key, e.target.value)} />
               ) : (

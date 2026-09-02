@@ -9,6 +9,7 @@
 //   실행 경로는 lib/collect 가 기존 화면들의 호출을 그대로 재사용한다 — 여기서 새로 만들지 않는다.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { DateField } from "@/components/date-field";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
@@ -419,9 +420,9 @@ function CollectInner() {
                   <span className="collect-dim mono-number text-[11px]">{start} ~ {end}</span>
                 ) : (
                   <span className="flex items-center gap-1.5">
-                    <input type="date" value={rangeFrom} onChange={(e) => setRangeFrom(e.target.value)} className="collect-date" />
+                    <DateField value={rangeFrom} onChange={(e) => setRangeFrom(e.target.value)} className="collect-date" />
                     <span className="collect-dim">~</span>
-                    <input type="date" value={rangeTo} onChange={(e) => setRangeTo(e.target.value)} className="collect-date" />
+                    <DateField value={rangeTo} onChange={(e) => setRangeTo(e.target.value)} className="collect-date" />
                   </span>
                 )}
               </div>
