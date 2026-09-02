@@ -14,6 +14,7 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { PickList } from "@/components/pick-list";
+import { PartnerQuickCreate } from "@/components/partner-quick-create";
 import { downloadCsv as writeCsv } from "@/lib/csv-export";
 import { DateRangeField } from "@/components/date-range-field";
 import { nextSort, ThFilter, useColFilters, useColWidths, type SortState } from "@/components/sortable-th";
@@ -213,6 +214,8 @@ function SalePurchaseInner() {
     },
     enabled: !!companyId, staleTime: 300_000,
   });
+  // 거래처 간편 등록 팝업 — 어느 줄에서 열었는지·미리 채울 이름·매출/매입 갈래 (2026-09-02 사장님)
+  const [quickCreate, setQuickCreate] = useState<{ row: number; name: string; vatCode: string } | null>(null);
   const { data: partners = [] } = useQuery({
     queryKey: ["sp-partners", companyId],
     queryFn: async () => {
@@ -796,6 +799,9 @@ function SalePurchaseInner() {
                 if (pt) patch(i, { partner: pt, partnerText: pt.name });
                 setDrop(null);
               }}
+              //   없는 거래처는 여기서 바로 등록 (2026-09-02 사장님) — 검색어가 이름 칸에 미리 들어간다
+              onCreate={(q) => { setQuickCreate({ row: i, name: q || r.partnerText, vatCode: r.vatCode }); setDrop(null); }}
+              createLabel={(q) => (q ? `"${q}" 새 거래처로 등록` : "새 거래처 등록")}
               onClose={() => setDrop(null)} />
           )}
         </div>
@@ -1202,6 +1208,30 @@ function SalePurchaseInner() {
       )}
 
       {dupPromptElement}
+      {quickCreate && companyId && (
+        <PartnerQuickCreate
+          companyId={companyId}
+          initialName={quickCreate.name}
+          defaultType={vatType(quickCreate.vatCode)?.side === "purchase" ? "vendor" : "client"}
+          existing={partners}
+          onPickExisting={(pt) => {
+            const found = partners.find((x) => x.id === pt.id);
+            if (found) patch(quickCreate.row, { partner: found, partnerText: found.name });
+            setQuickCreate(null);
+          }}
+          onCreated={(pt) => {
+            const np: Pt = { id: pt.id, code: pt.code, name: pt.name, business_number: pt.business_number };
+            //   목록 캐시에 바로 끼워 넣고(다음 줄에서 곧장 검색되게) 서버 목록도 새로 받는다
+            qc.setQueryData<Pt[]>(["sp-partners", companyId], (prev) => [...(prev || []), np].sort((a, b) => a.name.localeCompare(b.name, "ko")));
+            qc.invalidateQueries({ queryKey: ["sp-partners", companyId] });
+            patch(quickCreate.row, { partner: np, partnerText: np.name });
+            toast(`거래처 '${np.name}' 을(를) 등록했습니다${np.code != null ? ` · 코드 ${np.code}` : ""}`, "success");
+            setQuickCreate(null);
+            //   등록한 줄의 다음 칸(유형)으로 커서를 보낸다 — 흐름이 끊기지 않게
+            setTimeout(() => document.querySelector<HTMLElement>(`[data-cell="vatCode-${quickCreate.row}"]`)?.focus(), 50);
+          }}
+          onClose={() => setQuickCreate(null)} />
+      )}
     </div>
   );
 }

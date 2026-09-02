@@ -7337,6 +7337,12 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .spv-drop-list > button.pick-on { @apply bg-[var(--primary)]/10; }
 .pick-enter { @apply ml-auto text-[10px] font-bold text-[var(--primary)]; }
 .pick-empty { @apply px-2 py-2 text-[11px] text-[var(--text-dim)]; }
+/* 목록 끝 '새로 등록' 줄 + 거래처 간편 등록 팝업 (2026-09-02 사장님) */
+.pick-create { @apply mt-1 border-t border-[var(--border)] pt-1.5 text-[var(--primary)]; }
+.pick-create .spv-drop-code { @apply text-[var(--primary)]; }
+.pqc-box { @apply w-[440px] max-w-[95vw]; }
+.pqc-body { @apply flex flex-col gap-3 px-4 py-3; }
+.pqc-dup { @apply flex flex-wrap items-center gap-1 rounded-lg border border-[var(--warning)]/40 bg-[var(--warning)]/10 px-3 py-2 text-[11px] text-[var(--text)]; }
 
 /* 재무상태표 — 마이너스가 왜 났는지 설명하는 줄 (2026-08-12) */
 .bs-flipped-note { @apply mb-3; }

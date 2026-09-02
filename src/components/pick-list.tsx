@@ -15,13 +15,17 @@ import { useEffect, useRef, useState } from "react";
 export type PickItem = { id: string; code?: string | null; name: string };
 
 export function PickList<T extends PickItem>({
-  items, onPick, onClose, placeholder = "검색 (이름·코드)", empty = "찾는 것이 없습니다",
+  items, onPick, onClose, placeholder = "검색 (이름·코드)", empty = "찾는 것이 없습니다", onCreate, createLabel,
 }: {
   items: T[];
   onPick: (item: T) => void;
   onClose: () => void;
   placeholder?: string;
   empty?: string;
+  /** 주면 목록 끝에 "＋ 새로 등록" 줄이 생긴다 — 없는 항목을 여기서 바로 만들게 (2026-09-02 사장님: 매입매출전표에서 거래처 바로 등록).
+   *  검색어가 그대로 넘어가므로 이름 칸을 미리 채울 수 있다. ↑↓ 로 닿고 Enter 로 누른다. 결과가 0건이면 Enter 한 번이 곧 등록이다. */
+  onCreate?: (q: string) => void;
+  createLabel?: (q: string) => string;
 }) {
   const [q, setQ] = useState("");
   const [at, setAt] = useState(0);
@@ -43,6 +47,10 @@ export function PickList<T extends PickItem>({
   const shown = t
     ? items.filter((a) => a.name.toLowerCase().includes(t) || String(a.code ?? "").toLowerCase().includes(t))
     : items;
+  //   '새로 등록' 줄은 목록 끝의 가상 항목(index = shown.length) — ↑↓·Enter 가 똑같이 닿는다
+  const createAt = onCreate ? shown.length : -1;
+  const lastAt = onCreate ? shown.length : shown.length - 1;
+  const createText = createLabel ? createLabel(q.trim()) : (q.trim() ? `"${q.trim()}" 새로 등록` : "새로 등록");
 
   //   검색어가 바뀌면 고른 자리를 첫 줄로 되돌린다 — 안 그러면 엉뚱한 줄이 골라진 채로 남는다
   useEffect(() => { setAt(0); }, [q]);
@@ -54,10 +62,11 @@ export function PickList<T extends PickItem>({
   }, [at]);
 
   const onKey = (e: React.KeyboardEvent) => {
-    if (e.key === "ArrowDown") { e.preventDefault(); setAt((i) => Math.min(i + 1, shown.length - 1)); }
+    if (e.key === "ArrowDown") { e.preventDefault(); setAt((i) => Math.min(i + 1, Math.max(0, lastAt))); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setAt((i) => Math.max(i - 1, 0)); }
     else if (e.key === "Enter") {
       e.preventDefault(); e.stopPropagation();
+      if (onCreate && at === createAt) { onCreate(q.trim()); return; }
       const sel = shown[at];
       if (sel) onPick(sel);
     } else if (e.key === "Escape" || e.key === "Tab") {
@@ -84,6 +93,17 @@ export function PickList<T extends PickItem>({
           </button>
         ))}
         {shown.length === 0 && <div className="pick-empty">{empty}</div>}
+        {onCreate && (
+          <button type="button" data-at={createAt}
+            className={at === createAt ? "pick-create pick-on" : "pick-create"}
+            onMouseEnter={() => setAt(createAt)}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onCreate(q.trim())}>
+            <span className="spv-drop-code">＋</span>
+            <span className="spv-drop-name">{createText}</span>
+            {at === createAt && <span className="pick-enter">↵</span>}
+          </button>
+        )}
       </div>
     </div>
   );
