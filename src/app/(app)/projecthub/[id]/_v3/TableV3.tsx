@@ -305,12 +305,29 @@ export function TableV3() {
     qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
   };
   const addColumn = async (name: string, type: FieldType, settings?: Record<string, unknown>) => {
-    const { error } = await db.from("project_item_columns").insert({
-      company_id: companyId, deal_id: dealId, key: name, name, type,
-      settings: settings ?? (type === "select" ? { options: [] } : {}),
-      position: (cols[cols.length - 1]?.position ?? 0) + 1,
-    });
-    if (error) { toast(friendlyError(error), "error"); return; }
+    //   같은 키의 지운(보관) 컬럼이 남아 있으면 되살려 재사용 — 소프트삭제 잔재가 unique(deal,key)를
+    //   점유해 같은 이름 컬럼을 다시 못 만들던 409 (2026-09-01 운영자 에러 로그 실사례).
+    //   되살리면 그 키로 남아 있던 항목 값(fields[key])도 함께 돌아온다.
+    const { data: ghost } = await db.from("project_item_columns").select("id")
+      .eq("deal_id", dealId).eq("key", name).not("archived_at", "is", null).maybeSingle();
+    if (ghost?.id) {
+      const { error } = await db.from("project_item_columns").update({
+        archived_at: null, name, type,
+        settings: settings ?? (type === "select" ? { options: [] } : {}),
+        position: (cols[cols.length - 1]?.position ?? 0) + 1,
+      }).eq("id", ghost.id);
+      if (error) { toast(friendlyError(error), "error"); return; }
+    } else {
+      const { error } = await db.from("project_item_columns").insert({
+        company_id: companyId, deal_id: dealId, key: name, name, type,
+        settings: settings ?? (type === "select" ? { options: [] } : {}),
+        position: (cols[cols.length - 1]?.position ?? 0) + 1,
+      });
+      if (error) {
+        toast(error.code === "23505" ? `'${name}' 컬럼이 이미 있습니다 — 다른 이름으로 추가해 주세요` : friendlyError(error), "error");
+        return;
+      }
+    }
     qc.invalidateQueries({ queryKey: ["pjv3-cols", dealId] });
     toast(`'${name}' 컬럼을 추가했습니다 — 셀을 눌러 바로 채우세요`, "success");
   };
