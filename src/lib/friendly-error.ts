@@ -84,7 +84,9 @@ export function friendlyError(err: AnyErr, fallback = "일시적인 오류가 �
 
   // 1.6) Supabase Storage 업로드가 RLS 에 막힌 경우(storage-api 는 statusCode "403" 문자열로 온다).
   //   회사 저장공간 한도 게이트(storage_quota_gate, 2026-09-02)가 가장 흔한 원인 — 이유와 해결 경로를 알려준다.
-  if (/row-level security/i.test(raw) && (code === "403" || code === "42501")) {
+  //   실측(2026-09-02 QA): {statusCode:"403", error:"Unauthorized", code:"AccessDenied", message:"new row violates row-level security policy"}
+  const sc = (err && typeof err === "object" && typeof (err as Record<string, unknown>).statusCode === "string") ? String((err as Record<string, unknown>).statusCode) : null;
+  if (/row-level security/i.test(raw) && (code === "AccessDenied" || code === "403" || code === "42501" || sc === "403")) {
     return "파일을 올리지 못했습니다. 회사 저장공간이 가득 찼거나 올릴 권한이 없습니다. 설정 → 요금제 → 저장공간에서 사용량을 확인해 주세요.";
   }
 
