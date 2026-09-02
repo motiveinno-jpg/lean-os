@@ -547,19 +547,26 @@ export async function createFolder(
   return data;
 }
 
-/** 폴더 공개 범위 바꾸기 — 만든 뒤에도 좁히거나 넓힐 수 있게(CRUD 완결) */
+/** 폴더 공개 범위 바꾸기 — 만든 뒤에도 좁히거나 넓힐 수 있게(CRUD 완결).
+ *  RLS(20260902060000)가 만든 사람·권한자만 통과시킨다 — 0행이면 성공처럼 조용히 넘어가지 않고
+ *  사람이 읽을 문장으로 거절한다(2026-09-02 디비 아키텍트 지적). */
 export async function updateFolderVisibility(
   folderId: string,
   visibility: FolderVisibility,
   opts?: { targetUserIds?: string[]; targetDepartments?: string[] }
 ) {
-  const { error } = await db.from("document_folders").update({
+  const { data, error } = await db.from("document_folders").update({
     visibility,
     target_user_ids: visibility === "members" ? (opts?.targetUserIds ?? []) : [],
     target_departments: visibility === "departments" ? (opts?.targetDepartments ?? []) : [],
     updated_at: new Date().toISOString(),
-  }).eq("id", folderId);
-  if (error) throw error;
+  }).eq("id", folderId).select("id");
+  if (error) {
+    //   42501 = 바꾼 결과가 내 눈에 안 보이는 범위(예: 사람 지정에서 나를 뺌) — 이유를 번역
+    if ((error as any).code === "42501") throw new Error("바꾼 범위에 본인이 빠져 있습니다 — '사람'으로 좁힐 때는 본인(또는 폴더를 만든 사람)을 포함해야 합니다.");
+    throw error;
+  }
+  if (!data || data.length === 0) throw new Error("폴더를 만든 사람(또는 파일 삭제 권한자)만 범위를 바꿀 수 있습니다.");
 }
 
 // ── 12. Get folders for company ──
@@ -610,12 +617,14 @@ export async function deleteFolder(
     .eq("id", folderId)
     .single());
 
-  // Delete folder
-  const { error } = await db
+  // Delete folder — RLS 가 만든 사람·권한자만 통과(20260902060000). 0행 = 조용한 실패 금지
+  const { data: deleted, error } = await db
     .from("document_folders")
     .delete()
-    .eq("id", folderId);
+    .eq("id", folderId)
+    .select("id");
   if (error) throw error;
+  if (!deleted || deleted.length === 0) throw new Error("폴더를 만든 사람(또는 파일 삭제 권한자)만 지울 수 있습니다.");
 
   // Audit log (non-blocking)
   logAudit({

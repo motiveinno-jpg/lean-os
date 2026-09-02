@@ -3011,18 +3011,32 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
             <path strokeLinecap="round" strokeLinejoin="round" d="M2 7a2 2 0 012-2h5l2 2h9a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V7z" />
           </svg>
           <span className="truncate flex-1">{folder.name}</span>
-          {/* 공개 범위 배지 — 전체가 아니면 표시. 눌러서 바꾼다(만든 뒤에도 좁히거나 넓히게) */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setVisFolder(folder);
-              setVisDraft({ visibility: (folder.visibility as FolderVisibility) || "company", depts: folder.target_departments || [], members: folder.target_user_ids || [] });
-            }}
-            title={`공개 범위: ${VIS_LABEL[(folder.visibility as FolderVisibility) || "company"]} — 눌러서 바꾸기`}
-            className={`text-[9px] px-1 rounded ${(folder.visibility || "company") !== "company" ? "opacity-100 font-bold text-[var(--primary)]" : "opacity-0 group-hover:opacity-100 text-[var(--text-dim)]"}`}
-          >
-            {VIS_ICON[(folder.visibility as FolderVisibility) || "company"] || "공개"}
-          </button>
+          {/* 공개 범위 배지 — 범위는 모두에게 보이되, 바꾸기·지우기는 만든 사람과 권한자만
+              (RLS 20260902060000 이 어차피 막는다 — 버튼을 숨겨 조용한 실패를 없앤다) */}
+          {(() => {
+            const canEdit = folder.created_by ? (folder.created_by === userId || canDeleteOthers) : canDeleteOthers;
+            const visNow = (folder.visibility as FolderVisibility) || "company";
+            if (!canEdit) {
+              return (visNow !== "company"
+                ? <span className="text-[9px] px-1 font-bold text-[var(--primary)]"
+                    title={`공개 범위: ${VIS_LABEL[visNow]} — ${folder.created_by ? "만든 사람이나 파일 삭제 권한자만 바꿀 수 있습니다" : "예전 폴더라 관리자만 바꿀 수 있습니다"}`}>{VIS_ICON[visNow]}</span>
+                : null);
+            }
+            return (<>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setVisFolder(folder);
+                  setVisDraft({ visibility: visNow, depts: folder.target_departments || [], members: folder.target_user_ids || [] });
+                }}
+                title={`공개 범위: ${VIS_LABEL[visNow]} — 눌러서 바꾸기`}
+                className={`text-[9px] px-1 rounded ${visNow !== "company" ? "opacity-100 font-bold text-[var(--primary)]" : "opacity-0 group-hover:opacity-100 text-[var(--text-dim)]"}`}
+              >
+                {VIS_ICON[visNow] || "공개"}
+              </button>
+            </>);
+          })()}
+          {(folder.created_by ? (folder.created_by === userId || canDeleteOthers) : canDeleteOthers) && (
           <button
             onClick={async (e) => { e.stopPropagation(); if (await appConfirm(`"${folder.name}" 폴더를 삭제하시겠습니까?`, { danger: true })) deleteFolderMut.mutate(folder.id); }}
             className="opacity-0 group-hover:opacity-100 w-4 h-4 text-[var(--text-dim)] hover:text-red-400"
@@ -3031,6 +3045,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
+          )}
         </div>
         {isExpanded && children.map((child: any) => renderFolder(child, depth + 1))}
       </div>
@@ -3289,7 +3304,12 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
               <button type="button" className="btn-secondary btn-sm" onClick={() => setVisFolder(null)}>닫기</button>
               <button type="button" className="btn-primary btn-sm" onClick={async () => {
                 try {
-                  await updateFolderVisibility(visFolder.id, visDraft.visibility, { targetDepartments: visDraft.depts, targetUserIds: visDraft.members });
+                  //   '사람'으로 좁힐 때 만든 사람과 저장하는 나를 자동 포함 — 나를 빼면 저장 결과가
+                  //   내 눈에 안 보여 서버가 거절한다(42501). 빼고 싶어도 최소 이 둘은 남긴다.
+                  const members = visDraft.visibility === "members"
+                    ? [...new Set([...visDraft.members, ...(visFolder.created_by ? [visFolder.created_by] : []), userId].filter(Boolean))]
+                    : visDraft.members;
+                  await updateFolderVisibility(visFolder.id, visDraft.visibility, { targetDepartments: visDraft.depts, targetUserIds: members });
                   queryClient.invalidateQueries({ queryKey: ["document-folders"] });
                   queryClient.invalidateQueries({ queryKey: ["storage-files"] });
                   setVisFolder(null);
