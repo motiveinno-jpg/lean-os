@@ -9971,4 +9971,4 @@ table.phv3-table { min-width: 640px; }
 
 /* 일반전표 — 조회 줄을 입력 칸 위로, 줄마다 날짜 (2026-09-02 사장님) */
 .ve-querybar-row { @apply px-3 py-2 border-b border-[var(--border)]/70; }
-.ve-row-date { @apply mono-number text-[12px] px-1.5; }
+.ve-row-date { @apply text-[12px] px-1.5; font-variant-numeric: tabular-nums; }
