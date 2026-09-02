@@ -1,4 +1,5 @@
 "use client";
+import { koFallback } from "@/lib/ko-label";
 import { kstDateStr } from "@/lib/kst";
 import { DateRangeField } from "@/components/date-range-field";
 import { Ico } from "@/components/ui-icon";
@@ -239,7 +240,7 @@ function SignaturesDashboardInner() {
   //   머리단 ≡ 필터 — 상태·그룹·대표자·담당자
   const cf = useColFilters();
   const colVal = (r: any) => ({
-    status: getSignatureStatusInfo(r.status).label || r.status || "", batch: r.batch_id ? `묶음#${r.batch_seq ?? "?"}` : "—",
+    status: getSignatureStatusInfo(r.status).label || koFallback(r.status), batch: r.batch_id ? `묶음#${r.batch_seq ?? "?"}` : "—",
     signer: r.signer_name || "", manager: memberNames[r.created_by] || "",
   });
   const cfSpec = (k: keyof ReturnType<typeof colVal>) => cf.spec(k, (requests as any[]).filter((r) => statusFilter === "all" || r.status === statusFilter).map((r) => colVal(r)[k]));
@@ -264,7 +265,7 @@ function SignaturesDashboardInner() {
     const val = (r: any): string | number => {
       switch (sort.key) {
         case "docNo": return docNoById.get(r.id) || 0;
-        case "status": return getSignatureStatusInfo(r.status).label || r.status || "";
+        case "status": return getSignatureStatusInfo(r.status).label || koFallback(r.status);
         case "batch": return r.batch_id ? (r.batch_seq ?? 0) : -1;
         case "title": return r.title || "";
         case "signer": return r.signer_name || "";

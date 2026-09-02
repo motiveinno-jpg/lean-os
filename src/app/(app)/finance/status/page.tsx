@@ -1,4 +1,5 @@
 "use client";
+import { koFallback } from "@/lib/ko-label";
 import { MonthSelect } from "@/components/month-select";
 
 // ── 재무 › 현황 — **전표 현황** (2026-08-26 사장님 지시) ──────────────────────────────────
@@ -50,7 +51,7 @@ const monthStart = () => todayKst().slice(0, 7) + "-01";
 const STATUS: Record<string, string> = { confirmed: "확정", rejected: "반려" };
 const statusLabel = (s: string) => STATUS[s] || "대기";
 const VT: Record<string, string> = { cash_in: "입금", cash_out: "출금", transfer: "대체" };
-const SRC: Record<string, string> = { manual: "수동", rule: "규칙" };
+const SRC: Record<string, string> = { manual: "수동", rule: "규칙", import: "불러옴", auto: "자동" };
 
 type Line = { account_id: string; debit: number; credit: number; partner_id: string | null; partners: { name: string } | null };
 type Entry = {
@@ -248,7 +249,7 @@ export default function FinanceStatusPage() {
               {sp && <td className="tc">{vatType(e.vat_type)?.label || e.vat_type || "—"}</td>}
               <td className="text-left">{e.description || <span className="ev-dim">—</span>}</td><td className="text-left">{partnerOf(e) || <span className="ev-dim">—</span>}</td>
               {sp && <><td className="tr mono-number">₩{won(Number(e.supply_amount || 0))}</td><td className="tr mono-number">₩{won(Number(e.vat_amount || 0))}</td></>}
-              <td className="tr mono-number">₩{won(amountOf(e))}</td><td className="tc">{SRC[e.source] || e.source}</td>
+              <td className="tr mono-number">₩{won(amountOf(e))}</td><td className="tc">{SRC[e.source] || koFallback(e.source)}</td>
               <td className="tc"><span className={e.status === "confirmed" ? (e.is_approved ? "inv-pill inv-pill-ok" : "inv-pill") : e.status === "rejected" ? "inv-pill inv-pill-danger" : "inv-pill inv-pill-warn"}>{statusLabel(e.status)}{e.status === "confirmed" && !e.is_approved ? " · 미승인" : ""}</span></td>
               <td className="tc">{e.status !== "confirmed" && e.status !== "rejected" ? (
                 <span className="inline-flex gap-1.5">
@@ -279,7 +280,7 @@ export default function FinanceStatusPage() {
                 tab === "general" ? [...S.genAcct.entries()].flatMap(([vt, m]) => [...m.entries()].map(([id, v]) => ({ "유형": VT[vt], "계정": acctName(id), "차변": v.debit, "대변": v.credit, "줄 수": v.n })))
                 : tab === "sp" ? [...S.vat.entries()].map(([k, v]) => ({ "부가세 유형": k, "건수": v.n, "공급가액": v.supply, "세액": v.tax, "합계": v.supply + v.tax }))
                 : tab === "account" ? S.acctRows.map((r) => ({ "계정": r.name, "성격": NATURE_LABEL[r.nature as keyof typeof NATURE_LABEL] || "", "차변": r.debit, "대변": r.credit, "전표 수": r.n }))
-                : tab === "todo" ? [...S.rejected, ...S.pending, ...S.unapproved].map((e) => ({ "일자": e.entry_date, "종류": e.entry_kind === "sale_purchase" ? "매입매출" : "일반", "적요": e.description, "금액": amountOf(e), "출처": SRC[e.source] || e.source, "상태": statusLabel(e.status) + (e.status === "confirmed" && !e.is_approved ? " · 미승인" : "") }))
+                : tab === "todo" ? [...S.rejected, ...S.pending, ...S.unapproved].map((e) => ({ "일자": e.entry_date, "종류": e.entry_kind === "sale_purchase" ? "매입매출" : "일반", "적요": e.description, "금액": amountOf(e), "출처": SRC[e.source] || koFallback(e.source), "상태": statusLabel(e.status) + (e.status === "confirmed" && !e.is_approved ? " · 미승인" : "") }))
                 : [{ "확정 전표": S.confirmed.length, "확정 금액": S.total, "매출 전표": S.saleN, "매입 전표": S.buyN, "규칙 자동 비율": `${ruleRate}%`, "반려": S.rejected.length, "대기": S.pending.length, "전표 없는 증빙": unposted?.total ?? "" }];
               exportToExcel(rows, name, `전표현황_${name}_${from}_${to}`);
             }}>엑셀</button>

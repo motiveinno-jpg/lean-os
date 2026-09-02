@@ -1,4 +1,5 @@
 "use client";
+import { koFallback } from "@/lib/ko-label";
 
 import { appConfirm } from "@/components/global-confirm";
 import { Ico } from "@/components/ui-icon";
@@ -423,7 +424,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
               {scopedTemplates.map((tpl: any) => (
                 <tr key={tpl.id} className="pnl-row-acct" onClick={() => setPreviewId(tpl.id)}>
                   <td className="text-left font-semibold">{tpl.name}</td>
-                  <td className="text-center text-[var(--text-muted)]">{DOC_TYPES.find((t) => t.value === tpl.type)?.label || HR_TYPE_LABEL[tpl.type] || tpl.type || "—"}</td>
+                  <td className="text-center text-[var(--text-muted)]">{DOC_TYPES.find((t) => t.value === tpl.type)?.label || HR_TYPE_LABEL[tpl.type] || koFallback(tpl.type)}</td>
                   <td className="text-center mono-number">{Array.isArray(tpl.variables) ? tpl.variables.length : 0}</td>
                   <td className="text-center mono-number">{String(tpl.updated_at || tpl.created_at || "").slice(0, 10) || "—"}</td>
                   <td className="text-center">

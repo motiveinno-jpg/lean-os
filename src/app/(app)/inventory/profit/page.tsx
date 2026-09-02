@@ -1,4 +1,5 @@
 "use client";
+import { koFallback } from "@/lib/ko-label";
 
 // ── 재고 › 이익관리 (결정 40, 2026-08-26 사장님 지시) ─────────────────────────────────────
 //   구매·생산·판매를 통해 남는 돈을 **원가가 반영된** 숫자로. 원가는 DB 가 확정한 출고 원가(stock_move_costs, FIFO/이동평균)만 읽는다.
@@ -215,7 +216,7 @@ export default function InventoryProfitPage() {
                 tab === "product" ? productRows.map((r) => ({ "SKU": r.p?.sku || "", "품목": r.p?.name || "", "판매 수량": r.qty, "매출": r.rev, "매출원가": r.cost, "이익": r.gp, "이익률": pct(r.rate), "미확정": r.unc, "현재 층 단가": lastLayerCost(r.id) ?? "", "현재고 원가": onhandCost(r.id) }))
                 : tab === "partner" ? [...partnerRows.map((r) => ({ "구분": "거래처", "이름": r.name, "매출": r.rev, "원가": r.cost, "이익": r.gp, "이익률": pct(r.rate) })), ...channelRows.map((r) => ({ "구분": "채널", "이름": r.name, "매출": r.rev, "원가": r.cost, "이익": r.gp, "이익률": pct(r.rate) }))]
                 : tab === "buymake" ? [...[...BM.buy.entries()].map(([id, b]) => ({ "구분": "매입", "품목": productById.get(id)?.name || "", "수량": b.qty, "평균 단가": b.qty ? b.amt / b.qty : "", "최저": b.min, "최고": b.max, "판매가": productById.get(id)?.sale_price ?? "" })), ...[...BM.make.entries()].map(([id, k]) => ({ "구분": "생산", "품목": productById.get(id)?.name || "", "수량": k.qty, "평균 단가": k.qty ? k.amt / k.qty : "", "노무·경비": k.overhead, "판매가": productById.get(id)?.sale_price ?? "" }))]
-                : tab === "history" ? histLayers.map((l) => ({ "품목": productById.get(l.product_id)?.name || "", "일자": l.layer_date, "원천": SOURCE_LABEL[l.source] || l.source, "입고": l.qty_in, "남음": l.qty_left, "단가": l.unit_cost ?? "" }))
+                : tab === "history" ? histLayers.map((l) => ({ "품목": productById.get(l.product_id)?.name || "", "일자": l.layer_date, "원천": SOURCE_LABEL[l.source] || koFallback(l.source), "입고": l.qty_in, "남음": l.qty_left, "단가": l.unit_cost ?? "" }))
                 : [{ "매출": S.revenue, "매출원가": S.cogs, "매출총이익": S.gp, "이익률": pct(S.rate), "손실": S.loss, "순이익": S.net, "원가 미확정": S.uncosted }];
               exportToExcel(rows, name, `이익관리_${name}_${from}_${to}`);
             }}>엑셀</button>
@@ -378,7 +379,7 @@ export default function InventoryProfitPage() {
                       <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status-sm">
                         <thead><tr><th>일자</th><th>품목</th><th>원천</th><th>입고</th><th>남음</th><th>단가</th></tr></thead>
                         <tbody>{histLayers.slice(-300).reverse().map((l) => (
-                          <tr key={l.id} className={l.unit_cost == null ? "inv-row-fix" : l.qty_left === 0 ? "ev-dim" : undefined}><td className="mono-number tc">{l.layer_date}</td><td className="text-left"><b>{productById.get(l.product_id)?.name || "?"}</b></td><td className="tc">{SOURCE_LABEL[l.source] || l.source}</td>
+                          <tr key={l.id} className={l.unit_cost == null ? "inv-row-fix" : l.qty_left === 0 ? "ev-dim" : undefined}><td className="mono-number tc">{l.layer_date}</td><td className="text-left"><b>{productById.get(l.product_id)?.name || "?"}</b></td><td className="tc">{SOURCE_LABEL[l.source] || koFallback(l.source)}</td>
                             <td className="tr mono-number">{won(l.qty_in)}</td><td className="tr mono-number">{won(l.qty_left)}</td><td className="tr mono-number">{l.unit_cost == null ? <span className="inv-diff-minus">단가 없음</span> : `₩${won(l.unit_cost)}`}</td></tr>
                         ))}{histLayers.length === 0 && <tr><td colSpan={6} className="tc ev-dim">입고 층이 없습니다</td></tr>}</tbody>
                       </table></div>
@@ -390,7 +391,7 @@ export default function InventoryProfitPage() {
                         <tbody>{histCosts.slice(0, 300).map((c: MoveCost) => (
                           <tr key={c.move_id} className={c.qty_uncosted ? "inv-row-fix" : undefined}><td className="mono-number tc">{c.moved_at}</td><td className="text-left"><b>{productById.get(c.product_id)?.name || "?"}</b></td><td className="tc">{c.reason}</td>
                             <td className="tr mono-number">{won(-c.qty)}</td><td className="tr mono-number">₩{won(c.cost_amount)}{c.qty_uncosted ? <span className="inv-diff-minus"> · 미확정 {won(c.qty_uncosted)}</span> : null}</td><td className="tr mono-number">{c.unit_cost != null ? `₩${won(c.unit_cost)}` : "—"}</td>
-                            <td className="text-left ev-dim">{(c.layers || []).map((x) => `${x.date} ${SOURCE_LABEL[x.source] || x.source} ${won(x.qty)}@${won(x.unit_cost)}`).join(", ") || "—"}</td></tr>
+                            <td className="text-left ev-dim">{(c.layers || []).map((x) => `${x.date} ${SOURCE_LABEL[x.source] || koFallback(x.source)} ${won(x.qty)}@${won(x.unit_cost)}`).join(", ") || "—"}</td></tr>
                         ))}{histCosts.length === 0 && <tr><td colSpan={7} className="tc ev-dim">이 기간에 출고가 없습니다</td></tr>}</tbody>
                       </table></div>
                     </div>

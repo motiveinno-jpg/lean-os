@@ -1,4 +1,5 @@
 "use client";
+import { koFallback } from "@/lib/ko-label";
 import { appConfirm } from "@/components/global-confirm";
 import { downloadCsv } from "@/lib/csv-export";
 import { useMyPermissions } from "@/lib/permissions";
@@ -2843,7 +2844,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
       currentApprover: (r.status === "pending" || r.status === "first_approved") ? (cur || null) : null,
       stageNo: r.status === "first_approved" ? 2 : 1,
       total: r.second_approver_id ? 2 : 1,
-      label: st?.label || r.status,
+      label: st?.label || koFallback(r.status),
     };
   };
   //   머리단 ≡ 가 고를 칸 값(표에 보이는 글자) + 정렬 — 취소·승인 로직은 손대지 않는다
@@ -3930,7 +3931,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                         </div>
                       </div>
                       <span className="text-[11px] font-semibold">
-                        {LEAVE_REQUEST_STATUS[r.status as keyof typeof LEAVE_REQUEST_STATUS]?.label || r.status}
+                        {LEAVE_REQUEST_STATUS[r.status as keyof typeof LEAVE_REQUEST_STATUS]?.label || koFallback(r.status)}
                       </span>
                     </div>
                   ))}

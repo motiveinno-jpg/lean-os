@@ -1,4 +1,5 @@
 "use client";
+import { koFallback } from "@/lib/ko-label";
 import { appConfirm } from "@/components/global-confirm";
 import { Ico } from "@/components/ui-icon";
 import { todayKst, kstDateStr } from "@/lib/kst";
@@ -1436,7 +1437,7 @@ function ActivityTab({ data, dealId }: { data: PanelData; dealId: string }) {
       if (a.stage === 'progress_report') return;
       const stageLabel = APPROVAL_STAGE_LABEL[a.stage] || a.stage;
       const recipient = a.recipient_name || a.recipient_email || '거래처';
-      const statusKo = STATUS_LABEL_KO[a.status] || a.status;
+      const statusKo = STATUS_LABEL_KO[a.status] || koFallback(a.status);
       arr.push({
         id: a.id,
         name: `${stageLabel} · ${recipient}`,

@@ -1,4 +1,5 @@
 "use client";
+import { koFallback } from "@/lib/ko-label";
 
 // 중복 의심 팝업 — 세 갈래 (2026-08-19 사장님): 새 전표 만들기 / 이미 있는 전표에 연결(장부 불변) / 취소.
 //   Promise 로 답을 돌려주는 훅 — 전표 만드는 자리에서 `const a = await askDup(...)` 로 끼운다.
@@ -28,7 +29,7 @@ export function useDupVoucherPrompt() {
                 <td className="text-center"><input type="radio" name="dup-pick" checked={pick === e.id} onChange={() => setPick(e.id)} /></td>
                 <td className="text-center mono-number">#{e.voucher_no ?? "—"}</td>
                 <td className="text-left">{e.description || <span className="text-[var(--text-dim)]">(적요 없음)</span>}</td>
-                <td className="text-center text-[var(--text-muted)]">{SOURCE_LABEL[e.source] || e.source || "—"}</td>
+                <td className="text-center text-[var(--text-muted)]">{SOURCE_LABEL[e.source] || koFallback(e.source)}</td>
                 <td className="text-right mono-number font-bold">{e.total.toLocaleString()}</td>
                 <td className="text-center text-[var(--text-muted)]">{e.linkedCount > 0 ? `${e.linkedCount}건` : "—"}</td>
               </tr>

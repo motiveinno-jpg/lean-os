@@ -1,4 +1,5 @@
 "use client";
+import { koFallback } from "@/lib/ko-label";
 import { fetchPartnerCredit, creditReason, GRADE_LABEL } from "@/lib/partner-credit";
 import { SortableTh, nextSort, useColWidths, type SortState, type ThFilterSpec } from "@/components/sortable-th";
 import {
@@ -1692,7 +1693,7 @@ export default function PartnersPage() {
                     {importPreview.slice(0, 50).map((r: any, i: number) => (
                       <tr key={i} className="border-b border-[var(--border)]/30">
                         <td className="px-2 py-1.5 font-medium">{r.name}</td>
-                        <td className="px-2 py-1.5">{TYPE_BADGE[r.type]?.label || r.type}</td>
+                        <td className="px-2 py-1.5">{TYPE_BADGE[r.type]?.label || koFallback(r.type)}</td>
                         <td className="px-2 py-1.5 text-[var(--text-muted)]">{r.businessNumber || "—"}</td>
                         <td className="px-2 py-1.5">{r.contactName || "—"}</td>
                         <td className="px-2 py-1.5 text-[var(--text-muted)]">{r.contactEmail || "—"}</td>

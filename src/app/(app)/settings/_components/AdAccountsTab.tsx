@@ -1,4 +1,5 @@
 "use client";
+import { koFallback } from "@/lib/ko-label";
 
 // 광고 계정 연동 — 회사가 쓰는 광고 계정을 여기 한 번만 등록하고, 프로젝트에서는 골라 쓴다
 //   (2026-08-06 사장님 지시: "대행사면 클라이언트마다 광고계정을 등록할 수도 있다").
@@ -140,7 +141,7 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
                     <span className="ad-acc-meta">마지막 수집 {String(a.last_synced_at).slice(0, 16).replace("T", " ")}</span>
                   )}
                 </div>
-                <span className={`ad-acc-badge ${STATUS[a.status]?.cls || ""}`}>{STATUS[a.status]?.label || a.status}</span>
+                <span className={`ad-acc-badge ${STATUS[a.status]?.cls || ""}`}>{STATUS[a.status]?.label || koFallback(a.status)}</span>
                 <button type="button" className="ad-acc-sync" disabled={syncing === a.id} onClick={() => syncNow(a)}>
                   {syncing === a.id ? "가져오는 중…" : "지금 가져오기"}
                 </button>

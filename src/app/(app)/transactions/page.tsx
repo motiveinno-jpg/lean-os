@@ -1,4 +1,5 @@
 "use client";
+import { koFallback } from "@/lib/ko-label";
 import { todayKst } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
@@ -1650,7 +1651,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                       {/* AI 추천(제안) — 사람이 [확정] 클릭해야 적용(확정은 사람). 미분류 지출 + 추천 있을 때만. */}
                       {tab === 'inbox' && tx.mapping_status === 'unmapped' && tx.type === 'expense' && aiSug[tx.id] && (() => {
                         const s = aiSug[tx.id];
-                        const label = AI_CATEGORY_LABEL[s.category] || s.category;
+                        const label = AI_CATEGORY_LABEL[s.category] || koFallback(s.category);
                         return (
                           <div className="tx-ai-suggestion">
                             <span className="text-[11px] font-semibold" style={{ color: 'var(--primary)' }}><Ico e="🤖" /> AI 추천</span>

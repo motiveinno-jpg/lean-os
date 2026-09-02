@@ -1,4 +1,5 @@
 "use client";
+import { koFallback } from "@/lib/ko-label";
 
 import { kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
@@ -381,7 +382,7 @@ async function buildAndSaveApprovalPdf(args: {
       stage: st.stage,
       stageName: st.stage_name,
       approverName: st.approver_name || "담당자",
-      statusLabel: STATUS_CONFIG[st.status]?.label || st.status,
+      statusLabel: STATUS_CONFIG[st.status]?.label || koFallback(st.status),
       comment: st.comment || undefined,
       decidedAt: st.decided_at ? formatDateTime(st.decided_at) : null,
     })),

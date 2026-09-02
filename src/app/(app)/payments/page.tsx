@@ -1,4 +1,5 @@
 "use client";
+import { koFallback } from "@/lib/ko-label";
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
@@ -845,7 +846,7 @@ function BatchDetailModal({ batchId, onClose }: { batchId: string; onClose: () =
                         )}
                       </div>
                       <div className="col-span-3 text-[var(--text-muted)]">
-                        {it.category && <span className="px-2 py-0.5 rounded-full bg-[var(--bg-surface)]">{categoryLabels[it.category] || it.category}</span>}
+                        {it.category && <span className="px-2 py-0.5 rounded-full bg-[var(--bg-surface)]">{categoryLabels[it.category] || koFallback(it.category)}</span>}
                       </div>
                       <div className="col-span-3 text-right font-bold text-sm">₩{Number(it.amount || 0).toLocaleString()}</div>
                       <div className="col-span-1 text-right text-[10px] text-[var(--text-dim)]">{it.status || ''}</div>
@@ -930,7 +931,7 @@ function RecurringDetailModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             <ReadOnlyField label="명칭" value={item.name || '—'} />
             <ReadOnlyField label="금액" value={`₩${Number(item.amount || 0).toLocaleString()}`} />
-            <ReadOnlyField label="카테고리" value={categories[item.category] || item.category || '—'} />
+            <ReadOnlyField label="카테고리" value={categories[item.category] || koFallback(item.category)} />
             <ReadOnlyField label="수취인명" value={item.recipient_name || '—'} />
             <ReadOnlyField label="계좌번호" value={item.recipient_account || '—'} />
             <ReadOnlyField label="이체일 (매월)" value={item.day_of_month ? `${item.day_of_month}일` : '25일'} />
@@ -1290,7 +1291,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
                   <td className="px-5 py-3 text-sm font-medium">{r.name}</td>
                   <td className="px-5 py-3 text-xs">
                     <span className="px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">
-                      {categories[r.category] || r.category}
+                      {categories[r.category] || koFallback(r.category)}
                     </span>
                   </td>
                   <td className="px-5 py-3 text-sm text-right font-bold">₩{Number(r.amount || 0).toLocaleString()}</td>

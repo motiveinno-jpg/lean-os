@@ -1,4 +1,5 @@
 "use client";
+import { koFallback } from "@/lib/ko-label";
 import { logRead } from "@/lib/log-read";
 
 import { useMemo } from "react";
@@ -248,7 +249,7 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-semibold text-[var(--text)] truncate">{it.name}</span>
                   <span className="text-[9px] px-1 py-0.5 rounded bg-[var(--bg-card)] text-[var(--text-dim)] shrink-0">
-                    {CAT_LABEL[it.category] || it.category}
+                    {CAT_LABEL[it.category] || koFallback(it.category)}
                   </span>
                 </div>
                 <div className="text-[10px] text-[var(--text-dim)] truncate">

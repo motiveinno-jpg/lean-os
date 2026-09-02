@@ -1,4 +1,5 @@
 "use client";
+import { koFallback } from "@/lib/ko-label";
 
 // 프로젝트 표(보드) 화면 — 새 프로젝트 구조 1단계 (2026-08-03 기획 v2).
 //   상단 탭에서 표를 고르고(＋로 추가), 그룹 안에 행을 쌓고, 셀을 눌러 바로 고친다.
@@ -2830,7 +2831,7 @@ function BoardSummary({ boardName, needsHint, templateKey, cols, items, groups, 
                       <div className="pbsum-picker-list">
                         {addable.map((x) => (
                           <button key={x.id} type="button" onClick={() => { saveMine([...mineIds, x.id]); setPickOpen(false); }}>
-                            {x.title} <small>{KIND_LABEL[x.kind] || x.kind}</small>
+                            {x.title} <small>{KIND_LABEL[x.kind] || koFallback(x.kind)}</small>
                           </button>
                         ))}
                       </div>

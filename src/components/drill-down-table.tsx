@@ -1,4 +1,5 @@
 "use client";
+import { koFallback } from "@/lib/ko-label";
 
 import { useState } from "react";
 
@@ -96,7 +97,7 @@ export function DrillDownTable({ items, month, onExport, onClose }: DrillDownTab
               {sorted.map((item, i) => (
                 <tr key={i} className="border-b border-[var(--border)] hover:bg-[var(--bg-surface)]/60 transition">
                   <td className="py-3 text-[var(--text)]">{item.name}</td>
-                  <td className="py-3 text-[var(--text-muted)]">{CAT_LABELS[item.category] || item.category}</td>
+                  <td className="py-3 text-[var(--text-muted)]">{CAT_LABELS[item.category] || koFallback(item.category)}</td>
                   <td className={`py-3 text-right mono-number ${item.category === 'income' ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
                     ₩{Math.abs(item.amount).toLocaleString()}
                   </td>

@@ -1,4 +1,5 @@
 "use client";
+import { koFallback } from "@/lib/ko-label";
 import { logRead } from "@/lib/log-read";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -621,7 +622,7 @@ export default function MyPage() {
                 <div className="mypage-info-tile"><div className="text-xs text-[var(--text-dim)] mb-0.5">부서</div><div className="font-medium">{employee.department || "—"}</div></div>
                 <div className="mypage-info-tile"><div className="text-xs text-[var(--text-dim)] mb-0.5">직위</div><div className="font-medium">{employee.position || "—"}</div></div>
                 <div className="mypage-info-tile"><div className="text-xs text-[var(--text-dim)] mb-0.5">입사일</div><div className="font-medium">{employee.hire_date || "—"}</div></div>
-                <div className="mypage-info-tile"><div className="text-xs text-[var(--text-dim)] mb-0.5">상태</div><div className={`font-medium ${st?.color || ""}`}>{st?.label || employee.status}</div></div>
+                <div className="mypage-info-tile"><div className="text-xs text-[var(--text-dim)] mb-0.5">상태</div><div className={`font-medium ${st?.color || ""}`}>{st?.label || koFallback(employee.status)}</div></div>
                 {Number(employee.salary) > 0 && (
                   <button type="button" onClick={() => setShowSalary((v) => !v)} className="mypage-info-tile text-left cursor-pointer" title={showSalary ? "누르면 가립니다" : "누르면 표시됩니다"}>
                     <div className="text-xs text-[var(--text-dim)] mb-0.5">연봉</div>

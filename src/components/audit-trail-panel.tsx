@@ -1,4 +1,5 @@
 "use client";
+import { koFallback } from "@/lib/ko-label";
 
 // ── 변경 이력 — 누가 언제 무엇을 바꿨나 (2026-08-27 ERP 3순위 ④, 결정 84~85) ──
 //   audit_logs(수정·삭제 금지 RLS)를 회사 관리자가 본다. 전표·급여·서명·결재·파일·프로젝트·마감.
@@ -30,7 +31,7 @@ const when = (iso: string) => { const d = new Date(iso); return `${d.getFullYear
 const monthAgo = () => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 10); };
 const summary = (r: Row) => {
   const a = r.after_json || {};
-  if (r.entity_type === "journal_entry") return `${a.voucher_no ? `#${a.voucher_no} ` : ""}${a.description || ""}${r.before_json?.status && r.before_json.status !== a.status ? ` (${ACTION_LABEL[r.before_json.status] || r.before_json.status} → ${ACTION_LABEL[a.status] || a.status})` : ""}`;
+  if (r.entity_type === "journal_entry") return `${a.voucher_no ? `#${a.voucher_no} ` : ""}${a.description || ""}${r.before_json?.status && r.before_json.status !== a.status ? ` (${ACTION_LABEL[r.before_json.status] || koFallback(r.before_json.status)} → ${ACTION_LABEL[a.status] || koFallback(a.status)})` : ""}`;
   if (r.entity_type === "payroll_item") return `${a.period_month || ""} 급여명세`;
   if (r.entity_type === "closing") return r.metadata?.entity_name || "";
   return a.name || a.title || a.file_name || r.metadata?.entity_name || r.metadata?.name || "";

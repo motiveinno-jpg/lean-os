@@ -1,4 +1,5 @@
 "use client";
+import { koFallback } from "@/lib/ko-label";
 
 // 프로젝트 v3 — 먼데이식 표 입력 (2026-08-31 결정 130·124·132, docs/20260831_PLAN_projecthub_v3_impl.md 1단계)
 //
@@ -777,7 +778,7 @@ export function TableV3() {
   const exportRows = () => {
     const data = shown.map((it) => {
       const row: Record<string, unknown> = {
-        "그룹": stages.find((s) => s.id === it.status)?.label || it.status,
+        "그룹": stages.find((s) => s.id === it.status)?.label || koFallback(it.status),
         "이름": it.name,
         "담당": userName(it.assignee_id) || "",
         "마감": it.due_date || "",
@@ -1494,7 +1495,7 @@ export function TableV3() {
         if (ac.builtin === "status") {
           return <td key={ac.key}><button type="button" className="pjv3-stcell" style={{ background: STAGE_HEX[stageOf(it.status)?.color || "gray"] }}
             onClick={(e) => setPop({ kind: "status", itemId: it.id, ...at(e) })}>
-            {stageOf(it.status)?.label || it.status}</button></td>;
+            {stageOf(it.status)?.label || koFallback(it.status)}</button></td>;
         }
         if (ac.builtin === "due") {
           return <td key={ac.key} className="pjv3-ecell mono-number"><EditCell it={it} colKey="due_date" value={it.due_date || ""} type="date" /></td>;

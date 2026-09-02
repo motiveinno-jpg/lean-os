@@ -1,4 +1,5 @@
 "use client";
+import { koFallback } from "@/lib/ko-label";
 
 import { kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
@@ -432,7 +433,7 @@ function VaultPageInner() {
         ? `${Math.abs(days)}일 전 만료됨`
         : days === 0
         ? "오늘 만료"
-        : `${days}일 후 만료 · ${DOC_CATEGORIES[d.category] || d.category || "문서"}`,
+        : `${days}일 후 만료 · ${DOC_CATEGORIES[d.category] || koFallback(d.category, "문서")}`,
       daysLeft: days,
       kind: "doc",
       targetId: d.id,
@@ -1120,7 +1121,7 @@ function VaultPageInner() {
                       <span className={`text-[10px] px-2 py-0.5 rounded-full ${
                         a.type === "tangible" ? "bg-blue-500/10 text-blue-400" : "bg-purple-500/10 text-purple-400"
                       }`}>
-                        {ASSET_TYPES[a.type] || a.type}
+                        {ASSET_TYPES[a.type] || koFallback(a.type)}
                       </span>
                     </td>
                     <td className="p-4 text-right text-[var(--text-muted)] mono-number">{(a.value || 0).toLocaleString()}원</td>
@@ -1180,7 +1181,7 @@ function VaultPageInner() {
                       </td>
                       <td className="p-4 text-center">
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400">
-                          {DOC_CATEGORIES[d.category] || d.category}
+                          {DOC_CATEGORIES[d.category] || koFallback(d.category)}
                         </span>
                       </td>
                       <td className="p-4 text-center text-xs text-[var(--text-muted)]">
