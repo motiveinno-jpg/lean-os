@@ -203,10 +203,10 @@ export default function VoucherEntryPage() {
   const importShown = importRows.filter((r) => quickSearchHit(importQ, [r.who, r.desc, r.account, r.date], [r.amount])).slice(0, 200);
   const applyImport = (r: SrcTx) => {
     //   날짜·유형·첫 줄(금액·적요)을 채운다. 계정과목은 사람이 고른다(자동으로 정하면 틀렸을 때 못 찾는다)
-    setEntryY(r.date.slice(0, 4)); setEntryM(String(Number(r.date.slice(5, 7)))); setEntryD(String(Number(r.date.slice(8, 10))));
     const t: VType = r.kind === "bank" ? (r.isIn ? "cash_in" : "cash_out") : "transfer";
     setVtype(t);
     const rows = freshRows(t);
+    rows.forEach((x) => { x.date = r.date; });   // 불러온 거래의 날짜를 줄 날짜로
     const memo = [r.who, r.desc].filter(Boolean).join(" · ").slice(0, 60);
     if (r.kind === "bank") {
       //   입금 = 대변(수익) 금액, 출금 = 차변(비용) 금액. 반대편 보통예금은 저장 때 자동으로 붙는다
