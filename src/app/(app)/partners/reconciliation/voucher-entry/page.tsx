@@ -474,12 +474,9 @@ export default function VoucherEntryPage() {
    *  '빈 칸일 때만' 으로 하지 않는다: 구분처럼 늘 값이 있는 칸은 영영 못 내려 고장난 것처럼 보인다. */
   const pullCell = (cell: VCell, rowIdx: number) => {
     const last = entries.length > 0 ? entries[entries.length - 1] : null;
-    if (cell === "date") {
-      const upRow = rowIdx > 0 ? pend[rowIdx - 1] : null;
-      const v = upRow?.date || last?.entry_date;
-      if (v) setPend((ls) => ls.map((l, i) => (i === rowIdx ? { ...l, date: v } : l)));
-      return;
-    }
+    //   날짜 칸은 Enter 로 윗값을 내리지 않는다 — 항상 채워져 있는 칸이라 사람이 고른 날짜를 덮어 버린다
+    //   (새 줄은 만들 때 윗줄 날짜를 이미 잇는다). Enter 는 다음 칸으로만 간다.
+    if (cell === "date") return;
     const cur = pend[rowIdx];
     if (!cur) return;
     const up = rowIdx > 0 ? pend[rowIdx - 1] : null;
