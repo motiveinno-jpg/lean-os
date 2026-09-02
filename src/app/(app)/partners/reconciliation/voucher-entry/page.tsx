@@ -70,7 +70,8 @@ const VTYPES: { id: VType; label: string; desc: string }[] = [
   { id: "cash_out", label: "출금", desc: "돈이 나감 — 대변 보통예금 자동" },
   { id: "cash_in", label: "입금", desc: "돈이 들어옴 — 차변 보통예금 자동" },
 ];
-type PLine = { key: number; gubun: Gubun; account: Acct | null; partner: Pt | null; memo: string; debit: string; credit: string };
+type PLine = { key: number; date: string; gubun: Gubun; account: Acct | null; partner: Pt | null; memo: string; debit: string; credit: string };
+//   date = 그 줄의 전표 일자(YYYY-MM-DD). 같은 날짜 줄끼리 한 장의 전표가 된다 (2026-09-02 사장님: "줄마다 날짜 선택").
 type SavedLine = { account: Acct | null; partner: Pt | null; memo: string; debit: number; credit: number };
 //   entry_date 는 반드시 들고 다닌다 — 목록이 여러 날이라 수정 저장에 그 전표 자기 날짜가 필요하다
 type SavedEntry = { id: string; entry_date: string; voucher_no: number | null; voucher_type: string | null; description: string; source: string; entry_kind: string | null; lines: SavedLine[] };
@@ -80,7 +81,7 @@ const AR_AP_CODES = new Set(["108", "251"]);
 const MEMO_KEY = "voucher-recent-memos";
 
 //   Enter 가 훑는 입력칸 — 화면 왼→오 순서. 일자 3칸이 앞, 그 뒤가 분개 행의 칸들이다.
-type VCell = "y" | "m" | "d" | "gubun" | "account" | "partner" | "memo" | "debit" | "credit";
+type VCell = "date" | "gubun" | "account" | "partner" | "memo" | "debit" | "credit";
 //   전표목록 제목줄 정렬 기준 (매입매출전표와 같은 목록)
 type VSortKey = "date" | "no" | "account" | "partner" | "debit" | "credit" | "memo";
 /** 목록 검색조건 (조회 화면 표준, 2026-08-18 Wave 1 — B형: 입력부는 그대로, 목록부만) */
@@ -105,11 +106,7 @@ export default function VoucherEntryPage() {
   const { toast } = useToast();
 
   //   ① 칠 전표의 날짜 — 매입매출전표와 같은 년·월·일 3칸
-  const [entryY, setEntryY] = useState(todayKst().slice(0, 4));
-  const [entryM, setEntryM] = useState(String(Number(todayKst().slice(5, 7))));
-  const [entryD, setEntryD] = useState(String(Number(todayKst().slice(8, 10))));
-  const entryDate = `${entryY}-${pad2(entryM)}-${pad2(entryD)}`;
-  const entryDateOk = entryY.length === 4 && Number(entryM) >= 1 && Number(entryM) <= 12 && Number(entryD) >= 1 && Number(entryD) <= 31;
+  //   전표 일자는 줄마다 갖는다(PLine.date) — 상단 단일 일자 칸은 2026-09-02 사장님 지시로 없앴다.
   //   제목줄 정렬 — 공용 부품(SortableTh). 기본은 일자·전표번호 순(자료 순서 그대로).
   const [sort, setSort] = useState<SortState<VSortKey>>({ key: "date", dir: "asc" });
   const onSort = (k: VSortKey) => setSort((c) => nextSort(c, k));
@@ -154,7 +151,7 @@ export default function VoucherEntryPage() {
 
   // 상단 행 초기화 — 구분에 맞는 기본 2행(대체: 차변+대변 / 출금: 차변 / 입금: 대변)
   const freshRows = (t: VType): PLine[] => {
-    const mk = (g: Gubun): PLine => ({ key: K++, gubun: g, account: null, partner: null, memo: "", debit: "", credit: "" });
+    const mk = (g: Gubun): PLine => ({ key: K++, date: todayKst(), gubun: g, account: null, partner: null, memo: "", debit: "", credit: "" });
     return t === "cash_out" ? [mk("1"), mk("1")] : t === "cash_in" ? [mk("2"), mk("2")] : [mk("3"), mk("4")];
   };
   // 프로젝트 지출 항목 → 전표 초안 프리필 (2026-08-31 개편 3단계, A3 sessionStorage 패턴 —
@@ -389,6 +386,18 @@ export default function VoucherEntryPage() {
   const pendDebit = pendFilled.reduce((s, l) => s + normDC(l).d, 0);
   const pendCredit = pendFilled.reduce((s, l) => s + normDC(l).c, 0);
   const autoAmt = vtype === "cash_out" ? pendDebit : vtype === "cash_in" ? pendCredit : 0;
+  //   날짜별 묶음 — 같은 날짜 줄이 한 장. 대체전표는 묶음마다 차·대가 맞아야 한다.
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  const pendDatesOk = pendFilled.every((l) => DATE_RE.test(l.date));
+  const pendGroups = (() => {
+    const m = new Map<string, PLine[]>();
+    for (const l of pendFilled) { const arr = m.get(l.date) || []; arr.push(l); m.set(l.date, arr); }
+    return [...m.entries()].sort(([a], [b]) => a.localeCompare(b));
+  })();
+  const pendGroupsOk = vtype !== "transfer" || pendGroups.every(([, ls]) => {
+    const d = ls.reduce((s, l) => s + normDC(l).d, 0), c = ls.reduce((s, l) => s + normDC(l).c, 0);
+    return d === c && ls.length >= 2;
+  });
   const pendTotalD = pendDebit + (vtype === "cash_in" ? autoAmt : 0);
   const pendTotalC = pendCredit + (vtype === "cash_out" ? autoAmt : 0);
   const pendDiff = pendTotalD - pendTotalC;
@@ -406,11 +415,12 @@ export default function VoucherEntryPage() {
   const editsOk = editIds.every((id) => editStat(edits[id]).ok);
   //   일자를 3칸으로 나누면서 '월을 지운 중간 상태'가 생긴다 — 그대로 저장하면 2026-00-00 이 날아간다.
   //   새 전표를 칠 때만 막는다(수정만 저장하는 경우는 그 전표 자기 날짜를 쓴다)
-  const canSave = dbReady && !busy && ((pendFilled.length > 0 && pendOk && entryDateOk) || editIds.length > 0) && editsOk && (pendFilled.length === 0 || (pendOk && entryDateOk));
+  const canSave = dbReady && !busy && ((pendFilled.length > 0 && pendOk && pendDatesOk && pendGroupsOk) || editIds.length > 0) && editsOk && (pendFilled.length === 0 || (pendOk && pendDatesOk && pendGroupsOk));
 
   // ── 행 조작 ──
   const rowGubun = (): Gubun => (vtype === "cash_out" ? "1" : vtype === "cash_in" ? "2" : "3");
-  const newLine = (g?: Gubun): PLine => ({ key: K++, gubun: g ?? rowGubun(), account: null, partner: null, memo: "", debit: "", credit: "" });
+  //   새 줄의 날짜는 바로 윗줄을 따른다 — 같은 전표를 이어 치는 게 보통이다
+  const newLine = (g?: Gubun): PLine => ({ key: K++, date: pend[pend.length - 1]?.date || todayKst(), gubun: g ?? rowGubun(), account: null, partner: null, memo: "", debit: "", credit: "" });
   const setPendLine = (key: number, patch: Partial<PLine>) => setPend((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   const setEditLine = (entryId: string, key: number, patch: Partial<PLine>) =>
     setEdits((es) => ({ ...es, [entryId]: { ...es[entryId], lines: es[entryId].lines.map((l) => (l.key === key ? { ...l, ...patch } : l)) } }));
@@ -427,7 +437,7 @@ export default function VoucherEntryPage() {
       ...es,
       [e.id]: {
         desc: e.description,
-        lines: e.lines.map((l) => ({ key: K++, gubun: savedGubun(e.voucher_type, l.debit), account: l.account, partner: l.partner, memo: l.memo, debit: l.debit ? l.debit.toLocaleString() : "", credit: l.credit ? l.credit.toLocaleString() : "" })),
+        lines: e.lines.map((l) => ({ key: K++, date: e.entry_date, gubun: savedGubun(e.voucher_type, l.debit), account: l.account, partner: l.partner, memo: l.memo, debit: l.debit ? l.debit.toLocaleString() : "", credit: l.credit ? l.credit.toLocaleString() : "" })),
       },
     }));
   };
@@ -464,12 +474,10 @@ export default function VoucherEntryPage() {
    *  '빈 칸일 때만' 으로 하지 않는다: 구분처럼 늘 값이 있는 칸은 영영 못 내려 고장난 것처럼 보인다. */
   const pullCell = (cell: VCell, rowIdx: number) => {
     const last = entries.length > 0 ? entries[entries.length - 1] : null;
-    if (cell === "y" || cell === "m" || cell === "d") {
-      if (!last) return;
-      const [yy, mm, dd] = last.entry_date.split("-");
-      if (cell === "y") setEntryY(yy);
-      if (cell === "m") setEntryM(String(Number(mm)));
-      if (cell === "d") setEntryD(String(Number(dd)));
+    if (cell === "date") {
+      const upRow = rowIdx > 0 ? pend[rowIdx - 1] : null;
+      const v = upRow?.date || last?.entry_date;
+      if (v) setPend((ls) => ls.map((l, i) => (i === rowIdx ? { ...l, date: v } : l)));
       return;
     }
     const cur = pend[rowIdx];
@@ -547,35 +555,43 @@ export default function VoucherEntryPage() {
         if (error) throw new Error(errMsg(String(error.message)));
       }
       let newId: string | null = null;
-      if (pendFilled.length > 0) {
+      const newIds: string[] = [];
+      //   ★ 같은 날짜 줄끼리 한 장 — 날짜가 여러 개면 전표도 여러 장 (2026-09-02 사장님: 줄마다 날짜)
+      for (const [gDate, gLines] of pendGroups) {
+        const gDebit = gLines.reduce((s, l) => s + normDC(l).d, 0);
+        const gCredit = gLines.reduce((s, l) => s + normDC(l).c, 0);
+        const gAuto = vtype === "cash_out" ? gDebit : vtype === "cash_in" ? gCredit : 0;
         //   중복 의심 경고 (2026-08-19 사장님): 불러온 거래가 아닌데 같은 날·같은 금액의 통장/카드 거래가 이미 전표돼 있으면 확인을 받는다
         if (!linkedSrc) {
-          const total = vtype === "cash_in" ? pendCredit : vtype === "cash_out" ? pendDebit : Math.max(pendDebit, pendCredit);
+          const total = vtype === "cash_in" ? gCredit : vtype === "cash_out" ? gDebit : Math.max(gDebit, gCredit);
           if (total > 0) {
             const [bk, cd] = await Promise.all([
-              db.from("bank_transactions").select("id, amount, counterparty, journal_entry_id").eq("company_id", companyId ?? "").eq("transaction_date", entryDate).not("journal_entry_id", "is", null).in("amount", [total, -total]).limit(5),
-              db.from("card_transactions").select("id, amount, merchant_name, journal_entry_id").eq("company_id", companyId ?? "").eq("transaction_date", entryDate).not("journal_entry_id", "is", null).in("amount", [total, -total]).limit(5),
+              db.from("bank_transactions").select("id, amount, counterparty, journal_entry_id").eq("company_id", companyId ?? "").eq("transaction_date", gDate).not("journal_entry_id", "is", null).eq("amount", total),
+              db.from("card_transactions").select("id, amount, merchant_name, journal_entry_id").eq("company_id", companyId ?? "").eq("transaction_date", gDate).not("journal_entry_id", "is", null).eq("amount", total),
             ]);
             const dups = [...((bk.data || []) as any[]).map((r) => `통장 ${r.counterparty || ""} ${Number(r.amount).toLocaleString()}`), ...((cd.data || []) as any[]).map((r) => `카드 ${r.merchant_name || ""} ${Number(r.amount).toLocaleString()}`)];
             if (dups.length > 0) {
-              const ok = await appConfirm(`중복 의심 — 같은 날(${entryDate}) 같은 금액(${total.toLocaleString()})의 거래가 이미 전표처리돼 있습니다:\n${dups.join("\n")}\n\n그래도 새 전표로 저장할까요? (같은 돈이 두 번 장부에 오를 수 있습니다. 통장·카드 거래를 전표로 치려면 '통장·카드 불러오기'를 쓰세요)`, { danger: true });
+              const ok = await appConfirm(`중복 의심 — 같은 날(${gDate}) 같은 금액(${total.toLocaleString()})의 거래가 이미 전표처리돼 있습니다:\n${dups.join("\n")}\n\n그래도 새 전표로 저장할까요? (같은 돈이 두 번 장부에 오를 수 있습니다. 통장·카드 거래를 전표로 치려면 '통장·카드 불러오기'를 쓰세요)`, { danger: true, title: "중복 의심", confirmLabel: "그래도 저장" });
               if (!ok) { setBusy(false); return; }
             }
           }
         }
-        const payload = linePayload(pend);
-        if (vtype !== "transfer" && cashAcct && autoAmt > 0) {
-          payload.push({ account_id: cashAcct.id, debit: vtype === "cash_in" ? autoAmt : 0, credit: vtype === "cash_out" ? autoAmt : 0, memo: pendFilled[0]?.memo || "", partner_id: "" });
+        const payload = linePayload(gLines);
+        if (vtype !== "transfer" && cashAcct && gAuto > 0) {
+          payload.push({ account_id: cashAcct.id, debit: vtype === "cash_in" ? gAuto : 0, credit: vtype === "cash_out" ? gAuto : 0, memo: gLines[0]?.memo || "", partner_id: "" });
         }
         const { data, error } = await db.rpc("save_manual_voucher", {
-          p_entry_date: entryDate, p_voucher_type: vtype, p_description: pendFilled[0]?.memo || "", p_lines: payload,
+          p_entry_date: gDate, p_voucher_type: vtype, p_description: gLines[0]?.memo || "", p_lines: payload,
         });
         if (error) throw new Error(errMsg(String(error.message)));
         newId = data as string;
-        //   불러온 통장/카드 거래에 전표를 건다 → 수집·전표/통장/카드에서 '전표됨', 다시 전표 못 침(ALREADY_POSTED)
-        if (linkedSrc && newId) {
+        newIds.push(newId);
+      }
+      if (newIds.length > 0) {
+        //   불러온 통장/카드 거래에 전표를 건다 → 수집·전표/통장/카드에서 '전표됨', 다시 전표 못 침(ALREADY_POSTED). 여러 장이면 첫 장에 건다.
+        if (linkedSrc) {
           const tbl = linkedSrc.kind === "bank" ? "bank_transactions" : "card_transactions";
-          const { error: linkErr } = await db.from(tbl).update({ journal_entry_id: newId } as never).eq("id", linkedSrc.id).is("journal_entry_id", null);
+          const { error: linkErr } = await db.from(tbl).update({ journal_entry_id: newIds[0] } as never).eq("id", linkedSrc.id).is("journal_entry_id", null);
           if (linkErr) toast(`전표는 저장됐지만 ${linkedSrc.kind === "bank" ? "통장" : "카드"} 거래 연결에 실패했습니다: ${linkErr.message}`, "error");
           setLinkedSrc(null);
           qc.invalidateQueries({ queryKey: ["ve-import"] });
@@ -583,16 +599,20 @@ export default function VoucherEntryPage() {
         //   프로젝트에서 넘어온 초안이면 전표를 그 프로젝트로 태그 — 확정 비용 집계에 잡힌다.
         //   직접 update 가 아니라 기존 하드닝 RPC(set_voucher_deal: 관리자 게이트 + deal 회사 일치)를 탄다
         //   (2026-08-31 security-reviewer W-1 — 직접 update 는 두 검증을 모두 우회한다).
-        if (prefillDeal && newId) {
-          const { error: dealErr } = await db.rpc("set_voucher_deal", { p_entry_id: newId, p_deal_id: prefillDeal.dealId });
-          if (dealErr) {
-            const m = String(dealErr.message || "");
-            toast(m.includes("FORBIDDEN")
-              ? "전표는 저장됐습니다 — 프로젝트 연결은 관리자 권한이 필요해 건너뛰었습니다"
-              : m.includes("INVALID_DEAL")
-                ? "전표는 저장됐지만 프로젝트 연결이 거부되었습니다(우리 회사 프로젝트가 아님)"
-                : `전표는 저장됐지만 프로젝트 연결에 실패했습니다: ${m}`, "error");
-          } else toast(`프로젝트 '${prefillDeal.name}' 에 연결됐습니다 — 상세의 증빙·문서에서 확인`, "success");
+        if (prefillDeal) {
+          for (const id of newIds) {
+            const { error: dealErr } = await db.rpc("set_voucher_deal", { p_entry_id: id, p_deal_id: prefillDeal.dealId });
+            if (dealErr) {
+              const m = String(dealErr.message || "");
+              toast(m.includes("FORBIDDEN")
+                ? "전표는 저장됐습니다 — 프로젝트 연결은 관리자 권한이 필요해 건너뛰었습니다"
+                : m.includes("INVALID_DEAL")
+                  ? "전표는 저장됐지만 프로젝트 연결이 거부되었습니다(우리 회사 프로젝트가 아님)"
+                  : `전표는 저장됐지만 프로젝트 연결에 실패했습니다: ${m}`, "error");
+              break;
+            }
+          }
+          toast(`프로젝트 '${prefillDeal.name}' 에 연결됐습니다 — 상세의 증빙·문서에서 확인`, "success");
           setPrefillDeal(null);
         }
       }
@@ -603,7 +623,7 @@ export default function VoucherEntryPage() {
         flashScrolled.current = false;
         setFlashId(newId);
         const saved = logRead('voucher-entry/page:saved', await db.from("journal_entries").select("voucher_no").eq("id", newId).maybeSingle());
-        toast(`전표 ${saved?.voucher_no ?? ""}번 저장됨 — 하단 목록에 추가`, "success");
+        toast(newIds.length > 1 ? `전표 ${newIds.length}장 저장됨(날짜별) — 하단 목록에 추가` : `전표 ${saved?.voucher_no ?? ""}번 저장됨 — 하단 목록에 추가`, "success");
       } else {
         toast("전표 수정 저장 완료", "success");
       }
@@ -660,7 +680,7 @@ export default function VoucherEntryPage() {
       const e = entries.find((x) => x.id === entryId);
       const l = e?.lines[Number(lineIdx)];
       if (action === "copy" && l) {
-        setPend((ls) => [...ls, { key: K++, gubun: vtype === "transfer" ? (l.debit > 0 ? "3" : "4") : rowGubun(), account: l.account, partner: l.partner, memo: l.memo, debit: vtype === "cash_in" ? "" : (l.debit ? l.debit.toLocaleString() : ""), credit: vtype === "cash_out" ? "" : (l.credit ? l.credit.toLocaleString() : "") }]);
+        setPend((ls) => [...ls, { key: K++, date: e?.entry_date || ls[ls.length - 1]?.date || todayKst(), gubun: vtype === "transfer" ? (l.debit > 0 ? "3" : "4") : rowGubun(), account: l.account, partner: l.partner, memo: l.memo, debit: vtype === "cash_in" ? "" : (l.debit ? l.debit.toLocaleString() : ""), credit: vtype === "cash_out" ? "" : (l.credit ? l.credit.toLocaleString() : "") }]);
         focusTop();
       }
       if (action === "delete" && e) {
@@ -879,27 +899,67 @@ export default function VoucherEntryPage() {
               {busy ? "저장 중..." : "저장"}</button>
           </span>
         </div>
-        <div className="px-5 py-3 border-b border-[var(--border)]/70 flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-2 text-sm font-bold text-[var(--text)]">
-            <span aria-hidden className="inline-block w-1.5 h-4 rounded-full bg-[var(--primary)]" />분개 입력
-          </span>
-          {/* 칠 전표의 날짜 — 년·월·일 3칸(매입매출전표와 같은 형식). **입력 카드 안**에 둔다:
-              ① 이 날짜로 이 분개를 저장한다는 뜻이 눈에 보이고 ② Enter(onTopKey)가 날짜 칸까지 훑는다.
-              아래 목록의 조회기간과는 별개다 (2026-08-11) */}
-          <div className="ve-date-chip">
-            <span className="ve-date-label">일자</span>
-            <input value={entryY} onChange={(e) => setEntryY(e.target.value.replace(/\D/g, "").slice(0, 4))}
-              data-vcell="y-0" inputMode="numeric" maxLength={4} aria-label="년" className="ve-date-y" />
-            <span className="ve-date-sep">-</span>
-            <input value={entryM} onChange={(e) => setEntryM(e.target.value.replace(/\D/g, "").slice(0, 2))}
-              data-vcell="m-0" inputMode="numeric" placeholder="월" aria-label="월" className="ve-date-md" />
-            <span className="ve-date-sep">-</span>
-            <input value={entryD} onChange={(e) => setEntryD(e.target.value.replace(/\D/g, "").slice(0, 2))}
-              data-vcell="d-0" inputMode="numeric" placeholder="일" aria-label="일" className="ve-date-md" />
-          </div>
-          {!entryDateOk && <span className="ve-date-warn">일자를 확인해 주세요</span>}
-          <span className="hidden sm:inline text-[11px] text-[var(--text-dim)]">{VTYPES.find((t) => t.id === vtype)?.desc}</span>
-          <span className="ml-auto text-[10px] font-semibold px-2.5 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-dim)]">전표번호: 자동(일자별 순번)</span>
+        {/* 조회 줄 — 원래 하단 목록 위에 있던 것을 여기(입력 칸 위)로 올렸다. 상단 일자 칸은 없애고 줄마다 날짜를 갖는다 (2026-09-02 사장님) */}
+        <div className="ve-querybar-row">
+            <QueryBar right={<ExcelMenu items={excelItems} />}>
+              <DateRangeField unit="month" label={null} parts="segments" from={fromM} to={toM}
+                onChange={(f, t) => { setFromM(f); setToM(t); setEdits({}); setSelected(new Set()); }}
+                trailing={
+                  <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={condCount(live)} anchorSel=".drf"
+                    tabs={<SavedTabs list={saved.list} current={paramsNow} basic={paramsBasic}
+                      onApply={(sv) => { applySaved(sv.params || {}); setPanelOpen(false); }}
+                      onBasic={() => { const b = defaultRangeMonth(); setFromM(b.from); setToM(b.to); clearAll(); }}
+                      onRemove={saved.remove} onSetDefault={saved.setDefault} />}
+                    foot={<>
+                      <button type="button" className="btn-secondary btn-sm" disabled={condCount(draft) === 0} onClick={() => setDraft({ ...EMPTY_COND, rows: draft.rows })}>조건 지우기</button>
+                      <ConditionSave suggest={suggestName}
+                        onSave={(name, asDefault) => { saved.save(name, { from: fromM, to: toM, q, cond: draft }, asDefault); setLive(draft); setPanelOpen(false); }} />
+                      <span className="ml-auto text-[11px] text-[var(--text-dim)]">{previewCount.toLocaleString("ko")}장</span>
+                      <RowsPerPage value={draft.rows} onChange={setD("rows")} />
+                      <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
+                    </>}>
+                    <ConditionRow label="조회기간" hint="월 단위 · 위 입력 일자와는 별개">
+                      <span className="qk-range-txt">{fromM} ~ {toM}</span>
+                      <DateRangeField unit="month" label={null} parts="calendar" confirm from={fromM} to={toM}
+                        onChange={(f, t) => { setFromM(f); setToM(t); setEdits({}); setSelected(new Set()); }} />
+                      <span className="qk-quicks">
+                        {periodQuicksMonth().map((pq) => (
+                          <button key={pq.key} type="button" onClick={() => { setFromM(pq.from); setToM(pq.to); }}
+                            className={fromM === pq.from && toM === pq.to ? "qk-quick qk-quick-on" : "qk-quick"}>{pq.label}</button>
+                        ))}
+                      </span>
+                    </ConditionRow>
+                    <ConditionRow label="계정과목" hint="여러 개 · 그 계정이 든 전표">
+                      <TokenField items={acctOpts} value={draft.acct} onChange={setD("acct")} placeholder="계정 이름 일부 (예: 소모품)" />
+                    </ConditionRow>
+                    <ConditionRow label="거래처" hint="여러 곳">
+                      <TokenField items={ptOpts} value={draft.pt} onChange={setD("pt")} placeholder="거래처 이름 일부" />
+                    </ConditionRow>
+                    <ConditionRow label="구분" hint="대체 · 출금 · 입금">
+                      <span className="qk-quicks">
+                        {VTYPES.map((t) => (
+                          <button key={t.id} type="button" onClick={() => setD("vtype")(draft.vtype.includes(t.id) ? draft.vtype.filter((x) => x !== t.id) : [...draft.vtype, t.id])}
+                            className={draft.vtype.includes(t.id) ? "qk-quick qk-quick-on" : "qk-quick"}>{t.label}</button>
+                        ))}
+                      </span>
+                    </ConditionRow>
+                    <ConditionRow label="적요" hint="전표 적요 · 줄 적요">
+                      <input className="qk-input w-full" value={draft.memo} placeholder="예: 임대료" onChange={(e) => setD("memo")(e.target.value)} />
+                    </ConditionRow>
+                    <ConditionRow label="출처" hint="직접 입력한 것 / 자동으로 만든 것">
+                      <span className="qk-quicks">
+                        {[["", "전체"], ["manual", "직접 입력"], ["auto", "자동 생성"]].map(([v, l]) => (
+                          <button key={v} type="button" onClick={() => setD("src")(v)} className={draft.src === v ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>
+                        ))}
+                      </span>
+                    </ConditionRow>
+                    <ConditionRow label="전표 금액" hint="한 장의 차변 합계 · 한쪽만 적어도 됩니다">
+                      <AmountRange min={draft.min} max={draft.max} onMin={setD("min")} onMax={setD("max")} />
+                    </ConditionRow>
+                  </ConditionPanel>
+                } />
+              <QuickSearch value={q} onApply={setQ} placeholder="계정 · 거래처 · 적요 · 전표번호 · 금액 — 쉼표로 여러 개, Enter" />
+            </QueryBar>
         </div>
         {/* 데스크톱: 가로 스크롤 없이 폭에 맞춤. 모바일: min-width + 가로 스크롤 (사장님 QA 2026-07-10 IMG_0577).
             ★ 행이 많아지면 이 칸만 스크롤한다 — 입력 줄이 늘수록 아래 목록이 밀려 상자가 깨졌다 (2026-08-18 사장님 캡처 1z).
@@ -908,6 +968,7 @@ export default function VoucherEntryPage() {
           <table className="w-full min-w-[620px] sm:min-w-0 text-xs border-collapse table-fixed">
             <thead className="ve-input-thead">
               <tr className="border-b border-[var(--border)]">
+                <th className="px-2 py-2.5 w-[126px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">일자</th>
                 <th className="px-2 py-2.5 w-9 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">No</th>
                 <th className="px-2 py-2.5 w-[68px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">구분</th>
                 <th className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">계정과목</th>
@@ -922,6 +983,11 @@ export default function VoucherEntryPage() {
               {pend.map((l, i) => (
                 <tr key={l.key} className="border-b border-[var(--border)]/40 transition-colors focus-within:bg-[var(--primary)]/[0.04]"
                   onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, rowId: `p:${l.key}` }); }}>
+                  <td className={`${TD} w-[126px]`}>
+                    {/* 줄마다 날짜 — 같은 날짜 줄이 한 장. Enter 는 윗줄 날짜를 내린다 */}
+                    <input type="date" value={l.date} onChange={(e) => setPendLine(l.key, { date: e.target.value })}
+                      data-vcell={`date-${i}`} aria-label="전표 일자" className={`${IN} ve-row-date`} />
+                  </td>
                   <td className="px-2 py-1 text-center text-[var(--text-dim)] mono-number">{i + 1}</td>
                   <td className={`${TD} w-[68px]`}>
                     {vtype === "transfer" ? (
@@ -1029,65 +1095,6 @@ export default function VoucherEntryPage() {
 
       {/* ══ 하단: 전표목록 — 조회 화면 표준(B형: 목록부만) (2026-08-18 Wave 1). 셀 클릭 = 인라인 수정 · 행 우클릭 = 삽입/복사/삭제 ══ */}
         <QueryHead>
-          <QueryBar right={<ExcelMenu items={excelItems} />}>
-            <DateRangeField unit="month" label={null} parts="segments" from={fromM} to={toM}
-              onChange={(f, t) => { setFromM(f); setToM(t); setEdits({}); setSelected(new Set()); }}
-              trailing={
-                <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={condCount(live)} anchorSel=".drf"
-                  tabs={<SavedTabs list={saved.list} current={paramsNow} basic={paramsBasic}
-                    onApply={(sv) => { applySaved(sv.params || {}); setPanelOpen(false); }}
-                    onBasic={() => { const b = defaultRangeMonth(); setFromM(b.from); setToM(b.to); clearAll(); }}
-                    onRemove={saved.remove} onSetDefault={saved.setDefault} />}
-                  foot={<>
-                    <button type="button" className="btn-secondary btn-sm" disabled={condCount(draft) === 0} onClick={() => setDraft({ ...EMPTY_COND, rows: draft.rows })}>조건 지우기</button>
-                    <ConditionSave suggest={suggestName}
-                      onSave={(name, asDefault) => { saved.save(name, { from: fromM, to: toM, q, cond: draft }, asDefault); setLive(draft); setPanelOpen(false); }} />
-                    <span className="ml-auto text-[11px] text-[var(--text-dim)]">{previewCount.toLocaleString("ko")}장</span>
-                    <RowsPerPage value={draft.rows} onChange={setD("rows")} />
-                    <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
-                  </>}>
-                  <ConditionRow label="조회기간" hint="월 단위 · 위 입력 일자와는 별개">
-                    <span className="qk-range-txt">{fromM} ~ {toM}</span>
-                    <DateRangeField unit="month" label={null} parts="calendar" confirm from={fromM} to={toM}
-                      onChange={(f, t) => { setFromM(f); setToM(t); setEdits({}); setSelected(new Set()); }} />
-                    <span className="qk-quicks">
-                      {periodQuicksMonth().map((pq) => (
-                        <button key={pq.key} type="button" onClick={() => { setFromM(pq.from); setToM(pq.to); }}
-                          className={fromM === pq.from && toM === pq.to ? "qk-quick qk-quick-on" : "qk-quick"}>{pq.label}</button>
-                      ))}
-                    </span>
-                  </ConditionRow>
-                  <ConditionRow label="계정과목" hint="여러 개 · 그 계정이 든 전표">
-                    <TokenField items={acctOpts} value={draft.acct} onChange={setD("acct")} placeholder="계정 이름 일부 (예: 소모품)" />
-                  </ConditionRow>
-                  <ConditionRow label="거래처" hint="여러 곳">
-                    <TokenField items={ptOpts} value={draft.pt} onChange={setD("pt")} placeholder="거래처 이름 일부" />
-                  </ConditionRow>
-                  <ConditionRow label="구분" hint="대체 · 출금 · 입금">
-                    <span className="qk-quicks">
-                      {VTYPES.map((t) => (
-                        <button key={t.id} type="button" onClick={() => setD("vtype")(draft.vtype.includes(t.id) ? draft.vtype.filter((x) => x !== t.id) : [...draft.vtype, t.id])}
-                          className={draft.vtype.includes(t.id) ? "qk-quick qk-quick-on" : "qk-quick"}>{t.label}</button>
-                      ))}
-                    </span>
-                  </ConditionRow>
-                  <ConditionRow label="적요" hint="전표 적요 · 줄 적요">
-                    <input className="qk-input w-full" value={draft.memo} placeholder="예: 임대료" onChange={(e) => setD("memo")(e.target.value)} />
-                  </ConditionRow>
-                  <ConditionRow label="출처" hint="직접 입력한 것 / 자동으로 만든 것">
-                    <span className="qk-quicks">
-                      {[["", "전체"], ["manual", "직접 입력"], ["auto", "자동 생성"]].map(([v, l]) => (
-                        <button key={v} type="button" onClick={() => setD("src")(v)} className={draft.src === v ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>
-                      ))}
-                    </span>
-                  </ConditionRow>
-                  <ConditionRow label="전표 금액" hint="한 장의 차변 합계 · 한쪽만 적어도 됩니다">
-                    <AmountRange min={draft.min} max={draft.max} onMin={setD("min")} onMax={setD("max")} />
-                  </ConditionRow>
-                </ConditionPanel>
-              } />
-            <QuickSearch value={q} onApply={setQ} placeholder="계정 · 거래처 · 적요 · 전표번호 · 금액 — 쉼표로 여러 개, Enter" />
-          </QueryBar>
 
           <AppliedChips chips={chips} onClearAll={clearAll} />
 
