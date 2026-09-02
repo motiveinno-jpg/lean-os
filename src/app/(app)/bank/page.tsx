@@ -793,7 +793,7 @@ export default function BankPage() {
               {tab === "accounts" && accounts.some((a) => a.isHidden) && (
                 <button type="button" onClick={() => setShowHiddenAccts((v) => !v)} className={showHiddenAccts ? "qk-quick qk-quick-on" : "qk-quick"}>숨긴 통장 {accounts.filter((a) => a.isHidden).length}개 {showHiddenAccts ? "감추기" : "보기"}</button>
               )}
-              <span className="text-[11px] text-[var(--text-dim)]">{tab === "accounts" ? "거래기간은 연동 범위이자 표의 '이번 달 변화' 기준 · 거래를 조건으로 찾으려면 거래내역 탭" : "통장 잔액·이번 달 흐름 — 거래를 조건으로 찾으려면 거래내역 탭"}</span>
+              <span className="text-[11px] text-[var(--text-dim)]">{tab === "accounts" ? "거래기간은 연동 범위 · 표의 '이번 달 변화'는 이번 달(1일~오늘) 기준 · 거래를 조건으로 찾으려면 거래내역 탭" : "통장 잔액·이번 달 흐름 — 거래를 조건으로 찾으려면 거래내역 탭"}</span>
             </QueryBar>
             {/* 결과 요약 — 예전 stat 4 그라데이션 카드(총 자산·이번 달 수익·지출·분류 완료율)를 Stat 줄로 (2026-08-19 자금 메뉴 점검) */}
             <ResultStrip>

@@ -446,7 +446,7 @@ export default function MyPage() {
             </section>
             <section className="pnl-panel">
               <h3>연차</h3>
-              <p>{currentYear}년{leaveBalance ? ` · 발생 ${leaveBalance.total_days} · 사용 ${leaveBalance.used_days}` : ""}</p>
+              <p>{currentYear}년{leaveBalance ? ` · 발생 ${leaveBalance.total_days} · 사용 ${ledgerBalance ? usedLeavesTotal : leaveBalance.used_days}` : ""}</p>{/* 휴가·연차 탭의 '사용' 과 같은 출처 (2026-09-02: 카드 5일 vs 탭 0일) */}
               <div className={`bz-big mono-number ${remaining !== null && remaining <= 3 ? "bz-minus" : ""}`}>{remaining !== null ? `${remaining}일` : "—"} <small className="text-[13px] font-medium text-[var(--text-dim)]">남음</small></div>
               <dl className="bz-kv">
                 <div><dt>최근 신청</dt><dd>{recentLeaves[0] ? `${recentLeaves[0].start_date} ${leaveTypeLabel(recentLeaves[0].leave_type)} · ${recentLeaves[0].status === "approved" ? "승인" : recentLeaves[0].status === "rejected" ? "반려" : "대기"}` : "없음"}</dd></div>

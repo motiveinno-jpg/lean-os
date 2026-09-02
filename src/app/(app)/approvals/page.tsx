@@ -154,7 +154,8 @@ function StageProgress({ current, total, status }: { current: number; total: num
           return <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors ${cls}`} />;
         })}
       </div>
-      <span className="text-[10px] font-bold text-[var(--text-dim)] mono-number shrink-0">{Math.min(current, total)}/{total}</span>
+      {/*   라벨은 '끝난 단계 수' — 대기 중인 단계는 안 센다. 2단계 중 2번째가 대기면 1/2 (종전 2/2 라 완료처럼 보였다, 2026-09-02 전 화면 점검) */}
+      <span className="text-[10px] font-bold text-[var(--text-dim)] mono-number shrink-0">{status === "approved" ? total : Math.max(0, Math.min(current, total) - 1)}/{total}</span>
     </div>
   );
 }
