@@ -684,7 +684,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
   const fileMut = useMutation({
     mutationFn: (file: File) => {
       if (!userId) throw new Error("Not authenticated");
-      return uploadChatFile({ channelId, senderId: userId, file });
+      return uploadChatFile({ channelId, senderId: userId, file, companyId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-messages", channelId] });

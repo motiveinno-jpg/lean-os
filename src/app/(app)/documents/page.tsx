@@ -11,6 +11,7 @@ import { DEFAULT_DOC_TEMPLATES } from "@/lib/default-doc-templates";
 import dynamic from "next/dynamic";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { useTabParam } from "@/lib/use-tab-param";
 
 // 2026-05-22 문서 본문에 글자 서식 + PDF 페이지 이미지 삽입 (사장님 요청).
@@ -28,7 +29,8 @@ import { classifyDocument, getDocTypeInfo, DOC_INTEL_TYPES, saveDocumentIntellig
 import { createSignatureRequest, getSignatureRequests, getDocumentSignatures, updateSignatureStatus, saveSignature, cancelSignature, getSignatureStatusInfo, SIGNATURE_STATUS, applyCompanySeal, sendSignatureEmail, createBulkSignatureRequests, sendSignatureReminder, bulkSendReminders, getDocumentSignatureAudit } from "@/lib/signatures";
 import { createNotification } from "@/lib/notifications";
 import { useMyPermissions } from "@/lib/permissions";
-import { uploadFile, getFilesForDocument, createFolder, getFolders, deleteFolder, searchFiles, deleteFile, pruneUnreferencedDocumentFiles, downloadStoredFile, updateFolderVisibility, getFileVersions, getStorageUsage, type FolderVisibility } from "@/lib/file-storage";
+import { uploadFile, getFilesForDocument, createFolder, getFolders, deleteFolder, searchFiles, deleteFile, pruneUnreferencedDocumentFiles, downloadStoredFile, updateFolderVisibility, getFileVersions, type FolderVisibility } from "@/lib/file-storage";
+import { getCompanyStorage, fmtBytes as fmtQuotaBytes } from "@/lib/storage-quota";
 import { getDepartments } from "@/lib/schedule";
 import { generateDocumentPDF, generateQuotePDF, issueDocument } from "@/lib/document-generator";
 import { getActiveTemplate, downloadTemplateFile, buildQuoteValues } from "@/lib/form-templates";
@@ -2770,12 +2772,16 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
     enabled: !!verFile?.id,
     queryFn: () => getFileVersions(verFile.id),
   });
-  const { data: usageBytes = 0 } = useQuery({
-    queryKey: ["storage-usage", companyId],
+  // 회사 저장공간 — 빌링 카드와 같은 단일 소스(get_company_storage: 전 버킷 합계 + 쿼터). (2026-09-02)
+  //   종전엔 파일보관함 원장(document_files)만 더해 빌링 화면과 숫자가 달랐다.
+  const { data: storageInfo } = useQuery({
+    queryKey: ["company-storage", companyId],
     enabled: !!companyId,
     staleTime: 60_000,
-    queryFn: () => getStorageUsage(companyId),
+    queryFn: () => getCompanyStorage(companyId),
   });
+  const storagePct = storageInfo && storageInfo.quotaBytes > 0
+    ? Math.min(100, Math.round((storageInfo.usedBytes / storageInfo.quotaBytes) * 100)) : 0;
   const { data: deptOpts = [] } = useQuery({
     queryKey: ["schedule-departments", companyId],
     enabled: !!companyId,
@@ -2946,7 +2952,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
     }
     setUpProg(null);
     queryClient.invalidateQueries({ queryKey: ["storage-files"] });
-    queryClient.invalidateQueries({ queryKey: ["storage-usage"] });
+    queryClient.invalidateQueries({ queryKey: ["company-storage"] });
     if (failed.length > 0) {
       toast(`${failed.length}개 파일을 올리지 못했습니다: ${failed.slice(0, 3).join(" / ")}${failed.length > 3 ? " 외" : ""}`, "error");
     } else if (selectedFiles.length > 0) {
@@ -2959,7 +2965,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
     try {
       await deleteFile(fileId, userId, companyId, { canDeleteOthers });
       queryClient.invalidateQueries({ queryKey: ["storage-files"] });
-      queryClient.invalidateQueries({ queryKey: ["storage-usage"] });
+      queryClient.invalidateQueries({ queryKey: ["company-storage"] });
     } catch (err: any) {
       toast("삭제 실패: " + (err?.message || err), "error");
     }
@@ -3176,7 +3182,21 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
             <ResultStrip>
               <Stat label="파일" value={`${sortedFiles.length.toLocaleString()}건`} />
               <Stat label="용량" value={fmtSize(totalSize)} />
-              <span className="text-[10.5px] text-[var(--text-dim)]" title="파일보관함 원장 기준 — 지난 판도 자리를 차지합니다">회사 전체 사용 <b className="mono-number">{fmtSize(Number(usageBytes))}</b></span>
+              {storageInfo && (
+                <span
+                  className="text-[10.5px]"
+                  style={{ color: storagePct >= 100 ? "var(--danger)" : storagePct >= 80 ? "var(--warning)" : "var(--text-dim)" }}
+                  title="회사가 올린 모든 파일(문서·첨부·이미지 등) 합계 — 지난 판도 자리를 차지합니다. 한도는 요금제·저장공간 팩에 따릅니다."
+                >
+                  회사 저장공간 <b className="mono-number">{fmtQuotaBytes(storageInfo.usedBytes)}</b> / {fmtQuotaBytes(storageInfo.quotaBytes)} ({storagePct}%)
+                  {storagePct >= 80 && (
+                    <>
+                      {" "}· {storagePct >= 100 ? "가득 차서 새 파일을 올릴 수 없습니다" : "거의 찼습니다"}
+                      {" "}<Link href="/billing" className="underline">저장공간 늘리기</Link>
+                    </>
+                  )}
+                </span>
+              )}
               {upProg && <span className="text-[10.5px] font-semibold text-[var(--primary)]">{upProg.name} 올리는 중 <b className="mono-number">{upProg.pct}%</b> — 끊겨도 같은 파일을 다시 올리면 이어서 올라갑니다</span>}
               {selectedFolderId && <span className="text-[10.5px] text-[var(--text-dim)]">폴더 안만 보는 중 — 왼쪽 '전체'를 누르면 모든 파일</span>}
               {dupNames.length > 0 && (

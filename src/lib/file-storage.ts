@@ -10,6 +10,7 @@ import { logRead } from "@/lib/log-read";
  */
 
 import { supabase } from "@/lib/supabase";
+import { assertStorageQuota } from "@/lib/storage-quota";
 import { logAudit } from "./audit";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -247,6 +248,8 @@ export async function uploadFile(params: UploadParams): Promise<UploadResult> {
 
   // Validate
   validateFile(file, bucket);
+  // 회사 저장공간 한도 — 이 파일까지 더해 넘으면 숫자 들어간 안내로 끊는다(DB 게이트보다 먼저).
+  await assertStorageQuota(companyId, file.size);
 
   // Build storage path
   const ext = getExtension(file.name);
@@ -650,6 +653,7 @@ export async function uploadEmployeeFile(params: {
   const { companyId, employeeId, category, file } = params;
 
   validateFile(file, "employee-files");
+  await assertStorageQuota(companyId, file.size);
 
   const ext = getExtension(file.name);
   const timestamp = Date.now();

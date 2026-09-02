@@ -5,6 +5,7 @@ import { logRead } from "@/lib/log-read";
  */
 
 import { supabase } from './supabase';
+import { assertStorageQuota } from '@/lib/storage-quota';
 import type { Json } from '@/types/models';
 
 // ── Create channel ──
@@ -186,6 +187,8 @@ export async function uploadChatFile(params: {
   channelId: string;
   senderId: string;
   file: File;
+  /** 회사 ID — 업로드 전 저장공간 한도 사전검사용(2026-09-02). 없으면 검사 생략. */
+  companyId?: string | null;
 }) {
   const MAX_SIZE = 10 * 1024 * 1024; // 10MB
   if (params.file.size > MAX_SIZE) throw new Error('파일 크기는 10MB 이하만 가능합니다.');
@@ -197,7 +200,11 @@ export async function uploadChatFile(params: {
   const isAllowed = ALLOWED_TYPES.some(t => params.file.type.startsWith(t));
   if (!isAllowed) throw new Error('지원하지 않는 파일 형식입니다.');
 
+  await assertStorageQuota(params.companyId, params.file.size);
+
   const ext = params.file.name.split('.').pop() || 'bin';
+  // 경로는 {channelId}/… 고정 — chat-files 버킷 RLS 가 첫 세그먼트=채널ID 로 참여자를 판정한다.
+  //   회사 저장공간 집계는 DB(storage_object_company)가 채널→회사(chat_channels.company_id)로 푼다.
   const path = `${params.channelId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
 
   const { error: uploadError } = await supabase.storage

@@ -4,6 +4,7 @@ import { logRead } from "@/lib/log-read";
 //   form-templates.ts 스토리지 패턴 재사용.
 
 import { supabase } from "@/lib/supabase";
+import { assertStorageQuota } from "@/lib/storage-quota";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
@@ -18,6 +19,7 @@ export interface TaskAttachment {
 }
 
 export async function uploadTaskAttachment(companyId: string, file: File): Promise<TaskAttachment> {
+  await assertStorageQuota(companyId, file.size); // 회사 저장공간 한도(2026-09-02)
   const id = crypto.randomUUID();
   const safe = (file.name || "file").replace(/[^\w.\-]/g, "_").slice(-120) || "file";
   const path = `${companyId}/${id}/${safe}`;

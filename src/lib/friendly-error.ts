@@ -80,6 +80,12 @@ export function friendlyError(err: AnyErr, fallback = "일시적인 오류가 �
     return "이번 달 전자계약 발송 한도를 모두 사용했습니다. 오너뷰 요금제로 올리면 무제한으로 보낼 수 있습니다. (설정 → 요금제)";
   }
 
+  // 1.6) Supabase Storage 업로드가 RLS 에 막힌 경우(storage-api 는 statusCode "403" 문자열로 온다).
+  //   회사 저장공간 한도 게이트(storage_quota_gate, 2026-09-02)가 가장 흔한 원인 — 이유와 해결 경로를 알려준다.
+  if (/row-level security/i.test(raw) && (code === "403" || code === "42501")) {
+    return "파일을 올리지 못했습니다. 회사 저장공간이 가득 찼거나 올릴 권한이 없습니다. 설정 → 요금제 → 저장공간에서 사용량을 확인해 주세요.";
+  }
+
   // 2) Auth 메시지 영문 → 한국어
   const auth = authMap(raw);
   if (auth) return auth;

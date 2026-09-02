@@ -10,6 +10,7 @@ import { DateField } from "@/components/date-field";
 import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { assertStorageQuotaMany } from "@/lib/storage-quota";
 import { useUser } from "@/components/user-context";
 import { useMyPermissions } from "@/lib/permissions";
 import { useToast } from "@/components/toast";
@@ -321,6 +322,7 @@ export default function BoardPage() {
   // Supabase Storage 업로드 (file-storage.ts 와 동일 경로 규칙: {companyId}/board/{ts}_{rand}.{ext})
   async function uploadAttachments(files: File[]): Promise<Attachment[]> {
     const out: Attachment[] = [];
+    await assertStorageQuotaMany(companyId, files); // 회사 저장공간 한도 — 합계로 1회 (2026-09-02)
     for (const file of files) {
       const ext = file.name.split(".").pop() || "bin";
       const ts = Date.now();

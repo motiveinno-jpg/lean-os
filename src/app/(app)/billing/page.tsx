@@ -22,6 +22,7 @@ import { useMyPermissions } from "@/lib/permissions";
 import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import { TossCardSection } from "./_components/TossCardSection";
 import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
+import { fmtBytes } from "@/lib/storage-quota";
 
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
 const db = supabase;
@@ -37,13 +38,6 @@ function fmtW(n: number): string {
   return `₩${n.toLocaleString()}`;
 }
 
-// 바이트 → 사람이 읽는 용량(MB/GB/TB). 저장공간 카드용.
-function fmtBytes(n: number): string {
-  const b = Math.max(0, Number(n) || 0);
-  if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} KB`;
-  if (b < 1024 * 1024 * 1024) return `${(b / 1024 / 1024).toFixed(b < 10 * 1024 * 1024 ? 1 : 0)} MB`;
-  return `${(b / 1024 / 1024 / 1024).toFixed(1)} GB`;
-}
 
 // 연간 결제 노출 여부. Stripe 라이브 연간 price(STRIPE_PRICE_*_ANNUAL) 등록 전까지는
 //   고르면 서버가 400 으로 막으므로 화면에서도 감춘다. 등록 후 true 로 바꾸면 열린다.
@@ -62,6 +56,9 @@ export default function BillingPage() {
 
 function BillingPageInner() {
   const { toast } = useToast();
+  // 스토리지 팩 추가·해지는 대표(소유자)만 — 서버 RPC(set_storage_packs)도 같은 기준. 화면에서 미리 알려준다.
+  const { role: myRole } = useUser();
+  const isOwner = myRole === "owner";
   // 결제수단 등록은 마스터만 — 서버(엣지 함수)에서도 동일하게 막는다.
   const { isMaster: billingIsMaster } = useMyPermissions();
   const [tab, setTab] = useState<Tab>("plan");
@@ -164,7 +161,15 @@ function BillingPageInner() {
       if (!res.ok) throw new Error(json?.error?.message || "변경하지 못했습니다");
       await Promise.all([refetchStorage(), qc.invalidateQueries({ queryKey: ["subscription", companyId] })]);
       setPackDraft(null);
-      toast(json?.data?.charged ? "저장공간을 늘렸습니다 · 결제에 반영됐어요" : "저장공간 수량을 변경했습니다", "success");
+      // 결제 반영 시점이 결제수단마다 달라 그대로 알려준다 — Stripe 즉시 일할청구 / Toss 다음 결제일부터.
+      const provider = json?.data?.provider as string | null | undefined;
+      const grew = target > (storage?.storage_packs ?? 0);
+      const msg = json?.data?.charged
+        ? (grew ? "저장공간을 늘렸습니다 · 차액이 바로 결제됐어요" : "저장공간을 줄였습니다 · 다음 청구액에 반영돼요")
+        : provider === "toss"
+          ? (grew ? "저장공간을 늘렸습니다 · 다음 결제일부터 요금에 반영돼요" : "저장공간을 줄였습니다 · 다음 결제일부터 요금이 내려가요")
+          : (grew ? "저장공간을 늘렸습니다" : "저장공간을 줄였습니다");
+      toast(msg, "success");
     } catch (e: unknown) {
       toast(e instanceof Error ? e.message : "변경하지 못했습니다", "error");
     } finally {
@@ -823,11 +828,32 @@ function BillingPageInner() {
             const tone = pct >= 100 ? "var(--danger)" : pct >= 80 ? "var(--warning)" : "var(--primary)";
             const draft = packDraft ?? packs;
             const isPaid = currentSlug !== "free";
+            const left = Math.max(0, quota - used);
+            const isAnnual = subscription?.billing_cycle === "annual";
+            // 연간은 Toss 크론과 같은 식(단가 × 12 × (1 − 연간할인)) — 화면 숫자와 청구 숫자가 어긋나지 않게.
+            const unitPrice = isAnnual ? Math.round(perSeat * 12 * (1 - Number(currentPlan?.annual_discount || 0))) : perSeat;
+            const priceUnitLabel = isAnnual ? "연" : "월";
+            // 줄일 때: 줄인 뒤 한도보다 사용량이 크면 서버가 409 로 거부한다 — 미리 계산해 버튼을 잠그고 이유를 보여준다.
+            const draftQuota = included + (seatUnits + draft) * unit;
+            const shrinkBlocked = draft < packs && used > draftQuota;
+            const diff = draft - packs;
+            const applyPacks = async () => {
+              if (diff < 0) {
+                const r = await confirmDialog({
+                  title: `저장공간 ${Math.abs(diff)}팩 줄이기`,
+                  desc: `한도가 ${fmtBytes(quota)} → ${fmtBytes(draftQuota)} 로 줄고, ${priceUnitLabel} ₩${(Math.abs(diff) * unitPrice).toLocaleString()} 이 다음 청구액에서 빠집니다.`,
+                  confirmLabel: "줄이기",
+                  danger: true,
+                });
+                if (!r || !(r as any).ok) return;
+              }
+              await applyStoragePacks(draft);
+            };
             return (
               <div className="billing-sec">
                 <div className="billing-sec-head">
                   <span className="billing-sec-title">저장공간</span>
-                  <span className="billing-sec-sub">회사가 올린 모든 파일(문서·첨부·이미지 등) 합계 · 팩 1개 = +{fmtBytes(unit)} / 월 ₩{perSeat.toLocaleString()}(VAT 별도)</span>
+                  <span className="billing-sec-sub">회사가 올린 모든 파일(문서·첨부·이미지 등) 합계 · 팩 1개 = +{fmtBytes(unit)} / {priceUnitLabel} ₩{unitPrice.toLocaleString()}(VAT 별도)</span>
                 </div>
                 <div className="billing-storage">
                   <div className="billing-storage-gauge">
@@ -835,32 +861,63 @@ function BillingPageInner() {
                     <span className="mono-number" style={pct >= 80 ? { color: tone } : undefined}>
                       <b>{fmtBytes(used)}</b> <span className="text-[var(--text-dim)]">/ {fmtBytes(quota)} 사용 ({pct}%)</span>
                     </span>
+                    <span className="text-[11px] text-[var(--text-dim)]">남은 공간 <b className="mono-number">{fmtBytes(left)}</b></span>
                   </div>
-                  <div className="text-[11px] text-[var(--text-dim)]">
-                    기본 {fmtBytes(included)}{seatUnits > 0 ? ` + 좌석 ${seatUnits}명 ×${fmtBytes(unit)}` : ""}{packs > 0 ? ` + 스토리지 팩 ${packs}개 ×${fmtBytes(unit)}` : ""}
-                  </div>
-                  {isPaid ? (
-                    <div className="billing-storage-buy">
-                      <span className="text-[var(--text-muted)]">스토리지 팩</span>
-                      <button type="button" className="billing-step" disabled={packLoading || draft <= 0} onClick={() => setPackDraft(Math.max(0, draft - 1))}>−</button>
-                      <input
-                        type="number" min={0} max={10000} value={draft}
-                        onChange={(e) => setPackDraft(Math.max(0, Math.min(10000, Number(e.target.value) || 0)))}
-                        className="billing-qty" disabled={packLoading}
-                      />
-                      <button type="button" className="billing-step" disabled={packLoading} onClick={() => setPackDraft(draft + 1)}>+</button>
-                      <span className="text-[11px] text-[var(--text-dim)]">= +{fmtBytes(draft * unit)} · 월 +<b className="mono-number">₩{(draft * perSeat).toLocaleString()}</b></span>
-                      {draft !== packs && (
-                        <button type="button" className="btn-secondary btn-sm" disabled={packLoading} onClick={() => applyStoragePacks(draft)}>
-                          {packLoading ? "적용 중…" : draft > packs ? "추가하기" : "줄이기"}
-                        </button>
-                      )}
-                      {draft !== packs && (
-                        <button type="button" className="billing-storage-cancel" disabled={packLoading} onClick={() => setPackDraft(null)}>취소</button>
-                      )}
+                  {pct >= 80 && (
+                    <div className="text-[11px] font-semibold" style={{ color: tone }}>
+                      {pct >= 100
+                        ? "저장공간이 가득 찼습니다 — 지금은 새 파일을 올릴 수 없어요. 안 쓰는 파일을 지우거나 저장공간을 늘려 주세요."
+                        : "저장공간이 거의 찼습니다 — 가득 차면 새 파일을 올릴 수 없어요."}
                     </div>
+                  )}
+                  <div className="text-[11px] text-[var(--text-dim)]">
+                    한도 = 기본 {fmtBytes(included)}{seatUnits > 0 ? ` + 추가 좌석 ${seatUnits}명 × ${fmtBytes(unit)}` : ""}{packs > 0 ? ` + 저장공간 팩 ${packs}개 × ${fmtBytes(unit)}` : ""}
+                    {isPaid && seatUnits === 0 && packs === 0 ? ` · 추가 좌석 1명당 +${fmtBytes(unit)} 가 함께 붙습니다` : ""}
+                  </div>
+                  {!isPaid ? (
+                    <div className="billing-storage-buy">
+                      <span className="text-[11px] text-[var(--text-dim)]">무료 요금제는 {fmtBytes(included)} 까지입니다. 유료 요금제에서 저장공간 팩(+{fmtBytes(unit)})을 추가할 수 있어요.</span>
+                      <button type="button" className="btn-secondary btn-sm" onClick={() => document.getElementById("billing-plan-cards")?.scrollIntoView({ behavior: "smooth", block: "start" })}>요금제 보기</button>
+                    </div>
+                  ) : !isOwner ? (
+                    <div className="text-[11px] text-[var(--text-dim)]">저장공간 팩 추가·해지는 대표(소유자)만 할 수 있습니다. 현재 팩 <b className="mono-number">{packs}</b>개.</div>
                   ) : (
-                    <div className="text-[11px] text-[var(--text-dim)]">유료 요금제에서 저장공간을 늘릴 수 있습니다.</div>
+                    <>
+                      <div className="billing-storage-buy">
+                        <span className="text-[var(--text-muted)]">저장공간 팩</span>
+                        <button type="button" className="billing-step" aria-label="팩 1개 줄이기" disabled={packLoading || draft <= 0} onClick={() => setPackDraft(Math.max(0, draft - 1))}>−</button>
+                        <input
+                          type="number" min={0} max={10000} value={draft} aria-label="저장공간 팩 수량"
+                          onChange={(e) => setPackDraft(Math.max(0, Math.min(10000, Math.floor(Number(e.target.value)) || 0)))}
+                          onKeyDown={(e) => { if (e.key === "Enter" && draft !== packs && !shrinkBlocked && !packLoading) void applyPacks(); if (e.key === "Escape") setPackDraft(null); }}
+                          className="billing-qty" disabled={packLoading}
+                        />
+                        <button type="button" className="billing-step" aria-label="팩 1개 늘리기" disabled={packLoading || draft >= 10000} onClick={() => setPackDraft(Math.min(10000, draft + 1))}>+</button>
+                        <span className="text-[11px] text-[var(--text-dim)]">
+                          {draft === packs
+                            ? <>현재 {packs}개 · {priceUnitLabel} <b className="mono-number">₩{(packs * unitPrice).toLocaleString()}</b></>
+                            : <>{diff > 0 ? "+" : "−"}{Math.abs(diff)}개 → 한도 <b className="mono-number">{fmtBytes(draftQuota)}</b> · {priceUnitLabel} {diff > 0 ? "+" : "−"}<b className="mono-number">₩{(Math.abs(diff) * unitPrice).toLocaleString()}</b></>}
+                        </span>
+                        {draft !== packs && (
+                          <button type="button" className="btn-secondary btn-sm" disabled={packLoading || shrinkBlocked} onClick={() => void applyPacks()}>
+                            {packLoading ? "적용 중…" : diff > 0 ? `${diff}팩 추가하기` : `${Math.abs(diff)}팩 줄이기`}
+                          </button>
+                        )}
+                        {draft !== packs && (
+                          <button type="button" className="billing-storage-cancel" disabled={packLoading} onClick={() => setPackDraft(null)}>취소</button>
+                        )}
+                      </div>
+                      {shrinkBlocked && (
+                        <div className="text-[11px]" style={{ color: "var(--danger)" }}>
+                          지금 쓰는 용량({fmtBytes(used)})이 줄인 뒤 한도({fmtBytes(draftQuota)})보다 커서 줄일 수 없어요. 파일을 먼저 정리해 주세요.
+                        </div>
+                      )}
+                      {draft > packs && (
+                        <div className="text-[11px] text-[var(--text-dim)]">
+                          {hasStripeSubscription ? "차액은 바로 결제되고 다음 결제부터 정기 요금에 포함돼요." : hasTossSubscription ? "용량은 바로 늘고, 요금은 다음 결제일부터 반영돼요." : "용량은 바로 늘어요."}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
