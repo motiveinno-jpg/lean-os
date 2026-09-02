@@ -15,7 +15,6 @@ import { ConditionPanel, ConditionRow, TokenField, QuickSearch, quickSearchHit, 
 import { SortableTh, nextSort, cmp, useColWidths, useColFilters, type SortState } from "@/components/sortable-th";
 import { groupByAccount, groupByPartner, monthlySeries, fetchReceivables, rangeDates, rangeLabel, type JournalLine } from "@/lib/pnl-status";
 import { usePnlStatus, PnlHead, BasisNote, Delta, DrillModal, won, num, cmpRangeLabel, type Drill } from "../_components/PnlStatusKit";
-import { SalesBoard } from "../_components/SalesBoard";
 
 type Cond = { partners: string[]; accounts: string[]; rows: number };
 const EMPTY: Cond = { partners: [], accounts: [], rows: 50 };
@@ -25,8 +24,7 @@ export default function RevenuePage() {
   const { role } = useUser();
   const s = usePnlStatus();
   const [drill, setDrill] = useState<Drill | null>(null);
-  //   매출 KPI 현황판(결정 144) — 조회 기간·검색조건을 그대로 따르는 위젯 한 판
-  const [boardOpen, setBoardOpen] = useState(false);
+  //   KPI 현황판은 재고 › 이익관리로 이사(2026-09-02 사장님 — 쓰는 회사가 판매·이커머스 쪽)
   const [q, setQ] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState<Cond>(EMPTY);
@@ -106,8 +104,6 @@ export default function RevenuePage() {
             <ConditionRow label="매출 계정" hint="여러 개 · 계정과목표의 매출 계정"><TokenField items={acctOpts} value={draft.accounts} onChange={(v) => setDraft((c) => ({ ...c, accounts: v }))} placeholder="계정 이름 일부" /></ConditionRow>
           </ConditionPanel>
           <QuickSearch value={q} onApply={setQ} placeholder="거래처 · 계정 · 적요 — 쉼표로 여러 개, Enter" />
-          <button type="button" className="btn-secondary btn-sm" title="조회 기간 매출을 위젯 한 판으로 — 내 판으로 고칠 수 있습니다"
-            onClick={() => setBoardOpen(true)}>KPI 현황판</button>
         </>}
         stats={<>
           <Stat label="매출 합계" value={<>{won(total)} <Delta cur={total} prev={cmpTotal} /></>} />
@@ -214,8 +210,6 @@ export default function RevenuePage() {
       )}
 
       <DrillModal drill={drill} onClose={() => setDrill(null)} />
-      <SalesBoard open={boardOpen} onClose={() => setBoardOpen(false)} companyId={s.companyId}
-        lines={linesF} cmpLines={cmpF} range={s.range} cmpLabel={s.cmpLabel} />
     </>
   );
 }

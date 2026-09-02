@@ -12,9 +12,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
+import { DateRangeField } from "@/components/date-range-field";
 import { channelLabel } from "@/lib/inventory-channels";
-import { groupByAccount, groupByPartner, monthlySeries, rangeDates, type MonthRange } from "@/lib/pnl-status";
-import { pnlAmount, type JournalLine } from "@/lib/journal-reports";
+import { groupByAccount, groupByPartner, monthlySeries, rangeDates } from "@/lib/pnl-status";
+import { pnlAmount } from "@/lib/journal-reports";
+import { usePnlStatus } from "./PnlStatusKit";
 
 const DASH_KEY = "sales-board";
 const CATALOG: { id: string; name: string; desc: string }[] = [
@@ -29,17 +31,20 @@ const DEFAULT_W = ["nums", "monthly", "partners", "target"];
 
 const won0 = (n: number) => `${Math.round(n).toLocaleString("ko-KR")}원`;
 
-export function SalesBoard({ open, onClose, companyId, lines, cmpLines, range, cmpLabel }: {
+export function SalesBoard({ open, onClose, companyId }: {
   open: boolean;
   onClose: () => void;
   companyId: string | null;
-  /** 조회 기간의 매출 전표 줄(화면 필터 반영 전 원본이 아니라 **필터 반영본** — 보이는 것과 같은 셈) */
-  lines: JournalLine[];
-  cmpLines: JournalLine[];
-  range: MonthRange;
-  cmpLabel: string;
 }) {
   const { toast } = useToast();
+  //   독립형(2026-09-02 사장님 "재고 쪽으로 옮기자") — 매출 리포트의 조회 기간을 빌리지 않고
+  //   전표 데이터를 스스로 불러온다(usePnlStatus — 기본 이번 달·전월 비교). 부모는 열릴 때만
+  //   마운트해서(열기 전엔 안 불러옴) 낭비가 없다.
+  const s = usePnlStatus();
+  const range = s.range;
+  const cmpLabel = s.cmpLabel;
+  const lines = useMemo(() => s.curLines.filter((l) => l.section === "revenue"), [s.curLines]);
+  const cmpLines = useMemo(() => s.cmpLines.filter((l) => l.section === "revenue"), [s.cmpLines]);
   const [edit, setEdit] = useState(false);
   const [cat, setCat] = useState(false);
   const [widgets, setWidgets] = useState<string[]>(DEFAULT_W);
@@ -124,10 +129,22 @@ export function SalesBoard({ open, onClose, companyId, lines, cmpLines, range, c
     <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="phv3-modal pjv3-dash-modal" role="dialog" aria-modal="true" aria-label="매출 KPI 현황판">
         <div className="pjv3-dash-head">
-          <h3 className="phv3-modal-title !mb-0">매출 KPI 현황판 — 조회 기간 기준 한 판</h3>
+          <h3 className="phv3-modal-title !mb-0">매출 KPI 현황판</h3>
           <button type="button" className="btn-secondary btn-sm ml-auto"
             onClick={() => { setEdit((v) => !v); setCat(false); }}>{edit ? "편집 그만" : "내 판으로 고치기"}</button>
           <button type="button" className="btn-secondary btn-sm" onClick={onClose}>닫기</button>
+        </div>
+        {/* 기간·비교 — 독립형이라 자체 컨트롤(기본 이번 달·전월 비교, 값 하나짜리라 즉시 반영) */}
+        <div className="pjv3-pvbar !mb-2">
+          <DateRangeField unit="month" label="기간" from={range.fromYm} to={range.toYm}
+            onChange={(f, t) => s.setRange({ fromYm: f, toYm: t })} />
+          <label>비교</label>
+          <select value={s.compare} onChange={(e) => s.setCompare(e.target.value as "prev" | "yoy")} aria-label="비교 기간">
+            <option value="prev">직전 기간</option>
+            <option value="yoy">전년 동기</option>
+          </select>
+          {s.loading && <span className="text-[11px] text-[var(--text-dim)]">불러오는 중…</span>}
+          <span className="ml-auto text-[10.5px] text-[var(--text-dim)]">확정 전표 기준 — 자세한 내역은 분석 › 손익 현황 › 매출</span>
         </div>
         {edit && (
           <div className="pjv3-dash-editbar">
@@ -174,7 +191,7 @@ export function SalesBoard({ open, onClose, companyId, lines, cmpLines, range, c
               )}
               {w === "monthly" && (
                 <div className="pjv3-stpanel">
-                  <h3>월별 매출 <small>확정 전표 기준 — 자세한 표는 이 화면 아래에</small></h3>
+                  <h3>월별 매출 <small>확정 전표 기준</small></h3>
                   {series.map((m) => {
                     const max = Math.max(1, ...series.map((x) => x.amount));
                     return (
@@ -258,7 +275,7 @@ export function SalesBoard({ open, onClose, companyId, lines, cmpLines, range, c
           ))}
           {widgets.length === 0 && <div className="pjv3-stempty">위젯을 다 뺐습니다 — [기본 판으로 되돌리기] 또는 ＋ 위젯</div>}
         </div>
-        <p className="pjv3-stnote">저장하면 내 계정에만 적용됩니다 · 전표 축은 이 화면의 조회 기간·검색조건을 그대로 따릅니다(막다른 숫자 금지 — 자세한 내역은 아래 표에서)</p>
+        <p className="pjv3-stnote">저장하면 내 계정에만 적용됩니다 · 전표 축은 위 기간을 따릅니다 — 거래처·계정 상세는 분석 › 손익 현황 › 매출, 상품·채널 상세는 이 화면(이익관리)의 표에서</p>
       </div>
     </div>
   );

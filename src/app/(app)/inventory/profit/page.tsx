@@ -25,6 +25,7 @@ import { LineChart, BarChart, DonutChart, Legend, vizColor } from "@/components/
 import { listMoves, listProducts, listAvgCost, type MoveRow, type Product } from "@/lib/inventory";
 import { listImports, channelLabel } from "@/lib/inventory-channels";
 import { listMoveCosts, listLayers, getCostState, rebuildMyCosts, loadCostingMethod, saveCostingMethod, COSTING_METHODS, listRevaluations, addRevaluation, cancelRevaluation, REVAL_REASONS, revalReasonLabel, type CostingMethod, type MoveCost, type CostLayer } from "@/lib/inventory-cost";
+import { SalesBoard } from "../../reports/_components/SalesBoard";
 import { DateField } from "@/components/date-field";
 import { dayKeys, dayLabel } from "@/components/finance-status-panels";
 
@@ -46,6 +47,9 @@ export default function InventoryProfitPage() {
   const { isMaster, hasPerm, loading: permLoading } = useMyPermissions();
   const [companyId, setCompanyId] = useState<string | null>(null);
   useEffect(() => { getCurrentUser().then((u) => setCompanyId(u?.company_id ?? null)); }, []);
+  //   매출 KPI 현황판(결정 144) — 2026-09-02 사장님 지시로 매출 리포트에서 이사(쓰는 회사가
+  //   판매·이커머스 쪽). 열릴 때만 마운트해 닫혀 있으면 전표를 안 불러온다.
+  const [kpiOpen, setKpiOpen] = useState(false);
   const { toast } = useToast();
   const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>("all");
@@ -209,7 +213,9 @@ export default function InventoryProfitPage() {
           <div className="collect-tabs no-print">
             {TABS.map(([k, l]) => <button key={k} type="button" onClick={() => setTab(k)} className={tab === k ? "collect-tab collect-tab-on" : "collect-tab"}>{l}</button>)}
           </div>
-          <QueryBar right={
+          <QueryBar right={<>
+            <button type="button" className="btn-secondary btn-sm" title="매출·목표·채널을 위젯 한 판으로 — 내 판으로 고칠 수 있습니다"
+              onClick={() => setKpiOpen(true)}>KPI 현황판</button>
             <button type="button" className="btn-secondary btn-sm" onClick={() => {
               const name = TABS.find(([k]) => k === tab)?.[1] || "이익";
               const rows: Record<string, unknown>[] =
@@ -220,7 +226,7 @@ export default function InventoryProfitPage() {
                 : [{ "매출": S.revenue, "매출원가": S.cogs, "매출총이익": S.gp, "이익률": pct(S.rate), "손실": S.loss, "순이익": S.net, "원가 미확정": S.uncosted }];
               exportToExcel(rows, name, `이익관리_${name}_${from}_${to}`);
             }}>엑셀</button>
-          }>
+          </>}>
             <DateRangeField from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
             <span className="inv-hint">원가는 <b>{method === "avg" ? "이동평균" : "선입선출(FIFO)"}</b>으로 확정된 출고 원가 · 반품은 매출·원가에서 뺀다{S.uncosted ? <> · <b className="inv-diff-minus">원가 미확정 {won(S.uncosted)}개</b>(층 없음 — 기초 원가·매입 단가를 넣고 다시 계산)</> : null}</span>
           </QueryBar>
@@ -416,6 +422,8 @@ export default function InventoryProfitPage() {
           </div>
         </div>
       )}
+      {/* 매출 KPI 현황판 — 열릴 때만 마운트(전표 조회는 그때) */}
+      {kpiOpen && <SalesBoard open onClose={() => setKpiOpen(false)} companyId={companyId} />}
     </div>
   );
 }
