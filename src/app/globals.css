@@ -9747,6 +9747,20 @@ table.phv3-table { min-width: 640px; }
 .pjv3-dprow .flags .late { background: #fdecef; color: #e2445c; }
 .pjv3-dprow .flags .week { background: #fff4e3; color: #d78400; }
 .pjv3-dprow .flags .ok { background: #e6f9f1; color: #00a05e; }
+
+/* ── 채널 주문 현황(결정 148, 2026-09-02) — 재고 › 채널 주문 첫 갈래. pjv3-st* 부품 재사용 ── */
+.ch-st-sel { @apply rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2 py-1.5 text-xs text-[var(--text)] outline-none; font: inherit; font-size: 12px; }
+.ch-st-grid { @apply mt-3 grid gap-3; grid-template-columns: 1.25fr 1fr; }
+@media (max-width: 900px) { .ch-st-grid { grid-template-columns: 1fr; } }
+.ch-st-mini { @apply mr-1.5 inline-block h-2 rounded align-middle; background: var(--primary); }
+.ch-st-flow { @apply flex items-end gap-1.5 px-1; height: 88px; }
+.ch-st-flow .fcol { @apply flex flex-1 flex-col items-center gap-1; }
+.ch-st-flow .b { @apply w-full max-w-6 rounded-t; background: var(--primary); }
+.ch-st-flow .wk { @apply text-[9px] text-[var(--text-dim)]; }
+.ch-st-flow .cnt { @apply text-[9.5px] font-bold text-[var(--primary)]; min-height: 13px; }
+.ch-st-sync { @apply mb-1.5 flex items-center gap-2.5 rounded-lg border border-[var(--border)] px-3 py-2 text-xs; }
+.pjv3-stmoney .mstep.ch-st-warn { border-color: rgba(226, 68, 92, 0.4); }
+.pjv3-stmoney .mstep.ch-st-warn .n { color: var(--danger, #e2445c); }
 .pjv3-gr { @apply flex items-stretch border-b border-[var(--border)]; }
 .pjv3-gr[role="button"] { @apply cursor-pointer; }
 .pjv3-gr[role="button"]:hover { @apply bg-[var(--bg)]/60; }
