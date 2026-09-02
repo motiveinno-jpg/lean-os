@@ -966,7 +966,7 @@ export default function VoucherEntryPage() {
           <table className="w-full min-w-[620px] sm:min-w-0 text-xs border-collapse table-fixed">
             <thead className="ve-input-thead">
               <tr className="border-b border-[var(--border)]">
-                <th className="px-2 py-2.5 w-[126px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">일자</th>
+                <th className="px-2 py-2.5 w-[156px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">일자</th>
                 <th className="px-2 py-2.5 w-9 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">No</th>
                 <th className="px-2 py-2.5 w-[68px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">구분</th>
                 <th className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">계정과목</th>
@@ -981,7 +981,7 @@ export default function VoucherEntryPage() {
               {pend.map((l, i) => (
                 <tr key={l.key} className="border-b border-[var(--border)]/40 transition-colors focus-within:bg-[var(--primary)]/[0.04]"
                   onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, rowId: `p:${l.key}` }); }}>
-                  <td className={`${TD} w-[126px]`}>
+                  <td className={`${TD} w-[156px]`}>
                     {/* 줄마다 날짜 — 같은 날짜 줄이 한 장. 우리 달력(DateField)으로 통일 (2026-09-02 사장님: 옛 기본 달력 삭제) */}
                     <DateField value={l.date} onChange={(e) => setPendLine(l.key, { date: e.target.value })}
                       title="전표 일자" className={`${IN} ve-row-date`} />
