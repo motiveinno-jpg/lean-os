@@ -1643,7 +1643,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                       </div>
                       <div className="shrink-0 text-right">
                         <p className={`text-base font-bold mono-number ${isIncome ? 'text-[var(--success)]' : 'text-[var(--text)]'}`}>
-                          {isIncome ? '+' : '-'}₩{Number(tx.amount).toLocaleString()}
+                          {isIncome ? '+' : '-'}₩{Math.abs(Number(tx.amount)).toLocaleString()}
                         </p>
                         {tab !== 'inbox' && <p className="text-[10px] text-[var(--text-dim)] mono-number mt-0.5 hidden md:block">잔액 ₩{Number(tx.balance_after || 0).toLocaleString()}</p>}
                       </div>

@@ -90,8 +90,13 @@ export async function fetchCollectStatus(companyId: string, from: string, to: st
           .or(ISSUED_AT_NTS)
           .gte("issue_date", from).lte("issue_date", to);
       case "cash_receipt":
+        //   목록(EvidenceTab)과 같은 기준으로 센다 — 무효(void)와 우리가 발행했다 취소한 원본(manual·codef 의
+        //   cancelled)은 목록에 안 보이므로 배지에서도 뺀다. 홈택스가 준 취소거래(hometax_sync·cancelled)는
+        //   마이너스 줄로 보이니 센다. (2026-09-02 사장님: "조회하면 아무것도 없는데 1 이라고 떠")
         return supabase.from("cash_receipts").select(sel, opts as any)
           .eq("company_id", companyId)
+          .neq("status", "void")
+          .or("status.neq.cancelled,source.eq.hometax_sync")
           .gte("issue_date", from).lte("issue_date", to);
       case "card":
         return supabase.from("card_transactions").select(sel, opts as any)

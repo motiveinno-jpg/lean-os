@@ -1717,7 +1717,7 @@ function TaxInvoicesPageInner() {
             <div className="py-16 px-6 text-center">
               <div className="empty-state-icon mx-auto"><Ico e="🧾" /></div>
               <div className="text-base font-semibold text-[var(--text)]">
-                세금계산서가 등록되면 3-Way 매칭이 시작됩니다
+                발행한 세금계산서가 여기에 쌓입니다 — '발행 대기' 탭에서 보내면 됩니다
               </div>
               <div className="text-xs text-[var(--text-muted)] mt-1.5">
                 홈택스에서 불러오거나 직접 등록할 수 있습니다

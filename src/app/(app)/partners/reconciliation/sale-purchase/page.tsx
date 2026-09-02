@@ -954,7 +954,7 @@ function SalePurchaseInner() {
                 <TokenField items={ptOpts} value={cDraft.pt} onChange={setD("pt")} placeholder="거래처 이름 일부" />
               </ConditionRow>
               <ConditionRow label="유형" hint="부가세 유형 · 여러 개">
-                <TokenField items={vatOpts} value={cDraft.vat} onChange={setD("vat")} placeholder="예: 과세매입" />
+                <TokenField items={vatOpts} value={cDraft.vat} onChange={setD("vat")} placeholder="누르면 유형 전체 · 이름 일부를 쳐도 됩니다" openOnClick />
               </ConditionRow>
               <ConditionRow label="품명">
                 <input className="qk-input w-full" value={cDraft.item} placeholder="예: 임대료" onChange={(e) => setD("item")(e.target.value)} />

@@ -20,6 +20,9 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   //   최장 prefix 우선이라 아래 갈래별 항목이 "/reports" 보다 먼저 잡힌다.
   "/reports": { group: "분석", title: "분석" },
   "/reports/summary": { group: "분석", title: "경영 요약" },
+  //   헤더가 '분석 › 분석'으로 나오던 갈래 (2026-09-02 전 화면 점검)
+  "/reports/profit": { group: "분석", title: "손익 현황" },
+  "/reports/vat": { group: "분석", title: "부가세" },
   "/reports/revenue": { group: "분석", title: "손익 현황" },
   "/reports/expense": { group: "분석", title: "손익 현황" },
   "/reports/monthly": { group: "분석", title: "손익 현황" },

@@ -132,7 +132,7 @@ export default function HrAllowanceCatalogPanel({ companyId }: { companyId: stri
                       {t.is_legal_mandatory && <span title="법정 수당" className="text-[10px]"><Ico e="🔒" /></span>}
                       <span className="font-semibold">{t.name}</span>
                     </div>
-                    <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{t.code}</div>
+                    {/* 내부 코드(on_duty·holiday_over_8h …)는 화면에 안 보인다 — 영문 코드값 노출 금지(2026-09-02 전수점검) */}
                   </td>
                   <td className="px-2 py-2 text-[var(--text-muted)]">{CALC_MODE_LABEL[t.calc_mode]}</td>
                   <td className="px-2 py-2 text-[var(--text-muted)]">{rateSummary(t)}</td>

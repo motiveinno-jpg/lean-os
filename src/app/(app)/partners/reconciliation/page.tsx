@@ -743,7 +743,7 @@ export default function ReconciliationPage() {
                     </span>
                   </ConditionRow>
                   <ConditionRow label="유형" hint="매칭 방식 · 여러 개">
-                    <TokenField items={mtypeOpts} value={draft.mtype} onChange={setD("mtype")} placeholder="예: 금액 일치" />
+                    <TokenField items={mtypeOpts} value={draft.mtype} onChange={setD("mtype")} placeholder="누르면 전체 목록" openOnClick />
                   </ConditionRow>
                   <ConditionRow label="계산서 거래처" hint="여러 곳">
                     <TokenField items={cpOpts} value={draft.cp} onChange={setD("cp")} placeholder="거래처 이름 일부" />

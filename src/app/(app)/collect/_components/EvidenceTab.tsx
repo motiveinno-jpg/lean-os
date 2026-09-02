@@ -61,6 +61,9 @@ type Row = {
   posted: boolean;
   excluded?: string | null;   // 장부 제외 사유 (2026-08-19, 카드 탭만) — 전표 없이 끝낸 줄
   voucherNo: number | null;
+  /** 실제 만들어진 전표의 종류 — 'general'(일반전표)이면 부가세 유형이 없다. 화면은 이걸로 "일반전표"라고 정직하게 적는다 (2026-09-02 사장님 신고: 카과 4건 중 1건만 매입매출전표에) */
+  entryKind?: string | null;
+  entryVat?: string | null;
   /** 이 줄이 만든 전표 — 취소(되돌리기)할 때 쓴다 */
   entryId?: string | null;
   /** 카드 비목 — 회사설정의 '카드 비목 → 계정' 매핑을 찾는 열쇠 */
@@ -1086,7 +1089,15 @@ export function EvidenceTab({
                     </td>
                     <td>
                       {r.posted || r.excluded ? (
-                        <em className={t.side === "sale" ? "spv-type spv-type-s" : "spv-type spv-type-b"}>{isGeneral ? "일반" : t.label.split(". ")[1]}</em>
+                        //   전표가 된 줄은 **실제 전표의 유형**을 적는다 — 제안값을 그대로 두면 일반전표로 만든 건도
+                        //   '카과'로 보여 매입매출전표에서 찾다가 없다고 한다 (2026-09-02 사장님 신고).
+                        r.posted && r.entryKind === "general" ? (
+                          <em className="spv-type spv-type-g" title="일반전표로 만들어진 건 — 부가세 유형 없음. 매입매출전표가 아니라 일반전표 화면에 있습니다">일반전표</em>
+                        ) : (() => {
+                          const actual = r.posted && r.entryVat ? vatType(r.entryVat) : null;
+                          const tt = actual || t;
+                          return <em className={tt.side === "sale" ? "spv-type spv-type-s" : "spv-type spv-type-b"}>{isGeneral && !actual ? "일반" : tt.label.split(". ")[1]}</em>;
+                        })()
                       ) : (
                         <select className="ev-sel" value={vatCodeOf(r)}
                           onChange={(e) => setOverride((o) => ({ ...o, [r.id]: { ...o[r.id], vatCode: e.target.value } }))}>
@@ -1216,15 +1227,16 @@ async function attachVoucherNo(rows: Row[], entryIds: (string | null)[]): Promis
   if (ids.length === 0) return rows;
   //   ★ 400건 상한을 없애면서 id 가 수천 개가 될 수 있다 — 한 번에 물으면 URL 이 길어 터진다.
   //     200개씩 나눠 묻는다 (2026-08-13).
-  const byId = new Map<string, number | null>();
+  const byId = new Map<string, { no: number | null; kind: string | null; vat: string | null }>();
   for (let i = 0; i < ids.length; i += 200) {
     const data = logRead("collect:voucherno", await supabase
-      .from("journal_entries").select("id, voucher_no").in("id", ids.slice(i, i + 200)));
-    for (const e of ((data as any[]) || [])) byId.set(e.id, e.voucher_no as number | null);
+      .from("journal_entries").select("id, voucher_no, entry_kind, vat_type").in("id", ids.slice(i, i + 200)));
+    for (const e of ((data as any[]) || [])) byId.set(e.id, { no: e.voucher_no as number | null, kind: e.entry_kind ?? null, vat: e.vat_type ?? null });
   }
   return rows.map((r, i) => {
     const eid = entryIds[i];
-    return eid ? { ...r, voucherNo: byId.get(eid) ?? null, entryId: eid } : r;
+    const info = eid ? byId.get(eid) : undefined;
+    return eid ? { ...r, voucherNo: info?.no ?? null, entryId: eid, entryKind: info?.kind ?? null, entryVat: info?.vat ?? null } : r;
   });
 }
 

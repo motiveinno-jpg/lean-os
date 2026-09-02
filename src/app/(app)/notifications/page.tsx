@@ -228,7 +228,7 @@ export default function NotificationsPage() {
                       <td className="text-center">{typeLabel(n.type)}</td>
                       <td className={`text-left ${n.is_read ? "text-[var(--text-muted)]" : "font-semibold text-[var(--text)]"}`}>{n.title}</td>
                       <td className="text-left text-[var(--text-dim)] truncate" title={n.message || ""}>{n.message || "—"}</td>
-                      <td className="text-center mono-number text-[var(--text-muted)] whitespace-nowrap">{n.created_at ? new Date(n.created_at).toLocaleString('ko-KR') : ''}</td>
+                      <td className="text-center mono-number text-[var(--text-muted)] whitespace-nowrap">{n.created_at ? new Date(n.created_at).toLocaleString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -187,6 +187,10 @@ body {
   /* 2026-07-03 TeamHub 라운드 — 오로라 제거, 플랫 소프트 틴트 캔버스(흰 카드가 떠 보이는 배경). */
   background: var(--bg);
   color: var(--text);
+  /* 한글은 단어 중간에서 줄을 끊지 않는다 ("반영됩니/다", "취소·반/품은" — 2026-09-02 전 화면 점검).
+     긴 영문·URL 이 칸을 넘치지 않게 overflow-wrap 으로 받친다. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
   /* Pretendard 우선 — 한글 가독성 ↑ (Inter 는 라틴 fallback) */
   /* 2026-07-28 한글 폴백 추가 — Pretendard 가 안 뜨는 환경에서 라틴만 Segoe UI 로 떨어져
      한 줄 안에서 글씨체가 달라 보이던 문제. 1순위 폰트는 그대로다. */
@@ -6785,6 +6789,7 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .spv-type { @apply not-italic rounded px-1.5 py-0.5 text-[11px] font-bold; }
 .spv-type-s { background: color-mix(in srgb, #2563eb 14%, transparent); color: #2563eb; }
 .spv-type-b { background: color-mix(in srgb, #d97706 16%, transparent); color: #b45309; }
+.spv-type-g { @apply bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]; } /* 일반전표로 처리된 줄 (2026-09-02) */
 
 .spv-in { @apply mx-0.5 my-1 h-7 w-full min-w-0 rounded border border-transparent bg-transparent px-1.5 text-[12px] text-[var(--text)] transition focus:border-[var(--primary)] focus:bg-[var(--bg)] focus:outline-none; }
 .spv-in::placeholder { @apply text-[var(--text-dim)]; }
@@ -6950,6 +6955,21 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .ev-filter-on { @apply border-[var(--warning)] text-[var(--warning)]; }
 .ev-warn { @apply rounded-full bg-[var(--warning-dim)] px-2.5 py-1 text-[11px] font-bold text-[var(--warning)]; }
 .ev-scroll { @apply overflow-x-auto; }
+/* ── 가로로 넘치는 표: 잘렸다는 걸 보여 준다 (2026-09-02 전 화면 점검 — 검수 지적 1위 "표 오른쪽이 잘렸는데 스크롤이 있는지 모름") ──
+   macOS 는 스크롤 막대를 숨기므로 ① 막대를 항상 얇게 보이게 하고 ② 넘친 쪽 가장자리에 그림자를 깐다(배경 attachment 트릭 — JS 없음).
+   대상: 표를 감싸는 스크롤 래퍼 4종. 넘치지 않으면 그림자·막대 모두 안 보인다. */
+.ev-scroll, .stg-table-wrap, .pnl-tbl-wrap, .spv-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  background:
+    linear-gradient(90deg, var(--bg-card) 40%, transparent) left / 32px 100% no-repeat local,
+    linear-gradient(270deg, var(--bg-card) 40%, transparent) right / 32px 100% no-repeat local,
+    linear-gradient(90deg, rgba(15, 23, 42, 0.14), transparent) left / 12px 100% no-repeat scroll,
+    linear-gradient(270deg, rgba(15, 23, 42, 0.14), transparent) right / 12px 100% no-repeat scroll;
+}
+.ev-scroll::-webkit-scrollbar, .stg-table-wrap::-webkit-scrollbar, .pnl-tbl-wrap::-webkit-scrollbar, .spv-scroll::-webkit-scrollbar { height: 8px; }
+.ev-scroll::-webkit-scrollbar-thumb, .stg-table-wrap::-webkit-scrollbar-thumb, .pnl-tbl-wrap::-webkit-scrollbar-thumb, .spv-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.ev-scroll::-webkit-scrollbar-track, .stg-table-wrap::-webkit-scrollbar-track, .pnl-tbl-wrap::-webkit-scrollbar-track, .spv-scroll::-webkit-scrollbar-track { background: transparent; }
 .ev-table { @apply w-full border-collapse text-[12px]; min-width: 1260px; }
 /*   머리단은 가운데 — 몸통 칸은 제 정렬을 지킨다 (2026-08-12 사장님 지시) */
 /*   leading-4: 글자 줄상자를 아이콘 상자(16px)와 같은 높이로 — 삼각형·≡·글자의 세로 중심이 한 줄에 온다 (2026-08-18 사장님) */
