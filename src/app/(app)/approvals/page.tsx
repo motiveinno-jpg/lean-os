@@ -9,6 +9,7 @@ import { useMyPermissions } from "@/lib/permissions";
 import { useEffect, useState, useMemo, useRef, Fragment } from "react";
 import { DateField } from "@/components/date-field";
 import { friendlyError } from "@/lib/friendly-error";
+import { readCachedFavorites, loadApprovalTypeFavorites, saveApprovalTypeFavorites } from "@/lib/approval-type-favorites";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
@@ -558,19 +559,50 @@ function useListFilter(opts: { types: string[]; requesters?: string[]; withStatu
 }
 
 type PickOpt = { value: string; label: string; sub?: string; icon: React.ReactNode };
-function TypePicker({ value, options, placeholder, onChange, emptyText }: {
+// 요청 유형 피커 — 즐겨찾기(★)·검색 (2026-09-02 사장님 "요청건들이 많으면 즐겨찾기").
+//   favorites 를 주면 목록 위에 '즐겨찾기' 묶음이 먼저 오고 각 줄 오른쪽 ★ 로 넣고 뺀다.
+//   항목이 SEARCH_FROM 개 이상이면 목록 맨 위에 검색칸이 열린다(이름·부제로 거른다).
+const PICK_SEARCH_FROM = 8;
+function TypePicker({ value, options, placeholder, onChange, emptyText, favorites, onToggleFavorite }: {
   value: string; options: PickOpt[]; placeholder: string; onChange: (v: string) => void; emptyText?: string;
+  favorites?: string[]; onToggleFavorite?: (v: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
   const box = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (!open) return;
+    if (!open) { setQ(""); return; }
     const away = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     document.addEventListener("mousedown", away); document.addEventListener("keydown", esc);
+    setTimeout(() => searchRef.current?.focus(), 0);
     return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
   }, [open]);
   const cur = options.find((o) => o.value === value);
+  const favSet = new Set(favorites || []);
+  const canFav = !!onToggleFavorite;
+  const searchable = options.length >= PICK_SEARCH_FROM;
+  const nq = q.trim().toLowerCase();
+  const hit = (o: PickOpt) => !nq || o.label.toLowerCase().includes(nq) || (o.sub || "").toLowerCase().includes(nq);
+  const favItems = canFav && !nq ? options.filter((o) => favSet.has(o.value)) : [];
+  const rest = options.filter(hit);
+  const row = (o: PickOpt, keyPrefix = "") => (
+    <div key={keyPrefix + o.value} className="ap-pick-line">
+      <button type="button" role="option" aria-selected={o.value === value}
+        className={o.value === value ? "ap-pick-item ap-pick-item-on" : "ap-pick-item"}
+        onClick={() => { onChange(o.value); setOpen(false); }}>
+        {o.icon}<span className="ap-pick-label">{o.label}</span>{o.sub && <span className="ap-pick-sub">{o.sub}</span>}
+      </button>
+      {canFav && (
+        <button type="button" className={favSet.has(o.value) ? "ap-pick-star ap-pick-star-on" : "ap-pick-star"}
+          title={favSet.has(o.value) ? "즐겨찾기에서 빼기" : "즐겨찾기에 넣기"} aria-label={favSet.has(o.value) ? "즐겨찾기에서 빼기" : "즐겨찾기에 넣기"} aria-pressed={favSet.has(o.value)}
+          onClick={(e) => { e.stopPropagation(); onToggleFavorite?.(o.value); }}>
+          {favSet.has(o.value) ? "★" : "☆"}
+        </button>
+      )}
+    </div>
+  );
   return (
     <div className="ap-pick" ref={box}>
       <button type="button" className={cur ? "ap-pick-btn ap-pick-btn-on" : "ap-pick-btn"} onClick={() => setOpen((v) => !v)} aria-expanded={open}>
@@ -579,14 +611,24 @@ function TypePicker({ value, options, placeholder, onChange, emptyText }: {
       </button>
       {open && (
         <div className="ap-pick-menu" role="listbox">
+          {searchable && (
+            <input ref={searchRef} type="text" value={q} onChange={(e) => setQ(e.target.value)} placeholder="유형 이름으로 찾기"
+              className="ap-pick-search" aria-label="요청 유형 검색"
+              onKeyDown={(e) => { if (e.key === "Enter" && rest.length === 1) { onChange(rest[0].value); setOpen(false); } }} />
+          )}
           {options.length === 0 && <div className="ap-pick-empty">{emptyText || "고를 것이 없습니다"}</div>}
-          {options.map((o) => (
-            <button key={o.value} type="button" role="option" aria-selected={o.value === value}
-              className={o.value === value ? "ap-pick-item ap-pick-item-on" : "ap-pick-item"}
-              onClick={() => { onChange(o.value); setOpen(false); }}>
-              {o.icon}<span className="ap-pick-label">{o.label}</span>{o.sub && <span className="ap-pick-sub">{o.sub}</span>}
-            </button>
-          ))}
+          {favItems.length > 0 && (
+            <>
+              <div className="ap-pick-group">즐겨찾기</div>
+              {favItems.map((o) => row(o, "fav:"))}
+              <div className="ap-pick-group">전체</div>
+            </>
+          )}
+          {canFav && favItems.length === 0 && !nq && options.length >= PICK_SEARCH_FROM && (
+            <div className="ap-pick-hint">자주 쓰는 유형은 오른쪽 ☆ 를 눌러 맨 위에 두세요</div>
+          )}
+          {rest.length === 0 && options.length > 0 && <div className="ap-pick-empty">"{q.trim()}" 에 맞는 유형이 없습니다</div>}
+          {rest.map((o) => row(o))}
         </div>
       )}
     </div>
@@ -2663,6 +2705,21 @@ function FieldBlocks({ blocks }: { blocks: { key: string; node: React.ReactNode 
 function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }: {
   companyId: string; userId: string; invalidate: () => void; onComplete: () => void; presetType?: string | null;
 }) {
+  // 요청 유형 즐겨찾기 — 캐시로 즉시 그리고, 계정 저장값이 오면 덮는다 (2026-09-02 사장님)
+  const [typeFavorites, setTypeFavorites] = useState<string[]>(() => (typeof window !== "undefined" && companyId ? readCachedFavorites(companyId) : []));
+  useEffect(() => {
+    if (!companyId) return;
+    let alive = true;
+    loadApprovalTypeFavorites(companyId).then((favs) => { if (alive && favs) setTypeFavorites(favs); });
+    return () => { alive = false; };
+  }, [companyId]);
+  const toggleTypeFavorite = (v: string) => {
+    setTypeFavorites((prev) => {
+      const next = prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v];
+      void saveApprovalTypeFavorites(companyId, next);
+      return next;
+    });
+  };
   // 휴가 유형은 회사 설정을 따른다 — 구성원 > 휴가 탭에서 이름·일수를 고치면 여기도 같이 바뀐다.
   //   queryKey 는 휴가 탭과 동일해 캐시를 공유한다. (2026-08-06)
   const { data: companyLeaveTypes = defaultCompanyLeaveTypes() } = useQuery({
@@ -3181,7 +3238,24 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 <div className="ap-pick-row">
                   <label className="field-label">요청 유형 *</label>
                   <TypePicker value={String(form.requestType || "")} options={merged} placeholder="유형을 고르세요 — 경비 청구 · 결제 요청 · 휴가 신청 · 회사 양식 …"
-                    onChange={(v) => setForm({ ...form, requestType: v as RequestType })} />
+                    onChange={(v) => setForm({ ...form, requestType: v as RequestType })}
+                    favorites={typeFavorites} onToggleFavorite={toggleTypeFavorite} />
+                  {/* 즐겨찾기 칩 — 목록을 열지 않고 한 번에 고른다. 지워진 양식 값은 목록에 없으므로 자연히 빠진다. */}
+                  {(() => {
+                    const favs = typeFavorites.map((v) => merged.find((o) => o.value === v)).filter((o): o is PickOpt => !!o);
+                    if (favs.length === 0) return null;
+                    return (
+                      <div className="ap-fav-row" aria-label="즐겨찾기 유형">
+                        <span className="ap-fav-cap">★ 즐겨찾기</span>
+                        {favs.map((o) => (
+                          <button key={o.value} type="button" className={String(form.requestType || "") === o.value ? "qk-quick qk-quick-on" : "qk-quick"}
+                            onClick={() => setForm({ ...form, requestType: o.value as RequestType })} title={o.sub ? `${o.label} · ${o.sub}` : o.label}>
+                            {o.label}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })()}
