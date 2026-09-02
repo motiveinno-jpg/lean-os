@@ -16,14 +16,18 @@ import { DateRangeField } from "@/components/date-range-field";
 
 type NotifData = { rows: NotificationRow[]; quoteMap: Record<string, { deal_id: string; stage: string }> };
 
-//   알림 종류 라벨 — type 값이 화면 글자로 보이게 (모르는 값은 그대로)
+//   알림 종류 라벨 — type 값이 화면 글자로 보이게. 모르는 값도 영어 원문 대신 '기타'
+//   (2026-09-02 사장님: "종류에 영어로 나타나는 게 있다" — payment_due·leave_request 등 누락분 보강)
 const TYPE_LABEL: Record<string, string> = {
   approval_request: "결재 요청", approval_approved: "결재 승인", approval_rejected: "결재 반려", approval_result: "결재 결과", approval_reference: "결재 참조", approval: "결재",
   signature_request: "전자계약", contract_signed: "계약 서명", signature: "전자계약", quote_approval: "견적 승인", document: "문서",
-  leave: "휴가", attendance: "근태", overtime_request: "연장근무 신청", overtime_approved: "연장근무 승인", overtime_auto_clockout: "자동 퇴근",
-  project_checkin_due: "프로젝트 점검", payroll: "급여", expense: "경비", board: "게시판", chat: "메신저", schedule: "일정", system: "시스템",
+  leave: "휴가", leave_request: "휴가 신청", leave_approved: "휴가 승인", leave_rejected: "휴가 반려",
+  attendance: "근태", attendance_edit_request: "근태 정정 요청", overtime_request: "연장근무 신청", overtime_approved: "연장근무 승인", overtime_auto_clockout: "자동 퇴근",
+  project_checkin_due: "프로젝트 점검", deal_update: "프로젝트", payroll: "급여", expense: "경비",
+  payment_due: "결제 예정", inventory: "재고", board: "게시판", board_post: "게시판 글", chat: "메신저", schedule: "일정",
+  company_join_request: "합류 요청", announcement: "공지", system: "시스템",
 };
-const typeLabel = (t?: string | null) => (t ? TYPE_LABEL[t] || t : "—");
+const typeLabel = (t?: string | null) => (t ? TYPE_LABEL[t] || "기타" : "—");
 
 type Cond = { types: string[]; read: "" | "unread" | "read"; from: string; to: string; rows: number };
 const EMPTY: Cond = { types: [], read: "", from: "", to: "", rows: 50 };
