@@ -482,7 +482,19 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
     queryKey: ["chat-participants", channelId],
     queryFn: () => getParticipants(channelId),
     enabled: !!channelId,
+    //   읽음 표시(드팜므 문의발, 2026-09-02) — last_read_at 이 realtime 발행에 없어 10초 폴링.
+    //   화면이 백그라운드면 안 돈다(기본값). 실시간 승격은 chat_participants publication 추가 뒤에.
+    refetchInterval: 10_000,
   });
+
+  //   내 메시지 옆 '안 읽은 사람 수' — 그 메시지 시각보다 last_read_at 이 이른(또는 없는) 참가자 수.
+  //   0 이면 표시하지 않는다(=모두 읽음). 나간 사람은 participants 에 없으니 자연히 빠진다.
+  const unreadCountFor = useCallback((msg: any): number => {
+    if (!msg?.created_at) return 0;
+    return (participants as any[]).filter((p) =>
+      p.user_id !== msg.sender_id && (!p.last_read_at || p.last_read_at < msg.created_at)
+    ).length;
+  }, [participants]);
 
   const { data: reactionsMap } = useQuery({
     queryKey: ["chat-reactions", channelId, messages.length],
@@ -919,6 +931,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
                         content={msg.content}
                         time={formatTime(msg.created_at)}
                         isOwn={msg.sender_id === userId}
+                        unreadCount={msg.sender_id === userId ? unreadCountFor(msg) : undefined}
                         type={msg.type}
                         pinned={msg.pinned}
                         editedAt={msg.edited_at}

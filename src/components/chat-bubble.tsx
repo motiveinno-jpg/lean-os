@@ -34,6 +34,8 @@ interface ChatBubbleProps {
   onEdit?: () => void;
   onDelete?: () => void;
   glass?: boolean; // 플로팅 메신저 팝업의 글래스모피즘 변형 (기본 false → /chat 풀페이지 무영향)
+  /** 아직 안 읽은 사람 수 — 내 메시지에만, 0이면 표시 없음(=모두 읽음). 카톡 문법(드팜므 문의발, 2026-09-02) */
+  unreadCount?: number;
 }
 
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '🔥', '👀'];
@@ -81,7 +83,7 @@ function renderContent(text: string, isOwn: boolean, glass?: boolean) {
 export function ChatBubble({
   senderName, content, time, isOwn, type, pinned,
   editedAt, deletedAt, replyTo, reactions, metadata, actionCard,
-  onPin, onReply, onReact, onEdit, onDelete, glass,
+  onPin, onReply, onReact, onEdit, onDelete, glass, unreadCount,
 }: ChatBubbleProps) {
   const [showReactions, setShowReactions] = useState(false);
 
@@ -133,8 +135,15 @@ export function ChatBubble({
 
         <div className="chat-bubble-content-row">
           {isOwn && (
-            <span className="text-[9px] mb-1 text-[var(--text-dim)]">
-              {time}
+            <span className="mb-1 flex flex-col items-end">
+              {/* 안 읽은 사람 수 — 사라지면 모두 읽음(카톡 문법). 숫자를 누르면 이유를 알 수 있게 title */}
+              {typeof unreadCount === "number" && unreadCount > 0 && (
+                <span className="mb-0.5 text-[9px] font-bold leading-none text-amber-500"
+                  title={`아직 안 읽은 사람 ${unreadCount}명`}>{unreadCount}</span>
+              )}
+              <span className="text-[9px] text-[var(--text-dim)]">
+                {time}
+              </span>
             </span>
           )}
 
