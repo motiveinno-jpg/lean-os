@@ -36,6 +36,8 @@ interface UploadParams {
   category?: string;
   tags?: string[];
   userId: string;
+  /** 큰 파일(6MB+) 이어올리기 진행률(0~100) — 화면이 "올리는 중 N%" 를 보여줄 때 */
+  onProgress?: (pct: number) => void;
 }
 
 interface UploadResult {
@@ -50,11 +52,49 @@ interface UploadResult {
 // ── Constants ──
 
 const MAX_SIZES: Record<BucketName, number> = {
-  "document-files": 50 * 1024 * 1024,
+  //   50MB → 500MB (결정 146 ①, 드팜므 문의발 P4) — 6MB 넘는 파일은 이어올리기(TUS)로 올린다.
+  //   버킷 한도(storage.buckets.file_size_limit)도 500MB 로 같이 올렸다(20260902050000).
+  "document-files": 500 * 1024 * 1024,
   "company-assets": 5 * 1024 * 1024,
   certificates: 10 * 1024 * 1024,
   "employee-files": 50 * 1024 * 1024,
 };
+
+//   이어올리기 경계 — 이보다 크면 TUS(6MB 청크, 끊겨도 이어서). Supabase 권장 청크 = 정확히 6MB
+const RESUMABLE_THRESHOLD = 6 * 1024 * 1024;
+
+async function uploadResumable(bucket: string, storagePath: string, file: File, onProgress?: (pct: number) => void): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) throw new Error("로그인이 필요합니다 — 다시 로그인 후 올려주세요.");
+  const { Upload } = await import("tus-js-client");
+  await new Promise<void>((resolve, reject) => {
+    const up = new Upload(file, {
+      endpoint: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/upload/resumable`,
+      retryDelays: [0, 1000, 3000, 5000, 10000],
+      headers: { authorization: `Bearer ${token}`, "x-upsert": "false" },
+      uploadDataDuringCreation: true,
+      removeFingerprintOnSuccess: true,
+      chunkSize: RESUMABLE_THRESHOLD,
+      metadata: { bucketName: bucket, objectName: storagePath, contentType: file.type || "application/octet-stream", cacheControl: "3600" },
+      onError: (e) => {
+        //   413 = 프로젝트 전역 업로드 한도(대시보드 Storage 설정)가 버킷 한도보다 작다 —
+        //   사람이 읽을 수 있는 문장으로(2026-09-02 실측: 전역 한도 상향 전엔 여기 걸린다)
+        const msg = String(e?.message || e);
+        reject(new Error(msg.includes("413") || msg.includes("Maximum size exceeded")
+          ? "서버의 파일 크기 한도를 넘었습니다 — 관리자가 저장소 한도를 올리면 500MB까지 올릴 수 있습니다."
+          : msg));
+      },
+      onProgress: (sent, total) => { if (total > 0) onProgress?.(Math.round((sent / total) * 100)); },
+      onSuccess: () => resolve(),
+    });
+    //   끊긴 업로드가 있으면 그 조각부터 이어서 — 처음부터 다시 올리지 않는다
+    up.findPreviousUploads().then((prev) => {
+      if (prev.length > 0) up.resumeFromPreviousUpload(prev[0]);
+      up.start();
+    }).catch(() => up.start());
+  });
+}
 
 const ALLOWED_TYPES = [
   "image/jpeg",
@@ -203,7 +243,7 @@ async function attachSignedUrls<T extends { bucket?: string | null; storage_path
 // ── 1. Upload single file ──
 
 export async function uploadFile(params: UploadParams): Promise<UploadResult> {
-  const { companyId, bucket, file, context, category, tags, userId, register = true } = params;
+  const { companyId, bucket, file, context, category, tags, userId, register = true, onProgress } = params;
 
   // Validate
   validateFile(file, bucket);
@@ -213,11 +253,16 @@ export async function uploadFile(params: UploadParams): Promise<UploadResult> {
   const basePath = buildStoragePath(companyId, context);
   const storagePath = `${basePath}.${ext}`;
 
-  // Upload to Supabase Storage
-  const { error: uploadError } = await supabase.storage
-    .from(bucket)
-    .upload(storagePath, file);
-  if (uploadError) throw uploadError;
+  // Upload to Supabase Storage — 6MB 넘으면 이어올리기(TUS), 아니면 한 번에
+  if (bucket === "document-files" && file.size > RESUMABLE_THRESHOLD) {
+    await uploadResumable(bucket, storagePath, file, onProgress);
+  } else {
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(storagePath, file);
+    if (uploadError) throw uploadError;
+    onProgress?.(100);
+  }
 
   // Get public URL
   const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(storagePath);
@@ -232,6 +277,23 @@ export async function uploadFile(params: UploadParams): Promise<UploadResult> {
       mimeType: file.type,
       storagePath,
     };
+  }
+
+  //   버전 관리(결정 146 ③) — 파일보관함 파일(문서·딜·금고 연결이 아닌 것)은 같은 폴더에
+  //   같은 이름을 올리면 덮지 않고 v2, v3 로 쌓인다. 목록은 parent_file_id null(최신 판)만
+  //   보여주므로, 이전 판들의 parent 를 새 판으로 돌려 최신 판 하나만 남긴다.
+  let version = 1;
+  let prevIds: string[] = [];
+  const isVaultFile = !context?.documentId && !context?.dealId && !context?.vaultDocId;
+  if (isVaultFile) {
+    let q = db.from("document_files").select("id, version")
+      .eq("company_id", companyId).eq("file_name", file.name).is("parent_file_id", null);
+    q = context?.folderId ? q.eq("folder_id", context.folderId) : q.is("folder_id", null);
+    const { data: prev } = await q;
+    if (prev && prev.length > 0) {
+      version = Math.max(...prev.map((p: any) => Number(p.version) || 1)) + 1;
+      prevIds = prev.map((p: any) => p.id);
+    }
   }
 
   // Create document_files record
@@ -251,7 +313,7 @@ export async function uploadFile(params: UploadParams): Promise<UploadResult> {
       bucket,
       category: category || null,
       tags: tags || [],
-      version: 1,
+      version,
       uploaded_by: userId,
     })
     .select()
@@ -279,6 +341,13 @@ export async function uploadFile(params: UploadParams): Promise<UploadResult> {
     },
   }).catch(() => {});
 
+  //   이전 판들(그리고 그 밑에 매달린 더 이전 판들)을 새 판 밑으로 — 최신 하나만 목록에 남는다
+  if (prevIds.length > 0) {
+    await db.from("document_files").update({ parent_file_id: record.id })
+      .eq("company_id", companyId)
+      .or(`id.in.(${prevIds.join(",")}),parent_file_id.in.(${prevIds.join(",")})`);
+  }
+
   return {
     id: record.id,
     fileName: file.name,
@@ -287,6 +356,36 @@ export async function uploadFile(params: UploadParams): Promise<UploadResult> {
     mimeType: file.type,
     storagePath,
   };
+}
+
+// ── 4b. 지난 판·사용량(결정 146) ──
+
+/** 이 파일(최신 판)의 지난 판 목록 — 버전 내림차순, 열 수 있게 서명 URL 포함 */
+export async function getFileVersions(fileId: string): Promise<any[]> {
+  const { data, error } = await db.from("document_files")
+    .select("id, file_name, file_size, version, created_at, storage_path, bucket, file_url, uploaded_by")
+    .eq("parent_file_id", fileId)
+    .order("version", { ascending: false });
+  if (error) throw error;
+  return attachSignedUrls(data || []);
+}
+
+/** 회사 저장 사용량(바이트) — 파일보관함 원장(document_files) 합계. 지난 판 포함(지난 판도 자리를 차지한다).
+ *  ⚠ PostgREST aggregate(sum())가 이 프로젝트에선 꺼져 있어(400, 2026-09-02 실측) 쪽수로 나눠 더한다. */
+export async function getStorageUsage(companyId: string): Promise<number> {
+  let total = 0;
+  const PAGE = 1000;
+  for (let page = 0; page < 50; page += 1) {   // 상한 5만 행 — 그 이상이면 RPC 로 옮길 때다
+    const { data, error } = await db.from("document_files")
+      .select("file_size")
+      .eq("company_id", companyId)
+      .range(page * PAGE, page * PAGE + PAGE - 1);
+    if (error) return total;
+    const rows = (data || []) as { file_size: number | null }[];
+    for (const r of rows) total += Number(r.file_size) || 0;
+    if (rows.length < PAGE) break;
+  }
+  return total;
 }
 
 // ── 4. Delete file ──
@@ -313,6 +412,12 @@ export async function deleteFile(
     throw new Error("본인이 올린 파일만 삭제할 수 있습니다. (다른 사람의 파일은 마스터 또는 삭제 권한을 받은 사람만)");
   }
 
+  //   지난 판(결정 146 ③)도 같이 지운다 — 최신만 지우면 목록에서 안 보이는 이전 판들이
+  //   저장소 용량만 차지하는 고아가 된다(2026-09-02 실측서 잡음). 파일 하나 = 역사 전체.
+  const { data: olds } = await db.from("document_files")
+    .select("id, bucket, storage_path")
+    .eq("parent_file_id", fileId);
+
   // ⚠️ 순서 주의 — DB 행을 먼저 지운다. 종전엔 실물부터 지워서, RLS 가 행 삭제를 막으면
   //   파일만 사라지고 목록엔 남는 깨진 상태가 됐다. 행이 지워진 뒤엔 실물 삭제도 정책상 허용된다.
   const { error: deleteError } = await db
@@ -320,6 +425,7 @@ export async function deleteFile(
     .delete()
     .eq("id", fileId);
   if (deleteError) throw deleteError;
+  if (olds && olds.length > 0) await removeFileRows(olds);
 
   // Delete from storage
   const bucket = (file.bucket || "document-files") as BucketName;
@@ -414,22 +520,46 @@ export async function searchFiles(companyId: string, query: string) {
 
 // ── 11. Create folder ──
 
+/** 폴더 공개 범위(결정 146 ②) — 일정과 같은 4단계. 숨김은 RLS 가 한다(20260902050000). */
+export type FolderVisibility = "private" | "members" | "departments" | "company";
+
 export async function createFolder(
   companyId: string,
   name: string,
-  parentId?: string
+  parentId?: string,
+  opts?: { visibility?: FolderVisibility; targetUserIds?: string[]; targetDepartments?: string[]; createdBy?: string | null }
 ) {
+  const visibility: FolderVisibility = opts?.visibility ?? "company";
   const { data, error } = await db
     .from("document_folders")
     .insert({
       company_id: companyId,
       name,
       parent_id: parentId || null,
+      visibility,
+      target_user_ids: visibility === "members" ? (opts?.targetUserIds ?? []) : [],
+      target_departments: visibility === "departments" ? (opts?.targetDepartments ?? []) : [],
+      created_by: opts?.createdBy ?? null,
     })
     .select()
     .single();
   if (error) throw error;
   return data;
+}
+
+/** 폴더 공개 범위 바꾸기 — 만든 뒤에도 좁히거나 넓힐 수 있게(CRUD 완결) */
+export async function updateFolderVisibility(
+  folderId: string,
+  visibility: FolderVisibility,
+  opts?: { targetUserIds?: string[]; targetDepartments?: string[] }
+) {
+  const { error } = await db.from("document_folders").update({
+    visibility,
+    target_user_ids: visibility === "members" ? (opts?.targetUserIds ?? []) : [],
+    target_departments: visibility === "departments" ? (opts?.targetDepartments ?? []) : [],
+    updated_at: new Date().toISOString(),
+  }).eq("id", folderId);
+  if (error) throw error;
 }
 
 // ── 12. Get folders for company ──

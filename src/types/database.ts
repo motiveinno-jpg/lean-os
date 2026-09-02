@@ -7078,26 +7078,38 @@ export type Database = {
         Row: {
           company_id: string
           created_at: string | null
+          created_by: string | null
           id: string
           name: string
           parent_id: string | null
+          target_departments: string[]
+          target_user_ids: string[]
           updated_at: string | null
+          visibility: string
         }
         Insert: {
           company_id: string
           created_at?: string | null
+          created_by?: string | null
           id?: string
           name: string
           parent_id?: string | null
+          target_departments?: string[]
+          target_user_ids?: string[]
           updated_at?: string | null
+          visibility?: string
         }
         Update: {
           company_id?: string
           created_at?: string | null
+          created_by?: string | null
           id?: string
           name?: string
           parent_id?: string | null
+          target_departments?: string[]
+          target_user_ids?: string[]
           updated_at?: string | null
+          visibility?: string
         }
         Relationships: [
           {
@@ -7105,6 +7117,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_folders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {

@@ -92,7 +92,12 @@ export function FileUploadMulti({
         return `"${file.name}" - 파일 크기가 ${maxSize}MB를 초과합니다. (${formatSize(file.size)})`;
       }
       if (allowedTypes.length > 0 && !allowedTypes.includes(file.type)) {
-        return `"${file.name}" - 지원하지 않는 파일 형식입니다. (${file.type || "알 수 없음"})`;
+        //   확장자 폴백(2026-09-02 실측 결함) — 한컴 등이 깔린 PC 는 브라우저가 PDF 를
+        //   application/haansoftpdf 처럼 자기 MIME 으로 보고해 정상 파일이 거부됐다.
+        //   file-storage.ts 의 validateFile 과 같은 원칙: MIME 또는 확장자 중 하나만 맞으면 통과.
+        const ext = file.name.split(".").pop()?.toLowerCase() || "";
+        const extOk = ["jpg", "jpeg", "png", "gif", "webp", "svg", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "csv", "txt", "zip", "hwp"].includes(ext);
+        if (!extOk) return `"${file.name}" - 지원하지 않는 파일 형식입니다. (${file.type || "알 수 없음"})`;
       }
       return null;
     },

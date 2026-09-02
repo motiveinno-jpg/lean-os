@@ -28,7 +28,8 @@ import { classifyDocument, getDocTypeInfo, DOC_INTEL_TYPES, saveDocumentIntellig
 import { createSignatureRequest, getSignatureRequests, getDocumentSignatures, updateSignatureStatus, saveSignature, cancelSignature, getSignatureStatusInfo, SIGNATURE_STATUS, applyCompanySeal, sendSignatureEmail, createBulkSignatureRequests, sendSignatureReminder, bulkSendReminders, getDocumentSignatureAudit } from "@/lib/signatures";
 import { createNotification } from "@/lib/notifications";
 import { useMyPermissions } from "@/lib/permissions";
-import { uploadFile, getFilesForDocument, createFolder, getFolders, deleteFolder, searchFiles, deleteFile, pruneUnreferencedDocumentFiles, downloadStoredFile } from "@/lib/file-storage";
+import { uploadFile, getFilesForDocument, createFolder, getFolders, deleteFolder, searchFiles, deleteFile, pruneUnreferencedDocumentFiles, downloadStoredFile, updateFolderVisibility, getFileVersions, getStorageUsage, type FolderVisibility } from "@/lib/file-storage";
+import { getDepartments } from "@/lib/schedule";
 import { generateDocumentPDF, generateQuotePDF, issueDocument } from "@/lib/document-generator";
 import { getActiveTemplate, downloadTemplateFile, buildQuoteValues } from "@/lib/form-templates";
 import { fillFormTemplate } from "@/lib/pdf-overlay";
@@ -2755,6 +2756,36 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
     enabled: !!companyId,
   });
 
+  // ── 파일보관함 v2(결정 146, 드팜므 문의발 P4) — 폴더 공개 범위·지난 판·사용량·업로드 진행률 ──
+  const [newFolderVis, setNewFolderVis] = useState<FolderVisibility>("company");
+  const [newFolderDepts, setNewFolderDepts] = useState<string[]>([]);
+  const [newFolderMembers, setNewFolderMembers] = useState<string[]>([]);
+  //   범위 변경 모달 — 만든 뒤에도 좁히거나 넓힌다(CRUD 완결)
+  const [visFolder, setVisFolder] = useState<any | null>(null);
+  const [visDraft, setVisDraft] = useState<{ visibility: FolderVisibility; depts: string[]; members: string[] }>({ visibility: "company", depts: [], members: [] });
+  const [upProg, setUpProg] = useState<{ name: string; pct: number } | null>(null);
+  const [verFile, setVerFile] = useState<any | null>(null);
+  const { data: verList = [] } = useQuery({
+    queryKey: ["file-versions", verFile?.id],
+    enabled: !!verFile?.id,
+    queryFn: () => getFileVersions(verFile.id),
+  });
+  const { data: usageBytes = 0 } = useQuery({
+    queryKey: ["storage-usage", companyId],
+    enabled: !!companyId,
+    staleTime: 60_000,
+    queryFn: () => getStorageUsage(companyId),
+  });
+  const { data: deptOpts = [] } = useQuery({
+    queryKey: ["schedule-departments", companyId],
+    enabled: !!companyId,
+    staleTime: 300_000,
+    queryFn: () => getDepartments(companyId),
+  });
+  const memberOpts = useMemo(() => Object.entries(userNames).map(([id, name]) => ({ value: id, label: name || id.slice(0, 6) })), [userNames]);
+  const VIS_LABEL: Record<FolderVisibility, string> = { company: "전체", departments: "부서", members: "사람", private: "나만" };
+  const VIS_ICON: Record<FolderVisibility, string> = { company: "", departments: "🏷", members: "👥", private: "🔒" };
+
   // Files query - search or folder-based
   const { data: files = [], isLoading: filesLoading } = useQuery({
     queryKey: ["storage-files", companyId, selectedFolderId, fileSearchTerm],
@@ -2762,11 +2793,13 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
       if (fileSearchTerm.trim()) {
         return searchFiles(companyId, fileSearchTerm);
       }
+      //   지난 판(parent_file_id 있음)은 목록에서 숨긴다 — v 배지의 '지난 판' 창으로만(결정 146 ③)
       if (selectedFolderId) {
         const data = logRead('documents/page:data', await (supabase)
           .from("document_files")
           .select("*")
           .eq("folder_id", selectedFolderId)
+          .is("parent_file_id", null)
           .order("created_at", { ascending: false }));
         return data || [];
       }
@@ -2774,6 +2807,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
         .from("document_files")
         .select("*")
         .eq("company_id", companyId)
+        .is("parent_file_id", null)
         .order("created_at", { ascending: false }));
       return data || [];
     },
@@ -2859,11 +2893,14 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
 
   // Create folder mutation
   const createFolderMut = useMutation({
-    mutationFn: () => createFolder(companyId, newFolderName, selectedFolderId || undefined),
+    mutationFn: () => createFolder(companyId, newFolderName, selectedFolderId || undefined, {
+      visibility: newFolderVis, targetDepartments: newFolderDepts, targetUserIds: newFolderMembers, createdBy: userId,
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["document-folders"] });
       setShowNewFolderForm(false);
       setNewFolderName("");
+      setNewFolderVis("company"); setNewFolderDepts([]); setNewFolderMembers([]);
     },
     onError: (err: any) => toast("폴더 생성 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
@@ -2879,11 +2916,18 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
   });
 
   // Upload files
-  const handleFilesSelected = async (selectedFiles: File[]) => {
+  //   ⚠ FileUploadMulti 는 '지금까지 고른 전체 목록'을 넘긴다 — 그대로 돌리면 두 번째 선택 때
+  //   첫 파일이 통째로 다시 올라간다(2026-09-02 실측: 버전 기능과 만나 조용한 v2 가 생김).
+  //   이미 올린 File 객체는 건너뛴다(같은 이름의 '수정본'은 크기가 달라 새 객체로 들어온다 = 버전 업).
+  const uploadedFilesRef = useRef<WeakSet<File>>(new WeakSet());
+  const handleFilesSelected = async (allSelected: File[]) => {
+    const selectedFiles = allSelected.filter((f) => !uploadedFilesRef.current.has(f));
+    if (selectedFiles.length === 0) return;
     // 실패를 사용자에게 알린다 (2026-08-20 감사): 종전엔 console 로만 흘려, 10개를 끌어넣어
     //   10개 다 실패해도 화면이 조용히 그대로였다.
     const failed: string[] = [];
     for (const file of selectedFiles) {
+      uploadedFilesRef.current.add(file);
       try {
         await uploadFile({
           companyId,
@@ -2892,13 +2936,17 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
           context: { folderId: selectedFolderId || undefined },
           category: categoryFilter !== "all" ? categoryFilter : undefined,
           userId,
+          //   6MB 넘는 파일은 이어올리기 — 진행률을 보여준다(끊겨도 같은 파일을 다시 올리면 이어서)
+          onProgress: (pct) => setUpProg({ name: file.name, pct }),
         });
       } catch (err: any) {
         console.error("Upload failed:", err);
         failed.push(`${file.name} — ${friendlyError(err, "알 수 없는 오류")}`);
       }
     }
+    setUpProg(null);
     queryClient.invalidateQueries({ queryKey: ["storage-files"] });
+    queryClient.invalidateQueries({ queryKey: ["storage-usage"] });
     if (failed.length > 0) {
       toast(`${failed.length}개 파일을 올리지 못했습니다: ${failed.slice(0, 3).join(" / ")}${failed.length > 3 ? " 외" : ""}`, "error");
     } else if (selectedFiles.length > 0) {
@@ -2911,6 +2959,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
     try {
       await deleteFile(fileId, userId, companyId, { canDeleteOthers });
       queryClient.invalidateQueries({ queryKey: ["storage-files"] });
+      queryClient.invalidateQueries({ queryKey: ["storage-usage"] });
     } catch (err: any) {
       toast("삭제 실패: " + (err?.message || err), "error");
     }
@@ -2962,6 +3011,18 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
             <path strokeLinecap="round" strokeLinejoin="round" d="M2 7a2 2 0 012-2h5l2 2h9a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V7z" />
           </svg>
           <span className="truncate flex-1">{folder.name}</span>
+          {/* 공개 범위 배지 — 전체가 아니면 표시. 눌러서 바꾼다(만든 뒤에도 좁히거나 넓히게) */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setVisFolder(folder);
+              setVisDraft({ visibility: (folder.visibility as FolderVisibility) || "company", depts: folder.target_departments || [], members: folder.target_user_ids || [] });
+            }}
+            title={`공개 범위: ${VIS_LABEL[(folder.visibility as FolderVisibility) || "company"]} — 눌러서 바꾸기`}
+            className={`text-[9px] px-1 rounded ${(folder.visibility || "company") !== "company" ? "opacity-100 font-bold text-[var(--primary)]" : "opacity-0 group-hover:opacity-100 text-[var(--text-dim)]"}`}
+          >
+            {VIS_ICON[(folder.visibility as FolderVisibility) || "company"] || "공개"}
+          </button>
           <button
             onClick={async (e) => { e.stopPropagation(); if (await appConfirm(`"${folder.name}" 폴더를 삭제하시겠습니까?`, { danger: true })) deleteFolderMut.mutate(folder.id); }}
             className="opacity-0 group-hover:opacity-100 w-4 h-4 text-[var(--text-dim)] hover:text-red-400"
@@ -2993,7 +3054,24 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
           </div>
 
           {showNewFolderForm && (
-            <div className="flex gap-1.5 mb-3">
+            <div className="mb-3 space-y-1.5">
+              {/* 공개 범위(결정 146 ②) — 일정과 같은 4단계. 숨김은 RLS 가 한다 */}
+              <div className="flex gap-1">
+                {(["company", "departments", "members", "private"] as FolderVisibility[]).map((v) => (
+                  <button key={v} type="button" onClick={() => setNewFolderVis(v)}
+                    className={`flex-1 rounded-lg border px-1 py-1 text-[10px] font-semibold ${newFolderVis === v ? "border-[var(--primary)] text-[var(--primary)] bg-[var(--primary)]/8" : "border-[var(--border)] text-[var(--text-dim)]"}`}>
+                    {VIS_LABEL[v]}
+                  </button>
+                ))}
+              </div>
+              {newFolderVis === "departments" && (
+                <TokenField items={deptOpts.map((d) => ({ value: d.name, label: `${d.name} (${d.count}명)` }))}
+                  value={newFolderDepts} onChange={setNewFolderDepts} placeholder="부서 이름 일부" />
+              )}
+              {newFolderVis === "members" && (
+                <TokenField items={memberOpts} value={newFolderMembers} onChange={setNewFolderMembers} placeholder="이름 일부" />
+              )}
+            <div className="flex gap-1.5">
               <input
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
@@ -3007,6 +3085,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
               >
                 추가
               </button>
+            </div>
             </div>
           )}
 
@@ -3082,6 +3161,8 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
             <ResultStrip>
               <Stat label="파일" value={`${sortedFiles.length.toLocaleString()}건`} />
               <Stat label="용량" value={fmtSize(totalSize)} />
+              <span className="text-[10.5px] text-[var(--text-dim)]" title="파일보관함 원장 기준 — 지난 판도 자리를 차지합니다">회사 전체 사용 <b className="mono-number">{fmtSize(Number(usageBytes))}</b></span>
+              {upProg && <span className="text-[10.5px] font-semibold text-[var(--primary)]">{upProg.name} 올리는 중 <b className="mono-number">{upProg.pct}%</b> — 끊겨도 같은 파일을 다시 올리면 이어서 올라갑니다</span>}
               {selectedFolderId && <span className="text-[10.5px] text-[var(--text-dim)]">폴더 안만 보는 중 — 왼쪽 '전체'를 누르면 모든 파일</span>}
               {dupNames.length > 0 && (
                 <span className="text-[10.5px] font-semibold text-amber-600">같은 이름 파일 {dupNames.length}종이 두 번 이상 — {dupNames.slice(0, 3).map(([n, c]) => `${n} (${c})`).join(" · ")}{dupNames.length > 3 ? " …" : ""}</span>
@@ -3136,7 +3217,13 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
                           <td className="tr mono-number ev-dim">{fmtSize(Number(f.file_size || 0))}</td>
                           <td className="ev-ell ev-dim">{userNames[f.uploaded_by] || "—"}</td>
                           <td className="tc mono-number ev-dim">{String(f.created_at || "").slice(0, 10)}</td>
-                          <td className="tc mono-number ev-dim">v{f.version || 1}</td>
+                          <td className="tc mono-number ev-dim">
+                            {/* v2+ 는 눌러서 지난 판 — 같은 이름을 다시 올리면 덮지 않고 판이 쌓인다(결정 146 ③) */}
+                            {Number(f.version || 1) > 1 ? (
+                              <button type="button" className="font-bold text-[var(--primary)] hover:underline"
+                                title="지난 판 보기 — 이전에 올렸던 같은 이름 파일" onClick={() => setVerFile(f)}>v{f.version}</button>
+                            ) : <>v1</>}
+                          </td>
                           <td className="tc whitespace-nowrap">
                             {/* 비공개 버킷 — 클릭 시점에 서명 URL 재발급 + 원본 파일명으로 내려받기 (2026-08-11) */}
                             <button type="button" className="btn-secondary btn-sm" onClick={() => void downloadStoredFile(f.file_url, f.file_name)}>내려받기</button>
@@ -3165,13 +3252,76 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
             <FileUploadMulti
               onFilesSelect={handleFilesSelected}
               maxFiles={10}
-              maxSize={50}
+              maxSize={500}
               compact
-              label="여기로 끌어다 놓아도 올라갑니다 (이미지·PDF·Word·Excel·PPT·CSV·ZIP·TXT)"
+              label="여기로 끌어다 놓아도 올라갑니다 — 파일당 500MB, 큰 파일은 끊겨도 이어서 (이미지·PDF·Word·Excel·PPT·CSV·ZIP·TXT)"
             />
           </div>
         </QueryScreen>
       </div>
+
+      {/* ── 폴더 공개 범위 바꾸기(결정 146 ②) — 좁히면 그 밖 사람에겐 폴더째 안 보인다(RLS) ── */}
+      {visFolder && (
+        <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setVisFolder(null); }}>
+          <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="폴더 공개 범위">
+            <h3 className="phv3-modal-title">&quot;{visFolder.name}&quot; 폴더 — 누가 보나</h3>
+            <div className="mb-2 flex gap-1.5">
+              {(["company", "departments", "members", "private"] as FolderVisibility[]).map((v) => (
+                <button key={v} type="button" onClick={() => setVisDraft((d) => ({ ...d, visibility: v }))}
+                  className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-semibold ${visDraft.visibility === v ? "border-[var(--primary)] text-[var(--primary)] bg-[var(--primary)]/8" : "border-[var(--border)] text-[var(--text-dim)]"}`}>
+                  {VIS_LABEL[v]}
+                </button>
+              ))}
+            </div>
+            {visDraft.visibility === "departments" && (
+              <TokenField items={deptOpts.map((d) => ({ value: d.name, label: `${d.name} (${d.count}명)` }))}
+                value={visDraft.depts} onChange={(v) => setVisDraft((d) => ({ ...d, depts: v }))} placeholder="부서 이름 일부" />
+            )}
+            {visDraft.visibility === "members" && (
+              <TokenField items={memberOpts} value={visDraft.members} onChange={(v) => setVisDraft((d) => ({ ...d, members: v }))} placeholder="이름 일부" />
+            )}
+            <p className="phv3-modal-desc !mt-2">
+              {visDraft.visibility === "company" ? "회사 구성원 모두가 이 폴더와 안의 파일을 봅니다."
+                : visDraft.visibility === "private" ? "나만 봅니다 — 다른 사람에겐 폴더째 보이지 않습니다."
+                : "고른 대상만 봅니다 — 그 밖 사람에겐 폴더째 보이지 않습니다(숨김은 화면이 아니라 서버 규칙이 합니다)."}
+            </p>
+            <div className="phv3-modal-actions">
+              <button type="button" className="btn-secondary btn-sm" onClick={() => setVisFolder(null)}>닫기</button>
+              <button type="button" className="btn-primary btn-sm" onClick={async () => {
+                try {
+                  await updateFolderVisibility(visFolder.id, visDraft.visibility, { targetDepartments: visDraft.depts, targetUserIds: visDraft.members });
+                  queryClient.invalidateQueries({ queryKey: ["document-folders"] });
+                  queryClient.invalidateQueries({ queryKey: ["storage-files"] });
+                  setVisFolder(null);
+                  toast("공개 범위를 바꿨습니다", "success");
+                } catch (err: any) { toast("변경 실패: " + friendlyError(err, "알 수 없는 오류"), "error"); }
+              }}>저장</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 지난 판(결정 146 ③) — 같은 이름을 다시 올리면 덮지 않고 판이 쌓인다 ── */}
+      {verFile && (
+        <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setVerFile(null); }}>
+          <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="지난 판">
+            <h3 className="phv3-modal-title">&quot;{verFile.file_name}&quot; — 지난 판</h3>
+            <p className="phv3-modal-desc">지금 판은 v{verFile.version} 입니다. 지난 판도 자리를 차지하므로 필요 없으면 표에서 지우세요.</p>
+            {(verList as any[]).length === 0 && <div className="collect-empty">지난 판을 불러오는 중이거나 없습니다</div>}
+            {(verList as any[]).map((v) => (
+              <div key={v.id} className="mb-1 flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-xs">
+                <b className="mono-number">v{v.version}</b>
+                <span className="mono-number text-[var(--text-dim)]">{String(v.created_at || "").slice(0, 10)}</span>
+                <span className="mono-number text-[var(--text-dim)]">{fmtSize(Number(v.file_size || 0))}</span>
+                <button type="button" className="btn-secondary btn-sm ml-auto" onClick={() => void downloadStoredFile(v.file_url, `${v.file_name.replace(/(\.[^.]+)?$/, ` (v${v.version})$1`)}`)}>내려받기</button>
+              </div>
+            ))}
+            <div className="phv3-modal-actions">
+              <button type="button" className="btn-secondary btn-sm" onClick={() => setVerFile(null)}>닫기</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
