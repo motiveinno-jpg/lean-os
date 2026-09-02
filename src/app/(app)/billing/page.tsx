@@ -292,7 +292,7 @@ function BillingPageInner() {
       const { data } = await (db as any).rpc("get_company_storage", { p_company: companyId });
       return (Array.isArray(data) ? data[0] : data) as {
         used_bytes: number; quota_bytes: number; included_bytes: number;
-        per_unit_bytes: number; extra_seats: number; storage_packs: number;
+        per_unit_bytes: number; extra_seats: number; storage_packs: number; effective_paid: boolean;
       } | null;
     },
     enabled: !!companyId,
@@ -827,7 +827,9 @@ function BillingPageInner() {
             const pct = quota > 0 ? Math.min(100, Math.round((used / quota) * 100)) : 0;
             const tone = pct >= 100 ? "var(--danger)" : pct >= 80 ? "var(--warning)" : "var(--primary)";
             const draft = packDraft ?? packs;
-            const isPaid = currentSlug !== "free";
+            // '유료' 판정은 DB 실효 플랜(effective_paid)을 따른다 — 구독 행이 남아 있어도 만료·해지면 기본 한도.
+            const isPaid = !!storage.effective_paid;
+            const lapsed = !isPaid && currentSlug !== "free"; // 유료였다가 만료·해지된 회사
             const left = Math.max(0, quota - used);
             const isAnnual = subscription?.billing_cycle === "annual";
             // 연간은 Toss 크론과 같은 식(단가 × 12 × (1 − 연간할인)) — 화면 숫자와 청구 숫자가 어긋나지 않게.
@@ -863,6 +865,11 @@ function BillingPageInner() {
                     </span>
                     <span className="text-[11px] text-[var(--text-dim)]">남은 공간 <b className="mono-number">{fmtBytes(left)}</b></span>
                   </div>
+                  {lapsed && (
+                    <div className="text-[11px] text-[var(--text-dim)]">
+                      요금제가 만료·해지되어 저장공간이 기본 {fmtBytes(included)} 으로 돌아갔습니다. 올려 둔 파일은 그대로 있고, 다시 결제하면 이전 한도가 바로 돌아옵니다.
+                    </div>
+                  )}
                   {pct >= 80 && (
                     <div className="text-[11px] font-semibold" style={{ color: tone }}>
                       {pct >= 100
@@ -876,7 +883,7 @@ function BillingPageInner() {
                   </div>
                   {!isPaid ? (
                     <div className="billing-storage-buy">
-                      <span className="text-[11px] text-[var(--text-dim)]">무료 요금제는 {fmtBytes(included)} 까지입니다. 유료 요금제에서 저장공간 팩(+{fmtBytes(unit)})을 추가할 수 있어요.</span>
+                      <span className="text-[11px] text-[var(--text-dim)]">{lapsed ? "유료 요금제로 돌아가면" : `무료 요금제는 ${fmtBytes(included)} 까지입니다. 유료 요금제에서`} 저장공간 팩(+{fmtBytes(unit)})을 추가할 수 있어요.</span>
                       <button type="button" className="btn-secondary btn-sm" onClick={() => document.getElementById("billing-plan-cards")?.scrollIntoView({ behavior: "smooth", block: "start" })}>요금제 보기</button>
                     </div>
                   ) : !isOwner ? (
@@ -974,6 +981,7 @@ function BillingPageInner() {
               //   행 자료 — 무료/오너뷰는 lib/billing 요금제 행(features)이 아니라 기능 단위로 적는다(비교가 목적). 울트라는 사장님 기획(2026-08-19).
               const rows: { f: string; free: string; std: string; ultra: string }[] = [
                 { f: "구성원", free: "5명", std: `기본 5명 + 1명 ₩${stdSeat.toLocaleString()}/월`, ultra: "무제한" },
+                { f: "저장공간", free: "500 MB", std: `500 MB + 추가 1명당 10 GB · 팩(+10 GB) ₩${stdSeat.toLocaleString()}/월`, ultra: "협의(전용 용량)" },
                 { f: "세금계산서·현금영수증 발행", free: "월 5건 · 5건", std: "월 100건 · 100건", ultra: "무제한" },
                 { f: "전자계약", free: "월 5건", std: "무제한", ultra: "무제한" },
                 { f: "통장·카드 연결", free: "3개 · 하루 2회", std: "무제한 · 하루 2회 + 즉시", ultra: "무제한 + 연동 주기 협의" },

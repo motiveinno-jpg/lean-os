@@ -77,7 +77,12 @@ export async function POST(request: NextRequest) {
     if (setErr) {
       const msg = String(setErr.message || '');
       const status = /not authorized/.test(msg) ? 403 : 400;
-      return NextResponse.json({ error: { code: 'SET_FAILED', message: status === 403 ? '대표(소유자)만 변경할 수 있습니다' : '수량 변경에 실패했습니다' } }, { status });
+      const message = status === 403
+        ? '대표(소유자)만 변경할 수 있습니다'
+        : /no subscription/.test(msg)
+          ? '유료 요금제가 유효할 때만 저장공간을 늘릴 수 있습니다. 요금제를 먼저 결제해 주세요.'
+          : '수량 변경에 실패했습니다';
+      return NextResponse.json({ error: { code: /no subscription/.test(msg) ? 'NO_SUBSCRIPTION' : 'SET_FAILED', message } }, { status });
     }
 
     // 결제 반영

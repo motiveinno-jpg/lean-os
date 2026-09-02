@@ -177,6 +177,7 @@ export default function PricingView() {
               <div className="lp4-cmp-rows">
                 <div className="lp4-cmp-row"><span className="lp4-cmp-name">오너뷰 (기본 5명 포함)</span><span className="lp4-cmp-price">₩39,000</span></div>
                 <div className="lp4-cmp-row"><span className="lp4-cmp-name">추가 {Math.max(0, team - 5)}명 × ₩5,000</span><span className="lp4-cmp-price">{won(Math.max(0, team - 5) * 5000)}</span></div>
+                <div className="lp4-cmp-row"><span className="lp4-cmp-name">저장공간 {Math.max(0, team - 5) > 0 ? `${(0.5 + Math.max(0, team - 5) * 10).toLocaleString()}GB` : "500MB"} (추가 1명당 +10GB)</span><span className="lp4-cmp-price lp4-cmp-inc">포함</span></div>
                 <div className="lp4-cmp-row"><span className="lp4-cmp-name">전 기능 포함 · VAT 별도</span><span className="lp4-cmp-price lp4-cmp-inc">포함</span></div>
               </div>
               <div className="lp4-cmp-total">

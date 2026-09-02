@@ -14,6 +14,8 @@ export interface CompanyStorage {
   perUnitBytes: number;
   extraSeats: number;
   storagePacks: number;
+  /** 실효 유료 여부 — false 면 기본 한도만(구독 없음·체험 만료·기간 종료+3일 유예 지남·해지 완료). */
+  effectivePaid: boolean;
 }
 
 const DEFAULT_INCLUDED = 524288000;      // 500 MiB
@@ -48,6 +50,7 @@ export async function getCompanyStorage(companyId: string | null | undefined): P
       perUnitBytes: Number(row.per_unit_bytes) || DEFAULT_UNIT,
       extraSeats: Number(row.extra_seats) || 0,
       storagePacks: Number(row.storage_packs) || 0,
+      effectivePaid: !!row.effective_paid,
     };
   } catch {
     return null;
