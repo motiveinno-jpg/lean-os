@@ -37,6 +37,14 @@ function fmtW(n: number): string {
   return `₩${n.toLocaleString()}`;
 }
 
+// 바이트 → 사람이 읽는 용량(MB/GB/TB). 저장공간 카드용.
+function fmtBytes(n: number): string {
+  const b = Math.max(0, Number(n) || 0);
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} KB`;
+  if (b < 1024 * 1024 * 1024) return `${(b / 1024 / 1024).toFixed(b < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+  return `${(b / 1024 / 1024 / 1024).toFixed(1)} GB`;
+}
+
 // 연간 결제 노출 여부. Stripe 라이브 연간 price(STRIPE_PRICE_*_ANNUAL) 등록 전까지는
 //   고르면 서버가 400 으로 막으므로 화면에서도 감춘다. 등록 후 true 로 바꾸면 열린다.
 const ANNUAL_BILLING_AVAILABLE = true;
@@ -60,6 +68,8 @@ function BillingPageInner() {
   const [cycle, setCycle] = useState<BillingCycle>("monthly"); // 2026-07-22 연간 토글 복원 (연간 10% 할인)
   // 결제수단 — 국내카드(토스) 기본, 해외카드(Stripe) 선택 (2026-08-14)
   const [payMethod, setPayMethod] = useState<"toss" | "stripe">("toss");
+  const [packDraft, setPackDraft] = useState<number | null>(null); // 스토리지 팩 목표 수량(입력 중)
+  const [packLoading, setPackLoading] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [showUpgradeModal, setShowUpgradeModal] = useState<string | null>(null);
@@ -138,6 +148,27 @@ function BillingPageInner() {
     } catch (e: unknown) {
       toast(e instanceof Error ? e.message : "충전을 시작하지 못했습니다", "error");
       setCreditLoading(null);
+    }
+  }
+
+  // 스토리지 팩 수량 적용(구매/해지) — 좌석과 동일 단가, provider 별 결제 반영은 서버가 처리.
+  async function applyStoragePacks(target: number) {
+    setPackLoading(true);
+    try {
+      const res = await fetch("/api/billing/storage-pack", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count: target }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error?.message || "변경하지 못했습니다");
+      await Promise.all([refetchStorage(), qc.invalidateQueries({ queryKey: ["subscription", companyId] })]);
+      setPackDraft(null);
+      toast(json?.data?.charged ? "저장공간을 늘렸습니다 · 결제에 반영됐어요" : "저장공간 수량을 변경했습니다", "success");
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : "변경하지 못했습니다", "error");
+    } finally {
+      setPackLoading(false);
     }
   }
 
@@ -243,6 +274,20 @@ function BillingPageInner() {
       return (Array.isArray(data) ? data[0] : data) as {
         effective_plan_slug: string; entitled: boolean; cancel_at_period_end: boolean;
         effective_until: string | null; display_status: string;
+      } | null;
+    },
+    enabled: !!companyId,
+  });
+
+  // 저장공간 사용량/쿼터 (get_company_storage RPC) — 스토리지 팩 카드용
+  const { data: storage, refetch: refetchStorage } = useQuery({
+    queryKey: ["company-storage", companyId],
+    queryFn: async () => {
+      if (!companyId) return null;
+      const { data } = await (db as any).rpc("get_company_storage", { p_company: companyId });
+      return (Array.isArray(data) ? data[0] : data) as {
+        used_bytes: number; quota_bytes: number; included_bytes: number;
+        per_unit_bytes: number; extra_seats: number; storage_packs: number;
       } | null;
     },
     enabled: !!companyId,
@@ -623,14 +668,16 @@ function BillingPageInner() {
 
       {/* 요약 한 줄 — 모든 탭 공통 (2026-08-19 재편: KPI 카드 4장 → 한 줄. 경고 칩을 누르면 결제 탭) */}
       {(() => {
-        const monthly = (currentPlan?.base_price || 0) + (currentPlan?.per_seat_price || 0) * Math.max(0, (subscription?.seat_count || 1) - (currentPlan?.included_seats || 0));
         const extraSeats = Math.max(0, (subscription?.seat_count || 1) - (currentPlan?.included_seats || 0));
+        const storagePacks = (subscription as any)?.storage_pack_count || 0;
+        // 청구액 = 기본가 + (추가좌석 + 스토리지팩) × 좌석단가 (팩은 좌석과 동일 단가)
+        const monthly = (currentPlan?.base_price || 0) + (currentPlan?.per_seat_price || 0) * (extraSeats + storagePacks);
         const noCard = entitlement?.entitled && currentSlug !== "free" && !hasTossSubscription && !hasStripeSubscription;
         return (
           <div className="billing-strip">
             <span>현재 요금제 <b>{planDisplayName}</b></span>
             {currentSlug !== "free" && (
-              <span>{subscription?.billing_cycle === "annual" ? "연간" : "월"} <b className="mono-number">{fmtW(monthly)}</b> <small className="text-[var(--text-dim)]">기본 {currentPlan?.included_seats || 5}명{extraSeats > 0 ? ` + 추가 ${extraSeats}명` : ""} · VAT 별도</small></span>
+              <span>{subscription?.billing_cycle === "annual" ? "연간" : "월"} <b className="mono-number">{fmtW(monthly)}</b> <small className="text-[var(--text-dim)]">기본 {currentPlan?.included_seats || 5}명{extraSeats > 0 ? ` + 추가 ${extraSeats}명` : ""}{storagePacks > 0 ? ` + 저장공간 ${storagePacks}팩` : ""} · VAT 별도</small></span>
             )}
             {cancelScheduled && effectiveUntilStr ? (
               <span className="billing-chip-warn">해지 예약 · {effectiveUntilStr}까지 이용 후 무료 전환</span>
@@ -759,6 +806,63 @@ function BillingPageInner() {
                     })}
                   </tbody>
                 </table></div>
+              </div>
+            );
+          })()}
+
+          {/* 저장공간 — 사용량 + 스토리지 팩(좌석과 분리, 동일 단가) (2026-09-02 사장님) */}
+          {storage && (() => {
+            const used = Number(storage.used_bytes) || 0;
+            const quota = Number(storage.quota_bytes) || 0;
+            const unit = Number(storage.per_unit_bytes) || 10737418240;
+            const included = Number(storage.included_bytes) || 524288000;
+            const packs = Number(storage.storage_packs) || 0;
+            const seatUnits = Number(storage.extra_seats) || 0;
+            const perSeat = currentPlan?.per_seat_price || 5000;
+            const pct = quota > 0 ? Math.min(100, Math.round((used / quota) * 100)) : 0;
+            const tone = pct >= 100 ? "var(--danger)" : pct >= 80 ? "var(--warning)" : "var(--primary)";
+            const draft = packDraft ?? packs;
+            const isPaid = currentSlug !== "free";
+            return (
+              <div className="billing-sec">
+                <div className="billing-sec-head">
+                  <span className="billing-sec-title">저장공간</span>
+                  <span className="billing-sec-sub">회사가 올린 모든 파일(문서·첨부·이미지 등) 합계 · 팩 1개 = +{fmtBytes(unit)} / 월 ₩{perSeat.toLocaleString()}(VAT 별도)</span>
+                </div>
+                <div className="billing-storage">
+                  <div className="billing-storage-gauge">
+                    <span className="billing-bar billing-bar-lg"><span style={{ width: `${pct}%`, background: tone }} /></span>
+                    <span className="mono-number" style={pct >= 80 ? { color: tone } : undefined}>
+                      <b>{fmtBytes(used)}</b> <span className="text-[var(--text-dim)]">/ {fmtBytes(quota)} 사용 ({pct}%)</span>
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-[var(--text-dim)]">
+                    기본 {fmtBytes(included)}{seatUnits > 0 ? ` + 좌석 ${seatUnits}명 ×${fmtBytes(unit)}` : ""}{packs > 0 ? ` + 스토리지 팩 ${packs}개 ×${fmtBytes(unit)}` : ""}
+                  </div>
+                  {isPaid ? (
+                    <div className="billing-storage-buy">
+                      <span className="text-[var(--text-muted)]">스토리지 팩</span>
+                      <button type="button" className="billing-step" disabled={packLoading || draft <= 0} onClick={() => setPackDraft(Math.max(0, draft - 1))}>−</button>
+                      <input
+                        type="number" min={0} max={10000} value={draft}
+                        onChange={(e) => setPackDraft(Math.max(0, Math.min(10000, Number(e.target.value) || 0)))}
+                        className="billing-qty" disabled={packLoading}
+                      />
+                      <button type="button" className="billing-step" disabled={packLoading} onClick={() => setPackDraft(draft + 1)}>+</button>
+                      <span className="text-[11px] text-[var(--text-dim)]">= +{fmtBytes(draft * unit)} · 월 +<b className="mono-number">₩{(draft * perSeat).toLocaleString()}</b></span>
+                      {draft !== packs && (
+                        <button type="button" className="btn-secondary btn-sm" disabled={packLoading} onClick={() => applyStoragePacks(draft)}>
+                          {packLoading ? "적용 중…" : draft > packs ? "추가하기" : "줄이기"}
+                        </button>
+                      )}
+                      {draft !== packs && (
+                        <button type="button" className="billing-storage-cancel" disabled={packLoading} onClick={() => setPackDraft(null)}>취소</button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-[var(--text-dim)]">유료 요금제에서 저장공간을 늘릴 수 있습니다.</div>
+                  )}
+                </div>
               </div>
             );
           })()}

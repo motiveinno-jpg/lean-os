@@ -31,6 +31,7 @@ export interface SubscriptionInfo {
   planSlug: PlanSlug;
   plan: PlanInfo | null;
   seatCount: number;
+  storagePackCount: number; // 스토리지 팩 수(각 +10GB, 좌석과 동일 단가)
   billingCycle: 'monthly' | 'yearly';
   status: 'active' | 'paused' | 'canceled' | 'past_due' | 'trialing';
   currentPeriodStart: string;
@@ -117,11 +118,16 @@ export async function getPlans(): Promise<PlanInfo[]> {
   }));
 }
 
-// 월 청구액(공용 단일 공식) — 기본가 + 기본좌석 초과분만 좌석당 과금. VAT 별도.
-//   base_price + max(0, seatCount - includedSeats) * perSeatPrice
-export function computeMonthlyCharge(plan: Pick<PlanInfo, 'basePrice' | 'perSeatPrice' | 'includedSeats'>, seatCount: number): number {
+// 월 청구액(공용 단일 공식) — 기본가 + (기본좌석 초과분 + 스토리지 팩)만 단가 과금. VAT 별도.
+//   base_price + (max(0, seatCount - includedSeats) + storagePacks) * perSeatPrice
+//   스토리지 팩은 좌석과 동일 단가(perSeatPrice)로 청구 — 용량만 늘리고 로그인은 안 늘리는 애드온.
+export function computeMonthlyCharge(
+  plan: Pick<PlanInfo, 'basePrice' | 'perSeatPrice' | 'includedSeats'>,
+  seatCount: number,
+  storagePacks = 0,
+): number {
   const extraSeats = Math.max(0, (seatCount || 1) - (plan.includedSeats || 0));
-  return Math.round(plan.basePrice + extraSeats * plan.perSeatPrice);
+  return Math.round(plan.basePrice + (extraSeats + Math.max(0, storagePacks)) * plan.perSeatPrice);
 }
 
 // ── 1.5 출시 게이트: 구독 상태 요약 (app-shell 배너/페이월용, 2026-06-11) ──
@@ -232,6 +238,7 @@ export async function getCurrentSubscription(
         }
       : null,
     seatCount: data.seat_count,
+    storagePackCount: (data as any).storage_pack_count ?? 0,
     billingCycle: data.billing_cycle as 'monthly' | 'yearly',
     status: data.status as SubscriptionInfo['status'],
     currentPeriodStart: data.current_period_start ?? '',

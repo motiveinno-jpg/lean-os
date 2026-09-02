@@ -281,7 +281,7 @@ serve(withSentry("toss-charge", async (req: Request) => {
   // ── 대상 구독 조회 ──
   let q = supabase
     .from("subscriptions")
-    .select("id, company_id, plan_id, plan_slug, seat_count, billing_cycle, status, current_period_start, current_period_end, payment_retry_count, next_retry_at, cancel_at_period_end, last_payment_error")
+    .select("id, company_id, plan_id, plan_slug, seat_count, storage_pack_count, billing_cycle, status, current_period_start, current_period_end, payment_retry_count, next_retry_at, cancel_at_period_end, last_payment_error")
     .eq("payment_provider", "toss")
     .in("status", ["active", "trialing", "past_due"]);
 
@@ -403,7 +403,9 @@ serve(withSentry("toss-charge", async (req: Request) => {
     }
 
     // 무료 플랜은 청구 대상이 아니다 — 주기만 다음으로 밀어 둔다.
-    const supplyMonthly = Math.round(Number(plan.base_price) + billableNow * perSeatMonthly);
+    //   스토리지 팩(각 +10GB)은 좌석과 동일 단가로 함께 청구 — billableNow(추가좌석)에 더한다.
+    const storagePacks = Math.max(0, Number(s.storage_pack_count) || 0);
+    const supplyMonthly = Math.round(Number(plan.base_price) + (billableNow + storagePacks) * perSeatMonthly);
     const supplyBase = yearly
       ? Math.round(supplyMonthly * 12 * (1 - Number(plan.annual_discount || 0)))
       : supplyMonthly;
