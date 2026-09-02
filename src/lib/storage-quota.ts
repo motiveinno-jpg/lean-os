@@ -57,13 +57,20 @@ export async function getCompanyStorage(companyId: string | null | undefined): P
   }
 }
 
+/** 한도 초과 에러 — friendlyError 가 code 로 알아보고 문구를 그대로 통과시킨다
+ *  (일반 규칙은 80자 넘는 메시지를 기술 덤프로 보고 폴백으로 바꿔 버린다 — 2026-09-02 QA 실측). */
+export class StorageQuotaError extends Error {
+  code = "STORAGE_QUOTA" as const;
+  constructor(message: string) { super(message); this.name = "StorageQuotaError"; }
+}
+
 /** 사용자에게 보여줄 한도 초과 안내 — 남은 용량과 해결 경로(정리 또는 저장공간 추가)까지. */
 export function storageFullMessage(s: Pick<CompanyStorage, "usedBytes" | "quotaBytes">, fileBytes?: number): string {
   const left = Math.max(0, s.quotaBytes - s.usedBytes);
   const head = fileBytes != null
-    ? `저장공간이 부족해 올릴 수 없습니다 (파일 ${fmtBytes(fileBytes)} · 남은 공간 ${fmtBytes(left)}).`
+    ? `저장공간 부족 — 파일 ${fmtBytes(fileBytes)}, 남은 공간 ${fmtBytes(left)}.`
     : `저장공간이 가득 찼습니다 (${fmtBytes(s.usedBytes)} / ${fmtBytes(s.quotaBytes)}).`;
-  return `${head} 안 쓰는 파일을 지우거나, 설정 → 요금제에서 저장공간을 늘려 주세요.`;
+  return `${head} 파일을 정리하거나 설정 → 요금제에서 저장공간을 늘려 주세요.`;
 }
 
 /** 업로드 직전 사전검사 — 이 파일까지 더해 한도를 넘으면 안내 문구로 throw.
@@ -72,7 +79,7 @@ export async function assertStorageQuota(companyId: string | null | undefined, f
   const s = await getCompanyStorage(companyId);
   if (!s) return;
   if (s.usedBytes + Math.max(0, fileBytes || 0) > s.quotaBytes) {
-    throw new Error(storageFullMessage(s, fileBytes));
+    throw new StorageQuotaError(storageFullMessage(s, fileBytes));
   }
 }
 

@@ -2781,7 +2781,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
     queryFn: () => getCompanyStorage(companyId),
   });
   const storagePct = storageInfo && storageInfo.quotaBytes > 0
-    ? Math.min(100, Math.round((storageInfo.usedBytes / storageInfo.quotaBytes) * 100)) : 0;
+    ? Math.min(100, Math.floor((storageInfo.usedBytes / storageInfo.quotaBytes) * 100)) : 0; // 내림 — 남은 공간이 있는데 100%·'가득'이라 하지 않게
   const { data: deptOpts = [] } = useQuery({
     queryKey: ["schedule-departments", companyId],
     enabled: !!companyId,
@@ -3191,7 +3191,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
                   회사 저장공간 <b className="mono-number">{fmtQuotaBytes(storageInfo.usedBytes)}</b> / {fmtQuotaBytes(storageInfo.quotaBytes)} ({storagePct}%)
                   {storagePct >= 80 && (
                     <>
-                      {" "}· {storagePct >= 100 ? "가득 차서 새 파일을 올릴 수 없습니다" : "거의 찼습니다"}
+                      {" "}· {storageInfo.usedBytes >= storageInfo.quotaBytes ? "가득 차서 새 파일을 올릴 수 없습니다" : "거의 찼습니다"}
                       {" "}<Link href="/billing" className="underline">저장공간 늘리기</Link>
                     </>
                   )}

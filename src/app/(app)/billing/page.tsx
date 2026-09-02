@@ -824,7 +824,7 @@ function BillingPageInner() {
             const packs = Number(storage.storage_packs) || 0;
             const seatUnits = Number(storage.extra_seats) || 0;
             const perSeat = currentPlan?.per_seat_price || 5000;
-            const pct = quota > 0 ? Math.min(100, Math.round((used / quota) * 100)) : 0;
+            const pct = quota > 0 ? Math.min(100, Math.floor((used / quota) * 100)) : 0; // 내림 — 남은 공간이 있으면 '가득'이라 하지 않는다
             const tone = pct >= 100 ? "var(--danger)" : pct >= 80 ? "var(--warning)" : "var(--primary)";
             const draft = packDraft ?? packs;
             // '유료' 판정은 DB 실효 플랜(effective_paid)을 따른다 — 구독 행이 남아 있어도 만료·해지면 기본 한도.
@@ -872,7 +872,7 @@ function BillingPageInner() {
                   )}
                   {pct >= 80 && (
                     <div className="text-[11px] font-semibold" style={{ color: tone }}>
-                      {pct >= 100
+                      {used >= quota
                         ? "저장공간이 가득 찼습니다 — 지금은 새 파일을 올릴 수 없어요. 안 쓰는 파일을 지우거나 저장공간을 늘려 주세요."
                         : "저장공간이 거의 찼습니다 — 가득 차면 새 파일을 올릴 수 없어요."}
                     </div>

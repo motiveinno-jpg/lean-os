@@ -71,6 +71,8 @@ export function friendlyError(err: AnyErr, fallback = "일시적인 오류가 �
   // 1) Postgres code 우선 매핑
   const code = pickCode(err);
   if (code && PG_CODE_MSG[code]) return PG_CODE_MSG[code];
+  // 1.2) 앱이 만든 안내 에러(저장공간 한도 등) — 문구가 길어도 그대로 보여준다(아래 80자 규칙 예외).
+  if (code === "STORAGE_QUOTA") { const m = pickMessage(err); if (m) return m; }
 
   const raw = pickMessage(err);
   if (!raw) return fallback;
