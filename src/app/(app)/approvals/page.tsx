@@ -2707,13 +2707,17 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
 }) {
   // 요청 유형 즐겨찾기 — 캐시로 즉시 그리고, 계정 저장값이 오면 덮는다 (2026-09-02 사장님)
   const [typeFavorites, setTypeFavorites] = useState<string[]>(() => (typeof window !== "undefined" && companyId ? readCachedFavorites(companyId) : []));
+  //   화면이 뜨자마자 ★ 를 누르면 그 뒤 도착한 계정 로드값(옛 상태)이 방금 누른 것을 덮어썼다(2026-09-02 QA 실측).
+  //   사용자가 한 번이라도 손대면 늦게 온 로드값은 버린다 — 저장은 토글 때마다 하니 계정값도 곧 같아진다.
+  const typeFavTouched = useRef(false);
   useEffect(() => {
     if (!companyId) return;
     let alive = true;
-    loadApprovalTypeFavorites(companyId).then((favs) => { if (alive && favs) setTypeFavorites(favs); });
+    loadApprovalTypeFavorites(companyId).then((favs) => { if (alive && favs && !typeFavTouched.current) setTypeFavorites(favs); });
     return () => { alive = false; };
   }, [companyId]);
   const toggleTypeFavorite = (v: string) => {
+    typeFavTouched.current = true;
     setTypeFavorites((prev) => {
       const next = prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v];
       void saveApprovalTypeFavorites(companyId, next);
