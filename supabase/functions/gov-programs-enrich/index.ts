@@ -95,7 +95,8 @@ async function extract(db: any): Promise<{ done: number; calls: number; stopped?
   for (let i = 0; i < list.length; i += PER_CALL) {
     const chunk = list.slice(i, i + PER_CALL);
     const text = chunk.map((p, k) => `### 공고 ${k + 1} (external_id: ${p.external_id})\n제목: ${p.title}\n주관: ${p.org ?? ""} · 분야: ${p.field ?? ""} · 접수: ${p.apply_start ?? "?"}~${p.apply_end ?? "?"}\n대상(요약): ${p.requirement ?? ""}\n본문:\n${String(p.detail_text || "").slice(0, 6000)}`).join("\n\n");
-    const g = await callGemini({ model: MODEL, system: SYSTEM, schema: SCHEMA, maxTokens: 6000, timeoutMs: 60_000,
+    // temperature 0 — 같은 공고를 다시 읽어도 같은 조건표가 나오게(로봇산업전이 한 번은 업종 제한, 한 번은 무제한으로 갈렸다)
+    const g = await callGemini({ model: MODEL, system: SYSTEM, schema: SCHEMA, maxTokens: 6000, timeoutMs: 60_000, temperature: 0,
       messages: [{ role: "user", content: `아래 ${chunk.length}건 공고 각각의 자격 조건표를 items 배열로 주세요. external_id 를 그대로 넣으세요.\n\n${text}` }] });
     calls++;
     if (!g.ok) return { done, calls, stopped: g.errorCode };
