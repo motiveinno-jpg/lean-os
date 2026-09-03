@@ -56,6 +56,23 @@ export type GovProgram = {
   eligibility?: Eligibility | null;
   /** 신청에 필요한 서류 키 (lib/support-docs.ts DOC_CATALOG). 비면 rule_key 기본 세트 */
   required_docs?: string[] | null;
+  /** AI 가 공고 원문에서 뽑은 자격 조건표 (gov-programs-enrich, 2026-09-03). 있으면 judge 가 이걸로 엄격하게 대조한다 */
+  eligibility_ai?: AiEligibility | null;
+};
+
+export type AiEligibility = {
+  region_scope: "nationwide" | "restricted" | "unknown";
+  regions: string[]; districts: string[];
+  industry_scope: "any" | "restricted" | "unknown";
+  industries: string[]; industry_note: string;
+  company_types: string[];
+  max_years: number | null; min_years: number | null;
+  employees_min: number | null; employees_max: number | null;
+  revenue_max_krw: number | null;
+  required_certs: string[];
+  exclusions: string[];
+  evidence: { region: string; industry: string; company_type: string; years: string };
+  summary: string; confidence: number;
 };
 
 /** 공고 자격 스펙 — K-Startup 응답이 이미 구조화돼 있어 AI 없이 코드로 대조한다 */
@@ -587,6 +604,10 @@ export function judge(program: GovProgram, profile: CompanyProfile): Judgement {
       reasons: [{ mark: "no", text: `접수가 끝났습니다 (마감 ${program.apply_end?.slice(0, 10)})`, src: "제도 요건" }],
     };
   }
+  //   AI 조건표가 있으면 그것으로 엄격 대조 (2026-09-03 사장님: "터무니없는 것도 가능성 높음" — 원문 요건으로 걸러낸다)
+  if (program.eligibility_ai && typeof program.eligibility_ai === "object") {
+    try { return judgeAi(program.eligibility_ai, profile); } catch { /* 아래 규칙으로 */ }
+  }
   const rule = program.rule_key ? RULES[program.rule_key] : undefined;
   if (!rule) {
     return {
@@ -605,6 +626,84 @@ export function judge(program: GovProgram, profile: CompanyProfile): Judgement {
   }
 }
 
+
+/**
+ * AI 조건표 기반 엄격 판정.
+ *   ✕ 하나라도 있으면 '해당 없음'. 핵심 4가지(지역·업종·기업형태·업력)가 모두 확인돼 맞을 때만 '가능성 높음'.
+ *   모르는 게 남으면 '조건 확인' — 무엇을 확인해야 하는지 줄로 적는다. 관심 분야는 순서(점수)에만 쓴다.
+ */
+const SIZE_LABEL: Record<string, string> = { small_biz: "소상공인", small: "소기업", medium: "중기업" };
+const CERT_LABEL: Record<string, string> = { venture: "벤처기업", innobiz: "이노비즈", mainbiz: "메인비즈", lab: "기업부설연구소", woman: "여성기업", disabled: "장애인기업", social: "사회적기업" };
+const ev = (t: string | undefined) => (t && t.trim() ? ` — 공고: “${t.trim().slice(0, 70)}${t.trim().length > 70 ? "…" : ""}”` : "");
+
+export function judgeAi(ai: AiEligibility, p: CompanyProfile): Judgement {
+  const rs: Reason[] = [];
+  let fit = 0;
+  let coreUnknown = 0;
+
+  // 지역
+  if (ai.region_scope === "nationwide") { rs.push(ok("전국 대상 — 지역 제한 없음", "제도 요건")); fit += 10; }
+  else if (ai.region_scope === "restricted") {
+    const rg = ai.regions || [];
+    if (!p.region) { rs.push(unknown(`${rg.join("·") || "특정 지역"} 소재 기업 대상 — 회사 주소가 없어 확인할 수 없습니다(회사 설정 › 회사정보)`, "회사 자료")); coreUnknown++; }
+    else if (rg.length === 0 || rg.some((r) => r === p.region || r.includes(p.region!) || p.region!.includes(r))) {
+      if ((ai.districts || []).length > 0) { rs.push(unknown(`${p.region} 안에서도 ${ai.districts.slice(0, 3).join("·")} 소재 기업만 대상입니다 — 상세 주소를 확인하세요${ev(ai.evidence?.region)}`, "제도 요건")); coreUnknown++; fit += 8; }
+      else { rs.push(ok(`소재지 ${p.region} 대상 사업 — 전국 공모보다 경쟁이 적습니다${ev(ai.evidence?.region)}`)); fit += 15; }
+    } else rs.push(no(`${rg.join("·")} 소재 기업 대상 — 우리 소재지는 ${p.region}입니다${ev(ai.evidence?.region)}`));
+  } else { rs.push(unknown("지역 제한이 공고에 명시돼 있지 않습니다 — 원문에서 확인하세요", "제도 요건")); coreUnknown++; fit += 5; }
+
+  // 업종
+  if (ai.industry_scope === "any") { rs.push(ok("업종 제한 없음", "제도 요건")); fit += 8; }
+  else if (ai.industry_scope === "restricted") {
+    const inds = ai.industries || [];
+    if (!p.ksicMain) { rs.push(unknown(`${ai.industry_note || inds.join("·")} 업종 대상 — 회사 카드에 업종(표준산업분류)을 채우면 자동 확인됩니다`, "회사 카드")); coreUnknown++; }
+    else if (inds.includes(p.ksicMain)) { rs.push(ok(`업종 ${p.ksicMain} 대상에 포함${ev(ai.evidence?.industry)}`)); fit += 12; }
+    else rs.push(no(`${ai.industry_note || inds.join("·")} 업종 대상 — 우리 업종은 ${p.ksicMain}입니다${ev(ai.evidence?.industry)}`));
+  } else { rs.push(unknown("업종 제한이 공고에 명시돼 있지 않습니다", "제도 요건")); coreUnknown++; fit += 4; }
+
+  // 기업 형태
+  const types = ai.company_types || [];
+  const mine = p.sizeClass ? SIZE_LABEL[p.sizeClass] ?? null : null;
+  const smeOk = types.includes("중소기업") || (mine && types.includes(mine)) || (types.includes("소상공인") && mine === "소상공인");
+  const onlyPre = types.length > 0 && types.every((t) => ["예비창업자", "개인", "대학·연구기관", "농어업인", "비영리"].includes(t));
+  const bigOnly = types.length > 0 && types.every((t) => ["중견기업", "대기업"].includes(t));
+  if (types.length === 0) { rs.push(unknown("신청 가능한 기업 형태가 공고에 명시돼 있지 않습니다", "제도 요건")); coreUnknown++; fit += 4; }
+  else if (onlyPre) rs.push(no(`${types.join("·")} 대상입니다 — 운영 중인 회사는 해당 없음${ev(ai.evidence?.company_type)}`));
+  else if (bigOnly) rs.push(no(`${types.join("·")} 대상입니다${ev(ai.evidence?.company_type)}`));
+  else if (smeOk) { rs.push(ok(`신청 대상에 ${mine && types.includes(mine) ? mine : "중소기업"} 포함${ev(ai.evidence?.company_type)}`, "제도 요건")); fit += 8; }
+  else if (types.includes("창업기업")) { rs.push(unknown(`창업기업 대상 — 아래 업력 조건으로 판단합니다${ev(ai.evidence?.company_type)}`, "제도 요건")); fit += 4; }
+  else if (!mine && types.some((t) => ["소상공인", "소기업", "중기업"].includes(t))) { rs.push(unknown(`${types.join("·")} 대상 — 회사 카드에 기업 규모를 고르면 자동 확인됩니다`, "회사 카드")); coreUnknown++; }
+  else rs.push(no(`${types.join("·")} 대상 — 우리는 ${mine ?? "중소기업"}입니다${ev(ai.evidence?.company_type)}`));
+
+  // 업력
+  if (ai.max_years == null && ai.min_years == null) { rs.push(ok("업력 제한 없음", "제도 요건")); fit += 6; }
+  else if (p.yearsInBusiness == null) { rs.push(unknown(`업력 조건(${ai.max_years != null ? `창업 ${ai.max_years}년 이내` : ""}${ai.min_years != null ? ` ${ai.min_years}년 이상` : ""}) — 회사 카드에 개업일을 채우면 자동 확인됩니다`, "회사 카드")); coreUnknown++; }
+  else if (ai.max_years != null && p.yearsInBusiness > ai.max_years) rs.push(no(`창업 ${ai.max_years}년 이내 대상 — 업력이 ${p.yearsInBusiness.toFixed(1)}년입니다${ev(ai.evidence?.years)}`));
+  else if (ai.min_years != null && p.yearsInBusiness < ai.min_years) rs.push(no(`업력 ${ai.min_years}년 이상 대상 — 업력이 ${p.yearsInBusiness.toFixed(1)}년입니다${ev(ai.evidence?.years)}`));
+  else { rs.push(ok(`업력 ${p.yearsInBusiness.toFixed(1)}년 — 조건 충족${ev(ai.evidence?.years)}`)); fit += 12; }
+
+  // 인원·매출·인증·제외
+  if (ai.employees_max != null && p.headcount > 0 && p.headcount > ai.employees_max) rs.push(no(`상시 ${ai.employees_max}명 이하 대상 — 우리는 ${p.headcount}명입니다`));
+  else if (ai.employees_min != null && p.headcount > 0 && p.headcount < ai.employees_min) rs.push(no(`상시 ${ai.employees_min}명 이상 대상 — 우리는 ${p.headcount}명입니다`));
+  else if ((ai.employees_max != null || ai.employees_min != null) && p.headcount === 0) rs.push(unknown("상시근로자 조건이 있는데 구성원 자료가 없습니다", "회사 자료"));
+  if (ai.revenue_max_krw != null) rs.push(unknown(`매출 ${Math.round(ai.revenue_max_krw / 1e8)}억 원 이하 조건 — 원문에서 기준 연도를 확인하세요`, "제도 요건"));
+  const certs = ai.required_certs || [];
+  if (certs.length > 0) {
+    const have = certs.filter((c) => p.certifications.includes(c));
+    if (have.length > 0) { rs.push(ok(`필수 인증 보유 (${have.map((c) => CERT_LABEL[c] ?? c).join("·")})`, "회사 카드")); fit += 5; }
+    else rs.push(unknown(`${certs.map((c) => CERT_LABEL[c] ?? c).join("·")} 인증이 필요합니다 — 보유하셨다면 회사 카드에 표시하세요`, "회사 카드"));
+  }
+  for (const x of (ai.exclusions || []).slice(0, 2)) rs.push(unknown(`제외 대상: ${x.slice(0, 80)}`, "제도 요건"));
+
+  // 관심 분야 — 순서에만 영향
+  const wantedField = p.interests.length > 0 ? p.interests : [];
+  if (wantedField.length > 0) fit += 4;
+
+  const hasNo = rs.some((r) => r.mark === "no");
+  const verdict: Verdict = hasNo ? "none" : coreUnknown === 0 && (ai.confidence ?? 0) >= 0.6 ? "high" : "check";
+  if (!hasNo && verdict === "check" && (ai.confidence ?? 0) < 0.6) rs.push(unknown("공고 본문이 짧아 조건표의 확신이 낮습니다 — 원문을 확인하세요", "제도 요건"));
+  return { verdict, reasons: rs, fitScore: verdict === "none" ? 0 : Math.min(50, fit) };
+}
 
 // ── 적합도 ────────────────────────────────────────────────────────────────
 
@@ -705,7 +804,7 @@ export function daysLeft(applyEnd: string | null): number | null {
 export async function listPrograms(): Promise<GovProgram[]> {
   const { data, error } = await supabase
     .from("gov_programs")
-    .select("id, source, title, org, field, support_type, summary, requirement, amount_text, amount_max, detail_url, apply_start, apply_end, rule_key, status, sort_order, eligibility, required_docs")
+    .select("id, source, title, org, field, support_type, summary, requirement, amount_text, amount_max, detail_url, apply_start, apply_end, rule_key, status, sort_order, eligibility_ai, eligibility, required_docs")
     .eq("status", "open")
     .order("sort_order", { ascending: true });
   if (error) throw error;

@@ -8717,6 +8717,11 @@ export type Database = {
       }
       gov_programs: {
         Row: {
+          detail_text: string | null
+          detail_fetched_at: string | null
+          eligibility_ai: Json | null
+          eligibility_ai_at: string | null
+          eligibility_ai_model: string | null
           amount_max: number | null
           amount_text: string | null
           apply_end: string | null
@@ -8740,6 +8745,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          detail_text?: string | null
+          detail_fetched_at?: string | null
+          eligibility_ai?: Json | null
+          eligibility_ai_at?: string | null
+          eligibility_ai_model?: string | null
           amount_max?: number | null
           amount_text?: string | null
           apply_end?: string | null
@@ -8763,6 +8773,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          detail_text?: string | null
+          detail_fetched_at?: string | null
+          eligibility_ai?: Json | null
+          eligibility_ai_at?: string | null
+          eligibility_ai_model?: string | null
           amount_max?: number | null
           amount_text?: string | null
           apply_end?: string | null

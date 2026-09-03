@@ -84,6 +84,7 @@ export interface GeminiCallInput {
   tools?: unknown[];           // Anthropic tool 정의(input_schema) — functionDeclarations
   toolChoice?: unknown;        // {type:"any"|"auto"|"tool", name}
   timeoutMs?: number;
+  model?: string;              // 기본 GEMINI_MODEL — 일괄 작업은 한도가 넉넉한 모델을 따로 지정
 }
 
 export interface GeminiCallOutput {
@@ -99,7 +100,7 @@ export interface GeminiCallOutput {
 }
 
 export async function callGemini(input: GeminiCallInput): Promise<GeminiCallOutput> {
-  const key = geminiKey(); const model = geminiModel();
+  const key = geminiKey(); const model = input.model || geminiModel();
   if (!key) return { ok: false, content: [], text: "", stopReason: "error", usage: { input: 0, output: 0 }, model, error: "AI 대체 경로 키가 없습니다.", errorCode: "NO_GEMINI_KEY" };
 
   const body: Record<string, unknown> = {
@@ -108,7 +109,7 @@ export async function callGemini(input: GeminiCallInput): Promise<GeminiCallOutp
       // Gemini 2.5 는 '생각' 토큰도 maxOutputTokens 에 포함된다 — Anthropic 기준으로 잡은 작은 값(800)이면 JSON 이 잘려
       //   "문서를 읽지 못했습니다"가 났다(2026-09-03 사장님 제보). 넉넉히 잡고, 구조화 추출은 생각을 끈다(flash 만 지원).
       maxOutputTokens: Math.max(4096, Math.min((input.maxTokens ?? 2000) * 4, 65536)),
-      ...(input.schema && model.includes("flash") ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+      ...(input.schema && model.includes("2.5-flash") ? { thinkingConfig: { thinkingBudget: 0 } } : {}),   // thinkingBudget 는 2.5 계열 표기 — 3.x 는 기본값 사용
       ...(typeof input.temperature === "number" ? { temperature: input.temperature } : {}),
       ...(input.schema ? { responseMimeType: "application/json", responseSchema: toGeminiSchema(input.schema) } : {}),
     },
