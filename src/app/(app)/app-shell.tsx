@@ -247,13 +247,23 @@ function AppContent({ children }: { children: React.ReactNode }) {
 
   // 글로벌 mutation 에러 토스트 (providers.tsx MutationCache에서 발생)
   useEffect(() => {
+    let lastAt = 0;
     function handler(e: Event) {
+      //   mutation-error(react-query)와 db-write-error(supabase-browser 인터셉터)가 같은 실패에 둘 다
+      //   울릴 수 있다 — 1.5초 안의 두 번째는 무시. db-write-error 는 사용자 언어 문구를 그대로 보여준다.
+      const now = Date.now();
+      if (now - lastAt < 1500) return;
+      lastAt = now;
       const msg = (e as CustomEvent).detail as string;
-      setMutationError(msg);
-      setTimeout(() => setMutationError(null), 4000);
+      setMutationError(e.type === "ownerview:db-write-error" && msg ? msg : "저장 중 오류가 발생했습니다. 다시 시도해주세요.");
+      setTimeout(() => setMutationError(null), 5000);
     }
     window.addEventListener("ownerview:mutation-error", handler);
-    return () => window.removeEventListener("ownerview:mutation-error", handler);
+    window.addEventListener("ownerview:db-write-error", handler);
+    return () => {
+      window.removeEventListener("ownerview:mutation-error", handler);
+      window.removeEventListener("ownerview:db-write-error", handler);
+    };
   }, []);
 
   // 전역 JS 에러 / 미처리 Promise 거부 → 운영자 조회용 DB 적재
@@ -445,7 +455,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
       {/* 글로벌 Mutation 에러 토스트 */}
       {mutationError && (
         <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-red-500/95 text-white text-xs font-medium shadow-lg max-w-sm text-center animate-[slide-in_0.3s_ease]">
-          저장 중 오류가 발생했습니다. 다시 시도해주세요.
+          {mutationError}
         </div>
       )}
     </div>

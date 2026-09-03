@@ -94,13 +94,21 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
   // MutationCache 오류 이벤트를 아무도 안 받아 완전 무음이었다(2026-07-29 결함류 소탕).
   const [mutationError, setMutationError] = useState<string | null>(null);
   useEffect(() => {
+    let lastAt = 0;
     function handler(e: Event) {
+      const now = Date.now();
+      if (now - lastAt < 1500) return; // 같은 실패에 두 이벤트가 울려도 한 번만
+      lastAt = now;
       const msg = (e as CustomEvent).detail as string;
       setMutationError(msg);
       setTimeout(() => setMutationError(null), 5000);
     }
     window.addEventListener("ownerview:mutation-error", handler);
-    return () => window.removeEventListener("ownerview:mutation-error", handler);
+    window.addEventListener("ownerview:db-write-error", handler);
+    return () => {
+      window.removeEventListener("ownerview:mutation-error", handler);
+      window.removeEventListener("ownerview:db-write-error", handler);
+    };
   }, []);
 
   useEffect(() => {

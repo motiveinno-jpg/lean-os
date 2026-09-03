@@ -19,6 +19,7 @@
 //   ⚠️ 한 건도 못 받아온 원천은 **아무것도 닫지 않는다.** 키가 막힌 날 목록이 통째로 사라지면 안 된다.
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { withSentry } from "../_shared/sentry.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -179,7 +180,7 @@ const FETCHERS: Record<string, (key: string, stamp: string) => Promise<Row[]>> =
   bizinfo: fetchBizinfo,
 };
 
-serve(async (req: Request) => {
+serve(withSentry("gov-programs-sync", async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const json = (status: number, body: unknown) =>
@@ -302,4 +303,4 @@ serve(async (req: Request) => {
   }
 
   return json(200, { ok: summary.some((s) => Number(s.ok ?? 0) > 0), summary });
-});
+}));

@@ -5,6 +5,7 @@
 //   verify_jwt=false 로 배포(외부 공개). 이미지(project-files, private)는 24시간 서명 URL 로.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { withSentry } from "../_shared/sentry.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -40,7 +41,7 @@ const fromHash = async (token: string, req: Request): Promise<string> => {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 24);
 };
 
-Deno.serve(async (req) => {
+Deno.serve(withSentry("project-survey", async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
     const url = new URL(req.url);
@@ -157,4 +158,4 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: "server" }, 500);
   }
-});
+}));
