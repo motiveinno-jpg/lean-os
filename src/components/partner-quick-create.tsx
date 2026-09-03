@@ -7,6 +7,7 @@
 //   코드는 DB 트리거(partners_assign_code)가 붙인다.
 
 import { useEffect, useMemo, useState } from "react";
+import { BizCertUpload } from "@/components/biz-cert-upload";
 import { upsertPartner, normalizeBizNo } from "@/lib/partners";
 import { friendlyError } from "@/lib/friendly-error";
 
@@ -87,6 +88,11 @@ export function PartnerQuickCreate({ companyId, initialName = "", initialBizNo =
             <input autoFocus className="field-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: (주)모티브이노베이션"
               onKeyDown={(e) => { if (e.key === "Enter" && !saving) void submit(); }} />
           </div>
+          <BizCertUpload compact onExtracted={(f) => {
+            if (f.name) setName(f.name);
+            if (f.business_number) setBizNo(f.business_number);
+            if (f.representative) setRepresentative(f.representative);
+          }} />
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="field-label">사업자등록번호</label>

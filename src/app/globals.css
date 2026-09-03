@@ -10055,3 +10055,13 @@ table.ch-st-table { min-width: 520px; } /* table. — .ev-table(뒤에 정의) �
 .departments-found-head { @apply flex items-center justify-between gap-3 text-[12.5px] text-[var(--text)]; }
 .departments-found-chips { @apply flex flex-wrap gap-1.5; }
 .departments-found-chip { @apply text-[12px] rounded-full border border-[var(--border)] bg-[var(--bg-card)] px-2.5 py-1 text-[var(--text)] hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:opacity-50; }
+
+/* 사업자등록증으로 채우기 — biz-cert-upload.tsx (2026-09-03) */
+.bizcert { @apply mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-[var(--primary)]/40 bg-[var(--primary)]/5 px-3 py-2.5; }
+.bizcert-compact { @apply mb-2 py-2; }
+.bizcert-btn { @apply inline-flex items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90 disabled:opacity-60; }
+.bizcert-hint { @apply flex-1 min-w-[200px] text-[11.5px] leading-relaxed text-[var(--text-dim)]; }
+.bizcert-msg { @apply w-full text-[12px] leading-relaxed rounded-md px-2.5 py-1.5; }
+.bizcert-msg-ok { @apply bg-emerald-50 text-emerald-800; }
+.bizcert-msg-warn { @apply bg-amber-50 text-amber-800; }
+.bizcert-msg-err { @apply bg-red-50 text-red-700; }
