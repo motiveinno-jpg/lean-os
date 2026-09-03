@@ -18,6 +18,8 @@ interface BarYAxisLabelProps {
   y: number;
   bandHeight: number;
   isHovered: boolean;
+  /** 오너뷰 수정(2026-09-03): 라벨 최대 폭 — 70px 고정이라 회사명이 잘렸다. BarYAxis 가 margin.left 에 맞춰 넘긴다. */
+  maxWidth?: number;
 }
 
 function BarYAxisLabel({
@@ -25,6 +27,7 @@ function BarYAxisLabel({
   y,
   bandHeight,
   isHovered,
+  maxWidth = 70,
 }: BarYAxisLabelProps) {
   return (
     <div
@@ -46,7 +49,7 @@ function BarYAxisLabel({
           opacity: 0.7,
           color: "var(--chart-label, var(--color-zinc-500))",
         }}
-        style={{ maxWidth: 70 }}
+        style={{ maxWidth }}
         transition={{ duration: 0.15 }}
       >
         {label}
@@ -125,6 +128,7 @@ const BarYAxisInner = memo(function BarYAxisInner({
     >
       {labelsToShow.map((item) => (
         <BarYAxisLabel
+          maxWidth={Math.max(70, margin.left - 12)}
           bandHeight={item.bandHeight}
           isHovered={hoveredBarIndex === item.index}
           key={`${item.label}-${item.y}`}

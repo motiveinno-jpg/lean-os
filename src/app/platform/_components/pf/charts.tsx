@@ -31,6 +31,15 @@ import { PieCenter } from "@/components/charts/pie-center";
 
 export const PF_SERIES = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"] as const;
 
+// 1분마다 재조회되는 쿼리는 같은 값이라도 새 배열을 준다 — 그때마다 차트가 다시 애니메이션하면 무겁다(2026-09-03 사장님 "너무 느려").
+//   내용이 같으면 같은 참조를 돌려줘 차트가 가만히 있게 한다.
+function useStableData<T>(data: T[]): T[] {
+  const key = JSON.stringify(data);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => data, [key]);
+}
+const ANIM_MS = 650; // 기본 1100ms → 짧게
+
 export type PfSeries = { key: string; label: string; color?: string; format?: (v: number) => string };
 
 const fmtInt = (v: number) => Math.round(v).toLocaleString("ko-KR");
@@ -63,12 +72,13 @@ export function PfTrend({ data, series, xKey = "date", height = 220, empty = "�
   revealKey?: string;
   loading?: boolean;
 }) {
-  const rows = useMemo(() => data.map((d) => ({ ...d, [xKey]: d[xKey] instanceof Date ? d[xKey] : new Date(String(d[xKey])) })), [data, xKey]);
+  const stable = useStableData(data);
+  const rows = useMemo(() => stable.map((d) => ({ ...d, [xKey]: d[xKey] instanceof Date ? d[xKey] : new Date(String(d[xKey])) })), [stable, xKey]);
   if (!loading && rows.length < 2) return <Empty text={empty} height={height} />;
   const fmtDate = dateLabel || ((d: Date) => `${d.getMonth() + 1}/${d.getDate()}`);
   return (
     <div>
-      <AreaChart data={rows} xDataKey={xKey} aspectRatio="auto" style={{ height }} className="w-full" revealSignature={revealKey} status={loading ? "loading" : "ready"} loadingLabel="불러오는 중…" margin={{ top: 12, right: 8, bottom: 24, left: 8 }}>
+      <AreaChart data={rows} xDataKey={xKey} aspectRatio="auto" style={{ height }} className="w-full" revealSignature={revealKey} status={loading ? "loading" : "ready"} loadingLabel="불러오는 중…" animationDuration={ANIM_MS} margin={{ top: 12, right: 8, bottom: 24, left: 8 }}>
         <Grid horizontal numTicksRows={4} fadeHorizontal hideHorizontalEdgeLines />
         {series.map((s, i) => (
           <Area key={s.key} dataKey={s.key} fill={s.color || PF_SERIES[i % 5]} stroke={s.color || PF_SERIES[i % 5]} strokeWidth={2} fillOpacity={0.22} gradientToOpacity={0} fadeEdges />
@@ -110,14 +120,23 @@ export function PfBars({ data, series, xKey = "name", height = 220, stacked = fa
   empty?: string;
   revealKey?: string;
 }) {
-  if (data.length === 0) return <Empty text={empty} height={height} />;
+  const stable = useStableData(data);
+  // 가로 막대는 왼쪽 여백이 라벨 폭이다 — 가장 긴 라벨에 맞춰 넓힌다(한글 1자 ≈ 12px, 최대 170px). 종전 8px 라 회사명이 잘렸다.
+  const leftMargin = useMemo(() => {
+    if (!horizontal) return 8;
+    // 한글 1자 ≈ 13px(text-xs), 영문·숫자는 절반 — 넉넉히 잡고 220px 에서 자른다
+    const width = (t: string) => [...t].reduce((w, ch) => w + (/[\u3131-\uD79D]/.test(ch) ? 13 : 7), 0);
+    const longest = Math.max(0, ...stable.map((d) => width(String(d[xKey] ?? ""))));
+    return Math.min(220, 24 + longest);
+  }, [stable, horizontal, xKey]);
+  if (stable.length === 0) return <Empty text={empty} height={height} />;
   return (
     <div>
       <div style={{ height }} className="w-full">
-      <BarChart data={data} xDataKey={xKey} aspectRatio="auto" className="w-full h-full" stacked={stacked} orientation={horizontal ? "horizontal" : "vertical"} revealSignature={revealKey} margin={{ top: 8, right: 8, bottom: 24, left: 8 }}>
+      <BarChart data={stable} xDataKey={xKey} aspectRatio="auto" className="w-full h-full" stacked={stacked} orientation={horizontal ? "horizontal" : "vertical"} revealSignature={revealKey} animationDuration={ANIM_MS} margin={{ top: 8, right: 12, bottom: horizontal ? 8 : 24, left: leftMargin }}>
         <Grid horizontal={!horizontal} vertical={horizontal} numTicksRows={4} fadeHorizontal hideHorizontalEdgeLines />
         {series.map((s, i) => (
-          <Bar key={s.key} dataKey={s.key} fill={s.color || PF_SERIES[i % 5]} lineCap={4} staggerDelay={0.04} stackGap={stacked ? 2 : undefined} />
+          <Bar key={s.key} dataKey={s.key} fill={s.color || PF_SERIES[i % 5]} lineCap={4} staggerDelay={0.02} stackGap={stacked ? 2 : undefined} />
         ))}
         {horizontal ? <BarYAxis /> : <BarXAxis />}
         <ChartTooltip
@@ -151,12 +170,12 @@ export function PfRings({ items, size = 200, centerLabel = "합계", formatCente
   strokeWidth?: number;
 }) {
   const [hovered, setHovered] = useState<number | null>(null);
-  const data = items.map((it, i) => ({ label: it.label, value: it.value, maxValue: Math.max(it.max, 1), color: it.color || PF_SERIES[i % 5] }));
+  const data = useStableData(items.map((it, i) => ({ label: it.label, value: it.value, maxValue: Math.max(it.max, 1), color: it.color || PF_SERIES[i % 5] })));
   if (items.length === 0) return <Empty text="표시할 데이터가 없습니다" height={size} />;
   return (
     <div className="flex items-center gap-5 min-w-0">
-      <RingChart data={data} size={size} strokeWidth={strokeWidth} ringGap={5} baseInnerRadius={Math.round(size * 0.2)} hoveredIndex={hovered} onHoverChange={setHovered}>
-        {data.map((d, i) => <Ring key={d.label} index={i} />)}
+      <RingChart data={data} size={size} strokeWidth={strokeWidth} ringGap={5} baseInnerRadius={Math.round(size * 0.2)} hoveredIndex={hovered} onHoverChange={setHovered} animationDuration={ANIM_MS}>
+        {data.map((d, i) => <Ring key={d.label} index={i} showGlow={false} />)}
         <RingCenter defaultLabel={centerLabel}>
           {({ value, label }) => (
             <div className="flex flex-col items-center leading-tight">
@@ -170,7 +189,7 @@ export function PfRings({ items, size = 200, centerLabel = "합계", formatCente
         {data.map((d, i) => {
           const pct = Math.round((d.value / d.maxValue) * 100);
           return (
-            <li key={d.label} className={`flex items-center gap-2 text-[12px] min-w-0 rounded-lg px-1.5 py-1 transition ${hovered === i ? "bg-[var(--bg-surface)]" : ""}`} onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)}>
+            <li key={d.label} className={`flex items-center gap-2 text-[12px] min-w-0 rounded-lg px-1.5 py-1 ${hovered === i ? "bg-[var(--bg-surface)]" : ""}`} onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)}>
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color }} />
               <span className="flex-1 truncate text-[var(--text-muted)]">{d.label}</span>
               <span className="font-bold text-[var(--text)] mono-number">{fmtInt(d.value)}</span>
@@ -248,12 +267,12 @@ export function PfDonut({ slices, size = 180, centerLabel = "합계", formatCent
   const [hovered, setHovered] = useState<number | null>(null);
   const live = slices.filter((s) => s.value > 0);
   const total = live.reduce((a, b) => a + b.value, 0);
+  const data = useStableData(live.map((s, i) => ({ label: s.label, value: s.value, color: s.color || PF_SERIES[i % 5] })));
   if (live.length === 0) return <Empty text="표시할 데이터가 없습니다" height={size} />;
-  const data = live.map((s, i) => ({ label: s.label, value: s.value, color: s.color || PF_SERIES[i % 5] }));
   return (
     <div className="flex items-center gap-5 min-w-0">
       <PieChart data={data} size={size} innerRadius={Math.round(size * 0.33)} padAngle={0.025} cornerRadius={4} hoveredIndex={hovered} onHoverChange={setHovered}>
-        {data.map((_, i) => <PieSlice key={i} index={i} hoverEffect="translate" hoverOffset={6} />)}
+        {data.map((_, i) => <PieSlice key={i} index={i} hoverEffect="none" hoverOffset={0} showGlow={false} />)}
         <PieCenter defaultLabel={centerLabel}>
           {({ value, label }: { value: number; label: string }) => (
             <div className="flex flex-col items-center leading-tight">
@@ -266,7 +285,7 @@ export function PfDonut({ slices, size = 180, centerLabel = "합계", formatCent
       {legend && (
         <ul className="flex-1 min-w-0 space-y-1.5">
           {data.map((d, i) => (
-            <li key={d.label} className={`flex items-center gap-2 text-[12px] min-w-0 rounded-lg px-1.5 py-1 transition ${hovered === i ? "bg-[var(--bg-surface)]" : ""}`} onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)}>
+            <li key={d.label} className={`flex items-center gap-2 text-[12px] min-w-0 rounded-lg px-1.5 py-1 ${hovered === i ? "bg-[var(--bg-surface)]" : ""}`} onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)}>
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color }} />
               <span className="flex-1 truncate text-[var(--text-muted)]">{d.label}</span>
               <span className="font-bold text-[var(--text)] mono-number">{fmtInt(d.value)}</span>

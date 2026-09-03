@@ -10271,14 +10271,14 @@ table.ch-st-table { min-width: 520px; } /* table. — .ev-table(뒤에 정의) �
    ═══════════════════════════════════════════════════════════════════════════ */
 :root {
   --pf-radius: 20px;
-  --pf-card-bg: color-mix(in oklab, var(--bg-card) 86%, transparent);
+  --pf-card-bg: color-mix(in oklab, var(--bg-card) 96%, transparent);
   --pf-card-border: color-mix(in oklab, var(--border) 70%, transparent);
   --pf-glow: color-mix(in oklab, var(--primary) 18%, transparent);
   --pf-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 32px -18px rgba(15, 23, 42, 0.25);
   --pf-shadow-hover: 0 2px 4px rgba(15, 23, 42, 0.05), 0 24px 48px -20px rgba(79, 70, 229, 0.28);
 }
 [data-theme="dark"] {
-  --pf-card-bg: color-mix(in oklab, var(--bg-card) 78%, transparent);
+  --pf-card-bg: color-mix(in oklab, var(--bg-card) 94%, transparent);
   --pf-card-border: color-mix(in oklab, var(--border) 60%, transparent);
   --pf-glow: color-mix(in oklab, var(--primary) 28%, transparent);
   --pf-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 16px 40px -20px rgba(0,0,0,0.7);
@@ -10293,16 +10293,14 @@ table.ch-st-table { min-width: 520px; } /* table. — .ev-table(뒤에 정의) �
     radial-gradient(60% 45% at 8% 0%, color-mix(in oklab, var(--primary) 14%, transparent), transparent 70%),
     radial-gradient(45% 40% at 100% 10%, color-mix(in oklab, #0D9488 12%, transparent), transparent 70%),
     radial-gradient(50% 50% at 60% 100%, color-mix(in oklab, #7C3AED 10%, transparent), transparent 70%);
-  animation: pf-aurora 18s ease-in-out infinite alternate;
+  /* 움직이지 않는다 — 전면 고정 그라데이션에 애니메이션을 걸면 카드 수십 장이 매 프레임 다시 그려져 느려진다 (2026-09-03 사장님 "너무 느려") */
 }
-@keyframes pf-aurora { from { transform: translate3d(0,0,0) scale(1); } to { transform: translate3d(-2%, 1.5%, 0) scale(1.04); } }
 
 /* 카드 */
 .pf-card {
   position: relative; border-radius: var(--pf-radius); background: var(--pf-card-bg);
   border: 1px solid var(--pf-card-border); box-shadow: var(--pf-shadow);
-  -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4);
-  transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s cubic-bezier(.2,.8,.2,1), border-color .35s;
+  /* backdrop-filter 없음 — 카드 20여 장에 blur 를 걸면 스크롤·호버마다 전부 재합성돼 느려진다. 셸(사이드바·상단바)에만 쓴다. */
   overflow: hidden; min-width: 0;
 }
 .pf-card::after { /* 상단 하이라이트 라인 */
@@ -10310,7 +10308,8 @@ table.ch-st-table { min-width: 520px; } /* table. — .ev-table(뒤에 정의) �
   background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--primary) 45%, transparent), transparent);
   opacity: .7;
 }
-.pf-card-hover:hover { transform: translateY(-2px); box-shadow: var(--pf-shadow-hover); border-color: color-mix(in oklab, var(--primary) 30%, var(--pf-card-border)); }
+/* 호버 애니메이션 최소화 (2026-09-03 사장님) — 떠오름·그림자 없음, 테두리 색만 */
+.pf-card-hover:hover { border-color: color-mix(in oklab, var(--primary) 30%, var(--pf-card-border)); }
 .pf-card-pad { @apply p-5; }
 .pf-card-head { @apply flex items-start justify-between gap-3 px-5 pt-4 pb-3; }
 .pf-card-head-tight { @apply px-4 pt-3 pb-2; }
@@ -10345,15 +10344,15 @@ table.ch-st-table { min-width: 520px; } /* table. — .ev-table(뒤에 정의) �
 .pf-page-actions { @apply flex flex-wrap items-center gap-2; }
 
 /* 버튼·칩·배지 */
-.pf-btn { @apply inline-flex items-center gap-1.5 rounded-xl px-3.5 h-9 text-[12px] font-semibold border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] transition hover:border-[var(--primary)]/50 hover:shadow-[0_6px_18px_-10px_var(--primary)] active:translate-y-px; }
+.pf-btn { @apply inline-flex items-center gap-1.5 rounded-xl px-3.5 h-9 text-[12px] font-semibold border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] hover:border-[var(--primary)]/50; }
 .pf-btn-primary { @apply border-transparent text-white; background: linear-gradient(135deg, var(--primary), #7C3AED); box-shadow: 0 8px 20px -10px var(--primary); }
-.pf-btn-primary:hover { filter: brightness(1.06); }
+.pf-btn-primary:hover { opacity: .92; }
 .pf-btn-ghost { @apply bg-transparent border-transparent text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]; }
 .pf-btn-sm { @apply h-8 px-3 text-[11px] rounded-lg; }
-.pf-chip { @apply inline-flex items-center gap-1 rounded-full px-2.5 h-7 text-[11px] font-semibold border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] transition hover:text-[var(--text)]; }
+.pf-chip { @apply inline-flex items-center gap-1 rounded-full px-2.5 h-7 text-[11px] font-semibold border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text)]; }
 .pf-chip-on { @apply border-transparent text-white; background: linear-gradient(135deg, var(--primary), #7C3AED); }
 .pf-seg { @apply inline-flex p-1 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]/60 gap-0.5; }
-.pf-seg-item { @apply px-3 h-7 rounded-lg text-[11px] font-semibold text-[var(--text-muted)] transition; }
+.pf-seg-item { @apply px-3 h-7 rounded-lg text-[11px] font-semibold text-[var(--text-muted)]; }
 .pf-seg-item-on { @apply bg-[var(--bg-card)] text-[var(--text)] shadow-sm; }
 .pf-badge { @apply inline-flex items-center gap-1 rounded-full px-2 py-[2px] text-[10px] font-bold leading-none whitespace-nowrap; }
 .pf-badge-ok { color: var(--success); background: color-mix(in oklab, var(--success) 14%, transparent); }
@@ -10365,7 +10364,7 @@ table.ch-st-table { min-width: 520px; } /* table. — .ev-table(뒤에 정의) �
 
 /* 목록 행 */
 .pf-rows { @apply divide-y divide-[var(--border)]/60; }
-.pf-row { @apply flex items-center gap-3 px-5 py-2.5 text-[12px] transition; }
+.pf-row { @apply flex items-center gap-3 px-5 py-2.5 text-[12px]; }
 a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--primary) 6%, transparent); }
 .pf-row-title { @apply text-[12px] font-semibold text-[var(--text)] truncate; }
 .pf-row-sub { @apply text-[10.5px] text-[var(--text-dim)] truncate; }
@@ -10377,20 +10376,21 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
 .pf-table { @apply w-full text-[12px]; }
 .pf-table thead th { @apply text-left text-[10.5px] font-bold uppercase tracking-wider text-[var(--text-dim)] px-4 py-2.5 border-b border-[var(--border)]/70 whitespace-nowrap sticky top-0 bg-[var(--bg-card)]/90 backdrop-blur; }
 .pf-table tbody td { @apply px-4 py-2.5 border-b border-[var(--border)]/50 align-middle; }
-.pf-table tbody tr { transition: background .2s; }
 .pf-table tbody tr:hover { background: color-mix(in oklab, var(--primary) 5%, transparent); }
 .pf-table-wrap { @apply overflow-x-auto; }
 
 /* 등장 애니메이션 — 카드에 .pf-in 과 style="--pf-i: n" */
-.pf-in { opacity: 0; transform: translateY(10px); animation: pf-in .55s cubic-bezier(.2,.8,.2,1) forwards; animation-delay: calc(var(--pf-i, 0) * 60ms); }
+.pf-in { opacity: 0; transform: translateY(8px); animation: pf-in .4s ease-out forwards; animation-delay: calc(min(var(--pf-i, 0), 8) * 35ms); }
 @keyframes pf-in { to { opacity: 1; transform: translateY(0); } }
 .pf-grow { transform-origin: left center; animation: pf-grow .9s cubic-bezier(.2,.8,.2,1) both; }
 @keyframes pf-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
 /* 라이브 점·펄스 */
-.pf-live { @apply inline-block w-2 h-2 rounded-full; background: var(--success); box-shadow: 0 0 0 0 color-mix(in oklab, var(--success) 60%, transparent); animation: pf-pulse 1.8s ease-out infinite; }
-.pf-live-off { background: var(--text-dim); animation: none; box-shadow: none; }
-@keyframes pf-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--success) 55%, transparent); } 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+.pf-live { @apply relative inline-block w-2 h-2 rounded-full; background: var(--success); }
+.pf-live::after { content: ""; position: absolute; inset: 0; border-radius: 9999px; background: color-mix(in oklab, var(--success) 45%, transparent); animation: pf-pulse 2s ease-out infinite; }
+.pf-live-off { background: var(--text-dim); }
+.pf-live-off::after { animation: none; display: none; }
+@keyframes pf-pulse { 0% { transform: scale(1); opacity: .8; } 70% { transform: scale(2.6); opacity: 0; } 100% { transform: scale(2.6); opacity: 0; } }
 
 /* 스켈레톤 */
 .pf-skel { position: relative; overflow: hidden; border-radius: 10px; background: color-mix(in oklab, var(--text) 6%, transparent); }
@@ -10402,29 +10402,28 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
 .pf-bar-fill { @apply h-full rounded-full; transform-origin: left center; animation: pf-grow .9s cubic-bezier(.2,.8,.2,1) both; }
 
 /* 레이아웃 셸 v2 */
-.pf-sidebar { @apply w-[236px] hidden md:flex flex-col fixed left-3 top-3 bottom-3 z-40 rounded-[22px]; background: var(--pf-card-bg); border: 1px solid var(--pf-card-border); box-shadow: var(--pf-shadow); -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5); }
+.pf-sidebar { @apply w-[236px] hidden md:flex flex-col fixed left-3 top-3 bottom-3 z-40 rounded-[22px]; background: var(--pf-card-bg); border: 1px solid var(--pf-card-border); box-shadow: var(--pf-shadow); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 .pf-main { @apply flex-1 ml-0 md:ml-[260px] p-4 md:p-6 lg:p-7 lg:pr-6; }
 .pf-nav-group-title { @apply px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-dim)]; }
-.pf-nav-item { @apply relative flex items-center gap-2.5 px-3 h-9 rounded-xl text-[13px] font-semibold text-[var(--text-muted)] transition; }
+.pf-nav-item { @apply relative flex items-center gap-2.5 px-3 h-9 rounded-xl text-[13px] font-semibold text-[var(--text-muted)]; }
 .pf-nav-item:hover { color: var(--text); background: color-mix(in oklab, var(--primary) 7%, transparent); }
 .pf-nav-item-on { color: #fff; background: linear-gradient(135deg, var(--primary), #7C3AED); box-shadow: 0 10px 24px -12px var(--primary); }
 .pf-nav-item-on:hover { color: #fff; background: linear-gradient(135deg, var(--primary), #7C3AED); }
 .pf-nav-icon { @apply w-4 h-4 shrink-0; }
-.pf-topbar { @apply flex items-center justify-between gap-3 rounded-2xl px-4 py-2.5 mb-5 sticky top-3 z-30; background: var(--pf-card-bg); border: 1px solid var(--pf-card-border); box-shadow: var(--pf-shadow); -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5); }
+.pf-topbar { @apply flex items-center justify-between gap-3 rounded-2xl px-4 py-2.5 mb-5 sticky top-3 z-30; background: var(--pf-card-bg); border: 1px solid var(--pf-card-border); box-shadow: var(--pf-shadow); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 .pf-crumb { @apply text-[11px] font-semibold text-[var(--text-dim)] flex items-center gap-1.5; }
 .pf-mobile-nav { @apply md:hidden flex gap-1.5 overflow-x-auto pb-2 mb-4 -mx-1 px-1; }
 
 @media (prefers-reduced-motion: reduce) {
   .pf-in { animation: pf-fade .3s ease forwards; transform: none; }
   .pf-grow, .pf-live, .pf-canvas::before, .pf-skel::after { animation: none; }
-  .pf-card-hover:hover { transform: none; }
   @keyframes pf-fade { to { opacity: 1; } }
 }
 
 /* pf 부품 추가분 (2026-09-03 화면 팀 요청) — 셀렉트·입력칸·안내 상자·위험 버튼·좁은 행·타임라인 */
-.pf-select { @apply h-9 rounded-xl px-3 pr-8 text-[12px] font-semibold border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] transition hover:border-[var(--primary)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
+.pf-select { @apply h-9 rounded-xl px-3 pr-8 text-[12px] font-semibold border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] hover:border-[var(--primary)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
 .pf-select-sm { @apply h-8 text-[11px] rounded-lg; }
-.pf-input { @apply h-9 rounded-xl px-3 text-[12px] border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] placeholder:text-[var(--text-dim)] transition focus:outline-none focus:border-[var(--primary)]/60 focus:ring-2 focus:ring-[var(--primary)]/25; }
+.pf-input { @apply h-9 rounded-xl px-3 text-[12px] border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--primary)]/60 focus:ring-2 focus:ring-[var(--primary)]/25; }
 .pf-input-sm { @apply h-8 text-[11px] rounded-lg; }
 .pf-textarea { @apply rounded-xl px-3 py-2 text-[12px] border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] placeholder:text-[var(--text-dim)] transition focus:outline-none focus:border-[var(--primary)]/60 focus:ring-2 focus:ring-[var(--primary)]/25 w-full; }
 .pf-callout { @apply rounded-2xl px-4 py-3 text-[12px] text-[var(--text-muted)] border; background: color-mix(in oklab, var(--primary) 6%, transparent); border-color: color-mix(in oklab, var(--primary) 18%, transparent); }
