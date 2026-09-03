@@ -46,10 +46,10 @@ Deno.serve(withSentry("biz-cert-extract", async (req) => {
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
   const authHeader = req.headers.get("Authorization") || "";
   if (!authHeader) return json({ error: "인증이 필요합니다." }, 401);
-  const userClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
-  const { data: { user } } = await userClient.auth.getUser();
-  if (!user) return json({ error: "인증이 필요합니다." }, 401);
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  // owner-copilot 과 같은 방식 — 토큰을 직접 넘겨 확인(anon 클라이언트 + 헤더 방식은 이 런타임에서 null 이 났다, 2026-09-03)
+  const { data: { user } } = await admin.auth.getUser(authHeader.replace(/^Bearer\s+/i, ""));
+  if (!user) return json({ error: "인증이 필요합니다." }, 401);
   const { data: profile } = await admin.from("users").select("id, company_id").eq("auth_id", user.id).maybeSingle();
   if (!profile?.company_id) return json({ error: "회사 정보를 찾을 수 없습니다." }, 403);
 
