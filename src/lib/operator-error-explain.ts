@@ -514,6 +514,195 @@ const GENERIC_PATTERNS: { pattern: RegExp; key: string; explain: Omit<ErrorExpla
 // ──────────────────────────────────────────────────────────────────
 // 통합 해석기
 // ──────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────
+// 0) 운영자 화면 우선 규칙 — 2026-09-03 사장님: "운영자 페이지는 비전공자도 쉽게 알아볼 수 있게".
+//    오늘부터 error_logs 에 들어오는 서버 기능([edge …])·예약 작업([cron …])·AI 공급사·DB 상태코드([DB 4xx])
+//    행이 전부 "정해진 패턴에 매칭 안 된 에러"로 떨어졌다. 기술 코드보다 먼저, 사람 말로 설명한다.
+// ──────────────────────────────────────────────────────────────────
+const EDGE_FN_LABEL: Record<string, string> = {
+  "owner-copilot": "AI 대표 참모",
+  "ai-briefing": "아침 브리핑(AI)",
+  "codef-sync": "은행·카드·홈택스 자동 수집",
+  "codef-cert-relay": "공동인증서 불러오기",
+  "codef-cert-token": "공동인증서 불러오기",
+  "codef-transfer": "계좌 이체",
+  "hometax-issue": "세금계산서 발행",
+  "hometax-sync": "홈택스 수집",
+  "hometax-verify": "홈택스 인증 확인",
+  "cashbill-issue": "현금영수증 발행",
+  "cashbill-purchase-sync": "현금영수증 수집",
+  "modify-tax-invoice": "세금계산서 수정",
+  "classify-transactions": "거래 자동 분류(AI)",
+  "auto-match-payments": "입금 자동 대사",
+  "settlement-ai-match": "정산 자동 대사(AI)",
+  "toss-charge": "정기 결제 청구(토스)",
+  "toss-billing-key": "결제 카드 등록(토스)",
+  "toss-webhook": "결제 알림 수신(토스)",
+  "confirm-toss-payment": "결제 확인(토스)",
+  "create-billing-portal": "결제 관리 화면",
+  "cancel-subscription": "구독 해지",
+  "send-approval-email": "결재 메일 발송",
+  "send-contract-email": "계약 메일 발송",
+  "send-invite-email": "초대 메일 발송",
+  "send-payslip-email": "급여명세서 메일 발송",
+  "send-signature-email": "서명 요청 메일 발송",
+  "send-tax-invoice-email": "세금계산서 메일 발송",
+  "send-share-email": "문서 공유 메일 발송",
+  "send-billing-notification": "결제 안내 메일",
+  "send-join-result-email": "가입 결과 메일",
+  "send-leave-promotion-email": "연차 촉진 메일",
+  "send-feedback-notification": "피드백 알림",
+  "send-kakao-alimtalk": "카카오 알림톡 발송",
+  "send-web-push": "웹 푸시 알림",
+  "attendance-checkin": "출퇴근 기록",
+  "generate-monthly-batches": "월 정산 생성",
+  "daily-report": "일일 리포트",
+  "advisor-notify": "자문 알림",
+  "complete-signing": "전자서명 완료 처리",
+  "parse-closing-pdf": "결산 PDF 읽기",
+  "parse-form-template": "양식 읽기",
+  "process-invoice-queue": "세금계산서 대기열 처리",
+  "receive-bank-transactions": "은행 거래 수신",
+  "receive-tax-invoices": "세금계산서 수신",
+  "resend-webhook": "메일 발송 결과 수신",
+  "verify-business-number": "사업자번호 확인",
+  "operator-user-admin": "운영자 계정 관리",
+  "project-survey": "프로젝트 설문",
+  "gov-programs-sync": "정부지원사업 수집",
+  "ads-sync": "광고 성과 수집",
+  "support-ticket-analyze": "고객문의 자동 분석(AI)",
+};
+
+function explainPlatformFirst(joined: string, msg: string): ErrorExplanation | null {
+  // AI 공급사(Anthropic) — 잔액 소진은 전 고객 AI 기능 중단이라 가장 먼저
+  if (/credit balance is too low|PROVIDER_BILLING|AI 서비스 이용 잔액이 부족/i.test(joined)) {
+    return {
+      what: "AI 공급사(Anthropic)의 선불 잔액이 떨어져 AI 기능(대표 참모·아침 브리핑·자동 분류)이 모든 고객에서 멈췄어요.",
+      why: "오너뷰 프로그램 문제가 아니라 우리 회사의 AI 공급사 계정 잔액 문제예요.",
+      fix: "console.anthropic.com → Plans & Billing 에서 크레딧을 충전하세요. 충전 뒤 AI 참모에 질문 1번 보내 답이 오면 이 오류를 '해결'로 닫고, 자동 충전(auto-reload)을 켜 두세요.",
+      severity: "critical", category: "external", code: "ai:provider_billing",
+    };
+  }
+  if (/invalid_request_error/i.test(joined)) {
+    return {
+      what: "AI 공급사가 우리 요청을 거부했어요. AI 참모나 브리핑이 답을 못 했어요.",
+      why: "대부분 AI 공급사 계정 잔액 부족이에요(2026-09-03 실제 사례). 드물게 요청 형식 문제일 수 있어요.",
+      fix: "먼저 console.anthropic.com 잔액을 확인해 부족하면 충전하세요. 잔액이 충분한데도 반복되면 개발팀에 이 화면을 전달하세요.",
+      severity: "high", category: "external", code: "ai:invalid_request",
+    };
+  }
+  if (/CALL_CAP|COST_CAP|AI 사용 횟수|AI 사용 한도/i.test(joined)) {
+    return {
+      what: "고객사가 이번 달 AI 사용 한도를 다 써서 '다음 달에 초기화' 안내가 나간 것이에요. 고장이 아니에요.",
+      why: "요금제마다 월 AI 사용 횟수가 정해져 있어요(무료 5회, 오너뷰 100회).",
+      fix: "따로 할 일은 없어요. 같은 회사에서 자주 보이면 상위 요금제를 안내하세요.",
+      severity: "low", category: "external", code: "ai:monthly_cap",
+    };
+  }
+  // 서버 기능(엣지 함수) — 함수 이름을 사람 말로
+  const edge = msg.match(/\[edge ([a-z0-9-]+)\]/i);
+  if (edge || /^edge\b/.test(joined)) {
+    const fn = edge?.[1] || "";
+    const label = EDGE_FN_LABEL[fn] || fn || "서버 기능";
+    const body = (msg.split(" — ")[1] || "").slice(0, 160);
+    return {
+      what: `'${label}' 기능이 서버에서 실패했어요.${body ? ` 서버가 남긴 말: ${body}` : ""}`,
+      why: "외부 서비스(은행·카드사·국세청·AI·메일) 응답 오류이거나, 처리 중 예외가 났어요.",
+      fix: "같은 시각에 같은 기능 오류가 여러 건이면 외부 서비스 장애 가능성이 커요 — 잠시 뒤 다시 시도해 보세요. 한 회사에서만 반복되면 그 회사 설정(인증서·연동 정보)을 확인하고, 계속되면 개발팀에 이 화면을 전달하세요.",
+      severity: "high", category: "external", code: `edge:${fn || "unknown"}`,
+    };
+  }
+  if (/\[cron http /i.test(msg) || /^http\b/.test(joined)) {
+    return {
+      what: "정해진 시각에 도는 자동 작업이 서버 기능을 불렀는데 응답을 못 받았어요.",
+      why: "서버 기능이 응답 전에 멈췄거나 시간이 너무 오래 걸렸어요.",
+      fix: "같은 시각의 '서버 기능 실패' 오류가 있으면 그것이 원인이에요. 다음 회차(대개 하루 2회)에 자동으로 다시 돌아요. 이틀 연속이면 개발팀에 전달하세요.",
+      severity: "medium", category: "network", code: "cron:http",
+    };
+  }
+  const cron = msg.match(/\[cron ([a-z0-9-]+)\]/i);
+  if (cron || /^cron\b/.test(joined)) {
+    return {
+      what: `자동 작업 '${cron?.[1] || "예약 작업"}' 이 실패했어요. 그 회차의 자동 수집·알림·정산이 빠졌을 수 있어요.`,
+      why: "데이터베이스 처리 중 오류이거나 외부 서비스 응답 실패예요.",
+      fix: "다음 회차에 자동 재시도돼요. 같은 작업이 2번 연속 실패하면 개발팀에 이 화면을 전달하세요.",
+      severity: "high", category: "db", code: `cron:${cron?.[1] || "unknown"}`,
+    };
+  }
+  if (/^server\b/.test(joined)) {
+    return {
+      what: "서버 처리(결제 알림 수신·가입·파일 다운로드 등)가 실패했어요.",
+      why: "메시지 앞의 [위치] 가 어느 처리인지 알려줘요.",
+      fix: "결제·가입 관련이면 해당 고객이 정상 처리됐는지 먼저 확인하고, 반복되면 개발팀에 전달하세요.",
+      severity: "high", category: "network", code: "server",
+    };
+  }
+  // 브라우저에서 잡힌 DB 응답 — [DB 409] 처럼 상태코드로 온다(SQLSTATE 없음)
+  const db = msg.match(/^\[DB (\d{3})\]\s+(\w+)\s+(\S+)/);
+  if (db) {
+    const status = Number(db[1]);
+    const path = db[3];
+    const table = (path.match(/\/rest\/v1\/(?:rpc\/)?([a-z0-9_]+)/i) || [])[1] || "";
+    if (status === 409 || /duplicate key/i.test(msg)) {
+      return {
+        what: `이미 있는 이름·번호를 또 저장하려 해서 막혔어요(${table || "데이터"}). 화면에는 '이미 같은 항목이 있습니다' 안내가 나갔어요.`,
+        why: "같은 회사 안에서 같은 값은 하나만 허용되는 항목이에요.",
+        fix: "고객이 다른 이름으로 다시 저장하면 돼요. 따로 할 일은 없어요.",
+        severity: "low", category: "db", code: "db:409",
+      };
+    }
+    if ((status === 401 || status === 403 || status === 400) && /platform_|운영자만|forbidden/i.test(msg)) {
+      return {
+        what: "운영자가 아닌 계정이 운영자 화면을 열었어요. 데이터는 보이지 않았고 차단이 정상 작동한 거예요.",
+        why: "운영자 화면은 지정된 운영자 계정만 볼 수 있어요.",
+        fix: "그 계정이 운영자여야 하면 운영자 목록에 추가하고, 아니면 무시해도 돼요.",
+        severity: "low", category: "auth", code: "db:operator_only",
+      };
+    }
+    if (status === 401 || status === 403) {
+      return {
+        what: "권한이 없는 요청이 거부됐어요.",
+        why: "로그인이 만료됐거나, 자기 회사가 아닌 데이터에 접근하려 했어요.",
+        fix: "고객에게 다시 로그인 안내. 같은 계정에서 반복되면 그 계정의 회사·역할 설정을 확인하세요.",
+        severity: "medium", category: "auth", code: "db:forbidden",
+      };
+    }
+    if (status === 400 && /invalid input syntax for type uuid/i.test(msg)) {
+      return {
+        what: `화면이 비어 있는 값을 ID 자리에 넣어 보냈어요(${table || "데이터"}). 그 화면 일부가 안 그려졌을 수 있어요.`,
+        why: "프로그램 오류예요 — 값이 아직 준비되기 전에 조회를 시작했어요.",
+        fix: "개발팀에 '어느 화면(url)'과 이 메시지를 전달하세요. 고객 데이터는 영향이 없어요.",
+        severity: "medium", category: "client", code: "db:400_uuid",
+      };
+    }
+    if (status === 400) {
+      return {
+        what: `화면이 잘못된 요청을 보냈어요(${table || "데이터"}).`,
+        why: "프로그램 오류이거나 오래된 화면(새로고침 전)이 새 서버와 맞지 않아요.",
+        fix: "고객에게 새로고침 안내. 반복되면 개발팀에 화면 주소와 이 메시지를 전달하세요.",
+        severity: "medium", category: "client", code: "db:400",
+      };
+    }
+    if (status === 404) {
+      return {
+        what: `찾으려는 데이터가 없었어요(${table || "데이터"}).`,
+        why: "이미 삭제됐거나 주소가 오래된 링크예요.",
+        fix: "반복되지 않으면 무시해도 돼요.",
+        severity: "low", category: "client", code: "db:404",
+      };
+    }
+    if (status >= 500) {
+      return {
+        what: "데이터베이스가 응답을 못 했어요. 그 순간 저장·조회가 실패했어요.",
+        why: "데이터베이스 과부하 또는 일시 장애예요.",
+        fix: "잠시 뒤 다시 시도. 5분 넘게 계속되면 Supabase 상태 페이지를 확인하고 개발팀에 알리세요.",
+        severity: "critical", category: "db", code: `db:${status}`,
+      };
+    }
+  }
+  return null;
+}
+
 export function explainError(
   message: string | null | undefined,
   errorType?: string | null,
@@ -522,6 +711,10 @@ export function explainError(
   const msg = (message || "").trim();
   const type = (errorType || "").trim();
   const joined = `${type} ${msg}`;
+
+  // 0) 사람 말 우선 규칙 (서버 기능·예약 작업·AI 공급사·DB 상태코드)
+  const first = explainPlatformFirst(joined, msg);
+  if (first) return first;
 
   // 1) SQLSTATE (5-char) 정확매칭
   const sqlState = joined.match(/\b(2[2-3]\d{3}|4[02]\d{3}|42P0[12]|P000[12]|408\d{2}|40P01|28\d{3}|XX000)\b/);
@@ -578,11 +771,12 @@ export function explainError(
     }
   }
 
-  // fallback
+  // fallback — 설명이 아직 없는 새 오류. 기술 용어 대신 "무엇을 보고 누구에게 넘길지"만 말한다.
+  const tag = (msg.match(/^\[([^\]]{1,40})\]/) || [])[1];
   return {
-    what: "정해진 패턴에 매칭 안 된 에러.",
-    why: "신규 에러 유형. 메시지·스택·컨텍스트 직접 분석 필요.",
-    fix: "이 에러가 반복되면 operator-error-explain.ts 에 패턴 추가.",
+    what: `아직 설명이 등록되지 않은 새 오류예요${tag ? ` (${tag})` : ""}. 아래 원문을 그대로 개발팀에 전달하면 설명이 추가돼요.`,
+    why: "처음 보는 종류라 자동 설명이 없어요.",
+    fix: "발생 계정·회사를 보고 고객 영향이 있는지 먼저 확인하세요. 같은 오류가 하루 3번 이상이면 이 화면을 캡처해 개발팀에 전달하세요.",
     severity: "low",
     category: "unknown",
     code: "unknown",

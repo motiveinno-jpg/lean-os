@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { explainError as explainOperatorError, SEVERITY_TONE } from "@/lib/operator-error-explain";
 
 const db = supabase;
 
@@ -190,7 +191,7 @@ export default function PlatformOverview() {
       // 처리(resolved)된 오류는 제외 — 시스템상태 신호등과 같은 기준(2026-07-29 사장님)
       // 로컬 개발 서버(localhost) 에러도 제외 — 운영 신호가 아니다 (2026-08-20 사장님)
       const data = logRead('platform/page:data', await db.from("error_logs")
-        .select("id, error_type, message, source, created_at")
+        .select("id, error_type, message, source, created_at, dup_count")
         .eq("resolved", false).gte("created_at", since)
         .not("url", "ilike", "%//localhost%")
         .not("url", "ilike", "%//127.0.0.1%")
@@ -555,15 +556,21 @@ export default function PlatformOverview() {
             <div className="px-4 py-5 text-[12px] text-[var(--text-dim)]">최근 24시간 미해결 에러가 없습니다 ✓</div>
           ) : (
             <div className="platform-rail-rows">
-              {(recentErrors as any[]).slice(0, 5).map((e) => (
-                <Link key={e.id} href="/platform/health" className="platform-rail-row">
-                  <span className="platform-badge platform-risk-pastdue shrink-0">{e.error_type || "unknown"}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[12px] font-medium text-[var(--text)] truncate">{e.message || "-"}</div>
-                    <div className="text-[10px] text-[var(--text-dim)]">{e.source || "-"} · {fmtDT(e.created_at)}</div>
-                  </div>
-                </Link>
-              ))}
+              {(recentErrors as any[]).slice(0, 5).map((e) => {
+                //   사람 말로 (2026-09-03 사장님: 운영자 페이지는 비전공자도 알아보게) — 기술 코드·원문 대신
+                //   "무슨 일인지" 한 줄 + 심각도. 원문은 전체 화면(시스템 상태)에서 본다.
+                const exp = explainOperatorError(e.message, e.error_type, null);
+                const tone = SEVERITY_TONE[exp.severity];
+                return (
+                  <Link key={e.id} href="/platform/errors" className="platform-rail-row">
+                    <span className={`platform-badge shrink-0 ${tone.bg} ${tone.text}`}>{tone.label}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[12px] font-medium text-[var(--text)] line-clamp-2">{exp.what}</div>
+                      <div className="text-[10px] text-[var(--text-dim)]">{fmtDT(e.created_at)}{e.dup_count > 1 ? ` · ${e.dup_count}회 반복` : ""}</div>
+                    </div>
+                  </Link>
+                );
+              })}
               {recentErrors.length > 5 && (
                 <div className="px-4 py-2 text-[11px] text-[var(--text-dim)]">외 {recentErrors.length - 5}건 — 전체는 시스템 상태에서</div>
               )}
