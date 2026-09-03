@@ -685,7 +685,7 @@ export default function CashReceiptsPage() {
               </>
             )}
           </ToolbarPopover>
-          <button
+          {tab === "income" && <button
             type="button"
             onClick={() => { setIssueForm(INITIAL_ISSUE_FORM); setShowIssueModal(true); }}
             disabled={issuanceLimitReached}
@@ -693,7 +693,7 @@ export default function CashReceiptsPage() {
             className="cashbill-issue-open btn-primary btn-sm"
           >
             {issuanceLimitReached ? "발행 한도 소진" : "+ 발행"}
-          </button>
+          </button>}{/* 발행은 매출(발행) 탭에서만 — 수취·등록 탭엔 뜻이 없다 (2026-09-03 점검) */}
           </>}>
             <DateRangeField label={null} parts="segments" from={startDate} to={endDate}
               onChange={(f, t) => { setStartDate(f); setEndDate(t); }}

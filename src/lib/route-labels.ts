@@ -73,8 +73,8 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/finance/assets": { group: "재무", title: "고정자산", desc: "장비·차량·소프트웨어를 등록하면 달마다 감가상각 전표 초안이 생깁니다." },
   "/finance/tax-filing": { group: "재무", title: "세무 신고", desc: "원천세·부가세 신고서를 완성해 줍니다 — 옮겨 적기만 하면 되고, 제출은 홈택스에서 합니다." },
   "/subscriptions": { group: "자금", title: "구독 관리", desc: "구독 서비스를 관리합니다." },
-  "/loans": { group: "자금", title: "대출", desc: "대출 현황을 관리합니다." },
-  "/vault": { group: "자금", title: "자산", desc: "회사 자산을 관리합니다." },
+  "/loans": { group: "재무", title: "대출", desc: "대출 현황을 관리합니다." },
+  "/vault": { group: "재무", title: "자산", desc: "회사 자산을 관리합니다." },
 
   //   재고 (2026-08-25 신설)
   "/inventory/profit": { group: "재고", title: "이익관리", desc: "구매·생산·판매에서 남는 돈을 원가(선입선출)가 반영된 숫자로 봅니다 — 품목·거래처·채널별 이익, 손실, 원가 층." },

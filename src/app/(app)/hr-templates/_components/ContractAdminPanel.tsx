@@ -571,7 +571,7 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
       {filteredContracts.length === 0 ? (
         <div className="collect-empty">
           {contractList.length === 0
-            ? <>계약 내역이 없습니다 — 구성원 &gt; 인력관리에서 직원을 선택해 계약서를 발송하세요</>
+            ? <>계약 내역이 없습니다 — 구성원 › 인력관리에서 직원을 선택해 계약서를 발송하세요</>
             : <>이 조건에 맞는 계약이 없습니다 — 검색조건을 풀어 보세요</>}
         </div>
       ) : (

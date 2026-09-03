@@ -264,7 +264,7 @@ const tiCondCount = (c: TiCond) =>
   c.partner.length + (c.item ? 1 : 0) + (c.send !== "all" ? 1 : 0) + ((c.min || c.max) ? 1 : 0);
 const TI_SEND_CHIPS = [
   { value: "all", label: "전체" }, { value: "draft", label: "미발행" },
-  { value: "pending", label: "전송 중" }, { value: "failed", label: "에러" },
+  { value: "pending", label: "전송 중" }, { value: "failed", label: "오류" },
   { value: "issued", label: "전송 완료" },
 ] as const;
 
@@ -1295,7 +1295,7 @@ function TaxInvoicesPageInner() {
       case "tax_amount": return Number(r.tax_amount || 0).toLocaleString("ko");
       case "total_amount": return Number(r.total_amount || 0).toLocaleString("ko");
       case "status": return isSent(r) ? "전송 완료" : r.nts_issue_status === "pending" ? "전송 중"
-        : r.nts_issue_status === "failed" ? "에러" : "미발행";
+        : r.nts_issue_status === "failed" ? "오류" : "미발행";
       default: return "";
     }
   };
@@ -2029,7 +2029,7 @@ function TaxInvoicesPageInner() {
                     {/*   전송중 — CODEF 즉시전송 버그로 sendToNtsYn="N" 이라 팝빌 등록 후
                           **다음 영업일**에 국세청으로 간다. 하루 넘게 머무는 실재하는 구간이다. */}
                     {row("", "전송중", S.unsent.pending, toWait)}
-                    {row("", "에러", S.unsent.failed, { text: "사유 보기", on: () => setTab("wait") }, true)}
+                    {row("", "오류", S.unsent.failed, { text: "사유 보기", on: () => setTab("wait") }, true)}
                     {sub("미전송 계", S.unsent.total)}
 
                     {row("전송완료", "전자(세금)계산서", S.sent.plain, { text: "보기", on: () => setTab("done") })}
