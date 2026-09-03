@@ -71,7 +71,9 @@ export type AiEligibility = {
   revenue_max_krw: number | null;
   required_certs: string[];
   exclusions: string[];
-  evidence: { region: string; industry: string; company_type: string; years: string };
+  /** 수출 실적·수출기업 요건 (2026-09-03 사장님) — true 면 수출 실적이 있어야 신청 가능 */
+  requires_export?: boolean | null;
+  evidence: { region: string; industry: string; company_type: string; years: string; export?: string };
   summary: string; confidence: number;
 };
 
@@ -114,6 +116,8 @@ export type CompanyProfile = {
   businessCategory: string | null;
   /** 2 소재지 — 주소 첫 낱말에서 뽑은 시도 */
   region: string | null;
+  /** 시군구 — 주소 둘째 낱말("화성시"·"강남구"). 시군구 한정 공고 대조용 (2026-09-03) */
+  district: string | null;
   isMetro: boolean | null;   // 수도권(서울·경기·인천) 여부 — 지원 단가가 갈린다
   /** 3 규모 */
   headcount: number;
@@ -163,6 +167,15 @@ export function regionOf(address: string | null | undefined): string | null {
   const short = head.replace(/(특별자치시|특별자치도|광역시|특별시|시|도)$/, "");
   return short || null;
 }
+
+/** 주소 둘째 낱말 → 시군구 ("경기도 화성시 동탄대로 1" → "화성시"). 세종처럼 시군구가 없으면 null */
+export function districtOf(address: string | null | undefined): string | null {
+  const parts = (address || "").trim().split(/\s+/);
+  const second = parts[1] || "";
+  if (!second || !/(시|군|구)$/.test(second)) return null;
+  return second;
+}
+const distKey = (d: string) => d.replace(/(특별자치시|특별자치도|광역시|특별시|시|군|구)$/, "");
 
 /** 생년월일 → 만 나이 (KST 오늘 기준) */
 export function ageOf(birth: string | null | undefined, today = todayKst()): number | null {
@@ -249,6 +262,7 @@ export async function loadCompanyProfile(companyId: string): Promise<CompanyProf
   ].filter(Boolean).length;
 
   const region = regionOf(company?.address);
+  const district = districtOf(company?.address);
 
   return {
     companyId,
@@ -275,6 +289,7 @@ export async function loadCompanyProfile(companyId: string): Promise<CompanyProf
     sizeClass: ext?.size_class ?? null,
     certifications,
     hasExport: ext?.has_export ?? null,
+    district,
     ksicMain: ext?.ksic_main ?? null,
     priorGrants,
     interests,
@@ -647,7 +662,12 @@ export function judgeAi(ai: AiEligibility, p: CompanyProfile): Judgement {
     const rg = ai.regions || [];
     if (!p.region) { rs.push(unknown(`${rg.join("·") || "특정 지역"} 소재 기업 대상 — 회사 주소가 없어 확인할 수 없습니다(회사 설정 › 회사정보)`, "회사 자료")); coreUnknown++; }
     else if (rg.length === 0 || rg.some((r) => r === p.region || r.includes(p.region!) || p.region!.includes(r))) {
-      if ((ai.districts || []).length > 0) { rs.push(unknown(`${p.region} 안에서도 ${ai.districts.slice(0, 3).join("·")} 소재 기업만 대상입니다 — 상세 주소를 확인하세요${ev(ai.evidence?.region)}`, "제도 요건")); coreUnknown++; fit += 8; }
+      const ds = ai.districts || [];
+      if (ds.length > 0) {
+        if (!p.district) { rs.push(unknown(`${p.region} 안에서도 ${ds.slice(0, 3).join("·")} 소재 기업만 대상 — 회사 주소에 시·군·구가 없어 확인할 수 없습니다(회사 설정 › 회사정보)`, "회사 자료")); coreUnknown++; fit += 8; }
+        else if (ds.some((d) => distKey(d) === distKey(p.district!))) { rs.push(ok(`${p.district} 소재 기업 전용 — 우리 회사가 해당됩니다${ev(ai.evidence?.region)}`)); fit += 18; }
+        else rs.push(no(`${ds.slice(0, 3).join("·")} 소재 기업만 대상 — 우리는 ${p.region} ${p.district}입니다${ev(ai.evidence?.region)}`));
+      }
       else { rs.push(ok(`소재지 ${p.region} 대상 사업 — 전국 공모보다 경쟁이 적습니다${ev(ai.evidence?.region)}`)); fit += 15; }
     } else rs.push(no(`${rg.join("·")} 소재 기업 대상 — 우리 소재지는 ${p.region}입니다${ev(ai.evidence?.region)}`));
   } else { rs.push(unknown("지역 제한이 공고에 명시돼 있지 않습니다 — 원문에서 확인하세요", "제도 요건")); coreUnknown++; fit += 5; }
@@ -687,6 +707,11 @@ export function judgeAi(ai: AiEligibility, p: CompanyProfile): Judgement {
   else if (ai.employees_min != null && p.headcount > 0 && p.headcount < ai.employees_min) rs.push(no(`상시 ${ai.employees_min}명 이상 대상 — 우리는 ${p.headcount}명입니다`));
   else if ((ai.employees_max != null || ai.employees_min != null) && p.headcount === 0) rs.push(unknown("상시근로자 조건이 있는데 구성원 자료가 없습니다", "회사 자료"));
   if (ai.revenue_max_krw != null) rs.push(unknown(`매출 ${Math.round(ai.revenue_max_krw / 1e8)}억 원 이하 조건 — 원문에서 기준 연도를 확인하세요`, "제도 요건"));
+  if (ai.requires_export === true) {
+    if (p.hasExport === true) { rs.push(ok(`수출 실적 있는 기업 대상 — 회사 카드에 수출 있음${ev(ai.evidence?.export)}`, "회사 카드")); fit += 5; }
+    else if (p.hasExport === false) rs.push(no(`수출 실적 있는 기업 대상 — 회사 카드에 수출 없음으로 표시돼 있습니다${ev(ai.evidence?.export)}`));
+    else { rs.push(unknown(`수출 실적 있는 기업 대상 — 회사 카드 ⑥에서 수출 여부를 고르면 자동 확인됩니다${ev(ai.evidence?.export)}`, "회사 카드")); coreUnknown++; }
+  }
   const certs = ai.required_certs || [];
   if (certs.length > 0) {
     const have = certs.filter((c) => p.certifications.includes(c));

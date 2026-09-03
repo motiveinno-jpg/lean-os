@@ -25,6 +25,8 @@ const SYSTEM = `당신은 한국 정부·지자체 지원사업 공고에서 "�
 - industry_scope: 업종 제한 없으면 "any", 특정 업종만이면 "restricted"(industries 에 표준산업분류 대분류 이름 — 목록 중에서만), 언급 없으면 "unknown". industry_note 에 원문 표현(예: "철강산업 및 전·후방 연관기업").
 - company_types: 신청 가능한 기업 형태(목록 중에서만). "중소기업"이라고만 적혀 있으면 ["중소기업"]. 예비창업자·개인만 되면 그것만.
 - max_years/min_years: 창업 N년 이내/이상. employees_min/max: 상시근로자 조건. revenue_max_krw: 매출 상한(원). required_certs: 필수 인증(벤처 venture, 이노비즈 innobiz, 메인비즈 mainbiz, 연구소 lab, 여성기업 woman, 장애인기업 disabled, 사회적기업 social).
+- requires_export: 수출 실적·수출 계약·수출기업 지정 등 "수출을 이미 하고 있어야" 신청 가능하면 true, 수출 실적 없이도 되면 false, 언급 없으면 null. (수출을 '지원'하는 사업이라도 실적 요건이 없으면 false)
+- districts: 시군구 단위 제한("성주군 내 사업장", "구미시 소재")이 있으면 시군구명을 그대로(예: "성주군", "구미시").
 - exclusions: 신청 제외 대상 문장들(휴·폐업, 세금 체납, 동일 사업 중복 수혜 등).
 - evidence: 각 판단의 근거가 된 원문 문장(있는 그대로, 80자 이내). 없으면 빈 문자열.
 - summary: 이 사업이 무엇을 주는지 한 줄(40자 이내). confidence: 본문이 충분해 조건표를 믿을 수 있으면 높게(0~1).
@@ -45,11 +47,12 @@ const ITEM = {
     employees_min: { type: "number", nullable: true }, employees_max: { type: "number", nullable: true },
     revenue_max_krw: { type: "number", nullable: true },
     required_certs: { type: "array", items: { type: "string", enum: CERTS } },
+    requires_export: { type: "boolean", nullable: true },
     exclusions: { type: "array", items: { type: "string" } },
-    evidence: { type: "object", additionalProperties: false, properties: { region: { type: "string" }, industry: { type: "string" }, company_type: { type: "string" }, years: { type: "string" } }, required: ["region", "industry", "company_type", "years"] },
+    evidence: { type: "object", additionalProperties: false, properties: { region: { type: "string" }, industry: { type: "string" }, company_type: { type: "string" }, years: { type: "string" }, export: { type: "string" } }, required: ["region", "industry", "company_type", "years", "export"] },
     summary: { type: "string" }, confidence: { type: "number" },
   },
-  required: ["external_id", "region_scope", "regions", "districts", "industry_scope", "industries", "industry_note", "company_types", "max_years", "min_years", "employees_min", "employees_max", "revenue_max_krw", "required_certs", "exclusions", "evidence", "summary", "confidence"],
+  required: ["external_id", "region_scope", "regions", "districts", "industry_scope", "industries", "industry_note", "company_types", "max_years", "min_years", "employees_min", "employees_max", "revenue_max_krw", "required_certs", "requires_export", "exclusions", "evidence", "summary", "confidence"],
 };
 const SCHEMA = { type: "object", additionalProperties: false, properties: { items: { type: "array", items: ITEM } }, required: ["items"] };
 
@@ -101,6 +104,7 @@ async function extract(db: any): Promise<{ done: number; calls: number; stopped?
       const p = chunk.find((c) => String(c.external_id) === String(it.external_id));
       if (!p) continue;
       const { external_id: _x, ...cond } = it;
+      (cond as Record<string, unknown>).schema_v = 2;   // 조건표 판(수출·시군구 추가) — 옛 판은 다시 읽는다
       await db.from("gov_programs").update({ eligibility_ai: cond, eligibility_ai_at: new Date().toISOString(), eligibility_ai_model: g.model }).eq("id", p.id);
       done++;
     }
