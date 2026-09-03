@@ -10441,3 +10441,150 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
 .pf-timeline-dot { position: absolute; left: -21px; top: 12px; width: 10px; height: 10px; border-radius: 9999px; background: var(--primary); box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 18%, transparent); }
 .pf-tone-ok { color: var(--success); } .pf-tone-warn { color: #b45309; } .pf-tone-danger { color: var(--danger); } .pf-tone-info { color: var(--primary); }
 [data-theme="dark"] .pf-tone-warn { color: #fbbf24; }
+
+/* ══ 데일리 보고서 G안 (2026-09-03 결정 167) — 카드형. feature_rollout dashboard_g 켜진 회사만 ══ */
+/* 배경 — 목업 색(사장님 "목업 배경색을 오너뷰 배경색으로"). html[data-dg] 는 app-shell 이 게이트로 붙인다 */
+[data-dg="1"] { --bg: #F4F5F9; }
+[data-theme="dark"][data-dg="1"] { --bg: #0F1116; }
+.dg { @apply w-full; }
+.dg-top { @apply mb-3 flex items-center gap-3; }
+.dg-title { @apply m-0 text-[18px] font-bold tracking-tight text-[var(--text)]; }
+.dg-crumb { @apply text-[12px] text-[var(--text-dim)]; }
+.dg-lead { @apply mb-4 flex items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-[18px] py-3; }
+.dg-lead .rep-brief { @apply mb-0 w-full; }
+.dg-lead .rep-lead { @apply text-[14.5px] font-medium; }
+.dg-card { @apply min-w-0 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-[18px] py-4 no-underline; box-shadow: 0 1px 2px rgba(24,26,36,.04); }
+.dg-card-h { @apply mb-3 flex items-center gap-2.5; }
+.dg-card-title { @apply m-0 text-[14.5px] font-bold text-[var(--text)]; }
+.dg-more { @apply text-[12px] font-medium text-[var(--primary)] no-underline hover:underline; }
+.dg-mini { @apply flex items-center gap-1.5 text-[12px] text-[var(--text-muted)]; }
+.dg-input { @apply w-[130px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1 text-[12px] text-[var(--text)] outline-none focus:border-[var(--primary)]; }
+.dg-seg { @apply inline-flex overflow-hidden rounded-lg border border-[var(--border)] text-[11.5px]; }
+.dg-seg span { @apply px-2.5 py-0.5 text-[var(--text-muted)]; }
+.dg-seg span.is-on { @apply bg-[var(--primary)] text-white; }
+/* KPI 5장 */
+.dg-kpis { @apply mb-4 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5; }
+.dg-kpi { @apply block; }
+.dg-kpi-t { @apply flex items-start gap-3; }
+.dg-ico { @apply grid h-[38px] w-[38px] flex-none place-items-center rounded-full; }
+.dg-ico svg { @apply h-[18px] w-[18px]; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.dg-c1 { background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
+.dg-c2 { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
+.dg-c3 { background: color-mix(in srgb, var(--warning) 14%, transparent); color: var(--warning); }
+.dg-c4 { background: color-mix(in srgb, #7e22ce 12%, transparent); color: #7e22ce; }
+.dg-c5 { background: color-mix(in srgb, #1d4ed8 12%, transparent); color: #1d4ed8; }
+[data-theme="dark"] .dg-c4 { color: #c084fc; }
+[data-theme="dark"] .dg-c5 { color: #60a5fa; }
+.dg-kpi-l { @apply text-[12px] text-[var(--text-muted)]; }
+.dg-kpi-v { @apply text-[20px] font-bold leading-tight text-[var(--text)]; }
+.dg-kpi-s { @apply mt-0.5 text-[11.5px] text-[var(--text-dim)]; }
+.dg-spark { @apply mt-2.5 block h-9 w-full; }
+.dg-spark path { fill: none; stroke: var(--primary); stroke-width: 1.8; stroke-linejoin: round; }
+.dg-spark circle { fill: var(--primary); }
+.dg-spark-none { @apply h-9; }
+.dg-kpi-mini { @apply mt-3; }
+.dg-kpi-mini .dg-stack { @apply my-0 h-2; }
+.dg-kpi-mini-k { @apply mt-1.5 block text-[11px] text-[var(--text-dim)]; }
+/* 줄 격자 */
+.dg-row { @apply mb-4 grid grid-cols-1 gap-4; }
+.dg-r21 { @apply items-start xl:grid-cols-[2fr_1fr]; }   /* 챙길 것 카드가 길어도 자금 전망 카드가 따라 늘어나지 않게 */
+.dg-r3 { @apply md:grid-cols-3; }
+/* 그림 */
+.dg-fig { @apply mt-1 block h-auto w-full overflow-visible; }
+.dg-grid { stroke: var(--border); stroke-width: 1; }
+.dg-zero { stroke: var(--danger); stroke-width: 1; stroke-dasharray: 2 3; }
+.dg-ax { font-size: 10.5px; fill: var(--text-dim); }
+.dg-area { fill: url(#dg-grad); }
+.dg-line { fill: none; stroke: var(--primary); stroke-width: 2; stroke-linejoin: round; }
+.dg-low { fill: var(--danger); stroke: var(--bg-card); stroke-width: 2; }
+.dg-low-t { font-size: 11px; font-weight: 600; fill: var(--danger); }
+.dg-hit { fill: transparent; cursor: crosshair; }
+.dg-cross { stroke: var(--text-dim); stroke-dasharray: 2 3; }
+.dg-hp { fill: var(--primary); stroke: var(--bg-card); stroke-width: 2; }
+.dg-tip { fill: var(--text); }
+.dg-tip-t1 { font-size: 11px; font-weight: 600; fill: var(--bg-card); }
+.dg-tip-t2 { font-size: 11px; fill: var(--bg-card); opacity: .85; }
+.dg-bar1 { fill: var(--primary); }
+.dg-bar2 { fill: color-mix(in srgb, var(--primary) 28%, transparent); }
+.dg-legend { @apply mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1 text-[12px] text-[var(--text-muted)]; }
+.dg-legend i { @apply mr-1.5 inline-block h-2 w-2 rounded-sm align-middle; }
+.dg-legend-ppl i { @apply rounded-full; }
+.dg-note { @apply mt-2.5 border-t border-[var(--border)] pt-2 text-[11.5px] text-[var(--text-dim)]; }
+.dg-p { @apply my-0 text-[13px] text-[var(--text-muted)]; }
+.dg-p b { @apply font-semibold text-[var(--text)]; }
+.dg-tot { @apply mb-1 flex flex-wrap items-baseline gap-2.5; }
+.dg-tot-n { @apply text-[22px] font-bold text-[var(--text)]; }
+.dg-tot-k { @apply text-[12px] text-[var(--text-muted)]; }
+/* 표 카드 */
+.dg-tbl { @apply w-full border-collapse text-[13px]; }
+.dg-tbl th { @apply bg-[var(--bg-surface)] px-2.5 py-2 text-left text-[11.5px] font-medium text-[var(--text-muted)] first:rounded-l-md last:rounded-r-md; }
+.dg-tbl td { @apply border-b border-[var(--border)] px-2.5 py-2.5 align-middle text-[var(--text)]; }
+.dg-tbl tr:last-child td { @apply border-b-0; }
+.dg-tbl .r { @apply text-right; }
+.dg-tbl .m { @apply text-[12.5px] text-[var(--text-muted)]; }
+.dg-tbl-sm { @apply mt-2 text-[12.5px]; }
+.dg-tbl-sm td { @apply py-1.5; }
+.dg-th { @apply mr-2.5 inline-grid h-8 w-8 place-items-center rounded-lg align-middle text-[12px] font-semibold; background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
+.dg-cell { @apply inline-flex min-w-0 flex-col align-middle; }
+.dg-cell b { @apply font-semibold; }
+.dg-cell > span { @apply text-[11.5px] text-[var(--text-dim)]; }
+.dg-pill { @apply inline-block rounded-md px-2.5 py-0.5 text-[11.5px] font-semibold; }
+.dg-pill-good { background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); }
+.dg-pill-warn, .dg-pill-bad { background: color-mix(in srgb, var(--warning) 16%, transparent); color: var(--warning); }
+.dg-pill-bad { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+.dg-pill-m { @apply bg-[var(--bg-surface)] text-[var(--text-muted)]; }
+.dg-pager { @apply mt-2.5 flex items-center gap-2 text-[12px] text-[var(--text-dim)]; }
+.dg-pg { @apply text-[12px] text-[var(--text-muted)] disabled:opacity-40; }
+.dg-pg-n { @apply grid h-[22px] w-[22px] place-items-center rounded-md border border-[var(--border)]; }
+.dg-pg-n.is-on { @apply border-[var(--primary)] bg-[var(--primary)] font-semibold text-white; }
+/* 목록·순위·타임라인 */
+.dg-list { @apply m-0 list-none p-0; }
+.dg-list li { @apply flex items-center gap-3 border-b border-[var(--border)] py-2.5 last:border-b-0; }
+.dg-list .dg-cell { @apply flex-1; }
+.dg-avatar { @apply grid h-8 w-8 flex-none place-items-center rounded-full text-[12px] font-semibold; background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
+.dg-amt { @apply font-semibold text-[var(--text)]; }
+.dg-tic { @apply grid h-[30px] w-[46px] flex-none place-items-center rounded-lg text-[11.5px] font-semibold; background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
+.dg-tic.is-hot { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+.dg-tl { @apply m-0 list-none border-l-2 border-[var(--border)] p-0 pl-3.5; }
+.dg-tl li { @apply relative pb-3 pl-2 text-[12.5px] text-[var(--text)] last:pb-0; }
+.dg-tl li::before { content: ""; @apply absolute -left-[21px] top-[5px] h-2 w-2 rounded-full border-2 border-[var(--bg-card)] bg-[var(--primary)]; }
+.dg-tl b { @apply font-semibold; }
+.dg-tl .m { @apply text-[var(--text-muted)]; }
+.dg-tl-w { @apply block text-[11px] text-[var(--text-dim)]; }
+/* 도넛·누적 막대·점 */
+.dg-donut-wrap { @apply flex items-center gap-4; }
+.dg-donut { @apply h-[150px] w-[150px] flex-none; }
+.dg-donut circle { fill: none; stroke-width: 16; }
+.dg-d1 { stroke: var(--primary); } .dg-d2 { stroke: var(--success); } .dg-d3 { stroke: var(--warning); } .dg-d4 { stroke: var(--border); }
+.dg-donut-c { font-size: 12px; fill: var(--text-muted); }
+.dg-donut-v { font-size: 20px; font-weight: 700; fill: var(--text); }
+.dg-donut-leg { @apply flex flex-col gap-2 text-[12.5px] text-[var(--text-muted)]; }
+.dg-donut-leg i { @apply mr-1.5 inline-block h-2 w-2 rounded-full; }
+.dg-donut-leg .dg-d1 { background: var(--primary); } .dg-donut-leg .dg-d2 { background: var(--success); } .dg-donut-leg .dg-d3 { background: var(--warning); } .dg-donut-leg .dg-d4 { background: var(--border); }
+.dg-stack { @apply my-2.5 flex h-2.5 gap-[2px] overflow-hidden rounded; }
+.dg-stack i { @apply block h-full; }
+.dg-a0 { background: color-mix(in srgb, var(--primary) 22%, transparent); }
+.dg-a1 { background: color-mix(in srgb, var(--primary) 45%, transparent); }
+.dg-a2 { background: color-mix(in srgb, var(--primary) 70%, transparent); }
+.dg-a3 { background: var(--primary); }
+.dg-arow { @apply grid grid-cols-[14px_1fr_auto_40px] items-center gap-2 border-b border-[var(--border)] py-1.5 text-[12.5px] last:border-b-0; }
+.dg-dot { @apply h-2 w-2 rounded-full; }
+.dg-arow-l { @apply text-[var(--text-muted)]; }
+.dg-arow-v { @apply font-semibold text-[var(--text)]; }
+.dg-arow-p { @apply text-right text-[var(--text-dim)]; }
+.dg-dots { @apply my-2.5 flex flex-wrap gap-1.5; }
+.dg-dots i { @apply h-[13px] w-[13px] rounded-full; }
+.dg-stack .is-working, .dg-legend .is-working, .dg-dots .is-working { background: var(--primary); }
+.dg-stack .is-done, .dg-legend .is-done, .dg-dots .is-done { background: var(--text-dim); }
+.dg-stack .is-leave, .dg-legend .is-leave, .dg-dots .is-leave { background: var(--warning); }
+.dg-stack .is-missing { background: var(--border); }
+.dg-legend .is-missing, .dg-dots .is-missing { background: transparent; box-shadow: inset 0 0 0 1px var(--text-dim); }
+/* 챙길 것 + 업무 상태 */
+.dg-checklist .brief-list { @apply mt-0; }
+.dg-sub { @apply mt-3 border-t border-[var(--border)] pt-2.5 text-[12px] font-semibold text-[var(--text)]; }
+.dg-stat { @apply flex items-center justify-between border-b border-[var(--border)] py-1.5 text-[12.5px] last:border-b-0; }
+.dg-stat span { @apply text-[var(--text-muted)]; }
+.dg-stat b { @apply font-semibold text-[var(--text)]; }
+.dg-sd { @apply mr-2 inline-block h-2 w-2 rounded-full align-middle; }
+.dg-sd-bad { background: var(--danger); } .dg-sd-warn { background: var(--warning); } .dg-sd-acc { background: var(--primary); } .dg-sd-ok { background: var(--success); }
+@media print { .dg-top .btn-secondary { display: none !important; } }

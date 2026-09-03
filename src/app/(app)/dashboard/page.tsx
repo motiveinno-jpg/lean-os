@@ -44,6 +44,8 @@ import { MorningBrief } from "@/components/morning-brief";
 import { ReceivablesPreview } from "@/components/receivables-preview";
 import { DashboardCalendar } from "@/components/dashboard-calendar"; // 일정·할 일 미니 캘린더(2026-07-14)
 import { MorningReport, type ReportPerm } from "@/components/morning-report";
+import { DailyReport } from "@/components/daily-report";
+import { useFeature } from "@/lib/use-feature";
 import { useReportWidgetEmpty } from "@/components/widget-empty-context"; // 층 1 신호 6칸 (2026-08-19 재편)
 import { ChannelHead, useSyncStatus, useUnclassifiedCounts } from "@/components/dashboard-data-status"; // 통장·카드 위젯 머리의 동기화·미분류
 import { ActivityCard, RecentProjects, RecentRevenue, RecentInvoices } from "@/components/dashboard-activity"; // 회사 활동 요약 카드(공용 셸)
@@ -400,6 +402,8 @@ export default function DashboardPage() {
 
   // (2026-07-30 사장님) 대외비(금액) 위젯 게이트 — 기본 대시보드는 전원(필수 위젯만),
   //   재무·경영 위젯은 /dashboard:finance 권한 보유자(또는 마스터)만 추가·표시 가능.
+  //   G안(카드형, 2026-09-03) — feature_rollout dashboard_g: 모티브 먼저. 꺼진 회사는 E안(MorningReport).
+  const { data: dashG } = useFeature("dashboard_g", companyId);
   const { isMaster: dashMaster, hasPerm: dashPerm, loading: permLoading } = useMyPermissions();
   const canFinance = dashMaster || dashPerm("/dashboard:finance");
   // AI 브리핑은 별도 세부 권한(2026-08-10 사장님) — 부여자에게만 보이고, 없으면 카드 자체가 안 뜬다
@@ -639,8 +643,9 @@ export default function DashboardPage() {
               people: dashPerm("/employees") || dashPerm("/attendance"),
             };
             const briefProps = { userName, companyName, cashPulse, dashboard, hasData, userId: userId ?? undefined, aiBriefingEnabled };
+            const ReportView = dashG ? DailyReport : MorningReport;
             return (
-              <MorningReport companyId={companyId} userId={userId ?? null} companyName={companyName} perm={perm}
+              <ReportView companyId={companyId} userId={userId ?? null} companyName={companyName} perm={perm}
                 forecast30={cashPulse?.forecast30d ?? null} unclassified={{ bank: unclassified.bank || 0, card: unclassified.card || 0 }} approvalsPending={approvalsPending ?? null}
                 lead={<MorningBrief {...briefProps} variant="lead" />}
                 checklist={<MorningBrief {...briefProps} variant="checklist" />}
