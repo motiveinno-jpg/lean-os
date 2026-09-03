@@ -1438,8 +1438,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .employee-history-section { @apply space-y-3; }
 
 /* .hr-templates-page — 순수 마커(뿌리는 .qk-shell 이 세로 간격을 맡는다, 2026-08-18) */
-.schedule-calendar-grid { @apply flex flex-col min-h-full; } /* 2026-08-18 상자 안 격자 — glass-card 껍데기 없음. 2026-09-03: overflow-hidden 제거 — 마지막 주가 잘렸다. 상자 높이를 채우고 넘치면 ev-scroll 이 스크롤 */
-.schedule-calendar-grid > .schedule-cells-grid { @apply flex-1 auto-rows-[minmax(88px,1fr)]; } /* 줄이 상자 높이를 나눠 갖는다 — 마지막 주도 항상 보인다 */
+.schedule-calendar-grid { @apply flex flex-col; } /* 2026-08-18 상자 안 격자 — glass-card 껍데기 없음. 2026-09-03: overflow-hidden 제거 — 마지막 주가 잘렸다. 상자 높이를 채우고 넘치면 ev-scroll 이 스크롤 */
+.schedule-calendar-grid > .schedule-cells-grid { @apply auto-rows-[minmax(88px,auto)]; } /* 줄 높이는 내용만큼 — 펼친 칸이 있는 줄만 커진다 (2026-09-03 사장님: "다른 줄도 같이 커진다") */
 /* .schedule-page — 순수 마커 (뿌리는 .qk-shell) */
 table.sched-table { min-width: 900px; }
 .sched-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 text-xs; }

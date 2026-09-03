@@ -256,7 +256,10 @@ function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; us
                     <button type="button" className="sched-more-btn" title={expandedDays.has(dateStr) ? "접기" : "이 날 일정 전부 보기"}
                       onClick={(ev) => {
                         ev.stopPropagation();
+                        const cellEl = (ev.currentTarget as HTMLElement).closest(".schedule-day-cell") as HTMLElement | null;
                         setExpandedDays((prev) => { const n = new Set(prev); if (n.has(dateStr)) n.delete(dateStr); else n.add(dateStr); return n; });
+                        //   펼친 칸이 화면 밖으로 밀리지 않게 그 칸을 따라간다 (2026-09-03 사장님: "포커스가 위로 간다")
+                        requestAnimationFrame(() => cellEl?.scrollIntoView({ block: "nearest" }));
                       }}>
                       {expandedDays.has(dateStr) ? "접기 ▴" : `+${cellEvents.length - 3}개 더`}
                     </button>
