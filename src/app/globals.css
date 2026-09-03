@@ -4329,6 +4329,9 @@ table.coa-table { min-width: 640px; }
 .pnl-headline > b { @apply text-[15px] font-extrabold leading-snug text-[var(--text)]; }
 .pnl-headline-sub { @apply mt-1 text-[12px] text-[var(--text-muted)]; }
 .pnl-grid2 { @apply mb-3 grid grid-cols-1 gap-3 lg:grid-cols-2; }
+/* 2026-09-03 재발 방지(이커머스 현황 f92d02da 교훈): 격자 자식의 기본 min-width:auto 는 안의 표(.ev-table 1260px)가 칸을 밀어
+   옆 칸을 눌러 버린다. 2칸 격자 3종 자식은 min-w-0 — 표는 자기 패널 안에서 가로 스크롤(stg-table-wrap). 전수 실측(15화면·탭) 현재 넘침 0. */
+.pnl-grid2 > *, .bz-grid2 > *, .ds-grid2 > * { @apply min-w-0; }
 .pnl-panel { @apply mb-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3.5; }
 .pnl-panel > h3 { @apply text-[13px] font-bold text-[var(--text)]; }
 .pnl-panel > p { @apply mb-2 text-[11px] text-[var(--text-dim)]; }
