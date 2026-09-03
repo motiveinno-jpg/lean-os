@@ -36,6 +36,87 @@ const CARD_CODES: Record<string, string> = {
   "0313": "우리카드",
 };
 
+// 카드 탭(corporate_cards.card_company)에 적는 짧은 카드사 이름 — 화면의 카드사 표준화(normalizeCardCompany)와 같은 값.
+const CARD_COMPANY_SHORT: Record<string, string> = {
+  "0301": "KB", "0302": "현대", "0303": "삼성", "0304": "NH", "0305": "BC",
+  "0306": "신한", "0307": "씨티", "0309": "하나", "0311": "롯데", "0313": "우리",
+};
+
+// 마스킹된 카드번호("3792********923", "9430-12**-****-5979") → 끝 4자리 키.
+//   DB 트리거 card_tx_autolink 와 같은 규칙(숫자만 남기고 오른쪽 4자리)이라 그대로 맞물린다.
+//   롯데(아멕스 15자리)는 뒤 3자리만 보여 앞자리 한 글자가 섞인 "2923" 이 되지만, 이미 등록된 "2120" 도
+//   같은 규칙으로 만들어진 값이라 일관성이 우선이다.
+function cardLast4(masked: unknown): string | null {
+  const digits = String(masked ?? "").replace(/[^0-9]/g, "");
+  return digits.length >= 4 ? digits.slice(-4) : null;
+}
+
+// 거래에 적는 카드 이름 — "롯데카드 2923" 처럼 카드사 + 끝자리. (2026-09-03 사장님: 새로 발급받은 롯데카드가 안 보임)
+//   5/4 개편 뒤로 법인카드는 resCardName 이 비어 "롯데카드" 한 묶음으로만 저장돼, 같은 카드사의 두 번째
+//   카드가 화면에서 구분되지 않았다. 번호가 있으면 반드시 붙인다.
+function cardDisplayName(org: string, masked: unknown, resCardName?: unknown): string | null {
+  const base = (typeof resCardName === "string" && resCardName.trim()) ? resCardName.trim() : (CARD_CODES[org] || null);
+  if (!base) return null;
+  const last4 = cardLast4(masked);
+  if (!last4) return base;
+  return base.endsWith(last4) ? base : `${base} ${last4}`;
+}
+
+// 수집 중 처음 보는 카드를 카드 탭에 자동 등록하고, 이미 들어온 주인 없는 거래를 그 카드에 붙인다.
+//   그동안 카드 탭의 빈 화면 안내("동기화하면 자동 등록됩니다")만 있고 실제 등록 코드는 없었다.
+//   등록 기준은 끝 4자리 — 같은 번호의 카드가 다른 이름("대표님 사용카드")으로 이미 있으면 새로 만들지 않는다.
+async function ensureCardsRegistered(
+  supabase: any, companyId: string, org: string, seen: Map<string, string>, debug: string[],
+) {
+  if (seen.size === 0) return;
+  const { data: existing } = await supabase.from("corporate_cards")
+    .select("id, card_name, card_number")
+    .eq("company_id", companyId);
+  const rows: Array<{ id: string; card_name: string | null; card_number: string | null }> = existing || [];
+  for (const [last4, name] of seen) {
+    let card = rows.find((c) => cardLast4(c.card_number) === last4) || rows.find((c) => c.card_name === name) || null;
+    if (!card) {
+      const { data: ins, error } = await supabase.from("corporate_cards")
+        .insert({
+          company_id: companyId,
+          card_name: name,
+          card_number: last4,
+          card_company: CARD_COMPANY_SHORT[org] || CARD_CODES[org] || "미지정",
+          card_type: "credit",
+          is_active: true,
+        })
+        .select("id, card_name, card_number")
+        .single();
+      if (error || !ins) {
+        debug.push(`card ${org} 자동 등록 실패(${name}): ${error?.message || "?"}`);
+        continue;
+      }
+      card = ins;
+      rows.push(card);
+      debug.push(`card ${org} 새 카드 자동 등록: ${name}`);
+    }
+    // 이 카드 번호로 들어왔지만 카드가 없어 주인 없이 남은 거래를 붙인다 (트리거는 저장 순간에만 돌아 소급이 안 된다).
+    const { data: orphans } = await supabase.from("card_transactions")
+      .select("id, raw_data")
+      .eq("company_id", companyId)
+      .is("card_id", null)
+      .eq("source", "codef_card")
+      .filter("raw_data->>organization", "eq", org)
+      .limit(2000);
+    const ids = ((orphans || []) as Array<{ id: string; raw_data: any }>)
+      .filter((t) => {
+        const r = t.raw_data || {};
+        const no = r.charge?.resUsedCard || r.approval?.resCardNo || r.cardNo || r.charge?.resCardNo || "";
+        return cardLast4(no) === last4;
+      })
+      .map((t) => t.id);
+    if (ids.length > 0) {
+      const { error: linkErr } = await supabase.from("card_transactions").update({ card_id: card.id }).in("id", ids);
+      debug.push(`card ${org} ${name}: 주인 없던 거래 ${ids.length}건 연결${linkErr ? " 실패(" + linkErr.message + ")" : ""}`);
+    }
+  }
+}
+
 // Token cache
 let tokenCache: { token: string; expiresAt: number } | null = null;
 
@@ -262,6 +343,15 @@ function codefErrorHint(code?: string): string {
   }
   if (code === "CF-04015" || code.startsWith("CF-0401")) {
     return "Connected ID/인증 정보가 만료되었습니다. 설정 → API 연동에서 은행/카드 계정을 다시 등록하세요.";
+  }
+  if (code === "CF-12805") {
+    //   기관 응답(errorList[].code). 2026-09-03 롯데카드 실사고 — 카드사 법인 홈페이지에 등록 안 된 인증서로
+    //   연결을 시도하면 이 코드가 온다. 재시도로는 절대 안 풀리고, 기관 홈페이지에서 인증서를 등록하거나
+    //   기존에 쓰던 방식(아이디/비밀번호)으로 연결해야 한다.
+    return "해당 은행·카드사 홈페이지에 등록되지 않은 공동인증서입니다. 그 기관의 법인 홈페이지에 로그인해 이 인증서를 먼저 등록하거나, 아이디/비밀번호 방식으로 연결하세요.";
+  }
+  if (code === "CF-04010") {
+    return "이미 등록된 기관입니다. 인증 정보 교체가 거부되어 새 인증 정보를 먼저 검증한 뒤 재등록합니다.";
   }
   if (code.startsWith("CF-03") || code.startsWith("CF-04")) {
     return "인증 실패. 아이디/비밀번호 또는 공동인증서 상태를 확인하세요.";
@@ -723,6 +813,7 @@ async function syncCardBilling(
   const billingEnd = endDate.slice(0, 6);
 
   for (const org of cardOrgs) {
+    const seenCards = new Map<string, string>(); // 끝4자리 → 표시 이름 (수집 뒤 카드 탭 자동 등록용)
     //   memberStoreInfoType "1"(가맹점 포함) — 안 넣으면 default "0" 이라 CODEF 가
     //   가맹점 사업자번호(resMemberStoreCorpNo)·업종·전화번호를 아예 빼고 준다. (2026-08-12)
     const result = await codefRequest(token, "/v1/kr/card/b/account/billing-list", {
@@ -807,13 +898,14 @@ async function syncCardBilling(
             transaction_date: formattedDate,
             ...(chargeTime.length === 6 ? { transaction_time: `${chargeTime.slice(0, 2)}:${chargeTime.slice(2, 4)}:${chargeTime.slice(4, 6)}` } : {}),
             approval_number: approvalNo || null,
-            card_name: charge.resCardName || CARD_CODES[org] || null,
+            card_name: cardDisplayName(org, charge.resUsedCard || cardNo, charge.resCardName),
             //   못 받은 회차엔 아예 안 보낸다 — 한 번 채워 둔 번호를 빈 응답이 지우지 않게. (2026-08-12)
             ...(bizno ? { merchant_bizno: bizno } : {}),
             source: "codef_card",
             mapping_status: "unmapped",
             raw_data: { cardNo, organization: org, usedDate, usedTime: charge.resUsedTime || "", charge },
           };
+          { const l4 = cardLast4(charge.resUsedCard || cardNo); if (l4 && upsertRow.card_name) seenCards.set(l4, upsertRow.card_name); }
           fetchedForRecon.push({ row: upsertRow, date: formattedDate, approvalNo: String(approvalNo || ""), amount: Number(usedAmount), store: storeName });
 
           if (dupRow) {
@@ -936,6 +1028,8 @@ async function syncCardBilling(
     } catch (e: any) {
       debug.push(`검증 실패(수집 자체는 정상): ${e?.message || e}`);
     }
+
+    if (!biznoOnly) { try { await ensureCardsRegistered(supabase, companyId, org, seenCards, debug); } catch (e: any) { debug.push(`card ${org} 자동 등록 오류: ${e?.message || e}`); } }
   }
 
   return { synced: totalSynced, biznoFilled, errors, debug, orgs: [...cardOrgs] };
@@ -1029,6 +1123,7 @@ async function syncCardApprovals(
   let biznoSeen = 0, biznoTotal = 0, biznoFilled = 0;   // 청구내역과 같은 이유 — 카드사별 제공 여부를 눈에 보이게
 
   for (const { org, isPersonal } of cardAccounts) {
+    const seenCards = new Map<string, string>(); // 끝4자리 → 표시 이름 (수집 뒤 카드 탭 자동 등록용)
     const path = isPersonal
       ? "/v1/kr/card/p/account/approval-list"
       : "/v1/kr/card/b/account/approval-list";
@@ -1113,6 +1208,7 @@ async function syncCardApprovals(
         ? `${usedTime.slice(0, 2)}:${usedTime.slice(2, 4)}:${usedTime.slice(4, 6)}`
         : null;
 
+      { const l4 = cardLast4(a.resCardNo); const nm = cardDisplayName(org, a.resCardNo, a.resCardName); if (l4 && nm) seenCards.set(l4, nm); }
       if (!dupExists) {
       const { error } = await supabase.from("card_transactions").upsert({
         company_id: companyId,
@@ -1122,7 +1218,7 @@ async function syncCardApprovals(
         transaction_date: formattedDate,
         transaction_time: txTime,
         approval_number: approvalNo,
-        card_name: a.resCardName || CARD_CODES[org] || null,
+        card_name: cardDisplayName(org, a.resCardNo, a.resCardName),
         installments,
         merchant_bizno: bizno,
         source: "codef_card",
@@ -1165,6 +1261,7 @@ async function syncCardApprovals(
     if (skipNoApproval > 0 || skipRejected > 0) {
       debug.push(`card ${org} skipped: noApprovalNo=${skipNoApproval}, rejected=${skipRejected}`);
     }
+    try { await ensureCardsRegistered(supabase, companyId, org, seenCards, debug); } catch (e: any) { debug.push(`card ${org} 자동 등록 오류: ${e?.message || e}`); }
   }
 
   if (biznoTotal > 0) {
@@ -1264,46 +1361,80 @@ async function registerAccount(
   //   delete/add 모두 무과금 관리 API. 우리 DB(거래내역·bank_accounts)는 CODEF 계정과 별개라 손실 없음.
   //   delete 매칭 파라미터는 새 요청값이 아니라 "기존 등록 계정"의 값으로 보낸다 (loginType 불일치 방지).
   if (result.result?.code !== "CF-00000" && path === "/v1/account/update" && matchedExisting) {
-    console.log(`[CODEF] update failed (${result.result?.code}) — fallback to delete+add`);
-    const delRes = await codefRequest(token, "/v1/account/delete", {
-      connectedId: existingConnectedId,
-      accountList: [{
-        countryCode: matchedExisting.countryCode || "KR",
-        businessType: matchedExisting.businessType || businessType,
-        clientType: matchedExisting.clientType || (loginOpts.clientType || "B"),
-        organization,
-        loginType: matchedExisting.loginType ?? loginOpts.loginType,
-      }],
-    });
-    if (delRes.result?.code === "CF-00000") {
-      path = "/v1/account/add";
-      result = await codefRequest(token, path, body);
-      //   ⚠️ 2026-08-05 실사고: delete 성공 직후 add 가 CF-04009(중복)로 거부됨 — CODEF 측
-      //     삭제 반영 지연. 여기서 포기하면 계정은 이미 지워진 채 남아 BC카드 수집이
-      //     9일간 소리 없이 끊겼다. 지연 흡수를 위해 잠시 기다렸다 재시도한다.
-      for (let retry = 0; retry < 3 && result.result?.code === "CF-04009"; retry++) {
-        await new Promise((r) => setTimeout(r, 3000));
-        console.log(`[CODEF] add after delete got CF-04009 — retry ${retry + 1}/3 (deletion propagation)`);
-        result = await codefRequest(token, path, body);
-      }
-      if (result.result?.code !== "CF-00000") {
-        //   재시도로도 복구 실패 = 기존 계정은 지워졌고 새 계정은 안 붙었다.
-        //   "등록 실패"로만 보이면 이전 연결이 살아있는 줄 알게 되므로 상태를 명시한다.
-        result.result = {
-          ...result.result,
-          message: `${result.result?.message || "등록 실패"} — ⚠️ 기존 ${organization} 계정은 삭제된 상태입니다. 이 카드/은행의 자동 수집이 멈춰 있으니 반드시 다시 등록해 주세요.`,
-        };
-      }
+    //   ⚠️ 2026-09-03 실사고(롯데카드 0311): update 가 CF-04010 → delete 성공 → add 가 CF-12805(카드사 미등록
+    //     인증서)로 실패. 09:40 크론까지 멀쩡히 수집되던 계정이 새 인증서가 기관에서 통하는지도 모른 채 먼저
+    //     지워졌다. 그래서 지우기 전에 임시 connectedId(/v1/account/create, 무과금 관리 API)로 새 자격증명을
+    //     한 번 검증한다 — 기관 로그인이 안 되는 자격증명이면 기존 계정은 손대지 않고 그 오류를 그대로 돌려준다.
+    console.log(`[CODEF] update failed (${result.result?.code}) — probing new credential on scratch connectedId before delete+add`);
+    const probe = await codefRequest(token, "/v1/account/create", { accountList: [accountEntry] });
+    const probeErrors = Array.isArray(probe.data?.errorList) ? probe.data.errorList : [];
+    const probeOk = probe.result?.code === "CF-00000" && probeErrors.length === 0;
+    if (!probeOk) {
+      console.error(`[CODEF] credential probe failed (${probe.result?.code}/${probeErrors[0]?.code || "-"}) — existing ${organization} account left untouched`);
+      result = probe;
+      result.result = {
+        ...result.result,
+        message: `${result.result?.message || "등록 실패"} — 기존 ${organization} 연결은 그대로 두었습니다(자동 수집 계속됨).`,
+      };
     } else {
-      console.error(`[CODEF] delete fallback failed (${delRes.result?.code})`);
+      //   임시 cid 정리 — 실패해도 무해(고아 cid 하나 남을 뿐), 본 흐름을 막지 않는다.
+      const probeCid = probe.data?.connectedId;
+      if (probeCid) {
+        try {
+          await codefRequest(token, "/v1/account/delete", {
+            connectedId: probeCid,
+            accountList: [{ countryCode: "KR", businessType, clientType: accountEntry.clientType, organization, loginType: loginOpts.loginType }],
+          });
+        } catch (_) { /* ignore */ }
+      }
+    }
+    if (probeOk) {
+      console.log(`[CODEF] probe OK — fallback to delete+add`);
+      const delRes = await codefRequest(token, "/v1/account/delete", {
+        connectedId: existingConnectedId,
+        accountList: [{
+          countryCode: matchedExisting.countryCode || "KR",
+          businessType: matchedExisting.businessType || businessType,
+          clientType: matchedExisting.clientType || (loginOpts.clientType || "B"),
+          organization,
+          loginType: matchedExisting.loginType ?? loginOpts.loginType,
+        }],
+      });
+      if (delRes.result?.code === "CF-00000") {
+        path = "/v1/account/add";
+        result = await codefRequest(token, path, body);
+        //   ⚠️ 2026-08-05 실사고: delete 성공 직후 add 가 CF-04009(중복)로 거부됨 — CODEF 측
+        //     삭제 반영 지연. 여기서 포기하면 계정은 이미 지워진 채 남아 BC카드 수집이
+        //     9일간 소리 없이 끊겼다. 지연 흡수를 위해 잠시 기다렸다 재시도한다.
+        for (let retry = 0; retry < 3 && result.result?.code === "CF-04009"; retry++) {
+          await new Promise((r) => setTimeout(r, 3000));
+          console.log(`[CODEF] add after delete got CF-04009 — retry ${retry + 1}/3 (deletion propagation)`);
+          result = await codefRequest(token, path, body);
+        }
+        if (result.result?.code !== "CF-00000") {
+          //   재시도로도 복구 실패 = 기존 계정은 지워졌고 새 계정은 안 붙었다.
+          //   "등록 실패"로만 보이면 이전 연결이 살아있는 줄 알게 되므로 상태를 명시한다.
+          result.result = {
+            ...result.result,
+            message: `${result.result?.message || "등록 실패"} — ⚠️ 기존 ${organization} 계정은 삭제된 상태입니다. 이 카드/은행의 자동 수집이 멈춰 있으니 반드시 다시 등록해 주세요.`,
+          };
+        }
+      } else {
+        console.error(`[CODEF] delete fallback failed (${delRes.result?.code})`);
+      }
     }
   }
 
   if (result.result?.code !== "CF-00000") {
-    const hint = codefErrorHint(result.result?.code);
+    //   CF-04000 은 "기관 인증 실패" 껍데기고 진짜 사유는 data.errorList[0](예: CF-12805 미등록 인증서)에 있다.
+    //   힌트·메시지는 안쪽 코드를 우선한다 — 껍데기 코드만 보여주면 사용자가 뭘 고쳐야 하는지 모른다.
+    const inner = Array.isArray(result.data?.errorList) ? result.data.errorList[0] : null;
+    const innerCode: string = inner?.code || "";
+    const innerMsg: string = inner?.message || "";
+    const hint = codefErrorHint(innerCode || result.result?.code);
     const extraMessage = result.result?.extraMessage || result.data?.errorMessage || "";
-    console.error(`[CODEF] Registration failed: ${result?.result?.code || "unknown"}`);
-    const err: any = new Error(`계정 등록 실패: ${result.result?.message || "알 수 없는 오류"} (${result.result?.code}, tx:${result.result?.transactionId || "-"})${extraMessage ? " [" + extraMessage + "]" : ""}${hint ? " — " + hint : ""}`);
+    console.error(`[CODEF] Registration failed: ${result?.result?.code || "unknown"}${innerCode ? "/" + innerCode : ""}`);
+    const err: any = new Error(`계정 등록 실패: ${result.result?.message || "알 수 없는 오류"} (${result.result?.code}${innerCode ? "/" + innerCode : ""}, tx:${result.result?.transactionId || "-"})${innerMsg ? " [기관 응답: " + innerMsg + "]" : ""}${extraMessage ? " [" + extraMessage + "]" : ""}${hint ? " — " + hint : ""}`);
     err.codefResponse = result;
     err.diagnostics = {
       env: CODEF_ENV,

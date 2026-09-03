@@ -38,7 +38,7 @@ const CODEF_PUBLIC: Record<string, string> = {
 };
 
 // 온보딩 '금융 연결' 단계가 같은 등록 폼을 그대로 쓴다 (2026-08-10) — export 만 추가, 동작 무변경.
-export function CodefAccountRegister({ companyId, onRegistered }: { companyId: string | null; onRegistered: () => void }) {
+export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = [] }: { companyId: string | null; onRegistered: () => void; connectedOrgs?: string[] }) {
   const { toast } = useToast();
   const [accountType, setAccountType] = useState<"bank" | "card" | "hometax">("bank");
   const [clientType, setClientType] = useState<"P" | "B">("B");
@@ -605,6 +605,15 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
         </div>
       </div>
 
+      {/*   이미 연결된 기관 재등록 안내 (2026-09-03 롯데카드 실사고) — 새 카드가 나왔다고 카드사를 다시 연결할 필요가
+            없는데, 재등록이 인증 정보 교체(기존 등록 삭제 후 재등록)라는 걸 몰라 멀쩡한 연결이 끊겼다. */}
+      {accountType !== "hometax" && !!organization && connectedOrgs.includes(organization) && (
+        <div className="bank-integration-result-message bg-amber-500/10 text-amber-700 border border-amber-500/20">
+          <b>{orgList[organization] || organization}</b>는 이미 연결돼 있습니다. 새로 발급받은 카드·계좌는 재등록 없이 다음 자동 수집에 그대로 포함됩니다.
+          지금 연결하면 기존 인증 정보를 새 {authMethod === "cert" ? "인증서" : "아이디/비밀번호"}로 교체합니다 — 인증서를 바꿀 때는 그 인증서가 {orgList[organization] || "해당 기관"} 홈페이지에 먼저 등록돼 있어야 합니다.
+        </div>
+      )}
+
       {result && (
         <div ref={resultRef} className={`bank-integration-result-message ${result.ok ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
           {result.msg}
@@ -1161,7 +1170,11 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
       </div>
 
       {/* 금융기관 연결 (계정 등록) — 항상 표시 */}
-      <CodefAccountRegister companyId={companyId} onRegistered={() => { refetchConnection(); }} />
+      <CodefAccountRegister
+        companyId={companyId}
+        onRegistered={() => { refetchConnection(); }}
+        connectedOrgs={[...codefAccounts.bank, ...codefAccounts.card].map((a: any) => String(a.organization || ""))}
+      />
 
       {/* 수동 등록 계좌 */}
       <div className="bank-integration-manual-accounts stg-sec">
