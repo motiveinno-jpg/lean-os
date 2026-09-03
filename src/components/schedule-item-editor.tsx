@@ -17,8 +17,7 @@ import { ChatEmojiPicker } from "@/components/chat-emoji-picker";
 import { resolveSignedUrl } from "@/lib/file-storage";
 import {
   getDepartments, uploadScheduleFile, VISIBILITY_LABEL,
-  type EventColor, type ScheduleAttachment, type ScheduleEvent, type Visibility,
-} from "@/lib/schedule";
+  type EventColor, type ScheduleAttachment, type ScheduleEvent, type Visibility, type ScheduleReminder, remindersOf } from "@/lib/schedule";
 import { supabase } from "@/lib/supabase";
 
 const COLORS: [EventColor, string][] = [
@@ -51,8 +50,8 @@ export type ScheduleDraft = {
   /** 반복(결정 145) — "" = 안 함 */
   recurFreq: "" | "daily" | "weekly" | "monthly";
   recurWeekday: number;
-  /** 알림 — "" = 없음, 'morning' = 당일 아침 8:30. 반복 일정은 저장 시 비워진다(1차 미지원) */
-  reminder: string;
+  /** 알림 목록 — 며칠 전 · 몇 시(KST). 반복 일정은 저장 시 비워진다(1차 미지원) (2026-09-03 사장님: 시간대·하루 전·일주일 전·여러 개) */
+  reminders: ScheduleReminder[];
 };
 
 /** 저장된 일정 → 편집용 초안. 새로 만들 때는 날짜만 넣어 부르면 된다. */
@@ -71,7 +70,7 @@ export function draftFromEvent(e?: Partial<ScheduleEvent> | null, fallback?: { f
     attachments: e?.attachments || [],
     recurFreq: (e?.recurrence?.freq as ScheduleDraft["recurFreq"]) || "",
     recurWeekday: e?.recurrence?.weekday ?? new Date(`${from || "2026-01-05"}T00:00:00`).getDay(),
-    reminder: e?.reminder || "",
+    reminders: remindersOf(e),
   };
 }
 
@@ -273,17 +272,55 @@ export function ScheduleItemEditor({
 
         {/* 알림 — 발송 게이트가 켜진 회사에만 보인다(안 켜진 회사에 보여주면 거짓말) */}
         {remindReady && (
-          <div className="sched-field">
+          <div className="sched-field sched-field-top">
             <span>알림</span>
-            <select className="sched-in" value={draft.reminder} disabled={!draft.from || !!draft.recurFreq} aria-label="알림"
-              onChange={(e) => set({ reminder: e.target.value })}>
-              <option value="">없음</option>
-              <option value="morning">당일 아침 8:30</option>
-            </select>
+            <div className="sched-rem-list">
+              {draft.reminders.map((r, i) => {
+                const preset = [0, 1, 2, 3, 7, 14].includes(r.days_before) ? String(r.days_before) : "custom";
+                const [hh, mm] = (r.time || "08:30").split(":");
+                const upd = (patch: Partial<ScheduleReminder>) => set({ reminders: draft.reminders.map((x, k) => (k === i ? { ...x, ...patch } : x)) });
+                return (
+                  <div key={i} className="sched-rem-row">
+                    <select className="sched-in sched-rem-when" value={preset} disabled={!draft.from || !!draft.recurFreq} aria-label="며칠 전"
+                      onChange={(e) => { const v = e.target.value; if (v === "custom") upd({ days_before: 5 }); else upd({ days_before: Number(v) }); }}>
+                      <option value="0">당일</option>
+                      <option value="1">1일 전</option>
+                      <option value="2">2일 전</option>
+                      <option value="3">3일 전</option>
+                      <option value="7">1주일 전</option>
+                      <option value="14">2주일 전</option>
+                      <option value="custom">직접 입력</option>
+                    </select>
+                    {preset === "custom" && (
+                      <span className="sched-rem-custom">
+                        <input className="sched-in sched-rem-days" inputMode="numeric" value={r.days_before} aria-label="며칠 전(직접)"
+                          onChange={(e) => upd({ days_before: Math.max(0, Math.min(365, Number(e.target.value.replace(/\D/g, "")) || 0)) })} />
+                        <span className="sched-rem-unit">일 전</span>
+                      </span>
+                    )}
+                    <select className="sched-in sched-rem-hh" value={hh} disabled={!draft.from || !!draft.recurFreq} aria-label="시"
+                      onChange={(e) => upd({ time: `${e.target.value}:${mm || "00"}` })}>
+                      {Array.from({ length: 24 }, (_, h) => String(h).padStart(2, "0")).map((h) => <option key={h} value={h}>{h}시</option>)}
+                    </select>
+                    <select className="sched-in sched-rem-mm" value={mm || "00"} disabled={!draft.from || !!draft.recurFreq} aria-label="분"
+                      onChange={(e) => upd({ time: `${hh || "08"}:${e.target.value}` })}>
+                      {["00", "10", "20", "30", "40", "50"].map((m) => <option key={m} value={m}>{m}분</option>)}
+                    </select>
+                    <button type="button" className="sched-rem-x" aria-label="이 알림 빼기" onClick={() => set({ reminders: draft.reminders.filter((_, k) => k !== i) })}>✕</button>
+                  </div>
+                );
+              })}
+              {draft.reminders.length < 5 && (
+                <button type="button" className="sched-rem-add" disabled={!draft.from || !!draft.recurFreq}
+                  onClick={() => set({ reminders: [...draft.reminders, draft.reminders.length === 0 ? { days_before: 0, time: "08:30" } : { days_before: 1, time: "08:30" }] })}>
+                  + 알림 추가{draft.reminders.length === 0 ? " (예: 당일 08:30)" : ""}
+                </button>
+              )}
+            </div>
           </div>
         )}
         {remindReady && !!draft.recurFreq && <p className="sched-note">반복 일정 알림은 다음 단계에서 — 지금은 단발 일정만 알림이 갑니다.</p>}
-        {remindReady && !draft.recurFreq && draft.reminder && <p className="sched-note">알림은 <b>나에게</b> 옵니다(알림 벨).</p>}
+        {remindReady && !draft.recurFreq && draft.reminders.length > 0 && <p className="sched-note">알림은 시작 날짜 기준으로 <b>나에게</b> 옵니다(알림 벨). 같은 날 여러 개도 됩니다.</p>}
 
         <div className="sched-field">
           <span>공유 범위</span>

@@ -19,6 +19,15 @@ export type ScheduleAttachment = { url: string; name: string; size?: number };
 /** 반복(결정 145) — 행을 늘리지 않는다. 원본 한 건이 규칙을 담고, 달력이 회차를 펼쳐 보여준다.
  *  프로젝트 v3 항목의 recurrence 와 같은 문법. */
 export type ScheduleRecurrence = { freq: "daily" | "weekly" | "monthly"; weekday?: number } | null;
+/** 알림 하나 — 시작 날짜 기준 며칠 전, 몇 시(KST). days_before 0 = 당일 */
+export type ScheduleReminder = { days_before: number; time: string };
+/** 옛 한 칸(reminder) → 목록. 'morning' = 당일 08:30. */
+export function remindersOf(e: { reminders?: ScheduleReminder[] | null; reminder?: string | null } | null | undefined): ScheduleReminder[] {
+  if (!e) return [];
+  if (Array.isArray(e.reminders) && e.reminders.length > 0) return e.reminders;
+  if (e.reminder === "morning") return [{ days_before: 0, time: "08:30" }];
+  return [];
+}
 
 /** 가상 회차 id(`{uuid}@{날짜}`) → 원본 id. 수정·삭제·완료는 전부 원본 한 건에 적용된다. */
 const realId = (id: string) => id.split("@")[0];
@@ -49,8 +58,10 @@ export interface ScheduleEvent {
   completed_at: string | null;
   /** 반복 규칙(결정 145) — null = 반복 없음 */
   recurrence: ScheduleRecurrence;
-  /** 알림 — 'morning'(당일 아침 8:30) 등. null = 없음. 발송은 DB 크론(schedule_reminders_tick) */
+  /** 알림(옛 한 칸) — 'morning' 등. 새 저장은 reminders 를 쓴다. */
   reminder: string | null;
+  /** 알림 목록 — 시작 날짜 기준 'N일 전 HH:MM'(KST). 최대 5개. null/[] = 없음. 발송은 DB 크론(schedule_reminders_tick) */
+  reminders: ScheduleReminder[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -170,8 +181,10 @@ export async function upsertEvent(input: {
   attachments?: ScheduleAttachment[];
   /** 반복 규칙(결정 145) — 넘기지 않으면 반복 없음으로 저장 */
   recurrence?: ScheduleRecurrence;
-  /** 알림('morning' 등) — 반복 일정은 화면이 null 로 보낸다(1차 미지원) */
+  /** 알림('morning' 등, 옛 형식) — 새 화면은 reminders 를 보낸다 */
   reminder?: string | null;
+  /** 알림 목록 — 반복 일정은 화면이 [] 로 보낸다(1차 미지원) */
+  reminders?: ScheduleReminder[] | null;
 }): Promise<ScheduleEvent> {
   const visibility: Visibility = input.visibility ?? "private";
   const row: any = {
@@ -192,8 +205,10 @@ export async function upsertEvent(input: {
     is_shared: visibility === "company",
     recurrence: input.recurrence ?? null,
     reminder: input.reminder ?? null,
+    reminders: input.reminders && input.reminders.length > 0 ? input.reminders.slice(0, 5) : null,
     //   알림을 새로 걸거나 날짜를 바꾸면 다시 보낼 수 있게 발송 기록을 비운다
     reminded_at: null,
+    reminders_sent: [],
   };
   if (input.id) row.id = realId(input.id);
   const { data, error } = await db.from("schedule_events").upsert(row).select().single();

@@ -9980,3 +9980,14 @@ table.phv3-table { min-width: 640px; }
 .qk-tok-cols { @apply grid gap-1; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 .qk-tok-col { @apply min-w-0; }
 .qk-tok-col-head { @apply px-2 pb-1 pt-1.5 text-[11px] font-bold text-[var(--primary)] border-b border-[var(--border)] mb-1; }
+
+/* 일정 알림 여러 개 (2026-09-03 사장님) */
+.sched-rem-list { @apply flex flex-col gap-1.5; }
+.sched-rem-row { @apply flex items-center gap-1.5; }
+.sched-rem-when { @apply w-[112px] shrink-0; }
+.sched-rem-custom { @apply flex items-center gap-1 shrink-0; }
+.sched-rem-days { @apply w-[52px] text-center; }
+.sched-rem-unit { @apply text-[12px] text-[var(--text-dim)]; }
+.sched-rem-hh, .sched-rem-mm { @apply w-[76px] shrink-0; }
+.sched-rem-x { @apply h-7 w-7 shrink-0 rounded-lg text-[12px] text-[var(--text-dim)] hover:bg-[var(--bg-surface)] hover:text-[var(--danger)]; }
+.sched-rem-add { @apply self-start text-[12px] font-semibold text-[var(--primary)] hover:underline disabled:opacity-40 disabled:no-underline; }

@@ -15,8 +15,7 @@ import { resolveSignedUrl } from "@/lib/file-storage";
 import { ScheduleItemEditor, draftFromEvent, type ScheduleDraft } from "@/components/schedule-item-editor";
 import {
   upsertEvent, deleteEvent, toggleEventCompleted, formatEventRange,
-  VISIBILITY_LABEL, type EventColor, type ScheduleAttachment, type ScheduleEvent,
-} from "@/lib/schedule";
+  VISIBILITY_LABEL, type EventColor, type ScheduleAttachment, type ScheduleEvent, remindersOf } from "@/lib/schedule";
 
 const DOT: Record<EventColor, string> = {
   blue: "bg-blue-500", green: "bg-green-500", red: "bg-red-500",
@@ -69,7 +68,8 @@ export function ScheduleItemDialog({
         attachments: d.attachments,
         //   반복(결정 145) — 날짜 없으면 반복도 없음. 반복 일정의 알림은 1차 미지원이라 비운다
         recurrence: a && d.recurFreq ? { freq: d.recurFreq, ...(d.recurFreq === "weekly" ? { weekday: d.recurWeekday } : {}) } : null,
-        reminder: a && !d.recurFreq ? (d.reminder || null) : null,
+        reminder: null,
+        reminders: a && !d.recurFreq ? d.reminders : [],
       });
     },
     onSuccess: () => { refresh(); onClose(); toast("저장했습니다.", "success"); },
@@ -174,7 +174,7 @@ function ScheduleItemView({
           {event.recurrence?.freq && (
             <span title="반복 일정 — 고치거나 지우면 모든 회차에 적용됩니다"> · 🔁 {event.recurrence.freq === "daily" ? "매일" : event.recurrence.freq === "monthly" ? "매월" : `매주 ${["일", "월", "화", "수", "목", "금", "토"][event.recurrence.weekday ?? 0]}요일`}</span>
           )}
-          {event.reminder === "morning" && <span title="당일 아침 8:30에 나에게 알림"> · 🔔 아침 알림</span>}
+          {remindersOf(event).length > 0 && <span title={remindersOf(event).map((r) => `${r.days_before === 0 ? "당일" : `${r.days_before}일 전`} ${r.time}`).join(" · ")}> · 🔔 알림 {remindersOf(event).length}개</span>}
           {event.completed && <span className="sched-view-done">완료</span>}
         </p>
 
