@@ -31,6 +31,8 @@ import type { FounderDashboardData } from "@/lib/engines";
 import type { YesterdayTxSummary } from "@/lib/queries";
 
 interface MorningBriefProps {
+  /** 아침 보고서(v3): lead = 결론·요약·근거만, checklist = 체크리스트만. full = 예전 한 카드 */
+  variant?: "full" | "lead" | "checklist";
   userName: string;
   companyName: string;
   cashPulse: CashPulseResult | null;
@@ -158,6 +160,7 @@ export function MorningBrief({
   yesterdayTx,
   userId,
   aiBriefingEnabled = false,
+  variant = "full",
 }: MorningBriefProps) {
   const now = new Date();
   const today = formatTodayKorean(now);
@@ -305,6 +308,7 @@ export function MorningBrief({
     } catch { queryClient.setQueryData(checkKey, checked); }
   };
 
+  if (variant === "checklist" && (!hasData || !cashPulse)) return null;
   if (!hasData || !cashPulse) {
     return (
       <section className="morning-brief-onboarding glass-card">
@@ -443,11 +447,14 @@ export function MorningBrief({
         : "오늘 생성")
     : null;
 
+  //   아침 보고서 체크리스트 자리인데 아직 플랜이 없으면 한 줄만
+  if (variant === "checklist" && !briefPlan) return <p className="rep-none">오늘 챙길 것이 아직 없습니다 — 결론의 ↻ 다시 생성을 누르면 채워집니다.</p>;
+
   return (
-    <section className="morning-brief-card glass-card brief-compact">
-      {/* 머리 한 줄 — 이름 · 출처(AI 제안) · 생성 · 다시 생성 */}
-      <div className="brief-head">
-        <span className="text-[13px] font-bold text-[var(--text)]">오늘 챙길 것</span>
+    <section className={variant === "full" ? "morning-brief-card glass-card brief-compact" : `morning-brief-card rep-brief rep-brief-${variant}`}>
+      {/* 머리 한 줄 — 이름 · 출처(AI 제안) · 생성 · 다시 생성 (checklist 변형은 머리 없음 — 절 제목이 대신) */}
+      {variant !== "checklist" && <div className="brief-head">
+        {variant === "full" && <span className="text-[13px] font-bold text-[var(--text)]">오늘 챙길 것</span>}
         {aiBrief ? <span className="brief-src">AI 제안</span> : <span className="brief-src">규칙 요약</span>}
         {genLabel && <span className="text-[11px] text-[var(--text-dim)]" title="이 시각의 스냅샷입니다 — 이후 처리한 일은 ↻ 다시 생성을 눌러야 반영됩니다">{genLabel}</span>}
         <span className="flex-1" />
@@ -455,15 +462,15 @@ export function MorningBrief({
           <button type="button" onClick={regenerateBrief} disabled={regenerating} className="btn-secondary btn-sm"
             title="지금 데이터로 브리핑을 다시 생성합니다">{regenerating ? "생성 중…" : "↻ 다시 생성"}</button>
         )}
-      </div>
+      </div>}
       <div className="space-y-2">
         {briefPlan ? (
           /* ── AI 브리핑 2.0: 오늘의 액션 플랜 — 한 문장 + 표 5줄 (2026-08-19 재편) ── */
           <div className="brief-plan">
-            <p className="text-[14.5px] font-extrabold leading-snug">{briefPlan.headline}</p>
-            <p className="brief-summary">{renderTagged(briefPlan.summary)}</p>
+            {variant !== "checklist" && <p className={variant === "lead" ? "rep-lead" : "text-[14.5px] font-extrabold leading-snug"}>{briefPlan.headline}</p>}
+            {variant !== "checklist" && <p className="brief-summary">{renderTagged(briefPlan.summary)}</p>}
 
-            {briefPlan.actions.length > 0 && (
+            {variant !== "lead" && briefPlan.actions.length > 0 && (
               /* 체크리스트 (2026-09-03 v2 결정 151·152): 완료 체크 · 우선순위 세로선(긴급 빨강·중요 주황·권장 없음) · 제목 · 근거 한 줄 · 실행 버튼.
                  체크된 줄은 흐려져 아래로. 근거 전문은 줄 클릭으로 펼침(기존). 알약 태그·번호 제거. */
               <ul className="brief-list">
@@ -491,7 +498,7 @@ export function MorningBrief({
               </ul>
             )}
 
-            {(briefPlan.risks.length > 0 || briefPlan.wins.length > 0) && (
+            {variant !== "checklist" && (briefPlan.risks.length > 0 || briefPlan.wins.length > 0) && (
               <div className="brief-foot">
                 <button type="button" className="brief-evidence-btn" onClick={() => setShowEvidence((v) => !v)}>
                   {showEvidence ? "근거 접기" : `근거 보기 (경고 ${Math.min(3, briefPlan.risks.length)} · 양호 ${Math.min(2, briefPlan.wins.length)})`}

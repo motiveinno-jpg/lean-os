@@ -10119,3 +10119,55 @@ table.ch-st-table { min-width: 520px; } /* table. — .ev-table(뒤에 정의) �
 .bizcert-msg-ok { @apply bg-emerald-50 text-emerald-800; }
 .bizcert-msg-warn { @apply bg-amber-50 text-amber-800; }
 .bizcert-msg-err { @apply bg-red-50 text-red-700; }
+
+/* ══ 아침 보고서 (2026-09-03 대시보드 v3 결정 158~162) — 한 열 문서, 카드 상자 없음 ══ */
+.rep { @apply mx-auto max-w-[920px] rounded-md border border-[var(--border)] bg-[var(--bg-card)] px-6 py-7 md:px-12 md:py-9; }
+.rep-top { @apply mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1; }
+.rep-date { @apply m-0 text-[26px] font-extrabold tracking-tight text-[var(--text)]; }
+.rep-co { @apply text-[13px] text-[var(--text-muted)]; }
+.rep-tool { @apply text-[12.5px] text-[var(--text-muted)] hover:text-[var(--primary)]; }
+/* 결론 변형의 브리핑 — 카드 아님 */
+/* 문서 폭(920) 안의 신호 띠 — 부제는 줄바꿈(잘림 금지), 숫자는 22px */
+.rep .dash-signals { @apply mb-1 border-y-0; }
+.rep .dash-sig-value { @apply text-[22px]; }
+.rep .dash-sig-sub { @apply whitespace-normal leading-snug; }
+.rep-brief { @apply mb-6 p-0; }
+.rep-brief .brief-head { @apply mb-1 text-[12px] text-[var(--text-muted)]; }
+.rep-lead { @apply m-0 text-[16px] font-bold leading-relaxed text-[var(--text)]; }
+.rep-brief .brief-summary { @apply text-[13.5px]; }
+.rep-brief-checklist .brief-list { @apply mt-0; }
+.rep-sec { @apply mb-7; }
+.rep-sec-h { @apply mb-2 flex items-baseline gap-2.5 border-t border-[var(--border)] pt-3; }
+.rep-sec-no { @apply text-[11.5px] font-bold tracking-widest text-[var(--text-dim)]; }
+.rep-sec-title { @apply m-0 text-[15px] font-extrabold tracking-tight text-[var(--text)]; }
+.rep-sec-link { @apply ml-3 text-[12.5px] font-semibold text-[var(--text-muted)] no-underline hover:text-[var(--primary)]; }
+.rep-p { @apply my-1.5 text-[14px] leading-[1.7] text-[var(--text)]; }
+.rep-t { @apply font-bold; }
+.rep-t-k { color: var(--text); }
+.rep-t-warn { color: var(--warning); }
+.rep-t-bad { color: var(--danger); }
+.rep-t-good { color: var(--success); }
+.rep-none { @apply my-1 text-[13px] text-[var(--text-dim)]; }
+.rep-cols { @apply mt-2 grid grid-cols-1 gap-x-7 gap-y-2 md:grid-cols-2; }
+.rep-cols > * { @apply min-w-0; }
+.rep-h3 { @apply mb-0.5 mt-2 text-[12.5px] font-bold text-[var(--text-muted)]; }
+.rep-tbl { @apply my-1 w-full border-collapse text-[13px]; }
+.rep-tbl th { @apply border-b border-[var(--border)] py-1 text-left text-[11.5px] font-semibold text-[var(--text-muted)]; }
+.rep-tbl td { @apply border-b border-[var(--border)] py-1.5 align-top text-[var(--text)]; }
+.rep-tbl tr:last-child td { @apply border-b-0; }
+.rep-tbl .r { @apply text-right; }
+.rep-tbl .m { @apply text-[var(--text-muted)]; }
+.rep-link { @apply text-[var(--text)] no-underline hover:text-[var(--primary)]; }
+.rep-more { @apply my-1 text-[12.5px]; }
+.rep-more .rep-link { @apply font-semibold text-[var(--primary)]; }
+/* 부록 — 접힌 한 줄, 펼치면 v2 위젯 격자 */
+.rep-apx { @apply border-t border-[var(--border)] pt-3; }
+.rep-apx-h { @apply flex flex-wrap items-center gap-3 text-[13.5px] text-[var(--text)]; }
+.rep-apx-hint { @apply text-[12.5px] text-[var(--text-muted)]; }
+.rep-apx-btn { @apply text-[13px] font-bold text-[var(--primary)]; }
+.rep-apx-body { @apply mt-3; }
+.rep-foot { @apply mt-6 flex flex-wrap gap-4 text-[11.5px] text-[var(--text-dim)]; }
+@media print {
+  .rep { @apply max-w-none border-0 p-0; }
+  .rep-apx, .rep-tool, .brief-act, .brief-chk { display: none !important; }
+}
