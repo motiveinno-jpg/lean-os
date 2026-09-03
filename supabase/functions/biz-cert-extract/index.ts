@@ -78,12 +78,13 @@ Deno.serve(withSentry("biz-cert-extract", async (req) => {
     task: "extract", feature: "biz_cert_extract",
     system: SYSTEM,
     messages: [{ role: "user", content: [fileBlock, { type: "text", text: "이 문서에서 거래처 등록 항목을 추출해 주세요." }] }],
-    schema: SCHEMA, maxTokens: 800,
+    schema: SCHEMA, maxTokens: 1500,
     companyId: profile.company_id, userId: profile.id, admin,
     promptVersion: "biz-cert-v1", maxRetries: 1, timeoutMs: 60_000,
     allowGeminiFallback: true,   // 사장님 2026-09-03: Gemini 대체는 이 기능에만
   });
-  if (!result.ok || !result.data) return json({ error: result.error || "문서를 읽지 못했습니다.", code: result.errorCode }, 502);
+  if (!result.ok) return json({ error: result.error || "문서를 읽지 못했습니다.", code: result.errorCode }, 502);
+  if (!result.data) return json({ error: "문서는 받았지만 항목을 정리하지 못했습니다. 글자가 선명한 사진이나 PDF 원본으로 다시 올려 주세요.", code: "NO_STRUCTURED" }, 502);
 
   const f = result.data as Record<string, unknown>;
   const s = (k: string) => String(f[k] ?? "").trim();

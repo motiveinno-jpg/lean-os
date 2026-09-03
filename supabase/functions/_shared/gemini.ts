@@ -105,7 +105,10 @@ export async function callGemini(input: GeminiCallInput): Promise<GeminiCallOutp
   const body: Record<string, unknown> = {
     contents: toContents(input.messages),
     generationConfig: {
-      maxOutputTokens: Math.max(256, Math.min(input.maxTokens ?? 2000, 65536)),
+      // Gemini 2.5 는 '생각' 토큰도 maxOutputTokens 에 포함된다 — Anthropic 기준으로 잡은 작은 값(800)이면 JSON 이 잘려
+      //   "문서를 읽지 못했습니다"가 났다(2026-09-03 사장님 제보). 넉넉히 잡고, 구조화 추출은 생각을 끈다(flash 만 지원).
+      maxOutputTokens: Math.max(4096, Math.min((input.maxTokens ?? 2000) * 4, 65536)),
+      ...(input.schema && model.includes("flash") ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
       ...(typeof input.temperature === "number" ? { temperature: input.temperature } : {}),
       ...(input.schema ? { responseMimeType: "application/json", responseSchema: toGeminiSchema(input.schema) } : {}),
     },
@@ -146,7 +149,8 @@ export async function callGemini(input: GeminiCallInput): Promise<GeminiCallOutp
       else if (p.functionCall) { n++; content.push({ type: "tool_use", id: `gem_${Date.now().toString(36)}_${n}`, name: p.functionCall.name, input: p.functionCall.args || {} }); }
     }
     let data: unknown;
-    if (input.schema && text) { try { data = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, "")); } catch { /* 구조화 실패 */ } }
+    if (input.schema && text) { try { data = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, "")); } catch { console.error(`[gemini] schema parse fail finish=${cand?.finishReason} len=${text.length}`); } }
+    if (input.schema && data === undefined) console.error(`[gemini] no structured data finish=${cand?.finishReason} parts=${parts.length} text=${text.length}`);
     const usage = { input: Number(json.usageMetadata?.promptTokenCount || 0), output: Number(json.usageMetadata?.candidatesTokenCount || 0) + Number(json.usageMetadata?.thoughtsTokenCount || 0) };
     const stopReason = n > 0 ? "tool_use" : cand?.finishReason === "MAX_TOKENS" ? "max_tokens" : "end_turn";
     return { ok: true, content, text, data, stopReason, usage, model };
