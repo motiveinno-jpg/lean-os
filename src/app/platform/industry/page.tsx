@@ -1,9 +1,14 @@
 "use client";
 
+// 업계 분석 — 업종별 고객 분포·미분류 회사 분류·업종별 재무 평균.
+//   2026-09-03 v2 디자인 — pf 부품 + Bklit 도넛·막대. RPC·분류 저장 로직은 그대로.
+
 import { kstDateStr } from "@/lib/kst";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfEmpty, PfRows, PfRow, PfBar } from "@/app/platform/_components/pf/ui";
+import { PfDonut, PfBars } from "@/app/platform/_components/pf/charts";
 
 const db = supabase;
 
@@ -95,97 +100,128 @@ export default function PlatformIndustryPage() {
 
   const totalCompanies = dist.reduce((s, d) => s + d.company_count, 0);
   const unclassifiedCount = dist.find((d) => d.industry === "(미분류)")?.company_count ?? 0;
+  const classified = dist.filter((d) => d.industry !== "(미분류)" && d.company_count > 0).sort((a, b) => b.company_count - a.company_count);
+  const classifiedTotal = classified.reduce((s, d) => s + d.company_count, 0);
+  // 도넛은 상위 4개 + 나머지 묶음(카테고리 색은 5개까지 고정 배정)
+  const donutSlices = (() => {
+    const top = classified.slice(0, 4).map((d) => ({ label: d.industry, value: d.company_count }));
+    const rest = classified.slice(4).reduce((s, d) => s + d.company_count, 0);
+    return rest > 0 ? [...top, { label: "그 외", value: rest }] : top;
+  })();
+  const industryChartRows = industryAvg.map((r) => ({
+    name: r.label,
+    avg: Math.round(Number(r.avg_value || 0) / 1e4),
+    median: Math.round(Number(r.median_value || 0) / 1e4),
+  }));
+  const fmtMan = (v: number) => `${v.toLocaleString("ko-KR")}만`;
 
   return (
-    <div className="max-w-5xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-extrabold text-[var(--text)]">업계별 분석</h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">
-          업종별 회사 분포 + 미분류 분류 + 업계별 재무 평균.
-          총 {totalCompanies}개 · 미분류 {unclassifiedCount}개.
-        </p>
+    <PfPage>
+      <PfPageHead
+        eyebrow="운영"
+        title="업계 분석"
+        desc="고객사가 어떤 업종에 몰려 있는지 보고, 업종을 아직 안 정한 회사를 분류하며, 업종별 재무 평균을 비교합니다."
+      />
+
+      <div className="pf-kpi-grid">
+        <div className="pf-kpi-tile pf-in" style={{ ["--pf-i" as string]: 1 }}>
+          <PfKpi label="전체 회사" value={totalCompanies} unit="곳" />
+        </div>
+        <div className="pf-kpi-tile pf-in" style={{ ["--pf-i" as string]: 2 }}>
+          <PfKpi label="업종 분류 완료" value={classifiedTotal} unit="곳" />
+        </div>
+        <div className="pf-kpi-tile pf-in" style={{ ["--pf-i" as string]: 3 }}>
+          <PfKpi label="미분류" value={unclassifiedCount} unit="곳" />
+          <div className="mt-1">{unclassifiedCount > 0 ? <PfBadge tone="warn">아래에서 분류</PfBadge> : <PfBadge tone="ok">모두 분류됨</PfBadge>}</div>
+        </div>
+        <div className="pf-kpi-tile pf-in" style={{ ["--pf-i" as string]: 4 }}>
+          <PfKpi label="업종 수" value={classified.length} unit="개" />
+        </div>
       </div>
 
-      {/* 분포 */}
-      <div className="platform-industry-distribution-card glass-card">
-        <h3 className="section-title text-[var(--text)]">업종 분포</h3>
-        <div className="space-y-2">
-          {dist.map((d) => {
-            const pct = totalCompanies > 0 ? (d.company_count / totalCompanies) * 100 : 0;
-            const isUnclassified = d.industry === "(미분류)";
-            return (
-              <button
-                key={d.industry}
-                onClick={() => !isUnclassified && setSelectedIndustry(d.industry === selectedIndustry ? "" : d.industry)}
-                disabled={isUnclassified}
-                className={`platform-industry-bar-row ${!isUnclassified ? "cursor-pointer" : "cursor-default"}`}
-              >
-                <div className={`w-32 shrink-0 text-sm ${isUnclassified ? "text-[var(--warning)]" : "text-[var(--text)]"}`}>
-                  {d.industry}
-                </div>
-                <div className="flex-1 h-6 bg-[var(--bg-surface)] rounded-lg overflow-hidden relative">
-                  <div
-                    className={`h-full ${
-                      isUnclassified ? "bg-[var(--warning)]/30" :
-                      d.industry === selectedIndustry ? "bg-[var(--primary)]/50" : "bg-[var(--primary)]/25 hover:bg-[var(--primary)]/40"
-                    } transition`}
-                    style={{ width: `${Math.max(2, pct)}%` }}
-                  />
-                  <div className="absolute inset-0 flex items-center px-2 text-[11px] font-bold text-[var(--text)]">
-                    {d.company_count}개 · {pct.toFixed(0)}%
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-        {selectedIndustry && (
-          <div className="mt-3 text-[11px] text-[var(--primary)]">
-            선택: <span className="font-bold">{selectedIndustry}</span> — 아래 평균 비교 참조
-          </div>
-        )}
+      {/* 분포 — 도넛(구성비) + 업종 목록(선택) */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <PfCard i={5} className="lg:col-span-2">
+          <PfCardHead title="업종 구성비" sub="분류된 회사 기준 · 상위 4개와 그 외" />
+          <PfCardBody>
+            <PfDonut slices={donutSlices} size={190} centerLabel="분류된 회사" formatCenter={(v) => `${v.toLocaleString()}곳`} />
+          </PfCardBody>
+        </PfCard>
+
+        <PfCard i={6} className="lg:col-span-3" hover={false}>
+          <PfCardHead title="업종별 회사 수" sub="업종을 누르면 아래에 그 업종의 재무 평균이 열립니다" right={selectedIndustry ? <button type="button" onClick={() => setSelectedIndustry("")} className="pf-btn pf-btn-sm pf-btn-ghost">선택 해제</button> : undefined} />
+          {dist.length === 0 ? (
+            <PfEmpty>아직 분포 데이터가 없습니다.</PfEmpty>
+          ) : (
+            <PfRows>
+              {dist.map((d) => {
+                const pct = totalCompanies > 0 ? (d.company_count / totalCompanies) * 100 : 0;
+                const isUnclassified = d.industry === "(미분류)";
+                const on = d.industry === selectedIndustry;
+                const inner = (
+                  <>
+                    <span className={`w-28 shrink-0 text-[12px] font-semibold ${isUnclassified ? "text-[#b45309]" : on ? "text-[var(--primary)]" : "text-[var(--text)]"}`}>{d.industry}</span>
+                    <div className="flex-1 min-w-0"><PfBar pct={Math.max(2, pct)} tone={isUnclassified ? "warn" : "info"} /></div>
+                    <span className="w-24 text-right text-[11px] mono-number text-[var(--text-muted)] shrink-0">{d.company_count}곳 · {pct.toFixed(0)}%</span>
+                  </>
+                );
+                return isUnclassified
+                  ? <PfRow key={d.industry} className="cursor-default">{inner}</PfRow>
+                  : <PfRow key={d.industry} onClick={() => setSelectedIndustry(on ? "" : d.industry)} className={on ? "bg-[var(--primary-light)]" : ""}>{inner}</PfRow>;
+              })}
+            </PfRows>
+          )}
+        </PfCard>
       </div>
 
       {/* 선택 업종 평균 */}
       {selectedIndustry && (
-        <div className="platform-industry-average-card glass-card">
-          <h3 className="section-title text-[var(--text)]">
-            <span className="text-[var(--primary)]">{selectedIndustry}</span> 업종 평균 (최신 월)
-          </h3>
-          {industryAvg.length === 0 ? (
-            <div className="text-sm text-[var(--text-dim)]">해당 업종의 재무 데이터가 없습니다.</div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {industryAvg.map((r) => (
-                <div key={r.metric} className="platform-metric-tile">
-                  <div className="text-[11px] text-[var(--text-dim)]">{r.label}</div>
-                  <div className="text-sm font-bold mono-number text-[var(--primary)] mt-1">평균 {fmtW(r.avg_value)}</div>
-                  <div className="text-[11px] text-[var(--text-muted)]">중앙 {fmtW(r.median_value)}</div>
-                  <div className="text-[10px] text-[var(--text-dim)] mt-1">표본 {r.sample_size}</div>
+        <PfCard i={7}>
+          <PfCardHead title={<><span className="text-[var(--primary)]">{selectedIndustry}</span> 업종 재무 평균</>} sub="최신 월 · 단위 만원 · 평균이 중앙값보다 크면 큰 회사가 끌어올린 것" />
+          <PfCardBody>
+            {industryAvg.length === 0 ? (
+              <PfEmpty>이 업종에는 아직 재무 데이터가 없습니다.</PfEmpty>
+            ) : (
+              <>
+                <PfBars
+                  data={industryChartRows}
+                  xKey="name"
+                  series={[{ key: "avg", label: "평균", format: fmtMan }, { key: "median", label: "중앙값", format: fmtMan }]}
+                  height={Math.max(200, industryAvg.length * 40)}
+                  horizontal
+                  revealKey={selectedIndustry}
+                />
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
+                  {industryAvg.map((r) => (
+                    <div key={r.metric} className="rounded-xl bg-[var(--bg-surface)] px-3 py-2.5">
+                      <div className="text-[11px] text-[var(--text-dim)]">{r.label}</div>
+                      <div className="text-sm font-bold mono-number text-[var(--primary)] mt-0.5">평균 {fmtW(r.avg_value)}</div>
+                      <div className="text-[11px] text-[var(--text-muted)]">중앙 {fmtW(r.median_value)}</div>
+                      <div className="text-[10px] text-[var(--text-dim)] mt-1">표본 {r.sample_size}곳</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </>
+            )}
+          </PfCardBody>
+        </PfCard>
       )}
 
       {/* 미분류 분류 UI */}
-      <div className="platform-unclassified-card glass-card">
-        <h3 className="section-title text-[var(--text)]">
-          미분류 회사 분류
-          {unclassified.length > 0 && (
-            <span className="ml-2 text-xs font-normal text-[var(--warning)]">{unclassified.length}개</span>
-          )}
-        </h3>
+      <PfCard i={8} hover={false}>
+        <PfCardHead
+          title={<>업종을 정하지 않은 회사 {unclassified.length > 0 && <PfBadge tone="warn">{unclassified.length}곳</PfBadge>}</>}
+          sub="업종을 고르면 바로 저장됩니다. 지금은 운영자만 분류할 수 있습니다."
+        />
         {unclassified.length === 0 ? (
-          <div className="text-sm text-[var(--success)]">모든 회사가 분류 완료되었습니다.</div>
+          <PfEmpty ok>모든 회사의 업종이 정해져 있습니다.</PfEmpty>
         ) : (
-          <div className="space-y-2">
+          <PfRows>
             {unclassified.map((c) => (
-              <div key={c.id} className="platform-unclassified-row">
+              <PfRow key={c.id} className="cursor-default">
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm text-[var(--text)] truncate">{c.name}</div>
-                  <div className="text-[11px] text-[var(--text-dim)]">
+                  <div className="pf-row-title">{c.name}</div>
+                  <div className="pf-row-sub">
                     {c.business_number ? `사업자 ${c.business_number} · ` : ""}
                     가입 {kstDateStr(new Date(c.created_at))}
                   </div>
@@ -200,26 +236,25 @@ export default function PlatformIndustryPage() {
                     if (!v) return;
                     setIndustry.mutate({ id: c.id, industry: v });
                   }}
-                  className="px-3 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs text-[var(--text)] focus:outline-none focus:border-[var(--primary)]"
+                  className="pf-btn pf-btn-sm"
                 >
                   <option value="">업종 선택…</option>
                   {INDUSTRY_OPTIONS.map((o) => (
                     <option key={o} value={o}>{o}</option>
                   ))}
                 </select>
-              </div>
+              </PfRow>
             ))}
-          </div>
+          </PfRows>
         )}
         {setIndustry.isError && (
-          <div className="mt-3 text-xs text-[var(--danger)]">{(setIndustry.error as any)?.message || "분류 실패"}</div>
+          <div className="px-5 pb-4 text-[11px] text-[var(--danger)]">{(setIndustry.error as any)?.message || "분류를 저장하지 못했습니다"}</div>
         )}
-      </div>
+      </PfCard>
 
-      <div className="kpi-callout">
-        지금은 운영자만 업종을 분류할 수 있습니다.
-        표본이 적은 업종은 평균의 의미가 제한적이니 유의하세요.
+      <div className="text-[11px] text-[var(--text-dim)] px-1">
+        표본이 적은 업종은 평균이 한두 회사에 크게 흔들리니 참고만 하세요.
       </div>
-    </div>
+    </PfPage>
   );
 }

@@ -4,12 +4,15 @@ import { logRead } from "@/lib/log-read";
 // 플랫폼 운영자 — 고객센터 문의 답변. support_tickets 전체(전사) 조회·답변.
 //   RLS: is_platform_operator() 가 모든 회사 티켓 select/update 허용.
 //   답변 저장 시 트리거가 status='answered' + 사용자 알림 발송.
+//   2026-09-03 운영자 페이지 v2 — pf-* 디자인(KPI 타일·상태/분류 도넛·카드 목록). 데이터·동작은 그대로.
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { OpsSearch, OpsCompanySelect, OpsExportButton, exportCsv } from "../_components/ops-kit";
 import { getCurrentUser } from "@/lib/queries";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSeg, PfEmpty, PfSkeleton } from "@/app/platform/_components/pf/ui";
+import { PfDonut, PfBars } from "@/app/platform/_components/pf/charts";
 
 const db = supabase;
 
@@ -46,10 +49,12 @@ type Ticket = {
   companies?: { name: string | null } | null;
 };
 
-const SEVERITY_META: Record<string, { label: string; cls: string }> = {
-  high: { label: "심각", cls: "bg-red-500/12 text-red-500" },
-  medium: { label: "보통", cls: "bg-[var(--warning-dim)] text-[var(--warning)]" },
-  low: { label: "낮음", cls: "bg-[var(--bg-surface)] text-[var(--text-muted)]" },
+type Tone = "ok" | "warn" | "danger" | "info" | "muted";
+
+const SEVERITY_META: Record<string, { label: string; tone: Tone }> = {
+  high: { label: "심각", tone: "danger" },
+  medium: { label: "보통", tone: "warn" },
+  low: { label: "낮음", tone: "muted" },
 };
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -82,7 +87,7 @@ function TicketShots({ attachments }: { attachments: Attachment[] }) {
     <div className="flex flex-wrap gap-2 mt-3">
       {urls.map((u) => (
         <a key={u.path} href={u.url} target="_blank" rel="noreferrer"
-          className="w-28 h-28 rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--bg-surface)] block"
+          className="w-28 h-28 rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--bg-surface)] block hover:opacity-90 transition"
           title="새 탭에서 크게 보기">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={u.url} alt="첨부 스크린샷" className="w-full h-full object-cover" />
@@ -92,18 +97,18 @@ function TicketShots({ attachments }: { attachments: Attachment[] }) {
   );
 }
 
-const STATUS_META: Record<string, { label: string; cls: string }> = {
-  open: { label: "대기", cls: "bg-[var(--warning-dim)] text-[var(--warning)]" },
-  in_progress: { label: "처리중", cls: "bg-[var(--primary)]/12 text-[var(--primary)]" },
-  answered: { label: "답변완료", cls: "bg-[var(--success-dim)] text-[var(--success)]" },
-  closed: { label: "종료", cls: "bg-[var(--bg-surface)] text-[var(--text-muted)]" },
+const STATUS_META: Record<string, { label: string; tone: Tone }> = {
+  open: { label: "대기", tone: "warn" },
+  in_progress: { label: "처리중", tone: "info" },
+  answered: { label: "답변완료", tone: "ok" },
+  closed: { label: "종료", tone: "muted" },
 };
 
-const FILTERS: { key: string; label: string }[] = [
-  { key: "all", label: "전체" },
-  { key: "open", label: "대기" },
-  { key: "in_progress", label: "처리중" },
-  { key: "answered", label: "답변완료" },
+const FILTERS: { value: string; label: string }[] = [
+  { value: "all", label: "전체" },
+  { value: "open", label: "대기" },
+  { value: "in_progress", label: "처리중" },
+  { value: "answered", label: "답변완료" },
 ];
 
 export default function PlatformSupportPage() {
@@ -132,7 +137,7 @@ export default function PlatformSupportPage() {
     }
   };
 
-  const { data: tickets = [] } = useQuery<Ticket[]>({
+  const { data: tickets = [], isLoading } = useQuery<Ticket[]>({
     queryKey: ["p-support-all"],
     queryFn: async () => {
       const data = logRead('support/page:data', await db
@@ -195,110 +200,158 @@ export default function PlatformSupportPage() {
   }, [tickets, filter, search, companyFilter]);
   const openCount = useMemo(() => tickets.filter((t) => t.status === "open" || t.status === "in_progress").length, [tickets]);
 
+  // KPI·구성 — 상태별/분류별 건수 (전체 티켓 기준, 검색·필터와 무관)
+  const counts = useMemo(() => {
+    const c = { open: 0, in_progress: 0, answered: 0, closed: 0 };
+    tickets.forEach((t) => { if (t.status in c) (c as Record<string, number>)[t.status]++; });
+    return c;
+  }, [tickets]);
+  const byCategory = useMemo(() => {
+    const m = new Map<string, number>();
+    tickets.forEach((t) => m.set(t.category, (m.get(t.category) || 0) + 1));
+    return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ name: CATEGORY_LABEL[k] || k, count: v }));
+  }, [tickets]);
+  const answeredRate = tickets.length ? Math.round(((counts.answered + counts.closed) / tickets.length) * 100) : 0;
+
   return (
-    <div className="max-w-5xl space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-extrabold text-[var(--text)]">고객센터 문의</h1>
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          {openCount > 0 && <span className="px-2.5 py-1 rounded-full bg-[var(--warning-dim)] text-[var(--warning)] font-semibold">미처리 {openCount}</span>}
-          <OpsCompanySelect value={companyFilter} onChange={setCompanyFilter} options={companyOptions} />
-          <OpsSearch value={search} onChange={setSearch} placeholder="제목·내용·회사 검색" />
-          <OpsExportButton
-            disabled={filtered.length === 0}
-            onClick={() => exportCsv(filtered.map((t) => ({
-              상태: t.status === "open" ? "미답변" : t.status === "in_progress" ? "처리중" : "답변완료", 분류: t.category,
-              제목: t.subject, 내용: (t.content || "").slice(0, 200),
-              회사: t.companies?.name || "", 문의자: t.users?.name || t.users?.email || "",
-              접수일: t.created_at?.slice(0, 10) || "",
-            })), "고객센터문의")}
-          />
-          <div className="qk-chips">
-            {FILTERS.map((f) => (
-              <button
-                key={f.key}
-                onClick={() => setFilter(f.key)}
-                className={`${filter === f.key ? "qk-chip qk-chip-on" : "qk-chip"}`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </div>
+    <PfPage>
+      <PfPageHead
+        eyebrow="지원"
+        title="고객센터 문의"
+        desc="고객이 앱 안에서 보낸 문의를 답변합니다. 답변을 저장하면 고객에게 바로 알림이 가고 상태가 '답변완료'로 바뀝니다."
+        actions={
+          <>
+            <OpsCompanySelect value={companyFilter} onChange={setCompanyFilter} options={companyOptions} />
+            <OpsSearch value={search} onChange={setSearch} placeholder="제목·내용·회사 검색" />
+            <OpsExportButton
+              disabled={filtered.length === 0}
+              onClick={() => exportCsv(filtered.map((t) => ({
+                상태: t.status === "open" ? "미답변" : t.status === "in_progress" ? "처리중" : "답변완료", 분류: t.category,
+                제목: t.subject, 내용: (t.content || "").slice(0, 200),
+                회사: t.companies?.name || "", 문의자: t.users?.name || t.users?.email || "",
+                접수일: t.created_at?.slice(0, 10) || "",
+              })), "고객센터문의")}
+            />
+          </>
+        }
+      />
+
+      {/* KPI 타일 */}
+      <div className="pf-kpi-grid">
+        <PfCard i={1} className="pf-kpi-tile"><PfKpi label="답변 기다리는 중" value={counts.open} unit="건" live={counts.open > 0} accent={counts.open > 0} /></PfCard>
+        <PfCard i={2} className="pf-kpi-tile"><PfKpi label="처리중" value={counts.in_progress} unit="건" /></PfCard>
+        <PfCard i={3} className="pf-kpi-tile"><PfKpi label="답변완료" value={counts.answered + counts.closed} unit="건" /></PfCard>
+        <PfCard i={4} className="pf-kpi-tile"><PfKpi label="답변 완료율" value={answeredRate} unit="%" /></PfCard>
       </div>
 
-      <div className="platform-support-ticket-list glass-card">
-        {filtered.length === 0 ? (
-          <div className="text-center py-16 text-sm text-[var(--text-dim)]">문의가 없습니다</div>
+      {/* 구성 — 상태 도넛 + 분류 막대 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <PfCard i={5}>
+          <PfCardHead title="상태별 구성" sub="전체 문의 기준" />
+          <PfCardBody>
+            <PfDonut
+              size={160}
+              centerLabel="전체 문의"
+              slices={[
+                { label: "대기", value: counts.open, color: "var(--chart-2)" },
+                { label: "처리중", value: counts.in_progress, color: "var(--chart-1)" },
+                { label: "답변완료", value: counts.answered, color: "var(--chart-3)" },
+                { label: "종료", value: counts.closed, color: "var(--chart-5)" },
+              ]}
+            />
+          </PfCardBody>
+        </PfCard>
+        <PfCard i={6}>
+          <PfCardHead title="어떤 문의가 많은가" sub="분류별 건수" />
+          <PfCardBody>
+            <PfBars data={byCategory} series={[{ key: "count", label: "문의 수" }]} xKey="name" height={170} horizontal />
+          </PfCardBody>
+        </PfCard>
+      </div>
+
+      {/* 목록 */}
+      <PfCard i={7} hover={false}>
+        <PfCardHead
+          title={<>문의 목록 {openCount > 0 && <PfBadge tone="warn">미처리 {openCount}</PfBadge>}</>}
+          sub={`${filtered.length}건 표시`}
+          right={<PfSeg value={filter} onChange={setFilter} options={FILTERS} />}
+        />
+        {isLoading ? (
+          <div className="px-5 pb-5"><PfSkeleton h={18} rows={4} /></div>
+        ) : filtered.length === 0 ? (
+          <PfEmpty ok={filter !== "all" && filter !== "answered"}>{filter === "open" ? "답변을 기다리는 문의가 없습니다 ✓" : "문의가 없습니다"}</PfEmpty>
         ) : (
-          <div className="divide-y divide-[var(--border)]">
+          <div className="divide-y divide-[var(--border)]/60">
             {filtered.map((t) => {
               const st = STATUS_META[t.status] || STATUS_META.open;
               const draft = drafts[t.id] ?? "";
               return (
-                <div key={t.id} className="platform-support-ticket-row">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${st.cls}`}>{st.label}</span>
-                    <span className="text-[11px] px-2.5 py-1 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)] font-medium">{CATEGORY_LABEL[t.category] || t.category}</span>
-                    <span className="ml-auto text-xs text-[var(--text-dim)]">{new Date(t.created_at).toLocaleString("ko-KR")}</span>
+                <div key={t.id} className="px-5 py-4">
+                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                    <PfBadge tone={st.tone}>{st.label}</PfBadge>
+                    <PfBadge tone="muted">{CATEGORY_LABEL[t.category] || t.category}</PfBadge>
+                    <span className="ml-auto text-[11px] text-[var(--text-dim)] mono-number">{new Date(t.created_at).toLocaleString("ko-KR")}</span>
                   </div>
-                  <div className="font-semibold text-[var(--text)]">{t.subject}</div>
-                  <div className="text-sm text-[var(--text-muted)] mt-1.5 leading-relaxed whitespace-pre-wrap">{t.content}</div>
+                  <div className="font-bold text-[14px] text-[var(--text)]">{t.subject}</div>
+                  <div className="text-[13px] text-[var(--text-muted)] mt-1.5 leading-relaxed whitespace-pre-wrap">{t.content}</div>
                   {Array.isArray(t.attachments) && t.attachments.length > 0 && <TicketShots attachments={t.attachments} />}
-                  <div className="text-xs text-[var(--text-dim)] mt-2 flex items-center gap-2">
+                  <div className="text-[11px] text-[var(--text-dim)] mt-2.5 flex items-center gap-2 flex-wrap">
                     <span>{t.companies?.name || "—"} · {t.users?.name || t.users?.email || "—"}</span>
-                    {t.status === "open" && (
+                    <span className="ml-auto flex items-center gap-1.5">
+                      {t.status === "open" && (
+                        <button
+                          onClick={() => startProgressMut.mutate(t.id)}
+                          disabled={startProgressMut.isPending}
+                          className="pf-btn pf-btn-sm"
+                          title="고객 화면의 진행 단계가 '처리중'으로 바뀝니다"
+                        >
+                          처리 시작
+                        </button>
+                      )}
                       <button
-                        onClick={() => startProgressMut.mutate(t.id)}
-                        disabled={startProgressMut.isPending}
-                        className="ml-auto px-2 py-1 rounded-lg bg-[var(--warning-dim)] text-[var(--warning)] font-semibold hover:opacity-80 transition disabled:opacity-50"
-                        title="고객 화면의 진행 단계가 '처리중'으로 바뀝니다"
+                        onClick={() => runAnalyze(t.id)}
+                        disabled={analyzingId !== null}
+                        className="pf-btn pf-btn-sm"
+                        title="문의 본문·첨부 스크린샷·최근 에러 로그를 AI 로 대조 분석합니다"
                       >
-                        처리 시작
+                        {analyzingId === t.id ? "분석 중…" : t.ai_analysis ? "AI 재분석" : "AI 분석"}
                       </button>
-                    )}
-                    <button
-                      onClick={() => runAnalyze(t.id)}
-                      disabled={analyzingId !== null}
-                      className={`px-2 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/20 transition disabled:opacity-50 ${t.status === "open" ? "" : "ml-auto"}`}
-                      title="문의 본문·첨부 스크린샷·최근 에러 로그를 AI 로 대조 분석합니다"
-                    >
-                      {analyzingId === t.id ? "분석 중…" : t.ai_analysis ? "AI 재분석" : "AI 분석"}
-                    </button>
+                    </span>
                   </div>
 
                   {t.ai_analysis && (
-                    <div className="mt-3 rounded-xl p-3.5 border border-[var(--primary)]/20 bg-[var(--primary)]/5 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-[var(--primary)]">AI 진단</span>
+                    <div className="mt-3 rounded-2xl p-4 border border-[var(--primary)]/20 bg-[var(--primary)]/5 space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[12px] font-bold text-[var(--primary)]">AI 진단</span>
                         {t.ai_analysis.severity && (
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(SEVERITY_META[t.ai_analysis.severity] || SEVERITY_META.low).cls}`}>
+                          <PfBadge tone={(SEVERITY_META[t.ai_analysis.severity] || SEVERITY_META.low).tone}>
                             {(SEVERITY_META[t.ai_analysis.severity] || SEVERITY_META.low).label}
-                          </span>
+                          </PfBadge>
                         )}
-                        {t.ai_analysis.needs_dev && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/12 text-red-500">개발 수정 필요</span>}
+                        {t.ai_analysis.needs_dev && <PfBadge tone="danger">개발 수정 필요</PfBadge>}
                         {t.ai_analysis.resolution === "simple" && !t.answer && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--success-dim)] text-[var(--success)]" title="AI 판단: 초안 검토만으로 바로 답변 가능한 간단한 건입니다 — 등록은 사람이 합니다">간단 건 — 초안 검토 후 등록</span>
+                          <span title="AI 판단: 초안 검토만으로 바로 답변 가능한 간단한 건입니다 — 등록은 사람이 합니다"><PfBadge tone="ok">간단 건 — 초안 검토 후 등록</PfBadge></span>
                         )}
                         {t.ai_analysis.analyzed_at && <span className="ml-auto text-[10px] text-[var(--text-dim)]">{new Date(t.ai_analysis.analyzed_at).toLocaleString("ko-KR")}</span>}
                       </div>
-                      {t.ai_analysis.summary && <div className="text-sm font-semibold text-[var(--text)]">{t.ai_analysis.summary}</div>}
+                      {t.ai_analysis.summary && <div className="text-[13px] font-semibold text-[var(--text)]">{t.ai_analysis.summary}</div>}
                       {t.ai_analysis.screenshot_findings && (
-                        <div className="text-xs text-[var(--text-muted)] leading-relaxed"><b className="text-[var(--text)]">스크린샷:</b> {t.ai_analysis.screenshot_findings}</div>
+                        <div className="text-[12px] text-[var(--text-muted)] leading-relaxed"><b className="text-[var(--text)]">스크린샷:</b> {t.ai_analysis.screenshot_findings}</div>
                       )}
                       {t.ai_analysis.probable_cause && (
-                        <div className="text-xs text-[var(--text-muted)] leading-relaxed"><b className="text-[var(--text)]">추정 원인:</b> {t.ai_analysis.probable_cause}</div>
+                        <div className="text-[12px] text-[var(--text-muted)] leading-relaxed"><b className="text-[var(--text)]">추정 원인:</b> {t.ai_analysis.probable_cause}</div>
                       )}
                       {(t.ai_analysis.matched_errors || []).length > 0 && (
-                        <ul className="text-xs text-[var(--text-muted)] leading-relaxed list-disc pl-4">
+                        <ul className="text-[12px] text-[var(--text-muted)] leading-relaxed list-disc pl-4">
                           {t.ai_analysis.matched_errors!.map((m, i) => <li key={i}>{m}</li>)}
                         </ul>
                       )}
                       {t.ai_analysis.suggested_reply && (
                         <div className="pt-1 flex items-start gap-2">
-                          <div className="text-xs text-[var(--text-muted)] leading-relaxed flex-1"><b className="text-[var(--text)]">답변 초안:</b> {t.ai_analysis.suggested_reply}</div>
+                          <div className="text-[12px] text-[var(--text-muted)] leading-relaxed flex-1"><b className="text-[var(--text)]">답변 초안:</b> {t.ai_analysis.suggested_reply}</div>
                           <button
                             onClick={() => setDrafts((d) => ({ ...d, [t.id]: t.ai_analysis?.suggested_reply || "" }))}
-                            className="shrink-0 px-2 py-1 rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] text-[11px] font-semibold hover:text-[var(--text)] transition"
+                            className="pf-btn pf-btn-sm shrink-0"
                             title="답변 입력칸에 초안을 채웁니다 (검토 후 등록)"
                           >
                             초안 사용
@@ -309,16 +362,16 @@ export default function PlatformSupportPage() {
                   )}
 
                   {t.answer && (
-                    <div className="platform-support-answer-block">
+                    <div className="mt-3 rounded-2xl p-4 border border-[var(--success)]/25 bg-[var(--success)]/5">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-bold text-[var(--success)]">등록된 답변</span>
+                        <span className="text-[12px] font-bold text-[var(--success)]">등록된 답변</span>
                         {t.answered_at && <span className="text-[11px] text-[var(--text-dim)]">{new Date(t.answered_at).toLocaleString("ko-KR")}</span>}
                       </div>
-                      <div className="text-sm text-[var(--text)] whitespace-pre-wrap leading-relaxed">{t.answer}</div>
+                      <div className="text-[13px] text-[var(--text)] whitespace-pre-wrap leading-relaxed">{t.answer}</div>
                     </div>
                   )}
 
-                  <div className="platform-support-answer-form">
+                  <div className="mt-3">
                     <textarea
                       value={draft}
                       onChange={(e) => setDrafts((d) => ({ ...d, [t.id]: e.target.value }))}
@@ -330,7 +383,7 @@ export default function PlatformSupportPage() {
                       <button
                         onClick={() => answerMut.mutate({ id: t.id, answer: draft })}
                         disabled={!draft.trim() || answerMut.isPending}
-                        className="btn-primary text-xs"
+                        className="pf-btn pf-btn-primary pf-btn-sm"
                       >
                         {answerMut.isPending ? "저장 중…" : t.answer ? "답변 수정" : "답변 등록"}
                       </button>
@@ -341,7 +394,7 @@ export default function PlatformSupportPage() {
             })}
           </div>
         )}
-      </div>
-    </div>
+      </PfCard>
+    </PfPage>
   );
 }

@@ -5,7 +5,8 @@ import { logRead } from "@/lib/log-read";
 import { fetchPaged } from "@/lib/fetch-paged";
 import { planOf, countPlanKinds, type PlanKind as PK } from "./_components/plan-kind";
 import { AnalyticsSection } from "./_components/analytics-section";
-import { Donut, GaugeArc, VizLegend, VIZ_GRAY } from "./_components/viz";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfKpiKrw, PfBadge, PfRows, PfRow, PfEmpty, PfBar, fmtKrwShort } from "./_components/pf/ui";
+import { PfDonut, PfRings, PfGauge, PfFunnel } from "./_components/pf/charts";
 
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -327,29 +328,29 @@ export default function PlatformOverview() {
   const fmtD = (iso?: string | null) => (iso ? kstDateStr(new Date(iso)) : "기록 없음");
   const fmtDT = (iso?: string | null) =>
     iso ? new Date(iso).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
-  const riskRows: { type: string; cls: string; who: string; detail: string }[] = [
+  const riskRows: { type: string; tone: "ok" | "warn" | "danger" | "info" | "muted"; who: string; detail: string }[] = [
     ...trialEndingSoon.map((s: any) => ({
-      type: "체험 만료 임박", cls: "platform-risk-trial",
+      type: "체험 만료 임박", tone: "warn" as const,
       who: s.companies?.name || "-",
       detail: `${fmtD(s.trial_ends_at)} 종료`,
     })),
     ...cancelScheduled.map((s: any) => ({
-      type: "해지 예약", cls: "platform-risk-cancel",
+      type: "해지 예약", tone: "warn" as const,
       who: s.companies?.name || "-",
       detail: s.current_period_end ? `${fmtD(s.current_period_end)}까지 이용` : "기간 종료 시 해지",
     })),
     ...pastDue.map((s: any) => ({
-      type: "결제 실패", cls: "platform-risk-pastdue",
+      type: "결제 실패", tone: "danger" as const,
       who: s.companies?.name || "-",
       detail: "카드 확인 필요",
     })),
     ...staleJoinReqs.map((r) => ({
-      type: "합류요청 방치", cls: "platform-risk-join",
+      type: "합류요청 방치", tone: "info" as const,
       who: `${r.company} ← ${r.email}`,
       detail: `${r.days}일째 대기`,
     })),
     ...dormant.map((d) => ({
-      type: "휴면 위험", cls: "platform-risk-dormant",
+      type: "휴면 위험", tone: "muted" as const,
       who: `${d.name} (${d.plan})`,
       // "접속"이 아니라 로그인·업무행위·방문을 합친 마지막 활동 시각이다.
       //   last_sign_in_at 만 보던 시절, 오늘 도입문의를 넣은 회사가 "마지막 접속 3월"로
@@ -364,16 +365,16 @@ export default function PlatformOverview() {
     .filter((a) => a.last_activity && nowMs - new Date(a.last_activity).getTime() < ACTIVE_WINDOW_MS)
     .sort((a, b) => String(b.last_activity).localeCompare(String(a.last_activity)));
 
-  // 도넛 데이터 — 고객 구성은 앱 배지와 같은 상태색(엔티티 일관), CODEF 원가는
+  // 구성비 데이터 — 고객 구성은 앱 배지와 같은 상태색(엔티티 일관), CODEF 원가는
   //   검증된 카테고리 팔레트를 고정 순서로 배정(순환 금지, dataviz 규칙).
-  const planDonut = [
+  const planSlices = [
     { label: "유료", value: kindCounts.paid, color: "var(--success)" },
-    { label: "체험 중", value: kindCounts.trial, color: "var(--warning)" },
+    { label: "체험 중", value: kindCounts.trial, color: "var(--chart-2)" },
     { label: "체험 만료", value: kindCounts.expired, color: "var(--danger)" },
-    { label: "미구독", value: kindCounts.free, color: VIZ_GRAY },
+    { label: "미구독", value: kindCounts.free, color: "var(--chart-5)" },
   ];
   // CODEF API별 사용률 — 사장님(2026-08-05): API(상품)당 월 10만원까지 포함, 초과분부터 과금.
-  //   10만원 = 100% 로 두고 각 API 사용액을 퍼센트 게이지로 보여준다.
+  //   10만원 = 100% 로 두고 각 API 사용액을 링으로 보여준다.
   const CODEF_PRODUCT_LIMIT = codefUsage?.product_limit ?? 100_000;
   const codefApiBars = (codefUsage?.products ?? [])
     .filter((p) => (p.amount ?? 0) > 0)
@@ -390,313 +391,240 @@ export default function PlatformOverview() {
   const inboxItems = [
     { label: "신규 도입문의", n: (newInquiries as any[]).length, href: "/platform/partnership", icon: "📥" },
     { label: "미답변 고객센터", n: (openTickets as any[]).length, href: "/platform/support", icon: "🎧" },
-    { label: "24시간 에러", n: recentErrors.length, href: "/platform/health", icon: "🚨", danger: recentErrors.length > 50 },
+    { label: "24시간 에러", n: recentErrors.length, href: "/platform/errors", icon: "🚨", danger: recentErrors.length > 50 },
   ];
   const todoTotal = inboxItems.reduce((s, i) => s + i.n, 0);
+  const partialFail = usageErr || trafficErr || funnelErr || opsRiskErr;
 
   return (
-    <div className="max-w-[1400px] space-y-6">
-      {/* 히어로 밴드 — 인사·날짜 + 핵심 지표 4개 (2026-07-28 전면 재배치) */}
-      <div className="platform-hero chrome-glass">
-        <div className="min-w-0">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)]">
-            {clock ? (
-              <>{kstDateStr(clock)} <span className="mono-number text-[var(--text-muted)]">{clock.toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" })}</span> · 1분마다 갱신</>
-            ) : "1분마다 갱신"}
-          </div>
-          <h1 className="text-xl md:text-2xl font-extrabold text-[var(--text)] mt-0.5">플랫폼 개요</h1>
-          <span className={`platform-header-live mt-2 inline-block ${todoTotal > 0 ? "platform-header-live-warn" : ""}`}>
-            {todoTotal > 0 ? `처리 대기 ${todoTotal}건` : "모두 처리됨 ✓"}
-          </span>
-          {(usageErr || trafficErr || funnelErr || opsRiskErr) && (
-            <span className="platform-header-live platform-header-live-warn mt-2 ml-2 inline-block" title="일부 지표를 불러오지 못했습니다 — 표시된 0은 실제 0이 아닐 수 있습니다">
-              <Ico e="⚠" /> 일부 데이터 로드 실패
-            </span>
-          )}
-        </div>
-        <div className="platform-hero-metrics">
-          {[
-            { label: "MRR", value: fmtW(mrr), accent: true },
-            { label: "총 가입사", value: `${totalCompanies}곳` },
-            { label: "유료 전환율", value: `${conversionRate}%` },
-            { label: "오늘 활동", value: `${usage?.accounts?.dau ?? 0}명` },
-            { label: "지금 접속", value: `${activeNow.length}곳`, live: activeNow.length > 0 },
-          ].map((m: any) => (
-            // ⚠️ stat-fit(container-type) 금지 — flex 아이템이라 폭이 0으로 붕괴해 라벨이 세로로 깨졌다
-            //   (2026-08-04 렌더 확인으로 발견). 값은 fmtW 로 짧게 축약되므로 고정 크기로 충분.
-            <div key={m.label} className="platform-hero-metric">
-              <span className={`text-xl md:text-2xl leading-tight font-extrabold mono-number whitespace-nowrap ${m.accent ? "text-[var(--primary)]" : m.live ? "text-[var(--success)]" : "text-[var(--text)]"}`}>
-                {m.live && <span className="platform-active-dot mr-1.5" />}{m.value}
-              </span>
-              <span className="text-[11px] font-semibold text-[var(--text-muted)]">{m.label}</span>
-            </div>
-          ))}
-        </div>
+    <PfPage>
+      {/* ── 머리: 인사·시각 + 처리 대기 배지 ── */}
+      <PfPageHead
+        eyebrow="플랫폼 개요"
+        title="오늘의 오너뷰"
+        desc={<>
+          {clock ? <>{kstDateStr(clock)} <span className="mono-number">{clock.toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" })}</span> 기준 · </> : null}
+          1분마다 자동 갱신 · 숫자를 누르면 해당 목록으로 이동합니다
+        </>}
+        actions={<>
+          <PfBadge tone={todoTotal > 0 ? "warn" : "ok"} className="!text-[11px] !px-2.5 !py-1">{todoTotal > 0 ? `처리 대기 ${todoTotal}건` : "모두 처리됨 ✓"}</PfBadge>
+          {partialFail && <PfBadge tone="danger" className="!text-[11px] !px-2.5 !py-1" >일부 지표 로드 실패 — 0이 실제 0이 아닐 수 있음</PfBadge>}
+        </>}
+      />
+
+      {/* ── KPI 줄 — 숫자가 굴러가며 바뀐다 ── */}
+      <div className="pf-kpi-grid">
+        <PfCard i={1} className="pf-kpi-tile"><PfKpiKrw label="MRR (월 반복 매출)" value={mrr} accent /></PfCard>
+        <PfCard i={2} className="pf-kpi-tile"><PfKpi label="총 가입사" value={totalCompanies} unit="곳" delta={thisMonth} deltaLabel="이번 달" /></PfCard>
+        <PfCard i={3} className="pf-kpi-tile"><PfKpi label="유료 전환율" value={Number(conversionRate)} unit="%" format={{ maximumFractionDigits: 1 }} /></PfCard>
+        <PfCard i={4} className="pf-kpi-tile"><PfKpi label="오늘 활동한 사람" value={usage?.accounts?.dau ?? 0} unit="명" /></PfCard>
+        <PfCard i={5} className="pf-kpi-tile"><PfKpi label="지금 접속 중인 회사" value={activeNow.length} unit="곳" live={activeNow.length > 0} /></PfCard>
+        <PfCard i={6} className="pf-kpi-tile"><PfKpi label="전체 사용자" value={totalUsers} unit="명" /></PfCard>
       </div>
 
-      {/* ── 시각화 1행: 수익(다크 피처) · 고객 구성 · CODEF 원가 (2026-08-04 전면 개편) ── */}
-      <div className="platform-viz-top">
+      {/* ── 시각화 1행: 수익(다크 피처) · 고객 구성 · CODEF 원가 ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* 수익 — 다크 피처 카드 (헤드라인 + 전환율 게이지) */}
-        <div className="platform-revcard">
-          <div className="platform-revcard-head">
-            <span>수익</span>
-            <Link href="/platform/revenue" className="platform-revcard-link">상세 →</Link>
-          </div>
-          <div className="platform-revcard-main">
-            <div className="min-w-0">
-              <div className="platform-revcard-label">MRR</div>
-              <div className="platform-revcard-mrr mono-number">{fmtW(mrr)}</div>
-              <div className="platform-revcard-delta">이번 달 신규 +{thisMonth}곳</div>
+        <PfCard i={7} dark>
+          <PfCardHead title="수익" href="/platform/revenue" />
+          <PfCardBody>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="min-w-[150px] flex-1">
+                <div className="text-[11px] font-semibold text-slate-400">MRR</div>
+                <div className="text-3xl font-black leading-tight whitespace-nowrap mono-number">{fmtKrwShort(mrr)}</div>
+                <div className="text-[11px] text-indigo-300 mt-1">이번 달 신규 +{thisMonth}곳 · 유료 {paidSubs}곳</div>
+              </div>
+              <div className="shrink-0"><PfGauge pct={Number(conversionRate)} label="유료 전환율" width={140} tone="info" /></div>
             </div>
-            <GaugeArc pct={Number(conversionRate)} color="#3987e5" track="rgba(148,163,184,0.25)"
-              label={<><b className="mono-number">{conversionRate}%</b><span>유료 전환율</span></>} />
-          </div>
-          <div className="platform-revcard-stats">
-            <div><span className="mono-number">{fmtW(mrr * 12)}</span><span>ARR</span></div>
-            <div><span className="mono-number">{fmtW(totalRevenue)}</span><span>누적 매출</span></div>
-            <div><span className="mono-number">{kindCounts.paid}곳</span><span>유료 구독</span></div>
-          </div>
-        </div>
-
-        {/* 고객 구성 — 도넛 + 범례(수치 표 겸용) */}
-        <div className="platform-viz-card glass-card">
-          <div className="platform-viz-card-head">
-            <span className="platform-card-title">고객 구성</span>
-            <span className="text-[11px] text-[var(--text-dim)]">이번 달 신규 +{thisMonth}</span>
-          </div>
-          <div className="platform-viz-card-body">
-            <Donut segments={planDonut} centerTop={`${totalCompanies}곳`} centerSub="총 가입사" />
-            <VizLegend rows={planDonut.map((x) => ({
-              label: x.label, color: x.color, value: `${x.value}곳`,
-              sub: totalCompanies ? `${Math.round((x.value / totalCompanies) * 100)}%` : "0%",
-            }))} />
-          </div>
-        </div>
-
-        {/* CODEF 사용량 — API별 게이지: 월 10만원(포함분) = 100%, 초과분부터 과금 (2026-08-05 사장님) */}
-        <div className="platform-viz-card glass-card">
-          <div className="platform-viz-card-head">
-            <span className="platform-card-title">CODEF 사용량 <span className="text-[10px] font-normal text-[var(--text-dim)]">이번 달 · API당 ₩{CODEF_PRODUCT_LIMIT.toLocaleString()} 포함</span></span>
-            <Link href="/platform/codef-usage" className="text-[11px] text-[var(--primary)] hover:underline">상세 →</Link>
-          </div>
-          {codefApiBars.length === 0 ? (
-            <div className="text-[12px] text-[var(--text-dim)] py-4">이번 달 과금 호출이 없습니다.</div>
-          ) : (
-            <div className="space-y-2.5 mt-1">
-              {codefApiBars.slice(0, 5).map((b) => (
-                <div key={b.name}>
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="text-[11px] font-semibold text-[var(--text)] truncate">{b.name}</span>
-                    <span className={`text-[11px] font-bold mono-number shrink-0 ${b.over > 0 ? "text-[var(--danger)]" : b.pct >= 80 ? "text-[var(--warning)]" : "text-[var(--text-muted)]"}`}>
-                      {b.pct}% <span className="font-normal text-[var(--text-dim)]">₩{b.amount.toLocaleString()}</span>
-                    </span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${Math.min(100, b.pct)}%`,
-                        background: b.over > 0 ? "var(--danger)" : b.pct >= 80 ? "var(--warning)" : "var(--primary)",
-                      }}
-                    />
-                  </div>
-                  {b.over > 0 && (
-                    <div className="text-[10px] text-[var(--danger)] mt-0.5">한도 초과 ₩{b.over.toLocaleString()} — 초과분부터 과금</div>
-                  )}
+            <div className="grid grid-cols-3 divide-x divide-white/10 mt-4 pt-3 border-t border-white/10">
+              {[
+                { v: fmtKrwShort(mrr * 12), l: "ARR" },
+                { v: fmtKrwShort(totalRevenue), l: "누적 매출" },
+                { v: `${activeSubs}곳`, l: "유료+체험" },
+              ].map((x) => (
+                <div key={x.l} className="flex flex-col gap-0.5 px-3 first:pl-0 min-w-0">
+                  <span className="text-sm font-extrabold whitespace-nowrap mono-number">{x.v}</span>
+                  <span className="text-[10px] text-slate-400">{x.l}</span>
                 </div>
               ))}
-              {codefApiBars.length > 5 && (
-                <div className="text-[10px] text-[var(--text-dim)]">외 {codefApiBars.length - 5}개 API — 상세에서 전체 확인</div>
-              )}
-              <div className="flex items-center justify-between text-[11px] pt-1 border-t border-[var(--border)]">
-                <span className="text-[var(--text-muted)]">이번 달 사용액 합계</span>
-                <span className="font-bold mono-number">₩{codefAmountTotal.toLocaleString()}{codefOverTotal > 0 && <span className="text-[var(--danger)]"> · 과금 ₩{codefOverTotal.toLocaleString()}</span>}</span>
-              </div>
             </div>
-          )}
-        </div>
+          </PfCardBody>
+        </PfCard>
+
+        {/* 고객 구성 — 도넛 + 범례(수치 표 겸용) */}
+        <PfCard i={8}>
+          <PfCardHead title="고객 구성" sub={`이번 달 신규 +${thisMonth}`} href="/platform/customers" />
+          <PfCardBody><PfDonut slices={planSlices} size={150} centerLabel="총 가입사" formatCenter={(t) => `${t}곳`} /></PfCardBody>
+        </PfCard>
+
+        {/* CODEF 사용량 — API별 링: 월 10만원(포함분) = 100%, 초과분부터 과금 (2026-08-05 사장님) */}
+        <PfCard i={9}>
+          <PfCardHead title="CODEF 사용량" sub={`이번 달 · API당 ₩${CODEF_PRODUCT_LIMIT.toLocaleString()} 포함, 넘는 만큼 과금`} href="/platform/codef-usage" />
+          <PfCardBody>
+            {codefApiBars.length === 0 ? (
+              <PfEmpty>이번 달 과금 호출이 없습니다.</PfEmpty>
+            ) : (
+              <>
+                <PfRings size={150} centerLabel="사용액" formatCenter={(v) => `₩${Math.round(v).toLocaleString()}`}
+                  items={codefApiBars.slice(0, 4).map((b) => ({ label: b.name, value: b.amount, max: b.limit }))} />
+                <div className="flex items-center justify-between text-[11px] pt-3 mt-3 border-t border-[var(--border)]/60">
+                  <span className="text-[var(--text-muted)]">이번 달 사용액 합계{codefApiBars.length > 4 ? ` · 외 ${codefApiBars.length - 4}개 API` : ""}</span>
+                  <span className="font-bold mono-number">₩{codefAmountTotal.toLocaleString()}{codefOverTotal > 0 && <span className="text-[var(--danger)]"> · 과금 ₩{codefOverTotal.toLocaleString()}</span>}</span>
+                </div>
+              </>
+            )}
+          </PfCardBody>
+        </PfCard>
       </div>
 
-      {/* ── 2행: 지금 활동중 · 오늘 봐야 할 것(성장 신호 합본) · 위험 신호 ── */}
-      <div className="platform-viz-mid">
-        {/* 지금 활동중 — 마지막 활동 10분 이내 회사 (현황판 라이브 신호) */}
-        <div className="glass-card p-0 overflow-hidden">
-          <div className="platform-card-head">
-            <span className="platform-card-title"><span className={`platform-active-dot mr-1.5 ${activeNow.length === 0 ? "platform-active-dot-off" : ""}`} />지금 활동중</span>
-            <span className="platform-rail-count">{activeNow.length}</span>
-          </div>
+      {/* ── 2행: 지금 활동중 · 시스템 에러 · 고객센터 문의 ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        <PfCard i={10}>
+          <PfCardHead title={<><span className={`pf-live ${activeNow.length === 0 ? "pf-live-off" : ""}`} />지금 활동중</>} sub="최근 10분 안에 접속한 회사" right={<span className="text-lg font-extrabold mono-number text-[var(--text)]">{activeNow.length}</span>} />
           {activeNow.length === 0 ? (
-            <div className="px-4 py-5 text-[12px] text-[var(--text-dim)]">최근 10분 내 접속한 회사가 없습니다.</div>
+            <PfEmpty>최근 10분 내 접속한 회사가 없습니다.</PfEmpty>
           ) : (
-            <div className="platform-rail-rows">
+            <PfRows>
               {activeNow.slice(0, 6).map((a) => {
                 const mins = Math.max(0, Math.floor((nowMs - new Date(a.last_activity!).getTime()) / 60_000));
                 return (
-                  <Link key={a.company_id} href={`/platform/companies/${a.company_id}`} className="platform-rail-row">
-                    <span className="platform-active-dot shrink-0" />
-                    <span className="flex-1 text-[12px] font-semibold text-[var(--text)] truncate">{a.company || "이름 없음"}</span>
+                  <PfRow key={a.company_id} href={`/platform/companies/${a.company_id}`}>
+                    <span className="pf-live shrink-0" />
+                    <span className="pf-row-title flex-1">{a.company || "이름 없음"}</span>
                     <span className="text-[11px] mono-number text-[var(--text-dim)]">{mins === 0 ? "방금" : `${mins}분 전`}</span>
-                  </Link>
+                  </PfRow>
                 );
               })}
-              {activeNow.length > 6 && (
-                <div className="px-4 py-2 text-[11px] text-[var(--text-dim)]">외 {activeNow.length - 6}곳</div>
-              )}
-            </div>
+              {activeNow.length > 6 && <div className="pf-row-more">외 {activeNow.length - 6}곳</div>}
+            </PfRows>
           )}
-        </div>
+        </PfCard>
 
-        {/* 시스템 에러 — 24시간 미해결 (시스템 상태에서 오는 신호) */}
-        <div className="glass-card p-0 overflow-hidden">
-          <div className="platform-card-head">
-            <span className="platform-card-title">시스템 에러 <span className="text-[10px] font-normal text-[var(--text-dim)]">24시간 · 미해결</span></span>
-            <Link href="/platform/health" className="text-[11px] text-[var(--primary)] hover:underline">전체 →</Link>
-          </div>
+        {/* 시스템 에러 — 24시간 미해결 (사람 말로: 2026-09-03 사장님) */}
+        <PfCard i={11}>
+          <PfCardHead title="시스템 에러" sub="24시간 · 미해결" href="/platform/errors" action="전체 →" />
           {recentErrors.length === 0 ? (
-            <div className="px-4 py-5 text-[12px] text-[var(--text-dim)]">최근 24시간 미해결 에러가 없습니다 ✓</div>
+            <PfEmpty ok>최근 24시간 미해결 에러가 없습니다 ✓</PfEmpty>
           ) : (
-            <div className="platform-rail-rows">
+            <PfRows>
               {(recentErrors as any[]).slice(0, 5).map((e) => {
-                //   사람 말로 (2026-09-03 사장님: 운영자 페이지는 비전공자도 알아보게) — 기술 코드·원문 대신
-                //   "무슨 일인지" 한 줄 + 심각도. 원문은 전체 화면(시스템 상태)에서 본다.
                 const exp = explainOperatorError(e.message, e.error_type, null);
-                const tone = SEVERITY_TONE[exp.severity];
+                const tone = exp.severity === "critical" ? "danger" : exp.severity === "high" ? "warn" : exp.severity === "medium" ? "info" : "muted";
                 return (
-                  <Link key={e.id} href="/platform/errors" className="platform-rail-row">
-                    <span className={`platform-badge shrink-0 ${tone.bg} ${tone.text}`}>{tone.label}</span>
+                  <PfRow key={e.id} href="/platform/errors">
+                    <PfBadge tone={tone}>{SEVERITY_TONE[exp.severity].label}</PfBadge>
                     <div className="flex-1 min-w-0">
                       <div className="text-[12px] font-medium text-[var(--text)] line-clamp-2">{exp.what}</div>
-                      <div className="text-[10px] text-[var(--text-dim)]">{fmtDT(e.created_at)}{e.dup_count > 1 ? ` · ${e.dup_count}회 반복` : ""}</div>
+                      <div className="pf-row-sub">{fmtDT(e.created_at)}{e.dup_count > 1 ? ` · ${e.dup_count}회 반복` : ""}</div>
                     </div>
-                  </Link>
+                  </PfRow>
                 );
               })}
-              {recentErrors.length > 5 && (
-                <div className="px-4 py-2 text-[11px] text-[var(--text-dim)]">외 {recentErrors.length - 5}건 — 전체는 시스템 상태에서</div>
-              )}
-            </div>
+              {recentErrors.length > 5 && <div className="pf-row-more">외 {recentErrors.length - 5}건 — 전체는 시스템 상태에서</div>}
+            </PfRows>
           )}
-        </div>
+        </PfCard>
 
         {/* 고객센터 문의 — 미답변 */}
-        <div className="glass-card p-0 overflow-hidden">
-          <div className="platform-card-head">
-            <span className="platform-card-title">고객센터 문의 <span className="text-[10px] font-normal text-[var(--text-dim)]">미답변</span></span>
-            <Link href="/platform/support" className="text-[11px] text-[var(--primary)] hover:underline">전체 →</Link>
-          </div>
+        <PfCard i={12}>
+          <PfCardHead title="고객센터 문의" sub="미답변" href="/platform/support" action="전체 →" />
           {openTickets.length === 0 ? (
-            <div className="px-4 py-5 text-[12px] text-[var(--text-dim)]">미답변 문의가 없습니다 ✓</div>
+            <PfEmpty ok>미답변 문의가 없습니다 ✓</PfEmpty>
           ) : (
-            <div className="platform-rail-rows">
+            <PfRows>
               {(openTickets as any[]).slice(0, 5).map((t) => (
-                <div key={t.id} className="platform-rail-row cursor-default">
+                <div key={t.id} className="pf-row">
                   <span className="text-sm shrink-0"><Ico e="🎧" /></span>
                   <Link href="/platform/support" className="flex-1 min-w-0">
-                    <div className="text-[12px] font-medium text-[var(--text)] truncate">{t.subject || "(제목 없음)"}</div>
-                    <div className="text-[10px] text-[var(--text-dim)]">{t.companies?.name || "-"} · {fmtDT(t.created_at)}</div>
+                    <div className="pf-row-title">{t.subject || "(제목 없음)"}</div>
+                    <div className="pf-row-sub">{t.companies?.name || "-"} · {fmtDT(t.created_at)}</div>
                   </Link>
-                  <button type="button" onClick={() => markTicketInProgress(t.id)} className="ticket-progress-btn" title="처리중으로 표시 — 답변은 고객센터에서">
-                    처리중
-                  </button>
+                  <button type="button" onClick={() => markTicketInProgress(t.id)} className="pf-btn pf-btn-sm" title="처리중으로 표시 — 답변은 고객센터에서">처리중</button>
                 </div>
               ))}
-              {openTickets.length > 5 && (
-                <div className="px-4 py-2 text-[11px] text-[var(--text-dim)]">외 {openTickets.length - 5}건</div>
-              )}
-            </div>
+              {openTickets.length > 5 && <div className="pf-row-more">외 {openTickets.length - 5}건</div>}
+            </PfRows>
           )}
-        </div>
+        </PfCard>
+      </div>
 
-        {/* 오늘 봐야 할 것 + 성장 신호 */}
-        <div className="glass-card p-0 overflow-hidden">
-          <div className="platform-card-head">
-            <span className="platform-card-title">오늘 봐야 할 것</span>
-            <span className={`platform-rail-count ${todoTotal > 0 ? "platform-rail-count-warn" : ""}`}>{todoTotal}</span>
-          </div>
-          <div className="platform-rail-rows">
+      {/* ── 3행: 오늘 봐야 할 것 · 위험 신호 · 오늘 가입 퍼널 ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        <PfCard i={13}>
+          <PfCardHead title="오늘 봐야 할 것" right={<PfBadge tone={todoTotal > 0 ? "warn" : "ok"}>{todoTotal}</PfBadge>} />
+          <PfRows>
             {inboxItems.map((it) => (
-              <Link key={it.label} href={it.href} className="platform-rail-row">
+              <PfRow key={it.label} href={it.href}>
                 <span className="text-sm shrink-0"><Ico e={it.icon} /></span>
                 <span className="flex-1 text-[12px] font-semibold text-[var(--text-muted)] truncate">{it.label}</span>
-                <span className={`platform-rail-badge ${it.n === 0 ? "" : it.danger ? "platform-rail-badge-danger" : "platform-rail-badge-warn"}`}>{it.n}</span>
-              </Link>
+                <PfBadge tone={it.n === 0 ? "muted" : it.danger ? "danger" : "warn"}>{it.n}</PfBadge>
+              </PfRow>
             ))}
             {(opsRisk?.sales_codes ?? []).slice(0, 2).map((sc) => (
-              <Link key={sc.code} href="/platform/sales-codes" className="platform-rail-row">
+              <PfRow key={sc.code} href="/platform/sales-codes">
                 <span className="text-sm shrink-0"><Ico e="🔗" /></span>
                 <span className="flex-1 text-[12px] font-semibold text-[var(--text-muted)] truncate">영업코드 {sc.code}</span>
                 <span className="text-[11px] mono-number text-[var(--text-muted)]">사용 {sc.redemptions} · 전환 <b className="text-[var(--success)]">{sc.conversions}</b></span>
-              </Link>
+              </PfRow>
             ))}
             {seatPressure.length > 0 && (
-              <div className="platform-rail-row cursor-default">
+              <PfRow>
                 <span className="text-sm shrink-0">💺</span>
-                <span className="flex-1 text-[12px] font-semibold text-[var(--text-muted)]">좌석 초과 임박</span>
-                <span className="platform-rail-badge platform-rail-badge-warn">{seatPressure.length}</span>
-              </div>
+                <span className="flex-1 text-[12px] font-semibold text-[var(--text-muted)]">좌석 초과 임박 (추가 좌석 매출 기회)</span>
+                <PfBadge tone="warn">{seatPressure.length}</PfBadge>
+              </PfRow>
             )}
-            <div className="platform-rail-row cursor-default">
+            <PfRow>
               <span className="text-sm shrink-0">👋</span>
-              <span className="flex-1 text-[12px] font-semibold text-[var(--text-muted)]">탈퇴 (7일/30일)</span>
+              <span className="flex-1 text-[12px] font-semibold text-[var(--text-muted)]">탈퇴 (7일 / 30일)</span>
               <span className="text-[12px] mono-number text-[var(--text-muted)]">{opsRisk?.deletions?.d7 ?? 0} / {opsRisk?.deletions?.d30 ?? 0}</span>
-            </div>
-          </div>
-        </div>
+            </PfRow>
+          </PfRows>
+        </PfCard>
 
-        {/* 위험 신호 */}
-        <div className="glass-card p-0 overflow-hidden">
-          <div className="platform-card-head">
-            <span className="platform-card-title">위험 신호</span>
-            <span className={`platform-rail-count ${riskRows.length > 0 ? "platform-rail-count-warn" : ""}`}>{riskRows.length}</span>
-          </div>
+        <PfCard i={14}>
+          <PfCardHead title="위험 신호" sub="체험 만료 임박 · 해지 예약 · 결제 실패 · 휴면" right={<PfBadge tone={riskRows.length > 0 ? "warn" : "ok"}>{riskRows.length}</PfBadge>} />
           {riskRows.length === 0 ? (
-            <div className="px-4 py-5 text-[12px] text-[var(--text-dim)]">위험 신호가 없습니다 — 안정적입니다.</div>
+            <PfEmpty ok>위험 신호가 없습니다 — 안정적입니다.</PfEmpty>
           ) : (
-            <div className="platform-rail-rows">
+            <PfRows>
               {riskRows.slice(0, 6).map((r, i) => (
-                <div key={i} className="platform-rail-row cursor-default">
-                  <span className={`platform-badge shrink-0 ${r.cls}`}>{r.type}</span>
+                <div key={i} className="pf-row">
+                  <PfBadge tone={r.tone}>{r.type}</PfBadge>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[12px] font-semibold text-[var(--text)] truncate">{r.who}</div>
-                    <div className="text-[10px] text-[var(--text-dim)]">{r.detail}</div>
+                    <div className="pf-row-title">{r.who}</div>
+                    <div className="pf-row-sub">{r.detail}</div>
                   </div>
                 </div>
               ))}
-              {riskRows.length > 6 && (
-                <div className="px-4 py-2 text-[11px] text-[var(--text-dim)]">외 {riskRows.length - 6}건</div>
-              )}
-            </div>
+              {riskRows.length > 6 && <div className="pf-row-more">외 {riskRows.length - 6}건</div>}
+            </PfRows>
           )}
-        </div>
+        </PfCard>
+
+        <SignupFunnelCard funnel={funnel ?? null} i={15} />
       </div>
 
       {/* 고객 현황 스트립(클릭=아래 목록 필터) + 가입사 목록 */}
-      <div className="glass-card p-0 overflow-hidden">
-        <div className="platform-card-head">
-          <span className="platform-card-title">고객 현황</span>
-          <span className="text-[11px] text-[var(--text-dim)]">지표를 누르면 아래 목록이 필터링됩니다</span>
-        </div>
-        <div className="platform-stat-strip">
+      <PfCard i={16} hover={false}>
+        <PfCardHead title="고객 현황" sub="지표를 누르면 아래 목록이 그 회사들로 걸러집니다" />
+        <div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-[var(--border)]/60 border-t border-[var(--border)]/60">
           {[
             { label: "총 가입사", value: totalCompanies, sub: `이번 달 +${thisMonth}`, f: "all" as const, dot: "var(--primary)" },
-            { label: "이번 달 신규", value: thisMonth, sub: "신규 가입", f: "new" as const, dot: "#2a78d6" },
+            { label: "이번 달 신규", value: thisMonth, sub: "신규 가입", f: "new" as const, dot: "var(--chart-1)" },
             { label: "유료 구독", value: kindCounts.paid, sub: `전환율 ${conversionRate}%`, f: "paid" as const, dot: "var(--success)" },
-            { label: "체험 중", value: kindCounts.trial, sub: "카드 등록 · 전환 대기", f: "trial" as const, dot: "var(--warning)" },
+            { label: "체험 중", value: kindCounts.trial, sub: "카드 등록 · 전환 대기", f: "trial" as const, dot: "var(--chart-2)" },
             { label: "체험 만료", value: kindCounts.expired, sub: "차단 중 · 연락 대상", f: "expired" as const, dot: "var(--danger)" },
           ].map((kpi) => (
-            <button
-              key={kpi.label}
-              type="button"
-              onClick={() => setKpiFilter(kpi.f)}
-              className={`platform-stat-cell ${kpiFilter === kpi.f ? "platform-stat-cell-active" : ""}`}
-            >
+            <button key={kpi.label} type="button" onClick={() => setKpiFilter(kpi.f)}
+              className={`flex flex-col gap-0.5 px-4 py-3 text-left transition ${kpiFilter === kpi.f ? "bg-[var(--primary)]/8" : "hover:bg-[var(--bg-surface)]"}`}>
               <span className="text-[24px] leading-8 font-extrabold mono-number text-[var(--text)]">{kpi.value}</span>
-              <span className="text-[12px] font-semibold text-[var(--text-muted)]"><span className="stat-cell-dot" style={{ background: kpi.dot }} />{kpi.label}</span>
+              <span className="text-[12px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: kpi.dot }} />{kpi.label}</span>
               <span className="text-[10px] text-[var(--text-dim)]">{kpi.sub}</span>
             </button>
           ))}
         </div>
-      </div>
+      </PfCard>
 
       {/* 가입사 목록 */}
       <RecentCompanies companies={companies as any[]} filter={kpiFilter} onFilter={setKpiFilter} activityById={activityById} nowMs={nowMs} />
@@ -704,30 +632,46 @@ export default function PlatformOverview() {
       {/* 성장 분석 — 방문·가입 차트 */}
       <AnalyticsSection usage={usage ?? null} traffic={traffic ?? null} companies={companies as any[]} companyActivity={companyActivity as any[]} />
 
-      {/* 가입 퍼널 — 단계별 게이지 */}
+      {/* 가입 퍼널 상세 — 단계 클릭 명단 + 회사 등록 미완료자 */}
       <SignupFunnelSection funnel={funnel ?? null} />
-    </div>
+    </PfPage>
   );
 }
-
-// ── 가입 퍼널 ────────────────────────────────────────────────────────────────
-//   "총 가입사" 는 companies 기준이라 계정만 만들고 회사 등록 전에 떠난 사람이
-//   통계에서 통째로 빠진다. 그 구간을 드러내는 게 이 섹션의 목적.
-// 퍼널 단계 색 — 순차(ordinal) 블루 램프 고정 배정 (dataviz: 밝은 끝은 step 250 이상)
-const FUNNEL_COLORS = ["#86b6ef", "#5598e7", "#2a78d6", "#1c5cab"];
 
 // 운영자 목록 공용 미니 페이저 — N개씩 끊고 옆으로 넘긴다 (2026-08-20 사장님)
 function MiniPager({ page, pages, onPage }: { page: number; pages: number; onPage: (p: number) => void }) {
   if (pages <= 1) return null;
   return (
-    <div className="flex items-center justify-end gap-2 px-3 py-2 text-xs text-[var(--text-muted)]">
-      <button type="button" onClick={() => onPage(Math.max(0, page - 1))} disabled={page === 0} className="platform-filter-clear disabled:opacity-40 disabled:cursor-default">‹ 이전</button>
+    <div className="flex items-center justify-end gap-2 px-4 py-2 text-xs text-[var(--text-muted)]">
+      <button type="button" onClick={() => onPage(Math.max(0, page - 1))} disabled={page === 0} className="pf-btn pf-btn-sm pf-btn-ghost disabled:opacity-40 disabled:cursor-default">‹ 이전</button>
       <span className="mono-number">{page + 1} / {pages}</span>
-      <button type="button" onClick={() => onPage(Math.min(pages - 1, page + 1))} disabled={page >= pages - 1} className="platform-filter-clear disabled:opacity-40 disabled:cursor-default">다음 ›</button>
+      <button type="button" onClick={() => onPage(Math.min(pages - 1, page + 1))} disabled={page >= pages - 1} className="pf-btn pf-btn-sm pf-btn-ghost disabled:opacity-40 disabled:cursor-default">다음 ›</button>
     </div>
   );
 }
 
+// ── 오늘 가입 퍼널(카드) — 3행 오른쪽. 단계별 숫자를 퍼널 그림으로. ─────────────
+function SignupFunnelCard({ funnel, i }: { funnel: FunnelStats | null; i: number }) {
+  const t = funnel?.today;
+  const stages = [
+    { label: "계정 생성", value: t?.accounts ?? 0 },
+    { label: "로그인", value: t?.signed_in ?? 0 },
+    { label: "회사 등록", value: t?.companies ?? 0 },
+    { label: "체험 시작", value: t?.trials ?? 0 },
+  ];
+  return (
+    <PfCard i={i}>
+      <PfCardHead title="오늘 가입 퍼널" sub={`최근 7일: 계정 ${funnel?.period.accounts ?? 0} · 회사 ${funnel?.period.companies ?? 0}`} href="/platform/marketing" />
+      <PfCardBody>
+        <PfFunnel stages={stages} height={190} />
+      </PfCardBody>
+    </PfCard>
+  );
+}
+
+// ── 가입 퍼널 상세 ────────────────────────────────────────────────────────────
+//   "총 가입사" 는 companies 기준이라 계정만 만들고 회사 등록 전에 떠난 사람이
+//   통계에서 통째로 빠진다. 그 구간을 드러내는 게 이 섹션의 목적.
 function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
   const t = funnel?.today;
   const pending = funnel?.pending ?? [];
@@ -781,93 +725,82 @@ function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
   })();
 
   return (
-    <section className="platform-funnel">
+    <section className="space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-lg font-bold text-[var(--text)]">오늘 가입 퍼널</h2>
-        <span className="text-[11px] text-[var(--text-dim)]">최근 7일: 계정 {funnel?.period.accounts ?? 0} · 회사 {funnel?.period.companies ?? 0} · 카드를 누르면 명단이 보입니다</span>
+        <h2 className="text-lg font-extrabold tracking-tight text-[var(--text)]">오늘 가입 단계별 명단</h2>
+        <span className="text-[11px] text-[var(--text-dim)]">단계를 누르면 오늘 그 단계에 도달한 사람이 보입니다</span>
       </div>
 
-      {/* 수직 퍼널 — 막대 길이 = 1단계 대비 비율, 단계 사이 전환율. 클릭하면 명단. */}
-      <div className="glass-card p-5">
-        <div className="funnel-viz">
+      {/* 단계 칩 — 막대 길이 = 1단계 대비 비율, 단계 사이 전환율. 클릭하면 명단. */}
+      <PfCard i={0} hover={false}>
+        <PfCardBody className="pt-5 space-y-3">
           {steps.map((s, i) => {
             const base = steps[0].n;
             const pct = base ? Math.round((s.n / base) * 100) : 0;
             const conv = i > 0 && steps[i - 1].n > 0 ? Math.round((s.n / steps[i - 1].n) * 100) : null;
             const isWorst = i === worstIdx && worstDrop > 0;
             return (
-              <div key={s.label} className="funnel-viz-stage">
+              <div key={s.label}>
                 {i > 0 && (
-                  <div className={`funnel-viz-drop ${isWorst ? "funnel-viz-drop-worst" : ""}`}>
-                    ↓ {conv === null ? "—" : `전환 ${conv}%`}{isWorst ? ` · ${worstDrop}명 이탈` : ""}
+                  <div className={`text-[10.5px] mb-1 ${isWorst ? "text-[var(--danger)] font-semibold" : "text-[var(--text-dim)]"}`}>
+                    ↓ {conv === null ? "—" : `전환 ${conv}%`}{isWorst ? ` · ${worstDrop}명 이탈 — 오늘의 병목` : ""}
                   </div>
                 )}
-                <button
-                  type="button"
-                  onClick={() => setOpenStep(openStep === i ? null : i)}
-                  className={`funnel-viz-row ${openStep === i ? "funnel-viz-row-active" : ""}`}
-                >
-                  <span className="funnel-viz-label">{s.label}</span>
-                  <span className="funnel-viz-track">
-                    {s.n > 0 && <span className="funnel-viz-fill" style={{ width: `${Math.max(pct, 6)}%`, background: FUNNEL_COLORS[i] }} />}
-                  </span>
-                  <span className={`funnel-viz-count mono-number ${isWorst ? "text-[var(--danger)]" : ""}`}>{s.n}</span>
+                <button type="button" onClick={() => setOpenStep(openStep === i ? null : i)}
+                  className={`w-full grid grid-cols-[96px_minmax(0,1fr)_48px] items-center gap-3 rounded-xl px-3 py-2 text-left transition ${openStep === i ? "bg-[var(--primary)]/8 ring-1 ring-[var(--primary)]/40" : "hover:bg-[var(--bg-surface)]"}`}>
+                  <span className="text-[12px] font-semibold text-[var(--text)]">{s.label}</span>
+                  <PfBar pct={Math.max(pct, s.n > 0 ? 6 : 0)} tone={isWorst ? "danger" : "info"} className="!h-2.5" />
+                  <span className={`text-right font-extrabold mono-number ${isWorst ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{s.n}</span>
                 </button>
               </div>
             );
           })}
-        </div>
-      </div>
+        </PfCardBody>
+      </PfCard>
 
       {openStep !== null && (
-        <div className="glass-card p-5">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">오늘 · {steps[openStep].label} {stepRows.length}명</span>
-            <button onClick={() => setOpenStep(null)} className="platform-filter-clear">닫기</button>
-          </div>
+        <PfCard i={1} hover={false}>
+          <PfCardHead title={`오늘 · ${steps[openStep].label} ${stepRows.length}명`} action={<button onClick={() => setOpenStep(null)} className="pf-btn pf-btn-sm pf-btn-ghost">닫기</button>} />
           {stepRows.length === 0 ? (
-            <div className="platform-traffic-empty">오늘 해당 단계에 도달한 사람이 없습니다.</div>
+            <PfEmpty>오늘 해당 단계에 도달한 사람이 없습니다.</PfEmpty>
           ) : (
             <>
-            <ul className="platform-funnel-people">
-              {stepRows.slice(peoplePage * 10, peoplePage * 10 + 10).map((r) => (
-                <li key={r.key}>
-                  {r.who}
-                  <span className="text-[11px] text-[var(--text-dim)]">{r.sub}</span>
-                </li>
-              ))}
-            </ul>
-            <MiniPager page={peoplePage} pages={Math.ceil(stepRows.length / 10)} onPage={setPeoplePage} />
+              <PfRows>
+                {stepRows.slice(peoplePage * 10, peoplePage * 10 + 10).map((r) => (
+                  <div key={r.key} className="pf-row flex-col !items-start gap-0.5">
+                    {r.who}
+                    <span className="pf-row-sub">{r.sub}</span>
+                  </div>
+                ))}
+              </PfRows>
+              <MiniPager page={peoplePage} pages={Math.ceil(stepRows.length / 10)} onPage={setPeoplePage} />
             </>
           )}
-        </div>
+        </PfCard>
       )}
 
-      <div className="glass-card p-5">
-        <div className="flex items-center justify-between gap-2 mb-3">
-          <span className="text-[13px] font-semibold text-[var(--text-muted)]">회사 등록을 안 끝낸 가입자</span>
-          <span className="text-[11px] text-[var(--text-dim)]">최근 30일 · {pending.length}명</span>
-        </div>
+      <PfCard i={2} hover={false}>
+        <PfCardHead title="회사 등록을 안 끝낸 가입자" sub={`최근 30일 · ${pending.length}명 — 연락하면 회사 등록까지 이끌 수 있는 사람들`} />
         {pending.length === 0 ? (
-          <div className="platform-traffic-empty">전원 회사 등록을 마쳤습니다.</div>
+          <PfEmpty ok>전원 회사 등록을 마쳤습니다.</PfEmpty>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[520px] text-xs">
+          <div className="pf-table-wrap">
+            <table className="pf-table min-w-[520px]">
               <thead>
-                <tr className="table-head-row">
-                  <th className="th-cell text-left">이메일</th>
-                  <th className="th-cell text-left">가입</th>
-                  <th className="th-cell text-center">경로</th>
-                  <th className="th-cell text-left">마지막 로그인</th>
+                <tr>
+                  <th>이메일</th>
+                  <th>가입</th>
+                  <th className="text-center">경로</th>
+                  <th>마지막 로그인</th>
                 </tr>
               </thead>
               <tbody>
                 {pending.slice(pendingPage * 10, pendingPage * 10 + 10).map((p) => (
-                  <tr key={p.email} className="border-b border-[var(--border)]/50">
-                    <td className="px-3 py-2 text-[var(--text)]">{p.email}</td>
-                    <td className="px-3 py-2 text-[var(--text-muted)] mono-number">{fmtKst(p.created_at)}</td>
-                    <td className="px-3 py-2 text-center text-[var(--text-muted)]">{p.provider}</td>
-                    <td className="px-3 py-2">
+                  <tr key={p.email}>
+                    <td className="text-[var(--text)]">{p.email}</td>
+                    <td className="text-[var(--text-muted)] mono-number">{fmtKst(p.created_at)}</td>
+                    <td className="text-center text-[var(--text-muted)]">{p.provider}</td>
+                    <td>
                       {p.last_sign_in
                         ? <span className="text-[var(--text-muted)] mono-number">{fmtKst(p.last_sign_in)}</span>
                         : <span className="text-[var(--text-dim)]">{p.confirmed ? "미접속" : "인증 전"}</span>}
@@ -879,7 +812,7 @@ function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
             <MiniPager page={pendingPage} pages={Math.ceil(pending.length / 10)} onPage={setPendingPage} />
           </div>
         )}
-      </div>
+      </PfCard>
     </section>
   );
 }
@@ -930,30 +863,26 @@ function RecentCompanies({ companies, filter, onFilter, activityById, nowMs }: {
   const FILTER_LABEL: Record<string, string> = {
     all: "전체", new: "이번 달 신규", paid: "유료", trial: "체험 중", free: "미구독", expired: "체험 만료",
   };
+  const kindTone = (kind: string): "ok" | "warn" | "danger" | "muted" | "info" =>
+    kind === "paid" ? "ok" : kind === "trial" ? "warn" : kind === "expired" ? "danger" : "muted";
 
   return (
-    <section className="platform-funnel">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-lg font-bold text-[var(--text)]">
-          가입사 <span className="text-[var(--primary)]">{FILTER_LABEL[filter]}</span>
-        </h2>
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] text-[var(--text-dim)]">{rows.length}곳 / 전체 {companies?.length ?? 0}곳</span>
-          {filter !== "all" && (
-            <button onClick={() => onFilter("all")} className="platform-filter-clear">전체 보기</button>
-          )}
-        </div>
-      </div>
-      <div className="glass-card p-0 overflow-x-auto">
-        <table className="w-full min-w-[680px] text-xs">
+    <PfCard i={17} hover={false}>
+      <PfCardHead
+        title={<>가입사 <span className="text-[var(--primary)]">{FILTER_LABEL[filter]}</span></>}
+        sub={`${rows.length}곳 / 전체 ${companies?.length ?? 0}곳 · 줄을 누르면 회사 상세로`}
+        action={filter !== "all" ? <button onClick={() => onFilter("all")} className="pf-btn pf-btn-sm">전체 보기</button> : undefined}
+      />
+      <div className="pf-table-wrap">
+        <table className="pf-table min-w-[680px]">
           <thead>
-            <tr className="table-head-row">
-              <th className="th-cell text-left">회사</th>
-              <th className="th-cell text-left">사업자번호</th>
-              <th className="th-cell text-center">인원</th>
-              <th className="th-cell text-center">이용</th>
-              <th className="th-cell text-left">활동</th>
-              <th className="th-cell text-left">가입</th>
+            <tr>
+              <th>회사</th>
+              <th>사업자번호</th>
+              <th className="text-center">인원</th>
+              <th className="text-center">이용</th>
+              <th>활동</th>
+              <th>가입</th>
             </tr>
           </thead>
           <tbody>
@@ -966,8 +895,8 @@ function RecentCompanies({ companies, filter, onFilter, activityById, nowMs }: {
               const isActive = !!act?.last_activity && nowMs - new Date(act.last_activity).getTime() < ACTIVE_WINDOW_MS;
               const lastSeen = act?.last_login || act?.last_activity;
               return (
-                <tr key={c.id} onClick={() => router.push(`/platform/companies/${c.id}`)} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] cursor-pointer">
-                  <td className="px-3 py-2">
+                <tr key={c.id} onClick={() => router.push(`/platform/companies/${c.id}`)} className="cursor-pointer">
+                  <td>
                     <div className="company-cell">
                       <span className="company-avatar">{String(c.name || "?").replace(/^\(주\)/, "").charAt(0) || "?"}</span>
                       <span className="font-semibold text-[var(--primary)] hover:underline truncate">
@@ -975,15 +904,13 @@ function RecentCompanies({ companies, filter, onFilter, activityById, nowMs }: {
                       </span>
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-[var(--text-muted)] mono-number">{c.business_number || "—"}</td>
-                  <td className="px-3 py-2 text-center mono-number text-[var(--text-muted)]">{c.users?.[0]?.count ?? 0}</td>
-                  <td className="px-3 py-2 text-center">
-                    <span className={`platform-badge ${p.cls}`}>{p.label}</span>
-                  </td>
-                  <td className="px-3 py-2">
+                  <td className="text-[var(--text-muted)] mono-number">{c.business_number || "—"}</td>
+                  <td className="text-center mono-number text-[var(--text-muted)]">{c.users?.[0]?.count ?? 0}</td>
+                  <td className="text-center"><PfBadge tone={kindTone(p.kind)}>{p.label}</PfBadge></td>
+                  <td>
                     {isActive ? (
-                      <span className="platform-active-badge" title={`마지막 활동 ${fmtKst(act!.last_activity!)}`}>
-                        <span className="platform-active-dot" />활동중
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[var(--success)]" title={`마지막 활동 ${fmtKst(act!.last_activity!)}`}>
+                        <span className="pf-live" />활동중
                       </span>
                     ) : lastSeen ? (
                       <span className="text-[var(--text-muted)] mono-number" title={act?.last_login ? "마지막 로그인" : "마지막 활동"}>{fmtKst(lastSeen)}</span>
@@ -991,7 +918,7 @@ function RecentCompanies({ companies, filter, onFilter, activityById, nowMs }: {
                       <span className="text-[var(--text-dim)]">기록 없음</span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-[var(--text-muted)] mono-number">{fmtKst(c.created_at)}</td>
+                  <td className="text-[var(--text-muted)] mono-number">{fmtKst(c.created_at)}</td>
                 </tr>
               );
             })}
@@ -999,6 +926,6 @@ function RecentCompanies({ companies, filter, onFilter, activityById, nowMs }: {
         </table>
         <MiniPager page={safePage} pages={pageCount} onPage={setPage} />
       </div>
-    </section>
+    </PfCard>
   );
 }

@@ -1,6 +1,8 @@
 "use client";
+// 에러 해석 (운영자) — 2026-09-03 v2 리디자인(사장님: "운영자 페이지는 비전공자도 알아보게").
+//   오류 하나가 "사고 카드"처럼 읽힌다: 무슨 일이에요 → 왜 났을까 → 지금 할 일. 기술 원문은 접어 둔다.
+//   데이터·해결 처리(RPC operator_recent_errors / operator_resolve_error / operator_resolve_errors)는 그대로.
 import { SystemTabs } from "../_components/system-tabs";
-import { Ico } from "@/components/ui-icon";
 
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -10,16 +12,26 @@ import {
   SEVERITY_TONE,
   CATEGORY_LABEL,
   type ErrorExplanation,
+  type ErrorSeverity,
 } from "@/lib/operator-error-explain";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSkeleton, PfEmpty, PfSeg } from "../_components/pf/ui";
+import { PfDonut, PfTrend } from "../_components/pf/charts";
 
 const db = supabase;
 
-// 라이트/다크 토큰 기반 심각도 색 (SEVERITY_TONE 의 다크 고정색 대체 — 라벨은 lib 유지)
-const SEVERITY_CLS: Record<string, string> = {
-  low: "bg-[var(--success-dim)] text-[var(--success)]",
-  medium: "bg-[var(--warning-dim)] text-[var(--warning)]",
-  high: "bg-[var(--danger-dim)] text-[var(--danger)]",
-  critical: "bg-[var(--danger)] text-white",
+// 심각도 → 배지 톤 (SEVERITY_TONE 의 라벨은 그대로 쓴다)
+const SEV_BADGE: Record<ErrorSeverity, "ok" | "warn" | "danger" | "muted"> = {
+  low: "ok",
+  medium: "warn",
+  high: "danger",
+  critical: "danger",
+};
+// 심각도 → 도넛 색 (검증된 팔레트: 낮음 teal · 보통 amber · 높음 rose · 치명 indigo)
+const SEV_COLOR: Record<ErrorSeverity, string> = {
+  low: "var(--chart-3)",
+  medium: "var(--chart-2)",
+  high: "var(--chart-4)",
+  critical: "var(--chart-1)",
 };
 
 type ErrorRow = {
@@ -116,134 +128,199 @@ export default function PlatformErrorsPage() {
   );
   const selectedExp = selected ? explainError(selected.message, selected.error_type, selected.context) : null;
 
+  // ── 시각화용 집계(이미 불러온 행만 사용, 새 조회 없음) ──
+  const sevCounts = useMemo(() => {
+    const c: Record<ErrorSeverity, number> = { critical: 0, high: 0, medium: 0, low: 0 };
+    for (const g of grouped) c[g.explanation.severity] += g.rows.length;
+    return c;
+  }, [grouped]);
+  const criticalCount = sevCounts.critical + sevCounts.high;
+  // 시간 추이 — 24h 이하면 시간 단위, 그 이상은 하루 단위 버킷
+  const trend = useMemo(() => {
+    if (errors.length === 0) return [] as { date: Date; count: number; unresolved: number }[];
+    const byDay = hours > 48;
+    const bucketMs = byDay ? 86_400_000 : 3_600_000;
+    const now = Date.now();
+    const start = now - hours * 3_600_000;
+    const buckets = new Map<number, { count: number; unresolved: number }>();
+    const nBuckets = Math.ceil((hours * 3_600_000) / bucketMs);
+    for (let i = 0; i <= nBuckets; i++) {
+      const t = Math.floor((start + i * bucketMs) / bucketMs) * bucketMs;
+      buckets.set(t, { count: 0, unresolved: 0 });
+    }
+    for (const e of errors) {
+      const t = Math.floor(new Date(e.created_at).getTime() / bucketMs) * bucketMs;
+      const b = buckets.get(t) ?? { count: 0, unresolved: 0 };
+      b.count += 1;
+      if (!e.resolved) b.unresolved += 1;
+      buckets.set(t, b);
+    }
+    return [...buckets.entries()].sort((a, b) => a[0] - b[0]).map(([t, b]) => ({ date: new Date(t), ...b }));
+  }, [errors, hours]);
+  const trendLabel = hours > 48
+    ? (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`
+    : (d: Date) => `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}시`;
+
+  const hoursLabel = hours === 24 ? "최근 24시간" : hours === 72 ? "최근 3일" : "최근 7일";
+
   return (
-    <div className="max-w-6xl space-y-6">
+    <PfPage>
+      <PfPageHead
+        eyebrow="운영"
+        title="에러 해석"
+        desc="오너뷰에서 난 오류를 사람 말로 풀어 보여줍니다. 무슨 일인지, 왜 났는지, 지금 무엇을 하면 되는지 순서로 읽으세요."
+        actions={
+          <>
+            <PfSeg
+              value={String(hours) as "24" | "72" | "168"}
+              onChange={(v) => setHours(Number(v))}
+              options={[{ value: "24", label: "24시간" }, { value: "72", label: "3일" }, { value: "168", label: "7일" }]}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                if (unresolvedIds.length === 0) return;
+                if (!confirm(`미해결 ${unresolvedIds.length}건을 모두 해결로 표시할까요?\n(다시 발생하면 새 건으로 올라옵니다)`)) return;
+                resolveMany.mutate({ ids: unresolvedIds, resolved: true });
+              }}
+              disabled={unresolvedIds.length === 0 || resolveMany.isPending}
+              className="pf-btn pf-btn-primary disabled:opacity-40"
+            >
+              ✓ 미해결 {unresolvedIds.length}건 모두 해결
+            </button>
+          </>
+        }
+      />
       <SystemTabs />
-      <div className="platform-error-toolbar">
-        <div className="flex flex-wrap items-baseline gap-2">
-          <h1 className="text-2xl font-extrabold text-[var(--text)]">에러 해석</h1>
-          <span className="text-sm text-[var(--text-muted)]">
-            최근 {hours}시간 · {errors.length}건 · 코드별 그룹핑 {grouped.length}종
-          </span>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={hours}
-            onChange={(e) => setHours(Number(e.target.value))}
-            className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)]"
-          >
-            <option value={24}>최근 24시간</option>
-            <option value={72}>최근 3일</option>
-            <option value={168}>최근 7일</option>
-          </select>
-          <div className="qk-chips">
-            {[
-              { k: "all", l: "전체" },
-              { k: "unresolved", l: "미해결" },
-              { k: "critical", l: "심각" },
-            ].map((f) => (
-              <button
-                key={f.k}
-                onClick={() => setFilter(f.k as any)}
-                className={`${filter === f.k ? "qk-chip qk-chip-on" : "qk-chip"}`}
-              >
-                {f.l}
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (unresolvedIds.length === 0) return;
-              if (!confirm(`미해결 ${unresolvedIds.length}건을 모두 해결로 표시할까요?\n(다시 발생하면 새 건으로 올라옵니다)`)) return;
-              resolveMany.mutate({ ids: unresolvedIds, resolved: true });
-            }}
-            disabled={unresolvedIds.length === 0 || resolveMany.isPending}
-            className="px-3 py-2 rounded-lg text-xs font-bold bg-[var(--success)] text-white hover:opacity-90 disabled:opacity-40"
-          >
-            ✓ 미해결 {unresolvedIds.length}건 모두 해결
-          </button>
-        </div>
+
+      {/* 한눈에 — KPI 타일 */}
+      <div className="pf-kpi-grid">
+        <PfCard i={2} className="pf-kpi-tile"><PfKpi label={`${hoursLabel} 오류`} value={errors.length} unit="건" /></PfCard>
+        <PfCard i={3} className="pf-kpi-tile"><PfKpi label="미해결" value={unresolvedIds.length} unit="건" accent={unresolvedIds.length > 0} /></PfCard>
+        <PfCard i={4} className="pf-kpi-tile"><PfKpi label="심각(높음 이상)" value={criticalCount} unit="건" /></PfCard>
+        <PfCard i={5} className="pf-kpi-tile"><PfKpi label="오류 종류" value={grouped.length} unit="종" /></PfCard>
       </div>
 
-      {isLoading && <div className="text-sm text-[var(--text-dim)]">불러오는 중…</div>}
-      {!isLoading && errors.length === 0 && (
-        <div className="platform-error-empty glass-card">
-          <Ico e="🎉" /> 이 기간에 에러 없음.
+      {/* 시각화 — 심각도 구성 · 시간 추이 */}
+      {errors.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <PfCard i={6} className="lg:col-span-2">
+            <PfCardHead title="심각도 구성" sub="치명·높음은 바로 봐야 하는 것, 낮음은 고장이 아닌 안내인 경우가 많아요" />
+            <PfCardBody>
+              <PfDonut
+                slices={(["critical", "high", "medium", "low"] as ErrorSeverity[]).map((s) => ({ label: SEVERITY_TONE[s].label, value: sevCounts[s], color: SEV_COLOR[s] }))}
+                size={160}
+                centerLabel="전체"
+                formatCenter={(t) => `${t}건`}
+              />
+            </PfCardBody>
+          </PfCard>
+          <PfCard i={7} className="lg:col-span-3">
+            <PfCardHead title="언제 났나" sub={`${hoursLabel} · ${hours > 48 ? "하루" : "한 시간"} 단위`} />
+            <PfCardBody>
+              <PfTrend
+                data={trend}
+                series={[{ key: "count", label: "전체" }, { key: "unresolved", label: "미해결", color: "var(--chart-4)" }]}
+                height={180}
+                dateLabel={trendLabel}
+                revealKey={`${hours}-${errors.length}`}
+              />
+            </PfCardBody>
+          </PfCard>
         </div>
       )}
 
+      {/* 필터 */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pf-in" style={{ ["--pf-i" as string]: 8 }}>
+        <PfSeg
+          value={filter}
+          onChange={setFilter}
+          options={[{ value: "all", label: "전체" }, { value: "unresolved", label: "미해결" }, { value: "critical", label: "심각" }]}
+        />
+        <span className="text-[11px] text-[var(--text-dim)]">{hoursLabel} · {errors.length}건 · 종류별로 묶어 {grouped.length}종</span>
+      </div>
+
+      {isLoading && (
+        <PfCard i={9}><PfCardBody className="pt-5"><PfSkeleton rows={4} h={16} /></PfCardBody></PfCard>
+      )}
+      {!isLoading && errors.length === 0 && (
+        <PfCard i={9}><PfEmpty ok>이 기간에 오류가 없습니다. 잘 돌아가고 있어요 ✓</PfEmpty></PfCard>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* 좌: 코드별 그룹 */}
+        {/* 좌: 종류별 사고 카드 */}
         <div className="lg:col-span-2 space-y-4">
-          {filteredGroups.map((g) => {
+          {filteredGroups.map((g, gi) => {
             const tone = SEVERITY_TONE[g.explanation.severity];
             const unresolvedCount = g.rows.filter((r) => !r.resolved).length;
             // "미해결" 필터일 땐 그룹 안 행 목록도 미해결만 — 라벨과 표시 내용 일치
             const visibleRows = filter === "unresolved" ? g.rows.filter((r) => !r.resolved) : g.rows;
+            const affected = Array.from(new Set(g.rows.map((r) => r.company_name).filter(Boolean))) as string[];
+            const latest = g.rows.reduce((a, r) => (a > r.created_at ? a : r.created_at), g.rows[0]?.created_at ?? "");
             return (
-              <div key={g.code} className="platform-error-group-card glass-card">
-                <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${SEVERITY_CLS[g.explanation.severity] || SEVERITY_CLS.medium}`}>
-                      {tone.label}
+              <PfCard key={g.code} i={9 + gi} hover={false} className={g.explanation.severity === "critical" && unresolvedCount > 0 ? "ring-1 ring-[var(--danger)]/40" : ""}>
+                <PfCardHead
+                  title={
+                    <span className="flex items-center gap-2 flex-wrap">
+                      <PfBadge tone={SEV_BADGE[g.explanation.severity]}>{tone.label}</PfBadge>
+                      <span className="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wider">{CATEGORY_LABEL[g.explanation.category]}</span>
+                      <span className="text-[12px] font-bold text-[var(--text)]">{g.rows.length}회{unresolvedCount > 0 ? ` · 미해결 ${unresolvedCount}` : " · 모두 해결"}</span>
                     </span>
-                    <span className="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wider">
-                      {CATEGORY_LABEL[g.explanation.category]}
-                    </span>
-                    <span className="text-xs font-mono text-[var(--text-muted)]">{g.code}</span>
-                    <span className="text-xs text-[var(--text)] font-bold">
-                      {g.rows.length}회{unresolvedCount > 0 && ` (미해결 ${unresolvedCount})`}
-                    </span>
-                  </div>
-                  {unresolvedCount > 0 && (
+                  }
+                  sub={`마지막 발생 ${latest ? fmtRelative(latest) : "—"}${affected.length ? ` · 영향 회사: ${affected.slice(0, 3).join(", ")}${affected.length > 3 ? ` 외 ${affected.length - 3}곳` : ""}` : ""}`}
+                  action={unresolvedCount > 0 ? (
                     <button
                       type="button"
                       onClick={() => resolveMany.mutate({ ids: g.rows.filter((r) => !r.resolved).map((r) => r.id), resolved: true })}
                       disabled={resolveMany.isPending}
-                      className="shrink-0 text-[11px] font-semibold px-2 py-1 rounded bg-[var(--success)] text-white hover:opacity-90 disabled:opacity-50"
+                      className="pf-btn pf-btn-sm pf-btn-primary disabled:opacity-50"
                     >
                       ✓ 이 {unresolvedCount}건 해결
                     </button>
-                  )}
-                </div>
-                <div className="platform-error-explanation">
-                  <div className="text-sm text-[var(--text)] font-semibold mb-1">{g.explanation.what}</div>
-                  <div className="text-xs text-[var(--text-muted)] mb-1">
-                    <span className="text-[var(--text-dim)]">왜 났을까?</span> {g.explanation.why}
-                  </div>
-                  <div className="text-xs text-[var(--primary)]">
-                    <span className="text-[var(--text-dim)]">어떻게 고치나?</span> {g.explanation.fix}
-                  </div>
-                </div>
-                <div className="platform-error-row-list">
-                  {visibleRows.slice(0, 5).map((r) => (
-                    <button
-                      key={r.id}
-                      onClick={() => setSelectedId(r.id)}
-                      className={`platform-error-row ${
-                        selectedId === r.id ? "bg-[var(--primary-light)]" : ""
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="text-[11px] text-[var(--text-muted)] truncate flex-1">
-                          {r.company_name || "(no company)"} · {r.user_email || r.user_name || "—"} · {r.url || r.source || "?"}
-                        </div>
-                        <div className="text-[10px] text-[var(--text-dim)] shrink-0">
-                          {fmtRelative(r.created_at)}
-                          {r.resolved && <span className="ml-2 text-[var(--success)]">✓ 해결</span>}
-                        </div>
-                      </div>
-                      <div className="text-[11px] text-[var(--text-dim)] truncate mt-0.5">{r.message}</div>
-                    </button>
-                  ))}
-                  {visibleRows.length > 5 && (
-                    <div className="px-5 py-2 text-[11px] text-[var(--text-dim)] text-center">
-                      … 외 {visibleRows.length - 5}건
+                  ) : undefined}
+                />
+                <PfCardBody className="pb-3">
+                  <div className="text-[15px] font-bold text-[var(--text)] leading-snug mb-2">{g.explanation.what}</div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div className="rounded-xl px-3 py-2 bg-[var(--bg-surface)]">
+                      <div className="text-[10px] font-bold text-[var(--text-dim)] mb-0.5">왜 났을까</div>
+                      <div className="text-[12px] text-[var(--text-muted)] leading-relaxed">{g.explanation.why}</div>
                     </div>
-                  )}
-                </div>
-              </div>
+                    <div className="rounded-xl px-3 py-2" style={{ background: "color-mix(in oklab, var(--primary) 8%, transparent)" }}>
+                      <div className="text-[10px] font-bold text-[var(--primary)] mb-0.5">지금 할 일</div>
+                      <div className="text-[12px] text-[var(--text)] leading-relaxed">{g.explanation.fix}</div>
+                    </div>
+                  </div>
+                </PfCardBody>
+                <details className="group border-t border-[var(--border)]/60">
+                  <summary className="cursor-pointer select-none px-5 py-2 text-[11px] font-semibold text-[var(--text-dim)] hover:text-[var(--text)] flex items-center gap-1.5">
+                    <svg className="w-3 h-3 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    발생 기록 {visibleRows.length}건 · 기술 원문 <span className="font-mono font-normal">{g.code}</span>
+                  </summary>
+                  <div className="pf-rows border-t border-[var(--border)]/60">
+                    {visibleRows.slice(0, 5).map((r) => (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => setSelectedId(r.id)}
+                        className={`pf-row w-full text-left flex-col items-stretch gap-0.5 ${selectedId === r.id ? "bg-[var(--primary-light)]" : ""}`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-[11px] text-[var(--text-muted)] truncate flex-1">
+                            {r.company_name || "(회사 없음)"} · {r.user_email || r.user_name || "—"} · {r.url || r.source || "?"}
+                          </div>
+                          <div className="text-[10px] text-[var(--text-dim)] shrink-0">
+                            {fmtRelative(r.created_at)}
+                            {r.resolved && <span className="ml-2 text-[var(--success)]">✓ 해결</span>}
+                          </div>
+                        </div>
+                        <div className="text-[10.5px] text-[var(--text-dim)] font-mono truncate">{r.message}</div>
+                      </button>
+                    ))}
+                    {visibleRows.length > 5 && <div className="pf-row-more text-center">… 외 {visibleRows.length - 5}건</div>}
+                  </div>
+                </details>
+              </PfCard>
             );
           })}
         </div>
@@ -251,77 +328,70 @@ export default function PlatformErrorsPage() {
         {/* 우: 선택 상세 */}
         <div className="lg:col-span-1">
           {selected && selectedExp ? (
-            <div className="platform-error-detail glass-card">
-              <div className="flex items-center justify-between mb-3">
-                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${SEVERITY_CLS[selectedExp.severity] || SEVERITY_CLS.medium}`}>
-                  {SEVERITY_TONE[selectedExp.severity].label}
-                </span>
-                <button
-                  onClick={() => resolve.mutate({ id: selected.id, resolved: !selected.resolved })}
-                  disabled={resolve.isPending}
-                  className={`text-[11px] font-semibold px-2 py-1 rounded ${
-                    selected.resolved
-                      ? "bg-[var(--bg-surface)] text-[var(--text-dim)]"
-                      : "bg-[var(--success)] text-white hover:opacity-90"
-                  } disabled:opacity-50`}
-                >
-                  {selected.resolved ? "↺ 미해결로" : "✓ 해결로"}
-                </button>
-              </div>
-              <div className="text-xs text-[var(--text-dim)] mb-2">{selectedExp.code}</div>
-              <div className="text-base text-[var(--text)] font-bold mb-2">{selectedExp.what}</div>
-              <div className="text-xs text-[var(--text-muted)] mb-3">
-                <div className="text-[var(--text-dim)] font-semibold">왜 났을까?</div>
-                <div className="mt-0.5">{selectedExp.why}</div>
-              </div>
-              <div className="text-xs text-[var(--primary)] mb-4">
-                <div className="text-[var(--text-dim)] font-semibold">어떻게 고치나?</div>
-                <div className="mt-0.5">{selectedExp.fix}</div>
-              </div>
+            <PfCard hover={false} className="lg:sticky lg:top-24">
+              <PfCardHead
+                title={<PfBadge tone={SEV_BADGE[selectedExp.severity]}>{SEVERITY_TONE[selectedExp.severity].label}</PfBadge>}
+                sub={new Date(selected.created_at).toLocaleString("ko-KR")}
+                action={
+                  <button
+                    type="button"
+                    onClick={() => resolve.mutate({ id: selected.id, resolved: !selected.resolved })}
+                    disabled={resolve.isPending}
+                    className={`pf-btn pf-btn-sm ${selected.resolved ? "" : "pf-btn-primary"} disabled:opacity-50`}
+                  >
+                    {selected.resolved ? "↺ 미해결로" : "✓ 해결로"}
+                  </button>
+                }
+              />
+              <PfCardBody>
+                <div className="text-[15px] font-bold text-[var(--text)] leading-snug mb-3">{selectedExp.what}</div>
+                <div className="space-y-2 mb-4">
+                  <div className="rounded-xl px-3 py-2 bg-[var(--bg-surface)]">
+                    <div className="text-[10px] font-bold text-[var(--text-dim)] mb-0.5">왜 났을까</div>
+                    <div className="text-[12px] text-[var(--text-muted)] leading-relaxed">{selectedExp.why}</div>
+                  </div>
+                  <div className="rounded-xl px-3 py-2" style={{ background: "color-mix(in oklab, var(--primary) 8%, transparent)" }}>
+                    <div className="text-[10px] font-bold text-[var(--primary)] mb-0.5">지금 할 일</div>
+                    <div className="text-[12px] text-[var(--text)] leading-relaxed">{selectedExp.fix}</div>
+                  </div>
+                </div>
 
-              <div className="border-t border-[var(--border)] pt-3 space-y-2 text-[11px]">
-                <Row label="회사" value={selected.company_name || "—"} />
-                <Row label="사용자" value={selected.user_email || selected.user_name || "—"} />
-                <Row label="URL" value={selected.url || "—"} />
-                <Row label="소스" value={selected.source || "—"} />
-                <Row label="시각" value={new Date(selected.created_at).toLocaleString("ko-KR")} />
-              </div>
+                <div className="border-t border-[var(--border)]/60 pt-3 space-y-1.5 text-[11px]">
+                  <Row label="회사" value={selected.company_name || "—"} />
+                  <Row label="사용자" value={selected.user_email || selected.user_name || "—"} />
+                  <Row label="화면" value={selected.url || "—"} />
+                  <Row label="출처" value={selected.source || "—"} />
+                </div>
 
-              <details className="mt-3">
-                <summary className="text-[11px] text-[var(--primary)] cursor-pointer">원문 메시지</summary>
-                <pre className="mt-2 p-2 bg-[var(--bg-surface)] rounded-lg text-[10px] text-[var(--text-muted)] overflow-auto whitespace-pre-wrap break-words max-h-40">
-                  {selected.message}
-                </pre>
-              </details>
-              {selected.stack && (
-                <details className="mt-2">
-                  <summary className="text-[11px] text-[var(--primary)] cursor-pointer">스택트레이스</summary>
-                  <pre className="mt-2 p-2 bg-[var(--bg-surface)] rounded-lg text-[10px] text-[var(--text-dim)] overflow-auto whitespace-pre max-h-60">
-                    {selected.stack}
-                  </pre>
+                <details className="mt-3 group">
+                  <summary className="cursor-pointer select-none text-[11px] font-semibold text-[var(--text-dim)] hover:text-[var(--text)] flex items-center gap-1.5">
+                    <svg className="w-3 h-3 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    기술 원문 (개발팀 전달용) <span className="font-mono font-normal">{selectedExp.code}</span>
+                  </summary>
+                  <pre className="mt-2 p-2 bg-[var(--bg-surface)] rounded-lg text-[10px] text-[var(--text-muted)] overflow-auto whitespace-pre-wrap break-words max-h-40">{selected.message}</pre>
+                  {selected.context && (
+                    <pre className="mt-2 p-2 bg-[var(--bg-surface)] rounded-lg text-[10px] text-[var(--text-dim)] overflow-auto whitespace-pre-wrap break-words max-h-40">{JSON.stringify(selected.context, null, 2)}</pre>
+                  )}
+                  {selected.stack && (
+                    <pre className="mt-2 p-2 bg-[var(--bg-surface)] rounded-lg text-[10px] text-[var(--text-dim)] overflow-auto whitespace-pre max-h-60">{selected.stack}</pre>
+                  )}
                 </details>
-              )}
-            </div>
+              </PfCardBody>
+            </PfCard>
           ) : (
-            <div className="glass-card p-8 text-center text-sm text-[var(--text-dim)]">
-              왼쪽에서 에러를 선택하면 상세 해석이 표시됩니다.
-            </div>
+            <PfCard hover={false} i={10}>
+              <PfEmpty>왼쪽 카드의 "발생 기록"을 펼쳐 한 건을 누르면 여기에 상세가 나옵니다.</PfEmpty>
+            </PfCard>
           )}
         </div>
       </div>
-
-      <div className="kpi-callout">
-        <b>OP-E</b> · 코드 매핑은{" "}
-        <span className="font-mono text-[var(--primary)]">src/lib/operator-error-explain.ts</span> 에 누적.
-        새 패턴 발생 시 같은 파일에 PG/PostgREST/CODEF/Stripe/Generic 섹션 중 알맞은 곳에 추가.
-      </div>
-    </div>
+    </PfPage>
   );
 }
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="platform-error-detail-row">
+    <div className="flex gap-2">
       <div className="w-12 shrink-0 text-[var(--text-dim)]">{label}</div>
       <div className="text-[var(--text)] break-all">{value}</div>
     </div>

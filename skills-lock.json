@@ -26,6 +26,12 @@
       "source": "vercel-labs/agent-browser",
       "sourceType": "github",
       "computedHash": "2b88c3cb2e5debf7a4f14a4759e6338b3e88fe127cabaac3fa649af6ca0bdbbd"
+    },
+    "bklit-ui": {
+      "source": "bklit/bklit-ui",
+      "sourceType": "github",
+      "skillPath": "skills/bklit-ui/SKILL.md",
+      "computedHash": "ace89f8b9a6d5d8f0367307f886cb9654065356db537df7b57b3d849aa503534"
     }
   }
 }

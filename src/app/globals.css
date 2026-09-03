@@ -643,7 +643,7 @@ input, textarea, [contenteditable="true"] {
    ② 빈 상태(0건)/스켈레톤 로딩 표준 클래스 — 화면별 재구현 수렴용.
    전부 시각-only(레이아웃 ±수px) → 회귀 최소.
    ══════════════════════════════════════════════════════════════════ */
-:root { --control-h: 2.5rem; --control-h-sm: 2rem; }
+:root { --control-h: 2.5rem; --control-h-sm: 2rem; --chart-1: #4F46E5; --chart-2: #D97706; --chart-3: #0D9488; --chart-4: #E11D48; --chart-5: #7C3AED; --chart-background: oklch(1 0 0); --chart-foreground: oklch(0.145 0.004 285); --chart-foreground-muted: oklch(0.55 0.014 260); --chart-line-primary: var(--chart-1); --chart-line-secondary: var(--chart-2); --chart-crosshair: oklch(0.4 0.1828 274.34); --chart-grid: oklch(0.9 0 0); --chart-brush-border: var(--chart-grid); --chart-tooltip-background: oklch(0.21 0.006 285 / 0.8); --chart-tooltip-foreground: oklch(0.985 0 0); --chart-tooltip-muted: oklch(0.65 0.01 260); --chart-marker-background: oklch(0.97 0.005 260); --chart-marker-border: oklch(0.85 0.01 260); --chart-marker-foreground: oklch(0.3 0.01 260); --chart-label: oklch(0.45 0.01 260); --chart-scale-01: oklch(0.98 0.003 106); --chart-scale-02: oklch(0.92 0.008 106); --chart-scale-03: oklch(0.82 0.015 106); --chart-scale-04: oklch(0.68 0.02 106); --chart-scale-05: oklch(0.55 0.025 106); --chart-scale-pattern-color: oklch(0.96 0.005 106); }
 :root { --app-zoom: 1.05; } /* 앱 전체 확대 — 2026-08-26 사장님: 1.12 → 1.08 → 1.05(아직 커서 살짝 더). 조절은 이 값 하나로 */
 
 /* 1) 버튼 표준 높이 — 기존 py 무력화, 세로 중앙정렬은 flex 가 처리 */
@@ -8053,7 +8053,7 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 .bz-signal > h3 { @apply flex items-center gap-2; }
 .bz-signal > h3 > em { @apply ml-auto not-italic text-[11px] font-bold; }
 .bz-dot { @apply inline-block h-2.5 w-2.5 rounded-full; }
-  
+
 .bz-tone-g { color: var(--success); } .bz-tone-y { color: var(--warning); } .bz-tone-r { color: var(--danger); }
 .bz-big { @apply my-1 text-[22px] font-extrabold text-[var(--text)]; }
 .bz-plus { color: var(--success); } .bz-minus { color: var(--danger); }
@@ -10207,3 +10207,238 @@ table.ch-st-table { min-width: 520px; } /* table. — .ev-table(뒤에 정의) �
   .rep-sheet { @apply border-0; }
   .rep-apx, .rep-tool, .brief-act, .brief-chk { display: none !important; }
 }
+
+/* Bklit 차트 토큰 — 다크. 앱은 [data-theme="dark"] 를 쓰므로 .dark 와 함께 건다.
+   카테고리 팔레트는 dataviz 검증기(validate_palette.js) 라이트·다크 모두 PASS (2026-09-03). */
+.dark, [data-theme="dark"] {
+  --chart-1: #6366F1;
+  --chart-2: #D97706;
+  --chart-3: #0D9488;
+  --chart-4: #F43F5E;
+  --chart-5: #8B5CF6;
+  --chart-background: oklch(0.145 0 0);
+  --chart-foreground: oklch(0.45 0 0);
+  --chart-foreground-muted: oklch(0.65 0.01 260);
+  --chart-crosshair: oklch(0.45 0 0);
+  --chart-grid: oklch(0.25 0 0);
+  --chart-brush-border: var(--chart-grid);
+  --chart-marker-background: oklch(0.25 0.01 260);
+  --chart-marker-border: oklch(0.4 0.01 260);
+  --chart-marker-foreground: oklch(0.9 0 0);
+  --chart-label: oklch(0.75 0.01 260);
+  --chart-scale-01: oklch(0.28 0.03 270);
+  --chart-scale-02: oklch(0.38 0.04 270);
+  --chart-scale-03: oklch(0.48 0.05 270);
+  --chart-scale-04: oklch(0.58 0.06 270);
+  --chart-scale-05: oklch(0.68 0.07 270);
+  --chart-scale-pattern-color: oklch(0.145 0 0);
+}
+
+@theme inline {
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-background: var(--chart-background);
+  --color-chart-foreground: var(--chart-foreground);
+  --color-chart-foreground-muted: var(--chart-foreground-muted);
+  --chart-line-primary: var(--chart-line-primary);
+  --chart-line-secondary: var(--chart-line-secondary);
+  --color-chart-crosshair: var(--chart-crosshair);
+  --color-chart-grid: var(--chart-grid);
+  --chart-brush-border: var(--chart-brush-border);
+  --color-chart-tooltip-background: var(--chart-tooltip-background);
+  --color-chart-tooltip-foreground: var(--chart-tooltip-foreground);
+  --color-chart-tooltip-muted: var(--chart-tooltip-muted);
+  --color-chart-marker-background: var(--chart-marker-background);
+  --color-chart-marker-border: var(--chart-marker-border);
+  --color-chart-marker-foreground: var(--chart-marker-foreground);
+  --color-chart-label: var(--chart-label);
+  --color-chart-scale-01: var(--chart-scale-01);
+  --color-chart-scale-02: var(--chart-scale-02);
+  --color-chart-scale-03: var(--chart-scale-03);
+  --color-chart-scale-04: var(--chart-scale-04);
+  --color-chart-scale-05: var(--chart-scale-05);
+  --color-chart-scale-pattern-color: var(--chart-scale-pattern-color);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   운영자 페이지 v2 (2026-09-03 사장님: "최신스럽고 현대적이고 세련되게") — pf-* 부품
+   · 카드: 유리 + 은은한 그라데이션 테두리 + 호버 리프트 · KPI: 숫자 롤링(NumberFlow)
+   · 등장: 아래→위 페이드 스태거(.pf-in, --pf-i 순번) · 스켈레톤 시머 · 라이브 펄스
+   · prefers-reduced-motion 이면 이동 애니메이션은 끄고 페이드만 남긴다
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --pf-radius: 20px;
+  --pf-card-bg: color-mix(in oklab, var(--bg-card) 86%, transparent);
+  --pf-card-border: color-mix(in oklab, var(--border) 70%, transparent);
+  --pf-glow: color-mix(in oklab, var(--primary) 18%, transparent);
+  --pf-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 32px -18px rgba(15, 23, 42, 0.25);
+  --pf-shadow-hover: 0 2px 4px rgba(15, 23, 42, 0.05), 0 24px 48px -20px rgba(79, 70, 229, 0.28);
+}
+[data-theme="dark"] {
+  --pf-card-bg: color-mix(in oklab, var(--bg-card) 78%, transparent);
+  --pf-card-border: color-mix(in oklab, var(--border) 60%, transparent);
+  --pf-glow: color-mix(in oklab, var(--primary) 28%, transparent);
+  --pf-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 16px 40px -20px rgba(0,0,0,0.7);
+  --pf-shadow-hover: 0 2px 4px rgba(0,0,0,0.35), 0 28px 56px -22px rgba(99, 102, 241, 0.45);
+}
+
+/* 배경 — 운영자 캔버스에 은은한 오로라(고정, 스크롤과 무관) */
+.pf-canvas { position: relative; isolation: isolate; }
+.pf-canvas::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(60% 45% at 8% 0%, color-mix(in oklab, var(--primary) 14%, transparent), transparent 70%),
+    radial-gradient(45% 40% at 100% 10%, color-mix(in oklab, #0D9488 12%, transparent), transparent 70%),
+    radial-gradient(50% 50% at 60% 100%, color-mix(in oklab, #7C3AED 10%, transparent), transparent 70%);
+  animation: pf-aurora 18s ease-in-out infinite alternate;
+}
+@keyframes pf-aurora { from { transform: translate3d(0,0,0) scale(1); } to { transform: translate3d(-2%, 1.5%, 0) scale(1.04); } }
+
+/* 카드 */
+.pf-card {
+  position: relative; border-radius: var(--pf-radius); background: var(--pf-card-bg);
+  border: 1px solid var(--pf-card-border); box-shadow: var(--pf-shadow);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4);
+  transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s cubic-bezier(.2,.8,.2,1), border-color .35s;
+  overflow: hidden; min-width: 0;
+}
+.pf-card::after { /* 상단 하이라이트 라인 */
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--primary) 45%, transparent), transparent);
+  opacity: .7;
+}
+.pf-card-hover:hover { transform: translateY(-2px); box-shadow: var(--pf-shadow-hover); border-color: color-mix(in oklab, var(--primary) 30%, var(--pf-card-border)); }
+.pf-card-pad { @apply p-5; }
+.pf-card-head { @apply flex items-start justify-between gap-3 px-5 pt-4 pb-3; }
+.pf-card-head-tight { @apply px-4 pt-3 pb-2; }
+.pf-card-title { @apply text-[13px] font-bold text-[var(--text)] tracking-tight flex items-center gap-1.5; }
+.pf-card-sub { @apply text-[11px] text-[var(--text-dim)] mt-0.5; }
+.pf-card-action { @apply text-[11px] font-semibold text-[var(--primary)] hover:underline shrink-0; }
+.pf-card-body { @apply px-5 pb-5; }
+.pf-card-dark { color: #fff; background: linear-gradient(135deg, #0b1120 0%, #131b33 55%, #1b1f4a 100%); border-color: rgba(129,140,248,.25); }
+.pf-card-dark::after { background: linear-gradient(90deg, transparent, rgba(165,180,252,.7), transparent); }
+.pf-card-dark .pf-card-title { color: #fff; }
+.pf-card-dark .pf-card-sub { color: rgba(203,213,225,.75); }
+
+/* KPI 타일 */
+.pf-kpi { @apply flex flex-col gap-1 min-w-0; }
+.pf-kpi-label { @apply text-[11px] font-semibold text-[var(--text-muted)] tracking-tight; }
+.pf-kpi-value { @apply text-2xl font-extrabold leading-none text-[var(--text)] tracking-tight; font-variant-numeric: tabular-nums; }
+.pf-kpi-value-lg { @apply text-3xl md:text-4xl; }
+.pf-kpi-accent { color: var(--primary); }
+.pf-kpi-delta { @apply text-[11px] font-semibold inline-flex items-center gap-1 rounded-full px-1.5 py-[1px]; }
+.pf-kpi-delta-up { color: var(--success); background: color-mix(in oklab, var(--success) 12%, transparent); }
+.pf-kpi-delta-down { color: var(--danger); background: color-mix(in oklab, var(--danger) 12%, transparent); }
+.pf-kpi-delta-flat { color: var(--text-dim); background: var(--bg-surface); }
+.pf-kpi-grid { @apply grid gap-3; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.pf-kpi-tile { @apply p-4; } /* pf-card 와 함께 쓴다(컴포넌트가 붙임) — Tailwind v4 는 @apply 로 사용자 클래스를 못 섞는다 */
+
+/* 페이지 머리 */
+.pf-page { @apply max-w-[1440px] space-y-5; }
+.pf-page-head { @apply flex flex-col md:flex-row md:items-end justify-between gap-3 mb-1; }
+.pf-page-eyebrow { @apply text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--primary)]; }
+.pf-page-title { @apply text-2xl md:text-[28px] font-black tracking-tight text-[var(--text)] leading-tight; }
+.pf-page-desc { @apply text-[13px] text-[var(--text-muted)] mt-1 max-w-2xl; }
+.pf-page-actions { @apply flex flex-wrap items-center gap-2; }
+
+/* 버튼·칩·배지 */
+.pf-btn { @apply inline-flex items-center gap-1.5 rounded-xl px-3.5 h-9 text-[12px] font-semibold border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] transition hover:border-[var(--primary)]/50 hover:shadow-[0_6px_18px_-10px_var(--primary)] active:translate-y-px; }
+.pf-btn-primary { @apply border-transparent text-white; background: linear-gradient(135deg, var(--primary), #7C3AED); box-shadow: 0 8px 20px -10px var(--primary); }
+.pf-btn-primary:hover { filter: brightness(1.06); }
+.pf-btn-ghost { @apply bg-transparent border-transparent text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]; }
+.pf-btn-sm { @apply h-8 px-3 text-[11px] rounded-lg; }
+.pf-chip { @apply inline-flex items-center gap-1 rounded-full px-2.5 h-7 text-[11px] font-semibold border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] transition hover:text-[var(--text)]; }
+.pf-chip-on { @apply border-transparent text-white; background: linear-gradient(135deg, var(--primary), #7C3AED); }
+.pf-seg { @apply inline-flex p-1 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]/60 gap-0.5; }
+.pf-seg-item { @apply px-3 h-7 rounded-lg text-[11px] font-semibold text-[var(--text-muted)] transition; }
+.pf-seg-item-on { @apply bg-[var(--bg-card)] text-[var(--text)] shadow-sm; }
+.pf-badge { @apply inline-flex items-center gap-1 rounded-full px-2 py-[2px] text-[10px] font-bold leading-none whitespace-nowrap; }
+.pf-badge-ok { color: var(--success); background: color-mix(in oklab, var(--success) 14%, transparent); }
+.pf-badge-warn { color: #b45309; background: color-mix(in oklab, #D97706 16%, transparent); }
+.pf-badge-danger { color: var(--danger); background: color-mix(in oklab, var(--danger) 14%, transparent); }
+.pf-badge-info { color: var(--primary); background: color-mix(in oklab, var(--primary) 14%, transparent); }
+.pf-badge-muted { color: var(--text-muted); background: var(--bg-surface); }
+[data-theme="dark"] .pf-badge-warn { color: #fbbf24; }
+
+/* 목록 행 */
+.pf-rows { @apply divide-y divide-[var(--border)]/60; }
+.pf-row { @apply flex items-center gap-3 px-5 py-2.5 text-[12px] transition; }
+a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--primary) 6%, transparent); }
+.pf-row-title { @apply text-[12px] font-semibold text-[var(--text)] truncate; }
+.pf-row-sub { @apply text-[10.5px] text-[var(--text-dim)] truncate; }
+.pf-row-more { @apply px-5 py-2 text-[11px] text-[var(--text-dim)]; }
+.pf-empty { @apply px-5 py-8 text-center text-[12px] text-[var(--text-dim)]; }
+.pf-empty-ok { color: var(--success); }
+
+/* 표 */
+.pf-table { @apply w-full text-[12px]; }
+.pf-table thead th { @apply text-left text-[10.5px] font-bold uppercase tracking-wider text-[var(--text-dim)] px-4 py-2.5 border-b border-[var(--border)]/70 whitespace-nowrap sticky top-0 bg-[var(--bg-card)]/90 backdrop-blur; }
+.pf-table tbody td { @apply px-4 py-2.5 border-b border-[var(--border)]/50 align-middle; }
+.pf-table tbody tr { transition: background .2s; }
+.pf-table tbody tr:hover { background: color-mix(in oklab, var(--primary) 5%, transparent); }
+.pf-table-wrap { @apply overflow-x-auto; }
+
+/* 등장 애니메이션 — 카드에 .pf-in 과 style="--pf-i: n" */
+.pf-in { opacity: 0; transform: translateY(10px); animation: pf-in .55s cubic-bezier(.2,.8,.2,1) forwards; animation-delay: calc(var(--pf-i, 0) * 60ms); }
+@keyframes pf-in { to { opacity: 1; transform: translateY(0); } }
+.pf-grow { transform-origin: left center; animation: pf-grow .9s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes pf-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* 라이브 점·펄스 */
+.pf-live { @apply inline-block w-2 h-2 rounded-full; background: var(--success); box-shadow: 0 0 0 0 color-mix(in oklab, var(--success) 60%, transparent); animation: pf-pulse 1.8s ease-out infinite; }
+.pf-live-off { background: var(--text-dim); animation: none; box-shadow: none; }
+@keyframes pf-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--success) 55%, transparent); } 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+/* 스켈레톤 */
+.pf-skel { position: relative; overflow: hidden; border-radius: 10px; background: color-mix(in oklab, var(--text) 6%, transparent); }
+.pf-skel::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--text) 8%, transparent), transparent); animation: pf-shimmer 1.4s infinite; }
+@keyframes pf-shimmer { to { transform: translateX(100%); } }
+
+/* 진행 막대 */
+.pf-bar-track { @apply h-1.5 rounded-full overflow-hidden; background: var(--bg-surface); }
+.pf-bar-fill { @apply h-full rounded-full; transform-origin: left center; animation: pf-grow .9s cubic-bezier(.2,.8,.2,1) both; }
+
+/* 레이아웃 셸 v2 */
+.pf-sidebar { @apply w-[236px] hidden md:flex flex-col fixed left-3 top-3 bottom-3 z-40 rounded-[22px]; background: var(--pf-card-bg); border: 1px solid var(--pf-card-border); box-shadow: var(--pf-shadow); -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5); }
+.pf-main { @apply flex-1 ml-0 md:ml-[260px] p-4 md:p-6 lg:p-7 lg:pr-6; }
+.pf-nav-group-title { @apply px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-dim)]; }
+.pf-nav-item { @apply relative flex items-center gap-2.5 px-3 h-9 rounded-xl text-[13px] font-semibold text-[var(--text-muted)] transition; }
+.pf-nav-item:hover { color: var(--text); background: color-mix(in oklab, var(--primary) 7%, transparent); }
+.pf-nav-item-on { color: #fff; background: linear-gradient(135deg, var(--primary), #7C3AED); box-shadow: 0 10px 24px -12px var(--primary); }
+.pf-nav-item-on:hover { color: #fff; background: linear-gradient(135deg, var(--primary), #7C3AED); }
+.pf-nav-icon { @apply w-4 h-4 shrink-0; }
+.pf-topbar { @apply flex items-center justify-between gap-3 rounded-2xl px-4 py-2.5 mb-5 sticky top-3 z-30; background: var(--pf-card-bg); border: 1px solid var(--pf-card-border); box-shadow: var(--pf-shadow); -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5); }
+.pf-crumb { @apply text-[11px] font-semibold text-[var(--text-dim)] flex items-center gap-1.5; }
+.pf-mobile-nav { @apply md:hidden flex gap-1.5 overflow-x-auto pb-2 mb-4 -mx-1 px-1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-in { animation: pf-fade .3s ease forwards; transform: none; }
+  .pf-grow, .pf-live, .pf-canvas::before, .pf-skel::after { animation: none; }
+  .pf-card-hover:hover { transform: none; }
+  @keyframes pf-fade { to { opacity: 1; } }
+}
+
+/* pf 부품 추가분 (2026-09-03 화면 팀 요청) — 셀렉트·입력칸·안내 상자·위험 버튼·좁은 행·타임라인 */
+.pf-select { @apply h-9 rounded-xl px-3 pr-8 text-[12px] font-semibold border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] transition hover:border-[var(--primary)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
+.pf-select-sm { @apply h-8 text-[11px] rounded-lg; }
+.pf-input { @apply h-9 rounded-xl px-3 text-[12px] border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] placeholder:text-[var(--text-dim)] transition focus:outline-none focus:border-[var(--primary)]/60 focus:ring-2 focus:ring-[var(--primary)]/25; }
+.pf-input-sm { @apply h-8 text-[11px] rounded-lg; }
+.pf-textarea { @apply rounded-xl px-3 py-2 text-[12px] border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] placeholder:text-[var(--text-dim)] transition focus:outline-none focus:border-[var(--primary)]/60 focus:ring-2 focus:ring-[var(--primary)]/25 w-full; }
+.pf-callout { @apply rounded-2xl px-4 py-3 text-[12px] text-[var(--text-muted)] border; background: color-mix(in oklab, var(--primary) 6%, transparent); border-color: color-mix(in oklab, var(--primary) 18%, transparent); }
+.pf-callout-warn { background: color-mix(in oklab, #D97706 8%, transparent); border-color: color-mix(in oklab, #D97706 25%, transparent); }
+.pf-callout-danger { background: color-mix(in oklab, var(--danger) 7%, transparent); border-color: color-mix(in oklab, var(--danger) 22%, transparent); }
+.pf-callout-ok { background: color-mix(in oklab, var(--success) 7%, transparent); border-color: color-mix(in oklab, var(--success) 22%, transparent); }
+.pf-btn-danger { @apply border-transparent text-white; background: linear-gradient(135deg, var(--danger), #b91c1c); box-shadow: 0 8px 20px -10px var(--danger); }
+.pf-btn-danger-ghost { @apply bg-transparent border-transparent; color: var(--danger); }
+.pf-btn-danger-ghost:hover { background: color-mix(in oklab, var(--danger) 10%, transparent); }
+.pf-row-tight { @apply px-3 py-2; }
+.pf-seg-label { @apply px-3 h-7 inline-flex items-center rounded-lg text-[11px] font-semibold text-[var(--text)] bg-[var(--bg-card)] shadow-sm; }
+.pf-timeline { @apply relative pl-6; }
+.pf-timeline::before { content: ""; position: absolute; left: 9px; top: 6px; bottom: 6px; width: 2px; background: color-mix(in oklab, var(--border) 80%, transparent); border-radius: 2px; }
+.pf-timeline-item { @apply relative py-2; }
+.pf-timeline-dot { position: absolute; left: -21px; top: 12px; width: 10px; height: 10px; border-radius: 9999px; background: var(--primary); box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 18%, transparent); }
+.pf-tone-ok { color: var(--success); } .pf-tone-warn { color: #b45309; } .pf-tone-danger { color: var(--danger); } .pf-tone-info { color: var(--primary); }
+[data-theme="dark"] .pf-tone-warn { color: #fbbf24; }

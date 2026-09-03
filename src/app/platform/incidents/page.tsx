@@ -1,10 +1,12 @@
 "use client";
+// 사고 기록 — 2026-09-03 v2 pf 디자인. 조회·저장 RPC(operator_upsert_incident)와 폼 로직은 그대로.
 import { SystemTabs } from "../_components/system-tabs";
 
 import { useState } from "react";
 import { DateTimeField } from "@/components/datetime-field";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSkeleton, PfEmpty } from "../_components/pf/ui";
 
 const db = supabase;
 
@@ -23,12 +25,8 @@ type Incident = {
   updated_at: string;
 };
 
-const SEVERITY_TONE = {
-  low: "bg-[var(--success-dim)] text-[var(--success)]",
-  medium: "bg-[var(--warning-dim)] text-[var(--warning)]",
-  high: "bg-[var(--danger-dim)] text-[var(--danger)]",
-  critical: "bg-[var(--danger)] text-white",
-} as const;
+const SEVERITY_LABEL: Record<Incident["severity"], string> = { low: "낮음", medium: "보통", high: "높음", critical: "치명" };
+const SEVERITY_BADGE: Record<Incident["severity"], "ok" | "warn" | "danger"> = { low: "ok", medium: "warn", high: "danger", critical: "danger" };
 
 function fmtDate(s: string | null): string {
   if (!s) return "—";
@@ -98,22 +96,33 @@ export default function PlatformIncidentsPage() {
     },
   });
 
+  const resolvedCount = items.filter((i) => i.resolved_at).length;
+  const openCount = items.length - resolvedCount;
+  const criticalCount = items.filter((i) => i.severity === "critical" || i.severity === "high").length;
+
   return (
-    <div className="max-w-5xl space-y-6">
+    <PfPage>
+      <PfPageHead
+        eyebrow="운영"
+        title="사고 기록"
+        desc="서비스에 문제가 생겼던 일을 기록해 둡니다. 사고가 나면 바로 적고, 원인과 재발 방지책은 정리된 뒤에 채우세요."
+        actions={
+          <button
+            type="button"
+            onClick={() => setEditing({ severity: "medium", occurred_at: new Date().toISOString() })}
+            className="pf-btn pf-btn-primary"
+          >
+            + 새 사고 기록
+          </button>
+        }
+      />
       <SystemTabs />
-      <div className="platform-incident-toolbar">
-        <div className="flex flex-wrap items-baseline gap-2">
-          <h1 className="text-2xl font-extrabold text-[var(--text)]">사고 기록</h1>
-          <span className="text-sm text-[var(--text-muted)]">
-            운영 사고 타임라인 · {items.length}건 (해결 {items.filter((i) => i.resolved_at).length})
-          </span>
-        </div>
-        <button
-          onClick={() => setEditing({ severity: "medium", occurred_at: new Date().toISOString() })}
-          className="btn-primary"
-        >
-          + 신규 사고 기록
-        </button>
+
+      <div className="pf-kpi-grid">
+        <PfCard i={2} className="pf-kpi-tile"><PfKpi label="전체 사고" value={items.length} unit="건" /></PfCard>
+        <PfCard i={3} className="pf-kpi-tile"><PfKpi label="복구 중" value={openCount} unit="건" accent={openCount > 0} live={openCount > 0} /></PfCard>
+        <PfCard i={4} className="pf-kpi-tile"><PfKpi label="해결됨" value={resolvedCount} unit="건" /></PfCard>
+        <PfCard i={5} className="pf-kpi-tile"><PfKpi label="높음 이상" value={criticalCount} unit="건" /></PfCard>
       </div>
 
       {editing && (
@@ -127,65 +136,52 @@ export default function PlatformIncidentsPage() {
         />
       )}
 
-      {isLoading && <div className="text-sm text-[var(--text-dim)]">불러오는 중…</div>}
+      {isLoading && <PfCard i={6}><PfCardBody className="pt-5"><PfSkeleton rows={4} h={16} /></PfCardBody></PfCard>}
 
       {!isLoading && items.length === 0 && (
-        <div className="glass-card p-8 text-center text-sm text-[var(--text-dim)]">
-          기록된 사고가 없습니다. 우측 상단 버튼으로 첫 사고를 기록하세요.
-        </div>
+        <PfCard i={6}><PfEmpty ok>기록된 사고가 없습니다. 오른쪽 위 버튼으로 첫 사고를 기록하세요.</PfEmpty></PfCard>
       )}
 
-      <div className="platform-incident-list">
-        {items.map((i) => (
-          <div key={i.id} className={`platform-incident-card glass-card ${i.resolved_at ? "" : "border border-[var(--warning)]/40"}`}>
-            <div className="flex items-start justify-between gap-3 mb-2">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${SEVERITY_TONE[i.severity]}`}>
-                    {i.severity.toUpperCase()}
-                  </span>
-                  {i.resolved_at ? (
-                    <span className="text-[10px] text-[var(--success)] font-semibold">✓ 해결</span>
-                  ) : (
-                    <span className="text-[10px] text-[var(--warning)] font-semibold animate-pulse">● 진행</span>
-                  )}
-                  {i.related_commit && (
-                    <span className="text-[10px] font-mono text-[var(--text-dim)]">{i.related_commit}</span>
-                  )}
-                </div>
-                <div className="text-base font-bold text-[var(--text)]">{i.title}</div>
-                <div className="text-xs text-[var(--text-dim)] mt-0.5">
-                  {fmtDate(i.occurred_at)} → {fmtDate(i.resolved_at)} ({durationLabel(i.occurred_at, i.resolved_at)})
-                </div>
+      <div className="space-y-3">
+        {items.map((i, idx) => (
+          <PfCard key={i.id} i={6 + idx} hover={false} className={i.resolved_at ? "" : "ring-1 ring-[#D97706]/40"}>
+            <PfCardHead
+              title={
+                <span className="flex items-center gap-2 flex-wrap">
+                  <PfBadge tone={SEVERITY_BADGE[i.severity]}>{SEVERITY_LABEL[i.severity]}</PfBadge>
+                  {i.resolved_at
+                    ? <PfBadge tone="ok">✓ 해결</PfBadge>
+                    : <PfBadge tone="warn"><span className="pf-live" style={{ background: "#D97706" }} /> 복구 중</PfBadge>}
+                  {i.related_commit && <span className="text-[10px] font-mono text-[var(--text-dim)]">{i.related_commit}</span>}
+                </span>
+              }
+              action={<button type="button" onClick={() => setEditing(i)} className="pf-btn pf-btn-sm">수정</button>}
+            />
+            <PfCardBody>
+              <div className="text-[15px] font-bold text-[var(--text)] leading-snug">{i.title}</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-1 mono-number">
+                {fmtDate(i.occurred_at)} → {fmtDate(i.resolved_at)} <span className="font-semibold text-[var(--text-muted)]">({durationLabel(i.occurred_at, i.resolved_at)})</span>
               </div>
-              <button
-                onClick={() => setEditing(i)}
-                className="text-xs text-[var(--primary)] hover:underline shrink-0"
-              >
-                수정
-              </button>
-            </div>
-            <div className="space-y-2 mt-3 text-xs">
-              {i.symptoms && <Field label="증상" value={i.symptoms} />}
-              {i.root_cause && <Field label="근본원인" value={i.root_cause} accent />}
-              {i.prevention && <Field label="재발방지" value={i.prevention} />}
-            </div>
-          </div>
+              {(i.symptoms || i.root_cause || i.prevention) && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-3 text-[12px]">
+                  {i.symptoms && <Field label="무슨 일이" value={i.symptoms} />}
+                  {i.root_cause && <Field label="왜 났나" value={i.root_cause} accent />}
+                  {i.prevention && <Field label="다시 안 나게" value={i.prevention} />}
+                </div>
+              )}
+            </PfCardBody>
+          </PfCard>
         ))}
       </div>
-
-      <div className="kpi-callout">
-        사고가 나면 즉시 기록하고, 근본 원인과 재발 방지책은 사후 분석 뒤에 채웁니다.
-      </div>
-    </div>
+    </PfPage>
   );
 }
 
 function Field({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className={`platform-incident-field ${accent ? "bg-[var(--primary-light)]" : "bg-[var(--bg-surface)]"}`}>
-      <div className="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wider mb-1">{label}</div>
-      <div className="text-[var(--text)] whitespace-pre-wrap">{value}</div>
+    <div className="rounded-xl px-3 py-2" style={accent ? { background: "color-mix(in oklab, var(--primary) 8%, transparent)" } : { background: "var(--bg-surface)" }}>
+      <div className={`text-[10px] font-bold mb-0.5 ${accent ? "text-[var(--primary)]" : "text-[var(--text-dim)]"}`}>{label}</div>
+      <div className="text-[var(--text)] whitespace-pre-wrap leading-relaxed">{value}</div>
     </div>
   );
 }
@@ -201,77 +197,80 @@ function IncidentForm({
   error?: string;
 }) {
   return (
-    <div className="platform-incident-form glass-card">
-      <div className="text-sm font-bold text-[var(--text)]">{value.id ? "사고 수정" : "신규 사고 기록"}</div>
-      <input
-        type="text"
-        placeholder="제목 *"
-        value={value.title || ""}
-        onChange={(e) => onChange({ ...value, title: e.target.value })}
-        className="field-input-sm text-sm"
-      />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <DateTimeField
-          value={toLocalInput(value.occurred_at)}
-          onChange={(e) => onChange({ ...value, occurred_at: fromLocalInput(e.target.value) ?? undefined })}
+    <PfCard i={6} hover={false}>
+      <PfCardHead title={value.id ? "사고 수정" : "새 사고 기록"} sub="제목만 있어도 저장됩니다. 나머지는 나중에 채워도 돼요." />
+      <PfCardBody className="space-y-3">
+        <input
+          type="text"
+          placeholder="제목 *"
+          value={value.title || ""}
+          onChange={(e) => onChange({ ...value, title: e.target.value })}
           className="field-input-sm text-sm"
         />
-        <DateTimeField
-          placeholder="해결시각"
-          value={toLocalInput(value.resolved_at)}
-          onChange={(e) => onChange({ ...value, resolved_at: fromLocalInput(e.target.value) })}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <DateTimeField
+            value={toLocalInput(value.occurred_at)}
+            onChange={(e) => onChange({ ...value, occurred_at: fromLocalInput(e.target.value) ?? undefined })}
+            className="field-input-sm text-sm"
+          />
+          <DateTimeField
+            placeholder="해결시각"
+            value={toLocalInput(value.resolved_at)}
+            onChange={(e) => onChange({ ...value, resolved_at: fromLocalInput(e.target.value) })}
+            className="field-input-sm text-sm"
+          />
+          <select
+            value={value.severity || "medium"}
+            onChange={(e) => onChange({ ...value, severity: e.target.value as Incident["severity"] })}
+            className="field-input-sm text-sm"
+          >
+            <option value="low">낮음</option>
+            <option value="medium">보통</option>
+            <option value="high">높음</option>
+            <option value="critical">치명</option>
+          </select>
+        </div>
+        <textarea
+          rows={2}
+          placeholder="무슨 일이 있었나 (증상)"
+          value={value.symptoms || ""}
+          onChange={(e) => onChange({ ...value, symptoms: e.target.value })}
           className="field-input-sm text-sm"
         />
-        <select
-          value={value.severity || "medium"}
-          onChange={(e) => onChange({ ...value, severity: e.target.value as Incident["severity"] })}
+        <textarea
+          rows={2}
+          placeholder="왜 났나 (근본 원인)"
+          value={value.root_cause || ""}
+          onChange={(e) => onChange({ ...value, root_cause: e.target.value })}
           className="field-input-sm text-sm"
-        >
-          <option value="low">낮음</option>
-          <option value="medium">보통</option>
-          <option value="high">높음</option>
-          <option value="critical">치명</option>
-        </select>
-      </div>
-      <textarea
-        rows={2}
-        placeholder="증상"
-        value={value.symptoms || ""}
-        onChange={(e) => onChange({ ...value, symptoms: e.target.value })}
-        className="field-input-sm text-sm"
-      />
-      <textarea
-        rows={2}
-        placeholder="근본원인"
-        value={value.root_cause || ""}
-        onChange={(e) => onChange({ ...value, root_cause: e.target.value })}
-        className="field-input-sm text-sm"
-      />
-      <textarea
-        rows={2}
-        placeholder="재발방지"
-        value={value.prevention || ""}
-        onChange={(e) => onChange({ ...value, prevention: e.target.value })}
-        className="field-input-sm text-sm"
-      />
-      <input
-        type="text"
-        placeholder="관련 코드 변경 기록 (선택)"
-        value={value.related_commit || ""}
-        onChange={(e) => onChange({ ...value, related_commit: e.target.value })}
-        className="field-input-sm text-sm font-mono"
-      />
-      {error && <div className="text-xs text-[var(--danger)]">{error}</div>}
-      <div className="flex justify-end gap-2">
-        <button onClick={onCancel} className="btn-ghost text-xs">취소</button>
-        <button
-          onClick={onSubmit}
-          disabled={pending || !value.title}
-          className="btn-primary text-xs"
-        >
-          {pending ? "저장중…" : "저장"}
-        </button>
-      </div>
-    </div>
+        />
+        <textarea
+          rows={2}
+          placeholder="다시 안 나게 (재발 방지)"
+          value={value.prevention || ""}
+          onChange={(e) => onChange({ ...value, prevention: e.target.value })}
+          className="field-input-sm text-sm"
+        />
+        <input
+          type="text"
+          placeholder="관련 코드 변경 기록 (선택)"
+          value={value.related_commit || ""}
+          onChange={(e) => onChange({ ...value, related_commit: e.target.value })}
+          className="field-input-sm text-sm font-mono"
+        />
+        {error && <div className="text-xs text-[var(--danger)]">{error}</div>}
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onCancel} className="pf-btn pf-btn-ghost">취소</button>
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={pending || !value.title}
+            className="pf-btn pf-btn-primary disabled:opacity-40"
+          >
+            {pending ? "저장 중…" : "저장"}
+          </button>
+        </div>
+      </PfCardBody>
+    </PfCard>
   );
 }

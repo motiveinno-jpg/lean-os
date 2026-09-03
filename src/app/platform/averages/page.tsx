@@ -1,10 +1,14 @@
 "use client";
 
+// 재무 평균 — 전체 고객사의 월별 재무 지표 통계(평균·중앙값·사분위).
+//   2026-09-03 v2 디자인 — pf 부품 + Bklit 막대 차트. RPC 호출은 그대로.
+
 import { useState } from "react";
-import { Ico } from "@/components/ui-icon";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSkeleton, PfEmpty, PfSeg } from "@/app/platform/_components/pf/ui";
+import { PfBars } from "@/app/platform/_components/pf/charts";
 
 const db = supabase;
 
@@ -32,8 +36,11 @@ function fmtW(n: number | null | undefined): string {
   return `${sign}₩${abs.toLocaleString()}`;
 }
 
+type View = "cards" | "chart";
+
 export default function PlatformAveragesPage() {
   const [month, setMonth] = useState<string>(""); // 빈 문자열 = 최신
+  const [view, setView] = useState<View>("cards");
 
   const { data: months = [] } = useQuery<MonthRow[]>({
     queryKey: ["op-fin-months"],
@@ -60,138 +67,154 @@ export default function PlatformAveragesPage() {
 
   const sampleSize = rows[0]?.sample_size ?? 0;
 
+  // 지표별 평균·중앙값 비교 막대 — 지표마다 단위가 달라 만원 단위로 통일(한 축)
+  const chartRows = rows.map((r) => ({
+    name: r.label,
+    avg: Math.round(Number(r.avg_value || 0) / 1e4),
+    median: Math.round(Number(r.median_value || 0) / 1e4),
+  }));
+  const fmtMan = (v: number) => `${v.toLocaleString("ko-KR")}만`;
+
+  const actions = (
+    <div className="flex items-center gap-2 flex-wrap">
+      <PfSeg<View> value={view} onChange={setView} options={[{ value: "cards", label: "지표 카드" }, { value: "chart", label: "비교 차트" }]} />
+      <select
+        value={effectiveMonth}
+        onChange={(e) => setMonth(e.target.value)}
+        className="pf-btn"
+      >
+        {months.length === 0 && <option value="">데이터 없음</option>}
+        {months.map((m) => (
+          <option key={m.month} value={m.month}>
+            {m.month} · {m.company_count}개 회사
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
   return (
-    <div className="max-w-5xl space-y-6">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold text-[var(--text)]">재무 평균</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            전체 회사 월별 재무 지표 — 평균·중앙값·1·3사분위·표준편차
-          </p>
+    <PfPage>
+      <PfPageHead
+        eyebrow="운영"
+        title="재무 평균"
+        desc="오너뷰를 쓰는 회사들의 한 달 재무 지표를 한데 모아 평균과 중앙값, 위·아래 25% 경계를 보여줍니다. 우리 고객이 어떤 규모의 회사인지 감을 잡는 화면입니다."
+        actions={actions}
+      />
+
+      {/* 요약 */}
+      <div className="pf-kpi-grid">
+        <div className="pf-kpi-tile pf-in" style={{ ["--pf-i" as string]: 1 }}>
+          <PfKpi label="집계 월" value={effectiveMonth || "—"} />
         </div>
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-[var(--text-dim)]">월</label>
-          <select
-            value={effectiveMonth}
-            onChange={(e) => setMonth(e.target.value)}
-            className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)]"
-          >
-            {months.length === 0 && <option value="">데이터 없음</option>}
-            {months.map((m) => (
-              <option key={m.month} value={m.month}>
-                {m.month} · {m.company_count}개 회사
-              </option>
-            ))}
-          </select>
+        <div className="pf-kpi-tile pf-in" style={{ ["--pf-i" as string]: 2 }}>
+          <PfKpi label="표본 회사" value={sampleSize} unit="곳" />
+          <div className="mt-1">
+            {sampleSize > 0 && sampleSize < 10
+              ? <PfBadge tone="warn">표본이 적어 참고용</PfBadge>
+              : sampleSize >= 10 ? <PfBadge tone="ok">통계 참고 가능</PfBadge> : null}
+          </div>
+        </div>
+        <div className="pf-kpi-tile pf-in" style={{ ["--pf-i" as string]: 3 }}>
+          <PfKpi label="집계 지표" value={rows.length} unit="개" />
         </div>
       </div>
 
-      {/* 표본 안내 */}
       {sampleSize > 0 && sampleSize < 10 && (
-        <div className="platform-sample-size-warning kpi-callout warning">
-          <Ico e="⚠" /> 표본 <b>{sampleSize}개</b> — 평균/중앙값의 통계적 의미는 제한적입니다. 회사가 늘어날수록 신뢰도가 올라갑니다.
-        </div>
+        <PfCard i={4} hover={false} pad className="text-[12px] text-[var(--text-muted)]">
+          표본이 <b className="text-[var(--text)]">{sampleSize}곳</b>뿐이라 평균과 중앙값이 한두 회사에 크게 흔들립니다. 회사가 늘어날수록 믿을 만해집니다.
+        </PfCard>
       )}
 
-      {isLoading && <div className="text-sm text-[var(--text-dim)]">불러오는 중…</div>}
+      {isLoading && (
+        <PfCard pad><PfSkeleton h={16} rows={5} /></PfCard>
+      )}
       {error && (
-        <div className="rounded-xl bg-[var(--danger-dim)] p-4 text-sm text-[var(--danger)]">
-          {(error as any)?.message || "조회 실패"}
-        </div>
+        <PfCard i={5}><PfEmpty>조회에 실패했습니다: {(error as any)?.message || "알 수 없는 오류"}</PfEmpty></PfCard>
+      )}
+      {!isLoading && !error && rows.length === 0 && (
+        <PfCard i={5}><PfEmpty>이 달에는 집계할 수 있는 재무 데이터가 없습니다.</PfEmpty></PfCard>
       )}
 
-      {!isLoading && rows.length === 0 && (
-        <div className="glass-card p-8 text-center text-sm text-[var(--text-dim)]">
-          이 달에는 집계할 수 있는 재무 데이터가 없습니다.
-        </div>
+      {!isLoading && rows.length > 0 && view === "chart" && (
+        <PfCard i={5}>
+          <PfCardHead title="지표별 평균 vs 중앙값" sub="단위 만원 · 평균이 중앙값보다 훨씬 크면 큰 회사 몇 곳이 끌어올린 것" />
+          <PfCardBody>
+            <PfBars
+              data={chartRows}
+              xKey="name"
+              series={[{ key: "avg", label: "평균", format: fmtMan }, { key: "median", label: "중앙값", format: fmtMan }]}
+              height={Math.max(220, rows.length * 44)}
+              horizontal
+              revealKey={effectiveMonth}
+            />
+          </PfCardBody>
+        </PfCard>
       )}
 
-      <div className="space-y-4">
-        {rows.map((r) => {
-          const avg = Number(r.avg_value || 0);
-          const median = Number(r.median_value || 0);
-          const p25 = Number(r.p25_value || 0);
-          const p75 = Number(r.p75_value || 0);
-          const min = Number(r.min_value || 0);
-          const max = Number(r.max_value || 0);
-          // 행별 [min, max] 선형 스케일 — 음수 지표(순이익·현금흐름 등)도 올바르게 배치.
-          //   min→0%, max→100%. 지표마다 스케일이 달라 전역 스케일 대신 각 행 도메인 사용.
-          const span = max - min;
-          const pct = (v: number) =>
-            span <= 0 ? 50 : Math.min(100, Math.max(0, ((v - min) / span) * 100));
-          return (
-            <div key={r.metric} className="platform-metric-card glass-card">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <div className="text-[var(--text)] font-bold text-sm">{r.label}</div>
-                  <div className="text-[11px] text-[var(--text-dim)]">표본 {r.sample_size}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xs text-[var(--text-dim)]">평균</div>
-                  <div className="text-lg font-extrabold mono-number text-[var(--primary)]">{fmtW(avg)}</div>
-                </div>
-              </div>
-
-              {/* 박스 플롯 스타일 — min, p25, median, p75, max */}
-              <div className="platform-boxplot">
-                {/* 전체 min~max 가로선 */}
-                <div
-                  className="absolute top-1/2 -translate-y-1/2 h-px bg-[var(--border-light)]"
-                  style={{ left: `${pct(min)}%`, width: `${pct(max) - pct(min)}%` }}
+      {!isLoading && rows.length > 0 && view === "cards" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {rows.map((r, idx) => {
+            const avg = Number(r.avg_value || 0);
+            const median = Number(r.median_value || 0);
+            const p25 = Number(r.p25_value || 0);
+            const p75 = Number(r.p75_value || 0);
+            const min = Number(r.min_value || 0);
+            const max = Number(r.max_value || 0);
+            // 행별 [min, max] 선형 스케일 — 음수 지표(순이익·현금흐름 등)도 올바르게 배치.
+            const span = max - min;
+            const pct = (v: number) => span <= 0 ? 50 : Math.min(100, Math.max(0, ((v - min) / span) * 100));
+            return (
+              <PfCard key={r.metric} i={5 + idx}>
+                <PfCardHead
+                  title={r.label}
+                  sub={`표본 ${r.sample_size}곳`}
+                  right={
+                    <div className="text-right shrink-0">
+                      <div className="text-[10.5px] text-[var(--text-dim)]">평균</div>
+                      <div className="text-lg font-extrabold mono-number text-[var(--primary)]">{fmtW(avg)}</div>
+                    </div>
+                  }
                 />
-                {/* 사분위 박스 */}
-                <div
-                  className="absolute top-1 bottom-1 bg-[var(--primary)]/25 border border-[var(--primary)]/50 rounded"
-                  style={{ left: `${pct(p25)}%`, width: `${Math.max(0.5, pct(p75) - pct(p25))}%` }}
-                  title={`P25 ${fmtW(p25)} ~ P75 ${fmtW(p75)}`}
-                />
-                {/* 중앙값 마커 */}
-                <div
-                  className="absolute top-0.5 bottom-0.5 w-0.5 bg-[var(--primary)]"
-                  style={{ left: `${pct(median)}%` }}
-                  title={`중앙값 ${fmtW(median)}`}
-                />
-                {/* 평균 마커 (다이아) */}
-                <div
-                  className="absolute top-1/2 -translate-y-1/2 w-2 h-2 bg-[var(--warning)] rotate-45 -ml-1"
-                  style={{ left: `${pct(avg)}%` }}
-                  title={`평균 ${fmtW(avg)}`}
-                />
-              </div>
-
-              <div className="platform-metric-stats-grid">
-                <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5">
-                  <div className="text-[var(--text-dim)]">최소</div>
-                  <div className="text-[var(--text)] font-semibold mono-number">{fmtW(min)}</div>
-                </div>
-                <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5">
-                  <div className="text-[var(--text-dim)]">P25</div>
-                  <div className="text-[var(--text)] font-semibold mono-number">{fmtW(p25)}</div>
-                </div>
-                <div className="bg-[var(--primary-light)] rounded-lg px-2.5 py-1.5">
-                  <div className="text-[var(--primary)]">중앙</div>
-                  <div className="text-[var(--primary)] font-semibold mono-number">{fmtW(median)}</div>
-                </div>
-                <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5">
-                  <div className="text-[var(--text-dim)]">P75</div>
-                  <div className="text-[var(--text)] font-semibold mono-number">{fmtW(p75)}</div>
-                </div>
-                <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5">
-                  <div className="text-[var(--text-dim)]">최대</div>
-                  <div className="text-[var(--text)] font-semibold mono-number">{fmtW(max)}</div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                <PfCardBody>
+                  {/* 범위 막대 — 회색 선: 최소~최대, 파란 상자: 가운데 50%(P25~P75), 세로선: 중앙값, ◆: 평균 */}
+                  <div className="relative h-8 mb-3">
+                    <div className="absolute top-1/2 -translate-y-1/2 h-px bg-[var(--border)]" style={{ left: `${pct(min)}%`, width: `${pct(max) - pct(min)}%` }} />
+                    <div
+                      className="absolute top-1.5 bottom-1.5 rounded-md pf-grow"
+                      style={{ left: `${pct(p25)}%`, width: `${Math.max(0.5, pct(p75) - pct(p25))}%`, background: "color-mix(in oklab, var(--chart-1) 22%, transparent)", border: "1px solid color-mix(in oklab, var(--chart-1) 55%, transparent)" }}
+                      title={`가운데 50% ${fmtW(p25)} ~ ${fmtW(p75)}`}
+                    />
+                    <div className="absolute top-1 bottom-1 w-0.5 rounded" style={{ left: `${pct(median)}%`, background: "var(--chart-1)" }} title={`중앙값 ${fmtW(median)}`} />
+                    <div className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rotate-45 -ml-1 rounded-[2px]" style={{ left: `${pct(avg)}%`, background: "var(--chart-2)" }} title={`평균 ${fmtW(avg)}`} />
+                  </div>
+                  <div className="grid grid-cols-5 gap-1.5 text-[11px]">
+                    {[
+                      { k: "최소", v: min },
+                      { k: "하위 25%", v: p25 },
+                      { k: "중앙값", v: median, on: true },
+                      { k: "상위 25%", v: p75 },
+                      { k: "최대", v: max },
+                    ].map((c) => (
+                      <div key={c.k} className={`rounded-lg px-2 py-1.5 ${c.on ? "bg-[var(--primary-light)]" : "bg-[var(--bg-surface)]"}`}>
+                        <div className={c.on ? "text-[var(--primary)]" : "text-[var(--text-dim)]"}>{c.k}</div>
+                        <div className={`font-semibold mono-number ${c.on ? "text-[var(--primary)]" : "text-[var(--text)]"}`}>{fmtW(c.v)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </PfCardBody>
+              </PfCard>
+            );
+          })}
+        </div>
+      )}
 
       {rows.length > 0 && (
-        <div className="kpi-callout">
-          막대 안 <span className="text-[var(--warning)]">◆</span> 평균, <span className="text-[var(--primary)]">│</span> 중앙값, 박스는 P25~P75.
-          업계별 분리는 <Link href="/platform/industry" className="text-[var(--primary)] hover:underline font-medium">업계 분석</Link>에서.
+        <div className="text-[11px] text-[var(--text-dim)] px-1">
+          범위 막대 읽는 법 — 파란 상자는 가운데 50% 회사, 세로선은 중앙값, <span style={{ color: "var(--chart-2)" }}>◆</span>는 평균.
+          업종별로 나눠 보려면 <Link href="/platform/industry" className="text-[var(--primary)] hover:underline font-medium">업계 분석</Link>으로.
         </div>
       )}
-    </div>
+    </PfPage>
   );
 }

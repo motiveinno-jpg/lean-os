@@ -3,6 +3,7 @@
 // 운영자 — 서비스 공지사항 작성·수정·삭제 (2026-08-06 사장님 지시).
 //   여기서 쓴 공지는 전 고객사가 /announcements 에서 열람만 한다.
 //   쓰기 권한은 DB announcements_*_operator 정책(is_platform_operator())이 최종 게이트다.
+//   2026-09-03 운영자 페이지 v2 — pf-* 디자인(KPI·작성 카드·공지 카드 목록). 데이터·동작은 그대로.
 
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,6 +12,7 @@ import { useToast } from "@/components/toast";
 import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 import { Ico } from "@/components/ui-icon";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfEmpty, PfSkeleton } from "@/app/platform/_components/pf/ui";
 
 type Announcement = {
   id: string;
@@ -25,11 +27,11 @@ type Announcement = {
   updated_at: string;
 };
 
-const CATEGORY_META: Record<string, { label: string; color: string }> = {
-  notice: { label: "공지", color: "bg-[var(--info-dim)] text-[var(--info)]" },
-  update: { label: "업데이트", color: "bg-[var(--success-dim)] text-[var(--success)]" },
-  maintenance: { label: "점검", color: "bg-[var(--warning-dim)] text-[var(--warning)]" },
-  event: { label: "이벤트", color: "bg-[var(--primary-light)] text-[var(--primary)]" },
+const CATEGORY_META: Record<string, { label: string; tone: "info" | "ok" | "warn" | "muted" }> = {
+  notice: { label: "공지", tone: "info" },
+  update: { label: "업데이트", tone: "ok" },
+  maintenance: { label: "점검", tone: "warn" },
+  event: { label: "이벤트", tone: "info" },
 };
 
 const EMPTY_FORM = { title: "", content: "", category: "notice", pinned: false };
@@ -111,28 +113,35 @@ export default function PlatformAnnouncementsPage() {
   };
 
   const pinnedCount = useMemo(() => rows.filter((r) => r.pinned).length, [rows]);
+  const thisMonth = useMemo(() => {
+    const ym = new Date().toISOString().slice(0, 7);
+    return rows.filter((r) => String(r.created_at).slice(0, 7) === ym).length;
+  }, [rows]);
+  const latestAt = rows[0]?.created_at ? new Date(rows[0].created_at).toLocaleDateString("ko-KR") : "—";
 
   return (
-    <div className="max-w-5xl space-y-6">
-      <div className="op-announce-header">
-        <div>
-          <h1 className="text-2xl font-extrabold text-[var(--text)]">공지사항</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            전 고객사에 노출되는 서비스 공지 — 총 {rows.length}건{pinnedCount > 0 ? ` · 상단 고정 ${pinnedCount}건` : ""}
-          </p>
-        </div>
-        {!showForm && (
-          <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary">
-            + 공지 작성
-          </button>
-        )}
+    <PfPage>
+      <PfPageHead
+        eyebrow="지원"
+        title="공지사항"
+        desc="여기서 쓴 공지는 모든 고객사의 공지사항 화면에 바로 보입니다. 상단 고정을 켜면 목록 맨 위에 붙습니다."
+        actions={!showForm ? (
+          <button onClick={() => { resetForm(); setShowForm(true); }} className="pf-btn pf-btn-primary">+ 공지 작성</button>
+        ) : undefined}
+      />
+
+      <div className="pf-kpi-grid">
+        <PfCard i={1} className="pf-kpi-tile"><PfKpi label="등록된 공지" value={rows.length} unit="건" /></PfCard>
+        <PfCard i={2} className="pf-kpi-tile"><PfKpi label="상단 고정" value={pinnedCount} unit="건" accent={pinnedCount > 0} /></PfCard>
+        <PfCard i={3} className="pf-kpi-tile"><PfKpi label="이번 달 작성" value={thisMonth} unit="건" /></PfCard>
+        <PfCard i={4} className="pf-kpi-tile"><PfKpi label="마지막 공지" value={latestAt} /></PfCard>
       </div>
 
       {showForm && (
-        <div className="op-announce-form">
-          <h3 className="section-title">{editing ? "공지 수정" : "새 공지 작성"}</h3>
-          <div className="space-y-3">
-            <div className="flex gap-2">
+        <PfCard i={5} hover={false}>
+          <PfCardHead title={editing ? "공지 수정" : "새 공지 작성"} sub="저장하면 모든 고객사에 즉시 공개됩니다" />
+          <PfCardBody className="space-y-3">
+            <div className="flex gap-2 flex-wrap">
               <select
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
@@ -146,7 +155,7 @@ export default function PlatformAnnouncementsPage() {
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 placeholder="제목"
-                className="field-input flex-1"
+                className="field-input flex-1 min-w-[200px]"
               />
             </div>
             <textarea
@@ -156,61 +165,62 @@ export default function PlatformAnnouncementsPage() {
               rows={8}
               className="field-input w-full resize-y"
             />
-            <label className="op-announce-pin-toggle">
-              <input
-                type="checkbox"
-                checked={form.pinned}
-                onChange={(e) => setForm({ ...form, pinned: e.target.checked })}
-                className="rounded"
-              />
-              상단 고정
-            </label>
-            <div className="op-announce-form-footer">
-              <button onClick={resetForm} className="btn-secondary">취소</button>
-              <button
-                onClick={() => saveMut.mutate()}
-                disabled={saveMut.isPending || !form.title.trim() || !form.content.trim()}
-                className="btn-primary"
-              >
-                {saveMut.isPending ? "저장 중..." : editing ? "수정 저장" : "등록"}
-              </button>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <label className="inline-flex items-center gap-2 text-[12px] font-semibold text-[var(--text-muted)] cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.pinned}
+                  onChange={(e) => setForm({ ...form, pinned: e.target.checked })}
+                  className="rounded"
+                />
+                상단 고정
+              </label>
+              <div className="flex items-center gap-2">
+                <button onClick={resetForm} className="pf-btn pf-btn-ghost">취소</button>
+                <button
+                  onClick={() => saveMut.mutate()}
+                  disabled={saveMut.isPending || !form.title.trim() || !form.content.trim()}
+                  className="pf-btn pf-btn-primary"
+                >
+                  {saveMut.isPending ? "저장 중..." : editing ? "수정 저장" : "등록"}
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
+          </PfCardBody>
+        </PfCard>
       )}
 
-      <div className="op-announce-list glass-card">
+      <PfCard i={6} hover={false}>
+        <PfCardHead title="공지 목록" sub="고정된 공지가 먼저, 그다음 최신순" />
         {isLoading ? (
-          <div className="text-center py-16 text-sm text-[var(--text-dim)]">불러오는 중…</div>
+          <div className="px-5 pb-5"><PfSkeleton h={18} rows={3} /></div>
         ) : rows.length === 0 ? (
-          <div className="text-center py-16 text-sm text-[var(--text-dim)]">등록된 공지가 없습니다</div>
+          <PfEmpty>등록된 공지가 없습니다</PfEmpty>
         ) : (
-          <div className="divide-y divide-[var(--border)]">
+          <div className="divide-y divide-[var(--border)]/60">
             {rows.map((a) => {
               const cat = CATEGORY_META[a.category] || CATEGORY_META.notice;
               return (
-                <div key={a.id} className="op-announce-row">
+                <div key={a.id} className={`px-5 py-4 ${a.pinned ? "bg-[var(--primary)]/[0.04]" : ""}`}>
                   <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                        {a.pinned && <span className="text-[11px]"><Ico e="📌" /></span>}
-                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${cat.color}`}>{cat.label}</span>
-                        <span className="font-semibold text-[var(--text)]">{a.title}</span>
-                        {a.company_id && (
-                          <span className="op-announce-scope-tag">특정 회사 전용</span>
-                        )}
+                        {a.pinned && <span className="text-[11px]" title="상단 고정"><Ico e="📌" /></span>}
+                        <PfBadge tone={cat.tone}>{cat.label}</PfBadge>
+                        <span className="font-bold text-[14px] text-[var(--text)]">{a.title}</span>
+                        {a.company_id && <PfBadge tone="muted">특정 회사 전용</PfBadge>}
                       </div>
-                      <div className="text-sm text-[var(--text-muted)] mt-1.5 leading-relaxed whitespace-pre-wrap">{a.content}</div>
-                      <div className="text-xs text-[var(--text-dim)] mt-2">
+                      <div className="text-[13px] text-[var(--text-muted)] mt-1 leading-relaxed whitespace-pre-wrap">{a.content}</div>
+                      <div className="text-[11px] text-[var(--text-dim)] mt-2">
                         {a.author_name || a.author_email || "운영자"} · {new Date(a.created_at).toLocaleString("ko-KR")}
                         {a.updated_at !== a.created_at && " (수정됨)"}
                       </div>
                     </div>
-                    <div className="op-announce-actions">
-                      <button onClick={() => startEdit(a)} className="btn-ghost btn-sm">수정</button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button onClick={() => startEdit(a)} className="pf-btn pf-btn-sm">수정</button>
                       <button
                         onClick={async () => { if (await appConfirm("이 공지를 삭제하시겠습니까?", { danger: true })) delMut.mutate(a.id); }}
-                        className="btn-danger btn-sm"
+                        className="pf-btn pf-btn-sm pf-btn-ghost text-[var(--danger)]"
                       >
                         삭제
                       </button>
@@ -221,7 +231,7 @@ export default function PlatformAnnouncementsPage() {
             })}
           </div>
         )}
-      </div>
-    </div>
+      </PfCard>
+    </PfPage>
   );
 }

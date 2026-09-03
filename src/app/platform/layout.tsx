@@ -15,57 +15,61 @@ import { GlobalConfirmHost } from "@/components/global-confirm";
 //   ⚠️ 운영자를 늘릴 때는 여기와 DB is_platform_operator() 를 반드시 함께 바꿀 것.
 const OPERATOR_EMAILS = ["creative@mo-tive.com"];
 const isOperatorEmail = (email: string) => OPERATOR_EMAILS.includes(email.trim().toLowerCase());
+// 로컬 개발 미리보기 (2026-09-03) — 디자인 확인용. `next dev` 에서 NEXT_PUBLIC_PLATFORM_DEV_PREVIEW=1 일 때만
+//   게이트를 건너뛴다. 프로덕션 빌드(NODE_ENV=production)에서는 어떤 값을 줘도 절대 열리지 않고,
+//   서버 RPC 는 여전히 is_platform_operator() 로 막혀 데이터는 보이지 않는다(껍데기만 확인).
+const DEV_PREVIEW = process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_PLATFORM_DEV_PREVIEW === "1";
 
 // OP-A 메뉴 섹션화: 비즈니스(매출/고객) + 운영(평균/업계/에러/의존성/사고/감사)
-type NavGroup = { title: string; items: { href: string; label: string; icon: string }[] };
+type NavGroup = { title: string; items: { href: string; label: string; icon: string; hint?: string }[] };
 const NAV_GROUPS: NavGroup[] = [
   {
     // 2026-07-28 전면 정비: 목적별 4그룹 — 고객(누가 쓰나)/매출(돈)/지원(응대)/운영(상태·분석)
     title: "고객",
     items: [
-      { href: "/platform", label: "개요", icon: "chart" },
-      { href: "/platform/customers", label: "고객사", icon: "building" },
-      { href: "/platform/members", label: "사용자", icon: "users" },
+      { href: "/platform", label: "개요", icon: "chart", hint: "오늘의 전체 상황" },
+      { href: "/platform/customers", label: "고객사", icon: "building", hint: "가입 회사 목록" },
+      { href: "/platform/members", label: "사용자", icon: "users", hint: "계정·활동" },
     ],
   },
   {
     title: "매출",
     items: [
-      { href: "/platform/revenue", label: "수익", icon: "dollar" },
-      { href: "/platform/marketing", label: "마케팅 지표", icon: "trending" }, // GA4 병행 자체 퍼널 (2026-08-13)
-      { href: "/platform/sales-codes", label: "영업코드", icon: "link" },
+      { href: "/platform/revenue", label: "수익", icon: "dollar", hint: "MRR·구독" },
+      { href: "/platform/marketing", label: "마케팅 지표", icon: "trending", hint: "방문·가입 퍼널" }, // GA4 병행 자체 퍼널 (2026-08-13)
+      { href: "/platform/sales-codes", label: "영업코드", icon: "link", hint: "코드별 전환" },
     ],
   },
   {
     title: "지원",
     items: [
-      { href: "/platform/support", label: "고객센터", icon: "headset" },
-      { href: "/platform/partnership", label: "도입문의", icon: "inbox" },
-      { href: "/platform/advisors", label: "제휴 세무사", icon: "users" },
-      { href: "/platform/announcements", label: "공지사항", icon: "message" },
+      { href: "/platform/support", label: "고객센터", icon: "headset", hint: "문의 답변" },
+      { href: "/platform/partnership", label: "도입문의", icon: "inbox", hint: "새 고객 문의" },
+      { href: "/platform/advisors", label: "제휴 세무사", icon: "users", hint: "자문 연결" },
+      { href: "/platform/announcements", label: "공지사항", icon: "message", hint: "고객 공지" },
     ],
   },
   {
     title: "운영",
     items: [
       // 에러해석·의존성·사고기록·감사로그 4개 → "시스템 상태" 1개 (기존 라우트는 유지, 메뉴만 통합)
-      { href: "/platform/health", label: "시스템 상태", icon: "alert" },
-      { href: "/platform/codef-usage", label: "CODEF 사용량", icon: "chart" },
-      { href: "/platform/averages", label: "재무평균", icon: "trending" },
-      { href: "/platform/industry", label: "업계분석", icon: "layers" },
+      { href: "/platform/health", label: "시스템 상태", icon: "alert", hint: "오류·상태" },
+      { href: "/platform/codef-usage", label: "CODEF 사용량", icon: "chart", hint: "수집 API 비용" },
+      { href: "/platform/averages", label: "재무평균", icon: "trending", hint: "고객 평균 지표" },
+      { href: "/platform/industry", label: "업계분석", icon: "layers", hint: "업종별 비교" },
     ],
   },
   {
     title: "시스템",
     items: [
-      { href: "/platform/system", label: "시스템", icon: "cog" },
+      { href: "/platform/system", label: "시스템", icon: "cog", hint: "관리 도구" },
     ],
   },
 ];
 
 function NavIcon({ type, active }: { type: string; active: boolean }) {
-  const cls = `w-4 h-4 ${active ? "text-white" : "text-[var(--text-dim)]"}`;
-  const props = { className: cls, fill: "none", stroke: "currentColor", strokeWidth: 1.8, viewBox: "0 0 24 24" };
+  const cls = `pf-nav-icon ${active ? "text-white" : "text-[var(--text-dim)]"}`;
+  const props = { className: cls, fill: "none", stroke: "currentColor", strokeWidth: 1.8, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   switch (type) {
     case "chart": return <svg {...props}><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 5-9"/></svg>;
     case "building": return <svg {...props}><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01"/></svg>;
@@ -79,15 +83,14 @@ function NavIcon({ type, active }: { type: string; active: boolean }) {
     case "layers": return <svg {...props}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>;
     case "alert": return <svg {...props}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
     case "link": return <svg {...props}><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>;
-    case "siren": return <svg {...props}><path d="M3 18h18M5 18a7 7 0 0114 0M12 4v3M4.93 6.93l2.12 2.12M19.07 6.93l-2.12 2.12"/></svg>;
-    case "shield": return <svg {...props}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
     default: return null;
   }
 }
 
 export default function PlatformLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
+  // trailingSlash 설정으로 "/platform/" 처럼 끝에 / 가 붙어 온다 — 메뉴 활성 판정은 슬래시를 뗀 값으로.
+  const pathname = (usePathname() || "/platform").replace(/\/+$/, "") || "/platform";
   const [status, setStatus] = useState<"loading" | "ready" | "denied">("loading");
   const [userName, setUserName] = useState("");
   // 저장/수정 실패 배너 — 앱 셸과 동일. 운영자 콘솔은 별도 레이아웃이라 글로벌
@@ -122,6 +125,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
         // 게이트: 서버 is_platform_operator() 와 동일 기준 — 검증된 Auth 로그인 이메일(@mo-tive.com).
         //   (2026-07-20 P0 봉합) 자가수정 가능한 public.users.email·회사명이 아니라 세션 Auth 이메일로 판정.
         const authEmail = data.session.user?.email || "";
+        if (DEV_PREVIEW) { setUserName((user?.name || "미리보기") + " (개발 미리보기)"); setStatus("ready"); return; }
         if (!user || !isOperatorEmail(authEmail)) {
           setStatus("denied");
           return;
@@ -141,9 +145,18 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
       const email = session?.user?.email || "";
+      if (DEV_PREVIEW) return;
       if (!session || !isOperatorEmail(email)) setStatus("denied");
     });
     return () => sub.subscription.unsubscribe();
+  }, []);
+
+  // 상단바 시계 — 운영자 화면은 "지금"이 중요하다(1분 갱신).
+  const [clock, setClock] = useState<Date | null>(null);
+  useEffect(() => {
+    setClock(new Date());
+    const t = setInterval(() => setClock(new Date()), 60_000);
+    return () => clearInterval(t);
   }, []);
 
   // 인라인 스타일 — CSS 로딩 전에도 보이도록
@@ -179,20 +192,19 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
       (i.href !== "/platform" && pathname.startsWith(i.href)) ||
       (i.href === "/platform/customers" && pathname.startsWith("/platform/companies")),
   );
+  const currentGroup = NAV_GROUPS.find((g) => g.items.some((i) => i === currentItem));
   const logout = async () => { await supabase.auth.signOut(); router.replace("/auth"); };
+  const initial = (userName || "O").trim().charAt(0).toUpperCase();
 
   return (
-    // 2026-07-03 TeamHub 라운드 — 다크 고정 콘솔을 라이트 토큰 캔버스로 전환(고객 앱과 동일 언어)
-    // 2026-07-06 라운드8.2 — 고객 앱 셸과 동일한 리퀴드글래스 적용(전 화면 통일):
-    //   래퍼 배경 제거(body::before 앰비언트 캔버스가 비쳐 보이게) + 사이드바를 떠 있는 유리 패널로.
-    // 2026-07-28 리디자인 — 상단 톱바(현재 화면명·사이트 보기·로그아웃) + 모바일 대응
-    //   (기존엔 좁은 화면에서 고정 사이드바가 콘텐츠를 덮었음 — md 미만은 사이드바 숨기고 칩 내비로).
-    <div className="min-h-screen flex">
-      {/* Sidebar — 고객 앱 sidebar.tsx 와 동일한 인셋 플로팅 유리 패널 */}
-      <aside className="platform-sidebar chrome-glass">
-        <div className="p-5 border-b border-[var(--border)]">
+    // 2026-09-03 운영자 v2 — 유리 셸 + 오로라 캔버스(.pf-canvas) + 그라데이션 활성 메뉴 + 시계·빵부스러기 상단바.
+    //   (역사) 2026-07-03 다크 콘솔 → 라이트 토큰, 2026-07-06 리퀴드글래스, 2026-07-28 톱바·모바일 칩 내비.
+    <div className="min-h-screen flex pf-canvas">
+      {/* 사이드바 — 떠 있는 유리 패널, 그룹별 메뉴 + 활성 항목 그라데이션 필 */}
+      <aside className="pf-sidebar">
+        <div className="p-5 pb-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-soft)] flex items-center justify-center shadow-[0_4px_12px_-4px_var(--primary)]">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[#7C3AED] flex items-center justify-center shadow-[0_10px_24px_-12px_var(--primary)]">
               <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
               </svg>
@@ -204,13 +216,11 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
           </div>
         </div>
 
-        <nav className="flex-1 py-3 px-2 space-y-3 overflow-y-auto">
+        <nav className="flex-1 px-2.5 pb-3 space-y-1 overflow-y-auto">
           {NAV_GROUPS.map((group) => (
-            <div key={group.title} className="platform-nav-group">
-              <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]">
-                {group.title}
-              </div>
-              <div className="space-y-0.5 mt-1">
+            <div key={group.title}>
+              <div className="pf-nav-group-title">{group.title}</div>
+              <div className="space-y-0.5">
                 {group.items.map((item) => {
                   const active =
                     pathname === item.href ||
@@ -218,15 +228,9 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
                     // 고객사 상세(/platform/companies/[id])는 "고객사" 메뉴 아래로 간주 — 상세에서 활성표시 유지
                     (item.href === "/platform/customers" && pathname.startsWith("/platform/companies"));
                   return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`platform-nav-item ${
-                        active ? "nav-active" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
-                      }`}
-                    >
+                    <Link key={item.href} href={item.href} className={`pf-nav-item ${active ? "pf-nav-item-on" : ""}`} title={item.hint}>
                       <NavIcon type={item.icon} active={active} />
-                      {item.label}
+                      <span className="truncate">{item.label}</span>
                     </Link>
                   );
                 })}
@@ -235,10 +239,10 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
           ))}
         </nav>
 
-        <div className="platform-sidebar-footer">
+        <div className="p-4 border-t border-[var(--pf-card-border)]">
           <div className="flex items-center gap-2.5 mb-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-soft)] flex items-center justify-center text-white text-xs font-bold shrink-0">
-              {userName.charAt(0)}
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--primary)] to-[#7C3AED] flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-[0_8px_18px_-10px_var(--primary)]">
+              {initial}
             </div>
             <div className="min-w-0">
               <div className="text-xs font-semibold text-[var(--text)] truncate">{userName}</div>
@@ -252,29 +256,34 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
         </div>
       </aside>
 
-      <main className="platform-main-content">
-        {/* 톱바 — 현재 화면명 + 빠른 액션 (2026-07-28) */}
-        <div className="platform-topbar chrome-glass">
+      <main className="pf-main">
+        {/* 상단바 — 빵부스러기 + 현재 화면명 · 시계 · 빠른 액션 */}
+        <div className="pf-topbar">
           <div className="min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]">
-              {NAV_GROUPS.find((g) => g.items.some((i) => i === currentItem))?.title || "Platform"}
+            <div className="pf-crumb">
+              <span>{currentGroup?.title || "Platform"}</span>
+              {currentItem && <><span className="opacity-50">/</span><span className="text-[var(--text-muted)]">{currentItem.label}</span></>}
             </div>
-            <h1 className="text-base font-extrabold text-[var(--text)] truncate">{currentItem?.label || "플랫폼"}</h1>
+            <h1 className="text-[15px] font-extrabold text-[var(--text)] truncate leading-tight">{currentItem?.label || "플랫폼"}</h1>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <a href="https://www.owner-view.com" target="_blank" rel="noreferrer" className="platform-topbar-action">
-              사이트 보기 ↗
-            </a>
-            <button onClick={logout} className="platform-topbar-action platform-topbar-logout">로그아웃</button>
+            {clock && (
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-[var(--text-dim)] mono-number mr-1">
+                <span className="pf-live" />
+                {clock.toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "short" })} {clock.toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
+            <a href="https://www.owner-view.com" target="_blank" rel="noreferrer" className="pf-btn pf-btn-sm">사이트 보기 ↗</a>
+            <button onClick={logout} className="pf-btn pf-btn-sm pf-btn-ghost hover:!text-[var(--danger)]">로그아웃</button>
           </div>
         </div>
 
         {/* 모바일 내비 — md 미만에서 사이드바 대신 가로 스크롤 칩 */}
-        <nav className="platform-mobile-nav">
+        <nav className="pf-mobile-nav">
           {allNavItems.map((item) => {
             const active = item === currentItem;
             return (
-              <Link key={item.href} href={item.href} className={`platform-mobile-nav-chip ${active ? "nav-active" : ""}`}>
+              <Link key={item.href} href={item.href} className={`pf-chip ${active ? "pf-chip-on" : ""}`}>
                 {item.label}
               </Link>
             );
@@ -286,7 +295,10 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
             저장에 실패했습니다 — {mutationError}
           </div>
         )}
-        {children}
+        {/* 화면 전환 시 본문이 아래에서 떠오른다 — key 로 경로마다 재생 */}
+        <div key={pathname} className="pf-in">
+          {children}
+        </div>
       </main>
       <GlobalConfirmHost />
     </div>

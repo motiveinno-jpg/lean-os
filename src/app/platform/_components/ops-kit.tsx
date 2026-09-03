@@ -1,19 +1,13 @@
 "use client";
 // 운영 콘솔 공통 킷 (2026-07-28 전면 정비) — 모든 운영자 페이지가 같은 헤더·검색·
 //   CSV 내보내기를 쓰게 해서 "페이지마다 다르게 생긴" 문제를 없앤다.
+//   2026-09-03 v2: 헤더는 PfPageHead, 버튼은 pf-btn 으로 통일.
 import { ReactNode } from "react";
+import { PfPageHead } from "./pf/ui";
 
 /** 페이지 공통 헤더 — 제목·부제 + 우측 액션(검색·내보내기 등) */
-export function OpsPageHeader({ title, sub, children }: { title: string; sub?: string; children?: ReactNode }) {
-  return (
-    <div className="ops-page-header">
-      <div className="min-w-0">
-        <h1 className="text-2xl font-extrabold text-[var(--text)]">{title}</h1>
-        {sub && <p className="text-xs text-[var(--text-dim)] mt-1">{sub}</p>}
-      </div>
-      {children && <div className="flex items-center gap-2 flex-wrap">{children}</div>}
-    </div>
-  );
+export function OpsPageHeader({ title, sub, children, eyebrow }: { title: string; sub?: string; children?: ReactNode; eyebrow?: string }) {
+  return <PfPageHead eyebrow={eyebrow} title={title} desc={sub} actions={children} />;
 }
 
 /** 공통 검색 인풋 */
@@ -27,7 +21,7 @@ export function OpsSearch({ value, onChange, placeholder = "검색..." }: {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="ops-search-input"
+        className="pf-input pf-input-sm pl-8 w-[200px]"
       />
     </div>
   );
@@ -56,7 +50,7 @@ export function OpsCompanySelect({ value, onChange, options }: {
   value: string; onChange: (v: string) => void; options: string[];
 }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className="platform-feed-company-select" title="회사별로 보기">
+    <select value={value} onChange={(e) => onChange(e.target.value)} className="pf-select pf-select-sm max-w-[200px]" title="회사별로 보기">
       <option value="all">전체 회사</option>
       {options.map((name) => <option key={name} value={name}>{name}</option>)}
     </select>
@@ -66,7 +60,7 @@ export function OpsCompanySelect({ value, onChange, options }: {
 /** 내보내기 버튼 */
 export function OpsExportButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
   return (
-    <button onClick={onClick} disabled={disabled} className="ops-export-btn" title="현재 목록을 엑셀(CSV)로 저장">
+    <button onClick={onClick} disabled={disabled} className="pf-btn pf-btn-sm disabled:opacity-40" title="현재 목록을 엑셀(CSV)로 저장">
       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
       내보내기
     </button>

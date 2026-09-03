@@ -1,6 +1,6 @@
 "use client";
-// 작업일지: 빌드 시 git 커밋 로그에서 자동 생성 (scripts/generate-release-log.mjs, 2026-07-28)
-//   — 하드코딩 상수가 3월에 멈춰 있던 문제. 이제 배포가 곧 최신화다.
+// 시스템 현황 — 2026-09-03 v2 pf 디자인. 조회(companies/users/subscription_plans, RPC platform_ai_costs)와
+//   작업일지(빌드 시 git 커밋에서 자동 생성 — scripts/generate-release-log.mjs)는 그대로.
 import releaseLogJson from "@/generated/release-log.json";
 import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
@@ -9,8 +9,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfBar, PfRows, PfRow, PfEmpty, PfSkeleton } from "../_components/pf/ui";
+import { PfDonut } from "../_components/pf/charts";
 
 const db = supabase;
+
+const ROLE_LABEL: Record<string, string> = { owner: "대표", master: "마스터", admin: "관리자", employee: "직원", partner: "파트너", advisor: "세무 파트너", member: "멤버" };
 
 export default function SystemPage() {
   const [expanded, setExpanded] = useState<null | "companies" | "users">(null);
@@ -82,221 +86,226 @@ export default function SystemPage() {
     acc[u.role] = (acc[u.role] || 0) + 1;
     return acc;
   }, {});
+  const roleSlices = Object.entries(roleCounts).map(([role, n]) => ({ label: ROLE_LABEL[role] || role, value: n as number }));
+
+  const aiTotalKrw = aiCosts ? Math.round(aiCosts.total_usd * FX) : 0;
 
   return (
-    <div className="max-w-5xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-extrabold text-[var(--text)]">시스템 현황</h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">플랫폼 리소스 및 요금제 설정</p>
+    <PfPage>
+      <PfPageHead
+        eyebrow="시스템"
+        title="시스템 현황"
+        desc="오너뷰에 쌓인 데이터 규모, 판매 중인 요금제, 이번 달 AI 비용, 그리고 배포 기록을 봅니다."
+      />
+
+      <div className="pf-kpi-grid">
+        <PfCard i={1} className="pf-kpi-tile"><PfKpi label="가입 회사" value={companies.length} unit="곳" /></PfCard>
+        <PfCard i={2} className="pf-kpi-tile"><PfKpi label="사용자" value={users.length} unit="명" /></PfCard>
+        <PfCard i={3} className="pf-kpi-tile"><PfKpi label="판매 중 요금제" value={plans.length} unit="개" /></PfCard>
+        <PfCard i={4} className="pf-kpi-tile"><PfKpi label={`AI 비용 (${aiCosts?.month || "이번 달"})`} value={aiTotalKrw} prefix="₩" accent /></PfCard>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* DB Stats */}
-        <div className="platform-db-stats-card glass-card">
-          <h3 className="section-title text-[var(--text)]">데이터베이스</h3>
-          <div className="space-y-3">
-            {/* 총 회사 — 클릭 시 목록 토글 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* 데이터 규모 */}
+        <PfCard i={5} hover={false}>
+          <PfCardHead title="데이터 규모" sub="숫자를 누르면 목록이 펼쳐집니다" />
+          <PfCardBody className="space-y-3">
             <button
+              type="button"
               onClick={() => toggle("companies")}
-              className="w-full flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-surface)]/70 transition text-left"
+              className="w-full flex justify-between items-center px-3 h-11 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition text-left"
             >
-              <span className="text-sm text-[var(--text-muted)] flex items-center gap-1.5">
-                총 회사
+              <span className="text-[12px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5">
+                가입 회사
                 <svg className={`w-3.5 h-3.5 transition-transform ${expanded === "companies" ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" /></svg>
               </span>
-              <span className="font-bold mono-number text-[var(--text)]">{companies.length}</span>
+              <span className="font-bold mono-number text-[var(--text)]">{companies.length}곳</span>
             </button>
             {expanded === "companies" && (
-              <div className="platform-company-list">
+              <div className="rounded-xl border border-[var(--border)]/60 max-h-72 overflow-y-auto">
                 {companies.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-[var(--text-dim)]">회사가 없습니다</div>
+                  <PfEmpty>회사가 없습니다</PfEmpty>
                 ) : (
-                  companies.map((c: any) => (
-                    <Link
-                      key={c.id}
-                      href={`/platform/companies/${c.id}`}
-                      className="platform-company-row"
-                    >
-                      <div className="min-w-0">
-                        <div className="text-sm text-[var(--text)] font-medium truncate">{c.name || "(이름 없음)"}</div>
-                        <div className="text-[11px] text-[var(--text-dim)]">
-                          {c.business_number || "사업자번호 미등록"}
-                          {c.created_at && ` · 가입 ${kstDateStr(new Date(c.created_at))}`}
+                  <PfRows>
+                    {companies.map((c: any) => (
+                      <PfRow key={c.id} href={`/platform/companies/${c.id}`} className="px-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="pf-row-title">{c.name || "(이름 없음)"}</div>
+                          <div className="pf-row-sub">
+                            {c.business_number || "사업자번호 미등록"}
+                            {c.created_at && ` · 가입 ${kstDateStr(new Date(c.created_at))}`}
+                          </div>
                         </div>
-                      </div>
-                      <span className="text-[var(--text-dim)] text-xs shrink-0 ml-2">상세 →</span>
-                    </Link>
-                  ))
+                        <span className="text-[var(--text-dim)] text-[11px] shrink-0">상세 →</span>
+                      </PfRow>
+                    ))}
+                  </PfRows>
                 )}
               </div>
             )}
 
-            {/* 총 사용자 — 클릭 시 목록 토글 */}
             <button
+              type="button"
               onClick={() => toggle("users")}
-              className="w-full flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-surface)]/70 transition text-left"
+              className="w-full flex justify-between items-center px-3 h-11 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition text-left"
             >
-              <span className="text-sm text-[var(--text-muted)] flex items-center gap-1.5">
-                총 사용자
+              <span className="text-[12px] font-semibold text-[var(--text-muted)] flex items-center gap-1.5">
+                사용자
                 <svg className={`w-3.5 h-3.5 transition-transform ${expanded === "users" ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" /></svg>
               </span>
-              <span className="font-bold mono-number text-[var(--text)]">{users.length}</span>
+              <span className="font-bold mono-number text-[var(--text)]">{users.length}명</span>
             </button>
             {expanded === "users" && (
-              <div className="platform-user-list">
+              <div className="rounded-xl border border-[var(--border)]/60 max-h-72 overflow-y-auto">
                 {users.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-[var(--text-dim)]">사용자가 없습니다</div>
+                  <PfEmpty>사용자가 없습니다</PfEmpty>
                 ) : (
-                  users.map((u: any) => (
-                    <Link
-                      key={u.id}
-                      href={`/platform/members?q=${encodeURIComponent(u.email || "")}`}
-                      className="platform-user-row"
-                    >
-                      <div className="min-w-0">
-                        <div className="text-sm text-[var(--text)] font-medium truncate">{u.name || "(이름 없음)"}</div>
-                        <div className="text-[11px] text-[var(--text-dim)] truncate">{u.email || u.id}</div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0 ml-2">
-                        <span className="badge badge-muted">{u.role}</span>
-                        {u.created_at && <span className="text-[10px] text-[var(--text-dim)]">{kstDateStr(new Date(u.created_at))}</span>}
-                      </div>
-                    </Link>
-                  ))
+                  <PfRows>
+                    {users.map((u: any) => (
+                      <PfRow key={u.id} href={`/platform/members?q=${encodeURIComponent(u.email || "")}`} className="px-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="pf-row-title">{u.name || "(이름 없음)"}</div>
+                          <div className="pf-row-sub">{u.email || u.id}</div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <PfBadge tone="muted">{ROLE_LABEL[u.role] || u.role}</PfBadge>
+                          {u.created_at && <span className="text-[10px] text-[var(--text-dim)] mono-number">{kstDateStr(new Date(u.created_at))}</span>}
+                        </div>
+                      </PfRow>
+                    ))}
+                  </PfRows>
                 )}
               </div>
             )}
 
-            {/* 역할별 카운트 (기존 유지) */}
-            {Object.entries(roleCounts).map(([role, count]) => (
-              <div key={role} className="platform-role-count-row">
-                <span className="text-sm text-[var(--text-dim)] capitalize">{role}</span>
-                <span className="text-sm text-[var(--text-muted)]">{count as number}명</span>
+            {roleSlices.length > 0 && (
+              <div className="pt-2">
+                <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-2">역할별 사용자</div>
+                <PfDonut slices={roleSlices} size={140} centerLabel="사용자" formatCenter={(t) => `${t}명`} />
               </div>
-            ))}
-          </div>
-        </div>
+            )}
+          </PfCardBody>
+        </PfCard>
 
-        {/* Plans */}
-        <div className="platform-plans-card glass-card">
-          <h3 className="section-title text-[var(--text)]">요금제</h3>
-          <div className="space-y-3">
+        {/* 요금제 */}
+        <PfCard i={6} hover={false}>
+          <PfCardHead title="요금제" sub="지금 판매 중인 것만 보입니다" />
+          <PfCardBody className="space-y-2">
             {plans.length === 0 ? (
-              <div className="text-center py-8 text-sm text-[var(--text-dim)]">요금제가 없습니다</div>
+              <PfEmpty>요금제가 없습니다</PfEmpty>
             ) : (
               plans.map((p: any) => (
-                <div key={p.id} className="platform-plan-row">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-bold text-[var(--text)]">{p.name}</span>
-                    <span className="text-sm font-bold mono-number text-[var(--primary)]">
+                <div key={p.id} className="rounded-xl px-3 py-2.5 bg-[var(--bg-surface)]">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="font-bold text-[13px] text-[var(--text)]">{p.name}</span>
+                    <span className="text-[13px] font-bold mono-number text-[var(--primary)]">
                       {/* 엔터프라이즈는 가격 정책 미확정 — 고객용 billing 화면과 동일하게 표기 */}
                       {p.slug === "enterprise"
                         ? "별도 문의"
                         : `₩${(p.base_price || 0).toLocaleString()}/월`}
                     </span>
                   </div>
-                  <div className="text-xs text-[var(--text-dim)]">
-                    슬러그: {p.slug} · 좌석당 ₩{(p.per_seat_price || 0).toLocaleString()}/월
+                  <div className="text-[11px] text-[var(--text-dim)]">
+                    기본 {p.included_seats ?? 5}명 포함 · 추가 1명 ₩{(p.per_seat_price || 0).toLocaleString()}/월
                     {p.max_deals && ` · 최대 프로젝트 ${p.max_deals}개`}
+                    <span className="font-mono"> · {p.slug}</span>
                   </div>
                 </div>
               ))
             )}
-          </div>
-        </div>
+          </PfCardBody>
+        </PfCard>
 
         {/* AI 비용 — 이번 달 실측(ai_usage_log) */}
-        <div className="platform-ai-costs-card glass-card">
-          <h3 className="section-title text-[var(--text)]">AI 비용 ({aiCosts?.month || "이번 달"})</h3>
-          {!aiCosts ? (
-            <div className="text-center py-8 text-sm text-[var(--text-dim)]">집계를 불러오는 중…</div>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)]">
-                <span className="text-sm text-[var(--text-muted)]">전체 (호출 {aiCosts.total_calls}회)</span>
-                <span className="font-bold mono-number text-[var(--text)]">
-                  ${aiCosts.total_usd.toFixed(2)} <span className="text-xs text-[var(--text-dim)]">≈ ₩{Math.round(aiCosts.total_usd * FX).toLocaleString()}</span>
-                </span>
-              </div>
-              {aiCosts.companies.length === 0 ? (
-                <div className="text-center py-4 text-xs text-[var(--text-dim)]">이번 달 AI 사용 내역이 없습니다</div>
-              ) : (
-                aiCosts.companies.map((c) => (
-                  <div key={c.company_id} className="platform-ai-cost-row">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-[var(--text)] truncate">{c.company || "(회사 미상)"}</span>
-                      <span className="text-sm font-bold mono-number text-[var(--primary)] shrink-0">
-                        ₩{Math.round(c.usd * FX).toLocaleString()}
-                        <span className="text-[10px] text-[var(--text-dim)] font-normal"> / 한도 ₩{Math.round(aiCosts.cap_usd * FX / 1000)}천</span>
-                      </span>
-                    </div>
-                    {/* 한도 대비 게이지 */}
-                    <div className="h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden mb-1">
-                      <div className="h-full rounded-full" style={{
-                        width: `${Math.min(100, (c.usd / aiCosts.cap_usd) * 100)}%`,
-                        background: c.usd / aiCosts.cap_usd > 0.8 ? "var(--danger)" : c.usd / aiCosts.cap_usd > 0.5 ? "var(--warning)" : "var(--primary)",
-                      }} />
-                    </div>
-                    <div className="text-xs text-[var(--text-dim)]">
-                      호출 {c.calls}회 · 토큰 {Number(c.tokens || 0).toLocaleString()}
-                      {c.by_feature && " · " + Object.entries(c.by_feature)
-                        .map(([f, usd]) => `${FEATURE_LABEL[f] || f} ₩${Math.round(Number(usd) * FX).toLocaleString()}`)
-                        .join(" · ")}
-                    </div>
-                  </div>
-                ))
-              )}
-              <p className="text-[10px] text-[var(--text-dim)]">
-                Anthropic 공식 단가 기반 실측 추정 · ₩ 환산은 환율 1,400 고정 표기 · 회사별 월 한도 초과 시 AI 호출이 자동 차단됩니다
-              </p>
-            </div>
-          )}
-        </div>
+        <PfCard i={7} hover={false}>
+          <PfCardHead title={`AI 비용 (${aiCosts?.month || "이번 달"})`} sub="회사마다 월 한도가 있고, 넘으면 AI 호출이 자동으로 막힙니다" />
+          <PfCardBody className="space-y-3">
+            {!aiCosts ? (
+              <PfSkeleton rows={3} h={16} />
+            ) : (
+              <>
+                <div className="flex justify-between items-center px-3 h-11 rounded-xl bg-[var(--bg-surface)]">
+                  <span className="text-[12px] font-semibold text-[var(--text-muted)]">전체 (호출 {aiCosts.total_calls}회)</span>
+                  <span className="font-bold mono-number text-[var(--text)]">
+                    ₩{Math.round(aiCosts.total_usd * FX).toLocaleString()} <span className="text-[10px] text-[var(--text-dim)] font-normal">(${aiCosts.total_usd.toFixed(2)})</span>
+                  </span>
+                </div>
+                {aiCosts.companies.length === 0 ? (
+                  <PfEmpty>이번 달 AI 사용 내역이 없습니다</PfEmpty>
+                ) : (
+                  aiCosts.companies.map((c) => {
+                    const ratio = c.usd / aiCosts.cap_usd;
+                    const tone = ratio > 0.8 ? "danger" : ratio > 0.5 ? "warn" : "info";
+                    return (
+                      <div key={c.company_id} className="space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-[12px] text-[var(--text)] truncate">{c.company || "(회사 미상)"}</span>
+                          <span className="text-[12px] font-bold mono-number text-[var(--text)] shrink-0">
+                            ₩{Math.round(c.usd * FX).toLocaleString()}
+                            <span className="text-[10px] text-[var(--text-dim)] font-normal"> / 한도 ₩{Math.round(aiCosts.cap_usd * FX / 1000)}천</span>
+                          </span>
+                        </div>
+                        <PfBar pct={Math.min(100, ratio * 100)} tone={tone} />
+                        <div className="text-[10.5px] text-[var(--text-dim)]">
+                          호출 {c.calls}회 · 토큰 {Number(c.tokens || 0).toLocaleString()}
+                          {c.by_feature && " · " + Object.entries(c.by_feature)
+                            .map(([f, usd]) => `${FEATURE_LABEL[f] || f} ₩${Math.round(Number(usd) * FX).toLocaleString()}`)
+                            .join(" · ")}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+                <p className="text-[10px] text-[var(--text-dim)]">
+                  AI 공급사 공식 단가로 추정한 값 · 원화는 환율 1,400 고정 표기
+                </p>
+              </>
+            )}
+          </PfCardBody>
+        </PfCard>
 
-        {/* Environment */}
-        <div className="platform-env-card glass-card">
-          <h3 className="section-title text-[var(--text)]">환경 정보</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { label: "프레임워크", value: "Next.js 16" },
-              { label: "DB", value: "Supabase (PostgreSQL)" },
-              { label: "호스팅", value: "Vercel" },
-              { label: "도메인", value: "www.owner-view.com" },
-            ].map((item) => (
-              <div key={item.label} className="platform-env-item">
-                <div className="text-[10px] text-[var(--text-dim)] mb-0.5">{item.label}</div>
-                <div className="text-sm font-semibold text-[var(--text)]">{item.value}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* 환경 정보 */}
+        <PfCard i={8} hover={false}>
+          <PfCardHead title="오너뷰가 돌아가는 곳" />
+          <PfCardBody>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: "화면·서버", value: "Next.js 16 · Vercel" },
+                { label: "데이터베이스", value: "Supabase (PostgreSQL)" },
+                { label: "주소", value: "www.owner-view.com" },
+                { label: "배포 기록", value: `${releaseLogJson.entries.length}건` },
+              ].map((item) => (
+                <div key={item.label} className="rounded-xl px-3 py-2.5 bg-[var(--bg-surface)]">
+                  <div className="text-[10px] text-[var(--text-dim)] mb-0.5">{item.label}</div>
+                  <div className="text-[12px] font-semibold text-[var(--text)]">{item.value}</div>
+                </div>
+              ))}
+            </div>
+          </PfCardBody>
+        </PfCard>
 
         {/* Release Log / 작업일지 */}
-        <div className="platform-release-log-card glass-card">
-          <h3 className="section-title text-[var(--text)]">작업일지 / 릴리즈 로그</h3>
-          <p className="text-[11px] text-[var(--text-dim)] mb-3">배포 시 git 커밋에서 자동 생성됩니다 — 별도 입력 없이 항상 최신.</p>
-          <div className="space-y-4 max-h-[600px] overflow-y-auto">
-            {releaseDates.map((date) => (
-              <div key={date} className="platform-release-item">
-                <div className="text-sm font-bold text-[var(--text)] mb-2">{date} <span className="text-[11px] font-normal text-[var(--text-dim)]">({(releaseByDate as any)[date].length}건)</span></div>
-                <ul className="space-y-1.5">
-                  {(releaseByDate as any)[date].map((e: any) => (
-                    <li key={e.hash} className="flex items-start gap-2 text-xs text-[var(--text-muted)]">
-                      <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                        e.type === 'hotfix' || e.type === 'security' ? 'bg-[var(--danger-dim)] text-[var(--danger)]'
-                        : e.type === 'feat' ? 'bg-[var(--info-dim)] text-[var(--info)]'
-                        : e.type === 'fix' ? 'bg-[var(--warning-dim)] text-[var(--warning)]'
-                        : 'bg-[var(--bg-surface)] text-[var(--text-dim)]'}`}>{e.label}</span>
-                      <span className="min-w-0">{e.title}{e.scope ? ` (${e.scope})` : ''}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
+        <PfCard i={9} hover={false} className="md:col-span-2">
+          <PfCardHead title="작업일지 / 배포 기록" sub="배포할 때마다 코드 변경 기록에서 자동으로 만들어집니다 — 따로 적지 않아도 항상 최신" />
+          <PfCardBody>
+            <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
+              {releaseDates.map((date) => (
+                <div key={date}>
+                  <div className="text-[12px] font-bold text-[var(--text)] mb-1.5 sticky top-0 bg-[var(--bg-card)]/90 backdrop-blur py-1">{date} <span className="text-[10px] font-normal text-[var(--text-dim)]">({(releaseByDate as any)[date].length}건)</span></div>
+                  <ul className="space-y-1">
+                    {(releaseByDate as any)[date].map((e: any) => (
+                      <li key={e.hash} className="flex items-start gap-2 text-[12px] text-[var(--text-muted)]">
+                        <PfBadge tone={e.type === "hotfix" || e.type === "security" ? "danger" : e.type === "feat" ? "info" : e.type === "fix" ? "warn" : "muted"} className="mt-0.5">{e.label}</PfBadge>
+                        <span className="min-w-0">{e.title}{e.scope ? ` (${e.scope})` : ""}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </PfCardBody>
+        </PfCard>
       </div>
-    </div>
+    </PfPage>
   );
 }
-

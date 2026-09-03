@@ -1,19 +1,20 @@
 "use client";
 
-// 성장 분석 섹션 (2026-07-29 리디자인) — 기존 "트래픽·이용 현황" 을 대체.
+// 성장 분석 섹션 (2026-07-29 리디자인 · 2026-09-03 v2: Bklit 차트 + pf 부품) — 기존 "트래픽·이용 현황" 을 대체.
 //   일/월/년 단위로 방문자·페이지뷰·신규 가입자·신규 회사·체험 시작을 한 화면에서.
 //   데이터는 platform_analytics RPC(운영자 게이트 내장, 빈 버킷 0 채움) 하나로 받는다.
 //
 // 차트 설계 원칙(dataviz):
 //   - 단일 시리즈만 그린다 — 지표 타일을 클릭해 바꾸는 방식. 이중축 금지.
-//   - 색은 앱 프라이머리 한 색(순차적 역할). 텍스트는 텍스트 토큰만 쓴다.
-//   - 막대는 상단만 4px 라운드·간격 유지, 그리드는 배경색으로 물러나게.
-//   - 모든 막대에 호버 툴팁(해당 기간의 전 지표), 하단에 표(테이블 뷰) 병행.
+//   - 색은 검증된 팔레트 1번(--chart-1) 한 색(순차적 역할). 텍스트는 텍스트 토큰만 쓴다.
+//   - 막대는 4px 라운드·간격 유지, 그리드는 배경색으로 물러나게. 호버 툴팁 + 하단 표(테이블 뷰) 병행.
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { countPlanKinds } from "./plan-kind";
+import { PfCard, PfCardHead, PfCardBody, PfSeg, PfBar, PfEmpty, PfSkeleton } from "./pf/ui";
+import { PfBars, PfDonut } from "./pf/charts";
 
 type Bucket = {
   start: string;      // 'YYYY-MM-DD' (버킷 시작, KST)
@@ -45,7 +46,7 @@ type MetricKey = "visitors" | "views" | "guests" | "accounts" | "companies" | "t
 const METRICS: { key: MetricKey; label: string; unit: string }[] = [
   // 범위 토글에 '전체' 가 생겨서(2026-08-25) 라벨의 "(전체)" 가 그 뜻으로 읽힌다 — 표현만 정리.
   { key: "visitors", label: "방문자", unit: "명" },
-  { key: "guests", label: "비로그인 방문자(방문자에 포함)", unit: "명" },
+  { key: "guests", label: "비로그인 방문자", unit: "명" },
   { key: "views", label: "페이지뷰", unit: "회" },
   { key: "accounts", label: "신규 가입자", unit: "명" },
   { key: "companies", label: "신규 회사", unit: "곳" },
@@ -134,18 +135,20 @@ function bucketLabel(start: string, gran: Gran, long = false): string {
   return long ? `${Number(m)}월 ${Number(d)}일` : `${m}.${d}`;
 }
 
-/** 축 상한을 1/2/5 단위로 올림 — 그리드 눈금이 어중간한 수가 되지 않게. */
-function niceMax(v: number): number {
-  if (v <= 4) return 4;
-  const pow = Math.pow(10, Math.floor(Math.log10(v)));
-  for (const m of [1, 2, 5, 10]) if (v <= m * pow) return m * pow;
-  return 10 * pow;
-}
-
-/** 상단만 둥근 막대 path — rect(rx)는 아래까지 둥글어져 베이스라인이 떠 보인다. */
-function barPath(x: number, y: number, w: number, h: number): string {
-  const r = Math.min(4, w / 2, h);
-  return `M${x},${y + h} L${x},${y + r} Q${x},${y} ${x + r},${y} L${x + w - r},${y} Q${x + w},${y} ${x + w},${y + r} L${x + w},${y + h} Z`;
+/** 가로 막대 목록 — 값이 큰 순서, 등장 시 왼쪽에서 자란다. */
+function HBarList({ rows, unit = "" }: { rows: { label: string; v: number; title?: string }[]; unit?: string }) {
+  const max = Math.max(1, ...rows.map((r) => r.v));
+  return (
+    <div className="space-y-2">
+      {rows.map((x) => (
+        <div key={x.label} className="grid grid-cols-[minmax(0,1fr)_88px_52px] items-center gap-2 text-[12px]" title={x.title}>
+          <span className="truncate text-[var(--text-muted)]">{x.label}</span>
+          <PfBar pct={(x.v / max) * 100} />
+          <span className="text-right font-bold mono-number text-[var(--text)]">{fmt(x.v)}{unit}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function AnalyticsSection({ usage, traffic, companies, companyActivity, testData }: {
@@ -176,7 +179,6 @@ export function AnalyticsSection({ usage, traffic, companies, companyActivity, t
   const [gran, setGran] = useState<Gran>("day");
   const [scope, setScope] = useState<Scope>("external");
   const [metric, setMetric] = useState<MetricKey>("visitors");
-  const [hover, setHover] = useState<number | null>(null);
 
   const { data, isLoading } = useQuery<Analytics | null>({
     queryKey: ["p-analytics", gran, scope],
@@ -232,292 +234,162 @@ export function AnalyticsSection({ usage, traffic, companies, companyActivity, t
     return { ...m, cur, prev, total, delta: cur - prev };
   });
 
-  // ── 차트 좌표 계산 ──
-  const W = 720, H = 240, PL = 40, PB = 22, PT = 12, PR = 8;
-  const innerW = W - PL - PR, innerH = H - PT - PB;
   const n = Math.max(1, buckets.length);
-  const yMax = niceMax(Math.max(1, ...buckets.map((b) => b[metric])));
-  const slot = innerW / n;
-  const barW = Math.min(Math.max(slot * 0.55, 3), 34);
-  const xOf = (i: number) => PL + i * slot + (slot - barW) / 2;
-  const hOf = (v: number) => (v / yMax) * innerH;
-  // x축 라벨은 6개 안팎만 — 30일치를 전부 쓰면 겹친다
-  const tickEvery = Math.max(1, Math.ceil(n / 6));
   const metricMeta = METRICS.find((m) => m.key === metric)!;
   const curLabel = gran === "day" ? "오늘" : gran === "month" ? "이번 달" : "올해";
   const prevLabel = gran === "day" ? "어제" : gran === "month" ? "지난달" : "작년";
   const allZero = buckets.every((b) => b[metric] === 0);
+  // 차트 데이터 — 막대 x축은 짧은 라벨, 툴팁은 긴 라벨(별도 키)
+  const chartRows = useMemo(() => buckets.map((b) => ({ name: bucketLabel(b.start, gran), long: bucketLabel(b.start, gran, true), value: b[metric] })), [buckets, gran, metric]);
+
+  const acc = usage?.accounts;
+  // 토글 기간에 맞춘 창 — 일간: 오늘/주간/월간, 월간: 월간/분기/연간, 연간: 연간/3년/전체 활동
+  const activeRows = gran === "day"
+    ? [{ label: "오늘", v: acc?.dau ?? 0 }, { label: "주간", v: acc?.wau ?? 0 }, { label: "월간", v: acc?.mau ?? 0 }]
+    : gran === "month"
+    ? [{ label: "월간", v: acc?.mau ?? 0 }, { label: "분기", v: acc?.active_90d ?? 0 }, { label: "연간", v: acc?.active_365d ?? 0 }]
+    : [{ label: "연간", v: acc?.active_365d ?? 0 }, { label: "3년", v: acc?.active_1095d ?? 0 }, { label: "전체 활동", v: Math.max(0, (acc?.total ?? 0) - (acc?.never_signed_in ?? 0)) }];
 
   return (
-    <section className="pa-section">
+    <section className="space-y-4">
       {/* 헤더: 제목 + 집계 범위 + 기간 전환 */}
-      <div className="pa-head">
-        <div>
-          <h2 className="pa-title">성장 분석</h2>
-          <p className="pa-subtitle">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-lg font-extrabold tracking-tight text-[var(--text)]">성장 분석</h2>
+          <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
             방문자·페이지뷰는 {data?.page_views_since ? new Date(data.page_views_since).toLocaleDateString("ko-KR", { month: "long", day: "numeric" }) : "2026-07-28"}부터 수집 · 가입 지표는 전 기간
           </p>
-          <p className="pa-scope-note">
+          <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
             {SCOPES.find((s) => s.key === scope)!.hint}
             {sideTraffic?.breakdown && (
-              <span className="pa-scope-excluded">
+              <span className="text-[var(--text-dim)]">
                 {" "}· 내부 {sideTraffic.breakdown.internal_visitors}명 제외 · 중복 뷰{" "}
                 {sideTraffic.breakdown.raw_views - sideTraffic.breakdown.deduped_views}회 접음
               </span>
             )}
           </p>
         </div>
-        <div className="pa-head-controls">
-          <div className="qk-chips">
-            {SCOPES.map((s) => (
-              <button key={s.key} onClick={() => setScope(s.key)} title={s.hint}
-                className={`${scope === s.key ? "qk-chip qk-chip-on" : "qk-chip"}`}>
-                {s.label}
-              </button>
-            ))}
-          </div>
-          <div className="qk-chips">
-            {GRANS.map((g) => (
-              <button key={g.key} onClick={() => setGran(g.key)}
-                className={`${gran === g.key ? "qk-chip qk-chip-on" : "qk-chip"}`}>
-                {g.label}
-              </button>
-            ))}
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <PfSeg value={scope} onChange={setScope} options={SCOPES.map((s) => ({ value: s.key, label: s.label }))} />
+          <PfSeg value={gran} onChange={setGran} options={GRANS.map((g) => ({ value: g.key, label: g.label }))} />
         </div>
       </div>
 
       {/* 지표 타일 — 클릭하면 차트가 그 지표로 바뀐다 */}
-      <div className="pa-tiles">
-        {tiles.map((t) => (
-          <button key={t.key} type="button" onClick={() => setMetric(t.key)}
-            className={`pa-tile glass-card ${metric === t.key ? "pa-tile-active" : ""}`}>
-            <span className="pa-tile-label">{t.label}</span>
-            <span className="pa-tile-value mono-number">{fmt(t.cur)}<span className="pa-tile-unit">{t.unit}</span></span>
-            <span className="pa-tile-foot">
-              {t.prev > 0 || t.cur > 0 ? (
-                <span className={t.delta > 0 ? "pa-delta-up" : t.delta < 0 ? "pa-delta-down" : "pa-delta-flat"}>
-                  {t.delta > 0 ? "▲" : t.delta < 0 ? "▼" : "—"} {t.delta === 0 ? prevLabel + " 동일" : `${fmt(Math.abs(t.delta))} (${prevLabel} ${fmt(t.prev)})`}
-                </span>
-              ) : (
-                <span className="pa-delta-flat">기간 내 없음</span>
-              )}
-            </span>
-          </button>
-        ))}
+      <div className="pf-kpi-grid">
+        {tiles.map((t, i) => {
+          const on = metric === t.key;
+          return (
+            <button key={t.key} type="button" onClick={() => setMetric(t.key)}
+              className={`pf-card pf-card-hover pf-in p-4 text-left ${on ? "ring-2 ring-[var(--primary)]/60" : ""}`} style={{ ["--pf-i" as string]: i }}>
+              <span className="pf-kpi-label">{t.label}</span>
+              <div className={`pf-kpi-value mono-number mt-1 ${on ? "pf-kpi-accent" : ""}`}>{fmt(t.cur)}<span className="text-[12px] font-semibold text-[var(--text-dim)] ml-0.5">{t.unit}</span></div>
+              <div className="mt-1.5">
+                {t.prev > 0 || t.cur > 0 ? (
+                  <span className={`pf-kpi-delta ${t.delta > 0 ? "pf-kpi-delta-up" : t.delta < 0 ? "pf-kpi-delta-down" : "pf-kpi-delta-flat"}`}>
+                    {t.delta > 0 ? "▲" : t.delta < 0 ? "▼" : "•"} {t.delta === 0 ? `${prevLabel} 동일` : `${fmt(Math.abs(t.delta))} (${prevLabel} ${fmt(t.prev)})`}
+                  </span>
+                ) : (
+                  <span className="pf-kpi-delta pf-kpi-delta-flat">기간 내 없음</span>
+                )}
+              </div>
+            </button>
+          );
+        })}
       </div>
 
-      <div className="pa-grid">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4 items-start">
         {/* 왼쪽: 차트 + 기간별 상세 표 (표가 차트의 테이블 뷰를 겸한다) */}
-        <div className="pa-main">
-        <div className="pa-chart-card glass-card">
-          <div className="pa-chart-head">
-            <span className="pa-chart-title">{metricMeta.label} 추이 <span className="pa-chart-range">최근 {n}{gran === "day" ? "일" : gran === "month" ? "개월" : "년"}</span></span>
-            <span className="pa-chart-cur">{curLabel} <b className="mono-number">{fmt(tiles.find((t) => t.key === metric)?.cur ?? 0)}</b>{metricMeta.unit}</span>
-          </div>
-
-          {isLoading ? (
-            <div className="pa-empty">불러오는 중…</div>
-          ) : allZero ? (
-            <div className="pa-empty">
-              이 기간에는 {metricMeta.label} 기록이 없습니다.
-              {(metric === "visitors" || metric === "views" || metric === "guests") && <><br /><span className="pa-empty-sub">방문 수집은 2026-07-28에 시작됐습니다.</span></>}
-            </div>
-          ) : (
-            <div className="pa-chart-wrap" onMouseLeave={() => setHover(null)}>
-              <svg viewBox={`0 0 ${W} ${H}`} className="pa-svg" role="img" aria-label={`${metricMeta.label} ${gran === "day" ? "일별" : gran === "month" ? "월별" : "연도별"} 추이`}>
-                {/* 그리드 + y라벨 (0 · 중간 · 최대) */}
-                {[0, 0.5, 1].map((f) => {
-                  const y = PT + innerH - f * innerH;
-                  return (
-                    <g key={f}>
-                      <line x1={PL} y1={y} x2={W - PR} y2={y} className="pa-gridline" />
-                      <text x={PL - 6} y={y + 3.5} textAnchor="end" className="pa-axis-text">{fmt(Math.round(yMax * f))}</text>
-                    </g>
-                  );
-                })}
-                {/* 막대 + 호버 히트영역 */}
-                {buckets.map((b, i) => {
-                  const v = b[metric];
-                  const h = hOf(v);
-                  return (
-                    <g key={b.start}>
-                      {v > 0 && (
-                        <path d={barPath(xOf(i), PT + innerH - h, barW, h)}
-                          className={hover === null || hover === i ? "pa-bar" : "pa-bar pa-bar-dim"} />
-                      )}
-                      <rect x={PL + i * slot} y={PT} width={slot} height={innerH + PB}
-                        className="pa-hit" onMouseEnter={() => setHover(i)} />
-                      {(i % tickEvery === 0 || i === n - 1) && (
-                        <text x={PL + i * slot + slot / 2} y={H - 6} textAnchor="middle" className="pa-axis-text">
-                          {bucketLabel(b.start, gran)}
-                        </text>
-                      )}
-                    </g>
-                  );
-                })}
-              </svg>
-              {/* 툴팁 — 해당 기간의 전 지표 */}
-              {hover !== null && buckets[hover] && (
-                <div className="pa-tooltip" style={{ left: `${((PL + hover * slot + slot / 2) / W) * 100}%` }}>
-                  <div className="pa-tooltip-title">{bucketLabel(buckets[hover].start, gran, true)}</div>
-                  {METRICS.map((m) => (
-                    <div key={m.key} className={`pa-tooltip-row ${m.key === metric ? "pa-tooltip-row-active" : ""}`}>
-                      <span>{m.label}</span><span className="mono-number">{fmt(buckets[hover]![m.key])}</span>
-                    </div>
-                  ))}
-                </div>
+        <div className="space-y-4 min-w-0">
+          <PfCard i={0}>
+            <PfCardHead
+              title={<>{metricMeta.label} 추이 <span className="text-[10px] font-normal text-[var(--text-dim)]">최근 {n}{gran === "day" ? "일" : gran === "month" ? "개월" : "년"}</span></>}
+              right={<span className="text-[11px] text-[var(--text-muted)]">{curLabel} <b className="mono-number text-[var(--text)]">{fmt(tiles.find((t) => t.key === metric)?.cur ?? 0)}</b>{metricMeta.unit}</span>}
+            />
+            <PfCardBody>
+              {isLoading ? (
+                <PfSkeleton h={200} />
+              ) : allZero ? (
+                <PfEmpty>
+                  이 기간에는 {metricMeta.label} 기록이 없습니다.
+                  {(metric === "visitors" || metric === "views" || metric === "guests") && <><br /><span className="text-[10px]">방문 수집은 2026-07-28에 시작됐습니다.</span></>}
+                </PfEmpty>
+              ) : (
+                <PfBars data={chartRows} xKey="name" series={[{ key: "value", label: metricMeta.label, format: (v) => `${fmt(v)}${metricMeta.unit}` }]} height={240} revealKey={`${gran}-${scope}-${metric}`} />
               )}
-            </div>
-          )}
-        </div>
+            </PfCardBody>
+          </PfCard>
 
-        {/* 기간별 상세 표 — 차트의 테이블 뷰(접근성) 겸 정밀 수치 확인용 */}
-      <div className="glass-card p-0 pa-table-scroll">
-        <table className="pa-table">
-          <thead className="sticky-bar">
-            <tr className="table-head-row">
-              <th className="th-cell text-left">기간</th>
-              <th className="th-cell text-right">방문자</th>
-              <th className="th-cell text-right">페이지뷰</th>
-              <th className="th-cell text-right">비로그인</th>
-              <th className="th-cell text-right">신규 가입자</th>
-              <th className="th-cell text-right">신규 회사</th>
-              <th className="th-cell text-right">체험 시작</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[...buckets].reverse().map((b, ri) => (
-              <tr key={b.start} className={`pa-table-row ${ri === 0 ? "pa-table-row-current" : ""}`}>
-                <td className="pa-td text-left">{bucketLabel(b.start, gran, true)}{ri === 0 && <span className="pa-now-badge">{curLabel}</span>}</td>
-                <td className="pa-td mono-number">{fmt(b.visitors)}</td>
-                <td className="pa-td mono-number">{fmt(b.views)}</td>
-                <td className="pa-td mono-number">{fmt(b.guests)}</td>
-                <td className="pa-td mono-number">{fmt(b.accounts)}</td>
-                <td className="pa-td mono-number">{fmt(b.companies)}</td>
-                <td className="pa-td mono-number">{fmt(b.trials)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          {/* 기간별 상세 표 — 차트의 테이블 뷰(접근성) 겸 정밀 수치 확인용 */}
+          <PfCard i={1} hover={false}>
+            <div className="pf-table-wrap max-h-[360px] overflow-y-auto">
+              <table className="pf-table min-w-[640px]">
+                <thead>
+                  <tr>
+                    <th>기간</th>
+                    <th className="text-right">방문자</th>
+                    <th className="text-right">페이지뷰</th>
+                    <th className="text-right">비로그인</th>
+                    <th className="text-right">신규 가입자</th>
+                    <th className="text-right">신규 회사</th>
+                    <th className="text-right">체험 시작</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...buckets].reverse().map((b, ri) => (
+                    <tr key={b.start} className={ri === 0 ? "bg-[var(--primary)]/5" : ""}>
+                      <td className="whitespace-nowrap">{bucketLabel(b.start, gran, true)}{ri === 0 && <span className="pf-badge pf-badge-info ml-1.5">{curLabel}</span>}</td>
+                      <td className="text-right mono-number">{fmt(b.visitors)}</td>
+                      <td className="text-right mono-number">{fmt(b.views)}</td>
+                      <td className="text-right mono-number">{fmt(b.guests)}</td>
+                      <td className="text-right mono-number">{fmt(b.accounts)}</td>
+                      <td className="text-right mono-number">{fmt(b.companies)}</td>
+                      <td className="text-right mono-number">{fmt(b.trials)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </PfCard>
         </div>
 
         {/* 사이드: 활동 사용자 · 이용 형태 · 인기 페이지 · 유입 */}
-        <div className="pa-side">
-          <div className="glass-card p-4">
-            <div className="pa-side-title">활동 사용자</div>
-            {(() => {
-              const acc = usage?.accounts;
-              // 토글 기간에 맞춘 창 — 일간: 오늘/주간/월간, 월간: 월간/분기/연간, 연간: 연간/3년/전체 활동
-              const rows = gran === "day"
-                ? [
-                    { label: "오늘", v: acc?.dau ?? 0 },
-                    { label: "주간", v: acc?.wau ?? 0 },
-                    { label: "월간", v: acc?.mau ?? 0 },
-                  ]
-                : gran === "month"
-                ? [
-                    { label: "월간", v: acc?.mau ?? 0 },
-                    { label: "분기", v: acc?.active_90d ?? 0 },
-                    { label: "연간", v: acc?.active_365d ?? 0 },
-                  ]
-                : [
-                    { label: "연간", v: acc?.active_365d ?? 0 },
-                    { label: "3년", v: acc?.active_1095d ?? 0 },
-                    { label: "전체 활동", v: Math.max(0, (acc?.total ?? 0) - (acc?.never_signed_in ?? 0)) },
-                  ];
-              const max = Math.max(1, ...rows.map((r) => r.v));
-              return (
-                <div className="pa-hbar-list">
-                  {rows.map((x) => (
-                    <div key={x.label} className="pa-hbar-row">
-                      <span className="pa-hbar-label">{x.label}</span>
-                      <span className="pa-hbar-track">
-                        {x.v > 0 && <span className="pa-hbar-fill" style={{ width: `${Math.max((x.v / max) * 100, 4)}%` }} />}
-                      </span>
-                      <span className="pa-hbar-value mono-number">{fmt(x.v)}</span>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-            <div className="pa-side-foot">미로그인 계정 {fmt(usage?.accounts.never_signed_in ?? 0)} / 전체 {fmt(usage?.accounts.total ?? 0)}</div>
-          </div>
+        <div className="space-y-4 min-w-0">
+          <PfCard i={2}>
+            <PfCardHead title="활동 사용자" sub={`미로그인 계정 ${fmt(usage?.accounts.never_signed_in ?? 0)} / 전체 ${fmt(usage?.accounts.total ?? 0)}`} />
+            <PfCardBody><HBarList rows={activeRows} unit="명" /></PfCardBody>
+          </PfCard>
 
-          <div className="glass-card p-4">
-            <div className="pa-side-title">이용 형태 <span className="font-normal text-[var(--text-dim)]">· {SIDE_WINDOW_LABEL[gran]} 활동 가입사</span></div>
-            <div className="platform-plan-rows">
-              {[
-                { label: "미구독", n: kinds.free, cls: "platform-plan-free" },
-                { label: "체험 중", n: kinds.trial, cls: "platform-plan-trial" },
-                { label: "체험 만료", n: kinds.expired, cls: "platform-plan-expired" },
-                { label: "유료", n: kinds.paid, cls: "platform-plan-paid" },
-              ].map((r) => {
-                const total = Math.max(1, kinds.free + kinds.trial + kinds.expired + kinds.paid);
-                return (
-                  <div key={r.label}>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-[var(--text-muted)]">{r.label}</span>
-                      <span className="mono-number font-bold text-[var(--text)]">{r.n}곳</span>
-                    </div>
-                    <div className="platform-plan-bar"><div className={`platform-plan-fill ${r.cls}`} style={{ width: `${(r.n / total) * 100}%` }} /></div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <PfCard i={3}>
+            <PfCardHead title="이용 형태" sub={`${SIDE_WINDOW_LABEL[gran]} 활동 가입사`} />
+            <PfCardBody>
+              <PfDonut
+                size={150}
+                centerLabel="활동 가입사"
+                slices={[
+                  { label: "유료", value: kinds.paid, color: "var(--success)" },
+                  { label: "체험 중", value: kinds.trial, color: "var(--chart-2)" },
+                  { label: "체험 만료", value: kinds.expired, color: "var(--danger)" },
+                  { label: "미구독", value: kinds.free, color: "var(--chart-5)" },
+                ]}
+              />
+            </PfCardBody>
+          </PfCard>
 
-          <div className="glass-card p-4">
-            <div className="pa-side-title">많이 본 페이지 <span className="font-normal text-[var(--text-dim)]">· {TRAFFIC_WINDOW_LABEL[gran]}</span></div>
-            {(sideTraffic?.top_paths?.length ?? 0) === 0 ? (
-              <div className="pa-side-empty">수집 대기 중</div>
-            ) : (
-              (() => {
-                const rows = sideTraffic!.top_paths.slice(0, 5);
-                const max = Math.max(1, ...rows.map((r) => r.views));
-                return (
-                  <div className="pa-hbar-list">
-                    {rows.map((p) => (
-                      <div key={p.path} title={p.path} className="pa-hbar-row">
-                        <span className="pa-hbar-label pa-hbar-label-wide">{pageLabel(p.path)}</span>
-                        <span className="pa-hbar-track">
-                          <span className="pa-hbar-fill" style={{ width: `${Math.max((p.views / max) * 100, 4)}%` }} />
-                        </span>
-                        <span className="pa-hbar-value mono-number">{fmt(p.views)}</span>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()
-            )}
-            <div className="pa-side-title mt-4">유입 경로 <span className="font-normal text-[var(--text-dim)]">· {TRAFFIC_WINDOW_LABEL[gran]}</span></div>
-            {(sideTraffic?.top_referrers?.length ?? 0) === 0 ? (
-              <div className="pa-side-empty">수집 대기 중</div>
-            ) : (
-              (() => {
-                const rows = sideTraffic!.top_referrers.slice(0, 4);
-                const max = Math.max(1, ...rows.map((r) => r.visitors));
-                return (
-                  <div className="pa-hbar-list">
-                    {rows.map((r) => (
-                      <div key={r.host} className="pa-hbar-row">
-                        <span className="pa-hbar-label pa-hbar-label-wide">{r.host}</span>
-                        <span className="pa-hbar-track">
-                          <span className="pa-hbar-fill" style={{ width: `${Math.max((r.visitors / max) * 100, 4)}%` }} />
-                        </span>
-                        <span className="pa-hbar-value mono-number">{fmt(r.visitors)}</span>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()
-            )}
-          </div>
+          <PfCard i={4}>
+            <PfCardHead title="많이 본 페이지" sub={TRAFFIC_WINDOW_LABEL[gran]} />
+            <PfCardBody>
+              {(sideTraffic?.top_paths?.length ?? 0) === 0
+                ? <PfEmpty>수집 대기 중</PfEmpty>
+                : <HBarList rows={sideTraffic!.top_paths.slice(0, 5).map((p) => ({ label: pageLabel(p.path), v: p.views, title: p.path }))} unit="회" />}
+              <div className="pf-card-title mt-5 mb-2">유입 경로 <span className="text-[10px] font-normal text-[var(--text-dim)]">{TRAFFIC_WINDOW_LABEL[gran]}</span></div>
+              {(sideTraffic?.top_referrers?.length ?? 0) === 0
+                ? <PfEmpty>수집 대기 중</PfEmpty>
+                : <HBarList rows={sideTraffic!.top_referrers.slice(0, 4).map((r) => ({ label: r.host, v: r.visitors }))} unit="명" />}
+            </PfCardBody>
+          </PfCard>
         </div>
       </div>
-
-
     </section>
   );
 }

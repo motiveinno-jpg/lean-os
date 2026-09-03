@@ -1,9 +1,11 @@
 "use client";
+// 외부 서비스 상태 — 2026-09-03 v2 pf 디자인. 판정 로직(RPC operator_dependencies_health)은 그대로.
 import { SystemTabs } from "../_components/system-tabs";
 import { Ico } from "@/components/ui-icon";
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfBadge, PfKpi, PfSkeleton } from "../_components/pf/ui";
 
 const db = supabase;
 
@@ -16,22 +18,17 @@ type Health = {
 };
 
 type DepStatus = "ok" | "warn" | "down" | "loading";
+const STATUS_LABEL: Record<DepStatus, string> = { ok: "정상", warn: "주의", down: "장애", loading: "확인 중" };
+const STATUS_BADGE: Record<DepStatus, "ok" | "warn" | "danger" | "muted"> = { ok: "ok", warn: "warn", down: "danger", loading: "muted" };
 
-function StatusBadge({ status }: { status: DepStatus }) {
-  const tone =
-    status === "ok"
-      ? "bg-[var(--success-dim)] text-[var(--success)]"
-      : status === "warn"
-      ? "bg-[var(--warning-dim)] text-[var(--warning)]"
-      : status === "loading"
-      ? "bg-[var(--bg-surface)] text-[var(--text-muted)]"
-      : "bg-[var(--danger-dim)] text-[var(--danger)]";
-  const label = status === "ok" ? "정상" : status === "warn" ? "주의" : status === "loading" ? "확인 중" : "장애";
-  return <span className={`platform-dependency-status-badge ${tone}`}>● {label}</span>;
+function StatusDot({ status }: { status: DepStatus }) {
+  if (status === "ok") return <span className="pf-live" />;
+  if (status === "loading") return <span className="pf-live pf-live-off" />;
+  return <span className="inline-block w-2 h-2 rounded-full" style={{ background: status === "warn" ? "#D97706" : "var(--danger)" }} />;
 }
 
 export default function PlatformDependenciesPage() {
-  const { data, isLoading, error, refetch } = useQuery<Health>({
+  const { data, isLoading, error, refetch, isFetching } = useQuery<Health>({
     queryKey: ["op-deps-health"],
     queryFn: async () => {
       const { data, error } = await db.rpc("operator_dependencies_health");
@@ -57,6 +54,7 @@ export default function PlatformDependenciesPage() {
 
   type Card = {
     name: string;
+    plain: string;          // 비전공자용 한 줄 — 이게 뭐 하는 서비스인지
     status: DepStatus;
     desc: string;
     links: { label: string; href: string }[];
@@ -66,126 +64,138 @@ export default function PlatformDependenciesPage() {
 
   const cards: Card[] = [
     {
-      name: "Supabase (DB + Auth)",
+      name: "Supabase",
+      plain: "오너뷰의 데이터베이스와 로그인",
       status: supabaseStatus,
       desc: data
-        ? `최근 1시간 에러 ${data.supabase.errors_1h}건 / 24시간 ${data.supabase.errors_24h}건`
+        ? `최근 1시간 오류 ${data.supabase.errors_1h}건 / 24시간 ${data.supabase.errors_24h}건`
         : "헬스 미수신",
       links: [
         { label: "status.supabase.com", href: "https://status.supabase.com" },
       ],
-      blockedOn: "auth · DB · RLS · Realtime · Storage · Edge Functions 전체",
+      blockedOn: "로그인 · 모든 화면의 데이터 · 파일 저장 · 서버 기능",
     },
     {
-      name: "CODEF (은행 + 카드 + 홈택스)",
+      name: "CODEF",
+      plain: "은행·카드·홈택스 자동 수집",
       status: codefStatus,
       desc: data
-        ? `24h 통장 ${data.codef.bank_tx_24h.toLocaleString()} · 카드 ${data.codef.card_tx_24h.toLocaleString()}`
+        ? `24시간 통장 거래 ${data.codef.bank_tx_24h.toLocaleString()}건 · 카드 거래 ${data.codef.card_tx_24h.toLocaleString()}건`
         : "—",
       links: [{ label: "codef.io 대시보드", href: "https://developer.codef.io" }],
-      blockedOn: "은행·카드 자동 동기화 · 홈택스 세금계산서",
+      blockedOn: "은행·카드 자동 수집 · 홈택스 세금계산서",
       warning: data?.codef.note,
     },
     {
-      name: "Stripe (결제)",
+      name: "Stripe",
+      plain: "구독 결제",
       status: stripeStatus,
       desc: data
-        ? `24h 결제 성공 ${data.stripe.paid_invoices_24h} · 실패/연체 ${data.stripe.failed_invoices_24h}`
+        ? `24시간 결제 성공 ${data.stripe.paid_invoices_24h}건 · 실패/연체 ${data.stripe.failed_invoices_24h}건`
         : "—",
       links: [
         { label: "status.stripe.com", href: "https://status.stripe.com" },
         { label: "Stripe 대시보드", href: "https://dashboard.stripe.com" },
       ],
-      blockedOn: "유료 구독 결제 · 인보이스 발행",
+      blockedOn: "유료 구독 결제 · 청구서 발행",
     },
     {
-      name: "Resend (메일 발송)",
+      name: "Resend",
+      plain: "메일 발송",
       status: "ok" as const,
-      desc: "내부 발송 로그 미연결 — 헬스는 사이드 시그널만",
+      desc: "내부 발송 기록과는 연결돼 있지 않아 간접 신호만 봅니다",
       links: [{ label: "status.resend.com", href: "https://status.resend.com" }],
       blockedOn: "견적·계약서 메일 · 알림 메일",
     },
     {
-      name: "전자서명 (자체 + Resend)",
+      name: "전자서명",
+      plain: "오너뷰 자체 서명 + 메일 발송",
       status: "ok" as const,
       desc: data
-        ? `24h 승인요청 ${data.signatures.approvals_24h} · 양방향 완료 ${data.signatures.fully_signed_24h}`
+        ? `24시간 결재 요청 ${data.signatures.approvals_24h}건 · 양쪽 서명 완료 ${data.signatures.fully_signed_24h}건`
         : "—",
       links: [],
       blockedOn: "견적·계약 양방향 서명 · 직인",
     },
     {
-      name: "Vercel (호스팅 + Edge)",
+      name: "Vercel",
+      plain: "오너뷰 화면을 띄우는 서버",
       status: "ok" as const,
-      desc: "본 페이지가 보인다면 정상",
+      desc: "이 화면이 보인다면 정상입니다",
       links: [{ label: "vercel-status.com", href: "https://www.vercel-status.com" }],
-      blockedOn: "SSR · API routes · 정적 배포",
+      blockedOn: "모든 화면 표시 · 서버 경로",
     },
   ];
 
+  const okCount = cards.filter((c) => c.status === "ok").length;
+  const warnCount = cards.filter((c) => c.status === "warn" || c.status === "down").length;
+
   return (
-    <div className="max-w-5xl space-y-6">
+    <PfPage>
+      <PfPageHead
+        eyebrow="운영"
+        title="외부 서비스"
+        desc="오너뷰가 기대고 있는 바깥 서비스들이 지금 잘 돌아가는지 봅니다. 1분마다 자동으로 새로 고칩니다."
+        actions={
+          <>
+            {data?.at && <span className="text-[11px] text-[var(--text-dim)]">갱신 {new Date(data.at).toLocaleTimeString("ko-KR")}</span>}
+            <button type="button" onClick={() => refetch()} disabled={isFetching} className="pf-btn disabled:opacity-50">↻ 지금 확인</button>
+          </>
+        }
+      />
       <SystemTabs />
+
       {failReason && (
-        <div className="platform-check-failed-banner">
-          <span className="font-bold"><Ico e="⚠" /> 서비스 상태를 판정하지 못했습니다.</span> {failReason}
-          <span className="block mt-1 text-[11px] opacity-80">이것은 외부 서비스 장애 판정이 아닙니다 — 실제 장애 여부는 시스템 상태 화면의 신호등·타임라인에서 확인하세요.</span>
-        </div>
+        <PfCard i={2} hover={false} className="ring-1 ring-[#D97706]/40">
+          <div className="px-5 py-3 text-[12px]" style={{ color: "#b45309" }}>
+            <span className="font-bold"><Ico e="⚠" /> 서비스 상태를 판정하지 못했습니다.</span> {failReason}
+            <span className="block mt-1 text-[11px] opacity-80">이것은 외부 서비스 장애 판정이 아닙니다 — 실제 장애 여부는 시스템 상태 화면의 신호등·타임라인에서 확인하세요.</span>
+          </div>
+        </PfCard>
       )}
-      <div className="platform-dependencies-header">
-        <div>
-          <h1 className="text-2xl font-extrabold text-[var(--text)]">의존성 상태</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            외부 서비스 신호등 + 영향도. {data?.at ? `갱신: ${new Date(data.at).toLocaleTimeString("ko-KR")}` : ""}
-          </p>
-        </div>
-        <button
-          onClick={() => refetch()}
-          className="btn-secondary text-xs"
-        >
-          ↻ 갱신
-        </button>
+
+      <div className="pf-kpi-grid">
+        <PfCard i={2} className="pf-kpi-tile"><PfKpi label="정상" value={okCount} unit="개" live={okCount > 0 && warnCount === 0} /></PfCard>
+        <PfCard i={3} className="pf-kpi-tile"><PfKpi label="주의·장애" value={warnCount} unit="개" accent={warnCount > 0} /></PfCard>
+        <PfCard i={4} className="pf-kpi-tile"><PfKpi label="24시간 은행·카드 수집" value={data ? data.codef.bank_tx_24h + data.codef.card_tx_24h : 0} unit="건" /></PfCard>
+        <PfCard i={5} className="pf-kpi-tile"><PfKpi label="24시간 결제 성공" value={data?.stripe.paid_invoices_24h ?? 0} unit="건" /></PfCard>
       </div>
 
-      {isLoading && <div className="text-sm text-[var(--text-dim)]">불러오는 중…</div>}
+      {isLoading && <PfCard i={6}><PfCardBody className="pt-5"><PfSkeleton rows={3} h={16} /></PfCardBody></PfCard>}
 
-      <div className="platform-dependency-card-grid">
-        {cards.map((c) => (
-          <div key={c.name} className="platform-dependency-card glass-card">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-sm font-bold text-[var(--text)]">{c.name}</div>
-              <StatusBadge status={c.status} />
-            </div>
-            <div className="text-xs text-[var(--text-muted)] mb-3">{c.desc}</div>
-            {c.warning && (
-              <div className="text-[11px] text-[var(--warning)] bg-[var(--warning-dim)] rounded-lg p-2 mb-2">
-                <Ico e="⚠" /> {c.warning}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {cards.map((c, idx) => (
+          <PfCard key={c.name} i={6 + idx} className={c.status === "warn" ? "ring-1 ring-[#D97706]/40" : c.status === "down" ? "ring-1 ring-[var(--danger)]/40" : ""}>
+            <PfCardHead
+              title={<span className="flex items-center gap-2"><StatusDot status={c.status} />{c.name}</span>}
+              sub={c.plain}
+              right={<PfBadge tone={STATUS_BADGE[c.status]}>{STATUS_LABEL[c.status]}</PfBadge>}
+            />
+            <PfCardBody className="space-y-2">
+              <div className="text-[12px] text-[var(--text-muted)]">{c.desc}</div>
+              {c.warning && (
+                <div className="text-[11px] rounded-lg px-2.5 py-2" style={{ color: "#b45309", background: "color-mix(in oklab, #D97706 12%, transparent)" }}>
+                  <Ico e="⚠" /> {c.warning}
+                </div>
+              )}
+              <div className="text-[11px] text-[var(--text-dim)]">
+                <span className="font-bold">멈추면 안 되는 것:</span> {c.blockedOn}
               </div>
-            )}
-            <div className="text-[10px] text-[var(--text-dim)] mb-2">
-              <span className="font-bold uppercase tracking-wider">영향도:</span> {c.blockedOn}
-            </div>
-            <div className="platform-dependency-links">
-              {c.links.map((l) => (
-                <a
-                  key={l.href}
-                  href={l.href}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[11px] text-[var(--primary)] hover:underline"
-                >
-                  {l.label} ↗
-                </a>
-              ))}
-            </div>
-          </div>
+              {c.links.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {c.links.map((l) => (
+                    <a key={l.href} href={l.href} target="_blank" rel="noreferrer" className="pf-chip">{l.label} ↗</a>
+                  ))}
+                </div>
+              )}
+            </PfCardBody>
+          </PfCard>
         ))}
       </div>
 
-      <div className="kpi-callout">
-        여기 표시되는 상태는 간접 신호로 추정한 값이라 실제와 다를 수 있습니다.
-        정확한 확인은 각 서비스의 공식 상태 페이지에서 하세요. 1분마다 자동 갱신됩니다.
-      </div>
-    </div>
+      <p className="text-[11px] text-[var(--text-dim)] px-1 pf-in" style={{ ["--pf-i" as string]: 13 }}>
+        여기 표시되는 상태는 오너뷰 안의 간접 신호로 추정한 값이라 실제와 다를 수 있습니다. 정확한 확인은 각 서비스의 공식 상태 페이지에서 하세요.
+      </p>
+    </PfPage>
   );
 }
