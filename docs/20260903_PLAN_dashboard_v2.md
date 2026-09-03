@@ -76,3 +76,9 @@
 1) 층 1 띠 + 층 2 체크리스트(체크 DB) + 오늘 한눈 카드 — 하루 반
 2) 격자 규율(단 높이·빈 위젯 접기·크기 조절 삭제·**잘림 0 실측**) + 위젯 몸통 3형·머리 통일·칩 제거 — 이틀
 3) 모바일 — 반나절
+
+## 반영 (2026-09-03 — 사장님 "진행" → "이어서 진행")
+- 1단계 9f9a83cf: 신호 띠(dashboard-signals.tsx, dash-sig-bar/tone) · 챙길 것 체크리스트(morning-brief.tsx brief-list, briefing_checks 20260903170000) · 오늘 한눈(dashboard-glance.tsx) · 배치 8+4열 h:10 · DashboardGrid layoutMigration.set.
+  ⚠ 사고: briefing_checks 에 users FK 가 덧붙어 PostgREST 관계 모호 → 전 회사 로그인 루프 15분 → users FK 제거 + queries.ts 임베드 FK 힌트 고정(caada3dc). lessons.md.
+- 2단계 (이 커밋): 크기 조절 삭제·1단 h5/2단 h10·빈 위젯 한 줄 접기(WidgetEmptyContext) · ActivityCard 머리 통일·한 줄 빈 상태 · 칩 제거(미수금·프로젝트·세금) · 통장 요약 3칸+3건 · 표 5줄+외 N.
+- 남은 것: 3단계 모바일 / 카드 사용 위젯 요약 칸 / 챙길 것 요약 문장 한 줄(프롬프트) / 기존 사용자에게 남은 옛 세금·결재·일정 위젯(보기 설정에서 끔).
