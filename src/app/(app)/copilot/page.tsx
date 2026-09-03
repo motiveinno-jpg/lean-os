@@ -878,7 +878,7 @@ function AnswerCard({ msg, companyId, userId, onRun, onCancel }: {
       <div className="copilot2-answer-head">
         <span className="copilot2-answer-spark" aria-hidden><Ico e="✦" /></span>
         <span className="copilot2-answer-title">AI 분석 결과</span>
-        {msg.model && <span className="copilot2-answer-model">{msg.model.includes("opus") ? "Opus" : msg.model.includes("haiku") ? "Haiku" : "Sonnet"}</span>}
+        {msg.model && <span className="copilot2-answer-model">{msg.model.includes("gemini") ? "Gemini" : msg.model.includes("opus") ? "Opus" : msg.model.includes("haiku") ? "Haiku" : "Sonnet"}</span>}
         <span className="copilot2-answer-time">{kstDate(msg.at)}</span>
       </div>
       {a.headline && <div className="copilot2-sec-headline">{clean(a.headline)}</div>}

@@ -5,6 +5,7 @@
 //   - request_id · latency · input/output token 반환 + ai_usage_log 기록(민감정보/원문 프롬프트 저장 금지)
 //   - 오류 응답에 프롬프트/운영 데이터 노출 금지 (호출측엔 안전 메시지만)
 import { tfetch } from "./http.ts";
+import { callGemini, geminiKey } from "./gemini.ts";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
@@ -155,6 +156,7 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
 
   const base: ClaudeResult<T> = { ok: false, model, requestId, latencyMs: 0 };
   if (!apiKey) {
+    if (geminiKey()) return await viaGemini(opts, requestId, t0, "NO_KEY");
     return { ...base, error: "AI 설정 오류(관리자 문의)", errorCode: "NO_KEY", latencyMs: Date.now() - t0 };
   }
 
@@ -263,9 +265,33 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
       if (attempt < maxRetries) { await sleep(400 * (attempt + 1)); continue; }
     }
   }
+  // Anthropic 잔액 소진 → Gemini 대체 경로 (2026-09-03 사장님). 다른 오류(요청 형식 등)는 그대로 돌려준다.
+  if (lastCode === "PROVIDER_BILLING" && geminiKey()) {
+    await logUsage(opts, { model, requestId, inTok: 0, outTok: 0, latencyMs: Date.now() - t0, status: "fallback", errorCode: lastCode });
+    return await viaGemini(opts, requestId, t0, lastCode);
+  }
   const latencyMs = Date.now() - t0;
   await logUsage(opts, { model, requestId, inTok: 0, outTok: 0, latencyMs, status: "error", errorCode: lastCode });
   return { ...base, error: lastErr, errorCode: lastCode, latencyMs };
+}
+
+/** Gemini 대체 호출 — 결과를 ClaudeResult 모양으로 맞춘다(호출부 무수정). */
+async function viaGemini<T>(opts: ClaudeCallOpts, requestId: string, t0: number, reason: string): Promise<ClaudeResult<T>> {
+  const g = await callGemini({
+    system: opts.system, messages: opts.messages, maxTokens: opts.maxTokens, temperature: opts.temperature,
+    schema: opts.schema, tools: opts.tools, toolChoice: opts.toolChoice, timeoutMs: opts.timeoutMs,
+  });
+  const latencyMs = Date.now() - t0;
+  if (!g.ok) {
+    await logUsage(opts, { model: g.model, requestId, inTok: 0, outTok: 0, latencyMs, status: "error", errorCode: g.errorCode });
+    return { ok: false, model: g.model, requestId, latencyMs, error: g.error, errorCode: g.errorCode };
+  }
+  console.log(`[gemini] fallback(${reason}) ${opts.feature} ${g.model} in=${g.usage.input} out=${g.usage.output}`);
+  await logUsage(opts, { model: g.model, requestId, inTok: g.usage.input, outTok: g.usage.output, latencyMs, status: "ok", cost: 0 });
+  return {
+    ok: true, data: g.data as T | undefined, text: g.text, content: g.content, stopReason: g.stopReason,
+    usage: g.usage, model: g.model, requestId, latencyMs, costUsdEstimate: 0,
+  };
 }
 
 async function logUsage(opts: ClaudeCallOpts, r: {
