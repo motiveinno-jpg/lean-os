@@ -9154,6 +9154,9 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .vr-bar { @apply flex flex-wrap items-center gap-2; }
 .vr-stats { @apply flex flex-wrap items-center gap-x-5 gap-y-1; }
 .vr-warn { @apply text-[var(--danger)]; }
+/* 세무 신고 기한 색 (2026-09-03) — 7일 안 주의 / 지남 위험 */
+.tax-due-soon { @apply text-[var(--warning)]; }
+.tax-due-over { @apply text-[var(--danger)]; }
 .vr-scroll { max-height: 420px; overflow: auto; }
 .vr-sum td { @apply border-t-2 border-[var(--border)] bg-[var(--bg-surface)] font-semibold; }
 .vr-total td { @apply bg-[var(--primary)]/5 text-[14px]; }

@@ -77,14 +77,17 @@ function buildTaxSchedules(today: Date, windowEnd: Date): ScheduleItem[] {
     if (![0, 3, 6, 9].includes(cand.getMonth()) || cand < today) continue;
     if (cand > windowEnd) break;
     const mm = cand.getMonth();
+    //   기한 달 → 신고할 기수 (VatReturn VAT_PERIODS 키): 1월=지난해 2기 확정 · 4월=1기 예정 · 7월=1기 확정 · 10월=2기 예정
+    const period = mm === 0 ? "2c" : mm === 3 ? "1p" : mm === 6 ? "1c" : "2p";
+    const pYear = mm === 0 ? cand.getFullYear() - 1 : cand.getFullYear();
     items.push({
       id: `vat-${fmtDateKey(cand)}`,
       type: "tax",
       title: mm === 0 || mm === 6 ? "부가세 확정 신고/납부" : "부가세 예정 신고/납부",
       date: fmtDateKey(cand),
       daysLeft: daysBetween(today, cand),
-      //   신고서 준비는 재무 › 세무 신고로 옮겨 갔다 (2026-08-31 세무 1차, 결정 107)
-      href: "/finance/tax-filing?tab=vat",
+      //   신고서 준비는 재무 › 세무 신고로 옮겨 갔다 (2026-08-31 세무 1차, 결정 107). 2026-09-03: 신고할 기수까지 딥링크.
+      href: `/finance/tax-filing?tab=vat&year=${pYear}&period=${period}`,
     });
     break;
   }

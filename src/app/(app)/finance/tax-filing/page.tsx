@@ -30,7 +30,7 @@ import { useToast } from "@/components/toast";
 import { todayKst } from "@/lib/kst";
 import { comparePeople } from "@/lib/people-sort";
 import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup } from "@/components/query-kit";
-import { VatReturn, VAT_PERIODS, currentVatPeriod, vatDueDate, type VatPeriodKey } from "@/app/(app)/reports/vat/_components/VatReturn";
+import { VatReturn, VAT_PERIODS, vatFilingNow, vatDueDate, type VatPeriodKey } from "@/app/(app)/reports/vat/_components/VatReturn";
 import { computeStatements } from "@/lib/closing-snapshot";
 import { listFixedAssets, faCategoryLabel } from "@/lib/fixed-assets";
 import { fetchJournalLines } from "@/lib/journal-reports";
@@ -52,6 +52,12 @@ function prevMonth(): string {
 function dueOf(month: string): string {
   const y = Number(month.slice(0, 4)), m = Number(month.slice(5, 7));
   return m === 12 ? `${y + 1}-01-10` : `${y}-${String(m + 1).padStart(2, "0")}-10`;
+}
+/** 기한 색 — 7일 안이면 주의, 지났으면 위험. 그 밖엔 검정 (2026-09-03 후속: 기한이 눈에 띄게) */
+function DueDate({ d }: { d: string }) {
+  const left = Math.round((new Date(d).getTime() - new Date(todayKst()).getTime()) / 86400000);
+  const cls = left < 0 ? "mono-number tax-due-over" : left <= 7 ? "mono-number tax-due-soon" : "mono-number";
+  return <b className={cls} title={left < 0 ? `${-left}일 지났습니다` : left === 0 ? "오늘까지" : `${left}일 남았습니다`}>{d}{left < 0 ? " · 지남" : left <= 7 ? ` · D-${left}` : ""}</b>;
 }
 /** 반기의 여섯 달 (h=1 → 01~06, h=2 → 07~12) */
 const halfMonths = (y: number, h: 1 | 2) =>
@@ -129,10 +135,11 @@ export default function TaxFilingPage() {
     return t === "vat" ? "vat" : t === "cit" ? "cit" : t === "stmt" ? "stmt" : "wht";
   });
   const [month, setMonth] = useState(prevMonth);
-  //   부가세는 해 단위 신고 — 연도 하나만 고른다(분석 › 부가세와 같은 규칙)
-  const [year, setYear] = useState(() => Number(todayKst().slice(0, 4)));
+  //   부가세·법인세가 같이 쓰는 연도. 기본값 = 지금 신고할 기수의 해(1/1~25 은 지난해 2기 확정 → 지난해; 법인세도 그 해 3/31 신고라 같다).
+  //   홈 세금 일정 딥링크(?tab=vat&year=&period=)가 있으면 그 기수를 그대로 연다 (2026-09-03 후속).
+  const [year, setYear] = useState(() => { const q = Number(searchParams?.get("year")); return q >= 2000 && q <= 2100 ? q : vatFilingNow().year; });
   const years = useMemo(() => { const y = Number(todayKst().slice(0, 4)); return [y, y - 1, y - 2]; }, []);
-  const [vatPeriod, setVatPeriod] = useState<VatPeriodKey>(currentVatPeriod);
+  const [vatPeriod, setVatPeriod] = useState<VatPeriodKey>(() => { const q = searchParams?.get("period"); return VAT_PERIODS.some((p) => p.key === q) ? (q as VatPeriodKey) : vatFilingNow().key; });
   const vatExportRef = useRef<(() => void) | null>(null);   // VatReturn 이 집계 후 채운다 — 조회 줄 [세무사 전달 엑셀]
   //   지급명세서 — 근로는 반기, 사업소득은 달 (결정 103). 기본 반기 = 마지막으로 끝난 반기(1~6월엔 지난해 하반기)
   const [stmtKind, setStmtKind] = useState<"work" | "biz">("work");
@@ -457,7 +464,7 @@ export default function TaxFilingPage() {
             </>}>
               <label className="text-xs font-semibold text-[var(--text-dim)]">지급월</label>
               <MonthSelect className="inv-input fin-close-month" value={month} onChange={(v) => v && setMonth(v)} ariaLabel="지급월" />
-              <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <b className="mono-number">{dueOf(month)}</b> — 홈택스 › 신고/납부 › 원천세</span>
+              <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <DueDate d={dueOf(month)} /> — 홈택스 › 신고/납부 › 원천세</span>
             </QueryBar>
             <ResultStrip>
               <Stat label="인원" value={`${T.all.n}명${T.biz.n ? ` (사업소득 ${T.biz.n})` : ""}`} />
@@ -475,7 +482,7 @@ export default function TaxFilingPage() {
               <select value={vatPeriod} onChange={(e) => setVatPeriod(e.target.value as VatPeriodKey)} className="qk-input h-8 px-2.5 text-xs" aria-label="신고기간">
                 {VAT_PERIODS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
               </select>
-              <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <b className="mono-number">{vatDueDate(year, vatPeriod)}</b> — 홈택스 › 신고/납부 › 부가가치세</span>
+              <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <DueDate d={vatDueDate(year, vatPeriod)} /> — 홈택스 › 신고/납부 › 부가가치세</span>
             </QueryBar>
           )}
           {tab === "cit" && (<>
@@ -489,7 +496,7 @@ export default function TaxFilingPage() {
               <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs" aria-label="사업연도">
                 {years.map((y) => <option key={y} value={y}>{y}년</option>)}
               </select>
-              <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <b className="mono-number">{year + 1}-03-31</b> · 지방소득세 <b className="mono-number">{year + 1}-04-30</b> — 12월 결산 기준</span>
+              <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <DueDate d={`${year + 1}-03-31`} /> · 지방소득세 <DueDate d={`${year + 1}-04-30`} /> — 12월 결산 기준</span>
             </QueryBar>
             <ResultStrip>
               <Stat label="수익" value={won(citStmt?.totals.ytdRevenue || 0)} />
@@ -510,7 +517,7 @@ export default function TaxFilingPage() {
                   <option value={1}>상반기 (1~6월)</option>
                   <option value={2}>하반기 (7~12월)</option>
                 </select>
-                <span className="text-[11px] text-[var(--text-dim)]">제출 기한 <b className="mono-number">{stmtHalf === 1 ? `${stmtYear}-07-31` : `${stmtYear + 1}-01-31`}</b> — 홈택스</span>
+                <span className="text-[11px] text-[var(--text-dim)]">제출 기한 <DueDate d={stmtHalf === 1 ? `${stmtYear}-07-31` : `${stmtYear + 1}-01-31`} /> — 홈택스</span>
               </>) : (<>
                 <label className="text-xs font-semibold text-[var(--text-dim)]">지급월</label>
                 <input type="month" className="inv-input fin-close-month" value={stmtMonth} onChange={(e) => e.target.value && setStmtMonth(e.target.value)} aria-label="지급월" />

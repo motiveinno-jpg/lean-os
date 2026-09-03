@@ -19,6 +19,7 @@ import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { vatType } from "@/lib/vat-voucher";
+import { todayKst } from "@/lib/kst";
 import { Stat } from "@/components/query-kit";
 import { useToast } from "@/components/toast";
 
@@ -37,8 +38,19 @@ export const VAT_PERIODS = [
 export type VatPeriodKey = (typeof VAT_PERIODS)[number]["key"];
 /** 신고·납부 기한 YYYY-MM-DD */
 export const vatDueDate = (year: number, key: VatPeriodKey) => { const P = VAT_PERIODS.find((p) => p.key === key)!; return `${P.nextYear ? year + 1 : year}-${P.due}`; };
-/** 오늘이 속한 신고기간 — 페이지의 기본값 */
+/** 오늘이 속한 신고기간 (기수만) */
 export const currentVatPeriod = (): VatPeriodKey => { const m = new Date().getMonth() + 1; return m <= 3 ? "1p" : m <= 6 ? "1c" : m <= 9 ? "2p" : "2c"; };
+/** 지금 신고할 기수 — 페이지 기본값 (2026-09-03 후속).
+ *  지난 분기의 기한(이번 분기 첫 달 25일)이 아직 안 지났으면 지난 분기(예: 7/10 → 1기 확정), 지났으면 지금 분기.
+ *  1/1~1/25 는 지난해 2기 확정이라 year 도 같이 돌려준다. */
+export function vatFilingNow(today = todayKst()): { year: number; key: VatPeriodKey } {
+  const y = Number(today.slice(0, 4)), m = Number(today.slice(5, 7));
+  const q = Math.ceil(m / 3);                       // 1..4
+  const KEYS: VatPeriodKey[] = ["1p", "1c", "2p", "2c"];
+  const prevDue = `${y}-${String((q - 1) * 3 + 1).padStart(2, "0")}-25`;   // 지난 분기 기한 = 이번 분기 첫 달 25일
+  if (today <= prevDue) return q === 1 ? { year: y - 1, key: "2c" } : { year: y, key: KEYS[q - 2] };
+  return { year: y, key: KEYS[q - 1] };
+}
 const won = (n: number) => `₩${Math.round(n || 0).toLocaleString("ko-KR")}`;
 const num = (n: number) => Math.round(n || 0);
 
