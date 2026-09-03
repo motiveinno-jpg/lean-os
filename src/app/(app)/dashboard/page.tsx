@@ -772,12 +772,18 @@ function SummaryKpisWidget({
     queryFn: async () => {
       const data = logRead('dashboard/page:data', await (supabase)
         .from('tax_invoices')
-        .select('total_amount, status')
+        .select('total_amount, supply_amount, settled_amount, status')
         .eq('company_id', companyId)
         .eq('type', 'sales') // 2026-06-11 미수금=매출 계산서만 (매입 혼입 차단)
-        .in('status', ['issued', 'sent', 'pending', 'overdue']));
+        .neq('status', 'void'));
       if (!data) return 0;
-      return (data as any[]).reduce((s, inv) => s + Number(inv.total_amount || 0), 0);
+      // 2026-09-03 전 화면 점검: 총액만 더해 부분 입금(정산액)을 빼지 않아 미수금 위젯(총액−정산액)과 3배 차이 —
+      //   미수금 위젯·AI 참모와 같은 "남은 잔액" 기준으로 통일(초안·취소 제외, 잔액 0 이하 제외).
+      return (data as any[]).reduce((s, inv) => {
+        if (inv.status === 'draft') return s;
+        const bal = Number(inv.total_amount || inv.supply_amount || 0) - Number(inv.settled_amount || 0);
+        return s + (bal > 0 ? bal : 0);
+      }, 0);
     },
     enabled: !!companyId,
     refetchInterval: 60_000,
@@ -1101,8 +1107,11 @@ function OverdueReceivablesWidget({ companyId }: { companyId: string }) {
       // 2026-06-11 미수금=매출 계산서만 (매입 혼입 차단) — 요약 위젯과 동일 조건
       // 2026-07-10 QA: due_date 컬럼 부재로 쿼리 전체 400 → 위젯 항상 0 표시되던 버그.
       //   연체 기준 = 발행 후 30일 경과(다른 미수 화면·AI 브리핑과 동일 기준).
-      const data = logRead('dashboard/page:data', await (supabase).from('tax_invoices').select('counterparty_name, total_amount, issue_date, status').eq('company_id', companyId).eq('type', 'sales').in('status', ['issued', 'sent', 'pending', 'overdue']).order('issue_date', { ascending: true }).limit(20));
-      return data || [];
+      // 2026-09-03: 잔액(총액−정산액) 기준·초안/취소 제외로 요약 카드·미수금 위젯과 통일. limit(20) 은 합계를 잘라내던 원인이라 제거(표시는 아래서 20건만).
+      const data = logRead('dashboard/page:data', await (supabase).from('tax_invoices').select('counterparty_name, total_amount, supply_amount, settled_amount, issue_date, status').eq('company_id', companyId).eq('type', 'sales').neq('status', 'void').neq('status', 'draft').order('issue_date', { ascending: true }));
+      return ((data || []) as any[])
+        .map((inv: any) => ({ ...inv, balance: Number(inv.total_amount || inv.supply_amount || 0) - Number(inv.settled_amount || 0) }))
+        .filter((inv: any) => inv.balance > 0);
     },
     enabled: !!companyId,
   });
@@ -1112,8 +1121,8 @@ function OverdueReceivablesWidget({ companyId }: { companyId: string }) {
     if (!inv.issue_date) return false;
     return new Date(inv.issue_date) < thirtyDaysAgo;
   });
-  const totalOverdue = overdue.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0);
-  const totalPending = invoices.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0);
+  const totalOverdue = overdue.reduce((s: number, inv: any) => s + Number(inv.balance || 0), 0);
+  const totalPending = invoices.reduce((s: number, inv: any) => s + Number(inv.balance || 0), 0);
 
   return (
     <div className="dashboard-overdue-receivables-widget rounded-2xl bg-[var(--bg-card)]">
@@ -1140,7 +1149,7 @@ function OverdueReceivablesWidget({ companyId }: { companyId: string }) {
               <div key={i} className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-[var(--bg-surface)]">
                 <span className="text-[var(--text)]">{inv.counterparty_name}</span>
                 <div className="flex items-center gap-3">
-                  <span className="text-[var(--text-muted)] mono-number">{(Number(inv.total_amount)/10000).toFixed(0)}만원</span>
+                  <span className="text-[var(--text-muted)] mono-number">{(Number(inv.balance ?? inv.total_amount)/10000).toFixed(0)}만원</span>
                   <span className="text-[var(--danger)] font-bold mono-number">D+{days}</span>
                 </div>
               </div>
