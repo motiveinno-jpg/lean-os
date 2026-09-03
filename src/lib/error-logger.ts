@@ -160,6 +160,83 @@ export function explainError(rawMessage: string, context?: Record<string, unknow
     };
   }
 
+  // ── 서버 기능(엣지)·AI 공급사·예약 작업 — 2026-09-03 사장님: "클로드 API 충전 오류인데 왜 미분류로 뜨나" ──
+  //   유형 필터 셀렉트는 error_type 문자열("edge" 등)만 넘기므로 그 이름도 여기서 받아 제목을 돌려준다.
+  if (/credit balance is too low|provider_billing|AI 서비스 이용 잔액이 부족/.test(hay)) {
+    return {
+      type: "ai_provider_billing", severity: "high",
+      title: "AI 공급사(Anthropic) 잔액 소진",
+      detail: "AI 공급사 계정의 선불 크레딧이 바닥나 모든 AI 기능(대표 참모, 아침 브리핑, 분류)이 전 고객에서 실패합니다. 오너뷰 코드 문제가 아닙니다.",
+      hint: "Anthropic 콘솔 잔액 충전 필요",
+      fix: [
+        "console.anthropic.com → Plans & Billing 에서 크레딧 충전",
+        "충전 뒤 AI 참모에 아무 질문이나 1회 보내 정상 응답 확인",
+        "재발 방지: 자동 충전(auto-reload) 켜기",
+      ],
+    };
+  }
+  if (/invalid_request_error/.test(hay) && /\[edge |owner-copilot|ai-briefing|claude/.test(hay)) {
+    return {
+      type: "ai_provider_rejected", severity: "high",
+      title: "AI 공급사가 요청을 거부함 (invalid_request_error)",
+      detail: "Anthropic API 가 400 으로 거부했습니다. 2026-09-03 실측에서는 계정 잔액 소진이 원인이었고, 그 외에는 모델명·요청 형식 문제입니다.",
+      hint: "잔액 소진 가능성 우선 확인",
+      fix: [
+        "console.anthropic.com → Plans & Billing 잔액 확인, 부족하면 충전",
+        "잔액이 충분하면 Supabase 함수 로그의 [claude] 줄에서 거부 사유 확인",
+      ],
+    };
+  }
+  if (/CALL_CAP|COST_CAP|AI 사용 횟수|AI 사용 한도/.test(hay)) {
+    return {
+      type: "ai_monthly_cap", severity: "low",
+      title: "AI 월 사용 한도 도달 (고객 안내)",
+      detail: "해당 회사가 요금제의 월 AI 사용 한도에 도달해 안내 문구가 나간 것입니다. 서버 장애가 아닙니다.",
+      hint: "요금제 한도 — 다음 달 초기화",
+      fix: ["반복되면 해당 회사에 상위 요금제 안내", "한도 집계가 이상하면 ai_usage_log 의 feature 별 건수 확인"],
+    };
+  }
+  if (/^edge$|\[edge [a-z0-9-]+\]/.test(hay)) {
+    const fn = (m.match(/\[edge ([a-z0-9-]+)\]/) || [])[1];
+    return {
+      type: "edge", severity: "high",
+      title: fn ? `서버 기능 실패: ${fn}` : "서버 기능(엣지 함수) 실패",
+      detail: fn ? `서버 기능 '${fn}' 이 처리 중 예외를 내거나 5xx 로 응답했습니다. 메시지 뒤쪽이 응답 본문 앞부분입니다.` : "서버 기능이 예외를 내거나 5xx 로 응답했습니다.",
+      hint: "함수 로그에서 같은 시각의 오류 줄 확인",
+      fix: [
+        "Supabase 대시보드 → Edge Functions → 해당 함수 → Logs 에서 같은 시각 확인",
+        "메시지의 응답 본문(code)으로 원인 분기: 외부 API 오류인지, 데이터 오류인지",
+      ],
+    };
+  }
+  if (/^cron$|\[cron [a-z0-9-]+\]/.test(hay)) {
+    return {
+      type: "cron", severity: "high",
+      title: "예약 작업(크론) 실패",
+      detail: "정해진 시각에 도는 예약 작업이 실패했습니다. 자동 수집·알림·정산이 그 회차에 빠졌을 수 있습니다.",
+      hint: "cron.job_run_details 의 return_message 확인",
+      fix: ["메시지의 작업 이름으로 어떤 자동화인지 확인", "다음 회차에 자동 재시도되는지, 수동 재실행이 필요한지 판단"],
+    };
+  }
+  if (/^http$|\[cron http /.test(hay)) {
+    return {
+      type: "http", severity: "medium",
+      title: "예약 호출(크론 → 서버 기능) 실패",
+      detail: "예약 작업이 서버 기능을 불렀는데 5xx 응답이나 시간 초과였습니다.",
+      hint: "같은 시각의 서버 기능 오류와 짝지어 보기",
+      fix: ["같은 시각 '서버 기능 실패' 항목이 있으면 그것이 원인", "없으면 함수가 응답 전에 죽은 것 — 함수 로그 확인"],
+    };
+  }
+  if (/^server$/.test(hay)) {
+    return {
+      type: "server", severity: "high",
+      title: "서버 처리 오류 (API 라우트)",
+      detail: "Next.js 서버 경로(결제 웹훅·가입·파일 등)에서 처리 실패가 기록됐습니다.",
+      hint: "메시지 앞 [위치] 로 어느 경로인지 확인",
+      fix: ["Vercel 로그에서 같은 시각 확인"],
+    };
+  }
+
   // ── 네트워크 / 인프라 ──
   if (/\b546\b|edge function.*timeout|deno.*timeout/.test(hay)) {
     return {
