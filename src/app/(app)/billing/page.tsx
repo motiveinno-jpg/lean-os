@@ -1116,7 +1116,7 @@ function BillingPageInner() {
             {invoicesLoading ? (
               <div className="collect-empty">불러오는 중…</div>
             ) : (invoices || []).length === 0 ? (
-              <div className="collect-empty">청구서가 없습니다 — 유료 요금제를 시작하면 여기에 쌓입니다</div>
+              <div className="collect-empty">{currentSlug === "free" ? "청구서가 없습니다 — 유료 요금제를 시작하면 여기에 쌓입니다" : "아직 발행된 청구서가 없습니다 — 다음 결제부터 여기에 쌓입니다"}</div>
             ) : (
               <div className="ev-scroll"><table className="ev-table ev-lined billing-table">
                 <thead><tr><th style={{ width: 110 }}>날짜</th><th style={{ width: 150 }}>번호</th><th className="text-left">내용</th><th style={{ width: 120 }}>금액</th><th style={{ width: 90 }}>상태</th><th style={{ width: 130 }}></th></tr></thead>

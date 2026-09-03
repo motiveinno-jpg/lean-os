@@ -260,11 +260,11 @@ function CollectInner() {
                   <thead>
                     <tr>
                       <th className="th-c cs-name-th">자료</th>
-                      <th className="th-c">가진 자료</th>
-                      <th className="th-c">처리할 것</th>
-                      <th className="th-c">가진 자료 최근</th>
+                      <th className="th-c" title="이 자료로 받아 둔 건수">받아온 건수</th>
+                      <th className="th-c" title="받아왔지만 아직 전표를 만들지 않은 건수">전표 안 만든 것</th>
+                      <th className="th-c" title="받아 둔 자료 중 가장 최근 거래일">자료 최근일</th>
                       <th className="th-c">마지막 수집</th>
-                      <th className="th-c">지난번</th>
+                      <th className="th-c" title="마지막 수집에 걸린 시간">걸린 시간</th>
                       <th className="th-c">다음 수집</th>
                       <th className="th-c" />
                     </tr>
@@ -399,7 +399,7 @@ function CollectInner() {
                         </span>
                       </span>
                       <span className={st?.brokenNote ? "collect-est collect-est-err" : "collect-est"}>
-                        {st?.brokenNote ? "점검 중" : st?.lastSeconds != null ? `지난번 ${fmtSec(st.lastSeconds)}` : "기록 없음"}
+                        {st?.brokenNote ? "점검 중" : st?.lastSeconds != null ? `${fmtSec(st.lastSeconds)}` : "기록 없음"}
                       </span>
                     </button>
                   );
