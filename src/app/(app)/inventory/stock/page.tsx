@@ -24,7 +24,7 @@ import { todayKst } from "@/lib/kst";
 import { DateField } from "@/components/date-field";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup,
-  Pager, usePager, QuickSearch, quickSearchHit, ExcelMenu } from "@/components/query-kit";
+  Pager, usePager, QuickSearch, quickSearchHit, ExcelMenu, defaultRange } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { useStockCount, CountBar, CountBody, NewCountDialog, CountPasteDialog } from "../_components/count";
@@ -71,7 +71,7 @@ export default function StockPage() {
   const [sort, setSort] = useState<SortState<StockKey>>({ key: "state", dir: "asc" });
   const [mSort, setMSort] = useState<SortState<MoveKey>>({ key: "date", dir: "desc" });
   const [sumView, setSumView] = useState<SumView>("product");
-  const [from, setFrom] = useState(() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 10); });
+  const [from, setFrom] = useState(() => defaultRange().from);   // 최근 1개월(KST 기준) — 공용 기본값 (2026-09-03)
   const [to, setTo] = useState(todayKst);
   const [docOpen, setDocOpen] = useState(false);
   const [whOpen, setWhOpen] = useState<Warehouse | null>(null);

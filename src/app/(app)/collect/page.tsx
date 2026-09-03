@@ -66,7 +66,7 @@ function CollectInner() {
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState<SourceKey[]>(SOURCES.map((s) => s.key));
   const [mode, setMode] = useState<"new" | "range">("new");
-  const [rangeFrom, setRangeFrom] = useState(`${todayKst().slice(0, 7)}-01`);
+  const [rangeFrom, setRangeFrom] = useState(() => defaultRange().from);   // 최근 1개월 — 다른 조회 화면과 통일 (2026-09-03 사장님)
   const [rangeTo, setRangeTo] = useState(todayKst());
   //   ★ 진행 상태는 화면 밖(collect-run 싱글턴)에 있다 — 다른 메뉴로 갔다 와도 그대로 보이고, 통장·카드 수집도 끊기지 않는다
   //     (2026-08-27 사장님: "전표 수집 시 백그라운드 수집이 안 됨"). 새로고침 뒤에는 스냅샷을 되살려 홈택스 job 을 이어 기다린다.

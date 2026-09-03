@@ -92,10 +92,10 @@ function addMonths(d: Date, delta: number): Date {
 
 // 기본: 이번 달(1일~말일)
 function defaultRange(): { from: Date; to: Date } {
+  // 최근 1개월 — 다른 조회 화면 기본값과 통일 (2026-09-03 사장님). '이번 달'은 매달 초 며칠치만 보여 "변화 없음"으로 읽혔다.
   const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), 1);
-  const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return { from, to };
+  const from = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+  return { from, to: now };
 }
 
 // TeamHub KPI 카드 — 상단 통계 (지출 기준: 증가=danger 빨강, 감소=success 초록)

@@ -73,8 +73,9 @@ function addMonths(d: Date, delta: number): Date {
   return new Date(t.getFullYear(), t.getMonth(), Math.min(d.getDate(), dim));
 }
 function defaultRange(): { from: Date; to: Date } {
+  // 최근 1개월 — 다른 조회 화면 기본값과 통일 (2026-09-03 사장님)
   const now = new Date();
-  return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: new Date(now.getFullYear(), now.getMonth() + 1, 0) };
+  return { from: new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()), to: now };
 }
 
 function BankIcon({ name, size = 40 }: { name: string | undefined; size?: number }) {

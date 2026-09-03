@@ -19,7 +19,7 @@ import { useMyPermissions } from "@/lib/permissions";
 import { AccessDenied } from "@/components/access-denied";
 import { todayKst } from "@/lib/kst";
 import {
-  QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, Pager, usePager, QuickSearch, quickSearchHit, HelperMenu, type HelperItem, ExcelMenu } from "@/components/query-kit";
+  QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, Pager, usePager, QuickSearch, quickSearchHit, HelperMenu, type HelperItem, ExcelMenu, defaultRange } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
 import { exportToExcel } from "@/lib/excel-export";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
@@ -98,10 +98,10 @@ export function DocScreen({
   const [tab, setTab] = useState<"edit" | "list">("edit");
   const [xlsOpen, setXlsOpen] = useState(false);
   const [q, setQ] = useState("");
-  const [from, setFrom] = useState(() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 10); });
+  const [from, setFrom] = useState(() => defaultRange().from);   // 최근 1개월(KST) — 종료일이 미래(+1개월)로 잡히던 것 정리 (2026-09-03)
   //   ★ 앞으로 한 달까지 본다 — 주문서는 **미래 일자가 정상**이다(납기에 맞춰 앞당겨 적는다).
   //     '오늘까지'로 두면 내일 날짜로 저장한 전표가 목록에서 사라진 것처럼 보인다(실제로 겪었다).
-  const [to, setTo] = useState(() => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d.toISOString().slice(0, 10); });
+  const [to, setTo] = useState(() => defaultRange().to);
   const [busy, setBusy] = useState(false);
   const [popup, setPopup] = useState(false);
   const [sort, setSort] = useState<SortState<HistKey>>({ key: "date", dir: "desc" });

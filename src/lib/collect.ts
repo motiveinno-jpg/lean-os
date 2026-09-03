@@ -36,7 +36,7 @@ export const SOURCES: SourceDef[] = [
   { key: "exempt_invoice", label: "전자계산서",     icon: "📄", href: "/e-invoices",    syncType: "hometax" },
   { key: "cash_receipt",   label: "현금영수증",     icon: "🧿", href: "/cash-receipts", syncType: "hometax" },
   { key: "card",           label: "신용카드",       icon: "💳", href: "/cards",         syncType: "card" },
-  { key: "bank",           label: "통장",           icon: "🏦", href: "/transactions",  syncType: "bank" },
+  { key: "bank",           label: "통장",           icon: "🏦", href: "/collect?tab=bank", syncType: "bank" },   // 2026-09-03: 옛 거래내역(/transactions) 대신 수집·전표 통장 탭으로
 ];
 
 export type SourceStatus = {

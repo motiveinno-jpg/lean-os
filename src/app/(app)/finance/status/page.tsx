@@ -24,7 +24,7 @@ import { supabase } from "@/lib/supabase";
 import { useMyPermissions } from "@/lib/permissions";
 import { AccessDenied } from "@/components/access-denied";
 import { todayKst } from "@/lib/kst";
-import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat } from "@/components/query-kit";
+import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, defaultRange } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
 import { ColumnChart, DonutChart, BarChart, Legend, vizColor } from "@/components/charts/kit";
 import { exportToExcel } from "@/lib/excel-export";
@@ -89,7 +89,7 @@ export default function FinanceStatusPage() {
     finally { setCloseBusy(null); }
   };
   const [tab, setTab] = useState<Tab>("all");
-  const [from, setFrom] = useState(monthStart);
+  const [from, setFrom] = useState(() => defaultRange().from);   // 최근 1개월 — 이번 달 1일 기본값은 매달 초 이틀치만 보여 전부 0으로 읽혔다 (2026-09-03)
   const [to, setTo] = useState(todayKst);
 
   const q = <T,>(key: string, fn: () => Promise<T>, extra: unknown[] = []) =>
