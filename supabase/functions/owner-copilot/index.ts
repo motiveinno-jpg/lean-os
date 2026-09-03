@@ -2322,7 +2322,12 @@ serve(withSentry("owner-copilot", async (req) => {
       });
 
       if (!result.ok) {
-        return json({ error: result.error || "AI 응답에 실패했습니다.", code: result.errorCode }, 502);
+        //   상태코드를 사유별로 — 월 한도(CALL_CAP/COST_CAP)는 사용자 안내(429)지 서버 장애가 아니라서
+        //   502 로 보내면 운영자 오류 기록장·알림이 가짜 "서버 기능 오류"로 울린다(2026-09-03 실측 5건).
+        //   공급사 잔액 소진(PROVIDER_BILLING)은 진짜 장애라 503 으로 남긴다.
+        const capCode = result.errorCode === "CALL_CAP" || result.errorCode === "COST_CAP";
+        const status = capCode ? 429 : result.errorCode === "PROVIDER_BILLING" ? 503 : 502;
+        return json({ error: result.error || "AI 응답에 실패했습니다.", code: result.errorCode }, status);
       }
       totalIn += result.usage?.input ?? 0;
       totalOut += result.usage?.output ?? 0;
