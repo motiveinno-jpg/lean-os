@@ -19,7 +19,7 @@ import { MonthSelect } from "@/components/month-select";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
@@ -38,6 +38,8 @@ import { friendlyError } from "@/lib/friendly-error";
 import { downloadNtsBytes, type NtsIssue } from "@/lib/nts-efile";
 import { buildWhtEfile, type WhtEfileRow } from "@/lib/nts-wht-efile";
 import { useModalKeys } from "@/hooks/use-modal-keys";
+import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
+import { fetchTaxDeadlineChecks, setTaxDeadlineChecked } from "@/lib/tax-deadline-checks";
 
 const won = (n: number) => `₩${Math.round(n || 0).toLocaleString("ko-KR")}`;
 const num = (n: number) => Math.round(n || 0);
@@ -53,11 +55,20 @@ function dueOf(month: string): string {
   const y = Number(month.slice(0, 4)), m = Number(month.slice(5, 7));
   return m === 12 ? `${y + 1}-01-10` : `${y}-${String(m + 1).padStart(2, "0")}-10`;
 }
-/** 기한 색 — 7일 안이면 주의, 지났으면 위험. 그 밖엔 검정 (2026-09-03 후속: 기한이 눈에 띄게) */
-function DueDate({ d }: { d: string }) {
-  const left = Math.round((new Date(d).getTime() - new Date(todayKst()).getTime()) / 86400000);
-  const cls = left < 0 ? "mono-number tax-due-over" : left <= 7 ? "mono-number tax-due-soon" : "mono-number";
-  return <b className={cls} title={left < 0 ? `${-left}일 지났습니다` : left === 0 ? "오늘까지" : `${left}일 남았습니다`}>{d}{left < 0 ? " · 지남" : left <= 7 ? ` · D-${left}` : ""}</b>;
+const daysLeftOf = (d: string) => Math.round((new Date(d).getTime() - new Date(todayKst()).getTime()) / 86400000);
+/** 기한 색 — 7일 안이면 주의, 지났으면 위험. 그 밖엔 검정 (2026-09-03 후속: 기한이 눈에 띄게).
+ *  done/onToggle 이 오면 옆에 '납부 완료' 체크 — 홈 세금 일정 위젯과 같은 표(tax_deadline_checks)라 어느 쪽에서 눌러도 같이 바뀐다. */
+function DueDate({ d, done, onToggle }: { d: string; done?: boolean; onToggle?: (on: boolean) => void }) {
+  const left = daysLeftOf(d);
+  const cls = done ? "mono-number tax-due-done" : left < 0 ? "mono-number tax-due-over" : left <= 7 ? "mono-number tax-due-soon" : "mono-number";
+  return (<>
+    <b className={cls} title={done ? "납부 완료로 표시됨" : left < 0 ? `${-left}일 지났습니다` : left === 0 ? "오늘까지" : `${left}일 남았습니다`}>{d}{done ? " · 납부 완료" : left < 0 ? " · 지남" : left <= 7 ? ` · D-${left}` : ""}</b>
+    {onToggle && (
+      <button type="button" aria-label={done ? "납부 완료 해제" : "납부 완료로 표시"}
+        title={done ? "완료 표시 해제" : "신고/납부를 마쳤으면 체크 — 홈 세금 신호·브리핑에서 빠집니다"}
+        onClick={() => onToggle(!done)} className={done ? "dash-tax-chk tax-due-chk dash-tax-chk-on" : "dash-tax-chk tax-due-chk"}>{done ? "✓" : ""}</button>
+    )}
+  </>);
 }
 /** 반기의 여섯 달 (h=1 → 01~06, h=2 → 07~12) */
 const halfMonths = (y: number, h: 1 | 2) =>
@@ -128,13 +139,15 @@ export default function TaxFilingPage() {
   const { isMaster, hasPerm, loading: permLoading } = useMyPermissions();
   const searchParams = useSearchParams();
   const [companyId, setCompanyId] = useState<string | null>(null);
-  useEffect(() => { getCurrentUser().then((u: any) => { if (u?.company_id) setCompanyId(u.company_id); }); }, []);
+  const [userId, setUserId] = useState<string | null>(null);
+  useEffect(() => { getCurrentUser().then((u: any) => { if (u?.company_id) setCompanyId(u.company_id); if (u?.id) setUserId(u.id); }); }, []);
 
   const [tab, setTab] = useState<"wht" | "vat" | "cit" | "stmt">(() => {
     const t = searchParams?.get("tab");
     return t === "vat" ? "vat" : t === "cit" ? "cit" : t === "stmt" ? "stmt" : "wht";
   });
-  const [month, setMonth] = useState(prevMonth);
+  //   홈 세금 일정 딥링크 ?tab=wht&month=YYYY-MM (2026-09-03 후속)
+  const [month, setMonth] = useState(() => { const q = searchParams?.get("month"); return q && /^\d{4}-\d{2}$/.test(q) ? q : prevMonth(); });
   //   부가세·법인세가 같이 쓰는 연도. 기본값 = 지금 신고할 기수의 해(1/1~25 은 지난해 2기 확정 → 지난해; 법인세도 그 해 3/31 신고라 같다).
   //   홈 세금 일정 딥링크(?tab=vat&year=&period=)가 있으면 그 기수를 그대로 연다 (2026-09-03 후속).
   const [year, setYear] = useState(() => { const q = Number(searchParams?.get("year")); return q >= 2000 && q <= 2100 ? q : vatFilingNow().year; });
@@ -143,9 +156,41 @@ export default function TaxFilingPage() {
   const vatExportRef = useRef<(() => void) | null>(null);   // VatReturn 이 집계 후 채운다 — 조회 줄 [세무사 전달 엑셀]
   //   지급명세서 — 근로는 반기, 사업소득은 달 (결정 103). 기본 반기 = 마지막으로 끝난 반기(1~6월엔 지난해 하반기)
   const [stmtKind, setStmtKind] = useState<"work" | "biz">("work");
-  const [stmtYear, setStmtYear] = useState(() => { const t = todayKst(); return Number(t.slice(5, 7)) <= 6 ? Number(t.slice(0, 4)) - 1 : Number(t.slice(0, 4)); });
-  const [stmtHalf, setStmtHalf] = useState<1 | 2>(() => (Number(todayKst().slice(5, 7)) <= 6 ? 2 : 1));
+  //   딥링크 ?tab=stmt&year=&half= 가 있으면 그 반기로 (2026-09-03 후속)
+  const [stmtYear, setStmtYear] = useState(() => { const q = Number(searchParams?.get("year")); if (searchParams?.get("tab") === "stmt" && q >= 2000 && q <= 2100) return q; const t = todayKst(); return Number(t.slice(5, 7)) <= 6 ? Number(t.slice(0, 4)) - 1 : Number(t.slice(0, 4)); });
+  const [stmtHalf, setStmtHalf] = useState<1 | 2>(() => { const q = searchParams?.get("half"); if (q === "1" || q === "2") return Number(q) as 1 | 2; return Number(todayKst().slice(5, 7)) <= 6 ? 2 : 1; });
   const [stmtMonth, setStmtMonth] = useState(prevMonth);
+
+  //   ── 납부 완료 체크 + 다가오는 신고 요약 줄 (2026-09-03 후속) ──
+  //   체크는 홈 세금 일정 위젯과 같은 쿼리 키·같은 표. 요약 줄은 홈과 같은 달력(getUpcomingTaxDeadlines 60일)에서
+  //   세무 신고로 오는 것만, 완료 체크된 것은 뺀다. 누르면 그 탭·그 기간으로(딥링크 href 를 그대로 해석).
+  const qc = useQueryClient();
+  const { data: taxChecked = new Set<string>() } = useQuery({
+    queryKey: ["tax-deadline-checks", companyId],
+    enabled: !!companyId,
+    staleTime: 60_000,
+    queryFn: () => fetchTaxDeadlineChecks(companyId!),
+  });
+  const toggleChecked = async (id: string, on: boolean) => {
+    if (!companyId) return;
+    try {
+      await setTaxDeadlineChecked(companyId, id, userId, on);
+      qc.invalidateQueries({ queryKey: ["tax-deadline-checks"] });
+      toast(on ? "납부 완료로 표시했습니다 — 홈 세금 신호·브리핑에서 빠집니다" : "완료 표시를 해제했습니다", "success");
+    } catch (e: any) { toast(friendlyError(e, "표시에 실패했습니다"), "error"); }
+  };
+  const upcoming = useMemo(() => getUpcomingTaxDeadlines(60).filter((t) => t.href.startsWith("/finance/tax-filing")), []);
+  const upcomingOpen = upcoming.filter((t) => !taxChecked.has(t.id)).slice(0, 4);
+  const goDeepLink = (href: string) => {
+    const sp = new URL(href, "http://x").searchParams;
+    const t = sp.get("tab");
+    setTab(t === "vat" ? "vat" : t === "cit" ? "cit" : t === "stmt" ? "stmt" : "wht");
+    const m = sp.get("month"); if (m && /^\d{4}-\d{2}$/.test(m)) setMonth(m);
+    const y = Number(sp.get("year")); const per = sp.get("period"); const half = sp.get("half");
+    if (t === "vat" || t === "cit") { if (y >= 2000 && y <= 2100) setYear(y); }
+    if (VAT_PERIODS.some((p) => p.key === per)) setVatPeriod(per as VatPeriodKey);
+    if (t === "stmt") { setStmtKind("work"); if (y >= 2000 && y <= 2100) setStmtYear(y); if (half === "1" || half === "2") setStmtHalf(Number(half) as 1 | 2); }
+  };
 
   const { data: rows = [], isLoading } = useQuery<WhtRow[]>({
     queryKey: ["wht-items", companyId, month],
@@ -454,6 +499,14 @@ export default function TaxFilingPage() {
             <button type="button" className={tab === "cit" ? "collect-tab collect-tab-on" : "collect-tab"} onClick={() => setTab("cit")}>법인세</button>
             <button type="button" className={tab === "stmt" ? "collect-tab collect-tab-on" : "collect-tab"} onClick={() => setTab("stmt")}>지급명세서</button>
           </div>
+          <div className="tax-upcoming">
+            <span className="tax-upcoming-label">다가오는 신고 (60일)</span>
+            {upcomingOpen.length === 0 ? <span className="ev-dim">60일 안에 할 신고가 없거나 모두 납부 완료로 표시됐습니다</span> : upcomingOpen.map((t) => (
+              <button key={t.id} type="button" className="qk-chip" onClick={() => goDeepLink(t.href)} title={`${t.date} — 누르면 그 신고 화면으로`}>
+                {t.title.replace(" 신고/납부", "").replace(" 제출", "")} <b className="mono-number">{t.date.slice(5).replace("-", "/")}</b> <b className={t.daysLeft <= 7 ? "mono-number tax-due-soon" : "mono-number"}>{t.daysLeft === 0 ? "오늘" : `D-${t.daysLeft}`}</b>
+              </button>
+            ))}
+          </div>
           {tab === "wht" && (<>
             <QueryBar right={<>
               {efileOn && (
@@ -464,7 +517,7 @@ export default function TaxFilingPage() {
             </>}>
               <label className="text-xs font-semibold text-[var(--text-dim)]">지급월</label>
               <MonthSelect className="inv-input fin-close-month" value={month} onChange={(v) => v && setMonth(v)} ariaLabel="지급월" />
-              <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <DueDate d={dueOf(month)} /> — 홈택스 › 신고/납부 › 원천세</span>
+              <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <DueDate d={dueOf(month)} done={taxChecked.has(`wht-${dueOf(month)}`)} onToggle={(on) => toggleChecked(`wht-${dueOf(month)}`, on)} /> — 홈택스 › 신고/납부 › 원천세</span>
             </QueryBar>
             <ResultStrip>
               <Stat label="인원" value={`${T.all.n}명${T.biz.n ? ` (사업소득 ${T.biz.n})` : ""}`} />
@@ -482,7 +535,7 @@ export default function TaxFilingPage() {
               <select value={vatPeriod} onChange={(e) => setVatPeriod(e.target.value as VatPeriodKey)} className="qk-input h-8 px-2.5 text-xs" aria-label="신고기간">
                 {VAT_PERIODS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
               </select>
-              <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <DueDate d={vatDueDate(year, vatPeriod)} /> — 홈택스 › 신고/납부 › 부가가치세</span>
+              <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <DueDate d={vatDueDate(year, vatPeriod)} done={taxChecked.has(`vat-${vatDueDate(year, vatPeriod)}`)} onToggle={(on) => toggleChecked(`vat-${vatDueDate(year, vatPeriod)}`, on)} /> — 홈택스 › 신고/납부 › 부가가치세</span>
             </QueryBar>
           )}
           {tab === "cit" && (<>
@@ -496,7 +549,7 @@ export default function TaxFilingPage() {
               <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs" aria-label="사업연도">
                 {years.map((y) => <option key={y} value={y}>{y}년</option>)}
               </select>
-              <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <DueDate d={`${year + 1}-03-31`} /> · 지방소득세 <DueDate d={`${year + 1}-04-30`} /> — 12월 결산 기준</span>
+              <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <DueDate d={`${year + 1}-03-31`} done={taxChecked.has(`cit-${year + 1}-03-31`)} onToggle={(on) => toggleChecked(`cit-${year + 1}-03-31`, on)} /> · 지방소득세 <DueDate d={`${year + 1}-04-30`} done={taxChecked.has(`cit-local-${year + 1}-04-30`)} onToggle={(on) => toggleChecked(`cit-local-${year + 1}-04-30`, on)} /> — 12월 결산 기준</span>
             </QueryBar>
             <ResultStrip>
               <Stat label="수익" value={won(citStmt?.totals.ytdRevenue || 0)} />
@@ -517,7 +570,7 @@ export default function TaxFilingPage() {
                   <option value={1}>상반기 (1~6월)</option>
                   <option value={2}>하반기 (7~12월)</option>
                 </select>
-                <span className="text-[11px] text-[var(--text-dim)]">제출 기한 <DueDate d={stmtHalf === 1 ? `${stmtYear}-07-31` : `${stmtYear + 1}-01-31`} /> — 홈택스</span>
+                <span className="text-[11px] text-[var(--text-dim)]">제출 기한 <DueDate d={stmtHalf === 1 ? `${stmtYear}-07-31` : `${stmtYear + 1}-01-31`} done={taxChecked.has(stmtHalf === 1 ? `sps-h1-${stmtYear}-07-31` : `sps-h2-${stmtYear + 1}-01-31`)} onToggle={(on) => toggleChecked(stmtHalf === 1 ? `sps-h1-${stmtYear}-07-31` : `sps-h2-${stmtYear + 1}-01-31`, on)} /> — 홈택스</span>
               </>) : (<>
                 <label className="text-xs font-semibold text-[var(--text-dim)]">지급월</label>
                 <input type="month" className="inv-input fin-close-month" value={stmtMonth} onChange={(e) => e.target.value && setStmtMonth(e.target.value)} aria-label="지급월" />

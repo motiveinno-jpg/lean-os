@@ -99,8 +99,9 @@ function buildTaxSchedules(today: Date, windowEnd: Date): ScheduleItem[] {
     { key: "cit", m: 3, d: 31, title: "법인세 신고/납부 (12월 결산)", href: "/finance/tax-filing?tab=cit" },
     { key: "cit-local", m: 4, d: 30, title: "법인지방소득세 신고/납부", href: "/finance/tax-filing?tab=cit" },
     { key: "cit-interim", m: 8, d: 31, title: "법인세 중간예납", href: "/finance/tax-filing?tab=cit" },
-    { key: "sps-h2", m: 1, d: 31, title: "근로 간이지급명세서 제출 (하반기분)", href: "/finance/tax-filing" },
-    { key: "sps-h1", m: 7, d: 31, title: "근로 간이지급명세서 제출 (상반기분)", href: "/finance/tax-filing" },
+    //   지급명세서는 반기 딥링크 — 1/31 = 지난해 하반기, 7/31 = 올해 상반기 (2026-09-03 후속). href 의 {y} 는 기한 해.
+    { key: "sps-h2", m: 1, d: 31, title: "근로 간이지급명세서 제출 (하반기분)", href: "/finance/tax-filing?tab=stmt&year={y-1}&half=2" },
+    { key: "sps-h1", m: 7, d: 31, title: "근로 간이지급명세서 제출 (상반기분)", href: "/finance/tax-filing?tab=stmt&year={y}&half=1" },
   ];
   for (const y of yearly) {
     for (const yr of [today.getFullYear(), today.getFullYear() + 1]) {
@@ -112,7 +113,7 @@ function buildTaxSchedules(today: Date, windowEnd: Date): ScheduleItem[] {
         title: y.title,
         date: fmtDateKey(cand),
         daysLeft: daysBetween(today, cand),
-        href: y.href,
+        href: y.href.replace("{y-1}", String(yr - 1)).replace("{y}", String(yr)),
       });
       break;
     }
@@ -132,6 +133,8 @@ function buildTaxSchedules(today: Date, windowEnd: Date): ScheduleItem[] {
 
   const wht = nextOccurrence(today, 10);
   if (wht <= windowEnd) {
+    //   기한 달의 전달 지급분 — 10일 기한이면 지급월 = 그 전달 (2026-09-03 후속: 지급월까지 딥링크)
+    const payM = new Date(wht.getFullYear(), wht.getMonth() - 1, 1);
     items.push({
       id: `wht-${fmtDateKey(wht)}`,
       type: "tax",
@@ -139,7 +142,7 @@ function buildTaxSchedules(today: Date, windowEnd: Date): ScheduleItem[] {
       date: fmtDateKey(wht),
       daysLeft: daysBetween(today, wht),
       // 신고서가 생겼다 — 재무 › 세무 신고 › 원천세 (2026-08-31 세무 1차, 결정 101. 옛 링크는 급여 페이지였다)
-      href: "/finance/tax-filing",
+      href: `/finance/tax-filing?tab=wht&month=${fmtDateKey(payM).slice(0, 7)}`,
     });
   }
 
