@@ -346,8 +346,8 @@ export function Sidebar() {
   const [approvalsPending, setApprovalsPending] = useState(0);
   const [notificationsUnread, setNotificationsUnread] = useState(0);
   const [announcementsUnread, setAnnouncementsUnread] = useState(0);
-  // 운영자(@mo-tive.com)만: 최근 24시간 미해결 심각 오류 수 — 개인 알림 대신 여기 배지로 (2026-09-03 사장님)
-  const [criticalErrors, setCriticalErrors] = useState(0);
+  //   오류 배지는 오너뷰 화면에 두지 않는다 — 시스템 오류 신호는 운영자 페이지(/platform)에서만 본다 (2026-09-03 사장님:
+  //   "모든 직원에게 다 뜨잖아, 무조건 운영자 페이지에만"). 종전 @mo-tive.com 전원에게 '오류 N' 빨간 배지가 떴다.
   const [collapsedParents, setCollapsedParents] = useState<Set<string>>(new Set());
   const toggleParent = (href: string) => setCollapsedParents((prev) => { const n = new Set(prev); if (n.has(href)) n.delete(href); else n.add(href); return n; });
   // 대분류 그룹 접기/펼치기 (메뉴 간소화 — 사용자 요청). localStorage 영속.
@@ -566,12 +566,6 @@ export function Sidebar() {
         const { data } = await supabase.rpc("unread_announcement_count");
         setAnnouncementsUnread(Number(data) || 0);
       } catch {}
-      if (u.email && /@mo-tive\.com$/i.test(String(u.email))) {
-        try {
-          const { data } = await (supabase as any).rpc("critical_error_count_24h");
-          setCriticalErrors(Number(data) || 0);
-        } catch {}
-      }
     }
     refreshOnNav();
   }, [pathname]);
@@ -695,9 +689,6 @@ export function Sidebar() {
                 }`}>
                   {isMaster ? "마스터" : role === "partner" ? "파트너" : role === "advisor" ? "세무 파트너" : "멤버"}
                 </span>
-                {isOperator && criticalErrors > 0 && (
-                  <Link href="/platform/errors" className="sidebar-err-badge" title="최근 24시간 미해결 심각 오류 — 운영 콘솔에서 확인">오류 {criticalErrors > 99 ? "99+" : criticalErrors}</Link>
-                )}
               </div>
             </div>
             <SidebarAttendanceButton />

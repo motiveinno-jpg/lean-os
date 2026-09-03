@@ -10171,4 +10171,3 @@ table.ch-st-table { min-width: 520px; } /* table. — .ev-table(뒤에 정의) �
   .rep { @apply max-w-none border-0 p-0; }
   .rep-apx, .rep-tool, .brief-act, .brief-chk { display: none !important; }
 }
-.sidebar-err-badge { @apply ml-1 inline-flex items-center rounded-full bg-[var(--danger)] px-1.5 py-[1px] text-[9.5px] font-bold text-white hover:opacity-90; }
