@@ -13,7 +13,7 @@
 //   결정 63 — 합계표는 세금계산서 유형만(11·12·13 / 51·53·54). 카드·현금영수증은 합계표에 안 들어간다(국세청 서식과 같다). 거래처는 전표 줄 거래처 → 없으면 연결 계산서의 상대.
 //   결정 64 — 자동으로 못 푸는 것: 신고서 제출. 여기서는 옮겨 적을 숫자와 엑셀까지만 — 신고는 홈택스에서 사람이.
 
-import { useMemo } from "react";
+import { useEffect, useMemo, type MutableRefObject } from "react";
 import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
@@ -26,21 +26,25 @@ type Row = { id: string; entry_date: string; vat_type: string | null; supply_amo
   partnerName: string | null; partnerBizno: string | null; partnerKey: string };
 
 export const VAT_PERIODS = [
-  { key: "1p", label: "1기 예정 (1–3월)", from: "01-01", to: "03-31" },
-  { key: "1c", label: "1기 확정 (4–6월)", from: "04-01", to: "06-30" },
-  { key: "1h", label: "1기 반기 (1–6월)", from: "01-01", to: "06-30" },
-  { key: "2p", label: "2기 예정 (7–9월)", from: "07-01", to: "09-30" },
-  { key: "2c", label: "2기 확정 (10–12월)", from: "10-01", to: "12-31" },
-  { key: "2h", label: "2기 반기 (7–12월)", from: "07-01", to: "12-31" },
+  //   due = 신고·납부 기한(그 기간이 끝난 다음 달 25일). 2기 확정·반기는 다음 해 1/25 라 nextYear.
+  { key: "1p", label: "1기 예정 (1–3월)", from: "01-01", to: "03-31", due: "04-25", nextYear: false },
+  { key: "1c", label: "1기 확정 (4–6월)", from: "04-01", to: "06-30", due: "07-25", nextYear: false },
+  { key: "1h", label: "1기 반기 (1–6월)", from: "01-01", to: "06-30", due: "07-25", nextYear: false },
+  { key: "2p", label: "2기 예정 (7–9월)", from: "07-01", to: "09-30", due: "10-25", nextYear: false },
+  { key: "2c", label: "2기 확정 (10–12월)", from: "10-01", to: "12-31", due: "01-25", nextYear: true },
+  { key: "2h", label: "2기 반기 (7–12월)", from: "07-01", to: "12-31", due: "01-25", nextYear: true },
 ] as const;
 export type VatPeriodKey = (typeof VAT_PERIODS)[number]["key"];
+/** 신고·납부 기한 YYYY-MM-DD */
+export const vatDueDate = (year: number, key: VatPeriodKey) => { const P = VAT_PERIODS.find((p) => p.key === key)!; return `${P.nextYear ? year + 1 : year}-${P.due}`; };
 /** 오늘이 속한 신고기간 — 페이지의 기본값 */
 export const currentVatPeriod = (): VatPeriodKey => { const m = new Date().getMonth() + 1; return m <= 3 ? "1p" : m <= 6 ? "1c" : m <= 9 ? "2p" : "2c"; };
 const won = (n: number) => `₩${Math.round(n || 0).toLocaleString("ko-KR")}`;
 const num = (n: number) => Math.round(n || 0);
 
 //   2026-09-03 사장님: 신고기간은 칩 줄이 아니라 연도 옆 셀렉트로 — 조회 줄에 값 칩을 늘어놓지 않는다. 상태는 페이지(세무 신고)가 들고 내려준다.
-export function VatReturn({ companyId, year, period }: { companyId: string | null; year: number; period: VatPeriodKey }) {
+//   엑셀 내보내기는 집계(rows·R)가 이 안에 있어 exportRef 로 페이지 조회 줄 버튼에 넘긴다 — 다른 탭처럼 실행 버튼은 조회 줄 오른쪽.
+export function VatReturn({ companyId, year, period, exportRef }: { companyId: string | null; year: number; period: VatPeriodKey; exportRef?: MutableRefObject<(() => void) | null> }) {
   const { toast } = useToast();
   const P = VAT_PERIODS.find((p) => p.key === period)!;
   const from = `${year}-${P.from}`, to = `${year}-${P.to}`;
@@ -119,6 +123,8 @@ export function VatReturn({ companyId, year, period }: { companyId: string | nul
     XLSX.writeFile(wb, `부가세신고준비_${year}_${P.label.replace(/\s|\(|\)|–/g, "")}.xlsx`);
   };
 
+  useEffect(() => { if (!exportRef) return; exportRef.current = exportXlsx; return () => { exportRef.current = null; }; });
+
   const Line = ({ label, b, vatZero, minus }: { label: string; b: { n: number; supply: number; vat: number }; vatZero?: boolean; minus?: boolean }) => (
     <tr className={minus ? "vr-minus" : undefined}><td className="text-left">{label}</td><td className="tr mono-number">{b.n}</td><td className="tr mono-number">{won(b.supply)}</td><td className="tr mono-number">{vatZero ? "—" : (minus ? "−" : "") + won(b.vat)}</td></tr>
   );
@@ -141,16 +147,12 @@ export function VatReturn({ companyId, year, period }: { companyId: string | nul
 
   return (
     <div className="vr-wrap">
-      <div className="vr-bar">
-        <span className="qk-strip vr-stats">
-          <Stat label="매출세액" value={won(R.salesVat)} />
-          <Stat label="공제 매입세액" value={won(R.deductible)} />
-          <Stat label="불공제" value={won(R.p54.vat)} tone={R.p54.vat ? "minus" : undefined} />
-          <Stat label={R.payable >= 0 ? "납부 예상" : "환급 예상"} value={won(Math.abs(R.payable))} tone={R.payable > 0 ? "minus" : "plus"} />
-          <Stat label="전표" value={`${rows.length}건`} />
-        </span>
-        <span className="doc-sums-sp" />
-        <button type="button" className="btn-secondary btn-sm" onClick={exportXlsx} title="신고서 · 매출처별 · 매입처별 합계표 · 전표 목록 — 4개 시트">세무사 전달 엑셀</button>
+      <div className="qk-strip vr-stats">
+        <Stat label="매출세액" value={won(R.salesVat)} />
+        <Stat label="공제 매입세액" value={won(R.deductible)} />
+        <Stat label="불공제" value={won(R.p54.vat)} tone={R.p54.vat ? "minus" : undefined} />
+        <Stat label={R.payable >= 0 ? "납부 예상" : "환급 예상"} value={won(Math.abs(R.payable))} tone={R.payable > 0 ? "minus" : "plus"} />
+        <Stat label="전표" value={`${rows.length}건`} />
       </div>
       <p className="inv-hint">{from} ~ {to} 확정 매입매출전표 기준 — 홈택스 원본이 아니라 <b>장부에 올린 것</b>만. 전표 없는 자료는 재무 › 전표 현황 › 처리할 것에서. 신고는 홈택스에서 사람이 합니다.{R.unknown ? <b className="vr-warn"> · 부가세 유형이 비어 있는 전표 {R.unknown}건은 어느 칸에도 못 들어갔습니다 — 매입매출전표에서 유형을 채우세요.</b> : null}</p>
       {isLoading ? <div className="collect-empty">전표를 읽는 중…</div> : (

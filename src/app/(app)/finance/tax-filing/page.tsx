@@ -17,7 +17,7 @@ import { MonthSelect } from "@/components/month-select";
 //   결정 103 (2차) — 간이지급명세서: 근로(반기)·사업소득(매월) 인별 명세 + 엑셀. 전자제출 파일 포맷은 4차.
 //   자동으로 못 푸는 것: 퇴직·기타소득 지급분 — 오너뷰가 기록하지 않는다. 있으면 사람이 더해야 한다고 화면에 적는다.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
@@ -30,7 +30,7 @@ import { useToast } from "@/components/toast";
 import { todayKst } from "@/lib/kst";
 import { comparePeople } from "@/lib/people-sort";
 import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup } from "@/components/query-kit";
-import { VatReturn, VAT_PERIODS, currentVatPeriod, type VatPeriodKey } from "@/app/(app)/reports/vat/_components/VatReturn";
+import { VatReturn, VAT_PERIODS, currentVatPeriod, vatDueDate, type VatPeriodKey } from "@/app/(app)/reports/vat/_components/VatReturn";
 import { computeStatements } from "@/lib/closing-snapshot";
 import { listFixedAssets, faCategoryLabel } from "@/lib/fixed-assets";
 import { fetchJournalLines } from "@/lib/journal-reports";
@@ -133,6 +133,7 @@ export default function TaxFilingPage() {
   const [year, setYear] = useState(() => Number(todayKst().slice(0, 4)));
   const years = useMemo(() => { const y = Number(todayKst().slice(0, 4)); return [y, y - 1, y - 2]; }, []);
   const [vatPeriod, setVatPeriod] = useState<VatPeriodKey>(currentVatPeriod);
+  const vatExportRef = useRef<(() => void) | null>(null);   // VatReturn 이 집계 후 채운다 — 조회 줄 [세무사 전달 엑셀]
   //   지급명세서 — 근로는 반기, 사업소득은 달 (결정 103). 기본 반기 = 마지막으로 끝난 반기(1~6월엔 지난해 하반기)
   const [stmtKind, setStmtKind] = useState<"work" | "biz">("work");
   const [stmtYear, setStmtYear] = useState(() => { const t = todayKst(); return Number(t.slice(5, 7)) <= 6 ? Number(t.slice(0, 4)) - 1 : Number(t.slice(0, 4)); });
@@ -466,7 +467,7 @@ export default function TaxFilingPage() {
             </ResultStrip>
           </>)}
           {tab === "vat" && (
-            <QueryBar>
+            <QueryBar right={<button type="button" className="btn-secondary btn-sm" onClick={() => vatExportRef.current?.()} title="신고서 · 매출처별 · 매입처별 합계표 · 전표 목록 — 4개 시트">세무사 전달 엑셀</button>}>
               <label className="text-xs font-semibold text-[var(--text-dim)]">연도</label>
               <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs" aria-label="연도">
                 {years.map((y) => <option key={y} value={y}>{y}년</option>)}
@@ -474,6 +475,7 @@ export default function TaxFilingPage() {
               <select value={vatPeriod} onChange={(e) => setVatPeriod(e.target.value as VatPeriodKey)} className="qk-input h-8 px-2.5 text-xs" aria-label="신고기간">
                 {VAT_PERIODS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
               </select>
+              <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <b className="mono-number">{vatDueDate(year, vatPeriod)}</b> — 홈택스 › 신고/납부 › 부가가치세</span>
             </QueryBar>
           )}
           {tab === "cit" && (<>
@@ -520,7 +522,7 @@ export default function TaxFilingPage() {
         <QueryBody>
           <div className="ev-scroll fa-scroll">
             {tab === "vat" ? (
-              <VatReturn companyId={companyId} year={year} period={vatPeriod} />
+              <VatReturn companyId={companyId} year={year} period={vatPeriod} exportRef={vatExportRef} />
             ) : tab === "cit" ? (
               citLoading ? <div className="collect-empty">확정 전표로 연간 손익을 계산하는 중…</div> : (
                 <div className="vr-wrap">
