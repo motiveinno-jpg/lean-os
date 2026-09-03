@@ -28,7 +28,6 @@ import { getProjectStatus, daysToEnd, STATUS_RANK, type ProjectStatusKey } from 
 import { incVat } from "@/lib/project-money";
 import { useCanAccessTab } from "@/lib/tab-access";
 import { useMyPermissions } from "@/lib/permissions";
-import { useFeature } from "@/lib/use-feature";
 import { CreateProjectV3 } from "./_components/CreateProjectV3";
 import { QuietCheckins } from "./_components/QuietCheckins";
 import { rollupProject, listStatusOf, listReasons, type ProjectRollup, type ListStatus } from "@/lib/project-list-summary";
@@ -64,7 +63,6 @@ export default function ProjectHubPage() {
   const { allowed: tabAllowed, loading: tabLoading } = useCanAccessTab("/projecthub");
   // 열람 범위 — '/projecthub:all' 이 없으면 자기가 담당자인 프로젝트만 보인다(2026-07-31).
   const { isMaster: projMaster, hasPerm: projHasPerm } = useMyPermissions();
-  const hubV3On = useFeature("projecthub_items_v3", companyId).data === true;
   const canViewAllProjects = projMaster || projHasPerm("/projecthub:all");
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
@@ -1138,20 +1136,9 @@ export default function ProjectHubPage() {
         </div>
       )}
 
-      {/* 생성 v3 — feature_on 켜진 회사(모티브 먼저)는 시작 꾸러미(기획 v2.6 결정 0-7),
-          나머지는 기존 템플릿 고르기 흐름 그대로 */}
-      {showCreate && companyId && hubV3On && (
+      {/* 생성 v3 — 시작 꾸러미(기획 v2.6 결정 0-7). 2026-09-03 v3 5단계 전체 오픈으로 옛 템플릿 고르기 흐름(ProjectFormModal 생성)은 지웠다 — 수정 팝업으로만 남는다 */}
+      {showCreate && companyId && (
         <CreateProjectV3 companyId={companyId} userId={userId} onClose={() => setShowCreate(false)} />
-      )}
-      {/* 만들면 바로 템플릿 고르기로 — 이름만 받고 템플릿 고르기로 넘긴다(2026-08-03 기획 v2) */}
-      {showCreate && companyId && !hubV3On && (
-        <ProjectFormModal
-          companyId={companyId}
-          partners={partners as any[]}
-          users={users as any[]}
-          onClose={() => setShowCreate(false)}
-          onSaved={(id) => { setShowCreate(false); qc.invalidateQueries({ queryKey: ["projecthub-deals"] }); if (id) router.push(`/projecthub/${id}?tab=boards&new=1`); }}
-        />
       )}
 
       {editDeal && companyId && (

@@ -34,7 +34,7 @@ export const ENTITY_HREF: Record<string, (id: string) => string> = {
   hr_contract_package: () => `/mypage?tab=docs`,   //   2026-08-19 마이페이지 › 급여·계약·증명
   leave_request: () => `/approvals`,
   overtime_request: () => `/approvals?tab=my-approvals`,   //   2026-08-20 연장근무 탭 폐지 — 초과근무는 일반 결재로 처리
-  project_checkin: (id) => `/projecthub/${id}?tab=performance`,
+  project_checkin: (id) => `/projecthub/${id}`,   // 옛 성과 탭은 v3 5단계(2026-09-03)로 사라짐 — 상세 첫 화면으로
   // 프로젝트 표의 행 메모에서 @로 불렀을 때 — entity_id 는 그 프로젝트(deal) id 다
   project_board_item: (id) => `/projecthub/${id}`,
   attendance_edit_request: () => `/attendance?view=records`,
