@@ -40,6 +40,12 @@ export function kstDateTimeLocal(iso: string | null | undefined): string {
   return `${p.year}-${p.month}-${p.day}T${hour}:${p.minute}`;
 }
 
+/** 화면 표시용 일시 'YYYY-MM-DD HH:mm' (KST). 화면마다 "2026. 8. 25. 18:16"/초 단위/ISO 가 섞이던 것을 통일 (2026-09-03) */
+export function kstDateTime(iso: string | null | undefined): string {
+  const v = kstDateTimeLocal(iso);
+  return v ? v.replace("T", " ") : "";
+}
+
 /** datetime-local 값 'YYYY-MM-DDTHH:mm' (KST 로 해석) → 저장용 ISO 문자열 */
 export function kstLocalToIso(local: string | null | undefined): string | null {
   if (!local) return null;

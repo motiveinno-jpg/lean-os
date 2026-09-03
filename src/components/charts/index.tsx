@@ -117,7 +117,8 @@ export function BarLineCombo({ buckets, unit, yUnit = "" }: { buckets: ComboBuck
   const sx = (d: number) => padL + (d / totalDays) * plotW;
   const sy = (y: number) => padT + (1 - y / yMax) * plotH;
   const maxBw = unit === "day" ? 9 : unit === "week" ? 24 : 56;
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(yMax * f));
+  // 값이 작을 때(최대 1~3) 반올림 눈금이 '1,1,0'처럼 겹치던 문제 — 중복 제거 (2026-09-03 전 화면 점검)
+  const ticks = Array.from(new Set([0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(yMax * f))));
   const hasTarget = bs.some((b) => b.target > 0);
   const tgtPath = bs.map((b, i) => { const x = sx(b.startDay + b.days / 2), y = sy(b.target); return `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`; }).join(" ");
   const perTargetLabel = Math.round((bs.find((b) => b.target > 0)?.target) || 0);
@@ -210,7 +211,7 @@ export function BurnUpChart({ actual, scope, totalDays, todayX }: { actual: { x:
   const slope = todayX > 0 ? done / todayX : 0;
   const projAtEnd = Math.max(0, Math.min(yMax, done + slope * (totalDays - todayX)));
   const willMiss = projAtEnd < scope - 0.5 && done < scope;
-  const ticks = [0, 0.5, 1].map((f) => Math.round(scope * f));
+  const ticks = Array.from(new Set([0, 0.5, 1].map((f) => Math.round(scope * f))));
   const hp = hi != null ? actual[hi] : null;
   return (
     <div className="barcombo-wrap">
@@ -266,7 +267,7 @@ export function WorkloadChart({ weeks, todayIndex }: { weeks: WorkloadWeek[]; to
   const N = weeks.length, band = plotW / N, bw = Math.min(44, band * 0.56);
   const sy = (y: number) => padT + (1 - y / yMax) * plotH;
   const bx = (i: number) => padL + band * i + band / 2;
-  const ticks = Array.from({ length: 3 }, (_, i) => Math.round((yMax / 2) * i));
+  const ticks = Array.from(new Set(Array.from({ length: 3 }, (_, i) => Math.round((yMax / 2) * i))));
   const hw = hi != null ? weeks[hi] : null;
   return (
     <div className="barcombo-wrap">

@@ -1,5 +1,6 @@
 "use client";
 import { Ico } from "@/components/ui-icon";
+import { kstDateTime } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 // 사용자 화면 — **열람 전용** (2026-08-06 사장님 지시).
@@ -212,7 +213,7 @@ export default function AnnouncementsPage() {
                           </td>
                           <td className="text-center">{a.author_name || a.author_email || "운영자"}</td>
                           {/* 초 단위 없이 24시간 표기 — 등록칸을 최대한 좁히기 위함 (2026-08-25) */}
-                          <td className="text-center mono-number whitespace-nowrap">{new Date(a.created_at).toLocaleString("ko-KR", { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}{a.updated_at !== a.created_at && <span className="text-[10px] text-[var(--text-dim)]"> (수정됨)</span>}</td>
+                          <td className="text-center mono-number whitespace-nowrap">{kstDateTime(a.created_at)}{a.updated_at !== a.created_at && <span className="text-[10px] text-[var(--text-dim)]"> (수정됨)</span>}</td>
                         </tr>
                         {expanded && (
                           // 본문은 제목 칸 폭 안에서만 — 양 옆(고정·분류 / 작성자·등록)은 여백 (2026-08-25 사장님)

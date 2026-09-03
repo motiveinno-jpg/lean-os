@@ -1,7 +1,7 @@
 "use client";
 import { koFallback } from "@/lib/ko-label";
 
-import { kstDateStr } from "@/lib/kst";
+import { kstDateTime, kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 import { appConfirm } from "@/components/global-confirm";
@@ -672,13 +672,7 @@ async function saveBlobToUserChosenPath(blob: Blob, suggestedName: string): Prom
 
 function formatDateTime(dateStr: string | null) {
   if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleString("ko-KR", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return kstDateTime(dateStr) || "-";
 }
 
 // ══════════════════════════════════════════════

@@ -1,5 +1,5 @@
 "use client";
-import { kstDateStr } from "@/lib/kst";
+import { kstDateTime, kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
@@ -1145,7 +1145,7 @@ export default function BoardPage() {
                       {p.author_name || p.author_email || "익명"}
                     </span>
                   </td>
-                  <td className="text-center mono-number whitespace-nowrap">{new Date(p.created_at).toLocaleString("ko-KR", { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}{p.updated_at !== p.created_at && <span className="text-[10px] text-[var(--text-dim)]"> (수정됨)</span>}</td>
+                  <td className="text-center mono-number whitespace-nowrap">{kstDateTime(p.created_at)}{p.updated_at !== p.created_at && <span className="text-[10px] text-[var(--text-dim)]"> (수정됨)</span>}</td>
                 </tr>
                 {open && (
                   <tr className="board-detail-row" onClick={(e) => e.stopPropagation()}>
@@ -1291,10 +1291,10 @@ export default function BoardPage() {
                           총 {totalVotes}표 · {isMulti ? "복수 선택 가능" : "1인 1표 (변경 가능)"}
                           {p.poll_anonymous ? " · 🔒 익명 투표" : " · 👤 실명 투표(투표자 공개)"}
                           {p.poll_deadline && !expired && (
-                            <> · 마감 {new Date(p.poll_deadline).toLocaleString("ko-KR")}</>
+                            <> · 마감 {kstDateTime(p.poll_deadline)}</>
                           )}
                           {expired && p.poll_deadline && (
-                            <> · 마감일 {new Date(p.poll_deadline).toLocaleString("ko-KR")}</>
+                            <> · 마감일 {kstDateTime(p.poll_deadline)}</>
                           )}
                         </div>
                       </div>
@@ -1418,7 +1418,7 @@ export default function BoardPage() {
                                 <div className="flex-1 min-w-0 bg-[var(--bg-surface)] rounded-lg px-3 py-2">
                                   <div className="text-[11px] text-[var(--text-dim)] mb-0.5">
                                     {c.author_name || "익명"} ·{" "}
-                                    {new Date(c.created_at).toLocaleString("ko-KR", { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                    {kstDateTime(c.created_at)}
                                   </div>
                                   <div className="text-[var(--text)] whitespace-pre-wrap">
                                     {renderMentionContent(c.content)}
@@ -1473,7 +1473,7 @@ export default function BoardPage() {
                                       <div className="flex-1 min-w-0 bg-[var(--bg-surface)] rounded-lg px-3 py-2">
                                         <div className="text-[11px] text-[var(--text-dim)] mb-0.5">
                                           ↳ {r.author_name || "익명"} ·{" "}
-                                          {new Date(r.created_at).toLocaleString("ko-KR", { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                          {kstDateTime(r.created_at)}
                                         </div>
                                         <div className="text-[var(--text)] whitespace-pre-wrap">
                                           {renderMentionContent(r.content)}
