@@ -573,7 +573,7 @@ export default function TaxFilingPage() {
                 <span className="text-[11px] text-[var(--text-dim)]">제출 기한 <DueDate d={stmtHalf === 1 ? `${stmtYear}-07-31` : `${stmtYear + 1}-01-31`} done={taxChecked.has(stmtHalf === 1 ? `sps-h1-${stmtYear}-07-31` : `sps-h2-${stmtYear + 1}-01-31`)} onToggle={(on) => toggleChecked(stmtHalf === 1 ? `sps-h1-${stmtYear}-07-31` : `sps-h2-${stmtYear + 1}-01-31`, on)} /> — 홈택스</span>
               </>) : (<>
                 <label className="text-xs font-semibold text-[var(--text-dim)]">지급월</label>
-                <input type="month" className="inv-input fin-close-month" value={stmtMonth} onChange={(e) => e.target.value && setStmtMonth(e.target.value)} aria-label="지급월" />
+                <MonthSelect className="inv-input fin-close-month" value={stmtMonth} onChange={(v) => v && setStmtMonth(v)} ariaLabel="지급월" />
                 <span className="text-[11px] text-[var(--text-dim)]">제출 기한 = 지급 다음 달 말일 — 홈택스</span>
               </>)}
             </QueryBar>

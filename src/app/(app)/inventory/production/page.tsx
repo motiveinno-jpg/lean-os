@@ -6,6 +6,7 @@
 //   ★ 작업지시를 따로 두지 않는다 — **주문서가 그 자리**다(사장님 지시대로 주문서를 불러와 바로 저장).
 
 import { useState } from "react";
+import { appConfirm } from "@/components/global-confirm";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DocScreen, type HistRow } from "../_components/doc-screen";
 import { PullOrderButton } from "../_components/pull-order";
@@ -101,7 +102,7 @@ export default function ProductionPage() {
           if (short.length) {
             const nameOf = new Map(ctl.products.map((p) => [p.id, p.name]));
             const msg = `자재가 부족합니다:\n${short.map((x) => `- ${nameOf.get(x.component_id) || "?"}: 소요 ${x.need} · 현재고 ${x.have} (부족 ${x.need - x.have})`).join("\n")}\n\n그래도 완성 기록할까요? 자재 재고가 음수가 됩니다.`;
-            if (!window.confirm(msg)) throw new Error("자재 부족으로 완성 기록을 멈췄습니다 — 자재를 먼저 입고하거나 수량을 줄이세요");
+            if (!(await appConfirm(msg, { confirmLabel: "진행" }))) throw new Error("자재 부족으로 완성 기록을 멈췄습니다 — 자재를 먼저 입고하거나 수량을 줄이세요");
           }
           const r = await produceLines(ctl.companyId!, {
             docDate: built.date, warehouseId: wh, note: built.head.note || null,

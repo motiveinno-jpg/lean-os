@@ -9160,6 +9160,9 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .tax-due-over { @apply text-[var(--danger)]; }
 .tax-due-done { @apply text-[var(--text-dim)] line-through; }
 .tax-due-chk { @apply ml-1 align-middle; }
+/* 플랫폼 시스템 갈래 탭 — seg-bar → collect-tabs (2026-09-03), 좁으면 가로 스크롤 */
+.plat-system-tabs { @apply max-w-full flex-nowrap overflow-x-auto; }
+.plat-system-tabs .collect-tab { @apply whitespace-nowrap; }
 /* 세무 신고 › 탭 아래 '다가오는 신고' 요약 줄 (2026-09-03) — 홈 세금 일정과 같은 달력, 완료 체크된 건 뺀다 */
 .tax-upcoming { @apply flex flex-wrap items-center gap-1.5 border-b border-[var(--border)] px-3 py-1.5 text-[11px]; }
 .tax-upcoming-label { @apply mr-1 font-semibold text-[var(--text-dim)]; }

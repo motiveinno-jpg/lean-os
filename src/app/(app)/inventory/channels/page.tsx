@@ -7,6 +7,7 @@
 //   ★ 결정 19 — 채널 상품코드 ↔ SKU 는 사람이 한 번 이어 준다. 이름으로 맞히면 잘못이 곧 재고가 된다.
 
 import { SimpleCond, SimpleApplied, condHit, type CondLive } from "../_components/simple-cond";
+import { appConfirm } from "@/components/global-confirm";
 import { ExcelPasteHelper } from "../_components/excel-paste-helper";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -400,7 +401,7 @@ export default function ChannelsPage() {
                               {canWrite && (
                                 <button type="button" className="inv-line-x" title="연결 해제"
                                   onClick={async () => {
-                                    if (!window.confirm(`${c.channel_product_id} 연결을 해제할까요? 이미 등록된 주문은 유지됩니다.`)) return;
+                                    if (!(await appConfirm(`${c.channel_product_id} 연결을 해제할까요? 이미 등록된 주문은 유지됩니다.`, { danger: true, confirmLabel: "해제" }))) return;
                                     try { await deleteChannelCode(c.id); qc.invalidateQueries({ queryKey: ["ch-codes", companyId] }); toast("연결을 해제했습니다", "success"); }
                                     catch (e) { toast(friendlyError(e), "error"); }
                                   }}>✕</button>
@@ -636,7 +637,7 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
     const msg = `${lines.length}줄을 출고(판매)로 등록합니다 — ${[...groups.entries()].map(([ch, ls]) => `${channelLabel(ch)} ${ls.length}줄`).join(" · ")}.`
       + `${counts.dup ? ` 이미 등록된 ${counts.dup}줄은 건너뜁니다.` : ""}`
       + `${counts.suggest ? ` 연결 제안 ${counts.suggest}줄은 상품 연결에 기억됩니다(다음부터 자동).` : ""} 진행할까요?`;
-    if (!window.confirm(msg)) return;
+    if (!(await appConfirm(msg, { confirmLabel: "진행" }))) return;
     setBusy(true);
     try {
       //   A9 — 제안대로(또는 사람이 고친 대로) 저장하는 줄은 상품 연결로 학습한다. 같은 채널·코드는 한 번만.
@@ -1001,7 +1002,7 @@ function useShipPanel({ companyId, userId, imports, products, canWrite, onDone }
       )}
       {selected.some((i) => i.ship_status !== "pending") && (
         <button type="button" className="btn-secondary btn-sm doc-del" disabled={busy}
-          onClick={() => { if (window.confirm("발송을 취소하고 출고 대기로 되돌릴까요? 송장번호가 지워집니다.")) run("출고 대기로 되돌렸습니다", () => updateShipping(selected.filter((i) => i.ship_status !== "pending").map((i) => i.id), { ship_status: "pending", carrier: null, tracking_no: null }, userId)); }}>발송 취소</button>
+          onClick={async () => { if ((await appConfirm("발송을 취소하고 출고 대기로 되돌릴까요? 송장번호가 지워집니다.", { danger: true, confirmLabel: "되돌리기" }))) run("출고 대기로 되돌렸습니다", () => updateShipping(selected.filter((i) => i.ship_status !== "pending").map((i) => i.id), { ship_status: "pending", carrier: null, tracking_no: null }, userId)); }}>발송 취소</button>
       )}
       <button type="button" className="btn-primary btn-sm" disabled={busy || !selected.some((i) => i.ship_status === "pending")} onClick={() => setShipOpen(true)}>발송 처리</button>
     </SelectionBar>
@@ -1065,7 +1066,7 @@ function SheetDialog({ companyId, userId, count, onClose, onExport }: {
           <button type="button" className="btn-secondary btn-sm" onClick={() => setEditing({ id: "", name: `${cur.name.replace(/ \(.*\)$/, "")} 내 양식`, columns: cur.columns.map((c) => ({ ...c })) })}>내 양식으로 복사</button>
           {!cur.builtin && <button type="button" className="btn-secondary btn-sm" onClick={() => setEditing({ ...cur, columns: cur.columns.map((c) => ({ ...c })) })}>양식 고치기</button>}
           {!cur.builtin && <button type="button" className="btn-secondary btn-sm doc-del" onClick={async () => {
-            if (!window.confirm(`'${cur.name}' 양식을 지울까요?`)) return;
+            if (!(await appConfirm(`'${cur.name}' 양식을 지울까요?`, { danger: true, confirmLabel: "지우기" }))) return;
             try { await deleteSheetLayout(cur.id); qc.invalidateQueries({ queryKey: ["sheet-layouts", companyId] }); setPick("std"); toast("지웠습니다", "success"); }
             catch (e) { toast(friendlyError(e), "error"); }
           }}>지우기</button>}

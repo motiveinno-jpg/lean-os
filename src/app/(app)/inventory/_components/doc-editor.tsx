@@ -10,6 +10,7 @@
 //   ★ 합계는 칠 수 없다(공급가액+부가세라 셀 수 있는 값이다). Enter 차례에서도 건너뛴다.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { appConfirm } from "@/components/global-confirm";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import { fetchLastDocLines, fetchPartnerWarehouse, fetchBuyPriceStats, type LastDocLine, type PriceStat } from "@/lib/inventory-suggest";
@@ -677,7 +678,7 @@ export function FormDialog({ ctl }: { ctl: DocCtl }) {
         <div className="inv-modal-actions">
           <button type="button" className="btn-secondary btn-sm"
             onClick={async () => {
-              if (!window.confirm(`${FORM_LABEL[formKey]} 입력 항목을 기본값으로 되돌릴까요?`)) return;
+              if (!(await appConfirm(`${FORM_LABEL[formKey]} 입력 항목을 기본값으로 되돌릴까요?`, { danger: true, confirmLabel: "되돌리기" }))) return;
               try {
                 await resetLayout(companyId!, formKey);
                 await qc.invalidateQueries({ queryKey: ["form-layout", companyId, formKey] });

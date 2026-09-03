@@ -75,7 +75,7 @@ export default function CustomersPage() {
               };
             }), "고객사목록")}
           />
-          <div className="seg-bar">
+          <div className="qk-chips">
             {[
               { key: "all", label: "전체" },
               { key: "paid", label: "유료" },
@@ -84,7 +84,7 @@ export default function CustomersPage() {
               <button
                 key={f.key}
                 onClick={() => setStatusFilter(f.key)}
-                className={`seg-item ${statusFilter === f.key ? "seg-item-active" : ""}`}
+                className={`${statusFilter === f.key ? "qk-chip qk-chip-on" : "qk-chip"}`}
               >
                 {f.label}
               </button>

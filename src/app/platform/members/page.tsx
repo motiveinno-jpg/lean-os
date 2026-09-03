@@ -102,12 +102,12 @@ export default function PlatformMembersPage() {
               가입일: m.created_at ? kstDateStr(new Date(m.created_at)) : "",
             })), "사용자목록")}
           />
-          <div className="seg-bar">
+          <div className="qk-chips">
             {ROLE_FILTERS.map((f) => (
               <button
                 key={f.key}
                 onClick={() => setRoleFilter(f.key)}
-                className={`seg-item ${roleFilter === f.key ? "seg-item-active" : ""}`}
+                className={`${roleFilter === f.key ? "qk-chip qk-chip-on" : "qk-chip"}`}
               >
                 {f.label}
               </button>

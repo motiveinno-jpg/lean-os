@@ -116,9 +116,9 @@ export default function SalesCodesPage() {
         </p>
       </div>
 
-      <div className="seg-bar w-fit">
+      <div className="collect-tabs">
         {([["signups", "유입 회사"], ["codes", "코드 관리"]] as const).map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)} className={`seg-item ${tab === k ? "seg-item-active" : ""}`}>
+          <button key={k} onClick={() => setTab(k)} className={tab === k ? "collect-tab collect-tab-on" : "collect-tab"}>
             {l}
           </button>
         ))}

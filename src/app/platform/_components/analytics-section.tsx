@@ -268,18 +268,18 @@ export function AnalyticsSection({ usage, traffic, companies, companyActivity, t
           </p>
         </div>
         <div className="pa-head-controls">
-          <div className="seg-bar">
+          <div className="qk-chips">
             {SCOPES.map((s) => (
               <button key={s.key} onClick={() => setScope(s.key)} title={s.hint}
-                className={`seg-item ${scope === s.key ? "seg-item-active" : ""}`}>
+                className={`${scope === s.key ? "qk-chip qk-chip-on" : "qk-chip"}`}>
                 {s.label}
               </button>
             ))}
           </div>
-          <div className="seg-bar">
+          <div className="qk-chips">
             {GRANS.map((g) => (
               <button key={g.key} onClick={() => setGran(g.key)}
-                className={`seg-item ${gran === g.key ? "seg-item-active" : ""}`}>
+                className={`${gran === g.key ? "qk-chip qk-chip-on" : "qk-chip"}`}>
                 {g.label}
               </button>
             ))}

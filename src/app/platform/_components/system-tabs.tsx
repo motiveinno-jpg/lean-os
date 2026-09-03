@@ -16,9 +16,9 @@ const TABS = [
 export function SystemTabs() {
   const pathname = usePathname();
   return (
-    <div className="seg-bar w-fit overflow-x-auto max-w-full">
+    <div className="collect-tabs plat-system-tabs">
       {TABS.map((t) => (
-        <Link key={t.href} href={t.href} className={`seg-item whitespace-nowrap ${pathname === t.href ? "seg-item-active" : ""}`}>
+        <Link key={t.href} href={t.href} className={pathname === t.href ? "collect-tab collect-tab-on" : "collect-tab"}>
           {t.label}
         </Link>
       ))}

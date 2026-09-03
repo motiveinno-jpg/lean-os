@@ -1,5 +1,6 @@
 "use client";
 import { koFallback } from "@/lib/ko-label";
+import { appConfirm } from "@/components/global-confirm";
 
 // ── 재고 › 이익관리 (결정 40, 2026-08-26 사장님 지시) ─────────────────────────────────────
 //   구매·생산·판매를 통해 남는 돈을 **원가가 반영된** 숫자로. 원가는 DB 가 확정한 출고 원가(stock_move_costs, FIFO/이동평균)만 읽는다.
@@ -159,7 +160,7 @@ export default function InventoryProfitPage() {
   };
   const changeMethod = async (m: CostingMethod) => {
     if (!companyId || m === method) return;
-    if (!window.confirm(`원가 방법을 ${m === "avg" ? "이동평균" : "선입선출"}으로 바꾸고 전체를 다시 계산합니다. 과거 기간의 이익 숫자가 바뀔 수 있습니다. 계속할까요?`)) return;
+    if (!(await appConfirm(`원가 방법을 ${m === "avg" ? "이동평균" : "선입선출"}으로 바꾸고 전체를 다시 계산합니다. 과거 기간의 이익 숫자가 바뀔 수 있습니다. 계속할까요?`, { confirmLabel: "진행" }))) return;
     setBusy(true);
     try { await saveCostingMethod(companyId, m); qc.invalidateQueries({ queryKey: ["inv-cost-method"] }); await rebuild(); }
     catch (e) { toast(friendlyError(e), "error"); setBusy(false); }
@@ -177,14 +178,14 @@ export default function InventoryProfitPage() {
     const left = layers.filter((l) => l.product_id === histProduct && l.qty_left > 0);
     const leftQty = left.reduce((n, l) => n + l.qty_left, 0);
     const diff = left.reduce((n, l) => n + l.qty_left * (unit - (l.unit_cost ?? unit)), 0);
-    if (!window.confirm(`${rv.date}부터 ${p?.name || "이 품목"} 남은 재고 ${won(leftQty)}개의 원가를 ₩${won(unit)}로 봅니다.${diff ? ` 차액 ₩${won(Math.abs(diff))}은 ${diff < 0 ? "평가손실" : "평가이익"}로 잡힙니다.` : ""} 이 날 이후 출고부터 새 단가가 나가고, 이전 출고는 바뀌지 않습니다. 계속할까요?`)) return;
+    if (!(await appConfirm(`${rv.date}부터 ${p?.name || "이 품목"} 남은 재고 ${won(leftQty)}개의 원가를 ₩${won(unit)}로 봅니다.${diff ? ` 차액 ₩${won(Math.abs(diff))}은 ${diff < 0 ? "평가손실" : "평가이익"}로 잡힙니다.` : ""} 이 날 이후 출고부터 새 단가가 나가고, 이전 출고는 바뀌지 않습니다. 계속할까요?`, { confirmLabel: "진행" }))) return;
     setBusy(true);
     try { await addRevaluation({ product_id: histProduct, reval_date: rv.date, unit_cost: unit, reason: rv.reason, note: rv.note || null }); toast("재평가를 기록하고 다시 계산했습니다", "success"); setRv((s) => ({ ...s, unit: "", note: "" }));
       for (const k of ["inv-cost-revals", "inv-move-costs", "inv-cost-layers", "inv-cost-state", "inv-avgcost"]) qc.invalidateQueries({ queryKey: [k] }); }
     catch (e) { toast(friendlyError(e), "error"); } finally { setBusy(false); }
   };
   const undoReval = async (id: string) => {
-    if (!window.confirm("이 재평가를 취소하고 다시 계산합니다. 계속할까요?")) return;
+    if (!(await appConfirm("이 재평가를 취소하고 다시 계산합니다. 계속할까요?", { danger: true, confirmLabel: "재평가 취소" }))) return;
     setBusy(true);
     try { await cancelRevaluation(id); toast("재평가를 취소했습니다", "success"); for (const k of ["inv-cost-revals", "inv-move-costs", "inv-cost-layers", "inv-cost-state", "inv-avgcost"]) qc.invalidateQueries({ queryKey: [k] }); }
     catch (e) { toast(friendlyError(e), "error"); } finally { setBusy(false); }

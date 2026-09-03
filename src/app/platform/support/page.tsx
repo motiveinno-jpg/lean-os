@@ -212,12 +212,12 @@ export default function PlatformSupportPage() {
               접수일: t.created_at?.slice(0, 10) || "",
             })), "고객센터문의")}
           />
-          <div className="seg-bar">
+          <div className="qk-chips">
             {FILTERS.map((f) => (
               <button
                 key={f.key}
                 onClick={() => setFilter(f.key)}
-                className={`seg-item ${filter === f.key ? "seg-item-active" : ""}`}
+                className={`${filter === f.key ? "qk-chip qk-chip-on" : "qk-chip"}`}
               >
                 {f.label}
               </button>

@@ -7,6 +7,7 @@
 //     수정 전용 화면을 따로 만들지 않는다 — 만들면 칸·규칙이 둘로 갈라져 곧 어긋난다.
 
 import { downloadTemplate, xNum, isDate, type ExcelColumn, type ExcelRow } from "@/lib/excel-io";
+import { appConfirm } from "@/components/global-confirm";
 import { ExcelUploadDialog } from "./excel-upload";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -377,7 +378,7 @@ export function DocScreen({
               {onDelete && canWrite && (
                 <button type="button" className="btn-secondary btn-sm doc-del" disabled={busy}
                   onClick={async () => {
-                    if (!window.confirm("이 전표를 삭제할까요?")) return;
+                    if (!(await appConfirm("이 전표를 삭제할까요?", { danger: true, confirmLabel: "삭제" }))) return;
                     setBusy(true);
                     try { await onDelete({ id: ctl.editing!.id, ctl }); toast("삭제했습니다", "success"); closePopup(); invalidate(); }
                     catch (e) { toast(friendlyError(e), "error"); }
@@ -399,7 +400,7 @@ export function DocScreen({
               {onReturn && canWrite && ctl.editing?.status !== "cancelled" && (
                 <button type="button" className="btn-secondary btn-sm" disabled={busy}
                   onClick={async () => {
-                    if (!window.confirm("이 전표 전체를 반품 처리할까요? 반대 전표가 새로 만들어지고 재고가 되돌아갑니다.")) return;
+                    if (!(await appConfirm("이 전표 전체를 반품 처리할까요? 반대 전표가 새로 만들어지고 재고가 되돌아갑니다.", { danger: true, confirmLabel: "반품" }))) return;
                     setBusy(true);
                     try { const m = await onReturn({ id: ctl.editing!.id, ctl }); toast(m, "success"); closePopup(); invalidate(); }
                     catch (e) { toast(friendlyError(e), "error"); }

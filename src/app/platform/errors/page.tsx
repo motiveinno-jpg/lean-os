@@ -136,7 +136,7 @@ export default function PlatformErrorsPage() {
             <option value={72}>최근 3일</option>
             <option value={168}>최근 7일</option>
           </select>
-          <div className="seg-bar">
+          <div className="qk-chips">
             {[
               { k: "all", l: "전체" },
               { k: "unresolved", l: "미해결" },
@@ -145,7 +145,7 @@ export default function PlatformErrorsPage() {
               <button
                 key={f.k}
                 onClick={() => setFilter(f.k as any)}
-                className={`seg-item ${filter === f.k ? "seg-item-active" : ""}`}
+                className={`${filter === f.k ? "qk-chip qk-chip-on" : "qk-chip"}`}
               >
                 {f.l}
               </button>

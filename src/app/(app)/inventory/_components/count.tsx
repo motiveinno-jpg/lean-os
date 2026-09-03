@@ -9,6 +9,7 @@
 //   상태는 useStockCount 훅 하나에 모으고, 화면 조각 둘이 그것을 나눠 쓴다.
 
 import { ExcelPasteHelper } from "./excel-paste-helper";
+import { appConfirm } from "@/components/global-confirm";
 import { DateField } from "@/components/date-field";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -176,7 +177,7 @@ export function CountBar({ ctl, warehouses, onhand, avgCost, productById }: {
         //   되돌리기 — 조정 문서를 취소하고 실사를 다시 연다(센 수량은 그대로). 지우지 않는다(결정 25).
         <button type="button" className="btn-secondary btn-sm" disabled={ctl.busy}
           onClick={async () => {
-            if (!window.confirm("이 실사를 되돌릴까요?\n반영했던 '실사 조정' 문서가 취소되고(지워지지 않습니다) 실사는 다시 '진행 중'이 됩니다. 센 수량은 그대로 남습니다.")) return;
+            if (!(await appConfirm("이 실사를 되돌릴까요?\n반영했던 '실사 조정' 문서가 취소되고(지워지지 않습니다) 실사는 다시 '진행 중'이 됩니다. 센 수량은 그대로 남습니다.", { danger: true, confirmLabel: "되돌리기" }))) return;
             ctl.setBusy(true);
             try {
               await revertCount(ctl.openId!, ctl.userId);
@@ -264,7 +265,7 @@ export function CountBody({ ctl, warehouses, onhand, productById }: {
                       <button type="button" className="inv-line-x" title="지우기"
                         onClick={async (e) => {
                           e.stopPropagation();
-                          if (!window.confirm("이 실사를 지울까요? 센 수량도 함께 사라집니다.")) return;
+                          if (!(await appConfirm("이 실사를 지울까요? 센 수량도 함께 사라집니다.", { danger: true, confirmLabel: "지우기" }))) return;
                           try { await deleteCount(c.id); ctl.counts.refetch(); ctl.toast("지웠습니다", "success"); }
                           catch (err) { ctl.toast(friendlyError(err), "error"); }
                         }}>✕</button>
