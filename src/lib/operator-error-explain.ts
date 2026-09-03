@@ -573,9 +573,10 @@ const EDGE_FN_LABEL: Record<string, string> = {
   "support-ticket-analyze": "고객문의 자동 분석(AI)",
 };
 
-function explainPlatformFirst(joined: string, msg: string): ErrorExplanation | null {
-  // AI 공급사(Anthropic) — 잔액 소진은 전 고객 AI 기능 중단이라 가장 먼저
-  if (/credit balance is too low|PROVIDER_BILLING|AI 서비스 이용 잔액이 부족/i.test(joined)) {
+function explainPlatformFirst(joined: string, msg: string, ctxStr = ""): ErrorExplanation | null {
+  // AI 공급사(Anthropic) — 잔액 소진은 전 고객 AI 기능 중단이라 가장 먼저.
+  //   사유가 context(provider_reason)에만 있는 행도 있어 본문+context 를 같이 본다.
+  if (/credit balance is too low|PROVIDER_BILLING|AI 서비스 이용 잔액이 부족/i.test(`${joined} ${ctxStr}`)) {
     return {
       what: "AI 공급사(Anthropic)의 선불 잔액이 떨어져 AI 기능(대표 참모·아침 브리핑·자동 분류)이 모든 고객에서 멈췄어요.",
       why: "오너뷰 프로그램 문제가 아니라 우리 회사의 AI 공급사 계정 잔액 문제예요.",
@@ -713,7 +714,9 @@ export function explainError(
   const joined = `${type} ${msg}`;
 
   // 0) 사람 말 우선 규칙 (서버 기능·예약 작업·AI 공급사·DB 상태코드)
-  const first = explainPlatformFirst(joined, msg);
+  let ctxStr = "";
+  try { ctxStr = context ? JSON.stringify(context).slice(0, 2000) : ""; } catch { ctxStr = ""; }
+  const first = explainPlatformFirst(joined, msg, ctxStr);
   if (first) return first;
 
   // 1) SQLSTATE (5-char) 정확매칭
