@@ -6,6 +6,7 @@ import { fetchPaged } from "@/lib/fetch-paged";
 //   깔끔한 카드(제목 + 전체보기 → / 표 행 + 상태 뱃지). 최근 프로젝트·최근 세금계산서.
 
 import Link from "next/link";
+import { useReportWidgetEmpty } from "@/components/widget-empty-context";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
@@ -29,36 +30,46 @@ const soft = (c: string, p = 12) => `color-mix(in srgb, ${c} ${p}%, transparent)
 //   "어떻게 채우는지" 링크(emptyText/emptyAction) — 빈 위젯이 다음 행동을 알려준다.
 //   2026-08-19 대시보드 재편 — 모든 위젯이 이 셸 하나로: 머리 한 줄(이름 · 요약(summary) · 머리 도구(headExtra) · 전체보기 →) + 몸통(표 줄).
 //   높이는 격자가 정한다(h-full) — 위젯 안에 카드·상자를 또 넣지 않는다(미수금 합계·총 자산 같은 숫자는 summary 로).
-export function ActivityCard({ title, href, hrefLabel = "전체보기", empty, emptyText = "표시할 내용이 없습니다.", emptyAction, children, count, summary, headExtra }: {
+//   2026-09-03 v2(결정 149·154·157): 머리 = 이름 · 보조 숫자 · 도구 · → (전체보기 글자 삭제). 비면 격자에 알려 한 줄로 접히고(useReportWidgetEmpty),
+//   그 한 줄 안에 이름 · 빈 상태 문장 · 다음 행동 링크만 가로로 놓는다.
+export function ActivityCard({ title, href, hrefLabel = "", empty, emptyText = "표시할 내용이 없습니다.", emptyAction, children, count, summary, headExtra }: {
   title: string; href: string; hrefLabel?: string; empty?: boolean;
   emptyText?: string; emptyAction?: { label: string; href: string };
   count?: number; summary?: React.ReactNode; headExtra?: React.ReactNode; children: React.ReactNode;
 }) {
+  useReportWidgetEmpty(!!empty);
+  if (empty) {
+    return (
+      <div className="activity-card activity-card-quiet glass-card">
+        <h3 className="activity-card-title">{title}</h3>
+        <span className="widget-empty-text">{emptyText}</span>
+        {emptyAction && <Link href={emptyAction.href} className="widget-empty-action">{emptyAction.label} →</Link>}
+        <span className="flex-1" />
+        <Link href={href} className="widget-more-link">{hrefLabel ? `${hrefLabel} →` : "→"}</Link>
+      </div>
+    );
+  }
   return (
     <div className="activity-card glass-card">
       <div className="activity-card-header">
-        <div className="flex items-baseline gap-1.5 min-w-0">
-          <h3 className="text-[13px] font-bold text-[var(--text)] truncate">{title}</h3>
-          {count != null && count > 0 && <span className="text-[11px] font-semibold text-[var(--text-dim)] mono-number">{count}</span>}
+        <div className="flex items-baseline gap-2 min-w-0">
+          <h3 className="activity-card-title">{title}</h3>
+          {count != null && count > 0 && <span className="activity-card-count mono-number">{count}</span>}
           {summary && <span className="activity-card-summary">{summary}</span>}
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           {headExtra}
-          <Link href={href} className="widget-more-link">{hrefLabel} →</Link>
+          <Link href={href} className="widget-more-link">{hrefLabel ? `${hrefLabel} →` : "→"}</Link>
         </div>
       </div>
-      {empty ? (
-        <div className="widget-empty">
-          <span className="widget-empty-text">{emptyText}</span>
-          {emptyAction && <Link href={emptyAction.href} className="widget-empty-action">{emptyAction.label} →</Link>}
-        </div>
-      ) : <div className="activity-card-rows">{children}</div>}
+      <div className="activity-card-rows">{children}</div>
     </div>
   );
 }
 
+//   2026-09-03 v2 결정 152: 알약 칩 → 상태점 + 글자
 function Badge({ label, tone }: { label: string; tone: string }) {
-  return <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: soft(tone, 14), color: tone }}>{label}</span>;
+  return <span className="dash-status shrink-0"><i className="dash-status-dot" style={{ background: tone }} />{label}</span>;
 }
 
 // ── 최근 프로젝트 ──
@@ -89,16 +100,17 @@ export function RecentProjects({ companyId }: { companyId: string }) {
   return (
     <ActivityCard title="최근 프로젝트" href="/projecthub" empty={data.length === 0}
       emptyText="진행 중인 프로젝트가 없습니다." emptyAction={{ label: "첫 프로젝트 만들기", href: "/projecthub" }}>
-      {data.map((p) => {
+      {data.slice(0, 5).map((p) => {
         const st = STAGE[p.stage] || { l: p.stage || "-", c: "var(--text-dim)" };
         return (
           <Link key={p.id} href={`/projecthub/${p.id}`} className="project-row">
-            <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{p.name || "프로젝트"}</span>
+            <span className="min-w-0 flex-1 text-[13px] text-[var(--text)] truncate">{p.name || "프로젝트"}</span>
             <Badge label={st.l} tone={st.c} />
-            <span className="text-[11px] mono-number text-[var(--text-muted)] shrink-0 w-16 text-right">{p.contract_total ? won(Number(p.contract_total)) : "-"}</span>
+            <span className="text-[12px] mono-number text-[var(--text-muted)] shrink-0 w-16 text-right">{p.contract_total ? won(Number(p.contract_total)) : "-"}</span>
           </Link>
         );
       })}
+      {data.length > 5 && <Link href="/projecthub" className="dash-more">외 {data.length - 5}건 →</Link>}
     </ActivityCard>
   );
 }
@@ -118,7 +130,7 @@ export function RecentRevenue({ companyId }: { companyId: string }) {
         .eq("company_id", companyId).eq("type", "sales").neq("status", "void")
         .gte("issue_date", mStart).order("issue_date", { ascending: false }).order("id"), 50000);
       const rows = (data || []) as any[];
-      return { rows: rows.slice(0, 15), total: rows.reduce((s, r) => s + Number(r.supply_amount || 0), 0), count: rows.length };
+      return { rows: rows.slice(0, 5), total: rows.reduce((s, r) => s + Number(r.supply_amount || 0), 0), count: rows.length };
     },
   });
   return (

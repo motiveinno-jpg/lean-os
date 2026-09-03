@@ -841,7 +841,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .rgl-editing .react-grid-item { cursor: move; }
 /* 기본 그립 아이콘 제거 · 편집 아닐 땐 핸들 숨김 */
 .dashboard-grid .react-resizable-handle { background-image: none !important; z-index: 6; }
-.dashboard-grid:not(.rgl-editing) .react-resizable-handle { display: none !important; }
+.dashboard-grid .react-resizable-handle { display: none !important; }   /* 2026-09-03 v2 결정 149: 크기 조절 없음 — 편집 모드에서도 손잡이 없음 */
 /* 그립 표식(점/바) 완전 제거 — 우측·하단에 옅은 점이 보이던 문제(2026-07-15 사장님).
    react-resizable/RGL 기본 코너 ::after 표식까지 함께 제거. 리사이즈 안내는 커서로만. 그랩 영역·기능 유지. */
 .dashboard-grid .react-resizable-handle::after { content: none !important; }
@@ -3984,7 +3984,7 @@ table.leave-req-table { min-width: 960px; } /* table. — .ev-table(뒤에 정�
 /* ── 대시보드 위젯 공통 언어 (2026-08-10 대시보드 리파인) ──
    모든 위젯이 같은 문법을 쓴다: 13px 굵은 제목(본문색) + 오른쪽 조용한 '전체보기' 링크(호버 시 착색).
    빈 상태는 한 줄 안내 + 채우는 방법 링크 — "표시할 내용이 없습니다"만 덩그러니 두지 않는다. */
-.widget-more-link { @apply text-[11px] font-semibold text-[var(--text-dim)] hover:text-[var(--primary)] transition-colors shrink-0 no-underline; }
+.widget-more-link { @apply text-[13px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors shrink-0 no-underline; }
 /* 위젯 숫자 문법 — 브리핑 숫자 스트립과 동일(2026-08-10 사장님 확정): 라벨 위 + 굵은 숫자 아래,
    상자 벽 대신 하나의 조용한 서피스 밴드. 값 색은 의미색(위험 빨강/안전 초록)만. */
 .widget-statband { @apply grid gap-x-4 gap-y-3 rounded-2xl bg-[var(--bg-surface)]/70 border border-[var(--border)]/70 px-3.5 py-3 mb-3; }
@@ -3994,8 +3994,8 @@ table.leave-req-table { min-width: 960px; } /* table. — .ev-table(뒤에 정�
 .widget-stat-value { @apply text-[15px] leading-tight font-extrabold mt-0.5 truncate text-[var(--text)]; } /* mono-number 는 JSX 병기 */
 .widget-stat-sub { @apply text-[10.5px] mt-0.5 text-[var(--text-dim)] truncate; }
 .widget-empty { @apply flex-1 flex flex-col items-center justify-center gap-1 py-5 text-center min-h-[72px]; }
-.widget-empty-text { @apply text-[12px] text-[var(--text-dim)] leading-relaxed break-keep max-w-[260px]; }
-.widget-empty-action { @apply text-[11px] font-semibold text-[var(--primary)] hover:underline underline-offset-2 no-underline; }
+.widget-empty-text { @apply text-[12.5px] text-[var(--text-dim)] leading-relaxed break-keep; }
+.widget-empty-action { @apply text-[12.5px] font-semibold text-[var(--primary)] hover:underline underline-offset-2 no-underline; }
 
 /* 위젯 타일 호버 — 클릭 가능한 카드(<a>)만 보더 착색·그림자 상승. 편집 모드는 제외 */
 .dashboard-widget-tile .glass-card { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
@@ -4116,7 +4116,27 @@ table.leave-req-table { min-width: 960px; } /* table. — .ev-table(뒤에 정�
 
 /* dashboard-activity.tsx */
 .activity-card { @apply p-4 flex flex-col; }
-.activity-card-header { @apply flex items-center justify-between gap-2 mb-2.5; }
+.activity-card-header { @apply flex items-center justify-between gap-2 mb-2; }
+.activity-card-title { @apply text-[14px] font-extrabold text-[var(--text)] truncate; }
+.activity-card-count { @apply text-[12.5px] font-bold text-[var(--text-muted)]; }
+/* 빈 위젯 = 한 줄(격자 h:1) — 이름 · 빈 상태 문장 · 다음 행동 · → 가로 (2026-09-03 v2 결정 149) */
+.activity-card-quiet { @apply flex-row items-center gap-3 px-4 py-0 overflow-hidden whitespace-nowrap; }
+.activity-card-quiet .widget-empty-text { @apply truncate min-w-0; }
+/* 위젯 몸통 3형 — 숫자 타일 (통장·카드 요약) */
+.dash-tiles { @apply grid grid-cols-3 gap-2 mb-2; }
+.dash-tile { @apply flex flex-col gap-0.5 rounded-lg bg-[var(--bg-surface)] px-3 py-2 no-underline; }
+.dash-tile .l { @apply text-[11.5px] text-[var(--text-muted)]; }
+.dash-tile .v { @apply text-[15px] font-extrabold text-[var(--text)] tracking-tight; }
+.dash-tile .v.is-plus { color: var(--success); }
+/* 상태점 + 글자 (알약 칩 대체, 결정 152) */
+.dash-status { @apply inline-flex items-center gap-1.5 text-[12px] font-semibold text-[var(--text-muted)]; }
+.dash-status-dot { @apply inline-block h-1.5 w-1.5 rounded-full; }
+.dash-more { @apply block pt-1.5 text-[12.5px] font-semibold text-[var(--primary)] no-underline; }
+/* 미수금 줄 — 지연일 작은 글자, 독촉은 hover 때만 */
+.recv-days { @apply w-10 shrink-0 text-right text-[11.5px] font-semibold text-[var(--text-dim)]; }
+.recv-days.is-bad { color: var(--danger); }
+.recv-dun { @apply shrink-0 rounded-md border border-[var(--border)] px-1.5 py-0.5 text-[11px] text-[var(--text-dim)] opacity-0 transition hover:border-[var(--primary)] hover:text-[var(--primary)]; }
+.receivables-preview-row:hover .recv-dun { @apply opacity-100; }
 
 .activity-card-rows { @apply flex flex-col divide-y divide-[var(--border)]/60; }
 .project-row { @apply flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition; }
@@ -8402,7 +8422,7 @@ table.dup-table { min-width: 0; }
    머리단은 고정하고 몸통만 스크롤 — 조회 화면 표준(CLAUDE.md)과 같은 방식. */
 .dashboard-widget-tile .activity-card-rows { @apply flex-1 min-h-0 overflow-y-auto; }
 .dashboard-widget-tile .dashboard-todos-body { @apply flex-1 min-h-0 overflow-y-auto; }
-.activity-card-summary { @apply text-[11.5px] text-[var(--text-dim)] truncate; }
+.activity-card-summary { @apply text-[12.5px] text-[var(--text-muted)] truncate; }
 .dash-tax-row { @apply flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition; }
 /* 납부 완료 체크 (2026-08-31) — 완료 줄은 흐리게, 체크 버튼은 워크보드 톤의 작은 사각 */
 .dash-tax-row-done { @apply opacity-60; }

@@ -13,6 +13,7 @@
 //     창 축소→확대 시 잘못된 너비가 고정되는 버그가 있었음. 직접 측정으로 완전 해결.
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { WidgetEmptyContext } from "@/components/widget-empty-context";
 import { supabase } from "@/lib/supabase";
 import GridLayout, { type Layout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
@@ -47,7 +48,7 @@ function buildDefault(cat: CatalogWidget[]): Layout[] {
   // ⚠️ 하한은 위젯이 정한 값을 쓴다 — 예전엔 minW:3/minH:2 로 못박아 CatalogWidget 의 minW·minH 가
   //    무시됐다. 달력처럼 작게 줄이면 내용이 잘리는 위젯이 스스로를 지킬 수 없었다 (2026-08-21).
   return cat.map((w) => {
-    const size = { w: w.w || 4, h: w.h || 4, minW: w.minW ?? 3, minH: w.minH ?? 2 };
+    const size = { w: w.w || 4, h: w.h || 5, minW: w.minW ?? 3, minH: w.minH ?? 2 };   // 1단 = h5(268px), 2단 = h10 (2026-09-03 v2 결정 149)
     if (w.x != null && w.y != null) return { i: w.id, x: w.x, y: w.y, ...size };
     const c = colH.indexOf(Math.min(...colH));
     const item = { i: w.id, x: c * 4, y: colH[c], ...size };
@@ -259,15 +260,23 @@ export function DashboardGrid({
   //   catMap(=카탈로그 객체)에 의존한다 — id 만 보면 render 클로저가 첫 렌더 값(예: 동기화 상태 로딩 전)에 갇힌다 (2026-08-19)
   const active = useMemo(() => activeIds.map((id) => catMap[id]).filter(Boolean) as CatalogWidget[], [activeIds, catMap]);
 
+  //   빈 위젯 집합 — 위젯이 WidgetEmptyContext 로 알린다. 한 줄(h:1)로 접어 맨 아래로 (2026-09-03 v2 결정 149·157).
+  const [emptyIds, setEmptyIds] = useState<Set<string>>(() => new Set());
+  const reportEmpty = useCallback((id: string, empty: boolean) => {
+    setEmptyIds((prev) => { if (prev.has(id) === empty) return prev; const n = new Set(prev); if (empty) n.add(id); else n.delete(id); return n; });
+  }, []);
   const effective = useMemo(() => {
     const saved = Object.fromEntries(layout.map((l) => [l.i, l]));
     const def = Object.fromEntries(buildDefault(active).map((l) => [l.i, l]));
-    //   크기 조절 자유(2026-08-20 사장님 — 8/19 의 '같은 키 고정'을 하루 만에 되돌림). 하한만 위젯이 정한다.
+    //   2026-09-03 v2 결정 149(사장님 확정): 크기 조절 없음 · 자리 이동만 자유. 저장본에서는 x·y 만 쓰고 w·h 는 카탈로그(위젯이 내용에 맞춰 선언)가 정한다.
+    //   (2026-08-20 자유 조절 복원의 이유였던 '달력 잘림'은 위젯이 2단을 선언해 푼다 — 결정 157)
     return active.map((w) => {
       const l = saved[w.id] || def[w.id];
-      return { ...l, minW: w.minW ?? 3, minH: w.minH ?? 2 };
+      const size = { w: w.w || 4, h: w.h || 5 };
+      if (emptyIds.has(w.id)) return { i: w.id, x: l.x, y: 100000 + l.y, w: size.w, h: 1, minW: 3, minH: 1, isResizable: false };
+      return { i: w.id, x: l.x, y: l.y, ...size, minW: w.minW ?? 3, minH: w.minH ?? 2, isResizable: false };
     });
-  }, [layout, activeIds, catMap, catalogIds]);
+  }, [layout, activeIds, catMap, catalogIds, emptyIds]);
 
   const persistActive = (ids: string[]) => {
     hasSavedActive.current = true;
@@ -284,7 +293,7 @@ export function DashboardGrid({
     if (!mounted || isMobile || cols === 1 || containerWidth < 768) return;
     setLayout((prev) => {
       const map: Record<string, Layout> = Object.fromEntries(prev.map((x) => [x.i, x]));
-      for (const it of l) map[it.i] = { i: it.i, x: it.x, y: it.y, w: it.w, h: it.h, minW: it.minW, minH: it.minH };
+      for (const it of l) { if (emptyIds.has(it.i)) continue; map[it.i] = { i: it.i, x: it.x, y: it.y, w: it.w, h: it.h, minW: it.minW, minH: it.minH }; }   // 접힌 빈 위젯의 임시 자리는 저장하지 않는다
       const next = Object.values(map);
       stateRef.current = { ...stateRef.current, layout: next };
       try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* noop */ }
@@ -410,18 +419,19 @@ export function DashboardGrid({
           margin={[12, 12]}
           containerPadding={[0, 0]}
           isDraggable={edit && !isMobile}
-          isResizable={edit && !isMobile}
+          isResizable={false}
           compactType="vertical"
           onLayoutChange={onLayoutChange}
           draggableCancel=".no-drag"
-          resizeHandles={["s", "e", "se"]}
         >
           {active.map((w) => (
             <div key={w.id} className={`dashboard-widget-tile ${edit ? "relative rounded-2xl ring-1 ring-dashed ring-[var(--primary)]/60" : ""}`}>
               {edit && (
                 <button onClick={() => removeWidget(w.id)} className="no-drag absolute -top-2 -right-2 z-20 w-6 h-6 rounded-full bg-[var(--danger)] text-white text-[13px] font-bold flex items-center justify-center shadow-md hover:scale-110 transition" style={{ pointerEvents: "auto" }} aria-label={`${w.name} 위젯 삭제`} title="위젯 삭제">×</button>
               )}
-              <div className={`h-full overflow-auto [&>*]:min-h-full ${edit ? "pointer-events-none select-none" : ""}`}>{w.render()}</div>
+              <WidgetEmptyContext.Provider value={{ id: w.id, report: reportEmpty }}>
+                <div className={`h-full overflow-auto [&>*]:min-h-full ${edit ? "pointer-events-none select-none" : ""}`}>{w.render()}</div>
+              </WidgetEmptyContext.Provider>
             </div>
           ))}
         </GridLayout>

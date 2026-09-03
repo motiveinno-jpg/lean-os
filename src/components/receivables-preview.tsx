@@ -76,7 +76,7 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
     },
   });
 
-  const top = (data?.list || []).slice(0, 15);   // 위젯을 키우면 더 보이게 (2026-08-20 사장님: 크기를 키워도 5줄뿐)
+  const top = (data?.list || []).slice(0, 5);   // 1단 = 5줄, 나머지는 '외 N곳 →' (2026-09-03 v2 결정 153·157 — 잘리지 않게)
   const n = data?.list.length ?? 0;
 
   //   2026-08-19 재편 — 공용 셸(ActivityCard). '미회수 합계' 카드 → 머리의 요약 글자(상자 안 상자 금지)
@@ -87,24 +87,18 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
       <div className="receivables-preview-list">
         {top.map((g) => (
           <div key={g.name} className="receivables-preview-row">
+            {/* 2026-09-03 v2 결정 152: '398일 지연' 알약 → 금액 옆 작은 글자(30일+ 빨강), 금액은 검정, 독촉 버튼은 줄 hover 때만 */}
             <Link href="/partners/ledger?type=sales" className="flex items-center gap-2 min-w-0 flex-1 no-underline">
-              <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{g.name}<span className="text-[var(--text-dim)]">{g.count > 1 ? ` · ${g.count}건` : ""}</span></span>
-              {g.oldestDays > 0 && (
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${g.oldestDays >= 30 ? "bg-[var(--danger)]/12 text-[var(--danger)]" : "bg-[var(--warning)]/12 text-[var(--warning)]"}`}>
-                  {g.oldestDays >= 30 ? `${g.oldestDays}일 지연` : `발행 D+${g.oldestDays}`}
-                </span>
-              )}
+              <span className="min-w-0 flex-1 text-[13px] text-[var(--text)] truncate">{g.name}<span className="text-[var(--text-dim)]">{g.count > 1 ? ` · ${g.count}건` : ""}</span></span>
             </Link>
-            <span className="text-[11px] mono-number font-bold shrink-0 text-[var(--danger)]">{won(g.outstanding)}</span>
-            <button onClick={() => copyDunning(g)} title="독촉 문구 복사 (직접 발송)"
-              className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-md border border-[var(--border)] text-[var(--text-dim)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition">
-              독촉
-            </button>
+            <span className="text-[13px] mono-number font-bold shrink-0 text-[var(--text)]">{won(g.outstanding)}</span>
+            {g.oldestDays > 0 && (
+              <span className={`recv-days mono-number ${g.oldestDays >= 30 ? "is-bad" : ""}`}>{g.oldestDays}일</span>
+            )}
+            <button onClick={() => copyDunning(g)} title="독촉 문구 복사 (직접 발송)" className="recv-dun">독촉</button>
           </div>
         ))}
-        {n > 15 && (
-          <Link href="/partners/ledger?type=sales" className="text-[11px] text-[var(--text-dim)] hover:text-[var(--primary)] px-2 pt-1 no-underline transition">외 {n - 15}곳 더 보기 →</Link>
-        )}
+        {n > 5 && <Link href="/partners/ledger?type=sales" className="dash-more">외 {n - 5}곳 →</Link>}
       </div>
     </ActivityCard>
   );

@@ -44,7 +44,8 @@ import { MorningBrief } from "@/components/morning-brief";
 import { ReceivablesPreview } from "@/components/receivables-preview";
 import { DashboardCalendar } from "@/components/dashboard-calendar"; // 일정·할 일 미니 캘린더(2026-07-14)
 import { DashboardSignals } from "@/components/dashboard-signals";
-import { DashboardGlance } from "@/components/dashboard-glance"; // 층 1 신호 6칸 (2026-08-19 재편)
+import { DashboardGlance } from "@/components/dashboard-glance";
+import { useReportWidgetEmpty } from "@/components/widget-empty-context"; // 층 1 신호 6칸 (2026-08-19 재편)
 import { ChannelHead, useSyncStatus, useUnclassifiedCounts } from "@/components/dashboard-data-status"; // 통장·카드 위젯 머리의 동기화·미분류
 import { ActivityCard, RecentProjects, RecentRevenue, RecentInvoices } from "@/components/dashboard-activity"; // 회사 활동 요약 카드(공용 셸)
 import { DashboardGrid, type CatalogWidget, type WidgetPreset } from "@/components/dashboard-grid"; // 위젯 격자 — 같은 키·순서 드래그·보기 설정
@@ -587,7 +588,7 @@ export default function DashboardPage() {
               { id: "work-tasks", name: "내 담당 업무", icon: "✅", desc: "나에게 배정된 프로젝트 태스크", category: "개인", render: () => <MyTasksCard userId={uid} /> },
               // 달력은 6주가 들어가야 해서 기본 h(4=212px)로는 달이 반쯤 잘렸다(2026-08-21 제보).
               //   이제 칸이 타일 높이를 나눠 가지므로 h 만 넉넉하면 어떤 폭에서도 통째로 보인다.
-              { id: "calendar", name: "달력", icon: "📅", desc: "이번 달 일정·할 일 달력", category: "개인", w: 4, h: 8, minH: 6,
+              { id: "calendar", name: "달력", icon: "📅", desc: "이번 달 일정·할 일 달력", category: "개인", w: 4, h: 10, minH: 6,   // 2단 — 6주가 통째로(결정 157)
                 render: () => <DashboardCalendar userId={uid} companyId={companyId} /> },
               { id: "employees", name: "구성원", icon: "👥", desc: "재직 인원", category: "업무", render: () => <EmployeesCard companyId={companyId} /> },
               { id: "partners", name: "거래처", icon: "🤝", desc: "등록 거래처", category: "업무", render: () => <PartnersCard companyId={companyId} /> },
@@ -694,7 +695,7 @@ function TaxScheduleWidget({ items, companyId, userId }: { items: ReturnType<typ
   return (
     <ActivityCard title="세금·납부 일정" href={items[0]?.href || "/reports/vat"} summary={items.length > 0 ? "60일" : undefined} empty={items.length === 0}
       emptyText="다가오는 세금 일정이 없습니다 — 60일 안에 낼 세금이 없습니다.">
-      {sorted.slice(0, 15).map((t) => {
+      {sorted.slice(0, 5).map((t) => {
         const done = checked.has(t.id);
         return (
           <span key={t.id} className={done ? "dash-tax-row dash-tax-row-done" : "dash-tax-row"}>
@@ -702,9 +703,10 @@ function TaxScheduleWidget({ items, companyId, userId }: { items: ReturnType<typ
               title={done ? "완료 표시 해제" : "신고/납부를 마쳤으면 체크 — 세금 신호·브리핑에서 빠집니다"}
               onClick={() => toggle(t.id, !done)}
               className={done ? "dash-tax-chk dash-tax-chk-on" : "dash-tax-chk"}>{done ? "✓" : ""}</button>
-            <Link href={t.href} className={`min-w-0 flex-1 text-[12px] truncate ${done ? "line-through text-[var(--text-dim)]" : "text-[var(--text)]"}`}>{t.title}</Link>
-            <span className="text-[10px] text-[var(--text-dim)] mono-number shrink-0">{String(t.date || "").slice(5).replace("-", "/")}</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 font-semibold mono-number ${done ? "bg-[var(--bg-surface)] text-[var(--text-dim)]" : t.daysLeft <= 7 ? "bg-[var(--danger)]/12 text-[var(--danger)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"}`}>{done ? "완료" : t.daysLeft === 0 ? "오늘" : `D-${t.daysLeft}`}</span>
+            <Link href={t.href} className={`min-w-0 flex-1 text-[13px] truncate ${done ? "line-through text-[var(--text-dim)]" : "text-[var(--text)]"}`}>{t.title}</Link>
+            <span className="text-[11.5px] text-[var(--text-dim)] mono-number shrink-0">{String(t.date || "").slice(5).replace("-", "/")}</span>
+            {/* 2026-09-03 v2 결정 152: D-n 알약 → 글자(7일 안 빨강) */}
+            <span className={`text-[12px] shrink-0 font-bold mono-number ${done ? "text-[var(--text-dim)]" : t.daysLeft <= 7 ? "text-[var(--danger)]" : "text-[var(--text-muted)]"}`}>{done ? "완료" : t.daysLeft === 0 ? "오늘" : `D-${t.daysLeft}`}</span>
           </span>
         );
       })}
@@ -914,6 +916,11 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
     ...(myTasks as any[]).map((t) => ({ kind: "task" as const, id: t.id, title: t.title, date: t.due_date, raw: t })),
     ...upcomingEvents.map((e) => ({ kind: "event" as const, id: e.id, title: e.title, date: e.start_at, raw: e })),
   ].sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
+  useReportWidgetEmpty(items.length === 0);   // 비면 격자가 한 줄로 접는다 (2026-09-03 v2 결정 149)
+  //   빈 상태는 공용 셸의 한 줄 꼴로 — 자체 빈 상자(72px)는 접힌 칸(44px)에 안 들어간다
+  if (items.length === 0) {
+    return <ActivityCard title="오늘 일정 · 할 일" href="/schedule" empty emptyText="등록된 할일·일정이 없습니다." emptyAction={{ label: "할 일 추가하기", href: "/schedule" }}>{null}</ActivityCard>;
+  }
 
   return (
     // 루트가 glass-card(흰 박스) — 제목·목록 모두 박스 안. h-full 로 셀 높이를 꽉 채움(다른 위젯과 통일).

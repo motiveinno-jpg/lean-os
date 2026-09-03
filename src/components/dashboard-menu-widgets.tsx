@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { todayKst } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 
 // 대시보드 카탈로그용 메뉴 위젯 — 각 메뉴의 실제 데이터 미리보기(2026-07-15).
@@ -54,16 +55,34 @@ export function BankRecentCard({ companyId, headExtra }: { companyId: string; he
       return (data || []) as any[];
     },
   });
+  //   2026-09-03 v2 결정 153: 원본 11줄 대신 오늘 입금·출금·건수 요약 3칸 + 최근 3건. 홈에서는 '오늘 얼마 들어오고 나갔나'가 먼저다.
+  const today = todayKst();
+  const { data: todaySum } = useQuery({
+    queryKey: ["dash-bank-today", companyId, today],
+    enabled: !!companyId, staleTime: 60_000,
+    queryFn: async () => {
+      const rows = logRead('components/dashboard-menu-widgets:today', await db.from("bank_transactions")
+        .select("type, amount").eq("company_id", companyId).gte("transaction_date", today).lt("transaction_date", `${today}T23:59:59.999`)) as any[] | null;
+      let inn = 0, out = 0, n = 0;
+      for (const t of rows || []) { const a = Number(t.amount || 0); const isIn = t.type === "in" || t.type === "deposit" || a > 0; if (isIn) inn += Math.abs(a); else out += Math.abs(a); n += 1; }
+      return { inn, out, n };
+    },
+  });
   return (
-    <ActivityCard title="통장 거래" href="/bank" headExtra={headExtra} empty={data.length === 0}
-      emptyText="아직 거래 내역이 없습니다." emptyAction={{ label: "통장 연결하고 자동 수집하기", href: "/settings?tab=bank" }}>
-      {data.map((t) => {
+    <ActivityCard title="통장" href="/bank" headExtra={headExtra} empty={data.length === 0}
+      emptyText="아직 거래 내역이 없습니다." emptyAction={{ label: "통장 연결하고 자동 수집하기", href: "/settings/integration" }}>
+      <div className="dash-tiles">
+        <Link href="/bank" className="dash-tile"><span className="l">오늘 입금</span><span className="v mono-number is-plus">{todaySum ? `+${won(todaySum.inn)}` : "—"}</span></Link>
+        <Link href="/bank" className="dash-tile"><span className="l">오늘 출금</span><span className="v mono-number">{todaySum ? `−${won(todaySum.out)}` : "—"}</span></Link>
+        <Link href="/bank" className="dash-tile"><span className="l">오늘 거래</span><span className="v mono-number">{todaySum ? `${todaySum.n}건` : "—"}</span></Link>
+      </div>
+      {data.slice(0, 3).map((t) => {
         const isIn = t.type === "in" || t.type === "deposit" || Number(t.amount) > 0;
         return (
           <Link key={t.id} href="/bank" className="dash-bank-row">
-            <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{t.counterparty || t.description || "-"}</span>
-            <span className="text-[10px] text-[var(--text-dim)] shrink-0">{md(t.transaction_date)}</span>
-            <span className="text-[11px] mono-number shrink-0 w-16 text-right" style={{ color: isIn ? "var(--success)" : "var(--text-muted)" }}>
+            <span className="min-w-0 flex-1 text-[13px] text-[var(--text)] truncate">{t.counterparty || t.description || "-"}</span>
+            <span className="text-[11.5px] text-[var(--text-dim)] shrink-0">{md(t.transaction_date)}</span>
+            <span className={`text-[12.5px] mono-number font-semibold shrink-0 w-16 text-right ${isIn ? "text-[var(--success)]" : "text-[var(--text-muted)]"}`}>
               {isIn ? "+" : "−"}{won(Math.abs(Number(t.amount || 0)))}
             </span>
           </Link>
@@ -110,7 +129,7 @@ export function ApprovalsPendingCard({ companyId }: { companyId: string }) {
       kind: "req" as const, id: r.id, href: "/approvals", badge: REQUEST_TYPE_LABELS[r.request_type as keyof typeof REQUEST_TYPE_LABELS] || "결재",
       label: (r.title || "결재 요청") as string, amt: Number(r.amount || 0), date: r.created_at as string,
     })),
-  ].sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 15);
+  ].sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 5);
 
   return (
     <ActivityCard title="결재 대기" href="/approvals" count={data?.total} empty={(data?.total ?? 0) === 0}
@@ -138,7 +157,7 @@ export function EmployeesCard({ companyId }: { companyId: string }) {
       const data = logRead('components/dashboard-menu-widgets:data', await db.from("employees").select("id, name, department")
         .eq("company_id", companyId).in("status", ["active", "joined"]).order("name").limit(50));
       const list = (data || []) as any[];
-      return { list: list.slice(0, 15), count: list.length };
+      return { list: list.slice(0, 5), count: list.length };
     },
   });
   const list = data?.list || [];
@@ -164,7 +183,7 @@ export function PartnersCard({ companyId }: { companyId: string }) {
       const data = logRead('components/dashboard-menu-widgets:data', await db.from("partners").select("id, name")
         .eq("company_id", companyId).order("created_at", { ascending: false }).limit(50));
       const list = (data || []) as any[];
-      return { list: list.slice(0, 15), count: list.length };
+      return { list: list.slice(0, 5), count: list.length };
     },
   });
   const list = data?.list || [];
@@ -263,7 +282,7 @@ export function InventoryShortageCard({ companyId }: { companyId: string }) {
         .map((p) => ({ id: p.id, sku: p.sku, name: p.name, spec: p.spec, safety: Number(p.safety_stock), qty: qty.get(p.id) || 0 }))
         .filter((p) => p.qty <= p.safety)
         .sort((a, b) => (a.qty - a.safety) - (b.qty - b.safety));
-      return { list: list.slice(0, 15), count: list.length };
+      return { list: list.slice(0, 5), count: list.length };
     },
   });
   const list = data?.list || [];

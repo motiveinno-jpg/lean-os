@@ -127,7 +127,7 @@ export function CardsSummaryCard({ companyId, headExtra }: { companyId: string; 
   });
   return (
     <CompactAssetCard title="카드 사용" summary={cards && cards.total > 0 ? <>이번 달 <b className="mono-number text-[var(--text)]">{fmtW(cards.total)}</b></> : undefined}
-      rows={(cards?.list || []).slice(0, 15)} href="/cards" headExtra={headExtra}
+      rows={(cards?.list || []).slice(0, 5)} href="/cards" headExtra={headExtra}
       empty="이번 달 카드 사용이 없습니다 — 카드를 연결하면 사용액이 자동 집계됩니다." />
   );
 }
@@ -146,7 +146,7 @@ export function AssetsSummaryCard({ companyId }: { companyId: string }) {
   });
   return (
     <CompactAssetCard title="계좌별 잔액" summary={assets && assets.count > 0 ? <>합계 <b className="mono-number text-[var(--text)]">{fmtW(assets.total)}</b> · {assets.count}개</> : undefined}
-      rows={(assets?.list || []).slice(0, 15)} href="/bank"
+      rows={(assets?.list || []).slice(0, 5)} href="/bank"
       empty="등록된 계좌가 없습니다 — 통장을 연결하면 잔액이 자동으로 모입니다." />
   );
 }
@@ -160,8 +160,8 @@ function CompactAssetCard({ title, summary, rows, href, empty, headExtra }: {
     <ActivityCard title={title} href={href} summary={summary} headExtra={headExtra} empty={rows.length === 0} emptyText={empty}>
       {rows.map((r) => (
         <Link key={r.name} href={href} className="compact-asset-row">
-          <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{r.name}</span>
-          <span className="text-[11px] mono-number text-[var(--text-muted)] shrink-0">{fmtW(r.amount)}</span>
+          <span className="min-w-0 flex-1 text-[13px] text-[var(--text)] truncate">{r.name}</span>
+          <span className="text-[13px] mono-number font-bold text-[var(--text)] shrink-0">{fmtW(r.amount)}</span>
         </Link>
       ))}
     </ActivityCard>
