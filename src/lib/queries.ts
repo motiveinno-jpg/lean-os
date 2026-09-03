@@ -1355,6 +1355,8 @@ export async function getCompanyUsers(companyId: string) {
 
 // ── Unread count per channel ──
 export async function getUnreadCounts(companyId: string, userId: string) {
+  // 사용자 id 가 아직 없을 때(로그인 직후·캐시 비움) "null" 문자열이 uuid 칸에 들어가 400 이 나던 것 차단 (2026-08-31 실사고)
+  if (!companyId || !userId || !/^[0-9a-f-]{36}$/i.test(String(userId))) return new Map<string, number>();
   const participants = logRead('getUnreadCounts', await supabase
     .from('chat_participants')
     .select('channel_id, last_read_at')

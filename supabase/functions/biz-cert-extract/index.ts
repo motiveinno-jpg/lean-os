@@ -83,7 +83,12 @@ Deno.serve(withSentry("biz-cert-extract", async (req) => {
     promptVersion: "biz-cert-v1", maxRetries: 1, timeoutMs: 60_000,
     allowGeminiFallback: true,   // 사장님 2026-09-03: Gemini 대체는 이 기능에만
   });
-  if (!result.ok) return json({ error: result.error || "문서를 읽지 못했습니다.", code: result.errorCode }, 502);
+  //   AI 공급사 잔액 소진은 503(진짜 장애), 월 한도는 429(사용자 안내), 그 외 502 — owner-copilot 과 같은 규칙 (2026-09-03)
+  if (!result.ok) {
+    const code = result.errorCode;
+    const status = code === "PROVIDER_BILLING" ? 503 : (code === "CALL_CAP" || code === "COST_CAP") ? 429 : 502;
+    return json({ error: result.error || "문서를 읽지 못했습니다.", code }, status);
+  }
   if (!result.data) return json({ error: "문서는 받았지만 항목을 정리하지 못했습니다. 글자가 선명한 사진이나 PDF 원본으로 다시 올려 주세요.", code: "NO_STRUCTURED" }, 502);
 
   const f = result.data as Record<string, unknown>;

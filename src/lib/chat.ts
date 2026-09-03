@@ -147,6 +147,7 @@ export async function leaveChannel(channelId: string, userId: string, userName: 
 
 // ── Mark as read ──
 export async function markAsRead(channelId: string, userId: string) {
+  if (!channelId || !userId || !/^[0-9a-f-]{36}$/i.test(String(userId))) return; // id 없이 부르면 400 만 남긴다
   const { error } = await supabase
     .from('chat_participants')
     .update({ last_read_at: new Date().toISOString() })

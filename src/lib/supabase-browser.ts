@@ -43,10 +43,15 @@ function interceptedFetch(input: RequestInfo | URL, init?: RequestInit): Promise
         const method = String(init?.method || 'GET').toUpperCase();
         const isSelfLog = path.includes('/error_logs');
         const isAuthNoise = path.startsWith('/auth/v1') && res.status < 500;
-        if (!isSelfLog && !isAuthNoise) {
+        // 서버 기능(functions)의 4xx 는 "PDF만 올릴 수 있어요" 같은 사용자 안내라 오류가 아니다 — 5xx 만 기록.
+        //   (5xx 는 서버 쪽 래퍼가 함수 이름·본문과 함께 따로 남기고, 여기선 "누가·어느 화면"을 보탠다.) 2026-09-03
+        const isFunctionGuidance = path.startsWith('/functions/v1/') && res.status < 500;
+        if (!isSelfLog && !isAuthNoise && !isFunctionGuidance) {
           res.clone().text().then((body) => {
             let detail = body.slice(0, 400);
             try { const j = JSON.parse(body); detail = j.message || j.error || j.msg || detail; } catch { /* 원문 유지 */ }
+            // 세션 만료·기기 시계 오차(JWT expired / issued at future)로 난 401 은 재로그인으로 풀리는 상태라 기록장에 안 쌓는다.
+            if (res.status === 401 && /jwt|token/i.test(detail)) return;
             if (isWriteFailure(path, method, res.status)) notifyWriteFailure(res.status, body.slice(0, 400) || detail);
             import('./error-logger').then(({ logError }) => {
               logError({
