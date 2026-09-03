@@ -812,8 +812,10 @@ async function syncCardBilling(
   const billingStart = startDate.slice(0, 6);
   const billingEnd = endDate.slice(0, 6);
 
+  const seenCardsByOrg = new Map<string, Map<string, string>>(); // 기관 → (끝4자리 → 표시 이름), 수집 뒤 카드 탭 자동 등록용
   for (const org of cardOrgs) {
-    const seenCards = new Map<string, string>(); // 끝4자리 → 표시 이름 (수집 뒤 카드 탭 자동 등록용)
+    const seenCards = new Map<string, string>();
+    seenCardsByOrg.set(org, seenCards);
     //   memberStoreInfoType "1"(가맹점 포함) — 안 넣으면 default "0" 이라 CODEF 가
     //   가맹점 사업자번호(resMemberStoreCorpNo)·업종·전화번호를 아예 빼고 준다. (2026-08-12)
     const result = await codefRequest(token, "/v1/kr/card/b/account/billing-list", {
@@ -1028,8 +1030,13 @@ async function syncCardBilling(
     } catch (e: any) {
       debug.push(`검증 실패(수집 자체는 정상): ${e?.message || e}`);
     }
+  }
 
-    if (!biznoOnly) { try { await ensureCardsRegistered(supabase, companyId, org, seenCards, debug); } catch (e: any) { debug.push(`card ${org} 자동 등록 오류: ${e?.message || e}`); } }
+  //   기관별 새 카드 자동 등록 — 검증(재적재)까지 끝난 뒤라 주인 없는 거래를 빠짐없이 붙인다.
+  if (!biznoOnly) {
+    for (const [o, m] of seenCardsByOrg) {
+      try { await ensureCardsRegistered(supabase, companyId, o, m, debug); } catch (e: any) { debug.push(`card ${o} 자동 등록 오류: ${e?.message || e}`); }
+    }
   }
 
   return { synced: totalSynced, biznoFilled, errors, debug, orgs: [...cardOrgs] };
