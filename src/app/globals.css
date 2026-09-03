@@ -1438,7 +1438,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .employee-history-section { @apply space-y-3; }
 
 /* .hr-templates-page — 순수 마커(뿌리는 .qk-shell 이 세로 간격을 맡는다, 2026-08-18) */
-.schedule-calendar-grid { @apply overflow-hidden; } /* 2026-08-18 상자 안 격자 — glass-card 껍데기 없음 */
+.schedule-calendar-grid { @apply flex flex-col min-h-full; } /* 2026-08-18 상자 안 격자 — glass-card 껍데기 없음. 2026-09-03: overflow-hidden 제거 — 마지막 주가 잘렸다. 상자 높이를 채우고 넘치면 ev-scroll 이 스크롤 */
+.schedule-calendar-grid > .schedule-cells-grid { @apply flex-1 auto-rows-[minmax(88px,1fr)]; } /* 줄이 상자 높이를 나눠 갖는다 — 마지막 주도 항상 보인다 */
 /* .schedule-page — 순수 마커 (뿌리는 .qk-shell) */
 table.sched-table { min-width: 900px; }
 .sched-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 text-xs; }
@@ -9997,10 +9998,5 @@ table.phv3-table { min-width: 640px; }
 .sched-rem-x { @apply h-7 w-7 shrink-0 rounded-lg text-[12px] text-[var(--text-dim)] hover:bg-[var(--bg-surface)] hover:text-[var(--danger)]; }
 .sched-rem-add { @apply self-start text-[12px] font-semibold text-[var(--primary)] hover:underline disabled:opacity-40 disabled:no-underline; }
 
-/* 달력 셀 '+N개 더' 팝업 (2026-09-03 사장님) */
+/* 달력 셀 '+N개 더' — 누르면 그 칸이 아래로 늘어난다 (2026-09-03 사장님) */
 .sched-more-btn { @apply mt-0.5 w-full rounded px-1.5 py-0.5 text-left text-[9.5px] font-semibold text-[var(--primary)] hover:bg-[var(--primary-light)]; }
-.sched-more-pop { @apply fixed z-[60] w-[280px] rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1.5; }
-.sched-more-head { @apply flex items-center justify-between px-1.5 pb-1 text-[11px] font-bold text-[var(--text-dim)]; }
-.sched-more-x { @apply h-6 w-6 rounded-md text-[11px] text-[var(--text-dim)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
-.sched-more-list { @apply flex flex-col gap-0.5 max-h-[300px] overflow-auto; }
-.sched-more-item { @apply flex items-center gap-1 rounded border px-2 py-1 text-left text-[11px] hover:brightness-95; }
