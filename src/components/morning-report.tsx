@@ -4,7 +4,7 @@
 //   History: 위젯 격자 13장이 벽처럼 서서 "정신사나움"(사장님) → 한 열 문서(아침 보고서) → 그래프를 붙였더니
 //   "형식이 굳어 촌스럽다" → 사장님 참고 이미지(Lethe 판형) + "보고서스럽게, 두꺼우면 촌스럽다" → E안(결정 163·164 재개정):
 //   얇은 선 한 장 안에 KPI 5칸 → 절마다 왼쪽 절 이름 열 + 오른쪽 본문. 문장이 먼저, 그림·표는 그 근거로만.
-//   읽는 순서: 01 결론(AI 제안, 한 장 안) → KPI → 02 챙길 것 → 02 자금(그림 1) → 03 매출·미수(그림 2 | 표) → 04 업무 → 05 사람 → 06 최근 처리 → 부록.
+//   읽는 순서: KPI 띠(맨 위) → 01 결론(AI 제안) → 02 챙길 것 → 02 자금(그림 1) → 03 매출·미수(그림 2 | 표) → 04 업무 → 05 사람 → 06 최근 처리 → 부록.
 //   결정 159: 절 문장은 lib/report-lines.ts 규칙, 결론·챙길 것만 AI(MorningBrief 그대로).
 //   결정 160: 절은 **개인별 메뉴 권한**이 켜고 끈다(역할 프리셋 없음) — perm 은 page 가 useMyPermissions 로 계산해 넘긴다.
 //   결정 161: 부록 = 기존 DashboardGrid(크기 조절 없음·빈 위젯 접기). 펼침 상태는 기기에 기억(보기 상태).
@@ -322,10 +322,6 @@ export function MorningReport({
         <button type="button" className="rep-tool" onClick={() => window.print()}>인쇄</button>
       </header>
       <div className="rep-sheet">
-        {/* 결론(AI 제안)도 한 장 안에 — 2026-09-03 사장님 "AI 제안 부분도 보고서 안으로". 첫 절이라 01. */}
-        {perm.briefing && (
-          <Sec no={no()} title="결론">{lead}</Sec>
-        )}
         {perm.finance && s && (
           <div className="rep-kpis">
             <Link href="/bank" className="rep-kpi is-first"><span className="rep-kpi-l">오늘 잔액</span><span className="rep-kpi-v mono-number">{s.cash.hasBank ? wonK(s.cash.balance) : "통장 없음"}</span><span className="rep-kpi-s mono-number">{bankToday && bankToday.n > 0 ? `오늘 +${wonK(bankToday.inn)} −${wonK(bankToday.out)}` : "오늘 거래 없음"}</span></Link>
@@ -334,6 +330,11 @@ export function MorningReport({
             <Link href="/partners/ledger?type=sales" className="rep-kpi"><span className="rep-kpi-l">미수</span><span className="rep-kpi-v mono-number">{wonK(s.arap.ar)}</span><span className="rep-kpi-s mono-number">{recv ? `${recv.list.length}곳 · 90일 넘긴 곳 ${recv.over90Partners}` : s.arap.over30Partners > 0 ? `30일 넘긴 곳 ${s.arap.over30Partners}` : "30일 넘긴 곳 없음"}</span></Link>
             <Link href="/reports/outlook" className="rep-kpi"><span className="rep-kpi-l">30일 안에 낼 돈</span><span className="rep-kpi-v mono-number">{wonK(s.arap.due30)}</span><span className="rep-kpi-s mono-number">급여 {wonK(s.arap.salary)} · 정기 {wonK(s.arap.recurring)}{s.arap.vatNext && s.arap.vatNext.dday <= 30 && s.arap.vatNext.pay ? ` · 부가세 ${fmtMd(s.arap.vatNext.due)}` : ""}</span></Link>
           </div>
+        )}
+
+        {/* 결론(AI 제안)도 한 장 안에 — 2026-09-03 사장님 "AI 제안 부분도 보고서 안으로", 이어서 "오늘 잔액(KPI 띠)과 결론 위치를 바꾸는 게 좋겠다" → KPI 띠가 맨 위, 결론은 01절. */}
+        {perm.briefing && (
+          <Sec no={no()} title="결론">{lead}</Sec>
         )}
 
         {perm.briefing && (
