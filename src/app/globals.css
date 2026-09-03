@@ -6952,6 +6952,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .collect-tab-on { @apply border-[var(--border)] border-b-[var(--bg-card)] bg-[var(--bg-card)] text-[var(--primary)]; margin-bottom: -1px; }
 .collect-tab-cnt { @apply ml-1.5 text-[10.5px] font-bold text-[var(--text-dim)]; }
 .collect-tab-on .collect-tab-cnt { @apply text-[var(--primary)]; }
+/* 결재 허브 활성 탭의 빨간 배지 — 위 규칙이 같은 우선순위로 뒤에 와서 숫자가 보라색이 돼 빨간 바탕에 묻혔다(2026-09-03 점검). */
+.collect-tab-on .collect-tab-cnt.ap-tab-alert { @apply text-white; }
 
 .ev-wrap { @apply flex flex-col gap-3; }
 .ev-filter { @apply h-8 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2.5 text-[11.5px] font-semibold text-[var(--text-dim)] transition hover:text-[var(--text)]; }
