@@ -61,7 +61,9 @@ function cardTypeBadgeClass(cardType?: string | null): string {
 function cardNoDisplay(no: string | null | undefined): string {
   const v = String(no || "").replace(/[^0-9*]/g, "");
   if (!v) return "----";
-  if (v.length <= 4) return `•••• ${v}`;
+  // 롯데(아멕스 등)는 카드사가 뒤 3자리만 알려준다 — 없는 숫자를 붙이지 않고 가려진 한 자리를 점으로 표시 (2026-09-03 사장님)
+  if (v.length < 4) return `•••• ${"•".repeat(4 - v.length)}${v}`;
+  if (v.length === 4) return `•••• ${v}`;
   return v.replace(/(.{4})(?=.)/g, "$1-");
 }
 
@@ -1338,7 +1340,7 @@ export default function CardsPage() {
             <div className="pnl-drill-head"><h3 className="text-sm font-bold">카드 수정</h3><button type="button" className="btn-secondary btn-sm" onClick={() => setCardEdit(null)}>닫기</button></div>
             <div className="pay-form-body space-y-3">
               <label className="block"><span className="field-label">카드 이름</span><input className="qk-input h-9 w-full px-2.5 text-sm" value={cardEdit.name} onChange={(e) => setCardEdit({ ...cardEdit, name: e.target.value })} /></label>
-              <label className="block"><span className="field-label">카드번호 <span className="text-[var(--text-dim)] font-normal">— 카드사가 끝 4자리만 알려줘서, 전체로 보려면 직접 입력</span></span><input className="qk-input h-9 w-full px-2.5 text-sm mono-number" inputMode="numeric" value={cardEdit.number} onChange={(e) => setCardEdit({ ...cardEdit, number: e.target.value.replace(/[^0-9-]/g, "") })} placeholder="예: 5137-1234-5678-4962" /></label>
+              <label className="block"><span className="field-label">카드번호 <span className="text-[var(--text-dim)] font-normal">— 카드사가 끝 3~4자리만 알려줘서, 전체로 보려면 직접 입력</span></span><input className="qk-input h-9 w-full px-2.5 text-sm mono-number" inputMode="numeric" value={cardEdit.number} onChange={(e) => setCardEdit({ ...cardEdit, number: e.target.value.replace(/[^0-9-]/g, "") })} placeholder="예: 5137-1234-5678-4962" /></label>
               <label className="block"><span className="field-label">메모</span><textarea className="qk-input w-full px-2.5 py-2 text-sm" rows={3} value={cardEdit.memo} onChange={(e) => setCardEdit({ ...cardEdit, memo: e.target.value })} placeholder="예: 마케팅팀 광고비 전용 · 대표 소지" /></label>
               <div className="flex justify-end gap-2"><button type="button" className="btn-secondary btn-sm" onClick={() => setCardEdit(null)}>취소</button><button type="button" className="btn-primary btn-sm" disabled={cardSaving} onClick={saveCardEdit}>{cardSaving ? "저장 중…" : "저장"}</button></div>
             </div>

@@ -2314,7 +2314,9 @@ serve(withSentry("codef-sync", async (req) => {
     //   internal(cron/service_role) 호출은 이미 위에서 allowlist 로 제한되므로 제외.
     if (!isInternalAuth) {
       const { data: callerRow } = await supabase.from("users").select("company_id").eq("auth_id", user.id).maybeSingle();
-      if (!callerRow || callerRow.company_id !== companyId) {
+      // 운영자(@mo-tive.com)의 카드번호 형식 확인(card-list-probe)만 타사 companyId 허용 — 읽기 전용 (2026-09-03)
+      const operatorProbe = action === "card-list-probe" && !!user?.email && /@mo-tive\.com$/i.test(String(user.email));
+      if (!operatorProbe && (!callerRow || callerRow.company_id !== companyId)) {
         return new Response(JSON.stringify({ error: "권한이 없습니다." }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
     }
@@ -2331,6 +2333,21 @@ serve(withSentry("codef-sync", async (req) => {
     }
 
     const token = await getCodefToken(clientId, clientSecret);
+
+    // --- Action: card-list-probe (운영자 확인용, 읽기 전용) ---
+    //   카드사 "보유카드 조회"가 끝 4자리를 온전히 주는지 본다 (2026-09-03 사장님: 롯데 거래자료는 뒤 3자리만 보임).
+    if (action === "card-list-probe") {
+      if (!cid) return new Response(JSON.stringify({ error: "no connectedId" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const accounts = await getAccountList(token, cid);
+      const out: any[] = [];
+      for (const a of accounts) {
+        if (String(a.businessType || "") !== "CD") continue;
+        const r = await codefRequest(token, "/v1/kr/card/b/account/card-list", { connectedId: cid, organization: a.organization });
+        const list = Array.isArray(r?.data) ? r.data : r?.data ? [r.data] : [];
+        out.push({ organization: a.organization, code: r?.result?.code, message: r?.result?.message, cards: list.map((c: any) => ({ resCardNo: c.resCardNo, resCardName: c.resCardName, resCardType: c.resCardType, resUserNm: c.resUserNm, resValidPeriod: c.resValidPeriod, keys: Object.keys(c).slice(0, 20) })) });
+      }
+      return new Response(JSON.stringify({ ok: true, accounts: accounts.map((a: any) => ({ organization: a.organization, businessType: a.businessType, clientType: a.clientType })), cardList: out }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     // --- Action: bank-cron-one (회사별 은행 자동 동기화 — bank-cron-tick 가 호출) ---
     //   은행 거래만 동기화(롤링 14일 윈도우 → dedup 으로 중복 안전) 후
