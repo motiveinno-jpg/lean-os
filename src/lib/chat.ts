@@ -475,6 +475,12 @@ export async function getOrCreateDMChannel(params: {
   companyId: string; meId: string; otherId: string;
 }): Promise<{ id: string }> {
   const db = supabase;
+  // 내 id 가 아직 없으면(로그인 정보 로딩 전·캐시 비움) "null" 문자열이 uuid 칸에 들어가 400 만 남긴다 (2026-09-03 결재 화면 실사고).
+  //   DB 를 치지 말고 사람이 읽는 안내로 끝낸다 — 호출부 토스트가 그대로 보여준다.
+  const isUuid = (v: unknown) => typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v);
+  if (!isUuid(params.meId) || !isUuid(params.otherId)) {
+    throw new Error("로그인 정보를 아직 불러오는 중입니다. 잠시 후 다시 눌러 주세요.");
+  }
   const mine = logRead('lib/chat:dmMine', await db
     .from('chat_participants').select('channel_id').eq('user_id', params.meId));
   const myIds = (mine || []).map((r: any) => r.channel_id).filter(Boolean);
