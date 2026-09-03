@@ -175,6 +175,8 @@ function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; us
           {grid.map((cell, i) => {
             const dateStr = toLocalDateStr(cell.date);
             const cellEvents = eventsByDate.get(dateStr) || [];
+            // 펼침은 '주(줄)' 단위 — 한 칸을 펼치면 같은 줄의 다른 날도 함께 펼쳐진다 (2026-09-03 사장님)
+            const weekKey = `w${Math.floor(i / 7)}`;
             const isToday = dateStr === toLocalDateStr(today);
             const dow = cell.date.getDay();
             return (
@@ -201,7 +203,7 @@ function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; us
                   {cell.date.getDate()}
                 </div>
                 <div className="mt-1 space-y-0.5">
-                  {(expandedDays.has(dateStr) ? cellEvents : cellEvents.slice(0, 3)).map((e) => {
+                  {(expandedDays.has(weekKey) ? cellEvents : cellEvents.slice(0, 3)).map((e) => {
                     const role = segmentRole(e, dateStr);
                     const multi = role !== "single";
                     // 기간 일정 막대: 시작칸은 좌측 둥글게+라벨, 중간은 직각+제목생략, 끝칸은 우측 둥글게
@@ -253,15 +255,15 @@ function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; us
                     );
                   })}
                   {cellEvents.length > 3 && (
-                    <button type="button" className="sched-more-btn" title={expandedDays.has(dateStr) ? "접기" : "이 날 일정 전부 보기"}
+                    <button type="button" className="sched-more-btn" title={expandedDays.has(weekKey) ? "접기" : "이 주 일정 전부 보기"}
                       onClick={(ev) => {
                         ev.stopPropagation();
                         const cellEl = (ev.currentTarget as HTMLElement).closest(".schedule-day-cell") as HTMLElement | null;
-                        setExpandedDays((prev) => { const n = new Set(prev); if (n.has(dateStr)) n.delete(dateStr); else n.add(dateStr); return n; });
+                        setExpandedDays((prev) => { const n = new Set(prev); if (n.has(weekKey)) n.delete(weekKey); else n.add(weekKey); return n; });
                         //   펼친 칸이 화면 밖으로 밀리지 않게 그 칸을 따라간다 (2026-09-03 사장님: "포커스가 위로 간다")
                         requestAnimationFrame(() => cellEl?.scrollIntoView({ block: "nearest" }));
                       }}>
-                      {expandedDays.has(dateStr) ? "접기 ▴" : `+${cellEvents.length - 3}개 더`}
+                      {expandedDays.has(weekKey) ? "접기 ▴" : `+${cellEvents.length - 3}개 더`}
                     </button>
                   )}
                 </div>
