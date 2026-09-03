@@ -43,7 +43,6 @@ import { useToast } from "@/components/toast";
 import { MorningBrief } from "@/components/morning-brief";
 import { ReceivablesPreview } from "@/components/receivables-preview";
 import { DashboardCalendar } from "@/components/dashboard-calendar"; // 일정·할 일 미니 캘린더(2026-07-14)
-import { DashboardSignals } from "@/components/dashboard-signals";
 import { MorningReport, type ReportPerm } from "@/components/morning-report";
 import { useReportWidgetEmpty } from "@/components/widget-empty-context"; // 층 1 신호 6칸 (2026-08-19 재편)
 import { ChannelHead, useSyncStatus, useUnclassifiedCounts } from "@/components/dashboard-data-status"; // 통장·카드 위젯 머리의 동기화·미분류
@@ -631,7 +630,7 @@ export default function DashboardPage() {
             if (permLoading) return <div className="collect-empty">불러오는 중…</div>;
             //   저장 키 v3 (2026-08-20) — v2(전날, 크기 고정 시절) 배치에 신호·챙길 것을 병합하면 바닥에 흩어진다.
             //   하루 된 배치라 버리고 새 기본(신호·챙길 것 전폭 위)에서 시작.
-            //   2026-09-03 v3(결정 158·160·161): 첫 화면 = 아침 보고서. 개인별 메뉴 권한이 절을 켜고 끈다(프리셋 없음).
+            //   2026-09-03 v3(결정 158·160·161): 첫 화면 = 데일리 보고서(E안: KPI 띠가 신호 6칸을 대신한다). 개인별 메뉴 권한이 절을 켜고 끈다(프리셋 없음).
             //   격자는 부록 — 크기 조절 없음·빈 위젯 접기(v2)는 그대로. 배치 저장 키·켜 둔 목록도 그대로(부록이 승계).
             const perm: ReportPerm = {
               briefing: canBriefing, finance: canFinance,
@@ -645,7 +644,6 @@ export default function DashboardPage() {
                 forecast30={cashPulse?.forecast30d ?? null} unclassified={{ bank: unclassified.bank || 0, card: unclassified.card || 0 }} approvalsPending={approvalsPending ?? null}
                 lead={<MorningBrief {...briefProps} variant="lead" />}
                 checklist={<MorningBrief {...briefProps} variant="checklist" />}
-                signals={<DashboardSignals companyId={companyId} userId={userId} forecast30={cashPulse?.forecast30d ?? null} balanceFallback={sp.cashBalance} />}
                 appendixCount={visibleCatalog.length}
                 appendix={
                   <DashboardGrid storageKey={`dashboard-grid-v3-${companyId}`} catalog={visibleCatalog} defaultActiveIds={defaultActiveIds}

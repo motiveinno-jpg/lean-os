@@ -23,7 +23,7 @@ export type BizSummary = {
   //   돈 있나 — 통장
   cash: { balance: number; inflow: number; outflow: number; prevNet: number; burn: number; runway: number; runwayAfterVat: number; tone: Tone; hasBank: boolean };
   //   벌고 있나 — 확정 전표
-  pnl: { cur: PnlSummary; prev: PnlSummary; series: { month: string; op: number }[]; unposted: { taxInvoice: number; card: number; bank: number; total: number }; unpostedSalesAmt: number; tone: Tone };
+  pnl: { cur: PnlSummary; prev: PnlSummary; series: { month: string; op: number; revenue: number; cost: number }[]; unposted: { taxInvoice: number; card: number; bank: number; total: number }; unpostedSalesAmt: number; tone: Tone };
   //   받을 돈·낼 돈 — 원장
   arap: { ar: number; ap: number; over30: number; over30Partners: number; vatNext: { due: string; amount: number; dday: number; pay: boolean } | null; salary: number; loanMonthly: number; recurring: number; due30: number; tone: Tone };
   todos: Todo[];
@@ -78,7 +78,8 @@ export async function fetchBizSummary(companyId: string, month: string, userId?:
   // ── 벌고 있나 ──
   const curLines = lines.filter((l) => l.month === month), prevLines = lines.filter((l) => l.month === prevMonth);
   const cur = summarize(curLines), prev = summarize(prevLines);
-  const series = Array.from({ length: 6 }, (_, i) => shift(from6, i)).map((m) => ({ month: m, op: summarize(lines.filter((l) => l.month === m)).operating }));
+  //   2026-09-03 데일리 보고서 그림 2(매출·비용 6개월 선)용으로 revenue·cost 도 같이 — op 만 읽던 곳(경영 요약)은 그대로
+  const series = Array.from({ length: 6 }, (_, i) => shift(from6, i)).map((m) => { const x = summarize(lines.filter((l) => l.month === m)); return { month: m, op: x.operating, revenue: x.revenue, cost: x.cogs + x.opex }; });
   const unpostedSalesAmt = ((unpostedSales.data || []) as any[]).reduce((s, r) => s + Number(r.total_amount || 0), 0);
   const pnlTone: Tone = cur.operating >= 0 ? "g" : unposted.taxInvoice > 0 ? "y" : "r";
 

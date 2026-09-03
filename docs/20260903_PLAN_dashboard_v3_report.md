@@ -78,3 +78,14 @@
 - 임계값은 기본값(회사설정에서 바꿀 수 있게), 규칙 문장은 절 끝 `.rule` 에 그대로 적는다.
 - 목업 dashboard-v3-report-panel.html. 구현 시 report-lines 에 scale 분기 + 부서/사업장 집계 쿼리(employees.department·work_site) 필요.
 
+## 반영 — E안 배포 (2026-09-03 밤, 사장님 "일단 이 형태로 배포. 아침 보고서보다 데일리 보고서 같은 명칭")
+- 이름: **데일리 보고서**(제목·주석·brain). 파일명 morning-report.tsx / MorningBrief 는 그대로(이름 바꾸기 = 파급만 크고 얻는 것 없음).
+- morning-report.tsx 전면 교체: `.rep-sheet` 한 장 안에 KPI 5칸(오늘 잔액·이달 매출·이달 손익·미수·30일 안에 낼 돈, biz-summary) → 절 = 왼쪽 150px 이름 열 + 본문.
+  01 챙길 것 / 02 자금(fundsLines + **그림 1** ForecastFig = fetchOutlook(30)+buildCurve, 자금 전망 화면과 같은 키 · 큰 지출 상위 3일 주석 · 최저점 빨간 점 · 세금·납부 한 줄) /
+  03 매출·미수(두 열: salesLines + **그림 2** SalesFig(biz-summary series 에 revenue·cost 추가) + 연령 띠 | 미수 상위 5 표 + 각주) / 04 업무(세 칸: 결재·프로젝트(마감 지난 상위 3 링크)·재고(부족 상위 3)) /
+  05 사람(규모 규칙: 점 / 띠+부서표 / 부서표) / 06 최근 처리(approval_requests 최신 + 계산서) → 부록 → "이 보고서가 읽은 것".
+- 결정 166 구현: report-lines `SCALE`·`peopleShape`·`recvShape`·`ageBucket`. 모티브 실데이터 = 미수 567곳 → `stripFirst`(연령 띠 먼저, 표는 90일 초과 상위만) · 재직 13명 → 점. 사업장(work_site) 열은 없어 >200명도 부서 표(어제 대비는 후속).
+- 지운 것: 회사 상태 절(신호 6칸) → KPI 띠가 대신. dashboard-signals.tsx·.dash-sig* CSS·workLines 삭제(고아).
+- 실측(로컬 prod 화면, 1400px): 제목 데일리 보고서, KPI 5, 절 6, 그림 1 743×147 · 그림 2 294×93, 문서 가로 스크롤 없음, 보고서 본문 잘림 0(잘림 22는 전부 부록 위젯·브리핑 why 줄 = 기존).
+- 남은 것: 사람 절 어제 대비(>200명)·52시간 초과, 인쇄 실물, 직원 계정 실측, KPI 조 단위, 챙길 것 줄 수 상한.
+

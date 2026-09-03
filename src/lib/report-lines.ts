@@ -1,4 +1,4 @@
-// 아침 보고서 — 절 문장 규칙 (2026-09-03 대시보드 v3 결정 159)
+// 데일리 보고서 — 절 문장 규칙 (2026-09-03 대시보드 v3 결정 159) · 규모 규칙(결정 166)
 //   AI 가 아니라 숫자 조합 규칙으로 문장을 만든다. 판단어(안정·주의·위험)는 신호 톤과 같은 임계값에서만 나오고,
 //   틀렸을 때 원인을 찾을 수 있게 절마다 출처 화면 링크를 단다(화면 쪽). 순수 함수 — 화면·DB 를 모른다.
 //   문장은 조각(Seg) 배열: 화면이 톤별 색을 입힌다. 색은 세 가지(주의·위험·강조)만 — 알약 칩 없음(결정 152).
@@ -80,28 +80,6 @@ export function salesLines(s: BizSummary | undefined): Line[] {
   return out;
 }
 
-// ── 05 업무 ──
-export type WorkStats = { approvals: number | null; projects: { active: number; overdue: number; dueSoon: number; stale: number } | null; inventoryShort: number | null; myTasks?: { total: number; overdue: number } | null };
-export function workLines(w: WorkStats): Line[] {
-  const l: Line = [];
-  if (w.approvals != null) l.push(...(w.approvals > 0 ? [p("결재 대기 "), warn(`${cnt(w.approvals)}건`), p(". ")] : [p("결재 대기는 "), k("없습니다"), p(". ")]));
-  if (w.projects) {
-    const pj = w.projects;
-    l.push(p("진행 프로젝트 "), k(`${cnt(pj.active)}개`));
-    if (pj.overdue > 0) l.push(p(" 중 "), pj.overdue >= 10 ? bad(`기한 지난 줄 ${cnt(pj.overdue)}건`) : warn(`기한 지난 줄 ${cnt(pj.overdue)}건`));
-    if (pj.dueSoon > 0) l.push(p(pj.overdue > 0 ? ", " : " 중 "), p(`이번 주 마감 ${cnt(pj.dueSoon)}건`));
-    l.push(p("."));
-    if (pj.stale > 0) l.push(p(` 7일 이상 변동 없는 프로젝트 ${cnt(pj.stale)}개.`));
-  }
-  if (w.myTasks) {
-    l.push(p(" 내 담당 업무 "), k(`${cnt(w.myTasks.total)}건`));
-    if (w.myTasks.overdue > 0) l.push(p(" 중 "), bad(`기한 지남 ${cnt(w.myTasks.overdue)}건`));
-    l.push(p("."));
-  }
-  if (w.inventoryShort != null) l.push(p(w.inventoryShort > 0 ? " 안전재고 아래 품목 " : " 안전재고 아래 품목은 "), w.inventoryShort > 0 ? warn(`${cnt(w.inventoryShort)}개`) : k("없습니다"), p("."));
-  return l.length ? [l] : [[p("해당 없음")]];
-}
-
 // ── 06 사람 ──
 export type PeopleStats = { active: number; working: number; done: number; late: number; missing: number; onLeave: number; overtimeOver: number };
 export function peopleLines(ps: PeopleStats | null, isWeekend: boolean): Line[] {
@@ -117,3 +95,22 @@ export function peopleLines(ps: PeopleStats | null, isWeekend: boolean): Line[] 
   if (ps.overtimeOver > 0) l.push(p(" 이번 주 52시간 초과 "), bad(`${cnt(ps.overtimeOver)}명`), p("."));
   return [l];
 }
+
+// ── 규모 규칙 (2026-09-03 결정 166) — 같은 칸이 데이터 크기에 따라 모양을 바꾼다 ──
+//   사장님: "직원 100명이면 동그라미 100개를 넣을 건가" — 13명일 때만 맞는 그림을 규칙으로 막는다.
+//   임계값은 기본값(나중에 회사설정으로). 규칙 문장은 절 끝에 그대로 적어 왜 이 모양인지 보이게 한다.
+export const SCALE = { peopleDots: 20, peopleStrip: 200, recvAll: 20, recvStrip: 500 } as const;
+export type PeopleShape = "dots" | "strip" | "table";
+/** ≤20 점 하나=한 사람 · ≤200 비율 띠 + 부서별 표 · >200 부서(사업장) 표 + 어제 대비, 이름 없음 */
+export const peopleShape = (n: number): PeopleShape => n <= SCALE.peopleDots ? "dots" : n <= SCALE.peopleStrip ? "strip" : "table";
+export const peopleRule = (shape: PeopleShape): string =>
+  shape === "dots" ? `${SCALE.peopleDots}명까지는 한 사람이 점 하나입니다. 점에 마우스를 올리면 이름이 보입니다.`
+  : shape === "strip" ? `${SCALE.peopleDots + 1}명부터는 점 대신 비율 띠 한 줄과 부서별 표(상위 4 + 외 N)입니다. 이름은 예외(기록 없음)만 링크로.`
+  : `${SCALE.peopleStrip}명을 넘으면 부서 표에 어제 대비 변화를 같이 적습니다. 사람 이름은 이 화면에 나오지 않습니다.`;
+export type RecvShape = "all" | "strip" | "stripFirst";
+/** ≤20곳 상위 5 표 + "전부" · ≤500곳 표 + 연령 띠 · >500곳 연령 띠가 표보다 먼저 */
+export const recvShape = (n: number): RecvShape => n <= SCALE.recvAll ? "all" : n <= SCALE.recvStrip ? "strip" : "stripFirst";
+/** 미수 연령 4단 — 30 / 90 / 180 / 180+ */
+export const AGE_LABELS = ["30일 이내", "31~90일", "91~180일", "180일 초과"] as const;
+export const ageBucket = (days: number): 0 | 1 | 2 | 3 => days <= 30 ? 0 : days <= 90 ? 1 : days <= 180 ? 2 : 3;
+
