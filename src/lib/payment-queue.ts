@@ -324,21 +324,8 @@ export async function executePayment(paymentId: string): Promise<void> {
         .eq('id', payment.cost_schedule_id);
     }
 
-    // Deduct from bank account balance
-    if (payment.bank_account_id) {
-      const bank = logRead('lib/payment-queue:bank', await supabase
-        .from('bank_accounts')
-        .select('balance')
-        .eq('id', payment.bank_account_id)
-        .maybeSingle());   // 위와 같은 이유 — 0행이면 406 이 나고 잔액 차감이 조용히 건너뛰어졌다
-
-      if (bank) {
-        await supabase
-          .from('bank_accounts')
-          .update({ balance: Number(bank.balance || 0) - Number(payment.amount) })
-          .eq('id', payment.bank_account_id);
-      }
-    }
+    //   ★ 통장 잔액은 깎지 않는다 (2026-09-03 전수 예외처리): 잔액은 은행 연동이 주는 사실이고 오너뷰엔 이체 기능이 없다.
+    //     '지급 완료' 표시는 상태일 뿐이며 실제 출금은 통장 거래로 수집돼 잔액에 반영된다. 종전 -금액 은 다음 연동 때 덮이거나 두 번 셈해졌다.
 
     // ── Audit log: successful execution ──
     await logAudit({

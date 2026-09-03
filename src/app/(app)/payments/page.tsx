@@ -252,15 +252,8 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
       //   프로젝트 원가에는 지급 완료로 계속 잡혔다.
       const wasExecuted = ['completed', 'paid', 'executed'].includes(String(refundItem.status));
       if (wasExecuted) {
-        if (refundItem.bank_account_id) {
-          const { data: bank } = await db.from('bank_accounts').select('balance').eq('id', refundItem.bank_account_id).maybeSingle();
-          if (bank) {
-            const { error: balErr } = await db.from('bank_accounts')
-              .update({ balance: Number(bank.balance || 0) + Number(refundItem.amount || 0) })
-              .eq('id', refundItem.bank_account_id);
-            if (balErr) throw balErr;
-          }
-        }
+        //   ★ 통장 잔액은 손대지 않는다 (2026-09-03 전수 예외처리): 잔액은 은행 연동이 주는 사실이고 오너뷰엔 이체 기능이 없다.
+        //     종전엔 여기서 +환불액 을 더해, 다음 연동 때 실제 잔액으로 덮이거나 두 번 셈해졌다. 실제 입금은 통장 거래로 들어온다.
         if (refundItem.cost_schedule_id) {
           const { error: csErr } = await db.from('deal_cost_schedule')
             .update({ status: 'pending', approved: false, approved_at: null })
