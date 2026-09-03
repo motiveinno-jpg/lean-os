@@ -9805,7 +9805,11 @@ table.phv3-table { min-width: 640px; }
 
 /* ── 채널 주문 현황(결정 148, 2026-09-02) — 재고 › 채널 주문 첫 갈래. pjv3-st* 부품 재사용 ── */
 .ch-st-sel { @apply rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2 py-1.5 text-xs text-[var(--text)] outline-none; font: inherit; font-size: 12px; }
-.ch-st-grid { @apply mt-3 grid gap-3; grid-template-columns: 1.25fr 1fr; }
+/* 2026-09-03 사장님 "일별 주문 공간이 좁아 깨진다": 공용 .ev-table min-width 1260px 가 채널별 표를 밀어 왼쪽 칸이 부풀고
+   오른쪽 칸(일별·배송 흐름)이 266px 로 눌렸다. 표는 6열이라 전용 min-width, 격자 칸은 minmax(0) 로 내용에 안 밀리게, 좁으면 한 줄로. */
+.ch-st-grid { @apply mt-3 grid gap-3; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); } /* 뷰포트 media query 는 --app-zoom 때문에 늦게 걸려 칸 너비 기준으로 */
+.ch-st-grid > * { @apply min-w-0; }
+table.ch-st-table { min-width: 520px; } /* table. — .ev-table(뒤에 정의) 의 min-width 를 이긴다 */
 @media (max-width: 900px) { .ch-st-grid { grid-template-columns: 1fr; } }
 .ch-st-mini { @apply mr-1.5 inline-block h-2 rounded align-middle; background: var(--primary); }
 .ch-st-flow { @apply flex items-end gap-1.5 px-1; height: 88px; }

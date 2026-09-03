@@ -292,7 +292,7 @@ export default function ChannelsPage() {
                 <div className="ch-st-grid">
                   <div className="pjv3-stpanel">
                     <h3>채널별 <small>막대 = 주문 금액 비중 — 줄을 누르면 그 채널 주문만</small></h3>
-                    <div className="stg-table-wrap"><table className="ev-table ev-lined">
+                    <div className="stg-table-wrap"><table className="ev-table ev-lined ch-st-table">
                       <thead><tr><th className="text-left">채널</th><th>주문</th><th>금액</th><th>평균</th><th>출고 대기</th><th>완료율</th></tr></thead>
                       <tbody>
                         {stData.byChannel.map((r) => {
