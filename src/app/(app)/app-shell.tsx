@@ -388,7 +388,6 @@ function AppContent({ children }: { children: React.ReactNode }) {
             <path d="M21 21l-4.35-4.35" strokeLinecap="round" />
           </svg>
           <span className="flex-1 text-left">무엇이든 검색</span>
-          <kbd className="text-[9px] bg-[var(--bg-surface)] px-1.5 py-0.5 rounded border border-[var(--border)]">⌘K</kbd>
         </button>
         <button
           onClick={() => openGlobalSearch()}

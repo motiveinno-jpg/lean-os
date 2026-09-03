@@ -699,7 +699,6 @@ export function Sidebar() {
                 <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" strokeLinecap="round" />
               </svg>
               <span>검색</span>
-              <kbd className="ml-auto text-[9px] text-[var(--text-dim)] bg-[var(--bg)] px-1.5 py-0.5 rounded border border-[var(--border)]">⌘K</kbd>
             </button>
           </div>
           <nav ref={navRef} className={`sidebar-nav px-3 ${navFade ? "sidebar-nav-fade" : ""}`}>
@@ -813,9 +812,6 @@ export function Sidebar() {
                 <path d="M21 21l-4.35-4.35" strokeLinecap="round" strokeWidth="2" />
               </svg>
               <span>검색</span>
-              <kbd className="ml-auto text-[9px] text-[var(--text-dim)] bg-[var(--bg)] px-1.5 py-0.5 rounded border border-[var(--border)]">
-                ⌘K
-              </kbd>
             </button>
           </div>
 
