@@ -77,6 +77,15 @@ function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; us
   //   달력에서 여는 창 — 일정을 누르면 **내용부터**, 날짜를 누르면 새로 만들기(2026-08-10)
   const [dialog, setDialog] = useState<ScheduleDialogTarget | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  //   달력 셀 '+N' 을 누르면 그날 일정 전체를 작은 팝업으로 — 종전엔 글자만 있어 눌러도 아무 일이 없었다 (2026-09-03 사장님)
+  const [more, setMore] = useState<{ dateStr: string; events: ScheduleEvent[]; top: number; left: number } | null>(null);
+  useEffect(() => {
+    if (!more) return;
+    const away = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest(".sched-more-pop")) setMore(null); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setMore(null); };
+    document.addEventListener("mousedown", away); document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [more]);
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["schedule-events", companyId, view.year, view.monthIdx0, scope, userId],
@@ -249,7 +258,16 @@ function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; us
                     );
                   })}
                   {cellEvents.length > 3 && (
-                    <div className="text-[9px] text-[var(--text-dim)] px-1.5">+{cellEvents.length - 3}</div>
+                    <button type="button" className="sched-more-btn" title="이 날 일정 전부 보기"
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        const r = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+                        //   팝업 폭 280 — 오른쪽 끝 셀에서는 왼쪽으로 붙인다
+                        const left = Math.min(r.left, window.innerWidth - 296);
+                        setMore({ dateStr, events: cellEvents, top: r.bottom + 4, left });
+                      }}>
+                      +{cellEvents.length - 3}개 더
+                    </button>
                   )}
                 </div>
               </div>
@@ -257,6 +275,24 @@ function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; us
           })}
         </div>
       </div>
+      {more && (
+        <div className="sched-more-pop" style={{ top: more.top, left: more.left }} role="dialog" aria-label={`${more.dateStr} 일정 전체`}>
+          <div className="sched-more-head">
+            <span>{more.dateStr.replace(/-/g, ".")} · {more.events.length}건</span>
+            <button type="button" className="sched-more-x" aria-label="닫기" onClick={() => setMore(null)}>✕</button>
+          </div>
+          <div className="sched-more-list">
+            {more.events.map((e) => (
+              <button key={e.id} type="button" className={`sched-more-item ${EVENT_COLOR_BG[e.color]} ${e.completed ? "opacity-50" : ""}`}
+                onClick={() => { setDialog({ mode: "view", event: e }); setMore(null); }}>
+                <span className="opacity-70">{e.visibility === "company" ? "🏢" : e.visibility === "private" ? "🙋" : "👥"}</span>
+                <span className={`truncate ${e.completed ? "line-through" : ""}`}>{e.title}</span>
+                {segmentRole(e, more.dateStr) !== "single" && <span className="ml-auto shrink-0 opacity-70">{formatEventRange(e)}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {isLoading && <div className="px-3 py-2 text-xs text-[var(--text-dim)]">불러오는 중...</div>}
       </div>
       </QueryBody>

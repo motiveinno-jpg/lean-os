@@ -9996,3 +9996,11 @@ table.phv3-table { min-width: 640px; }
 .sched-rem-hh, .sched-rem-mm { @apply w-[76px] shrink-0; }
 .sched-rem-x { @apply h-7 w-7 shrink-0 rounded-lg text-[12px] text-[var(--text-dim)] hover:bg-[var(--bg-surface)] hover:text-[var(--danger)]; }
 .sched-rem-add { @apply self-start text-[12px] font-semibold text-[var(--primary)] hover:underline disabled:opacity-40 disabled:no-underline; }
+
+/* 달력 셀 '+N개 더' 팝업 (2026-09-03 사장님) */
+.sched-more-btn { @apply mt-0.5 w-full rounded px-1.5 py-0.5 text-left text-[9.5px] font-semibold text-[var(--primary)] hover:bg-[var(--primary-light)]; }
+.sched-more-pop { @apply fixed z-[60] w-[280px] rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-1.5; }
+.sched-more-head { @apply flex items-center justify-between px-1.5 pb-1 text-[11px] font-bold text-[var(--text-dim)]; }
+.sched-more-x { @apply h-6 w-6 rounded-md text-[11px] text-[var(--text-dim)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
+.sched-more-list { @apply flex flex-col gap-0.5 max-h-[300px] overflow-auto; }
+.sched-more-item { @apply flex items-center gap-1 rounded border px-2 py-1 text-left text-[11px] hover:brightness-95; }
