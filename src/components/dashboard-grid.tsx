@@ -99,12 +99,27 @@ export function DashboardGrid({
   presets?: WidgetPreset[];
   // 위젯 내용이 커졌을 때 이미 저장된 배치를 한 번만 끌어올린다(id 가 바뀔 때만 재적용).
   //   저장본이 있는 계정은 카탈로그 기본 크기를 안 쓰기 때문에, 이게 없으면 큰 카드가 옛 높이에 갇힌다.
-  layoutMigration?: { id: string; minH: Record<string, number> };
+  layoutMigration?: { id: string; minH: Record<string, number>; set?: Record<string, Partial<Pick<Layout, "x" | "y" | "w" | "h">>> };
   // 기본 활성 목록이 바뀌었을 때, 이미 저장된 선택에도 새 기본값을 1회 병합한다(id 가 바뀔 때만 재적용).
   //   병합 후 사용자가 위젯을 빼면 그 선택은 그대로 유지된다.
   activeMigration?: string;
 }) {
   const [edit, setEdit] = useState(false);      // 순서 바꾸기(드래그) 모드
+  //   저장된 배치 1회 마이그레이션 — minH(최소 높이 끌어올림) + set(자리·크기 강제, 없는 위젯은 추가). 2026-09-03 v2: 챙길 것 8열 + 오늘 한눈 4열.
+  const applyLayoutMig = (list: Layout[]): Layout[] => {
+    if (!layoutMigration) return list;
+    const out = list.map((l) => {
+      const min = layoutMigration.minH[l.i];
+      const set = layoutMigration.set?.[l.i];
+      let n = min && (l.h ?? 0) < min ? { ...l, h: min } : l;
+      if (set) n = { ...n, ...set };
+      return n;
+    });
+    for (const [id, set] of Object.entries(layoutMigration.set || {})) {
+      if (!out.some((l) => l.i === id)) out.push({ i: id, x: set.x ?? 0, y: set.y ?? 0, w: set.w ?? 4, h: set.h ?? 4 });
+    }
+    return out;
+  };
   const [viewOpen, setViewOpen] = useState(false); // 보기 설정 판
   const [mounted, setMounted] = useState(false);
   const [layout, setLayout] = useState<Layout[]>([]);
@@ -171,10 +186,7 @@ export function DashboardGrid({
         const poisoned = raw.length > 1 && raw.every((l: Layout) => (l?.w ?? 0) <= 1 && (l?.x ?? 0) === 0);
         if (poisoned) { try { localStorage.removeItem(storageKey); } catch { /* noop */ } }
         else if (layoutMigration && localStorage.getItem(`${storageKey}::mig`) !== layoutMigration.id) {
-          const bumped = raw.map((l: Layout) => {
-            const min = layoutMigration.minH[l.i];
-            return min && (l.h ?? 0) < min ? { ...l, h: min } : l;
-          });
+          const bumped = applyLayoutMig(raw);
           setLayout(bumped);
           try {
             localStorage.setItem(storageKey, JSON.stringify(bumped));
@@ -218,10 +230,7 @@ export function DashboardGrid({
         let migrated = false;
         // 다른 기기가 옛 버전에서 저장했을 수 있으므로 서버 스냅샷에도 마이그레이션을 적용한다.
         if (layoutMigration && saved.layout_mig !== layoutMigration.id) {
-          srvLayout = srvLayout.map((l) => {
-            const min = layoutMigration.minH[l.i];
-            return min && (l.h ?? 0) < min ? { ...l, h: min } : l;
-          });
+          srvLayout = applyLayoutMig(srvLayout);
           migrated = true;
         }
         if (srvActive && activeMigration && saved.active_mig !== activeMigration) {

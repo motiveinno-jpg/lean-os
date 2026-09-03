@@ -8333,31 +8333,65 @@ table.dup-table { min-width: 0; }
    층 1 신호 6칸 · 층 2 오늘 챙길 것(표) · 층 3 같은 키 위젯 격자 + 보기 설정 판 · 통장/카드 위젯 머리 자료 상태 */
 .dash-head { @apply flex items-baseline gap-1.5 px-1 pb-2.5 text-[12.5px] text-[var(--text-muted)]; }
 .dash-head-date { @apply text-[14px] font-bold text-[var(--text)]; }
-/* 신호 6칸 — 한 판, 칸 사이 세로선. 숫자는 검정, 상태는 이름 옆 작은 칩 */
-.dash-signals { @apply grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 rounded-2xl border border-[var(--border)]/70 bg-[var(--bg-card)] overflow-hidden mb-4; }
-.dash-sig { @apply flex flex-col gap-0.5 px-4 py-3 min-w-0 no-underline border-b xl:border-b-0 xl:border-r border-[var(--border)]/70 transition hover:bg-[var(--bg-surface)]; }
-.dash-sig:last-child { @apply border-r-0; }
-.dash-sig-label { @apply flex items-center justify-between gap-2 text-[11px] text-[var(--text-dim)]; }
-.dash-sig-tone { @apply text-[10px] font-semibold rounded-full px-1.5 leading-4 bg-[var(--bg-surface)] text-[var(--text-dim)]; }
+/* 신호 6칸 — 2026-09-03 v2(결정 150·152): 카드가 아니라 띠(위·아래 실선), 칸 사이 세로선. 숫자 26px 검정,
+   상태 = 숫자 아래 3px 색선 + 한 단어(주의 주황·위험 빨강, 좋음은 색 없음). 알약 칩 없음. */
+.dash-signals { @apply grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 border-y border-[var(--border)] mb-4; }
+.dash-sig { @apply flex flex-col gap-0 py-2.5 pr-3 mr-3 min-w-0 no-underline border-b xl:border-b-0 xl:border-r border-[var(--border)] transition; }   /* h:2 칸(100px) 안에 라벨·숫자·색선·부제가 다 들어가야 한다(잘림 금지) */
+.dash-sig:hover .dash-sig-value { @apply text-[var(--primary)]; }
+.dash-sig:last-child { @apply border-r-0 mr-0; }
+.dash-sig-label { @apply text-[11.5px] text-[var(--text-muted)] tracking-wide; }
+.dash-sig-bar { @apply block h-[3px] w-9 rounded-full my-0.5 bg-transparent; }
+.dash-sig-y .dash-sig-bar { background: var(--warning); }
+.dash-sig-r .dash-sig-bar { background: var(--danger); }
+.dash-sig-tone { @apply font-bold; }
+.dash-sig-y .dash-sig-tone { color: var(--warning); }
+.dash-sig-r .dash-sig-tone { color: var(--danger); }
 
-.dash-sig-value { @apply text-[19px] leading-tight font-extrabold text-[var(--text)] truncate; }
-.dash-sig-sub { @apply text-[10.5px] text-[var(--text-muted)] truncate; }
+.dash-sig-value { @apply text-[26px] leading-tight font-extrabold tracking-tight text-[var(--text)] truncate; }
+.dash-sig-sub { @apply text-[12px] text-[var(--text-muted)] truncate; }
 /* 오늘 챙길 것 — 머리 한 줄 + 한 문장 + 표 */
-.morning-brief-card.brief-compact { @apply mb-4 p-4 sm:p-4 md:p-4; }
+.morning-brief-card.brief-compact { @apply mb-4 p-4 sm:p-4 md:p-4 h-full overflow-y-auto; }   /* 격자 칸보다 길면 안쪽 스크롤 — 잘림 금지(결정 157) */
+/* 요약 문장 — 결정 151·152: 색 숫자를 늘어놓지 않는다. AI 가 붙인 색 태그는 진한 글자로만 */
+.brief-summary { @apply mt-0.5 text-[13px] leading-relaxed text-[var(--text-muted)]; }
+.brief-summary strong { color: var(--text) !important; }
 .brief-head { @apply flex items-center gap-2 mb-2; }
 .brief-src { @apply text-[10px] font-semibold rounded-full px-2 leading-[18px] bg-[var(--bg-surface)] text-[var(--text-dim)]; }
-.brief-table { @apply w-full mt-2 border-collapse; }
-.brief-row { @apply cursor-pointer; }
-.brief-row td { @apply py-2 border-t border-[var(--border)]/60 align-middle; }
-.brief-row:hover td { @apply bg-[var(--bg-surface)]/60; }
-.brief-row-open td { @apply border-b-0; }
-.brief-td-tag { @apply w-[52px] text-center pr-2; }
-.brief-tag { @apply inline-block text-[10px] font-bold px-1.5 py-0.5 rounded-md whitespace-nowrap; }
-.brief-td-title { @apply text-[13px] font-semibold text-[var(--text)] leading-snug; }
-.brief-td-link { @apply text-right pl-2 whitespace-nowrap; }
-.brief-row-detail td { @apply pb-2; }
-.brief-td-detail { @apply text-[12px] text-[var(--text-muted)] leading-relaxed pb-2; }
 .brief-foot { @apply mt-1.5 pt-1.5 border-t border-[var(--border)]/60; }
+/* 챙길 것 체크리스트 (2026-09-03 v2 결정 151·152) — 체크 · 우선순위 세로선 · 제목 · 근거 한 줄 · 실행 버튼 */
+.brief-list { @apply mt-2 flex flex-col; }
+.brief-item { @apply grid items-center gap-x-3 rounded-lg px-1.5 py-2 transition; grid-template-columns: 22px 3px 1fr auto; }
+.brief-item:hover { @apply bg-[var(--bg-surface)]/60; }
+.brief-item.is-done { @apply opacity-45; }
+.brief-item.is-done .brief-title { @apply line-through; }
+.brief-chk { @apply inline-flex h-[18px] w-[18px] items-center justify-center rounded-md border-[1.5px] border-[var(--border)] bg-[var(--bg-card)] text-[11px] text-white transition; }
+.brief-chk.is-on { @apply border-[var(--primary)] bg-[var(--primary)]; }
+.brief-pri { @apply block h-8 w-[3px] rounded-sm bg-transparent; }
+.brief-item.p1 .brief-pri { background: var(--danger); }
+.brief-item.p2 .brief-pri { background: var(--warning); }
+.brief-body { @apply min-w-0 cursor-pointer; }
+.brief-title { @apply text-[13.5px] font-bold leading-snug text-[var(--text)]; }
+.brief-why { @apply mt-px text-[12.5px] leading-snug text-[var(--text-muted)] truncate; }
+.brief-why.is-open { @apply whitespace-normal; }
+.brief-act { @apply whitespace-nowrap rounded-lg border px-2.5 py-1 text-[12.5px] font-bold text-[var(--primary)] no-underline; border-color: color-mix(in srgb, var(--primary) 30%, transparent); }
+.brief-act:hover { @apply bg-[var(--primary-light)]; }
+/* 오늘 한눈 — 세금·결재·일정 세 절, 비면 한 줄 (결정 150) */
+.dash-glance { @apply flex h-full flex-col overflow-auto p-0; }
+.dash-glance-sec { @apply border-t border-[var(--border)]/70 px-4 py-3 first:border-t-0; }
+.dash-glance-h { @apply mb-1.5 flex items-center gap-2 text-[12px] font-semibold text-[var(--text-muted)]; }
+.dash-glance-cnt { @apply text-[12px] font-bold text-[var(--text)]; }
+.dash-glance-go { @apply text-[12px] text-[var(--text-muted)] no-underline hover:text-[var(--primary)]; }
+.dash-glance-row { @apply flex items-center gap-2.5 py-1.5 text-[13px] text-[var(--text)] no-underline; }
+.dash-glance-dot { @apply inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--text-dim)]; }
+.dash-glance-row.is-p .dash-glance-dot { background: var(--primary); }
+.dash-glance-row.is-warn .dash-glance-dot { background: var(--warning); }
+.dash-glance-row.is-bad .dash-glance-dot { background: var(--danger); }
+.dash-glance-name { @apply min-w-0 flex-1 truncate; }
+.dash-glance-r { @apply shrink-0 text-[12.5px] text-[var(--text-muted)]; }
+.dash-glance-row.is-bad .dash-glance-r { @apply font-bold text-[var(--danger)]; }
+.dash-glance-row.is-warn .dash-glance-r { @apply font-bold text-[var(--warning)]; }
+.dash-glance-empty { @apply py-0.5 text-[12.5px] text-[var(--text-dim)]; }
+.dash-glance-link { @apply font-semibold text-[var(--primary)] no-underline; }
+.dash-glance-more { @apply block pt-1 text-[12.5px] font-semibold text-[var(--primary)] no-underline; }
 .brief-evidence-btn { @apply text-[11.5px] font-semibold text-[var(--primary)] hover:underline; }
 .brief-evidence { @apply mt-1.5 flex flex-col gap-1 text-[12px] text-[var(--text-muted)] leading-relaxed; }
 /* 위젯 공용 셸 — 격자가 높이를 정하고, 머리 한 줄 · 요약 글자 · 몸통 */

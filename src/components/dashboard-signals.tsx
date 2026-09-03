@@ -23,12 +23,15 @@ export function wonShort(n: number): string {
 const TONE_LABEL: Record<Tone | "n", string> = { g: "좋음", y: "주의", r: "위험", n: "보통" };
 const runwayText = (m: number) => (!isFinite(m) || m >= 99 ? "충분" : m <= 0 ? "바닥" : `${m >= 12 ? Math.floor(m) : m.toFixed(1)}개월`);
 
+//   2026-09-03 대시보드 v2(결정 150·152): 카드가 아니라 띠. 상태는 숫자 아래 3px 색선 + 한 단어(좋음은 색 없음) — 알약 칩 제거.
 function Cell({ href, label, value, sub, tone = "n", title }: { href: string; label: string; value: string; sub?: string; tone?: Tone | "n"; title?: string }) {
+  const toneWord = tone === "y" || tone === "r" ? TONE_LABEL[tone] : null;
   return (
-    <Link href={href} className="dash-sig" title={title}>
-      <span className="dash-sig-label">{label}<span className={`dash-sig-tone dash-sig-tone-${tone}`}>{TONE_LABEL[tone]}</span></span>
+    <Link href={href} className={`dash-sig dash-sig-${tone}`} title={title}>
+      <span className="dash-sig-label">{label}</span>
       <span className="dash-sig-value mono-number">{value}</span>
-      {sub && <span className="dash-sig-sub">{sub}</span>}
+      <span className="dash-sig-bar" />
+      <span className="dash-sig-sub">{toneWord && <b className="dash-sig-tone">{toneWord}</b>}{toneWord && sub ? " · " : ""}{sub}</span>
     </Link>
   );
 }

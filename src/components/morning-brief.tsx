@@ -14,7 +14,7 @@
 
 import { todayKst } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
-import { Fragment, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -88,11 +88,6 @@ const ACTION_HREF: Record<string, { href: string; label: string }> = {
   //   재고 (2026-08-26) — 부족·발주·납기는 현황, 미발송은 채널 출고 처리
   inventory: { href: "/inventory/status", label: "재고 현황" },
   shipping: { href: "/inventory/channels", label: "출고 처리" },
-};
-const PRIORITY_STYLE: Record<string, string> = {
-  긴급: "bg-[var(--danger-dim)] text-[var(--danger)]",
-  중요: "bg-[var(--warning-dim)] text-[var(--warning)]",
-  권장: "bg-[var(--bg-surface)] text-[var(--text-muted)]",
 };
 
 // AI 브리핑의 톤 태그(<neg>/<pos>/<key>)를 색상 강조 span 으로 변환 (예전 규칙 브리핑의 hl 색상 재사용)
@@ -280,6 +275,36 @@ export function MorningBrief({
   const briefPlan = aiBrief ? parseBriefPlan(aiBrief) : null;
 
   // 데이터 없음 — 온보딩 톤
+  //   ── 완료 체크 (2026-09-03 대시보드 v2 결정 151) — 훅이라 아래 조기 return(!hasData) 보다 앞에 둔다 — briefing_checks(회사·본인·오늘·item_key). 다음날 자동 초기화(day 가 키).
+  //   item_key = link:title — 브리핑을 다시 생성해 제목이 바뀌면 체크가 풀린다(새 할 일이니 맞다).
+  const briefDay = todayKst();
+  const checkKey = ["briefing-checks", myCompanyId, userId, briefDay];
+  const { data: checked = new Set<string>() } = useQuery({
+    queryKey: checkKey,
+    enabled: !!myCompanyId && !!userId,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("briefing_checks").select("item_key")
+        .eq("company_id", myCompanyId).eq("user_id", userId).eq("day", briefDay);
+      return new Set(((data || []) as { item_key: string }[]).map((r) => r.item_key));
+    },
+  });
+  const toggleCheck = async (key: string, on: boolean) => {
+    if (!myCompanyId || !userId) return;
+    const next = new Set(checked); if (on) next.add(key); else next.delete(key);
+    queryClient.setQueryData(checkKey, next);   // 즉시 반영, 실패하면 아래서 되돌린다
+    try {
+      if (on) {
+        const { error } = await (supabase as any).from("briefing_checks").upsert({ company_id: myCompanyId, user_id: userId, day: briefDay, item_key: key }, { onConflict: "company_id,user_id,day,item_key" });
+        if (error) throw error;
+      } else {
+        const { error } = await (supabase as any).from("briefing_checks").delete()
+          .eq("company_id", myCompanyId).eq("user_id", userId).eq("day", briefDay).eq("item_key", key);
+        if (error) throw error;
+      }
+    } catch { queryClient.setQueryData(checkKey, checked); }
+  };
+
   if (!hasData || !cashPulse) {
     return (
       <section className="morning-brief-onboarding glass-card">
@@ -436,31 +461,34 @@ export function MorningBrief({
           /* ── AI 브리핑 2.0: 오늘의 액션 플랜 — 한 문장 + 표 5줄 (2026-08-19 재편) ── */
           <div className="brief-plan">
             <p className="text-[14.5px] font-extrabold leading-snug">{briefPlan.headline}</p>
-            <p className="text-[12.5px] text-[var(--text-muted)] leading-relaxed mt-0.5">{renderTagged(briefPlan.summary)}</p>
+            <p className="brief-summary">{renderTagged(briefPlan.summary)}</p>
 
             {briefPlan.actions.length > 0 && (
-              <table className="brief-table">
-                <tbody>
-                  {briefPlan.actions.map((a, i) => {
+              /* 체크리스트 (2026-09-03 v2 결정 151·152): 완료 체크 · 우선순위 세로선(긴급 빨강·중요 주황·권장 없음) · 제목 · 근거 한 줄 · 실행 버튼.
+                 체크된 줄은 흐려져 아래로. 근거 전문은 줄 클릭으로 펼침(기존). 알약 태그·번호 제거. */
+              <ul className="brief-list">
+                {briefPlan.actions
+                  .map((a, i) => ({ a, i, key: `${a.link}:${a.title}`.slice(0, 200) }))
+                  .sort((x, y) => Number(checked.has(x.key)) - Number(checked.has(y.key)) || x.i - y.i)
+                  .map(({ a, i, key }) => {
                     const lk = ACTION_HREF[a.link];
                     const open = openIdx === i;
+                    const done = checked.has(key);
+                    const pri = a.priority === "긴급" ? "p1" : a.priority === "중요" ? "p2" : "p3";
                     return (
-                      <Fragment key={i}>
-                        <tr className={open ? "brief-row brief-row-open" : "brief-row"} onClick={() => setOpenIdx(open ? null : i)} title={open ? "접기" : "이유 보기"}>
-                          <td className="brief-td-tag"><span className={`brief-tag ${PRIORITY_STYLE[a.priority] || PRIORITY_STYLE["권장"]}`}>{a.priority}</span></td>
-                          <td className="brief-td-title">{i + 1}. {a.title}</td>
-                          <td className="brief-td-link" onClick={(e) => e.stopPropagation()}>
-                            {lk && <Link href={lk.href} className="text-[11.5px] font-semibold text-[var(--primary)] hover:underline whitespace-nowrap">{lk.label} →</Link>}
-                          </td>
-                        </tr>
-                        {open && (
-                          <tr className="brief-row-detail"><td /><td colSpan={2} className="brief-td-detail">{a.detail}</td></tr>
-                        )}
-                      </Fragment>
+                      <li key={key} className={`brief-item ${pri}${done ? " is-done" : ""}${open ? " is-open" : ""}`}>
+                        <button type="button" className={done ? "brief-chk is-on" : "brief-chk"} aria-label={done ? "완료 해제" : "완료로 표시"}
+                          title={done ? "완료 해제" : "처리했으면 체크 — 오늘 하루 기억됩니다"} onClick={() => toggleCheck(key, !done)}>{done ? "✓" : ""}</button>
+                        <span className="brief-pri" title={a.priority} />
+                        <div className="brief-body" onClick={() => setOpenIdx(open ? null : i)} title={open ? "접기" : "이유 보기"}>
+                          <div className="brief-title">{a.title}</div>
+                          <div className={open ? "brief-why is-open" : "brief-why"}>{a.detail}</div>
+                        </div>
+                        {lk && <Link href={lk.href} className="brief-act">{lk.label} →</Link>}
+                      </li>
                     );
                   })}
-                </tbody>
-              </table>
+              </ul>
             )}
 
             {(briefPlan.risks.length > 0 || briefPlan.wins.length > 0) && (
