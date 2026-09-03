@@ -66,6 +66,8 @@ export interface ClaudeCallOpts {
   // 2026-09-03 월 호출 횟수 상한을 '질문 수' 기준으로: 참모의 후속 턴(툴 결과 되먹임)·자동 기억 추출처럼
   //   한 질문에 딸린 부수 호출은 false 로 넘겨 상한 검사와 집계에서 뺀다(비용·토큰 집계에는 그대로 포함).
   countsTowardCallCap?: boolean;
+  // 2026-09-03 사장님: Gemini 대체는 사업자등록증 판독에만 — 호출측이 명시적으로 켠 기능만 넘어간다(참모 등은 Claude 전용).
+  allowGeminiFallback?: boolean;
   promptVersion?: string;
   // 로깅 컨텍스트 (서버가 결정한 값만 — 클라 신뢰 금지)
   companyId: string;
@@ -156,7 +158,7 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
 
   const base: ClaudeResult<T> = { ok: false, model, requestId, latencyMs: 0 };
   if (!apiKey) {
-    if (geminiKey()) return await viaGemini(opts, requestId, t0, "NO_KEY");
+    if (opts.allowGeminiFallback && geminiKey()) return await viaGemini(opts, requestId, t0, "NO_KEY");
     return { ...base, error: "AI 설정 오류(관리자 문의)", errorCode: "NO_KEY", latencyMs: Date.now() - t0 };
   }
 
@@ -266,7 +268,7 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
     }
   }
   // Anthropic 잔액 소진 → Gemini 대체 경로 (2026-09-03 사장님). 다른 오류(요청 형식 등)는 그대로 돌려준다.
-  if (lastCode === "PROVIDER_BILLING" && geminiKey()) {
+  if (lastCode === "PROVIDER_BILLING" && opts.allowGeminiFallback && geminiKey()) {
     await logUsage(opts, { model, requestId, inTok: 0, outTok: 0, latencyMs: Date.now() - t0, status: "fallback", errorCode: lastCode });
     return await viaGemini(opts, requestId, t0, lastCode);
   }

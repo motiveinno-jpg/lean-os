@@ -81,6 +81,7 @@ Deno.serve(withSentry("biz-cert-extract", async (req) => {
     schema: SCHEMA, maxTokens: 800,
     companyId: profile.company_id, userId: profile.id, admin,
     promptVersion: "biz-cert-v1", maxRetries: 1, timeoutMs: 60_000,
+    allowGeminiFallback: true,   // 사장님 2026-09-03: Gemini 대체는 이 기능에만
   });
   if (!result.ok || !result.data) return json({ error: result.error || "문서를 읽지 못했습니다.", code: result.errorCode }, 502);
 
