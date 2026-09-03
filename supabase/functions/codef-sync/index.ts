@@ -42,13 +42,22 @@ const CARD_COMPANY_SHORT: Record<string, string> = {
   "0306": "신한", "0307": "씨티", "0309": "하나", "0311": "롯데", "0313": "우리",
 };
 
-// 마스킹된 카드번호("3792********923", "9430-12**-****-5979") → 끝 4자리 키.
-//   DB 트리거 card_tx_autolink 와 같은 규칙(숫자만 남기고 오른쪽 4자리)이라 그대로 맞물린다.
-//   롯데(아멕스 15자리)는 뒤 3자리만 보여 앞자리 한 글자가 섞인 "2923" 이 되지만, 이미 등록된 "2120" 도
-//   같은 규칙으로 만들어진 값이라 일관성이 우선이다.
+// 마스킹된 카드번호("3792********923", "9430-12**-****-5979") → 보이는 꼬리(최대 4자리).
+//   2026-09-03 사장님: 롯데(아멕스 15자리)는 뒤 3자리만 보이는데 종전 규칙(숫자만 남기고 오른쪽 4자리)이
+//   앞자리 '2'를 끌어와 "2923"이라는 없는 번호를 만들었다(실제 7923). 마지막 '*' 뒤의 숫자만 쓰고,
+//   4자리 미만이면 등록된 카드번호의 끝부분과 맞춘다(cardMatches). DB 트리거 trg_link_card_tx 와 같은 규칙.
 function cardLast4(masked: unknown): string | null {
-  const digits = String(masked ?? "").replace(/[^0-9]/g, "");
-  return digits.length >= 4 ? digits.slice(-4) : null;
+  const raw = String(masked ?? "");
+  let tail = raw.replace(/^.*\*/, "").replace(/[^0-9]/g, "");
+  if (!tail) tail = raw.replace(/[^0-9]/g, "");
+  if (tail.length > 4) tail = tail.slice(-4);
+  return tail || null;
+}
+/** 등록 카드번호와 보이는 꼬리가 같은 카드인가 — 3자리 꼬리는 끝부분 일치로 본다 */
+function cardMatches(registered: unknown, tail: string): boolean {
+  const reg = String(registered ?? "").replace(/[^0-9]/g, "");
+  if (!reg || !tail) return false;
+  return reg === tail || reg.endsWith(tail) || tail.endsWith(reg);
 }
 
 // 거래에 적는 카드 이름 — "롯데카드 2923" 처럼 카드사 + 끝자리. (2026-09-03 사장님: 새로 발급받은 롯데카드가 안 보임)
@@ -59,7 +68,8 @@ function cardDisplayName(org: string, masked: unknown, resCardName?: unknown): s
   if (!base) return null;
   const last4 = cardLast4(masked);
   if (!last4) return base;
-  return base.endsWith(last4) ? base : `${base} ${last4}`;
+  const shown = last4.length < 4 ? `*${last4}` : last4;   // 3자리만 보이면 "*923" — 없는 숫자를 붙이지 않는다
+  return base.endsWith(last4) ? base : `${base} ${shown}`;
 }
 
 // 수집 중 처음 보는 카드를 카드 탭에 자동 등록하고, 이미 들어온 주인 없는 거래를 그 카드에 붙인다.
@@ -74,7 +84,7 @@ async function ensureCardsRegistered(
     .eq("company_id", companyId);
   const rows: Array<{ id: string; card_name: string | null; card_number: string | null }> = existing || [];
   for (const [last4, name] of seen) {
-    let card = rows.find((c) => cardLast4(c.card_number) === last4) || rows.find((c) => c.card_name === name) || null;
+    let card = rows.find((c) => cardMatches(c.card_number, last4)) || rows.find((c) => c.card_name === name) || null;
     if (!card) {
       const { data: ins, error } = await supabase.from("corporate_cards")
         .insert({
@@ -107,7 +117,7 @@ async function ensureCardsRegistered(
       .filter((t) => {
         const r = t.raw_data || {};
         const no = r.charge?.resUsedCard || r.approval?.resCardNo || r.cardNo || r.charge?.resCardNo || "";
-        return cardLast4(no) === last4;
+        return cardMatches(last4, cardLast4(no) || "");
       })
       .map((t) => t.id);
     if (ids.length > 0) {
