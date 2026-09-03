@@ -6,7 +6,7 @@ import { fetchPaged } from "@/lib/fetch-paged";
 import { planOf, countPlanKinds, type PlanKind as PK } from "./_components/plan-kind";
 import { AnalyticsSection } from "./_components/analytics-section";
 import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfKpiKrw, PfBadge, PfRows, PfRow, PfEmpty, PfBar, fmtKrwShort } from "./_components/pf/ui";
-import { PfDonut, PfRings, PfGauge, PfFunnel } from "./_components/pf/charts";
+import { PfDonut, PfGauge, PfFunnel } from "./_components/pf/charts";
 
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -457,20 +457,44 @@ export default function PlatformOverview() {
           <PfCardBody><PfDonut slices={planSlices} size={150} centerLabel="총 가입사" formatCenter={(t) => `${t}곳`} /></PfCardBody>
         </PfCard>
 
-        {/* CODEF 사용량 — API별 링: 월 10만원(포함분) = 100%, 초과분부터 과금 (2026-08-05 사장님) */}
+        {/* CODEF 사용량 — API별 가로 진행 막대: 월 10만원(포함분) = 100%, 초과분부터 과금 (2026-08-05 사장님).
+            2026-09-03 사장님 "링 그래프가 이상하고 안 이쁘다" → 항목마다 한도 대비 사용률 막대 + 금액. */}
         <PfCard i={9}>
-          <PfCardHead title="CODEF 사용량" sub={`이번 달 · API당 ₩${CODEF_PRODUCT_LIMIT.toLocaleString()} 포함, 넘는 만큼 과금`} href="/platform/codef-usage" />
+          <PfCardHead title="CODEF 사용량" sub={`이번 달 · API당 ₩${CODEF_PRODUCT_LIMIT.toLocaleString()}까지 포함, 넘는 만큼 과금`} href="/platform/codef-usage" />
           <PfCardBody>
             {codefApiBars.length === 0 ? (
               <PfEmpty>이번 달 과금 호출이 없습니다.</PfEmpty>
             ) : (
               <>
-                <PfRings size={150} centerLabel="사용액" formatCenter={(v) => `₩${Math.round(v).toLocaleString()}`}
-                  items={codefApiBars.slice(0, 4).map((b) => ({ label: b.name, value: b.amount, max: b.limit }))} />
-                <div className="flex items-center justify-between text-[11px] pt-3 mt-3 border-t border-[var(--border)]/60">
-                  <span className="text-[var(--text-muted)]">이번 달 사용액 합계{codefApiBars.length > 4 ? ` · 외 ${codefApiBars.length - 4}개 API` : ""}</span>
-                  <span className="font-bold mono-number">₩{codefAmountTotal.toLocaleString()}{codefOverTotal > 0 && <span className="text-[var(--danger)]"> · 과금 ₩{codefOverTotal.toLocaleString()}</span>}</span>
+                <div className="flex items-end justify-between gap-3 mb-4">
+                  <div className="pf-kpi">
+                    <span className="pf-kpi-label">이번 달 사용액</span>
+                    <span className="pf-kpi-value mono-number">₩{codefAmountTotal.toLocaleString()}</span>
+                  </div>
+                  {codefOverTotal > 0
+                    ? <PfBadge tone="danger">한도 초과 과금 ₩{codefOverTotal.toLocaleString()}</PfBadge>
+                    : <PfBadge tone="ok">전부 포함 한도 안</PfBadge>}
                 </div>
+                <div className="space-y-3">
+                  {codefApiBars.slice(0, 5).map((b) => {
+                    const tone = b.over > 0 ? "danger" : b.pct >= 80 ? "warn" : "info";
+                    return (
+                      <div key={b.name}>
+                        <div className="flex items-center justify-between gap-2 mb-1 text-[11px]">
+                          <span className="font-semibold text-[var(--text)] truncate">{b.name}</span>
+                          <span className="shrink-0 mono-number text-[var(--text-muted)]">
+                            ₩{b.amount.toLocaleString()} <span className={`font-bold ${b.over > 0 ? "text-[var(--danger)]" : b.pct >= 80 ? "pf-tone-warn" : "text-[var(--text)]"}`}>{b.pct}%</span>
+                          </span>
+                        </div>
+                        <PfBar pct={b.pct} tone={tone} className="!h-2" />
+                        {b.over > 0 && <div className="text-[10px] text-[var(--danger)] mt-0.5">한도를 ₩{b.over.toLocaleString()} 넘어 그만큼 과금</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+                {codefApiBars.length > 5 && (
+                  <div className="text-[10px] text-[var(--text-dim)] mt-3">외 {codefApiBars.length - 5}개 API — 상세에서 전체 확인</div>
+                )}
               </>
             )}
           </PfCardBody>
