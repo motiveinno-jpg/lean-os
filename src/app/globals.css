@@ -4820,19 +4820,22 @@ table.pnl-drill-table { min-width: 760px; }
 .flex-halfday-fill { @apply absolute inset-y-0 w-1/2 bg-[var(--success-dim)]; }
 .flex-halfday-label { @apply relative; }
 /* 워크보드 일별 셀 — 세련된 카드 + 소프트 진행 채움 (2026-08-25 사장님: 더 이쁘게) */
-.fw-cell { @apply relative h-9 w-full rounded-lg flex flex-col items-center justify-center gap-px text-center overflow-hidden leading-none text-[9px] font-semibold; }
+/* 2026-09-03 사장님 "가독성 떨어짐 · 근무중 글자 가운데 작대기": 글자 8.5~10px → 10.5~12.5px, 칸 36→44px.
+   작대기 = 진행 채움의 앞선 라인(fw-cell-fill-edge)이 근무중 칸에서 게이지 중간(=글자 위)에 서던 것 → 근무중은 바닥 3px 진행선(fw-cell-fill-live)로. */
+.fw-cell { @apply relative h-11 w-full rounded-lg flex flex-col items-center justify-center gap-0.5 text-center overflow-hidden leading-none text-[11px] font-semibold; }
 .fw-cell-box { @apply border border-[var(--border)] bg-[var(--bg-surface)] transition-all duration-200; }
 .fw-cell-box:hover { border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); box-shadow: 0 2px 6px -2px color-mix(in srgb, var(--primary) 22%, transparent); }
 /* 진행 채움 — 왼쪽 소프트 그라데이션 + 앞선 라인 */
 .fw-cell-fill { @apply absolute inset-y-0 left-0 pointer-events-none transition-[width] duration-700 ease-out; border-radius: 7px; }
 .fw-cell-fill-edge { @apply absolute inset-y-1 right-0 w-[2px] rounded-full opacity-90; }
-.fw-cell-t1 { @apply relative z-10 text-[10px] font-bold text-[var(--text)] tabular-nums leading-none; }
-.fw-cell-t2 { @apply relative z-10 text-[9px] leading-none tabular-nums text-[var(--text-muted)]; }
-.fw-cell-live { @apply relative z-10 inline-flex items-center gap-1 text-[8.5px] font-bold; color: var(--primary); }
-.fw-cell-live-dot { @apply w-1 h-1 rounded-full; background: var(--primary); animation: fw-pulse 1.4s ease-in-out infinite; }
+.fw-cell-fill-live { @apply absolute bottom-0 left-0 h-[3px] rounded-full pointer-events-none transition-[width] duration-700 ease-out; }
+.fw-cell-t1 { @apply relative z-10 text-[12.5px] font-bold text-[var(--text)] tabular-nums leading-none; }
+.fw-cell-t2 { @apply relative z-10 text-[10.5px] leading-none tabular-nums text-[var(--text-muted)]; }
+.fw-cell-live { @apply relative z-10 inline-flex items-center gap-1 text-[10.5px] font-bold; color: var(--primary); }
+.fw-cell-live-dot { @apply w-1.5 h-1.5 rounded-full; background: var(--primary); animation: fw-pulse 1.4s ease-in-out infinite; }
 @keyframes fw-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.6); } }
 /* 반차·휴가·결근·공휴일 — 부드러운 알약 라벨 */
-.fw-cell-chip { @apply relative z-10 text-[9px] font-bold px-1.5 py-[1px] rounded-full leading-none; }
+.fw-cell-chip { @apply relative z-10 text-[10.5px] font-bold px-2 py-[2px] rounded-full leading-none; }
 /* 휴가·결근·공휴일 셀 — 근무 셀과 같은 상자(테두리·바닥 채움·오른쪽 색띠·칩+보조글) 2026-08-27 사장님 '근무중과 맞춰줘' */
 .fw-cell-status .fw-cell-fill { border-radius: 7px; }
 /* IP 접속 제한 차단 화면 (2026-08-11) */

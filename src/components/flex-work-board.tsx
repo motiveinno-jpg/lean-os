@@ -384,9 +384,9 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                       </span>
                       <span className="min-w-0">
                         <span className="block text-[13px] font-semibold text-[var(--text)] truncate">{emp.name}{(emp as any).employee_number && <span className="emp-no">#{(emp as any).employee_number}</span>}</span>
-                        <span className="block text-[10px] text-[var(--text-dim)] truncate">{[emp.department, emp.position].filter(Boolean).join(" · ") || "—"}</span>
+                        <span className="block text-[11px] text-[var(--text-dim)] truncate">{[emp.department, emp.position].filter(Boolean).join(" · ") || "—"}</span>
                       </span>
-                      {lateDays > 0 && <span className="ml-auto shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-bold">지각 {lateDays}</span>}
+                      {lateDays > 0 && <span className="ml-auto shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-bold">지각 {lateDays}</span>}
                     </div>
                   </td>
                   {/* 일별 타임라인 */}
@@ -412,10 +412,9 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                             </div>
                           ) : (
                             <div className="fw-cell fw-cell-box">
+                              {/* 반차도 바닥 3px 진행선 — 반쪽 채움의 앞선 라인이 칸 한가운데(=글자)를 가로질렀다(2026-09-03 사장님) */}
                               {halfFrac > 0 && (
-                                <div className="fw-cell-fill" style={{ left: lv.kind === "am" ? "50%" : 0, width: `${halfFrac * 50}%`, background: `linear-gradient(90deg, color-mix(in srgb, ${workColor} 20%, transparent), color-mix(in srgb, ${workColor} 6%, transparent))` }}>
-                                  <span className="fw-cell-fill-edge" style={{ background: workColor }} />
-                                </div>
+                                <div className="fw-cell-fill-live" style={{ left: lv.kind === "am" ? "50%" : 0, width: `${halfFrac * 50}%`, background: workColor }} />
                               )}
                               <span className="fw-cell-chip" style={{ background: "color-mix(in srgb, var(--success) 14%, transparent)", color: "var(--success)" }}>{label}</span>
                               {lci
@@ -462,7 +461,11 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                     return (
                       <td key={i} className={`px-1 py-2 align-middle ${weekend ? "bg-[var(--bg-surface)]/30" : ""}`} title={tip}>
                         <div className="fw-cell fw-cell-box">
-                          {ci && frac > 0 && (
+                          {/* 근무중(오늘)은 바닥 3px 진행선 — 전체 채움+앞선 라인은 게이지 중간에 세로선이 서서 글자를 가로질렀다(2026-09-03 사장님) */}
+                          {ci && frac > 0 && inProgress && (
+                            <div className="fw-cell-fill-live" style={{ width: `${Math.max(frac * 100, 5)}%`, background: barColor }} />
+                          )}
+                          {ci && frac > 0 && !inProgress && (
                             <div className="fw-cell-fill" style={{ width: `${Math.max(frac * 100, 5)}%`, background: `linear-gradient(90deg, color-mix(in srgb, ${barColor} 22%, transparent), color-mix(in srgb, ${barColor} 6%, transparent))` }}>
                               <span className="fw-cell-fill-edge" style={{ background: barColor }} />
                             </div>
@@ -479,12 +482,12 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                   <td className="px-4 py-2 align-middle">
                     <div className="flex items-center justify-end gap-1.5 text-[12px] font-bold mono-number" style={{ color: gaugeColor(total) }}>
                       {hm(total)}
-                      {overtime > 0 && <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]">연장 {hm(overtime)}</span>}
+                      {overtime > 0 && <span className="text-[10px] font-semibold px-1 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]">연장 {hm(overtime)}</span>}
                     </div>
                     <div className="mt-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
                       <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, (total / LIMIT_MIN) * 100)}%`, background: gaugeColor(total) }} />
                     </div>
-                    <div className="mt-0.5 text-[9px] text-[var(--text-dim)] text-right">52h 한도의 {Math.round((total / LIMIT_MIN) * 100)}%</div>
+                    <div className="mt-0.5 text-[10px] text-[var(--text-dim)] text-right">52h 한도의 {Math.round((total / LIMIT_MIN) * 100)}%</div>
                   </td>
                 </tr>
               ))}
@@ -492,7 +495,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
           </table>
       </div>
       </QueryBody>
-      <div className="collect-note text-[10px] text-[var(--text-dim)]">
+      <div className="collect-note text-[11px] text-[var(--text-dim)]">
         타임라인 = 출근~퇴근 (07~22시 스케일) · <span className="text-[var(--primary)]">■</span> 정상 <span className="text-[var(--warning)]">■</span> 지각 <span className="text-[var(--success)]">■</span> 휴가(반쪽 채움 = 반차 · 왼쪽 오전/오른쪽 오후) <span className="text-[var(--danger)]">■</span> 결근(지난 평일 무기록) · 합계 = 정규+연장 근무시간 · 주 52시간 초과 시 <span className="text-[var(--danger)]">빨강</span>
       </div>
     </QueryScreen>
