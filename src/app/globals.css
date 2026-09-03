@@ -10038,3 +10038,8 @@ table.ch-st-table { min-width: 520px; } /* table. — .ev-table(뒤에 정의) �
 .cpn-fix-label { @apply text-[12px] text-[var(--text-dim)]; }
 .cpn-fix-input { @apply text-[13px] rounded-md border border-[var(--border)] bg-[var(--bg-card)] px-2.5 py-1.5 text-[var(--text)]; }
 .cpn-fix-actions { @apply flex justify-end gap-2; }
+.cpn-auto { @apply mt-2 flex flex-col gap-1; }
+.cpn-auto-item { @apply flex items-center gap-2 text-[12px] rounded-md bg-violet-50 border border-violet-200/70 px-2.5 py-1.5 text-violet-900; }
+.cpn-auto-label { @apply shrink-0 inline-flex items-center gap-1 font-medium; }
+.cpn-auto-text { @apply flex-1 min-w-0; }
+.cpn-auto-cancel { @apply shrink-0 text-[11.5px] text-violet-700 underline; }

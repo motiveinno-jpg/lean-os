@@ -62,6 +62,9 @@ export interface ClaudeCallOpts {
   // 2026-09-03 프롬프트 캐시(top-level cache_control) — 시스템+툴 정의+스냅샷(≈2만 토큰)이 한 요청의
   //   여러 턴에서 반복 전송되므로 켜면 2턴째부터 입력 비용 약 90% 절감·지연 단축.
   cacheControl?: boolean;
+  // 2026-09-03 월 호출 횟수 상한을 '질문 수' 기준으로: 참모의 후속 턴(툴 결과 되먹임)·자동 기억 추출처럼
+  //   한 질문에 딸린 부수 호출은 false 로 넘겨 상한 검사와 집계에서 뺀다(비용·토큰 집계에는 그대로 포함).
+  countsTowardCallCap?: boolean;
   promptVersion?: string;
   // 로깅 컨텍스트 (서버가 결정한 값만 — 클라 신뢰 금지)
   companyId: string;
@@ -175,7 +178,7 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
     const { data: planRow } = await admin
       .from("subscription_plans").select("name, monthly_ai_call_limit").eq("slug", slug).maybeSingle();
     const callLimit = planRow?.monthly_ai_call_limit;
-    if (typeof callLimit === "number") {
+    if (typeof callLimit === "number" && opts.countsTowardCallCap !== false) {
       const kstYm = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 7);
       const monthStart = `${kstYm}-01T00:00:00+09:00`;
       const { count } = await admin
@@ -183,6 +186,8 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
         .select("id", { count: "exact", head: true })
         .eq("company_id", opts.companyId)
         .eq("status", "ok")
+        // 질문에 딸린 부수 호출은 횟수에서 제외 — 종전에는 툴 턴마다 1회씩 깎여 '100회'가 실제론 35~40 질문이었다.
+        .not("feature", "in", '("owner_copilot_turn","copilot_memory")')
         .gte("created_at", monthStart);
       if ((count || 0) >= callLimit) {
         return {
@@ -218,6 +223,13 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
         // 오류 상세(프롬프트/데이터)는 로그·응답에 싣지 않음. 코드만.
         lastCode = json?.error?.type || `HTTP_${res.status}`;
         lastErr = "AI 응답 오류";
+        // Anthropic 계정 잔액 소진(2026-09-03 12:17 KST 실제 발생) — 전 고객 참모 중단 상황이라 원인이 보이게 한다.
+        if (/credit balance is too low/i.test(String(json?.error?.message ?? ""))) {
+          lastCode = "PROVIDER_BILLING";
+          lastErr = "AI 서비스 이용 잔액이 부족해 잠시 답변할 수 없습니다. 운영팀이 확인 중이니 잠시 후 다시 시도해 주세요.";
+        }
+        // 서버 콘솔에만 오류 문구(앞 300자) — 프롬프트 원문은 담기지 않는다. 2026-09-03 turn 400 진단용.
+        console.error(`[claude] ${opts.feature} ${model} HTTP ${res.status} ${lastCode}: ${String(json?.error?.message ?? "").slice(0, 300)}`);
         break;
       }
       // usage.input_tokens 는 캐시에 안 실린 입력만 센다 — 캐시 읽기/쓰기는 별도 필드.

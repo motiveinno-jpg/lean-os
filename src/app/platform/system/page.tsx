@@ -67,7 +67,7 @@ export default function SystemPage() {
   });
   const FX = 1400; // 표시용 환산 환율(고정 안내)
   const FEATURE_LABEL: Record<string, string> = {
-    owner_copilot: "AI 참모", ai_briefing: "AI 브리핑", classify_tx: "거래 분류", settlement_match: "정산 매칭",
+    owner_copilot: "AI 참모", owner_copilot_turn: "AI 참모(후속 턴)", copilot_memory: "AI 참모 기억", ai_briefing: "AI 브리핑", classify_tx: "거래 분류", settlement_match: "정산 매칭",
   };
 
   // 릴리스 로그 — 빌드 시 git 에서 자동 생성된 JSON. 날짜별 그룹.

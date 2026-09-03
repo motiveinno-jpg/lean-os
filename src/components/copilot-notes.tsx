@@ -11,11 +11,37 @@ import { Ico } from "@/components/ui-icon";
 
 export type CopilotNote = {
   id: string; content: string; kind: "fact" | "preference" | "correction";
-  source: "user" | "feedback" | "copilot"; question: string | null; created_at: string;
+  source: "user" | "feedback" | "copilot" | "auto"; question: string | null; created_at: string;
 };
 
 const KIND_KO: Record<CopilotNote["kind"], string> = { fact: "회사 사실", preference: "답변 방식", correction: "교정" };
-const SOURCE_KO: Record<CopilotNote["source"], string> = { user: "직접 입력", feedback: "답변 바로잡기", copilot: "대화 중 기억" };
+const SOURCE_KO: Record<CopilotNote["source"], string> = { user: "직접 입력", feedback: "답변 바로잡기", copilot: "대화 중 기억", auto: "자동 기억" };
+
+export type AutoNote = { id: string; content: string; kind: string };
+
+/** 답변 카드 아래 "참모가 기억했어요" — 이번 대화에서 참모가 스스로 저장한 메모. 취소하면 바로 비활성. */
+export function AutoMemoryChips({ notes }: { notes?: AutoNote[] }) {
+  const { toast } = useToast();
+  const [list, setList] = useState<AutoNote[]>(notes ?? []);
+  if (!list.length) return null;
+  const cancel = async (id: string) => {
+    const { error } = await supabase.from("ai_copilot_notes").update({ active: false, updated_at: new Date().toISOString() }).eq("id", id);
+    if (error) { toast(friendlyError(error), "error"); return; }
+    setList((l) => l.filter((n) => n.id !== id));
+    toast("기억을 취소했습니다.", "success");
+  };
+  return (
+    <div className="cpn-auto">
+      {list.map((n) => (
+        <div key={n.id} className="cpn-auto-item">
+          <span className="cpn-auto-label"><Ico e="🧠" /> 기억했어요</span>
+          <span className="cpn-auto-text">{n.content}</span>
+          <button type="button" className="cpn-auto-cancel" onClick={() => void cancel(n.id)}>취소</button>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export async function saveCopilotNote(input: {
   companyId: string; content: string; kind: CopilotNote["kind"]; source: CopilotNote["source"]; question?: string | null; userId?: string | null;

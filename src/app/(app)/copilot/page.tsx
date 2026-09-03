@@ -15,7 +15,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { sanitizeAiContractHtml } from "@/lib/sanitize-html";
 import { createAiContractDraft } from "@/lib/documents";
 import { QueryScreen, QueryHead, QueryBody, QueryBar } from "@/components/query-kit";
-import { AnswerFixForm, CopilotNotesButton } from "@/components/copilot-notes";
+import { AnswerFixForm, AutoMemoryChips, CopilotNotesButton, type AutoNote } from "@/components/copilot-notes";
 import {
   COPILOT_ATTACHMENT_ACCEPT,
   COPILOT_MAX_ATTACHMENTS,
@@ -65,6 +65,7 @@ type AiMsg =
       role: "ai"; answer: Answer; model?: string; at: string; asOf?: string | null;
       action?: PendingAction | null; actionState?: ActionState; actionResult?: string;
       q?: string;   // 이 답변을 만든 질문 — "바로잡기" 교정 메모의 맥락으로 저장
+      autoNotes?: AutoNote[];   // 참모가 이번 대화에서 스스로 기억한 것(취소 가능)
     };
 
 type Usage = {
@@ -467,7 +468,7 @@ export default function CopilotPage() {
         setAttachments(sentAttachments);
         return;
       }
-      const d = data as { answer: Answer; model?: string; as_of?: string | null; action?: PendingAction | null };
+      const d = data as { answer: Answer; model?: string; as_of?: string | null; action?: PendingAction | null; auto_notes?: AutoNote[] };
       const now = new Date().toISOString();
       const act = d.action ?? null;
       let aiIndex = -1;
@@ -476,6 +477,7 @@ export default function CopilotPage() {
         return [...m, {
           role: "ai", answer: d.answer, model: d.model, at: now, asOf: d.as_of,
           action: act, actionState: act ? "pending" : undefined, q: displayQuestion,
+          autoNotes: d.auto_notes ?? [],
         }];
       });
       setConnErr(false);
@@ -980,6 +982,7 @@ function AnswerCard({ msg, companyId, userId, onRun, onCancel }: {
         </div>
       )}
       {msg.asOf && <div className="copilot2-answer-foot">기준 시각 {msg.asOf} · AI 답변은 참고용이며 실행 전 확인이 필요합니다.</div>}
+      <AutoMemoryChips notes={msg.autoNotes} />
       <AnswerFixForm companyId={companyId} userId={userId} question={msg.q} />
     </div>
   );
