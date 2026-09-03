@@ -405,9 +405,9 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                       return (
                         <td key={i} className="px-1 py-2 align-middle" title={lv.tip + (lci ? ` · 출근 ${lci}${lco ? `~${lco}` : ""}` : "")}>
                           {lv.kind === "full" ? (
-                            <div className="fw-cell fw-cell-box fw-cell-status">
-                              <div className="fw-cell-fill" style={{ width: "100%", background: "linear-gradient(90deg, color-mix(in srgb, var(--success) 20%, transparent), color-mix(in srgb, var(--success) 6%, transparent))" }}><span className="fw-cell-fill-edge" style={{ background: "var(--success)" }} /></div>
-                              <span className="fw-cell-chip" style={{ background: "color-mix(in srgb, var(--success) 14%, transparent)", color: "var(--success)" }}>휴가</span>
+                            <div className="fw-cell fw-cell-box">
+                              <div className="fw-cell-fill-live" style={{ width: "100%", background: "var(--success)" }} />
+                              <span className="fw-cell-chip" style={{ color: "var(--success)" }}>휴가</span>
                               <span className="fw-cell-t2">{lv.type || "종일"}</span>
                             </div>
                           ) : (
@@ -416,7 +416,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                               {halfFrac > 0 && (
                                 <div className="fw-cell-fill-live" style={{ left: lv.kind === "am" ? "50%" : 0, width: `${halfFrac * 50}%`, background: workColor }} />
                               )}
-                              <span className="fw-cell-chip" style={{ background: "color-mix(in srgb, var(--success) 14%, transparent)", color: "var(--success)" }}>{label}</span>
+                              <span className="fw-cell-chip" style={{ color: "var(--success)" }}>{label}</span>
                               {lci
                                 ? <span className="fw-cell-t2">{lci}{lco ? `~${lco}` : ""}</span>
                                 : <span className="fw-cell-t2" style={{ color: "var(--text-dim)" }}>미출근</span>}
@@ -431,9 +431,9 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                       if (holidaySet.has(dstr)) {
                         return (
                           <td key={i} className="px-1 py-2 text-center align-middle bg-[var(--bg-surface)]/30">
-                            <div className="fw-cell fw-cell-box fw-cell-status" title={holidayNameByDate.get(dstr)}>
-                              <div className="fw-cell-fill" style={{ width: "100%", background: "linear-gradient(90deg, color-mix(in srgb, var(--info) 18%, transparent), color-mix(in srgb, var(--info) 5%, transparent))" }}><span className="fw-cell-fill-edge" style={{ background: "var(--info)" }} /></div>
-                              <span className="fw-cell-chip" style={{ background: "color-mix(in srgb, var(--info) 14%, transparent)", color: "var(--info)" }}>공휴일</span>
+                            <div className="fw-cell fw-cell-box" title={holidayNameByDate.get(dstr)}>
+                              <div className="fw-cell-fill-live" style={{ width: "100%", background: "var(--info)" }} />
+                              <span className="fw-cell-chip" style={{ color: "var(--info)" }}>공휴일</span>
                               <span className="fw-cell-t2">{holidayNameByDate.get(dstr) || ""}</span>
                             </div>
                           </td>
@@ -443,10 +443,9 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                       return (
                         <td key={i} className={`px-1 py-2 text-center align-middle ${weekend ? "bg-[var(--bg-surface)]/30" : ""}`}>
                           {absent
-                            ? <div className="fw-cell fw-cell-box fw-cell-status" title="지난 평일인데 출퇴근 기록·휴가가 없습니다 — 휴가 등록이나 기록 정정으로 맞추세요">
-                                <div className="fw-cell-fill" style={{ width: "100%", background: "linear-gradient(90deg, color-mix(in srgb, var(--danger) 18%, transparent), color-mix(in srgb, var(--danger) 5%, transparent))" }}><span className="fw-cell-fill-edge" style={{ background: "var(--danger)" }} /></div>
-                                <span className="fw-cell-chip" style={{ background: "color-mix(in srgb, var(--danger) 14%, transparent)", color: "var(--danger)" }}>결근</span>
-                                <span className="fw-cell-t2">무기록</span>
+                            ? <div className="fw-cell fw-cell-box" title="지난 평일인데 출퇴근 기록·휴가가 없습니다 — 휴가 등록이나 기록 정정으로 맞추세요">
+                                <span className="fw-cell-chip" style={{ color: "var(--danger)" }}>결근</span>
+                                <span className="fw-cell-t2">기록 없음</span>
                               </div>
                             : <div className="fw-cell text-[var(--text-dim)]">—</div>}
                         </td>
@@ -461,14 +460,10 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                     return (
                       <td key={i} className={`px-1 py-2 align-middle ${weekend ? "bg-[var(--bg-surface)]/30" : ""}`} title={tip}>
                         <div className="fw-cell fw-cell-box">
-                          {/* 근무중(오늘)은 바닥 3px 진행선 — 전체 채움+앞선 라인은 게이지 중간에 세로선이 서서 글자를 가로질렀다(2026-09-03 사장님) */}
-                          {ci && frac > 0 && inProgress && (
+                          {/* 진행 게이지 = 바닥 3px 선 하나 (2026-09-03 사장님 "촌스럽다": 그라데이션 채움+앞선 라인+알약 칩 걷어냄) —
+                              근무중(오늘)은 1분마다 차오르고, 퇴근 칸은 근무분/기대분. 색은 정상 보라·지각 주황. */}
+                          {ci && frac > 0 && (
                             <div className="fw-cell-fill-live" style={{ width: `${Math.max(frac * 100, 5)}%`, background: barColor }} />
-                          )}
-                          {ci && frac > 0 && !inProgress && (
-                            <div className="fw-cell-fill" style={{ width: `${Math.max(frac * 100, 5)}%`, background: `linear-gradient(90deg, color-mix(in srgb, ${barColor} 22%, transparent), color-mix(in srgb, ${barColor} 6%, transparent))` }}>
-                              <span className="fw-cell-fill-edge" style={{ background: barColor }} />
-                            </div>
                           )}
                           <span className="fw-cell-t1">{ci ?? "—"}</span>
                           {co ? <span className="fw-cell-t2">{co}</span>
@@ -496,7 +491,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
       </div>
       </QueryBody>
       <div className="collect-note text-[11px] text-[var(--text-dim)]">
-        타임라인 = 출근~퇴근 (07~22시 스케일) · <span className="text-[var(--primary)]">■</span> 정상 <span className="text-[var(--warning)]">■</span> 지각 <span className="text-[var(--success)]">■</span> 휴가(반쪽 채움 = 반차 · 왼쪽 오전/오른쪽 오후) <span className="text-[var(--danger)]">■</span> 결근(지난 평일 무기록) · 합계 = 정규+연장 근무시간 · 주 52시간 초과 시 <span className="text-[var(--danger)]">빨강</span>
+        바닥 선 = 하루 근무 진행(정규 근무시간 대비) · <span className="text-[var(--primary)]">■</span> 정상 <span className="text-[var(--warning)]">■</span> 지각 <span className="text-[var(--success)]">■</span> 휴가(반쪽 선 = 반차 · 왼쪽 오전/오른쪽 오후) <span className="text-[var(--danger)]">■</span> 결근(지난 평일 무기록) · 합계 = 정규+연장 근무시간 · 주 52시간 초과 시 <span className="text-[var(--danger)]">빨강</span>
       </div>
     </QueryScreen>
   );
