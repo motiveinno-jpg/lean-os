@@ -10049,3 +10049,9 @@ table.ch-st-table { min-width: 520px; } /* table. — .ev-table(뒤에 정의) �
 .cpn-auto-label { @apply shrink-0 inline-flex items-center gap-1 font-medium; }
 .cpn-auto-text { @apply flex-1 min-w-0; }
 .cpn-auto-cancel { @apply shrink-0 text-[11.5px] text-violet-700 underline; }
+
+/* 회사설정 › 부서 — 구성원 기록에서 발견된 미등록 부서 (2026-09-03) */
+.departments-found { @apply mt-3 rounded-xl border border-[var(--warning)]/40 bg-[var(--warning)]/5 px-4 py-3 flex flex-col gap-2; }
+.departments-found-head { @apply flex items-center justify-between gap-3 text-[12.5px] text-[var(--text)]; }
+.departments-found-chips { @apply flex flex-wrap gap-1.5; }
+.departments-found-chip { @apply text-[12px] rounded-full border border-[var(--border)] bg-[var(--bg-card)] px-2.5 py-1 text-[var(--text)] hover:border-[var(--primary)] hover:text-[var(--primary)] disabled:opacity-50; }

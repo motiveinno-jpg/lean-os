@@ -32,6 +32,23 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
   });
   const active = (depts as Dept[]).filter((d) => !d.archived_at);
   const archived = (depts as Dept[]).filter((d) => d.archived_at);
+  // 구성원 기록(employees.department)에는 있는데 여기 등록 안 된 부서 — 구성원 화면은 부서 5개, 설정은 0개로 어긋나던 것(2026-09-03 점검).
+  //   자동으로 넣지 않고 "발견된 부서"로 보여 주고 한 번에 등록할 수 있게 한다.
+  const { data: empDepts = [] } = useQuery({
+    queryKey: ["settings-departments-from-employees", companyId],
+    queryFn: async () => {
+      const data = logRead('_components/DepartmentsTab:emp', await db.from("employees").select("department, status").eq("company_id", companyId ?? ""));
+      const set = new Set<string>();
+      for (const r of (data || []) as { department: string | null; status: string | null }[]) {
+        if (["inactive", "resigned"].includes(String(r.status || ""))) continue;
+        const n = (r.department || "").trim(); if (n) set.add(n);
+      }
+      return [...set].sort((a, b) => a.localeCompare(b, "ko"));
+    },
+    enabled: !!companyId,
+  });
+  const known = new Set((depts as Dept[]).map((d) => d.name.trim()));
+  const unregistered = (empDepts as string[]).filter((n) => !known.has(n));
   const refresh = () => { qc.invalidateQueries({ queryKey: ["settings-departments", companyId] }); qc.invalidateQueries({ queryKey: ["departments", companyId] }); };
 
   const addMut = useMutation({
@@ -92,6 +109,21 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
         <button onClick={() => newName.trim() && addMut.mutate(newName)} disabled={!newName.trim() || addMut.isPending}
           className="btn-primary h-9">추가</button>
       </div>
+
+      {unregistered.length > 0 && (
+        <div className="departments-found">
+          <div className="departments-found-head">
+            구성원 기록에는 있지만 아직 등록되지 않은 부서 {unregistered.length}개 — 등록하면 성과 입력·일정 공유·구성원 화면의 부서 목록이 서로 맞습니다.
+            <button type="button" className="btn-secondary btn-sm" disabled={addMut.isPending}
+              onClick={async () => { for (const n of unregistered) { try { await addMut.mutateAsync(n); } catch { /* 중복 등은 개별 토스트 */ } } }}>모두 등록</button>
+          </div>
+          <div className="departments-found-chips">
+            {unregistered.map((n) => (
+              <button key={n} type="button" className="departments-found-chip" disabled={addMut.isPending} onClick={() => addMut.mutate(n)} title="이 이름으로 부서를 등록합니다">{n} <b>+</b></button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {active.length === 0 ? (
         <div className="text-sm text-[var(--text-muted)] py-6 text-center">등록된 부서가 없습니다. 위에서 추가하세요.</div>
