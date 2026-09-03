@@ -1570,6 +1570,8 @@ export const NON_DEDUCT_LEAVE_TYPES = new Set<string>(
   LEAVE_TYPES.filter((t) => t.value !== 'annual').map((t) => t.value));
 
 // 최종 승인 시 연차 used_days 1회 차감 (annual 등 잔여 추적 대상).
+//   ★ 2026-09-03 부터 used_days 는 DB 트리거가 승인 기록 합으로 다시 계산한다 — 아래 ± 는 트리거가 덮어쓰므로
+//     결과에 영향이 없다(경로별 어긋남 방지). 잔액 행이 없을 때의 오류 보고만 살아 있다.
 async function deductLeaveBalance(request: any) {
   if (NON_DEDUCT_LEAVE_TYPES.has(String(request.leave_type))) return; // 공가 등 — 연차 잔여와 별도 관리
   const year = new Date(request.start_date).getFullYear();
@@ -2126,7 +2128,14 @@ export async function autoInitLeaveBalance(
     .eq('year', year)
     .maybeSingle());
 
-  const usedDays = usedDaysOverride ?? existing?.used_days ?? 0;
+  // ★ used_days 는 이제 DB 계산값이다 (2026-09-03, 마이그 20260903100000): 승인된 연차 기록 합 + adjust_days.
+  //   관리자가 "사용 N일"을 손으로 넣으면 그 차이를 adjust_days(보정)에 적는다 — used_days 를 직접 쓰면 트리거가 무시한다.
+  //   배경: 세 경로가 used_days 를 제각각 ± 하다 어긋났다(양정훈 잔여 2일 ≠ 실제 1.5일).
+  let adjustDays: number | undefined;
+  if (usedDaysOverride != null) {
+    const { data: fromReq } = await (db as any).rpc('leave_used_from_requests', { p_employee: employeeId, p_year: year });
+    adjustDays = Number(usedDaysOverride) - Number(fromReq || 0);
+  }
 
   // 총부여의 단일 출처는 leave_grants 합계다 — balances.total_days 만 고쳐두면 자동 발생 cron 이
   //   매일 자정 grants 합계로 재동기화하면서 이 값을 되돌린다. 그래서 'base' 발생으로 기록한다.
@@ -2136,7 +2145,7 @@ export async function autoInitLeaveBalance(
   if (existing) {
     const { data, error } = await db
       .from('leave_balances')
-      .update({ total_days: totalDays, used_days: usedDays })
+      .update({ total_days: totalDays, ...(adjustDays != null ? { adjust_days: adjustDays } : {}) } as any)
       .eq('id', existing.id)
       .select()
       .single();
@@ -2145,7 +2154,7 @@ export async function autoInitLeaveBalance(
   } else {
     const { data, error } = await db
       .from('leave_balances')
-      .insert({ company_id: companyId, employee_id: employeeId, year, total_days: totalDays, used_days: usedDays })
+      .insert({ company_id: companyId, employee_id: employeeId, year, total_days: totalDays, used_days: 0, adjust_days: adjustDays ?? 0 } as any)
       .select()
       .single();
     if (error) throw error;
