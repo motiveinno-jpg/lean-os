@@ -55,9 +55,19 @@ Deno.serve(withSentry("biz-cert-extract", async (req) => {
 
   let body: { mime?: string; data?: string; name?: string };
   try { body = await req.json(); } catch { return json({ error: "잘못된 요청입니다." }, 400); }
-  const mime = String(body.mime || "").toLowerCase();
+  let mime = String(body.mime || "").toLowerCase().trim();
   const data = String(body.data || "");
-  if (!ALLOWED_MIME.has(mime)) return json({ error: "PDF 또는 JPG·PNG·WEBP 이미지만 올릴 수 있습니다. (아이폰 HEIC 는 사진 앱에서 JPG 로 내보내 주세요)" }, 400);
+  // 형식 표기가 제각각이라 확장자·파일 머리(매직 바이트)로도 판별한다 (2026-09-03 사장님: PDF 거절 제보)
+  const ext = String(body.name || "").toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] || "";
+  const head = data.slice(0, 12);
+  if (head.startsWith("JVBERi")) mime = "application/pdf";            // %PDF
+  else if (head.startsWith("/9j/")) mime = "image/jpeg";              // JFIF
+  else if (head.startsWith("iVBORw")) mime = "image/png";             // PNG
+  else if (head.startsWith("UklGR")) mime = "image/webp";             // RIFF
+  else if (["application/x-pdf", "application/acrobat", "text/pdf"].includes(mime) || ext === "pdf") mime = "application/pdf";
+  else if (mime === "image/jpg" || mime === "image/pjpeg" || ext === "jpg" || ext === "jpeg") mime = "image/jpeg";
+  else if (mime === "image/x-png" || ext === "png") mime = "image/png";
+  if (!ALLOWED_MIME.has(mime)) return json({ error: `PDF 또는 JPG·PNG·WEBP 이미지만 올릴 수 있습니다. (올린 파일 형식: ${mime || "알 수 없음"}${ext ? ` .${ext}` : ""}) 아이폰 HEIC 는 사진 앱에서 JPG 로 내보내 주세요.` }, 400);
   if (!data || data.length * 0.75 > MAX_BYTES) return json({ error: "파일이 비어 있거나 12MB 를 넘습니다." }, 400);
 
   const fileBlock = mime === "application/pdf"
