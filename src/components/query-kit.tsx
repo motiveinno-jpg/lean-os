@@ -272,7 +272,7 @@ export function ConditionRow({ label, hint, children }: { label: string; hint?: 
   );
 }
 
-export type TokenItem = { value: string; label: string; sub?: string };
+export type TokenItem = { value: string; label: string; sub?: string; /** 묶음 이름 — 주면 검색어가 없을 때 묶음별 칸으로 나눠 보여 준다(매출/매입 등, 2026-09-02 사장님) */ group?: string };
 
 /**
  * 다중 선택 — 이름 일부를 쳐서 고르고 **칩으로 쌓는다** (2026-08-13 사장님 지시, 이카운트 계좌 칸 참고).
@@ -367,18 +367,35 @@ export function TokenField({
             <p className="qk-tok-none">‘{q}’ 에 맞는 것이 없습니다</p>
           ) : (<>
             <p className="qk-tok-head">{q.trim() ? `‘${q.trim()}’ 검색 결과 ${all.length}` : `전체 ${all.length}`}</p>
-            {list.map((it, i) => {
-              const on = value.includes(it.value);
-              return (
-                <button key={it.value} type="button" role="option" aria-selected={on}
-                  onClick={() => add(it)}
-                  className={`qk-tok-i${on ? " qk-tok-i-on" : ""}${i === cur ? " qk-tok-i-cur" : ""}`}>
-                  <span className="qk-tok-i-name">{it.label}</span>
-                  {it.sub && <small>{it.sub}</small>}
-                  {on && <small>담김 ✓</small>}
-                </button>
-              );
-            })}
+            {(() => {
+              const item = (it: TokenItem, i: number) => {
+                const on = value.includes(it.value);
+                return (
+                  <button key={it.value} type="button" role="option" aria-selected={on}
+                    onClick={() => add(it)}
+                    className={`qk-tok-i${on ? " qk-tok-i-on" : ""}${i === cur ? " qk-tok-i-cur" : ""}`}>
+                    <span className="qk-tok-i-name">{it.label}</span>
+                    {it.sub && <small>{it.sub}</small>}
+                    {on && <small>담김 ✓</small>}
+                  </button>
+                );
+              };
+              //   묶음이 있고 검색어가 없으면 묶음별 칸(매출 | 매입)으로 나눠 한눈에 — 위하고 유형 목록과 같은 모양
+              const groups = [...new Set(list.map((it) => it.group).filter(Boolean))] as string[];
+              if (!q.trim() && groups.length > 1) {
+                return (
+                  <div className="qk-tok-cols">
+                    {groups.map((g) => (
+                      <div key={g} className="qk-tok-col">
+                        <p className="qk-tok-col-head">{g}</p>
+                        {list.map((it, i) => (it.group === g ? item(it, i) : null))}
+                      </div>
+                    ))}
+                  </div>
+                );
+              }
+              return list.map(item);
+            })()}
             {cut > 0 && <p className="qk-tok-none">외 {cut}개 더 — 이름 일부를 치면 좁혀집니다</p>}
           </>)}
         </div>

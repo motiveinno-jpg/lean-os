@@ -69,6 +69,8 @@ type Row = {
   y: string; m: string; d: string;
   partner: Pt | null;
   partnerText: string;          // 검색 중 글자
+  //   상대계정(미지급금) 줄의 거래처 — 카드 전표는 **카드사**. 비용·부가세 줄엔 실제 사용처(가맹점)가 간다 (2026-09-02 사장님)
+  counterPartner?: Pt | null;
   vatCode: string;
   item: string;
   supply: string;
@@ -100,6 +102,8 @@ type EvidenceRow = {
   key: string; kind: "tax_invoice" | "card" | "cash_receipt" | "stock_doc";
   date: string; who: string; what: string;
   supply: number; vat: number; partnerId: string | null; suggested: string;
+  //   카드: 카드사(미지급금 줄 거래처)·가맹점 사업자번호 — 거래처 자동 등록에 쓴다
+  cardName?: string | null; bizno?: string | null;
   //   금액이 음수이거나 가맹점명이 '[취소]' 로 시작하는 건 — 그대로 치면 안 되는 줄이라 눈에 띄게 표시한다
   cancelled?: boolean;
 };
@@ -256,11 +260,14 @@ function SalePurchaseInner() {
   });
 
   /** 저장된 전표의 분개를 뜯어 본 결과 — 수정 화면을 열 때 계정을 그대로 되살리는 데 쓴다 */
-  type SavedInfo = { settle: SettleType; main: Acct | null; counter: Acct | null; vatAcct: Acct | null };
+  type SavedInfo = { settle: SettleType; main: Acct | null; counter: Acct | null; vatAcct: Acct | null; mainPartner: Pt | null; counterPartner: Pt | null };
   const savedInfo = useMemo(() => {
     const m = new Map<string, SavedInfo>();
     const acctOf = (l: any): Acct | null => l?.chart_of_accounts
       ? { id: l.chart_of_accounts.id, code: String(l.chart_of_accounts.code), name: l.chart_of_accounts.name, account_type: l.chart_of_accounts.account_type }
+      : null;
+    const ptOf = (l: any): Pt | null => l?.partners
+      ? { id: l.partners.id, code: l.partners.code ?? null, name: l.partners.name, business_number: l.partners.business_number ?? null }
       : null;
     for (const e of (saved as any[])) {
       const isSale = vatType(e.vat_type)?.side === "sale";
@@ -274,18 +281,21 @@ function SalePurchaseInner() {
       m.set(e.id, {
         settle: settleOfCode(counter?.chart_of_accounts?.code),
         main: acctOf(mainL), counter: acctOf(counter), vatAcct: acctOf(vatL),
+        //   줄의 거래처: 비용/부가세 줄 = 실제 거래처, 상대계정 줄 = 카드사(카드) 또는 같은 거래처
+        mainPartner: ptOf(mainL) ?? ptOf(vatL), counterPartner: ptOf(counter),
       });
     }
     return m;
   }, [saved]);
 
   const savedRows: Row[] = saved.map((e: any) => {
-    const p = (e.journal_lines || []).map((l: any) => l.partners).find(Boolean) || null;
     const [y, m, d] = String(e.entry_date || "").split("-");
     const info = savedInfo.get(e.id);
+    //   머리 줄 거래처 = 비용/매출 줄의 거래처(가맹점). 카드사는 상대계정 줄에만 (2026-09-02 사장님: "BC카드는 밑에 하나만")
+    const p: Pt | null = info?.mainPartner ?? ((e.journal_lines || []).map((l: any) => l.partners).find(Boolean) || null);
     return {
       key: -1, y, m: String(Number(m || 0)), d: String(Number(d || 0)),
-      partner: p, partnerText: p?.name || "",
+      partner: p, partnerText: p?.name || "", counterPartner: info?.counterPartner ?? null,
       vatCode: e.vat_type || "11",
       item: e.description || "",
       supply: won(e.supply_amount), vat: won(e.vat_amount),
@@ -340,7 +350,7 @@ function SalePurchaseInner() {
     quickSearchHit(q, [r.partner?.name, r.partner?.business_number, r.item, r.partner?.code != null ? String(r.partner.code) : ""], [numOf(r.supply), numOf(r.vat), numOf(r.supply) + numOf(r.vat)]));
   const previewCount = savedRows.filter((r) => rowHit(r, cDraft)).length;
   //   고를 수 있는 값 — 갈래 안 유형만, 분개는 전부
-  const vatOpts = useMemo(() => VAT_TYPES.filter((v) => group === "all" || GROUPS.find((g) => g.key === group)!.codes.includes(v.code)).map((v) => ({ value: v.code, label: v.label })), [group]);
+  const vatOpts = useMemo(() => VAT_TYPES.filter((v) => group === "all" || GROUPS.find((g) => g.key === group)!.codes.includes(v.code)).map((v) => ({ value: v.code, label: v.label, group: v.side === "sale" ? "매출" : "매입" })), [group]);
   const settleOpts = (Object.keys(SETTLE_LABEL) as SettleType[]).map((st) => ({ value: st, label: SETTLE_LABEL[st].split(". ")[1] || SETTLE_LABEL[st] }));
   const ptOpts = useMemo(() => [...new Set(savedRows.map((r) => r.partner?.name).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -415,7 +425,7 @@ function SalePurchaseInner() {
           .eq("company_id", companyId!).is("journal_entry_id", null).neq("status", "void")
           .gte("issue_date", from).lt("issue_date", to).order("issue_date").limit(200),
         supabase.from("card_transactions")
-          .select("id, transaction_date, merchant_name, amount, category, classification, journal_entry_id")
+          .select("id, transaction_date, merchant_name, merchant_bizno, card_name, amount, category, classification, journal_entry_id")
           .eq("company_id", companyId!).is("journal_entry_id", null)
           .gte("transaction_date", from).lt("transaction_date", to).order("transaction_date").limit(200),
         supabase.from("cash_receipts")
@@ -449,6 +459,7 @@ function SalePurchaseInner() {
         out.push({
           key: "card:" + r.id, kind: "card", date: r.transaction_date, who: r.merchant_name || "—",
           what: label || "카드 사용", supply: sup, vat: amt - sup, partnerId: null,
+          cardName: r.card_name || null, bizno: r.merchant_bizno || null,
           cancelled: amt < 0 || String(r.merchant_name || "").trim().startsWith("[취소]"),
           suggested: suggestVatType({ kind: "card", direction: "purchase", memo: (r.merchant_name || "") + " " + label }),
         });
@@ -492,14 +503,39 @@ function SalePurchaseInner() {
   });
 
   //   불러오면 격자 줄로 얹힌다 — 여러 건을 이어 눌러 한 번에 쌓을 수 있다
-  const pullOne = (r: EvidenceRow) => {
+  /** RPC 로 거래처를 찾거나 만들고(가맹점·카드사) Pt 로 돌려준다. 목록 캐시에도 끼워 다음 줄에서 바로 검색되게. */
+  const resolvePartner = async (fn: "resolve_merchant_partner" | "resolve_card_partner", args: Record<string, unknown>): Promise<Pt | null> => {
+    try {
+      const { data } = await (supabase as any).rpc(fn, args);
+      const id = (data as string) || null;
+      if (!id) return null;
+      const cached = partners.find((x) => x.id === id);
+      if (cached) return cached;
+      const { data: row } = await supabase.from("partners").select("id, code, name, business_number").eq("id", id).maybeSingle();
+      if (!row) return null;
+      const pt = row as Pt;
+      qc.setQueryData<Pt[]>(["sp-partners", companyId], (prev) => (prev && !prev.some((x) => x.id === pt.id) ? [...prev, pt].sort((a, b) => a.name.localeCompare(b.name, "ko")) : prev));
+      return pt;
+    } catch { return null; }
+  };
+  const pullOne = async (r: EvidenceRow) => {
     const [yy, mm, dd] = String(r.date || "").split("-");
-    const p = partners.find((x) => (r.partnerId ? x.id === r.partnerId : x.name === r.who)) || null;
+    let p = partners.find((x) => (r.partnerId ? x.id === r.partnerId : x.name === r.who)) || null;
+    let cp: Pt | null = null;
+    //   카드: 비용 줄 거래처 = 가맹점(없으면 자동 등록), 미지급금 줄 = 카드사 (2026-09-02 사장님 — 종전엔 BC카드가 전 줄에)
+    if (r.kind === "card") {
+      const [mp, cardP] = await Promise.all([
+        resolvePartner("resolve_merchant_partner", { p_name: r.who, p_bizno: r.bizno || null }),
+        r.cardName ? resolvePartner("resolve_card_partner", { p_card_name: r.cardName }) : Promise.resolve(null),
+      ]);
+      if (mp) p = mp;
+      cp = cardP;
+    }
     setRows((rs) => {
       const next = [...rs];
       const target = blankRow();
       target.y = yy || target.y; target.m = String(Number(mm || 0)) || ""; target.d = String(Number(dd || 0)) || "";
-      target.partner = p; target.partnerText = p?.name || r.who;
+      target.partner = p; target.partnerText = p?.name || r.who; target.counterPartner = cp;
       target.vatCode = r.suggested; target.settle = vatType(r.suggested)?.defaultSettle || "credit";
       target.item = r.what; target.supply = won(r.supply); target.vat = won(r.vat);
       target.refType = EVIDENCE_REF[r.kind]; target.refId = r.key.split(":")[1];
@@ -527,13 +563,21 @@ function SalePurchaseInner() {
     }),
     [row?.vatCode, row?.settle, supplyNum, vatNum, row?.mainAccount],
   );
-  const jeLines = draft.map((d, i) => ({
-    i, side: d.side, locked: d.locked,
-    account: overrides[`${row?.key}:${i}`] !== undefined
-      ? overrides[`${row?.key}:${i}`]
-      : (d.code ? acctByCode.get(d.code) || null : row?.mainAccount || null),
-    amount: d.amount,
-  }));
+  const jeLines = draft.map((d, i) => {
+    //   상대계정(미지급금·외상 등) 줄 — 카드면 카드사, 아니면 같은 거래처. 비용·부가세 줄엔 실제 거래처(가맹점).
+    const isCounter = COUNTER_CODES.includes(String(d.code ?? ""));
+    const partner: Pt | null = isCounter
+      ? (row?.settle === "card" ? (row?.counterPartner ?? null) : (row?.partner ?? null))
+      : (row?.partner ?? null);
+    return {
+      i, side: d.side, locked: d.locked,
+      account: overrides[`${row?.key}:${i}`] !== undefined
+        ? overrides[`${row?.key}:${i}`]
+        : (d.code ? acctByCode.get(d.code) || null : row?.mainAccount || null),
+      amount: d.amount,
+      partner,
+    };
+  });
   const debitSum = jeLines.filter((l) => l.side === "debit").reduce((s, l) => s + l.amount, 0);
   const creditSum = jeLines.filter((l) => l.side === "credit").reduce((s, l) => s + l.amount, 0);
   //   음수 전표(취소분)도 차·대는 맞아야 한다 — 0 만 아니면 된다
@@ -704,7 +748,7 @@ function SalePurchaseInner() {
         debit: normalized[i].side === "debit" ? normalized[i].amount : 0,
         credit: normalized[i].side === "credit" ? normalized[i].amount : 0,
         memo: row.item || "",
-        partner_id: row.partner?.id || null,
+        partner_id: l.partner?.id || null,
       }));
       //   ★ 저장분을 고치는 중이면 update 로 간다 — 새 전표를 하나 더 만들면 안 된다
       if (edit?.savedId) {
@@ -811,7 +855,10 @@ function SalePurchaseInner() {
           onMouseDown={() => setSelectOpen(`vatCode-${i}`)} onBlur={() => setSelectOpen(null)}
           onKeyDown={(e) => onCellKey(e, i, "vatCode")} onFocus={() => { if (!isEdit) setCur(i); }}>
           {/* 수정 줄은 갈래 탭에 안 걸린 유형일 수도 있다 — 그 유형이 목록에서 빠지면 값이 튄다 */}
-          {(isEdit ? VAT_TYPES : typeOptions).map((v) => <option key={v.code} value={v.code}>{v.label}</option>)}
+          {(["sale", "purchase"] as const).map((side) => {
+            const opts = (isEdit ? VAT_TYPES : typeOptions).filter((v) => v.side === side);
+            return opts.length ? <optgroup key={side} label={side === "sale" ? "매출" : "매입"}>{opts.map((v) => <option key={v.code} value={v.code}>{v.label}</option>)}</optgroup> : null;
+          })}
         </select>
         <input className="spv-in" data-cell={`item-${i}`} value={r.item} onChange={(e) => patch(i, { item: e.target.value })}
           onKeyDown={(e) => onCellKey(e, i, "item")} onFocus={() => { if (!isEdit) setCur(i); }} placeholder="품명" />
@@ -1132,7 +1179,7 @@ function SalePurchaseInner() {
                 </div>
                 <span className="tr spv-amt">{l.side === "debit" ? won(l.amount) : ""}</span>
                 <span className="tr spv-amt">{l.side === "credit" ? won(l.amount) : ""}</span>
-                <span className="spv-ell spv-dim">{row?.partner?.name || "—"}</span>
+                <span className="spv-ell spv-dim" title={l.partner?.name || ""}>{l.partner?.name || "—"}</span>
                 <span className="spv-ell spv-dim">{row?.item || "—"}</span>
               </div>
             ))}

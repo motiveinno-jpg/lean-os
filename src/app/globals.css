@@ -9972,3 +9972,8 @@ table.phv3-table { min-width: 640px; }
 /* 일반전표 — 조회 줄을 입력 칸 위로, 줄마다 날짜 (2026-09-02 사장님) */
 .ve-querybar-row { @apply px-3 py-2 border-b border-[var(--border)]/70; }
 .ve-row-date { @apply text-[12px] px-1.5; font-variant-numeric: tabular-nums; }
+
+/* 다중선택 목록 묶음 칸 — 매출 | 매입 (2026-09-02 사장님) */
+.qk-tok-cols { @apply grid gap-1; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.qk-tok-col { @apply min-w-0; }
+.qk-tok-col-head { @apply px-2 pb-1 pt-1.5 text-[11px] font-bold text-[var(--primary)] border-b border-[var(--border)] mb-1; }

@@ -1101,7 +1101,10 @@ export function EvidenceTab({
                       ) : (
                         <select className="ev-sel" value={vatCodeOf(r)}
                           onChange={(e) => setOverride((o) => ({ ...o, [r.id]: { ...o[r.id], vatCode: e.target.value } }))}>
-                          {typeOptions.map((v) => <option key={v.code} value={v.code}>{v.label}</option>)}
+                          {(["sale", "purchase"] as const).map((side) => {
+                            const opts = typeOptions.filter((v) => v.side === side);
+                            return opts.length ? <optgroup key={side} label={side === "sale" ? "매출" : "매입"}>{opts.map((v) => <option key={v.code} value={v.code}>{v.label}</option>)}</optgroup> : null;
+                          })}
                         </select>
                       )}
                     </td>
