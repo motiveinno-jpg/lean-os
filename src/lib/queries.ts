@@ -41,6 +41,9 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   return p;
 }
 
+//   ⚠ companies 임베드는 FK 이름을 박아 둔다 (2026-09-03 실사고): users↔companies 사이에 관계가 하나 더 생기면(조인 표 등)
+//   PostgREST 가 "more than one relationship" 300 을 내고 → 회사 없음 → /company-setup 루프가 전 회사에 난다.
+//   힌트가 있으면 관계가 몇 개든 users.company_id 경로로만 간다.
 async function _fetchCurrentUser(): Promise<CurrentUser | null> {
   // getSession: 로컬 스토리지에서 세션 읽음(만료 시 자동 갱신) — getUser 의 인증 서버 왕복 제거.
   //   데이터는 RLS 가 서버에서 강제하므로 클라이언트 신원은 세션 uid 로 충분.
@@ -50,7 +53,7 @@ async function _fetchCurrentUser(): Promise<CurrentUser | null> {
   // maybeSingle: users 테이블에 행이 없어도 에러 대신 null 반환
   const { data, error } = await supabase
     .from('users')
-    .select('*, companies(*)')
+    .select('*, companies!users_company_id_fkey(*)')
     .eq('auth_id', user.id)
     .maybeSingle();
   if (error) { console.error('getCurrentUser error:', error.message); return null; }
@@ -58,7 +61,7 @@ async function _fetchCurrentUser(): Promise<CurrentUser | null> {
   if (!data) {
     const fallback = logRead('_fetchCurrentUser', await supabase
       .from('users')
-      .select('*, companies(*)')
+      .select('*, companies!users_company_id_fkey(*)')
       .eq('id', user.id)
       .maybeSingle());
     if (fallback?.company_id) return fallback as unknown as CurrentUser;
