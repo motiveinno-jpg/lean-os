@@ -59,6 +59,9 @@ export interface ClaudeCallOpts {
   webSearch?: boolean;
   webSearchMaxUses?: number;
   outputConfig?: unknown;
+  // 2026-09-03 프롬프트 캐시(top-level cache_control) — 시스템+툴 정의+스냅샷(≈2만 토큰)이 한 요청의
+  //   여러 턴에서 반복 전송되므로 켜면 2턴째부터 입력 비용 약 90% 절감·지연 단축.
+  cacheControl?: boolean;
   promptVersion?: string;
   // 로깅 컨텍스트 (서버가 결정한 값만 — 클라 신뢰 금지)
   companyId: string;
@@ -95,10 +98,12 @@ function newRequestId(): string {
   try { return crypto.randomUUID(); } catch { return `req_${Date.now()}`; }
 }
 
-function estimateCost(model: string, inTok: number, outTok: number): number | undefined {
+function estimateCost(model: string, inTok: number, outTok: number, cacheRead = 0, cacheWrite = 0): number | undefined {
   const p = PRICE_PER_MTOK[model];
   if (!p) return undefined;
-  return Number(((inTok / 1e6) * p.in + (outTok / 1e6) * p.out).toFixed(4));
+  // 캐시 읽기는 입력 단가의 10%, 캐시 쓰기는 125% (Anthropic 표준 요율).
+  const inputCost = (inTok / 1e6) * p.in + (cacheRead / 1e6) * p.in * 0.1 + (cacheWrite / 1e6) * p.in * 1.25;
+  return Number((inputCost + (outTok / 1e6) * p.out).toFixed(4));
 }
 
 /** 공통 Claude 호출. 실패해도 throw 하지 않고 ClaudeResult.ok=false 로 반환(호출측이 graceful degrade). */
@@ -118,6 +123,7 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
   if (typeof opts.temperature === "number") body.temperature = opts.temperature;
   if (opts.thinking) body.thinking = opts.thinking;
   if (opts.outputConfig) body.output_config = opts.outputConfig;
+  if (opts.cacheControl) body.cache_control = { type: "ephemeral" };
   // 구조화 출력: Anthropic 표준인 "강제 tool use" 사용(모델이 input_schema 에 맞는 JSON 을 tool_use.input 으로 반환).
   //   과거 output_config(json_schema) 는 Messages API 가 무시 → 모델이 JSON 을 '텍스트'로 뱉고 truncation 시 파싱 실패했음(2026-07-23 수정).
   const useSchemaTool = !!opts.schema;
@@ -214,7 +220,10 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
         lastErr = "AI 응답 오류";
         break;
       }
-      const inTok = json?.usage?.input_tokens ?? 0;
+      // usage.input_tokens 는 캐시에 안 실린 입력만 센다 — 캐시 읽기/쓰기는 별도 필드.
+      const cacheRead = json?.usage?.cache_read_input_tokens ?? 0;
+      const cacheWrite = json?.usage?.cache_creation_input_tokens ?? 0;
+      const inTok = (json?.usage?.input_tokens ?? 0) + cacheRead + cacheWrite;   // 한도 계산은 전체 입력 기준(기존과 동일)
       const outTok = json?.usage?.output_tokens ?? 0;
       const content: any[] = Array.isArray(json?.content) ? json.content : [];
       const textPart = content.filter((c) => c.type === "text").map((c) => c.text).join("");
@@ -229,7 +238,7 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
         }
       }
       const latencyMs = Date.now() - t0;
-      const cost = estimateCost(model, inTok, outTok);
+      const cost = estimateCost(model, inTok - cacheRead - cacheWrite, outTok, cacheRead, cacheWrite);
       await logUsage(opts, { model, requestId, inTok, outTok, latencyMs, status: "ok", cost });
       return {
         ok: true, data, text: textPart,

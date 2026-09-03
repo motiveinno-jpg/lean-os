@@ -26,6 +26,7 @@ import {
   isAttachmentContractDraftRequest,
   remainingOwnerCopilotCallTimeout,
 } from "../_shared/owner-copilot-policy.ts";
+import { APP_MAP } from "./app-map.ts";
 
 const ALLOWED_ORIGINS = [
   "https://www.owner-view.com",
@@ -107,7 +108,12 @@ function collectCitedHosts(blocks: any[], into: Set<string>): void {
 
 const MENU_GUIDE = `
 화면 위치 안내(중요 — 2026-08-20 사장님: 연차 관리 위치를 근태 메뉴로 잘못 안내한 사고):
-- "어디서 하나요" 류 질문은 아래 지도만 근거로 답하세요. 지도에 없는 화면은 추측하지 말고 모른다고 답하세요.
+- "어디서 하나요"·"○○ 메뉴 뭐야"·"어떻게 해요" 류 질문은 아래 화면 지도와 주의 사항만 근거로 답하세요. 지도에 없는 화면·메뉴 이름은 지어내지 말고 모른다고 답하세요.
+- 안내할 때는 사이드바 경로를 "그룹 › 화면 이름(› 탭)" 형태로 쓰고, 해당 화면의 href 를 붙이세요.
+
+오너뷰 전체 화면 지도(경로 = 사이드바 그룹 › 화면 이름 — 설명 (기능)):
+${APP_MAP}
+자주 틀리는 것(지도보다 우선):
 - 연차 관리(직원별 연차 부여·조정, 휴가 유형·연차 부여 방식·반차시간 설정, 휴가 캘린더): 구성원 > 휴가 탭. ⚠️ 근태 관리 메뉴가 아닙니다.
 - 휴가 신청: 결재 허브 > 새 요청 > 휴가 신청 (관리자는 구성원 > 휴가 탭의 '+ 휴가 신청'도 가능). ⚠️ 근태 메뉴에서는 못 합니다.
 - 초과근무(연장근무) 신청: 결재 허브 > 새 요청 > 초과근무. 승인되면 그 날짜·종료시각으로 근태에 반영돼 퇴근시간 이후 출근이 열립니다. ⚠️ 전용 '연장근무' 탭은 2026-08-20 폐지 — 일반 결재와 같은 곳에서 합니다.
@@ -211,6 +217,7 @@ ${COMMON_RULES}
 - 양식을 고치거나 새로 만들어 달라는 요청은 upsert_approval_form 액션으로 처리합니다(사용자 확인 후 저장). 순서: ① get_approval_form 으로 현재 구성 확인(수정인 경우) ② 한국 기업 실무 관행을 반영한 개선 항목 구성 ③ upsert_approval_form 호출. 예: 예비군/민방위 휴가 양식이면 소집통지서 첨부 안내, 훈련 구분(동원/동미참/향방작계 등), 훈련 기간, 유급 처리 문구 같은 실무 항목을 반영하세요.
 - 첨부문서를 바탕으로 계약서를 만들어 달라는 요청은 create_contract_draft_from_attachment 액션으로 처리합니다. 원문의 당사자·목적·기간·대금·업무·비밀유지·해지·손해배상·관할 등 실제 내용을 빠뜨리지 말고 HTML 계약서로 재구성하세요. 원문에 없는 사실·금액·날짜·법률효과를 만들지 말고 필요한 곳에 [확인 필요: 항목]을 표시하세요. 반복 사용 값은 {{회사명}}, {{직원명}}, {{계약일}} 같은 변수로 바꾸되 원문의 고정 당사자명이 핵심인 일반 거래계약이면 함부로 바꾸지 마세요. 원문 성격에 맞는 document_type을 고르세요. AI 초안은 외부 발송 없이 전자계약 > 양식 관리에 회사 양식으로 저장됩니다.
 - 위 계약서 액션의 body_html·variables 인자에 한해서만 HTML 태그와 {{변수}} 토큰을 사용할 수 있습니다. 사용자에게 보여 주는 respond 텍스트에는 쓰지 마세요.
+- 회사 메모: 사용자가 "기억해"·"앞으로는 ○○로"·"우리 회사는 ○○" 처럼 기억시키려 하면 remember_note 로 저장하고, 사용자 메시지에 실린 회사 메모는 답변에 반드시 반영하세요. 메모와 조회 결과가 다르면 메모의 기준(예: "급여일은 25일")을 따르되 수치는 조회 결과를 씁니다.
 - 필요한 조회를 마쳤으면 반드시 respond 툴로 최종 답변을 반환합니다.`;
 
 const SYSTEM_EMPLOYEE = `당신은 OwnerView ERP를 쓰는 직원을 돕는 "AI 비서"입니다. 본인 근태·결재 같은 개인 업무를 처리해 줍니다.
@@ -225,6 +232,15 @@ ${COMMON_RULES}
 조회 툴 사용:
 - 본인 근태를 물으면 get_my_attendance 를 부르세요.
 - 답할 수 있으면 툴을 부르지 말고 곧바로 respond 로 마무리합니다.`;
+
+/** respond 툴 없이 텍스트로 끝난 답을 headline/summary 로 옮긴다(첫 문장 = 결론). */
+function textToAnswer(text: string): { headline: string; summary: string; sections: never[] } {
+  const clean = text.replace(/\*\*/g, "").replace(/^#+\s*/gm, "").trim();
+  const firstBreak = clean.search(/[.!?。]\s|\n/);
+  const headline = (firstBreak > 0 ? clean.slice(0, firstBreak + 1) : clean).trim().slice(0, 140);
+  const rest = (firstBreak > 0 ? clean.slice(firstBreak + 1) : "").trim();
+  return { headline, summary: rest || headline, sections: [] };
+}
 
 // 구조화 응답 스키마 (respond 툴). 실패 시 안내 문구 fallback.
 const ANSWER_SCHEMA = {
@@ -575,6 +591,33 @@ const MANAGER_READ_TOOLS = [
       type: "object", additionalProperties: false,
       properties: { name: { type: "string", description: "양식 이름 또는 이름 일부" } },
       required: ["name"],
+    },
+  },
+];
+
+// ── 회사 메모(기억) 툴 — 2026-09-03 사장님 "참모를 학습시켜 쓸만하게" ──
+//   모델 재훈련 대신 회사별 메모를 쌓아 매 답변에 읽힌다. 매니저 모드(대표·관리자)만 쓸 수 있고
+//   저장 즉시 반영된다(확인 카드 없음 — 되돌리기는 forget_note 또는 화면의 삭제).
+const MEMORY_TOOLS = [
+  {
+    name: "remember_note",
+    description: "사용자가 참모에게 기억시키려는 말을 회사 메모로 저장합니다 — '기억해', '앞으로는 ○○로 답해', '우리 회사는 ○○야', '○○는 ○○로 처리해' 처럼 사실·선호·교정을 말할 때 부르세요. 저장 뒤 respond 에서 무엇을 기억했는지 한 줄로 확인해 주세요. 수치(잔고·매출 등)처럼 매번 바뀌는 값은 저장하지 마세요 — 그런 건 조회 툴이 정답입니다.",
+    input_schema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        content: { type: "string", description: "기억할 내용 한 문장(최대 300자). 사용자의 말을 사실 그대로, 회사 기준으로 정리" },
+        kind: { type: "string", enum: ["fact", "preference", "correction"], description: "fact=회사 사실, preference=답변 방식·취향, correction=틀린 답의 교정" },
+      },
+      required: ["content", "kind"],
+    },
+  },
+  {
+    name: "forget_note",
+    description: "저장된 회사 메모를 지웁니다 — '그거 잊어', '아까 기억한 거 취소' 같은 요청. note_id 는 현재 회사 메모 목록(사용자 메시지에 포함)에서 고르세요.",
+    input_schema: {
+      type: "object", additionalProperties: false,
+      properties: { note_id: { type: "string", description: "지울 메모 id" } },
+      required: ["note_id"],
     },
   },
 ];
@@ -2041,8 +2084,31 @@ serve(withSentry("owner-copilot", async (req) => {
       } catch { /* 맥락 로드 실패 — 질문 자체는 그대로 처리 */ }
     }
 
+    // 회사 메모(기억) — 대표·관리자가 알려준 사실·선호·교정. 회사별 격리(company_id).
+    //   system 은 회사와 무관하게 고정해 프롬프트 캐시가 깨지지 않게 하고, 메모는 사용자 메시지에 싣는다.
+    let notesBlock: string[] = [];
+    try {
+      const { data: notes } = await admin
+        .from("ai_copilot_notes")
+        .select("id, content, kind, question")
+        .eq("company_id", companyId)
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(120);
+      const rows = (notes ?? []) as { id: string; content: string; kind: string; question: string | null }[];
+      if (rows.length > 0) {
+        const kindKo: Record<string, string> = { fact: "사실", preference: "답변 방식", correction: "교정" };
+        notesBlock = [
+          "회사 메모(대표·관리자가 참모에게 알려준 것 — 답할 때 반드시 반영. 스냅샷·툴 결과와 다르면 메모의 '기준'을 따르되 수치는 툴로 확인. 메모를 지우려면 forget_note 에 id 를 넘기세요):",
+          ...rows.map((n) => `- [${kindKo[n.kind] ?? n.kind}] ${n.content}${n.question ? ` (원래 질문: ${n.question.slice(0, 80)})` : ""} (id: ${n.id})`),
+          "",
+        ];
+      }
+    } catch { /* 메모 로드 실패 — 질문 자체는 그대로 처리 */ }
+
     const userContent = [
       ...historyBlock,
+      ...notesBlock,
       question ? `사용자 질문: ${question}` : "요청: 오늘 챙겨야 할 것 중심으로 상태를 브리핑해줘.",
       "",
       mode === "manager"
@@ -2073,8 +2139,8 @@ serve(withSentry("owner-copilot", async (req) => {
     type PendingAction = { tool: string; tier: string; label: string; args: Record<string, unknown> };
 
     // ── 에이전트 루프 ──────────────────────────────────────────────────────
-    //   tool_choice=any 로 매 턴 툴 호출을 강제한다. 모델은 조회 툴·액션 툴을 부르거나
-    //   respond(최종 답변)를 부르며, respond 가 나오면 종료.
+    //   tool_choice=auto(2026-09-03, thinking 병용 위해 any→auto). 모델은 조회 툴·액션 툴을 부르거나
+    //   respond(최종 답변)를 부르며, respond 가 나오면 종료. 텍스트로만 끝나면 textToAnswer 로 변환.
     //   · 액션 툴은 여기서 실행하지 않는다 — 의도만 담아 두고 화면이 실행한다.
     //   · MAX_TURNS/토큰예산 소진 시 마지막 턴은 respond 를 강제해 조회만 하다 끝나는 걸 막는다.
     const READ_TOOLS = mode === "manager" ? MANAGER_READ_TOOLS : EMPLOYEE_READ_TOOLS;
@@ -2083,7 +2149,7 @@ serve(withSentry("owner-copilot", async (req) => {
       description: "사용자에게 보여줄 최종 답변을 구조화해 반환합니다. 필요한 조회를 마쳤으면 반드시 이 툴로 마무리하세요.",
       input_schema: ANSWER_SCHEMA,
     };
-    const TOOLS = [...READ_TOOLS, ...ACTION_TOOLS.map((a) => a.def), RESPOND_TOOL];
+    const TOOLS = [...READ_TOOLS, ...(mode === "manager" ? MEMORY_TOOLS : []), ...ACTION_TOOLS.map((a) => a.def), RESPOND_TOOL];
     const attachmentContractMode = isAttachmentContractDraftRequest(
       question,
       attachments.map((attachment) => attachment.name),
@@ -2114,12 +2180,26 @@ serve(withSentry("owner-copilot", async (req) => {
     let requestBudgetExceeded = false;
 
     for (let turn = 0; turn < MAX_TURNS; turn++) {
-      const budgetSpent = used + totalIn + totalOut;
-      const forceRespond = !attachmentContractMode && (turn === MAX_TURNS - 1 || budgetSpent >= tokenLimit);
+      // 2026-09-03 버그 수정: 종전에는 `used + 이번 요청 사용량 >= 월 제공량` 이면 첫 턴부터 respond 를 강제했다.
+      //   월 제공량을 다 쓰고 충전 토큰으로 쓰는 회사는 used 가 이미 제공량을 넘어 있어
+      //   모든 질문이 조회 툴 한 번 없이 "아직 조회하지 못했습니다"로 끝났다(평가에서 재현).
+      //   → 충전분을 합친 남은 토큰(total_remaining)에서 이번 요청 사용량을 뺀 값으로 판정한다.
+      const remainingTokens = allow.unlimited
+        ? Number.POSITIVE_INFINITY
+        : Number(allow.total_remaining ?? Math.max(0, tokenLimit - used));
+      const forceRespond = !attachmentContractMode
+        && (turn === MAX_TURNS - 1 || (totalIn + totalOut) >= remainingTokens);
       const callTimeoutMs = remainingOwnerCopilotCallTimeout(requestStartedAt);
       if (callTimeoutMs === 0) {
         requestBudgetExceeded = true;
         break;
+      }
+      if (forceRespond) {
+        // 마지막 턴·예산 소진 — 강제 tool_choice 대신 지시로 마무리시킨다(thinking 과 병용 가능).
+        messages.push({
+          role: "user",
+          content: "이제 추가 조회 없이 지금까지 확인한 내용만으로 respond 툴을 불러 최종 답변을 정리하세요. 확인하지 못한 것은 확인하지 못했다고 쓰세요.",
+        });
       }
 
       const result = await callClaude<never>({
@@ -2131,10 +2211,15 @@ serve(withSentry("owner-copilot", async (req) => {
         system: mode === "manager" ? SYSTEM_MANAGER : SYSTEM_EMPLOYEE,
         messages,
         // Opus 5 는 thinking 이 max_tokens 를 함께 쓴다 — 여유 확보 (2026-08-20 모델 상향)
-        maxTokens: attachments.length > 0 ? 8000 : (isHeavy ? 8000 : 6000),
-        // 일반 질의는 effort medium(빠르면서 기존 Sonnet 보다 정확), 무거운 질의만 high —
-        //   게이트웨이 150s 안에서 "바로바로" 답하기 위한 차등 (2026-08-20 사장님).
-        outputConfig: attachmentContractMode ? undefined : { effort: isHeavy ? "high" : "medium" },
+        maxTokens: attachments.length > 0 ? 8000 : 16000,
+        // 2026-09-03 사장님("참모가 못 쓸 정도"): 그동안 강제 tool_choice(any) 때문에 Opus 5 의
+        //   생각하기(thinking)가 실질적으로 꺼진 채 effort medium 으로 즉답하고 있었다.
+        //   → adaptive thinking + effort high 로 통일(첨부 계약서 모드는 Haiku 단일 호출이라 제외).
+        //   thinking 은 강제 tool_choice 와 병용 불가 → 아래 toolChoice 를 auto 로 바꾸고,
+        //   respond 없이 텍스트로 끝나면 텍스트를 답변으로 변환한다(루프 아래 textToAnswer).
+        thinking: attachmentContractMode ? undefined : { type: "adaptive" },
+        outputConfig: attachmentContractMode ? undefined : { effort: "high" },
+        cacheControl: !attachmentContractMode,
         tools: TOOLS,
         // 회사 데이터로 답할 수 없는 질문에서 지어내는 대신 찾아보게 한다 (2026-08-07).
         //   2026-08-10 확대(사장님: "날씨·점심 같은 일반 질문도 다 답해야 한다") —
@@ -2145,7 +2230,7 @@ serve(withSentry("owner-copilot", async (req) => {
         webSearchMaxUses: isHeavy ? 5 : 3,
         toolChoice: attachmentContractMode
           ? { type: "tool", name: "create_contract_draft_from_attachment" }
-          : forceRespond ? { type: "tool", name: "respond" } : { type: "any" },
+          : { type: "auto" },
         companyId,
         userId: profile.id,
         admin,
@@ -2198,6 +2283,10 @@ serve(withSentry("owner-copilot", async (req) => {
           });
           continue;
         }
+        // tool_choice auto 전환(2026-09-03) 뒤에는 모델이 respond 없이 텍스트로 답을 끝낼 수 있다 —
+        //   그 텍스트가 곧 답변이므로 버리지 않고 구조화한다.
+        const plain = blocks.filter((b) => b?.type === "text").map((b) => String(b.text ?? "")).join("\n").trim();
+        if (plain) { answer = textToAnswer(plain); break; }
         break; // 툴도 respond 도 없음 — 방어적 종료(아래 fallback)
       }
 
@@ -2247,6 +2336,34 @@ serve(withSentry("owner-copilot", async (req) => {
                   : "접수됐습니다. 사용자가 화면에서 확인 버튼을 눌러야 실행됩니다. 무엇을 상신할지 설명하세요.",
               };
             }
+          }
+        } else if (callName === "remember_note" || callName === "forget_note") {
+          // 기억 툴 — 즉시 실행(쓰기). 매니저 모드에서만 TOOLS 에 포함되므로 여기 오면 권한은 이미 확인된 상태.
+          try {
+            const inp = (call.input ?? {}) as Record<string, unknown>;
+            if (callName === "remember_note") {
+              const content = String(inp.content ?? "").trim().slice(0, 500);
+              const kind = ["fact", "preference", "correction"].includes(String(inp.kind)) ? String(inp.kind) : "fact";
+              if (!content) throw new Error("empty");
+              const { data: saved, error: nErr } = await admin
+                .from("ai_copilot_notes")
+                .insert({ company_id: companyId, content, kind, source: "copilot", created_by: profile.id })
+                .select("id, content, kind").single();
+              if (nErr) throw nErr;
+              payload = { saved: true, note: saved, note_hint: "저장했습니다. respond 에서 '기억했습니다: …' 로 한 줄 확인하고, 화면의 '참모 메모'에서 언제든 지울 수 있다고 알려 주세요." };
+            } else {
+              const noteId = String(inp.note_id ?? "");
+              const { data: gone, error: fErr } = await admin
+                .from("ai_copilot_notes")
+                .update({ active: false, updated_at: new Date().toISOString() })
+                .eq("company_id", companyId).eq("id", noteId).eq("active", true)
+                .select("id, content").maybeSingle();
+              if (fErr) throw fErr;
+              payload = gone ? { forgotten: true, note: gone } : { forgotten: false, note_hint: "해당 id 의 메모가 없습니다(이미 지워졌을 수 있음)." };
+            }
+          } catch (_e) {
+            isError = true;
+            payload = { error: "메모 저장/삭제에 실패했습니다. 화면의 '참모 메모'에서 직접 추가해 달라고 안내하세요." };
           }
         } else {
           try {

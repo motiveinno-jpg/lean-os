@@ -15,6 +15,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { sanitizeAiContractHtml } from "@/lib/sanitize-html";
 import { createAiContractDraft } from "@/lib/documents";
 import { QueryScreen, QueryHead, QueryBody, QueryBar } from "@/components/query-kit";
+import { AnswerFixForm, CopilotNotesButton } from "@/components/copilot-notes";
 import {
   COPILOT_ATTACHMENT_ACCEPT,
   COPILOT_MAX_ATTACHMENTS,
@@ -63,6 +64,7 @@ type AiMsg =
   | {
       role: "ai"; answer: Answer; model?: string; at: string; asOf?: string | null;
       action?: PendingAction | null; actionState?: ActionState; actionResult?: string;
+      q?: string;   // 이 답변을 만든 질문 — "바로잡기" 교정 메모의 맥락으로 저장
     };
 
 type Usage = {
@@ -151,7 +153,7 @@ export default function CopilotPage() {
           loaded.push({ role: "user", text: row.query });
           const ans = row.answer as Answer | null;
           if (ans) {
-            loaded.push({ role: "ai", answer: ans, model: row.model ?? undefined, at: row.created_at ?? new Date().toISOString(), asOf: row.as_of ?? null });
+            loaded.push({ role: "ai", answer: ans, model: row.model ?? undefined, at: row.created_at ?? new Date().toISOString(), asOf: row.as_of ?? null, q: row.query });
           }
         }
         setMessages(loaded);
@@ -473,7 +475,7 @@ export default function CopilotPage() {
         aiIndex = m.length;
         return [...m, {
           role: "ai", answer: d.answer, model: d.model, at: now, asOf: d.as_of,
-          action: act, actionState: act ? "pending" : undefined,
+          action: act, actionState: act ? "pending" : undefined, q: displayQuestion,
         }];
       });
       setConnErr(false);
@@ -517,7 +519,10 @@ export default function CopilotPage() {
       {/* ── 조회 화면 표준 상자 (2026-08-19 확산) — 오브·큰 제목 히어로 → 조회 줄 한 줄(연결 상태 · 기준 시각 ‖ 대화 초기화), 본문(대화 + 토큰)만 스크롤 ── */}
       <QueryScreen>
         <QueryHead>
-          <QueryBar right={messages.length > 0 ? <button type="button" onClick={() => setMessages([])} className="btn-secondary btn-sm" aria-label="대화 초기화">대화 초기화</button> : undefined}>
+          <QueryBar right={<>
+            <CopilotNotesButton companyId={companyId} userId={user?.id ?? null} />
+            {messages.length > 0 && <button type="button" onClick={() => setMessages([])} className="btn-secondary btn-sm" aria-label="대화 초기화">대화 초기화</button>}
+          </>}>
             <span className={`copilot2-conn ${connErr ? "copilot2-conn-err" : "copilot2-conn-ok"}`}><span className="copilot2-conn-dot" aria-hidden />{connErr ? "연결 오류" : "AI 연결됨"}</span>
             <span className="text-[11px] text-[var(--text-dim)]">기준 {kstDate(usage?.as_of)} · 회사 데이터를 읽고 대표가 지금 해야 할 일을 정리합니다 — 답변은 참고용, 실행 전 확인</span>
           </QueryBar>
@@ -559,7 +564,7 @@ export default function CopilotPage() {
                     </div>
                   </div>
                 ) : (
-                  <AnswerCard key={i} msg={m} onRun={() => m.action && runAction(i, m.action)} onCancel={() => setActionState(i, "cancelled")} />
+                  <AnswerCard key={i} msg={m} companyId={companyId} userId={user?.id ?? null} onRun={() => m.action && runAction(i, m.action)} onCancel={() => setActionState(i, "cancelled")} />
                 ),
               )}
               {loading && <LoadingCard stage={stage} progress={progress} />}
@@ -858,8 +863,9 @@ function SecLink({ href }: { href?: string }) {
   );
 }
 
-function AnswerCard({ msg, onRun, onCancel }: {
+function AnswerCard({ msg, companyId, userId, onRun, onCancel }: {
   msg: Extract<AiMsg, { role: "ai" }>;
+  companyId?: string; userId?: string | null;
   onRun?: () => void;
   onCancel?: () => void;
 }) {
@@ -974,6 +980,7 @@ function AnswerCard({ msg, onRun, onCancel }: {
         </div>
       )}
       {msg.asOf && <div className="copilot2-answer-foot">기준 시각 {msg.asOf} · AI 답변은 참고용이며 실행 전 확인이 필요합니다.</div>}
+      <AnswerFixForm companyId={companyId} userId={userId} question={msg.q} />
     </div>
   );
 }

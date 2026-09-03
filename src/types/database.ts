@@ -921,6 +921,53 @@ export type Database = {
           },
         ]
       }
+      ai_copilot_notes: {
+        Row: {
+          active: boolean
+          company_id: string
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: string
+          question: string | null
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          content: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          question?: string | null
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          question?: string | null
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_copilot_notes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_copilot_history: {
         Row: {
           answer: Json | null
