@@ -197,7 +197,7 @@ export function VatByVoucherType({ companyId, year }: { companyId: string | null
             <div><small>매출세액</small><b>{won(sum.salesVat)}</b></div>
             <div><small>공제 매입세액</small><b>{won(sum.purchaseVat)}</b></div>
             <div className="vat-voucher-payable">
-              <small>{sum.payable >= 0 ? "납부 예상" : "환급 예상"}</small>
+              <small>{year}년 누계 {sum.payable >= 0 ? "납부 예상" : "환급 예상"}</small>
               <b>{won(Math.abs(sum.payable))}</b>
             </div>
           </div>

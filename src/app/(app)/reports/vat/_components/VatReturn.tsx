@@ -163,7 +163,7 @@ export function VatReturn({ companyId, year, period, exportRef }: { companyId: s
         <Stat label="매출세액" value={won(R.salesVat)} />
         <Stat label="공제 매입세액" value={won(R.deductible)} />
         <Stat label="불공제" value={won(R.p54.vat)} tone={R.p54.vat ? "minus" : undefined} />
-        <Stat label={R.payable >= 0 ? "납부 예상" : "환급 예상"} value={won(Math.abs(R.payable))} tone={R.payable > 0 ? "minus" : "plus"} />
+        <Stat label={`${P.label} ${R.payable >= 0 ? "납부 예상" : "환급 예상"}`} title="이 신고기간 전표만 집계 — 위 전표 기준 카드의 연간 누계와 기간이 달라 값이 다를 수 있습니다" value={won(Math.abs(R.payable))} tone={R.payable > 0 ? "minus" : "plus"} />
         <Stat label="전표" value={`${rows.length}건`} />
       </div>
       <p className="inv-hint">{from} ~ {to} 확정 매입매출전표 기준 — 홈택스 원본이 아니라 <b>장부에 올린 것</b>만. 전표 없는 자료는 재무 › 전표 현황 › 처리할 것에서. 신고는 홈택스에서 사람이 합니다.{R.unknown ? <b className="vr-warn"> · 부가세 유형이 비어 있는 전표 {R.unknown}건은 어느 칸에도 못 들어갔습니다 — 매입매출전표에서 유형을 채우세요.</b> : null}</p>

@@ -271,7 +271,7 @@ export default function EmployeesPage() {
               <ResultStrip>
                 <Stat label="지급 대상" value={`${pay.active.length}명`} />
                 <Stat label="월 급여 총액" value={`₩${pay.monthly.toLocaleString()}`} />
-                <Stat label="4대보험 회사부담(추정)" value={`₩${pay.insurance.toLocaleString()}`} />
+                <Stat label="4대보험 회사부담(추정)" title="기본급 × 표준 요율로 어림한 값입니다. 회사 요율·수당을 반영한 정확한 회사 부담액은 아래 급여명세 미리보기의 '회사 부담 4대보험'을 보세요." value={`₩${pay.insurance.toLocaleString()}`} />
                 <Stat label="연 인건비" value={`₩${(pay.monthly * 12).toLocaleString()}`} />
               </ResultStrip>
             )}
