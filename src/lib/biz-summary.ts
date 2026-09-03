@@ -11,7 +11,7 @@ import { getLoanStatuses } from "@/lib/cash-budget";
 import { calcRunwayMonths, getRunwayLevel } from "@/lib/engines";
 import { fetchJournalLines, countUnposted, type JournalLine } from "@/lib/journal-reports";
 import { summarize, groupByAccount, fetchFixedCostCompare, type PnlSummary } from "@/lib/pnl-status";
-import { fetchLedgerArAp } from "@/lib/ledger-arap";
+import { fetchInvoiceArAp } from "@/lib/invoice-arap";
 import { todayKst } from "@/lib/kst";
 
 export type Tone = "g" | "y" | "r";
@@ -50,9 +50,9 @@ export async function fetchBizSummary(companyId: string, month: string, userId?:
     supabase.from("tax_invoices").select("total_amount").eq("company_id", companyId).eq("type", "sales").neq("status", "void").is("journal_entry_id", null).gte("issue_date", `${month}-01`).lte("issue_date", monthEnd),
     (supabase.from("bank_transactions").select("amount, type") as any).eq("company_id", companyId).gte("transaction_date", `${month}-01`).lte("transaction_date", monthEnd),
     (supabase.from("bank_transactions").select("amount, type") as any).eq("company_id", companyId).gte("transaction_date", `${prevMonth}-01`).lte("transaction_date", lastDay(prevMonth)),
-    //   받을 돈·낼 돈 — 원장 화면과 같은 단일 기준(lib/ledger-arap). RPC 만 합산해 수동 전표 보정이
-    //   빠지면 원장과 다른 숫자(심하면 0)가 떴다 (2026-09-01 전수점검 ①)
-    fetchLedgerArAp(companyId),
+    //   받을 돈·낼 돈 — 세금계산서 잔액 기준(lib/invoice-arap, 2026-09-03 사장님 결정). 원장 기준(ledger-arap)은
+    //   회계 자료 전용으로 남긴다 — 대시보드 6칸만 원장 기준이라 미수금 위젯·AI 요약과 숫자가 달랐다.
+    fetchInvoiceArAp(companyId),
     getVATPreview(companyId, year),
     getLoanStatuses(companyId),
   ]);
@@ -96,7 +96,7 @@ export async function fetchBizSummary(companyId: string, month: string, userId?:
 
   // ── 이번 주 챙길 것 (규칙 — 찾아만 놓는다, 확인은 사람이) ──
   const todos: Todo[] = [];
-  if (arap0.over30 > 0) todos.push({ key: "ar30", kind: "미수", tone: "r", text: `30일 넘은 미수금 ${arap0.over30Partners}곳`, sub: "전표처리된 세금계산서 발행일 기준", amount: arap0.over30, href: "/partners/ledger" });
+  if (arap0.over30 > 0) todos.push({ key: "ar30", kind: "미수", tone: "r", text: `30일 넘은 미수금 ${arap0.over30Partners}곳`, sub: "세금계산서 발행일 기준 · 잔액 = 총액 − 입금", amount: arap0.over30, href: "/partners/ledger" });
   if (unposted.taxInvoice > 0) todos.push({ key: "unposted-ti", kind: "전표", tone: "y", text: `세금계산서 ${unposted.taxInvoice}건 미처리 — 손익이 실제와 다르게 보입니다`, amount: unpostedSalesAmt > 0 ? unpostedSalesAmt : undefined, href: "/collect" });
   if (unposted.card + unposted.bank > 0) todos.push({ key: "unposted-etc", kind: "전표", tone: "y", text: `카드 ${unposted.card}건 · 통장 ${unposted.bank}건 미처리`, href: "/collect" });
   if (vatNext && vatNextRaw!.netVAT > 0) todos.push({ key: "vat", kind: "세금", tone: vatNext.dday <= 14 ? "r" : "y", text: `부가세 납부 D-${vatNext.dday}`, sub: `${vatNext.due} · 예상`, amount: vatNext.amount, href: "/reports/vat" });

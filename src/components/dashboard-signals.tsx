@@ -73,8 +73,8 @@ export function DashboardSignals({ companyId, userId, forecast30, balanceFallbac
         sub={f30 == null ? "전망 자료 없음" : `${d30! >= 0 ? "▲ " : "▼ "}${wonShort(Math.abs(d30!))} · ${runwayText(runway)} 운영 가능`} title="예정된 입출금으로 본 30일 뒤 잔액 · 누르면 자금 전망으로" />
       <Cell href="/reports/profit" label="이번 달 손익" value={pnl ? `${pnl.operating >= 0 ? "+" : ""}${wonShort(pnl.operating)}` : "—"} tone={s ? s.pnl.tone : "n"}
         sub={pnl ? `매출 ${wonShort(pnl.revenue)} − 비용 ${wonShort(pnl.cogs + pnl.opex)} · 확정 전표` : undefined} title="확정 전표 기준 영업이익 · 누르면 손익 현황으로" />
-      <Cell href="/partners/ledger?type=sales" label="받을 돈" value={s ? wonShort(s.arap.ar) : "—"} tone={arTone}
-        sub={s ? (s.arap.over30 > 0 ? `30일+ ${wonShort(s.arap.over30)} · ${s.arap.over30Partners}곳` : "30일 넘은 미수 없음") : undefined} title="거래처 원장 미수금 합계 · 누르면 거래처 원장으로" />
+      <Cell href="/partners/reconciliation" label="받을 돈" value={s ? wonShort(s.arap.ar) : "—"} tone={arTone}
+        sub={s ? (s.arap.over30 > 0 ? `30일+ ${wonShort(s.arap.over30)} · ${s.arap.over30Partners}곳` : "30일 넘은 미수 없음") : undefined} title="세금계산서 잔액(총액 − 입금) 합계 · 누르면 거래 장부로" />
       <Cell href="/payments" label="낼 돈 (30일)" value={s ? wonShort(s.arap.due30) : "—"} tone={s ? s.arap.tone : "n"}
         sub={s ? `정기 지출·급여·대출 · 미지급 별도 ${wonShort(s.arap.ap)}` : undefined} title="30일 안에 날짜가 있는 예정 지출 · 누르면 정기 지출로" />
       <Cell href={nextTax?.href || "/reports/vat"} label="세금" value={nextTax ? (nextTax.daysLeft === 0 ? "오늘" : `D-${nextTax.daysLeft}`) : "없음"} tone={taxTone}

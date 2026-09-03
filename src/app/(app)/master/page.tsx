@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchLedgerArAp } from "@/lib/ledger-arap";
+import { fetchInvoiceArAp } from "@/lib/invoice-arap";
 import { getCurrentUser, getFounderData, getCashPulseData, saveExcelData } from "@/lib/queries";
 import { getRecurringPayments } from "@/lib/approval-center";
 import { getMonthlyTotalSalary } from "@/lib/payroll";
@@ -84,10 +84,10 @@ export default function MasterPage() {
   const cashPulse: CashPulseResult | null = pulseRaw ? buildCashPulse(pulseRaw) : null;
 
   //   밀린 미수금 — 마스터 엔진 자체 계산이 원장·대시보드와 다른 숫자를 냈다 (2026-09-01 전수점검 ①)
-  //   → 받을 돈·30일+ 는 공용 기준(lib/ledger-arap)으로 덮어쓴다.
+  //   → 받을 돈·30일+ 는 공용 기준(lib/invoice-arap, 세금계산서 잔액 — 2026-09-03 사장님 결정)으로 덮어쓴다.
   const { data: arapU } = useQuery({
-    queryKey: ["ledger-arap", companyId],
-    queryFn: () => fetchLedgerArAp(companyId!),
+    queryKey: ["invoice-arap", companyId],
+    queryFn: () => fetchInvoiceArAp(companyId!),
     enabled: !!companyId && isMaster,
     staleTime: 60_000,
   });
