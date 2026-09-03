@@ -30,7 +30,7 @@ import { useToast } from "@/components/toast";
 import { todayKst } from "@/lib/kst";
 import { comparePeople } from "@/lib/people-sort";
 import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup } from "@/components/query-kit";
-import { VatReturn } from "@/app/(app)/reports/vat/_components/VatReturn";
+import { VatReturn, VAT_PERIODS, currentVatPeriod, type VatPeriodKey } from "@/app/(app)/reports/vat/_components/VatReturn";
 import { computeStatements } from "@/lib/closing-snapshot";
 import { listFixedAssets, faCategoryLabel } from "@/lib/fixed-assets";
 import { fetchJournalLines } from "@/lib/journal-reports";
@@ -132,6 +132,7 @@ export default function TaxFilingPage() {
   //   부가세는 해 단위 신고 — 연도 하나만 고른다(분석 › 부가세와 같은 규칙)
   const [year, setYear] = useState(() => Number(todayKst().slice(0, 4)));
   const years = useMemo(() => { const y = Number(todayKst().slice(0, 4)); return [y, y - 1, y - 2]; }, []);
+  const [vatPeriod, setVatPeriod] = useState<VatPeriodKey>(currentVatPeriod);
   //   지급명세서 — 근로는 반기, 사업소득은 달 (결정 103). 기본 반기 = 마지막으로 끝난 반기(1~6월엔 지난해 하반기)
   const [stmtKind, setStmtKind] = useState<"work" | "biz">("work");
   const [stmtYear, setStmtYear] = useState(() => { const t = todayKst(); return Number(t.slice(5, 7)) <= 6 ? Number(t.slice(0, 4)) - 1 : Number(t.slice(0, 4)); });
@@ -470,6 +471,9 @@ export default function TaxFilingPage() {
               <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs" aria-label="연도">
                 {years.map((y) => <option key={y} value={y}>{y}년</option>)}
               </select>
+              <select value={vatPeriod} onChange={(e) => setVatPeriod(e.target.value as VatPeriodKey)} className="qk-input h-8 px-2.5 text-xs" aria-label="신고기간">
+                {VAT_PERIODS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
+              </select>
             </QueryBar>
           )}
           {tab === "cit" && (<>
@@ -516,7 +520,7 @@ export default function TaxFilingPage() {
         <QueryBody>
           <div className="ev-scroll fa-scroll">
             {tab === "vat" ? (
-              <VatReturn companyId={companyId} year={year} />
+              <VatReturn companyId={companyId} year={year} period={vatPeriod} />
             ) : tab === "cit" ? (
               citLoading ? <div className="collect-empty">확정 전표로 연간 손익을 계산하는 중…</div> : (
                 <div className="vr-wrap">
