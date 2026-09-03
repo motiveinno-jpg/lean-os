@@ -243,7 +243,7 @@ export default function MyPage() {
       const db = supabase;
       const [{ data: native }, { data: approvals }] = await Promise.all([
         db.from("leave_requests")
-          .select("id, leave_type, start_date, end_date, days, status")
+          .select("id, leave_type, leave_unit, start_date, end_date, days, status")
           .eq("employee_id", employee!.id)
           .eq("status", "approved")
           .gte("start_date", `${ledgerYear}-01-01`)
@@ -263,6 +263,7 @@ export default function MyPage() {
           return {
             id: `approval-${a.id}`,
             leave_type: lv.leave_type || "annual",
+            leave_unit: lv.leave_unit || null,
             start_date: start,
             end_date: lv.end_date || start,
             // 구버전 요청은 구조화 필드가 없어 본문에서 일수를 파싱(승인 차감 로직과 동일 규칙).
@@ -270,8 +271,12 @@ export default function MyPage() {
           };
         })
         .filter((l: any) => l.start_date?.startsWith(String(ledgerYear)));
+      //   ★ 결재로 올린 휴가는 승인되면 휴가 기록(leave_requests)도 같이 생긴다 — 같은 건이 두 번 보이던 것
+      //     (2026-09-03 사장님: "연차 사용하면 2번씩 나온다"). 휴가 기록에 같은 날·같은 일수가 있으면 결재 건은 뺀다.
+      const nativeKeys = new Set((native || []).map((l: any) => `${l.start_date}|${l.end_date || l.start_date}|${Number(l.days) || 0}`));
+      const approvalsOnly = fromApprovals.filter((l: any) => !nativeKeys.has(`${l.start_date}|${l.end_date || l.start_date}|${Number(l.days) || 0}`));
       // 발생 → 사용 순으로 읽도록 날짜 오름차순.
-      return [...(native || []), ...fromApprovals].sort((x: any, y: any) =>
+      return [...(native || []), ...approvalsOnly].sort((x: any, y: any) =>
         (x.start_date || "").localeCompare(y.start_date || ""),
       );
     },
@@ -290,8 +295,14 @@ export default function MyPage() {
     : ledgerBalance
       ? [{ id: "grant-legacy", kind: "grant" as const, date: `${ledgerYear}-01-01`, label: "연차 부여", days: ledgerGranted, memo: null }]
       : [];
+  //   0.5일(반차)은 이름에 '반차' 를 붙여 한눈에 (2026-09-03 사장님)
+  const leaveLabelWithUnit = (l: any) => {
+    const base = leaveTypeLabel(l.leave_type);
+    const half = l.leave_unit === "half_day" || Number(l.days) === 0.5;
+    return half ? `${base} (반차)` : base;
+  };
   const useEntries = usedLeaves.map((l: any) => ({
-    id: l.id, kind: "use" as const, date: l.start_date, label: leaveTypeLabel(l.leave_type),
+    id: l.id, kind: "use" as const, date: l.start_date, label: leaveLabelWithUnit(l),
     days: Number(l.days) || 0, endDate: l.end_date as string | undefined,
   }));
   let runningRemain = 0;
@@ -319,13 +330,18 @@ export default function MyPage() {
         return {
           id: `approval-${a.id}`,
           leave_type: lv.leave_type || a.description?.match(/유형:\s*(\S+)/)?.[1] || "annual",
+          leave_unit: lv.leave_unit || null,
+          days: Number(lv.days ?? 0),
           start_date: lv.start_date || a.created_at?.slice(0, 10),
           end_date: lv.end_date || lv.start_date || a.created_at?.slice(0, 10),
           status: a.status,
           created_at: a.created_at,
         };
       });
-      return [...(native || []), ...mappedApprovals]
+      //   승인된 결재 휴가는 휴가 기록에도 같은 건이 있다 — 기록이 있으면 결재 쪽은 뺀다(두 번 보이던 것, 2026-09-03 사장님)
+      const nativeKeys = new Set((native || []).map((l: any) => `${l.start_date}|${l.end_date || l.start_date}`));
+      const approvalsOnly = mappedApprovals.filter((a: any) => !(a.status === "approved" && nativeKeys.has(`${a.start_date}|${a.end_date || a.start_date}`)));
+      return [...(native || []), ...approvalsOnly]
         .sort((x: any, y: any) => (y.created_at || "").localeCompare(x.created_at || ""))
         .slice(0, 5);
     },
@@ -543,12 +559,12 @@ export default function MyPage() {
               </section>
               <section className="pnl-panel">
                 <h3>최근 신청</h3>
-                <p>네이티브 휴가 신청 + 결재 허브 휴가 요청</p>
+                <p>휴가 탭에서 낸 신청과 결재 허브 요청을 함께 봅니다</p>
                 {recentLeaves.length === 0 ? <div className="collect-empty">신청이 없습니다</div> : (
                   <table className="ev-table ev-lined mypage-leave-table">
                     <thead><tr><th>기간</th><th className="text-left">종류</th><th>상태</th></tr></thead>
                     <tbody>{recentLeaves.map((leave: any) => (
-                      <tr key={leave.id}><td className="text-center mono-number">{leave.start_date}{leave.end_date && leave.end_date !== leave.start_date ? ` ~ ${leave.end_date}` : ""}</td><td className="text-left">{leaveTypeLabel(leave.leave_type)}</td><td className="text-center"><span className={`ol-sure ${leave.status === "approved" ? "ol-sure-ok" : leave.status === "rejected" ? "" : "ol-sure-est"}`}>{leave.status === "approved" ? "승인" : leave.status === "rejected" ? "반려" : "대기"}</span></td></tr>
+                      <tr key={leave.id}><td className="text-center mono-number">{leave.start_date}{leave.end_date && leave.end_date !== leave.start_date ? ` ~ ${leave.end_date}` : ""}</td><td className="text-left">{leaveLabelWithUnit(leave)}</td><td className="text-center"><span className={`ol-sure ${leave.status === "approved" ? "ol-sure-ok" : leave.status === "rejected" ? "" : "ol-sure-est"}`}>{leave.status === "approved" ? "승인" : leave.status === "rejected" ? "반려" : "대기"}</span></td></tr>
                     ))}</tbody>
                   </table>
                 )}
