@@ -6974,7 +6974,9 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .ev-scroll::-webkit-scrollbar, .stg-table-wrap::-webkit-scrollbar, .pnl-tbl-wrap::-webkit-scrollbar, .spv-scroll::-webkit-scrollbar { height: 8px; }
 .ev-scroll::-webkit-scrollbar-thumb, .stg-table-wrap::-webkit-scrollbar-thumb, .pnl-tbl-wrap::-webkit-scrollbar-thumb, .spv-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 .ev-scroll::-webkit-scrollbar-track, .stg-table-wrap::-webkit-scrollbar-track, .pnl-tbl-wrap::-webkit-scrollbar-track, .spv-scroll::-webkit-scrollbar-track { background: transparent; }
-.ev-table { @apply w-full border-collapse text-[12px]; min-width: 1260px; }
+.ev-table { @apply w-full border-collapse text-[12px]; }
+/* 2026-09-03 전 화면 점검: min-width 1260px 강제로 1400px 화면에서도 표 오른쪽이 늘 잘렸다(본문 폭 ≈ 910px).
+   내용이 좁으면 맞춰 들어가고, 넓으면 자연히 가로 스크롤(셀 nowrap 유지). 급여표는 table.payroll-tbl 이 자체 min-width 보유. */
 /*   머리단은 가운데 — 몸통 칸은 제 정렬을 지킨다 (2026-08-12 사장님 지시) */
 /*   leading-4: 글자 줄상자를 아이콘 상자(16px)와 같은 높이로 — 삼각형·≡·글자의 세로 중심이 한 줄에 온다 (2026-08-18 사장님) */
 .ev-table thead th { @apply whitespace-nowrap border-b border-b-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-2 text-center text-[10.5px] leading-4 font-bold text-[var(--text-dim)]; }

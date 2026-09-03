@@ -61,6 +61,13 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
     queryFn: async () => (await fetchPaged("att-status:leaves", () => supabase.from("leave_requests").select("employee_id, start_date, end_date, leave_type").eq("company_id", companyId).eq("status", "approved").lte("start_date", rangeTo).gte("end_date", rangeFrom).order("start_date"), 20000) || []) as any[],
     enabled: !!companyId,
   });
+  // 근무일별 출근 기록 유무 — "기록도 승인 휴가도 없는 지난 근무일"을 결근으로 세기 위해(워크보드·기록 상세와 같은 규칙, 2026-09-03).
+  //   종전엔 '결근'으로 직접 기록된 날만 세어 워크보드 12건 / 기록 상세 6명 / 여기 0일로 화면마다 달랐다.
+  const { data: recordDays = [] } = useQuery({
+    queryKey: ["att-status-record-days", companyId, rangeFrom, rangeTo],
+    queryFn: async () => (await fetchPaged("att-status:record-days", () => supabase.from("attendance_records").select("employee_id, date").eq("company_id", companyId).gte("date", rangeFrom).lte("date", rangeTo).order("date"), 50000)) as any[],
+    enabled: !!companyId,
+  });
   const { data: allowances = [] } = useQuery({
     queryKey: ["att-status-allowance", companyId, months.join(",")],
     queryFn: async () => (logRead("att-status:alw", await supabase.from("allowance_entries").select("employee_id, amount, payroll_month, allowance_types!inner(is_active)").eq("company_id", companyId).in("payroll_month", months).filter("allowance_types.is_active", "eq", true)) || []) as any[],
@@ -107,9 +114,33 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
     }
     //   기록이 없는 재직자도 줄로(0) — "왜 안 보이지"를 막는다. 휴가·수당만 있는 사람도 잡힌다
     for (const e of employees) { if (["invited", "inactive", "resigned"].includes(e.status)) continue; if (!map.has(e.id)) map.set(e.id, blank(e.id, e.name || "", e.department || "")); }
+    // 무기록 결근 파생 — 지난 근무일(평일·공휴일 제외·오늘 이전·입사일 이후)에 출근 기록도 승인 휴가(모든 유형)도 없으면 결근 1일.
+    {
+      const hol = new Set(holidays.map((h: any) => String(h.date).slice(0, 10)));
+      const recorded = new Set(recordDays.map((r: any) => `${r.employee_id}:${String(r.date).slice(0, 10)}`));
+      const onLeave = new Set<string>();
+      for (const lv of leaves) { if (!lv.start_date || !lv.end_date) continue; for (let d = new Date(String(lv.start_date).slice(0, 10) + "T00:00:00Z"); d.toISOString().slice(0, 10) <= String(lv.end_date).slice(0, 10); d = new Date(d.getTime() + 86400000)) onLeave.add(`${lv.employee_id}:${d.toISOString().slice(0, 10)}`); }
+      const hireOf = new Map<string, string>();
+      for (const e of employees) if (e.hire_date) hireOf.set(e.id, String(e.hire_date).slice(0, 10));
+      for (const r of map.values()) {
+        for (const ym of months) {
+          let n = 0; const end = lastDayOf(ym) < todayStr ? lastDayOf(ym) : todayStr;
+          for (let d = new Date(`${ym}-01T00:00:00Z`); d.toISOString().slice(0, 10) <= end; d = new Date(d.getTime() + 86400000)) {
+            const ds = d.toISOString().slice(0, 10); const dow = d.getUTCDay();
+            if (ds >= todayStr || dow === 0 || dow === 6 || hol.has(ds)) continue;
+            const hire = hireOf.get(r.employee_id); if (hire && ds < hire) continue;
+            const k = `${r.employee_id}:${ds}`; if (recorded.has(k) || onLeave.has(k)) continue;
+            n++;
+          }
+          if (n === 0) continue;
+          if (!r.months[ym]) r.months[ym] = blank(r.employee_id, r.name, r.department);
+          r.months[ym].absentDays += n; r.absentDays += n;
+        }
+      }
+    }
     for (const r of map.values()) { for (const m of months) { const k = `${r.employee_id}:${m}`; if (!r.months[m] && (leaveByEmpMonth.get(k) || alwByEmpMonth.get(k))) { const mr = blank(r.employee_id, r.name, r.department); mr.leaveDays = leaveByEmpMonth.get(k) || 0; mr.alwTotal = alwByEmpMonth.get(k) || 0; r.months[m] = mr; r.leaveDays += mr.leaveDays; r.alwTotal += mr.alwTotal; } } r.ratio = workdays > 0 ? Math.min(1, r.totalDays / workdays) : 0; }
     return [...map.values()];
-  }, [monthly, leaves, allowances, employees, months, workdays, workdaysByMonth, rangeFrom, rangeTo]);
+  }, [monthly, leaves, allowances, employees, months, workdays, workdaysByMonth, rangeFrom, rangeTo, recordDays, holidays, todayStr]);
 
   // ── 거르기·정렬 ──
   const rows = useMemo(() => {
@@ -201,7 +232,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
         <Stat label="근무일" value={`${workdays}일`} />
         <Stat label="부서 · 인원" value={`${deptRows.length}개 · ${rows.length}명`} />
         <Stat label="지각" value={`${rows.reduce((s, r) => s + r.lateDays, 0)}회`} />
-        <Stat label="결근" value={`${rows.reduce((s, r) => s + r.absentDays, 0)}일`} tone={rows.reduce((s, r) => s + r.absentDays, 0) > 0 ? "minus" : undefined} />
+        <Stat label="결근" title="결근으로 기록된 날 + 출근 기록도 승인 휴가도 없는 지난 근무일(워크보드·기록 상세와 같은 기준)" value={`${rows.reduce((s, r) => s + r.absentDays, 0)}일`} tone={rows.reduce((s, r) => s + r.absentDays, 0) > 0 ? "minus" : undefined} />
         <Stat label="연차" value={`${rows.reduce((s, r) => s + r.leaveDays, 0)}일`} />
         <Stat label="총 근무" value={`${rows.reduce((s, r) => s + r.totalHours, 0).toFixed(1)}h`} />
         {months.length > 1 && <span className="text-[10.5px] text-[var(--text-dim)]">직원 줄을 누르면 달마다 펼쳐집니다</span>}

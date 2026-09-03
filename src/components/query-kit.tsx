@@ -483,9 +483,9 @@ export function ResultStrip({ children, right }: { children?: ReactNode; right?:
   );
 }
 
-export function Stat({ label, value, tone }: { label: string; value: ReactNode; tone?: "plus" | "minus" }) {
+export function Stat({ label, value, tone, title }: { label: string; value: ReactNode; tone?: "plus" | "minus"; title?: string }) {
   return (
-    <span className="qk-stat">
+    <span className="qk-stat" title={title}>
       <span className="qk-stat-label">{label}</span>
       <b className={tone === "minus" ? "qk-stat-v qk-stat-minus" : tone === "plus" ? "qk-stat-v qk-stat-plus" : "qk-stat-v"}>{value}</b>
     </span>

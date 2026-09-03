@@ -1684,7 +1684,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                       {tab !== 'inbox' && (
                       <span className="flex items-center gap-4 mono-number">
                         <span className="text-[var(--success)] font-bold">+₩{sumIncome.toLocaleString()}</span>
-                        <span className="text-[var(--danger)] font-bold">-₩{sumExpense.toLocaleString()}</span>
+                        <span className="text-[var(--danger)] font-bold">-₩{Math.abs(sumExpense).toLocaleString()}</span>
                         <span className={`font-bold ${net >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>{net >= 0 ? '+' : ''}₩{net.toLocaleString()}</span>
                       </span>
                       )}

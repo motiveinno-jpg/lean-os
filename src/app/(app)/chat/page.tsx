@@ -415,12 +415,14 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
   //   부서 → 구성원. 재직자만 보여 주고, 인사기록이 없는 앱 계정도 '미배정' 으로 함께 담는다.
   const byDept = useMemo(() => {
     const usersByEmail = new Map<string, any>();
-    for (const u of companyUsers as any[]) if (u.email) usersByEmail.set(String(u.email).toLowerCase(), u);
+    const usersById = new Map<string, any>();
+    for (const u of companyUsers as any[]) { if (u.email) usersByEmail.set(String(u.email).toLowerCase(), u); usersById.set(u.id, u); }
     const seen = new Set<string>();
     const list: { key: string; name: string; dept: string; position: string; userId: string | null }[] = [];
     for (const e of directory as any[]) {
       if (e.status !== "active" && e.status !== "joined") continue;
-      const u = e.email ? usersByEmail.get(String(e.email).toLowerCase()) : null;
+      // 계정 연결 우선(employees.user_id), 없으면 이메일 — 이메일만 보면 같은 사람이 '미배정'에 한 번 더 보였다(2026-09-03)
+      const u = (e.user_id && usersById.get(e.user_id)) || (e.email ? usersByEmail.get(String(e.email).toLowerCase()) : null);
       if (u) seen.add(u.id);
       list.push({
         key: `d-${e.id}`, name: e.name || u?.name || e.email || "이름 없음",
