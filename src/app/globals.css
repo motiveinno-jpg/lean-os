@@ -10509,6 +10509,41 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
 .dg-tip-t1 { font-size: 11px; font-weight: 600; fill: var(--bg-card); }
 .dg-tip-t2 { font-size: 11px; fill: var(--bg-card); opacity: .85; }
 .dg-bar1 { fill: var(--primary); }
+/* 자금 전망 카드 123 형태 (결정 170) — 부제·탭 줄·도구 버튼·실적+전망 추세 */
+.dg-card-h.is-top { @apply items-start; }
+.dg-sub2 { @apply mt-0.5 text-[12px] text-[var(--text-dim)]; }
+.dg-tabs { @apply mb-1 mt-2 flex items-center gap-1 border-b border-[var(--border)]; }
+.dg-tab { @apply -mb-px border-b-2 border-transparent px-3 py-1.5 text-[12.5px] text-[var(--text-muted)] no-underline hover:text-[var(--text)]; }
+.dg-tab.is-on { @apply border-[var(--primary)] font-semibold text-[var(--text)]; }
+.dg-tool { @apply ml-1 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2.5 py-1 text-[12px] text-[var(--text-muted)] no-underline hover:text-[var(--text)]; }
+.dg-area2 { fill: url(#dg-grad2); }
+.dg-line.is-fut { stroke: var(--bg-card); stroke-width: 2; stroke-dasharray: 4 4; }
+.dg-futbg { fill: var(--text); opacity: .03; }
+.dg-zone { font-size: 10.5px; fill: var(--text-dim); }
+.dg-vline { stroke: var(--text-dim); stroke-dasharray: 3 3; }
+.dg-pt { fill: var(--primary); stroke: var(--bg-card); stroke-width: 2.5; }
+.dg-pt.is-low { fill: var(--danger); }
+.dg-pill.is-today { fill: var(--success); }
+.dg-pill.is-low { fill: var(--danger); }
+.dg-pill-t { font-size: 11px; font-weight: 600; fill: #fff; }
+.dg-lg-solid { @apply mr-1.5 inline-block w-3.5 border-t-2 border-[var(--primary)] align-middle; height: 0; }
+.dg-lg-dash { @apply mr-1.5 inline-block w-3.5 border-t-2 border-dashed border-[var(--primary)] align-middle; height: 0; }
+/* 미수 구성 12 형태 — 목록 + 바깥 라벨 도넛 */
+.dg-r-recv { @apply md:grid-cols-[1fr_1.5fr_1fr]; }
+.dg-split { @apply mt-2 grid grid-cols-1 items-center gap-1.5 md:grid-cols-[1fr_1.35fr]; }
+.dg-rlist { @apply m-0 list-none p-0; }
+.dg-rlist li { @apply grid grid-cols-[12px_1fr_auto_34px] items-center gap-2 border-b border-[var(--border)] py-1.5 text-[12.5px] last:border-b-0; }
+.dg-rlist-n { @apply truncate text-[var(--text-muted)]; }
+.dg-rlist-v { @apply font-semibold text-[var(--text)]; }
+.dg-rlist-p { @apply text-right text-[11.5px] text-[var(--text-dim)]; }
+.dg-donut12 { @apply block h-auto w-full overflow-visible; }
+.dg-donut12 circle { fill: none; stroke-width: 18; }
+.dg-donut12 .dg-lead { fill: none; stroke-width: 1; }
+.dg-lead-t { font-size: 11.5px; fill: var(--text); }
+.dg-d5 { stroke: #3b82f6; } .dg-d6 { stroke: var(--border); }
+.dg-donut-leg .dg-d5, .dg-dot.dg-d5 { background: #3b82f6; } .dg-donut-leg .dg-d6, .dg-dot.dg-d6 { background: var(--border); }
+.dg-dot.dg-d1 { background: var(--primary); } .dg-dot.dg-d2 { background: var(--success); } .dg-dot.dg-d3 { background: var(--warning); } .dg-dot.dg-d4 { background: #a855f7; }
+.dg-d4 { stroke: #a855f7; }
 /* 자금 전망 폭포 (결정 169) — 지금·N일 뒤는 주색, 나가는 돈 빨강, 들어오는 돈 초록, 이음선 점선 */
 .dg-wf-tot { fill: var(--primary); }
 .dg-wf-out { fill: var(--danger); opacity: .85; }
