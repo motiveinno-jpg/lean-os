@@ -3,7 +3,7 @@
   "src/app/(app)/billing/page.tsx": 1,
   "src/app/(app)/board/page.tsx": 1,
   "src/app/(app)/cash-receipts/page.tsx": 1,
-  "src/app/(app)/dashboard/page.tsx": 4,
+  "src/app/(app)/dashboard/page.tsx": 2,
   "src/app/(app)/documents/_components/QuoteHeader.tsx": 1,
   "src/app/(app)/documents/page.tsx": 2,
   "src/app/(app)/employees/EmployeesPageClient.tsx": 6,
