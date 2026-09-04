@@ -41,7 +41,7 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
   userId: string | null;
   sixPack: { cashBalance: number; netCashflow: number; runwayMonths: number; arTotal: number; arOver30: number; pendingApprovals: number; monthlyBurn: number };
   growth: { monthRevenue: number; quarterRevenue: number; yearRevenue: number; monthTarget: number; quarterTarget: number; yearTarget: number };
-  risks: { label: string; name: string; detail: string }[];
+  risks: { label: string; name: string; detail: string; amount?: number }[];
   riskCounts: Record<string, number>;
   cashPulse: { currentBalance: number; forecast30d: number; forecast90d: number; pulseScore: number; hasData?: boolean } | null | undefined;
 }) {
@@ -113,6 +113,10 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
   const yearPct = growth.yearTarget > 0 ? Math.min(999, Math.round((growth.yearRevenue / growth.yearTarget) * 100)) : null;
 
   const riskTotal = useMemo(() => Object.values(riskCounts).reduce((s, n) => s + n, 0), [riskCounts]);
+  // 미수(거래처 단위)와 프로젝트 리스크(마진·마감·비용)는 가는 곳이 다르다 — 미수는 거래처 원장, 나머지는 프로젝트
+  const arRisks = useMemo(() => risks.filter((r) => r.label === "AR_OVER_30"), [risks]);
+  const projectRisks = useMemo(() => risks.filter((r) => r.label !== "AR_OVER_30"), [risks]);
+  const arRiskTotal = useMemo(() => arRisks.reduce((s, r) => s + (r.amount || 0), 0), [arRisks]);
   const topActions = actions.slice(0, 10);
   const totalTodo = actions.length + queueCount + (sixPack.arOver30 > 0 ? 1 : 0);
 
@@ -316,16 +320,44 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
         <div className="master-risk-card glass-card">
           <div className="master-card-head">
             <h3 className="master-card-title">리스크 <span className="master-count master-count-danger mono-number">{riskTotal}</span></h3>
-            <Link href="/projects" className="widget-more-link">프로젝트 →</Link>
           </div>
-          <div className="space-y-2">
-            {risks.slice(0, 4).map((r, i) => (
-              <div key={i} className="master-risk-row">
-                <div className="text-[12px] font-semibold text-[var(--text)] truncate">{r.name}</div>
-                <div className="text-[11px] text-[var(--danger)] truncate">{r.detail}</div>
+          <div className="space-y-3">
+            {arRisks.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <div className="text-[11px] font-bold text-[var(--text-muted)]">
+                    30일 넘은 미수 · 거래처 <span className="mono-number">{arRisks.length}</span>곳 · <span className="mono-number">₩{arRiskTotal.toLocaleString()}</span>
+                  </div>
+                  <Link href="/partners/ledger" className="widget-more-link">거래처 원장 →</Link>
+                </div>
+                <div className="space-y-2">
+                  {arRisks.slice(0, 3).map((r, i) => (
+                    <div key={`ar-${i}`} className="master-risk-row">
+                      <div className="text-[12px] font-semibold text-[var(--text)] truncate">{r.name}</div>
+                      <div className="text-[11px] text-[var(--danger)] truncate">{r.detail}</div>
+                    </div>
+                  ))}
+                  {arRisks.length > 3 && <div className="text-[10px] text-[var(--text-dim)] text-center">외 {arRisks.length - 3}곳</div>}
+                </div>
               </div>
-            ))}
-            {risks.length > 4 && <div className="text-[10px] text-[var(--text-dim)] text-center">외 {risks.length - 4}건</div>}
+            )}
+            {projectRisks.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <div className="text-[11px] font-bold text-[var(--text-muted)]">프로젝트 <span className="mono-number">{projectRisks.length}</span>건</div>
+                  <Link href="/projects" className="widget-more-link">프로젝트 →</Link>
+                </div>
+                <div className="space-y-2">
+                  {projectRisks.slice(0, 4).map((r, i) => (
+                    <div key={`pj-${i}`} className="master-risk-row">
+                      <div className="text-[12px] font-semibold text-[var(--text)] truncate">{r.name}</div>
+                      <div className="text-[11px] text-[var(--danger)] truncate">{r.detail}</div>
+                    </div>
+                  ))}
+                  {projectRisks.length > 4 && <div className="text-[10px] text-[var(--text-dim)] text-center">외 {projectRisks.length - 4}건</div>}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

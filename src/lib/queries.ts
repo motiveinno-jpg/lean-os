@@ -557,14 +557,17 @@ export async function getFounderData(companyId: string) {
     supabase.from('tax_invoices').select('id', { count: 'exact', head: true }).eq('company_id', companyId),
     // 2026-06-11 매출 단일 소스화: 올해 매출 세금계산서(공급가액) — 손익계산서(/reports/pnl)와 동일 기준.
     //   기존 monthly_financials.revenue 는 엑셀 임포트 전용이라 CODEF·계산서 실데이터와 어긋났음(히어로 매출 0/스테일).
-    supabase.from('tax_invoices').select('supply_amount, issue_date')
+    //   회사 전체 계산서라 1,000행을 넘는다 — 페이징 없이는 뒤쪽 달 매출이 통째로 빠진다.
+    fetchPagedRes<any>('getFounderData.salesInv', () => supabase.from('tax_invoices').select('supply_amount, issue_date')
       .eq('company_id', companyId).eq('type', 'sales').neq('status', 'void')
-      .gte('issue_date', `${year}-01-01`).lt('issue_date', `${Number(year) + 1}-01-01`),
-    // 2026-06-11 미수금 단일 소스화: 미정산 매출 계산서 전체 — 요약 위젯/경영 흐름과 동일 조건.
-    //   기존 financial_items(category=receivable, 엑셀 전용)와 어긋났음.
-    supabase.from('tax_invoices').select('counterparty_name, total_amount, issue_date')
-      .eq('company_id', companyId).eq('type', 'sales')
-      .in('status', ['issued', 'sent', 'pending', 'overdue']),
+      .gte('issue_date', `${year}-01-01`).lt('issue_date', `${Number(year) + 1}-01-01`).order('id'), 50000),
+    // 미수 = 계산서 잔액(총액 − 정산액) 이 남은 매출 계산서. lib/invoice-arap 과 같은 기준.
+    //   상태(issued 등)로 판정하면 홈택스 수집 계산서는 발행되면 전부 issued 라 받은 돈까지 미수로 잡힌다.
+    fetchPagedRes<any>('getFounderData.arInv', () => supabase.from('tax_invoices')
+      .select('counterparty_name, total_amount, supply_amount, settled_amount, issue_date')
+      .eq('company_id', companyId).eq('type', 'sales').neq('status', 'void').neq('status', 'draft')
+      .gte('issue_date', (() => { const d = new Date(); d.setDate(d.getDate() - 730); return d.toISOString().slice(0, 10); })())
+      .order('id'), 50000),
   ]);
   const bankTxCount = bankTxRes.count || 0;
   const taxInvoiceCount = taxRes.count || 0;
@@ -629,16 +632,18 @@ export async function getFounderData(companyId: string) {
 
   // ── 라이브 미수금 items (tax_invoices 미정산) — 계산서 사용 회사는 엑셀 receivable 대체 ──
   //   due_date := issue_date → engines 의 30일 경과 판정이 요약 위젯(issue_date 30일 컷오프)과 동일해짐
-  const liveReceivables = ((arInvRes.data || []) as any[]).map((inv: any) => ({
-    category: 'receivable',
-    name: inv.counterparty_name || '세금계산서',
-    amount: Number(inv.total_amount || 0),
-    due_date: inv.issue_date,
-    status: 'pending',
-    risk_label: null,
-    project_name: null,
-    account_type: null,
-  }));
+  const liveReceivables = ((arInvRes.data || []) as any[])
+    .map((inv: any) => ({
+      category: 'receivable',
+      name: inv.counterparty_name || '세금계산서',
+      amount: Number(inv.total_amount || inv.supply_amount || 0) - Number(inv.settled_amount || 0),
+      due_date: inv.issue_date,
+      status: 'pending',
+      risk_label: null,
+      project_name: null,
+      account_type: null,
+    }))
+    .filter((r) => r.amount > 1);
 
   // 이번 달 매출 — 라이브(계산서 공급가액) 우선
   const liveMonthRevenue = invoiceMonthlyRevenue.get(thisMonth) ?? 0;

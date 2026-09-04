@@ -152,23 +152,33 @@ export function detectRisks(
     }
   }
 
-  // AR_OVER_30: 미수금 30일 이상
+  // AR_OVER_30: 미수금 30일 초과 — 거래처 하나에 리스크 하나.
+  //   계산서 한 장마다 리스크를 만들면 거래처 수백 곳 회사는 리스크가 수천 건이 되고 화면에 의미가 없다.
+  //   30일 기준은 lib/invoice-arap(> 30일) 과 같다.
+  const byPartner = new Map<string, { count: number; amount: number; maxDays: number; projectName?: string }>();
   for (const item of receivables) {
-    if (item.due_date && (item.status === 'pending' || item.status === 'overdue')) {
-      const dueDate = new Date(item.due_date);
-      const daysOverdue = Math.floor((todayMs - dueDate.getTime()) / 86400000);
-      if (daysOverdue >= 30) {
-        risks.push({
-          label: 'AR_OVER_30',
-          name: item.name,
-          detail: `${daysOverdue}일 연체 (₩${fmt(item.amount)})`,
-          daysOverdue,
-          amount: item.amount,
-          projectName: item.project_name || undefined,
-        });
-      }
-    }
+    if (!item.due_date || !(item.status === 'pending' || item.status === 'overdue')) continue;
+    const daysOverdue = Math.floor((todayMs - new Date(item.due_date).getTime()) / 86400000);
+    if (daysOverdue <= 30) continue;
+    const key = item.name || '(미상)';
+    const cur = byPartner.get(key) || { count: 0, amount: 0, maxDays: 0, projectName: item.project_name || undefined };
+    cur.count += 1;
+    cur.amount += Math.abs(item.amount);
+    cur.maxDays = Math.max(cur.maxDays, daysOverdue);
+    byPartner.set(key, cur);
   }
+  [...byPartner.entries()]
+    .sort((a, b) => b[1].amount - a[1].amount)
+    .forEach(([name, p]) => {
+      risks.push({
+        label: 'AR_OVER_30',
+        name,
+        detail: `${p.count > 1 ? `${p.count}건 · ` : ''}₩${fmt(p.amount)} · 최장 ${p.maxDays}일 경과`,
+        daysOverdue: p.maxDays,
+        amount: p.amount,
+        projectName: p.projectName,
+      });
+    });
 
   // OUTSOURCE_OVER_MARGIN: 외주/변동비가 기여이익 잠식
   for (const deal of deals) {
