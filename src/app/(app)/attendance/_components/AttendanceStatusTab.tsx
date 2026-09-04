@@ -353,7 +353,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
             <div className="att-detail-scroll">
               {detailItems.length === 0 ? <div className="att-detail-empty">해당 날짜가 없습니다</div> : (
                 <table className="ev-table ev-lined att-detail-table">
-                  <thead><tr><th className="text-left">날짜</th>{detail.empIds.length > 1 && <th className="text-left">직원</th>}<th className="text-left">내용</th><th className="text-left">비고</th></tr></thead>
+                  <thead><tr><th>날짜</th>{detail.empIds.length > 1 && <th>직원</th>}<th>내용</th><th>비고</th></tr></thead>
                   <tbody>
                     {detailItems.map((it, i) => (
                       <tr key={`${it.employee_id}:${it.date}:${i}`}>

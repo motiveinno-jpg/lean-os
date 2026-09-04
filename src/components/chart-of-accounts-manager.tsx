@@ -175,7 +175,7 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
           ) : shown.length === 0 ? (
             <div className="collect-empty">이 조건에 맞는 계정과목이 없습니다 — 검색조건을 풀어 보세요</div>
           ) : (
-            <table ref={tableRef} className="ev-table ev-lined coa-table">
+            <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed coa-table">
               <thead>
                 <tr>
                   <SortableTh label="코드" sortKey="code" sort={sort} onSort={onSort} resize={thResize("code", 1)} />

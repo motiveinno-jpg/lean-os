@@ -402,7 +402,7 @@ function ScheduleListTab({ companyId, userId, toast, tabs }: { companyId: string
           <div className="collect-empty">일정이 없습니다 — [+ 새로 만들기] 로 추가하거나 검색조건을 풀어 보세요</div>
         ) : (
           <div className="ev-scroll">
-            <table ref={tableRef} className="ev-table ev-lined sched-table">
+            <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed sched-table">
               <thead>
                 <tr>
                   <SortableTh label="완료" sortKey="done" sort={sort} onSort={onSort} resize={thResize("done", 1)} />

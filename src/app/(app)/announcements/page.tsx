@@ -110,7 +110,7 @@ export default function AnnouncementsPage() {
   const cf = useColFilters();
   const tableRef = useRef<HTMLTableElement | null>(null);
   // v3 (2026-08-25 사장님): 제목을 더 넓게, 나머지는 더 좁게 — 키를 올려 기존 저장 너비에도 적용
-  const [colW, setColW] = useColWidths("announcements-colw-v3", { pin: 40, category: 60, title: 780, author: 88, created: 128 });
+  const [colW, setColW] = useColWidths("announcements-colw-v4", { pin: 40, category: 60, title: 710, author: 120, created: 165 });
   const thResize = (k: string, colIndex: number) => ({ k, colIndex, widths: colW, onResize: setColW, tableRef });
   const catLabel = (c: string) => (CATEGORY_META[c] || CATEGORY_META.notice).label;
   const day = (v: string) => String(v || "").slice(0, 10);
@@ -185,7 +185,7 @@ export default function AnnouncementsPage() {
             <div className="collect-empty">이 조건에 맞는 공지가 없습니다 — 검색조건을 풀어 보세요</div>
           ) : (
             <div className="ev-scroll">
-              <table ref={tableRef} className="ev-table ev-lined annc-table">
+              <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed annc-table">
                 <thead>
                   <tr>
                     <SortableTh label="고정" resize={thResize("pin", 1)} />

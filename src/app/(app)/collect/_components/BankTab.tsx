@@ -983,7 +983,7 @@ export function BankTab({
         </div>
       ) : (
         <div className="ev-scroll">
-          <table ref={tableRef} className="ev-table bk-table ev-lined">
+          <table ref={tableRef} className="ev-table bk-table ev-lined ev-cols-fixed">
             <thead>
               <tr>
                 <th style={{ width: 34 }}>

@@ -575,7 +575,7 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
             : <>이 조건에 맞는 계약이 없습니다 — 검색조건을 풀어 보세요</>}
         </div>
       ) : (
-        <table ref={tableRef} className="ev-table ev-lined ca-table">
+        <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed ca-table">
           <thead>
             <tr>
               <th className="w-10">

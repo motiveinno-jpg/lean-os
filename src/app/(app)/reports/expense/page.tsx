@@ -168,7 +168,7 @@ export default function ExpensePage() {
         <h3>계정별 비용</h3>
         <p>비중 · {s.cmpLabel} 대비 — 급증(+50% 이상이고 판관비의 5% 이상)은 표시만, 판단은 사람이. 성격은 계정 이름 규칙(인건비/고정비/변동비)</p>
         <div className="pnl-tbl-wrap">
-          <table ref={tableRef} className="ev-table ev-lined pnl-partner-table">
+          <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed pnl-partner-table">
             <thead><tr>
               <SortableTh label="계정" sortKey="name" sort={sort} onSort={onSort} filter={cfSpec("name")} resize={thResize("name", 1)} />
               <SortableTh label="성격" sortKey="kind" sort={sort} onSort={onSort} filter={cfSpec("kind")} resize={thResize("kind", 2)} />

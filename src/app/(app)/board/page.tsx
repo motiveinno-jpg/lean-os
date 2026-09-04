@@ -1089,7 +1089,7 @@ export default function BoardPage() {
         </div>
       ) : (
         <div className="ev-scroll">
-        <table ref={tableRef} className="ev-table ev-lined board-table">
+        <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed board-table">
           <thead>
             <tr>
               <SortableTh label="제목" sortKey="title" sort={bSort} onSort={onBSort} resize={thResize("title", 1)} />

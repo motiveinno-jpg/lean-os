@@ -10342,6 +10342,7 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
 .att-detail-head { @apply mb-1 flex items-center justify-between gap-2; }
 .att-detail-sub { @apply mb-3 text-[11px] text-[var(--text-dim)]; }
 .att-detail-scroll { @apply min-h-0 overflow-y-auto; }
+.att-detail-table thead th { @apply px-3 text-left; } /* 머리단 글자와 본문 글자의 왼쪽 시작선을 같게 — 가운데 머리단 아래 왼쪽 본문은 어긋나 보인다 */
 .att-detail-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-1.5 text-xs align-top; }
 .att-detail-note { @apply whitespace-pre-wrap text-[var(--text-muted)]; }
 .att-detail-empty { @apply py-6 text-center text-[var(--text-dim)]; }
@@ -10351,3 +10352,10 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
 .board-pin-slot { @apply inline-flex w-4 shrink-0 items-center justify-center text-[12px]; }
 .board-post-title { @apply min-w-0 truncate text-sm font-bold text-[var(--text)]; }
 .board-post-tags { @apply inline-flex shrink-0 items-center gap-1.5; }
+
+/* ── 열 너비 고정 표: 정렬·쪽 이동으로 보이는 줄이 바뀌어도 열 폭이 안 흔들린다 — 폭은 머리단(useColWidths)이 정한다 (2026-09-04) ── */
+.ev-table.ev-cols-fixed { table-layout: fixed; }
+.ev-table.ev-cols-fixed td.ev-ell { max-width: none; }
+/* 폭을 넘는 글자는 옆 칸으로 새지 않고 …으로 잘린다(드래그·더블클릭으로 넓힐 수 있다). 칸 안에서 아래로 열리는 선택 목록(.spv-drop)이 있을 땐 잘리지 않게 푼다 */
+.ev-table.ev-cols-fixed tbody td { overflow: hidden; text-overflow: ellipsis; }
+.ev-table.ev-cols-fixed tbody td:has(.spv-drop) { overflow: visible; } /* 폭은 열이 정하므로 칸 자체의 상한은 푼다(넓힌 열에서 글자가 190px 에서 잘리지 않게) */

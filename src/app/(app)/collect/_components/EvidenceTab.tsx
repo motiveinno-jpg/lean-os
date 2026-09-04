@@ -168,7 +168,7 @@ export function EvidenceTab({
   const tableRef = useRef<HTMLTableElement | null>(null);
   const [colW, setColW] = useColWidths(`collect-ev-colw-${kind}`, {
     date: 64, partner: 150, bizno: 110, kind: 72, vat: 130, item: 150,
-    supply: 92, tax: 84, total: 96, debit: 130, credit: 130, state: 84,
+    supply: 92, tax: 84, total: 96, debit: 130, credit: 190, state: 84,
   });
   const colVal = (r: Row, k: string): string => {
     switch (k) {
@@ -1024,7 +1024,7 @@ export function EvidenceTab({
         </div>
       ) : (
         <div className="ev-scroll">
-          <table ref={tableRef} className="ev-table ev-lined">
+          <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed">
             <thead>
               <tr>
                 <th style={{ width: 34 }}>

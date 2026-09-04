@@ -116,7 +116,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
   const cf = useColFilters();
   const tableRef = useRef<HTMLTableElement | null>(null);
   const [colW, setColW] = useColWidths("employees-dir-colw-v1", {
-    name: 180, department: 120, position: 140, etype: 96, hire_date: 110, tenure: 96, phone: 130, email: 200, status: 96,
+    employee_number: 80, name: 180, department: 120, position: 140, etype: 96, hire_date: 110, tenure: 96, phone: 130, email: 200, status: 96,
   });
   const thResize = (k: string, colIndex: number) => ({ k, colIndex, widths: colW, onResize: setColW, tableRef });
 
@@ -289,7 +289,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
             ) : view === "card" ? (
               <div className="flex-people-card-grid emp-card-grid">{pager.view.map(renderCard)}</div>
             ) : (
-              <table ref={tableRef} className="ev-table ev-lined emp-table">
+              <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed emp-table">
                 <thead>
                   <tr>
                     {/*   사번 열 — 맨 왼쪽 (2026-08-27 사장님 "좌측에 사번"). 정렬은 이름과 같은 규칙(사번 순 → 가나다 → ABC) */}

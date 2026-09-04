@@ -154,7 +154,7 @@ export default function RevenuePage() {
         <h3>거래처별 매출</h3>
         <p>정렬 ▼ · ≡ 필터 · 너비 조절 · 쪽 — 줄 클릭 = 그 거래처 전표. 미수금은 매출 세금계산서 중 아직 안 들어온 것(발행 기준)</p>
         <div className="pnl-tbl-wrap">
-          <table ref={tableRef} className="ev-table ev-lined pnl-partner-table">
+          <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed pnl-partner-table">
             <thead><tr>
               <SortableTh label="거래처" sortKey="name" sort={sort} onSort={onSort} filter={cfSpec("name")} resize={thResize("name", 1)} />
               <SortableTh label="건수" sortKey="count" sort={sort} onSort={onSort} resize={thResize("count", 2)} />

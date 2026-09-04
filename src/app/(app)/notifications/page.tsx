@@ -208,7 +208,7 @@ export default function NotificationsPage() {
             <div className="collect-empty">이 조건에 맞는 알림이 없습니다 — 검색조건을 풀어 보세요</div>
           ) : (
             <div className="ev-scroll">
-              <table ref={tableRef} className="ev-table ev-lined notif-table">
+              <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed notif-table">
                 <thead>
                   <tr>
                     <SortableTh label="읽음" sortKey="read" sort={sort} onSort={onSort} filter={cfSpec("read")} resize={thResize("read", 1)} />
