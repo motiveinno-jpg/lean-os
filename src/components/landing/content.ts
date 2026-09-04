@@ -664,6 +664,7 @@ export const NAV_LINKS = [
   //   무료 도구는 FAQ 오른쪽 맨 끝 — 제품 메뉴(알아보기·가격·제휴) 가운데 끼어 있으면
   //   제품의 일부처럼 읽힌다 (2026-08-14 사장님: "faq 오른쪽으로 배치해").
   { href: TOOLS_HREF, label: "무료 도구" },
+  { href: "/blog", label: "블로그" },
 ];
 
 export const FOOTER = {
