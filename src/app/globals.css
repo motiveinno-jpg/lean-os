@@ -4679,6 +4679,32 @@ table.pnl-drill-table { min-width: 760px; }
 .account-chip-identity { @apply flex items-center gap-3 px-4 py-4; }
 .account-chip-details { @apply px-4 pb-3 space-y-1.5 text-[12px]; }
 .account-chip-footer { @apply px-4 py-2.5 border-t border-[var(--border)]; }
+/* 내 상태 (2026-09-04) — 계정 칩·팝오버·메신저가 같은 점(.presence-dot) */
+.presence-dot { @apply inline-block h-2 w-2 shrink-0 rounded-full align-middle; }
+.presence-dot-meeting { background: var(--warning); }
+.presence-dot-away { background: var(--text-dim); }
+.presence-dot-out { background: #2563eb; }
+.presence-dot-focus { background: var(--primary); }
+.presence-dot-off { background: transparent; box-shadow: inset 0 0 0 1.5px var(--text-dim); }
+.presence-text { @apply inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)]; }
+.account-chip-avatar-wrap { @apply relative inline-flex shrink-0; }
+.account-chip-dot { @apply absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--bg-card)]; }
+.account-chip-dot.is-lg { @apply h-3.5 w-3.5; }
+.account-chip-presence { @apply border-t border-[var(--border)] px-4 py-3; }
+.account-chip-presence-head { @apply mb-2 flex items-center justify-between text-[11.5px] font-semibold text-[var(--text-muted)]; }
+.account-chip-presence-now { @apply inline-flex items-center gap-1 text-[11px] font-medium text-[var(--text)]; }
+.presence-chips { @apply grid grid-cols-3 gap-1.5; }
+.presence-chip { @apply inline-flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] px-2 py-1.5 text-[12px] text-[var(--text)] transition hover:bg-[var(--bg-surface)] disabled:opacity-60; }
+.presence-chip.is-on { @apply border-[var(--primary)] bg-[var(--primary-light)] font-semibold text-[var(--primary)]; }
+.presence-opts { @apply mt-2.5 grid grid-cols-2 gap-2; }
+.presence-opt { @apply flex flex-col gap-1 text-[10.5px] text-[var(--text-dim)]; }
+.presence-select, .presence-input { @apply w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-[12px] text-[var(--text)] outline-none focus:border-[var(--primary)]; }
+.presence-hint { @apply mt-2 text-[10.5px] leading-snug text-[var(--text-dim)]; }
+.chat-person-face { @apply relative; }
+.chat-person-dot { @apply absolute -bottom-0.5 -right-0.5 h-2 w-2 border-[1.5px] border-[var(--bg-card)]; }
+.chat-person-presence { @apply truncate text-[10.5px]; }
+.chat-person-on .chat-person-presence { @apply text-white/80; }
+.chat-room-presence { @apply ml-2 text-[11px]; }
 
 /* === chat-search.tsx === */
 .chat-search { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-4 mb-3; }

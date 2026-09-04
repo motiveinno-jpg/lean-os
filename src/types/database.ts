@@ -17559,6 +17559,10 @@ export type Database = {
         Row: {
           auth_id: string | null
           avatar_url: string | null
+          presence_note: string | null
+          presence_set_at: string | null
+          presence_status: string
+          presence_until: string | null
           company_id: string | null
           created_at: string | null
           email: string
@@ -17570,6 +17574,10 @@ export type Database = {
         Insert: {
           auth_id?: string | null
           avatar_url?: string | null
+          presence_note?: string | null
+          presence_set_at?: string | null
+          presence_status?: string
+          presence_until?: string | null
           company_id?: string | null
           created_at?: string | null
           email: string
@@ -17581,6 +17589,10 @@ export type Database = {
         Update: {
           auth_id?: string | null
           avatar_url?: string | null
+          presence_note?: string | null
+          presence_set_at?: string | null
+          presence_status?: string
+          presence_until?: string | null
           company_id?: string | null
           created_at?: string | null
           email?: string

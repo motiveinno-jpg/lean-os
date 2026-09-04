@@ -1253,7 +1253,7 @@ export async function getPinnedMessages(channelId: string) {
 export async function getParticipants(channelId: string) {
   const data = logRead('getParticipants', await supabase
     .from('chat_participants')
-    .select('*, users(name, email)')
+    .select('*, users(name, email, presence_status, presence_note, presence_until)')   // 1:1 대화 머리의 상대 상태(2026-09-04)
     .eq('channel_id', channelId)
     .order('invited_at'));
   return data || [];
@@ -1352,7 +1352,7 @@ export async function getChannelFiles(channelId: string) {
 export async function getCompanyUsers(companyId: string) {
   const data = logRead('getCompanyUsers', await supabase
     .from('users')
-    .select('id, name, email')
+    .select('id, name, email, presence_status, presence_note, presence_until')   // 내 상태(2026-09-04) — 메신저 구성원 줄
     .eq('company_id', companyId)
     .order('name'));
   return data || [];
