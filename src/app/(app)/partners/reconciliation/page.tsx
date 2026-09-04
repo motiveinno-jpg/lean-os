@@ -1,5 +1,4 @@
 "use client";
-import { useFeature } from "@/lib/use-feature";
 import { logRead } from "@/lib/log-read";
 import { fetchPaged } from "@/lib/fetch-paged";
 
@@ -46,8 +45,6 @@ type Tab = "queue" | "manual" | "confirmed";
 export default function ReconciliationPage() {
   const { user } = useUser();
   const companyId = user?.company_id ?? null;
-  // 자동 정산 게이트 — 켜진 회사는 정확 일치 건이 사람 확인 없이 확정되므로 화면에 그 사실을 알린다
-  const { data: autoSettleOn } = useFeature("auto_settlement", companyId);
   const matchCd = useSyncCooldown(companyId, "match");
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -700,12 +697,6 @@ export default function ReconciliationPage() {
             ))}
           </div>
 
-          {autoSettleOn && (
-            <div className="no-print mx-1 mb-1 px-3 py-2 rounded-lg bg-[var(--primary-light)] text-[11.5px] text-[var(--primary)] leading-relaxed">
-              <b>자동 정산 켜짐</b> — 입출금이 들어오면 같은 거래처의 미정산 계산서와 금액이 정확히 맞는 건은 바로 확정됩니다(매일 두 번 재확인).
-              금액이 다르거나 거래처를 못 찾은 건만 아래에 남아 있으니 여기서 확인하세요. 잘못 맞춰진 건은 <b>정리 내역</b>에서 되돌릴 수 있습니다.
-            </div>
-          )}
           <QueryBar right={<HelperMenu items={helperItems} />}>
             <DateRangeField label={null} parts="segments" from={engStart} to={engEnd}
               onChange={(f, t) => { setEngStart(f); setEngEnd(t); }}
