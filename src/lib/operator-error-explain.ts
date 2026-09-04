@@ -640,6 +640,8 @@ function explainPlatformFirst(joined: string, msg: string, ctxStr = ""): ErrorEx
   }
   // 브라우저에서 잡힌 DB 응답 — [DB 409] 처럼 상태코드로 온다(SQLSTATE 없음)
   const db = msg.match(/^\[DB (\d{3})\]\s+(\w+)\s+(\S+)/);
+  // Edge 함수(/functions/v1/…) 504 는 DB 장애가 아니라 함수 시간 초과 — 아래 규칙표의 HTTP_504 로 넘긴다
+  if (db && Number(db[1]) === 504 && /\/functions\/v1\//.test(db[3])) return null;
   if (db) {
     const status = Number(db[1]);
     const path = db[3];

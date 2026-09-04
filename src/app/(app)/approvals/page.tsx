@@ -2210,7 +2210,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  // 체크박스 선택 → PDF 일괄 다운로드(zip) (2026-09-04 사장님: 결재건 여러 개를 한 번에 받게)
+  // 체크박스 선택 → 여러 결재건 PDF 를 zip 하나로 일괄 다운로드
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [bulkPdf, setBulkPdf] = useState<{ running: boolean; done: number; total: number }>({ running: false, done: 0, total: 0 });
 
