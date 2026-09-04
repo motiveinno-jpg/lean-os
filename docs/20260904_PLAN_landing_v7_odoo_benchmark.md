@@ -142,6 +142,46 @@ A안 = 기능 흐름(수집→전표→세무) 설명형, B안 = 고객 질문�
 **남은 것** — ① KPI 현황판 실제 캡처(데모 데이터 채운 뒤 재촬영). ② 확정 후 `/` 전환 + noindex 해제 + 사이트맵 등록.
 ③ 이커머스·메신저에 시연 데이터가 생기면 그 장면을 넣어 재촬영(파일명에 `-v2`).
 
+
+---
+
+## ⏸️ 여기까지 (2026-09-04 저장) — 다음 주에 이어서
+
+사장님: "일단 이 상태를 저장해 줘. 다음 주에 이어서 작업할게."
+
+### 지금 살아 있는 것
+| 무엇 | 어디 |
+|---|---|
+| 새 랜딩 (배포됨·noindex) | https://www.owner-view.com/landing-v7 — 히어로 영상 재생 확인 완료 |
+| 현재 랜딩 (그대로) | https://www.owner-view.com/ — **한 줄도 손대지 않았다** |
+| 목업 A안 (기능 흐름 설명형) | https://claude.ai/code/artifact/d9d41fa1-2391-47bd-adae-0cdaedaa1a59 |
+| 목업 B안 (채택 · 지금 배포된 것) | https://claude.ai/code/artifact/224dc619-5b0b-4855-ad6f-a01936555a3b |
+| 목업 힙 버전 (검토 대기) | https://claude.ai/code/artifact/4207a7bb-111d-48e4-870c-a7e316cc8327 |
+
+### 사장님 결정이 필요한 것 (이것부터)
+1. **힙 버전으로 갈지** — 셋 중 하나. ① 지금 그대로 ② 힙 버전 전면 적용 ③ 섞기(색·글자만 힙하게, 격자는 지금의 좌우 교대 챕터 유지).
+2. **`/` 로 전환할 시점** — 전환하면 robots noindex 를 빼고 canonical 을 `https://www.owner-view.com` 로 바꾸고 sitemap 에 넣는다.
+
+### 코드에서 이어서 할 일
+- **힙 버전 채택 시**: `src/app/landing-v7.css` 만 갈아입히면 된다. 구조(`landing-v7.tsx`)·문구(`content.ts`)·GSAP 모션은 그대로 쓴다.
+  갈아입힐 것 = 색 토큰(종이색 #FAFAF8 · 먹색 #0A0A0B · 라임 #D6FF3E), 글꼴(Space Grotesk + JetBrains Mono 추가),
+  떠 있는 알약 내비, 벤토 격자(`.lp7-chapter` → 격자), 종이 결 노이즈, 흐르는 띠, 스티커 배지.
+  목업 소스는 스크래치패드에 있어 사라진다 → 아티팩트에서 되받는다:
+  `node <design 스킬>/seed-canvas.mjs --extract <아티팩트 저장 파일> --to <빈 폴더>`
+- **`/` 전환 시**: `src/app/page.tsx` 가 `LandingPage`(v6) 대신 `LandingV7` 을 그리게 하고, `landing-v7/page.tsx` 의
+  `robots: { index: false }` 를 빼고 canonical 을 `SITE` 로. 미들웨어의 `/landing-v7` 항목은 남겨 둬도 무해하다.
+- **KPI 현황판 캡처**: 지금은 위젯 표기다. 모티브 계정에 데모 데이터를 넣고 `재고 › 이익관리 › KPI 현황판` 을 다시 찍어
+  `content.ts` 의 01 섹션 `shot` 을 교체한다.
+- **영상 재촬영**(이커머스·메신저에 데이터가 생기면): `node scripts/record-landing-hero.mjs` — 파일 위 주석에 자르기·인코딩 명령까지 적어 뒀다.
+
+### 손대면 안 되는 것
+- `src/components/landing/**`, `src/app/landing*.css`(v4~v6), `src/app/page.tsx` — 지금 랜딩이다. v7 확정 전까지 그대로.
+- 영상 파일명 `ownerview-hero.*` — 다시 찍으면 `-v2` 를 붙인다(캐시).
+
+### 이번에 새로 깔린 것 (다른 PC 는 `npx skills install` 또는 `npm i` 필요)
+- npm: `gsap`, `@gsap/react`
+- 스킬: `.agents/skills/gsap-*` 8종 + `motion-design` (`skills-lock.json` 에 잠겨 있다)
+
 **버린 안** — (a) 오두식 각진 버튼·다색 아이콘: 우리 앱 UI 와 결이 달라 랜딩만 딴 제품처럼 보인다. (b) 손그림 낙서 장식: 담백한 톤과 충돌. (c) 히어로에 캡처 유지: 격자와 영상이 바로 뒤에 오므로 세 번 겹친다.
 
 ## 5. 누락 점검
