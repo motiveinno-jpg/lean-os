@@ -10509,6 +10509,14 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
 .dg-tip-t1 { font-size: 11px; font-weight: 600; fill: var(--bg-card); }
 .dg-tip-t2 { font-size: 11px; fill: var(--bg-card); opacity: .85; }
 .dg-bar1 { fill: var(--primary); }
+/* 자금 전망 폭포 (결정 169) — 지금·N일 뒤는 주색, 나가는 돈 빨강, 들어오는 돈 초록, 이음선 점선 */
+.dg-wf-tot { fill: var(--primary); }
+.dg-wf-out { fill: var(--danger); opacity: .85; }
+.dg-wf-in { fill: var(--success); opacity: .85; }
+.dg-wf-v { font-size: 10.5px; font-weight: 600; fill: var(--text); }
+.dg-wf-v.is-out { fill: var(--danger); }
+.dg-wf-v.is-in { fill: var(--success); }
+.dg-wf-link { stroke: var(--text-dim); stroke-dasharray: 2 3; }
 .dg-bar2 { fill: color-mix(in srgb, var(--primary) 28%, transparent); }
 .dg-legend { @apply mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1 text-[12px] text-[var(--text-muted)]; }
 .dg-legend i { @apply mr-1.5 inline-block h-2 w-2 rounded-sm align-middle; }

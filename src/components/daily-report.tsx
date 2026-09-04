@@ -8,6 +8,7 @@
 //   feature_rollout('dashboard_g') — 모티브 먼저(CLAUDE.md 규칙). 켜진 회사는 이 파일, 아니면 E안(morning-report.tsx).
 //   숫자는 lib/daily-report-data.ts 한 곳에서 읽는다(E안과 같은 값). 규모 규칙(결정 166)은 그대로.
 //   2026-09-04 후속(결정 168): 자금 전망 30·60·90일 토글, 날짜 이동(지난 날은 daily_report_snapshots 저장본), 최근 활동 행위자, 잔액 이력.
+//   결정 169: 자금 전망 기본 그림 = 폭포(Waterfall), 선(AreaFig)은 "날짜별" 토글. 목업 fund-charts 네 안 중 사장님 선택.
 //   오너뷰 것으로 남긴 것: AI 결론 카드, 챙길 것 체크리스트, 규모 규칙 각주, "이 화면이 읽은 것", 권한별 카드 숨김.
 
 import Link from "next/link";
@@ -25,11 +26,11 @@ function axisWon(n: number): string {
   if (a >= 10_000) return `${sign}${Math.round(a / 10_000)}만`;
   return `${sign}${a}`;
 }
-function ticks(min: number, max: number): number[] {
-  const span = Math.max(1, max - min); const raw = span / 2;
+function ticks(min: number, max: number, parts = 2): number[] {
+  const span = Math.max(1, max - min); const raw = span / parts;
   const mag = Math.pow(10, Math.floor(Math.log10(raw))); const step = [1, 2, 5, 10].map((m) => m * mag).find((v) => v >= raw) || mag * 10;
   const lo = Math.floor(min / step) * step; const out: number[] = [];
-  for (let v = lo; v <= max + step * 0.01 && out.length < 6; v += step) out.push(v);
+  for (let v = lo; v <= max + step * 0.01 && out.length < 8; v += step) out.push(v);
   return out;
 }
 const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0);
@@ -104,6 +105,48 @@ function AreaFig({ curve, step = 5 }: { curve: Curve; step?: number }) {
   );
 }
 
+//   자금 전망 폭포 (2026-09-04 결정 169, 사장님 "2번(폭포)이 좋다") — 지금 잔액에서 사건 하나하나가 내려가고 올라가 N일 뒤에 닿는다.
+//   "얼마"가 아니라 "무엇 때문에" 줄어드는지에 답한다. 사건이 9개를 넘으면 큰 것 8개만 두고 나머지는 '기타 N건'. 시간 축은 선 보기가 맡는다.
+function Waterfall({ curve, horizon }: { curve: Curve; horizon: number }) {
+  const evs = curve.points.flatMap((p) => p.items.filter((it) => it.amount !== 0).map((it) => ({ date: p.date, day: p.day, kind: it.kind as string, name: it.label, basis: it.basis, amount: it.amount })));
+  let bars = evs;
+  if (evs.length > 9) {
+    const keep = new Set([...evs].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).slice(0, 8));
+    const rest = evs.filter((e) => !keep.has(e));
+    bars = [...evs.filter((e) => keep.has(e)), { date: "", day: 9999, kind: `기타 ${rest.length}건`, name: rest.map((r) => r.name).slice(0, 5).join(", ") + (rest.length > 5 ? " …" : ""), basis: "", amount: rest.reduce((x, e) => x + e.amount, 0) }];
+  }
+  const start = curve.points[0].balance; const end = curve.end;
+  type Bar = { label: string; sub: string; tip: string; kind: "tot" | "in" | "out"; amount: number; from: number; to: number };
+  const seq: Bar[] = []; let run = start;
+  seq.push({ label: "지금", sub: "", tip: `지금 잔액 ${wonK(start)}`, kind: "tot", amount: start, from: start, to: start });
+  for (const b of bars) { const prev = run; run += b.amount; seq.push({ label: b.day === 9999 ? b.kind : fmtMd(b.date), sub: b.day === 9999 ? "" : b.kind, tip: `${b.day === 9999 ? b.kind : `${fmtMd(b.date)} ${b.kind}`} · ${b.name}${b.basis ? ` · ${b.basis}` : ""} · ${b.amount > 0 ? "+" : "−"}${wonK(Math.abs(b.amount))}`, kind: b.amount > 0 ? "in" : "out", amount: b.amount, from: prev, to: run }); }
+  seq.push({ label: `${horizon}일 뒤`, sub: "", tip: `${horizon}일 뒤 잔액 ${wonK(end)}`, kind: "tot", amount: end, from: end, to: end });
+  const W = 720, H = 220, pl = 44, pr = 12, pt = 18, pb = 40; const n = seq.length; const gw = (W - pl - pr) / n; const bw = Math.min(34, gw * 0.6);
+  const allV = [0, ...seq.flatMap((x) => [x.from, x.to])]; const lo = Math.min(...allV), hi = Math.max(...allV);
+  const tk = ticks(lo, hi, 4); const bot = tk[0]; const top = Math.max(tk[tk.length - 1], hi);
+  const Y = (v: number) => pt + ((top - v) / Math.max(1, top - bot)) * (H - pt - pb);
+  const base = lo < 0 ? 0 : bot;
+  return (
+    <svg className="dg-fig" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${horizon}일 잔액 폭포`}>
+      {tk.map((v) => <g key={v}><line className={v === 0 && lo < 0 ? "dg-zero" : "dg-grid"} x1={pl} x2={W - pr} y1={Y(v)} y2={Y(v)} /><text className="dg-ax" x={pl - 8} y={Y(v) + 3} textAnchor="end">{axisWon(v)}</text></g>)}
+      {seq.map((b, k) => {
+        const cx = pl + gw * k + gw / 2; const x = cx - bw / 2;
+        const y0 = b.kind === "tot" ? Y(Math.max(b.amount, base)) : Y(Math.max(b.from, b.to)); const y1 = b.kind === "tot" ? Y(Math.min(b.amount, base)) : Y(Math.min(b.from, b.to));
+        const parts = b.sub ? [b.label, b.sub] : [b.label];
+        return (
+          <g key={k}>
+            <title>{b.tip}</title>
+            <rect className={`dg-wf-${b.kind}`} x={x} y={y0} width={bw} height={Math.max(2, y1 - y0)} rx={3} />
+            <text className={`dg-wf-v is-${b.kind} mono-number`} x={cx} y={y0 - 5} textAnchor="middle">{b.kind === "tot" ? wonK(b.amount) : `${b.amount > 0 ? "+" : "−"}${wonK(Math.abs(b.amount))}`}</text>
+            {k < n - 1 && <line className="dg-wf-link" x1={x + bw} x2={pl + gw * (k + 1) + gw / 2 - bw / 2} y1={Y(b.to)} y2={Y(b.to)} />}
+            {parts.map((t, i) => <text key={i} className="dg-ax" x={cx} y={H - 22 + i * 13} textAnchor="middle">{t.length > 9 ? t.slice(0, 8) + "…" : t}</text>)}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 //   매출·비용 묶음 막대 — 6개월. 막대 9px 둥근 끝, 비용은 연한 주색.
 function GroupedBars({ series }: { series: { month: string; revenue: number; cost: number }[] }) {
   const W = 420, H = 190, pl = 36, pr = 8, pt = 14, pb = 24; const n = series.length; const gw = (W - pl - pr) / n; const bw = 9;
@@ -153,6 +196,7 @@ export function DailyReport({
   //   보는 날 — 오늘이 기본, ‹ › 로 지난 날(저장본). 자금 전망 일수는 30·60·90.
   const [offset, setOffset] = useState(0);
   const [horizon, setHorizon] = useState<30 | 60 | 90>(30);
+  const [fundView, setFundView] = useState<"wf" | "line">("wf");   // 폭포가 기본(결정 169), 선은 툴팁·시간축용
   const viewDay = useMemo(() => shiftDay(todayKst(), offset), [offset]);
   const { today, day, past, snapshotMissing, savedAt, balHistory, s, curve, taxItems, bankToday, recv, proj, inv, people, recent } = useDailyReportData(companyId, userId, perm, { horizon, day: viewDay, snapshot: true });
   const isWeekend = [0, 6].includes(new Date(day + "T00:00:00").getDay());
@@ -289,15 +333,16 @@ export function DailyReport({
       {(perm.finance || perm.briefing) && (
         <div className="dg-row dg-r21">
           {perm.finance && (
-            <Card title="자금 전망" right={<><span className="dg-seg">{([30, 60, 90] as const).map((h) => <button key={h} type="button" className={h === horizon ? "is-on" : ""} disabled={past} onClick={() => setHorizon(h)}>{h}일</button>)}</span><Link href="/reports/outlook" className="dg-more">자금 전망 →</Link></>}>
+            <Card title="자금 전망" right={<><span className="dg-seg"><button type="button" className={fundView === "wf" ? "is-on" : ""} onClick={() => setFundView("wf")}>왜 줄어드나</button><button type="button" className={fundView === "line" ? "is-on" : ""} onClick={() => setFundView("line")}>날짜별</button></span><span className="dg-seg">{([30, 60, 90] as const).map((h) => <button key={h} type="button" className={h === horizon ? "is-on" : ""} disabled={past} onClick={() => setHorizon(h)}>{h}일</button>)}</span><Link href="/reports/outlook" className="dg-more">자금 전망 →</Link></>}>
               {!s ? <p className="rep-none">통장 자료를 읽는 중…</p> : !s.cash.hasBank ? <p className="rep-none">연결된 통장이 없습니다. 통장을 연결하면 잔액·전망이 자동으로 채워집니다.</p> : (
                 <>
-                  {(() => { const end = horizon === 30 && forecast30 != null && !past ? forecast30 : (curve?.end ?? s.cash.balance); const d = end - s.cash.balance; return (
+                  {/* 머리 숫자는 그림과 같은 계산(cash-outlook curve.end) — cash-pulse 의 forecast30 과 다르면 폭포 끝 막대와 어긋난다(2026-09-04 실측 4,220만 vs 1.3억) */}
+                  {(() => { const end = curve ? curve.end : (forecast30 ?? s.cash.balance); const d = end - s.cash.balance; return (
                     <div className="dg-tot"><span className="dg-tot-n mono-number">{wonK(end)}</span><span className="dg-tot-k">{horizon}일 뒤 잔액 · 지금 {wonK(s.cash.balance)} · {d >= 0 ? "+" : "−"}{wonK(Math.abs(d))}</span></div>
                   ); })()}
                   <p className="dg-p">30일 안에 낼 돈은 <b>{wonK(s.arap.due30)}</b>(정기 지출·급여·대출 상환{vat30 > 0 ? "·부가세" : ""})입니다.{curve && curve.min.day > 0 && <> 가장 낮아지는 날은 <b>{fmtMd(curve.min.date)} {wonK(curve.min.balance)}</b>{curve.shortfall ? <b className="rep-t-bad">이고 {fmtMd(curve.shortfall.date)}에 마이너스가 됩니다</b> : "입니다"}.</>}{unclassified.bank + unclassified.card > 0 && <> 통장 미분류 <b className="rep-t-warn">{unclassified.bank.toLocaleString("ko")}건</b>, 카드 미분류 <b className="rep-t-warn">{unclassified.card.toLocaleString("ko")}건</b>은 아직 손익에 안 들어갑니다.</>}</p>
-                  {curve && <AreaFig curve={curve} step={horizon / 6} />}
-                  <p className="dg-note">확정 전표와 통장 기준 · 날짜 위에 올리면 그날 오가는 돈이 보입니다{taxItems.length > 0 && <> · 세금 {taxItems.map((t, i) => <span key={t.id}>{i > 0 && ", "}<Link href={t.href} className="rep-link">{t.title} {fmtMd(t.date)} <b className={t.daysLeft <= 7 ? "rep-t-bad" : ""}>{t.daysLeft === 0 ? "오늘" : `D-${t.daysLeft}`}</b></Link></span>)}</>}</p>
+                  {curve && (fundView === "wf" ? <Waterfall curve={curve} horizon={horizon} /> : <AreaFig curve={curve} step={horizon / 6} />)}
+                  <p className="dg-note">확정 전표와 통장 기준 · {fundView === "wf" ? "막대에 마우스를 올리면 어디서 온 숫자인지 보입니다" : "날짜 위에 올리면 그날 오가는 돈이 보입니다"}{taxItems.length > 0 && <> · 세금 {taxItems.map((t, i) => <span key={t.id}>{i > 0 && ", "}<Link href={t.href} className="rep-link">{t.title} {fmtMd(t.date)} <b className={t.daysLeft <= 7 ? "rep-t-bad" : ""}>{t.daysLeft === 0 ? "오늘" : `D-${t.daysLeft}`}</b></Link></span>)}</>}</p>
                 </>
               )}
             </Card>
