@@ -1107,34 +1107,32 @@ export default function BoardPage() {
               <Fragment key={p.id}>
                 <tr className={open ? "board-row board-row-open" : "board-row"} onClick={() => setOpenId(open ? null : p.id)}>
                   <td className="text-left">
-                    <div className="board-post-badges">
-                      {p.category && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg)] border border-[var(--border)] text-[var(--text-dim)] font-semibold">
-                          {p.category}
-                        </span>
-                      )}
-                      {p.pinned && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">
-                          <Ico e="📌" tone="mono" /> 고정
-                        </span>
-                      )}
-                      {p.event_date && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--info-dim)] text-[var(--info)] font-semibold">
-                          <Ico e="📅" tone="mono" /> {kstDateStr(new Date(p.event_date))}
-                        </span>
-                      )}
-                      {p.poll_question && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">
-                          <Ico e="🗳" tone="mono" /> 투표
-                        </span>
-                      )}
-                      {(p.attachments?.length ?? 0) > 0 && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--warning-dim)] text-[var(--warning)] font-semibold">
-                          <Ico e="📎" /> {p.attachments!.length}
-                        </span>
-                      )}
-                      <span className="text-sm font-bold text-[var(--text)] truncate">
-                        {p.title}
+                    {/* 제목 줄 = [압정 칸(고정이면 📌, 아니면 빈칸 — 폭은 같게)] 제목 [분류·일정·투표·첨부 배지] ▾
+                        배지가 제목 앞에 오면 글마다 제목 시작 위치가 제각각이라 배지를 제목 뒤로 보냈다. */}
+                    <div className="board-post-line">
+                      <span className="board-pin-slot" title={p.pinned ? "상단 고정" : undefined}>{p.pinned && <Ico e="📌" tone="mono" />}</span>
+                      <span className="board-post-title">{p.title}</span>
+                      <span className="board-post-tags">
+                        {p.category && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg)] border border-[var(--border)] text-[var(--text-dim)] font-semibold">
+                            {p.category}
+                          </span>
+                        )}
+                        {p.event_date && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--info-dim)] text-[var(--info)] font-semibold">
+                            <Ico e="📅" tone="mono" /> {kstDateStr(new Date(p.event_date))}
+                          </span>
+                        )}
+                        {p.poll_question && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">
+                            <Ico e="🗳" tone="mono" /> 투표
+                          </span>
+                        )}
+                        {(p.attachments?.length ?? 0) > 0 && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--warning-dim)] text-[var(--warning)] font-semibold">
+                            <Ico e="📎" /> {p.attachments!.length}
+                          </span>
+                        )}
                       </span>
                       <svg className={`w-3.5 h-3.5 shrink-0 text-[var(--text-dim)] transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" /></svg>
                     </div>
