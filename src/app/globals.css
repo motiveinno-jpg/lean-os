@@ -10335,7 +10335,7 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
 [data-theme="dark"] .pf-tone-warn { color: #fbbf24; }
 
 
-/* ── 근태 현황: 지각·결근·재택·반차·연차 숫자 칸 팝업 (2026-09-04) ── */
+/* ── 근태 현황: 지각·결근·재택·반차·연차 숫자 칸 팝업 ── */
 .att-cnt-btn { @apply cursor-pointer rounded px-1 underline decoration-dotted underline-offset-2 hover:bg-[var(--bg-surface)]; }
 .att-stat-btn { @apply cursor-pointer rounded hover:bg-[var(--bg-surface)]; }
 .att-detail-panel { @apply flex w-[680px] max-w-[94vw] max-h-[85vh] flex-col p-5; } /* glass-card (existing custom class) kept literal in JSX */
@@ -10347,13 +10347,13 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
 .att-detail-note { @apply whitespace-pre-wrap text-[var(--text-muted)]; }
 .att-detail-empty { @apply py-6 text-center text-[var(--text-dim)]; }
 
-/* ── 게시판 목록 제목 줄: 압정 칸 고정폭 → 제목 시작 위치 통일, 배지는 제목 뒤 (2026-09-04) ── */
+/* ── 게시판 목록 제목 줄: 압정 칸 고정폭 → 제목 시작 위치 통일, 배지는 제목 뒤 ── */
 .board-post-line { @apply flex min-w-0 items-center gap-2; }
 .board-pin-slot { @apply inline-flex w-4 shrink-0 items-center justify-center text-[12px]; }
 .board-post-title { @apply min-w-0 truncate text-sm font-bold text-[var(--text)]; }
 .board-post-tags { @apply inline-flex shrink-0 items-center gap-1.5; }
 
-/* ── 열 너비 고정 표: 정렬·쪽 이동으로 보이는 줄이 바뀌어도 열 폭이 안 흔들린다 — 폭은 머리단(useColWidths)이 정한다 (2026-09-04) ── */
+/* ── 열 너비 고정 표: 정렬·쪽 이동으로 보이는 줄이 바뀌어도 열 폭이 안 흔들린다 — 폭은 머리단(useColWidths)이 정한다 ── */
 .ev-table.ev-cols-fixed { table-layout: fixed; }
 .ev-table.ev-cols-fixed td.ev-ell { max-width: none; }
 /* 폭을 넘는 글자는 옆 칸으로 새지 않고 …으로 잘린다(드래그·더블클릭으로 넓힐 수 있다). 칸 안에서 아래로 열리는 선택 목록(.spv-drop)이 있을 땐 잘리지 않게 푼다 */
