@@ -209,6 +209,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isLimitedRole = role === "partner"; // (P3) 멤버는 전원 동일 레이아웃
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState<"expired" | "clock" | null>(null);
 
   // 팝업 임베드 모드 — 메뉴 팝업 iframe(`?embed=1`)로 열렸을 땐 셸 크롬(사이드바/헤더/네비/플로팅) 숨기고
   //   페이지 본문만 렌더. useState 지연 초기화로 최초 마운트 시 1회 확정(iframe 내부 이동에도 유지).
@@ -273,6 +274,17 @@ function AppContent({ children }: { children: React.ReactNode }) {
       window.removeEventListener("ownerview:mutation-error", handler);
       window.removeEventListener("ownerview:db-write-error", handler);
     };
+  }, []);
+
+  // 세션 만료(JWT expired)·기기 시계 오차(issued at future)로 401 이 나면 — 자동 갱신이 못 살린 경우
+  //   화면이 조용히 비어 보이므로 배너로 다시 로그인하라고 알린다. 갱신에 성공하면(TOKEN_REFRESHED) 배너를 내린다.
+  useEffect(() => {
+    const onExpired = (e: Event) => setSessionExpired(((e as CustomEvent).detail as "expired" | "clock") || "expired");
+    window.addEventListener("ownerview:session-expired", onExpired);
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") setSessionExpired(null);
+    });
+    return () => { window.removeEventListener("ownerview:session-expired", onExpired); sub?.subscription?.unsubscribe(); };
   }, []);
 
   // 전역 JS 에러 / 미처리 Promise 거부 → 운영자 조회용 DB 적재
@@ -460,6 +472,20 @@ function AppContent({ children }: { children: React.ReactNode }) {
       <SingleSessionGuard />
       {/* 회사별 접속 허용 IP 제한 — 설정을 켠 회사만 (2026-08-11) */}
       <IpGate />
+      {/* 세션 만료 배너 — 다시 로그인으로 유도 */}
+      {sessionExpired && (
+        <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 px-4 py-2.5 rounded-xl bg-[var(--bg-card)] border border-[var(--warning)] text-xs shadow-lg max-w-md animate-[slide-in_0.3s_ease]">
+          <span className="text-[var(--text)]">
+            {sessionExpired === "clock"
+              ? "기기 시계가 실제 시간과 달라 로그인 확인에 실패했습니다. 시계를 자동 설정으로 맞춘 뒤 다시 로그인해 주세요."
+              : "로그인 세션이 만료되었습니다. 다시 로그인해 주세요."}
+          </span>
+          <button type="button" className="btn-primary btn-sm shrink-0"
+            onClick={async () => { try { await supabase.auth.signOut(); } catch { /* 이미 만료 */ } window.location.assign("/auth?reason=expired"); }}>
+            다시 로그인
+          </button>
+        </div>
+      )}
       {/* 글로벌 Mutation 에러 토스트 */}
       {mutationError && (
         <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-red-500/95 text-white text-xs font-medium shadow-lg max-w-sm text-center animate-[slide-in_0.3s_ease]">

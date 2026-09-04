@@ -51,7 +51,11 @@ function interceptedFetch(input: RequestInfo | URL, init?: RequestInit): Promise
             let detail = body.slice(0, 400);
             try { const j = JSON.parse(body); detail = j.message || j.error || j.msg || detail; } catch { /* 원문 유지 */ }
             // 세션 만료·기기 시계 오차(JWT expired / issued at future)로 난 401 은 재로그인으로 풀리는 상태라 기록장에 안 쌓는다.
-            if (res.status === 401 && /jwt|token/i.test(detail)) return;
+            if (res.status === 401 && /jwt|token/i.test(detail)) {
+              // 사용자는 조용히 빈 화면만 보게 되므로 다시 로그인하라고 알린다. 시계 오차는 원인을 같이 적는다.
+              window.dispatchEvent(new CustomEvent('ownerview:session-expired', { detail: /future/i.test(detail) ? 'clock' : 'expired' }));
+              return;
+            }
             if (isWriteFailure(path, method, res.status)) notifyWriteFailure(res.status, body.slice(0, 400) || detail);
             import('./error-logger').then(({ logError }) => {
               logError({

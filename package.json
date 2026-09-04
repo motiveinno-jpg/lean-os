@@ -11,6 +11,7 @@
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "check:migrations": "node scripts/check-migrations.mjs",
+    "check:unpaged": "node scripts/check-unpaged-queries.mjs",
     "smoke:rls": "node scripts/rls-smoke.mjs",
     "preflight": "npm run check:migrations && npm run smoke:rls && npm run smoke:db-guards && npm run smoke:entitlement",
     "test": "vitest run",

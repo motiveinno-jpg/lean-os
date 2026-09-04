@@ -1,4 +1,5 @@
 "use client";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { GroupedColumnChart } from "@/components/charts/kit";
 import { appConfirm } from "@/components/global-confirm";
 import { Ico } from "@/components/ui-icon";
@@ -783,12 +784,13 @@ function SummaryKpisWidget({
   const { data: receivable = 0 } = useQuery({
     queryKey: ["summary-receivable", companyId],
     queryFn: async () => {
-      const data = logRead('dashboard/page:data', await (supabase)
+      // 회사 전체 매출 계산서 — 1,000장 넘는 회사(모티브 1,565장)는 페이징 없이는 합계가 잘린다
+      const data = await fetchPaged<any>('dashboard/page:receivable', () => (supabase)
         .from('tax_invoices')
         .select('total_amount, supply_amount, settled_amount, status')
         .eq('company_id', companyId)
         .eq('type', 'sales') // 2026-06-11 미수금=매출 계산서만 (매입 혼입 차단)
-        .neq('status', 'void'));
+        .neq('status', 'void').order('id'), 50000);
       if (!data) return 0;
       // 2026-09-03 전 화면 점검: 총액만 더해 부분 입금(정산액)을 빼지 않아 미수금 위젯(총액−정산액)과 3배 차이 —
       //   미수금 위젯·AI 참모와 같은 "남은 잔액" 기준으로 통일(초안·취소 제외, 잔액 0 이하 제외).
@@ -1126,7 +1128,7 @@ function OverdueReceivablesWidget({ companyId }: { companyId: string }) {
       // 2026-07-10 QA: due_date 컬럼 부재로 쿼리 전체 400 → 위젯 항상 0 표시되던 버그.
       //   연체 기준 = 발행 후 30일 경과(다른 미수 화면·AI 브리핑과 동일 기준).
       // 2026-09-03: 잔액(총액−정산액) 기준·초안/취소 제외로 요약 카드·미수금 위젯과 통일. limit(20) 은 합계를 잘라내던 원인이라 제거(표시는 아래서 20건만).
-      const data = logRead('dashboard/page:data', await (supabase).from('tax_invoices').select('counterparty_name, total_amount, supply_amount, settled_amount, issue_date, status').eq('company_id', companyId).eq('type', 'sales').neq('status', 'void').neq('status', 'draft').order('issue_date', { ascending: true }));
+      const data = await fetchPaged<any>('dashboard/page:overdue', () => (supabase).from('tax_invoices').select('counterparty_name, total_amount, supply_amount, settled_amount, issue_date, status').eq('company_id', companyId).eq('type', 'sales').neq('status', 'void').neq('status', 'draft').order('issue_date', { ascending: true }).order('id'), 50000);
       return ((data || []) as any[])
         .map((inv: any) => ({ ...inv, balance: Number(inv.total_amount || inv.supply_amount || 0) - Number(inv.settled_amount || 0) }))
         .filter((inv: any) => inv.balance > 0);

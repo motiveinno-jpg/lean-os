@@ -121,7 +121,7 @@ export function explainError(rawMessage: string, context?: Record<string, unknow
   // 앱이 설계대로 거절한 것 — 결함이 아니라 권한 경계가 동작한 기록.
   //   (2026-08-12: 세무사 아닌 계정의 /advisor 접속, 마스터 아닌 구성원의 세무 파트너 조회가
   //    '미확인'으로 쌓여 진짜 결함을 묻던 것)
-  if (/not_advisor|not_linked|not_master|app_denied/.test(hay)) {
+  if (/not_advisor|not_linked|not_master|app_denied|not authorized|운영자만|권한이 없습니다/.test(hay)) {
     return {
       type: "app_denied", severity: "low",
       title: "권한 없음 — 정상 거절",
@@ -131,6 +131,61 @@ export function explainError(rawMessage: string, context?: Record<string, unknow
         "같은 사용자가 반복하면 링크 공유·안내 오류가 없는지 확인",
         "빈발하면 권한 없는 화면에서 호출 자체를 막아 로그 노이즈 제거",
       ],
+    };
+  }
+  // 아래 6개는 2026-09 '미분류' 상위 패턴 — 운영자가 볼 수 있게 이름을 붙인다
+  if (/cannot coerce the result to a single json object|pgrst116|\[db 406\]/.test(hay)) {
+    return {
+      type: "postgrest_406_single", severity: "high",
+      title: "단일 행 조회에 0행 또는 여러 행",
+      detail: "코드가 .single() 로 딱 한 행을 기대했는데 결과가 0행이거나 2행 이상입니다. 화면 일부가 비거나 저장이 막힙니다.",
+      hint: "single() 기대 불일치",
+      fix: ["결과가 없을 수 있으면 .maybeSingle() 로", "여러 행이면 조건(회사·계정 등)을 더 좁히거나 .limit(1)"],
+    };
+  }
+  if (/violates check constraint|\b23514\b/.test(hay)) {
+    return {
+      type: "postgres_23514_check", severity: "high",
+      title: "값 제약 위반 (CHECK)",
+      detail: "화면이 보낸 값(유형·상태 등)을 DB 값 제약이 거부했습니다. 옵션을 코드에 추가하고 제약을 안 넓힌 경우가 대부분입니다.",
+      hint: "화면 선택지 ≠ DB 허용값",
+      fix: ["메시지의 제약 이름으로 테이블·컬럼 확인", "같은 커밋에서 CHECK 제약을 넓히는 마이그레이션 추가"],
+    };
+  }
+  if (/is not assigned yet|control reached end of function|plpgsql/.test(hay)) {
+    return {
+      type: "postgres_plpgsql", severity: "high",
+      title: "DB 함수 내부 오류",
+      detail: "RPC(DB 함수) 본문에서 실행 오류가 났습니다 (미할당 레코드 참조, 반환 누락 등).",
+      hint: "DB 함수 버그",
+      fix: ["메시지의 함수·변수 이름으로 마이그레이션 SQL 확인", "조건 분기에서 레코드가 비는 경우 처리 추가"],
+    };
+  }
+  if (/\[db 5\d\d\] \w+ \/functions\/v1\//.test(hay)) {
+    return {
+      type: "edge_500", severity: "high",
+      title: "서버 기능(Edge) 5xx",
+      detail: "서버 기능 호출이 5xx 로 실패했습니다. 함수 이름·본문은 서버 쪽 기록(edge)에 따로 남습니다.",
+      hint: "서버 기능 내부 실패",
+      fix: ["같은 시각의 edge 기록에서 함수 이름·스택 확인", "외부 API(CODEF·AI 공급사) 응답이면 재시도 여부 판단"],
+    };
+  }
+  if (/\/storage\/v1\/object/.test(hay)) {
+    return {
+      type: "storage_upload", severity: "medium",
+      title: "파일 저장소 요청 실패",
+      detail: "파일 업로드·다운로드 요청이 실패했습니다. 저장공간 한도, 버킷 권한(RLS), 파일 형식 문제가 흔한 원인입니다.",
+      hint: "스토리지 400/403",
+      fix: ["메시지가 AccessDenied 면 버킷 RLS·경로 규약 확인", "한도 초과면 저장공간 안내가 떴는지 확인"],
+    };
+  }
+  if (/is not a function|is not iterable|is not a constructor/.test(hay)) {
+    return {
+      type: "js_type", severity: "high",
+      title: "JS 타입 오류 (TypeError)",
+      detail: "값의 형태가 코드 기대와 다릅니다 (배열 기대인데 문자열, 함수 기대인데 undefined 등). 대개 API 응답 형태 변경이나 방어 코드 누락입니다.",
+      hint: "값 형태 불일치",
+      fix: ["스택의 위치에서 어떤 값이 어떤 형태로 왔는지 확인", "Array.isArray / typeof 방어 추가"],
     };
   }
   if (/42501|permission denied|violates row-level security|\brls\b/.test(hay)) {

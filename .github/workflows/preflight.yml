@@ -42,6 +42,10 @@ jobs:
       - name: typecheck
         run: npx tsc --noEmit
 
+      # 회사 전체를 훑는 select 가 페이징 없이 새로 들어오면 실패 (PostgREST 1,000행 무언 절단 방지)
+      - name: unpaged query check
+        run: node scripts/check-unpaged-queries.mjs
+
       - name: unit tests
         run: npx vitest run
 
