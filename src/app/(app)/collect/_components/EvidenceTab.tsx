@@ -704,6 +704,24 @@ export function EvidenceTab({
       toast(`구분 조회 실패: ${e?.message || "알 수 없는 오류"}`, "error");
     } finally { setFilling(false); }
   };
+  //   구분은 화면이 열릴 때 스스로 채운다 — 버튼을 눌러야만 채워지면 번호가 있는 줄도 '구분'이 비어 보인다.
+  //   한 번 물어본 번호는 이 화면에서 다시 묻지 않는다(국세청에 없는 번호도 기록되므로 다음 조회부턴 목록에서 빠진다).
+  const askedBiznos = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (kind !== "card" || filling) return;
+    const todo = unknownBiznos.filter((b) => !askedBiznos.current.has(b));
+    if (todo.length === 0) return;
+    todo.forEach((b) => askedBiznos.current.add(b));
+    (async () => {
+      setFilling(true);
+      try { await fillMerchantKinds(companyId, todo); }
+      catch { /* 실패해도 조용히 — 'AI 제안 > 가맹점 구분 채우기'로 다시 시도할 수 있다 */ }
+      finally {
+        await qc.invalidateQueries({ queryKey: ["merchant-kinds", companyId] });
+        setFilling(false);
+      }
+    })();
+  }, [kind, unknownBiznos, filling, companyId, qc]);
 
   const filterAccts = (q: string, side: "sale" | "purchase") =>
     accounts.filter((a) =>
