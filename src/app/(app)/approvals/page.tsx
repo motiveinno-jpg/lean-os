@@ -331,6 +331,19 @@ function resolveFormFields(
   ];
 }
 
+type ApprovalPdfReq = {
+  id: string; title: string; request_type: string; status: string;
+  amount?: number | null; description?: string | null; created_at: string;
+  attachments?: string[] | null; form_id?: string | null;
+  custom_fields?: Record<string, unknown>;
+};
+
+/** 결재 문서 PDF 파일명 — 단건 저장·일괄 zip 안 파일명이 같은 규칙을 쓴다 */
+function approvalPdfFileName(req: Pick<ApprovalPdfReq, "title" | "created_at">): string {
+  const title = (req.title || "무제").replace(/[\\/:*?"<>|]/g, " ").replace(/\s+/g, " ").trim() || "무제";
+  return `결재문서_${title}_${formatDate(req.created_at)}.pdf`;
+}
+
 /**
  * 결재 문서 PDF 생성 + 저장 — 화면(팝업)과 동일한 구성으로 만든다.
  *   전체 현황 / 내 요청 / 내가 결재한 건 세 화면이 같은 결과물을 내도록 한 곳에 모았다.
@@ -338,15 +351,20 @@ function resolveFormFields(
  * @returns 저장 완료 여부 (사용자가 저장 취소하면 false)
  */
 async function buildAndSaveApprovalPdf(args: {
-  req: {
-    id: string; title: string; request_type: string; status: string;
-    amount?: number | null; description?: string | null; created_at: string;
-    attachments?: string[] | null; form_id?: string | null;
-    custom_fields?: Record<string, unknown>;
-  };
+  req: ApprovalPdfReq;
   requesterName: string;
   formFields: { label: string; type: string; value: string }[];
 }): Promise<boolean> {
+  const blob = await buildApprovalPdfBlob(args);
+  return await saveBlobToUserChosenPath(blob, approvalPdfFileName(args.req));
+}
+
+/** 결재 문서 PDF 를 Blob 으로만 만든다 — 단건 저장과 전체 현황의 일괄(zip) 다운로드가 공유 */
+async function buildApprovalPdfBlob(args: {
+  req: ApprovalPdfReq;
+  requesterName: string;
+  formFields: { label: string; type: string; value: string }[];
+}): Promise<Blob> {
   const { req, requesterName, formFields } = args;
   const timeline = await getApprovalTimeline(req.id);
   // 상태는 목록 캐시가 아니라 DB 최신값으로 — 최종 승인 직후 목록이 갱신되기 전에 PDF 를
@@ -368,7 +386,7 @@ async function buildAndSaveApprovalPdf(args: {
   )).filter((a): a is { name: string; url: string } => !!a);
 
   const contentText = contentWithoutFieldLines(req.description || "", formFields);
-  const blob = await generateApprovalPdf({
+  return await generateApprovalPdf({
     title: req.title,
     requestTypeLabel: REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type,
     statusLabel: STATUS_CONFIG[status]?.label || status,
@@ -389,7 +407,6 @@ async function buildAndSaveApprovalPdf(args: {
       decidedAt: st.decided_at ? formatDateTime(st.decided_at) : null,
     })),
   });
-  return await saveBlobToUserChosenPath(blob, `결재문서_${req.title}_${formatDate(req.created_at)}.pdf`);
 }
 
 // ── 상세 내용 서식(HTML) 지원 (2026-07-16) — RichEditor 로 작성한 결재 내용(표·서식 포함) ──
@@ -644,13 +661,15 @@ function formatDate(dateStr: string | null) {
 // PDF 등 다운로드 시 저장 경로를 사용자가 직접 고를 수 있게 — 지원 브라우저(Chrome/Edge)는
 // File System Access API 로 "다른 이름으로 저장" 다이얼로그 사용, 미지원 브라우저는 기존
 // <a download> 방식(브라우저 기본 다운로드 폴더)으로 자동 폴백.
-async function saveBlobToUserChosenPath(blob: Blob, suggestedName: string): Promise<boolean> {
+async function saveBlobToUserChosenPath(blob: Blob, suggestedName: string, kind: "pdf" | "zip" = "pdf"): Promise<boolean> {
   const w = window as any;
   if (typeof w.showSaveFilePicker === "function") {
     try {
       const handle = await w.showSaveFilePicker({
         suggestedName,
-        types: [{ description: "PDF 문서", accept: { "application/pdf": [".pdf"] } }],
+        types: kind === "zip"
+          ? [{ description: "ZIP 압축 파일", accept: { "application/zip": [".zip"] } }]
+          : [{ description: "PDF 문서", accept: { "application/pdf": [".pdf"] } }],
       });
       const writable = await handle.createWritable();
       await writable.write(blob);
@@ -2191,6 +2210,9 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // 체크박스 선택 → PDF 일괄 다운로드(zip) (2026-09-04 사장님: 결재건 여러 개를 한 번에 받게)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [bulkPdf, setBulkPdf] = useState<{ running: boolean; done: number; total: number }>({ running: false, done: 0, total: 0 });
 
   // 확인(열람) 표시 — 클릭해 본 건은 목록에서 제목을 연하게 (2026-08-04 사장님: 광고비 지출결의서처럼
   //   제목이 똑같으면 어디까지 확인했는지 구분이 안 됨). 처음엔 localStorage(기기별)였는데
@@ -2335,6 +2357,57 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
     setPdfLoadingId(null);
   };
 
+  // 체크한 결재건을 PDF 로 각각 만들어 zip 한 개로 저장 — 단건 PDF 와 같은 생성 경로(buildApprovalPdfBlob)
+  //   라 내용·서식이 동일하다. 한 건이 실패해도 나머지는 계속 만들고 마지막에 실패 건수를 알린다.
+  const toggleSelected = (id: string) => setSelectedIds((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const clearSelection = () => setSelectedIds(new Set());
+  const handleBulkPdf = async () => {
+    if (bulkPdf.running) return;
+    const targets = (allRequests as any[]).filter((r) => selectedIds.has(r.id));
+    if (targets.length === 0) { toast("다운로드할 결재건을 먼저 체크하세요", "error"); return; }
+    setBulkPdf({ running: true, done: 0, total: targets.length });
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+      const used = new Set<string>();
+      const failed: string[] = [];
+      let done = 0;
+      for (const req of targets) {
+        try {
+          const formFields = resolveFormFields(req.form_id, req.custom_fields, formsById, fieldPolicies as ApprovalPolicy[], req.request_type);
+          const blob = await buildApprovalPdfBlob({ req, requesterName: requesterNames.get(req.requester_id) || "-", formFields });
+          // 같은 제목·같은 날짜가 여러 건이면 (2), (3) 을 붙여 덮어쓰지 않게
+          const base = approvalPdfFileName(req);
+          let name = base;
+          for (let n = 2; used.has(name); n++) name = base.replace(/\.pdf$/, ` (${n}).pdf`);
+          used.add(name);
+          zip.file(name, blob);
+        } catch {
+          failed.push(req.title);
+        }
+        done++;
+        setBulkPdf({ running: true, done, total: targets.length });
+      }
+      if (used.size === 0) throw new Error("PDF 를 한 건도 만들지 못했습니다");
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const saved = await saveBlobToUserChosenPath(zipBlob, `결재문서_일괄_${kstDateStr(new Date())}.zip`, "zip");
+      if (saved) {
+        toast(
+          `PDF ${used.size}건 다운로드 완료${failed.length ? ` · ${failed.length}건 실패(${failed.slice(0, 3).join(", ")}${failed.length > 3 ? " 외" : ""})` : ""}`,
+          failed.length ? "error" : "success",
+        );
+        if (!failed.length) clearSelection();
+      }
+    } catch (err: any) {
+      toast(`PDF 일괄 다운로드 실패: ${friendlyError(err, "알 수 없는 오류")}`, "error");
+    }
+    setBulkPdf({ running: false, done: 0, total: 0 });
+  };
+
   // 요청 상세 팝업(읽기 전용) — ESC로만 닫기, 별도 확인 액션 없음
   useModalKeys(!!expandedId, () => setExpandedId(null));
   const lf = useListFilter({
@@ -2365,6 +2438,15 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
       }
     });
   const pager = usePager(visibleRequests, lf.rows, `${JSON.stringify(aSort)}|${lf.key}`);
+  // 머리 체크박스 = 지금 보이는 페이지 기준(다른 페이지 선택은 유지). 목록에서 사라진 id 는 건수에서 뺀다.
+  const pageIds = (pager.view as any[]).map((r) => r.id as string);
+  const allInPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
+  const toggleAllInPage = () => setSelectedIds((prev) => {
+    const next = new Set(prev);
+    if (allInPageSelected) pageIds.forEach((id) => next.delete(id)); else pageIds.forEach((id) => next.add(id));
+    return next;
+  });
+  const selectedCount = (allRequests as any[]).reduce((n, r) => n + (selectedIds.has(r.id) ? 1 : 0), 0);
 
   if (isLoading) {
     return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
@@ -2379,11 +2461,23 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
       </QueryBar>
       {lf.applied}
 
+      {/* 선택 줄 — 체크한 결재건을 PDF 로 일괄 다운로드(zip). 고른 순간에만 보인다 (조회 표준 SelectionBar) */}
+      <SelectionBar count={selectedCount} onClear={clearSelection}
+        summary={bulkPdf.running ? <>PDF 만드는 중 <b className="mono-number">{bulkPdf.done}/{bulkPdf.total}</b></> : undefined}>
+        <button type="button" onClick={handleBulkPdf} disabled={bulkPdf.running} className="btn-primary btn-sm disabled:opacity-50">
+          {bulkPdf.running ? "생성 중..." : "PDF 일괄 다운로드"}
+        </button>
+      </SelectionBar>
+
       {/* Table */}
       <div className="approval-table-wrap ev-scroll">
         <table className="ev-table ev-lined approval-table">
           <thead>
             <tr>
+              <th className="w-9 px-3">
+                <button type="button" onClick={toggleAllInPage} disabled={pageIds.length === 0} aria-label="이 페이지 결재건 전체 선택"
+                  className={allInPageSelected ? "collect-chk collect-chk-on" : "collect-chk"}>{allInPageSelected ? "✓" : ""}</button>
+              </th>
               <SortableTh label="상태" sortKey="status" sort={aSort} onSort={onASort} />
               <SortableTh label="제목" sortKey="title" sort={aSort} onSort={onASort} />
               <SortableTh label="요청자" sortKey="requester" sort={aSort} onSort={onASort} />
@@ -2397,7 +2491,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
           <tbody>
             {visibleRequests.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-16 text-center">
+                <td colSpan={9} className="px-4 py-16 text-center">
                   <div className="mx-auto w-14 h-14 mb-3 rounded-2xl bg-[var(--bg-surface)] text-[var(--text-dim)] flex items-center justify-center">
                     <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
                   </div>
@@ -2408,12 +2502,19 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
             ) : (
               (pager.view as any[]).map((req: any) => {
                 const m = typeMeta(req.request_type);
+                const isSelected = selectedIds.has(req.id);
                 return (
                   <tr
                     key={req.id}
-                    className="approval-table-row"
+                    className={`approval-table-row${isSelected ? " bg-[var(--primary)]/5" : ""}`}
                     onClick={() => { setExpandedId(req.id); markViewed(req.id); }}
                   >
+                    {/* 체크박스 칸 — 줄 클릭(상세 열기)과 분리 */}
+                    <td className="px-3 py-3.5" onClick={(e) => e.stopPropagation()}>
+                      <input type="checkbox" checked={isSelected} onChange={() => toggleSelected(req.id)}
+                        aria-label={`${req.title} 선택`}
+                        className="w-4 h-4 rounded border-[var(--border)] accent-[var(--primary)] cursor-pointer" />
+                    </td>
                     <td className="px-4 py-3.5 text-center"><StatusBadge status={req.status} /></td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-2.5 min-w-0">
