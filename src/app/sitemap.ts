@@ -1,7 +1,6 @@
 // sitemap.xml — 검색엔진 수집용 (2026-07-03)
 //   공개 페이지만 노출: 랜딩·데모·약관·개인정보·환불·상태. 로그인 필요 앱 내부는 robots.txt 에서 이미 제외.
 import type { MetadataRoute } from "next";
-import { getAllPosts } from "@/lib/blog";
 
 const BASE = "https://www.owner-view.com";
 // 무료 계산기 최종 정비일 — 사이트맵 신선도(lastModified) 신호. 계산기 내용/요율 갱신 시 함께 올린다.
@@ -26,9 +25,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/tools/salary-calculator`, changeFrequency: "monthly", priority: 0.9, lastModified: TOOLS_LASTMOD },
     { url: `${BASE}/tools/weekly-holiday-calculator`, changeFrequency: "monthly", priority: 0.9, lastModified: TOOLS_LASTMOD },
     { url: `${BASE}/tools/vat-calculator`, changeFrequency: "monthly", priority: 0.9, lastModified: TOOLS_LASTMOD },
-    // 블로그 — 글 파일(content/blog)이 늘면 자동으로 따라온다
-    { url: `${BASE}/blog`, changeFrequency: "weekly", priority: 0.8 },
-    ...getAllPosts().map((p) => ({ url: `${BASE}/blog/${p.slug}`, changeFrequency: "monthly" as const, priority: 0.7, lastModified: p.date })),
     { url: `${BASE}/security`, changeFrequency: "yearly", priority: 0.4 },
     { url: `${BASE}/auth`, changeFrequency: "yearly", priority: 0.5 },
     { url: `${BASE}/terms`, changeFrequency: "yearly", priority: 0.3 },

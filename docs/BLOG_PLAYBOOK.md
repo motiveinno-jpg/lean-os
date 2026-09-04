@@ -1,7 +1,11 @@
 # 오너뷰 블로그 작성 규칙 (사람·클라우드 루틴 공통)
 
 블로그는 검색으로 들어온 사장님이 **질문의 답**을 얻고, **오너뷰 실제 화면**을 보고, **무료로 시작하기**까지 가는 길이다.
-글 한 편 = `content/blog/<slug>.md` 하나 + `public/blog/<slug>/` 캡처 몇 장. 푸시하면 www.owner-view.com/blog 에 올라간다.
+글 한 편 = `content/blog/<slug>.md` 하나 + `public/blog/<slug>/` 캡처 몇 장.
+
+**글은 오너뷰가 아니라 네이버 블로그(blog.naver.com/owner-view)에 올린다** (2026-09-04 사장님: "오너뷰에 블로그탭 만들지 말라고").
+저장소의 마크다운은 원고일 뿐이고, 발행은 이 Mac 의 `scripts/naver-publish.mjs` 가 한다. 오너뷰 도메인에는 블로그 화면이 없다 —
+글 안에서 우리 쪽으로 잇는 줄은 맨 끝 **랜딩(www.owner-view.com) 링크 한 줄**뿐이다.
 
 ## 1. 주제 고르기 — 사장님이 실제로 검색하는 질문
 우선순위 순. 이미 쓴 주제는 `content/blog/` 에 있으니 겹치지 않게.
@@ -33,9 +37,14 @@
 
 ## 4. 캡처 규칙
 - `node scripts/blog-capture.mjs <slug> '<JSON>'` — 운영 화면을 QA 시드 계정(샘플 자료, 개인정보 없음)으로 찍는다. 다른 회사 계정은 절대 쓰지 않는다.
-- 항목: `{ name, path, click?: ["탭 글자"], waitMs?, clip?: "css 선택자" }`. 표만 필요하면 `clip: ".ev-scroll"`.
+- 항목: `{ name, path, click?: ["탭 글자"], waitMs?, width?, height?, cut?: { lastCol|maxWidth, sidebar?, pad? }, clip?: "css 선택자" }`
+- **폭이 전부다.** 네이버 본문은 705px 라 넓게 찍을수록 글자가 작아진다 (2026-09-04 사장님: "오른쪽이 짤려서 여백도있고").
+  - 표가 넓은 화면(수집·전표, 통장, 카드, 거래처, 구성원…): `cut: { lastCol: "유형", sidebar: true, pad: 24 }` 또는 `cut: { maxWidth: 1010, sidebar: true, pad: 24 }`.
+    **가로는 열 경계에서 딱 끊는다** — 다음 열 글자가 반쯤 걸치면 잘린 것으로 보인다. 표만 크게 보이려면 `sidebar` 를 빼고 `cut` 만 준다.
+  - 카드가 늘어선 화면(대시보드·게시판·일정): 자르지 말고 `width: 1280~1460` 으로 **좁은 화면째** 찍는다(레이아웃이 그 폭에 맞게 접힌다).
+  - 어느 쪽이든 이미지 폭 2600px 이하. 찍은 뒤 **눈으로 열어 오른쪽이 잘리지 않았는지 확인**한다.
 - 캡처에 투어 말풍선·토스트·"1 Issue" 같은 개발 표시가 끼면 다시 찍는다. 운영 도메인에서 찍으면 개발 표시는 없다.
-- 첫 캡처를 `cover` 로 쓴다(목록 카드와 공유 이미지). 1440×900 이 기본.
+- 첫 캡처가 네이버 대표 이미지가 된다(`cover`).
 
 ## 5. 파일 규칙
 ```
@@ -54,12 +63,16 @@ cover: /blog/card-vat-deduction/card-tab.png
 ## 6. 올리기
 1. `git add content/blog/<slug>.md public/blog/<slug>` — 경로를 명시해 add 한다(`git add -A` 금지).
 2. 커밋 제목: `content(블로그): <제목>`. 본문에 지시 출처·날짜 꼬리표를 쓰지 않는다.
-3. `git fetch origin && git rebase origin/main` 뒤 `git push origin main`. Vercel 이 자동 배포한다.
-4. 배포 뒤 `https://www.owner-view.com/blog/<slug>` 를 한 번 연다. 캡처가 깨졌으면 다시 찍어 올린다.
+3. `git fetch origin && git rebase origin/main` 뒤 `git push origin main`.
+4. **네이버 발행은 이 Mac 에서** `node scripts/naver-publish.mjs post <slug>` (여러 편이면 `pending`).
+   - 네이버는 글쓰기 API 가 없어 로그인해 둔 브라우저 프로필(`~/.ownerview/naver-profile`)로 스마트에디터를 직접 조작한다. 창이 뜨므로 Mac 이 켜져 있어야 한다.
+   - 올라간 주소는 `content/blog/.naver-posted.json` 에 기록된다. 목록은 `list`, 잘못 올렸으면 `delete <주소|글번호>` 로 지우고 다시 올린다.
+   - 매주 월요일 10:00 에 launchd(`~/Library/LaunchAgents/com.ownerview.naver-blog.plist`)가 `git pull` 뒤 `pending` 을 돌린다. 로그는 `~/.ownerview/naver-publish.log`.
+5. 발행 뒤 네이버 글을 한 번 연다. **이미지가 잘리거나 글자가 안 보이면** 캡처를 다시 찍고 글을 지운 뒤 다시 올린다.
 
 ## 7. 클라우드 루틴이 할 때
 - 주 1편. 위 1번 목록에서 아직 없는 주제 중 첫 번째.
 - 클라우드 세션은 망 정책으로 www.owner-view.com 에 접속할 수 없다(2026-09-04 첫 실행에서 확인). 그래서 직접 캡처·라이브 확인을 시도하지 말고 `public/blog/_library/` 의 캡처를 쓴다. README 표를 보고 주제에 맞는 화면만 고르고, 본문에 그 화면이 무엇인지 README 설명대로 적는다.
 - 라이브러리 갱신(새 화면·바뀐 화면)은 이 PC 에서 `node scripts/blog-capture.mjs _library '<JSON>'` 로 한다. 새 글에 꼭 필요한 화면이 라이브러리에 없으면 글에 이미지를 넣지 말고 메일에 "필요한 캡처: …" 로 적는다.
-- push 까지가 루틴의 일이다. 반영 확인은 사람이 하고, 메일에는 커밋 해시와 주소를 적는다.
+- **push 까지가 루틴의 일이다. 네이버 발행은 이 Mac 이 월요일 10:00 에 한다** — 루틴은 네이버에 접속하지 않는다. 메일에는 커밋 해시와 슬러그를 적는다.
 - 글을 올린 뒤 결과(제목·주소·쓴 캡처·남은 주제 수)를 creative@mo-tive.com 에 알린다.
