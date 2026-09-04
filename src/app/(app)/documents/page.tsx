@@ -1366,7 +1366,8 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   placeholder="문서 내용을 작성하세요... 📎 PDF 버튼으로 PDF 페이지를 그대로 삽입할 수 있습니다."
                   onUploadImage={async (file) => {
                     if (!companyId || !userId) throw new Error("회사 정보를 불러오는 중입니다");
-                    const res = await uploadFile({ companyId, bucket: "company-assets", file, userId, context: { documentId: id } });
+                    // 문서 첨부는 원장에 남긴다(문서 삭제·정리 때 같이 지우려고) — document_id 가 있어 파일보관함 목록엔 안 보인다
+                    const res = await uploadFile({ companyId, bucket: "company-assets", file, userId, context: { documentId: id }, register: true });
                     return res.fileUrl;
                   }}
                 />
@@ -2800,12 +2801,15 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
         return searchFiles(companyId, fileSearchTerm);
       }
       //   지난 판(parent_file_id 있음)은 목록에서 숨긴다 — v 배지의 '지난 판' 창으로만(결정 146 ③)
+      //   파일보관함에서 직접 올린 파일만 — 문서 편집기·금고·프로젝트에 딸린 첨부(document_id·vault_doc_id·deal_id)는
+      //   그 화면의 것이라 여기 보이면 "올린 적 없는 파일"이 된다.
       if (selectedFolderId) {
         const data = logRead('documents/page:data', await (supabase)
           .from("document_files")
           .select("*")
           .eq("folder_id", selectedFolderId)
           .is("parent_file_id", null)
+          .is("document_id", null).is("vault_doc_id", null).is("deal_id", null)
           .order("created_at", { ascending: false }));
         return data || [];
       }
@@ -2814,6 +2818,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
         .select("*")
         .eq("company_id", companyId)
         .is("parent_file_id", null)
+        .is("document_id", null).is("vault_doc_id", null).is("deal_id", null)
         .order("created_at", { ascending: false }));
       return data || [];
     },
@@ -2942,6 +2947,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
           context: { folderId: selectedFolderId || undefined },
           category: categoryFilter !== "all" ? categoryFilter : undefined,
           userId,
+          register: true,   // 파일보관함 올리기 — 원장에 등록되는 유일한 경로
           //   6MB 넘는 파일은 이어올리기 — 진행률을 보여준다(끊겨도 같은 파일을 다시 올리면 이어서)
           onProgress: (pct) => setUpProg({ name: file.name, pct }),
         });

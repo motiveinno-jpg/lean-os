@@ -43,7 +43,8 @@ const SMALL_TABLES = new Set([
   "chat_channels", "chat_participants", "chat_members", "closing_checklists", "leave_balances", "leave_policies",
   "work_schedules", "cost_centers", "project_stages", "deal_stages", "kpi_targets", "saved_filters",
 ]);
-const SAFE = /\.single\(|\.maybeSingle\(|head:\s*true|\.limit\(|\.range\(|\.insert\(|\.update\(|\.delete\(|\.upsert\(/;
+//   .in(id목록)·id.in.(…) 은 넘긴 id 개수만큼만 돌아오므로 회사 전체 조회가 아니다 (200개 넘는 id 는 chunkedIn 규칙)
+const SAFE = /\.single\(|\.maybeSingle\(|head:\s*true|\.limit\(|\.range\(|\.insert\(|\.update\(|\.delete\(|\.upsert\(|\.in\(|\bid\.in\.\(/;
 
 function scan(file) {
   const src = readFileSync(file, "utf8");

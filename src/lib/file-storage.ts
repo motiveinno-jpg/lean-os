@@ -30,9 +30,10 @@ interface UploadParams {
     vaultDocId?: string;
     folderId?: string;
   };
-  /** false = 스토리지에만 올리고 파일보관함 원장(document_files)에는 등록하지 않는다 (2026-08-28).
-   *  서식 편집기의 PDF 페이지 이미지처럼 **문서 자산**이지 사용자의 '파일'이 아닌 업로드용 —
-   *  종전엔 이것도 원장에 등록돼 파일보관함에 "올린 적 없는 근로계약서"가 나타났다(사장님 제보). */
+  /** true = 파일보관함 원장(document_files)에 등록해 파일보관함 목록에 보이게 한다.
+   *  **기본 false** — 파일보관함 탭의 올리기만 true 를 준다. 다른 화면(서식 편집기·금고·계약 보관·문서 첨부)이
+   *  올리는 파일은 그 화면의 것이지 사용자가 보관함에 넣은 파일이 아니다. 종전엔 기본 true 라
+   *  파일보관함에 "올린 적 없는 근로계약서"가 나타났다. */
   register?: boolean;
   category?: string;
   tags?: string[];
@@ -244,7 +245,7 @@ async function attachSignedUrls<T extends { bucket?: string | null; storage_path
 // ── 1. Upload single file ──
 
 export async function uploadFile(params: UploadParams): Promise<UploadResult> {
-  const { companyId, bucket, file, context, category, tags, userId, register = true, onProgress } = params;
+  const { companyId, bucket, file, context, category, tags, userId, register = false, onProgress } = params;
 
   // Validate
   validateFile(file, bucket);
@@ -515,6 +516,8 @@ export async function searchFiles(companyId: string, query: string) {
     .eq("company_id", companyId)
     .ilike("file_name", `%${query}%`)
     .is("parent_file_id", null)
+    // 파일보관함에 직접 올린 파일만 — 문서·금고·딜에 딸린 첨부는 그 화면의 것
+    .is("document_id", null).is("vault_doc_id", null).is("deal_id", null)
     .order("created_at", { ascending: false })
     .limit(50);
   if (error) throw error;
