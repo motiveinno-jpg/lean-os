@@ -1488,7 +1488,7 @@ table.sched-table { min-width: 900px; }
 .vault-file-panel > .qk-screen { height: calc(100vh - 380px); min-height: 480px; } /* 폰 폭 — md 이상은 아래 미디어 규칙이 덮는다 */
 /*   2026-08-18 상자는 사이드바 끝선까지 — md 이상에서 세로 기둥을 고정 높이로, 폴더 트리·상자는 그 안에서 스크롤 */
 @media (min-width: 768px) {
-  .vault-layout { height: calc(100vh - 100px); min-height: 0; }
+  .vault-layout { height: calc(100vh - 88px); min-height: 0; }
   .vault-folder-tree { @apply min-h-0 overflow-auto; }
   .vault-file-panel { @apply min-h-0; }
   .vault-file-panel > .qk-screen { height: auto; min-height: 0; @apply min-h-0 flex-1; }
@@ -2216,7 +2216,7 @@ table.bs-t-table { min-width: 360px; }
 .chat-date-divider { @apply flex items-center gap-3 my-4 text-[10.5px] font-semibold text-[var(--text-dim)]; }
 .chat-date-divider::before, .chat-date-divider::after { content: ""; @apply flex-1 h-px bg-[var(--border)]; }
 .chat-date-divider > span { @apply px-2.5 py-0.5 rounded-full bg-[var(--bg-surface)] whitespace-nowrap; }
-.chat-workspace { @apply flex overflow-hidden; height: calc(100dvh - 104px); }
+.chat-workspace { @apply flex overflow-hidden; height: calc(100dvh - 92px); }
 .chat-workspace-embed { height: calc(100dvh - 40px); }
 .chat-sidebar { @apply flex-col w-full lg:w-72 shrink-0 border-r border-[var(--border)] bg-[var(--bg-surface)]/40; }
 .chat-conversation-panel { @apply flex-1 min-w-0 flex-col; }
@@ -4704,7 +4704,7 @@ table.pnl-drill-table { min-width: 760px; }
 .mobile-nav-item-row { @apply relative flex items-center; }
 .mobile-nav-item-link { @apply flex-1 flex items-center gap-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] transition-all; }
 .mobile-nav-item-pin-btn { @apply p-2 rounded transition-all; }
-.sidebar-panel { @apply h-full rounded-[20px] border border-[var(--border)]/60 flex flex-col transition-all duration-200 overflow-hidden shadow-[var(--shadow-lg)]; }
+.sidebar-panel { @apply h-full rounded-t-[20px] rounded-b-none border border-b-0 border-[var(--border)]/60 flex flex-col transition-all duration-200 overflow-hidden shadow-[var(--shadow-lg)]; }   /* 바닥에 닿으므로 아래 모서리·아래 선 없음 */
 
 .sidebar-attendance-btn { @apply shrink-0 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition active:scale-[0.97] disabled:opacity-50; }
 
@@ -4721,7 +4721,7 @@ table.pnl-drill-table { min-width: 760px; }
 
 .sidebar-group-list { @apply space-y-0.5; }
 
-.sidebar-desktop-wrapper { @apply hidden md:block fixed left-3 top-3 bottom-3 z-50; }
+.sidebar-desktop-wrapper { @apply hidden md:block fixed left-3 top-3 bottom-0 z-50; }   /* 2026-09-04 사장님: 아래 12px 여백 없이 창 바닥까지 */
 .sidebar-mobile-backdrop { @apply md:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm; }
 .sidebar-mobile-drawer { @apply md:hidden fixed left-0 top-0 z-50 h-[100dvh] w-60 max-w-[85vw] pb-[env(safe-area-inset-bottom)] transition-transform duration-200; }
 .sidebar-mobile-panel { @apply w-60 h-screen border-r border-[var(--border)]/60 flex flex-col overflow-hidden shadow-[var(--shadow-sm)]; }
@@ -5371,7 +5371,7 @@ td .rounded-full { white-space: nowrap; }
      .pb 가 프레임, 그 안 .pb-body 가 스크롤 — 템플릿 탭·보기 줄은 프레임에 붙어 있고 상자 끝선은 사이드바 끝선이다. */
 .pb-body { @apply flex min-h-0 flex-col; }
 @media (min-width: 768px) {
-  .app-content-scale:has(> .pj-shell) { height: calc(100vh - 100px); @apply flex min-h-0 flex-col; }
+  .app-content-scale:has(> .pj-shell) { height: calc(100vh - 88px); @apply flex min-h-0 flex-col; }
   .app-content-scale:has(> .pj-shell) > .pj-shell { @apply min-h-0 flex-1; }
   .pj-shell > .project-detail-page { @apply flex min-h-0 flex-1 flex-col; }
   .pj-shell-rail > .project-detail-page { height: 100%; }
@@ -7772,7 +7772,7 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
    왜: 페이지째 스크롤하면 조회 줄·쪽 넘김이 위로 사라져, 무슨 조건으로 보고 있는지 잊은 채
    숫자만 훑게 된다. 화면을 고정하고 **표만** 움직이면 조건과 결과가 늘 같이 보인다.
 
-   자릿수: main 이 위 88px(헤더바) · 아래 12px(pb-3) 을 잡는다 → 본문 높이 = 100vh − 100px.
+   자릿수: main 이 위 88px(헤더바)를 잡는다(아래 여백은 2026-09-04 사장님 지시로 0) → 본문 높이 = 100vh − 88px.
    사이드바도 아래 12px 을 남기므로 **끝선이 정확히 맞는다**(실측 sidebar bottom 988 / vh 1000).
    ⚠️ 이 값은 app-shell 의 `pt-[88px]` · `md:pb-3` 과 짝이다 — 거기가 바뀌면 여기도 바꿔야 한다.
 
@@ -7784,13 +7784,13 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
           이름이었다(query-kit `Pager`). 버튼이 `height: calc(100vh - 100px)` 를 먹어
           900px 짜리 기둥이 되고, 그만큼 자리를 뺏긴 표가 통째로 안 보였다.
           CLAUDE.md 규칙대로 **새 마커 이름은 붙이기 전에 globals.css 를 grep** 할 것. */
-  .qk-shell, .collect-page { height: calc(100vh - 100px); min-height: 0; padding-bottom: 0; }
+  .qk-shell, .collect-page { height: calc(100vh - 88px); min-height: 0; padding-bottom: 0; }
   .qk-shell { @apply flex flex-col gap-3; }
   /*   ★ 화면 위에 **허브 탭(FinanceTabs)** 이 붙는 화면이 있다(세금·증빙 등).
        그만큼 아래로 밀리면 상자가 사이드바 끝선을 넘어간다 — 실제로 87px 넘쳤다.
        본문 칸을 세로 기둥으로 만들고 .qk-shell 이 **남는 높이만** 먹게 한다.
        그러면 위에 뭐가 붙든(배너·탭) 끝선이 저절로 맞는다. */
-  .app-content-scale:has(> .qk-shell) { height: calc(100vh - 100px); @apply flex min-h-0 flex-col; }
+  .app-content-scale:has(> .qk-shell) { height: calc(100vh - 88px); @apply flex min-h-0 flex-col; }
   .app-content-scale:has(> .qk-shell) > .qk-shell { height: auto; @apply min-h-0 flex-1; }
   /* 상자와 그 부모는 남는 높이를 다 먹고, 안에서 줄어들 수 있어야 한다(min-height:0 필수) */
   .collect-page > .ev-wrap { @apply min-h-0 flex-1; }
@@ -9057,10 +9057,10 @@ table.table-inv-ch-ship { min-width: 1480px; }
    (2026-08-26 사장님 지적: "커지면서 깨지는 부분 — 사이드바 끝선과 우측 데이터 끝선이 안 맞는다. 배포 때 무조건 확인.")
    새로 100vh 를 쓰는 규칙을 만들면 아래에 같이 나눠 적을 것. */
 .app-zoom .min-h-screen { min-height: calc(100vh / var(--app-zoom)); }
-.app-zoom .qk-shell, .app-zoom .collect-page { height: calc(100vh / var(--app-zoom) - 100px); }
-.app-zoom .app-content-scale:has(> .qk-shell), .app-zoom .app-content-scale:has(> .pj-shell) { height: calc(100vh / var(--app-zoom) - 100px); }
-.app-zoom .vault-layout { height: calc(100vh / var(--app-zoom) - 100px); }
-.app-zoom .chat-workspace { height: calc(100vh / var(--app-zoom) - 100px); }
+.app-zoom .qk-shell, .app-zoom .collect-page { height: calc(100vh / var(--app-zoom) - 88px); }
+.app-zoom .app-content-scale:has(> .qk-shell), .app-zoom .app-content-scale:has(> .pj-shell) { height: calc(100vh / var(--app-zoom) - 88px); }
+.app-zoom .vault-layout { height: calc(100vh / var(--app-zoom) - 88px); }
+.app-zoom .chat-workspace { height: calc(100vh / var(--app-zoom) - 88px); }
 .app-zoom .inv-modal { height: calc(100vh / var(--app-zoom)); }
 .app-zoom .inv-modal-box { max-height: calc(100vh / var(--app-zoom) - 48px); overflow-y: auto; }   /* 상자가 화면보다 길면 상자 안에서 스크롤 — 바닥 버튼이 화면 밖으로 안 나간다 */
 .app-zoom .inv-modal { @apply items-center; }
@@ -9596,7 +9596,7 @@ table.phv3-table { min-width: 640px; }
 .pjv3-kadd input { @apply w-full rounded-lg border border-dashed border-[var(--border-strong,var(--border))] bg-[var(--bg-card)] px-2.5 py-1.5 text-xs text-[var(--text)] outline-none placeholder:text-[var(--text-dim)]; }
 .pjv3-kadd input:focus { @apply border-solid border-[var(--primary)]; }
 /* 상자 끝선 = 사이드바 끝선(조회 화면 표준) — zoom 안이라 ÷ --app-zoom, 표 몸통만 스크롤 */
-.app-zoom .pjv3-wrap { height: calc(100vh / var(--app-zoom) - 100px); }
+.app-zoom .pjv3-wrap { height: calc(100vh / var(--app-zoom) - 88px); }
 .pjv3-sheet thead th { position: sticky; top: 0; z-index: 5; }
 .pjv3-kbwrap { @apply min-h-0 flex-1 overflow-y-auto p-3; }
 
