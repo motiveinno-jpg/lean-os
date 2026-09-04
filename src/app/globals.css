@@ -9085,7 +9085,7 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .app-zoom .min-h-screen { min-height: calc(100vh / var(--app-zoom)); }
 .app-zoom .qk-shell, .app-zoom .collect-page { height: calc(100vh / var(--app-zoom) - 88px); }
 /* 상자가 창 바닥에 닿으므로 아래 모서리·아래 선 없음 — 사이드바와 같은 각 (2026-09-04 사장님 "각지게") */
-.app-zoom .qk-shell > .qk-screen, .app-zoom .collect-page > .qk-screen, .app-zoom .pjv3-wrap > .pjv3-box:last-child, .app-zoom .chat-workspace { @apply rounded-b-none border-b-0; }   /* 프로젝트 상세(pjv3-box)도 같은 각 — 2026-09-04 사장님 */
+.app-zoom .qk-shell > .qk-screen, .app-zoom .collect-page > .qk-screen, .app-zoom .pjv3-wrap > .pjv3-box:last-child, .app-zoom .chat-workspace, .app-zoom .vault-file-panel > .qk-screen { @apply rounded-b-none border-b-0; }   /* 프로젝트 상세(pjv3-box)·파일보관함(vault-file-panel)도 같은 각 — 2026-09-04 사장님 */
 .app-zoom .app-content-scale:has(> .qk-shell), .app-zoom .app-content-scale:has(> .pj-shell) { height: calc(100vh / var(--app-zoom) - 88px); }
 .app-zoom .vault-layout { height: calc(100vh / var(--app-zoom) - 88px); }
 .app-zoom .chat-workspace { height: calc(100vh / var(--app-zoom) - 88px); }
