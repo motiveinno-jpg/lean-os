@@ -124,3 +124,10 @@
 - 규모: 모티브 567곳 → 기타 562곳 78%가 도넛 대부분 — 규칙대로 라벨은 한국생산성본부·기타만. "미상" 거래처명은 계산서에 이름이 없는 것(후속: 원장에서 이름 채우기).
 - 지운 것: AreaFig(면 선), 옛 Donut(상위 3). 실측: 탭 4·도구 2·구역 글자 2·알약 2(오늘 5,906만·최저 4,783만 9/18), x축 8/15~10/3, 예정 목록 12줄, 카드 폭 691/437.
 
+## 결정 171 — 대시보드를 v2 위젯 격자로 되돌림 (2026-09-04, 사장님 "현재 대시보드를 수정 중인데 원래 위젯 상태로 돌리고 싶어" → 선택지 중 "v2 위젯 격자")
+- 첫 화면 = 9/3 오전 v2 상태: 신호 6칸 · 오늘 챙길 것 · 위젯 격자(크기 조절 없음·빈 위젯 접기·프리셋). page.tsx 는 44329969^ 그대로 + 그 뒤 다른 PC 수정(bff7f47b, fetchPaged 1,000행 절단)만 다시 얹음.
+- 복원: dashboard-signals.tsx · dashboard-glance.tsx · .dash-sig* CSS. 삭제: morning-report.tsx(E안) · daily-report.tsx(G안) · lib/daily-report-data.ts · lib/report-lines.ts · .rep*/.dg* CSS · app-shell data-dg 배경 게이트. feature_rollout dashboard_g 행 삭제(prod).
+- 남긴 것: daily_report_snapshots 표(1행, 쓰는 코드 없음 — 보고서를 다시 켤 때 그대로 씀) · biz-summary series revenue·cost · MorningBrief variant(lead/checklist, full 이 기본이라 무해) · widget-empty-context.
+- **보고서를 다시 켜려면**: `git show b138b9fa:src/components/daily-report.tsx` 등 4파일 + globals.css 의 rep/dg 블록(b138b9fa) + app-shell 게이트 + feature_rollout ('dashboard_g', 모티브). 기획·결정 158~170 은 이 문서에 그대로.
+- 실측(모티브 로컬): 신호 6칸·격자 타일 렌더, .dg/.rep 0, data-dg 없음, 배경 원래 색.
+

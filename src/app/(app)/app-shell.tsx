@@ -30,7 +30,6 @@ import { PopupProvider, PopupWindowsHost } from "@/components/popup-windows";
 import { SubscriptionGate } from "@/components/subscription-gate";
 import { AccessDenied } from "@/components/access-denied";
 import { matchCatalogRoute, useMyPermissions } from "@/lib/permissions";
-import { useFeature } from "@/lib/use-feature";
 import { isDev } from "@/lib/app-env";
 
 /* ── Mobile Bottom Nav for Partner / Employee ── */
@@ -241,14 +240,6 @@ function AppContent({ children }: { children: React.ReactNode }) {
   };
 
   const companyId = user?.company_id ?? null;
-  //   G안 대시보드(feature_rollout dashboard_g, 모티브 먼저)가 켜진 회사는 앱 배경을 목업 색(--bg 재정의)으로 —
-  //   2026-09-03 사장님 "목업 배경색을 오너뷰 배경색으로, 먼저 모티브에만". globals.css [data-dg] 참조.
-  const { data: dashG } = useFeature("dashboard_g", companyId);
-  useEffect(() => {
-    const el = document.documentElement;
-    if (dashG) el.setAttribute("data-dg", "1"); else el.removeAttribute("data-dg");
-    return () => { el.removeAttribute("data-dg"); };
-  }, [dashG]);
   // 2026-06-10 CODEF 과금 통제 — app-shell 자동 동기화(앱 열때·30분 주기) 전면 제거.
   //   탭·기기·새로고침마다 곱해지는 변동비라, 비용을 예측가능하게 cron+수동으로 일원화(사장님 결정).
   //   · 정기 자동 갱신: 서버 cron — 은행 bank-sync-tick(하루 2회 0 1,13) + 카드 card-sync-tick(하루 2회 0 4,16)
