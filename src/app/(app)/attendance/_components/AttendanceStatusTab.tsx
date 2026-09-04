@@ -10,7 +10,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { fetchPaged } from "@/lib/fetch-paged";
-import { getMonthlyAttendanceSummary, NON_DEDUCT_LEAVE_TYPES } from "@/lib/hr";
+import { getMonthlyAttendanceSummary, NON_DEDUCT_LEAVE_TYPES, LEAVE_TYPES, LEAVE_UNITS } from "@/lib/hr";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 import { downloadCsv } from "@/lib/csv-export";
 import { DateRangeField } from "@/components/date-range-field";
 import { QueryBar, ConditionPanel, ConditionRow, TokenField, QuickSearch, quickSearchHit, AppliedChips, ResultStrip, Stat, ExcelMenu, type AppliedChip } from "@/components/query-kit";
@@ -29,6 +30,17 @@ const lastDayOf = (ym: string) => { const [y, m] = ym.split("-").map(Number); re
 const avatarColor = (id: string) => { let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0; const p = ["#6C5CE7", "#0984E3", "#00B894", "#E17055", "#00CEC9", "#A29BFE", "#FF7675", "#55A3FF"]; return p[Math.abs(h) % p.length]; };
 const initials = (n: string) => (/[가-힣]/.test(n || "") ? (n || "").slice(-2) : (n || "").slice(0, 2).toUpperCase());
 const fmtKRW = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
+const DOW_KO = ["일", "월", "화", "수", "목", "금", "토"];
+const fmtDay = (ds: string) => `${ds.slice(0, 10)} (${DOW_KO[new Date(ds.slice(0, 10) + "T00:00:00Z").getUTCDay()]})`;
+const fmtHm = (iso: string | null | undefined) => (iso ? new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso)) : "—");
+const leaveTypeLabel = (v: string) => LEAVE_TYPES.find((t) => t.value === v)?.label || v;
+const leaveUnitLabel = (v: string | null | undefined) => LEAVE_UNITS.find((u) => u.value === v)?.label || "";
+
+// 숫자 칸을 누르면 뜨는 '어느 날짜에 무슨 일' 팝업 — 칸 종류(DetailKind)·대상 직원·(월별 줄이면) 달
+type DetailKind = "lateDays" | "absentDays" | "remoteDays" | "halfDays" | "leaveDays";
+const DETAIL_LABEL: Record<DetailKind, string> = { lateDays: "지각", absentDays: "결근", remoteDays: "재택", halfDays: "반차", leaveDays: "연차" };
+type DetailScope = { kind: DetailKind; empIds: string[]; title: string; month?: string };
+type DetailItem = { date: string; employee_id: string; name: string; what: string; note: string };
 
 export function AttendanceStatusTab({ companyId, employees, isAdmin }: { companyId: string; employees: any[]; isAdmin: boolean }) {
   const [fromYm, setFromYm] = useState(ymNow());
@@ -58,14 +70,15 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
   });
   const { data: leaves = [] } = useQuery({
     queryKey: ["att-status-leaves", companyId, rangeFrom, rangeTo],
-    queryFn: async () => (await fetchPaged("att-status:leaves", () => supabase.from("leave_requests").select("employee_id, start_date, end_date, leave_type").eq("company_id", companyId).eq("status", "approved").lte("start_date", rangeTo).gte("end_date", rangeFrom).order("start_date"), 20000) || []) as any[],
+    queryFn: async () => (await fetchPaged("att-status:leaves", () => supabase.from("leave_requests").select("employee_id, start_date, end_date, leave_type, leave_unit, days, reason").eq("company_id", companyId).eq("status", "approved").lte("start_date", rangeTo).gte("end_date", rangeFrom).order("start_date"), 20000) || []) as any[],
     enabled: !!companyId,
   });
   // 근무일별 출근 기록 유무 — "기록도 승인 휴가도 없는 지난 근무일"을 결근으로 세기 위해(워크보드·기록 상세와 같은 규칙, 2026-09-03).
   //   종전엔 '결근'으로 직접 기록된 날만 세어 워크보드 12건 / 기록 상세 6명 / 여기 0일로 화면마다 달랐다.
+  //   숫자 칸 팝업(지각·결근·재택·반차의 날짜·내용)도 같은 행을 쓰므로 상태·시각·메모까지 가져온다.
   const { data: recordDays = [] } = useQuery({
     queryKey: ["att-status-record-days", companyId, rangeFrom, rangeTo],
-    queryFn: async () => (await fetchPaged("att-status:record-days", () => supabase.from("attendance_records").select("employee_id, date").eq("company_id", companyId).gte("date", rangeFrom).lte("date", rangeTo).order("date"), 50000)) as any[],
+    queryFn: async () => (await fetchPaged("att-status:record-days", () => supabase.from("attendance_records").select("employee_id, date, status, is_late, late_minutes, check_in, check_out, work_hours, note").eq("company_id", companyId).gte("date", rangeFrom).lte("date", rangeTo).order("date"), 50000)) as any[],
     enabled: !!companyId,
   });
   const { data: allowances = [] } = useQuery({
@@ -89,7 +102,8 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
   }, [holidays, months, todayStr]);
 
   // 합치기 — 직원별 합계 + 월별
-  const rowsAll = useMemo<Row[]>(() => {
+  const { rowsAll, derivedAbsent } = useMemo<{ rowsAll: Row[]; derivedAbsent: Map<string, string[]> }>(() => {
+    const derivedAbsent = new Map<string, string[]>(); // 직원 → 무기록 결근 날짜들(팝업이 같은 목록을 보여준다)
     const leaveByEmpMonth = new Map<string, number>();
     //   '연차' 칼럼은 연차성(차감 유형)만 센다 — 공가·경조 등 별도 휴가까지 연차로 세던 것 (2026-09-01, 직원별 연차 표와 같은 버그)
     for (const lv of leaves) { if (!lv.start_date || !lv.end_date || NON_DEDUCT_LEAVE_TYPES.has(String(lv.leave_type))) continue; let d = new Date(String(lv.start_date).slice(0, 10) + "T00:00:00Z"); const end = new Date(String(lv.end_date).slice(0, 10) + "T00:00:00Z"); let g = 0; while (d <= end && g++ < 400) { const ds = d.toISOString().slice(0, 10); if (ds >= rangeFrom && ds <= rangeTo) { const k = `${lv.employee_id}:${ds.slice(0, 7)}`; leaveByEmpMonth.set(k, (leaveByEmpMonth.get(k) || 0) + 1); } d = new Date(d.getTime() + 86400000); } }
@@ -131,6 +145,8 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
             const hire = hireOf.get(r.employee_id); if (hire && ds < hire) continue;
             const k = `${r.employee_id}:${ds}`; if (recorded.has(k) || onLeave.has(k)) continue;
             n++;
+            if (!derivedAbsent.has(r.employee_id)) derivedAbsent.set(r.employee_id, []);
+            derivedAbsent.get(r.employee_id)!.push(ds);
           }
           if (n === 0) continue;
           if (!r.months[ym]) r.months[ym] = blank(r.employee_id, r.name, r.department);
@@ -139,8 +155,50 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
       }
     }
     for (const r of map.values()) { for (const m of months) { const k = `${r.employee_id}:${m}`; if (!r.months[m] && (leaveByEmpMonth.get(k) || alwByEmpMonth.get(k))) { const mr = blank(r.employee_id, r.name, r.department); mr.leaveDays = leaveByEmpMonth.get(k) || 0; mr.alwTotal = alwByEmpMonth.get(k) || 0; r.months[m] = mr; r.leaveDays += mr.leaveDays; r.alwTotal += mr.alwTotal; } } r.ratio = workdays > 0 ? Math.min(1, r.totalDays / workdays) : 0; }
-    return [...map.values()];
+    return { rowsAll: [...map.values()], derivedAbsent };
   }, [monthly, leaves, allowances, employees, months, workdays, workdaysByMonth, rangeFrom, rangeTo, recordDays, holidays, todayStr]);
+
+  // ── 숫자 칸 팝업 — 눌린 칸(종류·직원·달)에 해당하는 날짜·내용 목록 ──
+  const [detail, setDetail] = useState<DetailScope | null>(null);
+  const closeDetail = () => setDetail(null);
+  useModalKeys(!!detail, closeDetail);
+  const detailItems = useMemo<DetailItem[]>(() => {
+    if (!detail) return [];
+    const ids = new Set(detail.empIds);
+    const inScope = (empId: string, ds: string) => ids.has(empId) && ds >= rangeFrom && ds <= rangeTo && (!detail.month || ds.slice(0, 7) === detail.month);
+    const nameOf = (id: string) => rowsAll.find((r) => r.employee_id === id)?.name || employees.find((e) => e.id === id)?.name || "";
+    const out: DetailItem[] = [];
+    const push = (empId: string, date: string, what: string, note?: string | null) => out.push({ date, employee_id: empId, name: nameOf(empId), what, note: String(note || "").trim() });
+    const hours = (r: any) => (Number(r.work_hours || 0) > 0 ? ` · ${Number(r.work_hours).toFixed(1)}h` : "");
+    const inOut = (r: any) => `출근 ${fmtHm(r.check_in)} · 퇴근 ${fmtHm(r.check_out)}${hours(r)}`;
+    // 반차·연차 줄에 붙일 승인 휴가 사유 — 같은 직원·날짜에 걸친 신청 하나
+    const leaveOn = (empId: string, ds: string) => leaves.find((lv) => lv.employee_id === empId && String(lv.start_date).slice(0, 10) <= ds && String(lv.end_date).slice(0, 10) >= ds);
+    if (detail.kind === "leaveDays") {
+      for (const lv of leaves) {
+        if (!lv.start_date || !lv.end_date || NON_DEDUCT_LEAVE_TYPES.has(String(lv.leave_type))) continue;
+        const s = String(lv.start_date).slice(0, 10), e = String(lv.end_date).slice(0, 10);
+        const span = s === e ? "" : ` · ${s}~${e}`;
+        const unit = leaveUnitLabel(lv.leave_unit); const days = Number(lv.days || 0);
+        let d = new Date(s + "T00:00:00Z"); let g = 0;
+        while (d.toISOString().slice(0, 10) <= e && g++ < 400) {
+          const ds = d.toISOString().slice(0, 10);
+          if (inScope(lv.employee_id, ds)) push(lv.employee_id, ds, `${leaveTypeLabel(String(lv.leave_type))}${unit ? ` · ${unit}` : ""}${days ? ` · ${days}일` : ""}${span}`, lv.reason);
+          d = new Date(d.getTime() + 86400000);
+        }
+      }
+    } else {
+      for (const r of recordDays) {
+        const ds = String(r.date).slice(0, 10);
+        if (!inScope(r.employee_id, ds)) continue;
+        if (detail.kind === "lateDays" && r.is_late) push(r.employee_id, ds, `출근 ${fmtHm(r.check_in)} · ${Number(r.late_minutes || 0) > 0 ? `${Math.round(Number(r.late_minutes))}분 지각` : "지각"}`, r.note);
+        else if (detail.kind === "absentDays" && r.status === "absent") push(r.employee_id, ds, "결근으로 기록", r.note);
+        else if (detail.kind === "remoteDays" && r.status === "remote") push(r.employee_id, ds, `재택 · ${inOut(r)}`, r.note);
+        else if (detail.kind === "halfDays" && r.status === "half_day") { const lv = leaveOn(r.employee_id, ds); push(r.employee_id, ds, `반차${lv ? ` (${leaveTypeLabel(String(lv.leave_type))})` : ""} · ${inOut(r)}`, [r.note, lv?.reason].filter(Boolean).join(" / ")); }
+      }
+      if (detail.kind === "absentDays") for (const [empId, dates] of derivedAbsent) for (const ds of dates) if (inScope(empId, ds)) push(empId, ds, "출근 기록도 승인 휴가도 없는 근무일");
+    }
+    return out.sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
+  }, [detail, leaves, recordDays, derivedAbsent, rowsAll, employees, rangeFrom, rangeTo]);
 
   // ── 거르기·정렬 ──
   const rows = useMemo(() => {
@@ -182,15 +240,21 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
   );
   const rangeLabel = months.length === 1 ? months[0].replace("-", "년 ") + "월" : `${months[0].replace("-", ".")}~${months[months.length - 1].replace("-", ".")}`;
   const cols = isAdmin ? 13 : 12;
-  const cellSet = (r: any, wd: number, sub = false) => (
+  // 지각·결근·재택·반차·연차 칸 — 0보다 크면 누를 수 있는 버튼(줄 클릭 접기/펼치기와 겹치지 않게 전파 차단)
+  const cnt = (r: any, kind: DetailKind, unit: string, scope: Omit<DetailScope, "kind">) => {
+    const n = Number(r[kind] || 0);
+    if (n <= 0) return "—";
+    return <button type="button" className="att-cnt-btn" title={`${DETAIL_LABEL[kind]} 날짜·내용 보기`} onClick={(e) => { e.stopPropagation(); setDetail({ kind, ...scope }); }}>{n}{unit}</button>;
+  };
+  const cellSet = (r: any, wd: number, scope: Omit<DetailScope, "kind">, sub = false) => (
     <>
       <td className="text-center mono-number">{sub ? `${r.totalDays}일` : `${Math.round(r.totalDays * 10) / 10}일`}</td>
       <td className="text-center"><span className="att-ratio"><i style={{ width: `${Math.round(r.ratio * 100)}%` }} /></span><small className="ml-1.5 mono-number text-[var(--text-dim)]">{Math.round(r.ratio * 100)}%{wd ? ` /${wd}일` : ""}</small></td>
-      <td className={`text-center mono-number ${r.lateDays > 0 ? "text-[var(--warning)] font-bold" : "text-[var(--text-dim)]"}`}>{r.lateDays > 0 ? `${r.lateDays}회` : "—"}</td>
-      <td className={`text-center mono-number ${r.absentDays > 0 ? "text-[var(--danger)] font-bold" : "text-[var(--text-dim)]"}`}>{r.absentDays > 0 ? `${r.absentDays}일` : "—"}</td>
-      <td className="text-center mono-number text-[var(--text-muted)]">{r.remoteDays > 0 ? `${r.remoteDays}일` : "—"}</td>
-      <td className="text-center mono-number text-[var(--text-muted)]">{r.halfDays > 0 ? `${r.halfDays}회` : "—"}</td>
-      <td className="text-center mono-number text-[var(--text-muted)]">{r.leaveDays > 0 ? `${r.leaveDays}일` : "—"}</td>
+      <td className={`text-center mono-number ${r.lateDays > 0 ? "text-[var(--warning)] font-bold" : "text-[var(--text-dim)]"}`}>{cnt(r, "lateDays", "회", scope)}</td>
+      <td className={`text-center mono-number ${r.absentDays > 0 ? "text-[var(--danger)] font-bold" : "text-[var(--text-dim)]"}`}>{cnt(r, "absentDays", "일", scope)}</td>
+      <td className="text-center mono-number text-[var(--text-muted)]">{cnt(r, "remoteDays", "일", scope)}</td>
+      <td className="text-center mono-number text-[var(--text-muted)]">{cnt(r, "halfDays", "회", scope)}</td>
+      <td className="text-center mono-number text-[var(--text-muted)]">{cnt(r, "leaveDays", "일", scope)}</td>
       <td className="text-right mono-number text-[var(--text-muted)]">{Math.round(r.overtimeMinutesSum) > 0 ? Math.round(r.overtimeMinutesSum).toLocaleString() : "—"}</td>
       <td className="text-right mono-number text-[var(--text-muted)]">{Math.round(r.nightMinutesSum) > 0 ? Math.round(r.nightMinutesSum).toLocaleString() : "—"}</td>
       <td className="text-right mono-number text-[var(--text-muted)]">{Math.round(r.holidayMinutesSum) > 0 ? Math.round(r.holidayMinutesSum).toLocaleString() : "—"}</td>
@@ -231,9 +295,10 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
         <Stat label="기간" value={rangeLabel} />
         <Stat label="근무일" value={`${workdays}일`} />
         <Stat label="부서 · 인원" value={`${deptRows.length}개 · ${rows.length}명`} />
-        <Stat label="지각" value={`${rows.reduce((s, r) => s + r.lateDays, 0)}회`} />
-        <Stat label="결근" title="결근으로 기록된 날 + 출근 기록도 승인 휴가도 없는 지난 근무일(워크보드·기록 상세와 같은 기준)" value={`${rows.reduce((s, r) => s + r.absentDays, 0)}일`} tone={rows.reduce((s, r) => s + r.absentDays, 0) > 0 ? "minus" : undefined} />
-        <Stat label="연차" value={`${rows.reduce((s, r) => s + r.leaveDays, 0)}일`} />
+        {/* 요약 숫자도 누르면 조회된 사람 전체의 날짜·내용 팝업 */}
+        <button type="button" className="att-stat-btn" onClick={() => setDetail({ kind: "lateDays", empIds: rows.map((r) => r.employee_id), title: `조회 인원 ${rows.length}명` })}><Stat label="지각" value={`${rows.reduce((s, r) => s + r.lateDays, 0)}회`} /></button>
+        <button type="button" className="att-stat-btn" onClick={() => setDetail({ kind: "absentDays", empIds: rows.map((r) => r.employee_id), title: `조회 인원 ${rows.length}명` })}><Stat label="결근" title="결근으로 기록된 날 + 출근 기록도 승인 휴가도 없는 지난 근무일(워크보드·기록 상세와 같은 기준)" value={`${rows.reduce((s, r) => s + r.absentDays, 0)}일`} tone={rows.reduce((s, r) => s + r.absentDays, 0) > 0 ? "minus" : undefined} /></button>
+        <button type="button" className="att-stat-btn" onClick={() => setDetail({ kind: "leaveDays", empIds: rows.map((r) => r.employee_id), title: `조회 인원 ${rows.length}명` })}><Stat label="연차" value={`${rows.reduce((s, r) => s + r.leaveDays, 0)}일`} /></button>
         <Stat label="총 근무" value={`${rows.reduce((s, r) => s + r.totalHours, 0).toFixed(1)}h`} />
         {months.length > 1 && <span className="text-[10.5px] text-[var(--text-dim)]">직원 줄을 누르면 달마다 펼쳐집니다</span>}
       </ResultStrip>
@@ -249,7 +314,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
                   <Fragment key={d.department}>
                     <tr className="att-dept-row" onClick={() => setOpenDept((m) => { const n = new Map(m); n.set(d.department, !open); return n; })}>
                       <td className="text-left"><span className={`bs-caret ${open ? "rotate-90" : ""}`}>▸</span><b>{d.department}</b> <em className="bs-cnt">{d.n}</em></td>
-                      {cellSet({ ...d, totalDays: Math.round(d.totalDays * 10) / 10 }, 0)}
+                      {cellSet({ ...d, totalDays: Math.round(d.totalDays * 10) / 10 }, 0, { empIds: d.list.map((r) => r.employee_id), title: `${d.department} ${d.n}명` })}
                     </tr>
                     {open && d.list.map((r) => {
                       const eo = openEmp.has(r.employee_id);
@@ -257,12 +322,12 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
                         <Fragment key={r.employee_id}>
                           <tr className={`pnl-row-acct att-emp-row ${months.length > 1 ? "cursor-pointer" : ""}`} onClick={() => { if (months.length > 1) setOpenEmp((s) => { const n = new Set(s); if (n.has(r.employee_id)) n.delete(r.employee_id); else n.add(r.employee_id); return n; }); }}>
                             <td className="text-left pl-8"><span className="inline-flex items-center gap-2">{months.length > 1 && <span className={`bs-caret ${eo ? "rotate-90" : ""}`}>▸</span>}<span className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: avatarColor(r.employee_id) }}>{initials(r.name)}</span>{r.name}</span></td>
-                            {cellSet(r, workdays, true)}
+                            {cellSet(r, workdays, { empIds: [r.employee_id], title: r.name }, true)}
                           </tr>
                           {eo && months.map((m) => { const mr = r.months[m]; return (
                             <tr key={m} className="att-month-row">
                               <td className="text-left pl-16 text-[var(--text-muted)] mono-number">{m.replace("-", ".")}</td>
-                              {mr ? cellSet(mr, workdaysByMonth[m] || 0, true) : <td colSpan={cols - 1} className="text-center text-[var(--text-dim)]">기록 없음</td>}
+                              {mr ? cellSet(mr, workdaysByMonth[m] || 0, { empIds: [r.employee_id], title: `${r.name} · ${m.replace("-", ".")}`, month: m }, true) : <td colSpan={cols - 1} className="text-center text-[var(--text-dim)]">기록 없음</td>}
                             </tr>
                           ); })}
                         </Fragment>
@@ -275,6 +340,36 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
           </table>
         )}
       </div>
+
+      {/* 숫자 칸 팝업 — 어느 날짜에 무슨 일이었는지(기록 시각·메모·휴가 사유). ESC/바깥 클릭으로 닫힘 */}
+      {detail && (
+        <div className="attendance-edit-dialog-overlay fixed inset-0" onClick={closeDetail}>
+          <div className="att-detail-panel glass-card" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <div className="att-detail-head">
+              <h3 className="section-title">{DETAIL_LABEL[detail.kind]} · {detail.title}</h3>
+              <button type="button" className="btn-secondary btn-sm" onClick={closeDetail}>닫기</button>
+            </div>
+            <p className="att-detail-sub">{detail.month ? detail.month.replace("-", "년 ") + "월" : rangeLabel} · {detailItems.length}건{detail.kind === "absentDays" ? " · 결근으로 기록된 날 + 출근 기록도 승인 휴가도 없는 지난 근무일" : detail.kind === "leaveDays" ? " · 승인된 연차만(공가·경조 등 별도 휴가 제외)" : ""}</p>
+            <div className="att-detail-scroll">
+              {detailItems.length === 0 ? <div className="att-detail-empty">해당 날짜가 없습니다</div> : (
+                <table className="ev-table ev-lined att-detail-table">
+                  <thead><tr><th className="text-left">날짜</th>{detail.empIds.length > 1 && <th className="text-left">직원</th>}<th className="text-left">내용</th><th className="text-left">비고</th></tr></thead>
+                  <tbody>
+                    {detailItems.map((it, i) => (
+                      <tr key={`${it.employee_id}:${it.date}:${i}`}>
+                        <td className="mono-number whitespace-nowrap">{fmtDay(it.date)}</td>
+                        {detail.empIds.length > 1 && <td className="whitespace-nowrap">{it.name}</td>}
+                        <td>{it.what}</td>
+                        <td className="att-detail-note">{it.note || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
