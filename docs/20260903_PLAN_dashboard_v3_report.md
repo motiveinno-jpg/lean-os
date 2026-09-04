@@ -131,3 +131,9 @@
 - **보고서를 다시 켜려면**: `git show b138b9fa:src/components/daily-report.tsx` 등 4파일 + globals.css 의 rep/dg 블록(b138b9fa) + app-shell 게이트 + feature_rollout ('dashboard_g', 모티브). 기획·결정 158~170 은 이 문서에 그대로.
 - 실측(모티브 로컬): 신호 6칸·격자 타일 렌더, .dg/.rep 0, data-dg 없음, 배경 원래 색.
 
+## 결정 172 — 메인 대시보드 = 부록 위젯 격자만 (2026-09-04, 사장님 "아예 위젯화 되어 있을 때" + "아래 부록-위젯 격자로 되어 있는 것만 메인 대시보드에서 사용")
+- 결정 171(v2 위젯 격자)로 되돌렸더니 사장님: 신호 띠 + 챙길 것 목록이 위에 있는 v2 도 "보고서 형태" → 첫 화면 = v3 때 부록이던 격자 그대로.
+- 카탈로그 16개(통장 잔액·미수금·이번 달 매출·세금·납부 일정·통장·카드·결재·최근 프로젝트·공지·일정·할 일·재고 부족·계산서·구성원·거래처·자산…), 신호(signals)·챙길 것(briefing)·오늘 한눈(glance) 제외. 프리셋 칩 없음(presets=[]), 마이그레이션 키 report-20260903(부록 배치 승계). 크기 조절 없음·빈 위젯 접기는 v2 규율 그대로.
+- 삭제: dashboard-signals.tsx · dashboard-glance.tsx · .dash-sig*/.dash-glance* CSS. **morning-brief.tsx(AI 챙길 것)는 남김** — 위젯으로 다시 넣을 수 있다(briefing_checks 표도 그대로).
+- 실측(모티브): 타일 N·신호 0·잘림 0·가로 스크롤 없음.
+

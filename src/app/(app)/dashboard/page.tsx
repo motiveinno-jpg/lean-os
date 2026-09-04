@@ -41,11 +41,8 @@ import { useSidebar } from "@/components/sidebar-context"; // 2026-07-24 sidebar
 import { PRESET_VIEWS, WIDGET_REGISTRY, ROLE_PRESETS } from "@/lib/widget-registry";
 import { QueryErrorBanner } from "@/components/query-status";
 import { useToast } from "@/components/toast";
-import { MorningBrief } from "@/components/morning-brief";
 import { ReceivablesPreview } from "@/components/receivables-preview";
 import { DashboardCalendar } from "@/components/dashboard-calendar"; // 일정·할 일 미니 캘린더(2026-07-14)
-import { DashboardSignals } from "@/components/dashboard-signals";
-import { DashboardGlance } from "@/components/dashboard-glance";
 import { useReportWidgetEmpty } from "@/components/widget-empty-context"; // 층 1 신호 6칸 (2026-08-19 재편)
 import { ChannelHead, useSyncStatus, useUnclassifiedCounts } from "@/components/dashboard-data-status"; // 통장·카드 위젯 머리의 동기화·미분류
 import { ActivityCard, RecentProjects, RecentRevenue, RecentInvoices } from "@/components/dashboard-activity"; // 회사 활동 요약 카드(공용 셸)
@@ -529,7 +526,7 @@ export default function DashboardPage() {
           {/* ── 2026-08-19 대시보드 재편 (docs/20260819_PLAN_dashboard_redesign.md) — 세 층:
                층 1 신호 6칸(회사가 안전한가, 경영 요약과 같은 함수) → 층 2 오늘 챙길 것(AI 제안 표) → 층 3 위젯 격자(같은 키).
                예전 '동기화 줄 + 노란 미분류 배너 + 위젯 편집'은 없앴다 — 동기화·미분류는 통장/카드 위젯 머리에. ── */}
-          {/* 층 1(신호)·층 2(챙길 것)는 2026-08-20 위젯이 됐다(사장님: 통장잔액 영역·AI 제안도 위젯화) — 아래 카탈로그의 signals·briefing.
+          {/* 층 1(신호)·층 2(챙길 것)는 2026-08-20 위젯이 됐고, 2026-09-04 사장님 지시로 카탈로그에서 뺐다(부록 격자만 메인).
               날짜·회사 이름과 '보기 설정'은 격자 머리 한 줄(headLeft)로 올라가 최상단 오른쪽에 보기 설정이 온다. */}
 
           {/* 동기화·엑셀 결과 토스트 — 위젯 머리 ↻ 를 누른 뒤 결과가 여기 뜬다 */}
@@ -567,14 +564,8 @@ export default function DashboardPage() {
             const bankHead = <ChannelHead status={syncStatus.bank} unclassified={unclassified.bank} unclassifiedHref="/collect?tab=bank" onSync={() => handleDataSync('bank')} syncing={syncing} />;
             const cardHead = <ChannelHead status={syncStatus.card} unclassified={unclassified.card} unclassifiedHref="/collect?tab=card" onSync={() => handleDataSync('card')} syncing={syncing} />;
             const catalog: CatalogWidget[] = [
-              //   층 1·2 — 전폭 위젯 (2026-08-20 사장님: 위젯화). 끄면 아래 위젯이 올라온다.
-              { id: "signals", name: "회사 신호", icon: "🚦", desc: "통장 잔액 · 30일 뒤 · 손익 · 받을 돈 · 낼 돈 · 세금 6칸", category: "경영", x: 0, y: 0, w: 12, h: 2, minW: 6, minH: 2,
-                render: () => <DashboardSignals companyId={companyId} userId={userId} forecast30={cashPulse?.forecast30d ?? null} balanceFallback={sp.cashBalance} /> },
-              //   2026-09-03 v2(결정 150): 챙길 것 왼 8열 + 오늘 한눈 오른 4열(세금·결재·일정 세 절, 비면 한 줄).
-              { id: "briefing", name: "오늘 챙길 것", icon: "✦", desc: "AI 제안 — 한 문장 + 체크리스트", category: "경영", x: 0, y: 2, w: 8, h: 10, minW: 6, minH: 6,
-                render: () => <MorningBrief userName={userName} companyName={companyName} cashPulse={cashPulse} dashboard={dashboard} hasData={hasData} userId={userId ?? undefined} aiBriefingEnabled={aiBriefingEnabled} /> },
-              { id: "glance", name: "오늘 한눈", icon: "◎", desc: "세금·납부 D-day · 결재 대기 · 오늘 일정 — 한 카드", category: "경영", x: 8, y: 2, w: 4, h: 10, minW: 3, minH: 4,
-                render: () => <DashboardGlance companyId={companyId} userId={userId ?? null} /> },
+              //   2026-09-04 사장님 "부록 위젯 격자로 되어 있는 것만 메인 대시보드에서 사용" — 신호 띠·챙길 것·오늘 한눈 위젯은 뺐다
+              //   (v3 부록 격자와 같은 카탈로그 16개). AI 챙길 것은 morning-brief.tsx 에 남아 있어 위젯으로 다시 넣을 수 있다.
               { id: "receivables", name: "미수금", icon: "💸", desc: "미회수 합계·오래된 순 5곳·독촉 문구", category: "경영", render: () => <ReceivablesPreview companyId={companyId} companyName={companyName} /> },
               { id: "revenue", name: "이번 달 매출", icon: "💰", desc: "매출 합계·최근 내역", category: "경영", render: () => <RecentRevenue companyId={companyId} /> },
               { id: "tax", name: "세금·납부 일정", icon: "🧾", desc: "60일 안 세금 마감 · 납부 완료 체크", category: "경영", render: () => <TaxScheduleWidget items={taxItems} companyId={companyId} userId={uid} /> },
@@ -608,7 +599,6 @@ export default function DashboardPage() {
               assets: { finance: true, menu: "/bank" },
               invoices: { finance: true, menu: "/tax-invoices" },
               projects: { finance: true, menu: "/projecthub" },
-              signals: { finance: true },
               approvals: { menu: "/approvals" },
               employees: { menu: "/employees" },
               partners: { menu: "/partners" },
@@ -617,7 +607,6 @@ export default function DashboardPage() {
               calendar: { menu: "/schedule" },
             };
             const canSee = (id: string) => {
-              if (id === "briefing") return canBriefing;   // AI 브리핑은 별도 세부 권한 (2026-08-10)
               const g = WIDGET_GATE[id]; if (!g) return true; if (g.finance && !canFinance) return false; return g.menu ? dashPerm(g.menu) : true;
             };
             const visibleCatalog = catalog.filter((w) => canSee(w.id));
@@ -626,10 +615,10 @@ export default function DashboardPage() {
             //   대표·회계 관점은 금액 위젯이 핵심이라 재무 권한(/dashboard:finance)이 있어야 고를 수 있다. 직원 관점은 누구나.
             const presets: WidgetPreset[] = [
               ...(canFinance ? [
-                { id: "owner", label: "대표", ids: allowed(["signals", "briefing", "glance", "receivables", "revenue", "bank", "cards", "projects", "announcements", "inventory"]) },
-                { id: "acct", label: "회계", ids: allowed(["signals", "briefing", "glance", "receivables", "bank", "cards", "invoices", "revenue", "announcements"]) },
+                { id: "owner", label: "대표", ids: allowed(["receivables", "revenue", "bank", "cards", "projects", "announcements", "inventory"]) },
+                { id: "acct", label: "회계", ids: allowed(["receivables", "bank", "cards", "invoices", "revenue", "announcements"]) },
               ] : []),
-              { id: "staff", label: "직원", ids: allowed(["glance", "work-tasks", "announcements", "employees", "projects", "calendar"]) },
+              { id: "staff", label: "직원", ids: allowed(["work-tasks", "announcements", "employees", "projects", "calendar"]) },
             ].filter((p) => p.ids.length > 0);
             //   기본 = 권한으로 고른다: 재무 권한 있으면 대표, 없으면 직원
             const defaultActiveIds = (canFinance ? presets.find((p) => p.id === "owner") : presets.find((p) => p.id === "staff"))?.ids ?? visibleCatalog.map((w) => w.id);
@@ -641,12 +630,13 @@ export default function DashboardPage() {
             //   저장 키 v3 (2026-08-20) — v2(전날, 크기 고정 시절) 배치에 신호·챙길 것을 병합하면 바닥에 흩어진다.
             //   하루 된 배치라 버리고 새 기본(신호·챙길 것 전폭 위)에서 시작.
             return <DashboardGrid storageKey={`dashboard-grid-v3-${companyId}`} catalog={visibleCatalog} defaultActiveIds={defaultActiveIds}
-              recommended={recommended} sidebarCollapsed={sidebarCollapsed} presets={presets}
+              recommended={recommended} sidebarCollapsed={sidebarCollapsed} presets={[]}
               // 이미 저장된 배치도 한 번 끌어올린다 — 달력이 h4(212px)로 저장돼 있으면 달이 반쯤 잘린다.
               //   새 기본값(h9)은 새로 담을 때만 적용되므로, 쓰던 분들은 이 마이그레이션이 고친다 (2026-08-21).
               //   2026-09-03 v2: 챙길 것을 8열로 줄이고 오른쪽에 오늘 한눈(4열)을 끼운다 — 저장된 배치도 이 한 번은 따라온다.
-              layoutMigration={{ id: "glance-20260903b", minH: { calendar: 7 }, set: { briefing: { w: 8, x: 0, h: 10 }, glance: { x: 8, y: 2, w: 4, h: 10 } } }}
-              activeMigration="glance-20260903b"
+              //   2026-09-04: 부록 격자와 같은 마이그레이션 키(report-20260903) — 부록에서 쓰던 배치가 그대로 메인이 된다.
+              layoutMigration={{ id: "report-20260903", minH: { calendar: 7 } }}
+              activeMigration="report-20260903"
               headLeft={
                 <div className="dash-head">
                   <span className="dash-head-date">{new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}</span>

@@ -8366,22 +8366,6 @@ table.dup-table { min-width: 0; }
    층 1 신호 6칸 · 층 2 오늘 챙길 것(표) · 층 3 같은 키 위젯 격자 + 보기 설정 판 · 통장/카드 위젯 머리 자료 상태 */
 .dash-head { @apply flex items-baseline gap-1.5 px-1 pb-2.5 text-[12.5px] text-[var(--text-muted)]; }
 .dash-head-date { @apply text-[14px] font-bold text-[var(--text)]; }
-/* 신호 6칸 — 2026-09-03 v2(결정 150·152): 카드가 아니라 띠(위·아래 실선), 칸 사이 세로선. 숫자 26px 검정,
-   상태 = 숫자 아래 3px 색선 + 한 단어(주의 주황·위험 빨강, 좋음은 색 없음). 알약 칩 없음. */
-.dash-signals { @apply grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 border-y border-[var(--border)] mb-4; }
-.dash-sig { @apply flex flex-col gap-0 py-2.5 pr-3 mr-3 min-w-0 no-underline border-b xl:border-b-0 xl:border-r border-[var(--border)] transition; }   /* h:2 칸(100px) 안에 라벨·숫자·색선·부제가 다 들어가야 한다(잘림 금지) */
-.dash-sig:hover .dash-sig-value { @apply text-[var(--primary)]; }
-.dash-sig:last-child { @apply border-r-0 mr-0; }
-.dash-sig-label { @apply text-[11.5px] text-[var(--text-muted)] tracking-wide; }
-.dash-sig-bar { @apply block h-[3px] w-9 rounded-full my-0.5 bg-transparent; }
-.dash-sig-y .dash-sig-bar { background: var(--warning); }
-.dash-sig-r .dash-sig-bar { background: var(--danger); }
-.dash-sig-tone { @apply font-bold; }
-.dash-sig-y .dash-sig-tone { color: var(--warning); }
-.dash-sig-r .dash-sig-tone { color: var(--danger); }
-
-.dash-sig-value { @apply text-[26px] leading-tight font-extrabold tracking-tight text-[var(--text)] truncate; }
-.dash-sig-sub { @apply text-[12px] text-[var(--text-muted)] truncate; }
 /* 오늘 챙길 것 — 머리 한 줄 + 한 문장 + 표 */
 .morning-brief-card.brief-compact { @apply mb-4 p-4 sm:p-4 md:p-4 h-full overflow-y-auto; }   /* 격자 칸보다 길면 안쪽 스크롤 — 잘림 금지(결정 157) */
 /* 요약 문장 — 결정 151·152: 색 숫자를 늘어놓지 않는다. AI 가 붙인 색 태그는 진한 글자로만 */
@@ -8407,24 +8391,6 @@ table.dup-table { min-width: 0; }
 .brief-why.is-open { @apply whitespace-normal; }
 .brief-act { @apply whitespace-nowrap rounded-lg border px-2.5 py-1 text-[12.5px] font-bold text-[var(--primary)] no-underline; border-color: color-mix(in srgb, var(--primary) 30%, transparent); }
 .brief-act:hover { @apply bg-[var(--primary-light)]; }
-/* 오늘 한눈 — 세금·결재·일정 세 절, 비면 한 줄 (결정 150) */
-.dash-glance { @apply flex h-full flex-col overflow-auto p-0; }
-.dash-glance-sec { @apply border-t border-[var(--border)]/70 px-4 py-3 first:border-t-0; }
-.dash-glance-h { @apply mb-1.5 flex items-center gap-2 text-[12px] font-semibold text-[var(--text-muted)]; }
-.dash-glance-cnt { @apply text-[12px] font-bold text-[var(--text)]; }
-.dash-glance-go { @apply text-[12px] text-[var(--text-muted)] no-underline hover:text-[var(--primary)]; }
-.dash-glance-row { @apply flex items-center gap-2.5 py-1.5 text-[13px] text-[var(--text)] no-underline; }
-.dash-glance-dot { @apply inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--text-dim)]; }
-.dash-glance-row.is-p .dash-glance-dot { background: var(--primary); }
-.dash-glance-row.is-warn .dash-glance-dot { background: var(--warning); }
-.dash-glance-row.is-bad .dash-glance-dot { background: var(--danger); }
-.dash-glance-name { @apply min-w-0 flex-1 truncate; }
-.dash-glance-r { @apply shrink-0 text-[12.5px] text-[var(--text-muted)]; }
-.dash-glance-row.is-bad .dash-glance-r { @apply font-bold text-[var(--danger)]; }
-.dash-glance-row.is-warn .dash-glance-r { @apply font-bold text-[var(--warning)]; }
-.dash-glance-empty { @apply py-0.5 text-[12.5px] text-[var(--text-dim)]; }
-.dash-glance-link { @apply font-semibold text-[var(--primary)] no-underline; }
-.dash-glance-more { @apply block pt-1 text-[12.5px] font-semibold text-[var(--primary)] no-underline; }
 .brief-evidence-btn { @apply text-[11.5px] font-semibold text-[var(--primary)] hover:underline; }
 .brief-evidence { @apply mt-1.5 flex flex-col gap-1 text-[12px] text-[var(--text-muted)] leading-relaxed; }
 /* 위젯 공용 셸 — 격자가 높이를 정하고, 머리 한 줄 · 요약 글자 · 몸통 */
@@ -8555,7 +8521,6 @@ table.dup-table { min-width: 0; }
 .billing-cancel-link { @apply underline underline-offset-2 text-[var(--text-dim)] hover:text-[var(--danger)] disabled:opacity-50; }
 
 /* 신호·챙길 것 위젯화 (2026-08-20) — 격자 타일 안에서는 자체 여백을 지우고 타일을 꽉 채운다 */
-.dashboard-widget-tile .dash-signals { @apply mb-0 h-full; }
 /* 모바일 — 위젯을 세로로 쌓고 각자 제 높이를 갖는다(dashboard-grid.tsx isMobile 분기) */
 .dashboard-grid-stack { @apply flex flex-col gap-3; }
 .dashboard-widget-tile .morning-brief-card.brief-compact { @apply mb-0 min-h-full; }
