@@ -861,7 +861,15 @@ async function syncCardBilling(
   //   다음 사람이 구분할 수 있게 남긴다. (2026-08-12)
   let biznoSeen = 0, biznoTotal = 0, biznoFilled = 0;
 
-  // 카드 청구 내역은 YYYYMM 6자리 날짜
+  // 가맹점명 '앞부분' — 승인내역("쿠팡(주)/쿠팡(클라우드)")과 청구내역("쿠팡(주)-쿠팡(주)")의 표기 차이를 지운다.
+//   '/' 앞, 없으면 마지막 '-' 앞, 공백 제거. DB 함수 card_merchant_key 와 같은 규칙(마이그 20260904150000).
+const merchantKey = (name: string): string => {
+  const t = String(name || "");
+  const seg = t.includes("/") ? t.split("/")[0] : t.includes("-") ? t.replace(/-[^-]*$/, "") : t;
+  return seg.replace(/\s+/g, "");
+};
+
+// 카드 청구 내역은 YYYYMM 6자리 날짜
   const billingStart = startDate.slice(0, 6);
   const billingEnd = endDate.slice(0, 6);
 
@@ -955,6 +963,28 @@ async function syncCardBilling(
               .limit(1);
             dupRow = (dupHits as typeof dupRow[] | null)?.[0] ?? null;
           }
+          //   청구내역엔 승인번호가 없는 카드사(BC)가 있다 — 같은 일자·금액에 가맹점명 앞부분이 같은 승인 행이 있으면 같은 결제.
+          //   (2026-09-04 모티브: "쿠팡(주)/쿠팡(클라우드)" ↔ "쿠팡(주)-쿠팡(주)" 20쌍이 두 줄로 쌓였다)
+          if (!dupRow && Number(usedAmount) > 0 && storeName) {
+            const { data: cands } = await supabase.from("card_transactions")
+              .select("id, amount, mapping_status, journal_entry_id, raw_data, merchant_name, merchant_bizno")
+              .eq("company_id", companyId)
+              .eq("transaction_date", formattedDate)
+              .eq("amount", Number(usedAmount))
+              .neq("external_id", externalId)
+              .like("external_id", `codef_card_${org}_%`)
+              .not("merchant_name", "like", "[%")
+              .limit(20);
+            const key = merchantKey(storeName);
+            const hit = ((cands || []) as any[]).find((c) => merchantKey(c.merchant_name) === key);
+            if (hit) {
+              dupRow = hit;
+              if (bizno && !hit.merchant_bizno) {
+                await supabase.from("card_transactions").update({ merchant_bizno: bizno }).eq("id", hit.id).is("merchant_bizno", null);
+                biznoFilled++;
+              }
+            }
+          }
 
           // 청구내역은 대부분 시각이 없다(있는 카드사만 저장) — 없으면 null, 승인내역 sync 가 나중에 채운다.
           const chargeTime = String(charge.resUsedTime || "");
@@ -1023,15 +1053,21 @@ async function syncCardBilling(
               .select("id");
             biznoFilled += (hit as any[] | null)?.length ?? 0;
           }
-          const { data: hit2 } = await supabase.from("card_transactions")
-            .update({ merchant_bizno: bizno })
+          //   가맹점명은 앞부분 일치로 — 승인·청구 표기 차이("쿠팡(주)/…" ↔ "쿠팡(주)-…")를 넘는다
+          const { data: cand2 } = await supabase.from("card_transactions")
+            .select("id, merchant_name")
             .eq("company_id", companyId)
             .eq("transaction_date", formattedDate)
             .eq("amount", Number(usedAmount))
-            .eq("merchant_name", storeName)
             .is("merchant_bizno", null)
-            .select("id");
-          biznoFilled += (hit2 as any[] | null)?.length ?? 0;
+            .limit(20);
+          const key2 = merchantKey(storeName);
+          const ids2 = ((cand2 || []) as any[]).filter((c) => merchantKey(c.merchant_name) === key2).map((c) => c.id);
+          if (ids2.length > 0) {
+            const { data: hit2 } = await supabase.from("card_transactions")
+              .update({ merchant_bizno: bizno }).in("id", ids2).is("merchant_bizno", null).select("id");
+            biznoFilled += (hit2 as any[] | null)?.length ?? 0;
+          }
         }
       }
     }
@@ -1056,11 +1092,11 @@ async function syncCardBilling(
       const byContent = new Set<string>();
       for (const r of (dbRows || [])) {
         if (r.approval_number) byApproval.add(`${r.transaction_date}|${r.approval_number}`);
-        byContent.add(`${r.transaction_date}|${Number(r.amount)}|${r.merchant_name || ""}`);
+        byContent.add(`${r.transaction_date}|${Number(r.amount)}|${merchantKey(r.merchant_name || "")}`);
       }
       const isPresent = (f: typeof fetchedForRecon[number]) =>
         (f.approvalNo && byApproval.has(`${f.date}|${f.approvalNo}`)) ||
-        byContent.has(`${f.date}|${f.amount}|${f.store}`);
+        byContent.has(`${f.date}|${f.amount}|${merchantKey(f.store)}`);
 
       const missing = fetchedForRecon.filter((f) => !isPresent(f));
       if (missing.length > 0) {
@@ -1076,11 +1112,11 @@ async function syncCardBilling(
         const byContent2 = new Set<string>();
         for (const r of (recheck || [])) {
           if (r.approval_number) byApproval2.add(`${r.transaction_date}|${r.approval_number}`);
-          byContent2.add(`${r.transaction_date}|${Number(r.amount)}|${r.merchant_name || ""}`);
+          byContent2.add(`${r.transaction_date}|${Number(r.amount)}|${merchantKey(r.merchant_name || "")}`);
         }
         const stillMissing = missing.filter((f) =>
           !(f.approvalNo && byApproval2.has(`${f.date}|${f.approvalNo}`)) &&
-          !byContent2.has(`${f.date}|${f.amount}|${f.store}`));
+          !byContent2.has(`${f.date}|${f.amount}|${merchantKey(f.store)}`));
         debug.push(`검증: 명세 ${fetchedForRecon.length}건 중 누락 ${missing.length}건 재적재 → 미해결 ${stillMissing.length}건`);
         for (const f of stillMissing.slice(0, 10)) {
           errors.push({
