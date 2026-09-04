@@ -75,8 +75,56 @@ function cardDisplayName(org: string, masked: unknown, resCardName?: unknown): s
 // 수집 중 처음 보는 카드를 카드 탭에 자동 등록하고, 이미 들어온 주인 없는 거래를 그 카드에 붙인다.
 //   그동안 카드 탭의 빈 화면 안내("동기화하면 자동 등록됩니다")만 있고 실제 등록 코드는 없었다.
 //   등록 기준은 끝 4자리 — 같은 번호의 카드가 다른 이름("대표님 사용카드")으로 이미 있으면 새로 만들지 않는다.
+// ── 무료 요금제 통장·카드 3개 제한 — "행 개수"가 아니라 "수집하는 것"(sync_enabled) 기준 (20260904180000) ──
+//   한도를 넘는 통장·카드는 버리지 않고 sync_enabled=false 로 넣어 목록에 보이게 한다. 거래는 가져오지 않는다.
+//   사용자가 통장·카드 화면에서 무엇을 수집할지 고른다(예전엔 은행이 돌려준 순서대로 앞 3개가 잡혔다).
+const FREE_LIMIT_HINT = "통장·카드 화면에서 수집할 것을 고르세요(무료는 3개). 오너뷰 요금제로 업그레이드하면 전부 수집됩니다.";
+function isFreeLimitError(err: any): boolean {
+  return String(err?.message || "").includes("무료 요금제");
+}
+function pushFreeLimitNotice(errors: SyncError[], org: string, label: string) {
+  const prev = errors.find((e: any) => e.code === "FREE_ACCOUNT_LIMIT");
+  if (prev) {
+    if (!prev.message.includes(label)) prev.message = `${prev.message}, ${label}`;
+    return;
+  }
+  errors.push({ accountNo: "", organization: org, code: "FREE_ACCOUNT_LIMIT",
+    message: `무료 요금제 한도(3개)를 넘어 수집을 켜지 않은 항목: ${label}`, hint: FREE_LIMIT_HINT });
+}
+/** 통장 행 넣기 — 한도에 걸리면 수집 꺼진 상태로 넣는다. 반환: "on" | "off" | "error" */
+async function insertBankAccountRow(supabase: any, row: Record<string, unknown>, errors: SyncError[], org: string, label: string): Promise<"on" | "off" | "error"> {
+  const { error } = await supabase.from("bank_accounts").insert(row);
+  if (!error) return "on";
+  if (!isFreeLimitError(error)) return "error";
+  const { error: err2 } = await supabase.from("bank_accounts").insert({ ...row, sync_enabled: false });
+  if (err2) return "error";
+  pushFreeLimitNotice(errors, org, label);
+  return "off";
+}
+/** 이 회사에서 수집을 끈 통장 번호들 */
+async function loadSyncOffAccounts(supabase: any, companyId: string): Promise<Set<string>> {
+  const { data } = await supabase.from("bank_accounts").select("account_number, sync_enabled").eq("company_id", companyId).eq("sync_enabled", false);
+  return new Set(((data || []) as Array<{ account_number: string }>).map((a) => String(a.account_number || "")));
+}
+/** 이 회사에서 수집을 끈 카드(끝 4자리·이름) */
+async function loadSyncOffCards(supabase: any, companyId: string): Promise<{ last4: Set<string>; names: Set<string> }> {
+  const { data } = await supabase.from("corporate_cards").select("card_name, card_number, sync_enabled").eq("company_id", companyId).eq("sync_enabled", false);
+  const last4 = new Set<string>(), names = new Set<string>();
+  for (const c of (data || []) as Array<{ card_name: string | null; card_number: string | null }>) {
+    if (c.card_number) last4.add(String(c.card_number).replace(/[^0-9]/g, "").slice(-4));
+    if (c.card_name) names.add(c.card_name);
+  }
+  return { last4, names };
+}
+function cardSyncOff(off: { last4: Set<string>; names: Set<string> }, l4: string | null | undefined, name: string | null | undefined): boolean {
+  if (l4 && off.last4.has(String(l4).replace(/[^0-9]/g, "").slice(-4))) return true;
+  if (name && off.names.has(name)) return true;
+  if (name) { const m = name.match(/(\d{4})\s*$/); if (m && off.last4.has(m[1])) return true; }
+  return false;
+}
+
 async function ensureCardsRegistered(
-  supabase: any, companyId: string, org: string, seen: Map<string, string>, debug: string[],
+  supabase: any, companyId: string, org: string, seen: Map<string, string>, debug: string[], limitErrors?: SyncError[],
 ) {
   if (seen.size === 0) return;
   const { data: existing } = await supabase.from("corporate_cards")
@@ -86,17 +134,22 @@ async function ensureCardsRegistered(
   for (const [last4, name] of seen) {
     let card = rows.find((c) => cardMatches(c.card_number, last4)) || rows.find((c) => c.card_name === name) || null;
     if (!card) {
-      const { data: ins, error } = await supabase.from("corporate_cards")
-        .insert({
-          company_id: companyId,
-          card_name: name,
-          card_number: last4,
-          card_company: CARD_COMPANY_SHORT[org] || CARD_CODES[org] || "미지정",
-          card_type: "credit",
-          is_active: true,
-        })
-        .select("id, card_name, card_number")
-        .single();
+      const cardRow = {
+        company_id: companyId,
+        card_name: name,
+        card_number: last4,
+        card_company: CARD_COMPANY_SHORT[org] || CARD_CODES[org] || "미지정",
+        card_type: "credit",
+        is_active: true,
+      };
+      let { data: ins, error } = await supabase.from("corporate_cards").insert(cardRow).select("id, card_name, card_number").single();
+      if (error && isFreeLimitError(error)) {
+        //   무료 한도 — 카드는 남기되 수집은 끈다. 이 카드의 거래는 이후 수집에서 건너뛴다.
+        const retry = await supabase.from("corporate_cards").insert({ ...cardRow, sync_enabled: false }).select("id, card_name, card_number").single();
+        ins = retry.data; error = retry.error;
+        if (!error && ins && limitErrors) pushFreeLimitNotice(limitErrors, org, name);
+        if (!error) debug.push(`card ${org} ${name}: 무료 한도 — 수집 꺼진 채 등록`);
+      }
       if (error || !ins) {
         debug.push(`card ${org} 자동 등록 실패(${name}): ${error?.message || "?"}`);
         continue;
@@ -449,23 +502,14 @@ async function syncBankBalanceOnly(
       } else {
         const aliasGuess = bankAcct.resAccountNickName || bankAcct.resAccountName ||
           `${BANK_CODES[org] || org} ${(bankAcct.resAccountDisplay || accountNo).slice(-4)}`;
-        const { error: insErr } = await supabase.from("bank_accounts").insert({
+        const put = await insertBankAccountRow(supabase, {
           company_id: companyId,
           bank_name: BANK_CODES[org] || org,
           account_number: accountNo,
           alias: aliasGuess,
           balance,
-        });
-        if (insErr) {
-          // 무료 요금제 통장·카드 3개 제한 트리거(2026-08-11) — 초과 계좌는 연결하지 않고 안내만
-          if (String(insErr.message || "").includes("무료 요금제") &&
-              !errors.some((e: any) => e.code === "FREE_ACCOUNT_LIMIT")) {
-            errors.push({ accountNo: "", organization: org, code: "FREE_ACCOUNT_LIMIT",
-              message: insErr.message, hint: "요금제 화면에서 오너뷰로 업그레이드하면 나머지 계좌도 연결됩니다." });
-          }
-        } else {
-          updated++;
-        }
+        }, errors, org, aliasGuess);
+        if (put !== "error") updated++;
       }
     }
     debug.push(`bank ${org}: ${demandDeposits.length} accts balance updated`);
@@ -589,28 +633,27 @@ async function syncBankTransactions(
           bank_name: BANK_CODES[org] || org,
         }).eq("id", existing.data.id);
       } else {
-        const { error: insErr } = await supabase.from("bank_accounts").insert({
+        await insertBankAccountRow(supabase, {
           company_id: companyId,
           bank_name: BANK_CODES[org] || org,
           account_number: accountNo,
           alias: aliasGuess,
           balance,
-        });
-        // 무료 요금제 통장·카드 3개 제한 트리거(2026-08-11) — 초과 계좌는 연결하지 않고 안내만
-        if (insErr && String(insErr.message || "").includes("무료 요금제") &&
-            !errors.some((e: any) => e.code === "FREE_ACCOUNT_LIMIT")) {
-          errors.push({ accountNo: "", organization: org, code: "FREE_ACCOUNT_LIMIT",
-            message: insErr.message, hint: "요금제 화면에서 오너뷰로 업그레이드하면 나머지 계좌도 연결됩니다." });
-        }
+        }, errors, org, aliasGuess);
       }
     }
 
-    // 3. 각 계좌의 거래내역 조회
+    // 3. 각 계좌의 거래내역 조회 — 수집을 끈 통장(무료 한도 초과분, 사용자가 끈 것)은 건너뛴다
+    const syncOffAccounts = await loadSyncOffAccounts(supabase, companyId);
     let orgPermissionDenied = false;
     let orgAccountMismatchReported = false;
     for (const bankAcct of demandDeposits) {
       const accountNo = bankAcct.resAccount || bankAcct.resAccountNo || bankAcct.resAccountDisplay || "";
       if (!accountNo) continue;
+      if (syncOffAccounts.has(String(bankAcct.resAccount || "")) || syncOffAccounts.has(String(bankAcct.resAccountNo || "")) || syncOffAccounts.has(String(accountNo))) {
+        debug.push(`bank ${org} acct=***${String(accountNo).slice(-4)}: 수집 꺼짐 — 건너뜀`);
+        continue;
+      }
 
       const result = await codefRequest(token, bankPath(isPersonal, "transaction-list"), {
         connectedId, organization: org, account: accountNo,
@@ -856,6 +899,18 @@ async function syncCardBilling(
       debug.push(`card ${org} firstBilling keys: [${Object.keys(billings[0]).join(",")}]`);
     }
 
+    //   카드를 거래보다 먼저 등록 — 무료 한도에 걸린 카드는 수집 꺼진 채 등록, 그 카드의 청구 건은 건너뛴다.
+    for (const bill of billings) {
+      const bcNo = bill.resCardNo || "";
+      for (const charge of (bill.resChargeHistoryList || [])) {
+        const l4 = cardLast4(charge.resUsedCard || bcNo); const nm = cardDisplayName(org, charge.resUsedCard || bcNo, charge.resCardName);
+        if (l4 && nm) seenCards.set(l4, nm);
+      }
+    }
+    try { await ensureCardsRegistered(supabase, companyId, org, seenCards, debug, errors); } catch (e: any) { debug.push(`card ${org} 사전 등록 오류: ${e?.message || e}`); }
+    const billCardsOff = await loadSyncOffCards(supabase, companyId);
+    let billSkipSyncOff = 0;
+
     for (const bill of billings) {
       // Each billing period contains resChargeHistoryList with actual transactions
       const charges = bill.resChargeHistoryList || [];
@@ -868,6 +923,7 @@ async function syncCardBilling(
       }
 
       for (const charge of charges) {
+        if (cardSyncOff(billCardsOff, cardLast4(charge.resUsedCard || cardNo), cardDisplayName(org, charge.resUsedCard || cardNo, charge.resCardName))) { billSkipSyncOff++; continue; }
         const usedDate = charge.resUsedDate || charge.resDate || "";
         const usedAmount = charge.resUsedAmount || charge.resAmount || charge.resMemberStoreAmt || 0;
         const storeName = charge.resStoreName || charge.resMemberStoreName || charge.resUsedStore || "";
@@ -1045,7 +1101,7 @@ async function syncCardBilling(
   //   기관별 새 카드 자동 등록 — 검증(재적재)까지 끝난 뒤라 주인 없는 거래를 빠짐없이 붙인다.
   if (!biznoOnly) {
     for (const [o, m] of seenCardsByOrg) {
-      try { await ensureCardsRegistered(supabase, companyId, o, m, debug); } catch (e: any) { debug.push(`card ${o} 자동 등록 오류: ${e?.message || e}`); }
+      try { await ensureCardsRegistered(supabase, companyId, o, m, debug, errors); } catch (e: any) { debug.push(`card ${o} 자동 등록 오류: ${e?.message || e}`); }
     }
   }
 
@@ -1175,11 +1231,18 @@ async function syncCardApprovals(
       debuggedKeys = true;
     }
 
+    //   카드를 거래보다 먼저 등록한다 — 무료 한도에 걸린 카드는 수집 꺼진 채 등록되고, 그 카드의 거래는 아래서 건너뛴다.
+    for (const a of approvals) { const l4 = cardLast4(a.resCardNo); const nm = cardDisplayName(org, a.resCardNo, a.resCardName); if (l4 && nm) seenCards.set(l4, nm); }
+    try { await ensureCardsRegistered(supabase, companyId, org, seenCards, debug, errors); } catch (e: any) { debug.push(`card ${org} 사전 등록 오류: ${e?.message || e}`); }
+    const cardsOff = await loadSyncOffCards(supabase, companyId);
+
     let skipNoApproval = 0;
     let skipRejected = 0;
+    let skipSyncOff = 0;
     for (const a of approvals) {
       const cancelYN = String(a.resCancelYN || "").trim();
       if (cancelYN === "3") { skipRejected++; continue; } // 거절 — 실제 청구 안 됨
+      if (cardSyncOff(cardsOff, cardLast4(a.resCardNo), cardDisplayName(org, a.resCardNo, a.resCardName))) { skipSyncOff++; continue; }
 
       const approvalNo = String(a.resCardApprovalNo || a.resApprovalNo || "").trim();
       const usedDate = String(a.resUsedDate || "").trim();
@@ -1275,10 +1338,10 @@ async function syncCardApprovals(
         biznoFilled += (hit as any[] | null)?.length ?? 0;
       }
     }
-    if (skipNoApproval > 0 || skipRejected > 0) {
-      debug.push(`card ${org} skipped: noApprovalNo=${skipNoApproval}, rejected=${skipRejected}`);
+    if (skipNoApproval > 0 || skipRejected > 0 || skipSyncOff > 0) {
+      debug.push(`card ${org} skipped: noApprovalNo=${skipNoApproval}, rejected=${skipRejected}, syncOff=${skipSyncOff}`);
     }
-    try { await ensureCardsRegistered(supabase, companyId, org, seenCards, debug); } catch (e: any) { debug.push(`card ${org} 자동 등록 오류: ${e?.message || e}`); }
+    try { await ensureCardsRegistered(supabase, companyId, org, seenCards, debug, errors); } catch (e: any) { debug.push(`card ${org} 자동 등록 오류: ${e?.message || e}`); }
   }
 
   if (biznoTotal > 0) {

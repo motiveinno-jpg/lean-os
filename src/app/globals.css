@@ -10392,3 +10392,12 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
 .ev-table.ev-cols-fixed thead th .th-sort-in { display: flex; width: 100%; justify-content: center; overflow: hidden; }
 .ev-table.ev-cols-fixed thead th .th-mark-pad { flex: 0 3 16px; min-width: 0; }
 .ev-table.ev-cols-fixed thead th .th-mark { flex: 0 1 16px; min-width: 0; overflow: hidden; }
+
+/* ── 샘플 회사 체험: 대시보드 배너·온보딩 카드·무료 수집 한도 표시 ── */
+.sample-banner { @apply mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--warning)]/40 bg-[var(--warning-dim)] px-4 py-3 text-sm text-[var(--text)]; }
+.sample-banner-tag { @apply rounded-full bg-[var(--warning)] px-2 py-0.5 text-[10.5px] font-bold text-white; }
+.sample-banner-text { @apply min-w-0 flex-1 text-[12.5px] leading-relaxed; }
+.sample-banner-actions { @apply flex shrink-0 items-center gap-2; }
+.onb-sample-card { @apply mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-[var(--primary)]/40 bg-[var(--primary)]/5 px-4 py-3; }
+.onb-sample-text { @apply min-w-0 flex-1 text-xs leading-relaxed text-[var(--text-muted)]; }
+.bank-sync-quota { @apply inline-flex items-center rounded-full border border-[var(--border)] px-2 py-0.5 text-[10.5px] font-semibold text-[var(--text-muted)]; }

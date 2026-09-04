@@ -9,6 +9,7 @@ import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 // 설정 > 연동·인증의 금융기관 등록 폼을 그대로 재사용 — 온보딩과 설정이 같은 코드를 본다 (2026-08-10)
 import { CodefAccountRegister } from "@/app/(app)/settings/_components/BankIntegrationTab";
+import { useSampleStatus, sampleErrorText } from "@/components/sample-data-banner";
 
 // ── Constants ──
 // 2026-08-10 개편(사장님): 첫 직원·첫 프로젝트·완료 단계 제거 — 회사 정보(+사업자등록증 첨부) →
@@ -711,6 +712,25 @@ function BizRegUpload({ companyId }: { companyId: string | null }) {
 
 function Step2Finance({ companyId, onConnected }: { companyId: string | null; onConnected: () => void }) {
   const { toast } = useToast();
+  const router = useRouter();
+  const qc = useQueryClient();
+  //   인증서 등록 전에 샘플 회사로 먼저 둘러보기 — 빈 화면 대신 차 있는 대시보드를 보여 준다.
+  //   샘플은 실제 통장을 연결하는 순간 자동으로 지워진다. 넣기에 실패해도 온보딩은 그대로 진행된다.
+  const { data: sample } = useSampleStatus(companyId);
+  const [seeding, setSeeding] = useState(false);
+  const trySample = async () => {
+    if (!companyId || seeding) return;
+    setSeeding(true);
+    try {
+      const { error } = await (supabase as any).rpc("sample_company_seed", { p_company: companyId });
+      if (error) throw error;
+      await qc.invalidateQueries();
+      toast("샘플 회사 자료를 넣었어요. 대시보드에서 둘러보세요.", "success");
+      router.replace("/dashboard?tour=1");
+    } catch (e: any) {
+      toast(sampleErrorText(e?.message), "error");
+    } finally { setSeeding(false); }
+  };
   return (
     <div className="onboarding-bank-step">
       <StepHeader
@@ -718,6 +738,17 @@ function Step2Finance({ companyId, onConnected }: { companyId: string | null; on
         title="인증서 등록"
         description="인증서를 등록하여 통장, 카드, 홈택스를 불러오세요."
       />
+      {sample?.allowed && (
+        <div className="onb-sample-card">
+          <div className="onb-sample-text">
+            <b>인증서가 아직 없으신가요?</b> 샘플 회사 자료로 대시보드·수집·근태 화면을 먼저 둘러볼 수 있어요.
+            내 통장을 연결하는 순간 샘플은 자동으로 지워집니다.
+          </div>
+          <button type="button" className="btn-secondary btn-sm" disabled={seeding} onClick={() => void trySample()}>
+            {seeding ? "샘플 준비 중…" : "샘플로 먼저 둘러보기"}
+          </button>
+        </div>
+      )}
       <div className="p-4 rounded-xl bg-[var(--bg)]/50 border border-[var(--border)] mb-4">
         <div className="flex items-start gap-2">
           <svg className="w-4 h-4 text-[var(--primary)] mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">

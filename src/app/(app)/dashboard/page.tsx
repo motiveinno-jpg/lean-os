@@ -25,6 +25,7 @@ import { UpcomingScheduleCard } from "@/components/upcoming-schedule";
 import { DrillDownTable } from "@/components/drill-down-table";
 import { OnboardingWizard, shouldShowOnboarding } from "@/components/onboarding";
 import { isTourActive } from "@/components/app-tour";
+import { SampleDataBanner } from "@/components/sample-data-banner";
 import { supabase } from "@/lib/supabase";
 import { subscribeToBankAccounts } from "@/lib/realtime";
 import { checkIn as hrCheckIn, checkOut as hrCheckOut, cancelCheckOut as hrCancelCheckOut } from "@/lib/hr";
@@ -514,6 +515,9 @@ export default function DashboardPage() {
       {/* 투어 중에는 비켜선다 (2026-08-20 사장님): 신규 가입 첫 화면에서 배너·체크리스트·12단계
           투어가 한꺼번에 뜨고, 투어 말풍선이 체크리스트 첫 줄을 덮어 글자가 잘려 보였다.
           투어가 끝나면(sessionStorage 스텝 소멸) 다음 진입에서 정상 노출된다. */}
+      {/* 샘플 회사 체험 중이면 늘 맨 위에 — 지금 보는 숫자가 샘플임을 잊지 않게 */}
+      {companyId && <SampleDataBanner companyId={companyId} />}
+
       {!showOnboarding && companyId && !tourActive && (
         <GettingStartedChecklist companyId={companyId} />
       )}

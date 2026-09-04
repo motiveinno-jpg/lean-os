@@ -147,6 +147,21 @@ export default function BankPage() {
     try { await updateBankAccountMeta(companyId, acctEdit.accountNo, { alias: acctEdit.alias, memo: acctEdit.memo }, { bankName: acctEdit.bankName, balance: acctEdit.balance }); refreshAccts(); toast("통장 정보를 저장했습니다", "success"); setAcctEdit(null); }
     catch (e: any) { toast(friendlyError(e, "저장 실패"), "error"); } finally { setAcctSaving(false); }
   };
+  //   수집 켜기/끄기 — 무료 요금제는 통장·카드 합쳐 3개까지만 수집(DB 트리거가 4번째를 막는다). 끈 통장은 목록에 남고 거래만 안 가져온다.
+  const { data: syncQuota } = useQuery({
+    queryKey: ["free-sync-quota", companyId],
+    queryFn: async () => { const { data, error } = await (db as any).rpc("free_sync_quota", { p_company: companyId }); if (error) return null; return data as { free: boolean; limit: number | null; used: number } | null; },
+    enabled: !!companyId, staleTime: 30_000,
+  });
+  const toggleAcctSync = async (a: { accountNo: string; syncEnabled?: boolean; bankName?: string; balance: number }) => {
+    if (!companyId) return;
+    const on = a.syncEnabled === false;
+    try {
+      await updateBankAccountMeta(companyId, a.accountNo, { sync_enabled: on }, { bankName: a.bankName, balance: a.balance });
+      refreshAccts(); queryClient.invalidateQueries({ queryKey: ["free-sync-quota", companyId] });
+      toast(on ? "이 통장의 거래를 다음 수집부터 가져옵니다" : "이 통장은 다음 수집부터 가져오지 않습니다", "success");
+    } catch (e: any) { toast(friendlyError(e, "변경 실패"), "error"); }
+  };
   const toggleAcctHidden = async (a: { accountNo: string; isHidden?: boolean; bankName?: string; balance: number }) => {
     if (!companyId) return;
     try { await updateBankAccountMeta(companyId, a.accountNo, { is_hidden: !a.isHidden }, { bankName: a.bankName, balance: a.balance }); refreshAccts(); toast(a.isHidden ? "다시 보입니다" : "목록에서 숨겼습니다 — '숨긴 통장 보기'로 되돌릴 수 있습니다", "success"); }
@@ -790,6 +805,9 @@ export default function BankPage() {
                   onClear={() => { setBankTxFrom(""); setBankTxTo(""); }} />
               )}
               {tab === "accounts" && <ChipGroup value={accountsView} onChange={setAccountsView} options={[{ value: "list", label: "리스트" }, { value: "card", label: "카드" }] as const} />}
+              {tab === "accounts" && syncQuota?.free && (
+                <span className="bank-sync-quota" title="무료 요금제는 통장·카드 합쳐 3개까지 거래를 가져옵니다. 나머지는 목록에만 두고 '수집 켜기'로 바꿔 쓸 수 있어요.">무료 요금제 · 수집 {syncQuota.used}/{syncQuota.limit}</span>
+              )}
               {tab === "accounts" && accounts.some((a) => a.isHidden) && (
                 <button type="button" onClick={() => setShowHiddenAccts((v) => !v)} className={showHiddenAccts ? "qk-quick qk-quick-on" : "qk-quick"}>숨긴 통장 {accounts.filter((a) => a.isHidden).length}개 {showHiddenAccts ? "감추기" : "보기"}</button>
               )}
@@ -840,7 +858,7 @@ export default function BankPage() {
               const bal = Number(a.balance || 0);
               return (
                 <tr key={a.accountNo} className={`pnl-row-acct ${a.isHidden ? "opacity-60" : ""}`} onClick={() => { seedAccountCond(accNo); goTab("transactions"); }} title="누르면 이 통장 거래내역">
-                  <td className="text-left"><span className="inline-flex items-center gap-2"><BankLogo name={a.bankName || name} size={20} /><b>{name}</b>{a.alias && a.bankName && <small className="text-[var(--text-dim)]">{a.bankName}</small>}{a.isHidden && <span className="ol-sure">숨김</span>}</span></td>
+                  <td className="text-left"><span className="inline-flex items-center gap-2"><BankLogo name={a.bankName || name} size={20} /><b>{name}</b>{a.syncEnabled === false && <span className="ol-sure ml-1.5" title="거래를 가져오지 않는 통장 — '수집 켜기'로 되돌립니다">수집 꺼짐</span>}{a.alias && a.bankName && <small className="text-[var(--text-dim)]">{a.bankName}</small>}{a.isHidden && <span className="ol-sure">숨김</span>}</span></td>
                   {/* 계좌번호는 전체를 보인다 (2026-08-19 사장님: "통장에서 계좌번호를 다 보이게") */}
                   <td className="text-center mono-number text-[var(--text-muted)]">{accNo || "—"}</td>
                   <td className="text-left text-[var(--text-muted)]">{a.memo ? <span className="truncate inline-block max-w-[220px]" title={a.memo}>{a.memo}</span> : <span className="text-[var(--text-dim)]">—</span>}</td>
@@ -849,6 +867,7 @@ export default function BankPage() {
                   <td className="text-center" onClick={(e) => e.stopPropagation()}>
                     <span className="inline-flex gap-1.5">
                       <button type="button" onClick={() => setAcctEdit({ accountNo: accNo, alias: a.alias || "", memo: a.memo || "", bankName: a.bankName, balance: bal })} className="btn-secondary btn-sm">수정</button>
+                      <button type="button" onClick={() => toggleAcctSync({ accountNo: accNo, syncEnabled: a.syncEnabled, bankName: a.bankName, balance: bal })} className={a.syncEnabled === false ? "btn-secondary btn-sm text-[var(--warning)]" : "btn-secondary btn-sm"} title={a.syncEnabled === false ? "지금은 거래를 가져오지 않는 통장입니다" : "이 통장의 거래를 가져오지 않게 합니다"}>{a.syncEnabled === false ? "수집 켜기" : "수집 끄기"}</button>
                       <button type="button" onClick={() => toggleAcctHidden({ accountNo: accNo, isHidden: a.isHidden, bankName: a.bankName, balance: bal })} className="btn-secondary btn-sm">{a.isHidden ? "보이기" : "숨김"}</button>
                       <button type="button" onClick={() => removeAcct({ accountNo: accNo, alias: a.alias, bankName: a.bankName })} className="btn-secondary btn-sm text-[var(--danger)]">삭제</button>
                     </span>

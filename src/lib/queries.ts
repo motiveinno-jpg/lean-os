@@ -841,13 +841,14 @@ export async function setBankAccountAlias(
 export async function updateBankAccountMeta(
   companyId: string,
   accountNumber: string,
-  patch: { alias?: string | null; memo?: string | null; is_hidden?: boolean },
+  patch: { alias?: string | null; memo?: string | null; is_hidden?: boolean; sync_enabled?: boolean },
   opts?: { bankName?: string; balance?: number },
 ) {
   const clean: Record<string, unknown> = {};
   if ('alias' in patch) clean.alias = (patch.alias || '').trim() || null;
   if ('memo' in patch) clean.memo = (patch.memo || '').trim() || null;
   if ('is_hidden' in patch) clean.is_hidden = !!patch.is_hidden;
+  if ('sync_enabled' in patch) clean.sync_enabled = !!patch.sync_enabled;
   const updated = logRead('updateBankAccountMeta', await supabase
     .from('bank_accounts').update(clean as never).eq('company_id', companyId).eq('account_number', accountNumber).select('id'));
   if (updated && updated.length > 0) return;
@@ -1771,6 +1772,7 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
   id?: string;
   isHidden?: boolean;
   memo?: string;
+  syncEnabled?: boolean;
 }>> {
   const [txs, { data: accts }] = await Promise.all([
     //   계좌별 '거래 건수'를 정확히 세려면 통장 거래 전량이 필요하다 — 5000으로 막으면 거래가 많은
@@ -1787,7 +1789,7 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
       .order('id', { ascending: false }), 100000),
     supabase
       .from('bank_accounts')
-      .select('id, account_number, alias, bank_name, balance, is_hidden, memo')
+      .select('id, account_number, alias, bank_name, balance, is_hidden, memo, sync_enabled')
       .eq('company_id', companyId),
   ]);
   // tx 별 count + 최신 잔액 계산.
@@ -1812,7 +1814,7 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
     }
   }
   // bank_accounts 정보 매핑 — 통장 list 의 source. 거래 0건이어도 표시하기 위해.
-  const acctInfo = new Map<string, { id?: string; alias?: string; bankName?: string; balance: number; isHidden?: boolean; memo?: string }>();
+  const acctInfo = new Map<string, { id?: string; alias?: string; bankName?: string; balance: number; isHidden?: boolean; memo?: string; syncEnabled?: boolean }>();
   const allAccountNos = new Set<string>();
   for (const a of (accts || []) as any[]) {
     if (a.account_number) {
@@ -1823,6 +1825,7 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
         balance: Number(a.balance || 0),
         isHidden: !!a.is_hidden,
         memo: a.memo || undefined,
+        syncEnabled: a.sync_enabled !== false,
       });
       allAccountNos.add(a.account_number);
     }
@@ -1844,6 +1847,7 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
         bankName: info?.bankName,
         id: info?.id,
         isHidden: info?.isHidden || false,
+        syncEnabled: info?.syncEnabled ?? true,
         memo: info?.memo,
       };
     })

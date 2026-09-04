@@ -215,6 +215,20 @@ export default function CardsPage() {
     try { const { error } = await db.from("corporate_cards").update({ card_name: name, memo: cardEdit.memo.trim() || null, card_number: cardEdit.number.replace(/[^0-9]/g, "") || null } as never).eq("id", cardEdit.id); if (error) throw error; refreshCards(); toast("카드 정보를 저장했습니다", "success"); setCardEdit(null); }
     catch (e) { toast(friendlyError(e, "저장 실패"), "error"); } finally { setCardSaving(false); }
   };
+  //   수집 켜기/끄기 — 무료 요금제는 통장·카드 합쳐 3개까지만 수집(DB 트리거가 4번째를 막는다). 끈 카드는 목록에 남고 거래만 안 가져온다.
+  const { data: syncQuota } = useQuery({
+    queryKey: ["free-sync-quota", companyId],
+    queryFn: async () => { const { error, data } = await (db as any).rpc("free_sync_quota", { p_company: companyId }); if (error) return null; return data as { free: boolean; limit: number | null; used: number } | null; },
+    enabled: !!companyId, staleTime: 30_000,
+  });
+  const toggleCardSync = async (card: any) => {
+    const on = card.sync_enabled === false;
+    try {
+      const { error } = await db.from("corporate_cards").update({ sync_enabled: on } as never).eq("id", card.id); if (error) throw error;
+      refreshCards(); queryClient.invalidateQueries({ queryKey: ["free-sync-quota", companyId] });
+      toast(on ? "이 카드의 거래를 다음 수집부터 가져옵니다" : "이 카드는 다음 수집부터 가져오지 않습니다", "success");
+    } catch (e) { toast(friendlyError(e, "변경 실패"), "error"); }
+  };
   const toggleCardHidden = async (card: any) => {
     const hide = card.is_active !== false;
     try { const { error } = await db.from("corporate_cards").update({ is_active: !hide }).eq("id", card.id); if (error) throw error; refreshCards(); toast(hide ? "목록에서 숨겼습니다(비활성) — '숨긴 카드 보기'로 되돌릴 수 있습니다" : "다시 보입니다(활성)", "success"); }
@@ -868,6 +882,9 @@ export default function CardsPage() {
               <DateRangeField label="카드 거래 기간" from={cardTxFrom} to={cardTxTo}
                 onChange={(f, t) => { setCardTxFrom(f); setCardTxTo(t); }} />
               {tab === "cards" && cards.length > 0 && <ChipGroup value={cardsView} onChange={setCardsView} options={[{ value: "list", label: "리스트" }, { value: "card", label: "카드" }] as const} />}
+              {tab === "cards" && syncQuota?.free && (
+                <span className="bank-sync-quota" title="무료 요금제는 통장·카드 합쳐 3개까지 거래를 가져옵니다. 나머지는 목록에만 두고 '수집 켜기'로 바꿔 쓸 수 있어요.">무료 요금제 · 수집 {syncQuota.used}/{syncQuota.limit}</span>
+              )}
               {tab === "cards" && cards.some((c: any) => c.is_active === false) && (
                 <button type="button" onClick={() => setShowHiddenCards((v) => !v)} className={showHiddenCards ? "qk-quick qk-quick-on" : "qk-quick"}>숨긴 카드 {cards.filter((c: any) => c.is_active === false).length}개 {showHiddenCards ? "감추기" : "보기"}</button>
               )}
@@ -910,7 +927,7 @@ export default function CardsPage() {
                 <tbody>
                   {cards.map((card: any, idx: number) => ({ card, idx })).filter(({ card }) => showHiddenCards || card.is_active !== false).map(({ card, idx }) => (
                     <tr key={card.id} className={`pnl-row-acct ${idx === selectedCardIdx ? "cards-row-on" : ""} ${card.is_active === false ? "opacity-60" : ""}`} onClick={() => handleSelectCardForTx(card, idx)} title="누르면 이 카드 거래내역">
-                      <td className="text-left font-semibold">{card.card_name || "카드"}{card.is_active === false && <span className="ol-sure ml-1.5">숨김</span>}</td>
+                      <td className="text-left font-semibold">{card.card_name || "카드"}{card.is_active === false && <span className="ol-sure ml-1.5">숨김</span>}{card.sync_enabled === false && <span className="ol-sure ml-1.5" title="거래를 가져오지 않는 카드 — '수집 켜기'로 되돌립니다">수집 꺼짐</span>}</td>
                       <td className="text-center"><span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${cardTypeBadgeClass(card.card_type)}`}>{cardTypeLabel(card.card_type)}</span></td>
                       <td className="text-center mono-number text-[var(--text-muted)] whitespace-nowrap">{cardNoDisplay(card.card_number)}</td>
                       <td className="text-center text-[var(--text-muted)]">{card.card_company || "—"}</td>
@@ -920,6 +937,7 @@ export default function CardsPage() {
                       <td className="text-center" onClick={(e) => e.stopPropagation()}>
                         <span className="inline-flex gap-1.5">
                           <button type="button" onClick={() => setCardEdit({ id: card.id, name: card.card_name || "", memo: card.memo || "", number: card.card_number || "" })} className="btn-secondary btn-sm">수정</button>
+                          <button type="button" onClick={() => toggleCardSync(card)} className={card.sync_enabled === false ? "btn-secondary btn-sm text-[var(--warning)]" : "btn-secondary btn-sm"} title={card.sync_enabled === false ? "지금은 거래를 가져오지 않는 카드입니다" : "이 카드의 거래를 가져오지 않게 합니다"}>{card.sync_enabled === false ? "수집 켜기" : "수집 끄기"}</button>
                           <button type="button" onClick={() => toggleCardHidden(card)} className="btn-secondary btn-sm">{card.is_active === false ? "보이기" : "숨김"}</button>
                           <button type="button" onClick={() => removeCard(card)} className="btn-secondary btn-sm text-[var(--danger)]">삭제</button>
                         </span>
