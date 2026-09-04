@@ -2203,6 +2203,19 @@ table.bs-t-table { min-width: 360px; }
 .chat-guest-input-wrapper { @apply rounded-b-2xl border border-t-0 border-[var(--border)] overflow-hidden; }
 .chat-sidebar-section { @apply mb-2; }
 .chat-channel-row { @apply w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition; }
+/* 채널 종류 구분 — 팀 채널: 네모 #, 1:1 대화: 동그란 머리글자. 꼬리표(팀/1:1)까지 세 겹으로 갈라 한눈에 보이게 */
+.chat-row-icon { @apply shrink-0 w-6 h-6 grid place-items-center text-[11px] font-extrabold leading-none; }
+.chat-row-icon-team { @apply rounded-md bg-[var(--bg-surface)] text-[var(--text-dim)] border border-[var(--border)]; }
+.chat-row-icon-dm { @apply rounded-full bg-[var(--primary-light)] text-[var(--primary)]; }
+.chat-channel-row-on .chat-row-icon { @apply bg-white/25 text-white border-transparent; }
+.chat-kind-tag { @apply shrink-0 px-1.5 h-[16px] inline-flex items-center rounded text-[9.5px] font-bold leading-none; }
+.chat-kind-tag-team { @apply bg-[var(--bg-surface)] text-[var(--text-dim)] border border-[var(--border)]; }
+.chat-kind-tag-dm { @apply bg-[var(--primary-light)] text-[var(--primary)]; }
+.chat-channel-row-on .chat-kind-tag { @apply bg-white/25 text-white border-transparent; }
+/* 날짜 구분 줄 — 그날의 첫 메시지 위 */
+.chat-date-divider { @apply flex items-center gap-3 my-4 text-[10.5px] font-semibold text-[var(--text-dim)]; }
+.chat-date-divider::before, .chat-date-divider::after { content: ""; @apply flex-1 h-px bg-[var(--border)]; }
+.chat-date-divider > span { @apply px-2.5 py-0.5 rounded-full bg-[var(--bg-surface)] whitespace-nowrap; }
 .chat-workspace { @apply flex overflow-hidden; height: calc(100dvh - 104px); }
 .chat-workspace-embed { height: calc(100dvh - 40px); }
 .chat-sidebar { @apply flex-col w-full lg:w-72 shrink-0 border-r border-[var(--border)] bg-[var(--bg-surface)]/40; }

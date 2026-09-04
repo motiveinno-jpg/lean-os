@@ -36,6 +36,31 @@ export function subscribeToMessages(
   return channel;
 }
 
+// ── Subscribe to participant changes (last_read_at 갱신·입장·퇴장) ──
+//   읽음 표시가 상대가 읽는 순간 사라지려면 chat_participants 의 UPDATE 를 받아야 한다.
+export function subscribeToParticipants(
+  channelId: string,
+  onChange: (payload: { eventType: 'INSERT' | 'UPDATE' | 'DELETE'; new: any; old: any }) => void,
+): RealtimeChannel {
+  const channel = supabase
+    .channel(`chat-participants:${channelId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'chat_participants',
+        filter: `channel_id=eq.${channelId}`,
+      },
+      (payload) => {
+        onChange(payload as any);
+      }
+    )
+    .subscribe();
+
+  return channel;
+}
+
 // ── Subscribe to message updates (pin, edit) ──
 export function subscribeToMessageUpdates(
   channelId: string,

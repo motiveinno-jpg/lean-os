@@ -15,7 +15,7 @@ import {
 } from "@/lib/queries";
 import { sendMessage, togglePin, markAsRead, uploadChatFile, sendMessageWithMentions, addReaction, removeReaction, editMessage, deleteMessage, inviteParticipant, getOrCreateInviteToken, getChatInviteUrl, sendSystemMessage, leaveChannel, getOrCreateDMChannel } from "@/lib/chat";
 import { friendlyError } from "@/lib/friendly-error";
-import { subscribeToMessages, subscribeToMessageUpdates, subscribeToReactions, unsubscribe, type RealtimeStatus } from "@/lib/realtime";
+import { subscribeToMessages, subscribeToMessageUpdates, subscribeToReactions, subscribeToParticipants, unsubscribe, type RealtimeStatus } from "@/lib/realtime";
 import { useToast } from "@/components/toast";
 import { ChatBubble } from "@/components/chat-bubble";
 import { ChatInput } from "@/components/chat-input";
@@ -482,9 +482,8 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
     queryKey: ["chat-participants", channelId],
     queryFn: () => getParticipants(channelId),
     enabled: !!channelId,
-    //   읽음 표시(드팜므 문의발, 2026-09-02) — last_read_at 이 realtime 발행에 없어 10초 폴링.
-    //   화면이 백그라운드면 안 돈다(기본값). 실시간 승격은 chat_participants publication 추가 뒤에.
-    refetchInterval: 10_000,
+    //   last_read_at 은 realtime(subscribeToParticipants)으로 즉시 반영된다. 폴링은 소켓이 끊겼을 때의 안전망.
+    refetchInterval: 30_000,
   });
 
   //   내 메시지 옆 '안 읽은 사람 수' — 그 메시지 시각보다 last_read_at 이 이른(또는 없는) 참가자 수.
@@ -574,6 +573,21 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
       }),
       subscribeToReactions(channelId, () => {
         queryClient.invalidateQueries({ queryKey: ["chat-reactions", channelId] });
+      }),
+      // 상대가 읽으면(last_read_at 갱신) 캐시를 바로 고쳐 '안 읽음 1' 이 그 자리에서 사라진다.
+      //   서버 재조회를 기다리지 않도록 이벤트 행으로 직접 덮어쓰고, 이름 등 조인 정보는 기존 행에서 유지.
+      subscribeToParticipants(channelId, (payload) => {
+        queryClient.setQueryData(["chat-participants", channelId], (prev: any[] | undefined) => {
+          const list = prev || [];
+          if (payload.eventType === "DELETE") return list.filter((p) => p.id !== payload.old?.id);
+          const row = payload.new;
+          if (!row?.id) return list;
+          const idx = list.findIndex((p) => p.id === row.id);
+          if (idx === -1) return [...list, row];
+          return list.map((p, i) => (i === idx ? { ...p, ...row } : p));
+        });
+        // 입장·퇴장은 이름 조인이 필요하니 한 번 더 정식 조회
+        if (payload.eventType !== "UPDATE") queryClient.invalidateQueries({ queryKey: ["chat-participants", channelId] });
       }),
     ];
     return () => { subs.forEach(unsubscribe); setRtStatus('connecting'); };
@@ -737,6 +751,13 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
     const d = new Date(ts);
     return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
   };
+  // 날짜 구분 줄 — 그날의 첫 메시지 위에 "2026년 9월 4일 목요일" (KST 기준)
+  const dateLabel = (ts: string) => {
+    const ymd = kstDateStr(new Date(ts));
+    const [y, m, d] = ymd.split("-").map(Number);
+    const dow = ["일", "월", "화", "수", "목", "금", "토"][new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+    return `${y}년 ${m}월 ${d}일 ${dow}요일`;
+  };
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes}B`;
@@ -783,9 +804,12 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
             &larr; 채널 목록
           </button>
           <div>
-            <h1 className="text-lg font-extrabold">{headerName}</h1>
+            <h1 className="text-lg font-extrabold flex items-center gap-2">
+              {headerName}
+              <span className={`chat-kind-tag ${isDMChannel ? "chat-kind-tag-dm" : "chat-kind-tag-team"}`}>{isDMChannel ? "1:1" : (channel as any)?.deal_id ? "프로젝트" : "팀"}</span>
+            </h1>
             <div className="text-xs text-[var(--text-dim)]">
-              {isDMChannel ? "1:1 대화" : ((channel as any)?.deals?.name ? `프로젝트: ${(channel as any).deals.name}` : channel?.type || "")}
+              {isDMChannel ? "1:1 대화" : ((channel as any)?.deals?.name ? `프로젝트: ${(channel as any).deals.name}` : "팀 채널")}
               {" · "}
               {participants.length}명 참가
             </div>
@@ -914,10 +938,15 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
             {messages.length === 0 ? (
               <div className="text-center py-20 text-sm text-[var(--text-muted)]">첫 메시지를 보내세요</div>
             ) : (
-              messages.map((msg: any) => {
+              messages.map((msg: any, idx: number) => {
                 const ac = actionCardMap.get(msg.id);
+                const prev = idx > 0 ? messages[idx - 1] : null;
+                const newDay = !!msg.created_at && (!prev?.created_at || kstDateStr(new Date(prev.created_at)) !== kstDateStr(new Date(msg.created_at)));
                 return (
                   <div key={msg.id} id={`msg-${msg.id}`} className="chat-message-item">
+                    {newDay && (
+                      <div className="chat-date-divider"><span>{dateLabel(msg.created_at)}</span></div>
+                    )}
                     {editingId === msg.id ? (
                       <EditInline
                         content={msg.content}

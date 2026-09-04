@@ -279,17 +279,20 @@ function ChatPageInner() {
   return <ChatWorkspace companyId={companyId} userId={userId} selectedChannel={selectedChannel} router={router} />;
 }
 
-// 슬랙식 채널 행 — #채널 / @DM, 안읽음 굵게+배지, 활성 하이라이트
+// 채널 행 — 팀 채널은 네모 # 아이콘 + '팀' 꼬리표, 1:1 대화는 동그란 이름 머리글자 + '1:1' 꼬리표.
+//   접두사 한 글자(#/@)만으로는 둘이 구분되지 않아 모양·색·꼬리표 세 가지로 갈랐다.
 function ChannelRow({ ch, active, unread, onClick }: { ch: any; active: boolean; unread: number; onClick: () => void }) {
   const isDM = ch.is_dm;
-  const prefix = isDM ? "@" : "#";
+  const kindLabel = isDM ? "1:1" : ch.deal_id ? "프로젝트" : "팀";
+  const label = isDM ? (ch.dm_name || "1:1 대화") : ch.name;
   return (
     <button onClick={onClick}
-      className={`chat-channel-row ${
-        active ? "bg-[var(--primary)] text-white" : "hover:bg-[var(--bg-surface)] text-[var(--text-muted)]"
+      className={`chat-channel-row ${isDM ? "chat-channel-row-dm" : "chat-channel-row-team"} ${
+        active ? "chat-channel-row-on bg-[var(--primary)] text-white" : "hover:bg-[var(--bg-surface)] text-[var(--text-muted)]"
       }`}>
-      <span className={`text-sm shrink-0 ${active ? "text-white/70" : "text-[var(--text-dim)]"}`}>{prefix}</span>
-      <span className={`flex-1 truncate text-sm ${unread > 0 && !active ? "font-bold text-[var(--text)]" : "font-medium"}`}>{isDM ? (ch.dm_name || "1:1 대화") : ch.name}</span>
+      <span className={`chat-row-icon ${isDM ? "chat-row-icon-dm" : "chat-row-icon-team"}`}>{isDM ? (label || "?").slice(0, 1) : "#"}</span>
+      <span className={`flex-1 truncate text-sm ${unread > 0 && !active ? "font-bold text-[var(--text)]" : "font-medium"}`}>{label}</span>
+      <span className={`chat-kind-tag ${isDM ? "chat-kind-tag-dm" : "chat-kind-tag-team"}`}>{kindLabel}</span>
       {unread > 0 && (
         <span className={`min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold rounded-full px-1 shrink-0 ${active ? "bg-white/25 text-white" : "bg-[var(--danger)] text-white"}`}>
           {unread > 99 ? "99+" : unread}
@@ -530,7 +533,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
   const sections: { key: "deal" | "team" | "dm"; title: string; list: any[]; empty: string }[] = [
     { key: "team", title: "팀 채널", list: teamChannels, empty: "팀 채널 없음" },
     { key: "deal", title: "프로젝트", list: dealChannels, empty: "프로젝트 채널 없음" },
-    { key: "dm", title: "다이렉트 메시지", list: dmChannels, empty: "DM 없음" },
+    { key: "dm", title: "1:1 대화", list: dmChannels, empty: "1:1 대화 없음" },
   ];
 
   //   높이는 CSS 로 — zoom 안에서는 100vh 를 ÷ --app-zoom 해야 사이드바 끝선과 맞는다 (2026-08-27 사장님: "칸 크기가 좌측 사이드바랑 안 맞음")
