@@ -166,8 +166,8 @@ export function BankTab({
   /*   ── 엑셀식 머리단 필터 + 열 너비 (2026-08-13 사장님) — 증빙 탭과 같은 방식 ── */
   const [colF, setColF] = useState<Record<string, Set<string> | null>>({});
   const tableRef = useRef<HTMLTableElement | null>(null);
-  const [colW, setColW] = useColWidths("collect-bk-colw", {
-    date: 60, io: 56, who: 160, desc: 170, amount: 100, debit: 150, credit: 150, memo: 150, state: 80,
+  const [colW, setColW] = useColWidths("collect-bk-colw-v2", {
+    date: 80, io: 76, who: 160, desc: 170, amount: 100, debit: 150, credit: 150, memo: 150, state: 80,
   });
   const colVal = (r: Row, k: string): string => {
     switch (k) {

@@ -10361,3 +10361,8 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
 /* 폭을 넘는 글자는 옆 칸으로 새지 않고 …으로 잘린다(드래그·더블클릭으로 넓힐 수 있다). 칸 안에서 아래로 열리는 선택 목록(.spv-drop)이 있을 땐 잘리지 않게 푼다 */
 .ev-table.ev-cols-fixed tbody td { overflow: hidden; text-overflow: ellipsis; }
 .ev-table.ev-cols-fixed tbody td:has(.spv-drop) { overflow: visible; } /* 폭은 열이 정하므로 칸 자체의 상한은 푼다(넓힌 열에서 글자가 190px 에서 잘리지 않게) */
+/* 고정 폭 표의 머리단: 열이 좁아도 글자가 가운데 남는다 — 좌우 빈 칸(th-mark-pad)이 먼저 줄고, 그다음 정렬 삼각형이 줄고, 글자는 마지막.
+   자동 너비 시절엔 열이 머리단 내용만큼 늘어나 안 보이던 문제가, 폭이 고정되자 내용이 왼쪽 끝에서 시작해 오른쪽 ≡ 필터와 겹쳤다. */
+.ev-table.ev-cols-fixed thead th .th-sort-in { display: flex; width: 100%; justify-content: center; overflow: hidden; }
+.ev-table.ev-cols-fixed thead th .th-mark-pad { flex: 0 3 16px; min-width: 0; }
+.ev-table.ev-cols-fixed thead th .th-mark { flex: 0 1 16px; min-width: 0; overflow: hidden; }

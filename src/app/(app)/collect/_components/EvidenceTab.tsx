@@ -166,9 +166,9 @@ export function EvidenceTab({
    *   colVal 이 칸의 표시값을 뽑는 단 하나의 기준 — 필터 목록과 거르기가 같은 값을 본다. */
   const [colF, setColF] = useState<Record<string, Set<string> | null>>({});
   const tableRef = useRef<HTMLTableElement | null>(null);
-  const [colW, setColW] = useColWidths(`collect-ev-colw-${kind}`, {
-    date: 64, partner: 150, bizno: 110, kind: 72, vat: 130, item: 150,
-    supply: 92, tax: 84, total: 96, debit: 130, credit: 190, state: 84,
+  const [colW, setColW] = useColWidths(`collect-ev-colw-v2-${kind}`, {
+    date: 80, partner: 150, bizno: 134, kind: 84, vat: 130, item: 150,
+    supply: 100, tax: 92, total: 100, debit: 130, credit: 190, state: 92,
   });
   const colVal = (r: Row, k: string): string => {
     switch (k) {
