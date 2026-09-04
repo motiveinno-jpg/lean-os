@@ -39,6 +39,7 @@ const PUBLIC_ROUTES = [
   '/terms',
   '/privacy',
   '/refund',
+  '/security',  // 보안 안내 — 비로그인 노출이 목적
   '/invite',
   '/sign',
   '/share',
