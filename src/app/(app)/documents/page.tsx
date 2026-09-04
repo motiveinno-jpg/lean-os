@@ -29,7 +29,7 @@ import { classifyDocument, getDocTypeInfo, DOC_INTEL_TYPES, saveDocumentIntellig
 import { createSignatureRequest, getSignatureRequests, getDocumentSignatures, updateSignatureStatus, saveSignature, cancelSignature, getSignatureStatusInfo, SIGNATURE_STATUS, applyCompanySeal, sendSignatureEmail, createBulkSignatureRequests, sendSignatureReminder, bulkSendReminders, getDocumentSignatureAudit } from "@/lib/signatures";
 import { createNotification } from "@/lib/notifications";
 import { useMyPermissions } from "@/lib/permissions";
-import { uploadFile, getFilesForDocument, createFolder, getFolders, deleteFolder, searchFiles, deleteFile, pruneUnreferencedDocumentFiles, downloadStoredFile, updateFolderVisibility, getFileVersions, type FolderVisibility } from "@/lib/file-storage";
+import { uploadFile, getFilesForDocument, createFolder, getFolders, deleteFolder, moveFilesToFolder, searchFiles, deleteFile, pruneUnreferencedDocumentFiles, downloadStoredFile, updateFolderVisibility, getFileVersions, type FolderVisibility } from "@/lib/file-storage";
 import { getCompanyStorage, fmtBytes as fmtQuotaBytes } from "@/lib/storage-quota";
 import { getDepartments } from "@/lib/schedule";
 import { generateDocumentPDF, generateQuotePDF, issueDocument } from "@/lib/document-generator";
@@ -2983,6 +2983,38 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
 
   // Build folder tree
   const rootFolders = folders.filter((f: any) => !f.parent_id);
+  //   '폴더로 이동' 고르기용 — 트리를 위에서부터 한 줄로 펴고 깊이만큼 들여쓴다
+  const flatFolders = useMemo(() => {
+    const out: { id: string; label: string }[] = [];
+    const walk = (parentId: string | null, depth: number) => {
+      for (const f of folders.filter((x: any) => (x.parent_id || null) === parentId).sort((a: any, b: any) => String(a.name).localeCompare(String(b.name), "ko"))) {
+        out.push({ id: f.id, label: `${"　".repeat(depth)}${f.name}` });
+        walk(f.id, depth + 1);
+      }
+    };
+    walk(null, 0);
+    return out;
+  }, [folders]);
+  const [moveTarget, setMoveTarget] = useState("");
+  const [moving, setMoving] = useState(false);
+  const moveSelected = async () => {
+    if (!moveTarget || selectedIds.size === 0) return;
+    const folderId = moveTarget === "__root" ? null : moveTarget;
+    setMoving(true);
+    try {
+      const r = await moveFilesToFolder([...selectedIds], folderId, companyId);
+      const where = folderId ? `"${folders.find((f: any) => f.id === folderId)?.name || "폴더"}"` : "폴더 밖(전체)";
+      if (r.failed.length) toast(`${r.moved}개는 ${where}(으)로 옮겼고 ${r.failed.length}개는 실패했습니다: ${r.failed.slice(0, 3).join(", ")}${r.failed.length > 3 ? " …" : ""}`, "error");
+      else if (r.moved === 0) toast("이미 그 폴더에 있는 파일입니다", "info");
+      else toast(`파일 ${r.moved}개를 ${where}(으)로 옮겼습니다`, "success");
+      setSelectedIds(new Set());
+      setMoveTarget("");
+      queryClient.invalidateQueries({ queryKey: ["storage-files"] });
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+    } catch (e: any) {
+      toast("이동 실패: " + friendlyError(e, "알 수 없는 오류"), "error");
+    } finally { setMoving(false); }
+  };
   const getChildren = (parentId: string) => folders.filter((f: any) => f.parent_id === parentId);
 
   const renderFolder = (folder: any, depth: number = 0) => {
@@ -3272,6 +3304,15 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
             )}
             {/* ── 3줄 · 고른 파일로 하는 일 — 삭제는 되돌릴 수 없어 확인창을 거친다 ── */}
             <SelectionBar count={selectedIds.size} onClear={() => setSelectedIds(new Set())}>
+              {/* 폴더로 이동 — 이미 올린 파일을 나중에 분류한다. 실물(저장소 경로)도 같이 옮겨 공개 범위가 폴더를 따라간다 */}
+              <select className="qk-input h-8 px-2 text-xs" value={moveTarget} onChange={(e) => setMoveTarget(e.target.value)} aria-label="옮길 폴더">
+                <option value="">옮길 폴더…</option>
+                <option value="__root">폴더 밖(전체)</option>
+                {flatFolders.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+              </select>
+              <button type="button" className="btn-secondary btn-sm" disabled={!moveTarget || moving} onClick={() => void moveSelected()}>
+                {moving ? "옮기는 중…" : `폴더로 이동 (${selectedIds.size})`}
+              </button>
               <button type="button" className="btn-secondary btn-sm text-[var(--danger)]"
                 onClick={async () => {
                   const ids = [...selectedIds];

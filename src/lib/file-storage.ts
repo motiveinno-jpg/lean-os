@@ -584,6 +584,54 @@ export async function getFolders(companyId: string) {
   return data || [];
 }
 
+// ── 12b. Move files into a folder ──
+//   폴더에 넣은 파일은 저장소 경로에도 폴더가 박혀 있고(`{company}/folders/{folderId}/…`) 스토리지 RLS 가
+//   그 경로로 공개 범위를 판단한다. 그래서 folder_id 만 바꾸면 목록과 실물의 범위가 어긋난다 — 실물을 먼저 옮기고
+//   성공한 것만 행을 고친다. 지난 판(parent_file_id 가 이 파일인 행)도 같이 따라간다.
+export async function moveFilesToFolder(
+  fileIds: string[],
+  folderId: string | null,
+  companyId: string,
+): Promise<{ moved: number; skipped: number; failed: string[] }> {
+  if (fileIds.length === 0) return { moved: 0, skipped: 0, failed: [] };
+  const { data: rows, error } = await db
+    .from("document_files")
+    .select("id, file_name, folder_id, storage_path, bucket, parent_file_id")
+    .eq("company_id", companyId)
+    .or(`id.in.(${fileIds.join(",")}),parent_file_id.in.(${fileIds.join(",")})`);
+  if (error) throw error;
+
+  const targetSegment = folderId ? `folders/${folderId}` : "general";
+  let moved = 0, skipped = 0;
+  const failed: string[] = [];
+  for (const f of (rows || []) as any[]) {
+    const isLatest = !f.parent_file_id;   // 세는 건 파일(최신 판)만 — 지난 판은 조용히 따라간다
+    if ((f.folder_id || null) === (folderId || null)) { if (isLatest) skipped++; continue; }
+    const patch: { folder_id: string | null; storage_path?: string; file_url?: string } = { folder_id: folderId };
+    const parts = String(f.storage_path || "").split("/");
+    //   경로가 `{company}/(general|folders/{id})/{파일}` 꼴인 파일보관함 파일만 실물을 옮긴다.
+    //   다른 꼴(문서·딜에 붙은 파일 등)은 경로에 폴더가 없으니 행만 고친다.
+    const vaultShaped = f.bucket === "document-files" && parts[0] === companyId
+      && (parts[1] === "general" && parts.length === 3 || parts[1] === "folders" && parts.length === 4);
+    if (vaultShaped) {
+      const next = `${companyId}/${targetSegment}/${parts[parts.length - 1]}`;
+      const { error: mvErr } = await supabase.storage.from(f.bucket).move(f.storage_path, next);
+      if (mvErr) { failed.push(f.file_name); continue; }
+      patch.storage_path = next;
+      patch.file_url = supabase.storage.from(f.bucket).getPublicUrl(next).data.publicUrl;
+    }
+    const { data: hit, error: upErr } = await db.from("document_files").update(patch).eq("id", f.id).select("id");
+    if (upErr || !hit || hit.length === 0) {
+      //   행을 못 고쳤으면 실물을 되돌린다 — 목록은 옛 폴더인데 실물만 새 폴더면 내려받기가 깨진다
+      if (vaultShaped) await supabase.storage.from(f.bucket).move(patch.storage_path!, f.storage_path).catch(() => {});
+      failed.push(f.file_name);
+      continue;
+    }
+    if (isLatest) moved++;
+  }
+  return { moved, skipped, failed };
+}
+
 // ── 13. Delete folder ──
 
 export async function deleteFolder(
