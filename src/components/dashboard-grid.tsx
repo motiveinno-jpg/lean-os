@@ -273,7 +273,9 @@ export function DashboardGrid({
     return active.map((w) => {
       const l = saved[w.id] || def[w.id];
       const size = { w: l.w || w.w || 4, h: l.h || w.h || 5 };
-      if (emptyIds.has(w.id)) return { i: w.id, x: l.x, y: 100000 + l.y, w: size.w, h: 1, minW: 3, minH: 1, isResizable: false };
+      //   빈 위젯은 한 줄로 접되 자리는 사람이 둔 곳 그대로(2026-09-04 사장님: "오늘 일정·내 담당 업무를 사이에 넣으면 원래 자리로 돌아간다" —
+      //   예전엔 y+100000 으로 바닥에 밀고 자리도 저장하지 않아 드래그가 무효였다)
+      if (emptyIds.has(w.id)) return { i: w.id, x: l.x, y: l.y, w: size.w, h: 1, minW: 3, minH: 1, isResizable: false };
       return { i: w.id, x: l.x, y: l.y, ...size, minW: w.minW ?? 3, minH: w.minH ?? 2, isResizable: edit && !isMobile };
     });
   }, [layout, activeIds, catMap, catalogIds, emptyIds, edit, isMobile]);
@@ -293,7 +295,14 @@ export function DashboardGrid({
     if (!mounted || isMobile || cols === 1 || containerWidth < 768) return;
     setLayout((prev) => {
       const map: Record<string, Layout> = Object.fromEntries(prev.map((x) => [x.i, x]));
-      for (const it of l) { if (emptyIds.has(it.i)) continue; map[it.i] = { i: it.i, x: it.x, y: it.y, w: it.w, h: it.h, minW: it.minW, minH: it.minH }; }   // 접힌 빈 위젯의 임시 자리는 저장하지 않는다
+      for (const it of l) {
+        if (emptyIds.has(it.i)) {   // 접힌 빈 위젯: 자리(x·y)는 저장, 크기는 접기 전 값(h:1 은 임시)을 지킨다
+          const prevL = map[it.i]; const cat = catMap[it.i];
+          map[it.i] = { i: it.i, x: it.x, y: it.y, w: prevL?.w || cat?.w || 4, h: prevL?.h || cat?.h || 5, minW: prevL?.minW ?? cat?.minW, minH: prevL?.minH ?? cat?.minH };
+          continue;
+        }
+        map[it.i] = { i: it.i, x: it.x, y: it.y, w: it.w, h: it.h, minW: it.minW, minH: it.minH };
+      }
       const next = Object.values(map);
       stateRef.current = { ...stateRef.current, layout: next };
       try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* noop */ }
