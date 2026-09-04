@@ -268,15 +268,15 @@ export function DashboardGrid({
   const effective = useMemo(() => {
     const saved = Object.fromEntries(layout.map((l) => [l.i, l]));
     const def = Object.fromEntries(buildDefault(active).map((l) => [l.i, l]));
-    //   2026-09-03 v2 결정 149(사장님 확정): 크기 조절 없음 · 자리 이동만 자유. 저장본에서는 x·y 만 쓰고 w·h 는 카탈로그(위젯이 내용에 맞춰 선언)가 정한다.
-    //   (2026-08-20 자유 조절 복원의 이유였던 '달력 잘림'은 위젯이 2단을 선언해 푼다 — 결정 157)
+    //   2026-09-03 v2 결정 149 는 크기 조절을 없앴으나 2026-09-04 사장님 "위젯 크기 설정 가능하게 세로·가로" → 편집 모드에서 다시 조절.
+    //   저장본에 w·h 가 있으면 그 크기, 없으면 카탈로그 선언 크기. 빈 위젯은 한 줄로 접히고 조절 불가(결정 153 유지).
     return active.map((w) => {
       const l = saved[w.id] || def[w.id];
-      const size = { w: w.w || 4, h: w.h || 5 };
+      const size = { w: l.w || w.w || 4, h: l.h || w.h || 5 };
       if (emptyIds.has(w.id)) return { i: w.id, x: l.x, y: 100000 + l.y, w: size.w, h: 1, minW: 3, minH: 1, isResizable: false };
-      return { i: w.id, x: l.x, y: l.y, ...size, minW: w.minW ?? 3, minH: w.minH ?? 2, isResizable: false };
+      return { i: w.id, x: l.x, y: l.y, ...size, minW: w.minW ?? 3, minH: w.minH ?? 2, isResizable: edit && !isMobile };
     });
-  }, [layout, activeIds, catMap, catalogIds, emptyIds]);
+  }, [layout, activeIds, catMap, catalogIds, emptyIds, edit, isMobile]);
 
   const persistActive = (ids: string[]) => {
     hasSavedActive.current = true;
@@ -419,7 +419,8 @@ export function DashboardGrid({
           margin={[12, 12]}
           containerPadding={[0, 0]}
           isDraggable={edit && !isMobile}
-          isResizable={false}
+          isResizable={edit && !isMobile}
+          resizeHandles={["s", "e", "se"]}
           compactType="vertical"
           onLayoutChange={onLayoutChange}
           draggableCancel=".no-drag"

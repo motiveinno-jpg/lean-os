@@ -841,7 +841,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .rgl-editing .react-grid-item { cursor: move; }
 /* 기본 그립 아이콘 제거 · 편집 아닐 땐 핸들 숨김 */
 .dashboard-grid .react-resizable-handle { background-image: none !important; z-index: 6; }
-.dashboard-grid .react-resizable-handle { display: none !important; }   /* 2026-09-03 v2 결정 149: 크기 조절 없음 — 편집 모드에서도 손잡이 없음 */
+.dashboard-grid:not(.rgl-editing) .react-resizable-handle { display: none !important; }   /* 편집 아닐 땐 숨김 — 2026-09-04 크기 조절 복원(사장님 "세로·가로 크기 설정") */
 /* 그립 표식(점/바) 완전 제거 — 우측·하단에 옅은 점이 보이던 문제(2026-07-15 사장님).
    react-resizable/RGL 기본 코너 ::after 표식까지 함께 제거. 리사이즈 안내는 커서로만. 그랩 영역·기능 유지. */
 .dashboard-grid .react-resizable-handle::after { content: none !important; }
@@ -4136,8 +4136,9 @@ table.leave-req-table { min-width: 960px; } /* table. — .ev-table(뒤에 정�
 .activity-card-quiet { @apply flex-row items-center gap-3 px-4 py-0 overflow-hidden whitespace-nowrap; }
 .activity-card-quiet .widget-empty-text { @apply truncate min-w-0; }
 /* 위젯 몸통 3형 — 숫자 타일 (통장·카드 요약) */
-.dash-tiles { @apply grid grid-cols-3 gap-2 mb-2; }
-.dash-tile { @apply flex flex-col gap-0.5 rounded-lg bg-[var(--bg-surface)] px-3 py-2 no-underline; }
+/* 통장 위젯 요약 3칸 — 상자가 떠 보인다(2026-09-04 사장님) → 배경 없이 세로선으로만 나눈 한 줄 */
+.dash-tiles { @apply mb-2 flex divide-x divide-[var(--border)] border-b border-[var(--border)] pb-2; }
+.dash-tile { @apply flex flex-1 flex-col gap-0 px-3 first:pl-0 no-underline; }
 .dash-tile .l { @apply text-[11.5px] text-[var(--text-muted)]; }
 .dash-tile .v { @apply text-[15px] font-extrabold text-[var(--text)] tracking-tight; }
 .dash-tile .v.is-plus { color: var(--success); }
