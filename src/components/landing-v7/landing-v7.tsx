@@ -27,7 +27,7 @@ import { useGSAP } from "@gsap/react";
 
 import "@/app/landing-v7.css";
 import {
-  HERO, HERO_VIDEO_SRC, HERO_SCENES, SECTION_HEAD, SECTIONS,
+  HERO, HERO_VIDEO, HERO_SCENES, SECTION_HEAD, SECTIONS,
   FLOW, STEPS, PRICING, TOOLS, TRUST, CTA, NAV, FOOTER,
 } from "@/components/landing-v7/content";
 
@@ -173,6 +173,12 @@ export default function LandingV7() {
   const root = useRef<HTMLDivElement>(null);
 
   useGSAP(() => {
+    // 움직임 줄이기를 켠 사람에게는 영상도 스스로 돌지 않는다 — 대신 직접 켤 수 있게 조작막대를 준다.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const v = root.current?.querySelector<HTMLVideoElement>(".lp7-video");
+      if (v) { v.autoplay = false; v.loop = false; v.controls = true; v.pause(); }
+    }
+
     const mm = gsap.matchMedia();
 
     // 움직임 줄이기를 켠 사람에게는 애니메이션을 아예 만들지 않는다 — 화면은 이미 최종 상태다.
@@ -244,10 +250,39 @@ export default function LandingV7() {
         });
       }
 
-      /* ══ ② 히어로 플레이어 — 장면 교차 + 커서 + 진행바 ══ */
-      //  촬영 전이라 실제 화면 4장을 교차시킨다 (결정 192). 영상이 준비되면 <video> 로 바뀐다.
+      /* ══ ② 히어로 플레이어 ══ */
+      //  기본은 실제 화면 녹화 영상(결정 192). 영상을 못 트는 브라우저에서만 캡처 4장을 교차시킨다.
       const player = q(".lp7-player")[0] as HTMLElement | undefined;
-      if (player && !HERO_VIDEO_SRC) {
+      const vid = q(".lp7-video")[0] as HTMLVideoElement | undefined;
+      const canPlay = !!vid && !!(
+        vid.canPlayType('video/mp4; codecs="avc1.42E01E"') || vid.canPlayType('video/webm; codecs="vp9"')
+      );
+
+      if (player && vid && canPlay) {
+        // 영상이 도는 동안 대체 판은 필요 없다
+        const fb = q(".lp7-fallback")[0] as HTMLElement | undefined;
+        if (fb) fb.remove();
+
+        const bar = q(".lp7-prog i")[0] as HTMLElement | undefined;
+        const onTime = () => {
+          if (bar && vid.duration) gsap.set(bar, { scaleX: vid.currentTime / vid.duration });
+        };
+        const onEnter = () => vid.pause();
+        const onLeave = () => { void vid.play().catch(() => {}); };
+        vid.addEventListener("timeupdate", onTime);
+        player.addEventListener("mouseenter", onEnter);
+        player.addEventListener("mouseleave", onLeave);
+        cleanups.push(() => {
+          vid.removeEventListener("timeupdate", onTime);
+          player.removeEventListener("mouseenter", onEnter);
+          player.removeEventListener("mouseleave", onLeave);
+        });
+        // 화면 밖이면 멈춘다 — 안 보이는 영상을 돌릴 이유가 없다 (성능)
+        ScrollTrigger.create({
+          trigger: player, start: "top 95%", end: "bottom 5%",
+          onToggle: (self) => { self.isActive ? void vid.play().catch(() => {}) : vid.pause(); },
+        });
+      } else if (player) {
         const scenesEl = q(".lp7-scene");
         const caps = q(".lp7-cap");
         const cursor = q(".lp7-cursor")[0];
@@ -621,28 +656,33 @@ export default function LandingV7() {
               <span className="lp7-live"><i />실제 화면 녹화</span>
             </div>
             <div className="lp7-player">
-              {HERO_VIDEO_SRC ? (
-                <video className="lp7-video" src={HERO_VIDEO_SRC} poster={scenes[0].src} autoPlay muted loop playsInline preload="metadata" />
-              ) : (
-                <>
-                  {scenes.map((s, i) => (
-                    <Image key={s.src} className="lp7-scene" src={s.src} alt={s.alt} fill sizes="(max-width: 1180px) 100vw, 1160px" priority={i === 0} />
-                  ))}
-                  {scenes.map((s, i) => (
-                    <span key={`cap-${s.src}`} className="lp7-cap"><b>{i + 1}</b>{s.cap}</span>
-                  ))}
-                  {scenes.map((s) => <span key={`ring-${s.src}`} className="lp7-clickring" />)}
-                  <svg className="lp7-cursor" viewBox="0 0 24 24" fill="#0b0b0f" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round" aria-hidden>
-                    <path d="M5 3l14 8.5-6.5 1.5-3.5 6z" />
-                  </svg>
-                </>
-              )}
+              {/* 대체 판 — 영상을 트는 브라우저에서는 스크립트가 이 판을 지운다 */}
+              <div className="lp7-fallback">
+                {scenes.map((s, i) => (
+                  <Image key={s.src} className="lp7-scene" src={s.src} alt={s.alt} fill sizes="(max-width: 1180px) 100vw, 1160px" priority={i === 0} />
+                ))}
+                {scenes.map((s, i) => (
+                  <span key={`cap-${s.src}`} className="lp7-cap"><b>{i + 1}</b>{s.cap}</span>
+                ))}
+                {scenes.map((s) => <span key={`ring-${s.src}`} className="lp7-clickring" />)}
+                <svg className="lp7-cursor" viewBox="0 0 24 24" fill="#0b0b0f" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round" aria-hidden>
+                  <path d="M5 3l14 8.5-6.5 1.5-3.5 6z" />
+                </svg>
+              </div>
+              <video
+                className="lp7-video" poster={HERO_VIDEO.poster}
+                autoPlay muted loop playsInline preload="metadata"
+                aria-label="오너뷰 실제 화면 녹화 — 대시보드, 수집·전표, 프로젝트, 근태 관리"
+              >
+                <source src={HERO_VIDEO.webm} type="video/webm" />
+                <source src={HERO_VIDEO.mp4} type="video/mp4" />
+              </video>
             </div>
           </div>
           <div className="lp7-playbar">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="#3a3a46" aria-hidden><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
             <span className="lp7-prog"><i /></span>
-            <span className="lp7-playnote">0:20 · 무음 · 자동 재생 · 마우스를 올리면 멈춥니다</span>
+            <span className="lp7-playnote">{HERO_VIDEO.note}</span>
           </div>
         </div>
       </section>

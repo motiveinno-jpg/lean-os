@@ -37,16 +37,25 @@ export const HERO = {
   ],
 };
 
-// 히어로 시연 영상 (결정 192).
-//   ⚠️ 촬영 전이라 지금은 실제 화면 캡처 4장을 교차시키는 플레이어로 대신한다.
-//      촬영이 끝나면 VIDEO_SRC 에 경로만 넣으면 <video> 로 바뀐다 — 다른 코드는 손대지 않는다.
-//      규격: 1440×810 / 20~30초 / 무음 / webm+mp4 / 3~5MB / poster = 대시보드 캡처.
-export const HERO_VIDEO_SRC: string | null = null;
+// 히어로 시연 영상 (결정 192) — 2026-09-04 촬영 완료.
+//   프로덕션(www.owner-view.com) 실제 화면을 1440×810 으로 녹화했다. 무음·자동재생·반복.
+//   장면: 대시보드 → 수집·전표 → 프로젝트 → 근태 관리 (29초)
+//   ⚠️ 통장 화면은 일부러 넣지 않았다 — 실제 계좌번호가 그대로 보이므로 공개 페이지에 올릴 수 없다.
+//   ⚠️ 다시 찍으면 파일명 뒤에 -v2 를 붙인다. 같은 이름으로 덮으면 캐시 때문에 옛 영상이 계속 나온다.
+export const HERO_VIDEO = {
+  webm: "/video/ownerview-hero.webm",   // VP9 · 917KB
+  mp4: "/video/ownerview-hero.mp4",     // H.264 · 1.04MB (Safari 용)
+  poster: "/video/ownerview-hero-poster.jpg",
+  note: "0:29 · 무음 · 자동 재생 · 마우스를 올리면 멈춥니다",
+};
+
+// 영상을 못 트는 브라우저(구형 iOS Safari 등)를 위한 대체 — 같은 장면의 실제 화면 캡처를 교차시킨다.
+//   ⚠️ 영상이 재생되면 이 판은 쓰이지 않는다. 장면·차례는 영상과 같게 유지한다.
 export const HERO_SCENES = [
   { src: "/product/dashboard-v6.png", w: 3120, h: 1950, cap: "대시보드 — 매출·잔고·오늘 챙길 일", alt: "오너뷰 대시보드 — 매출·잔고·미수금과 오늘 챙길 일" },
-  { src: "/product/f-inv-channels-v1.png", w: 2640, h: 2000, cap: "이커머스 — 채널 주문이 자동으로 들어옵니다", alt: "오너뷰 이커머스 — 스마트스토어·쿠팡 주문 가져오기" },
+  { src: "/product/f-bank-v4.png", w: 2288, h: 1116, cap: "수집·전표 — 거래가 자동으로 들어옵니다", alt: "오너뷰 수집·전표 — 통장·카드·세금계산서 자동 수집" },
   { src: "/product/f-projects-v5.png", w: 2288, h: 1432, cap: "프로젝트 — 단계·담당자·마감을 표 하나에", alt: "오너뷰 프로젝트 — 표 형태 파이프라인" },
-  { src: "/product/f-chat-v4.png", w: 2288, h: 1432, cap: "메신저 — 프로젝트 채널에서 바로 대화", alt: "오너뷰 메신저 — 프로젝트별 채널" },
+  { src: "/product/f-hr-v5.png", w: 3200, h: 2000, cap: "근태 관리 — 근태가 급여로 이어집니다", alt: "오너뷰 근태 관리 — 주간 워크보드" },
 ];
 
 export const SECTION_HEAD = {

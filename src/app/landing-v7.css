@@ -137,8 +137,10 @@
 .lp7-live { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; color: var(--lp7-brand); }
 .lp7-live i { width: 7px; height: 7px; border-radius: 99px; background: var(--lp7-brand); }
 .lp7-player { position: relative; aspect-ratio: 16 / 9; background: #fff; overflow: hidden; }
+.lp7-fallback { position: absolute; inset: 0; }
 .lp7-scene { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: top; will-change: opacity; }
-.lp7-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* 실제 화면 녹화 — 대체 판 위에 덮는다. 영상이 돌면 스크립트가 대체 판을 지운다. */
+.lp7-video { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; object-fit: cover; display: block; background: #fff; }
 .lp7-cap {
   position: absolute; left: 18px; bottom: 16px; z-index: 2;
   display: inline-flex; align-items: center; gap: 8px;
