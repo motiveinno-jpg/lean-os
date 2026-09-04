@@ -84,29 +84,29 @@ function parsePost(slug) {
   const meta = {};
   if (m) for (const line of m[1].split(/\r?\n/)) { const i = line.indexOf(":"); if (i > 0) meta[line.slice(0, i).trim()] = line.slice(i + 1).trim(); }
   const body = m ? m[2] : raw;
+  //   블록 종류: heading(깊이) · text · lead(첫 문단) · list · table · quote · hr · image
   const blocks = [];
   const pushImage = (href, alt) => { const p = path.join(ROOT, "public", href); if (fs.existsSync(p)) blocks.push({ type: "image", file: p, alt: stripInline(alt) }); };
   for (const t of marked.lexer(body)) {
-    if (t.type === "heading") blocks.push({ type: "heading", text: stripInline(t.text) });
+    if (t.type === "heading") blocks.push({ type: "heading", depth: t.depth, text: stripInline(t.text) });
     else if (t.type === "paragraph") {
       const imgs = [...t.raw.matchAll(/!\[([^\]]*)\]\(([^)]+)\)/g)];
       const text = stripInline(t.text);
       if (text) blocks.push({ type: "text", text });
       for (const im of imgs) pushImage(im[2], im[1]);
     }
-    else if (t.type === "list") for (const it of t.items) blocks.push({ type: "text", text: "• " + stripInline(it.text) });
-    else if (t.type === "table") {
-      const head = t.header.map((h) => stripInline(h.text));
-      for (const row of t.rows) blocks.push({ type: "text", text: row.map((c, i) => `${head[i]}: ${stripInline(c.text)}`).join("  |  ") });
-    }
-    else if (t.type === "blockquote") blocks.push({ type: "text", text: stripInline(t.text) });
+    else if (t.type === "list") blocks.push({ type: "list", items: t.items.map((it) => stripInline(it.text)) });
+    else if (t.type === "table") blocks.push({ type: "table", head: t.header.map((h) => stripInline(h.text)), rows: t.rows.map((r) => r.map((c) => stripInline(c.text))) });
+    else if (t.type === "blockquote") blocks.push({ type: "quote", text: stripInline(t.text) });
+    else if (t.type === "hr") blocks.push({ type: "hr" });
     else if (t.type === "space") continue;
     else if (t.text) blocks.push({ type: "text", text: stripInline(t.text) });
   }
-  //   글 끝 — 서비스 링크 한 줄. 글은 네이버에만 두므로 우리 도메인은 랜딩으로만 잇는다.
-  blocks.push({ type: "text", text: `오너뷰 — 통장·카드·홈택스를 연결하면 사장님 화면이 저절로 채워져요. 기본 기능은 계속 무료: ${SITE}` });
+  //   첫 문단은 리드 — 조금 크게 넣어 글이 밋밋해 보이지 않게 한다
+  const firstText = blocks.find((b) => b.type === "text");
+  if (firstText) firstText.type = "lead";
   const tags = (meta.tags || "").split(",").map((s) => s.trim().replace(/\s+/g, "")).filter(Boolean).slice(0, 10);
-  return { title: meta.title || slug, blocks, tags, slug };
+  return { title: meta.title || slug, blocks, tags, slug, summary: (meta.description || "").trim() };
 }
 
 // ── 에디터 조작 ──
@@ -135,29 +135,54 @@ async function publishPost(ctx, post) {
   if (!fr) throw new Error("글쓰기 프레임을 찾지 못했습니다.");
 
   //   문서 JSON 을 직접 구성 — 타이핑보다 확실하고, 되살아난 임시 글도 이 순간 사라진다.
-  //   이미지 자리는 ⟦IMG n⟧ 문단으로 두고 뒤에서 사진 업로드로 바꾼다. 링크 두 줄은 자동 링크가 걸리게 타이핑으로 넣는다.
-  const uid = () => "SE-" + crypto.randomUUID();
-  const textNode = (value, style) => ({ id: uid(), value, ...(style ? { style: { ...style, "@ctype": "nodeStyle" } } : {}), "@ctype": "textNode" });
-  const paragraph = (value, style) => ({ id: uid(), nodes: [textNode(value, style)], "@ctype": "paragraph" });
-  const paras = [];
+  //   네이버 부품을 그대로 쓴다: 소제목은 큰 글씨+브랜드색, 인용은 인용구, 표는 표, 마디마다 구분선.
+  //   이미지 자리는 ⟦IMG n⟧ 문단으로 두고 뒤에서 사진 업로드로 바꾼다. 링크 줄은 자동 링크가 걸리게 타이핑으로 넣는다.
   const imageFiles = [];
-  for (const b of post.blocks) {
-    if (b.type === "image") { imageFiles.push(b.file); paras.push(paragraph(`⟦IMG ${imageFiles.length}⟧`)); paras.push(paragraph("")); continue; }
-    if (b.type === "text" && (b.text.startsWith(SITE) || /^오너뷰 — /.test(b.text))) continue;   // 링크 줄은 나중에 타이핑
-    paras.push(paragraph(b.text, b.type === "heading" ? { bold: true } : undefined));
-    paras.push(paragraph(""));
-  }
-  const doc = await fr.evaluate(({ title, paras, uid1, uid2, uid3 }) => {
+  for (const b of post.blocks) if (b.type === "image") imageFiles.push(b.file);
+  const doc = await fr.evaluate(({ title, blocks, brand }) => {
+    const uid = () => "SE-" + crypto.randomUUID();
+    const tn = (value, style) => ({ id: uid(), value, ...(style ? { style: { ...style, "@ctype": "nodeStyle" } } : {}), "@ctype": "textNode" });
+    const para = (nodes, align) => ({ id: uid(), nodes: Array.isArray(nodes) ? nodes : [nodes], "@ctype": "paragraph", ...(align ? { style: { align, "@ctype": "paragraphStyle" } } : {}) });
+    const textComp = (paras) => ({ id: uid(), layout: "default", value: paras, "@ctype": "text" });
+    const line = () => ({ id: uid(), layout: "line3", "@ctype": "horizontalLine" });
+    const quote = (t, layout) => ({ id: uid(), layout: layout || "quotation_line", value: [para(tn(t))], source: null, "@ctype": "quotation" });
+    const cell = (t, head) => ({ id: uid(), colSpan: 1, rowSpan: 1, height: 43, "@ctype": "tableCell",
+      value: [para(tn(t, head ? { bold: true, fontColor: brand } : null), "center")] });
+    const comps = [{ id: uid(), layout: "default", title: [para(tn(title))], subTitle: null, align: "left", "@ctype": "documentTitle" }];
+    const blank = () => textComp([para(tn(""))]);
+    let n = 0;
+    for (const b of blocks) {
+      if (b.type === "image") { n += 1; comps.push(textComp([para(tn("\u27E6IMG " + n + "\u27E7"))])); if (b.alt) comps.push(textComp([para(tn(b.alt, { fontSizeCode: "fs13", fontColor: "#888888" }), "center")])); comps.push(blank()); continue; }
+      if (b.type === "hr") { comps.push(line()); continue; }
+      if (b.type === "heading") {
+        if (b.depth <= 2) comps.push(line());   // 마디 앞 선이 여백 노릇도 한다 — 빈 줄을 겹쳐 넣지 않는다
+        comps.push(textComp([para(tn(b.text, { bold: true, fontSizeCode: b.depth <= 2 ? "fs19" : "fs17", fontColor: brand }))]));
+        comps.push(blank());
+        continue;
+      }
+      if (b.type === "lead") { comps.push(textComp([para(tn(b.text, { fontSizeCode: "fs17" }))])); comps.push(blank()); continue; }
+      if (b.type === "quote") { comps.push(quote(b.text)); comps.push(blank()); continue; }
+      if (b.type === "list") { comps.push(textComp(b.items.map((it) => para(tn("\u00B7 " + it))))); comps.push(blank()); continue; }
+      if (b.type === "table") {
+        comps.push({ id: uid(), layout: "default", width: 100, "@ctype": "table", rows: [
+          { "@ctype": "tableRow", cells: b.head.map((h) => cell(h, true)) },
+          ...b.rows.map((r) => ({ "@ctype": "tableRow", cells: r.map((c) => cell(c, false)) })),
+        ] });
+        comps.push(blank());
+        continue;
+      }
+      comps.push(textComp([para(tn(b.text))]));
+      comps.push(blank());
+    }
+    //   맺음 — 구분선 뒤 말풍선 한 마디. 링크 줄은 이 뒤에 타이핑으로 붙는다.
+    comps.push(line());
+    comps.push(quote("통장·카드·홈택스를 연결하면 사장님 화면이 저절로 채워져요. 기본 기능은 계속 무료예요.", "quotation_bubble"));
     const ed = window.SmartEditor.getEditor("blogpc001");
     const cur = ed.getDocumentData();
-    const d = cur.document;
-    d.components = [
-      { id: uid1, layout: "default", title: [{ id: uid2, nodes: [{ id: uid3, value: title, "@ctype": "textNode" }], "@ctype": "paragraph" }], subTitle: null, align: "left", "@ctype": "documentTitle" },
-      { id: "SE-" + crypto.randomUUID(), layout: "default", value: paras, "@ctype": "text" },
-    ];
+    cur.document.components = comps;
     ed.setDocumentData(cur);
-    return { ok: true, comps: ed.getDocumentData().document.components.length };
-  }, { title: post.title, paras, uid1: uid(), uid2: uid(), uid3: uid() });
+    return { comps: ed.getDocumentData().document.components.length };
+  }, { title: post.title, blocks: post.blocks, brand: "#4F46E5" });
   await sleep(1200);
 
   // 이미지 — 자리 표시 문단을 찾아 눌러 초점을 두고, 표시 글자를 지운 뒤 사진 업로드
@@ -177,8 +202,8 @@ async function publishPost(ctx, post) {
     imageCount++;
     await sleep(600);
   }
-  // 링크 두 줄 — 마지막 문단 끝에 타이핑(자동 링크)
-  const tail = post.blocks.filter((b) => b.type === "text" && /^오너뷰 — /.test(b.text)).map((b) => b.text);
+  // 랜딩 링크 — 맨 끝에 타이핑해서 자동 링크가 걸리게 한다
+  const tail = [`오너뷰 알아보기 ${SITE}`];
   if (tail.length) {
     const lastP = frame.locator(".se-component.se-text .se-text-paragraph").last();
     await lastP.scrollIntoViewIfNeeded(); await lastP.click(); await page.keyboard.press("End");
@@ -190,7 +215,16 @@ async function publishPost(ctx, post) {
   await shot(page, `${post.slug}-filled`);
   console.log(`채움: 컴포넌트 ${doc.comps}, 이미지 ${imageCount}/${imageFiles.length}, 남은 자리표시 ${leftover}`);
   if (leftover) throw new Error("이미지 자리 표시가 남았습니다. 캡처 파일을 확인해 주세요.");
-  if (DRY) { console.log("[dry] 채우기만 했습니다. 창을 20초 뒤 닫습니다."); await sleep(20000); await page.close(); return null; }
+  if (DRY) {
+    //   미리보기: 편집 화면을 위에서 아래로 훑어 여러 장 남긴다(간격·표·이미지를 눈으로 보려고)
+    for (let i = 0; i < 8; i++) {
+      try { await fr.evaluate((k) => { const els = document.querySelectorAll(".se-component"); const el = els[Math.min(els.length - 1, Math.round((els.length / 8) * k))]; el?.scrollIntoView({ block: "start" }); }, i); } catch { /* noop */ }
+      await sleep(800);
+      await shot(page, `${post.slug}-dry-${i}`);
+    }
+    console.log("[dry] 채우기만 했습니다. scratch/naver-<slug>-dry-*.png 확인.");
+    await page.close(); return null;
+  }
 
   // 발행 — 상단 '발행' → 발행 창(태그 입력) → 창 안의 '발행'
   await frame.getByRole("button", { name: /^발행$/ }).first().click();
