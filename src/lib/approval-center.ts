@@ -494,9 +494,6 @@ export async function upsertRecurringPayment(params: {
   frequency?: string;
   dayOfMonth?: number;
   isActive?: boolean;
-  autoTransferDate?: number;
-  autoTransferAccountId?: string;
-  autoTransferMemo?: string;
 }) {
   const row: Record<string, unknown> = {
     company_id: params.companyId,
@@ -512,9 +509,6 @@ export async function upsertRecurringPayment(params: {
   if (params.frequency !== undefined) row.frequency = params.frequency;
   if (params.dayOfMonth !== undefined) row.day_of_month = params.dayOfMonth;
   if (params.isActive !== undefined) row.is_active = params.isActive;
-  if (params.autoTransferDate !== undefined) row.auto_transfer_date = params.autoTransferDate;
-  if (params.autoTransferAccountId !== undefined) row.auto_transfer_account_id = params.autoTransferAccountId;
-  if (params.autoTransferMemo !== undefined) row.auto_transfer_memo = params.autoTransferMemo;
 
   const { data, error } = await db
     .from('recurring_payments')

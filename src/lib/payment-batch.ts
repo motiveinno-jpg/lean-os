@@ -2,7 +2,7 @@ import { legalInsuranceRates, type InsuranceRates } from './insurance-rates';
 import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Payment Batch Engine
- * 급여/고정비 일괄 배치 → 대표 승인 → n8n 트리거 자동이체
+ * 급여/고정비 일괄 배치 → 대표 승인 (이체 실행 없음 — 지급은 은행에서, 결과는 통장 수집으로)
  */
 
 import { supabase } from './supabase';
@@ -576,77 +576,7 @@ export async function sendPayslipEmails(
 
 // ── Trigger batch execution via n8n webhook ──
 
-export async function triggerBatchExecution(batchId: string): Promise<{ triggered: boolean; executionId?: string }> {
-  // Get batch details
-  const batch = logRead('lib/payment-batch:batch', await db
-    .from('payment_batches')
-    .select('*')
-    .eq('id', batchId)
-    .single());
-
-  if (!batch || batch.status !== 'approved') {
-    return { triggered: false };
-  }
-
-  // Get linked payments
-  const payments = logRead('lib/payment-batch:payments', await db
-    .from('payment_queue')
-    .select('id, amount, description, recipient_name, recipient_account, recipient_bank')
-    .eq('batch_id', batchId)
-    .eq('status', 'approved'));
-
-  if (!payments?.length) return { triggered: false };
-
-  // Update batch to executing
-  await db.from('payment_batches').update({ status: 'executing' }).eq('id', batchId);
-
-  // n8n webhook URL (configurable via settings)
-  const N8N_WEBHOOK_URL = process.env.NEXT_PUBLIC_N8N_PAYMENT_WEBHOOK;
-  if (!N8N_WEBHOOK_URL) {
-    await db.from('payment_batches').update({ status: 'failed' }).eq('id', batchId);
-    return { triggered: false };
-  }
-
-  try {
-    const response = await fetch(N8N_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        batchId: batch.id,
-        batchType: batch.batch_type,
-        totalAmount: batch.total_amount,
-        payments: payments.map((p: any) => ({
-          id: p.id,
-          amount: Number(p.amount),
-          description: p.description,
-          recipientName: p.recipient_name,
-          recipientAccount: p.recipient_account,
-          recipientBank: p.recipient_bank,
-        })),
-      }),
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      const executionId = result.executionId || `n8n-${Date.now()}`;
-
-      await db.from('payment_batches').update({
-        n8n_execution_id: executionId,
-      }).eq('id', batchId);
-
-      return { triggered: true, executionId };
-    }
-  } catch {
-    // n8n not available — mark for manual execution
-    await db.from('payment_batches').update({
-      status: 'approved', // Revert to approved
-    }).eq('id', batchId);
-  }
-
-  return { triggered: false };
-}
-
-// ── Get batch with items ──
+//   배치 '이체 실행'(triggerBatchExecution)은 걷어냈다 — 오너뷰에는 이체 기능이 없다. 배치는 승인까지만.
 
 export async function getBatchWithItems(batchId: string) {
   const batch = logRead('lib/payment-batch:batch', await db

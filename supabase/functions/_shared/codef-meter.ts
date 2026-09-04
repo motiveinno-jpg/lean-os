@@ -3,7 +3,7 @@
 //   total_calls = 관리 API(/v1/account/*, pop-bill)·실패 포함 전체 호출 수
 //   meta.byPath = "경로:응답코드" 별 호출 수 (운영자 대시보드의 통장/카드/현금영수증 분류 근거)
 // codef-sync 밖에서 CODEF 를 직접 호출하는 함수(cashbill-issue · cashbill-purchase-sync ·
-// hometax-issue · codef-transfer)가 codef_usage 원장에 잡히도록 한다.
+// hometax-issue)가 codef_usage 원장에 잡히도록 한다.
 // 계측 실패는 절대 본 기능을 깨지 않는다(fail-open) — AsyncLocalStorage 미지원이면 조용히 비활성.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";

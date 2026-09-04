@@ -13,9 +13,9 @@ import { DateField } from "@/components/date-field";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getPaymentQueue, getBankAccounts } from "@/lib/queries";
-import { approvePayment, rejectPayment, executePayment, createQueueEntry, getPaymentQueueStats } from "@/lib/payment-queue";
+import { approvePayment, rejectPayment, createQueueEntry, getPaymentQueueStats } from "@/lib/payment-queue";
 import { getRecurringPayments, upsertRecurringPayment, deleteRecurringPayment, getPaymentBatches, refreshRecurringAmounts, stripInternalTag, type RefreshResult } from "@/lib/approval-center";
-import { createFixedCostBatch, approveBatch, triggerBatchExecution, getBatchWithItems, type BatchSummary } from "@/lib/payment-batch";
+import { createFixedCostBatch, approveBatch, getBatchWithItems, type BatchSummary } from "@/lib/payment-batch";
 import { runAllAutomation, type AutomationResult } from "@/lib/automation";
 import { detectRecurringFromBankTx, registerDetectedRecurring, type DetectedRecurring, listRecurringDismissals, dismissRecurringCandidate, dismissRecurringCandidates, recurringMatchKey } from "@/lib/smart-setup";
 import { SubscriptionsPanel } from "@/components/subscriptions-panel"; // 구독 흡수(2026-07-08)
@@ -284,21 +284,10 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
 
   const approveMut = useMutation({
     mutationFn: (id: string) => approvePayment(id, userId),
-    onSuccess: (result) => {
-      invalidate();
-      if (result && typeof result === 'object') {
-        if (result.autoExecuted) queueToast("승인 + 자동이체 완료", "success");
-        else if (result.notified) queueToast("승인됨 — 한도 초과로 대표 텔레그램 승인 요청 전송", "info");
-        else if (result.error) queueToast("승인됨 (자동이체 실패: " + result.error + ")", "info");
-        else queueToast("승인되었습니다", "success");
-      } else {
-        queueToast("승인되었습니다", "success");
-      }
-    },
+    onSuccess: () => { invalidate(); queueToast("승인되었습니다", "success"); },
     onError: (err: Error) => { queueToast("승인 실패: " + (err?.message || ""), "error"); },
   });
   const rejectMut = useMutation({ mutationFn: (id: string) => rejectPayment(id, userId), onSuccess: () => { invalidate(); queueToast("거부되었습니다", "success"); }, onError: (err: Error) => { queueToast("거부 실패: " + (err?.message || ""), "error"); } });
-  const executeMut = useMutation({ mutationFn: (id: string) => executePayment(id), onSuccess: () => { invalidate(); queueToast("실행 완료", "success"); }, onError: (err: Error) => { queueToast("실행 실패: " + (err?.message || ""), "error"); } });
   const createMut = useMutation({
     mutationFn: () => createQueueEntry({ companyId, amount: Number(form.amount), description: form.description }),
     onSuccess: () => { invalidate(); setShowForm(false); setForm({ amount: "", description: "" }); queueToast("결제가 등록되었습니다", "success"); },
@@ -332,21 +321,19 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
   }
   function clearSelection() { setSelectedIds(new Set()); }
 
-  async function runBulk(action: 'approve' | 'reject' | 'execute') {
+  async function runBulk(action: 'approve' | 'reject') {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
     // 액션별로 가능한 항목만 필터
     const candidates = filtered.filter((q: any) => {
       if (!selectedIds.has(q.id)) return false;
-      if (action === 'approve' || action === 'reject') return q.status === 'pending';
-      if (action === 'execute') return q.status === 'approved';
-      return false;
+      return q.status === 'pending';
     });
     if (candidates.length === 0) {
-      queueToast(action === 'execute' ? '실행 가능한 항목이 없습니다 (승인완료 상태만 가능)' : '대기 중인 항목이 없습니다', 'info');
+      queueToast('대기 중인 항목이 없습니다', 'info');
       return;
     }
-    const verb = action === 'approve' ? '승인' : action === 'reject' ? '거부' : '실행';
+    const verb = action === 'approve' ? '승인' : '거부';
     const { ok } = await confirm({ title: `일괄 ${verb}`, desc: `${candidates.length}건 ${verb}하시겠습니까?`, danger: true, confirmLabel: verb });
     if (!ok) return;
     setBulkRunning(true);
@@ -359,8 +346,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
       try {
         const id = candidates[i].id;
         if (action === 'approve') await approvePayment(id, userId);
-        else if (action === 'reject') await rejectPayment(id, userId);
-        else await executePayment(id);
+        else await rejectPayment(id, userId);
       } catch (e: unknown) {
         failed++;
         const who = candidates[i].recipient_name || candidates[i].description || candidates[i].id;
@@ -405,7 +391,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
               <span className="qk-quicks">{STATUS_OPTS.map(([v, l]) => <button key={v} type="button" onClick={() => setDraftStatus((d) => d.includes(v) ? d.filter((x) => x !== v) : [...d, v])} className={draftStatus.includes(v) ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>)}</span>
             </ConditionRow>
           </ConditionPanel>
-          <span className="text-[11px] text-[var(--text-dim)]">프로젝트 비용 스케줄·수동 등록에서 온 결제 건 — 승인 → 실행 순</span>
+          <span className="text-[11px] text-[var(--text-dim)]">프로젝트 비용 스케줄·수동 등록에서 온 결제 건 — 승인까지만(이체는 은행에서)</span>
         </>}
         below={<AppliedChips chips={filterSet.length ? [{ group: "상태", label: filterSet.map((v) => STATUS_OPTS.find((o) => o[0] === v)?.[1] || v).join(" · "), onRemove: () => setFilter("all") }] : []} onClearAll={() => setFilter("all")} />}
         right={<button type="button" onClick={() => setShowForm(true)} className="btn-secondary btn-sm">+ 수동 결제 등록</button>}
@@ -446,12 +432,11 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
         </div>
       )}
 
-      {/* 확정 줄 — 조회 표준 SelectionBar. 승인/거부/실행 중 파란 버튼은 '실행' 하나 */}
+      {/* 확정 줄 — 조회 표준 SelectionBar. 승인/거부 (이체·실행 기능 없음) */}
       <SelectionBar count={selectedIds.size} onClear={clearSelection}
         summary={<>합계 <b className="mono-number">₩{selectedSum.toLocaleString()}</b>{bulkRunning && <> · 처리 중 {bulkProgress.done}/{bulkProgress.total}{bulkProgress.failed > 0 && <span className="text-red-400"> · 실패 {bulkProgress.failed}</span>}</>}</>}>
         <button type="button" onClick={() => runBulk('reject')} disabled={bulkRunning} className="btn-secondary btn-sm text-[var(--danger)] disabled:opacity-50">일괄 거부</button>
-        <button type="button" onClick={() => runBulk('approve')} disabled={bulkRunning} className="btn-secondary btn-sm disabled:opacity-50">일괄 승인</button>
-        <button type="button" onClick={() => runBulk('execute')} disabled={bulkRunning} className="btn-primary btn-sm disabled:opacity-50">일괄 실행</button>
+        <button type="button" onClick={() => runBulk('approve')} disabled={bulkRunning} className="btn-primary btn-sm disabled:opacity-50">일괄 승인</button>
       </SelectionBar>
 
       {/* Queue */}
@@ -503,9 +488,6 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
                             <button onClick={() => approveMut.mutate(item.id)} disabled={approveMut.isPending} className="btn-secondary btn-sm">승인</button>
                             <button onClick={() => rejectMut.mutate(item.id)} disabled={rejectMut.isPending} className="btn-secondary btn-sm text-[var(--danger)]">거부</button>
                           </>
-                        )}
-                        {item.status === "approved" && (
-                          <button onClick={() => executeMut.mutate(item.id)} disabled={executeMut.isPending} className="btn-secondary btn-sm">실행</button>
                         )}
                         {item.status === "executed" && (
                           <>
@@ -633,12 +615,6 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
     onError: (err: Error) => { toast("승인 실패: " + (err?.message || ""), "error"); },
   });
 
-  const executeMut = useMutation({
-    mutationFn: (batchId: string) => triggerBatchExecution(batchId),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["payment-batches"] }); invalidate(); toast("이체가 실행되었습니다", "success"); },
-    onError: (err: Error) => { toast("실행 실패: " + (err?.message || ""), "error"); },
-  });
-
   async function handleGenerate() {
     setGenerating(true);
     try {
@@ -709,12 +685,6 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
                             onClick={(e) => { e.stopPropagation(); approveMut.mutate(b.id); }}
                             disabled={approveMut.isPending}
                             className="px-2.5 py-1 bg-blue-500/10 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-500/20 transition">승인</button>
-                        )}
-                        {b.status === 'approved' && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); executeMut.mutate(b.id); }}
-                            disabled={executeMut.isPending}
-                            className="px-2.5 py-1 bg-green-500/10 text-green-400 rounded-lg text-xs font-medium hover:bg-green-500/20 transition">이체 실행</button>
                         )}
                       </div>
                     </td>
@@ -887,11 +857,6 @@ function RecurringDetailModal({
 }) {
   useModalKeys(true, onClose, onEdit);
 
-  const transferAccount = bankAccounts.find((a: any) => a.id === item.auto_transfer_account_id);
-  const transferAccountLabel = transferAccount
-    ? `${transferAccount.bank_name} ${transferAccount.alias || transferAccount.account_number}`
-    : '미지정';
-
   return (
     <div
       className="recurring-detail-modal fixed inset-0"
@@ -930,15 +895,6 @@ function RecurringDetailModal({
             <ReadOnlyField label="이체일 (매월)" value={item.day_of_month ? `${item.day_of_month}일` : '25일'} />
           </div>
 
-          <div className="bg-[var(--bg-surface)] rounded-xl p-4">
-            <div className="text-xs font-bold text-[var(--text-muted)] mb-3">자동이체 설정</div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <ReadOnlyField label="자동이체 예약일" value={item.auto_transfer_date ? `매월 ${item.auto_transfer_date}일` : '미설정'} />
-              <ReadOnlyField label="출금 계좌" value={transferAccountLabel} />
-              <ReadOnlyField label="적요 (메모)" value={item.auto_transfer_memo || '—'} />
-            </div>
-          </div>
-
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             <ReadOnlyField label="상태" value={item.is_active ? '활성' : '비활성'} />
             <ReadOnlyField label="등록일" value={item.created_at ? kstDateStr(new Date(item.created_at)) : '—'} />
@@ -974,7 +930,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingItem, setViewingItem] = useState<any | null>(null);
-  const [form, setForm] = useState({ name: '', amount: '', category: 'rent', recipientName: '', recipientAccount: '', recipientBank: '', dayOfMonth: '25', autoTransferDate: '', autoTransferAccountId: '', autoTransferMemo: '' });
+  const [form, setForm] = useState({ name: '', amount: '', category: 'rent', recipientName: '', recipientAccount: '', recipientBank: '', dayOfMonth: '25' });
   const [refreshing, setRefreshing] = useState(false);
   const [refreshResults, setRefreshResults] = useState<RefreshResult[] | null>(null);
   const queryClient = useQueryClient();
@@ -989,16 +945,13 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
       recipientAccount: r.recipient_account || '',
       recipientBank: r.recipient_bank || '',
       dayOfMonth: String(r.day_of_month || 25),
-      autoTransferDate: r.auto_transfer_date ? String(r.auto_transfer_date) : '',
-      autoTransferAccountId: r.auto_transfer_account_id || '',
-      autoTransferMemo: r.auto_transfer_memo || '',
     });
     setShowForm(true);
   };
   const resetForm = () => {
     setEditingId(null);
     setShowForm(false);
-    setForm({ name: '', amount: '', category: 'rent', recipientName: '', recipientAccount: '', recipientBank: '', dayOfMonth: '25', autoTransferDate: '', autoTransferAccountId: '', autoTransferMemo: '' });
+    setForm({ name: '', amount: '', category: 'rent', recipientName: '', recipientAccount: '', recipientBank: '', dayOfMonth: '25' });
   };
 
   const deleteMut = useMutation({
@@ -1029,9 +982,6 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
       recipientBank: form.recipientBank || undefined,
       dayOfMonth: Number(form.dayOfMonth) || 25,
       isActive: true,
-      autoTransferDate: form.autoTransferDate ? Number(form.autoTransferDate) : undefined,
-      autoTransferAccountId: form.autoTransferAccountId || undefined,
-      autoTransferMemo: form.autoTransferMemo || undefined,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["recurring-payments"] });
@@ -1205,33 +1155,6 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
                 className="field-input" />
             </div>
           </div>
-          <div className="bg-[var(--bg-surface)] rounded-xl p-4 mb-4">
-            <div className="text-xs font-bold text-[var(--text-muted)] mb-3">자동이체 설정 (선택)</div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">자동이체 예약일 (매월)</label>
-                <input type="number" min="1" max="31" value={form.autoTransferDate} onChange={(e) => setForm({ ...form, autoTransferDate: e.target.value })}
-                  placeholder="미설정"
-                  className="field-input" />
-              </div>
-              <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">출금 계좌</label>
-                <select value={form.autoTransferAccountId} onChange={(e) => setForm({ ...form, autoTransferAccountId: e.target.value })}
-                  className="field-input">
-                  <option value="">미지정</option>
-                  {bankAccounts.map((a: any) => (
-                    <option key={a.id} value={a.id}>{a.bank_name} {a.alias || a.account_number}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">적요 (메모)</label>
-                <input value={form.autoTransferMemo} onChange={(e) => setForm({ ...form, autoTransferMemo: e.target.value })}
-                  placeholder="자동이체 적요"
-                  className="field-input" />
-              </div>
-            </div>
-          </div>
           <div className="flex justify-end gap-2">
             <button onClick={resetForm} className="btn-secondary btn-sm">취소</button>
             <button onClick={() => form.name && form.amount && saveMut.mutate()}
@@ -1269,7 +1192,6 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
                 <SortableTh label="금액" />
                 <SortableTh label="수취인" />
                 <SortableTh label="이체일" />
-                <SortableTh label="자동이체" />
                 <SortableTh label="상태" />
                 <SortableTh label="관리" />
               </tr>
@@ -1290,14 +1212,6 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
                   <td className="px-5 py-3 text-sm text-right font-bold">₩{Number(r.amount || 0).toLocaleString()}</td>
                   <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{r.recipient_name || '—'}</td>
                   <td className="px-5 py-3 text-xs text-center">매월 {r.day_of_month || 25}일</td>
-                  <td className="px-5 py-3 text-xs text-[var(--text-muted)]">
-                    {r.auto_transfer_date ? (
-                      <div>
-                        <div>매월 {r.auto_transfer_date}일</div>
-                        {r.auto_transfer_memo && <div className="caption">{r.auto_transfer_memo}</div>}
-                      </div>
-                    ) : <span className="text-[var(--text-dim)]">미설정</span>}
-                  </td>
                   <td className="px-5 py-3 text-center">
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleMut.mutate(r); }}
@@ -1320,7 +1234,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
                       <button
                         onClick={async (e) => {
                           e.stopPropagation();
-                          const { ok } = await confirm({ title: "반복결제 삭제", desc: `"${r.name}" 반복결제를 삭제하시겠습니까? 등록된 자동이체와 연결도 함께 끊깁니다.`, danger: true });
+                          const { ok } = await confirm({ title: "반복결제 삭제", desc: `"${r.name}" 반복결제를 삭제하시겠습니까?`, danger: true });
                           if (ok) deleteMut.mutate(r.id);
                         }}
                         disabled={deleteMut.isPending}
