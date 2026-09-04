@@ -2,7 +2,7 @@
 // 블로그용 실제 화면 캡처 — 운영 오너뷰(www.owner-view.com)에 QA 시드 계정으로 들어가 지정한 화면을 찍는다.
 //   QA 시드 회사는 샘플 자료만 있어 개인정보가 없다. 캡처는 public/blog/<slug>/<name>.png 로 저장한다.
 //   사용: node scripts/blog-capture.mjs <slug> '<JSON 배열>'   (또는 --file shots.json)
-//   항목: { name, path, waitMs?, click?: [텍스트…], clip?: "css 선택자", cut?: { lastCol|maxWidth, sidebar?, pad? }, width?, height?, scroll?: "css 선택자" }
+//   항목: { name, path, waitMs?, click?: [텍스트…], clip?: "css 선택자", clickSelector?: ["css"], cut?: { lastCol|maxWidth, sidebar?, pad? }, width?, height?, scroll?: "css 선택자" }
 //   예:  node scripts/blog-capture.mjs card-vat '[{"name":"card-tab","path":"/collect","click":["신용카드"],"waitMs":2500}]'
 import fs from "node:fs";
 import path from "node:path";
@@ -36,6 +36,8 @@ for (const s of shots) {
   await page.waitForTimeout(1500);
   await clearOverlays();
   for (const t of s.click || []) { await page.locator("button, a, [role=tab]", { hasText: t }).first().click(); await page.waitForTimeout(800); }
+  //   글에서 "숫자를 누르면 팝업이 뜬다" 처럼 눌러야 보이는 화면은 선택자로 직접 누른다
+  for (const sel of s.clickSelector || []) { await page.locator(sel).first().click(); await page.waitForTimeout(1200); }
   if (s.scroll) await page.locator(s.scroll).first().scrollIntoViewIfNeeded().catch(() => {});
   await page.waitForTimeout(s.waitMs ?? 2000);
   await clearOverlays();
