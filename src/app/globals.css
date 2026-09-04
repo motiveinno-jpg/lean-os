@@ -10460,8 +10460,12 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
 .dg-mini { @apply flex items-center gap-1.5 text-[12px] text-[var(--text-muted)]; }
 .dg-input { @apply w-[130px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1 text-[12px] text-[var(--text)] outline-none focus:border-[var(--primary)]; }
 .dg-seg { @apply inline-flex overflow-hidden rounded-lg border border-[var(--border)] text-[11.5px]; }
-.dg-seg span { @apply px-2.5 py-0.5 text-[var(--text-muted)]; }
-.dg-seg span.is-on { @apply bg-[var(--primary)] text-white; }
+.dg-seg span, .dg-seg button { @apply px-2.5 py-0.5 text-[11.5px] text-[var(--text-muted)] disabled:opacity-50; }
+.dg-seg span.is-on, .dg-seg button.is-on { @apply bg-[var(--primary)] text-white; }
+.dg-date { @apply flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-1.5 py-1 text-[12.5px]; }
+.dg-date-btn { @apply w-6 text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-30; }
+.dg-date-d { @apply px-1 text-[var(--text)]; }
+.dg-date-today { @apply ml-1 text-[12px] font-semibold text-[var(--primary)]; }
 /* KPI 5장 */
 .dg-kpis { @apply mb-4 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5; }
 .dg-kpi { @apply block; }

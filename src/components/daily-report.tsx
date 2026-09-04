@@ -7,12 +7,14 @@
 //   묶음 막대, 주색 하나+상태색, 머리띠 컨트롤)를 G안으로 묶었고 사장님 "G안으로 가자" + "목업 배경색을 오너뷰 배경색으로".
 //   feature_rollout('dashboard_g') — 모티브 먼저(CLAUDE.md 규칙). 켜진 회사는 이 파일, 아니면 E안(morning-report.tsx).
 //   숫자는 lib/daily-report-data.ts 한 곳에서 읽는다(E안과 같은 값). 규모 규칙(결정 166)은 그대로.
+//   2026-09-04 후속(결정 168): 자금 전망 30·60·90일 토글, 날짜 이동(지난 날은 daily_report_snapshots 저장본), 최근 활동 행위자, 잔액 이력.
 //   오너뷰 것으로 남긴 것: AI 결론 카드, 챙길 것 체크리스트, 규모 규칙 각주, "이 화면이 읽은 것", 권한별 카드 숨김.
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Curve } from "@/lib/cash-outlook";
-import { useDailyReportData, type ReportPerm, type RecentRow } from "@/lib/daily-report-data";
+import { useDailyReportData, shiftDay, type ReportPerm, type RecentRow } from "@/lib/daily-report-data";
+import { todayKst } from "@/lib/kst";
 import { wonK, peopleShape, peopleRule, recvShape, AGE_LABELS, SCALE } from "@/lib/report-lines";
 
 const fmtMd = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
@@ -61,7 +63,7 @@ function Card({ title, right, children, className }: { title: string; right?: Re
 }
 
 //   자금 전망 — 면 채움 + 마우스 툴팁(그날 잔액·오가는 돈). 자금 전망 화면과 같은 curve.
-function AreaFig({ curve }: { curve: Curve }) {
+function AreaFig({ curve, step = 5 }: { curve: Curve; step?: number }) {
   const [hi, setHi] = useState<number | null>(null);
   const W = 720, H = 200, pl = 44, pr = 12, pt = 18, pb = 26;
   const pts = curve.points; const n = pts.length - 1;
@@ -81,7 +83,7 @@ function AreaFig({ curve }: { curve: Curve }) {
       {mn < 0 && <line className="dg-zero" x1={pl} x2={W - pr} y1={Y(0)} y2={Y(0)} />}
       <path className="dg-area" d={`M${X(0).toFixed(1)},${Y(mn).toFixed(1)} L${line} L${X(n).toFixed(1)},${Y(mn).toFixed(1)} Z`} />
       <path className="dg-line" d={`M${line}`} />
-      {pts.filter((p) => p.day % 5 === 0 || p.day === n).map((p) => <text key={p.day} className="dg-ax" x={X(p.day)} y={H - 8} textAnchor="middle">{fmtMd(p.date)}</text>)}
+      {pts.filter((p) => p.day % step === 0 || p.day === n).map((p) => <text key={p.day} className="dg-ax" x={X(p.day)} y={H - 8} textAnchor="middle">{fmtMd(p.date)}</text>)}
       {curve.min.day > 0 && hi == null && (
         <g><circle className={`dg-low ${curve.min.balance < 0 ? "is-neg" : ""}`} cx={X(curve.min.day)} cy={Y(curve.min.balance)} r={4} />
           <text className="dg-low-t" x={X(curve.min.day) + 9} y={Y(curve.min.balance) - 9} textAnchor={curve.min.day > n * 0.75 ? "end" : "start"}>최저 {wonK(curve.min.balance)} ({fmtMd(curve.min.date)})</text></g>
@@ -148,16 +150,20 @@ export function DailyReport({
   forecast30: number | null; unclassified: { bank: number; card: number }; approvalsPending: number | null;
   lead: ReactNode; checklist: ReactNode; appendix: ReactNode; appendixCount: number;
 }) {
-  const { today, s, curve, taxItems, bankToday, recv, proj, inv, people, recent } = useDailyReportData(companyId, userId, perm);
-  const isWeekend = [0, 6].includes(new Date(today + "T00:00:00").getDay());
+  //   보는 날 — 오늘이 기본, ‹ › 로 지난 날(저장본). 자금 전망 일수는 30·60·90.
+  const [offset, setOffset] = useState(0);
+  const [horizon, setHorizon] = useState<30 | 60 | 90>(30);
+  const viewDay = useMemo(() => shiftDay(todayKst(), offset), [offset]);
+  const { today, day, past, snapshotMissing, savedAt, balHistory, s, curve, taxItems, bankToday, recv, proj, inv, people, recent } = useDailyReportData(companyId, userId, perm, { horizon, day: viewDay, snapshot: true });
+  const isWeekend = [0, 6].includes(new Date(day + "T00:00:00").getDay());
 
-  //   잔액 30일 추세 — 오늘 잔액에서 일별 순증감을 거꾸로 뺀다
+  //   잔액 30일 추세 — 스냅샷에 남은 날은 그 값, 없는 날은 오늘 잔액에서 일별 순증감을 거꾸로 뺀 값
   const balHist = useMemo(() => {
     if (!s || !bankToday) return [] as number[];
-    const out: number[] = []; let b = s.cash.balance; const d = new Date(today + "T00:00:00");
-    for (let i = 0; i < 30; i++) { out.unshift(b); const key = d.toISOString().slice(0, 10); b -= bankToday.netByDay.get(key) || 0; d.setDate(d.getDate() - 1); }
+    const out: number[] = []; let b = s.cash.balance;
+    for (let i = 0; i < 30; i++) { const key = shiftDay(today, -i); const snapB = balHistory?.get(key); out.unshift(snapB ?? b); b -= bankToday.netByDay.get(key) || 0; }
     return out;
-  }, [s, bankToday, today]);
+  }, [s, bankToday, today, balHistory]);
 
   // ── 최근 처리 표: 검색 + 쪽(6줄) ──
   const [q, setQ] = useState(""); const [page, setPage] = useState(0); const PER = 6;
@@ -170,8 +176,8 @@ export function DailyReport({
   useEffect(() => { try { setApx(localStorage.getItem("dash-apx-open") === "1"); } catch { /* noop */ } }, []);
   const toggleApx = () => { const v = !apx; setApx(v); try { localStorage.setItem("dash-apx-open", v ? "1" : "0"); } catch { /* noop */ } };
 
-  const dateLabel = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
-  const fmtAt = (at: string | null) => { if (!at) return "-"; const d = String(at); if (d.slice(0, 10) === today) return d.slice(11, 16) || "오늘"; const y = new Date(today + "T00:00:00"); y.setDate(y.getDate() - 1); return d.slice(0, 10) === y.toISOString().slice(0, 10) ? `어제 ${d.slice(11, 16)}` : `${fmtMd(d)} ${d.slice(11, 16)}`; };
+  const dateLabel = new Date(day + "T00:00:00").toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
+  const fmtAt = (at: string | null) => { if (!at) return "-"; const d = String(at); if (d.slice(0, 10) === today) return d.slice(11, 16) || "오늘"; return d.slice(0, 10) === shiftDay(today, -1) ? `어제 ${d.slice(11, 16)}` : `${fmtMd(d)} ${d.slice(11, 16)}`; };
   const revShape = recv ? recvShape(recv.list.length) : "all";
   const pplShape = people ? peopleShape(people.active) : "dots";
   const pnlPrev = s?.pnl.prev; const revRatio = s && pnlPrev && pnlPrev.revenue > 0 ? (s.pnl.cur.revenue - pnlPrev.revenue) / pnlPrev.revenue : null;
@@ -184,12 +190,20 @@ export function DailyReport({
   return (
     <div className="dg">
       <header className="dg-top">
-        <div><h1 className="dg-title">데일리 보고서</h1><div className="dg-crumb">{dateLabel} · {companyName}{s?.cash.hasBank ? " · 통장 수집" : ""}</div></div>
+        <div><h1 className="dg-title">데일리 보고서</h1><div className="dg-crumb">{companyName}{s?.cash.hasBank ? " · 통장 수집" : ""}{past && savedAt && ` · 그날 ${String(savedAt).slice(11, 16)} 저장본`}</div></div>
         <span className="flex-1" />
+        <div className="dg-date">
+          <button type="button" className="dg-date-btn" onClick={() => setOffset((o) => o - 1)} title="하루 전 보고서">‹</button>
+          <span className="dg-date-d">{dateLabel}</span>
+          <button type="button" className="dg-date-btn" disabled={offset >= 0} onClick={() => setOffset((o) => Math.min(0, o + 1))} title="하루 뒤">›</button>
+          {past && <button type="button" className="dg-date-today" onClick={() => setOffset(0)}>오늘</button>}
+        </div>
         <button type="button" className="btn-secondary btn-sm" onClick={() => window.print()}>인쇄</button>
       </header>
 
-      {perm.briefing && <div className="dg-lead">{lead}</div>}
+      {past && snapshotMissing && <div className="dg-lead"><p className="dg-p">{fmtMd(day)} 저장된 보고서가 없습니다. 보고서는 열어 본 날만 그날 숫자가 저장됩니다.</p></div>}
+      {past && !snapshotMissing && <div className="dg-lead"><p className="dg-p"><b>{fmtMd(day)} 저장본</b>입니다. 결론·챙길 것은 오늘 것만 보여 주고, 숫자는 그날 저장된 값입니다.</p></div>}
+      {perm.briefing && !past && <div className="dg-lead">{lead}</div>}
 
       {perm.finance && s && (
         <div className="dg-kpis">
@@ -225,7 +239,7 @@ export function DailyReport({
                   <table className="dg-tbl">
                     <thead><tr><th>항목</th><th>일시</th><th className="r">금액</th><th>상태</th></tr></thead>
                     <tbody>{pageRows.map((r) => (
-                      <tr key={r.id}><td><span className="dg-th">{r.kind.slice(0, 1)}</span><span className="dg-cell"><Link href={r.href} className="rep-link"><b>{r.title}</b></Link><span>{r.kind}</span></span></td><td className="m mono-number">{fmtAt(r.at)}</td><td className="r mono-number">{r.amount > 0 ? wonK(r.amount) : "-"}</td><td><span className={`dg-pill dg-pill-${r.status.tone}`}>{r.status.label}</span></td></tr>
+                      <tr key={r.id}><td><span className="dg-th">{r.kind.slice(0, 1)}</span><span className="dg-cell"><Link href={r.href} className="rep-link"><b>{r.title}</b></Link><span>{r.kind}{r.who ? ` · ${r.who}` : ""}</span></span></td><td className="m mono-number">{fmtAt(r.at)}</td><td className="r mono-number">{r.amount > 0 ? wonK(r.amount) : "-"}</td><td><span className={`dg-pill dg-pill-${r.status.tone}`}>{r.status.label}</span></td></tr>
                     ))}</tbody>
                   </table>
                   <div className="dg-pager"><span>{filtered.length}건 중 {page * PER + 1}~{Math.min(filtered.length, (page + 1) * PER)}</span><span className="flex-1" />
@@ -275,12 +289,14 @@ export function DailyReport({
       {(perm.finance || perm.briefing) && (
         <div className="dg-row dg-r21">
           {perm.finance && (
-            <Card title="자금 전망" right={<><span className="dg-seg"><span className="is-on">30일</span></span><Link href="/reports/outlook" className="dg-more">자금 전망 →</Link></>}>
+            <Card title="자금 전망" right={<><span className="dg-seg">{([30, 60, 90] as const).map((h) => <button key={h} type="button" className={h === horizon ? "is-on" : ""} disabled={past} onClick={() => setHorizon(h)}>{h}일</button>)}</span><Link href="/reports/outlook" className="dg-more">자금 전망 →</Link></>}>
               {!s ? <p className="rep-none">통장 자료를 읽는 중…</p> : !s.cash.hasBank ? <p className="rep-none">연결된 통장이 없습니다. 통장을 연결하면 잔액·전망이 자동으로 채워집니다.</p> : (
                 <>
-                  <div className="dg-tot"><span className="dg-tot-n mono-number">{forecast30 != null ? wonK(forecast30) : wonK(curve?.end ?? s.cash.balance)}</span><span className="dg-tot-k">30일 뒤 잔액 · 지금 {wonK(s.cash.balance)}{forecast30 != null && ` · ${forecast30 - s.cash.balance >= 0 ? "+" : "−"}${wonK(Math.abs(forecast30 - s.cash.balance))}`}</span></div>
+                  {(() => { const end = horizon === 30 && forecast30 != null && !past ? forecast30 : (curve?.end ?? s.cash.balance); const d = end - s.cash.balance; return (
+                    <div className="dg-tot"><span className="dg-tot-n mono-number">{wonK(end)}</span><span className="dg-tot-k">{horizon}일 뒤 잔액 · 지금 {wonK(s.cash.balance)} · {d >= 0 ? "+" : "−"}{wonK(Math.abs(d))}</span></div>
+                  ); })()}
                   <p className="dg-p">30일 안에 낼 돈은 <b>{wonK(s.arap.due30)}</b>(정기 지출·급여·대출 상환{vat30 > 0 ? "·부가세" : ""})입니다.{curve && curve.min.day > 0 && <> 가장 낮아지는 날은 <b>{fmtMd(curve.min.date)} {wonK(curve.min.balance)}</b>{curve.shortfall ? <b className="rep-t-bad">이고 {fmtMd(curve.shortfall.date)}에 마이너스가 됩니다</b> : "입니다"}.</>}{unclassified.bank + unclassified.card > 0 && <> 통장 미분류 <b className="rep-t-warn">{unclassified.bank.toLocaleString("ko")}건</b>, 카드 미분류 <b className="rep-t-warn">{unclassified.card.toLocaleString("ko")}건</b>은 아직 손익에 안 들어갑니다.</>}</p>
-                  {curve && <AreaFig curve={curve} />}
+                  {curve && <AreaFig curve={curve} step={horizon / 6} />}
                   <p className="dg-note">확정 전표와 통장 기준 · 날짜 위에 올리면 그날 오가는 돈이 보입니다{taxItems.length > 0 && <> · 세금 {taxItems.map((t, i) => <span key={t.id}>{i > 0 && ", "}<Link href={t.href} className="rep-link">{t.title} {fmtMd(t.date)} <b className={t.daysLeft <= 7 ? "rep-t-bad" : ""}>{t.daysLeft === 0 ? "오늘" : `D-${t.daysLeft}`}</b></Link></span>)}</>}</p>
                 </>
               )}
@@ -288,7 +304,7 @@ export function DailyReport({
           )}
           {perm.briefing && (
             <Card title="오늘 챙길 것" right={perm.approvals ? <Link href="/approvals" className="dg-more">결재 허브 →</Link> : undefined}>
-              <div className="dg-checklist">{checklist}</div>
+              {past ? <p className="rep-none">챙길 것은 오늘 보고서에서만 봅니다.</p> : <div className="dg-checklist">{checklist}</div>}
               {(perm.approvals || perm.projects || perm.inventory) && (
                 <>
                   <div className="dg-sub">업무 상태</div>
@@ -330,7 +346,7 @@ export function DailyReport({
             <Card title="최근 활동" right={perm.approvals ? <Link href="/approvals" className="dg-more">전체 보기</Link> : undefined}>
               {!recent ? <p className="rep-none">읽는 중…</p> : recent.length === 0 ? <p className="rep-none">최근 활동이 없습니다.</p> : (
                 <ul className="dg-tl">{recent.slice(0, 5).map((r) => (
-                  <li key={r.id}><Link href={r.href} className="rep-link"><b>{r.title}</b></Link> · {r.kind} <span className={r.status.tone === "m" ? "m" : `rep-t-${r.status.tone}`}>{r.status.label}</span><span className="dg-tl-w mono-number">{fmtAt(r.at)}</span></li>
+                  <li key={r.id}>{r.who && <b>{r.who}</b>}{r.who && " · "}<Link href={r.href} className="rep-link">{r.title}</Link> · {r.kind} <span className={r.status.tone === "m" ? "m" : `rep-t-${r.status.tone}`}>{r.status.label}</span><span className="dg-tl-w mono-number">{fmtAt(r.at)}</span></li>
                 ))}</ul>
               )}
             </Card>
