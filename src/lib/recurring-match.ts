@@ -13,6 +13,10 @@ export type RecurringLite = {
   amount?: number | string | null;
   category?: string | null;
   is_active?: boolean | null;
+  frequency?: string | null;
+  day_of_month?: number | null;
+  auto_transfer_date?: number | null;
+  next_due_date?: string | null;
 };
 
 export type BankTxLite = {
@@ -22,6 +26,7 @@ export type BankTxLite = {
   counterparty?: string | null;
   description?: string | null;
   is_auto_transfer?: boolean | null;
+  transaction_date?: string | null;
 };
 
 type Pattern = { rp: RecurringLite; keys: string[]; tokens: string[]; amount: number };
@@ -71,3 +76,49 @@ export function isAutoTransferTx(tx: BankTxLite, patterns: Pattern[]): boolean {
 export const RECURRING_CATEGORY_LABEL: Record<string, string> = {
   rent: "임대료", utility: "공과금", insurance: "보험료", subscription: "구독", salary: "급여", tax: "세금", other: "기타", loan: "대출상환",
 };
+
+/** 이 정기 지출이 그 달(YYYY-MM)에 나갈 날 — auto_transfer_date > day_of_month, 달 길이에 맞춰 자른다(31일 → 9/30).
+ *  next_due_date 는 그 달 안에 있을 때만 믿는다(지난 달 값이 그대로 남아 있는 경우가 있다). */
+export function dueDateInMonth(rp: RecurringLite, ym: string): string | null {
+  const [y, m] = ym.split("-").map(Number);
+  if (!y || !m) return null;
+  const nd = String(rp.next_due_date || "").slice(0, 10);
+  if (nd.startsWith(ym)) return nd;
+  const day = Number(rp.auto_transfer_date || rp.day_of_month || 0);
+  if (!day || day < 1 || day > 31) return null;
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return `${ym}-${String(Math.min(day, last)).padStart(2, "0")}`;
+}
+
+export type RecurringMonthRow = {
+  rp: RecurringLite;
+  state: "paid" | "due" | "missing";   // 나감 · 예정 · 날짜가 지났는데 출금이 안 보임
+  dueDate: string | null;
+  tx: BankTxLite | null;               // 나갔으면 그 출금(가장 최근)
+};
+
+/** 한 달치 정기 지출 ↔ 통장 출금 대조 — 개요 카드가 "3건 중 1건 나감, 2건 예정" 을 그린다.
+ *  manualOnly: 정기 지출과는 안 맞지만 사람이 자동이체로 표시한 출금 */
+export function reconcileRecurringMonth(
+  recurring: RecurringLite[] | null | undefined, txs: BankTxLite[] | null | undefined, ym: string, todayStr: string,
+): { rows: RecurringMonthRow[]; manualOnly: BankTxLite[] } {
+  const patterns = buildRecurringPatterns(recurring);
+  const byRp = new Map<RecurringLite, BankTxLite>();
+  const manualOnly: BankTxLite[] = [];
+  const sorted = [...(txs || [])].sort((a, b) => String(b.transaction_date || "").localeCompare(String(a.transaction_date || "")));
+  for (const tx of sorted) {
+    const rp = matchRecurring(tx, patterns);
+    if (rp) { if (!byRp.has(rp)) byRp.set(rp, tx); continue; }
+    if (tx.is_auto_transfer === true) manualOnly.push(tx);
+  }
+  const rows: RecurringMonthRow[] = patterns.map(({ rp }) => {
+    const tx = byRp.get(rp) || null;
+    const dueDate = dueDateInMonth(rp, ym);
+    const state: RecurringMonthRow["state"] = tx ? "paid" : (dueDate && dueDate < todayStr ? "missing" : "due");
+    return { rp, state, dueDate, tx };
+  });
+  //   나간 것 → 확인 필요 → 예정(날짜순)
+  const order = { paid: 0, missing: 1, due: 2 } as const;
+  rows.sort((a, b) => order[a.state] - order[b.state] || String(a.dueDate || "").localeCompare(String(b.dueDate || "")));
+  return { rows, manualOnly };
+}
