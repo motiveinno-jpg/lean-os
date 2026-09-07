@@ -19074,6 +19074,22 @@ export type Database = {
           status: string
         }[]
       }
+      get_company_work_today: {
+        Args: never
+        Returns: {
+          employee_id: string
+          work_start_time: string | null
+          work_end_time: string | null
+          hire_date: string | null
+          check_in: string | null
+          check_out: string | null
+          att_status: string | null
+          attendance_type: string | null
+          leave_unit: string | null
+          leave_start_time: string | null
+          leave_days: number | null
+        }[]
+      }
       get_company_entitlement: {
         Args: { p_company_id: string }
         Returns: {

@@ -4690,11 +4690,14 @@ table.pnl-drill-table { min-width: 760px; }
 .presence-dot-available { background: var(--success); }
 /* 구성원 디렉토리 이름 옆 상태 칩 — 글자색은 점 색을 따른다 */
 .presence-chip-ro { @apply inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[10px] font-semibold leading-4 whitespace-nowrap align-middle; background: var(--bg-surface); color: var(--text-muted); }
-.presence-chip-ro-available { color: var(--success); }
-.presence-chip-ro-meeting { color: var(--warning); }
-.presence-chip-ro-out { color: #2563eb; }
-.presence-chip-ro-focus { color: var(--primary); }
-.presence-chip-ro-away, .presence-chip-ro-off { color: var(--text-dim); }
+/* 근무 상태 칩 톤 — 글자와 점이 같은 색 */
+.work-dot { background: currentColor; }
+.work-tone-green { color: var(--success); }
+.work-tone-orange { color: var(--warning); }
+.work-tone-red { color: var(--danger); }
+.work-tone-blue { color: #2563eb; }
+.work-tone-purple { color: var(--primary); }
+.work-tone-grey { color: var(--text-dim); }
 .account-chip-avatar-wrap { @apply relative inline-flex shrink-0; }
 .account-chip-dot { @apply absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--bg-card)]; }
 .account-chip-dot.is-lg { @apply h-3.5 w-3.5; }

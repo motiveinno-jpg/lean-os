@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import { QueryScreen, QueryHead, QueryBody, QueryBar, QuickSearch, quickSearchHit, ChipGroup, ConditionPanel, ConditionRow, AppliedChips, ResultStrip, Stat, Pager, usePager, type AppliedChip } from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
@@ -12,8 +12,11 @@ import { useUser } from "@/components/user-context";
 import { logRead } from "@/lib/log-read";
 import { formatPhone } from "@/lib/phone";
 import { getCompanyUsers } from "@/lib/queries";
-import { PresenceChip } from "@/components/presence-badge";
+import { WorkStatusChip } from "@/components/presence-badge";
 import type { PresenceRow } from "@/lib/presence";
+import { deriveWorkStatus, type WorkTodayRow } from "@/lib/work-status";
+import { companyWorkCfgFromRow, kstNowMin } from "@/lib/attendance-schedule";
+import { todayKst } from "@/lib/kst";
 
 // 직원용 구성원 디렉토리 — 읽기 전용. 누가 어느 부서/직책에 있는지만 보여준다.
 //   2026-08-19 조회 화면 표준(인사 메뉴 점검): 상자 + [검색조건(부서) · 빠른검색 · 보기 칩(리스트/카드) ‖ 인원] + 표(정렬) + 쪽. 카드는 보기 옵션.
@@ -52,13 +55,50 @@ export default function TeamPage() {
     enabled: !!companyId,
     refetchInterval: 30_000,
   });
-  const presenceOf = useMemo(() => {
+  // 오늘 출퇴근·휴가 신호. 결근·미출근·퇴근은 이걸로 안다. 상태를 따로 고르지 않은 사람이 근무중으로만 보이던 문제.
+  const { data: workToday = [] } = useQuery({
+    queryKey: ["company-work-today", companyId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_company_work_today");
+      if (error) throw error;
+      return (data ?? []) as WorkTodayRow[];
+    },
+    enabled: !!companyId,
+    refetchInterval: 30_000,
+  });
+  const { data: workCfg } = useQuery({
+    queryKey: ["company-work-cfg", companyId],
+    queryFn: async () => {
+      const { data } = await supabase.from("company_settings")
+        .select("work_start_time, work_end_time, lunch_minutes, late_grace_minutes, workdays_mask").eq("company_id", companyId!).maybeSingle();
+      return companyWorkCfgFromRow(data as any);
+    },
+    enabled: !!companyId,
+  });
+  const todayStr = todayKst();
+  const { data: holidayToday = false } = useQuery({
+    queryKey: ["company-holiday-today", companyId, todayStr],
+    queryFn: async () => {
+      const { data } = await supabase.from("holidays").select("date").eq("company_id", companyId!).eq("date", todayStr).limit(1);
+      return (data?.length ?? 0) > 0;
+    },
+    enabled: !!companyId,
+  });
+  const [nowMin, setNowMin] = useState(() => kstNowMin());
+  useEffect(() => { const t = setInterval(() => setNowMin(kstNowMin()), 60_000); return () => clearInterval(t); }, []);
+  const statusOf = useMemo(() => {
     const byId = new Map<string, PresenceRow>();
     const byEmail = new Map<string, PresenceRow>();
     for (const u of companyUsers as any[]) { byId.set(u.id, u); if (u.email) byEmail.set(String(u.email).toLowerCase(), u); }
-    return (e: { user_id?: string | null; email?: string | null }): PresenceRow | null =>
-      (e.user_id && byId.get(e.user_id)) || (e.email ? byEmail.get(String(e.email).toLowerCase()) : null) || null;
-  }, [companyUsers]);
+    const todayByEmp = new Map<string, WorkTodayRow>();
+    for (const r of workToday) todayByEmp.set(r.employee_id, r);
+    const cfg = workCfg ?? companyWorkCfgFromRow(null);
+    const holidays = holidayToday ? new Set([todayStr]) : null;
+    return (e: { id: string; user_id?: string | null; email?: string | null }) => {
+      const presence = (e.user_id && byId.get(e.user_id)) || (e.email ? byEmail.get(String(e.email).toLowerCase()) : null) || null;
+      return deriveWorkStatus({ presence, today: todayByEmp.get(e.id), cfg, todayStr, nowMin, holidays });
+    };
+  }, [companyUsers, workToday, workCfg, holidayToday, todayStr, nowMin]);
   const allDepts = useMemo(() => [...new Set(employees.map((e) => e.department || "미배정"))].sort(), [employees]);
 
   // 조직도 (2026-08-19 사장님: 디렉토리에서 조직도도 보이게) — 회사 루트 → 부서 상자 → 직책 서열순 구성원.
@@ -185,7 +225,7 @@ export default function TeamPage() {
                   <tbody>
                     {pager.view.map((e) => (
                       <tr key={e.id}>
-                        <td className="text-left"><span className="team-avatar">{(e.name || "?").slice(0, 1)}</span><b>{e.name || "—"}</b><PresenceChip row={presenceOf(e)} className="ml-2" /></td>
+                        <td className="text-left"><span className="team-avatar">{(e.name || "?").slice(0, 1)}</span><b>{e.name || "—"}</b><WorkStatusChip status={statusOf(e)} className="ml-2" /></td>
                         <td className="text-center">{e.department || <span className="text-[var(--text-dim)]">미배정</span>}</td>
                         <td className="text-center">{e.position || "—"}</td>
                         <td className="text-left">{e.email ? <a href={`mailto:${e.email}`} className="bz-link font-normal">{e.email}</a> : "—"}</td>
@@ -212,7 +252,7 @@ export default function TeamPage() {
                           <span className="team-avatar">{(e.name || "?").slice(0, 1)}</span>
                           <span className="text-sm font-bold">{e.name}</span>
                           <span className="text-[11px] text-[var(--text-muted)]">{e.position}</span>
-                          <PresenceChip row={presenceOf(e)} />
+                          <WorkStatusChip status={statusOf(e)} />
                         </div>
                       ))}
                     </div>
@@ -236,7 +276,7 @@ export default function TeamPage() {
                             <div key={e.id} className="org-member">
                               <span className="team-avatar">{(e.name || "?").slice(0, 1)}</span>
                               <span className="text-xs font-semibold truncate flex-1">{e.name || "—"}</span>
-                              <PresenceChip row={presenceOf(e)} className="shrink-0" />
+                              <WorkStatusChip status={statusOf(e)} className="shrink-0" />
                               <span className="text-[11px] text-[var(--text-muted)] shrink-0">{e.position || ""}</span>
                             </div>
                           ))}
@@ -261,7 +301,7 @@ export default function TeamPage() {
                         <div key={e.id} className="team-card">
                           <span className="team-avatar team-avatar-lg">{(e.name || "?").slice(0, 1)}</span>
                           <div className="min-w-0 flex-1">
-                            <div className="text-sm font-bold truncate flex items-center gap-2"><span className="truncate">{e.name || "—"}</span><PresenceChip row={presenceOf(e)} /></div>
+                            <div className="text-sm font-bold truncate flex items-center gap-2"><span className="truncate">{e.name || "—"}</span><WorkStatusChip status={statusOf(e)} /></div>
                             <div className="text-xs text-[var(--text-muted)] truncate">{e.position || "직책 미지정"}</div>
                             {e.email && <div className="text-[11px] text-[var(--text-dim)] truncate mt-1"><Ico e="✉" /> {e.email}</div>}
                             {e.phone && <div className="text-[11px] text-[var(--text-dim)] truncate"><Ico e="📞" /> {formatPhone(e.phone)}</div>}
