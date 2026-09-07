@@ -144,16 +144,16 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
   }, [weekHolidays]);
 
   //   회사 근무시간 — 셀 게이지의 '하루 근무량' 기준 (2026-08-25 사장님: 근무 진행률로 채움).
-  const { data: workCfg } = useQuery<{ start: number; end: number; lunch: number }>({
+  const { data: workCfg } = useQuery<{ start: number; end: number; lunch: number; grace: number }>({
     queryKey: ["flex-work-cfg", companyId],
     queryFn: async () => {
       const { data } = await db.from("company_settings")
-        .select("work_start_time, work_end_time, lunch_minutes").eq("company_id", companyId).maybeSingle();
+        .select("work_start_time, work_end_time, lunch_minutes, late_grace_minutes").eq("company_id", companyId).maybeSingle();
       const hhmm = (v: unknown, def: number) => {
         const m = /^(\d{1,2}):(\d{2})/.exec(String(v || ""));
         return m ? +m[1] * 60 + +m[2] : def;
       };
-      return { start: hhmm(data?.work_start_time, 9 * 60), end: hhmm(data?.work_end_time, 18 * 60), lunch: Number(data?.lunch_minutes ?? 60) };
+      return { start: hhmm(data?.work_start_time, 9 * 60), end: hhmm(data?.work_end_time, 18 * 60), lunch: Number(data?.lunch_minutes ?? 60), grace: Number(data?.late_grace_minutes ?? 0) };
     },
     enabled: !!companyId,
     staleTime: 300_000,
@@ -256,6 +256,25 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
     return [...m.values()];
   }, [rows, days, attByEmpDate, leaveByEmpDate, todayStr, holidaySet]);
   const absentDayCount = absentList.reduce((s, x) => s + x.dates.length, 0);
+  //   오늘 미출근 — 근무 시작(+유예)이 지났는데 출근 기록이 없는 사람. 하루가 끝나기 전이라 결근으로 못 박지 않고
+  //   '몇 분 지각 중'으로 알리고, 퇴근 시각이 지나면 결근으로 본다. 다음 날부터는 위의 결근 규칙이 잡는다.
+  //   (2026-09-07 사장님: 6명이 안 찍었는데 지각도 결근도 아무 표시가 없고 명단에도 안 나온다)
+  const todayIdx = days.findIndex((d) => ymd(d) === todayStr);
+  const todayMissing = useMemo(() => {
+    if (!workCfg || todayIdx < 0 || todayIdx > 4 || holidaySet.has(todayStr)) return [] as { name: string; lateMin: number; afterEnd: boolean }[];
+    if (nowMin < workCfg.start + workCfg.grace) return [];
+    const out: { name: string; lateMin: number; afterEnd: boolean }[] = [];
+    for (const { emp } of rows) {
+      if (emp.hire_date && todayStr < emp.hire_date) continue;
+      const key = `${emp.id}|${todayStr}`;
+      const lv = leaveByEmpDate.get(key);
+      if (lv && lv.kind !== "pm") continue;   // 종일·오전반차는 아침 출근 의무가 없다(오후반차만 남는다)
+      const a = attByEmpDate.get(key);
+      if (a && (a.check_in || minutesOf(a))) continue;
+      out.push({ name: emp.name, lateMin: nowMin - workCfg.start, afterEnd: nowMin >= workCfg.end });
+    }
+    return out;
+  }, [rows, todayIdx, todayStr, attByEmpDate, leaveByEmpDate, holidaySet, workCfg, nowMin]);
 
   const teamAvg = rows.length ? Math.round(rows.reduce((s, r) => s + r.total, 0) / rows.length) : 0;
   const over52 = rows.filter((r) => r.total > LIMIT_MIN).length;
@@ -326,6 +345,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
             <Stat label="연장 합계" value={hm(totalOt)} />
             <Stat label="52시간 초과" value={`${over52}명`} tone={over52 > 0 ? "minus" : undefined} />
             <Stat label="결근" value={`${absentDayCount}건`} tone={absentDayCount > 0 ? "minus" : undefined} />
+            {todayIdx >= 0 && <Stat label="오늘 미출근" value={`${todayMissing.length}명`} tone={todayMissing.length > 0 ? "minus" : undefined} />}
           </ResultStrip>
         )}
       </QueryHead>
@@ -347,6 +367,25 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                 </span>
               ))}
             </div>
+          )}
+          {todayIdx >= 0 && (
+            <>
+              <div className="text-xs font-semibold text-[var(--text-muted)] mt-3 mb-2">오늘 미출근 — {todayMissing.length}명
+                <span className="ml-1 font-normal text-[var(--text-dim)]">(근무 시작 {workCfg ? `${String(Math.floor(workCfg.start / 60)).padStart(2, "0")}:${String(workCfg.start % 60).padStart(2, "0")}` : ""} 기준 · 퇴근 시각이 지나면 결근)</span>
+              </div>
+              {todayMissing.length === 0 ? (
+                <div className="text-xs text-[var(--text-dim)]">{workCfg && nowMin < workCfg.start + workCfg.grace ? "아직 근무 시작 전이에요" : "오늘 안 찍은 사람이 없습니다"}</div>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {todayMissing.map((x, i) => (
+                    <span key={i} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${x.afterEnd ? "bg-[var(--danger-dim)] text-[var(--danger)]" : "bg-[var(--warning-dim)] text-[var(--warning)]"}`}>
+                      {x.name}
+                      <span className="text-[10px] font-normal opacity-80">({x.afterEnd ? "퇴근 시각 지남" : `${x.lateMin}분 지각 중`})</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -440,12 +479,21 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                         );
                       }
                       const absent = !weekend && dstr < todayStr && (!emp.hire_date || dstr >= emp.hire_date);
+                      //   오늘 — 근무 시작(+유예)을 지났는데 기록이 없으면 '미출근 · n분 지각 중', 퇴근 시각도 지났으면 '결근'.
+                      //   위 오늘 미출근 명단과 같은 규칙 (2026-09-07 사장님).
+                      const missing = !weekend && dstr === todayStr && !!workCfg && nowMin >= workCfg.start + workCfg.grace && (!emp.hire_date || dstr >= emp.hire_date);
+                      const missingAbsent = missing && nowMin >= workCfg!.end;
                       return (
                         <td key={i} className={`px-1 py-2 text-center align-middle ${weekend ? "bg-[var(--bg-surface)]/30" : ""}`}>
                           {absent
                             ? <div className="fw-cell fw-cell-box" title="지난 평일인데 출퇴근 기록·휴가가 없습니다 — 휴가 등록이나 기록 정정으로 맞추세요">
                                 <span className="fw-cell-chip" style={{ color: "var(--danger)" }}>결근</span>
                                 <span className="fw-cell-t2">기록 없음</span>
+                              </div>
+                            : missing
+                            ? <div className="fw-cell fw-cell-box" title={missingAbsent ? "퇴근 시각이 지났는데 출근 기록이 없습니다" : "근무 시작 시각이 지났는데 아직 출근을 찍지 않았습니다"}>
+                                <span className="fw-cell-chip" style={{ color: missingAbsent ? "var(--danger)" : "var(--warning)" }}>{missingAbsent ? "결근" : "미출근"}</span>
+                                <span className="fw-cell-t2">{missingAbsent ? "기록 없음" : `${nowMin - workCfg!.start}분 지각 중`}</span>
                               </div>
                             : <div className="fw-cell text-[var(--text-dim)]">—</div>}
                         </td>
