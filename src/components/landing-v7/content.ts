@@ -184,8 +184,9 @@ export const SECTIONS: Section[] = [
 
 // 프로젝트 보기 4종 — 오두(odoo.com) '최적화된 프로세스로 생산성 향상' 의 겹친 캡처 모자이크 벤치마킹
 //   (2026-09-07 사장님: "오두 이미지 부분을 벤치마킹해서 프로젝트 메뉴를 보여주고 싶다 — 표·칸반·캘린더·간트를 각각 캡처")
-//   ⚠️ 캡처는 프로덕션 [시연] 프로젝트 실물이다 — 다시 찍으려면 `node scripts/capture-project-views.mjs`.
-//      파일을 새로 찍으면 이름 뒤 번호를 올린다(-v2). 덮으면 캐시 때문에 옛 그림이 계속 나온다.
+//   ⚠️ 캡처는 프로덕션 [시연] 프로젝트 실물이다 — 다시 찍으려면 `node scripts/capture-landing-shots.mjs project`.
+//      파일을 새로 찍으면 이름 뒤 번호를 올린다(-v2 → -v3). 덮으면 캐시 때문에 옛 그림이 계속 나온다.
+//      (v2 = 2026-09-07 시연 항목을 7건 → 18건으로 채우고 다시 찍은 것)
 //   ⚠️ 챕터 03(프로젝트) 바로 뒤에 붙는 별도 구간이다. 챕터 H2 와 겹쳐 읽히지 않게
 //      키워드 나열은 eyebrow 로 내리고 H2 는 "적는 곳과 보는 곳이 다르다"는 한 가지만 말한다.
 export const PROJECT_VIEWS = {
@@ -198,22 +199,22 @@ export const PROJECT_VIEWS = {
   shots: [
     {
       key: "table", label: "표", note: "담당·상태·마감·금액을 한 줄에. 그룹마다 합계가 붙습니다.",
-      src: "/product/pv-table-v1.png", w: 2218, h: 1240,
+      src: "/product/pv-table-v2.png", w: 2216, h: 1234,
       alt: "오너뷰 프로젝트 표 보기 — 담당·상태·마감·금액·거래처 열과 그룹별 합계",
     },
     {
       key: "kanban", label: "칸반", note: "카드를 끌어 다른 열에 놓으면 상태가 바뀝니다.",
-      src: "/product/pv-kanban-v1.png", w: 1678, h: 632,
+      src: "/product/pv-kanban-v2.png", w: 1678, h: 1210,
       alt: "오너뷰 프로젝트 칸반 보기 — 상태별 열과 끌어 옮기는 카드",
     },
     {
       key: "calendar", label: "캘린더", note: "마감일 기준 달력. 날짜의 ＋로 그 자리에서 추가합니다.",
-      src: "/product/pv-calendar-v1.png", w: 2218, h: 884,
+      src: "/product/pv-calendar-v2.png", w: 2240, h: 880,
       alt: "오너뷰 프로젝트 캘린더 보기 — 마감일 기준 월 달력과 상태 색 칩",
     },
     {
       key: "gantt", label: "간트", note: "시작~마감을 막대로. 세로선이 오늘입니다.",
-      src: "/product/pv-gantt-v1.png", w: 2218, h: 840,
+      src: "/product/pv-gantt-v2.png", w: 2240, h: 858,
       alt: "오너뷰 프로젝트 간트 보기 — 시작일부터 마감일까지 막대와 오늘 선",
     },
   ],

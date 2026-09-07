@@ -328,12 +328,15 @@
 .lp7-views-head .lp7-lead { max-width: 820px; margin-top: 14px; font-size: clamp(15px, 1.25vw, 18px); }
 .lp7-views-head .lp7-loc { margin-top: 18px; }
 
-.lp7-views-stage { position: relative; margin: 44px auto 0; max-width: 1240px; aspect-ratio: 1200 / 640; }
+.lp7-views-stage { position: relative; margin: 44px auto 0; max-width: 1240px; aspect-ratio: 1240 / 660; }
 .lp7-vslot { position: absolute; will-change: transform; }
-.lp7-vs-table { left: 0; top: 0; width: 60%; z-index: 1; }
-.lp7-vs-calendar { left: 53%; top: 9%; width: 45%; z-index: 2; }
-.lp7-vs-kanban { left: 3%; top: 58%; width: 37%; z-index: 3; }
-.lp7-vs-gantt { left: 42%; top: 52%; width: 55%; z-index: 4; }
+/*  자리는 조각의 실제 가로세로비에 맞춰 잡았다 — 캡처를 다시 찍어 비율이 달라지면 여기도 같이 고친다.
+    (표 0.56 · 칸반 0.72 · 캘린더 0.40 · 간트 0.38, 2026-09-07 기준) */
+.lp7-vs-table { left: 0; top: 0; width: 58%; z-index: 1; }
+.lp7-vs-calendar { left: 52%; top: 6%; width: 46%; z-index: 2; }
+/*  칸반 오른쪽 끝(2%+33%=35%)에 간트 왼쪽 끝을 붙인다 — 간트 이름표가 칸반 위에 걸치지 않게 */
+.lp7-vs-kanban { left: 2%; top: 46%; width: 33%; z-index: 4; }
+.lp7-vs-gantt { left: 35%; top: 52%; width: 58%; z-index: 3; }
 
 /* 흰 테를 두른 조각 — 화면 캡처가 배경 위에 그냥 놓이면 어디까지가 화면인지 안 보인다 */
 .lp7-vpanel {
