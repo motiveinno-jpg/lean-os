@@ -8,7 +8,8 @@ const TOOLS_LASTMOD = "2026-08-31";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
-    { url: `${BASE}/`, changeFrequency: "weekly", priority: 1 },
+    // 2026-09-07 랜딩을 v7 로 갈아 끼웠다 — 다시 수집하도록 lastModified 를 올린다
+    { url: `${BASE}/`, changeFrequency: "weekly", priority: 1, lastModified: "2026-09-07" },
     // 랜딩에서 분리된 공개 페이지들 — 사이트맵 누락으로 색인이 안 되고 있었다 (2026-08-13 SEO 정비)
     { url: `${BASE}/pricing`, changeFrequency: "monthly", priority: 0.9 },
     { url: `${BASE}/features`, changeFrequency: "monthly", priority: 0.9 },

@@ -1,39 +1,42 @@
-// OwnerView 랜딩 진입점 — 서버 컴포넌트 (2026-07-27).
-//   이전에는 page.tsx 전체가 "use client" 라 (1) 랜딩 전용 metadata 를 export 할 수 없었고
-//   (2) 정적 섹션까지 전부 클라이언트 번들에 포함됐다.
-//   이제 여기서 metadata / 구조화 데이터(JSON-LD) 를 담당하고, 화면은 LandingPage 가 그린다.
+// OwnerView 랜딩 진입점 — 서버 컴포넌트.
+//   2026-09-07: 사장님 지시로 **v7 을 정식 랜딩으로 올렸다**(그전에는 `/landing-v7` 시안, `/` 는 v6).
+//   기획: docs/20260904_PLAN_landing_v7_odoo_benchmark.md (결정 174~219)
+//   ▸ metadata / 구조화 데이터(JSON-LD) 는 여기서, 화면은 LandingV7 이 그린다.
+//   ▸ `/landing-v7` 은 여기로 영구(308) 넘긴다 — 같은 화면이 두 주소로 뜨면 중복 문서가 된다.
+//   ⚠️ v6 랜딩 파일(`src/components/landing/**`)은 지우지 않았다.
+//      `/demo` `/features` `/ai` `/pricing` `/tools` 가 아직 그 content.ts 를 쓴다.
 import type { Metadata } from "next";
-import LandingPage from "@/components/landing/landing-page";
-import { FAQS, PLANS, FOOTER } from "@/components/landing/content";
+import LandingV7 from "@/components/landing-v7/landing-v7";
+import { PRICING, SECTIONS, MOSAICS, FOOTER } from "@/components/landing-v7/content";
 
 const SITE = "https://www.owner-view.com";
-const TITLE = "중소기업 대표를 위한 AI 올인원 운영 플랫폼 | 오너뷰";
+
+// SEO — 제목·설명은 랜딩 본문의 키워드와 같은 말을 쓴다 (결정 190).
+const TITLE = "중소기업 ERP 오너뷰 — 매출 KPI·판매채널 연동·회계·세무 신고·급여까지 올인원 AI ERP";
 const DESC =
-  "현금·프로젝트·세무·급여·전자결재까지, 회사 운영의 모든 것을 하나로. AI 자동화 엔진 4개가 대표가 하던 반복 업무를 대신 처리합니다. 무료로 시작하세요.";
-// 카카오톡·페북·슬랙 공유 카드용 — 기존 512x512 로고는 잘리거나 썸네일로 축소됐다.
-const OG_IMAGE = { url: "/og-image.png", width: 1200, height: 630, alt: "오너뷰 — 중소기업 대표를 위한 올인원 운영 플랫폼" };
+  "매출 KPI 대시보드, 스마트스토어·쿠팡 주문 연동, 프로젝트 업무관리, 공용 캘린더, 대용량 파일 보관, " +
+  "근태관리·급여명세서, 회계 ERP·부가세 신고, 사내 매뉴얼 게시판, 사내 메신저. " +
+  "따로 쓰던 프로그램을 오너뷰 하나로. 회사당 월 39,000원, 기본 기능은 계속 무료입니다.";
+const OG_IMAGE = { url: "/og-image.png", width: 1200, height: 630, alt: "오너뷰 — 회사 운영의 모든 것, 올인원 AI ERP" };
 
 export const metadata: Metadata = {
   title: TITLE,
   description: DESC,
+  keywords: [
+    "중소기업 ERP", "올인원 ERP", "AI ERP", "회계 프로그램", "세무 신고", "부가세 신고",
+    "급여 프로그램", "근태관리", "전자계약", "재고관리 프로그램", "이커머스 연동",
+    "스마트스토어 연동", "쿠팡 연동", "프로젝트 관리", "그룹웨어", "사내 메신저",
+  ],
   alternates: { canonical: SITE },
   openGraph: {
-    type: "website",
-    url: SITE,
-    siteName: "오너뷰",
-    locale: "ko_KR",
-    title: TITLE,
-    description: DESC,
-    images: [OG_IMAGE],
+    type: "website", url: SITE, siteName: "오너뷰", locale: "ko_KR",
+    title: TITLE, description: DESC, images: [OG_IMAGE],
   },
   twitter: { card: "summary_large_image", title: TITLE, description: DESC, images: [OG_IMAGE.url] },
 };
 
-// 구조화 데이터 — 검색 리치결과(FAQ·가격·회사정보)용.
-//   값은 전부 content.ts 단일 출처에서 파생 → 화면과 스키마가 어긋날 수 없다.
+// 구조화 데이터 — 값은 content.ts 단일 출처에서 파생하므로 화면과 어긋날 수 없다.
 function structuredData() {
-  const paidPlans = PLANS.filter((p) => p.slug);
-
   const organization = {
     "@type": "Organization",
     "@id": `${SITE}/#organization`,
@@ -45,34 +48,34 @@ function structuredData() {
     address: { "@type": "PostalAddress", streetAddress: FOOTER.addr, addressCountry: "KR" },
   };
 
-  const software = {
+  const product = {
     "@type": "SoftwareApplication",
-    name: "오너뷰 (OwnerView)",
+    name: "오너뷰",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
     description: DESC,
     url: SITE,
+    // 화면에 실제로 있는 것만 적는다 — 9챕터 + 겹친 캡처로 보여 주는 보기들
+    featureList: [
+      ...SECTIONS.map((s) => s.title.replace(/\n/g, " ")),
+      ...MOSAICS.map((m) => m.eyebrow),
+    ],
+    offers: [
+      {
+        "@type": "Offer", name: "무료", price: "0", priceCurrency: "KRW",
+        description: PRICING.free.features.join(" · "),
+        url: `${SITE}/auth`,
+      },
+      {
+        "@type": "Offer", name: "오너뷰", price: String(PRICING.amount), priceCurrency: "KRW",
+        description: PRICING.paid.note,
+        url: `${SITE}/auth`,
+      },
+    ],
     publisher: { "@id": `${SITE}/#organization` },
-    offers: paidPlans.map((p) => ({
-      "@type": "Offer",
-      name: p.name,
-      price: p.price.replace(/,/g, ""),
-      priceCurrency: "KRW",
-      description: p.period,
-      url: `${SITE}/auth?plan=${p.slug}`,
-    })),
   };
 
-  const faq = {
-    "@type": "FAQPage",
-    mainEntity: FAQS.map((f) => ({
-      "@type": "Question",
-      name: f.q,
-      acceptedAnswer: { "@type": "Answer", text: f.a },
-    })),
-  };
-
-  return { "@context": "https://schema.org", "@graph": [organization, software, faq] };
+  return { "@context": "https://schema.org", "@graph": [organization, product] };
 }
 
 export default function Page() {
@@ -80,9 +83,10 @@ export default function Page() {
     <>
       <script
         type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData()) }}
       />
-      <LandingPage />
+      <LandingV7 />
     </>
   );
 }
