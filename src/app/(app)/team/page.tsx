@@ -13,6 +13,7 @@ import { logRead } from "@/lib/log-read";
 import { formatPhone } from "@/lib/phone";
 import { WorkStatusChip } from "@/components/presence-badge";
 import { useWorkStatus } from "@/lib/use-work-status";
+import { CopyButton } from "@/components/copy-text";
 
 // 직원용 구성원 디렉토리 — 읽기 전용. 누가 어느 부서/직책에 있는지만 보여준다.
 //   2026-08-19 조회 화면 표준(인사 메뉴 점검): 상자 + [검색조건(부서) · 빠른검색 · 보기 칩(리스트/카드) ‖ 인원] + 표(정렬) + 쪽. 카드는 보기 옵션.
@@ -175,8 +176,8 @@ export default function TeamPage() {
                         <td className="text-left"><span className="team-avatar">{(e.name || "?").slice(0, 1)}</span><b>{e.name || "—"}</b><WorkStatusChip status={statusOf(e)} className="ml-2" /></td>
                         <td className="text-center">{e.department || <span className="text-[var(--text-dim)]">미배정</span>}</td>
                         <td className="text-center">{e.position || "—"}</td>
-                        <td className="text-left">{e.email ? <a href={`mailto:${e.email}`} className="bz-link font-normal">{e.email}</a> : "—"}</td>
-                        <td className="text-center mono-number">{formatPhone(e.phone) || "—"}</td>
+                        <td className="text-left">{e.email ? <span className="copy-cell"><a href={`mailto:${e.email}`} className="bz-link font-normal">{e.email}</a><CopyButton value={e.email} label="이메일" /></span> : "—"}</td>
+                        <td className="text-center mono-number">{e.phone ? <span className="copy-cell">{formatPhone(e.phone)}<CopyButton value={formatPhone(e.phone) || e.phone} label="전화번호" /></span> : "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -250,8 +251,8 @@ export default function TeamPage() {
                           <div className="min-w-0 flex-1">
                             <div className="text-sm font-bold truncate flex items-center gap-2"><span className="truncate">{e.name || "—"}</span><WorkStatusChip status={statusOf(e)} /></div>
                             <div className="text-xs text-[var(--text-muted)] truncate">{e.position || "직책 미지정"}</div>
-                            {e.email && <div className="text-[11px] text-[var(--text-dim)] truncate mt-1"><Ico e="✉" /> {e.email}</div>}
-                            {e.phone && <div className="text-[11px] text-[var(--text-dim)] truncate"><Ico e="📞" /> {formatPhone(e.phone)}</div>}
+                            {e.email && <div className="text-[11px] text-[var(--text-dim)] truncate mt-1 copy-cell"><Ico e="✉" /> {e.email}<CopyButton value={e.email} label="이메일" /></div>}
+                            {e.phone && <div className="text-[11px] text-[var(--text-dim)] truncate copy-cell"><Ico e="📞" /> {formatPhone(e.phone)}<CopyButton value={formatPhone(e.phone) || e.phone} label="전화번호" /></div>}
                           </div>
                         </div>
                       ))}
