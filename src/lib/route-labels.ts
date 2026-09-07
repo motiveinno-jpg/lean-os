@@ -94,7 +94,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/settings/finance": { group: "설정", title: "회계·세무 설정" },
   "/settings/integration": { group: "설정", title: "연동·API 키" },
   "/settings/system": { group: "설정", title: "보안·시스템" },
-  "/announcements": { group: "도움말", title: "공지사항", desc: "공지사항을 관리합니다." },
+  "/announcements": { group: "도움말", title: "공지사항", desc: "오너뷰 운영팀의 서비스 공지·업데이트를 봅니다. 회사 안내는 게시판에 씁니다." },
   "/mypage": { group: "홈", title: "마이페이지", desc: "내 계정 정보를 관리합니다." },
   "/billing": { group: "설정", title: "요금제", desc: "요금제와 결제를 관리합니다." },
   "/guide": { group: "도움말", title: "사용 가이드" },

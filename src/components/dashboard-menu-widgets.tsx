@@ -215,9 +215,11 @@ export function AnnouncementsCard() {
       return (data || []) as any[];
     },
   });
+  //   공지사항 = 오너뷰 운영팀이 쓰는 서비스 공지(DB 도 운영자만 쓸 수 있다). 회사가 직원에게 알리는 글은 게시판이다.
+  //   예전 빈 화면의 "첫 공지 쓰기" 는 회사가 쓸 수도 없는 곳으로 보내고 있었다 (2026-09-07 사장님).
   return (
-    <ActivityCard title="공지사항" href="/announcements" empty={data.length === 0}
-      emptyText="아직 등록된 공지가 없습니다." emptyAction={{ label: "첫 공지 쓰기", href: "/announcements" }}>
+    <ActivityCard title="오너뷰 공지" href="/announcements" empty={data.length === 0}
+      emptyText="오너뷰 운영팀의 공지가 아직 없어요. 회사 안내는 게시판에 써요." emptyAction={{ label: "게시판 열기", href: "/board" }}>
       {data.map((a) => (
         <Link key={a.id} href="/announcements" className="dash-announcement-row">
           {a.pinned && <span className="text-[11px] shrink-0"><Ico e="📌" /></span>}
@@ -295,6 +297,33 @@ export function InventoryShortageCard({ companyId }: { companyId: string }) {
           <span className={p.qty <= 0 ? "text-[11px] font-bold tabular-nums text-[var(--danger)]" : "text-[11px] font-bold tabular-nums text-[var(--warning)]"}>
             {p.qty.toLocaleString("ko-KR")} / {p.safety.toLocaleString("ko-KR")}
           </span>
+        </Link>
+      ))}
+    </ActivityCard>
+  );
+}
+
+// ── 게시판 — 회사가 직원에게 알리는 글(고정 우선). 오너뷰 공지(운영팀)와 다른 것 (2026-09-07 사장님) ──
+export function BoardCard({ companyId }: { companyId: string }) {
+  const { data = [] } = useQuery({
+    queryKey: ["dash-board-posts", companyId],
+    staleTime: 60_000,
+    enabled: !!companyId,
+    queryFn: async () => {
+      const data = logRead('components/dashboard-menu-widgets:board', await db.from("board_posts").select("id, title, pinned, created_at, category")
+        .eq("company_id", companyId)
+        .order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(15));
+      return (data || []) as any[];
+    },
+  });
+  return (
+    <ActivityCard title="게시판" href="/board" empty={data.length === 0}
+      emptyText="아직 올린 글이 없어요. 공지·투표·첨부를 여기서 직원들에게 알려요." emptyAction={{ label: "첫 글 쓰기", href: "/board" }}>
+      {data.map((p) => (
+        <Link key={p.id} href="/board" className="dash-announcement-row">
+          {p.pinned && <span className="text-[11px] shrink-0"><Ico e="📌" /></span>}
+          <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{p.title || "-"}</span>
+          <span className="text-[10px] text-[var(--text-dim)] shrink-0">{md(p.created_at)}</span>
         </Link>
       ))}
     </ActivityCard>

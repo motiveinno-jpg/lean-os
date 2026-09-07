@@ -48,7 +48,7 @@ import { useReportWidgetEmpty } from "@/components/widget-empty-context"; // 층
 import { ChannelHead, useSyncStatus, useUnclassifiedCounts } from "@/components/dashboard-data-status"; // 통장·카드 위젯 머리의 동기화·미분류
 import { ActivityCard, RecentProjects, RecentRevenue, RecentInvoices } from "@/components/dashboard-activity"; // 회사 활동 요약 카드(공용 셸)
 import { DashboardGrid, type CatalogWidget, type WidgetPreset } from "@/components/dashboard-grid"; // 위젯 격자 — 같은 키·순서 드래그·보기 설정
-import { BankRecentCard, ApprovalsPendingCard, EmployeesCard, PartnersCard, AnnouncementsCard, MyTasksCard, InventoryShortageCard } from "@/components/dashboard-menu-widgets"; // 카탈로그용 메뉴 위젯
+import { BankRecentCard, ApprovalsPendingCard, EmployeesCard, PartnersCard, AnnouncementsCard, BoardCard, MyTasksCard, InventoryShortageCard } from "@/components/dashboard-menu-widgets"; // 카탈로그용 메뉴 위젯
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import { fetchTaxDeadlineChecks, setTaxDeadlineChecked } from "@/lib/tax-deadline-checks";
 import { useCompanyBizNo } from "@/lib/use-company-bizno"; // 사업자번호 미등록 유도 배너 판정
@@ -577,7 +577,9 @@ export default function DashboardPage() {
               { id: "cards", name: "카드 사용", icon: "💳", desc: "이번 달 카드별 사용액 + 동기화·미분류", category: "자금", render: () => <CardsSummaryCard companyId={companyId} headExtra={cardHead} /> },
               { id: "approvals", name: "결재 대기", icon: "🗂️", desc: "회사 결재 대기 목록", category: "업무", render: () => <ApprovalsPendingCard companyId={companyId} /> },
               { id: "projects", name: "최근 프로젝트", icon: "💼", desc: "진행 프로젝트 단계·계약액", category: "업무", render: () => <RecentProjects companyId={companyId} /> },
-              { id: "announcements", name: "공지사항", icon: "📢", desc: "오너뷰 공지·업데이트", category: "업무", render: () => <AnnouncementsCard /> },
+              //   게시판 = 회사가 직원에게 알리는 글, 오너뷰 공지 = 운영팀 서비스 공지 — 둘은 다른 것 (2026-09-07 사장님)
+              { id: "board", name: "게시판", icon: "📌", desc: "회사 공지·투표·첨부 — 고정 글 우선", category: "업무", render: () => <BoardCard companyId={companyId} /> },
+              { id: "announcements", name: "오너뷰 공지", icon: "📢", desc: "오너뷰 운영팀의 서비스 공지·업데이트", category: "업무", render: () => <AnnouncementsCard /> },
               { id: "todos", name: "오늘 일정·할 일", icon: "📝", desc: "내 할 일 + 다가오는 일정", category: "개인", render: () => <MyTodosWidget userId={uid} companyId={companyId} /> },
               { id: "invoices", name: "최근 세금계산서", icon: "📄", desc: "매출·매입 최근 발행", category: "경영", render: () => <RecentInvoices companyId={companyId} /> },
               { id: "assets", name: "계좌별 잔액", icon: "🏦", desc: "계좌별 잔액·합계", category: "자금", render: () => <AssetsSummaryCard companyId={companyId} /> },
@@ -619,10 +621,10 @@ export default function DashboardPage() {
             //   대표·회계 관점은 금액 위젯이 핵심이라 재무 권한(/dashboard:finance)이 있어야 고를 수 있다. 직원 관점은 누구나.
             const presets: WidgetPreset[] = [
               ...(canFinance ? [
-                { id: "owner", label: "대표", ids: allowed(["receivables", "revenue", "bank", "cards", "projects", "announcements", "inventory"]) },
-                { id: "acct", label: "회계", ids: allowed(["receivables", "bank", "cards", "invoices", "revenue", "announcements"]) },
+                { id: "owner", label: "대표", ids: allowed(["receivables", "revenue", "bank", "cards", "projects", "board", "announcements", "inventory"]) },
+                { id: "acct", label: "회계", ids: allowed(["receivables", "bank", "cards", "invoices", "revenue", "board", "announcements"]) },
               ] : []),
-              { id: "staff", label: "직원", ids: allowed(["work-tasks", "announcements", "employees", "projects", "calendar"]) },
+              { id: "staff", label: "직원", ids: allowed(["work-tasks", "board", "announcements", "employees", "projects", "calendar"]) },
             ].filter((p) => p.ids.length > 0);
             //   기본 = 권한으로 고른다: 재무 권한 있으면 대표, 없으면 직원
             const defaultActiveIds = (canFinance ? presets.find((p) => p.id === "owner") : presets.find((p) => p.id === "staff"))?.ids ?? visibleCatalog.map((w) => w.id);
@@ -639,8 +641,9 @@ export default function DashboardPage() {
               //   새 기본값(h9)은 새로 담을 때만 적용되므로, 쓰던 분들은 이 마이그레이션이 고친다 (2026-08-21).
               //   2026-09-03 v2: 챙길 것을 8열로 줄이고 오른쪽에 오늘 한눈(4열)을 끼운다 — 저장된 배치도 이 한 번은 따라온다.
               //   2026-09-04: 부록 격자와 같은 마이그레이션 키(report-20260903) — 부록에서 쓰던 배치가 그대로 메인이 된다.
-              layoutMigration={{ id: "report-20260903", minH: { calendar: 7 } }}
-              activeMigration="report-20260903"
+              //   2026-09-07: 게시판 위젯을 새로 넣었다 — 이미 저장된 배치·선택에도 1회 병합(맨 아래에 붙고, 이후 빼면 그 선택이 남는다)
+              layoutMigration={{ id: "board-20260907", minH: { calendar: 7 }, set: { board: { x: 0, y: 999, w: 4, h: 5 } } }}
+              activeMigration="board-20260907"
               headLeft={
                 <div className="dash-head">
                   <span className="dash-head-date">{new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}</span>
