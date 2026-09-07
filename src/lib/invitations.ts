@@ -103,31 +103,13 @@ export async function validateInviteToken(token: string): Promise<{
   type: 'partner' | 'employee';
   data: any;
 } | null> {
-  // Check partner invitations first
-  const pi = logRead('lib/invitations:pi', await db
-    .from('partner_invitations')
-    .select('*')
-    .eq('invite_token', token)
-    .eq('status', 'pending')
-    .maybeSingle());
-  if (pi) {
-    if (pi.expires_at && new Date(pi.expires_at) < new Date()) return null;
-    return { type: 'partner', data: pi };
-  }
-
-  // Check employee invitations
-  const ei = logRead('lib/invitations:ei', await db
-    .from('employee_invitations')
-    .select('*')
-    .eq('invite_token', token)
-    .eq('status', 'pending')
-    .maybeSingle());
-  if (ei) {
-    if (ei.expires_at && new Date(ei.expires_at) < new Date()) return null;
-    return { type: 'employee', data: ei };
-  }
-
-  return null;
+  //   초대 표는 더 이상 익명으로 읽을 수 없다(토큰이 통째로 노출되던 정책 제거) —
+  //   토큰 하나로 그 초대 한 건만 돌려주는 RPC 를 쓴다. 만료·상태 검사도 서버가 한다.
+  if (!token || token.length < 16) return null;
+  const { data, error } = await (db as any).rpc('validate_invite_token', { p_token: token });
+  if (error || !data) return null;
+  const type = data.type === 'partner' ? 'partner' : 'employee';
+  return { type, data: { ...(data.data || {}), invite_token: token } };
 }
 
 // ── Get Invite URL ──
