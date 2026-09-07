@@ -1,4 +1,5 @@
 import { withSentry } from "../_shared/sentry.ts";
+import { checkIngestSecret } from "../_shared/ingest-auth.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -14,12 +15,6 @@ const corsHeaders = {
 // 공유 시크릿 게이트 (2026-08-19 감사): 종전엔 인증이 전혀 없어 URL 만 알면 전사 발행 큐를
 //   임의로 돌리고 tax_invoices 상태를 바꿀 수 있었다. 형제 함수(receive-bank-transactions,
 //   generate-monthly-batches)와 동일한 n8n 게이트(fail-closed). 현재 호출 트래픽 0건 실측.
-function checkIngestSecret(req: Request): boolean {
-  const expected = Deno.env.get("N8N_INGEST_SECRET");
-  if (!expected) return false;
-  const provided = req.headers.get("x-ingest-secret");
-  return !!provided && provided === expected;
-}
 
 Deno.serve(withSentry("process-invoice-queue", async (req: Request) => {
   if (req.method === "OPTIONS") {

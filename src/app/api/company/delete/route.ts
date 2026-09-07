@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
+import { assertSameOrigin } from '@/lib/api-authz';
 
 // 회사 완전 삭제 (2026-08-10 사장님 요청) — 마스터 전용.
 //   순서가 중요하다: ① Stripe 구독 해지 → ② master_delete_company RPC.
@@ -10,6 +11,7 @@ import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 //   RPC 는 호출자의 auth 컨텍스트로 실행(SECURITY DEFINER 안에서 마스터·회사명 재검증).
 
 export async function POST(request: NextRequest) {
+  { const csrf = assertSameOrigin(request); if (csrf) return csrf; }
   try {
     const { confirmName } = await request.json();
     if (typeof confirmName !== 'string' || !confirmName.trim()) {

@@ -732,7 +732,16 @@ serve(withSentry("hometax-sync", async (req: Request) => {
       });
     }
 
-    const { login_method, cert_password, login_id, login_password } = hometaxCred.credentials;
+    const { login_method, cert_password: certPwEnc, login_id, login_password: loginPwEnc } = hometaxCred.credentials;
+    //   저장값은 encrypt_credential 로 암호화돼 있다 — 다른 수집 함수와 같이 복호화해서 쓴다
+    const dec = async (v: string | null | undefined): Promise<string | undefined> => {
+      if (!v) return undefined;
+      const { data, error } = await supabase.rpc("decrypt_credential", { p_ciphertext: v });
+      if (error) { console.error("[hometax-sync] decrypt failed:", error.message); return undefined; }
+      return (data as string) || undefined;
+    };
+    const cert_password = await dec(certPwEnc);
+    const login_password = await dec(loginPwEnc);
 
     // Validate credentials based on login method
     if (login_method === "certificate" && !cert_password) {

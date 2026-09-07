@@ -26,7 +26,7 @@ import {
   deleteVaultDoc,
   getDeals,
 } from "@/lib/queries";
-import { decryptCredential } from "@/lib/crypto";
+import { decryptCredential, encryptCredential } from "@/lib/crypto";
 import { analyzeTransactionPatterns, saveDiscoveryResults, acceptDiscovery, dismissDiscovery } from "@/lib/auto-discovery";
 import { uploadFile, openStoredFile } from "@/lib/file-storage";
 import { useToast } from "@/components/toast";
@@ -204,11 +204,13 @@ function VaultPageInner() {
   });
 
   const updateAccMut = useMutation({
-    mutationFn: () => updateVaultAccount(editingId!, {
+    mutationFn: async () => updateVaultAccount(editingId!, {
       service_name: accForm.serviceName,
       url: accForm.url || null,
       login_id: accForm.loginId || null,
-      login_password: accForm.loginPassword || null,
+      //   비밀번호는 평문 컬럼에 두지 않는다 — 서버 키로 암호화한 값만 저장
+      login_password: null,
+      encrypted_password: accForm.loginPassword ? await encryptCredential(accForm.loginPassword) : null,
       monthly_cost: Number(accForm.monthlyCost) || 0,
       payment_method: accForm.paymentMethod || null,
       billing_day: accForm.billingDay ? Number(accForm.billingDay) : null,

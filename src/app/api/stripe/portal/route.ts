@@ -2,6 +2,7 @@ import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { assertSameOrigin } from '@/lib/api-authz';
 
 // 결제 뒤 돌아올 주소는 우리 사이트 안으로만 — 임의 주소를 넣으면 checkout.stripe.com 을 거쳐 피싱 페이지로 보낼 수 있다
 function safeReturnUrl(candidate: unknown, origin: string, fallback: string): string {
@@ -20,6 +21,7 @@ function getStripe() {
 }
 
 export async function POST(request: NextRequest) {
+  { const csrf = assertSameOrigin(request); if (csrf) return csrf; }
   try {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();

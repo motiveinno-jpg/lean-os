@@ -1,5 +1,6 @@
 import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
+import { safeEqual } from "../_shared/ingest-auth.ts";
 // 자금일보 자동 발송 — 매일 KST 09:00 pg_cron 호출.
 // granter 같은 카카오 알림톡 패턴. 검수 전엔 이메일 fallback.
 //
@@ -172,7 +173,7 @@ serve(withSentry("daily-report", async (req) => {
     const CRON_SECRET = Deno.env.get("HOMETAX_CRON_SECRET") || "";
     const cronHeader = req.headers.get("x-cron-secret") || "";
     const authHeader = req.headers.get("authorization") || "";
-    const isCronAuth = !!CRON_SECRET && cronHeader === CRON_SECRET;
+    const isCronAuth = safeEqual(cronHeader, CRON_SECRET);
 
     let user: any = null;
     if (!isCronAuth) {

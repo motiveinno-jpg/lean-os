@@ -23,6 +23,9 @@ async function verifySignature(headers: Headers, body: string): Promise<boolean>
   const ts = headers.get("svix-timestamp");
   const sigHeader = headers.get("svix-signature");
   if (!id || !ts || !sigHeader) return false;
+  //   재전송 방지 — 서명된 timestamp 가 지금과 5분 넘게 차이 나면 버린다
+  const tsNum = Number(ts);
+  if (!Number.isFinite(tsNum) || Math.abs(Date.now() / 1000 - tsNum) > 300) return false;
   try {
     const secretBytes = Uint8Array.from(atob(WEBHOOK_SECRET.replace(/^whsec_/, "")), (c) => c.charCodeAt(0));
     const key = await crypto.subtle.importKey("raw", secretBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);

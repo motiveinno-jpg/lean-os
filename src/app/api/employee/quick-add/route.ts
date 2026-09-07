@@ -6,11 +6,12 @@ import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { requirePerm } from "@/lib/api-authz";
+import { requirePerm, assertSameOrigin } from '@/lib/api-authz';
 
 type Role = "employee" | "admin";
 
 export async function POST(req: NextRequest) {
+  { const csrf = assertSameOrigin(req); if (csrf) return csrf; }
   try {
     // 호출자 인증 + 권한(대표/관리자). service_role 로 RLS 우회 → 앱 레벨 인가 필수.
     //   (2026-07-06 보안감사 P0: 인증 전무 → 자기를 임의 회사 admin 으로 등록하는 테넌트 탈취 가능했음)

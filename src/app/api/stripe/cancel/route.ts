@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
+import { assertSameOrigin } from '@/lib/api-authz';
 
 function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -16,6 +17,7 @@ function getStripe() {
  * 회사 스코프는 호출자 소속에서 파생. subscriptions 쓰기는 service_role 로만.
  */
 export async function POST(request: NextRequest) {
+  { const csrf = assertSameOrigin(request); if (csrf) return csrf; }
   try {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -130,7 +132,8 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : '구독 해지 처리 중 오류가 발생했습니다';
+    console.error('[stripe/cancel]', err instanceof Error ? err.message : err);
+    const message = '구독 해지 처리 중 오류가 발생했습니다';
     console.error('[stripe/cancel] error:', message);
     return NextResponse.json(
       { error: { code: 'INTERNAL_ERROR', message } },

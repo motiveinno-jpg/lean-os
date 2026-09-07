@@ -38,6 +38,10 @@ function isRateLimited(key: string, maxRequests: number): boolean {
   return entry.count > maxRequests;
 }
 
+// 세션·IP 제한 판정 캐시 — (사용자, IP) 당 60초. RPC 는 화면 이동 때만(정적·API 제외).
+const gateCache = new Map<string, { ok: boolean; reason?: string; at: number }>();
+const GATE_TTL_MS = 60_000;
+
 const PUBLIC_ROUTES = [
   '/',
   '/auth',
@@ -156,6 +160,36 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = '/maintenance';
     return NextResponse.rewrite(url);
+  }
+
+  // 로그인 사용자의 보호 화면 — 중복 로그인·회사 IP 제한을 서버가 강제한다(종전엔 화면 안내만).
+  if (user && !isPublicRoute(pathname) && !pathname.startsWith('/_next')) {
+    const ip = clientIp(request);
+    const key = `${user.id}|${ip}`;
+    const cached = gateCache.get(key);
+    let verdict = cached && Date.now() - cached.at < GATE_TTL_MS ? cached : null;
+    if (!verdict) {
+      try {
+        const { data } = (await Promise.race([
+          supabase.rpc('session_gate', { p_ip: ip }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('GATE_TIMEOUT')), 3000)),
+        ])) as { data?: { ok?: boolean; reason?: string } | null };
+        verdict = { ok: data?.ok !== false, reason: data?.reason, at: Date.now() };
+      } catch {
+        verdict = { ok: true, at: Date.now() }; // 판정 실패는 열어 둔다 — 장애가 전원 잠금이 되면 안 된다
+      }
+      if (gateCache.size > 1000) for (const [k, v] of gateCache) { if (Date.now() - v.at > GATE_TTL_MS) gateCache.delete(k); }
+      gateCache.set(key, verdict);
+    }
+    if (!verdict.ok && (verdict.reason === 'duplicate' || verdict.reason === 'ip')) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/auth';
+      url.search = `?reason=${verdict.reason}`;
+      const res = NextResponse.redirect(url);
+      for (const c of request.cookies.getAll()) if (c.name.startsWith('sb-')) res.cookies.set(c.name, '', { maxAge: 0, path: '/' });
+      gateCache.delete(key);
+      return res;
+    }
   }
 
   // 인증된 유저가 /auth 접근 → /dashboard로 리다이렉트

@@ -2,12 +2,13 @@ import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
-import { requirePerm } from '@/lib/api-authz';
+import { requirePerm, assertSameOrigin } from '@/lib/api-authz';
 
 // 합류 요청 승인/거절 — 회사 대표/관리자 전용.
 //   승인 = 요청자의 public.users 를 이 회사로 생성/연결 (invite-accept 와 동일 shape).
 //   다른 사용자의 users 행을 만들므로 service role 필요 → caller 권한 선검증 (add-existing-employee 패턴).
 export async function POST(req: NextRequest) {
+  { const csrf = assertSameOrigin(req); if (csrf) return csrf; }
   try {
     const ss = await createSupabaseServerClient();
     const { data: { user: caller } } = await ss.auth.getUser();

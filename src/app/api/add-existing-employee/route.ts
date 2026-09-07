@@ -3,12 +3,13 @@ import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
-import { requirePerm } from '@/lib/api-authz';
+import { requirePerm, assertSameOrigin } from '@/lib/api-authz';
 
 // 이미 가입된 회원을 초대/가입 단계 없이 바로 우리 회사 직원으로 추가.
 //   초대 수락(api/invite-accept) 과 동일 패턴: public.users 를 우리 회사+역할로 전환 + employees join.
 //   다른 회원 레코드를 수정하므로 service role 필요 → caller 가 대표/관리자인지 먼저 검증.
 export async function POST(req: NextRequest) {
+  { const csrf = assertSameOrigin(req); if (csrf) return csrf; }
   try {
     // 1) 호출자 인증 + 권한 (대표/관리자만)
     const ss = await createSupabaseServerClient();

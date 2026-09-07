@@ -67,6 +67,7 @@ export default function MyPage() {
   );
   // 회원 탈퇴
   const [withdrawText, setWithdrawText] = useState("");
+  const [withdrawPw, setWithdrawPw] = useState("");
   const [withdrawing, setWithdrawing] = useState(false);
   const [withdrawErr, setWithdrawErr] = useState<string | null>(null);
 
@@ -75,7 +76,7 @@ export default function MyPage() {
     setWithdrawing(true);
     setWithdrawErr(null);
     try {
-      const res = await fetch("/api/delete-account", { method: "POST" });
+      const res = await fetch("/api/delete-account", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: withdrawPw, confirm: withdrawText.trim() }) });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "탈퇴 처리 실패");
       try { await supabase.auth.signOut(); } catch { /* ignore */ }
@@ -663,6 +664,7 @@ export default function MyPage() {
             <h3 className="text-[var(--danger)]">회원 탈퇴</h3>
             <p>탈퇴하면 <b>로그인 계정이 영구 삭제</b>되고 이름·이메일 등 개인정보가 파기됩니다. <b>되돌릴 수 없습니다.</b>{(ctxUser as any)?.is_master && <span className="block mt-1 text-amber-500">※ 마스터 계정입니다. 탈퇴해도 회사·직원·거래 데이터는 남으니, 회사 정리가 필요하면 먼저 처리하세요.</span>}</p>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <input type="password" value={withdrawPw} onChange={(e) => setWithdrawPw(e.target.value)} placeholder="비밀번호 확인 (소셜 로그인 계정은 비워 두세요)" autoComplete="current-password" className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm mb-2" />
               <input value={withdrawText} onChange={(e) => setWithdrawText(e.target.value)} placeholder='탈퇴하려면 "탈퇴" 입력' className="qk-input h-8 px-2.5 text-xs sm:w-48" />
               <button onClick={handleWithdraw} disabled={withdrawText.trim() !== "탈퇴" || withdrawing} className="btn-secondary btn-sm text-[var(--danger)] disabled:cursor-not-allowed">{withdrawing ? "처리 중..." : "회원 탈퇴"}</button>
             </div>

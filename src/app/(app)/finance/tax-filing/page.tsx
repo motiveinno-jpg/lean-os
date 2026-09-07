@@ -238,7 +238,7 @@ export default function TaxFilingPage() {
   const [hometaxId, setHometaxId] = useState("");
   useEffect(() => {
     if (!efileOpen || typeof window === "undefined") return;
-    try { setHometaxId(window.localStorage.getItem(`ov.hometax-id.${companyId}`) || ""); } catch { /* 시크릿 등 */ }
+    try { setHometaxId(window.sessionStorage.getItem(`ov.hometax-id.${companyId}`) || ""); } catch { /* 시크릿 등 */ }
   }, [efileOpen, companyId]);
   const { data: companyInfo } = useQuery({
     queryKey: ["efile-company", companyId],
@@ -252,7 +252,7 @@ export default function TaxFilingPage() {
   const [efileIssues, setEfileIssues] = useState<NtsIssue[]>([]);
   const makeEfile = () => {
     if (!companyInfo) return;
-    try { if (typeof window !== "undefined") window.localStorage.setItem(`ov.hometax-id.${companyId}`, hometaxId.trim()); } catch { /* 무시 */ }
+    try { if (typeof window !== "undefined") window.sessionStorage.setItem(`ov.hometax-id.${companyId}`, hometaxId.trim()); } catch { /* 무시 */ }
     const work = aggOf(rows.filter((r) => !r.biz));
     const biz = aggOf(rows.filter((r) => r.biz));
     const all = aggOf(rows);

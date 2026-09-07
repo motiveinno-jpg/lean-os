@@ -90,6 +90,12 @@ export async function GET(request: NextRequest) {
   }
 
   // 4) 세션 발급 — 매직링크 token_hash 를 서버 안에서 즉시 교환(메일 발송 없음)
+  //   이미 다른 네이버 ID 로 연결된 계정이면 막는다 — 같은 이메일을 가진 다른 네이버 계정이 들어오는 것을 차단
+  try {
+    const { data: rows } = await (admin as any).rpc('find_auth_user_by_email', { p_email: email });
+    const meta = Array.isArray(rows) && rows[0] ? (rows[0].raw_user_meta_data || {}) : null;
+    if (meta?.naver_id && profile.id && String(meta.naver_id) !== String(profile.id)) return fail('naver_mismatch');
+  } catch { /* 조회 실패는 기존 흐름 유지 */ }
   const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
     type: 'magiclink',
     email,

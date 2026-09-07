@@ -1,4 +1,6 @@
 import { withSentry } from "../_shared/sentry.ts";
+import { checkIngestSecret, resolveIngestCompany, maskTail } from "../_shared/ingest-auth.ts";
+
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -13,12 +15,6 @@ const corsHeaders = {
 
 // 공유 시크릿 게이트 — x-api-key(=company_id)는 비밀이 아니므로 시크릿 헤더가 없으면 크로스테넌트 주입 가능.
 // n8n 은 x-ingest-secret 헤더에 N8N_INGEST_SECRET 값을 실어 보내야 함. 미설정/불일치 시 거부(fail-closed).
-function checkIngestSecret(req: Request): boolean {
-  const expected = Deno.env.get("N8N_INGEST_SECRET");
-  if (!expected) return false;
-  const provided = req.headers.get("x-ingest-secret");
-  return !!provided && provided === expected;
-}
 
 interface TaxInvoiceInput {
   approval_no?: string;
@@ -57,7 +53,11 @@ Deno.serve(withSentry("receive-tax-invoices", async (req: Request) => {
       });
     }
 
-    const companyId = apiKey;
+    //   회사별 비밀키(ovk_…) → company_id. 키를 발급한 회사는 UUID 로 못 들어온다.
+    const companyId = await resolveIngestCompany(req);
+    if (!companyId) {
+      return new Response(JSON.stringify({ error: "invalid api key" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     // Verify company exists
     const { data: company } = await supabase

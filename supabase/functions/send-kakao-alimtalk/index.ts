@@ -1,5 +1,6 @@
 import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
+import { checkIngestSecret } from "../_shared/ingest-auth.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -17,12 +18,6 @@ const corsHeaders = {
 // 공유 시크릿 게이트 (2026-08-19 감사): 종전엔 인증이 전혀 없어 URL 만 알면 임의 번호로
 //   회사명이 박힌 알림톡을 무제한 발송할 수 있었다. receive-bank-transactions 와 동일한
 //   n8n 공유 시크릿(fail-closed) 게이트를 적용한다. 현재 호출 트래픽 0건 실측 — 기존 연동 영향 없음.
-function checkIngestSecret(req: Request): boolean {
-  const expected = Deno.env.get("N8N_INGEST_SECRET");
-  if (!expected) return false;
-  const provided = req.headers.get("x-ingest-secret");
-  return !!provided && provided === expected;
-}
 
 interface AlimtalkPayload {
   template_code: string;

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
+import { assertSameOrigin } from '@/lib/api-authz';
 
 function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -18,6 +19,7 @@ function getStripe() {
  * (Stripe 취소는 여기 서버 라우트에서만 가능 — 엣지에는 Stripe 키가 없다)
  */
 export async function POST(request: NextRequest) {
+  { const csrf = assertSameOrigin(request); if (csrf) return csrf; }
   try {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();

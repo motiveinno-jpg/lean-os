@@ -15,6 +15,7 @@ import { useModalKeys } from "@/hooks/use-modal-keys";
 import { friendlyError } from "@/lib/friendly-error";
 import { appConfirm } from "@/components/global-confirm";
 import { AdAccountsTab } from "./AdAccountsTab";
+import { supabase } from "@/lib/supabase";
 import {
   API_PROVIDERS, KEY_STATUS_LABEL,
   listApiKeys, saveApiKey, deleteApiKey, testApiKey, retestApiKey,
@@ -23,6 +24,51 @@ import {
 
 const fmt = (iso: string | null) =>
   iso ? new Date(iso).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : null;
+
+
+// 외부 자동화(n8n 등) 인입 키 — 회사별 비밀키. 발급 즉시 한 번만 보이고, 다시 발급하면 이전 키는 즉시 막힌다.
+function IngestKeyCard({ companyId }: { companyId: string }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [issued, setIssued] = useState<string | null>(null);
+  const { data: keys = [] } = useQuery({
+    queryKey: ["ingest-keys", companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("company_ingest_keys").select("id, key_hint, created_at, revoked_at").eq("company_id", companyId).order("created_at", { ascending: false }).limit(5);
+      return (data || []) as { id: string; key_hint: string; created_at: string; revoked_at: string | null }[];
+    },
+    enabled: !!companyId,
+  });
+  const active = keys.find((k) => !k.revoked_at);
+  const rotate = async () => {
+    const yes = await appConfirm(active ? "새 키를 발급하면 지금 쓰는 키는 바로 막힙니다. 자동화 도구의 키도 함께 바꿔야 합니다." : "외부 자동화가 통장·계산서·급여 배치를 밀어 넣을 때 쓰는 비밀키를 발급합니다.", { title: active ? "인입 키를 다시 발급할까요?" : "인입 키를 발급할까요?", confirmLabel: "발급" });
+    if (!yes) return;
+    const { data, error } = await (supabase as any).rpc("rotate_ingest_key");
+    if (error) { toast(friendlyError(error, "발급하지 못했습니다"), "error"); return; }
+    setIssued(String(data));
+    qc.invalidateQueries({ queryKey: ["ingest-keys", companyId] });
+  };
+  return (
+    <div className="apik-section">
+      <div className="apik-main">
+        <div className="apik-head"><b>외부 자동화 인입 키 (n8n 등)</b></div>
+        <p className="text-xs text-[var(--text-muted)] mt-1">
+          외부 자동화가 통장·계산서·급여 배치를 밀어 넣을 때 <code>x-api-key</code> 헤더에 넣는 회사 전용 비밀키입니다.
+          {active ? <> 현재 키 끝자리 <b>…{active.key_hint}</b> ({new Date(active.created_at).toLocaleDateString("ko-KR")} 발급).</> : " 아직 발급하지 않았습니다 — 발급 전에는 회사 ID 방식이 임시로 허용됩니다."}
+        </p>
+        {issued && (
+          <div className="mt-2 p-3 rounded-lg bg-[var(--warning-dim)] text-xs">
+            <div className="font-bold mb-1">지금 한 번만 표시됩니다. 복사해 두세요.</div>
+            <code className="break-all select-all">{issued}</code>
+          </div>
+        )}
+      </div>
+      <div className="apik-acts">
+        <button type="button" className="btn-secondary btn-sm" onClick={rotate}>{active ? "다시 발급" : "발급"}</button>
+      </div>
+    </div>
+  );
+}
 
 export function ApiKeysTab({ companyId, userId }: { companyId: string; userId: string | null }) {
   const qc = useQueryClient();
@@ -160,6 +206,7 @@ export function ApiKeysTab({ companyId, userId }: { companyId: string; userId: s
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); invalidate(); }} />
       )}
+      <IngestKeyCard companyId={companyId} />
     </div>
   );
 }

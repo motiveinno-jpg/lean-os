@@ -19,6 +19,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { withSentry } from "../_shared/sentry.ts";
+import { safeEqual } from "../_shared/ingest-auth.ts";
 import { tfetch } from "../_shared/http.ts";
 
 const corsHeaders = {
@@ -108,7 +109,7 @@ serve(withSentry("toss-charge", async (req: Request) => {
   const mode = body.mode || "due";
 
   // 호출자 판정 — cron 은 서비스 롤 토큰, 사람은 로그인 JWT.
-  const isService = token === serviceKey;
+  const isService = safeEqual(token, serviceKey);
   let callerCompanyId: string | null = null;
   let callerAuthId: string | null = null;
   if (!isService) {
@@ -129,6 +130,55 @@ serve(withSentry("toss-charge", async (req: Request) => {
   if (!secretKey) return json({ error: "Payment gateway not configured (TOSS_SECRET_KEY)" }, 500);
 
   const nowIso = new Date().toISOString();
+
+  // ── mode "storage-pack": 저장공간 팩 추가분 즉시 결제 (서버 전용, 2026-09-07) ──
+  if (mode === "storage-pack") {
+    if (!isService) return json({ error: "서버만 실행합니다." }, 403);
+    const b = body as Record<string, unknown>;
+    const spCompany = String(b.companyId || "");
+    const packsAdded = Math.max(0, Math.floor(Number(b.packsAdded) || 0));
+    if (!spCompany || packsAdded <= 0) return json({ error: "companyId/packsAdded required" }, 400);
+    const { data: sp } = await supabase.from("subscriptions")
+      .select("id, company_id, billing_cycle, plan_slug, subscription_plans(slug, per_seat_price, annual_discount)")
+      .eq("company_id", spCompany).in("status", ["active", "trialing", "past_due"]).maybeSingle();
+    const spPlan = (sp as any)?.subscription_plans;
+    if (!sp || !spPlan) return json({ error: "유효한 구독이 없습니다" }, 400);
+    const yearlySp = sp.billing_cycle === "annual" || sp.billing_cycle === "yearly";
+    const unit = Number(spPlan.per_seat_price || 0);
+    let supplySp = unit * packsAdded * (yearlySp ? 12 : 1);
+    const disc = Number(spPlan.annual_discount || 0);
+    if (yearlySp && disc > 0 && disc < 1) supplySp = Math.round(supplySp * (1 - disc));
+    if (supplySp <= 0) return json({ ok: true, amount: 0 });
+    const taxSp = Math.round(supplySp * VAT_RATE);
+    const totalSp = supplySp + taxSp;
+    const { data: keyRowSp } = await supabase.from("toss_billing_keys").select("customer_key, billing_key_enc").eq("company_id", spCompany).maybeSingle();
+    if (!keyRowSp?.billing_key_enc) return json({ error: "등록된 카드가 없습니다" }, 400);
+    let bkSp: string;
+    try { bkSp = await decryptSecret(keyRowSp.billing_key_enc); } catch { return json({ error: "빌링키 복호화 실패" }, 500); }
+    const orderIdSp = `ov-sp-${spCompany.replace(/-/g, "").slice(0, 12)}-${Date.now().toString(36)}`;
+    const orderNameSp = `오너뷰 저장공간 팩 ${packsAdded}개 (${yearlySp ? "연간" : "월"})`;
+    let paySp: Record<string, any> | null = null; let failSp = "";
+    try {
+      const res = await tfetch(`https://api.tosspayments.com/v1/billing/${bkSp}`, {
+        method: "POST",
+        headers: { Authorization: `Basic ${btoa(`${secretKey}:`)}`, "Content-Type": "application/json", "Idempotency-Key": orderIdSp },
+        body: JSON.stringify({ customerKey: keyRowSp.customer_key, amount: totalSp, orderId: orderIdSp, orderName: orderNameSp, taxFreeAmount: 0 }),
+      });
+      const data = await res.json();
+      if (!res.ok) failSp = data?.message || "결제 실패"; else paySp = data;
+    } catch { failSp = "결제 게이트웨이에 연결하지 못했습니다"; }
+    if (!paySp) {
+      await supabase.from("billing_events").insert({ company_id: spCompany, event_type: "payment_failed", metadata: { reason: "storage_pack", amount: totalSp, message: failSp } });
+      return json({ ok: false, error: failSp }, 402);
+    }
+    await supabase.from("invoices").insert({
+      company_id: spCompany, subscription_id: sp.id, amount: supplySp, tax_amount: taxSp, total_amount: totalSp, status: "paid",
+      toss_payment_key: paySp.paymentKey, toss_order_id: orderIdSp, paid_at: paySp.approvedAt || new Date().toISOString(),
+      description: orderNameSp, billing_period_start: new Date().toISOString(), billing_period_end: new Date().toISOString(), currency: "krw",
+    });
+    await supabase.from("billing_events").insert({ company_id: spCompany, event_type: "payment_succeeded", metadata: { reason: "storage_pack", orderId: orderIdSp, amount: totalSp, packsAdded } });
+    return json({ ok: true, amount: totalSp, orderId: orderIdSp });
+  }
 
   // ── mode "start": 국내카드로 유료 구독 시작 (2026-08-14) ──
   //   결제하기에서 국내카드를 고른 회사. 기존 구독 상태별로:

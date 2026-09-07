@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
+import { assertSameOrigin } from '@/lib/api-authz';
 
 // 스토리지 팩 애드온 구매/변경 — 좌석과 분리된 +10GB, 좌석과 동일 단가(per_seat_price).
 //   설계: docs/20260902_PLAN_storage_pack.md
@@ -18,6 +19,7 @@ function getStripe() {
 }
 
 export async function POST(request: NextRequest) {
+  { const csrf = assertSameOrigin(request); if (csrf) return csrf; }
   try {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -72,6 +74,10 @@ export async function POST(request: NextRequest) {
     if (count === prevCount) {
       return NextResponse.json({ data: { count, changed: false, charged: false } });
     }
+    //   결제수단이 없는 구독(내부 부여 등)은 팩을 늘릴 수 없다 — 종전엔 수량만 올라가 무료였다
+    if (count > prevCount && !sub.payment_provider) {
+      return NextResponse.json({ error: { code: 'NO_PAYMENT_METHOD', message: '결제수단이 등록된 구독에서만 저장공간을 늘릴 수 있습니다.' } }, { status: 400 });
+    }
 
     // 대표(소유자)만 — RPC 는 서버 전용이라 여기서 확인한다
     const { data: isOwner } = await (supabase as any).rpc('is_company_owner');
@@ -118,8 +124,18 @@ export async function POST(request: NextRequest) {
         });
         charged = true;
       }
-      // provider === 'toss': 정기결제 크론(toss-charge)이 다음 주기부터 팩 포함 금액을 청구 → 여기선 수량만.
-      // provider 없음: 결제수단 미등록(내부/무료 등) → 수량만 반영.
+      if (provider === 'toss' && count > prevCount) {
+        // 토스: 늘린 만큼 지금 바로 결제 — 다음 주기까지 무료로 쓰다 취소하는 구멍을 막는다. 정기 청구엔 팩 합산이 그대로 이어진다.
+        const r = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/toss-charge`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
+          body: JSON.stringify({ mode: 'storage-pack', companyId, packsAdded: count - prevCount }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || !j?.ok) throw new Error(j?.error || `toss-charge HTTP ${r.status}`);
+        charged = true;
+      }
+      // provider === 'toss' 감소: 다음 주기부터 줄어든 금액이 청구된다.
     } catch (payErr) {
       // 결제 실패 → 수량 롤백(수량-결제 정합).
       await (admin as any).rpc('set_storage_packs', { p_company: companyId, p_count: prevCount });

@@ -3,12 +3,13 @@ import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { requirePerm } from "@/lib/api-authz";
+import { requirePerm, assertSameOrigin } from '@/lib/api-authz';
 
 type Role = "owner" | "admin" | "employee" | "partner";
 type Action = "update-role" | "register-hr" | "unregister-hr" | "remove-from-company";
 
 export async function POST(req: NextRequest) {
+  { const csrf = assertSameOrigin(req); if (csrf) return csrf; }
   try {
     // 1) 호출자 인증 + 권한 (대표/관리자만). service_role 로 RLS 우회하므로 앱 레벨 인가 필수.
     //    (2026-07-06 보안감사 P0: 인증·인가 전무 → 비인증 크로스테넌트 파괴적 쓰기 가능했음)

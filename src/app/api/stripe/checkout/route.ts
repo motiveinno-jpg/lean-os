@@ -2,6 +2,7 @@ import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { assertSameOrigin } from '@/lib/api-authz';
 
 // 결제 뒤 돌아올 주소는 우리 사이트 안으로만 — 임의 주소를 넣으면 checkout.stripe.com 을 거쳐 피싱 페이지로 보낼 수 있다
 function safeReturnUrl(candidate: unknown, origin: string, fallback: string): string {
@@ -48,6 +49,7 @@ const SEAT_PRICE_MAP: Record<string, Record<BillingCycle, { base?: string; extra
 };
 
 export async function POST(request: NextRequest) {
+  { const csrf = assertSameOrigin(request); if (csrf) return csrf; }
   try {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -197,7 +199,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ data: { url: session.url } });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Checkout session 생성 실패';
+    console.error('[stripe/checkout]', err instanceof Error ? err.message : err);
+    const message = '결제 페이지를 열지 못했습니다. 잠시 후 다시 시도해 주세요.';
     console.error('Stripe checkout error:', message);
     return NextResponse.json(
       { error: { code: 'INTERNAL_ERROR', message } },

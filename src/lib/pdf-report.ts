@@ -191,7 +191,7 @@ export async function generateMonthlyPLReport(
       .upload(path, blob, { upsert: true, contentType: 'application/pdf' });
     if (!upErr) {
       // documents 는 private 버킷 → getPublicUrl 은 깨진 링크. 장기(1년) 서명 URL 사용.
-      const urlData = logRead('lib/pdf-report:urlData', await supabase.storage.from('documents').createSignedUrl(path, 60 * 60 * 24 * 365));
+      const urlData = logRead('lib/pdf-report:urlData', await supabase.storage.from('documents').createSignedUrl(path, 60 * 60 * 24 * 7));
       publicUrl = urlData?.signedUrl;
     }
   }

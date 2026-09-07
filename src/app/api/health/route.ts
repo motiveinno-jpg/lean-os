@@ -23,7 +23,19 @@ async function timed<T>(fn: () => Promise<T>, timeoutMs = 3000): Promise<{ ms: n
   }
 }
 
-export async function GET() {
+// 공개 상태 확인 — Stripe 실호출이 들어 있어 무제한 호출을 막는다(분당 6회/IP)
+const healthHits = new Map<string, { count: number; resetAt: number }>();
+function healthLimited(ip: string): boolean {
+  const now = Date.now();
+  if (healthHits.size > 300) for (const [k, v] of healthHits) { if (now > v.resetAt) healthHits.delete(k); }
+  const e = healthHits.get(ip);
+  if (!e || now > e.resetAt) { healthHits.set(ip, { count: 1, resetAt: now + 60_000 }); return false; }
+  return ++e.count > 6;
+}
+
+export async function GET(request: Request) {
+  { const ip = request.headers.get('x-real-ip') || (request.headers.get('x-forwarded-for') || '').split(',').pop()?.trim() || 'unknown';
+    if (healthLimited(ip)) return new Response(JSON.stringify({ error: 'rate_limited' }), { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '60' } }); }
   const checks: Record<string, Check> = {};
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

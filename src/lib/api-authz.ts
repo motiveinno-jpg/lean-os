@@ -3,6 +3,23 @@
 //   is_company_admin()/has_perm() 과 같은 기준을 여기서도 그대로 적용한다.
 //   users.role(owner/admin) 은 더 이상 접근 판단에 쓰지 않는다.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { NextResponse } from "next/server";
+
+/** 상태를 바꾸는 라우트의 교차 사이트 요청 차단.
+ *  브라우저는 POST 에 Origin 을 붙인다 — 있으면 우리 사이트여야 하고, 없으면 Sec-Fetch-Site 가 같은 사이트여야 한다.
+ *  (SameSite=Lax 쿠키 하나에만 기대던 것을 명시적 검사로) 실패면 403 응답을 돌려주고, 통과면 null. */
+export function assertSameOrigin(req: Request): NextResponse | null {
+  const self = (() => { try { return new URL(req.url).origin; } catch { return ""; } })();
+  const allowed = new Set([self, "https://www.owner-view.com", "https://owner-view.com", (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "")].filter(Boolean));
+  const origin = req.headers.get("origin");
+  if (origin) {
+    if (allowed.has(origin)) return null;
+    return NextResponse.json({ error: { code: "CSRF", message: "허용되지 않은 출처의 요청입니다." } }, { status: 403 });
+  }
+  const site = req.headers.get("sec-fetch-site");
+  if (!site || site === "same-origin" || site === "none") return null;
+  return NextResponse.json({ error: { code: "CSRF", message: "허용되지 않은 출처의 요청입니다." } }, { status: 403 });
+}
 
 export type Caller = { id: string; companyId: string; isMaster: boolean };
 

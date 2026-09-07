@@ -1,4 +1,5 @@
 import { withSentry } from "../_shared/sentry.ts";
+import { safeEqual, maskTail } from "../_shared/ingest-auth.ts";
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { publicEncrypt, constants } from "node:crypto";
@@ -732,7 +733,7 @@ async function syncBankTransactions(
           source: "codef_bank",
           mapping_status: "unmapped",
           external_id: externalId,
-          raw_data: { accountNo, organization: org, trDate: tStr, trTime: _trTime, counterAccount: tx.resCounterAccount || "", descs: _descs },
+          raw_data: { accountNo: maskTail(accountNo), organization: org, trDate: tStr, trTime: _trTime, counterAccount: maskTail(tx.resCounterAccount || ""), descs: _descs },
         }, { onConflict: "external_id", ignoreDuplicates: true });
 
         if (!error) totalSynced++;
@@ -1001,7 +1002,7 @@ const merchantKey = (name: string): string => {
             ...(bizno ? { merchant_bizno: bizno } : {}),
             source: "codef_card",
             mapping_status: "unmapped",
-            raw_data: { cardNo, organization: org, usedDate, usedTime: charge.resUsedTime || "", charge },
+            raw_data: { cardNo: maskTail(cardNo), organization: org, usedDate, usedTime: charge.resUsedTime || "", charge: { ...charge, resCardNo: undefined, resUsedCard: undefined, resCardNumber: undefined } },
           };
           { const l4 = cardLast4(charge.resUsedCard || cardNo); if (l4 && upsertRow.card_name) seenCards.set(l4, upsertRow.card_name); }
           fetchedForRecon.push({ row: upsertRow, date: formattedDate, approvalNo: String(approvalNo || ""), amount: Number(usedAmount), store: storeName });
@@ -2240,8 +2241,8 @@ serve(withSentry("codef-sync", async (req) => {
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     const CRON_SECRET = Deno.env.get("HOMETAX_CRON_SECRET") || "";
     const cronSecretHeader = req.headers.get("x-cron-secret") || "";
-    const isCronAuth = !!CRON_SECRET && cronSecretHeader === CRON_SECRET;
-    const isServiceRoleAuth = !!authHeader && !!SERVICE_ROLE && authHeader.includes(SERVICE_ROLE);
+    const isCronAuth = safeEqual(cronSecretHeader, CRON_SECRET);
+    const isServiceRoleAuth = safeEqual(authHeader.replace(/^Bearer\s+/i, "").trim(), SERVICE_ROLE);
     const isInternalAuth = isCronAuth || isServiceRoleAuth;
     let user: any = null;
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { assertSameOrigin } from '@/lib/api-authz';
 
 // 결제 뒤 돌아올 주소는 우리 사이트 안으로만 — 임의 주소를 넣으면 checkout.stripe.com 을 거쳐 피싱 페이지로 보낼 수 있다
 function safeReturnUrl(candidate: unknown, origin: string, fallback: string): string {
@@ -37,6 +38,7 @@ export const CREDIT_PRICING = {
 type CreditKind = keyof typeof CREDIT_PRICING;
 
 export async function POST(request: NextRequest) {
+  { const csrf = assertSameOrigin(request); if (csrf) return csrf; }
   try {
     const { kind, packs, successUrl, cancelUrl } = await request.json();
 
@@ -125,7 +127,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ data: { url: session.url, amountKrw, quantity } });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : '충전 결제를 시작하지 못했습니다';
+    console.error('[stripe/credits]', err instanceof Error ? err.message : err);
+    const message = '충전 결제를 시작하지 못했습니다';
     console.error('Stripe credit checkout error:', message);
     return NextResponse.json({ error: { code: 'STRIPE_ERROR', message } }, { status: 500 });
   }
