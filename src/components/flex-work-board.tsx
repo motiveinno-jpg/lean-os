@@ -21,7 +21,7 @@ const FLEX = {
   violetDim: "var(--primary-light)", greenDim: "var(--success-dim)", amberDim: "var(--warning-dim)", redDim: "var(--danger-dim)",
 };
 
-type Emp = { id: string; name: string; department?: string | null; position?: string | null; status?: string | null; user_id?: string | null; hire_date?: string | null };
+type Emp = { id: string; name: string; department?: string | null; position?: string | null; status?: string | null; user_id?: string | null; hire_date?: string | null; work_start_time?: string | null; work_end_time?: string | null };
 type Att = {
   employee_id: string; date: string; check_in: string | null; check_out: string | null;
   regular_minutes: number | null; overtime_minutes: number | null; night_minutes: number | null;
@@ -144,16 +144,20 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
   }, [weekHolidays]);
 
   //   회사 근무시간 — 셀 게이지의 '하루 근무량' 기준 (2026-08-25 사장님: 근무 진행률로 채움).
-  const { data: workCfg } = useQuery<{ start: number; end: number; lunch: number; grace: number }>({
+  const { data: workCfg } = useQuery<{ start: number; end: number; lunch: number; grace: number; mask: number }>({
     queryKey: ["flex-work-cfg", companyId],
     queryFn: async () => {
       const { data } = await db.from("company_settings")
-        .select("work_start_time, work_end_time, lunch_minutes, late_grace_minutes").eq("company_id", companyId).maybeSingle();
+        .select("work_start_time, work_end_time, lunch_minutes, late_grace_minutes, workdays_mask").eq("company_id", companyId).maybeSingle();
       const hhmm = (v: unknown, def: number) => {
         const m = /^(\d{1,2}):(\d{2})/.exec(String(v || ""));
         return m ? +m[1] * 60 + +m[2] : def;
       };
-      return { start: hhmm(data?.work_start_time, 9 * 60), end: hhmm(data?.work_end_time, 18 * 60), lunch: Number(data?.lunch_minutes ?? 60), grace: Number(data?.late_grace_minutes ?? 0) };
+      //   유예 미설정은 30분 — attendance-checkin 엣지·hr.ts 와 같은 기본값(여기만 0 이면 화면과 판정이 어긋난다)
+      const graceRaw = Number(data?.late_grace_minutes);
+      const maskRaw = Number(data?.workdays_mask);
+      return { start: hhmm(data?.work_start_time, 9 * 60), end: hhmm(data?.work_end_time, 18 * 60), lunch: Number(data?.lunch_minutes ?? 60),
+        grace: Number.isFinite(graceRaw) ? Math.max(0, graceRaw) : 30, mask: Number.isFinite(maskRaw) && maskRaw > 0 ? maskRaw : 31 };
     },
     enabled: !!companyId,
     staleTime: 300_000,
@@ -162,6 +166,14 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
   const expectedDayMin = Math.max(60, (workCfg?.end ?? 18 * 60) - (workCfg?.start ?? 9 * 60) - (workCfg?.lunch ?? 60));
 
   //   현재 시각(KST 분) — 진행 중인 오늘 셀 게이지가 실시간으로 차오르게 1분마다 갱신.
+  //   근무 요일은 회사 설정(workdays_mask, 월=1…일=64)을 따른다 — 토·일 고정이면 토요일 근무 회사는 결근이 안 잡히고,
+  //   금요일이 쉬는 회사는 금요일이 결근으로 뜬다. 열 번호 i 는 월=0.
+  const isWorkdayIdx = (i: number) => ((workCfg?.mask ?? 31) & (1 << i)) !== 0;
+  //   직원 개인 출퇴근 시각(employees.work_start_time/work_end_time)이 있으면 그것이 그 사람의 기준 —
+  //   attendance-checkin 엣지의 지각 판정과 같은 규칙. 없으면 회사 기본값.
+  const hhmmOf = (v: unknown, def: number) => { const m = /^(\d{1,2}):(\d{2})/.exec(String(v || "")); return m ? +m[1] * 60 + +m[2] : def; };
+  const empStart = (e: Emp) => hhmmOf(e.work_start_time, workCfg?.start ?? 9 * 60);
+  const empEnd = (e: Emp) => hhmmOf(e.work_end_time, workCfg?.end ?? 18 * 60);
   const [nowMin, setNowMin] = useState(() => { const k = new Date(Date.now() + 9 * 3600 * 1000); return k.getUTCHours() * 60 + k.getUTCMinutes(); });
   useEffect(() => {
     const t = setInterval(() => { const k = new Date(Date.now() + 9 * 3600 * 1000); setNowMin(k.getUTCHours() * 60 + k.getUTCMinutes()); }, 60_000);
@@ -239,7 +251,8 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
     const m = new Map<string, { name: string; dates: string[] }>();
     const todayS = todayStr;
     for (const { emp } of rows) {
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 7; i++) {
+        if (!isWorkdayIdx(i)) continue;
         const dstr = ymd(days[i]);
         if (dstr >= todayS) continue;
         if (holidaySet.has(dstr)) continue;   // 공휴일 제외 (2026-08-19)
@@ -254,26 +267,29 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
       }
     }
     return [...m.values()];
-  }, [rows, days, attByEmpDate, leaveByEmpDate, todayStr, holidaySet]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, days, attByEmpDate, leaveByEmpDate, todayStr, holidaySet, workCfg?.mask]);
   const absentDayCount = absentList.reduce((s, x) => s + x.dates.length, 0);
   //   오늘 미출근 — 근무 시작(+유예)이 지났는데 출근 기록이 없는 사람. 하루가 끝나기 전이라 결근으로 못 박지 않고
   //   '몇 분 지각 중'으로 알리고, 퇴근 시각이 지나면 결근으로 본다. 다음 날부터는 위의 결근 규칙이 잡는다.
   //   (2026-09-07 사장님: 6명이 안 찍었는데 지각도 결근도 아무 표시가 없고 명단에도 안 나온다)
   const todayIdx = days.findIndex((d) => ymd(d) === todayStr);
   const todayMissing = useMemo(() => {
-    if (!workCfg || todayIdx < 0 || todayIdx > 4 || holidaySet.has(todayStr)) return [] as { name: string; lateMin: number; afterEnd: boolean }[];
-    if (nowMin < workCfg.start + workCfg.grace) return [];
+    if (!workCfg || todayIdx < 0 || !isWorkdayIdx(todayIdx) || holidaySet.has(todayStr)) return [] as { name: string; lateMin: number; afterEnd: boolean }[];
     const out: { name: string; lateMin: number; afterEnd: boolean }[] = [];
     for (const { emp } of rows) {
+      const start = empStart(emp), end = empEnd(emp);
+      if (nowMin < start + workCfg.grace) continue;   // 이 사람의 근무 시작(+유예) 전이면 아직 아니다
       if (emp.hire_date && todayStr < emp.hire_date) continue;
       const key = `${emp.id}|${todayStr}`;
       const lv = leaveByEmpDate.get(key);
       if (lv && lv.kind !== "pm") continue;   // 종일·오전반차는 아침 출근 의무가 없다(오후반차만 남는다)
       const a = attByEmpDate.get(key);
       if (a && (a.check_in || minutesOf(a))) continue;
-      out.push({ name: emp.name, lateMin: nowMin - workCfg.start, afterEnd: nowMin >= workCfg.end });
+      out.push({ name: emp.name, lateMin: nowMin - start, afterEnd: nowMin >= end });
     }
     return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, todayIdx, todayStr, attByEmpDate, leaveByEmpDate, holidaySet, workCfg, nowMin]);
 
   const teamAvg = rows.length ? Math.round(rows.reduce((s, r) => s + r.total, 0) / rows.length) : 0;
@@ -374,7 +390,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                 <span className="ml-1 font-normal text-[var(--text-dim)]">(근무 시작 {workCfg ? `${String(Math.floor(workCfg.start / 60)).padStart(2, "0")}:${String(workCfg.start % 60).padStart(2, "0")}` : ""} 기준 · 퇴근 시각이 지나면 결근)</span>
               </div>
               {todayMissing.length === 0 ? (
-                <div className="text-xs text-[var(--text-dim)]">{workCfg && nowMin < workCfg.start + workCfg.grace ? "아직 근무 시작 전이에요" : "오늘 안 찍은 사람이 없습니다"}</div>
+                <div className="text-xs text-[var(--text-dim)]">{workCfg && nowMin < workCfg.start + workCfg.grace ? "아직 근무 시작 전이에요" : "지금까지는 안 찍은 사람이 없어요"}</div>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
                   {todayMissing.map((x, i) => (
@@ -397,7 +413,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                 <th className="fw-th-name">구성원</th>
                 {days.map((d, i) => {
                   const isToday = ymd(d) === todayStr;
-                  const weekend = i >= 5;
+                  const weekend = !isWorkdayIdx(i);
                   return (
                     <th key={i} className={weekend ? "text-[var(--text-dim)]" : undefined}>
                       <span className={isToday ? "inline-flex items-center justify-center px-2 py-0.5 rounded-full text-white" : ""} style={isToday ? { background: FLEX.violet } : undefined}>
@@ -433,7 +449,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                     const key = `${emp.id}|${ymd(d)}`;
                     const a = attByEmpDate.get(key);
                     const lv = leaveByEmpDate.get(key);
-                    const weekend = i >= 5;
+                    const weekend = !isWorkdayIdx(i);
                     //   셀 공통 박스 — 테두리로 배경과 구분되게, 글자는 진하게(2줄), 게이지는 바닥 얇은 바 (2026-08-25 사장님).
                     if (lv) {
                       const lci = a ? timeOf(a.check_in) : null;
@@ -481,8 +497,8 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                       const absent = !weekend && dstr < todayStr && (!emp.hire_date || dstr >= emp.hire_date);
                       //   오늘 — 근무 시작(+유예)을 지났는데 기록이 없으면 '미출근 · n분 지각 중', 퇴근 시각도 지났으면 '결근'.
                       //   위 오늘 미출근 명단과 같은 규칙 (2026-09-07 사장님).
-                      const missing = !weekend && dstr === todayStr && !!workCfg && nowMin >= workCfg.start + workCfg.grace && (!emp.hire_date || dstr >= emp.hire_date);
-                      const missingAbsent = missing && nowMin >= workCfg!.end;
+                      const missing = !weekend && dstr === todayStr && !!workCfg && nowMin >= empStart(emp) + workCfg.grace && (!emp.hire_date || dstr >= emp.hire_date);
+                      const missingAbsent = missing && nowMin >= empEnd(emp);
                       return (
                         <td key={i} className={`px-1 py-2 text-center align-middle ${weekend ? "bg-[var(--bg-surface)]/30" : ""}`}>
                           {absent
@@ -493,7 +509,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                             : missing
                             ? <div className="fw-cell fw-cell-box" title={missingAbsent ? "퇴근 시각이 지났는데 출근 기록이 없습니다" : "근무 시작 시각이 지났는데 아직 출근을 찍지 않았습니다"}>
                                 <span className="fw-cell-chip" style={{ color: missingAbsent ? "var(--danger)" : "var(--warning)" }}>{missingAbsent ? "결근" : "미출근"}</span>
-                                <span className="fw-cell-t2">{missingAbsent ? "기록 없음" : `${nowMin - workCfg!.start}분 지각 중`}</span>
+                                <span className="fw-cell-t2">{missingAbsent ? "기록 없음" : `${nowMin - empStart(emp)}분 지각 중`}</span>
                               </div>
                             : <div className="fw-cell text-[var(--text-dim)]">—</div>}
                         </td>

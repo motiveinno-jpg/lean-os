@@ -951,58 +951,10 @@ export async function checkIn(companyId: string, employeeId: string, status: str
       }
     }
   }
-  // 갭④: 출근 즉시 is_late·late_minutes 채움 (퇴근 전에도 직원 본인 화면에서 배지 노출).
-  //   recomputeAttendance 는 check_out 있을 때만 분 컬럼 풀 산정 — 본 chain 은 퇴근 전
-  //   late 만 즉시 갱신. 연장/야간/휴일은 퇴근 시 recomputeAttendance(checkOut chain) 처리.
-  //   실패해도 checkIn 자체는 성공 처리 (회귀 방지).
-  try {
-    const targetDate = todayKst();
-    // 버그픽스 2026-07-20: 회사 공통 설정만 쓰면 직원 개인 출퇴근시간(employees.work_start_time)이
-    //   무시돼 status(개인 기준)와 is_late(회사 기준)가 서로 다른 판정을 내림 — 유효 설정 사용.
-    const settings = await getEffectiveAttendanceSettings(companyId, employeeId);
-    const row = logRead('lib/hr:row', await db
-      .from('attendance_records')
-      .select('id, check_in, date')
-      .eq('company_id', companyId)
-      .eq('employee_id', employeeId)
-      .eq('date', targetDate)
-      .maybeSingle());
-    if (row?.check_in) {
-      // 휴일 set 도 같이 (그 날 휴일이면 is_late=false)
-      const holidays = logRead('lib/hr:holidays', await db
-        .from('holidays')
-        .select('date')
-        .eq('company_id', companyId)
-        .eq('date', targetDate));
-      const holidaySet = new Set<string>((holidays || []).map((h: { date: string }) => h.date));
-      // 승인된 휴가 보정 (2026-08-11 사장님: 오전 반차 후 출근이 지각으로 찍힘) —
-      //   종일 휴가면 지각 없음, 오전 반차·시간차면 휴가 종료시각부터 지각 계산.
-      const leaveRows = logRead('lib/hr:leave-exempt', await db
-        .from('leave_requests')
-        .select('leave_unit, start_time, end_time, days')
-        .eq('employee_id', employeeId)
-        .eq('status', 'approved')
-        .lte('start_date', targetDate)
-        .gte('end_date', targetDate));
-      const { calcLateOnCheckIn } = await import('./attendance-calc');
-      const leaveExempt = classifyLeaveForLate((leaveRows || []) as any[]);
-      const lateResult = calcLateOnCheckIn(row.check_in, row.date || targetDate, settings, holidaySet, leaveExempt);
-      // 회귀픽스: attendance_records UPDATE RLS 가 admin only → employee 컨텍스트에서
-      //   42501 거부. SECURITY DEFINER RPC 로 본인 행 late 컬럼만 UPDATE.
-      const { error: rpcErr } = await db.rpc('mark_attendance_late', {
-        p_employee_id: employeeId,
-        p_date: row.date || targetDate,
-        p_is_late: lateResult.is_late,
-        p_late_minutes: lateResult.late_minutes,
-        p_is_holiday: lateResult.is_holiday,
-      });
-      if (rpcErr) throw rpcErr;
-    }
-  } catch (e) {
-    if (typeof window !== 'undefined') {
-      console.warn('[checkIn] 즉시 지각 판정 실패 (체크인은 성공):', e);
-    }
-  }
+  // 지각 판정은 attendance-checkin 엣지가 한 번에 끝낸다(회사 설정+직원 개인 시각+공휴일+승인 휴가로
+  //   status·is_late·late_minutes 를 같은 계산으로 채운다, 2026-08-07). 예전엔 여기서 브라우저가 한 번 더
+  //   계산해 mark_attendance_late 로 덮어썼는데, 두 계산이 어긋나면 status='late' 인데 is_late=false 인
+  //   행이 남았다(2026-08-31 실제 2건). 판정 주체를 엣지 하나로 두고 브라우저 재계산은 걷어낸다.
   return result;
 }
 
@@ -1132,6 +1084,11 @@ export async function upsertAttendanceRecordAsAdmin(params: {
 }) {
   const { companyId, employeeId, date } = params;
   if (!companyId || !employeeId || !date) throw new Error('회사·직원·날짜는 필수입니다.');
+  //   퇴근이 출근보다 빠른 행은 근무시간이 0 으로 남고 표·집계가 어긋난다(2026-07-14 실제 1건) — 저장 전에 막는다
+  if (params.checkIn && params.checkOut) {
+    const ci = new Date(params.checkIn).getTime(), co = new Date(params.checkOut).getTime();
+    if (!isNaN(ci) && !isNaN(co) && co < ci) throw new Error('퇴근 시각이 출근 시각보다 빠릅니다. 시각을 다시 확인해 주세요.');
+  }
 
   const settings = await getAttendanceCompanySettings(companyId);
   const policy = await getAttendancePolicy(companyId, employeeId);

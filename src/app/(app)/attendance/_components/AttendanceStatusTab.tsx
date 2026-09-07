@@ -63,6 +63,14 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
     queryFn: async () => Promise.all(months.map(async (m) => ({ month: m, rows: (await getMonthlyAttendanceSummary(companyId, m)) as any[] }))),
     enabled: !!companyId,
   });
+  //   근무 요일은 회사 설정(workdays_mask)을 따른다 — 토·일 고정이면 토요일 근무 회사의 출근율 분모와 결근이 틀린다
+  const { data: workMask = 31 } = useQuery<number>({
+    queryKey: ["att-status-workmask", companyId],
+    queryFn: async () => { const { data } = await supabase.from("company_settings").select("workdays_mask").eq("company_id", companyId).maybeSingle(); const m = Number((data as any)?.workdays_mask); return Number.isFinite(m) && m > 0 ? m : 31; },
+    enabled: !!companyId, staleTime: 300_000,
+  });
+  //   요일(0=일…6=토) → 근무일 여부. 마스크 비트는 월=1·화=2·…·토=32·일=64
+  const isWorkDow = (dow: number) => (workMask & [64, 1, 2, 4, 8, 16, 32][dow]) !== 0;
   const { data: holidays = [] } = useQuery({
     queryKey: ["att-status-holidays", companyId, rangeFrom, rangeTo],
     queryFn: async () => (logRead("att-status:holidays", await supabase.from("holidays").select("date").eq("company_id", companyId).gte("date", rangeFrom).lte("date", rangeTo)) || []) as any[],
@@ -91,15 +99,17 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
   const workdays = useMemo(() => {
     const hol = new Set(holidays.map((h: any) => String(h.date).slice(0, 10)));
     let n = 0; const end = rangeTo < todayStr ? rangeTo : todayStr;
-    for (let d = new Date(rangeFrom + "T00:00:00Z"); d.toISOString().slice(0, 10) <= end; d = new Date(d.getTime() + 86400000)) { const ds = d.toISOString().slice(0, 10); const dow = d.getUTCDay(); if (dow !== 0 && dow !== 6 && !hol.has(ds)) n++; }
+    for (let d = new Date(rangeFrom + "T00:00:00Z"); d.toISOString().slice(0, 10) <= end; d = new Date(d.getTime() + 86400000)) { const ds = d.toISOString().slice(0, 10); const dow = d.getUTCDay(); if (isWorkDow(dow) && !hol.has(ds)) n++; }
     return Math.max(0, n);
-  }, [holidays, rangeFrom, rangeTo, todayStr]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [holidays, rangeFrom, rangeTo, todayStr, workMask]);
   const workdaysByMonth = useMemo(() => {
     const hol = new Set(holidays.map((h: any) => String(h.date).slice(0, 10)));
     const m: Record<string, number> = {};
-    for (const ym of months) { let n = 0; const end = lastDayOf(ym) < todayStr ? lastDayOf(ym) : todayStr; for (let d = new Date(`${ym}-01T00:00:00Z`); d.toISOString().slice(0, 10) <= end; d = new Date(d.getTime() + 86400000)) { const ds = d.toISOString().slice(0, 10); const dow = d.getUTCDay(); if (dow !== 0 && dow !== 6 && !hol.has(ds)) n++; } m[ym] = n; }
+    for (const ym of months) { let n = 0; const end = lastDayOf(ym) < todayStr ? lastDayOf(ym) : todayStr; for (let d = new Date(`${ym}-01T00:00:00Z`); d.toISOString().slice(0, 10) <= end; d = new Date(d.getTime() + 86400000)) { const ds = d.toISOString().slice(0, 10); const dow = d.getUTCDay(); if (isWorkDow(dow) && !hol.has(ds)) n++; } m[ym] = n; }
     return m;
-  }, [holidays, months, todayStr]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [holidays, months, todayStr, workMask]);
 
   // 합치기 — 직원별 합계 + 월별
   const { rowsAll, derivedAbsent } = useMemo<{ rowsAll: Row[]; derivedAbsent: Map<string, string[]> }>(() => {
@@ -141,7 +151,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
           let n = 0; const end = lastDayOf(ym) < todayStr ? lastDayOf(ym) : todayStr;
           for (let d = new Date(`${ym}-01T00:00:00Z`); d.toISOString().slice(0, 10) <= end; d = new Date(d.getTime() + 86400000)) {
             const ds = d.toISOString().slice(0, 10); const dow = d.getUTCDay();
-            if (ds >= todayStr || dow === 0 || dow === 6 || hol.has(ds)) continue;
+            if (ds >= todayStr || !isWorkDow(dow) || hol.has(ds)) continue;
             const hire = hireOf.get(r.employee_id); if (hire && ds < hire) continue;
             const k = `${r.employee_id}:${ds}`; if (recorded.has(k) || onLeave.has(k)) continue;
             n++;
@@ -156,7 +166,8 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
     }
     for (const r of map.values()) { for (const m of months) { const k = `${r.employee_id}:${m}`; if (!r.months[m] && (leaveByEmpMonth.get(k) || alwByEmpMonth.get(k))) { const mr = blank(r.employee_id, r.name, r.department); mr.leaveDays = leaveByEmpMonth.get(k) || 0; mr.alwTotal = alwByEmpMonth.get(k) || 0; r.months[m] = mr; r.leaveDays += mr.leaveDays; r.alwTotal += mr.alwTotal; } } r.ratio = workdays > 0 ? Math.min(1, r.totalDays / workdays) : 0; }
     return { rowsAll: [...map.values()], derivedAbsent };
-  }, [monthly, leaves, allowances, employees, months, workdays, workdaysByMonth, rangeFrom, rangeTo, recordDays, holidays, todayStr]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthly, leaves, allowances, employees, months, workdays, workdaysByMonth, rangeFrom, rangeTo, recordDays, holidays, todayStr, workMask]);
 
   // ── 숫자 칸 팝업 — 눌린 칸(종류·직원·달)에 해당하는 날짜·내용 목록 ──
   const [detail, setDetail] = useState<DetailScope | null>(null);
