@@ -825,9 +825,10 @@ export default function CardsPage() {
   const tabsEl = (
     <div className="collect-tabs no-print">
       {([
+        //   통장 화면과 같은 순서·이름 — 목록 · 거래내역 · 개요. '분석'은 사이드바의 분석 메뉴와 이름이 겹쳤다 (2026-09-07)
         { k: "cards", l: "카드" },
         { k: "transactions", l: "거래내역" },
-        { k: "analysis", l: "분석" },
+        { k: "analysis", l: "개요" },
       ] as { k: Tab; l: string }[]).map((t) => (
         <button key={t.k} type="button" onClick={() => setTab(t.k)} className={tab === t.k ? "collect-tab collect-tab-on" : "collect-tab"}>{t.l}</button>
       ))}

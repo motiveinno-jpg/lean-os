@@ -96,7 +96,7 @@ export default function BankPage() {
   useEffect(() => {
     const allowed = (k: Tab) => bankTabMaster || bankTabPerm(`/bank:${k}`);
     if (!allowed(tab)) {
-      const first = (["overview", "accounts", "transactions"] as Tab[]).find(allowed);
+      const first = (["accounts", "transactions", "overview"] as Tab[]).find(allowed);
       if (first) setTab(first);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -754,9 +754,10 @@ export default function BankPage() {
 
   // (2026-07-30 개편 P3) 세부탭 권한 게이트 — 마스터=전체, 멤버=부여(/bank:탭키)만
   const tabs: { key: Tab; label: string }[] = ([
-    { key: "overview", label: "개요" },
+    //   카드 화면과 같은 순서·이름 — 목록 · 거래내역 · 개요 (2026-09-07 사장님: "같은 기능이면 이름이랑 순서 맞춰")
     { key: "accounts", label: "통장" },
     { key: "transactions", label: "거래내역" },
+    { key: "overview", label: "개요" },
   ] as { key: Tab; label: string }[]).filter((t) => bankTabMaster || bankTabPerm(`/bank:${t.key}`));
 
   //   갈래 탭은 상자 안 파란 밑줄 · 실행 버튼은 조회 줄 오른쪽 (2026-08-18 조회 표준 확산)

@@ -75,9 +75,10 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     group: "재무",
     menus: [
       { route: "/bank", label: "통장", money: true, tabs: [
-        { key: "overview", label: "개요" },
-        { key: "accounts", label: "계좌·잔액" },
+        //   화면의 탭 이름·순서와 같게 (2026-09-07) — 키(overview/accounts/transactions)는 저장된 권한과 묶여 있어 그대로
+        { key: "accounts", label: "통장" },
         { key: "transactions", label: "거래내역" },
+        { key: "overview", label: "개요" },
       ] },
       { route: "/cards", label: "카드", money: true },
       { route: "/partners", label: "거래처" },
