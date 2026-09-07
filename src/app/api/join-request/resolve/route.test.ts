@@ -25,6 +25,7 @@ vi.mock("@/lib/supabase-server", () => ({
   createSupabaseServerClient: async () => ({ auth: { getUser: async () => ({ data: { user: h.state.authUser } }) } }),
 }));
 vi.mock("@/lib/api-authz", () => ({
+  assertSameOrigin: () => null,
   requirePerm: async () =>
     h.state.permOk ? { ok: true } : { ok: false, status: 403, error: "권한이 없습니다." },
 }));
