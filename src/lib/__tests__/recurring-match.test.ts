@@ -1,6 +1,6 @@
 // 통장 출금 ↔ 정기 지출 짝 맞추기 — 통장 개요 '자동이체 연결 내역' 이 이 규칙으로 채워진다 (2026-09-07).
 import { describe, it, expect } from "vitest";
-import { buildRecurringPatterns, matchRecurring, isAutoTransferTx, dueDateInMonth, reconcileRecurringMonth } from "../recurring-match";
+import { buildRecurringPatterns, matchRecurring, isAutoTransferTx, dueDateInMonth, reconcileRecurringMonth, cardTxToLite } from "../recurring-match";
 
 const RP = [
   { id: "r1", name: "사무실 임대료", recipient_name: "한빛빌딩", amount: 1_500_000, category: "rent", is_active: true },
@@ -59,5 +59,16 @@ describe("한 달 대조 — 정기 지출 3건이 나감/예정/확인 필요�
   it("정기 지출과 안 맞지만 직접 표시한 출금은 따로", () => {
     const { manualOnly } = reconcileRecurringMonth(RP2, [{ id: "m", type: "expense", counterparty: "아무개", amount: -1000, is_auto_transfer: true, transaction_date: "2026-09-03" }], "2026-09", "2026-09-07");
     expect(manualOnly.map((t) => t.id)).toEqual(["m"]);
+  });
+});
+
+describe("카드 결제도 같은 규칙으로", () => {
+  it("가맹점명·금액으로 정기 지출과 맞고, 고정비 표시는 직접 표시가 된다", () => {
+    const RP3 = [{ id: "slack", name: "슬랙 프로", recipient_name: "Slack", amount: 132000, is_active: true }];
+    const tx = cardTxToLite({ id: "c1", transaction_date: "2026-09-03", amount: 131500, merchant_name: "SLACK TECHNOLOGIES", card_name: "롯데카드" });
+    expect(tx.source).toBe("card");
+    const { rows } = reconcileRecurringMonth(RP3, [tx], "2026-09", "2026-09-07");
+    expect(rows[0].state).toBe("paid"); expect(rows[0].tx?.sourceLabel).toBe("롯데카드");
+    expect(cardTxToLite({ merchant_name: "x", amount: 1, is_fixed_cost: true }).is_auto_transfer).toBe(true);
   });
 });

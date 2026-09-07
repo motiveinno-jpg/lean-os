@@ -27,7 +27,21 @@ export type BankTxLite = {
   description?: string | null;
   is_auto_transfer?: boolean | null;
   transaction_date?: string | null;
+  source?: "bank" | "card";            // 어디서 나갔나 — 통장 출금 / 카드 결제
+  sourceLabel?: string | null;         // 통장 별칭·은행 / 카드 이름
 };
+
+/** 카드 결제 한 줄을 매칭용 모양으로 — 가맹점명이 거래처, '고정비로 표시'(is_fixed_cost)가 사람이 켠 표시 */
+export function cardTxToLite(c: {
+  id?: string; transaction_date?: string | null; amount?: number | string | null; merchant_name?: string | null;
+  memo?: string | null; category?: string | null; card_name?: string | null; is_fixed_cost?: boolean | null;
+}): BankTxLite {
+  return {
+    id: c.id, type: "expense", amount: Math.abs(Number(c.amount || 0)), counterparty: c.merchant_name || "",
+    description: c.memo || c.category || "", is_auto_transfer: c.is_fixed_cost === true, transaction_date: c.transaction_date,
+    source: "card", sourceLabel: c.card_name || null,
+  };
+}
 
 type Pattern = { rp: RecurringLite; keys: string[]; tokens: string[]; amount: number };
 

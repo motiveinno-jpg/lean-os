@@ -28,7 +28,10 @@ import { useLedgerExcludePrompt } from "@/components/ledger-exclude-prompt";
 import { useDupVoucherPrompt } from "@/components/dup-voucher-prompt";
 import { CardBillingSummary } from "@/components/card-billing-summary";
 import { getBankSyncAccess } from "@/lib/billing";
-import { TopCardExpensesThisMonth, CardAutoTransferHistory, CardMonthlyUsage } from "@/components/card-insights";
+import { TopCardExpensesThisMonth, CardMonthlyUsage } from "@/components/card-insights";
+import { AutoTransferHistoryCard } from "@/components/auto-transfer-history";
+import { getRecurringPayments } from "@/lib/approval-center";
+import { buildRecurringPatterns, matchRecurring, cardTxToLite } from "@/lib/recurring-match";
 import { SortableTh, useColWidths, type ThFilterSpec } from "@/components/sortable-th";
 import { BankLogo } from "@/components/bank-logo";
 import {
@@ -360,6 +363,31 @@ export default function CardsPage() {
   const { askDup, dupPromptElement } = useDupVoucherPrompt();
   //   장부 제외 (2026-08-19) — 선택한 미처리 카드 거래를 사유와 함께 전표 없이 끝낸다 / 해제
   const { askExclude, excludePromptElement } = useLedgerExcludePrompt();
+  //   정기결제 — 정기 지출(재무 › 정기 지출)과 짝이 맞는 결제는 자동으로, 안 잡히는 줄은 사람이 표시한다(is_fixed_cost).
+  //   개요의 '정기 지출 결제 확인' 이 같은 규칙(lib/recurring-match)으로 모은다 (2026-09-07).
+  const { data: recurringList = [] } = useQuery({
+    queryKey: ["recurring-payments", companyId],
+    queryFn: () => getRecurringPayments(companyId ?? ""),
+    enabled: !!companyId && tab === "transactions", staleTime: 60_000,
+  });
+  const recurringPatterns = useMemo(() => buildRecurringPatterns(recurringList as any[]), [recurringList]);
+  const recurOf = (tx: any): { manual: boolean; name: string | null } | null => {
+    if (tx?.is_fixed_cost === true) return { manual: true, name: null };
+    const rp = matchRecurring(cardTxToLite(tx), recurringPatterns);
+    return rp ? { manual: false, name: String(rp.name || "") } : null;
+  };
+  const setFixedCost = async (value: boolean) => {
+    const ids = Array.from(selectedTxIds);
+    if (ids.length === 0) { toast("거래를 먼저 고르세요", "info"); return; }
+    try {
+      const { error } = await db.from("card_transactions").update({ is_fixed_cost: value }).in("id", ids).eq("company_id", companyId ?? "");
+      if (error) throw error;
+      toast(value ? `${ids.length}건을 정기결제로 표시했습니다 — 개요의 '정기 지출 결제 확인'에 모입니다` : `${ids.length}건의 정기결제 표시를 해제했습니다`, "success");
+      setSelectedTxIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["cards-page-recent-tx"] });
+      queryClient.invalidateQueries({ queryKey: ["auto-transfer-history-card"] });
+    } catch (e) { toast(friendlyError(e, "정기결제 표시 실패"), "error"); }
+  };
   const excludeSelectedCards = async () => {
     const ids = Array.from(selectedTxIds).filter((id) => { const t = (shownTx as any[]).find((x) => x.id === id); return t && !t.journal_entry_id && !t.ledger_excluded_reason; });
     if (ids.length === 0) { toast("장부 제외할 미처리 거래를 고르세요", "info"); return; }
@@ -1072,7 +1100,8 @@ export default function CardsPage() {
           {/* 기존 컴포넌트 재사용 — 시안 분석 탭에 자연스럽게 녹임 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <TopCardExpensesThisMonth companyId={companyId} />
-            <CardAutoTransferHistory companyId={companyId} />
+            {/* 정기 지출(재무 › 정기 지출)과 이번 달 카드 결제를 대조 — 통장 개요와 같은 부품·같은 규칙 (2026-09-07) */}
+            <AutoTransferHistoryCard companyId={companyId} variant="card" onOpenTransactions={() => setTab("transactions")} />
           </div>
           <CardBillingSummary companyId={companyId} />
           <CardMonthlyUsage companyId={companyId} />
@@ -1214,7 +1243,14 @@ export default function CardsPage() {
                             <div className="w-7 h-7 rounded-full bg-[var(--bg-surface)] flex items-center justify-center text-[13px] shrink-0">
                               <Ico e={categoryEmoji(classificationLabel(tx.classification) || tx.category)} />
                             </div>
-                            <span className="font-medium text-[var(--text)] truncate">{tx.merchant_name || "(가맹점 미상)"}</span>
+                            <div className="min-w-0">
+                              <span className="block font-medium text-[var(--text)] truncate">{tx.merchant_name || "(가맹점 미상)"}</span>
+                              {(() => { const a = recurOf(tx); return a ? (
+                                <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-600"
+                                  title={a.manual ? "거래내역에서 정기결제로 표시한 줄" : `정기 지출 '${a.name}' 의 결제로 잡혔습니다`}>
+                                  정기결제{a.name ? ` · ${a.name}` : ""}
+                                </span>) : null; })()}
+                            </div>
                           </div>
                         </td>
                         <td className="px-3 py-2.5 text-[12.5px] text-[var(--text-muted)]">{cat}</td>
@@ -1237,6 +1273,10 @@ export default function CardsPage() {
         {/* ── 3줄 · 고른 줄로 하는 일 — 파란(확정) 버튼은 여기 하나 ── */}
         <SelectionBar count={selectedTxIds.size} onClear={() => setSelectedTxIds(new Set())}
           summary={<>합계 <b className="mono-number">{fmtW(selSumTx)}</b> · 이미 처리된 건은 건너뜁니다</>}>
+          <button type="button" onClick={() => setFixedCost(true)} className="btn-secondary btn-sm" title="정기 지출로 안 잡힌 정기결제를 직접 표시 — 개요의 '정기 지출 결제 확인'에 모입니다">정기결제 표시</button>
+          {Array.from(selectedTxIds).some((id) => (shownTx as any[]).find((x) => x.id === id)?.is_fixed_cost === true) && (
+            <button type="button" onClick={() => setFixedCost(false)} className="btn-secondary btn-sm">표시 해제</button>
+          )}
           <button type="button" onClick={excludeSelectedCards} className="btn-secondary btn-sm" title="전표 없이 끝낸 것으로 — 중복·이체·개인 지출">장부 제외</button>
           <button type="button" onClick={() => { setBulkAccountId(""); setShowBulkPost(true); }}
             className="btn-primary btn-sm">전표처리({selectedTxIds.size})</button>

@@ -6,8 +6,9 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { TileIcon } from "@/components/ui/icon-tile";
 import { getBankTransactions } from "@/lib/queries";
+import { supabase } from "@/lib/supabase";
 import { getRecurringPayments } from "@/lib/approval-center";
-import { reconcileRecurringMonth, RECURRING_CATEGORY_LABEL } from "@/lib/recurring-match";
+import { reconcileRecurringMonth, cardTxToLite, RECURRING_CATEGORY_LABEL, type BankTxLite } from "@/lib/recurring-match";
 
 interface Props {
   companyId: string;
@@ -15,6 +16,8 @@ interface Props {
   /** 통장 화면 안에서 쓸 때 — 같은 화면의 거래내역 탭으로 바로 바꾼다.
    *  (링크로 /bank?tab=transactions 를 열면 이미 통장 화면이라 탭이 안 바뀐다 — 2026-09-07 사장님: "눌러도 아무 반응 없음") */
   onOpenTransactions?: () => void;
+  /** 통장 화면(bank) · 카드 화면(card) — 제목과 '직접 표시' 안내만 다르고 판정·자료는 같다(통장 출금 + 카드 결제 둘 다 본다) */
+  variant?: "bank" | "card";
 }
 
 function fmtKRW(n: number): string {
@@ -37,7 +40,7 @@ const md = (ds: string | null | undefined) => {
 //   예전 카드는 "나간 것"만 세어서 정기 지출이 3건인데 1건만 보이면 나머지가 어디 갔는지 알 수 없었다
 //   (2026-09-07 사장님). 이제 등록된 정기 지출 전부를 나감 · 예정 · 확인 필요(날짜가 지났는데 출금이 안 보임)로 그린다.
 //   짝 맞추기는 lib/recurring-match — 거래내역 탭의 '자동이체' 태그와 같은 규칙.
-export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransactions }: Props) {
+export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransactions, variant = "bank" }: Props) {
   const now = new Date();
   const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const dateFrom = startOfMonth(now);
@@ -50,6 +53,19 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
     enabled: !!companyId,
     staleTime: 30_000,
   });
+  //   정기 지출은 통장에서 빠지기도, 카드로 결제되기도 한다(구독·SaaS) — 카드 결제도 같이 대조한다 (2026-09-07 사장님: "카드에는 정기결제가 없어?")
+  const { data: cardRows = [] } = useQuery({
+    queryKey: ["auto-transfer-history-card", companyId, ym],
+    queryFn: async () => {
+      const { data } = await supabase.from("card_transactions")
+        .select("id, transaction_date, amount, merchant_name, memo, category, card_name, is_fixed_cost")
+        .eq("company_id", companyId).gte("transaction_date", dateFrom).lte("transaction_date", dateTo).gt("amount", 0)
+        .order("transaction_date", { ascending: false }).limit(2000);
+      return (data || []) as any[];
+    },
+    enabled: !!companyId,
+    staleTime: 30_000,
+  });
   const { data: recurring = [] } = useQuery({
     queryKey: ["recurring-payments", companyId],
     queryFn: () => getRecurringPayments(companyId),
@@ -57,10 +73,11 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
     staleTime: 60_000,
   });
 
-  const { rows: list, manualOnly } = useMemo(
-    () => reconcileRecurringMonth(recurring as any[], rows as any[], ym, today),
-    [recurring, rows, ym, today],
-  );
+  const { rows: list, manualOnly } = useMemo(() => {
+    const bankTx: BankTxLite[] = (rows as any[]).map((r) => ({ ...r, source: "bank" as const, sourceLabel: r.bank_accounts?.alias || r.bank_accounts?.bank_name || null }));
+    const cardTx: BankTxLite[] = (cardRows as any[]).map(cardTxToLite);
+    return reconcileRecurringMonth(recurring as any[], [...bankTx, ...cardTx], ym, today);
+  }, [recurring, rows, cardRows, ym, today]);
   const paid = list.filter((r) => r.state === "paid");
   const missing = list.filter((r) => r.state === "missing");
   const due = list.filter((r) => r.state === "due");
@@ -77,7 +94,7 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
         <div className="flex items-center gap-2.5">
           <span className="kpi-icon info"><TileIcon name="repeat" className="w-5 h-5" /></span>
           <div>
-            <h2 className="text-[15px] font-bold text-[var(--text)]">정기 지출 출금 확인</h2>
+            <h2 className="text-[15px] font-bold text-[var(--text)]">{variant === "card" ? "정기 지출 결제 확인" : "정기 지출 출금 확인"}</h2>
             <span className="caption">
               {ym} · 정기 지출 {list.length}건 — 나감 {paid.length}{missing.length > 0 ? ` · 확인 필요 ${missing.length}` : ""} · 예정 {due.length}
               {manualOnly.length > 0 ? ` · 직접 표시 ${manualOnly.length}` : ""}
@@ -110,8 +127,9 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
               : <span className="text-[9px] px-1 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] shrink-0">예정</span>;
             //   분류는 둘째 줄로 — 첫 줄에 배지가 둘이면 좁은 칸에서 이름이 "클…" 로 잘린다
             const tail = [rp.recipient_name, cat].filter(Boolean).join(" · ");
+            const how = tx?.source === "card" ? `카드 결제${tx.sourceLabel ? `(${tx.sourceLabel})` : ""}` : `통장 출금${tx?.sourceLabel ? `(${tx.sourceLabel})` : ""}`;
             const sub = state === "paid" && tx
-              ? `${md(tx.transaction_date)} 출금${tx.counterparty ? ` · ${tx.counterparty}` : ""}${cat ? ` · ${cat}` : ""}`
+              ? `${md(tx.transaction_date)} ${how}${tx.counterparty ? ` · ${tx.counterparty}` : ""}${cat ? ` · ${cat}` : ""}`
               : state === "missing" && dueDate
               ? `${md(dueDate)} 예정이었는데 아직 안 나감${tail ? ` · ${tail}` : ""}`
               : dueDate ? `${md(dueDate)} 예정${tail ? ` · ${tail}` : ""}` : tail;
@@ -137,15 +155,15 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-semibold text-[var(--text)] truncate">{t.counterparty || "(거래처 미상)"}</span>
-                  <span className="text-[9px] px-1 py-0.5 rounded bg-sky-500/10 text-sky-600 shrink-0" title="거래내역에서 자동이체로 표시한 줄">직접 표시</span>
+                  <span className="text-[9px] px-1 py-0.5 rounded bg-sky-500/10 text-sky-600 shrink-0" title="거래내역에서 직접 표시한 줄">직접 표시</span>
                 </div>
-                <div className="text-[10px] text-[var(--text-dim)] truncate">정기 지출에는 없는 출금</div>
+                <div className="text-[10px] text-[var(--text-dim)] truncate">{t.source === "card" ? `카드 결제${t.sourceLabel ? `(${t.sourceLabel})` : ""}` : "통장 출금"} · 정기 지출에는 없음</div>
               </div>
               <div className="text-sm font-bold mono-number text-[var(--danger)] shrink-0">₩{fmtKRW(Math.abs(Number(t.amount || 0)))}</div>
             </div>
           ))}
           <div className="text-[10px] text-[var(--text-dim)] pt-1">
-            이름·금액이 달라 안 잡히는 출금은 {txLink}에서 골라 &quot;자동이체 표시&quot;를 누르면 여기에 같이 모여요.
+            이름·금액이 달라 안 잡히는 {variant === "card" ? "결제" : "출금"}는 {txLink}에서 골라 &quot;{variant === "card" ? "정기결제 표시" : "자동이체 표시"}&quot;를 누르면 여기에 같이 모여요.
           </div>
         </div>
       )}
