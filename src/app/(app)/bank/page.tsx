@@ -32,6 +32,8 @@ import { useModalKeys } from "@/hooks/use-modal-keys";
 import { AccountPicker } from "@/components/account-picker";
 import { BankLineDialog, bankLineState, BANK_LINE_META, type BankLineTx } from "@/components/bank-line-dialog";
 import { AutoTransferHistoryCard } from "@/components/auto-transfer-history";
+import { getRecurringPayments } from "@/lib/approval-center";
+import { buildRecurringPatterns, matchRecurring } from "@/lib/recurring-match";
 import { TopExpensesThisMonth } from "@/components/top-expenses-month";
 import { BankStatusPanels } from "@/components/finance-status-panels";
 import { SortableTh, useColWidths, type ThFilterSpec } from "@/components/sortable-th";
@@ -362,7 +364,7 @@ export default function BankPage() {
     queryFn: async () => {
       const data = await fetchPaged<any>("bank/page:tx", () => {
         let q = db.from("bank_transactions")
-          .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status, balance_after, raw_data, journal_entry_id, ledger_excluded_reason, is_fixed_cost, memo, tags, used_by_employee_id, partner_id, settlement_status, settled_amount, tax_invoice_id")
+          .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status, balance_after, raw_data, journal_entry_id, ledger_excluded_reason, is_fixed_cost, is_auto_transfer, memo, tags, used_by_employee_id, partner_id, settlement_status, settled_amount, tax_invoice_id")
           .eq("company_id", companyId ?? "")
           .order("transaction_date", { ascending: false })
           .order("id");
@@ -445,6 +447,31 @@ export default function BankPage() {
   const [bulkPosting, setBulkPosting] = useState(false);
   //   장부 제외 (2026-08-19) — 선택한 미전표 거래를 사유와 함께 전표 없이 끝낸다 / 제외 해제
   const { askExclude, excludePromptElement } = useLedgerExcludePrompt();
+  //   자동이체 — 정기 지출(재무 › 정기 지출)과 짝이 맞는 출금은 자동으로, 안 잡히는 줄은 사람이 표시한다.
+  //   개요의 '자동이체 연결 내역' 이 같은 규칙(lib/recurring-match)으로 모은다 (2026-09-07).
+  const { data: recurringList = [] } = useQuery({
+    queryKey: ["recurring-payments", companyId],
+    queryFn: () => getRecurringPayments(companyId ?? ""),
+    enabled: !!companyId && tab === "transactions", staleTime: 60_000,
+  });
+  const recurringPatterns = useMemo(() => buildRecurringPatterns(recurringList as any[]), [recurringList]);
+  const autoOf = (tx: any): { manual: boolean; name: string | null } | null => {
+    if (tx?.is_auto_transfer === true) return { manual: true, name: null };
+    const rp = matchRecurring(tx, recurringPatterns);
+    return rp ? { manual: false, name: String(rp.name || "") } : null;
+  };
+  const setAutoTransfer = async (value: boolean) => {
+    const ids = Array.from(selectedTxIds);
+    if (ids.length === 0) { toast("거래를 먼저 고르세요", "info"); return; }
+    try {
+      const { error } = await db.from("bank_transactions").update({ is_auto_transfer: value }).in("id", ids).eq("company_id", companyId ?? "");
+      if (error) throw error;
+      toast(value ? `${ids.length}건을 자동이체로 표시했습니다 — 개요의 '자동이체 연결 내역'에 모입니다` : `${ids.length}건의 자동이체 표시를 해제했습니다`, "success");
+      setSelectedTxIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] });
+      queryClient.invalidateQueries({ queryKey: ["auto-transfer-history"] });
+    } catch (e) { toast(friendlyError(e, "자동이체 표시 실패"), "error"); }
+  };
   const excludeSelected = async () => {
     const ids = Array.from(selectedTxIds).filter((id) => { const t = (recentTx as any[]).find((x) => x.id === id); return t && !t.journal_entry_id && !t.ledger_excluded_reason; });
     if (ids.length === 0) { toast("장부 제외할 미전표 거래를 고르세요", "info"); return; }
@@ -1106,6 +1133,11 @@ export default function BankPage() {
                           </div>
                           <div className="min-w-0">
                             <span className="block font-medium text-[var(--text)] truncate">{tx.counterparty || "—"}</span>
+                            {(() => { const a = autoOf(tx); return a ? (
+                              <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-600"
+                                title={a.manual ? "거래내역에서 자동이체로 표시한 줄" : `정기 지출 '${a.name}' 의 출금으로 잡혔습니다`}>
+                                자동이체{a.name ? ` · ${a.name}` : ""}
+                              </span>) : null; })()}
                             {(tx.memo || (tx.tags && tx.tags.length) || tx.used_by_employee_id) && (
                               <div className="flex items-center gap-1 flex-wrap mt-0.5">
                                 {tx.used_by_employee_id && bankEmpById[tx.used_by_employee_id] && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-medium"><Ico e="👤" /> {bankEmpById[tx.used_by_employee_id]}</span>}
@@ -1145,6 +1177,10 @@ export default function BankPage() {
         {/* ── 3줄 · 고른 줄로 하는 일 — 파란(확정) 버튼은 여기 하나 ── */}
         <SelectionBar count={selectedTxIds.size} onClear={() => setSelectedTxIds(new Set())}
           summary={<>합계 <b className="mono-number">{fmtW(selSumTx)}</b> · 이미 처리된 건은 건너뜁니다</>}>
+          <button type="button" onClick={() => setAutoTransfer(true)} className="btn-secondary btn-sm" title="정기 지출로 안 잡힌 자동이체를 직접 표시 — 개요의 '자동이체 연결 내역'에 모입니다">자동이체 표시</button>
+          {Array.from(selectedTxIds).some((id) => (recentTx as any[]).find((x) => x.id === id)?.is_auto_transfer === true) && (
+            <button type="button" onClick={() => setAutoTransfer(false)} className="btn-secondary btn-sm">표시 해제</button>
+          )}
           <button type="button" onClick={excludeSelected} className="btn-secondary btn-sm" title="전표 없이 끝낸 것으로 — 중복·이체·개인 지출">장부 제외</button>
           <button type="button" onClick={() => { setBulkAccountId(""); setBulkFixed(false); setShowBulkPost(true); }}
             className="btn-primary btn-sm">전표처리({selectedTxIds.size})</button>

@@ -62,7 +62,7 @@ type Row = {
   taxLinked: boolean;      // 세금계산서와 매칭됐다 (AI 매칭 — bank_transactions.tax_invoice_id)
   settled: boolean;        // 매칭이 확정됐다
   settledAmount: number;
-  transfer: boolean;       // 계좌 이동으로 표시됨
+  transfer: boolean;       // 자동이체(정기 지출) 표시 — 처리 여부와 무관
   excluded: string | null; // 장부 제외 사유 (2026-08-19) — 전표 없이 끝낸 줄
   voucherNo: number | null;
   entryId: string | null;          // 되돌릴 때 지울 전표
@@ -424,7 +424,9 @@ export function BankTab({
   const memoOf = (r: Row) => memo[r.id] ?? "";
   const memoPlaceholder = (r: Row) => r.desc || r.who || "적요";
 
-  const doneOf = (r: Row) => r.posted || r.settled || r.transfer || !!r.excluded;
+  //   자동이체 표시(is_auto_transfer)는 '정기 지출로 나간 돈' 이라는 표시일 뿐 처리 완료가 아니다 — 월세·보험도 전표는 필요하다.
+  //   예전 '계좌 이동' 처리가 이 칸을 쓰다 없어진 뒤(2026-08-11) 표시만 남아 있었다 (2026-09-07).
+  const doneOf = (r: Row) => r.posted || r.settled || !!r.excluded;
 
   const bankLabelOf = (r: Row) => bankAccounts.find((b) => b.id === r.bankId)?.label ?? "";
   const shownUnsorted = rows.filter((r) => {
@@ -565,9 +567,6 @@ export function BankTab({
         //   전표는 **지우지 않고 반려**한다 — 재무제표에서 빠지고 이력은 남는다.
         //   수집·전표의 다른 탭('취소')과 같은 길을 쓴다 (2026-08-12).
         const { error } = await (supabase.rpc as any)("unpost_evidence_voucher", { p_entry_id: r.entryId });
-        if (error) throw error;
-      } else if (r.transfer) {
-        const { error } = await supabase.from("bank_transactions").update({ is_auto_transfer: false }).eq("id", r.id);
         if (error) throw error;
       } else if (r.cardsLinked > 0) {
         const { error: e1 } = await supabase.from("card_transactions").update({ bank_transaction_id: null }).eq("bank_transaction_id", r.id);
@@ -1102,7 +1101,7 @@ export function BankTab({
                       {done ? (
                         <span className="bk-done">
                           <span className="ev-st ev-st-done">
-                            {r.excluded ? `장부 제외 · ${excludeLabelOf(r.excluded).split(" · ")[0]}` : r.transfer ? "이동 표시" : r.voucherNo != null ? `#${r.voucherNo} 확정` : "확정"}
+                            {r.excluded ? `장부 제외 · ${excludeLabelOf(r.excluded).split(" · ")[0]}` : r.voucherNo != null ? `#${r.voucherNo} 확정` : "확정"}
                           </span>
                           {/*   잘못 처리한 걸 되돌릴 수 있어야 한다 — 거래 매칭의 '확정 취소'를 옮겨 왔다 */}
                           <button type="button" onClick={() => undo(r)} disabled={busy} className="rules-del">되돌리기</button>

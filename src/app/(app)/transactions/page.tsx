@@ -1,5 +1,6 @@
 "use client";
 import { koFallback } from "@/lib/ko-label";
+import { buildRecurringPatterns, isAutoTransferTx as isAutoTransferShared } from "@/lib/recurring-match";
 import { todayKst } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
@@ -797,37 +798,9 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
     });
   }
 
-  // 자동이체 매칭 휴리스틱: 활성 반복결제와 거래처/수취인명이 겹치고 금액이 ±5% 이내면 "자동(자동이체)" 로 본다.
-  // 2026-05-22 is_auto_transfer(수동 체크) 가 켜져 있으면 항상 "자동이체" 로 표시 (고정비와 무관).
-  const activeRecurring = (() => {
-    const list: { keys: string[]; amount: number }[] = [];
-    for (const r of (recurringPayments as any[])) {
-      if (r.is_active === false) continue;
-      const keys = [r.name, r.recipient_name, r.payee_name]
-        .filter(Boolean)
-        .map((s: string) => String(s).trim().toLowerCase())
-        .filter((s: string) => s.length >= 2);
-      if (keys.length === 0) continue;
-      list.push({ keys, amount: Number(r.amount || 0) });
-    }
-    return list;
-  })();
-  const isAutoTransferTx = (tx: any): boolean => {
-    if (tx?.is_auto_transfer === true) return true;
-    if (tx?.type !== 'expense') return false;
-    const cp = String(tx?.counterparty || '').trim().toLowerCase();
-    const desc = String(tx?.description || '').trim().toLowerCase();
-    if (!cp && !desc) return false;
-    const amt = Math.abs(Number(tx?.amount || 0));
-    for (const rp of activeRecurring) {
-      const nameHit = rp.keys.some((k) => (cp && (cp.includes(k) || k.includes(cp))) || (desc && desc.includes(k)));
-      if (!nameHit) continue;
-      if (rp.amount <= 0) return true; // 금액 미등록 반복결제는 이름만으로 자동 판정
-      const tol = Math.max(1000, rp.amount * 0.05);
-      if (Math.abs(amt - rp.amount) <= tol) return true;
-    }
-    return false;
-  };
+  // 자동이체 판정은 lib/recurring-match 하나 — 통장 개요·거래내역과 같은 규칙 (2026-09-07)
+  const recurringPatterns = buildRecurringPatterns(recurringPayments as any[]);
+  const isAutoTransferTx = (tx: any): boolean => isAutoTransferShared(tx, recurringPatterns);
 
   const filteredBankTx = (() => {
     let xs = bankTx as any[];
