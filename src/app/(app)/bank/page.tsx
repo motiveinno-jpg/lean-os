@@ -868,7 +868,7 @@ export default function BankPage() {
             </section>
           )}
           <UpcomingAutoTransfersCard companyId={companyId} />
-          <AutoTransferHistoryCard companyId={companyId} />
+          <AutoTransferHistoryCard companyId={companyId} onOpenTransactions={() => goTab("transactions")} />
           <TopExpensesThisMonth companyId={companyId} />
         </div>
       </>)}

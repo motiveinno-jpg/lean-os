@@ -12,6 +12,9 @@ import { buildRecurringPatterns, matchRecurring, RECURRING_CATEGORY_LABEL } from
 interface Props {
   companyId: string;
   maxItems?: number;
+  /** 통장 화면 안에서 쓸 때 — 같은 화면의 거래내역 탭으로 바로 바꾼다.
+   *  (링크로 /bank?tab=transactions 를 열면 이미 통장 화면이라 탭이 안 바뀐다 — 2026-09-07 사장님: "눌러도 아무 반응 없음") */
+  onOpenTransactions?: () => void;
 }
 
 function fmtKRW(n: number): string {
@@ -30,7 +33,7 @@ function endOfMonth(d: Date): string {
 // 자동이체 연결 내역 — 이번 달 통장 출금 가운데 정기 지출(재무 › 정기 지출)로 등록된 것과 맞는 줄.
 //   예전엔 사람이 손으로 켠 표시(is_auto_transfer)만 봐서 늘 비어 있었고, 안내 링크는 이 화면 자신(/bank)을
 //   가리켰다. 이제 정기 지출과 자동으로 짝을 맞추고(lib/recurring-match), 손으로 켠 표시도 같이 모은다 (2026-09-07).
-export function AutoTransferHistoryCard({ companyId, maxItems = 8 }: Props) {
+export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransactions }: Props) {
   const now = new Date();
   const monthLabel = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const dateFrom = startOfMonth(now);
@@ -99,7 +102,9 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8 }: Props) {
             {activeRecurringCount === 0 ? (
               <><Link href="/payments" className="text-[var(--primary)] hover:underline font-medium">정기 지출</Link>에 월세·보험·구독을 등록해 두면, 이름·금액이 맞는 출금이 여기에 모여요.</>
             ) : (
-              <>정기 지출의 이름·금액과 맞는 출금이 들어오면 자동으로 모여요. 안 잡히는 줄은 <Link href="/bank?tab=transactions" className="text-[var(--primary)] hover:underline font-medium">거래내역</Link>에서 골라 &quot;자동이체 표시&quot;를 누르면 돼요.</>
+              <>정기 지출의 이름·금액과 맞는 출금이 들어오면 자동으로 모여요. 안 잡히는 줄은 {onOpenTransactions
+                ? <button type="button" onClick={onOpenTransactions} className="text-[var(--primary)] hover:underline font-medium">거래내역</button>
+                : <Link href="/bank?tab=transactions" className="text-[var(--primary)] hover:underline font-medium">거래내역</Link>}에서 골라 &quot;자동이체 표시&quot;를 누르면 돼요.</>
             )}
           </div>
         </div>
