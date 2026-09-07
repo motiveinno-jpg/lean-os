@@ -6,6 +6,7 @@
 //   표 = 부서 줄(합계·평균) → 직원 줄 → (여러 달이면) 월별 줄. 계산은 getMonthlyAttendanceSummary 를 달마다 불러 합친다(근태관리 표와 같은 규칙).
 
 import { Fragment, useMemo, useState } from "react";
+import { companyWorkCfgFromRow, isWorkdayDow } from "@/lib/attendance-schedule";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
@@ -66,11 +67,11 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
   //   근무 요일은 회사 설정(workdays_mask)을 따른다 — 토·일 고정이면 토요일 근무 회사의 출근율 분모와 결근이 틀린다
   const { data: workMask = 31 } = useQuery<number>({
     queryKey: ["att-status-workmask", companyId],
-    queryFn: async () => { const { data } = await supabase.from("company_settings").select("workdays_mask").eq("company_id", companyId).maybeSingle(); const m = Number((data as any)?.workdays_mask); return Number.isFinite(m) && m > 0 ? m : 31; },
+    queryFn: async () => { const { data } = await supabase.from("company_settings").select("workdays_mask").eq("company_id", companyId).maybeSingle(); return companyWorkCfgFromRow(data as any).mask; },
     enabled: !!companyId, staleTime: 300_000,
   });
-  //   요일(0=일…6=토) → 근무일 여부. 마스크 비트는 월=1·화=2·…·토=32·일=64
-  const isWorkDow = (dow: number) => (workMask & [64, 1, 2, 4, 8, 16, 32][dow]) !== 0;
+  //   요일(0=일…6=토) → 근무일 여부 — 공용 규칙(attendance-schedule.ts)
+  const isWorkDow = (dow: number) => isWorkdayDow(workMask, dow);
   const { data: holidays = [] } = useQuery({
     queryKey: ["att-status-holidays", companyId, rangeFrom, rangeTo],
     queryFn: async () => (logRead("att-status:holidays", await supabase.from("holidays").select("date").eq("company_id", companyId).gte("date", rangeFrom).lte("date", rangeTo)) || []) as any[],

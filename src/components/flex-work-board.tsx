@@ -9,6 +9,7 @@ import { logRead } from "@/lib/log-read";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { companyWorkCfgFromRow, employeeStartMin, employeeEndMin, isWorkdayMonIdx, type CompanyWorkCfg } from "@/lib/attendance-schedule";
 import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat } from "@/components/query-kit";
 import { supabase } from "@/lib/supabase";
 import { fetchPaged } from "@/lib/fetch-paged";
@@ -144,20 +145,13 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
   }, [weekHolidays]);
 
   //   회사 근무시간 — 셀 게이지의 '하루 근무량' 기준 (2026-08-25 사장님: 근무 진행률로 채움).
-  const { data: workCfg } = useQuery<{ start: number; end: number; lunch: number; grace: number; mask: number }>({
+  const { data: workCfg } = useQuery<CompanyWorkCfg>({
     queryKey: ["flex-work-cfg", companyId],
     queryFn: async () => {
       const { data } = await db.from("company_settings")
         .select("work_start_time, work_end_time, lunch_minutes, late_grace_minutes, workdays_mask").eq("company_id", companyId).maybeSingle();
-      const hhmm = (v: unknown, def: number) => {
-        const m = /^(\d{1,2}):(\d{2})/.exec(String(v || ""));
-        return m ? +m[1] * 60 + +m[2] : def;
-      };
-      //   유예 미설정은 30분 — attendance-checkin 엣지·hr.ts 와 같은 기본값(여기만 0 이면 화면과 판정이 어긋난다)
-      const graceRaw = Number(data?.late_grace_minutes);
-      const maskRaw = Number(data?.workdays_mask);
-      return { start: hhmm(data?.work_start_time, 9 * 60), end: hhmm(data?.work_end_time, 18 * 60), lunch: Number(data?.lunch_minutes ?? 60),
-        grace: Number.isFinite(graceRaw) ? Math.max(0, graceRaw) : 30, mask: Number.isFinite(maskRaw) && maskRaw > 0 ? maskRaw : 31 };
+      //   기본값·요일·개인 시각 규칙은 attendance-schedule.ts 하나 — DB 판정(attendance_judge)과 같은 값이다
+      return companyWorkCfgFromRow(data as any);
     },
     enabled: !!companyId,
     staleTime: 300_000,
@@ -166,14 +160,10 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
   const expectedDayMin = Math.max(60, (workCfg?.end ?? 18 * 60) - (workCfg?.start ?? 9 * 60) - (workCfg?.lunch ?? 60));
 
   //   현재 시각(KST 분) — 진행 중인 오늘 셀 게이지가 실시간으로 차오르게 1분마다 갱신.
-  //   근무 요일은 회사 설정(workdays_mask, 월=1…일=64)을 따른다 — 토·일 고정이면 토요일 근무 회사는 결근이 안 잡히고,
-  //   금요일이 쉬는 회사는 금요일이 결근으로 뜬다. 열 번호 i 는 월=0.
-  const isWorkdayIdx = (i: number) => ((workCfg?.mask ?? 31) & (1 << i)) !== 0;
-  //   직원 개인 출퇴근 시각(employees.work_start_time/work_end_time)이 있으면 그것이 그 사람의 기준 —
-  //   attendance-checkin 엣지의 지각 판정과 같은 규칙. 없으면 회사 기본값.
-  const hhmmOf = (v: unknown, def: number) => { const m = /^(\d{1,2}):(\d{2})/.exec(String(v || "")); return m ? +m[1] * 60 + +m[2] : def; };
-  const empStart = (e: Emp) => hhmmOf(e.work_start_time, workCfg?.start ?? 9 * 60);
-  const empEnd = (e: Emp) => hhmmOf(e.work_end_time, workCfg?.end ?? 18 * 60);
+  //   근무 요일·직원 개인 시각은 공용 규칙(attendance-schedule.ts). 열 번호 i 는 월=0.
+  const isWorkdayIdx = (i: number) => isWorkdayMonIdx(workCfg?.mask ?? 31, i);
+  const empStart = (e: Emp) => employeeStartMin(workCfg ?? companyWorkCfgFromRow(null), e);
+  const empEnd = (e: Emp) => employeeEndMin(workCfg ?? companyWorkCfgFromRow(null), e);
   const [nowMin, setNowMin] = useState(() => { const k = new Date(Date.now() + 9 * 3600 * 1000); return k.getUTCHours() * 60 + k.getUTCMinutes(); });
   useEffect(() => {
     const t = setInterval(() => { const k = new Date(Date.now() + 9 * 3600 * 1000); setNowMin(k.getUTCHours() * 60 + k.getUTCMinutes()); }, 60_000);

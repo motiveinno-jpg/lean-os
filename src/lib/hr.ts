@@ -760,37 +760,9 @@ export async function reviewAttendanceEditRequest(params: {
     if (changes.attendance_type) updatePayload.attendance_type = changes.attendance_type;
     if (changes.note !== undefined) updatePayload.note = changes.note;
 
-    // 출근시각/상태 변경 → 지각(is_late·late_minutes·status) 재계산.
-    //   버그픽스: 출근시각을 정상으로 바꿔도 is_late 가 그대로라 계속 '지각'으로 표시되던 문제.
-    let nextStatus: string | null = (typeof changes.status === 'string' && changes.status) ? changes.status : null;
-    let nextIsLate: boolean | null = null;
-    let nextLateMin = 0;
-    if (changes.check_in) {
-      updatePayload.check_in = changes.check_in;
-      const ciDate = new Date(String(changes.check_in));
-      if (!isNaN(ciDate.getTime())) {
-        const companyId = (req as any).company_id as string;
-        // 버그픽스 2026-07-20: 직원 개인 출퇴근시간 override 반영 — 대상 레코드의 employee_id 로 조회.
-        const rec = logRead('lib/hr:rec', await db
-          .from('attendance_records')
-          .select('employee_id, date')
-          .eq('id', req.attendance_record_id)
-          .maybeSingle());
-        const policy = await getAttendancePolicy(companyId, rec?.employee_id || undefined);
-        const kst = new Date(ciDate.getTime() + 9 * 3600 * 1000); // UTC → KST
-        const kstMin = kst.getUTCHours() * 60 + kst.getUTCMinutes();
-        // 승인된 휴가 반영 (2026-08-11) — 오전 반차 후 출근을 지각으로 되돌리지 않게
-        const lateRes = await lateWithLeave(rec?.employee_id, rec?.date || '', kstMin, policy);
-        nextIsLate = lateRes.isLate;
-        nextLateMin = lateRes.lateMinutes;
-        if (!nextStatus) nextStatus = nextIsLate ? 'late' : 'present';
-      }
-    }
-    // 명시 상태가 '지각'이 아니면 지각 해제(재택·결근·반차·정상 등)
-    if (nextStatus && nextStatus !== 'late') nextIsLate = false;
-    if (nextStatus === 'late') nextIsLate = true;
-    if (nextStatus) updatePayload.status = nextStatus;
-    if (nextIsLate !== null) { updatePayload.is_late = nextIsLate; updatePayload.late_minutes = nextIsLate ? nextLateMin : 0; }
+    //   지각·상태 판정은 DB 트리거(attendance_records_judge)가 한다 — 출근시각과 명시 상태만 넘긴다 (2026-09-07).
+    if (changes.check_in) updatePayload.check_in = changes.check_in;
+    if (typeof changes.status === 'string' && changes.status) updatePayload.status = changes.status;
 
     const { error: uErr } = await db
       .from('attendance_records')
@@ -860,34 +832,6 @@ export function isLate(currentKstMin: number, policy: AttendancePolicy): boolean
  *  관리자 수기 경로(수정요청 승인·직접 수정·직접 생성) 공용 —
  *  종일 휴가면 지각 없음, 오전 반차·시간차면 휴가 종료시각부터 지각 계산.
  *  휴가 조회 실패 시 기존(휴가 미반영) 판정으로 폴백. */
-async function lateWithLeave(
-  employeeId: string | null | undefined,
-  date: string,
-  kstMin: number,
-  policy: AttendancePolicy,
-): Promise<{ isLate: boolean; lateMinutes: number }> {
-  let exempt = { full: false, exempt_until: null as string | null };
-  if (employeeId && date) {
-    try {
-      const rows = logRead('lib/hr:leave-exempt', await db
-        .from('leave_requests')
-        .select('leave_unit, start_time, end_time, days')
-        .eq('employee_id', employeeId)
-        .eq('status', 'approved')
-        .lte('start_date', date)
-        .gte('end_date', date));
-      exempt = classifyLeaveForLate((rows || []) as any[]);
-    } catch { /* 조회 실패 → 휴가 미반영 판정 유지 */ }
-  }
-  if (exempt.full) return { isLate: false, lateMinutes: 0 };
-  const base = Math.max(
-    parseHhmmToMinutes(policy.workStartTime),
-    exempt.exempt_until ? parseHhmmToMinutes(exempt.exempt_until) : 0,
-  );
-  const late = kstMin > base + policy.lateThresholdMinutes;
-  return { isLate: late, lateMinutes: late ? Math.max(0, kstMin - base) : 0 };
-}
-
 // ── Attendance: Check In ──
 // 시그니처 불변: (companyId, employeeId, status?) — attendanceType 은 뒤에 옵션으로만 추가.
 // status === "auto" (기본) → 서버(엣지)가 실제 출근시각·회사 유예로 지각을 판정
@@ -1026,30 +970,8 @@ export async function correctAttendanceRecord(recordId: string, updates: {
   if (workHours !== undefined) updatePayload.work_hours = workHours;
   if (overtimeHours !== undefined) updatePayload.overtime_hours = overtimeHours;
 
-  // 출근시각/상태 변경 → 지각(is_late·late_minutes·status) 재계산. (정상으로 바꾸면 '지각' 해제)
-  let nextStatus: string | null = updates.status || null;
-  let nextIsLate: boolean | null = null;
-  let nextLateMin = 0;
-  if (updates.check_in) {
-    const ciDate = new Date(updates.check_in);
-    if (!isNaN(ciDate.getTime())) {
-      const rec = logRead('lib/hr:rec', await db.from('attendance_records').select('company_id, employee_id, date').eq('id', recordId).maybeSingle());
-      if (rec?.company_id) {
-        const policy = await getAttendancePolicy(rec.company_id, rec.employee_id || undefined);
-        const kst = new Date(ciDate.getTime() + 9 * 3600 * 1000);
-        const kstMin = kst.getUTCHours() * 60 + kst.getUTCMinutes();
-        // 승인된 휴가 반영 (2026-08-11)
-        const lateRes = await lateWithLeave(rec.employee_id, rec.date || '', kstMin, policy);
-        nextIsLate = lateRes.isLate;
-        nextLateMin = lateRes.lateMinutes;
-        if (!nextStatus) nextStatus = nextIsLate ? 'late' : 'present';
-      }
-    }
-  }
-  if (nextStatus && nextStatus !== 'late') nextIsLate = false;
-  if (nextStatus === 'late') nextIsLate = true;
-  if (nextStatus) updatePayload.status = nextStatus;
-  if (nextIsLate !== null) { updatePayload.is_late = nextIsLate; updatePayload.late_minutes = nextIsLate ? nextLateMin : 0; }
+  //   지각·상태 판정은 DB 트리거(attendance_records_judge)가 한다 — 명시 상태만 넘긴다 (2026-09-07).
+  if (updates.status) updatePayload.status = updates.status;
 
   const { data, error } = await db
     .from('attendance_records')
@@ -1093,6 +1015,8 @@ export async function upsertAttendanceRecordAsAdmin(params: {
   const settings = await getAttendanceCompanySettings(companyId);
   const policy = await getAttendancePolicy(companyId, employeeId);
 
+  //   is_late·late_minutes·is_holiday 와 present/late 는 DB 트리거(attendance_records_judge)가 정한다 (2026-09-07).
+  //   관리자가 고른 상태(absent·remote·half_day)만 넘기고, 없으면 'present' 로 두어 트리거가 시각으로 판정하게 한다.
   const row: Record<string, any> = {
     company_id: companyId,
     employee_id: employeeId,
@@ -1107,27 +1031,7 @@ export async function upsertAttendanceRecordAsAdmin(params: {
     edited_at: new Date().toISOString(),
     work_hours: 0,
     overtime_hours: 0,
-    is_late: false,
-    late_minutes: 0,
   };
-
-  if (params.checkIn) {
-    const ci = new Date(params.checkIn);
-    if (!isNaN(ci.getTime())) {
-      const kst = new Date(ci.getTime() + 9 * 3600 * 1000);
-      const kstMin = kst.getUTCHours() * 60 + kst.getUTCMinutes();
-      // 승인된 휴가 반영 (2026-08-11) — 오전 반차·종일 휴가일은 지각으로 만들지 않는다
-      const lateRes = await lateWithLeave(employeeId, date, kstMin, policy);
-      const late = lateRes.isLate;
-      // 관리자가 상태를 명시했으면 그 값을 존중하고, 없을 때만 지각 여부로 자동 판정.
-      if (!params.status) row.status = late ? 'late' : 'present';
-      // is_late 는 status 가 아니라 실제 출근시각으로 정한다 (2026-08-07).
-      //   status='remote' 처럼 관리자가 근무 형태를 지정한 날도 지각은 지각이고,
-      //   반대로 status 만 'late' 로 찍혀 있다고 지각이 되지는 않는다.
-      row.is_late = late && row.status !== 'absent';
-      row.late_minutes = row.is_late ? lateRes.lateMinutes : 0;
-    }
-  }
 
   if (params.checkIn && params.checkOut) {
     const legacy = calcLegacyWorkHours({
