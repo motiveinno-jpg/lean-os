@@ -1,5 +1,7 @@
 import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
+import { escapeHtml, isAppUrl, resolveCaller, recipientInCompany, deny } from "../_shared/mail-guard.ts";
+const esc = escapeHtml;
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 
 const corsHeaders = {
@@ -35,6 +37,10 @@ serve(withSentry("send-feedback-notification", async (req) => {
       });
     }
     const { to, documentName, feedbackFrom, decision, comment, companyName, viewUrl } = await req.json();
+    const caller = await resolveCaller(req);
+    if (!caller) return deny("회사에 소속된 계정만 보낼 수 있습니다.", 403, corsHeaders);
+    if (viewUrl && !isAppUrl(viewUrl)) return deny("링크는 오너뷰 주소만 허용됩니다.", 400, corsHeaders);
+    if (!(await recipientInCompany(caller.companyId, to, ["user", "employee"]))) return deny("이 회사 구성원의 주소가 아닙니다.", 403, corsHeaders);
 
     if (!to || !documentName || !decision) {
       return new Response(
@@ -52,7 +58,7 @@ serve(withSentry("send-feedback-notification", async (req) => {
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:'Apple SD Gothic Neo',sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333">
       <div style="background:#1a1a2e;color:#fff;padding:24px;border-radius:12px 12px 0 0;text-align:center">
-        <h1 style="margin:0;font-size:20px">${companyName || "오너뷰"}</h1>
+        <h1 style="margin:0;font-size:20px">${esc(companyName || "오너뷰")}</h1>
         <p style="margin:8px 0 0;opacity:0.8;font-size:14px">문서 피드백 알림</p>
       </div>
       <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:24px">
@@ -61,9 +67,9 @@ serve(withSentry("send-feedback-notification", async (req) => {
           <h2 style="margin:8px 0 0;font-size:18px;color:${d.color}">${d.text}</h2>
         </div>
         <div style="background:#f3f4f6;border-radius:8px;padding:16px;margin:16px 0">
-          <p style="margin:0 0 8px;font-size:14px;font-weight:bold">📄 ${documentName}</p>
-          <p style="margin:0;font-size:13px;color:#6b7280">응답자: ${feedbackFrom || "외부 수신자"}</p>
-          ${comment ? `<p style="margin:8px 0 0;font-size:13px;color:#374151;border-top:1px solid #e5e7eb;padding-top:8px">"${comment}"</p>` : ""}
+          <p style="margin:0 0 8px;font-size:14px;font-weight:bold">📄 ${esc(documentName)}</p>
+          <p style="margin:0;font-size:13px;color:#6b7280">응답자: ${esc(feedbackFrom || "외부 수신자")}</p>
+          ${comment ? `<p style="margin:8px 0 0;font-size:13px;color:#374151;border-top:1px solid #e5e7eb;padding-top:8px">"${esc(comment)}"</p>` : ""}
         </div>
         ${viewUrl ? `<div style="text-align:center;margin:24px 0"><a href="${viewUrl}" style="display:inline-block;background:#3B82F6;color:#fff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:bold;font-size:14px">딜 상세 보기</a></div>` : ""}
         <p style="font-size:12px;color:#9ca3af;text-align:center;margin:16px 0 0">본 이메일은 자동 발송되었습니다.</p>

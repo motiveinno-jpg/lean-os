@@ -2281,6 +2281,11 @@ serve(withSentry("codef-sync", async (req) => {
       } catch { /* 검사 장애로 수집을 멈추지 않는다 */ }
     }
 
+    // 전 회사를 훑는 tick 은 내부(cron/service_role) 인증에서만 — 일반 사용자 JWT 로 부르면
+    //   최대 500개 회사의 CODEF 수집(회사마다 유료 호출)을 강제로 돌릴 수 있었다 (2026-09-07 보안 정비).
+    if (!isInternalAuth && (action === "hometax-cron-tick" || action === "bank-cron-tick" || action === "card-cron-tick")) {
+      return new Response(JSON.stringify({ error: "권한이 없습니다." }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
     // cron-tick 은 companyId 없이 글로벌 처리. 그 외 action 은 companyId 필수.
     //   (bank-cron-tick 도 글로벌 — companyId 없이 회사 enumerate 후 fan-out)
     if (!companyId && action !== "hometax-cron-tick" && action !== "bank-cron-tick" && action !== "card-cron-tick") {
@@ -2414,7 +2419,8 @@ serve(withSentry("codef-sync", async (req) => {
     if (!isInternalAuth) {
       const { data: callerRow } = await supabase.from("users").select("company_id").eq("auth_id", user.id).maybeSingle();
       // 운영자(@mo-tive.com)의 카드번호 형식 확인(card-list-probe)만 타사 companyId 허용 — 읽기 전용 (2026-09-03)
-      const operatorProbe = action === "card-list-probe" && !!user?.email && /@mo-tive\.com$/i.test(String(user.email));
+      //   운영자 = 허용 목록의 계정 하나(도메인 전체가 아니다 — operator-user-admin 과 같은 기준)
+      const operatorProbe = action === "card-list-probe" && !!user?.email && ["creative@mo-tive.com"].includes(String(user.email).trim().toLowerCase());
       if (!operatorProbe && (!callerRow || callerRow.company_id !== companyId)) {
         return new Response(JSON.stringify({ error: "권한이 없습니다." }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }

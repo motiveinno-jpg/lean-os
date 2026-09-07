@@ -1,5 +1,6 @@
 import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
+import { isAppUrl } from "../_shared/mail-guard.ts";
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -227,6 +228,7 @@ serve(withSentry("send-signature-email", async (req) => {
   try {
     const body = (await req.json()) as InvokeBody;
     const { type, to, signerName, title, signUrl, expiresAt, companyName, amount, items, representative, stage, paymentStages, replyTo } = body;
+    if (!isAppUrl(signUrl)) return new Response(JSON.stringify({ error: "서명 링크는 오너뷰 주소만 허용됩니다." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     if (!to || !title || !signUrl) {
       return new Response(

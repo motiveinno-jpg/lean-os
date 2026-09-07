@@ -1,5 +1,7 @@
 import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
+import { escapeHtml, isAppUrl, resolveCaller, recipientInCompany, deny } from "../_shared/mail-guard.ts";
+const esc = escapeHtml;
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -32,6 +34,9 @@ Deno.serve(withSentry("send-leave-promotion-email", async (req: Request) => {
 
   try {
     const { to, employeeName, companyName, year, noticeType, unusedDays, deadline } = await req.json();
+    const caller = await resolveCaller(req);
+    if (!caller) return deny("회사에 소속된 계정만 보낼 수 있습니다.", 403, { 'Access-Control-Allow-Origin': '*' });
+    if (!(await recipientInCompany(caller.companyId, to, ["employee", "user"]))) return deny("이 회사 구성원의 주소가 아닙니다.", 403, { 'Access-Control-Allow-Origin': '*' });
 
     if (!to || !employeeName) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400 });
@@ -53,7 +58,7 @@ Deno.serve(withSentry("send-leave-promotion-email", async (req: Request) => {
     </div>
     <div style="padding: 32px;">
       <p style="font-size: 16px; color: #333; line-height: 1.6;">
-        <strong>${employeeName}</strong>님께,
+        <strong>${esc(employeeName)}</strong>님께,
       </p>
       <p style="font-size: 15px; color: #555; line-height: 1.8;">
         근로기준법 제61조에 따라 <strong>${year || new Date().getFullYear()}년</strong> 귀하의 미사용 연차유급휴가에 대해 사용을 촉진합니다.
@@ -63,7 +68,7 @@ Deno.serve(withSentry("send-leave-promotion-email", async (req: Request) => {
         <table style="width: 100%; border-collapse: collapse;">
           <tr>
             <td style="padding: 8px 0; color: #666; font-size: 14px;">미사용 연차일수</td>
-            <td style="padding: 8px 0; text-align: right; font-weight: 700; color: #d97706; font-size: 18px;">${unusedDays}일</td>
+            <td style="padding: 8px 0; text-align: right; font-weight: 700; color: #d97706; font-size: 18px;">${esc(unusedDays)}일</td>
           </tr>
           <tr>
             <td style="padding: 8px 0; color: #666; font-size: 14px; border-top: 1px solid #fde68a;">사용계획 제출 기한</td>
@@ -96,7 +101,7 @@ Deno.serve(withSentry("send-leave-promotion-email", async (req: Request) => {
       </p>
       <p style="font-size: 14px; color: #555;">
         감사합니다.<br>
-        <strong>${companyName || ''}</strong>
+        <strong>${esc(companyName || '')}</strong>
       </p>
     </div>
     <div style="background: #f9fafb; padding: 20px 32px; text-align: center; border-top: 1px solid #e5e7eb;">

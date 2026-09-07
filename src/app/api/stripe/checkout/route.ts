@@ -3,6 +3,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
+// 결제 뒤 돌아올 주소는 우리 사이트 안으로만 — 임의 주소를 넣으면 checkout.stripe.com 을 거쳐 피싱 페이지로 보낼 수 있다
+function safeReturnUrl(candidate: unknown, origin: string, fallback: string): string {
+  const allowed = new Set([origin, 'https://www.owner-view.com', process.env.NEXT_PUBLIC_SITE_URL || ''].filter(Boolean));
+  const c = typeof candidate === 'string' ? candidate.trim() : '';
+  if (!c) return fallback;
+  if (c.startsWith('/') && !c.startsWith('//')) return `${origin}${c}`;
+  try { const u = new URL(c); if (allowed.has(u.origin)) return u.toString(); } catch { /* 형식 오류 */ }
+  return fallback;
+}
+
 function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: '2025-02-24.acacia',
@@ -74,6 +84,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 이미 살아 있는 구독이 있으면 새 Checkout 을 막는다 — 두 번 결제하면 Stripe 에 구독 두 개가 생기고 DB 는 하나만 가리켜
+    //   먼저 것을 영영 해지할 수 없었다. 변경은 고객 포털(변경·해지)로.
+    const { data: live } = await supabase
+      .from('subscriptions')
+      .select('id, status')
+      .eq('company_id', companyId)
+      .in('status', ['active', 'trialing', 'past_due', 'paused'])
+      .limit(1)
+      .maybeSingle();
+    if (live) {
+      return NextResponse.json(
+        { error: { code: 'ALREADY_SUBSCRIBED', message: '이미 이용 중인 구독이 있습니다. 요금제 변경·해지는 결제 관리에서 해 주세요.' } },
+        { status: 409 },
+      );
+    }
+
     const plan = SEAT_PRICE_MAP[planSlug];
     if (!plan) {
       return NextResponse.json(
@@ -137,8 +163,8 @@ export async function POST(request: NextRequest) {
     }
 
     const origin = request.headers.get('origin') || 'https://www.owner-view.com';
-    const resolvedSuccessUrl = successUrl || `${origin}/billing?payment=success`;
-    const resolvedCancelUrl = cancelUrl || `${origin}/billing?payment=cancel`;
+    const resolvedSuccessUrl = safeReturnUrl(successUrl, origin, `${origin}/billing?payment=success`);
+    const resolvedCancelUrl = safeReturnUrl(cancelUrl, origin, `${origin}/billing?payment=cancel`);
 
     const stripe = getStripe();
     // 공통 메타데이터 — 웹훅이 구독행·영업코드 사용이력을 기록할 때 그대로 읽는다.

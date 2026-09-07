@@ -618,15 +618,16 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 } else if ((cType === 'contract' && editContent.trim().startsWith('<!DOCTYPE')) || editContent.includes('<img')) {
                   // 2026-05-22 이미지(PDF 페이지 삽입 등) 포함 문서는 브라우저 인쇄 PDF 로 변환 —
                   //   jspdf 경로는 <img> 를 제거하므로 그래프·표 이미지 보존을 위해 인쇄 경로 사용.
-                  const isFullDoc = editContent.trim().startsWith('<!DOCTYPE') || editContent.trim().startsWith('<html');
+                  //   인쇄 창은 같은 출처(about:blank)라 여기 쓰는 HTML 은 앱 세션 권한으로 실행된다 —
+                  //   화면 미리보기와 똑같이 정화하고 제목은 이스케이프한다(종전엔 원문 그대로 써 스크립트가 실행됐다).
                   const printWindow = window.open('', '_blank');
                   if (printWindow) {
-                    const html = isFullDoc
-                      ? editContent
-                      : `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${doc.name}</title>` +
+                    const escText = (s: string) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    const safeBody = sanitizeDocumentHtml(editContent);
+                    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escText(doc.name)}</title>` +
                         `<style>body{font-family:'Noto Sans KR',sans-serif;padding:40px;max-width:820px;margin:0 auto;line-height:1.7;color:#111}` +
                         `img{max-width:100%;height:auto;display:block;margin:12px auto}h1{font-size:22px}@media print{body{padding:0}}</style></head>` +
-                        `<body><h1>${doc.name}</h1>${editContent}</body></html>`;
+                        `<body><h1>${escText(doc.name)}</h1>${safeBody}</body></html>`;
                     printWindow.document.write(html);
                     printWindow.document.close();
                     printWindow.focus();

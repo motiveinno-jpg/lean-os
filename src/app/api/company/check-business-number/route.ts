@@ -11,8 +11,25 @@ const mask = (name: string) => {
   return n.slice(0, 2) + '*'.repeat(Math.min(4, n.length - 2));
 };
 
+// 공개 엔드포인트 — 사업자번호 전수 조회로 고객사 목록을 훑는 것을 막는 인스턴스별 속도 제한(분당 20회)
+const hits = new Map<string, { count: number; resetAt: number }>();
+function limited(ip: string): boolean {
+  const now = Date.now();
+  if (hits.size > 500) for (const [k, v] of hits) { if (now > v.resetAt) hits.delete(k); }
+  const e = hits.get(ip);
+  if (!e || now > e.resetAt) { hits.set(ip, { count: 1, resetAt: now + 60_000 }); return false; }
+  return ++e.count > 20;
+}
+function clientIp(r: NextRequest): string {
+  const real = r.headers.get('x-real-ip') || r.headers.get('x-vercel-forwarded-for');
+  if (real) return real.split(',')[0].trim();
+  const parts = (r.headers.get('x-forwarded-for') || '').split(',').map((p) => p.trim()).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : 'unknown';
+}
+
 export async function POST(req: NextRequest) {
   try {
+    if (limited(clientIp(req))) return NextResponse.json({ error: '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.' }, { status: 429 });
     const body = await req.json();
     const digits = String(body.businessNumber || '').replace(/[^0-9]/g, '');
     if (digits.length !== 10) {
@@ -33,6 +50,7 @@ export async function POST(req: NextRequest) {
       companyNameMasked: row ? mask(row.name) : undefined,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || '서버 오류' }, { status: 500 });
+    console.error('[check-business-number]', err?.message || err);
+    return NextResponse.json({ error: '서버 오류' }, { status: 500 });
   }
 }

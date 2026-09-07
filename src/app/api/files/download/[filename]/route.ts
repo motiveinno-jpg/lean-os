@@ -23,12 +23,21 @@ export async function GET(
   const { filename } = await params;
   try {
     const u = request.nextUrl.searchParams.get('u') || '';
-    const allowedPrefix = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/`;
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !u.startsWith(allowedPrefix)) {
+    //   문자열 앞부분만 보면 `/storage/v1/object/../../rest/v1/...` 로 같은 호스트의 다른 API 를 대신 불러 줄 수 있었다.
+    //   URL 로 파싱해 호스트와 정규화된 경로를 따로 확인하고, 리다이렉트는 따라가지 않는다.
+    let target: URL | null = null;
+    try {
+      const base = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || '');
+      const parsed = new URL(u);
+      if (parsed.protocol === 'https:' && parsed.host === base.host && parsed.pathname.startsWith('/storage/v1/object/') && !parsed.pathname.includes('..')) {
+        target = parsed;
+      }
+    } catch { target = null; }
+    if (!target) {
       return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: '허용되지 않은 파일 URL 입니다' } }, { status: 400 });
     }
 
-    const upstream = await fetch(u);
+    const upstream = await fetch(target.toString(), { redirect: 'error' });
     if (!upstream.ok || !upstream.body) {
       // 서명 토큰 만료(1시간) 등 — Supabase 의 상태를 그대로 전달
       return NextResponse.json(

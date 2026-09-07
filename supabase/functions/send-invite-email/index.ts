@@ -1,5 +1,7 @@
 import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
+import { escapeHtml, isAppUrl, resolveCaller, recipientInCompany, deny } from "../_shared/mail-guard.ts";
+const esc = escapeHtml;
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -25,6 +27,10 @@ serve(withSentry("send-invite-email", async (req) => {
     if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const { email, name, role, inviteUrl, companyName } = await req.json();
+    const caller = await resolveCaller(req);
+    if (!caller) return deny("회사에 소속된 계정만 보낼 수 있습니다.", 403, corsHeaders);
+    if (!isAppUrl(inviteUrl)) return deny("초대 링크는 오너뷰 주소만 허용됩니다.", 400, corsHeaders);
+    if (!(await recipientInCompany(caller.companyId, email, ["invitation"]))) return deny("이 회사에서 만든 초대가 없는 주소입니다.", 403, corsHeaders);
 
     if (!email || !inviteUrl) {
       return new Response(

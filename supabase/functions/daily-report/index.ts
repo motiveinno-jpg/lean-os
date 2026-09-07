@@ -231,6 +231,10 @@ serve(withSentry("daily-report", async (req) => {
       });
     }
 
+    if (action === "tick" && !isCronAuth) {
+      // 전 회사 일보 발송은 크론만 — 사용자 JWT 로 부르면 타사 발송을 유발하고 회사 목록이 응답에 새어 나갔다
+      return new Response(JSON.stringify({ error: "권한이 없습니다." }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
     if (action === "tick") {
       // pg_cron 매일 KST 09:00 호출. 현재 KST 시각의 hour 와 일치하는 회사만.
       const nowUtc = new Date();

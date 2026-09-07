@@ -1,5 +1,7 @@
 import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
+import { escapeHtml, isAppUrl, resolveCaller, recipientInCompany, deny } from "../_shared/mail-guard.ts";
+const esc = escapeHtml;
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -22,13 +24,13 @@ function buildPayslipHTML(data: any): string {
       </p>`;
   return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:'Apple SD Gothic Neo',sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333">
     <div style="background:#1a1a2e;color:#fff;padding:24px;border-radius:12px 12px 0 0;text-align:center">
-      <h1 style="margin:0;font-size:20px">${data.companyName}</h1>
-      <p style="margin:8px 0 0;opacity:0.8;font-size:14px">${data.monthLabel} 급여명세서</p>
+      <h1 style="margin:0;font-size:20px">${esc(data.companyName)}</h1>
+      <p style="margin:8px 0 0;opacity:0.8;font-size:14px">${esc(data.monthLabel)} 급여명세서</p>
     </div>
     <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:24px">
-      <p style="font-size:16px;font-weight:bold;margin:0 0 12px">${data.employeeName}님</p>
+      <p style="font-size:16px;font-weight:bold;margin:0 0 12px">${esc(data.employeeName)}님</p>
       <p style="font-size:14px;color:#374151;line-height:1.7;margin:0">
-        ${data.monthLabel} 급여명세서를 첨부 PDF 로 보내드립니다.<br/>
+        ${esc(data.monthLabel)} 급여명세서를 첨부 PDF 로 보내드립니다.<br/>
         자세한 지급·공제 내역은 첨부된 명세서를 확인해 주세요.
       </p>
       ${pwdNote}
@@ -53,6 +55,10 @@ serve(withSentry("send-payslip-email", async (req) => {
     if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const data = await req.json();
+    const caller = await resolveCaller(req);
+    if (!caller) return deny("회사에 소속된 계정만 보낼 수 있습니다.", 403, corsHeaders);
+    if (!(caller.isMaster || ["owner", "admin"].includes(caller.role))) return deny("급여명세서는 대표·관리자만 보낼 수 있습니다.", 403, corsHeaders);
+    if (!(await recipientInCompany(caller.companyId, data?.email, ["employee", "user"]))) return deny("이 회사 구성원의 주소가 아닙니다.", 403, corsHeaders);
     const html = buildPayslipHTML(data);
 
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");

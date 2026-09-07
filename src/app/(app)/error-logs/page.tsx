@@ -28,8 +28,11 @@ const SEVERITY_META: Record<string, { label: string; cls: string }> = {
   low: { label: "낮음", cls: "bg-[var(--bg-surface)] text-[var(--text-dim)]" },
 };
 
+//   운영자 = 로그인 세션(Auth)의 이메일이 허용 목록과 정확히 같을 때만. public.users.email 은 회사 대표가 바꿀 수 있고
+//   도메인 정규식은 직원 계정 전부를 통과시켰다(platform/layout.tsx 와 같은 기준, DB 의 is_platform_operator 와 일치).
+const OPERATOR_EMAILS = ["creative@mo-tive.com"];
 function isPlatformOperator(email?: string | null): boolean {
-  return !!email && /@mo-tive\.com$/i.test(email.trim());
+  return !!email && OPERATOR_EMAILS.includes(email.trim().toLowerCase());
 }
 
 type ErrorLog = {
@@ -58,10 +61,14 @@ const SOURCE_LABEL: Record<string, string> = {
 
 export default function ErrorLogsPage() {
   const { user, loading } = useUser();
+  const [authEmail, setAuthEmail] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setAuthEmail(data.user?.email || null)).catch(() => setAuthEmail(null));
+  }, []);
   const { toast } = useToast();
   const { confirm, confirmElement } = useConfirm();
   const qc = useQueryClient();
-  const isOperator = isPlatformOperator(user?.email);
+  const isOperator = isPlatformOperator(authEmail);
 
   const [filter, setFilter] = useState<"unresolved" | "all" | "resolved">("unresolved");
   const [typeFilter, setTypeFilter] = useState<string>("all");

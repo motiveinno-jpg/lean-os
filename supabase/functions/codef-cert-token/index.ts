@@ -58,6 +58,10 @@ serve(withSentry("codef-cert-token", async (req) => {
   );
   const { data: { user } } = await supabase.auth.getUser(jwt);
   if (!user) return json({ error: "Unauthorized" }, 401);
+  //   플랫폼 공용 CODEF 토큰이 브라우저로 나간다 — 인증서를 등록할 수 있는 대표·관리자·마스터만 (2026-09-07 보안 정비)
+  const admin = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+  const { data: me } = await admin.from("users").select("role, is_master, company_id").eq("auth_id", user.id).maybeSingle();
+  if (!me?.company_id || !(me.is_master || ["owner", "admin"].includes(String(me.role || "")))) return json({ error: "Forbidden" }, 403);
 
   const clientId = (Deno.env.get("CODEF_CLIENT_ID") || "").trim();
   const clientSecret = (Deno.env.get("CODEF_CLIENT_SECRET") || "").trim();

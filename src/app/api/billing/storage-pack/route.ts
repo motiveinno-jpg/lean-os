@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 
 // 스토리지 팩 애드온 구매/변경 — 좌석과 분리된 +10GB, 좌석과 동일 단가(per_seat_price).
 //   설계: docs/20260902_PLAN_storage_pack.md
@@ -72,8 +73,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ data: { count, changed: false, charged: false } });
     }
 
-    // 수량 갱신 (owner 검증은 RPC 내부)
-    const { error: setErr } = await (supabase as any).rpc('set_storage_packs', { p_count: count });
+    // 대표(소유자)만 — RPC 는 서버 전용이라 여기서 확인한다
+    const { data: isOwner } = await (supabase as any).rpc('is_company_owner');
+    if (!isOwner) {
+      return NextResponse.json({ error: { code: 'FORBIDDEN', message: '대표(소유자)만 변경할 수 있습니다' } }, { status: 403 });
+    }
+    // 수량 갱신 — set_storage_packs 는 service_role 전용(종전엔 브라우저가 직접 불러 결제 없이 수량을 올릴 수 있었다)
+    const admin = createSupabaseAdminClient();
+    const { error: setErr } = await (admin as any).rpc('set_storage_packs', { p_company: companyId, p_count: count });
     if (setErr) {
       const msg = String(setErr.message || '');
       const status = /not authorized/.test(msg) ? 403 : 400;
@@ -96,7 +103,7 @@ export async function POST(request: NextRequest) {
           : process.env.STRIPE_PRICE_STORAGE_PACK_MONTHLY;
         if (!packPrice) {
           // 가격 미등록 — 수량은 롤백해 청구/한도 불일치를 막는다.
-          await (supabase as any).rpc('set_storage_packs', { p_count: prevCount });
+          await (admin as any).rpc('set_storage_packs', { p_company: companyId, p_count: prevCount });
           return NextResponse.json({ error: { code: 'PRICE_UNAVAILABLE', message: '스토리지 팩 결제 준비가 아직 끝나지 않았습니다. 잠시 후 다시 시도해 주세요.' } }, { status: 400 });
         }
         const stripe = getStripe();
@@ -115,7 +122,7 @@ export async function POST(request: NextRequest) {
       // provider 없음: 결제수단 미등록(내부/무료 등) → 수량만 반영.
     } catch (payErr) {
       // 결제 실패 → 수량 롤백(수량-결제 정합).
-      await (supabase as any).rpc('set_storage_packs', { p_count: prevCount });
+      await (admin as any).rpc('set_storage_packs', { p_company: companyId, p_count: prevCount });
       const message = payErr instanceof Error ? payErr.message : '결제 반영 실패';
       console.error('[storage-pack] payment error:', message);
       return NextResponse.json({ error: { code: 'PAYMENT_FAILED', message: '결제 반영에 실패했습니다. 결제 수단을 확인해 주세요.' } }, { status: 502 });

@@ -1,5 +1,7 @@
 import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
+import { escapeHtml, isAppUrl, resolveCaller, recipientInCompany, deny } from "../_shared/mail-guard.ts";
+const esc = escapeHtml;
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -24,6 +26,9 @@ serve(withSentry("send-share-email", async (req) => {
     if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const { email, documentName, sharedBy, companyName, shareUrl, message } = await req.json();
+    const caller = await resolveCaller(req);
+    if (!caller) return deny("회사에 소속된 계정만 보낼 수 있습니다.", 403, corsHeaders);
+    if (shareUrl && !isAppUrl(shareUrl)) return deny("공유 링크는 오너뷰 주소만 허용됩니다.", 400, corsHeaders);
 
     if (!email || !documentName) {
       return new Response(JSON.stringify({ error: "email and documentName required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -31,14 +36,14 @@ serve(withSentry("send-share-email", async (req) => {
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:'Apple SD Gothic Neo',sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333">
       <div style="background:#1a1a2e;color:#fff;padding:24px;border-radius:12px 12px 0 0;text-align:center">
-        <h1 style="margin:0;font-size:20px">${companyName || "오너뷰"}</h1>
+        <h1 style="margin:0;font-size:20px">${esc(companyName || "오너뷰")}</h1>
         <p style="margin:8px 0 0;opacity:0.8;font-size:14px">문서가 공유되었습니다</p>
       </div>
       <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:24px">
-        <p style="font-size:15px;margin:0 0 12px"><strong>${sharedBy || "동료"}</strong>님이 문서를 공유했습니다.</p>
+        <p style="font-size:15px;margin:0 0 12px"><strong>${esc(sharedBy || "동료")}</strong>님이 문서를 공유했습니다.</p>
         <div style="background:#f3f4f6;border-radius:8px;padding:16px;margin:16px 0">
-          <p style="margin:0;font-size:14px;font-weight:bold">📄 ${documentName}</p>
-          ${message ? `<p style="margin:8px 0 0;font-size:13px;color:#6b7280">${message}</p>` : ""}
+          <p style="margin:0;font-size:14px;font-weight:bold">📄 ${esc(documentName)}</p>
+          ${message ? `<p style="margin:8px 0 0;font-size:13px;color:#6b7280">${esc(message)}</p>` : ""}
         </div>
         ${shareUrl ? `<div style="text-align:center;margin:24px 0"><a href="${shareUrl}" style="display:inline-block;background:#3B82F6;color:#fff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:bold;font-size:14px">문서 확인하기</a></div>` : ""}
         <p style="margin:20px 0 0;font-size:12px;color:#9ca3af;text-align:center">본 이메일은 자동 발송되었습니다.</p>

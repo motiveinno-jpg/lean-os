@@ -32,14 +32,44 @@ const ALLOWED_ATTR = [
  *  정제 안 된 HTML 을 흘리는 것보다 잠깐 비어 있는 편이 안전하고, 하이드레이션 직후 채워진다. */
 const canSanitize = () => typeof window !== "undefined" && typeof DOMPurify.sanitize === "function";
 
+//   inline style 은 표·정렬·색 같은 서식엔 필요하지만, position/z-index/url() 을 두면 서명 화면 위에 가짜 화면을
+//   덮거나 외부로 신호를 보낼 수 있다. 허용 속성 목록 + 값에 url()/expression 금지.
+const SAFE_STYLE_PROPS = new Set([
+  "color", "background-color", "font-size", "font-weight", "font-style", "font-family", "text-align", "text-decoration",
+  "line-height", "width", "height", "min-width", "max-width", "margin", "margin-left", "margin-right", "margin-top", "margin-bottom",
+  "padding", "padding-left", "padding-right", "padding-top", "padding-bottom", "border", "border-top", "border-bottom", "border-left",
+  "border-right", "border-collapse", "border-color", "border-width", "border-style", "border-radius", "vertical-align", "white-space",
+  "letter-spacing", "text-indent", "list-style-type", "table-layout",
+]);
+export function cleanInlineStyle(style: string): string {
+  return String(style || "").split(";").map((d) => d.trim()).filter(Boolean).map((d) => {
+    const i = d.indexOf(":");
+    if (i < 0) return null;
+    const prop = d.slice(0, i).trim().toLowerCase();
+    const val = d.slice(i + 1).trim();
+    if (!SAFE_STYLE_PROPS.has(prop)) return null;
+    if (/url\s*\(|expression\s*\(|javascript:|@import|behavior|\\/i.test(val)) return null;
+    return `${prop}: ${val}`;
+  }).filter(Boolean).join("; ");
+}
+let styleHookInstalled = false;
+function installStyleHook() {
+  if (styleHookInstalled || !canSanitize()) return;
+  styleHookInstalled = true;
+  DOMPurify.addHook("uponSanitizeAttribute", (_node, data) => {
+    if (data.attrName === "style") data.attrValue = cleanInlineStyle(data.attrValue);
+  });
+}
+
 export function sanitizeDocumentHtml(dirty: string | null | undefined): string {
   if (!dirty) return "";
   if (!canSanitize()) return "";
+  installStyleHook();
   return DOMPurify.sanitize(String(dirty), {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
-    // data: URI 이미지(직인·서명 등)는 허용하되 그 외 스킴은 차단. javascript: 자동 차단.
-    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|data):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
+    // data: URI 는 이미지(직인·서명)만 허용 — data:text/html 같은 것은 막는다. javascript: 자동 차단.
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|data:image\/|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
     ADD_ATTR: ["target"],
     FORBID_TAGS: ["script", "iframe", "object", "embed", "form", "input", "button", "style", "link", "meta"],
     FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "onfocus", "formaction"],

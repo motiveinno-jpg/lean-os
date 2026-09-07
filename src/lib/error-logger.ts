@@ -528,7 +528,8 @@ export async function logError(params: {
       error_type: explained.type,
       message,
       stack: params.stack ? String(params.stack).slice(0, 4000) : null,
-      url: typeof window !== "undefined" ? window.location.href : null,
+      //   경로만 — 쿼리에는 공유·초대·서명 토큰이 실려 있어 기록장에 남기면 그대로 열쇠가 된다
+      url: typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}` : null,
       user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
       context: (params.context ?? null) as never, // Json 타입 소음 — 컬럼 실존 확인됨
     });

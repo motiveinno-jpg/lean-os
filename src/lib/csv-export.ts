@@ -9,7 +9,13 @@
 
 /** 한 줄 = 한 행. 숫자는 서식 없는 그대로(엑셀이 숫자로 읽게), 날짜는 YYYY-MM-DD 문자열. */
 export function downloadCsv(filename: string, header: string[], rows: (string | number)[][]) {
-  const cell = (v: string | number) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  //   엑셀은 따옴표를 벗긴 뒤 =, +, -, @ 로 시작하는 칸을 수식으로 계산한다 — 거래처명·적요는 외부(은행·계산서)에서
+  //   들어오는 값이라 앞에 작은따옴표를 붙여 문자로 고정한다(숫자 칸은 그대로).
+  const cell = (v: string | number) => {
+    const s = String(v ?? "");
+    const guarded = typeof v === "string" && /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+    return `"${guarded.replace(/"/g, '""')}"`;
+  };
   const csv = "﻿" + [header, ...rows].map((r) => r.map(cell).join(",")).join("\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));

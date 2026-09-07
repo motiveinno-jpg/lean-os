@@ -414,9 +414,11 @@ async function handleInvoicePaid(invoice: Stripe.Invoice, eventId?: string) {
   const now = new Date();
   const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
 
+  //   회사 필터 필수 — 없으면 전 고객사 번호에서 채번돼 다른 회사의 청구 건수가 번호로 새고, 동시 수신 때 충돌한다
   const lastInv = logRead('webhook/route:lastInv', await db
     .from('invoices')
     .select('invoice_number')
+    .eq('company_id', sub.company_id)
     .like('invoice_number', `INV-${yearMonth}-%`)
     .order('invoice_number', { ascending: false })
     .limit(1)

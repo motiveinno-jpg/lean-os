@@ -5,6 +5,15 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+// 요청 IP — x-forwarded-for 의 첫 값은 클라이언트가 임의로 붙일 수 있어(속도 제한 우회) Vercel 이 확정하는 헤더를 먼저 본다
+function clientIp(r: { headers: { get(name: string): string | null } }): string {
+  const real = r.headers.get('x-real-ip') || r.headers.get('x-vercel-forwarded-for');
+  if (real) return real.split(',')[0].trim();
+  const xff = r.headers.get('x-forwarded-for') || '';
+  const parts = xff.split(',').map((p) => p.trim()).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : 'unknown';
+}
+
 const ALLOWED = new Set(["page_view", "tool_calculate", "sign_up", "bank_connect", "checkout_start"]);
 
 // 인스턴스별 in-memory 레이트리밋 (미들웨어 auth 패턴과 동일한 한계 — 완벽 보장은 아님)
@@ -23,7 +32,7 @@ const cut = (v: unknown, n: number) => (typeof v === "string" ? v.slice(0, n) : 
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const ip = clientIp(req);
     if (limited(ip)) return new NextResponse(null, { status: 204 }); // 조용히 버린다
 
     const body = await req.json().catch(() => null);

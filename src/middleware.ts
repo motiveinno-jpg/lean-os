@@ -2,6 +2,15 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// 요청 IP — x-forwarded-for 의 첫 값은 클라이언트가 임의로 붙일 수 있어(속도 제한 우회) Vercel 이 확정하는 헤더를 먼저 본다
+function clientIp(r: { headers: { get(name: string): string | null } }): string {
+  const real = r.headers.get('x-real-ip') || r.headers.get('x-vercel-forwarded-for');
+  if (real) return real.split(',')[0].trim();
+  const xff = r.headers.get('x-forwarded-for') || '';
+  const parts = xff.split(',').map((p) => p.trim()).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : 'unknown';
+}
+
 // ── Simple Rate Limiter (Edge-compatible) ──
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_AUTH = 20; // /auth endpoints: 20 req/min
@@ -82,7 +91,7 @@ export async function middleware(request: NextRequest) {
 
   // Rate limit auth endpoints (brute force protection)
   if (pathname.startsWith('/auth') || pathname.startsWith('/api/auth')) {
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const ip = clientIp(request);
     if (isRateLimited(`auth:${ip}`, RATE_LIMIT_MAX_AUTH)) {
       return new NextResponse('Too Many Requests', { status: 429, headers: { 'Retry-After': '60' } });
     }
@@ -90,7 +99,7 @@ export async function middleware(request: NextRequest) {
 
   // Rate limit 플랫폼 운영자 액션 (비밀번호 리셋·계정 잠금 등 고위험 — 연타·자동화 남용 방지)
   if (pathname.startsWith('/api/platform')) {
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const ip = clientIp(request);
     if (isRateLimited(`platform:${ip}`, RATE_LIMIT_MAX_PLATFORM)) {
       return new NextResponse('Too Many Requests', { status: 429, headers: { 'Retry-After': '60' } });
     }
@@ -99,7 +108,7 @@ export async function middleware(request: NextRequest) {
   // Rate limit PDF 렌더 (puppeteer — CPU/메모리 고비용, 남용·DoS 방지). IP당 분당 10회.
   //   서버리스 인스턴스별 in-memory 라 완벽하진 않음 — 강한 보장은 Vercel WAF/Firewall 권장(운영 액션 항목).
   if (pathname === '/api/html-pdf' || pathname === '/api/contract-pdf') {
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const ip = clientIp(request);
     if (isRateLimited(`pdf:${ip}`, RATE_LIMIT_MAX_PDF)) {
       return new NextResponse('Too Many Requests', { status: 429, headers: { 'Retry-After': '60' } });
     }

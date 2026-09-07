@@ -2,6 +2,7 @@ import { logRead } from "@/lib/log-read";
 import { logServerError } from '@/lib/server-error-log';
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 export async function POST(req: NextRequest) {
   try {
@@ -61,14 +62,21 @@ export async function POST(req: NextRequest) {
 
     let authUserId: string;
     if (existingUser) {
-      // 3-A) 기존 가입자 — 비번 갱신 + 회사 연결
-      const { error: updErr } = await admin.auth.admin.updateUserById(existingUser.id, {
-        password,
-        email_confirm: true,
-        user_metadata: { name: name || existingUser.user_metadata?.name || normEmail.split('@')[0] },
-      });
-      if (updErr) {
-        return NextResponse.json({ error: `사용자 업데이트 실패: ${updErr.message}` }, { status: 500 });
+      // 3-A) 기존 가입자 — 비밀번호는 절대 바꾸지 않는다. 초대장을 만든 관리자가 남의 이메일로 초대를 만들고
+      //   그 토큰으로 이 API 를 부르면 그 사람 계정의 비밀번호를 갈아치우고 자기 회사로 끌어올 수 있었다.
+      //   본인이 그 계정으로 로그인한 세션일 때만 합류시키고, 이미 다른 회사 소속이면 막는다.
+      const server = await createSupabaseServerClient();
+      const { data: { user: sessionUser } } = await server.auth.getUser();
+      if (!sessionUser || sessionUser.id !== existingUser.id) {
+        return NextResponse.json({
+          error: '이미 가입된 이메일입니다. 그 계정으로 로그인한 뒤 초대 링크를 다시 열어 주세요.',
+          code: 'LOGIN_REQUIRED',
+        }, { status: 403 });
+      }
+      const current = logRead('invite-accept/route:current', await admin
+        .from('users').select('id, company_id').eq('auth_id', existingUser.id).maybeSingle());
+      if (current?.company_id && current.company_id !== invite.company_id) {
+        return NextResponse.json({ error: '이미 다른 회사에 소속된 계정입니다. 기존 회사에서 나간 뒤 다시 시도해 주세요.', code: 'ALREADY_IN_COMPANY' }, { status: 409 });
       }
       authUserId = existingUser.id;
     } else {
@@ -88,12 +96,8 @@ export async function POST(req: NextRequest) {
           const retryArr = Array.isArray(retryRows) ? (retryRows as any[]) : [];
           const retryUser = retryArr.length > 0 ? retryArr[0] : null;
           if (retryUser) {
-            await admin.auth.admin.updateUserById(retryUser.id, {
-              password,
-              email_confirm: true,
-              user_metadata: { name: name || retryUser.raw_user_meta_data?.name },
-            });
-            authUserId = retryUser.id;
+            // 동시에 가입된 계정 — 비밀번호를 덮어쓰지 않고 로그인 후 재시도하게 한다
+            return NextResponse.json({ error: '이미 가입된 이메일입니다. 그 계정으로 로그인한 뒤 초대 링크를 다시 열어 주세요.', code: 'LOGIN_REQUIRED' }, { status: 403 });
           } else {
             return NextResponse.json({ error: `가입 실패: ${createErr?.message || '알 수 없는 오류'}` }, { status: 500 });
           }

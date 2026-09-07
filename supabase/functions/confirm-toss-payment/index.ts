@@ -122,14 +122,17 @@ serve(withSentry("confirm-toss-payment", async (req: Request) => {
     .eq("toss_order_id", orderId)
     .maybeSingle();
 
-  if (invoice && invoice.amount !== amount) {
+  if (!invoice) {
+    return jsonResponse({ error: "주문을 찾을 수 없습니다." }, 404);
+  }
+  if (invoice.amount !== amount) {
     console.error(
       `Amount mismatch: orderId=${orderId} expected=${invoice.amount} got=${amount}`,
     );
     return jsonResponse({ error: "Amount mismatch" }, 400);
   }
 
-  if (invoice && invoice.company_id !== profile.company_id) {
+  if (invoice.company_id !== profile.company_id) {
     return jsonResponse({ error: "Order does not belong to your company" }, 403);
   }
 

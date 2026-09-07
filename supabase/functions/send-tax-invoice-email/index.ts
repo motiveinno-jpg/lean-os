@@ -1,5 +1,7 @@
 import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
+import { escapeHtml, isAppUrl, resolveCaller, recipientInCompany, deny } from "../_shared/mail-guard.ts";
+const esc = escapeHtml;
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -46,6 +48,8 @@ serve(withSentry("send-tax-invoice-email", async (req) => {
       type,
       pdfBase64,
     } = await req.json();
+    const caller = await resolveCaller(req);
+    if (!caller) return deny("회사에 소속된 계정만 보낼 수 있습니다.", 403, corsHeaders);
 
     if (!recipientEmail || !invoiceNumber) {
       return new Response(JSON.stringify({ error: "recipientEmail and invoiceNumber required" }), {
@@ -60,7 +64,7 @@ serve(withSentry("send-tax-invoice-email", async (req) => {
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;max-width:640px;margin:0 auto;padding:20px;color:#333;background:#f9fafb">
   <div style="background:#1a1a2e;color:#fff;padding:24px 28px;border-radius:12px 12px 0 0">
-    <h1 style="margin:0;font-size:18px">${senderCompany || "오너뷰"}</h1>
+    <h1 style="margin:0;font-size:18px">${esc(senderCompany || "오너뷰")}</h1>
     <p style="margin:6px 0 0;opacity:0.8;font-size:13px">세금계산서가 발행되었습니다</p>
   </div>
   <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:28px;background:#fff">
@@ -72,7 +76,7 @@ serve(withSentry("send-tax-invoice-email", async (req) => {
     <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:13px">
       <tr style="background:#f3f4f6">
         <td style="padding:10px 14px;font-weight:bold;border:1px solid #e5e7eb;width:120px">문서번호</td>
-        <td style="padding:10px 14px;border:1px solid #e5e7eb">${invoiceNumber}</td>
+        <td style="padding:10px 14px;border:1px solid #e5e7eb">${esc(invoiceNumber)}</td>
       </tr>
       <tr>
         <td style="padding:10px 14px;font-weight:bold;border:1px solid #e5e7eb;background:#f3f4f6">구분</td>
@@ -80,11 +84,11 @@ serve(withSentry("send-tax-invoice-email", async (req) => {
       </tr>
       <tr style="background:#f3f4f6">
         <td style="padding:10px 14px;font-weight:bold;border:1px solid #e5e7eb">발행일</td>
-        <td style="padding:10px 14px;border:1px solid #e5e7eb">${issueDate || "-"}</td>
+        <td style="padding:10px 14px;border:1px solid #e5e7eb">${esc(issueDate || "-")}</td>
       </tr>
       <tr>
         <td style="padding:10px 14px;font-weight:bold;border:1px solid #e5e7eb;background:#f3f4f6">거래처</td>
-        <td style="padding:10px 14px;border:1px solid #e5e7eb">${counterpartyName || "-"}</td>
+        <td style="padding:10px 14px;border:1px solid #e5e7eb">${esc(counterpartyName || "-")}</td>
       </tr>
       <tr style="background:#f3f4f6">
         <td style="padding:10px 14px;font-weight:bold;border:1px solid #e5e7eb">공급가액</td>

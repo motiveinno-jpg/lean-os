@@ -101,7 +101,8 @@ serve(withSentry("complete-signing", async (req) => {
       .update({ status: "signed", signed_at: signedAt, signature_data: signatureData })
       .eq("id", itemId);
     if (signErr) {
-      return new Response(JSON.stringify({ error: `서명 저장 실패: ${signErr.message}` }), {
+      console.error("[complete-signing] sign update failed:", signErr.message);
+      return new Response(JSON.stringify({ error: "서명 저장에 실패했습니다. 잠시 후 다시 시도해 주세요." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -297,7 +298,7 @@ serve(withSentry("complete-signing", async (req) => {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[complete-signing] unhandled error:", msg);
-    return new Response(JSON.stringify({ error: msg }), {
+    return new Response(JSON.stringify({ error: "처리 중 오류가 났습니다. 잠시 후 다시 시도해 주세요." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

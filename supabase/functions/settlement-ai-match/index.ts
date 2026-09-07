@@ -92,7 +92,7 @@ serve(withSentry("settlement-ai-match", async (req) => {
 
     const admin = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    const isServiceRole = authHeader.includes(SERVICE_ROLE);
+    const isServiceRole = !!SERVICE_ROLE && authHeader.replace(/^Bearer\s+/i, "").trim() === SERVICE_ROLE;
 
     const { companyId, limit = 15 } = await req.json();
     if (!companyId) return new Response(JSON.stringify({ error: "companyId required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });

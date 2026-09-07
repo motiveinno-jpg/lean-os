@@ -1,5 +1,7 @@
 import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
+import { escapeHtml, isAppUrl, resolveCaller, recipientInCompany, deny } from "../_shared/mail-guard.ts";
+const esc = escapeHtml;
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -35,8 +37,9 @@ Deno.serve(withSentry("send-contract-email", async (req: Request) => {
       .eq('sign_token', token)
       .maybeSingle();
 
-    if (!pkg) {
-      return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 404 });
+    //   토큰이 틀려도 같은 응답 — 200/404 차이가 토큰 추측의 답이 되지 않게. 만료된 패키지는 보내지 않는다.
+    if (!pkg || (pkg.expires_at && new Date(pkg.expires_at) < new Date())) {
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
 
     const emp = (pkg as any).employees || {};
@@ -75,10 +78,10 @@ Deno.serve(withSentry("send-contract-email", async (req: Request) => {
     </div>
     <div style="padding: 32px;">
       <p style="font-size: 16px; color: #333; line-height: 1.6;">
-        안녕하세요, <strong>${employeeName || ''}</strong>님.
+        안녕하세요, <strong>${esc(employeeName || '')}</strong>님.
       </p>
       <p style="font-size: 15px; color: #555; line-height: 1.6;">
-        <strong>${companyName || ''}</strong>에서 <strong>${packageTitle || '계약서 패키지'}</strong>에 대한 서명을 요청하였습니다.
+        <strong>${esc(companyName || '')}</strong>에서 <strong>${esc(packageTitle || '계약서 패키지')}</strong>에 대한 서명을 요청하였습니다.
       </p>
       <div style="background: #f0f4ff; border-radius: 8px; padding: 20px; margin: 24px 0;">
         <p style="margin: 0 0 8px; font-size: 14px; color: #666;">서명 대상 문서: <strong>${documentCount || 0}건</strong></p>

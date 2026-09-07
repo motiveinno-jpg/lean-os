@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
+// 결제 뒤 돌아올 주소는 우리 사이트 안으로만 — 임의 주소를 넣으면 checkout.stripe.com 을 거쳐 피싱 페이지로 보낼 수 있다
+function safeReturnUrl(candidate: unknown, origin: string, fallback: string): string {
+  const allowed = new Set([origin, 'https://www.owner-view.com', process.env.NEXT_PUBLIC_SITE_URL || ''].filter(Boolean));
+  const c = typeof candidate === 'string' ? candidate.trim() : '';
+  if (!c) return fallback;
+  if (c.startsWith('/') && !c.startsWith('//')) return `${origin}${c}`;
+  try { const u = new URL(c); if (allowed.has(u.origin)) return u.toString(); } catch { /* 형식 오류 */ }
+  return fallback;
+}
+
 // 충전(크레딧) 결제 — 구독과 달리 '지금 바로 결제'하는 일회성 결제 (2026-08-07 사장님 결정).
 //   구독 체크아웃(/api/stripe/checkout)과 달리 Stripe 대시보드에 price 를 미리 만들지 않는다.
 //   충전은 수량이 자유라 price_data 로 금액을 그때그때 만든다 — env 등록 없이 바로 열린다.
@@ -93,8 +103,8 @@ export async function POST(request: NextRequest) {
         },
       }],
       customer_email: user.email,
-      success_url: successUrl || `${origin}/billing?credit=success`,
-      cancel_url: cancelUrl || `${origin}/billing?credit=cancel`,
+      success_url: safeReturnUrl(successUrl, origin, `${origin}/billing?credit=success`),
+      cancel_url: safeReturnUrl(cancelUrl, origin, `${origin}/billing?credit=cancel`),
       metadata: {
         purpose: 'credit_topup',
         creditPurchaseId: (purchase as { id: string }).id,
