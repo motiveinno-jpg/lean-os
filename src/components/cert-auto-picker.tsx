@@ -236,8 +236,7 @@ export function CertAutoPicker({ onExtracted, purpose = "register" }: {
         <div className="cert-picker-install">
           <div className="text-[13px] font-semibold text-[var(--text)]"><Ico e="💾" /> 인증서 자동 인식 프로그램이 필요합니다</div>
           <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-            보안 정책상 브라우저는 PC의 인증서 폴더를 직접 읽을 수 없습니다. 아래 프로그램(CodefCert)을
-            설치하면 은행 사이트처럼 PC에 저장된 공동인증서를 자동으로 찾아드립니다. 설치는 최초 1회만 필요합니다.
+            프로그램을 한 번 설치하면 PC에 저장된 공동인증서를 자동으로 찾습니다.
           </p>
           <div className="flex flex-wrap items-center gap-2">
             {/*   파란(확정) 버튼은 화면에 하나 — 이 화면의 확정은 '연결하기'다. 설치는 보조 버튼으로. (2026-08-24) */}
@@ -256,7 +255,7 @@ export function CertAutoPicker({ onExtracted, purpose = "register" }: {
         <>
           {certList.length === 0 ? (
             <div className="cert-picker-status">
-              PC에서 유효한 공동인증서를 찾지 못했습니다. 인증서가 이동식 디스크에 있다면 연결 후
+              PC에서 유효한 공동인증서를 찾지 못했습니다. 이동식 디스크는 연결한 뒤
               <button type="button" onClick={() => initEngine()} className="cert-picker-retry ml-1">다시 검색</button>
             </div>
           ) : (
@@ -295,9 +294,7 @@ export function CertAutoPicker({ onExtracted, purpose = "register" }: {
               <div className="text-[12px] font-semibold text-[var(--text)]">이 인증서의 파일 위치</div>
               <code className="cert-picker-locate-path">{String(certList[selectedIdx]["cert.der.path"]).replace(/[\\/][^\\/]*$/, "")}</code>
               <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-                연결 등록은 규격상 <b>원본</b> 인증서 파일 2개(signCert.der, signPri.key)가 필요합니다
-                (변환·추출본은 기관에서 거부됩니다). &quot;파일 직접 업로드&quot; 탭에서 위 폴더의 두 파일을
-                함께 선택해주세요.
+                &quot;파일 직접 업로드&quot; 탭에서 위 폴더의 <b>원본</b> 파일 두 개를 함께 선택하세요.
               </p>
             </div>
           )}
@@ -323,7 +320,7 @@ export function CertAutoPicker({ onExtracted, purpose = "register" }: {
           )}
 
           {extractedName && (
-            <div className="cert-picker-ok"><Ico e="✅" /> {extractedName} · 인증서 준비 완료 (변환 vAES). 아래에서 연결을 진행하세요.</div>
+            <div className="cert-picker-ok"><Ico e="✅" /> {extractedName} · 인증서 준비 완료. 아래에서 연결을 진행하세요.</div>
           )}
         </>
       )}

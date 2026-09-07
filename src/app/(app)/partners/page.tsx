@@ -883,9 +883,9 @@ export default function PartnersPage() {
   //   엑셀 그릇 · 내려받기·템플릿·가져오기를 한 버튼에 (되는 것만)
   const excelItems: ExcelItem[] = [
     
-    { label: "지금 조회 결과 내려받기", count: partners.length, hint: "걸린 조건 그대로, 표에 보이는 칸 그대로", onClick: handleExport, disabled: partners.length === 0 },
-    { label: "CSV 템플릿 내려받기", hint: "가져오기용 빈 양식(예시 한 줄 포함)", onClick: downloadCSVTemplate },
-    { label: "CSV·엑셀로 가져오기", hint: "이름·구분·사업자번호… 열 이름은 템플릿과 같아야 합니다", onClick: () => importInputRef.current?.click() },
+    { label: "지금 조회 결과 내려받기", count: partners.length, hint: "지금 조건과 칸 그대로 내려받습니다.", onClick: handleExport, disabled: partners.length === 0 },
+    { label: "CSV 템플릿 내려받기", hint: "가져오기용 빈 양식입니다.", onClick: downloadCSVTemplate },
+    { label: "CSV·엑셀로 가져오기", hint: "열 이름은 템플릿과 같아야 합니다.", onClick: () => importInputRef.current?.click() },
   ];
   //   AI 제안 그릇 — 보조 기능. 줄마다 출처를 적는다. 채워만 주고 확정은 사람.
   const unverifiedOnPage = pager.view.filter((p: any) => {
@@ -895,13 +895,13 @@ export default function PartnersPage() {
   const helperItems: HelperItem[] = [
     {
       label: "사업자 상태 조회 (이 쪽)", source: "국세청 조회", badge: unverifiedOnPage.length,
-      hint: "지금 쪽에 보이는 거래처의 사업자번호로 계속·휴업·폐업을 확인해 표에 표시합니다",
+      hint: "이 쪽 거래처의 사업자 상태를 확인해 표시합니다.",
       disabled: unverifiedOnPage.length === 0,
       onClick: () => { unverifiedOnPage.forEach((p: any) => handleVerifyBiz(p.business_number)); },
     },
     {
       label: detecting ? "찾는 중…" : "휴면 거래처 찾기", source: "장부 대조", disabled: detecting,
-      hint: "6개월 이상 거래·연락이 없는 곳을 '휴면'으로 표시하고 담당자에게 알립니다. 갈래 탭 '휴면'에서 봅니다",
+      hint: "오래 거래가 없는 거래처를 휴면으로 표시합니다.",
       onClick: runDormancyDetect,
     },
   ];
@@ -977,7 +977,7 @@ export default function PartnersPage() {
                   ))}
                 </span>
               </ConditionRow>
-              <ConditionRow label="이번 달" hint="세금계산서 · 등록일 기준">
+              <ConditionRow label="이번 달" hint="세금계산서·등록일">
                 <span className="qk-quicks">
                   {MONTH_CHIPS.map((c) => (
                     <button key={c.value} type="button"
@@ -1014,11 +1014,11 @@ export default function PartnersPage() {
           ) : (rawPartners as any[]).length === 0 ? (
             <div className="collect-empty">
               
-              거래처를 추가하면 프로젝트·세금계산서에서 바로 연결됩니다. 오른쪽 위 [+ 새 거래처] 또는 엑셀 ▾ 가져오기
+              아직 거래처가 없습니다. 새 거래처를 추가하거나 엑셀로 가져오세요.
 
             </div>
           ) : partners.length === 0 ? (
-            <div className="collect-empty">이 조건에 맞는 거래처가 없습니다. 검색조건을 풀어 보세요</div>
+            <div className="collect-empty">조건에 맞는 거래처가 없습니다. 검색조건을 바꿔 보세요.</div>
           ) : (
             <div className="ev-scroll">
               <table ref={tableRef} className="ev-table ev-lined partner-table">
@@ -1045,7 +1045,7 @@ export default function PartnersPage() {
                     <SortableTh label="연락처" sortKey="phone" sort={sort} onSort={onSort} resize={thResize("phone", 6)} />
                     <SortableTh label="태그" sortKey="tag" sort={sort} onSort={onSort} filter={thFilter("tag")} resize={thResize("tag", 7)} />
                     <SortableTh label="상태" sortKey="status" sort={sort} onSort={onSort} filter={thFilter("status")} resize={thResize("status", 8)} />
-                    <th className="th-c" title="입금 지연 이력으로 매긴 신용 등급 · 마우스를 올리면 근거">신용</th>
+                    <th className="th-c" title="입금 지연 이력으로 매긴 신용 등급입니다.">신용</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1065,7 +1065,7 @@ export default function PartnersPage() {
                           <span className="inline-flex items-center gap-1.5">
                             {p.name}
                             {p.is_dormant && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold bg-amber-500/15 text-amber-500" title="6개월 이상 거래·연락 없음. 휴면"><Ico e="💤" /> 휴면</span>
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold bg-amber-500/15 text-amber-500" title="6개월 이상 거래·연락이 없는 거래처입니다."><Ico e="💤" /> 휴면</span>
                             )}
                           </span>
                         </td>
@@ -1236,7 +1236,7 @@ export default function PartnersPage() {
                     setPortalModal({ url, partnerName: detailPartner.name });
                   }}
                   className="px-3 py-1.5 text-xs bg-violet-500/10 border border-violet-500/30 text-violet-400 rounded-lg hover:bg-violet-500/20 transition flex items-center gap-1"
-                  title="로그인 없이 견적·계약을 확인할 수 있는 포털 링크를 발급·복사합니다">
+                  title="거래처용 포털 링크를 발급하고 복사합니다.">
                   <Ico e="🔗" /> 포털 링크
                 </button>
                 {detailPartner.contact_email && (
@@ -1327,8 +1327,8 @@ export default function PartnersPage() {
                   {timeline.length === 0 ? (
                     <div className="py-14 text-center">
                       <div className="text-4xl mb-3">🕐</div>
-                      <div className="text-sm font-semibold text-[var(--text)]">활동 내역이 없습니다</div>
-                      <div className="text-xs text-[var(--text-muted)] mt-1">프로젝트·결제·소통 기록이 생기면 시간순으로 표시됩니다</div>
+                      <div className="text-sm font-semibold text-[var(--text)]">아직 활동 내역이 없습니다.</div>
+                      <div className="text-xs text-[var(--text-muted)] mt-1">프로젝트·결제·소통 기록이 시간순으로 표시됩니다.</div>
                     </div>
                   ) : (
                     <div className="relative pl-8">
@@ -1373,8 +1373,8 @@ export default function PartnersPage() {
                   {partnerDeals.length === 0 ? (
                     <div className="py-14 text-center">
                       <div className="text-4xl mb-3"><Ico e="📋" /></div>
-                      <div className="text-sm font-semibold text-[var(--text)]">연결된 프로젝트가 없습니다</div>
-                      <div className="text-xs text-[var(--text-muted)] mt-1">프로젝트에서 이 거래처를 지정하면 여기에 표시됩니다</div>
+                      <div className="text-sm font-semibold text-[var(--text)]">아직 연결된 프로젝트가 없습니다.</div>
+                      <div className="text-xs text-[var(--text-muted)] mt-1">프로젝트에서 이 거래처를 지정하세요.</div>
                     </div>
                   ) : (
                     <>
@@ -1428,8 +1428,8 @@ export default function PartnersPage() {
                   {partnerPayments.length === 0 ? (
                     <div className="py-14 text-center">
                       <div className="text-4xl mb-3"><Ico e="💰" /></div>
-                      <div className="text-sm font-semibold text-[var(--text)]">결제 이력이 없습니다</div>
-                      <div className="text-xs text-[var(--text-muted)] mt-1">프로젝트 수금 일정이 생기면 여기에 표시됩니다</div>
+                      <div className="text-sm font-semibold text-[var(--text)]">아직 결제 이력이 없습니다.</div>
+                      <div className="text-xs text-[var(--text-muted)] mt-1">프로젝트 수금 일정이 여기에 표시됩니다.</div>
                     </div>
                   ) : (
                     <table className="w-full">
@@ -1468,8 +1468,8 @@ export default function PartnersPage() {
                   {partnerDocs.length === 0 ? (
                     <div className="py-14 text-center">
                       <div className="text-4xl mb-3"><Ico e="📄" /></div>
-                      <div className="text-sm font-semibold text-[var(--text)]">연결된 문서가 없습니다</div>
-                      <div className="text-xs text-[var(--text-muted)] mt-1">견적·계약 문서가 프로젝트에 연결되면 표시됩니다</div>
+                      <div className="text-sm font-semibold text-[var(--text)]">아직 연결된 문서가 없습니다.</div>
+                      <div className="text-xs text-[var(--text-muted)] mt-1">프로젝트에 연결된 견적·계약 문서가 표시됩니다.</div>
                     </div>
                   ) : (
                     <table className="w-full">
@@ -1561,8 +1561,8 @@ export default function PartnersPage() {
                   {partnerComms.length === 0 ? (
                     <div className="py-14 text-center">
                       <div className="text-4xl mb-3"><Ico e="💬" /></div>
-                      <div className="text-sm font-semibold text-[var(--text)]">커뮤니케이션 기록이 없습니다</div>
-                      <div className="text-xs text-[var(--text-muted)] mt-1">전화·이메일·미팅 내용을 기록해 관계 이력을 남겨보세요</div>
+                      <div className="text-sm font-semibold text-[var(--text)]">아직 커뮤니케이션 기록이 없습니다.</div>
+                      <div className="text-xs text-[var(--text-muted)] mt-1">전화·이메일·미팅 내용을 기록하세요.</div>
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -1656,7 +1656,7 @@ export default function PartnersPage() {
                     </table>
                   </div>
                   {importResult.failed.length > 30 && (
-                    <div className="text-[10px] text-center text-[var(--text-dim)] py-1">… 외 {importResult.failed.length - 30}건 (CSV 다운로드로 확인)</div>
+                    <div className="text-[10px] text-center text-[var(--text-dim)] py-1">외 {importResult.failed.length - 30}건은 CSV에서 확인하세요.</div>
                   )}
                 </div>
               )}
@@ -1675,7 +1675,7 @@ export default function PartnersPage() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
               <div>
                 <h2 className="text-lg font-bold">CSV / 엑셀 임포트 미리보기</h2>
-                <p className="text-xs text-[var(--text-muted)] mt-0.5">{importPreview ? `${importPreview.length}건 가져옵니다 · 중복(사업자번호/이름+이메일)은 자동 스킵` : "오류"}</p>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">{importPreview ? `${importPreview.length}건을 가져오고 중복은 건너뜁니다.` : "오류"}</p>
               </div>
               <button onClick={() => { if (!importing) { setImportPreview(null); setImportError(null); } }}
                 className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl transition">✕</button>
@@ -1710,7 +1710,7 @@ export default function PartnersPage() {
                   </tbody>
                 </table>
                 {importPreview.length > 50 && (
-                  <div className="text-xs text-[var(--text-dim)] text-center mt-3">… 외 {importPreview.length - 50}건 (저장 시 모두 처리)</div>
+                  <div className="text-xs text-[var(--text-dim)] text-center mt-3">외 {importPreview.length - 50}건도 저장 시 모두 처리됩니다.</div>
                 )}
               </div>
             )}
@@ -1720,7 +1720,7 @@ export default function PartnersPage() {
                   <div className="mx-6 mb-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
                     <div className="flex items-center justify-between text-xs mb-1">
                       <span className="font-semibold">처리 중... {importProgress.done} / {importProgress.total} ({Math.round((importProgress.done / importProgress.total) * 100)}%)</span>
-                      <span className="text-[var(--text-muted)]">20행 chunk 병렬</span>
+                      <span className="text-[var(--text-muted)]">묶음으로 처리 중입니다.</span>
                     </div>
                     <div className="w-full h-1 bg-[var(--border)] rounded-full overflow-hidden">
                       <div className="h-full bg-[var(--primary)] transition-all" style={{ width: `${Math.round((importProgress.done / importProgress.total) * 100)}%` }} />
@@ -1787,7 +1787,7 @@ export default function PartnersPage() {
                   <input value={form.businessNumber} onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, '').slice(0, 10); const formatted = raw.length <= 3 ? raw : raw.length <= 5 ? `${raw.slice(0,3)}-${raw.slice(3)}` : `${raw.slice(0,3)}-${raw.slice(3,5)}-${raw.slice(5)}`; setField("businessNumber", formatted); setFormBizStatus(null); if (raw.length === 10) { setFormBizStatus({ status: '조회중...', loading: true }); verifyBusinessNumber(raw).then(r => setFormBizStatus({ status: r.status, loading: false })); } }} placeholder="000-00-00000" className={`${inputCls} ${formBizStatus && !formBizStatus.loading ? (formBizStatus.status === '계속사업자' ? 'border-green-500' : formBizStatus.status === '확인불가' ? 'border-yellow-500' : 'border-red-500') : ''}`} />
                   {formBizStatus && (
                     <p className={`text-[11px] mt-1 ${formBizStatus.loading ? 'text-[var(--text-muted)]' : formBizStatus.status === '계속사업자' ? 'text-green-500' : formBizStatus.status === '확인불가' ? 'text-yellow-500' : 'text-red-500'}`}>
-                      {formBizStatus.loading ? '국세청 조회중...' : formBizStatus.status === '계속사업자' ? '✓ 정상 사업자' : formBizStatus.status === '휴업자' ? '⚠ 휴업 상태' : formBizStatus.status === '폐업자' ? '✗ 폐업 사업자' : '확인불가 (체크섬 오류 또는 미등록)'}
+                      {formBizStatus.loading ? '국세청 조회중...' : formBizStatus.status === '계속사업자' ? '✓ 정상 사업자' : formBizStatus.status === '휴업자' ? '⚠ 휴업 상태' : formBizStatus.status === '폐업자' ? '✗ 폐업 사업자' : '확인불가'}
                     </p>
                   )}
                 </div>
@@ -1883,7 +1883,7 @@ function PortalLinkModal({ url, partnerName, onClose }: { url: string; partnerNa
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      window.prompt("포털 링크 (복사해 거래처에 전달하세요)", url);
+      window.prompt("포털 링크를 복사해 거래처에 전달하세요.", url);
     }
   };
   useModalKeys(true, onClose, copy);
@@ -1916,8 +1916,8 @@ function PortalLinkModal({ url, partnerName, onClose }: { url: string; partnerNa
           </div>
           <ul className="text-[11px] text-[var(--text-dim)] space-y-1 leading-relaxed">
             <li>• 거래처는 <span className="text-[var(--text-muted)]">로그인 없이</span> 견적·계약 서류를 확인할 수 있습니다.</li>
-            <li>• 이 링크는 <span className="text-amber-500">타인과 공유하지 마세요</span> (링크 자체가 접근 권한입니다).</li>
-            <li>• 다시 발급하면 같은 링크가 유지됩니다 (재발급 시 동일 토큰).</li>
+            <li>• 이 링크는 <span className="text-amber-500">타인과 공유하지 마세요</span>.</li>
+            <li>• 다시 발급해도 같은 링크가 유지됩니다.</li>
           </ul>
         </div>
         <div className="flex justify-end gap-2 px-5 py-3 border-t border-[var(--border)]">

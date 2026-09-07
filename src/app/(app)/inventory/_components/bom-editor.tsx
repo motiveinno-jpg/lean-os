@@ -92,14 +92,13 @@ export function BomEditorDialog({ companyId, product, products, onClose }: {
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">자재구성 — {product.name} <span className="ev-dim">{product.sku}</span></h3>
-        <p className="inv-modal-desc">
-          완제품 <b>기준 수량당 소요 자재와 소요량</b>입니다. 완성 기록 시 <b>소요량 ÷ 기준 수량 × 완성 수량</b>만큼 자재가 출고됩니다. 비어 있으면 완제품만 입고되고 자재는 출고되지 않습니다.
-          자재 칸에 품목명·SKU 를 입력하거나 바코드를 스캔하고, <b>Enter</b> 로 다음 칸·다음 줄로 이동합니다.
+        <p className="inv-modal-desc" title="완성 기록 시 소요량 ÷ 기준 수량 × 완성 수량만큼 자재가 출고됩니다">
+          완제품을 만들 때 드는 자재와 소요량입니다. 비어 있으면 완성해도 자재가 빠지지 않습니다.
         </p>
         <div className="inv-bom-base">
           <span className="field-label">기준 수량</span>
           <span>완제품 <input className="field-input inv-count-input" inputMode="numeric" value={base} onChange={(e) => setBase(e.target.value)} /> {product.unit || "개"}당</span>
-          <em className="inv-hint">1개당으로 나누어떨어지지 않으면 기준을 10·100 으로 두고 그 수량당 소요량을 적습니다. 예) 10개당 리본 3장</em>
+          <em className="inv-hint">1개당으로 나누기 어려우면 기준 수량을 10이나 100으로 둡니다.</em>
         </div>
         <div className="stg-table-wrap ch-ship-list" ref={gridRef}>
           <table className="ev-table ev-lined table-doc table-inv-status-sm">
@@ -233,8 +232,8 @@ export function BomNeedDialog({ companyId, warehouseId, items, products, onClose
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">자재 소요</h3>
-        <p className="inv-modal-desc">완제품을 누르면 그 품목의 소요 자재가 아래에 나옵니다. 현재고는 {warehouseId ? "선택한 창고" : "전체 창고"} 기준, 과부족은 <b>입력한 완제품 전체 소요</b> 기준입니다.</p>
-        {grouped.length === 0 ? <div className="inv-status-empty">완제품과 완성 수량을 먼저 입력하세요</div> : (
+        <p className="inv-modal-desc" title="과부족은 입력한 완제품 전체 소요 기준입니다">완제품을 누르면 소요 자재가 아래에 나옵니다. 현재고는 {warehouseId ? "선택한 창고" : "전체 창고"} 기준입니다.</p>
+        {grouped.length === 0 ? <div className="inv-status-empty">아직 입력한 완제품이 없습니다. 완제품과 수량을 먼저 입력하세요.</div> : (
           <>
             <div className="inv-bom-list">
               {grouped.map((g) => {
@@ -249,7 +248,7 @@ export function BomNeedDialog({ companyId, warehouseId, items, products, onClose
               })}
             </div>
             {cur && (cur.lines.length === 0 ? (
-              <div className="inv-status-empty">{cur.product.name}은(는) 자재구성이 없습니다. 완성 기록 시 자재가 출고되지 않습니다.{onEdit && <> <button type="button" className="bz-link" onClick={() => onEdit(cur.product)}>자재구성 등록</button></>}</div>
+              <div className="inv-status-empty">{cur.product.name}은(는) 아직 자재구성이 없습니다.{onEdit &&<> <button type="button" className="bz-link" onClick={() => onEdit(cur.product)}>자재구성 등록</button></>}</div>
             ) : (
               <div className="stg-table-wrap ch-ship-list">
                 <table className="ev-table ev-lined table-inv-status-sm">
@@ -281,10 +280,10 @@ export function BomNeedDialog({ companyId, warehouseId, items, products, onClose
               <div className="inv-bom-base">
                 <span className="field-label">단가 제안</span>
                 <span><b className="mono-number">₩{won(Math.round(suggestCost))}</b> = 실투입 자재비 ÷ (양품 {won(cur.qty - defectOf(cur.product.id))} + 불량 {won(defectOf(cur.product.id))})</span>
-                <em className="inv-hint">로스는 원가에 얹히고, 불량은 폐기하는 순간 손실이 됩니다. 격자의 단가 칸에 직접 넣으세요. 제안일 뿐 확정은 사람이 합니다.</em>
+                <em className="inv-hint">제안 단가입니다. 격자의 단가 칸에 직접 넣으세요.</em>
               </div>
             )}
-            <div className="inv-modal-foot">완제품 {grouped.length}종{totalShort ? <> · <b className="inv-diff-minus">자재 부족 {totalShort}종</b> · 완성 기록 시 자재 재고가 음수가 됩니다</> : <> · 자재 모두 충분</>}</div>
+            <div className="inv-modal-foot">완제품 {grouped.length}종{totalShort ? <> · <b className="inv-diff-minus">자재 부족 {totalShort}종</b> · 완성하면 자재 재고가 음수가 됩니다.</> : <> · 자재 모두 충분합니다.</>}</div>
           </>
         )}
         <div className="inv-modal-actions">

@@ -543,7 +543,7 @@ export function OrgBulkWizard({
                 (기존 '단체 일괄 서명 발송'). 여러 곳 동시 발송은 부제로 안내. */}
             <h2 className="text-lg font-bold text-[var(--text)]">새 계약 요청</h2>
             <p className="text-xs text-[var(--text-muted)]">
-              계약서를 골라 거래처에 발송합니다. 여러 곳을 선택하면 변수만 다르게 채워 한 번에 보냅니다.
+              계약서를 골라 거래처에 발송합니다.
             </p>
           </div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl">×</button>
@@ -579,10 +579,10 @@ export function OrgBulkWizard({
           <div className="bulk-wizard-step-doc">
             <div className="text-sm font-semibold text-[var(--text)]">발송할 계약서를 선택하세요</div>
             <div className="text-xs text-[var(--text-muted)]">
-              "양식 관리"에 등록된 계약서 양식 중에서 고르세요. 양식을 고르면 자동으로 문서로 만들어 발송합니다.
+              양식 관리에 등록된 계약서 양식 중에서 고릅니다.
               <br />
               <span className="caption">
-                <Ico e="💡" /> 변수 토큰 <code className="text-[var(--primary)]">{`{{을_회사명}}`}</code> / <code className="text-[var(--primary)]">{`{{을_사업자번호}}`}</code> / <code className="text-[var(--primary)]">{`{{을_대표자}}`}</code> / <code className="text-[var(--primary)]">{`{{을_주소}}`}</code> 는 거래처별 자동 치환됩니다. <code className="text-[var(--primary)]">{`{{갑_*}}`}</code> 는 회사 공통값.
+                <Ico e="💡" /> <code className="text-[var(--primary)]">{`{{을_회사명}}`}</code> · <code className="text-[var(--primary)]">{`{{을_사업자번호}}`}</code> · <code className="text-[var(--primary)]">{`{{을_대표자}}`}</code> · <code className="text-[var(--primary)]">{`{{을_주소}}`}</code> 변수는 거래처별로 자동 치환됩니다.
               </span>
             </div>
             <input
@@ -593,14 +593,14 @@ export function OrgBulkWizard({
             />
             <div className="bulk-wizard-doc-list">
               {bizTemplates.length === 0 ? (
-                <div className="p-6 text-center text-sm text-[var(--text-muted)]">양식 관리에 등록된 계약서 양식이 없습니다. 양식 관리에서 먼저 추가하세요.</div>
+                <div className="p-6 text-center text-sm text-[var(--text-muted)]">아직 계약서 양식이 없습니다. 양식 관리에서 먼저 추가하세요.</div>
               ) : (
                 <>
                   {docQ && docSectionShown.length === 0 && (stdSectionShown as any[]).length === 0 && (
                     <div className="p-6 text-center text-sm text-[var(--text-muted)]">"{docSearch.trim()}" 에 해당하는 계약서·양식이 없습니다.</div>
                   )}
                   {docSectionShown.length > 0 && (
-                    <div className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] uppercase bg-[var(--bg-surface)]/60 sticky top-0">양식 관리 — 우리 회사 양식 {!docQ && <span className="normal-case font-normal">— 드래그로 순서 변경(모든 구성원 공통)</span>}</div>
+                    <div className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] uppercase bg-[var(--bg-surface)]/60 sticky top-0">양식 관리 · 우리 회사 양식 {!docQ && <span className="normal-case font-normal">· 끌어서 순서를 바꿉니다.</span>}</div>
                   )}
                   {docSectionShown.map((item) => {
                     const rowKey = `doc|${item.id}`;
@@ -625,7 +625,7 @@ export function OrgBulkWizard({
                         />
                         <div className="flex-1">
                           <div className="text-sm text-[var(--text)]">{t.name}</div>
-                          <div className="text-[10px] text-[var(--text-muted)]">우리 회사 양식 · 선택 시 문서로 생성</div>
+                          <div className="text-[10px] text-[var(--text-muted)]">선택하면 문서로 만들어집니다.</div>
                         </div>
                       </label>
                     );
@@ -655,7 +655,7 @@ export function OrgBulkWizard({
                         />
                         <div className="flex-1">
                           <div className="text-sm text-[var(--text)]">{t.name}</div>
-                          <div className="text-[10px] text-[var(--text-muted)]">양식 · 선택 시 문서로 생성</div>
+                          <div className="text-[10px] text-[var(--text-muted)]">선택하면 문서로 만들어집니다.</div>
                         </div>
                       </label>
                     );
@@ -747,7 +747,7 @@ export function OrgBulkWizard({
                 </div>
                 <div className="flex items-center justify-between gap-2 mt-3">
                   <span className="text-[11px] text-[var(--text-dim)]">
-                    대표자·사업자번호·주소는 <code className="text-[var(--primary)]">{`{{을_*}}`}</code> 토큰 치환에 쓰입니다. 계약서에 쓰는 값이면 함께 입력하세요.
+                    대표자·사업자번호·주소는 <code className="text-[var(--primary)]">{`{{을_*}}`}</code> 변수에 쓰입니다.
                   </span>
                   <div className="flex items-center gap-2 shrink-0">
                     <button type="button" onClick={() => { setShowAddPartner(false); setNewPartner(emptyNewPartner); }} className="btn-ghost btn-sm">취소</button>
@@ -864,12 +864,12 @@ export function OrgBulkWizard({
 
             {tokens.length === 0 ? (
               <div className="p-4 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-xs text-[var(--text-muted)]">
-                계약서·제목에서 <code>{"{{토큰}}"}</code> 형식 변수를 찾지 못했습니다. 그대로 발송됩니다.
+                <code>{"{{토큰}}"}</code> 변수가 없어 그대로 발송됩니다.
               </div>
             ) : (
               <div className="space-y-2">
                 <div className="text-xs font-semibold text-[var(--text-muted)]">
-                  발견된 변수 {tokens.length}개 · 각 변수를 거래처 컬럼 또는 공통값에 연결하세요.
+                  변수 {tokens.length}개를 거래처 값이나 공통값에 연결하세요.
                 
                 </div>
                 {tokens.map((token) => {
@@ -986,7 +986,7 @@ export function OrgBulkWizard({
             {/* 수신 이메일 (거래처별 수정 가능) — 기본=담당자(변수 매핑) 이메일, 다른 곳 발송 시 수정 */}
             <div className="pt-3 border-t border-[var(--border)]">
               <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">수신 이메일 ({selectedPartners.length}곳)</label>
-              <p className="text-[11px] text-[var(--text-dim)] mb-2">기본값은 거래처에 등록된 담당자 이메일입니다. 다른 곳으로 보내려면 직접 수정하세요. (비우면 기본 이메일로 발송)</p>
+              <p className="text-[11px] text-[var(--text-dim)] mb-2">기본값은 거래처 담당자 이메일이며 직접 바꿀 수 있습니다.</p>
               <div className="bulk-wizard-email-list">
                 {selectedPartners.map((p) => {
                   const val = emailOverrides[p.id] ?? (p.contact_email || "");
@@ -1021,16 +1021,16 @@ export function OrgBulkWizard({
                   disabled={hasCompanySeal === false}
                   onChange={(e) => setApplyOurSeal(e.target.checked)}
                 />
-                발송 전 우리 직인(도장) 적용 — 거래처가 받는 계약서에 우리 도장이 미리 찍힙니다
+                발송 전 우리 직인 적용
               </label>
               {hasCompanySeal === false && (
                 <div className="mt-1.5 text-[11px] text-amber-500">
-                  회사 직인이 등록되지 않았습니다. 회사 설정 → 직인에서 먼저 등록하세요. (지금은 우리 도장 없이 발송됩니다)
+                  회사 직인이 등록되지 않아 직인 없이 발송됩니다.
                 </div>
               )}
               {hasCompanySeal === true && applyOurSeal && (
                 <div className="mt-1.5 text-[11px] text-[var(--text-muted)]">
-                  계약서 갑(수행기관) 서명란에 직인이 합성되어 발송됩니다. 거래처는 을 서명만 하면 양방향 완성.
+                  갑 서명란에 직인이 찍혀 발송됩니다.
                 </div>
               )}
             </div>
@@ -1041,7 +1041,7 @@ export function OrgBulkWizard({
         {step === 5 && (
           <div className="bulk-wizard-step-preview">
             <div className="text-xs text-[var(--text-muted)]">
-              아래는 선택한 거래처 중 첫 번째 단체 기준 미리보기입니다. 단체별로 값이 다르게 치환됩니다.
+              첫 번째 거래처 기준 미리보기입니다.
             </div>
             {!previewPartner ? (
               <div className="p-4 rounded-lg border border-yellow-500/30 bg-yellow-500/5 text-yellow-500 text-sm">
@@ -1070,7 +1070,7 @@ export function OrgBulkWizard({
                     </div>
                   ) : (
                     <div className="p-4 rounded-lg border border-yellow-500/30 bg-yellow-500/5 text-yellow-600 text-xs">
-                      이 문서엔 본문이 없어 계약서 미리보기를 표시할 수 없습니다. (제목·변수만 발송됩니다)
+                      본문이 없어 미리보기를 표시할 수 없습니다.
                     </div>
                   )}
                 </div>
@@ -1098,7 +1098,7 @@ export function OrgBulkWizard({
                   </div>
                 )}
                 <div className="p-3 rounded-lg border border-[var(--primary)]/30 bg-[var(--primary)]/5 text-xs text-[var(--text)] shadow-sm">
-                  총 <b>{selectedPartners.length}곳</b>에 발송됩니다. (이메일 미등록 거래처는 자동 스킵)
+                  총 <b>{selectedPartners.length}곳</b>에 발송됩니다.
                 </div>
 
                 {/* 발송 예측 (504 인시던트 3차 후속 — 대량 발송 사전 안내) */}

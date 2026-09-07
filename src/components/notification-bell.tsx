@@ -241,7 +241,7 @@ export function NotificationBell() {
                       <button
                         onClick={(e) => markRead(n, e)}
                         className="text-[10px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)] whitespace-nowrap"
-                        title="이 알림만 읽음 처리 (이동 안 함)"
+                        title="이 알림만 읽음 처리합니다."
                       >읽음</button>
                     </span>
                   </div>

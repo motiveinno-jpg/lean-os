@@ -63,7 +63,7 @@ export function SampleDataBanner({ companyId }: { companyId?: string | null }) {
     <div className="sample-banner" role="status">
       <span className="sample-banner-tag">샘플</span>
       <span className="sample-banner-text">
-        지금 보시는 숫자는 <b>샘플 회사</b> 자료예요. 내 통장·카드를 연결하면 샘플은 자동으로 지워지고 내 자료로 바뀝니다.
+        지금 보시는 숫자는 <b>샘플 회사</b> 자료입니다. 통장을 연결하면 내 자료로 바뀝니다.
       </span>
       <span className="sample-banner-actions">
         <Link href="/settings?tab=bank" className="btn-primary btn-sm">내 통장 연결하기</Link>

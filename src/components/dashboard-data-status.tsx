@@ -28,10 +28,10 @@ export function relTime(iso?: string | null): string {
 export type ChannelStatus = { label: string; tone: "ok" | "stale" | "fail" | "none"; title: string };
 
 function statusOf(latest: string | null, latestOk: string | null): ChannelStatus {
-  if (!latest) return { label: "동기화 이력 없음", tone: "none", title: "아직 동기화한 적이 없습니다. ↻ 를 누르거나 설정 › API 연동에서 연결하세요." };
-  if (!latestOk) return { label: "동기화 실패 중", tone: "fail", title: "최근 동기화가 계속 실패하고 있습니다. 설정 › API 연동에서 연결 상태를 확인하세요." };
+  if (!latest) return { label: "동기화 이력 없음", tone: "none", title: "아직 동기화한 적이 없습니다. 설정에서 연결하세요." };
+  if (!latestOk) return { label: "동기화 실패 중", tone: "fail", title: "최근 동기화가 실패했습니다. 설정에서 연결 상태를 확인하세요." };
   const h = (Date.now() - new Date(latestOk).getTime()) / 3_600_000;
-  return { label: relTime(latestOk), tone: h > 26 ? "stale" : "ok", title: h > 26 ? "자동 동기화(하루 2회)가 밀려 있습니다. ↻ 로 지금 받아올 수 있습니다." : "자동 동기화는 하루 2회(오전·오후). 지금 최신화하려면 ↻." };
+  return { label: relTime(latestOk), tone: h > 26 ? "stale" : "ok", title: h > 26 ? "자동 동기화가 밀려 있습니다. 지금 동기화할 수 있습니다." : "하루 두 번 자동으로 동기화됩니다." };
 }
 
 /** 통장·카드 각각의 마지막 동기화 상태 */
@@ -84,7 +84,7 @@ export function ChannelHead({ status, unclassified, unclassifiedHref, onSync, sy
       <span className={`dash-chan-dot dash-chan-dot-${status.tone}`} aria-hidden />
       <span className="dash-chan-txt">{status.label}</span>
       {unclassified > 0 && (
-        <Link href={unclassifiedHref} className="dash-chan-unc" title="계정과목이 안 정해진 거래 · 누르면 수집·전표에서 정리합니다">· 미분류 <b className="mono-number">{unclassified.toLocaleString("ko")}</b></Link>
+        <Link href={unclassifiedHref} className="dash-chan-unc" title="계정과목이 없는 거래입니다. 누르면 정리 화면으로 갑니다.">· 미분류 <b className="mono-number">{unclassified.toLocaleString("ko")}</b></Link>
       )}
       {onSync && (
         <button type="button" onClick={onSync} disabled={syncing} className="dash-chan-sync" title="지금 동기화" aria-label="지금 동기화">

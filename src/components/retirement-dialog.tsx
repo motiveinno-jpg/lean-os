@@ -28,10 +28,10 @@ export function RetirementDialog({ companyId, onClose }: { companyId: string; on
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">퇴직금 추계 — 재직자 {rows.length}명</h3>
-        <p className="inv-modal-desc">평균임금(최근 3개월 발급 명세 총급여 ÷ 일수, 명세가 없으면 약정 월급) × 30일 × 근속년. <b>1년 미만은 0</b>(법정). 저장하지 않고 기준일마다 새로 계산합니다. 출처: 규칙. 전표는 추계 합계와 장부(퇴직급여충당부채) 잔액의  <b>차액만</b>, 개인별 금액 없이 한 줄.</p>
+        <p className="inv-modal-desc" title="평균임금 × 30일 × 근속년으로 계산합니다. 평균임금은 최근 3개월 명세 총급여 기준이며 명세가 없으면 약정 월급을 씁니다.">기준일 시점의 퇴직금을 추계합니다. <b>1년 미만은 0</b>입니다. 전표는 장부 잔액과의 <b>차액만</b> 한 줄로 만듭니다.</p>
         <div className="ins-rates-head">
           <label className="inv-field"><span>기준일</span><DateField value={asof} onChange={(e) => setAsof(e.target.value)} className="field-input" /></label>
-          <span className="inv-hint">직접 입력한 충당금(정보 탭)은 참고로 나란히 보입니다.</span>
+          <span className="inv-hint">직접 입력한 충당금은 참고로 함께 보입니다.</span>
         </div>
         {isLoading ? <div className="collect-empty">계산 중…</div> : (
           <div className="stg-table-wrap">

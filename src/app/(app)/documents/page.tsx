@@ -696,7 +696,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           </button>
           <button onClick={() => sendToPartnerMut.mutate()} disabled={sendToPartnerMut.isPending}
             className="btn-primary"
-            title="견적서 거래처에게 서명 링크를 바로 이메일로 발송합니다">
+            title="거래처에 서명 링크를 이메일로 보냅니다.">
             {sendToPartnerMut.isPending ? "발송 중..." : "거래처에게 발송"}
           </button>
           <button onClick={() => setShowSignRequestForm(!showSignRequestForm)}
@@ -801,7 +801,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
               복사
             </button>
           </div>
-          <div className="text-xs text-[var(--text-muted)] mb-2">이메일로 공유 링크를 발송하려면 수신자 이메일을 입력하세요.</div>
+          <div className="text-xs text-[var(--text-muted)] mb-2">수신자 이메일을 입력하세요.</div>
           <div className="flex gap-2 items-center">
             <input
               type="email"
@@ -859,7 +859,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
               + 서명자 추가
             </button>
           </div>
-          <p className="text-[10px] text-[var(--text-muted)] mb-3">여러 명에게 동시에 서명 요청을 보낼 수 있습니다. 각 서명자는 개별 링크를 받습니다.</p>
+          <p className="text-[10px] text-[var(--text-muted)] mb-3">서명자마다 개별 링크를 받습니다.</p>
 
           <div className="space-y-2 mb-4">
             {bulkSigners.map((s, i) => (
@@ -1001,7 +1001,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
               <div className="mt-4 pt-4 border-t border-[var(--border)]">
                 <div className="text-[10px] font-semibold text-[var(--text-dim)] mb-2 uppercase tracking-wide">감사 추적 (Audit Trail)</div>
                 {signAudit.length === 0 ? (
-                  <div className="text-[11px] text-[var(--text-dim)] py-3">기록된 이벤트가 없습니다</div>
+                  <div className="text-[11px] text-[var(--text-dim)] py-3">아직 기록이 없습니다.</div>
                 ) : (
                   <div className="space-y-1 max-h-64 overflow-y-auto">
                     {(signAudit as any[]).map((log) => {
@@ -1061,7 +1061,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
         <div className="space-y-4">
           {isLocked && (
             <div className="kpi-callout warning">
-              이 문서는 <b>잠금 상태</b>입니다. 수정할 수 없습니다.
+              이 문서는 <b>잠금 상태</b>라 수정할 수 없습니다.
             </div>
           )}
 
@@ -1100,7 +1100,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     </button>
                     {issItems.length > 1 && (
                       <button onClick={() => issueInvoices("per-item")} disabled={issuing} className="w-full py-2.5 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] text-sm font-semibold hover:border-[var(--primary)] disabled:opacity-50 text-left">
-                        <Ico e="📑" /> 품목별 개별 발행 <span className="text-[var(--text-muted)] text-xs">— {issItems.length}건 각각(예: 선금/중도금/잔금)</span>
+                        <Ico e="📑" /> 품목별 개별 발행 <span className="text-[var(--text-muted)] text-xs">{issItems.length}건을 각각 발행합니다.</span>
                       </button>
                     )}
                     <button onClick={() => setSavedModal(false)} className="w-full py-2 rounded-lg text-sm text-[var(--text-muted)] hover:bg-[var(--bg-surface)]">나중에</button>
@@ -1121,7 +1121,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             const w = (n: number) => `₩${(Number(n) || 0).toLocaleString('ko')}`;
             return (
               <div ref={previewRef} className="quote-preview-panel glass-card">
-                <div className="px-5 py-3 border-b border-[var(--border)] text-xs text-[var(--text-dim)] font-medium">견적서 미리보기 (저장된 결과물)</div>
+                <div className="px-5 py-3 border-b border-[var(--border)] text-xs text-[var(--text-dim)] font-medium">견적서 미리보기</div>
                 <div className="p-6 bg-white text-[#222]">
                   <div className="text-center text-2xl font-bold mb-5 tracking-[0.3em] text-[#222]">견 적 서</div>
                   <div className="flex justify-between text-xs mb-4 text-[#333]">
@@ -1149,7 +1149,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     </thead>
                     <tbody>
                       {validItems.length === 0 ? (
-                        <tr><td colSpan={6} className="px-2 py-6 text-center text-[#999]">품목을 입력하면 여기에 표시됩니다</td></tr>
+                        <tr><td colSpan={6} className="px-2 py-6 text-center text-[#999]">아직 품목이 없습니다.</td></tr>
                       ) : validItems.map((it: any, i: number) => (
                         <tr key={i} className="border-b border-[#eee]">
                           <td className="px-2 py-1.5">{it.name}{it.spec ? ` (${it.spec})` : ''}</td>
@@ -1413,7 +1413,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
               {(contentType === 'invoice' || contentType === 'quote') && (
                 <button onClick={() => saveAndInvoiceMut.mutate()} disabled={saveAndInvoiceMut.isPending}
                   className="btn-secondary whitespace-nowrap"
-                  title="견적서를 저장하고, 품목 합계로 매출 세금계산서(초안)를 자동 생성합니다">
+                  title="저장하고 매출 세금계산서 초안을 만듭니다.">
                   {saveAndInvoiceMut.isPending ? "처리 중..." : "저장/전표"}
                 </button>
               )}
@@ -1425,7 +1425,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       {tab === "revisions" && (
         <div className="document-revisions-list glass-card">
           {revisions.length === 0 ? (
-            <div className="p-12 text-center text-sm text-[var(--text-muted)]">수정 이력이 없습니다</div>
+            <div className="p-12 text-center text-sm text-[var(--text-muted)]">아직 수정 이력이 없습니다.</div>
           ) : (
             <div className="divide-y divide-[var(--border)]/50">
               {revisions.map((rev: any) => (
@@ -1454,7 +1454,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       {tab === "approvals" && (
         <div className="document-approvals-list glass-card">
           {approvals.length === 0 ? (
-            <div className="p-12 text-center text-sm text-[var(--text-muted)]">승인 기록이 없습니다</div>
+            <div className="p-12 text-center text-sm text-[var(--text-muted)]">아직 승인 기록이 없습니다.</div>
           ) : (
             <div className="divide-y divide-[var(--border)]/50">
               {approvals.map((appr: any) => (
@@ -1949,10 +1949,10 @@ function DocumentsPageInner() {
             <div className="p-16 text-center">
               <div className="text-4xl mb-4"><Ico e="📄" /></div>
               <div className="text-sm font-medium text-[var(--text)]">
-                {searchTerm || typeFilter !== "all" ? "검색 결과가 없습니다" : "계약서, NDA 등 문서를 만들어보세요"}
+                {searchTerm || typeFilter !== "all" ? "검색 결과가 없습니다." : "아직 문서가 없습니다."}
               </div>
               <div className="text-xs text-[var(--text-muted)] mt-1">
-                {searchTerm || typeFilter !== "all" ? "다른 검색어나 필터를 시도하세요" : "계약서, 견적서, 제안서를 AI로 빠르게 생성할 수 있습니다"}
+                {searchTerm || typeFilter !== "all" ? "검색조건을 풀어 보세요." : "첫 문서를 만들어 보세요."}
               </div>
               {!searchTerm && typeFilter === "all" && (
                 <button onClick={() => setShowDocForm(true)} className="mt-4 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-semibold hover:opacity-90">+ 새 문서</button>
@@ -2041,7 +2041,7 @@ function DocumentsPageInner() {
               <span className="text-xs text-[var(--text-dim)]">{contractDocuments.length}건</span>
             </div>
             {contractDocuments.length === 0 ? (
-              <div className="p-12 text-center text-sm text-[var(--text-muted)]">프로젝트에서 생성된 계약서가 여기에 표시됩니다</div>
+              <div className="p-12 text-center text-sm text-[var(--text-muted)]">아직 프로젝트 계약서가 없습니다.</div>
             ) : (
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px] sticky-head">
                 <thead>
@@ -2232,7 +2232,7 @@ function DocumentsPageInner() {
             )}
 
             {contractArchives.length === 0 && !showArchiveForm ? (
-              <div className="p-12 text-center text-sm text-[var(--text-muted)]">기존 계약서(임대차, 용역 등)를 스캔하여 등록하세요</div>
+              <div className="p-12 text-center text-sm text-[var(--text-muted)]">아직 등록된 계약서가 없습니다. 스캔해서 등록해 보세요.</div>
             ) : contractArchives.length > 0 && (
               <div className="contract-archive-table"><table className="w-full min-w-[700px] sticky-head">
                 <thead>
@@ -2291,8 +2291,8 @@ function DocumentsPageInner() {
           {invoices.length === 0 ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4"><Ico e="🧾" /></div>
-              <div className="text-lg font-bold mb-2">세금계산서가 없습니다</div>
-              <div className="text-sm text-[var(--text-muted)]">매출/매입 세금계산서를 등록하세요</div>
+              <div className="text-lg font-bold mb-2">아직 세금계산서가 없습니다.</div>
+              <div className="text-sm text-[var(--text-muted)]">세금계산서를 등록해 보세요.</div>
             </div>
           ) : (
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px] sticky-head">
@@ -2448,8 +2448,8 @@ function DocumentsPageInner() {
                   <path d="M12 20h9" strokeLinecap="round" strokeLinejoin="round" />
                   <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                <div className="text-lg font-bold mb-2">서명 요청이 없습니다</div>
-                <div className="text-sm text-[var(--text-muted)]">문서에 전자서명을 요청하세요</div>
+                <div className="text-lg font-bold mb-2">아직 서명 요청이 없습니다.</div>
+                <div className="text-sm text-[var(--text-muted)]">문서에 서명을 요청해 보세요.</div>
               </div>
             ) : (
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px] sticky-head">
@@ -2656,7 +2656,7 @@ function DocumentsPageInner() {
                     </div>
                   ) : (
                     <div className="mt-2 bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-8 text-center text-xs text-[var(--text-dim)]">
-                      아직 서명되지 않았습니다
+                      아직 서명되지 않았습니다.
                     </div>
                   )}
                 </div>
@@ -3177,8 +3177,8 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
           {folders.length === 0 && (
             <div className="text-center py-8 px-2">
               <div className="text-2xl mb-2"><Ico e="🗂" /></div>
-              <div className="text-xs font-bold text-[var(--text-muted)]">폴더가 없습니다</div>
-              <div className="text-[10px] text-[var(--text-dim)] mt-1">+ 새 폴더로 파일을 분류해 보관하세요</div>
+              <div className="text-xs font-bold text-[var(--text-muted)]">아직 폴더가 없습니다.</div>
+              <div className="text-[10px] text-[var(--text-dim)] mt-1">새 폴더를 만들어 보세요.</div>
             </div>
           )}
         </div>
@@ -3217,7 +3217,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
                 <ConditionRow label="올린 사람" hint="여러 명">
                   <TokenField items={byOpts} value={dDraft.by} onChange={(v) => setDDraft((c) => ({ ...c, by: v }))} placeholder="이름 일부" />
                 </ConditionRow>
-                <ConditionRow label="크기 (KB)" hint="한쪽만 적어도 됩니다">
+                <ConditionRow label="크기 (KB)" hint="한쪽만 적어도 됩니다.">
                   <AmountRange min={dDraft.min} max={dDraft.max} onMin={(v) => setDDraft((c) => ({ ...c, min: v }))} onMax={(v) => setDDraft((c) => ({ ...c, max: v }))} />
                 </ConditionRow>
               </ConditionPanel>
@@ -3231,7 +3231,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
                 <span
                   className="text-[10.5px]"
                   style={{ color: storagePct >= 100 ? "var(--danger)" : storagePct >= 80 ? "var(--warning)" : "var(--text-dim)" }}
-                  title="회사가 올린 모든 파일(문서·첨부·이미지 등) 합계 · 지난 판도 자리를 차지합니다. 한도는 요금제·저장공간 팩에 따릅니다."
+                  title="회사가 올린 모든 파일의 합계입니다."
                 >
                   회사 저장공간 <b className="mono-number">{fmtQuotaBytes(storageInfo.usedBytes)}</b> / {fmtQuotaBytes(storageInfo.quotaBytes)} ({storagePct}%)
                   {storagePct >= 80 && (
@@ -3242,8 +3242,8 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
                   )}
                 </span>
               )}
-              {upProg && <span className="text-[10.5px] font-semibold text-[var(--primary)]">{upProg.name} 올리는 중 <b className="mono-number">{upProg.pct}%</b> · 끊겨도 같은 파일을 다시 올리면 이어서 올라갑니다</span>}
-              {selectedFolderId && <span className="text-[10.5px] text-[var(--text-dim)]">폴더 안만 보는 중 · 왼쪽 '전체'를 누르면 모든 파일</span>}
+              {upProg && <span className="text-[10.5px] font-semibold text-[var(--primary)]">{upProg.name} 올리는 중 <b className="mono-number">{upProg.pct}%</b></span>}
+              {selectedFolderId && <span className="text-[10.5px] text-[var(--text-dim)]">이 폴더의 파일만 보입니다.</span>}
               {dupNames.length > 0 && (
                 <span className="text-[10.5px] font-semibold text-amber-600">같은 이름 파일 {dupNames.length}종이 두 번 이상 · {dupNames.slice(0, 3).map(([n, c]) => `${n} (${c})`).join(" · ")}{dupNames.length > 3 ? " …" : ""}</span>
               )}
@@ -3253,7 +3253,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
             {filesLoading ? (
               <div className="collect-empty">불러오는 중…</div>
             ) : sortedFiles.length === 0 ? (
-              <div className="collect-empty">{fileSearchTerm ? "이 조건에 맞는 파일이 없습니다. 검색을 풀어 보세요" : "아직 파일이 없습니다. ＋ 올리기 또는 아래로 끌어다 놓으세요"}</div>
+              <div className="collect-empty">{fileSearchTerm ? "조건에 맞는 파일이 없습니다. 검색조건을 풀어 보세요." : "아직 파일이 없습니다. 파일을 올려 보세요."}</div>
             ) : (
               <div className="ev-scroll">
                 <table className="ev-table ev-lined doc-file-table">
@@ -3301,7 +3301,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
                             {/* v2+ 는 눌러서 지난 판 — 같은 이름을 다시 올리면 덮지 않고 판이 쌓인다(결정 146 ③) */}
                             {Number(f.version || 1) > 1 ? (
                               <button type="button" className="font-bold text-[var(--primary)] hover:underline"
-                                title="지난 판 보기 · 이전에 올렸던 같은 이름 파일" onClick={() => setVerFile(f)}>v{f.version}</button>
+                                title="지난 판을 봅니다." onClick={() => setVerFile(f)}>v{f.version}</button>
                             ) : <>v1</>}
                           </td>
                           <td className="tc whitespace-nowrap">
@@ -3343,7 +3343,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
               maxFiles={10}
               maxSize={500}
               compact
-              label="여기로 끌어다 놓아도 올라갑니다. 파일당 500MB, 큰 파일은 끊겨도 이어서 (이미지·PDF·Word·Excel·PPT·CSV·ZIP·TXT)"
+              label="파일당 500MB까지 끌어다 놓아도 올라갑니다."
             />
           </div>
         </QueryScreen>
@@ -3370,9 +3370,9 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
               <TokenField items={memberOpts} value={visDraft.members} onChange={(v) => setVisDraft((d) => ({ ...d, members: v }))} placeholder="이름 일부" />
             )}
             <p className="phv3-modal-desc !mt-2">
-              {visDraft.visibility === "company" ? "회사 구성원 모두가 이 폴더와 안의 파일을 봅니다."
-                : visDraft.visibility === "private" ? "나만 봅니다. 다른 사람에겐 폴더째 보이지 않습니다."
-                : "고른 대상만 봅니다. 그 밖 사람에겐 폴더째 보이지 않습니다(숨김은 화면이 아니라 서버 규칙이 합니다)."}
+              {visDraft.visibility === "company" ? "회사 구성원 모두가 봅니다."
+                : visDraft.visibility === "private" ? "나만 봅니다."
+                : "고른 대상만 봅니다."}
             </p>
             <div className="phv3-modal-actions">
               <button type="button" className="btn-secondary btn-sm" onClick={() => setVisFolder(null)}>닫기</button>
@@ -3400,8 +3400,8 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
         <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setVerFile(null); }}>
           <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="지난 판">
             <h3 className="phv3-modal-title">&quot;{verFile.file_name}&quot; · 지난 판</h3>
-            <p className="phv3-modal-desc">지금 판은 v{verFile.version} 입니다. 지난 판도 자리를 차지하므로 필요 없으면 표에서 지우세요.</p>
-            {(verList as any[]).length === 0 && <div className="collect-empty">지난 판을 불러오는 중이거나 없습니다</div>}
+            <p className="phv3-modal-desc">지금 판은 v{verFile.version}입니다.</p>
+            {(verList as any[]).length === 0 && <div className="collect-empty">지난 판이 없습니다.</div>}
             {(verList as any[]).map((v) => (
               <div key={v.id} className="mb-1 flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-xs">
                 <b className="mono-number">v{v.version}</b>

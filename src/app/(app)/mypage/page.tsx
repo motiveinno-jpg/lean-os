@@ -446,7 +446,7 @@ export default function MyPage() {
           <div className="bz-grid3">
             <section className="pnl-panel mypage-today-panel">
               <h3>오늘 출퇴근</h3>
-              <p>{todayStr} · 출근·퇴근 버튼은 여기서</p>
+              <p>{todayStr} · 출퇴근을 기록합니다.</p>
               {companyId && <MyAttendanceCard companyId={companyId} userId={userId} compact />}
             </section>
             <section className="pnl-panel">
@@ -475,8 +475,8 @@ export default function MyPage() {
           <div className="bz-grid2">
             <section className="pnl-panel">
               <h3>내가 처리할 것 <small className="font-normal text-[var(--text-dim)]">{myPendingApprovals.length + signPending.length + todosToday.length}건</small></h3>
-              <p>나한테 온 것 · 결재·서명·할 일. 누르면 그 화면으로</p>
-              {myPendingApprovals.length + signPending.length + todosToday.length + myRequestsPending === 0 ? <div className="collect-empty">지금 처리할 것이 없습니다</div> : (
+              <p>결재·서명·할 일을 모아 봅니다.</p>
+              {myPendingApprovals.length + signPending.length + todosToday.length + myRequestsPending === 0 ? <div className="collect-empty">지금 처리할 것이 없습니다.</div> : (
                 <ul className="bz-todos">
                   {myPendingApprovals.slice(0, 5).map((a: any) => (
                     <li key={a.stepId} className="bz-todo"><span className="bz-kind bz-kind-r">결재</span><span className="bz-todo-text">{a.title || "결재 요청"}{a.requesterName && <small> · {a.requesterName}</small>}{a.amount ? <small className="mono-number"> · ₩{Number(a.amount).toLocaleString()}</small> : null}</span><Link href="/approvals" className="bz-link">결재 허브 →</Link></li>
@@ -497,7 +497,7 @@ export default function MyPage() {
               <dl className="bz-kv">
                 {recentNotices.map((n: any) => <div key={n.id}><dt className="truncate">공지 · {n.title}</dt><dd><Link href="/announcements" className="bz-link">보기 →</Link></dd></div>)}
                 {recentLeaves.slice(0, 3).map((l: any) => <div key={l.id}><dt>{leaveTypeLabel(l.leave_type)} {l.start_date}</dt><dd className={l.status === "approved" ? "bz-plus" : l.status === "rejected" ? "bz-minus" : "bz-tone-y"}>{l.status === "approved" ? "승인" : l.status === "rejected" ? "반려" : "대기"}</dd></div>)}
-                {recentNotices.length + recentLeaves.length === 0 && <div><dt className="text-[var(--text-dim)]">최근 소식이 없습니다</dt><dd /></div>}
+                {recentNotices.length + recentLeaves.length === 0 && <div><dt className="text-[var(--text-dim)]">최근 소식이 없습니다.</dt><dd /></div>}
               </dl>
             </section>
           </div>
@@ -510,7 +510,7 @@ export default function MyPage() {
           {employee?.id ? (
             <MyAttendance employeeId={employee.id} />
           ) : (
-            <div className="collect-empty">구성원 정보와 연결되지 않았습니다. 인사관리에서 내 계정이 구성원으로 등록되면 출퇴근 기록이 표시됩니다</div>
+            <div className="collect-empty">아직 구성원으로 등록되지 않아 출퇴근 기록이 없습니다.</div>
           )}
         </div>
       )}
@@ -523,7 +523,7 @@ export default function MyPage() {
               {allBalances.length > 1 ? (
                 <select value={ledgerYear} onChange={(e) => setLedgerYear(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs" aria-label="연도">{allBalances.map((b: any) => <option key={b.year} value={b.year}>{b.year}년</option>)}</select>
               ) : <span className="text-xs font-semibold text-[var(--text-muted)]">{ledgerYear}년</span>}
-              <span className="text-[11px] text-[var(--text-dim)]">발생분에서 승인된 휴가를 차례로 차감한 내역 · 신청·승인은 결재 허브</span>
+              <span className="text-[11px] text-[var(--text-dim)]">승인된 휴가를 차감한 내역입니다.</span>
             </div>
             <div className="qk-bar-right"><Link href="/approvals?tab=new-request&new=leave" className="btn-primary btn-sm">휴가 신청</Link></div>
           </div>
@@ -534,12 +534,12 @@ export default function MyPage() {
             <Stat label="대기 중" value={`${recentLeaves.filter((l: any) => l.status === "pending").length}건`} />
           </ResultStrip>
           {!leaveBalance && !ledgerBalance ? (
-            <div className="collect-empty">연차 정보가 설정되지 않았습니다. 관리자가 연차를 설정하면 여기 표시됩니다</div>
+            <div className="collect-empty">아직 연차가 설정되지 않았습니다.</div>
           ) : (
             <div className="bz-grid2">
               <section className="pnl-panel">
                 <h3>사용 내역 <small className="font-normal text-[var(--text-dim)]">{ledgerYear}년 · {useEntries.length}건</small></h3>
-                <p>발생(+) · 사용(−)을 날짜순으로, 오른쪽은 그때 잔여</p>
+                <p>발생과 사용을 날짜순으로 봅니다.</p>
                 {usedLeavesLoading ? <div className="collect-empty">불러오는 중…</div> : (
                   <table className="ev-table ev-lined mypage-leave-table">
                     <thead><tr><th>날짜</th><th className="text-left">구분</th><th>일수</th><th>잔여</th></tr></thead>
@@ -552,16 +552,16 @@ export default function MyPage() {
                           <td className="text-right mono-number">{e.remain}</td>
                         </tr>
                       ))}
-                      {ledgerRows.length === 0 && <tr><td colSpan={4} className="text-center text-[var(--text-dim)] py-6">{ledgerYear}년 내역이 없습니다</td></tr>}
+                      {ledgerRows.length === 0 && <tr><td colSpan={4} className="text-center text-[var(--text-dim)] py-6">{ledgerYear}년 내역이 없습니다.</td></tr>}
                     </tbody>
                   </table>
                 )}
-                {ledgerMismatch && <p className="mt-2 text-[11px] text-[var(--text-dim)]">※ 관리자가 연차를 직접 조정한 이력이 있어 최종 잔여({balanceRemain}일)가 내역 합계와 다릅니다.</p>}
+                {ledgerMismatch && <p className="mt-2 text-[11px] text-[var(--text-dim)]">관리자 조정으로 최종 잔여 {balanceRemain}일이 내역 합계와 다릅니다.</p>}
               </section>
               <section className="pnl-panel">
                 <h3>최근 신청</h3>
-                <p>휴가 탭에서 낸 신청과 결재 허브 요청을 함께 봅니다</p>
-                {recentLeaves.length === 0 ? <div className="collect-empty">신청이 없습니다</div> : (
+                <p>휴가 신청과 결재 요청을 함께 봅니다.</p>
+                {recentLeaves.length === 0 ? <div className="collect-empty">아직 신청이 없습니다.</div> : (
                   <table className="ev-table ev-lined mypage-leave-table">
                     <thead><tr><th>기간</th><th className="text-left">종류</th><th>상태</th></tr></thead>
                     <tbody>{recentLeaves.map((leave: any) => (
@@ -579,9 +579,9 @@ export default function MyPage() {
       {tab === "docs" && (
         <div className="bz-body">
           <section className="pnl-panel">
-            <h3>서명 요청 <small className="font-normal text-[var(--text-dim)]">회사가 보낸 계약서 · 서명하고 보관</small>{signPending.length > 0 && <span className="collect-tab-cnt ap-tab-alert ml-2">{signPending.length}</span>}</h3>
-            <p>예전 사이드바 '내 서명 요청'이 여기로 왔습니다. 전체 목록·정렬은 <Link href="/my-contracts" className="bz-link">내 서명 요청 →</Link></p>
-            {signPackages.length === 0 ? <div className="collect-empty">받은 서명 요청이 없습니다</div> : (
+            <h3>서명 요청 <small className="font-normal text-[var(--text-dim)]">회사가 보낸 계약서에 서명합니다.</small>{signPending.length > 0 && <span className="collect-tab-cnt ap-tab-alert ml-2">{signPending.length}</span>}</h3>
+            <p>전체 목록은 <Link href="/my-contracts" className="bz-link">내 서명 요청 →</Link>에서 봅니다.</p>
+            {signPackages.length === 0 ? <div className="collect-empty">아직 받은 서명 요청이 없습니다.</div> : (
               <table className="ev-table ev-lined mypage-leave-table">
                 <thead><tr><th className="text-left">문서</th><th>문서 수</th><th>보낸 날</th><th>만료</th><th>상태</th><th>동작</th></tr></thead>
                 <tbody>{signPackages.slice(0, 10).map((p: any) => {
@@ -601,10 +601,10 @@ export default function MyPage() {
             {employee?.id && <MyContractsCard employeeId={employee.id} />}
           </div>
           <section className="pnl-panel">
-            <h3>증명서 <small className="font-normal text-[var(--text-dim)]">재직·경력·급여 증명 · 신청하면 인사팀이 결재 허브에서 승인·발급</small></h3>
-            <p>신청 제목에 종류(재직/경력/급여)와 용도(은행 제출 등)를 적어 주세요. 발급본은 결재 건의 첨부로 돌아옵니다.</p>
+            <h3>증명서 <small className="font-normal text-[var(--text-dim)]">재직·경력·급여 증명을 신청합니다.</small></h3>
+            <p>신청 제목에 종류와 용도를 적어 주세요.</p>
             <div className="mb-2"><Link href="/approvals?tab=new-request&new=certificate" className="btn-secondary btn-sm">증명서 발급 신청</Link></div>
-            {certReqs.length === 0 ? <div className="collect-empty">신청한 증명서가 없습니다</div> : (
+            {certReqs.length === 0 ? <div className="collect-empty">아직 신청한 증명서가 없습니다.</div> : (
               <table className="ev-table ev-lined mypage-leave-table">
                 <thead><tr><th className="text-left">신청</th><th>신청일</th><th>상태</th><th>발급본</th></tr></thead>
                 <tbody>{certReqs.map((r: any) => (
@@ -634,7 +634,7 @@ export default function MyPage() {
           {employee && (
             <section className="pnl-panel">
               <h3>인사 정보</h3>
-              <p>회사가 관리하는 값 · 틀리면 인사팀에 정정을 요청하세요</p>
+              <p>틀린 값은 인사팀에 정정을 요청하세요.</p>
               <div className="mypage-info-grid">
                 <div className="mypage-info-tile"><div className="text-xs text-[var(--text-dim)] mb-0.5">부서</div><div className="font-medium">{employee.department || "—"}</div></div>
                 <div className="mypage-info-tile"><div className="text-xs text-[var(--text-dim)] mb-0.5">직위</div><div className="font-medium">{employee.position || "—"}</div></div>
@@ -662,7 +662,7 @@ export default function MyPage() {
           <AccountTab />
           <div className="mypage-withdraw-card pnl-panel">
             <h3 className="text-[var(--danger)]">회원 탈퇴</h3>
-            <p>탈퇴하면 <b>로그인 계정이 영구 삭제</b>되고 이름·이메일 등 개인정보가 파기됩니다. <b>되돌릴 수 없습니다.</b>{(ctxUser as any)?.is_master && <span className="block mt-1 text-amber-500">※ 마스터 계정입니다. 탈퇴해도 회사·직원·거래 데이터는 남으니, 회사 정리가 필요하면 먼저 처리하세요.</span>}</p>
+            <p>탈퇴하면 <b>계정이 영구 삭제</b>되며 <b>되돌릴 수 없습니다.</b>{(ctxUser as any)?.is_master && <span className="block mt-1 text-amber-500">마스터 계정이라도 회사 데이터는 남습니다.</span>}</p>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
               <input type="password" value={withdrawPw} onChange={(e) => setWithdrawPw(e.target.value)} placeholder="비밀번호 확인 (소셜 로그인 계정은 비워 두세요)" autoComplete="current-password" className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm mb-2" />
               <input value={withdrawText} onChange={(e) => setWithdrawText(e.target.value)} placeholder='탈퇴하려면 "탈퇴" 입력' className="qk-input h-8 px-2.5 text-xs sm:w-48" />

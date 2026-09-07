@@ -171,14 +171,14 @@ export default function NotificationsPage() {
                 <RowsPerPage value={draft.rows} onChange={(n) => setDraft((c) => ({ ...c, rows: n }))} />
                 <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
               </>}>
-              <ConditionRow label="종류" hint="여러 개 · 아무것도 안 고르면 전체">
+              <ConditionRow label="종류" hint="고르지 않으면 전체입니다.">
                 <span className="qk-quicks">
                   {typeOpts.map((t) => (
                     <button key={t} type="button"
                       onClick={() => setDraft((c) => ({ ...c, types: c.types.includes(t) ? c.types.filter((x) => x !== t) : [...c.types, t] }))}
                       className={draft.types.includes(t) ? "qk-quick qk-quick-on" : "qk-quick"}>{typeLabel(t)}</button>
                   ))}
-                  {typeOpts.length === 0 && <span className="text-[11px] text-[var(--text-dim)]">알림이 아직 없습니다</span>}
+                  {typeOpts.length === 0 && <span className="text-[11px] text-[var(--text-dim)]">아직 알림이 없습니다.</span>}
                 </span>
               </ConditionRow>
               <ConditionRow label="읽음">
@@ -203,9 +203,9 @@ export default function NotificationsPage() {
           {loading ? (
             <div className="collect-empty">불러오는 중…</div>
           ) : rows.length === 0 ? (
-            <div className="collect-empty">알림이 없습니다. 새 알림이 도착하면 여기에 표시됩니다</div>
+            <div className="collect-empty">아직 알림이 없습니다.</div>
           ) : shown.length === 0 ? (
-            <div className="collect-empty">이 조건에 맞는 알림이 없습니다. 검색조건을 풀어 보세요</div>
+            <div className="collect-empty">조건에 맞는 알림이 없습니다. 검색조건을 풀어 보세요.</div>
           ) : (
             <div className="ev-scroll">
               <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed notif-table">

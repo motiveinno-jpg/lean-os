@@ -452,7 +452,7 @@ export function HubV3() {
           <div className="phv3-verdict">
             {lateN > 0 && <span className="phv3-bad">기한 지난 할 일 {lateN}건</span>}
             {lateN === 0 && todoAll.length > 0 && <span>기한 지난 할 일 없음</span>}
-            {todoAll.length === 0 && <span>아직 항목이 없습니다. 아래 입력줄에 바로 적으면 됩니다</span>}
+            {todoAll.length === 0 && <span>아직 항목이 없습니다. 아래 입력줄에 적어 보세요.</span>}
           </div>
         </div>
 
@@ -474,7 +474,7 @@ export function HubV3() {
           <button type="button" className="phv3-sb" onClick={() => setTab("money")} title="매출·지출 탭으로">
             <div className="phv3-sb-k">돈</div>
             <div className="phv3-sb-v phv3-num">계약 {man(contract)} · 확정 {man(confirmedCost)}</div>
-            <div className="phv3-sb-s phv3-num">지출 예정 {man(planSpend || null)} · 확정은 장부에서만 옵니다</div>
+            <div className="phv3-sb-s phv3-num">지출 예정 {man(planSpend || null)}</div>
           </button>
           <button type="button" className="phv3-sb" onClick={() => setTab("docs")} title="증빙·문서 탭으로">
             <div className="phv3-sb-k">성과 · 마진율</div>
@@ -540,7 +540,7 @@ export function HubV3() {
                 </tr></thead>
                 <tbody>
                   {todoTop.length === 0 && (
-                    <tr><td colSpan={5} className="phv3-empty">할 일이 없습니다. 위 입력줄에 적으면 바로 생깁니다.</td></tr>
+                    <tr><td colSpan={5} className="phv3-empty">아직 할 일이 없습니다. 위 입력줄에 적어 보세요.</td></tr>
                   )}
                   {[...todoTop].sort((a, b) => (a.status === "done" ? 1 : 0) - (b.status === "done" ? 1 : 0))
                     .map((i) => {
@@ -588,7 +588,7 @@ export function HubV3() {
               </div>
             )}
             <div className="phv3-foot phv3-note">
-              항목을 누르면 상세(기간·태그·우선순위·팔로워·하위 작업)가 열립니다. 단계 이름은 프로젝트별로 바꿀 수 있습니다.
+              항목을 누르면 상세가 열립니다.
             </div>
           </div>
         )}
@@ -597,7 +597,7 @@ export function HubV3() {
         {tab === "money" && (
           <div>
             <div className="phv3-sumline phv3-num">
-              지출 예정 <b>{won(planSpend || null)}</b> · 장부 확정 <b>{won(confirmedCost)}</b> · 예정과 확정은 나란히, 섞지 않습니다
+              지출 예정 <b>{won(planSpend || null)}</b> · 장부 확정 <b>{won(confirmedCost)}</b>
             
             </div>
             <div className="phv3-scroll">
@@ -605,7 +605,7 @@ export function HubV3() {
                 <thead><tr><th>구분</th><th>내용</th><th>거래처</th><th className="phv3-th-r">예정</th><th className="phv3-th-r">확정(장부)</th><th>증빙</th></tr></thead>
                 <tbody>
                   {moneyTop.length === 0 && (
-                    <tr><td colSpan={6} className="phv3-empty">매출·지출 항목이 없습니다. 진행현황만 관리하는 프로젝트라면 이 탭은 안 써도 됩니다.</td></tr>
+                    <tr><td colSpan={6} className="phv3-empty">아직 매출·지출 항목이 없습니다.</td></tr>
                   )}
                   {moneyTop.map((i) => (
                     <tr key={i.id} className="phv3-row" onClick={() => setOpenId(i.id)}>
@@ -632,8 +632,7 @@ export function HubV3() {
             </div>
             <div className="phv3-foot phv3-note">
               
-              확정 칸은 장부(전표·계산서·카드·통장)에서만 옵니다. 지출은 &apos;장부에 잇기&apos;로 결재 상신,
-              여러 프로젝트에 걸친 비용은 나눠 입력하세요.
+              확정 금액은 장부에서 가져옵니다.
 
             </div>
 
@@ -656,7 +655,7 @@ export function HubV3() {
                 <thead><tr><th>날짜</th><th>내용</th><th>본문</th></tr></thead>
                 <tbody>
                   {noteTop.length === 0 && (
-                    <tr><td colSpan={3} className="phv3-empty">회의·메모가 없습니다.</td></tr>
+                    <tr><td colSpan={3} className="phv3-empty">아직 회의·메모가 없습니다.</td></tr>
                   )}
                   {noteTop.map((i) => (
                     <tr key={i.id} className="phv3-row" onClick={() => setOpenId(i.id)}>
@@ -668,7 +667,7 @@ export function HubV3() {
                 </tbody>
               </table>
             </div>
-            <div className="phv3-foot phv3-note">항목을 열면 본문을 적을 수 있습니다. 회의록 양식(안건·결정·후속)은 4단계에서 팝업 속으로 들어옵니다.</div>
+            <div className="phv3-foot phv3-note">항목을 열어 본문을 적습니다.</div>
           </div>
         )}
 
@@ -677,7 +676,7 @@ export function HubV3() {
           <div>
             {cands.length > 0 && (
               <div className="phv3-candwrap">
-                <div className="phv3-cand-head">연결 제안 {cands.length}건 <span className="phv3-note">— 거래처 이름이 일치하는 미연결 건입니다. 확정은 사람이 합니다.</span></div>
+                <div className="phv3-cand-head">연결 제안 {cands.length}건 <span className="phv3-note">거래처 이름이 일치하는 미연결 건입니다.</span></div>
                 {cands.map((c) => (
                   <div key={c.key} className="phv3-cand">
                     <div className="phv3-cand-main">
@@ -689,12 +688,12 @@ export function HubV3() {
                     <button type="button" className="btn-secondary btn-sm" onClick={() => dismiss(c.key)}>아님</button>
                   </div>
                 ))}
-                <div className="phv3-note">&apos;아님&apos;은 이 기기에서만 기억됩니다(서버 저장은 후속). 규칙 학습은 통장 거래 연결 시 자동으로 됩니다.</div>
+                <div className="phv3-note">&apos;아님&apos;은 이 기기에서만 기억됩니다.</div>
               </div>
             )}
             <div className="phv3-docs">
               {docs.length === 0 && (
-                <div className="phv3-empty">아직 이 프로젝트로 태그된 증빙·문서가 없습니다. 매출·지출 항목에 거래처를 적으면 연결 제안이 올라옵니다.</div>
+                <div className="phv3-empty">아직 연결된 증빙·문서가 없습니다. 항목에 거래처를 적으면 연결을 제안합니다.</div>
               )}
               {docs.map((d: any) => (
                 <div key={d.id} className="phv3-doc">
@@ -706,8 +705,8 @@ export function HubV3() {
               ))}
             </div>
             <div className="phv3-foot phv3-note">
-              계약·문서 · 세금계산서 · 통장 · 카드 · 지출결의 · 결재 · 전표를 시간순으로 모읍니다.
-              {!canAnyFinance && <> <b>통장·카드·세금 증빙과 연결 제안은 그 메뉴 권한이 있어야 보입니다</b>(회사가 부여한 권한 그대로 · 프로젝트 권한만으로 금액 원자료는 열리지 않습니다).</>}
+              증빙과 문서를 시간순으로 모아 봅니다.
+              {!canAnyFinance && <> <b>통장·카드·세금 증빙은 해당 메뉴 권한이 있어야 보입니다.</b></>}
             </div>
           </div>
         )}
@@ -719,17 +718,17 @@ export function HubV3() {
           <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="장부에 이어 두기">
             <h3 className="phv3-modal-title">입력했습니다<span className="ui-sub">장부에도 이어 둘까요?</span></h3>
             <p className="phv3-modal-desc">
-              {linkTarget.name}{linkTarget.plan_amount ? ` · ${won(linkTarget.plan_amount)}` : ""} · 프로젝트 안에서 입력한 항목이라 이 프로젝트로 자동 연결됩니다.
+              {linkTarget.name}{linkTarget.plan_amount ? ` · ${won(linkTarget.plan_amount)}` : ""} · 이 프로젝트로 자동 연결됩니다.
             
             </p>
             {hasExpensePolicy ? (
               <button type="button" className="phv3-opt" disabled={submitExpense.isPending}
                 onClick={() => submitExpense.mutate(linkTarget)}>
                 <b>🧾 지출결의로 상신</b>
-                <span>회사 결재 정책에 따라 결재선을 타고, <b>승인되면 그때</b> 장부에 반영됩니다</span>
+                <span>결재선을 거쳐 <b>승인되면</b> 장부에 반영됩니다.</span>
               </button>
             ) : (
-              <div className="phv3-note phv3-optnote">이 회사는 지출 결재 정책이 없어 결재 단계를 만나지 않습니다(기본값 &apos;결재 안 씀&apos;). 회사설정 › 결재 정책에서 켤 수 있습니다.</div>
+              <div className="phv3-note phv3-optnote">지출 결재 정책이 없어 결재 없이 진행됩니다.</div>
             )}
             <button type="button" className="phv3-opt" onClick={() => {
               const t = linkTarget;
@@ -743,13 +742,13 @@ export function HubV3() {
               router.push("/partners/reconciliation/voucher-entry?prefill=project");
             }}>
               <b>📒 전표 입력으로 이동<span className="ui-sub">값 채움</span></b>
-              <span>일반전표에 적요·금액이 채워져 열립니다. 계정과목 확인 후 저장하면 이 프로젝트로 자동 연결(A3 방식 · 초안 행을 미리 만들지 않아 장부가 오염되지 않습니다)</span>
+              <span>적요·금액이 채워진 전표를 저장하면 이 프로젝트로 연결됩니다.</span>
             </button>
             <button type="button" className="phv3-opt" onClick={() => { setLinkTarget(null); toast("여기에만 입력했습니다. 항목의 '장부에 잇기'로 언제든 이을 수 있습니다"); }}>
               <b>✏️ 여기에만 입력</b>
-              <span>예정 금액으로만 관리합니다. 나중에 항목에서 이을 수 있어요</span>
+              <span>예정 금액으로만 관리합니다.</span>
             </button>
-            <p className="phv3-note phv3-optnote">매출 청구는 아래 &apos;거래처 주고받기&apos;(견적→계약→서명)가 담당합니다. 발주서(재고)는 항목에 품목 칸이 생기는 4단계에서 붙습니다.</p>
+            <p className="phv3-note phv3-optnote">매출 청구는 거래처 주고받기에서 진행합니다.</p>
           </div>
         </div>
       )}
@@ -891,7 +890,7 @@ function ItemModal({ item, users, userName, stages, childItems, onClose, onPatch
         </label>
 
         <div className="phv3-modal-row">
-          <span>팔로워 <span className="phv3-note">— 상태·기한·담당이 바뀌면 알림(알림 발송은 2단계)</span></span>
+          <span>팔로워 <span className="phv3-note">변경 사항을 함께 받는 사람입니다.</span></span>
           <div className="phv3-followers">
             {users.map((u) => (
               <button key={u.id} type="button"
@@ -946,7 +945,7 @@ function StageEditor({ stages, onClose, onSave }: {
     <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="단계 이름 바꾸기">
         <h3 className="phv3-modal-title">할 일 단계<span className="ui-sub">이 프로젝트</span></h3>
-        <p className="phv3-modal-desc">이름을 바꾸거나 단계를 추가하세요(예: 요청 → 진행 → 검수 → 완료). &apos;완료&apos; 단계는 진행률 계산 기준이라 지울 수 없습니다.</p>
+        <p className="phv3-modal-desc" title="완료 단계는 진행률 기준이라 지울 수 없습니다.">단계 이름을 바꾸거나 새 단계를 추가합니다.</p>
         {rows.map((s, i) => (
           <div key={s.id} className="phv3-stagerow">
             <span className={`phv3-stagedot phv3-stage-${s.color}`} />

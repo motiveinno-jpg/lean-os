@@ -152,7 +152,7 @@ export function MenuGuideDrawer() {
             </>
           ) : (
             <p className="text-[13px] leading-relaxed text-[var(--text-muted)]">
-              화면의 제목과 상태 안내를 따라 주요 기능을 바로 사용할 수 있습니다. 업무별 자세한 설명과 따라하기는 아래 전체 사용 가이드에서 확인하세요.
+              이 메뉴의 안내는 전체 사용 가이드에서 확인하세요.
             </p>
           )}
         </div>

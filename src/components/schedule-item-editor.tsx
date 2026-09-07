@@ -29,10 +29,10 @@ const DOT: Record<EventColor, string> = {
 };
 const VIS: Visibility[] = ["private", "members", "departments", "company"];
 const VIS_HINT: Record<Visibility, string> = {
-  private: "나만 봅니다",
-  members: "고른 사람에게만 보입니다",
-  departments: "고른 부서 사람들에게 보입니다",
-  company: "회사 구성원 모두에게 보입니다",
+  private: "나만 봅니다.",
+  members: "고른 사람에게만 보입니다.",
+  departments: "고른 부서 사람들에게 보입니다.",
+  company: "회사 구성원 모두에게 보입니다.",
 };
 
 export type ScheduleDraft = {
@@ -192,7 +192,7 @@ export function ScheduleItemEditor({
         <div className="sched-field sched-field-top">
           <span>설명</span>
           <div className="sched-desc-wrap">
-            <textarea ref={descRef} value={draft.description} rows={3} placeholder="어떤 일정인지 · 무엇을 준비해야 하는지"
+            <textarea ref={descRef} value={draft.description} rows={3} placeholder="어떤 일정인지 적어 주세요."
               onChange={(e) => set({ description: e.target.value })} className="sched-in sched-area" />
             <div className="sched-desc-tools">
               {/*  이모지는 **쓰던 자리**에 꽂는다 — 끝에 붙이지 않는다(메신저 작성 상자와 같은 규칙) */}
@@ -268,7 +268,7 @@ export function ScheduleItemEditor({
             )}
           </div>
         </div>
-        {draft.recurFreq && <p className="sched-note">한 건으로 저장되고 달력에 회차로 펼쳐 보입니다 — <b>고치거나 지우면 모든 회차</b>에 적용됩니다. 매월 반복은 그 날짜가 없는 달(31일 등)엔 건너뜁니다.</p>}
+        {draft.recurFreq && <p className="sched-note" title="매월 반복은 그 날짜가 없는 달을 건너뜁니다."><b>고치거나 지우면 모든 회차</b>에 적용됩니다.</p>}
 
         {/* 알림 — 발송 게이트가 켜진 회사에만 보인다(안 켜진 회사에 보여주면 거짓말) */}
         {remindReady && (
@@ -319,8 +319,8 @@ export function ScheduleItemEditor({
             </div>
           </div>
         )}
-        {remindReady && !!draft.recurFreq && <p className="sched-note">반복 일정 알림은 다음 단계에서 · 지금은 단발 일정만 알림이 갑니다.</p>}
-        {remindReady && !draft.recurFreq && draft.reminders.length > 0 && <p className="sched-note">알림은 시작 날짜 기준으로 <b>나에게</b> 옵니다(알림 벨). 같은 날 여러 개도 됩니다.</p>}
+        {remindReady && !!draft.recurFreq && <p className="sched-note">반복 일정에는 아직 알림을 보내지 않습니다.</p>}
+        {remindReady && !draft.recurFreq && draft.reminders.length > 0 && <p className="sched-note">알림은 시작 날짜 기준으로 <b>나에게</b> 옵니다.</p>}
 
         <div className="sched-field">
           <span>공유 범위</span>
@@ -348,7 +348,7 @@ export function ScheduleItemEditor({
         {draft.visibility === "departments" && (
           <TagPicker
             placeholder="부서 이름으로 찾아 넣기"
-            empty="인사기록에 부서가 적힌 구성원이 없습니다."
+            empty="아직 부서가 등록된 구성원이 없습니다."
             options={depts.map((d) => ({ key: d.name, label: d.name, sub: `${d.count}명` }))}
             selected={draft.targetDepartments}
             onToggle={toggleDept} />

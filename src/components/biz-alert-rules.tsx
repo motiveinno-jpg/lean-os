@@ -15,10 +15,10 @@ import { useUser } from "@/components/user-context";
 type Kind = "cash_runway" | "ar_overdue" | "ap_overdue" | "big_outflow";
 type Rule = { id?: string; kind: Kind; threshold: number; enabled: boolean; last_fired_on: string | null };
 const KINDS: { kind: Kind; label: string; desc: string; unit: string; dflt: number; step: number }[] = [
-  { kind: "cash_runway", label: "현금 잔액이 고정비 N개월치 아래", desc: "통장 잔액 < (정기 지출 + 고정비) × N. 자금 전망으로 연결", unit: "개월", dflt: 2, step: 0.5 },
-  { kind: "ar_overdue", label: "미수금 N일 초과가 새로 발생", desc: "오늘로 발행 N일을 넘긴 매출 계산서(미정산). 연령표로 연결", unit: "일", dflt: 60, step: 1 },
-  { kind: "ap_overdue", label: "미지급금 N일 초과가 새로 발생", desc: "오늘로 발행 N일을 넘긴 매입 계산서(미정산)", unit: "일", dflt: 45, step: 1 },
-  { kind: "big_outflow", label: "하루 ₩N 이상 출금", desc: "어제 통장 출금 한 건이 N원 이상(장부 제외분 빼고). 거래내역으로 연결", unit: "원", dflt: 5_000_000, step: 100_000 },
+  { kind: "cash_runway", label: "현금 잔액이 고정비 N개월치 아래", desc: "통장 잔액을 매달 나가는 돈과 비교합니다.", unit: "개월", dflt: 2, step: 0.5 },
+  { kind: "ar_overdue", label: "미수금 N일 초과가 새로 발생", desc: "발행 후 N일이 지난 미정산 매출 계산서를 찾습니다.", unit: "일", dflt: 60, step: 1 },
+  { kind: "ap_overdue", label: "미지급금 N일 초과가 새로 발생", desc: "발행 후 N일이 지난 미정산 매입 계산서를 찾습니다.", unit: "일", dflt: 45, step: 1 },
+  { kind: "big_outflow", label: "하루 ₩N 이상 출금", desc: "어제 통장에서 N원 이상 나간 출금을 찾습니다.", unit: "원", dflt: 5_000_000, step: 100_000 },
 ];
 
 const EMPTY_RULES: Rule[] = [];
@@ -66,7 +66,7 @@ export function BizAlertRules({ companyId }: { companyId: string | null }) {
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-sm font-bold">경영 알림 조건</h3>
-          <p className="text-[11px] text-[var(--text-muted)] mt-0.5">켜 둔 조건을 매일 아침 08:00 에 검사해 대표·관리자에게 알립니다(직원에게는 안 갑니다). 같은 조건은 하루 한 번.</p>
+          <p className="text-[11px] text-[var(--text-muted)] mt-0.5" title="매일 08:00에 검사하며 같은 조건은 하루 한 번만 알립니다.">켜 둔 조건을 매일 아침 검사해 대표와 관리자에게 알립니다.</p>
         </div>
         <button type="button" className="btn-secondary btn-sm" disabled={busy === "run"} onClick={runNow} title="오늘 기준으로 바로 검사">{busy === "run" ? "검사 중…" : "지금 검사"}</button>
       </div>

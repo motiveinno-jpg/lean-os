@@ -128,7 +128,7 @@ export default function OutlookPage() {
             </ConditionRow>
             <p className="ol-panel-note">시나리오는 곡선을 하나 더 그릴 뿐 실제 숫자는 바뀌지 않습니다.</p>
           </ConditionPanel>
-          <span className="text-[11px] text-[var(--text-dim)]">실선 = 예정 항목 반영 · 점선 = 지금 속도 직선 · 주황 = 시나리오</span>
+          <span className="text-[11px] text-[var(--text-dim)]">실선은 예정 반영, 점선은 지금 속도, 주황은 시나리오입니다.</span>
         </>}
         right={<><ExcelMenu items={excel} /><button type="button" onClick={() => window.print()} className="btn-secondary btn-sm">인쇄</button></>}
         stats={data && base ? <>
@@ -165,7 +165,7 @@ export default function OutlookPage() {
 
           <section className="pnl-panel">
             <h3>자금 달력 — 주 단위 {weeks.length}주</h3>
-            <p>한 칸 = 한 주(월요일 시작). 들어올 돈 · 나갈 돈 · 주말 잔액(만원). 빨간 칸은 최저 주. 칸을 누르면 그 주 항목.</p>
+            <p>주 단위 입출금과 잔액입니다. 칸을 누르면 그 주 항목이 보입니다.</p>
             <div className="ol-cal">
               {weeks.map((w, i) => (
                 <button type="button" key={w.start} className={`ol-wk ${w.low ? "ol-wk-low" : ""} ${i === 0 ? "ol-wk-now" : ""}`} onClick={() => setPick({ title: `${w.start} 주 예정`, items: w.items })}>
@@ -181,7 +181,7 @@ export default function OutlookPage() {
           <div className="bz-grid2">
             <section className="pnl-panel">
               <h3>이 전망이 틀릴 수 있는 곳</h3>
-              <p>자동으로 못 푸는 것은 사람에게 · 고치러 가는 길을 같이 적습니다.</p>
+              <p>직접 확인할 항목입니다.</p>
               {data.gaps.length === 0 ? <div className="collect-empty">지금은 없습니다</div> : (
                 <ul className="ol-gaps">{data.gaps.map((g) => <li key={g.key}><span>{g.text}</span><Link href={g.href} className="bz-link">고치기 →</Link></li>)}</ul>
               )}

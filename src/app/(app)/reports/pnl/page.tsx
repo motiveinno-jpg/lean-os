@@ -700,7 +700,7 @@ function PnlPageInner() {
             분류되지 않은 통장 출금 <b>{data.uncategorizedCount.toLocaleString()}건</b>(약 <b>₩{Math.round(data.uncategorizedAmount).toLocaleString()}</b>)이
             판매관리비에 <b>반영되지 않았습니다</b> · 실제보다 영업이익이 크게 보일 수 있습니다.
             
-            <span className="text-[var(--text-muted)]"> 통장 거래내역 또는 거래 매칭에서 계정을 분류하면 손익에 자동 반영됩니다.</span>
+            <span className="text-[var(--text-muted)]"> 거래에 계정을 지정하면 손익에 반영됩니다.</span>
           </div>
         </div>
       )}

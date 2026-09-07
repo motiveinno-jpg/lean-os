@@ -69,7 +69,7 @@ export function ProjectTimeline({ rows, headlineOf, outstandingOf, onOpen }: {
   const [showUndated, setShowUndated] = useState(false);   // 건수만 알려 주지 않는다 — 누르면 어떤 프로젝트인지(2026-08-27)
 
   if (!scale || dated.length === 0) {
-    return <p className="ph-view-empty">기간(시작일·종료일)이 있는 프로젝트가 없습니다. 프로젝트 수정에서 기간을 넣으면 여기에 막대로 표시됩니다.</p>;
+    return <p className="ph-view-empty">아직 기간이 있는 프로젝트가 없습니다. 기간을 넣으면 막대로 표시됩니다.</p>;
   }
 
   const todayPct = scale.pctOf(today);
@@ -118,7 +118,7 @@ export function ProjectTimeline({ rows, headlineOf, outstandingOf, onOpen }: {
       {showUndated && undatedRows.length > 0 && (
         <div className="ph-legend-list">
           {undatedRows.map((r) => <button key={r.id} type="button" className="bz-link" onClick={() => onOpen(r.id)}>{r.name || "(이름 없음)"}</button>)}
-          <span className="ev-dim">프로젝트 수정에서 시작일·종료일을 넣으면 막대로 보입니다</span>
+          <span className="ev-dim">기간을 넣으면 막대로 표시됩니다.</span>
         </div>
       )}
     </div>
@@ -181,15 +181,15 @@ export function PortfolioCharts({ rows, pnlOf, outstandingOf, agingBuckets, user
       <div className="ph-chart glass-card">
         <div className="ph-chart-head"><b>단계별 파이프라인</b><span>계약금액 합계</span></div>
         {funnel.every((f) => f.value === 0)
-          ? <p className="ph-view-empty">프로젝트가 없습니다</p>
+          ? <p className="ph-view-empty">아직 프로젝트가 없습니다.</p>
           : <FunnelChart data={funnel} unit="원" />}
-        <p className="ph-chart-note">어느 단계에 돈이 묶여 있는지 봅니다. 견적에만 쌓여 있으면 계약 전환이 막힌 거입니다.</p>
+        <p className="ph-chart-note">단계별로 묶인 금액을 봅니다.</p>
       </div>
 
       <div className="ph-chart glass-card">
         <div className="ph-chart-head"><b>마진 낮은 순</b><span>매출이 있는 프로젝트만</span></div>
         {margins.length === 0 ? (
-          <p className="ph-view-empty">계약금액이나 매출이 잡힌 프로젝트가 없습니다.</p>
+          <p className="ph-view-empty">아직 계약금액이나 매출이 있는 프로젝트가 없습니다.</p>
         ) : (
           <div className="ph-rank">
             {margins.map((m) => (
@@ -202,13 +202,13 @@ export function PortfolioCharts({ rows, pnlOf, outstandingOf, agingBuckets, user
             ))}
           </div>
         )}
-        <p className="ph-chart-note">마진 = (매출 − 태그된 원가) ÷ 매출. 적자가 맨 위로 올라와요.</p>
+        <p className="ph-chart-note" title="마진율은 매출에서 원가를 뺀 뒤 매출로 나눈 값입니다.">마진율이 낮은 순으로 보입니다.</p>
       </div>
 
       <div className="ph-chart glass-card">
         <div className="ph-chart-head"><b>미수 에이징</b><span>발행 후 경과일 · 합계 {won(agingTotal)}</span></div>
         {agingTotal <= 0 ? (
-          <p className="ph-view-empty">미수가 없습니다. 발행한 계산서가 전부 입금됐습니다.</p>
+          <p className="ph-view-empty">미수금이 없습니다.</p>
         
         ) : (
           /* 경과일 구간은 **순서가 있는 분포**다. 왼→오른쪽으로 오래된 쪽이 보이도록 세로 막대로 둔다
@@ -222,13 +222,13 @@ export function PortfolioCharts({ rows, pnlOf, outstandingOf, agingBuckets, user
               color: vizColor(i),
             }))} />
         )}
-        <p className="ph-chart-note">계산서 발행액 − 실입금(통장 자동 매칭)으로 계산합니다. 오래된 쪽부터 회수합니다.</p>
+        <p className="ph-chart-note" title="계산서 발행액에서 실제 입금액을 뺀 값입니다.">오래된 미수금부터 보입니다.</p>
       </div>
 
       <div className="ph-chart glass-card">
         <div className="ph-chart-head"><b>담당자별 진행 건수</b><span>완료·정산 제외</span></div>
-        <BarList items={byManager} unit="건" emptyText="진행 중인 프로젝트가 없습니다" />
-        <p className="ph-chart-note">한 사람에게 몰려 있으면 재배정을 검토합니다.</p>
+        <BarList items={byManager} unit="건" emptyText="진행 중인 프로젝트가 없습니다." />
+        <p className="ph-chart-note">담당자별 진행 중인 프로젝트 수입니다.</p>
       </div>
     </div>
   );
@@ -282,7 +282,7 @@ export function ProjectCalendar({ rows, monthOffset, onMonth, onOpen }: {
         <button type="button" onClick={() => onMonth(-1)} className="ph-cal-nav" aria-label="이전 달">←</button>
         <b>{title}</b>
         <button type="button" onClick={() => onMonth(1)} className="ph-cal-nav" aria-label="다음 달">→</button>
-        <span className="ph-cal-hint">프로젝트 시작일과 마감일입니다. 청구일·서명 기한은 다음 단계에서 추가됩니다.</span>
+        <span className="ph-cal-hint">프로젝트 시작일과 마감일을 달력으로 봅니다.</span>
       </div>
       <div className="ph-cal-grid">
         {["월", "화", "수", "목", "금", "토", "일"].map((d) => <span key={d} className="ph-cal-dow">{d}</span>)}

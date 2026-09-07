@@ -414,7 +414,7 @@ function VaultPageInner() {
       level: days < 0 ? "critical" : days <= 7 ? "critical" : days <= 14 ? "warning" : "info",
       title: a.service_name || "이름 없음",
       subtitle: days < 0
-        ? `${Math.abs(days)}일 전 갱신 예정이었음. 상태 확인 필요`
+        ? `${Math.abs(days)}일 전 갱신 예정이었습니다.`
         : days === 0
         ? "오늘 갱신"
         : `${days}일 후 갱신 · 월 ${fmtW(a.monthly_cost || 0)}원`,
@@ -604,7 +604,7 @@ function VaultPageInner() {
                 <div>
                   <div className="text-sm font-bold">중복 구독 의심 {duplicateGroups.length}건</div>
                   <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                    유사한 서비스에 월 <span className="font-semibold text-purple-400">{fmtW(duplicateWaste)}원</span> 중복 지출 가능성
+                    비슷한 서비스에 월 <span className="font-semibold text-purple-400">{fmtW(duplicateWaste)}원</span>이 겹쳐 나갈 수 있습니다.
                   </div>
                 </div>
               </div>
@@ -652,8 +652,7 @@ function VaultPageInner() {
               <div>
                 <div className="text-sm font-bold">{UNUSED_DAYS}일 이상 미사용 구독 {unusedAccounts.length}건</div>
                 <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                  월 <span className="font-semibold text-orange-400">{fmtW(unusedMonthlyCost)}원</span>  절감 가능 · 해지 검토 권장
-                
+                  해지하면 월 <span className="font-semibold text-orange-400">{fmtW(unusedMonthlyCost)}원</span>을 아낄 수 있습니다.
                 </div>
               </div>
             </div>
@@ -918,8 +917,8 @@ function VaultPageInner() {
           {!vault?.accounts?.length ? (
             <div className="py-16 px-6 text-center">
               <div className="text-5xl mb-4"><Ico e="🔐" /></div>
-              <div className="text-base font-bold text-[var(--text)]">구독 서비스와 공용 계정을 등록하세요</div>
-              <div className="text-xs text-[var(--text-muted)] mt-1.5">SaaS 구독, 서비스 계정을 등록하여 비용을 관리하세요</div>
+              <div className="text-base font-bold text-[var(--text)]">아직 등록된 구독·계정이 없습니다.</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1.5">구독 서비스와 공용 계정을 등록해 비용을 관리하세요.</div>
               <button onClick={() => { setTab("accounts"); setShowForm(true); }} className="btn-primary mt-5">+ 계정 추가</button>
             </div>
           ) : (
@@ -1090,8 +1089,8 @@ function VaultPageInner() {
           {!vault?.assets?.length ? (
             <div className="py-16 px-6 text-center">
               <div className="text-5xl mb-4"><Ico e="📦" /></div>
-              <div className="text-base font-bold mb-1.5">자산이 없습니다</div>
-              <div className="text-xs text-[var(--text-muted)]">유형/무형 자산을 등록하면 감가상각 장부가를 자동으로 계산해 드립니다</div>
+              <div className="text-base font-bold mb-1.5">아직 등록된 자산이 없습니다.</div>
+              <div className="text-xs text-[var(--text-muted)]">자산을 등록하면 장부가를 자동으로 계산합니다.</div>
             </div>
           ) : (
             <table className="ev-table ev-lined vault-assets-table">
@@ -1159,8 +1158,8 @@ function VaultPageInner() {
           {!vault?.docs?.length ? (
             <div className="py-16 px-6 text-center">
               <div className="text-5xl mb-4"><Ico e="📄" /></div>
-              <div className="text-base font-bold mb-1.5">보관 문서가 없습니다</div>
-              <div className="text-xs text-[var(--text-muted)]">중요 문서를 안전하게 보관하세요</div>
+              <div className="text-base font-bold mb-1.5">아직 보관 문서가 없습니다.</div>
+              <div className="text-xs text-[var(--text-muted)]">중요 문서를 안전하게 보관하세요.</div>
             </div>
           ) : (
             <table className="ev-table ev-lined vault-docs-table">
@@ -1215,7 +1214,7 @@ function VaultPageInner() {
       {tab === "discovery" && (
         <>
         <div className="mb-4 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/5 p-4 text-[11px] text-[var(--text-muted)] shadow-sm">
-          반복 결제 패턴(카드·자동이체)에서 미등록 구독을 자동으로 찾습니다. 수락하면{" "}
+          반복 결제에서 미등록 구독을 찾아 수락하면{" "}
           <Link href="/subscriptions" className="text-[var(--primary)] font-semibold hover:underline">구독 목록</Link>
           에 추가됩니다.
         </div>
@@ -1223,9 +1222,9 @@ function VaultPageInner() {
           {!vault?.pendingDiscoveries?.length && !(vault as any)?.discovery?.length ? (
             <div className="py-16 px-6 text-center">
               <div className="text-5xl mb-4"><Ico e="🔍" /></div>
-              <div className="text-base font-bold mb-1.5">탐지된 패턴이 없습니다</div>
+              <div className="text-base font-bold mb-1.5">아직 탐지된 패턴이 없습니다.</div>
               <div className="text-xs text-[var(--text-muted)] mb-5">
-                거래내역에서 반복 결제 패턴을 자동으로 찾아드립니다
+                거래내역에서 반복 결제를 찾아 보세요.
               </div>
               <button
                 onClick={() => runDiscMut.mutate()}
@@ -1298,7 +1297,7 @@ function VaultPageInner() {
               </div>
               <div className="overflow-y-auto p-4">
                 {opens.length === 0 ? (
-                  <div className="text-center py-8 text-sm text-[var(--text-dim)]">기록된 접근이 없습니다<br /><span className="text-[10px]">"방문" 버튼을 클릭하면 자동으로 기록됩니다</span></div>
+                  <div className="text-center py-8 text-sm text-[var(--text-dim)]">아직 접근 기록이 없습니다.<br /><span className="text-[10px]">방문을 누르면 자동으로 기록됩니다.</span></div>
                 ) : (
                   <div className="space-y-1">
                     {opens.map((o, i) => (
@@ -1311,7 +1310,7 @@ function VaultPageInner() {
                 )}
               </div>
               <div className="px-5 py-3 border-t border-[var(--border)] text-[10px] text-[var(--text-dim)]">
-                ※ 로컬 기록 (이 디바이스 기준). 다른 사용자의 접근은 각자 디바이스에서 추적됩니다.
+                이 기기에서의 접근만 기록됩니다.
               </div>
             </div>
           </div>

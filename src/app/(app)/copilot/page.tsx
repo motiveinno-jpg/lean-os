@@ -528,7 +528,7 @@ export default function CopilotPage() {
             {messages.length > 0 && <button type="button" onClick={() => setMessages([])} className="btn-secondary btn-sm" aria-label="대화 초기화">대화 초기화</button>}
           </>}>
             <span className={`copilot2-conn ${connErr ? "copilot2-conn-err" : "copilot2-conn-ok"}`}><span className="copilot2-conn-dot" aria-hidden />{connErr ? "연결 오류" : "AI 연결됨"}</span>
-            <span className="text-[11px] text-[var(--text-dim)]">기준 {kstDate(usage?.as_of)}  · 회사 데이터를 읽고 대표가 지금 해야 할 일을 정리합니다. 답변은 참고용, 실행 전 확인</span>
+            <span className="text-[11px] text-[var(--text-dim)]">기준 {kstDate(usage?.as_of)} · 회사 데이터를 근거로 오늘 할 일을 정리합니다.</span>
           </QueryBar>
         </QueryHead>
         <QueryBody>
@@ -538,7 +538,7 @@ export default function CopilotPage() {
         <div className="copilot2-lock-card">
           <div className="text-3xl mb-2" aria-hidden><Ico e="🔒" /></div>
           <div className="copilot2-lock-title">AI 참모를 쓰려면 요금제가 필요합니다</div>
-          <p className="copilot2-lock-desc">회사 데이터를 실시간으로 읽고 오늘 챙길 것을 정리해 드립니다. 무료는 월 10만 토큰, 오너뷰 요금제는 월 50만 토큰까지 쓸 수 있습니다.</p>
+          <p className="copilot2-lock-desc">무료는 월 10만 토큰, 오너뷰 요금제는 월 50만 토큰까지 쓸 수 있습니다.</p>
           <a href="/billing" className="btn-primary btn-sm">플랜 보기 · 업그레이드</a>
         </div>
       ) : (
@@ -550,7 +550,7 @@ export default function CopilotPage() {
                 <div className="copilot2-empty">
                   <div className="copilot2-empty-icon" aria-hidden><Ico e="✦" /></div>
                   <div className="copilot2-empty-title">무엇이든 물어보세요</div>
-                  <div className="copilot2-empty-desc">아래 빠른 질문을 누르거나 직접 입력하면, 회사 데이터를 근거로 답합니다.</div>
+                  <div className="copilot2-empty-desc">빠른 질문을 누르거나 직접 입력하세요.</div>
                 </div>
               )}
               {messages.map((m, i) =>
@@ -577,7 +577,7 @@ export default function CopilotPage() {
             {overLimit ? (
               <div className="copilot2-limit-card">
                 <div className="font-bold text-sm text-[var(--danger)]">이번 달 AI 사용량을 모두 사용했습니다</div>
-                <div className="text-xs text-[var(--text-muted)] mt-1">{usage?.reset_at ? `${kstDay(usage.reset_at)}에 초기화됩니다.` : "다음 달에 초기화됩니다."} 더 필요하면 상위 플랜을 확인하세요.</div>
+                <div className="text-xs text-[var(--text-muted)] mt-1">{usage?.reset_at ? `${kstDay(usage.reset_at)}에 초기화됩니다.` : "다음 달에 초기화됩니다."}</div>
                 <a href="/billing" className="btn-secondary btn-sm mt-3">요금제 보기</a>
               </div>
             ) : (
@@ -634,7 +634,7 @@ export default function CopilotPage() {
                     value={question}
                     onChange={(e) => setQuestion(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && !e.shiftKey) { e.preventDefault(); ask(question); } }}
-                    placeholder="회사 상태에 대해 무엇이든 물어보세요 (Enter 전송 · Shift+Enter 줄바꿈)"
+                    placeholder="회사 상태에 대해 무엇이든 물어보세요"
                     rows={1}
                     disabled={loading || attaching}
                     className="copilot2-input"
@@ -797,10 +797,10 @@ function ActionCard({ msg, onRun, onCancel }: {
       </div>
       <div className="copilot2-action-note">
         {act.tool === "create_contract_draft_from_attachment"
-          ? "AI가 만든 계약서는 법률 검토를 대신하지 않습니다. 원문과 대조하고 확인 필요 항목을 검토한 뒤 사용하세요."
+          ? "법률 검토를 대신하지 않으니 원문과 대조한 뒤 사용하세요."
           : act.tool === "create_employee_contract"
           ? ((act.args as { send?: boolean }).send
-              ? "발송하면 직원에게 서명 요청이 나가며 되돌릴 수 없습니다. 계약 내용은 회사 서식과 직원 정보로 자동 작성됩니다."
+              ? "발송하면 직원에게 서명 요청이 나가며 되돌릴 수 없습니다."
               : "계약 내용은 회사 서식과 직원 정보로 자동 작성됩니다.")
           : act.tool === "request_attendance_edit"
             ? "직접 수정이 아니라 관리자 승인 요청입니다."
@@ -988,7 +988,7 @@ function AnswerCard({ msg, companyId, userId, onRun, onCancel }: {
           </div>
         </div>
       )}
-      {msg.asOf && <div className="copilot2-answer-foot">기준 시각 {msg.asOf} · AI 답변은 참고용이며 실행 전 확인이 필요합니다.</div>}
+      {msg.asOf && <div className="copilot2-answer-foot">기준 시각 {msg.asOf} · 답변은 참고용입니다.</div>}
       <AutoMemoryChips notes={msg.autoNotes} />
       <AnswerFixForm companyId={companyId} userId={userId} question={msg.q} />
     </div>
@@ -1090,7 +1090,7 @@ function TokenCard({ usage, pct, gaugeTone, estQuestions }: { usage: Usage | nul
       </div>
 
       {usage?.usage_percent != null && usage.usage_percent >= 90 && (
-        <div className="copilot2-token-warn">사용량이 {usage.usage_percent}%입니다. 곧 한도에 도달합니다.</div>
+        <div className="copilot2-token-warn">사용량이 {usage.usage_percent}%로 한도에 가깝습니다.</div>
       )}
     </div>
   );

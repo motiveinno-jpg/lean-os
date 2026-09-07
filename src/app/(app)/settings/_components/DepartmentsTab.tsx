@@ -99,13 +99,13 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
       <div className="stg-sec-head mb-1">
         <div>
           <h2 className="stg-sec-title">부서</h2>
-          <p className="stg-sec-desc">성과 입력·일정 공유에서 선택하는 부서 목록 · 보관하면 새 선택지에서 빠지고 기존 기록은 유지됩니다.</p>
+          <p className="stg-sec-desc">성과 입력과 일정 공유에서 고르는 부서 목록입니다.</p>
         </div>
       </div>
 
       <div className="departments-add-form">
         <input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && newName.trim()) addMut.mutate(newName); }}
-          placeholder="새 부서 이름 (예: 마케팅팀)" className="flex-1 h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
+          placeholder="새 부서 이름" className="flex-1 h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
         <button onClick={() => newName.trim() && addMut.mutate(newName)} disabled={!newName.trim() || addMut.isPending}
           className="btn-primary h-9">추가</button>
       </div>
@@ -113,7 +113,7 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
       {unregistered.length > 0 && (
         <div className="departments-found">
           <div className="departments-found-head">
-            구성원 기록에는 있지만 아직 등록되지 않은 부서 {unregistered.length}개 · 등록하면 성과 입력·일정 공유·구성원 화면의 부서 목록이 서로 맞습니다.
+            구성원 기록에는 있지만 아직 등록하지 않은 부서 {unregistered.length}개입니다.
             
             <button type="button" className="btn-secondary btn-sm" disabled={addMut.isPending}
               onClick={async () => { for (const n of unregistered) { try { await addMut.mutateAsync(n); } catch { /* 중복 등은 개별 토스트 */ } } }}>모두 등록</button>
@@ -127,7 +127,7 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
       )}
 
       {active.length === 0 ? (
-        <div className="text-sm text-[var(--text-muted)] py-6 text-center">등록된 부서가 없습니다. 위에서 추가하세요.</div>
+        <div className="text-sm text-[var(--text-muted)] py-6 text-center">아직 부서가 없습니다. 위에서 추가하세요.</div>
       ) : (
         <div className="departments-active-list">
           {active.map((d, i) => (

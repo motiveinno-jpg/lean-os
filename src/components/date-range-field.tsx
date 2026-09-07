@@ -469,9 +469,9 @@ export function DateRangeField({
           <div className="drf-pop-head">
             <b>조회기간</b>
             {half
-              ? <span className="drf-half">{half} · <b>{isM ? "나머지 한 달" : "나머지 한 날"}을 고르세요</b> (앞뒤 상관없습니다)</span>
+              ? <span className="drf-half">{half} · <b>{isM ? "나머지 한 달" : "나머지 한 날"}을 고르세요</b></span>
               : empty
-                ? <span className="drf-range">전체 기간 · 아직 기간을 걸지 않았습니다</span>
+                ? <span className="drf-range">전체 기간 · 기간 미설정</span>
                 : <span className="drf-range mono-number">
                     {shownFrom} ~ {shownTo}{pending ? " · 확인을 눌러야 반영됩니다" : ` · ${isM ? `${months}개월` : `${days}일`}`}
                   </span>}

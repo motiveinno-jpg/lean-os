@@ -48,7 +48,7 @@ export function FailurePanel({
         <div className="sticky top-0 z-10 px-5 py-4 border-b border-[var(--border)] bg-[var(--bg-card)]/95 backdrop-blur flex items-center justify-between">
           <div>
             <div className="text-sm font-bold text-[var(--text)]"><Ico e="⚠" /> 최근 7일 발송 실패 ({total}건)</div>
-            <div className="text-[11px] text-[var(--text-muted)] mt-0.5">사유별로 묶어 표시 · 펼치면 수신자별 상세 + 재발송</div>
+            <div className="text-[11px] text-[var(--text-muted)] mt-0.5">사유별로 묶어 보여 줍니다.</div>
           </div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
         </div>
@@ -146,7 +146,7 @@ function FailureGroupRow({
           {isLoading ? (
             <div className="px-3.5 py-6 text-center text-xs text-[var(--text-muted)]">불러오는 중...</div>
           ) : rows.length === 0 ? (
-            <div className="px-3.5 py-6 text-center text-xs text-[var(--text-muted)]">모든 실패가 재발송 완료되었습니다.</div>
+            <div className="px-3.5 py-6 text-center text-xs text-[var(--text-muted)]">모든 실패 건을 재발송했습니다.</div>
           ) : (
             rows.map((r) => (
               <div key={r.id} className="px-3.5 py-2.5 flex items-center gap-3 hover:bg-[var(--bg-surface)]/40">
@@ -176,7 +176,7 @@ function FailureGroupRow({
                     onClick={() => retryMut.mutate(r)}
                     disabled={retryMut.isPending}
                     className="shrink-0 px-2.5 py-1.5 text-[11px] font-semibold bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg hover:bg-[var(--primary)]/20 disabled:opacity-50"
-                    title="이 요청에 리마인더 발송 + 재시도 처리"
+                    title="리마인더를 발송하고 재시도합니다."
                   >
                     <Ico e="🔄" tone="mono" /> 재발송
                   </button>

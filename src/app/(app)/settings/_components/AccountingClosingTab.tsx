@@ -157,7 +157,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
   // 거래처별 하위행 (차변/대변)
   const renderParties = (key: string, l: OpeningLine) => (
     <div className="closing-party-list">
-      {l.parties.length === 0 && <div className="text-[11px] text-[var(--text-dim)]">거래처를 추가하세요 (통장·카드·등록거래처).</div>}
+      {l.parties.length === 0 && <div className="text-[11px] text-[var(--text-dim)]">거래처를 추가하세요.</div>}
       {l.parties.map((pt) => (
         <div key={pt.id} className="closing-party-row">
           <select value={pt.party_id ? `${pt.party_type}:${pt.party_id}` : "manual"} onChange={(e) => pickParty(key, pt.id, e.target.value)}
@@ -217,13 +217,13 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
         <div>
           <h2 className="stg-sec-title">회계 마감시점 · 계정별 기초잔액</h2>
           <p className="stg-sec-desc">
-            결산을 끝낸 시점을 지정하면 그 이전의 세금계산서·통장·카드 자료를 다시 불러오지 않습니다.
+            마감일 이전 자료는 다시 불러오지 않습니다.
           </p>
         </div>
       </div>
 
       <div className="stg-frow">
-        <div className="stg-frow-label"><b>회계 마감일</b><small>이 날짜까지 결산 완료 · 비우면 최대 2년 전까지 수집</small></div>
+        <div className="stg-frow-label"><b>회계 마감일</b><small>비우면 최근 2년치를 수집합니다.</small></div>
         <div className="stg-frow-body">
           <DateField value={closingDate} onChange={(e) => setClosingDate(e.target.value)}
             className="field-input" />
@@ -235,10 +235,9 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
         <div className="flex items-start gap-3">
           <span className="p-2 rounded-lg bg-[var(--primary)]/12 text-[var(--primary)] shrink-0 text-base leading-none"><Ico e="📄" tone="mono" /></span>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold text-[var(--text)]">PDF로 자동 채우기 <span className="text-[10px] font-normal text-[var(--text-dim)] ml-1">(수동 입력과 자유롭게 병행)</span></div>
+            <div className="text-sm font-bold text-[var(--text)]">PDF로 자동 채우기 <span className="text-[10px] font-normal text-[var(--text-dim)] ml-1">수동 입력과 함께 씁니다.</span></div>
             <p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-relaxed">
-              세무사 결산자료(합계잔액시산표·재무상태표·계정별 잔액명세 등) PDF를 올리면 계정별 차변/대변 금액을 자동으로 읽어 아래 표를 채웁니다.
-              인식 후 <b>금액을 검토·수정</b>한 뒤 저장하세요.
+              결산자료 PDF를 올리면 계정별 금액을 자동으로 채웁니다. 인식 후 <b>금액을 검토</b>한 뒤 저장하세요.
             </p>
             <div className="mt-2.5 flex items-center gap-2 flex-wrap">
               <input ref={pdfInputRef} type="file" accept="application/pdf" className="hidden"
@@ -257,7 +256,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
             </div>
             {pdfResult && pdfResult.unmatched.length > 0 && (
               <div className="mt-2 text-[10px] text-[var(--text-dim)] leading-relaxed">
-                계정 미매칭(맨 아래 “직접 추가” 목록에 들어감): {pdfResult.unmatched.slice(0, 12).join(", ")}{pdfResult.unmatched.length > 12 ? " …" : ""}
+                직접 추가 목록에 넣은 계정: {pdfResult.unmatched.slice(0, 12).join(", ")}{pdfResult.unmatched.length > 12 ? " …" : ""}
               </div>
             )}
           </div>
@@ -266,11 +265,11 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
 
       {/* 계정별 기초잔액 — 유형별 그룹 접기 + 검색 + 차변/대변 */}
       <div className="closing-opening-balance-panel">
-        <label className="block text-xs text-[var(--text-muted)] mb-2">마감시점 기초잔액 (계정별 · 거래처별 · 차변/대변)</label>
+        <label className="block text-xs text-[var(--text-muted)] mb-2">마감시점 기초잔액</label>
 
         {hasCoa ? (
           <>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="계정명 또는 계정번호로 검색 (예: 보통예금, 1039)"
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="계정명 또는 계정번호로 검색"
               className="w-full h-9 px-3 mb-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-sm focus:outline-none focus:border-[var(--primary)]" />
 
             {/* 컬럼 헤더 */}
@@ -305,7 +304,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
             </div>
           </>
         ) : (
-          <div className="text-[11px] text-amber-500 mb-2">계정과목이 없어 계정명을 직접 입력합니다. (회계 원장에 계정과목을 등록하면 그룹·검색 목록으로 바뀝니다.)</div>
+          <div className="text-[11px] text-amber-500 mb-2" title="회계 원장에 계정과목을 등록하면 목록에서 고를 수 있습니다.">계정과목이 없어 계정명을 직접 입력합니다.</div>
         )}
 
         {/* 직접 입력 계정 (비-COA) */}
@@ -357,8 +356,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
       </div>
 
       <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text-muted)]">
-        현재 데이터 수집 하한: <b className="text-[var(--text)] mono-number">{floor}</b> · 이 날짜 이전 자료는 수집하지 않습니다.
-      
+        <b className="text-[var(--text)] mono-number">{floor}</b> 이전 자료는 수집하지 않습니다.
       </div>
 
       <button onClick={() => companyId && saveMut.mutate()} disabled={!companyId || saveMut.isPending}

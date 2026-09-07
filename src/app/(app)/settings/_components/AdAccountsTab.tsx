@@ -17,7 +17,7 @@ const db = supabase as any;
 
 /** 지금 붙는 매체 · 검색광고부터. 나머지는 키 발급 절차가 끝나는 대로 연다 */
 const PLATFORMS:  { key: string; label: string; idLabel: string; idHint: string; ready: boolean }[] = [
-  { key: "naver_sa", label: "네이버 검색광고", idLabel: "CUSTOMER ID", idHint: "검색광고 > 도구 > API 사용 관리에서 확인", ready: true },
+  { key: "naver_sa", label: "네이버 검색광고", idLabel: "CUSTOMER ID", idHint: "검색광고 도구의 API 사용 관리에서 확인", ready: true },
   { key: "naver_gfa", label: "네이버 GFA(성과형 디스플레이)", idLabel: "고객 ID", idHint: "검색광고와 다른 키입니다", ready: false },
   { key: "google_ads", label: "구글 애즈", idLabel: "고객 ID", idHint: "개발자 토큰 승인 후", ready: false },
   { key: "meta_ads", label: "메타(페이스북·인스타)", idLabel: "광고계정 ID", idHint: "act_ 로 시작", ready: false },
@@ -119,8 +119,8 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
         <div>
           <h3 className="ad-acc-title">광고 계정</h3>
           <p className="ad-acc-desc">
-            여기 한 번 등록하면 프로젝트마다 골라 씁니다. 대행이라 클라이언트별 계정이 여럿이면 여러 개 등록하세요.
-            <b> API 키는 저장 즉시 암호화되고 다시 화면에 나오지 않습니다.</b>
+            등록한 광고 계정을 프로젝트마다 골라 씁니다.
+            <b> 키는 저장 즉시 암호화됩니다.</b>
           </p>
         </div>
         <button type="button" className="btn-primary btn-sm ml-auto shrink-0" onClick={openForm}>＋ 계정 등록</button>
@@ -178,7 +178,7 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
               <span>이름</span>
               <input value={form.label} autoComplete="off" data-1p-ignore data-lpignore="true"
                 onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
-                placeholder="우리 회사 / A 클라이언트처럼 알아볼 이름" />
+                placeholder="알아보기 쉬운 이름" />
             </label>
             <label className="ad-acc-field">
               <span>{picked.idLabel}</span>
@@ -193,7 +193,7 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
                 onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value.trim() }))} placeholder="0100000000…" />
             </label>
             <label className="ad-acc-field">
-              <span>비밀키 <em className="ad-acc-hint">시크릿 키 · API 키와 헷갈리기 쉽습니다</em></span>
+              <span>비밀키 <em className="ad-acc-hint">시크릿 키</em></span>
               <input value={form.apiSecret} autoComplete="off" data-1p-ignore data-lpignore="true" spellCheck={false}
                 className={reveal ? "" : "ad-acc-secret"}
                 onChange={(e) => setForm((f) => ({ ...f, apiSecret: e.target.value.trim() }))} placeholder="0100000000…" />
@@ -202,8 +202,7 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
               {reveal ? "키 가리기" : "붙여넣은 키 확인하기"}
             </button>
             <p className="ad-acc-note">
-              넣은 키는 암호화해 보관하고 서버(수집 함수)에서만 풉니다. 화면·기록 어디에도 평문으로 남지 않고,
-              브라우저에도 저장되지 않습니다.
+              키는 암호화해 보관하며 화면에 다시 표시하지 않습니다.
             </p>
             <span className="ad-acc-foot">
               <button type="button" onClick={() => setOpen(false)}>취소</button>

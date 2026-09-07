@@ -249,7 +249,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
       <div className="stg-sec-head mb-4">
         <div>
           <h2 className="stg-sec-title">구성원</h2>
-          <p className="stg-sec-desc">멤버 {members.length}명 · 초대·합류 요청 승인. 권한 부여는 구성원 상세의 탭 권한에서.</p>
+          <p className="stg-sec-desc">멤버 {members.length}명 · 초대와 합류 요청을 처리합니다.</p>
         </div>
         <button
           onClick={() => setShowInviteForm(!showInviteForm)}
@@ -271,7 +271,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
       </div>
       <div className="team-role-info-banner">
         <svg className="w-3.5 h-3.5 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-        <span><strong>멤버</strong>: 오너뷰 계정이 있는 사용자 (로그인 가능) · <strong>직원</strong>: HR 관리 대상 (계정 없이도 급여·근태 관리 가능, 구성원 페이지에서 등록) · <strong>권한</strong>: 역할 구분 없이 마스터가 구성원 상세의 <strong>탭 권한</strong>에서 메뉴·기능별로 부여</span>
+        <span><strong>멤버</strong>는 오너뷰 계정이 있는 구성원, <strong>직원</strong>은 인사 관리 대상입니다. 권한은 구성원 상세의 <strong>탭 권한</strong>에서 부여합니다.</span>
       </div>
 
       {/* 결과 메일 실패 재전송 배너 — 승인/거절은 확정됐으나 메일만 실패한 건 */}
@@ -293,7 +293,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
       {/* 합류 요청 — 가입 시 우리 회사 사업자번호를 입력한 사용자의 승인 대기 (승인 시 멤버로 연결) */}
       {joinRequests.length > 0 && (
         <div className="team-join-requests-panel">
-          <div className="text-xs font-bold text-amber-600 mb-2">📨 합류 요청 {joinRequests.length}건 · 승인하면 우리 회사 멤버로 연결됩니다</div>
+          <div className="text-xs font-bold text-amber-600 mb-2">📨 합류 요청 {joinRequests.length}건 · 승인하면 멤버가 됩니다.</div>
           <div className="space-y-2">
             {joinRequests.map((r: any) => (
               <div key={r.id} className={`team-join-request-card${highlightRequestId === r.id ? " team-join-request-highlight" : ""}`}>
@@ -318,7 +318,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
                 <input
                   value={joinReason[r.id] || ""}
                   onChange={(e) => setJoinReason((m) => ({ ...m, [r.id]: e.target.value }))}
-                  placeholder="거절 사유(선택). 거절 시 안내 메일에 포함됩니다"
+                  placeholder="거절 사유를 적으면 안내 메일에 담깁니다."
                   maxLength={200}
                   className="team-join-reason-input"
                 />
@@ -333,7 +333,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
         <div className="team-invite-form">
           <div className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-400 flex items-start gap-2">
             <svg className="w-3.5 h-3.5 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-            <span>부서/직위/연봉까지 한 번에 설정하려면 <strong>구성원</strong> 페이지에서 초대하세요. 멤버의 메뉴·기능 권한은 합류 후 구성원 상세의 <strong>탭 권한</strong>에서 마스터가 부여합니다.</span>
+            <span>부서와 직위까지 함께 정하려면 <strong>구성원</strong> 페이지에서 초대하세요. 권한은 합류 후 <strong>탭 권한</strong>에서 부여합니다.</span>
           </div>
           {inviteError && (
             <div className="p-2 rounded-lg bg-[var(--danger-dim)] text-[var(--danger)] text-xs">{inviteError}</div>
@@ -400,7 +400,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
       {tab === "members" && (
         <div className="team-members-list">
           {members.length === 0 ? (
-            <div className="collect-empty">멤버가 없습니다</div>
+            <div className="collect-empty">아직 멤버가 없습니다.</div>
           ) : (
             <table className="ev-table ev-lined team-mgmt-table">
               <thead><tr><th className="text-left">이름</th><th className="text-left">이메일</th><th>역할</th></tr></thead>
@@ -425,7 +425,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
         return (
           <div className={isPartner ? "team-partner-invites-list" : "team-employee-invites-list"}>
             {list.length === 0 ? (
-              <div className="collect-empty">{isPartner ? "파트너 초대가 없습니다" : "멤버 초대가 없습니다"} · 위 '초대하기'로 보냅니다</div>
+              <div className="collect-empty">{isPartner ? "아직 파트너 초대가 없습니다." : "아직 멤버 초대가 없습니다."} 초대하기로 보내세요.</div>
             ) : (
               <table className="ev-table ev-lined team-mgmt-table">
                 <thead><tr><th className="text-left">이름</th><th className="text-left">이메일</th><th>역할</th>{isPartner && <th>프로젝트</th>}<th>상태</th><th>보낸 날</th><th>동작</th></tr></thead>

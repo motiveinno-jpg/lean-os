@@ -205,7 +205,7 @@ export default function ByPersonPage() {
         <div className="by-person-empty-state">
           <div className="text-4xl mb-3"><Ico e="👥" /></div>
           <div className="text-sm font-semibold text-[var(--text)]">{year}년 집계할 급여 데이터가 없습니다.</div>
-          <div className="text-xs text-[var(--text-dim)] mt-1.5">직원 등록 후 급여(기본급여 또는 명세서)가 있으면 자동 집계됩니다.</div>
+          <div className="text-xs text-[var(--text-dim)] mt-1.5">급여를 등록한 직원부터 집계됩니다.</div>
         </div>
       )}
 

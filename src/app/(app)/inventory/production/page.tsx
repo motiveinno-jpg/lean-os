@@ -54,16 +54,16 @@ export default function ProductionPage() {
         
         //   ★ 2026-08-27 사장님 "버튼이 많아진다" · 보조 동작은 '도구 ▾' 하나로. 조회 줄엔 주문서 불러오기 · 스캔 칩 · 부족 배지 · 도구 · 완성 기록만.
         tools={(ctl) => [
-          { label: "자재 소요", source: "입력", hint: "격자에 친 완제품의 자재 소요·실투입·로스·단가 제안", onClick: () => setNeed({ ctl }) },
-          { label: "불량 처분", source: "재고", hint: "불량 보류 창고 재고 · 폐기 · 양품 전환 · B급 판매", onClick: () => setDispose({ ctl }) },
-          { label: "생산 · 매출원가 전표", source: "전표", hint: "주기 초안 만들기 · 확정 · 계정 설정", onClick: () => ctl.companyId && setVoucher({ companyId: ctl.companyId, userId: ctl.userId }) },
-          { label: "수율 임계값", source: "설정", hint: "양품률 · 자재 로스율 경고 기준 · 생산현황과 AI 브리핑에 적용", onClick: () => ctl.companyId && setYieldCfg(ctl.companyId) },
+          { label: "자재 소요", source: "입력", hint: "입력한 완제품의 자재 소요를 봅니다.", onClick: () => setNeed({ ctl }) },
+          { label: "불량 처분", source: "재고", hint: "불량 보류 재고를 폐기하거나 양품으로 옮깁니다.", onClick: () => setDispose({ ctl }) },
+          { label: "생산 · 매출원가 전표", source: "전표", hint: "전표 초안을 만들고 확정합니다.", onClick: () => ctl.companyId && setVoucher({ companyId: ctl.companyId, userId: ctl.userId }) },
+          { label: "수율 임계값", source: "설정", hint: "양품률과 로스율 경고 기준을 정합니다.", onClick: () => ctl.companyId && setYieldCfg(ctl.companyId) },
         ]}
         saveActions={[{ key: "save", label: "완성 기록", primary: true, hint: "자재가 차감되고 완제품이 증가합니다" }]}
         headNote={
-          <span className="inv-hint doc-note-move">
-            저장하면 <b>자재가 차감되고 완제품이 증가합니다</b> · 자재는  <b>자재구성</b> × (양품+불량). <b>불량</b>은 불량 보류 창고로 들어갑니다.
-            {mats && <> · <b>실투입 반영됨</b> (자재 소요에서 고침)</>}
+          <span className="inv-hint doc-note-move" title="자재는 자재구성 × (양품+불량)만큼 나가고, 불량은 불량 보류 창고로 들어갑니다">
+            저장하면 <b>자재가 차감되고 완제품이 증가합니다</b>.
+            {mats && <> <b>실투입 반영됨</b></>}
           </span>
         }
         onImport={async ({ docs, ctl }) => {

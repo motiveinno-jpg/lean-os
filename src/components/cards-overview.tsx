@@ -315,8 +315,8 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
               <circle cx="11" cy="11" r="7" strokeWidth={2} />
               <path strokeLinecap="round" strokeWidth={2} d="M21 21l-4.3-4.3" />
             </svg>
-            <p className="text-[var(--text)] font-medium">{search || activeTab !== "all" ? "조건에 맞는 카드가 없습니다" : "이 기간에 카드 사용 내역이 없습니다"}</p>
-            <p className="text-sm text-[var(--text-muted)] mt-1">{search || activeTab !== "all" ? "검색어·필터를 조정해보세요" : "카드를 등록하거나 기간을 바꿔보세요"}</p>
+            <p className="text-[var(--text)] font-medium">{search || activeTab !== "all" ? "조건에 맞는 카드가 없습니다." : "이 기간에 카드 사용 내역이 없습니다."}</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">{search || activeTab !== "all" ? "검색어나 필터를 바꿔 보세요." : "기간을 바꾸거나 카드를 등록해 보세요."}</p>
           </div>
         </div>
       ) : (

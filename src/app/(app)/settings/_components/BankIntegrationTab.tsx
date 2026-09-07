@@ -388,7 +388,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
       <div className="stg-sec-head mb-4">
         <div>
           <h2 className="stg-sec-title">금융기관 연결</h2>
-          <p className="stg-sec-desc">공동인증서 또는 인터넷뱅킹 아이디로 계좌를 연결하면 거래내역이 자동 수집됩니다.</p>
+          <p className="stg-sec-desc">계좌를 연결하면 거래내역이 자동으로 수집됩니다.</p>
         </div>
         {/*   데모 체험 — 예전엔 전폭 파란 블록이라 진짜 연결보다 더 커 보였다(2026-08-24 정리).
               여기서 확정되는 것이 없으므로 머리 오른쪽 보조 버튼으로 내린다. */}
@@ -421,7 +421,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
         }}
         disabled={registering}
         className="btn-secondary btn-sm shrink-0"
-        title="사업자등록번호 없이도 오너뷰가 무엇을 해주는지 볼 수 있습니다"
+        title="사업자등록번호 없이 체험할 수 있습니다."
       >
         {registering ? "연결 중..." : "데모로 체험"}
       </button>
@@ -432,7 +432,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
       {!hasBizNo ? (
         <BizNoRequired
           feature="통장·카드 연결"
-          why="은행에 계좌 소유를 확인하려면 사업자등록번호가 있어야 합니다. 위의 '데모 데이터로 바로 체험하기'는 번호 없이도 됩니다."
+          why="계좌 소유를 확인하려면 사업자등록번호가 필요합니다."
         />
       ) : (
       <>
@@ -498,19 +498,18 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
         <div className="bank-integration-org-select">
           {accountType === "hometax" && (
             <div className="bank-integration-hometax-identity">
-              <label className="field-label">대표자 주민번호 앞 7자리 <span className="caption">(선택, ID/PW 방식 또는 검증 필요시)</span></label>
+              <label className="field-label">대표자 주민번호 앞 7자리 <span className="caption">(선택)</span></label>
               <input
                 type="password"
                 inputMode="numeric"
                 maxLength={7}
                 value={hometaxIdentity}
                 onChange={(e) => setHometaxIdentity(e.target.value.replace(/[^0-9]/g, ""))}
-                placeholder="예: 8001011 (생년월일 6 + 성별 1)"
+                placeholder="예: 8001011"
                 className="field-input"
               />
               <p className="text-[10px] text-[var(--text-dim)] mt-1">
-                개인사업자: 본인 주민번호 앞 7자리 / 법인: 대표자 주민번호 앞 7자리.
-                안전한 보관을 위해 바로 CODEF 호출 후 즉시 폐기됩니다 (DB 저장 X).
+                법인은 대표자 주민번호 앞 7자리를 입력합니다. 인증에만 쓰고 저장하지 않습니다.
               </p>
 
               {/* 발행 알림 메일 (선택) — 세금계산서 발행 성공 시 이 주소로 알림 (2026-08-13 사장님) */}
@@ -521,7 +520,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
                     type="email"
                     value={notifyEmail}
                     onChange={(e) => setNotifyEmail(e.target.value)}
-                    placeholder="예: ceo@company.com · 비우면 발송 안 함"
+                    placeholder="예: ceo@company.com"
                     className="field-input flex-1"
                   />
                   <button type="button" onClick={() => { void saveNotifyEmail(); }} className="btn-secondary btn-sm shrink-0 self-center">
@@ -529,7 +528,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
                   </button>
                 </div>
                 <p className="text-[10px] text-[var(--text-dim)] mt-1">
-                  세금계산서가 홈택스에 발행되면 이 주소로 발행 완료 메일을 보냅니다. 연결 여부와 무관하게 바로 저장됩니다.
+                  세금계산서가 발행되면 이 주소로 알림 메일을 보냅니다.
                 </p>
               </div>
             </div>
@@ -583,7 +582,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
                   <input type={showCertPw ? "text" : "password"} value={certPassword} onChange={(e) => setCertPassword(e.target.value)} placeholder="인증서 비밀번호" className="field-input pr-16" />
                   <button type="button" onClick={() => setShowCertPw(!showCertPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text)]">{showCertPw ? "숨기기" : "보기"}</button>
                 </div>
-                <p className="text-[10px] text-[var(--text-dim)] mt-1">인증서와 비밀번호는 보안 서버에서 암호화 처리됩니다. 오너뷰는 저장하지 않습니다.</p>
+                <p className="text-[10px] text-[var(--text-dim)] mt-1">인증서와 비밀번호는 암호화되며 오너뷰에 저장되지 않습니다.</p>
               </div>
               </>
               )}
@@ -601,7 +600,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
                   <input type={showPw ? "text" : "password"} value={loginPw} onChange={(e) => setLoginPw(e.target.value)} placeholder="비밀번호" className="field-input pr-16" />
                   <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text)]">{showPw ? "숨기기" : "보기"}</button>
                 </div>
-                <p className="text-[10px] text-[var(--text-dim)] mt-1">보안 서버를 통해 암호화 전송됩니다. 오너뷰는 비밀번호를 저장하지 않습니다.</p>
+                <p className="text-[10px] text-[var(--text-dim)] mt-1">비밀번호는 암호화되며 오너뷰에 저장되지 않습니다.</p>
               </div>
             </>
           )}
@@ -611,9 +610,9 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
       {/*   이미 연결된 기관 재등록 안내 (2026-09-03 롯데카드 실사고) — 새 카드가 나왔다고 카드사를 다시 연결할 필요가
             없는데, 재등록이 인증 정보 교체(기존 등록 삭제 후 재등록)라는 걸 몰라 멀쩡한 연결이 끊겼다. */}
       {accountType !== "hometax" && !!organization && connectedOrgs.includes(organization) && (
-        <div className="bank-integration-result-message bg-amber-500/10 text-amber-700 border border-amber-500/20">
-          <b>{orgList[organization] || organization}</b>는 이미 연결돼 있습니다. 새로 발급받은 카드·계좌는 재등록 없이 다음 자동 수집에 그대로 포함됩니다.
-          지금 연결하면 기존 인증 정보를 새 {authMethod === "cert" ? "인증서" : "아이디/비밀번호"}로 교체합니다. 인증서를 바꿀 때는 그 인증서가  {orgList[organization] || "해당 기관"} 홈페이지에 먼저 등록돼 있어야 합니다.
+        <div className="bank-integration-result-message bg-amber-500/10 text-amber-700 border border-amber-500/20" title="새 인증서는 해당 기관 홈페이지에 먼저 등록돼 있어야 합니다.">
+          <b>{orgList[organization] || organization}</b>는 이미 연결돼 있어 새 카드·계좌도 재등록 없이 수집됩니다.
+          지금 연결하면 인증 정보가 새 {authMethod === "cert" ? "인증서" : "아이디/비밀번호"}로 바뀝니다.
         </div>
       )}
 
@@ -984,7 +983,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
                   onClick={() => setShowRangeSync(v => !v)}
                   disabled={syncing}
                   className="btn-secondary btn-sm"
-                  title="원하는 기간으로 과거 거래 다시 가져오기 (누락분 채워넣기)"
+                  title="원하는 기간의 거래를 다시 가져옵니다."
                 >
                   <Ico e="📅" /> 기간 지정
                 </button>
@@ -1003,7 +1002,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
               <div>
                 <div className="text-xs font-bold text-[var(--text)]"><Ico e="📅" /> 기간 선택해서 다시 동기화</div>
                 <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
-                  CODEF default 는 최근 3개월만 가져옵니다. 과거 누락분이 있으면 시작일/종료일을 지정해 다시 sync 하세요.
+                  빠진 기간을 지정해 거래내역을 다시 가져옵니다.
                 </div>
               </div>
               <button onClick={() => setShowRangeSync(false)}
@@ -1045,9 +1044,9 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
               </div>
             )}
             <div className="text-[10px] text-[var(--text-dim)] mt-2">
-              <Ico e="⚠" /> 3개월씩 분할 호출 (Edge Function 150초 timeout 회피). 1년 = 4번, 2년 = 8번 호출.
+              <Ico e="⚠" /> 3개월 단위로 나누어 가져옵니다.
               <br />
-              <Ico e="⚠" /> 한국 은행 API 는 등록일 이전 거래를 못 가져올 수 있습니다. 누락분이 계속 있으면 은행 거래내역서를 CSV 로 직접 업로드하세요.
+              <Ico e="⚠" /> 등록일 이전 거래가 빠지면 거래내역서를 직접 업로드하세요.
             </div>
           </div>
         )}
@@ -1058,10 +1057,10 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
             <div className="bank-connected-note">
               <p className="text-xs text-green-600 font-semibold">
                 {hasCodefConnection && hasHometaxConnection
-                  ? "은행/카드 + 홈택스가 모두 연결되었습니다. 거래내역과 세금계산서가 자동으로 수집됩니다."
+                  ? "은행·카드와 홈택스가 연결되어 거래내역과 세금계산서가 자동 수집됩니다."
                   : hasCodefConnection
-                    ? "은행/카드가 연결되었습니다. 거래내역이 자동으로 수집됩니다."
-                    : "홈택스가 연결되었습니다. 세금계산서가 자동으로 수집됩니다."}
+                    ? "은행·카드가 연결되어 거래내역이 자동 수집됩니다."
+                    : "홈택스가 연결되어 세금계산서가 자동 수집됩니다."}
               </p>
               {connectionStatus?.codef_connected_at && (
                 <p className="text-[10px] text-[var(--text-dim)] mt-1">은행/카드 연결일: {kstDateStr(new Date(connectionStatus.codef_connected_at))}</p>
@@ -1124,7 +1123,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
                 {syncResult.notes && syncResult.notes.length > 0 && (
                   <div className="mt-3 p-2.5 rounded-xl bg-blue-500/8 border border-blue-500/15 shadow-sm">
                     <div className="text-xs font-semibold text-blue-600 dark:text-blue-300 mb-1.5">
-                      <Ico e="💡" /> CODEF 설정 안내 {syncResult.notes.length}건
+                      <Ico e="💡" /> 연결 안내 {syncResult.notes.length}건
                     </div>
                     <ul className="space-y-1.5 text-[11px] font-normal text-[var(--text-muted)]">
                       {syncResult.notes.map((n: any, idx: number) => (
@@ -1142,7 +1141,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
             {recentSyncLogs.length > 0 && (
               <div className="bank-integration-sync-log-list">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs font-semibold">최근 CODEF 동기화 이력</div>
+                  <div className="text-xs font-semibold">최근 동기화 이력</div>
                   <button onClick={loadRecentSyncLogs} className="text-[10px] text-[var(--primary)] hover:underline">이력 다시 불러오기</button>
                 </div>
                 <ul className="space-y-1.5">
@@ -1195,8 +1194,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
             </h2>
             {/*   위 '자동 수집 연결'과 무엇이 다른지 여기서 말한다 (2026-08-24 사장님 지적) */}
             <p className="stg-sec-desc">
-              
-              연동 밖의 계좌입니다. 거래는 들어오지 않고 <b>잔고만</b> 대시보드 합계에 더해집니다.
+              연동되지 않은 계좌로, <b>잔고만</b> 대시보드 합계에 더해집니다.
               추가·수정은 회계·세무 › 자금·통장에서 합니다.
             </p>
           </div>
@@ -1209,7 +1207,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
         {/*   목록은 표로 (2026-08-24 정리) — 예전엔 계좌마다 큰 카드 줄이라 여덟 개만 되어도
               화면 절반을 먹었다. 조회 화면 표준: 목록이 있는 곳은 표(머리단 가운데·숫자 오른쪽). */}
         {bankAccounts.length === 0 ? (
-          <div className="collect-empty">등록된 계좌가 없습니다. 회계·세무 › 자금·통장에서 추가하세요.</div>
+          <div className="collect-empty">아직 등록된 계좌가 없습니다. 회계·세무 › 자금·통장에서 추가하세요.</div>
         ) : !showManual ? null : (
           <div className="stg-table-wrap">
             <table className="ev-table ev-lined table-bank-manual">

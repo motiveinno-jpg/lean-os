@@ -216,7 +216,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
         <ChipGroup value={listTab} onChange={setListTab}
           options={[{ value: "company", label: `회사 결재 양식 ${(forms as ApprovalForm[]).length}` }, { value: "default", label: `기본 제공 유형 ${Object.keys(REQUEST_TYPE_LABELS).length}` }] as const} />
         <QuickSearch value={q} onApply={setQ} placeholder="양식 이름 · 분류 · 쉼표로 여러 개, Enter" />
-        <span className="text-[11px] text-[var(--text-dim)]">회사에서 쓰는 결재 양식(필드·내용·결재선)을 만들어 새 요청에서 선택합니다.</span>
+        <span className="text-[11px] text-[var(--text-dim)]">회사 결재 양식을 만들어 새 요청에서 선택합니다.</span>
       </QueryBar>
 
       {/* 기본 제공 유형 — 표시 이름·결재선을 여기서 편집(저장 방식은 그대로, 정책으로 커스터마이즈) */}
@@ -246,8 +246,8 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
           <div className="mx-auto w-14 h-14 mb-3 rounded-2xl bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center">
             <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
           </div>
-          <div className="text-sm font-bold mb-1">등록된 결재 양식이 없습니다</div>
-          <div className="text-xs text-[var(--text-muted)]">&ldquo;+ 새 양식 추가&rdquo;로 우리 회사만의 결재 양식을 만들어 보세요</div>
+          <div className="text-sm font-bold mb-1">아직 결재 양식이 없습니다.</div>
+          <div className="text-xs text-[var(--text-muted)]">새 양식 추가로 첫 양식을 만들어 보세요.</div>
         </div>
       ) : (
         <div className="ev-scroll">
@@ -303,8 +303,8 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
               <label className="block text-[11px] text-[var(--text-muted)] mb-1">기본 요청 유형에 연결 <span className="text-[var(--text-dim)]">(선택)</span></label>
               <select value={editing.base_type || ""} onChange={(e) => patch({ base_type: e.target.value || null })}
                 className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm">
-                <option value="">연결 안 함. 새 요청 목록에 양식 이름으로 따로 나옵니다</option>
-                {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v} · 새 요청에서 '{v}'을(를) 고르면 이 양식이 나옵니다</option>)}
+                <option value="">연결 안 함</option>
+                {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
             <div className="mb-3">
@@ -320,7 +320,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                 <button onClick={() => patch({ fields: [...(editing.fields || []), emptyField()] })} className="text-[11px] px-2 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">+ 필드 추가</button>
               </div>
               {(editing.fields || []).length === 0 ? (
-                <div className="text-[11px] text-[var(--text-dim)] px-1 py-1.5">필드를 추가하면 작성자가 채웁니다(예: 지출 항목, 금액, 사유).</div>
+                <div className="text-[11px] text-[var(--text-dim)] px-1 py-1.5">아직 입력 필드가 없습니다. 필드를 추가하면 작성자가 채웁니다.</div>
               ) : (
                 <div className="space-y-1.5">
                   {(editing.fields || []).map((f, i) => (
@@ -352,7 +352,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                           ))}
                           <input
                             placeholder="옵션 입력 후 Enter"
-                            title="'기타' 를 옵션으로 넣으면, 작성자가 그걸 고를 때 옆에 내용 적는 칸이 열립니다"
+                            title="기타 옵션을 넣으면 작성자에게 입력 칸이 열립니다."
                             className="h-7 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs w-[110px]"
                             onKeyDown={(e) => {
                               // 조합 중일 때 return 이어야 한다 — 종전엔 조건이 뒤집혀(!isComposing)
@@ -389,7 +389,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
               <label className="block text-[11px] text-[var(--text-muted)] mb-1">기본 내용(템플릿)<span className="ui-sub">표·서식 사용 가능</span></label>
               <RichEditor key={editing.id || "new-form"} content={tplToHtml(editing.content_template || "")}
                 onChange={(html) => patch({ content_template: htmlOrEmpty(html) })}
-                placeholder={"작성 시 상세 내용에 기본으로 채워집니다. 예: 1. 지출 항목 / 2. 사유"}
+                placeholder={"작성 시 상세 내용에 기본으로 채워집니다."}
                 maxHeight="260px" />
             </div>
 
@@ -412,12 +412,12 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] text-[var(--text-dim)] mt-1">단계 구성(추가·역할·담당자 변경)은 결재허브 &gt; 결재선 관리에서 합니다.</p>
+              <p className="text-[10px] text-[var(--text-dim)] mt-1">단계 구성은 결재선 관리에서 합니다.</p>
             </div>
 
             {/* 참조(CC) — 결재선과 별개, 결과를 통보만 받는 인원 (미리 지정) */}
             <div className="reference-users-section">
-              <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">참조 (선택)<span className="ui-sub">결재 여부와 무관하게 통보만 받는 인원</span></label>
+              <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">참조 (선택)<span className="ui-sub">결과를 통보만 받는 인원</span></label>
               <div className="flex flex-wrap gap-1 bg-[var(--bg-surface)] rounded-lg p-2">
                 {(users as any[]).length === 0 ? (
                   <span className="text-[11px] text-[var(--text-dim)] px-1 py-1">구성원이 없습니다</span>
@@ -487,7 +487,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                   className="text-[11px] px-2 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">+ 필드 추가</button>
               </div>
               {defaultForm.fields.length === 0 ? (
-                <div className="text-[11px] text-[var(--text-dim)] px-1 py-1.5">필드를 추가하면 작성자가 채웁니다(예: 지출 항목, 금액, 사유). 드롭다운 옵션에 '기타' 를 넣으면 고를 때 내용 적는 칸이 함께 열립니다.</div>
+                <div className="text-[11px] text-[var(--text-dim)] px-1 py-1.5">아직 입력 필드가 없습니다. 필드를 추가하면 작성자가 채웁니다.</div>
               ) : (
                 <div className="space-y-1.5">
                   {defaultForm.fields.map((f, i) => (
@@ -514,7 +514,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                           ))}
                           <input
                             placeholder="옵션 입력 후 Enter"
-                            title="'기타' 를 옵션으로 넣으면, 작성자가 그걸 고를 때 옆에 내용 적는 칸이 열립니다"
+                            title="기타 옵션을 넣으면 작성자에게 입력 칸이 열립니다."
                             className="h-7 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs w-[110px]"
                             onKeyDown={(e) => {
                               // 조합 중일 때 return 이어야 한다 — 종전엔 조건이 뒤집혀(!isComposing)
@@ -551,7 +551,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
               <label className="block text-[11px] text-[var(--text-muted)] mb-1">기본 내용(템플릿)<span className="ui-sub">표·서식 사용 가능</span></label>
               <RichEditor key={editingDefaultKey || "default-form"} content={tplToHtml(defaultForm.descriptionTemplate)}
                 onChange={(html) => setDefaultForm((s) => ({ ...s, descriptionTemplate: htmlOrEmpty(html) }))}
-                placeholder={"작성 시 상세 내용에 기본으로 채워집니다. 예: 1. 지출 항목 / 2. 사유"}
+                placeholder={"작성 시 상세 내용에 기본으로 채워집니다."}
                 maxHeight="260px" />
             </div>
 
@@ -560,15 +560,14 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                 저장 시 stages 는 열 때 불러온 값이 그대로 통과 — 기존 결재선 데이터를 건드리지 않는다. */}
             <div className="approval-stages-section">
               <label className="text-[11px] font-semibold text-[var(--text-muted)]">결재선</label>
-              <p className="mt-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[11px] text-[var(--text-muted)]">
-                결재선은 <b>결재허브 &gt; 결재선 관리</b>에서 만든 결재선을 자동으로 가져와 적용됩니다 —
-                신청자의 부서·직원 대상 결재선이 우선, 없으면 회사 공통 결재선입니다. 여기서는 따로 선택하지 않습니다.
+              <p className="mt-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[11px] text-[var(--text-muted)]" title="신청자의 부서·직원 결재선이 우선, 없으면 회사 공통 결재선입니다.">
+                <b>결재선 관리</b>에서 만든 결재선이 자동으로 적용됩니다.
               </p>
             </div>
 
             {/* 참조(CC) — 결재선과 별개, 결과를 통보만 받는 인원 (빌더와 동일) */}
             <div className="reference-users-section">
-              <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">참조 (선택)<span className="ui-sub">결재 여부와 무관하게 통보만 받는 인원</span></label>
+              <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">참조 (선택)<span className="ui-sub">결과를 통보만 받는 인원</span></label>
               <div className="flex flex-wrap gap-1 bg-[var(--bg-surface)] rounded-lg p-2">
                 {(users as any[]).length === 0 ? (
                   <span className="text-[11px] text-[var(--text-dim)] px-1 py-1">구성원이 없습니다</span>

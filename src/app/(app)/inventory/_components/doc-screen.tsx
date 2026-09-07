@@ -198,7 +198,7 @@ export function DocScreen({
       {/*   A5 (2026-08-27) — 거래처를 고르면 지난번 거래 줄을 제안한다. 격자가 비어 있을 때만, 누르는 것은 사람 */}
       {ctl.lastLines && ctl.rowsBlank(ctl.rows) && (
         <div className="doc-suggest">
-          <span>지난번({ctl.lastLines.doc_date}) 이 거래처와 <b>{ctl.lastLines.lines.length}줄</b>  거래했습니다. 같은 품목·수량·단가로 채울까요?  <em className="ev-dim">출처: 장부 대조</em></span>
+          <span>{ctl.lastLines.doc_date}에 이 거래처와 <b>{ctl.lastLines.lines.length}줄</b> 거래했습니다. 같은 내용으로 채울까요?</span>
           <button type="button" className="btn-secondary btn-sm" onClick={ctl.applyLastLines}>지난번 그대로 채우기</button>
           <button type="button" className="ht-note-act" onClick={ctl.dismissLastLines} aria-label="닫기">✕</button>
         </div>
@@ -217,8 +217,8 @@ export function DocScreen({
   const excelMenu = (
     <ExcelMenu items={[
       //   2026-08-27 사장님: 양식·올리기가 같은 팝업이면 메뉴도 하나 — 팝업 안에서 양식을 내려받고 채운 파일을 올린다
-      ...(onImport && canWrite ? [{ label: "양식 내려받기 · 올리기", hint: "양식을 받아 채운 뒤 올리면 읽어서 보여 주고, 등록을 눌러야 저장", onClick: () => setXlsOpen(true) }]
-        : [{ label: "양식 내려받기", hint: `${label} 일괄 올리기 양식 · 머리줄·예시·안내 시트`, onClick: () => downloadTemplate(`${label}_양식`, label, xcols, formKey === "make" ? ["자재는 자재구성에 따라 저절로 나갑니다(양품+불량 기준). 실투입·로스는 올린 뒤 화면에서 고칩니다."] : []) }]),
+      ...(onImport && canWrite ? [{ label: "양식 내려받기 · 올리기", hint: "양식을 받아 채운 파일을 올립니다.", onClick: () => setXlsOpen(true) }]
+        : [{ label: "양식 내려받기", hint: `${label} 일괄 올리기 양식을 받습니다.`, onClick: () => downloadTemplate(`${label}_양식`, label, xcols, formKey === "make" ? ["자재는 자재구성에 따라 저절로 나갑니다(양품+불량 기준). 실투입·로스는 올린 뒤 화면에서 고칩니다."] : []) }]),
       ...(tab === "list" ? [{ label: "이력 내려받기", count: shown.length, disabled: !shown.length, onClick: () => exportToExcel(sorted.map((h) => ({
         "번호": h.no, "일자": h.date, "거래처": h.who, "품목": h.label, "줄": h.lines, "합계": h.total, "상태": h.state,
       })), label, `${label}_이력_${from}_${to}`) }] : []),
@@ -257,7 +257,7 @@ export function DocScreen({
       {pull?.(ctl)}
       {excelMenu}
       {tools
-        ? <HelperMenu label="도구" items={[...tools(ctl), { label: "입력 항목", source: "양식", hint: "이 화면 격자에 어떤 칸을 둘지", onClick: ctl.openForm }]} />
+        ? <HelperMenu label="도구" items={[...tools(ctl), { label: "입력 항목", source: "양식", hint: "격자에 둘 칸을 고릅니다.", onClick: ctl.openForm }]} />
         : <button type="button" className="btn-secondary btn-sm" onClick={ctl.openForm}>입력 항목</button>}
       {saveActions.map((a) => (
         <button key={a.key} type="button" title={a.hint}
@@ -289,7 +289,7 @@ export function DocScreen({
                 <Stat label="부가세" value={`₩${won(ctl.sums.vat)}`} />
                 <Stat label="합계" value={`₩${won(ctl.sums.total)}`} />
                 <span className="spv-toolbar-hint">
-                  <b>Enter</b> 를 누르면 윗줄 값이 입력되고 다음 칸으로 이동합니다 · 마지막 칸에서 새 줄이 추가됩니다
+                  <b>Enter</b> 를 누르면 윗줄 값이 채워지고 다음 칸으로 갑니다.
                 </span>
               </ResultStrip>
             </>
@@ -304,7 +304,7 @@ export function DocScreen({
               <ResultStrip>
                 <Stat label="전표" value={`${won(shown.length)}건`} />
                 <Stat label="합계" value={`₩${won(shown.reduce((n, h) => n + h.total, 0))}`} />
-                <span className="spv-toolbar-hint">줄을 선택하면 <b>입력 화면</b>이 그대로 열려 수정할 수 있습니다</span>
+                <span className="spv-toolbar-hint">줄을 누르면 <b>입력 화면</b>에서 수정합니다.</span>
               </ResultStrip>
             </>
           )}
@@ -316,7 +316,7 @@ export function DocScreen({
             {tab === "edit" ? <div className="doc-editor">{editor}</div> : (
               shown.length === 0 ? (
                 <div className="collect-empty">
-                  이 기간에 저장된 전표가 없습니다 — <b>입력</b> 탭에서 저장하면 여기에 표시됩니다.
+                  아직 이 기간에 저장된 전표가 없습니다. <b>입력</b> 탭에서 저장하면 여기에 보입니다.
                 </div>
               ) : (
                 <div className="stg-table-wrap">
@@ -366,7 +366,7 @@ export function DocScreen({
             <div className="doc-popup-head">
               <div>
                 <h3 className="inv-modal-title">{ctl.editing?.order_no || "전표"} 수정</h3>
-                <p className="inv-modal-desc">{ctl.editing?.status === "cancelled" ? "취소된 전표입니다. 보기만 할 수 있습니다." : "입력 화면과 같습니다. 항목과 규칙이 동일합니다."}</p>
+                <p className="inv-modal-desc">{ctl.editing?.status === "cancelled" ? "취소된 전표입니다. 보기만 할 수 있습니다." : "입력 화면과 같은 방식으로 수정합니다."}</p>
               </div>
               <button type="button" className="btn-secondary btn-sm" onClick={ctl.openForm}>입력 항목</button>
             </div>

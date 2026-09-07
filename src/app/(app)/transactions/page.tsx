@@ -754,7 +754,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
   function handleEditCardAlias(cardName: string, currentAlias: string | null | undefined) {
     if (!companyId) return;
     const next = window.prompt(
-      `카드 별명을 입력하세요 (비우면 별명 삭제)\n\n원본 카드명: ${cardName}\n예: 대표 카드, 광고비 카드, 영업팀 카드, 출장비 카드 등`,
+      `카드 별명을 입력하세요. 비우면 별명이 삭제됩니다.\n\n원본 카드명: ${cardName}`,
       currentAlias || ""
     );
     if (next === null) return; // 취소
@@ -868,7 +868,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
 
   // 권한 게이트는 모든 훅 이후에 — early return 이 훅보다 위면 Rules of Hooks 위반(크래시)
   if (role === "partner" /* (P3) 멤버는 권한 게이트가 판정 */) {
-    return <AccessDenied detail="통장 거래 내역은 회사 구성원 전용입니다 (외부 파트너 제외)." />;
+    return <AccessDenied detail="통장 거래 내역은 회사 구성원만 볼 수 있습니다." />;
   }
 
   if (!companyId) {
@@ -898,7 +898,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
       {/*   이 화면이 하던 일(미분류 정리·계정 추천·배운 규칙)은 수집·전표 › 통장 탭으로 갔다 (2026-08-11 메뉴에서 내림,
             2026-08-18 조회 표준 확산 때 링크까지 정리). 즐겨찾기로 들어온 사람에게 갈 곳을 알려 준다. */}
       <div className="collect-note tx-moved-note">
-        ※ 이 화면은 <b>수집·전표 › 통장</b>으로 통합됐습니다. 계정 지정·AI 계정 추천·배운 규칙·전표 만들기를 거기서 합니다.
+        이 화면은 <b>수집·전표 › 통장</b>으로 통합됐습니다.
         
         {" "}<a href="/collect?tab=bank" className="text-[var(--primary)] font-bold underline">수집·전표 › 통장으로 →</a>
       </div>
@@ -975,7 +975,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
               })}
               disabled={bankFetching || codefSyncing || !companyId || bankCd.disabled}
               className={`btn-secondary rounded-lg text-xs whitespace-nowrap ${bankCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
-              title={bankCd.hint ? bankCd.hint : "CODEF 은행 연동으로 최근 거래를 불러오고 통장 잔액을 즉시 반영합니다"}
+              title={bankCd.hint ? bankCd.hint : "최근 거래를 불러오고 통장 잔액을 반영합니다."}
             >
               {bankFetching ? (
                 <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> 불러오는 중...</>
@@ -1063,7 +1063,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
               }
             }}
             disabled={!companyId}
-            title="이미 자동이체 체크된 거래의 출금처+금액 패턴을 학습해 같은 패턴의 신규 거래를 자동 마킹"
+            title="표시된 자동이체 패턴으로 새 거래를 자동 인식합니다."
             className="btn-secondary rounded-lg text-xs whitespace-nowrap"
           >
             <Ico e="🔁" /> 자동이체 자동 인식
@@ -1075,7 +1075,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
             }}
             disabled={filteredBankTx.length === 0}
             className="btn-secondary rounded-lg text-xs whitespace-nowrap"
-            title="현재 보이는 거래내역을 엑셀로 다운로드"
+            title="보이는 거래내역을 엑셀로 내려받습니다."
           >
             <Ico e="📄" /> 엑셀 내보내기
           </button>
@@ -1145,7 +1145,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
       {tab === 'inbox' && (bankTx as any[]).some((t) => t.type === 'income') && (
         <div className="no-print mb-4 flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-[var(--info)]/8 border border-[var(--info)]/25">
           <span className="text-[12px] text-[var(--text)]">
-            <Ico e="💡" /> <b>입금 {(bankTx as any[]).filter((t) => t.type === 'income').length}건</b>은 여기서 분류하기보다 <b>거래 매칭</b>에서 세금계산서와 정산하면 미수금 차감·회계 전표가 자동 처리됩니다.
+            <Ico e="💡" /> <b>입금 {(bankTx as any[]).filter((t) => t.type === 'income').length}건</b>은 <b>거래 매칭</b>에서 정산하면 전표가 자동으로 만들어집니다.
           </span>
           <a href="/collect?tab=bank" className="shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-[var(--info)] text-white hover:opacity-90 transition whitespace-nowrap">수집·전표에서 처리 →</a>
         </div>
@@ -1267,7 +1267,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
               }} className="text-xs text-[var(--primary)] font-semibold">새로고침</button>
             </div>
             {manualEntries.length === 0 ? (
-              <EmptyState icon="✍️" title="수기 입력된 거래가 없습니다" desc="위에서 거래를 등록하세요." />
+              <EmptyState icon="✍️" title="아직 수기 입력한 거래가 없습니다." desc="위에서 거래를 등록하세요." />
             ) : (
               <div className="overflow-x-auto">
                 <table className="manual-entry-history-table">
@@ -1299,7 +1299,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
       {tab === 'rules' && (
         <div className="rules-tab">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-[var(--text-dim)]">거래처/적요 패턴 매칭으로 자동 분류합니다. n8n에서 수집된 거래도 이 규칙을 적용합니다.</p>
+            <p className="text-xs text-[var(--text-dim)]">거래처와 적요 패턴으로 거래를 자동 분류합니다.</p>
             <button onClick={() => setShowRuleForm(!showRuleForm)} className="text-xs text-[var(--primary)] font-semibold">+ 규칙 추가</button>
           </div>
 
@@ -1356,7 +1356,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
               </div>
               <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
                 <input type="checkbox" checked={ruleForm.is_fixed_cost} onChange={e => setRuleForm({ ...ruleForm, is_fixed_cost: e.target.checked })} />
-                자동이체로 표시 <span className="caption">— 이 규칙에 매칭되는 거래를 자동이체로 표시</span>
+                자동이체로 표시 <span className="caption">이 규칙에 맞는 거래를 자동이체로 표시합니다.</span>
               </label>
               <div className="flex gap-2">
                 <button onClick={() => ruleForm.rule_name && ruleForm.match_value && addRuleMut.mutate()}
@@ -1371,7 +1371,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
             <EmptyState
               card
               icon="📐"
-              title="분류 규칙이 없습니다"
+              title="아직 분류 규칙이 없습니다."
               desc="규칙을 추가하면 거래가 자동으로 분류됩니다."
               action={null}
             />
@@ -1432,7 +1432,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                 })}
               </select>
               <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] cursor-pointer hover:text-[var(--text)] ml-2"
-                title="자동이체(반복결제 등록)와 연결된 거래만 표시 (inbox 는 미분류만 보이므로 자동으로 '전체' 탭 전환)">
+                title="등록된 자동이체와 연결된 거래만 표시합니다.">
                 <input
                   type="checkbox"
                   checked={showFixedOnly}
@@ -1484,8 +1484,8 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
             ) : filteredBankTx.length === 0 ? (
               <EmptyState
                 icon={tab === 'inbox' ? '✅' : '🏦'}
-                title={tab === 'inbox' ? '처리할 거래가 없습니다' : searchQuery ? '검색 결과가 없습니다' : '은행 거래내역을 연결하면 자동 분류가 시작됩니다'}
-                desc={tab === 'inbox' ? '모든 거래가 분류되었습니다.' : searchQuery ? '다른 키워드로 검색해보세요.' : 'CSV를 업로드하거나 n8n 자동 수집을 설정하세요'}
+                title={tab === 'inbox' ? '처리할 거래가 없습니다.' : searchQuery ? '검색 결과가 없습니다.' : '아직 거래내역이 없습니다.'}
+                desc={tab === 'inbox' ? '모든 거래가 분류되었습니다.' : searchQuery ? '다른 키워드로 검색해보세요.' : 'CSV를 업로드하거나 최근 거래를 불러오세요.'}
               />
             ) : (
               <>
@@ -1521,7 +1521,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                       )}
                       <button onClick={runAiSuggest} disabled={aiSugLoading}
                         className="ai-suggest-btn btn-primary btn-sm"
-                        title="미분류 지출(최대 20건)에 AI 계정과목 추천 · 확정은 직접">
+                        title="미분류 지출 최대 20건에 AI 계정과목을 추천합니다.">
                         {aiSugLoading ? "AI 추천 중…" : "AI 추천 받기"}
                       </button>
                     </div>
@@ -1567,14 +1567,14 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                       </div>
                       <div className="shrink-0 flex flex-col gap-1" onClick={e => e.stopPropagation()}>
                         {tab !== 'inbox' && (
-                        <label className="flex items-center gap-1 cursor-pointer" title={tx.is_auto_transfer ? '자동이체로 표시됨. 클릭해서 해제' : '자동이체(결제 방식)로 표시'}>
+                        <label className="flex items-center gap-1 cursor-pointer" title={tx.is_auto_transfer ? '자동이체로 표시됨. 클릭해서 해제' : '자동이체로 표시'}>
                           <input type="checkbox" checked={!!tx.is_auto_transfer} onChange={e => toggleAutoMut.mutate({ id: tx.id, value: e.target.checked })} disabled={toggleAutoMut.isPending} className="accent-sky-500 cursor-pointer" />
                           {tx.is_auto_transfer ? <span className="text-[9px] px-1 py-0.5 rounded bg-sky-500/15 text-sky-500 font-semibold whitespace-nowrap">자동이체</span>
                             : isAutoTransferTx(tx) ? <span className="text-[9px] px-1 py-0.5 rounded bg-sky-500/10 text-sky-400 whitespace-nowrap" title="등록된 자동이체와 일치 · 자동 감지">자동감지</span>
                             : <span className="text-[9px] text-[var(--text-dim)]">자동이체</span>}
                         </label>
                         )}
-                        <label className="flex items-center gap-1 cursor-pointer" title={tx.is_fixed_cost ? '고정비로 표시됨. 클릭해서 해제' : '고정비(비용 성격)로 표시'}>
+                        <label className="flex items-center gap-1 cursor-pointer" title={tx.is_fixed_cost ? '고정비로 표시됨. 클릭해서 해제' : '고정비로 표시'}>
                           <input type="checkbox" checked={!!tx.is_fixed_cost} onChange={e => toggleFixedMut.mutate({ id: tx.id, value: e.target.checked })} disabled={toggleFixedMut.isPending} className="accent-orange-500 cursor-pointer" />
                           {tx.is_fixed_cost ? <span className="text-[9px] px-1 py-0.5 rounded bg-orange-500/15 text-orange-500 font-semibold whitespace-nowrap">고정비</span>
                             : <span className="text-[9px] text-[var(--text-dim)]">고정비</span>}
@@ -1752,7 +1752,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                 </div>
                 {unidentifiedCount > 0 && (
                   <div className="mb-2 text-[11px] text-[var(--text-dim)] px-1">
-                    끝번호가 없는 묶음 거래 {unidentifiedCount.toLocaleString()}건이 포함됨 · 거래 클릭 → 매핑에서 정확한 카드를 지정할 수 있습니다.
+                    끝번호 없는 묶음 거래 {unidentifiedCount.toLocaleString()}건은 거래를 열어 카드를 지정하세요.
                   </div>
                 )}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -1768,7 +1768,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                             : 'bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--primary)]/50'
                         }`}
                         onClick={() => setSelectedCardName(selectedCardName === c.card_name ? '' : c.card_name)}
-                        title={unid ? '끝번호 없는 묶음 거래 · 클릭해서 안 거래를 보고 매핑하세요' : undefined}
+                        title={unid ? '클릭해 묶음 거래를 확인하고 카드를 지정하세요.' : undefined}
                         role="button"
                         tabIndex={0}
                       >
@@ -1858,7 +1858,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
             {cardTxLoading ? (
               <div className="p-10 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>
             ) : displayCardTx.length === 0 ? (
-              <EmptyState icon="💳" title="카드 거래내역이 없습니다" desc="카드를 등록하고 CSV를 업로드하세요." />
+              <EmptyState icon="💳" title="아직 카드 거래내역이 없습니다." desc="카드를 등록하고 CSV를 업로드하세요." />
             ) : (
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
                 <thead className="sticky-bar">
@@ -2023,7 +2023,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                     </button>
                   ))}
                 </div>
-                <div className="text-[10px] text-[var(--text-dim)] mt-1">이용대금 청구서에는 신용카드만 표시됩니다 (체크/직불은 즉시 출금).</div>
+                <div className="text-[10px] text-[var(--text-dim)] mt-1">이용대금 청구서에는 신용카드만 표시됩니다.</div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -2031,14 +2031,14 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                   <input type="number" min={1} max={31} value={cardForm.payment_day} onChange={e => setCardForm({ ...cardForm, payment_day: e.target.value })}
                     disabled={cardForm.card_type !== 'credit'}
                     placeholder="예: 25" className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm disabled:opacity-40" />
-                  <div className="text-[10px] text-[var(--text-dim)] mt-1">매월 카드사가 자동출금하는 날</div>
+                  <div className="text-[10px] text-[var(--text-dim)] mt-1">매월 카드 대금이 출금되는 날입니다.</div>
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">사용내역 마감일 (선택)</label>
                   <input type="number" min={1} max={31} value={cardForm.billing_day} onChange={e => setCardForm({ ...cardForm, billing_day: e.target.value })}
                     disabled={cardForm.card_type !== 'credit'}
                     placeholder="예: 15" className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm disabled:opacity-40" />
-                  <div className="text-[10px] text-[var(--text-dim)] mt-1">청구 사이클 마감 (마감+1 부터 다음 청구)</div>
+                  <div className="text-[10px] text-[var(--text-dim)] mt-1">이용 내역이 마감되는 날입니다.</div>
                 </div>
               </div>
             </div>
@@ -2191,7 +2191,7 @@ function ChipPicker({ options, value, onSelect, onAddOption, onDeleteOption, del
             {canDelete && (
               <button
                 type="button"
-                onClick={async (e) => { e.stopPropagation(); const { ok } = await confirmDialog({ title: "옵션 삭제", desc: `'${opt}' 옵션을 삭제할까요? (이미 분류된 거래엔 영향 없음)`, danger: true }); if (ok) onDeleteOption!(opt); }}
+                onClick={async (e) => { e.stopPropagation(); const { ok } = await confirmDialog({ title: "옵션 삭제", desc: `'${opt}' 옵션을 삭제할까요? 분류된 거래는 그대로 유지됩니다.`, danger: true }); if (ok) onDeleteOption!(opt); }}
                 className={`pr-1.5 pl-0.5 text-[10px] ${selected ? 'text-white/70 hover:text-white' : 'text-[var(--text-dim)] hover:text-red-400'}`}
                 title="이 옵션 삭제"
               >
@@ -2288,7 +2288,7 @@ function MapTransactionModal({ tx, deals, classifications, existingCategories, e
           </div>
           <div className="space-y-3">
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">분류 <span className="text-[var(--text-dim)] font-normal">(아래 칩 클릭 또는 직접 입력)</span></label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">분류 <span className="text-[var(--text-dim)] font-normal">칩을 고르거나 직접 입력</span></label>
               <input
                 list="bank-cls-options"
                 value={classification}
@@ -2305,7 +2305,7 @@ function MapTransactionModal({ tx, deals, classifications, existingCategories, e
                 deletable={clsDeletable} />
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">카테고리 <span className="text-[var(--text-dim)] font-normal">(아래 칩 클릭 또는 직접 입력)</span></label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">카테고리 <span className="text-[var(--text-dim)] font-normal">칩을 고르거나 직접 입력</span></label>
               <input
                 list="bank-cat-options"
                 value={category}
@@ -2322,10 +2322,10 @@ function MapTransactionModal({ tx, deals, classifications, existingCategories, e
                 deletable={catDeletable} />
             </div>
           </div>
-          <div className="caption"><Ico e="💡" /> 원하는 분류·카테고리가 없으면 직접 타이핑하세요. 다음 분류부터 자동완성·칩에 추가됩니다.</div>
+          <div className="caption"><Ico e="💡" /> 없는 분류는 직접 입력하면 다음부터 칩에 추가됩니다.</div>
           <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
             <input type="checkbox" checked={isFixed} onChange={e => setIsFixed(e.target.checked)} />
-            자동이체로 표시 <span className="caption">— 자동이체(반복결제) 거래면 체크</span>
+            자동이체로 표시 <span className="caption">반복되는 결제면 체크합니다.</span>
           </label>
         </div>
 
@@ -2414,7 +2414,7 @@ function CardMapTransactionModal({ tx, deals, classifications, existingCategorie
           </div>
           <div className="space-y-3">
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">분류 <span className="text-[var(--text-dim)] font-normal">(아래 칩 클릭 또는 직접 입력)</span></label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">분류 <span className="text-[var(--text-dim)] font-normal">칩을 고르거나 직접 입력</span></label>
               <input
                 list="card-cls-options"
                 value={classification}
@@ -2431,7 +2431,7 @@ function CardMapTransactionModal({ tx, deals, classifications, existingCategorie
                 deletable={clsDeletable} />
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">카테고리 <span className="text-[var(--text-dim)] font-normal">(아래 칩 클릭 또는 직접 입력)</span></label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">카테고리 <span className="text-[var(--text-dim)] font-normal">칩을 고르거나 직접 입력</span></label>
               <input
                 list="card-cat-options"
                 value={category}
@@ -2448,15 +2448,15 @@ function CardMapTransactionModal({ tx, deals, classifications, existingCategorie
                 deletable={catDeletable} />
             </div>
           </div>
-          <div className="caption"><Ico e="💡" /> 원하는 분류·카테고리가 없으면 직접 타이핑하세요. 다음 분류부터 자동완성·칩에 추가됩니다.</div>
+          <div className="caption"><Ico e="💡" /> 없는 분류는 직접 입력하면 다음부터 칩에 추가됩니다.</div>
           <div className="flex gap-4 flex-wrap">
             <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
               <input type="checkbox" checked={isFixed} onChange={e => setIsFixed(e.target.checked)} />
-              고정비로 표시 <span className="caption">— 매월 반복되는 지출이면 체크</span>
+              고정비로 표시 <span className="caption">매월 반복되는 지출이면 체크합니다.</span>
             </label>
             <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
               <input type="checkbox" checked={isDeductible} onChange={e => setIsDeductible(e.target.checked)} />
-              공제 가능 <span className="caption">— 부가세 매입세액 공제 대상이면 체크</span>
+              공제 가능 <span className="caption">매입세액 공제 대상이면 체크합니다.</span>
             </label>
           </div>
         </div>

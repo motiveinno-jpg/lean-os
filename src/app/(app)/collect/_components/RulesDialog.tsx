@@ -85,7 +85,7 @@ export function RulesDialog({ companyId, onClose }: { companyId: string; onClose
           ) : shown.length === 0 ? (
             <div className="collect-empty">
               
-              아직 배운 규칙이 없습니다. 전표를 만들면 그때 고른 계정을 기억합니다.
+              아직 배운 규칙이 없습니다. 전표를 만들 때 고른 계정을 기억합니다.
 
             </div>
           ) : (
@@ -116,10 +116,7 @@ export function RulesDialog({ companyId, onClose }: { companyId: string; onClose
           )}
 
           <p className="collect-note">
-            ※ 전표를 만들 때 고른 계정을 <b>상대(거래처·가맹점·입금자)별로</b> 기억합니다.
-            <b>3번 이상</b>이면 <b>학습</b>, 그 전엔 <b>지난번</b>으로 표시합니다.
-            다른 계정을 고르면 그쪽 횟수가 올라 <b>결국 뒤집히므로</b> 굳이 지우지 않아도 됩니다 —
-            잘못 배운 게 확실할 때만 지우세요.
+            전표를 만들 때 고른 계정을 <b>상대별로</b> 기억합니다. 잘못 배운 규칙만 지우세요.
           </p>
         </div>
       </div>

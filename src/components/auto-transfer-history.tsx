@@ -137,7 +137,7 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
             <h2 className="text-[15px] font-bold text-[var(--text)]">{variant === "card" ? "정기 지출 결제 확인" : "정기 지출 출금 확인"}</h2>
             <span className="caption">
               {ym} · {variant === "card" ? "카드로 내는" : "통장에서 나가는"} 정기 지출 {list.length}건
-              {unknownCount > 0 ? `(아직 수단 미확인 ${unknownCount})` : ""} · 나감  {paid.length}{missing.length > 0 ? ` · 확인 필요 ${missing.length}` : ""} · 예정 {due.length}
+              {unknownCount > 0 ? ` · 수단 미확인 ${unknownCount}` : ""} · 나감  {paid.length}{missing.length > 0 ? ` · 확인 필요 ${missing.length}` : ""} · 예정 {due.length}
               {manualOnly.length > 0 ? ` · 직접 표시 ${manualOnly.length}` : ""}
             </span>
           </div>
@@ -153,10 +153,10 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
       {list.length === 0 && manualOnly.length === 0 ? (
         <div className="auto-transfer-history-empty">
           {(recurring as any[]).some((r) => r.is_active !== false)
-            ? (variant === "card" ? "카드로 결제되는 정기 지출이 없어요. 등록된 것은 모두 통장에서 나가고 있어요." : "통장에서 나가는 정기 지출이 없어요. 등록된 것은 모두 카드로 결제되고 있어요.")
-            : "등록된 정기 지출이 없어요."}
+            ? (variant === "card" ? "카드로 결제되는 정기 지출이 없습니다." : "통장에서 나가는 정기 지출이 없습니다.")
+            : "아직 등록된 정기 지출이 없습니다."}
           <div className="text-[10px] mt-1">
-            <Link href="/payments" className="text-[var(--primary)] hover:underline font-medium">정기 지출</Link>에 월세·보험·구독을 등록해 두면, 달마다 {variant === "card" ? "카드로 결제됐는지" : "통장에서 나갔는지"} 여기서 확인돼요.
+            <Link href="/payments" className="text-[var(--primary)] hover:underline font-medium">정기 지출</Link>을 등록하면 달마다 {variant === "card" ? "카드로 결제됐는지" : "통장에서 나갔는지"} 여기서 확인합니다.
           </div>
         </div>
       ) : (
@@ -166,7 +166,7 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
             const badge = state === "paid"
               ? <span className="text-[9px] px-1 py-0.5 rounded bg-[var(--success-dim)] text-[var(--success)] shrink-0">나감</span>
               : state === "missing"
-              ? <span className="text-[9px] px-1 py-0.5 rounded bg-[var(--warning-dim)] text-[var(--warning)] shrink-0" title="정기 지출에 적힌 날짜가 지났는데 통장에서 맞는 출금이 안 보여요. 거래처 이름이나 금액이 다르면 거래내역에서 직접 표시하세요">확인 필요</span>
+              ? <span className="text-[9px] px-1 py-0.5 rounded bg-[var(--warning-dim)] text-[var(--warning)] shrink-0" title="예정일이 지났는데 맞는 출금이 보이지 않습니다.">확인 필요</span>
               : <span className="text-[9px] px-1 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] shrink-0">예정</span>;
             //   분류는 둘째 줄로 · 첫 줄에 배지가 둘이면 좁은 칸에서 이름이 "클…" 로 잘린다
             const tail = [rp.recipient_name, cat].filter(Boolean).join(" · ");
@@ -206,7 +206,7 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
             </div>
           ))}
           <div className="text-[10px] text-[var(--text-dim)] pt-1">
-            이름·금액이 달라 안 잡히는 {variant === "card" ? "결제" : "출금"}는 {txLink}에서 골라 &quot;{variant === "card" ? "정기결제 표시" : "자동이체 표시"}&quot;를 누르면 여기에 같이 모여요.
+            잡히지 않은 {variant === "card" ? "결제" : "출금"}는 {txLink}에서 &quot;{variant === "card" ? "정기결제 표시" : "자동이체 표시"}&quot;를 눌러 추가합니다.
           </div>
         </div>
       )}
@@ -214,7 +214,7 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
       {mySuggestions.length > 0 && (
         <div className="mt-3 pt-3 border-t border-[var(--border)]">
           <div className="text-[11px] font-semibold text-[var(--text)] mb-1.5">
-            매달 반복되는 {variant === "card" ? "결제" : "출금"}가 보여요. 정기 지출로 등록할까요?
+            매달 반복되는 {variant === "card" ? "결제" : "출금"}를 정기 지출로 등록할까요?
           
           </div>
           <div className="space-y-1.5">
@@ -225,7 +225,7 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
                   <div className="text-[10px] text-[var(--text-dim)] truncate">{p.patternDescription}</div>
                 </div>
                 <div className="text-sm font-bold mono-number text-[var(--text-muted)] shrink-0">₩{fmtKRW(p.estimatedMonthlyCost)}</div>
-                <button type="button" onClick={() => accept(p)} className="btn-primary btn-sm shrink-0" title="재무 › 정기 지출에 등록하고, 근거가 된 줄에 표시를 남깁니다">등록</button>
+                <button type="button" onClick={() => accept(p)} className="btn-primary btn-sm shrink-0" title="정기 지출에 등록합니다.">등록</button>
                 <button type="button" onClick={() => dismiss(p)} className="btn-secondary btn-sm shrink-0" title="이 반복 결제는 다시 권하지 않습니다">무시</button>
               </div>
             ))}

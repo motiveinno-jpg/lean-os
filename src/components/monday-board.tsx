@@ -481,7 +481,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                             className={`border border-[var(--border)] bg-[var(--bg-card)] text-[13px] font-normal text-[var(--text-muted)] whitespace-nowrap min-w-[130px] text-center cursor-grab active:cursor-grabbing group/th ${dragCol === c.id ? "opacity-40" : ""}`}
                             style={{ height: ROW_H }}
                           >
-                            <button onClick={() => setConfigCol(c)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition" title="컬럼 설정 (이름·옵션·색) · 드래그로 위치 변경">
+                            <button onClick={() => setConfigCol(c)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition" title="컬럼을 설정하거나 드래그로 옮깁니다.">
                               {c.name}
                               <span className="text-[10px] opacity-0 group-hover/th:opacity-50 transition"><Ico e="⚙" /></span>
                             </button>
@@ -516,7 +516,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
                                     <button
                                       onClick={() => setUpdatesDeal(d)}
                                       className={`inline-flex items-center gap-0.5 px-1 py-0.5 rounded transition ${n > 0 ? "text-[var(--text-muted)] hover:text-[var(--text)]" : "opacity-0 group-hover/row:opacity-100 text-[var(--text-dim)] hover:text-[var(--text-muted)]"}`}
-                                      title="업데이트 (메모·히스토리)"
+                                      title="업데이트 메모를 남기고 확인합니다."
                                     >
                                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                                         <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
@@ -762,7 +762,7 @@ function ItemUpdatesPanel({ companyId, deal, subitem, onClose }: { companyId: st
           <div className="min-w-0">
             <div className="text-base font-bold text-[var(--text)] truncate">{subitem ? subitem.name : deal.name}</div>
             <div className="text-[11px] text-[var(--text-dim)] mt-0.5">
-              {subitem ? `${deal.name} · 항목 업데이트` : "업데이트 · 메모와 진행 히스토리를 기록합니다"}
+              {subitem ? `${deal.name} · 항목 업데이트` : "메모와 진행 기록을 남깁니다."}
             </div>
           </div>
           <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none shrink-0">✕</button>
@@ -773,7 +773,8 @@ function ItemUpdatesPanel({ companyId, deal, subitem, onClose }: { companyId: st
             value={body}
             onChange={(e) => setBody(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && (e.metaKey || e.ctrlKey)) submit(); }}
-            placeholder="업데이트 작성... (Ctrl+Enter 등록)"
+            placeholder="업데이트 작성"
+            title="Ctrl+Enter 로 등록합니다."
             rows={3}
             className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] resize-none focus:outline-none"
             style={{ borderColor: body.trim() ? "var(--primary)" : undefined }}
@@ -1018,7 +1019,7 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
           <button
             onClick={onOpenUpdates}
             className="shrink-0 inline-flex items-center gap-1.5 px-3 h-9 rounded-lg border border-[var(--border)] text-[13px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition"
-            title="업데이트 (메모·히스토리)"
+            title="업데이트 메모를 남기고 확인합니다."
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
@@ -1051,7 +1052,7 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
                   onDragEnd={() => setDragCol(null)}
                   className={`border border-[var(--border)] bg-[var(--bg-card)] text-[13px] font-normal text-[var(--text-muted)] whitespace-nowrap min-w-[130px] text-center cursor-grab active:cursor-grabbing group/th ${dragCol === c.id ? "opacity-40" : ""}`}
                   style={{ height: ROW_H }}>
-                  <button onClick={() => onConfigColumn(c)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition" title="컬럼 설정 (이름·옵션·색) · 드래그로 위치 변경">
+                  <button onClick={() => onConfigColumn(c)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition" title="컬럼을 설정하거나 드래그로 옮깁니다.">
                     {c.name}
                     <span className="text-[10px] opacity-0 group-hover/th:opacity-50 transition"><Ico e="⚙" /></span>
                   </button>
@@ -1076,7 +1077,7 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
                           <button
                             onClick={() => setUpdSub(it)}
                             className={`inline-flex items-center gap-0.5 px-1 py-0.5 rounded transition ${n > 0 ? "text-[var(--text-muted)] hover:text-[var(--text)]" : "opacity-0 group-hover/row:opacity-100 text-[var(--text-dim)] hover:text-[var(--text-muted)]"}`}
-                            title="업데이트 (메모·히스토리)"
+                            title="업데이트 메모를 남기고 확인합니다."
                           >
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
@@ -1120,7 +1121,7 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
                   return (
                     <td key={c.id} className="px-2 py-2 text-center align-middle">
                       <div className="text-[12px] font-bold mono-number text-[var(--text)]">{sum ? sum.toLocaleString("ko-KR") : "—"}</div>
-                      {bound && sum > 0 && <div className="text-[9px] font-semibold" style={{ color: "var(--primary)" }}>→ 프로젝트 계약금액 반영</div>}
+                      {bound && sum > 0 && <div className="text-[9px] font-semibold" style={{ color: "var(--primary)" }}>프로젝트 계약금액에 반영됩니다.</div>}
                     </td>
                   );
                 })}
@@ -1173,7 +1174,7 @@ function ColumnConfigModal({ col, onClose, onSave, onDelete }: { col: Col; onClo
 
         {isStatus && (
           <div className="mb-4">
-            <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-2">상태 옵션 (라벨·색)</div>
+            <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-2">상태 옵션</div>
             <div className="status-options-list">
               {options.map((o, i) => (
                 <div key={o.id} className="flex items-center gap-2">

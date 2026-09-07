@@ -333,7 +333,7 @@ export function DashboardGrid({
       <div className="min-w-0">
         {headLeft}
         {title && <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>{title}</div>}
-        {edit && !isMobile && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">위젯을 드래그해 이동 · 우측/하단 모서리로 크기 조절 · ×로 끄기 (자동 저장)</p>}
+        {edit && !isMobile && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">위젯을 끌어 옮기고 모서리를 당겨 크기를 조절합니다.</p>}
       </div>
       <div className="flex items-center gap-1.5 shrink-0 relative">
         {edit && <button onClick={() => setEdit(false)} className="btn-primary btn-sm no-drag">편집 완료</button>}

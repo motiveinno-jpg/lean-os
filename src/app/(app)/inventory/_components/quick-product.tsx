@@ -34,8 +34,7 @@ export function QuickProductDialog({ companyId, userId, code, onClose, onSaved, 
       <div className="inv-modal-box" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">새 품목 등록?</h3>
         <p className="inv-modal-desc">
-          <b className="mono-number">{code.trim()}</b> 은(는) 품목에 없습니다. {bc ? "바코드" : "SKU"} 칸에 채워 두었으니 이름만 적고 등록하면 이 줄에 바로 들어갑니다.
-          잘못 찍은 것이면 닫으세요. 출처: 스캔 입력.
+          <b className="mono-number">{code.trim()}</b> 은(는) 아직 없는 품목입니다. {bc ? "바코드" : "SKU"} 칸에 채워 두었으니 이름만 적고 등록하세요.
         </p>
         <div className="inv-form-grid">
           <label className="inv-field"><span>SKU *</span><input className="field-input" value={v.sku || ""} onChange={(e) => set("sku", e.target.value)} /></label>

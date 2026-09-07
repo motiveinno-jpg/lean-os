@@ -90,7 +90,7 @@ export function CompanyDeleteTab({ companyId }: { companyId: string }) {
       {(step === "confirm" || step === "processing") && (
         <div className="company-delete-confirm-card">
           <p className="text-sm font-semibold text-[var(--text)]">
-            정말 삭제하시려면 회사명 <span className="text-red-500 font-bold">{expectedName}</span> 을(를) 똑같이 입력하세요.
+            삭제하려면 회사명 <span className="text-red-500 font-bold">{expectedName}</span> 그대로 입력하세요.
           </p>
           <input
             type="text"

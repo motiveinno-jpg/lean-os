@@ -66,14 +66,14 @@ export function AppointmentsSection({ employeeId, companyId, emp, userId }: { em
   return (
     <div className="appt-section">
       <div className="appt-head">
-        <span className="inv-hint">부서·직책·급여가 바뀐 기록. <b>현재 부서·직책은 최신 발령</b>에서 옵니다. 정보 탭에서 고치면 여기엔 남지 않으니 발령으로 기록하세요. 경력증명서·인사기록카드가 이 표를 씁니다.</span>
+        <span className="inv-hint" title="현재 부서·직책은 최신 발령에서 옵니다.">부서·직책·급여가 바뀐 기록입니다.</span>
         <span className="doc-sums-sp" />
-        {legacyCount > 0 && <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={importLegacy} title="옛 발령 글자·급여 이력을 이 표로 옮깁니다(중복은 건너뜀)">옛 기록 {legacyCount}건 가져오기</button>}
+        {legacyCount > 0 && <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={importLegacy} title="옛 발령 기록을 이 표로 옮깁니다.">옛 기록 {legacyCount}건 가져오기</button>}
         <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={recordCard}>인사기록카드 PDF</button>
         <button type="button" className="btn-primary btn-sm" onClick={() => setOpen(true)}>+ 발령 등록</button>
       </div>
       {isLoading ? <div className="collect-empty">읽는 중…</div> : list.length === 0 ? (
-        <div className="collect-empty">발령 기록이 없습니다 — <b>+ 발령 등록</b>{legacyCount > 0 ? " 또는 옛 기록 가져오기" : ""}</div>
+        <div className="collect-empty">아직 발령 기록이 없습니다. <b>+ 발령 등록</b>{legacyCount > 0 ? "이나 옛 기록 가져오기" : ""}로 추가하세요.</div>
       ) : (
         <div className="stg-table-wrap">
           <table className="ev-table ev-lined table-appt">
@@ -97,7 +97,7 @@ export function AppointmentsSection({ employeeId, companyId, emp, userId }: { em
         <div className="inv-modal" onClick={() => setOpen(false)}>
           <div className="inv-modal-box" onClick={(e) => e.stopPropagation()}>
             <h3 className="inv-modal-title">발령 등록 — {emp?.name}</h3>
-            <p className="inv-modal-desc">발령일이 오늘 이하면 저장과 함께 현재 부서·직책(급여 변경이면 월급)에 반영됩니다. 급여 명세는 다음 계산부터 새 월급을 씁니다.</p>
+            <p className="inv-modal-desc">발령일이 오늘 이하면 저장과 함께 현재 부서·직책에 반영됩니다.</p>
             <div className="inv-form-grid">
               <label className="inv-field"><span>종류 *</span>
                 <select className="field-input" value={form.kind} onChange={(e) => setForm((s) => ({ ...s, kind: e.target.value as AppointmentKind }))}>

@@ -216,7 +216,7 @@ export function TaxInvoiceBulkIssueModal({ companyId, onClose }: { companyId: st
           <div>
             <h3 className="bulk-issue-title">세금계산서 엑셀 일괄발행</h3>
             <p className="bulk-issue-sub">
-              양식을 내려받아 채운 뒤 업로드하면, 검증 → 일괄 등록 → 국세청 전자발행까지 한 번에 진행됩니다.
+              양식을 채워 올리면 검증 후 국세청 전자발행까지 진행합니다.
               {quota && (
                 <span className="bulk-issue-quota">
                   {" "}이번 달 발행 한도: {quota.limit == null ? "무제한" : `${quota.remaining}건 남음 (${quota.used}/${quota.limit})`}
@@ -237,7 +237,7 @@ export function TaxInvoiceBulkIssueModal({ companyId, onClose }: { companyId: st
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
             </label>
             <div className="bulk-issue-hint">
-              필수: 작성일자 · 상호 · 사업자등록번호 · 공급가액. 과세유형을 비우면 과세(부가세 10%)로 처리됩니다.
+              작성일자 · 상호 · 사업자등록번호 · 공급가액은 필수입니다. 과세유형을 비우면 과세(부가세 10%)로 처리됩니다.
               세액과 합계는 자동 계산됩니다.
             </div>
           </div>

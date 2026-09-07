@@ -37,8 +37,8 @@ type Ticket = {
 // 모든 문의를 받는다. 유형은 분류용일 뿐, 어떤 문의든 등록 가능.
 const CATEGORIES:  { key: string; label: string; icon: string; desc: string }[] = [
   { key: "general", label: "이용 문의", icon: "💬", desc: "사용법·기능이 궁금할 때" },
-  { key: "bug", label: "오류 신고", icon: "🐞", desc: "에러·이상 동작 (스크린샷 첨부 권장)" },
-  { key: "data", label: "데이터·연동", icon: "🔌", desc: "은행·홈택스 연동, 수치가 안 맞을 때" },
+  { key: "bug", label: "오류 신고", icon: "🐞", desc: "에러·이상 동작을 겪었을 때" },
+  { key: "data", label: "데이터·연동", icon: "🔌", desc: "연동이나 수치가 안 맞을 때" },
   { key: "billing", label: "결제·구독", icon: "💳", desc: "요금제·결제·영수증" },
   { key: "account", label: "계정·권한", icon: "🔐", desc: "로그인·권한·구성원 초대" },
   { key: "feature", label: "기능 제안", icon: "💡", desc: "이런 기능이 있으면 좋겠습니다" },
@@ -234,7 +234,7 @@ export default function SupportPage() {
       <QueryScreen>
         <QueryHead>
           <div className="report-desc support-desc">
-            <b>무엇이든 문의하세요<span className="ui-sub">모든 문의는 여기서 받습니다.</span></b> 전화 상담 없이 문의함으로 운영됩니다 · 영업일 1일 이내 답변 · 화면 사진을 첨부하면 더 빠르게 해결됩니다 · 접수·답변 시 알림 · 첨부 사진은 우리 회사만 봅니다
+            <b>무엇이든 문의하세요<span className="ui-sub">모든 문의는 여기서 받습니다.</span></b> 영업일 1일 이내에 답변드립니다.
           </div>
         </QueryHead>
         <QueryBody>
@@ -266,7 +266,7 @@ export default function SupportPage() {
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             maxLength={120}
-            placeholder="한 줄로 요약해 주세요 (예: 통장 잔액이 실제와 다르게 보여요)"
+            placeholder="문의 내용을 한 줄로 요약해 주세요."
             className="support-input field-input"
           />
         </div>
@@ -280,13 +280,13 @@ export default function SupportPage() {
               const imgs = Array.from(e.clipboardData?.files || []).filter((f) => IMAGE_TYPES.has(f.type));
               if (imgs.length) { e.preventDefault(); addFiles(imgs); }
             }}
-            placeholder={"어떤 화면에서, 무엇을 했을 때, 어떻게 되었는지 적어주시면 가장 빠르게 해결됩니다.\n(캡처한 이미지를 여기에 붙여넣기(Ctrl+V)해도 자동으로 첨부됩니다)"}
+            placeholder={"어떤 화면에서 무엇을 했을 때 어떻게 되었는지 적어 주세요.\n캡처 이미지를 붙여넣으면 자동으로 첨부됩니다."}
             className="support-textarea field-input"
           />
         </div>
 
         <div>
-          <span className="support-section-label">4. 화면 사진 첨부 <span className="text-[var(--text-dim)] font-normal">(선택 · 최대 {MAX_FILES}장, 장당 {MAX_FILE_MB}MB)</span></span>
+          <span className="support-section-label">4. 화면 사진 첨부 <span className="text-[var(--text-dim)] font-normal">선택 · 최대 {MAX_FILES}장 · 장당 {MAX_FILE_MB}MB</span></span>
           <div
             className="support-dropzone"
             data-drag={dragging ? "1" : undefined}
@@ -297,7 +297,7 @@ export default function SupportPage() {
           >
             <span className="text-2xl"><Ico e="🖼️" /></span>
             <span className="text-[13px] font-semibold text-[var(--text)]">클릭해서 사진 선택 또는 여기로 끌어다 놓기</span>
-            <span className="text-[11px] text-[var(--text-dim)]">오류 화면·에러 메시지 캡처를 첨부하면 원인을 훨씬 빨리 찾습니다</span>
+            <span className="text-[11px] text-[var(--text-dim)]">오류 화면을 첨부하면 원인을 더 빨리 찾습니다.</span>
             <input
               ref={fileRef}
               type="file"

@@ -50,11 +50,11 @@ const STAGE_LABEL: Record<QuoteApprovalStage, string> = {
 };
 
 const STAGE_NEXT_HINT: Record<QuoteApprovalStage, string> = {
-  estimate: "거래처가 승인하면 자동으로 계약 단계로 진행됩니다",
-  contract: "거래처가 승인하면 자동으로 진행 중 단계로 전환됩니다",
-  progress_report: "거래처 확인 후 완료 단계로 안내됩니다",
-  completion: "거래처가 확인하면 정산 단계로 진행됩니다",
-  settlement: "거래처가 정산을 확인하면 프로젝트가 완료됩니다",
+  estimate: "거래처가 승인하면 계약 단계로 넘어갑니다.",
+  contract: "거래처가 승인하면 진행 단계로 넘어갑니다.",
+  progress_report: "거래처가 확인하면 완료 단계로 넘어갑니다.",
+  completion: "거래처가 확인하면 정산 단계로 넘어갑니다.",
+  settlement: "거래처가 정산을 확인하면 프로젝트가 완료됩니다.",
 };
 
 interface Props {
@@ -577,7 +577,7 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
               )}
             </div>
             {items.length === 0 ? (
-              <div className="edit-items-empty">품목을 추가하면 견적서 생성 시 자동 반영됩니다</div>
+              <div className="edit-items-empty">아직 견적 품목이 없습니다. 품목을 추가하면 견적서에 반영됩니다.</div>
             ) : (
               <div className="edit-items-table-wrap">
                 <table className="w-full text-[10px]">
@@ -640,7 +640,7 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
           <div className="edit-remarks">
             <label className="block text-[10px] text-[var(--text-dim)] font-medium mb-1.5">견적서 내용 / 비고</label>
             <textarea value={content} onChange={(e) => setContent(e.target.value)} disabled={readonly}
-              rows={2} placeholder="견적서에 포함할 내용, 조건, 비고 등"
+              rows={2} placeholder="견적서에 넣을 내용이나 비고"
               className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-[10px] focus:outline-none focus:border-[var(--primary)] resize-none" />
           </div>
         </>
@@ -693,7 +693,7 @@ function RejectedCard({ note, revision, onEdit }: { note: string; revision?: boo
     <div className="rejected-card">
       <div className="rejected-card-header">
         {revision
-          ? <span className="text-[11px] font-bold text-amber-400"><Ico e="🔁" />  거래처가 수정을 요청했습니다. 반영 후 다시 보내면 왕복 이력이 남습니다</span>
+          ? <span className="text-[11px] font-bold text-amber-400"><Ico e="🔁" />  거래처가 수정을 요청했습니다.</span>
           : <span className="text-[11px] font-bold text-red-400"><Ico e="❌" /> 거래처가 거절했습니다</span>}
         <button
           type="button"
@@ -732,7 +732,7 @@ function PreviewCard({
   if (items.length === 0 && stages.length === 0) {
     return (
       <div className="quote-preview-empty">
-        견적 품목을 추가하려면 ‘수정’ 버튼을 눌러주세요
+        아직 견적 품목이 없습니다. 수정을 눌러 추가하세요.
       </div>
     );
   }
@@ -890,7 +890,7 @@ function StageStubCard({ stage, approval }: { stage: QuoteApprovalStage; approva
         {approval && <StatusBadge approval={approval} />}
       </div>
       <div className="stage-stub-body">
-        {label} 단계 본 폼은 다음 라운드에 추가됩니다.<br/>
+        {label} 단계는 준비 중입니다.<br/>
         <span className="caption">현재 단계: <span className="text-[var(--text)] font-semibold">{label}</span> · {STAGE_NEXT_HINT[stage]}</span>
       </div>
     </div>
@@ -912,7 +912,7 @@ function ResendBar({
     <div className="resend-bar">
       <div className="text-[10px] text-amber-400 font-medium mb-1.5">
         
-        거절된 견적입니다. 같은 내용으로 재발송 (수정하려면 ✏️ 수정)
+        거절된 견적입니다. 같은 내용으로 다시 보냅니다.
 
       </div>
       <div className="resend-bar-row">

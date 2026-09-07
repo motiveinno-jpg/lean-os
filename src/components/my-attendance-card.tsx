@@ -188,8 +188,8 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
       <div className="glass-card p-5">
         <div className="text-sm font-bold text-[var(--text)] mb-1">내 출퇴근</div>
         <div className="text-xs text-[var(--text-muted)]">
-          내 계정이 구성원(직원) 레코드와 연결돼 있지 않아 출퇴근을 기록할 수 없습니다.
-          <br />구성원 관리에서 본인 계정을 직원으로 등록·연결해주세요.
+          내 계정이 직원으로 연결되지 않아 출퇴근을 기록할 수 없습니다.
+          <br />구성원 관리에서 계정을 연결해 주세요.
         </div>
       </div>
     );

@@ -96,12 +96,11 @@ function FillDialog({ ctl, onClose }: { ctl: DocCtl; onClose: () => void }) {
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">부족분 채우기<span className="ui-sub">발주 제안</span></h3>
-        <p className="inv-modal-desc">
-          안전재고보다 적은 품목을 <b>부족분만큼</b> 구매 격자에 채웁니다. 수량은 여기서 고칠 수 있고, 저장은 격자에서 <b>매입 저장</b>을 눌러야 됩니다.
-          안전재고가 없어도 <b>최근 30일 출고 속도</b>로 리드타임 안에 바닥나는 품목은 <b>곧 부족</b>으로 함께 올립니다(출처: 장부 대조). 거래처·단가는 지난 매입을 따릅니다. 자동 제안을 끈 품목은 빠집니다.
+        <p className="inv-modal-desc" title="안전재고가 없어도 최근 30일 출고 속도로 리드타임 안에 바닥나는 품목은 곧 부족으로 올립니다. 거래처·단가는 지난 매입을 따르고, 자동 제안을 끈 품목은 빠집니다">
+          안전재고보다 적은 품목을 <b>부족분만큼</b> 구매 격자에 채웁니다. 저장은 격자에서 <b>매입 저장</b>을 누릅니다.
         </p>
         {isLoading ? <div className="inv-status-empty">불러오는 중…</div> : rows.length === 0 ? (
-          <div className="inv-status-empty">부족한 품목이 없습니다. 모두 안전재고 이상입니다.</div>
+          <div className="inv-status-empty">부족한 품목이 없습니다.</div>
         ) : (
           <div className="stg-table-wrap ch-ship-list">
             <table className="ev-table ev-lined table-inv-status-sm">

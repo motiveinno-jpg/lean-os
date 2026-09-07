@@ -257,8 +257,7 @@ export function HrFormManager({ companyId, collapseUpload, openUploadSignal, hid
         <>
           <h2 className="text-base font-bold text-[var(--text)] mb-1">인사 양식 (PDF)</h2>
           <p className="text-xs text-[var(--text-muted)] mb-4">
-            회사에서 쓰는 근로계약서·각종 신청서 등 PDF를 올리면, 채울 위치(필드)를 지정해 재사용 양식으로 저장합니다.
-            저장한 양식에 값을 입력해 채워 출력하거나, 빈 양식을 내려받아 손으로 작성할 수 있습니다.
+            PDF를 올려 채울 위치를 지정하면 양식으로 저장됩니다.
           </p>
         </>
       ) : (
@@ -274,12 +273,12 @@ export function HrFormManager({ companyId, collapseUpload, openUploadSignal, hid
             className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
         </div>
         {/* 기본(권장): 페이지 배경 없이 글자·표·개별 이미지를 일반 문서로 변환. */}
-        <label className={`hr-form-upload-text-btn ${busy ? "bg-[var(--bg-surface)] text-[var(--text-dim)]" : "bg-[var(--primary)] text-white hover:opacity-90"}`} title="A4 페이지 배경은 제외하고 글자·서식·표·개별 이미지만 한글/워드처럼 편집 가능한 문서로 불러오기 (권장)">
+        <label className={`hr-form-upload-text-btn ${busy ? "bg-[var(--bg-surface)] text-[var(--text-dim)]" : "bg-[var(--primary)] text-white hover:opacity-90"}`} title="배경 없이 글자와 표를 편집 가능한 문서로 불러옵니다.">
           {busy ? "처리 중…" : "PDF 업로드 (배경 없이 문서로 편집)"}
           <input type="file" accept=".pdf,application/pdf" className="hidden" disabled={busy}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) onFileExact(f); e.target.value = ""; }} />
         </label>
-        <label className={`hr-form-upload-overlay-btn ${busy ? "border-[var(--border)] text-[var(--text-dim)]" : "border-[var(--primary)]/40 text-[var(--primary)] hover:bg-[var(--primary)]/10"}`} title="PDF 배경 위에 채울 필드 위치를 지정(원본 100% 보존, 내용 수정 불가)">
+        <label className={`hr-form-upload-overlay-btn ${busy ? "border-[var(--border)] text-[var(--text-dim)]" : "border-[var(--primary)]/40 text-[var(--primary)] hover:bg-[var(--primary)]/10"}`} title="원본 PDF 위에 채울 위치만 지정합니다.">
           {busy ? "처리 중…" : "디자인 그대로 (오버레이)"}
           <input type="file" accept=".pdf,application/pdf" className="hidden" disabled={busy}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />

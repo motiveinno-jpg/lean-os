@@ -156,7 +156,7 @@ export function SignatureCapture({ onChange }: Props) {
       {/* draw */}
       {mode === "draw" && (
         <div className="signature-draw-panel">
-          <div className="text-[11px] text-gray-500 mb-1">아래 흰 박스 안에 마우스/터치로 서명해 주세요</div>
+          <div className="text-[11px] text-gray-500 mb-1">아래 흰 칸에 서명해 주세요.</div>
           <canvas
             ref={canvasRef}
             onPointerDown={onPointerDown}
@@ -176,7 +176,7 @@ export function SignatureCapture({ onChange }: Props) {
       {/* upload */}
       {mode === "upload" && (
         <div className="signature-upload-panel">
-          <div className="text-[11px] text-gray-500 mb-1">도장/사인 이미지 (PNG/JPG, 권장 흰 배경 + 빨강 도장)</div>
+          <div className="text-[11px] text-gray-500 mb-1" title="PNG·JPG 이미지, 흰 배경을 권장합니다.">도장 또는 사인 이미지를 올려 주세요.</div>
           <input
             type="file"
             accept="image/*"

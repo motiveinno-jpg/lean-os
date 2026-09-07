@@ -129,7 +129,7 @@ export default function RevenuePage() {
         </section>
         <section className="pnl-panel">
           <h3>계정별 매출</h3>
-          <p>계정과목표의 매출 계정 · 회사가 계정을 늘리면 자동으로 늘어난다 · 줄 클릭 = 원천 전표</p>
+          <p>계정별 매출입니다. 줄을 누르면 전표가 보입니다.</p>
           <div className="pnl-tbl-wrap">
             <table className="ev-table ev-lined pnl-mini-table">
               <thead><tr><th className="text-left">계정</th><th>금액</th><th>비중</th><th>{cmpRangeLabel(s)}</th><th>증감</th></tr></thead>
@@ -152,7 +152,7 @@ export default function RevenuePage() {
 
       <section className="pnl-panel">
         <h3>거래처별 매출</h3>
-        <p>정렬 ▼ · ≡ 필터 · 너비 조절 · 쪽 · 줄 클릭 = 그 거래처 전표. 미수금은 매출 세금계산서 중 아직 안 들어온 것(발행 기준)</p>
+        <p>거래처별 매출과 미수금입니다. 줄을 누르면 전표가 보입니다.</p>
         <div className="pnl-tbl-wrap">
           <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed pnl-partner-table">
             <thead><tr>

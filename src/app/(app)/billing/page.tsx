@@ -52,7 +52,7 @@ export default function BillingPage()  {
   const { role }  = useUser();
   // 게이트 early return 뒤 훅 = React #310 결함류 · 본문 분리 (2026-08-03)
   if (role === "partner" /* (P3) 멤버는 권한 게이트가 판정 */)  {
-    return <AccessDenied detail="요금제 / 결제는 회사 구성원 전용입니다 (외부 파트너 제외)." />;
+    return <AccessDenied detail="요금제와 결제는 회사 구성원만 볼 수 있습니다." />;
   }
   return <BillingPageInner />;
 }
@@ -719,7 +719,7 @@ function BillingPageInner() {
           <div className="billing-strip billing-strip-inner">
             <span>남은 발행 충전 <b className="mono-number">{(credits?.issue_credits ?? 0).toLocaleString()}</b>건</span>
             <span>남은 AI 토큰 충전 <b className="mono-number">{(credits?.ai_tokens ?? 0).toLocaleString()}</b>토큰</span>
-            <span className="text-[var(--text-dim)] text-[11px]">요금제 월 제공량을 먼저 쓰고, 다 쓰면 충전분에서 빠집니다 · 토큰은 유효기간 없음</span>
+            <span className="text-[var(--text-dim)] text-[11px]">월 제공량을 다 쓰면 충전분에서 빠지며 토큰은 유효기간이 없습니다.</span>
           </div>
 
           {/* 충전 표 */}
@@ -866,7 +866,7 @@ function BillingPageInner() {
               <div className="billing-sec">
                 <div className="billing-sec-head">
                   <span className="billing-sec-title">저장공간</span>
-                  <span className="billing-sec-sub">회사가 올린 모든 파일(문서·첨부·이미지 등) 합계 · 팩 1개 = +{fmtBytes(unit)} / {priceUnitLabel} ₩{unitPrice.toLocaleString()}(VAT 별도)</span>
+                  <span className="billing-sec-sub">회사가 올린 모든 파일의 합계 · 팩 1개 = +{fmtBytes(unit)} / {priceUnitLabel} ₩{unitPrice.toLocaleString()}(VAT 별도)</span>
                 </div>
                 <div className="billing-storage">
                   <div className="billing-storage-gauge">
@@ -894,11 +894,11 @@ function BillingPageInner() {
                   </div>
                   {!isPaid ? (
                     <div className="billing-storage-buy">
-                      <span className="text-[11px] text-[var(--text-dim)]">{lapsed ? "유료 요금제로 돌아가면" : `무료 요금제는 ${fmtBytes(included)} 까지입니다. 유료 요금제에서`} 저장공간 팩(+{fmtBytes(unit)})을 추가할 수 있어요.</span>
+                      <span className="text-[11px] text-[var(--text-dim)]">{lapsed ? "유료 요금제로 돌아가면" : `무료 요금제는 ${fmtBytes(included)} 까지입니다. 유료 요금제에서`} 저장공간 팩을 추가할 수 있습니다.</span>
                       <button type="button" className="btn-secondary btn-sm" onClick={() => document.getElementById("billing-plan-cards")?.scrollIntoView({ behavior: "smooth", block: "start" })}>요금제 보기</button>
                     </div>
                   ) : !isOwner ? (
-                    <div className="text-[11px] text-[var(--text-dim)]">저장공간 팩 추가·해지는 대표(소유자)만 할 수 있습니다. 현재 팩 <b className="mono-number">{packs}</b>개.</div>
+                    <div className="text-[11px] text-[var(--text-dim)]">저장공간 팩은 대표만 바꿀 수 있습니다. 현재 팩 <b className="mono-number">{packs}</b>개.</div>
                   ) : (
                     <>
                       <div className="billing-storage-buy">
@@ -1060,7 +1060,7 @@ function BillingPageInner() {
               </label>
             )}
 
-            <p className="billing-note"><b>울트라</b>는 정가가 없습니다. 회사 업무 흐름을 듣고 화면·연동 범위를 정한 뒤 견적을 드립니다(도입 문의 → 담당자 연락). 기존 오너뷰 기능은 전부 포함.</p>
+            <p className="billing-note"><b>울트라</b>는 도입 범위를 정한 뒤 견적을 드립니다. 오너뷰 기능은 전부 포함됩니다.</p>
             {/* 결제 가능 카드 안내 (2026-07-31 사장님) — 배너 대신 각주로 */}
             <p className="billing-note">국내카드는 토스페이먼츠, 해외카드는 Stripe 로 결제됩니다. 해외 결제를 차단해 둔 카드(법인카드 포함)는 Stripe 승인이 거절될 수 있으니 국내카드를 쓰거나 카드사에 확인하세요 · 요금은 원화, VAT 10% 별도 · 월간은 매월 같은 날 자동 결제.</p>
 
@@ -1109,7 +1109,7 @@ function BillingPageInner() {
               )
             ) : (
               <div className="billing-strip billing-strip-inner">
-                <span className="text-[var(--text-muted)]">해외카드(Stripe)는 요금제를 결제할 때 등록됩니다 · 국내카드는 아래에서 등록</span>
+                <span className="text-[var(--text-muted)]">해외카드는 결제할 때 등록되고, 국내카드는 아래에서 등록합니다.</span>
                 <span className="flex-1" />
                 <button onClick={() => setTab("plan")} className="btn-secondary btn-sm">요금제 고르기</button>
               </div>
@@ -1127,7 +1127,7 @@ function BillingPageInner() {
             {invoicesLoading ? (
               <div className="collect-empty">불러오는 중…</div>
             ) : (invoices || []).length === 0 ? (
-              <div className="collect-empty">{currentSlug === "free" ? "청구서가 없습니다. 유료 요금제를 시작하면 여기에 쌓입니다" : "아직 발행된 청구서가 없습니다. 다음 결제부터 여기에 쌓입니다"}</div>
+              <div className="collect-empty">{currentSlug === "free" ? "아직 청구서가 없습니다. 유료 요금제를 시작하면 여기에 쌓입니다." : "아직 발행된 청구서가 없습니다. 다음 결제부터 여기에 쌓입니다."}</div>
             ) : (
               <div className="ev-scroll"><table className="ev-table ev-lined billing-table">
                 <thead><tr><th style={{ width: 110 }}>날짜</th><th style={{ width: 150 }}>번호</th><th className="text-left">내용</th><th style={{ width: 120 }}>금액</th><th style={{ width: 90 }}>상태</th><th style={{ width: 130 }}></th></tr></thead>
@@ -1320,7 +1320,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
             <textarea
               value={cancelReason}
               onChange={(e) => setCancelReason(e.target.value)}
-              placeholder="해지 사유를 알려주시면 서비스 개선에 참고하겠습니다 (선택)"
+              placeholder="선택 사항이니 해지 사유를 편하게 남겨 주세요."
               rows={3}
               className="w-full px-4 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-red-400 resize-none mb-4"
             />

@@ -231,8 +231,8 @@ function GuestChatView({ token }: { token: string }) {
           {messages.length === 0 ? (
             <div className="text-center py-20">
               <div className="text-4xl mb-3"><Ico e="💬" /></div>
-              <div className="text-sm font-semibold text-[var(--text)]">첫 메시지를 보내세요</div>
-              <div className="text-[11px] text-[var(--text-dim)] mt-1.5">아래 입력창에서 대화를 시작할 수 있습니다.</div>
+              <div className="text-sm font-semibold text-[var(--text)]">아직 메시지가 없습니다.</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-1.5">첫 메시지를 보내 보세요.</div>
             </div>
           ) : (
             messages.map((msg: any) => (
@@ -554,19 +554,19 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
       {/* ── 좌측 아이콘 레일 — 사람(부서 → 구성원) / 채팅방 (2026-08-10 사장님 지시) ── */}
       <nav className="chat-rail" aria-label="메신저 보기 전환">
         <button type="button" onClick={() => pickRail("people")} aria-pressed={rail === "people"}
-          className={`chat-rail-btn ${rail === "people" ? "chat-rail-btn-on" : ""}`} title="구성원 · 부서에서 사람을 골라 1:1 대화">
+          className={`chat-rail-btn ${rail === "people" ? "chat-rail-btn-on" : ""}`} title="구성원과 1:1 대화를 시작합니다.">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="8" r="3.4" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /><path d="M16.5 6.2a3.2 3.2 0 0 1 0 6" /><path d="M18 14.4a5.6 5.6 0 0 1 3.5 5.2" /></svg>
           <em>구성원</em>
         </button>
         <button type="button" onClick={() => pickRail("rooms")} aria-pressed={rail === "rooms"}
-          className={`chat-rail-btn ${rail === "rooms" ? "chat-rail-btn-on" : ""}`} title="채팅방 · 팀 · 프로젝트 · 1:1 목록">
+          className={`chat-rail-btn ${rail === "rooms" ? "chat-rail-btn-on" : ""}`} title="채팅방 목록을 봅니다.">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
           <em>채팅방</em>
           {totalUnread > 0 && <span className="chat-rail-badge">{totalUnread > 99 ? "99+" : totalUnread}</span>}
         </button>
         {/*  일정 · 할 일 — 대화를 보다가 그 자리에서 잡는다. 저장은 '일정 / 할 일' 메뉴와 같은 자리 */}
         <button type="button" onClick={() => pickRail("schedule")} aria-pressed={rail === "schedule"}
-          className={`chat-rail-btn ${rail === "schedule" ? "chat-rail-btn-on" : ""}`} title="일정 · 할 일 · 여기서 적으면 일정/할 일 메뉴에도 그대로 들어갑니다">
+          className={`chat-rail-btn ${rail === "schedule" ? "chat-rail-btn-on" : ""}`} title="일정과 할 일을 적습니다.">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2" /><path d="M3 9.5h18M8 2.5v4M16 2.5v4" /><path d="M9 14.5l2 2 4-4" /></svg>
           <em>일정</em>
         </button>
@@ -596,7 +596,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
           <ChatSchedulePanel companyId={companyId} userId={userId} />
         ) : rail === "people" ? (
           <div className="flex-1 overflow-y-auto px-2 pb-3">
-            {byDept.length === 0 && <div className="px-2.5 py-4 text-[11px] text-[var(--text-dim)]">구성원이 없습니다.</div>}
+            {byDept.length === 0 && <div className="px-2.5 py-4 text-[11px] text-[var(--text-dim)]">아직 구성원이 없습니다.</div>}
             {byDept.map(({ dept, people }) => {
               //   검색 중에는 찾은 부서를 자동으로 펼쳐 준다(한 번 더 누르게 하지 않는다)
               const expanded = openDepts.has(dept) || !!search.trim();
@@ -660,8 +660,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
               <div className="text-5xl mb-4"><Ico e="💬" /></div>
               <div className="text-sm font-semibold text-[var(--text)]">대화를 골라 주세요</div>
               <div className="text-xs text-[var(--text-muted)] mt-1.5">
-                왼쪽 <b className="text-[var(--text)]">구성원</b>에서 부서를 펼쳐 사람을 누르면 1:1 대화가,
-                <b className="text-[var(--text)]"> 채팅방</b>에서 방을 누르면 그 방이 여기 열립니다.
+                왼쪽에서 <b className="text-[var(--text)]">구성원</b>이나 <b className="text-[var(--text)]">채팅방</b>을 고르면 여기에 열립니다.
               </div>
             </div>
           </div>

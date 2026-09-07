@@ -81,7 +81,7 @@ export function AttendanceBadges({
       {showOt && (
         <span
           className={`attendance-badge-overtime ${pad}`}
-          title={`연장근로 ${otMin}분 (가산 1.5)`}
+          title={`연장근로 ${otMin}분 · 가산 1.5배`}
         >
           🟠 연장 {fmtHM(otMin)}
         </span>
@@ -89,7 +89,7 @@ export function AttendanceBadges({
       {showOtLegacy && (
         <span
           className={`attendance-badge-overtime-legacy ${pad}`}
-          title="연장근로 (시간)"
+          title="연장근로"
         >
           🟠 연장 +{otHoursLegacy.toFixed(1)}h
         </span>
@@ -97,7 +97,7 @@ export function AttendanceBadges({
       {showNight && (
         <span
           className={`attendance-badge-night ${pad}`}
-          title={`야간근로 ${nightMin}분 (가산 0.5)`}
+          title={`야간근로 ${nightMin}분 · 가산 0.5배`}
         >
           🟣 야간 {fmtHM(nightMin)}
         </span>
@@ -105,7 +105,7 @@ export function AttendanceBadges({
       {showHoliday && (
         <span
           className={`attendance-badge-holiday ${pad}`}
-          title={`휴일 근무 ${holidayMin}분 (가산 1.5x~2.0x)`}
+          title={`휴일 근무 ${holidayMin}분 · 가산 1.5~2배`}
         >
           <Ico e="🟢" /> 휴일 {fmtHM(holidayMin)}
         </span>

@@ -33,14 +33,14 @@ interface NotifPrefs {
 //   (board/page.tsx 주석: "오너뷰 안의 알림만, 메일은 보내지 않는다") 푸시에만 노출 (2026-08-26).
 const NOTIF_EVENTS:  { key: NotifEvent; label: string; desc: string; channels?: NotifChannel[] }[] = [
   { key: "approval_pending", label: "결재 요청", desc: "내가 결재해야 할 항목이 새로 등록될 때" },
-  { key: "approval_reference", label: "결재 참조", desc: "결재 권한 없이 참조로만 공유된 건" },
+  { key: "approval_reference", label: "결재 참조", desc: "참조로 공유된 결재가 있을 때" },
   { key: "deal_status", label: "프로젝트 상태 변경", desc: "프로젝트가 다음 단계로 이동하거나 완료될 때" },
-  { key: "payment_due", label: "결제 마감 임박", desc: "D-7 이내 결제/지급 예정" },
-  { key: "tax_invoice", label: "세금계산서 발행/수신", desc: "신규 세금계산서 발행 또는 매입 수신" },
+  { key: "payment_due", label: "결제 마감 임박", desc: "결제·지급일이 7일 안으로 다가올 때" },
+  { key: "tax_invoice", label: "세금계산서 발행/수신", desc: "세금계산서를 발행하거나 받을 때" },
   { key: "chat_mention", label: "채팅 멘션", desc: "팀 채팅에서 @멘션 받을 때" },
   { key: "board_post", label: "게시판 새 글", desc: "회사 게시판에 새 글이 등록될 때", channels: ["push"] },
   { key: "weekly_report", label: "주간 리포트", desc: "매주 월요일 오전 9시 요약 리포트" },
-  { key: "system_alert", label: "시스템 경고", desc: "런웨이/현금흐름 임계치 알림" },
+  { key: "system_alert", label: "시스템 경고", desc: "런웨이·현금흐름이 기준을 넘을 때" },
 ];
 
 const DEFAULT_NOTIF_PREFS: NotifPrefs = {
@@ -276,16 +276,14 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
       <div className="notification-settings-header glass-card">
         <h2 className="text-base font-bold mb-1">알림 설정</h2>
         <p className="text-xs text-[var(--text-muted)]">
-          
-          이메일 · 푸시 · 채널별로 받고 싶은 이벤트를 선택하세요. 변경 후 하단의 저장 버튼을 눌러주세요.
-
+          받을 알림을 채널별로 고르면 바로 저장됩니다.
         </p>
       </div>
 
       {/* Email Channel */}
       <ChannelSection
         title="이메일"
-        desc="가장 중요한 알림 · 결재/세금계산서/주간 리포트에 권장"
+        desc="중요한 알림을 메일로 받습니다."
         enabled={prefs.email.enabled}
         onToggle={(v) => setPrefs((p) => ({ ...p, email: { ...p.email, enabled: v } }))}
       >
@@ -312,7 +310,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
       {/* Push Channel */}
       <ChannelSection
         title="브라우저 푸시"
-        desc="실시간 데스크톱 알림 · 채팅 멘션/긴급 알림에 적합"
+        desc="창을 닫아도 브라우저로 바로 받습니다."
         enabled={prefs.push.enabled}
         onToggle={(v) => (v ? enablePush() : disablePush())}
         disabled={!pushSupported}
@@ -324,13 +322,12 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
         )}
         {iosNeedsA2HS && (
           <div className="text-xs text-[var(--warning)] mb-3 leading-relaxed">
-            <Ico e="📱" /> 아이폰/아이패드는 Safari <b>공유 → &lsquo;홈 화면에 추가&rsquo;</b> 후, 홈 화면의 오너뷰 앱에서 켜야
-            창을 닫아도 알림이 옵니다 (iOS 정책).
+            <Ico e="📱" /> 아이폰·아이패드는 <b>홈 화면에 추가</b>한 오너뷰 앱에서 켜 주세요.
           </div>
         )}
         {pushSupported && pushPermission === "denied" && (
           <div className="text-xs text-[var(--danger)] mb-3">
-            푸시 권한이 거부되었습니다. 브라우저 주소창 옆 자물쇠 아이콘에서 알림을 허용해주세요.
+            브라우저 설정에서 알림 권한을 허용해 주세요.
           </div>
         )}
         {pushSupported && pushPermission !== "granted" && pushPermission !== "denied" && (
@@ -358,7 +355,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="text-sm font-bold">방해금지 시간대</h3>
-            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">설정한 시간에는 긴급 알림을 제외하고 모든 알림이 보류됩니다.</p>
+            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">이 시간에는 긴급 알림만 보냅니다.</p>
           </div>
           <Toggle
             checked={prefs.quietHours.enabled}
@@ -498,7 +495,7 @@ function DailyReportCard({ companyId }: { companyId: string | null }) {
             <Ico e="💰" /> 자금일보 카카오 알림톡
             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--warning-dim)] text-[var(--warning)] font-semibold">신규</span>
           </h3>
-          <p className="text-[11px] text-[var(--text-muted)] mt-0.5">매일 정해진 시간에 전일 자금 요약을 카톡으로 발송 (Solapi 검수 통과 후 활성화).</p>
+          <p className="text-[11px] text-[var(--text-muted)] mt-0.5">매일 정한 시간에 전일 자금 요약을 카카오톡으로 보냅니다.</p>
         </div>
         <label className="relative inline-flex items-center cursor-pointer">
           <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="sr-only peer" />
@@ -549,7 +546,7 @@ function DailyReportCard({ companyId }: { companyId: string | null }) {
                 ))}
               </div>
             ) : (
-              <p className="caption">등록된 번호 없음. 카톡 알림 받을 번호를 추가하세요.</p>
+              <p className="caption">아직 수신 번호가 없습니다. 위에서 추가하세요.</p>
             )}
           </div>
 
@@ -579,8 +576,7 @@ function DailyReportCard({ companyId }: { companyId: string | null }) {
           </div>
 
           <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">
-            검수 진행 상태: Solapi 환경변수(SOLAPI_API_KEY/SECRET/PFID/TEMPLATE_ID) 미설정 시 데이터만 집계되고 실제 발송은 skip.
-            검수 통과 후 환경변수 4개 입력하면 즉시 활성화. pg_cron 'daily-report-tick' 매시간 실행 중.
+            카카오 알림톡 검수가 끝나면 실제 발송이 시작됩니다.
           </p>
         </div>
       )}

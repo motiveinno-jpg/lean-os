@@ -236,8 +236,7 @@ export function EmployeeBulkInviteModal({ companyId, userId, companyName, onClos
           <div>
             <h3 className="bulk-invite-title">엑셀로 직원 대량 초대</h3>
             <p className="bulk-invite-sub">
-              양식을 내려받아 채운 뒤 업로드하면, 행별 검증 → 초대 메일 발송까지 한 번에 진행됩니다.
-              초대받은 직원이 가입하면 구성원으로 합류합니다.
+              양식을 채워 올리면 검증 후 초대 메일을 보냅니다.
             </p>
           </div>
           <button onClick={() => { if (!inviting) onClose(); }} className="bulk-invite-close" aria-label="닫기">✕</button>
@@ -247,7 +246,7 @@ export function EmployeeBulkInviteModal({ companyId, userId, companyName, onClos
         {!rows && !results && (
           <div className="bulk-invite-step1">
             <div className="bulk-invite-guide">
-              <div className="bulk-invite-guide-title">엑셀 양식 (첫 줄은 머리글, 두 번째 줄부터 직원 1명 = 1행)</div>
+              <div className="bulk-invite-guide-title">엑셀 양식 · 한 줄에 직원 한 명</div>
               <div className="bulk-invite-guide-table-wrap">
                 <table className="bulk-invite-table">
                   <thead>
@@ -259,12 +258,12 @@ export function EmployeeBulkInviteModal({ companyId, userId, companyName, onClos
                 </table>
               </div>
               <ul className="bulk-invite-rules">
-                <li><b>이메일</b>·<b>부서</b>는 필수입니다. 나머지는 비워두어도 됩니다.</li>
-                <li><b>이름</b>을 비우면 이메일 앞부분이 이름으로 임시 등록됩니다(합류 후 수정 가능).</li>
-                <li><b>입사일</b>은 YYYY-MM-DD (예: 2026-08-01). 비우면 초대일(오늘)로 설정됩니다.</li>
-                <li><b>연봉</b>은 연 단위 금액을 숫자로 (콤마 있어도 됩니다). 월급은 12로 나눠 자동 계산됩니다.</li>
-                <li>이미 등록된 직원·초대 대기중인 이메일, 파일 안 중복은 업로드 시 자동으로 걸러집니다.</li>
-                <li>양식의 <b>예시 행(홍길동)</b>은 지우지 않아도 초대되지 않습니다.</li>
+                <li><b>이메일</b>·<b>부서</b>만 필수입니다.</li>
+                <li><b>이름</b>을 비우면 이메일 앞부분으로 등록됩니다.</li>
+                <li><b>입사일</b>을 비우면 오늘 날짜로 등록됩니다.</li>
+                <li><b>연봉</b>은 연 금액을 숫자로 적으면 월급이 자동 계산됩니다.</li>
+                <li>중복되거나 이미 등록된 이메일은 자동으로 제외됩니다.</li>
+                <li>양식의 <b>예시 행</b>은 초대되지 않습니다.</li>
               </ul>
             </div>
             <div className="bulk-invite-step1-actions">

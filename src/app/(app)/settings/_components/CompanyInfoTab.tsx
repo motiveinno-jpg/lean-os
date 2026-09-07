@@ -312,7 +312,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
             <div>
               <p className="text-sm font-semibold text-[var(--text)] mb-1">회사 정보를 설정해주세요</p>
               <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                견적서, 세금계산서, 계약서 등 비즈니스 문서에 사용됩니다. 사업자번호와 대표자명을 먼저 입력하시면 자동 서류 생성이 가능합니다.
+                공식 문서에 쓰이는 값입니다. 사업자번호와 대표자명을 먼저 입력하세요.
               </p>
             </div>
           </div>
@@ -324,7 +324,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
         <div className="stg-sec-head">
           <div>
             <h2 className="stg-sec-title">기본 정보</h2>
-            <p className="stg-sec-desc">견적서·세금계산서·계약서 등 공식 문서에 그대로 찍히는 값입니다.</p>
+            <p className="stg-sec-desc">공식 문서에 그대로 찍히는 값입니다.</p>
           </div>
         </div>
         <div className="stg-frow">
@@ -421,18 +421,18 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
             {/*   국세청이 알려 준 값은 **권하기만** 한다 — 겸영은 조회로 알 수 없어 사람이 정해야 한다 */}
             {vatHint && vatHint !== form.vat_type && (
               <p className="stg-frow-hint">
-                국세청 조회로는 <b className="text-[var(--text)]">{VAT_BUSINESS_TYPES.find((v) => v.value === vatHint)?.label}</b> 입니다.
+                국세청 기준은 <b className="text-[var(--text)]">{VAT_BUSINESS_TYPES.find((v) => v.value === vatHint)?.label}</b>입니다.
                 <button type="button" className="ml-1.5 underline font-semibold text-[var(--primary)]"
                   onClick={() => setForm((f) => ({ ...f, vat_type: vatHint }))}>
                   이걸로 바꾸기
                 </button>
-                <br />면세 품목을 함께 파는 겸영이면 <b className="text-[var(--text)]">과세 + 면세 겸영</b>으로 두세요.
+                <br />면세 품목도 팔면 <b className="text-[var(--text)]">과세 + 면세 겸영</b>을 고르세요.
               </p>
             )}
           </div>
         </div>
         <div className="stg-frow">
-          <div className="stg-frow-label"><b>자본금 (원)</b><small>재무상태표 자본 항목 · 등기부상 자본금</small></div>
+          <div className="stg-frow-label"><b>자본금 (원)</b><small>등기부상 자본금을 입력합니다.</small></div>
           <div className="stg-frow-body">
             <input
               inputMode="numeric"
@@ -538,7 +538,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
                       🪄 자동 생성
                     </button>
                   </div>
-                  <p className="caption">PNG, JPG (최대 5MB) · 또는 회사명으로 법인인감 자동 생성</p>
+                  <p className="caption">PNG·JPG 최대 5MB.</p>
                 </>
               )}
             </div>
@@ -644,7 +644,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
                   >
                     {uploading === "logo" ? "업로드 중..." : "로고 업로드"}
                   </button>
-                  <p className="caption">PNG, JPG (최대 5MB)</p>
+                  <p className="caption">PNG·JPG 최대 5MB.</p>
                 </>
               )}
             </div>
@@ -754,7 +754,7 @@ export function TaxAdvisorSection()  {
         <div>
           <h3 className="stg-sec-title">세무 파트너</h3>
           <p className="stg-sec-desc">
-            오너뷰 제휴 세무사를 연결하면 자료 요청 없이 우리 회사 장부를 열람(읽기 전용)하며 기장·신고를 도와줍니다. 추가 좌석 비용은 없습니다.
+            제휴 세무사를 연결하면 장부를 읽기 전용으로 열람하며 기장·신고를 돕습니다. 추가 좌석 비용은 없습니다.
           </p>
         </div>
       </div>
@@ -815,7 +815,7 @@ export function TaxAdvisorSection()  {
 
       {!catalogError && (
         myAdvisors.length === 0 && unlinked.length === 0 ? (
-          <p className="text-xs text-[var(--text-dim)] mt-3">아직 등록된 제휴 세무사가 없습니다. 준비되는 대로 이곳에서 선택할 수 있습니다.</p>
+          <p className="text-xs text-[var(--text-dim)] mt-3">아직 등록된 제휴 세무사가 없습니다.</p>
         ) : unlinked.length > 0 && (
           <div className="mt-4">
             <div className="text-[11px] font-bold text-[var(--text-muted)] mb-2">제휴 세무사 목록</div>
@@ -916,7 +916,7 @@ export function IpRestrictionSection({ companyId }: { companyId: string | null }
         <div>
           <h2 className="stg-sec-title">보안<span className="ui-sub">접속 허용 IP</span></h2>
           <p className="stg-sec-desc">
-            켜면 등록한 IP(사무실 인터넷 등)에서만 접속할 수 있습니다.
+            켜면 등록한 IP에서만 접속할 수 있습니다.
             {myIp && <> 현재 이 기기의 IP: <b className="mono-number text-[var(--text)]">{myIp}</b></>}
           </p>
         </div>
@@ -962,7 +962,7 @@ export function IpRestrictionSection({ companyId }: { companyId: string | null }
    업로드 여부 표시 + 보기(서명 URL)·교체(기존 삭제 후 업로드)·삭제. 계약 발송·증명서 발급이 같은 경로 참조. */
 const COMPANY_DOCS = [
   { key: "business_reg", label: "사업자등록증", desc: "사업자등록증 사본" },
-  { key: "employment_rules", label: "취업규칙", desc: "회사 취업규칙/사규" },
+  { key: "employment_rules", label: "취업규칙", desc: "취업규칙·사규" },
   { key: "corporate_reg", label: "법인등기부등본", desc: "법인 등기부등본" },
   { key: "seal_cert", label: "인감증명서", desc: "법인 인감증명서" },
   { key: "bank_cert", label: "통장사본", desc: "법인 통장 사본" },
@@ -1041,7 +1041,7 @@ function CompanyDocsSection({ companyId }: { companyId: string | null }) {
       <div className="stg-sec-head mb-1">
         <div>
           <h2 className="stg-sec-title">회사 문서</h2>
-          <p className="stg-sec-desc">사업자등록증·법인등기부등본 등 법인 서류 · 계약서 발송·증명서 발급에 활용됩니다.</p>
+          <p className="stg-sec-desc">계약서 발송과 증명서 발급에 쓰이는 법인 서류입니다.</p>
         </div>
       </div>
       {COMPANY_DOCS.map((doc) => {
@@ -1127,14 +1127,14 @@ function AdvisorPermissionPanel({ linkId, advisorName }: { linkId: string; advis
     <div className="company-advisor-perm-panel">
       <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
         <div className="text-[11px] text-[var(--text-muted)]">
-          체크된 메뉴만 {advisorName} 세무사에게 보입니다(전부 읽기 전용). 연결 시 세무 업무 기본 세트가 자동 부여되어 있습니다.
+          체크한 메뉴만 {advisorName} 세무사에게 읽기 전용으로 보입니다.
         </div>
         <button onClick={() => saveMut.mutate()} disabled={!dirty || saveMut.isPending} className="btn-primary btn-sm disabled:opacity-40">
           {saveMut.isPending ? "저장 중…" : "저장"}
         </button>
       </div>
       <PermissionTree checked={checked} onToggle={toggle} viewerIsMaster={false} />
-      {dirty && <div className="text-[11px] text-[var(--warning)] mt-2">변경사항이 있습니다. 저장을 눌러야 반영됩니다.</div>}
+      {dirty && <div className="text-[11px] text-[var(--warning)] mt-2">저장을 눌러야 반영됩니다.</div>}
     </div>
   );
 }

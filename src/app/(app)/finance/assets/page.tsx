@@ -125,7 +125,7 @@ export default function FixedAssetsPage() {
             <button type="button" className={tab === "disposed" ? "collect-tab collect-tab-on" : "collect-tab"} onClick={() => setTab("disposed")}>처분<span className="collect-tab-cnt">{rows.length - active.length}</span></button>
           </div>
           <QueryBar right={<>
-            <span className="fa-depr-row" title="그 달의 감가상각을 전표 초안 하나로 · 확정은 재무 › 전표 현황 › 처리할 것. 월 1일 새벽엔 지난달이 자동으로 생깁니다">
+            <span className="fa-depr-row" title="그 달의 감가상각 전표 초안을 만듭니다. 매월 1일 지난달 초안이 자동으로 만들어집니다">
               <MonthSelect className="inv-input fin-close-month" value={deprMonth} onChange={setDeprMonth} ariaLabel="상각 월" />
               <button type="button" className="btn-secondary btn-sm" disabled={busy || !active.length} onClick={makeDraft}>상각 초안</button>
             </span>
@@ -144,7 +144,7 @@ export default function FixedAssetsPage() {
         <QueryBody>
           <div className="ev-scroll fa-scroll">
             {isLoading ? <div className="collect-empty">불러오는 중…</div> : shown.length === 0 ? (
-              <div className="collect-empty">{tab === "active" ? <>등록된 고정자산이 없습니다 — <b>+ 자산 등록</b>으로 장비·차량·소프트웨어를 올리면 달마다 감가상각 초안이 생깁니다.</> : "처분한 자산이 없습니다"}</div>
+              <div className="collect-empty">{tab === "active" ? <>아직 고정자산이 없습니다. <b>+ 자산 등록</b>으로 시작하세요.</> : "아직 처분한 자산이 없습니다."}</div>
             ) : (
               <table className="ev-table ev-lined table-fa">
                 <thead><tr>
@@ -194,7 +194,7 @@ export default function FixedAssetsPage() {
         <div className="inv-modal" onClick={() => setForm(null)}>
           <div className="inv-modal-box inv-modal-wide bl-box" onClick={(e) => e.stopPropagation()}>
             <div className="inv-modal-head"><h3>{form.id ? "자산 수정" : "자산 등록"}</h3><button type="button" className="inv-modal-x" onClick={() => setForm(null)}>✕</button></div>
-            <p className="inv-modal-desc">등록하면 <b>상각 시작 월</b>부터 달마다 감가상각 전표 초안이 생깁니다(확정은 사람). 취득 자체의 전표(차) 자산 / 대) 미지급금·보통예금)는 통장 줄 처리나 일반전표로 따로 칩니다. 계정을 비우면 분류 기본 계정({FA_CATEGORIES.find((c) => c.value === form.category)?.codes})을 씁니다.</p>
+            <p className="inv-modal-desc" title="취득 전표는 통장 줄 처리나 일반전표로 따로 작성합니다"><b>상각 시작 월</b>부터 달마다 감가상각 전표 초안이 만들어집니다. 계정을 비우면 기본 계정 {FA_CATEGORIES.find((c) => c.value === form.category)?.codes}을 씁니다.</p>
             <div className="bl-form">
               <label>자산 이름 <input className="inv-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="예: 맥북 프로 16 · 포터2 · 어도비 CC" autoFocus /></label>
               <label>분류
@@ -218,7 +218,7 @@ export default function FixedAssetsPage() {
               <label>상각비 계정 (선택) <AccountPicker accounts={accounts.filter((a) => a.account_type === "expense")} value={acctPick(form.expense_account_id)} onChange={(id) => setForm({ ...form, expense_account_id: id || null })} placeholder="비우면 감가상각비" /></label>
               <label>메모 <input className="inv-input" value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} /></label>
             </div>
-            <p className="inv-hint">월 상각 미리보기: <b className="mono-number">{won(monthlyStraight(Number(String(form.cost).replace(/[^0-9.]/g, "")) || 0, Number(String(form.salvage).replace(/[^0-9.]/g, "")) || 0, Number(form.useful_months) || 0))}</b>{form.method === "declining" && " (정률은 첫 달 기준 그 2배 안팎, 점점 줄어듦)"}</p>
+            <p className="inv-hint">월 상각 예상 <b className="mono-number">{won(monthlyStraight(Number(String(form.cost).replace(/[^0-9.]/g, "")) || 0, Number(String(form.salvage).replace(/[^0-9.]/g, "")) || 0, Number(form.useful_months) || 0))}</b>{form.method === "declining" && " 정률은 첫 달이 크고 점점 줄어듭니다."}</p>
             <div className="inv-modal-actions"><span className="doc-sums-sp" /><button type="button" className="btn-secondary btn-sm" onClick={() => setForm(null)}>닫기</button><button type="button" className="btn-primary btn-sm" disabled={busy} onClick={save}>{form.id ? "저장" : "등록"}</button></div>
           </div>
         </div>
@@ -227,7 +227,7 @@ export default function FixedAssetsPage() {
         <div className="inv-modal" onClick={() => setDispose(null)}>
           <div className="inv-modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="inv-modal-head"><h3>처분 — {dispose.name}</h3><button type="button" className="inv-modal-x" onClick={() => setDispose(null)}>✕</button></div>
-            <p className="inv-modal-desc">장부가 {won(dispose.book)} · 확정 누계 {won(dispose.accum)}. 처분으로 표시하면 그 달부터 상각이 멈춥니다. 처분 손익 전표(매각가·누계액·처분손익)는 <Link href="/partners/reconciliation/voucher-entry" className="bz-link">일반전표</Link>로 직접 칩니다. 매각가·부가세가 얽혀 자동으로 만들지 않습니다.</p>
+            <p className="inv-modal-desc">장부가 {won(dispose.book)} · 확정 누계 {won(dispose.accum)}. 처분한 달부터 상각이 멈추며 처분 손익 전표는 <Link href="/partners/reconciliation/voucher-entry" className="bz-link">일반전표</Link>에서 작성합니다.</p>
             <div className="bl-form">
               <label>처분일 <DateField value={dOn} onChange={(e: any) => setDOn(e.target.value)} className="inv-input" /></label>
               <label>처분 금액 (선택) <input className="inv-input mono-number tr" value={dAmt} onChange={(e) => setDAmt(e.target.value)} placeholder="매각가 · 폐기면 비움" /></label>
@@ -245,7 +245,7 @@ export default function FixedAssetsPage() {
               <table className="ev-table ev-lined table-inv-status-sm">
                 <thead><tr><th>월</th><th>상각액</th><th>상태</th></tr></thead>
                 <tbody>{histRows.map((r) => <tr key={`${r.month}-${r.entryId}`}><td className="tc mono-number">{r.month}</td><td className="tr mono-number">{won(r.amount)}</td><td className="tc">{r.status === "confirmed" ? <span className="inv-pill inv-pill-ok">확정</span> : r.status === "rejected" ? <span className="inv-pill inv-pill-danger">반려</span> : <span className="inv-pill inv-pill-warn">초안</span>}</td></tr>)}
-                  {!histRows.length && <tr><td colSpan={3} className="tc ev-dim">아직 상각 초안이 없습니다. 조회 줄의 '상각 초안'으로 만듭니다</td></tr>}</tbody>
+                  {!histRows.length && <tr><td colSpan={3} className="tc ev-dim">아직 상각 이력이 없습니다.</td></tr>}</tbody>
               </table>
             </div>
             <div className="inv-modal-actions"><span className="doc-sums-sp" /><button type="button" className="btn-secondary btn-sm" onClick={() => setHist(null)}>닫기</button></div>

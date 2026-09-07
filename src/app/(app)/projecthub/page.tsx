@@ -605,12 +605,12 @@ export default function ProjectHubPage() {
   const DASH_KEY = "pjv3-board";
   const DASH_DEFAULT = ["nums", "progress", "load", "signal"];
   const DASH_CATALOG:  { id: string; name: string; desc: string }[] = [
-    { id: "nums", name: "숫자 카드 줄", desc: "진행 중·지남·이번 주·끝낸" },
-    { id: "progress", name: "프로젝트별 진행", desc: "완료율 낮고 지남 많은 순" },
-    { id: "load", name: "담당별 남은 일", desc: "부하가 쏠린 사람이 위" },
-    { id: "signal", name: "신호등 현황", desc: "상태 보고의 신호등 합계" },
-    { id: "due", name: "다음 마감 리스트", desc: "가까운 순 · 누르면 그 줄" },
-    { id: "money", name: "돈 흐름 띠", desc: "견적→계약(₩ 켠 프로젝트)" },
+    { id: "nums", name: "숫자 카드 줄", desc: "진행 중·지남·이번 주·끝낸 건수를 봅니다." },
+    { id: "progress", name: "프로젝트별 진행", desc: "지연이 많은 순으로 봅니다." },
+    { id: "load", name: "담당별 남은 일", desc: "담당자별 남은 일을 봅니다." },
+    { id: "signal", name: "신호등 현황", desc: "상태 보고의 신호등을 모아 봅니다." },
+    { id: "due", name: "다음 마감 리스트", desc: "마감이 가까운 순으로 봅니다." },
+    { id: "money", name: "돈 흐름 띠", desc: "견적과 계약 금액을 봅니다." },
   ];
   const [dashOpen, setDashOpen] = useState(false);
   const [dashEdit, setDashEdit] = useState(false);
@@ -740,7 +740,7 @@ export default function ProjectHubPage() {
 
   const v3Summary = (d: any): React.ReactNode => {
     const v = v3ByDeal[d.id];
-    if (!v || v.total === 0) return <span className="ph-sum-dim">아직 표에 적은 것이 없습니다</span>;
+    if (!v || v.total === 0) return <span className="ph-sum-dim">아직 표에 적은 것이 없습니다.</span>;
     const parts: React.ReactNode[] = [`${v.total}건 중 ${v.done}건 완료`];
     if (v.overdue.length > 0) parts.push(
       <span className="ph-sum-warn">{`'${v.overdue[0].name}' ${v.overdue[0].days}일 지남${v.overdue.length > 1 ? ` 외 ${v.overdue.length - 1}건` : ""}`}</span>
@@ -901,9 +901,9 @@ export default function ProjectHubPage() {
           {/* 보기 탭·성과 대시보드는 뺐다 (2026-08-31 사장님: "성과 대시보드 필요 없을 것 같아, 담당별도") — 목록 하나만 */}
           <QueryBar right={<>
             <button type="button" onClick={() => setDashOpen(true)} className="btn-secondary btn-sm"
-              title="회사의 모든 프로젝트를 한 판으로 · 기본 판, 원하면 내 판으로">현황판</button>
+              title="회사의 모든 프로젝트를 한 화면으로 봅니다.">현황판</button>
             <button type="button" onClick={() => setMyWorkOpen(true)} className="btn-secondary btn-sm"
-              title="모든 프로젝트에서 내가 담당한 줄만 급한 순으로">내 작업{myWork.length > 0 ? ` ${myWork.length}` : ""}</button>
+              title="내가 담당한 작업을 급한 순으로 봅니다.">내 작업{myWork.length > 0 ? ` ${myWork.length}` : ""}</button>
             <button type="button" onClick={() => setShowCreate(true)} className="btn-primary btn-sm">+ 프로젝트 생성</button>
           </>}>
             {/* 프로젝트는 기간이 없는 목록이라 조회 줄이 [검색조건] 으로 시작한다 */}
@@ -926,7 +926,7 @@ export default function ProjectHubPage() {
                     options={[{ value: "mine", label: "내 담당" }, { value: "all", label: "전체" }]} />
                 </ConditionRow>
               )}
-              <ConditionRow label="상태" hint="판정이 아니라 센 사실 · 0이면 안 보인다">
+              <ConditionRow label="상태" hint="상태별 개수로 찾습니다.">
                 <span className="qk-quicks">
                   {LENS_OPTS.map(([k, label]) => {
                     const n = k === "" ? lensCounts.total : lensCounts[k];
@@ -945,7 +945,7 @@ export default function ProjectHubPage() {
               <ConditionRow label="거래처" hint="여러 곳">
                 <TokenField items={partnerOpts} value={draft.partner} onChange={setD("partner")} placeholder="거래처 이름 일부" />
               </ConditionRow>
-              <ConditionRow label="템플릿" hint="그 표가 붙은 프로젝트">
+              <ConditionRow label="템플릿" hint="템플릿이 적용된 프로젝트만 찾습니다.">
                 <TokenField items={templateOpts} value={draft.template} onChange={setD("template")} placeholder="예: 예산 · 지출" />
               </ConditionRow>
             </ConditionPanel>
@@ -964,7 +964,7 @@ export default function ProjectHubPage() {
             <Stat label="프로젝트" value={`${rows.length.toLocaleString("ko")}건${rows.length !== lensCounts.total ? ` / ${lensCounts.total}` : ""}`} />
             <Stat label="기한 지난 줄" value={`${lensCounts.lateItems}건`} tone={lensCounts.lateItems > 0 ? "minus" : undefined} />
             <Stat label="이번 주 마감 줄" value={`${lensCounts.soonItems}건`} />
-            <span className="text-[10.5px] text-[var(--text-dim)]">대표 지표는 그 프로젝트에 있는 데이터에서 자동으로 골라요. 돈이 걸렸으면 마진율, 목표가 있으면 달성률, 할 일만 있으면 진행률</span>
+            <span className="text-[10.5px] text-[var(--text-dim)]">대표 지표는 프로젝트 데이터에 맞춰 자동으로 정해집니다.</span>
           </ResultStrip>
           {/* 조용한 프로젝트 한 줄 체크인 — 주 1회·최대 3건. 접혀 있어도 마운트한다(위 칩 개수) */}
           {companyId && (
@@ -985,14 +985,14 @@ export default function ProjectHubPage() {
         <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setDashOpen(false); }}>
           <div className="phv3-modal pjv3-dash-modal" role="dialog" aria-modal="true" aria-label="전체 현황판">
             <div className="pjv3-dash-head">
-              <h3 className="phv3-modal-title !mb-0">전체 현황판<span className="ui-sub">회사의 모든 프로젝트 한 눈</span></h3>
+              <h3 className="phv3-modal-title !mb-0">전체 현황판<span className="ui-sub">회사의 모든 프로젝트를 한눈에 봅니다.</span></h3>
               <button type="button" className="btn-secondary btn-sm ml-auto"
                 onClick={() => { setDashEdit((v) => !v); setDashCat(false); }}>{dashEdit ? "편집 그만" : "내 판으로 고치기"}</button>
               <button type="button" className="btn-secondary btn-sm" onClick={() => setDashOpen(false)}>닫기</button>
             </div>
             {dashEdit && (
               <div className="pjv3-dash-editbar">
-                <b>편집 중<span className="ui-sub">홈 대시보드와 같은 문법(＋위젯·↑↓·✕)</span></b>
+                <b>편집 중<span className="ui-sub">위젯을 더하고 순서를 바꿉니다.</span></b>
                 <button type="button" className="btn-secondary btn-sm ml-auto" onClick={() => setDashCat((v) => !v)}>＋ 위젯</button>
                 <button type="button" className="btn-secondary btn-sm" onClick={() => setDashWidgets([...DASH_DEFAULT])}>기본 판으로 되돌리기</button>
                 <button type="button" className="btn-primary btn-sm" onClick={saveDash}>저장 · 내 판으로</button>
@@ -1033,7 +1033,7 @@ export default function ProjectHubPage() {
                   )}
                   {w === "progress" && (
                     <div className="pjv3-stpanel">
-                      <h3>프로젝트별 진행 <small>지남 많고 완료율 낮은 순 · 이름을 누르면 그 프로젝트</small></h3>
+                      <h3>프로젝트별 진행 <small>지연이 많은 순으로 보입니다.</small></h3>
                       {dashData.per.length === 0 && <div className="pjv3-stempty">표에 줄이 있는 프로젝트가 없습니다</div>}
                       {dashData.per.map((p) => (
                         <button key={p.id} type="button" className="pjv3-dprow" onClick={() => router.push(`/projecthub/${p.id}`)}>
@@ -1051,7 +1051,7 @@ export default function ProjectHubPage() {
                   )}
                   {w === "load" && (
                     <div className="pjv3-stpanel">
-                      <h3>담당별 남은 일 <small>많은 순 · 부하가 쏠린 사람이 위(대표 담당 기준)</small></h3>
+                      <h3>담당별 남은 일 <small>남은 일이 많은 순으로 보입니다.</small></h3>
                       {dashData.load.length === 0 && <div className="pjv3-stempty">남은 일이 없습니다</div>}
                       {dashData.load.map((a) => {
                         const max = Math.max(1, ...dashData.load.map((x) => x.open));
@@ -1067,7 +1067,7 @@ export default function ProjectHubPage() {
                   )}
                   {w === "signal" && (
                     <div className="pjv3-stpanel">
-                      <h3>신호등 현황 <small>각 프로젝트의 최신 상태 보고 · 보고 안 쓴 프로젝트는 ⚪</small></h3>
+                      <h3>신호등 현황 <small>프로젝트별 최신 상태 보고입니다.</small></h3>
                       <div className="pjv3-stmoney">
                         <span className="mstep"><span className="t">🔵 순항</span><b className="n num">{dashData.signal.blue}</b></span>
                         <span className="mstep"><span className="t">🟠 주의</span><b className="n num">{dashData.signal.orange}</b></span>
@@ -1078,7 +1078,7 @@ export default function ProjectHubPage() {
                   )}
                   {w === "due" && (
                     <div className="pjv3-stpanel">
-                      <h3>다음 마감 <small>모든 프로젝트에서 가까운 순 · 누르면 그 줄 서랍</small></h3>
+                      <h3>다음 마감 <small>마감이 가까운 순으로 보입니다.</small></h3>
                       {dashData.nextDue.length === 0 && <div className="pjv3-stempty">마감일 있는 미완 줄이 없습니다</div>}
                       {dashData.nextDue.map((it) => (
                         <button key={it.id} type="button" className="pjv3-stdue" onClick={() => router.push(`/projecthub/${it.deal_id}?item=${it.id}`)}>
@@ -1092,7 +1092,7 @@ export default function ProjectHubPage() {
                   )}
                   {w === "money" && (
                     <div className="pjv3-stpanel">
-                      <h3>돈 흐름 <small>견적·청구(₩)를 켠 프로젝트 합산</small></h3>
+                      <h3>돈 흐름 <small>견적·청구를 켠 프로젝트의 합계입니다.</small></h3>
                       <div className="pjv3-stmoney">
                         <span className="mstep"><span className="t">견적</span><b className="n num">{dashData.quoteN}건</b></span>
                         <span className="ar">→</span>
@@ -1102,9 +1102,9 @@ export default function ProjectHubPage() {
                   )}
                 </div>
               ))}
-              {dashWidgets.length === 0 && <div className="pjv3-stempty">위젯을 다 뺐습니다. [기본 판으로 되돌리기] 또는 ＋ 위젯</div>}
+              {dashWidgets.length === 0 && <div className="pjv3-stempty">표시할 위젯이 없습니다. 위젯을 추가하거나 기본 판으로 되돌리세요.</div>}
             </div>
-            <p className="pjv3-stnote">저장하면 내 계정에만 적용됩니다 · 진행률 = 마지막 그룹(끝남) 비율, 표 집계와 같은 셈법 · 팀 공유 판은 다음 단계</p>
+            <p className="pjv3-stnote" title="진행률은 마지막 그룹의 비율로 계산합니다.">저장하면 내 계정에만 적용됩니다.</p>
           </div>
         </div>
       )}
@@ -1113,8 +1113,8 @@ export default function ProjectHubPage() {
       {myWorkOpen && (
         <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setMyWorkOpen(false); }}>
           <div className="phv3-modal pjv3-tpl-modal" role="dialog" aria-modal="true" aria-label="내 작업">
-            <h3 className="phv3-modal-title">내 작업<span className="ui-sub">모든 프로젝트에서 내 담당, 급한 순</span></h3>
-            {myWork.length === 0 && <div className="pjv3-tpl-mine">지금 담당한 미완 작업이 없습니다</div>}
+            <h3 className="phv3-modal-title">내 작업<span className="ui-sub">내가 담당한 작업을 급한 순으로 봅니다.</span></h3>
+            {myWork.length === 0 && <div className="pjv3-tpl-mine">처리할 작업이 없습니다.</div>}
             {myWork.length > 0 && (
               <table className="ph-mywork">
                 <thead><tr><th className="!text-left">이름</th><th>프로젝트</th><th>마감</th></tr></thead>
@@ -1131,7 +1131,7 @@ export default function ProjectHubPage() {
                 </tbody>
               </table>
             )}
-            {myWork.length > 50 && <div className="pjv3-tpl-mine">50건까지만 · 급한 것부터 처리하면 줄어듭니다</div>}
+            {myWork.length > 50 && <div className="pjv3-tpl-mine">급한 순으로 50건까지 보입니다.</div>}
             <div className="phv3-modal-actions"><button type="button" className="btn-secondary btn-sm" onClick={() => setMyWorkOpen(false)}>닫기</button></div>
           </div>
         </div>
@@ -1203,24 +1203,24 @@ export default function ProjectHubPage() {
           <div className="ph-onboard">
             <div className="ph-onboard-head">
               <h3>첫 프로젝트를 만들어 보세요</h3>
-              <p>이름만 입력하면 만들어집니다. 그다음 하는 일에 맞는 템플릿을 고르면 됩니다.</p>
+              <p>이름만 입력하면 바로 만들어집니다.</p>
             </div>
             <div className="ph-onboard-steps">
               <div className="ph-onboard-step">
                 <b>① 이름만 적기</b>
-                <span>거래처·금액·기간은 안 물어봅니다. 프로젝트명 하나면 만들어져요.</span>
+                <span>프로젝트명 하나면 충분합니다.</span>
               </div>
               <div className="ph-onboard-step">
                 <b>② 템플릿 고르기</b>
-                <span>{BOARD_TEMPLATES.map((t) => t.name).join(" · ")} 중에 필요한 것만. ＋ 로 한 프로젝트에 여러 개 붙일 수 있습니다.</span>
+                <span>{BOARD_TEMPLATES.map((t) => t.name).join(" · ")} 중에서 필요한 것을 고릅니다.</span>
               </div>
               <div className="ph-onboard-step">
                 <b>③ 정리 보기</b>
-                <span>입력한 칸만 골라 합계·진행·기한을 자동으로 요약합니다. 안 쓴 칸은 아예 안 나옵니다.</span>
+                <span>입력한 내용으로 합계·진행·기한을 자동 요약합니다.</span>
               </div>
             </div>
             <button onClick={() => setShowCreate(true)} className="btn-primary">+ 프로젝트 만들기</button>
-            <p className="ph-onboard-note">템플릿은 부서가 아니라 &apos;일의 형태&apos;로 나눠요. 마케팅 캠페인·전시회·지원사업이 같은 &apos;예산 · 지출&apos; 템플릿을 씁니다.</p>
+            <p className="ph-onboard-note">템플릿은 일의 형태에 따라 고릅니다.</p>
           </div>
         )
       ) : listView === "timeline" ? (
@@ -1403,7 +1403,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
               <div>
                 <label className={LB}>무슨 일인가요? *</label>
                 <input value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="프로젝트명" className={IN} autoFocus />
-                <p className="text-[11px] text-[var(--text-dim)] mt-1">{isEdit ? "이름만 입력하면 됩니다. 나머지는 비워 두어도 됩니다." : "만든 뒤에 하는 일에 맞는 템플릿을 고르게 됩니다."}</p>
+                <p className="text-[11px] text-[var(--text-dim)] mt-1">{isEdit ? "이름만 입력해도 됩니다." : "만든 뒤에 템플릿을 고릅니다."}</p>
               </div>
               {isEdit && <>
               <div className="grid grid-cols-2 gap-3">
@@ -1459,7 +1459,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
                     </div>
                   )}
                   <div className={isEdit ? "" : "col-span-2"}>
-                    <label className={LB}>계약금액 <span className="font-normal text-[var(--text-dim)]">(선택 · 견적·계약을 만들면 자동으로 잡혀요)</span></label>
+                    <label className={LB}>계약금액 <span className="font-normal text-[var(--text-dim)]">선택</span></label>
                     <div className="flex gap-1">
                       <input value={form.contract_total} onChange={(e) => set({ contract_total: comma(e.target.value) })} inputMode="numeric" placeholder="비워두면 나중에" className={`${IN} text-right mono-number`} />
                       <select value={form.vatType} onChange={(e) => set({ vatType: e.target.value as "exclude" | "include" })} className="px-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text-muted)]">
@@ -1557,7 +1557,7 @@ function DeleteProjectModal({ deal, companyId, onClose, onDeleted }: {
         </div>
         <div className="delete-project-modal-body">
           <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-            <span className="font-bold text-[var(--text)]">{deal.name || "(이름 없음)"}</span> 프로젝트를 삭제하면 목록·보드 어디에서도 보이지 않습니다. (회계·자식 데이터는 보존되며, 복구 가능)
+            <span className="font-bold text-[var(--text)]">{deal.name || "(이름 없음)"}</span> 프로젝트를 삭제하면 목록에서 사라지며, 나중에 복구할 수 있습니다.
           </p>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">확인을 위해 프로젝트명을 입력하세요</label>

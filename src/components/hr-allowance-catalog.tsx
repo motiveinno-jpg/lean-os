@@ -106,8 +106,7 @@ export default function HrAllowanceCatalogPanel({ companyId }: { companyId: stri
         </button>
       </div>
       <p className="text-[10px] text-[var(--text-dim)] mb-3">
-        법정 수당(연장·야간·휴일·당직)은 자동 생성됩니다. 단가만 회사 정책에 맞춰 조정하세요.
-        커스텀 수당은 자유롭게 추가/삭제할 수 있습니다.
+        법정 수당은 단가만 조정하고, 회사 수당은 자유롭게 추가합니다.
       </p>
 
       {isLoading ? (
@@ -338,7 +337,7 @@ function AllowanceTypeModal({
         <h3 className="section-title">{isEdit ? "수당 수정" : "수당 추가"}</h3>
         {isLegal && (
           <div className="allowance-legal-notice">
-            <Ico e="🔒" /> 법정 수당입니다. 단가·활성·적용대상·표시순서만 수정할 수 있습니다.
+            <Ico e="🔒" /> 법정 수당은 단가·활성·적용대상·표시순서만 수정할 수 있습니다.
           </div>
         )}
 

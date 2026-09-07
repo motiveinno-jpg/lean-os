@@ -165,7 +165,7 @@ export function SubscriptionsPanel() {
     <div className="subscriptions-panel">
       {/* 조회 줄 ‖ 구독 추가 · 결과 요약 — 정기 지출 상자 머리 슬롯 (2026-08-19, KPI 타일 → Stat) */}
       <SlotHead slotId="pay-head-slot"
-        bar={<span className="text-[11px] text-[var(--text-dim)]">SaaS·소프트웨어 구독을 한 표에 · 오너뷰 요금제는 자동으로 들어옵니다</span>}
+        bar={<span className="text-[11px] text-[var(--text-dim)]">회사가 쓰는 소프트웨어 구독을 한눈에 봅니다.</span>}
         right={canEdit ? <button type="button" onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary btn-sm">+ 구독 추가</button> : undefined}
         stats={<>
           <Stat label="월 총 구독비" value={fmtW(totalMonthly)} />
@@ -305,8 +305,8 @@ export function SubscriptionsPanel() {
               <tr>
                 <td colSpan={7} className="py-16 text-center">
                   <div className="text-3xl mb-3"><Ico e="📦" /></div>
-                  <div className="text-sm font-semibold text-[var(--text-muted)]">등록된 구독이 없습니다.</div>
-                  <div className="text-xs text-[var(--text-dim)] mt-1">+ 구독 추가로 Claude·ChatGPT 등을 등록하세요.</div>
+                  <div className="text-sm font-semibold text-[var(--text-muted)]">아직 등록된 구독이 없습니다.</div>
+                  <div className="text-xs text-[var(--text-dim)] mt-1">구독 추가로 첫 구독을 등록하세요.</div>
                 </td>
               </tr>
             )}
@@ -315,8 +315,7 @@ export function SubscriptionsPanel() {
       </div>
 
       <div className="mt-4 text-[11px] text-[var(--text-dim)]">
-        · 월 금액은 결제주기와 무관하게 월 환산액으로 입력하세요 (연간 결제는 ÷12).
-        · OwnerView 요금제는 자동 표시되며 "관리"에서 플랜·결제수단을 변경합니다.
+        월 금액은 월 환산액으로 입력합니다. OwnerView 요금제는 관리에서 변경합니다.
       </div>
       {confirmElement}
     </div>

@@ -115,7 +115,7 @@ export function CountBar({ ctl, warehouses, onhand, avgCost, productById }: {
     return (
       <>
         <QueryBar right={ctl.canMove ? <button type="button" className="btn-primary btn-sm" onClick={() => ctl.setNewOpen(true)}>+ 실사 열기</button> : undefined}>
-          <span className="inv-hint">창고를 돌며 센 수량을 적으면 <b>차이만</b>  &lsquo;실사 조정&rsquo;으로 남습니다. 장부 숫자를 덮어쓰지 않습니다.</span>
+          <span className="inv-hint">센 수량을 적으면 장부와의 <b>차이만</b> 실사 조정으로 남습니다.</span>
         </QueryBar>
         <ResultStrip>
           <Stat label="진행 중" value={`${won(list.filter((c) => c.status === "draft").length)}건`} />
@@ -151,8 +151,8 @@ export function CountBar({ ctl, warehouses, onhand, avgCost, productById }: {
               <div className="inv-modal" onClick={() => setApplyOpen(false)}>
                 <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
                   <div className="inv-modal-head"><h3>실사 차이 초안 — {wh?.name || "창고"}</h3><button type="button" className="inv-modal-x" onClick={() => setApplyOpen(false)}>✕</button></div>
-                  <p className="inv-modal-desc">센 {counted.length}줄 중 <b>{lines.length}줄</b>이 장부와 다릅니다. 확정하면 차이만 &lsquo;실사 조정&rsquo; 문서 한 건으로 남고 이 실사는 잠깁니다(장부를 덮어쓰지 않습니다). 금액은 FIFO 평균 원가 기준 · 출처: 장부 대조. 매출원가 초안이 다음 주기에 이 손실을 전표로 올립니다.</p>
-                  {lines.length === 0 ? <div className="collect-empty">모두 장부와 같습니다. 조정 없이 &lsquo;맞음&rsquo;으로 닫습니다.</div> : (
+                  <p className="inv-modal-desc" title="금액은 평균 원가 기준입니다. 손실은 다음 매출원가 초안에 전표로 올라갑니다">센 {counted.length}줄 중 <b>{lines.length}줄</b>이 장부와 다릅니다. 확정하면 차이만 실사 조정 한 건으로 남습니다.</p>
+                  {lines.length === 0 ? <div className="collect-empty">모두 장부와 같습니다. 조정 없이 닫습니다.</div> : (
                     <div className="stg-table-wrap cs-scroll">
                       <table className="ev-table ev-lined table-inv-status-sm">
                         <thead><tr><th>품목</th><th>장부</th><th>센 수량</th><th>차이</th><th>원가</th><th>금액</th></tr></thead>
@@ -240,8 +240,7 @@ export function CountBody({ ctl, warehouses, onhand, productById }: {
     if (!list.length) {
       return (
         <div className="collect-empty">
-          아직 연 실사가 없습니다 — <b>+ 실사 열기</b>로 창고를 고르면 지금 장부 수량이 줄로 깔립니다.<br />
-          세면서 수량을 적고 마지막에 <b>반영하기</b>를 누르면 <b>차이만</b> &lsquo;실사 조정&rsquo;으로 남습니다.
+          아직 연 실사가 없습니다. <b>+ 실사 열기</b>로 창고를 고르면 장부 수량이 줄로 깔립니다.
         </div>
       );
     }
@@ -327,9 +326,8 @@ export function CountBody({ ctl, warehouses, onhand, productById }: {
           </tbody>
         </table>
       </div>
-      <p className="inv-foot">
-        <b>빈 칸은 건드리지 않습니다</b> · 아직 안 센 것으로 봅니다. 실제로  <b>하나도 없었다면 0</b> 을 적으세요.
-        차이는 <b>반영하는 순간의 장부</b>와 견줍니다(세는 동안 판매가 일어나도 그 판매가 지워지지 않게).
+      <p className="inv-foot" title="차이는 반영하는 순간의 장부와 견줍니다">
+        빈 칸은 아직 세지 않은 것으로 봅니다. 하나도 없었다면 <b>0</b>을 적으세요.
       </p>
     </>
   );
@@ -353,7 +351,7 @@ export function NewCountDialog({ ctl, warehouses }: { ctl: CountCtl; warehouses:
     <div className="inv-modal" onClick={() => ctl.setNewOpen(false)}>
       <div className="inv-modal-box" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">실사 열기</h3>
-        <p className="inv-modal-desc">고른 창고의 <b>지금 장부 수량</b>을 줄로 찍어 둡니다. 세면서 수량을 적고 마지막에 반영하세요.</p>
+        <p className="inv-modal-desc">고른 창고의 <b>장부 수량</b>을 줄로 깔아 둡니다. 세면서 수량을 적고 마지막에 반영하세요.</p>
         <label className="inv-field"><span>창고 *</span>
           <select className="field-input" value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
             {warehouses.length === 0 && <option value="">창고가 없습니다</option>}
@@ -363,7 +361,7 @@ export function NewCountDialog({ ctl, warehouses }: { ctl: CountCtl; warehouses:
           <DateField className="field-input" value={countDate} onChange={(e) => setCountDate(e.target.value)} /></label>
         <label className="inv-check">
           <input type="checkbox" checked={includeAll} onChange={(e) => setIncludeAll(e.target.checked)} />
-          <span><b>재고 0인 품목까지</b> 깔기 <em>— 창고를 통째로 셀 때. 꺼 두면 지금 그 창고에 잡혀 있는 품목만 나옵니다.</em></span>
+          <span><b>재고 0인 품목까지</b> 깔기 <em>창고 전체를 셀 때 켭니다.</em></span>
         </label>
         <label className="inv-field"><span>메모</span>
           <input className="field-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="반기 실사 · 이전 준비 등" /></label>
@@ -417,7 +415,7 @@ export function CountPasteDialog({ ctl, productById }: { ctl: CountCtl; productB
     <div className="inv-modal" onClick={() => ctl.setPasteOpen(false)}>
       <div className="inv-modal-box" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">센 수량 붙여넣기</h3>
-        <p className="inv-modal-desc">엑셀에서 <b>SKU · 수량</b> 두 칸을 그대로 복사해 붙이세요. 이 실사에 있는 줄만 채웁니다.</p>
+        <p className="inv-modal-desc" title="이 실사에 있는 줄만 채웁니다">엑셀에서 <b>SKU · 수량</b> 두 칸을 복사해 붙이세요.</p>
         <ExcelPasteHelper templateName="실사_양식" sheetName="실사" onText={setText}
           cols={[{ key: "sku", label: "SKU", required: true, hint: "이 실사에 들어 있는 품목만", example: "DM-A100" }, { key: "qty", label: "실사 수량", required: true, kind: "number", example: 120 }]} />
         <textarea className="field-input inv-paste" rows={9} value={text} onChange={(e) => setText(e.target.value)}

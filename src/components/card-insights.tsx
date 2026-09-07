@@ -101,12 +101,12 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
       {latestTxDate && (
         <div className="mb-2 text-[10px] text-[var(--text-dim)]">
           최신 카드 거래: <span className="text-[var(--text-muted)] mono-number">{latestTxDate}</span>
-          <span className="ml-1">— CODEF 는 카드사 청구 처리된 거래만 가져와 최근 며칠은 늦게 반영됩니다.</span>
+          <span className="ml-1">최근 며칠 거래는 늦게 반영됩니다.</span>
         </div>
       )}
 
       {top.length === 0 ? (
-        <div className="text-center py-6 text-xs text-[var(--text-dim)]">최근 30일 카드 지출이 없습니다.</div>
+        <div className="text-center py-6 text-xs text-[var(--text-dim)]">아직 이번달 카드 지출이 없습니다.</div>
       ) : (
         <div className="top-card-expenses-list">
           {top.map((t: any, i: number) => {
@@ -223,13 +223,13 @@ export function CardAutoTransferHistory({ companyId }: Props) {
       </div>
       {/* R15: 사용법 안내 (직원 "어떻게 사용하는것?") — 기능 변경 없이 설명만 */}
       <p className="text-[11px] text-[var(--text-dim)] mb-3 leading-relaxed bg-[var(--bg-surface)] rounded-lg px-3 py-2">
-        <Ico e="💡" /> 매달 반복 결제(구독·임대료·통신비 등)를 한눈에 보는 화면입니다. 거래내역 페이지에서 해당 거래를
-        <strong className="text-[var(--text-muted)]"> &quot;고정비&quot;</strong>로 체크하면 이번 달 분이 자동 집계됩니다.
+        <Ico e="💡" /> 거래내역에서
+        <strong className="text-[var(--text-muted)]"> &quot;고정비&quot;</strong>로 체크한 반복 결제가 모입니다.
       </p>
       {items.length === 0 ? (
         <div className="text-center py-6 text-xs text-[var(--text-dim)]">
-          이번달 정기결제내역이 없습니다.
-          <div className="text-[10px] mt-1">거래내역 페이지에서 거래를 &quot;고정비&quot;로 체크하면 여기에 모입니다.</div>
+          아직 이번달 정기결제내역이 없습니다.
+          <div className="text-[10px] mt-1">거래내역에서 &quot;고정비&quot;로 체크하면 여기에 모입니다.</div>
         </div>
       ) : (
         <div className="card-auto-transfer-list">
@@ -435,7 +435,7 @@ export function CardMonthlyUsage({ companyId }: Props) {
 
       {/* 카드별 표 — 접기 토글, 기본 접힘(localStorage) */}
       {sortedCards.length === 0 ? (
-        <div className="text-center py-4 text-xs text-[var(--text-dim)]">카드 거래 없음</div>
+        <div className="text-center py-4 text-xs text-[var(--text-dim)]">아직 카드 거래가 없습니다.</div>
       ) : (
         <CardPerCardTable
           sortedCards={sortedCards}
@@ -481,7 +481,7 @@ function CardPerCardTable({
       >
         <span className="inline-block w-3 text-center text-[10px] text-[var(--text-muted)]">{collapsed ? '▶' : '▼'}</span>
         <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">
-          카드별 {sortedCards.length}장 {collapsed ? '(접힘 · 클릭하면 펼침)' : ''}
+          카드별 {sortedCards.length}장 {collapsed ? '· 펼치기' : ''}
         </div>
       </button>
       {!collapsed && (
@@ -517,7 +517,7 @@ function CardPerCardTable({
                       {variantCount > 1 && (
                         <span
                           className="ml-1 inline-flex items-center px-1 py-0.5 rounded text-[9px] font-bold bg-[var(--primary)]/10 text-[var(--primary)] align-middle"
-                          title={`끝 4자리(${last4 || '동일'})가 같은 ${variantCount}개 카드 표기를 합산 표시: ${Array.from(c.variants).join(', ')}`}
+                          title={`끝 4자리 ${last4 || '동일'} 카드 ${variantCount}개를 합산했습니다. ${Array.from(c.variants).join(', ')}`}
                         >
                           병합 {variantCount}
                         </span>

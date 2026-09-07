@@ -209,7 +209,7 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
               value={text}
               onChange={handleChange}
               onKeyDown={handleKeyDown}
-              placeholder={placeholder || "메시지를 입력하세요... (@멘션 가능)"}
+              placeholder={placeholder || "메시지를 입력하세요"}
               disabled={disabled}
               rows={1}
               className="chat-input-text chat-composer-text"
@@ -253,7 +253,7 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
                 onClick={handleSubmit}
                 disabled={!text.trim() || disabled}
                 aria-label="보내기"
-                title="보내기 (Enter)"
+                title="Enter로 보내기"
                 className="chat-composer-send"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

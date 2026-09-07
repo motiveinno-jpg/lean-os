@@ -465,7 +465,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                   <InfoRow label="퇴근 시간" value={emp.work_end_time ? emp.work_end_time.slice(0, 5) : "회사 기본값"} />
                 </>)}
               </div>
-              <div className="text-[10px] text-[var(--text-dim)] mt-1.5">비워두면 회사 설정(설정 &gt; 근태)의 기본 출퇴근 시간이 적용됩니다.</div>
+              <div className="text-[10px] text-[var(--text-dim)] mt-1.5">비워 두면 회사 기본 출퇴근 시간이 적용됩니다.</div>
             </div>
             {/* 기본 정보 */}
             <div className="employee-info-section">
@@ -497,7 +497,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
             {/* 급여/계좌 정보 — 급여 권한자만 */}
             {!canSeeSalary ? (
               <div className="employee-info-section">
-                <div className="text-xs text-[var(--text-dim)]">급여 · 계좌 정보는 급여 권한이 있는 사용자만 볼 수 있습니다.</div>
+                <div className="text-xs text-[var(--text-dim)]">급여·계좌 정보는 급여 권한이 있어야 보입니다.</div>
               </div>
             ) : (
             <div className="employee-info-section">
@@ -629,7 +629,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
         {detailTab === "history" && (
           <>
             <AppointmentsSection employeeId={employeeId} companyId={companyId} emp={emp} userId={_panelUserId} />
-            <div className="detail-subhead">관리자 노트 <span className="inv-hint">본인에게 보이지 않는 인사 메모</span></div>
+            <div className="detail-subhead">관리자 노트 <span className="inv-hint">본인에게는 보이지 않습니다.</span></div>
             <AdminNotesSection employeeId={employeeId} emp={emp} queryClient={queryClient} />
           </>
         )}
@@ -661,7 +661,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                 <div>
                   <label className="block text-[10px] text-[var(--text-dim)] mb-1.5">서식 선택 *</label>
                   {contractTemplates.length === 0 ? (
-                    <p className="text-xs text-[var(--text-dim)]">등록된 서식이 없습니다. 인사관리 &gt; 양식 관리에서 먼저 서식을 추가하세요.</p>
+                    <p className="text-xs text-[var(--text-dim)]">아직 서식이 없습니다. 양식 관리에서 먼저 추가하세요.</p>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {contractTemplates.map((t: any) => {
@@ -683,11 +683,11 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                 </div>
 
                 <div>
-                  <label className="block text-[10px] text-[var(--text-dim)] mb-1.5">필수 입력 정보 <span className="text-[var(--text-dim)] font-normal">— 선택한 서식의 {"{{변수명}}"} 자리에 자동 치환됨 (비워 두면 직원·회사 정보가 그대로 들어갑니다)</span></label>
+                  <label className="block text-[10px] text-[var(--text-dim)] mb-1.5">필수 입력 정보 <span className="text-[var(--text-dim)] font-normal">{"{{변수명}}"} 자리에 들어가며, 비워 두면 직원·회사 정보가 채워집니다.</span></label>
                   {selectedTemplateIds.length === 0 ? (
-                    <p className="text-xs text-[var(--text-dim)]">서식을 선택하면 그 서식이 쓰는 입력 항목이 여기에 표시됩니다.</p>
+                    <p className="text-xs text-[var(--text-dim)]">서식을 선택하면 입력 항목이 표시됩니다.</p>
                   ) : contractFields.length === 0 ? (
-                    <p className="text-xs text-[var(--text-dim)]">선택한 서식에는 입력할 변수가 없습니다.</p>
+                    <p className="text-xs text-[var(--text-dim)]">입력할 변수가 없습니다.</p>
                   ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {contractFields.map((f, i) => (
@@ -729,7 +729,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
             )}
 
             {empContracts.length === 0 && empPackages.length === 0 ? (
-              <div className="text-center py-8 text-sm text-[var(--text-dim)]">계약서가 없습니다</div>
+              <div className="text-center py-8 text-sm text-[var(--text-dim)]">아직 계약서가 없습니다.</div>
             ) : (
               <>
                 {/* 전자계약 패키지 (구성원 > 계약서 탭에서 발송된 것) */}
@@ -833,7 +833,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
             <div className="emp-section">
               <div className="emp-section-head"><div className="emp-section-title">발급 내역</div></div>
               {empCertLogs.length === 0 ? (
-                <div className="collect-empty">발급 이력이 없습니다</div>
+                <div className="collect-empty">아직 발급 이력이 없습니다.</div>
               ) : (
                 <div className="empd-rows">
                   {empCertLogs.map((log: any) => (
@@ -863,10 +863,10 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                 <span>총 부여 <b className="mono-number">{empLeaveBalance.total_days}일</b></span>
                 <span>사용 <b className="mono-number">{empLeaveBalance.used_days}일</b></span>
                 <span>잔여 <b className={`mono-number ${(empLeaveBalance.remaining_days ?? (empLeaveBalance.total_days ?? 0) - (empLeaveBalance.used_days ?? 0)) <= 3 ? "text-[var(--warning)]" : "text-[var(--success)]"}`}>{empLeaveBalance.remaining_days ?? ((empLeaveBalance.total_days ?? 0) - (empLeaveBalance.used_days ?? 0))}일</b></span>
-                <span className="text-[var(--text-dim)]">{currentYear}년 · 사용일수는 승인된 휴가로 자동 반영</span>
+                <span className="text-[var(--text-dim)]">{currentYear}년 · 사용일수는 승인된 휴가 기준입니다.</span>
               </div>
             ) : (
-              <div className="collect-empty">{currentYear}년 연차가 아직 설정되지 않았습니다. 아래에서 총 부여일수를 정하세요</div>
+              <div className="collect-empty">아직 {currentYear}년 연차가 없습니다. 아래에서 부여일수를 정하세요.</div>
             )}
 
             {/* 연차 설정(관리자) — 총 부여일수 초기화/조정. 휴가 신청/승인은 전자결재. */}
@@ -912,9 +912,9 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                 총 부여일수는 항상 이 목록의 합계로 동기화된다(단일 출처). 마이페이지 연차 원장에 그대로 표시. */}
             {canManageAccess && (
               <div className="emp-section">
-                <div className="emp-section-head"><div className="emp-section-title">{currentYear}년 연차 발생 이력</div><span className="text-[11px] text-[var(--text-dim)]">총 부여일수 = 이 목록의 합계 · 회수는 음수로</span></div>
+                <div className="emp-section-head"><div className="emp-section-title">{currentYear}년 연차 발생 이력</div><span className="text-[11px] text-[var(--text-dim)]">합계가 총 부여일수가 됩니다.</span></div>
                 {empLeaveGrants.length === 0 ? (
-                  <div className="collect-empty">발생 이력이 없습니다. 아래에서 추가하세요</div>
+                  <div className="collect-empty">아직 발생 이력이 없습니다. 아래에서 추가하세요.</div>
                 ) : (
                   <div className="empd-rows mb-2">
                     {empLeaveGrants.map((g) => (
@@ -983,7 +983,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
             <div className="emp-section">
               <div className="emp-section-head"><div className="emp-section-title">사용 기록</div></div>
               {empLeaveRequests.length === 0 ? (
-                <div className="collect-empty">휴가 사용 기록이 없습니다</div>
+                <div className="collect-empty">아직 휴가 사용 기록이 없습니다.</div>
               ) : (
                 <div className="empd-rows">
                   {empLeaveRequests.slice(0, 10).map((r: any) => {
@@ -1114,8 +1114,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                   {/* P0(2026-07-23): 기존 생성기는 공식 규격이 아닌 자체 TXT라 Web EDI 에서 거부됨.
                       정식 상실신고 XLSX 규격 적용 전까지 제출용 다운로드 비활성 — 잘못된 파일을 제출용으로 내보내지 않는다. */}
                   <div className="edi-prep-notice mb-2">
-                    국민건강보험 Web EDI 업로드용 <b>정식 상실신고 파일(XLSX)</b>을 준비 중입니다. 준비 완료 전까지 제출용 파일을 내려받을 수 없습니다.
-                    상실 신고는 <b>공단 Web EDI</b>에서 직접 진행해주세요.
+                    <b>Web EDI 상실신고 파일</b>은 준비 중이라 <b>공단 Web EDI</b>에서 직접 신고해 주세요.
                   </div>
                   <button
                     onClick={() => { setEdiGenerated(true); setTermChecklist((prev) => ({ ...prev, insurance: true })); }}
@@ -1130,7 +1129,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
               {/* 푸터 — 확정 */}
               <div className="px-5 py-3 border-t border-[var(--border)] bg-[var(--bg-card)] shrink-0">
                 {!allChecked && (
-                  <div className="text-[10px] text-center text-[var(--text-dim)] mb-2">모든 체크리스트를 완료해야 퇴사를 확정할 수 있습니다</div>
+                  <div className="text-[10px] text-center text-[var(--text-dim)] mb-2">체크리스트를 모두 완료하면 퇴사를 확정할 수 있습니다.</div>
                 )}
                 <div className="flex gap-2">
                   <button onClick={() => setShowTermModal(false)} className="px-4 py-2.5 rounded-xl text-xs font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition shrink-0">
@@ -1364,7 +1363,7 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
 
       {/* Helper text */}
       <p className="text-[10px] text-[var(--text-dim)] text-center">
-        "자동생성" 서류는 HR 템플릿에서 자동 생성되며, 직원 서명 후 체크됩니다.
+        자동생성 서류는 직원이 서명하면 체크됩니다.
       </p>
     </div>
   );
@@ -1419,7 +1418,7 @@ function AdminNotesSection({ employeeId, emp, queryClient }: { employeeId: strin
 
       {/* 노트 목록 */}
       {notes.length === 0 ? (
-        <div className="collect-empty">등록된 인사노트가 없습니다</div>
+        <div className="collect-empty">아직 인사노트가 없습니다.</div>
       ) : (
         <div className="empd-rows">
           {[...notes].reverse().map((n, i) => (
@@ -1495,7 +1494,7 @@ function RrnField({ employeeId }: { employeeId: string }) {
           )}
         </div>
       )}
-      <div className="text-[10px] text-[var(--text-dim)] mt-1">지급명세서(국세청 제출)에만 쓰입니다. 암호화 저장되고 화면에는 마스킹으로만 보입니다.</div>
+      <div className="text-[10px] text-[var(--text-dim)] mt-1">지급명세서에만 쓰이며 암호화되어 저장됩니다.</div>
     </div>
   );
 }

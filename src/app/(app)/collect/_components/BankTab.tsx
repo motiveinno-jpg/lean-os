@@ -693,14 +693,14 @@ export function BankTab({
       label: matchMode ? "매칭 제안 끄기" : "매칭 제안 켜기",
       source: "장부 대조",
       badge: matchTargets.length,
-      hint: "미매칭 입금 아래에 계산서 제안이 붙습니다. 입금 ↔ 계산서 ↔ 프로젝트. 확정은 줄에서 직접 합니다",
+      hint: "미매칭 입금에 맞는 계산서를 제안합니다.",
       onClick: () => setMatchMode((v) => !v),
     },
     rulesHelper,
     {
       label: aiAcctBusy ? "추천 중…" : "계정 추천 받기",
       source: "AI 추천",
-      hint: "증빙 없는 지출의 비목을 AI가 추천해 계정 칸을 미리 채웁니다 (한 번에 20건)",
+      hint: "증빙 없는 지출의 계정을 추천해 미리 채웁니다.",
       badge: suggestable, disabled: aiAcctBusy, onClick: runAcctSuggest,
     },
   ];
@@ -826,18 +826,18 @@ export function BankTab({
 
   const excelItems: ExcelItem[] = [
     { label: "조회 결과 전부 내려받기", count: shown.length,
-      hint: "지금 걸린 조건 그대로 · 표에 보이는 칸 그대로", onClick: () => download(shown, "") },
+      hint: "지금 조건과 표의 칸 그대로 내려받습니다.", onClick: () => download(shown, "") },
     { label: "지금 쪽만 내려받기", count: pager.view.length,
       hint: `${pager.from}–${pager.to}번째 줄만`, onClick: () => download(pager.view, `_${pager.page}쪽`) },
     { label: "계정 채우기 양식 내려받기", count: needAcct.length, disabled: needAcct.length === 0,
-      hint: "계정이 아직 없는 줄만 · 둘째 장 '붙여넣기용' 칸을 복사해 채우세요 (같은 이름이 여럿이라 코드가 필요합니다)",
+      hint: "계정이 없는 줄만 내려받아 엑셀에서 채웁니다.",
       onClick: () => downloadAccountFillSheet(
         needAcct.map((r) => ({
           id: r.id, date: r.date, who: r.who, memo: r.desc,
           amount: (r.isIn ? 1 : -1) * Math.abs(r.amount),
         })), accounts, `통장_계정채우기_${from}~${to}`) },
     { label: "채운 엑셀 올리기",
-      hint: "계정과목 칸만 채워 올리면 화면에 붙습니다. 전표는 확인 후 직접 만듭니다",
+      hint: "채운 계정과목을 화면에 불러옵니다.",
       onClick: () => fillRef.current?.click() },
   ];
 
@@ -964,7 +964,7 @@ export function BankTab({
         <Stat label="건수" value={`${won(shown.length)}건`} />
         <Stat label="입금" value={won(sumIn)} tone="plus" />
         <Stat label="출금" value={won(sumOut)} tone="minus" />
-        {capped && <b className="ev-cut">너무 많아 앞 20,000건만 받아왔습니다<span className="ui-sub">기간을 좁혀 주세요</span></b>}
+        {capped && <b className="ev-cut">앞 20,000건만 받아왔습니다.<span className="ui-sub">기간을 좁혀 주세요.</span></b>}
       </ResultStrip>
       </QueryHead>
 
@@ -972,13 +972,13 @@ export function BankTab({
       <QueryBody>
       {rowsError ? (
         <div className="collect-empty collect-empty-err">
-          통장 거래를 읽지 못했습니다 — {String((rowsError as any)?.message || "알 수 없는 오류")}
+          통장 거래를 읽지 못했습니다. {String((rowsError as any)?.message || "알 수 없는 오류")}
         </div>
       ) : isLoading ? (
         <div className="collect-empty">읽는 중…</div>
       ) : shown.length === 0 ? (
         <div className="collect-empty">
-          {live.todo === "todo" ? "처리할 통장 거래가 없습니다. 이 기간은 다 끝냈습니다." : "이 기간에 통장 거래가 없습니다."}
+          {live.todo === "todo" ? "처리할 통장 거래가 없습니다." : "이 기간에 통장 거래가 없습니다."}
         </div>
       ) : (
         <div className="ev-scroll">
@@ -1030,7 +1030,7 @@ export function BankTab({
                             onClick={() => setMatchPick(matchPick === r.id ? null : r.id)}>계산서 찾기</button>
                           {matchPick === r.id && (
                             <PickList items={invPickItems} placeholder="계산서 검색 (거래처·금액·프로젝트·발행일)"
-                              empty="최근 1년 미매칭 매출 계산서가 없습니다"
+                              empty="미매칭 매출 계산서가 없습니다."
                               onPick={(it) => { setMatchPick(null); confirmMatch(r, (it as any).inv); }}
                               onClose={() => setMatchPick(null)} />
                           )}
@@ -1120,7 +1120,7 @@ export function BankTab({
                     const picker = matchPick === r.id && (
                       <span className="relative inline-block">
                         <PickList items={invPickItems} placeholder="계산서 검색 (거래처·금액·프로젝트·발행일)"
-                          empty="최근 1년 미매칭 매출 계산서가 없습니다"
+                          empty="미매칭 매출 계산서가 없습니다."
                           onPick={(it) => { setMatchPick(null); confirmMatch(r, (it as any).inv); }}
                           onClose={() => setMatchPick(null)} />
                       </span>
@@ -1141,10 +1141,10 @@ export function BankTab({
                               return (
                               <span key={inv.id} className="bk-sug-row">
                                 <b>세금계산서 · {inv.counterparty_name || "거래처 없음"} · ₩{Number(inv.total_amount).toLocaleString("ko")}</b>
-                                <i className="ev-dim">({inv.issue_date} 발행)</i>
+                                <i className="ev-dim">{inv.issue_date} 발행</i>
                                 {why.map((w) => <em key={w} className="bk-sug-why">{w}</em>)}
                                 <i className="ev-dim">
-                                  → 따라오는 것: {follow.map((f, i) => <React.Fragment key={i}>{i > 0 && " · "}{f}</React.Fragment>)}
+                                  따라오는 것: {follow.map((f, i) => <React.Fragment key={i}>{i > 0 && " · "}{f}</React.Fragment>)}
                                 </i>
                                 <button type="button" className="btn-primary btn-sm" disabled={matchBusy === r.id}
                                   onClick={() => confirmMatch(r, inv)}>

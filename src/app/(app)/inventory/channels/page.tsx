@@ -215,7 +215,7 @@ export default function ChannelsPage() {
                 <option value="">채널 전체</option>
                 {CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
-              <span className="inv-hint">숫자를 누르면 그 조건으로 해당 갈래가 열립니다 · 금액은 <b>주문 금액</b>(수수료 정산 전) · 취소·반품은 채널 API 연동 후 반영</span>
+              <span className="inv-hint" title="금액은 수수료 정산 전 주문 금액입니다. 취소·반품은 채널 API 연동 후 반영됩니다">숫자를 누르면 해당 목록이 열립니다. 금액은 <b>주문 금액</b> 기준입니다.</span>
             </QueryBar>
           )}
           {tab === "import" && grid.head}
@@ -251,7 +251,7 @@ export default function ChannelsPage() {
               }>
                 <SimpleCond groups={[{ key: "channel", label: "채널", hint: "비우면 전체", options: chChips.map((c) => ({ value: c.value, label: c.label })) }]} live={cond} onApply={setCond} />
                 <QuickSearch value={q} onApply={setQ} placeholder="주문번호 · 주문자 · 수취인 · 연락처 · 주소 · 쉼표로 여러 개, Enter" />
-                <span className="inv-hint">등록된 주문번호는 <b>다시 가져와도 건너뜁니다</b> (재고 중복 차감 방지).</span>
+                <span className="inv-hint">등록된 주문번호는 <b>다시 가져와도 건너뜁니다</b>.</span>
               </QueryBar>
               <SimpleApplied groups={[{ key: "channel", label: "채널", options: chChips.map((c) => ({ value: c.value, label: c.label })) }]} live={cond} onApply={setCond} />
               <ResultStrip>
@@ -267,8 +267,7 @@ export default function ChannelsPage() {
             {tab === "status" && (
               imports.length === 0 ? (
                 <div className="collect-empty">
-                  아직 채널 주문이 없습니다.<br />
-                  <b>주문 가져오기</b>에서 판매채널 주문 엑셀을 붙여넣거나, 회사설정 › 연동·API 키에 스마트스토어·쿠팡 키를 등록하면 여기 현황이 채워집니다.
+                  아직 채널 주문이 없습니다. <b>주문 가져오기</b>에서 주문을 붙여넣으세요.
                 </div>
               ) : (
               <div className="p-3">
@@ -288,11 +287,11 @@ export default function ChannelsPage() {
                     <span className="text-[10px] text-[var(--text-dim)]">기간 내 {won(stData.done)}/{won(stData.total)}</span></button>
                   <button type="button" className={`pjv3-stcard ${counts.allCodes === 0 ? "warn" : ""}`} onClick={() => setTab("codes")}>
                     <span className="k">상품 연결</span><b className="v num">{won(counts.allCodes)}종</b>
-                    <span className="text-[10px] text-[var(--text-dim)]">{counts.allCodes === 0 ? "연결해야 이익 계산에 잡힙니다" : "채널 상품코드 ↔ SKU"}</span></button>
+                    <span className="text-[10px] text-[var(--text-dim)]">{counts.allCodes === 0 ? "연결하면 이익 계산에 잡힙니다." : "채널 상품코드 ↔ SKU"}</span></button>
                 </div>
                 <div className="ch-st-grid">
                   <div className="pjv3-stpanel">
-                    <h3>채널별 <small>막대 = 주문 금액 비중 · 줄을 누르면 그 채널 주문만</small></h3>
+                    <h3>채널별 <small>줄을 누르면 그 채널 주문만 봅니다.</small></h3>
                     <div className="stg-table-wrap"><table className="ev-table ev-lined ch-st-table">
                       <thead><tr><th className="text-left">채널</th><th>주문</th><th>금액</th><th>평균</th><th>출고 대기</th><th>완료율</th></tr></thead>
                       <tbody>
@@ -318,7 +317,7 @@ export default function ChannelsPage() {
                     </table></div>
                   </div>
                   <div className="pjv3-stpanel">
-                    <h3>일별 주문 <small>최근 14일 · 주문일 기준</small></h3>
+                    <h3>일별 주문 <small>최근 14일 주문 수입니다.</small></h3>
                     <div className="ch-st-flow">
                       {stData.days.map((d) => {
                         const max = Math.max(1, ...stData.days.map((x) => x.n));
@@ -331,7 +330,7 @@ export default function ChannelsPage() {
                         );
                       })}
                     </div>
-                    <h3 className="!mt-4">배송 흐름 <small>기간 내 · 칸을 누르면 출고 처리로</small></h3>
+                    <h3 className="!mt-4">배송 흐름 <small>칸을 누르면 출고 처리로 갑니다.</small></h3>
                     <div className="pjv3-stmoney">
                       <button type="button" className={`mstep ${stData.pending > 0 ? "ch-st-warn" : ""}`}
                         onClick={() => { ship.setView("pending"); setTab("ship"); }}>
@@ -346,7 +345,7 @@ export default function ChannelsPage() {
                   </div>
                 </div>
                 <div className="pjv3-stpanel !mt-3">
-                  <h3>수집 상태 <small>채널별 마지막으로 주문이 들어온 시각 · 오래 끊기면 빨간불</small></h3>
+                  <h3>수집 상태 <small>채널별 마지막 주문 시각입니다.</small></h3>
                   {stData.sync.map((s) => (
                     <div key={s.ch} className="ch-st-sync">
                       <b className="w-24">{s.label}</b>
@@ -362,7 +361,7 @@ export default function ChannelsPage() {
                       )}
                     </div>
                   ))}
-                  {stData.sync.length === 0 && <div className="collect-empty">아직 등록된 채널이 없습니다</div>}
+                  {stData.sync.length === 0 && <div className="collect-empty">아직 등록된 채널이 없습니다.</div>}
                 </div>
               </div>
               )
@@ -373,10 +372,7 @@ export default function ChannelsPage() {
             {tab === "codes" && (
               shownCodes.length === 0 ? (
                 <div className="collect-empty">
-                  연결된 상품이 없습니다. <b>+ 상품 연결</b>에서
-                  <b> 채널 상품코드</b>와 <b>SKU</b>를 연결하세요.<br />
-                  연결된 상품코드는 주문 가져오기에서 자동으로 품목에 대응됩니다.
-                  <span className="inv-soon-note">상품명으로 자동 대응하지 않는 이유 · 유사한 상품명이 잘못 대응되면 재고 오류로 이어집니다.</span>
+                  아직 연결된 상품이 없습니다. <b>+ 상품 연결</b>에서 채널 상품코드와 SKU 를 연결하세요.
                 </div>
               ) : (
                 <div className="stg-table-wrap">
@@ -420,7 +416,7 @@ export default function ChannelsPage() {
             {tab === "history" && (
               shownImports.length === 0 ? (
                 <div className="collect-empty">
-                  등록한 주문이 없습니다. <b>주문 가져오기</b>에서 엑셀을 붙여 넣어 등록하세요.
+                  아직 등록한 주문이 없습니다. <b>주문 가져오기</b>에서 등록하세요.
                 </div>
               ) : (
                 <div className="stg-table-wrap">
@@ -673,13 +669,13 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
           <button type="button" className="btn-secondary btn-sm" onClick={() => setImportOpen("paste")}>+ 주문 붙여넣기</button>
           {/*   ★ 2026-08-27 — 보조 동작은 '도구 ▾' 하나로(조회 줄 버튼 정리) */}
           <HelperMenu label="도구" items={[
-            { label: "채널순 정렬", source: "입력", hint: "줄을 채널별로 모아 전표가 채널마다 하나가 되게", disabled: ctl.live.length < 2, onClick: () => ctl.setRows((s) => [...sortByChannel(s.filter((r) => r.product_id || r.sku.trim() || r.ono.trim() || r.ccode.trim())), blankRow()]) },
-            { label: "입력 항목", source: "양식", hint: "격자에 어떤 칸을 둘지", onClick: ctl.openForm },
+            { label: "채널순 정렬", source: "입력", hint: "줄을 채널별로 모읍니다.", disabled: ctl.live.length < 2, onClick: () => ctl.setRows((s) => [...sortByChannel(s.filter((r) => r.product_id || r.sku.trim() || r.ono.trim() || r.ccode.trim())), blankRow()]) },
+            { label: "입력 항목", source: "양식", hint: "격자에 둘 칸을 고릅니다.", onClick: ctl.openForm },
           ]} />
           <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={save}>출고 등록</button>
         </>
       ) : undefined}>
-        <span className="inv-hint doc-note-move">저장하면 <b>재고가 즉시 차감</b>되고 주문번호가 기록됩니다. 채널마다 전표 한 건, 같은 주문번호는 중복 등록되지 않습니다.</span>
+        <span className="inv-hint doc-note-move" title="채널마다 전표 한 건씩 만들고 같은 주문번호는 중복 등록되지 않습니다">저장하면 <b>재고가 즉시 차감</b>되고 주문번호가 기록됩니다.</span>
       </QueryBar>
       <ResultStrip>
         <Stat label="줄" value={`${won(ctl.sums.lines)}개`} />
@@ -691,8 +687,8 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
         <Stat label="공급가액" value={`₩${won(ctl.sums.supply)}`} />
         <Stat label="합계" value={`₩${won(ctl.sums.total)}`} />
         <span className="spv-toolbar-hint">
-          가져온 줄의 채널 값(주문번호·수량·금액·배송 정보)은 <b>고칠 수 없습니다</b> · 연결된 품목은 자동, 미연결이면 품목만 고릅니다
-          {counts.nocode > 0 && <> · <button type="button" className="bz-link" onClick={goCodes}>상품 연결로 이동</button></>}
+          채널에서 가져온 값은 <b>고칠 수 없습니다</b>. 미연결 줄은 품목만 고릅니다.
+          {counts.nocode > 0 && <> <button type="button" className="bz-link" onClick={goCodes}>상품 연결로 이동</button></>}
         </span>
       </ResultStrip>
     </>
@@ -772,11 +768,8 @@ function PasteDialog({ tabs, pick, openForm, onClose, onRows }: { tabs?: React.R
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         {tabs}
         <h3 className="inv-modal-title">주문 엑셀 붙여넣기</h3>
-        <p className="inv-modal-desc">
-          열 순서: <b>주문번호 · 채널 상품코드 · 수량</b> · 단가 · 주문일 · 주문자 · <b>수취인 · 연락처 · 주소 · 배송 요청 · 우편번호</b>
-          
-          (4열부터는 선택 · 비우려면 빈 칸으로 두세요). 엑셀에서 해당 열을 복사해 붙여 넣으세요. 격자에 채워지기만 하고, 출고 등록은 따로 누릅니다.
-        
+        <p className="inv-modal-desc" title="격자에 채워지기만 하고 출고 등록은 따로 누릅니다">
+          열 순서: <b>주문번호 · 채널 상품코드 · 수량</b> · 단가 · 주문일 · 주문자 · <b>수취인 · 연락처 · 주소 · 배송 요청 · 우편번호</b>. 4열부터는 비워도 됩니다.
         </p>
         <FieldPickLine pick={pick} openForm={openForm} />
         <label className="inv-field"><span>채널 *</span>
@@ -820,10 +813,8 @@ function FetchDialog({ tabs, pick, openForm, onClose, onRows }: { tabs?: React.R
       <div className="inv-modal-box" onClick={(e) => e.stopPropagation()}>
         {tabs}
         <h3 className="inv-modal-title">채널에서 주문 가져오기</h3>
-        <p className="inv-modal-desc">
-          설정에 API 키가 등록된 채널({apiChannels.map((c) => c.label).join(" · ")})의 결제 완료 주문을 <b>한 번에</b>  받아
-          채널순으로 격자에 채웁니다. 재고에는 아직 반영되지 않습니다. 확인 후  <b>출고 등록</b>을 누르세요.
-          나머지 채널은 엑셀 붙여넣기를 이용합니다.
+        <p className="inv-modal-desc" title="API 키가 등록된 채널만 받습니다. 나머지 채널은 엑셀 붙여넣기를 씁니다">
+          {apiChannels.map((c) => c.label).join(" · ")} 채널의 결제 완료 주문을 받아 격자에 채웁니다. 확인 후 <b>출고 등록</b>을 누르세요.
         </p>
         <FieldPickLine pick={pick} openForm={openForm} />
         <div className="inv-field">
@@ -952,13 +943,13 @@ function useShipPanel({ companyId, userId, imports, products, canWrite, onDone }
         <Stat label="출고 대기" value={`${counts.pending}건`} tone={counts.pending ? "minus" : undefined} />
         <Stat label="발송됨" value={`${counts.shipped}건`} />
         <Stat label="배송 완료" value={`${counts.done}건`} />
-        <span className="spv-toolbar-hint">줄을 고르면 아래에 <b>발송 처리</b>가 뜹니다 · 재고는 출고 등록 때 이미 차감됐고 여기서는 <b>실제 발송</b>만 기록합니다</span>
+        <span className="spv-toolbar-hint" title="재고는 출고 등록 때 이미 차감되었고 여기서는 실제 발송만 기록합니다">줄을 고르면 아래에 <b>발송 처리</b>가 뜹니다.</span>
       </ResultStrip>
     </>
   );
 
   const body = imports.length === 0 ? (
-    <div className="collect-empty">출고 등록한 채널 주문이 없습니다 — <b>주문 가져오기</b>에서 출고 등록하면 여기에 출고 대기로 쌓입니다.</div>
+    <div className="collect-empty">아직 출고 등록한 주문이 없습니다. <b>주문 가져오기</b>에서 출고 등록하세요.</div>
   ) : shown.length === 0 ? (
     <div className="collect-empty">{SHIP_VIEWS.find(([k]) => k === view)?.[1]} 주문이 없습니다.</div>
   ) : (
@@ -1060,9 +1051,8 @@ function SheetDialog({ companyId, userId, count, onClose, onExport }: {
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">송장 파일 내려받기 — {count}건</h3>
-        <p className="inv-modal-desc">
-          택배사 양식을 고르면 그 열 순서·머리글로 엑셀이 만들어집니다. 택배사가 양식을 바꾸기도 하니 처음 한 번 올려 보고,
-          안 맞으면 <b>내 양식으로 복사</b>해 열을 고쳐 두세요. 고른 양식은 이 컴퓨터에 기억됩니다.
+        <p className="inv-modal-desc" title="고른 양식은 이 컴퓨터에 기억됩니다">
+          택배사 양식을 고르면 그 열 순서로 엑셀을 만듭니다. 안 맞으면 <b>내 양식으로 복사</b>해 고치세요.
         </p>
         <label className="inv-field"><span>양식</span>
           <select className="field-input" value={pick} onChange={(e) => setPick(e.target.value)}>
@@ -1113,7 +1103,7 @@ function SheetLayoutEditor({ layout, onClose, onSave }: { layout: SheetLayout; o
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">{layout.id ? "양식 고치기" : "내 양식 만들기"}</h3>
-        <p className="inv-modal-desc">택배사 프로그램이 요구하는 열 순서대로 놓고, 머리글은 그 프로그램의 이름 그대로 적습니다. 자리 맞춤이 필요하면 (빈 칸)을 넣습니다.</p>
+        <p className="inv-modal-desc" title="자리 맞춤이 필요하면 빈 칸을 넣습니다">택배사 프로그램이 요구하는 열 순서와 머리글대로 놓습니다.</p>
         <label className="inv-field"><span>양식 이름 *</span>
           <input className="field-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: CJ 우리회사용" /></label>
         <div className="ch-sheet-edit">
@@ -1159,7 +1149,7 @@ function ShipDialog({ rows, itemText, onClose, onSave }: {
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">발송 처리 — {rows.length}건</h3>
-        <p className="inv-modal-desc">택배사를 고르고 송장번호를 적습니다. 송장번호 없이도 발송으로 기록할 수 있습니다(직접 배달·방문 수령). 재고는 이미 차감돼 있어 변하지 않습니다.</p>
+        <p className="inv-modal-desc" title="재고는 이미 차감되어 변하지 않습니다">택배사를 고르고 송장번호를 적습니다. 송장번호 없이도 발송으로 기록할 수 있습니다.</p>
         <label className="inv-field"><span>택배사 *</span>
           <select className="field-input" value={carrier} onChange={(e) => setCarrier(e.target.value)}>
             {CARRIERS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -1209,7 +1199,7 @@ function PasteTrackingDialog({ imports, onClose, onSave }: {
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">송장번호 붙여넣기</h3>
-        <p className="inv-modal-desc">택배사 프로그램에서 받은 <b>주문번호 · 송장번호</b> 두 열을 붙여 넣으면 주문번호로 맞춰 발송 처리됩니다.</p>
+        <p className="inv-modal-desc"><b>주문번호 · 송장번호</b> 두 열을 붙여 넣으면 발송 처리됩니다.</p>
         <label className="inv-field"><span>택배사 *</span>
           <select className="field-input" value={carrier} onChange={(e) => setCarrier(e.target.value)}>
             {CARRIERS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -1258,7 +1248,7 @@ function BulkCodeDialog({ companyId, channel: init, products, existing, onClose,
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">상품 연결 엑셀 붙여넣기</h3>
-        <p className="inv-modal-desc">열 순서: <b>채널 상품코드 · SKU</b> · 채널 상품명(선택). 같은 코드가 이미 있으면 새 연결로 바뀝니다.</p>
+        <p className="inv-modal-desc">열 순서: <b>채널 상품코드 · SKU</b> · 채널 상품명. 같은 코드가 있으면 새 연결로 바뀝니다.</p>
         <label className="inv-field"><span>채널 *</span>
           <select className="field-input" value={channel} onChange={(e) => setChannel(e.target.value as ChannelValue)}>
             {CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -1305,7 +1295,7 @@ function CodeDialog({ companyId, channel, products, onClose, onSaved }: {
       <div className="inv-modal-box" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">{channelLabel(channel)} 상품 연결</h3>
         <p className="inv-modal-desc">
-          채널 상품코드와 품목을 <b>한 번</b> 연결합니다. 이후 주문 가져오기에서 자동으로 품목에 대응됩니다.
+          채널 상품코드와 품목을 <b>한 번</b> 연결하면 주문 가져오기에서 자동으로 맞춥니다.
         </p>
         <label className="inv-field"><span>채널 상품코드 *</span>
           <input className="field-input" value={code} onChange={(e) => setCode(e.target.value)}

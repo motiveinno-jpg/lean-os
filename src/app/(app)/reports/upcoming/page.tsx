@@ -129,7 +129,7 @@ export default function UpcomingPage() {
             </table>
           </div>
           <Pager page={pager.page} pages={pager.pages} total={rows.length} from={pager.from} to={pager.to} size={50} onPage={pager.setPage} />
-          <p className="mt-2 text-[11px] text-[var(--text-dim)]">'그때 잔액'은 오늘 잔액에서 그날까지 예정을 반영한 값(전망 곡선과 같음). 30일 넘은 미수·발행 30일 지난 미지급은 날짜를 몰라 여기 없습니다. 전망의 '틀릴 수 있는 곳'.</p>
+          <p className="mt-2 text-[11px] text-[var(--text-dim)]">그때 잔액은 오늘 잔액에 그날까지의 예정을 반영한 값입니다.</p>
         </>
       )}
     </>

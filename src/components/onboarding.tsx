@@ -554,12 +554,12 @@ function StepCompanyInfo({ data, set, isCompleted }: { data: any; set: (d: any) 
     <div className="step-company-info">
       <StepHeader
         title="회사 기본 정보"
-        desc="사업자 정보를 입력하세요. 세금계산서, 문서 생성에 사용됩니다."
+        desc="사업자 정보를 입력합니다."
         icon="building"
-        whyItMatters="정확한 사업자 정보는 세금계산서 발행, 계약서 작성 등 모든 공식 문서의 기반이 됩니다."
+        whyItMatters="세금계산서와 계약서 등 공식 문서에 쓰입니다."
       />
       {isCompleted && (
-        <CompletedBadge message="이미 회사 정보가 등록되어 있습니다. 수정하거나 다음 단계로 넘어가세요." />
+        <CompletedBadge message="회사 정보가 이미 등록되어 있습니다." />
       )}
       <div className="space-y-3">
         <Field label="회사명 *" value={data.companyName} onChange={(v) => set({ ...data, companyName: v })} placeholder="주식회사 예시" />
@@ -571,7 +571,7 @@ function StepCompanyInfo({ data, set, isCompleted }: { data: any; set: (d: any) 
         <Field label="사업장 주소" value={data.address} onChange={(v) => set({ ...data, address: v })} placeholder="서울시 강남구..." />
         <Field label="대표 전화" value={data.phone} onChange={(v) => set({ ...data, phone: v })} placeholder="02-1234-5678" />
       </div>
-      <LinkHint href="/settings" label="설정 페이지에서 더 상세한 회사 정보를 관리할 수 있습니다" />
+      <LinkHint href="/settings" label="자세한 회사 정보는 설정에서 관리합니다." />
     </div>
   );
 }
@@ -594,12 +594,12 @@ function StepBankSetup({ banks, form, setForm, add, remove, isCompleted }: {
     <div className="step-bank-setup">
       <StepHeader
         title="법인통장 등록"
-        desc="회사 통장을 등록하면 잔고 현황과 거래 내역을 관리할 수 있습니다."
+        desc="회사 통장을 등록합니다."
         icon="bank"
-        whyItMatters="통장을 등록하면 자금 흐름(캐시플로우)을 자동 추적하고 런웨이를 계산할 수 있습니다."
+        whyItMatters="잔고와 거래 내역을 자동으로 추적합니다."
       />
       {isCompleted && (
-        <CompletedBadge message="통장이 이미 등록되어 있습니다. 추가 등록하거나 다음으로 넘어가세요." />
+        <CompletedBadge message="통장이 이미 등록되어 있습니다." />
       )}
 
       {/* Added banks */}
@@ -658,7 +658,7 @@ function StepBankSetup({ banks, form, setForm, add, remove, isCompleted }: {
           + 통장 추가
         </button>
       </div>
-      <LinkHint href="/settings?tab=cash" label="설정 > 자금·통장 탭에서 더 상세하게 관리할 수 있습니다" />
+      <LinkHint href="/settings?tab=cash" label="통장은 설정의 자금·통장 탭에서 관리합니다." />
     </div>
   );
 }
@@ -673,12 +673,12 @@ function StepEmployeeSetup({ employees, form, setForm, add, remove, isCompleted 
     <div className="step-employee-setup">
       <StepHeader
         title="직원 등록"
-        desc="팀원을 등록하면 근태, 급여, 경비 관리를 바로 시작할 수 있습니다."
+        desc="팀원을 등록합니다."
         icon="people"
-        whyItMatters="직원 등록은 급여 관리, 4대보험 처리, 근태 관리의 첫 단계입니다."
+        whyItMatters="급여와 근태 관리의 첫 단계입니다."
       />
       {isCompleted && (
-        <CompletedBadge message="직원이 이미 등록되어 있습니다. 추가 등록하거나 다음으로 넘어가세요." />
+        <CompletedBadge message="직원이 이미 등록되어 있습니다." />
       )}
 
       {employees.length > 0 && (
@@ -712,7 +712,7 @@ function StepEmployeeSetup({ employees, form, setForm, add, remove, isCompleted 
           + 직원 추가
         </button>
       </div>
-      <LinkHint href="/employees" label="직원 관리 페이지에서 급여, 근태까지 상세 설정할 수 있습니다" />
+      <LinkHint href="/employees" label="급여와 근태는 직원 관리에서 설정합니다." />
     </div>
   );
 }
@@ -731,12 +731,12 @@ function StepFirstDeal({ dealName, setDealName, dealType, setDealType, dealAmoun
     <div className="step-first-deal">
       <StepHeader
         title="첫 프로젝트(거래) 만들기"
-        desc="매출이든 비용이든, 첫 번째 거래를 등록하면 대시보드가 활성화됩니다."
+        desc="첫 거래를 등록하면 대시보드가 열립니다."
         icon="sparkles"
-        whyItMatters="프로젝트는 OwnerView의 핵심 단위입니다. 매출/비용 추적, 문서 관리가 모두 프로젝트 기반으로 동작합니다."
+        whyItMatters="매출과 비용, 문서가 모두 프로젝트 단위로 관리됩니다."
       />
       {isCompleted && (
-        <CompletedBadge message="거래가 이미 등록되어 있습니다. 추가하거나 완료로 넘어가세요." />
+        <CompletedBadge message="거래가 이미 등록되어 있습니다." />
       )}
 
       <div className="space-y-4">
@@ -959,12 +959,12 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
     <div className="step-cert-registration">
       <StepHeader
         title="공동인증서 등록"
-        desc="공동인증서(구 공인인증서)를 등록하면 은행, 카드, 홈택스가 자동 연동됩니다."
+        desc="공동인증서를 등록하면 은행과 카드, 홈택스가 자동 연동됩니다."
         icon="tax"
-        whyItMatters="인증서 한 번 등록으로 은행 거래내역, 카드 승인내역, 세금계산서를 모두 자동 수집할 수 있습니다."
+        whyItMatters="한 번 등록으로 거래 내역과 세금계산서를 자동 수집합니다."
       />
       {(isCompleted || data.registered) && (
-        <CompletedBadge message={`공동인증서가 등록되어 있습니다.${data.connectedId ? ` (연결 ID: ${data.connectedId.slice(0, 8)}...)` : ""}`} />
+        <CompletedBadge message={`공동인증서가 등록되어 있습니다.${data.connectedId ? ` 연결 ID ${data.connectedId.slice(0, 8)}` : ""}`} />
       )}
 
       {!data.registered && (
@@ -999,7 +999,7 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
               {engineStatus === "loading" && (
                 <div className="flex items-center justify-center gap-2 py-6 text-sm text-[var(--text-muted)]">
                   <span className="animate-spin w-4 h-4 border-2 border-[var(--primary)] border-t-transparent rounded-full" />
-                  CodefCert 엔진 연결 중...
+                  인증서 프로그램 연결 중...
                 </div>
               )}
 
@@ -1011,8 +1011,8 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
                     </svg>
                     <div className="text-[11px] text-[var(--warning)] leading-relaxed">
                       <p className="font-semibold mb-1">CodefCert 프로그램이 설치되어 있지 않습니다</p>
-                      <p>PC에 저장된 공동인증서를 자동으로 불러오려면 아래에서 CodefCert 프로그램을 설치해주세요.</p>
-                      <p className="mt-1">또는 &quot;PFX 파일 직접 업로드&quot; 탭을 사용하세요.</p>
+                      <p>PC의 인증서를 불러오려면 아래에서 프로그램을 설치하세요.</p>
+                      <p className="mt-1">또는 PFX 파일 직접 업로드 탭을 이용하세요.</p>
                     </div>
                   </div>
                   {(() => {
@@ -1031,7 +1031,7 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
                           CodefCert 프로그램 다운로드 (최신 2.1.0)
                         </a>
                         <p className="text-[11px] text-center text-[var(--text-muted)]">
-                          설치 후 이 화면을 새로고침하면 인증서를 자동으로 불러옵니다 ·{" "}
+                          설치 후 새로고침하면 인증서를 불러옵니다 ·{" "}
                           <a href={otherHref} download className="underline hover:text-[var(--text)]">{otherLabel}</a>
                         </p>
                       </div>
@@ -1187,13 +1187,13 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
             </svg>
             <p className="text-[11px] text-[var(--info)] leading-relaxed">
               {mode === "engine"
-                ? "PC에 설치된 공동인증서를 CodefCert 프로그램이 자동으로 찾아 추출합니다. 인증서는 암호화되어 안전하게 전송됩니다."
-                : "PFX 파일은 은행 인터넷뱅킹에서 \"인증서 내보내기\"로 발급받을 수 있습니다. 인증서는 암호화되어 안전하게 전송되며, 금융 데이터 조회에만 사용됩니다."}
+                ? "인증서는 암호화되어 안전하게 전송됩니다."
+                : "PFX 파일은 인터넷뱅킹의 인증서 내보내기로 받을 수 있습니다. 인증서는 암호화되어 금융 조회에만 사용됩니다."}
             </p>
           </div>
         </div>
       )}
-      <LinkHint href="/settings?tab=certificate" label="설정 > 인증서 탭에서 인증서를 관리할 수 있습니다" />
+      <LinkHint href="/settings?tab=certificate" label="인증서는 설정의 인증서 탭에서 관리합니다." />
     </div>
   );
 }
@@ -1233,12 +1233,12 @@ function StepCodefConnect({ data, set, isCompleted }: {
     <div className="step-codef-connect">
       <StepHeader
         title="금융 데이터 자동 연동"
-        desc="은행 거래내역, 카드 승인내역, 홈택스 세금계산서를 자동 수집합니다."
+        desc="은행과 카드, 홈택스 자료를 자동 수집합니다."
         icon="card"
-        whyItMatters="인증서 등록 후 연동할 은행/카드를 선택하면 거래 수기 입력이 불필요해지고, 홈택스 세금계산서도 자동 수집됩니다."
+        whyItMatters="연동하면 거래를 직접 입력할 필요가 없습니다."
       />
       {isCompleted && (
-        <CompletedBadge message="금융 데이터 연동이 설정되어 있습니다. 변경하거나 다음으로 넘어가세요." />
+        <CompletedBadge message="금융 연동이 이미 설정되어 있습니다." />
       )}
 
       <div className="space-y-4">
@@ -1304,13 +1304,12 @@ function StepCodefConnect({ data, set, isCompleted }: {
         {(data.banks.length === 0 && data.cards.length === 0) && (
           <div className="codef-no-selection-notice">
             <p className="text-xs text-[var(--text-dim)]">
-              금융 연동 없이도 <strong>엑셀/CSV 업로드</strong>로 거래내역을 관리할 수 있습니다.
-              나중에 설정 페이지에서 연동할 수 있습니다.
+              연동 없이도 <strong>엑셀/CSV 업로드</strong>로 거래내역을 관리할 수 있습니다.
             </p>
           </div>
         )}
       </div>
-      <LinkHint href="/settings?tab=bank" label="설정 > 은행연동 탭에서 금융 연동을 상세 관리할 수 있습니다" />
+      <LinkHint href="/settings?tab=bank" label="금융 연동은 설정의 은행연동 탭에서 관리합니다." />
     </div>
   );
 }
@@ -1342,8 +1341,8 @@ function StepComplete({ status }: { status: CompletionStatus }) {
       </h2>
       <p className="text-sm text-[var(--text-muted)] mb-6 text-center">
         {doneCount === totalCount
-          ? "OwnerView가 준비되었습니다. 대시보드에서 바로 시작하세요!"
-          : `${doneCount}/${totalCount} 단계를 완료했습니다. 나머지는 나중에 설정할 수 있습니다.`
+          ? "대시보드에서 바로 시작하세요."
+          : `${doneCount}/${totalCount} 단계를 완료했습니다.`
         }
       </p>
 

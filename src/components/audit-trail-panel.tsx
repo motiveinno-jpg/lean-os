@@ -64,7 +64,7 @@ export function AuditTrailPanel({ companyId }: { companyId: string | null }) {
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-sm font-bold">변경 이력</h3>
-          <p className="text-[11px] text-[var(--text-muted)] mt-0.5">누가 언제 무엇을 바꿨나 · 전표·급여명세·서명·결재·파일·프로젝트·회계마감. 이 기록은 지우거나 고칠 수 없습니다. 급여는 금액 없이 발급 사실만 남습니다.</p>
+          <p className="text-[11px] text-[var(--text-muted)] mt-0.5" title="이 기록은 지우거나 고칠 수 없습니다. 급여는 금액 없이 발급 사실만 남습니다.">누가 언제 무엇을 바꿨는지 기록합니다.</p>
         </div>
       </div>
       <div className="at-bar">
@@ -72,7 +72,7 @@ export function AuditTrailPanel({ companyId }: { companyId: string | null }) {
         <SimpleCond groups={COND_GROUPS} live={cond} onApply={setCond} />
         <QuickSearch value={q} onApply={setQ} placeholder="사람 · 종류 · 동작 · 내용 · 쉼표로 여러 개, Enter" />
         <span className="doc-sums-sp" />
-        <span className="ev-dim">{shown.length.toLocaleString("ko")}건{rows.length >= 3000 ? " (3,000건까지만 · 기간을 줄이세요)" : ""}</span>
+        <span className="ev-dim">{shown.length.toLocaleString("ko")}건{rows.length >= 3000 ? " · 3,000건까지만 표시됩니다." : ""}</span>
       </div>
       <SimpleApplied groups={COND_GROUPS} live={cond} onApply={setCond} />
       <div className="stg-table-wrap at-scroll">

@@ -25,9 +25,9 @@ export default function OrdersPage() {
       perm="/inventory/orders"
       saveActions={[{ key: "save", label: "주문서 저장", primary: true, hint: "재고에 반영되지 않습니다" }]}
       headNote={
-        <span className="inv-hint doc-note-safe">
-          입력한 내용은 <b>재고에 반영되지 않습니다</b> · 판매·구매·생산에서 불러와 저장할 때 반영됩니다.
-        
+        <span className="inv-hint doc-note-safe" title="판매·구매·생산에서 불러와 저장할 때 반영됩니다">
+          주문서는 <b>재고에 반영되지 않습니다</b>.
+
         </span>
       }
       onImport={async ({ docs, ctl }) => {

@@ -213,7 +213,7 @@ export default function ExpensePage() {
       {!s.loading && (
         <section className="pnl-panel">
           <h3>고정비 · 정기 지출<span className="ui-sub">등록값 vs 실제</span></h3>
-          <p>정기 지출·고정비에 등록한 월액과 이 기간 실제(이름으로 찾은 전표, 전표가 없으면 통장 출금)를 나란히. 10% 넘게 다르면 '확인' · 판단은 사람이. 이름이 달라 못 찾은 것은 '없음'(등록 이름과 거래처·적요를 맞춰 주세요)</p>
+          <p>등록한 월액과 실제 지출을 나란히 봅니다. 10% 넘게 다르면 확인 표시가 붙습니다.</p>
           <div className="pnl-tbl-wrap">
             <table className="ev-table ev-lined pnl-mini-table">
               <thead><tr><th className="text-left">항목</th><th>출처</th><th>등록(월)</th><th>기간 등록</th><th>기간 실제</th><th>차이</th><th>근거</th><th>결제일</th></tr></thead>

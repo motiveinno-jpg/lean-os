@@ -272,27 +272,27 @@ export default function InventoryStatusPage() {
   const empty = !movesLoading && moves.length === 0 && orders.length === 0;
 
   const nm = (id: string) => productById.get(id)?.name || "?";
-  const openShort = () => setDetail({ title: `재고 부족 ${stock.short}개`, desc: "안전재고 아래로 내려간 품목 · 창고 합계 기준", head: ["품목", "현재고", "안전재고", "모자람"],
+  const openShort = () => setDetail({ title: `재고 부족 ${stock.short}개`, desc: "안전재고 아래로 내려간 품목입니다.", head: ["품목", "현재고", "안전재고", "모자람"],
     rows: stock.shortList.sort((a, b) => (a.qty - (a.p.safety_stock || 0)) - (b.qty - (b.p.safety_stock || 0))).map(({ p, qty }) => [<b key="n">{p.name}</b>, won(qty), won(p.safety_stock || 0), won((p.safety_stock || 0) - qty)]),
     go: { href: "/inventory/purchase?fill=1", label: "구매 입력에서 부족분 채우기 →" } });
-  const openSoon = () => setDetail({ title: `곧 부족 ${stock.soonList.length}개`, desc: "최근 30일 출고 속도로 보면 리드타임 안에 바닥나는 품목 · 출처: 장부 대조(안전재고 없이도 잡힘)", head: ["품목", "현재고", "일 출고", "N일 뒤 0", "제안 수량"],
+  const openSoon = () => setDetail({ title: `곧 부족 ${stock.soonList.length}개`, desc: "지금 속도면 리드타임 안에 바닥나는 품목입니다.", head: ["품목", "현재고", "일 출고", "N일 뒤 0", "제안 수량"],
     rows: stock.soonList.map(({ p, qty, days, need }) => [<b key="n">{p.name}</b>, won(qty), (outflow?.get(p.id)?.perDay ?? 0).toFixed(1), `${days}일`, won(need)]),
     go: { href: "/inventory/purchase?fill=1", label: "구매 입력에서 부족분 채우기 →" } });
-  const openStale = () => setDetail({ title: `90일 무출고 ${stock.staleList.length}개`, desc: "재고는 있는데 90일 안에 판매·소비가 없는 품목 · 잠긴 돈. 처분·할인·창고 정리 검토", head: ["품목", "현재고", "재고 금액(원가)"],
+  const openStale = () => setDetail({ title: `90일 무출고 ${stock.staleList.length}개`, desc: "90일 동안 나가지 않은 품목입니다.", head: ["품목", "현재고", "재고 금액(원가)"],
     rows: stock.staleList.map(({ p, qty }) => [<b key="n">{p.name}</b>, won(qty), `₩${won(qty * (costOf(p.id) ?? 0))}`]), go: { href: "/inventory/stock", label: "창고관리로 →" } });
-  const openDefectOld = () => setDetail({ title: `불량 보류 30일 초과 ${defectOld.length}품목`, desc: "불량 보류 창고에 30일 넘게 있는 것 · 재작업·폐기를 정하세요", head: ["품목", "수량", "들어온 날", "경과"],
+  const openDefectOld = () => setDetail({ title: `불량 보류 30일 초과 ${defectOld.length}품목`, desc: "불량 보류 창고에 30일 넘게 있는 품목입니다.", head: ["품목", "수량", "들어온 날", "경과"],
     rows: defectOld.map((d) => [<b key="n">{nm(d.product_id)}</b>, won(d.qty), d.since, `${d.days}일`]), go: { href: "/inventory/production", label: "생산 › 도구 › 불량 처분 →" } });
-  const openOut = () => setDetail({ title: `품절 ${stock.out}개`, desc: "현재고가 0 이하인 품목", head: ["품목", "현재고", "안전재고"],
+  const openOut = () => setDetail({ title: `품절 ${stock.out}개`, desc: "현재고가 0 이하인 품목입니다.", head: ["품목", "현재고", "안전재고"],
     rows: stock.outList.map(({ p, qty }) => [<b key="n">{p.name}</b>, won(qty), p.safety_stock != null ? won(p.safety_stock) : "—"]), go: { href: "/inventory/purchase?fill=1", label: "구매 입력에서 부족분 채우기 →" } });
-  const openNoVoucher = () => setDetail({ title: `전표 없는 판매 ${sale.noVoucher}건`, desc: "재고는 나갔지만 회계 전표가 아직 없는 판매 문서", head: ["일자", "문서", "거래처", "합계"],
+  const openNoVoucher = () => setDetail({ title: `전표 없는 판매 ${sale.noVoucher}건`, desc: "아직 회계 전표가 없는 판매 문서입니다.", head: ["일자", "문서", "거래처", "합계"],
     rows: sale.noVoucherDocs.map((d) => [d.doc_date, <b key="n">{d.doc_no}</b>, d.partner_id ? partnerName.get(d.partner_id) || "—" : "—", `₩${won(d.supply + d.vat)}`]), go: { href: "/partners/reconciliation/sale-purchase", label: "매입매출전표 › 증빙에서 불러오기 →" } });
-  const openLate = () => setDetail({ title: `납기 지난 주문 ${order.late.length}건`, desc: "납기가 지났는데 잔량이 남은 주문", head: ["번호", "거래처", "납기", "지난 날", "잔량"],
+  const openLate = () => setDetail({ title: `납기 지난 주문 ${order.late.length}건`, desc: "납기가 지났는데 잔량이 남은 주문입니다.", head: ["번호", "거래처", "납기", "지난 날", "잔량"],
     rows: order.late.map((r) => [<b key="n">{r.o.order_no}</b>, r.o.partner_name || partnerName.get(r.o.partner_id || "") || "—", r.o.due_date || "—", r.dday == null ? "—" : `D+${-r.dday}`, won(r.remain)]), go: { href: "/inventory/orders", label: "주문으로 →" } });
-  const openOpen = () => setDetail({ title: `열린 주문 잔량 ${order.open.length}건`, desc: "아직 다 채우지 못한 주문", head: ["번호", "거래처", "납기", "주문", "가져간", "잔량"],
+  const openOpen = () => setDetail({ title: `열린 주문 잔량 ${order.open.length}건`, desc: "아직 다 채우지 못한 주문입니다.", head: ["번호", "거래처", "납기", "주문", "가져간", "잔량"],
     rows: order.open.map((r) => [<b key="n">{r.o.order_no}</b>, r.o.partner_name || partnerName.get(r.o.partner_id || "") || "—", r.o.due_date || "—", won(r.ordered), won(r.used), won(r.remain)]), go: { href: "/inventory/orders", label: "주문으로 →" } });
-  const openMatShort = () => setDetail({ title: `자재 부족 ${make.shortage.length}품목`, desc: "열린 주문 잔량 × 자재구성 − 현재고", head: ["자재", "필요", "현재고", "부족"],
+  const openMatShort = () => setDetail({ title: `자재 부족 ${make.shortage.length}품목`, desc: "열린 주문을 만드는 데 모자라는 자재입니다.", head: ["자재", "필요", "현재고", "부족"],
     rows: make.shortage.map((x) => [<b key="n">{nm(x.product_id)}</b>, won(x.need), won(x.have), won(x.need - x.have)]), go: { href: "/inventory/purchase?fill=1", label: "구매 입력에서 부족분 채우기 →" } });
-  const openDefect = () => setDetail({ title: `불량 보류 ${won(make.defectOnhand)}개`, desc: "불량 보류 창고의 재고 · 처분은 생산 › 도구 › 불량 처분", head: ["품목", "수량", "금액(이동평균)"],
+  const openDefect = () => setDetail({ title: `불량 보류 ${won(make.defectOnhand)}개`, desc: "불량 보류 창고의 재고입니다.", head: ["품목", "수량", "금액(이동평균)"],
     rows: defectWh ? onhand.filter((o) => o.warehouse_id === defectWh && Number(o.qty) > 0).map((o) => [<b key="n">{nm(o.product_id)}</b>, won(Number(o.qty)), `₩${won(Number(o.qty) * (costOf(o.product_id) ?? 0))}`]) : [], go: { href: "/inventory/production", label: "생산 › 불량 처분 →" } });
   const stats: Record<Tab, React.ReactNode> = {
     all: (<>
@@ -362,7 +362,7 @@ export default function InventoryStatusPage() {
             }}>엑셀</button>
           }>
             <DateRangeField from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
-            <span className="inv-hint">취소 전표는 빠지고 반품은 뺀 순 금액 · 원가는 이동평균(없으면 매입가)</span>
+            <span className="inv-hint" title="취소 전표는 빼고 반품은 차감한 순 금액입니다. 원가는 이동평균, 없으면 매입가">반품을 뺀 순 금액 기준입니다.</span>
           </QueryBar>
           <ResultStrip>{stats[tab]}</ResultStrip>
         </QueryHead>
@@ -370,52 +370,52 @@ export default function InventoryStatusPage() {
         <QueryBody>
           <div className="inv-scroll inv-status">
             {movesLoading ? <div className="collect-empty">불러오는 중…</div> : empty ? (
-              <div className="collect-empty">이 기간에 전표·주문이 없습니다. 판매·구매·생산·주문에서 저장하면 여기에 집계됩니다.</div>
+              <div className="collect-empty">아직 이 기간에 전표가 없습니다. 판매·구매·생산에서 저장하면 여기에 집계됩니다.</div>
             ) : (
               <>
                 {tab === "all" && (<>
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
-                      <h3>일별 매출 · 매입</h3><p>판매 전표(반품 뺀 순액)와 매입 전표</p>
+                      <h3>일별 매출 · 매입</h3><p>반품을 뺀 판매와 매입 금액입니다.</p>
                       <LineChart height={200} unit="원" yFmt={wonShort} series={[
                         { name: "매출", points: series(sale.perDay) }, { name: "매입", points: series(buy.perDay) },
                       ]} />
                       <Legend items={[{ name: "매출", color: vizColor(0) }, { name: "매입", color: vizColor(1) }]} />
                     </div>
                     <div className="pnl-panel">
-                      <h3>많이 팔린 품목</h3><p>기간 판매 금액 상위 10</p>
-                      {sale.perProduct.size ? <BarChart data={topN(sale.perProduct)} unit="원" /> : <div className="inv-status-empty">판매가 없습니다</div>}
+                      <h3>많이 팔린 품목</h3><p>판매 금액 상위 10개 품목입니다.</p>
+                      {sale.perProduct.size ? <BarChart data={topN(sale.perProduct)} unit="원" /> : <div className="inv-status-empty">판매가 없습니다.</div>}
                     </div>
                   </div>
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
-                      <h3>바로 처리할 것</h3><p>숫자를 누르면 어떤 건인지 목록이 뜨고, 목록에서 그 화면으로 갑니다</p>
+                      <h3>바로 처리할 것</h3><p>숫자를 누르면 목록이 열립니다.</p>
                       <ul className="inv-status-todo inv-status-todo-btn">
-                        <li><button type="button" onClick={openShort}>재고 부족 <b>{stock.short}</b></button> · <button type="button" onClick={openOut}>품절 <b>{stock.out}</b></button> <span className="ev-dim">— 구매 입력에 부족분 채우기</span></li>
-                        <li><button type="button" onClick={openNoVoucher}>전표 없는 판매 <b>{sale.noVoucher}건</b></button> <span className="ev-dim">— 매입매출전표 › 증빙에서 불러오기</span></li>
+                        <li><button type="button" onClick={openShort}>재고 부족 <b>{stock.short}</b></button> · <button type="button" onClick={openOut}>품절 <b>{stock.out}</b></button> <span className="ev-dim">구매 입력에서 채웁니다.</span></li>
+                        <li><button type="button" onClick={openNoVoucher}>전표 없는 판매 <b>{sale.noVoucher}건</b></button> <span className="ev-dim">매입매출전표에서 만듭니다.</span></li>
                         <li><button type="button" onClick={openLate}>납기 지난 주문 <b>{order.late.length}건</b></button> · <button type="button" onClick={openOpen}>열린 주문 잔량 <b>{order.open.length}건</b></button></li>
-                        <li><button type="button" onClick={openSoon}>곧 부족 <b>{stock.soonList.length}</b></button> <span className="ev-dim">— 출고 속도로 리드타임 안에 바닥남 · 장부 대조</span></li>
-                        <li><button type="button" onClick={openDefectOld}>불량 보류 30일 초과 <b>{defectOld.length}품목</b></button> · <button type="button" onClick={openStale}>90일 무출고 <b>{stock.staleList.length}</b></button> <span className="ev-dim">— 월말 정리</span></li>
-                        <li><button type="button" onClick={openMatShort}>자재 부족 <b>{make.shortage.length}품목</b></button>{make.noBom ? <span className="ev-dim"> · 자재구성 없는 주문 줄 {make.noBom}({make.noBomNames.slice(0, 3).join(", ")}{make.noBomNames.length > 3 ? " …" : ""})</span> : null}</li>
+                        <li><button type="button" onClick={openSoon}>곧 부족 <b>{stock.soonList.length}</b></button> <span className="ev-dim">리드타임 안에 바닥납니다.</span></li>
+                        <li><button type="button" onClick={openDefectOld}>불량 보류 30일 초과 <b>{defectOld.length}품목</b></button> · <button type="button" onClick={openStale}>90일 무출고 <b>{stock.staleList.length}</b></button> <span className="ev-dim">월말에 정리합니다.</span></li>
+                        <li><button type="button" onClick={openMatShort}>자재 부족 <b>{make.shortage.length}품목</b></button>{make.noBom ? <span className="ev-dim"> · 자재구성 없는 줄 {make.noBom}: {make.noBomNames.slice(0, 3).join(", ")}{make.noBomNames.length > 3 ? " …" : ""}</span> : null}</li>
                       </ul>
                     </div>
                     <div className="pnl-panel">
-                      <h3>채널 비중</h3><p>판매 금액 · 채널 주문 기록에 매인 전표는 그 채널, 나머지는 직접</p>
+                      <h3>채널 비중</h3><p title="채널 주문 기록이 없는 판매는 직접으로 봅니다">채널별 판매 금액입니다.</p>
                       {sale.perChannel.size ? (
                         <DonutChart unit="원" total={`₩${wonShort(sale.amt)}`}
                           data={[...sale.perChannel.entries()].sort((a, b) => b[1] - a[1]).map(([ch, v], i) => ({ label: ch === "direct" ? "직접" : channelLabel(ch), value: Math.max(0, v), color: vizColor(i) }))} />
-                      ) : <div className="inv-status-empty">판매가 없습니다</div>}
+                      ) : <div className="inv-status-empty">판매가 없습니다.</div>}
                     </div>
                   </div>
                 </>)}
 
                 {tab === "order" && (<>
                   <div className="pnl-panel">
-                    <h3>일별 주문 금액</h3><p>주문서 공급가액 합</p>
+                    <h3>일별 주문 금액</h3><p>주문서 공급가액 합계입니다.</p>
                     <ColumnChart height={180} unit="원" data={series(order.perDay)} />
                   </div>
                   <div className="pnl-panel">
-                    <h3>주문별 진행</h3><p>납기 지난 것이 위 · 잔량 = 주문 − 판매·구매·생산이 가져간 수량</p>
+                    <h3>주문별 진행</h3><p title="잔량은 주문 수량에서 판매·구매·생산이 가져간 수량을 뺀 값입니다">납기가 지난 주문이 위에 옵니다.</p>
                     <div className="stg-table-wrap">
                       <table className="ev-table ev-lined table-inv-status">
                         <thead><tr><th>번호</th><th>주문일</th><th>거래처</th><th>납기</th><th>D-day</th><th>주문 수량</th><th>가져간 수량</th><th>잔량</th><th>진행률</th><th>금액</th><th>상태</th></tr></thead>
@@ -436,7 +436,7 @@ export default function InventoryStatusPage() {
                                 {r.o.status === "cancelled" ? "취소" : r.remain <= 0 ? "완료" : r.late ? "납기 지남" : "진행 중"}</span></td>
                             </tr>
                           ))}
-                          {order.rows.length === 0 && <tr><td colSpan={11} className="tc ev-dim">이 기간에 주문서가 없습니다</td></tr>}
+                          {order.rows.length === 0 && <tr><td colSpan={11} className="tc ev-dim">이 기간에 주문서가 없습니다.</td></tr>}
                         </tbody>
                       </table>
                     </div>
@@ -446,15 +446,15 @@ export default function InventoryStatusPage() {
                 {tab === "sale" && (<>
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
-                      <h3>일별 매출</h3><p>반품을 뺀 순액</p>
+                      <h3>일별 매출</h3><p>반품을 뺀 순액입니다.</p>
                       <LineChart height={180} unit="원" yFmt={wonShort} series={[{ name: "매출", points: series(sale.perDay) }]} />
                     </div>
                     <div className="pnl-panel">
-                      <h3>채널 비중</h3><p>직접 = 채널 주문 기록이 없는 판매</p>
+                      <h3>채널 비중</h3><p>채널 주문 기록이 없으면 직접입니다.</p>
                       {sale.perChannel.size ? (
                         <DonutChart unit="원" total={`₩${wonShort(sale.amt)}`}
                           data={[...sale.perChannel.entries()].sort((a, b) => b[1] - a[1]).map(([ch, v], i) => ({ label: ch === "direct" ? "직접" : channelLabel(ch), value: Math.max(0, v), color: vizColor(i) }))} />
-                      ) : <div className="inv-status-empty">판매가 없습니다</div>}
+                      ) : <div className="inv-status-empty">판매가 없습니다.</div>}
                     </div>
                   </div>
                   <div className="pnl-panel">
@@ -499,15 +499,15 @@ export default function InventoryStatusPage() {
                 {tab === "buy" && (<>
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
-                      <h3>일별 매입</h3><p>반품을 뺀 순액</p>
+                      <h3>일별 매입</h3><p>반품을 뺀 순액입니다.</p>
                       <LineChart height={180} unit="원" yFmt={wonShort} colors={[vizColor(1)]} series={[{ name: "매입", points: series(buy.perDay) }]} />
                     </div>
                     <div className="pnl-panel">
-                      <h3>거래처 비중</h3><p>기간 매입 금액</p>
+                      <h3>거래처 비중</h3><p>거래처별 매입 금액입니다.</p>
                       {buy.perPartner.size ? (
                         <DonutChart unit="원" total={`₩${wonShort(buy.amt)}`}
                           data={perPartnerRows(buy.perPartner).slice(0, 8).map((r, i) => ({ label: r.label, value: Math.max(0, r.amt), color: vizColor(i) }))} />
-                      ) : <div className="inv-status-empty">매입이 없습니다</div>}
+                      ) : <div className="inv-status-empty">매입이 없습니다.</div>}
                     </div>
                   </div>
                   <div className="pnl-panel">
@@ -544,11 +544,11 @@ export default function InventoryStatusPage() {
                 {tab === "make" && (<>
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
-                      <h3>일별 완성 수량</h3><p>완제품 입고 수량</p>
+                      <h3>일별 완성 수량</h3><p>완제품 입고 수량입니다.</p>
                       <ColumnChart height={180} unit="개" data={series(make.perDay)} />
                     </div>
                     <div className="pnl-panel">
-                      <h3>자재 부족</h3><p>열린 주문 잔량 × 자재구성 − 현재고{make.noBom ? <> · <span title={`자재구성 없음: ${make.noBomNames.join(", ")}`}>자재구성 없는 주문 줄 {make.noBom}개는 셈에서 빠짐</span> · {make.noBomNames.slice(0, 5).join(", ")}{make.noBomNames.length > 5 ? ` 외 ${make.noBomNames.length - 5}` : ""} (<Link href="/inventory/products" className="bz-link">품목에서 자재구성</Link>)</> : null}</p>
+                      <h3>자재 부족</h3><p>열린 주문을 만드는 데 모자라는 자재입니다.{make.noBom ? <> <span title={`자재구성 없음: ${make.noBomNames.join(", ")}`}>자재구성 없는 주문 줄 {make.noBom}개는 빠졌습니다.</span> <Link href="/inventory/products" className="bz-link">품목에서 자재구성</Link></> : null}</p>
                       {make.shortage.length ? (
                         <table className="ev-table ev-lined table-inv-status-sm">
                           <thead><tr><th>자재</th><th>필요</th><th>현재고</th><th>부족</th></tr></thead>
@@ -557,12 +557,12 @@ export default function InventoryStatusPage() {
                               <td className="tr mono-number">{won(x.need)}</td><td className="tr mono-number">{won(x.have)}</td><td className="tr mono-number">{won(x.need - x.have)}</td></tr>
                           ))}</tbody>
                         </table>
-                      ) : <div className="inv-status-empty">부족한 자재가 없습니다</div>}
+                      ) : <div className="inv-status-empty">부족한 자재가 없습니다.</div>}
                     </div>
                   </div>
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
-                      <h3>완제품별 수율</h3><p>양품률 = 양품 ÷ (양품+불량) · {Math.round(YIELD_WARN * 1000) / 10}% 미만은 붉게(생산 › 도구 › 수율 임계값){make.defectQty === 0 && make.doneQty > 0 ? " · 이 기간엔 불량 기록이 없습니다" : ""}</p>
+                      <h3>완제품별 수율</h3><p title="양품률은 양품 ÷ (양품+불량)입니다. 기준은 생산 › 도구 › 수율 임계값에서 바꿉니다">양품률 {Math.round(YIELD_WARN * 1000) / 10}% 미만은 붉게 표시합니다.{make.defectQty === 0 && make.doneQty > 0 ? " 이 기간엔 불량 기록이 없습니다." : ""}</p>
                       <table className="ev-table ev-lined table-inv-status-sm">
                         <thead><tr><th>완제품</th><th>양품</th><th>불량</th><th>양품률</th><th>완성 금액</th></tr></thead>
                         <tbody>{[...make.perProduct.entries()].sort((a, b) => (b[1].qty + b[1].defect) - (a[1].qty + a[1].defect)).map(([id, r]) => {
@@ -571,11 +571,11 @@ export default function InventoryStatusPage() {
                             <tr key={id} className={y != null && y < YIELD_WARN ? "inv-row-fix" : undefined}><td className="text-left"><b>{productById.get(id)?.name || "?"}</b></td>
                               <td className="tr mono-number">{won(r.qty)}</td><td className="tr mono-number">{won(r.defect)}</td><td className="tr mono-number">{y == null ? "—" : `${(y * 100).toFixed(1)}%`}</td><td className="tr mono-number">₩{won(r.amt)}</td></tr>
                           );
-                        })}{make.perProduct.size === 0 && <tr><td colSpan={5} className="tc ev-dim">완성 기록이 없습니다</td></tr>}</tbody>
+                        })}{make.perProduct.size === 0 && <tr><td colSpan={5} className="tc ev-dim">완성 기록이 없습니다.</td></tr>}</tbody>
                       </table>
                     </div>
                     <div className="pnl-panel">
-                      <h3>자재 투입 · 로스</h3><p>로스 = 실투입 − 표준(자재구성) · 금액은 이동평균{make.lossRecords === 0 && make.matPer.size > 0 ? " · 이 기간엔 로스 기록이 없습니다(표준=실투입으로 봄)" : ""}{make.lossReasonSum.size ? ` · 원인별 로스비 ${[...make.lossReasonSum.entries()].map(([k, v]) => `${lossReasonLabel(k) || "기타"} ₩${won(v)}`).join(", ")}` : ""}</p>
+                      <h3>자재 투입 · 로스</h3><p title="로스는 실투입에서 표준 소요를 뺀 값입니다. 금액은 이동평균 원가">표준보다 더 들어간 자재입니다.{make.lossRecords === 0 && make.matPer.size > 0 ? " 이 기간엔 로스 기록이 없습니다." : ""}{make.lossReasonSum.size ? ` 원인별 로스비 ${[...make.lossReasonSum.entries()].map(([k, v]) => `${lossReasonLabel(k) || "기타"} ₩${won(v)}`).join(", ")}.` : ""}</p>
                       <table className="ev-table ev-lined table-inv-status-sm">
                         <thead><tr><th>자재</th><th>표준</th><th>실투입</th><th>로스</th><th>로스율</th><th>금액</th></tr></thead>
                         <tbody>{[...make.matPer.entries()].sort((a, b) => b[1].loss - a[1].loss).map(([id, r]) => {
@@ -586,7 +586,7 @@ export default function InventoryStatusPage() {
                               <td className={`tr mono-number${r.loss > 0 ? " inv-diff-minus" : r.loss < 0 ? " inv-diff-plus" : ""}`}>{r.loss === 0 ? "—" : `${r.loss > 0 ? "+" : ""}${won(r.loss)}`}</td>
                               <td className="tr mono-number">{rate == null ? "—" : `${(rate * 100).toFixed(1)}%`}</td><td className="tr mono-number">₩{won(r.amt)}</td></tr>
                           );
-                        })}{make.matPer.size === 0 && <tr><td colSpan={6} className="tc ev-dim">투입 기록이 없습니다</td></tr>}</tbody>
+                        })}{make.matPer.size === 0 && <tr><td colSpan={6} className="tc ev-dim">투입 기록이 없습니다.</td></tr>}</tbody>
                       </table>
                     </div>
                   </div>
@@ -606,7 +606,7 @@ export default function InventoryStatusPage() {
               <table className="ev-table ev-lined table-inv-status-sm">
                 <thead><tr>{detail.head.map((h) => <th key={h}>{h}</th>)}</tr></thead>
                 <tbody>{detail.rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j} className={j === 0 ? "text-left" : typeof c === "string" && /[0-9]/.test(c) ? "tr mono-number" : "tc"}>{c}</td>)}</tr>)}
-                  {detail.rows.length === 0 && <tr><td colSpan={detail.head.length} className="tc ev-dim">없습니다</td></tr>}</tbody>
+                  {detail.rows.length === 0 && <tr><td colSpan={detail.head.length} className="tc ev-dim">없습니다.</td></tr>}</tbody>
               </table>
             </div>
             <div className="inv-modal-actions">

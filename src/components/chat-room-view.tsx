@@ -68,7 +68,7 @@ function FilesGalleryView({ files }: { files: any[] }) {
   return (
     <div className="chat-files-gallery glass-card">
       {files.length === 0 ? (
-        <div className="p-12 text-center text-sm text-[var(--text-muted)]">파일이 없습니다</div>
+        <div className="p-12 text-center text-sm text-[var(--text-muted)]">아직 파일이 없습니다.</div>
       ) : (
         <>
           {/* Filter + Layout Toolbar */}
@@ -323,7 +323,7 @@ function FilePreviewModal({
               <div className="text-6xl mb-4">{fileIcon(file)}</div>
               <div className="text-base font-semibold text-[var(--text)] mb-2">{file.file_name}</div>
               <div className="text-xs text-[var(--text-muted)] mb-5">
-                브라우저에서 직접 미리볼 수 없는 파일 형식입니다
+                미리볼 수 없는 파일 형식입니다.
               </div>
               <div className="flex gap-2 justify-center">
                 <a
@@ -921,7 +921,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
             }`}>
               <span className="flex items-center gap-2">
                 {rtStatus === 'connecting' && <><span className="w-2 h-2 rounded-full bg-[var(--warning)] animate-pulse" /> 실시간 연결 중...</>}
-                {rtStatus === 'CHANNEL_ERROR' && <><span className="w-2 h-2 rounded-full bg-[var(--danger)]" />  실시간 연결 오류 · 5초마다 자동 갱신 중</>}
+                {rtStatus === 'CHANNEL_ERROR' && <><span className="w-2 h-2 rounded-full bg-[var(--danger)]" /> 실시간 연결 오류</>}
                 {rtStatus === 'TIMED_OUT' && <><span className="w-2 h-2 rounded-full bg-[var(--danger)]" /> 연결 시간 초과</>}
                 {rtStatus === 'CLOSED' && <><span className="w-2 h-2 rounded-full bg-gray-400" /> 연결 종료됨</>}
               </span>
@@ -946,7 +946,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
               </div>
             )}
             {messages.length === 0 ? (
-              <div className="text-center py-20 text-sm text-[var(--text-muted)]">첫 메시지를 보내세요</div>
+              <div className="text-center py-20 text-sm text-[var(--text-muted)]">아직 메시지가 없습니다. 첫 메시지를 보내세요.</div>
             ) : (
               messages.map((msg: any, idx: number) => {
                 const ac = actionCardMap.get(msg.id);
@@ -1034,7 +1034,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
 
           {/* 참가자 목록 */}
           {participants.length === 0 ? (
-            <div className="p-12 text-center text-sm text-[var(--text-muted)]">참가자가 없습니다</div>
+            <div className="p-12 text-center text-sm text-[var(--text-muted)]">아직 참가자가 없습니다.</div>
           ) : (
             <div className="divide-y divide-[var(--border)]/50">
               {participants.map((p: any) => {
@@ -1175,7 +1175,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
                   {inviteTab === "external" && (
                     <div className="invite-external-panel">
                       <p className="text-xs text-[var(--text-muted)] mb-4">
-                        초대 링크를 문자 또는 이메일로 보내 외부 인원을 채팅방에 초대합니다.
+                        초대 링크를 보내 외부 인원을 초대합니다.
                       </p>
 
                       {/* 링크 생성 */}

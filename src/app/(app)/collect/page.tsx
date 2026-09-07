@@ -200,7 +200,7 @@ function CollectInner() {
   const rulesHelper: HelperItem = {
     label: "배운 규칙 보기",
     source: "내가 배운 규칙",
-    hint: "전에 고른 계정을 어떻게 기억해 뒀는지 보고 고칩니다",
+    hint: "기억해 둔 계정 규칙을 보고 고칩니다.",
     onClick: () => setRulesOpen(true),
   };
 
@@ -247,7 +247,7 @@ function CollectInner() {
             </>}>{rangeField}</QueryBar>
             <ResultStrip>
               <span className="collect-toolbar-hint">
-                자료를 누르면 그 목록으로 갑니다 · 처리할 것 <b>{won(totalPending)}</b>건
+                처리할 자료 <b>{won(totalPending)}</b>건.
               </span>
             </ResultStrip>
           </QueryHead>
@@ -334,7 +334,7 @@ function CollectInner() {
               <div className="cs-btm">
                 <div className="cs-hist-h">
                   최근 수집 이력
-                  <span>· 언제 누가 무엇을 받았나 (실패도 남습니다)</span>
+                  <span>· 실패한 수집도 함께 남습니다.</span>
                 </div>
                 {history.length === 0 ? (
                   <p className="cs-hist-empty">아직 수집 기록이 없습니다.</p>
@@ -383,7 +383,7 @@ function CollectInner() {
                     선택
                   </button>
                 </div>
-                <span className="collect-dim text-[11px]">마지막에 고른 대로 열립니다</span>
+                <span className="collect-dim text-[11px]">마지막에 고른 대로 열립니다.</span>
               </div>
 
               <div className="collect-picks">
@@ -433,14 +433,13 @@ function CollectInner() {
 
               {running && (
                 <p className="collect-bg-note">
-                  창을 닫아도 <b>수집은 계속됩니다</b> · 다른 화면에서 일하셔도 됩니다.
-                  진행 상황은  <b>수집 중 · 보기</b> 를 눌러 다시 열 수 있습니다.
+                  창을 닫아도 <b>수집은 계속됩니다</b>. 진행 상황은 <b>수집 중 · 보기</b>에서 봅니다.
                 </p>
               )}
               {/*   끝난 뒤에도 지난 결과가 남는다 — 다른 화면에 갔다 와서 "받았나?" 를 여기서 확인한다 (2026-08-27) */}
               {!running && run.finishedAt && Object.keys(state).length > 0 && (
                 <p className="collect-bg-note">
-                  지난 수집 결과 ({new Date(run.finishedAt).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}). 실패한 자료는 다시 받으세요.
+                  {new Date(run.finishedAt).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })} 수집 결과입니다. 실패한 자료는 다시 받으세요.
                 
                 </p>
               )}
@@ -472,7 +471,7 @@ function CollectInner() {
                   {picked.length === SOURCES.length ? "전부" : `${picked.length}종`} 선택
                 </span>
                 <span className="collect-dim text-[11.5px]">
-                  {estimate != null ? <>예상 <b className="mono-number">{fmtSec(estimate)}</b></> : "예상 시간은 한 번 받아 본 뒤부터 나옵니다"}
+                  {estimate != null ? <>예상 <b className="mono-number">{fmtSec(estimate)}</b></> : "예상 시간은 첫 수집 뒤에 표시됩니다."}
                   {blocked.length > 0 && <span className="collect-pick-block"> · {blocked.length}종은 지금 못 받습니다</span>}
                 </span>
                 <span className="ml-auto flex items-center gap-2">
@@ -491,7 +490,7 @@ function CollectInner() {
               {blocked.length > 0 && (
                 <p className="collect-block-note">
                   {blocked.map((k) => `${SOURCES.find((s) => s.key === k)!.label}(${cdOf(k).label})`).join(" · ")}
-                  {" — "}{cdOf(blocked[0]).hint}
+                  {" · "}{cdOf(blocked[0]).hint}
                 </p>
               )}
             </div>

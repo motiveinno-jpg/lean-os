@@ -573,7 +573,7 @@ function SignaturesDashboardInner() {
             {/* 2026-08-05 사장님: '새 계약 요청'을 단체 일괄 발송 마법사로 통합 — 한 곳에서 1건이든 여러 거래처든 같은 흐름 */}
             <button type="button" onClick={() => setShowOrgBulkWizard(true)} disabled={contractLimitReached}
               className="btn-primary btn-sm"
-              title={contractLimitReached ? `${contractStatus?.planName || "현재 요금제"}의 이번 달 전자계약 발송 한도(${contractStatus?.limit}건)를 모두 사용했습니다. 오너뷰 요금제로 올리면 무제한으로 보낼 수 있습니다.` : "계약서를 골라 거래처에 발송 · 여러 곳에 변수만 바꿔 한 번에 보낼 수도 있습니다"}>
+              title={contractLimitReached ? `${contractStatus?.planName || "현재 요금제"}의 이번 달 전자계약 발송 한도(${contractStatus?.limit}건)를 모두 사용했습니다. 오너뷰 요금제로 올리면 무제한으로 보낼 수 있습니다.` : "계약서를 골라 거래처에 발송합니다."}>
               {contractLimitReached ? "이번 달 발송 한도 소진" : "+ 새 계약 요청"}
             </button>
           </>}>
@@ -637,13 +637,13 @@ function SignaturesDashboardInner() {
           <ResultStrip right={<>
             {signedFiltered.length > 0 && (
               <button type="button" onClick={toggleSelectAllSigned} disabled={exporting} className="btn-secondary btn-sm whitespace-nowrap"
-                title="현재 목록의 서명완료 계약서를 모두 선택/해제 · 고르면 아래 줄에서 PDF 로 저장">
+                title="서명완료 계약서를 모두 선택하거나 해제합니다.">
                 {allSignedSelected ? "서명완료 전체 해제" : `서명완료 ${signedFiltered.length}건 고르기`}
               </button>
             )}
             {isManager && totalFailures > 0 && (
               <button type="button" onClick={() => setShowFailurePanel(true)} className="sig-fail-chip"
-                title="최근 7일간 이메일 발송에 실패한 건을 확인하고 재발송하세요">
+                title="발송에 실패한 건을 확인하고 재발송합니다.">
                 ⚠ 발송 실패 <b className="mono-number">{totalFailures}건</b> · {failureSummary.length}가지 사유
               </button>
             )}
@@ -675,9 +675,9 @@ function SignaturesDashboardInner() {
             isLoading ? (
               <div className="collect-empty">불러오는 중…</div>
             ) : (requests as any[]).length === 0 ? (
-              <div className="collect-empty">문서에 서명을 요청해 보세요. 계약서·NDA 등에 전자서명을 받을 수 있습니다. 오른쪽 위 [+ 새 계약 요청]</div>
+              <div className="collect-empty">아직 계약 요청이 없습니다. 첫 계약 요청을 보내 보세요.</div>
             ) : filtered.length === 0 ? (
-              <div className="collect-empty">이 조건에 맞는 계약 요청이 없습니다. 검색조건을 풀어 보세요</div>
+              <div className="collect-empty">조건에 맞는 계약 요청이 없습니다. 검색조건을 풀어 보세요.</div>
             ) : (
               <div className="ev-scroll">
                 <table className="ev-table ev-lined signature-table">
@@ -816,7 +816,7 @@ function SignaturesDashboardInner() {
               </button>
               <button type="button" onClick={handleBulkExport} disabled={exporting || selectedSignedTargets.length === 0}
                 className="btn-primary btn-sm whitespace-nowrap disabled:opacity-50"
-                title="체크한 서명완료 계약서를 단건 인쇄와 동일한 품질의 PDF 로 저장 (파일명: 소상공인 개별계약서_업체명)">
+                title="선택한 서명완료 계약서를 PDF로 저장합니다.">
                 {exporting ? `PDF 생성 중… ${exportProgress?.done ?? 0}/${exportProgress?.total ?? 0}` : `서명완료 ${selectedSignedTargets.length}건 PDF 저장`}
               </button>
             </SelectionBar>

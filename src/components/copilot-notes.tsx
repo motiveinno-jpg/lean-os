@@ -85,10 +85,10 @@ export function AnswerFixForm({ companyId, userId, question }: { companyId?: str
         </button>
       ) : (
         <div className="cpn-fix-form">
-          <label className="cpn-fix-label" htmlFor="cpn-fix-input">어떻게 답했어야 하나요? 참모가 기억해 다음부터 그렇게 답합니다.</label>
+          <label className="cpn-fix-label" htmlFor="cpn-fix-input">어떻게 답했어야 하는지 적어 주세요.</label>
           <textarea
             id="cpn-fix-input" className="cpn-fix-input" rows={2} value={text} maxLength={500} autoFocus
-            placeholder="예: 우리 회사 급여일은 25일이야 / 미수금은 세금계산서 기준이 아니라 거래 장부 기준으로 말해줘"
+            placeholder="예: 우리 회사 급여일은 25일이야"
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Escape") { setOpen(false); setText(""); }
@@ -165,7 +165,7 @@ export function CopilotNotesButton({ companyId, userId }: { companyId?: string; 
             <div className="cpn-head">
               <div>
                 <div className="cpn-title">참모 메모</div>
-                <div className="cpn-sub">참모가 답할 때마다 읽는 우리 회사의 기준·사실·교정입니다. 대화 중 &ldquo;기억해&rdquo;라고 해도 여기에 쌓입니다.</div>
+                <div className="cpn-sub">참모가 답할 때마다 읽는 우리 회사의 기준입니다.</div>
               </div>
               <button type="button" className="btn-ghost btn-sm" onClick={() => setOpen(false)} aria-label="닫기"><Ico e="✕" /></button>
             </div>
@@ -176,7 +176,7 @@ export function CopilotNotesButton({ companyId, userId }: { companyId?: string; 
                 <option value="correction">교정</option>
               </select>
               <input
-                className="cpn-input" value={draft} maxLength={500} placeholder="예: 급여는 매달 25일에 나간다 / 금액은 표로 보여줘"
+                className="cpn-input" value={draft} maxLength={500} placeholder="예: 급여는 매달 25일에 나간다"
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); void add(); } }}
               />
@@ -186,7 +186,7 @@ export function CopilotNotesButton({ companyId, userId }: { companyId?: string; 
               {notes === null ? (
                 <div className="cpn-empty">불러오는 중…</div>
               ) : notes.length === 0 ? (
-                <div className="cpn-empty">아직 메모가 없습니다. 참모가 틀리게 답하면 답변 아래 &ldquo;이 답변 바로잡기&rdquo;를 누르거나, 대화 중 &ldquo;기억해: …&rdquo;라고 말해 보세요.</div>
+                <div className="cpn-empty">아직 메모가 없습니다. 대화 중 &ldquo;기억해&rdquo;라고 말하면 여기에 쌓입니다.</div>
               ) : notes.map((n) => (
                 <div key={n.id} className="cpn-item">
                   <div className="cpn-item-main">

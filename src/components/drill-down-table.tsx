@@ -80,7 +80,7 @@ export function DrillDownTable({ items, month, onExport, onClose }: DrillDownTab
       </div>
 
       {items.length === 0 ? (
-        <div className="text-xs text-[var(--text-dim)] text-center py-4">해당 월 상세 데이터 없음</div>
+        <div className="text-xs text-[var(--text-dim)] text-center py-4">아직 이 달의 상세 내역이 없습니다.</div>
       ) : (
         <div className="drill-down-table-scroll">
           <table className="w-full text-xs">

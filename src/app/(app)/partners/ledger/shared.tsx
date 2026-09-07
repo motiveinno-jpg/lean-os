@@ -67,11 +67,11 @@ export const MATCH_LABEL: Record<string, string> = {
 };
 // 차액 마감 사유 (close_invoice_balance RPC 의 p_reason 값과 1:1)
 export const ADJ_REASONS: { id: string; label: string; desc: string }[] = [
-  { id: "withholding_tax", label: "원천징수세", desc: "3.3% / 8.8% 등 원천세 공제분 · 기납부 세액으로 마감" },
-  { id: "fee", label: "이체·결제 수수료", desc: "은행/PG 수수료 차감분" },
-  { id: "rounding", label: "단수차", desc: "절사·반올림 등 소액 차이" },
-  { id: "discount", label: "할인·에누리", desc: "합의된 금액 조정 (수정세금계산서 발행 권장)" },
-  { id: "other", label: "기타", desc: "기타 사유로 잔액 정리" },
+  { id: "withholding_tax", label: "원천징수세", desc: "원천세 공제분을 기납부 세액으로 마감합니다." },
+  { id: "fee", label: "이체·결제 수수료", desc: "이체와 결제 수수료 차감분입니다." },
+  { id: "rounding", label: "단수차", desc: "절사나 반올림으로 생긴 소액 차이입니다." },
+  { id: "discount", label: "할인·에누리", desc: "합의로 조정한 금액입니다." },
+  { id: "other", label: "기타", desc: "그 밖의 사유로 잔액을 정리합니다." },
 ];
 export const ADJ_REASON_LABEL: Record<string, string> = Object.fromEntries(ADJ_REASONS.map((r) => [r.id, r.label]));
 
@@ -336,7 +336,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
                   <td className={`${cellR} ${opening !== 0 ? "text-amber-500" : "text-[var(--text-dim)]"}`}>{Math.round(opening).toLocaleString()}</td>
                 </tr>
                 {months.length === 0 && (
-                  <tr><td colSpan={6} className="p-8 text-center text-[var(--text-muted)]">선택 기간에 거래가 없습니다.</td></tr>
+                  <tr><td colSpan={6} className="p-8 text-center text-[var(--text-muted)]">아직 이 기간에 거래가 없습니다.</td></tr>
                 )}
                 {months.map(([m, entries]) => {
                   const md = entries.reduce((s, e) => s + e.debit, 0);
@@ -413,8 +413,8 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
           )}
         </table>
       </div>
-      <div className="ledger-sheet-footnote">
-        잔액 = 전기이월 + 당기 잔액 · 발생 = 세금계산서(부가세 포함) · {isSales ? "회수" : "지급"} = 확정된 통장 매칭 + 차액 마감(미확정 입금 매칭은 수집·전표 › 통장에서 확정) · <span className="text-[var(--primary)]">#전표</span> = 수동 전표(누르면 수정·삭제) · “+ 전표 입력”으로 신규
+      <div className="ledger-sheet-footnote" title="잔액 = 전기이월 + 당기 잔액 · 발생 = 세금계산서(부가세 포함)">
+        {isSales ? "회수" : "지급"} 금액은 확정된 통장 매칭과 차액 마감의 합입니다. <span className="text-[var(--primary)]">#전표</span>를 누르면 수정하거나 삭제합니다.
       </div>
 
       {editEntryId && (
@@ -757,7 +757,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                 </select>
               )}
               {newFor?.partnerName && <span>· {newFor.partnerName}</span>}
-              <span className="opacity-60">· 제목 잡고 이동</span>
+              <span className="opacity-60">· 제목을 끌어 옮깁니다.</span>
             </div>
           </div>
           <button onClick={onClose} onMouseDown={(e) => e.stopPropagation()} className="text-[var(--text-dim)] hover:text-[var(--text)] text-lg shrink-0 cursor-pointer">✕</button>
@@ -767,8 +767,8 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
           <div className="p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
         ) : (
           <>
-            {locked && <div className="mx-5 mt-3 px-3 py-2 rounded-lg bg-amber-500/8 border border-amber-500/25 text-[11px] text-amber-600 font-semibold"><Ico e="🔒" />  마감(잠금)된 회계기간 · 읽기 전용 (일자를 미마감 월로 바꾸면 편집 가능)</div>}
-            <div className="px-5 pt-3 text-[10px] text-[var(--text-dim)]">적요는 아래 각 줄에 입력하세요. 거래처 원장에 그대로 표시됩니다.</div>
+            {locked && <div className="mx-5 mt-3 px-3 py-2 rounded-lg bg-amber-500/8 border border-amber-500/25 text-[11px] text-amber-600 font-semibold" title="일자를 미마감 월로 바꾸면 편집할 수 있습니다."><Ico e="🔒" />  마감된 회계기간이라 읽기 전용입니다.</div>}
+            <div className="px-5 pt-3 text-[10px] text-[var(--text-dim)]">줄마다 적요를 입력하면 원장에 그대로 표시됩니다.</div>
             <div className="voucher-edit-table">
               <table className="w-full text-xs border-collapse min-w-[560px]">
                 <thead>
@@ -805,7 +805,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                                 <button key={a.id} onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { account: a }); setPicker(null); }}
                                   className={`w-full flex justify-between px-2 py-1 rounded text-[11px] text-[var(--text)] ${i === 0 ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}><span>{a.name}{i === 0 && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}</span><span className="text-[var(--text-dim)] mono-number">{a.code}</span></button>
                               ))}
-                              {acctMatches(picker.q).length === 0 && <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">검색 결과 없음</div>}
+                              {acctMatches(picker.q).length === 0 && <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">검색 결과가 없습니다.</div>}
                             </CellDropdown>
                           )}
                         </td>
@@ -864,7 +864,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                                 </button>
                                 );
                               })}
-                              {pts.length === 0 && assets.length === 0 && <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">검색 결과 없음</div>}
+                              {pts.length === 0 && assets.length === 0 && <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">검색 결과가 없습니다.</div>}
                               </>);
                               })()}
                               {(l.partner || l.asset) && <button onMouseDown={(e) => { e.preventDefault(); setLine(l.key, { partner: null, asset: null }); setPicker(null); }} className="w-full px-2 py-1 mt-1 rounded text-[11px] text-[var(--text-dim)] text-left hover:bg-[var(--bg-surface)] border-t border-[var(--border)]/40">지우기</button>}
@@ -1035,7 +1035,7 @@ export function AdjVoucherModal({ settlementId, type, partnerName, onClose }: {
                       {voucher.status === "confirmed" ? "승인됨" : "초안 (미승인)"}</span>
                   </>
                 ) : (
-                  <span className="text-[var(--text-muted)]">예상 분개 <span className="font-normal text-[var(--text-dim)]">— 전표 미생성 (거래 매칭 &gt; AI 전표에서 생성 가능)</span></span>
+                  <span className="text-[var(--text-muted)]">예상 분개 <span className="font-normal text-[var(--text-dim)]">아직 전표가 없습니다.</span></span>
                 )}
               </div>
               <div className="px-3 py-2 space-y-1">
@@ -1056,7 +1056,7 @@ export function AdjVoucherModal({ settlementId, type, partnerName, onClose }: {
             </div>
 
             <div className="flex items-center justify-between pt-1">
-              <span className="caption">삭제하면 계산서 잔액이 원복됩니다 (이력은 보존)</span>
+              <span className="caption">삭제하면 계산서 잔액이 원복됩니다.</span>
               <button onClick={handleDelete} disabled={deleting || s.status !== "confirmed"}
                 className="px-4 py-2 text-xs font-bold rounded-lg bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 disabled:opacity-50"
                 title={s.status !== "confirmed" ? "이미 취소된 마감입니다" : "차액 마감을 삭제하고 잔액을 원복합니다"}>
@@ -1179,9 +1179,9 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
           {isLoading ? (
             <div className="p-8 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
           ) : invoices.length === 0 ? (
-            <div className="p-8 text-center text-sm text-[var(--text-muted)]">이 거래처의 {isSales ? "매출" : "매입"}세금계산서가 없습니다.</div>
+            <div className="p-8 text-center text-sm text-[var(--text-muted)]">아직 {isSales ? "매출" : "매입"}세금계산서가 없습니다.</div>
           ) : shownInv.length === 0 ? (
-            <div className="p-8 text-center text-sm text-[var(--text-muted)]">{view === "prior" ? "전기이월(전년도 이전) 건이 없습니다." : "당기(올해) 발행 건이 없습니다."}</div>
+            <div className="p-8 text-center text-sm text-[var(--text-muted)]">{view === "prior" ? "전기이월 건이 없습니다." : "당기 발행 건이 없습니다."}</div>
           ) : (
             shownInv.map((inv) => {
               const ss = SETTLE_STATUS[inv.settlement_status as string] || SETTLE_STATUS.open;
@@ -1316,7 +1316,7 @@ function CloseBalanceModal({ invoice, remaining, onClose, onDone, onError }: {
                   <input type="radio" name="adj-reason" checked={reason === r.id} onChange={() => setReason(r.id)} className="mt-0.5 accent-[var(--primary)]" />
                   <span>
                     <span className="text-xs font-semibold text-[var(--text)]">{r.label}</span>
-                    {r.id === "withholding_tax" && looksWithholding && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-semibold">잔액이 3.3%와 일치 · 추천</span>}
+                    {r.id === "withholding_tax" && looksWithholding && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-semibold" title="잔액이 원천세 공제액과 일치합니다.">추천</span>}
                     <span className="block text-[10px] text-[var(--text-dim)] mt-0.5">{r.desc}</span>
                   </span>
                 </label>
@@ -1330,8 +1330,8 @@ function CloseBalanceModal({ invoice, remaining, onClose, onDone, onError }: {
               className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] mono-number focus:outline-none focus:border-[var(--primary)]" />
           </div>
           {reason === "discount" && (
-            <div className="px-3 py-2 rounded-lg bg-amber-500/8 border border-amber-500/25 text-[11px] text-amber-600 leading-relaxed">
-              <Ico e="⚠" /> 할인·에누리로 실제 거래금액이 계산서와 달라진 경우, 부가세 과세표준이 바뀌므로 <b>수정세금계산서 발행</b>을 권장합니다. 마감은 장부 정리일 뿐 신고 금액을 바꾸지 않습니다.
+            <div className="px-3 py-2 rounded-lg bg-amber-500/8 border border-amber-500/25 text-[11px] text-amber-600 leading-relaxed" title="마감은 장부 정리일 뿐 신고 금액을 바꾸지 않습니다.">
+              <Ico e="⚠" /> 거래금액이 계산서와 달라졌다면 <b>수정세금계산서 발행</b>을 권장합니다.
             </div>
           )}
         </div>

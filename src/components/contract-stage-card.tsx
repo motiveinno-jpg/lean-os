@@ -398,7 +398,7 @@ export function ContractStageCard({
         </div>
         {templates.length === 0 ? (
           <div className="text-[11px] text-[var(--text-dim)] py-3 text-center bg-[var(--bg)] rounded border border-dashed border-[var(--border)]">
-            사용 가능한 양식이 없습니다. <Link href="/settings?tab=forms" className="text-[var(--primary)] underline">양식 추가</Link>
+            아직 계약서 양식이 없습니다. <Link href="/settings?tab=forms" className="text-[var(--primary)] underline">양식 추가</Link>
           </div>
         ) : (
           <select
@@ -461,7 +461,7 @@ export function ContractStageCard({
           <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1.5">미리보기</div>
           {selectedTemplate.file_type === "pdf" ? (
             <div className="bg-white rounded p-3 text-[11px] text-gray-700 border border-[var(--border)]">
-              <Ico e="📎" /> PDF 양식 — 발송 시 거래처에게 그대로 전송됩니다.{" "}
+              <Ico e="📎" /> PDF 양식은 거래처에 그대로 발송됩니다.{" "}
               {selectedTemplate.file_url && (
                 <a href={selectedTemplate.file_url} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] underline">PDF 열기</a>
               )}
@@ -499,10 +499,10 @@ export function ContractStageCard({
             </button>
           </div>
           {missingVars.length > 0 && (
-            <div className="mt-1.5 text-[10px] text-amber-400"><Ico e="⚠" /> {missingVars.length}개 변수가 비어있습니다. 본문에  {"{변수명}"} 그대로 노출됩니다.</div>
+            <div className="mt-1.5 text-[10px] text-amber-400"><Ico e="⚠" /> {missingVars.length}개 변수가 비어 있어 본문에 {"{변수명}"} 그대로 보입니다.</div>
           )}
           <div className="mt-1.5 text-[10px] text-[var(--text-dim)]">
-            만료: 14일 · 거래처가 승인하면 자동으로 진행 중 단계로 전환됩니다
+            서명 링크는 14일간 유효하며 승인되면 진행 중 단계로 넘어갑니다.
           </div>
         </div>
       )}
@@ -510,7 +510,7 @@ export function ContractStageCard({
       {/* 재발송 (거절·수정 요청 상태 — 핑퐁 왕복) */}
       {!readonly && (approval?.status === "rejected" || approval?.status === "revision_requested") && (
         <div className="contract-resend-section">
-          <div className="text-[10px] text-amber-400 font-medium mb-1.5">{approval?.status === "revision_requested" ? "수정 요청된 계약서 · 반영 후 재발송 (왕복 이력이 남습니다)" : "거절된 계약서 · 양식·변수 수정 후 재발송"}</div>
+          <div className="text-[10px] text-amber-400 font-medium mb-1.5">{approval?.status === "revision_requested" ? "수정 요청을 반영한 뒤 재발송합니다." : "양식이나 변수를 고친 뒤 재발송합니다."}</div>
           <div className="flex flex-col sm:flex-row gap-1.5">
             <input
               type="email"
@@ -561,8 +561,7 @@ function PendingOurSignatureCard({ approval, onClick }: { approval: ApprovalLite
     <div className="pending-our-signature-card">
       <div className="text-[12px] font-bold text-orange-400"><Ico e="✍" />  거래처 서명 완료 · 우리(갑) 서명 대기</div>
       <div className="text-[11px] text-[var(--text)]">
-        거래처가 {partnerMethodLabel}으로 승인했습니다 ({signedAt} KST).
-        이제 우리 측 서명·도장 후 계약이 최종 성립됩니다.
+        거래처가 {signedAt}에 {partnerMethodLabel}으로 승인했습니다. 우리 서명을 더하면 계약이 성립됩니다.
       </div>
       <button
         type="button"
@@ -609,8 +608,7 @@ function OurSignatureModal({
           <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl">×</button>
         </div>
         <p className="text-xs text-[var(--text-muted)] mb-4">
-          서명·도장 추가 후 "최종 성립" 클릭 시 계약 stage 가 자동 전환됩니다.
-          (회사: <strong>{companyInfo.name || "—"}</strong>{companyInfo.representative ? ` · 대표 ${companyInfo.representative}` : ""})
+          <strong>{companyInfo.name || "—"}</strong>{companyInfo.representative ? ` · 대표 ${companyInfo.representative}` : ""} 명의로 서명하면 계약이 최종 성립됩니다.
         </p>
 
         {companyInfo.seal_url && (

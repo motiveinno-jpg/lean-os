@@ -60,8 +60,8 @@ export function DefectDisposeDialog({ companyId, userId, products, onClose }: { 
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">불량 처분</h3>
-        <p className="inv-modal-desc">불량 보류 창고의 재고입니다 — <b>{rows.length}종 · ₩{won(Math.round(total))}</b>(이동평균). 처분은 사람이 고릅니다: <b>폐기</b>(손실은 생산 전표 초안이 잡음) · <b>양품 전환</b>(재작업이 끝난 것을 창고 이동) · <b>B급 판매</b>는 <Link href="/inventory/sales" className="bz-link">판매 입력</Link>에서 창고를 &apos;불량 보류&apos;로 두고 팝니다.</p>
-        {!defectWh || rows.length === 0 ? <div className="inv-status-empty">불량 보류 재고가 없습니다</div> : (
+        <p className="inv-modal-desc" title="금액은 이동평균 원가입니다. 폐기 손실은 생산 전표 초안에 잡히고, 양품 전환은 고른 창고로 이동합니다">불량 보류 창고의 재고 <b>{rows.length}종 · ₩{won(Math.round(total))}</b>입니다. 폐기하거나 양품으로 옮깁니다. B급 판매는 <Link href="/inventory/sales" className="bz-link">판매 입력</Link>에서 합니다.</p>
+        {!defectWh || rows.length === 0 ? <div className="inv-status-empty">아직 불량 보류 재고가 없습니다.</div> : (
           <div className="stg-table-wrap ch-ship-list">
             <table className="ev-table ev-lined table-inv-status-sm">
               <thead><tr><th>품목</th><th>불량 보류</th><th>금액</th><th>처분 수량</th><th>처분</th><th>옮길 창고</th><th></th></tr></thead>

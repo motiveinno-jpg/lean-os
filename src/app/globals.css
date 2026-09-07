@@ -10298,6 +10298,12 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
 .pf-table tbody td { @apply px-4 py-2.5 border-b border-[var(--border)]/50 align-middle; }
 .pf-table tbody tr:hover { background: color-mix(in oklab, var(--primary) 5%, transparent); }
 .pf-table-wrap { @apply overflow-x-auto; }
+/*  ⚠️ .pf-table thead th 는 @apply text-left 가 박혀 있어(0,1,2) 마크업의 text-right/center 유틸(0,1,0)을
+    눌러 버린다 — 머리글자는 왼쪽에 고정되고 숫자만 오른쪽으로 가 어긋나 보였다(2026-09-07 사장님).
+    th/td 에 붙은 정렬 유틸이 이기도록 더 강한 규칙으로 되살린다(0,2,x). */
+.pf-table th.text-right, .pf-table td.text-right { text-align: right; }
+.pf-table th.text-center, .pf-table td.text-center { text-align: center; }
+.pf-table th.text-left, .pf-table td.text-left { text-align: left; }
 
 /* 등장 애니메이션 — 카드에 .pf-in 과 style="--pf-i: n" */
 .pf-in { opacity: 0; transform: translateY(8px); animation: pf-in .4s ease-out forwards; animation-delay: calc(min(var(--pf-i, 0), 8) * 35ms); }

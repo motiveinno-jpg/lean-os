@@ -165,7 +165,7 @@ export function MyAttendance({ employeeId }: { employeeId: string | null }) {
   return (
     <div className="mypage-attendance-card bz-body">
       {/* 조회 줄 — [월 이동 · 검색조건 ▾] ‖ (오늘 찍기는 내 현황) */}
-      <QueryBar right={<span className="text-[11px] text-[var(--text-dim)]">출근·퇴근 시각이 잘못 찍힌 날은 줄의 '정정 요청' · 관리자 승인 후 반영</span>}>
+      <QueryBar right={<span className="text-[11px] text-[var(--text-dim)]">잘못 기록된 날은 정정 요청을 보냅니다.</span>}>
         <span className="inline-flex items-center gap-1">
           <button type="button" onClick={() => setMonth(shiftMonth(month, -1))} className="btn-secondary btn-sm" aria-label="이전 달">‹</button>
           <span className="text-xs font-bold mono-number w-[86px] text-center">{month.replace("-", "년 ")}월</span>
@@ -197,7 +197,7 @@ export function MyAttendance({ employeeId }: { employeeId: string | null }) {
       {isLoading ? (
         <div className="collect-empty">불러오는 중…</div>
       ) : shown.length === 0 ? (
-        <div className="collect-empty">{records.length === 0 ? "이 달의 출퇴근 기록이 없습니다. 출근을 기록하면 여기 일자별로 쌓입니다" : "조건에 맞는 날이 없습니다"}</div>
+        <div className="collect-empty">{records.length === 0 ? "이 달 출퇴근 기록이 없습니다." : "조건에 맞는 날이 없습니다."}</div>
       ) : (
         <table className="ev-table ev-lined mypage-att-table">
           <thead><tr><th>날짜</th><th>요일</th><th>출근</th><th>퇴근</th><th>근무</th><th>연장</th><th>상태</th><th className="text-left">비고</th><th>정정</th></tr></thead>
@@ -221,7 +221,7 @@ export function MyAttendance({ employeeId }: { employeeId: string | null }) {
                   <td className="text-left"><span className="inline-flex flex-wrap gap-1"><AttendanceBadges record={r} compact /></span></td>
                   <td className="text-center">
                     {pendingSet.has(r.id) ? <span className="ol-sure ol-sure-est" title="관리자 승인 대기 중인 정정 요청이 있습니다">정정 대기</span>
-                      : <button type="button" onClick={() => openEdit(r)} className="btn-secondary btn-sm" title="출근·퇴근 시각이 잘못 기록됐다면 관리자에게 정정을 요청하세요">정정 요청</button>}
+                      : <button type="button" onClick={() => openEdit(r)} className="btn-secondary btn-sm" title="관리자에게 정정을 요청합니다.">정정 요청</button>}
                   </td>
                 </tr>
               );
@@ -236,7 +236,7 @@ export function MyAttendance({ employeeId }: { employeeId: string | null }) {
           <div className="w-full max-w-sm rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
             <div>
               <div className="text-sm font-bold text-[var(--text)]">출퇴근 시각 정정 요청</div>
-              <div className="text-[11px] text-[var(--text-muted)] mt-0.5 mono-number">{editTarget.date} · 직접 수정이 아니라 관리자 승인 요청입니다</div>
+              <div className="text-[11px] text-[var(--text-muted)] mt-0.5 mono-number">{editTarget.date} · 관리자 승인 후 반영됩니다.</div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <label className="block">

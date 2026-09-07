@@ -51,11 +51,11 @@ const coreName = (v: unknown) => String(v || "").toLowerCase()
 
 export type BankLineState = "unposted" | "pending" | "linked" | "posted" | "excluded";
 export const BANK_LINE_META: Record<BankLineState, { label: string; cls: string; hint: string }> = {
-  unposted: { label: "미처리", cls: "bl-state-unposted", hint: "아직 장부에 없는 줄 · 눌러서 증빙 연결 · 일반전표 · 장부 제외" },
-  pending: { label: "연결 대기", cls: "bl-state-pending", hint: "증빙 연결 초안이 있음. 확정해야 전표가 된다" },
-  linked: { label: "증빙 연결", cls: "bl-state-linked", hint: "계산서와 정산 전표로 묶임" },
-  posted: { label: "전표됨", cls: "bl-state-posted", hint: "일반전표로 장부에 올라감" },
-  excluded: { label: "장부 제외", cls: "bl-state-excluded", hint: "이체·개인·중복 · 장부에서 뺌" },
+  unposted: { label: "미처리", cls: "bl-state-unposted", hint: "아직 장부에 올리지 않은 줄입니다." },
+  pending: { label: "연결 대기", cls: "bl-state-pending", hint: "확정을 기다리는 연결 초안이 있습니다." },
+  linked: { label: "증빙 연결", cls: "bl-state-linked", hint: "계산서와 정산 전표로 묶인 줄입니다." },
+  posted: { label: "전표됨", cls: "bl-state-posted", hint: "일반전표로 장부에 올린 줄입니다." },
+  excluded: { label: "장부 제외", cls: "bl-state-excluded", hint: "장부에서 뺀 줄입니다." },
 };
 /** 한 줄의 상태 — 우선순위: 제외 > 증빙 연결(정산 확정) > 전표됨 > 연결 대기 > 미처리 */
 export function bankLineState(tx: BankLineTx, pendingIds?: Set<string>): BankLineState {
@@ -307,15 +307,15 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
           <span className={`bl-state ${meta.cls}`} title={meta.hint}>{meta.label}</span>
         </div>
         {monthLocked && state !== "excluded" && state !== "posted" && (
-          <div className="bl-locked">⚠ {tx.transaction_date.slice(0, 7)}은 회계마감으로 잠겨 있습니다. 증빙 연결 확정·일반전표가 막힙니다. 회계마감에서 그 달을 풀고 처리하세요.</div>
+          <div className="bl-locked">⚠ {tx.transaction_date.slice(0, 7)}은 회계마감으로 잠겨 있습니다. 마감을 풀어야 처리할 수 있습니다.</div>
         )}
         {state === "excluded" ? (
           <div className="bl-done">
-            <p>장부에서 뺀 줄입니다 — {excludeLabelOf(tx.ledger_excluded_reason)}</p>
+            <p>{excludeLabelOf(tx.ledger_excluded_reason)} 사유로 장부에서 뺀 줄입니다.</p>
             <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={unexclude}>제외 풀기 (미처리로)</button>
           </div>
         ) : state === "posted" ? (
-          <div className="bl-done"><p>일반전표로 장부에 올라간 줄입니다. 고치기는 재무 › 일반전표에서(반려 후 다시 처리).</p></div>
+          <div className="bl-done"><p>일반전표로 장부에 올린 줄입니다. 수정은 재무 › 일반전표에서 합니다.</p></div>
         ) : null}
 
         {state !== "excluded" && state !== "posted" && (
@@ -328,7 +328,7 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
 
             {tab === "link" && (
               <div className="bl-pane">
-                <p className="inv-hint">{isIn ? "매출" : "매입"} 계산서와 짝을 지으면 <b>정산 전표 초안(연결 대기)</b>이 됩니다. 후보는 자동으로 찾지만 확정은 사람이 누릅니다. 확정하면  {isIn ? "외상매출금" : "외상매입금"} ↔ 보통예금 전표가 생깁니다. 분할·합산 입금은 금액을 나눠 여러 번 연결합니다.</p>
+                <p className="inv-hint">{isIn ? "매출" : "매입"} 계산서와 짝을 지어 <b>정산 전표 초안</b>을 만듭니다. 확정하면 {isIn ? "외상매출금" : "외상매입금"} 전표가 생깁니다.</p>
                 {settles.length > 0 && (
                   <table className="ev-table ev-lined table-inv-status-sm bl-table">
                     <thead><tr><th>연결한 계산서</th><th>계산서 금액</th><th>연결 금액</th><th>출처</th><th>상태</th><th></th></tr></thead>
@@ -349,8 +349,8 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
                 )}
                 {leftHere > 0 && (
                   <>
-                    <div className="bl-sub">후보 {cands.length}건 <span className="ev-dim">· 출처: 장부 대조(금액·거래처)</span>{leftHere !== amt && <span className="ev-dim"> · 남은 ₩{won(leftHere)}</span>}</div>
-                    {cands.length === 0 && <div className="collect-empty bl-empty">자동으로 찾은 후보가 없습니다. 아래 <b>계산서 직접 찾기</b>로 고르거나, 증빙이 없는 줄이면 <b>일반전표</b> 탭으로.</div>}
+                    <div className="bl-sub">후보 {cands.length}건 <span className="ev-dim">· 금액과 거래처로 찾음</span>{leftHere !== amt && <span className="ev-dim"> · 남은 ₩{won(leftHere)}</span>}</div>
+                    {cands.length === 0 && <div className="collect-empty bl-empty">자동으로 찾은 후보가 없습니다. <b>계산서 직접 찾기</b>로 고르거나 <b>일반전표</b> 탭으로 처리하세요.</div>}
                     {cands.length > 0 && (
                       <table className="ev-table ev-lined table-inv-status-sm bl-table">
                         <thead><tr><th></th><th>거래처</th><th>발행일</th><th>남은 금액</th><th>근거</th></tr></thead>
@@ -368,7 +368,7 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
                     <div className="bl-line">
                       <span className="relative inline-block">
                         <button type="button" className="btn-secondary btn-sm" onClick={() => setInvSearch((v) => !v)}>계산서 직접 찾기</button>
-                        {invSearch && <PickList items={invPickItems} placeholder="계산서 검색 (거래처·금액·품목·발행일)" onPick={(x) => { setPickInv(x.inv); setInvSearch(false); }} onClose={() => setInvSearch(false)} />}
+                        {invSearch && <PickList items={invPickItems} placeholder="계산서 검색" onPick={(x) => { setPickInv(x.inv); setInvSearch(false); }} onClose={() => setInvSearch(false)} />}
                       </span>
                       {pickInv && (
                         <>
@@ -384,14 +384,14 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
 
             {tab === "voucher" && (
               <div className="bl-pane">
-                <p className="inv-hint">증빙이 없는 줄(이자·수수료·급여·임차료 …)을 일반전표로. 보통예금 쪽과 차·대 방향은 서버가 붙입니다. 여기서는 상대 계정·거래처·적요만.</p>
+                <p className="inv-hint">증빙이 없는 줄을 일반전표로 올립니다. 계정과 거래처, 적요만 고르면 됩니다.</p>
                 <div className="bl-form">
                   <label>계정과목
                     <span className="relative inline-block">
                       <button type="button" className={acct ? "ev-acct" : "ev-acct ev-acct-empty"} onClick={() => setAcctOpen((v) => !v)}>
                         {acct ? `${acct.code} ${acct.name}` : (isIn ? "수익 계정 고르기" : "비용 계정 고르기")}{acctVia && <em className="ev-via">{acctVia}</em>}
                       </button>
-                      {acctOpen && <PickList items={sideAccts} placeholder="계정과목 검색 (이름·코드)" onPick={(a) => { setAcct(a); setAcctVia(""); setAcctOpen(false); }} onClose={() => setAcctOpen(false)} />}
+                      {acctOpen && <PickList items={sideAccts} placeholder="계정과목 검색" onPick={(a) => { setAcct(a); setAcctVia(""); setAcctOpen(false); }} onClose={() => setAcctOpen(false)} />}
                     </span>
                   </label>
                   <label>거래처
@@ -402,13 +402,13 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
                   </label>
                   <label>적요 <input value={vMemo} onChange={(e) => setVMemo(e.target.value)} className="inv-input" placeholder="적요" /></label>
                 </div>
-                <p className="inv-hint">{isIn ? "차) 보통예금 / 대) 고른 계정" : "차) 고른 계정 / 대) 보통예금"} · 고른 계정은 다음에 같은 입금자·적요가 오면 미리 채워집니다(내가 배운 규칙).</p>
+                <p className="inv-hint">{isIn ? "차) 보통예금 / 대) 고른 계정" : "차) 고른 계정 / 대) 보통예금"} · 같은 거래가 다시 오면 이 계정이 미리 채워집니다.</p>
               </div>
             )}
 
             {tab === "exclude" && (
               <div className="bl-pane">
-                <p className="inv-hint">장부에 올리지 않을 줄 · 계좌 간 이체·카드 대금·개인 지출·이미 다른 전표에 있는 것. 사유가 상태 칸에 남고 언제든 풀 수 있습니다.</p>
+                <p className="inv-hint">장부에 올리지 않을 줄입니다. 사유가 남고 언제든 풀 수 있습니다.</p>
                 <div className="bl-form">
                   <label>사유
                     <select value={exCode} onChange={(e) => setExCode(e.target.value)} className="inv-input">
@@ -423,7 +423,7 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
         )}
 
         <details className="bl-note">
-          <summary>줄 메모 · 태그 · 사용직원 · 고정비 <span className="ev-dim">(전표와 무관)</span></summary>
+          <summary>줄 메모 · 태그 · 사용직원 · 고정비 <span className="ev-dim">· 전표와 무관</span></summary>
           <div className="bl-form">
             <label>메모 <input value={memo} onChange={(e) => setMemo(e.target.value)} className="inv-input" /></label>
             <label>태그 <input value={tags} onChange={(e) => setTags(e.target.value)} className="inv-input" placeholder="쉼표로 구분" /></label>

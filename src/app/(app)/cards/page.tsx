@@ -882,7 +882,7 @@ export default function CardsPage() {
           // 무료는 disabled 로 막지 않는다. 눌렀을 때 안내가 떠야 한다(통장 화면과 동일)
           disabled={syncing || !companyId || cardCd.disabled}
           className={`btn-primary btn-sm ${cardCd.disabled || (cardSync && !cardSync.manualAllowed) ? "!opacity-40 cursor-not-allowed" : ""}`}
-          title={cardSync && !cardSync.manualAllowed ? "무료 요금제는 즉시 동기화를 쓸 수 없습니다. 하루 2회 자동 동기화는 그대로 됩니다" : cardCd.hint ? cardCd.hint : "카드 거래 기간을 설정한 뒤 CODEF 카드 연동으로 그 기간의 카드 거래를 불러옵니다"}
+          title={cardSync && !cardSync.manualAllowed ? "무료 요금제는 즉시 동기화를 쓸 수 없습니다. 하루 2회 자동 동기화는 그대로 됩니다" : cardCd.hint ? cardCd.hint : "거래 기간의 카드 거래를 불러옵니다."}
         >
           {syncing ? "연동 중…" : cardCd.disabled ? cardCd.label : "카드 연동"}
         </button>
@@ -920,7 +920,7 @@ export default function CardsPage() {
               {tab === "cards" && cards.some((c: any) => c.is_active === false) && (
                 <button type="button" onClick={() => setShowHiddenCards((v) => !v)} className={showHiddenCards ? "qk-quick qk-quick-on" : "qk-quick"}>숨긴 카드 {cards.filter((c: any) => c.is_active === false).length}개 {showHiddenCards ? "감추기" : "보기"}</button>
               )}
-              <span className="text-[11px] text-[var(--text-dim)]">카드를 선택하면 해당 카드 거래에 적용 · 거래를 조건으로 찾으려면 거래내역 탭</span>
+              <span className="text-[11px] text-[var(--text-dim)]">카드를 누르면 그 카드의 거래를 봅니다.</span>
             </QueryBar>
             {/* 분석 탭 결과 요약 — 예전 Stat 카드 4장 → Stat 줄 (2026-08-19 자금 메뉴 점검) */}
             {tab === "analysis" && (
@@ -947,8 +947,8 @@ export default function CardsPage() {
           <EmptyState
             card
             icon="💳"
-            title="등록된 카드가 없습니다"
-            desc="상단의 카드 연동 버튼으로 CODEF 카드 동기화를 실행하면 자동 등록됩니다"
+            title="아직 등록된 카드가 없습니다."
+            desc="카드 연동을 누르면 자동으로 등록됩니다."
           />
         ) : (
           <div className="space-y-6">
@@ -1012,7 +1012,7 @@ export default function CardsPage() {
                   </span>
                 </div>
                 {shownCardTx.length === 0 ? (
-                  <div className="collect-empty mt-2">{(cardTxFrom || cardTxTo) ? "이 기간에 거래내역이 없습니다" : "이 카드의 거래내역이 없습니다"} · 기간을 조정하거나 카드 연동으로 거래를 불러오세요</div>
+                  <div className="collect-empty mt-2">{(cardTxFrom || cardTxTo) ? "이 기간에 거래내역이 없습니다." : "이 카드의 거래내역이 없습니다."} 카드 연동으로 거래를 불러오세요.</div>
                 ) : (
                   <div className="ev-scroll mt-2 max-h-[560px]"><table className="ev-table ev-lined card-tx-table">
                     <thead>
@@ -1069,11 +1069,11 @@ export default function CardsPage() {
           {/* 카테고리별 지출 */}
           <div className="card-category-spending-panel pnl-panel">
             <h3>카테고리별 지출 (상위 5)</h3>
-            <p>이번 달 카드 지출을 어디에 썼나 · 비중은 도넛, 금액은 아래 목록</p>
+            <p>이번 달 카드 지출을 분류별로 보여줍니다.</p>
             {/* '어디에 얼마 비중' 을 묻는 자리다(줄마다 %가 붙어 있다) → 비중은 도넛이 한눈에,
                 정확한 금액은 아래 목록이 맡는다 (2026-08-07 자료별 최적 형태 판정) */}
             {categoryStats.length === 0 ? (
-              <p className="text-sm text-[var(--text-muted)] text-center py-4">이번 달 카드 지출 없음</p>
+              <p className="text-sm text-[var(--text-muted)] text-center py-4">아직 이번 달 카드 지출이 없습니다.</p>
             ) : (<>
               <div className="lp-donut-wrap">
                 <DonutChart unit="원" data={categoryStats.map((c) => ({ label: c.name, value: c.amount }))} />
@@ -1171,7 +1171,7 @@ export default function CardsPage() {
                 <ConditionRow label="상태">
                   <ChipGroup value={txDraft.state} onChange={setTxD("state")} options={CARD_STATE_CHIPS} />
                 </ConditionRow>
-                <ConditionRow label="금액" hint="취소(음수)도 절대값으로 봅니다">
+                <ConditionRow label="금액" hint="취소 금액도 절대값으로 봅니다.">
                   <AmountRange min={txDraft.min} max={txDraft.max} onMin={setTxD("min")} onMax={setTxD("max")} />
                 </ConditionRow>
               </ConditionPanel>
@@ -1187,7 +1187,7 @@ export default function CardsPage() {
           <QStat label="건수" value={`${shownTx.length.toLocaleString("ko-KR")}건`} />
           <QStat label="사용" value={fmtW(sumUse)} tone="minus" />
           {sumRefund > 0 && <QStat label="취소·환불" value={fmtW(sumRefund)} tone="plus" />}
-          {recentTx.length >= 2000 && <b className="ev-cut">너무 많아 앞 2,000건만 받아왔습니다<span className="ui-sub">기간을 좁혀 주세요</span></b>}
+          {recentTx.length >= 2000 && <b className="ev-cut">앞 2,000건만 받아왔습니다.<span className="ui-sub">기간을 좁혀 주세요.</span></b>}
         </ResultStrip>
         </QueryHead>
 
@@ -1220,7 +1220,7 @@ export default function CardsPage() {
                   {shownTx.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-3 py-2.5">
-                        <EmptyState icon="💳" title={txChips.length > 0 ? "걸린 조건에 맞는 거래가 없습니다" : "이 기간에 카드 거래가 없습니다"} desc="상단의 카드 연동으로 거래를 불러올 수 있습니다" />
+                        <EmptyState icon="💳" title={txChips.length > 0 ? "걸린 조건에 맞는 거래가 없습니다." : "이 기간에 카드 거래가 없습니다."} desc="카드 연동으로 거래를 불러오세요." />
                       </td>
                     </tr>
                   ) : pager.view.map((tx: any) => {
@@ -1314,7 +1314,7 @@ export default function CardsPage() {
                   if (!picked || picked.account_type === "expense") return null;
                   return (
                     <p className="card-acct-nature-hint">
-                      {picked.name}은(는) <b>{cardNatureLabel(picked.account_type)} 계정</b>입니다. 손익계산서 비용이 아니라 재무상태표 항목으로 처리됩니다.
+                      {picked.name}은(는) <b>{cardNatureLabel(picked.account_type)} 계정</b>이라 재무상태표 항목으로 처리됩니다.
                     
                     </p>
                   );
@@ -1326,7 +1326,7 @@ export default function CardsPage() {
               </label>
               <label className="flex items-center gap-2 text-xs text-[var(--text)] cursor-pointer" title="매월 반복되는 지출이면 체크 · 카드 자동이체(정기결제) 내역으로 분류되고 다음 전표처리 때 체크가 유지됩니다">
                 <input type="checkbox" checked={postFixed} onChange={(e) => setPostFixed(e.target.checked)} className="accent-orange-500" />
-                고정비로 표시 <span className="text-[var(--text-dim)]">— 매월 반복되는 지출이면 체크</span>
+                고정비로 표시 <span className="text-[var(--text-dim)]">매월 반복되는 지출이면 체크합니다.</span>
               </label>
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">사유 / 메모</label>
@@ -1346,7 +1346,7 @@ export default function CardsPage() {
                   {cardEmployees.map((e: any) => <option key={e.id} value={e.id}>{e.name}</option>)}
                 </select>
               </div>
-              <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">차) 선택 계정 / 대) 보통예금 으로 전표가 생성됩니다. 카드 내역은 그대로 남고 “전표처리됨”으로 표시됩니다.</p>
+              <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">선택한 계정으로 전표를 만들고 전표처리됨으로 표시합니다.</p>
             </div>
             <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2 flex-wrap">
               <button onClick={() => setPostCard(null)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
@@ -1377,14 +1377,14 @@ export default function CardsPage() {
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">일괄 전표처리</div>
-              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">선택 {selectedTxIds.size}건을 한 계정으로 전표 생성합니다. 이미 처리된 건은 건너뜁니다.</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">선택 {selectedTxIds.size}건을 한 계정으로 전표 생성합니다.</div>
             </div>
             <div className="p-5 space-y-3">
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">비용 계정과목 *</label>
                 <AccountPicker accounts={accounts as any[]} value={bulkAccountId} onChange={(id) => setBulkAccountId(id)} natureLabel={cardNatureLabel} />
               </div>
-              <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">차) 선택 계정 / 대) 보통예금 으로 각 건 전표가 생성됩니다. 카드 내역은 그대로 남고 “전표처리됨”으로 표시됩니다.</p>
+              <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">건별로 전표를 만들고 전표처리됨으로 표시합니다.</p>
             </div>
             <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
               <button onClick={() => setShowBulkPost(false)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
@@ -1403,7 +1403,7 @@ export default function CardsPage() {
             <div className="pnl-drill-head"><h3 className="text-sm font-bold">카드 수정</h3><button type="button" className="btn-secondary btn-sm" onClick={() => setCardEdit(null)}>닫기</button></div>
             <div className="pay-form-body space-y-3">
               <label className="block"><span className="field-label">카드 이름</span><input className="qk-input h-9 w-full px-2.5 text-sm" value={cardEdit.name} onChange={(e) => setCardEdit({ ...cardEdit, name: e.target.value })} /></label>
-              <label className="block"><span className="field-label">카드번호 <span className="text-[var(--text-dim)] font-normal">— 카드사가 끝 3~4자리만 알려줘서, 전체로 보려면 직접 입력</span></span><input className="qk-input h-9 w-full px-2.5 text-sm mono-number" inputMode="numeric" value={cardEdit.number} onChange={(e) => setCardEdit({ ...cardEdit, number: e.target.value.replace(/[^0-9-]/g, "") })} placeholder="예: 5137-1234-5678-4962" /></label>
+              <label className="block"><span className="field-label">카드번호 <span className="text-[var(--text-dim)] font-normal">전체 번호를 보려면 직접 입력합니다.</span></span><input className="qk-input h-9 w-full px-2.5 text-sm mono-number" inputMode="numeric" value={cardEdit.number} onChange={(e) => setCardEdit({ ...cardEdit, number: e.target.value.replace(/[^0-9-]/g, "") })} placeholder="예: 5137-1234-5678-4962" /></label>
               <label className="block"><span className="field-label">메모</span><textarea className="qk-input w-full px-2.5 py-2 text-sm" rows={3} value={cardEdit.memo} onChange={(e) => setCardEdit({ ...cardEdit, memo: e.target.value })} placeholder="예: 마케팅팀 광고비 전용 · 대표 소지" /></label>
               <div className="flex justify-end gap-2"><button type="button" className="btn-secondary btn-sm" onClick={() => setCardEdit(null)}>취소</button><button type="button" className="btn-primary btn-sm" disabled={cardSaving} onClick={saveCardEdit}>{cardSaving ? "저장 중…" : "저장"}</button></div>
             </div>

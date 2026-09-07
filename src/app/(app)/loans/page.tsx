@@ -382,8 +382,8 @@ export default function LoansPage() {
           {loans.length === 0 ? (
             <EmptyState
               icon="🏦"
-              title="대출 정보를 등록하면 상환 일정이 자동 관리됩니다"
-              desc="이자, 원금 상환 스케줄을 한눈에 확인하세요"
+              title="아직 등록된 대출이 없습니다."
+              desc="대출을 등록하면 상환 일정을 관리할 수 있습니다."
               action={null}
             />
           ) : (
@@ -661,8 +661,8 @@ export default function LoansPage() {
             {allPayments.length === 0 ? (
               <EmptyState
                 icon="📋"
-                title="상환 이력이 없습니다"
-                desc="상단의 ‘+ 상환 기록’ 버튼으로 납부 내역을 추가하세요"
+                title="아직 상환 이력이 없습니다."
+                desc="상환 기록으로 납부 내역을 추가하세요."
               />
             ) : (
               <div className="ev-scroll">
@@ -705,7 +705,7 @@ export default function LoansPage() {
       {tab === "match" && (
         <div className="loan-match-panel">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-[var(--text-muted)]">은행 거래내역에서 대출 상환 가능한 건을 자동으로 찾습니다.</p>
+            <p className="text-xs text-[var(--text-muted)]">은행 거래내역에서 대출 상환 건을 찾습니다.</p>
             <button
               onClick={async () => {
                 if (!companyId) return;
@@ -734,8 +734,8 @@ export default function LoansPage() {
             {matchCandidates.length === 0 ? (
               <EmptyState
                 icon="🔍"
-                title={matchLoading ? "은행 거래를 분석하고 있습니다..." : "\"자동 매칭 실행\" 버튼을 눌러 시작하세요"}
-                desc="은행 거래내역에서 대출 상환 건을 자동으로 찾아 제안합니다"
+                title={matchLoading ? "은행 거래를 분석하고 있습니다..." : "아직 매칭 후보가 없습니다."}
+                desc="자동 매칭 실행으로 상환 건을 찾으세요."
               />
             ) : (
               <div className="divide-y divide-[var(--border)]/50">

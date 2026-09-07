@@ -52,7 +52,7 @@ export function ExcelUploadDialog<T>({ title, desc, cols, templateName, sheetNam
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">{title} · 엑셀 올리기</h3>
-        <p className="inv-modal-desc">{desc || <>오너뷰 양식에 맞춰 채운 파일을 올리면 먼저 읽어서 보여 줍니다. <b>등록</b>을 눌러야 저장됩니다. 머리줄은 양식 그대로 두세요.</>}</p>
+        <p className="inv-modal-desc">{desc || <>양식대로 채운 파일을 올리면 먼저 미리 보기가 열립니다. <b>등록</b>을 누르면 저장됩니다.</>}</p>
         <div className="inv-bom-base">
           <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) load(f); e.target.value = ""; }} />
           <button type="button" className="btn-secondary btn-sm" onClick={() => downloadTemplate(templateName, sheetName, cols, guide)}>양식 내려받기</button>
@@ -71,7 +71,7 @@ export function ExcelUploadDialog<T>({ title, desc, cols, templateName, sheetNam
                 <thead><tr>{previewHead.map((h) => <th key={h}>{h}</th>)}</tr></thead>
                 <tbody>{items.slice(0, 100).map((it, i) => <tr key={i}>{previewRow(it).map((c, j) => <td key={j} className={j === 0 ? "text-left" : typeof c === "number" ? "tr mono-number" : "text-left"}>{c}</td>)}</tr>)}</tbody>
               </table>
-              {items.length > 100 && <p className="inv-foot">앞 100줄만 보입니다 · 등록은 {items.length}줄 전부</p>}
+              {items.length > 100 && <p className="inv-foot">미리 보기는 앞 100줄입니다. 등록은 {items.length}줄 모두 됩니다.</p>}
             </div>
           </>
         )}

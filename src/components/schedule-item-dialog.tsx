@@ -175,7 +175,7 @@ function ScheduleItemView({
         <p className="sched-view-when">
           {event.start_at ? formatEventRange(event) : "날짜 없음"}
           {event.recurrence?.freq && (
-            <span title="반복 일정 · 고치거나 지우면 모든 회차에 적용됩니다"> · 🔁 {event.recurrence.freq === "daily" ? "매일" : event.recurrence.freq === "monthly" ? "매월" : `매주 ${["일", "월", "화", "수", "목", "금", "토"][event.recurrence.weekday ?? 0]}요일`}</span>
+            <span title="반복 일정은 수정과 삭제가 모든 회차에 적용됩니다."> · 🔁 {event.recurrence.freq === "daily" ? "매일" : event.recurrence.freq === "monthly" ? "매월" : `매주 ${["일", "월", "화", "수", "목", "금", "토"][event.recurrence.weekday ?? 0]}요일`}</span>
           )}
           {remindersOf(event).length > 0 && <span title={remindersOf(event).map((r) => `${r.days_before === 0 ? "당일" : `${r.days_before}일 전`} ${r.time}`).join(" · ")}> · 🔔 알림 {remindersOf(event).length}개</span>}
           {event.completed && <span className="sched-view-done">완료</span>}

@@ -741,7 +741,7 @@ export function EvidenceTab({
     ...(kind === "card" && unknownBiznos.length > 0 ? [{
       label: filling ? "구분 조회 중…" : "가맹점 구분 채우기",
       source: "국세청 조회",
-      hint: "사업자번호로 과세유형을 물어 '구분' 칸을 채웁니다. 간이·면세는 부가세를 공제받지 못합니다",
+      hint: "가맹점 과세유형을 조회해 구분 칸을 채웁니다.",
       badge: unknownBiznos.length, disabled: filling, onClick: fillKinds,
     } as HelperItem] : []),
   ];
@@ -881,18 +881,18 @@ export function EvidenceTab({
 
   const excelItems: ExcelItem[] = [
     { label: "조회 결과 전부 내려받기", count: shown.length,
-      hint: "지금 걸린 조건 그대로 · 표에 보이는 칸 그대로", onClick: () => download(shown, "") },
+      hint: "지금 조건과 표의 칸 그대로 내려받습니다.", onClick: () => download(shown, "") },
     { label: "지금 쪽만 내려받기", count: pager.view.length,
       hint: `${pager.from}–${pager.to}번째 줄만`, onClick: () => download(pager.view, `_${pager.page}쪽`) },
     { label: "계정 채우기 양식 내려받기", count: needAcct.length, disabled: needAcct.length === 0,
-      hint: "계정이 아직 없는 줄만 · 둘째 장 '붙여넣기용' 칸을 복사해 채우세요 (같은 이름이 여럿이라 코드가 필요합니다)",
+      hint: "계정이 없는 줄만 내려받아 엑셀에서 채웁니다.",
       onClick: () => downloadAccountFillSheet(
         needAcct.map((r) => ({
           id: r.id, date: r.date, who: r.partnerName, memo: r.item,
           amount: amountsOf(r).supply + amountsOf(r).vat,
         })), accounts, `${KIND_LABEL[kind] ?? "수집자료"}_계정채우기_${from}~${to}`) },
     { label: "채운 엑셀 올리기",
-      hint: "계정과목 칸만 채워 올리면 화면에 붙습니다. 전표는 확인 후 직접 만듭니다",
+      hint: "채운 계정과목을 화면에 불러옵니다.",
       onClick: () => fillRef.current?.click() },
   ];
 
@@ -1028,10 +1028,10 @@ export function EvidenceTab({
         <Stat label="공급가액" value={won(sumSupply)} />
         <Stat label="부가세" value={won(sumVat)} />
         {/*   ★ 잘렸으면 반드시 말한다 — 조용히 500건만 보여 주면 '이게 전부'로 읽힌다 */}
-        {capped && <b className="ev-cut">너무 많아 앞 20,000건만 받아왔습니다<span className="ui-sub">기간을 좁혀 주세요</span></b>}
+        {capped && <b className="ev-cut">앞 20,000건만 받아왔습니다.<span className="ui-sub">기간을 좁혀 주세요.</span></b>}
         {/*   감춘 것은 말한다 — 여기는 '홈택스에 있는 자료'만 다룬다(2026-08-24 사장님 지적) */}
         {hiddenDrafts > 0 && (
-          <span className="ev-draft-note"><Link href="/e-invoices" className="bz-link" title="누르면 초안 목록(세금·증빙)">발행 전 초안 {won(hiddenDrafts)}건</Link>은 빼고 보여줍니다. 국세청에 아직 없는 건이라 전표로 만들 수 없습니다. 세금·증빙에서 발행하면 여기에 나타납니다.</span>
+          <span className="ev-draft-note" title="국세청에 아직 없는 건이라 전표로 만들 수 없습니다. 세금·증빙에서 발행하면 여기에 나타납니다."><Link href="/e-invoices" className="bz-link" title="누르면 초안 목록(세금·증빙)">발행 전 초안 {won(hiddenDrafts)}건</Link>은 제외했습니다.</span>
         )}
       </ResultStrip>
       </QueryHead>
@@ -1042,7 +1042,7 @@ export function EvidenceTab({
         <div className="collect-empty">읽는 중…</div>
       ) : shown.length === 0 ? (
         <div className="collect-empty">
-          {live.todo === "todo" ? "전표를 만들 자료가 없습니다. 이 기간은 다 처리했습니다." : "이 기간에 받아온 자료가 없습니다."}
+          {live.todo === "todo" ? "전표를 만들 자료가 없습니다." : "이 기간에 받아온 자료가 없습니다."}
         </div>
       ) : (
         <div className="ev-scroll">

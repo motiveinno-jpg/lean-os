@@ -138,10 +138,10 @@ export function AgingView({ type, rows: rawRows, loading, q, onOpen, partnerMap,
   };
 
   if (loading) return <div className="collect-empty">연령표를 만드는 중…</div>;
-  if (rows.length === 0) return <div className="collect-empty">{isAR ? "미정산 매출 계산서" : "미정산 매입 계산서"}가 없습니다. 계산서 없이 전표로만 잡힌 잔액은  <b>원장</b> 보기에서 봅니다.</div>;
+  if (rows.length === 0) return <div className="collect-empty">아직 {isAR ? "미정산 매출 계산서" : "미정산 매입 계산서"}가 없습니다. 전표로만 잡힌 잔액은 <b>원장</b> 보기에서 봅니다.</div>;
   return (
     <div className="aging-wrap">
-      <p className="inv-hint aging-hint">전표처리된 세금계산서의 미정산 잔액을 발행일 경과로 나눴습니다. 원장 총액(전표·이월 포함)과는 다를 수 있습니다. 줄을 누르면 그 거래처의 계산서·정산 내역이 열립니다.</p>
+      <p className="inv-hint aging-hint" title="전표처리된 세금계산서의 미정산 잔액 기준입니다. 원장 총액과 다를 수 있습니다.">미정산 잔액을 발행일 경과 구간별로 봅니다.</p>
       <div className="ev-scroll aging-scroll">
         <table className="ev-table ev-lined aging-table">
           <thead>
@@ -189,7 +189,7 @@ export function AgingView({ type, rows: rawRows, loading, q, onOpen, partnerMap,
         <div className="inv-modal" onClick={() => setNoteFor(null)}>
           <div className="inv-modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="inv-modal-head"><h3>독촉 기록 — {noteFor.name}</h3><button type="button" className="inv-modal-x" onClick={() => setNoteFor(null)}>✕</button></div>
-            <p className="inv-modal-desc">{isAR ? "미수" : "미지급"} {won(noteFor.total)} · {noteFor.count}건 · 최장 {noteFor.oldestDays}일. 오늘 날짜로 거래처 메모에 한 줄 남습니다(거래처 상세 메모에서도 보입니다). 발송은 하지 않습니다.</p>
+            <p className="inv-modal-desc">{isAR ? "미수" : "미지급"} {won(noteFor.total)} · {noteFor.count}건 · 최장 {noteFor.oldestDays}일. 오늘 날짜로 거래처 메모에 남깁니다.</p>
             <textarea className="inv-input aging-note-input" rows={3} value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="예: 담당자 김OO 통화, 9/5 입금 약속" autoFocus />
             <div className="inv-modal-actions">
               <button type="button" className="btn-secondary btn-sm" onClick={() => copyDunning(noteFor)}>독촉 문구 복사</button>

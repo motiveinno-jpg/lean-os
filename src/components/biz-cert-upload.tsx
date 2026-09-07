@@ -37,7 +37,7 @@ export function BizCertUpload({ onExtracted, compact }: { onExtracted: (f: BizCe
       <button type="button" className="bizcert-btn" disabled={busy} onClick={() => inputRef.current?.click()}>
         <Ico e={busy ? "⏳" : "📄"} /> {busy ? "사업자등록증 읽는 중…" : "사업자등록증으로 채우기"}
       </button>
-      {!compact && <span className="bizcert-hint">PDF·JPG·PNG 를 올리거나 여기에 끌어다 놓으면 상호·사업자번호·대표자·주소·업태·종목이 자동으로 들어갑니다. 저장 전에 확인·수정할 수 있습니다.</span>}
+      {!compact && <span className="bizcert-hint" title="PDF·JPG·PNG 파일을 올리거나 끌어다 놓으면 됩니다.">사업자등록증을 올리면 회사 정보가 자동으로 채워집니다.</span>}
       {msg && <div className={`bizcert-msg bizcert-msg-${msg.tone}`}>{msg.text}</div>}
     </div>
   );

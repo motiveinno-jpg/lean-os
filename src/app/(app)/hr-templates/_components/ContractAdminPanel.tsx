@@ -346,7 +346,7 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                   계약서식 에디터
                 </h4>
-                <p className="text-[10px] text-[var(--text-dim)] mt-0.5">서식을 작성하고 저장하면 계약 요청 시 사용할 수 있습니다. {"{{직원명}}, {{부서}}, {{직위}}, {{연봉}}"} 등의 변수를 사용하세요.</p>
+                <p className="text-[10px] text-[var(--text-dim)] mt-0.5">{"{{직원명}}, {{부서}}, {{직위}}, {{연봉}}"} 변수를 쓸 수 있습니다.</p>
               </div>
               <button onClick={() => setShowTemplateEditor(false)} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">닫기</button>
             </div>
@@ -371,7 +371,7 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
             <div className="contract-template-variable-panel w-52 shrink-0 flex flex-col min-h-0">
               <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5 shrink-0">변수 삽입</label>
               <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-3 flex-1 overflow-y-auto flex flex-col gap-1.5">
-                <p className="text-[9px] text-[var(--text-dim)] mb-1 shrink-0">클릭하면 커서 위치에 삽입됩니다</p>
+                <p className="text-[9px] text-[var(--text-dim)] mb-1 shrink-0">누르면 커서 위치에 들어갑니다.</p>
                 {[
                   { v: "{{직원명}}", desc: "직원 이름" },
                   { v: "{{부서}}", desc: "소속 부서" },
@@ -467,7 +467,7 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] text-[var(--text-dim)] mt-1"><Ico e="🔒" /> 내장 · 📝 임시저장 · 클릭하면 에디터에 로드</p>
+              <p className="text-[10px] text-[var(--text-dim)] mt-1"><Ico e="🔒" /> 내장 · 📝 임시저장 · 누르면 불러옵니다.</p>
             </div>
           )}
           <div className="contract-template-editor-footer shrink-0 border-t border-[var(--border)] px-6 py-4 flex items-center gap-3 bg-[var(--bg-card)] rounded-b-2xl">
@@ -578,8 +578,8 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
       {filteredContracts.length === 0 ? (
         <div className="collect-empty">
           {contractList.length === 0
-            ? <>계약 내역이 없습니다 — 구성원 › 인력관리에서 직원을 선택해 계약서를 발송하세요</>
-            : <>이 조건에 맞는 계약이 없습니다 — 검색조건을 풀어 보세요</>}
+            ? <>아직 계약 내역이 없습니다. 구성원 상세에서 계약서를 발송해 보세요.</>
+            : <>조건에 맞는 계약이 없습니다. 검색조건을 풀어 보세요.</>}
         </div>
       ) : (
         <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed ca-table">
@@ -661,7 +661,7 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
                         <button
                           onClick={() => p.sign_token && window.open(`/sign?token=${p.sign_token}`, "_blank", "noopener")}
                           className="px-2 py-1 text-[11px] font-medium text-green-400 rounded-lg hover:bg-green-500/10 transition flex items-center gap-1"
-                          title="서명된 계약서 보기 (감사추적 + 다운로드)"
+                          title="서명된 계약서를 봅니다."
                         >
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                           서명본 보기
@@ -729,7 +729,7 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
 
       {/* 개별 발송 동선 안내 — 구성원 상세 › 근로계약과 연결 */}
       <div className="collect-note">
-        개별 직원의 근로·연봉계약 발송은 <Link href="/employees" className="text-[var(--primary)] font-semibold hover:underline no-underline">구성원 상세 › 근로계약</Link>에서 하세요. 이 탭은 <b className="text-[var(--text)]">회사 전체 일괄 발송과 서명 현황</b>을 관리합니다.
+        개별 직원 계약은 <Link href="/employees" className="text-[var(--primary)] font-semibold hover:underline no-underline">구성원 상세 › 근로계약</Link>에서 발송합니다.
       </div>
     </QueryScreen>
   );

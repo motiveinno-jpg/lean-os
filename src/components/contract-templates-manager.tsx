@@ -162,7 +162,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
         <div>
           <h3 className="text-sm font-bold text-[var(--text)]">계약 양식</h3>
           <p className="text-xs text-[var(--text-dim)] mt-1">
-            우리 회사 계약서 양식입니다. 서명 요청·견적 발송 시 사용됩니다. 새로 만들 때 오너뷰 표준 계약서에서 시작할 수 있습니다.
+            서명 요청과 견적 발송에 쓰는 계약서 양식입니다.
           </p>
         </div>
         <div className="relative">
@@ -174,12 +174,12 @@ export default function ContractTemplatesManager({ companyId }: Props) {
                 <button onClick={() => startAdd("html")}
                   className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-[var(--bg-surface)] transition">
                   <div className="text-sm font-semibold text-[var(--text)]"><Ico e="✍" /> 직접 작성</div>
-                  <div className="text-[11px] text-[var(--text-muted)] mt-0.5">편집기에서 계약서를 작성 (표준 계약서에서 시작 가능)</div>
+                  <div className="text-[11px] text-[var(--text-muted)] mt-0.5">편집기에서 계약서를 직접 작성합니다.</div>
                 </button>
                 <button onClick={() => startAdd("pdf")}
                   className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-[var(--bg-surface)] transition">
                   <div className="text-sm font-semibold text-[var(--text)]"><Ico e="📄" /> PDF 업로드</div>
-                  <div className="text-[11px] text-[var(--text-muted)] mt-0.5">완성된 PDF 계약서를 올려 그대로 사용</div>
+                  <div className="text-[11px] text-[var(--text-muted)] mt-0.5">완성된 PDF 계약서를 올려 사용합니다.</div>
                 </button>
               </div>
             </>
@@ -209,7 +209,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
         <div className="mb-4">
           <div className="text-[11px] font-semibold text-[var(--text-dim)] mb-1.5">
             
-            오너뷰가 제공하는 양식입니다. 수정하려면 복제하세요. 숨기면 발송 목록에도 안 나옵니다.
+            오너뷰 표준 양식입니다. 복제해서 우리 회사 양식으로 씁니다.
 
           </div>
           {systemTemplates.length === 0 ? (
@@ -239,7 +239,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
                   <button
                     onClick={() => { setInitialMode(t.file_type === "pdf" ? "pdf" : "html"); setEditing(null); setDuplicateFrom(t); setShowAdd(true); }}
                     className="text-[10px] px-2 py-1 rounded bg-[var(--bg)] text-[var(--text-muted)] hover:text-[var(--text)] transition"
-                    title="표준 양식은 직접 수정할 수 없습니다. 복제해서 우리 회사 양식으로 만드세요"
+                    title="복제해서 우리 회사 양식으로 만듭니다."
                   >
                     복제해서 수정
                   </button>
@@ -261,7 +261,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
       {/* 우리 회사가 만든 계약 양식 */}
       {listTab === "company" && (companyTemplates.length === 0 ? (
         <div className="templates-empty">
-          아직 만든 계약 양식이 없습니다. <b>+ 양식 추가</b>로 만들어 보세요. (표준 계약서에서 시작할 수 있습니다)
+          아직 계약 양식이 없습니다. <b>+ 양식 추가</b>로 만들어 보세요.
         </div>
       ) : (
         <div className="grid gap-1.5">
@@ -502,7 +502,7 @@ function TemplateEditorModal({
             <h2 className="text-sm font-bold text-[var(--text)]">{readonly ? "시스템 양식 미리보기" : editing ? "계약 양식 수정" : duplicateFrom ? "표준 양식 복제" : "계약 양식 추가"}</h2>
             {readonly && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">시스템 양식은 수정/삭제할 수 없습니다.</p>}
             {!readonly && !editing && duplicateFrom && (
-              <p className="text-[11px] text-[var(--text-dim)] mt-0.5">‘{duplicateFrom.name}’ 내용을 그대로 불러왔습니다. 고쳐서 저장하면 우리 회사 양식이 됩니다.</p>
+              <p className="text-[11px] text-[var(--text-dim)] mt-0.5">‘{duplicateFrom.name}’을 복제했습니다. 저장하면 우리 회사 양식이 됩니다.</p>
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -541,7 +541,7 @@ function TemplateEditorModal({
             {/* 변수 (html/markdown) — 클릭 시 본문 삽입 */}
             {fileType !== "pdf" && (
               <div>
-                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">변수 {fileType === "html" && <span className="text-[var(--text-dim)] font-normal">— 클릭하면 본문 커서 위치에 삽입</span>}</label>
+                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">변수 {fileType === "html" && <span className="text-[var(--text-dim)] font-normal">누르면 본문 커서 자리에 삽입됩니다.</span>}</label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {paletteVars.map((v) => (
                     fileType === "html" && !readonly ? (
@@ -555,7 +555,7 @@ function TemplateEditorModal({
                       <span key={v} className="text-[10px] px-2 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-mono">{`{{${v}}}`}</span>
                     )
                   ))}
-                  {paletteVars.length === 0 && <span className="text-[11px] text-[var(--text-dim)]">아래에서 변수를 추가하면 여기에 쌓입니다. 본문 작성 중 변수를 누르면 그 자리에 삽입됩니다.</span>}
+                  {paletteVars.length === 0 && <span className="text-[11px] text-[var(--text-dim)]">아직 변수가 없습니다. 아래에서 추가해 보세요.</span>}
                 </div>
                 {fileType === "html" && !readonly && (
                   <div className="flex gap-1.5">
@@ -574,7 +574,7 @@ function TemplateEditorModal({
                       className="px-3 py-2 bg-[var(--primary)]/10 text-[var(--primary)] rounded text-xs font-semibold hover:bg-[var(--primary)]/20 transition shrink-0 disabled:opacity-40">변수 추가</button>
                   </div>
                 )}
-                <p className="mt-1.5 text-[10px] text-[var(--text-dim)]">추가한 변수는 위 목록에 쌓입니다. 본문에 넣은 변수만 발송 시 거래처별로 치환됩니다.</p>
+                <p className="mt-1.5 text-[10px] text-[var(--text-dim)]">본문에 넣은 변수만 발송 시 치환됩니다.</p>
               </div>
             )}
 
@@ -588,7 +588,7 @@ function TemplateEditorModal({
                   <div className="mt-2 text-[11px] text-[var(--text-muted)]">업로드됨: <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:underline">미리보기</a></div>
                 )}
                 {uploading && <div className="mt-2 text-[11px] text-[var(--text-dim)]">업로드 중…</div>}
-                <p className="mt-2 text-[10px] text-amber-400"><Ico e="⚠" /> PDF 양식은 변수 자동 치환이 불가능합니다. 발송 시 PDF 그대로 전송.</p>
+                <p className="mt-2 text-[10px] text-amber-400"><Ico e="⚠" /> PDF 양식은 변수 치환 없이 그대로 발송됩니다.</p>
               </div>
             )}
           </aside>
@@ -601,10 +601,10 @@ function TemplateEditorModal({
                   dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(bodyHtml) }} />
               ) : (
                 <>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1.5 shrink-0">본문 <span className="text-[var(--text-dim)] font-normal">표·굵기·정렬·색·이미지 지원 · 변수는 {"{변수명}"} 형식</span></label>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1.5 shrink-0">본문 <span className="text-[var(--text-dim)] font-normal">변수는 {"{변수명}"} 형식으로 넣습니다.</span></label>
                   <div className="flex-1 min-h-0 contract-tpl-editor">
                     <RichEditor ref={editorRef} content={bodyHtml} onChange={setBodyHtml} fillHeight
-                      placeholder="계약서 내용을 입력하세요… 왼쪽 변수 버튼으로 {갑사명}·{을사명} 등을 삽입할 수 있습니다." />
+                      placeholder="계약서 내용을 입력하세요." />
                   </div>
                 </>
               )

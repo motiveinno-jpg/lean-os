@@ -592,7 +592,7 @@ export function BoardDocModal({
           <div>
             <b>{rowName || "청구 건"}</b>
             <span>{DOC_LABEL[kind]}{doc?.document_number ? ` · ${doc.document_number}` : ""}</span>
-            {!doc?.id && <em className="pb-doc-unsaved">아직 저장 전 · ‘저장’ 을 눌러야 만들어집니다</em>}
+            {!doc?.id && <em className="pb-doc-unsaved">저장하면 만들어집니다.</em>}
           </div>
           {kind !== "issue" && <span className={`pb-doc-st pb-doc-st-${status}`}>{STATUS_LABEL[status] || status}</span>}
           {dirty && <span className="pb-doc-dirty">저장 안 됨</span>}
@@ -625,7 +625,7 @@ export function BoardDocModal({
           )}
 
           <dl className="pb-doc-facts">
-            <div><dt>거래처</dt><dd>{partnerName || <em>미지정 · 표에서 거래처를 고르세요</em>}</dd></div>
+            <div><dt>거래처</dt><dd>{partnerName || <em>표에서 거래처를 고르세요.</em>}</dd></div>
             {kind === "issue" && <div><dt>발행일</dt><dd><DateField value={issueDate} onChange={(e) => setIssueDate(e.target.value)} /></dd></div>}
             <div><dt>공급가</dt><dd className="pb-doc-num">{won(kind === "issue" ? issueSupply : supply)}원</dd></div>
             <div><dt>합계</dt><dd className="pb-doc-num pb-doc-total">
@@ -638,7 +638,7 @@ export function BoardDocModal({
             <section className="pb-doc-terms">
               <b>계약에서 가져온 내용</b>
               <dl className="pb-doc-facts">
-                <div><dt>품목</dt><dd>{itemName || <em>계약에 품목이 없습니다</em>}</dd></div>
+                <div><dt>품목</dt><dd>{itemName || <em>계약에 품목이 없습니다.</em>}</dd></div>
                 <div><dt>과세유형</dt><dd>{TAX_LABEL.find(([v]) => v === taxType)?.[1]}</dd></div>
                 <div><dt>사업자번호</dt><dd>{partnerBizno || <em>거래처에 없음</em>}</dd></div>
                 <div><dt>계약 금액</dt><dd className="pb-doc-num">{won(supply)}원</dd></div>
@@ -661,10 +661,10 @@ export function BoardDocModal({
                   })}
                 </div>
               </>) : (
-                <p className="pb-doc-hint">계약서에 결제 회차가 없어 <b>전액</b>으로 만듭니다. 회차로 나누려면 계약서에서 결제조건을 먼저 정하세요.</p>
+                <p className="pb-doc-hint">결제 회차가 없어 <b>전액</b>으로 만듭니다.</p>
               )}
               <p className="pb-doc-hint">
-                <b>발행 대기</b>로만 만듭니다. 국세청 실제 발행은 세금계산서 화면에서 확인하고 누르세요.
+                <b>발행 대기</b>로 만들어지며, 실제 발행은 세금계산서 화면에서 합니다.
               </p>
             </section>
           )}
@@ -748,15 +748,15 @@ export function BoardDocModal({
                     <b className="pb-doc-num">{won(termAmount(t.ratio))}원</b>
                     <i>{t.condition || "협의"}</i>
                     {kind === "contract" && (
-                      <input type="date" className="pb-doc-due" value={termDates[i] || ""} title="예정일 · 적어 두면 그날 새벽 발행 대기가 자동으로 생깁니다(승인만 누르면 발행)"
+                      <input type="date" className="pb-doc-due" value={termDates[i] || ""} title="예정일을 적으면 그날 발행 대기가 자동으로 만들어집니다."
                         onChange={(e) => { const v = e.target.value; setTermDates((d) => { const n = [...d]; n[i] = v; return n; }); setDirty(true); }} />
                     )}
                   </li>
                 ))}
               </ul>
-              {kind === "contract" && <p className="pb-doc-hint">회차 옆 <b>예정일</b>을 적으면 그날 아침 <b>발행 대기</b>(초안)가 저절로 생기고 알림이 옵니다. 세금·증빙에서 승인(발행)만 누르면 됩니다. 비우면 ‘＋ 발행’으로 직접 만듭니다.</p>}
+              {kind === "contract" && <p className="pb-doc-hint"><b>예정일</b>을 적으면 그날 <b>발행 대기</b>가 자동으로 만들어집니다.</p>}
               {kind === "contract" && (
-                <p className="pb-doc-hint">저장하면 표 위에서 이 회차대로 <b>청구 줄을 만들 수 있습니다</b>. ‘＋ 발행’ 은 이 회차를 그대로 씁니다.</p>
+                <p className="pb-doc-hint">저장하면 이 회차대로 <b>청구 줄을 만들 수 있습니다</b>.</p>
               )}
             </section>
           )}
@@ -765,7 +765,7 @@ export function BoardDocModal({
           {kind === "contract" && !richBody && (
             <section className="pb-doc-terms">
               <b>계약 조항</b>
-              {clauses.length === 0 && <p className="pb-doc-hint">조항이 없습니다. 아래에서 추가하세요.</p>}
+              {clauses.length === 0 && <p className="pb-doc-hint">아직 조항이 없습니다. 아래에서 추가하세요.</p>}
               {clauses.map((c, i) => (
                 <div key={i} className="pb-doc-clause">
                   <div className="pb-doc-clause-head">
@@ -785,7 +785,7 @@ export function BoardDocModal({
             </section>
           )}
           {kind === "contract" && richBody && (
-            <p className="pb-doc-hint">이 계약서는 편집기에서 <b>서식(레이아웃)</b>으로 작성돼 있습니다. 본문은 아래 ‘편집기’ 에서 고치세요.</p>
+            <p className="pb-doc-hint">이 계약서는 <b>서식</b>으로 작성되어 있어 본문은 편집기에서 고칩니다.</p>
           )}
 
           {/* 비고 — 견적서 PDF 하단에 그대로 찍힌다 */}
@@ -823,7 +823,7 @@ export function BoardDocModal({
           {kind !== "issue" && (<>
             <button type="button" className="pb-doc-sub" disabled={busy || !canEdit} onClick={() => save()}>저장</button>
             <button type="button" className="pb-doc-sub" disabled={busy} onClick={openPreview}
-              title="실제 인쇄될 PDF 를 그대로 봅니다. 저장 전에도 됩니다">미리보기</button>
+              title="인쇄될 PDF를 미리 봅니다.">미리보기</button>
             {status === "draft" && <button type="button" className="pb-doc-sub" disabled={busy || !doc?.id}
               title={doc?.id ? undefined : "먼저 저장하세요"} onClick={submit}>검토 요청</button>}
             {status === "review" && <button type="button" className="pb-doc-sub" disabled={busy} onClick={approve}>승인</button>}
@@ -927,8 +927,8 @@ export function BoardDocModal({
 
               <p className="pb-doc-hint">
                 {quoteSent
-                  ? <>이 견적서는 <b>이미 거래처에 보냈습니다</b>. 보낸 문서를 사후에 바꾸면 거래처가 가진 견적서와 기록이 달라져요. 대신  <b>개정 견적서</b>를 새로 만들어 다시 보내세요. 원본 견적은 그대로 남습니다.</>
-                  : <>이 견적서는 <b>아직 보내지 않았습니다</b>. 계약 내용으로 맞춰도 안전합니다.</>}
+                  ? <>이 견적서는 <b>이미 거래처에 보냈습니다</b>. 수정하려면 <b>개정 견적서</b>를 새로 만드세요.</>
+                  : <>이 견적서는 <b>아직 보내지 않았습니다</b>.</>}
               </p>
             </div>
             <footer className="pb-doc-foot">

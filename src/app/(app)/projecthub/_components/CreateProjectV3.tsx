@@ -55,8 +55,7 @@ export function CreateProjectV3({ companyId, userId, onClose }: {
       <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="새 프로젝트">
         <h3 className="phv3-modal-title">새 프로젝트</h3>
         <p className="phv3-modal-desc">
-          <b>그룹 하나짜리 표</b>로 시작합니다. 그룹 이름은 눌러서 바꾸고, 아래  <b>＋ 새 그룹</b>으로 늘립니다.
-          업무에 맞는 시작 양식이 필요하면 만든 뒤 표 위 <b>템플릿</b> 버튼에서 고릅니다.
+          <b>그룹 하나짜리 표</b>로 시작합니다.
         </p>
         <input
           className="phv3-field"

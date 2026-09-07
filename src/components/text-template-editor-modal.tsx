@@ -60,8 +60,8 @@ export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, o
         {step === "edit" ? (
           <>
             <p className="tpl-editor-hint">
-              
-              내용을 자유롭게 고치세요. 굵게·정렬·글자크기·<b>표(▦)</b> 모두 툴바에서. 값이 채워질 자리는 아래 변수 버튼으로 <code>{"{{변수}}"}</code>를 넣으면 발급 시 실제 값으로 채워집니다. 발급 모습은 &lsquo;미리보기&rsquo; 버튼으로 확인하세요.
+
+              값이 채워질 자리에는 변수 버튼으로 <code>{"{{변수}}"}</code>를 넣습니다.
             </p>
             <div className="tpl-var-buttons">
               {vars.map((v) => (
@@ -79,7 +79,7 @@ export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, o
         ) : (
           <>
             <p className="tpl-editor-hint">
-              발급 시 이렇게 나갑니다 — <code>{"{{변수}}"}</code> 자리는 실제 값으로 채워집니다. 고칠 곳이 있으면 &lsquo;돌아가서 수정&rsquo;을 누르세요.
+              발급 시 <code>{"{{변수}}"}</code> 자리가 실제 값으로 채워진 모습입니다.
             </p>
             <div className="tpl-preview-stage">
               <div className="tpl-preview w-full min-h-full px-6 py-5 bg-white text-black text-[13px] leading-relaxed"

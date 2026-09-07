@@ -78,7 +78,7 @@ export function AccessDenied({
             아래 10초 자동 재확인이 이미 돌고 있어 버튼 없이도 권한 부여가 곧 반영된다. */}
         {detail && <p className="text-xs text-[var(--text-dim)] mb-2">{detail}</p>}
         <p className="text-xs text-[var(--text-dim)] mb-5">
-          권한이 필요하면 대표/관리자에게 요청하세요. 부여되면 몇 초 안에 자동으로 열립니다.
+          대표나 관리자가 권한을 부여하면 자동으로 열립니다.
         </p>
 
         <Link

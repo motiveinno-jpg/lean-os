@@ -239,7 +239,7 @@ export default function FinanceStatusPage() {
     const view = list.slice(0, 300);
     return (
       <div className="pnl-panel">
-        <h3>{title}</h3><p>{sub} · {list.length}건{list.length > 300 ? " · 앞 300줄만 보입니다. 기간을 좁히거나 엑셀로" : ""}</p>
+        <h3>{title}</h3><p>{sub} · {list.length}건{list.length > 300 ? " · 앞 300줄만 보입니다." : ""}</p>
         <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status">
           <thead><tr><th>일자</th><th>번호</th><th>종류</th>{sp && <th>부가세 유형</th>}<th>적요</th><th>거래처</th>{sp && <><th>공급가액</th><th>세액</th></>}<th>금액</th><th>출처</th><th>상태</th><th></th></tr></thead>
           <tbody>{view.map((e) => (
@@ -257,7 +257,7 @@ export default function FinanceStatusPage() {
                   <button type="button" className="btn-secondary btn-sm" onClick={() => decide(e.id, "confirmed")}>확정</button>
                 </span>) : null}</td>
             </tr>
-          ))}{view.length === 0 && <tr><td colSpan={sp ? 12 : 9} className="tc ev-dim">이 기간에 전표가 없습니다</td></tr>}</tbody>
+          ))}{view.length === 0 && <tr><td colSpan={sp ? 12 : 9} className="tc ev-dim">이 기간에 전표가 없습니다.</td></tr>}</tbody>
         </table></div>
       </div>
     );
@@ -286,7 +286,7 @@ export default function FinanceStatusPage() {
             }}>엑셀</button>
           }>
             {tab !== "todo" && <DateRangeField from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />}
-            <span className="inv-hint">작성된 전표의 현황·지표 · 손익·재무상태는 <Link href="/reports/summary" className="bz-link">분석</Link>, 전표 만들기는 <Link href="/collect" className="bz-link">수집·전표</Link></span>
+            <span className="inv-hint">손익은 <Link href="/reports/summary" className="bz-link">분석</Link>, 전표 작성은 <Link href="/collect" className="bz-link">수집·전표</Link>에서 합니다.</span>
           </QueryBar>
           <ResultStrip>{stats[tab]}</ResultStrip>
         </QueryHead>
@@ -298,104 +298,104 @@ export default function FinanceStatusPage() {
                 {tab === "all" && (<>
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
-                      <h3>일별 확정 전표 금액</h3><p>차변 합 기준 · 건수는 표시줄에</p>
+                      <h3>일별 확정 전표 금액</h3><p>확정 전표 금액을 날짜별로 봅니다.</p>
                       <ColumnChart height={200} unit="원" data={days.map((k) => ({ label: dayLabel(k), value: S.perDayAmt.get(k) || 0 }))} />
                     </div>
                     <div className="pnl-panel">
-                      <h3>종류별 비중</h3><p>일반(입금·출금·대체) · 매입매출(매출·매입)</p>
-                      {kindData.length ? <><DonutChart unit="원" total={`₩${wonShort(S.total)}`} data={kindData} /><Legend items={kindData.map((d) => ({ name: `${d.label} ${S.kind.get(d.label)?.n || 0}건`, color: d.color }))} /></> : <div className="inv-status-empty">확정 전표가 없습니다</div>}
+                      <h3>종류별 비중</h3><p>일반전표와 매입매출전표의 비중입니다.</p>
+                      {kindData.length ? <><DonutChart unit="원" total={`₩${wonShort(S.total)}`} data={kindData} /><Legend items={kindData.map((d) => ({ name: `${d.label} ${S.kind.get(d.label)?.n || 0}건`, color: d.color }))} /></> : <div className="inv-status-empty">이 기간에 확정 전표가 없습니다.</div>}
                     </div>
                   </div>
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
-                      <h3>많이 쓰인 계정과목</h3><p>차변+대변 합 상위 10</p>
-                      {S.acctRows.length ? <BarChart unit="원" data={S.acctRows.slice(0, 10).map((r, i) => ({ label: r.name, value: r.total, color: vizColor(i) }))} /> : <div className="inv-status-empty">확정 전표가 없습니다</div>}
+                      <h3>많이 쓰인 계정과목</h3><p>가장 많이 쓰인 계정 상위 10개입니다.</p>
+                      {S.acctRows.length ? <BarChart unit="원" data={S.acctRows.slice(0, 10).map((r, i) => ({ label: r.name, value: r.total, color: vizColor(i) }))} /> : <div className="inv-status-empty">이 기간에 확정 전표가 없습니다.</div>}
                     </div>
                     <div className="pnl-panel">
-                      <h3>바로 처리할 것</h3><p>찾아만 두고 확정은 사람이</p>
+                      <h3>바로 처리할 것</h3><p>확인이 필요한 항목입니다.</p>
                       <ul className="inv-status-todo">
                         {S.rejected.length > 0 && <li><button type="button" className="bz-link" onClick={() => setTab("todo")}>반려된 전표 <b>{S.rejected.length}건</b> · 고쳐서 다시 확정</button></li>}
                         {S.pending.length > 0 && <li><button type="button" className="bz-link" onClick={() => setTab("todo")}>대기 전표 <b>{S.pending.length}건</b></button></li>}
                         {pendingLinks.length > 0 && <li><button type="button" className="bz-link" onClick={() => setTab("todo")}>증빙 연결 대기 <b>{pendingLinks.length}건</b> · 확정해야 정산 전표가 됩니다</button></li>}
                         {S.unapproved.length > 0 && <li><button type="button" className="bz-link" onClick={() => setTab("todo")}>승인 안 된 확정 전표 <b>{S.unapproved.length}건</b></button></li>}
-                        {unposted && unposted.total > 0 && <li><Link href="/collect">전표 없는 증빙 <b>{unposted.total}건</b> <span className="ev-dim">— 계산서 {unposted.ti} · 카드 {unposted.card} · 통장 {unposted.bank}</span></Link></li>}
-                        {!todoN && <li className="ev-dim">지금 처리할 것이 없습니다</li>}
+                        {unposted && unposted.total > 0 && <li><Link href="/collect">전표 없는 증빙 <b>{unposted.total}건</b> <span className="ev-dim">계산서 {unposted.ti} · 카드 {unposted.card} · 통장 {unposted.bank}</span></Link></li>}
+                        {!todoN && <li className="ev-dim">지금 처리할 것이 없습니다.</li>}
                       </ul>
                     </div>
                   </div>
-                  <EntryList rows={entries} title="전표 목록" sub="조회 기간의 모든 전표 · 최신순" />
+                  <EntryList rows={entries} title="전표 목록" sub="최신순" />
                 </>)}
 
                 {tab === "general" && (<>
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
-                      <h3>일별 일반전표 금액</h3><p>확정 · 차변 합</p>
+                      <h3>일별 일반전표 금액</h3><p>확정 일반전표 금액을 날짜별로 봅니다.</p>
                       <ColumnChart height={180} unit="원" data={days.map((k) => ({ label: dayLabel(k), value: genDay.get(k) || 0 }))} />
                     </div>
                     <div className="pnl-panel">
-                      <h3>유형 · 출처</h3><p>입금·출금·대체 비중 / 규칙(자동) {ruleRate}%</p>
+                      <h3>유형 · 출처</h3><p>입금·출금·대체 비중과 규칙 자동 비율 {ruleRate}%입니다.</p>
                       <DonutChart unit="원" total={`₩${wonShort(S.gen.cash_in.amt + S.gen.cash_out.amt + S.gen.transfer.amt)}`} data={(["cash_in", "cash_out", "transfer"] as const).map((vt, i) => ({ label: VT[vt], value: S.gen[vt].amt, color: vizColor(i) }))} />
                       <Legend items={[...(["cash_in", "cash_out", "transfer"] as const).map((vt, i) => ({ name: `${VT[vt]} ${S.gen[vt].n}건`, color: vizColor(i) })), { name: `규칙 ${S.src.rule} · 수동 ${S.src.manual}`, color: "var(--text-dim)" }]} />
                     </div>
                   </div>
                   <div className="pnl-panel">
-                    <h3>유형별 계정</h3><p>확정 일반전표의 줄을 유형·계정별로 · 차변·대변</p>
+                    <h3>유형별 계정</h3><p>확정 일반전표를 유형과 계정별로 봅니다.</p>
                     <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status-sm">
                       <thead><tr><th>유형</th><th>계정</th><th>차변</th><th>대변</th><th>줄 수</th></tr></thead>
                       <tbody>{(["cash_in", "cash_out", "transfer"] as const).flatMap((vt) => [...(S.genAcct.get(vt) || new Map()).entries()].sort((a, b) => (b[1].debit + b[1].credit) - (a[1].debit + a[1].credit)).slice(0, 20).map(([id, v]) => (
                         <tr key={vt + id}><td className="tc">{VT[vt]}</td><td className="text-left"><b>{acctName(id)}</b></td><td className="tr mono-number">₩{won(v.debit)}</td><td className="tr mono-number">₩{won(v.credit)}</td><td className="tr mono-number">{v.n}</td></tr>
-                      )))}{!(S.gen.cash_in.n + S.gen.cash_out.n + S.gen.transfer.n) && <tr><td colSpan={5} className="tc ev-dim">확정 일반전표가 없습니다</td></tr>}</tbody>
+                      )))}{!(S.gen.cash_in.n + S.gen.cash_out.n + S.gen.transfer.n) && <tr><td colSpan={5} className="tc ev-dim">이 기간에 확정 일반전표가 없습니다.</td></tr>}</tbody>
                     </table></div>
                   </div>
-                  <EntryList rows={general} title="일반전표 목록" sub="입금·출금·대체 · 최신순" />
+                  <EntryList rows={general} title="일반전표 목록" sub="입금·출금·대체" />
                 </>)}
 
                 {tab === "sp" && (<>
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
-                      <h3>일별 매입매출전표 금액</h3><p>확정 · 차변 합</p>
+                      <h3>일별 매입매출전표 금액</h3><p>확정 매입매출전표 금액을 날짜별로 봅니다.</p>
                       <ColumnChart height={180} unit="원" data={days.map((k) => ({ label: dayLabel(k), value: spDay.get(k) || 0 }))} />
                     </div>
                     <div className="pnl-panel">
-                      <h3>매출 · 매입 비중</h3><p>확정 전표 금액 · 납부 예상 ₩{won(S.saleTax - S.buyTax)}</p>
-                      {S.saleN + S.buyN ? <><DonutChart unit="원" total={`₩${wonShort(S.saleSupply + S.saleTax + S.buySupply + S.buyTax)}`} data={[{ label: "매출", value: S.saleSupply + S.saleTax, color: vizColor(0) }, { label: "매입", value: S.buySupply + S.buyTax, color: vizColor(1) }]} /><Legend items={[{ name: `매출 ${S.saleN}건`, color: vizColor(0) }, { name: `매입 ${S.buyN}건`, color: vizColor(1) }]} /></> : <div className="inv-status-empty">확정 매입매출전표가 없습니다</div>}
+                      <h3>매출 · 매입 비중</h3><p>납부 예상은 ₩{won(S.saleTax - S.buyTax)}입니다.</p>
+                      {S.saleN + S.buyN ? <><DonutChart unit="원" total={`₩${wonShort(S.saleSupply + S.saleTax + S.buySupply + S.buyTax)}`} data={[{ label: "매출", value: S.saleSupply + S.saleTax, color: vizColor(0) }, { label: "매입", value: S.buySupply + S.buyTax, color: vizColor(1) }]} /><Legend items={[{ name: `매출 ${S.saleN}건`, color: vizColor(0) }, { name: `매입 ${S.buyN}건`, color: vizColor(1) }]} /></> : <div className="inv-status-empty">이 기간에 확정 매입매출전표가 없습니다.</div>}
                     </div>
                   </div>
                   <div className="pnl-panel">
-                    <h3>부가세 유형별</h3><p>확정 매입매출전표 · 공급가액·세액</p>
+                    <h3>부가세 유형별</h3><p>유형별 공급가액과 세액입니다.</p>
                     <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status">
                       <thead><tr><th>유형</th><th>건수</th><th>공급가액</th><th>세액</th><th>합계</th></tr></thead>
                       <tbody>{[...S.vat.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([k, v]) => (
                         <tr key={k}><td className="text-left"><b>{k}</b></td><td className="tr mono-number">{v.n}</td><td className="tr mono-number">₩{won(v.supply)}</td><td className="tr mono-number">₩{won(v.tax)}</td><td className="tr mono-number">₩{won(v.supply + v.tax)}</td></tr>
-                      ))}{!S.vat.size && <tr><td colSpan={5} className="tc ev-dim">확정 매입매출전표가 없습니다</td></tr>}</tbody>
+                      ))}{!S.vat.size && <tr><td colSpan={5} className="tc ev-dim">이 기간에 확정 매입매출전표가 없습니다.</td></tr>}</tbody>
                     </table></div>
                   </div>
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
-                      <h3>매출 거래처 상위</h3><p>확정 매출 전표 금액 상위 10</p>
-                      {S.perPartnerSale.size ? <BarChart unit="원" data={topN(S.perPartnerSale)} /> : <div className="inv-status-empty">매출 전표가 없습니다</div>}
+                      <h3>매출 거래처 상위</h3><p>매출 금액 상위 10개 거래처입니다.</p>
+                      {S.perPartnerSale.size ? <BarChart unit="원" data={topN(S.perPartnerSale)} /> : <div className="inv-status-empty">이 기간에 매출 전표가 없습니다.</div>}
                     </div>
                     <div className="pnl-panel">
-                      <h3>매입 거래처 상위</h3><p>확정 매입 전표 금액 상위 10</p>
-                      {S.perPartnerBuy.size ? <BarChart unit="원" data={topN(S.perPartnerBuy)} /> : <div className="inv-status-empty">매입 전표가 없습니다</div>}
+                      <h3>매입 거래처 상위</h3><p>매입 금액 상위 10개 거래처입니다.</p>
+                      {S.perPartnerBuy.size ? <BarChart unit="원" data={topN(S.perPartnerBuy)} /> : <div className="inv-status-empty">이 기간에 매입 전표가 없습니다.</div>}
                     </div>
                   </div>
-                  <EntryList sp rows={spAll} title="매입매출전표 목록" sub="부가세 유형·공급가액·세액 · 최신순" />
+                  <EntryList sp rows={spAll} title="매입매출전표 목록" sub="최신순" />
                 </>)}
 
                 {tab === "account" && (<>
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
-                      <h3>많이 쓰인 계정과목</h3><p>차변+대변 합 상위 10</p>
-                      {S.acctRows.length ? <BarChart unit="원" data={S.acctRows.slice(0, 10).map((r, i) => ({ label: r.name, value: r.total, color: vizColor(i) }))} /> : <div className="inv-status-empty">확정 전표가 없습니다</div>}
+                      <h3>많이 쓰인 계정과목</h3><p>가장 많이 쓰인 계정 상위 10개입니다.</p>
+                      {S.acctRows.length ? <BarChart unit="원" data={S.acctRows.slice(0, 10).map((r, i) => ({ label: r.name, value: r.total, color: vizColor(i) }))} /> : <div className="inv-status-empty">이 기간에 확정 전표가 없습니다.</div>}
                     </div>
                     <div className="pnl-panel">
-                      <h3>성격별 비중</h3><p>자산·부채·자본·수익·비용 · 차변+대변 합</p>
-                      {S.acctRows.length ? <><DonutChart unit="원" total={`₩${wonShort(S.acctRows.reduce((n, r) => n + r.total, 0))}`} data={natureData} /><Legend items={natureData.map((x) => ({ name: x.label, color: x.color }))} /></> : <div className="inv-status-empty">확정 전표가 없습니다</div>}
+                      <h3>성격별 비중</h3><p>자산·부채·자본·수익·비용 비중입니다.</p>
+                      {S.acctRows.length ? <><DonutChart unit="원" total={`₩${wonShort(S.acctRows.reduce((n, r) => n + r.total, 0))}`} data={natureData} /><Legend items={natureData.map((x) => ({ name: x.label, color: x.color }))} /></> : <div className="inv-status-empty">이 기간에 확정 전표가 없습니다.</div>}
                     </div>
                   </div>
                   <div className="pnl-panel">
-                    <div className="fin-acct-head"><div><h3>계정과목별</h3><p>확정 전표의 줄을 계정별로 · 차변+대변 큰 순 · 계정을 누르면 원장 · 예산은 수익·비용 계정만(조회 기간 안 달의 합)</p></div>
+                    <div className="fin-acct-head"><div><h3>계정과목별</h3><p title="예산은 수익·비용 계정만 조회 기간 안 달의 합으로 봅니다">계정을 누르면 원장으로 이동합니다.</p></div>
                       <button type="button" className="btn-secondary btn-sm" onClick={() => setBudgetOpen(true)} title="계정과목 × 월 예산 격자">예산 입력</button></div>
                     <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status">
                       <thead><tr><th>계정</th><th>성격</th><th>차변</th><th>대변</th><th>전표 수</th><th>예산</th><th>실적</th><th>달성</th></tr></thead>
@@ -413,7 +413,7 @@ export default function FinanceStatusPage() {
                           <td className="tr mono-number">{pl ? `₩${won(actual)}` : <span className="ev-dim">—</span>}</td>
                           <td className={`tr mono-number ${over ? "aging-b3" : ""}`}>{pct != null ? `${pct}%` : <span className="ev-dim">—</span>}</td></tr>
                         );
-                      })}{!S.acctRows.length && <tr><td colSpan={8} className="tc ev-dim">확정 전표가 없습니다</td></tr>}</tbody>
+                      })}{!S.acctRows.length && <tr><td colSpan={8} className="tc ev-dim">이 기간에 확정 전표가 없습니다.</td></tr>}</tbody>
                     </table></div>
                   </div>
                 </>)}
@@ -421,23 +421,23 @@ export default function FinanceStatusPage() {
                 {tab === "todo" && (<>
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
-                      <h3>상태 비중</h3><p>조회 기간 전표 {entries.length}건 · 재무제표는 확정만 읽습니다. 반려·대기는 아직 장부가 아닙니다</p>
+                      <h3>상태 비중</h3><p title="재무제표는 확정 전표만 반영합니다">전표 {entries.length}건의 상태 비중입니다.</p>
                       {entries.length ? <><DonutChart unit="건" total={`${entries.length}건`} data={[{ label: "확정", value: S.confirmed.length - S.unapproved.length, color: vizColor(0) }, { label: "미승인", value: S.unapproved.length, color: vizColor(2) }, { label: "대기", value: S.pending.length, color: vizColor(3) }, { label: "반려", value: S.rejected.length, color: vizColor(1) }].filter((d) => d.value > 0)} />
-                        <Legend items={[{ name: `확정 ${S.confirmed.length - S.unapproved.length}`, color: vizColor(0) }, { name: `미승인 ${S.unapproved.length}`, color: vizColor(2) }, { name: `대기 ${S.pending.length}`, color: vizColor(3) }, { name: `반려 ${S.rejected.length}`, color: vizColor(1) }]} /></> : <div className="inv-status-empty">이 기간에 전표가 없습니다</div>}
+                        <Legend items={[{ name: `확정 ${S.confirmed.length - S.unapproved.length}`, color: vizColor(0) }, { name: `미승인 ${S.unapproved.length}`, color: vizColor(2) }, { name: `대기 ${S.pending.length}`, color: vizColor(3) }, { name: `반려 ${S.rejected.length}`, color: vizColor(1) }]} /></> : <div className="inv-status-empty">이 기간에 전표가 없습니다.</div>}
                     </div>
                     <div className="pnl-panel">
-                      <h3>결산 초안 만들기</h3><p>월 1일 새벽에 지난달 것이 자동으로 생깁니다 — 지금 바로 만들거나 다시 만들려면 여기서. 초안 일자는 그 달 말일이라 조회 기간이 그 날을 품어야 아래 목록에 보입니다 — 확정·반려는 목록에서.</p>
+                      <h3>결산 초안 만들기</h3><p title="매월 1일 지난달 초안이 자동으로 만들어집니다. 초안 일자는 그 달 말일입니다">그 달의 결산 전표 초안을 만듭니다.</p>
                       <div className="fin-close-row">
                         <MonthSelect className="inv-input fin-close-month" value={closeMonth} onChange={setCloseMonth} ariaLabel="마감 월" />
                         <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("inventory")} title="기말 재고(층 원가)와 재고자산 계정 잔액의 차액을 전표 초안으로 · 제품·상품·원재료">{closeBusy === "inventory" ? "만드는 중…" : "재고자산 맞추기"}</button>
                         <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("payroll")} title="그 달 발급된 급여명세 합계 · 차) 직원급여 / 대) 예수금·미지급금. 개인별 금액은 전표에 싣지 않습니다">{closeBusy === "payroll" ? "만드는 중…" : "급여 전표"}</button>
                         <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("depreciation")} title="등록된 고정자산의 그 달 감가상각 · 차) 감가상각비 / 대) 감가상각누계액, 자산별 줄">{closeBusy === "depreciation" ? "만드는 중…" : "감가상각"}</button>
-                        <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("retirement")} title="재직자 퇴직금 추계(평균임금×30×근속)와 퇴직급여충당부채 잔액의 차액 · 차) 퇴직급여 / 대) 퇴직급여충당부채, 합계 한 줄 (2026-08-27 인사 4차)">{closeBusy === "retirement" ? "만드는 중…" : "퇴직급여충당"}</button>
+                        <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("retirement")} title="재직자 퇴직금 추계와 퇴직급여충당부채 잔액의 차액을 전표 초안으로 만듭니다">{closeBusy === "retirement" ? "만드는 중…" : "퇴직급여충당"}</button>
                       </div>
-                      <p className="inv-hint">출처: 장부 대조(재고 층 원가·급여명세·고정자산 대장). 계정은 회사설정 › 생산 전표 계정에서, 비어 있으면 이름(제품·상품·원재료·직원급여·예수금·미지급금)으로 찾습니다.</p>
+                      <p className="inv-hint">계정은 회사설정의 생산 전표 계정을 따릅니다.</p>
                     </div>
                     <div className="pnl-panel">
-                      <h3>전표 없는 증빙</h3><p>조회 기간의 증빙 중 전표가 아직 없는 것 · 만들기는 수집·전표에서</p>
+                      <h3>전표 없는 증빙</h3><p>전표가 아직 없는 증빙입니다.</p>
                     <table className="ev-table ev-lined table-inv-status-sm">
                       <thead><tr><th>증빙</th><th>건수</th><th></th></tr></thead>
                       <tbody>
@@ -450,7 +450,7 @@ export default function FinanceStatusPage() {
                   </div>
                   {pendingLinks.length > 0 && (
                     <div className="pnl-panel">
-                      <h3>증빙 연결 대기 {pendingLinks.length}건</h3><p>통장 줄 처리에서 계산서와 짝지은 초안 — 확정하면 {"외상매출금·외상매입금 ↔ 보통예금"} 정산 전표가 생깁니다. 찾아만 두고 확정은 사람이.</p>
+                      <h3>증빙 연결 대기 {pendingLinks.length}건</h3><p>통장 거래와 계산서를 짝지은 초안이며 확정하면 정산 전표가 만들어집니다.</p>
                       <div className="stg-table-wrap">
                         <table className="ev-table ev-lined table-inv-status-sm">
                           <thead><tr><th>통장 줄</th><th>통장 금액</th><th>계산서</th><th>계산서 금액</th><th>연결 금액</th><th>근거</th><th></th></tr></thead>
@@ -469,7 +469,7 @@ export default function FinanceStatusPage() {
                       </div>
                     </div>
                   )}
-                  <EntryList rows={[...S.pending, ...S.rejected, ...S.unapproved]} title="반려 · 대기 · 미승인 전표" sub="고치기는 일반전표·매입매출전표 화면에서" />
+                  <EntryList rows={[...S.pending, ...S.rejected, ...S.unapproved]} title="반려 · 대기 · 미승인 전표" sub="수정은 전표 화면에서" />
                 </>)}
               </>
             )}

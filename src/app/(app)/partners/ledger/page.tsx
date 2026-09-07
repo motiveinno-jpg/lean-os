@@ -302,11 +302,11 @@ export default function PartnerLedgerPage() {
   };
   const checkedRows = shown.filter((r) => checkedIds.has(r.partner_id ?? "none"));
   const excelItems: ExcelItem[] = [
-    { label: "보이는 거래처 전부 내려받기", count: shown.length, hint: "걸린 조건 그대로 · 많으면 시간이 걸립니다", disabled: exporting || shown.length === 0, onClick: () => runExport(shown) },
+    { label: "보이는 거래처 전부 내려받기", count: shown.length, hint: "걸린 조건 그대로 내려받습니다.", disabled: exporting || shown.length === 0, onClick: () => runExport(shown) },
   ];
   const helperItems: HelperItem[] = [
     { label: linkMut.isPending ? "연결 중…" : "홈택스 거래처 연결", source: "국세청 조회", disabled: linkMut.isPending,
-      hint: "홈택스 세금계산서의 상대를 사업자번호로 거래처에 자동 등록·연결합니다. 원장의 전제 데이터", onClick: () => linkMut.mutate() },
+      hint: "홈택스 세금계산서 상대를 거래처로 등록하고 연결합니다.", onClick: () => linkMut.mutate() },
   ];
   const yearQuicks = [thisYear(), thisYear() - 1, thisYear() - 2].map((y) => ({ y, ...yearRange(y) }));
 
@@ -343,7 +343,7 @@ export default function PartnerLedgerPage() {
                     <span className="ml-auto text-[11px] text-[var(--text-dim)]">{previewCount.toLocaleString("ko")}곳</span>
                     <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
                   </>}>
-                  <ConditionRow label="회계기간" hint="잔액 = 전기이월 + 이 기간 잔액">
+                  <ConditionRow label="회계기간" hint="전기이월을 더한 잔액으로 조회합니다.">
                     <span className="qk-range-txt">{periodLabel}</span>
                     <DateRangeField label={null} parts="calendar" confirm from={customFrom} to={customTo}
                       onChange={(f, t) => { setCustomFrom(f); setCustomTo(t); }} />
@@ -362,10 +362,10 @@ export default function PartnerLedgerPage() {
                       ))}
                     </span>
                   </ConditionRow>
-                  <ConditionRow label="잔액 금액" hint="절대값 · 한쪽만 적어도 됩니다">
+                  <ConditionRow label="잔액 금액" hint="한쪽만 적어도 됩니다.">
                     <AmountRange min={draft.min} max={draft.max} onMin={(v) => setDraft((c) => ({ ...c, min: v }))} onMax={(v) => setDraft((c) => ({ ...c, max: v }))} />
                   </ConditionRow>
-                  <ConditionRow label="거래처 코드" hint="일부만 쳐도 됩니다">
+                  <ConditionRow label="거래처 코드" hint="일부만 쳐도 됩니다.">
                     <input className="qk-input w-32" value={draft.code} placeholder="예: 04" onChange={(e) => setDraft((c) => ({ ...c, code: e.target.value }))} />
                   </ConditionRow>
                 </ConditionPanel>
@@ -417,7 +417,7 @@ export default function PartnerLedgerPage() {
               <div className="ledger-list-pane">
                 {shown.length === 0 ? (
                   <div className="collect-empty">
-                    {sq || live.bal || ageFilter !== null ? "이 조건에 맞는 거래처가 없습니다. 검색조건을 풀어 보세요" : `${periodLabel} ${pal.label} 거래가 없습니다. AI 제안 ▾ 「홈택스 거래처 연결」을 먼저 실행해 보세요`}
+                    {sq || live.bal || ageFilter !== null ? "조건에 맞는 거래처가 없습니다. 검색조건을 풀어 보세요." : `아직 ${periodLabel} ${pal.label} 거래가 없습니다. AI 제안에서 홈택스 거래처 연결을 실행해 보세요.`}
                   </div>
                 ) : (
                   <div className="ev-scroll ledger-list-scroll">
@@ -486,7 +486,7 @@ export default function PartnerLedgerPage() {
                             {nameOf(selRow.partner_id)} <span className="text-[var(--text-dim)]">▾</span>
                           </button>
                           {pickOpen && (
-                            <PickList items={pickItems} placeholder="거래처 검색 (이름·코드)" empty="이 조건에 맞는 거래처가 없습니다"
+                            <PickList items={pickItems} placeholder="거래처 검색 (이름·코드)" empty="조건에 맞는 거래처가 없습니다."
                               onPick={(it) => { setSelLedger(it.id); setPickOpen(false); }} onClose={() => setPickOpen(false)} />
                           )}
                         </span>
@@ -500,7 +500,7 @@ export default function PartnerLedgerPage() {
                   hideName={wide}
                 />
               ) : (
-                <EmptyState card icon="📒" title="왼쪽에서 거래처를 고르세요." desc="고른 거래처의 일자별 원장(차변·대변·잔액)이 표시됩니다" />
+                <EmptyState card icon="📒" title="왼쪽에서 거래처를 고르세요." desc="고른 거래처의 일자별 원장이 표시됩니다." />
               )}
               </div>
             </>
@@ -509,7 +509,7 @@ export default function PartnerLedgerPage() {
          )}
           {/* ── 3줄 · 고른 거래처로 하는 일 ── */}
           <SelectionBar count={checkedIds.size} onClear={() => setCheckedIds(new Set())}
-            summary={<>거래처마다 시트 하나 · 회계기간 {periodLabel}</>}>
+            summary={<>회계기간 {periodLabel} 원장을 거래처별 시트로 내보냅니다.</>}>
             <button type="button" className="btn-primary btn-sm" disabled={exporting || checkedRows.length === 0} onClick={() => runExport(checkedRows)}>
               {exporting ? "내보내는 중…" : `엑셀 내보내기 (${checkedRows.length})`}
             </button>

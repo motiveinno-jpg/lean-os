@@ -239,7 +239,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
       {!hideCreateButton && (
         <div className="templates-tab-header">
           <p className="text-sm text-[var(--text-muted)]">
-            {scope === "hr" ? "인사 양식을 관리하고, 커스텀 양식을 등록하세요" : "문서 양식을 관리하고, 커스텀 양식을 등록하세요"}
+            {scope === "hr" ? "인사 양식을 관리하고 새 양식을 등록합니다." : "문서 양식을 관리하고 새 양식을 등록합니다."}
           </p>
           <button
             onClick={() => { resetForm(); setShowForm(true); }}
@@ -307,10 +307,10 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
               {/* 우 — 문서 편집기. contract-tpl-editor: 표 편집 UX 스코프(고정 레이아웃·열/행/전체 크기
                   드래그·셀 선택 하이라이트) — 기존 서식 안의 표도 셀 선택·크기 조절 가능 (2026-08-10 사장님) */}
               <main className="flex-1 min-w-0 flex flex-col p-4">
-                <label className="block text-xs text-[var(--text-muted)] mb-1.5 shrink-0">본문 <span className="text-[var(--text-dim)] font-normal">표·굵기·정렬·색·이미지 지원</span></label>
+                <label className="block text-xs text-[var(--text-muted)] mb-1.5 shrink-0">본문 <span className="text-[var(--text-dim)] font-normal">표와 서식, 이미지를 지원합니다.</span></label>
                 <div className="flex-1 min-h-0 contract-tpl-editor">
                   <RichEditor ref={editorRef} content={html} onChange={setHtml} fillHeight
-                    placeholder="근로계약서 내용을 입력하세요… 왼쪽 변수 버튼으로 {{직원명}}·{{연봉}} 등을 삽입할 수 있습니다." />
+                    placeholder="근로계약서 내용을 입력하세요." />
                 </div>
               </main>
             </div>
@@ -369,7 +369,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
                     placeholder="섹션 제목 (예: 제1조 목적)"
                     className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm mb-2 focus:outline-none focus:border-[var(--primary)]" />
                   <textarea value={sec.content} onChange={(e) => updateSection(idx, "content", e.target.value)}
-                    placeholder="섹션 내용... {{변수명}} 형식으로 변수를 삽입할 수 있습니다"
+                    placeholder="섹션 내용을 입력하세요."
                     rows={4}
                     className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)] resize-y font-mono" />
                 </div>
@@ -414,7 +414,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
       <div className="templates-list">
         {scopedTemplates.length === 0 ? (
           <div className="collect-empty">
-            등록된 양식이 없습니다 — {scope === "hr" ? "표준근로계약서 등 인사 양식을 한번에 등록하거나, 직접 만들 수 있습니다" : "계약서·견적서 등 기본 양식을 한번에 등록하거나, 직접 만들 수 있습니다"}
+            아직 양식이 없습니다. {scope === "hr" ? "기본 인사 양식을 한번에 등록할 수 있습니다." : "기본 문서 양식을 한번에 등록할 수 있습니다."}
             <span className="ml-3"><button type="button" onClick={seedDefaults} disabled={seeding} className="btn-secondary btn-sm">{seeding ? "등록 중…" : "기본 양식 등록하기"}</button></span>
           </div>
         ) : (

@@ -659,25 +659,25 @@ export default function ReconciliationPage() {
   const helperItems: HelperItem[] = [
     {
       label: engineMut.isPending ? "매칭 중…" : "이 기간 규칙 매칭", source: "장부 대조",
-      hint: `${engStart} ~ ${engEnd} 미정산 입금과 세금계산서를 입금자명↔거래처 규칙으로 맞춰 제안을 만듭니다 (최대 6개월, 반복해도 누적)`,
+      hint: `${engStart} ~ ${engEnd} 미정산 입금을 세금계산서와 맞춰 제안을 만듭니다.`,
       disabled: engineMut.isPending || !engStart || !engEnd || engStart > engEnd,
       onClick: () => engineMut.mutate(),
     },
     {
       label: aiMut.isPending ? "AI 분석 중…" : matchCd.disabled ? (matchCd.label || "잠시 후 다시") : "AI 전체 매칭", source: "AI 추천",
-      hint: matchCd.hint || "규칙으로 안 풀린 입금을 금액·일자·정황으로 AI가 제안합니다 (끝까지 자동 반복, 시간이 걸릴 수 있음)",
+      hint: matchCd.hint || "규칙으로 못 맞춘 입금을 AI가 제안합니다.",
       disabled: aiMut.isPending || matchCd.disabled,
       onClick: () => matchCd.run(() => { if (!aiMut.isPending) aiMut.mutate(); }),
     },
     {
       label: "고신뢰 제안 고르기 (90%+)", source: "장부 대조", badge: highConfIds.length,
-      hint: "금액 정확·45일 이내로 신뢰도 90% 이상인 제안을 골라 둡니다. 확정은 아래 줄에서 누릅니다",
+      hint: "신뢰도 90% 이상인 제안을 골라 둡니다.",
       disabled: highConfIds.length === 0 || tab !== "queue",
       onClick: () => setSelected(new Set(highConfIds)),
     },
     {
       label: linkMut.isPending ? "연결 중…" : "홈택스 거래처 연결", source: "국세청 조회",
-      hint: "홈택스 세금계산서의 상대를 사업자번호로 거래처에 자동 등록·연결합니다",
+      hint: "홈택스 세금계산서 상대를 거래처로 등록하고 연결합니다.",
       disabled: linkMut.isPending,
       onClick: () => linkMut.mutate(),
     },
@@ -715,7 +715,7 @@ export default function ReconciliationPage() {
                     <RowsPerPage value={draft.rows} onChange={setD("rows")} />
                     <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
                   </>}>
-                  <ConditionRow label="조회기간" hint="매칭 기간 = 조회 기간 · 최대 6개월">
+                  <ConditionRow label="조회기간" hint="최대 6개월까지 조회합니다.">
                     <span className="qk-range-txt">{engStart} ~ {engEnd}</span>
                     <DateRangeField label={null} parts="calendar" confirm from={engStart} to={engEnd}
                       onChange={(f, t) => { setEngStart(f); setEngEnd(t); }} />
@@ -734,7 +734,7 @@ export default function ReconciliationPage() {
                       ))}
                     </span>
                   </ConditionRow>
-                  <ConditionRow label="신뢰도" hint="거래 정리 탭">
+                  <ConditionRow label="신뢰도" hint="거래 정리 탭에 적용됩니다.">
                     <span className="qk-quicks">
                       {CONF_OPTS.map((o) => (
                         <button key={o.value} type="button" onClick={() => setD("conf")(toggleIn(draft.conf, o.value))}
@@ -742,16 +742,16 @@ export default function ReconciliationPage() {
                       ))}
                     </span>
                   </ConditionRow>
-                  <ConditionRow label="유형" hint="매칭 방식 · 여러 개">
+                  <ConditionRow label="유형" hint="여러 개를 고를 수 있습니다.">
                     <TokenField items={mtypeOpts} value={draft.mtype} onChange={setD("mtype")} placeholder="누르면 전체 목록" openOnClick />
                   </ConditionRow>
-                  <ConditionRow label="계산서 거래처" hint="여러 곳">
+                  <ConditionRow label="계산서 거래처" hint="여러 곳을 고를 수 있습니다.">
                     <TokenField items={cpOpts} value={draft.cp} onChange={setD("cp")} placeholder="거래처 이름 일부" />
                   </ConditionRow>
-                  <ConditionRow label="입금자" hint="통장에 찍힌 이름 · 여러 명">
+                  <ConditionRow label="입금자" hint="통장에 찍힌 이름으로 고릅니다.">
                     <TokenField items={payerOpts} value={draft.payer} onChange={setD("payer")} placeholder="입금자 이름 일부" />
                   </ConditionRow>
-                  <ConditionRow label="거래금액" hint="한쪽만 적어도 됩니다">
+                  <ConditionRow label="거래금액" hint="한쪽만 적어도 됩니다.">
                     <AmountRange min={draft.min} max={draft.max} onMin={setD("min")} onMax={setD("max")} />
                   </ConditionRow>
                 </ConditionPanel>
@@ -767,7 +767,7 @@ export default function ReconciliationPage() {
             <Stat label="높음 (90%+)" value={`${highConfIds.length.toLocaleString("ko")}건`} tone={highConfIds.length > 0 ? "plus" : undefined} />
             <Stat label="기간 밖 대기" value={`${outsideCnt.toLocaleString("ko")}건`} />
             <Stat label="확정" value={`${doneCnt.toLocaleString("ko")}건`} />
-            <span className="text-[10.5px] text-[var(--text-dim)]">확정하면 미수금·미지급 차감과 분개 전표 기장이 함께 처리됩니다 · 정리 내역에서 되돌리면 둘 다 원복</span>
+            <span className="text-[10.5px] text-[var(--text-dim)]">확정하면 미수금 차감과 전표 기장이 함께 처리됩니다.</span>
           </ResultStrip>
         </QueryHead>
 
@@ -777,9 +777,9 @@ export default function ReconciliationPage() {
           ) : queueShown.length === 0 ? (
             <div className="collect-empty">
               {queue.length === 0
-                ? <>이 기간({engStart} ~ {engEnd})에 확인 대기 중인 매칭이 없습니다{outsideCnt > 0 && <> — 기간 밖에 미확정 제안 <b>{outsideCnt}건</b>이 있습니다. 조회기간을 넓혀 보세요</>}.
-                    <br /><span className="text-[11px]">제안은 AI 제안 ▾ 「이 기간 규칙 매칭」(입금자명↔거래처) 으로 만들고, 입금자명이 다른 건은 「AI 전체 매칭」이 금액·일자·정황으로 찾습니다.</span></>
-                : "이 조건에 맞는 제안이 없습니다. 검색조건을 풀어 보세요"}
+                ? <>아직 {engStart} ~ {engEnd} 기간에 확인할 매칭이 없습니다.{outsideCnt > 0 && <> 기간 밖에 미확정 제안 <b>{outsideCnt}건</b>이 있습니다.</>}
+                    <br /><span className="text-[11px]">AI 제안에서 규칙 매칭이나 AI 전체 매칭을 실행해 보세요.</span></>
+                : "조건에 맞는 제안이 없습니다. 검색조건을 풀어 보세요."}
             </div>
           ) : (
             <div className="ev-scroll">
@@ -858,8 +858,8 @@ export default function ReconciliationPage() {
           {tab === "manual" && (manualShown.length === 0 ? (
             <div className="collect-empty">
               {openTx.length === 0
-                ? <>이 기간({engStart} ~ {engEnd})에 미정산 입출금이 없습니다. 조회기간을 조정해 보세요.<br /><span className="text-[11px]">규칙·AI가 못 잡은 입출금이 있으면 여기서 세금계산서·현금영수증·카드사용에 직접 연결합니다. 세금계산서는 연결 즉시 미수금에 반영됩니다.</span></>
-                : "이 조건에 맞는 입출금이 없습니다. 빠른검색·구분을 풀어 보세요"}
+                ? <>아직 {engStart} ~ {engEnd} 기간에 미정산 입출금이 없습니다.<br /><span className="text-[11px]">조회기간을 조정해 보세요.</span></>
+                : "조건에 맞는 입출금이 없습니다. 검색조건을 풀어 보세요."}
             </div>
           ) : (
             <div className="ev-scroll">
@@ -910,8 +910,8 @@ export default function ReconciliationPage() {
           {tab === "confirmed" && (confirmedShown.length === 0 ? (
             <div className="collect-empty">
               {confirmed.length === 0
-                ? "확정된 매칭이 없습니다. 거래 정리 탭에서 매칭을 확정하면 여기에 내역이 쌓입니다"
-                : "이 조건에 맞는 내역이 없습니다. 검색조건을 풀어 보세요"}
+                ? "아직 확정된 매칭이 없습니다. 거래 정리 탭에서 확정해 보세요."
+                : "조건에 맞는 내역이 없습니다. 검색조건을 풀어 보세요."}
             </div>
           ) : (
             <div className="ev-scroll">
@@ -967,7 +967,7 @@ export default function ReconciliationPage() {
           {/* ── 3줄 · 고른 제안으로 하는 일 — 파란(확정) 버튼은 화면을 통틀어 여기 하나 ── */}
           {tab === "queue" && (
             <SelectionBar count={selected.size} onClear={() => setSelected(new Set())}
-              summary={<>확정하면 미수금 차감 + 분개 전표가 함께 기장됩니다</>}>
+              summary={<>확정하면 미수금 차감과 전표 기장이 함께 처리됩니다.</>}>
               <button type="button" className="btn-secondary btn-sm text-[var(--danger)]" disabled={bulkDecideMut.isPending}
                 onClick={() => bulkDecideMut.mutate({ ids: [...selected], status: "rejected" })}>선택 반려</button>
               <button type="button" className="btn-primary btn-sm" disabled={bulkDecideMut.isPending}
@@ -1014,7 +1014,7 @@ export default function ReconciliationPage() {
                 </>
               );
             })()}
-            <div className="text-[10px] text-[var(--text-dim)] mt-5 leading-relaxed">이 창을 닫지 마세요 · 완료까지 잠시 기다려 주세요<br />이미 찾은 제안은 거래 정리에 바로 쌓입니다</div>
+            <div className="text-[10px] text-[var(--text-dim)] mt-5 leading-relaxed">완료까지 잠시 기다려 주세요.<br />찾은 제안은 거래 정리에 바로 쌓입니다.</div>
           </div>
         </div>
       )}
@@ -1044,7 +1044,7 @@ export default function ReconciliationPage() {
             <div className="flex-1 overflow-auto p-2">
               {matchDocType === "invoice" && (
                 filteredInv.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-[var(--text-muted)]">매칭할 미정산 {matchInvType === "sales" ? "매출" : "매입"} 세금계산서가 없습니다.</div>
+                  <div className="p-8 text-center text-sm text-[var(--text-muted)]">아직 미정산 {matchInvType === "sales" ? "매출" : "매입"} 세금계산서가 없습니다.</div>
                 ) : filteredInv.map((inv) => {
                   const amt = Math.min(txRemaining(matchTx), invRemaining(inv));
                   return (
@@ -1063,7 +1063,7 @@ export default function ReconciliationPage() {
               )}
               {matchDocType === "cash" && (
                 filteredCash.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-[var(--text-muted)]">연결할 미연결 현금영수증이 없습니다.</div>
+                  <div className="p-8 text-center text-sm text-[var(--text-muted)]">아직 연결할 현금영수증이 없습니다.</div>
                 ) : filteredCash.map((c) => (
                   <div key={c.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg hover:bg-[var(--bg-surface)]">
                     <div className="min-w-0">
@@ -1077,9 +1077,9 @@ export default function ReconciliationPage() {
               )}
               {matchDocType === "card" && (
                 <>
-                  <p className="px-1 pb-1 text-[11px] text-[var(--text-dim)]">카드대금(이 출금)에 해당하는 카드내역을 여러 건 선택해 한 번에 연결합니다.</p>
+                  <p className="px-1 pb-1 text-[11px] text-[var(--text-dim)]">이 출금에 해당하는 카드내역을 골라 한 번에 연결합니다.</p>
                   {filteredCard.length === 0 ? (
-                    <div className="p-8 text-center text-sm text-[var(--text-muted)]">연결할 카드사용 내역이 없습니다.</div>
+                    <div className="p-8 text-center text-sm text-[var(--text-muted)]">아직 연결할 카드사용 내역이 없습니다.</div>
                   ) : filteredCard.map((c) => {
                     const checked = selectedCardIds.has(c.id);
                     return (
@@ -1096,9 +1096,9 @@ export default function ReconciliationPage() {
               )}
               {matchDocType === "voucher" && (
                 <div className="space-y-1">
-                  <p className="px-1 pb-1 text-[11px] text-[var(--text-dim)]">증빙(세금계산서·현금영수증·카드)이 없는 거래를 계정과목으로 바로 전표처리합니다 (예: 임차보증금 → 자산). 처리하면 이 거래가 정리됩니다.</p>
+                  <p className="px-1 pb-1 text-[11px] text-[var(--text-dim)]">증빙이 없는 거래를 계정과목으로 바로 전표처리합니다.</p>
                   {coaFiltered.length === 0 ? (
-                    <div className="p-6 text-center text-sm text-[var(--text-muted)]">{(coaAccounts as any[]).length === 0 ? "계정과목 마스터가 없습니다. 아래에서 추가하세요." : "검색 결과가 없습니다."}</div>
+                    <div className="p-6 text-center text-sm text-[var(--text-muted)]">{(coaAccounts as any[]).length === 0 ? "아직 계정과목이 없습니다. 아래에서 추가하세요." : "검색 결과가 없습니다."}</div>
                   ) : coaFiltered.map((a: any) => (
                     <div key={a.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg hover:bg-[var(--bg-surface)]">
                       <div className="min-w-0">
@@ -1161,8 +1161,8 @@ export default function ReconciliationPage() {
               <button onClick={() => setLinkPrompt(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
             </div>
             <p className="text-xs text-[var(--text-muted)] mb-4">
-              <b className="text-[var(--text)]">{linkPrompt.counterparty}</b> 거래처가 포함된 프로젝트가 {linkPrompt.deals.length}개 있습니다.
-              연결할 프로젝트를 선택하면 이 매입 계산서가 해당 <b className="text-[var(--text)]">프로젝트 운영 &gt; 비용 구성</b>에 집계됩니다.
+              <b className="text-[var(--text)]">{linkPrompt.counterparty}</b> 거래처의 프로젝트가 {linkPrompt.deals.length}개 있습니다.
+              고른 프로젝트의 <b className="text-[var(--text)]">비용 구성</b>에 이 계산서가 집계됩니다.
             </p>
             <div className="space-y-1.5 max-h-72 overflow-y-auto">
               {linkPrompt.deals.map((d) => (

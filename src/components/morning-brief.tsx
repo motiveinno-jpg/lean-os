@@ -320,9 +320,8 @@ export function MorningBrief({
       <section className="morning-brief-onboarding glass-card">
         <p className="text-xs sm:text-sm text-[var(--text-dim)] mb-2">{today}</p>
         <p className="text-xs sm:text-sm text-[var(--text-muted)] leading-relaxed break-keep">
-          아직 {companyName || "회사"} 데이터가 충분하지 않습니다.
-          거래내역을 동기화하거나 엑셀 파일을 올리시면, 내일 아침부터
-          매일의 경영 상황을 이 자리에서 정리해 드리겠습니다.
+          아직 {companyName || "회사"} 데이터가 없습니다.
+          거래내역이 들어오면 내일 아침부터 브리핑이 시작됩니다.
         </p>
       </section>
     );
@@ -458,7 +457,7 @@ export function MorningBrief({
     : null;
 
   //   아침 보고서 체크리스트 자리인데 아직 플랜이 없으면 한 줄만
-  if (variant === "checklist" && !briefPlan) return <p className="rep-none">오늘 챙길 것이 아직 없습니다. 결론의 ↻ 다시 생성을 누르면 채워집니다.</p>;
+  if (variant === "checklist" && !briefPlan) return <p className="rep-none">아직 오늘 챙길 것이 없습니다. 다시 생성을 누르면 채워집니다.</p>;
 
   return (
     <section className={variant === "full" ? "morning-brief-card glass-card brief-compact" : `morning-brief-card rep-brief rep-brief-${variant}`}>
@@ -466,7 +465,7 @@ export function MorningBrief({
       {variant !== "checklist" && <div className="brief-head">
         {variant === "full" && <span className="text-[13px] font-bold text-[var(--text)]">오늘 챙길 것</span>}
         {aiBrief ? <span className="brief-src">AI 제안</span> : <span className="brief-src">규칙 요약</span>}
-        {genLabel && <span className="text-[11px] text-[var(--text-dim)]" title="이 시각의 스냅샷입니다. 이후 처리한 일은 ↻ 다시 생성을 눌러야 반영됩니다">{genLabel}</span>}
+        {genLabel && <span className="text-[11px] text-[var(--text-dim)]" title="이 시각 기준이며 다시 생성을 누르면 갱신됩니다.">{genLabel}</span>}
         <span className="flex-1" />
         {aiBriefingEnabled && (
           <button type="button" onClick={regenerateBrief} disabled={regenerating} className="btn-secondary btn-sm"
@@ -495,7 +494,7 @@ export function MorningBrief({
                     return (
                       <li key={key} className={`brief-item ${pri}${done ? " is-done" : ""}${open ? " is-open" : ""}`}>
                         <button type="button" className={done ? "brief-chk is-on" : "brief-chk"} aria-label={done ? "완료 해제" : "완료로 표시"}
-                          title={done ? "완료 해제" : "처리했으면 체크 · 오늘 하루 기억됩니다"} onClick={() => toggleCheck(key, !done)}>{done ? "✓" : ""}</button>
+                          title={done ? "완료 해제" : "처리했으면 체크합니다."} onClick={() => toggleCheck(key, !done)}>{done ? "✓" : ""}</button>
                         <span className="brief-pri" title={a.priority} />
                         <div className="brief-body" onClick={() => setOpenIdx(open ? null : i)} title={open ? "접기" : "이유 보기"}>
                           <div className="brief-title">{a.title}</div>
@@ -626,7 +625,7 @@ export function MorningBrief({
 
         {!aiBrief && !aiBriefingEnabled && (
           <p className="morning-brief-upsell">
-            <Ico e="✦" /> 지금은 규칙으로 만든 기본 브리핑입니다. 매일 아침 AI가 오늘의 우선순위를 액션 플랜으로 정리해 주는 <b>AI 브리핑</b>은 오너뷰 요금제부터 사용할 수 있습니다.{" "}
+            <Ico e="✦" /> 매일 아침 우선순위를 정리하는 <b>AI 브리핑</b>은 오너뷰 요금제부터 사용할 수 있습니다.{" "}
             <Link href="/billing" className="text-[var(--primary)] font-semibold hover:underline">업그레이드 →</Link>
           </p>
         )}

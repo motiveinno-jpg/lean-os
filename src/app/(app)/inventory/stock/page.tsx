@@ -222,7 +222,7 @@ export default function StockPage() {
                 <>
                   {/*   2026-08-27 기획 §4 — 기초 재고 올리기는 양식·올리기와 같은 성격이라 엑셀▾ 안으로. 조회 줄은 파란 1 + 엑셀 1. */}
                   <ExcelMenu items={[
-                    { label: "기초 재고 올리기", hint: "엑셀에서 SKU·수량을 복사해 붙여넣기 · 지금 있는 수량을 기초 등록으로", onClick: () => setOpeningOpen(true) },
+                    { label: "기초 재고 올리기", hint: "지금 있는 수량을 기초 재고로 넣습니다.", onClick: () => setOpeningOpen(true) },
                     { label: "현재고 내려받기", count: shown.length, disabled: !shown.length, onClick: () => exportToExcel(sorted.map((r) => ({ "SKU": r.product!.sku, "품목명": r.product!.name, "규격": r.product!.spec || "", "창고": r.wh?.name || "", "수량": Number(r.qty), "안전재고": r.product!.safety_stock ?? "", "상태": r.state === "fix" ? "맞춰야 함" : r.state === "zero" ? "품절" : r.state === "low" ? "부족" : "" })), "현재고", `현재고_${todayKst()}`) },
                   ]} />
                   <button type="button" className="btn-primary btn-sm" onClick={() => setDocOpen(true)}>+ 입·출고</button>
@@ -245,7 +245,7 @@ export default function StockPage() {
             <>
               <QueryBar>
                 <DateRangeField from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
-                <span className="text-[11px] text-[var(--text-dim)]">움직인 기록만 쌓고 현재고는 그 합입니다. 지우지 않고 반대 기록으로 되돌립니다.</span>
+                <span className="text-[11px] text-[var(--text-dim)]" title="기록은 지우지 않고 반대 기록으로 되돌립니다">입고와 출고 기록이 쌓이고 현재고는 그 합입니다.</span>
               </QueryBar>
               <ResultStrip>
                 <Stat label="움직임" value={`${won(moves.length)}줄`} />
@@ -262,7 +262,7 @@ export default function StockPage() {
                 <ChipGroup value={sumView} onChange={setSumView} options={[
                   { value: "product", label: "품목별" }, { value: "partner", label: "거래처별" }, { value: "month", label: "월별" },
                 ]} />
-                <span className="inv-hint">판매·매입 전표를 모아 봅니다. 취소 전표는 빠집니다.</span>
+                <span className="inv-hint" title="취소 전표는 빠집니다">판매·매입 전표를 모아 봅니다.</span>
               </QueryBar>
               <ResultStrip>
                 <Stat label="판매" value={`₩${won(summary.saleTotal)}`} />
@@ -277,12 +277,12 @@ export default function StockPage() {
             <>
               <QueryBar right={canMove ? <>
                 <ExcelMenu items={[
-                  { label: "양식 내려받기 · 올리기", hint: "양식을 받아 채운 뒤 올리면 등록 · 같은 이름의 창고는 고침", onClick: () => setWhXls(true) },
+                  { label: "양식 내려받기 · 올리기", hint: "양식을 받아 채운 파일을 올립니다.", onClick: () => setWhXls(true) },
                   { label: "창고 목록 내려받기", count: warehouses.length, onClick: () => exportToExcel(warehouses.map((w) => ({ "창고명": w.name, "코드": w.code || "", "기본창고": w.is_default ? "예" : "아니오", "현재고 수량": onhand.filter((o) => o.warehouse_id === w.id).reduce((n, o) => n + Number(o.qty), 0) })), "창고", `창고_${todayKst()}`) },
                 ]} />
                 <WarehouseAdd companyId={companyId} onDone={invalidate} />
               </> : undefined}>
-                <span className="inv-hint">재고는 창고마다 따로 셉니다. 창고가 없으면 첫 입·출고에서 &lsquo;본사창고&rsquo;가 자동으로 만들어집니다.</span>
+                <span className="inv-hint" title="창고가 없으면 첫 입·출고에서 본사창고가 자동으로 만들어집니다">재고는 창고마다 따로 셉니다.</span>
               </QueryBar>
               <ResultStrip>
                 <Stat label="창고" value={`${won(warehouses.length)}개`} />
@@ -298,8 +298,7 @@ export default function StockPage() {
             {tab === "onhand" && (
               rows.length === 0 ? (
                 <div className="collect-empty">
-                  아직 움직인 기록이 없습니다 — <b>기초 재고 올리기</b>로 지금 있는 수량을 한 번에 넣거나, <b>+ 입·출고</b>로 한 줄씩 넣으세요.<br />
-                  품목이 없다면 <b>재고 › 품목</b>에서 먼저 등록합니다.
+                  아직 움직인 기록이 없습니다. <b>기초 재고 올리기</b>로 지금 있는 수량을 넣으세요.
                 </div>
               ) : (
                 <>
@@ -337,10 +336,8 @@ export default function StockPage() {
                     </table>
                   </div>
                   {counts.fix > 0 && (
-                    <p className="inv-foot inv-foot-warn">
-                      <b>음수가 {counts.fix}줄 있습니다.</b> 이건 잘못 누른 것이 아니라 <b>장부가 실물을 못 따라간 것</b>입니다 —
-                      대개 <b>입고를 안 적은 것</b>이니 &lsquo;+ 입·출고&rsquo;에서 <b>매입 입고</b>로 채우거나, 실제 수량으로 <b>실사 조정</b>하세요.
-                      맞출 때까지 이 줄은 내려가지 않습니다.
+                    <p className="inv-foot inv-foot-warn" title="장부가 실물을 따라가지 못한 줄입니다. 대개 입고를 적지 않은 것이며 맞출 때까지 위에 남습니다">
+                      <b>음수가 {counts.fix}줄 있습니다.</b> <b>+ 입·출고</b>에서 입고를 채우거나 실사 조정하세요.
                     </p>
                   )}
                 </>
@@ -429,7 +426,7 @@ export default function StockPage() {
 
             {tab === "warehouse" && (
               warehouses.length === 0 ? (
-                <div className="collect-empty">창고가 없습니다. 첫 입·출고에서 &lsquo;본사창고&rsquo;가 자동으로 만들어집니다.</div>
+                <div className="collect-empty">아직 창고가 없습니다. 첫 입·출고 때 본사창고가 자동으로 만들어집니다.</div>
               ) : (
                 <div className="stg-table-wrap">
                   <table className="ev-table ev-lined table-inv-wh">
@@ -539,10 +536,10 @@ function WarehouseDialog({ wh, onhand, products, avgCost, onClose }: {
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">{wh.name}{wh.code ? <span className="ev-dim"> · {wh.code}</span> : null}</h3>
-        <p className="inv-modal-desc">이 창고에 있는 품목 <b>{rows.length}종</b> · 수량 <b>{won(totalQty)}</b> · 재고 금액 <b>₩{won(totalAmt)}</b>(이동평균 원가). 부족은 안전재고보다 적은 품목</p>
+        <p className="inv-modal-desc" title="재고 금액은 이동평균 원가 기준입니다. 부족은 안전재고보다 적은 품목">품목 <b>{rows.length}종</b> · 수량 <b>{won(totalQty)}</b> · 재고 금액 <b>₩{won(totalAmt)}</b>입니다.</p>
         <input className="field-input inv-wh-search" placeholder="품목명 · SKU · 규격으로 좁히기" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
         {rows.length === 0 ? (
-          <div className="inv-status-empty">{q ? "맞는 품목이 없습니다" : "이 창고에는 재고가 없습니다"}</div>
+          <div className="inv-status-empty">{q ? "맞는 품목이 없습니다." : "아직 이 창고에는 재고가 없습니다."}</div>
         ) : (
           <div className="stg-table-wrap ch-ship-list">
             <table className="ev-table ev-lined table-inv-status-sm">
@@ -654,9 +651,8 @@ function StockDocDialog({ companyId, userId, products, warehouses, onClose, onSa
 
         {/*   음수를 막지 않는다 — 다만 재고가 어느 쪽으로 가는지를 적어 되묻는다(제안은 자동, 확정은 사람) */}
         {def && lines.some((l) => Number(l.qty) < 0) && (
-          <p className="inv-warn">
-            수량이 음수인 줄은 <b>{def.label} 취소</b>로 읽습니다. 재고가  {def.sign < 0 ? <b>다시 늘어납니다</b> : <b>다시 줄어듭니다</b>}.
-            되돌리는 것이 아니라 새로 샀거나 되돌려받은 것이라면 <b>반품 입고</b>·<b>반품 출고</b>를 고르세요.
+          <p className="inv-warn" title="되돌리는 것이 아니라 새로 샀거나 되돌려받은 것이라면 반품 입고·반품 출고를 고르세요">
+            수량이 음수인 줄은 <b>{def.label} 취소</b>로 읽습니다. 재고가 {def.sign < 0 ? <b>다시 늘어납니다</b> : <b>다시 줄어듭니다</b>}.
           </p>
         )}
 
@@ -724,9 +720,8 @@ function OpeningDialog({ companyId, userId, products, warehouses, onClose, onSav
           <b>기초 재고 올리기</b>
           <button type="button" className="inv-modal-x" onClick={onClose} aria-label="닫기">✕</button>
         </div>
-        <p className="inv-modal-desc">
-          엑셀에서 <b>SKU 와 수량</b> 두 칸을 복사해 그대로 붙여넣으세요. 지금 있는 수량을 <b>기초 등록</b> 기록으로 넣습니다 —
-          수량 칸을 고치는 것이 아니라 <b>움직인 기록</b>으로 남으므로 나중에 되짚을 수 있습니다.
+        <p className="inv-modal-desc" title="수량을 고치는 것이 아니라 움직인 기록으로 남아 나중에 되짚을 수 있습니다">
+          엑셀에서 <b>SKU 와 수량</b> 두 칸을 복사해 붙여넣으세요. 지금 있는 수량이 <b>기초 등록</b> 기록으로 남습니다.
         </p>
         <label className="inv-field"><span>창고 *</span>
           <select className="field-input" value={whId} onChange={(e) => setWhId(e.target.value)}>

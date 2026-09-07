@@ -185,7 +185,7 @@ export function ClosingChecklistWidget({ companyId, userId }: { companyId: strin
             onClick={() => autoCloseMut.mutate()}
             disabled={autoCloseMut.isPending || !finRaw}
             className="btn-primary btn-sm shrink-0"
-            title="자동 검증 + 필수 통과 시 자동 마감 + PDF 리포트 저장"
+            title="검증 후 필수 항목이 통과하면 자동 마감합니다."
           >
             {autoCloseMut.isPending ? '처리 중...' : '자동 마감'}
           </button>
@@ -208,7 +208,7 @@ export function ClosingChecklistWidget({ companyId, userId }: { companyId: strin
         {checklist.status === 'locked' ? (
           <div className="text-center py-3">
             <div className="text-sm text-[var(--text-dim)] font-semibold mb-2"><Ico e="🔒" /> 마감 잠금됨</div>
-            <p className="text-[10px] text-[var(--text-dim)] mb-2">이 달의 데이터 수정이 잠금되었습니다</p>
+            <p className="text-[10px] text-[var(--text-dim)] mb-2">이 달의 데이터 수정이 잠겨 있습니다.</p>
             <button onClick={async () => { if (await appConfirm("마감 잠금을 해제하시겠습니까? 데이터 수정이 가능해집니다.", { confirmLabel: "잠금 해제" })) unlockMut.mutate(); }}
               disabled={unlockMut.isPending}
               className="px-3 py-1.5 text-[10px] bg-[var(--bg-surface)] text-[var(--text-muted)] rounded-lg hover:bg-[var(--bg-elevated)] transition disabled:opacity-50">

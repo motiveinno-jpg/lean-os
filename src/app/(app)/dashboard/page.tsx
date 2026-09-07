@@ -572,18 +572,18 @@ export default function DashboardPage() {
             const catalog: CatalogWidget[] = [
               //   2026-09-04 사장님 "부록 위젯 격자로 되어 있는 것만 메인 대시보드에서 사용" — 신호 띠·챙길 것·오늘 한눈 위젯은 뺐다
               //   (v3 부록 격자와 같은 카탈로그 16개). AI 챙길 것은 morning-brief.tsx 에 남아 있어 위젯으로 다시 넣을 수 있다.
-              { id: "receivables", name: "미수금", icon: "💸", desc: "미회수 합계·오래된 순 5곳·독촉 문구", category: "경영", render: () => <ReceivablesPreview companyId={companyId} companyName={companyName} /> },
+              { id: "receivables", name: "미수금", icon: "💸", desc: "미수금 합계와 오래된 거래처", category: "경영", render: () => <ReceivablesPreview companyId={companyId} companyName={companyName} /> },
               { id: "revenue", name: "이번 달 매출", icon: "💰", desc: "매출 합계·최근 내역", category: "경영", render: () => <RecentRevenue companyId={companyId} /> },
-              { id: "tax", name: "세금·납부 일정", icon: "🧾", desc: "60일 안 세금 마감 · 납부 완료 체크", category: "경영", render: () => <TaxScheduleWidget items={taxItems} companyId={companyId} userId={uid} /> },
-              { id: "bank", name: "통장 거래", icon: "🏛️", desc: "최근 입출금 + 동기화·미분류", category: "자금", render: () => <BankRecentCard companyId={companyId} headExtra={bankHead} /> },
-              { id: "cards", name: "카드 사용", icon: "💳", desc: "이번 달 카드별 사용액 + 동기화·미분류", category: "자금", render: () => <CardsSummaryCard companyId={companyId} headExtra={cardHead} /> },
+              { id: "tax", name: "세금·납부 일정", icon: "🧾", desc: "60일 안에 낼 세금 일정", category: "경영", render: () => <TaxScheduleWidget items={taxItems} companyId={companyId} userId={uid} /> },
+              { id: "bank", name: "통장 거래", icon: "🏛️", desc: "최근 입출금과 동기화 상태", category: "자금", render: () => <BankRecentCard companyId={companyId} headExtra={bankHead} /> },
+              { id: "cards", name: "카드 사용", icon: "💳", desc: "이번 달 카드별 사용액", category: "자금", render: () => <CardsSummaryCard companyId={companyId} headExtra={cardHead} /> },
               { id: "approvals", name: "결재 대기", icon: "🗂️", desc: "회사 결재 대기 목록", category: "업무", render: () => <ApprovalsPendingCard companyId={companyId} /> },
               { id: "projects", name: "최근 프로젝트", icon: "💼", desc: "진행 프로젝트 단계·계약액", category: "업무", render: () => <RecentProjects companyId={companyId} /> },
               //   게시판 = 회사가 직원에게 알리는 글, 오너뷰 공지 = 운영팀 서비스 공지 · 둘은 다른 것 (2026-09-07 사장님)
               
-              { id: "board", name: "게시판", icon: "📌", desc: "회사 공지·투표·첨부 · 고정 글 우선", category: "업무", render: () => <BoardCard companyId={companyId} /> },
+              { id: "board", name: "게시판", icon: "📌", desc: "회사 게시판의 최근 글", category: "업무", render: () => <BoardCard companyId={companyId} /> },
               { id: "announcements", name: "공지사항", icon: "📢", desc: "오너뷰 운영팀의 서비스 공지·업데이트", category: "업무", render: () => <AnnouncementsCard /> },
-              { id: "todos", name: "오늘 일정·할 일", icon: "📝", desc: "내 할 일 + 다가오는 일정", category: "개인", render: () => <MyTodosWidget userId={uid} companyId={companyId} /> },
+              { id: "todos", name: "오늘 일정·할 일", icon: "📝", desc: "내 할 일과 다가오는 일정", category: "개인", render: () => <MyTodosWidget userId={uid} companyId={companyId} /> },
               { id: "invoices", name: "최근 세금계산서", icon: "📄", desc: "매출·매입 최근 발행", category: "경영", render: () => <RecentInvoices companyId={companyId} /> },
               { id: "assets", name: "계좌별 잔액", icon: "🏦", desc: "계좌별 잔액·합계", category: "자금", render: () => <AssetsSummaryCard companyId={companyId} /> },
               { id: "work-tasks", name: "내 담당 업무", icon: "✅", desc: "나에게 배정된 프로젝트 태스크", category: "개인", render: () => <MyTasksCard userId={uid} /> },
@@ -697,13 +697,13 @@ function TaxScheduleWidget({ items, companyId, userId }: { items: ReturnType<typ
   const sorted = [...items].sort((a, b) => Number(checked.has(a.id)) - Number(checked.has(b.id)) || a.daysLeft - b.daysLeft);
   return (
     <ActivityCard title="세금·납부 일정" href={items[0]?.href || "/reports/vat"} summary={items.length > 0 ? "60일" : undefined} empty={items.length === 0}
-      emptyText="다가오는 세금 일정이 없습니다. 60일 안에 낼 세금이 없습니다.">
+      emptyText="60일 안에 낼 세금이 없습니다.">
       {sorted.slice(0, 5).map((t) => {
         const done = checked.has(t.id);
         return (
           <span key={t.id} className={done ? "dash-tax-row dash-tax-row-done" : "dash-tax-row"}>
             <button type="button" aria-label={done ? "납부 완료 해제" : "납부 완료로 표시"}
-              title={done ? "완료 표시 해제" : "신고/납부를 마쳤으면 체크 · 세금 신호·브리핑에서 빠집니다"}
+              title={done ? "완료 표시 해제" : "납부를 마쳤으면 체크하세요."}
               onClick={() => toggle(t.id, !done)}
               className={done ? "dash-tax-chk dash-tax-chk-on" : "dash-tax-chk"}>{done ? "✓" : ""}</button>
             <Link href={t.href} className={`min-w-0 flex-1 text-[13px] truncate ${done ? "line-through text-[var(--text-dim)]" : "text-[var(--text)]"}`}>{t.title}</Link>
@@ -923,7 +923,7 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
   useReportWidgetEmpty(items.length === 0);   // 비면 격자가 한 줄로 접는다 (2026-09-03 v2 결정 149)
   //   빈 상태는 공용 셸의 한 줄 꼴로 — 자체 빈 상자(72px)는 접힌 칸(44px)에 안 들어간다
   if (items.length === 0) {
-    return <ActivityCard title="오늘 일정 · 할 일" href="/schedule" empty emptyText="등록된 할일·일정이 없습니다." emptyAction={{ label: "할 일 추가하기", href: "/schedule" }}>{null}</ActivityCard>;
+    return <ActivityCard title="오늘 일정 · 할 일" href="/schedule" empty emptyText="아직 할 일·일정이 없습니다." emptyAction={{ label: "할 일 추가하기", href: "/schedule" }}>{null}</ActivityCard>;
   }
 
   
@@ -944,7 +944,7 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
       <div className="dashboard-todos-body">
       {items.length === 0 ? (
         <div className="widget-empty">
-          <span className="widget-empty-text">등록된 할일·일정이 없습니다.</span>
+          <span className="widget-empty-text">아직 할 일·일정이 없습니다.</span>
           <Link href="/schedule" className="widget-empty-action">할 일 추가하기 →</Link>
         </div>
       ) : (
@@ -1239,7 +1239,7 @@ function BurnRateTrendWidget({ companyId }: { companyId: string }) {
         </div>
       ) : (
         <div className="text-center py-4">
-          <p className="text-xs text-[var(--text-muted)] mb-2">아직 거래 내역이 없습니다</p>
+          <p className="text-xs text-[var(--text-muted)] mb-2">아직 거래 내역이 없습니다.</p>
           <Link href="/settings?tab=bank" className="btn-primary btn-sm">
             통장 연결하기 →
           </Link>
@@ -1530,7 +1530,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
       {sliced.length > 0 && (
         <div className="glass-card p-4 mb-3">
           <div className="flex items-center justify-between mb-2">
-            <span className="caption">매출(blue) vs 비용(red) · 순이익 추이(orange)</span>
+            <span className="caption">월별 매출·비용·순이익 추이입니다.</span>
             <div className="flex items-center gap-3 text-[9px] text-[var(--text-dim)]">
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-[var(--viz-1)]" />매출</span>
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-[var(--viz-2)]" />비용</span>
@@ -1989,10 +1989,10 @@ function GettingStartedChecklist({ companyId }: { companyId: string }) {
   });
 
   const items = [
-    { key: "company" as const, href: "/settings", label: "회사 정보 등록", desc: "사업자등록번호와 회사 정보를 입력하세요", icon: "🏢" },
-    { key: "bank" as const, href: "/settings", label: "법인통장 연결", desc: "메인 계좌를 등록하면 잔고가 자동 추적됩니다", icon: "🏦" },
-    { key: "partner" as const, href: "/partners", label: "거래처 등록", desc: "최소 1개 이상의 매출처/매입처를 추가하세요", icon: "🤝" },
-    { key: "employee" as const, href: "/employees", label: "직원/팀원 추가", desc: "팀원을 초대하면 결재/급여를 사용할 수 있습니다", icon: "👥" },
+    { key: "company" as const, href: "/settings", label: "회사 정보 등록", desc: "사업자등록번호와 회사 정보를 입력하세요.", icon: "🏢" },
+    { key: "bank" as const, href: "/settings", label: "법인통장 연결", desc: "법인 계좌를 등록하세요.", icon: "🏦" },
+    { key: "partner" as const, href: "/partners", label: "거래처 등록", desc: "첫 거래처를 추가하세요.", icon: "🤝" },
+    { key: "employee" as const, href: "/employees", label: "직원/팀원 추가", desc: "팀원을 초대하세요.", icon: "👥" },
   ];
 
   const completedCount = status ? items.filter((i) => status[i.key]).length : 0;
@@ -2495,7 +2495,7 @@ function EmployeeProjectsWidget() {
           <div className="p-6 text-center text-xs text-[var(--text-muted)]">불러오는 중...</div>
         ) : deals.length === 0 ? (
           <div className="p-6 text-center text-xs text-[var(--text-muted)]">
-            담당·참여 중인 프로젝트가 없습니다.
+            아직 담당하는 프로젝트가 없습니다.
           </div>
         ) : (
           <div className="divide-y divide-[var(--border)]">
@@ -2525,7 +2525,7 @@ function EmployeeProjectsWidget() {
       </div>
       <p className="caption mt-1.5">
         
-        ※ 본인이 담당·검토·참여로 지정된 프로젝트만 표시됩니다 (읽기 전용 · 재무 정보 비공개).
+        내가 담당·검토·참여하는 프로젝트만 보입니다.
 
       </p>
     </div>
@@ -2549,8 +2549,7 @@ function BizNoNotice() {
       <div className="flex-1 min-w-0">
         <div className="text-sm font-bold text-[var(--text)]">사업자등록번호를 등록하면 통장·세금계산서가 열립니다</div>
         <div className="text-[11px] text-[var(--text-muted)] mt-1 leading-relaxed">
-          지금은 결재·일정·게시판·파일보관함을 쓰실 수 있습니다. 번호를 넣으시면 <b>통장·카드 자동 수집</b>과
-          <b> 세금계산서 발행</b>까지 이어집니다. 회사 설정 → 회사정보에서 1분이면 됩니다.
+          <b>통장·카드 자동 수집</b>과<b> 세금계산서 발행</b>에 필요합니다. 회사 설정의 회사정보에서 1분이면 됩니다.
         </div>
       </div>
       <div className="flex gap-2 shrink-0">
@@ -2592,10 +2591,9 @@ function MasterPermissionNotice()  {
   return (
     <div className="master-perm-notice">
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-bold text-[var(--text)]">권한 체계가 개편되었습니다. 마스터가 구성원 권한을 부여해 주세요</div>
+        <div className="text-sm font-bold text-[var(--text)]">구성원에게 메뉴 권한을 부여해 주세요</div>
         <div className="text-[11px] text-[var(--text-muted)] mt-1 leading-relaxed">
-          이제 모든 구성원이 같은 화면을 쓰고, 마스터가 부여한 메뉴·기능만 보입니다. 아직 권한을 받지 못한 구성원은
-          기본 메뉴(마이페이지·게시판·메신저 등)만 보입니다. <b>구성원 → 직원 선택 → 탭 권한</b>에서 메뉴별로 체크해 주세요.
+          권한이 없는 구성원은 기본 메뉴만 보입니다. <b>구성원 화면의 탭 권한</b>에서 메뉴별로 체크해 주세요.
         </div>
       </div>
       <div className="flex gap-2 shrink-0">
@@ -2720,9 +2718,9 @@ function PartnerDashboard({ companyId, userId }: {
   }
 
   const cards = [
-    { label: "진행 중 프로젝트", count: dealCount, href: "/projects", icon: "📋", color: "#2563EB", desc: "현황 확인 및 진행 상태" },
-    { label: "서명 대기", count: signCount, href: "/documents", icon: "📄", color: "#7C3AED", desc: "계약서, 견적서 검토 및 서명" },
-    { label: "안읽은 메시지", count: unreadCount, href: "/chat", icon: "💬", color: "#059669", desc: "실시간 문의 및 파일 공유" },
+    { label: "진행 중 프로젝트", count: dealCount, href: "/projects", icon: "📋", color: "#2563EB", desc: "진행 상태를 확인합니다." },
+    { label: "서명 대기", count: signCount, href: "/documents", icon: "📄", color: "#7C3AED", desc: "계약서와 견적서에 서명합니다." },
+    { label: "안읽은 메시지", count: unreadCount, href: "/chat", icon: "💬", color: "#059669", desc: "담당자와 대화하고 파일을 주고받습니다." },
   ];
 
   const hasTodo = signCount > 0 || unreadCount > 0;
@@ -2810,7 +2808,7 @@ function PartnerDashboard({ companyId, userId }: {
           </div>
           <div>
             <h3 className="font-bold text-sm mb-1">도움이 필요하신가요?</h3>
-            <p className="text-xs text-[var(--text-muted)] leading-relaxed">프로젝트 관련 문의는 채팅으로 담당자에게 연락하세요. 서류 서명이 필요한 경우 서류 페이지에서 바로 진행할 수 있습니다.</p>
+            <p className="text-xs text-[var(--text-muted)] leading-relaxed">문의는 채팅으로, 서명은 서류 페이지에서 진행하세요.</p>
           </div>
         </div>
       </div>

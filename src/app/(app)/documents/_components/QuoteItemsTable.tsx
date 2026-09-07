@@ -358,7 +358,7 @@ function MyItemsPicker({ companyId, currentItems, onClose, onPick }: { companyId
         </div>
         <div className="flex-1 overflow-y-auto px-3 py-2">
           {!loaded ? <div className="p-8 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
-            : presets.length === 0 ? <div className="p-8 text-center text-sm text-[var(--text-muted)]">저장된 My품목이 없습니다.<br /><span className="text-xs">위 "현재 품목을 My품목에 저장"으로 등록하세요.</span></div>
+            : presets.length === 0 ? <div className="p-8 text-center text-sm text-[var(--text-muted)]">아직 저장된 My품목이 없습니다.<br /><span className="text-xs">현재 품목을 My품목에 저장해 보세요.</span></div>
             : presets.map((it, i) => (
               <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--bg-surface)] text-xs">
                 <input type="checkbox" checked={sel.has(i)} onChange={() => toggle(i)} className="accent-[var(--primary)] cursor-pointer" />
@@ -432,7 +432,7 @@ function ColumnEditor({ cols, onClose, onSave }: { cols: QuoteCol[]; onClose: ()
         </div>
 
         <div className="mb-4">
-          <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">현재 순서 (▲▼로 이동, ✕로 제거)</div>
+          <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">현재 순서</div>
           <div className="space-y-1">
             {active.map((c, i) => (
               <div key={c.key} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] text-xs">
@@ -461,7 +461,7 @@ function ColumnEditor({ cols, onClose, onSave }: { cols: QuoteCol[]; onClose: ()
           <button onClick={onClose} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)]">취소</button>
           <button onClick={() => onSave(active)} className="px-6 h-10 bg-[var(--primary)] text-white rounded-xl text-sm font-bold hover:brightness-110">저장</button>
         </div>
-        <p className="text-[10px] text-[var(--text-dim)] mt-3">※ 이 설정은 회사 전체 견적서에 적용됩니다. 공급가액·부가세·합계는 수량×단가로 자동 계산됩니다.</p>
+        <p className="text-[10px] text-[var(--text-dim)] mt-3">이 설정은 회사 전체 견적서에 적용됩니다.</p>
       </div>
     </div>
   );

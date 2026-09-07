@@ -158,7 +158,7 @@ function PopupWindow({ win }: { win: Win }) {
       <div className="popup-titlebar"
         onMouseDown={begin("move")} onDoubleClick={() => toggleMax(win.id)}>
         <span className="text-[12px] font-bold text-[var(--text)] truncate flex-1">{win.title}</span>
-        <button onClick={() => detach(win)} title="새 창으로 분리 (브라우저 밖으로 이동 가능)"
+        <button onClick={() => detach(win)} title="새 창으로 분리"
           className="w-7 h-7 rounded flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--primary)] transition">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3h7v7" /><path d="M21 3l-9 9" /><path d="M21 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h5" /></svg>
         </button>

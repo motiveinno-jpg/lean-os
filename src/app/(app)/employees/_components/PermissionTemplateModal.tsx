@@ -103,7 +103,7 @@ export function PermissionTemplateModal({ open, onClose, viewerIsMaster = true, 
         <div className="perm-template-head">
           <div>
             <h3 className="text-sm font-bold text-[var(--text)]">템플릿 관리</h3>
-            <p className="text-[11px] text-[var(--text-dim)] mt-0.5">자주 쓰는 권한 묶음을 만들어 두면 구성원에게 한 번에 적용할 수 있습니다.</p>
+            <p className="text-[11px] text-[var(--text-dim)] mt-0.5">권한 묶음을 만들어 구성원에게 한 번에 적용합니다.</p>
           </div>
           <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] transition" aria-label="닫기">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
@@ -122,7 +122,7 @@ export function PermissionTemplateModal({ open, onClose, viewerIsMaster = true, 
             {isLoading ? (
               <div className="text-[11px] text-[var(--text-dim)] px-2 py-3">불러오는 중…</div>
             ) : templates.length === 0 ? (
-              <div className="text-[11px] text-[var(--text-dim)] px-2 py-3">아직 만든 템플릿이 없습니다</div>
+              <div className="text-[11px] text-[var(--text-dim)] px-2 py-3">아직 만든 템플릿이 없습니다.</div>
             ) : (
               templates.map((t) => (
                 <button
@@ -141,7 +141,7 @@ export function PermissionTemplateModal({ open, onClose, viewerIsMaster = true, 
           <div className="perm-template-editor">
             {!draft ? (
               <div className="perm-template-empty">
-                왼쪽에서 템플릿을 고르면 여기서 수정할 수 있습니다.<br />
+                왼쪽에서 템플릿을 고르면 여기서 수정합니다.<br />
                 <span className="text-[var(--text-dim)]">새로 만들려면 <b>+ 템플릿 추가</b>를 누르세요.</span>
               </div>
             ) : (
@@ -180,7 +180,7 @@ export function PermissionTemplateModal({ open, onClose, viewerIsMaster = true, 
           <div className="perm-template-foot">
             <div className="text-[11px] text-[var(--text-muted)]">
               선택된 권한 <b>{draft.keys.size}</b>개
-              {draft.id && <span className="text-[var(--text-dim)]"> · 수정해도 이미 적용받은 구성원의 권한은 바뀌지 않습니다</span>}
+              {draft.id && <span className="text-[var(--text-dim)]"> · 수정해도 이미 적용된 구성원은 바뀌지 않습니다.</span>}
             </div>
             <div className="flex gap-2">
               {draft.id && (

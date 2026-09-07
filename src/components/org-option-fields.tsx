@@ -93,7 +93,7 @@ function SelectWithAdd({ label, value, options, onChange, onAdd, onRemove, addPl
             <div key={o} className="flex items-center justify-between gap-2 px-1">
               <span className="text-xs truncate">{o}</span>
               <button type="button" onClick={() => removeOne(o)} disabled={saving}
-                title="목록에서 삭제 (이미 지정된 직원의 값은 유지)"
+                title="목록에서만 삭제합니다."
                 className="text-[11px] text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded px-1.5 py-0.5 shrink-0">✕</button>
             </div>
           ))}

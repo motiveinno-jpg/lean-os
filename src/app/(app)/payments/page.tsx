@@ -152,7 +152,7 @@ function PaymentsPageInner() {
       {tab !== 'recommend' && tab !== 'recurring' && detectedCount > 0 && (
         <button type="button" onClick={() => setTab('recommend')} className="payments-todo-band">
           <b>처리할 것 {detectedCount.toLocaleString()}건</b>
-          <span>통장에서 새로 잡힌 반복 지출 · 한 번에 검토</span>
+          <span>통장에서 새로 잡힌 반복 지출입니다.</span>
           <span className="payments-todo-go">보러 가기 →</span>
         </button>
       )}
@@ -391,7 +391,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
               <span className="qk-quicks">{STATUS_OPTS.map(([v, l]) => <button key={v} type="button" onClick={() => setDraftStatus((d) => d.includes(v) ? d.filter((x) => x !== v) : [...d, v])} className={draftStatus.includes(v) ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>)}</span>
             </ConditionRow>
           </ConditionPanel>
-          <span className="text-[11px] text-[var(--text-dim)]">프로젝트 비용 스케줄·수동 등록에서 온 결제 건 · 승인까지만(이체는 은행에서)</span>
+          <span className="text-[11px] text-[var(--text-dim)]" title="이체는 은행에서 합니다.">결제 건을 검토하고 승인합니다.</span>
         </>}
         below={<AppliedChips chips={filterSet.length ? [{ group: "상태", label: filterSet.map((v) => STATUS_OPTS.find((o) => o[0] === v)?.[1] || v).join(" · "), onRemove: () => setFilter("all") }] : []} onClearAll={() => setFilter("all")} />}
         right={<button type="button" onClick={() => setShowForm(true)} className="btn-secondary btn-sm">+ 수동 결제 등록</button>}
@@ -442,7 +442,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
       {/* Queue */}
       <div className="payment-queue-table">
         {filtered.length === 0 ? (
-          <div className="collect-empty">결제 내역이 없습니다. 프로젝트 비용 스케줄에서 자동 생성되거나 위 '수동 결제 등록'으로 넣습니다</div>
+          <div className="collect-empty">아직 결제 내역이 없습니다. 수동 결제 등록으로 추가하세요.</div>
         ) : (
           <div className="ev-scroll payments-scroll"><table className="ev-table ev-lined payments-table">
             <thead>
@@ -550,8 +550,8 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
               </h3>
               <p className="text-sm text-[var(--text-muted)] mb-4">
                 {refundStep === 1
-                  ? '환불 사유를 입력하면 결제 상태가 환불 처리됩니다. (되돌릴 수 없습니다)'
-                  : '한번 더 확인해주세요. 환불 후에는 상태를 되돌릴 수 없습니다.'}
+                  ? '환불 사유를 입력하면 환불 처리됩니다.'
+                  : '환불 후에는 되돌릴 수 없습니다.'}
               </p>
               <div className="bg-[var(--bg-surface)] rounded-xl p-3 mb-4">
                 <div className="text-xs text-[var(--text-dim)] mb-1">대상</div>
@@ -638,7 +638,7 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
   return (
     <>
       <SlotHead slotId="pay-head-slot"
-        bar={<span className="text-[11px] text-[var(--text-dim)]">반복결제(임대·보험·구독)를 달마다 배치로 묶어 → 대표 승인 → 일괄 이체</span>}
+        bar={<span className="text-[11px] text-[var(--text-dim)]">반복결제를 달마다 배치로 묶어 승인합니다.</span>}
         right={<button type="button" onClick={handleGenerate} disabled={generating} className="btn-primary btn-sm">{generating ? '생성 중…' : '이번 달 고정비 배치 생성'}</button>}
         stats={<><Stat label="배치" value={`${batches.length}건`} /><Stat label="승인 대기" value={`${batches.filter((b: any) => b.status === "pending" || b.status === "draft").length}건`} /></>} />
 
@@ -651,7 +651,7 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
 
       <div className="fixed-cost-batch-table">
         {batches.length === 0 ? (
-          <div className="collect-empty">고정비 배치가 없습니다. 반복결제를 먼저 등록하고 위에서 이번 달 배치를 만드세요</div>
+          <div className="collect-empty">아직 고정비 배치가 없습니다. 위에서 이번 달 배치를 만드세요.</div>
         ) : (
           <div className="ev-scroll payments-scroll"><table className="ev-table ev-lined payments-table">
             <thead>
@@ -752,7 +752,7 @@ function BatchDetailModal({ batchId, onClose }: { batchId: string; onClose: () =
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
           <div>
             <h3 className="text-base font-bold">{batch?.name || '배치 상세'}</h3>
-            <p className="text-[11px] text-[var(--text-dim)] mt-0.5">조회 전용 · 수정하려면 반복결제 설정 탭에서 항목을 변경 후 배치 다시 생성</p>
+            <p className="text-[11px] text-[var(--text-dim)] mt-0.5" title="수정은 정기결제 탭에서 항목을 바꾼 뒤 배치를 다시 만듭니다.">조회 전용입니다.</p>
           </div>
           <button
             onClick={onClose}
@@ -789,13 +789,13 @@ function BatchDetailModal({ batchId, onClose }: { batchId: string; onClose: () =
 
             {/* Items list */}
             <div>
-              <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase mb-2">포함된 항목 ({items.length}건)</div>
+              <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase mb-2">포함된 항목 · {items.length}건</div>
               {items.length === 0 ? (
                 <div className="p-6 text-center text-xs text-[var(--text-muted)] bg-[var(--bg-surface)] rounded-xl">포함된 항목이 없습니다.</div>
               ) : batch?.batch_type === 'payroll' && !canSeeSalary ? (
                 <div className="p-6 text-center text-xs text-[var(--text-muted)] bg-[var(--bg-surface)] rounded-xl">
                   급여 항목 {items.length}건 · 합계 ₩{items.reduce((s, it) => s + Number(it.amount || 0), 0).toLocaleString()}
-                  <div className="mt-1 text-[var(--text-dim)]">직원별 상세는 급여 권한이 있는 사용자만 볼 수 있습니다.</div>
+                  <div className="mt-1 text-[var(--text-dim)]">직원별 상세는 급여 권한자만 볼 수 있습니다.</div>
                 </div>
               ) : (
                 <div className="border border-[var(--border)] rounded-xl divide-y divide-[var(--border)] max-h-[400px] overflow-y-auto">
@@ -874,7 +874,7 @@ function RecurringDetailModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
           <div>
             <h3 className="text-base font-bold">{item.name}</h3>
-            <p className="text-[11px] text-[var(--text-dim)] mt-0.5">조회 전용 · 수정하려면 하단의 "수정" 버튼을 누르세요.</p>
+            <p className="text-[11px] text-[var(--text-dim)] mt-0.5">조회 전용입니다.</p>
           </div>
           <button
             onClick={onClose}
@@ -1031,7 +1031,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
         <div className="inv-modal" onClick={() => setShowDetected(false)}>
           <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
             <h3 className="inv-modal-title">통장에서 잡힌 반복 지출 {newDetected.length}건</h3>
-            <p className="inv-modal-desc">같은 거래처에 같은 금액이 2개월 이상 되풀이된 통장 출금입니다. 등록하면 정기결제로 관리되고 자금 전망에 잡힙니다. 검토·개별 등록은 <b>자동 추천</b> 탭에서.</p>
+            <p className="inv-modal-desc">매달 되풀이된 통장 출금입니다. 개별 등록은 <b>자동 추천</b> 탭에서 합니다.</p>
             <div className="stg-table-wrap ch-ship-list">
               <table className="ev-table ev-lined table-inv-status-sm">
                 <thead><tr><th>거래처</th><th>금액</th><th>횟수</th><th>기간</th><th>추천 분류</th><th>확신</th></tr></thead>
@@ -1051,7 +1051,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
       )}
       {/* 조회 줄 ‖ 실행 · 결과 요약 — 상자 머리 슬롯으로 (2026-08-19). 제목 h2·큰 배너는 뺐다 */}
       <SlotHead slotId="pay-head-slot"
-        bar={<span className="text-[11px] text-[var(--text-dim)]">임대료·보험·구독처럼 매달 나가는 돈을 등록해 두면 자금 전망·고정비 대조에 쓰입니다</span>}
+        bar={<span className="text-[11px] text-[var(--text-dim)]">매달 나가는 돈을 등록해 관리합니다.</span>}
         right={<>
           <button type="button" onClick={async () => {
               setRefreshing(true); setRefreshResults(null);
@@ -1109,7 +1109,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
                     <span className="text-[var(--text-dim)] line-through">₩{r.oldAmount.toLocaleString()}</span>
                     <span className="text-[var(--text-dim)]">&rarr;</span>
                     <span className="font-bold text-green-500">₩{r.newAmount.toLocaleString()}</span>
-                    <span className="caption">({r.lastTxDate})</span>
+                    <span className="caption">{r.lastTxDate}</span>
                   </div>
                 </div>
               ))}
@@ -1184,8 +1184,8 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
       <div className="recurring-payments-table">
         {recurring.length === 0 ? (
           <div className="collect-empty">
-            반복결제가 없습니다 — 임대료, 보험, 구독 등 매월 고정 지출을 등록하세요.
-            {newDetected.length > 0 && <> 통장에서 <b>{newDetected.length}건</b>이 잡혀 있습니다. 위  <b>전체 자동등록</b>을 누르면 한 번에 채워집니다.</>}
+            아직 반복결제가 없습니다. 매월 고정 지출을 등록하세요.
+            {newDetected.length > 0 && <> 통장에서 잡힌 <b>{newDetected.length}건</b>을 <b>전체 자동등록</b>으로 채우세요.</>}
           </div>
         ) : (
           <div className="ev-scroll payments-scroll"><table className="ev-table ev-lined payments-table">
@@ -1382,7 +1382,7 @@ function SmartSetupBanner({ companyId, userId, invalidate, onRegistered }: { com
     <div className="space-y-3">
       {/* 조회 줄 ‖ 이체내역 분석 · 자동화 실행 · 결과 요약(자동화 진행 현황 4단계) — 상자 머리 슬롯 (2026-08-19, 유리 카드 → Stat) */}
       <SlotHead slotId="pay-head-slot"
-        bar={<span className="text-[11px] text-[var(--text-dim)]">통장·카드에서 2개월 이상 같은 거래처·금액으로 반복된 거래를 찾아 정기결제로 등록하길 <b>제안</b>합니다. 등록은 사람이 고릅니다</span>}
+        bar={<span className="text-[11px] text-[var(--text-dim)]">반복된 거래를 찾아 정기결제 등록을 <b>제안</b>합니다.</span>}
         right={<>
           <button type="button" onClick={handleDetect} disabled={detecting} className="btn-secondary btn-sm">{detecting ? '분석 중…' : '이체내역 분석'}</button>
           <button type="button" onClick={handleRunAutomation} disabled={running} className="btn-primary btn-sm">{running ? '실행 중…' : '자동화 실행'}</button>
@@ -1392,19 +1392,18 @@ function SmartSetupBanner({ companyId, userId, invalidate, onRegistered }: { com
           <Stat label="승인대기" value={`${pendingCount}건`} tone="minus" />
           <Stat label="결제대기" value={`${approvedCount}건`} />
           <Stat label="완료" value={`${executedCount}건`} tone="plus" />
-          <span className="text-[10.5px] text-[var(--text-dim)]">설정 → 지출결의 → 승인 → 결제 → 세금계산서</span>
+          <span className="text-[10.5px] text-[var(--text-dim)]">설정 · 지출결의 · 승인 · 결제 · 세금계산서</span>
         </>} />
 
       {/* 자동화 실행이 무엇을 하는지 — 위험 작업은 접어 둔다 (2026-08-12) */}
       <div className="pay-note pay-note-col">
-        <span className="text-[11px]">자동화 실행 = 거래 자동분류·매칭, 결제큐 정리, 지출결의 드래프트 생성 (데이터 정리만, 돈/세무 변경 없음).</span>
+        <span className="text-[11px]">자동화 실행은 데이터 정리만 하고 돈과 세무는 바꾸지 않습니다.</span>
         <details className="payment-risky-details" open={includeRisky}>
-          <summary>고급 — 위험 작업 {includeRisky && <em>켜짐</em>}</summary>
+          <summary>고급 · 위험 작업 {includeRisky && <em>켜짐</em>}</summary>
           <label className="payment-risky-label">
             <input type="checkbox" checked={includeRisky} onChange={(e) => setIncludeRisky(e.target.checked)} className="mt-0.5 accent-[var(--danger)]" />
             <span>
-              <span className="font-semibold text-[var(--danger)]">위험 작업 포함</span> · 소액 자동승인 · 결제→세금계산서 자동발행 · 환불→세금계산서 취소.
-              실제 승인·세무 레코드를 자동 생성합니다. 내용을 이해한 경우에만 체크하세요.
+              <span className="font-semibold text-[var(--danger)]">위험 작업 포함</span> · 실제 승인과 세금계산서를 자동으로 만듭니다.
             
             </span>
           </label>
@@ -1477,7 +1476,7 @@ function SmartSetupBanner({ companyId, userId, invalidate, onRegistered }: { com
         <div>
           <div className="pay-note">
             <b>이체내역에서 {freshDetected.length}건 신규 감지 · {detected.filter(d => d.alreadyRegistered).length}건 기등록</b>
-            <span>건별로 등록 여부를 고르세요. 미등록으로 둔 항목은 <b>회사 전체</b>에서 다시 추천하지 않습니다</span>
+            <span>미등록 항목은 <b>회사 전체</b>에서 다시 추천하지 않습니다.</span>
             {freshDetected.length > 1 && (
               <span className="ml-auto"><button type="button" className="btn-secondary btn-sm"
                 onClick={async () => {
@@ -1492,7 +1491,7 @@ function SmartSetupBanner({ companyId, userId, invalidate, onRegistered }: { com
             )}
           </div>
           {freshDetected.length === 0 ? (
-            <div className="collect-empty">신규 후보가 없습니다 (미등록 처리한 항목은 다시 표시되지 않습니다)</div>
+            <div className="collect-empty">아직 신규 후보가 없습니다.</div>
           ) : (
             <div className="ev-scroll"><table className="ev-table ev-lined pay-detect-table">
               <thead><tr><th>횟수</th><th className="text-left">거래처</th><th>추정 구분</th><th>금액 (월)</th><th>확신</th><th>동작</th></tr></thead>

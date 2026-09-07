@@ -103,7 +103,7 @@ export type LineSeries = { color: string; dash?: boolean; points: { x: number; y
 export type ComboBucket = { label: string; days: number; value: number | null; target: number };
 export function BarLineCombo({ buckets, unit, yUnit = "" }: { buckets: ComboBucket[]; unit: "day" | "week" | "month"; yUnit?: string }) {
   const [hi, setHi] = useState<number | null>(null);
-  if (!buckets.length) return <div className="text-xs text-[var(--text-dim)] py-6 text-center">표시할 데이터가 없습니다</div>;
+  if (!buckets.length) return <div className="text-xs text-[var(--text-dim)] py-6 text-center">표시할 데이터가 없습니다.</div>;
 
   const W = 760, H = 300, padL = 52, padR = 16, padT = 22, padB = 30;
   const plotW = W - padL - padR, plotH = H - padT - padB;
@@ -198,7 +198,7 @@ export function BarLineCombo({ buckets, unit, yUnit = "" }: { buckets: ComboBuck
 //   actual: 완료 누적점 {x:일차, y:누적완료}. scope: 전체 태스크. totalDays: 기간. todayX: 오늘 일차.
 export function BurnUpChart({ actual, scope, totalDays, todayX }: { actual: { x: number; y: number }[]; scope: number; totalDays: number; todayX: number }) {
   const [hi, setHi] = useState<number | null>(null);
-  if (!actual.length || scope <= 0 || totalDays <= 0) return <div className="text-xs text-[var(--text-dim)] py-6 text-center">표시할 데이터가 없습니다</div>;
+  if (!actual.length || scope <= 0 || totalDays <= 0) return <div className="text-xs text-[var(--text-dim)] py-6 text-center">표시할 데이터가 없습니다.</div>;
   const W = 760, H = 280, padL = 40, padR = 16, padT = 20, padB = 28;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const yMax = niceMax(scope * 1.12);
@@ -259,7 +259,7 @@ export function BurnUpChart({ actual, scope, totalDays, todayX }: { actual: { x:
 export type WorkloadWeek = { label: string; done: number; pending: number; over: number };
 export function WorkloadChart({ weeks, todayIndex }: { weeks: WorkloadWeek[]; todayIndex?: number }) {
   const [hi, setHi] = useState<number | null>(null);
-  if (!weeks.length) return <div className="text-xs text-[var(--text-dim)] py-6 text-center">마감일이 지정된 태스크가 없습니다</div>;
+  if (!weeks.length) return <div className="text-xs text-[var(--text-dim)] py-6 text-center">마감일이 지정된 태스크가 없습니다.</div>;
   const W = 760, H = 220, padL = 34, padR = 14, padT = 16, padB = 28;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const totals = weeks.map((w) => w.done + w.pending + w.over);

@@ -406,7 +406,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
                     placeholder="0"
                     className="field-input"
                   />
-                  <p className="stg-field-help">대시보드 월 고정비 = 반복결제 합 + 직원급여 합 + 이 값. 임대료·보험 등 추가분만 입력합니다.</p>
+                  <p className="stg-field-help" title="월 고정비 = 반복결제 합 + 직원급여 합 + 이 값">반복결제와 급여에 잡히지 않는 고정비만 입력합니다.</p>
                 </div>
               </div>
               <div className="mt-4">
@@ -419,7 +419,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
               <div className="stg-card-head">
                 <div>
                   <h3 className="stg-card-title">미연동 통장</h3>
-                  <p className="stg-card-desc">은행연동 밖의 계좌를 수기로 올려 잔고에 합산합니다 · 총 ₩{totalBankBalance.toLocaleString()}</p>
+                  <p className="stg-card-desc">연동되지 않은 계좌를 직접 등록해 잔고에 더합니다 · 총 ₩{totalBankBalance.toLocaleString()}</p>
                 </div>
                 <button onClick={() => setShowBankForm(!showBankForm)} className="btn-secondary btn-sm shrink-0">+ 통장 추가</button>
               </div>
@@ -505,8 +505,8 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
               {bankAccounts.length === 0 ? (
                 <div className="stg-empty">
                   <div className="text-3xl mb-3"><Ico e="🏦" /></div>
-                  <div className="stg-empty-t">등록된 통장이 없습니다</div>
-                  <div className="stg-empty-d">자동 수집 계좌는 은행연동에서, 그 외 계좌는 &quot;+ 통장 추가&quot;로 올립니다.</div>
+                  <div className="stg-empty-t">아직 등록된 통장이 없습니다.</div>
+                  <div className="stg-empty-d">통장 추가 버튼으로 계좌를 등록하세요.</div>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -600,8 +600,8 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
 
               {routingRules.length === 0 ? (
                 <div className="stg-empty">
-                  <div className="stg-empty-t">라우팅 규칙이 없습니다. 기본 통장으로 지급됩니다</div>
-                  <div className="stg-empty-d">&quot;+ 규칙 추가&quot;로 비용 유형별 지급 통장을 지정할 수 있습니다.</div>
+                  <div className="stg-empty-t">아직 라우팅 규칙이 없습니다.</div>
+                  <div className="stg-empty-d">규칙 추가 버튼으로 비용 유형별 지급 통장을 정하세요.</div>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -722,7 +722,7 @@ function MatchingRuleCard({ companyId }: { companyId: string | null }) {
       <div className="stg-card-head">
         <div>
           <h3 className="stg-card-title">장부 매칭 허용오차</h3>
-          <p className="stg-card-desc">계약↔세금계산서↔입금을 자동으로 맞춰볼 때 허용할 금액 차이 비율입니다.</p>
+          <p className="stg-card-desc">계약과 세금계산서, 입금을 맞출 때 허용하는 금액 차이입니다.</p>
         </div>
       </div>
       <div className="flex items-end gap-3 max-w-xs">

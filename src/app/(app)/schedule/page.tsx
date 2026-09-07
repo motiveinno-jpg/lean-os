@@ -141,7 +141,7 @@ function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; us
             <button type="button" onClick={goToday} className="qk-quick">오늘</button>
             <button type="button" onClick={nextMonth} className="qk-quick" aria-label="다음 달">▶</button>
           </span>
-          <button type="button" onClick={() => setYearNav((v) => !v)} title="누르면 연 단위 이동 버튼이 나타납니다"
+          <button type="button" onClick={() => setYearNav((v) => !v)} title="연 단위로 이동합니다."
             className="text-sm font-bold text-[var(--text)] tabular-nums px-1.5 py-0.5 rounded-lg hover:bg-[var(--bg-surface)] transition">
             {view.year}년 {view.monthIdx0 + 1}월<span className="ml-1 text-[9px] text-[var(--text-dim)]">▾</span>
           </button>
@@ -382,7 +382,7 @@ function ScheduleListTab({ companyId, userId, toast, tabs }: { companyId: string
                 ))}
               </span>
             </ConditionRow>
-            <ConditionRow label="기간" hint="날짜 있는 일정만 걸린다">
+            <ConditionRow label="기간" hint="날짜가 있는 일정만 찾습니다.">
               <DateRangeField label={null} from={draft.from} to={draft.to} onChange={(f, t) => setDraft((c) => ({ ...c, from: f, to: t }))} onClear={() => setDraft((c) => ({ ...c, from: "", to: "" }))} />
             </ConditionRow>
           </ConditionPanel>
@@ -393,7 +393,7 @@ function ScheduleListTab({ companyId, userId, toast, tabs }: { companyId: string
         <ResultStrip right={<span className="text-[11px] text-[var(--text-dim)]">표시 <b className="mono-number">{shown.length}</b>건</span>}>
           <Stat label="날짜 있는 일정" value={`${dated}건`} />
           <Stat label="날짜 없는 것" value={`${shown.length - dated}건`} />
-          <span className="text-[11px] text-[var(--text-dim)]">날짜 없는 것 = 언제 할지 아직 안 정한 일 · 날짜를 넣으면 달력에도 뜹니다</span>
+          <span className="text-[11px] text-[var(--text-dim)]">날짜를 넣으면 달력에도 표시됩니다.</span>
         </ResultStrip>
       </QueryHead>
 
@@ -401,7 +401,7 @@ function ScheduleListTab({ companyId, userId, toast, tabs }: { companyId: string
         {isLoading ? (
           <div className="collect-empty">불러오는 중…</div>
         ) : shown.length === 0 ? (
-          <div className="collect-empty">일정이 없습니다. [+ 새로 만들기] 로 추가하거나 검색조건을 풀어 보세요</div>
+          <div className="collect-empty">일정이 없습니다. 새로 만들거나 검색조건을 풀어 보세요.</div>
         ) : (
           <div className="ev-scroll">
             <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed sched-table">

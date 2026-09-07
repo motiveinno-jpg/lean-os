@@ -349,8 +349,8 @@ export function BankAccountsOverview({ companyId, selectedAccountNo, onSelect }:
             <svg className="w-12 h-12 text-[var(--text-dim)] mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11m16-11v11" />
             </svg>
-            <p className="text-[var(--text)] font-medium">{search ? "검색 결과가 없습니다" : "표시할 계좌가 없습니다"}</p>
-            <p className="text-sm text-[var(--text-muted)] mt-1">{search ? "다른 키워드로 검색해보세요" : "통장을 연결하면 여기에 표시됩니다"}</p>
+            <p className="text-[var(--text)] font-medium">{search ? "검색 결과가 없습니다." : "아직 계좌가 없습니다."}</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">{search ? "다른 검색어로 찾아보세요." : "통장을 연결하면 여기에 표시됩니다."}</p>
           </div>
         </div>
       ) : (

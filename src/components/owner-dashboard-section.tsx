@@ -129,7 +129,7 @@ function KpiSection({ data }: { data: Summary }) {
       <div className="master-kpi-band glass-card">
         <div className="master-kpi-band-title">
           <div className="text-[14px] font-bold text-[var(--text)]">{quarter.label} 한눈에</div>
-          <div className="text-[10.5px] text-[var(--text-dim)] mt-0.5">{quarter.from} ~ {quarter.to} · 직전 {quarter.prev_label} 대비</div>
+          <div className="text-[10.5px] text-[var(--text-dim)] mt-0.5">{quarter.from} ~ {quarter.to}</div>
         </div>
         <div className="master-kpi-band-stats">
           <KpiCard label="진행 중 프로젝트" value={`${kpi.active_count}건`} sub="견적·계약·진행" />
@@ -165,7 +165,7 @@ function StageDistributionSection({ data }: { data: StageDist[] }) {
       <div className="master-kpi-band glass-card">
         <div className="master-kpi-band-title">
           <div className="text-[14px] font-bold text-[var(--text)]">프로젝트 현황</div>
-          <div className="text-[10.5px] text-[var(--text-dim)] mt-0.5">단계를 누르면 해당 목록으로 이동</div>
+          <div className="text-[10.5px] text-[var(--text-dim)] mt-0.5">단계를 누르면 목록으로 이동합니다.</div>
         </div>
         <div className="master-kpi-band-stats">
           {STAGES.map((s) => {
@@ -344,7 +344,7 @@ function InProgressListSection({ data }: { data: InProgress[] }) {
       <div className="in-progress-list-section">
         <h2 className="text-lg font-extrabold text-[var(--text)] mb-3"><Ico e="🔄" /> 진행 중 프로젝트</h2>
         <div className="in-progress-empty rounded-2xl bg-[var(--bg-card)]">
-          진행 중 프로젝트가 없습니다
+          아직 진행 중인 프로젝트가 없습니다.
         </div>
       </div>
     );
@@ -427,7 +427,7 @@ function CompletedReportsSection({ data }: { data: DoneReport[] }) {
       <h2 className="text-[15px] font-bold text-[var(--text)] mb-3">완료 보고서 보관함</h2>
       {groups.length === 0 ? (
         <div className="completed-reports-empty glass-card">
-          완료된 프로젝트 보고서가 아직 없습니다
+          아직 완료 보고서가 없습니다.
         </div>
       ) : (
         <div className="completed-reports-groups">

@@ -55,7 +55,7 @@ export default function HrTemplatesPage() {
 
   // 외부 파트너 차단 (인사 양식은 회사 관리자 전용)
   if (role === "partner" /* (P3) 멤버는 권한 게이트가 판정 */) {
-    return <AccessDenied detail="인사 양식 관리는 회사 구성원 전용입니다 (외부 파트너 제외)." />;
+    return <AccessDenied detail="인사 양식 관리는 회사 구성원 전용입니다." />;
   }
 
   
@@ -90,12 +90,12 @@ export default function HrTemplatesPage() {
                         <button onClick={() => { setPdfSignal((n) => n + 1); setChooserOpen(false); }}
                           className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-[var(--bg-surface)] transition">
                           <div className="text-sm font-semibold text-[var(--text)]"><Ico e="📄" /> PDF 업로드 <span className="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--primary)]/12 text-[var(--primary)]">권장</span></div>
-                          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">배경 없이 글자·표·이미지를 문서처럼 편집</div>
+                          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">PDF를 올려 문서처럼 편집합니다.</div>
                         </button>
                         <button onClick={() => { setTextSignal((n) => n + 1); setChooserOpen(false); }}
                           className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-[var(--bg-surface)] transition">
                           <div className="text-sm font-semibold text-[var(--text)]"><Ico e="✍" /> 직접 작성</div>
-                          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">변수로 자동 채우는 서식을 새로 만들기</div>
+                          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">변수로 자동 채우는 서식을 만듭니다.</div>
                         </button>
                       </div>
                     </>
@@ -103,7 +103,7 @@ export default function HrTemplatesPage() {
                 </div>
               }>
                 <QuickSearch value={q} onApply={setQ} placeholder="서식 이름 · 쉼표로 여러 개, Enter" />
-                <span className="text-[11px] text-[var(--text-dim)]">근로·연봉계약 등 인사 서식을 만들어 두는 곳입니다.</span>
+                <span className="text-[11px] text-[var(--text-dim)]">근로·연봉계약 서식을 관리합니다.</span>
               </QueryBar>
             </QueryHead>
             <QueryBody>

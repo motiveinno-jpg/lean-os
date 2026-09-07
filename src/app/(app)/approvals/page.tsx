@@ -550,18 +550,18 @@ function useListFilter(opts: { types: string[]; requesters?: string[]; withStatu
         <RowsPerPage value={draft.rows} onChange={(n) => setDraft((c) => ({ ...c, rows: n }))} />
         <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setOpen(false); }}>조회</button>
       </>}>
-      <ConditionRow label="유형" hint="여러 개 · 아무것도 안 고르면 전체">
+      <ConditionRow label="유형" hint="고르지 않으면 전체입니다.">
         <span className="qk-quicks">
           {typeOpts.map((o) => (
             <button key={o.value} type="button"
               onClick={() => setDraft((c) => ({ ...c, types: c.types.includes(o.value) ? c.types.filter((x) => x !== o.value) : [...c.types, o.value] }))}
               className={draft.types.includes(o.value) ? "qk-quick qk-quick-on" : "qk-quick"}>{o.label}</button>
           ))}
-          {typeOpts.length === 0 && <span className="text-[11px] text-[var(--text-dim)]">목록에 아직 유형이 없습니다</span>}
+          {typeOpts.length === 0 && <span className="text-[11px] text-[var(--text-dim)]">아직 유형이 없습니다.</span>}
         </span>
       </ConditionRow>
       {opts.withStatus && (
-        <ConditionRow label="상태" hint="여러 개 · 아무것도 안 고르면 전체">
+        <ConditionRow label="상태" hint="고르지 않으면 전체입니다.">
           <span className="qk-quicks">
             {L_STATUSES.map((o) => (
               <button key={o.value} type="button"
@@ -579,7 +579,7 @@ function useListFilter(opts: { types: string[]; requesters?: string[]; withStatu
           <TokenField items={reqOpts} value={draft.requester} onChange={(v) => setDraft((c) => ({ ...c, requester: v }))} placeholder="이름 일부" />
         </ConditionRow>
       )}
-      <ConditionRow label="금액" hint="한쪽만 적어도 됩니다">
+      <ConditionRow label="금액" hint="한쪽만 적어도 됩니다.">
         <AmountRange min={draft.min} max={draft.max} onMin={(v) => setDraft((c) => ({ ...c, min: v }))} onMax={(v) => setDraft((c) => ({ ...c, max: v }))} />
       </ConditionRow>
     </ConditionPanel>
@@ -650,7 +650,7 @@ function TypePicker({ value, options, placeholder, onChange, emptyText, favorite
               className="ap-pick-search" aria-label="요청 유형 검색"
               onKeyDown={(e) => { if (e.key === "Enter" && rest.length === 1) { onChange(rest[0].value); setOpen(false); } }} />
           )}
-          {options.length === 0 && <div className="ap-pick-empty">{emptyText || "고를 것이 없습니다"}</div>}
+          {options.length === 0 && <div className="ap-pick-empty">{emptyText || "고를 항목이 없습니다."}</div>}
           {favItems.length > 0 && (
             <>
               <div className="ap-pick-group">즐겨찾기</div>
@@ -659,9 +659,9 @@ function TypePicker({ value, options, placeholder, onChange, emptyText, favorite
             </>
           )}
           {canFav && favItems.length === 0 && !nq && options.length >= PICK_SEARCH_FROM && (
-            <div className="ap-pick-hint">자주 쓰는 유형은 오른쪽 ☆ 를 눌러 맨 위에 두세요</div>
+            <div className="ap-pick-hint">☆를 누르면 맨 위에 고정됩니다.</div>
           )}
-          {rest.length === 0 && options.length > 0 && <div className="ap-pick-empty">"{q.trim()}" 에 맞는 유형이 없습니다</div>}
+          {rest.length === 0 && options.length > 0 && <div className="ap-pick-empty">"{q.trim()}"에 맞는 유형이 없습니다.</div>}
           {rest.map((o) => row(o))}
         </div>
       )}
@@ -1063,8 +1063,8 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
         {filterBar}
         {(processedApprovals as any[]).length > 0 && visibleProcessed.length === 0 ? (
           <div className="ap-empty">
-            <div className="text-sm font-bold mb-1">검색 결과가 없습니다</div>
-            <div className="text-xs text-[var(--text-muted)]">검색어나 유형 필터를 바꿔보세요</div>
+            <div className="text-sm font-bold mb-1">검색 결과가 없습니다.</div>
+            <div className="text-xs text-[var(--text-muted)]">검색어나 필터를 바꿔 보세요.</div>
           </div>
         ) : (
           <ProcessedApprovalsList
@@ -1091,9 +1091,9 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
           <div className="mx-auto w-16 h-16 mb-4 rounded-2xl bg-[var(--success-dim)] text-[var(--success)] flex items-center justify-center">
             <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           </div>
-          <div className="text-base font-bold mb-1.5">모두 처리했습니다</div>
+          <div className="text-base font-bold mb-1.5">모두 처리했습니다.</div>
           <div className="text-sm text-[var(--text-muted)]">
-            새 결재 요청이 배정되면 이곳에 표시됩니다. 내가 승인·반려한 건은 <b>내가 결재한 건</b>에서 볼 수 있습니다.
+            새 결재 요청이 오면 여기에 표시됩니다.
           </div>
         </div>
       </div>
@@ -1143,8 +1143,8 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
           {visiblePending.length === 0 ? (
             <tr>
               <td colSpan={7} className="px-4 py-16 text-center">
-                <div className="text-sm font-bold mb-1">검색 결과가 없습니다</div>
-                <div className="text-xs text-[var(--text-muted)]">검색어나 유형 필터를 바꿔보세요</div>
+                <div className="text-sm font-bold mb-1">검색 결과가 없습니다.</div>
+                <div className="text-xs text-[var(--text-muted)]">검색어나 필터를 바꿔 보세요.</div>
               </td>
             </tr>
           ) : (
@@ -1202,7 +1202,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
       <div className="approval-detail-modal" onClick={() => !batchBusy && setBatchRejectOpen(false)}>
         <div className="approval-policy-form ap-pol-modal max-w-md" onClick={(e) => e.stopPropagation()}>
           <h3 className="section-title">선택 {pickedSteps.size}건 반려</h3>
-          <p className="text-xs text-[var(--text-muted)] mb-2">반려 사유는 요청자에게 그대로 전달됩니다 (모든 건에 같은 사유).</p>
+          <p className="text-xs text-[var(--text-muted)] mb-2">반려 사유는 요청자에게 전달됩니다.</p>
           <textarea value={batchReason} onChange={(e) => setBatchReason(e.target.value)} rows={3} placeholder="반려 사유 (필수)" className="field-input w-full" />
           <div className="flex gap-2 mt-3">
             <button type="button" className="btn-primary btn-sm" disabled={batchBusy || batchReason.trim().length < 2} onClick={() => runBatch("reject", batchReason.trim())}>{batchBusy ? "처리 중…" : "반려"}</button>
@@ -1353,7 +1353,7 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
   //   어디로 가야 하는지 항상 안내한다.
   const hint = (
     <div className="text-xs text-[var(--text-muted)] mb-3">
-      내가 <b>결재자로서</b> 승인·반려한 건입니다. 내가 올린 결재는{" "}
+      내가 승인·반려한 결재입니다. 내가 올린 결재는{" "}
       {onGoToMyRequests ? (
         <button onClick={onGoToMyRequests} className="text-[var(--primary)] font-semibold underline underline-offset-2">
           내 요청
@@ -1361,7 +1361,7 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
       ) : (
         <b>내 요청</b>
       )}{" "}
-      탭에서 볼 수 있습니다.
+      탭에서 봅니다.
     </div>
   );
 
@@ -1377,9 +1377,9 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
       <div>
         {hint}
         <div className="ap-empty">
-          <div className="text-base font-bold mb-1.5">아직 결재한 건이 없습니다</div>
+          <div className="text-base font-bold mb-1.5">아직 결재한 건이 없습니다.</div>
           <div className="text-sm text-[var(--text-muted)]">
-            내가 승인하거나 반려한 결재가 여기에 쌓입니다
+            승인하거나 반려한 결재가 여기에 표시됩니다.
           </div>
         </div>
       </div>
@@ -1763,11 +1763,11 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
           <div className="mx-auto w-16 h-16 mb-4 rounded-2xl bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center">
             <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
           </div>
-          <div className="text-base font-bold mb-1.5">제출한 결재 요청이 없습니다</div>
-          <div className="text-sm text-[var(--text-muted)]">&ldquo;새 요청&rdquo; 탭에서 결재를 요청할 수 있습니다</div>
+          <div className="text-base font-bold mb-1.5">아직 제출한 결재 요청이 없습니다.</div>
+          <div className="text-sm text-[var(--text-muted)]">새 요청 탭에서 결재를 올려 보세요.</div>
         </div>
       ) : visibleMine.length === 0 ? (
-        <div className="ap-empty"><div className="text-sm font-bold mb-1">이 조건에 맞는 요청이 없습니다</div><div className="text-xs text-[var(--text-muted)]">검색조건을 풀어 보세요</div></div>
+        <div className="ap-empty"><div className="text-sm font-bold mb-1">조건에 맞는 요청이 없습니다.</div><div className="text-xs text-[var(--text-muted)]">검색조건을 풀어 보세요.</div></div>
       ) : (
         <>
         {/* 표 — 전체 현황과 같은 뼈대. 줄을 누르면 상세 팝업 */}
@@ -1916,7 +1916,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
           <div className="approval-detail-modal fixed inset-0" onClick={() => setEditReq(null)}>
             <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <h3 className="text-sm font-bold mb-1">요청 수정</h3>
-              <p className="text-[11px] text-[var(--text-dim)] mb-4">대기중인 동안만 수정할 수 있으며, 수정 내용은 승인자에게 그대로 표시됩니다.</p>
+              <p className="text-[11px] text-[var(--text-dim)] mb-4">대기 중인 동안만 수정할 수 있습니다.</p>
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">제목</label>
@@ -2120,11 +2120,11 @@ function ReferencedRequestsTab({ companyId, userId, embedded }: { companyId: str
           <div className="mx-auto w-16 h-16 mb-4 rounded-2xl bg-[var(--bg-surface)] text-[var(--text-dim)] flex items-center justify-center">
             <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           </div>
-          <div className="text-base font-bold mb-1.5">참조로 지정된 결재가 없습니다</div>
-          <div className="text-sm text-[var(--text-muted)]">다른 구성원이 결재를 올리며 나를 참조로 지정하면 이곳에 표시됩니다</div>
+          <div className="text-base font-bold mb-1.5">아직 참조로 지정된 결재가 없습니다.</div>
+          <div className="text-sm text-[var(--text-muted)]">나를 참조로 지정한 결재가 여기에 표시됩니다.</div>
         </div>
       ) : visibleRefs.length === 0 ? (
-        <div className="ap-empty"><div className="text-sm font-bold mb-1">이 조건에 맞는 요청이 없습니다</div><div className="text-xs text-[var(--text-muted)]">검색조건을 풀어 보세요</div></div>
+        <div className="ap-empty"><div className="text-sm font-bold mb-1">조건에 맞는 요청이 없습니다.</div><div className="text-xs text-[var(--text-muted)]">검색조건을 풀어 보세요.</div></div>
       ) : (
         <>
         <div className="approval-table-wrap ev-scroll">
@@ -2516,8 +2516,8 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                   <div className="mx-auto w-14 h-14 mb-3 rounded-2xl bg-[var(--bg-surface)] text-[var(--text-dim)] flex items-center justify-center">
                     <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
                   </div>
-                  <div className="text-sm font-bold mb-1">결재 요청이 없습니다</div>
-                  <div className="text-xs text-[var(--text-muted)]">검색어·필터 조건을 바꾸거나 새 요청을 기다려 보세요</div>
+                  <div className="text-sm font-bold mb-1">결재 요청이 없습니다.</div>
+                  <div className="text-xs text-[var(--text-muted)]">검색어나 필터를 바꿔 보세요.</div>
                 </td>
               </tr>
             ) : (
@@ -3386,7 +3386,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             {/* 유형 선택 전 — 아래 입력을 감추고 안내만 (2026-08-05 사장님) */}
             {!typeChosen && (
               <div className="approval-type-empty-hint">
-                위에서 <b>요청 유형</b>을 먼저 선택하세요. 유형을 고르면 제목·내용·결재선 입력이 나타납니다.
+                위에서 <b>요청 유형</b>을 먼저 선택하세요.
               </div>
             )}
 
@@ -3407,7 +3407,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                         </div>
                       )}
                       {!leaveBalance && currentEmployee?.id && (
-                        <div className="text-[11px] text-[var(--text-dim)]">연차 정보가 없습니다 (인력관리에서 설정)</div>
+                        <div className="text-[11px] text-[var(--text-dim)]">연차 정보가 없습니다.</div>
                       )}
                     </div>
                     {remainingLeave !== null && leaveDays > 0 && (
@@ -3546,7 +3546,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                         <div>
                           <label className="block text-xs text-[var(--text-muted)] mb-1">제목 (자동 생성)</label>
                           <div className="px-3 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)]">
-                            {leaveTitle || "날짜를 선택하면 자동으로 생성됩니다"}
+                            {leaveTitle || "날짜를 선택하면 자동으로 채워집니다."}
                           </div>
                         </div>
                       ),
@@ -3586,8 +3586,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                     </div>
                   </div>
                   <div className="text-[11px] text-[var(--text-dim)]">
-                    승인되면 여기 적은 날짜·시각 그대로 근태에 반영됩니다 — 퇴근시간 이후 출근이 이 시각까지 허용됩니다.
-                    {myWorkEnd && <> 기본값은 내 퇴근시각({myWorkEnd})이며 필요한 만큼 늦춰 잡으세요.</>}
+                    승인되면 적은 날짜·시각 그대로 근태에 반영됩니다.
+                    {myWorkEnd && <> 기본값은 내 퇴근시각 {myWorkEnd}입니다.</>}
                   </div>
                 </div>
               )}
@@ -3742,7 +3742,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             {!canEditLine ? (
             <div>
               <label className="field-label">승인자 지정</label>
-              <p className="text-[11px] text-[var(--text-dim)] px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">이 양식은 결재 정책의 승인라인을 그대로 사용합니다 (요청자 변경 불가).</p>
+              <p className="text-[11px] text-[var(--text-dim)] px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">이 양식은 정해진 결재선을 사용합니다.</p>
             </div>
             ) : (
             <div className="approval-approver-picker">
@@ -3789,7 +3789,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                   </select>
                 )}
                 {selectedApprovers.length === 0 && (
-                  <p className="text-[11px] text-[var(--text-dim)]">미지정 시 결재 정책에 따라 자동 배정됩니다</p>
+                  <p className="text-[11px] text-[var(--text-dim)]">비워 두면 결재 정책에 따라 자동 배정됩니다.</p>
                 )}
               </div>
             </div>
@@ -3838,8 +3838,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 )}
                 <p className="text-[11px] text-[var(--text-dim)]">
                   {selectedReferences.length === 0
-                    ? "참조자는 결재에 참여하지 않고 요청·결과 알림만 받습니다"
-                    : "승인자로 지정된 인원은 목록에서 제외됩니다"}
+                    ? "참조자는 알림만 받습니다."
+                    : "승인자는 목록에서 제외됩니다."}
                 </p>
               </div>
             </div>
@@ -3924,7 +3924,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       <div className="approval-new-request-sidebar">
         {!typeChosen && (
           <div className="approval-policy-preview glass-card text-xs text-[var(--text-muted)]">
-            요청 유형을 선택하면 이 요청에 적용될 <b>결재선</b>이 여기에 표시됩니다.
+            요청 유형을 선택하면 <b>결재선</b>이 표시됩니다.
           </div>
         )}
         {/* Auto-generated document preview (leave) */}
@@ -3989,14 +3989,14 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
 
               {/* Auto-approve indicator */}
               {matchedPolicy.auto_approve_below > 0 && effectiveAmount > 0 && effectiveAmount < matchedPolicy.auto_approve_below && (
-                <div className="kpi-callout success mt-3">이 금액은 <b>자동 승인</b> 대상입니다</div>
+                <div className="kpi-callout success mt-3">이 금액은 <b>자동 승인</b> 대상입니다.</div>
               )}
             </div>
           ) : selectedApprovers.length > 0 ? (
             /* 직원 QA #11 — 양식 결재선이 지정돼 있으면 그걸 미리보기에 반영(대표/CEO 강제 표시 제거).
                실제 라우팅은 이미 customApprovers(양식 결재선)로 처리됨 — 미리보기만 정합화. */
             <div className="text-xs text-[var(--text-muted)]">
-              <div className="kpi-callout mb-4">이 양식의 <b>결재선</b>이 적용됩니다. 지정한 승인자에서 종료(대표 결재 없음)</div>
+              <div className="kpi-callout mb-4">이 양식의 <b>결재선</b>이 적용됩니다.</div>
               <div className="space-y-0">
                 <div className="relative pl-8 pb-4">
                   <div className="absolute left-[13px] top-6 bottom-0 w-px bg-[var(--border)]" />
@@ -4018,7 +4018,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             </div>
           ) : (
             <div className="text-xs text-[var(--text-muted)]">
-              <div className="kpi-callout mb-4">매칭 정책이 없어 <b>기본 결재선(1단계)</b>이 적용됩니다</div>
+              <div className="kpi-callout mb-4">맞는 정책이 없어 <b>기본 결재선</b>이 적용됩니다.</div>
               <div className="relative pl-8">
                 <div className="absolute left-0 top-0 w-[26px] h-[26px] rounded-full border-2 border-[var(--primary)]/40 bg-[var(--primary)]/8 flex items-center justify-center text-[11px] font-extrabold text-[var(--primary)]">
                   1
@@ -4336,7 +4336,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
     <div className="ap-list">
       <QueryBar right={<button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary btn-sm whitespace-nowrap">+ 결재선 추가</button>}>
         <QuickSearch value={pq} onApply={setPq} placeholder="결재선 이름 · 쉼표로 여러 개, Enter" />
-        <span className="text-[11px] text-[var(--text-dim)]">결재선 = 몇 단계로 누구에게 결재받고 누구를 참조할지. 양식 관리에서 양식에 붙여 씁니다.</span>
+        <span className="text-[11px] text-[var(--text-dim)]">결재선을 만들어 양식에 붙여 씁니다.</span>
       </QueryBar>
 
       {/* 결재선 폼 — 이름 · 단계 수 · 단계별 승인자 · 참조 · (선택) 적용 대상 (2026-08-18 사장님: 유형·자동승인·설명 템플릿 제거) */}
@@ -4380,8 +4380,8 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
           </div>
           <p className="mt-1.5 text-[10px] text-[var(--text-dim)]">
             {form.documentType === "line"
-              ? "공용 결재선은 자동 적용되지 않습니다. 양식 관리 > 편집에서 불러와 붙일 때만 쓰입니다."
-              : "선택한 양식의 새 요청에 자동 적용됩니다. 요청자에게 맞는 적용 대상의 결재선이 쓰입니다."}
+              ? "공용 결재선은 양식에 붙일 때만 쓰입니다."
+              : "선택한 양식의 새 요청에 자동 적용됩니다."}
           </p>
 
           {/* 적용 대상별 규칙 — [대상 → 누구에게 결재받나 → 참조] 묶음을 필요한 만큼 (2026-08-20 사장님) */}
@@ -4392,7 +4392,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
             </div>
             <p className="ap-pol-rules-hint">
               
-              위에서부터 먼저 맞는 대상이 적용됩니다. 특정 직원 &gt; 팀 &gt; 직급 &gt; 회사 전체.
+              위에서부터 먼저 맞는 대상이 적용됩니다.
 
             </p>
 
@@ -4432,7 +4432,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                       {departments.map((d) => <option key={d} value={d}>{d}</option>)}
                     </select>
                   ) : (
-                    <p className="ap-pol-rule-warn">등록된 부서가 없습니다. 구성원 화면에서 직원의 부서를 먼저 입력하세요.</p>
+                    <p className="ap-pol-rule-warn">아직 등록된 부서가 없습니다. 구성원에서 부서를 먼저 입력하세요.</p>
                   )
                 )}
                 {rule.mode === "position" && (
@@ -4442,7 +4442,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                       {positions.map((p) => <option key={p} value={p}>{p}</option>)}
                     </select>
                   ) : (
-                    <p className="ap-pol-rule-warn">등록된 직급이 없습니다. 구성원 화면에서 직원의 직급을 먼저 입력하세요.</p>
+                    <p className="ap-pol-rule-warn">아직 등록된 직급이 없습니다. 구성원에서 직급을 먼저 입력하세요.</p>
                   )
                 )}
 
@@ -4516,8 +4516,8 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
           <div className="mx-auto w-16 h-16 mb-4 rounded-2xl bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center">
             <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M12 19h4.5a3.5 3.5 0 000-7h-9a3.5 3.5 0 010-7H12"/></svg>
           </div>
-          <div className="text-base font-bold mb-1.5">등록된 결재선이 없습니다</div>
-          <div className="text-sm text-[var(--text-muted)]">결재선을 만들어 두면 양식 관리에서 양식에 붙일 수 있습니다. 위 <b>+ 결재선 추가</b>로 시작하세요</div>
+          <div className="text-base font-bold mb-1.5">아직 결재선이 없습니다.</div>
+          <div className="text-sm text-[var(--text-muted)]"><b>+ 결재선 추가</b>로 첫 결재선을 만들어 보세요.</div>
         </div>
       ) : (
         <div className="ev-scroll">
@@ -4576,7 +4576,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                   </tr>
                 ));
               })}
-              {visiblePolicies.length === 0 && <tr><td colSpan={6} className="ap-empty text-xs text-[var(--text-muted)]">이 조건에 맞는 정책이 없습니다</td></tr>}
+              {visiblePolicies.length === 0 && <tr><td colSpan={6} className="ap-empty text-xs text-[var(--text-muted)]">조건에 맞는 정책이 없습니다.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -4687,7 +4687,7 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
   }
 
   if (timeline.length === 0) {
-    return <div className="text-xs text-[var(--text-muted)] py-2">결재 이력이 없습니다</div>;
+    return <div className="text-xs text-[var(--text-muted)] py-2">아직 결재 이력이 없습니다.</div>;
   }
 
   // Group by stage

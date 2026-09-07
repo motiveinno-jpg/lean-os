@@ -272,8 +272,8 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
           <h2 className="text-[15px] font-bold text-[var(--text)]">이용대금 / 청구서</h2>
         </div>
         <div className="text-[11px] text-[var(--text-dim)]">
-          등록된 신용카드가 없습니다. 상단 "+ 카드 등록" 으로 추가하면 청구 사이클이 자동 계산됩니다.
-          {unregisteredCount > 0 && <> · 미등록 CODEF 카드 {unregisteredCount}개</>}
+          아직 등록된 신용카드가 없습니다. 상단 + 카드 등록으로 추가해 보세요.
+          {unregisteredCount > 0 && <> 미등록 카드가 {unregisteredCount}개 있습니다.</>}
         </div>
       </div>
     );
@@ -299,8 +299,8 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
       </div>
 
       <div className="card-billing-info-banner">
-        <Ico e="💡" /> CODEF 는 카드 종류(신용/체크) 정보를 안 줘서 자동 등록은 모두 <span className="text-[var(--primary)] font-semibold">신용</span> 으로 들어옵니다.
-        체크/직불이면 아래 카드 옆 <span className="font-mono">신용▾</span> 클릭해 변경 → 즉시 청구서에서 사라집니다.
+        <Ico e="💡" /> 자동 등록된 카드는 모두 <span className="text-[var(--primary)] font-semibold">신용</span>으로 들어옵니다.
+        체크나 직불이면 카드 옆 <span className="font-mono">신용▾</span>에서 바꿉니다.
       </div>
       <div className="card-billing-rows">
         {billings.map((b) => (
@@ -327,7 +327,7 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
 
       {unregisteredCount > 0 && (
         <div className="card-billing-unregistered-note">
-          미등록 CODEF 카드 {unregisteredCount}개 · 카드를 등록하면 종류·결제일 지정 가능
+          미등록 카드 {unregisteredCount}개는 등록 후 종류와 결제일을 정할 수 있습니다.
         
         </div>
       )}
@@ -429,7 +429,7 @@ function BillingDetailModal({
             <div className="text-xs font-semibold text-[var(--text)]">{startISO} ~ {endISO}</div>
             <div className="text-[9px] text-[var(--text-dim)]">
               {offset === 0 ? '이번 청구 사이클' : `${offset < 0 ? `${-offset}회 이전` : `${offset}회 이후`} 사이클`}
-              {billing.billingDay == null && ' · 마감일 미설정(월 단위 추정)'}
+              {billing.billingDay == null && ' · 마감일 미설정'}
             </div>
           </div>
           <button onClick={() => setOffset((o) => o + 1)} disabled={offset >= 0} className="px-2 py-1 text-xs rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] disabled:opacity-30" title="다음 사이클">다음 ›</button>
@@ -458,7 +458,7 @@ function BillingDetailModal({
           ) : cardTxs.length === 0 ? (
             <div className="p-8 text-center text-xs text-[var(--text-dim)]">
               이 사이클에 거래가 없습니다.
-              {lastSyncDate && <div className="mt-1">최근 동기화 거래: {lastSyncDate}</div>}
+              {lastSyncDate && <div className="mt-1">최근 거래 {lastSyncDate}</div>}
             </div>
           ) : (
             <ul className="divide-y divide-[var(--border)]/50">
@@ -525,10 +525,10 @@ function NonCreditCardsSection({
         <div className="flex items-center gap-1.5">
           <span className="inline-block w-3 text-center text-[10px] text-[var(--text-muted)]">{collapsed ? '▶' : '▼'}</span>
           <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">
-            체크·직불·기타 {cards.length}개 {collapsed ? '(접힘 · 클릭하면 펼침)' : ''}
+            체크·직불·기타 {cards.length}개 {collapsed ? '· 펼치기' : ''}
           </div>
         </div>
-        <div className="text-[9px] text-[var(--text-dim)]">청구 사이클 없음 · 종류 ▾ 로 신용 복원</div>
+        <div className="text-[9px] text-[var(--text-dim)]">청구서에 포함되지 않는 카드입니다.</div>
       </button>
       {!collapsed && (
         <div className="noncredit-cards-list">
@@ -686,7 +686,7 @@ function BillingRow({ billing: b, card, onSavePayment, onChangeType, onSelectCar
               <button
                 onClick={() => setEditing(true)}
                 className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[var(--warning-dim)] text-[var(--warning)] hover:bg-[var(--warning)]/25 transition shrink-0"
-                title="청구 마감일이 설정되지 않아 청구 사이클이 부정확합니다. 클릭해 설정하세요."
+                title="마감일을 설정하면 청구 기간이 정확해집니다."
               >
                 <Ico e="⚠" /> 마감일 설정
               </button>
@@ -705,7 +705,7 @@ function BillingRow({ billing: b, card, onSavePayment, onChangeType, onSelectCar
         <div className="billing-row-actions">
           <button onClick={() => { onShowDetail?.(); onSelectCard?.(b.cardId); }}
             className="px-2 py-0.5 text-[9px] font-semibold rounded bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/30 transition"
-            title="청구 명세 보기 (사이클 거래·합계)"
+            title="이 기간의 거래 명세를 봅니다."
           ><Ico e="📄" tone="mono" /> 청구서</button>
           {card && (
             <button onClick={() => setEditing(v => !v)}

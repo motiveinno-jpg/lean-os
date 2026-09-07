@@ -264,8 +264,7 @@ export function FileUploadMulti({
               {label || "파일을 드래그하거나 클릭하여 선택"}
             </p>
             <p className="text-xs text-[var(--text-muted)] mt-1">
-              최대 {maxSize}MB, {maxFiles}개 파일 / 이미지, PDF, Word, Excel,
-              PPT, CSV, ZIP, TXT
+              최대 {maxSize}MB, {maxFiles}개까지 올릴 수 있습니다.
             </p>
           </div>
         </div>

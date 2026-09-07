@@ -98,7 +98,7 @@ export function AccountTab() {
           </span>
           <div>
             <div className="text-sm font-bold text-[var(--text)]">비밀번호 변경</div>
-            <div className="text-xs text-[var(--text-muted)]">영문+숫자+특수기호 조합 8자 이상</div>
+            <div className="text-xs text-[var(--text-muted)]">영문·숫자·특수기호를 섞어 8자 이상 입력합니다.</div>
           </div>
         </div>
 

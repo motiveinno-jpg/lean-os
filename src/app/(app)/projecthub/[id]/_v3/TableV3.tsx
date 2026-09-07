@@ -632,7 +632,7 @@ export function TableV3() {
     { id: "assignee", label: "담당", minW: 84 },
     { id: "status", label: "상태", minW: 92 },
     { id: "due", label: "마감", minW: 106 },
-    { id: "amount", label: "금액", minW: 96, title: "예정 금액 · 확정 금액은 장부(전표·계산서)가 갖습니다" },
+    { id: "amount", label: "금액", minW: 96, title: "예정 금액입니다." },
   ];
   const builtinCfg: BuiltinCfg = (deal?.v3_builtin as BuiltinCfg) || {};
   type AnyCol = { key: string; label: string; builtin?: BuiltinId; col?: ColumnDef; minW: number; title?: string };
@@ -1669,8 +1669,8 @@ export function TableV3() {
       <div className="pjv3-head">
         <h1>{deal.name}</h1>
         {period && <span className="pjv3-head-sub mono-number">{period}</span>}
-        <span className="pjv3-head-sub">표가 곧 입력입니다. 다른 보기는 ＋ 보기로 켭니다</span>
-        <button type="button" className="btn-secondary btn-sm ml-auto" title="업무에 맞는 시작 양식을 예시로 보고 채웁니다"
+        <span className="pjv3-head-sub">표에 바로 입력합니다.</span>
+        <button type="button" className="btn-secondary btn-sm ml-auto" title="업무에 맞는 양식을 고릅니다."
           onClick={() => { pickCat(TPL_CATEGORIES[0]); setTplOpen(true); }}>템플릿</button>
       </div>
 
@@ -1685,22 +1685,22 @@ export function TableV3() {
           </button>
         ))}
         <button type="button" className="pjv3-addview" onClick={(e) => setPop({ kind: "addview", ...at(e) })}>＋ 보기</button>
-        <button type="button" className="pjv3-addview" title="반복·앞뒤 순서 같은 기능을 이 프로젝트에만 켭니다"
+        <button type="button" className="pjv3-addview" title="이 프로젝트에 기능을 추가합니다."
           onClick={(e) => setPop({ kind: "features", ...at(e) })}>＋ 기능{features.length > 0 && <em className="num" style={{ fontStyle: "normal" }}> {features.length}</em>}</button>
       </div>
 
       <div className="pjv3-toolbar">
         <span className="pjv3-search">🔍<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름 · 담당 · 칸에 든 글자 · 검색" aria-label="검색" /></span>
         {statFilter && (
-          <button type="button" className="pjv3-statchip" title="현황에서 걸린 조건 · 눌러서 해제"
+          <button type="button" className="pjv3-statchip" title="누르면 조건을 해제합니다."
             onClick={() => setStatFilter(null)}>{statFilter.label} ✕</button>
         )}
         <button type="button" className="btn-secondary btn-sm" onClick={(e) => setPop({ kind: "excel", ...at(e) })}>엑셀 ▾</button>
         {featOn("survey") && (
-          <button type="button" className="btn-secondary btn-sm" title="외부에 링크로 설문을 보내고 응답을 이 표에 받습니다"
+          <button type="button" className="btn-secondary btn-sm" title="설문을 보내고 응답을 표로 받습니다."
             onClick={() => setSvOpen(true)}>설문</button>
         )}
-        <button type="button" className="btn-secondary btn-sm" title="숫자는 자동으로 채우고 신호등·코멘트만 골라 저장" onClick={() => setRepOpen(true)}>보고</button>
+        <button type="button" className="btn-secondary btn-sm" title="상태 보고를 작성합니다." onClick={() => setRepOpen(true)}>보고</button>
         <button type="button" className="btn-secondary btn-sm" title="보관한 줄 보기·되살리기" onClick={() => setArchOpen(true)}>보관함</button>
         <span className="pjv3-count num">{shown.length}건{shown.length !== items.length ? ` / 전체 ${items.length}` : ""}</span>
       </div>
@@ -1710,7 +1710,7 @@ export function TableV3() {
           <div className="pjv3-sttabs">
             <button type="button" className={statTab === "charts" ? "on" : ""} onClick={() => setStatTab("charts")}>그림</button>
             <button type="button" className={statTab === "pivot" ? "on" : ""} onClick={() => setStatTab("pivot")}>집계표</button>
-            <span className="hint">숫자·막대·칸을 누르면 표에서 그 줄들만 보입니다. 하위는 부모 기준</span>
+            <span className="hint">숫자나 막대를 누르면 해당 줄만 표시됩니다.</span>
           </div>
           <div className="pjv3-strow">
             <button type="button" className="pjv3-stcard" onClick={() => { setStatFilter(null); setCurView("table"); }}>
@@ -1728,8 +1728,8 @@ export function TableV3() {
             statusData.parents.length < 3 ? (
               <div className="pjv3-stgrid">
                 <div className="pjv3-stpanel">
-                  <h3>다음 마감 <small>줄이 3건이 안 돼 그래프 대신 숫자와 마감만 보입니다</small></h3>
-                  {statusData.nextDue.length === 0 && <div className="pjv3-stempty">마감일 있는 줄이 없습니다</div>}
+                  <h3>다음 마감 <small>마감이 가까운 순으로 보입니다.</small></h3>
+                  {statusData.nextDue.length === 0 && <div className="pjv3-stempty">마감일이 있는 줄이 없습니다.</div>}
                   {statusData.nextDue.map((it) => (
                     <button key={it.id} type="button" className="pjv3-stdue" onClick={() => setDrawerId(it.id)}>
                       <span className={`d num ${it.due_date!.slice(0, 10) < statusData.todayStr ? "late" : ""}`}>{it.due_date!.slice(5, 10)}</span>
@@ -1743,7 +1743,7 @@ export function TableV3() {
             ) : (
             <div className="pjv3-stgrid">
               <div className="pjv3-stpanel">
-                <h3>그룹별 <small>막대를 누르면 그 그룹만</small></h3>
+                <h3>그룹별 <small>막대를 누르면 그 그룹만 보입니다.</small></h3>
                 {statusData.byGroup.map(({ s, list }) => {
                   const max = Math.max(1, ...statusData.byGroup.map((g) => g.list.length));
                   return (
@@ -1757,7 +1757,7 @@ export function TableV3() {
                 {statusData.etcN > 0 && <div className="pjv3-stempty">단계 밖 {statusData.etcN}건 · 그룹을 지웠던 줄</div>}
               </div>
               <div className="pjv3-stpanel">
-                <h3>담당별 <small>남은 일·끝낸 일 · 대표 담당 기준</small></h3>
+                <h3>담당별 <small>담당자별 남은 일과 끝낸 일입니다.</small></h3>
                 {statusData.byAssignee.map((a) => {
                   const max = Math.max(1, ...statusData.byAssignee.map((x) => x.open + x.done));
                   return (
@@ -1775,7 +1775,7 @@ export function TableV3() {
                 <div className="pjv3-stlegend"><i style={{ background: "var(--primary)" }} />남은 일 <i style={{ background: "#00C875" }} />끝낸 일</div>
               </div>
               <div className="pjv3-stpanel">
-                <h3>남은 일 그래프 <small>주마다 끝낸 건(막대)·남은 건(빨간 선). 끝낸 주는 마지막 손댄 날 기준</small></h3>
+                <h3>남은 일 그래프 <small>주별로 끝낸 일과 남은 일입니다.</small></h3>
                 <div className="pjv3-stflow">
                   <svg className="rline" viewBox="0 0 100 84" preserveAspectRatio="none">
                     <polyline points={statusData.flow.map((f, i) => {
@@ -1799,7 +1799,7 @@ export function TableV3() {
               </div>
               <div className="pjv3-stpanel">
                 {featOn("billing") && (<>
-                  <h3>돈 흐름 <small>칸을 누르면 그 줄들만</small></h3>
+                  <h3>돈 흐름 <small>칸을 누르면 그 줄만 보입니다.</small></h3>
                   <div className="pjv3-stmoney">
                     <button type="button" className="mstep" onClick={() => openFiltered("견적 붙은 줄", (it) => !!(it.fields || {})[QUOTE_KEY])}>
                       <span className="t">견적</span><b className="n num">{statusData.quoteN}건</b></button>
@@ -1808,8 +1808,8 @@ export function TableV3() {
                       <span className="t">계약</span><b className="n num">{statusData.contractN}건</b></button>
                   </div>
                 </>)}
-                <h3 style={{ marginTop: featOn("billing") ? 14 : 0 }}>다음 마감 <small>가까운 순 · 누르면 그 줄 서랍</small></h3>
-                {statusData.nextDue.length === 0 && <div className="pjv3-stempty">마감일 있는 줄이 없습니다</div>}
+                <h3 style={{ marginTop: featOn("billing") ? 14 : 0 }}>다음 마감 <small>마감이 가까운 순으로 보입니다.</small></h3>
+                {statusData.nextDue.length === 0 && <div className="pjv3-stempty">마감일이 있는 줄이 없습니다.</div>}
                 {statusData.nextDue.map((it) => (
                   <button key={it.id} type="button" className="pjv3-stdue" onClick={() => setDrawerId(it.id)}>
                     <span className={`d num ${it.due_date!.slice(0, 10) < statusData.todayStr ? "late" : ""}`}>{it.due_date!.slice(5, 10)}</span>
@@ -1866,7 +1866,7 @@ export function TableV3() {
                   </tbody>
                 </table>
               </div>
-              <p className="pjv3-stnote">칸을 누르면 표 보기로 가서 그 두 조건이 걸립니다. 숫자가 어디서 왔는지 되짚을 수 있게 · 축 = 그룹·담당·거래처·선택형 커스텀 컬럼</p>
+              <p className="pjv3-stnote">칸을 누르면 해당 조건의 줄만 표에서 보입니다.</p>
             </div>
           )}
         </div>
@@ -1893,7 +1893,7 @@ export function TableV3() {
                   const left = gantt.pctOf(from);
                   const width = Math.max(gantt.pctOf(to) - left + gantt.dayW, gantt.dayW);
                   return (
-                    <div key={it.id} className="pjv3-gr" role="button" tabIndex={0} title="누르면 서랍 · 시작일·마감도 거기서"
+                    <div key={it.id} className="pjv3-gr" role="button" tabIndex={0} title="누르면 상세가 열립니다."
                       onClick={() => setDrawerId(it.id)}>
                       <div className="pjv3-gname">{it.name}</div>
                       <div className="pjv3-glane">
@@ -1906,8 +1906,8 @@ export function TableV3() {
               </div>
             );
           })}
-          {gantt.dated.length === 0 && <div className="collect-empty">날짜가 있는 항목이 없습니다. 서랍이나 마감 셀에서 날짜를 채우면 막대가 나타납니다</div>}
-          {gantt.undatedCount > 0 && <div className="pjv3-tpl-mine">시작일·마감일이 없는 항목 {gantt.undatedCount}개는 간트에 안 보입니다. 서랍에서 날짜를 채우면 나타납니다</div>}
+          {gantt.dated.length === 0 && <div className="collect-empty">아직 날짜가 있는 항목이 없습니다. 날짜를 넣으면 막대가 나타납니다.</div>}
+          {gantt.undatedCount > 0 && <div className="pjv3-tpl-mine">날짜가 없는 항목 {gantt.undatedCount}개는 간트에 보이지 않습니다.</div>}
         </div>
       ) : curView === "calendar" ? (
         <div className="pjv3-calwrap">
@@ -1916,7 +1916,7 @@ export function TableV3() {
             <b className="num">{calCells.y}년 {calCells.m + 1}월</b>
             <button type="button" onClick={() => setCalMonth((m) => m + 1)}>▶</button>
             {calMonth !== 0 && <button type="button" className="pjv3-addview" onClick={() => setCalMonth(0)}>이번 달</button>}
-            <span className="pjv3-head-sub">마감일 기준 · 칩을 누르면 서랍, 날짜의 ＋로 그 날짜 마감 항목 추가</span>
+            <span className="pjv3-head-sub">마감일 기준으로 보입니다.</span>
           </div>
           <div className="pjv3-calgrid">
             {["일", "월", "화", "수", "목", "금", "토"].map((d) => <div key={d} className="pjv3-caldow">{d}</div>)}
@@ -1954,7 +1954,7 @@ export function TableV3() {
                       const late = it.due_date && it.status !== stages[stages.length - 1]?.id && it.due_date < new Date().toISOString().slice(0, 10);
                       return (
                         <div key={it.id} className="pjv3-kc" draggable role="button" tabIndex={0}
-                          title="누르면 서랍 · 체크리스트·기록·팔로워" onClick={() => setDrawerId(it.id)}
+                          title="누르면 상세가 열립니다." onClick={() => setDrawerId(it.id)}
                           onDragStart={() => { dragIdRef.current = it.id; }} onDragEnd={() => { dragIdRef.current = null; setDragOverStage(null); }}>
                           <div className="tt">{it.name}</div>
                           {(assigneesOf(it).length > 0 || it.due_date || it.plan_amount != null) && (
@@ -1986,7 +1986,7 @@ export function TableV3() {
                 <div className="pjv3-kcards">
                   {byStage.etc.map((it) => (
                     <div key={it.id} className="pjv3-kc" draggable role="button" tabIndex={0}
-                          title="누르면 서랍 · 체크리스트·기록·팔로워" onClick={() => setDrawerId(it.id)}
+                          title="누르면 상세가 열립니다." onClick={() => setDrawerId(it.id)}
                       onDragStart={() => { dragIdRef.current = it.id; }} onDragEnd={() => { dragIdRef.current = null; setDragOverStage(null); }}>
                       <div className="tt">{it.name}</div>
                     </div>
@@ -2028,7 +2028,7 @@ export function TableV3() {
                 </button>
               </th>
             ))}
-            <th className="pjv3-colplus" title="컬럼 추가 · 글·숫자·날짜·선택·사람·거래처 · 숨긴 열 되살리기"
+            <th className="pjv3-colplus" title="컬럼을 추가합니다."
               onClick={(e) => setPop({ kind: "addcol", ...at(e as unknown as React.MouseEvent) })}>＋</th>
           </tr></thead>
           <tbody>
@@ -2055,7 +2055,7 @@ export function TableV3() {
                     <em className="num">{group.length}</em>
                     {isLast && group.length > 0 && (
                       <button type="button" className={`pjv3-garch ${delArm === `arch:${s.id}` ? "arm" : ""}`}
-                        title="이 그룹의 줄을 보관함으로 치웁니다. 언제든 되살릴 수 있습니다"
+                        title="이 그룹의 줄을 보관함으로 옮깁니다."
                         onClick={(e) => { e.stopPropagation(); armOrRun(`arch:${s.id}`, () => archiveGroup(s.id)); }}>
                         {delArm === `arch:${s.id}` ? `${group.length}건 보관 · 한 번 더` : "보관"}
                       </button>
@@ -2141,10 +2141,10 @@ export function TableV3() {
       )}
       <p className="pjv3-foot">
         {curView === "kanban"
-          ? "카드를 끌어 다른 열에 놓으면 상태가 바뀝니다(표의 상태 셀과 같은 저장) · 카드를 누르면 서랍 · 열 아래 칸에 적고 Enter로 추가"
+          ? "카드를 끌어 상태를 바꾸고, 누르면 상세가 열립니다."
           : curView === "calendar"
-            ? "마감일이 있는 항목만 보입니다. 칩을 누르면 서랍 · 날짜의 ＋로 그 날짜 마감 항목 추가"
-            : "셀은 눌러서 그 자리 수정 · 이름 칸 '열기'로 체크리스트·기록·팔로워 · ⋮⋮ 끌어 순서·그룹 이동 · 컬럼 머리단은 눌러 이름, 끌어 순서 · ✕는 한 번 더 눌러 지우기"}
+            ? "마감일이 있는 항목만 보입니다."
+            : "셀을 눌러 바로 수정합니다."}
       </p>
       </div>
 
@@ -2179,8 +2179,8 @@ export function TableV3() {
       {archOpen && (
         <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setArchOpen(false); }}>
           <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="보관함">
-            <h3 className="phv3-modal-title">보관함<span className="ui-sub">되살리면 원래 그룹으로 돌아갑니다</span></h3>
-            {archived.length === 0 && <div className="pjv3-tpl-mine">보관된 줄이 없습니다. 완료 그룹의 '보관'이나 줄 ✕로 치운 것이 여기 모입니다</div>}
+            <h3 className="phv3-modal-title">보관함<span className="ui-sub">되살리면 원래 그룹으로 돌아갑니다.</span></h3>
+            {archived.length === 0 && <div className="pjv3-tpl-mine">아직 보관된 줄이 없습니다.</div>}
             {archived.map((a) => (
               <div key={a.id} className="pjv3-arch-row">
                 <span className="min-w-0 flex-1 truncate">{a.name}</span>
@@ -2197,7 +2197,7 @@ export function TableV3() {
       {repOpen && deal && (
         <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setRepOpen(false); }}>
           <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="상태 보고">
-            <h3 className="phv3-modal-title">상태 보고<span className="ui-sub">아래 숫자는 표에서 자동으로 왔습니다</span></h3>
+            <h3 className="phv3-modal-title">상태 보고<span className="ui-sub">숫자는 표에서 자동으로 채워집니다.</span></h3>
             <div className="pjv3-sv-field"><label>보고 제목</label>
               <input type="text" value={repForm.title} onChange={(e) => setRepForm((f) => ({ ...f, title: e.target.value }))} /></div>
             <div className="pjv3-rep-card">
@@ -2216,7 +2216,7 @@ export function TableV3() {
                 <div className="pjv3-rep-line"><span className="k">돈</span><span>견적 {repDraft.quoteN}건 · 계약 {repDraft.contractN}건 · 금액 합 {repDraft.amount.toLocaleString("ko-KR")}원</span></div>
               )}
             </div>
-            <div className="pjv3-sv-field"><label>신호등<span className="ui-sub">내가 고릅니다(자동 판정 없음)</span></label>
+            <div className="pjv3-sv-field"><label>신호등<span className="ui-sub">직접 고릅니다.</span></label>
               <div className="pjv3-rep-lights">
                 {(["blue", "orange", "red"] as const).map((s) => (
                   <button key={s} type="button" className={`pjv3-rep-light ${s} ${repForm.signal === s ? "on" : ""}`}
@@ -2227,7 +2227,7 @@ export function TableV3() {
               <input type="text" value={repForm.comment} placeholder="예: 한빛상사 건은 고객 피드백 대기, 금주 재개 예정"
                 onChange={(e) => setRepForm((f) => ({ ...f, comment: e.target.value }))} /></div>
             {reports.length > 0 && (
-              <div className="pjv3-sv-field"><label>지난 보고<span className="ui-sub">신호등 흐름이 곧 프로젝트 건강 기록</span></label>
+              <div className="pjv3-sv-field"><label>지난 보고<span className="ui-sub">지난 보고의 신호등 흐름입니다.</span></label>
                 {reports.map((r) => (
                   <div key={r.id} className="pjv3-rep-old">
                     <span>{SIGNAL_UI[r.signal]?.icon}</span>
@@ -2241,7 +2241,7 @@ export function TableV3() {
             )}
             <div className="phv3-modal-actions">
               <button type="button" className="btn-secondary btn-sm" onClick={() => setRepOpen(false)}>닫기</button>
-              <button type="button" className="btn-secondary btn-sm" title="저장하고 게시판에 같은 내용 글을 올립니다"
+              <button type="button" className="btn-secondary btn-sm" title="저장하고 게시판에도 올립니다."
                 onClick={async () => { await saveReport(true); }}>저장＋게시판 공유</button>
               <button type="button" className="btn-primary btn-sm" onClick={async () => { await saveReport(false); }}>저장</button>
             </div>
@@ -2253,20 +2253,20 @@ export function TableV3() {
       {svOpen && deal && (
         <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setSvOpen(false); }}>
           <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="설문 보내기">
-            <h3 className="phv3-modal-title">설문 보내기<span className="ui-sub">응답 1건이 표의 줄 1개가 됩니다</span></h3>
+            <h3 className="phv3-modal-title">설문 보내기<span className="ui-sub">응답 하나가 줄 하나로 들어옵니다.</span></h3>
             <div className="pjv3-sv-field"><label>설문 제목(외부에 보임)</label>
               <input type="text" value={svForm.title} onChange={(e) => setSvForm((f) => ({ ...f, title: e.target.value }))} /></div>
-            <div className="pjv3-sv-field"><label>안내문<span className="ui-sub">길게 써도 됩니다(문단·줄바꿈 그대로 보임)</span></label>
+            <div className="pjv3-sv-field"><label>안내문<span className="ui-sub">줄바꿈 그대로 보입니다.</span></label>
               <textarea rows={5} value={svForm.intro} onChange={(e) => setSvForm((f) => ({ ...f, intro: e.target.value }))}
                 placeholder={"안녕하세요, ○○입니다.\n설문 취지·경품·개인정보 안내·마감일을 자유롭게 적으세요."} /></div>
-            <div className="pjv3-sv-field"><label>배너 이미지<span className="ui-sub">맨 위에 크게(가로형 권장)</span></label>
+            <div className="pjv3-sv-field"><label>배너 이미지<span className="ui-sub">맨 위에 크게 보입니다.</span></label>
               <div className="flex items-center gap-2">
                 {svForm.banner ? <span className="text-[11px] text-[var(--text-dim)]">배너 1장 올라감</span> : <span className="text-[11px] text-[var(--text-dim)]">없음</span>}
                 {svForm.banner && <button type="button" className="pjv3-del !opacity-100" onClick={() => setSvForm((f) => ({ ...f, banner: null }))}>✕</button>}
                 <label className="btn-secondary btn-sm ml-auto cursor-pointer">올리기
                   <input type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSurveyImg(f, "banner"); e.target.value = ""; }} /></label>
               </div></div>
-            <div className="pjv3-sv-field"><label>안내문 아래 이미지<span className="ui-sub">메뉴판·약도·포스터 등 여러 장</span></label>
+            <div className="pjv3-sv-field"><label>안내문 아래 이미지<span className="ui-sub">여러 장을 넣을 수 있습니다.</span></label>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-[var(--text-dim)]">{svForm.images.length}장</span>
                 {svForm.images.length > 0 && <button type="button" className="pjv3-del !opacity-100" title="마지막 장 빼기"
@@ -2276,8 +2276,8 @@ export function TableV3() {
               </div></div>
             <div className="pjv3-sv-field"><label>이름 칸을 뭐라고 물을까요(항상 필수)</label>
               <input type="text" value={svForm.nameLabel} onChange={(e) => setSvForm((f) => ({ ...f, nameLabel: e.target.value }))} /></div>
-            <div className="pjv3-sv-field"><label>질문으로 내보낼 컬럼<span className="ui-sub">배지를 눌러 필수/선택</span></label>
-              {svCols.length === 0 && <div className="pjv3-tpl-mine">내보낼 수 있는 컬럼이 없습니다. 글·선택·평점 같은 컬럼을 먼저 만드세요(담당·수식·첨부는 설문에 못 나갑니다)</div>}
+            <div className="pjv3-sv-field"><label>질문으로 내보낼 컬럼<span className="ui-sub">배지를 눌러 필수 여부를 정합니다.</span></label>
+              {svCols.length === 0 && <div className="pjv3-tpl-mine">내보낼 컬럼이 없습니다. 글·선택·평점 컬럼을 먼저 만드세요.</div>}
               {svCols.map((c) => {
                 const st = svForm.q[c.key] || { on: false, required: false };
                 return (
@@ -2314,13 +2314,13 @@ export function TableV3() {
                 </label>
               </div>
               {svForm.preventDup && (
-                <p className="pjv3-sv-hint">같은 기기·같은 인터넷망의 재제출을 막습니다. 한 사무실(같은 와이파이)의 여러 명이 한 사람으로 잡힐 수 있으니 행사 신청처럼 여럿이 함께 내는 설문에는 끄세요.</p>
+                <p className="pjv3-sv-hint" title="같은 인터넷망을 쓰는 여러 명이 한 사람으로 잡힐 수 있습니다.">같은 기기의 중복 제출을 막습니다.</p>
               )}</div>
             {survey?.token && (
               <div className="pjv3-sv-link">
                 <code>{surveyUrl}</code>
                 <button type="button" className="btn-secondary btn-sm" disabled={!survey.enabled}
-                  title={survey.enabled ? "외부인이 보는 화면 그대로 새 탭에" : "설문을 켠 뒤 미리보기 · 꺼진 링크는 밖에서 마감으로 보입니다"}
+                  title={survey.enabled ? "외부에 보이는 화면을 새 탭에서 봅니다." : "설문을 켠 뒤 미리볼 수 있습니다."}
                   onClick={() => window.open(surveyUrl, "_blank")}>미리보기</button>
                 <button type="button" className="btn-secondary btn-sm" onClick={() => { navigator.clipboard.writeText(surveyUrl); toast("링크를 복사했습니다. 문자·카톡 어디든 붙여넣으세요", "success"); }}>복사</button>
               </div>
@@ -2328,7 +2328,7 @@ export function TableV3() {
             {svResponses.length > 0 && (
               <div className="pjv3-sv-link">
                 <span className="num text-[11px] text-[var(--text-dim)]">지금까지 응답 {svResponses.length}건</span>
-                <button type="button" className="btn-secondary btn-sm ml-auto" title="응답 줄만 · 응답자·제출일·질문 컬럼"
+                <button type="button" className="btn-secondary btn-sm ml-auto" title="응답 줄만 내려받습니다."
                   onClick={exportSvResponses}>응답만 엑셀로</button>
               </div>
             )}
@@ -2342,8 +2342,8 @@ export function TableV3() {
             )}
             <p className="phv3-modal-desc !mt-2">
               {survey?.enabled
-                ? <>지금 <b>켜져 있습니다</b> · 응답  {survey.response_count}건. 끄면 링크가 즉시 죽습니다.</>
-                : "링크 하나를 몇 명에게든 보내도 됩니다. 응답자마다 줄 하나씩 쌓입니다."}
+                ? <>지금 <b>켜져 있습니다</b>. 응답 {survey.response_count}건이며 끄면 링크가 닫힙니다.</>
+                : "링크를 보내면 응답마다 줄이 하나씩 생깁니다."}
             </p>
             <div className="phv3-modal-actions">
               <button type="button" className="btn-secondary btn-sm" onClick={() => setSvOpen(false)}>닫기</button>
@@ -2361,7 +2361,7 @@ export function TableV3() {
       {excelUp && deal && (
         <ExcelUploadDialog<XRow>
           title={`${deal.name} · 엑셀로 줄 올리기`}
-          desc="양식을 받아 채운 뒤 올리면 먼저 읽어 보여주고, 등록을 눌러야 저장됩니다."
+          desc="양식을 채워 올리면 미리 보여 주고, 등록을 누르면 저장됩니다."
           cols={excelCols} templateName={`${deal.name}_표양식`} sheetName="표"
           guide={["그룹·담당·선택 칸은 화면에 보이는 이름 그대로 적습니다."]}
           parse={parseX}
@@ -2434,11 +2434,11 @@ export function TableV3() {
                 const qDoc = (dealDocs as any[]).find((d) => d.id === q?.id) || null;
                 const cDoc = (dealDocs as any[]).find((d) => d.id === c?.id) || null;
                 return (<>
-                  <h4>돈<span className="ui-sub">이 줄로 견적부터 청구까지 (만든 문서는 견적·전자계약 메뉴에도 똑같이)</span></h4>
+                  <h4>돈<span className="ui-sub">견적부터 청구까지 이 줄에서 진행합니다.</span></h4>
                   <div className="pjv3-moneycard">
                     {!q && (
                       <button type="button" className="btn-primary btn-sm w-full"
-                        title="줄의 거래처·하위 작업(품목·금액)이 미리 채워진 견적 팝업이 열립니다. 미리보기 포함"
+                        title="거래처와 품목이 채워진 견적 팝업을 엽니다."
                         onClick={() => openQuoteModal(drawerItem)}>💰 견적서 만들기</button>
                     )}
                     {q && (
@@ -2483,7 +2483,7 @@ export function TableV3() {
                   if (e.key === "Enter" && !e.nativeEvent.isComposing && v.trim()) { addCheck(v.trim()); (e.target as HTMLInputElement).value = ""; }
                 }} />
 
-              <h4>팔로워<span className="ui-sub">이 줄의 변화를 같이 보는 사람</span></h4>
+              <h4>팔로워<span className="ui-sub">이 줄의 변화를 함께 보는 사람입니다.</span></h4>
               <div className="pjv3-followers">
                 {(((drawerItem as any).followers || []) as string[]).map((uid) => (
                   <span key={uid} className="pjv3-follower">{userName(uid) || "?"}
@@ -2492,7 +2492,7 @@ export function TableV3() {
                 <button type="button" className="pjv3-addview" onClick={(e) => setPop({ kind: "follower", itemId: drawerItem.id, ...at(e) })}>＋ 사람</button>
               </div>
 
-              <h4>기록<span className="ui-sub">댓글과 변경이 시간순 한 줄기</span></h4>
+              <h4>기록<span className="ui-sub">댓글과 변경 내역을 시간순으로 봅니다.</span></h4>
               <div className="pjv3-cmtwrap">
                 <input className="pjv3-drawer-add" placeholder="댓글 적고 Enter · @로 사람 부르기" value={cmt}
                   onChange={(e) => setCmt(e.target.value)}
@@ -2521,7 +2521,7 @@ export function TableV3() {
                     <time className="mono-number">{ev.created_at.slice(5, 16).replace("T", " ")}</time>
                   </div>
                 ))}
-                {events.length === 0 && <div className="pjv3-tpl-mine">아직 기록이 없습니다. 첫 댓글을 남겨 보세요</div>}
+                {events.length === 0 && <div className="pjv3-tpl-mine">아직 기록이 없습니다. 첫 댓글을 남겨 보세요.</div>}
               </div>
             </div>
           </div>
@@ -2532,10 +2532,9 @@ export function TableV3() {
       {tplOpen && (
         <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setTplOpen(false); }}>
           <div className="phv3-modal pjv3-tpl-modal" role="dialog" aria-modal="true" aria-label="템플릿">
-            <h3 className="phv3-modal-title">템플릿<span className="ui-sub">업무에 맞는 가로 양식</span></h3>
+            <h3 className="phv3-modal-title">템플릿<span className="ui-sub">업무에 맞는 양식을 고릅니다.</span></h3>
             <p className="phv3-modal-desc">
-              적용하면 <b>처리 단계가 열(가로)로 붙습니다</b> · 한 줄이 한 건이라, 줄만 훑으면 어디까지 갔는지 보입니다.
-              열은 나중에 자유롭게 고치고 지워도 됩니다.
+              적용하면 <b>처리 단계가 열로 추가됩니다</b>.
             
             </p>
             <div className="pjv3-tpl-layout">
@@ -2556,7 +2555,7 @@ export function TableV3() {
                     <input value={myTplName} onChange={(e) => setMyTplName(e.target.value)} placeholder="양식 이름 · 예: 우리 회사 수주 표"
                       onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) saveAsTemplate(); }} />
                     <button type="button" className="btn-secondary btn-sm" onClick={saveAsTemplate}
-                      title="지금 표의 열·그룹 구성을 양식으로 저장합니다(내용은 저장 안 됨)">지금 표를 양식으로 저장</button>
+                      title="지금 표의 열·그룹 구성을 양식으로 저장합니다.">지금 표를 양식으로 저장</button>
                   </div>
                 )}
                 {catTpls(tplCat).map((s) => (
@@ -2575,7 +2574,7 @@ export function TableV3() {
                   </div>
                 ))}
                 {tplCat === MY_TPL_CAT && myTpls.length === 0 && (
-                  <div className="pjv3-tpl-mine">아직 저장한 양식이 없습니다. 열·그룹을 갖춘 표에서 위 버튼으로 저장하면 여기 쌓입니다</div>
+                  <div className="pjv3-tpl-mine">아직 저장한 양식이 없습니다.</div>
                 )}
               </div>
               {tplSel && (
@@ -2607,7 +2606,7 @@ export function TableV3() {
                       {tplSel.stages!.map((s) => (
                         <span key={s.id} className="pjv3-tpl-badge" style={{ background: STAGE_HEX[s.color] }}>{s.label}</span>
                       ))}
-                      <em>빈 표에 적용할 때만 그룹까지 재현됩니다</em>
+                      <em>빈 표에 적용할 때만 그룹까지 만들어집니다.</em>
                     </div>
                   )}
                   <div className="phv3-modal-actions">
@@ -2626,7 +2625,7 @@ export function TableV3() {
       {pop && (
         <div className={`pjv3-pop ${(pop.kind === "select" && optEdit) || (pop.kind === "status" && stEdit) ? "pjv3-pop-wide" : ""} ${"up" in pop && pop.up ? "pjv3-pop-up" : ""}`} style={{ left: pop.x, top: pop.y }}>
           {pop.kind === "status" && !stEdit && (<>
-            <div className="pjv3-pop-title">상태 · 그룹·칸반 열이 같이 바뀝니다</div>
+            <div className="pjv3-pop-title">상태를 바꿉니다.</div>
             {stages.map((s) => (
               <button key={s.id} type="button" className="pjv3-pop-color" style={{ background: STAGE_HEX[s.color] }}
                 onClick={() => { saveItem(pop.itemId, { status: s.id }); setPop(null); }}>{s.label}</button>
@@ -2634,7 +2633,7 @@ export function TableV3() {
             <button type="button" className="pjv3-opt-manage" onClick={() => setStEdit(true)}>상태 고치기 — 이름·색·순서·추가·삭제</button>
           </>)}
           {pop.kind === "status" && stEdit && (<>
-            <div className="pjv3-pop-title">상태 고치기 (색은 점을 눌러 순환 · 표·칸반·간트가 같이 바뀝니다)</div>
+            <div className="pjv3-pop-title">상태 고치기</div>
             {stages.map((s, i) => (
               <div key={s.id} className="pjv3-opt-row">
                 <span className="dot" style={{ background: STAGE_HEX[s.color] }} title="색 바꾸기"
@@ -2679,7 +2678,7 @@ export function TableV3() {
             const multi = !pop.colKey;
             const cur = multi && it ? assigneesOf(it) : [];
             return (<>
-              <div className="pjv3-pop-title">{multi ? "담당 · 눌러서 넣고 빼기(여러 명)" : "사람 · 이름으로 검색해 고릅니다"}</div>
+              <div className="pjv3-pop-title">{multi ? "담당자를 여러 명 고릅니다." : "이름으로 검색해 고릅니다."}</div>
               <input placeholder="이름 검색" value={personQ} autoFocus aria-label="이름 검색"
                 onChange={(e) => setPersonQ(e.target.value)} />
               <button type="button" className="text-[var(--text-dim)]" onClick={() => {
@@ -2693,15 +2692,15 @@ export function TableV3() {
                   else if (it) toggleAssignee(it, u.id);
                 }}>{multi && cur.includes(u.id) ? "✓ " : ""}{u.name || u.email}</button>
               ))}
-              {hits.length > 12 && <div className="pjv3-pop-title">앞 12명만 · 검색으로 좁히세요</div>}
-              {hits.length === 0 && <div className="pjv3-pop-title">일치하는 사람이 없습니다</div>}
+              {hits.length > 12 && <div className="pjv3-pop-title">앞 12명만 보이니 검색으로 좁히세요.</div>}
+              {hits.length === 0 && <div className="pjv3-pop-title">일치하는 사람이 없습니다.</div>}
             </>);
           })()}
           {pop.kind === "partner" && (() => {
             const qStr = partnerQ.trim().toLowerCase();
             const hits = qStr ? partners.filter((pt) => pt.name.toLowerCase().includes(qStr)) : partners;
             return (<>
-              <div className="pjv3-pop-title">거래처 · 이름 일부로 검색해 고릅니다</div>
+              <div className="pjv3-pop-title">거래처 이름으로 검색해 고릅니다.</div>
               <input placeholder="거래처 검색" value={partnerQ} autoFocus aria-label="거래처 검색"
                 onChange={(e) => setPartnerQ(e.target.value)} />
               <button type="button" className="text-[var(--text-dim)]" onClick={() => {
@@ -2712,8 +2711,8 @@ export function TableV3() {
                   const it = items.find((x) => x.id === pop.itemId); if (it) saveField(it, pop.colKey, pt.name); setPop(null);
                 }}>{pt.name}</button>
               ))}
-              {hits.length > 20 && <div className="pjv3-pop-title">앞 20개만 · 검색으로 좁히세요</div>}
-              {hits.length === 0 && <div className="pjv3-pop-title">{partners.length === 0 ? "등록된 거래처가 없습니다. 재무 › 거래처에서 등록" : "일치하는 거래처가 없습니다"}</div>}
+              {hits.length > 20 && <div className="pjv3-pop-title">앞 20개만 보이니 검색으로 좁히세요.</div>}
+              {hits.length === 0 && <div className="pjv3-pop-title">{partners.length === 0 ? "아직 등록된 거래처가 없습니다." : "일치하는 거래처가 없습니다."}</div>}
             </>);
           })()}
           {pop.kind === "select" && (() => {
@@ -2767,15 +2766,15 @@ export function TableV3() {
                   onClick={() => { const it = items.find((x) => x.id === pop.itemId); if (it) saveField(it, pop.colKey, o.id); setPop(null); }}>
                   {o.label}</button>
               ))}
-              {opts.length === 0 && <div className="pjv3-pop-title">아직 선택지가 없습니다. 아래에서 만드세요</div>}
+              {opts.length === 0 && <div className="pjv3-pop-title">아직 선택지가 없습니다. 아래에서 만드세요.</div>}
               <button type="button" className="pjv3-opt-manage" onClick={() => setOptEdit(true)}>선택지 고치기 — 이름·색·순서·추가·삭제</button>
             </>);
           })()}
           {pop.kind === "features" && (<>
-            <div className="pjv3-pop-title">＋ 기능 · 이 프로젝트에만 켭니다(팀 공유)</div>
-            {([["recur", "반복 작업", "서랍에 '반복' 줄 · 완료로 옮기면 다음 줄 자동"], ["deps", "앞뒤 순서", "서랍에 '앞 작업' 줄 · 안 끝났으면 알려줌"], ["billing", "견적·청구", "줄에 ₩ 버튼 · 견적→계약→계산서→입금"], ["survey", "설문 발송", "위에 '설문' 버튼 · 외부 링크로 받은 응답이 줄로"]] as const).map(([k, label, hint]) => (
+            <div className="pjv3-pop-title">이 프로젝트에 기능을 추가합니다.</div>
+            {([["recur", "반복 작업", "완료하면 다음 줄이 자동으로 생깁니다."], ["deps", "앞뒤 순서", "앞 작업이 끝나지 않으면 알려 줍니다."], ["billing", "견적·청구", "견적부터 입금까지 줄에서 처리합니다."], ["survey", "설문 발송", "외부 응답이 줄로 들어옵니다."]] as const).map(([k, label, hint]) => (
               <button key={k} type="button" onClick={() => toggleFeature(k)}>
-                {features.includes(k) ? "✓ " : ""}{label}<small className="pjv3-typehint"> — {hint}</small>
+                {features.includes(k) ? "✓ " : ""}{label}<small className="pjv3-typehint"> · {hint}</small>
               </button>
             ))}
           </>)}
@@ -2809,17 +2808,17 @@ export function TableV3() {
                   </button>
                 );
               })}
-              {hits.length > 12 && <div className="pjv3-pop-title">앞 12명만 · 검색으로 좁히세요</div>}
-              {hits.length === 0 && <div className="pjv3-pop-title">일치하는 사람이 없습니다</div>}
+              {hits.length > 12 && <div className="pjv3-pop-title">앞 12명만 보이니 검색으로 좁히세요.</div>}
+              {hits.length === 0 && <div className="pjv3-pop-title">일치하는 사람이 없습니다.</div>}
             </>);
           })()}
           {pop.kind === "addview" && (<>
-            <div className="pjv3-pop-title">보기 추가 · 표를 보는 다른 형태</div>
+            <div className="pjv3-pop-title">표를 다른 형태로 봅니다.</div>
             {!views.includes("kanban") && <button type="button" onClick={() => addView("kanban")}>칸반 — 상태별 카드로 보고, 끌어서 옮깁니다</button>}
             {!views.includes("calendar") && <button type="button" onClick={() => addView("calendar")}>캘린더 — 마감일 달력으로 봅니다</button>}
             {!views.includes("gantt") && <button type="button" onClick={() => addView("gantt")}>간트 — 시작~마감 막대로 일정을 봅니다</button>}
             {!views.includes("status") && <button type="button" onClick={() => addView("status")}>현황 — 숫자·그래프·집계표로 모아 봅니다</button>}
-            <div className="pjv3-pop-title">추가한 보기는 팀 전체가 같이 봅니다</div>
+            <div className="pjv3-pop-title">추가한 보기는 팀 전체에 적용됩니다.</div>
           </>)}
           {pop.kind === "excel" && (<>
             <div className="pjv3-pop-title">엑셀</div>
@@ -2828,7 +2827,7 @@ export function TableV3() {
             <button type="button" onClick={() => { setExcelUp(true); setPop(null); }}>올리기 — 양식 받아 채워서 한 번에</button>
           </>)}
           {pop.kind === "addcal" && (<>
-            <div className="pjv3-pop-title">{pop.date}  마감으로 추가 · 첫 그룹에 들어갑니다</div>
+            <div className="pjv3-pop-title">{pop.date} 마감으로 추가합니다.</div>
             <input autoFocus placeholder="이름 적고 Enter"
               onKeyDown={(e) => {
                 const v = (e.target as HTMLInputElement).value;
@@ -2843,7 +2842,7 @@ export function TableV3() {
             if (!it || !col) return null;
             const cur = String((it.fields || {})[pop.colKey] ?? "");
             return (<>
-              <div className="pjv3-pop-title">{col.name} · 바깥을 누르면 저장됩니다</div>
+              <div className="pjv3-pop-title">{col.name} · 바깥을 누르면 저장됩니다.</div>
               <textarea className="pjv3-longedit" autoFocus defaultValue={cur} rows={6}
                 onBlur={(e) => { const v = e.target.value; if (v !== cur) saveField(it, pop.colKey, v || null); }} />
             </>);
@@ -2852,7 +2851,7 @@ export function TableV3() {
             const col = cols.find((c) => c.key === pop.colKey);
             if (!col) return null;
             return (<>
-              <div className="pjv3-pop-title">수식 · 열 이름과 ＋ − × ÷ ( ) 숫자 · 빈 칸을 참조한 줄은 —</div>
+              <div className="pjv3-pop-title">열 이름과 사칙연산으로 수식을 적습니다.</div>
               <input ref={fxInRef} defaultValue={String((col.settings as { expr?: string } | null)?.expr || "")} placeholder="예: 수량 × 단가 − 할인" />
               <div className="pjv3-fxtoks">
                 {[...fxRefNames.filter((n) => n !== col.name), "＋", "−", "×", "÷", "(", ")"].map((t) => (
@@ -2878,7 +2877,7 @@ export function TableV3() {
                   </button>
                 </div>
               ))}
-              {list.length === 0 && <div className="pjv3-pop-title">아직 없습니다</div>}
+              {list.length === 0 && <div className="pjv3-pop-title">아직 없습니다.</div>}
               <label className="pjv3-filepick">＋ 파일 올리기
                 <input type="file" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadItemFile(it, pop.colKey, f); e.target.value = ""; }} />
               </label>
@@ -2902,7 +2901,7 @@ export function TableV3() {
                   setPop(null);
                 }}>{r.title}</button>
               ))}
-              {ovResults.length === 0 && <div className="pjv3-pop-title">결과가 없습니다. 검색어를 바꿔 보세요</div>}
+              {ovResults.length === 0 && <div className="pjv3-pop-title">결과가 없습니다. 검색어를 바꿔 보세요.</div>}
               {cur != null && <button type="button" className="pjv3-opt-manage" onClick={() => { saveField(it, pop.colKey, null); setPop(null); }}>연결 풀기</button>}
             </>);
           })()}
@@ -2956,7 +2955,7 @@ function AddColPop({ onAdd, fxNames }: {
   );
   return (
     <>
-      <div className="pjv3-pop-title">컬럼 추가 · 이름 적고 타입을 고르세요</div>
+      <div className="pjv3-pop-title">이름을 적고 타입을 고르세요.</div>
       <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 광고 ID, 마진" />
       {(["기본", "자유도", "오너뷰 연결"] as const).map((g) => (
         <div key={g}>
@@ -2969,7 +2968,7 @@ function AddColPop({ onAdd, fxNames }: {
                 if (t.id === "auto") { setStep("auto"); return; }
                 onAdd(name.trim(), t.id, undefined);
               }}>
-              {t.label}{t.hint ? <small className="pjv3-typehint"> — {t.hint}</small> : null}
+              {t.label}{t.hint ? <small className="pjv3-typehint"> · {t.hint}</small> : null}
             </button>
           ))}
         </div>

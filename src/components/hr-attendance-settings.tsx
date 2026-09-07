@@ -177,8 +177,8 @@ function HrAttendanceSettingsPanel({ companyId, section }: { companyId: string; 
         <div className="work-hours-section glass-card">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-bold">근무시간</h2>
-            <span className="caption">
-              저장 후 다음 출근부터 즉시 반영 · 지각 임계 = 출근시각 + 유예분
+            <span className="caption" title="지각 기준은 출근 시각에 유예 시간을 더한 시각입니다.">
+              저장하면 다음 출근부터 반영됩니다.
             </span>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -238,7 +238,7 @@ function HrAttendanceSettingsPanel({ companyId, section }: { companyId: string; 
             </div>
           </div>
           <p className="text-[10px] text-[var(--text-dim)] mt-2">
-            야간 종료가 시작보다 작으면 자정을 넘긴 것으로 자동 계산합니다 (예: 22:00 ~ 06:00).
+            야간 종료가 시작보다 이르면 자정을 넘긴 것으로 계산합니다.
           </p>
 
           <div className="workday-picker">
@@ -309,7 +309,7 @@ function HrAttendanceSettingsPanel({ companyId, section }: { companyId: string; 
               <span className="text-xs">5인 미만 사업장</span>
             </label>
             {form.is_under_5_employees && (
-              <p className="text-[10px] text-yellow-400 ml-6">연장·야간·휴일 가산수당 법정 적용 대상이 아닙니다 (통상시급만 지급).</p>
+              <p className="text-[10px] text-yellow-400 ml-6">연장·야간·휴일 가산수당 적용 대상이 아니며 통상시급만 지급합니다.</p>
             )}
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -320,7 +320,7 @@ function HrAttendanceSettingsPanel({ companyId, section }: { companyId: string; 
               <span className="text-xs">포괄임금제</span>
             </label>
             {form.is_inclusive_wage && (
-              <p className="text-[10px] text-yellow-400 ml-6">약정 범위 내 가산수당은 별도 지급되지 않습니다 (cap 초과 시 별도 협의).</p>
+              <p className="text-[10px] text-yellow-400 ml-6">약정 범위 내 가산수당은 별도 지급되지 않습니다.</p>
             )}
           </div>
         </div>

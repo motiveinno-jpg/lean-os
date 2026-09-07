@@ -23,11 +23,11 @@ export function InsuranceRatesTab({ companyId, userId }: { companyId: string; us
   if (!v) return <div className="collect-empty">요율을 읽는 중…</div>;
   const set = (k: keyof InsuranceRates, val: number) => setV((s) => (s ? { ...s, [k]: val } : s));
   const rows: { label: string; emp?: keyof InsuranceRates; er?: keyof InsuranceRates; hint: string }[] = [
-    { label: "국민연금", emp: "np_emp", er: "np_er", hint: "기준소득월액 × 요율 · 상·하한 적용" },
-    { label: "건강보험", emp: "hi_emp", er: "hi_er", hint: "보수월액 × 요율 · 상·하한 적용" },
-    { label: "장기요양", hint: "건강보험료 × 아래 비율(직원·회사 같음)" },
-    { label: "고용보험", emp: "ei_emp", er: "ei_er", hint: "회사 몫에 고용안정·직업능력(0.25%~)이 더해진다" },
-    { label: "산재보험", er: "ia_rate", hint: "회사만 · 업종별 요율(근로복지공단 고지)" },
+    { label: "국민연금", emp: "np_emp", er: "np_er", hint: "기준소득월액에 요율을 곱합니다." },
+    { label: "건강보험", emp: "hi_emp", er: "hi_er", hint: "보수월액에 요율을 곱합니다." },
+    { label: "장기요양", hint: "건강보험료에 이 비율을 곱합니다." },
+    { label: "고용보험", emp: "ei_emp", er: "ei_er", hint: "회사 몫에는 고용안정·직업능력 요율이 더해집니다." },
+    { label: "산재보험", er: "ia_rate", hint: "회사만 부담하며 업종별 요율을 따릅니다." },
   ];
   const save = async () => {
     setBusy(true);
@@ -49,7 +49,7 @@ export function InsuranceRatesTab({ companyId, userId }: { companyId: string; us
             {[thisYear - 1, thisYear, thisYear + 1].map((y) => <option key={y} value={y}>{y}년</option>)}
           </select></label>
         <span className={v.isDefault ? "inv-pill inv-pill-ok" : "inv-pill inv-pill-warn"}>{v.isDefault ? "법정 기본값" : "회사 값"}</span>
-        <span className="inv-hint">요율은 매년 1월(국민연금은 7월 상·하한) 바뀝니다. 고지서와 다르면 여기서 고치세요. 출처: 요율표.</span>
+        <span className="inv-hint">고지서와 다르면 여기서 고치세요.</span>
       </div>
       <div className="stg-table-wrap">
         <table className="ev-table ev-lined table-ins-rates">
@@ -66,7 +66,7 @@ export function InsuranceRatesTab({ companyId, userId }: { companyId: string; us
             <tr><td className="text-left"><b>국민연금 상·하한</b></td>
               <td className="tr"><input className="field-input tr" inputMode="numeric" value={won(v.np_floor)} onChange={(e) => set("np_floor", Number(e.target.value.replace(/[^0-9]/g, "")))} title="하한(원)" /></td>
               <td className="tr"><input className="field-input tr" inputMode="numeric" value={won(v.np_ceiling)} onChange={(e) => set("np_ceiling", Number(e.target.value.replace(/[^0-9]/g, "")))} title="상한(원)" /></td>
-              <td className="text-left ev-dim">기준소득월액 하한 · 상한 (왼쪽 하한, 오른쪽 상한)</td></tr>
+              <td className="text-left ev-dim">왼쪽이 하한, 오른쪽이 상한입니다.</td></tr>
             <tr><td className="text-left"><b>건강보험 상·하한</b></td>
               <td className="tr"><input className="field-input tr" inputMode="numeric" value={won(v.hi_floor)} onChange={(e) => set("hi_floor", Number(e.target.value.replace(/[^0-9]/g, "")))} title="하한(원)" /></td>
               <td className="tr"><input className="field-input tr" inputMode="numeric" value={won(v.hi_ceiling)} onChange={(e) => set("hi_ceiling", Number(e.target.value.replace(/[^0-9]/g, "")))} title="상한(원)" /></td>

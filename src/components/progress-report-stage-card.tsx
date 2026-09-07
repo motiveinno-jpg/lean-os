@@ -381,7 +381,7 @@ export function ProgressReportStageCard({
             <textarea
               value={reportText}
               onChange={(e) => setReportText(e.target.value)}
-              placeholder="완료된 작업·진행률·남은 일정·이슈 등을 자유롭게 작성해 주세요"
+              placeholder="진행 상황을 작성하세요."
               rows={8}
               className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-[11px] focus:outline-none focus:border-[var(--primary)] resize-y"
             />
@@ -442,8 +442,8 @@ export function ProgressReportStageCard({
                 placeholder="recipient@example.com"
                 className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-[11px] focus:outline-none focus:border-[var(--primary)]"
               />
-              <div className="caption">
-                <Ico e="💾" /> 저장 = 우리 쪽 박제만 · 📤 발송 = 거래처 승인 요청 (만료 14일)
+              <div className="caption" title="발송한 링크는 14일 뒤 만료됩니다.">
+                <Ico e="💾" /> 저장은 내부 보관, 발송은 거래처 승인 요청입니다.
               </div>
             </>
           )}
@@ -495,9 +495,7 @@ export function ProgressReportStageCard({
       {showResend && (
         <div className="progress-report-resend-bar">
           <div className="text-[10px] text-amber-400 font-medium mb-1.5">
-            
-            거절된 진척 보고서입니다. 같은 내용으로 재발송 (수정하려면 ✏️ 수정)
-
+            거절된 보고서를 같은 내용으로 다시 보냅니다.
           </div>
           <div className="flex flex-col sm:flex-row gap-1.5">
             <input
@@ -633,7 +631,7 @@ function ProgressDetailModal({
           )}
 
           <div className="text-[10px] text-[var(--text-dim)] text-center pt-2">
-            읽기 전용 · 수정/재발송은 상단 폼에서 진행
+            수정과 재발송은 상단 폼에서 진행합니다.
           </div>
         </div>
       </div>

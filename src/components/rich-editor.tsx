@@ -822,13 +822,13 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
           {/* 삽입 */}
           <button type="button" onClick={() => editor.chain().focus().setHorizontalRule().run()} className={btnCls(false)} title="구분선">─</button>
           <button type="button" onClick={() => editor.chain().focus().toggleBlockquote().run()} className={btnCls(editor.isActive("blockquote"))} title="인용">" 인용</button>
-          <button type="button" onClick={() => imgInputRef.current?.click()} className={btnCls(false)} title="이미지/그래프 삽입 (그래프 이미지를 넣으세요)"><Ico e="🖼" /> 이미지</button>
-          <button type="button" onClick={() => { pdfModeRef.current = "exact"; pdfInputRef.current?.click(); }} className={btnCls(false)} title="PDF 원본 모양 그대로 삽입 · 표·서식·줄바꿈이 PDF와 100% 동일 (이미지로 들어가 글자 수정은 불가)"><Ico e="📎" /> PDF 그대로</button>
-          <button type="button" onClick={() => { pdfModeRef.current = "text"; pdfInputRef.current?.click(); }} className={btnCls(false)} title="PDF 글자를 편집 가능한 텍스트·표로 추출 · 내용 수정이 필요할 때 (모양은 원본과 달라질 수 있음)"><Ico e="📝" /> PDF 글자만</button>
+          <button type="button" onClick={() => imgInputRef.current?.click()} className={btnCls(false)} title="이미지를 삽입합니다."><Ico e="🖼" /> 이미지</button>
+          <button type="button" onClick={() => { pdfModeRef.current = "exact"; pdfInputRef.current?.click(); }} className={btnCls(false)} title="PDF를 원본 모양 그대로 삽입합니다."><Ico e="📎" /> PDF 그대로</button>
+          <button type="button" onClick={() => { pdfModeRef.current = "text"; pdfInputRef.current?.click(); }} className={btnCls(false)} title="PDF 글자를 편집 가능한 텍스트로 추출합니다."><Ico e="📝" /> PDF 글자만</button>
           <div className="w-px h-5 bg-[var(--border)] mx-1 self-center" />
 
           {/* 표 */}
-          <button type="button" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} className={btnCls(false)} title="표 삽입 (3×3)">▦ 표</button>
+          <button type="button" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} className={btnCls(false)} title="3×3 표를 삽입합니다.">▦ 표</button>
           {editor.isActive("table") && (
             <>
               <button type="button" onClick={() => editor.chain().focus().addColumnAfter().run()} className={btnCls(false)} title="열 추가">+열</button>
@@ -836,7 +836,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
               <button type="button" onClick={() => editor.chain().focus().addRowAfter().run()} className={btnCls(false)} title="행 추가">+행</button>
               <button type="button" onClick={() => editor.chain().focus().deleteRow().run()} className={btnCls(false)} title="행 삭제">-행</button>
               {/* 셀 병합/나누기 (2026-08-10 사장님 — "모든 표에서 되게") — 병합은 셀을 끌어 여러 개 선택한 뒤 */}
-              <button type="button" onClick={() => editor.chain().focus().mergeCells().run()} className={btnCls(false)} title="선택한 셀 병합 · 셀을 끌어 여러 개 선택한 뒤 누르세요">병합</button>
+              <button type="button" onClick={() => editor.chain().focus().mergeCells().run()} className={btnCls(false)} title="끌어서 선택한 셀을 병합합니다.">병합</button>
               <button type="button" onClick={() => editor.chain().focus().splitCell().run()} className={btnCls(false)} title="병합된 셀 나누기">나누기</button>
               <button type="button" onClick={() => editor.chain().focus().toggleHeaderRow().run()} className={btnCls(false)} title="머리행 토글">머리</button>
               <button type="button" onClick={() => editor.chain().focus().deleteTable().run()} className={btnCls(false)} title="표 삭제">표✕</button>

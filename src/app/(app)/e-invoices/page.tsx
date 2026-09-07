@@ -222,9 +222,9 @@ export default function EInvoicesPage() {
     exportToExcel(xlsRows(list), "전자계산서", `전자계산서_${viewFromMonth}~${viewToMonth}${tag}`);
   const excelItems: ExcelItem[] = [
     { label: "조회 결과 전부 내려받기", count: filtered.length,
-      hint: "지금 걸린 조건 그대로 · 표에 보이는 칸 그대로", onClick: () => download(filtered, "") },
+      hint: "현재 조건의 전체 결과를 내려받습니다.", onClick: () => download(filtered, "") },
     { label: "지금 쪽만 내려받기", count: pager.view.length,
-      hint: `${pager.from}–${pager.to}번째 줄만`, onClick: () => download(pager.view, `_${pager.page}쪽`) },
+      hint: `${pager.from}~${pager.to}번째 줄만 내려받습니다.`, onClick: () => download(pager.view, `_${pager.page}쪽`) },
   ];
 
   const totalSales = salesInvoices.reduce((s, i) => s + Number(i.supply_amount || 0), 0);
@@ -383,14 +383,14 @@ export default function EInvoicesPage() {
                   <ToolbarPopoverItem
                     onClick={() => { close(); startSync(); }}
                     disabled={!!activeJobId || syncStarting}
-                    hint={`조회기간(${viewFromMonth} ~ ${viewToMonth}) 범위로 홈택스에 발행·수취된 전자계산서(면세)를 가져옵니다`}>
+                    hint={`조회기간 ${viewFromMonth}~${viewToMonth}의 전자계산서를 홈택스에서 가져옵니다.`}>
                     <span aria-live="polite">
                       {activeJobId ? `가져오는 중 ${progress?.done || 0}/${progress?.total || 0}` : "홈택스에서 가져오기"}
                     </span>
                   </ToolbarPopoverItem>
                   {activeJobId && (
                     <ToolbarPopoverItem danger onClick={() => { close(); forceClearStuckJob(activeJobId); }}
-                      hint="백그라운드 동기화가 멈췄을 때 눌러 초기화 · 다시 시도할 수 있습니다">
+                      hint="멈춘 동기화를 초기화합니다.">
                       동기화 취소
                     </ToolbarPopoverItem>
                   )}
@@ -453,7 +453,7 @@ export default function EInvoicesPage() {
                       onChange={(e) => setD("item")(e.target.value)} />
                   </ConditionRow>
 
-                  <ConditionRow label="합계 금액" hint="한쪽만 적어도 됩니다">
+                  <ConditionRow label="합계 금액" hint="한쪽만 적어도 됩니다.">
                     <AmountRange min={draft.min} max={draft.max} onMin={setD("min")} onMax={setD("max")} />
                   </ConditionRow>
                 </ConditionPanel>
@@ -470,7 +470,7 @@ export default function EInvoicesPage() {
             <Stat label="공급가액" value={fmt(filtered.reduce((s: number, r: any) => s + Number(r.supply_amount || 0), 0))} />
             <Stat label="세액" value={fmt(filtered.reduce((s: number, r: any) => s + Number(r.tax_amount || 0), 0))} />
             <Stat label="합계" value={fmt(filtered.reduce((s: number, r: any) => s + Number(r.total_amount || r.supply_amount || 0), 0))} />
-            <span className="text-[10.5px] text-[var(--text-dim)]">면세 계산서는 세액이 0원입니다</span>
+            <span className="text-[10.5px] text-[var(--text-dim)]">면세 계산서는 세액이 0원입니다.</span>
           </ResultStrip>
         </QueryHead>
 
@@ -480,8 +480,8 @@ export default function EInvoicesPage() {
           ) : filtered.length === 0 ? (
             <div className="collect-empty">
               {(currentList as any[]).length === 0
-                ? `${tab === "sales" ? "매출" : "매입"} 전자계산서가 없습니다. 면세 거래가 없으면 비어있는 게 정상입니다`
-                : "이 조건에 맞는 계산서가 없습니다. 조건을 넓혀 보세요"}
+                ? `아직 ${tab === "sales" ? "매출" : "매입"} 전자계산서가 없습니다.`
+                : "조건에 맞는 계산서가 없습니다. 조건을 넓혀 보세요."}
             </div>
           ) : (
             <div className="ev-scroll">

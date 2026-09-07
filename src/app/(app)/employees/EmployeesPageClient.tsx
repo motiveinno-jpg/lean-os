@@ -219,7 +219,7 @@ export default function EmployeesPage()  {
     <Stat label="재직 인원" value={`${activeCount}명`} />
     {pendingInviteCount > 0 && <button type="button" className="qk-stat-link" title="초대 대기 목록 열기" onClick={() => setInviteFormOpen(true)}><Stat label="초대 대기" value={`${pendingInviteCount}명`} tone="minus" /></button>}
     {/*   G4·H4·H5 (2026-08-27) — 기한·근태 이상·연차촉진을 규칙으로 모은 '처리할 것'. 누르면 내역 팝업 */}
-    <button type="button" className="qk-stat-link" title="계약 만료·수습 종료·1주년·미서명·공휴일 / 52시간 예상·연속 지각·퇴근 누락 / 연차촉진 대상" onClick={() => setTodoOpen(true)}>
+    <button type="button" className="qk-stat-link" title="챙길 일을 모아 봅니다." onClick={() => setTodoOpen(true)}>
       <Stat label="처리할 것" value={hrTodos ? `${hrTodos.reduce((n, g) => n + g.items.length, 0)}건` : "…"} tone={hrTodos && hrTodos.some((g) => g.items.length) ? "minus" : undefined} />
     </button>
     {/* 인건비·퇴직충당금은 급여 권한자만 (2026-08-19 감사) — 급여 탭 KPI(tabAllowed) 와 일관.
@@ -227,7 +227,7 @@ export default function EmployeesPage()  {
     {tabAllowed("salary") && (<>
       <Stat label="연 인건비" value={<>₩{(totalSalary * 12).toLocaleString()} <small className="font-normal text-[var(--text-dim)]">월 ₩{totalSalary.toLocaleString()}</small></>} />
       {/*   G1 (2026-08-27) — 누르면 직원별 추계 표 + 충당부채 전표 초안. 직접 입력값 합계는 참고로. */}
-      <button type="button" className="qk-stat-link" title="직원별 퇴직금 추계 · 충당부채 전표 초안" onClick={() => setRetireOpen(true)}>
+      <button type="button" className="qk-stat-link" title="직원별 퇴직금 추계를 봅니다." onClick={() => setRetireOpen(true)}>
         <Stat label="퇴직충당금" value={<>₩{(retireTotal ?? totalRetirement).toLocaleString()} <small className="font-normal text-[var(--text-dim)]">{retireTotal != null ? "추계" : "직접 입력"}</small></>} />
       </button>
     </>)}
@@ -273,7 +273,7 @@ export default function EmployeesPage()  {
               <ResultStrip>
                 <Stat label="지급 대상" value={`${pay.active.length}명`} />
                 <Stat label="월 급여 총액" value={`₩${pay.monthly.toLocaleString()}`} />
-                <Stat label="4대보험 회사부담(추정)" title="기본급 × 표준 요율로 어림한 값입니다. 회사 요율·수당을 반영한 정확한 회사 부담액은 아래 급여명세 미리보기의 '회사 부담 4대보험'을 보세요." value={`₩${pay.insurance.toLocaleString()}`} />
+                <Stat label="4대보험 회사부담(추정)" title="기본급과 표준 요율로 어림한 값입니다." value={`₩${pay.insurance.toLocaleString()}`} />
                 <Stat label="연 인건비" value={`₩${(pay.monthly * 12).toLocaleString()}`} />
               </ResultStrip>
             )}
@@ -501,13 +501,12 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                 4대보험 취득신고 · Web EDI 업로드 파일 (준비 중)
               </div>
-              <p className="text-[10px] text-[var(--text-dim)] mt-1">신규 직원 <span className="font-semibold text-[var(--text)]">{acqEdiData.name}</span>의 국민건강보험 Web EDI 업로드용 정식 파일을 준비 중입니다.</p>
+              <p className="text-[10px] text-[var(--text-dim)] mt-1">신규 직원 <span className="font-semibold text-[var(--text)]">{acqEdiData.name}</span>의 Web EDI 파일은 준비 중입니다.</p>
             </div>
             <button onClick={() => { setShowAcqEdi(false); setAcqEdiData(null); }} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">닫기</button>
           </div>
           <div className="edi-prep-notice">
-            국민건강보험 Web EDI 업로드용 <b>정식 파일(XLSX)</b>을 준비 중입니다. 준비 완료 전까지 이 화면에서 제출용 파일을 내려받을 수 없습니다.
-            취득 신고가 급하시면 <b>공단 Web EDI</b>에서 직접 진행해주세요.
+            <b>Web EDI 취득신고 파일</b>은 준비 중이라 <b>공단 Web EDI</b>에서 직접 신고해 주세요.
           </div>
         </div>
       )}
@@ -528,7 +527,7 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
               <label className="block text-xs text-[var(--text-muted)] mb-1">권한</label>
               <div className="px-3 py-2.5 rounded-xl text-xs text-[var(--text-muted)] bg-[var(--bg-surface)] border border-[var(--border)]">
                 
-                멤버로 합류 · 합류 후 구성원 상세의 <b>탭 권한</b>에서 마스터가 메뉴·기능을 부여합니다
+                합류 후 <b>탭 권한</b>에서 메뉴·기능을 부여합니다.
               </div>
             </div>
           </div>
@@ -536,8 +535,8 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
             {/* 목록 선택 + 직접 추가 (2026-08-19 사장님) */}
             <DepartmentField companyId={companyId} value={form.department} onChange={(v: string) => setForm({ ...form, department: v })} />
             <PositionField companyId={companyId} label="직위" value={form.position} onChange={(v: string) => setForm({ ...form, position: v })} />
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">사번</label><input type="text" value={form.employeeNumber} onChange={e => setForm({ ...form, employeeNumber: e.target.value })} placeholder="예: 2026-014" className="field-input" /><p className="text-[10px] text-[var(--text-dim)] mt-0.5">명단은 사번 순, 없으면 이름 순</p></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">입사일</label><DateField value={form.hireDate} onChange={e => setForm({...form, hireDate: e.target.value})} className="field-input" />{!form.hireDate && <p className="text-[10px] text-[var(--text-dim)] mt-0.5">비워두면 오늘 날짜로 설정됩니다</p>}</div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">사번</label><input type="text" value={form.employeeNumber} onChange={e => setForm({ ...form, employeeNumber: e.target.value })} placeholder="예: 2026-014" className="field-input" /><p className="text-[10px] text-[var(--text-dim)] mt-0.5">명단은 사번 순으로 정렬됩니다.</p></div>
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">입사일</label><DateField value={form.hireDate} onChange={e => setForm({...form, hireDate: e.target.value})} className="field-input" />{!form.hireDate && <p className="text-[10px] text-[var(--text-dim)] mt-0.5">비워 두면 오늘 날짜로 설정됩니다.</p>}</div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">연봉</label><input type="text" inputMode="numeric" value={form.salary ? Number(form.salary).toLocaleString('ko-KR') : ''} onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({...form, salary: raw}); }} placeholder="36,000,000" className="field-input" />{form.salary && Number(form.salary) > 0 && <p className="text-[10px] text-[var(--text-dim)] mt-0.5">월 ₩{Math.round(Number(form.salary) / 12).toLocaleString('ko-KR')}</p>}</div>
             <div className="flex items-end gap-2">
               {addExisting ? (
@@ -553,9 +552,9 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
             </div>
           </div>
           {addExisting ? (
-            <p className="text-[10px] text-[var(--warning)]">이미 가입한 회원의 이메일로 바로 추가합니다. <b>해당 회원의 계정 소속이 우리 회사로 변경되고 멤버로 합류합니다(권한은 마스터가 부여).</b> (초대 이메일 없이 즉시 적용)</p>
+            <p className="text-[10px] text-[var(--warning)]">이미 가입한 회원을 <b>초대 없이 바로 추가</b>합니다.</p>
           ) : (
-            <p className="caption">초대 이메일이 발송되며, 직원이 가입 후 계약서 서명까지 완료하면 급여가 자동 반영됩니다.</p>
+            <p className="caption">초대 이메일이 발송됩니다.</p>
           )}
         </div>
       )}
@@ -1159,7 +1158,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                     type="button"
                     onClick={() => setTodayStatOpen((cur) => (cur === c.key ? null : c.key))}
                     className={`glass-card p-5 text-left transition ${todayStatOpen === c.key ? "ring-2 ring-inset ring-[var(--primary)]" : "hover:bg-[var(--bg-surface)]/60"}`}
-                    title="클릭하면 해당 인원 명단이 아래에 표시됩니다"
+                    title="누르면 명단이 아래에 표시됩니다."
                   >
                     <div className="text-xs text-[var(--text-dim)] mb-1.5">{c.label}</div>
                     <div className={`text-3xl font-extrabold ${c.cls}`}>{c.count}<span className="text-sm font-semibold text-[var(--text-dim)]"> 명</span></div>
@@ -1172,7 +1171,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                     오늘 {{ present: "출근", late: "지각", absent: "결근", leave: "자리비움" }[todayStatOpen]} · {todayStatNames[todayStatOpen]?.length ?? 0}명
                   </div>
                   {(todayStatNames[todayStatOpen] || []).length === 0 ? (
-                    <div className="text-xs text-[var(--text-dim)]">해당 인원이 없습니다</div>
+                    <div className="text-xs text-[var(--text-dim)]">해당 인원이 없습니다.</div>
                   ) : (
                     <div className="flex flex-wrap gap-1.5">
                       {todayStatNames[todayStatOpen].map((name, i) => (
@@ -1191,9 +1190,9 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                 return (
                   <div className="glass-card p-5 flex-1 flex flex-col min-h-0">
                     <div className="text-sm font-bold text-[var(--text)]">{dNum}일 {weekday}</div>
-                    <div className="text-[11px] text-[var(--text-dim)] mb-3">캘린더의 날짜를 클릭하면 그 날 현황을 볼 수 있습니다</div>
+                    <div className="text-[11px] text-[var(--text-dim)] mb-3">날짜를 누르면 그날 현황이 보입니다.</div>
                     {groups.length === 0 ? (
-                      <div className="text-xs text-[var(--text-dim)]">해당 날짜 기록이 없습니다</div>
+                      <div className="text-xs text-[var(--text-dim)]">해당 날짜 기록이 없습니다.</div>
                     ) : (
                       <div className="space-y-3 overflow-y-auto">
                         {/* 상태 → 부서 → 이름 (2026-08-19 사장님: 직원이 많으면 이름 칩이 넘친다 → 부서 줄을 열어 본다) */}
@@ -1249,7 +1248,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
           {records.length === 0 ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4"><Ico e="📊" /></div>
-              <div className="text-sm text-[var(--text-muted)]">해당 월에 근태 기록이 없습니다</div>
+              <div className="text-sm text-[var(--text-muted)]">이 달 근태 기록이 없습니다.</div>
             </div>
           ) : (
             <div className="ev-scroll leave-req-scroll"><table ref={arTableRef} className="ev-table ev-lined att-rec-table">
@@ -1453,7 +1452,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                   <ConditionRow label="부서" hint="여러 개">
                     <span className="qk-quicks">{[...new Set(rowsAll.map((r) => r.department || "미배정"))].sort().map((d) => <button key={d} type="button" onClick={() => setSumDraft((c) => ({ ...c, depts: c.depts.includes(d) ? c.depts.filter((x) => x !== d) : [...c.depts, d] }))} className={sumDraft.depts.includes(d) ? "qk-quick qk-quick-on" : "qk-quick"}>{d}</button>)}</span>
                   </ConditionRow>
-                  <ConditionRow label="이 달에" hint="고른 것 모두 해당하는 사람만">
+                  <ConditionRow label="이 달에" hint="고른 조건에 모두 해당하는 사람만 찾습니다.">
                     <span className="qk-quicks">{SUM_HAS.map(([k, l]) => <button key={k} type="button" onClick={() => setSumDraft((c) => ({ ...c, has: c.has.includes(k) ? c.has.filter((x) => x !== k) : [...c.has, k] }))} className={sumDraft.has.includes(k) ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>)}</span>
                   </ConditionRow>
                   <ConditionRow label="출근율" hint="이하 %"><input className="qk-input h-8 w-28 px-2 text-xs" inputMode="numeric" placeholder="예: 80" value={sumDraft.ratioMax} onChange={(e) => setSumDraft((c) => ({ ...c, ratioMax: e.target.value.replace(/[^0-9]/g, "") }))} /></ConditionRow>
@@ -1475,7 +1474,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
               ...(sumCond.hoursMin || sumCond.hoursMax ? [{ group: "총 근무", label: `${sumCond.hoursMin || "0"}~${sumCond.hoursMax || "∞"}h`, onRemove: () => setSumCond((c) => ({ ...c, hoursMin: "", hoursMax: "" })) }] : []),
               ...(sumQ ? [{ group: "빠른검색", label: sumQ, onRemove: () => setSumQ("") }] : []),
             ] as AppliedChip[])} onClearAll={() => { setSumCond(SUM_COND0); setSumQ(""); }} />
-            <div className="mb-1 text-[11px] text-[var(--text-dim)]">{deptRows.length}개 부서 · {rows.length}명 · 근무일 {workdaysSoFar}일 기준 · 부서 줄을 누르면 직원, 직원 줄을 누르면 상세{sumCond.has.length || sumCond.depts.length || sumCond.ratioMax || sumCond.hoursMin || sumCond.hoursMax || sumQ ? " · 조건에 맞는 사람만" : ""}</div>
+            <div className="mb-1 text-[11px] text-[var(--text-dim)]">{deptRows.length}개 부서 · {rows.length}명 · 근무일 {workdaysSoFar}일 기준{sumCond.has.length || sumCond.depts.length || sumCond.ratioMax || sumCond.hoursMin || sumCond.hoursMax || sumQ ? " · 조건에 맞는 사람만" : ""}</div>
             <div className="ev-scroll att-summary-scroll">
               <table className="ev-table ev-lined att-summary-table">
                 <thead>
@@ -1497,7 +1496,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                 </thead>
                 <tbody>
                   {rows.length === 0 ? (
-                    <tr><td colSpan={isAdminForAllowance ? 13 : 12} className="text-center text-[var(--text-dim)] py-6">{sumQ ? "이름·부서에 맞는 직원이 없습니다" : "이 달 근태 기록이 없습니다"}</td></tr>
+                    <tr><td colSpan={isAdminForAllowance ? 13 : 12} className="text-center text-[var(--text-dim)] py-6">{sumQ ? "조건에 맞는 직원이 없습니다." : "이 달 근태 기록이 없습니다."}</td></tr>
                   ) : deptRows.map((d) => {
                     const open = sumOpen.has(d.department) ? !!sumOpen.get(d.department) : autoOpen;
                     return (
@@ -1576,7 +1575,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                 <div className="mb-5">
                   <div className="text-xs font-bold text-[var(--text-muted)] mb-2">수당 내역</div>
                   {allowanceLines.length === 0 ? (
-                    <div className="text-xs text-[var(--text-dim)] px-1">이번 달 수당 기록이 없습니다</div>
+                    <div className="text-xs text-[var(--text-dim)] px-1">이번 달 수당 기록이 없습니다.</div>
                   ) : (
                     <div className="space-y-1.5">
                       {allowanceLines.map((r: any, i: number) => (
@@ -1597,7 +1596,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
               <div>
                 <div className="text-xs font-bold text-[var(--text-muted)] mb-2">근무 내역</div>
                 {empRecords.length === 0 ? (
-                  <div className="text-xs text-[var(--text-dim)] px-1">이번 달 근태 기록이 없습니다</div>
+                  <div className="text-xs text-[var(--text-dim)] px-1">이번 달 근태 기록이 없습니다.</div>
                 ) : (
                   <div className="space-y-1">
                     {empRecords.map((r: any) => {
@@ -1745,7 +1744,7 @@ function MissingCheckOutModal({
           <div>
             <div className="text-sm font-bold"><Ico e="📝" /> 퇴근 미입력 일괄 보정</div>
             <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-              {selectedMonth} 누락 {missingRows.length}건 · 저장 시 자동으로 연장·야간·휴일 분이 산정됩니다.
+              {selectedMonth} 누락 {missingRows.length}건 · 저장하면 수당이 자동 계산됩니다.
             
             </div>
           </div>
@@ -1754,7 +1753,7 @@ function MissingCheckOutModal({
 
         <div className="overflow-auto flex-1">
           {missingRows.length === 0 ? (
-            <div className="p-10 text-center text-sm text-[var(--text-muted)]">미입력 행이 없습니다 ✅</div>
+            <div className="p-10 text-center text-sm text-[var(--text-muted)]">미입력 행이 없습니다.</div>
           ) : (
             <table className="w-full text-xs">
               <thead className="bg-[var(--bg-surface)]/50 sticky top-0">
@@ -1808,7 +1807,7 @@ function MissingCheckOutModal({
         </div>
 
         <div className="px-5 py-3 border-t border-[var(--border)] flex items-center justify-between gap-2">
-          <span className="text-[11px] text-[var(--text-muted)]">기본 18:30, 직원별 변경 가능</span>
+          <span className="text-[11px] text-[var(--text-muted)]">기본 18:30이며 직원별로 바꿀 수 있습니다.</span>
           <div className="flex gap-2">
             <button
               type="button"
@@ -2094,8 +2093,8 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
             미리보기는 탭을 열면·월을 바꾸면 저절로 계산된다. 편집 중엔 [저장 · 취소]만. 수당은 근태 집계에서 자동(출처 표시). */}
       <div className="payroll-toolbar">
         <p className="text-sm text-[var(--text-muted)]">
-          {editMode ? <>기본급·비과세·수당·공제를 고친 뒤 <b>저장</b> · 이 달 명세에만 적용되고 연봉은 유지됩니다.</>
-            : <>재직 직원 급여 기준 4대보험·원천세 자동 계산. <b>수당은 근태 집계에서 자동으로</b>  얹힙니다(줄에 &lsquo;근태 집계&rsquo; 표시). 고치려면 도구 › 급여대장 고치기.</>}
+          {editMode ? <>기본급·수당·공제를 고친 뒤 <b>저장</b>하면 이 달 명세에만 적용됩니다.</>
+            : <>4대보험·원천세를 자동 계산하고, <b>수당은 근태 집계에서</b> 자동으로 더해집니다.</>}
         </p>
         <div className="flex gap-2 items-center flex-wrap">
           {editMode ? (
@@ -2118,10 +2117,10 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                 title="조회할 급여 명세 월 선택"
               />
               <HelperMenu label="도구" items={[
-                { label: "급여대장 고치기", source: "입력", hint: "직원별 기본급·비과세·수당·공제를 이 달에만 고칩니다", disabled: !preview || preview.items.length === 0, onClick: () => setEditMode(true) },
+                { label: "급여대장 고치기", source: "입력", hint: "직원별 기본급·비과세·수당·공제를 이 달에만 고칩니다.", disabled: !preview || preview.items.length === 0, onClick: () => setEditMode(true) },
                 { label: "전체 PDF 내려받기", source: "출력", hint: "직원별 명세서 PDF 를 한 번에", disabled: !preview || preview.items.length === 0, onClick: downloadAll },
-                { label: loading ? "계산 중…" : "다시 계산", source: "입력", hint: "근태·수당·수정값을 다시 읽어 미리보기를 새로 만듭니다", disabled: loading || !companyId, onClick: generate },
-                { label: "고지서 대조", source: "장부 대조", hint: "공단 고지 금액을 적으면 급여 계산 합계와의 차이를 보여 줍니다", disabled: !preview || preview.items.length === 0, onClick: () => setNoticeOpen(true) },
+                { label: loading ? "계산 중…" : "다시 계산", source: "입력", hint: "근태·수당·수정값을 다시 읽어 미리보기를 새로 만듭니다.", disabled: loading || !companyId, onClick: generate },
+                { label: "고지서 대조", source: "장부 대조", hint: "공단 고지 금액과 급여 계산 합계의 차이를 봅니다.", disabled: !preview || preview.items.length === 0, onClick: () => setNoticeOpen(true) },
               ]} />
               <button onClick={() => handleSendPayslips()} disabled={sending || !preview || preview.items.length === 0} className="btn-primary btn-sm">
                 {sending ? "발송 중..." : `전 직원 발송${preview && preview.items.length ? ` (${preview.items.length}명)` : ""}`}
@@ -2135,11 +2134,11 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
       {!preview ? (
         <div className="glass-card p-16 text-center">
           <div className="text-4xl mb-4"><Ico e="📋" /></div>
-          <div className="text-sm text-[var(--text-muted)]">{loading ? "급여 명세를 계산하는 중…" : "급여 명세가 없습니다. 도구 › 다시 계산"}</div>
+          <div className="text-sm text-[var(--text-muted)]">{loading ? "급여 명세를 계산하는 중…" : "급여 명세가 없습니다. 다시 계산해 보세요."}</div>
         </div>
       ) : preview.items.length === 0 ? (
         <div className="glass-card p-16 text-center">
-          <div className="text-sm text-[var(--text-muted)]">재직 중인 직원이 없거나 급여가 설정되지 않았습니다</div>
+          <div className="text-sm text-[var(--text-muted)]">재직 중인 직원이 없거나 급여가 설정되지 않았습니다.</div>
         </div>
       ) : (
         <>
@@ -2196,7 +2195,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                     <td className="px-4 py-3 text-sm font-medium">
                       {item.employeeName}{item.employeeNumber && <span className="emp-no">#{item.employeeNumber}</span>}
                       {!editMode && item.warn && <span className="hr-src-tag hr-src-warn" title={item.warn}>전월 대비 ±20%</span>}
-                      {!editMode && item.extras?.some((e) => e.auto) && <span className="hr-src-tag" title="근태 집계(연장·야간·휴일·당직)에서 자동으로 얹힌 수당이 있습니다">근태 집계</span>}
+                      {!editMode && item.extras?.some((e) => e.auto) && <span className="hr-src-tag" title="근태 집계에서 자동으로 더해진 수당입니다.">근태 집계</span>}
                       {!editMode && (allowanceSum > 0 || deductionSum > 0) && (
                         <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
                           {allowanceSum > 0 && <span className="text-[var(--info)]">수당 +{allowanceSum.toLocaleString()}</span>}
@@ -2289,7 +2288,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                                   setEditValues(prev => ({ ...prev, [item.employeeId]: { ...ev, extras: next } }));
                                 }} placeholder="예: 식대 / 직책수당 / 사내대출"
                                   className="flex-1 max-w-xs px-2 py-1 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]" />
-                                {(ex as { auto?: boolean }).auto && <span className="hr-src-tag" title="근태 집계에서 자동으로 온 값 · 고치면 이 달 명세엔 고친 값이 쓰입니다">근태 집계</span>}
+                                {(ex as { auto?: boolean }).auto && <span className="hr-src-tag" title="근태 집계에서 온 값이며 고치면 이 달 명세에 반영됩니다.">근태 집계</span>}
                                 <CurrencyInput value={ex.amount}
                                   onValueChange={(raw) => {
                                     const next = [...(ev.extras || [])];
@@ -3114,7 +3113,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                     </select>
                   </div>
                   {form.ccUserIds.length === 0 ? (
-                    <div className="text-[11px] text-[var(--text-dim)]">참조 대상이 없습니다</div>
+                    <div className="text-[11px] text-[var(--text-dim)]">참조 대상이 없습니다.</div>
                   ) : (
                     <div className="flex flex-col gap-1.5">
                       {form.ccUserIds.map((uid) => {
@@ -3222,7 +3221,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
         {visibleRequests.length === 0 ? (
           <div className="p-16 text-center">
             <div className="text-4xl mb-4"><Ico e="🏖" /></div>
-            <div className="text-sm text-[var(--text-muted)]">휴가 신청 내역이 없습니다</div>
+            <div className="text-sm text-[var(--text-muted)]">아직 휴가 신청 내역이 없습니다.</div>
           </div>
         ) : (
           <div className="ev-scroll leave-req-scroll"><table ref={lrTableRef} className="ev-table ev-lined leave-req-table">
@@ -3393,7 +3392,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                 ? cancelTarget.start_date
                 : `${cancelTarget.start_date} ~ ${cancelTarget.end_date}`} ({Number(cancelTarget.days)}일)
               {cancelTarget.status === "approved" && (
-                <span className="block mt-1 text-[var(--warning)]">승인된 휴가입니다. 취소하면 연차 잔여가 복구되고, 신청 때와 동일하게 승인자·참조자에게 알림이 갑니다.</span>
+                <span className="block mt-1 text-[var(--warning)]">승인된 휴가라 취소하면 연차 잔여가 복구됩니다.</span>
               )}
             </p>
             <textarea
@@ -3455,7 +3454,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
           ) : (
             <div className="leave-type-editor glass-card">
               <p className="text-[11px] text-[var(--text-dim)] mb-3">
-                회사 규정에 맞게 유형 이름과 기본 일수를 고치세요. 이미 신청된 휴가의 유형은 그대로 유지됩니다.
+                유형 이름과 기본 일수를 회사 규정에 맞게 고칩니다.
               </p>
               <div className="leave-type-editor-rows">
                 {(draftTypes || []).map((t, i) => (
@@ -3543,12 +3542,12 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
               <>
                 <div className="text-sm font-bold mb-1">연차 부여 방식</div>
                 <p className="text-[11px] text-[var(--text-dim)] mb-3">
-                  회사 정책에 맞게 선택 후 <strong>저장</strong>하세요. 자동부여를 고르면 아래에서 기준을 선택합니다.
+                  방식을 고른 뒤 <strong>저장</strong>하세요.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {([
-                    { v: "auto" as LeaveGrantMethod, label: "자동부여", desc: "근로기준법 공식으로 자동 산정 · 매일 자정 자동 발생" },
-                    { v: "manual" as LeaveGrantMethod, label: "직접입력", desc: "직원별 연차를 수동으로 입력 (자동 발생 끔)" },
+                    { v: "auto" as LeaveGrantMethod, label: "자동부여", desc: "근로기준법 기준으로 자동 발생합니다." },
+                    { v: "manual" as LeaveGrantMethod, label: "직접입력", desc: "직원별 연차를 직접 입력합니다." },
                   ]).map((opt) => {
                     const active = (pendingGrant ?? grantMethod) === opt.v;
                     return (
@@ -3599,7 +3598,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                       >
                         {syncAccrualMut.isPending ? "반영 중..." : "지금 반영"}
                       </button>
-                      <span className="text-[11px] text-[var(--text-dim)]">1년 미만 매월 1일(최대 11일) · 1주년부터 법정 연차가 매일 자정 자동 반영됩니다</span>
+                      <span className="text-[11px] text-[var(--text-dim)]">1년 미만은 매월, 1주년부터 법정 연차가 자동 반영됩니다.</span>
                     </div>
                   </div>
                 )}
@@ -3639,7 +3638,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
             <div className="leave-promotion-section">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-bold text-[var(--text-muted)]">연차촉진 관리</h3>
-                <span className="inv-hint">근로기준법 §61 · 소멸 6개월 전 1차, 2개월 전 2차 통보. 통보는 사람이 누른다(출처: 규칙)</span>
+                <span className="inv-hint">근로기준법 §61에 따라 소멸 6개월 전과 2개월 전에 통보합니다.</span>
               </div>
 
               {(
@@ -3733,7 +3732,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
 
                   {promotionCandidates.length === 0 && (
                     <div className="glass-card p-8 text-center">
-                      <div className="text-sm text-[var(--text-muted)]">모든 직원이 연차를 전부 사용했습니다</div>
+                      <div className="text-sm text-[var(--text-muted)]">모든 직원이 연차를 전부 사용했습니다.</div>
                     </div>
                   )}
                 </div>
@@ -4169,8 +4168,8 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
         {certLogs.length === 0 ? (
           <div className="p-16 text-center">
             <div className="text-4xl mb-4"><Ico e="📜" /></div>
-            <div className="text-sm text-[var(--text-muted)]">발급된 증명서가 없습니다</div>
-            <div className="text-xs text-[var(--text-dim)] mt-1">직원을 선택하고 증명서를 발급하세요</div>
+            <div className="text-sm text-[var(--text-muted)]">아직 발급된 증명서가 없습니다.</div>
+            <div className="text-xs text-[var(--text-dim)] mt-1">직원을 선택해 발급해 보세요.</div>
           </div>
         ) : (
           <div className="ev-scroll leave-req-scroll"><table className="ev-table ev-lined cert-log-tbl">
@@ -4290,7 +4289,7 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
             <Ico e="🧾" /> 연말정산 간소화 자료 수집
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">{year}년</span>
           </h3>
-          <p className="text-xs text-[var(--text-muted)] mt-1">홈택스 간소화 자료 제출 현황을 직원별로 추적합니다</p>
+          <p className="text-xs text-[var(--text-muted)] mt-1">직원별 간소화 자료 제출 현황입니다.</p>
         </div>
         <div className="flex items-center gap-2">
           <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-xs">
@@ -4323,7 +4322,7 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
       </div>
 
       {employees.length === 0 ? (
-        <div className="text-center py-8 text-xs text-[var(--text-dim)]">재직 중인 직원이 없습니다</div>
+        <div className="text-center py-8 text-xs text-[var(--text-dim)]">재직 중인 직원이 없습니다.</div>
       ) : (
         <div className="yeartax-status-table">
           <table className="w-full min-w-[600px]">
@@ -4436,7 +4435,7 @@ function HalfDaySlotSettings({ companyId }: { companyId: string }) {
       ) : (
         <div>
           <div className="text-xs font-bold text-[var(--text)] mb-1">반차 시간 설정</div>
-          <p className="text-[11px] text-[var(--text-dim)] mb-3">회사 규정의 반차 시간대를 지정하세요. 비워두면 근무시간의 절반으로 자동 계산됩니다. 이미 승인된 반차의 시간은 바뀌지 않습니다.</p>
+          <p className="text-[11px] text-[var(--text-dim)] mb-3">비워 두면 근무시간의 절반으로 계산됩니다.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {([["am", "오전 반차", "amStart", "amEnd"], ["pm", "오후 반차", "pmStart", "pmEnd"]] as const).map(([, label, ks, ke]) => (
               <div key={ks} className="flex items-center gap-2">

@@ -194,7 +194,7 @@ export default function CostsPage() {
               <option key={y} value={y}>{y}년</option>
             ))}
           </select>
-          <span className="text-[11px] text-[var(--text-dim)]">고정비 = 급여·임대료·정기결제 등 · 변동비 = 카드·일회성 지출 (경과월 누계)</span>
+          <span className="text-[11px] text-[var(--text-dim)]">고정비는 급여·임대료·정기결제, 변동비는 카드와 일회성 지출입니다.</span>
         </>}
         stats={!isLoading && !error && shownRows ? (<>
           <Stat label={`${year}년 고정비`} value={`₩${fmtKrw(totals.fixed)}`} />

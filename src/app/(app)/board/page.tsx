@@ -857,7 +857,7 @@ export default function BoardPage() {
               <RowsPerPage value={bDraft.rows} onChange={(n) => setBDraft((c) => ({ ...c, rows: n }))} />
               <button type="button" className="btn-primary btn-sm" onClick={() => { setBLive(bDraft); setPanelOpen(false); }}>조회</button>
             </>}>
-            <ConditionRow label="종류" hint="여러 개 · 하나라도 맞으면">
+            <ConditionRow label="종류" hint="하나라도 맞으면 찾습니다.">
               <span className="qk-quicks">
                 {KINDS.map((k) => (
                   <button key={k.key} type="button" onClick={() => setBDraft((c) => ({ ...c, kinds: c.kinds.includes(k.key) ? c.kinds.filter((x) => x !== k.key) : [...c.kinds, k.key] }))}
@@ -865,7 +865,7 @@ export default function BoardPage() {
                 ))}
               </span>
             </ConditionRow>
-            <ConditionRow label="카테고리" hint="여러 개 · 매뉴얼만 골라 보기">
+            <ConditionRow label="카테고리" hint="매뉴얼만 골라 봅니다.">
               <span className="qk-quicks">
                 {[...POST_CATS, ""].map((k) => (
                   <button key={k || "none"} type="button"
@@ -911,7 +911,7 @@ export default function BoardPage() {
             />
             {/* 카테고리(결정 147) — 매뉴얼·교육자료를 골라 볼 수 있게. 한 줄 셀렉트 표준 */}
             <select value={postCat} onChange={(e) => setPostCat(e.target.value)}
-              className="field-input !w-32 flex-none" aria-label="카테고리" title="카테고리 · 검색조건에서 골라 볼 수 있습니다">
+              className="field-input !w-32 flex-none" aria-label="카테고리" title="카테고리를 정합니다.">
               <option value="">미분류</option>
               {POST_CATS.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
@@ -1083,13 +1083,13 @@ export default function BoardPage() {
           <div className="text-4xl mb-3"><Ico e="📝" /></div>
           <div className="text-sm font-semibold text-[var(--text)]">
             {posts.length === 0
-              ? "등록된 글이 없습니다. 첫 글을 작성해보세요."
+              ? "아직 글이 없습니다."
               : "조건에 맞는 글이 없습니다."}
           </div>
           <div className="text-[11px] text-[var(--text-dim)] mt-1.5">
             {posts.length === 0
-              ? "글쓰기 버튼으로 공지·일정·투표·첨부를 공유할 수 있습니다."
-              : "필터나 검색어를 바꿔서 다시 시도해보세요."}
+              ? "첫 글을 작성해 보세요."
+              : "검색조건을 풀어 보세요."}
           </div>
           {posts.length === 0 && !showForm && (
             <button
@@ -1262,11 +1262,11 @@ export default function BoardPage() {
                               <span className="text-[11px] text-[var(--text-muted)]">
                                 {dirty
                                   ? picked.length === 0
-                                    ? "선택 해제됨. 확인하면 내 표가 취소됩니다"
+                                    ? "확인하면 내 표가 취소됩니다."
                                     : `선택: ${picked.map((i) => opts[i]).filter(Boolean).join(", ")}`
                                   : myVotes.length > 0
-                                    ? "투표함. 다시 선택하면 변경할 수 있습니다"
-                                    : "선택 후 '투표하기'를 눌러야 반영됩니다"}
+                                    ? "다시 선택하면 변경됩니다."
+                                    : "투표하기를 눌러야 반영됩니다."}
                               </span>
                               <div className="flex items-center gap-2 shrink-0">
                                 {dirty && (
@@ -1708,7 +1708,7 @@ function PollStatusDialog({ post, voterIdsByOption, voterNames, members, onClose
                   </div>
                   <div className="poll-status-names">
                     {anonymous
-                      ? <span className="text-[var(--text-dim)]">익명 투표라 투표자를 공개하지 않습니다</span>
+                      ? <span className="text-[var(--text-dim)]">익명 투표입니다.</span>
                       : ids.length
                         ? ids.map((id) => voterNames[id] || "알 수 없음").join(", ")
                         : <span className="text-[var(--text-dim)]">아직 없음</span>}
@@ -1725,7 +1725,7 @@ function PollStatusDialog({ post, voterIdsByOption, voterNames, members, onClose
                 <div className="poll-status-names">
                   {notVoted.length
                     ? notVoted.map((m) => m.name || m.email || "이름 없음").join(", ")
-                    : <span className="text-[var(--text-dim)]">전원 참여했습니다</span>}
+                    : <span className="text-[var(--text-dim)]">전원 참여했습니다.</span>}
                 </div>
               </div>
             </>

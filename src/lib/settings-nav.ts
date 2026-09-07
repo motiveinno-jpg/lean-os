@@ -61,7 +61,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
     key: "people", label: "구성원·초대", route: "/settings/people", icon: "user-cog",
     leaves: [
       { key: "team", label: "구성원·초대", perms: ["team", "departments"],
-        title: "구성원·초대", desc: "구성원 초대·합류 요청 승인과 부서를 관리합니다. 메뉴 권한 부여는 구성원 화면에서 합니다.",
+        title: "구성원·초대", desc: "구성원 초대와 합류 요청, 부서를 관리합니다.",
         icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" },
     ],
   },
@@ -69,22 +69,22 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
     key: "finance", label: "회계·세무", route: "/settings/finance", icon: "book",
     leaves: [
       { key: "cash", label: "자금·통장", perms: ["cash"],
-        title: "자금·통장", desc: "가용 현금 집계와 미연동 통장, 비용 유형별 지급 통장을 설정합니다.",
+        title: "자금·통장", desc: "가용 현금 기준과 지급 통장을 설정합니다.",
         icon: "M2 9h20M4 5h16a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2zM6 14h4" },
       { key: "chart", label: "계정과목·분류", perms: ["chart", "deal"],
-        title: "계정과목·분류", desc: "장부의 계정과목 체계와 거래 장부의 딜 분류를 관리합니다.",
+        title: "계정과목·분류", desc: "계정과목과 거래 분류를 관리합니다.",
         icon: "M9 7h6m-6 4h6m-6 4h4M5 3h14a1 1 0 011 1v17l-3-2-3 2-3-2-3 2V4a1 1 0 011-1z" },
       { key: "closing", label: "회계마감", perms: ["closing", "tax"],
-        title: "회계마감", desc: "회계 마감시점·기초잔액과 장부 매칭 규칙을 관리합니다.",
+        title: "회계마감", desc: "회계 마감 시점과 기초잔액을 관리합니다.",
         icon: "M8 2v4M16 2v4M3 9h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" },
       //   세무 파트너 (2026-08-21) — 회사정보 잡화점에서 떼어 냈다. 장부를 함께 보는 사람이라 회계·세무 그룹.
       //   perms 에 옛 "company-info" 를 함께 둔다 — 회사정보 권한자가 내일 이 화면을 잃지 않게.
       { key: "tax-partner", label: "세무 파트너", perms: ["tax-partner", "company-info"],
-        title: "세무 파트너", desc: "제휴 세무사를 연결하고, 우리 장부에서 무엇까지 볼 수 있는지 정합니다.",
+        title: "세무 파트너", desc: "세무사를 연결하고 열람 범위를 정합니다.",
         icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" },
       //   4대보험 요율 (2026-08-27 인사 2차, 결정 96) — 급여 계산이 읽는 연도별 요율표. 회계마감·자금 권한자도 본다(옛 권한 승계).
       { key: "insurance", label: "4대보험 요율", perms: ["insurance", "closing", "cash"],
-        title: "4대보험 요율", desc: "국민연금·건강(장기요양)·고용·산재 요율과 상·하한을 연도별로 둡니다. 급여 명세·회사 부담 계산이 이 표를 읽습니다.",
+        title: "4대보험 요율", desc: "4대보험 요율과 상·하한을 연도별로 둡니다.",
         icon: "M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z" },
     ],
   },
@@ -97,7 +97,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
       //   탭 이름은 'API 키' — 그릇(그룹)이 이미 '연동·API 키'다. 같은 말을 두 번 읽히게 하지 않는다
       //   (2026-08-13 사장님 원칙: 그릇에 적혀 있으면 안에서는 뺀다). 2026-08-24.
       { key: "api-keys", label: "API 키", perms: ["api-keys", "ads"],
-        title: "API 키", desc: "광고 매체·공공기관에서 회사 이름으로 발급받은 키를 등록합니다. 넣는 순간 실제로 한 번 불러 보고, 키는 암호화되어 화면에 다시 나오지 않습니다.",
+        title: "API 키", desc: "외부 서비스의 API 키를 등록합니다.",
         icon: "M15 7a5 5 0 11-4.9 6H7v3H4v-3H2l3-3h5.1A5 5 0 0115 7z" },
       { key: "bank", label: "은행연동", perms: ["bank"],
         title: "은행연동", desc: "공동인증서로 은행·카드·홈택스 자동 수집을 연결합니다.",
@@ -117,7 +117,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
       //   ※ '결재 상신 총괄 알림'은 2026-08-24 삭제했다(사장님: 결재는 결재자·참조자에게만 가면 된다.
       //     직원 100명이면 100건 상신 알림을 총괄 한 사람이 다 받게 된다). 그래서 이름에서 '알림'을 뺐다.
       { key: "security", label: "접속 보안", perms: ["security", "company-info"],
-        title: "접속 보안", desc: "회사 자료에 접속할 수 있는 IP를 정합니다. 켜면 등록한 곳에서만 열립니다.",
+        title: "접속 보안", desc: "접속을 허용할 IP를 정합니다.",
         icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" },
       //   회사 자체를 지우는 항목 — 권한을 부여받은 멤버에게도 절대 노출하지 않는다(마스터 전용).
       //   되돌릴 수 없는 파괴 동작이라 사이드바에는 올리지 않고 이 화면 맨 끝 붉은 탭으로만 둔다.

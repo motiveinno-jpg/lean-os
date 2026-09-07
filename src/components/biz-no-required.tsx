@@ -27,7 +27,7 @@ export function BizNoRequired({ feature, why }: {
         사업자번호 등록하러 가기
       </Link>
       <p className="bizno-required-note">
-        회사 설정 → 회사정보에서 1분이면 끝납니다. 등록하면 이 기능이 바로 열려요.
+        회사 설정에서 등록하면 바로 열립니다.
       </p>
     </div>
   );

@@ -95,15 +95,14 @@ function PullDialog({ ctl, onClose }: { ctl: DocCtl; onClose: () => void }) {
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">주문서 불러오기</h3>
-        <p className="inv-modal-desc">
-          아직 처리되지 않은 주문서입니다. 가져올 항목을 선택하면 <b>남은 수량</b>이 입력되고,
-          한 주문서에서만 골랐다면 <b>거래처·창고·납기일</b>도 함께 채워집니다.
+        <p className="inv-modal-desc" title="한 주문서에서만 골랐다면 거래처·창고·납기일도 함께 채워집니다">
+          아직 처리하지 않은 주문서입니다. 고른 항목의 <b>남은 수량</b>이 입력됩니다.
         </p>
 
         <div className="inv-ship-table">
           {isLoading ? <p className="collect-empty">읽는 중…</p>
             : shown.length === 0 ? (
-              <p className="collect-empty">가져올 주문서가 없습니다 — <b>재고 › 주문서</b>에서 먼저 등록하세요.</p>
+              <p className="collect-empty">아직 가져올 주문서가 없습니다. <b>재고 › 주문서</b>에서 먼저 등록하세요.</p>
             ) : shown.map((x) => (
               <div key={x.o.id} className="pull-order">
                 <div className="pull-order-head">

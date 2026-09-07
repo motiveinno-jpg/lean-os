@@ -752,9 +752,9 @@ export default function BankPage() {
   };
   const txExcelItems: ExcelItem[] = [
     { label: "조회 결과 전부 내려받기", count: shownTx.length,
-      hint: "지금 걸린 조건 그대로 · 표에 보이는 칸 그대로", onClick: () => exportBankCsv(shownTx) },
+      hint: "현재 조건의 전체 결과를 내려받습니다.", onClick: () => exportBankCsv(shownTx) },
     { label: "지금 쪽만 내려받기", count: pager.view.length,
-      hint: `${pager.from}–${pager.to}번째 줄만`, onClick: () => exportBankCsv(pager.view, `_${pager.page}쪽`) },
+      hint: `${pager.from}~${pager.to}번째 줄만 내려받습니다.`, onClick: () => exportBankCsv(pager.view, `_${pager.page}쪽`) },
   ];
 
   // (2026-07-30 개편 P3) 세부탭 권한 게이트 · 마스터=전체, 멤버=부여(/bank:탭키)만
@@ -788,7 +788,7 @@ export default function BankPage() {
             onClick={() => pauseMut.mutate()}
             disabled={!companyId || pauseMut.isPending}
             className={`btn-secondary btn-sm no-print ${isSyncPaused ? "border-amber-500/40 text-amber-600" : ""}`}
-            title="데이터 연동 잠시 멈추기 (30분간 중복 로그인 방지). 은행 사이트에 직접 로그인할 때 우리 앱의 자동 동기화가 겹쳐 강제 로그아웃되는 것을 막습니다"
+            title="은행 사이트에 직접 로그인하는 동안 자동 연동을 30분간 멈춥니다."
           >
             {isSyncPaused
               ? <>정지 해제 ({new Date(syncPausedUntil!).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}까지)</>
@@ -815,7 +815,7 @@ export default function BankPage() {
             //   disabled 면 클릭 이벤트 자체가 안 온다. 흐릿하게만 표시하고 안내는 onClick 에서.
             disabled={syncing || !companyId || bankCd.disabled || isSyncPaused}
             className={`btn-primary btn-sm ${bankCd.disabled || isSyncPaused || (bankSync && !bankSync.manualAllowed) ? "!opacity-40 cursor-not-allowed" : ""}`}
-            title={bankSync && !bankSync.manualAllowed ? "무료 요금제는 즉시 동기화를 쓸 수 없습니다. 하루 2회 자동 동기화는 그대로 됩니다" : isSyncPaused ? "연동 일시정지 중 · 정지 해제 후 연동" : bankCd.hint ? bankCd.hint : "왼쪽 거래기간을 설정한 뒤 CODEF 은행 연동으로 그 기간의 거래·잔액을 불러옵니다"}
+            title={bankSync && !bankSync.manualAllowed ? "무료 요금제는 자동 연동만 제공합니다." : isSyncPaused ? "연동 정지를 해제한 뒤 연동할 수 있습니다." : bankCd.hint ? bankCd.hint : "거래기간의 통장 거래와 잔액을 불러옵니다."}
           >
             {syncing ? "연동 중…" : bankCd.disabled ? bankCd.label : "통장 연동"}
           </button>
@@ -842,12 +842,12 @@ export default function BankPage() {
               )}
               {tab === "accounts" && <ChipGroup value={accountsView} onChange={setAccountsView} options={[{ value: "list", label: "리스트" }, { value: "card", label: "카드" }] as const} />}
               {tab === "accounts" && syncQuota?.free && (
-                <span className="bank-sync-quota" title="무료 요금제는 통장·카드 합쳐 3개까지 거래를 가져옵니다. 나머지는 목록에만 두고 '수집 켜기'로 바꿔 쓸 수 있어요.">무료 요금제 · 수집 {syncQuota.used}/{syncQuota.limit}</span>
+                <span className="bank-sync-quota" title="무료 요금제는 통장과 카드를 합쳐 3개까지 수집합니다.">무료 요금제 · 수집 {syncQuota.used}/{syncQuota.limit}</span>
               )}
               {tab === "accounts" && accounts.some((a) => a.isHidden) && (
                 <button type="button" onClick={() => setShowHiddenAccts((v) => !v)} className={showHiddenAccts ? "qk-quick qk-quick-on" : "qk-quick"}>숨긴 통장 {accounts.filter((a) => a.isHidden).length}개 {showHiddenAccts ? "감추기" : "보기"}</button>
               )}
-              <span className="text-[11px] text-[var(--text-dim)]">{tab === "accounts" ? "거래기간은 연동 범위 · 표의 '이번 달 변화'는 이번 달(1일~오늘) 기준 · 거래를 조건으로 찾으려면 거래내역 탭" : "통장 잔액·이번 달 흐름 · 거래를 조건으로 찾으려면 거래내역 탭"}</span>
+              <span className="text-[11px] text-[var(--text-dim)]">{tab === "accounts" ? "연동된 통장과 잔액을 봅니다." : "통장 잔액과 이번 달 흐름을 봅니다."}</span>
             </QueryBar>
             {/* 결과 요약 — 예전 stat 4 그라데이션 카드(총 자산·이번 달 수익·지출·분류 완료율)를 Stat 줄로 (2026-08-19 자금 메뉴 점검) */}
             <ResultStrip>
@@ -872,7 +872,7 @@ export default function BankPage() {
           {positiveAccounts.length >= 2 && (
             <section className="bank-balance-chart pnl-panel">
               <h3>계좌별 잔액</h3>
-              <p>많은 순 · 합계 {fmtW(totalBalance)}{hiddenAccounts > 0 ? ` · 0원 이하 ${hiddenAccounts}개는 제외했습니다` : ""}</p>
+              <p>합계 {fmtW(totalBalance)}{hiddenAccounts > 0 ? ` · 0원 이하 ${hiddenAccounts}개 제외` : ""}.</p>
               <BarChart unit="원" data={positiveAccounts.map((a) => ({ label: a.label, value: a.balance, color: "var(--viz-1)" }))} />
             </section>
           )}
@@ -893,8 +893,8 @@ export default function BankPage() {
               const name = a.alias || (a.bankName ? `${a.bankName}${accNo.slice(-4) ? " " + accNo.slice(-4) : ""}` : accNo) || "계좌";
               const bal = Number(a.balance || 0);
               return (
-                <tr key={a.accountNo} className={`pnl-row-acct ${a.isHidden ? "opacity-60" : ""}`} onClick={() => { seedAccountCond(accNo); goTab("transactions"); }} title="누르면 이 통장 거래내역">
-                  <td className="text-left"><span className="inline-flex items-center gap-2"><BankLogo name={a.bankName || name} size={20} /><b>{name}</b>{a.syncEnabled === false && <span className="ol-sure ml-1.5" title="거래를 가져오지 않는 통장 · '수집 켜기'로 되돌립니다">수집 꺼짐</span>}{a.alias && a.bankName && <small className="text-[var(--text-dim)]">{a.bankName}</small>}{a.isHidden && <span className="ol-sure">숨김</span>}</span></td>
+                <tr key={a.accountNo} className={`pnl-row-acct ${a.isHidden ? "opacity-60" : ""}`} onClick={() => { seedAccountCond(accNo); goTab("transactions"); }} title="누르면 거래내역으로 이동합니다.">
+                  <td className="text-left"><span className="inline-flex items-center gap-2"><BankLogo name={a.bankName || name} size={20} /><b>{name}</b>{a.syncEnabled === false && <span className="ol-sure ml-1.5" title="거래를 가져오지 않는 통장입니다.">수집 꺼짐</span>}{a.alias && a.bankName && <small className="text-[var(--text-dim)]">{a.bankName}</small>}{a.isHidden && <span className="ol-sure">숨김</span>}</span></td>
                   {/* 계좌번호는 전체를 보인다 (2026-08-19 사장님: "통장에서 계좌번호를 다 보이게") */}
                   <td className="text-center mono-number text-[var(--text-muted)]">{accNo || "—"}</td>
                   <td className="text-left text-[var(--text-muted)]">{a.memo ? <span className="truncate inline-block max-w-[220px]" title={a.memo}>{a.memo}</span> : <span className="text-[var(--text-dim)]">—</span>}</td>
@@ -903,7 +903,7 @@ export default function BankPage() {
                   <td className="text-center" onClick={(e) => e.stopPropagation()}>
                     <span className="inline-flex gap-1.5">
                       <button type="button" onClick={() => setAcctEdit({ accountNo: accNo, alias: a.alias || "", memo: a.memo || "", bankName: a.bankName, balance: bal })} className="btn-secondary btn-sm">수정</button>
-                      <button type="button" onClick={() => toggleAcctSync({ accountNo: accNo, syncEnabled: a.syncEnabled, bankName: a.bankName, balance: bal })} className={a.syncEnabled === false ? "btn-secondary btn-sm text-[var(--warning)]" : "btn-secondary btn-sm"} title={a.syncEnabled === false ? "지금은 거래를 가져오지 않는 통장입니다" : "이 통장의 거래를 가져오지 않게 합니다"}>{a.syncEnabled === false ? "수집 켜기" : "수집 끄기"}</button>
+                      <button type="button" onClick={() => toggleAcctSync({ accountNo: accNo, syncEnabled: a.syncEnabled, bankName: a.bankName, balance: bal })} className={a.syncEnabled === false ? "btn-secondary btn-sm text-[var(--warning)]" : "btn-secondary btn-sm"} title={a.syncEnabled === false ? "이 통장의 거래를 다시 가져옵니다." : "이 통장의 거래를 가져오지 않습니다."}>{a.syncEnabled === false ? "수집 켜기" : "수집 끄기"}</button>
                       <button type="button" onClick={() => toggleAcctHidden({ accountNo: accNo, isHidden: a.isHidden, bankName: a.bankName, balance: bal })} className="btn-secondary btn-sm">{a.isHidden ? "보이기" : "숨김"}</button>
                       <button type="button" onClick={() => removeAcct({ accountNo: accNo, alias: a.alias, bankName: a.bankName })} className="btn-secondary btn-sm text-[var(--danger)]">삭제</button>
                     </span>
@@ -921,8 +921,8 @@ export default function BankPage() {
               <EmptyState
                 card
                 icon="🏦"
-                title="통장이 아직 연동되지 않았습니다"
-                desc="CODEF 은행 연동으로 통장과 거래내역을 자동으로 불러옵니다"
+                title="아직 연동된 통장이 없습니다."
+                desc="통장을 연동하면 거래내역을 자동으로 불러옵니다."
                 action={
                   <button type="button" onClick={handleSyncBank} disabled={syncing} className="btn-primary">
                     {syncing ? "연동 중..." : "통장 연동하기"}
@@ -981,7 +981,7 @@ export default function BankPage() {
                     변화 없음
                   </div>
                 )}
-                <p className="text-[10px] text-[var(--text-dim)] mt-2">클릭 → 이 통장 거래내역</p>
+                <p className="text-[10px] text-[var(--text-dim)] mt-2">누르면 거래내역으로 이동합니다.</p>
               </div>
             );
           })}
@@ -1055,7 +1055,7 @@ export default function BankPage() {
                 <ConditionRow label="상태">
                   <ChipGroup value={txDraft.state} onChange={setTxD("state")} options={TX_STATE_CHIPS} />
                 </ConditionRow>
-                <ConditionRow label="금액" hint="입·출금 부호는 보지 않습니다">
+                <ConditionRow label="금액" hint="부호 없이 금액만 비교합니다.">
                   <AmountRange min={txDraft.min} max={txDraft.max} onMin={setTxD("min")} onMax={setTxD("max")} />
                 </ConditionRow>
               </ConditionPanel>
@@ -1071,7 +1071,7 @@ export default function BankPage() {
           <QStat label="건수" value={`${shownTx.length.toLocaleString("ko-KR")}건`} />
           <QStat label="입금" value={fmtW(sumInTx)} tone="plus" />
           <QStat label="출금" value={fmtW(sumOutTx)} tone="minus" />
-          {recentTx.length >= 2000 && <b className="ev-cut">너무 많아 앞 2,000건만 받아왔습니다<span className="ui-sub">기간을 좁혀 주세요</span></b>}
+          {recentTx.length >= 2000 && <b className="ev-cut">앞 2,000건만 표시합니다.<span className="ui-sub">기간을 좁혀 주세요.</span></b>}
         </ResultStrip>
         </QueryHead>
 
@@ -1109,8 +1109,8 @@ export default function BankPage() {
                     <td colSpan={8} className="px-3 py-2.5">
                       <EmptyState
                         icon="📄"
-                        title={txChips.length > 0 ? "걸린 조건에 맞는 거래가 없습니다" : "이 기간에 거래내역이 없습니다"}
-                        desc="상단에서 기간을 설정하고 ‘통장 연동’을 누르면 그 기간의 거래를 불러옵니다"
+                        title={txChips.length > 0 ? "조건에 맞는 거래가 없습니다." : "아직 거래내역이 없습니다."}
+                        desc="기간을 정하고 통장 연동을 누르면 불러옵니다."
                       />
                     </td>
                   </tr>
@@ -1144,7 +1144,7 @@ export default function BankPage() {
                             <span className="block font-medium text-[var(--text)] truncate">{tx.counterparty || "—"}</span>
                             {(() => { const a = autoOf(tx); return a ? (
                               <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-600"
-                                title={a.manual ? "거래내역에서 자동이체로 표시한 줄" : `정기 지출 '${a.name}' 의 출금으로 잡혔습니다`}>
+                                title={a.manual ? "직접 자동이체로 표시한 거래입니다." : `정기 지출 ${a.name} 출금입니다.`}>
                                 자동이체{a.name ? ` · ${a.name}` : ""}
                               </span>) : null; })()}
                             {(tx.memo || (tx.tags && tx.tags.length) || tx.used_by_employee_id) && (
@@ -1185,12 +1185,12 @@ export default function BankPage() {
         )}
         {/* ── 3줄 · 고른 줄로 하는 일 — 파란(확정) 버튼은 여기 하나 ── */}
         <SelectionBar count={selectedTxIds.size} onClear={() => setSelectedTxIds(new Set())}
-          summary={<>합계 <b className="mono-number">{fmtW(selSumTx)}</b> · 이미 처리된 건은 건너뜁니다</>}>
-          <button type="button" onClick={() => setAutoTransfer(true)} className="btn-secondary btn-sm" title="정기 지출로 안 잡힌 자동이체를 직접 표시 · 개요의 '자동이체 연결 내역'에 모입니다">자동이체 표시</button>
+          summary={<>합계 <b className="mono-number">{fmtW(selSumTx)}</b> · 처리된 건은 건너뜁니다.</>}>
+          <button type="button" onClick={() => setAutoTransfer(true)} className="btn-secondary btn-sm" title="선택한 거래를 자동이체로 표시합니다.">자동이체 표시</button>
           {Array.from(selectedTxIds).some((id) => (recentTx as any[]).find((x) => x.id === id)?.is_auto_transfer === true) && (
             <button type="button" onClick={() => setAutoTransfer(false)} className="btn-secondary btn-sm">표시 해제</button>
           )}
-          <button type="button" onClick={excludeSelected} className="btn-secondary btn-sm" title="전표 없이 끝낸 것으로 · 중복·이체·개인 지출">장부 제외</button>
+          <button type="button" onClick={excludeSelected} className="btn-secondary btn-sm" title="전표 없이 장부에서 제외합니다.">장부 제외</button>
           <button type="button" onClick={() => { setBulkAccountId(""); setBulkFixed(false); setShowBulkPost(true); }}
             className="btn-primary btn-sm">전표처리({selectedTxIds.size})</button>
         </SelectionBar>
@@ -1209,7 +1209,7 @@ export default function BankPage() {
           <div className="bank-bulk-post-modal" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">일괄 전표처리</div>
-              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">선택 {selectedTxIds.size}건을 한 계정으로 전표 생성합니다. 이미 처리된 건은 건너뜁니다.</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">선택한 {selectedTxIds.size}건을 한 계정으로 전표 생성합니다.</div>
             </div>
             <div className="p-5 space-y-3">
               <div>
@@ -1218,9 +1218,9 @@ export default function BankPage() {
               </div>
               <label className="flex items-center gap-2 text-xs text-[var(--text)] cursor-pointer">
                 <input type="checkbox" checked={bulkFixed} onChange={(e) => setBulkFixed(e.target.checked)} className="accent-[var(--warning)]" />
-                고정비로 표시 <span className="text-[var(--text-dim)]">— 매월 반복 지출이면 체크 (경영흐름·고정비 리포트에 고정비로 집계)</span>
+                고정비로 표시 <span className="text-[var(--text-dim)]">매월 반복되는 지출이면 체크합니다.</span>
               </label>
-              <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">출금은 차) 선택 계정 / 대) 보통예금, 입금은 차) 보통예금 / 대) 선택 계정으로 방향이 자동 결정됩니다. 통장 내역은 그대로 남고 “전표처리됨”으로 표시됩니다.</p>
+              <p className="text-[10px] text-[var(--text-dim)] leading-relaxed" title="출금은 차변 선택 계정과 대변 보통예금, 입금은 그 반대로 기록됩니다.">통장 내역은 그대로 남고 전표처리됨으로 표시됩니다.</p>
             </div>
             <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
               <button onClick={() => setShowBulkPost(false)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>

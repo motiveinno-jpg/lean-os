@@ -246,7 +246,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
                 <button type="button" className="btn-primary btn-sm"
                   onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
               </>}>
-              <ConditionRow label="상태" hint="여러 개 · 아무것도 안 고르면 전체">
+              <ConditionRow label="상태" hint="여러 개 고를 수 있고 비우면 전체입니다.">
                 <span className="qk-quicks">
                   {STATUS_GROUPS.map((g) => (
                     <button key={g.key} type="button"
@@ -256,14 +256,14 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
                 </span>
               </ConditionRow>
               <ConditionRow label="부서" hint="여러 개">
-                <TokenField items={toTokens(depts)} value={draft.dept} onChange={setD("dept")} placeholder="부서 이름 일부 (예: 마케팅)" />
+                <TokenField items={toTokens(depts)} value={draft.dept} onChange={setD("dept")} placeholder="부서 이름" />
               </ConditionRow>
               <ConditionRow label="직책" hint="여러 개">
-                <TokenField items={toTokens(positions)} value={draft.pos} onChange={setD("pos")} placeholder="직책 일부 (예: 과장)" />
+                <TokenField items={toTokens(positions)} value={draft.pos} onChange={setD("pos")} placeholder="직책" />
               </ConditionRow>
               {etypes.length > 0 && (
                 <ConditionRow label="고용형태" hint="여러 개">
-                  <TokenField items={toTokens(etypes, etypeLabel)} value={draft.etype} onChange={setD("etype")} placeholder="정규직 · 계약직 …" />
+                  <TokenField items={toTokens(etypes, etypeLabel)} value={draft.etype} onChange={setD("etype")} placeholder="고용형태" />
                 </ConditionRow>
               )}
               <ConditionRow label="입사일" hint="비우면 전체">
@@ -272,7 +272,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
                   onClear={() => setDraft((c) => ({ ...c, from: "", to: "" }))} />
               </ConditionRow>
             </ConditionPanel>
-            <QuickSearch value={q} onApply={setQ} placeholder="이름 · 부서 · 직책 · 이메일 · 연락처 · 사번 · 쉼표로 여러 개, Enter" />
+            <QuickSearch value={q} onApply={setQ} placeholder="이름 · 부서 · 직책 · 사번" />
             <ChipGroup value={view} onChange={setView} options={VIEW_OPTS} />
           </QueryBar>
           <AppliedChips chips={chips} onClearAll={clearAll} />
@@ -285,7 +285,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
           <div className="ev-scroll">
             {before}
             {shown.length === 0 ? (
-              <div className="collect-empty">조건에 맞는 구성원이 없습니다. 검색조건을 풀어 보세요</div>
+              <div className="collect-empty">조건에 맞는 구성원이 없습니다. 검색조건을 풀어 보세요.</div>
             ) : view === "card" ? (
               <div className="flex-people-card-grid emp-card-grid">{pager.view.map(renderCard)}</div>
             ) : (

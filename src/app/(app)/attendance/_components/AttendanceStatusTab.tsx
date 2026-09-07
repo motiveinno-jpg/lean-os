@@ -297,9 +297,9 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
             <span className="ml-auto" />
             <button type="button" className="btn-primary btn-sm" onClick={() => { setCond(draft); setPanel(false); }}>조회</button>
           </>}>
-          <ConditionRow label="사람" hint="이름 일부를 입력해 여러 명"><TokenField items={peopleItems} value={draft.people} onChange={(v) => setDraft((c) => ({ ...c, people: v }))} placeholder="이름 · 부서" /></ConditionRow>
+          <ConditionRow label="사람" hint="이름 일부로 여러 명을 찾습니다."><TokenField items={peopleItems} value={draft.people} onChange={(v) => setDraft((c) => ({ ...c, people: v }))} placeholder="이름 · 부서" /></ConditionRow>
           <ConditionRow label="부서" hint="여러 개"><span className="qk-quicks">{allDepts.map((d) => <button key={d} type="button" onClick={() => setDraft((c) => ({ ...c, depts: c.depts.includes(d) ? c.depts.filter((x) => x !== d) : [...c.depts, d] }))} className={draft.depts.includes(d) ? "qk-quick qk-quick-on" : "qk-quick"}>{d}</button>)}</span></ConditionRow>
-          <ConditionRow label="이 기간에" hint="고른 것 모두 해당하는 사람만"><span className="qk-quicks">{HAS.map(([k, l]) => <button key={k} type="button" onClick={() => setDraft((c) => ({ ...c, has: c.has.includes(k) ? c.has.filter((x) => x !== k) : [...c.has, k] }))} className={draft.has.includes(k) ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>)}</span></ConditionRow>
+          <ConditionRow label="이 기간에" hint="고른 조건에 모두 해당하는 사람만 찾습니다."><span className="qk-quicks">{HAS.map(([k, l]) => <button key={k} type="button" onClick={() => setDraft((c) => ({ ...c, has: c.has.includes(k) ? c.has.filter((x) => x !== k) : [...c.has, k] }))} className={draft.has.includes(k) ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>)}</span></ConditionRow>
           <ConditionRow label="출근율" hint="이하 %"><input className="qk-input h-8 w-28 px-2 text-xs" inputMode="numeric" placeholder="예: 80" value={draft.ratioMax} onChange={(e) => setDraft((c) => ({ ...c, ratioMax: e.target.value.replace(/[^0-9]/g, "") }))} /></ConditionRow>
           <ConditionRow label="총 근무" hint="시간 범위"><span className="inline-flex items-center gap-1.5"><input className="qk-input h-8 w-24 px-2 text-xs" inputMode="numeric" placeholder="이상" value={draft.hoursMin} onChange={(e) => setDraft((c) => ({ ...c, hoursMin: e.target.value.replace(/[^0-9.]/g, "") }))} /><span className="text-[var(--text-dim)]">~</span><input className="qk-input h-8 w-24 px-2 text-xs" inputMode="numeric" placeholder="이하" value={draft.hoursMax} onChange={(e) => setDraft((c) => ({ ...c, hoursMax: e.target.value.replace(/[^0-9.]/g, "") }))} /><span className="text-[11px] text-[var(--text-dim)]">h</span></span></ConditionRow>
         </ConditionPanel>
@@ -315,7 +315,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
         <button type="button" className="att-stat-btn" onClick={() => setDetail({ kind: "absentDays", empIds: rows.map((r) => r.employee_id), title: `조회 인원 ${rows.length}명` })}><Stat label="결근" title="결근으로 기록된 날 + 출근 기록도 승인 휴가도 없는 지난 근무일(워크보드·기록 상세와 같은 기준)" value={`${rows.reduce((s, r) => s + r.absentDays, 0)}일`} tone={rows.reduce((s, r) => s + r.absentDays, 0) > 0 ? "minus" : undefined} /></button>
         <button type="button" className="att-stat-btn" onClick={() => setDetail({ kind: "leaveDays", empIds: rows.map((r) => r.employee_id), title: `조회 인원 ${rows.length}명` })}><Stat label="연차" value={`${rows.reduce((s, r) => s + r.leaveDays, 0)}일`} /></button>
         <Stat label="총 근무" value={`${rows.reduce((s, r) => s + r.totalHours, 0).toFixed(1)}h`} />
-        {months.length > 1 && <span className="text-[10.5px] text-[var(--text-dim)]">직원 줄을 누르면 달마다 펼쳐집니다</span>}
+        {months.length > 1 && <span className="text-[10.5px] text-[var(--text-dim)]">직원 줄을 누르면 달마다 펼쳐집니다.</span>}
       </ResultStrip>
 
       <div className="ev-scroll att-summary-scroll att-status-scroll">
@@ -323,7 +323,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
           <table className="ev-table ev-lined att-summary-table">
             <thead><tr>{th("부서 · 직원", "name", true)}{th("출근일", "totalDays")}<th>출근율</th>{th("지각", "lateDays")}{th("결근", "absentDays")}{th("재택", "remoteDays")}{th("반차", "halfDays")}{th("연차", "leaveDays")}{th("연장(분)", "overtimeMinutesSum")}{th("야간(분)", "nightMinutesSum")}{th("휴일(분)", "holidayMinutesSum")}{th("총 근무", "totalHours")}{isAdmin && th("수당", "alwTotal")}</tr></thead>
             <tbody>
-              {rows.length === 0 ? <tr><td colSpan={cols} className="text-center text-[var(--text-dim)] py-6">{q || activeCount ? "조건에 맞는 사람이 없습니다" : "이 기간 근태 기록이 없습니다"}</td></tr> : deptRows.map((d) => {
+              {rows.length === 0 ? <tr><td colSpan={cols} className="text-center text-[var(--text-dim)] py-6">{q || activeCount ? "조건에 맞는 사람이 없습니다." : "이 기간 근태 기록이 없습니다."}</td></tr> : deptRows.map((d) => {
                 const open = isOpen(d.department);
                 return (
                   <Fragment key={d.department}>
@@ -364,9 +364,9 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
               <h3 className="section-title">{DETAIL_LABEL[detail.kind]} · {detail.title}</h3>
               <button type="button" className="btn-secondary btn-sm" onClick={closeDetail}>닫기</button>
             </div>
-            <p className="att-detail-sub">{detail.month ? detail.month.replace("-", "년 ") + "월" : rangeLabel} · {detailItems.length}건{detail.kind === "absentDays" ? " · 결근으로 기록된 날 + 출근 기록도 승인 휴가도 없는 지난 근무일" : detail.kind === "leaveDays" ? " · 승인된 연차만(공가·경조 등 별도 휴가 제외)" : ""}</p>
+            <p className="att-detail-sub">{detail.month ? detail.month.replace("-", "년 ") + "월" : rangeLabel} · {detailItems.length}건{detail.kind === "absentDays" ? " · 결근으로 기록되거나 출근 기록이 없는 근무일" : detail.kind === "leaveDays" ? " · 승인된 연차만" : ""}</p>
             <div className="att-detail-scroll">
-              {detailItems.length === 0 ? <div className="att-detail-empty">해당 날짜가 없습니다</div> : (
+              {detailItems.length === 0 ? <div className="att-detail-empty">해당 날짜가 없습니다.</div> : (
                 <table className="ev-table ev-lined att-detail-table">
                   <thead><tr><th>날짜</th>{detail.empIds.length > 1 && <th>직원</th>}<th>내용</th><th>비고</th></tr></thead>
                   <tbody>

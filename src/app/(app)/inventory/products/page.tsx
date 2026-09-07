@@ -121,8 +121,8 @@ export default function ProductsPage() {
           <QueryBar right={<>
             {/*   ★ 엑셀 — 양식·올리기·붙여넣기·내려받기를 한 버튼 안에(2026-08-27 사장님) */}
             <ExcelMenu items={[
-              { label: "양식 내려받기 · 올리기", hint: "양식을 받아 채운 뒤 올리면 읽어서 보여 주고, 등록을 눌러야 저장 · 같은 SKU 는 고침", onClick: () => setXlsOpen(true) },
-              { label: "붙여넣기", hint: "엑셀에서 복사한 줄을 바로 붙여넣기", onClick: () => setPasteOpen(true) },
+              { label: "양식 내려받기 · 올리기", hint: "양식을 받아 채운 파일을 올립니다.", onClick: () => setXlsOpen(true) },
+              { label: "붙여넣기", hint: "엑셀에서 복사한 줄을 붙여넣습니다.", onClick: () => setPasteOpen(true) },
               { label: "조회 결과 내려받기", count: shown.length, disabled: !shown.length, onClick: () => exportToExcel(shown.map((p) => ({ "SKU": p.sku, "품목명": p.name, "분류": p.category || "", "규격": p.spec || "", "단위": p.unit || "", "바코드": p.barcode || "", "판매가": p.sale_price ?? "", "매입가": p.cost_price ?? "", "단위당 노무·경비": p.overhead_per_unit || 0, "안전재고": p.safety_stock ?? "", "수량관리": p.track_stock ? "예" : "아니오", "현재고": qtyOf.get(p.id) ?? 0, "상태": p.is_active ? "판매중" : "단종", "메모": p.memo || "" })), "품목", `품목_${todayKst()}`) },
             ]} />
             <button type="button" className="btn-primary btn-sm" onClick={() => setEditing({ track_stock: true, unit: "EA", is_active: true })}>+ 품목 등록</button>
@@ -141,8 +141,7 @@ export default function ProductsPage() {
           <div className="inv-scroll">
             {products.length === 0 ? (
               <div className="collect-empty">
-                아직 등록한 품목이 없습니다 — <b>파는 것·쓰는 것</b>을 먼저 올리면 재고를 셀 수 있습니다.<br />
-                설치비·배송비처럼 <b>셀 물건이 없는 것</b>은 등록할 때 &lsquo;수량 관리&rsquo;를 끄면 재고에 잡히지 않습니다.
+                아직 등록한 품목이 없습니다. 파는 것과 쓰는 것을 먼저 등록하세요.
               </div>
             ) : (
               <>
@@ -191,7 +190,7 @@ export default function ProductsPage() {
                     </tbody>
                   </table>
                 </div>
-                <p className="inv-foot">줄을 누르면 그 품목을 고칩니다. · 재고금액은 <b>매입가</b> 기준입니다(매입가가 없는 품목은 0).</p>
+                <p className="inv-foot" title="매입가가 없는 품목은 0으로 계산합니다">줄을 누르면 그 품목을 고칩니다. 재고금액은 <b>매입가</b> 기준입니다.</p>
               </>
             )}
           </div>
@@ -255,7 +254,7 @@ export default function ProductsPage() {
 const PRODUCT_CATS = [
   { key: "원재료", hint: "만드는 데 들어가는 주 자재" },
   { key: "부재료", hint: "포장·라벨 같은 보조 자재" },
-  { key: "완제품", hint: "만들어 파는 것 · 자재구성" },
+  { key: "완제품", hint: "만들어 파는 것" },
   { key: "상품", hint: "사서 그대로 파는 것" },
   { key: "서비스", hint: "셀 물건이 없는 것" },
 ];
@@ -331,7 +330,7 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
           <input type="checkbox" checked={v.track_stock !== false} onChange={(e) => set("track_stock", e.target.checked)} />
           <span>
             <b>수량을 관리하는 품목입니다</b>
-            <em>끄면 재고에 잡히지 않습니다. 설치비·배송비·용역·구독처럼 <b>셀 물건이 없는 것</b>. 주문·계산서에는 그대로 오릅니다.</em>
+            <em>끄면 재고를 세지 않습니다. 셀 물건이 없는 품목에 씁니다.</em>
           </span>
         </label>
         {/*   ★ 자재구성 — 품목 등록에서(2026-08-26 사장님). 2026-08-27: 별도 체크 대신 분류 '완제품'이면 이 줄이 뜬다. */}
@@ -339,7 +338,7 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
           <div className="inv-track inv-track-bom">
             <span>
               <b>완제품 — 자재구성{bomCount > 0 && <span className="inv-pill inv-pill-ok">자재 {bomCount}종</span>}</b>
-              <em>1개당 소요 자재·소요량을 적어 두면 생산 › 완성 기록 시 소요량만큼 자재가 출고됩니다{!initial.id ? " · 새 품목은 저장 후 자재구성 창이 열립니다" : ""}.</em>
+              <em>만들 때 드는 자재를 적어 두면 완성 기록 시 자재가 출고됩니다{!initial.id ? ". 저장하면 자재구성 창이 열립니다" : ""}.</em>
               {initial.id && <button type="button" className="bz-link" onClick={(e) => { e.preventDefault(); onOpenBom({ ...(initial as Product), ...(v as Product) }); }}>{bomCount > 0 ? "자재구성 고치기" : "자재구성 넣기"}</button>}
             </span>
           </div>
@@ -351,15 +350,15 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
           <label className="inv-field"><span>매입가</span>
             <input className="field-input" inputMode="numeric" value={v.cost_price ?? ""} onChange={(e) => set("cost_price", num(e.target.value))} /></label>
           {/*   ★ 결정 38 (2026-08-26 사장님) — 생산 원가에 얹는 1개당 노무·경비. 급여대장에서 끌어오지 않는다(권한 누수). 바꾸면 그 뒤 완성 기록부터 */}
-          <label className="inv-field"><span>단위당 노무·경비 <em className="inv-hint">완제품 1개당 · 생산 원가에 얹음</em></span>
+          <label className="inv-field"><span>단위당 노무·경비 <em className="inv-hint">1개당 생산 원가에 더합니다.</em></span>
             <input className="field-input" inputMode="numeric" value={v.overhead_per_unit ?? ""} onChange={(e) => set("overhead_per_unit", num(e.target.value))} /></label>
-          <label className="inv-field"><span>안전재고 <em className="inv-hint">이 아래로 내려가면 &lsquo;부족&rsquo;</em></span>
+          <label className="inv-field"><span>안전재고 <em className="inv-hint">이 아래로 내려가면 부족으로 표시합니다.</em></span>
             <input className="field-input" inputMode="numeric" disabled={v.track_stock === false}
               value={v.safety_stock ?? ""} onChange={(e) => set("safety_stock", num(e.target.value))} /></label>
           {/*   결정 89 (2026-08-27 재고 자동화) — 리드타임은 '곧 부족'(현재고 ÷ 일 출고 < 리드타임) 판단에, 자동 제안 끄기는 시즌성·수동 조정 품목용 */}
-          <label className="inv-field"><span>리드타임(일) <em className="inv-hint">발주 후 들어오기까지 · &lsquo;곧 부족&rsquo; 판단</em></span>
+          <label className="inv-field"><span>리드타임(일) <em className="inv-hint">발주 후 들어오기까지 걸리는 날입니다.</em></span>
             <input className="field-input" inputMode="numeric" value={v.lead_time_days ?? 7} onChange={(e) => set("lead_time_days", num(e.target.value))} /></label>
-          <label className="inv-field"><span>자동 제안 <em className="inv-hint">발주·곧 부족 제안에 넣을지</em></span>
+          <label className="inv-field"><span>자동 제안 <em className="inv-hint">발주 제안에 넣을지 정합니다.</em></span>
             <select className="field-input" value={v.auto_suggest === false ? "0" : "1"} onChange={(e) => set("auto_suggest", e.target.value === "1")}>
               <option value="1">켬</option><option value="0">끔 (시즌성·수동 조정)</option>
             </select></label>
@@ -420,9 +419,8 @@ function ProductPasteDialog({ products, onClose, onDone, save }: {
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">품목 엑셀 붙여넣기</h3>
-        <p className="inv-modal-desc">
-          엑셀에서 <b>SKU · 품목명 · 규격 · 단위 · 판매가 · 매입가 · 안전재고 · 수량관리(예/아니오)</b> 차례로 복사해 붙이세요.
-          앞 두 칸만 있어도 됩니다. <b>같은 SKU 가 이미 있으면 그 품목을 고칩니다.</b>
+        <p className="inv-modal-desc" title="앞 두 칸만 있어도 됩니다. 수량관리는 예 또는 아니오로 적습니다">
+          엑셀에서 <b>SKU · 품목명 · 규격 · 단위 · 판매가 · 매입가 · 안전재고 · 수량관리</b> 순서로 복사해 붙이세요. 같은 SKU 가 있으면 그 품목을 고칩니다.
         </p>
         <textarea className="field-input inv-paste" rows={10} value={text} onChange={(e) => setText(e.target.value)}
           placeholder={"TS-BK-M\t무지 티셔츠\t블랙 / M\tEA\t19000\t7200\t20\t예\nDLV\t배송비\t\t건\t3000\t\t\t아니오"} />

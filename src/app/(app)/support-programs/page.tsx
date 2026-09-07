@@ -65,7 +65,7 @@ const won = (n: number) => n.toLocaleString("ko-KR");
 export default function SupportProgramsPage() {
   const { role } = useUser();
   if (role !== "owner" && role !== "admin") {
-    return <AccessDenied detail="지원사업은 대표·관리자 전용입니다. 직원 인사 정보로 자격을 판정합니다." />;
+    return <AccessDenied detail="지원사업은 대표와 관리자만 볼 수 있습니다." />;
   }
   return <SupportProgramsInner />;
 }
@@ -353,8 +353,7 @@ function SupportProgramsInner() {
           {missingSources.length > 0 && (
             <div className="sp-connect">
               <span className="sp-connect-t">
-                <b>{missingSources.map((m) => m.label).join(" · ")}</b> 공고는 회사 인증키를 넣어야 보입니다 —
-                무료로 발급받을 수 있습니다.
+                <b>{missingSources.map((m) => m.label).join(" · ")}</b> 공고는 회사 인증키를 넣으면 보입니다.
               </span>
               <Link href="/settings?tab=api-keys" className="btn-secondary btn-sm">인증키 넣기 →</Link>
             </div>
@@ -398,8 +397,8 @@ function SupportProgramsInner() {
             <div className="collect-empty">불러오는 중…</div>
           ) : rows.length === 0 ? (
             <div className="collect-empty">
-              {tab === "saved" ? "담아둔 지원사업이 없습니다. 추천에서 ☆ 를 눌러 담아 두세요."
-                : tab === "history" ? "신청 이력이 없습니다. 담아둔 것에서 진행 상태를 바꾸면 여기로 옮겨집니다."
+              {tab === "saved" ? "아직 담아둔 지원사업이 없습니다. 추천에서 ☆를 눌러 담아 두세요."
+                : tab === "history" ? "아직 신청 이력이 없습니다. 담아둔 것에서 진행 상태를 바꿔 보세요."
                 : profile && profile.cardFilled < CARD_TOTAL
                   ? `조건에 맞는 지원사업이 없습니다. 회사 카드를 ${CARD_TOTAL - profile.cardFilled}개 더 채우면 후보가 늘어납니다.`
                   : "조건에 맞는 지원사업이 없습니다."}
@@ -614,10 +613,10 @@ function ProgramDetail({ row, onClose, onSave, onDrop, onStatus, onOpenCard }: {
             ) : (
               <>
                 {docsAreEstimated(p) && (
-                  <p className="sp-docs-note">공고문을 읽어 확인한 목록이 아니라 <b>대부분의 사업이 요구하는 기본 서류</b>입니다. 원문을 함께 보세요.</p>
+                  <p className="sp-docs-note">대부분의 사업이 요구하는 <b>기본 서류</b>입니다. 공고 원문을 함께 보세요.</p>
                 )}
                 {row.have > 0 && (
-                  <p className="sp-docs-note">✓ 표시는 <b>파일 이름으로 찾은 것</b>입니다. 실제로 낼 서류가 맞는지 눌러서 확인해 주세요.</p>
+                  <p className="sp-docs-note">✓ 표시는 <b>파일 이름으로 찾은 것</b>입니다. 맞는 서류인지 열어 확인해 주세요.</p>
                 )}
                 <ul className="sp-doclist">
                   {row.checks.map((c) => (

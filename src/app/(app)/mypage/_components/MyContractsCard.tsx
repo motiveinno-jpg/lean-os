@@ -55,8 +55,8 @@ export function MyContractsCard({ employeeId }: { employeeId: string | null }) {
       ) : packages.length === 0 ? (
         <div className="mypage-record-empty">
           <div className="text-3xl mb-2"><Ico e="📄" /></div>
-          <div className="text-sm font-semibold text-[var(--text-muted)]">받은 계약서가 없습니다</div>
-          <div className="text-xs text-[var(--text-dim)] mt-1">회사에서 계약서를 발송하면 이곳에 표시됩니다.</div>
+          <div className="text-sm font-semibold text-[var(--text-muted)]">아직 받은 계약서가 없습니다.</div>
+          <div className="text-xs text-[var(--text-dim)] mt-1">회사가 보내면 여기에 표시됩니다.</div>
         </div>
       ) : (
         <div className="mypage-contracts-list mypage-record-body space-y-2.5">

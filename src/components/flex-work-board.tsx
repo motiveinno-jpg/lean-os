@@ -344,7 +344,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
           <ResultStrip right={
             <button type="button" onClick={() => setShowAbsent((v) => !v)}
               className={showAbsent ? "btn-secondary btn-sm border-[var(--primary)] text-[var(--primary)]" : "btn-secondary btn-sm"}
-              title="클릭하면 이번주 결근자 명단이 아래에 표시됩니다">
+              title="이번주 결근자 명단을 펼칩니다.">
               결근자 명단 {showAbsent ? "접기 ▴" : "펼치기 ▾"}
             </button>
           }>
@@ -364,7 +364,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
         <div className="fw-absent-panel">
           <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">이번주 결근 — {absentList.length}명 · {absentDayCount}건</div>
           {absentList.length === 0 ? (
-            <div className="text-xs text-[var(--text-dim)]">이번주 결근자가 없습니다</div>
+            <div className="text-xs text-[var(--text-dim)]">이번주 결근자가 없습니다.</div>
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {absentList.map((x, i) => (
@@ -378,10 +378,10 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
           {todayIdx >= 0 && (
             <>
               <div className="text-xs font-semibold text-[var(--text-muted)] mt-3 mb-2">오늘 미출근 — {todayMissing.length}명
-                <span className="ml-1 font-normal text-[var(--text-dim)]">(근무 시작 {workCfg ? `${String(Math.floor(workCfg.start / 60)).padStart(2, "0")}:${String(workCfg.start % 60).padStart(2, "0")}` : ""} 기준 · 퇴근 시각이 지나면 결근)</span>
+                <span className="ml-1 font-normal text-[var(--text-dim)]" title="퇴근 시각이 지나면 결근으로 봅니다.">근무 시작 {workCfg ? `${String(Math.floor(workCfg.start / 60)).padStart(2, "0")}:${String(workCfg.start % 60).padStart(2, "0")}` : ""} 기준입니다.</span>
               </div>
               {todayMissing.length === 0 ? (
-                <div className="text-xs text-[var(--text-dim)]">{workCfg && nowMin < workCfg.start + workCfg.grace ? "아직 근무 시작 전이에요" : "지금까지는 안 찍은 사람이 없어요"}</div>
+                <div className="text-xs text-[var(--text-dim)]">{workCfg && nowMin < workCfg.start + workCfg.grace ? "아직 근무 시작 전입니다." : "미출근자가 없습니다."}</div>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
                   {todayMissing.map((x, i) => (
@@ -493,12 +493,12 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                       return (
                         <td key={i} className={`px-1 py-2 text-center align-middle ${weekend ? "bg-[var(--bg-surface)]/30" : ""}`}>
                           {absent
-                            ? <div className="fw-cell fw-cell-box" title="지난 평일인데 출퇴근 기록·휴가가 없습니다. 휴가 등록이나 기록 정정으로 맞추세요">
+                            ? <div className="fw-cell fw-cell-box" title="출퇴근 기록도 휴가도 없는 평일입니다.">
                                 <span className="fw-cell-chip" style={{ color: "var(--danger)" }}>결근</span>
                                 <span className="fw-cell-t2">기록 없음</span>
                               </div>
                             : missing
-                            ? <div className="fw-cell fw-cell-box" title={missingAbsent ? "퇴근 시각이 지났는데 출근 기록이 없습니다" : "근무 시작 시각이 지났는데 아직 출근을 찍지 않았습니다"}>
+                            ? <div className="fw-cell fw-cell-box" title={missingAbsent ? "퇴근 시각이 지났지만 출근 기록이 없습니다." : "근무 시작 후 아직 출근 기록이 없습니다."}>
                                 <span className="fw-cell-chip" style={{ color: missingAbsent ? "var(--danger)" : "var(--warning)" }}>{missingAbsent ? "결근" : "미출근"}</span>
                                 <span className="fw-cell-t2">{missingAbsent ? "기록 없음" : `${nowMin - empStart(emp)}분 지각 중`}</span>
                               </div>
@@ -547,7 +547,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
       </div>
       </QueryBody>
       <div className="collect-note text-[11px] text-[var(--text-dim)]">
-        바닥 선 = 하루 근무 진행(정규 근무시간 대비) · <span className="text-[var(--primary)]">■</span> 정상 <span className="text-[var(--warning)]">■</span> 지각 <span className="text-[var(--success)]">■</span> 휴가(반쪽 선 = 반차 · 왼쪽 오전/오른쪽 오후) <span className="text-[var(--danger)]">■</span> 결근(지난 평일 무기록) · 합계 = 정규+연장 근무시간 · 주 52시간 초과 시 <span className="text-[var(--danger)]">빨강</span>
+        바닥 선은 하루 근무 진행률입니다. <span className="text-[var(--primary)]">■</span> 정상 · <span className="text-[var(--warning)]">■</span> 지각 · <span className="text-[var(--success)]">■</span> 휴가 · <span className="text-[var(--danger)]">■</span> 결근 · 주 52시간 초과는 <span className="text-[var(--danger)]">빨강</span>으로 표시됩니다.
       </div>
     </QueryScreen>
   );

@@ -691,7 +691,7 @@ export default function VoucherEntryPage() {
     setCtx(null);
   };
 
-  if (role === "partner") return <AccessDenied detail="전표입력은 회사 구성원 전용입니다 (외부 파트너 제외)." />;
+  if (role === "partner") return <AccessDenied detail="전표입력은 회사 구성원 전용입니다." />;
   if (!companyId) return <div className="p-8 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>;
 
   const acctMatches = (q: string) => {
@@ -754,7 +754,7 @@ export default function VoucherEntryPage() {
             </button>
             );
           })}
-          {acctMatches(picker.q).length === 0 && <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">{dbReady ? "검색 결과 없음" : "계정과목 마스터 미적용"}</div>}
+          {acctMatches(picker.q).length === 0 && <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">{dbReady ? "검색 결과가 없습니다." : "아직 계정과목이 없습니다."}</div>}
         </CellDropdown>
       )}
       </div>
@@ -804,7 +804,7 @@ export default function VoucherEntryPage() {
               );
             })}
             {ptMatches(picker.q).length === 0 && (
-              <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">{partners.length === 0 ? "등록된 거래처가 없습니다" : "검색 결과 없음"}</div>
+              <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">{partners.length === 0 ? "아직 등록된 거래처가 없습니다." : "검색 결과가 없습니다."}</div>
             )}
             {l.partner && <button onMouseDown={(e) => { e.preventDefault(); update({ partner: null }); setPicker(null); }} className="w-full px-2 py-1 rounded text-[11px] text-[var(--text-dim)] text-left hover:bg-[var(--bg-surface)]">지우기</button>}
           </CellDropdown>
@@ -873,7 +873,7 @@ export default function VoucherEntryPage() {
     <div className="qk-shell">
       {acctFetched && !dbReady && (
         <div className="px-4 py-3 rounded-xl bg-amber-500/8 border border-amber-500/25 text-xs text-amber-600 font-semibold shadow-sm">
-          <Ico e="⚠" />  전표 시스템 DB(계정과목 마스터)가 아직 적용되지 않았습니다. 적용 후 사용할 수 있습니다.
+          <Ico e="⚠" />  아직 계정과목이 준비되지 않았습니다.
 
         </div>
       )}
@@ -919,7 +919,7 @@ export default function VoucherEntryPage() {
                       <RowsPerPage value={draft.rows} onChange={setD("rows")} />
                       <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
                     </>}>
-                    <ConditionRow label="조회기간" hint="월 단위 · 위 입력 일자와는 별개">
+                    <ConditionRow label="조회기간" hint="월 단위로 조회합니다.">
                       <span className="qk-range-txt">{fromM} ~ {toM}</span>
                       <DateRangeField unit="month" label={null} parts="calendar" confirm from={fromM} to={toM}
                         onChange={(f, t) => { setFromM(f); setToM(t); setEdits({}); setSelected(new Set()); }} />
@@ -930,13 +930,13 @@ export default function VoucherEntryPage() {
                         ))}
                       </span>
                     </ConditionRow>
-                    <ConditionRow label="계정과목" hint="여러 개 · 그 계정이 든 전표">
+                    <ConditionRow label="계정과목" hint="그 계정이 든 전표를 찾습니다.">
                       <TokenField items={acctOpts} value={draft.acct} onChange={setD("acct")} placeholder="계정 이름 일부 (예: 소모품)" />
                     </ConditionRow>
-                    <ConditionRow label="거래처" hint="여러 곳">
+                    <ConditionRow label="거래처" hint="여러 곳을 고를 수 있습니다.">
                       <TokenField items={ptOpts} value={draft.pt} onChange={setD("pt")} placeholder="거래처 이름 일부" />
                     </ConditionRow>
-                    <ConditionRow label="구분" hint="대체 · 출금 · 입금">
+                    <ConditionRow label="구분" hint="여러 개를 고를 수 있습니다.">
                       <span className="qk-quicks">
                         {VTYPES.map((t) => (
                           <button key={t.id} type="button" onClick={() => setD("vtype")(draft.vtype.includes(t.id) ? draft.vtype.filter((x) => x !== t.id) : [...draft.vtype, t.id])}
@@ -944,17 +944,17 @@ export default function VoucherEntryPage() {
                         ))}
                       </span>
                     </ConditionRow>
-                    <ConditionRow label="적요" hint="전표 적요 · 줄 적요">
+                    <ConditionRow label="적요" hint="전표 적요와 줄 적요를 찾습니다.">
                       <input className="qk-input w-full" value={draft.memo} placeholder="예: 임대료" onChange={(e) => setD("memo")(e.target.value)} />
                     </ConditionRow>
-                    <ConditionRow label="출처" hint="직접 입력한 것 / 자동으로 만든 것">
+                    <ConditionRow label="출처" hint="직접 입력과 자동 생성을 가릅니다.">
                       <span className="qk-quicks">
                         {[["", "전체"], ["manual", "직접 입력"], ["auto", "자동 생성"]].map(([v, l]) => (
                           <button key={v} type="button" onClick={() => setD("src")(v)} className={draft.src === v ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>
                         ))}
                       </span>
                     </ConditionRow>
-                    <ConditionRow label="전표 금액" hint="한 장의 차변 합계 · 한쪽만 적어도 됩니다">
+                    <ConditionRow label="전표 금액" hint="한쪽만 적어도 됩니다.">
                       <AmountRange min={draft.min} max={draft.max} onMin={setD("min")} onMax={setD("max")} />
                     </ConditionRow>
                   </ConditionPanel>
@@ -1064,7 +1064,7 @@ export default function VoucherEntryPage() {
         <div className="approval-detail-modal" onClick={() => setImportOpen(false)}>
           <div className="pnl-drill ve-import-modal" onClick={(e) => e.stopPropagation()}>
             <div className="pnl-drill-head">
-              <h3 className="text-sm font-bold">통장·카드 불러오기 <small className="ml-2 font-normal text-[var(--text-dim)]">전표가 아직 없는 거래만 · 하나 고르면 입력칸에 채워지고, 저장하면 그 거래는 전표됨</small></h3>
+              <h3 className="text-sm font-bold">통장·카드 불러오기 <small className="ml-2 font-normal text-[var(--text-dim)]">전표가 없는 거래를 골라 입력칸에 채웁니다.</small></h3>
               <button type="button" className="btn-secondary btn-sm" onClick={() => setImportOpen(false)}>닫기</button>
             </div>
             <div className="ve-import-bar">
@@ -1074,7 +1074,7 @@ export default function VoucherEntryPage() {
               <span className="text-[11px] text-[var(--text-dim)]">{importShown.length}건{importRows.length > 200 ? " (앞 200건만)" : ""}</span>
             </div>
             <div className="ve-import-body">
-              {importLoading ? <div className="collect-empty">불러오는 중…</div> : importShown.length === 0 ? <div className="collect-empty">전표 안 된 {importKind === "bank" ? "통장" : "카드"} 거래가 없습니다</div> : (
+              {importLoading ? <div className="collect-empty">불러오는 중…</div> : importShown.length === 0 ? <div className="collect-empty">아직 전표로 만들 {importKind === "bank" ? "통장" : "카드"} 거래가 없습니다.</div> : (
                 <table className="ev-table ev-lined ve-import-table">
                   <thead><tr><th>날짜</th><th>구분</th><th className="text-left">{importKind === "bank" ? "예금주 · 적요" : "가맹점 · 카드"}</th><th>{importKind === "bank" ? "계좌" : "분류"}</th><th>금액</th><th></th></tr></thead>
                   <tbody>{importShown.map((r) => (
@@ -1100,13 +1100,13 @@ export default function VoucherEntryPage() {
           <AppliedChips chips={chips} onClearAll={clearAll} />
 
           <ResultStrip right={spCount > 0 ? (
-            <Link href="/partners/reconciliation/sale-purchase" className="ve-sp-note">매입매출전표 {spCount}건은 <b>매입매출전표</b> 메뉴에 →</Link>
+            <Link href="/partners/reconciliation/sale-purchase" className="ve-sp-note">매입매출전표 {spCount}건은 <b>매입매출전표</b> 메뉴에서 봅니다.</Link>
           ) : undefined}>
             <Stat label="전표" value={`${filteredEntries.length.toLocaleString("ko")}장`} />
             <Stat label="차변 합계" value={won(sumD)} />
             <Stat label="대변 합계" value={won(sumC)} />
             {filteredEntries.length > 0 && <span className={sumD === sumC ? "text-[10.5px] font-bold text-emerald-500" : "text-[10.5px] font-bold text-amber-500"}>{sumD === sumC ? "차대일치" : `차액 ${won(Math.abs(sumD - sumC))}`}</span>}
-            <span className="hidden md:inline text-[10.5px] text-[var(--text-dim)]">셀 클릭 = 인라인 수정 · 행 우클릭 = 삽입/복사/삭제</span>
+            <span className="hidden md:inline text-[10.5px] text-[var(--text-dim)]">셀을 눌러 고치고 행을 우클릭해 편집합니다.</span>
           </ResultStrip>
         </QueryHead>
 
@@ -1179,7 +1179,7 @@ export default function VoucherEntryPage() {
                       <tr className="bg-amber-500/5">
                         <td colSpan={12} className="px-3 py-1 text-[10px] font-semibold">
                           <span className={st.ok ? "text-emerald-500" : "text-amber-500"}>
-                            {st.ok ? `✅ 전표 #${e.voucher_no ?? "—"} 수정 중 · 차대일치, 상단 [저장]으로 반영` : `⚠️ 전표 #${e.voucher_no ?? "—"} 수정 중 · ${st.d !== st.c ? `차액 ${won(Math.abs(st.d - st.c))}` : "계정 미지정"} (차대일치해야 저장)`}
+                            {st.ok ? `✅ 전표 #${e.voucher_no ?? "—"} 수정 중 · 차대일치` : `⚠️ 전표 #${e.voucher_no ?? "—"} 수정 중 · ${st.d !== st.c ? `차액 ${won(Math.abs(st.d - st.c))}` : "계정 미지정"}`}
                           </span>
                           <button onClick={() => setEdits((es) => { const n = { ...es }; delete n[e.id]; return n; })} className="ml-2 underline text-[var(--text-dim)] hover:text-[var(--text)]">수정 취소</button>
                         </td>
@@ -1222,7 +1222,7 @@ export default function VoucherEntryPage() {
                 <td className="px-2 py-2" />
                 <td className="px-2 py-2 text-center text-[var(--text-dim)] mono-number">{listNo + 1}</td>
                 <td colSpan={10} className={`${TD} text-[var(--text-dim)] text-[11px]`}>
-                  {entries.length === 0 ? "이 기간에 저장된 전표가 없습니다. " : ""}빈 행 · 클릭하면 위 입력 영역에서 이어서 입력
+                  {entries.length === 0 ? "아직 이 기간에 저장된 전표가 없습니다. " : ""}누르면 위 입력 영역에서 이어서 입력합니다.
                 
                 </td>
               </tr>
@@ -1251,9 +1251,9 @@ export default function VoucherEntryPage() {
         <Pager page={pager.page} pages={pager.pages} total={sortedEntries.length} size={live.rows}
           from={pager.from} to={pager.to} onPage={pager.setPage} />
         {/*   안내는 상자 **안** 마지막 줄에 — 밖에 두면 상자 끝선이 사이드바 끝선과 어긋난다 (2026-08-18 사장님) */}
-        <p className="collect-note">
+        <p className="collect-note" title="수정하면 변경 전 값이 이력으로 남고, 마감된 월은 저장·수정·삭제가 막힙니다.">
           
-          ※ 전표입력은 장부 기록입니다. 계산서↔입금 대사(미수금 차감)는 <Link href="/partners/reconciliation" className="text-[var(--primary)] hover:underline">거래 대사</Link>에서 별도 처리 · 수정하면 변경 전 값이 이력으로 남고, 마감(잠금)된 월은 저장·수정·삭제가 차단됩니다
+          계산서와 입금의 대사는 <Link href="/partners/reconciliation" className="text-[var(--primary)] hover:underline">거래 대사</Link>에서 처리합니다.
         </p>
       </QueryScreen>
 

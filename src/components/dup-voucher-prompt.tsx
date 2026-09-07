@@ -36,8 +36,8 @@ export function useDupVoucherPrompt() {
             ))}</tbody>
           </table>
           <p className="text-[11.5px] text-[var(--text-muted)]">
-            {ask.allowLink && <><b>이미 있는 전표에 연결</b>: 새 전표를 만들지 않고 이 거래를 위 전표에 걸어 둡니다. 장부(재무제표)는 그대로, 목록에서는 '전표됨'으로 사라지고 다시 전표를 칠 수 없습니다. 같은 돈을 두 번 올리지 않을 때 씁니다.<br /></>}
-            <b>새 전표 만들기</b>: 우연히 같은 금액인 다른 거래일 때.{!ask.allowLink && " 같은 건이면 취소하고 위 전표를 고치거나 그대로 둡니다."}
+            {ask.allowLink && <><b>이미 있는 전표에 연결</b>: 새 전표 없이 이 거래를 위 전표에 걸어 둡니다.<br /></>}
+            <b>새 전표 만들기</b>: 금액만 같은 다른 거래일 때 씁니다.{!ask.allowLink && " 같은 건이면 취소하세요."}
           </p>
           <div className="flex justify-end gap-2">
             <button type="button" className="btn-secondary btn-sm" onClick={() => done({ action: "cancel" })}>취소</button>

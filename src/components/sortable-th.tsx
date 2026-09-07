@@ -144,7 +144,7 @@ export function ThFilter({ spec }: { spec: ThFilterSpec }) {
     <>
       <button type="button" ref={btnRef} onClick={openPop}
         className={active ? "th-filter th-filter-on" : "th-filter"}
-        title={active ? `필터 걸림 (${spec.selected!.size}개 선택)` : "필터"}>
+        title={active ? `필터 · ${spec.selected!.size}개 선택` : "필터"}>
         {/*   석삼(≡) — 엑셀식 값 필터. 깔때기였다가 사장님 지시로 가로 세 줄 (2026-08-18) */}
         {/*   세로 크기 = 머리단 글자(10.5px 한글 ≈ 10px)와 같게 — 위아래가 다르면 같은 줄인데 어긋나 보인다 (2026-08-18 사장님) */}
         <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden>
@@ -180,7 +180,7 @@ export function ThFilter({ spec }: { spec: ThFilterSpec }) {
                 <span className="thf-v">{v === "" ? "(빈 칸)" : v}</span>
               </label>
             ))}
-            {shown.length === 0 && <div className="thf-none">검색 결과가 없습니다</div>}
+            {shown.length === 0 && <div className="thf-none">검색 결과가 없습니다.</div>}
           </div>
           <div className="thf-foot">
             <button type="button" className="thf-clear" onClick={() => { spec.onApply(null); setOpen(false); }}>필터 지우기</button>
@@ -239,7 +239,7 @@ export function SortableTh<K extends string>({
       }}
       onClick={(e) => e.stopPropagation()}
       className="th-grip"
-      title="드래그: 너비 조절 · 더블클릭: 내용에 맞춤"
+      title="드래그로 너비 조절 · 더블클릭으로 내용 맞춤"
     />
   ) : null;
 

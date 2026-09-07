@@ -37,9 +37,9 @@ export function PlatformMemberActions({ member, onChanged }: { member: PlatformM
       const res = await platformAdminAction(payload);
       if (res.error) { setError(res.error); return; }
       if (res.tempPassword) {
-        setResult({ label: "임시 비밀번호 (한 번만 표시 · 고객에게 전달 후 창을 닫으세요)", value: res.tempPassword });
+        setResult({ label: "임시 비밀번호는 한 번만 표시됩니다.", value: res.tempPassword });
       } else if (res.link) {
-        setResult({ label: "재설정 링크 (복사해서 고객에게 전달)", value: res.link });
+        setResult({ label: "재설정 링크를 복사해 고객에게 전달하세요.", value: res.link });
       } else {
         setResult(null);
       }
@@ -156,7 +156,7 @@ export function PlatformMemberActions({ member, onChanged }: { member: PlatformM
       )}
       {error && <div className="text-xs text-[var(--danger)] font-medium">{error}</div>}
 
-      <div className="text-[11px] text-[var(--text-dim)]">모든 조치는 감사로그에 기록됩니다</div>
+      <div className="text-[11px] text-[var(--text-dim)]">모든 조치는 감사 기록에 남습니다.</div>
     </div>
   );
 }

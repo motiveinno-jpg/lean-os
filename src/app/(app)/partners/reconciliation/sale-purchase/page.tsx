@@ -979,7 +979,7 @@ function SalePurchaseInner() {
                 <RowsPerPage value={cDraft.rows} onChange={(n) => setCDraft((c) => ({ ...c, rows: n }))} />
                 <button type="button" className="btn-primary btn-sm" onClick={() => { setCLive(cDraft); setPanelOpen(false); }}>조회</button>
               </>}>
-              <ConditionRow label="조회기간" hint="월 단위">
+              <ConditionRow label="조회기간" hint="월 단위로 조회합니다.">
                 <span className="qk-range-txt">{fromM} ~ {toM}</span>
                 <DateRangeField unit="month" label={null} parts="calendar" confirm from={fromM} to={toM}
                   onChange={(f, t) => { setFromM(f); setToM(t); }} />
@@ -999,23 +999,23 @@ function SalePurchaseInner() {
                   ))}
                 </span>
               </ConditionRow>}
-              <ConditionRow label="거래처" hint="여러 곳">
+              <ConditionRow label="거래처" hint="여러 곳을 고를 수 있습니다.">
                 <TokenField items={ptOpts} value={cDraft.pt} onChange={setD("pt")} placeholder="거래처 이름 일부" />
               </ConditionRow>
-              <ConditionRow label="유형" hint="부가세 유형 · 여러 개">
+              <ConditionRow label="유형" hint="여러 개를 고를 수 있습니다.">
                 <TokenField items={vatOpts} value={cDraft.vat} onChange={setD("vat")} placeholder="누르면 유형 전체 · 이름 일부를 쳐도 됩니다" openOnClick />
               </ConditionRow>
               <ConditionRow label="품명">
                 <input className="qk-input w-full" value={cDraft.item} placeholder="예: 임대료" onChange={(e) => setD("item")(e.target.value)} />
               </ConditionRow>
-              <ConditionRow label="전자" hint="전자(세금)계산서 발행·수취분">
+              <ConditionRow label="전자" hint="전자세금계산서와 전자계산서 여부입니다.">
                 <span className="qk-quicks">
                   {[["", "전체"], ["y", "전자입력만"], ["n", "직접 입력만"]].map(([v, l]) => (
                     <button key={v} type="button" onClick={() => setD("elec")(v)} className={cDraft.elec === v ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>
                   ))}
                 </span>
               </ConditionRow>
-              <ConditionRow label="분개" hint="외상 · 현금 · 카드 … 여러 개">
+              <ConditionRow label="분개" hint="여러 개를 고를 수 있습니다.">
                 <span className="qk-quicks">
                   {settleOpts.map((o) => (
                     <button key={o.value} type="button" onClick={() => setD("settle")(toggleIn(cDraft.settle, o.value))}
@@ -1023,7 +1023,7 @@ function SalePurchaseInner() {
                   ))}
                 </span>
               </ConditionRow>
-              <ConditionRow label="합계 금액" hint="한쪽만 적어도 됩니다">
+              <ConditionRow label="합계 금액" hint="한쪽만 적어도 됩니다.">
                 <AmountRange min={cDraft.min} max={cDraft.max} onMin={setD("min")} onMax={setD("max")} />
               </ConditionRow>
             </ConditionPanel>
@@ -1037,7 +1037,7 @@ function SalePurchaseInner() {
         <Stat label="저장분" value={`${shownSaved.length.toLocaleString("ko")}건`} />
         <Stat label="공급가액" value={won(shownSaved.reduce((x, r) => x + numOf(r.supply), 0))} />
         <Stat label="부가세" value={won(shownSaved.reduce((x, r) => x + numOf(r.vat), 0))} />
-        <span className="spv-toolbar-hint"><b>Enter</b> 를 치면 그 칸에 윗줄 값이 내려오고 다음 칸으로 넘어갑니다 · 저장분을 누르면 그 자리에서 고칩니다</span>
+        <span className="spv-toolbar-hint"><b>Enter</b>로 윗줄 값을 내리고 다음 칸으로 넘어갑니다.</span>
       </ResultStrip>
        </QueryHead>
        <QueryBody>
@@ -1047,7 +1047,7 @@ function SalePurchaseInner() {
       <div className={phoneGrid ? "spv-narrow spv-narrow-off" : "spv-narrow"}>
         <div className="spv-narrow-head"><b>{periodLabel} 저장분 {savedRows.length}건</b></div>
         {savedRows.length === 0 ? (
-          <div className="spv-je-empty">이 기간에 저장된 매입매출전표가 없습니다.</div>
+          <div className="spv-je-empty">아직 이 기간에 저장된 매입매출전표가 없습니다.</div>
         ) : savedRows.map((r, i) => (
           <div key={`n${i}`} className="spv-narrow-card glass-card">
             <div className="spv-narrow-top">
@@ -1137,11 +1137,11 @@ function SalePurchaseInner() {
         <div className="spv-je-head">
           <b>분개</b>
           {edit && <em className="spv-je-editing">저장된 전표 #{edit.voucherNo ?? ""} 를 고치는 중</em>}
-          <span>{t.label} · {SETTLE_LABEL[row?.settle || "credit"]} · 유형이 만든 줄입니다 · 계정을 눌러 바꿉니다</span>
+          <span>{t.label} · {SETTLE_LABEL[row?.settle || "credit"]} · 계정을 눌러 바꿉니다.</span>
           {isMinus && (
             <span className="spv-minus-note">
               
-              취소·수정분(음수). 저장할 때 <b>차·대가 뒤집혀 반대 분개</b>로 들어갑니다
+              취소·수정분은 <b>반대 분개</b>로 저장됩니다.
             </span>
           )}
         </div>
@@ -1153,7 +1153,7 @@ function SalePurchaseInner() {
               <span>거래처</span><span>적요</span>
             </div>
             {supplyNum === 0 ? (
-              <div className="spv-je-empty">위 격자에 금액을 입력하면 분개가 만들어집니다.</div>
+              <div className="spv-je-empty">아직 분개가 없습니다. 위 격자에 금액을 입력하세요.</div>
             ) : jeLines.map((l) => (
               <div key={l.i} className="spv-je-row">
                 <span className={l.side === "debit" ? "tc spv-dc spv-dc-d" : "tc spv-dc spv-dc-c"}>
@@ -1196,10 +1196,8 @@ function SalePurchaseInner() {
           <span className={debitSum === 0 && creditSum === 0 ? "spv-bal" : balanced ? "spv-bal spv-bal-ok" : "spv-bal"}>{debitSum === 0 && creditSum === 0 ? "—" : balanced ? "✓ 차·대 일치" : "차·대 불일치"}</span>
         </div>
               <p className="spv-note">
-          ※ 매입매출전표는 <b>부가세가 붙는 거래</b>(세금계산서·카드·현금영수증)를 칩니다 —
-          통장 이체·대체·결산 분개는 <b>일반전표</b>에서 칩니다. 여기 친 유형이 부가세 신고 집계의 기준이 됩니다.
-          <br />※ <b>수정세금계산서·환입·카드 취소</b>는 금액 앞에 <b>-</b> 를 붙여 같은 유형으로 칩니다 —
-          부가세 집계에서 그만큼 차감됩니다.
+          매입매출전표는 <b>부가세가 붙는 거래</b>를 치고 그 밖의 분개는 <b>일반전표</b>에서 칩니다.
+          <br /><b>수정세금계산서·환입·카드 취소</b>는 금액 앞에 <b>-</b>를 붙여 칩니다.
         </p>
       </div>
 
@@ -1214,7 +1212,7 @@ function SalePurchaseInner() {
             <div className="spv-pull-head">
               <div>
                 <b>증빙에서 불러오기</b>
-                <span>전표가 안 만들어진 것만 · {periodLabel}</span>
+                <span>{periodLabel} 중 전표가 없는 증빙입니다.</span>
               </div>
               <div className="flex items-center gap-3">
                 {pulled > 0 && <span className="spv-pull-count">{pulled}건 얹음</span>}
@@ -1222,7 +1220,7 @@ function SalePurchaseInner() {
               </div>
             </div>
             {pending.length === 0 ? (
-              <div className="spv-je-empty">이 기간에 전표가 필요한 증빙이 없습니다.</div>
+              <div className="spv-je-empty">아직 이 기간에 전표할 증빙이 없습니다.</div>
             ) : (
               <div className="spv-pull-scroll">
                 <table className="spv-pull-table">
@@ -1249,9 +1247,7 @@ function SalePurchaseInner() {
               </div>
             )}
             <div className="spv-pull-foot">
-              추천 유형은 규칙으로 붙습니다 — <b>접대·유흥·골프·상품권은 54 불공제</b>, 매입 계산서는 51, 카드는 57.
-              얹은 뒤 격자에서 바꿔도 됩니다. <b>취소·수정분(음수)</b>도 그대로 나옵니다 —
-              저장할 때 차·대가 뒤집혀 <b>반대 분개</b>로 들어갑니다. 원본 승인 건과 자동으로 짝짓지는 않습니다.
+              추천 유형은 격자에서 바꿔도 됩니다. <b>접대·유흥·골프·상품권</b>은 불공제, <b>취소·수정분</b>은 <b>반대 분개</b>로 저장됩니다.
             </div>
           </div>
         </div>

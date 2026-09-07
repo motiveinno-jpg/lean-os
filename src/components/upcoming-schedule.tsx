@@ -260,7 +260,7 @@ export function UpcomingScheduleCard({ companyId, windowDays = 30 }: UpcomingSch
       {isLoading ? (
         <div className="text-[11px] text-[var(--text-dim)] text-center py-8">불러오는 중…</div>
       ) : items.length === 0 ? (
-        <div className="text-[11px] text-[var(--text-dim)] text-center py-8">예정된 일정이 없습니다</div>
+        <div className="text-[11px] text-[var(--text-dim)] text-center py-8">아직 예정된 일정이 없습니다.</div>
       ) : (
         <>
           <ul className="upcoming-schedule-list">

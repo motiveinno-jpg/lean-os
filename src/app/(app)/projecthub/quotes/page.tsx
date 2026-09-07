@@ -126,7 +126,7 @@ export default function QuotesPage() {
               <ConditionRow label="프로젝트" hint="여러 개">
                 <TokenField items={dealOpts} value={draft.deal} onChange={(v) => setDraft((c) => ({ ...c, deal: v }))} placeholder="프로젝트 이름 일부" />
               </ConditionRow>
-              <ConditionRow label="금액" hint="한쪽만 적어도 됩니다">
+              <ConditionRow label="금액" hint="한쪽만 적어도 됩니다.">
                 <AmountRange min={draft.min} max={draft.max} onMin={(v) => setDraft((c) => ({ ...c, min: v }))} onMax={(v) => setDraft((c) => ({ ...c, max: v }))} />
               </ConditionRow>
             </ConditionPanel>
@@ -143,9 +143,9 @@ export default function QuotesPage() {
           {isLoading ? (
             <div className="collect-empty">불러오는 중…</div>
           ) : quotes.length === 0 ? (
-            <div className="collect-empty">아직 견적서가 없습니다. 오른쪽 위 [+ 견적서 작성]으로 첫 견적서를 만들어 보세요</div>
+            <div className="collect-empty">아직 견적서가 없습니다. 첫 견적서를 만들어 보세요.</div>
           ) : shown.length === 0 ? (
-            <div className="collect-empty">이 조건에 맞는 견적서가 없습니다. 검색·상태를 풀어 보세요</div>
+            <div className="collect-empty">조건에 맞는 견적서가 없습니다. 검색조건을 풀어 보세요.</div>
           ) : (
             <div className="ev-scroll">
               <table className="ev-table ev-lined quotes-table">
@@ -283,7 +283,7 @@ function CreateQuoteModal({ companyId, userId, onClose, onCreated, toastFn }: {
             <input value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} autoFocus
               placeholder="예: 2026 온라인홍보 프로젝트"
               className="w-full h-11 px-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
-            <p className="text-[11px] text-[var(--text-dim)] mt-1">새 프로젝트가 생성되어 프로젝트 운영 메뉴에도 함께 나타납니다.</p>
+            <p className="text-[11px] text-[var(--text-dim)] mt-1">새 프로젝트가 프로젝트 메뉴에도 만들어집니다.</p>
           </div>
         )}
 

@@ -75,7 +75,7 @@ export function ProjectSalesAccountCard({ companyId }: { companyId: string }) {
     <div className="proj-sales-card">
       <div className="proj-sales-head">
         <h3 className="proj-sales-title">프로젝트 매출 기본 계정</h3>
-        <span className="proj-sales-sub">계약이 양측 서명 완료되면 이 계정으로 판매전표를 자동 발행합니다 — 비워 두면 발행하지 않고 &apos;발행 준비됨&apos; 알림만 갑니다(세금계산서는 언제나 초안까지 — 국세청 전송은 사람이).</span>
+        <span className="proj-sales-sub" title="비워 두면 발행하지 않고 발행 준비됨 알림만 보냅니다. 세금계산서는 초안까지만 만듭니다.">계약 서명이 끝나면 이 계정으로 판매전표를 자동 발행합니다.</span>
       </div>
       <div className="proj-sales-row">
         <select className="proj-sales-field" value={accountId} onChange={(e) => setAccountId(e.target.value)} aria-label="매출 계정">

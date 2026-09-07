@@ -101,7 +101,7 @@ export function TopExpensesThisMonth({ companyId, topN = 5 }: Props) {
           onClick={handleExcel}
           disabled={monthAll.length === 0}
           className="flex items-center gap-1 px-2.5 py-1.5 bg-[var(--success)]/10 hover:bg-[var(--success)]/20 text-[var(--success)] rounded-lg text-[11px] font-semibold transition disabled:opacity-50"
-          title="이번달 통장 거래내역 전체를 회계프로그램 업로드용 엑셀로 다운로드"
+          title="이번달 거래내역을 엑셀로 내려받습니다."
         >
           <Ico e="📊" tone="mono" /> 엑셀 다운로드
         </button>

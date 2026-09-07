@@ -154,7 +154,7 @@ export default function AnnouncementsPage() {
                 <RowsPerPage value={draft.rows} onChange={(n) => setDraft((c) => ({ ...c, rows: n }))} />
                 <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
               </>}>
-              <ConditionRow label="분류" hint="여러 개 · 아무것도 안 고르면 전체">
+              <ConditionRow label="분류" hint="고르지 않으면 전체입니다.">
                 <span className="qk-quicks">
                   {Object.entries(CATEGORY_META).map(([k, m]) => (
                     <button key={k} type="button" onClick={() => setDraft((c) => ({ ...c, cats: c.cats.includes(k) ? c.cats.filter((x) => x !== k) : [...c.cats, k] }))}
@@ -180,9 +180,9 @@ export default function AnnouncementsPage() {
           {isLoading ? (
             <div className="collect-empty">불러오는 중…</div>
           ) : rows.length === 0 ? (
-            <div className="collect-empty">등록된 공지가 없습니다. 서비스 공지·업데이트 소식이 등록되면 여기에 표시됩니다</div>
+            <div className="collect-empty">아직 공지가 없습니다.</div>
           ) : shown.length === 0 ? (
-            <div className="collect-empty">이 조건에 맞는 공지가 없습니다. 검색조건을 풀어 보세요</div>
+            <div className="collect-empty">조건에 맞는 공지가 없습니다. 검색조건을 풀어 보세요.</div>
           ) : (
             <div className="ev-scroll">
               <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed annc-table">

@@ -127,7 +127,7 @@ export function TossCardSection({ companyId, isMaster }: { companyId: string | n
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-sm font-bold text-[var(--text)]">국내카드 자동결제</h3>
-          <p className="text-[11px] text-[var(--text-muted)] mt-0.5">국내 발급 카드로 결제하려면 여기에 카드를 등록하세요 (토스페이먼츠).</p>
+          <p className="text-[11px] text-[var(--text-muted)] mt-0.5">국내 발급 카드를 등록해 자동 결제에 사용합니다.</p>
         </div>
       </div>
 
@@ -183,7 +183,7 @@ export function TossCardSection({ companyId, isMaster }: { companyId: string | n
       ) : (
         <div className="text-center py-8">
           <div className="text-3xl mb-2"><Ico e="🇰🇷" /></div>
-          <p className="text-sm font-semibold text-[var(--text-muted)] mb-1">등록된 국내카드가 없습니다</p>
+          <p className="text-sm font-semibold text-[var(--text-muted)] mb-1">아직 등록된 국내카드가 없습니다.</p>
           <p className="text-xs text-[var(--text-dim)]">카드번호는 토스 등록창에서만 입력되며 오너뷰 서버에 저장되지 않습니다</p>
           {isMaster ? (
             <button onClick={startRegister} disabled={opening} className="btn-primary btn-sm mt-4 disabled:opacity-50">

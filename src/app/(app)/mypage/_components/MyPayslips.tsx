@@ -53,8 +53,8 @@ export function MyPayslips({ employeeId }: { employeeId: string | null }) {
       ) : payslips.length === 0 ? (
         <div className="mypage-record-empty">
           <div className="text-3xl mb-2"><Ico e="💳" /></div>
-          <div className="text-sm font-semibold text-[var(--text-muted)]">발급된 급여명세서가 없습니다</div>
-          <div className="text-xs text-[var(--text-dim)] mt-1">급여가 지급되면 월별 명세서가 이곳에 표시됩니다.</div>
+          <div className="text-sm font-semibold text-[var(--text-muted)]">아직 급여명세서가 없습니다.</div>
+          <div className="text-xs text-[var(--text-dim)] mt-1">급여가 지급되면 여기에 표시됩니다.</div>
         </div>
       ) : (
         <div className="mypage-payslips-list mypage-record-body space-y-2.5">

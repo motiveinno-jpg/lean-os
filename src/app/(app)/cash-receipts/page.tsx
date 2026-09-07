@@ -655,7 +655,7 @@ export default function CashReceiptsPage() {
                 <ToolbarPopoverItem
                   onClick={() => { close(); startSync(); }}
                   disabled={syncStarting || !!activeJobId}
-                  hint="조회기간 범위로 홈택스에서 현금영수증 매출(발행) 내역 가져오기">
+                  hint="조회기간의 매출 현금영수증을 홈택스에서 가져옵니다.">
                   <span aria-live="polite">
                     {syncStarting ? "시작 중…"
                       : activeJobId
@@ -666,7 +666,7 @@ export default function CashReceiptsPage() {
                 <ToolbarPopoverItem
                   onClick={() => { close(); startPurchaseSync(); }}
                   disabled={purchaseSyncing}
-                  hint="조회기간 범위로 홈택스에서 현금영수증 매입(수취) 내역 가져오기 · 등록된 공동인증서로 조회합니다 (최근 37개월)">
+                  hint="조회기간의 매입 현금영수증을 홈택스에서 가져옵니다.">
                   {purchaseSyncing ? "매입 조회 중…" : "홈택스 매입 가져오기"}
                 </ToolbarPopoverItem>
                 <label className="toolbar-pop-item cursor-pointer">
@@ -678,7 +678,7 @@ export default function CashReceiptsPage() {
                   <>
                     <div className="toolbar-pop-sep" />
                     <ToolbarPopoverItem danger onClick={() => { close(); forceClearStuckJob(activeJobId); }}
-                      hint="백그라운드 동기화가 멈췄을 때 눌러 초기화 · 다시 시도할 수 있습니다">
+                      hint="멈춘 동기화를 초기화합니다.">
                       동기화 취소
                     </ToolbarPopoverItem>
                   </>
@@ -690,7 +690,7 @@ export default function CashReceiptsPage() {
             type="button"
             onClick={() => { setIssueForm(INITIAL_ISSUE_FORM); setShowIssueModal(true); }}
             disabled={issuanceLimitReached}
-            title={issuanceLimitReached ? `이번 달 발행 한도(${issuanceStatus?.limit}건)를 모두 사용했습니다. 세금계산서와 현금영수증을 합산해 계산합니다.` : "CODEF 연동으로 현금영수증을 국세청에 실제 발행합니다"}
+            title={issuanceLimitReached ? `이번 달 발행 한도 ${issuanceStatus?.limit}건을 모두 사용했습니다.` : "현금영수증을 국세청에 발행합니다."}
             className="cashbill-issue-open btn-primary btn-sm"
           >
             {issuanceLimitReached ? "발행 한도 소진" : "+ 발행"}
@@ -712,7 +712,7 @@ export default function CashReceiptsPage() {
                     <RowsPerPage value={draft.rows} onChange={setD("rows")} />
                     <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
                   </>}>
-                  <ConditionRow label="조회기간" hint="홈택스 가져오기 기간이기도 합니다">
+                  <ConditionRow label="조회기간" hint="가져오기 기간과 같습니다.">
                     <span className="qk-range-txt">{startDate} ~ {endDate}</span>
                     <DateRangeField label={null} parts="calendar" confirm from={startDate} to={endDate}
                       onChange={(f, t) => { setStartDate(f); setEndDate(t); }} />
@@ -729,7 +729,7 @@ export default function CashReceiptsPage() {
                         <button key={o.value} type="button" onClick={() => setD("status")(toggleIn(draft.status, o.value))}
                           className={draft.status.includes(o.value) ? "qk-quick qk-quick-on" : "qk-quick"}>{o.label}</button>
                       ))}
-                      {statusOpts.length === 0 && <span className="text-[11px] text-[var(--text-dim)]">이 기간에 건이 없습니다</span>}
+                      {statusOpts.length === 0 && <span className="text-[11px] text-[var(--text-dim)]">이 기간에 건이 없습니다.</span>}
                     </span>
                   </ConditionRow>
                   <ConditionRow label="용도">
@@ -743,7 +743,7 @@ export default function CashReceiptsPage() {
                   <ConditionRow label="거래처" hint="여러 곳">
                     <TokenField items={partnerOpts} value={draft.partner} onChange={setD("partner")} placeholder="거래처 이름 일부" />
                   </ConditionRow>
-                  <ConditionRow label="합계 금액" hint="한쪽만 적어도 됩니다">
+                  <ConditionRow label="합계 금액" hint="한쪽만 적어도 됩니다.">
                     <AmountRange min={draft.min} max={draft.max} onMin={setD("min")} onMax={setD("max")} />
                   </ConditionRow>
                 </ConditionPanel>
@@ -761,8 +761,8 @@ export default function CashReceiptsPage() {
                 color: issuanceLimitReached ? "#ef4444" : "var(--text-muted)",
               }}
               title={issuanceStatus.limit !== null
-                ? `${issuanceStatus.planName || "현재 요금제"} · 현금영수증은 월 ${issuanceStatus.limit}건까지 발행할 수 있습니다 (이번 달 ${issuanceStatus.used}/${issuanceStatus.limit}건 · 세금계산서 한도는 별도)`
-                : `${issuanceStatus.planName || "현재 요금제"} · 현금영수증 발행 무제한 (이번 달 ${issuanceStatus.used}건 발행)`}>
+                ? `${issuanceStatus.planName || "현재 요금제"} · 이번 달 ${issuanceStatus.used}/${issuanceStatus.limit}건 발행`
+                : `${issuanceStatus.planName || "현재 요금제"} · 이번 달 ${issuanceStatus.used}건 발행`}>
               {issuanceStatus.limit !== null
                 ? <>이번 달 발행 <b className="mono-number">{issuanceStatus.remaining ?? 0}건</b> 남음</>
                 : <>이번 달 발행 <b className="mono-number">{issuanceStatus.used}건</b></>}
@@ -940,8 +940,8 @@ export default function CashReceiptsPage() {
                 />
                 <div className="text-[10px] text-[var(--text-dim)] mt-1">
                   {form.purpose === "income_deduction"
-                    ? "소득공제용: 소비자 전화번호 입력"
-                    : "지출증빙용: 거래처 사업자등록번호 입력"}
+                    ? "소비자 전화번호를 입력합니다."
+                    : "거래처 사업자등록번호를 입력합니다."}
                 </div>
               </div>
               <div>
@@ -976,11 +976,11 @@ export default function CashReceiptsPage() {
           ) : (receipts as any[]).length === 0 ? (
             <div className="collect-empty">
               {tab === "income"
-                ? "이 기간에 매출 현금영수증이 없습니다. 가져오기 ▾ 「홈택스 매출 가져오기」로 동기화하세요"
-                : "이 기간에 매입 현금영수증이 없습니다. 가져오기 ▾ 「홈택스 매입 가져오기」 또는 엑셀 업로드"}
+                ? "아직 매출 현금영수증이 없습니다. 홈택스 매출 가져오기로 불러오세요."
+                : "아직 매입 현금영수증이 없습니다. 홈택스 매입 가져오기로 불러오세요."}
             </div>
           ) : displayReceipts.length === 0 ? (
-            <div className="collect-empty">이 조건에 맞는 현금영수증이 없습니다. 검색조건을 풀어 보세요</div>
+            <div className="collect-empty">조건에 맞는 현금영수증이 없습니다. 조건을 넓혀 보세요.</div>
           ) : (
             <div className="ev-scroll">
               <table className="ev-table ev-lined cr-table">
@@ -1021,7 +1021,7 @@ export default function CashReceiptsPage() {
                           {selectable ? (
                             <button type="button" onClick={() => toggleSelect(r.id)} aria-label="선택"
                               className={checked ? "collect-chk collect-chk-on" : "collect-chk"}>{checked ? "✓" : ""}</button>
-                          ) : <span className="text-[9px] text-emerald-500 font-semibold" title="전표처리됨 또는 없던 일이 된 건">{posted ? "전표" : "—"}</span>}
+                          ) : <span className="text-[9px] text-emerald-500 font-semibold" title="전표처리됐거나 취소된 건입니다.">{posted ? "전표" : "—"}</span>}
                         </td>
                         <td className="px-5 py-3 text-xs text-[var(--text-dim)] mono-number whitespace-nowrap">
                           {r.issue_date}
@@ -1075,7 +1075,7 @@ export default function CashReceiptsPage() {
                               onClick={() => handleNtsRefresh(r)}
                               disabled={ntsBusyId === r.id}
                               className="mr-1.5 text-[10px] font-semibold px-2 py-1 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 transition disabled:opacity-50"
-                              title="국세청 승인번호는 발행 당일 밤 24시 일괄 전송 후 부여됩니다"
+                              title="승인번호는 당일 밤 국세청 전송 후 부여됩니다."
                             >
                               {ntsBusyId === r.id ? "조회 중..." : "승인번호 조회"}
                             </button>
@@ -1160,7 +1160,7 @@ export default function CashReceiptsPage() {
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">현금영수증 국세청 발행</div>
-              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">발행 즉시 효력이 생기며, 당일 밤 24시에 국세청으로 일괄 전송됩니다. 승인번호는 전송 후 부여됩니다. 홈택스 가맹점 신청을 따로 하지 않았어도 괜찮습니다. 최초 발행 시 공인 발급사업자 등록이 자동 진행됩니다. 단, 설정 → 회사 정보에 상호·대표자·주소·전화·업태·종목이 입력돼 있어야 하며, 등록에 문제가 있으면 발행 실패 안내에 사유가 표시됩니다.</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-0.5" title="발행 즉시 효력이 생기고 당일 밤 국세청으로 전송됩니다. 설정의 회사 정보에 상호·대표자·주소·전화·업태·종목이 입력돼 있어야 합니다.">현금영수증을 국세청에 바로 발행합니다.</div>
             </div>
             <div className="p-5 space-y-3">
               <div className="flex gap-2">
@@ -1212,7 +1212,7 @@ export default function CashReceiptsPage() {
                   placeholder={issueForm.purpose === "income_deduction" ? "010-0000-0000" : "000-00-00000"}
                   className="field-input" />
                 {issueForm.purpose === "income_deduction" && (
-                  <div className="text-[10px] text-[var(--text-dim)] mt-1">자진발급(번호 미확보 소비자)은 010-000-1234 입력</div>
+                  <div className="text-[10px] text-[var(--text-dim)] mt-1">자진발급은 010-000-1234를 입력합니다.</div>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -1246,7 +1246,7 @@ export default function CashReceiptsPage() {
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">일괄 전표처리</div>
-              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">선택 {selectedReceipts.length}건을 한 계정으로 전표 생성합니다. 이미 처리된 건은 건너뜁니다.</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">선택한 {selectedReceipts.length}건을 한 계정으로 전표 생성합니다.</div>
             </div>
             <div className="p-5 space-y-3">
               <div>
@@ -1259,11 +1259,11 @@ export default function CashReceiptsPage() {
                   ))}
                 </select>
               </div>
-              <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">차) 선택 계정 / 대) 보통예금 으로 각 건 전표가 생성됩니다. 현금영수증 내역은 그대로 남고 “전표처리됨”으로 표시됩니다.</p>
+              <p className="text-[10px] text-[var(--text-dim)] leading-relaxed" title="차변 선택 계정과 대변 보통예금으로 건마다 전표가 생성됩니다.">현금영수증 내역은 그대로 남고 전표처리됨으로 표시됩니다.</p>
               {/*   취소거래를 같이 골랐으면 무슨 일이 일어나는지 미리 말해 준다 (2026-08-12) */}
               {selectedReceipts.some((r: any) => cashReceiptSign(r) === -1) && (
                 <p className="text-[10px] text-[var(--warning)] leading-relaxed">
-                  취소거래 {selectedReceipts.filter((r: any) => cashReceiptSign(r) === -1).length}건은 <b>반대 분개</b>(마이너스 전표)로 만들어져 원래 발행 건을 깎습니다.
+                  취소거래 {selectedReceipts.filter((r: any) => cashReceiptSign(r) === -1).length}건은 <b>반대 분개</b>로 만들어집니다.
                 </p>
               )}
             </div>

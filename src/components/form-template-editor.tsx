@@ -149,7 +149,7 @@ export default function FormTemplateEditor({ docType, pageImages, pageSizes, ini
             </div>
           ))}
         </div>
-        <p className="mt-2 text-xs text-gray-500">박스를 드래그해 이동, 우하단 점으로 크기 조절. 자동 인식은 초안이니 위치·키를 확정하세요.</p>
+        <p className="mt-2 text-xs text-gray-500">박스를 끌어 옮기고 모서리 점으로 크기를 조절합니다.</p>
       </div>
 
       {/* 우: 속성 패널 */}

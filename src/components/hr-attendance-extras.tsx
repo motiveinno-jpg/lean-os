@@ -126,8 +126,7 @@ export function AttendanceEditRequestDialog({
       >
         <h3 className="section-title">근태 수정 요청</h3>
         <p className="text-[10px] text-[var(--text-dim)] mb-4">
-          잘못 찍은 출퇴근 기록의 변경을 관리자에게 요청합니다(직접 수정 불가). <b className="text-[var(--text-muted)]">변경할 항목만 입력</b>하세요. 출근·퇴근을 따로 요청할 수 있습니다.
-        
+          출퇴근 기록 변경을 관리자에게 요청합니다. <b className="text-[var(--text-muted)]">변경할 항목만 입력</b>하세요.
         </p>
         <div className="attendance-edit-form">
           <div>
@@ -148,7 +147,7 @@ export function AttendanceEditRequestDialog({
             />
           </div>
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1">출근 유형 변경 <span className="text-[10px] text-[var(--text-dim)] font-normal">· 재택/외근/출장/근무중 등</span></label>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">출근 유형 변경 <span className="text-[10px] text-[var(--text-dim)] font-normal">· 선택 사항</span></label>
             <select
               value={form.status}
               onChange={(e) => setForm({ ...form, status: e.target.value, ...(e.target.value === "working" ? { check_out: "" } : {}) })}
@@ -321,8 +320,8 @@ export function ManualAttendanceDialog({
       <div className="attendance-edit-dialog-panel glass-card" onClick={(e) => e.stopPropagation()}>
         <h3 className="section-title">출퇴근 기록 추가</h3>
         <p className="text-[10px] text-[var(--text-dim)] mb-4">
-          직원이 출근·퇴근 버튼을 누르지 못한 날을 관리자가 대신 기록합니다.
-          <b className="text-[var(--text-muted)]"> 같은 날 기록이 이미 있으면 덮어씁니다.</b>
+          출퇴근을 누르지 못한 날을 관리자가 대신 기록합니다.
+          <b className="text-[var(--text-muted)]"> 같은 날 기록이 있으면 덮어씁니다.</b>
         </p>
         <div className="attendance-edit-form">
           <div>
@@ -564,7 +563,7 @@ export function MonthlyRecomputeButton({ companyId, from, to }: { companyId: str
       onClick={() => mut.mutate()}
       disabled={mut.isPending}
       className="btn-secondary btn-sm"   /* 2026-08-19 월간 요약 조회 줄의 검색조건이 파란 채움 — 파란 버튼은 화면에 하나 */
-      title="해당 기간의 가산수당(연장·야간·휴일) 시간을 회사 정책과 휴일 기준으로 다시 계산합니다."
+      title="해당 기간의 가산수당 시간을 다시 계산합니다."
     >
       {mut.isPending ? "재계산 중…" : "가산수당 재계산"}
     </button>

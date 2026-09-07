@@ -95,7 +95,7 @@ export function QuoteHeader({
                     {p.business_number && <span className="caption">{p.business_number}</span>}
                   </button>
                 ))}
-                {filtered.length > 200 && <div className="px-3 py-1.5 text-[10px] text-[var(--text-dim)]">검색어를 더 입력해 좁혀주세요 (총 {filtered.length}개)</div>}
+                {filtered.length > 200 && <div className="px-3 py-1.5 text-[10px] text-[var(--text-dim)]">총 {filtered.length}개가 있어 검색어로 좁혀 보세요.</div>}
               </div>
             )}
           </div>

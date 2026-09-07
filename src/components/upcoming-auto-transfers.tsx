@@ -203,7 +203,7 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
           <span className="kpi-icon warning"><TileIcon name="clock" className="w-5 h-5" /></span>
           <div>
             <h2 className="text-[15px] font-bold text-[var(--text)]">지출·상환 예정</h2>
-            <span className="caption">{windowDays}일 안 · {allItems.length}건 (고정비·대출)</span>
+            <span className="caption">{windowDays}일 안 고정비·대출 {allItems.length}건</span>
           </div>
         </div>
         {items.length > 0 && (
@@ -218,13 +218,13 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
       {weekBars.some((b) => b.value > 0) && (
         <div className="upcoming-transfers-chart">
           <ColumnChart height={132} unit="원" data={weekBars} />
-          <span className="caption">주별 출금 예정 · 대출 상환은 금액을 몰라 뺐습니다</span>
+          <span className="caption" title="대출 상환은 금액을 알 수 없어 제외했습니다.">주별 출금 예정</span>
         </div>
       )}
 
       {items.length === 0 ? (
         <div className="upcoming-transfers-empty">
-          <div className="text-xs text-[var(--text-dim)] mb-2">예정된 고정비 지출이 없습니다.</div>
+          <div className="text-xs text-[var(--text-dim)] mb-2">아직 예정된 고정비 지출이 없습니다.</div>
           <a href="/payments?tab=recurring" className="btn-primary btn-sm">
             + 자동이체 등록
           </a>

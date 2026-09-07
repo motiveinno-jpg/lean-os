@@ -27,7 +27,7 @@ export function YieldSettingsDialog({ companyId, onClose }: { companyId: string;
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">수율 임계값</h3>
-        <p className="inv-modal-desc">양품률이 아래 값 <b>미만</b>이거나 자재 로스율이 아래 값 <b>초과</b>면 재고 › 현황 › 생산현황에 붉게 표시하고, AI 브리핑이 최근 7일 기준으로 알립니다. 알림만 하고 조치는 사람이 합니다. 기본값 95% / 5%.</p>
+        <p className="inv-modal-desc" title="양품률은 미만, 로스율은 초과일 때 표시합니다. 기본값 95% · 5%">이 기준을 벗어나면 생산현황에 붉게 표시합니다.</p>
         <div className="inv-form-grid">
           <label className="inv-field"><span>양품률 경고 (미만, %)</span>
             <input className="field-input" inputMode="decimal" value={y} onChange={(e) => setY(e.target.value)} /></label>

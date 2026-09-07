@@ -70,14 +70,14 @@ export function ProdVoucherDialog({ companyId, userId, onClose }: { companyId: s
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">생산 · 매출원가 전표</h3>
-        <p className="inv-modal-desc">주기가 끝나면 초안 두 장을 만듭니다 — <b>생산</b>: 차변 제품 / 대변 원재료(자재 실투입 금액), 불량 폐기는 재고자산감모손실. <b>매출원가</b>: 기간 판매 출고의 확정 원가(선입선출·반품 차감)를 차변 제품매출원가·상품매출원가 / 대변 제품·상품으로, 폐기·감모·샘플·증정·재고 평가손실은 각 손실 계정으로. <b>확정은 사람</b>. 생산 초안을 확정하면 문서에 전표가 묶이고, 매출원가는 확정한 기간을 다시 집지 않습니다.</p>
+        <p className="inv-modal-desc" title="생산은 차변 제품, 대변 원재료. 매출원가는 차변 매출원가, 대변 제품·상품. 폐기·감모·샘플·증정·평가손실은 각 손실 계정으로 갑니다">주기마다 생산과 매출원가 전표 초안을 만듭니다. 확정은 직접 합니다.</p>
 
         <div className="inv-bom-base">
           <span className="field-label">지금 만들기</span>
           <DateRangeField from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
           <span className="ev-dim">전표 없는 생산 문서 <b>{unvouched}</b>건</span>
           <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={makeNow}>초안 만들기</button>
-          <em className="inv-hint">대기 초안이 있으면 기간을 합쳐 갈아끼웁니다(대기 초안은 언제나 하나). 지난 기간도 여기서 소급합니다.</em>
+          <em className="inv-hint" title="대기 초안이 있으면 기간을 합쳐 새로 만듭니다">지난 기간도 여기서 만들 수 있습니다.</em>
         </div>
 
         <div className="stg-table-wrap ch-ship-list">
@@ -96,7 +96,7 @@ export function ProdVoucherDialog({ companyId, userId, onClose }: { companyId: s
                     <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={() => decide(d.journal_entry_id!, "confirmed")}>확정</button>
                   </span>) : null}</td>
               </tr>
-            ))}{drafts.length === 0 && <tr><td colSpan={9} className="tc ev-dim">아직 만든 초안이 없습니다</td></tr>}</tbody>
+            ))}{drafts.length === 0 && <tr><td colSpan={9} className="tc ev-dim">아직 만든 초안이 없습니다.</td></tr>}</tbody>
           </table>
         </div>
 

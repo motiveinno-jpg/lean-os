@@ -82,7 +82,7 @@ export function PartnerQuickCreate({ companyId, initialName = "", initialBizNo =
           <button type="button" className="inv-modal-x" onClick={onClose} aria-label="닫기">✕</button>
         </div>
         <div className="pqc-body">
-          <div className="text-[11px] text-[var(--text-dim)]">전표에 필요한 것만 받습니다. 주소·담당자·계좌 등은 나중에 <b>거래처</b> 화면에서 보완하면 됩니다.</div>
+          <div className="text-[11px] text-[var(--text-dim)]">나머지 정보는 나중에 <b>거래처</b> 화면에서 보완합니다.</div>
           <div>
             <label className="field-label">거래처명 *</label>
             <input autoFocus className="field-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: (주)모티브이노베이션"

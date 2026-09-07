@@ -240,9 +240,9 @@ export function SalesBoard({ open, onClose, companyId }: {
                 <div className="pjv3-stpanel">
                   <h3>목표 달성률 <small>이번 달({thisYm.slice(5)}월). 목표는 홈 대시보드의 경영 목표에서</small></h3>
                   {!target?.target_revenue ? (
-                    <div className="pjv3-stempty">이번 달 매출 목표가 없습니다. 홈 대시보드의 목표 설정에서 월 목표를 넣으면 여기 달성률이 뜹니다</div>
+                    <div className="pjv3-stempty">아직 이번 달 매출 목표가 없습니다. 홈에서 목표를 정하면 달성률이 보입니다.</div>
                   ) : !rangeHasThisMonth ? (
-                    <div className="pjv3-stempty">조회 기간에 이번 달이 없어 계산하지 않습니다. 기간을 이번 달로 두면 보입니다</div>
+                    <div className="pjv3-stempty">기간을 이번 달로 두면 달성률이 보입니다.</div>
                   ) : (
                     <>
                       <div className="pjv3-sthbar" style={{ cursor: "default", gridTemplateColumns: "64px 1fr 56px" }}>
@@ -257,8 +257,8 @@ export function SalesBoard({ open, onClose, companyId }: {
               )}
               {w === "channels" && (
                 <div className="pjv3-stpanel">
-                  <h3>판매채널별 <small>채널 주문 합(재고 › 채널 주문). 상품별·취소/반품은 이지어드민 연동 뒤에</small></h3>
-                  {channels.length === 0 && <div className="pjv3-stempty">조회 기간에 채널 주문이 없습니다. 재고 › 채널 주문에서 수집·붙여넣기하면 여기 모입니다</div>}
+                  <h3>판매채널별 <small>판매채널 주문 합계입니다.</small></h3>
+                  {channels.length === 0 && <div className="pjv3-stempty">아직 이 기간의 채널 주문이 없습니다.</div>}
                   {channels.map((c) => {
                     const max = Math.max(1, ...channels.map((x) => x.amount));
                     return (
@@ -275,7 +275,7 @@ export function SalesBoard({ open, onClose, companyId }: {
           ))}
           {widgets.length === 0 && <div className="pjv3-stempty">위젯을 다 뺐습니다. [기본 판으로 되돌리기] 또는 ＋ 위젯</div>}
         </div>
-        <p className="pjv3-stnote">저장하면 내 계정에만 적용됩니다 · 전표 축은 위 기간을 따릅니다. 거래처·계정 상세는 분석 › 손익 현황 › 매출, 상품·채널 상세는 이 화면(이익관리)의 표에서</p>
+        <p className="pjv3-stnote">저장하면 내 화면에만 적용됩니다.</p>
       </div>
     </div>
   );

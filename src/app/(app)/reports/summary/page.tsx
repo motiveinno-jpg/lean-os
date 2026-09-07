@@ -200,7 +200,7 @@ export default function ManagementSummaryPage() {
           <div className="bz-grid2">
             <section className="pnl-panel">
               <h3>이번 주 챙길 것 <small className="text-[var(--text-dim)] font-normal">{todosOpen.length}건</small></h3>
-              <p>규칙으로 찾아 놓기만 합니다. 확인은 사람이. 체크하면 이번 주 동안 아래로 내려갑니다(이 PC 기준).</p>
+              <p>이번 주에 챙길 일입니다. 체크하면 아래로 내려갑니다.</p>
               {todosOpen.length === 0 && todosDone.length === 0 ? <div className="collect-empty">지금 챙길 것이 없습니다</div> : (
                 <ul className="bz-todos">
                   {todosOpen.map((t) => <TodoRow key={t.key} t={t} />)}

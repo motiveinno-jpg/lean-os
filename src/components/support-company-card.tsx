@@ -70,7 +70,7 @@ export function SupportCompanyCard({
           <div>
             <b className="sp-modal-title">회사 카드</b>
             <p className="sp-modal-desc">
-              우리 자료로 알 수 없는 것만 묻습니다. 채운 만큼 판정이 정확해지고, 비워 두면 그 조건이 <b>?</b> 로 남습니다.
+              채운 만큼 판정이 정확해지고, 비워 둔 조건은 <b>?</b>로 남습니다.
             </p>
           </div>
           <span className="sp-card-count">{filled} / {CARD_TOTAL}</span>
@@ -82,7 +82,7 @@ export function SupportCompanyCard({
             <div className="sp-q-label"><em>1</em> 개업일</div>
             <div className="sp-q-body">
               <DateField value={form.open_date ?? ""} onChange={(e) => setForm({ ...form, open_date: e.target.value || null })} />
-              <p className="sp-q-hint">창업 3년 · 7년 이내를 따지는 사업이 많습니다. 사업자등록증의 개업연월일을 넣어 주세요.</p>
+              <p className="sp-q-hint">사업자등록증의 개업연월일을 넣어 주세요.</p>
             </div>
           </div>
 
@@ -99,7 +99,7 @@ export function SupportCompanyCard({
                   </button>
                 ))}
               </div>
-              <p className="sp-q-hint">규모 제한이 걸린 공고가 대부분입니다. 모르면 비워 두세요.</p>
+              <p className="sp-q-hint">잘 모르면 비워 두세요.</p>
             </div>
           </div>
 
@@ -116,7 +116,7 @@ export function SupportCompanyCard({
                   </button>
                 ))}
               </div>
-              <p className="sp-q-hint">가점이 붙거나, 아예 이것이 있어야 신청되는 사업이 있습니다. 여러 개 고를 수 있습니다.</p>
+              <p className="sp-q-hint">여러 개 고를 수 있습니다.</p>
             </div>
           </div>
 
@@ -146,7 +146,7 @@ export function SupportCompanyCard({
                 <option value="">고르지 않음</option>
                 {KSIC_MAIN.map((k) => <option key={k} value={k}>{k}</option>)}
               </select>
-              <p className="sp-q-hint">회사 정보의 업태·종목이 자유 글이라 그대로는 업종 제한을 판단하기 어렵습니다.</p>
+              <p className="sp-q-hint">업종 제한을 판정할 때 씁니다.</p>
             </div>
           </div>
 
@@ -168,12 +168,12 @@ export function SupportCompanyCard({
               <div className="sp-grant-add">
                 <input className="field-input sp-grant-year" placeholder="연도" inputMode="numeric"
                   value={grantYear} onChange={(e) => setGrantYear(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))} />
-                <input className="field-input sp-grant-name" placeholder="사업명 (예: 수출바우처)"
+                <input className="field-input sp-grant-name" placeholder="사업명"
                   value={grantName} onChange={(e) => setGrantName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addGrant(); } }} />
                 <button type="button" className="btn-secondary btn-sm" onClick={addGrant}>추가</button>
               </div>
-              <p className="sp-q-hint">같은 사업을 연달아 받지 못하게 막는 곳이 있어, 적어 두면 &apos;재신청 제한 확인&apos;으로 걸러 드립니다.</p>
+              <p className="sp-q-hint">적어 두면 재신청 제한을 함께 확인합니다.</p>
             </div>
           </div>
 
@@ -190,7 +190,7 @@ export function SupportCompanyCard({
                   </button>
                 ))}
               </div>
-              <p className="sp-q-hint">추천 순서에만 씁니다. 고르지 않은 분야를 숨기지는 않습니다.</p>
+              <p className="sp-q-hint">추천 순서를 정할 때만 씁니다.</p>
             </div>
           </div>
         </div>

@@ -156,10 +156,10 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
   const hasChange = stat.add.length + stat.rm.length > 0;
 
   if (!targetUserId) {
-    return <div className="text-xs text-[var(--text-dim)] py-4">아직 계정에 연결되지 않은 구성원입니다. 초대 수락 후 권한을 부여할 수 있습니다.</div>;
+    return <div className="text-xs text-[var(--text-dim)] py-4">아직 계정에 연결되지 않은 구성원입니다. 초대를 수락하면 권한을 줄 수 있습니다.</div>;
   }
   if (targetIsMaster) {
-    return <div className="text-xs text-[var(--text-muted)] py-4">이 구성원은 <b>마스터</b>입니다. 모든 메뉴·기능 권한을 항상 보유합니다.</div>;
+    return <div className="text-xs text-[var(--text-muted)] py-4">이 구성원은 <b>마스터</b>라 모든 권한을 가집니다.</div>;
   }
   if (isLoading) return <div className="text-xs text-[var(--text-dim)] py-4">권한 불러오는 중...</div>;
 
@@ -169,14 +169,14 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
       <div className="perm-head">
         <div>
           <div className="text-sm font-bold text-[var(--text)]">메뉴·기능 권한</div>
-          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">켜진 메뉴와 세부 기능만 {empName}님에게 보입니다. 기본 제공(마이페이지·알림·일정·게시판 등)은 항상 열립니다.</div>
+          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">켜진 메뉴와 기능만 {empName}님에게 보입니다.</div>
         </div>
         <div className="perm-tpls">
           <span className="text-[11px] text-[var(--text-dim)]">템플릿으로 시작</span>
           {templates.length === 0
             ? <span className="text-[11px] text-[var(--text-dim)]">만들어 둔 템플릿 없음</span>
             : (templates as any[]).map((t) => (
-              <button key={t.id} type="button" onClick={() => stageTemplate(t)} title={`${(t.perm_keys || []).length}개 권한 · 누르면 체크가 이 템플릿으로 바뀝니다(저장 전)`}
+              <button key={t.id} type="button" onClick={() => stageTemplate(t)} title={`${(t.perm_keys || []).length}개 권한 · 누르면 이 템플릿의 권한으로 바뀝니다.`}
                 className={matchedTplId === t.id ? "qk-quick qk-quick-on" : "qk-quick"}>{t.name}</button>
             ))}
           <button onClick={() => setShowTemplateModal(true)} className="btn-secondary btn-sm">템플릿 관리</button>
@@ -208,7 +208,7 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
 
       {/* 바닥 — 저장(확인 팝업) */}
       <div className="perm-foot">
-        {hasChange && <span className="perm-sum-warn text-[11.5px] mr-auto">저장을 눌러야 반영됩니다. 누르면 바뀐 것을 한 번 더 보여 드립니다</span>}
+        {hasChange && <span className="perm-sum-warn text-[11.5px] mr-auto">저장을 눌러야 반영됩니다.</span>}
         <button onClick={() => setConfirming(true)} disabled={!hasChange || saveMut.isPending} className="btn-primary btn-sm disabled:opacity-40">
           {saveMut.isPending ? "저장 중..." : "저장"}
         </button>

@@ -140,12 +140,12 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
               <RowsPerPage value={draft.rows} onChange={(n) => setDraft((c) => ({ ...c, rows: n }))} />
               <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
             </>}>
-            <ConditionRow label="출처" hint="기본 = 읽기전용 · 자체 = 회사가 추가">
+            <ConditionRow label="출처" hint="기본은 읽기전용이고 자체는 회사가 추가한 계정입니다.">
               <ChipGroup value={draft.src} onChange={(v) => setDraft((c) => ({ ...c, src: v }))}
                 options={[{ value: "", label: "전체" }, { value: "system", label: "기본" }, { value: "custom", label: "자체" }] as const} />
             </ConditionRow>
           </ConditionPanel>
-          <QuickSearch value={q} onApply={setQ} placeholder="코드 · 계정명 · 구분 (예: 831, 지급수수료). 쉼표로 여러 개, Enter" />
+          <QuickSearch value={q} onApply={setQ} placeholder="코드 · 계정명 · 구분 검색" />
           <ChipGroup value={typeKey} onChange={setTypeKey}
             options={[{ value: "all", label: `전체 ${(accounts as Acct[]).length}` }, ...typeCounts.map((t) => ({ value: t.v, label: t.n > 0 ? `${t.l} ${t.n}` : t.l }))]} />
         </QueryBar>
@@ -153,7 +153,7 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
         <ResultStrip right={<span className="text-[11px] text-[var(--text-dim)]">표시 <b className="mono-number">{shown.length}</b>개</span>}>
           <Stat label="계정과목" value={`${(accounts as Acct[]).length}개`} />
           <Stat label="자체 추가" value={`${(accounts as Acct[]).filter((a) => !a.is_system).length}개`} />
-          <span className="text-[11px] text-[var(--text-dim)]">기본 계정은 읽기전용 · 표준 {STANDARD_ACCOUNTS.length}개를 한 번에 채울 수 있습니다 (거래매칭 직접입력·전표 처리에서 사용)</span>
+          <span className="text-[11px] text-[var(--text-dim)]">표준 계정 {STANDARD_ACCOUNTS.length}개를 한 번에 채울 수 있습니다.</span>
         </ResultStrip>
       </QueryHead>
 
@@ -171,9 +171,9 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
             </div>
           )}
           {(accounts as Acct[]).length === 0 ? (
-            <div className="collect-empty">계정과목이 없습니다. <b>“표준 계정과목 채우기”</b>로 기본 계정을 불러오거나 직접 추가해 보세요.</div>
+            <div className="collect-empty">아직 계정과목이 없습니다. <b>“표준 계정과목 채우기”</b>로 시작해 보세요.</div>
           ) : shown.length === 0 ? (
-            <div className="collect-empty">이 조건에 맞는 계정과목이 없습니다. 검색조건을 풀어 보세요</div>
+            <div className="collect-empty">조건에 맞는 계정과목이 없습니다. 검색조건을 풀어 보세요.</div>
           ) : (
             <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed coa-table">
               <thead>

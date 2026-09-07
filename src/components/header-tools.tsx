@@ -78,7 +78,7 @@ function Calculator() {
           {hist.map((h, i) => <button key={i} type="button" className="ht-calc-hist-row" onClick={() => setExpr(String(h.r))} title="누르면 결과를 이어서 계산"><span className="ev-dim">{h.e}</span><b className="mono-number">= {fmt(h.r)}</b></button>)}
         </div>
       )}
-      <p className="ht-hint">키보드로 바로 칩니다 · Enter = 계산 · Esc = 지우기 · 결과를 누르면 복사</p>
+      <p className="ht-hint">Enter로 계산하고 결과를 누르면 복사됩니다.</p>
     </div>
   );
 }
@@ -189,7 +189,7 @@ function RegionPicker({ frame, onPick, onCancel }: { frame: HTMLCanvasElement; o
         </div>
       )}
       <div className="cap-bar">
-        <span>{rect && rect.w > 4 ? "영역을 골랐습니다. Enter 또는 저장" : "저장할 영역을 마우스로 끌어 고르세요"}</span>
+        <span>{rect && rect.w > 4 ? "Enter 또는 저장을 누르세요." : "저장할 영역을 끌어 선택하세요."}</span>
         <button type="button" className="btn-secondary btn-sm" onClick={onCancel}>취소 (Esc)</button>
         <button type="button" className="btn-primary btn-sm" disabled={!rect || rect.w < 4 || rect.h < 4} onClick={confirm}>이 영역 저장</button>
       </div>
@@ -223,7 +223,7 @@ function Capture({ onDone }: { onDone: () => void }) {
   };
   return (
     <div className="ht-capture">
-      <p className="ht-hint">지금 보고 있는 화면을 PNG 로 저장하고 클립보드에도 넣습니다. 브라우저가 <b>어느 화면을 찍을지</b>  처음 한 번만 묻습니다. <b>"전체 화면"</b>에서 이 모니터를 고르세요(원본 화질로 찍고 브라우저 안쪽만 자동으로 잘라냅니다. 브라우저 보안이라 이 물음은 건너뛸 수 없습니다). 그 뒤로는 안 묻습니다. 브라우저의 "공유 중지"를 누르면 다음에 다시 묻습니다.  <b>영역 선택</b>은 찍은 화면 위에서 사각형을 끌어 그 부분만 저장합니다.</p>
+      <p className="ht-hint">지금 보는 화면을 PNG로 저장하고 클립보드에 복사합니다. <b>전체 화면</b>에서 이 모니터를 고르면 그 뒤로는 묻지 않습니다.</p>
       <div className="ht-capture-btns">
         <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={() => shoot("full")}>{busy ? "찍는 중…" : "전체 화면"}</button>
         <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={() => shoot("region")}>영역 선택</button>
@@ -308,7 +308,7 @@ function NoteList({ open, onOpen, onNew }: { open: Set<string>; onOpen: (n: Note
         <input className="ht-calc-in sn-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="제목·내용 검색" />
         <button type="button" className="btn-primary btn-sm" onClick={onNew}>+ 새 메모</button>
       </div>
-      <p className="ht-hint">누르면 스티커로 뜹니다 — 여러 장을 같이 열어 두고 끌어서 옮길 수 있습니다. {notes.length}장 · 핀은 위로</p>
+      <p className="ht-hint">누르면 스티커로 열립니다. 전체 {notes.length}장.</p>
       <div className="sn-list">
         {shown.map((n) => (
           <button key={n.id} type="button" className={`sn-card sn-${n.color} ${open.has(n.id) ? "sn-card-open" : ""}`} onClick={() => onOpen(n)} title={open.has(n.id) ? "열려 있음. 누르면 맨 위로" : "누르면 스티커로 열기"}>
@@ -317,7 +317,7 @@ function NoteList({ open, onOpen, onNew }: { open: Set<string>; onOpen: (n: Note
             <span className="sn-card-when mono-number">{when(n.updated_at)}</span>
           </button>
         ))}
-        {!shown.length && <div className="ht-hint ht-note-empty">{q ? "맞는 메모가 없습니다" : "아직 메모가 없습니다. + 새 메모"}</div>}
+        {!shown.length && <div className="ht-hint ht-note-empty">{q ? "검색 결과가 없습니다." : "아직 메모가 없습니다."}</div>}
       </div>
     </div>
   );

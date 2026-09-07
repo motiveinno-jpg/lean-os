@@ -146,7 +146,7 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
   return (
     <div className="form-template-manager glass-card">
       <h2 className="text-base font-bold text-[var(--text)] mb-1">{only ? `${DOC_LABEL[only]} 양식 PDF` : "회사 양식 PDF"}</h2>
-      <p className="text-xs text-[var(--text-muted)] mb-4">회사가 쓰던 {only ? DOC_LABEL[only] : "견적서·전자계약"} PDF를 올리면 자동 인식해서, {only === "contract" ? "계약 서명" : only === "quote" ? "견적" : "견적/계약"} 생성 시 그 디자인 그대로 값(거래처·금액·날짜{only === "contract" ? "·서명" : "·품목"})만 채워 출력합니다. 활성 양식이 없으면 기본 디자인으로 생성됩니다.</p>
+      <p className="text-xs text-[var(--text-muted)] mb-4">회사가 쓰던 {only ? DOC_LABEL[only] : "견적서·전자계약"} PDF를 올리면 그 디자인 그대로 문서를 만듭니다.</p>
 
       {/* 업로드 폼 */}
       <div className="template-upload-form">
@@ -164,12 +164,12 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 2026 표준 견적서" className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
         </div>
         {/* 텍스트변환이 기본(권장) — 내용 수정·표·서식·{{변수}} 가능. 오버레이는 디자인 100% 보존용 보조. */}
-        <label className={`h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer ${busy ? "bg-[var(--bg-surface)] text-[var(--text-dim)]" : "bg-[var(--primary)] text-white hover:opacity-90"}`} title="PDF를 편집 가능한 텍스트로 변환 · 내용을 직접 고치고 표·서식·{{변수}}를 넣습니다 (권장)">
+        <label className={`h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer ${busy ? "bg-[var(--bg-surface)] text-[var(--text-dim)]" : "bg-[var(--primary)] text-white hover:opacity-90"}`} title="PDF를 편집 가능한 텍스트로 변환합니다.">
           {busy ? "처리 중…" : "PDF 업로드 (텍스트 변환·권장)"}
           <input type="file" accept=".pdf,application/pdf" className="hidden" disabled={busy}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) onFileText(f); e.target.value = ""; }} />
         </label>
-        <label className={`h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer border ${busy ? "border-[var(--border)] text-[var(--text-dim)]" : "border-[var(--primary)]/40 text-[var(--primary)] hover:bg-[var(--primary)]/10"}`} title="PDF 디자인을 배경 이미지로 두고 변수 위치만 지정(원본 100% 보존, 내용 수정 불가)">
+        <label className={`h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer border ${busy ? "border-[var(--border)] text-[var(--text-dim)]" : "border-[var(--primary)]/40 text-[var(--primary)] hover:bg-[var(--primary)]/10"}`} title="PDF 디자인을 그대로 두고 변수 위치만 지정합니다.">
           {busy ? "처리 중…" : "디자인 그대로 (오버레이)"}
           <input type="file" accept=".pdf,application/pdf" className="hidden" disabled={busy}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
@@ -181,7 +181,7 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
         <div key={dt} className="template-type-group">
           <div className="text-xs font-bold text-[var(--text-muted)] mb-1.5">{DOC_LABEL[dt]} 양식</div>
           {byType(dt).length === 0 ? (
-            <div className="text-xs text-[var(--text-dim)] px-1 py-2">등록된 양식이 없습니다 (기본 디자인 사용 중).</div>
+            <div className="text-xs text-[var(--text-dim)] px-1 py-2">아직 등록된 양식이 없습니다. 기본 디자인을 사용합니다.</div>
           ) : (
             <div className="template-list">
               {byType(dt).map((t) => (

@@ -399,7 +399,7 @@ export function DocHead({ ctl, warehouses, partners, staff }: {
                         return !q || p.name.toLowerCase().includes(q); })
                       .map((p) => ({ id: p.id, name: p.name }))}
                     placeholder={`${f.name} 검색`}
-                    empty={f.field_id === "partner" ? "등록된 거래처가 없습니다. 이름만 입력해도 됩니다" : "등록된 구성원이 없습니다"}
+                    empty={f.field_id === "partner" ? "아직 등록된 거래처가 없습니다. 이름만 입력해도 됩니다." : "아직 등록된 구성원이 없습니다."}
                     onPick={(sel) => {
                       setHead((s) => ({ ...s, [f.field_id]: sel.name,
                         ...(f.field_id === "partner" ? { partner_id: sel.id } : {}) }));
@@ -598,7 +598,7 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
                             name: `${p.name}${p.spec ? ` (${p.spec})` : ""}`,
                           }))}
                           placeholder="품목 검색 (이름·SKU·규격)"
-                          empty="등록된 품목이 없습니다. 재고 › 품목에서 먼저 등록하세요"
+                          empty="아직 등록된 품목이 없습니다. 재고 › 품목에서 먼저 등록하세요."
                           onPick={(sel) => {
                             const p = products.find((x) => x.id === sel.id);
                             if (p) choose(i, p);
@@ -657,14 +657,13 @@ export function FormDialog({ ctl }: { ctl: DocCtl }) {
     <div className="inv-modal" onClick={() => setFormOpen(false)}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">입력 항목 설정 — {FORM_LABEL[formKey]}</h3>
-        <p className="inv-modal-desc">
-          사용할 항목만 선택하세요. <b>이름을 눌러 변경할 수 있습니다.</b>
-          이 설정은 <b>이 양식에만</b> 적용되며 <b>회사 전체에</b> 반영됩니다.
+        <p className="inv-modal-desc" title="이 양식에만 적용되고 회사 전체에 반영됩니다">
+          사용할 항목을 고릅니다. 이름을 누르면 바꿀 수 있습니다.
         </p>
 
         <div className="fl-grp">
           <h4>공통 항목<span className="ui-sub">전표당 한 번 입력합니다</span></h4>
-          <p className="fl-desc">일자는 필수 항목이라 해제할 수 없습니다.</p>
+          <p className="fl-desc">일자는 해제할 수 없습니다.</p>
           <div className="fl-list">{draft.head.map(rowOf("head"))}</div>
           <div className="fl-add">
             <input className="field-input" placeholder="추가할 항목 이름 (예: 현장명 · 결제조건)" value={nh} onChange={(e) => setNh(e.target.value)} />
@@ -674,7 +673,7 @@ export function FormDialog({ ctl }: { ctl: DocCtl }) {
 
         <div className="fl-grp">
           <h4>품목 항목<span className="ui-sub">품목마다 입력합니다</span></h4>
-          <p className="fl-desc">품목·수량·공급가액은 계산에 필요해 해제할 수 없습니다.</p>
+          <p className="fl-desc">품목·수량·공급가액은 해제할 수 없습니다.</p>
           <div className="fl-list">{draft.line.map(rowOf("line"))}</div>
           <div className="fl-add">
             <input className="field-input" placeholder="추가할 항목 이름 (예: 도면번호 · 색상)" value={nl} onChange={(e) => setNl(e.target.value)} />
@@ -692,7 +691,7 @@ export function FormDialog({ ctl }: { ctl: DocCtl }) {
                 setFormOpen(false); toast("기본값으로 되돌렸습니다", "success");
               } catch (e) { toast(friendlyError(e), "error"); }
             }}>기본값으로</button>
-          <span className="fl-note">해제한 항목의 값은 삭제되지 않습니다. 다시 선택하면 그대로 표시됩니다.</span>
+          <span className="fl-note">해제한 항목의 값은 지워지지 않습니다.</span>
           <button type="button" className="btn-secondary btn-sm" onClick={() => setFormOpen(false)}>취소</button>
           <button type="button" className="btn-primary btn-sm" onClick={commitForm}>저장</button>
         </div>

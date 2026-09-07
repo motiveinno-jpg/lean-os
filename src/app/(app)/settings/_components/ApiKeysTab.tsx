@@ -51,10 +51,10 @@ function IngestKeyCard({ companyId }: { companyId: string }) {
   return (
     <div className="apik-section">
       <div className="apik-main">
-        <div className="apik-head"><b>외부 자동화 인입 키 (n8n 등)</b></div>
+        <div className="apik-head"><b>외부 자동화 인입 키</b></div>
         <p className="text-xs text-[var(--text-muted)] mt-1">
-          외부 자동화가 통장·계산서·급여 배치를 밀어 넣을 때 <code>x-api-key</code> 헤더에 넣는 회사 전용 비밀키입니다.
-          {active ? <> 현재 키 끝자리 <b>…{active.key_hint}</b> ({new Date(active.created_at).toLocaleDateString("ko-KR")} 발급).</> : " 아직 발급하지 않았습니다. 발급 전에는 회사 ID 방식이 임시로 허용됩니다."}
+          외부 자동화가 <code>x-api-key</code> 헤더에 넣는 회사 전용 비밀키입니다.
+          {active ? <> 현재 키 끝자리 <b>…{active.key_hint}</b>, {new Date(active.created_at).toLocaleDateString("ko-KR")} 발급.</> : " 아직 발급하지 않았습니다."}
         </p>
         {issued && (
           <div className="mt-2 p-3 rounded-lg bg-[var(--warning-dim)] text-xs">
@@ -120,9 +120,8 @@ export function ApiKeysTab({ companyId, userId }: { companyId: string; userId: s
   return (
     <div className="apik-wrap">
       <p className="apik-intro">
-        광고 매체·공공기관에서 <b>회사 이름으로 발급받은 키</b>를 여기에 넣습니다. 넣는 순간 실제로 한 번 불러 보고,
-        키는 암호화되어 화면에 다시 나오지 않습니다.
-        은행·카드·홈택스는 공동인증서로 붙이므로 <Link href="/settings/integration?tab=bank" className="apik-link">은행연동</Link> 탭에서 합니다.
+        광고 매체와 공공기관에서 <b>회사 이름으로 발급받은 키</b>를 등록합니다.
+        은행·카드·홈택스는 <Link href="/settings/integration?tab=bank" className="apik-link">은행연동</Link> 탭에서 연결합니다.
       </p>
 
       {isLoading ? (
@@ -286,8 +285,7 @@ function KeyDialog({ provider, companyId, userId, onClose, onSaved }: {
           </div>
 
           <p className="apik-note">
-            저장하면 <b>실제로 한 번 불러 본 뒤</b> 성공했을 때만 등록합니다.
-            등록한 키는 암호화되어 화면에 다시 나오지 않습니다.
+            <b>연결을 확인한 뒤</b> 저장하며, 키는 다시 표시하지 않습니다.
           </p>
         </div>
 
