@@ -101,7 +101,7 @@ export function AppointmentsSection({ employeeId, companyId, emp, userId }: { em
             <div className="inv-form-grid">
               <label className="inv-field"><span>종류 *</span>
                 <select className="field-input" value={form.kind} onChange={(e) => setForm((s) => ({ ...s, kind: e.target.value as AppointmentKind }))}>
-                  {APPOINTMENT_KINDS.map((k) => <option key={k.key} value={k.key}>{k.label} — {k.hint}</option>)}
+                  {APPOINTMENT_KINDS.map((k) => <option key={k.key} value={k.key}>{k.label} · {k.hint}</option>)}
                 </select></label>
               <label className="inv-field"><span>발령일 *</span><DateField value={form.date} onChange={(e) => setForm((s) => ({ ...s, date: e.target.value }))} className="field-input" /></label>
               {needsDept && <DepartmentField companyId={companyId} label="부서" value={form.department} onChange={(v) => setForm((s) => ({ ...s, department: v }))} />}

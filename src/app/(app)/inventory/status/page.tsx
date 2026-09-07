@@ -548,7 +548,7 @@ export default function InventoryStatusPage() {
                       <ColumnChart height={180} unit="개" data={series(make.perDay)} />
                     </div>
                     <div className="pnl-panel">
-                      <h3>자재 부족</h3><p>열린 주문 잔량 × 자재구성 − 현재고{make.noBom ? <> · <span title={`자재구성 없음: ${make.noBomNames.join(", ")}`}>자재구성 없는 주문 줄 {make.noBom}개는 셈에서 빠짐</span> — {make.noBomNames.slice(0, 5).join(", ")}{make.noBomNames.length > 5 ? ` 외 ${make.noBomNames.length - 5}` : ""} (<Link href="/inventory/products" className="bz-link">품목에서 자재구성</Link>)</> : null}</p>
+                      <h3>자재 부족</h3><p>열린 주문 잔량 × 자재구성 − 현재고{make.noBom ? <> · <span title={`자재구성 없음: ${make.noBomNames.join(", ")}`}>자재구성 없는 주문 줄 {make.noBom}개는 셈에서 빠짐</span> · {make.noBomNames.slice(0, 5).join(", ")}{make.noBomNames.length > 5 ? ` 외 ${make.noBomNames.length - 5}` : ""} (<Link href="/inventory/products" className="bz-link">품목에서 자재구성</Link>)</> : null}</p>
                       {make.shortage.length ? (
                         <table className="ev-table ev-lined table-inv-status-sm">
                           <thead><tr><th>자재</th><th>필요</th><th>현재고</th><th>부족</th></tr></thead>

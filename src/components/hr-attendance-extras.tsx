@@ -501,7 +501,7 @@ export function EditRequestInbox({ companyId, reviewerId }: { companyId: string;
             <div key={r.id} className="edit-request-row">
               <div className="flex items-center justify-between mb-1">
                 <div className="text-xs font-semibold">
-                  {rec?.employees?.name || "직원"} — {rec?.date}
+                  {rec?.employees?.name || "직원"} · {rec?.date}
                 </div>
                 <div className="flex gap-1.5">
                   <button

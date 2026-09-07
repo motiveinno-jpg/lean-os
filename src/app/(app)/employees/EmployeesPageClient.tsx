@@ -1169,7 +1169,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
               {todayStatOpen && (
                 <div className="glass-card p-4">
                   <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">
-                    오늘 {{ present: "출근", late: "지각", absent: "결근", leave: "자리비움" }[todayStatOpen]} — {todayStatNames[todayStatOpen]?.length ?? 0}명
+                    오늘 {{ present: "출근", late: "지각", absent: "결근", leave: "자리비움" }[todayStatOpen]} · {todayStatNames[todayStatOpen]?.length ?? 0}명
                   </div>
                   {(todayStatNames[todayStatOpen] || []).length === 0 ? (
                     <div className="text-xs text-[var(--text-dim)]">해당 인원이 없습니다</div>

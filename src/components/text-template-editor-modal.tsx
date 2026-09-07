@@ -54,7 +54,7 @@ export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, o
       <div className="tpl-editor-panel" onClick={(e) => e.stopPropagation()}>
         <div className="tpl-editor-header">
           <div className="text-sm font-bold text-[var(--text)]">
-            {step === "edit" ? "텍스트 양식 편집" : "발급 미리보기"} — {title}
+            {step === "edit" ? "텍스트 양식 편집" : "발급 미리보기"} · {title}
           </div>
         </div>
         {step === "edit" ? (

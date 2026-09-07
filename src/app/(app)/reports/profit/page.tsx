@@ -127,7 +127,7 @@ export default function ProfitSummaryPage() {
         <h3>살펴볼 것</h3>
         <ul className="pnl-watch">
           {spikes.map((a) => (
-            <li key={a.id}><span className="pnl-flag">급증</span><span>{a.name} — {s.cmpLabel} 대비 <b>+{Math.round(((a.cur - a.cmp) / a.cmp) * 100)}%</b> ({won(a.cur - a.cmp)})</span><em>장부 대조</em><button type="button" className="pnl-watch-link" onClick={() => openDrill(a.name, (l) => l.accountId === a.id)}>원천 전표 →</button></li>
+            <li key={a.id}><span className="pnl-flag">급증</span><span>{a.name} · {s.cmpLabel} 대비 <b>+{Math.round(((a.cur - a.cmp) / a.cmp) * 100)}%</b> ({won(a.cur - a.cmp)})</span><em>장부 대조</em><button type="button" className="pnl-watch-link" onClick={() => openDrill(a.name, (l) => l.accountId === a.id)}>원천 전표 →</button></li>
           ))}
           {ar && ar.over30 > 0 && (
             <li><span className="pnl-flag">미수금</span><span>30일 넘은 미수금 <b>{won(ar.over30)}</b> · {ar.over30Partners}곳</span><em>세금계산서 상태</em><Link href="/partners/ledger" className="pnl-watch-link">거래처 원장 →</Link></li>

@@ -105,7 +105,7 @@ export function ProdVoucherDialog({ companyId, userId, onClose }: { companyId: s
             <label className="prod-voucher-acct">
               <span className="field-label">주기</span>
               <select className="field-input" value={cfg.cycle} onChange={(e) => setCfg({ ...cfg, cycle: e.target.value as ProdVoucherCycle })}>
-                {CYCLES.map((c) => <option key={c.value} value={c.value}>{c.label} — {c.desc}</option>)}
+                {CYCLES.map((c) => <option key={c.value} value={c.value}>{c.label} · {c.desc}</option>)}
               </select>
             </label>
             {acctPick("acct_product", "제품 계정", "제품")}

@@ -27,7 +27,7 @@ const GROUPS: Group[] = [
   {
     href: "/reports/summary",
     label: "경영 요약",
-    desc: "지금 회사가 괜찮은지 · 돈 있나 · 벌고 있나 · 받을 돈·낼 돈 세 신호와 이번 주 챙길 것. 손익은 확정 전표, 현금은 통장, 받을·낼 돈은 거래처 원장 기준.",
+    desc: "돈은 있는지, 벌고 있는지, 받을 돈과 낼 돈은 얼마인지 한눈에 봅니다.",
   },
   {
     href: "/reports/profit",
@@ -35,10 +35,10 @@ const GROUPS: Group[] = [
     match: ["/reports/profit"],
     //   2026-08-19 재편 — 확정 전표 기준으로 통일(기획 docs/20260819_PLAN_pnl_status_redesign.md). 요약이 기본.
     subs: [
-      { href: "/reports/profit", label: "요약", desc: "이번 달 벌었나 · 손익 구조, 무엇이 달라졌나, 살펴볼 것. 손익계산서와 같은 숫자입니다." },
-      { href: "/reports/revenue", label: "매출", desc: "어디서 얼마 벌었나 · 거래처별·계정별 매출과 미수금 (확정 전표 기준)." },
-      { href: "/reports/expense", label: "비용", desc: "어디로 얼마 나갔나 · 계정별·거래처별 비용, 인건비·고정비·변동비 (확정 전표 기준)." },
-      { href: "/reports/monthly", label: "월별 표", desc: "월별 매출·비용·손익과 전월·전년 대비를 자세히 봅니다." },
+      { href: "/reports/profit", label: "요약", desc: "이번 달 얼마가 남았는지, 무엇이 달라졌는지 봅니다." },
+      { href: "/reports/revenue", label: "매출", desc: "어디서 얼마를 벌었는지 거래처와 계정별로 봅니다." },
+      { href: "/reports/expense", label: "비용", desc: "어디에 얼마가 나갔는지 계정과 거래처별로 봅니다." },
+      { href: "/reports/monthly", label: "월별 표", desc: "월별 매출·비용·손익을 전월·전년과 비교합니다." },
     ],
   },
   {
@@ -46,31 +46,31 @@ const GROUPS: Group[] = [
     label: "자금 전망",
     //   2026-08-19 재편 — 전망(잔액 곡선·13주 달력·시나리오) / 예정 항목(표) / 월별 흐름(예전 경영 흐름). 기획 docs/20260819_PLAN_summary_outlook_redesign.md
     subs: [
-      { href: "/reports/outlook", label: "전망", desc: "앞으로 돈이 괜찮은지 · 오늘 잔액에서 날짜 있는 예정 입출금을 빼고 더한 잔액 곡선. 실선은 예정 반영, 점선은 지금 속도, 시나리오는 겹쳐 그립니다." },
-      { href: "/reports/upcoming", label: "예정 항목", desc: "앞으로 들어올 돈·나갈 돈을 날짜대로 한 표에 · 어디서 온 숫자인지(근거)와 확실도를 같이 적습니다." },
-      { href: "/reports/flow", label: "월별 흐름", desc: "매출 → 수금 → 비용 → 손익 → 세무 → 결산을 월 단위 한 흐름으로 (통장·세금계산서 기준)." },
+      { href: "/reports/outlook", label: "전망", desc: "예정된 입출금을 반영한 앞으로의 잔액입니다." },
+      { href: "/reports/upcoming", label: "예정 항목", desc: "들어올 돈과 나갈 돈을 날짜순으로 봅니다." },
+      { href: "/reports/flow", label: "월별 흐름", desc: "매출부터 결산까지 월 단위로 봅니다." },
     ],
   },
   {
     href: "/reports/statements",
     label: "회계 자료",
-    desc: "손익계산서·재무상태표 등 정식 재무제표를 봅니다.",
+    desc: "손익계산서, 재무상태표 등 정식 재무제표입니다.",
     match: STATEMENT_ROUTES,
     //   2026-08-19 리포트 표준 — 예전 StatementsTabs(2단 링크 줄)를 여기 하위 갈래로 합쳐 상자 안 파란 밑줄 한 줄로
     //   ⚠️ 2026-08-20 — 인원별 지출·3-Way 매칭은 STATEMENT_ROUTES 에만 있고 하위 갈래엔 빠져 있어
     //      주소를 직접 치지 않으면 도달할 수 없었다(랜딩 감사에서 발견). 같은 그룹이므로 여기 붙인다.
     subs: [
-      { href: "/reports/pnl", label: "손익계산서", desc: "기간별 손익계산서 · 표준 양식(Ⅰ~Ⅸ), 항목을 누르면 원천 내역." },
-      { href: "/reports/bs", label: "재무상태표", desc: "기준일 자산·부채·자본 · 채권·채무는 해당연도 1/1~기준일 확정 전표 누적." },
-      { href: "/reports/costs", label: "비용 분석", desc: "고정비·변동비 구성과 월별 추이 · 지난 달의 실적 기준." },
-      { href: "/reports/by-person", label: "인원별 지출", desc: "직원별로 얼마나 나갔나 · 법인카드 사용액과 급여를 사람 기준으로 합산." },
-      { href: "/reports/three-way-match", label: "3-Way 매칭", desc: "계약 ↔ 세금계산서 ↔ 입금 대조 · 미매칭 계산서에 후보를 추천하고 확정하면 전표·미수금이 갱신됩니다." },
+      { href: "/reports/pnl", label: "손익계산서", desc: "표준 양식의 기간별 손익계산서입니다." },
+      { href: "/reports/bs", label: "재무상태표", desc: "기준일의 자산·부채·자본입니다." },
+      { href: "/reports/costs", label: "비용 분석", desc: "고정비와 변동비의 구성과 추이를 봅니다." },
+      { href: "/reports/by-person", label: "인원별 지출", desc: "법인카드 사용액과 급여를 사람 기준으로 봅니다." },
+      { href: "/reports/three-way-match", label: "3-Way 매칭", desc: "계약, 세금계산서, 입금을 맞춰 봅니다." },
     ],
   },
   {
     href: "/reports/vat",
     label: "부가세",
-    desc: "매입매출전표 기준 부가세 예상 · 분기·반기 신고 전에 납부/환급 예상액을 미리 봅니다.",
+    desc: "신고 전에 납부·환급 예상액을 미리 봅니다.",
   },
 ];
 

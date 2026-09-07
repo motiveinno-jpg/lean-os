@@ -832,7 +832,7 @@ function FetchDialog({ tabs, pick, openForm, onClose, onRows }: { tabs?: React.R
           <ul className="inv-foot ch-fetch-report">
             {report.map((r) => (
               <li key={r.ch} className={r.ok ? undefined : "ch-fetch-bad"}>
-                <b>{channelLabel(r.ch)}</b> — {r.text}
+                <b>{channelLabel(r.ch)}</b> · {r.text}
                 {r.noKey && <> <Link href="/settings/integration?tab=api-keys" className="bz-link ch-link">연동·API 키로 이동</Link></>}
               </li>
             ))}

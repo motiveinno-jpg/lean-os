@@ -336,7 +336,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
                 /* 다른 그룹에서는 탭이 없으므로 회사 기초정보 주소로 보낸다 */
                 : <Link href="/settings/company?tab=company-info" className="stg-band-alert ml-2">사업자번호 미입력</Link>
             )}
-            {meta && <span className="stg-desc-meta"> — <b className={meta.danger ? "text-[var(--danger)]" : ""}>{meta.title}</b> · {meta.desc}</span>}
+            {meta && <span className="stg-desc-meta"> · <b className={meta.danger ? "text-[var(--danger)]" : ""}>{meta.title}</b> · {meta.desc}</span>}
           </div>
         </QueryHead>
         <QueryBody>
