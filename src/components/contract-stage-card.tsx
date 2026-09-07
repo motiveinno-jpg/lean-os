@@ -35,6 +35,7 @@ import {
 } from "@/lib/contract-templates";
 import { SignatureCapture, type SignatureMethod } from "@/components/signature-capture";
 import { useModalKeys } from "@/hooks/use-modal-keys";
+import { sealAsDataUrl } from "@/lib/signatures";
 
 type QuoteItem = {
   name?: string;
@@ -592,11 +593,11 @@ function OurSignatureModal({
 }) {
   // C: 회사 직인(companies.seal_url) 자동 채움 옵션
   const [usingDefaultSeal, setUsingDefaultSeal] = useState(false);
-  function applyDefaultSeal() {
+  async function applyDefaultSeal() {
     if (!companyInfo.seal_url) return;
     setUsingDefaultSeal(true);
-    // SignatureMethod 에 'seal' 없음 — 'upload' 로 표현 (이미 이미지 dataUrl/url 형식)
-    onCapture("upload", companyInfo.seal_url);
+    // SignatureMethod 에 'seal' 없음 — 'upload' 로 표현. 저장되는 계약서엔 주소 대신 이미지 자체(data:)를 심는다
+    onCapture("upload", (await sealAsDataUrl(companyInfo.seal_url)) || companyInfo.seal_url);
   }
   void partnerName; void partnerRep; void partnerBiz;
   useModalKeys(true, onClose, submitting || !ourSignatureDataUrl ? undefined : onSubmit);

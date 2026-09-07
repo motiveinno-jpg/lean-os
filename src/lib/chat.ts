@@ -213,6 +213,8 @@ export async function uploadChatFile(params: {
     .upload(path, params.file);
   if (uploadError) throw uploadError;
 
+  // chat-files 버킷은 private 이지만 DB 에는 종전대로 public 형태 URL 을 저장한다 (스키마·기존 행 무변경).
+  //   보이는 곳(chat-bubble / chat-room-view)이 signed-media 로 매번 서명 URL 을 새로 받아 연다.
   const { data: urlData } = supabase.storage.from('chat-files').getPublicUrl(path);
 
   // Send file message first (message_id is required for chat_files)

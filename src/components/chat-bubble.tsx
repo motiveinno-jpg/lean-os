@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Ico } from "@/components/ui-icon";
 import { ActionCard } from "./action-card";
+import { SignedImg, useSignedUrl } from "@/components/signed-media";
 
 interface Reaction {
   emoji: string;
@@ -86,6 +87,8 @@ export function ChatBubble({
   onPin, onReply, onReact, onEdit, onDelete, glass, unreadCount,
 }: ChatBubbleProps) {
   const [showReactions, setShowReactions] = useState(false);
+  // chat-files 버킷이 private — 저장된 public URL 을 보이는 순간 서명 URL 로 (훅이라 이른 return 앞에 둔다)
+  const fileHref = useSignedUrl(type === "file" ? metadata?.file_url : null);
 
   // 액션 툴바 버튼 공통 스타일 (카카오/인스타식 원형 아이콘 버튼). 테마 토큰 → 라이트/다크 자동 대응.
   const actionBtnCls = "w-7 h-7 rounded-full flex items-center justify-center transition text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]";
@@ -201,12 +204,12 @@ export function ChatBubble({
             {isFile ? (
               <div className="chat-bubble-file">
                 {isImage ? (
-                  <a href={metadata.file_url} target="_blank" rel="noopener noreferrer">
-                    <img src={metadata.file_url} alt={metadata.file_name}
+                  <a href={fileHref || undefined} target="_blank" rel="noopener noreferrer">
+                    <SignedImg src={metadata.file_url} alt={metadata.file_name}
                       className="chat-bubble-file-image" />
                   </a>
                 ) : (
-                  <a href={metadata.file_url} target="_blank" rel="noopener noreferrer"
+                  <a href={fileHref || undefined} target="_blank" rel="noopener noreferrer"
                     className="chat-bubble-file-link">
                     <span className="text-lg"><Ico e="📎" /></span>
                     <div>

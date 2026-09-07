@@ -22,6 +22,7 @@ import { getContractPackages, sendContractPackage, getContractTemplates, cancelC
 import { getCurrentUser } from "@/lib/queries";
 import { uploadFile } from "@/lib/file-storage";
 import type { RichEditorRef } from "@/components/rich-editor";
+import { sealAsDataUrl } from "@/lib/signatures";
 
 const RichEditor = dynamic(() => import("@/components/rich-editor").then(m => ({ default: m.RichEditor })), { ssr: false, loading: () => <div className="h-48 bg-[var(--bg-surface)] rounded-xl animate-pulse" /> });
 
@@ -195,7 +196,8 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
         } catch { /* keep empty */ }
       }
       notesObj.seal_applied_at = new Date().toISOString();
-      notesObj.seal_url = company.seal_url;
+      // 서명 화면(비로그인)이 그대로 보여 주는 값 — 저장소 주소 대신 이미지 자체를 넣는다
+      notesObj.seal_url = (await sealAsDataUrl(company.seal_url)) || company.seal_url;
       notesObj.seal_company_name = company.name || '';
       const { error: sealErr } = await supabase
         .from("hr_contract_packages")

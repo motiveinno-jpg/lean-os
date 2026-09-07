@@ -531,6 +531,30 @@ export type PartnerVarColumn = 'name'|'representative'|'contact_name'|'contact_e
 // 2026-05-22 단체 일괄발송 — 우리(갑) 직인을 발송 전 본문에 합성.
 //   갑 sig-box[data-role="갑"] 우선, 없으면(자유 양식) 본문 끝 "수행기관(갑) 직인" 블록 append.
 //   거래처는 받는 즉시 우리 도장이 찍힌 계약서를 보고, 을 서명만 하면 양방향 완성.
+// 직인 이미지를 data: URI 로 — 저장되는 계약서 HTML 에 저장소 주소가 남지 않게 한다(주소가 새면 직인 파일이 통째로 노출).
+//   문서가 자체 완결되므로 비로그인 서명·견적 화면과 PDF 에서도 주소 유효기간과 무관하게 보인다. 실패하면 원래 주소로.
+const sealDataCache = new Map<string, string>();
+export async function sealAsDataUrl(url: string | null | undefined): Promise<string | null> {
+  if (!url) return null;
+  if (url.startsWith('data:')) return url;
+  const hit = sealDataCache.get(url);
+  if (hit) return hit;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return url;
+    const blob = await res.blob();
+    if (blob.size > 2 * 1024 * 1024) return url;
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result || ''));
+      r.onerror = () => reject(r.error);
+      r.readAsDataURL(blob);
+    });
+    if (dataUrl.startsWith('data:image/')) { sealDataCache.set(url, dataUrl); return dataUrl; }
+    return url;
+  } catch { return url; }
+}
+
 export function injectOurSeal(html: string | null | undefined, sealUrl: string, companyName?: string | null): string {
   if (!html || !sealUrl) return html || '';
   const sealImg = `<img src="${sealUrl}" alt="직인" style="width:64px;height:64px;object-fit:contain;display:inline-block"/>`;
@@ -784,7 +808,7 @@ export async function createBulkSignatureRequestsToOrgs(params: {
     .eq('id', companyId)
     .maybeSingle());
   // 우리 직인 적용 — seal_url 있을 때만 (없으면 조용히 미적용)
-  const ourSealUrl: string | null = applyOurSeal ? (companyRow?.seal_url || null) : null;
+  const ourSealUrl: string | null = applyOurSeal ? await sealAsDataUrl(companyRow?.seal_url || null) : null;
 
   // 1) 회사 격리 가드 + 데이터 한 번에 조회
   const { data: partners, error: pErr } = await db

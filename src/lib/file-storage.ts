@@ -221,6 +221,153 @@ export async function downloadStoredFile(stored?: string | null, downloadName?: 
   a.remove();
 }
 
+// ── 저장된 URL → 서명 URL 일괄 변환 (board-files / chat-files private 전환, 2026-09) ──
+//   DB 에는 종전대로 public 형태(…/object/public/<bucket>/<path>)를 저장하고, **보이는 순간**에만
+//   서명 URL 로 바꾼다. 그래서 기존 행을 고치지 않아도 private 버킷에서 그대로 열린다.
+//   서명은 버킷별 createSignedUrls(≤50개 묶음)로 하고, 결과는 모듈 캐시에 (ttl − 60초) 동안 둔다 —
+//   같은 목록을 여러 번 그려도 다시 서명하지 않는다.
+
+const STORAGE_OBJECT_RE = /\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/?#]+)\/([^?#]+)/;
+const SIGN_BATCH = 50;
+
+/** 스토리지 URL 에서 bucket/path 를 뽑는다. (public|sign|authenticated 형태 모두, 쿼리·해시 제거).
+ *  스토리지 URL 이 아니면 null. */
+export function parseStorageUrl(url: string): { bucket: string; path: string } | null {
+  if (!url || typeof url !== "string") return null;
+  const m = url.match(STORAGE_OBJECT_RE);
+  if (!m) return null;
+  let path = m[2];
+  try { path = decodeURIComponent(path); } catch { /* 이미 디코드된 경로 — 그대로 */ }
+  if (!path) return null;
+  return { bucket: m[1], path };
+}
+
+/** 서명(sign/authenticated) 형태 URL 을 public 형태로 되돌린다 (토큰·쿼리 제거).
+ *  편집기가 서명 URL 을 물고 있는 채로 저장할 때 DB 에는 만료 없는 public 형태만 남기려는 용도. */
+export function toPublicStorageUrl(url: string): string {
+  const parsed = parseStorageUrl(url);
+  if (!parsed) return url;
+  const base = url.slice(0, url.indexOf("/storage/v1/object/"));
+  const path = parsed.path.split("/").map(encodeURIComponent).join("/");
+  return `${base}/storage/v1/object/public/${parsed.bucket}/${path}`;
+}
+
+const signedCache = new Map<string, { url: string; exp: number }>();
+const signedInflight = new Map<string, Promise<string>>();
+
+/** 캐시에 살아 있는 서명 URL 을 동기로 본다 (첫 렌더에서 public URL 로 깜빡이지 않게). */
+export function getCachedSignedUrl(url?: string | null): string | null {
+  if (!url) return null;
+  const hit = signedCache.get(url);
+  if (hit && hit.exp > Date.now()) return hit.url;
+  return null;
+}
+
+/** 캐시에서 지운다 — 오래 열어둔 화면에서 서명이 만료돼 깨졌을 때 한 번 다시 서명하려고. */
+export function invalidateSignedUrls(urls: string[]): void {
+  for (const u of urls) signedCache.delete(u);
+}
+
+/** 여러 저장 URL 을 한 번에 서명 URL 로. 반환은 { 원본: 서명 } 맵.
+ *  스토리지 URL 이 아니거나 서명에 실패한 것은 자기 자신으로 돌려준다(외부 링크·data: 등은 그대로). */
+export async function signStorageUrls(urls: string[], ttlSec = SIGNED_TTL): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  const now = Date.now();
+  const pending: string[] = [];
+  const parsedOf = new Map<string, { bucket: string; path: string }>();
+
+  for (const u of new Set(urls)) {
+    if (!u) continue;
+    const hit = signedCache.get(u);
+    if (hit && hit.exp > now) { out[u] = hit.url; continue; }
+    const parsed = parseStorageUrl(u);
+    if (!parsed) { out[u] = u; continue; }
+    parsedOf.set(u, parsed);
+    if (!signedInflight.has(u)) pending.push(u);
+  }
+
+  // 버킷별로 묶어 ≤50개씩 서명. 같은 원본을 동시에 요청한 다른 화면은 진행 중인 약속을 같이 기다린다.
+  const byBucket = new Map<string, string[]>();
+  for (const u of pending) {
+    const b = parsedOf.get(u)!.bucket;
+    (byBucket.get(b) || byBucket.set(b, []).get(b)!).push(u);
+  }
+  for (const [bucket, originals] of byBucket) {
+    for (let i = 0; i < originals.length; i += SIGN_BATCH) {
+      const chunk = originals.slice(i, i + SIGN_BATCH);
+      const batch: Promise<Record<string, string>> = (async () => {
+        const result: Record<string, string> = {};
+        try {
+          const paths = chunk.map((u) => parsedOf.get(u)!.path);
+          const { data, error } = await supabase.storage.from(bucket).createSignedUrls(paths, ttlSec);
+          chunk.forEach((u, j) => {
+            const signed = !error && data?.[j]?.signedUrl;
+            if (signed) {
+              result[u] = signed;
+              signedCache.set(u, { url: signed, exp: Date.now() + Math.max(ttlSec - 60, 30) * 1000 });
+            } else {
+              result[u] = u;
+            }
+          });
+        } catch {
+          chunk.forEach((u) => { result[u] = u; });
+        }
+        return result;
+      })();
+      for (const u of chunk) {
+        const one = batch.then((r) => r[u] ?? u).finally(() => signedInflight.delete(u));
+        signedInflight.set(u, one);
+      }
+    }
+  }
+
+  await Promise.all(
+    [...parsedOf.keys()].map(async (u) => {
+      const p = signedInflight.get(u);
+      out[u] = p ? await p.catch(() => u) : (getCachedSignedUrl(u) ?? u);
+    }),
+  );
+  return out;
+}
+
+// HTML 속성 값 ↔ 실제 문자열 (DOMPurify 가 내놓은 HTML 은 & 가 &amp; 로 적혀 있다)
+function decodeHtmlAttr(s: string): string {
+  return s.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+}
+function encodeHtmlAttr(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+//   src="…" / href="…" 가 스토리지 객체 URL 을 가리키는 것만 집는다 (따옴표 종류 무관)
+const HTML_STORAGE_ATTR_RE = /\b(src|href)=(["'])([^"']*\/storage\/v1\/object\/(?:public|sign|authenticated)\/[^"']*)\2/gi;
+
+/** 본문 HTML 안의 스토리지 이미지·링크(src/href)를 서명 URL 로 바꾼다. 스토리지 URL 이 없으면 원본 그대로. */
+export async function signHtmlStorageUrls(html: string, ttlSec = SIGNED_TTL): Promise<string> {
+  if (!html || !html.includes("/storage/v1/object/")) return html;
+  const found = new Map<string, string>(); // 속성 원문 → 디코드된 URL
+  for (const m of html.matchAll(HTML_STORAGE_ATTR_RE)) found.set(m[3], decodeHtmlAttr(m[3]));
+  if (found.size === 0) return html;
+  const map = await signStorageUrls([...new Set(found.values())], ttlSec);
+  return html.replace(HTML_STORAGE_ATTR_RE, (whole, attr: string, q: string, raw: string) => {
+    const original = found.get(raw) ?? decodeHtmlAttr(raw);
+    const signed = map[original];
+    if (!signed || signed === original) return whole;
+    return `${attr}=${q}${encodeHtmlAttr(signed)}${q}`;
+  });
+}
+
+/** signHtmlStorageUrls 의 반대 — 본문 HTML 안의 서명 URL 을 public 형태로 되돌린다 (저장 직전에).
+ *  동기 함수. 스토리지 URL 이 없으면 원본 그대로. */
+export function unsignHtmlStorageUrls(html: string): string {
+  if (!html || !html.includes("/storage/v1/object/")) return html;
+  return html.replace(HTML_STORAGE_ATTR_RE, (whole, attr: string, q: string, raw: string) => {
+    const original = decodeHtmlAttr(raw);
+    const pub = toPublicStorageUrl(original);
+    if (pub === original) return whole;
+    return `${attr}=${q}${encodeHtmlAttr(pub)}${q}`;
+  });
+}
+
 // 파일 레코드 배열에 signed file_url 부착 (버킷별 batch 서명). storage_path 있는 것만.
 async function attachSignedUrls<T extends { bucket?: string | null; storage_path?: string | null; file_url?: string | null }>(
   rows: T[], defaultBucket = "document-files",

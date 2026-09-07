@@ -22,11 +22,15 @@ import { PresenceText } from "@/components/presence-badge";
 import { ChatInput } from "@/components/chat-input";
 import { ChatSearch } from "@/components/chat-search";
 import { useModalKeys } from "@/hooks/use-modal-keys";
+import { SignedImg, useSignedUrl, useSignedUrls } from "@/components/signed-media";
 
 function FilesGalleryView({ files }: { files: any[] }) {
   const [preview, setPreview] = useState<any | null>(null);
   const [filter, setFilter] = useState<"all" | "image" | "pdf" | "doc">("all");
   const [layout, setLayout] = useState<"grid" | "list">("grid");
+  // chat-files 버킷이 private — 목록의 저장 URL(public 형태)을 한 번에 서명 URL 로 (섬네일용)
+  const signedUrls = useSignedUrls(files.map((f: any) => f.file_url));
+  const thumbUrl = (f: any): string | undefined => (f.file_url ? signedUrls[f.file_url] || f.file_url : undefined);
 
   const isImg = (f: any) => f.mime_type?.startsWith("image/");
   const isPdf = (f: any) => f.mime_type?.includes("pdf");
@@ -115,7 +119,7 @@ function FilesGalleryView({ files }: { files: any[] }) {
                     {isImg(f) ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={f.file_url}
+                        src={thumbUrl(f)}
                         alt={f.file_name}
                         loading="lazy"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform"
@@ -157,7 +161,7 @@ function FilesGalleryView({ files }: { files: any[] }) {
                   <div className="flex items-center gap-3 min-w-0">
                     {isImg(f) ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={f.file_url} alt="" className="w-10 h-10 object-cover rounded border border-[var(--border)]" />
+                      <img src={thumbUrl(f)} alt="" className="w-10 h-10 object-cover rounded border border-[var(--border)]" />
                     ) : (
                       <span className="text-xl w-10 text-center"><Ico e={fileIcon(f)} /></span>
                     )}
@@ -212,6 +216,9 @@ function FilePreviewModal({
   fileIcon: (f: any) => string;
   fmtSize: (n: number) => string;
 }) {
+  // chat-files 버킷이 private — 미리보기·다운로드·새 탭 모두 서명 URL 로. 섬네일 띠는 목록을 한 번에 서명.
+  const fileUrl = useSignedUrl(file.file_url) || file.file_url;
+  const stripUrls = useSignedUrls(files.map((f) => f.file_url));
   const idx = files.findIndex((f) => f.id === file.id);
   const prev = idx > 0 ? files[idx - 1] : null;
   const next = idx >= 0 && idx < files.length - 1 ? files[idx + 1] : null;
@@ -246,7 +253,7 @@ function FilePreviewModal({
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <a
-            href={file.file_url}
+            href={fileUrl}
             download={file.file_name}
             target="_blank"
             rel="noopener noreferrer"
@@ -255,7 +262,7 @@ function FilePreviewModal({
             다운로드
           </a>
           <a
-            href={file.file_url}
+            href={fileUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-semibold transition"
@@ -295,21 +302,21 @@ function FilePreviewModal({
 
         <div className="max-w-[92vw] max-h-full w-full flex items-center justify-center p-4">
           {isImg(file) ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={file.file_url} alt={file.file_name} className="max-h-[82vh] max-w-full object-contain rounded shadow-2xl" />
+            <SignedImg src={file.file_url} alt={file.file_name} className="max-h-[82vh] max-w-full object-contain rounded shadow-2xl" />
           ) : isPdf(file) ? (
             <iframe
-              src={`${file.file_url}#toolbar=1&navpanes=0`}
+              /* 서명 URL 의 ?token=… 뒤에 #toolbar 조각을 붙인다 (조각은 쿼리 뒤에 와야 한다) */
+              src={`${fileUrl}#toolbar=1&navpanes=0`}
               title={file.file_name}
               className="w-[92vw] h-[82vh] bg-white rounded shadow-2xl"
             />
           ) : isVideo(file) ? (
-            <video src={file.file_url} controls autoPlay className="max-h-[82vh] max-w-full rounded shadow-2xl bg-black" />
+            <video src={fileUrl} controls autoPlay className="max-h-[82vh] max-w-full rounded shadow-2xl bg-black" />
           ) : isAudio(file) ? (
             <div className="bg-[var(--bg-card)] rounded-2xl p-8 min-w-[280px] sm:min-w-[420px] text-center">
               <div className="text-5xl mb-4"><Ico e="🎵" /></div>
               <div className="text-sm font-semibold mb-4 text-[var(--text)]">{file.file_name}</div>
-              <audio src={file.file_url} controls autoPlay className="w-full" />
+              <audio src={fileUrl} controls autoPlay className="w-full" />
             </div>
           ) : (
             <div className="bg-[var(--bg-card)] rounded-2xl p-10 text-center max-w-md">
@@ -320,7 +327,7 @@ function FilePreviewModal({
               </div>
               <div className="flex gap-2 justify-center">
                 <a
-                  href={file.file_url}
+                  href={fileUrl}
                   download={file.file_name}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -329,7 +336,7 @@ function FilePreviewModal({
                   다운로드
                 </a>
                 <a
-                  href={file.file_url}
+                  href={fileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-4 py-2 bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] rounded-lg text-sm font-semibold transition border border-[var(--border)]"
@@ -357,7 +364,7 @@ function FilePreviewModal({
               }`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={f.file_url} alt="" className="w-full h-full object-cover" />
+              <img src={f.file_url ? stripUrls[f.file_url] || f.file_url : undefined} alt="" className="w-full h-full object-cover" />
             </button>
           ))}
         </div>

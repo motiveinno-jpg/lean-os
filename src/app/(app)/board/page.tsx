@@ -23,6 +23,8 @@ import { DateRangeField } from "@/components/date-range-field";
 import { FileUploadMulti } from "@/components/file-upload-multi";
 import { RichEditor } from "@/components/rich-editor";
 import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
+import { SignedHtml, SignedImg, SignedLink } from "@/components/signed-media";
+import { signHtmlStorageUrls, unsignHtmlStorageUrls, signStorageUrls } from "@/lib/file-storage";
 import { MentionDropdown } from "@/components/mention-dropdown";
 import { getCompanyUsers } from "@/lib/queries";
 import { friendlyError } from "@/lib/friendly-error";
@@ -353,7 +355,10 @@ export default function BoardPage() {
     const storagePath = `${companyId}/board/editor/${Date.now()}_${Math.random().toString(36).slice(2, 10)}.${ext}`;
     const { error } = await supabase.storage.from(BOARD_BUCKET).upload(storagePath, file);
     if (error) throw error;
-    return supabase.storage.from(BOARD_BUCKET).getPublicUrl(storagePath).data.publicUrl;
+    const publicUrl = supabase.storage.from(BOARD_BUCKET).getPublicUrl(storagePath).data.publicUrl;
+    // 버킷이 private 이라 편집기 안에서는 서명 URL 로 보여준다. 저장 때 unsignHtmlStorageUrls 가 public 형태로 되돌린다.
+    const signed = await signStorageUrls([publicUrl]);
+    return signed[publicUrl] || publicUrl;
   }
 
   const savePost = useMutation({
@@ -401,7 +406,7 @@ export default function BoardPage() {
           .from("board_posts")
           .update({
             title: form.title.trim(),
-            content: form.content,
+            content: unsignHtmlStorageUrls(form.content),
             updated_at: new Date().toISOString(),
             ...ext,
             attachments: merged,
@@ -416,7 +421,7 @@ export default function BoardPage() {
           author_name: user?.name || null,
           author_email: user?.email || null,
           title: form.title.trim(),
-          content: form.content,
+          content: unsignHtmlStorageUrls(form.content),
           ...ext,
         }).select("id").single();
         if (error) throw error;
@@ -1151,10 +1156,7 @@ export default function BoardPage() {
                   <div className="board-post-detail">
                     {/* 본문 — 새 글(HTML 서식)은 sanitize 후 렌더, 기존 평문 글은 pre-wrap 유지 */}
                     {isHtmlContent(p.content) ? (
-                      <div
-                        className="board-desc-html"
-                        dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(p.content) }}
-                      />
+                      <SignedHtml className="board-desc-html" html={sanitizeDocumentHtml(p.content)} />
                     ) : (
                       <div className="text-sm text-[var(--text-muted)] whitespace-pre-wrap leading-relaxed border-t border-[var(--border)] pt-3">
                         {p.content}
@@ -1318,15 +1320,14 @@ export default function BoardPage() {
                                 }}
                                 className="block"
                               >
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
+                                <SignedImg
                                   src={a.url}
                                   alt={a.name}
                                   className="w-24 h-24 object-cover rounded-lg border border-[var(--border)] cursor-zoom-in"
                                 />
                               </button>
                             ) : (
-                              <a
+                              <SignedLink
                                 key={i}
                                 href={a.url}
                                 target="_blank"
@@ -1337,7 +1338,7 @@ export default function BoardPage() {
                                 <span className="max-w-[160px] truncate">
                                   {a.name}
                                 </span>
-                              </a>
+                              </SignedLink>
                             )
                           )}
                         </div>
@@ -1358,7 +1359,15 @@ export default function BoardPage() {
                           <button
                             onClick={() => {
                               setEditing(p);
-                              setForm({ title: p.title, content: plainToHtml(p.content) });
+                              const initialHtml = plainToHtml(p.content);
+                              setForm({ title: p.title, content: initialHtml });
+                              // 본문 안 스토리지 이미지는 편집기에서도 서명 URL 로 보여야 한다 (private 버킷).
+                              //   사용자가 그 사이 타이핑을 시작했으면(내용이 달라졌으면) 덮어쓰지 않는다.
+                              if (initialHtml.includes("/storage/v1/object/")) {
+                                void signHtmlStorageUrls(initialHtml).then((h) =>
+                                  setForm((f) => (f.content === initialHtml ? { ...f, content: h } : f)),
+                                );
+                              }
                               setPostCat(p.category || "");
                               setEventDate(p.event_date || "");
                               setPollQuestion(p.poll_question || "");
@@ -1430,8 +1439,7 @@ export default function BoardPage() {
                                             const idx = imgs.findIndex((x) => x.url === a.url);
                                             setLightbox({ images: imgs, index: idx < 0 ? 0 : idx });
                                           }}>
-                                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                                          <img src={a.url} alt={a.name} className="w-20 h-20 object-cover rounded-lg border border-[var(--border)] cursor-zoom-in" />
+                                          <SignedImg src={a.url} alt={a.name} className="w-20 h-20 object-cover rounded-lg border border-[var(--border)] cursor-zoom-in" />
                                         </button>
                                       ))}
                                     </div>
@@ -1549,8 +1557,7 @@ export default function BoardPage() {
                         <div className="flex flex-wrap gap-1.5 mb-2">
                           {commentFiles[p.id].map((a, i) => (
                             <div key={i} className="relative">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={a.url} alt={a.name} className="w-14 h-14 object-cover rounded-lg border border-[var(--border)]" />
+                              <SignedImg src={a.url} alt={a.name} className="w-14 h-14 object-cover rounded-lg border border-[var(--border)]" />
                               <button type="button" onClick={() => setCommentFiles((s) => ({ ...s, [p.id]: (s[p.id] || []).filter((_, j) => j !== i) }))}
                                 className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-black/60 text-white text-[10px] leading-none flex items-center justify-center">×</button>
                             </div>
@@ -1767,8 +1774,7 @@ function BoardLightbox({ images, index, onIndex, onClose }: {
           <button onClick={(e) => { e.stopPropagation(); go(1); }} className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white text-2xl flex items-center justify-center" aria-label="다음">›</button>
         </>
       )}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <SignedImg
         src={cur.url}
         alt={cur.name}
         onClick={(e) => e.stopPropagation()}
