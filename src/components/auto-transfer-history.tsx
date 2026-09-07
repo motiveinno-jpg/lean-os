@@ -3,7 +3,9 @@
 import { kstDateStr, todayKst } from "@/lib/kst";
 import { useMemo } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/components/toast";
+import { listRecurringSuggestions, acceptRecurringSuggestion, dismissRecurringSuggestion, type DiscoveredPattern } from "@/lib/auto-discovery";
 import { TileIcon } from "@/components/ui/icon-tile";
 import { getBankTransactions } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
@@ -74,6 +76,32 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
     enabled: !!companyId,
     staleTime: 60_000,
   });
+  //   반복 결제 추천 — 최근 6개월에서 매달 비슷한 날 비슷한 금액이 나가는데 정기 지출에 없는 것 (2026-09-07 사장님 요청)
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { data: suggestions = [] } = useQuery({
+    queryKey: ["recurring-suggestions", companyId],
+    queryFn: () => listRecurringSuggestions(companyId),
+    enabled: !!companyId,
+    staleTime: 300_000,
+  });
+  const mySuggestions = (suggestions as DiscoveredPattern[]).filter((p) => p.source === variant).slice(0, 3);
+  const afterSuggest = () => {
+    qc.invalidateQueries({ queryKey: ["recurring-suggestions", companyId] });
+    qc.invalidateQueries({ queryKey: ["recurring-payments", companyId] });
+    qc.invalidateQueries({ queryKey: ["auto-transfer-history"] });
+    qc.invalidateQueries({ queryKey: ["auto-transfer-history-card"] });
+    qc.invalidateQueries({ queryKey: ["bank-page-recent-tx"] });
+    qc.invalidateQueries({ queryKey: ["cards-page-recent-tx"] });
+  };
+  const accept = async (p: DiscoveredPattern) => {
+    try { await acceptRecurringSuggestion(companyId, p); toast(`'${p.name}' 을 정기 지출로 등록했어요 — 매월 ${p.dayOfMonth}일 ₩${fmtKRW(p.estimatedMonthlyCost)}`, "success"); afterSuggest(); }
+    catch (e: any) { toast(`등록 실패: ${e?.message || ""}`, "error"); }
+  };
+  const dismiss = async (p: DiscoveredPattern) => {
+    try { await dismissRecurringSuggestion(companyId, p); afterSuggest(); }
+    catch (e: any) { toast(`무시 실패: ${e?.message || ""}`, "error"); }
+  };
 
   const { rows: list, manualOnly, unknownCount } = useMemo(() => {
     const bankTx: BankTxLite[] = (rows as any[]).map((r) => ({ ...r, source: "bank" as const, sourceLabel: r.bank_accounts?.alias || r.bank_accounts?.bank_name || null }));
@@ -179,6 +207,27 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
           ))}
           <div className="text-[10px] text-[var(--text-dim)] pt-1">
             이름·금액이 달라 안 잡히는 {variant === "card" ? "결제" : "출금"}는 {txLink}에서 골라 &quot;{variant === "card" ? "정기결제 표시" : "자동이체 표시"}&quot;를 누르면 여기에 같이 모여요.
+          </div>
+        </div>
+      )}
+
+      {mySuggestions.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-[var(--border)]">
+          <div className="text-[11px] font-semibold text-[var(--text)] mb-1.5">
+            매달 반복되는 {variant === "card" ? "결제" : "출금"}가 보여요 — 정기 지출로 등록할까요?
+          </div>
+          <div className="space-y-1.5">
+            {mySuggestions.map((p) => (
+              <div key={p.patternKey} className="auto-transfer-history-row">
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-semibold text-[var(--text)] truncate">{p.name}</div>
+                  <div className="text-[10px] text-[var(--text-dim)] truncate">{p.patternDescription}</div>
+                </div>
+                <div className="text-sm font-bold mono-number text-[var(--text-muted)] shrink-0">₩{fmtKRW(p.estimatedMonthlyCost)}</div>
+                <button type="button" onClick={() => accept(p)} className="btn-primary btn-sm shrink-0" title="재무 › 정기 지출에 등록하고, 근거가 된 줄에 표시를 남깁니다">등록</button>
+                <button type="button" onClick={() => dismiss(p)} className="btn-secondary btn-sm shrink-0" title="이 반복 결제는 다시 권하지 않습니다">무시</button>
+              </div>
+            ))}
           </div>
         </div>
       )}
