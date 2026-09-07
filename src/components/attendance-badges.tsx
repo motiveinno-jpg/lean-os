@@ -37,7 +37,7 @@ const TYPE_LABEL: Record<string, { label: string; emoji: string }> = {
 
 /**
  * 모든 배지를 한 줄에 flex-wrap 으로 렌더. compact 옵션으로 패딩 축소(모바일).
- * 부모가 컨테이너(flex)를 제공해도 무방 — 본 컴포넌트는 `<>` Fragment 출력.
+ * 부모가 컨테이너(flex)를 제공해도 무방 · 본 컴포넌트는 `<>` Fragment 출력.
  */
 export function AttendanceBadges({
   record,

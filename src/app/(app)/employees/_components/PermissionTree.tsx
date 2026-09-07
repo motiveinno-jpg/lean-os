@@ -6,10 +6,10 @@
 //   접근이 꺼지면 칩은 흐려지고, 칩을 켜면 접근이 같이 켜진다(모순 자동 보정). 경로는 툴팁으로만.
 //   키(perm_key)는 그대로 — 그리는 방법만 바뀌었다.
 import { useMemo } from "react";
-import { PERMISSION_CATALOG, type PermMenu } from "@/lib/permissions";
+import { PERMISSION_CATALOG, type PermMenu }  from "@/lib/permissions";
 
-// 부여 가능한 전체 권한 키 (기본 제공 메뉴는 라우트 키 없이 세부탭만). hidden(사이드바에서 내린 옛 메뉴)도 포함 — 키 호환
-export function useAllPermissionKeys() {
+// 부여 가능한 전체 권한 키 (기본 제공 메뉴는 라우트 키 없이 세부탭만). hidden(사이드바에서 내린 옛 메뉴)도 포함. 키 호환
+export function useAllPermissionKeys()  {
   return useMemo(() => {
     const keys: string[] = [];
     for (const g of PERMISSION_CATALOG) for (const m of g.menus) {
@@ -100,16 +100,17 @@ export function PermissionTree({ checked, onToggle, viewerIsMaster = true, saved
                     </td>
                     <td className="text-center">
                       {m.always
-                        ? <Switch on disabled label={`${m.label} 접근`} title="기본 제공 — 항상 열림" />
+                        ? <Switch on disabled label={`${m.label} 접근`} title="기본 제공 · 항상 열림" />
                         : <Switch on={menuOn} label={`${m.label} 접근`} onChange={(v) => onToggle(keys, v)} />}
                     </td>
                     <td className="perm-tabs">
                       {(m.tabs || []).length === 0 ? <span className="text-[var(--text-dim)]">—</span> : (m.tabs || []).map((t) => {
                         const k = `${m.route}:${t.key}`;
-                        // 위임 권한 자체는 마스터만 조작(서버에서도 강제) — 위임받은 부여자는 잠금 표시
+                        // 위임 권한 자체는 마스터만 조작(서버에서도 강제). 위임받은 부여자는 잠금 표시
                         const lock = !!t.masterOnly && !viewerIsMaster;
                         const on = checked.has(k);
                         return (
+                          
                           <button key={k} type="button" disabled={lock}
                             onClick={() => {
                               if (on) onToggle([k], false);

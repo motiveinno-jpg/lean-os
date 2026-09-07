@@ -81,7 +81,7 @@ export function BudgetEditor({ companyId, userId, year: initYear, onClose }: { c
   return (
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box bud-box" onClick={(e) => e.stopPropagation()}>
-        <div className="inv-modal-head"><h3>예산 입력 — 계정과목 × 월</h3><button type="button" className="inv-modal-x" onClick={onClose}>✕</button></div>
+        <div className="inv-modal-head"><h3>예산 입력<span className="ui-sub">계정과목 × 월</span></h3><button type="button" className="inv-modal-x" onClick={onClose}>✕</button></div>
         <p className="inv-modal-desc">수익·비용 계정에 달마다 예산을 적습니다. 실적 대비는 전표 현황 › 계정과목 탭에서. 줄 맨 앞 '모든 달' 칸에 적으면 12칸에 한꺼번에 들어갑니다. 부서별 예산은 전표에 부서 칸이 생기면.</p>
         <div className="bud-bar">
           <select className="inv-input bud-year" value={year} onChange={(e) => setYear(Number(e.target.value))}>{[initYear + 1, initYear, initYear - 1].map((y) => <option key={y} value={y}>{y}년</option>)}</select>

@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { useMyPermissions } from "@/lib/permissions";
-import { AccessDenied } from "@/components/access-denied";
+import { AccessDenied }  from "@/components/access-denied";
 import ByPersonChart from "./by-person-chart";
 
 /* ------------------------------------------------------------------ */
@@ -14,13 +14,13 @@ import ByPersonChart from "./by-person-chart";
 /*  직원(법인카드 소유자) 기준 카드 사용액 + 급여 합산.                  */
 /*  새 테이블 신설 없이 기존 쿼리(card_transactions / corporate_cards / */
 /*  card_aliases / employees / payslip_overrides)만 클라이언트 집계.    */
-/*  단일 회사 데이터량 기준 — 서버 RPC/뷰 불필요.                       */
+/*  단일 회사 데이터량 기준 · 서버 RPC/뷰 불필요.                       */
 /* ------------------------------------------------------------------ */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
 
-interface PersonRow {
+interface PersonRow  {
   key: string;          // 표시명 (직원명 또는 카드 별명)
   cardSpend: number;
   payroll: number;
@@ -106,7 +106,8 @@ async function loadByPerson(companyId: string, year: number): Promise<PersonRow[
     r.payroll += amt;
     bucket(r, m).pay += amt;
   }
-  // override 없는 월은 직원 기본 월급여로 추정 (지난 달까지만 — 미래월 추정 제외)
+  
+  // override 없는 월은 직원 기본 월급여로 추정 (지난 달까지만 · 미래월 추정 제외)
   const nowYM = `${YEAR_NOW}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
   for (const [empId, emp] of empById) {
     if (!emp.name || emp.salary <= 0) continue;
@@ -114,8 +115,8 @@ async function loadByPerson(companyId: string, year: number): Promise<PersonRow[
       if (m > nowYM) continue;
       if (overrideKey.has(`${empId}|${m}`)) continue;
       // R1: 입사월 이전 / 계약종료월 이후는 재직 안 한 달 → 급여 산입 제외.
-      //   (hire_date·contract_end_date 미설정 시 종전 동작 유지 — 회귀 방지)
-      if (emp.hireMonth && m < emp.hireMonth) continue;
+      //   (hire_date·contract_end_date 미설정 시 종전 동작 유지 · 회귀 방지)
+      if (emp.hireMonth && m  < emp.hireMonth) continue;
       if (emp.endMonth && m > emp.endMonth) continue;
       const r = ensure(emp.name);
       r.hasEmployee = true;
@@ -129,11 +130,11 @@ async function loadByPerson(companyId: string, year: number): Promise<PersonRow[
 }
 
 export default function ByPersonPage() {
-  const { role } = useUser();
-  // 급여 명단·개인별 월급 매트릭스가 있는 화면 — 급여 권한자만 (2026-08-19 감사).
+  const { role }  = useUser();
+  // 급여 명단·개인별 월급 매트릭스가 있는 화면 · 급여 권한자만 (2026-08-19 감사).
   //   종전 게이트(role==='partner')는 employee/advisor 를 못 막아 /reports 권한만으로
   //   전 직원 급여 랭킹이 노출됐다.
-  const { hasPerm, isMaster } = useMyPermissions();
+  const  { hasPerm, isMaster } = useMyPermissions();
   const blocked = role === "partner" || role === "advisor" || !(isMaster || hasPerm("/employees:salary"));
 
   const [companyId, setCompanyId] = useState<string | null>(null);

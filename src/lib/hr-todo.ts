@@ -50,7 +50,7 @@ export async function fetchHrTodos(companyId: string, employees: { id: string; n
     if (c.probation_end_date) {
       const n = dday(c.probation_end_date, today);
       const done = (apptByEmp.get(c.employee_id) || []).some((d) => d >= addDays(c.probation_end_date, -7));
-      if (n >= -7 && n <= 7 && !done) prob.push({ employee_id: c.employee_id, name: nameOf.get(c.employee_id)!, text: n < 0 ? `수습 종료 ${-n}일 지남 — 정규 전환 발령` : `수습 종료 D-${n}`, date: c.probation_end_date });
+      if (n >= -7 && n <= 7 && !done) prob.push({ employee_id: c.employee_id, name: nameOf.get(c.employee_id)!, text: n < 0 ? `수습 종료 ${-n}일 지남 · 정규 전환 발령` : `수습 종료 D-${n}`, date: c.probation_end_date });
     }
   }
   if (exp.length) groups.push({ key: "contract_end", label: "근로계약 만료", source: "규칙", hint: "만료 30일 전부터 · 갱신 계약서를 보내거나 퇴사 처리", go: "contracts", items: exp });
@@ -61,17 +61,17 @@ export async function fetchHrTodos(companyId: string, employees: { id: string; n
     const h = new Date(e.hire_date); const y1 = new Date(h); y1.setFullYear(h.getFullYear() + 1); const d1 = y1.toISOString().slice(0, 10);
     //   법정 연차(annual)를 이미 부여했으면 처리된 것 — cron/수동 부여 후에도 30일간 계속 뜨던 것 (2026-08-31)
     const granted = ((grants || []) as any[]).some((g) => g.employee_id === e.id && String(g.grant_date) >= addDays(d1, -30));
-    const n = dday(d1, today); if (n >= 0 && n <= 30 && !granted) anniv.push({ employee_id: e.id, name: e.name, text: `입사 1주년 D-${n} — 월 1일 연차에서 법정 연차(15일)로 바뀝니다`, date: d1 });
+    const n = dday(d1, today); if (n >= 0 && n <= 30 && !granted) anniv.push({ employee_id: e.id, name: e.name, text: `입사 1주년 D-${n} · 월 1일 연차에서 법정 연차(15일)로 바뀝니다`, date: d1 });
   }
   if (anniv.length) groups.push({ key: "anniv", label: "입사 1주년(연차 전환)", source: "규칙", hint: "자동 발생 cron 이 처리하지만, 수동 부여 회사는 휴가 탭에서 확인", go: "leave", items: anniv });
   const unsigned: HrTodoItem[] = [];
-  for (const p of ((pkgs || []) as any[])) { if (!p.sent_at || !nameOf.has(p.employee_id)) continue; const n = -dday(String(p.sent_at).slice(0, 10), today); if (n >= 7) unsigned.push({ employee_id: p.employee_id, name: nameOf.get(p.employee_id)!, text: `계약서 미서명 ${n}일 — 재발송·독촉`, date: String(p.sent_at).slice(0, 10) }); }
+  for (const p of ((pkgs || []) as any[])) { if (!p.sent_at || !nameOf.has(p.employee_id)) continue; const n = -dday(String(p.sent_at).slice(0, 10), today); if (n >= 7) unsigned.push({ employee_id: p.employee_id, name: nameOf.get(p.employee_id)!, text: `계약서 미서명 ${n}일 · 재발송·독촉`, date: String(p.sent_at).slice(0, 10) }); }
   if (unsigned.length) groups.push({ key: "unsigned", label: "계약서 미서명 7일+", source: "규칙", hint: "근로계약·서식 › 계약 발송·현황에서 재발송", go: "contracts", items: unsigned });
   const years = new Set(((holidays || []) as any[]).map((h) => String(h.date).slice(0, 4)));
   const thisY = today.slice(0, 4), nextY = String(Number(thisY) + 1);
   const hol: HrTodoItem[] = [];
-  if (!years.has(thisY)) hol.push({ name: "회사", text: `${thisY}년 법정 공휴일이 없습니다 — 근태 › 근무 기준에서 채우기` });
-  if (today.slice(5) >= "11-01" && !years.has(nextY)) hol.push({ name: "회사", text: `${nextY}년 법정 공휴일이 없습니다 — 근태 › 근무 기준에서 채우기` });
+  if (!years.has(thisY)) hol.push({ name: "회사", text: `${thisY}년 법정 공휴일이 없습니다. 근태 › 근무 기준에서 채우기` });
+  if (today.slice(5) >= "11-01" && !years.has(nextY)) hol.push({ name: "회사", text: `${nextY}년 법정 공휴일이 없습니다. 근태 › 근무 기준에서 채우기` });
   if (hol.length) groups.push({ key: "holidays", label: "공휴일 미등록", source: "규칙", hint: "결근 자동 판정이 공휴일을 모르면 틀린다", items: hol });
 
   // ── H5 연차촉진 대상 ──
@@ -95,10 +95,10 @@ export async function fetchHrTodos(companyId: string, employees: { id: string; n
     const name = nameOf.get(id)!;
     const week = rows.filter((r) => r.date >= weekStart);
     const worked = week.length; const mins = week.reduce((s, r) => s + Number(r.regular_minutes || 0) + Number(r.overtime_minutes || 0) + Number(r.holiday_minutes || 0), 0);
-    if (worked >= 2 && worked < 5) { const proj = (mins / worked) * 5; if (proj >= 52 * 60) over.push({ employee_id: id, name, text: `이번 주 ${worked}일 ${Math.round(mins / 60)}h — 이대로면 주 ${Math.round(proj / 60)}h (52h 초과 예상)` }); }
-    else if (worked >= 5 && mins >= 52 * 60) over.push({ employee_id: id, name, text: `이번 주 ${Math.round(mins / 60)}h — 52h 초과` });
+    if (worked >= 2 && worked < 5) { const proj = (mins / worked) * 5; if (proj >= 52 * 60) over.push({ employee_id: id, name, text: `이번 주 ${worked}일 ${Math.round(mins / 60)}h · 이대로면 주 ${Math.round(proj / 60)}h (52h 초과 예상)` }); }
+    else if (worked >= 5 && mins >= 52 * 60) over.push({ employee_id: id, name, text: `이번 주 ${Math.round(mins / 60)}h · 52h 초과` });
     const last3 = rows.slice(0, 3); if (last3.length === 3 && last3.every((r) => r.is_late)) late.push({ employee_id: id, name, text: `최근 3일 연속 지각 (${last3[2].date}~${last3[0].date})` });
-    const ac = rows.filter((r) => r.date >= monthStart && r.auto_clocked_out).length; if (ac >= 5) auto.push({ employee_id: id, name, text: `이번 달 퇴근 누락(자동 마감) ${ac}회 — 기록 확인` });
+    const ac = rows.filter((r) => r.date >= monthStart && r.auto_clocked_out).length; if (ac >= 5) auto.push({ employee_id: id, name, text: `이번 달 퇴근 누락(자동 마감) ${ac}회 · 기록 확인` });
   }
   if (over.length) groups.push({ key: "over52", label: "주 52시간 초과·예상", source: "근태 집계", hint: "월~오늘 근무시간을 5일로 늘려 본 예측", go: "attendance", items: over });
   if (late.length) groups.push({ key: "late3", label: "연속 지각 3회", source: "근태 집계", hint: "면담·기록 정정", go: "attendance", items: late });

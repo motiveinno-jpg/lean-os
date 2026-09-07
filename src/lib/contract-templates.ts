@@ -113,7 +113,7 @@ export async function updateContractTemplate(id: string, patch: Partial<{
     .select()
     .maybeSingle();
   if (error) throw error;
-  if (!data) throw new Error("이 양식을 수정할 권한이 없습니다 — 근로계약·서식 권한이 필요합니다.");
+  if (!data) throw new Error("이 양식을 수정할 권한이 없습니다. 근로계약·서식 권한이 필요합니다.");
   return data as ContractTemplate;
 }
 

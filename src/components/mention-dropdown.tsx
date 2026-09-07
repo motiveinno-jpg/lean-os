@@ -8,8 +8,10 @@ interface MentionUser {
   email: string;
 }
 
-// 멘션 후보 필터 — ChatInput(키보드 탐색)과 드롭다운이 동일 목록을 쓰도록 공유.
-export function filterMentionUsers(users: MentionUser[], filter: string): MentionUser[] {
+
+
+// 멘션 후보 필터 · ChatInput(키보드 탐색)과 드롭다운이 동일 목록을 쓰도록 공유.
+export function filterMentionUsers(users: MentionUser[], filter: string): MentionUser[]  {
   const q = filter.toLowerCase();
   return users
     .filter((u) => u.name?.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))

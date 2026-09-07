@@ -527,8 +527,8 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
     enabled: !!companyId,
   });
 
-  // 대화방 나가기 — 남은 참가자에게 시스템 메시지, 본인은 목록에서 제거 후 방 닫기
-  async function handleLeave() {
+  // 대화방 나가기 · 남은 참가자에게 시스템 메시지, 본인은 목록에서 제거 후 방 닫기
+  async function handleLeave()  {
     if (!userId || leaving) return;
     if (!(await appConfirm("이 대화방에서 나가시겠습니까?\n나가면 목록에서 사라지고, 다시 참여하려면 초대를 받아야 합니다.", { confirmLabel: "나가기" }))) return;
     setLeaving(true);
@@ -921,7 +921,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
             }`}>
               <span className="flex items-center gap-2">
                 {rtStatus === 'connecting' && <><span className="w-2 h-2 rounded-full bg-[var(--warning)] animate-pulse" /> 실시간 연결 중...</>}
-                {rtStatus === 'CHANNEL_ERROR' && <><span className="w-2 h-2 rounded-full bg-[var(--danger)]" /> 실시간 연결 오류 — 5초마다 자동 갱신 중</>}
+                {rtStatus === 'CHANNEL_ERROR' && <><span className="w-2 h-2 rounded-full bg-[var(--danger)]" />  실시간 연결 오류 · 5초마다 자동 갱신 중</>}
                 {rtStatus === 'TIMED_OUT' && <><span className="w-2 h-2 rounded-full bg-[var(--danger)]" /> 연결 시간 초과</>}
                 {rtStatus === 'CLOSED' && <><span className="w-2 h-2 rounded-full bg-gray-400" /> 연결 종료됨</>}
               </span>
@@ -967,6 +967,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
                       <ChatBubble
                         glass={compact}
                         senderName={msg.users?.name || msg.users?.email || "—"}
+                        senderAvatar={msg.users?.avatar_url || null}
                         content={msg.content}
                         time={formatTime(msg.created_at)}
                         isOwn={msg.sender_id === userId}

@@ -88,9 +88,9 @@ export function HrFormManager({ companyId, collapseUpload, openUploadSignal, hid
     if (!isPdf) { toast("PDF 파일만 업로드할 수 있습니다", "error"); return; }
     setBusy(true);
     try {
-      const { pages, pageSizes } = await rasterizePdf(file);
+      const { pages, pageSizes }  = await rasterizePdf(file);
       const filePath = await uploadTemplateFile(companyId, file);
-      // 빈 필드로 시작 — 사용자가 채울 위치를 직접 지정(자동 인식 없음).
+      // 빈 필드로 시작 · 사용자가 채울 위치를 직접 지정(자동 인식 없음).
       setEditing({ pageImages: pages.map((b) => `data:image/png;base64,${b}`), pageSizes, filePath, pageCount: pages.length });
       toast("채울 필드 위치를 추가·배치하세요", "info");
     } catch (e: any) {
@@ -118,8 +118,8 @@ export function HrFormManager({ companyId, collapseUpload, openUploadSignal, hid
       setTextEditing({ filePath, pageCount, initialHtml: html });
       toast(
         skippedBackgroundImages > 0
-          ? `문서 내용만 불러왔습니다 — 페이지 배경 이미지 ${skippedBackgroundImages}개는 제외했습니다`
-          : "문서 내용만 불러왔습니다 — 글자·표·이미지를 자유롭게 편집하세요",
+          ? `문서 내용만 불러왔습니다. 페이지 배경 이미지 ${skippedBackgroundImages}개는 제외했습니다`
+          : "문서 내용만 불러왔습니다. 글자·표·이미지를 자유롭게 편집하세요",
         "info",
       );
     } catch (e: any) { toast("PDF 변환 실패: " + (e?.message || ""), "error"); }
@@ -137,7 +137,7 @@ export function HrFormManager({ companyId, collapseUpload, openUploadSignal, hid
       const text = await extractPdfText(file);
       const filePath = await uploadTemplateFile(companyId, file);
       setTextEditing({ filePath, pageCount: text.split("페이지 구분").length, initialHtml: templateTextToHtml(text) });
-      toast("PDF 텍스트를 추출했습니다 — 내용을 다듬고 {{변수}}를 넣으세요", "info");
+      toast("PDF 텍스트를 추출했습니다. 내용을 다듬고 {{변수}}를 넣으세요", "info");
     } catch (e: any) { toast("텍스트 추출 실패: " + (e?.message || ""), "error"); }
     finally { setBusy(false); }
   };
@@ -330,7 +330,7 @@ export function HrFormManager({ companyId, collapseUpload, openUploadSignal, hid
       {filling && typeof document !== "undefined" && createPortal(
         <div className="hr-form-fill-modal fixed inset-0">
           <div className="bg-[var(--bg-card)] rounded-xl max-w-md w-full max-h-[85vh] overflow-auto p-5" onClick={(e) => e.stopPropagation()}>
-            <div className="hr-form-fill-header">{filling.tpl.name} — 값 입력</div>
+            <div className="hr-form-fill-header">{filling.tpl.name} · 값 입력</div>
             {fillKeys(filling.tpl).length === 0 ? (
               <div className="text-xs text-[var(--text-dim)] mb-3">채울 수 있는 필드가 없습니다. 빈 양식을 내려받아 손으로 작성하세요.</div>
             ) : (

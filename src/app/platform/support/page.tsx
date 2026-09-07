@@ -67,7 +67,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   etc: "기타",
 };
 
-// 첨부 스크린샷 — 프라이빗 버킷(support-attachments), 운영자는 전용 SELECT 정책으로 서명 URL 발급
+// 첨부 스크린샷 · 프라이빗 버킷(support-attachments), 운영자는 전용 SELECT 정책으로 서명 URL 발급
 function TicketShots({ attachments }: { attachments: Attachment[] }) {
   const paths = attachments.map((a) => a.path).join(",");
   const { data: urls = [] } = useQuery<{ path: string; url: string }[]>({
@@ -150,7 +150,7 @@ export default function PlatformSupportPage() {
     refetchInterval: 60_000,
   });
 
-  // '처리중' 전환 — 고객 화면의 진행 단계(대기→처리중→완료)와 연동 (2026-08-04 사장님)
+  // '처리중' 전환 · 고객 화면의 진행 단계(대기→처리중→완료)와 연동 (2026-08-04 사장님)
   const startProgressMut = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await db.from("support_tickets").update({ status: "in_progress" }).eq("id", id).eq("status", "open");
@@ -330,7 +330,7 @@ export default function PlatformSupportPage() {
                         )}
                         {t.ai_analysis.needs_dev && <PfBadge tone="danger">개발 수정 필요</PfBadge>}
                         {t.ai_analysis.resolution === "simple" && !t.answer && (
-                          <span title="AI 판단: 초안 검토만으로 바로 답변 가능한 간단한 건입니다 — 등록은 사람이 합니다"><PfBadge tone="ok">간단 건 — 초안 검토 후 등록</PfBadge></span>
+                          <span title="AI 판단: 초안 검토만으로 바로 답변 가능한 간단한 건입니다. 등록은 사람이 합니다"><PfBadge tone="ok">간단 건 · 초안 검토 후 등록</PfBadge></span>
                         )}
                         {t.ai_analysis.analyzed_at && <span className="ml-auto text-[10px] text-[var(--text-dim)]">{new Date(t.ai_analysis.analyzed_at).toLocaleString("ko-KR")}</span>}
                       </div>

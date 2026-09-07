@@ -6,9 +6,9 @@
 //   content_html 을 직접 편집·저장하므로 굵기/표가 발급 PDF(wrapTemplatePrintHtml)에 그대로 반영.
 // 2026-07-31 사장님: 옆 미리보기 때문에 편집칸이 좁아 PDF 원본이 가로 스크롤로 잘렸다
 //   → 상시 미리보기 제거, 편집기가 전체 폭·높이 사용.
-//   (2차) 미리보기는 별도 버튼으로 — '미리보기'를 누르면 미리보기 화면, '양식 저장'은 바로 저장.
+//   (2차) 미리보기는 별도 버튼으로 · '미리보기'를 누르면 미리보기 화면, '양식 저장'은 바로 저장.
 
-import { useRef, useState } from "react";
+import  { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { RichEditor, type RichEditorRef } from "@/components/rich-editor";
 import { fillTextTemplate } from "@/lib/form-templates";
@@ -60,7 +60,8 @@ export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, o
         {step === "edit" ? (
           <>
             <p className="tpl-editor-hint">
-              내용을 자유롭게 고치세요 — 굵게·정렬·글자크기·<b>표(▦)</b> 모두 툴바에서. 값이 채워질 자리는 아래 변수 버튼으로 <code>{"{{변수}}"}</code>를 넣으면 발급 시 실제 값으로 채워집니다. 발급 모습은 &lsquo;미리보기&rsquo; 버튼으로 확인하세요.
+              
+              내용을 자유롭게 고치세요. 굵게·정렬·글자크기·<b>표(▦)</b> 모두 툴바에서. 값이 채워질 자리는 아래 변수 버튼으로 <code>{"{{변수}}"}</code>를 넣으면 발급 시 실제 값으로 채워집니다. 발급 모습은 &lsquo;미리보기&rsquo; 버튼으로 확인하세요.
             </p>
             <div className="tpl-var-buttons">
               {vars.map((v) => (

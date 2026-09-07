@@ -10,7 +10,7 @@ export function HrTodoDialog({ groups, loading, onClose, onEmployee }: { groups:
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">인사 처리할 것 — {total}건</h3>
-        <p className="inv-modal-desc">기한(계약 만료·수습 종료·1주년·미서명·공휴일)과 근태 이상(52시간 예상·연속 지각·퇴근 누락), 연차촉진 대상을 규칙으로 모았습니다. 여기서는 보기만 — 처리(발송·발령·정정)는 각 화면에서 사람이 합니다.</p>
+        <p className="inv-modal-desc">기한(계약 만료·수습 종료·1주년·미서명·공휴일)과 근태 이상(52시간 예상·연속 지각·퇴근 누락), 연차촉진 대상을 규칙으로 모았습니다. 여기서는 보기만 · 처리(발송·발령·정정)는 각 화면에서 사람이 합니다.</p>
         {loading ? <div className="collect-empty">모으는 중…</div> : total === 0 ? <div className="collect-empty">지금 처리할 것이 없습니다</div> : (
           <div className="hr-todo-groups">
             {groups.map((g) => (

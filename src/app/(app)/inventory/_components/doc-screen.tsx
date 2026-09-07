@@ -32,8 +32,8 @@ import {
 
 export type SaveAction = { key: string; label: string; primary?: boolean; hint?: string };
 
-/** 엑셀로 올린 문서 하나 — 같은 묶음(문서묶음 칸이 같거나, 일자·거래처·창고·납기가 같은 줄)이 한 문서 (2026-08-27) */
-export type ImportDoc = {
+/** 엑셀로 올린 문서 하나 · 같은 묶음(문서묶음 칸이 같거나, 일자·거래처·창고·납기가 같은 줄)이 한 문서 (2026-08-27) */
+export type ImportDoc =  {
   date: string; partnerId: string | null; partnerName: string | null; warehouseId: string; due: string | null; note: string | null;
   lines: { product_id: string; qty: number; defect: number; unit_price: number | null; note: string | null }[];
 };
@@ -43,7 +43,7 @@ export function importColumns(formKey: FormKey): ExcelColumn[] {
   return [
     { key: "grp", label: "문서묶음", hint: "같은 값끼리 한 문서로 묶습니다(비우면 일자·거래처·창고·납기가 같은 줄이 한 문서)", example: "A" },
     { key: "date", label: "일자", required: true, kind: "date", hint: "문서 일자", example: "2026-08-27" },
-    ...(make ? [] : [{ key: "partner", label: "거래처", hint: "거래처 이름 — 등록된 이름과 같아야 연결됩니다. 없으면 이름만 남깁니다", example: "바톤" } as ExcelColumn]),
+    ...(make ? [] : [{ key: "partner", label: "거래처", hint: "거래처 이름 · 등록된 이름과 같아야 연결됩니다. 없으면 이름만 남깁니다", example: "바톤" } as ExcelColumn]),
     { key: "wh", label: "창고", required: !order, hint: order ? "비우면 기본 창고" : "창고 이름(재고 › 창고관리)", example: "본사창고" },
     ...(order || formKey === "buy" ? [{ key: "due", label: order ? "납기일" : "입고예정일", kind: "date", example: "2026-09-05" } as ExcelColumn] : []),
     { key: "sku", label: "SKU", required: true, hint: "품목 SKU 또는 바코드", example: "DM-A100" },
@@ -55,10 +55,11 @@ export function importColumns(formKey: FormKey): ExcelColumn[] {
     { key: "note", label: "전표 비고", hint: "문서 전체 메모(묶음의 첫 줄 값)", example: "" },
   ];
 }
+
 type HistKey = "no" | "date" | "who" | "label" | "lines" | "total" | "state";
 
-/** 이력 한 줄 — 무엇을 보여줄지는 화면마다 다르지만 모양은 같다. */
-export type HistRow = {
+/** 이력 한 줄 · 무엇을 보여줄지는 화면마다 다르지만 모양은 같다. */
+export type HistRow =  {
   id: string; no: string; date: string; who: string; label: string;
   lines: number; total: number; state: string; stateTone?: "ok" | "warn" | "danger";
 };
@@ -120,8 +121,8 @@ export function DocScreen({
     },
     enabled: !!companyId,
   });
-  //   담당자 고르개에 쓸 구성원 — 거래처와 같은 방식으로 고른다
-  const { data: staff = [] } = useQuery({
+  //   담당자 고르개에 쓸 구성원 · 거래처와 같은 방식으로 고른다
+  const  { data: staff = [] } = useQuery({
     queryKey: ["inv-staff", companyId],
     queryFn: async () => {
       const { data } = await supabase.from("users").select("id, name")
@@ -172,8 +173,8 @@ export function DocScreen({
     try {
       const msg = await onSave({ actionKey, built, ctl, editingId: ctl.editing?.id ?? null });
       toast(msg, "success");
-      //   방금 저장한 전표가 조회 범위 밖이면 범위를 넓힌다 — 저장했는데 목록에 없으면 사라진 줄 안다
-      if (built.date < from) setFrom(built.date);
+      //   방금 저장한 전표가 조회 범위 밖이면 범위를 넓힌다. 저장했는데 목록에 없으면 사라진 줄 안다
+      if (built.date  < from) setFrom(built.date);
       if (built.date > to) setTo(built.date);
       ctl.reset(); setPopup(false); invalidate();
       setTimeout(() => ctl.focusDate(), 200);
@@ -189,14 +190,15 @@ export function DocScreen({
   };
   const closePopup = () => { setPopup(false); ctl.reset(); };
 
-  //   입력 영역 — 갈래에서도 팝업에서도 **이것 하나**를 쓴다
+  //   입력 영역 · 갈래에서도 팝업에서도 **이것 하나**를 쓴다
   const editor = (
+    
     <>
       <DocHead ctl={ctl} warehouses={warehouses} partners={partners} staff={staff} />
       {/*   A5 (2026-08-27) — 거래처를 고르면 지난번 거래 줄을 제안한다. 격자가 비어 있을 때만, 누르는 것은 사람 */}
       {ctl.lastLines && ctl.rowsBlank(ctl.rows) && (
         <div className="doc-suggest">
-          <span>지난번({ctl.lastLines.doc_date}) 이 거래처와 <b>{ctl.lastLines.lines.length}줄</b> 거래했습니다 — 같은 품목·수량·단가로 채울까요? <em className="ev-dim">출처: 장부 대조</em></span>
+          <span>지난번({ctl.lastLines.doc_date}) 이 거래처와 <b>{ctl.lastLines.lines.length}줄</b>  거래했습니다. 같은 품목·수량·단가로 채울까요?  <em className="ev-dim">출처: 장부 대조</em></span>
           <button type="button" className="btn-secondary btn-sm" onClick={ctl.applyLastLines}>지난번 그대로 채우기</button>
           <button type="button" className="ht-note-act" onClick={ctl.dismissLastLines} aria-label="닫기">✕</button>
         </div>
@@ -216,7 +218,7 @@ export function DocScreen({
     <ExcelMenu items={[
       //   2026-08-27 사장님: 양식·올리기가 같은 팝업이면 메뉴도 하나 — 팝업 안에서 양식을 내려받고 채운 파일을 올린다
       ...(onImport && canWrite ? [{ label: "양식 내려받기 · 올리기", hint: "양식을 받아 채운 뒤 올리면 읽어서 보여 주고, 등록을 눌러야 저장", onClick: () => setXlsOpen(true) }]
-        : [{ label: "양식 내려받기", hint: `${label} 일괄 올리기 양식 — 머리줄·예시·안내 시트`, onClick: () => downloadTemplate(`${label}_양식`, label, xcols, formKey === "make" ? ["자재는 자재구성에 따라 저절로 나갑니다(양품+불량 기준). 실투입·로스는 올린 뒤 화면에서 고칩니다."] : []) }]),
+        : [{ label: "양식 내려받기", hint: `${label} 일괄 올리기 양식 · 머리줄·예시·안내 시트`, onClick: () => downloadTemplate(`${label}_양식`, label, xcols, formKey === "make" ? ["자재는 자재구성에 따라 저절로 나갑니다(양품+불량 기준). 실투입·로스는 올린 뒤 화면에서 고칩니다."] : []) }]),
       ...(tab === "list" ? [{ label: "이력 내려받기", count: shown.length, disabled: !shown.length, onClick: () => exportToExcel(sorted.map((h) => ({
         "번호": h.no, "일자": h.date, "거래처": h.who, "품목": h.label, "줄": h.lines, "합계": h.total, "상태": h.state,
       })), label, `${label}_이력_${from}_${to}`) }] : []),
@@ -248,8 +250,9 @@ export function DocScreen({
     return [...docs.values()];
   };
 
-  //   실행 버튼 — 조회 줄 오른쪽에 모은다(조회 화면 표준). 파란 버튼은 화면에 하나뿐이다.
+  //   실행 버튼 · 조회 줄 오른쪽에 모은다(조회 화면 표준). 파란 버튼은 화면에 하나뿐이다.
   const runButtons = canWrite ? (
+    
     <>
       {pull?.(ctl)}
       {excelMenu}
@@ -296,7 +299,7 @@ export function DocScreen({
             <>
               <QueryBar right={excelMenu}>
                 <DateRangeField from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
-                <QuickSearch value={q} onApply={setQ} placeholder="번호 · 거래처 · 품목 — 쉼표로 여러 개, Enter" />
+                <QuickSearch value={q} onApply={setQ} placeholder="번호 · 거래처 · 품목 · 쉼표로 여러 개, Enter" />
               </QueryBar>
               <ResultStrip>
                 <Stat label="전표" value={`${won(shown.length)}건`} />
@@ -363,7 +366,7 @@ export function DocScreen({
             <div className="doc-popup-head">
               <div>
                 <h3 className="inv-modal-title">{ctl.editing?.order_no || "전표"} 수정</h3>
-                <p className="inv-modal-desc">{ctl.editing?.status === "cancelled" ? "취소된 전표입니다 — 보기만 할 수 있습니다." : "입력 화면과 같습니다 — 항목과 규칙이 동일합니다."}</p>
+                <p className="inv-modal-desc">{ctl.editing?.status === "cancelled" ? "취소된 전표입니다. 보기만 할 수 있습니다." : "입력 화면과 같습니다. 항목과 규칙이 동일합니다."}</p>
               </div>
               <button type="button" className="btn-secondary btn-sm" onClick={ctl.openForm}>입력 항목</button>
             </div>
@@ -392,7 +395,7 @@ export function DocScreen({
                     const reason = window.prompt("취소 사유를 적어 주세요 (전표는 지워지지 않고 취소로 남습니다)");
                     if (reason == null) return;
                     setBusy(true);
-                    try { await onCancel({ id: ctl.editing!.id, ctl, reason }); toast("취소했습니다 — 재고가 되돌아갔습니다", "success"); closePopup(); invalidate(); }
+                    try { await onCancel({ id: ctl.editing!.id, ctl, reason }); toast("취소했습니다. 재고가 되돌아갔습니다", "success"); closePopup(); invalidate(); }
                     catch (e) { toast(friendlyError(e), "error"); }
                     finally { setBusy(false); }
                   }}>취소</button>

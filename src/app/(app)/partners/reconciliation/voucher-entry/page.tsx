@@ -57,8 +57,8 @@ const comma = (s: string) => {
   if (!n) return neg ? "-" : ""; // '-'만 입력한 중간 상태 유지
   return (neg ? "-" : "") + n.toLocaleString("ko-KR");
 };
-// 정규화 — 음수 차변은 대변으로, 음수 대변은 차변으로 (합계·저장 공통)
-const normDC = (l: { debit: string; credit: string }) => { let d = num(l.debit), c = num(l.credit); if (d < 0) { c += -d; d = 0; } if (c < 0) { d += -c; c = 0; } return { d, c }; };
+// 정규화 · 음수 차변은 대변으로, 음수 대변은 차변으로 (합계·저장 공통)
+const normDC = (l:  { debit: string; credit: string }) => { let d = num(l.debit), c = num(l.credit); if (d < 0) { c += -d; d = 0; } if (c < 0) { d += -c; c = 0; } return { d, c }; };
 
 type Acct = { id: string; code: string; name: string };
 type Pt = { id: string; name: string; business_number: string | null };
@@ -67,15 +67,15 @@ const GUBUN_LABEL: Record<Gubun, string> = { "1": "1.출금", "2": "2.입금", "
 const GUBUN_SHORT: Record<Gubun, string> = { "1": "차변", "2": "대변", "3": "차변", "4": "대변" }; // 상단 입력 영역 표기
 type VType = "transfer" | "cash_out" | "cash_in";
 const VTYPES: { id: VType; label: string; desc: string }[] = [
-  { id: "transfer", label: "대체", desc: "통장·외상 등 일반 거래 — 차/대 직접 입력" },
-  { id: "cash_out", label: "출금", desc: "돈이 나감 — 대변 보통예금 자동" },
-  { id: "cash_in", label: "입금", desc: "돈이 들어옴 — 차변 보통예금 자동" },
+  { id: "transfer", label: "대체", desc: "통장·외상 등 일반 거래 · 차/대 직접 입력" },
+  { id: "cash_out", label: "출금", desc: "돈이 나감 · 대변 보통예금 자동" },
+  { id: "cash_in", label: "입금", desc: "돈이 들어옴 · 차변 보통예금 자동" },
 ];
 type PLine = { key: number; date: string; gubun: Gubun; account: Acct | null; partner: Pt | null; memo: string; debit: string; credit: string };
 //   date = 그 줄의 전표 일자(YYYY-MM-DD). 같은 날짜 줄끼리 한 장의 전표가 된다 (2026-09-02 사장님: "줄마다 날짜 선택").
 type SavedLine = { account: Acct | null; partner: Pt | null; memo: string; debit: number; credit: number };
-//   entry_date 는 반드시 들고 다닌다 — 목록이 여러 날이라 수정 저장에 그 전표 자기 날짜가 필요하다
-type SavedEntry = { id: string; entry_date: string; voucher_no: number | null; voucher_type: string | null; description: string; source: string; entry_kind: string | null; lines: SavedLine[] };
+//   entry_date 는 반드시 들고 다닌다. 목록이 여러 날이라 수정 저장에 그 전표 자기 날짜가 필요하다
+type SavedEntry =  { id: string; entry_date: string; voucher_no: number | null; voucher_type: string | null; description: string; source: string; entry_kind: string | null; lines: SavedLine[] };
 
 let K = 1;
 const AR_AP_CODES = new Set(["108", "251"]);
@@ -172,7 +172,7 @@ export default function VoucherEntryPage() {
         ? { ...l, memo: pf.memo || "", debit: pf.amount ? String(pf.amount) : "" }
         : i === 1 && pf.amount ? { ...l, credit: String(pf.amount) } : l));
       if (pf.deal_id) setPrefillDeal({ dealId: pf.deal_id, name: pf.deal_name || "" });
-      toast(`프로젝트 지출 초안을 채웠습니다${pf.deal_name ? ` (${pf.deal_name})` : ""} — 계정과목을 확인하고 저장하세요`, "info");
+      toast(`프로젝트 지출 초안을 채웠습니다${pf.deal_name ? ` (${pf.deal_name})` : ""} · 계정과목을 확인하고 저장하세요`, "info");
     } catch { /* 프리필 실패면 빈 격자로 */ }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -218,7 +218,7 @@ export default function VoucherEntryPage() {
       rows[1] = { ...rows[1], memo, debit: "", credit: String(r.amount) };
     }
     setPend(rows); setEdits({}); setLinkedSrc(r); setImportOpen(false);
-    toast(`${r.kind === "bank" ? "통장" : "카드"} 거래를 불러왔습니다 — 계정과목을 고르고 저장하면 그 거래는 전표됨으로 처리됩니다`, "info");
+    toast(`${r.kind === "bank" ? "통장" : "카드"} 거래를 불러왔습니다. 계정과목을 고르고 저장하면 그 거래는 전표됨으로 처리됩니다`, "info");
   };
   const dbReady = accounts.length > 0;
 
@@ -232,9 +232,9 @@ export default function VoucherEntryPage() {
   });
 
   // ── 하단 목록: 조회기간 안의 확정 전표 ──
-  //   ⚠️ queryKey 앞머리는 "vouchers-of-day" 그대로 둔다 — 거래처원장(ledger/shared.tsx)이 이 이름으로
+  //   ⚠️ queryKey 앞머리는 "vouchers-of-day" 그대로 둔다. 거래처원장(ledger/shared.tsx)이 이 이름으로
   //     세 군데에서 무효화한다. 이름을 바꾸면 그쪽이 조용히 안 먹는다(화면은 멀쩡해 보인다).
-  const { data: entries = [] } = useQuery<SavedEntry[]>({
+  const  { data: entries = [] } = useQuery<SavedEntry[]>({
     queryKey: ["vouchers-of-day", companyId, fromM, toM],
     queryFn: async () => {
       //   ★ 페이징 필수 — 넓은 기간엔 일반전표가 1,000행(PostgREST 기본 상한)을 넘어
@@ -262,9 +262,9 @@ export default function VoucherEntryPage() {
     enabled: !!companyId && dbReady,
   });
 
-  //   목록에서 뺀 매입매출전표가 몇 건인지 — 안 보이면 "내 전표 어디 갔지?" 가 되므로 화면이 말해 준다.
+  //   목록에서 뺀 매입매출전표가 몇 건인지 · 안 보이면 "내 전표 어디 갔지?" 가 되므로 화면이 말해 준다.
   //   건수는 count 로 센다(행을 받아 세면 1,000행에서 잘린다).
-  const { data: spCount = 0 } = useQuery<number>({
+  const  { data: spCount = 0 } = useQuery<number>({
     queryKey: ["vouchers-of-day-sp", companyId, fromM, toM],
     queryFn: async () => {
       const { count } = await db.from("journal_entries").select("id", { count: "exact", head: true })
@@ -319,9 +319,9 @@ export default function VoucherEntryPage() {
     });
   }, [filteredEntries, sort]);
   const pager = usePager(sortedEntries, live.rows, `${fromM}|${toM}|${q}|${JSON.stringify(live)}`);
-  //   내 조건 — ★ 하나가 이 화면(목록부)의 기본값
+  //   내 조건 · ★ 하나가 이 화면(목록부)의 기본값
   const saved = useSavedQueries("voucher-entry", companyId);
-  const paramsNow = { from: fromM, to: toM, q, cond: live };
+  const paramsNow =  { from: fromM, to: toM, q, cond: live };
   const paramsBasic = { ...defaultRangeMonth(), q: "", cond: EMPTY_COND };
   const applySaved = (p: Record<string, unknown>) => {
     if (typeof p.from === "string" && typeof p.to === "string") { setFromM(p.from); setToM(p.to); }
@@ -460,7 +460,7 @@ export default function VoucherEntryPage() {
     topRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
-  // 금액 입력 — 한 행 한쪽만. 대체 행은 입력하는 쪽으로 구분 자동 전환.
+  // 금액 입력 · 한 행 한쪽만. 대체 행은 입력하는 쪽으로 구분 자동 전환.
   const amountPatch = (l: PLine, side: "debit" | "credit", v: string): Partial<PLine> => {
     const p: Partial<PLine> = { [side]: comma(v) } as Partial<PLine>;
     if (num(v) !== 0) {
@@ -532,7 +532,7 @@ export default function VoucherEntryPage() {
   const linePayload = (ls: PLine[]) => ls.filter((l) => num(l.debit) !== 0 || num(l.credit) !== 0)
     .map((l) => { const { d, c } = normDC(l); return { account_id: l.account!.id, debit: d, credit: c, memo: l.memo, partner_id: l.partner?.id ?? "" }; });
   const errMsg = (m: string) =>
-    m.includes("PERIOD_LOCKED") ? "마감(잠금)된 회계기간입니다 — 저장/수정/삭제 불가"
+    m.includes("PERIOD_LOCKED") ? "마감(잠금)된 회계기간입니다. 저장/수정/삭제 불가"
       : m.includes("UNBALANCED") ? "차변·대변 합계가 일치하지 않습니다"
       : m.includes("does not exist") ? "전표 수정 기능이 아직 준비되지 않았습니다" : m;
 
@@ -548,14 +548,15 @@ export default function VoucherEntryPage() {
         //   ★ 반드시 **그 전표 자기 날짜**를 넘긴다. 목록이 기간이 되면서 여러 날이 섞이므로,
         //     예전처럼 입력칸 날짜(entryDate)를 넘기면 다른 날 전표를 고칠 때 날짜가 끌려온다.
         const own = entries.find((x) => x.id === id)?.entry_date;
-        if (!own) throw new Error("수정할 전표를 목록에서 찾지 못했습니다 — 새로고침 후 다시 시도해 주세요");
+        if (!own) throw new Error("수정할 전표를 목록에서 찾지 못했습니다. 새로고침 후 다시 시도해 주세요");
         const { error } = await db.rpc("update_manual_voucher", { p_entry_id: id, p_entry_date: own, p_description: b.desc, p_lines: linePayload(b.lines) });
         if (error) throw new Error(errMsg(String(error.message)));
       }
+      
       let newId: string | null = null;
       const newIds: string[] = [];
-      //   ★ 같은 날짜 줄끼리 한 장 — 날짜가 여러 개면 전표도 여러 장 (2026-09-02 사장님: 줄마다 날짜)
-      for (const [gDate, gLines] of pendGroups) {
+      //   ★ 같은 날짜 줄끼리 한 장 · 날짜가 여러 개면 전표도 여러 장 (2026-09-02 사장님: 줄마다 날짜)
+      for (const [gDate, gLines] of pendGroups)  {
         const gDebit = gLines.reduce((s, l) => s + normDC(l).d, 0);
         const gCredit = gLines.reduce((s, l) => s + normDC(l).c, 0);
         const gAuto = vtype === "cash_out" ? gDebit : vtype === "cash_in" ? gCredit : 0;
@@ -569,7 +570,7 @@ export default function VoucherEntryPage() {
             ]);
             const dups = [...((bk.data || []) as any[]).map((r) => `통장 ${r.counterparty || ""} ${Number(r.amount).toLocaleString()}`), ...((cd.data || []) as any[]).map((r) => `카드 ${r.merchant_name || ""} ${Number(r.amount).toLocaleString()}`)];
             if (dups.length > 0) {
-              const ok = await appConfirm(`중복 의심 — 같은 날(${gDate}) 같은 금액(${total.toLocaleString()})의 거래가 이미 전표처리돼 있습니다:\n${dups.join("\n")}\n\n그래도 새 전표로 저장할까요? (같은 돈이 두 번 장부에 오를 수 있습니다. 통장·카드 거래를 전표로 치려면 '통장·카드 불러오기'를 쓰세요)`, { danger: true, title: "중복 의심", confirmLabel: "그래도 저장" });
+              const ok = await appConfirm(`중복 의심 · 같은 날(${gDate}) 같은 금액(${total.toLocaleString()})의 거래가 이미 전표처리돼 있습니다:\n${dups.join("\n")}\n\n그래도 새 전표로 저장할까요? (같은 돈이 두 번 장부에 오를 수 있습니다. 통장·카드 거래를 전표로 치려면 '통장·카드 불러오기'를 쓰세요)`, { danger: true, title: "중복 의심", confirmLabel: "그래도 저장" });
               if (!ok) { setBusy(false); return; }
             }
           }
@@ -603,14 +604,14 @@ export default function VoucherEntryPage() {
             if (dealErr) {
               const m = String(dealErr.message || "");
               toast(m.includes("FORBIDDEN")
-                ? "전표는 저장됐습니다 — 프로젝트 연결은 관리자 권한이 필요해 건너뛰었습니다"
+                ? "전표는 저장됐습니다. 프로젝트 연결은 관리자 권한이 필요해 건너뛰었습니다"
                 : m.includes("INVALID_DEAL")
                   ? "전표는 저장됐지만 프로젝트 연결이 거부되었습니다(우리 회사 프로젝트가 아님)"
                   : `전표는 저장됐지만 프로젝트 연결에 실패했습니다: ${m}`, "error");
               break;
             }
           }
-          toast(`프로젝트 '${prefillDeal.name}' 에 연결됐습니다 — 상세의 증빙·문서에서 확인`, "success");
+          toast(`프로젝트 '${prefillDeal.name}' 에 연결됐습니다. 상세의 증빙·문서에서 확인`, "success");
           setPrefillDeal(null);
         }
       }
@@ -621,7 +622,7 @@ export default function VoucherEntryPage() {
         flashScrolled.current = false;
         setFlashId(newId);
         const saved = logRead('voucher-entry/page:saved', await db.from("journal_entries").select("voucher_no").eq("id", newId).maybeSingle());
-        toast(newIds.length > 1 ? `전표 ${newIds.length}장 저장됨(날짜별) — 하단 목록에 추가` : `전표 ${saved?.voucher_no ?? ""}번 저장됨 — 하단 목록에 추가`, "success");
+        toast(newIds.length > 1 ? `전표 ${newIds.length}장 저장됨(날짜별). 하단 목록에 추가` : `전표 ${saved?.voucher_no ?? ""}번 저장됨. 하단 목록에 추가`, "success");
       } else {
         toast("전표 수정 저장 완료", "success");
       }
@@ -860,10 +861,11 @@ export default function VoucherEntryPage() {
   };
 
   let listNo = 0;
-  const sourceBadge = (s: string) => (s !== "manual" ? <span className="ml-1 text-[9px] px-1 py-0.5 rounded bg-purple-500/10 text-purple-500 font-semibold align-middle">AI</span> : null);
+  const sourceBadge = (s: string) => (s !== "manual" ? <span className="ml-1 text-[9px] px-1 py-0.5 rounded bg-purple-500/10 text-purple-500 font-semibold align-middle">AI</span>  : null);
 
-  //   엑셀 그릇 — 지금 조회 결과(걸린 조건 그대로, 분개 줄 단위)
+  //   엑셀 그릇 · 지금 조회 결과(걸린 조건 그대로, 분개 줄 단위)
   const excelItems: ExcelItem[] = [
+    
     { label: "지금 조회 결과 내려받기", count: sortedEntries.length, hint: "걸린 조건 그대로 · 분개 줄 단위", disabled: sortedEntries.length === 0, onClick: () => exportCsv() },
   ];
 
@@ -871,7 +873,8 @@ export default function VoucherEntryPage() {
     <div className="qk-shell">
       {acctFetched && !dbReady && (
         <div className="px-4 py-3 rounded-xl bg-amber-500/8 border border-amber-500/25 text-xs text-amber-600 font-semibold shadow-sm">
-          <Ico e="⚠" /> 전표 시스템 DB(계정과목 마스터)가 아직 적용되지 않았습니다 — 적용 후 사용할 수 있습니다.
+          <Ico e="⚠" />  전표 시스템 DB(계정과목 마스터)가 아직 적용되지 않았습니다. 적용 후 사용할 수 있습니다.
+
         </div>
       )}
 
@@ -956,7 +959,7 @@ export default function VoucherEntryPage() {
                     </ConditionRow>
                   </ConditionPanel>
                 } />
-              <QuickSearch value={q} onApply={setQ} placeholder="계정 · 거래처 · 적요 · 전표번호 · 금액 — 쉼표로 여러 개, Enter" />
+              <QuickSearch value={q} onApply={setQ} placeholder="계정 · 거래처 · 적요 · 전표번호 · 금액 · 쉼표로 여러 개, Enter" />
             </QueryBar>
         </div>
         {/* 데스크톱: 가로 스크롤 없이 폭에 맞춤. 모바일: min-width + 가로 스크롤 (사장님 QA 2026-07-10 IMG_0577).
@@ -1014,7 +1017,7 @@ export default function VoucherEntryPage() {
                 <tr className="border-b border-[var(--border)]/40 bg-[var(--bg-surface)]/60">
                   <td className="px-2 py-1.5 text-center text-[10px] text-[var(--text-dim)]">자동</td>
                   <td className={`${TD} text-[11px] font-semibold text-[var(--text-muted)]`}>{vtype === "cash_out" ? "대변" : "차변"}</td>
-                  <td className={`${TD} text-[var(--text-muted)] font-semibold`}>{cashAcct ? `${cashAcct.name} (${cashAcct.code})` : "보통예금 — 마스터 미적용"}</td>
+                  <td className={`${TD} text-[var(--text-muted)] font-semibold`}>{cashAcct ? `${cashAcct.name} (${cashAcct.code})` : "보통예금 · 마스터 미적용"}</td>
                   <td className={TD} />
                   <td className={`${TD} text-[var(--text-dim)] text-[10px]`}>{vtype === "cash_out" ? "출금 상대계정 (자동)" : "입금 상대계정 (자동)"}</td>
                   <td className={`${TD} text-right mono-number font-semibold`}>{vtype === "cash_in" && autoAmt ? autoAmt.toLocaleString() : ""}</td>
@@ -1047,9 +1050,9 @@ export default function VoucherEntryPage() {
             {pendTotalD + pendTotalC === 0 ? (
               <span className="px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] font-semibold text-[var(--text-dim)]">금액을 입력하세요</span>
             ) : pendBalanced ? (
-              <span className="px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[11px] font-bold">차대일치 — 저장 가능</span>
+              <span className="px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[11px] font-bold">차대일치 · 저장 가능</span>
             ) : (
-              <span className="px-3 py-1.5 rounded-full bg-red-500/10 text-red-500 text-[11px] font-bold"><Ico e="⚠" tone="mono" /> 차액 {won(Math.abs(pendDiff))} ({pendDiff > 0 ? "대변 부족" : "차변 부족"}) — 저장 불가</span>
+              <span className="px-3 py-1.5 rounded-full bg-red-500/10 text-red-500 text-[11px] font-bold"><Ico e="⚠" tone="mono" /> 차액 {won(Math.abs(pendDiff))} ({pendDiff > 0 ? "대변 부족" : "차변 부족"}). 저장 불가</span>
             )}
           </div>
         </div>
@@ -1067,7 +1070,7 @@ export default function VoucherEntryPage() {
             <div className="ve-import-bar">
               <span className="qk-chips">{(["bank", "card"] as const).map((k) => <button key={k} type="button" onClick={() => setImportKind(k)} className={importKind === k ? "qk-chip qk-chip-on" : "qk-chip"}>{k === "bank" ? "통장" : "카드"}</button>)}</span>
               <select value={importDays} onChange={(e) => setImportDays(Number(e.target.value))} className="qk-input h-8 px-2 text-xs">{[30, 60, 90, 180].map((d) => <option key={d} value={d}>최근 {d}일</option>)}</select>
-              <input className="qk-input h-8 flex-1 px-2.5 text-xs" placeholder="거래처 · 적요 · 금액 — 쉼표로 여러 개" value={importQ} onChange={(e) => setImportQ(e.target.value)} />
+              <input className="qk-input h-8 flex-1 px-2.5 text-xs" placeholder="거래처 · 적요 · 금액 · 쉼표로 여러 개" value={importQ} onChange={(e) => setImportQ(e.target.value)} />
               <span className="text-[11px] text-[var(--text-dim)]">{importShown.length}건{importRows.length > 200 ? " (앞 200건만)" : ""}</span>
             </div>
             <div className="ve-import-body">
@@ -1176,7 +1179,7 @@ export default function VoucherEntryPage() {
                       <tr className="bg-amber-500/5">
                         <td colSpan={12} className="px-3 py-1 text-[10px] font-semibold">
                           <span className={st.ok ? "text-emerald-500" : "text-amber-500"}>
-                            {st.ok ? `✅ 전표 #${e.voucher_no ?? "—"} 수정 중 — 차대일치, 상단 [저장]으로 반영` : `⚠️ 전표 #${e.voucher_no ?? "—"} 수정 중 — ${st.d !== st.c ? `차액 ${won(Math.abs(st.d - st.c))}` : "계정 미지정"} (차대일치해야 저장)`}
+                            {st.ok ? `✅ 전표 #${e.voucher_no ?? "—"} 수정 중 · 차대일치, 상단 [저장]으로 반영` : `⚠️ 전표 #${e.voucher_no ?? "—"} 수정 중 · ${st.d !== st.c ? `차액 ${won(Math.abs(st.d - st.c))}` : "계정 미지정"} (차대일치해야 저장)`}
                           </span>
                           <button onClick={() => setEdits((es) => { const n = { ...es }; delete n[e.id]; return n; })} className="ml-2 underline text-[var(--text-dim)] hover:text-[var(--text)]">수정 취소</button>
                         </td>
@@ -1193,7 +1196,7 @@ export default function VoucherEntryPage() {
                       ref={isFlash && i === 0 ? (el) => { if (el && !flashScrolled.current) { flashScrolled.current = true; el.scrollIntoView({ behavior: "smooth", block: "center" }); } } : undefined}
                       className={`border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/60 transition-colors duration-700 ${isFlash ? "bg-emerald-500/15" : ""} ${i === 0 ? "border-t-2 border-t-[var(--border)]" : ""}`}
                       onContextMenu={(ev) => { ev.preventDefault(); setCtx({ x: ev.clientX, y: ev.clientY, rowId }); }}
-                      title={`전표 #${e.voucher_no ?? "—"}${e.description ? ` · ${e.description}` : ""} — 셀 클릭으로 인라인 수정`}>
+                      title={`전표 #${e.voucher_no ?? "—"}${e.description ? ` · ${e.description}` : ""} · 셀 클릭으로 인라인 수정`}>
                       <td className="px-2 py-1 text-center">
                         <input type="checkbox" checked={selected.has(`s:${e.id}`)}
                           onChange={(ev) => setSelected((s) => { const n = new Set(s); if (ev.target.checked) n.add(`s:${e.id}`); else n.delete(`s:${e.id}`); return n; })}
@@ -1219,7 +1222,8 @@ export default function VoucherEntryPage() {
                 <td className="px-2 py-2" />
                 <td className="px-2 py-2 text-center text-[var(--text-dim)] mono-number">{listNo + 1}</td>
                 <td colSpan={10} className={`${TD} text-[var(--text-dim)] text-[11px]`}>
-                  {entries.length === 0 ? "이 기간에 저장된 전표가 없습니다 — " : ""}빈 행 — 클릭하면 위 입력 영역에서 이어서 입력
+                  {entries.length === 0 ? "이 기간에 저장된 전표가 없습니다. " : ""}빈 행 · 클릭하면 위 입력 영역에서 이어서 입력
+                
                 </td>
               </tr>
             </tbody>
@@ -1248,7 +1252,8 @@ export default function VoucherEntryPage() {
           from={pager.from} to={pager.to} onPage={pager.setPage} />
         {/*   안내는 상자 **안** 마지막 줄에 — 밖에 두면 상자 끝선이 사이드바 끝선과 어긋난다 (2026-08-18 사장님) */}
         <p className="collect-note">
-          ※ 전표입력은 장부 기록입니다 — 계산서↔입금 대사(미수금 차감)는 <Link href="/partners/reconciliation" className="text-[var(--primary)] hover:underline">거래 대사</Link>에서 별도 처리 · 수정하면 변경 전 값이 이력으로 남고, 마감(잠금)된 월은 저장·수정·삭제가 차단됩니다
+          
+          ※ 전표입력은 장부 기록입니다. 계산서↔입금 대사(미수금 차감)는 <Link href="/partners/reconciliation" className="text-[var(--primary)] hover:underline">거래 대사</Link>에서 별도 처리 · 수정하면 변경 전 값이 이력으로 남고, 마감(잠금)된 월은 저장·수정·삭제가 차단됩니다
         </p>
       </QueryScreen>
 

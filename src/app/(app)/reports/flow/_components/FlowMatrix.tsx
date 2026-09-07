@@ -78,7 +78,7 @@ const SECTION_LABEL: Record<string, string> = { income: "수입", expense: "지�
 export type FlowCellMode = CellMode;
 export const FLOW_CELL_MODES = CELL_MODES;
 export const FLOW_MODE_HINT = MODE_HINT;
-/** year·mode 를 밖에서 주면(2026-08-19 자금 전망 › 월별 흐름 재편) 자체 툴바·glass 상자를 그리지 않는다 — 조회 줄이 부모(ReportHead)에 있다 */
+/** year·mode 를 밖에서 주면(2026-08-19 자금 전망 › 월별 흐름 재편) 자체 툴바·glass 상자를 그리지 않는다. 조회 줄이 부모(ReportHead)에 있다 */
 export function FlowMatrix({ companyId, currentMonth, year: yearProp, mode: modeProp }: { companyId: string; currentMonth: string; year?: number; mode?: CellMode }) {
   const curYear = Number(currentMonth.slice(0, 4));
   const curMonthNum = Number(currentMonth.slice(5, 7));

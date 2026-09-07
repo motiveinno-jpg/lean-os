@@ -51,17 +51,18 @@ export default function ProductionPage() {
             </span>
           </>
         )}
-        //   ★ 2026-08-27 사장님 "버튼이 많아진다" — 보조 동작은 '도구 ▾' 하나로. 조회 줄엔 주문서 불러오기 · 스캔 칩 · 부족 배지 · 도구 · 완성 기록만.
+        
+        //   ★ 2026-08-27 사장님 "버튼이 많아진다" · 보조 동작은 '도구 ▾' 하나로. 조회 줄엔 주문서 불러오기 · 스캔 칩 · 부족 배지 · 도구 · 완성 기록만.
         tools={(ctl) => [
           { label: "자재 소요", source: "입력", hint: "격자에 친 완제품의 자재 소요·실투입·로스·단가 제안", onClick: () => setNeed({ ctl }) },
-          { label: "불량 처분", source: "재고", hint: "불량 보류 창고 재고 — 폐기 · 양품 전환 · B급 판매", onClick: () => setDispose({ ctl }) },
+          { label: "불량 처분", source: "재고", hint: "불량 보류 창고 재고 · 폐기 · 양품 전환 · B급 판매", onClick: () => setDispose({ ctl }) },
           { label: "생산 · 매출원가 전표", source: "전표", hint: "주기 초안 만들기 · 확정 · 계정 설정", onClick: () => ctl.companyId && setVoucher({ companyId: ctl.companyId, userId: ctl.userId }) },
-          { label: "수율 임계값", source: "설정", hint: "양품률 · 자재 로스율 경고 기준 — 생산현황과 AI 브리핑에 적용", onClick: () => ctl.companyId && setYieldCfg(ctl.companyId) },
+          { label: "수율 임계값", source: "설정", hint: "양품률 · 자재 로스율 경고 기준 · 생산현황과 AI 브리핑에 적용", onClick: () => ctl.companyId && setYieldCfg(ctl.companyId) },
         ]}
         saveActions={[{ key: "save", label: "완성 기록", primary: true, hint: "자재가 차감되고 완제품이 증가합니다" }]}
         headNote={
           <span className="inv-hint doc-note-move">
-            저장하면 <b>자재가 차감되고 완제품이 증가합니다</b> — 자재는 <b>자재구성</b> × (양품+불량). <b>불량</b>은 불량 보류 창고로 들어갑니다.
+            저장하면 <b>자재가 차감되고 완제품이 증가합니다</b> · 자재는  <b>자재구성</b> × (양품+불량). <b>불량</b>은 불량 보류 창고로 들어갑니다.
             {mats && <> · <b>실투입 반영됨</b> (자재 소요에서 고침)</>}
           </span>
         }
@@ -75,7 +76,7 @@ export default function ProductionPage() {
             nos.push(r.prodDocNo);
           }
           qc.invalidateQueries({ queryKey: ["inv-onhand", ctl.companyId] });
-          return `완성 기록 ${nos.length}건 — ${nos.slice(0, 5).join(", ")}${nos.length > 5 ? " …" : ""}`;
+          return `완성 기록 ${nos.length}건 · ${nos.slice(0, 5).join(", ")}${nos.length > 5 ? " …" : ""}`;
         }}
         onSave={async ({ built, ctl, editingId }) => {
           const wh = built.head.wh;
@@ -102,7 +103,7 @@ export default function ProductionPage() {
           if (short.length) {
             const nameOf = new Map(ctl.products.map((p) => [p.id, p.name]));
             const msg = `자재가 부족합니다:\n${short.map((x) => `- ${nameOf.get(x.component_id) || "?"}: 소요 ${x.need} · 현재고 ${x.have} (부족 ${x.need - x.have})`).join("\n")}\n\n그래도 완성 기록할까요? 자재 재고가 음수가 됩니다.`;
-            if (!(await appConfirm(msg, { confirmLabel: "진행" }))) throw new Error("자재 부족으로 완성 기록을 멈췄습니다 — 자재를 먼저 입고하거나 수량을 줄이세요");
+            if (!(await appConfirm(msg, { confirmLabel: "진행" }))) throw new Error("자재 부족으로 완성 기록을 멈췄습니다. 자재를 먼저 입고하거나 수량을 줄이세요");
           }
           const r = await produceLines(ctl.companyId!, {
             docDate: built.date, warehouseId: wh, note: built.head.note || null,

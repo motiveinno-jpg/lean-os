@@ -71,7 +71,7 @@ export function restoreCollectRun() {
     if (!s || s.phase === "done" || s.phase === "error" || s.phase === "skip") continue;
     //   통장·카드도 서버 job 이 되어(결정 87) jobId 가 있으면 이어 본다
     if (s.jobId) resumable.push({ key: k, jobId: s.jobId });
-    else state[k] = { phase: "error", message: s.phase === "wait" ? "시작 전에 화면이 닫혀 받지 못했습니다 — 다시 받으세요" : "받는 중에 화면이 닫혀 끊겼습니다 — 다시 받으세요" };
+    else state[k] = { phase: "error", message: s.phase === "wait" ? "시작 전에 화면이 닫혀 받지 못했습니다. 다시 받으세요" : "받는 중에 화면이 닫혀 끊겼습니다. 다시 받으세요" };
   }
   cur = { ...snap, state, running: resumable.length > 0 };
   emit();

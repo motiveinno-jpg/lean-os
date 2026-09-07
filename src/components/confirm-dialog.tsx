@@ -7,9 +7,10 @@
 //     ...
 //     if (!(await confirm({ title: "통장 삭제", desc: "연결된 거래는 유지됩니다.", danger: true }))) return;
 //     ...JSX 마지막에 {confirmElement}
-//   withInput 을 주면 사유 입력(textarea) 값을 함께 반환 (반려 사유 등 — window.prompt 대체).
 
-import { useCallback, useState, type ReactNode } from "react";
+//   withInput 을 주면 사유 입력(textarea) 값을 함께 반환 (반려 사유 등 · window.prompt 대체).
+
+import  { useCallback, useState, type ReactNode } from "react";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
 export type ConfirmOptions = {

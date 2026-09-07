@@ -125,17 +125,17 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
   const pulseInsight = !pulseReady
     ? "거래내역을 연결하면 현금 흐름 점수가 계산됩니다."
     : f30 < 0
-      ? "30일 안에 잔고가 마이너스로 내려갈 수 있습니다 — 수금과 지출 조정을 서두르세요."
+      ? "30일 안에 잔고가 마이너스로 내려갈 수 있습니다. 수금과 지출 조정을 서두르세요."
       : runway > 0 && runway < 3
-        ? `현재 고정비 기준 런웨이 ${runway.toFixed(1)}개월 — 자금 여력 관리가 필요합니다.`
+        ? `현재 고정비 기준 런웨이 ${runway.toFixed(1)}개월 · 자금 여력 관리가 필요합니다.`
         : runway >= 6
-          ? `현금 흐름이 안정적입니다 — 현재 고정비 기준 ${runway >= 99 ? "충분히" : `${Math.floor(runway)}개월 이상`} 버틸 수 있습니다.`
+          ? `현금 흐름이 안정적입니다. 현재 고정비 기준 ${runway >= 99 ? "충분히" : `${Math.floor(runway)}개월 이상`} 버틸 수 있습니다.`
           : `현재 고정비 기준 약 ${runway.toFixed(1)}개월분 자금이 확보돼 있습니다.`;
   const RING_R = 52;
   const RING_C = 2 * Math.PI * RING_R;
   const ringOff = RING_C * (1 - (pulseReady ? Math.max(0, Math.min(100, score)) : 0) / 100);
 
-  // 목표 인라인 설정 (2026-08-11 유지 — 경영 상태 카드 안으로 이동)
+  // 목표 인라인 설정 (2026-08-11 유지 · 경영 상태 카드 안으로 이동)
   const [editTargets, setEditTargets] = useState(false);
   const [targetVals, setTargetVals] = useState({ month: "", quarter: "", year: "" });
   const now = new Date();
@@ -308,7 +308,8 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
             })}
             {actions.length > topActions.length && (
               <div className="py-2.5 text-center text-[11px] text-[var(--text-dim)]">
-                외 {actions.length - topActions.length}건 — 각 항목의 "상세"에서 처리하세요
+                외 {actions.length - topActions.length}건 · 각 항목의 "상세"에서 처리하세요
+              
               </div>
             )}
           </div>

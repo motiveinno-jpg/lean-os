@@ -23,15 +23,15 @@ export function InsuranceRatesTab({ companyId, userId }: { companyId: string; us
   if (!v) return <div className="collect-empty">요율을 읽는 중…</div>;
   const set = (k: keyof InsuranceRates, val: number) => setV((s) => (s ? { ...s, [k]: val } : s));
   const rows: { label: string; emp?: keyof InsuranceRates; er?: keyof InsuranceRates; hint: string }[] = [
-    { label: "국민연금", emp: "np_emp", er: "np_er", hint: "기준소득월액 × 요율 — 상·하한 적용" },
-    { label: "건강보험", emp: "hi_emp", er: "hi_er", hint: "보수월액 × 요율 — 상·하한 적용" },
+    { label: "국민연금", emp: "np_emp", er: "np_er", hint: "기준소득월액 × 요율 · 상·하한 적용" },
+    { label: "건강보험", emp: "hi_emp", er: "hi_er", hint: "보수월액 × 요율 · 상·하한 적용" },
     { label: "장기요양", hint: "건강보험료 × 아래 비율(직원·회사 같음)" },
     { label: "고용보험", emp: "ei_emp", er: "ei_er", hint: "회사 몫에 고용안정·직업능력(0.25%~)이 더해진다" },
     { label: "산재보험", er: "ia_rate", hint: "회사만 · 업종별 요율(근로복지공단 고지)" },
   ];
   const save = async () => {
     setBusy(true);
-    try { await saveInsuranceRates(companyId, { ...v, year }, userId); await qc.invalidateQueries({ queryKey: ["insurance-rates", companyId] }); toast(`${year}년 요율을 저장했습니다 — 이 해의 급여 계산에 바로 적용`, "success"); }
+    try { await saveInsuranceRates(companyId, { ...v, year }, userId); await qc.invalidateQueries({ queryKey: ["insurance-rates", companyId] }); toast(`${year}년 요율을 저장했습니다. 이 해의 급여 계산에 바로 적용`, "success"); }
     catch (e) { toast(friendlyError(e, "저장하지 못했습니다"), "error"); }
     finally { setBusy(false); }
   };
@@ -49,7 +49,7 @@ export function InsuranceRatesTab({ companyId, userId }: { companyId: string; us
             {[thisYear - 1, thisYear, thisYear + 1].map((y) => <option key={y} value={y}>{y}년</option>)}
           </select></label>
         <span className={v.isDefault ? "inv-pill inv-pill-ok" : "inv-pill inv-pill-warn"}>{v.isDefault ? "법정 기본값" : "회사 값"}</span>
-        <span className="inv-hint">요율은 매년 1월(국민연금은 7월 상·하한) 바뀝니다 — 고지서와 다르면 여기서 고치세요. 출처: 요율표.</span>
+        <span className="inv-hint">요율은 매년 1월(국민연금은 7월 상·하한) 바뀝니다. 고지서와 다르면 여기서 고치세요. 출처: 요율표.</span>
       </div>
       <div className="stg-table-wrap">
         <table className="ev-table ev-lined table-ins-rates">
@@ -74,7 +74,7 @@ export function InsuranceRatesTab({ companyId, userId }: { companyId: string; us
           </tbody>
         </table>
       </div>
-      <label className="inv-field"><span>메모</span><input className="field-input" value={v.note || ""} onChange={(e) => setV((s) => (s ? { ...s, note: e.target.value } : s))} placeholder="예: 산재 0.8% — 도소매업 고지 기준" /></label>
+      <label className="inv-field"><span>메모</span><input className="field-input" value={v.note || ""} onChange={(e) => setV((s) => (s ? { ...s, note: e.target.value } : s))} placeholder="예: 산재 0.8% · 도소매업 고지 기준" /></label>
       <div className="inv-modal-actions">
         <span className="doc-sums-sp" />
         {!v.isDefault && <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={reset}>법정 기본값으로</button>}

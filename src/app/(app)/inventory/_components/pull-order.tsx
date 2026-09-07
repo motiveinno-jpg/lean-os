@@ -62,8 +62,8 @@ function PullDialog({ ctl, onClose }: { ctl: DocCtl; onClose: () => void }) {
     }).filter((x) => x.ls.length > 0);
   }, [data]);
 
-  //   처음 열면 남은 줄을 다 켜 둔다 — 대개 다 가져간다
-  if (!seeded && shown.length) {
+  //   처음 열면 남은 줄을 다 켜 둔다. 대개 다 가져간다
+  if (!seeded && shown.length)  {
     const init: Record<string, boolean> = {};
     shown.forEach((x) => x.ls.forEach((l: any) => { init[l.id] = true; }));
     setPicked(init); setSeeded(true);

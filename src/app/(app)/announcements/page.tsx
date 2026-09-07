@@ -1,13 +1,13 @@
 "use client";
 import { Ico } from "@/components/ui-icon";
 import { kstDateTime } from "@/lib/kst";
-import { logRead } from "@/lib/log-read";
+import { logRead }  from "@/lib/log-read";
 
-// 사용자 화면 — **열람 전용** (2026-08-06 사장님 지시).
+// 사용자 화면 · **열람 전용** (2026-08-06 사장님 지시).
 //   공지 작성·수정·삭제는 운영자 페이지(/platform/announcements)에서만 한다.
 //   DB 도 announcements_*_operator 정책으로 쓰기를 is_platform_operator() 로 막아 두었다.
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import  { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ConditionPanel, ConditionRow, AppliedChips,
   QuickSearch, quickSearchHit, ResultStrip, Stat, RowsPerPage, Pager, usePager, type AppliedChip,
@@ -30,7 +30,7 @@ type Announcement = {
   updated_at: string;
 };
 
-// 방금 "안 읽음"이었던 공지 스냅샷 — 읽음 처리 직후 컴포넌트가 다시 마운트돼도(개발 이중 마운트,
+// 방금 "안 읽음"이었던 공지 스냅샷 · 읽음 처리 직후 컴포넌트가 다시 마운트돼도(개발 이중 마운트,
 //   뒤로가기 재진입) NEW 표시가 사라지지 않게 잠깐 들고 있는다. 다시 조회하면 이미 읽음이라 빈다.
 const RECENT_NEW = new Map<string, { ids: Set<string>; at: number }>();
 const RECENT_NEW_TTL_MS = 15_000;
@@ -51,7 +51,7 @@ export default function AnnouncementsPage() {
   const { user } = useUser();
   const userId = user?.id ?? null;
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  // 이 화면에 들어온 순간 안 읽은 상태였던 공지 — 읽음 처리 후에도 "NEW" 를 계속 보여주기 위한 스냅샷.
+  // 이 화면에 들어온 순간 안 읽은 상태였던 공지 · 읽음 처리 후에도 "NEW" 를 계속 보여주기 위한 스냅샷.
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const markedRef = useRef(false);
 
@@ -100,7 +100,7 @@ export default function AnnouncementsPage() {
     })();
   }, [userId, rows]);
 
-  // ── 조회 표준 (2026-08-18) — 상자 하나: [검색조건(분류·기간) ▾ · 빠른검색] → 결과 요약 → 표(고정 먼저) → 쪽. 줄을 누르면 아래로 본문 펼침 ──
+  // ── 조회 표준 (2026-08-18). 상자 하나: [검색조건(분류·기간) ▾ · 빠른검색] → 결과 요약 → 표(고정 먼저) → 쪽. 줄을 누르면 아래로 본문 펼침 ──
   const [q, setQ] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState<Cond>(EMPTY);
@@ -166,7 +166,7 @@ export default function AnnouncementsPage() {
                 <DateRangeField label={null} from={draft.from} to={draft.to} onChange={(f, t) => setDraft((c) => ({ ...c, from: f, to: t }))} onClear={() => setDraft((c) => ({ ...c, from: "", to: "" }))} />
               </ConditionRow>
             </ConditionPanel>
-            <QuickSearch value={q} onApply={setQ} placeholder="제목 · 내용 · 분류 · 작성자 — 쉼표로 여러 개, Enter" />
+            <QuickSearch value={q} onApply={setQ} placeholder="제목 · 내용 · 분류 · 작성자 · 쉼표로 여러 개, Enter" />
           </QueryBar>
           <AppliedChips chips={chips} onClearAll={clearAll} />
           <ResultStrip right={<span className="text-[11px] text-[var(--text-dim)]">표시 <b className="mono-number">{shown.length}</b>건</span>}>
@@ -180,9 +180,9 @@ export default function AnnouncementsPage() {
           {isLoading ? (
             <div className="collect-empty">불러오는 중…</div>
           ) : rows.length === 0 ? (
-            <div className="collect-empty">등록된 공지가 없습니다 — 서비스 공지·업데이트 소식이 등록되면 여기에 표시됩니다</div>
+            <div className="collect-empty">등록된 공지가 없습니다. 서비스 공지·업데이트 소식이 등록되면 여기에 표시됩니다</div>
           ) : shown.length === 0 ? (
-            <div className="collect-empty">이 조건에 맞는 공지가 없습니다 — 검색조건을 풀어 보세요</div>
+            <div className="collect-empty">이 조건에 맞는 공지가 없습니다. 검색조건을 풀어 보세요</div>
           ) : (
             <div className="ev-scroll">
               <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed annc-table">

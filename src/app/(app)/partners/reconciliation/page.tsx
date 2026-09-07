@@ -1,14 +1,14 @@
 "use client";
 import { logRead } from "@/lib/log-read";
-import { fetchPaged } from "@/lib/fetch-paged";
+import { fetchPaged }  from "@/lib/fetch-paged";
 
-// 거래 대사 — 입금·계산서 자동 매칭 (2026-06-12 메뉴 분리: 구 거래처원장의 작업 화면).
+// 거래 대사 · 입금·계산서 자동 매칭 (2026-06-12 메뉴 분리: 구 거래처원장의 작업 화면).
 //   탭1 확인 큐: 규칙엔진/AI 제안 매칭을 확정/반려. 확정 시 트리거가 미수금 차감 + 자동 차액마감.
 //   탭2 수동 매칭: 못 잡은 입출금을 직접 세금계산서에 연결.
 //   탭3 확정 내역: 확정 취소(원복) / 차액마감 취소.
 //   조회(거래처별 잔액)는 /partners/ledger (거래처 원장).
 
-import { useMemo, useRef, useState, useEffect } from "react";
+import  { useMemo, useRef, useState, useEffect } from "react";
 import { DateRangeField } from "@/components/date-range-field";
 import { SortableTh, nextSort, cmp, type SortState, useColFilters } from "@/components/sortable-th";
 import {
@@ -28,13 +28,13 @@ import {
   useColWidths,
 } from "../ledger/shared";
 import { STAGE_LABEL } from "@/lib/project-rules";
-import { useModalKeys } from "@/hooks/use-modal-keys";
+import { useModalKeys }  from "@/hooks/use-modal-keys";
 
 /**
- * 검색조건 — 갖춰서 찾는 값들 (조회 화면 표준, 2026-08-18 Wave 1). ★ '조회'를 눌러야 반영. 기간·빠른검색은 즉시.
+ * 검색조건 · 갖춰서 찾는 값들 (조회 화면 표준, 2026-08-18 Wave 1). ★ '조회'를 눌러야 반영. 기간·빠른검색은 즉시.
  *   구분(입금/출금) · 유형(매칭 방식) · 신뢰도 · 거래처
  */
-type Cond = { dir: string[]; mtype: string[]; conf: string[]; cp: string[]; payer: string[]; min: string; max: string; rows: number };
+type Cond =  { dir: string[]; mtype: string[]; conf: string[]; cp: string[]; payer: string[]; min: string; max: string; rows: number };
 const EMPTY_COND: Cond = { dir: [], mtype: [], conf: [], cp: [], payer: [], min: "", max: "", rows: 50 };
 const condCount = (c: Cond) => c.dir.length + c.mtype.length + c.conf.length + c.cp.length + c.payer.length + ((c.min || c.max) ? 1 : 0);
 const DIR_OPTS = [{ value: "income", label: "입금" }, { value: "expense", label: "출금" }];
@@ -50,13 +50,13 @@ export default function ReconciliationPage() {
   const { toast } = useToast();
   const db = supabase;
   const [tab, setTab] = useState<Tab>("queue");
-  //   ── 조회 화면 표준 — 수집·전표에서 확정한 뼈대. 새로 만들지 않는다 ──
+  //   ── 조회 화면 표준 · 수집·전표에서 확정한 뼈대. 새로 만들지 않는다 ──
   const [q, setQ] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState<Cond>(EMPTY_COND);
   const [live, setLive] = useState<Cond>(EMPTY_COND);
   const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
-  //   머리단 정렬 — 탭마다 칸이 달라 열쇠는 문자열, 탭을 바꾸면 기본(거래일자 내림차순)으로
+  //   머리단 정렬 · 탭마다 칸이 달라 열쇠는 문자열, 탭을 바꾸면 기본(거래일자 내림차순)으로
   const [sort, setSort] = useState<SortState<string>>({ key: "tdate", dir: "desc" });
   const onSort = (k: string) => setSort((c) => nextSort(c, k, k === "tdate" || k === "idate" ? "desc" : "asc"));
   const switchTab = (t: Tab) => { setTab(t); setSort({ key: "tdate", dir: "desc" }); setSelected(new Set()); };
@@ -152,7 +152,7 @@ export default function ReconciliationPage() {
       if (error) throw new Error(error.message);
       return next;
     },
-    onSuccess: (next) => { invalidateAll(); toast(next === "rejected" ? "차액 마감 취소 — 잔액·전표가 원복되었습니다" : "확정 취소 — 미수금·전표가 원복되었고 거래 정리로 되돌렸습니다", "info"); },
+    onSuccess: (next) => { invalidateAll(); toast(next === "rejected" ? "차액 마감 취소 · 잔액·전표가 원복되었습니다" : "확정 취소 · 미수금·전표가 원복되었고 거래 정리로 되돌렸습니다", "info"); },
     onError: (e: any) => toast(e?.message || "확정 취소 실패", "error"),
   });
 
@@ -175,7 +175,7 @@ export default function ReconciliationPage() {
     onError: (e: any) => toast(e?.message || "매칭 엔진 실패", "error"),
   });
 
-  // AI 매칭 — 규칙으로 안 풀린 입금을 Claude 로 매칭. 클릭 1회로 끝까지 자동 반복(50건씩, 더 없을 때까지).
+  // AI 매칭 · 규칙으로 안 풀린 입금을 Claude 로 매칭. 클릭 1회로 끝까지 자동 반복(50건씩, 더 없을 때까지).
   const [aiProgress, setAiProgress] = useState<{ total: number; processed: number; suggested: number } | null>(null);
   const aiMut = useMutation({
     mutationFn: async () => {
@@ -204,7 +204,7 @@ export default function ReconciliationPage() {
       }
       return { processed: totalProcessed, resolved: totalResolved, suggested: totalSuggested };
     },
-    onSuccess: (r) => { invalidateAll(); setAiProgress(null); toast(`AI 매칭 완료 — ${r.processed}건 분석 · 제안 ${r.suggested}건 생성`, "success"); },
+    onSuccess: (r) => { invalidateAll(); setAiProgress(null); toast(`AI 매칭 완료 · ${r.processed}건 분석 · 제안 ${r.suggested}건 생성`, "success"); },
     onError: (e: any) => { setAiProgress(null); toast(e?.message || "AI 매칭 실패", "error"); },
   });
   // 대기 중 재미용 회전 메시지
@@ -218,9 +218,9 @@ export default function ReconciliationPage() {
   }, [aiMut.isPending]);
 
   // 별칭 학습(대사 핸드오프 TASK A): 사람이 매칭을 확정하면 입금자명→거래처를 partner_aliases 에
-  //   학습 — 다음 규칙 엔진 실행부터 같은 입금자명이 즉시 해소된다. 실패는 비치명(무시),
+  //   학습 · 다음 규칙 엔진 실행부터 같은 입금자명이 즉시 해소된다. 실패는 비치명(무시),
   //   중복(unique lower(alias))은 행 단위 insert 로 조용히 스킵.
-  const learnAliases = async (pairs: { counterparty: string | null; tax_invoice_id: string }[]) => {
+  const learnAliases = async (pairs:  { counterparty: string | null; tax_invoice_id: string }[]) => {
     try {
       const items = pairs.filter((p) => p.counterparty && p.counterparty.trim().length >= 2);
       if (!items.length || !companyId) return;
@@ -246,8 +246,8 @@ export default function ReconciliationPage() {
   // DB 가드(중복 매칭 차단) 에러코드 → 안내 문구
   const settlementErrMsg = (raw: any): string => {
     const m = String(raw?.message || raw || "");
-    if (m.includes("BANK_TX_OVERMATCH")) return "이미 다른 세금계산서에 확정된 통장거래입니다 — 한 입출금은 중복 매칭할 수 없습니다";
-    if (m.includes("INVOICE_OVERSETTLE")) return "이미 정산이 완료된 세금계산서입니다 — 중복 확정할 수 없습니다";
+    if (m.includes("BANK_TX_OVERMATCH")) return "이미 다른 세금계산서에 확정된 통장거래입니다. 한 입출금은 중복 매칭할 수 없습니다";
+    if (m.includes("INVOICE_OVERSETTLE")) return "이미 정산이 완료된 세금계산서입니다. 중복 확정할 수 없습니다";
     return m || "처리 실패";
   };
 
@@ -299,12 +299,12 @@ export default function ReconciliationPage() {
         learnAliases([{ counterparty: v.counterparty ?? null, tax_invoice_id: v.tax_invoice_id }]);
         maybePromptProjectLink(v.tax_invoice_id, v.counterparty ?? null);
       }
-      toast(v.status === "confirmed" ? "확정 — 미수금에 반영됩니다" : "반려했습니다", v.status === "confirmed" ? "success" : "info");
+      toast(v.status === "confirmed" ? "확정 · 미수금에 반영됩니다" : "반려했습니다", v.status === "confirmed" ? "success" : "info");
     },
     onSettled: () => invalidateAll(),
   });
 
-  // 일괄 확정/반려 — 고신뢰 일괄 또는 선택 건 (동일하게 낙관적 제거)
+  // 일괄 확정/반려 · 고신뢰 일괄 또는 선택 건 (동일하게 낙관적 제거)
   const bulkDecideMut = useMutation({
     mutationFn: async ({ ids, status }: { ids: string[]; status: "confirmed" | "rejected" }) => {
       if (!ids.length) return 0;
@@ -329,7 +329,7 @@ export default function ReconciliationPage() {
         learnAliases(ctx.affected.map((m) => ({ counterparty: m.counterparty, tax_invoice_id: m.tax_invoice_id })));
       }
       setSelected(new Set());
-      toast(`${n}건 ${v.status === "confirmed" ? "확정 — 미수금에 반영됩니다" : "반려했습니다"}`, v.status === "confirmed" ? "success" : "info");
+      toast(`${n}건 ${v.status === "confirmed" ? "확정 · 미수금에 반영됩니다" : "반려했습니다"}`, v.status === "confirmed" ? "success" : "info");
     },
     onSettled: () => invalidateAll(),
   });
@@ -399,9 +399,9 @@ export default function ReconciliationPage() {
   const cpOpts = useMemo(() => [...new Set([...(queue as QueueRow[]), ...(confirmed as QueueRow[])].map((m) => m.counterparty_name).filter(Boolean))]
     .sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [queue, confirmed]);
 
-  //   내 조건 — ★ 하나가 이 화면의 기본값
+  //   내 조건 · ★ 하나가 이 화면의 기본값
   const saved = useSavedQueries("reconciliation", companyId);
-  const paramsNow = { from: engStart, to: engEnd, q, cond: live };
+  const paramsNow =  { from: engStart, to: engEnd, q, cond: live };
   const paramsBasic = { ...defaultRange(), q: "", cond: EMPTY_COND };
   const applySaved = (p: Record<string, unknown>) => {
     if (typeof p.from === "string" && typeof p.to === "string") { setEngStart(p.from); setEngEnd(p.to); }
@@ -482,8 +482,8 @@ export default function ReconciliationPage() {
     enabled: !!companyId && tab === "manual",
   });
 
-  // 현금영수증(미연결) — 통장거래에 마킹 연결 후보
-  const { data: cashReceipts = [] } = useQuery<any[]>({
+  // 현금영수증(미연결). 통장거래에 마킹 연결 후보
+  const  { data: cashReceipts = [] } = useQuery<any[]>({
     queryKey: ["manual-cash", companyId, tab],
     queryFn: async () => {
       const data = await fetchPaged<any>('reconciliation/page:cashReceipts', () => db.from("cash_receipts")
@@ -494,8 +494,8 @@ export default function ReconciliationPage() {
     },
     enabled: !!companyId && tab === "manual",
   });
-  // 카드사용 내역 — 통장거래(카드대금)에 마킹 연결 후보
-  const { data: cardTxns = [] } = useQuery<any[]>({
+  // 카드사용 내역 · 통장거래(카드대금)에 마킹 연결 후보
+  const  { data: cardTxns = [] } = useQuery<any[]>({
     queryKey: ["manual-card", companyId, tab],
     queryFn: async () => {
       const data = await fetchPaged<any>('reconciliation/page:cardTxns', () => db.from("card_transactions")
@@ -506,8 +506,8 @@ export default function ReconciliationPage() {
     },
     enabled: !!companyId && tab === "manual",
   });
-  // 직접입력(전표) — 계정과목 마스터 (증빙 없는 거래를 계정으로 바로 기장)
-  const { data: coaAccounts = [] } = useQuery<any[]>({
+  // 직접입력(전표). 계정과목 마스터 (증빙 없는 거래를 계정으로 바로 기장)
+  const  { data: coaAccounts = [] } = useQuery<any[]>({
     queryKey: ["recon-coa", companyId],
     queryFn: async () => {
       const data = logRead('reconciliation/page:data', await db.from("chart_of_accounts").select("id, code, name, account_type, is_system").eq("company_id", companyId ?? "").order("code"));
@@ -516,7 +516,7 @@ export default function ReconciliationPage() {
     enabled: !!companyId && tab === "manual",
   });
 
-  // 현금영수증 연결 — cash_receipts.bank_transaction_id 세팅 + 통장거래 settled 마킹
+  // 현금영수증 연결 · cash_receipts.bank_transaction_id 세팅 + 통장거래 settled 마킹
   const cashLinkMut = useMutation({
     mutationFn: async ({ tx, receipt }: { tx: OpenTx; receipt: any }) => {
       const { error: e1 } = await db.from("cash_receipts").update({ bank_transaction_id: tx.id }).eq("id", receipt.id);
@@ -541,18 +541,18 @@ export default function ReconciliationPage() {
     onError: (e: any) => toast(e?.message || "연결 실패", "error"),
   });
 
-  // 직접입력(전표) — 증빙 없는 거래를 계정과목으로 바로 분개 기장(post_bank_voucher) + 정산완료 마킹.
+  // 직접입력(전표). 증빙 없는 거래를 계정과목으로 바로 분개 기장(post_bank_voucher) + 정산완료 마킹.
   //   예: 사무실 임차보증금(자산) 등 증빙 없이 자산·비용으로 처리해야 하는 입출금.
   const voucherMut = useMutation({
     mutationFn: async ({ tx, accountId }: { tx: OpenTx; accountId: string }) => {
       const { error } = await db.rpc("post_bank_voucher", { p_bank_tx_id: tx.id, p_account_id: accountId, p_remember: false });
       if (error) throw new Error(error.message);
-      // 증빙 매칭이 아니라 전표로 정리 — 미정산 목록에서 제외.
+      // 증빙 매칭이 아니라 전표로 정리 · 미정산 목록에서 제외.
       //   미검사 시 실패해도 "전표 처리 완료"가 떠서 미정산 큐에 남아 이중 전표 위험 (2026-08-19).
-      const { error: e3 } = await db.from("bank_transactions").update({ settlement_status: "settled", settled_amount: tx.amount }).eq("id", tx.id);
+      const  { error: e3 } = await db.from("bank_transactions").update({ settlement_status: "settled", settled_amount: tx.amount }).eq("id", tx.id);
       if (e3) throw new Error(`전표는 생성됐지만 정산 상태 갱신 실패: ${e3.message}`);
     },
-    onSuccess: () => { invalidateAll(); qc.invalidateQueries({ queryKey: ["manual-open-tx"] }); setMatchTx(null); setInvSearch(""); toast("전표 처리 완료 — 거래가 정리되었습니다", "success"); },
+    onSuccess: () => { invalidateAll(); qc.invalidateQueries({ queryKey: ["manual-open-tx"] }); setMatchTx(null); setInvSearch(""); toast("전표 처리 완료 · 거래가 정리되었습니다", "success"); },
     onError: (e: any) => toast(e?.message || "전표 처리 실패", "error"),
   });
   // 직접입력용 커스텀 계정과목 추가 (is_system=false, 회사스코프 RLS)
@@ -565,7 +565,7 @@ export default function ReconciliationPage() {
     onError: (e: any) => toast(e?.message || "계정 추가 실패 (코드 중복 등)", "error"),
   });
 
-  // 수동 연결 — match_source='manual', status='confirmed' (즉시 미수금 차감).
+  // 수동 연결 · match_source='manual', status='confirmed' (즉시 미수금 차감).
   //   같은 (거래, 계산서) 쌍에 기존 행(엔진 제안/반려 이력)이 있으면 unique 충돌 대신 그 행을 확정으로 승격.
   const manualMut = useMutation({
     mutationFn: async ({ tx, inv, amount }: { tx: OpenTx; inv: UnsettledInv; amount: number }) => {
@@ -586,7 +586,7 @@ export default function ReconciliationPage() {
     },
     onSuccess: (_d, v) => {
       learnAliases([{ counterparty: v.tx.counterparty, tax_invoice_id: v.inv.id }]); // 수동 연결도 별칭 학습
-      invalidateAll(); qc.invalidateQueries({ queryKey: ["manual-open-tx"] }); qc.invalidateQueries({ queryKey: ["manual-unsettled-inv"] }); setMatchTx(null); setInvSearch(""); toast("연결 완료 — 미수금에 반영됩니다", "success");
+      invalidateAll(); qc.invalidateQueries({ queryKey: ["manual-open-tx"] }); qc.invalidateQueries({ queryKey: ["manual-unsettled-inv"] }); setMatchTx(null); setInvSearch(""); toast("연결 완료 · 미수금에 반영됩니다", "success");
     },
     onError: (e: any) => toast(e?.message || "연결 실패", "error"),
   });
@@ -671,7 +671,7 @@ export default function ReconciliationPage() {
     },
     {
       label: "고신뢰 제안 고르기 (90%+)", source: "장부 대조", badge: highConfIds.length,
-      hint: "금액 정확·45일 이내로 신뢰도 90% 이상인 제안을 골라 둡니다 — 확정은 아래 줄에서 누릅니다",
+      hint: "금액 정확·45일 이내로 신뢰도 90% 이상인 제안을 골라 둡니다. 확정은 아래 줄에서 누릅니다",
       disabled: highConfIds.length === 0 || tab !== "queue",
       onClick: () => setSelected(new Set(highConfIds)),
     },
@@ -756,7 +756,7 @@ export default function ReconciliationPage() {
                   </ConditionRow>
                 </ConditionPanel>
               } />
-            <QuickSearch value={q} onApply={setQ} placeholder="입금자 · 계산서 거래처 · 금액 — 쉼표로 여러 개, Enter" />
+            <QuickSearch value={q} onApply={setQ} placeholder="입금자 · 계산서 거래처 · 금액 · 쉼표로 여러 개, Enter" />
           </QueryBar>
 
           <AppliedChips chips={chips} onClearAll={clearAll} />
@@ -779,7 +779,7 @@ export default function ReconciliationPage() {
               {queue.length === 0
                 ? <>이 기간({engStart} ~ {engEnd})에 확인 대기 중인 매칭이 없습니다{outsideCnt > 0 && <> — 기간 밖에 미확정 제안 <b>{outsideCnt}건</b>이 있습니다. 조회기간을 넓혀 보세요</>}.
                     <br /><span className="text-[11px]">제안은 AI 제안 ▾ 「이 기간 규칙 매칭」(입금자명↔거래처) 으로 만들고, 입금자명이 다른 건은 「AI 전체 매칭」이 금액·일자·정황으로 찾습니다.</span></>
-                : "이 조건에 맞는 제안이 없습니다 — 검색조건을 풀어 보세요"}
+                : "이 조건에 맞는 제안이 없습니다. 검색조건을 풀어 보세요"}
             </div>
           ) : (
             <div className="ev-scroll">
@@ -858,8 +858,8 @@ export default function ReconciliationPage() {
           {tab === "manual" && (manualShown.length === 0 ? (
             <div className="collect-empty">
               {openTx.length === 0
-                ? <>이 기간({engStart} ~ {engEnd})에 미정산 입출금이 없습니다 — 조회기간을 조정해 보세요.<br /><span className="text-[11px]">규칙·AI가 못 잡은 입출금이 있으면 여기서 세금계산서·현금영수증·카드사용에 직접 연결합니다. 세금계산서는 연결 즉시 미수금에 반영됩니다.</span></>
-                : "이 조건에 맞는 입출금이 없습니다 — 빠른검색·구분을 풀어 보세요"}
+                ? <>이 기간({engStart} ~ {engEnd})에 미정산 입출금이 없습니다. 조회기간을 조정해 보세요.<br /><span className="text-[11px]">규칙·AI가 못 잡은 입출금이 있으면 여기서 세금계산서·현금영수증·카드사용에 직접 연결합니다. 세금계산서는 연결 즉시 미수금에 반영됩니다.</span></>
+                : "이 조건에 맞는 입출금이 없습니다. 빠른검색·구분을 풀어 보세요"}
             </div>
           ) : (
             <div className="ev-scroll">
@@ -885,7 +885,7 @@ export default function ReconciliationPage() {
                             {(t.suggestedCount ?? 0) > 0 && (
                               <button onClick={() => setTab("queue")}
                                 className="shrink-0 max-w-[160px] truncate text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 font-semibold hover:bg-amber-500/20 transition"
-                                title={`이 거래에 자동 매칭 제안이 거래 정리 탭에 대기 중입니다${(t.suggestedPartners?.length ?? 0) > 0 ? ` (추천 계산서: ${t.suggestedPartners!.join(", ")})` : ""} — 클릭하면 이동. 여기서 직접 연결하면 그 제안과 별개로 확정됩니다.`}>
+                                title={`이 거래에 자동 매칭 제안이 거래 정리 탭에 대기 중입니다${(t.suggestedPartners?.length ?? 0) > 0 ? ` (추천 계산서: ${t.suggestedPartners!.join(", ")})` : ""} · 클릭하면 이동. 여기서 직접 연결하면 그 제안과 별개로 확정됩니다.`}>
                                 제안 {t.suggestedCount}건{(t.suggestedPartners?.length ?? 0) > 0 ? ` · ${t.suggestedPartners![0]}${t.suggestedPartners!.length > 1 ? ` 외 ${t.suggestedPartners!.length - 1}` : ""}` : ""}
                               </button>
                             )}
@@ -910,8 +910,8 @@ export default function ReconciliationPage() {
           {tab === "confirmed" && (confirmedShown.length === 0 ? (
             <div className="collect-empty">
               {confirmed.length === 0
-                ? "확정된 매칭이 없습니다 — 거래 정리 탭에서 매칭을 확정하면 여기에 내역이 쌓입니다"
-                : "이 조건에 맞는 내역이 없습니다 — 검색조건을 풀어 보세요"}
+                ? "확정된 매칭이 없습니다. 거래 정리 탭에서 매칭을 확정하면 여기에 내역이 쌓입니다"
+                : "이 조건에 맞는 내역이 없습니다. 검색조건을 풀어 보세요"}
             </div>
           ) : (
             <div className="ev-scroll">

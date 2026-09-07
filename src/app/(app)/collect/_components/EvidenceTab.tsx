@@ -83,7 +83,9 @@ function cardLabelOf(raw: unknown): string {
   return v;
 }
 
-/** 표준 계정(상대·부가세)은 추천 대상이 아니다 — 사람이 고르는 건 매출·비용 계정이다 */
+
+
+/** 표준 계정(상대·부가세)은 추천 대상이 아니다. 사람이 고르는 건 매출·비용 계정이다 */
 const STD_CODES = new Set<string>([STD.bank, STD.ar, STD.vatIn, STD.ap, STD.payable, STD.vatOut]);
 
 //   '3. 일반' — 부가세 유형 코드가 아니라 **일반전표로 보내라**는 표시다.
@@ -123,8 +125,9 @@ const DIR_CHIPS = [
 const STATE_CHIPS = [
   { value: "todo", label: "전표 미처리" }, { value: "all", label: "전체" }, { value: "excluded", label: "장부 제외" },
 ] as const;
-//   구분 — merchantKindOf 가 돌려주는 값 그대로 (lib/merchant-tax-type)
+//   구분 · merchantKindOf 가 돌려주는 값 그대로 (lib/merchant-tax-type)
 const KIND_CHIPS = [
+  
   { value: "", label: "전체" }, { value: "법인", label: "법인" }, { value: "일반", label: "일반" },
   { value: "간이", label: "간이" }, { value: "면세", label: "면세" }, { value: "해외", label: "해외" },
 ] as const;
@@ -142,18 +145,18 @@ export function EvidenceTab({
   onRange: (from: string, to: string) => void;
   tabsNode: ReactNode; syncButton: ReactNode; rulesHelper: HelperItem;
 }) {
-  const { toast } = useToast();
+  const { toast }  = useToast();
   const qc = useQueryClient();
   //   조회 줄에 있는 것은 **즉시** 반영된다 (기간은 page.tsx 가 쥐고 있다)
   const [q, setQ] = useState("");
-  //   검색조건 패널 — draft 는 고르는 중, live 는 '조회'를 눌러 확정된 것
+  //   검색조건 패널 · draft 는 고르는 중, live 는 '조회'를 눌러 확정된 것
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState<Cond>(EMPTY);
   const [live, setLive] = useState<Cond>(EMPTY);
   const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [override, setOverride] = useState<Record<string, { vatCode?: string; acct?: Acct }>>({});
-  //   줄별 계정·부가세 선택을 새로고침해도 유지 — 복원값보다 지금 화면에서 고른 값이 우선 (2026-08-26 사장님 제보)
+  //   줄별 계정·부가세 선택을 새로고침해도 유지 · 복원값보다 지금 화면에서 고른 값이 우선 (2026-08-26 사장님 제보)
   usePersistedPicks(companyId ? `ov:collect-ev-picks:${companyId}` : null, override,
     (saved) => setOverride((o) => ({ ...saved, ...o })));
   const [pick, setPick] = useState<{ id: string; q: string } | null>(null);
@@ -163,7 +166,7 @@ export function EvidenceTab({
   //   머리단 정렬 — 기본은 일자 오름차순(장부는 날짜 순으로 본다) (2026-08-12)
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "date", dir: "asc" });
   /*   ── 엑셀식 머리단 필터 + 열 너비 (2026-08-13 사장님: "엑셀과 아예 동일하게") ──
-   *   colVal 이 칸의 표시값을 뽑는 단 하나의 기준 — 필터 목록과 거르기가 같은 값을 본다. */
+   *   colVal 이 칸의 표시값을 뽑는 단 하나의 기준 · 필터 목록과 거르기가 같은 값을 본다. */
   const [colF, setColF] = useState<Record<string, Set<string> | null>>({});
   const tableRef = useRef<HTMLTableElement | null>(null);
   const [colW, setColW] = useColWidths(`collect-ev-colw-v2-${kind}`, {
@@ -234,8 +237,8 @@ export function EvidenceTab({
     staleTime: 60_000,
   });
 
-  //   카드 비목 → 계정 매핑(회사설정에서 만든 것) — 가맹점 이름이 아니라 **분류(category)** 기준이다
-  const { data: cardMap = {} } = useQuery<Record<string, Acct>>({
+  //   카드 비목 → 계정 매핑(회사설정에서 만든 것). 가맹점 이름이 아니라 **분류(category)** 기준이다
+  const  { data: cardMap = {} } = useQuery<Record<string, Acct>>({
     queryKey: ["collect-card-map", companyId],
     queryFn: async () => {
       const data = logRead("collect:cardmap", await supabase
@@ -298,8 +301,8 @@ export function EvidenceTab({
     staleTime: 300_000,
   });
 
-  //   가맹점 과세유형(구분) — 이미 조회해 둔 것을 그린다
-  const { data: merchantKinds = {} } = useQuery<Record<string, MerchantInfo>>({
+  //   가맹점 과세유형(구분). 이미 조회해 둔 것을 그린다
+  const  { data: merchantKinds = {} } = useQuery<Record<string, MerchantInfo>>({
     queryKey: ["merchant-kinds", companyId],
     queryFn: () => fetchMerchantKinds(companyId),
     enabled: !!companyId, staleTime: 300_000,
@@ -400,7 +403,7 @@ export function EvidenceTab({
     return arr;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownUnsorted, sort, override, merchantKinds, rules, cardMap, live, q]);
-  //   페이지 — 기본 50줄. 조건이 바뀌면 1쪽으로 돌아간다 (2026-08-13 사장님 지시)
+  //   페이지 · 기본 50줄. 조건이 바뀌면 1쪽으로 돌아간다 (2026-08-13 사장님 지시)
   const pager = usePager(shown, live.size, `${from}|${to}|${kind}|${q}|${JSON.stringify(live)}|${JSON.stringify(Object.fromEntries(Object.entries(colF).map(([k, v]) => [k, v ? [...v] : null])))}`);
   //   선택은 **쪽을 넘겨도 남는다** — 2쪽까지 골라 한 번에 전표로 만들 수 있어야 한다
   const selRows = shown.filter((r) => sel.has(r.id));
@@ -409,11 +412,11 @@ export function EvidenceTab({
   const selTotal = selRows.reduce((n, r) => n + amountsOf(r).supply + amountsOf(r).vat, 0);
 
   const linesFor = (r: Row) => {
-    const { acct } = acctOf(r);
+    const { acct }  = acctOf(r);
     //   ★ '3. 일반'은 부가세 유형이 아니라 buildVoucherLines 가 만들 줄이 없다(빈 배열이 나온다).
-    //     그러면 화면이 분개를 못 그려 터진다 — 실제로 그랬다. 여기서 두 줄을 직접 만든다:
+    //     그러면 화면이 분개를 못 그려 터진다. 실제로 그랬다. 여기서 두 줄을 직접 만든다:
     //     차) 비용 전액 / 대) 미지급금 전액. 부가세를 안 떼므로 합계 그대로다. (2026-08-12)
-    if (vatCodeOf(r) === GENERAL_CODE) {
+    if (vatCodeOf(r) === GENERAL_CODE)  {
       const total = r.supply + r.vat;
       const pay = acctByCode.get(STD.payable);
       return [
@@ -450,7 +453,7 @@ export function EvidenceTab({
       return n;
     });
     setBulkOpen(false);
-    toast(`${bulkRows.length}건을 ${a.code} ${a.name} 으로 바꿨습니다 — 전표는 '전표 만들기'를 눌러야 만들어집니다.`, "success");
+    toast(`${bulkRows.length}건을 ${a.code} ${a.name} 으로 바꿨습니다. 전표는 '전표 만들기'를 눌러야 만들어집니다.`, "success");
   };
 
   /**
@@ -505,12 +508,12 @@ export function EvidenceTab({
     if (!reason) return;
     try {
       const n = await setLedgerExcluded("card", targets.map((r) => r.id), reason);
-      toast(`${n}건 장부 제외 — 미처리 목록에서 사라졌습니다 (상태 '장부 제외'로 다시 봅니다)`, "success");
+      toast(`${n}건 장부 제외 · 미처리 목록에서 사라졌습니다 (상태 '장부 제외'로 다시 봅니다)`, "success");
       setSel(new Set()); qc.invalidateQueries({ queryKey: ["collect-rows"] }); qc.invalidateQueries({ queryKey: ["collect-status"] });
     } catch (e) { toast(friendlyError(e, "장부 제외 실패"), "error"); }
   };
   const unexclude = async (r: Row) => {
-    try { await setLedgerExcluded("card", [r.id], null); toast("제외를 해제했습니다 — 미처리로 돌아옵니다", "success"); qc.invalidateQueries({ queryKey: ["collect-rows"] }); qc.invalidateQueries({ queryKey: ["collect-status"] }); }
+    try { await setLedgerExcluded("card", [r.id], null); toast("제외를 해제했습니다. 미처리로 돌아옵니다", "success"); qc.invalidateQueries({ queryKey: ["collect-rows"] }); qc.invalidateQueries({ queryKey: ["collect-status"] }); }
     catch (e) { toast(friendlyError(e, "해제 실패"), "error"); }
   };
   const makeVouchers = async () => {
@@ -547,9 +550,9 @@ export function EvidenceTab({
         memo: r.item || "",
         partner_id: i === counterIdx && cardPid ? cardPid : mainPid,
       }));
-      //   ★ '3. 일반'은 부가세 전표가 아니다 — **일반전표**로 보낸다.
+      //   ★ '3. 일반'은 부가세 전표가 아니다. **일반전표**로 보낸다.
       //     부가세를 안 떼므로 금액은 합계 그대로 가고, 분개는 차) 비용 / 대) 미지급금 두 줄이다.
-      if (vatCodeOf(r) === GENERAL_CODE) {
+      if (vatCodeOf(r) === GENERAL_CODE)  {
         const total = r.supply + r.vat;
         const g = [
           { account_id: resolved[0]!.id, debit: total, credit: 0, memo: r.item || "", partner_id: mainPid },
@@ -596,8 +599,8 @@ export function EvidenceTab({
     qc.invalidateQueries({ queryKey: ["voucher-rules"] });
     setSaving(false);
     if (ok > 0 && fails.length === 0) toast(`전표 ${ok}건을 만들었습니다`, "success");
-    else if (ok > 0) toast(`${ok}건 성공 · ${fails.length}건 실패 — ${fails[0]}`, "info");
-    else toast(`전표를 만들지 못했습니다 — ${fails[0] ?? "알 수 없는 오류"}`, "error");
+    else if (ok > 0) toast(`${ok}건 성공 · ${fails.length}건 실패 · ${fails[0]}`, "info");
+    else toast(`전표를 만들지 못했습니다. ${fails[0] ?? "알 수 없는 오류"}`, "error");
   };
 
   /**
@@ -609,8 +612,9 @@ export function EvidenceTab({
     if (!r.entryId || saving) return;
     const label = `${r.date.slice(5)} ${r.partnerName} ${won(amountsOf(r).supply + amountsOf(r).vat)}원`;
     if (!(await appConfirm(
-      `${label}\n전표 #${r.voucherNo ?? "—"} 을(를) 취소할까요?\n\n· 전표는 반려로 남고 재무제표에서 빠집니다\n· 이 자료는 다시 '미처리'가 되어 목록으로 돌아옵니다`,
-      //   기본 라벨이 '삭제'라 뜻이 어긋난다 — 여기서 하는 일은 '되돌리기'다
+      `${label}\n전표 #${r.voucherNo ?? "—"}  을(를) 취소할까요?\n\n· 전표는 반려로 남고 재무제표에서 빠집니다\n· 이 자료는 다시 '미처리'가 되어 목록으로 돌아옵니다`,
+      //   기본 라벨이 '삭제'라 뜻이 어긋난다. 여기서 하는 일은 '되돌리기'다
+      
       { danger: true, title: "전표 취소", confirmLabel: "전표 취소" }))) return;
     setSaving(true);
     try {
@@ -618,7 +622,7 @@ export function EvidenceTab({
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ["collect-rows"] });
       qc.invalidateQueries({ queryKey: ["collect-status"] });
-      toast(`전표 #${r.voucherNo ?? ""} 을(를) 취소했습니다 — 목록으로 되돌렸습니다`, "info");
+      toast(`전표 #${r.voucherNo ?? ""} 을(를) 취소했습니다. 목록으로 되돌렸습니다`, "info");
     } catch (e: any) {
       const m = String(e?.message || "");
       toast(m.includes("PERIOD_LOCKED") ? "마감된 달의 전표는 취소할 수 없습니다"
@@ -633,7 +637,7 @@ export function EvidenceTab({
   //     다른 순서로 잡히면 엉뚱한 줄이 딸려 온다.
   //   · shown 을 쓰므로 쪽을 넘겨 잡아도 된다(같은 쪽 안이면 결과가 같다).
   //   · 고를 수 없는 줄(전표됨·장부 제외)은 조용히 건너뛴다.
-  //   · Shift 로 잡은 구간은 **누른 칸이 가려는 상태**를 그대로 따른다 — 켜면 다 켜고, 끄면 다 끈다
+  //   · Shift 로 잡은 구간은 **누른 칸이 가려는 상태**를 그대로 따른다. 켜면 다 켜고, 끄면 다 끈다
   //     (잘못 잡았을 때 Shift 로 되돌릴 수 있어야 한다).
   const anchorRef = useRef<string | null>(null);
   const toggle = (id: string, shift = false) => {
@@ -704,7 +708,7 @@ export function EvidenceTab({
       toast(`구분 조회 실패: ${e?.message || "알 수 없는 오류"}`, "error");
     } finally { setFilling(false); }
   };
-  //   구분은 화면이 열릴 때 스스로 채운다 — 버튼을 눌러야만 채워지면 번호가 있는 줄도 '구분'이 비어 보인다.
+  //   구분은 화면이 열릴 때 스스로 채운다. 버튼을 눌러야만 채워지면 번호가 있는 줄도 '구분'이 비어 보인다.
   //   한 번 물어본 번호는 이 화면에서 다시 묻지 않는다(국세청에 없는 번호도 기록되므로 다음 조회부턴 목록에서 빠진다).
   const askedBiznos = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -737,7 +741,7 @@ export function EvidenceTab({
     ...(kind === "card" && unknownBiznos.length > 0 ? [{
       label: filling ? "구분 조회 중…" : "가맹점 구분 채우기",
       source: "국세청 조회",
-      hint: "사업자번호로 과세유형을 물어 '구분' 칸을 채웁니다 — 간이·면세는 부가세를 공제받지 못합니다",
+      hint: "사업자번호로 과세유형을 물어 '구분' 칸을 채웁니다. 간이·면세는 부가세를 공제받지 못합니다",
       badge: unknownBiznos.length, disabled: filling, onClick: fillKinds,
     } as HelperItem] : []),
   ];
@@ -759,10 +763,10 @@ export function EvidenceTab({
     () => accounts.map((a2) => ({ value: a2.code, label: a2.name, sub: a2.code })),
     [accounts]);
 
-  //   내 조건 — ★ 하나가 이 화면의 기본값이 된다 (DB 라 PC 를 바꿔도 따라온다)
+  //   내 조건 · ★ 하나가 이 화면의 기본값이 된다 (DB 라 PC 를 바꿔도 따라온다)
   const saved = useSavedQueries(`collect:${kind}`, companyId);
-  //   지금 걸린 조건 / '기본' 이 뜻하는 조건 — 목록에서 어느 것이 켜졌는지 견주는 데 쓴다
-  const paramsNow = { from, to, q, cond: live };
+  //   지금 걸린 조건 / '기본' 이 뜻하는 조건 · 목록에서 어느 것이 켜졌는지 견주는 데 쓴다
+  const paramsNow =  { from, to, q, cond: live };
   const paramsBasic = { ...defaultRange(), q: "", cond: EMPTY };
   /** 고른 조건으로 이름을 지어 준다 — 매번 뭐라고 쓸지 고민하게 두지 않는다 */
   const suggestName = () => {
@@ -858,7 +862,7 @@ export function EvidenceTab({
       for (const pk of picks) {
         const row = byId.get(pk.id);
         if (!row) { miss.push(`이 조회에 없는 줄 (${pk.id.slice(0, 8)}…)`); continue; }
-        if (row.posted || row.excluded) { miss.push(`${row.date} ${row.partnerName} — 이미 ${row.posted ? "전표가 된" : "장부 제외한"} 줄`); continue; }
+        if (row.posted || row.excluded) { miss.push(`${row.date} ${row.partnerName} · 이미 ${row.posted ? "전표가 된" : "장부 제외한"} 줄`); continue; }
         const a = acctByCode.get(pk.code);
         if (a) next[pk.id] = { ...override[pk.id], acct: a };
       }
@@ -867,11 +871,11 @@ export function EvidenceTab({
       const bad = [...fails, ...miss];
       toast(
         n > 0
-          ? `계정 ${n}건을 채웠습니다${bad.length ? ` · ${bad.length}건 실패 — ${bad[0]}` : ""} — 확인 후 전표를 만드세요`
-          : bad.length ? `채우지 못했습니다 — ${bad[0]}` : `채울 것이 없습니다 (빈 칸 ${blank}줄)`,
+          ? `계정 ${n}건을 채웠습니다${bad.length ? ` · ${bad.length}건 실패 · ${bad[0]}` : ""} · 확인 후 전표를 만드세요`
+          : bad.length ? `채우지 못했습니다. ${bad[0]}` : `채울 것이 없습니다 (빈 칸 ${blank}줄)`,
         n > 0 ? "success" : bad.length ? "error" : "info");
     } catch (e: any) {
-      toast(`엑셀을 읽지 못했습니다 — ${e?.message || "형식을 확인해 주세요"}`, "error");
+      toast(`엑셀을 읽지 못했습니다. ${e?.message || "형식을 확인해 주세요"}`, "error");
     }
   };
 
@@ -888,11 +892,11 @@ export function EvidenceTab({
           amount: amountsOf(r).supply + amountsOf(r).vat,
         })), accounts, `${KIND_LABEL[kind] ?? "수집자료"}_계정채우기_${from}~${to}`) },
     { label: "채운 엑셀 올리기",
-      hint: "계정과목 칸만 채워 올리면 화면에 붙습니다 — 전표는 확인 후 직접 만듭니다",
+      hint: "계정과목 칸만 채워 올리면 화면에 붙습니다. 전표는 확인 후 직접 만듭니다",
       onClick: () => fillRef.current?.click() },
   ];
 
-  //   걸린 조건 — 조회 줄에 칩으로 남는다. 패널을 열지 않고도 알고, ✕ 로 하나씩 뺀다.
+  //   걸린 조건 · 조회 줄에 칩으로 남는다. 패널을 열지 않고도 알고, ✕ 로 하나씩 뺀다.
   const drop = (patch: Partial<Cond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
   const chips: AppliedChip[] = [
     ...quickTerms(q).map((t, i) => ({
@@ -1011,7 +1015,7 @@ export function EvidenceTab({
           } />
 
         <QuickSearch value={q} onApply={setQ}
-          placeholder="거래처 · 계정과목 · 품명 · 금액 — 쉼표로 여러 개, Enter" />
+          placeholder="거래처 · 계정과목 · 품명 · 금액 · 쉼표로 여러 개, Enter" />
 
         <ExcelMenu items={excelItems} />
       </QueryBar>
@@ -1024,10 +1028,10 @@ export function EvidenceTab({
         <Stat label="공급가액" value={won(sumSupply)} />
         <Stat label="부가세" value={won(sumVat)} />
         {/*   ★ 잘렸으면 반드시 말한다 — 조용히 500건만 보여 주면 '이게 전부'로 읽힌다 */}
-        {capped && <b className="ev-cut">너무 많아 앞 20,000건만 받아왔습니다 — 기간을 좁혀 주세요</b>}
+        {capped && <b className="ev-cut">너무 많아 앞 20,000건만 받아왔습니다<span className="ui-sub">기간을 좁혀 주세요</span></b>}
         {/*   감춘 것은 말한다 — 여기는 '홈택스에 있는 자료'만 다룬다(2026-08-24 사장님 지적) */}
         {hiddenDrafts > 0 && (
-          <span className="ev-draft-note"><Link href="/e-invoices" className="bz-link" title="누르면 초안 목록(세금·증빙)">발행 전 초안 {won(hiddenDrafts)}건</Link>은 빼고 보여줍니다 — 국세청에 아직 없는 건이라 전표로 만들 수 없습니다. 세금·증빙에서 발행하면 여기에 나타납니다.</span>
+          <span className="ev-draft-note"><Link href="/e-invoices" className="bz-link" title="누르면 초안 목록(세금·증빙)">발행 전 초안 {won(hiddenDrafts)}건</Link>은 빼고 보여줍니다. 국세청에 아직 없는 건이라 전표로 만들 수 없습니다. 세금·증빙에서 발행하면 여기에 나타납니다.</span>
         )}
       </ResultStrip>
       </QueryHead>
@@ -1038,7 +1042,7 @@ export function EvidenceTab({
         <div className="collect-empty">읽는 중…</div>
       ) : shown.length === 0 ? (
         <div className="collect-empty">
-          {live.todo === "todo" ? "전표를 만들 자료가 없습니다 — 이 기간은 다 처리했습니다." : "이 기간에 받아온 자료가 없습니다."}
+          {live.todo === "todo" ? "전표를 만들 자료가 없습니다. 이 기간은 다 처리했습니다." : "이 기간에 받아온 자료가 없습니다."}
         </div>
       ) : (
         <div className="ev-scroll">
@@ -1047,7 +1051,7 @@ export function EvidenceTab({
               <tr>
                 <th style={{ width: 34 }}>
                   <button type="button" aria-label="이 쪽 전체 선택" onClick={toggleAll}
-                    title="이 쪽 전체 선택 — 몇 줄만 고를 때는 첫 줄을 누르고 마지막 줄을 Shift+클릭"
+                    title="이 쪽 전체 선택 · 몇 줄만 고를 때는 첫 줄을 누르고 마지막 줄을 Shift+클릭"
                     className={allOn ? "collect-chk collect-chk-on" : "collect-chk"}>{allOn ? "✓" : ""}</button>
                 </th>
                 <SortableTh label="일자" sortKey="date" sort={sort} onSort={onSort} filter={thFilter("date", rows)} resize={thResize("date", 1)} />
@@ -1085,7 +1089,7 @@ export function EvidenceTab({
                     <td>
                       {!r.posted && !r.excluded && (
                         <button type="button" onClick={(e) => toggle(r.id, e.shiftKey)} aria-label="선택"
-                          title="선택 — Shift 를 누르고 누르면 앞서 고른 줄부터 여기까지 한 번에"
+                          title="선택 · Shift 를 누르고 누르면 앞서 고른 줄부터 여기까지 한 번에"
                           className={on ? "collect-chk collect-chk-on" : "collect-chk"}>{on ? "✓" : ""}</button>
                       )}
                     </td>
@@ -1110,7 +1114,7 @@ export function EvidenceTab({
                         //   전표가 된 줄은 **실제 전표의 유형**을 적는다 — 제안값을 그대로 두면 일반전표로 만든 건도
                         //   '카과'로 보여 매입매출전표에서 찾다가 없다고 한다 (2026-09-02 사장님 신고).
                         r.posted && r.entryKind === "general" ? (
-                          <em className="spv-type spv-type-g" title="일반전표로 만들어진 건 — 부가세 유형 없음. 매입매출전표가 아니라 일반전표 화면에 있습니다">일반전표</em>
+                          <em className="spv-type spv-type-g" title="일반전표로 만들어진 건 · 부가세 유형 없음. 매입매출전표가 아니라 일반전표 화면에 있습니다">일반전표</em>
                         ) : (() => {
                           const actual = r.posted && r.entryVat ? vatType(r.entryVat) : null;
                           const tt = actual || t;
@@ -1203,7 +1207,7 @@ export function EvidenceTab({
       {/* ── 3줄 · 고른 줄로 하는 일 — 파란 버튼은 화면을 통틀어 여기 하나뿐 ── */}
       <SelectionBar count={selRows.length} onClear={() => setSel(new Set())}
         summary={<>합계 <b className="mono-number">{won(selTotal)}</b>원{notReady.length > 0 && ` · ${notReady.length}건은 계정을 먼저 골라야 합니다`}{bulkRows.length > 1 && !bulkSide && ` · 매출·매입이 섞여 계정과목을 함께 바꿀 수 없습니다`}</>}>
-        {kind === "card" && <button type="button" onClick={excludeSelected} disabled={saving} className="btn-secondary btn-sm" title="전표 없이 끝낸 것으로 — 중복·이체·개인 지출">장부 제외</button>}
+        {kind === "card" && <button type="button" onClick={excludeSelected} disabled={saving} className="btn-secondary btn-sm" title="전표 없이 끝낸 것으로 · 중복·이체·개인 지출">장부 제외</button>}
         {/*   계정과목 일괄변경 — 고른 줄 전부에 같은 계정을 넣는다. 확정이 아니라 채워 주는 일이라
               파란 버튼이 아니다(파란 버튼은 화면을 통틀어 '전표 만들기' 하나).
               목록은 위로 펼친다 — 이 바는 화면 바닥에 붙어 있어 아래로 열면 잘려 안 보인다. */}
@@ -1213,7 +1217,7 @@ export function EvidenceTab({
             className="btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
             title={bulkSide
               ? `고른 ${bulkRows.length}건의 계정과목을 한 번에 바꿉니다 (전표는 따로 '전표 만들기')`
-              : "매출·매입이 섞여 있습니다 — 검색조건의 매출·매입을 한쪽으로 좁힌 뒤 다시 고르세요"}>
+              : "매출·매입이 섞여 있습니다. 검색조건의 매출·매입을 한쪽으로 좁힌 뒤 다시 고르세요"}>
             {bulkSide === "sale" ? "매출 계정 바꾸기" : bulkSide === "purchase" ? "비용 계정 바꾸기" : "계정과목 바꾸기"}
           </button>
           {bulkOpen && bulkSide && (
@@ -1242,7 +1246,7 @@ const REF_TYPE: Record<string, string> = {
   cash_receipt: "cash_receipt", card: "card_transaction",
 };
 
-/** 이미 전표가 된 줄에 전표번호를 붙인다 — '#3 확정'처럼 어느 전표인지 보여야 찾아갈 수 있다 */
+/** 이미 전표가 된 줄에 전표번호를 붙인다. '#3 확정'처럼 어느 전표인지 보여야 찾아갈 수 있다 */
 async function attachVoucherNo(rows: Row[], entryIds: (string | null)[]): Promise<Row[]> {
   const ids = [...new Set(entryIds.filter(Boolean) as string[])];
   if (ids.length === 0) return rows;
@@ -1337,10 +1341,10 @@ async function fetchRows(companyId: string, from: string, to: string, kind: Sour
       .order("issue_date").range(a, b);
     return kind === "exempt_invoice" ? q.eq("tax_kind", "exempt") : q.neq("tax_kind", "exempt");
   });
-  //   빼 놓은 초안이 몇 건인지 **화면에 적는다** — 조용히 감추면 "내가 만든 게 어디 갔지"가 된다.
+  //   빼 놓은 초안이 몇 건인지 **화면에 적는다** · 조용히 감추면 "내가 만든 게 어디 갔지"가 된다.
   //   (세금·증빙에서 발행하면 승인번호가 붙어 여기에 나타난다)
   const draftQ = supabase.from("tax_invoices")
-    .select("id", { count: "exact", head: true })
+    .select("id",  { count: "exact", head: true })
     .eq("company_id", companyId).neq("status", "void")
     .is("nts_confirm_no", null).neq("nts_issue_status", "issued")
     .gte("issue_date", from).lte("issue_date", to);

@@ -88,7 +88,7 @@ export default function UpcomingPage() {
             </ConditionRow>
             <ConditionRow label="금액" hint="이상"><input className="qk-input h-8 w-40 px-2 text-xs" inputMode="numeric" placeholder="예: 1,000,000" value={draft.minAmt} onChange={(e) => setDraft((d) => ({ ...d, minAmt: e.target.value }))} /></ConditionRow>
           </ConditionPanel>
-          <QuickSearch value={q} onApply={setQ} placeholder="빠른검색 — 항목·구분·근거·금액 (쉼표=또는)" />
+          <QuickSearch value={q} onApply={setQ} placeholder="빠른검색 · 항목·구분·근거·금액 (쉼표=또는)" />
           <ChipGroup value={dir} onChange={setDir} options={[{ value: "all", label: `전체 ${data?.items.length ?? 0}` }, { value: "in", label: `들어올 돈 ${data?.items.filter((i) => i.amount > 0).length ?? 0}` }, { value: "out", label: `나갈 돈 ${data?.items.filter((i) => i.amount < 0).length ?? 0}` }] as const} />
         </>}
         right={<ExcelMenu items={excel} />}
@@ -103,7 +103,7 @@ export default function UpcomingPage() {
       <AppliedChips chips={chips} onClearAll={() => { apply(COND0); setQ(""); }} />
 
       {isLoading || !data ? <div className="collect-empty">불러오는 중…</div> : rows.length === 0 ? (
-        <div className="collect-empty">{data.items.length === 0 ? `앞으로 ${days}일 안에 날짜가 있는 예정 항목이 없습니다 — 세금계산서·급여·대출·정기 지출을 등록하면 여기 쌓입니다` : "조건에 맞는 항목이 없습니다"}</div>
+        <div className="collect-empty">{data.items.length === 0 ? `앞으로 ${days}일 안에 날짜가 있는 예정 항목이 없습니다. 세금계산서·급여·대출·정기 지출을 등록하면 여기 쌓입니다` : "조건에 맞는 항목이 없습니다"}</div>
       ) : (
         <>
           <div className="pnl-tbl-wrap">
@@ -129,7 +129,7 @@ export default function UpcomingPage() {
             </table>
           </div>
           <Pager page={pager.page} pages={pager.pages} total={rows.length} from={pager.from} to={pager.to} size={50} onPage={pager.setPage} />
-          <p className="mt-2 text-[11px] text-[var(--text-dim)]">'그때 잔액'은 오늘 잔액에서 그날까지 예정을 반영한 값(전망 곡선과 같음). 30일 넘은 미수·발행 30일 지난 미지급은 날짜를 몰라 여기 없습니다 — 전망의 '틀릴 수 있는 곳'.</p>
+          <p className="mt-2 text-[11px] text-[var(--text-dim)]">'그때 잔액'은 오늘 잔액에서 그날까지 예정을 반영한 값(전망 곡선과 같음). 30일 넘은 미수·발행 30일 지난 미지급은 날짜를 몰라 여기 없습니다. 전망의 '틀릴 수 있는 곳'.</p>
         </>
       )}
     </>

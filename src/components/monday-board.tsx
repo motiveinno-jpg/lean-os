@@ -63,7 +63,8 @@ const DEFAULT_COLUMNS: { name: string; type: string; settings: any }[] = [
     { id: "low", label: "낮음", color: MONDAY.blue },
   ] } },
   { name: "계약일", type: "date", settings: {} },
-  // 계약금액은 커스텀 셀이 아니라 실데이터(deals.contract_total) 바인딩 — 통계 4카드와 동일 소스
+  // 계약금액은 커스텀 셀이 아니라 실데이터(deals.contract_total) 바인딩 · 통계 4카드와 동일 소스
+  
   { name: "계약금액", type: "number", settings: { bind: "contract_total" } },
 ];
 
@@ -935,7 +936,7 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
   });
   const refetch = () => qc.invalidateQueries({ queryKey: ["project-subitems", deal.id] });
 
-  // 항목(서브아이템)별 말풍선 — 업데이트 패널 대상 + 개수 배지
+  // 항목(서브아이템)별 말풍선 · 업데이트 패널 대상 + 개수 배지
   const [updSub, setUpdSub] = useState<SubItem | null>(null);
   const { data: subCounts } = useQuery<Map<string, number>>({
     queryKey: ["subitem-update-counts", deal.id],
@@ -1235,8 +1236,9 @@ function Cell({ col, value, users, onChange }: { col: Col; value: any; users: Pe
   if (col.type === "number") {
     return <NumberCell value={value} onChange={onChange} />;
   }
-  // text — 셀 전체가 클릭 타깃 (빈 값일 때 클릭 영역 0 으로 입력 불가하던 버그 수정)
-  return <TextCell value={value} onChange={onChange} />;
+  
+  // text · 셀 전체가 클릭 타깃 (빈 값일 때 클릭 영역 0 으로 입력 불가하던 버그 수정)
+  return  <TextCell value={value} onChange={onChange} />;
 }
 
 // ── 텍스트 셀: 셀 전체 클릭 → 인라인 입력 ──
@@ -1295,7 +1297,9 @@ function DropMenu({ anchor, width, onClose, children, pad = "p-2" }: {
   );
 }
 
-// ── 상태 셀: 보드형 툴 시그니처 — 셀 전체 채움(라운드 0) + 포털 드롭다운(잘림 없음) ──
+
+
+// ── 상태 셀: 보드형 툴 시그니처 · 셀 전체 채움(라운드 0) + 포털 드롭다운(잘림 없음) ──
 function StatusCell({ options, current, onPick }: { options: { id: string; label: string; color: string }[]; current?: { id: string; label: string; color: string }; onPick: (id: string) => void }) {
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   return (
@@ -1327,7 +1331,9 @@ function StatusCell({ options, current, onPick }: { options: { id: string; label
   );
 }
 
-// ── 담당자 셀: 이니셜 아바타 (보드형 툴 person 셀) — 포털 드롭다운 ──
+
+
+// ── 담당자 셀: 이니셜 아바타 (보드형 툴 person 셀). 포털 드롭다운 ──
 function PersonCell({ users, value, onChange }: { users: Person[]; value: any; onChange: (v: any) => void }) {
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const cur = users.find((u) => u.id === value);

@@ -32,7 +32,7 @@ export type Field = {
 function baseHead(): Field[] {
   return [
     { field_id: "date",    name: "일자",   on: true,  custom: false, lock: true, why: "전표의 날짜" },
-    { field_id: "partner", name: "거래처", on: true,  custom: false, why: "거래 상대 — 없어도 저장됩니다" },
+    { field_id: "partner", name: "거래처", on: true,  custom: false, why: "거래 상대 · 없어도 저장됩니다" },
     { field_id: "wh",      name: "창고",   on: true,  custom: false, why: "기본 창고가 자동으로 선택됩니다" },
     { field_id: "staff",   name: "담당자", on: false, custom: false, why: "담당 직원" },
     { field_id: "due",     name: "납기일", on: false, custom: false, why: "납품 예정일" },
@@ -45,17 +45,17 @@ function baseLine(): Field[] {
     { field_id: "spec",   name: "규격",     on: true,  custom: false, why: "품목 정보에서 자동 입력" },
     { field_id: "qty",    name: "수량",     on: true,  custom: false, lock: true, why: "거래 수량" },
     //   생산 양식에만 — 만들었지만 팔 수 없는 수량. 불량 보류 창고로 들어간다(결정 28·30, 2026-08-26)
-    { field_id: "defect", name: "불량",     on: true,  custom: false, why: "만들었지만 팔 수 없는 수량 — 불량 보류 창고로 들어갑니다. 자재는 양품+불량 기준으로 나갑니다" },
+    { field_id: "defect", name: "불량",     on: true,  custom: false, why: "만들었지만 팔 수 없는 수량 · 불량 보류 창고로 들어갑니다. 자재는 양품+불량 기준으로 나갑니다" },
     { field_id: "price",  name: "단가",     on: false, custom: false, why: "수량과 공급가액으로 자동 계산" },
     { field_id: "supply", name: "공급가액", on: true,  custom: false, lock: true, why: "세금 전 금액" },
     { field_id: "vat",    name: "부가세",   on: true,  custom: false, why: "공급가액의 10% 자동 계산" },
     { field_id: "lnote",  name: "품목 비고", on: false, custom: false, why: "해당 품목에 대한 메모" },
     //   채널 주문 양식에만 쓰는 칸 — 다른 양식에서는 defaultLayout 이 빼 버린다
-    { field_id: "ch",     name: "채널",         on: true,  custom: false, lock: true, why: "붙여넣기·가져오기가 정합니다 — 바꿀 수 없습니다" },
-    { field_id: "ono",    name: "주문번호",     on: true,  custom: false, lock: true, why: "채널 주문번호 — 같은 번호는 두 번 등록되지 않습니다" },
+    { field_id: "ch",     name: "채널",         on: true,  custom: false, lock: true, why: "붙여넣기·가져오기가 정합니다. 바꿀 수 없습니다" },
+    { field_id: "ono",    name: "주문번호",     on: true,  custom: false, lock: true, why: "채널 주문번호 · 같은 번호는 두 번 등록되지 않습니다" },
     { field_id: "ccode",  name: "채널 상품코드", on: true,  custom: false, why: "상품 연결에 등록된 코드면 품목이 자동으로 채워집니다" },
     { field_id: "buyer",  name: "주문자",       on: true,  custom: false, why: "채널 주문자 이름" },
-    { field_id: "rcv",    name: "수취인",       on: true,  custom: false, why: "받는 사람 — 송장에 찍힙니다" },
+    { field_id: "rcv",    name: "수취인",       on: true,  custom: false, why: "받는 사람 · 송장에 찍힙니다" },
     { field_id: "tel",    name: "연락처",       on: true,  custom: false, why: "수취인 연락처" },
     { field_id: "zip",    name: "우편번호",     on: false, custom: false, why: "택배 양식에 우편번호 열이 있을 때 켭니다" },
     { field_id: "addr",   name: "주소",         on: true,  custom: false, why: "배송 주소" },
@@ -81,7 +81,7 @@ export function defaultLayout(form: FormKey): { head: Field[]; line: Field[] } {
   //     쓰고 싶은 회사는 양식 고치기에서 켜면 된다.
   if (form === "make") {
     head[1].on = false;
-    const q = line.find((f) => f.field_id === "qty")!; q.name = "양품"; q.why = "팔 수 있게 완성된 수량 — 고른 창고로 들어갑니다";
+    const q = line.find((f) => f.field_id === "qty")!; q.name = "양품"; q.why = "팔 수 있게 완성된 수량 · 고른 창고로 들어갑니다";
   } else {
     for (const id of MAKE_ONLY) { const f = line.find((x) => x.field_id === id); if (f) f.on = false; }
   }
@@ -300,7 +300,7 @@ export async function setOrderStatus(companyId: string, orderId: string, status:
 export async function deleteOrder(companyId: string, orderId: string) {
   //   가져간 것이 있으면 못 지운다 — 재고는 움직였는데 근거만 사라지면 장부가 거짓말을 한다.
   const used = (await listUsed(companyId, [orderId])).reduce((n, u) => n + u.used_qty, 0);
-  if (used !== 0) throw new Error("판매·구매·생산에서 이미 사용한 항목이 있습니다 — 해당 전표를 먼저 삭제하세요");
+  if (used !== 0) throw new Error("판매·구매·생산에서 이미 사용한 항목이 있습니다. 해당 전표를 먼저 삭제하세요");
   const { error } = await supabase.from("orders").delete().eq("id", orderId);
   if (error) throw error;
 }

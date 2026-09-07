@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Avatar } from "@/components/avatar";
 import { Ico } from "@/components/ui-icon";
 import { ActionCard } from "./action-card";
 import { SignedImg, useSignedUrl } from "@/components/signed-media";
@@ -18,6 +19,7 @@ interface ReplyInfo {
 
 interface ChatBubbleProps {
   senderName: string;
+  senderAvatar?: string | null;   // 보낸 사람 프로필 사진(users.avatar_url) — 없으면 이름 첫 글자 (2026-09-07)
   content: string;
   time: string;
   isOwn: boolean;
@@ -82,7 +84,7 @@ function renderContent(text: string, isOwn: boolean, glass?: boolean) {
 }
 
 export function ChatBubble({
-  senderName, content, time, isOwn, type, pinned,
+  senderName, senderAvatar, content, time, isOwn, type, pinned,
   editedAt, deletedAt, replyTo, reactions, metadata, actionCard,
   onPin, onReply, onReact, onEdit, onDelete, glass, unreadCount,
 }: ChatBubbleProps) {
@@ -121,6 +123,7 @@ export function ChatBubble({
 
   return (
     <div className={`chat-bubble-row ${isOwn ? "justify-end" : "justify-start"} group`}>
+      {!isOwn && <Avatar name={senderName} src={senderAvatar} size={24} className="chat-bubble-avatar" />}
       <div className={`chat-bubble-column ${isOwn ? "items-end" : "items-start"}`}>
         {!isOwn && (
           <div className="chat-bubble-sender-name">{senderName}</div>

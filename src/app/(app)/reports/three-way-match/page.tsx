@@ -60,8 +60,8 @@ function Inner() {
     enabled: !!companyId && !!selectedInvoice,
   });
 
-  // 매칭 완료 목록 — 우측 패널
-  const { data: matched = [], isLoading: matchedLoading } = useQuery({
+  // 매칭 완료 목록 · 우측 패널
+  const  { data: matched = [], isLoading: matchedLoading } = useQuery({
     queryKey: ["three-way-matched", companyId, typeFilter],
     queryFn: () => listMatchedInvoices(companyId!, typeFilter === 'all' ? undefined : { type: typeFilter }),
     enabled: !!companyId,

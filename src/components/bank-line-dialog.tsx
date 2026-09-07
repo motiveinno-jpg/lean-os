@@ -51,11 +51,11 @@ const coreName = (v: unknown) => String(v || "").toLowerCase()
 
 export type BankLineState = "unposted" | "pending" | "linked" | "posted" | "excluded";
 export const BANK_LINE_META: Record<BankLineState, { label: string; cls: string; hint: string }> = {
-  unposted: { label: "미처리", cls: "bl-state-unposted", hint: "아직 장부에 없는 줄 — 눌러서 증빙 연결 · 일반전표 · 장부 제외" },
-  pending: { label: "연결 대기", cls: "bl-state-pending", hint: "증빙 연결 초안이 있음 — 확정해야 전표가 된다" },
+  unposted: { label: "미처리", cls: "bl-state-unposted", hint: "아직 장부에 없는 줄 · 눌러서 증빙 연결 · 일반전표 · 장부 제외" },
+  pending: { label: "연결 대기", cls: "bl-state-pending", hint: "증빙 연결 초안이 있음. 확정해야 전표가 된다" },
   linked: { label: "증빙 연결", cls: "bl-state-linked", hint: "계산서와 정산 전표로 묶임" },
   posted: { label: "전표됨", cls: "bl-state-posted", hint: "일반전표로 장부에 올라감" },
-  excluded: { label: "장부 제외", cls: "bl-state-excluded", hint: "이체·개인·중복 — 장부에서 뺌" },
+  excluded: { label: "장부 제외", cls: "bl-state-excluded", hint: "이체·개인·중복 · 장부에서 뺌" },
 };
 /** 한 줄의 상태 — 우선순위: 제외 > 증빙 연결(정산 확정) > 전표됨 > 연결 대기 > 미처리 */
 export function bankLineState(tx: BankLineTx, pendingIds?: Set<string>): BankLineState {
@@ -67,7 +67,9 @@ export function bankLineState(tx: BankLineTx, pendingIds?: Set<string>): BankLin
   return "unposted";
 }
 
-/** 정산 초안 확정·반려 — 잠긴 달이면 확정하지 않는다(트리거가 전표를 안 만들어 '확정'만 남는다). 확정 뒤 전표가 실제로 생겼는지 되짚는다. */
+
+
+/** 정산 초안 확정·반려 · 잠긴 달이면 확정하지 않는다(트리거가 전표를 안 만들어 '확정'만 남는다). 확정 뒤 전표가 실제로 생겼는지 되짚는다. */
 export async function decideSettlement(id: string, st: "confirmed" | "rejected", companyId: string, txDate?: string | null): Promise<"posted" | "rejected" | "locked" | "no_voucher"> {
   if (st === "confirmed" && txDate) {
     const { count } = await (supabase as any).from("closing_checklists").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("month", txDate.slice(0, 7)).eq("status", "locked");
@@ -80,10 +82,10 @@ export async function decideSettlement(id: string, st: "confirmed" | "rejected",
   return n ? "posted" : "no_voucher";
 }
 export const settlementResultToast = (r: "posted" | "rejected" | "locked" | "no_voucher", month?: string): { msg: string; kind: "success" | "error" | "info" } =>
-  r === "posted" ? { msg: "확정 — 정산 전표를 만들었습니다", kind: "success" }
+  r === "posted" ? { msg: "확정 · 정산 전표를 만들었습니다", kind: "success" }
   : r === "rejected" ? { msg: "반려했습니다", kind: "success" }
-  : r === "locked" ? { msg: `${month || "그 달"}은 회계마감으로 잠겨 있어 확정하지 않았습니다 — 전표가 생기지 않습니다. 마감을 풀고 다시 확정하세요`, kind: "error" }
-  : { msg: "확정했지만 전표가 생기지 않았습니다 — 계정과목에 103 보통예금·108 외상매출금·251 외상매입금이 있는지 확인하세요", kind: "info" };
+  : r === "locked" ? { msg: `${month || "그 달"}은 회계마감으로 잠겨 있어 확정하지 않았습니다. 전표가 생기지 않습니다. 마감을 풀고 다시 확정하세요`, kind: "error" }
+  : { msg: "확정했지만 전표가 생기지 않았습니다. 계정과목에 103 보통예금·108 외상매출금·251 외상매입금이 있는지 확인하세요", kind: "info" };
 
 export function BankLineDialog({ tx, companyId, onClose, onDone }: {
   tx: BankLineTx; companyId: string; onClose: () => void; onDone?: () => void;
@@ -195,7 +197,7 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
       });
       if (error) throw error;
       if (pickInv.partner_id && !tx.partner_id) await supabase.from("bank_transactions").update({ partner_id: pickInv.partner_id } as never).eq("id", tx.id);
-      toast("연결 초안을 만들었습니다 — 확정을 눌러야 전표가 됩니다", "success");
+      toast("연결 초안을 만들었습니다. 확정을 눌러야 전표가 됩니다", "success");
       setPickInv(null); refetchSettles(); onDone?.();
     } catch (e) { toast(friendlyError(e, "연결 실패"), "error"); }
     finally { setBusy(false); }
@@ -214,8 +216,8 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
     finally { setBusy(false); }
   };
 
-  // ── ② 일반전표 — 계정(규칙으로 미리 채움) · 거래처(이름 맞춤) · 적요 ──
-  const rk = ruleKeyOf("bank", { name: tx.counterparty, fallback: tx.description });
+  // ── ② 일반전표 · 계정(규칙으로 미리 채움) · 거래처(이름 맞춤) · 적요 ──
+  const rk = ruleKeyOf("bank",  { name: tx.counterparty, fallback: tx.description });
   const rule = ruleMap?.get(rk.key);
   const sideAccts = useMemo(() => accounts.filter((a) => a.account_type === (isIn ? "revenue" : "expense")), [accounts, isIn]);
   const [acct, setAcct] = useState<Acct | null>(null);
@@ -269,12 +271,12 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
     finally { setBusy(false); }
   };
 
-  // ── 줄 메모 (전표와 무관 — 메모·태그·사용직원·고정비) ──
+  // ── 줄 메모 (전표와 무관 · 메모·태그·사용직원·고정비) ──
   const [memo, setMemo] = useState(tx.memo || "");
   const [tags, setTags] = useState((tx.tags || []).join(", "));
   const [emp, setEmp] = useState(tx.used_by_employee_id || "");
   const [fixed, setFixed] = useState(!!tx.is_fixed_cost);
-  const { data: employees = [] } = useQuery({
+  const  { data: employees = [] } = useQuery({
     queryKey: ["bank-page-employees", companyId],
     queryFn: async () => (logRead("bank-line:employees", await supabase.from("employees").select("id, name").eq("company_id", companyId).eq("status", "active").order("name")) || []) as Pt[],
     staleTime: 300_000,
@@ -305,7 +307,7 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
           <span className={`bl-state ${meta.cls}`} title={meta.hint}>{meta.label}</span>
         </div>
         {monthLocked && state !== "excluded" && state !== "posted" && (
-          <div className="bl-locked">⚠ {tx.transaction_date.slice(0, 7)}은 회계마감으로 잠겨 있습니다 — 증빙 연결 확정·일반전표가 막힙니다. 회계마감에서 그 달을 풀고 처리하세요.</div>
+          <div className="bl-locked">⚠ {tx.transaction_date.slice(0, 7)}은 회계마감으로 잠겨 있습니다. 증빙 연결 확정·일반전표가 막힙니다. 회계마감에서 그 달을 풀고 처리하세요.</div>
         )}
         {state === "excluded" ? (
           <div className="bl-done">
@@ -326,7 +328,7 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
 
             {tab === "link" && (
               <div className="bl-pane">
-                <p className="inv-hint">{isIn ? "매출" : "매입"} 계산서와 짝을 지으면 <b>정산 전표 초안(연결 대기)</b>이 됩니다. 후보는 자동으로 찾지만 확정은 사람이 누릅니다 — 확정하면 {isIn ? "외상매출금" : "외상매입금"} ↔ 보통예금 전표가 생깁니다. 분할·합산 입금은 금액을 나눠 여러 번 연결합니다.</p>
+                <p className="inv-hint">{isIn ? "매출" : "매입"} 계산서와 짝을 지으면 <b>정산 전표 초안(연결 대기)</b>이 됩니다. 후보는 자동으로 찾지만 확정은 사람이 누릅니다. 확정하면  {isIn ? "외상매출금" : "외상매입금"} ↔ 보통예금 전표가 생깁니다. 분할·합산 입금은 금액을 나눠 여러 번 연결합니다.</p>
                 {settles.length > 0 && (
                   <table className="ev-table ev-lined table-inv-status-sm bl-table">
                     <thead><tr><th>연결한 계산서</th><th>계산서 금액</th><th>연결 금액</th><th>출처</th><th>상태</th><th></th></tr></thead>
@@ -348,7 +350,7 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
                 {leftHere > 0 && (
                   <>
                     <div className="bl-sub">후보 {cands.length}건 <span className="ev-dim">· 출처: 장부 대조(금액·거래처)</span>{leftHere !== amt && <span className="ev-dim"> · 남은 ₩{won(leftHere)}</span>}</div>
-                    {cands.length === 0 && <div className="collect-empty bl-empty">자동으로 찾은 후보가 없습니다 — 아래 <b>계산서 직접 찾기</b>로 고르거나, 증빙이 없는 줄이면 <b>일반전표</b> 탭으로.</div>}
+                    {cands.length === 0 && <div className="collect-empty bl-empty">자동으로 찾은 후보가 없습니다. 아래 <b>계산서 직접 찾기</b>로 고르거나, 증빙이 없는 줄이면 <b>일반전표</b> 탭으로.</div>}
                     {cands.length > 0 && (
                       <table className="ev-table ev-lined table-inv-status-sm bl-table">
                         <thead><tr><th></th><th>거래처</th><th>발행일</th><th>남은 금액</th><th>근거</th></tr></thead>
@@ -382,7 +384,7 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
 
             {tab === "voucher" && (
               <div className="bl-pane">
-                <p className="inv-hint">증빙이 없는 줄(이자·수수료·급여·임차료 …)을 일반전표로. 보통예금 쪽과 차·대 방향은 서버가 붙입니다 — 여기서는 상대 계정·거래처·적요만.</p>
+                <p className="inv-hint">증빙이 없는 줄(이자·수수료·급여·임차료 …)을 일반전표로. 보통예금 쪽과 차·대 방향은 서버가 붙입니다. 여기서는 상대 계정·거래처·적요만.</p>
                 <div className="bl-form">
                   <label>계정과목
                     <span className="relative inline-block">
@@ -406,7 +408,7 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
 
             {tab === "exclude" && (
               <div className="bl-pane">
-                <p className="inv-hint">장부에 올리지 않을 줄 — 계좌 간 이체·카드 대금·개인 지출·이미 다른 전표에 있는 것. 사유가 상태 칸에 남고 언제든 풀 수 있습니다.</p>
+                <p className="inv-hint">장부에 올리지 않을 줄 · 계좌 간 이체·카드 대금·개인 지출·이미 다른 전표에 있는 것. 사유가 상태 칸에 남고 언제든 풀 수 있습니다.</p>
                 <div className="bl-form">
                   <label>사유
                     <select value={exCode} onChange={(e) => setExCode(e.target.value)} className="inv-input">

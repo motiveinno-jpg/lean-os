@@ -209,9 +209,11 @@ export function PortfolioCharts({ rows, pnlOf, outstandingOf, agingBuckets, user
         <div className="ph-chart-head"><b>미수 에이징</b><span>발행 후 경과일 · 합계 {won(agingTotal)}</span></div>
         {agingTotal <= 0 ? (
           <p className="ph-view-empty">미수가 없습니다. 발행한 계산서가 전부 입금됐습니다.</p>
+        
         ) : (
-          /* 경과일 구간은 **순서가 있는 분포**다 — 왼→오른쪽으로 오래된 쪽이 보이도록 세로 막대로 둔다
+          /* 경과일 구간은 **순서가 있는 분포**다. 왼→오른쪽으로 오래된 쪽이 보이도록 세로 막대로 둔다
              (가로 목록으로 두면 '오래될수록'이라는 방향이 사라진다) */
+          
           <ColumnChart height={180} unit="원"
             data={agingBuckets.map((b, i) => ({
               label: `${b.label} (${b.count}건)`,
@@ -290,7 +292,7 @@ export function ProjectCalendar({ rows, monthOffset, onMonth, onOpen }: {
             {c.date && (events[c.date] || []).slice(0, 3).map((ev, j) => (
               <button key={j} type="button" onClick={() => onOpen(ev.id)}
                 className={`ph-cal-ev ${ev.kind === "end" ? (ev.late ? "ph-cal-ev-late" : "ph-cal-ev-end") : "ph-cal-ev-start"}`}
-                title={`${ev.name} — ${ev.kind === "end" ? "마감" : "시작"}`}>
+                title={`${ev.name} · ${ev.kind === "end" ? "마감" : "시작"}`}>
                 {ev.kind === "end" ? "마감 " : "시작 "}{ev.name}
               </button>
             ))}

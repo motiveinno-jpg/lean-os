@@ -88,7 +88,9 @@ function BankIcon({ name, size = 40 }: { name: string | undefined; size?: number
   );
 }
 
-// TeamHub KPI 카드 — 통장 통계
+
+
+// TeamHub KPI 카드 · 통장 통계
 function BankStat({ tone, icon, label, value, sub, valueTone }: {
   tone: "brand" | "success" | "danger";
   icon: string; label: string; value: string; sub: string; valueTone: string;
@@ -107,8 +109,10 @@ function BankStat({ tone, icon, label, value, sub, valueTone }: {
   );
 }
 
+
+
 // 계좌 카드 (은행색 + 잔액 숨김 토글). 클릭 → 거래 필터.
-//   디자인: /cards BigCard 와 통일 — 진한 그라데이션(브랜드색→어둡게)으로 프리미엄 카드 느낌 + 흰 글씨 대비 확보,
+//   디자인: /cards BigCard 와 통일 · 진한 그라데이션(브랜드색→어둡게)으로 프리미엄 카드 느낌 + 흰 글씨 대비 확보,
 //   블러 장식 원, 신용카드형 타이포(eyebrow 라벨·잔액 히어로·하단 끝4자리/증감).
 function BankCardItem({ acc, change, selected, onSelect, onEdit }: {
   acc: { accountNo: string; alias?: string; bankName?: string; balance?: number };
@@ -209,8 +213,8 @@ export function BankAccountsOverview({ companyId, selectedAccountNo, onSelect }:
   const totalBalance = accounts.reduce((s, a) => s + (a.balance || 0), 0);
   const changeByAcct = changes?.byAccount || {};
 
-  // 기간 수입/지출 (표시 전용 — 통계 3카드). getBankAccountChanges 와 동일 소스·필터.
-  const { data: flow } = useQuery({
+  // 기간 수입/지출 (표시 전용 · 통계 3카드). getBankAccountChanges 와 동일 소스·필터.
+  const  { data: flow } = useQuery({
     queryKey: ["bank-period-flow", companyId, fromStr, toStr],
     queryFn: async () => {
       const data = await fetchPaged<any>("components/bank-accounts-overview:flow", () => supabase

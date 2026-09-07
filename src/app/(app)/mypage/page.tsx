@@ -14,12 +14,12 @@ import Link from "next/link";
 import { getMyPendingApprovals } from "@/lib/approval-workflow";
 import { getScheduleItems } from "@/lib/schedule";
 import { todayKst } from "@/lib/kst";
-import { useToast } from "@/components/toast";
-// 개인 계정 영역 — 회사 설정에서 마이페이지로 이관(2026-07-08). 컴포넌트 위치는 유지, 마운트만 옮김.
-import { AccountTab } from "../settings/_components/AccountTab";
-import { NotificationsTab } from "../settings/_components/NotificationsTab";
-// 개인 인사기록 허브(2026-07-15) — 근로계약서/급여명세/증명서를 마이페이지로 이관.
-import { MyContractsCard } from "./_components/MyContractsCard";
+import { useToast }  from "@/components/toast";
+// 개인 계정 영역 · 회사 설정에서 마이페이지로 이관(2026-07-08). 컴포넌트 위치는 유지, 마운트만 옮김.
+import  { AccountTab } from "../settings/_components/AccountTab";
+import { NotificationsTab }  from "../settings/_components/NotificationsTab";
+// 개인 인사기록 허브(2026-07-15). 근로계약서/급여명세/증명서를 마이페이지로 이관.
+import  { MyContractsCard } from "./_components/MyContractsCard";
 import { MyPayslips } from "./_components/MyPayslips";
 // 내 근태(2026-07-20) — 인사관리>근태관리는 전 직원, 여기는 본인 출퇴근만.
 import { MyAttendance } from "./_components/MyAttendance";
@@ -51,9 +51,9 @@ export default function MyPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [tab, setTab] = useState<MyPageTab>(() => { if (typeof window === "undefined") return "home"; const t = new URLSearchParams(window.location.search).get("tab") || ""; return TAB_FROM_QUERY[t] || "home"; });
-  // 연봉 기본 가림 (2026-08-19 사장님: 급여가 화면에 바로 보이면 안 됨) — 눌러야 표시.
+  // 연봉 기본 가림 (2026-08-19 사장님: 급여가 화면에 바로 보이면 안 됨). 눌러야 표시.
   const [showSalary, setShowSalary] = useState(false);
-  const { role, user: ctxUser, refresh } = useUser();
+  const  { role, user: ctxUser, refresh } = useUser();
   // 휴가 유형 이름은 회사 설정을 따른다 — 구성원 > 휴가 탭에서 바꾸면 직원 화면도 같이 바뀐다.
   //   queryKey 는 휴가 탭과 동일해 캐시를 공유한다. (2026-08-06)
   const { data: companyLeaveTypes = defaultCompanyLeaveTypes() } = useQuery({
@@ -384,8 +384,8 @@ export default function MyPage() {
     queryKey: ["my-recent-notices", companyId], enabled: !!companyId, staleTime: 60_000,
     queryFn: async () => { const data = logRead("mypage:notices", await supabase.from("announcements").select("id, title, created_at").eq("company_id", companyId!).order("created_at", { ascending: false }).limit(3)); return (data || []) as any[]; },
   });
-  //   증명서 발급 신청(결재 허브 유형 certificate) — 내 신청 목록 (2026-08-19)
-  const { data: certReqs = [] } = useQuery({
+  //   증명서 발급 신청(결재 허브 유형 certificate). 내 신청 목록 (2026-08-19)
+  const  { data: certReqs = [] } = useQuery({
     queryKey: ["my-certificate-requests", userId], enabled: !!userId, staleTime: 60_000,
     queryFn: async () => { const data = logRead("mypage:cert", await supabase.from("approval_requests").select("id, title, description, status, created_at, attachments").eq("requester_id", userId!).eq("request_type", "certificate").order("created_at", { ascending: false }).limit(20)); return (data || []) as any[]; },
   });
@@ -475,7 +475,7 @@ export default function MyPage() {
           <div className="bz-grid2">
             <section className="pnl-panel">
               <h3>내가 처리할 것 <small className="font-normal text-[var(--text-dim)]">{myPendingApprovals.length + signPending.length + todosToday.length}건</small></h3>
-              <p>나한테 온 것 — 결재·서명·할 일. 누르면 그 화면으로</p>
+              <p>나한테 온 것 · 결재·서명·할 일. 누르면 그 화면으로</p>
               {myPendingApprovals.length + signPending.length + todosToday.length + myRequestsPending === 0 ? <div className="collect-empty">지금 처리할 것이 없습니다</div> : (
                 <ul className="bz-todos">
                   {myPendingApprovals.slice(0, 5).map((a: any) => (
@@ -510,7 +510,7 @@ export default function MyPage() {
           {employee?.id ? (
             <MyAttendance employeeId={employee.id} />
           ) : (
-            <div className="collect-empty">구성원 정보와 연결되지 않았습니다 — 인사관리에서 내 계정이 구성원으로 등록되면 출퇴근 기록이 표시됩니다</div>
+            <div className="collect-empty">구성원 정보와 연결되지 않았습니다. 인사관리에서 내 계정이 구성원으로 등록되면 출퇴근 기록이 표시됩니다</div>
           )}
         </div>
       )}
@@ -534,7 +534,7 @@ export default function MyPage() {
             <Stat label="대기 중" value={`${recentLeaves.filter((l: any) => l.status === "pending").length}건`} />
           </ResultStrip>
           {!leaveBalance && !ledgerBalance ? (
-            <div className="collect-empty">연차 정보가 설정되지 않았습니다 — 관리자가 연차를 설정하면 여기 표시됩니다</div>
+            <div className="collect-empty">연차 정보가 설정되지 않았습니다. 관리자가 연차를 설정하면 여기 표시됩니다</div>
           ) : (
             <div className="bz-grid2">
               <section className="pnl-panel">
@@ -579,7 +579,7 @@ export default function MyPage() {
       {tab === "docs" && (
         <div className="bz-body">
           <section className="pnl-panel">
-            <h3>서명 요청 <small className="font-normal text-[var(--text-dim)]">회사가 보낸 계약서 — 서명하고 보관</small>{signPending.length > 0 && <span className="collect-tab-cnt ap-tab-alert ml-2">{signPending.length}</span>}</h3>
+            <h3>서명 요청 <small className="font-normal text-[var(--text-dim)]">회사가 보낸 계약서 · 서명하고 보관</small>{signPending.length > 0 && <span className="collect-tab-cnt ap-tab-alert ml-2">{signPending.length}</span>}</h3>
             <p>예전 사이드바 '내 서명 요청'이 여기로 왔습니다. 전체 목록·정렬은 <Link href="/my-contracts" className="bz-link">내 서명 요청 →</Link></p>
             {signPackages.length === 0 ? <div className="collect-empty">받은 서명 요청이 없습니다</div> : (
               <table className="ev-table ev-lined mypage-leave-table">
@@ -601,7 +601,7 @@ export default function MyPage() {
             {employee?.id && <MyContractsCard employeeId={employee.id} />}
           </div>
           <section className="pnl-panel">
-            <h3>증명서 <small className="font-normal text-[var(--text-dim)]">재직·경력·급여 증명 — 신청하면 인사팀이 결재 허브에서 승인·발급</small></h3>
+            <h3>증명서 <small className="font-normal text-[var(--text-dim)]">재직·경력·급여 증명 · 신청하면 인사팀이 결재 허브에서 승인·발급</small></h3>
             <p>신청 제목에 종류(재직/경력/급여)와 용도(은행 제출 등)를 적어 주세요. 발급본은 결재 건의 첨부로 돌아옵니다.</p>
             <div className="mb-2"><Link href="/approvals?tab=new-request&new=certificate" className="btn-secondary btn-sm">증명서 발급 신청</Link></div>
             {certReqs.length === 0 ? <div className="collect-empty">신청한 증명서가 없습니다</div> : (
@@ -634,7 +634,7 @@ export default function MyPage() {
           {employee && (
             <section className="pnl-panel">
               <h3>인사 정보</h3>
-              <p>회사가 관리하는 값 — 틀리면 인사팀에 정정을 요청하세요</p>
+              <p>회사가 관리하는 값 · 틀리면 인사팀에 정정을 요청하세요</p>
               <div className="mypage-info-grid">
                 <div className="mypage-info-tile"><div className="text-xs text-[var(--text-dim)] mb-0.5">부서</div><div className="font-medium">{employee.department || "—"}</div></div>
                 <div className="mypage-info-tile"><div className="text-xs text-[var(--text-dim)] mb-0.5">직위</div><div className="font-medium">{employee.position || "—"}</div></div>

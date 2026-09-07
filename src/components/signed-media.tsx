@@ -51,7 +51,9 @@ export function useSignedHtml(html: string): string {
   return state && state.src === html ? state.out : html;
 }
 
-/** dangerouslySetInnerHTML 자리에 그대로 쓰는 본문 부품 — 목록 안(map)에서도 훅 없이 쓸 수 있게 감쌌다.
+
+
+/** dangerouslySetInnerHTML 자리에 그대로 쓰는 본문 부품 · 목록 안(map)에서도 훅 없이 쓸 수 있게 감쌌다.
  *  html 은 **이미 sanitize 된** 것을 넘긴다. */
 export function SignedHtml({ html, className }: { html: string; className?: string }) {
   const signed = useSignedHtml(html);

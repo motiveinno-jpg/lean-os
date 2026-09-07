@@ -102,7 +102,8 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
           className="subscription-pastdue-banner"
         >
           <span className="text-[12.5px] text-[#ef4444] font-semibold">
-            <Ico e="⚠" /> 결제에 실패했습니다 — 결제 수단을 확인해 주세요. 미해결 시 서비스가 제한될 수 있습니다.
+            <Ico e="⚠" />  결제에 실패했습니다. 결제 수단을 확인해 주세요. 미해결 시 서비스가 제한될 수 있습니다.
+
           </span>
           <span className="text-xs text-[#ef4444] font-bold whitespace-nowrap">결제 관리 →</span>
         </Link>

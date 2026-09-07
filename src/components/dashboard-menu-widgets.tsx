@@ -1,14 +1,14 @@
 "use client";
 import { logRead } from "@/lib/log-read";
 import { todayKst } from "@/lib/kst";
-import { Ico } from "@/components/ui-icon";
+import { Ico }  from "@/components/ui-icon";
 
-// 대시보드 카탈로그용 메뉴 위젯 — 각 메뉴의 실제 데이터 미리보기(2026-07-15).
+// 대시보드 카탈로그용 메뉴 위젯 · 각 메뉴의 실제 데이터 미리보기(2026-07-15).
 //   공용 셸 ActivityCard 재사용(제목 + 전체보기 → / 표 행). 쿼리는 코드베이스 검증 패턴만 사용.
 //   회사 데이터 위젯(통장·결재·구성원·거래처·공지)과 개인 위젯(내 담당 업무).
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import  { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { ActivityCard } from "./dashboard-activity";
 import { REQUEST_TYPE_LABELS, getMyPendingApprovals } from "@/lib/approval-workflow";
@@ -92,7 +92,9 @@ export function BankRecentCard({ companyId, headExtra }: { companyId: string; he
   );
 }
 
-// ── 결재 — 회사 결재 대기 목록 ──
+
+
+// ── 결재 · 회사 결재 대기 목록 ──
 const DOC_KIND: Record<string, string> = { quote: "견적서", contract: "계약서", invoice: "계산서", report: "보고서" };
 export function ApprovalsPendingCard({ companyId }: { companyId: string }) {
   // 권한 분기 (2026-08-19 사장님: 직원 계정에 회사 전체 대기가 다 보였다) —
@@ -133,7 +135,7 @@ export function ApprovalsPendingCard({ companyId }: { companyId: string }) {
 
   return (
     <ActivityCard title="결재 대기" href="/approvals" count={data?.total} empty={(data?.total ?? 0) === 0}
-      emptyText="대기 중인 결재가 없습니다 — 모두 처리했습니다.">
+      emptyText="대기 중인 결재가 없습니다. 모두 처리했습니다.">
       {items.map((it) => (
         <Link key={`${it.kind}-${it.id}`} href={it.href} className="dash-approval-row">
           <Badge label={it.badge} tone="var(--warning)" />
@@ -148,7 +150,9 @@ export function ApprovalsPendingCard({ companyId }: { companyId: string }) {
   );
 }
 
-// ── 구성원 — 재직 인원 요약 ──
+
+
+// ── 구성원 · 재직 인원 요약 ──
 export function EmployeesCard({ companyId }: { companyId: string }) {
   const { data } = useQuery({
     queryKey: ["dash-employees", companyId],
@@ -174,7 +178,9 @@ export function EmployeesCard({ companyId }: { companyId: string }) {
   );
 }
 
-// ── 거래처 — 등록 거래처 요약 ──
+
+
+// ── 거래처 · 등록 거래처 요약 ──
 export function PartnersCard({ companyId }: { companyId: string }) {
   const { data } = useQuery({
     queryKey: ["dash-partners", companyId],
@@ -199,8 +205,10 @@ export function PartnersCard({ companyId }: { companyId: string }) {
   );
 }
 
-// ── 공지사항 — 최근 공지(핀 우선) ──
-export function AnnouncementsCard() {
+
+
+// ── 공지사항 · 최근 공지(핀 우선) ──
+export function AnnouncementsCard()  {
   //   전역(null) + 내 회사 공지만 — RLS 만 믿으면 운영자 계정(creative@)은 전 회사(QA 시드 포함)
   //   공지가 다 보인다 (2026-08-28 사장님 제보 "김대표가 올린 것들 다 뭐야")
   const { user } = useUser();
@@ -216,8 +224,9 @@ export function AnnouncementsCard() {
     },
   });
   //   공지사항 = 오너뷰 운영팀이 쓰는 서비스 공지(DB 도 운영자만 쓸 수 있다). 회사가 직원에게 알리는 글은 게시판이다.
-  //   빈 화면은 '없다' 고만 한다 — 게시판으로 보내지 않는다(게시판 위젯이 따로 있다) (2026-09-07 사장님).
+  //   빈 화면은 '없다' 고만 한다. 게시판으로 보내지 않는다(게시판 위젯이 따로 있다) (2026-09-07 사장님).
   return (
+    
     <ActivityCard title="공지사항" href="/announcements" empty={data.length === 0}
       emptyText="등록된 공지가 없습니다.">
       {data.map((a) => (
@@ -231,7 +240,9 @@ export function AnnouncementsCard() {
   );
 }
 
-// ── 내 담당 업무 — 나에게 배정된 프로젝트 태스크(마감 임박 우선) ──
+
+
+// ── 내 담당 업무 · 나에게 배정된 프로젝트 태스크(마감 임박 우선) ──
 export function MyTasksCard({ userId }: { userId: string }) {
   const { data = [] } = useQuery({
     queryKey: ["dash-my-tasks", userId],
@@ -266,7 +277,10 @@ export function MyTasksCard({ userId }: { userId: string }) {
 }
 
 
-// ── 재고 부족 — 안전재고 아래로 내려간 품목 (2026-08-25 사장님 지시, 재고 2순위) ──
+
+
+
+// ── 재고 부족 · 안전재고 아래로 내려간 품목 (2026-08-25 사장님 지시, 재고 2순위) ──
 //   재고 화면에 들어가지 않아도 대시보드에서 먼저 보이게. 안전재고를 정한 품목만 셀 수 있다.
 export function InventoryShortageCard({ companyId }: { companyId: string }) {
   const { data } = useQuery({
@@ -303,7 +317,9 @@ export function InventoryShortageCard({ companyId }: { companyId: string }) {
   );
 }
 
-// ── 게시판 — 회사가 직원에게 알리는 글(고정 우선). 오너뷰 공지(운영팀)와 다른 것 (2026-09-07 사장님) ──
+
+
+// ── 게시판 · 회사가 직원에게 알리는 글(고정 우선). 오너뷰 공지(운영팀)와 다른 것 (2026-09-07 사장님) ──
 export function BoardCard({ companyId }: { companyId: string }) {
   const { data = [] } = useQuery({
     queryKey: ["dash-board-posts", companyId],

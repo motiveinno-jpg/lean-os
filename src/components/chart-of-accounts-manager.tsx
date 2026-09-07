@@ -1,12 +1,12 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
-import { logRead } from "@/lib/log-read";
+import { logRead }  from "@/lib/log-read";
 
-// 계정과목 관리 — 회사 설정 (2026-07-01)
+// 계정과목 관리 · 회사 설정 (2026-07-01)
 //   회사 회계 계정과목 마스터를 한 곳에서 조회·관리. 기본(시스템) 계정은 읽기전용,
 //   회사 자체 계정(is_system=false)만 추가/삭제. 거래매칭 직접입력·전표에서 이 계정을 사용.
 
-import { useMemo, useRef, useState } from "react";
+import  { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ConditionPanel, ConditionRow, ChipGroup, AppliedChips,
@@ -89,7 +89,7 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
     catch (e: any) { toast("삭제 실패: " + (e?.message || ""), "error"); }
   };
 
-  //   코드·계정명 아무 쪽으로나 찾는다 ("831" 도 "수수료" 도) — 빠른검색(쉼표=또는, Enter)
+  //   코드·계정명 아무 쪽으로나 찾는다 ("831" 도 "수수료" 도). 빠른검색(쉼표=또는, Enter)
   //   2026-08-18 조회 표준: [검색조건(출처·줄 수) ▾] 빠른검색 · 구분 칩 ‖ 표준 채우기 · + 추가 → 결과 요약 → 표(정렬·≡·너비) → 쪽
   const [panelOpen, setPanelOpen] = useState(false);
   const [typeKey, setTypeKey] = useState<string>("all");
@@ -145,7 +145,7 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
                 options={[{ value: "", label: "전체" }, { value: "system", label: "기본" }, { value: "custom", label: "자체" }] as const} />
             </ConditionRow>
           </ConditionPanel>
-          <QuickSearch value={q} onApply={setQ} placeholder="코드 · 계정명 · 구분 (예: 831, 지급수수료) — 쉼표로 여러 개, Enter" />
+          <QuickSearch value={q} onApply={setQ} placeholder="코드 · 계정명 · 구분 (예: 831, 지급수수료). 쉼표로 여러 개, Enter" />
           <ChipGroup value={typeKey} onChange={setTypeKey}
             options={[{ value: "all", label: `전체 ${(accounts as Acct[]).length}` }, ...typeCounts.map((t) => ({ value: t.v, label: t.n > 0 ? `${t.l} ${t.n}` : t.l }))]} />
         </QueryBar>
@@ -173,7 +173,7 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
           {(accounts as Acct[]).length === 0 ? (
             <div className="collect-empty">계정과목이 없습니다. <b>“표준 계정과목 채우기”</b>로 기본 계정을 불러오거나 직접 추가해 보세요.</div>
           ) : shown.length === 0 ? (
-            <div className="collect-empty">이 조건에 맞는 계정과목이 없습니다 — 검색조건을 풀어 보세요</div>
+            <div className="collect-empty">이 조건에 맞는 계정과목이 없습니다. 검색조건을 풀어 보세요</div>
           ) : (
             <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed coa-table">
               <thead>

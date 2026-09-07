@@ -24,9 +24,9 @@ function parseYmd(v?: string | null): { y: number; m: number; d: number } | null
 const pad = (n: number) => String(n).padStart(2, "0");
 const ymd = (y: number, m: number, d: number) => `${y}-${pad(m)}-${pad(d)}`;
 
-// 자유 입력 해석 — 구분자(-, ., /, 공백, 년월일) 허용. 8자리=YMD · 4자리=올해 MMDD ·
+// 자유 입력 해석 · 구분자(-, ., /, 공백, 년월일) 허용. 8자리=YMD · 4자리=올해 MMDD ·
 //   두 조각=올해 M-D · 세 조각=Y-M-D. 실제 존재하는 날짜만 통과(2/30 등 거부).
-function parseLoose(text: string, fallbackYear: number): { y: number; m: number; d: number } | null {
+function parseLoose(text: string, fallbackYear: number):  { y: number; m: number; d: number } | null {
   const s = text.trim().replace(/[.\s/년월일]+/g, "-").replace(/^-+|-+$/g, "");
   if (!s) return null;
   let y: number, m: number, d: number;
@@ -46,10 +46,12 @@ function parseLoose(text: string, fallbackYear: number): { y: number; m: number;
   return { y, m, d };
 }
 
-// 연도가 확실히 들어간 '완성된' 입력인가 — Enter 없이 바로 반영해도 되는지 판단.
+
+
+// 연도가 확실히 들어간 '완성된' 입력인가 · Enter 없이 바로 반영해도 되는지 판단.
 //   YYYYMMDD(8자리) 또는 세 조각 중 첫 조각이 4자리 연도(YYYY-M-D)일 때만 true.
 //   (올해 기준 MMDD·M-D 같은 축약형은 치는 도중 조기 확정되면 곤란하므로 Enter/블러로 반영.)
-function isCompleteDateInput(text: string): boolean {
+function isCompleteDateInput(text: string): boolean  {
   const t = text.trim();
   if (/^\d{8}$/.test(t)) return true;
   const parts = t.replace(/[.\s/년월일]+/g, "-").split("-").filter(Boolean);
@@ -61,8 +63,8 @@ const yearBlock = (y: number) => Math.floor(y / 12) * 12;
 
 // 키보드로 치는 '도중'(불완전 입력)에도 달력이 실시간으로 따라가도록, 보여줄 연·월을 최대한 해석한다.
 //   예: "2025" → {2025년}, "202503"·"2025-3" → {2025년 3월}. 완전한 날짜가 아니어도 된다.
-//   (완전한 날짜 확정은 기존 parseLoose 가 담당 — 여기선 '지금 어디를 보여줄까'만 정한다.)
-function partialView(text: string, fallbackYear: number): { y: number; m: number | null } | null {
+//   (완전한 날짜 확정은 기존 parseLoose 가 담당 · 여기선 '지금 어디를 보여줄까'만 정한다.)
+function partialView(text: string, fallbackYear: number):  { y: number; m: number | null } | null {
   const s = text.trim().replace(/[.\s/년월일]+/g, "-").replace(/^-+|-+$/g, "");
   if (!s) return null;
   if (/^\d+$/.test(s)) {
@@ -182,9 +184,9 @@ export function DateField({
     const t = draft.trim();
     if (t === "") { emit(""); return; }
     const p = parseLoose(t, view.y);
-    if (!p) { setEditing(false); setDraft(value || ""); return; } // 해석 불가 — 원래 값으로
+    if (!p) { setEditing(false); setDraft(value || ""); return; }  // 해석 불가 · 원래 값으로
     const v = ymd(p.y, p.m, p.d);
-    if (!withinRange(v)) { setEditing(false); setDraft(value || ""); return; }
+    if (!withinRange(v))  { setEditing(false); setDraft(value || ""); return; }
     emit(v);
   };
   const handleInputBlur = () => {
@@ -263,9 +265,10 @@ export function DateField({
           value={editing ? draft : (value || "")}
           placeholder={placeholder}
           onChange={(e) => handleType(e.target.value)}
+          
           // 포커스 시 기존값 전체 선택 → 키보드로 치면 기존값에 덧붙지 않고 대체된다 (2026-08-25 사장님).
           //   달력만 클릭할 땐 타이핑이 없으므로 값은 그대로 보존된다.
-          //   ★ 포커스만으로는 달력을 열지 않는다(2026-08-26 사장님 — "달력은 클릭했을 때만, 평소엔 입력만").
+          //   ★ 포커스만으로는 달력을 열지 않는다(2026-08-26 사장님 · "달력은 클릭했을 때만, 평소엔 입력만").
           //     Tab 으로 지나가거나 화면이 커서를 줄 때 달력이 아랫줄을 덮던 것을 막는다. 열기는 칸·아이콘 클릭(onClick).
           onFocus={() => { setTimeout(() => inputRef.current?.select(), 0); }}
           onBlur={handleInputBlur}

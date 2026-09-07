@@ -193,7 +193,9 @@ export default function PartnerPortalPage() {
   );
 }
 
-// 서류 payload 렌더 — 견적(items/quoteContent) · 진행보고(report_text) 등 타입별 핵심만
+
+
+// 서류 payload 렌더 · 견적(items/quoteContent) · 진행보고(report_text) 등 타입별 핵심만
 function PortalDocBody({ payload }: { payload: any }) {
   if (!payload || typeof payload !== "object") {
     return <div className="text-sm text-[var(--text-muted)]">상세 내용이 없습니다.</div>;

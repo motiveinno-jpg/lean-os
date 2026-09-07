@@ -51,14 +51,14 @@ export function HubV3() {
   const search = useSearchParams();
   const qc = useQueryClient();
   const { toast } = useToast();
-  const { user } = useUser();
+  const { user }  = useUser();
   const companyId = user?.company_id ?? null;
   const userId = user?.id ?? null;
 
-  // 재무 원자료(통장·카드·계산서·전표)는 그 메뉴 권한이 있어야 보인다 — 프로젝트 권한만으로
+  // 재무 원자료(통장·카드·계산서·전표)는 그 메뉴 권한이 있어야 보인다. 프로젝트 권한만으로
   //   금액 원자료가 새면 안 된다 (2026-08-31 security-reviewer C-1, 기획 누락 점검 '권한' 항목).
   //   항목·마진 집계(v_deal_pnl)는 프로젝트 화면의 몫이라 그대로 둔다(legacy 와 동일 노출 수준).
-  const { isMaster, hasMenu } = useMyPermissions();
+  const  { isMaster, hasMenu } = useMyPermissions();
   const canBank = isMaster || hasMenu("/bank");
   const canCards = isMaster || hasMenu("/cards");
   const canTaxInv = isMaster || hasMenu("/tax-invoices");
@@ -95,8 +95,8 @@ export function HubV3() {
       .select("id, name").eq("id", deal!.partner_id).maybeSingle()),
   });
 
-  // 확정 비용·수익 — 기존 v_deal_pnl (장부에 태그된 것만). 없으면 0 이 아니라 "—" 로.
-  const { data: pnl } = useQuery({
+  // 확정 비용·수익 · 기존 v_deal_pnl (장부에 태그된 것만). 없으면 0 이 아니라 "—" 로.
+  const  { data: pnl } = useQuery({
     queryKey: ["phv3-pnl", dealId],
     enabled: !!dealId,
     queryFn: async () => logRead("phv3:pnl", await db.from("v_deal_pnl")
@@ -135,24 +135,24 @@ export function HubV3() {
           chip: "세금계산서", amt: (t.total_amount ?? t.supply_amount ?? null) as number | null,
         })),
         ...(logRead("phv3:bank", bankTx) || []).map((b: any) => ({
-          id: `bk-${b.id}`, when: b.transaction_date || b.created_at, label: `통장 거래 — ${b.counterparty || ""}`,
+          id: `bk-${b.id}`, when: b.transaction_date || b.created_at, label: `통장 거래 · ${b.counterparty || ""}`,
           chip: "통장", amt: (b.amount ?? null) as number | null,
         })),
         ...(logRead("phv3:card", cardTx) || []).map((c: any) => ({
-          id: `cd-${c.id}`, when: c.transaction_date || c.created_at, label: `카드 승인 — ${c.merchant_name || ""}`,
+          id: `cd-${c.id}`, when: c.transaction_date || c.created_at, label: `카드 승인 · ${c.merchant_name || ""}`,
           chip: "카드", amt: (c.amount ?? null) as number | null,
         })),
         ...(logRead("phv3:expense", expenses) || []).map((e: any) => ({
-          id: `ex-${e.id}`, when: e.created_at, label: `지출결의 — ${e.title || ""}${e.status ? ` (${e.status})` : ""}`,
+          id: `ex-${e.id}`, when: e.created_at, label: `지출결의 · ${e.title || ""}${e.status ? ` (${e.status})` : ""}`,
           chip: "결재", amt: (e.amount ?? null) as number | null,
         })),
         ...(logRead("phv3:voucher", vouchers) || []).map((v: any) => ({
-          id: `je-${v.id}`, when: v.entry_date || v.created_at, label: `전표 — ${v.description || ""}`,
+          id: `je-${v.id}`, when: v.entry_date || v.created_at, label: `전표 · ${v.description || ""}`,
           chip: "전표", amt: null as number | null,
         })),
         ...(logRead("phv3:approvals", approvals) || []).map((a: any) => ({
           id: `ap-${a.id}`, when: a.created_at,
-          label: `결재 — ${a.title || ""}${a.status === "approved" ? " (승인)" : a.status === "rejected" ? " (반려)" : a.status === "pending" ? " (결재 중)" : ""}`,
+          label: `결재 · ${a.title || ""}${a.status === "approved" ? " (승인)" : a.status === "rejected" ? " (반려)" : a.status === "pending" ? " (결재 중)" : ""}`,
           chip: "결재", amt: (a.amount ?? null) as number | null,
         })),
       ];
@@ -222,7 +222,7 @@ export function HubV3() {
       // RLS 로 0행이 걸러져도 조용히 성공으로 읽히지 않게 select 로 확인 (W-4)
       const { data: upd, error } = await db.from(CAND_TABLE[c.src]).update(patch).eq("id", c.id).select("id");
       if (error) throw new Error(error.message);
-      if (!upd || upd.length === 0) throw new Error("연결이 거부되었습니다 — 권한을 확인해 주세요");
+      if (!upd || upd.length === 0) throw new Error("연결이 거부되었습니다. 권한을 확인해 주세요");
       // 학습 — 통장 거래처는 기존 자동 규칙 그릇(bank_classification_rules)에 저장.
       //   4자 미만 거래처명은 학습하지 않고(무관 거래 오태그 방지), 같은 규칙이 있으면 횟수만 올린다(W-3).
       if (c.src === "bank" && c.who && c.who.trim().length >= 4) {
@@ -253,8 +253,8 @@ export function HubV3() {
     },
     onSuccess: (c) => {
       toast(c.src === "bank"
-        ? "연결했습니다 — 이 거래처는 규칙으로 학습해 다음부터 자동 제안됩니다"
-        : "연결했습니다 — 확정 비용 집계에 반영됩니다");
+        ? "연결했습니다. 이 거래처는 규칙으로 학습해 다음부터 자동 제안됩니다"
+        : "연결했습니다. 확정 비용 집계에 반영됩니다");
       qc.invalidateQueries({ queryKey: ["phv3-docs", dealId] });
       qc.invalidateQueries({ queryKey: ["phv3-cands", dealId] });
       qc.invalidateQueries({ queryKey: ["phv3-pnl", dealId] });
@@ -262,9 +262,9 @@ export function HubV3() {
     onError: (e: any) => toast(String(e.message || e)),
   });
 
-  // 결재 게이트 (결정 9) — 회사에 활성 지출 결재 정책이 있을 때만 상신 선택지가 열린다.
+  // 결재 게이트 (결정 9). 회사에 활성 지출 결재 정책이 있을 때만 상신 선택지가 열린다.
   //   기본값은 '결재 안 씀': 정책을 만든 적 없는 회사는 이 단계를 만나지 않는다.
-  const { data: hasExpensePolicy = false } = useQuery({
+  const  { data: hasExpensePolicy = false } = useQuery({
     queryKey: ["phv3-exp-policy", companyId],
     enabled: !!companyId,
     queryFn: async () => {
@@ -365,12 +365,12 @@ export function HubV3() {
     onError: (e: any) => toast(String(e.message || e)),
   });
 
-  // ── 장부 잇기 (3단계 1차 — 지출결의 상신) ─────────────────
+  // ── 장부 잇기 (3단계 1차 · 지출결의 상신) ─────────────────
   const [linkTarget, setLinkTarget] = useState<ItemRow | null>(null);
   const submitExpense = useMutation({
     mutationFn: async (item: ItemRow) => {
       if (!companyId || !userId) throw new Error("로그인이 필요합니다");
-      if (!item.plan_amount) throw new Error("금액이 없어 상신할 수 없습니다 — 항목에 예정 금액을 먼저 입력해 주세요");
+      if (!item.plan_amount) throw new Error("금액이 없어 상신할 수 없습니다. 항목에 예정 금액을 먼저 입력해 주세요");
       const req = await createApprovalRequest({
         companyId, requesterId: userId, requestType: "expense",
         title: item.name,
@@ -387,7 +387,7 @@ export function HubV3() {
     },
     onSuccess: () => {
       setLinkTarget(null);
-      toast("지출결의로 상신했습니다 — 결재선을 타고, 승인되면 장부에 반영됩니다");
+      toast("지출결의로 상신했습니다. 결재선을 타고, 승인되면 장부에 반영됩니다");
       invalidate();
       qc.invalidateQueries({ queryKey: ["phv3-docs", dealId] });
     },
@@ -424,7 +424,7 @@ export function HubV3() {
         if (error) throw new Error(error.message);
       }
     },
-    onSuccess: () => { setSel({}); toast("팔로워로 추가했습니다 — 이 항목의 변경 알림을 받습니다"); invalidate(); },
+    onSuccess: () => { setSel({}); toast("팔로워로 추가했습니다. 이 항목의 변경 알림을 받습니다"); invalidate(); },
     onError: (e: any) => toast(String(e.message || e)),
   });
 
@@ -452,7 +452,7 @@ export function HubV3() {
           <div className="phv3-verdict">
             {lateN > 0 && <span className="phv3-bad">기한 지난 할 일 {lateN}건</span>}
             {lateN === 0 && todoAll.length > 0 && <span>기한 지난 할 일 없음</span>}
-            {todoAll.length === 0 && <span>아직 항목이 없습니다 — 아래 입력줄에 바로 적으면 됩니다</span>}
+            {todoAll.length === 0 && <span>아직 항목이 없습니다. 아래 입력줄에 바로 적으면 됩니다</span>}
           </div>
         </div>
 
@@ -474,10 +474,10 @@ export function HubV3() {
           <button type="button" className="phv3-sb" onClick={() => setTab("money")} title="매출·지출 탭으로">
             <div className="phv3-sb-k">돈</div>
             <div className="phv3-sb-v phv3-num">계약 {man(contract)} · 확정 {man(confirmedCost)}</div>
-            <div className="phv3-sb-s phv3-num">지출 예정 {man(planSpend || null)} — 확정은 장부에서만 옵니다</div>
+            <div className="phv3-sb-s phv3-num">지출 예정 {man(planSpend || null)} · 확정은 장부에서만 옵니다</div>
           </button>
           <button type="button" className="phv3-sb" onClick={() => setTab("docs")} title="증빙·문서 탭으로">
-            <div className="phv3-sb-k">성과 — 마진율</div>
+            <div className="phv3-sb-k">성과 · 마진율</div>
             <div className={`phv3-sb-v phv3-num ${marginPct != null && marginPct >= 0 ? "phv3-pos" : ""}`}>
               {marginPct != null ? `${marginPct}%` : "—"}
             </div>
@@ -540,7 +540,7 @@ export function HubV3() {
                 </tr></thead>
                 <tbody>
                   {todoTop.length === 0 && (
-                    <tr><td colSpan={5} className="phv3-empty">할 일이 없습니다 — 위 입력줄에 적으면 바로 생깁니다.</td></tr>
+                    <tr><td colSpan={5} className="phv3-empty">할 일이 없습니다. 위 입력줄에 적으면 바로 생깁니다.</td></tr>
                   )}
                   {[...todoTop].sort((a, b) => (a.status === "done" ? 1 : 0) - (b.status === "done" ? 1 : 0))
                     .map((i) => {
@@ -597,14 +597,15 @@ export function HubV3() {
         {tab === "money" && (
           <div>
             <div className="phv3-sumline phv3-num">
-              지출 예정 <b>{won(planSpend || null)}</b> · 장부 확정 <b>{won(confirmedCost)}</b> — 예정과 확정은 나란히, 섞지 않습니다
+              지출 예정 <b>{won(planSpend || null)}</b> · 장부 확정 <b>{won(confirmedCost)}</b> · 예정과 확정은 나란히, 섞지 않습니다
+            
             </div>
             <div className="phv3-scroll">
               <table className="ev-table ev-lined phv3-table">
                 <thead><tr><th>구분</th><th>내용</th><th>거래처</th><th className="phv3-th-r">예정</th><th className="phv3-th-r">확정(장부)</th><th>증빙</th></tr></thead>
                 <tbody>
                   {moneyTop.length === 0 && (
-                    <tr><td colSpan={6} className="phv3-empty">매출·지출 항목이 없습니다 — 진행현황만 관리하는 프로젝트라면 이 탭은 안 써도 됩니다.</td></tr>
+                    <tr><td colSpan={6} className="phv3-empty">매출·지출 항목이 없습니다. 진행현황만 관리하는 프로젝트라면 이 탭은 안 써도 됩니다.</td></tr>
                   )}
                   {moneyTop.map((i) => (
                     <tr key={i.id} className="phv3-row" onClick={() => setOpenId(i.id)}>
@@ -630,15 +631,17 @@ export function HubV3() {
               </table>
             </div>
             <div className="phv3-foot phv3-note">
-              확정 칸은 장부(전표·계산서·카드·통장)에서만 옵니다 — 지출은 &apos;장부에 잇기&apos;로 결재 상신,
+              
+              확정 칸은 장부(전표·계산서·카드·통장)에서만 옵니다. 지출은 &apos;장부에 잇기&apos;로 결재 상신,
               여러 프로젝트에 걸친 비용은 나눠 입력하세요.
+
             </div>
 
             {/* 거래처 주고받기 — 견적 → 계약 → 서명 (기존 quote_approvals 체인 재사용, 결정 6 의 집)
                 수정 요청 왕복·서명 시 전표 자동 발행은 다음 슬라이스에서 이 자리에 붙는다. */}
             {companyId && (
               <div className="phv3-quotes">
-                <div className="phv3-quotes-head">거래처 주고받기 — 견적 → 계약 → 서명</div>
+                <div className="phv3-quotes-head">거래처 주고받기 · 견적 → 계약 → 서명</div>
                 <ProjectQuoteStages dealId={dealId} companyId={companyId} readonly={false} />
               </div>
             )}
@@ -665,7 +668,7 @@ export function HubV3() {
                 </tbody>
               </table>
             </div>
-            <div className="phv3-foot phv3-note">항목을 열면 본문을 적을 수 있습니다 — 회의록 양식(안건·결정·후속)은 4단계에서 팝업 속으로 들어옵니다.</div>
+            <div className="phv3-foot phv3-note">항목을 열면 본문을 적을 수 있습니다. 회의록 양식(안건·결정·후속)은 4단계에서 팝업 속으로 들어옵니다.</div>
           </div>
         )}
 
@@ -691,7 +694,7 @@ export function HubV3() {
             )}
             <div className="phv3-docs">
               {docs.length === 0 && (
-                <div className="phv3-empty">아직 이 프로젝트로 태그된 증빙·문서가 없습니다 — 매출·지출 항목에 거래처를 적으면 연결 제안이 올라옵니다.</div>
+                <div className="phv3-empty">아직 이 프로젝트로 태그된 증빙·문서가 없습니다. 매출·지출 항목에 거래처를 적으면 연결 제안이 올라옵니다.</div>
               )}
               {docs.map((d: any) => (
                 <div key={d.id} className="phv3-doc">
@@ -704,7 +707,7 @@ export function HubV3() {
             </div>
             <div className="phv3-foot phv3-note">
               계약·문서 · 세금계산서 · 통장 · 카드 · 지출결의 · 결재 · 전표를 시간순으로 모읍니다.
-              {!canAnyFinance && <> <b>통장·카드·세금 증빙과 연결 제안은 그 메뉴 권한이 있어야 보입니다</b>(회사가 부여한 권한 그대로 — 프로젝트 권한만으로 금액 원자료는 열리지 않습니다).</>}
+              {!canAnyFinance && <> <b>통장·카드·세금 증빙과 연결 제안은 그 메뉴 권한이 있어야 보입니다</b>(회사가 부여한 권한 그대로 · 프로젝트 권한만으로 금액 원자료는 열리지 않습니다).</>}
             </div>
           </div>
         )}
@@ -714,9 +717,10 @@ export function HubV3() {
       {linkTarget && (
         <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setLinkTarget(null); }}>
           <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="장부에 이어 두기">
-            <h3 className="phv3-modal-title">입력했습니다 — 장부에도 이어 둘까요?</h3>
+            <h3 className="phv3-modal-title">입력했습니다<span className="ui-sub">장부에도 이어 둘까요?</span></h3>
             <p className="phv3-modal-desc">
-              {linkTarget.name}{linkTarget.plan_amount ? ` · ${won(linkTarget.plan_amount)}` : ""} — 프로젝트 안에서 입력한 항목이라 이 프로젝트로 자동 연결됩니다.
+              {linkTarget.name}{linkTarget.plan_amount ? ` · ${won(linkTarget.plan_amount)}` : ""} · 프로젝트 안에서 입력한 항목이라 이 프로젝트로 자동 연결됩니다.
+            
             </p>
             {hasExpensePolicy ? (
               <button type="button" className="phv3-opt" disabled={submitExpense.isPending}
@@ -725,25 +729,25 @@ export function HubV3() {
                 <span>회사 결재 정책에 따라 결재선을 타고, <b>승인되면 그때</b> 장부에 반영됩니다</span>
               </button>
             ) : (
-              <div className="phv3-note phv3-optnote">이 회사는 지출 결재 정책이 없어 결재 단계를 만나지 않습니다(기본값 &apos;결재 안 씀&apos;) — 회사설정 › 결재 정책에서 켤 수 있습니다.</div>
+              <div className="phv3-note phv3-optnote">이 회사는 지출 결재 정책이 없어 결재 단계를 만나지 않습니다(기본값 &apos;결재 안 씀&apos;). 회사설정 › 결재 정책에서 켤 수 있습니다.</div>
             )}
             <button type="button" className="phv3-opt" onClick={() => {
               const t = linkTarget;
               setLinkTarget(null);
               try {
                 sessionStorage.setItem("gl-voucher-prefill", JSON.stringify({
-                  memo: `${t.name}${t.partner_name ? ` (${t.partner_name})` : ""} — 프로젝트 ${deal?.name || ""}`,
+                  memo: `${t.name}${t.partner_name ? ` (${t.partner_name})` : ""} · 프로젝트 ${deal?.name || ""}`,
                   amount: t.plan_amount || 0, deal_id: dealId, deal_name: deal?.name || "",
                 }));
               } catch { /* 저장 못 하면 빈 격자로 */ }
               router.push("/partners/reconciliation/voucher-entry?prefill=project");
             }}>
-              <b>📒 전표 입력으로 이동 — 값 채움</b>
-              <span>일반전표에 적요·금액이 채워져 열립니다. 계정과목 확인 후 저장하면 이 프로젝트로 자동 연결(A3 방식 — 초안 행을 미리 만들지 않아 장부가 오염되지 않습니다)</span>
+              <b>📒 전표 입력으로 이동<span className="ui-sub">값 채움</span></b>
+              <span>일반전표에 적요·금액이 채워져 열립니다. 계정과목 확인 후 저장하면 이 프로젝트로 자동 연결(A3 방식 · 초안 행을 미리 만들지 않아 장부가 오염되지 않습니다)</span>
             </button>
-            <button type="button" className="phv3-opt" onClick={() => { setLinkTarget(null); toast("여기에만 입력했습니다 — 항목의 '장부에 잇기'로 언제든 이을 수 있습니다"); }}>
+            <button type="button" className="phv3-opt" onClick={() => { setLinkTarget(null); toast("여기에만 입력했습니다. 항목의 '장부에 잇기'로 언제든 이을 수 있습니다"); }}>
               <b>✏️ 여기에만 입력</b>
-              <span>예정 금액으로만 관리합니다 — 나중에 항목에서 이을 수 있어요</span>
+              <span>예정 금액으로만 관리합니다. 나중에 항목에서 이을 수 있어요</span>
             </button>
             <p className="phv3-note phv3-optnote">매출 청구는 아래 &apos;거래처 주고받기&apos;(견적→계약→서명)가 담당합니다. 발주서(재고)는 항목에 품목 칸이 생기는 4단계에서 붙습니다.</p>
           </div>
@@ -772,7 +776,7 @@ export function HubV3() {
           onSave={async (next) => {
             const { error } = await db.from("deals").update({ item_stages: next }).eq("id", dealId);
             if (error) toast(error.message);
-            else { toast("단계 이름을 저장했습니다 — 이 프로젝트에만 적용됩니다"); qc.invalidateQueries({ queryKey: ["phv3-deal", dealId] }); }
+            else { toast("단계 이름을 저장했습니다. 이 프로젝트에만 적용됩니다"); qc.invalidateQueries({ queryKey: ["phv3-deal", dealId] }); }
             setShowStages(false);
           }} />
       )}
@@ -780,7 +784,9 @@ export function HubV3() {
   );
 }
 
-// ── 항목 상세 팝업 — 겉은 한 줄, 속만 깊어진다 ─────────────
+
+
+// ── 항목 상세 팝업 · 겉은 한 줄, 속만 깊어진다 ─────────────
 function ItemModal({ item, users, userName, stages, childItems, onClose, onPatch, onArchive, onAddChild, onPatchChild }: {
   item: ItemRow; users: UserRow[]; userName: Record<string, string>; stages: ItemStage[];
   childItems: ItemRow[];
@@ -851,7 +857,7 @@ function ItemModal({ item, users, userName, stages, childItems, onClose, onPatch
           </label>
           <label>🚩 마일스톤
             <select className="phv3-field" value={item.is_milestone ? "1" : ""} onChange={(e) => onPatch({ is_milestone: e.target.value === "1" })}>
-              <option value="">아니오</option><option value="1">예 — 주요 진행 지점</option>
+              <option value="">아니오</option><option value="1">예 · 주요 진행 지점</option>
             </select>
           </label>
           {item.kind === "money" && (<>
@@ -929,7 +935,9 @@ function ItemModal({ item, users, userName, stages, childItems, onClose, onPatch
   );
 }
 
-// ── 단계 이름 편집 — 프로젝트별 (결정 0-3) ────────────────
+
+
+// ── 단계 이름 편집 · 프로젝트별 (결정 0-3) ────────────────
 function StageEditor({ stages, onClose, onSave }: {
   stages: ItemStage[]; onClose: () => void; onSave: (next: ItemStage[]) => void;
 }) {
@@ -937,7 +945,7 @@ function StageEditor({ stages, onClose, onSave }: {
   return (
     <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="단계 이름 바꾸기">
-        <h3 className="phv3-modal-title">할 일 단계 — 이 프로젝트</h3>
+        <h3 className="phv3-modal-title">할 일 단계<span className="ui-sub">이 프로젝트</span></h3>
         <p className="phv3-modal-desc">이름을 바꾸거나 단계를 추가하세요(예: 요청 → 진행 → 검수 → 완료). &apos;완료&apos; 단계는 진행률 계산 기준이라 지울 수 없습니다.</p>
         {rows.map((s, i) => (
           <div key={s.id} className="phv3-stagerow">

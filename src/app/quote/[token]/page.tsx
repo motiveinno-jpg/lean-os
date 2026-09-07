@@ -64,9 +64,11 @@ interface PaymentStage {
   condition?: string;
 }
 
+
+
 type LoadState = "loading" | "ok" | "not_found" | "expired" | "already_decided";
 
-// 2026-05-21 stage 라벨 분기 — 견적/계약/진척/완료/정산
+// 2026-05-21 stage 라벨 분기 · 견적/계약/진척/완료/정산
 const STAGE_LABEL_KO: Record<string, string> = {
   estimate: "견적서",
   contract: "계약서",
@@ -96,7 +98,7 @@ function QuoteApprovalPageInner() {
   const setShowRejectInput = (v: boolean) => setNoteMode(v ? "reject" : null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
 
-  // L 계약 서명 모달 — stage='contract' 승인 흐름
+  // L 계약 서명 모달 · stage='contract' 승인 흐름
   const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [signatureMethod, setSignatureMethod] = useState<SignatureMethod | null>(null);
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
@@ -130,11 +132,12 @@ function QuoteApprovalPageInner() {
           setState("not_found");
           return;
         }
+        
         const r = list[0];
         setRow(r);
 
-        // 만료 / 이미 결정됨 처리 — UI 분기
-        if (r.status === "expired") {
+        // 만료 / 이미 결정됨 처리 · UI 분기
+        if (r.status === "expired")  {
           setState("expired");
           return;
         }
@@ -143,10 +146,12 @@ function QuoteApprovalPageInner() {
           return;
         }
 
+        
+
         setState("ok");
 
-        // 2) viewed 마킹 (idempotent — 이미 viewed 면 no-op)
-        if (r.status === "sent") {
+        // 2) viewed 마킹 (idempotent · 이미 viewed 면 no-op)
+        if (r.status === "sent")  {
           db.rpc("mark_quote_approval_viewed", { p_token: token }).then(
             ({ error: vErr }: { error: { code?: string } | null }) => {
               if (vErr) reportError("quote.token.viewed", { code: vErr.code });
@@ -162,8 +167,8 @@ function QuoteApprovalPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  // 계약 단계 승인은 서명이 있어야 함 — 모달 → submit
-  function handleApproveClick() {
+  // 계약 단계 승인은 서명이 있어야 함. 모달 → submit
+  function handleApproveClick()  {
     if (!row) return;
     if (row.stage === "contract") {
       setShowSignatureModal(true);
@@ -182,9 +187,10 @@ function QuoteApprovalPageInner() {
       setErrMsg("어떤 부분을 수정하면 좋을지 적어주세요");
       return;
     }
-    // 계약 승인 — 서명 + 을 회사 정보 필수
+    
+    // 계약 승인 · 서명 + 을 회사 정보 필수
     const isContractApproval = decision === "approved" && row.stage === "contract";
-    if (isContractApproval) {
+    if (isContractApproval)  {
       if (!signatureMethod || !signatureDataUrl) {
         setErrMsg("서명 또는 도장을 추가해 주세요");
         return;
@@ -198,18 +204,18 @@ function QuoteApprovalPageInner() {
     setErrMsg(null);
     try {
       // 서명 합성 HTML 생성 (계약 승인 시)
-      //   1) template_snapshot_html 의 {을_*} 변수 자리에 서명자 입력값 치환
+      //   1) template_snapshot_html 의 {을_*}  변수 자리에 서명자 입력값 치환
       //   2) sig-box[data-role="을"] 있으면 그 안에 서명 이미지 삽입 (시스템 양식 71259ef7)
-      //   3) sig-box 없으면 본문 그대로 — 페이지(/contracts/signed) 측 푸터가 별도 합성 (4eca444d)
+      //   3) sig-box 없으면 본문 그대로 · 페이지(/contracts/signed) 측 푸터가 별도 합성 (4eca444d)
       //   본문 끝 sig 카드 append 제거 (사용자 호소 중복 회귀 해소)
       let signedHtml: string | null = null;
-      if (isContractApproval) {
+      if (isContractApproval)  {
         const p = (row.payload || {}) as { template_snapshot_html?: string };
         const baseHtml = typeof p.template_snapshot_html === "string" ? p.template_snapshot_html : "";
         const signerName = signerRepresentative.trim() || row.recipient_name || "거래처";
         const signerCo = signerCompanyName.trim();
         const signerBiz = signerBusinessNumber.trim();
-        // 변수 치환 — 양식 본문의 {을_*} 자리 채움
+        // 변수 치환 · 양식 본문의  {을_*} 자리 채움
         const escRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const subst = (html: string, key: string, val: string) =>
           html.replace(new RegExp(`\\{\\s*${escRe(key)}\\s*\\}`, "g"), val);
@@ -407,10 +413,13 @@ function QuoteApprovalPageInner() {
     );
   }
 
-  // 메인 카드 — 결정 대기 상태
+  
+
+  // 메인 카드 · 결정 대기 상태
   if (!row) return null;
   const stageLabel = stageKo(row.stage);
   return (
+    
     <Shell>
       <div className="quote-approval-card">
         {/* 헤더 */}

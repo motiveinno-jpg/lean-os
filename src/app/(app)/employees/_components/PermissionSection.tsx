@@ -14,9 +14,9 @@ import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { PERMISSION_CATALOG } from "@/lib/permissions";
 import { PermissionTree, permKeyLabel, permKeyIsMoney } from "./PermissionTree";
-import { PermissionTemplateModal } from "./PermissionTemplateModal";
+import { PermissionTemplateModal }  from "./PermissionTemplateModal";
 
-/** 오른쪽 미리보기 — 이 권한이면 사이드바에 무엇이 보이나 (그룹별, 꺼진 메뉴는 취소선) */
+/** 오른쪽 미리보기 · 이 권한이면 사이드바에 무엇이 보이나 (그룹별, 꺼진 메뉴는 취소선) */
 function SidebarPreview({ checked, empName }: { checked: Set<string>; empName: string }) {
   const moneyOn = PERMISSION_CATALOG.some((g) => g.menus.some((m) => m.money && !m.hidden && checked.has(m.route))) || checked.has("/dashboard:finance");
   return (
@@ -67,9 +67,9 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
   });
   useEffect(() => { if (saved && !dirty) setChecked(new Set(saved)); }, [saved, dirty]);
 
-  // 권한 템플릿 (2026-07-30 사장님) — 팀별 세트. 만들기·수정·삭제는 별도 팝업(PermissionTemplateModal).
+  // 권한 템플릿 (2026-07-30 사장님). 팀별 세트. 만들기·수정·삭제는 별도 팝업(PermissionTemplateModal).
   const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const { data: templates = [] } = useQuery({
+  const  { data: templates = [] } = useQuery({
     queryKey: ["permission-templates"],
     queryFn: async () => {
       const { data } = await (supabase as any)
@@ -78,7 +78,7 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
     },
   });
 
-  // 템플릿 칩 = 체크 상태만 교체(미리보기) — **저장을 눌러야** 실제 적용 (2026-08-19 사장님: 즉시 적용되던 것 수정)
+  // 템플릿 칩 = 체크 상태만 교체(미리보기). **저장을 눌러야** 실제 적용 (2026-08-19 사장님: 즉시 적용되던 것 수정)
   const [tplId, setTplId] = useState<string>("");
   const stageTemplate = (tpl: { id: string; name: string; perm_keys: string[] }) => {
     setChecked(new Set(tpl.perm_keys || []));
@@ -130,8 +130,9 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
     setChecked((cur) => {
       const next = new Set(cur);
       for (const k of keys) { if (on) next.add(k); else next.delete(k); }
-      //   모순 보정 — 메뉴 접근을 껐으면 그 메뉴의 세부 키도 끈다 (세부만 켜진 상태는 화면에서 아무것도 안 연다)
-      if (!on) {
+      
+      //   모순 보정 · 메뉴 접근을 껐으면 그 메뉴의 세부 키도 끈다 (세부만 켜진 상태는 화면에서 아무것도 안 연다)
+      if (!on)  {
         for (const g of PERMISSION_CATALOG) for (const m of g.menus) {
           if (!m.always && keys.includes(m.route)) for (const t of m.tabs || []) next.delete(`${m.route}:${t.key}`);
         }
@@ -155,10 +156,10 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
   const hasChange = stat.add.length + stat.rm.length > 0;
 
   if (!targetUserId) {
-    return <div className="text-xs text-[var(--text-dim)] py-4">아직 계정에 연결되지 않은 구성원입니다 — 초대 수락 후 권한을 부여할 수 있습니다.</div>;
+    return <div className="text-xs text-[var(--text-dim)] py-4">아직 계정에 연결되지 않은 구성원입니다. 초대 수락 후 권한을 부여할 수 있습니다.</div>;
   }
   if (targetIsMaster) {
-    return <div className="text-xs text-[var(--text-muted)] py-4">이 구성원은 <b>마스터</b>입니다 — 모든 메뉴·기능 권한을 항상 보유합니다.</div>;
+    return <div className="text-xs text-[var(--text-muted)] py-4">이 구성원은 <b>마스터</b>입니다. 모든 메뉴·기능 권한을 항상 보유합니다.</div>;
   }
   if (isLoading) return <div className="text-xs text-[var(--text-dim)] py-4">권한 불러오는 중...</div>;
 
@@ -175,7 +176,7 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
           {templates.length === 0
             ? <span className="text-[11px] text-[var(--text-dim)]">만들어 둔 템플릿 없음</span>
             : (templates as any[]).map((t) => (
-              <button key={t.id} type="button" onClick={() => stageTemplate(t)} title={`${(t.perm_keys || []).length}개 권한 — 누르면 체크가 이 템플릿으로 바뀝니다(저장 전)`}
+              <button key={t.id} type="button" onClick={() => stageTemplate(t)} title={`${(t.perm_keys || []).length}개 권한 · 누르면 체크가 이 템플릿으로 바뀝니다(저장 전)`}
                 className={matchedTplId === t.id ? "qk-quick qk-quick-on" : "qk-quick"}>{t.name}</button>
             ))}
           <button onClick={() => setShowTemplateModal(true)} className="btn-secondary btn-sm">템플릿 관리</button>
@@ -207,7 +208,7 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
 
       {/* 바닥 — 저장(확인 팝업) */}
       <div className="perm-foot">
-        {hasChange && <span className="perm-sum-warn text-[11.5px] mr-auto">저장을 눌러야 반영됩니다 — 누르면 바뀐 것을 한 번 더 보여 드립니다</span>}
+        {hasChange && <span className="perm-sum-warn text-[11.5px] mr-auto">저장을 눌러야 반영됩니다. 누르면 바뀐 것을 한 번 더 보여 드립니다</span>}
         <button onClick={() => setConfirming(true)} disabled={!hasChange || saveMut.isPending} className="btn-primary btn-sm disabled:opacity-40">
           {saveMut.isPending ? "저장 중..." : "저장"}
         </button>

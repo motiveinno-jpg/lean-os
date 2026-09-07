@@ -32,9 +32,9 @@ const STATUS: Record<string, { tone: "warn" | "info" | "ok"; label: string; colo
   closed: { tone: "ok", label: "종료", color: "var(--chart-3)" },
 };
 
-//   전역 copy-protection(body user-select:none) 아래서도 확실히 복사되게 — clipboard API 우선,
+//   전역 copy-protection(body user-select:none) 아래서도 확실히 복사되게 · clipboard API 우선,
 //   막히면(권한/비보안 컨텍스트) textarea+execCommand 폴백. (2026-09-01 사장님: 문의 복사 안 됨)
-function copyText(text: string) {
+function copyText(text: string)  {
   try { navigator.clipboard?.writeText(text).catch(() => {}); } catch { /* ignore */ }
   try {
     const ta = document.createElement("textarea");
@@ -62,7 +62,7 @@ export default function PlatformPartnershipPage() {
     refetchInterval: 60_000,
   });
 
-  // 검색 (2026-07-28 전면 정비) — 회사·담당자·이메일·내용
+  // 검색 (2026-07-28 전면 정비). 회사·담당자·이메일·내용
   const [search, setSearch] = useState("");
   const [companyFilter, setCompanyFilter] = useState("all");
   const [copiedId, setCopiedId] = useState<string | null>(null);

@@ -12,7 +12,7 @@ export const CYCLES: { value: ProdVoucherCycle; label: string; desc: string }[] 
   { value: "day", label: "매일", desc: "어제 하루치를 매일 아침 초안으로" },
   { value: "week", label: "매주", desc: "지난주(월~일)를 월요일 아침 초안으로" },
   { value: "month", label: "매월", desc: "지난달을 1일 아침 초안으로 (기본)" },
-  { value: "none", label: "안 함", desc: "자동으로 만들지 않는다 — 지금 만들기만" },
+  { value: "none", label: "안 함", desc: "자동으로 만들지 않는다. 지금 만들기만" },
 ];
 export type ProdVoucherSettings = {
   cycle: ProdVoucherCycle; acct_product: string | null; acct_material: string | null; acct_scrap: string | null;

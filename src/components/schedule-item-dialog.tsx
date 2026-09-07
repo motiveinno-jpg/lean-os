@@ -22,9 +22,9 @@ const DOT: Record<EventColor, string> = {
   amber: "bg-amber-500", violet: "bg-violet-500", gray: "bg-gray-400",
 };
 
-/** 무엇을 열지 — 있는 일정이면 보기부터, 새로 만들 때는 곧장 입력 */
+/** 무엇을 열지 · 있는 일정이면 보기부터, 새로 만들 때는 곧장 입력 */
 export type ScheduleDialogTarget =
-  | { mode: "view"; event: ScheduleEvent }
+  |  { mode: "view"; event: ScheduleEvent }
   | { mode: "new"; from?: string; to?: string };
 
 export function ScheduleItemDialog({
@@ -66,8 +66,8 @@ export function ScheduleItemDialog({
         allDay: true, color: d.color,
         visibility: d.visibility, targetUserIds: d.targetUserIds, targetDepartments: d.targetDepartments,
         attachments: d.attachments,
-        //   반복(결정 145) — 날짜 없으면 반복도 없음. 반복 일정의 알림은 1차 미지원이라 비운다
-        recurrence: a && d.recurFreq ? { freq: d.recurFreq, ...(d.recurFreq === "weekly" ? { weekday: d.recurWeekday } : {}) } : null,
+        //   반복(결정 145). 날짜 없으면 반복도 없음. 반복 일정의 알림은 1차 미지원이라 비운다
+        recurrence: a && d.recurFreq ?  { freq: d.recurFreq, ...(d.recurFreq === "weekly" ? { weekday: d.recurWeekday } : {}) } : null,
         reminder: null,
         reminders: a && !d.recurFreq ? d.reminders : [],
       });
@@ -111,7 +111,9 @@ export function ScheduleItemDialog({
     onClose={onClose} />;
 }
 
-/** 보기 — 일정 내용이 본체다. 수정·완료·삭제는 아래에 작게 둔다. */
+
+
+/** 보기 · 일정 내용이 본체다. 수정·완료·삭제는 아래에 작게 둔다. */
 function ScheduleItemView({
   event, companyId, busy, onEdit, onToggleDone, onDelete, onClose,
 }: {
@@ -134,9 +136,9 @@ function ScheduleItemView({
     document.body.appendChild(a); a.click(); a.remove();
   };
 
-  //   공유한 사람 이름을 보여 주려면 회사 사람 목록이 필요하다 — 입력 창과 **같은 캐시**를 쓴다.
+  //   공유한 사람 이름을 보여 주려면 회사 사람 목록이 필요하다. 입력 창과 **같은 캐시**를 쓴다.
   //   (2026-08-10: 목록을 안 받아 오던 탓에 이름 대신 '이름 모름' 이 찍혔다)
-  const { data: users = [] } = useQuery({
+  const  { data: users = [] } = useQuery({
     queryKey: ["company-users", companyId],
     queryFn: () => getCompanyUsers(companyId!),
     enabled: !!companyId && event.visibility === "members",
@@ -151,7 +153,7 @@ function ScheduleItemView({
     })
     .filter(Boolean);
   const depts = (event.target_departments || []).filter(Boolean);
-  //   갈래 이름('구성원'·'부서')은 다시 적지 않는다 — **누구에게 공유했는지만** 적는다
+  //   갈래 이름('구성원'·'부서')은 다시 적지 않는다. **누구에게 공유했는지만** 적는다
   //   (2026-08-10 사장님 지시). 구성원=사람 이름, 부서=부서명, 전체="전체", 나만="나만".
   //   이름을 하나도 못 찾으면 그때만 갈래 이름으로 되돌린다(빈칸으로 두지 않게).
   const who =
@@ -161,6 +163,7 @@ function ScheduleItemView({
     : depts.join(" · ");
 
   return (
+    
     <div className="sched-view" onClick={onClose}>
       <div className="sched-view-box" onClick={(ev) => ev.stopPropagation()}>
         <header>
@@ -172,7 +175,7 @@ function ScheduleItemView({
         <p className="sched-view-when">
           {event.start_at ? formatEventRange(event) : "날짜 없음"}
           {event.recurrence?.freq && (
-            <span title="반복 일정 — 고치거나 지우면 모든 회차에 적용됩니다"> · 🔁 {event.recurrence.freq === "daily" ? "매일" : event.recurrence.freq === "monthly" ? "매월" : `매주 ${["일", "월", "화", "수", "목", "금", "토"][event.recurrence.weekday ?? 0]}요일`}</span>
+            <span title="반복 일정 · 고치거나 지우면 모든 회차에 적용됩니다"> · 🔁 {event.recurrence.freq === "daily" ? "매일" : event.recurrence.freq === "monthly" ? "매월" : `매주 ${["일", "월", "화", "수", "목", "금", "토"][event.recurrence.weekday ?? 0]}요일`}</span>
           )}
           {remindersOf(event).length > 0 && <span title={remindersOf(event).map((r) => `${r.days_before === 0 ? "당일" : `${r.days_before}일 전`} ${r.time}`).join(" · ")}> · 🔔 알림 {remindersOf(event).length}개</span>}
           {event.completed && <span className="sched-view-done">완료</span>}

@@ -46,19 +46,19 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
   const now = new Date();
   const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const dateTo = endOfMonth(now);
-  //   최근 3개월을 읽는다 — 정기 지출에는 '결제 수단' 항목이 없어서, 실제로 통장에서 나갔는지 카드로 결제됐는지를
+  //   최근 3개월을 읽는다. 정기 지출에는 '결제 수단' 항목이 없어서, 실제로 통장에서 나갔는지 카드로 결제됐는지를
   //   출금 이력이 말하게 한다(2026-09-07 사장님: "안형영 1,595,000 은 계좌이체인데 왜 카드 화면에"). 이번 달 대조는 그 안에서 거른다.
   const dateFrom = startOfMonth(new Date(now.getFullYear(), now.getMonth() - 2, 1));
   const today = todayKst();
 
-  const { data: rows = [] } = useQuery({
+  const  { data: rows = [] } = useQuery({
     queryKey: ["auto-transfer-history", companyId, ym],
     queryFn: () => getBankTransactions(companyId, { dateFrom, dateTo, type: "expense" }),
     enabled: !!companyId,
     staleTime: 30_000,
   });
-  //   정기 지출은 통장에서 빠지기도, 카드로 결제되기도 한다(구독·SaaS) — 카드 결제도 같이 대조한다 (2026-09-07 사장님: "카드에는 정기결제가 없어?")
-  const { data: cardRows = [] } = useQuery({
+  //   정기 지출은 통장에서 빠지기도, 카드로 결제되기도 한다(구독·SaaS). 카드 결제도 같이 대조한다 (2026-09-07 사장님: "카드에는 정기결제가 없어?")
+  const  { data: cardRows = [] } = useQuery({
     queryKey: ["auto-transfer-history-card", companyId, ym],
     queryFn: async () => {
       const { data } = await supabase.from("card_transactions")
@@ -76,9 +76,9 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
     enabled: !!companyId,
     staleTime: 60_000,
   });
-  //   반복 결제 추천 — 최근 6개월에서 매달 비슷한 날 비슷한 금액이 나가는데 정기 지출에 없는 것 (2026-09-07 사장님 요청)
+  //   반복 결제 추천 · 최근 6개월에서 매달 비슷한 날 비슷한 금액이 나가는데 정기 지출에 없는 것 (2026-09-07 사장님 요청)
   const qc = useQueryClient();
-  const { toast } = useToast();
+  const  { toast } = useToast();
   const { data: suggestions = [] } = useQuery({
     queryKey: ["recurring-suggestions", companyId],
     queryFn: () => listRecurringSuggestions(companyId),
@@ -95,7 +95,7 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
     qc.invalidateQueries({ queryKey: ["cards-page-recent-tx"] });
   };
   const accept = async (p: DiscoveredPattern) => {
-    try { await acceptRecurringSuggestion(companyId, p); toast(`'${p.name}' 을 정기 지출로 등록했어요 — 매월 ${p.dayOfMonth}일 ₩${fmtKRW(p.estimatedMonthlyCost)}`, "success"); afterSuggest(); }
+    try { await acceptRecurringSuggestion(companyId, p); toast(`'${p.name}' 을 정기 지출로 등록했어요. 매월 ${p.dayOfMonth}일 ₩${fmtKRW(p.estimatedMonthlyCost)}`, "success"); afterSuggest(); }
     catch (e: any) { toast(`등록 실패: ${e?.message || ""}`, "error"); }
   };
   const dismiss = async (p: DiscoveredPattern) => {
@@ -137,7 +137,7 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
             <h2 className="text-[15px] font-bold text-[var(--text)]">{variant === "card" ? "정기 지출 결제 확인" : "정기 지출 출금 확인"}</h2>
             <span className="caption">
               {ym} · {variant === "card" ? "카드로 내는" : "통장에서 나가는"} 정기 지출 {list.length}건
-              {unknownCount > 0 ? `(아직 수단 미확인 ${unknownCount})` : ""} — 나감 {paid.length}{missing.length > 0 ? ` · 확인 필요 ${missing.length}` : ""} · 예정 {due.length}
+              {unknownCount > 0 ? `(아직 수단 미확인 ${unknownCount})` : ""} · 나감  {paid.length}{missing.length > 0 ? ` · 확인 필요 ${missing.length}` : ""} · 예정 {due.length}
               {manualOnly.length > 0 ? ` · 직접 표시 ${manualOnly.length}` : ""}
             </span>
           </div>
@@ -153,7 +153,7 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
       {list.length === 0 && manualOnly.length === 0 ? (
         <div className="auto-transfer-history-empty">
           {(recurring as any[]).some((r) => r.is_active !== false)
-            ? (variant === "card" ? "카드로 결제되는 정기 지출이 없어요 — 등록된 것은 모두 통장에서 나가고 있어요." : "통장에서 나가는 정기 지출이 없어요 — 등록된 것은 모두 카드로 결제되고 있어요.")
+            ? (variant === "card" ? "카드로 결제되는 정기 지출이 없어요. 등록된 것은 모두 통장에서 나가고 있어요." : "통장에서 나가는 정기 지출이 없어요. 등록된 것은 모두 카드로 결제되고 있어요.")
             : "등록된 정기 지출이 없어요."}
           <div className="text-[10px] mt-1">
             <Link href="/payments" className="text-[var(--primary)] hover:underline font-medium">정기 지출</Link>에 월세·보험·구독을 등록해 두면, 달마다 {variant === "card" ? "카드로 결제됐는지" : "통장에서 나갔는지"} 여기서 확인돼요.
@@ -166,9 +166,9 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
             const badge = state === "paid"
               ? <span className="text-[9px] px-1 py-0.5 rounded bg-[var(--success-dim)] text-[var(--success)] shrink-0">나감</span>
               : state === "missing"
-              ? <span className="text-[9px] px-1 py-0.5 rounded bg-[var(--warning-dim)] text-[var(--warning)] shrink-0" title="정기 지출에 적힌 날짜가 지났는데 통장에서 맞는 출금이 안 보여요 — 거래처 이름이나 금액이 다르면 거래내역에서 직접 표시하세요">확인 필요</span>
+              ? <span className="text-[9px] px-1 py-0.5 rounded bg-[var(--warning-dim)] text-[var(--warning)] shrink-0" title="정기 지출에 적힌 날짜가 지났는데 통장에서 맞는 출금이 안 보여요. 거래처 이름이나 금액이 다르면 거래내역에서 직접 표시하세요">확인 필요</span>
               : <span className="text-[9px] px-1 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] shrink-0">예정</span>;
-            //   분류는 둘째 줄로 — 첫 줄에 배지가 둘이면 좁은 칸에서 이름이 "클…" 로 잘린다
+            //   분류는 둘째 줄로 · 첫 줄에 배지가 둘이면 좁은 칸에서 이름이 "클…" 로 잘린다
             const tail = [rp.recipient_name, cat].filter(Boolean).join(" · ");
             const how = tx?.source === "card" ? `카드 결제${tx.sourceLabel ? `(${tx.sourceLabel})` : ""}` : `통장 출금${tx?.sourceLabel ? `(${tx.sourceLabel})` : ""}`;
             const sub = state === "paid" && tx
@@ -214,7 +214,8 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
       {mySuggestions.length > 0 && (
         <div className="mt-3 pt-3 border-t border-[var(--border)]">
           <div className="text-[11px] font-semibold text-[var(--text)] mb-1.5">
-            매달 반복되는 {variant === "card" ? "결제" : "출금"}가 보여요 — 정기 지출로 등록할까요?
+            매달 반복되는 {variant === "card" ? "결제" : "출금"}가 보여요. 정기 지출로 등록할까요?
+          
           </div>
           <div className="space-y-1.5">
             {mySuggestions.map((p) => (

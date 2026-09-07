@@ -48,10 +48,10 @@ export default function InventoryProfitPage() {
   const { isMaster, hasPerm, loading: permLoading } = useMyPermissions();
   const [companyId, setCompanyId] = useState<string | null>(null);
   useEffect(() => { getCurrentUser().then((u) => setCompanyId(u?.company_id ?? null)); }, []);
-  //   매출 KPI 현황판(결정 144) — 2026-09-02 사장님 지시로 매출 리포트에서 이사(쓰는 회사가
+  //   매출 KPI 현황판(결정 144). 2026-09-02 사장님 지시로 매출 리포트에서 이사(쓰는 회사가
   //   판매·이커머스 쪽). 열릴 때만 마운트해 닫혀 있으면 전표를 안 불러온다.
   const [kpiOpen, setKpiOpen] = useState(false);
-  const { toast } = useToast();
+  const  { toast } = useToast();
   const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>("all");
   const [from, setFrom] = useState(monthStart);
@@ -154,7 +154,7 @@ export default function InventoryProfitPage() {
 
   const rebuild = async () => {
     setBusy(true);
-    try { const r = await rebuildMyCosts(); toast(`다시 계산했습니다 — 층 ${r.layers} · 출고 원가 ${r.costs} (${r.method === "avg" ? "이동평균" : "선입선출"})`, "success");
+    try { const r = await rebuildMyCosts(); toast(`다시 계산했습니다. 층 ${r.layers} · 출고 원가 ${r.costs} (${r.method === "avg" ? "이동평균" : "선입선출"})`, "success");
       qc.invalidateQueries({ queryKey: ["inv-move-costs"] }); qc.invalidateQueries({ queryKey: ["inv-cost-layers"] }); qc.invalidateQueries({ queryKey: ["inv-cost-state"] }); qc.invalidateQueries({ queryKey: ["inv-avgcost"] }); }
     catch (e) { toast(friendlyError(e), "error"); } finally { setBusy(false); }
   };
@@ -215,7 +215,7 @@ export default function InventoryProfitPage() {
             {TABS.map(([k, l]) => <button key={k} type="button" onClick={() => setTab(k)} className={tab === k ? "collect-tab collect-tab-on" : "collect-tab"}>{l}</button>)}
           </div>
           <QueryBar right={<>
-            <button type="button" className="btn-secondary btn-sm" title="매출·목표·채널을 위젯 한 판으로 — 내 판으로 고칠 수 있습니다"
+            <button type="button" className="btn-secondary btn-sm" title="매출·목표·채널을 위젯 한 판으로 · 내 판으로 고칠 수 있습니다"
               onClick={() => setKpiOpen(true)}>KPI 현황판</button>
             <button type="button" className="btn-secondary btn-sm" onClick={() => {
               const name = TABS.find(([k]) => k === tab)?.[1] || "이익";
@@ -229,7 +229,7 @@ export default function InventoryProfitPage() {
             }}>엑셀</button>
           </>}>
             <DateRangeField from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
-            <span className="inv-hint">원가는 <b>{method === "avg" ? "이동평균" : "선입선출(FIFO)"}</b>으로 확정된 출고 원가 · 반품은 매출·원가에서 뺀다{S.uncosted ? <> · <b className="inv-diff-minus">원가 미확정 {won(S.uncosted)}개</b>(층 없음 — 기초 원가·매입 단가를 넣고 다시 계산)</> : null}</span>
+            <span className="inv-hint">원가는 <b>{method === "avg" ? "이동평균" : "선입선출(FIFO)"}</b>으로 확정된 출고 원가 · 반품은 매출·원가에서 뺀다{S.uncosted ? <> · <b className="inv-diff-minus">원가 미확정 {won(S.uncosted)}개</b>(층 없음. 기초 원가·매입 단가를 넣고 다시 계산)</> : null}</span>
           </QueryBar>
           <ResultStrip>{stats[tab]}</ResultStrip>
         </QueryHead>
@@ -281,7 +281,7 @@ export default function InventoryProfitPage() {
                 {tab === "product" && (<>
                   <div className="pnl-grid2">
                     <div className="pnl-panel"><h3>이익 상위</h3><p>매출총이익 큰 순</p>{productRows.length ? <BarChart unit="원" data={productRows.slice(0, 8).map((r, i) => ({ label: r.p?.name || "?", value: r.gp, color: vizColor(i) }))} /> : <div className="inv-status-empty">판매가 없습니다</div>}</div>
-                    <div className="pnl-panel"><h3>이익률 하위</h3><p>이익률 낮은 순 — 팔수록 남지 않는 품목</p>{productRows.length ? <BarChart unit="%" data={[...productRows].filter((r) => r.rate != null).sort((a, b) => (a.rate! - b.rate!)).slice(0, 8).map((r, i) => ({ label: r.p?.name || "?", value: Math.round(r.rate! * 1000) / 10, color: r.rate! < 0 ? "var(--danger)" : vizColor(i) }))} /> : <div className="inv-status-empty">판매가 없습니다</div>}</div>
+                    <div className="pnl-panel"><h3>이익률 하위</h3><p>이익률 낮은 순 · 팔수록 남지 않는 품목</p>{productRows.length ? <BarChart unit="%" data={[...productRows].filter((r) => r.rate != null).sort((a, b) => (a.rate! - b.rate!)).slice(0, 8).map((r, i) => ({ label: r.p?.name || "?", value: Math.round(r.rate! * 1000) / 10, color: r.rate! < 0 ? "var(--danger)" : vizColor(i) }))} /> : <div className="inv-status-empty">판매가 없습니다</div>}</div>
                   </div>
                   <div className="pnl-panel">
                     <h3>품목별</h3><p>매출·원가·이익은 조회 기간 · 층 단가·현재고 원가는 지금 · 품목을 누르면 원가 이력</p>
@@ -316,7 +316,7 @@ export default function InventoryProfitPage() {
                 {tab === "buymake" && (
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
-                      <h3>구매 — 매입 단가와 판매가</h3><p>기간 매입 단가(최저·평균·최고) vs 판매가 · 마진폭 = 판매가 − 평균 매입가</p>
+                      <h3>구매<span className="ui-sub">매입 단가와 판매가</span></h3><p>기간 매입 단가(최저·평균·최고) vs 판매가 · 마진폭 = 판매가 − 평균 매입가</p>
                       <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status-sm">
                         <thead><tr><th>품목</th><th>수량</th><th>최저</th><th>평균</th><th>최고</th><th>판매가</th><th>마진폭</th></tr></thead>
                         <tbody>{[...BM.buy.entries()].sort((a, b) => b[1].amt - a[1].amt).map(([id, b]) => { const p = productById.get(id); const avg = b.qty ? b.amt / b.qty : 0; const sp = p?.sale_price ?? null; return (
@@ -325,7 +325,7 @@ export default function InventoryProfitPage() {
                       </table></div>
                     </div>
                     <div className="pnl-panel">
-                      <h3>생산 — 제품 원가 구성과 판매가</h3><p>층 단가 = 자재 실투입(로스 포함) ÷ (양품+불량) + 단위당 노무·경비 · 마진폭 = 판매가 − 원가</p>
+                      <h3>생산<span className="ui-sub">제품 원가 구성과 판매가</span></h3><p>층 단가 = 자재 실투입(로스 포함) ÷ (양품+불량) + 단위당 노무·경비 · 마진폭 = 판매가 − 원가</p>
                       <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status-sm">
                         <thead><tr><th>완제품</th><th>수량</th><th>자재</th><th>노무·경비</th><th>단위 원가</th><th>판매가</th><th>마진폭</th></tr></thead>
                         <tbody>{[...BM.make.entries()].sort((a, b) => b[1].amt - a[1].amt).map(([id, k]) => { const p = productById.get(id); const unit = k.qty ? k.amt / k.qty : 0; const oh = k.qty ? k.overhead / k.qty : 0; const sp = p?.sale_price ?? null; return (
@@ -413,7 +413,7 @@ export default function InventoryProfitPage() {
         <div className="inv-modal" onClick={() => setUncOpen(false)}>
           <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
             <h3 className="inv-modal-title">원가 미확정 출고 {won(S.uncosted)}개</h3>
-            <p className="inv-modal-desc">층이 없어 원가를 정하지 못한 출고 — 기초 원가(원가 이력 › 재평가·기초 원가 입력)나 매입 단가를 넣고 다시 계산하면 채워집니다. 0으로 잡지 않았습니다.</p>
+            <p className="inv-modal-desc">층이 없어 원가를 정하지 못한 출고 · 기초 원가(원가 이력 › 재평가·기초 원가 입력)나 매입 단가를 넣고 다시 계산하면 채워집니다. 0으로 잡지 않았습니다.</p>
             <div className="stg-table-wrap ch-ship-list"><table className="ev-table ev-lined table-inv-status-sm">
               <thead><tr><th>일자</th><th>문서</th><th>품목</th><th>사유</th><th>미확정 수량</th></tr></thead>
               <tbody>{costs.filter((c) => c.qty_uncosted > 0).map((c) => <tr key={c.move_id}><td className="mono-number tc">{c.moved_at}</td><td className="tc">{moves.find((m) => m.id === c.move_id)?.doc?.doc_no || "—"}</td><td className="text-left"><b>{productById.get(c.product_id)?.name || "?"}</b></td><td className="tc">{c.reason}</td><td className="tr mono-number">{won(c.qty_uncosted)}</td></tr>)}

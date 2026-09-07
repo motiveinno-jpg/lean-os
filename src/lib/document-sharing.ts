@@ -242,5 +242,5 @@ ${companyName || 'OwnerView'}
 ${senderName || ''}`;
 
   const mailto = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  return { success: false, error: '자동 발송 불가 — 메일 앱으로 열기', fallbackMailto: mailto };
+  return { success: false, error: '자동 발송 불가 · 메일 앱으로 열기', fallbackMailto: mailto };
 }

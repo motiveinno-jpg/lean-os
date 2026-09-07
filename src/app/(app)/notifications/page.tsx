@@ -189,7 +189,7 @@ export default function NotificationsPage() {
                 <DateRangeField label={null} from={draft.from} to={draft.to} onChange={(f, t) => setDraft((c) => ({ ...c, from: f, to: t }))} onClear={() => setDraft((c) => ({ ...c, from: "", to: "" }))} />
               </ConditionRow>
             </ConditionPanel>
-            <QuickSearch value={q} onApply={setQ} placeholder="제목 · 내용 · 종류 — 쉼표로 여러 개, Enter" />
+            <QuickSearch value={q} onApply={setQ} placeholder="제목 · 내용 · 종류 · 쉼표로 여러 개, Enter" />
             <ChipGroup value={view} onChange={setView} options={[{ value: "all", label: "전체" }, { value: "unread", label: unread > 0 ? `안읽음 ${unread}` : "안읽음" }] as const} />
           </QueryBar>
           <AppliedChips chips={chips} onClearAll={clearAll} />
@@ -203,9 +203,9 @@ export default function NotificationsPage() {
           {loading ? (
             <div className="collect-empty">불러오는 중…</div>
           ) : rows.length === 0 ? (
-            <div className="collect-empty">알림이 없습니다 — 새 알림이 도착하면 여기에 표시됩니다</div>
+            <div className="collect-empty">알림이 없습니다. 새 알림이 도착하면 여기에 표시됩니다</div>
           ) : shown.length === 0 ? (
-            <div className="collect-empty">이 조건에 맞는 알림이 없습니다 — 검색조건을 풀어 보세요</div>
+            <div className="collect-empty">이 조건에 맞는 알림이 없습니다. 검색조건을 풀어 보세요</div>
           ) : (
             <div className="ev-scroll">
               <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed notif-table">

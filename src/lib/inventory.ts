@@ -352,7 +352,7 @@ export async function createCount(
   const qtyOf = new Map(onhand.map((r) => [r.product_id, r.qty]));
 
   const targets = input.includeAll ? products : products.filter((p) => qtyOf.has(p.id));
-  if (!targets.length) throw new Error("셀 품목이 없습니다 — 품목을 먼저 등록하거나 '재고 0인 품목까지'를 켜세요");
+  if (!targets.length) throw new Error("셀 품목이 없습니다. 품목을 먼저 등록하거나 '재고 0인 품목까지'를 켜세요");
 
   const { data: head, error } = await supabase.from("stock_counts").insert({
     company_id: companyId, warehouse_id: input.warehouseId, count_date: countDate,
@@ -400,7 +400,7 @@ export async function applyCount(
     .select("id, warehouse_id, count_date, status").eq("id", countId).single();
   const h = head as { warehouse_id: string | null; count_date: string; status: string } | null;
   if (!h) throw new Error("실사를 찾을 수 없습니다");
-  if (h.status === "done") throw new Error("이미 반영한 실사입니다 — 다시 맞추려면 새 실사를 여세요");
+  if (h.status === "done") throw new Error("이미 반영한 실사입니다. 다시 맞추려면 새 실사를 여세요");
   if (!h.warehouse_id) throw new Error("창고가 없는 실사입니다");
 
   const lines = (await listCountLines(countId)).filter((l) => l.counted_qty != null);
@@ -580,7 +580,7 @@ export async function cancelStockDoc(docId: string, reason: string, userId?: str
   const d = data as { status: string; journal_entry_id: string | null } | null;
   if (!d) throw new Error("전표를 찾을 수 없습니다");
   if (d.status === "cancelled") throw new Error("이미 취소한 전표입니다");
-  if (d.journal_entry_id) throw new Error("회계 전표가 붙어 있습니다 — 매입매출전표에서 먼저 되돌리세요");
+  if (d.journal_entry_id) throw new Error("회계 전표가 붙어 있습니다. 매입매출전표에서 먼저 되돌리세요");
   const { error } = await supabase.from("stock_docs").update({
     status: "cancelled", cancelled_at: new Date().toISOString(), cancelled_by: userId ?? null,
     cancel_reason: reason.trim() || null, updated_at: new Date().toISOString(),

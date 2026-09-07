@@ -119,18 +119,18 @@ function detailRecord(r: WhtEfileRow): NtsField[] {
 
 export function buildWhtEfile(i: WhtEfileInput): { bytes: Uint8Array | null; fileName: string; issues: NtsIssue[] } {
   const issues: NtsIssue[] = [];
-  if (digits(i.bizNo).length !== 10) issues.push({ field: "사업자등록번호", message: `10자리 숫자여야 합니다 (지금 '${i.bizNo}') — 회사설정에서 채우세요` });
+  if (digits(i.bizNo).length !== 10) issues.push({ field: "사업자등록번호", message: `10자리 숫자여야 합니다 (지금 '${i.bizNo}'). 회사설정에서 채우세요` });
   if (!i.hometaxId.trim()) issues.push({ field: "홈택스 사용자ID", message: "필수입니다 (Header 11번 · Not Null)" });
   if (i.hometaxId.trim().length > 20) issues.push({ field: "홈택스 사용자ID", message: "20자를 넘을 수 없습니다" });
-  if (!i.companyName.trim()) issues.push({ field: "법인명(상호)", message: "필수입니다 — 회사설정에서 채우세요" });
-  if (!i.ceoName.trim()) issues.push({ field: "대표자명", message: "필수입니다 — 회사설정에서 채우세요" });
+  if (!i.companyName.trim()) issues.push({ field: "법인명(상호)", message: "필수입니다. 회사설정에서 채우세요" });
+  if (!i.ceoName.trim()) issues.push({ field: "대표자명", message: "필수입니다. 회사설정에서 채우세요" });
   //   '23'은 실제 금액이 있는 코드만 — 무실적(전부 0)은 전산매체 대상이 아니라 홈택스에서 직접 신고
   const rows = i.rows.filter((r) => r.n > 0 || r.pay > 0 || r.tax !== 0);
-  if (rows.length === 0) issues.push({ field: "명세", message: "금액이 있는 소득이 없습니다 — 무실적 신고는 홈택스에서 직접 하세요(0 레코드 생성 금지, 규격 명시)" });
+  if (rows.length === 0) issues.push({ field: "명세", message: "금액이 있는 소득이 없습니다. 무실적 신고는 홈택스에서 직접 하세요(0 레코드 생성 금지, 규격 명시)" });
   for (const r of rows) {
     if (r.n > 0 && r.pay <= 0) issues.push({ field: r.code, message: "인원이 1명 이상이면 총지급액은 0보다 커야 합니다(규격 검증)" });
     if (r.n === 0 && r.pay > 0) issues.push({ field: r.code, message: "총지급액이 있으면 인원이 있어야 합니다(규격 검증)" });
-    if (r.tax < 0) issues.push({ field: r.code, message: "이 화면의 기본형(정기·매월)에서 음수 세액은 지원하지 않습니다 — 홈택스에서 직접" });
+    if (r.tax < 0) issues.push({ field: r.code, message: "이 화면의 기본형(정기·매월)에서 음수 세액은 지원하지 않습니다. 홈택스에서 직접" });
   }
   if (issues.length > 0) return { bytes: null, fileName: "", issues };
 

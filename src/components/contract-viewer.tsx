@@ -1,18 +1,18 @@
 "use client";
 import { logRead } from "@/lib/log-read";
-import { Ico } from "@/components/ui-icon";
+import { Ico }  from "@/components/ui-icon";
 
-// 서명된 계약서 뷰어 — 페이지(/contracts/signed/[id])와 공통 모달(DocumentViewerModal) 공용.
+// 서명된 계약서 뷰어 · 페이지(/contracts/signed/[id])와 공통 모달(DocumentViewerModal) 공용.
 //   id(approvalId 또는 signatureRequestId) prop 으로 dual-mode 조회 → 본문 + 갑/을 서명 박스 + 직인 + 인쇄.
 //   기존 페이지 로직을 그대로 추출 (렌더/서명/직인/PDF 무변경). backHref 있으면 ← 목록 링크(페이지 전용).
 
-import { useEffect, useState } from "react";
+import  { useEffect, useState } from "react";
 import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { friendlyError, reportError } from "@/lib/friendly-error";
-// 갑(우리) 서명·도장 추가 모달 — 거래처 서명 모달 동일 컴포넌트 재사용
-import { SignatureCapture, type SignatureMethod } from "@/components/signature-capture";
+import { friendlyError, reportError }  from "@/lib/friendly-error";
+// 갑(우리) 서명·도장 추가 모달 · 거래처 서명 모달 동일 컴포넌트 재사용
+import  { SignatureCapture, type SignatureMethod } from "@/components/signature-capture";
 import { useToast } from "@/components/toast";
 import { usePrintIsolation } from "@/lib/use-print-isolation";
 import { useModalKeys } from "@/hooks/use-modal-keys";
@@ -57,12 +57,12 @@ function stripBodySignatureArea(rawHtml: string): string {
         }
       });
 
-    // 2) fallback — display:inline-block 없는 옛 합성본 대응
+    // 2) fallback · display:inline-block 없는 옛 합성본 대응
     //    "거래처 서명" 텍스트노드 → 가까운 div/section 3단계 상향 제거
     const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
     const targets: Element[] = [];
     let node: Node | null;
-    while ((node = walker.nextNode())) {
+    while ((node = walker.nextNode()))  {
       if (node.nodeValue && /거래처\s*서명/.test(node.nodeValue)) {
         let el: Element | null = node.parentElement;
         for (let i = 0; i < 3 && el; i++) {
@@ -109,11 +109,11 @@ interface SignedRow {
   } | null;
   deals: { id: string; name: string } | null;
   // companies(갑): business_number 포함
-  companies: { name: string; representative: string | null; business_number: string | null; seal_url?: string | null } | null;
+  companies: { name: string; representative: string | null; business_number: string | null; seal_url?: string | null }  | null;
   batch_id?: string | null;
   signer_email?: string | null;
-  // partner(을) — signature_requests 분기에서 별도 fetch
-  partner: { name: string | null; business_number: string | null; representative: string | null } | null;
+  // partner(을). signature_requests 분기에서 별도 fetch
+  partner:  { name: string | null; business_number: string | null; representative: string | null } | null;
 }
 
 export function ContractViewer({ id, backHref }: { id: string; backHref?: string }) {
@@ -457,7 +457,9 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
   );
 }
 
-// 푸터 서명 박스 — base64 data URL 이미지 안전 렌더.
+
+
+// 푸터 서명 박스 · base64 data URL 이미지 안전 렌더.
 //   - alt="" : 깨진 이미지일 때 "을 서명" 같은 텍스트 노출 차단
 //   - onError : 깨진 src 자동 숨김 → "서명 대기" placeholder 자연 fallback
 function SignatureBox({ dataUrl }: { dataUrl: string | null | undefined }) {

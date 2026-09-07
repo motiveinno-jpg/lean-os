@@ -1,12 +1,12 @@
 "use client";
 import { logRead } from "@/lib/log-read";
-import { fetchPaged } from "@/lib/fetch-paged";
+import { fetchPaged }  from "@/lib/fetch-paged";
 
-// 대시보드 활동 요약 카드 — "오너뷰에서 지금 일어나는 일"을 표 형태로 한눈에(2026-07-14).
+// 대시보드 활동 요약 카드 · "오너뷰에서 지금 일어나는 일"을 표 형태로 한눈에(2026-07-14).
 //   깔끔한 카드(제목 + 전체보기 → / 표 행 + 상태 뱃지). 최근 프로젝트·최근 세금계산서.
 
 import Link from "next/link";
-import { useReportWidgetEmpty } from "@/components/widget-empty-context";
+import  { useReportWidgetEmpty } from "@/components/widget-empty-context";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 

@@ -68,7 +68,7 @@ const RESUMABLE_THRESHOLD = 6 * 1024 * 1024;
 async function uploadResumable(bucket: string, storagePath: string, file: File, onProgress?: (pct: number) => void): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
-  if (!token) throw new Error("로그인이 필요합니다 — 다시 로그인 후 올려주세요.");
+  if (!token) throw new Error("로그인이 필요합니다. 다시 로그인 후 올려주세요.");
   const { Upload } = await import("tus-js-client");
   await new Promise<void>((resolve, reject) => {
     const up = new Upload(file, {
@@ -84,7 +84,7 @@ async function uploadResumable(bucket: string, storagePath: string, file: File, 
         //   사람이 읽을 수 있는 문장으로(2026-09-02 실측: 전역 한도 상향 전엔 여기 걸린다)
         const msg = String(e?.message || e);
         reject(new Error(msg.includes("413") || msg.includes("Maximum size exceeded")
-          ? "서버의 파일 크기 한도를 넘었습니다 — 관리자가 저장소 한도를 올리면 500MB까지 올릴 수 있습니다."
+          ? "서버의 파일 크기 한도를 넘었습니다. 관리자가 저장소 한도를 올리면 500MB까지 올릴 수 있습니다."
           : msg));
       },
       onProgress: (sent, total) => { if (total > 0) onProgress?.(Math.round((sent / total) * 100)); },
@@ -716,7 +716,7 @@ export async function updateFolderVisibility(
   }).eq("id", folderId).select("id");
   if (error) {
     //   42501 = 바꾼 결과가 내 눈에 안 보이는 범위(예: 사람 지정에서 나를 뺌) — 이유를 번역
-    if ((error as any).code === "42501") throw new Error("바꾼 범위에 본인이 빠져 있습니다 — '사람'으로 좁힐 때는 본인(또는 폴더를 만든 사람)을 포함해야 합니다.");
+    if ((error as any).code === "42501") throw new Error("바꾼 범위에 본인이 빠져 있습니다. '사람'으로 좁힐 때는 본인(또는 폴더를 만든 사람)을 포함해야 합니다.");
     throw error;
   }
   if (!data || data.length === 0) throw new Error("폴더를 만든 사람(또는 파일 삭제 권한자)만 범위를 바꿀 수 있습니다.");
@@ -884,7 +884,7 @@ export async function uploadEmployeeFile(params: {
     //   (2026-08-20: category 제약 위반으로 막힌 업로드 3건이 스토리지에만 남아 있었다)
     await supabase.storage.from("employee-files").remove([storagePath]).catch(() => {});
     if ((insertError as { message?: string }).message?.includes("employee_files_category_check")) {
-      throw new Error("이 서류 종류는 아직 저장할 수 없습니다 — 관리자에게 알려주세요.");
+      throw new Error("이 서류 종류는 아직 저장할 수 없습니다. 관리자에게 알려주세요.");
     }
     throw insertError;
   }

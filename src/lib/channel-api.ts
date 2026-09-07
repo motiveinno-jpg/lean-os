@@ -147,8 +147,8 @@ export async function coupangOrders(key: string, from: string, to: string, statu
 export async function testChannelKey(provider: string, key: string): Promise<{ ok: boolean; message: string }> {
   const today = ymd(new Date());
   try {
-    if (provider === "smartstore") { await naverToken(key); return { ok: true, message: "연결됐습니다 — 스마트스토어 주문을 가져올 수 있습니다." }; }
-    if (provider === "coupang") { const rows = await coupangOrders(key, today, today); return { ok: true, message: `연결됐습니다 — 오늘 접수 주문 ${rows.length}건을 읽었습니다.` }; }
+    if (provider === "smartstore") { await naverToken(key); return { ok: true, message: "연결됐습니다. 스마트스토어 주문을 가져올 수 있습니다." }; }
+    if (provider === "coupang") { const rows = await coupangOrders(key, today, today); return { ok: true, message: `연결됐습니다. 오늘 접수 주문 ${rows.length}건을 읽었습니다.` }; }
     return { ok: false, message: "알 수 없는 채널입니다." };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "확인하지 못했습니다." };

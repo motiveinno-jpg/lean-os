@@ -9,10 +9,10 @@ export const APPOINTMENT_KINDS: { key: AppointmentKind; label: string; hint: str
   { key: "probation_end", label: "수습 종료", hint: "정규 전환" },
   { key: "transfer", label: "부서 이동", hint: "부서가 바뀜" },
   { key: "promotion", label: "승진·직책", hint: "직책·직위가 바뀜" },
-  { key: "salary", label: "급여 변경", hint: "월급이 바뀜 — 급여 명세는 다음 달부터" },
+  { key: "salary", label: "급여 변경", hint: "월급이 바뀜 · 급여 명세는 다음 달부터" },
   { key: "leave_of_absence", label: "휴직", hint: "육아·병가 등" },
   { key: "return", label: "복직", hint: "휴직 끝" },
-  { key: "resign", label: "퇴사", hint: "퇴사 처리는 정보 탭에서 — 여기는 기록" },
+  { key: "resign", label: "퇴사", hint: "퇴사 처리는 정보 탭에서 · 여기는 기록" },
   { key: "other", label: "기타", hint: "겸직·파견 등" },
 ];
 export const kindLabel = (k: string) => APPOINTMENT_KINDS.find((x) => x.key === k)?.label || k;

@@ -53,9 +53,9 @@ export default function SystemPage() {
     },
   });
 
-  // 이번 달 AI 비용 — 참모·브리핑 등 모든 AI 호출의 실측 합계(ai_usage_log 기반 RPC).
+  // 이번 달 AI 비용 · 참모·브리핑 등 모든 AI 호출의 실측 합계(ai_usage_log 기반 RPC).
   //   회사별 상한($10/월 ≈ 14,000원)은 공용 호출기(claude.ts)가 강제한다 (2026-07-30 사장님).
-  type AiCosts = {
+  type AiCosts =  {
     month: string; total_usd: number; total_calls: number; cap_usd: number;
     companies: { company: string | null; company_id: string; usd: number; calls: number; tokens: number; by_feature: Record<string, number> }[];
   };
@@ -74,8 +74,8 @@ export default function SystemPage() {
     owner_copilot: "AI 참모", owner_copilot_turn: "AI 참모(후속 턴)", copilot_memory: "AI 참모 기억", biz_cert_extract: "사업자등록증 판독", ai_briefing: "AI 브리핑", classify_tx: "거래 분류", settlement_match: "정산 매칭",
   };
 
-  // 릴리스 로그 — 빌드 시 git 에서 자동 생성된 JSON. 날짜별 그룹.
-  const releaseByDate = (releaseLogJson.entries as { hash: string; date: string; type: string; label: string; scope: string | null; title: string }[])
+  // 릴리스 로그 · 빌드 시 git 에서 자동 생성된 JSON. 날짜별 그룹.
+  const releaseByDate = (releaseLogJson.entries as  { hash: string; date: string; type: string; label: string; scope: string | null; title: string }[])
     .reduce<Record<string, typeof releaseLogJson.entries>[string][]>((acc: any, e: any) => {
       (acc[e.date] = acc[e.date] || []).push(e);
       return acc;
@@ -286,7 +286,7 @@ export default function SystemPage() {
 
         {/* Release Log / 작업일지 */}
         <PfCard i={9} hover={false} className="md:col-span-2">
-          <PfCardHead title="작업일지 / 배포 기록" sub="배포할 때마다 코드 변경 기록에서 자동으로 만들어집니다 — 따로 적지 않아도 항상 최신" />
+          <PfCardHead title="작업일지 / 배포 기록" sub="배포할 때마다 코드 변경 기록에서 자동으로 만들어집니다. 따로 적지 않아도 항상 최신" />
           <PfCardBody>
             <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
               {releaseDates.map((date) => (

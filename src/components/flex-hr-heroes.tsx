@@ -47,9 +47,11 @@ export function payrollStats(employees: any[]) {
   return { active, monthly, insurance };
 }
 
+
+
 // ── 증명서: 이번 달 발급·누적 발급 ──
-//   2026-08-18 구성원 화면이 조회 표준(결과 요약 줄)로 바뀌며 지표만 따로 쓴다 — 히어로 카드와 같은 셈.
-export function useCertificateStats(companyId: string | null) {
+//   2026-08-18 구성원 화면이 조회 표준(결과 요약 줄)로 바뀌며 지표만 따로 쓴다. 히어로 카드와 같은 셈.
+export function useCertificateStats(companyId: string | null)  {
   const monthStart = (() => { const k = new Date(Date.now() + 9 * 3600 * 1000); return `${k.getUTCFullYear()}-${String(k.getUTCMonth() + 1).padStart(2, "0")}-01`; })();
   const { data } = useQuery({
     queryKey: ["flex-cert-hero", companyId],

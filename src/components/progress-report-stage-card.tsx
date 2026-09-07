@@ -55,10 +55,10 @@ export function ProgressReportStageCard({
   approval,
   onApprovalChange,
 }: Props) {
-  const { toast } = useToast();
+  const { toast }  = useToast();
   const queryClient = useQueryClient();
 
-  // 폼 상태 — approval.id 가 있으면 quote_approvals.payload 에서 복원 (재수정 케이스).
+  // 폼 상태 · approval.id 가 있으면 quote_approvals.payload 에서 복원 (재수정 케이스).
   // ApprovalLite 에 payload 가 없어 별도 fetch.
   const [reportText, setReportText] = useState<string>("");
   const [progressPct, setProgressPct] = useState<number>(0);
@@ -91,7 +91,7 @@ export function ProgressReportStageCard({
     return () => { cancelled = true; };
   }, [approval?.id, dealId]);
 
-  // v6 사장님 요청: 자동 디바운스 저장 제거 — 명시 "저장하기" 누를 때만 quote_approvals 행 생성.
+  // v6 사장님 요청: 자동 디바운스 저장 제거 · 명시 "저장하기" 누를 때만 quote_approvals 행 생성.
   //   기존 deals.custom_scope.progress_report 단일 객체 패턴은 누적 스택 모델로 폐기.
 
   const [mode, setMode] = useState<"edit" | "preview">(approval ? "preview" : "edit");
@@ -99,7 +99,7 @@ export function ProgressReportStageCard({
   const [sending, setSending] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
 
-  // 2026-05-21 누적 스택 상세 모달 (사장님 요청 — 클릭 시 본문 전문 확인).
+  // 2026-05-21 누적 스택 상세 모달 (사장님 요청 · 클릭 시 본문 전문 확인).
   const [detailOpen, setDetailOpen] = useState<StackItem | null>(null);
 
   const canSend = reportText.trim().length > 0;
@@ -138,8 +138,8 @@ export function ProgressReportStageCard({
     return Math.min(100, top + 10);
   }, [stack]);
 
-  // "저장하기" — quote_approvals draft 새 행 INSERT (sendApproval 안 함)
-  async function saveDraft() {
+  // "저장하기" · quote_approvals draft 새 행 INSERT (sendApproval 안 함)
+  async function saveDraft()  {
     if (readonly || savingDraft) return;
     if (!reportText.trim()) {
       toast("보고 내용을 입력해 주세요", "error");
@@ -205,7 +205,7 @@ export function ProgressReportStageCard({
         _token = row?.approval_token ?? null;
       }
       if (!_token) {
-        throw new Error("서명 링크 생성 실패 — 잠시 후 다시 시도해 주세요");
+        throw new Error("서명 링크 생성 실패 · 잠시 후 다시 시도해 주세요");
       }
 
       await sendApproval({
@@ -222,7 +222,7 @@ export function ProgressReportStageCard({
             stage: "progress_report",
             to: email,
             signerName: partnerName || undefined,
-            title: dealName ? `${dealName} — 진척 보고서 확인 요청` : "진척 보고서 확인 요청",
+            title: dealName ? `${dealName} · 진척 보고서 확인 요청` : "진척 보고서 확인 요청",
             signUrl: buildQuoteUrl(_token),
           },
         });
@@ -280,7 +280,7 @@ export function ProgressReportStageCard({
             stage: "progress_report",
             to: email,
             signerName: partnerName || undefined,
-            title: dealName ? `${dealName} — 진척 보고서 재발송` : "진척 보고서 재발송",
+            title: dealName ? `${dealName} · 진척 보고서 재발송` : "진척 보고서 재발송",
             signUrl: buildQuoteUrl(token),
           },
         });
@@ -495,7 +495,9 @@ export function ProgressReportStageCard({
       {showResend && (
         <div className="progress-report-resend-bar">
           <div className="text-[10px] text-amber-400 font-medium mb-1.5">
-            거절된 진척 보고서입니다 — 같은 내용으로 재발송 (수정하려면 ✏️ 수정)
+            
+            거절된 진척 보고서입니다. 같은 내용으로 재발송 (수정하려면 ✏️ 수정)
+
           </div>
           <div className="flex flex-col sm:flex-row gap-1.5">
             <input

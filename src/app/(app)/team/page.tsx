@@ -86,7 +86,7 @@ export default function TeamPage() {
   }, [filtered]);
 
 
-  // 조직도 이미지(PNG) 내보내기 — 화면에 보이는 조직도를 **그대로** 캡처 (2026-08-19 사장님:
+  // 조직도 이미지(PNG) 내보내기 · 화면에 보이는 조직도를 **그대로** 캡처 (2026-08-19 사장님:
   //   수동 캔버스 드로잉은 너무 촘촘하게 나왔다 → html-to-image 로 DOM 캡처, 간격·테마 화면과 동일).
   const orgChartRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
@@ -135,7 +135,7 @@ export default function TeamPage() {
                 <span className="qk-quicks">{allDepts.map((d) => <button key={d} type="button" onClick={() => setDraftDepts((x) => x.includes(d) ? x.filter((y) => y !== d) : [...x, d])} className={draftDepts.includes(d) ? "qk-quick qk-quick-on" : "qk-quick"}>{d}</button>)}</span>
               </ConditionRow>
             </ConditionPanel>
-            <QuickSearch value={search} onApply={setSearch} placeholder="이름 · 부서 · 직책 · 이메일 · 연락처 — 쉼표로 여러 개, Enter" />
+            <QuickSearch value={search} onApply={setSearch} placeholder="이름 · 부서 · 직책 · 이메일 · 연락처 · 쉼표로 여러 개, Enter" />
             <ChipGroup value={view} onChange={setView} options={[{ value: "list", label: "리스트" }, { value: "card", label: "카드" }, { value: "org", label: "조직도" }] as const} />
           </QueryBar>
           <AppliedChips chips={chips} onClearAll={() => { setDepts([]); setDraftDepts([]); setSearch(""); }} />
@@ -150,7 +150,7 @@ export default function TeamPage() {
               <div className="collect-empty">불러오는 중…</div>
             ) : filtered.length === 0 ? (
               <div className="collect-empty">
-                {search || depts.length ? "조건에 맞는 구성원이 없습니다" : "등록된 구성원이 없습니다 — 구성원이 등록되면 여기에 표시됩니다"}
+                {search || depts.length ? "조건에 맞는 구성원이 없습니다" : "등록된 구성원이 없습니다. 구성원이 등록되면 여기에 표시됩니다"}
                 {!search && !depts.length && role !== "employee" && <> · <Link href="/employees" className="bz-link">직원 관리로 →</Link></>}
               </div>
             ) : view === "list" ? (

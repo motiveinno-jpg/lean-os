@@ -55,8 +55,10 @@ function toYmd(v: unknown): string | null {
   return null;
 }
 
-/** 실제로 존재하는 날짜만 통과 — 2026-13-45 같은 값이 그대로 DB(date)로 넘어가지 않게 한다. */
-function realDate(y: string, mo: string, d: string): string | null {
+
+
+/** 실제로 존재하는 날짜만 통과 · 2026-13-45 같은 값이 그대로 DB(date)로 넘어가지 않게 한다. */
+function realDate(y: string, mo: string, d: string): string | null  {
   const ymd = `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
   const dt = new Date(`${ymd}T00:00:00Z`);
   if (isNaN(dt.getTime())) return null;
@@ -198,7 +200,7 @@ export function EmployeeBulkInviteModal({ companyId, userId, companyName, onClos
           hire_date: r.hireDate || todayKst(),
           status: "invited",
         });
-        // 직원 행 생성 실패는 초대 자체를 무효화하지 않는다(초대 수락 시 합류는 가능) — 경고로 표시.
+        // 직원 행 생성 실패는 초대 자체를 무효화하지 않는다(초대 수락 시 합류는 가능). 경고로 표시.
         let warn = empErr ? `직원 정보 등록 실패: ${empErr.message}` : undefined;
         if (invitation?.invite_token) {
           const mail = await sendInviteEmail({
@@ -207,7 +209,7 @@ export function EmployeeBulkInviteModal({ companyId, userId, companyName, onClos
             companyName: companyName || undefined,
           });
           if (!mail.success) {
-            warn = [warn, `메일 발송 실패(${mail.error || "원인 미상"}) — 목록에서 재발송하세요`].filter(Boolean).join(" · ");
+            warn = [warn, `메일 발송 실패(${mail.error || "원인 미상"}). 목록에서 재발송하세요`].filter(Boolean).join(" · ");
           }
         }
         out.push({ row: r, ok: true, warn });

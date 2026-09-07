@@ -44,7 +44,7 @@ export default function DesignSystemPage() {
     <div className="ds-page">
       <header className="ds-head">
         <h1>디자인 시스템</h1>
-        <p>오너뷰가 쓰는 부품 전부. 새 화면은 여기 있는 것으로만 조립한다 — 여기 없으면 표준이 아니다.</p>
+        <p>오너뷰가 쓰는 부품 전부. 새 화면은 여기 있는 것으로만 조립한다. 여기 없으면 표준이 아니다.</p>
       </header>
 
       {/* ── 색 ─────────────────────────────────────────────── */}
@@ -59,7 +59,7 @@ export default function DesignSystemPage() {
             </div>
           ))}
         </div>
-        <p className="ds-note">상태 색(프로젝트 템플릿·보드 공용) — 회사 안에서 색 뜻이 갈리지 않게 이 7개만 쓴다.</p>
+        <p className="ds-note">상태 색(프로젝트 템플릿·보드 공용). 회사 안에서 색 뜻이 갈리지 않게 이 7개만 쓴다.</p>
         <div className="ds-statuscolors">
           {STATUS_COLORS.map((s) => (
             <span key={s.hex} className="ds-statuscolor"><i style={{ background: s.hex }} />{s.label}<code>{s.hex}</code></span>

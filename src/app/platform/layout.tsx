@@ -120,12 +120,13 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
       try {
         const data = logRead('platform/layout:data', await supabase.auth.getSession());
         if (!data.session) { router.replace("/auth"); return; }
+        
         const user = await getCurrentUser();
         if (cancelled) return;
-        // 게이트: 서버 is_platform_operator() 와 동일 기준 — 검증된 Auth 로그인 이메일(@mo-tive.com).
+        // 게이트: 서버 is_platform_operator() 와 동일 기준 · 검증된 Auth 로그인 이메일(@mo-tive.com).
         //   (2026-07-20 P0 봉합) 자가수정 가능한 public.users.email·회사명이 아니라 세션 Auth 이메일로 판정.
         const authEmail = data.session.user?.email || "";
-        if (DEV_PREVIEW) { setUserName((user?.name || "미리보기") + " (개발 미리보기)"); setStatus("ready"); return; }
+        if (DEV_PREVIEW)  { setUserName((user?.name || "미리보기") + " (개발 미리보기)"); setStatus("ready"); return; }
         if (!user || !isOperatorEmail(authEmail)) {
           setStatus("denied");
           return;
@@ -151,7 +152,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  // 상단바 시계 — 운영자 화면은 "지금"이 중요하다(1분 갱신).
+  // 상단바 시계 · 운영자 화면은 "지금"이 중요하다(1분 갱신).
   const [clock, setClock] = useState<Date | null>(null);
   useEffect(() => {
     setClock(new Date());
@@ -159,8 +160,8 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
     return () => clearInterval(t);
   }, []);
 
-  // 인라인 스타일 — CSS 로딩 전에도 보이도록
-  if (status === "denied") {
+  // 인라인 스타일 · CSS 로딩 전에도 보이도록
+  if (status === "denied")  {
     return (
       <div className="platform-access-denied-screen" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F2F4F9", color: "#18181B" }}>
         <div style={{ textAlign: "center" }}>
@@ -197,8 +198,9 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
   const initial = (userName || "O").trim().charAt(0).toUpperCase();
 
   return (
-    // 2026-09-03 운영자 v2 — 유리 셸 + 오로라 캔버스(.pf-canvas) + 그라데이션 활성 메뉴 + 시계·빵부스러기 상단바.
+    // 2026-09-03 운영자 v2 · 유리 셸 + 오로라 캔버스(.pf-canvas) + 그라데이션 활성 메뉴 + 시계·빵부스러기 상단바.
     //   (역사) 2026-07-03 다크 콘솔 → 라이트 토큰, 2026-07-06 리퀴드글래스, 2026-07-28 톱바·모바일 칩 내비.
+    
     <div className="min-h-screen flex pf-canvas">
       {/* 사이드바 — 떠 있는 유리 패널, 그룹별 메뉴 + 활성 항목 그라데이션 필 */}
       <aside className="pf-sidebar">

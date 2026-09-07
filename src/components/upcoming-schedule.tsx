@@ -57,8 +57,10 @@ function fmtDateKey(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-// 라운드7.1 — 액션 인박스/브리핑에서 재사용할 수 있게 공개 헬퍼로 노출 (계산 로직 동일)
-export function getUpcomingTaxDeadlines(windowDays = 30): ScheduleItem[] {
+
+
+// 라운드7.1 · 액션 인박스/브리핑에서 재사용할 수 있게 공개 헬퍼로 노출 (계산 로직 동일)
+export function getUpcomingTaxDeadlines(windowDays = 30): ScheduleItem[]  {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const windowEnd = new Date(today.getTime() + windowDays * 86400000);
@@ -99,7 +101,7 @@ function buildTaxSchedules(today: Date, windowEnd: Date): ScheduleItem[] {
     { key: "cit", m: 3, d: 31, title: "법인세 신고/납부 (12월 결산)", href: "/finance/tax-filing?tab=cit" },
     { key: "cit-local", m: 4, d: 30, title: "법인지방소득세 신고/납부", href: "/finance/tax-filing?tab=cit" },
     { key: "cit-interim", m: 8, d: 31, title: "법인세 중간예납", href: "/finance/tax-filing?tab=cit" },
-    //   지급명세서는 반기 딥링크 — 1/31 = 지난해 하반기, 7/31 = 올해 상반기 (2026-09-03 후속). href 의 {y} 는 기한 해.
+    //   지급명세서는 반기 딥링크 · 1/31 = 지난해 하반기, 7/31 = 올해 상반기 (2026-09-03 후속). href 의  {y} 는 기한 해.
     { key: "sps-h2", m: 1, d: 31, title: "근로 간이지급명세서 제출 (하반기분)", href: "/finance/tax-filing?tab=stmt&year={y-1}&half=2" },
     { key: "sps-h1", m: 7, d: 31, title: "근로 간이지급명세서 제출 (상반기분)", href: "/finance/tax-filing?tab=stmt&year={y}&half=1" },
   ];
@@ -118,9 +120,10 @@ function buildTaxSchedules(today: Date, windowEnd: Date): ScheduleItem[] {
       break;
     }
   }
-  //   4대보험(국민연금·건강·고용·산재) 고지분 — 매월 10일. 급여 초안엔 회사 부담분이 없으니 여기서 잊지 않게.
+  
+  //   4대보험(국민연금·건강·고용·산재) 고지분 · 매월 10일. 급여 초안엔 회사 부담분이 없으니 여기서 잊지 않게.
   const ins = nextOccurrence(today, 10);
-  if (ins <= windowEnd) {
+  if (ins  <= windowEnd) {
     items.push({
       id: `ins-${fmtDateKey(ins)}`,
       type: "tax",
@@ -141,7 +144,7 @@ function buildTaxSchedules(today: Date, windowEnd: Date): ScheduleItem[] {
       title: "원천세 신고/납부",
       date: fmtDateKey(wht),
       daysLeft: daysBetween(today, wht),
-      // 신고서가 생겼다 — 재무 › 세무 신고 › 원천세 (2026-08-31 세무 1차, 결정 101. 옛 링크는 급여 페이지였다)
+      // 신고서가 생겼다. 재무 › 세무 신고 › 원천세 (2026-08-31 세무 1차, 결정 101. 옛 링크는 급여 페이지였다)
       href: `/finance/tax-filing?tab=wht&month=${fmtDateKey(payM).slice(0, 7)}`,
     });
   }

@@ -26,10 +26,10 @@ import { sealAsDataUrl } from "@/lib/signatures";
 
 const RichEditor = dynamic(() => import("@/components/rich-editor").then(m => ({ default: m.RichEditor })), { ssr: false, loading: () => <div className="h-48 bg-[var(--bg-surface)] rounded-xl animate-pulse" /> });
 
-// ── 계약서/서약서 템플릿 편집 + 회사 문서 + 발송 현황 — 구성원 상세패널의 "+ 계약서 보내기"로
+// ── 계약서/서약서 템플릿 편집 + 회사 문서 + 발송 현황 · 구성원 상세패널의 "+ 계약서 보내기"로
 //   개별 발송이 이관된 뒤, 회사 전체 관점(서식 관리·회사 문서·발송 현황/일괄발송)만 여기 남음.
 //   (2026-07-15 employees/_components/ContractTab.tsx 에서 이관)
-type CaCond = { emp: string[]; dept: string[]; cFrom: string; cTo: string; sFrom: string; sTo: string; rows: number };
+type CaCond =  { emp: string[]; dept: string[]; cFrom: string; cTo: string; sFrom: string; sTo: string; rows: number };
 const CA_EMPTY: CaCond = { emp: [], dept: [], cFrom: "", cTo: "", sFrom: "", sTo: "", rows: 50 };
 const caCount = (c: CaCond) => c.emp.length + c.dept.length + ((c.cFrom || c.cTo) ? 1 : 0) + ((c.sFrom || c.sTo) ? 1 : 0);
 type CaSort = "title" | "emp" | "dept" | "status" | "created" | "sent" | "completed";
@@ -46,7 +46,7 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchSending, setBatchSending] = useState(false);
   const [sealApplying, setSealApplying] = useState<string | null>(null);
-  // 회사 문서 서브탭 제거(2026-07-23) — 발송/현황만 남아 항상 contracts.
+  // 회사 문서 서브탭 제거(2026-07-23). 발송/현황만 남아 항상 contracts.
   const [contractSubTab] = useState<"contracts">("contracts");
   // 서식 편집은 [서식] 탭으로 이관(2026-07-23). 여는 진입점(헤더 버튼·편집 클릭)을 제거해 항상 false → 아래 에디터 블록 미렌더.
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
@@ -73,7 +73,7 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
     if (!(await appConfirm("이 서식을 삭제하시겠습니까? 발송된 계약서엔 영향 없음.", { danger: true }))) return;
     try {
       const { error } = await supabase.from("doc_templates").update({ is_active: false }).eq("id", id);
-      if (error) throw error;   // supabase-js 는 throw 하지 않음 — 미검사 시 실패도 성공 토스트 (2026-08-19)
+      if (error) throw error;   // supabase-js 는 throw 하지 않음. 미검사 시 실패도 성공 토스트 (2026-08-19)
       queryClient.invalidateQueries({ queryKey: ["contract-templates"] });
       queryClient.invalidateQueries({ queryKey: ["contract-templates-all"] });
       toast("서식이 삭제되었습니다.", "success");
@@ -96,8 +96,8 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
     enabled: !!companyId,
   });
 
-  // 모든 서식 (임시저장 포함 — 에디터 목록용)
-  const { data: allTemplates = [] } = useQuery({
+  // 모든 서식 (임시저장 포함. 에디터 목록용)
+  const  { data: allTemplates = [] } = useQuery({
     queryKey: ["contract-templates-all", companyId],
     queryFn: async () => {
       const data = logRead('_components/ContractAdminPanel:data', await supabase
@@ -119,11 +119,11 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
         const msg = result.error || "알 수 없는 오류";
         console.error('[handleSendSignRequest] 실패:', msg);
         if (/RESEND_API_KEY/i.test(msg)) {
-          toast("Supabase secrets 에 RESEND_API_KEY 미등록 — Edge Function Secrets 페이지에서 등록하세요.", "error");
+          toast("Supabase secrets 에 RESEND_API_KEY 미등록 · Edge Function Secrets 페이지에서 등록하세요.", "error");
         } else if (/verify|verif|domain|not\s*verified/i.test(msg)) {
-          toast("Resend 도메인 인증 필요 — owner-view.com 을 Resend dashboard 에서 verify 후 재시도.", "error");
+          toast("Resend 도메인 인증 필요. owner-view.com 을 Resend dashboard 에서 verify 후 재시도.", "error");
         } else if (/invalid.*api.*key|unauthor/i.test(msg)) {
-          toast("Resend API 키 오류 — Supabase secrets 의 RESEND_API_KEY 값 확인 필요.", "error");
+          toast("Resend API 키 오류 · Supabase secrets 의 RESEND_API_KEY 값 확인 필요.", "error");
         } else {
           toast("발송 실패: " + msg.slice(0, 200), "error");
         }
@@ -174,8 +174,10 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
     });
   }
 
-  // 직인 적용 핸들러 — 패키지 단위로 적용 (notes JSON 에 seal_applied 표시 + 회사 seal_url 스냅샷)
-  async function handleApplySeal(contractId: string) {
+  
+
+  // 직인 적용 핸들러 · 패키지 단위로 적용 (notes JSON 에 seal_applied 표시 + 회사 seal_url 스냅샷)
+  async function handleApplySeal(contractId: string)  {
     if (!companyId) return;
     setSealApplying(contractId);
     try {
@@ -195,15 +197,16 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
           if (typeof parsed === 'object' && parsed && !Array.isArray(parsed)) notesObj = parsed;
         } catch { /* keep empty */ }
       }
+      
       notesObj.seal_applied_at = new Date().toISOString();
-      // 서명 화면(비로그인)이 그대로 보여 주는 값 — 저장소 주소 대신 이미지 자체를 넣는다
+      // 서명 화면(비로그인)이 그대로 보여 주는 값 · 저장소 주소 대신 이미지 자체를 넣는다
       notesObj.seal_url = (await sealAsDataUrl(company.seal_url)) || company.seal_url;
       notesObj.seal_company_name = company.name || '';
-      const { error: sealErr } = await supabase
+      const  { error: sealErr } = await supabase
         .from("hr_contract_packages")
         .update({ notes: JSON.stringify(notesObj) })
         .eq("id", contractId);
-      if (sealErr) throw sealErr;   // 미검사 시 실패해도 "직인 적용됨" — 실제 PDF엔 직인 없음 (2026-08-19)
+      if (sealErr) throw sealErr;   // 미검사 시 실패해도 "직인 적용됨" · 실제 PDF엔 직인 없음 (2026-08-19)
       queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
       toast("직인이 적용되었습니다 (서명본/PDF에 반영됨)", "success");
     } catch (err: any) {
@@ -213,7 +216,9 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
     }
   }
 
-  // ── 조회 표준(2026-08-18 Wave 4) — 상태 칩 + 검색조건(직원·부서·생성일·발송일) + 빠른검색 + 머리단 정렬·≡·너비 + 쪽 ──
+  
+
+  // ── 조회 표준(2026-08-18 Wave 4). 상태 칩 + 검색조건(직원·부서·생성일·발송일) + 빠른검색 + 머리단 정렬·≡·너비 + 쪽 ──
   const [q, setQ] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState<CaCond>(CA_EMPTY);
@@ -314,7 +319,7 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
               <DateRangeField label={null} from={draft.sFrom} to={draft.sTo} onChange={(f, t) => setDraft((c) => ({ ...c, sFrom: f, sTo: t }))} onClear={() => setDraft((c) => ({ ...c, sFrom: "", sTo: "" }))} />
             </ConditionRow>
           </ConditionPanel>
-          <QuickSearch value={q} onApply={setQ} placeholder="계약 제목 · 직원 · 부서 · 상태 — 쉼표로 여러 개, Enter" />
+          <QuickSearch value={q} onApply={setQ} placeholder="계약 제목 · 직원 · 부서 · 상태 · 쉼표로 여러 개, Enter" />
           {/* 상태 칩 — 갈래를 바로 바꾸는 값 하나짜리라 조회 줄에 둔다 */}
           <ChipGroup value={statusFilter} onChange={(v) => { setStatusFilter(v); setSelectedIds(new Set()); }}
             options={STATUS_CHIPS.map((c) => ({ value: c.value as string, label: (statusCounts as any)[c.value] > 0 ? `${c.label} ${(statusCounts as any)[c.value]}` : c.label }))} />
@@ -451,7 +456,7 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
                       ? 'bg-amber-500/5 border-amber-500/30'
                       : 'bg-[var(--bg-surface)] border-[var(--border)]'
                   }`}>
-                    <button onClick={() => startEditTemplate(t)} className="text-xs text-[var(--text)] hover:text-[var(--primary)] transition" title={t.is_builtin ? "내장 서식 — 복제 후 편집" : t.is_active === false ? "임시저장" : "수정"}>
+                    <button onClick={() => startEditTemplate(t)} className="text-xs text-[var(--text)] hover:text-[var(--primary)] transition" title={t.is_builtin ? "내장 서식 · 복제 후 편집" : t.is_active === false ? "임시저장" : "수정"}>
                       {t.is_builtin && <span className="text-[9px] text-amber-500 mr-1"><Ico e="🔒" /></span>}
                       {t.is_active === false && <span className="text-[9px] text-amber-500 mr-1"><Ico e="📝" /></span>}
                       {t.name}

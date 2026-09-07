@@ -61,8 +61,9 @@ type Tab = "overview" | "accounts" | "transactions";
 const TX_IO_CHIPS = [
   { value: "all", label: "전체" }, { value: "in", label: "입금" }, { value: "out", label: "출금" },
 ] as const;
-//   기본은 '미전표'(전표 안 된 것만) — 전표처리된 건은 목록에서 사라진다 (2026-08-19 사장님). 전체·전표됨은 골라 본다.
+//   기본은 '미전표'(전표 안 된 것만). 전표처리된 건은 목록에서 사라진다 (2026-08-19 사장님). 전체·전표됨은 골라 본다.
 const TX_STATE_CHIPS = [
+  
   { value: "unposted", label: "미처리" }, { value: "all", label: "전체" }, { value: "pending", label: "연결 대기" },
   { value: "linked", label: "증빙 연결" }, { value: "posted", label: "전표됨" }, { value: "excluded", label: "장부 제외" },
 ] as const;
@@ -102,20 +103,20 @@ export default function BankPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, bankTabMaster, bankTabPerm]);
   const queryClient = useQueryClient();
-  //   통장 줄 처리 팝업 (증빙 연결 · 일반전표 · 장부 제외) — 상태 칩을 누르면 연다
+  //   통장 줄 처리 팝업 (증빙 연결 · 일반전표 · 장부 제외). 상태 칩을 누르면 연다
   const [lineTx, setLineTx] = useState<any | null>(null);
   const { toast } = useToast();
-  const { confirm, confirmElement } = useConfirm();
+  const { confirm, confirmElement }  = useConfirm();
   const [syncing, setSyncing] = useState(false);
-  // 은행·카드 연동 허용 여부 (무료 플랜은 불가 — 서버도 402 로 막는다)
-  const { data: bankSync } = useQuery({
+  // 은행·카드 연동 허용 여부 (무료 플랜은 불가 · 서버도 402 로 막는다)
+  const  { data: bankSync } = useQuery({
     queryKey: ["bank-sync-access", companyId],
     queryFn: () => getBankSyncAccess(companyId!),
     enabled: !!companyId,
     staleTime: 5 * 60_000,
   });
-  // 연동 일시정지(중복 로그인 방지) — company_settings.settings.sync_paused_until.
-  const { data: syncPausedUntil } = useQuery({
+  // 연동 일시정지(중복 로그인 방지). company_settings.settings.sync_paused_until.
+  const  { data: syncPausedUntil } = useQuery({
     queryKey: ["bank-sync-paused", companyId],
     queryFn: () => getSyncPausedUntil(companyId!),
     enabled: !!companyId,
@@ -129,7 +130,7 @@ export default function BankPage() {
     },
     onSuccess: (paused) => {
       queryClient.invalidateQueries({ queryKey: ["bank-sync-paused", companyId] });
-      toast(paused ? "연동을 30분간 정지했습니다 — 은행에 직접 로그인해도 강제 로그아웃되지 않습니다" : "연동 정지를 해제했습니다", "success");
+      toast(paused ? "연동을 30분간 정지했습니다. 은행에 직접 로그인해도 강제 로그아웃되지 않습니다" : "연동 정지를 해제했습니다", "success");
     },
     onError: (e: any) => toast(friendlyError(e, "정지 처리 실패"), "error"),
   });
@@ -149,8 +150,8 @@ export default function BankPage() {
     try { await updateBankAccountMeta(companyId, acctEdit.accountNo, { alias: acctEdit.alias, memo: acctEdit.memo }, { bankName: acctEdit.bankName, balance: acctEdit.balance }); refreshAccts(); toast("통장 정보를 저장했습니다", "success"); setAcctEdit(null); }
     catch (e: any) { toast(friendlyError(e, "저장 실패"), "error"); } finally { setAcctSaving(false); }
   };
-  //   수집 켜기/끄기 — 무료 요금제는 통장·카드 합쳐 3개까지만 수집(DB 트리거가 4번째를 막는다). 끈 통장은 목록에 남고 거래만 안 가져온다.
-  const { data: syncQuota } = useQuery({
+  //   수집 켜기/끄기 · 무료 요금제는 통장·카드 합쳐 3개까지만 수집(DB 트리거가 4번째를 막는다). 끈 통장은 목록에 남고 거래만 안 가져온다.
+  const  { data: syncQuota } = useQuery({
     queryKey: ["free-sync-quota", companyId],
     queryFn: async () => { const { data, error } = await (db as any).rpc("free_sync_quota", { p_company: companyId }); if (error) return null; return data as { free: boolean; limit: number | null; used: number } | null; },
     enabled: !!companyId, staleTime: 30_000,
@@ -166,7 +167,7 @@ export default function BankPage() {
   };
   const toggleAcctHidden = async (a: { accountNo: string; isHidden?: boolean; bankName?: string; balance: number }) => {
     if (!companyId) return;
-    try { await updateBankAccountMeta(companyId, a.accountNo, { is_hidden: !a.isHidden }, { bankName: a.bankName, balance: a.balance }); refreshAccts(); toast(a.isHidden ? "다시 보입니다" : "목록에서 숨겼습니다 — '숨긴 통장 보기'로 되돌릴 수 있습니다", "success"); }
+    try { await updateBankAccountMeta(companyId, a.accountNo, { is_hidden: !a.isHidden }, { bankName: a.bankName, balance: a.balance }); refreshAccts(); toast(a.isHidden ? "다시 보입니다" : "목록에서 숨겼습니다. '숨긴 통장 보기'로 되돌릴 수 있습니다", "success"); }
     catch (e: any) { toast(friendlyError(e, "변경 실패"), "error"); }
   };
   const removeAcct = async (a: { accountNo: string; alias?: string; bankName?: string }) => {
@@ -188,7 +189,7 @@ export default function BankPage() {
     const c = { ...TX_EMPTY, accts: [accNo] };
     setTxDraft(c); setTxLive(c); setTxQ("");
   };
-  // 거래내역 표 — 헤더 더블클릭 정렬 + 행 체크박스 다중선택 (UI 전용, DB 변경 없음)
+  // 거래내역 표 · 헤더 더블클릭 정렬 + 행 체크박스 다중선택 (UI 전용, DB 변경 없음)
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selectedTxIds, setSelectedTxIds] = useState<Set<string>>(new Set());
@@ -241,11 +242,12 @@ export default function BankPage() {
         toast(result.error || "통장 연동 실패", "error");
         return;
       }
+      
       markConnectedOnce(companyId, "bank");
       const synced = result.bankSynced ?? 0;
-      // 예금주명 백필 — 은행이 desc1에 채널명만 주고 이름을 안 준 거래를
+      // 예금주명 백필 · 은행이 desc1에 채널명만 주고 이름을 안 준 거래를
       //   상대계좌번호·거래처명 매칭으로 채운다 (실패해도 동기화 결과엔 영향 없음)
-      try { await db.rpc("backfill_bank_counterparty", { p_company_id: companyId }); } catch { /* best-effort */ }
+      try  { await db.rpc("backfill_bank_counterparty", { p_company_id: companyId }); } catch { /* best-effort */ }
       const balResult = await syncBankBalances(companyId);
       // 통장·거래·잔액 모두 새로 받아오기
       queryClient.invalidateQueries({ queryKey: ["bank-page-accounts-distinct"] });
@@ -263,16 +265,18 @@ export default function BankPage() {
         n.code === "NO_DEMAND_DEPOSIT" || n.code === "CF-00401" || n.code === "CF-00003" || n.code === "CF-13021",
       );
       if (firstError) {
-        toast(`통장 동기화 오류 — ${firstError.message}${firstError.hint ? ` · ${firstError.hint}` : ""}`, "error");
+        toast(`통장 동기화 오류 · ${firstError.message}${firstError.hint ? ` · ${firstError.hint}` : ""}`, "error");
       } else if (synced > 0) {
         toast(`통장 거래 ${synced}건 불러옴${balMsg}`, "success");
       } else if (blockerNote) {
-        toast(`통장 연동 — ${blockerNote.message}${blockerNote.hint ? ` · ${blockerNote.hint}` : ""}`, "info");
+        toast(`통장 연동 · ${blockerNote.message}${blockerNote.hint ? ` · ${blockerNote.hint}` : ""}`, "info");
       } else {
-        toast(`통장 연동 완료 — 새 거래 없음${balMsg}`, "info");
+        toast(`통장 연동 완료 · 새 거래 없음${balMsg}`, "info");
       }
 
-      // 동기화 후 자동분류(비차단) — 규칙·학습 기반. UI 를 막지 않고 백그라운드로 실행,
+      
+
+      // 동기화 후 자동분류(비차단). 규칙·학습 기반. UI 를 막지 않고 백그라운드로 실행,
       //   완료 시 매칭된 건이 있을 때만 결과 토스트 + 목록 갱신. (매칭분만 auto_mapped → 반복 실행 시 수렴)
       import("@/lib/automation")
         .then(({ applyBankClassificationRules }) => applyBankClassificationRules(companyId))
@@ -297,7 +301,7 @@ export default function BankPage() {
           const start = kstDateStr(s);
           const data = logRead('bank/page:data', await (supabase).rpc("generate_settlement_suggestions", { p_start: start, p_end: end }));
           const sug = Number((data as any)?.suggested || 0);
-          if (sug > 0) toast(`입금 매칭 제안 ${sug}건 생성 — '거래 대사'에서 확인·확정하세요`, "info");
+          if (sug > 0) toast(`입금 매칭 제안 ${sug}건 생성 · '거래 대사'에서 확인·확정하세요`, "info");
         } catch { /* 제안 생성 실패는 비차단 */ }
       })();
     } catch (e: any) {
@@ -318,25 +322,25 @@ export default function BankPage() {
     return { curFrom: ymd(cur.from), curTo: ymd(cur.to), prevFrom: ymd(prev.from), prevTo: ymd(prev.to) };
   }, []);
 
-  // 통장 목록 — BankAccountsOverview 와 동일 소스(`getDistinctBankAccountNos`).
+  // 통장 목록 · BankAccountsOverview 와 동일 소스(`getDistinctBankAccountNos`).
   //   bank_accounts 테이블 직접 read 는 빈 회사가 많아 거래에서 derive 한 distinct 가 정합.
-  //   반환 shape: { accountNo, count, balance, alias?, bankName? }
+  //   반환 shape:  { accountNo, count, balance, alias?, bankName? }
   const { data: accounts = [] } = useQuery({
     queryKey: ["bank-page-accounts-distinct", companyId],
     queryFn: () => getDistinctBankAccountNos(companyId!),
     enabled: !!companyId,
   });
 
-  // 통장별 이번 달 증감 (income−expense). 기존 lib 재사용 — 가짜 metric 금지.
-  const { data: changes } = useQuery({
+  // 통장별 이번 달 증감 (income−expense). 기존 lib 재사용 · 가짜 metric 금지.
+  const  { data: changes } = useQuery({
     queryKey: ["bank-page-changes", companyId, ranges.curFrom, ranges.curTo],
     queryFn: () => getBankAccountChanges(companyId!, ranges.curFrom, ranges.curTo),
     enabled: !!companyId,
   });
   const changeByAcct = changes?.byAccount || {};
 
-  // 이번 달 + 전월 합계 (stat 4 — 가짜 % 금지).
-  const { data: flow } = useQuery({
+  // 이번 달 + 전월 합계 (stat 4 · 가짜 % 금지).
+  const  { data: flow } = useQuery({
     queryKey: ["bank-page-flow-v2", companyId, ranges.curFrom, ranges.curTo],
     queryFn: async () => {
       const [cur, prev] = await Promise.all([
@@ -394,8 +398,8 @@ export default function BankPage() {
     enabled: !!companyId, staleTime: 300_000,
   });
 
-  //   연결 대기 — 사람이 고른 정산 초안(match_source manual · suggested)이 걸린 통장 줄. 엔진·AI 제안은 팝업 안에서만 보인다(결정 46). 확정은 팝업·재무 › 전표 현황 › 처리할 것에서
-  const { data: pendingSettles = [] } = useQuery({
+  //   연결 대기 · 사람이 고른 정산 초안(match_source manual · suggested)이 걸린 통장 줄. 엔진·AI 제안은 팝업 안에서만 보인다(결정 46). 확정은 팝업·재무 › 전표 현황 › 처리할 것에서
+  const  { data: pendingSettles = [] } = useQuery({
     queryKey: ["bank-page-pending-settles", companyId],
     queryFn: async () => {
       const data = await fetchPaged<any>("bank/page:pending-settles", () => (db as any).from("invoice_settlements").select("bank_transaction_id").eq("company_id", companyId ?? "").eq("match_source", "manual").in("status", ["suggested", "needs_review"]).not("bank_transaction_id", "is", null).order("id"), 50000);
@@ -411,8 +415,8 @@ export default function BankPage() {
     queryClient.invalidateQueries({ queryKey: ["bank-page-flow-v2"] });
     queryClient.invalidateQueries({ queryKey: ["bank-page-changes"] });
   };
-  // 직원 QA 통장(그랜터) — 사용직원 선택용 재직 직원 목록
-  const { data: bankEmployees = [] } = useQuery({
+  // 직원 QA 통장(그랜터). 사용직원 선택용 재직 직원 목록
+  const  { data: bankEmployees = [] } = useQuery({
     queryKey: ["bank-page-employees", companyId],
     queryFn: async () => {
       const data = logRead('bank/page:data', await db.from("employees").select("id, name").eq("company_id", companyId ?? "").eq("status", "active").order("name"));
@@ -440,16 +444,16 @@ export default function BankPage() {
     return tx.description || "";
   };
 
-  // 일괄 전표처리 — 선택된 미처리 통장거래를 계정 1개로 순차 post_bank_voucher(방향 자동 분기).
+  // 일괄 전표처리 · 선택된 미처리 통장거래를 계정 1개로 순차 post_bank_voucher(방향 자동 분기).
   const [showBulkPost, setShowBulkPost] = useState(false);
   const [bulkAccountId, setBulkAccountId] = useState<string>("");
   const [bulkFixed, setBulkFixed] = useState(false); // 고정비로 표시 — 전표처리와 함께 is_fixed_cost 저장
   const [bulkPosting, setBulkPosting] = useState(false);
   //   장부 제외 (2026-08-19) — 선택한 미전표 거래를 사유와 함께 전표 없이 끝낸다 / 제외 해제
-  const { askExclude, excludePromptElement } = useLedgerExcludePrompt();
-  //   자동이체 — 정기 지출(재무 › 정기 지출)과 짝이 맞는 출금은 자동으로, 안 잡히는 줄은 사람이 표시한다.
+  const { askExclude, excludePromptElement }  = useLedgerExcludePrompt();
+  //   자동이체 · 정기 지출(재무 › 정기 지출)과 짝이 맞는 출금은 자동으로, 안 잡히는 줄은 사람이 표시한다.
   //   개요의 '자동이체 연결 내역' 이 같은 규칙(lib/recurring-match)으로 모은다 (2026-09-07).
-  const { data: recurringList = [] } = useQuery({
+  const  { data: recurringList = [] } = useQuery({
     queryKey: ["recurring-payments", companyId],
     queryFn: () => getRecurringPayments(companyId ?? ""),
     enabled: !!companyId && tab === "transactions", staleTime: 60_000,
@@ -466,7 +470,7 @@ export default function BankPage() {
     try {
       const { error } = await db.from("bank_transactions").update({ is_auto_transfer: value }).in("id", ids).eq("company_id", companyId ?? "");
       if (error) throw error;
-      toast(value ? `${ids.length}건을 자동이체로 표시했습니다 — 개요의 '자동이체 연결 내역'에 모입니다` : `${ids.length}건의 자동이체 표시를 해제했습니다`, "success");
+      toast(value ? `${ids.length}건을 자동이체로 표시했습니다. 개요의 '자동이체 연결 내역'에 모입니다` : `${ids.length}건의 자동이체 표시를 해제했습니다`, "success");
       setSelectedTxIds(new Set());
       queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] });
       queryClient.invalidateQueries({ queryKey: ["auto-transfer-history"] });
@@ -478,11 +482,11 @@ export default function BankPage() {
     const first = (recentTx as any[]).find((x) => x.id === ids[0]);
     const reason = await askExclude(`통장 ${first?.transaction_date} ${first?.counterparty || ""} ${fmtW(Math.abs(Number(first?.amount || 0)))}`, ids.length);
     if (!reason) return;
-    try { const n = await setLedgerExcluded("bank", ids, reason); toast(`${n}건 장부 제외 — 목록에서 사라졌습니다 (검색조건 상태 '장부 제외'로 다시 봅니다)`, "success"); setSelectedTxIds(new Set()); queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] }); }
+    try { const n = await setLedgerExcluded("bank", ids, reason); toast(`${n}건 장부 제외 · 목록에서 사라졌습니다 (검색조건 상태 '장부 제외'로 다시 봅니다)`, "success"); setSelectedTxIds(new Set()); queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] }); }
     catch (e) { toast(friendlyError(e, "장부 제외 실패"), "error"); }
   };
   const unexclude = async (id: string) => {
-    try { await setLedgerExcluded("bank", [id], null); toast("제외를 해제했습니다 — 미전표로 돌아옵니다", "success"); queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] }); }
+    try { await setLedgerExcluded("bank", [id], null); toast("제외를 해제했습니다. 미전표로 돌아옵니다", "success"); queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] }); }
     catch (e) { toast(friendlyError(e, "해제 실패"), "error"); }
   };
   const doBulkPostBank = async () => {
@@ -557,7 +561,7 @@ export default function BankPage() {
     });
   }, [recentTx, sortKey, sortDir]);
 
-  /*  ── 엑셀식 머리단 필터 + 열 너비 — 수집·전표 표와 같은 방식 (sortable-th 공용 부품) ── */
+  /*  ── 엑셀식 머리단 필터 + 열 너비 · 수집·전표 표와 같은 방식 (sortable-th 공용 부품) ── */
   const [colF, setColF] = useState<Record<string, Set<string> | null>>({});
   const tableRef = useRef<HTMLTableElement | null>(null);
   const [colW, setColW] = useColWidths("bank-tx-colw", {
@@ -609,9 +613,9 @@ export default function BankPage() {
   const pager = usePager(shownTx, txLive.size,
     `${bankTxFrom}|${bankTxTo}|${txQ}|${JSON.stringify(txLive)}|${JSON.stringify(Object.fromEntries(Object.entries(colF).map(([k, v]) => [k, v ? [...v] : null])))}`);
 
-  //   내 조건 — ★ 하나가 이 화면의 기본값이 된다 (DB 라 PC 를 바꿔도 따라온다)
+  //   내 조건 · ★ 하나가 이 화면의 기본값이 된다 (DB 라 PC 를 바꿔도 따라온다)
   const savedTx = useSavedQueries("bank-tx", companyId);
-  const txParamsNow = { from: bankTxFrom, to: bankTxTo, q: txQ, cond: txLive };
+  const txParamsNow =  { from: bankTxFrom, to: bankTxTo, q: txQ, cond: txLive };
   const txParamsBasic = { ...defaultRange(), q: "", cond: TX_EMPTY };
   const applySavedTx = (p: Record<string, unknown>) => {
     if (typeof p.from === "string" && typeof p.to === "string") { setBankTxFrom(p.from); setBankTxTo(p.to); }
@@ -697,9 +701,10 @@ export default function BankPage() {
         ) : null}
       </div>
     </div>
+  
   );
 
-  /*  ── 조회 화면 표준 — 조회 줄에 쓰는 값들 (2026-08-14) ── */
+  /*  ── 조회 화면 표준 · 조회 줄에 쓰는 값들 (2026-08-14) ── */
   const acctLabelByNo: Record<string, string> = {};
   for (const a of accounts) if (a.accountNo) acctLabelByNo[a.accountNo] = accountLabelOf(a);
   //   고를 수 있는 값들 — 예금주명·분류는 이 기간에 실제로 나온 것만, 계좌는 회사 전체 목록
@@ -710,7 +715,7 @@ export default function BankPage() {
     .map((a) => ({ value: String(a.accountNo), label: accountLabelOf(a), sub: String(a.accountNo).slice(-4) }));
   const clsOpts = [...new Set((recentTx as any[]).map((t) => t.classification || t.category).filter(Boolean))]
     .sort((a, b) => String(a).localeCompare(String(b), "ko")).map((c) => ({ value: String(c), label: String(c) }));
-  //   걸린 조건 칩 — 패널을 열지 않고도 알고, ✕ 로 하나씩 뺀다
+  //   걸린 조건 칩 · 패널을 열지 않고도 알고, ✕ 로 하나씩 뺀다
   const dropTx = (patch: Partial<TxCond>) => { const c = { ...txLive, ...patch }; setTxLive(c); setTxDraft(c); };
   const txChips: AppliedChip[] = [
     ...quickTerms(txQ).map((t, i) => ({
@@ -752,9 +757,10 @@ export default function BankPage() {
       hint: `${pager.from}–${pager.to}번째 줄만`, onClick: () => exportBankCsv(pager.view, `_${pager.page}쪽`) },
   ];
 
-  // (2026-07-30 개편 P3) 세부탭 권한 게이트 — 마스터=전체, 멤버=부여(/bank:탭키)만
-  const tabs: { key: Tab; label: string }[] = ([
-    //   카드 화면과 같은 순서·이름 — 목록 · 거래내역 · 개요 (2026-09-07 사장님: "같은 기능이면 이름이랑 순서 맞춰")
+  // (2026-07-30 개편 P3) 세부탭 권한 게이트 · 마스터=전체, 멤버=부여(/bank:탭키)만
+  const tabs:  { key: Tab; label: string }[] = ([
+    //   카드 화면과 같은 순서·이름 · 목록 · 거래내역 · 개요 (2026-09-07 사장님: "같은 기능이면 이름이랑 순서 맞춰")
+    
     { key: "accounts", label: "통장" },
     { key: "transactions", label: "거래내역" },
     { key: "overview", label: "개요" },
@@ -782,7 +788,7 @@ export default function BankPage() {
             onClick={() => pauseMut.mutate()}
             disabled={!companyId || pauseMut.isPending}
             className={`btn-secondary btn-sm no-print ${isSyncPaused ? "border-amber-500/40 text-amber-600" : ""}`}
-            title="데이터 연동 잠시 멈추기 (30분간 중복 로그인 방지) — 은행 사이트에 직접 로그인할 때 우리 앱의 자동 동기화가 겹쳐 강제 로그아웃되는 것을 막습니다"
+            title="데이터 연동 잠시 멈추기 (30분간 중복 로그인 방지). 은행 사이트에 직접 로그인할 때 우리 앱의 자동 동기화가 겹쳐 강제 로그아웃되는 것을 막습니다"
           >
             {isSyncPaused
               ? <>정지 해제 ({new Date(syncPausedUntil!).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}까지)</>
@@ -797,17 +803,19 @@ export default function BankPage() {
                 toast("무료 요금제는 즉시 동기화를 쓸 수 없습니다. 통장·카드는 하루 2회(오전 9시·오후 6시) 자동으로 동기화되고, 원할 때 바로 불러오려면 요금제를 시작해 주세요.", "info");
                 return;
               }
-              // 직원 QA — 기간 미선택 등 동기화가 실제로 시작 안 되면 쿨타임을 걸지 않음
+              
+              // 직원 QA · 기간 미선택 등 동기화가 실제로 시작 안 되면 쿨타임을 걸지 않음
               //   (run 은 fn 실행 전에 쿨타임을 기록하므로, 사전 검증을 run 밖에서 먼저 한다)
-              if (isSyncPaused) { toast("연동이 일시정지 중입니다. 정지 해제 후 연동하세요.", "info"); return; }
+              if (isSyncPaused)  { toast("연동이 일시정지 중입니다. 정지 해제 후 연동하세요.", "info"); return; }
               if (!bankTxFrom || !bankTxTo) { toast("통장 거래 기간(시작일·종료일)을 먼저 설정한 뒤 연동하세요", "error"); return; }
               bankCd.run(handleSyncBank);
             }}
-            // 무료는 disabled 로 막지 않는다 — 눌렀을 때 왜 안 되는지 알려줘야 하는데
+            
+            // 무료는 disabled 로 막지 않는다. 눌렀을 때 왜 안 되는지 알려줘야 하는데
             //   disabled 면 클릭 이벤트 자체가 안 온다. 흐릿하게만 표시하고 안내는 onClick 에서.
             disabled={syncing || !companyId || bankCd.disabled || isSyncPaused}
             className={`btn-primary btn-sm ${bankCd.disabled || isSyncPaused || (bankSync && !bankSync.manualAllowed) ? "!opacity-40 cursor-not-allowed" : ""}`}
-            title={bankSync && !bankSync.manualAllowed ? "무료 요금제는 즉시 동기화를 쓸 수 없습니다 — 하루 2회 자동 동기화는 그대로 됩니다" : isSyncPaused ? "연동 일시정지 중 — 정지 해제 후 연동" : bankCd.hint ? bankCd.hint : "왼쪽 거래기간을 설정한 뒤 CODEF 은행 연동으로 그 기간의 거래·잔액을 불러옵니다"}
+            title={bankSync && !bankSync.manualAllowed ? "무료 요금제는 즉시 동기화를 쓸 수 없습니다. 하루 2회 자동 동기화는 그대로 됩니다" : isSyncPaused ? "연동 일시정지 중 · 정지 해제 후 연동" : bankCd.hint ? bankCd.hint : "왼쪽 거래기간을 설정한 뒤 CODEF 은행 연동으로 그 기간의 거래·잔액을 불러옵니다"}
           >
             {syncing ? "연동 중…" : bankCd.disabled ? bankCd.label : "통장 연동"}
           </button>
@@ -839,7 +847,7 @@ export default function BankPage() {
               {tab === "accounts" && accounts.some((a) => a.isHidden) && (
                 <button type="button" onClick={() => setShowHiddenAccts((v) => !v)} className={showHiddenAccts ? "qk-quick qk-quick-on" : "qk-quick"}>숨긴 통장 {accounts.filter((a) => a.isHidden).length}개 {showHiddenAccts ? "감추기" : "보기"}</button>
               )}
-              <span className="text-[11px] text-[var(--text-dim)]">{tab === "accounts" ? "거래기간은 연동 범위 · 표의 '이번 달 변화'는 이번 달(1일~오늘) 기준 · 거래를 조건으로 찾으려면 거래내역 탭" : "통장 잔액·이번 달 흐름 — 거래를 조건으로 찾으려면 거래내역 탭"}</span>
+              <span className="text-[11px] text-[var(--text-dim)]">{tab === "accounts" ? "거래기간은 연동 범위 · 표의 '이번 달 변화'는 이번 달(1일~오늘) 기준 · 거래를 조건으로 찾으려면 거래내역 탭" : "통장 잔액·이번 달 흐름 · 거래를 조건으로 찾으려면 거래내역 탭"}</span>
             </QueryBar>
             {/* 결과 요약 — 예전 stat 4 그라데이션 카드(총 자산·이번 달 수익·지출·분류 완료율)를 Stat 줄로 (2026-08-19 자금 메뉴 점검) */}
             <ResultStrip>
@@ -886,7 +894,7 @@ export default function BankPage() {
               const bal = Number(a.balance || 0);
               return (
                 <tr key={a.accountNo} className={`pnl-row-acct ${a.isHidden ? "opacity-60" : ""}`} onClick={() => { seedAccountCond(accNo); goTab("transactions"); }} title="누르면 이 통장 거래내역">
-                  <td className="text-left"><span className="inline-flex items-center gap-2"><BankLogo name={a.bankName || name} size={20} /><b>{name}</b>{a.syncEnabled === false && <span className="ol-sure ml-1.5" title="거래를 가져오지 않는 통장 — '수집 켜기'로 되돌립니다">수집 꺼짐</span>}{a.alias && a.bankName && <small className="text-[var(--text-dim)]">{a.bankName}</small>}{a.isHidden && <span className="ol-sure">숨김</span>}</span></td>
+                  <td className="text-left"><span className="inline-flex items-center gap-2"><BankLogo name={a.bankName || name} size={20} /><b>{name}</b>{a.syncEnabled === false && <span className="ol-sure ml-1.5" title="거래를 가져오지 않는 통장 · '수집 켜기'로 되돌립니다">수집 꺼짐</span>}{a.alias && a.bankName && <small className="text-[var(--text-dim)]">{a.bankName}</small>}{a.isHidden && <span className="ol-sure">숨김</span>}</span></td>
                   {/* 계좌번호는 전체를 보인다 (2026-08-19 사장님: "통장에서 계좌번호를 다 보이게") */}
                   <td className="text-center mono-number text-[var(--text-muted)]">{accNo || "—"}</td>
                   <td className="text-left text-[var(--text-muted)]">{a.memo ? <span className="truncate inline-block max-w-[220px]" title={a.memo}>{a.memo}</span> : <span className="text-[var(--text-dim)]">—</span>}</td>
@@ -1053,7 +1061,7 @@ export default function BankPage() {
               </ConditionPanel>
             } />
           <QuickSearch value={txQ} onApply={setTxQ}
-            placeholder="예금주명 · 거래내용 · 분류 · 금액 — 쉼표로 여러 개, Enter" />
+            placeholder="예금주명 · 거래내용 · 분류 · 금액 · 쉼표로 여러 개, Enter" />
         </QueryBar>
 
         <AppliedChips chips={txChips} onClearAll={() => { setTxQ(""); setTxLive(TX_EMPTY); setTxDraft(TX_EMPTY); }} />
@@ -1063,7 +1071,7 @@ export default function BankPage() {
           <QStat label="건수" value={`${shownTx.length.toLocaleString("ko-KR")}건`} />
           <QStat label="입금" value={fmtW(sumInTx)} tone="plus" />
           <QStat label="출금" value={fmtW(sumOutTx)} tone="minus" />
-          {recentTx.length >= 2000 && <b className="ev-cut">너무 많아 앞 2,000건만 받아왔습니다 — 기간을 좁혀 주세요</b>}
+          {recentTx.length >= 2000 && <b className="ev-cut">너무 많아 앞 2,000건만 받아왔습니다<span className="ui-sub">기간을 좁혀 주세요</span></b>}
         </ResultStrip>
         </QueryHead>
 
@@ -1178,11 +1186,11 @@ export default function BankPage() {
         {/* ── 3줄 · 고른 줄로 하는 일 — 파란(확정) 버튼은 여기 하나 ── */}
         <SelectionBar count={selectedTxIds.size} onClear={() => setSelectedTxIds(new Set())}
           summary={<>합계 <b className="mono-number">{fmtW(selSumTx)}</b> · 이미 처리된 건은 건너뜁니다</>}>
-          <button type="button" onClick={() => setAutoTransfer(true)} className="btn-secondary btn-sm" title="정기 지출로 안 잡힌 자동이체를 직접 표시 — 개요의 '자동이체 연결 내역'에 모입니다">자동이체 표시</button>
+          <button type="button" onClick={() => setAutoTransfer(true)} className="btn-secondary btn-sm" title="정기 지출로 안 잡힌 자동이체를 직접 표시 · 개요의 '자동이체 연결 내역'에 모입니다">자동이체 표시</button>
           {Array.from(selectedTxIds).some((id) => (recentTx as any[]).find((x) => x.id === id)?.is_auto_transfer === true) && (
             <button type="button" onClick={() => setAutoTransfer(false)} className="btn-secondary btn-sm">표시 해제</button>
           )}
-          <button type="button" onClick={excludeSelected} className="btn-secondary btn-sm" title="전표 없이 끝낸 것으로 — 중복·이체·개인 지출">장부 제외</button>
+          <button type="button" onClick={excludeSelected} className="btn-secondary btn-sm" title="전표 없이 끝낸 것으로 · 중복·이체·개인 지출">장부 제외</button>
           <button type="button" onClick={() => { setBulkAccountId(""); setBulkFixed(false); setShowBulkPost(true); }}
             className="btn-primary btn-sm">전표처리({selectedTxIds.size})</button>
         </SelectionBar>

@@ -46,8 +46,9 @@ export default function SchedulePage() {
     });
   }, []);
 
-  //   갈래 탭 — 상자 안 맨 위 파란 밑줄 (2026-08-18 조회 표준). 각 탭 부품이 상자 전체를 그린다
+  //   갈래 탭 · 상자 안 맨 위 파란 밑줄 (2026-08-18 조회 표준). 각 탭 부품이 상자 전체를 그린다
   const tabsEl = (
+    
     <div className="collect-tabs no-print">
       {([["calendar", "달력"], ["list", "목록"]] as [Tab, string][]).map(([k, label]) => (
         <button key={k} type="button" onClick={() => setTab(k)} className={tab === k ? "collect-tab collect-tab-on" : "collect-tab"}>{label}</button>
@@ -74,7 +75,7 @@ function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; us
   const today = new Date();
   const [view, setView] = useState({ year: today.getFullYear(), monthIdx0: today.getMonth() });
   const [scope, setScope] = useState<ScheduleScope>("all");
-  //   달력에서 여는 창 — 일정을 누르면 **내용부터**, 날짜를 누르면 새로 만들기(2026-08-10)
+  //   달력에서 여는 창 · 일정을 누르면 **내용부터**, 날짜를 누르면 새로 만들기(2026-08-10)
   const [dialog, setDialog] = useState<ScheduleDialogTarget | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   //   달력 셀 '+N개 더' 를 누르면 **그 칸이 아래로 늘어나** 전부 보인다 (2026-09-03 사장님: 팝업은 날짜와 멀리 떨어져 보여 별로).
@@ -153,7 +154,7 @@ function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; us
           {/* 보기 전환 — 무엇이 보이는지는 공개 범위(RLS)가 정한다. 여기서는 내 것만 좁혀 볼 뿐 */}
           <ChipGroup value={scope} onChange={setScope} options={[{ value: "all", label: "전체" }, { value: "mine", label: "내 것만" }] as const} />
           <span className="text-[11px] text-[var(--text-dim)]">
-            {scope === "all" ? "내가 볼 수 있는 일정 전부 — 나만 보는 일정, 나에게 공유된 일정, 전체 공개 일정" : "내가 만든 일정만"}
+            {scope === "all" ? "내가 볼 수 있는 일정 전부 · 나만 보는 일정, 나에게 공유된 일정, 전체 공개 일정" : "내가 만든 일정만"}
           </span>
         </QueryBar>
       </QueryHead>
@@ -180,10 +181,11 @@ function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; us
             const isToday = dateStr === toLocalDateStr(today);
             const dow = cell.date.getDay();
             return (
-              // ⚠️ 날짜 칸은 <button> 이면 안 된다 — 칸 안에 일정별 '수정' 버튼이 또 들어가
+              // ⚠️ 날짜 칸은 <button>  이면 안 된다. 칸 안에 일정별 '수정' 버튼이 또 들어가
               //    button 안의 button 이 되어 HTML 규칙 위반이고 하이드레이션 오류가 났다
               //    (2026-08-21 전수 점검에서 /schedule 콘솔 에러로 검출).
               //    역할·키보드 조작은 그대로 두고 태그만 div 로 바꾼다.
+
               <div
                 key={i}
                 role="button"
@@ -384,14 +386,14 @@ function ScheduleListTab({ companyId, userId, toast, tabs }: { companyId: string
               <DateRangeField label={null} from={draft.from} to={draft.to} onChange={(f, t) => setDraft((c) => ({ ...c, from: f, to: t }))} onClear={() => setDraft((c) => ({ ...c, from: "", to: "" }))} />
             </ConditionRow>
           </ConditionPanel>
-          <QuickSearch value={q} onApply={setQ} placeholder="제목 · 설명 · 공개 범위 — 쉼표로 여러 개, Enter" />
+          <QuickSearch value={q} onApply={setQ} placeholder="제목 · 설명 · 공개 범위 · 쉼표로 여러 개, Enter" />
           <ChipGroup value={scope} onChange={setScope} options={[{ value: "all", label: "전체" }, { value: "mine", label: "내 것만" }] as const} />
         </QueryBar>
         <AppliedChips chips={chips} onClearAll={() => { setQ(""); setLive(LEMPTY); setDraft(LEMPTY); setScope("all"); }} />
         <ResultStrip right={<span className="text-[11px] text-[var(--text-dim)]">표시 <b className="mono-number">{shown.length}</b>건</span>}>
           <Stat label="날짜 있는 일정" value={`${dated}건`} />
           <Stat label="날짜 없는 것" value={`${shown.length - dated}건`} />
-          <span className="text-[11px] text-[var(--text-dim)]">날짜 없는 것 = 언제 할지 아직 안 정한 일 — 날짜를 넣으면 달력에도 뜹니다</span>
+          <span className="text-[11px] text-[var(--text-dim)]">날짜 없는 것 = 언제 할지 아직 안 정한 일 · 날짜를 넣으면 달력에도 뜹니다</span>
         </ResultStrip>
       </QueryHead>
 
@@ -399,7 +401,7 @@ function ScheduleListTab({ companyId, userId, toast, tabs }: { companyId: string
         {isLoading ? (
           <div className="collect-empty">불러오는 중…</div>
         ) : shown.length === 0 ? (
-          <div className="collect-empty">일정이 없습니다 — [+ 새로 만들기] 로 추가하거나 검색조건을 풀어 보세요</div>
+          <div className="collect-empty">일정이 없습니다. [+ 새로 만들기] 로 추가하거나 검색조건을 풀어 보세요</div>
         ) : (
           <div className="ev-scroll">
             <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed sched-table">

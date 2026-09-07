@@ -42,18 +42,22 @@ function minusMonths(s: string, n: number) {
   return ymd(ny, nm, Math.min(d, lastDayOf(ny, nm)));
 }
 
+
+
 /**
- * 기본 조회기간 — **최근 1개월** (2026-08-13 사장님 확정).
+ * 기본 조회기간 · **최근 1개월** (2026-08-13 사장님 확정).
  *   '이번 달 1일~오늘'이 아닌 이유: 매달 1~2일에 열면 하루이틀치만 보여
  *   "받아온 자료가 없다"로 읽힌다. 최근 1개월은 언제 열어도 한 달치가 보인다.
  */
-export function defaultRange(): { from: string; to: string } {
+export function defaultRange():  { from: string; to: string } {
   const t = todayKst();
   return { from: minusMonths(t, 1), to: t };
 }
 
-/** 자주 쓰는 기간 — 검색조건 패널 안에 늘 펼쳐 둔다 */
-export function periodQuicks(): { key: string; label: string; from: string; to: string }[] {
+
+
+/** 자주 쓰는 기간 · 검색조건 패널 안에 늘 펼쳐 둔다 */
+export function periodQuicks():  { key: string; label: string; from: string; to: string }[] {
   const t = todayKst();
   const lm = minusMonths(t, 1);
   const lp = parseYmd(lm);
@@ -77,8 +81,10 @@ export function defaultRangeMonth(): { from: string; to: string } {
   return { from: minusMonths(t, 1).slice(0, 7), to: t.slice(0, 7) };
 }
 
-/** 월 단위 빠른 기간 — 신고 주기에 맞춘다 */
-export function periodQuicksMonth(): { key: string; label: string; from: string; to: string }[] {
+
+
+/** 월 단위 빠른 기간 · 신고 주기에 맞춘다 */
+export function periodQuicksMonth():  { key: string; label: string; from: string; to: string }[] {
   const t = todayKst();
   const ym = t.slice(0, 7);
   const last = minusMonths(t, 1).slice(0, 7);
@@ -105,13 +111,17 @@ export function QueryScreen({ children }: { children: ReactNode }) {
   return <div className="qk-screen">{children}</div>;
 }
 
-/** 상자 윗부분 — 탭 · 조회 줄 · 걸린 조건 · 결과 요약 (아래 표와 선 하나로 갈린다) */
+
+
+/** 상자 윗부분 · 탭 · 조회 줄 · 걸린 조건 · 결과 요약 (아래 표와 선 하나로 갈린다) */
 export function QueryHead({ children }: { children: ReactNode }) {
   return <div className="qk-head">{children}</div>;
 }
 
+
+
 /**
- * 표가 들어가는 자리 — **선택 바가 여기 위로 떠오른다** (2026-08-13 사장님 지시).
+ * 표가 들어가는 자리 · **선택 바가 여기 위로 떠오른다** (2026-08-13 사장님 지시).
  *   예전엔 선택 바가 흐름에 끼어 있어, 줄을 고르는 순간 표가 그만큼 줄어들었다.
  *   고를 때마다 표가 들썩이면 고르던 자리를 놓친다. 표 크기는 그대로 두고 위에 띄운다.
  */
@@ -130,7 +140,7 @@ export function QueryBar({ children, right }: { children?: ReactNode; right?: Re
 
 export type Chip<T extends string> = { value: T; label: string; title?: string };
 
-/** 값 몇 개 중 하나 고르기 — 좁은 native select 는 글자가 잘려 안 보인다 */
+/** 값 몇 개 중 하나 고르기 · 좁은 native select 는 글자가 잘려 안 보인다 */
 export function ChipGroup<T extends string>({
   value, onChange, options,
 }: { value: T; onChange: (v: T) => void; options: readonly Chip<T>[] }) {
@@ -166,7 +176,7 @@ export function QuickSearch({
     <span className="qk-qs">
       <span className="qk-qs-ico" aria-hidden>🔍</span>
       <input value={draft} aria-label="빠른검색"
-        placeholder={placeholder ?? "거래처 · 계좌 · 계정과목 · 금액 — 쉼표로 여러 개, Enter"}
+        placeholder={placeholder ?? "거래처 · 계좌 · 계정과목 · 금액 · 쉼표로 여러 개, Enter"}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter") { e.preventDefault(); onApply(draft.trim()); }
@@ -200,10 +210,12 @@ export function quickSearchHit(q: string, fields: (string | null | undefined)[],
     }));
 }
 
+
+
 // ── 검색조건 패널 ─────────────────────────────────────────────────────────
 
 /**
- * 검색조건 — **표를 밀지 않고 떠서** 열린다.
+ * 검색조건 · **표를 밀지 않고 떠서** 열린다.
  *   ★ 열 때 어떤 칸에도 커서를 두지 않는다 (2026-08-13 사장님 지적). 커서를 주면 그 칸 후보가
  *     펼쳐져 **찾지도 않은 목록**이 화면을 덮는다. 어느 칸을 쓸지는 사람이 정한다.
  */
@@ -262,7 +274,9 @@ export function ConditionPanel({
   );
 }
 
-/** 검색조건 한 줄 — 라벨 왼쪽, 칸 오른쪽 */
+
+
+/** 검색조건 한 줄 · 라벨 왼쪽, 칸 오른쪽 */
 export function ConditionRow({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <>
@@ -396,7 +410,7 @@ export function TokenField({
               }
               return list.map(item);
             })()}
-            {cut > 0 && <p className="qk-tok-none">외 {cut}개 더 — 이름 일부를 치면 좁혀집니다</p>}
+            {cut > 0 && <p className="qk-tok-none">외 {cut}개 더 · 이름 일부를 치면 좁혀집니다</p>}
           </>)}
         </div>
       )}
@@ -404,7 +418,9 @@ export function TokenField({
   );
 }
 
-/** 금액 범위 — 한쪽만 채워도 된다. 숫자만 남기고 쉼표로 보여 준다. */
+
+
+/** 금액 범위 · 한쪽만 채워도 된다. 숫자만 남기고 쉼표로 보여 준다. */
 export function AmountRange({ min, max, onMin, onMax, placeholders }: {
   min: string; max: string; onMin: (v: string) => void; onMax: (v: string) => void;
   /** 칸 안 문구 — 수집·전표처럼 placeholder 를 안 쓰는 화면은 ["", ""] (2026-09-01 사장님). 기본은 종전 그대로 */
@@ -425,8 +441,10 @@ export function AmountRange({ min, max, onMin, onMax, placeholders }: {
   );
 }
 
-/** 금액 범위 맞춤 — 부호는 보지 않는다(출금 -165,000 도 165,000 으로 찾는다) */
-export function amountHit(n: number, min: string, max: string): boolean {
+
+
+/** 금액 범위 맞춤 · 부호는 보지 않는다(출금 -165,000 도 165,000 으로 찾는다) */
+export function amountHit(n: number, min: string, max: string): boolean  {
   const v = Math.abs(Number(n) || 0);
   if (min && v < Number(min)) return false;
   if (max && v > Number(max)) return false;
@@ -456,7 +474,7 @@ export function RowsPerPage({ value, onChange, withAll }: { value: number; onCha
 
 export type AppliedChip = { group: string; label: string; onRemove: () => void };
 
-/** 켜진 조건을 조회 줄에 남긴다 — 패널을 열지 않고도 알고, ✕ 로 하나씩 뺀다 */
+/** 켜진 조건을 조회 줄에 남긴다. 패널을 열지 않고도 알고, ✕ 로 하나씩 뺀다 */
 export function AppliedChips({ chips, onClearAll }: { chips: AppliedChip[]; onClearAll: () => void }) {
   if (chips.length === 0) return null;
   return (
@@ -650,7 +668,7 @@ export function Pager({
         {onSize ? (
           <em className="qk-pager-size">· 한 쪽{" "}
             <select className="qk-pager-size-sel" value={size} onChange={(e) => onSize(Number(e.target.value))}
-              aria-label="한 쪽에 몇 줄 — 전체를 고르면 한 쪽에 다 보입니다">
+              aria-label="한 쪽에 몇 줄 · 전체를 고르면 한 쪽에 다 보입니다">
               {sizeList.map((n) => <option key={n} value={n}>{sizeLabel(n)}</option>)}
             </select>
           </em>
@@ -710,20 +728,20 @@ export function useSavedQueries(screen: string, companyId: string | null) {
       await supabase.from("saved_queries").update({ is_default: false })
         .eq("screen", screen).eq("company_id", companyId);
     }
-    const { error } = await supabase.from("saved_queries")
-      //   같은 이름이면 덮어쓴다 — 사람은 조건을 다듬어 가며 같은 이름으로 다시 누른다
+    const { error }  = await supabase.from("saved_queries")
+      //   같은 이름이면 덮어쓴다. 사람은 조건을 다듬어 가며 같은 이름으로 다시 누른다
       .upsert({ company_id: companyId, screen, name: name.trim(), params,
         is_default: asDefault, updated_at: new Date().toISOString() } as any,
         { onConflict: "auth_id,screen,name" });
-    if (error) { toast(`조건을 저장하지 못했습니다 — ${error.message}`, "error"); return; }
+    if (error) { toast(`조건을 저장하지 못했습니다. ${error.message}`, "error"); return; }
     qc.invalidateQueries({ queryKey: key });
-    toast(`'${name.trim()}' 조건을 저장했습니다${asDefault ? " — 화면을 열 때 이 조건으로 걸립니다" : ""}`, "success");
+    toast(`'${name.trim()}' 조건을 저장했습니다${asDefault ? " · 화면을 열 때 이 조건으로 걸립니다" : ""}`, "success");
   };
 
   const remove = async (s: SavedQuery) => {
     if (!(await appConfirm(`'${s.name}' 조건을 지울까요?`, { danger: true, title: "내 조건 삭제", confirmLabel: "삭제" }))) return;
     const { error } = await supabase.from("saved_queries").delete().eq("id", s.id);
-    if (error) { toast(`지우지 못했습니다 — ${error.message}`, "error"); return; }
+    if (error) { toast(`지우지 못했습니다. ${error.message}`, "error"); return; }
     qc.invalidateQueries({ queryKey: key });
   };
 
@@ -734,10 +752,10 @@ export function useSavedQueries(screen: string, companyId: string | null) {
     if (on) {
       const { error: e1 } = await supabase.from("saved_queries")
         .update({ is_default: false }).eq("screen", screen).eq("company_id", companyId).neq("id", s.id);
-      if (e1) { toast(`바꾸지 못했습니다 — ${e1.message}`, "error"); return; }
+      if (e1) { toast(`바꾸지 못했습니다. ${e1.message}`, "error"); return; }
     }
     const { error } = await supabase.from("saved_queries").update({ is_default: on }).eq("id", s.id);
-    if (error) { toast(`바꾸지 못했습니다 — ${error.message}`, "error"); return; }
+    if (error) { toast(`바꾸지 못했습니다. ${error.message}`, "error"); return; }
     qc.invalidateQueries({ queryKey: key });
     toast(on ? `'${s.name}' 을(를) 기본 조건으로 두었습니다` : "기본 조건을 해제했습니다", "info");
   };
@@ -778,7 +796,7 @@ export function SavedTabs({
   const isBasic = same(current, basic);
   return (
     <span className="qk-tabs">
-      <button type="button" title="처음 상태로 — 기본 기간, 조건 없음"
+      <button type="button" title="처음 상태로 · 기본 기간, 조건 없음"
         className={isBasic ? "qk-tab qk-tab-on" : "qk-tab"} onClick={onBasic}>기본</button>
       {list.map((s) => (
         <span key={s.id} className={`qk-tab${hit?.id === s.id ? " qk-tab-on" : ""}${s.is_default ? " qk-tab-def" : ""}`}>
@@ -794,8 +812,10 @@ export function SavedTabs({
   );
 }
 
+
+
 /**
- * 패널 발의 '내 조건으로 저장' — **조건을 다 고른 뒤** 이름을 붙인다.
+ * 패널 발의 '내 조건으로 저장' · **조건을 다 고른 뒤** 이름을 붙인다.
  *   누르면 발 바로 위에 이름 줄이 열린다. 이름은 고른 조건으로 미리 지어 준다 —
  *   매번 뭐라고 쓸지 고민하게 두지 않는다.
  */

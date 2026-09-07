@@ -1,11 +1,11 @@
 "use client";
-import { MonthSelect } from "@/components/month-select";
+import { MonthSelect }  from "@/components/month-select";
 
-// ── 재무 › 고정자산 — 자산 등록 · 처분 · 월 감가상각 초안 (2026-08-27 ERP 공백 ⑤, 결정 65~69) ──
+// ── 재무 › 고정자산 · 자산 등록 · 처분 · 월 감가상각 초안 (2026-08-27 ERP 공백 ⑤, 결정 65~69) ──
 //   조회 화면 표준: 갈래 탭(사용 중/처분) · 조회 줄(빠른검색 ‖ 상각 초안 · + 등록) · 결과 요약 · 표 · 폼은 팝업.
 //   상각 초안은 달마다 전표 하나(초안) → 확정은 재무 › 전표 현황 › 처리할 것. 누계는 확정된 것만.
 
-import { useEffect, useMemo, useState } from "react";
+import  { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
@@ -88,7 +88,7 @@ export default function FixedAssetsPage() {
     setBusy(true);
     try {
       await upsertFixedAsset(companyId, userId, { id: form.id, name: form.name, category: form.category, acquired_on: form.acquired_on, cost, salvage, useful_months: months, method: form.method, depr_start_month: form.depr_start_month, asset_account_id: form.asset_account_id, accum_account_id: form.accum_account_id, expense_account_id: form.expense_account_id, memo: form.memo.trim() || null });
-      toast(form.id ? "고쳤습니다" : "등록했습니다 — 취득 전표(차 자산 / 대 미지급금·보통예금)는 일반전표로 따로 칩니다", "success");
+      toast(form.id ? "고쳤습니다" : "등록했습니다. 취득 전표(차 자산 / 대 미지급금·보통예금)는 일반전표로 따로 칩니다", "success");
       setForm(null); refetch();
     } catch (e) { toast(friendlyError(e, "저장 실패"), "error"); }
     finally { setBusy(false); }
@@ -96,11 +96,11 @@ export default function FixedAssetsPage() {
   const doDispose = async () => {
     if (!dispose || busy) return;
     setBusy(true);
-    try { await disposeFixedAsset(dispose.id, dOn, dAmt.trim() ? Number(dAmt.replace(/[^0-9.]/g, "")) : null); toast("처분으로 표시 — 상각이 멈춥니다. 처분 손익 전표는 일반전표로 치세요", "success"); setDispose(null); refetch(); }
+    try { await disposeFixedAsset(dispose.id, dOn, dAmt.trim() ? Number(dAmt.replace(/[^0-9.]/g, "")) : null); toast("처분으로 표시 · 상각이 멈춥니다. 처분 손익 전표는 일반전표로 치세요", "success"); setDispose(null); refetch(); }
     catch (e) { toast(friendlyError(e, "실패"), "error"); } finally { setBusy(false); }
   };
   const del = async (a: FixedAsset) => {
-    if (a.accum > 0) { toast("확정된 상각이 있는 자산은 지울 수 없습니다 — 처분으로 표시하세요", "error"); return; }
+    if (a.accum > 0) { toast("확정된 상각이 있는 자산은 지울 수 없습니다. 처분으로 표시하세요", "error"); return; }
     if (!(await confirm({ title: "자산 삭제", desc: `${a.name} 을(를) 지웁니다. 초안 상각 줄도 같이 지워집니다.`, danger: true })).ok) return;
     try { await deleteFixedAsset(a.id); toast("지웠습니다", "success"); refetch(); } catch (e) { toast(friendlyError(e, "삭제 실패"), "error"); }
   };
@@ -109,7 +109,7 @@ export default function FixedAssetsPage() {
     setBusy(true);
     try {
       const id = await makeDepreciationDraftNow(deprMonth);
-      toast(id ? `${deprMonth} 감가상각 초안을 만들었습니다 — 재무 › 전표 현황 › 처리할 것에서 확정하세요` : `${deprMonth}에 상각할 자산이 없습니다(시작 월 이전이거나 다 상각됨)`, id ? "success" : "info");
+      toast(id ? `${deprMonth} 감가상각 초안을 만들었습니다. 재무 › 전표 현황 › 처리할 것에서 확정하세요` : `${deprMonth}에 상각할 자산이 없습니다(시작 월 이전이거나 다 상각됨)`, id ? "success" : "info");
       refetch(); qc.invalidateQueries({ queryKey: ["fin-status-entries"] });
     } catch (e) { toast(friendlyError(e), "error"); }
     finally { setBusy(false); }
@@ -125,13 +125,13 @@ export default function FixedAssetsPage() {
             <button type="button" className={tab === "disposed" ? "collect-tab collect-tab-on" : "collect-tab"} onClick={() => setTab("disposed")}>처분<span className="collect-tab-cnt">{rows.length - active.length}</span></button>
           </div>
           <QueryBar right={<>
-            <span className="fa-depr-row" title="그 달의 감가상각을 전표 초안 하나로 — 확정은 재무 › 전표 현황 › 처리할 것. 월 1일 새벽엔 지난달이 자동으로 생깁니다">
+            <span className="fa-depr-row" title="그 달의 감가상각을 전표 초안 하나로 · 확정은 재무 › 전표 현황 › 처리할 것. 월 1일 새벽엔 지난달이 자동으로 생깁니다">
               <MonthSelect className="inv-input fin-close-month" value={deprMonth} onChange={setDeprMonth} ariaLabel="상각 월" />
               <button type="button" className="btn-secondary btn-sm" disabled={busy || !active.length} onClick={makeDraft}>상각 초안</button>
             </span>
             <button type="button" className="btn-primary btn-sm" onClick={openNew}>+ 자산 등록</button>
           </>}>
-            <QuickSearch value={q} onApply={setQ} placeholder="자산명 · 분류 · 메모 · 금액 — 쉼표로 여러 개, Enter" />
+            <QuickSearch value={q} onApply={setQ} placeholder="자산명 · 분류 · 메모 · 금액 · 쉼표로 여러 개, Enter" />
           </QueryBar>
           <ResultStrip>
             <Stat label="사용 중" value={`${active.length}건`} />
@@ -199,7 +199,7 @@ export default function FixedAssetsPage() {
               <label>자산 이름 <input className="inv-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="예: 맥북 프로 16 · 포터2 · 어도비 CC" autoFocus /></label>
               <label>분류
                 <select className="inv-input" value={form.category} onChange={(e) => { const c = e.target.value as FaCategory; setForm({ ...form, category: c, useful_months: form.id ? form.useful_months : String(FA_CATEGORIES.find((x) => x.value === c)?.months || 60) }); }}>
-                  {FA_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label} — 기본 {c.months}개월</option>)}
+                  {FA_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label} · 기본  {c.months}개월</option>)}
                 </select>
               </label>
               <label>취득일 <DateField value={form.acquired_on} onChange={(e: any) => setForm({ ...form, acquired_on: e.target.value })} className="inv-input" /></label>
@@ -209,8 +209,8 @@ export default function FixedAssetsPage() {
               <label>내용월수 <input className="inv-input mono-number tr" value={form.useful_months} onChange={(e) => setForm({ ...form, useful_months: e.target.value })} placeholder="60 = 5년" /></label>
               <label>상각 방법
                 <select className="inv-input" value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value as "straight" | "declining" })}>
-                  <option value="straight">정액 — (취득가 − 잔존가) ÷ 내용월수</option>
-                  <option value="declining">정률(이중체감) — 장부가 × 2 ÷ 내용월수</option>
+                  <option value="straight">정액 · (취득가 − 잔존가) ÷ 내용월수</option>
+                  <option value="declining">정률(이중체감). 장부가 × 2 ÷ 내용월수</option>
                 </select>
               </label>
               <label>자산 계정 (선택) <AccountPicker accounts={accounts.filter((a) => a.account_type === "asset")} value={acctPick(form.asset_account_id)} onChange={(id) => setForm({ ...form, asset_account_id: id || null })} placeholder="비우면 분류 기본" /></label>
@@ -227,7 +227,7 @@ export default function FixedAssetsPage() {
         <div className="inv-modal" onClick={() => setDispose(null)}>
           <div className="inv-modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="inv-modal-head"><h3>처분 — {dispose.name}</h3><button type="button" className="inv-modal-x" onClick={() => setDispose(null)}>✕</button></div>
-            <p className="inv-modal-desc">장부가 {won(dispose.book)} · 확정 누계 {won(dispose.accum)}. 처분으로 표시하면 그 달부터 상각이 멈춥니다. 처분 손익 전표(매각가·누계액·처분손익)는 <Link href="/partners/reconciliation/voucher-entry" className="bz-link">일반전표</Link>로 직접 칩니다 — 매각가·부가세가 얽혀 자동으로 만들지 않습니다.</p>
+            <p className="inv-modal-desc">장부가 {won(dispose.book)} · 확정 누계 {won(dispose.accum)}. 처분으로 표시하면 그 달부터 상각이 멈춥니다. 처분 손익 전표(매각가·누계액·처분손익)는 <Link href="/partners/reconciliation/voucher-entry" className="bz-link">일반전표</Link>로 직접 칩니다. 매각가·부가세가 얽혀 자동으로 만들지 않습니다.</p>
             <div className="bl-form">
               <label>처분일 <DateField value={dOn} onChange={(e: any) => setDOn(e.target.value)} className="inv-input" /></label>
               <label>처분 금액 (선택) <input className="inv-input mono-number tr" value={dAmt} onChange={(e) => setDAmt(e.target.value)} placeholder="매각가 · 폐기면 비움" /></label>
@@ -245,7 +245,7 @@ export default function FixedAssetsPage() {
               <table className="ev-table ev-lined table-inv-status-sm">
                 <thead><tr><th>월</th><th>상각액</th><th>상태</th></tr></thead>
                 <tbody>{histRows.map((r) => <tr key={`${r.month}-${r.entryId}`}><td className="tc mono-number">{r.month}</td><td className="tr mono-number">{won(r.amount)}</td><td className="tc">{r.status === "confirmed" ? <span className="inv-pill inv-pill-ok">확정</span> : r.status === "rejected" ? <span className="inv-pill inv-pill-danger">반려</span> : <span className="inv-pill inv-pill-warn">초안</span>}</td></tr>)}
-                  {!histRows.length && <tr><td colSpan={3} className="tc ev-dim">아직 상각 초안이 없습니다 — 조회 줄의 '상각 초안'으로 만듭니다</td></tr>}</tbody>
+                  {!histRows.length && <tr><td colSpan={3} className="tc ev-dim">아직 상각 초안이 없습니다. 조회 줄의 '상각 초안'으로 만듭니다</td></tr>}</tbody>
               </table>
             </div>
             <div className="inv-modal-actions"><span className="doc-sums-sp" /><button type="button" className="btn-secondary btn-sm" onClick={() => setHist(null)}>닫기</button></div>

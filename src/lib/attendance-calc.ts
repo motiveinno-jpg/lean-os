@@ -329,7 +329,7 @@ export function calcOvertimePay(input: MonthlyPayInput): MonthlyPayResult {
   // 주 12h 연장 cap — 월간 연장 합계 / 4.345주 ≈ 주 평균
   const weeklyOtAvg = otMin / (60 * 4.345);
   const cap_exceeded = weeklyOtAvg > 12;
-  if (cap_exceeded) notes.push(`주 평균 연장 ${weeklyOtAvg.toFixed(1)}h — 법정 12h 한도 초과 (관리자 확인 필요)`);
+  if (cap_exceeded) notes.push(`주 평균 연장 ${weeklyOtAvg.toFixed(1)}h · 법정 12h 한도 초과 (관리자 확인 필요)`);
 
   // 통상시급
   const stdHours = Math.max(1, settings.monthly_standard_hours || 209);
@@ -337,7 +337,7 @@ export function calcOvertimePay(input: MonthlyPayInput): MonthlyPayResult {
 
   // 5인 미만 / 포괄임금제 분기
   if (settings.is_under_5_employees) {
-    notes.push('5인 미만 사업장 — 법정 가산수당 미적용 (통상시급만 표시)');
+    notes.push('5인 미만 사업장 · 법정 가산수당 미적용 (통상시급만 표시)');
     return {
       hourly_wage,
       regular_pay: Math.round(regMin * hourly_wage / 60),
@@ -348,7 +348,7 @@ export function calcOvertimePay(input: MonthlyPayInput): MonthlyPayResult {
     };
   }
   if (settings.is_inclusive_wage) {
-    notes.push('포괄임금제 — 약정 범위 내 별도 가산 미지급 (cap 초과 시 별도 협의)');
+    notes.push('포괄임금제 · 약정 범위 내 별도 가산 미지급 (cap 초과 시 별도 협의)');
     return {
       hourly_wage: 0,
       regular_pay: 0, overtime_pay: 0, night_pay: 0, holiday_pay: 0,

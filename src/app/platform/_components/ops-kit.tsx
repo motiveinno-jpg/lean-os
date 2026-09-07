@@ -3,9 +3,9 @@
 //   CSV 내보내기를 쓰게 해서 "페이지마다 다르게 생긴" 문제를 없앤다.
 //   2026-09-03 v2: 헤더는 PfPageHead, 버튼은 pf-btn 으로 통일.
 import { ReactNode } from "react";
-import { PfPageHead } from "./pf/ui";
+import { PfPageHead }  from "./pf/ui";
 
-/** 페이지 공통 헤더 — 제목·부제 + 우측 액션(검색·내보내기 등) */
+/** 페이지 공통 헤더 · 제목·부제 + 우측 액션(검색·내보내기 등) */
 export function OpsPageHeader({ title, sub, children, eyebrow }: { title: string; sub?: string; children?: ReactNode; eyebrow?: string }) {
   return <PfPageHead eyebrow={eyebrow} title={title} desc={sub} actions={children} />;
 }
@@ -27,7 +27,9 @@ export function OpsSearch({ value, onChange, placeholder = "검색..." }: {
   );
 }
 
-/** CSV 내보내기 — 엑셀 한글 호환(BOM). rows 는 {헤더라벨: 값} 객체 배열. */
+
+
+/** CSV 내보내기 · 엑셀 한글 호환(BOM). rows 는  {헤더라벨: 값} 객체 배열. */
 export function exportCsv(rows: Record<string, unknown>[], filename: string) {
   if (!rows.length) return;
   const headers = Object.keys(rows[0]);
@@ -45,7 +47,9 @@ export function exportCsv(rows: Record<string, unknown>[], filename: string) {
   URL.revokeObjectURL(url);
 }
 
-/** 회사별 보기 셀렉트 — 목록에 등장한 회사명으로 옵션 구성 (2026-07-28) */
+
+
+/** 회사별 보기 셀렉트 · 목록에 등장한 회사명으로 옵션 구성 (2026-07-28) */
 export function OpsCompanySelect({ value, onChange, options }: {
   value: string; onChange: (v: string) => void; options: string[];
 }) {

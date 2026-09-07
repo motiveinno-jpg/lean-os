@@ -67,7 +67,7 @@ export default function CashReceiptsPage() {
   const { confirm: confirmDialog, confirmElement } = useConfirm();
   const queryClient = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
-  //   세금계산서 화면과 같이 매출부터 연다 — 탭 순서도 매출·매입으로 맞췄다 (2026-08-10)
+  //   세금계산서 화면과 같이 매출부터 연다. 탭 순서도 매출·매입으로 맞췄다 (2026-08-10)
   const [tab, setTab] = useState<Tab>("income");
   const [form, setForm] = useState(INITIAL_FORM);
   const [saving, setSaving] = useState(false);
@@ -134,7 +134,7 @@ export default function CashReceiptsPage() {
   };
 
   // ─── 홈택스 sync (현금영수증 매출) ───
-  // 동기화 기간 = 헤더 조회기간(startDate~endDate) 공용 — 별도 월 피커 이원화 제거 (기준 통일)
+  // 동기화 기간 = 헤더 조회기간(startDate~endDate) 공용 · 별도 월 피커 이원화 제거 (기준 통일)
   const [syncStarting, setSyncStarting] = useState(false);
   const [purchaseSyncing, setPurchaseSyncing] = useState(false);
   const [activeJobId, setActiveJobIdRaw] = useState<string | null>(() => {
@@ -212,7 +212,7 @@ export default function CashReceiptsPage() {
   }, [receipts]);
 
 
-  // 헤더 클릭 정렬 — 공용 부품(SortableTh). 기본 발행일 내림차순.
+  // 헤더 클릭 정렬 · 공용 부품(SortableTh). 기본 발행일 내림차순.
   type CrSortKey = "issue_date" | "counterparty_name" | "amount" | "supply_amount" | "tax_amount" | "purpose" | "status";
   const [sort, setSort] = useState<SortState<CrSortKey>>({ key: "issue_date", dir: "desc" });
   const onSort = (k: CrSortKey) => setSort((c) => nextSort(c, k, k === "issue_date" ? "desc" : "asc"));
@@ -263,9 +263,9 @@ export default function CashReceiptsPage() {
   const statusOpts = useMemo(() => [...new Set((receipts as any[]).map(statusLabel))].map((v) => ({ value: v, label: v })), [receipts]);
   const purposeOpts = useMemo(() => [...new Set((receipts as any[]).map(purposeLabel).filter(Boolean))].map((v) => ({ value: v, label: v })), [receipts]);
   const partnerOpts = useMemo(() => [...new Set((receipts as any[]).map((r) => r.counterparty_name).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [receipts]);
-  //   내 조건 — ★ 하나가 이 화면의 기본값
+  //   내 조건 · ★ 하나가 이 화면의 기본값
   const saved = useSavedQueries("cash-receipts", companyId);
-  const paramsNow = { tab, from: startDate, to: endDate, q, cond: live };
+  const paramsNow =  { tab, from: startDate, to: endDate, q, cond: live };
   const paramsBasic = { tab: "income", ...defaultRange(), q: "", cond: EMPTY_COND };
   const applySaved = (p: Record<string, unknown>) => {
     if (p.tab === "income" || p.tab === "expense") setTab(p.tab);
@@ -407,8 +407,8 @@ export default function CashReceiptsPage() {
     })();
   }, [companyId, activeJobId]);
 
-  // active job polling — Realtime 보조.
-  const { data: activeJob } = useQuery({
+  // active job polling · Realtime 보조.
+  const  { data: activeJob } = useQuery({
     queryKey: ["cashreceipt-sync-job", activeJobId],
     queryFn: async () => {
       if (!activeJobId) return null;
@@ -440,7 +440,7 @@ export default function CashReceiptsPage() {
             const errs = payload.new.errors || [];
             const errSummary = errs.length > 0 ? ` (오류 ${errs.length}건: ${errs[0]?.hint || errs[0]?.message || ""})` : "";
             if (synced === 0 && errs.length === 0) {
-              toast("동기화 완료 — 해당 기간에 발행한 매출 현금영수증이 없습니다. (홈택스에서 직접 확인 권장)", "info");
+              toast("동기화 완료 · 해당 기간에 발행한 매출 현금영수증이 없습니다. (홈택스에서 직접 확인 권장)", "info");
             } else {
               toast(`매출 현금영수증 ${synced}건 동기화${errSummary}`, synced > 0 ? "success" : "info");
             }
@@ -475,12 +475,13 @@ export default function CashReceiptsPage() {
       toast("시작일이 종료일보다 이전이어야 합니다", "error");
       return;
     }
-    // 홈택스 연동 일시정지 중이면 시작하지 않음 (2026-07-30 — 세금계산서 탭 정지 버튼과 연동)
-    const { getHometaxPausedUntil } = await import("@/lib/data-sync");
+    
+    // 홈택스 연동 일시정지 중이면 시작하지 않음 (2026-07-30 · 세금계산서 탭 정지 버튼과 연동)
+    const  { getHometaxPausedUntil } = await import("@/lib/data-sync");
     const hometaxPaused = await getHometaxPausedUntil(companyId);
     if (hometaxPaused) {
       const t = new Date(hometaxPaused).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
-      toast(`홈택스 연동 일시정지 중 (${t}까지) — 세금계산서 화면의 정지 해제 후 다시 시도하세요.`, "info");
+      toast(`홈택스 연동 일시정지 중 (${t}까지). 세금계산서 화면의 정지 해제 후 다시 시도하세요.`, "info");
       return;
     }
     setSyncStarting(true);
@@ -665,7 +666,7 @@ export default function CashReceiptsPage() {
                 <ToolbarPopoverItem
                   onClick={() => { close(); startPurchaseSync(); }}
                   disabled={purchaseSyncing}
-                  hint="조회기간 범위로 홈택스에서 현금영수증 매입(수취) 내역 가져오기 — 등록된 공동인증서로 조회합니다 (최근 37개월)">
+                  hint="조회기간 범위로 홈택스에서 현금영수증 매입(수취) 내역 가져오기 · 등록된 공동인증서로 조회합니다 (최근 37개월)">
                   {purchaseSyncing ? "매입 조회 중…" : "홈택스 매입 가져오기"}
                 </ToolbarPopoverItem>
                 <label className="toolbar-pop-item cursor-pointer">
@@ -677,7 +678,7 @@ export default function CashReceiptsPage() {
                   <>
                     <div className="toolbar-pop-sep" />
                     <ToolbarPopoverItem danger onClick={() => { close(); forceClearStuckJob(activeJobId); }}
-                      hint="백그라운드 동기화가 멈췄을 때 눌러 초기화 — 다시 시도할 수 있습니다">
+                      hint="백그라운드 동기화가 멈췄을 때 눌러 초기화 · 다시 시도할 수 있습니다">
                       동기화 취소
                     </ToolbarPopoverItem>
                   </>
@@ -747,7 +748,7 @@ export default function CashReceiptsPage() {
                   </ConditionRow>
                 </ConditionPanel>
               } />
-            <QuickSearch value={q} onApply={setQ} placeholder="거래처 · 승인번호 · 상대 번호 · 금액 — 쉼표로 여러 개, Enter" />
+            <QuickSearch value={q} onApply={setQ} placeholder="거래처 · 승인번호 · 상대 번호 · 금액 · 쉼표로 여러 개, Enter" />
           </QueryBar>
 
           <AppliedChips chips={chips} onClearAll={clearAll} />
@@ -760,8 +761,8 @@ export default function CashReceiptsPage() {
                 color: issuanceLimitReached ? "#ef4444" : "var(--text-muted)",
               }}
               title={issuanceStatus.limit !== null
-                ? `${issuanceStatus.planName || "현재 요금제"} — 현금영수증은 월 ${issuanceStatus.limit}건까지 발행할 수 있습니다 (이번 달 ${issuanceStatus.used}/${issuanceStatus.limit}건 · 세금계산서 한도는 별도)`
-                : `${issuanceStatus.planName || "현재 요금제"} — 현금영수증 발행 무제한 (이번 달 ${issuanceStatus.used}건 발행)`}>
+                ? `${issuanceStatus.planName || "현재 요금제"} · 현금영수증은 월 ${issuanceStatus.limit}건까지 발행할 수 있습니다 (이번 달 ${issuanceStatus.used}/${issuanceStatus.limit}건 · 세금계산서 한도는 별도)`
+                : `${issuanceStatus.planName || "현재 요금제"} · 현금영수증 발행 무제한 (이번 달 ${issuanceStatus.used}건 발행)`}>
               {issuanceStatus.limit !== null
                 ? <>이번 달 발행 <b className="mono-number">{issuanceStatus.remaining ?? 0}건</b> 남음</>
                 : <>이번 달 발행 <b className="mono-number">{issuanceStatus.used}건</b></>}
@@ -975,11 +976,11 @@ export default function CashReceiptsPage() {
           ) : (receipts as any[]).length === 0 ? (
             <div className="collect-empty">
               {tab === "income"
-                ? "이 기간에 매출 현금영수증이 없습니다 — 가져오기 ▾ 「홈택스 매출 가져오기」로 동기화하세요"
-                : "이 기간에 매입 현금영수증이 없습니다 — 가져오기 ▾ 「홈택스 매입 가져오기」 또는 엑셀 업로드"}
+                ? "이 기간에 매출 현금영수증이 없습니다. 가져오기 ▾ 「홈택스 매출 가져오기」로 동기화하세요"
+                : "이 기간에 매입 현금영수증이 없습니다. 가져오기 ▾ 「홈택스 매입 가져오기」 또는 엑셀 업로드"}
             </div>
           ) : displayReceipts.length === 0 ? (
-            <div className="collect-empty">이 조건에 맞는 현금영수증이 없습니다 — 검색조건을 풀어 보세요</div>
+            <div className="collect-empty">이 조건에 맞는 현금영수증이 없습니다. 검색조건을 풀어 보세요</div>
           ) : (
             <div className="ev-scroll">
               <table className="ev-table ev-lined cr-table">
@@ -1159,7 +1160,7 @@ export default function CashReceiptsPage() {
           <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">현금영수증 국세청 발행</div>
-              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">발행 즉시 효력이 생기며, 당일 밤 24시에 국세청으로 일괄 전송됩니다. 승인번호는 전송 후 부여됩니다. 홈택스 가맹점 신청을 따로 하지 않았어도 괜찮습니다 — 최초 발행 시 공인 발급사업자 등록이 자동 진행됩니다. 단, 설정 → 회사 정보에 상호·대표자·주소·전화·업태·종목이 입력돼 있어야 하며, 등록에 문제가 있으면 발행 실패 안내에 사유가 표시됩니다.</div>
+              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">발행 즉시 효력이 생기며, 당일 밤 24시에 국세청으로 일괄 전송됩니다. 승인번호는 전송 후 부여됩니다. 홈택스 가맹점 신청을 따로 하지 않았어도 괜찮습니다. 최초 발행 시 공인 발급사업자 등록이 자동 진행됩니다. 단, 설정 → 회사 정보에 상호·대표자·주소·전화·업태·종목이 입력돼 있어야 하며, 등록에 문제가 있으면 발행 실패 안내에 사유가 표시됩니다.</div>
             </div>
             <div className="p-5 space-y-3">
               <div className="flex gap-2">

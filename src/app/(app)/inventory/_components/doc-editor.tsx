@@ -57,14 +57,14 @@ export const blankRow = (): DocRow => ({
 });
 
 export function useDocEditor(companyId: string | null, userId: string | null, formKey: FormKey, products: Product[]) {
-  const { toast } = useToast();
+  const { toast }  = useToast();
   const qc = useQueryClient();
-  //   ★ 들어오면 **오늘 날짜**가 이미 들어가 있다(사장님 지시) — 매번 치게 하지 않는다.
+  //   ★ 들어오면 **오늘 날짜**가 이미 들어가 있다(사장님 지시). 매번 치게 하지 않는다.
   const [head, setHead] = useState<Record<string, string>>(() => ({ date: todayKst() }));
   const [rows, setRows] = useState<DocRow[]>(() => Array.from({ length: 5 }, blankRow));
   const [editing, setEditing] = useState<Order | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  //   ★ 결정 35 (2026-08-26 사장님: "바코드를 찍으면 무조건 양품 1건?") — 스캔이 들어갈 칸. 생산 양식만 불량을 쓴다.
+  //   ★ 결정 35 (2026-08-26 사장님: "바코드를 찍으면 무조건 양품 1건?"). 스캔이 들어갈 칸. 생산 양식만 불량을 쓴다.
   //     제어 바코드 *GOOD* / *DEFECT* 를 찍어도 바뀐다(손을 안 대고). 마지막 스캔은 조회 줄에 잠깐 보여 준다.
   const [scanMode, setScanMode] = useState<"qty" | "defect">("qty");
   const [lastScan, setLastScan] = useState<{ name: string; qty: number; defect: number; col: "qty" | "defect" } | null>(null);
@@ -135,10 +135,10 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
     if (side === "buy") {
       const st = priceStats.get(r.product_id); if (!st || st.avg <= 0) return null;
       const diff = (price - st.avg) / st.avg;
-      return Math.abs(diff) > 0.2 ? `최근 매입 평균 ₩${Math.round(st.avg).toLocaleString("ko-KR")}(${st.n}건) 대비 ${diff > 0 ? "+" : ""}${Math.round(diff * 100)}% — 단가를 확인하세요` : null;
+      return Math.abs(diff) > 0.2 ? `최근 매입 평균 ₩${Math.round(st.avg).toLocaleString("ko-KR")}(${st.n}건) 대비 ${diff > 0 ? "+" : ""}${Math.round(diff * 100)}% · 단가를 확인하세요` : null;
     }
     const cost = costMap.get(r.product_id); if (cost == null || cost <= 0) return null;
-    return price < cost ? `원가 ₩${Math.round(cost).toLocaleString("ko-KR")} 아래로 팝니다 — 손해` : null;
+    return price < cost ? `원가 ₩${Math.round(cost).toLocaleString("ko-KR")} 아래로 팝니다. 손해` : null;
   }, [side, priceStats, costMap]);
   const rowsBlank = useCallback((rs: DocRow[]) => rs.every((r) => !r.product_id && !r.sku.trim() && !num(r.qty)), []);
 
@@ -176,8 +176,9 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
       //   공급가액을 치면 부가세 10% 가 저절로 선다 — 면세·영세면 부가세만 0 으로 고친다
       //   ★ 단가도 다시 낸다 — 단가 칸이 꺼진 양식에서 공급가액을 고치면 저장 단가가 옛 값으로 남았다(2026-08-25 검증에서 잡음)
       if (key === "supply") { n.vat = String(Math.round(num(v) * 0.1)); if (num(n.qty)) n.price = String(num(v) / num(n.qty)); }
-      //   수량을 치면 단가가 있는 한 공급가액이 따라온다 — 단가를 직접 치지 않아도 되게
-      if (key === "qty" && num(n.price)) {
+      
+      //   수량을 치면 단가가 있는 한 공급가액이 따라온다. 단가를 직접 치지 않아도 되게
+      if (key === "qty" && num(n.price))  {
         const sup = num(n.price) * num(v);
         n.supply = String(sup); n.vat = String(Math.round(sup * 0.1));
       }
@@ -337,7 +338,7 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
       await saveLayout(companyId, formKey, draft, userId);
       await qc.invalidateQueries({ queryKey: ["form-layout", companyId, formKey] });
       setFormOpen(false);
-      toast("입력 항목을 저장했습니다 — 회사 전체에 적용됩니다", "success");
+      toast("입력 항목을 저장했습니다. 회사 전체에 적용됩니다", "success");
     } catch (e) { toast(friendlyError(e, "입력 항목을 저장하지 못했습니다"), "error"); }
   }, [draft, companyId, formKey, userId, qc, toast]);
 
@@ -385,7 +386,8 @@ export function DocHead({ ctl, warehouses, partners, staff }: {
                       ...(f.field_id === "partner" ? { partner_id: "" } : {}) }));
                     setDrop(f.field_id);
                   }}
-                  //   ★ 커서만 왔다고 목록을 펼치지 않는다 — 남의 칸을 덮는다(2026-08-18 사장님 규칙).
+                  
+                  //   ★ 커서만 왔다고 목록을 펼치지 않는다. 남의 칸을 덮는다(2026-08-18 사장님 규칙).
                   //     글자를 치면 열리고, 빈 칸에서 목록을 보고 싶으면 ↓ 를 누른다.
                   onKeyDown={(e) => { if (e.key === "ArrowDown" && drop !== f.field_id) { e.preventDefault(); setDrop(f.field_id); } }} />
                 {drop === f.field_id && (
@@ -397,7 +399,7 @@ export function DocHead({ ctl, warehouses, partners, staff }: {
                         return !q || p.name.toLowerCase().includes(q); })
                       .map((p) => ({ id: p.id, name: p.name }))}
                     placeholder={`${f.name} 검색`}
-                    empty={f.field_id === "partner" ? "등록된 거래처가 없습니다 — 이름만 입력해도 됩니다" : "등록된 구성원이 없습니다"}
+                    empty={f.field_id === "partner" ? "등록된 거래처가 없습니다. 이름만 입력해도 됩니다" : "등록된 구성원이 없습니다"}
                     onPick={(sel) => {
                       setHead((s) => ({ ...s, [f.field_id]: sel.name,
                         ...(f.field_id === "partner" ? { partner_id: sel.id } : {}) }));
@@ -428,7 +430,7 @@ const W: Record<string, string> = {
 };
 const NUMS = new Set(["qty", "defect", "price", "supply", "vat"]);
 const LEFTS = new Set(["sku", "spec", "lnote", "ono", "ccode", "buyer", "rcv", "tel", "zip", "addr", "memo"]);
-//   ★ 채널에서 가져온 줄(ch 있음)은 채널이 준 값을 **고칠 수 없다**(2026-08-26 사장님 — 데이터가 틀려지는 것을 막는다).
+//   ★ 채널에서 가져온 줄(ch 있음)은 채널이 준 값을 **고칠 수 없다**(2026-08-26 사장님 · 데이터가 틀려지는 것을 막는다).
 //     사람이 손대는 칸은 품목(연결이 없을 때 고르기)·규격·비고·직접 추가한 항목뿐이다.
 const IMPORTED_RO = new Set(["ono", "ccode", "buyer", "rcv", "tel", "zip", "addr", "memo", "qty", "price", "supply", "vat"]);
 
@@ -520,7 +522,7 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
             const has = !!(r.product_id || r.sku.trim() || num(r.qty) || num(r.supply));
             return (
               <tr key={r.key} className={r.flag === "nocode" ? "inv-row-fix" : r.flag === "dup" ? "doc-row-dup" : r.flag === "suggest" ? "inv-row-suggest" : undefined}
-                title={r.flag === "nocode" ? "상품 연결이 없는 채널 상품코드 — 품목을 직접 고르거나 상품 연결에서 등록하세요" : r.flag === "dup" ? "이미 등록된 주문번호 — 저장 시 건너뜁니다" : r.flag === "suggest" ? "연결 제안 — 채널 상품명·SKU 가 같은 품목을 맞췄습니다. 틀리면 품목을 고치세요. 저장하면 상품 연결로 기억합니다" : undefined}>
+                title={r.flag === "nocode" ? "상품 연결이 없는 채널 상품코드 · 품목을 직접 고르거나 상품 연결에서 등록하세요" : r.flag === "dup" ? "이미 등록된 주문번호 · 저장 시 건너뜁니다" : r.flag === "suggest" ? "연결 제안 · 채널 상품명·SKU 가 같은 품목을 맞췄습니다. 틀리면 품목을 고치세요. 저장하면 상품 연결로 기억합니다" : undefined}>
                 <td className="doc-no">{i + 1}</td>
                 {anySrc && <td className="tc">{r.src ? <span className="doc-src">{r.src}</span> : null}</td>}
                 {onLine.map((f) => {
@@ -539,14 +541,16 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
                   if (r.ch && IMPORTED_RO.has(id)) {
                     return (
                       <td key={id} className={`cell doc-cell-ro ${NUMS.has(id) ? "num" : LEFTS.has(id) ? "text-left" : "tc"}`}
-                        title="채널에서 가져온 값 — 고칠 수 없습니다">
+                        title="채널에서 가져온 값 · 고칠 수 없습니다">
                         <span className={`doc-ro${NUMS.has(id) ? " mono-number" : ""}`}>{shown || "—"}</span>
                       </td>
                     );
                   }
-                  //   A7 단가 이상 — 표시만, 출처: 장부 대조. 단가 칸을 꺼 둔 양식(공급가액만)에서는 공급가액 칸에 붙는다(단가 = 공급가액 ÷ 수량)
+                  
+                  //   A7 단가 이상 · 표시만, 출처: 장부 대조. 단가 칸을 꺼 둔 양식(공급가액만)에서는 공급가액 칸에 붙는다(단가 = 공급가액 ÷ 수량)
                   const warn = id === "price" || id === "supply" ? priceWarn(r) : null;
                   return (
+                    
                     <td key={id} className={`cell ${NUMS.has(id) ? "num" : LEFTS.has(id) ? "text-left" : "tc"}`}>
                       <input className={warn ? "doc-in doc-in-warn" : "doc-in"} data-cell={`${id}-${i}`} title={warn || undefined}
                         inputMode={NUMS.has(id) ? "numeric" : undefined}
@@ -558,18 +562,21 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
                           //   ★ Enter 인데 친 글자가 바코드·SKU 와 정확히 같다 = 스캔. 고르개를 건너뛴다.
                           if (id === "sku" && e.key === "Enter") {
                             if (pickTimer.current) { window.clearTimeout(pickTimer.current); pickTimer.current = null; }
-                            //   ★ 제어 바코드 — *GOOD* / *DEFECT* 를 찍으면 스캔 칸이 바뀐다(생산 양식). 칸은 비우고 커서는 그대로.
-                            if (ctl.formKey === "make" && /^\*(GOOD|DEFECT)\*$/i.test(raw.trim())) {
+                            
+                            //   ★ 제어 바코드 · *GOOD* / *DEFECT* 를 찍으면 스캔 칸이 바뀐다(생산 양식). 칸은 비우고 커서는 그대로.
+                            if (ctl.formKey === "make" && /^\*(GOOD|DEFECT)\*$/i.test(raw.trim()))  {
                               e.preventDefault(); ctl.setScanMode(/DEFECT/i.test(raw) ? "defect" : "qty"); setCell(i, "sku", ""); return;
                             }
                             const hit = scanHit(raw);
                             if (hit) { e.preventDefault(); choose(i, hit, !!hit.barcode && hit.barcode === raw.trim()); return; }
-                            //   A8 — 고르개가 안 열린 채 코드 모양(영숫자 4자+)을 찍고 Enter = 없는 바코드·SKU 스캔. 이름 검색(한글·띄어쓰기)은 해당 없음.
-                            if (!(pick && pick.row === i) && looksLikeCode(raw) && ctl.companyId) { e.preventDefault(); setScanMiss({ row: i, code: raw.trim() }); return; }
+                            
+                            //   A8 · 고르개가 안 열린 채 코드 모양(영숫자 4자+)을 찍고 Enter = 없는 바코드·SKU 스캔. 이름 검색(한글·띄어쓰기)은 해당 없음.
+                            if (!(pick && pick.row === i) && looksLikeCode(raw) && ctl.companyId)  { e.preventDefault(); setScanMiss({ row: i, code: raw.trim() }); return; }
                           }
+                          
                           if (id === "sku" && pick && pick.row === i && e.key !== "Escape") return;
-                          //   ★ 빈 칸에서 목록을 보고 싶으면 ↓ — 커서만 왔다고 펼치지는 않는다
-                          if (id === "sku" && e.key === "ArrowDown") { e.preventDefault(); setPick({ row: i, q: raw, idx: 0 }); return; }
+                          //   ★ 빈 칸에서 목록을 보고 싶으면 ↓ · 커서만 왔다고 펼치지는 않는다
+                          if (id === "sku" && e.key === "ArrowDown")  { e.preventDefault(); setPick({ row: i, q: raw, idx: 0 }); return; }
                           onCellKey(e, i, id);
                         }} />
                       {/*   ★ 품목도 일반전표와 같은 고르개 — 치면 목록, ↑↓ 이동, Enter 고르기.
@@ -591,7 +598,7 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
                             name: `${p.name}${p.spec ? ` (${p.spec})` : ""}`,
                           }))}
                           placeholder="품목 검색 (이름·SKU·규격)"
-                          empty="등록된 품목이 없습니다 — 재고 › 품목에서 먼저 등록하세요"
+                          empty="등록된 품목이 없습니다. 재고 › 품목에서 먼저 등록하세요"
                           onPick={(sel) => {
                             const p = products.find((x) => x.id === sel.id);
                             if (p) choose(i, p);
@@ -656,7 +663,7 @@ export function FormDialog({ ctl }: { ctl: DocCtl }) {
         </p>
 
         <div className="fl-grp">
-          <h4>공통 항목 — 전표당 한 번 입력합니다</h4>
+          <h4>공통 항목<span className="ui-sub">전표당 한 번 입력합니다</span></h4>
           <p className="fl-desc">일자는 필수 항목이라 해제할 수 없습니다.</p>
           <div className="fl-list">{draft.head.map(rowOf("head"))}</div>
           <div className="fl-add">
@@ -666,7 +673,7 @@ export function FormDialog({ ctl }: { ctl: DocCtl }) {
         </div>
 
         <div className="fl-grp">
-          <h4>품목 항목 — 품목마다 입력합니다</h4>
+          <h4>품목 항목<span className="ui-sub">품목마다 입력합니다</span></h4>
           <p className="fl-desc">품목·수량·공급가액은 계산에 필요해 해제할 수 없습니다.</p>
           <div className="fl-list">{draft.line.map(rowOf("line"))}</div>
           <div className="fl-add">
@@ -685,7 +692,7 @@ export function FormDialog({ ctl }: { ctl: DocCtl }) {
                 setFormOpen(false); toast("기본값으로 되돌렸습니다", "success");
               } catch (e) { toast(friendlyError(e), "error"); }
             }}>기본값으로</button>
-          <span className="fl-note">해제한 항목의 값은 삭제되지 않습니다 — 다시 선택하면 그대로 표시됩니다.</span>
+          <span className="fl-note">해제한 항목의 값은 삭제되지 않습니다. 다시 선택하면 그대로 표시됩니다.</span>
           <button type="button" className="btn-secondary btn-sm" onClick={() => setFormOpen(false)}>취소</button>
           <button type="button" className="btn-primary btn-sm" onClick={commitForm}>저장</button>
         </div>

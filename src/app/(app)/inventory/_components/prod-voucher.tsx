@@ -41,13 +41,13 @@ export function ProdVoucherDialog({ companyId, userId, onClose }: { companyId: s
       //   결정 33·41 — 생산 초안과 매출원가·손실 초안을 같은 기간으로 함께 만든다(각각 대기 초안 하나)
       const [p, c] = await Promise.all([makeProdDraftNow(from, to), makeCogsDraftNow(from, to)]);
       const made = [p ? "생산" : "", c ? "매출원가" : ""].filter(Boolean);
-      toast(made.length ? `${from} ~ ${to} ${made.join("·")} 초안을 만들었습니다 — 확정은 아래 또는 재무 › 현황 › 처리할 것` : "이 기간에 전표로 만들 문서·출고가 없습니다", made.length ? "success" : "info");
+      toast(made.length ? `${from} ~ ${to} ${made.join("·")} 초안을 만들었습니다. 확정은 아래 또는 재무 › 현황 › 처리할 것` : "이 기간에 전표로 만들 문서·출고가 없습니다", made.length ? "success" : "info");
       refresh();
     } catch (e) { toast(friendlyError(e), "error"); } finally { setBusy(false); }
   };
   const decide = async (entryId: string, st: "confirmed" | "rejected") => {
     setBusy(true);
-    try { await decideProdDraft(entryId, st, userId); toast(st === "confirmed" ? "확정했습니다 — 생산 문서에 전표가 묶였습니다" : "반려했습니다 — 문서는 다음 초안이 다시 집습니다", "success"); refresh(); }
+    try { await decideProdDraft(entryId, st, userId); toast(st === "confirmed" ? "확정했습니다. 생산 문서에 전표가 묶였습니다" : "반려했습니다. 문서는 다음 초안이 다시 집습니다", "success"); refresh(); }
     catch (e) { toast(friendlyError(e), "error"); } finally { setBusy(false); }
   };
   const saveCfg = async () => {

@@ -2,13 +2,13 @@
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
-import { fetchPaged } from "@/lib/fetch-paged";
+import { fetchPaged }  from "@/lib/fetch-paged";
 
-// 프로젝트(라이프사이클·손익 뷰) — 워크플로우(/projects 보드)와 같은 deals 데이터의 다른 렌즈.
+// 프로젝트(라이프사이클·손익 뷰). 워크플로우(/projects 보드)와 같은 deals 데이터의 다른 렌즈.
 //   2026-06-17 핸드오프 v2: 신규 테이블 없이 기존 deals 재사용. 목록 → 상세(탭) 구조.
 //   목록 컬럼: 프로젝트명·거래처·담당자·단계·계약금액·진행률·기간. (직접원가·원가율은 손익 단계에서 추가)
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React,  { useCallback, useEffect, useMemo, useState } from "react";
 import { DateField } from "@/components/date-field";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -19,11 +19,11 @@ import { useToast } from "@/components/toast";
 import { AccessDenied } from "@/components/access-denied";
 import { getDeals, getCompanyUsers } from "@/lib/queries";
 import { getPartners } from "@/lib/partners";
-import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
-// 유형(margin/goal/delivery) 참조는 이 화면에서 전부 사라졌다 — 달성률 산식만 남는다.
-import { getOverallAchievement } from "@/lib/project-types";
-// 유형 3분할 폐지(2026-07-30) — 목록은 유형으로 걸러지지 않는다. 대표 지표는 있는 데이터에서 고른다.
-import { getHeadline, READY_LIST_VIEWS, ANALYSIS_VIEWS, type ProjectSignals } from "@/lib/project-sections";
+import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage }  from "@/lib/project-rules";
+// 유형(margin/goal/delivery) 참조는 이 화면에서 전부 사라졌다. 달성률 산식만 남는다.
+import  { getOverallAchievement }  from "@/lib/project-types";
+// 유형 3분할 폐지(2026-07-30). 목록은 유형으로 걸러지지 않는다. 대표 지표는 있는 데이터에서 고른다.
+import  { getHeadline, READY_LIST_VIEWS, ANALYSIS_VIEWS, type ProjectSignals } from "@/lib/project-sections";
 import { getProjectStatus, daysToEnd, STATUS_RANK, type ProjectStatusKey } from "@/lib/project-status";
 import { incVat } from "@/lib/project-money";
 import { useCanAccessTab } from "@/lib/tab-access";
@@ -31,10 +31,10 @@ import { useMyPermissions } from "@/lib/permissions";
 import { CreateProjectV3 } from "./_components/CreateProjectV3";
 import { QuietCheckins } from "./_components/QuietCheckins";
 import { rollupProject, listStatusOf, listReasons, type ProjectRollup, type ListStatus } from "@/lib/project-list-summary";
-import { BOARD_TEMPLATES } from "@/lib/project-boards";
-// 워크플로우 보드 — 회사 전체 프로젝트를 커스텀 컬럼으로 보는 도구. 실행형 프로젝트 상세 탭에
+import { BOARD_TEMPLATES }  from "@/lib/project-boards";
+// 워크플로우 보드 · 회사 전체 프로젝트를 커스텀 컬럼으로 보는 도구. 실행형 프로젝트 상세 탭에
 //   숨어 있던 것을 목록의 '보드' 보기로 끌어올렸다(2026-07-30 사장님 승인).
-import { MondayBoard } from "@/components/monday-board";
+import  { MondayBoard } from "@/components/monday-board";
 import { ProjectTimeline, PortfolioCharts, ProjectCalendar } from "./_components/ListViews";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { SortableTh, nextSort, type SortState, useColFilters } from "@/components/sortable-th";
@@ -60,9 +60,9 @@ export default function ProjectHubPage() {
   const companyId = user?.company_id ?? null;
   const router = useRouter();
   const { toast } = useToast();
-  const { allowed: tabAllowed, loading: tabLoading } = useCanAccessTab("/projecthub");
-  // 열람 범위 — '/projecthub:all' 이 없으면 자기가 담당자인 프로젝트만 보인다(2026-07-31).
-  const { isMaster: projMaster, hasPerm: projHasPerm } = useMyPermissions();
+  const { allowed: tabAllowed, loading: tabLoading }  = useCanAccessTab("/projecthub");
+  // 열람 범위 · '/projecthub:all' 이 없으면 자기가 담당자인 프로젝트만 보인다(2026-07-31).
+  const  { isMaster: projMaster, hasPerm: projHasPerm } = useMyPermissions();
   const canViewAllProjects = projMaster || projHasPerm("/projecthub:all");
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
@@ -91,8 +91,8 @@ export default function ProjectHubPage() {
     enabled: !!companyId,
   });
 
-  // 참여자 — 대표담당자 한 명 대신 여럿(2026-08-03). '내 담당' 도 이걸 기준으로 본다.
-  const { data: phMembers = [] } = useQuery({
+  // 참여자 · 대표담당자 한 명 대신 여럿(2026-08-03). '내 담당' 도 이걸 기준으로 본다.
+  const  { data: phMembers = [] } = useQuery({
     queryKey: ["ph-members", companyId],
     queryFn: async () => {
       const data = logRead("projecthub/page:members", await (supabase as any).from("project_members")
@@ -158,8 +158,8 @@ export default function ProjectHubPage() {
     return m;
   }, [deals]);
 
-  // 손익 — v_deal_pnl (직접원가·직접원가율). 전표 deal_id 태그 전엔 0.
-  const { data: pnl = [] } = useQuery({
+  // 손익 · v_deal_pnl (직접원가·직접원가율). 전표 deal_id 태그 전엔 0.
+  const  { data: pnl = [] } = useQuery({
     queryKey: ["projecthub-pnl", companyId],
     queryFn: async () => {
       const data = logRead('projecthub/page:data', await (supabase).from("v_deal_pnl").select("deal_id, revenue, direct_cost, direct_cost_ratio, margin"));
@@ -173,8 +173,8 @@ export default function ProjectHubPage() {
     return m;
   }, [pnl]);
 
-  // 회사 전체 미수금 롤업(Phase 3) — 프로젝트에 연결된 매출 계산서의 발행 vs 실입금(settled_amount, 통장 매칭).
-  const { data: settleRows = [] } = useQuery({
+  // 회사 전체 미수금 롤업(Phase 3). 프로젝트에 연결된 매출 계산서의 발행 vs 실입금(settled_amount, 통장 매칭).
+  const  { data: settleRows = [] } = useQuery({
     queryKey: ["projecthub-settle-rollup", companyId],
     queryFn: async () => {
       const data = await fetchPaged<any>("projecthub/page:settle-rollup", () => (supabase).from("tax_invoices")
@@ -243,8 +243,8 @@ export default function ProjectHubPage() {
     },
     enabled: !!companyId && allDealIds.length > 0,
   });
-  // 자동 실적(v_deal_kpi_auto — 매출/이익/건수)
-  const { data: goalAutos = [] } = useQuery({
+  // 자동 실적(v_deal_kpi_auto · 매출/이익/건수)
+  const  { data: goalAutos = [] } = useQuery({
     queryKey: ["projecthub-kpi-autos", companyId, allDealIds.length],
     queryFn: async () => {
       if (allDealIds.length === 0) return [];
@@ -253,8 +253,8 @@ export default function ProjectHubPage() {
     },
     enabled: !!companyId && allDealIds.length > 0,
   });
-  // 태스크(진행률·지연) — 전 프로젝트
-  const { data: tasksRows = [] } = useQuery({
+  // 태스크(진행률·지연). 전 프로젝트
+  const  { data: tasksRows = [] } = useQuery({
     queryKey: ["projecthub-tasks", companyId, allDealIds.length],
     queryFn: async () => {
       if (allDealIds.length === 0) return [];
@@ -344,7 +344,7 @@ export default function ProjectHubPage() {
   //   표=정렬·비교, 보드=회사가 만든 컬럼(구 워크플로우 탭). 고른 보기는 사람별로 기억한다.
   //   보기(목록/담당별)는 상자 안 갈래 탭. ★ 기억하지 않는다 — 조회 화면 표준(조회값 자동 기억 금지). 기본은 목록.
   const [listView, setListView] = useState<string>("table");
-  const [calMonth, setCalMonth] = useState(0); // 캘린더 보기 — 이번 달 기준 오프셋
+  const [calMonth, setCalMonth] = useState(0); // 캘린더 보기 · 이번 달 기준 오프셋
   // 2026-07-20 QA: 전역 검색(⌘K)에서 프로젝트 결과 클릭 시 ?q=<이름> 딥링크로 진입 —
   //   검색어를 초기값으로 물려받고, 남의 담당 프로젝트도 보이도록 내담당 필터는 해제 상태로 시작.
   const searchParams = useSearchParams();
@@ -373,7 +373,7 @@ export default function ProjectHubPage() {
     return m;
   }, [users]);
 
-  // 제안 줄 접힘/펼침 — 기본은 접힘. 목록 위가 길어지면 정작 프로젝트 카드가 밀린다(2026-08-03).
+  // 제안 줄 접힘/펼침 · 기본은 접힘. 목록 위가 길어지면 정작 프로젝트 카드가 밀린다(2026-08-03).
   const [nudge, setNudge] = useState<"" | "quiet">("");
   const [quietCount, setQuietCount] = useState(0);
   useEffect(() => {
@@ -462,9 +462,9 @@ export default function ProjectHubPage() {
     return { icon: "🗓", text: "기간 미정", dday: "—", tone: "ok" };
   };
 
-  // ── 표(보드) 집계 — 목록 지표를 **입력된 표**에서 뽑는다(2026-08-03 기획 v2 5단계) ──
+  // ── 표(보드) 집계 · 목록 지표를 **입력된 표**에서 뽑는다(2026-08-03 기획 v2 5단계) ──
   //   계약·미수 기반 지표는 새 구조에서 대부분 비어서, 템플릿이 무엇이든 공통인 것만 쓴다.
-  const { data: pbBoards = [] } = useQuery({
+  const  { data: pbBoards = [] } = useQuery({
     queryKey: ["ph-boards", companyId],
     queryFn: async () => {
       const data = logRead("projecthub/page:pbBoards", await (supabase as any).from("project_boards")
@@ -553,9 +553,9 @@ export default function ProjectHubPage() {
     for (const k in m) m[k].overdue.sort((a, b) => b.days - a.days);
     return m;
   }, [v3Items, topDeals, todayStr]);
-  //   가로 단계 병목(2026-09-01 사장님 추천 2 승인) — select 컬럼을 순서대로 놓고,
+  //   가로 단계 병목(2026-09-01 사장님 추천 2 승인). select 컬럼을 순서대로 놓고,
   //   앞 단계는 끝(마지막 선택지)에 도달했는데 뒷 단계는 못 간 건수 차가 가장 큰 곳을 문장으로.
-  const { data: v3Cols = [] } = useQuery({
+  const  { data: v3Cols = [] } = useQuery({
     queryKey: ["ph-v3cols", companyId],
     queryFn: async () => {
       const data = logRead("projecthub/page:v3cols", await (supabase as any).from("project_item_columns")
@@ -601,15 +601,15 @@ export default function ProjectHubPage() {
     const at = v3ByDeal[d.id]?.lastAt;
     return at ? Math.floor((Date.now() - at) / 86400000) : null;
   };
-  // ── 전체 현황판(결정 141·142) — 기본 판 + 내 판(위젯 카탈로그, 홈 대시보드와 같은 문법·같은 그릇) ──
+  // ── 전체 현황판(결정 141·142). 기본 판 + 내 판(위젯 카탈로그, 홈 대시보드와 같은 문법·같은 그릇) ──
   const DASH_KEY = "pjv3-board";
   const DASH_DEFAULT = ["nums", "progress", "load", "signal"];
-  const DASH_CATALOG: { id: string; name: string; desc: string }[] = [
+  const DASH_CATALOG:  { id: string; name: string; desc: string }[] = [
     { id: "nums", name: "숫자 카드 줄", desc: "진행 중·지남·이번 주·끝낸" },
     { id: "progress", name: "프로젝트별 진행", desc: "완료율 낮고 지남 많은 순" },
     { id: "load", name: "담당별 남은 일", desc: "부하가 쏠린 사람이 위" },
     { id: "signal", name: "신호등 현황", desc: "상태 보고의 신호등 합계" },
-    { id: "due", name: "다음 마감 리스트", desc: "가까운 순 — 누르면 그 줄" },
+    { id: "due", name: "다음 마감 리스트", desc: "가까운 순 · 누르면 그 줄" },
     { id: "money", name: "돈 흐름 띠", desc: "견적→계약(₩ 켠 프로젝트)" },
   ];
   const [dashOpen, setDashOpen] = useState(false);
@@ -637,17 +637,18 @@ export default function ProjectHubPage() {
   const saveDash = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     const uid = session?.user?.id;
-    if (!uid || !companyId) { toast("저장 실패 — 로그인을 확인해주세요", "error"); return; }
-    //   읽고-합치고-쓰기 — 다른 화면(홈 대시보드) 키를 보존한다
-    const { data } = await (supabase as any).from("user_preferences").select("dashboard_grid")
+    if (!uid || !companyId) { toast("저장 실패 · 로그인을 확인해주세요", "error"); return; }
+    
+    //   읽고-합치고-쓰기 · 다른 화면(홈 대시보드) 키를 보존한다
+    const  { data } = await (supabase as any).from("user_preferences").select("dashboard_grid")
       .eq("user_id", uid).eq("company_id", companyId).maybeSingle();
     const merged = { ...(data?.dashboard_grid || {}), [DASH_KEY]: { widgets: dashWidgets } };
     const { error } = await (supabase as any).from("user_preferences").upsert(
       { user_id: uid, company_id: companyId, dashboard_grid: merged, updated_at: new Date().toISOString() },
       { onConflict: "user_id,company_id" });
-    if (error) { toast("저장 실패 — 잠시 후 다시 시도해주세요", "error"); return; }
+    if (error) { toast("저장 실패 · 잠시 후 다시 시도해주세요", "error"); return; }
     setDashEdit(false); setDashCat(false);
-    toast("내 판으로 저장했습니다 — 다른 사람은 기본 판 그대로입니다", "success");
+    toast("내 판으로 저장했습니다. 다른 사람은 기본 판 그대로입니다", "success");
   };
   const { data: dealSignals = [] } = useQuery({
     queryKey: ["ph-signals", companyId],
@@ -745,16 +746,16 @@ export default function ProjectHubPage() {
       <span className="ph-sum-warn">{`'${v.overdue[0].name}' ${v.overdue[0].days}일 지남${v.overdue.length > 1 ? ` 외 ${v.overdue.length - 1}건` : ""}`}</span>
     );
     const bn = bottleneckByDeal[d.id];
-    if (bn) parts.push(`${bn.aName} ${bn.doneA}건 끝났는데 ${bn.bName}은 ${bn.doneB}건 — ${bn.gap}건 걸림`);
+    if (bn) parts.push(`${bn.aName} ${bn.doneA}건 끝났는데 ${bn.bName}은 ${bn.doneB}건 · ${bn.gap}건 걸림`);
     if (v.soon > 0) parts.push(`7일 안 마감 ${v.soon}건`);
     const quiet = v3QuietDays(d);
     if (quiet != null && quiet >= 14 && v.overdue.length === 0) parts.push(<span className="ph-sum-warn">{`${quiet}일째 조용`}</span>);
     return <>{parts.map((p, i) => <React.Fragment key={i}>{i > 0 && <span className="ph-sum-dim"> · </span>}{p}</React.Fragment>)}</>;
   };
 
-  // 확인 사항 — 걸리는 것을 짧은 칩으로 모은다(해당되는 것 전부).
+  // 확인 사항 · 걸리는 것을 짧은 칩으로 모은다(해당되는 것 전부).
   //   상태(project-status)는 대표 사유 하나만 주므로 목록에서는 여기서 다시 모은다.
-  const reasonsOf = (d: any): { text: string; tone: "risk" | "warn" | "dim" }[] => {
+  const reasonsOf = (d: any):  { text: string; tone: "risk" | "warn" | "dim" }[] => {
     const list: { text: string; tone: "risk" | "warn" | "dim" }[] = [];
     if (isDone(d)) return list;
     const dd = ddOf(d);
@@ -837,9 +838,9 @@ export default function ProjectHubPage() {
   const managerOpts = useMemo(() => [...new Set((topDeals as any[]).map((d) => userName[d.internal_manager_id]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [topDeals, userName]);
   const partnerOpts = useMemo(() => [...new Set((topDeals as any[]).map((d) => partnerName[d.partner_id]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [topDeals, partnerName]);
   const templateOpts = useMemo(() => [...new Set((topDeals as any[]).flatMap((d) => rollupByDeal[d.id]?.boardNames || []))].map((v) => ({ value: v, label: v })), [topDeals, rollupByDeal]);
-  //   내 조건 — ★ 하나가 이 화면의 기본값
+  //   내 조건 · ★ 하나가 이 화면의 기본값
   const saved = useSavedQueries("projecthub", companyId);
-  const paramsNow = { view: listView, q: search, mine: mineOnly, lens, cond: live };
+  const paramsNow =  { view: listView, q: search, mine: mineOnly, lens, cond: live };
   const paramsBasic = { view: "table", q: "", mine: false, lens: null, cond: EMPTY_COND };
   const applySaved = (p: Record<string, unknown>) => {
     if (p.view === "table") setListView(p.view); // '담당별'은 2026-08-31 제거 — 저장된 내 조건에 남아 있어도 목록으로
@@ -874,9 +875,9 @@ export default function ProjectHubPage() {
   // 상태 건수 — 표 기준(지연=기한 지남 / 주의=이번 주·오래 조용 / 시작 전=입력 없음)
   const lensCounts = useMemo(() => {
     const st: Record<string, number> = { late: 0, warn: 0, normal: 0, empty: 0 };
-    //   숫자도 v3 표 기준(2026-09-01) — 옛 보드 집계는 표와 끊겨 0만 보였다
+    //   숫자도 v3 표 기준(2026-09-01). 옛 보드 집계는 표와 끊겨 0만 보였다
     let lateItems = 0, soonItems = 0;
-    for (const d of lensScope) {
+    for (const d of lensScope)  {
       st[listStatusOfDeal(d)]++;
       const v = v3ByDeal[d.id];
       if (v) { lateItems += v.overdue.length; soonItems += v.soon; }
@@ -900,7 +901,7 @@ export default function ProjectHubPage() {
           {/* 보기 탭·성과 대시보드는 뺐다 (2026-08-31 사장님: "성과 대시보드 필요 없을 것 같아, 담당별도") — 목록 하나만 */}
           <QueryBar right={<>
             <button type="button" onClick={() => setDashOpen(true)} className="btn-secondary btn-sm"
-              title="회사의 모든 프로젝트를 한 판으로 — 기본 판, 원하면 내 판으로">현황판</button>
+              title="회사의 모든 프로젝트를 한 판으로 · 기본 판, 원하면 내 판으로">현황판</button>
             <button type="button" onClick={() => setMyWorkOpen(true)} className="btn-secondary btn-sm"
               title="모든 프로젝트에서 내가 담당한 줄만 급한 순으로">내 작업{myWork.length > 0 ? ` ${myWork.length}` : ""}</button>
             <button type="button" onClick={() => setShowCreate(true)} className="btn-primary btn-sm">+ 프로젝트 생성</button>
@@ -925,7 +926,7 @@ export default function ProjectHubPage() {
                     options={[{ value: "mine", label: "내 담당" }, { value: "all", label: "전체" }]} />
                 </ConditionRow>
               )}
-              <ConditionRow label="상태" hint="판정이 아니라 센 사실 — 0이면 안 보인다">
+              <ConditionRow label="상태" hint="판정이 아니라 센 사실 · 0이면 안 보인다">
                 <span className="qk-quicks">
                   {LENS_OPTS.map(([k, label]) => {
                     const n = k === "" ? lensCounts.total : lensCounts[k];
@@ -948,7 +949,7 @@ export default function ProjectHubPage() {
                 <TokenField items={templateOpts} value={draft.template} onChange={setD("template")} placeholder="예: 예산 · 지출" />
               </ConditionRow>
             </ConditionPanel>
-            <QuickSearch value={search} onApply={setSearch} placeholder="프로젝트 · 거래처 · 참여자 — 쉼표로 여러 개, Enter" />
+            <QuickSearch value={search} onApply={setSearch} placeholder="프로젝트 · 거래처 · 참여자 · 쉼표로 여러 개, Enter" />
           </QueryBar>
 
           <AppliedChips chips={chips} onClearAll={clearAll} />
@@ -963,7 +964,7 @@ export default function ProjectHubPage() {
             <Stat label="프로젝트" value={`${rows.length.toLocaleString("ko")}건${rows.length !== lensCounts.total ? ` / ${lensCounts.total}` : ""}`} />
             <Stat label="기한 지난 줄" value={`${lensCounts.lateItems}건`} tone={lensCounts.lateItems > 0 ? "minus" : undefined} />
             <Stat label="이번 주 마감 줄" value={`${lensCounts.soonItems}건`} />
-            <span className="text-[10.5px] text-[var(--text-dim)]">대표 지표는 그 프로젝트에 있는 데이터에서 자동으로 골라요 — 돈이 걸렸으면 마진율, 목표가 있으면 달성률, 할 일만 있으면 진행률</span>
+            <span className="text-[10.5px] text-[var(--text-dim)]">대표 지표는 그 프로젝트에 있는 데이터에서 자동으로 골라요. 돈이 걸렸으면 마진율, 목표가 있으면 달성률, 할 일만 있으면 진행률</span>
           </ResultStrip>
           {/* 조용한 프로젝트 한 줄 체크인 — 주 1회·최대 3건. 접혀 있어도 마운트한다(위 칩 개수) */}
           {companyId && (
@@ -984,17 +985,17 @@ export default function ProjectHubPage() {
         <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setDashOpen(false); }}>
           <div className="phv3-modal pjv3-dash-modal" role="dialog" aria-modal="true" aria-label="전체 현황판">
             <div className="pjv3-dash-head">
-              <h3 className="phv3-modal-title !mb-0">전체 현황판 — 회사의 모든 프로젝트 한 눈</h3>
+              <h3 className="phv3-modal-title !mb-0">전체 현황판<span className="ui-sub">회사의 모든 프로젝트 한 눈</span></h3>
               <button type="button" className="btn-secondary btn-sm ml-auto"
                 onClick={() => { setDashEdit((v) => !v); setDashCat(false); }}>{dashEdit ? "편집 그만" : "내 판으로 고치기"}</button>
               <button type="button" className="btn-secondary btn-sm" onClick={() => setDashOpen(false)}>닫기</button>
             </div>
             {dashEdit && (
               <div className="pjv3-dash-editbar">
-                <b>편집 중 — 홈 대시보드와 같은 문법(＋위젯·↑↓·✕)</b>
+                <b>편집 중<span className="ui-sub">홈 대시보드와 같은 문법(＋위젯·↑↓·✕)</span></b>
                 <button type="button" className="btn-secondary btn-sm ml-auto" onClick={() => setDashCat((v) => !v)}>＋ 위젯</button>
                 <button type="button" className="btn-secondary btn-sm" onClick={() => setDashWidgets([...DASH_DEFAULT])}>기본 판으로 되돌리기</button>
-                <button type="button" className="btn-primary btn-sm" onClick={saveDash}>저장 — 내 판으로</button>
+                <button type="button" className="btn-primary btn-sm" onClick={saveDash}>저장 · 내 판으로</button>
               </div>
             )}
             {dashEdit && dashCat && (
@@ -1032,7 +1033,7 @@ export default function ProjectHubPage() {
                   )}
                   {w === "progress" && (
                     <div className="pjv3-stpanel">
-                      <h3>프로젝트별 진행 <small>지남 많고 완료율 낮은 순 — 이름을 누르면 그 프로젝트</small></h3>
+                      <h3>프로젝트별 진행 <small>지남 많고 완료율 낮은 순 · 이름을 누르면 그 프로젝트</small></h3>
                       {dashData.per.length === 0 && <div className="pjv3-stempty">표에 줄이 있는 프로젝트가 없습니다</div>}
                       {dashData.per.map((p) => (
                         <button key={p.id} type="button" className="pjv3-dprow" onClick={() => router.push(`/projecthub/${p.id}`)}>
@@ -1050,7 +1051,7 @@ export default function ProjectHubPage() {
                   )}
                   {w === "load" && (
                     <div className="pjv3-stpanel">
-                      <h3>담당별 남은 일 <small>많은 순 — 부하가 쏠린 사람이 위(대표 담당 기준)</small></h3>
+                      <h3>담당별 남은 일 <small>많은 순 · 부하가 쏠린 사람이 위(대표 담당 기준)</small></h3>
                       {dashData.load.length === 0 && <div className="pjv3-stempty">남은 일이 없습니다</div>}
                       {dashData.load.map((a) => {
                         const max = Math.max(1, ...dashData.load.map((x) => x.open));
@@ -1066,7 +1067,7 @@ export default function ProjectHubPage() {
                   )}
                   {w === "signal" && (
                     <div className="pjv3-stpanel">
-                      <h3>신호등 현황 <small>각 프로젝트의 최신 상태 보고 — 보고 안 쓴 프로젝트는 ⚪</small></h3>
+                      <h3>신호등 현황 <small>각 프로젝트의 최신 상태 보고 · 보고 안 쓴 프로젝트는 ⚪</small></h3>
                       <div className="pjv3-stmoney">
                         <span className="mstep"><span className="t">🔵 순항</span><b className="n num">{dashData.signal.blue}</b></span>
                         <span className="mstep"><span className="t">🟠 주의</span><b className="n num">{dashData.signal.orange}</b></span>
@@ -1077,7 +1078,7 @@ export default function ProjectHubPage() {
                   )}
                   {w === "due" && (
                     <div className="pjv3-stpanel">
-                      <h3>다음 마감 <small>모든 프로젝트에서 가까운 순 — 누르면 그 줄 서랍</small></h3>
+                      <h3>다음 마감 <small>모든 프로젝트에서 가까운 순 · 누르면 그 줄 서랍</small></h3>
                       {dashData.nextDue.length === 0 && <div className="pjv3-stempty">마감일 있는 미완 줄이 없습니다</div>}
                       {dashData.nextDue.map((it) => (
                         <button key={it.id} type="button" className="pjv3-stdue" onClick={() => router.push(`/projecthub/${it.deal_id}?item=${it.id}`)}>
@@ -1101,7 +1102,7 @@ export default function ProjectHubPage() {
                   )}
                 </div>
               ))}
-              {dashWidgets.length === 0 && <div className="pjv3-stempty">위젯을 다 뺐습니다 — [기본 판으로 되돌리기] 또는 ＋ 위젯</div>}
+              {dashWidgets.length === 0 && <div className="pjv3-stempty">위젯을 다 뺐습니다. [기본 판으로 되돌리기] 또는 ＋ 위젯</div>}
             </div>
             <p className="pjv3-stnote">저장하면 내 계정에만 적용됩니다 · 진행률 = 마지막 그룹(끝남) 비율, 표 집계와 같은 셈법 · 팀 공유 판은 다음 단계</p>
           </div>
@@ -1112,7 +1113,7 @@ export default function ProjectHubPage() {
       {myWorkOpen && (
         <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setMyWorkOpen(false); }}>
           <div className="phv3-modal pjv3-tpl-modal" role="dialog" aria-modal="true" aria-label="내 작업">
-            <h3 className="phv3-modal-title">내 작업 — 모든 프로젝트에서 내 담당, 급한 순</h3>
+            <h3 className="phv3-modal-title">내 작업<span className="ui-sub">모든 프로젝트에서 내 담당, 급한 순</span></h3>
             {myWork.length === 0 && <div className="pjv3-tpl-mine">지금 담당한 미완 작업이 없습니다</div>}
             {myWork.length > 0 && (
               <table className="ph-mywork">
@@ -1130,7 +1131,7 @@ export default function ProjectHubPage() {
                 </tbody>
               </table>
             )}
-            {myWork.length > 50 && <div className="pjv3-tpl-mine">50건까지만 — 급한 것부터 처리하면 줄어듭니다</div>}
+            {myWork.length > 50 && <div className="pjv3-tpl-mine">50건까지만 · 급한 것부터 처리하면 줄어듭니다</div>}
             <div className="phv3-modal-actions"><button type="button" className="btn-secondary btn-sm" onClick={() => setMyWorkOpen(false)}>닫기</button></div>
           </div>
         </div>
@@ -1177,12 +1178,14 @@ export default function ProjectHubPage() {
         <MondayBoard companyId={companyId} users={users as any} />
       ) : isLoading ? (
         <div className="collect-empty">불러오는 중…</div>
+      
       ) : rows.length === 0 ? (
-        /* 빈 상태 — 신규 사용자가 가장 먼저 보는 화면. 검색·필터 때문에 빈 것과
+        /* 빈 상태 · 신규 사용자가 가장 먼저 보는 화면. 검색·필터 때문에 빈 것과
            진짜 아무것도 없는 것을 구분한다(구분 없이 안내하면 있는데 없다고 읽힌다). */
         /* 열람 범위 권한이 없으면(내 담당만 보이는 직원) 회사에 프로젝트가 있어도 목록이 빈다 —
            그 경우 '첫 프로젝트를 만들어 보세요' 는 사실과 다르므로 필터 안내 쪽으로 보낸다. */
         search || mineOnly || !canViewAllProjects ? (
+          
           <div className="collect-empty ph-empty">
             <div className="text-4xl">🔍</div>
             <div className="text-sm font-semibold text-[var(--text)]">
@@ -1217,7 +1220,7 @@ export default function ProjectHubPage() {
               </div>
             </div>
             <button onClick={() => setShowCreate(true)} className="btn-primary">+ 프로젝트 만들기</button>
-            <p className="ph-onboard-note">템플릿은 부서가 아니라 &apos;일의 형태&apos;로 나눠요 — 마케팅 캠페인·전시회·지원사업이 같은 &apos;예산 · 지출&apos; 템플릿을 씁니다.</p>
+            <p className="ph-onboard-note">템플릿은 부서가 아니라 &apos;일의 형태&apos;로 나눠요. 마케팅 캠페인·전시회·지원사업이 같은 &apos;예산 · 지출&apos; 템플릿을 씁니다.</p>
           </div>
         )
       ) : listView === "timeline" ? (
@@ -1250,7 +1253,7 @@ export default function ProjectHubPage() {
                 <SortableTh label="프로젝트" sortKey="name" sort={sort} onSort={onSort} filter={cfSpec("name")} />
                 <SortableTh label="참여자" sortKey="manager" sort={sort} onSort={onSort} filter={cfSpec("manager")} />
                 <SortableTh label="마지막 업데이트" sortKey="quiet" sort={sort} onSort={onSort} />
-                <SortableTh label="요약 — 현재 상태·특이사항" />
+                <SortableTh label="요약 · 현재 상태·특이사항" />
                 <SortableTh label="" />
               </tr>
             </thead>
@@ -1306,7 +1309,9 @@ export default function ProjectHubPage() {
   );
 }
 
-// 프로젝트 생성 모달 — deals 직접 insert (워크플로우 보드와 동일 데이터)
+
+
+// 프로젝트 생성 모달 · deals 직접 insert (워크플로우 보드와 동일 데이터)
 function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSaved }: {
   companyId: string; partners: any[]; users: any[]; editDeal?: any; onClose: () => void; onSaved: (id?: string) => void;
 }) {
@@ -1454,7 +1459,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
                     </div>
                   )}
                   <div className={isEdit ? "" : "col-span-2"}>
-                    <label className={LB}>계약금액 <span className="font-normal text-[var(--text-dim)]">(선택 — 견적·계약을 만들면 자동으로 잡혀요)</span></label>
+                    <label className={LB}>계약금액 <span className="font-normal text-[var(--text-dim)]">(선택 · 견적·계약을 만들면 자동으로 잡혀요)</span></label>
                     <div className="flex gap-1">
                       <input value={form.contract_total} onChange={(e) => set({ contract_total: comma(e.target.value) })} inputMode="numeric" placeholder="비워두면 나중에" className={`${IN} text-right mono-number`} />
                       <select value={form.vatType} onChange={(e) => set({ vatType: e.target.value as "exclude" | "include" })} className="px-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text-muted)]">
@@ -1507,7 +1512,9 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
   );
 }
 
-// 프로젝트 삭제 모달 — 이름 입력 확인 게이트 + 소프트 삭제(archived_at). 보드 삭제와 동일 정책.
+
+
+// 프로젝트 삭제 모달 · 이름 입력 확인 게이트 + 소프트 삭제(archived_at). 보드 삭제와 동일 정책.
 function DeleteProjectModal({ deal, companyId, onClose, onDeleted }: {
   deal: any; companyId: string | null; onClose: () => void; onDeleted: () => void;
 }) {
@@ -1525,8 +1532,8 @@ function DeleteProjectModal({ deal, companyId, onClose, onDeleted }: {
       // 소프트 삭제 — archived_at 만 갱신. getDeals() 는 archived_at IS NULL 만 조회하므로 즉시 사라짐.
       const { error } = await db.from("deals").update({ archived_at: new Date().toISOString() }).eq("id", deal.id);
       if (error) throw new Error(error.message);
-      // 감사 로그 (실패해도 비차단) — 보드 삭제와 동일 컬럼 구조
-      try {
+      // 감사 로그 (실패해도 비차단). 보드 삭제와 동일 컬럼 구조
+      try  {
         await db.from("audit_logs").insert({
           company_id: companyId as string, entity_type: "deal", entity_id: deal.id, action: "delete",
           before_json: { archived_at: null, name: deal.name },

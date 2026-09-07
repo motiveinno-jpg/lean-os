@@ -37,7 +37,7 @@ export function PlatformMemberActions({ member, onChanged }: { member: PlatformM
       const res = await platformAdminAction(payload);
       if (res.error) { setError(res.error); return; }
       if (res.tempPassword) {
-        setResult({ label: "임시 비밀번호 (한 번만 표시 — 고객에게 전달 후 창을 닫으세요)", value: res.tempPassword });
+        setResult({ label: "임시 비밀번호 (한 번만 표시 · 고객에게 전달 후 창을 닫으세요)", value: res.tempPassword });
       } else if (res.link) {
         setResult({ label: "재설정 링크 (복사해서 고객에게 전달)", value: res.link });
       } else {

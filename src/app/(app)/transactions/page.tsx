@@ -75,7 +75,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
   const [tab, setTab] = useState<Tab>(initialTab);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('unmapped');
   const [filterType, setFilterType] = useState<string>('');
-  // 통장별/날짜 필터 — codef sync 결과 분류용
+  // 통장별/날짜 필터 · codef sync 결과 분류용
   const [selectedAccountNo, setSelectedAccountNo] = useState<string>('');
   const [bankDateFrom, setBankDateFrom] = useState<string>('');
   const [bankDateTo, setBankDateTo] = useState<string>('');
@@ -104,10 +104,10 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
   const [receiptUploadingId, setReceiptUploadingId] = useState<string | null>(null);
   const [codefSyncing, setCodefSyncing] = useState(false);
   const [bankFetching, setBankFetching] = useState(false);
-  // AI 제안(suggest 모드) — DB 미적용, 화면에만 추천 보관. 확정은 사람이 [확정] 클릭.
+  // AI 제안(suggest 모드). DB 미적용, 화면에만 추천 보관. 확정은 사람이 [확정] 클릭.
   const [aiSug, setAiSug] = useState<Record<string, { category: string; confidence: number }>>({});
   const [aiSugLoading, setAiSugLoading] = useState(false);
-  const [toolsOpen, setToolsOpen] = useState(false); // 상단 도구(동기화·내보내기·업로드) 드롭다운 — 버튼 난립 압축
+  const [toolsOpen, setToolsOpen] = useState(false); // 상단 도구(동기화·내보내기·업로드) 드롭다운 · 버튼 난립 압축
   // Manual entry state
   const [manualForm, setManualForm] = useState({
     type: 'expense' as 'income' | 'expense',
@@ -182,7 +182,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
     enabled: !!companyId,
   });
 
-  // bank_transactions 의 is_fixed_cost(고정비 — 비용 성격) 토글 mutation
+  // bank_transactions 의 is_fixed_cost(고정비 · 비용 성격) 토글 mutation
   const toggleFixedMut = useMutation({
     mutationFn: async ({ id, value }: { id: string; value: boolean }) => {
       const { error } = await (supabase).from('bank_transactions').update({ is_fixed_cost: value }).eq('id', id);
@@ -196,7 +196,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
     onError: (e: any) => toast(`고정비 변경 실패: ${e.message}`, 'error'),
   });
 
-  // 2026-05-22 자동이체(is_auto_transfer — 결제 방식) 토글 mutation. 고정비와 독립.
+  // 2026-05-22 자동이체(is_auto_transfer · 결제 방식) 토글 mutation. 고정비와 독립.
   const toggleAutoMut = useMutation({
     mutationFn: async ({ id, value }: { id: string; value: boolean }) => {
       const { error } = await (supabase).from('bank_transactions').update({ is_auto_transfer: value }).eq('id', id);
@@ -243,8 +243,8 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
     enabled: !!companyId,
   });
 
-  // 자동이체(반복결제) 등록내역 — 거래의 "자동" 판정 기준
-  const { data: recurringPayments = [] } = useQuery({
+  // 자동이체(반복결제) 등록내역 · 거래의 "자동" 판정 기준
+  const  { data: recurringPayments = [] } = useQuery({
     queryKey: ['recurring-payments', companyId],
     queryFn: async () => {
       const { getRecurringPayments } = await import('@/lib/approval-center');
@@ -549,10 +549,10 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
     }
   }, [companyId, queryClient]);
 
-  // (구 handleAIClassify 자동적용 제거 — 'AI 추천 받기'(runAiSuggest, 제안→사람 확정)로 대체 2026-07-15)
+  // (구 handleAIClassify 자동적용 제거 · 'AI 추천 받기'(runAiSuggest, 제안→사람 확정)로 대체 2026-07-15)
 
   // 사용자가 추가한 분류/카테고리 옵션 (저장·재사용·삭제)
-  const { data: savedOptions = [] } = useQuery({
+  const  { data: savedOptions = [] } = useQuery({
     queryKey: ["tx-category-options", companyId],
     queryFn: async () => {
       const data = logRead('transactions/page:data', await (supabase)
@@ -599,10 +599,10 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
       queryClient.invalidateQueries({ queryKey: ["bank-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["bank-tx-stats"] });
       setMapModal(null);
-      // 분류 완료된 거래는 inbox 에서 사라지고 '전체' 탭에 남음 — 사용자 혼란 방지 안내
+      // 분류 완료된 거래는 inbox 에서 사라지고 '전체' 탭에 남음. 사용자 혼란 방지 안내
       const fixedNote = vars.isFixedCost ? " · 자동이체 표시됨" : "";
-      if (tab === 'inbox') {
-        toast(`분류 완료${fixedNote} — '전체' 탭에서 확인할 수 있습니다`, "success");
+      if (tab === 'inbox')  {
+        toast(`분류 완료${fixedNote} · '전체' 탭에서 확인할 수 있습니다`, "success");
       } else {
         toast(`분류 완료${fixedNote}`, "success");
       }
@@ -685,7 +685,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
       const map: Record<string, { category: string; confidence: number }> = {};
       for (const r of (result.results || [])) map[r.id] = { category: r.category, confidence: r.confidence };
       setAiSug((prev) => ({ ...prev, ...map }));
-      toast(Object.keys(map).length > 0 ? `AI 추천 ${Object.keys(map).length}건 — 확인 후 [확정]하세요` : "AI가 추천할 거래를 찾지 못했습니다", Object.keys(map).length > 0 ? "success" : "info");
+      toast(Object.keys(map).length > 0 ? `AI 추천 ${Object.keys(map).length}건 · 확인 후 [확정]하세요` : "AI가 추천할 거래를 찾지 못했습니다", Object.keys(map).length > 0 ? "success" : "info");
     } catch (err: any) {
       toast(friendlyError(err, "AI 추천 실패"), "error");
     } finally {
@@ -785,7 +785,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
     else { setCardSortBy(key); setCardSortDir(key === 'amount' || key === 'transaction_date' ? 'desc' : 'asc'); }
   };
   const [showRefunds, setShowRefunds] = useState(false);
-  // A2 체크카드 그룹 접기 토글 — localStorage 영구
+  // A2 체크카드 그룹 접기 토글 · localStorage 영구
   const [checkCardCollapsed, setCheckCardCollapsed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     try { return localStorage.getItem('cards:check-collapsed') === '1'; } catch { return false; }
@@ -855,7 +855,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
     return xs;
   })();
 
-  /* Category breakdown for expense donut chart — 목록·합계와 같은 필터 기준 (2026-08-19:
+  /* Category breakdown for expense donut chart · 목록·합계와 같은 필터 기준 (2026-08-19:
      계좌를 골라도 분포는 전 계좌 기준이라 그 계좌 지출 구성으로 오독됐다) */
   const categoryBreakdown = filteredBankTx.reduce((acc: Record<string, number>, tx: any) => {
     if (tx.type !== 'expense' && tx.type !== '출금') return acc;
@@ -898,7 +898,8 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
       {/*   이 화면이 하던 일(미분류 정리·계정 추천·배운 규칙)은 수집·전표 › 통장 탭으로 갔다 (2026-08-11 메뉴에서 내림,
             2026-08-18 조회 표준 확산 때 링크까지 정리). 즐겨찾기로 들어온 사람에게 갈 곳을 알려 준다. */}
       <div className="collect-note tx-moved-note">
-        ※ 이 화면은 <b>수집·전표 › 통장</b>으로 통합됐습니다 — 계정 지정·AI 계정 추천·배운 규칙·전표 만들기를 거기서 합니다.
+        ※ 이 화면은 <b>수집·전표 › 통장</b>으로 통합됐습니다. 계정 지정·AI 계정 추천·배운 규칙·전표 만들기를 거기서 합니다.
+        
         {" "}<a href="/collect?tab=bank" className="text-[var(--primary)] font-bold underline">수집·전표 › 통장으로 →</a>
       </div>
       <div className="tx-header-bar page-sticky-header">
@@ -931,10 +932,10 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                 if (!companyId) return;
                 setBankFetching(true);
                 try {
-                  const { syncCodefData, syncBankBalances } = await import('@/lib/data-sync');
-                  // 1) 은행 거래 sync (CODEF 은행 분기만 — 홈택스/카드 미포함)
+                  const { syncCodefData, syncBankBalances }  = await import('@/lib/data-sync');
+                  // 1) 은행 거래 sync (CODEF 은행 분기만 · 홈택스/카드 미포함)
                   const result = await syncCodefData(companyId, 'bank');
-                  if (!result.success && result.status !== 'partial') {
+                  if (!result.success && result.status !== 'partial')  {
                     toast(result.error || '통장 거래 불러오기 실패', 'error');
                     return;
                   }
@@ -951,20 +952,20 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                   // 다른 페이지(대시보드 등) 도 잔액 갱신하도록 전역 이벤트 발행
                   try { window.dispatchEvent(new CustomEvent('ownerview:codef-synced')); } catch { /* ignore */ }
                   const balMsg = balResult.status === 'success' ? ` · ${balResult.message}` : '';
-                  // 오류(errors)는 코드 화이트리스트 없이 전부 표출 (2026-08-19) — CF-04015 등이
+                  // 오류(errors)는 코드 화이트리스트 없이 전부 표출 (2026-08-19). CF-04015 등이
                   //   "새 거래 없음"으로 가려지던 무음 실패 방지. notes 는 종전대로 안내 코드만.
-                  const firstError = (result.errors || [])[0] as { message?: string; hint?: string } | undefined;
+                  const firstError = (result.errors || [])[0] as  { message?: string; hint?: string } | undefined;
                   const blockerNote = (result.notes || []).find(n =>
                     n.code === 'NO_DEMAND_DEPOSIT' || n.code === 'CF-00401' || n.code === 'CF-00003' || n.code === 'CF-13021'
                   );
                   if (firstError) {
-                    toast(`통장 동기화 오류 — ${firstError.message}${firstError.hint ? ` · ${firstError.hint}` : ''}`, 'error');
+                    toast(`통장 동기화 오류 · ${firstError.message}${firstError.hint ? ` · ${firstError.hint}` : ''}`, 'error');
                   } else if (synced > 0) {
                     toast(`통장 최근 거래 ${synced}건 불러옴${balMsg}`, 'success');
                   } else if (blockerNote) {
-                    toast(`통장 불러오기 — ${blockerNote.message}${blockerNote.hint ? ` · ${blockerNote.hint}` : ''}`, 'info');
+                    toast(`통장 불러오기 · ${blockerNote.message}${blockerNote.hint ? ` · ${blockerNote.hint}` : ''}`, 'info');
                   } else {
-                    toast(`통장 불러오기 완료 — 새 거래 없음${balMsg}`, 'info');
+                    toast(`통장 불러오기 완료 · 새 거래 없음${balMsg}`, 'info');
                   }
                 } catch (e: any) {
                   toast(friendlyError(e, '통장 거래 불러오기 오류'), 'error');
@@ -1005,22 +1006,23 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                     const ar = await syncCodefData(companyId!, 'card_approval').catch(() => null);
                     approvalSynced = (ar as any)?.cardSynced ?? 0;
                   }
+                  
                   const synced = syncType === 'bank' ? (result.bankSynced ?? 0) : ((result.cardSynced ?? 0) + approvalSynced);
                   const label = syncType === 'bank' ? '통장' : '카드';
-                  // 오류(errors)는 화이트리스트 없이 전부 표출 (2026-08-19) — 무음 실패 방지.
-                  const firstError = (result.errors || [])[0] as { message?: string; hint?: string } | undefined;
+                  // 오류(errors)는 화이트리스트 없이 전부 표출 (2026-08-19). 무음 실패 방지.
+                  const firstError = (result.errors || [])[0] as  { message?: string; hint?: string } | undefined;
                   // 환경/등록 이슈 — 사용자가 행동해야 풀리는 것 우선 표시
                   const blockerNote = (result.notes || []).find(n =>
                     n.code === 'NO_DEMAND_DEPOSIT' || n.code === 'CF-00401' || n.code === 'CF-00003' || n.code === 'CF-13021'
                   );
                   if (firstError) {
-                    toast(`${label} 동기화 오류 — ${firstError.message}${firstError.hint ? ` · ${firstError.hint}` : ''}`, 'error');
+                    toast(`${label} 동기화 오류 · ${firstError.message}${firstError.hint ? ` · ${firstError.hint}` : ''}`, 'error');
                   } else if (synced > 0) {
                     toast(`${label} 거래내역 ${synced}건 동기화 완료`, 'success');
                   } else if (blockerNote) {
-                    toast(`${label} 동기화 — ${blockerNote.message}${blockerNote.hint ? ` · ${blockerNote.hint}` : ''}`, 'info');
+                    toast(`${label} 동기화 · ${blockerNote.message}${blockerNote.hint ? ` · ${blockerNote.hint}` : ''}`, 'info');
                   } else {
-                    toast(`${label} 동기화 완료 — 해당 기간 새 거래 없음`, 'info');
+                    toast(`${label} 동기화 완료 · 해당 기간 새 거래 없음`, 'info');
                   }
                   queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
                   queryClient.invalidateQueries({ queryKey: ['card-transactions'] });
@@ -1519,7 +1521,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                       )}
                       <button onClick={runAiSuggest} disabled={aiSugLoading}
                         className="ai-suggest-btn btn-primary btn-sm"
-                        title="미분류 지출(최대 20건)에 AI 계정과목 추천 — 확정은 직접">
+                        title="미분류 지출(최대 20건)에 AI 계정과목 추천 · 확정은 직접">
                         {aiSugLoading ? "AI 추천 중…" : "AI 추천 받기"}
                       </button>
                     </div>
@@ -1565,14 +1567,14 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                       </div>
                       <div className="shrink-0 flex flex-col gap-1" onClick={e => e.stopPropagation()}>
                         {tab !== 'inbox' && (
-                        <label className="flex items-center gap-1 cursor-pointer" title={tx.is_auto_transfer ? '자동이체로 표시됨 — 클릭해서 해제' : '자동이체(결제 방식)로 표시'}>
+                        <label className="flex items-center gap-1 cursor-pointer" title={tx.is_auto_transfer ? '자동이체로 표시됨. 클릭해서 해제' : '자동이체(결제 방식)로 표시'}>
                           <input type="checkbox" checked={!!tx.is_auto_transfer} onChange={e => toggleAutoMut.mutate({ id: tx.id, value: e.target.checked })} disabled={toggleAutoMut.isPending} className="accent-sky-500 cursor-pointer" />
                           {tx.is_auto_transfer ? <span className="text-[9px] px-1 py-0.5 rounded bg-sky-500/15 text-sky-500 font-semibold whitespace-nowrap">자동이체</span>
-                            : isAutoTransferTx(tx) ? <span className="text-[9px] px-1 py-0.5 rounded bg-sky-500/10 text-sky-400 whitespace-nowrap" title="등록된 자동이체와 일치 — 자동 감지">자동감지</span>
+                            : isAutoTransferTx(tx) ? <span className="text-[9px] px-1 py-0.5 rounded bg-sky-500/10 text-sky-400 whitespace-nowrap" title="등록된 자동이체와 일치 · 자동 감지">자동감지</span>
                             : <span className="text-[9px] text-[var(--text-dim)]">자동이체</span>}
                         </label>
                         )}
-                        <label className="flex items-center gap-1 cursor-pointer" title={tx.is_fixed_cost ? '고정비로 표시됨 — 클릭해서 해제' : '고정비(비용 성격)로 표시'}>
+                        <label className="flex items-center gap-1 cursor-pointer" title={tx.is_fixed_cost ? '고정비로 표시됨. 클릭해서 해제' : '고정비(비용 성격)로 표시'}>
                           <input type="checkbox" checked={!!tx.is_fixed_cost} onChange={e => toggleFixedMut.mutate({ id: tx.id, value: e.target.checked })} disabled={toggleFixedMut.isPending} className="accent-orange-500 cursor-pointer" />
                           {tx.is_fixed_cost ? <span className="text-[9px] px-1 py-0.5 rounded bg-orange-500/15 text-orange-500 font-semibold whitespace-nowrap">고정비</span>
                             : <span className="text-[9px] text-[var(--text-dim)]">고정비</span>}
@@ -1766,7 +1768,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                             : 'bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--primary)]/50'
                         }`}
                         onClick={() => setSelectedCardName(selectedCardName === c.card_name ? '' : c.card_name)}
-                        title={unid ? '끝번호 없는 묶음 거래 — 클릭해서 안 거래를 보고 매핑하세요' : undefined}
+                        title={unid ? '끝번호 없는 묶음 거래 · 클릭해서 안 거래를 보고 매핑하세요' : undefined}
                         role="button"
                         tabIndex={0}
                       >

@@ -35,7 +35,7 @@ export function normalizeBizCertMime(file: File): string {
 export async function extractBizCert(file: File): Promise<BizCertResult> {
   const mime = normalizeBizCertMime(file);
   if (!["application/pdf", "image/jpeg", "image/png", "image/webp", "image/gif"].includes(mime)) {
-    throw new Error(`PDF 또는 JPG·PNG·WEBP 이미지만 올릴 수 있습니다. (올린 파일 형식: ${mime}${mime.includes("heic") || mime.includes("heif") ? " — 아이폰 사진은 JPG 로 내보내 주세요" : ""})`);
+    throw new Error(`PDF 또는 JPG·PNG·WEBP 이미지만 올릴 수 있습니다. (올린 파일 형식: ${mime}${mime.includes("heic") || mime.includes("heif") ? " · 아이폰 사진은 JPG 로 내보내 주세요" : ""})`);
   }
   if (file.size > 12 * 1024 * 1024) throw new Error("12MB 이하 파일만 올릴 수 있습니다.");
   const data = await toBase64(file);

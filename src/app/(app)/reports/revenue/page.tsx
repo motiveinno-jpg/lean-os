@@ -24,7 +24,7 @@ export default function RevenuePage() {
   const { role } = useUser();
   const s = usePnlStatus();
   const [drill, setDrill] = useState<Drill | null>(null);
-  //   KPI 현황판은 재고 › 이익관리로 이사(2026-09-02 사장님 — 쓰는 회사가 판매·이커머스 쪽)
+  //   KPI 현황판은 재고 › 이익관리로 이사(2026-09-02 사장님 · 쓰는 회사가 판매·이커머스 쪽)
   const [q, setQ] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState<Cond>(EMPTY);
@@ -103,7 +103,7 @@ export default function RevenuePage() {
             <ConditionRow label="거래처" hint="여러 곳"><TokenField items={partnerOpts} value={draft.partners} onChange={(v) => setDraft((c) => ({ ...c, partners: v }))} placeholder="거래처 이름 일부" /></ConditionRow>
             <ConditionRow label="매출 계정" hint="여러 개 · 계정과목표의 매출 계정"><TokenField items={acctOpts} value={draft.accounts} onChange={(v) => setDraft((c) => ({ ...c, accounts: v }))} placeholder="계정 이름 일부" /></ConditionRow>
           </ConditionPanel>
-          <QuickSearch value={q} onApply={setQ} placeholder="거래처 · 계정 · 적요 — 쉼표로 여러 개, Enter" />
+          <QuickSearch value={q} onApply={setQ} placeholder="거래처 · 계정 · 적요. 쉼표로 여러 개, Enter" />
         </>}
         stats={<>
           <Stat label="매출 합계" value={<>{won(total)} <Delta cur={total} prev={cmpTotal} /></>} />
@@ -129,7 +129,7 @@ export default function RevenuePage() {
         </section>
         <section className="pnl-panel">
           <h3>계정별 매출</h3>
-          <p>계정과목표의 매출 계정 — 회사가 계정을 늘리면 자동으로 늘어난다 · 줄 클릭 = 원천 전표</p>
+          <p>계정과목표의 매출 계정 · 회사가 계정을 늘리면 자동으로 늘어난다 · 줄 클릭 = 원천 전표</p>
           <div className="pnl-tbl-wrap">
             <table className="ev-table ev-lined pnl-mini-table">
               <thead><tr><th className="text-left">계정</th><th>금액</th><th>비중</th><th>{cmpRangeLabel(s)}</th><th>증감</th></tr></thead>
@@ -152,7 +152,7 @@ export default function RevenuePage() {
 
       <section className="pnl-panel">
         <h3>거래처별 매출</h3>
-        <p>정렬 ▼ · ≡ 필터 · 너비 조절 · 쪽 — 줄 클릭 = 그 거래처 전표. 미수금은 매출 세금계산서 중 아직 안 들어온 것(발행 기준)</p>
+        <p>정렬 ▼ · ≡ 필터 · 너비 조절 · 쪽 · 줄 클릭 = 그 거래처 전표. 미수금은 매출 세금계산서 중 아직 안 들어온 것(발행 기준)</p>
         <div className="pnl-tbl-wrap">
           <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed pnl-partner-table">
             <thead><tr>

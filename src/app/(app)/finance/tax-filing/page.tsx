@@ -65,7 +65,7 @@ function DueDate({ d, done, onToggle }: { d: string; done?: boolean; onToggle?: 
     <b className={cls} title={done ? "납부 완료로 표시됨" : left < 0 ? `${-left}일 지났습니다` : left === 0 ? "오늘까지" : `${left}일 남았습니다`}>{d}{done ? " · 납부 완료" : left < 0 ? " · 지남" : left <= 7 ? ` · D-${left}` : ""}</b>
     {onToggle && (
       <button type="button" aria-label={done ? "납부 완료 해제" : "납부 완료로 표시"}
-        title={done ? "완료 표시 해제" : "신고/납부를 마쳤으면 체크 — 홈 세금 신호·브리핑에서 빠집니다"}
+        title={done ? "완료 표시 해제" : "신고/납부를 마쳤으면 체크 · 홈 세금 신호·브리핑에서 빠집니다"}
         onClick={() => onToggle(!done)} className={done ? "dash-tax-chk tax-due-chk dash-tax-chk-on" : "dash-tax-chk tax-due-chk"}>{done ? "✓" : ""}</button>
     )}
   </>);
@@ -112,8 +112,8 @@ const aggOf = (list: WhtRow[]) => ({
   localTax: list.reduce((s, r) => s + r.localIncomeTax, 0),
 });
 
-/** payroll_items → WhtRow — 원천세·지급명세서가 같은 해석을 쓴다(두 곳에서 갈리면 안 된다) */
-function toWhtRows(data: any[]): WhtRow[] {
+/** payroll_items → WhtRow · 원천세·지급명세서가 같은 해석을 쓴다(두 곳에서 갈리면 안 된다) */
+function toWhtRows(data: any[]): WhtRow[]  {
   return (data || []).map((r: any) => {
     //   결정 101 — 과세 지급총액 = 과세 기본급 + 과세 수당(extras 의 allowance 는 전부 과세, 비과세 수당은 non_taxable 로 따로 든다)
     const allowance = (Array.isArray(r.extras) ? r.extras : [])
@@ -176,7 +176,7 @@ export default function TaxFilingPage() {
     try {
       await setTaxDeadlineChecked(companyId, id, userId, on);
       qc.invalidateQueries({ queryKey: ["tax-deadline-checks"] });
-      toast(on ? "납부 완료로 표시했습니다 — 홈 세금 신호·브리핑에서 빠집니다" : "완료 표시를 해제했습니다", "success");
+      toast(on ? "납부 완료로 표시했습니다. 홈 세금 신호·브리핑에서 빠집니다" : "완료 표시를 해제했습니다", "success");
     } catch (e: any) { toast(friendlyError(e, "표시에 실패했습니다"), "error"); }
   };
   const upcoming = useMemo(() => getUpcomingTaxDeadlines(60).filter((t) => t.href.startsWith("/finance/tax-filing")), []);
@@ -198,9 +198,9 @@ export default function TaxFilingPage() {
     queryFn: async () => toWhtRows(logRead("tax-filing:wht", await (supabase as any).from("payroll_items")
       .select(WHT_SELECT).eq("company_id", companyId!).eq("period_month", month)) as any[]),
   });
-  //   지급명세서 자료 — 근로 반기(여섯 달) / 사업소득 한 달
+  //   지급명세서 자료 · 근로 반기(여섯 달) / 사업소득 한 달
   const stmtMonths = stmtKind === "work" ? halfMonths(stmtYear, stmtHalf) : [stmtMonth];
-  const { data: stmtRows = [], isLoading: stmtLoading } = useQuery<WhtRow[]>({
+  const  { data: stmtRows = [], isLoading: stmtLoading } = useQuery<WhtRow[]>({
     queryKey: ["wht-stmt", companyId, stmtKind, ...stmtMonths],
     enabled: !!companyId && tab === "stmt",
     queryFn: async () => toWhtRows(logRead("tax-filing:stmt", await (supabase as any).from("payroll_items")
@@ -222,9 +222,9 @@ export default function TaxFilingPage() {
   }, [citStmt]);
   const [packBusy, setPackBusy] = useState(false);
 
-  //   ── 전자신고 파일 베타 (세무 4차, 결정 106) — feature_rollout 'tax_efile' 게이트: 모티브 먼저,
+  //   ── 전자신고 파일 베타 (세무 4차, 결정 106). feature_rollout 'tax_efile' 게이트: 모티브 먼저,
   //   홈택스 변환 검증 + 세무사 검토로 실신고 1회 통과 후 전체 오픈 ──
-  const { data: efileOn = false } = useQuery({
+  const  { data: efileOn = false } = useQuery({
     queryKey: ["feature-tax-efile", companyId],
     enabled: !!companyId,
     queryFn: async () => {
@@ -280,7 +280,7 @@ export default function TaxFilingPage() {
     setEfileIssues(built.issues);
     if (built.bytes) {
       downloadNtsBytes(built.bytes, built.fileName);
-      toast(`${built.fileName} 을 내려받았습니다 — 홈택스 › 신고서 파일 변환에서 검증·제출하세요`, "success");
+      toast(`${built.fileName} 을 내려받았습니다. 홈택스 › 신고서 파일 변환에서 검증·제출하세요`, "success");
       setEfileOpen(false);
     }
   };
@@ -358,7 +358,7 @@ export default function TaxFilingPage() {
     //   RPC 는 호출당 500명 상한(보안 검수 P3) — 넘으면 청크로 나눠 부른다
     for (let i = 0; i < target.length; i += 500) {
       const { data, error } = await (supabase as any).rpc("get_rrns_for_statement", { p_employee_ids: target.slice(i, i + 500) });
-      if (error) { toast(`주민등록번호 조회 실패 — ${friendlyError(error)}`, "error"); return new Map(); }
+      if (error) { toast(`주민등록번호 조회 실패 · ${friendlyError(error)}`, "error"); return new Map(); }
       for (const r of (data || []) as any[]) out.set(r.employee_id as string, r.rrn as string);
     }
     return out;
@@ -373,12 +373,12 @@ export default function TaxFilingPage() {
         ["이름", "사번", "주민등록번호", ...stmtMonths.map((m) => `${Number(m.slice(5, 7))}월`), "합계"],
         ...workStmt.map((e) => [e.name, e.employee_number || "", rrn.get(e.employee_id) || "(미등록)", ...stmtMonths.map((m) => num(e.months[m] || 0)), num(e.total)]),
         ["합계", "", "", ...stmtMonths.map((m) => num(workStmt.reduce((s, e) => s + (e.months[m] || 0), 0))), num(workStmt.reduce((s, e) => s + e.total, 0))],
-        [], ["※ 주민등록번호가 포함된 파일입니다 — 보관·전달에 주의하세요. (미등록)은 구성원 상세 › 기본 정보에서 입력하면 채워집니다."],
+        [], ["※ 주민등록번호가 포함된 파일입니다. 보관·전달에 주의하세요. (미등록)은 구성원 상세 › 기본 정보에서 입력하면 채워집니다."],
       ]);
       ws["!cols"] = [{ wch: 12 }, { wch: 8 }, { wch: 20 }, ...stmtMonths.map(() => ({ wch: 12 })), { wch: 14 }];
       XLSX.utils.book_append_sheet(wb, ws, "근로 간이지급명세서");
       XLSX.writeFile(wb, `근로간이지급명세서_${stmtYear}_${stmtHalf === 1 ? "상반기" : "하반기"}.xlsx`);
-      if (rrn.size > 0) toast(`주민등록번호 ${rrn.size}명분이 포함됐습니다 — 조회 기록이 남습니다`, "info");
+      if (rrn.size > 0) toast(`주민등록번호 ${rrn.size}명분이 포함됐습니다. 조회 기록이 남습니다`, "info");
     } else {
       if (!bizStmt.length) { toast("이 달 사업소득(프리랜서) 지급 기록이 없습니다", "info"); return; }
       const rrn = await fetchRrns(bizStmt.map((r) => r.employee_id));
@@ -387,12 +387,12 @@ export default function TaxFilingPage() {
         ["이름", "사번", "주민등록번호", "지급액", "소득세(3%)", "지방소득세(0.3%)"],
         ...bizStmt.map((r) => [r.name, r.employee_number || "", rrn.get(r.employee_id) || "(미등록)", num(r.taxable), num(r.incomeTax), num(r.localIncomeTax)]),
         ["합계", "", "", num(bizStmtT.taxable), num(bizStmtT.incomeTax), num(bizStmtT.localTax)],
-        [], ["※ 주민등록번호가 포함된 파일입니다 — 보관·전달에 주의하세요. (미등록)은 구성원 상세 › 기본 정보에서 입력하면 채워집니다."],
+        [], ["※ 주민등록번호가 포함된 파일입니다. 보관·전달에 주의하세요. (미등록)은 구성원 상세 › 기본 정보에서 입력하면 채워집니다."],
       ]);
       ws["!cols"] = [{ wch: 12 }, { wch: 8 }, { wch: 20 }, { wch: 14 }, { wch: 12 }, { wch: 14 }];
       XLSX.utils.book_append_sheet(wb, ws, "사업소득 간이지급명세서");
       XLSX.writeFile(wb, `사업소득간이지급명세서_${stmtMonth}.xlsx`);
-      if (rrn.size > 0) toast(`주민등록번호 ${rrn.size}명분이 포함됐습니다 — 조회 기록이 남습니다`, "info");
+      if (rrn.size > 0) toast(`주민등록번호 ${rrn.size}명분이 포함됐습니다. 조회 기록이 남습니다`, "info");
     }
   };
 
@@ -438,7 +438,7 @@ export default function TaxFilingPage() {
       ]);
       ws3["!cols"] = [{ wch: 20 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 8 }, { wch: 6 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
       XLSX.utils.book_append_sheet(wb, ws3, "고정자산 명세");
-      //   전표 원장 — 세무조정의 원재료. 너무 크면 엑셀이 안 열리므로 3만 줄에서 자르고 잘랐다고 적는다.
+      //   전표 원장 · 세무조정의 원재료. 너무 크면 엑셀이 안 열리므로 3만 줄에서 자르고 잘랐다고 적는다.
       const CAP = 30_000;
       const ws4 = XLSX.utils.aoa_to_sheet([
         ["전표 원장", `${year}년 · 확정 전표 ${lines.length.toLocaleString("ko-KR")}줄${lines.length > CAP ? ` 중 앞 ${CAP.toLocaleString("ko-KR")}줄 (잘림 — 기간을 나눠 다시 받으세요)` : ""} (오너뷰)`], [],
@@ -448,7 +448,7 @@ export default function TaxFilingPage() {
       ws4["!cols"] = [{ wch: 11 }, { wch: 8 }, { wch: 7 }, { wch: 20 }, { wch: 13 }, { wch: 13 }, { wch: 16 }, { wch: 30 }];
       XLSX.utils.book_append_sheet(wb, ws4, "전표 원장");
       XLSX.writeFile(wb, `법인세_세무사패키지_${year}.xlsx`);
-      toast(`${year}년 패키지를 내려받았습니다 — 손익·재무상태표·고정자산·전표 원장 4개 시트`, "success");
+      toast(`${year}년 패키지를 내려받았습니다. 손익·재무상태표·고정자산·전표 원장 4개 시트`, "success");
     } catch (e) { toast(friendlyError(e), "error"); }
     finally { setPackBusy(false); }
   };
@@ -466,7 +466,8 @@ export default function TaxFilingPage() {
             <p className="inv-modal-desc">
               {month} 지급분 정기(매월) 신고서를 홈택스 <b>신고서 파일 변환</b> 업로드용 전산매체(C103900)로 만듭니다.
               내려받은 파일은 홈택스 변환 검증을 거치고, <b>첫 신고는 반드시 세무사 확인 후 제출</b>하세요.
-              연말정산·수정신고·환급신청·반기 신고는 이 파일로 안 됩니다 — 홈택스에서 직접.
+              연말정산·수정신고·환급신청·반기 신고는 이 파일로 안 됩니다. 홈택스에서 직접.
+            
             </p>
             <div className="inv-bom-base">
               <label className="text-xs font-semibold text-[var(--text-dim)] whitespace-nowrap">홈택스 사용자ID</label>
@@ -502,7 +503,7 @@ export default function TaxFilingPage() {
           <div className="tax-upcoming">
             <span className="tax-upcoming-label">다가오는 신고 (60일)</span>
             {upcomingOpen.length === 0 ? <span className="ev-dim">60일 안에 할 신고가 없거나 모두 납부 완료로 표시됐습니다</span> : upcomingOpen.map((t) => (
-              <button key={t.id} type="button" className="qk-chip" onClick={() => goDeepLink(t.href)} title={`${t.date} — 누르면 그 신고 화면으로`}>
+              <button key={t.id} type="button" className="qk-chip" onClick={() => goDeepLink(t.href)} title={`${t.date} · 누르면 그 신고 화면으로`}>
                 {t.title.replace(" 신고/납부", "").replace(" 제출", "")} <b className="mono-number">{t.date.slice(5).replace("-", "/")}</b> <b className={t.daysLeft <= 7 ? "mono-number tax-due-soon" : "mono-number"}>{t.daysLeft === 0 ? "오늘" : `D-${t.daysLeft}`}</b>
               </button>
             ))}
@@ -511,9 +512,9 @@ export default function TaxFilingPage() {
             <QueryBar right={<>
               {efileOn && (
                 <button type="button" className="btn-secondary btn-sm" disabled={rows.length === 0} onClick={() => { setEfileIssues([]); setEfileOpen(true); }}
-                  title="홈택스 '신고서 파일 변환' 업로드용 전산매체 파일 (C103900) — 베타">전자신고 파일 (베타)</button>
+                  title="홈택스 '신고서 파일 변환' 업로드용 전산매체 파일 (C103900). 베타">전자신고 파일 (베타)</button>
               )}
-              <button type="button" className="btn-secondary btn-sm" onClick={exportWht} title="신고서 요약 + 인별 명세 — 2개 시트">세무사 전달 엑셀</button>
+              <button type="button" className="btn-secondary btn-sm" onClick={exportWht} title="신고서 요약 + 인별 명세 · 2개 시트">세무사 전달 엑셀</button>
             </>}>
               <label className="text-xs font-semibold text-[var(--text-dim)]">지급월</label>
               <MonthSelect className="inv-input fin-close-month" value={month} onChange={(v) => v && setMonth(v)} ariaLabel="지급월" />
@@ -527,7 +528,7 @@ export default function TaxFilingPage() {
             </ResultStrip>
           </>)}
           {tab === "vat" && (
-            <QueryBar right={<button type="button" className="btn-secondary btn-sm" onClick={() => vatExportRef.current?.()} title="신고서 · 매출처별 · 매입처별 합계표 · 전표 목록 — 4개 시트">세무사 전달 엑셀</button>}>
+            <QueryBar right={<button type="button" className="btn-secondary btn-sm" onClick={() => vatExportRef.current?.()} title="신고서 · 매출처별 · 매입처별 합계표 · 전표 목록 · 4개 시트">세무사 전달 엑셀</button>}>
               <label className="text-xs font-semibold text-[var(--text-dim)]">연도</label>
               <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs" aria-label="연도">
                 {years.map((y) => <option key={y} value={y}>{y}년</option>)}
@@ -541,7 +542,7 @@ export default function TaxFilingPage() {
           {tab === "cit" && (<>
             <QueryBar right={
               <button type="button" className="btn-secondary btn-sm" disabled={packBusy} onClick={exportCitPack}
-                title="손익계산서 · 재무상태표 · 고정자산 명세 · 전표 원장 — 4개 시트">
+                title="손익계산서 · 재무상태표 · 고정자산 명세 · 전표 원장 · 4개 시트">
                 {packBusy ? "만드는 중…" : "세무사 전달 패키지"}
               </button>
             }>
@@ -574,7 +575,7 @@ export default function TaxFilingPage() {
               </>) : (<>
                 <label className="text-xs font-semibold text-[var(--text-dim)]">지급월</label>
                 <MonthSelect className="inv-input fin-close-month" value={stmtMonth} onChange={(v) => v && setStmtMonth(v)} ariaLabel="지급월" />
-                <span className="text-[11px] text-[var(--text-dim)]">제출 기한 = 지급 다음 달 말일 — 홈택스</span>
+                <span className="text-[11px] text-[var(--text-dim)]">제출 기한 = 지급 다음 달 말일 · 홈택스</span>
               </>)}
             </QueryBar>
           )}
@@ -587,8 +588,9 @@ export default function TaxFilingPage() {
               citLoading ? <div className="collect-empty">확정 전표로 연간 손익을 계산하는 중…</div> : (
                 <div className="vr-wrap">
                   <p className="inv-hint">
-                    {year}년 확정 전표 기준 — 재무제표·마감과 같은 계산입니다.
-                    <b className="vr-warn"> 세무조정 전 근사치입니다 — 접대비 한도·감가상각 한도·이월결손금 공제 등이 반영되지 않았습니다. 확정 세액과 신고서는 세무사가 만듭니다.</b>
+                    {year}년 확정 전표 기준 · 재무제표·마감과 같은 계산입니다.
+                    
+                    <b className="vr-warn">  세무조정 전 근사치입니다. 접대비 한도·감가상각 한도·이월결손금 공제 등이 반영되지 않았습니다. 확정 세액과 신고서는 세무사가 만듭니다.</b>
                     {" 아래 '세무사 전달 패키지'가 3월에 보낼 자료 묶음입니다. 제출은 홈택스에서."}
                   </p>
                   <div className="pnl-grid2">
@@ -600,7 +602,7 @@ export default function TaxFilingPage() {
                         <tbody>
                           <tr className="vr-sum"><td className="text-left">회계이익 (세무조정 전 과세표준)</td><td className="tr mono-number">{won(cit.income)}</td><td></td><td></td></tr>
                           {cit.income <= 0 ? (
-                            <tr><td className="text-left" colSpan={3}>결손 — 산출세액 0 (이월결손금 공제·환급은 세무사가 판단합니다)</td><td className="tr mono-number">₩0</td></tr>
+                            <tr><td className="text-left" colSpan={3}>결손 · 산출세액 0 (이월결손금 공제·환급은 세무사가 판단합니다)</td><td className="tr mono-number">₩0</td></tr>
                           ) : cit.brackets.map((b) => (
                             <tr key={b.label}><td className="text-left">{b.label}</td><td className="tr mono-number">{won(b.amt)}</td><td className="tc mono-number">{Math.round(b.rate * 100)}%</td><td className="tr mono-number">{won(b.tax)}</td></tr>
                           ))}
@@ -612,14 +614,14 @@ export default function TaxFilingPage() {
                       </div>
                     </div>
                     <div className="pnl-panel">
-                      <h3>신고 일정 · 챙길 것</h3><p>12월 결산 법인 기준 — 대시보드 세금 일정에서 납부 완료를 체크할 수 있습니다</p>
+                      <h3>신고 일정 · 챙길 것</h3><p>12월 결산 법인 기준 · 대시보드 세금 일정에서 납부 완료를 체크할 수 있습니다</p>
                       <div className="stg-table-wrap vr-scroll">
                       <table className="ev-table ev-lined table-inv-status-sm">
                         <thead><tr><th>무엇</th><th>기한</th><th>비고</th></tr></thead>
                         <tbody>
                           <tr><td className="text-left">법인세 신고·납부 (홈택스)</td><td className="tc mono-number">{year + 1}-03-31</td><td className="text-left">세무사 패키지를 2월 중 전달</td></tr>
                           <tr><td className="text-left">법인지방소득세 (위택스)</td><td className="tc mono-number">{year + 1}-04-30</td><td className="text-left">산출세액의 10%</td></tr>
-                          <tr><td className="text-left">중간예납</td><td className="tc mono-number">{year + 1}-08-31</td><td className="text-left">보통 전년 산출세액의 절반 — 예상 <b className="mono-number">{won(Math.floor(cit.total / 2))}</b>. 가결산 방식은 세무사와 결정</td></tr>
+                          <tr><td className="text-left">중간예납</td><td className="tc mono-number">{year + 1}-08-31</td><td className="text-left">보통 전년 산출세액의 절반 · 예상 <b className="mono-number">{won(Math.floor(cit.total / 2))}</b>. 가결산 방식은 세무사와 결정</td></tr>
                         </tbody>
                       </table>
                       </div>
@@ -637,7 +639,7 @@ export default function TaxFilingPage() {
                     ) : (
                       <div className="pnl-panel">
                         <h3>근로소득 간이지급명세서</h3><p>인별 월 지급액(과세) · 사번 순 — 주민등록번호는 엑셀에만 담깁니다(화면 비노출·조회 기록 남음).
-                          {rrnMissing > 0 ? <b className="vr-warn"> 주민번호 미등록 {rrnMissing}명 — 구성원 상세 › 기본 정보에서 입력하면 채워집니다.</b> : ` 주민번호 ${stmtEmpIds.length}명 전원 등록됨.`}</p>
+                          {rrnMissing > 0 ? <b className="vr-warn"> 주민번호 미등록 {rrnMissing}명 · 구성원 상세 › 기본 정보에서 입력하면 채워집니다.</b> : ` 주민번호 ${stmtEmpIds.length}명 전원 등록됨.`}</p>
                         <div className="stg-table-wrap vr-scroll">
                           <table className="ev-table ev-lined table-inv-status-sm">
                             <thead><tr><th>이름</th>{stmtMonths.map((m) => <th key={m}>{Number(m.slice(5, 7))}월</th>)}<th>합계</th></tr></thead>
@@ -660,8 +662,9 @@ export default function TaxFilingPage() {
                       <div className="collect-empty">{stmtMonth} 지급분 <b>사업소득(프리랜서) 지급 기록이 없습니다.</b><br />구성원 고용형태를 <b>프리랜서</b>로 두고 급여 명세서를 발송하면 3.3%로 계산돼 여기 잡힙니다.</div>
                     ) : (
                       <div className="pnl-panel">
-                        <h3>사업소득 간이지급명세서</h3><p>{stmtMonth} 지급분 · 사번 순 — 제출은 지급 다음 달 말일까지. 주민등록번호는 엑셀에만 담깁니다(화면 비노출·조회 기록 남음).
-                          {rrnMissing > 0 ? <b className="vr-warn"> 주민번호 미등록 {rrnMissing}명 — 구성원 상세 › 기본 정보에서 입력하면 채워집니다.</b> : ` 주민번호 ${stmtEmpIds.length}명 전원 등록됨.`}</p>
+                        <h3>사업소득 간이지급명세서</h3><p>{stmtMonth}  지급분 · 사번 순 · 제출은 지급 다음 달 말일까지. 주민등록번호는 엑셀에만 담깁니다(화면 비노출·조회 기록 남음).
+                          
+                          {rrnMissing > 0 ? <b className="vr-warn"> 주민번호 미등록 {rrnMissing}명 · 구성원 상세 › 기본 정보에서 입력하면 채워집니다.</b> : ` 주민번호 ${stmtEmpIds.length}명 전원 등록됨.`}</p>
                         <div className="stg-table-wrap vr-scroll">
                           <table className="ev-table ev-lined table-inv-status-sm">
                             <thead><tr><th>이름</th><th>지급액</th><th>소득세 (3%)</th><th>지방소득세 (0.3%)</th></tr></thead>
@@ -689,15 +692,16 @@ export default function TaxFilingPage() {
               <div className="collect-empty">
                 {month} 지급분 <b>급여 발송 기록이 없습니다.</b><br />
                 인사 › 구성원 › 급여에서 명세서를 발송하면 그 금액이 그대로 신고서가 됩니다.<br />
-                <span className="ev-dim">급여 지급이 없었어도 원천세는 <b>무실적(0원) 신고</b> 대상입니다 — 홈택스에서 인원·세액 0으로 신고하세요.</span>
+                <span className="ev-dim">급여 지급이 없었어도 원천세는 <b>무실적(0원) 신고</b>  대상입니다. 홈택스에서 인원·세액 0으로 신고하세요.</span>
               </div>
             ) : (
               <div className="vr-wrap">
                 <p className="inv-hint">
-                  {month} 지급분 · 발송된 급여 명세({T.all.n}명) 기준 — 귀속·지급 같은 달로 봅니다. 신고는 홈택스에서 사람이 합니다.
-                  {T.lastIssued && <> 명세 마지막 발송 <b className="mono-number">{T.lastIssued.slice(0, 10)}</b> — 이후 급여를 고쳤다면 명세서를 다시 발송해야 신고서에 반영됩니다.</>}
+                  {month} 지급분 · 발송된 급여 명세({T.all.n}명) 기준 · 귀속·지급 같은 달로 봅니다. 신고는 홈택스에서 사람이 합니다.
+                  
+                  {T.lastIssued && <> 명세 마지막 발송 <b className="mono-number">{T.lastIssued.slice(0, 10)}</b> · 이후 급여를 고쳤다면 명세서를 다시 발송해야 신고서에 반영됩니다.</>}
                   {" 프리랜서는 구성원 고용형태를 '프리랜서'로 두면 3.3%로 계산돼 사업소득(A25)에 잡힙니다."}
-                  <b className="vr-warn"> · 퇴직·기타소득 지급분이 있으면 직접 더해 신고하세요 — 오너뷰가 기록하지 않는 소득입니다.</b>
+                  <b className="vr-warn"> · 퇴직·기타소득 지급분이 있으면 직접 더해 신고하세요<span className="ui-sub">오너뷰가 기록하지 않는 소득입니다.</span></b>
                 </p>
                 <div className="pnl-grid2">
                   <div className="pnl-panel">
@@ -717,7 +721,7 @@ export default function TaxFilingPage() {
                     </table>
                   </div>
                   <div className="pnl-panel">
-                    <h3>지방소득세 (특별징수)</h3><p>소득세의 10% — 홈택스가 아니라 <b>위택스</b>에 별도 신고·납부</p>
+                    <h3>지방소득세 (특별징수)</h3><p>소득세의 10% · 홈택스가 아니라 <b>위택스</b>에 별도 신고·납부</p>
                     <table className="ev-table ev-lined table-inv-status-sm">
                       <thead><tr><th>구분</th><th>인원</th><th>징수 세액</th></tr></thead>
                       <tbody>
@@ -729,7 +733,7 @@ export default function TaxFilingPage() {
                   </div>
                 </div>
                 <div className="pnl-panel">
-                  <h3>인별 명세</h3><p>발송된 급여 명세 그대로 · 사번 순 — 구분은 지금 고용형태 기준</p>
+                  <h3>인별 명세</h3><p>발송된 급여 명세 그대로 · 사번 순 · 구분은 지금 고용형태 기준</p>
                   <div className="stg-table-wrap vr-scroll">
                     <table className="ev-table ev-lined table-inv-status-sm">
                       <thead><tr><th>이름</th><th>구분</th><th>총지급액 (과세)</th><th>비과세</th><th>소득세</th><th>지방소득세</th></tr></thead>

@@ -129,7 +129,7 @@ export default function ManagementSummaryPage() {
           <div className="pnl-headline">
             <b>
               {s.overall.tone === "g"
-                ? `지금은 안정적입니다 — ${Number(month.slice(5))}월 영업이익 ${won(s.pnl.cur.operating)}, 통장 ${man(s.cash.balance)}으로 ${s.cash.runway >= 999 ? "무기한" : `${s.cash.runway.toFixed(1)}개월`} 운영 가능합니다.`
+                ? `지금은 안정적입니다. ${Number(month.slice(5))}월 영업이익 ${won(s.pnl.cur.operating)}, 통장 ${man(s.cash.balance)}으로 ${s.cash.runway >= 999 ? "무기한" : `${s.cash.runway.toFixed(1)}개월`} 운영 가능합니다.`
                 : `${s.overall.label} — ${[
                   s.cash.tone !== "g" ? `현금이 ${s.cash.runway.toFixed(1)}개월치뿐입니다` : null,
                   s.pnl.tone !== "g" ? `${Number(month.slice(5))}월은 ${man(-s.pnl.cur.operating)} 손실입니다${s.pnl.unposted.taxInvoice > 0 ? "(미처리 전표 있음)" : ""}` : null,
@@ -141,7 +141,7 @@ export default function ManagementSummaryPage() {
           {/* ── 세 신호 ── */}
           <div className="bz-grid3">
             <section className="pnl-panel bz-signal">
-              <h3><i className={`bz-dot bz-dot-${s.cash.tone}`} />돈은 있나 — 통장 <em className={`bz-tone-${s.cash.tone}`}>{TONE_TXT[s.cash.tone]}</em></h3>
+              <h3><i className={`bz-dot bz-dot-${s.cash.tone}`} />돈은 있나 · 통장 <em className={`bz-tone-${s.cash.tone}`}>{TONE_TXT[s.cash.tone]}</em></h3>
               <div className="bz-big mono-number">{won(s.cash.balance)}</div>
               <dl className="bz-kv">
                 <div><dt>{Number(month.slice(5))}월 들어온 돈</dt><dd className="mono-number bz-plus">+{num(s.cash.inflow)}</dd></div>
@@ -156,7 +156,7 @@ export default function ManagementSummaryPage() {
             </section>
 
             <section className="pnl-panel bz-signal">
-              <h3><i className={`bz-dot bz-dot-${s.pnl.tone}`} />벌고 있나 — 손익 (확정 전표) <em className={`bz-tone-${s.pnl.tone}`}>{TONE_TXT[s.pnl.tone]}</em></h3>
+              <h3><i className={`bz-dot bz-dot-${s.pnl.tone}`} />벌고 있나 · 손익 (확정 전표) <em className={`bz-tone-${s.pnl.tone}`}>{TONE_TXT[s.pnl.tone]}</em></h3>
               <div className={`bz-big mono-number ${s.pnl.cur.operating >= 0 ? "bz-plus" : "bz-minus"}`}>{won(s.pnl.cur.operating)}</div>
               <dl className="bz-kv">
                 <div><dt>매출</dt><dd className="mono-number">{num(s.pnl.cur.revenue)} <Pct cur={s.pnl.cur.revenue} prev={s.pnl.prev.revenue} />{s.pnl.cur.revenue === 0 && <small className="text-[var(--text-dim)]"> (전표 없음)</small>}</dd></div>
@@ -172,14 +172,14 @@ export default function ManagementSummaryPage() {
                 ))}
               </div>
               <p className="bz-why">
-                {s.pnl.unposted.taxInvoice > 0 ? <>세금계산서 <b>{s.pnl.unposted.taxInvoice}건 미처리</b>{s.pnl.unpostedSalesAmt > 0 && <>(매출 {won(s.pnl.unpostedSalesAmt)})</>} — 전표를 확정하면 숫자가 바뀝니다. <Link href="/collect" className="bz-link">수집·전표 →</Link></>
+                {s.pnl.unposted.taxInvoice > 0 ? <>세금계산서 <b>{s.pnl.unposted.taxInvoice}건 미처리</b>{s.pnl.unpostedSalesAmt > 0 && <>(매출 {won(s.pnl.unpostedSalesAmt)})</>} · 전표를 확정하면 숫자가 바뀝니다.  <Link href="/collect" className="bz-link">수집·전표 →</Link></>
                   : s.pnl.cur.operating >= 0 ? <>이익률 {s.pnl.cur.revenue > 0 ? `${Math.round((s.pnl.cur.operating / s.pnl.cur.revenue) * 100)}%` : "—"}. <Link href="/reports/profit" className="bz-link">손익 현황 →</Link></>
                   : <>비용이 매출보다 큽니다. 어디로 나갔는지 <Link href="/reports/expense" className="bz-link">비용 →</Link></>}
               </p>
             </section>
 
             <section className="pnl-panel bz-signal">
-              <h3><i className={`bz-dot bz-dot-${s.arap.tone}`} />받을 돈 · 낼 돈 — 거래처 원장 <em className={`bz-tone-${s.arap.tone}`}>{TONE_TXT[s.arap.tone]}</em></h3>
+              <h3><i className={`bz-dot bz-dot-${s.arap.tone}`} />받을 돈 · 낼 돈 · 거래처 원장 <em className={`bz-tone-${s.arap.tone}`}>{TONE_TXT[s.arap.tone]}</em></h3>
               <dl className="bz-kv">
                 <div><dt>받을 돈 (미수금)</dt><dd className="mono-number bz-plus">{num(s.arap.ar)}</dd></div>
                 <div className="bz-kv-sub"><dt>└ 30일 넘은 것 · {s.arap.over30Partners}곳</dt><dd className={`mono-number ${s.arap.over30 > 0 ? "bz-minus" : ""}`}>{num(s.arap.over30)}</dd></div>
@@ -200,7 +200,7 @@ export default function ManagementSummaryPage() {
           <div className="bz-grid2">
             <section className="pnl-panel">
               <h3>이번 주 챙길 것 <small className="text-[var(--text-dim)] font-normal">{todosOpen.length}건</small></h3>
-              <p>규칙으로 찾아 놓기만 합니다 — 확인은 사람이. 체크하면 이번 주 동안 아래로 내려갑니다(이 PC 기준).</p>
+              <p>규칙으로 찾아 놓기만 합니다. 확인은 사람이. 체크하면 이번 주 동안 아래로 내려갑니다(이 PC 기준).</p>
               {todosOpen.length === 0 && todosDone.length === 0 ? <div className="collect-empty">지금 챙길 것이 없습니다</div> : (
                 <ul className="bz-todos">
                   {todosOpen.map((t) => <TodoRow key={t.key} t={t} />)}

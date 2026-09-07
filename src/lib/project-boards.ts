@@ -286,7 +286,7 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
  *  템플릿 직접 만들기와 표 머리의 ＋ 가 **같은 목록**을 본다(두 곳에서 말이 갈리면 안 된다). */
 export const COL_FORMATS: { type: ColType; label: string; hint: string }[] = [
   { type: "text", label: "텍스트", hint: "메모 · 링크 · 자유롭게 적는 칸" },
-  { type: "number", label: "숫자", hint: "금액 · 수량 — 단위를 정할 수 있어요" },
+  { type: "number", label: "숫자", hint: "금액 · 수량 · 단위를 정할 수 있어요" },
   { type: "date", label: "날짜", hint: "마감 · 시작 · 예정일" },
   { type: "status", label: "상태", hint: "라벨 중에서 고르는 칸" },
   { type: "person", label: "담당자", hint: "회사 구성원 중에서" },
@@ -349,7 +349,7 @@ export const TEMPLATE_SAMPLE: Record<string, string[][]> = {
   review: [
     ["메인 배너 시안", "검수", "최송이", "김혜진", "8/9", "figma.com/…"],
     ["계약서 문구 검토", "작업 중", "이경원", "회계담당자", "8/11", ""],
-    ["A/S 접수 — 도어락", "요청", "남기원", "권순철", "8/13", ""],
+    ["A/S 접수 · 도어락", "요청", "남기원", "권순철", "8/13", ""],
   ],
   schedule: [
     ["철거·원상복구", "8/1", "8/9", "권순철", "완료"],

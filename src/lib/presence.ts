@@ -6,7 +6,7 @@
 export type PresenceStatus = "available" | "meeting" | "away" | "out" | "focus" | "off";
 
 export const PRESENCE: { id: PresenceStatus; label: string; hint: string }[] = [
-  { id: "available", label: "근무중", hint: "기본 — 표시 없음" },
+  { id: "available", label: "근무중", hint: "기본 · 표시 없음" },
   { id: "meeting", label: "회의중", hint: "답이 늦을 수 있음" },
   { id: "away", label: "자리비움", hint: "잠깐 자리를 비움" },
   { id: "out", label: "외근", hint: "회사 밖에서 근무" },

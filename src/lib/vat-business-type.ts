@@ -47,8 +47,8 @@ export function canIssueTaxKind(vbt: VatBusinessType, kind: TaxKind): boolean {
 export function taxKindBlockedReason(vbt: VatBusinessType, kind: TaxKind): string | null {
   if (canIssueTaxKind(vbt, kind)) return null;
   return kind === "exempt"
-    ? "면세 계산서는 면세사업자(또는 겸영)만 발행할 수 있습니다 — 회사설정 › 회사정보에서 과세유형을 확인해 주세요."
-    : "면세사업자는 세금계산서를 발행할 수 없습니다 — 회사설정 › 회사정보에서 과세유형을 확인해 주세요.";
+    ? "면세 계산서는 면세사업자(또는 겸영)만 발행할 수 있습니다. 회사설정 › 회사정보에서 과세유형을 확인해 주세요."
+    : "면세사업자는 세금계산서를 발행할 수 없습니다. 회사설정 › 회사정보에서 과세유형을 확인해 주세요.";
 }
 
 /**

@@ -23,7 +23,7 @@ import { CATALOG, FEATURES, FOOTER } from "@/components/landing/content";
 const Check = () => (<svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.6" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>);
 const Arrow = () => (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5-5 5M6 12h12" /></svg>);
 
-// 메뉴 아이콘 — 실제 사이드바(components/sidebar.tsx)가 쓰는 아이콘과 같은 모양.
+// 메뉴 아이콘 · 실제 사이드바(components/sidebar.tsx)가 쓰는 아이콘과 같은 모양.
 export function MenuGlyph({ n }: { n: string }) {
   const p = { width: 20, height: 20, fill: "none", stroke: "currentColor", strokeWidth: 1.8, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   switch (n) {
@@ -46,14 +46,14 @@ export function MenuGlyph({ n }: { n: string }) {
     case "wallet": return <svg {...p}><path d="M21 12V7H5a2 2 0 010-4h14v4" /><path d="M3 5v14a2 2 0 002 2h16v-5" /><path d="M18 12a2 2 0 000 4h4v-4h-4z" /></svg>;
     case "repeat": return <svg {...p}><path d="M17 2l4 4-4 4" /><path d="M3 11V9a4 4 0 014-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v2a4 4 0 01-4 4H3" /></svg>;
     case "trend": return <svg {...p}><path d="M22 7l-8.5 8.5-5-5L2 17" /><path d="M16 7h6v6" /></svg>;
-    // 2026-08-20 CATALOG 재작성으로 새로 쓰이게 된 아이콘들 — 없으면 전부 같은 기본 도형으로 떨어져
+    // 2026-08-20 CATALOG 재작성으로 새로 쓰이게 된 아이콘들 · 없으면 전부 같은 기본 도형으로 떨어져
     //   통장·카드·수집전표·매입매출전표가 구분되지 않았다(/features 와 /demo 양쪽에서).
-    case "bank": return <svg {...p}><path d="M3 10h18M5 10v8M10 10v8M14 10v8M19 10v8M3 21h18" /><path d="M12 3L3 8h18l-9-5z" /></svg>;
+    case "bank": return  <svg {...p}><path d="M3 10h18M5 10v8M10 10v8M14 10v8M19 10v8M3 21h18" /><path d="M12 3L3 8h18l-9-5z" /></svg>;
     case "card": return <svg {...p}><rect x="2" y="5" width="20" height="14" rx="2.5" /><path d="M2 10h20M6 15h4" /></svg>;
     case "drive": return <svg {...p}><path d="M12 3v12" /><path d="M7.5 10.5L12 15l4.5-4.5" /><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>;
     case "sheet": return <svg {...p}><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M3 15h18M9 3v18" /></svg>;
-    // 재고 그룹(2026-08-25 신설) — 품목(상자) · 재고(겹친 판) · 생산(공정)
-    case "box": return <svg {...p}><path d="M21 8l-9-5-9 5 9 5 9-5z" /><path d="M3 8v8l9 5 9-5V8" /><path d="M12 13v8" /></svg>;
+    // 재고 그룹(2026-08-25 신설). 품목(상자) · 재고(겹친 판) · 생산(공정)
+    case "box": return  <svg {...p}><path d="M21 8l-9-5-9 5 9 5 9-5z" /><path d="M3 8v8l9 5 9-5V8" /><path d="M12 13v8" /></svg>;
     case "layers": return <svg {...p}><path d="M12 2l9 5-9 5-9-5 9-5z" /><path d="M3 12l9 5 9-5" /><path d="M3 17l9 5 9-5" /></svg>;
     case "factory": return <svg {...p}><path d="M3 21V10l6 4V10l6 4V7l6 3v11H3z" /><path d="M7 21v-4M13 21v-4M18 21v-4" /></svg>;
     case "doc": return <svg {...p}><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z" /><path d="M14 3v5h5" /><path d="M9 13h6M9 17h4" /></svg>;

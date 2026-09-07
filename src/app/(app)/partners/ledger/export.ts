@@ -98,7 +98,7 @@ async function buildSheetRows(companyId: string, t: LedgerExportTarget, yStart: 
   const opening = before.reduce((s, e) => s + dir(e), 0);
 
   const rows: (string | number)[][] = [
-    [`거래처원장 — ${t.name} (${isSales ? "매출처" : "매입처"})`, "", "", "", ""],
+    [`거래처원장 · ${t.name} (${isSales ? "매출처" : "매입처"})`, "", "", "", ""],
     [`${yStart} ~ ${yEnd}`, "", "", "", ""],
     ["일자", "적요", "차변", "대변", "잔액"],
     [yStart, "[전기이월]", "", "", Math.round(opening)],

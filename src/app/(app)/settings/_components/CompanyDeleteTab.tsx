@@ -28,11 +28,11 @@ export function CompanyDeleteTab({ companyId }: { companyId: string }) {
     })();
   }, [companyId]);
 
-  // 회사명이 비어 있으면(온보딩 중단 등) '회사 삭제' 문구 입력으로 대체 — RPC 도 같은 규칙.
+  // 회사명이 비어 있으면(온보딩 중단 등) '회사 삭제' 문구 입력으로 대체 · RPC 도 같은 규칙.
   const expectedName = companyName.trim() || "회사 삭제";
   const nameMatches = confirmName.trim() !== "" && confirmName.trim() === expectedName;
 
-  async function handleDelete() {
+  async function handleDelete()  {
     setStep("processing");
     setError("");
     try {
@@ -69,7 +69,7 @@ export function CompanyDeleteTab({ companyId }: { companyId: string }) {
             </svg>
           </div>
           <div>
-            <h2 className="text-sm font-bold text-red-500">회사 삭제 — 되돌릴 수 없습니다</h2>
+            <h2 className="text-sm font-bold text-red-500">회사 삭제<span className="ui-sub">되돌릴 수 없습니다</span></h2>
             <p className="text-xs text-[var(--text-muted)] mt-1">
               회사와 회사에 속한 모든 데이터(거래·직원·근태·급여·계약·결재·문서·채팅 등)가 완전히 삭제되고,
               오너뷰에서 이 회사가 사라집니다. 유료 요금제를 쓰고 있다면 결제 구독도 함께 해지됩니다.

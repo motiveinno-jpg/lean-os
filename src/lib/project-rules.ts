@@ -108,20 +108,20 @@ export function getNextAction(
           return { text: '거래처 확인 대기 중', href: panelHref('quote'), icon: '⏳', reason: '발송 후 응답 대기', level: 'optional' };
         }
         if (st === 'viewed') {
-          return { text: '거래처가 견적을 봤습니다', href: panelHref('quote'), icon: '👁', reason: '확인됨 — 응답 대기', level: 'optional' };
+          return { text: '거래처가 견적을 봤습니다', href: panelHref('quote'), icon: '👁', reason: '확인됨. 응답 대기', level: 'optional' };
         }
         if (st === 'rejected') {
-          return { text: '거절됨 — 수정 후 재발송 →', href: panelHref('quote'), icon: '❌', reason: '거래처 거절 — 수정 후 재발송', level: 'recommended' };
+          return { text: '거절됨. 수정 후 재발송 →', href: panelHref('quote'), icon: '❌', reason: '거래처 거절 · 수정 후 재발송', level: 'recommended' };
         }
         if (st === 'expired') {
-          return { text: '만료 — 재발송하기 →', href: panelHref('send'), icon: '⏰', reason: '응답 기한 만료 — 재발송', level: 'recommended' };
+          return { text: '만료 · 재발송하기 →', href: panelHref('send'), icon: '⏰', reason: '응답 기한 만료 · 재발송', level: 'recommended' };
         }
         if (st === 'approved') {
-          return { text: '계약 단계로 이동 →', href: panelHref('move-settlement'), icon: '✅', reason: '거래처 승인 — 계약 단계로', level: 'optional' };
+          return { text: '계약 단계로 이동 →', href: panelHref('move-settlement'), icon: '✅', reason: '거래처 승인 · 계약 단계로', level: 'optional' };
         }
         // 'draft' 면 hasQuoteDoc 분기 로직과 동일하게 발송 권장
         if (st === 'draft') {
-          return { text: '견적 발송하기 →', href: panelHref('quote'), icon: '📤', reason: '견적 작성됨 — 거래처 발송', level: 'recommended' };
+          return { text: '견적 발송하기 →', href: panelHref('quote'), icon: '📤', reason: '견적 작성됨. 거래처 발송', level: 'recommended' };
         }
       }
       if (!hasQuoteDoc) {
@@ -140,16 +140,16 @@ export function getNextAction(
       // B 핸드오프: deal.stage='in_progress' → approval stage='progress_report' 매핑.
       //   진척 보고서 작성·발송이 다음 자연 액션. 거래처가 승인하면 자동 완료(submit_quote_decision 매핑).
       if (badge.key === 'urgent') {
-        return { text: '진척 보고서 작성·발송 →', href: panelHref('quote'), icon: '⏰', reason: '기한 임박 — 진척 보고서로 마감 정렬', level: 'recommended' };
+        return { text: '진척 보고서 작성·발송 →', href: panelHref('quote'), icon: '⏰', reason: '기한 임박 · 진척 보고서로 마감 정렬', level: 'recommended' };
       }
-      return { text: '진척 보고서 작성·발송 →', href: panelHref('quote'), icon: '📊', reason: '진행중 — 거래처에 진척 공유 + 완료 단계 진입', level: 'recommended' };
+      return { text: '진척 보고서 작성·발송 →', href: panelHref('quote'), icon: '📊', reason: '진행중 · 거래처에 진척 공유 + 완료 단계 진입', level: 'recommended' };
     }
 
     case 'completed':
-      return { text: '정산 단계로 이동 →', href: panelHref('move-settlement'), icon: '💰', reason: '완료 — 세금계산서·수금 마무리', level: 'recommended' };
+      return { text: '정산 단계로 이동 →', href: panelHref('move-settlement'), icon: '💰', reason: '완료 · 세금계산서·수금 마무리', level: 'recommended' };
 
     case 'settlement':
-      return { text: '아카이브 →', href: panelHref('archive'), icon: '📦', reason: '정산 완료 — 보관', level: 'optional' };
+      return { text: '아카이브 →', href: panelHref('archive'), icon: '📦', reason: '정산 완료 · 보관', level: 'optional' };
 
     default:
       return { text: '상세 보기 →', href: panelHref(), icon: '🔍', reason: '', level: 'optional' };

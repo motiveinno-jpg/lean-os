@@ -157,7 +157,7 @@ export function OrgBulkWizard({
     setLocalOrder(combined);
     setContractTemplateOrder(companyId, combined)
       .then(() => qc.invalidateQueries({ queryKey: ["contract-template-order", companyId] }))
-      .catch((e) => toast(friendlyError(e, "순서 저장 실패 — 새로고침 후 다시 시도하세요"), "error"));
+      .catch((e) => toast(friendlyError(e, "순서 저장 실패 · 새로고침 후 다시 시도하세요"), "error"));
   };
   const dragProps = (section: "doc" | "std", id: string) => ({
     draggable: true,
@@ -253,10 +253,10 @@ export function OrgBulkWizard({
   };
 
   // 아직 등록 안 된 거래처를 이 화면에서 바로 추가 (2026-08-05 사장님 요청)
-  //   — 거래처 관리로 나갔다 오면 작성 중이던 마법사 입력이 날아가므로 여기서 끝낸다.
+  // · 거래처 관리로 나갔다 오면 작성 중이던 마법사 입력이 날아가므로 여기서 끝낸다.
   const [showAddPartner, setShowAddPartner] = useState(false);
   const [savingPartner, setSavingPartner] = useState(false);
-  const emptyNewPartner = { name: "", representative: "", contact_name: "", contact_email: "", contact_phone: "", business_number: "", address: "" };
+  const emptyNewPartner =  { name: "", representative: "", contact_name: "", contact_email: "", contact_phone: "", business_number: "", address: "" };
   const [newPartner, setNewPartner] = useState(emptyNewPartner);
 
   // 숫자만 쳐도 서식이 잡히게 (2026-08-06 사장님) — 사업자번호 000-00-00000 / 휴대·유선 하이픈.
@@ -280,7 +280,7 @@ export function OrgBulkWizard({
     return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7, 11)}`;
   };
 
-  // 사업자번호 국세청 실존·상태 확인 — 10자리가 채워지면 자동으로 (디바운스).
+  // 사업자번호 국세청 실존·상태 확인 · 10자리가 채워지면 자동으로 (디바운스).
   //   폐업·휴업·미등록이면 경고만 하고 저장은 막지 않는다(거래처는 우리 회사 가입과 달리
   //   과거 거래처·폐업 예정처도 등록할 수 있어야 한다). 오타는 여기서 대부분 걸러진다.
   const [bizCheck, setBizCheck] = useState<{ state: "idle" | "checking" | "ok" | "warn" | "error"; msg: string }>({ state: "idle", msg: "" });
@@ -292,13 +292,13 @@ export function OrgBulkWizard({
     const t = setTimeout(async () => {
       const v = await verifyBusinessNumber(digits).catch(() => null);
       if (!alive) return;
-      if (!v) { setBizCheck({ state: "idle", msg: "" }); return; }          // 네트워크 장애 — 조용히 통과
-      if (!v.valid) { setBizCheck({ state: "error", msg: "형식이 올바르지 않은 번호입니다" }); return; }
+      if (!v) { setBizCheck({ state: "idle", msg: "" }); return; }                    // 네트워크 장애 · 조용히 통과
+      if (!v.valid)  { setBizCheck({ state: "error", msg: "형식이 올바르지 않은 번호입니다" }); return; }
       switch (v.status) {
         case "계속사업자": setBizCheck({ state: "ok", msg: "정상 사업자로 확인됐습니다" }); break;
         case "휴업자": setBizCheck({ state: "warn", msg: "휴업 상태인 사업자입니다" }); break;
         case "폐업자": setBizCheck({ state: "warn", msg: "폐업 처리된 사업자입니다" }); break;
-        case "미등록": setBizCheck({ state: "error", msg: "국세청에 등록되지 않은 번호입니다 — 다시 확인해 주세요" }); break;
+        case "미등록": setBizCheck({ state: "error", msg: "국세청에 등록되지 않은 번호입니다. 다시 확인해 주세요" }); break;
         default: setBizCheck({ state: "idle", msg: "" });                    // 확인불가(API 장애)
       }
     }, 500);
@@ -332,7 +332,7 @@ export function OrgBulkWizard({
       setShowAddPartner(false);
       setPSearch("");
       qc.invalidateQueries({ queryKey: ["partners"] });
-      toast(`${row.name} 추가됨 — 선택에 포함했습니다`, "success");
+      toast(`${row.name} 추가됨. 선택에 포함했습니다`, "success");
     } catch (e) {
       toast(friendlyError(e, "거래처를 추가하지 못했습니다"), "error");
     } finally {
@@ -383,7 +383,7 @@ export function OrgBulkWizard({
   // Step 4: 발송자 / 만료
   const [expiresInDays, setExpiresInDays] = useState(14);
   const [sendNow, setSendNow] = useState(true);
-  // 2026-06-17 발송 이메일 수정 — 거래처별 수신 이메일 override (미설정 시 contact_email 그대로)
+  // 2026-06-17 발송 이메일 수정 · 거래처별 수신 이메일 override (미설정 시 contact_email 그대로)
   const [emailOverrides, setEmailOverrides] = useState<Record<string, string>>({});
   // 2026-05-22 발송 전 우리(갑) 직인 적용 — 거래처가 받는 계약서에 우리 도장 미리 찍힘.
   const [applyOurSeal, setApplyOurSeal] = useState(true);
@@ -631,7 +631,7 @@ export function OrgBulkWizard({
                     );
                   })}
                   {(stdSectionShown as any[]).length > 0 && (
-                    <div className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] uppercase bg-[var(--bg-surface)]/60 sticky top-0">양식 관리 — 표준 양식</div>
+                    <div className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] uppercase bg-[var(--bg-surface)]/60 sticky top-0">양식 관리 · 표준 양식</div>
                   )}
                   {(stdSectionShown as any[]).map((t: any) => {
                     const rowKey = `std|${t.id}`;
@@ -869,7 +869,8 @@ export function OrgBulkWizard({
             ) : (
               <div className="space-y-2">
                 <div className="text-xs font-semibold text-[var(--text-muted)]">
-                  발견된 변수 {tokens.length}개 — 각 변수를 거래처 컬럼 또는 공통값에 연결하세요.
+                  발견된 변수 {tokens.length}개 · 각 변수를 거래처 컬럼 또는 공통값에 연결하세요.
+                
                 </div>
                 {tokens.map((token) => {
                   const col = variableMap[token] ?? "";
@@ -1109,7 +1110,7 @@ export function OrgBulkWizard({
                     <li>· chunk: {chunkSizeFor(selectedPartners.length)}건 동시 × 간격 {intervalSecFor(selectedPartners.length)}초</li>
                     <li>· 이메일 발송 한도(Resend 등): 시간당 한도 초과 시 일부 지연 가능</li>
                     {selectedPartners.length > 200 && (
-                      <li className="text-[var(--warning)]"><Ico e="⚠" /> 200개 초과 — 분할(예: 150 + 150) 발송 권장</li>
+                      <li className="text-[var(--warning)]"><Ico e="⚠" />  200개 초과 · 분할(예: 150 + 150) 발송 권장</li>
                     )}
                   </ul>
                 </div>

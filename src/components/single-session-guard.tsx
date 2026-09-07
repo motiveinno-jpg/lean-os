@@ -16,10 +16,10 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { supabase }  from "@/lib/supabase";
 
-// JWT payload 의 session_id — 토큰 갱신(rotation)에도 세션이 같으면 유지되는 값
-function sessionIdOf(token: string | undefined): string | null {
+// JWT payload 의 session_id · 토큰 갱신(rotation)에도 세션이 같으면 유지되는 값
+function sessionIdOf(token: string | undefined): string | null  {
   if (!token) return null;
   try {
     const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
@@ -56,15 +56,15 @@ export function SingleSessionGuard() {
     // 현재 세션 기준으로 등록·감시를 세운다. 계정이 바뀌었으면 그 계정으로 갈아탄다.
     const arm = async () => {
       if (!alive) return;
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } }  = await supabase.auth.getSession();
       if (!alive || !session) return;
       const mySession = sessionIdOf(session.access_token);
       if (!mySession) return;
       guardedUserId = session.user.id;
 
-      // 내 세션을 유효 세션으로 등록 — 같은 계정의 기존 기기 행을 덮어쓴다(그 기기가 Realtime 으로 감지해 로그아웃)
+      // 내 세션을 유효 세션으로 등록 · 같은 계정의 기존 기기 행을 덮어쓴다(그 기기가 Realtime 으로 감지해 로그아웃)
       const device = typeof navigator !== "undefined" ? (navigator.platform || "web") : "web";
-      try {
+      try  {
         await (supabase as any).from("active_sessions").upsert(
           { auth_id: session.user.id, session_id: mySession, device_label: device, updated_at: new Date().toISOString() },
           { onConflict: "auth_id" },
@@ -86,10 +86,10 @@ export function SingleSessionGuard() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!alive || !session) return;
-        if (session.user.id !== guardedUserId) { await arm(); return; }  // 계정 전환 — 중복 아님
+        if (session.user.id !== guardedUserId) { await arm(); return; }    // 계정 전환 · 중복 아님
         const cur = sessionIdOf(session.access_token);
         if (!cur) return;
-        const { data } = await (supabase as any).from("active_sessions").select("session_id").maybeSingle();
+        const  { data } = await (supabase as any).from("active_sessions").select("session_id").maybeSingle();
         if (alive && data?.session_id && data.session_id !== cur) kick();
       } catch { /* 조회 실패는 다음 기회에 */ }
     };

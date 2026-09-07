@@ -44,11 +44,13 @@ function monthEndDate(month: string): string {
   return end > today ? today : end;
 }
 
+
+
 /**
- * 검색조건 — 갖춰서 찾는 값들 (2026-08-13 조회 화면 표준).
+ * 검색조건 · 갖춰서 찾는 값들 (2026-08-13 조회 화면 표준).
  *   ★ 여기 있는 것은 '조회'를 눌러야 반영된다. 기간·빠른검색은 조회 줄에 있어 즉시다.
  */
-type Cond = { partner: string[]; item: string; min: string; max: string; size: number };
+type Cond =  { partner: string[]; item: string; min: string; max: string; size: number };
 const EMPTY: Cond = { partner: [], item: "", min: "", max: "", size: 50 };
 const condCount = (c: Cond) => c.partner.length + (c.item ? 1 : 0) + ((c.min || c.max) ? 1 : 0);
 
@@ -153,9 +155,9 @@ export default function EInvoicesPage() {
 
   const pager = usePager(filtered, live.size, `${tab}|${startDate}|${endDate}|${q}|${JSON.stringify(live)}`);
 
-  //   내 조건 — ★ 하나가 이 화면의 기본값 (DB 라 PC 를 바꿔도 따라온다)
+  //   내 조건 · ★ 하나가 이 화면의 기본값 (DB 라 PC 를 바꿔도 따라온다)
   const saved = useSavedQueries("e-invoices", companyId);
-  const paramsNow = { from: viewFromMonth, to: viewToMonth, q, cond: live };
+  const paramsNow =  { from: viewFromMonth, to: viewToMonth, q, cond: live };
   const paramsBasic = { ...defaultRangeMonth(), q: "", cond: EMPTY };
   const applySaved = (p: Record<string, unknown>) => {
     if (typeof p.from === "string" && typeof p.to === "string") { setViewFromMonth(p.from); setViewToMonth(p.to); }
@@ -189,7 +191,7 @@ export default function EInvoicesPage() {
     return true;
   }).length, [currentList, q, draft]);
 
-  //   걸린 조건 — 조회 줄에 칩으로 남는다
+  //   걸린 조건 · 조회 줄에 칩으로 남는다
   const drop = (patch: Partial<Cond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
   const chips: AppliedChip[] = [
     ...quickTerms(q).map((t, i) => ({
@@ -275,7 +277,7 @@ export default function EInvoicesPage() {
             const errs = payload.new.errors || [];
             const errSummary = errs.length > 0 ? ` (오류 ${errs.length}건: ${errs[0]?.hint || errs[0]?.message || ""})` : "";
             if (synced === 0 && errs.length === 0) {
-              toast("동기화 완료 — 해당 기간에 발행·수취한 전자계산서(면세)가 없습니다.", "info");
+              toast("동기화 완료 · 해당 기간에 발행·수취한 전자계산서(면세)가 없습니다.", "info");
             } else {
               toast(`전자계산서 ${synced}건 동기화${errSummary}`, synced > 0 ? "success" : "info");
             }
@@ -316,7 +318,7 @@ export default function EInvoicesPage() {
     const hometaxPaused = await getHometaxPausedUntil(companyId);
     if (hometaxPaused) {
       const t = new Date(hometaxPaused).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
-      toast(`홈택스 연동 일시정지 중 (${t}까지) — 세금계산서 화면의 정지 해제 후 다시 시도하세요.`, "info");
+      toast(`홈택스 연동 일시정지 중 (${t}까지). 세금계산서 화면의 정지 해제 후 다시 시도하세요.`, "info");
       return;
     }
     setSyncStarting(true);
@@ -388,7 +390,7 @@ export default function EInvoicesPage() {
                   </ToolbarPopoverItem>
                   {activeJobId && (
                     <ToolbarPopoverItem danger onClick={() => { close(); forceClearStuckJob(activeJobId); }}
-                      hint="백그라운드 동기화가 멈췄을 때 눌러 초기화 — 다시 시도할 수 있습니다">
+                      hint="백그라운드 동기화가 멈췄을 때 눌러 초기화 · 다시 시도할 수 있습니다">
                       동기화 취소
                     </ToolbarPopoverItem>
                   )}
@@ -458,7 +460,7 @@ export default function EInvoicesPage() {
               } />
 
             <QuickSearch value={q} onApply={setQ}
-              placeholder="거래처 · 품목 · 금액 — 쉼표로 여러 개, Enter" />
+              placeholder="거래처 · 품목 · 금액 · 쉼표로 여러 개, Enter" />
           </QueryBar>
 
           <AppliedChips chips={chips} onClearAll={() => { setQ(""); setLive(EMPTY); setDraft(EMPTY); }} />
@@ -478,8 +480,8 @@ export default function EInvoicesPage() {
           ) : filtered.length === 0 ? (
             <div className="collect-empty">
               {(currentList as any[]).length === 0
-                ? `${tab === "sales" ? "매출" : "매입"} 전자계산서가 없습니다 — 면세 거래가 없으면 비어있는 게 정상입니다`
-                : "이 조건에 맞는 계산서가 없습니다 — 조건을 넓혀 보세요"}
+                ? `${tab === "sales" ? "매출" : "매입"} 전자계산서가 없습니다. 면세 거래가 없으면 비어있는 게 정상입니다`
+                : "이 조건에 맞는 계산서가 없습니다. 조건을 넓혀 보세요"}
             </div>
           ) : (
             <div className="ev-scroll">

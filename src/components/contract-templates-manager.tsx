@@ -12,9 +12,9 @@ import { useMemo, useState, useRef } from "react";
 import dynamic from "next/dynamic";
 import type { RichEditorRef } from "@/components/rich-editor";
 import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
-import { createPortal } from "react-dom";
+import { createPortal }  from "react-dom";
 
-// 계약 양식 '직접 작성'용 리치 에디터 — 표·서식·이미지 + {변수}. body_html 저장(발송 substitution과 동일).
+// 계약 양식 '직접 작성'용 리치 에디터 · 표·서식·이미지 +  {변수}. body_html 저장(발송 substitution과 동일).
 const RichEditor = dynamic(() => import("@/components/rich-editor").then((m) => ({ default: m.RichEditor })), {
   ssr: false,
   loading: () => <div className="h-48 bg-[var(--bg-surface)] rounded-xl animate-pulse" />,
@@ -51,19 +51,19 @@ export default function ContractTemplatesManager({ companyId }: Props) {
   });
 
   // 표준/회사 양식을 탭으로 분리 (2026-08-06 사장님: "회사 양식 찾으려면 너무 밑으로 내려가야 해").
-  //   기본은 '우리 회사 양식' — 실제로 매일 쓰는 쪽이 먼저 보이게.
+  //   기본은 '우리 회사 양식' · 실제로 매일 쓰는 쪽이 먼저 보이게.
   const [listTab, setListTab] = useState<"company" | "system">("company");
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<ContractTemplate | null>(null);
-  // 표준 양식 '복제해서 수정' 원본 — 신규 폼에 본문을 실어 연다 (2026-08-05 사장님 제보: 빈 페이지가 뜨던 문제)
+  // 표준 양식 '복제해서 수정' 원본 · 신규 폼에 본문을 실어 연다 (2026-08-05 사장님 제보: 빈 페이지가 뜨던 문제)
   const [duplicateFrom, setDuplicateFrom] = useState<ContractTemplate | null>(null);
   // '양식 추가' → 먼저 방식 선택(근로계약과 동일): PDF 업로드 / 직접 작성 → 그 모드로 편집기 오픈.
   const [chooserOpen, setChooserOpen] = useState(false);
   const [initialMode, setInitialMode] = useState<"html" | "pdf">("html");
   const startAdd = (mode: "html" | "pdf") => { setInitialMode(mode); setEditing(null); setDuplicateFrom(null); setShowAdd(true); setChooserOpen(false); };
 
-  // 회사가 정한 노출 순서 — 양식관리·발송 목록이 같은 배열을 본다(2026-08-03 사장님: "순서도 내가 변경할 수 있게").
-  const { data: templateOrder = [] } = useQuery({
+  // 회사가 정한 노출 순서 · 양식관리·발송 목록이 같은 배열을 본다(2026-08-03 사장님: "순서도 내가 변경할 수 있게").
+  const  { data: templateOrder = [] } = useQuery({
     queryKey: ["contract-template-order", companyId],
     queryFn: () => getContractTemplateOrder(companyId),
     enabled: !!companyId,
@@ -93,7 +93,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
     orderMut.mutate(combined);
   };
 
-  // 드래그로 순서 변경 (2026-08-06 사장님 요청) — ▲▼ 는 그대로 두고 손잡이 드래그를 추가.
+  // 드래그로 순서 변경 (2026-08-06 사장님 요청). ▲▼ 는 그대로 두고 손잡이 드래그를 추가.
   //   결재 '새 요청' 화면의 블록 정렬과 같은 HTML5 드래그 규약.
   //   저장 배열은 moveTemplate 과 동일하게 두 섹션의 현재 표시 순서를 합쳐 만든다.
   const [dragId, setDragId] = useState<string | null>(null);
@@ -123,8 +123,8 @@ export default function ContractTemplatesManager({ companyId }: Props) {
     onDrop: (e: React.DragEvent) => { e.preventDefault(); dropOnTemplate(section, id); },
   });
 
-  // 표준 양식 숨김 목록(회사 단위) — 발송 목록과 같은 쿼리 키를 써서 숨기면 양쪽이 함께 갱신된다.
-  const { data: hiddenList = [] } = useQuery({
+  // 표준 양식 숨김 목록(회사 단위). 발송 목록과 같은 쿼리 키를 써서 숨기면 양쪽이 함께 갱신된다.
+  const  { data: hiddenList = [] } = useQuery({
     queryKey: ["hidden-contract-templates", companyId],
     queryFn: () => getHiddenContractTemplateIds(companyId),
     enabled: !!companyId,
@@ -134,7 +134,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
     mutationFn: ({ id, hidden }: { id: string; hidden: boolean }) => setContractTemplateHidden(companyId, id, hidden),
     onSuccess: (_d, v) => {
       qc.invalidateQueries({ queryKey: ["hidden-contract-templates", companyId] });
-      toast(v.hidden ? "표준 양식을 숨겼습니다 — 발송 목록에도 나오지 않습니다" : "다시 표시합니다", "success");
+      toast(v.hidden ? "표준 양식을 숨겼습니다. 발송 목록에도 나오지 않습니다" : "다시 표시합니다", "success");
     },
     onError: (e: any) => toast(`변경 실패: ${friendlyError(e, "일시 오류")}`, "error"),
   });
@@ -208,7 +208,9 @@ export default function ContractTemplatesManager({ companyId }: Props) {
       {listTab === "system" && (
         <div className="mb-4">
           <div className="text-[11px] font-semibold text-[var(--text-dim)] mb-1.5">
-            오너뷰가 제공하는 양식입니다 — 수정하려면 복제하세요. 숨기면 발송 목록에도 안 나옵니다.
+            
+            오너뷰가 제공하는 양식입니다. 수정하려면 복제하세요. 숨기면 발송 목록에도 안 나옵니다.
+
           </div>
           {systemTemplates.length === 0 ? (
             <div className="templates-empty">제공되는 표준 양식이 없습니다.</div>
@@ -237,7 +239,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
                   <button
                     onClick={() => { setInitialMode(t.file_type === "pdf" ? "pdf" : "html"); setEditing(null); setDuplicateFrom(t); setShowAdd(true); }}
                     className="text-[10px] px-2 py-1 rounded bg-[var(--bg)] text-[var(--text-muted)] hover:text-[var(--text)] transition"
-                    title="표준 양식은 직접 수정할 수 없습니다 — 복제해서 우리 회사 양식으로 만드세요"
+                    title="표준 양식은 직접 수정할 수 없습니다. 복제해서 우리 회사 양식으로 만드세요"
                   >
                     복제해서 수정
                   </button>
@@ -316,8 +318,10 @@ export default function ContractTemplatesManager({ companyId }: Props) {
   );
 }
 
+
+
 // ──────────────────────────────────────────────────────────
-// 양식 편집 모달 — 신규 + 수정 + 시스템 양식 미리보기 (read-only)
+// 양식 편집 모달 · 신규 + 수정 + 시스템 양식 미리보기 (read-only)
 // ──────────────────────────────────────────────────────────
 function TemplateEditorModal({
   companyId,
@@ -337,10 +341,10 @@ function TemplateEditorModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const { toast } = useToast();
+  const { toast }  = useToast();
   const readonly = editing?.is_system === true;
 
-  // 표준 양식 '복제해서 수정' — 원본 내용을 그대로 싣고 이름만 사본으로 (2026-08-05 사장님:
+  // 표준 양식 '복제해서 수정' · 원본 내용을 그대로 싣고 이름만 사본으로 (2026-08-05 사장님:
   //   "복제해서 수정하면 빈 여백 페이지가 나온다"). 종전엔 모드만 넘기고 본문을 안 실어 빈 편집기가 떴다.
   const [name, setName] = useState(editing?.name || (duplicateFrom ? `${duplicateFrom.name} 사본` : ""));
   const [bodyHtml, setBodyHtml] = useState(editing?.body_html || duplicateFrom?.body_html || "");
@@ -556,8 +560,9 @@ function TemplateEditorModal({
                 {fileType === "html" && !readonly && (
                   <div className="flex gap-1.5">
                     <input value={newVar} onChange={(e) => setNewVar(e.target.value)}
+                      
                       placeholder="예: 갑사명"
-                      // 한글 입력 중 엔터는 '조합 확정'이지 '추가'가 아니다 — 막지 않으면 마지막 글자가
+                      // 한글 입력 중 엔터는 '조합 확정'이지 '추가'가 아니다. 막지 않으면 마지막 글자가
                       //   한 번 더 변수로 들어간다(가나다 → 가나다, 다). 조합이 끝난 뒤 엔터만 추가로 본다.
                       onKeyDown={(e) => {
                         if (e.key !== "Enter" || e.nativeEvent.isComposing) return;

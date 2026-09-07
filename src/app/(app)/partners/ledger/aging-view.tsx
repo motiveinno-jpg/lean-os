@@ -36,8 +36,8 @@ export type AgingRow = {
 };
 type SortKey = "name" | "b0" | "b1" | "b2" | "b3" | "total" | "oldest" | "last";
 
-/** 연령표 데이터 — 원장 화면이 같이 쓴다(요약 줄 수치·엑셀) */
-export function useAging(companyId: string | null, type: "sales" | "purchase") {
+/** 연령표 데이터 · 원장 화면이 같이 쓴다(요약 줄 수치·엑셀) */
+export function useAging(companyId: string | null, type: "sales" | "purchase")  {
   return useQuery<AgingRow[]>({
     queryKey: ["ledger-aging-rows", companyId, type],
     enabled: !!companyId,
@@ -50,7 +50,7 @@ export function useAging(companyId: string | null, type: "sales" | "purchase") {
           .eq("company_id", companyId ?? "").eq("type", type).neq("status", "void")
           .not("journal_entry_id", "is", null).gte("issue_date", kstDateStr(since))
           .order("issue_date", { ascending: false }).order("id"), 50000),
-        //   마지막 정산 — 확정된 정산의 통장 거래일(없으면 정산 확정일)
+        //   마지막 정산 · 확정된 정산의 통장 거래일(없으면 정산 확정일)
         fetchPaged<any>("aging:settles", () => (supabase as any).from("invoice_settlements")
           .select("created_at, id, tax_invoices!inner(partner_id, type), bank_transactions(transaction_date)")
           .eq("company_id", companyId ?? "").eq("status", "confirmed").eq("tax_invoices.type", type)
@@ -95,10 +95,10 @@ export function AgingView({ type, rows: rawRows, loading, q, onOpen, partnerMap,
   type: "sales" | "purchase"; rows: AgingRow[]; loading: boolean; q: string; partnerMap: Record<string, string>; partnerCodeMap: Record<string, number>; companyId?: string | null;
   onOpen: (partnerId: string | null) => void;
 }) {
-  const { toast } = useToast();
+  const { toast }  = useToast();
   const qc = useQueryClient();
-  //   신용 등급(매출처만) — 결정 78~80
-  const { data: creditMap } = useQuery({ queryKey: ["partner-credit", companyId], queryFn: () => fetchPartnerCredit(companyId!), enabled: !!companyId && type === "sales", staleTime: 60_000 });
+  //   신용 등급(매출처만). 결정 78~80
+  const  { data: creditMap } = useQuery({ queryKey: ["partner-credit", companyId], queryFn: () => fetchPartnerCredit(companyId!), enabled: !!companyId && type === "sales", staleTime: 60_000 });
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "total", dir: "desc" });
   const onSort = (k: SortKey) => setSort((c) => nextSort(c, k, k === "name" ? "asc" : "desc"));
   const [noteFor, setNoteFor] = useState<AgingRow | null>(null);
@@ -119,7 +119,7 @@ export function AgingView({ type, rows: rawRows, loading, q, onOpen, partnerMap,
   /** 독촉 문구 — 복사해서 사람이 보낸다 */
   const dunningText = (r: AgingRow) => `${r.name} 담당자님, ${isAR ? "미수금" : "미지급금"} ${won(r.total)}(${r.count}건, 가장 오래된 계산서 ${r.oldestDate ?? "-"})의 ${isAR ? "입금" : "지급"} 일정을 확인 부탁드립니다.`;
   const copyDunning = async (r: AgingRow) => {
-    try { await navigator.clipboard.writeText(dunningText(r)); toast("문구를 복사했습니다 — 카톡·문자·메일에 붙여 보내세요", "success"); }
+    try { await navigator.clipboard.writeText(dunningText(r)); toast("문구를 복사했습니다. 카톡·문자·메일에 붙여 보내세요", "success"); }
     catch { toast("복사하지 못했습니다", "error"); }
   };
   const saveNote = async () => {
@@ -138,10 +138,10 @@ export function AgingView({ type, rows: rawRows, loading, q, onOpen, partnerMap,
   };
 
   if (loading) return <div className="collect-empty">연령표를 만드는 중…</div>;
-  if (rows.length === 0) return <div className="collect-empty">{isAR ? "미정산 매출 계산서" : "미정산 매입 계산서"}가 없습니다 — 계산서 없이 전표로만 잡힌 잔액은 <b>원장</b> 보기에서 봅니다.</div>;
+  if (rows.length === 0) return <div className="collect-empty">{isAR ? "미정산 매출 계산서" : "미정산 매입 계산서"}가 없습니다. 계산서 없이 전표로만 잡힌 잔액은  <b>원장</b> 보기에서 봅니다.</div>;
   return (
     <div className="aging-wrap">
-      <p className="inv-hint aging-hint">전표처리된 세금계산서의 미정산 잔액을 발행일 경과로 나눴습니다 — 원장 총액(전표·이월 포함)과는 다를 수 있습니다. 줄을 누르면 그 거래처의 계산서·정산 내역이 열립니다.</p>
+      <p className="inv-hint aging-hint">전표처리된 세금계산서의 미정산 잔액을 발행일 경과로 나눴습니다. 원장 총액(전표·이월 포함)과는 다를 수 있습니다. 줄을 누르면 그 거래처의 계산서·정산 내역이 열립니다.</p>
       <div className="ev-scroll aging-scroll">
         <table className="ev-table ev-lined aging-table">
           <thead>
@@ -151,7 +151,7 @@ export function AgingView({ type, rows: rawRows, loading, q, onOpen, partnerMap,
               <SortableTh label={isAR ? "미수 합계" : "미지급 합계"} sortKey="total" sort={sort} onSort={onSort} />
               <SortableTh label="최장 경과" sortKey="oldest" sort={sort} onSort={onSort} />
               <SortableTh label="마지막 정산" sortKey="last" sort={sort} onSort={onSort} />
-              {isAR && <th title="입금 지연 이력 등급 — 마우스를 올리면 근거">신용</th>}
+              {isAR && <th title="입금 지연 이력 등급 · 마우스를 올리면 근거">신용</th>}
               <th>독촉 기록</th>
               <th></th>
             </tr>
@@ -168,7 +168,7 @@ export function AgingView({ type, rows: rawRows, loading, q, onOpen, partnerMap,
                 <td className="text-left aging-note" title={r.lastNote || undefined}>{r.lastNote ? r.lastNote.replace(/^\[(\d{4}-\d{2}-\d{2}) 독촉\]\s*/, "$1 · ") : <span className="ev-dim">—</span>}</td>
                 <td className="tc" onClick={(e) => e.stopPropagation()}>
                   <span className="bl-row-acts">
-                    <button type="button" className="btn-secondary btn-sm" onClick={() => copyDunning(r)} title="독촉 문구 복사 — 발송은 직접">문구</button>
+                    <button type="button" className="btn-secondary btn-sm" onClick={() => copyDunning(r)} title="독촉 문구 복사 · 발송은 직접">문구</button>
                     <button type="button" className="btn-secondary btn-sm" disabled={!r.partnerId} onClick={() => { setNoteFor(r); setNoteText(""); }} title={r.partnerId ? "언제 무엇을 했는지 남긴다" : "미지정 거래처는 기록할 수 없습니다"}>기록</button>
                   </span>
                 </td>

@@ -215,7 +215,7 @@ export function BurnUpChart({ actual, scope, totalDays, todayX }: { actual: { x:
   const hp = hi != null ? actual[hi] : null;
   return (
     <div className="barcombo-wrap">
-      <svg viewBox={`0 0 ${W} ${H}`} className="barcombo-svg" role="img" aria-label="번업 — 완료 누적 대 전체">
+      <svg viewBox={`0 0 ${W} ${H}`} className="barcombo-svg" role="img" aria-label="번업 · 완료 누적 대 전체">
         {/* Y 눈금 */}
         {ticks.map((yv, i) => (<g key={i}><line x1={padL} y1={sy(yv)} x2={W - padR} y2={sy(yv)} stroke={GRID} strokeWidth={1} /><text x={padL - 7} y={sy(yv) + 3.5} textAnchor="end" fontSize={10.5} fill={DIM}>{yv}</text></g>))}
         {/* 스코프(전체) 상단선 */}

@@ -70,7 +70,7 @@ export default function AdvisorDashboardPage() {
       <main className="adv-shell">
         <h1 className="adv-page-title">담당 고객사</h1>
         <p className="adv-page-desc">
-          {clients.length > 0 ? `${clients.length}개사 — 카드를 누르면 그 회사의 장부가 펼쳐집니다.` : "오너뷰 운영팀이 고객사를 연결하면 여기에 나타납니다."}
+          {clients.length > 0 ? `${clients.length}개사 · 카드를 누르면 그 회사의 장부가 펼쳐집니다.` : "오너뷰 운영팀이 고객사를 연결하면 여기에 나타납니다."}
         </p>
 
         {isLoading ? (

@@ -94,7 +94,8 @@ export default function JoinPendingPage() {
           </div>
         </div>
         <p className="text-center text-xs text-[var(--text-dim)] mt-6">
-          <Link href="/" className="hover:underline">오너뷰</Link> — 대표를 위한 회사 상황판 OS
+          <Link href="/" className="hover:underline">오너뷰</Link> · 대표를 위한 회사 상황판 OS
+        
         </p>
       </div>
     </div>

@@ -58,18 +58,18 @@ export function overallOf(kpis: BriefKpi[]): number | null {
  */
 export function suggestStatus(overall: number | null, overdueTasks = 0): { status: BriefDraft["status"]; reason: string } {
   if (overall == null) {
-    return { status: "yellow", reason: "목표값이 없어 달성률을 계산할 수 없어요 — 확인이 필요해요" };
+    return { status: "yellow", reason: "목표값이 없어 달성률을 계산할 수 없어요. 확인이 필요해요" };
   }
   if (overall < 0.7) {
-    return { status: "red", reason: `종합 달성률 ${pct(overall)} — 70% 미만이에요` };
+    return { status: "red", reason: `종합 달성률 ${pct(overall)} · 70% 미만이에요` };
   }
   if (overdueTasks > 0) {
     return { status: "yellow", reason: `지연된 할 일 ${overdueTasks}건이 있어요` };
   }
   if (overall < 0.9) {
-    return { status: "yellow", reason: `종합 달성률 ${pct(overall)} — 90% 미만이에요` };
+    return { status: "yellow", reason: `종합 달성률 ${pct(overall)} · 90% 미만이에요` };
   }
-  return { status: "green", reason: `종합 달성률 ${pct(overall)} — 순항 중이에요` };
+  return { status: "green", reason: `종합 달성률 ${pct(overall)} · 순항 중이에요` };
 }
 
 /** 체크인 초안 — 본문 + 신호등 제안. 마지막 줄은 사람이 채울 자리를 비워둔다. */

@@ -1,14 +1,14 @@
 "use client";
-import { kstDateStr } from '@/lib/kst';
+import { kstDateStr }  from '@/lib/kst';
 
 // 견적서/계약서 표시 컴포넌트 (단일 소스).
 //   - 공유링크 페이지(src/app/share/page.tsx) 와 발송 전 미리보기 모달이
 //     같은 레이아웃을 쓰도록 분리.
 //   - "내용" 본문은 ASCII 표 노출 패턴(┌─┐│└─┘ 박스 드로잉 / 마크다운 파이프
-//     테이블)을 자동 stripping — items 배열은 위쪽 HTML 표가 표시하므로
+//     테이블)을 자동 stripping · items 배열은 위쪽 HTML 표가 표시하므로
 //     본문은 텍스트 단락만 남김. 기존 견적서/계약서 호환.
 
-export type DocCompany = {
+export type DocCompany =  {
   name?: string | null;
   representative?: string | null;
   business_number?: string | null;

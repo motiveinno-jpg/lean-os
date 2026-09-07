@@ -10,11 +10,11 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { LandingNav } from "@/components/landing/landing-nav";
-import { FOOTER } from "@/components/landing/content";
+import { FOOTER }  from "@/components/landing/content";
 import "@/app/landing.css";
 import "@/app/tax-partners.css";
 
-/** 화면에 들어오면 .tpx-in — 요소별 지연은 style={{ "--d": ".1s" }} 로 준다 */
+/** 화면에 들어오면 .tpx-in · 요소별 지연은 style={{ "--d": ".1s" }} 로 준다 */
 function useReveal(rootRef: React.RefObject<HTMLDivElement | null>) {
   useEffect(() => {
     const root = rootRef.current;
@@ -119,8 +119,11 @@ function BeforeAfter() {
   );
 }
 
-/* ── ④ 스크롤 고정 스토리 — 카드가 붙고, 스크롤이 지면을 넘긴다 ── */
+
+
+/* ── ④ 스크롤 고정 스토리 · 카드가 붙고, 스크롤이 지면을 넘긴다 ── */
 const STORY = [
+  
   {
     k: "세금계산서", t: "발행되는 순간, 세무사님 지면에도",
     d: "고객사가 발행·수취하는 계산서가 매출/매입으로 나뉘어 쌓이고 분기 부가세 추정까지 계산됩니다.",
@@ -133,7 +136,7 @@ const STORY = [
   },
   {
     k: "통장 · 카드", t: "입출금이 잉크색 그대로",
-    d: "전 계좌 잔고와 거래, 법인카드 사용까지 — 증빙 대조에 필요한 원장이 한 지면에 인쇄됩니다.",
+    d: "전 계좌 잔고와 거래, 법인카드 사용까지 · 증빙 대조에 필요한 원장이 한 지면에 인쇄됩니다.",
     rows: [
       ["08-10", "거래처 용역대금 입금", "+11,000,000", "in"],
       ["08-09", "사무용품 결제", "−880,000", "out"],
@@ -222,11 +225,13 @@ function StickyStory() {
   );
 }
 
-/* ── ⑥ 부가세 시즌 타임라인 — 신고 달이 순차 점등 ── */
+
+
+/* ── ⑥ 부가세 시즌 타임라인 · 신고 달이 순차 점등 ── */
 const VAT_MONTHS = [
   ["1월", "2기 확정"], ["4월", "1기 예정"], ["7월", "1기 확정"], ["10월", "2기 예정"],
 ];
-function VatSeason() {
+function VatSeason()  {
   return (
     <section className="lp4-section lp4-bg-canvas" id="vat">
       <div className="lp4-container">
@@ -422,7 +427,7 @@ export default function TaxPartnerView() {
               <div className="tpx-live-k">통장 · 카드</div>
               <div className="tpx-live-t">입출금이 잉크색 그대로</div>
               <div className="tpx-live-num"><CountUp to={42370000} suffix="원" /></div>
-              <div className="tpx-live-d">전 계좌 잔고와 거래내역, 법인카드 사용까지 — 증빙 대조에 필요한 원장이 그대로 보입니다.</div>
+              <div className="tpx-live-d">전 계좌 잔고와 거래내역, 법인카드 사용까지 · 증빙 대조에 필요한 원장이 그대로 보입니다.</div>
               <div className="tpx-live-badge"><Check /> 엑셀(CSV)로 바로 내려받기</div>
             </div>
             <div className="tpx-live" data-tpx style={{ "--d": ".24s" } as React.CSSProperties}>

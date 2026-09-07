@@ -116,7 +116,7 @@ export default function ExpensePage() {
             <ConditionRow label="비용 계정" hint="여러 개 · 매출원가·판관비 계정"><TokenField items={acctOpts} value={draft.accounts} onChange={(v) => setDraft((c) => ({ ...c, accounts: v }))} placeholder="계정 이름 일부" /></ConditionRow>
             <ConditionRow label="거래처" hint="여러 곳"><TokenField items={partnerOpts} value={draft.partners} onChange={(v) => setDraft((c) => ({ ...c, partners: v }))} placeholder="거래처 이름 일부" /></ConditionRow>
           </ConditionPanel>
-          <QuickSearch value={q} onApply={setQ} placeholder="계정 · 거래처 · 적요 — 쉼표로 여러 개, Enter" />
+          <QuickSearch value={q} onApply={setQ} placeholder="계정 · 거래처 · 적요. 쉼표로 여러 개, Enter" />
           <ChipGroup value={kind} onChange={setKind} options={[{ value: "all", label: "전체" }, { value: "labor", label: "인건비" }, { value: "fixed", label: "고정비" }, { value: "variable", label: "변동비" }] as const} />
         </>}
         stats={<>
@@ -166,7 +166,7 @@ export default function ExpensePage() {
 
       <section className="pnl-panel">
         <h3>계정별 비용</h3>
-        <p>비중 · {s.cmpLabel} 대비 — 급증(+50% 이상이고 판관비의 5% 이상)은 표시만, 판단은 사람이. 성격은 계정 이름 규칙(인건비/고정비/변동비)</p>
+        <p>비중 · {s.cmpLabel}  대비 · 급증(+50% 이상이고 판관비의 5% 이상)은 표시만, 판단은 사람이. 성격은 계정 이름 규칙(인건비/고정비/변동비)</p>
         <div className="pnl-tbl-wrap">
           <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed pnl-partner-table">
             <thead><tr>
@@ -195,7 +195,7 @@ export default function ExpensePage() {
               })}
               {s.data && s.data.unclassified.count > 0 && (
                 <tr className="pnl-row-unclassified">
-                  <td className="text-left font-semibold text-[var(--warning)]">미분류 출금 <small className="font-normal text-[var(--text-dim)]">계정 없는 통장 출금 — 판관비에 안 들어가 있음</small></td>
+                  <td className="text-left font-semibold text-[var(--warning)]">미분류 출금 <small className="font-normal text-[var(--text-dim)]">계정 없는 통장 출금 · 판관비에 안 들어가 있음</small></td>
                   <td className="text-center">—</td>
                   <td className="text-center mono-number">{s.data.unclassified.count}</td>
                   <td className="text-right mono-number">{num(s.data.unclassified.amount)}</td>
@@ -212,8 +212,8 @@ export default function ExpensePage() {
 
       {!s.loading && (
         <section className="pnl-panel">
-          <h3>고정비 · 정기 지출 — 등록값 vs 실제</h3>
-          <p>정기 지출·고정비에 등록한 월액과 이 기간 실제(이름으로 찾은 전표, 전표가 없으면 통장 출금)를 나란히. 10% 넘게 다르면 '확인' — 판단은 사람이. 이름이 달라 못 찾은 것은 '없음'(등록 이름과 거래처·적요를 맞춰 주세요)</p>
+          <h3>고정비 · 정기 지출<span className="ui-sub">등록값 vs 실제</span></h3>
+          <p>정기 지출·고정비에 등록한 월액과 이 기간 실제(이름으로 찾은 전표, 전표가 없으면 통장 출금)를 나란히. 10% 넘게 다르면 '확인' · 판단은 사람이. 이름이 달라 못 찾은 것은 '없음'(등록 이름과 거래처·적요를 맞춰 주세요)</p>
           <div className="pnl-tbl-wrap">
             <table className="ev-table ev-lined pnl-mini-table">
               <thead><tr><th className="text-left">항목</th><th>출처</th><th>등록(월)</th><th>기간 등록</th><th>기간 실제</th><th>차이</th><th>근거</th><th>결제일</th></tr></thead>

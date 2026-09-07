@@ -37,7 +37,7 @@ async function testKstartup(key: string): Promise<TestResult> {
   try {
     const body = JSON.parse(text) as { totalCount?: number; data?: unknown[] };
     if (typeof body.totalCount === "number" || Array.isArray(body.data)) {
-      return { ok: true, message: `연결됐습니다 — 공고 ${(body.totalCount ?? 0).toLocaleString("ko-KR")}건을 볼 수 있습니다.` };
+      return { ok: true, message: `연결됐습니다. 공고 ${(body.totalCount ?? 0).toLocaleString("ko-KR")}건을 볼 수 있습니다.` };
     }
     return { ok: false, message: "응답 형식을 알아보지 못했습니다. 인증키를 다시 확인해 주세요." };
   } catch {
@@ -56,7 +56,7 @@ async function testBizinfo(key: string): Promise<TestResult> {
   try {
     const body = JSON.parse(text) as { jsonArray?: unknown[] };
     if (Array.isArray(body.jsonArray) && body.jsonArray.length > 0) {
-      return { ok: true, message: "연결됐습니다 — 지원사업 공고를 받아올 수 있습니다." };
+      return { ok: true, message: "연결됐습니다. 지원사업 공고를 받아올 수 있습니다." };
     }
     return { ok: false, message: "공고가 오지 않았습니다. 인증키를 다시 확인해 주세요." };
   } catch {

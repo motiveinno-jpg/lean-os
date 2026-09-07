@@ -51,7 +51,7 @@ export default function PlatformMarketingPage() {
     const counts: Record<string, number> = {};
     for (const e of inRange) counts[e.event] = (counts[e.event] || 0) + 1;
 
-    // 일별 추이 (방문·계산기) — 최근 N일 빈 날 포함
+    // 일별 추이 (방문·계산기). 최근 N일 빈 날 포함
     const byDay = new Map<string, { pv: number; tool: number }>();
     for (let i = days - 1; i >= 0; i--) {
       byDay.set(new Date(Date.now() + 9 * 3600000 - i * 86400000).toISOString().slice(0, 10), { pv: 0, tool: 0 });
@@ -168,7 +168,7 @@ export default function PlatformMarketingPage() {
             <PfCard i={9}>
               <PfCardHead title="유입 출처 (외부)" sub="어느 사이트를 거쳐 들어왔는지 · 직접 접속·앱 내 이동은 제외" />
               <PfCardBody>
-                {refBars.length === 0 ? <PfEmpty>외부 유입 기록이 없습니다 — 직접 접속·앱 내 이동뿐</PfEmpty> : (
+                {refBars.length === 0 ? <PfEmpty>외부 유입 기록이 없습니다. 직접 접속·앱 내 이동뿐</PfEmpty> : (
                   <PfBars data={refBars} horizontal height={Math.max(140, refBars.length * 36)} series={[{ key: "방문", label: "방문" }]} revealKey={String(days)} />
                 )}
               </PfCardBody>
@@ -186,7 +186,9 @@ export default function PlatformMarketingPage() {
           </PfCard>
 
           <p className="text-[11px] text-[var(--text-dim)] px-1">
-            수집 시작: 2026-08-13 (이전 데이터 없음) · GA4(G-18MBLDNEQD)에도 같은 이벤트가 쌓입니다 — 체류시간·기기·지역 등 정밀 분석은 GA4 보고서에서.
+            
+            수집 시작: 2026-08-13 (이전 데이터 없음) · GA4(G-18MBLDNEQD)에도 같은 이벤트가 쌓입니다. 체류시간·기기·지역 등 정밀 분석은 GA4 보고서에서.
+
           </p>
         </>
       )}

@@ -161,8 +161,8 @@ const ICO_COLOR: Record<string, string> = {
 };
 const FALLBACK_PALETTE = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#f97316", "#0ea5e9", "#ec4899", "#14b8a6"];
 
-/** 아이콘 고유 색 — 매핑 없으면 문자 코드 기반으로 팔레트에서 안정적으로 선택 */
-export function icoColor(e: string): string {
+/** 아이콘 고유 색 · 매핑 없으면 문자 코드 기반으로 팔레트에서 안정적으로 선택 */
+export function icoColor(e: string): string  {
   const key = (e || "").replace(/️/g, "").trim();
   if (ICO_COLOR[key]) return ICO_COLOR[key];
   let h = 0;

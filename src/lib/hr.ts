@@ -791,7 +791,7 @@ export async function reviewAttendanceEditRequest(params: {
     } catch (e) {
       logError({
         source: 'manual',
-        message: `[근태] 수정 승인 후 재계산 실패 — record=${req.attendance_record_id}: ${(e as Error)?.message || e}`,
+        message: `[근태] 수정 승인 후 재계산 실패 · record=${req.attendance_record_id}: ${(e as Error)?.message || e}`,
         context: { step: 'recompute_after_edit_approval' },
       });
     }
@@ -861,7 +861,7 @@ export async function checkIn(companyId: string, employeeId: string, status: str
       const map: Record<string, string> = {
         NO_OVERTIME_REQUEST: "회사 퇴근시간 이후 출근은 연장근무 신청 승인이 필요합니다",
         OVERTIME_EXPIRED: "승인된 연장 종료시각을 지났습니다",
-        EMPLOYEE_NOT_FOUND: "직원 등록이 안 되어 있습니다 — 관리자에게 문의",
+        EMPLOYEE_NOT_FOUND: "직원 등록이 안 되어 있습니다. 관리자에게 문의",
       };
       throw new Error(map[reasonCode] || reasonCode || "출근 차단됨");
     }
@@ -873,7 +873,7 @@ export async function checkIn(companyId: string, employeeId: string, status: str
       throw e;
     }
     if (typeof window !== "undefined") {
-      console.warn("[checkIn] gate RPC 실패 — fallback 출근 진행:", e);
+      console.warn("[checkIn] gate RPC 실패 · fallback 출근 진행:", e);
     }
   }
 
@@ -1454,7 +1454,7 @@ async function deductLeaveBalance(request: any) {
   } else {
     logError({
       source: 'manual',
-      message: `[휴가] 연차 잔여 정보가 없어 차감하지 못했습니다 — employee_id=${request.employee_id}, year=${year}, days=${request.days}`,
+      message: `[휴가] 연차 잔여 정보가 없어 차감하지 못했습니다. employee_id=${request.employee_id}, year=${year}, days=${request.days}`,
       context: { step: 'deduct_leave_balance' },
     });
   }
@@ -1862,8 +1862,8 @@ async function notifyLeaveDecision(request: any, decision: 'approved' | 'rejecte
       user_id: requesterUserId,
       type: decision === 'approved' ? 'approval' : 'approval',
       title: decision === 'approved'
-        ? `휴가 신청 승인 — ${leaveLabel} (${Number(request.days)}일)`
-        : `휴가 신청 반려 — ${leaveLabel} (${Number(request.days)}일)`,
+        ? `휴가 신청 승인 · ${leaveLabel} (${Number(request.days)}일)`
+        : `휴가 신청 반려 · ${leaveLabel} (${Number(request.days)}일)`,
       message: period,
       entity_type: 'leave_request',
       entity_id: request.id,

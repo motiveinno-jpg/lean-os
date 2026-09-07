@@ -18,8 +18,10 @@ function parseCardName(name: string): { company: string; lastFour: string | null
   return { company: trimmed, lastFour: null };
 }
 
-// 카드사 표준화 — corporate_cards.card_company 디폴트 옵션과 매칭
-function normalizeCardCompany(raw: string): string {
+
+
+// 카드사 표준화 · corporate_cards.card_company 디폴트 옵션과 매칭
+function normalizeCardCompany(raw: string): string  {
   const s = raw.replace(/카드$/, '').trim();
   const map: Record<string, string> = {
     'BC': 'BC', '비씨': 'BC',
@@ -233,7 +235,7 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['corp-cards'] }),
   });
 
-  // 카드 종류 빠른 변경 — 체크/직불로 변경하면 청구서에서 즉시 사라짐
+  // 카드 종류 빠른 변경 · 체크/직불로 변경하면 청구서에서 즉시 사라짐
   const typeMut = useMutation({
     mutationFn: async ({ card, type }: { card: any; type: 'credit' | 'check' | 'debit' | 'other' }) => {
       await upsertCorporateCard({
@@ -259,7 +261,7 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
     return max || null;
   }, [txAll]);
 
-  // 청구서 명세 모달 — 청구서 버튼 클릭 시 그 카드의 사이클 거래 명세 표시.
+  // 청구서 명세 모달 · 청구서 버튼 클릭 시 그 카드의 사이클 거래 명세 표시.
   const [detailBilling, setDetailBilling] = useState<Billing | null>(null);
 
   if (billings.length === 0) {
@@ -325,7 +327,8 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
 
       {unregisteredCount > 0 && (
         <div className="card-billing-unregistered-note">
-          미등록 CODEF 카드 {unregisteredCount}개 — 카드를 등록하면 종류·결제일 지정 가능
+          미등록 CODEF 카드 {unregisteredCount}개 · 카드를 등록하면 종류·결제일 지정 가능
+        
         </div>
       )}
 
@@ -352,8 +355,10 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
   );
 }
 
+
+
 // ─────────────────────────────────────────────────────
-// 청구서 명세 모달 — 카드별 사이클 거래 리스트 + 합계 + 사이클 전환
+// 청구서 명세 모달 · 카드별 사이클 거래 리스트 + 합계 + 사이클 전환
 // ─────────────────────────────────────────────────────
 function BillingDetailModal({
   billing, companyId, today, lastSyncDate, onClose,
@@ -520,7 +525,7 @@ function NonCreditCardsSection({
         <div className="flex items-center gap-1.5">
           <span className="inline-block w-3 text-center text-[10px] text-[var(--text-muted)]">{collapsed ? '▶' : '▼'}</span>
           <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">
-            체크·직불·기타 {cards.length}개 {collapsed ? '(접힘 — 클릭하면 펼침)' : ''}
+            체크·직불·기타 {cards.length}개 {collapsed ? '(접힘 · 클릭하면 펼침)' : ''}
           </div>
         </div>
         <div className="text-[9px] text-[var(--text-dim)]">청구 사이클 없음 · 종류 ▾ 로 신용 복원</div>

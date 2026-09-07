@@ -32,7 +32,7 @@ export function AppointmentsSection({ employeeId, companyId, emp, userId }: { em
     try {
       await addAppointment(companyId, { employee_id: employeeId, kind: form.kind, effective_date: form.date, department: form.department || null, position: form.position || null, salary: form.kind === "salary" ? form.salary : null, reason: form.reason || null }, userId);
       const touches = !!(form.department || form.position || (form.kind === "salary" && form.salary > 0));
-      toast(form.date <= todayKst() && touches ? "발령을 기록하고 현재 부서·직책에 반영했습니다" : form.date > todayKst() && touches ? "발령을 기록했습니다 — 발령일이 되면 현재값에 반영하세요" : "발령을 기록했습니다", "success");
+      toast(form.date <= todayKst() && touches ? "발령을 기록하고 현재 부서·직책에 반영했습니다" : form.date > todayKst() && touches ? "발령을 기록했습니다. 발령일이 되면 현재값에 반영하세요" : "발령을 기록했습니다", "success");
       setOpen(false); setForm({ kind: "transfer", date: todayKst(), department: "", position: "", salary: 0, reason: "" }); refresh();
     } catch (e) { toast(friendlyError(e, "기록하지 못했습니다"), "error"); }
     finally { setBusy(false); }
@@ -66,7 +66,7 @@ export function AppointmentsSection({ employeeId, companyId, emp, userId }: { em
   return (
     <div className="appt-section">
       <div className="appt-head">
-        <span className="inv-hint">부서·직책·급여가 바뀐 기록. <b>현재 부서·직책은 최신 발령</b>에서 옵니다 — 정보 탭에서 고치면 여기엔 남지 않으니 발령으로 기록하세요. 경력증명서·인사기록카드가 이 표를 씁니다.</span>
+        <span className="inv-hint">부서·직책·급여가 바뀐 기록. <b>현재 부서·직책은 최신 발령</b>에서 옵니다. 정보 탭에서 고치면 여기엔 남지 않으니 발령으로 기록하세요. 경력증명서·인사기록카드가 이 표를 씁니다.</span>
         <span className="doc-sums-sp" />
         {legacyCount > 0 && <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={importLegacy} title="옛 발령 글자·급여 이력을 이 표로 옮깁니다(중복은 건너뜀)">옛 기록 {legacyCount}건 가져오기</button>}
         <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={recordCard}>인사기록카드 PDF</button>

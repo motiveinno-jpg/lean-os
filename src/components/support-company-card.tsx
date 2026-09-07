@@ -10,10 +10,10 @@ import {
   loadProfileExt, saveProfileExt, CARD_TOTAL,
   SIZE_CLASSES, CERTIFICATIONS, INTERESTS, KSIC_MAIN,
   type ProfileExtInput,
-} from "@/lib/support-programs";
+}  from "@/lib/support-programs";
 
 /**
- * 회사 카드 7문항 — 우리 DB로 알 수 없는 축만 묻는다 (2026-08-21).
+ * 회사 카드 7문항 · 우리 DB로 알 수 없는 축만 묻는다 (2026-08-21).
  *   업종·소재지·규모·고용 4축은 companies·employees 에서 이미 나온다.
  *   ★ 강제하지 않는다. 안 채워도 화면은 돌고, 미입력 조건은 목록에서 `?` 로 보인다.
  *   ★ 추가·수정 폼은 팝업 (목록 줄이 밀리지 않게).
@@ -190,7 +190,7 @@ export function SupportCompanyCard({
                   </button>
                 ))}
               </div>
-              <p className="sp-q-hint">추천 순서에만 씁니다 — 고르지 않은 분야를 숨기지는 않습니다.</p>
+              <p className="sp-q-hint">추천 순서에만 씁니다. 고르지 않은 분야를 숨기지는 않습니다.</p>
             </div>
           </div>
         </div>

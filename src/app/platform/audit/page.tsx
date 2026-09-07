@@ -50,7 +50,7 @@ const ACTION_LABEL: Record<string, string> = {
   admin_set_subscription_status: "구독 상태 변경",
   admin_set_seats: "좌석 조정",
 };
-// 되돌리기 어려운(민감한) 행동 — 표에서 눈에 띄게
+// 되돌리기 어려운(민감한) 행동 · 표에서 눈에 띄게
 const SENSITIVE = new Set(["admin_reset_password", "admin_reset_link", "admin_change_email", "admin_set_role", "admin_ban", "admin_unban", "admin_change_plan", "admin_set_subscription_status", "admin_set_seats", "admin_extend_trial"]);
 
 const TARGET_LABEL: Record<string, string> = { company: "회사", user: "사용자", error: "오류", incident: "사고", subscription: "구독" };

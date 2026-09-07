@@ -65,7 +65,7 @@ export async function logAuditTrail(
     .maybeSingle();
 
   if (fetchError || !pkg) {
-    console.warn('감사추적 기록 스킵 — 패키지 조회 불가:', packageId);
+    console.warn('감사추적 기록 스킵 · 패키지 조회 불가:', packageId);
     return;
   }
 
@@ -112,6 +112,6 @@ export async function logAuditTrail(
     .eq('id', packageId);
 
   if (updateError) {
-    throw new Error(`감사추적 기록 실패 — DB 업데이트 오류: ${updateError.message}`);
+    throw new Error(`감사추적 기록 실패 · DB 업데이트 오류: ${updateError.message}`);
   }
 }

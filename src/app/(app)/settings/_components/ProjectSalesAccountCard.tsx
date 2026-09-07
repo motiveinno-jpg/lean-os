@@ -61,8 +61,8 @@ export function ProjectSalesAccountCard({ companyId }: { companyId: string }) {
         if (error) throw new Error(error.message);
       }
       toast(accountId
-        ? "저장했습니다 — 이제 계약이 양측 서명 완료되면 이 계정으로 판매전표가 자동 발행됩니다"
-        : "설정을 비웠습니다 — 서명 완료 시 자동 발행 대신 '발행 준비됨' 알림만 갑니다");
+        ? "저장했습니다. 이제 계약이 양측 서명 완료되면 이 계정으로 판매전표가 자동 발행됩니다"
+        : "설정을 비웠습니다. 서명 완료 시 자동 발행 대신 '발행 준비됨' 알림만 갑니다");
       qc.invalidateQueries({ queryKey: ["set-proj-sales-acct", companyId] });
     } catch (e: any) {
       toast(`저장 실패: ${e.message || e}`);
@@ -79,12 +79,12 @@ export function ProjectSalesAccountCard({ companyId }: { companyId: string }) {
       </div>
       <div className="proj-sales-row">
         <select className="proj-sales-field" value={accountId} onChange={(e) => setAccountId(e.target.value)} aria-label="매출 계정">
-          <option value="">사용 안 함 — 알림만 (기본값)</option>
+          <option value="">사용 안 함. 알림만 (기본값)</option>
           {accounts.map((a) => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
         </select>
         <select className="proj-sales-field" value={vatType} onChange={(e) => setVatType(e.target.value as "taxable" | "exempt")} aria-label="부가세">
-          <option value="taxable">과세 — 공급가(계약금액)에 부가세 10% 별도</option>
-          <option value="exempt">면세 — 부가세 0</option>
+          <option value="taxable">과세 · 공급가(계약금액)에 부가세 10% 별도</option>
+          <option value="exempt">면세 · 부가세 0</option>
         </select>
         <button type="button" className="btn-secondary btn-sm" disabled={saving} onClick={save}>저장</button>
       </div>

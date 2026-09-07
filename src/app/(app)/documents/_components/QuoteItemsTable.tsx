@@ -1,10 +1,10 @@
 "use client";
 import { logRead } from "@/lib/log-read";
-import { Ico } from "@/components/ui-icon";
+import { Ico }  from "@/components/ui-icon";
 
-// 견적서 품목 입력 테이블 — 회사별 컬럼 커스터마이징(수량·단가·부가세·적요·비고 등 자유 추가/삭제) + 자동계산.
+// 견적서 품목 입력 테이블 · 회사별 컬럼 커스터마이징(수량·단가·부가세·적요·비고 등 자유 추가/삭제) + 자동계산.
 //   컬럼 설정은 company_settings.settings.quote_columns(jsonb)에 회사별 저장.
-import { useState, useEffect, useMemo } from "react";
+import  { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { CurrencyInput } from "@/components/currency-input";
@@ -232,7 +232,9 @@ export function QuoteItemsTable({
   );
 }
 
-// ── 거래내역 불러오기 — 과거 견적/계산서 문서의 품목을 모아 선택 추가 ──
+
+
+// ── 거래내역 불러오기 · 과거 견적/계산서 문서의 품목을 모아 선택 추가 ──
 function HistoryPicker({ companyId, partnerName, onClose, onPick }: { companyId: string | null; partnerName?: string; onClose: () => void; onPick: (items: any[]) => void }) {
   const [loading, setLoading] = useState(true);
   const [pool, setPool] = useState<any[]>([]);
@@ -305,7 +307,9 @@ function HistoryPicker({ companyId, partnerName, onClose, onPick }: { companyId:
   );
 }
 
-// ── My품목 — 자주 쓰는 품목 프리셋(회사 설정 저장) ──
+
+
+// ── My품목 · 자주 쓰는 품목 프리셋(회사 설정 저장) ──
 function MyItemsPicker({ companyId, currentItems, onClose, onPick }: { companyId: string | null; currentItems: any[]; onClose: () => void; onPick: (items: any[]) => void }) {
   const [presets, setPresets] = useState<any[]>([]);
   const [sel, setSel] = useState<Set<number>>(new Set());
@@ -374,7 +378,9 @@ function MyItemsPicker({ companyId, currentItems, onClose, onPick }: { companyId
   );
 }
 
-// 열 편집 모달 — 표준 컬럼 토글 + 커스텀 컬럼 추가/삭제
+
+
+// 열 편집 모달 · 표준 컬럼 토글 + 커스텀 컬럼 추가/삭제
 function ColumnEditor({ cols, onClose, onSave }: { cols: QuoteCol[]; onClose: () => void; onSave: (cols: QuoteCol[]) => void }) {
   const [active, setActive] = useState<QuoteCol[]>(cols);
   const [newLabel, setNewLabel] = useState("");

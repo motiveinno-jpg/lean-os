@@ -182,7 +182,7 @@ export function getPaceWarning(input: PaceInput): PaceWarning {
 
   // 정체 우선: 최근 증가분이 0이면 정체.
   if (input.recentGain != null && input.recentGain <= 0 && actual > 0) {
-    return { status: "stalled", requiredDaily: null, currentDaily: null, projected: null, message: "최근 실적 정체 — 추이를 확인하세요", tone: "warn" };
+    return { status: "stalled", requiredDaily: null, currentDaily: null, projected: null, message: "최근 실적 정체 · 추이를 확인하세요", tone: "warn" };
   }
 
   // 영업일평균(필요/현재) — '하루 얼마씩' 표기에 사용
@@ -203,14 +203,14 @@ export function getPaceWarning(input: PaceInput): PaceWarning {
   if (projected != null) {
     const ratio = projected / target;
     if (ratio >= 1) {
-      return { status: "ahead", requiredDaily, currentDaily, projected, message: `✅ 예상달성 ${Math.round(ratio * 100)}% — 순항 중`, tone: "ok" };
+      return { status: "ahead", requiredDaily, currentDaily, projected, message: `✅ 예상달성 ${Math.round(ratio * 100)}% · 순항 중`, tone: "ok" };
     }
     return {
       status: "behind",
       requiredDaily,
       currentDaily,
       projected,
-      message: `${ratio < 0.8 ? "🔴" : "🟡"} 예상달성 ${Math.round(ratio * 100)}% — 페이스를 높여야 합니다`,
+      message: `${ratio < 0.8 ? "🔴" : "🟡"} 예상달성 ${Math.round(ratio * 100)}% · 페이스를 높여야 합니다`,
       tone: ratio < 0.8 ? "danger" : "warn",
     };
   }

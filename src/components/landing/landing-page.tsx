@@ -61,7 +61,9 @@ function Sentences({ text, className }: { text: string; className?: string }) {
   );
 }
 
-/** 화면 한 장 — 실제 제품 캡처. sizes 를 정확히 줘야 큰 이미지가 과다 다운로드되지 않는다. */
+
+
+/** 화면 한 장 · 실제 제품 캡처. sizes 를 정확히 줘야 큰 이미지가 과다 다운로드되지 않는다. */
 function Shot({ src, alt, priority = false, sizes = "(max-width: 999px) 92vw, 1120px" }: {
   src: string; alt: string; priority?: boolean; sizes?: string;
 }) {
@@ -72,7 +74,9 @@ function Shot({ src, alt, priority = false, sizes = "(max-width: 999px) 92vw, 11
   );
 }
 
-/** 크로스페이드 스택 — 같은 자리에서 화면만 바뀐다(장면 안에서 축·시간대가 넘어갈 때). */
+
+
+/** 크로스페이드 스택 · 같은 자리에서 화면만 바뀐다(장면 안에서 축·시간대가 넘어갈 때). */
 function ShotStack({ items, active, sizes = "(max-width: 999px) 94vw, 1040px" }: {
   items: { src: string; alt: string }[]; active: number; sizes?: string;
 }) {
@@ -117,7 +121,7 @@ const MOBILE_OF: Record<string, string> = {
   "/product/f-ai-brief-v4.png":  "/product/m-brief-v3.png",
 };
 
-/** 코어 카드 전용 조각 — 패널 헤더를 뺀 "그 기능 블록"만 잘라 둔 캡처.
+/** 코어 카드 전용 조각 · 패널 헤더를 뺀 "그 기능 블록"만 잘라 둔 캡처.
  *   ⚠️ 예전엔 전체 화면 캡처를 좌표로 확대·크롭해 썼다. 기능이 있는 자리가 화면마다 달라
  *      반드시 설명과 어긋났고, 카드 제목과 캡처 안 패널 제목이 같은 말을 두 번 했다.
  *      → 2026-08-20 부터는 실제 앱을 클립 좌표로 두 번 찍는다(패널용 f-*, 코어용 c-*).
@@ -151,8 +155,9 @@ const FAN = [
   { src: "/product/hero-bank-v2.png", alt: "오너뷰 통장" },
   { src: "/product/hero-hr-v2.png",   alt: "오너뷰 구성원" },
 ];
-/** 자리 5개 — 왼쪽 끝부터. fx = 자기 폭 기준 가로 이동, fs = 크기. */
+/** 자리 5개 · 왼쪽 끝부터. fx = 자기 폭 기준 가로 이동, fs = 크기. */
 const FAN_SLOTS = [
+  
   { fx: "-114%", fs: 0.52 },
   { fx: "-66%",  fs: 0.80 },
   { fx: "0%",    fs: 1.34 },
@@ -296,7 +301,7 @@ const WINDOWS = [
 ];
 
 /** 창 12개 → 오너뷰 창 하나. 무대 안에 들어가는 본체(데스크톱·폰 공용).
- *  winsRef — 폰에서 "언제 합쳐질지"를 정하는 기준점(창 묶음). 사용자가 창까지 스크롤해
+ *  winsRef · 폰에서 "언제 합쳐질지"를 정하는 기준점(창 묶음). 사용자가 창까지 스크롤해
  *  내려온 순간부터 합쳐져야 "모이는 모습"을 볼 수 있다. */
 function UnifyStage({ winsRef }: { winsRef?: React.Ref<HTMLDivElement> }) {
   return (
@@ -413,7 +418,9 @@ function SceneUnify() {
   );
 }
 
-// ══════════════════ 2.5 공감 — 이런 게 힘드셨죠 ══════════════════
+
+
+// ══════════════════ 2.5 공감 · 이런 게 힘드셨죠 ══════════════════
 //   ⚠️ 히어로 다음이 바로 "하나로 모여요" 라 방문자가 자기 문제를 확인하는 구간이 없었다.
 //      공감 → 해결 순서가 되면 뒤따르는 기능 설명의 설득력이 달라진다 (경쟁사 비교, 2026-07-29).
 function PainIcon({ n }: { n: string }) {
@@ -504,10 +511,11 @@ function SceneDay() {
   const narrow = useNarrow();
   if (narrow) return <DayDeck />;
   // ⚠️ len 은 "시간대 하나 넘기는 데 필요한 스크롤"을 정한다.
-  //    고정 이동거리 = (len - 1) × 100vh, 구간당 = 그 값 ÷ 5.
+  //    고정 이동거리 = (len · 1) × 100vh, 구간당 = 그 값 ÷ 5.
   //    2.4 였을 때 구간당 266px = 휠 2.66칸이라 3·3·3·2 로 들쭉날쭉했다(사장님 지적).
   //    2.0 이면 구간당 190px = 휠 2칸 이내로 균일해진다.
   return (
+
     <Scene id="day" len={1.6} beats={DAY_3.length} pinMobile className="lp5-day">
       {(beat) => {
         const d = DAY_3[beat];
@@ -812,7 +820,9 @@ function SceneAI() {
   );
 }
 
-// ══════════════════ 6. 커버리지 — 실제 사이드바 그룹 그대로 ══════════════════
+
+
+// ══════════════════ 6. 커버리지 · 실제 사이드바 그룹 그대로 ══════════════════
 //   ⚠️ 그룹·메뉴 수는 CATALOG 에서 파생한다. 숫자를 손으로 적지 말 것 —
 //      2026-08-20 감사에서 "메뉴 18개/20개·네 영역·기능 30가지"가 전부 실제(7그룹 34메뉴)와 어긋나 있었다.
 const GROUP_COLOR: Record<string, string> = {
@@ -861,11 +871,13 @@ function SceneCoverage() {
   );
 }
 
-// ══════════════════ 6.5 신뢰 — 도입 사례 + 가격 미리보기 ══════════════════
+
+
+// ══════════════════ 6.5 신뢰 · 도입 사례 + 가격 미리보기 ══════════════════
 //   ⚠️ CASES 는 프로덕션 실측 스냅샷이다. "세금계산서 자동 수집"은 발행분이 아니므로
 //      라벨을 바꾸면 거짓이 된다(content.ts 주석 참조).
 //   ⚠️ 가격을 못 찾아 이탈하는 게 흔한 누수다. 메뉴에만 두지 않고 본문에 미리보기를 둔다.
-function SceneProof() {
+function SceneProof()  {
   const c = CASES[0];
   const shown = PLANS.filter((p) => p.slug || p.price === "0").slice(0, 3);
   return (
@@ -943,7 +955,7 @@ function SceneMobile() {
   }, [manual, n, narrow]);
 
   const go = (k: number) => { setManual(true); setI(Math.min(n - 1, Math.max(0, k))); };
-  // 손가락으로 넘기기 — 세로 스크롤은 막지 않는다(가로 이동이 더 클 때만 넘김으로 친다)
+  // 손가락으로 넘기기 · 세로 스크롤은 막지 않는다(가로 이동이 더 클 때만 넘김으로 친다)
   const touch = useRef<{ x: number; y: number; locked: boolean } | null>(null);
   const onTouchStart = (e: React.TouchEvent) => {
     touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, locked: false };

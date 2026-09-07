@@ -5,12 +5,12 @@ import { FileUploadZone } from "./file-upload-zone";
 import { MentionDropdown, filterMentionUsers } from "./mention-dropdown";
 import { ChatEmojiPicker } from "./chat-emoji-picker";
 import { ChatLinkPicker } from "./chat-link-picker";
-import { growTextarea } from "@/lib/textarea";
+import { growTextarea }  from "@/lib/textarea";
 
-//   입력칸 최대 높이 — 여기까지 늘어나고 그 뒤로는 상자 안에서 스크롤한다.
+//   입력칸 최대 높이 · 여기까지 늘어나고 그 뒤로는 상자 안에서 스크롤한다.
 const MAX_H = 200;
 
-interface MentionUser {
+interface MentionUser  {
   id: string;
   name: string | null;
   email: string;
@@ -239,7 +239,7 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
                   onClick={() => setPicker((p) => (p === "link" ? null : "link"))}
                   disabled={disabled}
                   aria-label="오너뷰 링크 붙이기"
-                  title="오너뷰 링크 — 프로젝트 · 게시판 글 · 전자계약"
+                  title="오너뷰 링크 · 프로젝트 · 게시판 글 · 전자계약"
                   className={`chat-composer-tool ${picker === "link" ? "chat-composer-tool-on" : ""}`}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">

@@ -77,10 +77,12 @@ function referrerHost(): string | null {
   }
 }
 
+
+
 /** 이 브라우저에 붙은 내부 표식. `?internal=1` 로 직접 붙이고 `?internal=0` 으로 뗀다.
- *  시크릿 창 테스트는 로그인도 표식도 없어 여전히 외부로 잡힌다 — 그건 막을 방법이 없으므로
+ *  시크릿 창 테스트는 로그인도 표식도 없어 여전히 외부로 잡힌다. 그건 막을 방법이 없으므로
  *  화면에서 '검색 유입'(우리가 만들 수 없는 기록) 을 따로 보여주는 것으로 보완한다. */
-function internalFlag(): boolean {
+function internalFlag(): boolean  {
   try {
     const q = new URLSearchParams(window.location.search).get("internal");
     if (q === "1") localStorage.setItem(INTERNAL_KEY, "1");

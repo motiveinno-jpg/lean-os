@@ -31,9 +31,9 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       ] },
       { route: "/notifications", label: "알림", always: true },
       { route: "/mypage", label: "마이페이지", always: true },
-      { route: "/copilot", label: "AI 참모", desc: "회사 자료를 읽고 답하는 AI — 금액 질문에 답할 수 있다", money: true },
+      { route: "/copilot", label: "AI 참모", desc: "회사 자료를 읽고 답하는 AI · 금액 질문에 답할 수 있다", money: true },
       //   지원사업 (2026-08-21) — 직원 생년월일·급여로 고용장려금 자격을 판정하므로 인사 정보를 읽는다
-      { route: "/support-programs", label: "지원사업추천", desc: "회사 자료로 걸러 주는 정부 지원정책 — 예상 수령액을 계산해 보여준다", money: true },
+      { route: "/support-programs", label: "지원사업추천", desc: "회사 자료로 걸러 주는 정부 지원정책 · 예상 수령액을 계산해 보여준다", money: true },
     ],
   },
   {
@@ -43,27 +43,27 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     //   ★ 새 키는 member_permissions 에 행이 없어 **백필 전까지 마스터 외 아무도 못 본다** — 배포와 함께 백필한다.
     group: "재고",
     menus: [
-      { route: "/inventory/products", defaultGrant: true, label: "품목", money: true, desc: "SKU·규격·판매가·매입가 — 원가가 보인다" },
+      { route: "/inventory/products", defaultGrant: true, label: "품목", money: true, desc: "SKU·규격·판매가·매입가 · 원가가 보인다" },
       { route: "/inventory/stock", defaultGrant: true, label: "창고관리", tabs: [
-        { key: "adjust", label: "입·출고와 조정", desc: "미부여 시 수량 보기만 — 재고를 움직일 수 없다" },
+        { key: "adjust", label: "입·출고와 조정", desc: "미부여 시 수량 보기만 · 재고를 움직일 수 없다" },
       ] },
       //   ★ 보기와 입력을 가른다 (2026-08-26 사장님 "권한 세분화") — 메뉴만 주면 이력·현황 보기, :write 를 줘야 저장·수정·취소
-      { route: "/inventory/orders", defaultGrant: true, label: "주문", money: true, desc: "주문서·견적 — 재고는 안 움직인다", tabs: [
-        { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 주문서를 만들거나 고칠 수 없다" },
+      { route: "/inventory/orders", defaultGrant: true, label: "주문", money: true, desc: "주문서·견적 · 재고는 안 움직인다", tabs: [
+        { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 · 주문서를 만들거나 고칠 수 없다" },
       ] },
       { route: "/inventory/sales", defaultGrant: true, label: "판매", money: true, tabs: [
-        { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 판매 저장·취소·반품 불가" },
+        { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 · 판매 저장·취소·반품 불가" },
       ] },
       { route: "/inventory/purchase", defaultGrant: true, label: "구매", money: true, tabs: [
-        { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 매입 저장·취소·반품 불가" },
+        { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 · 매입 저장·취소·반품 불가" },
       ] },
       { route: "/inventory/production", defaultGrant: true, label: "생산", tabs: [
-        { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 완성 기록·자재구성 수정 불가" },
+        { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 · 완성 기록·자재구성 수정 불가" },
       ] },
       { route: "/inventory/channels", defaultGrant: true, label: "이커머스", money: true, desc: "온라인 주문 가져오기 · 채널 상품 연결 · 출고 처리", tabs: [
-        { key: "write", label: "입력·수정", desc: "미부여 시 보기만 — 주문 가져오기·출고 등록·발송 처리·상품 연결 불가" },
+        { key: "write", label: "입력·수정", desc: "미부여 시 보기만 · 주문 가져오기·출고 등록·발송 처리·상품 연결 불가" },
       ] },
-      { route: "/inventory/status", label: "현황", money: true, desc: "주문·판매·구매·생산 집계와 그래프 — 매출·마진·재고 금액이 보인다" },
+      { route: "/inventory/status", label: "현황", money: true, desc: "주문·판매·구매·생산 집계와 그래프 · 매출·마진·재고 금액이 보인다" },
       //   이익관리 (2026-08-26) — 매출원가·이익·원가 층. 직원 기본 비노출(재무 정보). :write 는 원가 방법 변경·재계산·재평가.
       { route: "/inventory/profit", label: "이익관리", money: true, desc: "판매 이익·매출원가(선입선출)·손실·품목별 이익률·원가 층", tabs: [
         { key: "write", label: "원가 방법·재계산·재평가", desc: "미부여 시 보기만" },
@@ -97,11 +97,11 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       { route: "/partners/reconciliation/sale-purchase", label: "매입매출전표", money: true },
       { route: "/finance/assets", label: "고정자산", money: true, desc: "장비·차량·소프트웨어 등록 → 월 감가상각 전표 초안" },
       //   세무 신고 (2026-08-31 세무 1차) — 급여 총액이 보이므로 급여와 같은 급의 money 권한. ★ 배포와 함께 백필 필요.
-      { route: "/finance/tax-filing", label: "세무 신고", money: true, desc: "원천세·부가세 신고서 완성 — 제출은 홈택스에서" },
+      { route: "/finance/tax-filing", label: "세무 신고", money: true, desc: "원천세·부가세 신고서 완성 · 제출은 홈택스에서" },
       { route: "/payments", label: "정기 지출", money: true },
       //   2026-08-11 사이드바에서 내림(수집·전표 통장 탭이 대신). 주소로는 열리므로 게이트·옛 부여 키 호환을 위해 남긴다 — 표에는 안 그림
       { route: "/transactions", label: "자동 분류", money: true, hidden: true },
-      { route: "/finance/status", label: "현황", money: true, desc: "작성된 전표의 현황·지표 — 확정·반려·종류·계정과목·부가세 유형·전표 없는 증빙" },
+      { route: "/finance/status", label: "현황", money: true, desc: "작성된 전표의 현황·지표 · 확정·반려·종류·계정과목·부가세 유형·전표 없는 증빙" },
     ],
   },
   {
@@ -148,7 +148,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "salary", label: "급여", money: true },
         { key: "leave", label: "휴가 관리" },
         { key: "certificates", label: "증명서 발급" },
-        { key: "permissions", label: "권한 부여", desc: "다른 구성원에게 권한 위임 — 마스터만 부여 가능", masterOnly: true },
+        { key: "permissions", label: "권한 부여", desc: "다른 구성원에게 권한 위임. 마스터만 부여 가능", masterOnly: true },
       ] },
       { route: "/attendance", label: "근태 관리", tabs: [
         { key: "board", label: "워크보드" },
@@ -164,7 +164,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     //   분석 — 사이드바 그룹(2026-08-11). 라우트는 그대로라 기존 권한(/reports, /partners/ledger)이 그대로 먹는다.
     group: "분석",
     menus: [
-      { route: "/reports", label: "분석·리포트", money: true, desc: "경영 요약 · 손익 현황 · 자금 전망 · 회계 자료 · 부가세 — 한 권한으로 전부" },
+      { route: "/reports", label: "분석·리포트", money: true, desc: "경영 요약 · 손익 현황 · 자금 전망 · 회계 자료 · 부가세 · 한 권한으로 전부" },
       { route: "/partners/ledger", label: "거래처 원장", money: true, desc: "미수·미지급 원장" },
     ],
   },

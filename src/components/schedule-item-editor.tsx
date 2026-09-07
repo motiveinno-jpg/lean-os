@@ -125,8 +125,8 @@ export function ScheduleItemEditor({
   const canSave = !!draft.title.trim() && !!companyId && !!userId && !saving;
   useModalKeys(true, onClose, canSave ? onSave : undefined);
 
-  //   알림 발송은 feature_rollout('schedule_reminders') 게이트(모티브 먼저) — 안 켜진 회사엔 칸 자체를 숨긴다
-  const { data: remindReady = false } = useQuery({
+  //   알림 발송은 feature_rollout('schedule_reminders') 게이트(모티브 먼저). 안 켜진 회사엔 칸 자체를 숨긴다
+  const  { data: remindReady = false } = useQuery({
     queryKey: ["feat-schedule-reminders", companyId],
     enabled: !!companyId,
     staleTime: 10 * 60_000,
@@ -319,7 +319,7 @@ export function ScheduleItemEditor({
             </div>
           </div>
         )}
-        {remindReady && !!draft.recurFreq && <p className="sched-note">반복 일정 알림은 다음 단계에서 — 지금은 단발 일정만 알림이 갑니다.</p>}
+        {remindReady && !!draft.recurFreq && <p className="sched-note">반복 일정 알림은 다음 단계에서 · 지금은 단발 일정만 알림이 갑니다.</p>}
         {remindReady && !draft.recurFreq && draft.reminders.length > 0 && <p className="sched-note">알림은 시작 날짜 기준으로 <b>나에게</b> 옵니다(알림 벨). 같은 날 여러 개도 됩니다.</p>}
 
         <div className="sched-field">
@@ -378,7 +378,9 @@ export function ScheduleItemEditor({
   );
 }
 
-/** 태그로 고르기 — 구성원·부서가 많아지면 체크박스 목록은 다 훑어야 해서 못 쓴다
+
+
+/** 태그로 고르기 · 구성원·부서가 많아지면 체크박스 목록은 다 훑어야 해서 못 쓴다
  *  (2026-08-10 사장님 지시). 고른 것은 위에 태그로 남고, 아래에서 찾아 눌러 넣는다. */
 function TagPicker({ placeholder, empty, options, selected, onToggle, hideFromSuggest = [] }: {
   placeholder: string;
@@ -416,7 +418,8 @@ function TagPicker({ placeholder, empty, options, selected, onToggle, hideFromSu
         </div>
       )}
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder}
-        //   Enter 로 첫 후보를 바로 넣는다 — 마우스 없이 이어서 여러 명을 고를 수 있게
+        
+        //   Enter 로 첫 후보를 바로 넣는다. 마우스 없이 이어서 여러 명을 고를 수 있게
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.nativeEvent.isComposing && matches[0]) {
             e.preventDefault();

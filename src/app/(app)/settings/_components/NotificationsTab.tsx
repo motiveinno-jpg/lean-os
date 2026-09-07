@@ -1,10 +1,10 @@
 "use client";
 import { BizAlertRules } from "@/components/biz-alert-rules";
 import { logRead } from "@/lib/log-read";
-import { Ico } from "@/components/ui-icon";
+import { Ico }  from "@/components/ui-icon";
 
-// settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
-import React, { useEffect, useState } from "react";
+// settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할). 동작 무변경.
+import React,  { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 import { useToast } from "@/components/toast";
@@ -27,9 +27,11 @@ interface NotifPrefs {
   quietHours: { enabled: boolean; start: string; end: string };
 }
 
-//   channels 를 지정하면 그 채널 목록에만 토글이 보인다 — 게시판 새 글은 메일을 아예 안 보내므로
+
+
+//   channels 를 지정하면 그 채널 목록에만 토글이 보인다. 게시판 새 글은 메일을 아예 안 보내므로
 //   (board/page.tsx 주석: "오너뷰 안의 알림만, 메일은 보내지 않는다") 푸시에만 노출 (2026-08-26).
-const NOTIF_EVENTS: { key: NotifEvent; label: string; desc: string; channels?: NotifChannel[] }[] = [
+const NOTIF_EVENTS:  { key: NotifEvent; label: string; desc: string; channels?: NotifChannel[] }[] = [
   { key: "approval_pending", label: "결재 요청", desc: "내가 결재해야 할 항목이 새로 등록될 때" },
   { key: "approval_reference", label: "결재 참조", desc: "결재 권한 없이 참조로만 공유된 건" },
   { key: "deal_status", label: "프로젝트 상태 변경", desc: "프로젝트가 다음 단계로 이동하거나 완료될 때" },
@@ -163,9 +165,9 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
               updated_at: new Date().toISOString(),
             }, { onConflict: "user_id" });
           // 서버 저장 실패를 성공으로 알리지 않는다 (2026-08-19 감사): 종전엔 console.error 후
-          //   성공 토스트 — localStorage 에만 남아 다른 기기·서버 발송 판정에 반영되지 않았다.
-          if (error) {
-            toast(`알림 설정 서버 저장 실패: ${error.message} — 이 기기에만 임시 저장됐습니다`, "error");
+          //   성공 토스트 · localStorage 에만 남아 다른 기기·서버 발송 판정에 반영되지 않았다.
+          if (error)  {
+            toast(`알림 설정 서버 저장 실패: ${error.message} · 이 기기에만 임시 저장됐습니다`, "error");
             return;
           }
         }
@@ -178,14 +180,16 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
     }
   }
 
-  // 푸시 켜기 — 권한이 이미 허용돼 있어도 항상 구독을 만든다(기존엔 granted 면 구독을 안 만들어
+  
+
+  // 푸시 켜기 · 권한이 이미 허용돼 있어도 항상 구독을 만든다(기존엔 granted 면 구독을 안 만들어
   //   push_subscriptions 0건 → 백그라운드 알림이 영영 안 오던 원인).
-  async function enablePush() {
+  async function enablePush()  {
     if (!pushSupported) return;
     const result = await Notification.requestPermission();
     setPushPermission(result);
     if (result !== "granted") {
-      toast("푸시 알림 권한 거부됨 — 브라우저 설정에서 허용해주세요", "error");
+      toast("푸시 알림 권한 거부됨. 브라우저 설정에서 허용해주세요", "error");
       return;
     }
     setPrefs((p) => ({ ...p, push: { ...p.push, enabled: true } }));
@@ -195,22 +199,24 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
         import("@/lib/queries"),
       ]);
       if (!webPushSupported()) {
-        toast("이 브라우저는 백그라운드 푸시를 지원하지 않습니다 — 아이폰은 '홈 화면에 추가' 후 홈 화면 앱에서 켜주세요", "info");
+        toast("이 브라우저는 백그라운드 푸시를 지원하지 않습니다. 아이폰은 '홈 화면에 추가' 후 홈 화면 앱에서 켜주세요", "info");
         return;
       }
       const u = await getCurrentUser();
       const ok = u ? await subscribeWebPush(companyId, u.id) : false;
       toast(
-        ok ? "브라우저 푸시 켜짐 — 창을 닫아도 알림을 받습니다" : "권한은 허용됐지만 구독에 실패했습니다. 다시 시도해주세요",
+        ok ? "브라우저 푸시 켜짐 · 창을 닫아도 알림을 받습니다" : "권한은 허용됐지만 구독에 실패했습니다. 다시 시도해주세요",
         ok ? "success" : "error",
       );
     } catch {
-      toast("푸시 알림 권한 허용됨 (백그라운드 구독은 실패 — 다시 시도)", "info");
+      toast("푸시 알림 권한 허용됨 (백그라운드 구독은 실패 · 다시 시도)", "info");
     }
   }
 
-  // 푸시 끄기 — 구독 해제 + DB 정리(서버가 더 이상 이 브라우저로 발송 안 함).
-  async function disablePush() {
+  
+
+  // 푸시 끄기 · 구독 해제 + DB 정리(서버가 더 이상 이 브라우저로 발송 안 함).
+  async function disablePush()  {
     setPrefs((p) => ({ ...p, push: { ...p.push, enabled: false } }));
     try {
       const { unsubscribeWebPush } = await import("@/lib/web-push");
@@ -270,14 +276,16 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
       <div className="notification-settings-header glass-card">
         <h2 className="text-base font-bold mb-1">알림 설정</h2>
         <p className="text-xs text-[var(--text-muted)]">
-          이메일 · 푸시 — 채널별로 받고 싶은 이벤트를 선택하세요. 변경 후 하단의 저장 버튼을 눌러주세요.
+          
+          이메일 · 푸시 · 채널별로 받고 싶은 이벤트를 선택하세요. 변경 후 하단의 저장 버튼을 눌러주세요.
+
         </p>
       </div>
 
       {/* Email Channel */}
       <ChannelSection
         title="이메일"
-        desc="가장 중요한 알림 — 결재/세금계산서/주간 리포트에 권장"
+        desc="가장 중요한 알림 · 결재/세금계산서/주간 리포트에 권장"
         enabled={prefs.email.enabled}
         onToggle={(v) => setPrefs((p) => ({ ...p, email: { ...p.email, enabled: v } }))}
       >
@@ -304,7 +312,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
       {/* Push Channel */}
       <ChannelSection
         title="브라우저 푸시"
-        desc="실시간 데스크톱 알림 — 채팅 멘션/긴급 알림에 적합"
+        desc="실시간 데스크톱 알림 · 채팅 멘션/긴급 알림에 적합"
         enabled={prefs.push.enabled}
         onToggle={(v) => (v ? enablePush() : disablePush())}
         disabled={!pushSupported}
@@ -465,7 +473,7 @@ function DailyReportCard({ companyId }: { companyId: string | null }) {
         return;
       }
       if (result.skipped === "solapi_not_configured") {
-        toast(`Solapi 키 미설정 — 검수 통과 후 환경변수 추가 필요. 데이터: ${JSON.stringify(result.report).slice(0, 100)}...`, "info");
+        toast(`Solapi 키 미설정 · 검수 통과 후 환경변수 추가 필요. 데이터: ${JSON.stringify(result.report).slice(0, 100)}...`, "info");
       } else if (result.skipped) {
         toast(`발송 skip: ${result.skipped}`, "info");
       } else {

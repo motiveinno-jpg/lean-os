@@ -17,8 +17,10 @@ interface CurrencyInputProps {
   id?: string;
 }
 
+
+
 /**
- * 회계 형식 금액 입력 — 화면엔 1,000,000 처럼 천단위 콤마,
+ * 회계 형식 금액 입력 · 화면엔 1,000,000 처럼 천단위 콤마,
  * onValueChange 로는 콤마 없는 숫자 문자열만 전달.
  */
 export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(

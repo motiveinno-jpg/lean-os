@@ -59,7 +59,7 @@ export function SubscriptionsPanel() {
   const { confirm, confirmElement } = useConfirm();
   const qc = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
-  const canEdit = role !== "partner"; // (P3) 진입 자체가 권한 게이트 — 보유자 전원 편집
+  const canEdit = role !== "partner"; // (P3) 진입 자체가 권한 게이트 · 보유자 전원 편집
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -165,7 +165,7 @@ export function SubscriptionsPanel() {
     <div className="subscriptions-panel">
       {/* 조회 줄 ‖ 구독 추가 · 결과 요약 — 정기 지출 상자 머리 슬롯 (2026-08-19, KPI 타일 → Stat) */}
       <SlotHead slotId="pay-head-slot"
-        bar={<span className="text-[11px] text-[var(--text-dim)]">SaaS·소프트웨어 구독을 한 표에 — 오너뷰 요금제는 자동으로 들어옵니다</span>}
+        bar={<span className="text-[11px] text-[var(--text-dim)]">SaaS·소프트웨어 구독을 한 표에 · 오너뷰 요금제는 자동으로 들어옵니다</span>}
         right={canEdit ? <button type="button" onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary btn-sm">+ 구독 추가</button> : undefined}
         stats={<>
           <Stat label="월 총 구독비" value={fmtW(totalMonthly)} />

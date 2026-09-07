@@ -38,7 +38,9 @@ export function SimpleCond({ groups, live, onApply, label }: { groups: CondGroup
   );
 }
 
-/** 걸린 조건 칩 — 조회 줄 아래 */
+
+
+/** 걸린 조건 칩 · 조회 줄 아래 */
 export function SimpleApplied({ groups, live, onApply }: { groups: CondGroup[]; live: CondLive; onApply: (v: CondLive) => void }) {
   const chips: AppliedChip[] = [];
   for (const g of groups) for (const v of live[g.key] || []) {

@@ -17,7 +17,7 @@ export function ExcelPasteHelper({ cols, templateName, sheetName, guide, onText 
       <input ref={ref} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; try { onText(await excelFileToTsv(f, cols)); } catch (err) { toast(friendlyError(err), "error"); } }} />
       <button type="button" className="btn-secondary btn-sm" onClick={() => downloadTemplate(templateName, sheetName, cols, guide)}>양식 내려받기</button>
       <button type="button" className="btn-secondary btn-sm" onClick={() => ref.current?.click()}>파일 고르기</button>
-      <em className="inv-hint">양식에 맞춰 채운 파일을 고르면 아래 칸에 채워집니다 — 붙여넣기와 같은 규칙으로 읽습니다</em>
+      <em className="inv-hint">양식에 맞춰 채운 파일을 고르면 아래 칸에 채워집니다. 붙여넣기와 같은 규칙으로 읽습니다</em>
     </div>
   );
 }

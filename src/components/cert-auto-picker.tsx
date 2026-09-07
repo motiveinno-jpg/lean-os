@@ -64,14 +64,14 @@ async function convertPfx(rawB64: string, password: string): Promise<{
     return pub?.n && rsaKey?.n && pub.n.compareTo(rsaKey.n) === 0;
   }) || certs[0];
 
-  // ① 재포장 PFX — AES-256/PBES2 (QA 실증 2026-08-05: 이 프로파일이 CODEF 계정등록 해독 통과)
-  const newP12 = forge.pkcs12.toPkcs12Asn1(rsaKey, certs, password, { algorithm: "aes256" });
+  // ① 재포장 PFX · AES-256/PBES2 (QA 실증 2026-08-05: 이 프로파일이 CODEF 계정등록 해독 통과)
+  const newP12 = forge.pkcs12.toPkcs12Asn1(rsaKey, certs, password,  { algorithm: "aes256" });
   const pfxBase64 = forge.util.encode64(forge.asn1.toDer(newP12).getBytes());
 
-  // ② der/key — signCert.der(인증서 DER) + signPri.key(암호화 PKCS#8, 같은 비밀번호)
+  // ② der/key · signCert.der(인증서 DER) + signPri.key(암호화 PKCS#8, 같은 비밀번호)
   const derB64 = forge.util.encode64(forge.asn1.toDer(forge.pki.certificateToAsn1(leaf)).getBytes());
   const keyInfo = forge.pki.wrapRsaPrivateKey(forge.pki.privateKeyToAsn1(rsaKey));
-  const encKeyInfo = forge.pki.encryptPrivateKeyInfo(keyInfo, password, { algorithm: "aes256" });
+  const encKeyInfo = forge.pki.encryptPrivateKeyInfo(keyInfo, password,  { algorithm: "aes256" });
   const keyB64 = forge.util.encode64(forge.asn1.toDer(encKeyInfo).getBytes());
 
   return { pfxBase64, derB64, keyB64 };
@@ -112,7 +112,7 @@ export function CertAutoPicker({ onExtracted, purpose = "register" }: {
       if (!tokenRes.ok) {
         // 토큰 실패는 프로그램 미설치가 아니다 — 설치 안내로 오인되지 않게 별도 상태로.
         setEngineStatus("error");
-        setError(`서버 인증 토큰 발급 실패 (HTTP ${tokenRes.status}) — PC 프로그램 문제가 아닙니다. 잠시 후 다시 시도해주세요.`);
+        setError(`서버 인증 토큰 발급 실패 (HTTP ${tokenRes.status}). PC 프로그램 문제가 아닙니다. 잠시 후 다시 시도해주세요.`);
         return;
       }
       const { token } = await tokenRes.json();
@@ -125,7 +125,7 @@ export function CertAutoPicker({ onExtracted, purpose = "register" }: {
         } else {
           setEngineStatus(errorCode === "E010002" ? "not-installed" : "error");
           if (errorCode && errorCode !== "E010002") {
-            setError(`인증 프로그램 연결 실패 (코드 ${errorCode}) — 프로그램은 설치돼 있습니다. 잠시 후 "다시 확인"을 눌러주세요.`);
+            setError(`인증 프로그램 연결 실패 (코드 ${errorCode}). 프로그램은 설치돼 있습니다. 잠시 후 "다시 확인"을 눌러주세요.`);
           }
         }
       });
@@ -148,9 +148,9 @@ export function CertAutoPicker({ onExtracted, purpose = "register" }: {
   }, []);
 
   // SDK 경합 주의: initialization 성공 콜백은 WebSocket 연결·라이선스 확인이 "끝나기 전"에 불린다
-  //   (getPort 성공 직후 callback). 그 시점의 engineGetCertification 은 {SUCCESS:false} — 빈 목록으로
+  //   (getPort 성공 직후 callback). 그 시점의 engineGetCertification 은 {SUCCESS:false} · 빈 목록으로
   //   오인됐던 원인(2026-08-04 사장님 재현). 배열이 올 때까지 0.5초 간격 재시도.
-  function fetchCertList(attempt = 0) {
+  function fetchCertList(attempt = 0)  {
     codefcert.engineGetCertification("", (certs: AutoCertItem[] | { SUCCESS: boolean; ERROR_CODE?: string }) => {
       if (Array.isArray(certs)) {
         const now = Math.floor(Date.now() / 1000);
@@ -163,7 +163,7 @@ export function CertAutoPicker({ onExtracted, purpose = "register" }: {
       }
       const code = (certs as { ERROR_CODE?: string })?.ERROR_CODE || "";
       setError(code
-        ? `인증서 목록 조회 실패 (코드 ${code}) — "다시 검색"을 눌러주세요.`
+        ? `인증서 목록 조회 실패 (코드 ${code}). "다시 검색"을 눌러주세요.`
         : "인증서 목록 조회에 실패했습니다. \"다시 검색\"을 눌러주세요.");
     });
   }
@@ -194,9 +194,9 @@ export function CertAutoPicker({ onExtracted, purpose = "register" }: {
               });
               const body = await res.json();
               if (res.ok && body?.pfxFile) relayPfxB64 = body.pfxFile;
-              else console.warn("[cert-relay] 실패 — der/key 폴백:", body?.error);
+              else console.warn("[cert-relay] 실패 · der/key 폴백:", body?.error);
             } catch (relayErr) {
-              console.warn("[cert-relay] 호출 오류 — der/key 폴백:", relayErr);
+              console.warn("[cert-relay] 호출 오류 · der/key 폴백:", relayErr);
             }
             setExtracting(false);
             setExtractedName(name + (relayPfxB64 ? " · 중계 정규화 완료" : ""));
@@ -204,7 +204,7 @@ export function CertAutoPicker({ onExtracted, purpose = "register" }: {
           } catch (e) {
             setExtracting(false);
             setExtractedName(null);
-            setError(`인증서 변환 실패 (${e instanceof Error ? e.message : String(e)}) — "파일 직접 업로드"를 이용해주세요.`);
+            setError(`인증서 변환 실패 (${e instanceof Error ? e.message : String(e)}). "파일 직접 업로드"를 이용해주세요.`);
           }
         } else {
           const code = result.REASON || "";
@@ -323,7 +323,7 @@ export function CertAutoPicker({ onExtracted, purpose = "register" }: {
           )}
 
           {extractedName && (
-            <div className="cert-picker-ok"><Ico e="✅" /> {extractedName} — 인증서 준비 완료 (변환 vAES). 아래에서 연결을 진행하세요.</div>
+            <div className="cert-picker-ok"><Ico e="✅" /> {extractedName} · 인증서 준비 완료 (변환 vAES). 아래에서 연결을 진행하세요.</div>
           )}
         </>
       )}

@@ -17,11 +17,11 @@ import { Ico } from "@/components/ui-icon";
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase }  from "@/lib/supabase";
 //   getTodos(schedule_todos) → getScheduleItems(schedule_events) (2026-08-31): schedule_todos 는
-//   2026-08-10 일정 통합 이후 쓰기 코드가 없는 죽은 테이블 — 완료 불가능한 옛 할 일이
+//   2026-08-10 일정 통합 이후 쓰기 코드가 없는 죽은 테이블 · 완료 불가능한 옛 할 일이
 //   매일 브리핑에 "기한 지남"으로 공급돼 거짓 항목을 만들었다(사장님 제보).
-import { getScheduleItems } from "@/lib/schedule";
+import  { getScheduleItems } from "@/lib/schedule";
 import { useUser } from "@/components/user-context";
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import { fetchTaxDeadlineChecks } from "@/lib/tax-deadline-checks";
@@ -43,8 +43,10 @@ interface MorningBriefProps {
   aiBriefingEnabled?: boolean;
 }
 
-// AI 브리핑 2.0 구조(액션 플랜) — 엣지가 json_schema 강제 출력으로 생성 (구버전 캐시는 평문 폴백)
-interface AiBriefPlan {
+
+
+// AI 브리핑 2.0 구조(액션 플랜). 엣지가 json_schema 강제 출력으로 생성 (구버전 캐시는 평문 폴백)
+interface AiBriefPlan  {
   headline: string;
   summary: string;
   actions: Array<{ title: string; detail: string; priority: "긴급" | "중요" | "권장"; link: string }>;
@@ -87,8 +89,8 @@ const ACTION_HREF: Record<string, { href: string; label: string }> = {
   payments: { href: "/payments", label: "지급 관리" },
   pnl: { href: "/reports/pnl", label: "손익 보기" },
   invoices: { href: "/tax-invoices", label: "계산서 보기" },
-  //   재고 (2026-08-26) — 부족·발주·납기는 현황, 미발송은 채널 출고 처리
-  inventory: { href: "/inventory/status", label: "재고 현황" },
+  //   재고 (2026-08-26). 부족·발주·납기는 현황, 미발송은 채널 출고 처리
+  inventory:  { href: "/inventory/status", label: "재고 현황" },
   shipping: { href: "/inventory/channels", label: "출고 처리" },
 };
 
@@ -111,10 +113,12 @@ function renderTagged(input: unknown): ReactNode[] {
   return parts;
 }
 
-// ── 문구 헬퍼 ─────────────────────────────────────────
-// (라운드6.5: 인사말은 고정 헤더바가 대체 — greetingForHour/인사 h2 제거, 브리핑 본문만 유지)
 
-function formatKrwWords(n: number): string {
+
+// ── 문구 헬퍼 ─────────────────────────────────────────
+// (라운드6.5: 인사말은 고정 헤더바가 대체 · greetingForHour/인사 h2 제거, 브리핑 본문만 유지)
+
+function formatKrwWords(n: number): string  {
   if (!Number.isFinite(n) || n === 0) return "0원";
   const sign = n < 0 ? "-" : "";
   const abs = Math.abs(n);
@@ -137,10 +141,12 @@ function formatTodayKorean(d: Date): string {
   return `${month}월 ${date}일 ${weekdays[d.getDay()]}요일`;
 }
 
-// 금액·핵심 수치 강조 — 의미별 색(토큰). primary=중요/중립, success=긍정·증가, danger=주의·감소·위험.
+
+
+// 금액·핵심 수치 강조 · 의미별 색(토큰). primary=중요/중립, success=긍정·증가, danger=주의·감소·위험.
 //   다크/라이트 양쪽 토큰 사용 → 대비 자동 확보.
 type HlTone = "primary" | "success" | "danger";
-function hl(text: string, tone: HlTone = "primary") {
+function hl(text: string, tone: HlTone = "primary")  {
   const color =
     tone === "success" ? "var(--success)" : tone === "danger" ? "var(--danger)" : "var(--primary)";
   return (
@@ -175,13 +181,13 @@ export function MorningBrief({
   //   훅 순서 보존을 위해 early return 앞에 선언, enabled 로 데이터 있을 때만 호출.
   const queryClient = useQueryClient();
   const [regenerating, setRegenerating] = useState(false);
-  const { user: briefUser } = useUser();
+  const { user: briefUser }  = useUser();
   const myCompanyId = (briefUser as any)?.company_id as string | undefined;
-  //   키에 회사 id 포함 (2026-08-31) — 없으면 회사 전환(SPA화 시) 때 타사 브리핑이 캐시로 남는다
+  //   키에 회사 id 포함 (2026-08-31). 없으면 회사 전환(SPA화 시) 때 타사 브리핑이 캐시로 남는다
   const briefKey = ["ai-briefing", myCompanyId, formatTodayKorean(now)];
   //   30일+ 미수는 경영 요약(원장·잔액 기준)과 같은 값을 쓴다 (2026-08-31 통일) —
   //   종전 sixPack.arOver30 은 프로젝트 수금 스케줄 기반이라 화면 숫자와 어긋났다. 캐시 키가 신호 6칸과 같아 공짜.
-  const { data: bizSum } = useQuery({
+  const  { data: bizSum } = useQuery({
     queryKey: ["biz-summary", myCompanyId, todayKst().slice(0, 7)],
     queryFn: () => fetchBizSummary(myCompanyId!, todayKst().slice(0, 7), userId || undefined),
     enabled: !!myCompanyId && hasData && aiBriefingEnabled,
@@ -204,7 +210,7 @@ export function MorningBrief({
       monthTarget: dashboard?.growth.monthTarget ?? 0,
     };
     const todayStr = todayKst();
-    //   납부 완료로 체크한 마감은 브리핑에 안 넣는다 (2026-08-31) — 이미 낸 세금을 '긴급'으로 말하던 것
+    //   납부 완료로 체크한 마감은 브리핑에 안 넣는다 (2026-08-31). 이미 낸 세금을 '긴급'으로 말하던 것
     let taxChecked = new Set<string>();
     if (myCompanyId) { try { taxChecked = await fetchTaxDeadlineChecks(myCompanyId); } catch { /* 조회 실패 시 전체 노출(안전한 쪽) */ } }
     const taxDeadlines = getUpcomingTaxDeadlines(30).filter((t) => !taxChecked.has(t.id)).slice(0, 4).map((t) => ({ title: t.title, daysLeft: t.daysLeft }));
@@ -235,10 +241,10 @@ export function MorningBrief({
       try {
         let { data, error } = await supabase.functions.invoke("ai-briefing", { body: payload });
         if (error || !data?.content) return null;
-        //   생성 시각 — "오늘 생성"으로 뭉뚱그리면 아침 스냅샷을 저녁까지 최신으로 오독한다 (2026-08-31 사장님 제보).
+        //   생성 시각 · "오늘 생성"으로 뭉뚱그리면 아침 스냅샷을 저녁까지 최신으로 오독한다 (2026-08-31 사장님 제보).
         //   company_id 명시: 운영자 계정은 RLS 예외로 타사 행이 잡힐 수 있다.
         let generatedAt: string | null = null;
-        try {
+        try  {
           const { data: row } = await (supabase as any).from("ai_briefings").select("created_at")
             .eq("company_id", myCompanyId ?? "").eq("brief_date", todayKst()).maybeSingle();
           generatedAt = row?.created_at ?? null;
@@ -322,6 +328,8 @@ export function MorningBrief({
     );
   }
 
+  
+
   // 데이터 기반 자연어 브리핑 조립
   const balance = cashPulse.currentBalance;
   const forecast30 = cashPulse.forecast30d;
@@ -333,8 +341,8 @@ export function MorningBrief({
   const monthRevenue = dashboard?.growth.monthRevenue ?? 0;
   const monthTarget = dashboard?.growth.monthTarget ?? 0;
 
-  // 1문장: 현재 잔고 + 톤 — 잔고 강조
-  const line1: ReactNode = <>오늘 아침 통장에는 {hl(formatKrwWords(balance))}이 있습니다.</>;
+  // 1문장: 현재 잔고 + 톤 · 잔고 강조
+  const line1: ReactNode =  <>오늘 아침 통장에는 {hl(formatKrwWords(balance))}이 있습니다.</>;
 
   // 2문장: 30일 전망 — 증감액(증가=초록/감소=빨강) + 전망잔고 강조
   let line2: ReactNode = "";
@@ -357,9 +365,11 @@ export function MorningBrief({
     );
   }
 
-  // 3문장: 런웨이 / 장기 경고 — 기간·위험 강조
+  
+
+  // 3문장: 런웨이 / 장기 경고 · 기간·위험 강조
   let line3: ReactNode = "";
-  if (forecast90 < 0) {
+  if (forecast90  < 0) {
     line3 = (
       <>
         이 속도로는 {hl("90일 안에 현금이 바닥", "danger")}날 수 있으니, 지출을 조정하거나 수금을
@@ -448,7 +458,7 @@ export function MorningBrief({
     : null;
 
   //   아침 보고서 체크리스트 자리인데 아직 플랜이 없으면 한 줄만
-  if (variant === "checklist" && !briefPlan) return <p className="rep-none">오늘 챙길 것이 아직 없습니다 — 결론의 ↻ 다시 생성을 누르면 채워집니다.</p>;
+  if (variant === "checklist" && !briefPlan) return <p className="rep-none">오늘 챙길 것이 아직 없습니다. 결론의 ↻ 다시 생성을 누르면 채워집니다.</p>;
 
   return (
     <section className={variant === "full" ? "morning-brief-card glass-card brief-compact" : `morning-brief-card rep-brief rep-brief-${variant}`}>
@@ -456,7 +466,7 @@ export function MorningBrief({
       {variant !== "checklist" && <div className="brief-head">
         {variant === "full" && <span className="text-[13px] font-bold text-[var(--text)]">오늘 챙길 것</span>}
         {aiBrief ? <span className="brief-src">AI 제안</span> : <span className="brief-src">규칙 요약</span>}
-        {genLabel && <span className="text-[11px] text-[var(--text-dim)]" title="이 시각의 스냅샷입니다 — 이후 처리한 일은 ↻ 다시 생성을 눌러야 반영됩니다">{genLabel}</span>}
+        {genLabel && <span className="text-[11px] text-[var(--text-dim)]" title="이 시각의 스냅샷입니다. 이후 처리한 일은 ↻ 다시 생성을 눌러야 반영됩니다">{genLabel}</span>}
         <span className="flex-1" />
         {aiBriefingEnabled && (
           <button type="button" onClick={regenerateBrief} disabled={regenerating} className="btn-secondary btn-sm"
@@ -485,7 +495,7 @@ export function MorningBrief({
                     return (
                       <li key={key} className={`brief-item ${pri}${done ? " is-done" : ""}${open ? " is-open" : ""}`}>
                         <button type="button" className={done ? "brief-chk is-on" : "brief-chk"} aria-label={done ? "완료 해제" : "완료로 표시"}
-                          title={done ? "완료 해제" : "처리했으면 체크 — 오늘 하루 기억됩니다"} onClick={() => toggleCheck(key, !done)}>{done ? "✓" : ""}</button>
+                          title={done ? "완료 해제" : "처리했으면 체크 · 오늘 하루 기억됩니다"} onClick={() => toggleCheck(key, !done)}>{done ? "✓" : ""}</button>
                         <span className="brief-pri" title={a.priority} />
                         <div className="brief-body" onClick={() => setOpenIdx(open ? null : i)} title={open ? "접기" : "이유 보기"}>
                           <div className="brief-title">{a.title}</div>

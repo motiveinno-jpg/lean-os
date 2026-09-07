@@ -64,8 +64,8 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
     queryFn: async () => Promise.all(months.map(async (m) => ({ month: m, rows: (await getMonthlyAttendanceSummary(companyId, m)) as any[] }))),
     enabled: !!companyId,
   });
-  //   근무 요일은 회사 설정(workdays_mask)을 따른다 — 토·일 고정이면 토요일 근무 회사의 출근율 분모와 결근이 틀린다
-  const { data: workMask = 31 } = useQuery<number>({
+  //   근무 요일은 회사 설정(workdays_mask)을 따른다. 토·일 고정이면 토요일 근무 회사의 출근율 분모와 결근이 틀린다
+  const  { data: workMask = 31 } = useQuery<number>({
     queryKey: ["att-status-workmask", companyId],
     queryFn: async () => { const { data } = await supabase.from("company_settings").select("workdays_mask").eq("company_id", companyId).maybeSingle(); return companyWorkCfgFromRow(data as any).mask; },
     enabled: !!companyId, staleTime: 300_000,
@@ -82,10 +82,10 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
     queryFn: async () => (await fetchPaged("att-status:leaves", () => supabase.from("leave_requests").select("employee_id, start_date, end_date, leave_type, leave_unit, days, reason").eq("company_id", companyId).eq("status", "approved").lte("start_date", rangeTo).gte("end_date", rangeFrom).order("start_date"), 20000) || []) as any[],
     enabled: !!companyId,
   });
-  // 근무일별 출근 기록 유무 — "기록도 승인 휴가도 없는 지난 근무일"을 결근으로 세기 위해(워크보드·기록 상세와 같은 규칙, 2026-09-03).
+  // 근무일별 출근 기록 유무 · "기록도 승인 휴가도 없는 지난 근무일"을 결근으로 세기 위해(워크보드·기록 상세와 같은 규칙, 2026-09-03).
   //   종전엔 '결근'으로 직접 기록된 날만 세어 워크보드 12건 / 기록 상세 6명 / 여기 0일로 화면마다 달랐다.
   //   숫자 칸 팝업(지각·결근·재택·반차의 날짜·내용)도 같은 행을 쓰므로 상태·시각·메모까지 가져온다.
-  const { data: recordDays = [] } = useQuery({
+  const  { data: recordDays = [] } = useQuery({
     queryKey: ["att-status-record-days", companyId, rangeFrom, rangeTo],
     queryFn: async () => (await fetchPaged("att-status:record-days", () => supabase.from("attendance_records").select("employee_id, date, status, is_late, late_minutes, check_in, check_out, work_hours, note").eq("company_id", companyId).gte("date", rangeFrom).lte("date", rangeTo).order("date"), 50000)) as any[],
     enabled: !!companyId,
@@ -112,8 +112,8 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [holidays, months, todayStr, workMask]);
 
-  // 합치기 — 직원별 합계 + 월별
-  const { rowsAll, derivedAbsent } = useMemo<{ rowsAll: Row[]; derivedAbsent: Map<string, string[]> }>(() => {
+  // 합치기 · 직원별 합계 + 월별
+  const  { rowsAll, derivedAbsent } = useMemo<{ rowsAll: Row[]; derivedAbsent: Map<string, string[]> }>(() => {
     const derivedAbsent = new Map<string, string[]>(); // 직원 → 무기록 결근 날짜들(팝업이 같은 목록을 보여준다)
     const leaveByEmpMonth = new Map<string, number>();
     //   '연차' 칼럼은 연차성(차감 유형)만 센다 — 공가·경조 등 별도 휴가까지 연차로 세던 것 (2026-09-01, 직원별 연차 표와 같은 버그)
@@ -137,9 +137,12 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
         map.set(s.employee_id, cur);
       }
     }
-    //   기록이 없는 재직자도 줄로(0) — "왜 안 보이지"를 막는다. 휴가·수당만 있는 사람도 잡힌다
-    for (const e of employees) { if (["invited", "inactive", "resigned"].includes(e.status)) continue; if (!map.has(e.id)) map.set(e.id, blank(e.id, e.name || "", e.department || "")); }
-    // 무기록 결근 파생 — 지난 근무일(평일·공휴일 제외·오늘 이전·입사일 이후)에 출근 기록도 승인 휴가(모든 유형)도 없으면 결근 1일.
+    
+    //   기록이 없는 재직자도 줄로(0). "왜 안 보이지"를 막는다. 휴가·수당만 있는 사람도 잡힌다
+    for (const e of employees)  { if (["invited", "inactive", "resigned"].includes(e.status)) continue; if (!map.has(e.id)) map.set(e.id, blank(e.id, e.name || "", e.department || "")); }
+    
+    // 무기록 결근 파생 · 지난 근무일(평일·공휴일 제외·오늘 이전·입사일 이후)에 출근 기록도 승인 휴가(모든 유형)도 없으면 결근 1일.
+    
     {
       const hol = new Set(holidays.map((h: any) => String(h.date).slice(0, 10)));
       const recorded = new Set(recordDays.map((r: any) => `${r.employee_id}:${String(r.date).slice(0, 10)}`));
@@ -170,7 +173,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthly, leaves, allowances, employees, months, workdays, workdaysByMonth, rangeFrom, rangeTo, recordDays, holidays, todayStr, workMask]);
 
-  // ── 숫자 칸 팝업 — 눌린 칸(종류·직원·달)에 해당하는 날짜·내용 목록 ──
+  // ── 숫자 칸 팝업 · 눌린 칸(종류·직원·달)에 해당하는 날짜·내용 목록 ──
   const [detail, setDetail] = useState<DetailScope | null>(null);
   const closeDetail = () => setDetail(null);
   useModalKeys(!!detail, closeDetail);
@@ -252,7 +255,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
   );
   const rangeLabel = months.length === 1 ? months[0].replace("-", "년 ") + "월" : `${months[0].replace("-", ".")}~${months[months.length - 1].replace("-", ".")}`;
   const cols = isAdmin ? 13 : 12;
-  // 지각·결근·재택·반차·연차 칸 — 0보다 크면 누를 수 있는 버튼(줄 클릭 접기/펼치기와 겹치지 않게 전파 차단)
+  // 지각·결근·재택·반차·연차 칸 · 0보다 크면 누를 수 있는 버튼(줄 클릭 접기/펼치기와 겹치지 않게 전파 차단)
   const cnt = (r: any, kind: DetailKind, unit: string, scope: Omit<DetailScope, "kind">) => {
     const n = Number(r[kind] || 0);
     if (n <= 0) return "—";
@@ -300,7 +303,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
           <ConditionRow label="출근율" hint="이하 %"><input className="qk-input h-8 w-28 px-2 text-xs" inputMode="numeric" placeholder="예: 80" value={draft.ratioMax} onChange={(e) => setDraft((c) => ({ ...c, ratioMax: e.target.value.replace(/[^0-9]/g, "") }))} /></ConditionRow>
           <ConditionRow label="총 근무" hint="시간 범위"><span className="inline-flex items-center gap-1.5"><input className="qk-input h-8 w-24 px-2 text-xs" inputMode="numeric" placeholder="이상" value={draft.hoursMin} onChange={(e) => setDraft((c) => ({ ...c, hoursMin: e.target.value.replace(/[^0-9.]/g, "") }))} /><span className="text-[var(--text-dim)]">~</span><input className="qk-input h-8 w-24 px-2 text-xs" inputMode="numeric" placeholder="이하" value={draft.hoursMax} onChange={(e) => setDraft((c) => ({ ...c, hoursMax: e.target.value.replace(/[^0-9.]/g, "") }))} /><span className="text-[11px] text-[var(--text-dim)]">h</span></span></ConditionRow>
         </ConditionPanel>
-        <QuickSearch value={q} onApply={setQ} placeholder="이름 · 부서 — 쉼표로 여러 개, Enter" />
+        <QuickSearch value={q} onApply={setQ} placeholder="이름 · 부서 · 쉼표로 여러 개, Enter" />
       </QueryBar>
       <AppliedChips chips={chips} onClearAll={() => { setCond(COND0); setQ(""); }} />
       <ResultStrip>

@@ -40,10 +40,10 @@ export type VatPeriodKey = (typeof VAT_PERIODS)[number]["key"];
 export const vatDueDate = (year: number, key: VatPeriodKey) => { const P = VAT_PERIODS.find((p) => p.key === key)!; return `${P.nextYear ? year + 1 : year}-${P.due}`; };
 /** 오늘이 속한 신고기간 (기수만) */
 export const currentVatPeriod = (): VatPeriodKey => { const m = new Date().getMonth() + 1; return m <= 3 ? "1p" : m <= 6 ? "1c" : m <= 9 ? "2p" : "2c"; };
-/** 지금 신고할 기수 — 페이지 기본값 (2026-09-03 후속).
+/** 지금 신고할 기수 · 페이지 기본값 (2026-09-03 후속).
  *  지난 분기의 기한(이번 분기 첫 달 25일)이 아직 안 지났으면 지난 분기(예: 7/10 → 1기 확정), 지났으면 지금 분기.
  *  1/1~1/25 는 지난해 2기 확정이라 year 도 같이 돌려준다. */
-export function vatFilingNow(today = todayKst()): { year: number; key: VatPeriodKey } {
+export function vatFilingNow(today = todayKst()):  { year: number; key: VatPeriodKey } {
   const y = Number(today.slice(0, 4)), m = Number(today.slice(5, 7));
   const q = Math.ceil(m / 3);                       // 1..4
   const KEYS: VatPeriodKey[] = ["1p", "1c", "2p", "2c"];
@@ -117,7 +117,7 @@ export function VatReturn({ companyId, year, period, exportRef }: { companyId: s
       ["매출", "(참고) 면세매출 (13)", R.s13.n, num(R.s13.supply), 0],
       ["매출", "매출세액 합계", R.s11.n + R.s17.n + R.s12.n, num(R.s11.supply + R.s17.supply + R.s12.supply), num(R.salesVat)],
       ["매입", "⑩ 세금계산서 수취분 (51)", R.p51.n, num(R.p51.supply), num(R.p51.vat)],
-      ["매입", "⑭ 기타 공제 — 카드·현금영수증 (57·61)", R.p57.n, num(R.p57.supply), num(R.p57.vat)],
+      ["매입", "⑭ 기타 공제 · 카드·현금영수증 (57·61)", R.p57.n, num(R.p57.supply), num(R.p57.vat)],
       ["매입", "⑯ 공제받지 못할 매입세액 (54)", R.p54.n, num(R.p54.supply), num(R.p54.vat)],
       ["매입", "(참고) 면세매입 (53·58·59)", R.p53.n, num(R.p53.supply), 0],
       ["매입", "공제 매입세액 합계", R.p51.n + R.p57.n, num(R.p51.supply + R.p57.supply), num(R.deductible)],
@@ -163,10 +163,10 @@ export function VatReturn({ companyId, year, period, exportRef }: { companyId: s
         <Stat label="매출세액" value={won(R.salesVat)} />
         <Stat label="공제 매입세액" value={won(R.deductible)} />
         <Stat label="불공제" value={won(R.p54.vat)} tone={R.p54.vat ? "minus" : undefined} />
-        <Stat label={`${P.label} ${R.payable >= 0 ? "납부 예상" : "환급 예상"}`} title="이 신고기간 전표만 집계 — 위 전표 기준 카드의 연간 누계와 기간이 달라 값이 다를 수 있습니다" value={won(Math.abs(R.payable))} tone={R.payable > 0 ? "minus" : "plus"} />
+        <Stat label={`${P.label} ${R.payable >= 0 ? "납부 예상" : "환급 예상"}`} title="이 신고기간 전표만 집계 · 위 전표 기준 카드의 연간 누계와 기간이 달라 값이 다를 수 있습니다" value={won(Math.abs(R.payable))} tone={R.payable > 0 ? "minus" : "plus"} />
         <Stat label="전표" value={`${rows.length}건`} />
       </div>
-      <p className="inv-hint">{from} ~ {to} 확정 매입매출전표 기준 — 홈택스 원본이 아니라 <b>장부에 올린 것</b>만. 전표 없는 자료는 재무 › 전표 현황 › 처리할 것에서. 신고는 홈택스에서 사람이 합니다.{R.unknown ? <b className="vr-warn"> · 부가세 유형이 비어 있는 전표 {R.unknown}건은 어느 칸에도 못 들어갔습니다 — 매입매출전표에서 유형을 채우세요.</b> : null}</p>
+      <p className="inv-hint">{from} ~ {to}  확정 매입매출전표 기준 · 홈택스 원본이 아니라  <b>장부에 올린 것</b>만. 전표 없는 자료는 재무 › 전표 현황 › 처리할 것에서. 신고는 홈택스에서 사람이 합니다.{R.unknown ? <b className="vr-warn"> · 부가세 유형이 비어 있는 전표 {R.unknown}건은 어느 칸에도 못 들어갔습니다. 매입매출전표에서 유형을 채우세요.</b> : null}</p>
       {isLoading ? <div className="collect-empty">전표를 읽는 중…</div> : (
         <>
           <div className="pnl-grid2">
@@ -178,18 +178,18 @@ export function VatReturn({ companyId, year, period, exportRef }: { companyId: s
                   <Line label="① 세금계산서 발급분 (11)" b={R.s11} />
                   <Line label="② 신용카드·현금영수증 발행분 (17·22)" b={R.s17} />
                   <Line label="③ 영세율 (12)" b={R.s12} vatZero />
-                  <Line label="(참고) 면세매출 (13) — 신고서 밖" b={R.s13} vatZero />
+                  <Line label="(참고) 면세매출 (13). 신고서 밖" b={R.s13} vatZero />
                   <Sum label="매출세액 합계" n={R.s11.n + R.s17.n + R.s12.n} supply={R.s11.supply + R.s17.supply + R.s12.supply} vat={R.salesVat} />
                 </tbody>
               </table>
             </div>
             <div className="pnl-panel">
-              <h3>매입세액</h3><p>신고서 ⑩⑭⑯ 칸 — 불공제는 공제 합계에서 빠집니다</p>
+              <h3>매입세액</h3><p>신고서 ⑩⑭⑯ 칸 · 불공제는 공제 합계에서 빠집니다</p>
               <table className="ev-table ev-lined table-inv-status-sm">
                 <thead><tr><th>항목</th><th>건수</th><th>공급가액</th><th>세액</th></tr></thead>
                 <tbody>
                   <Line label="⑩ 세금계산서 수취분 (51)" b={R.p51} />
-                  <Line label="⑭ 기타 공제 — 카드·현금영수증 (57·61)" b={R.p57} />
+                  <Line label="⑭ 기타 공제 · 카드·현금영수증 (57·61)" b={R.p57} />
                   <Line label="⑯ 공제받지 못할 매입세액 (54)" b={R.p54} minus />
                   <Line label="(참고) 면세매입 (53·58·59)" b={R.p53} vatZero />
                   <Sum label="공제 매입세액 합계" n={R.p51.n + R.p57.n} supply={R.p51.supply + R.p57.supply} vat={R.deductible} />

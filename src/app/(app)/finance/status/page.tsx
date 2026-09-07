@@ -81,10 +81,10 @@ export default function FinanceStatusPage() {
       const asof = `${closeMonth}-${String(last.getDate()).padStart(2, "0")}`;
       const id = kind === "inventory" ? await makeInventoryDraftNow(asof) : kind === "payroll" ? await makePayrollDraftNow(closeMonth) : kind === "retirement" ? await makeRetirementVoucherDraft(companyId!, asof) : await makeDepreciationDraftNow(closeMonth);
       const name = kind === "inventory" ? "재고자산 맞추기" : kind === "payroll" ? "급여" : kind === "retirement" ? "퇴직급여충당" : "감가상각";
-      toast(id ? `${name} 초안을 만들었습니다 (${kind === "inventory" ? asof : closeMonth}) — 아래에서 확정하세요`
-        : (kind === "inventory" ? "장부와 기말 재고가 이미 같습니다 — 만들 초안이 없습니다" : kind === "payroll" ? `${closeMonth}에 발급된 급여명세가 없습니다` : kind === "retirement" ? "퇴직금 추계와 장부 잔액이 이미 같습니다" : `${closeMonth}에 상각할 고정자산이 없습니다`), id ? "success" : "info");
-      //   초안 일자는 그 달 말일 — 조회 기간 밖이면 안 보이므로 기간을 그 달까지 넓힌다
-      if (id) { const mStart = asof.slice(0, 8) + "01"; setFrom((f) => (f > mStart ? mStart : f)); setTo((t) => (t < asof ? asof : t)); refetchEntries(); }
+      toast(id ? `${name} 초안을 만들었습니다 (${kind === "inventory" ? asof : closeMonth}). 아래에서 확정하세요`
+        : (kind === "inventory" ? "장부와 기말 재고가 이미 같습니다. 만들 초안이 없습니다" : kind === "payroll" ? `${closeMonth}에 발급된 급여명세가 없습니다` : kind === "retirement" ? "퇴직금 추계와 장부 잔액이 이미 같습니다" : `${closeMonth}에 상각할 고정자산이 없습니다`), id ? "success" : "info");
+      //   초안 일자는 그 달 말일 · 조회 기간 밖이면 안 보이므로 기간을 그 달까지 넓힌다
+      if (id)  { const mStart = asof.slice(0, 8) + "01"; setFrom((f) => (f > mStart ? mStart : f)); setTo((t) => (t < asof ? asof : t)); refetchEntries(); }
     } catch (e) { toast(friendlyError(e), "error"); }
     finally { setCloseBusy(null); }
   };
@@ -116,8 +116,8 @@ export default function FinanceStatusPage() {
     return { ti, card, bank, total: ti + card + bank };
   }, [from, to]);
 
-  //   ★ 결정 44·46 — 증빙 연결 대기 = 사람이 고른 정산 초안(manual)만. 엔진·AI 제안 696건은 여기 올리지 않는다. 통장 줄 처리 팝업이 만든 suggested 를 여기서 확정·반려한다. 확정하면 트리거가 정산 전표를 만든다.
-  const { data: pendingLinks = [], refetch: refetchLinks } = q("fin-status-pending-links", async () => {
+  //   ★ 결정 44·46 · 증빙 연결 대기 = 사람이 고른 정산 초안(manual)만. 엔진·AI 제안 696건은 여기 올리지 않는다. 통장 줄 처리 팝업이 만든 suggested 를 여기서 확정·반려한다. 확정하면 트리거가 정산 전표를 만든다.
+  const  { data: pendingLinks = [], refetch: refetchLinks } = q("fin-status-pending-links", async () => {
     const { data } = await (supabase as any).from("invoice_settlements")
       .select("id, amount, status, reason, created_at, bank_transactions(transaction_date, counterparty, amount, type), tax_invoices(counterparty_name, total_amount, issue_date, type)")
       .eq("company_id", companyId!).eq("match_source", "manual").in("status", ["suggested", "needs_review"]).not("bank_transaction_id", "is", null)
@@ -134,8 +134,8 @@ export default function FinanceStatusPage() {
     } catch (e) { toast(friendlyError(e), "error"); }
   };
 
-  //   예산 대비 (2026-08-27 ERP 2순위) — 조회 기간 안 달들의 계정별 예산 합. 실적은 수익=대변−차변, 비용=차변−대변
-  const { data: budgets = [] } = q("fin-status-budgets", () => fetchBudgets(companyId!, from, to), [from, to]);
+  //   예산 대비 (2026-08-27 ERP 2순위). 조회 기간 안 달들의 계정별 예산 합. 실적은 수익=대변−차변, 비용=차변−대변
+  const  { data: budgets = [] } = q("fin-status-budgets", () => fetchBudgets(companyId!, from, to), [from, to]);
   const budgetOf = useMemo(() => { const m = new Map<string, number>(); for (const b of budgets) m.set(b.account_id, (m.get(b.account_id) || 0) + b.amount); return m; }, [budgets]);
   const [budgetOpen, setBudgetOpen] = useState(false);
 
@@ -239,7 +239,7 @@ export default function FinanceStatusPage() {
     const view = list.slice(0, 300);
     return (
       <div className="pnl-panel">
-        <h3>{title}</h3><p>{sub} · {list.length}건{list.length > 300 ? " · 앞 300줄만 보입니다 — 기간을 좁히거나 엑셀로" : ""}</p>
+        <h3>{title}</h3><p>{sub} · {list.length}건{list.length > 300 ? " · 앞 300줄만 보입니다. 기간을 좁히거나 엑셀로" : ""}</p>
         <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status">
           <thead><tr><th>일자</th><th>번호</th><th>종류</th>{sp && <th>부가세 유형</th>}<th>적요</th><th>거래처</th>{sp && <><th>공급가액</th><th>세액</th></>}<th>금액</th><th>출처</th><th>상태</th><th></th></tr></thead>
           <tbody>{view.map((e) => (
@@ -286,7 +286,7 @@ export default function FinanceStatusPage() {
             }}>엑셀</button>
           }>
             {tab !== "todo" && <DateRangeField from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />}
-            <span className="inv-hint">작성된 전표의 현황·지표 — 손익·재무상태는 <Link href="/reports/summary" className="bz-link">분석</Link>, 전표 만들기는 <Link href="/collect" className="bz-link">수집·전표</Link></span>
+            <span className="inv-hint">작성된 전표의 현황·지표 · 손익·재무상태는 <Link href="/reports/summary" className="bz-link">분석</Link>, 전표 만들기는 <Link href="/collect" className="bz-link">수집·전표</Link></span>
           </QueryBar>
           <ResultStrip>{stats[tab]}</ResultStrip>
         </QueryHead>
@@ -314,9 +314,9 @@ export default function FinanceStatusPage() {
                     <div className="pnl-panel">
                       <h3>바로 처리할 것</h3><p>찾아만 두고 확정은 사람이</p>
                       <ul className="inv-status-todo">
-                        {S.rejected.length > 0 && <li><button type="button" className="bz-link" onClick={() => setTab("todo")}>반려된 전표 <b>{S.rejected.length}건</b> — 고쳐서 다시 확정</button></li>}
+                        {S.rejected.length > 0 && <li><button type="button" className="bz-link" onClick={() => setTab("todo")}>반려된 전표 <b>{S.rejected.length}건</b> · 고쳐서 다시 확정</button></li>}
                         {S.pending.length > 0 && <li><button type="button" className="bz-link" onClick={() => setTab("todo")}>대기 전표 <b>{S.pending.length}건</b></button></li>}
-                        {pendingLinks.length > 0 && <li><button type="button" className="bz-link" onClick={() => setTab("todo")}>증빙 연결 대기 <b>{pendingLinks.length}건</b> — 확정해야 정산 전표가 됩니다</button></li>}
+                        {pendingLinks.length > 0 && <li><button type="button" className="bz-link" onClick={() => setTab("todo")}>증빙 연결 대기 <b>{pendingLinks.length}건</b> · 확정해야 정산 전표가 됩니다</button></li>}
                         {S.unapproved.length > 0 && <li><button type="button" className="bz-link" onClick={() => setTab("todo")}>승인 안 된 확정 전표 <b>{S.unapproved.length}건</b></button></li>}
                         {unposted && unposted.total > 0 && <li><Link href="/collect">전표 없는 증빙 <b>{unposted.total}건</b> <span className="ev-dim">— 계산서 {unposted.ti} · 카드 {unposted.card} · 통장 {unposted.bank}</span></Link></li>}
                         {!todoN && <li className="ev-dim">지금 처리할 것이 없습니다</li>}
@@ -421,7 +421,7 @@ export default function FinanceStatusPage() {
                 {tab === "todo" && (<>
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
-                      <h3>상태 비중</h3><p>조회 기간 전표 {entries.length}건 · 재무제표는 확정만 읽습니다 — 반려·대기는 아직 장부가 아닙니다</p>
+                      <h3>상태 비중</h3><p>조회 기간 전표 {entries.length}건 · 재무제표는 확정만 읽습니다. 반려·대기는 아직 장부가 아닙니다</p>
                       {entries.length ? <><DonutChart unit="건" total={`${entries.length}건`} data={[{ label: "확정", value: S.confirmed.length - S.unapproved.length, color: vizColor(0) }, { label: "미승인", value: S.unapproved.length, color: vizColor(2) }, { label: "대기", value: S.pending.length, color: vizColor(3) }, { label: "반려", value: S.rejected.length, color: vizColor(1) }].filter((d) => d.value > 0)} />
                         <Legend items={[{ name: `확정 ${S.confirmed.length - S.unapproved.length}`, color: vizColor(0) }, { name: `미승인 ${S.unapproved.length}`, color: vizColor(2) }, { name: `대기 ${S.pending.length}`, color: vizColor(3) }, { name: `반려 ${S.rejected.length}`, color: vizColor(1) }]} /></> : <div className="inv-status-empty">이 기간에 전표가 없습니다</div>}
                     </div>
@@ -429,15 +429,15 @@ export default function FinanceStatusPage() {
                       <h3>결산 초안 만들기</h3><p>월 1일 새벽에 지난달 것이 자동으로 생깁니다 — 지금 바로 만들거나 다시 만들려면 여기서. 초안 일자는 그 달 말일이라 조회 기간이 그 날을 품어야 아래 목록에 보입니다 — 확정·반려는 목록에서.</p>
                       <div className="fin-close-row">
                         <MonthSelect className="inv-input fin-close-month" value={closeMonth} onChange={setCloseMonth} ariaLabel="마감 월" />
-                        <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("inventory")} title="기말 재고(층 원가)와 재고자산 계정 잔액의 차액을 전표 초안으로 — 제품·상품·원재료">{closeBusy === "inventory" ? "만드는 중…" : "재고자산 맞추기"}</button>
-                        <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("payroll")} title="그 달 발급된 급여명세 합계 — 차) 직원급여 / 대) 예수금·미지급금. 개인별 금액은 전표에 싣지 않습니다">{closeBusy === "payroll" ? "만드는 중…" : "급여 전표"}</button>
-                        <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("depreciation")} title="등록된 고정자산의 그 달 감가상각 — 차) 감가상각비 / 대) 감가상각누계액, 자산별 줄">{closeBusy === "depreciation" ? "만드는 중…" : "감가상각"}</button>
-                        <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("retirement")} title="재직자 퇴직금 추계(평균임금×30×근속)와 퇴직급여충당부채 잔액의 차액 — 차) 퇴직급여 / 대) 퇴직급여충당부채, 합계 한 줄 (2026-08-27 인사 4차)">{closeBusy === "retirement" ? "만드는 중…" : "퇴직급여충당"}</button>
+                        <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("inventory")} title="기말 재고(층 원가)와 재고자산 계정 잔액의 차액을 전표 초안으로 · 제품·상품·원재료">{closeBusy === "inventory" ? "만드는 중…" : "재고자산 맞추기"}</button>
+                        <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("payroll")} title="그 달 발급된 급여명세 합계 · 차) 직원급여 / 대) 예수금·미지급금. 개인별 금액은 전표에 싣지 않습니다">{closeBusy === "payroll" ? "만드는 중…" : "급여 전표"}</button>
+                        <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("depreciation")} title="등록된 고정자산의 그 달 감가상각 · 차) 감가상각비 / 대) 감가상각누계액, 자산별 줄">{closeBusy === "depreciation" ? "만드는 중…" : "감가상각"}</button>
+                        <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("retirement")} title="재직자 퇴직금 추계(평균임금×30×근속)와 퇴직급여충당부채 잔액의 차액 · 차) 퇴직급여 / 대) 퇴직급여충당부채, 합계 한 줄 (2026-08-27 인사 4차)">{closeBusy === "retirement" ? "만드는 중…" : "퇴직급여충당"}</button>
                       </div>
                       <p className="inv-hint">출처: 장부 대조(재고 층 원가·급여명세·고정자산 대장). 계정은 회사설정 › 생산 전표 계정에서, 비어 있으면 이름(제품·상품·원재료·직원급여·예수금·미지급금)으로 찾습니다.</p>
                     </div>
                     <div className="pnl-panel">
-                      <h3>전표 없는 증빙</h3><p>조회 기간의 증빙 중 전표가 아직 없는 것 — 만들기는 수집·전표에서</p>
+                      <h3>전표 없는 증빙</h3><p>조회 기간의 증빙 중 전표가 아직 없는 것 · 만들기는 수집·전표에서</p>
                     <table className="ev-table ev-lined table-inv-status-sm">
                       <thead><tr><th>증빙</th><th>건수</th><th></th></tr></thead>
                       <tbody>

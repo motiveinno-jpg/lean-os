@@ -16,13 +16,15 @@ import { createPortal } from "react-dom";
 export type SortDir = "asc" | "desc";
 export type SortState<K extends string> = { key: K; dir: SortDir };
 
-/** 다음 정렬 상태 — 같은 칸을 다시 누르면 방향만 뒤집는다 */
+/** 다음 정렬 상태 · 같은 칸을 다시 누르면 방향만 뒤집는다 */
 export function nextSort<K extends string>(cur: SortState<K>, key: K, firstDir: SortDir = "asc"): SortState<K> {
   return cur.key === key ? { key, dir: cur.dir === "asc" ? "desc" : "asc" } : { key, dir: firstDir };
 }
 
-/** 두 값 비교 — 문자는 한글 사전순, 숫자는 크기순. 빈 값은 늘 뒤로 보낸다. */
-export function cmp(a: unknown, b: unknown): number {
+
+
+/** 두 값 비교 · 문자는 한글 사전순, 숫자는 크기순. 빈 값은 늘 뒤로 보낸다. */
+export function cmp(a: unknown, b: unknown): number  {
   const na = a === null || a === undefined || a === "";
   const nb = b === null || b === undefined || b === "";
   if (na && nb) return 0;
@@ -32,7 +34,9 @@ export function cmp(a: unknown, b: unknown): number {
   return String(a).localeCompare(String(b), "ko");
 }
 
-/** 열 너비 기억 — 화면별 storageKey 로 localStorage 에 저장 (원장 화면과 같은 방식) */
+
+
+/** 열 너비 기억 · 화면별 storageKey 로 localStorage 에 저장 (원장 화면과 같은 방식) */
 export function useColWidths(storageKey: string, defaults: Record<string, number>) {
   const [w, setW] = useState<Record<string, number>>(() => {
     if (typeof window === "undefined") return defaults;
@@ -46,8 +50,10 @@ export function useColWidths(storageKey: string, defaults: Record<string, number
   return [w, set] as const;
 }
 
-/** 열 너비 조절 묶음 — SortableTh 의 resize prop 으로 넘긴다 */
-export type ThResize = {
+
+
+/** 열 너비 조절 묶음. SortableTh 의 resize prop 으로 넘긴다 */
+export type ThResize =  {
   k: string;
   colIndex: number;
   widths: Record<string, number>;
@@ -67,9 +73,9 @@ export type ThFilterSpec = {
 };
 
 /**
- * 머리단 ≡ 필터 상태 묶음 — 화면마다 colF·spec·hit 을 따로 짜지 않게 (2026-08-18 확산 Wave 3 정리).
+ * 머리단 ≡ 필터 상태 묶음. 화면마다 colF·spec·hit 을 따로 짜지 않게 (2026-08-18 확산 Wave 3 정리).
  *   spec(k, values)  → SortableTh filter prop 에 그대로 넘긴다
- *   hit(vals)        → 줄이 지금 걸린 필터를 다 통과하는가 (vals = { k: 그 칸에 찍히는 글자 })
+ *   hit(vals)        → 줄이 지금 걸린 필터를 다 통과하는가 (vals =  { k: 그 칸에 찍히는 글자 })
  *   key              → usePager resetKey 등에 섞을 문자열
  */
 export function useColFilters() {
@@ -90,7 +96,7 @@ export function ThFilter({ spec }: { spec: ThFilterSpec }) {
   const [draft, setDraft] = useState<Set<string>>(new Set());
   const btnRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
-  //   up: 아래 공간이 모자라면 버튼 위로 연다 — top 대신 bottom 을 잡아 화면 밖으로 안 나가게 (2026-08-26 사장님)
+  //   up: 아래 공간이 모자라면 버튼 위로 연다. top 대신 bottom 을 잡아 화면 밖으로 안 나가게 (2026-08-26 사장님)
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number; maxH?: number }>({ top: 0, left: 0 });
 
   const uniq = useMemo(() => [...new Set(spec.values)], [spec.values]);
@@ -161,7 +167,7 @@ export function ThFilter({ spec }: { spec: ThFilterSpec }) {
                   else shown.forEach((v) => n.add(v));
                   return n;
                 })} />
-              (모두 선택{q.trim() ? " — 검색 결과" : ""})
+              (모두 선택{q.trim() ? " · 검색 결과" : ""})
             </label>
             {shown.map((v) => (
               <label key={v} className="thf-item">

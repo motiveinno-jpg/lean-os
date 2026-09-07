@@ -201,7 +201,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
               user_id: buyer.id,
               type: 'system',
               title: '연간 결제 혜택 쿠폰이 발급되었습니다',
-              message: '추가인원 12명 무료 등록 쿠폰 — 요금제 화면의 쿠폰 섹션에서 사용할 수 있습니다.',
+              message: '추가인원 12명 무료 등록 쿠폰 · 요금제 화면의 쿠폰 섹션에서 사용할 수 있습니다.',
               link: '/billing',
             } as any);
           }
@@ -320,7 +320,7 @@ async function handleTrialWillEnd(subscription: Stripe.Subscription) {
   if (admins?.length) {
     await db.from('notifications').insert(admins.map((a: any) => ({
       company_id: companyId, user_id: a.id, type: 'payment_due',
-      title: '무료체험 종료 3일 전 — 곧 첫 결제가 진행됩니다',
+      title: '무료체험 종료 3일 전 · 곧 첫 결제가 진행됩니다',
       message: `${dateStr}에 등록하신 결제수단으로 첫 결제가 자동 청구됩니다. 계속 이용하시려면 별도 조치가 필요 없습니다.`,
       entity_type: 'billing', is_read: false,
     })));
@@ -557,7 +557,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice, eventId?: str
   if (admins?.length) {
     await db.from('notifications').insert(admins.map((a: any) => ({
       company_id: sub.company_id, user_id: a.id, type: 'payment_due',
-      title: '구독 결제가 실패했습니다 — 결제수단 확인이 필요합니다',
+      title: '구독 결제가 실패했습니다. 결제수단 확인이 필요합니다',
       message: `구독 자동 결제(${amountDue.toLocaleString('ko-KR')}원)가 실패했습니다. 결제수단을 업데이트하지 않으면 서비스 이용이 중단될 수 있습니다. 결제 관리에서 카드를 확인해 주세요.`,
       entity_type: 'billing', is_read: false,
     })));

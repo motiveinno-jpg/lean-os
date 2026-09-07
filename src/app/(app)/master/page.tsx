@@ -15,18 +15,18 @@ import { generateSampleData } from "@/lib/sample-data";
 import { useMyPermissions } from "@/lib/permissions";
 import { OwnerCommandCenter } from "@/components/owner-command-center";
 import { OwnerDashboardSection } from "@/components/owner-dashboard-section";
-import { ClosingChecklistWidget } from "@/components/closing-checklist-widget";
+import { ClosingChecklistWidget }  from "@/components/closing-checklist-widget";
 
-// 마스터 전용 화면 (2026-08-10 사장님) — 대시보드 하단 경영 종합 3종을 그대로 이동:
+// 마스터 전용 화면 (2026-08-10 사장님). 대시보드 하단 경영 종합 3종을 그대로 이동:
 //   ① CEO 커맨드 센터(액션·펄스·목표·리스크) ② 프로젝트 경영 종합 ③ 월 마감 체크리스트.
 //   대시보드에는 위젯 그리드까지만 남는다. 쿼리 키는 대시보드와 동일해 캐시를 공유한다.
-export default function MasterPage() {
+export default function MasterPage()  {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { isMaster, loading: permLoading } = useMyPermissions();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  // 데이터 없음 CTA (대시보드에서 이동, 2026-08-10 사장님 2차) — 업로드/샘플 핸들러도 함께
+  // 데이터 없음 CTA (대시보드에서 이동, 2026-08-10 사장님 2차). 업로드/샘플 핸들러도 함께
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -54,8 +54,8 @@ export default function MasterPage() {
     retry: 1,
   });
 
-  // 실제 월 고정비 — 대시보드와 동일 산식(정기지출 + 급여 + 수동 입력)
-  const { data: realBurnData } = useQuery({
+  // 실제 월 고정비 · 대시보드와 동일 산식(정기지출 + 급여 + 수동 입력)
+  const  { data: realBurnData } = useQuery({
     queryKey: ["real-burn", companyId],
     queryFn: async () => {
       const [recurring, totalSalary, snapshot] = await Promise.all([
@@ -103,9 +103,10 @@ export default function MasterPage() {
       )
     : buildFounderDashboard(null, [], [], { monthTarget: 0, quarterTarget: 0, yearTarget: 0 }, 0, 0);
   if (arapU) { dashboard.sixPack = { ...dashboard.sixPack, arTotal: arapU.ar, arOver30: arapU.over30 }; }
+  
   const hasData = rawData?.hasData || false;
 
-  // 엑셀 업로드 — 대시보드와 동일 파싱·저장 경로
+  // 엑셀 업로드 · 대시보드와 동일 파싱·저장 경로
   const handleExcelUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !companyId) return;
@@ -160,9 +161,9 @@ export default function MasterPage() {
 
   if (permLoading || !isMaster) return null;
 
-  // 인사말 — 시간대별 (2026-08-11 시각화 개편: 레퍼런스의 "Good morning" 헤더)
+  // 인사말 · 시간대별 (2026-08-11 시각화 개편: 레퍼런스의 "Good morning" 헤더)
   const hour = new Date().getHours();
-  const greeting = hour < 5 ? "늦은 시간까지 수고 많으십니다" : hour < 12 ? "좋은 아침입니다" : hour < 18 ? "좋은 오후입니다" : "오늘도 수고 많으셨습니다";
+  const greeting = hour  < 5 ? "늦은 시간까지 수고 많으십니다" : hour < 12 ? "좋은 아침입니다" : hour < 18 ? "좋은 오후입니다" : "오늘도 수고 많으셨습니다";
   const todayLabel = (() => {
     const d = new Date();
     const wd = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
@@ -198,7 +199,7 @@ export default function MasterPage() {
             <button onClick={handleSampleData} disabled={generating}
               className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-[var(--primary)] bg-[var(--primary)]/5 hover:bg-[var(--primary)]/10 transition disabled:opacity-50">
               <span className="text-sm font-bold text-[var(--primary)]">{generating ? '생성 중...' : '샘플 데이터 생성'}</span>
-              <span className="text-[10px] text-[var(--text-muted)]">추천 — 즉시 체험</span>
+              <span className="text-[10px] text-[var(--text-muted)]">추천 · 즉시 체험</span>
             </button>
             <button onClick={() => fileRef.current?.click()} disabled={uploading}
               className="flex flex-col items-center gap-2 p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition disabled:opacity-50">

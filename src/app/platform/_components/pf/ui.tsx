@@ -30,7 +30,9 @@ export function PfPageHead({ eyebrow, title, desc, actions }: { eyebrow?: string
   );
 }
 
-/** 등장 애니메이션 래퍼 — i 는 스태거 순번(0부터). */
+
+
+/** 등장 애니메이션 래퍼 · i 는 스태거 순번(0부터). */
 export function PfIn({ i = 0, children, className = "", as: Tag = "div" }: React.PropsWithChildren<{ i?: number; className?: string; as?: "div" | "section" | "li" }>) {
   return <Tag className={`pf-in ${className}`} style={{ ["--pf-i" as string]: i }}>{children}</Tag>;
 }
@@ -57,18 +59,22 @@ export function PfCardBody({ children, className = "" }: React.PropsWithChildren
   return <div className={`pf-card-body ${className}`}>{children}</div>;
 }
 
+
+
 const KRW = new Intl.NumberFormat("ko-KR");
 
-/** 원화 축약 — ₩1.2억 / ₩350만 / ₩12,000 */
-export function fmtKrwShort(n: number): string {
+/** 원화 축약 · ₩1.2억 / ₩350만 / ₩12,000 */
+export function fmtKrwShort(n: number): string  {
   const abs = Math.abs(n); const sign = n < 0 ? "-" : "";
   if (abs >= 1e8) return `${sign}₩${(abs / 1e8).toFixed(abs >= 1e9 ? 0 : 1)}억`;
   if (abs >= 1e4) return `${sign}₩${Math.round(abs / 1e4).toLocaleString("ko-KR")}만`;
   return `${sign}₩${KRW.format(Math.round(abs))}`;
 }
 
+
+
 /**
- * KPI — 값이 바뀌면 숫자가 굴러간다(NumberFlow). 큰 금액은 단위를 나눠 애니메이션(억/만).
+ * KPI · 값이 바뀌면 숫자가 굴러간다(NumberFlow). 큰 금액은 단위를 나눠 애니메이션(억/만).
  *   value 가 문자열이면 그대로 표시(포맷을 호출측이 정한 경우).
  */
 export function PfKpi({ label, value, unit, prefix, delta, deltaLabel, accent = false, large = false, live = false, className = "", format }: {
@@ -102,7 +108,9 @@ export function PfKpi({ label, value, unit, prefix, delta, deltaLabel, accent = 
   );
 }
 
-/** 금액 KPI — 억/만 단위로 나눠 굴린다. */
+
+
+/** 금액 KPI · 억/만 단위로 나눠 굴린다. */
 export function PfKpiKrw({ label, value, ...rest }: Omit<React.ComponentProps<typeof PfKpi>, "value" | "unit" | "prefix" | "format"> & { value: number }) {
   const abs = Math.abs(value);
   if (abs >= 1e8) return <PfKpi label={label} value={Math.round((value / 1e8) * 10) / 10} prefix="₩" unit="억" format={{ maximumFractionDigits: 1 }} {...rest} />;
@@ -138,7 +146,9 @@ export function PfRow({ href, onClick, children, className = "" }: React.PropsWi
   return <div className={`pf-row ${className}`}>{children}</div>;
 }
 
-/** 진행 막대 — 등장 시 왼쪽에서 자란다. tone 은 상태색. */
+
+
+/** 진행 막대 · 등장 시 왼쪽에서 자란다. tone 은 상태색. */
 export function PfBar({ pct, tone = "info", className = "" }: { pct: number; tone?: "ok" | "warn" | "danger" | "info"; className?: string }) {
   const color = tone === "ok" ? "var(--success)" : tone === "warn" ? "#D97706" : tone === "danger" ? "var(--danger)" : "var(--primary)";
   return (

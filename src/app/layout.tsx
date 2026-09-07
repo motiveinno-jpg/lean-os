@@ -14,21 +14,21 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://www.owner-view.com"),
   title: {
     template: "%s | 오너뷰",
-    default: "오너뷰 — 회사 운영 현황을 자동으로 정리해 한눈에",
+    default: "오너뷰 · 회사 운영 현황을 자동으로 정리해 한눈에",
   },
-  description: "매출·계약·자금·업무 — 대표를 위한 회사 상황판 OS",
-  // Open Graph — 카카오톡·네이버·페이스북 등 공유 미리보기 (네이버 서치어드바이저 진단 대응, 2026-07-02)
-  openGraph: {
-    title: "오너뷰(OwnerView) — 대표를 위한 회사 상황판",
+  description: "매출·계약·자금·업무 · 대표를 위한 회사 상황판 OS",
+  // Open Graph · 카카오톡·네이버·페이스북 등 공유 미리보기 (네이버 서치어드바이저 진단 대응, 2026-07-02)
+  openGraph:  {
+    title: "오너뷰(OwnerView). 대표를 위한 회사 상황판",
     description: "매출·세금계산서·자금·프로젝트·인사까지, 흩어진 회사 운영 현황을 자동으로 모아 한눈에 보여주는 사장님 전용 경영 OS입니다.",
     url: "https://www.owner-view.com",
     siteName: "오너뷰",
     locale: "ko_KR",
     type: "website",
     // 1200x630 전용 카드 — 512 정사각 로고는 공유 시 잘리거나 썸네일로 축소됐다 (2026-07-27)
-    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "오너뷰 — 중소기업 대표를 위한 올인원 운영 플랫폼" }],
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "오너뷰 · 중소기업 대표를 위한 올인원 운영 플랫폼" }],
   },
-  // 네이버 서치어드바이저 사이트 소유 확인 (2026-07-02) — <head>에 naver-site-verification 메타로 출력됨
+  // 네이버 서치어드바이저 사이트 소유 확인 (2026-07-02). <head>에 naver-site-verification 메타로 출력됨
   verification: {
     other: { "naver-site-verification": "0c0505a824733a39ca296b4420be819eeb2abde8" },
   },

@@ -161,7 +161,7 @@ export async function syncCardTransactions(companyId: string): Promise<SyncResul
 
     if (fetchErr) return resultErr('card_transactions', `카드내역 조회 실패: ${fetchErr.message}`);
     if (!unmatched || unmatched.length === 0) {
-      return resultOk('card_transactions', 0, '미분류 카드내역 없음 — 모두 최신');
+      return resultOk('card_transactions', 0, '미분류 카드내역 없음. 모두 최신');
     }
 
     // Load category classification rules from recurring_payments
@@ -910,14 +910,14 @@ export async function syncCodefData(
     const pausedUntil = await getSyncPausedUntil(companyId);
     if (pausedUntil) {
       const t = new Date(pausedUntil).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-      const msg = `연동 일시정지 중 (${t}까지) — 은행 중복 로그인 방지. 정지 해제 후 다시 시도하세요.`;
+      const msg = `연동 일시정지 중 (${t}까지). 은행 중복 로그인 방지. 정지 해제 후 다시 시도하세요.`;
       return { success: false, status: "error", error: msg, message: msg, errors: [], notes: [], bankSynced: 0, cardSynced: 0 };
     }
   } else {
     const pausedUntil = await getHometaxPausedUntil(companyId);
     if (pausedUntil) {
       const t = new Date(pausedUntil).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-      const msg = `홈택스 연동 일시정지 중 (${t}까지) — 정지 해제 후 다시 시도하세요.`;
+      const msg = `홈택스 연동 일시정지 중 (${t}까지). 정지 해제 후 다시 시도하세요.`;
       return { success: false, status: "error", error: msg, message: msg, errors: [], notes: [], bankSynced: 0, cardSynced: 0 };
     }
   }

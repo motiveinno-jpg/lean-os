@@ -146,9 +146,9 @@ function ChapterWidget({ k }: { k: string }) {
         <em data-type="CS 응대 매뉴얼 교환" /><i className="lp7-caret" />
       </div>
       <div className="lp7-list">
-        <span>· CS 응대 매뉴얼 — 교환·반품 기준 (v2)</span>
-        <span>· 상품등록 가이드 — 옵션·재고 연결</span>
-        <span>· 물류 매뉴얼 — 출고 마감 시간</span>
+        <span>· CS 응대 매뉴얼 · 교환·반품 기준 (v2)</span>
+        <span>· 상품등록 가이드 · 옵션·재고 연결</span>
+        <span>· 물류 매뉴얼 · 출고 마감 시간</span>
       </div>
     </div>
   );
@@ -169,9 +169,11 @@ function ChapterWidget({ k }: { k: string }) {
   return null;
 }
 
+
+
 /* ── 겹친 캡처 모자이크 한 구간 ──────────────────────────── */
 //  조각 넷을 겹쳐 놓는다. 어디에 얼마만큼 놓을지는 CSS 가 정한다
-//  (`[data-m="키"] .lp7-vs-조각키`) — 조각의 실제 가로세로비에 맞춰야 해서 묶음마다 다르다.
+//  (`[data-m="키"] .lp7-vs-조각키`). 조각의 실제 가로세로비에 맞춰야 해서 묶음마다 다르다.
 function MosaicSection({ m }: { m: Mosaic }) {
   return (
     <section id={`sec-${m.key}-views`} className="lp7-views" data-m={m.key}>
@@ -228,8 +230,8 @@ export default function LandingV7() {
           onToggle: (self) => (self.isActive ? tl.play() : tl.pause()),
         });
       };
-      /** 스크롤 등장 — 페이지 전체의 기본 리듬 */
-      const reveal = (targets: gsap.TweenTarget, vars: gsap.TweenVars = {}, trigger?: Element | null) => {
+      /** 스크롤 등장 · 페이지 전체의 기본 리듬 */
+      const reveal = (targets: gsap.TweenTarget, vars: gsap.TweenVars =  {}, trigger?: Element | null) => {
         const list = gsap.utils.toArray<Element>(targets);
         if (!list.length) return;
         gsap.from(list, {
@@ -249,7 +251,7 @@ export default function LandingV7() {
         });
       };
 
-      /* ══ ① 히어로 — 줄 올라오기 → 밑칠 → 단어 → 버튼 → 체크 → 화면 (총 2.4s) ══ */
+      /* ══ ① 히어로 · 줄 올라오기 → 밑칠 → 단어 → 버튼 → 체크 → 화면 (총 2.4s) ══ */
       gsap.timeline({ defaults: { ease: "power3.out" } })
         .from(q(".lp7-eyebrow"), { scale: 0.6, autoAlpha: 0, duration: 0.45, ease: "back.out(1.8)" })
         .from(q(".lp7-h1-line > span"), { yPercent: 110, duration: 0.9, stagger: 0.12 }, "-=0.2")
@@ -310,7 +312,7 @@ export default function LandingV7() {
           player.removeEventListener("mouseenter", onEnter);
           player.removeEventListener("mouseleave", onLeave);
         });
-        // 화면 밖이면 멈춘다 — 안 보이는 영상을 돌릴 이유가 없다 (성능)
+        // 화면 밖이면 멈춘다. 안 보이는 영상을 돌릴 이유가 없다 (성능)
         ScrollTrigger.create({
           trigger: player, start: "top 95%", end: "bottom 5%",
           onToggle: (self) => { self.isActive ? void vid.play().catch(() => {}) : vid.pause(); },
@@ -342,8 +344,8 @@ export default function LandingV7() {
         pl.to(scenesEl[scenesEl.length - 1], { autoAlpha: 0, duration: 0.6 }, total - 0.6);
         pl.to(scenesEl[0], { autoAlpha: 1, duration: 0.6 }, total - 0.6);
 
-        // 커서: 장면마다 한 곳을 눌러 본다 (x/y 변환 — 레이아웃을 건드리지 않는다)
-        if (cursor) {
+        // 커서: 장면마다 한 곳을 눌러 본다 (x/y 변환 · 레이아웃을 건드리지 않는다)
+        if (cursor)  {
           const stops: Array<[number, number]> = [[0.52, 0.6], [0.18, 0.28], [0.84, 0.22], [0.4, 0.46], [0.3, 0.52]];
           gsap.set(cursor, { x: px(stops[0][0]), y: py(stops[0][1]) });
           stops.slice(1).forEach(([rx, ry], i) => {
@@ -397,9 +399,9 @@ export default function LandingV7() {
         });
       });
 
-      /* ══ ① KPI — 막대가 자라고 달성률 링이 감긴다 ══ */
+      /* ══ ① KPI · 막대가 자라고 달성률 링이 감긴다 ══ */
       const kpi = q('[data-wg="kpi"]')[0];
-      if (kpi) {
+      if (kpi)  {
         gsap.from(kpi.querySelectorAll(".lp7-bars > div"), {
           scaleY: 0, transformOrigin: "50% 100%", duration: 0.85, stagger: 0.09, ease: "power3.out",
           scrollTrigger: { trigger: kpi, start: "top 88%" },
@@ -415,9 +417,11 @@ export default function LandingV7() {
         if (num) countUp(num, 78, "%");
       }
 
-      /* ══ ② 판매채널 — 새 주문 알림이 번갈아 내려온다 + 채널 띠 흐름 ══ */
+      
+
+      /* ══ ② 판매채널 · 새 주문 알림이 번갈아 내려온다 + 채널 띠 흐름 ══ */
       const toasts = q(".lp7-toast");
-      if (toasts.length) {
+      if (toasts.length)  {
         gsap.set(toasts, { autoAlpha: 0, y: -16 });
         const tl = gsap.timeline({ repeat: -1 });
         toasts.forEach((t, i) => {
@@ -433,9 +437,11 @@ export default function LandingV7() {
         loop(track, tl);
       }
 
-      /* ══ ③ 프로젝트 — 카드가 7단계를 따라 옮겨 간다 ══ */
+      
+
+      /* ══ ③ 프로젝트 · 카드가 7단계를 따라 옮겨 간다 ══ */
       const stages = q('[data-wg="project"]')[0];
-      if (stages) {
+      if (stages)  {
         const card = stages.querySelector<HTMLElement>(".lp7-stage-card");
         const chips = stages.querySelectorAll<HTMLElement>(".lp7-stages > span");
         if (card && chips.length) {
@@ -451,9 +457,11 @@ export default function LandingV7() {
         }
       }
 
-      /* ══ ④ 캘린더 — 알림 말풍선이 톡 튀어나온다 ══ */
+      
+
+      /* ══ ④ 캘린더 · 알림 말풍선이 톡 튀어나온다 ══ */
       const rem = q(".lp7-rem")[0];
-      if (rem) {
+      if (rem)  {
         gsap.set(rem, { autoAlpha: 0, scale: 0.7 });
         const tl = gsap.timeline({ repeat: -1, repeatDelay: 1.2 });
         tl.to(rem, { autoAlpha: 1, scale: 1, duration: 0.5, ease: "back.out(2.2)" })
@@ -461,9 +469,11 @@ export default function LandingV7() {
         loop(rem.closest(".lp7-chapter"), tl);
       }
 
-      /* ══ ⑤ 파일 — 새 버전이 올라오고 옛 버전이 밀려 나간다 ══ */
+      
+
+      /* ══ ⑤ 파일 · 새 버전이 올라오고 옛 버전이 밀려 나간다 ══ */
       const files = q('[data-wg="files"]')[0];
-      if (files) {
+      if (files)  {
         const cards = files.querySelectorAll<HTMLElement>(".lp7-vstack > div");
         if (cards.length === 3) {
           gsap.set(cards[2], { autoAlpha: 0, y: 20 });
@@ -480,9 +490,11 @@ export default function LandingV7() {
         if (bar) gsap.to(bar, { scaleX: 0.62, duration: 1.2, ease: "power2.out", scrollTrigger: { trigger: files, start: "top 88%" } });
       }
 
-      /* ══ ⑥ 인사 — 승인 도장이 찍힌다 ══ */
+      
+
+      /* ══ ⑥ 인사 · 승인 도장이 찍힌다 ══ */
       const stamp = q(".lp7-stamp")[0];
-      if (stamp) {
+      if (stamp)  {
         gsap.set(stamp, { autoAlpha: 0, scale: 2, rotate: -18 });
         const tl = gsap.timeline({ repeat: -1, repeatDelay: 1.4 });
         tl.to(stamp, { autoAlpha: 1, scale: 1, rotate: -12, duration: 0.5, ease: "back.out(1.4)" }, 1.4)
@@ -490,9 +502,11 @@ export default function LandingV7() {
         loop(stamp.closest(".lp7-chapter"), tl);
       }
 
-      /* ══ ⑦ 회계 — 오늘 수집된 거래가 한 줄씩 적힌다 ══ */
+      
+
+      /* ══ ⑦ 회계 · 오늘 수집된 거래가 한 줄씩 적힌다 ══ */
       const ledger = q('[data-wg="accounting"]')[0];
-      if (ledger) {
+      if (ledger)  {
         const rows = ledger.querySelectorAll(".lp7-lg > div");
         gsap.set(rows, { autoAlpha: 0, x: -8 });
         const tl = gsap.timeline({ repeat: -1, repeatDelay: 1.6 });
@@ -501,9 +515,11 @@ export default function LandingV7() {
         loop(ledger, tl);
       }
 
-      /* ══ ⑧ 매뉴얼 — 카테고리가 돌고 검색어가 쳐진다 ══ */
+      
+
+      /* ══ ⑧ 매뉴얼 · 카테고리가 돌고 검색어가 쳐진다 ══ */
       const board = q('[data-wg="board"]')[0];
-      if (board) {
+      if (board)  {
         const tabs = board.querySelectorAll<HTMLElement>(".lp7-tabs span");
         const typeEl = board.querySelector<HTMLElement>("[data-type]");
         const caret = board.querySelector(".lp7-caret");
@@ -525,9 +541,11 @@ export default function LandingV7() {
         loop(board, tl);
       }
 
-      /* ══ ⑨ 메신저 — 말풍선 → 읽음 → 파일 순서로 ══ */
+      
+
+      /* ══ ⑨ 메신저 · 말풍선 → 읽음 → 파일 순서로 ══ */
       const chat = q('[data-wg="chat"]')[0];
-      if (chat) {
+      if (chat)  {
         const bubs = chat.querySelectorAll(".lp7-bubs > *");
         gsap.set(bubs, { autoAlpha: 0, y: 8 });
         const tl = gsap.timeline({ repeat: -1, repeatDelay: 1.6 });
@@ -559,9 +577,9 @@ export default function LandingV7() {
           views.querySelector(".lp7-vnotes"));
       });
 
-      /* ══ 흐름도 — 자료가 왼쪽에서 들어와 오른쪽으로 나간다 ══ */
+      /* ══ 흐름도 · 자료가 왼쪽에서 들어와 오른쪽으로 나간다 ══ */
       const flow = q(".lp7-flow")[0];
-      if (flow) {
+      if (flow)  {
         reveal(flow.querySelectorAll(".lp7-flow-kicker, .lp7-flow .lp7-h2, .lp7-flow .lp7-lead"), { stagger: 0.08 }, flow);
         gsap.from(flow.querySelectorAll(".lp7-flow-col:first-of-type .lp7-flow-card"), {
           x: -40, autoAlpha: 0, duration: 0.6, stagger: 0.1,
@@ -592,9 +610,11 @@ export default function LandingV7() {
         }
       }
 
-      /* ══ AI 3단계 — 번호가 차례로 빛난다 ══ */
+      
+
+      /* ══ AI 3단계 · 번호가 차례로 빛난다 ══ */
       const steps = q(".lp7-steps")[0];
-      if (steps) {
+      if (steps)  {
         reveal(steps.querySelectorAll(".lp7-h2, .lp7-steps .lp7-lead"), { stagger: 0.08 }, steps);
         gsap.from(steps.querySelectorAll(".lp7-step"), {
           y: 32, autoAlpha: 0, duration: 0.7, stagger: 0.14,
@@ -634,9 +654,11 @@ export default function LandingV7() {
         gsap.from(cards[1], { x: 36, autoAlpha: 0, duration: 0.7, delay: 0.1, scrollTrigger: { trigger: trust, start: "top 82%" } });
       }
 
-      /* ══ 마지막 CTA — 빛이 떠다니고 버튼이 숨 쉰다 ══ */
+      
+
+      /* ══ 마지막 CTA · 빛이 떠다니고 버튼이 숨 쉰다 ══ */
       const cta = q(".lp7-cta")[0];
-      if (cta) {
+      if (cta)  {
         reveal(cta.querySelectorAll(".lp7-h2, .lp7-cta .lp7-btn-lg, .lp7-cta p"), { stagger: 0.1 }, cta);
         const blobs = cta.querySelectorAll(".lp7-blob");
         blobs.forEach((b, i) => {
@@ -744,7 +766,7 @@ export default function LandingV7() {
                 <video
                   className="lp7-video" poster={HERO_VIDEO.poster}
                   autoPlay muted loop playsInline preload="metadata"
-                  aria-label="오너뷰 실제 화면 녹화 — 대시보드, 수집·전표, 프로젝트, 근태 관리"
+                  aria-label="오너뷰 실제 화면 녹화 · 대시보드, 수집·전표, 프로젝트, 근태 관리"
                 >
                   <source src={HERO_VIDEO.webm} type="video/webm" />
                   <source src={HERO_VIDEO.mp4} type="video/mp4" />

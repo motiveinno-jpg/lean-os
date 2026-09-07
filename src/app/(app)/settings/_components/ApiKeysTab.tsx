@@ -26,7 +26,7 @@ const fmt = (iso: string | null) =>
   iso ? new Date(iso).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : null;
 
 
-// 외부 자동화(n8n 등) 인입 키 — 회사별 비밀키. 발급 즉시 한 번만 보이고, 다시 발급하면 이전 키는 즉시 막힌다.
+// 외부 자동화(n8n 등) 인입 키 · 회사별 비밀키. 발급 즉시 한 번만 보이고, 다시 발급하면 이전 키는 즉시 막힌다.
 function IngestKeyCard({ companyId }: { companyId: string }) {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -54,7 +54,7 @@ function IngestKeyCard({ companyId }: { companyId: string }) {
         <div className="apik-head"><b>외부 자동화 인입 키 (n8n 등)</b></div>
         <p className="text-xs text-[var(--text-muted)] mt-1">
           외부 자동화가 통장·계산서·급여 배치를 밀어 넣을 때 <code>x-api-key</code> 헤더에 넣는 회사 전용 비밀키입니다.
-          {active ? <> 현재 키 끝자리 <b>…{active.key_hint}</b> ({new Date(active.created_at).toLocaleDateString("ko-KR")} 발급).</> : " 아직 발급하지 않았습니다 — 발급 전에는 회사 ID 방식이 임시로 허용됩니다."}
+          {active ? <> 현재 키 끝자리 <b>…{active.key_hint}</b> ({new Date(active.created_at).toLocaleDateString("ko-KR")} 발급).</> : " 아직 발급하지 않았습니다. 발급 전에는 회사 ID 방식이 임시로 허용됩니다."}
         </p>
         {issued && (
           <div className="mt-2 p-3 rounded-lg bg-[var(--warning-dim)] text-xs">
@@ -211,7 +211,9 @@ export function ApiKeysTab({ companyId, userId }: { companyId: string; userId: s
   );
 }
 
-/** 키 넣기 — 저장 전에 반드시 한 번 불러 본다 */
+
+
+/** 키 넣기 · 저장 전에 반드시 한 번 불러 본다 */
 function KeyDialog({ provider, companyId, userId, onClose, onSaved }: {
   provider: ApiProvider; companyId: string; userId: string | null;
   onClose: () => void; onSaved: () => void;

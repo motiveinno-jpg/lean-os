@@ -56,7 +56,7 @@ export function InsuranceNoticeDialog({ companyId, userId, month, items, onClose
             <tfoot><tr className="vr-sum"><td className="text-left">합계</td><td className="tr mono-number">₩{won(totalCalc)}</td><td className="tr mono-number">₩{won(totalNotice)}</td><td className="tr mono-number"><b>{totalNotice ? `${totalNotice - totalCalc >= 0 ? "+" : "−"}₩${won(Math.abs(totalNotice - totalCalc))}` : "—"}</b></td></tr></tfoot>
           </table>
         </div>
-        <label className="inv-field"><span>메모</span><input className="field-input" value={v.note} onChange={(e) => setV((s) => ({ ...s, note: e.target.value }))} placeholder="예: 김OO 7월 취득 — 고지엔 다음 달부터" /></label>
+        <label className="inv-field"><span>메모</span><input className="field-input" value={v.note} onChange={(e) => setV((s) => ({ ...s, note: e.target.value }))} placeholder="예: 김OO 7월 취득 · 고지엔 다음 달부터" /></label>
         <div className="inv-modal-actions"><span className="doc-sums-sp" /><button type="button" className="btn-secondary btn-sm" onClick={onClose}>닫기</button><button type="button" className="btn-primary btn-sm" disabled={busy} onClick={save}>고지 금액 저장</button></div>
       </div>
     </div>

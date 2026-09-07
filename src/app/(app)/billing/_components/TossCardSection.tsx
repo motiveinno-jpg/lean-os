@@ -49,8 +49,8 @@ export function TossCardSection({ companyId, isMaster }: { companyId: string | n
     enabled: !!companyId && tossEnabled,
   });
 
-  // Stripe 로 결제 중인 구독 — 등록된 국내카드가 있으면 '국내카드로 전환'을 보여준다 (2026-08-14)
-  const { data: subRow } = useQuery({
+  // Stripe 로 결제 중인 구독 · 등록된 국내카드가 있으면 '국내카드로 전환'을 보여준다 (2026-08-14)
+  const  { data: subRow } = useQuery({
     queryKey: ["toss-switch-sub", companyId],
     queryFn: async () => {
       // payment_provider 는 생성 타입(database.ts)에 아직 없어 any 캐스팅.
@@ -94,11 +94,12 @@ export function TossCardSection({ companyId, isMaster }: { companyId: string | n
 
   const startRegister = async () => {
     if (!clientKey) { toast("토스 클라이언트 키가 설정되지 않았습니다 (NEXT_PUBLIC_TOSS_CLIENT_KEY)", "error"); return; }
-    // 순수 카드 등록 의도 — 결제하기에서 남았을 수 있는 결제 예약을 버린다.
+    
+    // 순수 카드 등록 의도 · 결제하기에서 남았을 수 있는 결제 예약을 버린다.
     //   안 지우면 등록 완료 콜백이 묵은 예약을 주워 예고 없이 결제된다 (보안 리뷰 H-2).
     sessionStorage.removeItem("toss-pending-start");
     setOpening(true);
-    try {
+    try  {
       const { customerKey } = await callBillingFn("prepare");
       const tossPayments = await loadTossPayments(clientKey);
       const payment = tossPayments.payment({ customerKey });

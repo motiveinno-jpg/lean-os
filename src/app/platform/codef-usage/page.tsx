@@ -169,7 +169,7 @@ export default function PlatformCodefUsagePage() {
             </PfCard>
 
             <PfCard i={6} className="lg:col-span-2">
-              <PfCardHead title="API별 한도 사용" sub="링 하나가 API 하나 — 꽉 차면 10만원을 다 쓴 것" />
+              <PfCardHead title="API별 한도 사용" sub="링 하나가 API 하나 · 꽉 차면 10만원을 다 쓴 것" />
               <PfCardBody>
                 {priced.length === 0 ? (
                   <PfEmpty>이 달에는 과금 대상 호출이 없습니다.</PfEmpty>
@@ -181,7 +181,7 @@ export default function PlatformCodefUsagePage() {
                     formatCenter={(v) => fmtWon(Math.round(v))}
                   />
                 )}
-                {priced.length > 5 && <div className="text-[10.5px] text-[var(--text-dim)] mt-2">상위 5개만 링으로 표시 — 전체는 아래 표에서</div>}
+                {priced.length > 5 && <div className="text-[10.5px] text-[var(--text-dim)] mt-2">상위 5개만 링으로 표시 · 전체는 아래 표에서</div>}
               </PfCardBody>
             </PfCard>
           </div>
@@ -215,7 +215,7 @@ export default function PlatformCodefUsagePage() {
                           <td className="text-right mono-number font-semibold">{p.amount === null ? "—" : fmtWon(p.amount)}</td>
                           <td>
                             {p.amount === null ? (
-                              <span className="text-[11px] text-[var(--text-dim)]">단가 미확인 — 건수만 집계</span>
+                              <span className="text-[11px] text-[var(--text-dim)]">단가 미확인 · 건수만 집계</span>
                             ) : (
                               <div className="flex items-center gap-2">
                                 <PfBar pct={pct} tone={isOver ? "danger" : pct >= 80 ? "warn" : "info"} className="flex-1" />

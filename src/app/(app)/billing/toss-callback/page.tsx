@@ -45,9 +45,9 @@ export default function TossCallbackPage() {
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json?.error || `등록 실패 (HTTP ${res.status})`);
 
-        // 결제하기에서 넘어온 경우 — 등록에 이어 첫 결제까지 여기서 끝낸다 (2026-08-14).
+        // 결제하기에서 넘어온 경우 · 등록에 이어 첫 결제까지 여기서 끝낸다 (2026-08-14).
         const pendingRaw = sessionStorage.getItem("toss-pending-start");
-        if (pendingRaw) {
+        if (pendingRaw)  {
           sessionStorage.removeItem("toss-pending-start");
           let pending: { planSlug?: string; billingCycle?: string; authId?: string; ts?: number } | null = null;
           try { pending = JSON.parse(pendingRaw); } catch { /* 손상된 값은 무시 */ }
@@ -56,7 +56,7 @@ export default function TossCallbackPage() {
           const fresh = pending?.authId === session.user?.id
             && typeof pending?.ts === "number" && Date.now() - pending.ts < 10 * 60 * 1000;
           if (pending?.planSlug && fresh) {
-            setMessage("카드 등록 완료 — 결제를 진행합니다...");
+            setMessage("카드 등록 완료 · 결제를 진행합니다...");
             const res2 = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/toss-charge`, {
               method: "POST",
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
@@ -70,7 +70,7 @@ export default function TossCallbackPage() {
             setState("done");
             setMessage(j2.chargedNow
               ? "결제가 완료되었습니다! 플랜이 열렸습니다."
-              : "카드 등록 완료 — 남은 이용 기간 종료 후 이 카드로 자동 결제됩니다.");
+              : "카드 등록 완료 · 남은 이용 기간 종료 후 이 카드로 자동 결제됩니다.");
             setTimeout(() => router.replace("/billing"), 1500);
             return;
           }

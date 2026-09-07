@@ -124,7 +124,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     onError: (err: any) => toast(`서명 요청 실패: ${err.message || err}`, "error"),
   });
 
-  // 원클릭 발송 — 견적서 거래처(contact_email)에게 바로 서명요청+메일. 이메일 없으면 서명요청 폼 프리필.
+  // 원클릭 발송 · 견적서 거래처(contact_email)에게 바로 서명요청+메일. 이메일 없으면 서명요청 폼 프리필.
   const sendToPartnerMut = useMutation({
     mutationFn: async () => {
       if (!companyId || !userId) throw new Error("Not ready");
@@ -149,7 +149,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     },
     onError: (err: any) => {
       if (err?.message === "NO_EMAIL") {
-        toast("거래처 이메일이 없습니다 — 아래 서명 요청에서 직접 입력해 발송하세요", "info");
+        toast("거래처 이메일이 없습니다. 아래 서명 요청에서 직접 입력해 발송하세요", "info");
         setShowSignRequestForm(true);
         if (err.pname) setBulkSigners([{ name: err.pname, email: "", phone: "" }]);
       } else {
@@ -231,8 +231,8 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     enabled: !!id,
   });
 
-  // 변수 치환용 — 회사 정보 + 연결 거래처명
-  const { data: docCompanyInfo } = useQuery({
+  // 변수 치환용 · 회사 정보 + 연결 거래처명
+  const  { data: docCompanyInfo } = useQuery({
     queryKey: ["doc-company-info", companyId],
     queryFn: async () => (await (supabase).from("companies").select("name, representative").eq("id", companyId ?? "").maybeSingle()).data,
     enabled: !!companyId,
@@ -548,12 +548,14 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     mgrEmail = mgrRow?.email || '';
                   }
 
-                  // 견적 의뢰 기업(거래처) 상세 — partnerId 우선, 없으면 거래처명으로 company 범위 내 매칭
+                  
+
+                  // 견적 의뢰 기업(거래처) 상세 · partnerId 우선, 없으면 거래처명으로 company 범위 내 매칭
                   const cpName = cj.counterpartyName || cj.partnerName || cj.header?.partnerName || quoteHeader.partnerName || '';
                   const cpId = cj.header?.partnerId || quoteHeader.partnerId || null;
                   let partnerRow: any = null;
                   const pcols = 'name, representative, contact_name, contact_phone, contact_email, address';
-                  if (cpId) {
+                  if (cpId)  {
                     partnerRow = (await db.from('partners').select(pcols).eq('id', cpId).maybeSingle()).data;
                   } else if (cpName) {
                     partnerRow = (await db.from('partners').select(pcols).eq('company_id', companyId).eq('name', cpName).limit(1).maybeSingle()).data;
@@ -1379,8 +1381,9 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   return <div className="text-sm leading-relaxed text-[var(--text)] document-html-content [&_img]:max-w-full [&_img]:rounded-lg [&_img]:my-2" dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(filled) }} />;
                 }
                 if (!t) return <div className="text-sm text-[var(--text-dim)]">(내용 없음)</div>;
-                // 마크다운식 렌더 — ## 제목, ※ 주석, [품목 테이블]은 위 품목표로 대체(숨김)
+                // 마크다운식 렌더 · ## 제목, ※ 주석, [품목 테이블]은 위 품목표로 대체(숨김)
                 return (
+                  
                   <div className="space-y-1.5 text-sm leading-relaxed">
                     {filled.split('\n').map((ln, i) => {
                       const line = ln.trim();
@@ -1488,11 +1491,14 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
   );
 }
 
+
+
 // ── Documents List ──
 
-//   파일 종류 — 값이 고정이라 모듈 상수다. 컴포넌트 안에 있으면 위쪽(useMemo)에서 못 쓴다
+//   파일 종류 · 값이 고정이라 모듈 상수다. 컴포넌트 안에 있으면 위쪽(useMemo)에서 못 쓴다
 //   (선언 전 참조 → "Cannot access 'FILE_CATEGORIES' before initialization" 으로 화면이 통째로 죽는다).
 const FILE_CATEGORIES = [
+  
   { value: "all", label: "전체" },
   { value: "contract", label: "계약서" },
   { value: "invoice", label: "세금계산서" },
@@ -1510,7 +1516,7 @@ function DocumentsPageInner() {
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  // 파일 보관함 전용으로 단순화 — 문서/계약서/세금계산서/전자계약/양식 관리는 각 전용 메뉴로 이전.
+  // 파일 보관함 전용으로 단순화 · 문서/계약서/세금계산서/전자계약/양식 관리는 각 전용 메뉴로 이전.
   //   (탭 타입은 호환 위해 유지하되 진입 시 항상 files 로 고정, 탭 전환 UI 제거)
   const [tab, setTab] = useTabParam<"docs" | "contracts" | "invoices" | "signatures" | "files" | "templates">("files", { valid: ["files"] });
   const [showDocForm, setShowDocForm] = useState(false);
@@ -1520,11 +1526,11 @@ function DocumentsPageInner() {
   const [selectedSignature, setSelectedSignature] = useState<any>(null);
   const [signStatusFilter, setSignStatusFilter] = useState<string>("all");
   const [docForm, setDocForm] = useState({ name: "", type: "contract", deal_id: "", template_id: "" });
-  // (구) ?create=quote 딥링크 자동 폼 오픈 — 문서 생성은 전자계약/프로젝트 메뉴로 이전돼 제거됨.
+  // (구) ?create=quote 딥링크 자동 폼 오픈 · 문서 생성은 전자계약/프로젝트 메뉴로 이전돼 제거됨.
   const [invForm, setInvForm] = useState({ type: "sales" as "sales" | "purchase", counterparty_name: "", supply_amount: "", issue_date: "", deal_id: "" });
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  // U5 페이지네이션 — 10/25/50/all. 필터 변경 시 1페이지 리셋.
+  // U5 페이지네이션 · 10/25/50/all. 필터 변경 시 1페이지 리셋.
   const [docPageSize, setDocPageSize] = useState<number>(10);
   const [docPage, setDocPage] = useState<number>(1);
   useEffect(() => { setDocPage(1); }, [searchTerm, typeFilter, docPageSize]);
@@ -1699,7 +1705,7 @@ function DocumentsPageInner() {
     queryClient.invalidateQueries({ queryKey: ["signature-requests"] });
   };
 
-  // 문서 영구삭제 — 서명요청 있는 문서는 RPC 가 차단(예외 메시지 표시).
+  // 문서 영구삭제 · 서명요청 있는 문서는 RPC 가 차단(예외 메시지 표시).
   const deleteDocMut = useMutation({
     mutationFn: (docId: string) => deleteDocument(docId),
     onSuccess: () => {
@@ -1741,7 +1747,7 @@ function DocumentsPageInner() {
     onError: (err: any) => toast("서명 취소 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
-  // Sign (complete) mutation — 서명하기
+  // Sign (complete) mutation · 서명하기
   const [signingId, setSigningId] = useState<string | null>(null);
   const [signTypeName, setSignTypeName] = useState("");
   const signCompleteMut = useMutation({
@@ -2712,11 +2718,11 @@ function DocumentsPageInner() {
 
 // ── File Storage Tab Component ──
 function FileStorageTab({ companyId, userId }: { companyId: string; userId: string }) {
-  const { toast } = useToast();
+  const { toast }  = useToast();
   const queryClient = useQueryClient();
-  //   삭제는 본인이 올린 파일만 — 남의 파일까지는 마스터 또는 '/documents:delete' 위임자만
+  //   삭제는 본인이 올린 파일만 · 남의 파일까지는 마스터 또는 '/documents:delete' 위임자만
   //   (2026-08-20 사장님: "모든 사람이 삭제가 가능해"). 진짜 차단은 RLS, 여기선 버튼을 감춘다.
-  const { isMaster, hasPerm } = useMyPermissions();
+  const  { isMaster, hasPerm } = useMyPermissions();
   const canDeleteOthers = isMaster || hasPerm("/documents:delete");
   const canDeleteFile = (f: { uploaded_by?: string | null }) => canDeleteOthers || f.uploaded_by === userId;
   const [fileSearchTerm, setFileSearchTerm] = useState("");
@@ -2725,7 +2731,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
   const [showNewFolderForm, setShowNewFolderForm] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  //   정렬 — 이 화면의 주 동작은 '찾기'. 조회 표준 머리단(SortableTh)으로, 기본 최근 올린 순 (2026-08-18 Wave 3)
+  //   정렬 · 이 화면의 주 동작은 '찾기'. 조회 표준 머리단(SortableTh)으로, 기본 최근 올린 순 (2026-08-18 Wave 3)
   type FSortKey = "name" | "kind" | "size" | "by" | "at" | "ver";
   const [sort, setSort] = useState<SortState<FSortKey>>({ key: "at", dir: "desc" });
   const onSort = (k: FSortKey) => setSort((c) => nextSort(c, k, k === "at" || k === "size" ? "desc" : "asc"));
@@ -2760,7 +2766,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
     enabled: !!companyId,
   });
 
-  // ── 파일보관함 v2(결정 146, 드팜므 문의발 P4) — 폴더 공개 범위·지난 판·사용량·업로드 진행률 ──
+  // ── 파일보관함 v2(결정 146, 드팜므 문의발 P4). 폴더 공개 범위·지난 판·사용량·업로드 진행률 ──
   const [newFolderVis, setNewFolderVis] = useState<FolderVisibility>("company");
   const [newFolderDepts, setNewFolderDepts] = useState<string[]>([]);
   const [newFolderMembers, setNewFolderMembers] = useState<string[]>([]);
@@ -2774,9 +2780,9 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
     enabled: !!verFile?.id,
     queryFn: () => getFileVersions(verFile.id),
   });
-  // 회사 저장공간 — 빌링 카드와 같은 단일 소스(get_company_storage: 전 버킷 합계 + 쿼터). (2026-09-02)
+  // 회사 저장공간 · 빌링 카드와 같은 단일 소스(get_company_storage: 전 버킷 합계 + 쿼터). (2026-09-02)
   //   종전엔 파일보관함 원장(document_files)만 더해 빌링 화면과 숫자가 달랐다.
-  const { data: storageInfo } = useQuery({
+  const  { data: storageInfo } = useQuery({
     queryKey: ["company-storage", companyId],
     enabled: !!companyId,
     staleTime: 60_000,
@@ -2928,7 +2934,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
   });
 
   // Upload files
-  //   ⚠ FileUploadMulti 는 '지금까지 고른 전체 목록'을 넘긴다 — 그대로 돌리면 두 번째 선택 때
+  //   ⚠ FileUploadMulti 는 '지금까지 고른 전체 목록'을 넘긴다. 그대로 돌리면 두 번째 선택 때
   //   첫 파일이 통째로 다시 올라간다(2026-09-02 실측: 버전 기능과 만나 조용한 v2 가 생김).
   //   이미 올린 File 객체는 건너뛴다(같은 이름의 '수정본'은 크기가 달라 새 객체로 들어온다 = 버전 업).
   const uploadedFilesRef = useRef<WeakSet<File>>(new WeakSet());
@@ -2954,7 +2960,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
         });
       } catch (err: any) {
         console.error("Upload failed:", err);
-        failed.push(`${file.name} — ${friendlyError(err, "알 수 없는 오류")}`);
+        failed.push(`${file.name} · ${friendlyError(err, "알 수 없는 오류")}`);
       }
     }
     setUpProg(null);
@@ -3064,7 +3070,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
             if (!canEdit) {
               return (visNow !== "company"
                 ? <span className="text-[9px] px-1 font-bold text-[var(--primary)]"
-                    title={`공개 범위: ${VIS_LABEL[visNow]} — ${folder.created_by ? "만든 사람이나 파일 삭제 권한자만 바꿀 수 있습니다" : "예전 폴더라 관리자만 바꿀 수 있습니다"}`}>{VIS_ICON[visNow]}</span>
+                    title={`공개 범위: ${VIS_LABEL[visNow]} · ${folder.created_by ? "만든 사람이나 파일 삭제 권한자만 바꿀 수 있습니다" : "예전 폴더라 관리자만 바꿀 수 있습니다"}`}>{VIS_ICON[visNow]}</span>
                 : null);
             }
             return (<>
@@ -3074,7 +3080,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
                   setVisFolder(folder);
                   setVisDraft({ visibility: visNow, depts: folder.target_departments || [], members: folder.target_user_ids || [] });
                 }}
-                title={`공개 범위: ${VIS_LABEL[visNow]} — 눌러서 바꾸기`}
+                title={`공개 범위: ${VIS_LABEL[visNow]} · 눌러서 바꾸기`}
                 className={`text-[9px] px-1 rounded ${visNow !== "company" ? "opacity-100 font-bold text-[var(--primary)]" : "opacity-0 group-hover:opacity-100 text-[var(--text-dim)]"}`}
               >
                 {VIS_ICON[visNow] || "공개"}
@@ -3215,7 +3221,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
                   <AmountRange min={dDraft.min} max={dDraft.max} onMin={(v) => setDDraft((c) => ({ ...c, min: v }))} onMax={(v) => setDDraft((c) => ({ ...c, max: v }))} />
                 </ConditionRow>
               </ConditionPanel>
-              <QuickSearch value={fileSearchTerm} onApply={setFileSearchTerm} placeholder="파일명 · 올린 사람 · 종류 — 쉼표로 여러 개, Enter" />
+              <QuickSearch value={fileSearchTerm} onApply={setFileSearchTerm} placeholder="파일명 · 올린 사람 · 종류 · 쉼표로 여러 개, Enter" />
             </QueryBar>
             <AppliedChips chips={chips} onClearAll={() => { setFileSearchTerm(""); setDLive(DEMPTY); setDDraft(DEMPTY); }} />
             <ResultStrip>
@@ -3225,7 +3231,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
                 <span
                   className="text-[10.5px]"
                   style={{ color: storagePct >= 100 ? "var(--danger)" : storagePct >= 80 ? "var(--warning)" : "var(--text-dim)" }}
-                  title="회사가 올린 모든 파일(문서·첨부·이미지 등) 합계 — 지난 판도 자리를 차지합니다. 한도는 요금제·저장공간 팩에 따릅니다."
+                  title="회사가 올린 모든 파일(문서·첨부·이미지 등) 합계 · 지난 판도 자리를 차지합니다. 한도는 요금제·저장공간 팩에 따릅니다."
                 >
                   회사 저장공간 <b className="mono-number">{fmtQuotaBytes(storageInfo.usedBytes)}</b> / {fmtQuotaBytes(storageInfo.quotaBytes)} ({storagePct}%)
                   {storagePct >= 80 && (
@@ -3236,10 +3242,10 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
                   )}
                 </span>
               )}
-              {upProg && <span className="text-[10.5px] font-semibold text-[var(--primary)]">{upProg.name} 올리는 중 <b className="mono-number">{upProg.pct}%</b> — 끊겨도 같은 파일을 다시 올리면 이어서 올라갑니다</span>}
-              {selectedFolderId && <span className="text-[10.5px] text-[var(--text-dim)]">폴더 안만 보는 중 — 왼쪽 '전체'를 누르면 모든 파일</span>}
+              {upProg && <span className="text-[10.5px] font-semibold text-[var(--primary)]">{upProg.name} 올리는 중 <b className="mono-number">{upProg.pct}%</b> · 끊겨도 같은 파일을 다시 올리면 이어서 올라갑니다</span>}
+              {selectedFolderId && <span className="text-[10.5px] text-[var(--text-dim)]">폴더 안만 보는 중 · 왼쪽 '전체'를 누르면 모든 파일</span>}
               {dupNames.length > 0 && (
-                <span className="text-[10.5px] font-semibold text-amber-600">같은 이름 파일 {dupNames.length}종이 두 번 이상 — {dupNames.slice(0, 3).map(([n, c]) => `${n} (${c})`).join(" · ")}{dupNames.length > 3 ? " …" : ""}</span>
+                <span className="text-[10.5px] font-semibold text-amber-600">같은 이름 파일 {dupNames.length}종이 두 번 이상 · {dupNames.slice(0, 3).map(([n, c]) => `${n} (${c})`).join(" · ")}{dupNames.length > 3 ? " …" : ""}</span>
               )}
             </ResultStrip>
           </QueryHead>
@@ -3247,7 +3253,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
             {filesLoading ? (
               <div className="collect-empty">불러오는 중…</div>
             ) : sortedFiles.length === 0 ? (
-              <div className="collect-empty">{fileSearchTerm ? "이 조건에 맞는 파일이 없습니다 — 검색을 풀어 보세요" : "아직 파일이 없습니다 — ＋ 올리기 또는 아래로 끌어다 놓으세요"}</div>
+              <div className="collect-empty">{fileSearchTerm ? "이 조건에 맞는 파일이 없습니다. 검색을 풀어 보세요" : "아직 파일이 없습니다. ＋ 올리기 또는 아래로 끌어다 놓으세요"}</div>
             ) : (
               <div className="ev-scroll">
                 <table className="ev-table ev-lined doc-file-table">
@@ -3278,8 +3284,8 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
                       return (
                         <tr key={f.id} className={on ? "ev-on" : undefined}>
                           <td>
-                            <button type="button" aria-label={mine ? "선택" : "다른 사람이 올린 파일 — 삭제 권한 없음"} disabled={!mine}
-                              title={mine ? undefined : `${userNames[f.uploaded_by] || "다른 사람"} 님이 올린 파일입니다 — 삭제할 수 없습니다`}
+                            <button type="button" aria-label={mine ? "선택" : "다른 사람이 올린 파일 · 삭제 권한 없음"} disabled={!mine}
+                              title={mine ? undefined : `${userNames[f.uploaded_by] || "다른 사람"} 님이 올린 파일입니다. 삭제할 수 없습니다`}
                               onClick={() => setSelectedIds((prev) => { const n = new Set(prev); if (n.has(f.id)) n.delete(f.id); else n.add(f.id); return n; })}
                               className={on ? "collect-chk collect-chk-on" : mine ? "collect-chk" : "collect-chk doc-file-chk-locked"}>{on ? "✓" : ""}</button>
                           </td>
@@ -3295,7 +3301,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
                             {/* v2+ 는 눌러서 지난 판 — 같은 이름을 다시 올리면 덮지 않고 판이 쌓인다(결정 146 ③) */}
                             {Number(f.version || 1) > 1 ? (
                               <button type="button" className="font-bold text-[var(--primary)] hover:underline"
-                                title="지난 판 보기 — 이전에 올렸던 같은 이름 파일" onClick={() => setVerFile(f)}>v{f.version}</button>
+                                title="지난 판 보기 · 이전에 올렸던 같은 이름 파일" onClick={() => setVerFile(f)}>v{f.version}</button>
                             ) : <>v1</>}
                           </td>
                           <td className="tc whitespace-nowrap">
@@ -3337,7 +3343,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
               maxFiles={10}
               maxSize={500}
               compact
-              label="여기로 끌어다 놓아도 올라갑니다 — 파일당 500MB, 큰 파일은 끊겨도 이어서 (이미지·PDF·Word·Excel·PPT·CSV·ZIP·TXT)"
+              label="여기로 끌어다 놓아도 올라갑니다. 파일당 500MB, 큰 파일은 끊겨도 이어서 (이미지·PDF·Word·Excel·PPT·CSV·ZIP·TXT)"
             />
           </div>
         </QueryScreen>
@@ -3347,7 +3353,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
       {visFolder && (
         <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setVisFolder(null); }}>
           <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="폴더 공개 범위">
-            <h3 className="phv3-modal-title">&quot;{visFolder.name}&quot; 폴더 — 누가 보나</h3>
+            <h3 className="phv3-modal-title">&quot;{visFolder.name}&quot; 폴더 · 누가 보나</h3>
             <div className="mb-2 flex gap-1.5">
               {(["company", "departments", "members", "private"] as FolderVisibility[]).map((v) => (
                 <button key={v} type="button" onClick={() => setVisDraft((d) => ({ ...d, visibility: v }))}
@@ -3365,8 +3371,8 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
             )}
             <p className="phv3-modal-desc !mt-2">
               {visDraft.visibility === "company" ? "회사 구성원 모두가 이 폴더와 안의 파일을 봅니다."
-                : visDraft.visibility === "private" ? "나만 봅니다 — 다른 사람에겐 폴더째 보이지 않습니다."
-                : "고른 대상만 봅니다 — 그 밖 사람에겐 폴더째 보이지 않습니다(숨김은 화면이 아니라 서버 규칙이 합니다)."}
+                : visDraft.visibility === "private" ? "나만 봅니다. 다른 사람에겐 폴더째 보이지 않습니다."
+                : "고른 대상만 봅니다. 그 밖 사람에겐 폴더째 보이지 않습니다(숨김은 화면이 아니라 서버 규칙이 합니다)."}
             </p>
             <div className="phv3-modal-actions">
               <button type="button" className="btn-secondary btn-sm" onClick={() => setVisFolder(null)}>닫기</button>
@@ -3393,7 +3399,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
       {verFile && (
         <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setVerFile(null); }}>
           <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="지난 판">
-            <h3 className="phv3-modal-title">&quot;{verFile.file_name}&quot; — 지난 판</h3>
+            <h3 className="phv3-modal-title">&quot;{verFile.file_name}&quot; · 지난 판</h3>
             <p className="phv3-modal-desc">지금 판은 v{verFile.version} 입니다. 지난 판도 자리를 차지하므로 필요 없으면 표에서 지우세요.</p>
             {(verList as any[]).length === 0 && <div className="collect-empty">지난 판을 불러오는 중이거나 없습니다</div>}
             {(verList as any[]).map((v) => (

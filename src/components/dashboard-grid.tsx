@@ -5,14 +5,14 @@
 //   2026-07-15 카탈로그 기반 전환: 전체 위젯 카탈로그 + 개인별 활성 목록 관리 → 편집 모드에서 위젯 추가/삭제 자유.
 //     · 활성 목록: localStorage `${storageKey}::active` (없으면 defaultActiveIds)
 //     · 배치(layout): localStorage `${storageKey}` (현재 없는 위젯 항목도 보존)
-//   2026-08-04 계정 동기화: 원본은 user_preferences.dashboard_grid(서버) — 로그인 기기 어디서든
+//   2026-08-04 계정 동기화: 원본은 user_preferences.dashboard_grid(서버). 로그인 기기 어디서든
 //     같은 편집이 보인다. localStorage 는 첫 페인트용 캐시로 유지, 마운트 후 서버 값이 덮는다.
 //   활성 위젯만 render() 호출 → 비활성 위젯의 쿼리/컴포넌트는 마운트되지 않음(비용 0).
 //   2026-07-24 반응형 완전 수정: WidthProvider 제거 → ResizeObserver로 직접 width 측정 후 prop 주입.
 //     WidthProvider는 마운트 시점에 너비를 1회 측정하는 클래스 컴포넌트라,
 //     창 축소→확대 시 잘못된 너비가 고정되는 버그가 있었음. 직접 측정으로 완전 해결.
 
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import  { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { WidgetEmptyContext } from "@/components/widget-empty-context";
 import { supabase } from "@/lib/supabase";
 import GridLayout, { type Layout } from "react-grid-layout";
@@ -134,7 +134,7 @@ export function DashboardGrid({
 
   // ── 계정 단위 동기화 (2026-08-04 사장님: "다른 컴퓨터에서 로그인해도 위젯 편집 적용되게") ──
   //   localStorage 는 즉시 반영용 캐시로 유지하고, 원본은 user_preferences.dashboard_grid
-  //   ({ [storageKey]: { layout, active, ... } }) — 마운트 시 서버 값이 로컬을 덮는다.
+  //   ({ [storageKey]: { layout, active, ... } }). 마운트 시 서버 값이 로컬을 덮는다.
   const stateRef = useRef({ layout, activeIds });
   useEffect(() => { stateRef.current = { layout, activeIds }; });
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -142,11 +142,11 @@ export function DashboardGrid({
     if (syncTimer.current) clearTimeout(syncTimer.current);
     syncTimer.current = setTimeout(async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } }  = await supabase.auth.getSession();
         const authUser = session?.user;
         if (!authUser) return;
-        // user_preferences.user_id 는 auth uid — company_id 는 users 에서 auth_id 로 조회 (sidebar-context 와 동일 규약)
-        const { data: userData } = await supabase.from("users").select("company_id").eq("auth_id", authUser.id).maybeSingle();
+        // user_preferences.user_id 는 auth uid · company_id 는 users 에서 auth_id 로 조회 (sidebar-context 와 동일 규약)
+        const  { data: userData } = await supabase.from("users").select("company_id").eq("auth_id", authUser.id).maybeSingle();
         if (!userData?.company_id) return;
         const { data: cur } = await (supabase as any)
           .from("user_preferences").select("dashboard_grid")
@@ -315,8 +315,8 @@ export function DashboardGrid({
   const reset = () => {
     setLayout([]);
     stateRef.current = { ...stateRef.current, layout: [] };
-    persistActive(defaultActiveIds); // scheduleServerSave 포함 — 리셋도 다른 기기에 전파
-    try { localStorage.removeItem(storageKey); } catch { /* noop */ }
+    persistActive(defaultActiveIds); // scheduleServerSave 포함. 리셋도 다른 기기에 전파
+    try  { localStorage.removeItem(storageKey); } catch { /* noop */ }
   };
 
   //   보기 설정 판 (2026-08-19 재편) — 조회 화면의 '보기 설정'과 같은 생김새: 관점 프리셋 · 위젯 켜기/끄기 · 순서 바꾸기 · 기본으로.
@@ -419,7 +419,7 @@ export function DashboardGrid({
       {Header}
       <div ref={containerRef}>
         <GridLayout
-          key={cols} // cols 1↔12 전환 시 강제 리마운트 — RGL 은 layout prop 이 같으면 cols 변화만으로 내부 클램프 배치를 다시 풀지 않는다 (2026-07-29 짜부 사고)
+          key={cols}  // cols 1↔12 전환 시 강제 리마운트 · RGL 은 layout prop 이 같으면 cols 변화만으로 내부 클램프 배치를 다시 풀지 않는다 (2026-07-29 짜부 사고)
           width={containerWidth}
           className="layout"
           layout={effective}

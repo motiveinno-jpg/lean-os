@@ -47,7 +47,7 @@ export async function linkTransactionToEntry(kind: "bank" | "card", txId: string
 export const SOURCE_LABEL: Record<string, string> = { manual: "수기(일반전표)", bank: "통장", card: "카드", tax_invoice: "세금계산서", cash_receipt: "현금영수증", sale_purchase: "매입매출전표", auto: "자동" };
 
 // ── 장부 제외 (2026-08-19) — 전표 없이 '끝난 것'으로. reason=null 이면 되돌림 ──
-export const EXCLUDE_REASONS: [string, string][] = [["dup", "중복 — 이미 다른 전표에 반영됨"], ["transfer", "계좌 간 이체 · 카드 대금 결제"], ["personal", "개인 지출 · 개인 입금(반환)"], ["etc", "기타"]];
+export const EXCLUDE_REASONS: [string, string][] = [["dup", "중복 · 이미 다른 전표에 반영됨"], ["transfer", "계좌 간 이체 · 카드 대금 결제"], ["personal", "개인 지출 · 개인 입금(반환)"], ["etc", "기타"]];
 export const EXCLUDE_LABEL: Record<string, string> = { dup: "중복", transfer: "이체", personal: "개인", etc: "기타" };
 export const excludeLabelOf = (reason: string | null | undefined) => { if (!reason) return ""; const [k, ...rest] = reason.split(":"); return `${EXCLUDE_LABEL[k] || k}${rest.length ? ` · ${rest.join(":")}` : ""}`; };
 export async function setLedgerExcluded(kind: "bank" | "card", txIds: string[], reason: string | null): Promise<number> {

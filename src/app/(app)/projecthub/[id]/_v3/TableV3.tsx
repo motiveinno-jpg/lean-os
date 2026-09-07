@@ -3,7 +3,7 @@ import { koFallback } from "@/lib/ko-label";
 
 // 프로젝트 v3 — 먼데이식 표 입력 (2026-08-31 결정 130·124·132, docs/20260831_PLAN_projecthub_v3_impl.md 1단계)
 //
-//   사장님 확정: "입력은 기본적인 형태로 먼데이 형태로 — 처음 들어갔을 때부터. 간트·칸반은 보는 형태일 뿐."
+//   사장님 확정: "입력은 기본적인 형태로 먼데이 형태로 · 처음 들어갔을 때부터. 간트·칸반은 보는 형태일 뿐."
 //   프로젝트에 들어오면 이 표가 먼저다. 표가 곧 입력이다:
 //   · 그룹 = 상태(단계) 색 띠 — 결정 132: 상태=단계=색 라벨 한 축 (deals.item_stages)
 //   · 그룹마다 인라인 ＋줄(치고 Enter), 셀 클릭 즉시 편집, 상태 셀은 색 팔레트
@@ -52,9 +52,9 @@ export type ColumnDef = {
 };
 type UserRow = { id: string; name: string | null; email: string | null };
 
-/** 떠 있는 선택 팝 — 상태 팔레트·담당·선택지·컬럼 추가가 같은 그릇을 쓴다 */
+/** 떠 있는 선택 팝 · 상태 팔레트·담당·선택지·컬럼 추가가 같은 그릇을 쓴다 */
 type Pop =
-  | { kind: "status"; itemId: string; x: number; y: number }
+  |  { kind: "status"; itemId: string; x: number; y: number }
   | { kind: "person"; itemId: string; colKey?: string; x: number; y: number }
   | { kind: "partner"; itemId: string; colKey: string; x: number; y: number }
   | { kind: "select"; itemId: string; colKey: string; x: number; y: number }
@@ -76,11 +76,11 @@ export function TableV3() {
   const dealId = String(params?.id || "");
   const qc = useQueryClient();
   const { toast } = useToast();
-  const { user } = useUser();
+  const { user }  = useUser();
   const companyId = user?.company_id ?? null;
 
-  // ── 데이터 (v2.6 훅 패턴 승계 — 쿼리 키는 분리해 화면끼리 안 엮이게) ──
-  const { data: deal, isLoading: dealLoading } = useQuery({
+  // ── 데이터 (v2.6 훅 패턴 승계 · 쿼리 키는 분리해 화면끼리 안 엮이게) ──
+  const  { data: deal, isLoading: dealLoading } = useQuery({
     queryKey: ["pjv3-deal", dealId],
     enabled: !!dealId,
     queryFn: async () => logRead("pjv3:deal", await db.from("deals")
@@ -106,8 +106,8 @@ export function TableV3() {
     enabled: !!companyId,
     queryFn: () => getCompanyUsers(companyId!) as Promise<UserRow[]>,
   });
-  //   거래처 칸 검색 피커 (2026-09-01 사장님: "거래처 검색 안 됨" — 2단계 예정이던 스텁을 앞당김)
-  const { data: partners = [] } = useQuery({
+  //   거래처 칸 검색 피커 (2026-09-01 사장님: "거래처 검색 안 됨" · 2단계 예정이던 스텁을 앞당김)
+  const  { data: partners = [] } = useQuery({
     queryKey: ["pjv3-partners", companyId],
     enabled: !!companyId,
     staleTime: 300_000,
@@ -135,7 +135,7 @@ export function TableV3() {
     for (const arr of m.values()) arr.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
     return m;
   }, [items]);
-  //   현황의 숫자·막대·집계표 칸을 누르면 표로 오면서 걸리는 필터 — ✕ 로 해제, 나갔다 오면 없음(자동 기억 금지)
+  //   현황의 숫자·막대·집계표 칸을 누르면 표로 오면서 걸리는 필터 · ✕ 로 해제, 나갔다 오면 없음(자동 기억 금지)
   const [statFilter, setStatFilter] = useState<{ label: string; pred: (it: ItemRow) => boolean } | null>(null);
   const openFiltered = (label: string, pred: (it: ItemRow) => boolean) => {
     setStatFilter({ label, pred });
@@ -196,10 +196,10 @@ export function TableV3() {
   const featOn = (k: "recur" | "deps" | "billing" | "survey") => features.includes(k);
   //   토글 결과와 '어디에 생겼는지'를 바로 말해준다 — 안 그러면 눌러도 달라진 게 없어 보인다(2026-09-01 사장님)
   const FEAT_ON_MSG: Record<string, string> = {
-    recur: "'반복 작업'을 켰습니다 — 줄 '열기' 서랍에 반복 설정이 생겼습니다",
-    deps: "'앞뒤 순서'를 켰습니다 — 줄 '열기' 서랍에 '앞 작업' 설정이 생겼습니다",
-    billing: "'견적·청구'를 켰습니다 — 줄에 ₩ 버튼이 생겼고, 누르면 견적부터 입금까지 처리합니다",
-    survey: "'설문 발송'을 켰습니다 — 위 조회 줄에 '설문' 버튼이 생겼습니다",
+    recur: "'반복 작업'을 켰습니다. 줄 '열기' 서랍에 반복 설정이 생겼습니다",
+    deps: "'앞뒤 순서'를 켰습니다. 줄 '열기' 서랍에 '앞 작업' 설정이 생겼습니다",
+    billing: "'견적·청구'를 켰습니다. 줄에 ₩ 버튼이 생겼고, 누르면 견적부터 입금까지 처리합니다",
+    survey: "'설문 발송'을 켰습니다. 위 조회 줄에 '설문' 버튼이 생겼습니다",
   };
   const toggleFeature = async (k: string) => {
     const turningOn = !features.includes(k);
@@ -207,11 +207,11 @@ export function TableV3() {
     const { error } = await db.from("deals").update({ v3_features: next }).eq("id", dealId);
     if (error) { toast(friendlyError(error), "error"); return; }
     qc.invalidateQueries({ queryKey: ["pjv3-deal", dealId] });
-    toast(turningOn ? (FEAT_ON_MSG[k] || "켰습니다") : "껐습니다 — 이 프로젝트에서만 빠지고, 쓰던 값은 남아 있습니다", "success");
+    toast(turningOn ? (FEAT_ON_MSG[k] || "켰습니다") : "껐습니다. 이 프로젝트에서만 빠지고, 쓰던 값은 남아 있습니다", "success");
   };
 
-  //   반복 — 완료(마지막 그룹)로 옮기는 순간 다음 줄을 만들어 준다(만들어만 주고, 지우는 건 사람)
-  const nextRecurDue = (rec: { freq?: string; weekday?: number }, fromDue: string | null): string => {
+  //   반복 · 완료(마지막 그룹)로 옮기는 순간 다음 줄을 만들어 준다(만들어만 주고, 지우는 건 사람)
+  const nextRecurDue = (rec:  { freq?: string; weekday?: number }, fromDue: string | null): string => {
     const base = fromDue ? new Date(fromDue) : new Date();
     const today = new Date(); today.setHours(0, 0, 0, 0);
     if (base < today) base.setTime(today.getTime());
@@ -224,10 +224,10 @@ export function TableV3() {
     }
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   };
-  //   앞 작업 경고 — 첫 시도는 막고 알려주고, 곧바로 다시 누르면 그대로 진행(강제 아님)
+  //   앞 작업 경고 · 첫 시도는 막고 알려주고, 곧바로 다시 누르면 그대로 진행(강제 아님)
   const depWarnRef = useRef<string | null>(null);
 
-  // ── 저장 — 셀 하나가 곧 저장 단위(표가 입력이다) ──
+  // ── 저장 · 셀 하나가 곧 저장 단위(표가 입력이다) ──
   const saveItem = async (id: string, patch: Record<string, unknown>) => {
     const cur = items.find((x) => x.id === id);
     const lastStageId = stages[stages.length - 1]?.id;
@@ -238,7 +238,7 @@ export function TableV3() {
       if (after && after.status !== lastStageId && depWarnRef.current !== id) {
         depWarnRef.current = id;
         setTimeout(() => { if (depWarnRef.current === id) depWarnRef.current = null; }, 5000);
-        toast(`앞 작업 '${after.name}' 이(가) 아직 안 끝났어요 — 그래도 옮기려면 한 번 더 누르세요`, "error");
+        toast(`앞 작업 '${after.name}' 이(가) 아직 안 끝났어요. 그래도 옮기려면 한 번 더 누르세요`, "error");
         return false;
       }
       depWarnRef.current = null;
@@ -246,8 +246,9 @@ export function TableV3() {
     const { error } = await db.from("project_items")
       .update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id);
     if (error) { toast(friendlyError(error), "error"); return false; }
-    //   반복 — 완료로 옮겼고 반복 설정이 있으면 다음 줄 생성(반복 설정은 새 줄이 이어받는다)
-    const rec = (cur as any)?.recurrence as { freq?: string; weekday?: number } | null;
+    
+    //   반복 · 완료로 옮겼고 반복 설정이 있으면 다음 줄 생성(반복 설정은 새 줄이 이어받는다)
+    const rec = (cur as any)?.recurrence as  { freq?: string; weekday?: number } | null;
     if (movingToDone && featOn("recur") && rec?.freq && cur) {
       const due = nextRecurDue(rec, cur.due_date);
       const firstStage = stages[0]?.id || cur.status;
@@ -258,10 +259,11 @@ export function TableV3() {
         position: (cur.position ?? 0) + 0.5, created_by: user?.id ?? null,
       });
       await db.from("project_items").update({ recurrence: null }).eq("id", id);
-      toast(`반복 — 다음 '${due.slice(5).replace("-", "/")}' 줄을 만들었습니다`, "success");
+      toast(`반복 · 다음 '${due.slice(5).replace("-", "/")}' 줄을 만들었습니다`, "success");
     }
-    //   상태 변경은 기록(채터)에 log 로 남긴다 — 댓글과 한 줄기(결정 113). 실패해도 저장은 유효
-    if (typeof patch.status === "string") {
+    
+    //   상태 변경은 기록(채터)에 log 로 남긴다. 댓글과 한 줄기(결정 113). 실패해도 저장은 유효
+    if (typeof patch.status === "string")  {
       const from = items.find((x) => x.id === id)?.status;
       if (from && from !== patch.status) {
         const lbl = (sid: string) => stages.find((s) => s.id === sid)?.label || sid;
@@ -324,12 +326,12 @@ export function TableV3() {
         position: (cols[cols.length - 1]?.position ?? 0) + 1,
       });
       if (error) {
-        toast(error.code === "23505" ? `'${name}' 컬럼이 이미 있습니다 — 다른 이름으로 추가해 주세요` : friendlyError(error), "error");
+        toast(error.code === "23505" ? `'${name}' 컬럼이 이미 있습니다. 다른 이름으로 추가해 주세요` : friendlyError(error), "error");
         return;
       }
     }
     qc.invalidateQueries({ queryKey: ["pjv3-cols", dealId] });
-    toast(`'${name}' 컬럼을 추가했습니다 — 셀을 눌러 바로 채우세요`, "success");
+    toast(`'${name}' 컬럼을 추가했습니다. 셀을 눌러 바로 채우세요`, "success");
   };
 
   // ── 보기 — 표가 기본(결정 130), 칸반은 ＋보기로 추가한 '보는 형태'.
@@ -414,7 +416,7 @@ export function TableV3() {
     await saveItem(id, { status: stageId });
   };
 
-  // ── 템플릿 팝업 — monday 템플릿 센터 벤치마킹(2026-08-31 사장님: 생성 때 고르지 않고 버튼→팝업).
+  // ── 템플릿 팝업 · monday 템플릿 센터 벤치마킹(2026-08-31 사장님: 생성 때 고르지 않고 버튼→팝업).
   //   템플릿은 **가로형**(사장님: "한 태스크당 업무처리를 하려면 가로로 보는 게 편함") —
   //   항목을 세로로 시드하지 않고 **컬럼 정의**를 시드한다. 그룹은 안 건드린다(_v3/templates.ts) ──
   const [tplOpen, setTplOpen] = useState(false);
@@ -434,7 +436,7 @@ export function TableV3() {
   });
   const myTpls: Tpl[] = myTplRows.map((r) => ({
     key: `mine_${r.id}`, icon: r.icon || "⭐", name: r.name, cat: MY_TPL_CAT,
-    desc: "우리 회사가 저장한 양식", cols: r.spec?.cols || [], stages: r.spec?.stages, example: "예시 — 한 건",
+    desc: "우리 회사가 저장한 양식", cols: r.spec?.cols || [], stages: r.spec?.stages, example: "예시 · 한 건",
   }));
   const catTpls = (cat: string) => (cat === MY_TPL_CAT ? myTpls : TEMPLATES.filter((t) => t.cat === cat));
   const pickCat = (cat: string) => { setTplCat(cat); setTplSel(catTpls(cat)[0] ?? null); };
@@ -454,7 +456,7 @@ export function TableV3() {
     if (error) { toast(friendlyError(error), "error"); return; }
     setMyTplName("");
     qc.invalidateQueries({ queryKey: ["pjv3-mytpl", companyId] });
-    toast(`'${nm}' 양식으로 저장했습니다 — 다른 프로젝트의 템플릿에서 골라 쓸 수 있습니다`, "success");
+    toast(`'${nm}' 양식으로 저장했습니다. 다른 프로젝트의 템플릿에서 골라 쓸 수 있습니다`, "success");
   };
   const deleteMyTpl = async (id: string) => {
     if (myTplDel !== id) { setMyTplDel(id); return; } // 첫 클릭은 확인
@@ -489,8 +491,9 @@ export function TableV3() {
         })));
         if (error) throw new Error(error.message);
       }
-      //   예시 줄은 빈 표에만 — 쓰던 표에 예시가 끼면 방해다
-      if (items.length === 0 && firstStageId) {
+      
+      //   예시 줄은 빈 표에만 · 쓰던 표에 예시가 끼면 방해다
+      if (items.length === 0 && firstStageId)  {
         const { error } = await db.from("project_items").insert({
           company_id: companyId, deal_id: dealId, kind: "todo",
           name: tpl.example, status: firstStageId, position: 0, created_by: user?.id ?? null,
@@ -500,7 +503,7 @@ export function TableV3() {
       //   설문형 양식이면 설문 기능도 같이 켠다 — 설문 버튼이 ＋기능 뒤로 숨어 못 찾는 일 방지(2026-09-01)
       if (["svsat", "svevent", "svbook"].includes(tpl.key) && !features.includes("survey")) await toggleFeature("survey");
       toast(newCols.length > 0
-        ? `'${tpl.name}' 양식을 적용했습니다 — 열 ${newCols.length}개가 오른쪽에 붙었습니다`
+        ? `'${tpl.name}' 양식을 적용했습니다. 열 ${newCols.length}개가 오른쪽에 붙었습니다`
         : `'${tpl.name}' 양식의 열이 이미 다 있습니다`, "success");
       setTplOpen(false); setTplSel(null);
       qc.invalidateQueries({ queryKey: ["pjv3-cols", dealId] });
@@ -512,7 +515,7 @@ export function TableV3() {
     }
   };
 
-  // ── 그룹(단계) — 처음엔 한 그룹, 이름은 눌러서 바꾸고 ＋ 새 그룹으로 늘린다(2026-08-31 사장님) ──
+  // ── 그룹(단계). 처음엔 한 그룹, 이름은 눌러서 바꾸고 ＋ 새 그룹으로 늘린다(2026-08-31 사장님) ──
   const [stageEdit, setStageEdit] = useState<string | null>(null);
   const stageEditRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => { stageEditRef.current?.focus(); stageEditRef.current?.select(); }, [stageEdit]);
@@ -536,8 +539,8 @@ export function TableV3() {
     if (ok) setStageEdit(id);
   };
 
-  // ── 지우기 — 만들 수 있는 것(줄·그룹·컬럼)은 지울 수도 있어야 한다
-  //   (2026-09-01 사장님: "그룹을 추가하면 삭제 버튼이 없음 — 기능 추가할 때는 사용자 편의를 무조건 고려").
+  // ── 지우기 · 만들 수 있는 것(줄·그룹·컬럼)은 지울 수도 있어야 한다
+  //   (2026-09-01 사장님: "그룹을 추가하면 삭제 버튼이 없음. 기능 추가할 때는 사용자 편의를 무조건 고려").
   //   전부 ✕ 두 번 클릭 확정(회사 양식 지우기와 같은 패턴), 3초 지나면 해제 ──
   const [delArm, setDelArm] = useState<string | null>(null); // "stage:…" | "item:…" | "col:…"
   useEffect(() => {
@@ -573,7 +576,7 @@ export function TableV3() {
     qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
     toast("줄을 지웠습니다", "success");
   };
-  // ── 줄 끌어 옮기기 — ⋮⋮ 핸들로 다른 줄 앞·그룹 끝에 놓는다. 그룹이 바뀌면 상태도 같이
+  // ── 줄 끌어 옮기기 · ⋮⋮ 핸들로 다른 줄 앞·그룹 끝에 놓는다. 그룹이 바뀌면 상태도 같이
   //   (2026-09-01 사장님 승인 추천 2). 순서는 그룹 안 0..n 재부여(그룹 항목 수가 작아 일괄로 충분) ──
   const rowDragRef = useRef<string | null>(null);
   const [rowDropAt, setRowDropAt] = useState<string | null>(null); // "before:<itemId>" | "end:<stageId>"
@@ -605,7 +608,7 @@ export function TableV3() {
     qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
   };
 
-  // ── 컬럼 이름 바꾸기·끌어 옮기기 (추천 3) — key 는 그대로 둔다(값 fields[key] 연결이 끊기지 않게) ──
+  // ── 컬럼 이름 바꾸기·끌어 옮기기 (추천 3). key 는 그대로 둔다(값 fields[key] 연결이 끊기지 않게) ──
   const [colEdit, setColEdit] = useState<string | null>(null);
   const colEditRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => { colEditRef.current?.focus(); colEditRef.current?.select(); }, [colEdit]);
@@ -629,7 +632,7 @@ export function TableV3() {
     { id: "assignee", label: "담당", minW: 84 },
     { id: "status", label: "상태", minW: 92 },
     { id: "due", label: "마감", minW: 106 },
-    { id: "amount", label: "금액", minW: 96, title: "예정 금액 — 확정 금액은 장부(전표·계산서)가 갖습니다" },
+    { id: "amount", label: "금액", minW: 96, title: "예정 금액 · 확정 금액은 장부(전표·계산서)가 갖습니다" },
   ];
   const builtinCfg: BuiltinCfg = (deal?.v3_builtin as BuiltinCfg) || {};
   type AnyCol = { key: string; label: string; builtin?: BuiltinId; col?: ColumnDef; minW: number; title?: string };
@@ -653,7 +656,7 @@ export function TableV3() {
   };
   const hideBuiltin = async (id: BuiltinId) => {
     await saveBuiltin({ hidden: [...(builtinCfg.hidden || []), id] });
-    toast("열을 숨겼습니다 — 오른쪽 ＋에서 되살릴 수 있습니다", "success");
+    toast("열을 숨겼습니다. 오른쪽 ＋에서 되살릴 수 있습니다", "success");
   };
   const renameBuiltin = async (id: BuiltinId, label: string) => {
     setColEdit(null);
@@ -683,7 +686,8 @@ export function TableV3() {
   //   업로드는 새 uuid 경로 + upsert 금지(버킷에 UPDATE 정책이 없다 — 의도), 경로 첫 구간 = company_id(RLS)
   const uploadItemFile = async (it: ItemRow, colKey: string, file: File) => {
     if (file.size > 20 * 1024 * 1024) { toast("20MB까지 올릴 수 있습니다", "error"); return; }
-    //   경로에 원본 이름을 넣지 않는다 — 한글 파일명이 storage key 에서 400 (실측). 이름은 메타(fields)에만.
+    
+    //   경로에 원본 이름을 넣지 않는다. 한글 파일명이 storage key 에서 400 (실측). 이름은 메타(fields)에만.
     const ext = (file.name.split(".").pop() || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 10);
     const path = `${companyId}/${dealId}/${it.id}/${crypto.randomUUID()}${ext ? `.${ext}` : ""}`;
     const { error } = await db.storage.from("project-files").upload(path, file, { upsert: false });
@@ -728,12 +732,12 @@ export function TableV3() {
     },
   });
 
-  // ── 돈(줄에서 바로 청구, 2026-09-01 사장님 승인) — 기존 견적·계약 팝업(BoardDocModal)을
-  //   v3 줄에 그대로 연결. 연결 저장 = fields.__quote / __contract {id,no}(예약 키 — 컬럼 정의가
+  // ── 돈(줄에서 바로 청구, 2026-09-01 사장님 승인). 기존 견적·계약 팝업(BoardDocModal)을
+  //   v3 줄에 그대로 연결. 연결 저장 = fields.__quote / __contract  {id,no}(예약 키 · 컬럼 정의가
   //   없으니 표에는 안 보인다). ＋기능 'billing' 을 켠 프로젝트에서만 서랍에 '돈' 구역 ──
   const QUOTE_KEY = "__quote";
   const CONTRACT_KEY = "__contract";
-  const { data: dealDocs = [] } = useQuery({
+  const  { data: dealDocs = [] } = useQuery({
     queryKey: ["pjv3-docs", dealId],
     enabled: !!dealId && featOn("billing"),
     queryFn: async () => (logRead("pjv3:docs", await db.from("documents")
@@ -818,9 +822,9 @@ export function TableV3() {
     exportToExcel(data, "표", `${deal?.name || "프로젝트"}_표_${new Date().toISOString().slice(0, 10)}`);
   };
   const excelCols: ExcelColumn[] = [
-    { key: "group", label: "그룹", hint: `표의 그룹 이름 그대로 (${stages.map((s) => s.label).join(" / ")}) — 비우면 첫 그룹`, example: stages[0]?.label },
+    { key: "group", label: "그룹", hint: `표의 그룹 이름 그대로 (${stages.map((s) => s.label).join(" / ")}). 비우면 첫 그룹`, example: stages[0]?.label },
     { key: "name", label: "이름", required: true, example: "○○ 건" },
-    { key: "assignee", label: "담당", hint: "구성원 이름 그대로 — 비우면 없음" },
+    { key: "assignee", label: "담당", hint: "구성원 이름 그대로 · 비우면 없음" },
     { key: "due", label: "마감", kind: "date" },
     { key: "amount", label: "금액", kind: "number" },
     //   수식·자동 날짜·첨부·오너뷰 연결은 올리기 대상이 아니다(계산·자동·복합) — 양식에서 뺀다
@@ -840,7 +844,7 @@ export function TableV3() {
     const g = (row.group || "").trim();
     if (g) {
       const st = stages.find((s) => s.label === g);
-      if (!st) return { error: `그룹 '${g}' 이(가) 표에 없습니다 — ${stages.map((s) => s.label).join("/")} 중에서` };
+      if (!st) return { error: `그룹 '${g}' 이(가) 표에 없습니다. ${stages.map((s) => s.label).join("/")} 중에서` };
       status = st.id;
     }
     let assignee: string | null = null;
@@ -851,7 +855,7 @@ export function TableV3() {
       assignee = u.id;
     }
     const dueRaw = (row.due || "").trim();
-    if (dueRaw && !isDate(dueRaw)) return { error: `마감 '${dueRaw}' — 2026-09-01 형식으로` };
+    if (dueRaw && !isDate(dueRaw)) return { error: `마감 '${dueRaw}' · 2026-09-01 형식으로` };
     const fields: Record<string, unknown> = {};
     for (const c of cols) {
       if (["formula", "auto", "files", "ovlink"].includes(c.type)) continue; // 양식에 없는 타입
@@ -860,12 +864,12 @@ export function TableV3() {
       if (c.type === "check") { fields[c.key] = /^(예|y|yes|true|o|1)$/i.test(raw); continue; }
       if (c.type === "rating") {
         const n = Math.round(Number(raw));
-        if (!Number.isFinite(n) || n < 1 || n > 5) return { error: `'${c.name}' 칸의 '${raw}' — 1~5 사이 숫자로` };
+        if (!Number.isFinite(n) || n < 1 || n > 5) return { error: `'${c.name}' 칸의 '${raw}' · 1~5 사이 숫자로` };
         fields[c.key] = n; continue;
       }
       if (c.type === "select") {
         const opt = (c.settings?.options || []).find((o) => o.label === raw);
-        if (!opt) return { error: `'${c.name}' 칸의 '${raw}' — ${(c.settings?.options || []).map((o) => o.label).join("/")} 중에서` };
+        if (!opt) return { error: `'${c.name}' 칸의 '${raw}' · ${(c.settings?.options || []).map((o) => o.label).join("/")} 중에서` };
         fields[c.key] = opt.id;
       } else if (c.type === "person") {
         const u = users.find((x) => (x.name || "").trim() === raw);
@@ -874,7 +878,7 @@ export function TableV3() {
       } else if (c.type === "number") {
         fields[c.key] = xNum(raw);
       } else if (c.type === "date") {
-        if (!isDate(raw)) return { error: `'${c.name}' 칸의 '${raw}' — 날짜 형식(YYYY-MM-DD)으로` };
+        if (!isDate(raw)) return { error: `'${c.name}' 칸의 '${raw}' · 날짜 형식(YYYY-MM-DD)으로` };
         fields[c.key] = raw;
       } else {
         fields[c.key] = raw;
@@ -894,7 +898,7 @@ export function TableV3() {
     return `${rows.length}줄을 표에 넣었습니다`;
   };
 
-  // ── 설문 발송(2026-09-01 사장님 승인) — 컬럼=질문, 응답 1건=줄 1개. 설정은 project_surveys,
+  // ── 설문 발송(2026-09-01 사장님 승인). 컬럼=질문, 응답 1건=줄 1개. 설정은 project_surveys,
   //   외부 페이지 /survey/{token} 은 project-survey 엣지 함수가 담당(anon DB 접근 0) ──
   const SV_ANSWERABLE = ["text", "longtext", "number", "date", "select", "check", "rating", "url", "tel", "place"];
   const [svOpen, setSvOpen] = useState(false);
@@ -1003,7 +1007,7 @@ export function TableV3() {
     return null;
   };
 
-  // ── 일괄 처리(오두 갭 ①) — 줄 체크 → 바닥 SelectionBar. 완료·상태는 saveItem 루프(반복·앞뒤 규칙 공유) ──
+  // ── 일괄 처리(오두 갭 ①). 줄 체크 → 바닥 SelectionBar. 완료·상태는 saveItem 루프(반복·앞뒤 규칙 공유) ──
   const [selIds, setSelIds] = useState<Set<string>>(new Set());
   const toggleSel = (id: string) => setSelIds((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const clearSel = () => setSelIds(new Set());
@@ -1044,7 +1048,7 @@ export function TableV3() {
     if (error) { toast(friendlyError(error), "error"); return; }
     qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
     qc.invalidateQueries({ queryKey: ["pjv3-archived", dealId] });
-    toast("되살렸습니다 — 원래 그룹으로 돌아갔습니다", "success");
+    toast("되살렸습니다. 원래 그룹으로 돌아갔습니다", "success");
   };
   const archiveGroup = async (stageId: string) => {
     const ids = (byStage.m.get(stageId) || []).map((x) => x.id);
@@ -1054,10 +1058,10 @@ export function TableV3() {
       .or(ids.map((id) => `id.eq.${id},parent_id.eq.${id}`).join(","));
     if (error) { toast(friendlyError(error), "error"); return; }
     qc.invalidateQueries({ queryKey: ["pjv3-items", dealId] });
-    toast(`${ids.length}건을 보관했습니다 — 조회 줄 '보관함'에서 언제든 되살립니다`, "success");
+    toast(`${ids.length}건을 보관했습니다. 조회 줄 '보관함'에서 언제든 되살립니다`, "success");
   };
 
-  // ── 서랍(추천 1 = 2단계 핵심) — 줄을 열면 체크리스트·기록(댓글+변경 한 줄기)·팔로워.
+  // ── 서랍(추천 1 = 2단계 핵심). 줄을 열면 체크리스트·기록(댓글+변경 한 줄기)·팔로워.
   //   팔로워 알림 연동(notify 트리거 확장)은 다음 차수 ──
   const [drawerId, setDrawerId] = useState<string | null>(null);
   //   내 작업 등에서 ?item= 으로 들어오면 그 줄 서랍을 바로 연다(마운트 1회 — /board 딥링크 패턴)
@@ -1137,7 +1141,7 @@ export function TableV3() {
     await saveItem(it.id, { followers: next });
   };
 
-  // ── 선택지(select 옵션) 편집 — 템플릿은 기초일 뿐, 이름·색·순서·추가·삭제 전부 사용자 것
+  // ── 선택지(select 옵션) 편집 · 템플릿은 기초일 뿐, 이름·색·순서·추가·삭제 전부 사용자 것
   //   (2026-09-01 사장님: "템플릿에서 제공하는 항목도 삭제·수정 가능하게, 위치도 자유자재로") ──
   const OPTION_COLORS = ["#9aa0b5", "#FDAB3D", "#00C875", "#E2445C", "#5559DF", "#66CCFF"];
   const [optEdit, setOptEdit] = useState(false);
@@ -1161,10 +1165,10 @@ export function TableV3() {
       .update({ archived_at: new Date().toISOString() }).eq("id", c.id);
     if (error) { toast(friendlyError(error), "error"); return; }
     qc.invalidateQueries({ queryKey: ["pjv3-cols", dealId] });
-    toast(`'${c.name}' 컬럼을 지웠습니다 — 칸에 적었던 값은 남아 있어 같은 이름으로 다시 만들면 보입니다`, "success");
+    toast(`'${c.name}' 컬럼을 지웠습니다. 칸에 적었던 값은 남아 있어 같은 이름으로 다시 만들면 보입니다`, "success");
   };
 
-  // ── 현황 보기(결정 138·139) — 프로젝트 하나의 숫자·그래프·집계표. 모든 숫자는 눌러서 표로 ──
+  // ── 현황 보기(결정 138·139). 프로젝트 하나의 숫자·그래프·집계표. 모든 숫자는 눌러서 표로 ──
   const [statTab, setStatTab] = useState<"charts" | "pivot">("charts");
   const [pvRow, setPvRow] = useState("group");
   const [pvCol, setPvCol] = useState("assignee");
@@ -1257,9 +1261,9 @@ export function TableV3() {
     exportToExcel(data, "집계표", `${deal?.name || "프로젝트"}_집계_${new Date().toISOString().slice(0, 10)}`);
   };
 
-  // ── 상태 보고(결정 140) — 숫자는 자동으로 채우고 신호등·코멘트만 사람이 골라 저장 ──
+  // ── 상태 보고(결정 140). 숫자는 자동으로 채우고 신호등·코멘트만 사람이 골라 저장 ──
   const [repOpen, setRepOpen] = useState(false);
-  type ReportRow = { id: string; title: string; signal: "blue" | "orange" | "red"; comment: string; snapshot: Record<string, unknown>; created_at: string; created_by: string | null };
+  type ReportRow =  { id: string; title: string; signal: "blue" | "orange" | "red"; comment: string; snapshot: Record<string, unknown>; created_at: string; created_by: string | null };
   const { data: reports = [] } = useQuery({
     queryKey: ["pjv3-reports", dealId],
     enabled: !!dealId && repOpen,
@@ -1296,7 +1300,7 @@ export function TableV3() {
     blue: { icon: "🔵", label: "순항" }, orange: { icon: "🟠", label: "주의" }, red: { icon: "🔴", label: "지연" },
   };
   const reportText = () => [
-    `[프로젝트 상태 보고] ${deal?.name || ""} — ${repForm.title}`,
+    `[프로젝트 상태 보고] ${deal?.name || ""} · ${repForm.title}`,
     `신호등: ${SIGNAL_UI[repForm.signal].icon} ${SIGNAL_UI[repForm.signal].label}`,
     `진행: ${repDraft.total}건 중 ${repDraft.done}건 끝남(${repDraft.pct}%)${repDraft.delta != null ? ` — 지난 보고보다 ${repDraft.delta >= 0 ? "+" : ""}${repDraft.delta}건` : ""}`,
     repDraft.weekDone.length ? `최근 7일 한 일: ${repDraft.weekDone.join(" · ")}` : "",
@@ -1316,13 +1320,13 @@ export function TableV3() {
     if (shareToBoard) {
       const { error: be } = await db.from("board_posts").insert({
         company_id: companyId, author_id: user?.id || null, author_name: (user as any)?.name || null, author_email: (user as any)?.email || null,
-        title: `[프로젝트 보고] ${deal?.name || ""} — ${repForm.title.trim() || repDraft.title}`,
+        title: `[프로젝트 보고] ${deal?.name || ""} · ${repForm.title.trim() || repDraft.title}`,
         content: reportText(),
       });
       if (be) toast(`보고는 저장됐지만 게시판 공유가 실패했습니다: ${friendlyError(be)}`, "error");
       else toast("저장하고 게시판에도 올렸습니다", "success");
     } else {
-      toast("보고를 저장했습니다 — 신호등 흐름이 프로젝트 건강 기록이 됩니다", "success");
+      toast("보고를 저장했습니다. 신호등 흐름이 프로젝트 건강 기록이 됩니다", "success");
     }
     qc.invalidateQueries({ queryKey: ["pjv3-reports", dealId] });
   };
@@ -1333,7 +1337,7 @@ export function TableV3() {
     toast("보고를 지웠습니다", "success");
   };
 
-  // ── 팝(팔레트·담당·선택지·컬럼 추가) — 화면에 하나만 ──
+  // ── 팝(팔레트·담당·선택지·컬럼 추가). 화면에 하나만 ──
   const [pop, setPop] = useState<Pop | null>(null);
   useEffect(() => {
     if (!pop) return;
@@ -1376,7 +1380,7 @@ export function TableV3() {
     return () => document.removeEventListener("keydown", esc);
   }, [drawerId, pop]);
 
-  // ── 셀 인라인 편집(글·숫자·날짜) — 누르면 그 자리가 입력칸 ──
+  // ── 셀 인라인 편집(글·숫자·날짜). 누르면 그 자리가 입력칸 ──
   const [edit, setEdit] = useState<{ itemId: string; colKey: string } | null>(null);
   const editRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => { editRef.current?.focus(); editRef.current?.select(); }, [edit]);
@@ -1478,7 +1482,7 @@ export function TableV3() {
             <span className={`pjv3-kind ${KIND_CHIP[it.kind]?.cls || ""}`}>{KIND_CHIP[it.kind]?.label}</span>
           )}
           {featOn("recur") && (it as any).recurrence?.freq && (
-            <span className="pjv3-rowbadge" title={`반복 — ${(it as any).recurrence.freq === "daily" ? "매일" : (it as any).recurrence.freq === "monthly" ? "매월" : "매주"}. 완료로 옮기면 다음 줄이 생깁니다`}>🔁</span>
+            <span className="pjv3-rowbadge" title={`반복 · ${(it as any).recurrence.freq === "daily" ? "매일" : (it as any).recurrence.freq === "monthly" ? "매월" : "매주"}. 완료로 옮기면 다음 줄이 생깁니다`}>🔁</span>
           )}
           {featOn("deps") && (it as any).after_id && (() => {
             const af = items.find((x) => x.id === (it as any).after_id);
@@ -1494,11 +1498,11 @@ export function TableV3() {
             const hasQ = !!(it.fields as Record<string, unknown>)?.[QUOTE_KEY];
             return (
               <button type="button" className={`pjv3-money-badge ${hasC ? "c" : hasQ ? "q" : ""}`}
-                title={hasC ? "계약까지 진행됨 — 돈 구역 열기" : hasQ ? "견적 있음 — 돈 구역 열기" : "이 줄로 견적부터 청구까지 — 돈 구역 열기"}
+                title={hasC ? "계약까지 진행됨. 돈 구역 열기" : hasQ ? "견적 있음. 돈 구역 열기" : "이 줄로 견적부터 청구까지 · 돈 구역 열기"}
                 onClick={() => setDrawerId(it.id)}>₩</button>
             );
           })()}
-          <button type="button" className="pjv3-open" title="이 줄 열기 — 체크리스트·기록·팔로워"
+          <button type="button" className="pjv3-open" title="이 줄 열기 · 체크리스트·기록·팔로워"
             onClick={() => setDrawerId(it.id)}>열기</button>
         </span>
       </td>
@@ -1523,7 +1527,7 @@ export function TableV3() {
           const editing = edit?.itemId === it.id && edit?.colKey === "plan_amount";
           if (roll != null && !editing) {
             return <td key={ac.key} className="pjv3-ecell mono-number">
-              <span className="pjv3-cell pjv3-rollcell" title={`자기 ${(Number(it.plan_amount) || 0).toLocaleString("ko-KR")} + 하위 ${kids.length}건 합 — 누르면 자기 값 수정`}
+              <span className="pjv3-cell pjv3-rollcell" title={`자기 ${(Number(it.plan_amount) || 0).toLocaleString("ko-KR")} + 하위 ${kids.length}건 합 · 누르면 자기 값 수정`}
                 onClick={() => setEdit({ itemId: it.id, colKey: "plan_amount" })}>총 {roll.toLocaleString("ko-KR")}</span></td>;
           }
           return <td key={ac.key} className="pjv3-ecell mono-number">
@@ -1543,7 +1547,7 @@ export function TableV3() {
           const n = Math.max(0, Math.min(5, Number(raw) || 0));
           return <td key={ac.key} className="pjv3-ratecell">
             {[1, 2, 3, 4, 5].map((k) => (
-              <span key={k} className={k <= n ? "on" : ""} title={`${k}점${k === n ? " — 다시 누르면 지움" : ""}`}
+              <span key={k} className={k <= n ? "on" : ""} title={`${k}점${k === n ? " · 다시 누르면 지움" : ""}`}
                 onClick={() => saveField(it, c.key, k === n ? null : k)}>★</span>
             ))}</td>;
         }
@@ -1575,7 +1579,7 @@ export function TableV3() {
         if (c.type === "formula") {
           const r = fxEval(it, c);
           return <td key={ac.key} className="pjv3-ecell mono-number">
-            <span className="pjv3-cell" title={r.error || `수식: ${String((c.settings as { expr?: string } | null)?.expr || "")} — 누르면 고치기`}
+            <span className="pjv3-cell" title={r.error || `수식: ${String((c.settings as { expr?: string } | null)?.expr || "")} · 누르면 고치기`}
               onClick={(e) => setPop({ kind: "formula", colKey: c.key, ...at(e) })}>
               {r.error ? <span className="text-[var(--danger)]">⚠ 수식 확인</span> : r.value == null ? "—" : r.value.toLocaleString("ko-KR")}
             </span></td>;
@@ -1627,7 +1631,7 @@ export function TableV3() {
           const rEditing = edit?.itemId === it.id && edit?.colKey === c.key;
           if (roll != null && !rEditing) {
             return <td key={c.id} className="pjv3-ecell mono-number">
-              <span className="pjv3-cell pjv3-rollcell" title={`하위 ${kids.length}건 합 포함 — 누르면 자기 값 수정`}
+              <span className="pjv3-cell pjv3-rollcell" title={`하위 ${kids.length}건 합 포함. 누르면 자기 값 수정`}
                 onClick={() => setEdit({ itemId: it.id, colKey: c.key })}>총 {roll.toLocaleString("ko-KR")}</span></td>;
           }
         }
@@ -1636,9 +1640,9 @@ export function TableV3() {
       })}
       <td className="pjv3-rowdel">
         <button type="button" className={`pjv3-del ${delArm === `item:${it.id}` ? "arm" : ""}`}
-          title={kids.length > 0 ? `이 줄 지우기 — 하위 ${kids.length}개도 같이 지워집니다` : "이 줄 지우기"}
+          title={kids.length > 0 ? `이 줄 지우기 · 하위 ${kids.length}개도 같이 지워집니다` : "이 줄 지우기"}
           onClick={() => armOrRun(`item:${it.id}`, () => deleteItem(it.id))}>
-          {delArm === `item:${it.id}` ? (kids.length > 0 ? `하위 ${kids.length}개도 같이 — 한 번 더` : "한 번 더") : "✕"}
+          {delArm === `item:${it.id}` ? (kids.length > 0 ? `하위 ${kids.length}개도 같이 · 한 번 더` : "한 번 더") : "✕"}
         </button>
       </td>
     </tr>
@@ -1647,7 +1651,7 @@ export function TableV3() {
   const subAddRow = (parent: ItemRow) => (
     <tr key={`sub-${parent.id}`} className="pjv3-sub pjv3-subadd">
       <td colSpan={totalCols}>
-        <input placeholder="＋ 하위 작업 적고 Enter — 담당·선택 값은 부모를 복사해 시작합니다"
+        <input placeholder="＋ 하위 작업 적고 Enter · 담당·선택 값은 부모를 복사해 시작합니다"
           onKeyDown={(e) => {
             const v = (e.target as HTMLInputElement).value;
             if (e.key === "Enter" && !e.nativeEvent.isComposing && v.trim()) {
@@ -1665,7 +1669,7 @@ export function TableV3() {
       <div className="pjv3-head">
         <h1>{deal.name}</h1>
         {period && <span className="pjv3-head-sub mono-number">{period}</span>}
-        <span className="pjv3-head-sub">표가 곧 입력입니다 — 다른 보기는 ＋ 보기로 켭니다</span>
+        <span className="pjv3-head-sub">표가 곧 입력입니다. 다른 보기는 ＋ 보기로 켭니다</span>
         <button type="button" className="btn-secondary btn-sm ml-auto" title="업무에 맞는 시작 양식을 예시로 보고 채웁니다"
           onClick={() => { pickCat(TPL_CATEGORIES[0]); setTplOpen(true); }}>템플릿</button>
       </div>
@@ -1686,9 +1690,9 @@ export function TableV3() {
       </div>
 
       <div className="pjv3-toolbar">
-        <span className="pjv3-search">🔍<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름 · 담당 · 칸에 든 글자 — 검색" aria-label="검색" /></span>
+        <span className="pjv3-search">🔍<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름 · 담당 · 칸에 든 글자 · 검색" aria-label="검색" /></span>
         {statFilter && (
-          <button type="button" className="pjv3-statchip" title="현황에서 걸린 조건 — 눌러서 해제"
+          <button type="button" className="pjv3-statchip" title="현황에서 걸린 조건 · 눌러서 해제"
             onClick={() => setStatFilter(null)}>{statFilter.label} ✕</button>
         )}
         <button type="button" className="btn-secondary btn-sm" onClick={(e) => setPop({ kind: "excel", ...at(e) })}>엑셀 ▾</button>
@@ -1706,7 +1710,7 @@ export function TableV3() {
           <div className="pjv3-sttabs">
             <button type="button" className={statTab === "charts" ? "on" : ""} onClick={() => setStatTab("charts")}>그림</button>
             <button type="button" className={statTab === "pivot" ? "on" : ""} onClick={() => setStatTab("pivot")}>집계표</button>
-            <span className="hint">숫자·막대·칸을 누르면 표에서 그 줄들만 보입니다 — 하위는 부모 기준</span>
+            <span className="hint">숫자·막대·칸을 누르면 표에서 그 줄들만 보입니다. 하위는 부모 기준</span>
           </div>
           <div className="pjv3-strow">
             <button type="button" className="pjv3-stcard" onClick={() => { setStatFilter(null); setCurView("table"); }}>
@@ -1750,10 +1754,10 @@ export function TableV3() {
                     </button>
                   );
                 })}
-                {statusData.etcN > 0 && <div className="pjv3-stempty">단계 밖 {statusData.etcN}건 — 그룹을 지웠던 줄</div>}
+                {statusData.etcN > 0 && <div className="pjv3-stempty">단계 밖 {statusData.etcN}건 · 그룹을 지웠던 줄</div>}
               </div>
               <div className="pjv3-stpanel">
-                <h3>담당별 <small>남은 일·끝낸 일 — 대표 담당 기준</small></h3>
+                <h3>담당별 <small>남은 일·끝낸 일 · 대표 담당 기준</small></h3>
                 {statusData.byAssignee.map((a) => {
                   const max = Math.max(1, ...statusData.byAssignee.map((x) => x.open + x.done));
                   return (
@@ -1771,7 +1775,7 @@ export function TableV3() {
                 <div className="pjv3-stlegend"><i style={{ background: "var(--primary)" }} />남은 일 <i style={{ background: "#00C875" }} />끝낸 일</div>
               </div>
               <div className="pjv3-stpanel">
-                <h3>남은 일 그래프 <small>주마다 끝낸 건(막대)·남은 건(빨간 선) — 끝낸 주는 마지막 손댄 날 기준</small></h3>
+                <h3>남은 일 그래프 <small>주마다 끝낸 건(막대)·남은 건(빨간 선). 끝낸 주는 마지막 손댄 날 기준</small></h3>
                 <div className="pjv3-stflow">
                   <svg className="rline" viewBox="0 0 100 84" preserveAspectRatio="none">
                     <polyline points={statusData.flow.map((f, i) => {
@@ -1791,7 +1795,7 @@ export function TableV3() {
                     );
                   })}
                 </div>
-                <div className="pjv3-stlegend"><i style={{ background: "#00C875" }} />끝낸 건 <i style={{ background: "#E2445C" }} />남은 건(지금 {statusData.parents.length - statusData.done.length}) — 선이 안 내려가면 일이 안 줄고 있는 것</div>
+                <div className="pjv3-stlegend"><i style={{ background: "#00C875" }} />끝낸 건 <i style={{ background: "#E2445C" }} />남은 건(지금 {statusData.parents.length - statusData.done.length}). 선이 안 내려가면 일이 안 줄고 있는 것</div>
               </div>
               <div className="pjv3-stpanel">
                 {featOn("billing") && (<>
@@ -1804,7 +1808,7 @@ export function TableV3() {
                       <span className="t">계약</span><b className="n num">{statusData.contractN}건</b></button>
                   </div>
                 </>)}
-                <h3 style={{ marginTop: featOn("billing") ? 14 : 0 }}>다음 마감 <small>가까운 순 — 누르면 그 줄 서랍</small></h3>
+                <h3 style={{ marginTop: featOn("billing") ? 14 : 0 }}>다음 마감 <small>가까운 순 · 누르면 그 줄 서랍</small></h3>
                 {statusData.nextDue.length === 0 && <div className="pjv3-stempty">마감일 있는 줄이 없습니다</div>}
                 {statusData.nextDue.map((it) => (
                   <button key={it.id} type="button" className="pjv3-stdue" onClick={() => setDrawerId(it.id)}>
@@ -1862,7 +1866,7 @@ export function TableV3() {
                   </tbody>
                 </table>
               </div>
-              <p className="pjv3-stnote">칸을 누르면 표 보기로 가서 그 두 조건이 걸립니다 — 숫자가 어디서 왔는지 되짚을 수 있게 · 축 = 그룹·담당·거래처·선택형 커스텀 컬럼</p>
+              <p className="pjv3-stnote">칸을 누르면 표 보기로 가서 그 두 조건이 걸립니다. 숫자가 어디서 왔는지 되짚을 수 있게 · 축 = 그룹·담당·거래처·선택형 커스텀 컬럼</p>
             </div>
           )}
         </div>
@@ -1889,7 +1893,7 @@ export function TableV3() {
                   const left = gantt.pctOf(from);
                   const width = Math.max(gantt.pctOf(to) - left + gantt.dayW, gantt.dayW);
                   return (
-                    <div key={it.id} className="pjv3-gr" role="button" tabIndex={0} title="누르면 서랍 — 시작일·마감도 거기서"
+                    <div key={it.id} className="pjv3-gr" role="button" tabIndex={0} title="누르면 서랍 · 시작일·마감도 거기서"
                       onClick={() => setDrawerId(it.id)}>
                       <div className="pjv3-gname">{it.name}</div>
                       <div className="pjv3-glane">
@@ -1902,8 +1906,8 @@ export function TableV3() {
               </div>
             );
           })}
-          {gantt.dated.length === 0 && <div className="collect-empty">날짜가 있는 항목이 없습니다 — 서랍이나 마감 셀에서 날짜를 채우면 막대가 나타납니다</div>}
-          {gantt.undatedCount > 0 && <div className="pjv3-tpl-mine">시작일·마감일이 없는 항목 {gantt.undatedCount}개는 간트에 안 보입니다 — 서랍에서 날짜를 채우면 나타납니다</div>}
+          {gantt.dated.length === 0 && <div className="collect-empty">날짜가 있는 항목이 없습니다. 서랍이나 마감 셀에서 날짜를 채우면 막대가 나타납니다</div>}
+          {gantt.undatedCount > 0 && <div className="pjv3-tpl-mine">시작일·마감일이 없는 항목 {gantt.undatedCount}개는 간트에 안 보입니다. 서랍에서 날짜를 채우면 나타납니다</div>}
         </div>
       ) : curView === "calendar" ? (
         <div className="pjv3-calwrap">
@@ -1912,7 +1916,7 @@ export function TableV3() {
             <b className="num">{calCells.y}년 {calCells.m + 1}월</b>
             <button type="button" onClick={() => setCalMonth((m) => m + 1)}>▶</button>
             {calMonth !== 0 && <button type="button" className="pjv3-addview" onClick={() => setCalMonth(0)}>이번 달</button>}
-            <span className="pjv3-head-sub">마감일 기준 — 칩을 누르면 서랍, 날짜의 ＋로 그 날짜 마감 항목 추가</span>
+            <span className="pjv3-head-sub">마감일 기준 · 칩을 누르면 서랍, 날짜의 ＋로 그 날짜 마감 항목 추가</span>
           </div>
           <div className="pjv3-calgrid">
             {["일", "월", "화", "수", "목", "금", "토"].map((d) => <div key={d} className="pjv3-caldow">{d}</div>)}
@@ -1927,7 +1931,7 @@ export function TableV3() {
                   {dayItems.map((it) => (
                     <button key={it.id} type="button" className="pjv3-calchip"
                       style={{ background: STAGE_HEX[stages.find((s) => s.id === it.status)?.color || "gray"] }}
-                      title={`${it.name} — 누르면 서랍`} onClick={() => setDrawerId(it.id)}>{it.name}</button>
+                      title={`${it.name} · 누르면 서랍`} onClick={() => setDrawerId(it.id)}>{it.name}</button>
                   ))}
                 </div>
               );
@@ -1950,7 +1954,7 @@ export function TableV3() {
                       const late = it.due_date && it.status !== stages[stages.length - 1]?.id && it.due_date < new Date().toISOString().slice(0, 10);
                       return (
                         <div key={it.id} className="pjv3-kc" draggable role="button" tabIndex={0}
-                          title="누르면 서랍 — 체크리스트·기록·팔로워" onClick={() => setDrawerId(it.id)}
+                          title="누르면 서랍 · 체크리스트·기록·팔로워" onClick={() => setDrawerId(it.id)}
                           onDragStart={() => { dragIdRef.current = it.id; }} onDragEnd={() => { dragIdRef.current = null; setDragOverStage(null); }}>
                           <div className="tt">{it.name}</div>
                           {(assigneesOf(it).length > 0 || it.due_date || it.plan_amount != null) && (
@@ -1982,7 +1986,7 @@ export function TableV3() {
                 <div className="pjv3-kcards">
                   {byStage.etc.map((it) => (
                     <div key={it.id} className="pjv3-kc" draggable role="button" tabIndex={0}
-                          title="누르면 서랍 — 체크리스트·기록·팔로워" onClick={() => setDrawerId(it.id)}
+                          title="누르면 서랍 · 체크리스트·기록·팔로워" onClick={() => setDrawerId(it.id)}
                       onDragStart={() => { dragIdRef.current = it.id; }} onDragEnd={() => { dragIdRef.current = null; setDragOverStage(null); }}>
                       <div className="tt">{it.name}</div>
                     </div>
@@ -2000,7 +2004,7 @@ export function TableV3() {
             {allCols.map((ac) => (
               <th key={ac.key} style={{ minWidth: ac.minW }}
                 className={colDropAt === ac.key ? "pjv3-coldrop" : ""}
-                title={ac.title || `${ac.label}${ac.col ? ` (${FIELD_TYPES.find((t) => t.id === ac.col!.type)?.label || ac.col!.type})` : ""} — 눌러서 이름, 끌어서 순서`}
+                title={ac.title || `${ac.label}${ac.col ? ` (${FIELD_TYPES.find((t) => t.id === ac.col!.type)?.label || ac.col!.type})` : ""} · 눌러서 이름, 끌어서 순서`}
                 draggable={colEdit !== ac.key}
                 onDragStart={(e) => { colDragRef.current = ac.key; e.dataTransfer.setData("text/plain", ac.key); }}
                 onDragEnd={() => { colDragRef.current = null; setColDropAt(null); }}
@@ -2018,13 +2022,13 @@ export function TableV3() {
                   <span className="pjv3-colname" onClick={() => setColEdit(ac.key)}>{ac.label}</span>
                 )}
                 <button type="button" className={`pjv3-del ${delArm === `col:${ac.key}` ? "arm" : ""}`}
-                  title={ac.builtin ? "이 열 숨기기 — 오른쪽 ＋에서 되살립니다" : "이 컬럼 지우기 — 칸에 적은 값은 남습니다"}
+                  title={ac.builtin ? "이 열 숨기기 · 오른쪽 ＋에서 되살립니다" : "이 컬럼 지우기 · 칸에 적은 값은 남습니다"}
                   onClick={() => armOrRun(`col:${ac.key}`, () => (ac.builtin ? hideBuiltin(ac.builtin!) : deleteColumn(ac.col!)))}>
                   {delArm === `col:${ac.key}` ? "한 번 더" : "✕"}
                 </button>
               </th>
             ))}
-            <th className="pjv3-colplus" title="컬럼 추가 — 글·숫자·날짜·선택·사람·거래처 · 숨긴 열 되살리기"
+            <th className="pjv3-colplus" title="컬럼 추가 · 글·숫자·날짜·선택·사람·거래처 · 숨긴 열 되살리기"
               onClick={(e) => setPop({ kind: "addcol", ...at(e as unknown as React.MouseEvent) })}>＋</th>
           </tr></thead>
           <tbody>
@@ -2051,17 +2055,17 @@ export function TableV3() {
                     <em className="num">{group.length}</em>
                     {isLast && group.length > 0 && (
                       <button type="button" className={`pjv3-garch ${delArm === `arch:${s.id}` ? "arm" : ""}`}
-                        title="이 그룹의 줄을 보관함으로 치웁니다 — 언제든 되살릴 수 있습니다"
+                        title="이 그룹의 줄을 보관함으로 치웁니다. 언제든 되살릴 수 있습니다"
                         onClick={(e) => { e.stopPropagation(); armOrRun(`arch:${s.id}`, () => archiveGroup(s.id)); }}>
-                        {delArm === `arch:${s.id}` ? `${group.length}건 보관 — 한 번 더` : "보관"}
+                        {delArm === `arch:${s.id}` ? `${group.length}건 보관 · 한 번 더` : "보관"}
                       </button>
                     )}
                     {stages.length > 1 && (
                       <button type="button"
                         className={`pjv3-del ${delArm === `stage:${s.id}` ? "arm" : ""}`}
-                        title={group.length > 0 ? "이 그룹 지우기 — 항목은 맨 위 그룹으로 옮겨집니다" : "이 그룹 지우기"}
+                        title={group.length > 0 ? "이 그룹 지우기 · 항목은 맨 위 그룹으로 옮겨집니다" : "이 그룹 지우기"}
                         onClick={(e) => { e.stopPropagation(); armOrRun(`stage:${s.id}`, () => deleteStage(s.id)); }}>
-                        {delArm === `stage:${s.id}` ? (group.length > 0 ? `${group.length}개 옮기고 지우기 — 한 번 더` : "한 번 더") : "✕"}
+                        {delArm === `stage:${s.id}` ? (group.length > 0 ? `${group.length}개 옮기고 지우기 · 한 번 더` : "한 번 더") : "✕"}
                       </button>
                     )}
                   </td>
@@ -2077,7 +2081,7 @@ export function TableV3() {
                   onDragLeave={() => setRowDropAt((cur) => (cur === `end:${s.id}` ? null : cur))}
                   onDrop={() => moveRow(`end:${s.id}`)}>
                   <td colSpan={totalCols}>
-                    <input placeholder={`＋ ${s.label}에 적고 Enter — 담당·마감은 셀에서 바로`}
+                    <input placeholder={`＋ ${s.label}에 적고 Enter · 담당·마감은 셀에서 바로`}
                       onKeyDown={(e) => {
                         const v = (e.target as HTMLInputElement).value;
                         if (e.key === "Enter" && !e.nativeEvent.isComposing && v.trim()) {
@@ -2139,7 +2143,7 @@ export function TableV3() {
         {curView === "kanban"
           ? "카드를 끌어 다른 열에 놓으면 상태가 바뀝니다(표의 상태 셀과 같은 저장) · 카드를 누르면 서랍 · 열 아래 칸에 적고 Enter로 추가"
           : curView === "calendar"
-            ? "마감일이 있는 항목만 보입니다 — 칩을 누르면 서랍 · 날짜의 ＋로 그 날짜 마감 항목 추가"
+            ? "마감일이 있는 항목만 보입니다. 칩을 누르면 서랍 · 날짜의 ＋로 그 날짜 마감 항목 추가"
             : "셀은 눌러서 그 자리 수정 · 이름 칸 '열기'로 체크리스트·기록·팔로워 · ⋮⋮ 끌어 순서·그룹 이동 · 컬럼 머리단은 눌러 이름, 끌어 순서 · ✕는 한 번 더 눌러 지우기"}
       </p>
       </div>
@@ -2175,8 +2179,8 @@ export function TableV3() {
       {archOpen && (
         <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setArchOpen(false); }}>
           <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="보관함">
-            <h3 className="phv3-modal-title">보관함 — 되살리면 원래 그룹으로 돌아갑니다</h3>
-            {archived.length === 0 && <div className="pjv3-tpl-mine">보관된 줄이 없습니다 — 완료 그룹의 '보관'이나 줄 ✕로 치운 것이 여기 모입니다</div>}
+            <h3 className="phv3-modal-title">보관함<span className="ui-sub">되살리면 원래 그룹으로 돌아갑니다</span></h3>
+            {archived.length === 0 && <div className="pjv3-tpl-mine">보관된 줄이 없습니다. 완료 그룹의 '보관'이나 줄 ✕로 치운 것이 여기 모입니다</div>}
             {archived.map((a) => (
               <div key={a.id} className="pjv3-arch-row">
                 <span className="min-w-0 flex-1 truncate">{a.name}</span>
@@ -2193,7 +2197,7 @@ export function TableV3() {
       {repOpen && deal && (
         <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setRepOpen(false); }}>
           <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="상태 보고">
-            <h3 className="phv3-modal-title">상태 보고 — 아래 숫자는 표에서 자동으로 왔습니다</h3>
+            <h3 className="phv3-modal-title">상태 보고<span className="ui-sub">아래 숫자는 표에서 자동으로 왔습니다</span></h3>
             <div className="pjv3-sv-field"><label>보고 제목</label>
               <input type="text" value={repForm.title} onChange={(e) => setRepForm((f) => ({ ...f, title: e.target.value }))} /></div>
             <div className="pjv3-rep-card">
@@ -2204,7 +2208,7 @@ export function TableV3() {
               )}
               <div className="pjv3-rep-line"><span className="k">밀린 것</span>
                 {repDraft.late.length === 0 ? <span>없음</span>
-                  : <span className="late">{repDraft.late.map((l) => `${l.name} — ${l.due} 마감 (${l.who || "담당 없음"})`).join(" · ")}</span>}</div>
+                  : <span className="late">{repDraft.late.map((l) => `${l.name} · ${l.due} 마감 (${l.who || "담당 없음"})`).join(" · ")}</span>}</div>
               {repDraft.nextDue.length > 0 && (
                 <div className="pjv3-rep-line"><span className="k">다음 마감</span><span>{repDraft.nextDue.map((n) => `${n.due} ${n.name}`).join(" · ")}</span></div>
               )}
@@ -2212,7 +2216,7 @@ export function TableV3() {
                 <div className="pjv3-rep-line"><span className="k">돈</span><span>견적 {repDraft.quoteN}건 · 계약 {repDraft.contractN}건 · 금액 합 {repDraft.amount.toLocaleString("ko-KR")}원</span></div>
               )}
             </div>
-            <div className="pjv3-sv-field"><label>신호등 — 내가 고릅니다(자동 판정 없음)</label>
+            <div className="pjv3-sv-field"><label>신호등<span className="ui-sub">내가 고릅니다(자동 판정 없음)</span></label>
               <div className="pjv3-rep-lights">
                 {(["blue", "orange", "red"] as const).map((s) => (
                   <button key={s} type="button" className={`pjv3-rep-light ${s} ${repForm.signal === s ? "on" : ""}`}
@@ -2223,7 +2227,7 @@ export function TableV3() {
               <input type="text" value={repForm.comment} placeholder="예: 한빛상사 건은 고객 피드백 대기, 금주 재개 예정"
                 onChange={(e) => setRepForm((f) => ({ ...f, comment: e.target.value }))} /></div>
             {reports.length > 0 && (
-              <div className="pjv3-sv-field"><label>지난 보고 — 신호등 흐름이 곧 프로젝트 건강 기록</label>
+              <div className="pjv3-sv-field"><label>지난 보고<span className="ui-sub">신호등 흐름이 곧 프로젝트 건강 기록</span></label>
                 {reports.map((r) => (
                   <div key={r.id} className="pjv3-rep-old">
                     <span>{SIGNAL_UI[r.signal]?.icon}</span>
@@ -2249,20 +2253,20 @@ export function TableV3() {
       {svOpen && deal && (
         <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setSvOpen(false); }}>
           <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="설문 보내기">
-            <h3 className="phv3-modal-title">설문 보내기 — 응답 1건이 표의 줄 1개가 됩니다</h3>
+            <h3 className="phv3-modal-title">설문 보내기<span className="ui-sub">응답 1건이 표의 줄 1개가 됩니다</span></h3>
             <div className="pjv3-sv-field"><label>설문 제목(외부에 보임)</label>
               <input type="text" value={svForm.title} onChange={(e) => setSvForm((f) => ({ ...f, title: e.target.value }))} /></div>
-            <div className="pjv3-sv-field"><label>안내문 — 길게 써도 됩니다(문단·줄바꿈 그대로 보임)</label>
+            <div className="pjv3-sv-field"><label>안내문<span className="ui-sub">길게 써도 됩니다(문단·줄바꿈 그대로 보임)</span></label>
               <textarea rows={5} value={svForm.intro} onChange={(e) => setSvForm((f) => ({ ...f, intro: e.target.value }))}
                 placeholder={"안녕하세요, ○○입니다.\n설문 취지·경품·개인정보 안내·마감일을 자유롭게 적으세요."} /></div>
-            <div className="pjv3-sv-field"><label>배너 이미지 — 맨 위에 크게(가로형 권장)</label>
+            <div className="pjv3-sv-field"><label>배너 이미지<span className="ui-sub">맨 위에 크게(가로형 권장)</span></label>
               <div className="flex items-center gap-2">
                 {svForm.banner ? <span className="text-[11px] text-[var(--text-dim)]">배너 1장 올라감</span> : <span className="text-[11px] text-[var(--text-dim)]">없음</span>}
                 {svForm.banner && <button type="button" className="pjv3-del !opacity-100" onClick={() => setSvForm((f) => ({ ...f, banner: null }))}>✕</button>}
                 <label className="btn-secondary btn-sm ml-auto cursor-pointer">올리기
                   <input type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSurveyImg(f, "banner"); e.target.value = ""; }} /></label>
               </div></div>
-            <div className="pjv3-sv-field"><label>안내문 아래 이미지 — 메뉴판·약도·포스터 등 여러 장</label>
+            <div className="pjv3-sv-field"><label>안내문 아래 이미지<span className="ui-sub">메뉴판·약도·포스터 등 여러 장</span></label>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-[var(--text-dim)]">{svForm.images.length}장</span>
                 {svForm.images.length > 0 && <button type="button" className="pjv3-del !opacity-100" title="마지막 장 빼기"
@@ -2272,8 +2276,8 @@ export function TableV3() {
               </div></div>
             <div className="pjv3-sv-field"><label>이름 칸을 뭐라고 물을까요(항상 필수)</label>
               <input type="text" value={svForm.nameLabel} onChange={(e) => setSvForm((f) => ({ ...f, nameLabel: e.target.value }))} /></div>
-            <div className="pjv3-sv-field"><label>질문으로 내보낼 컬럼 — 배지를 눌러 필수/선택</label>
-              {svCols.length === 0 && <div className="pjv3-tpl-mine">내보낼 수 있는 컬럼이 없습니다 — 글·선택·평점 같은 컬럼을 먼저 만드세요(담당·수식·첨부는 설문에 못 나갑니다)</div>}
+            <div className="pjv3-sv-field"><label>질문으로 내보낼 컬럼<span className="ui-sub">배지를 눌러 필수/선택</span></label>
+              {svCols.length === 0 && <div className="pjv3-tpl-mine">내보낼 수 있는 컬럼이 없습니다. 글·선택·평점 같은 컬럼을 먼저 만드세요(담당·수식·첨부는 설문에 못 나갑니다)</div>}
               {svCols.map((c) => {
                 const st = svForm.q[c.key] || { on: false, required: false };
                 return (
@@ -2296,7 +2300,7 @@ export function TableV3() {
               <select value={svForm.stage} onChange={(e) => setSvForm((f) => ({ ...f, stage: e.target.value }))}>
                 {stages.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
               </select></div>
-            <div className="pjv3-sv-field"><label>받는 조건 — 비워 두면 제한 없음</label>
+            <div className="pjv3-sv-field"><label>받는 조건<span className="ui-sub">비워 두면 제한 없음</span></label>
               <div className="pjv3-sv-limits">
                 <span>마감일</span>
                 <input type="date" value={svForm.closesAt} aria-label="마감일"
@@ -2310,21 +2314,21 @@ export function TableV3() {
                 </label>
               </div>
               {svForm.preventDup && (
-                <p className="pjv3-sv-hint">같은 기기·같은 인터넷망의 재제출을 막습니다 — 한 사무실(같은 와이파이)의 여러 명이 한 사람으로 잡힐 수 있으니 행사 신청처럼 여럿이 함께 내는 설문에는 끄세요.</p>
+                <p className="pjv3-sv-hint">같은 기기·같은 인터넷망의 재제출을 막습니다. 한 사무실(같은 와이파이)의 여러 명이 한 사람으로 잡힐 수 있으니 행사 신청처럼 여럿이 함께 내는 설문에는 끄세요.</p>
               )}</div>
             {survey?.token && (
               <div className="pjv3-sv-link">
                 <code>{surveyUrl}</code>
                 <button type="button" className="btn-secondary btn-sm" disabled={!survey.enabled}
-                  title={survey.enabled ? "외부인이 보는 화면 그대로 새 탭에" : "설문을 켠 뒤 미리보기 — 꺼진 링크는 밖에서 마감으로 보입니다"}
+                  title={survey.enabled ? "외부인이 보는 화면 그대로 새 탭에" : "설문을 켠 뒤 미리보기 · 꺼진 링크는 밖에서 마감으로 보입니다"}
                   onClick={() => window.open(surveyUrl, "_blank")}>미리보기</button>
-                <button type="button" className="btn-secondary btn-sm" onClick={() => { navigator.clipboard.writeText(surveyUrl); toast("링크를 복사했습니다 — 문자·카톡 어디든 붙여넣으세요", "success"); }}>복사</button>
+                <button type="button" className="btn-secondary btn-sm" onClick={() => { navigator.clipboard.writeText(surveyUrl); toast("링크를 복사했습니다. 문자·카톡 어디든 붙여넣으세요", "success"); }}>복사</button>
               </div>
             )}
             {svResponses.length > 0 && (
               <div className="pjv3-sv-link">
                 <span className="num text-[11px] text-[var(--text-dim)]">지금까지 응답 {svResponses.length}건</span>
-                <button type="button" className="btn-secondary btn-sm ml-auto" title="응답 줄만 — 응답자·제출일·질문 컬럼"
+                <button type="button" className="btn-secondary btn-sm ml-auto" title="응답 줄만 · 응답자·제출일·질문 컬럼"
                   onClick={exportSvResponses}>응답만 엑셀로</button>
               </div>
             )}
@@ -2338,16 +2342,16 @@ export function TableV3() {
             )}
             <p className="phv3-modal-desc !mt-2">
               {survey?.enabled
-                ? <>지금 <b>켜져 있습니다</b> — 응답 {survey.response_count}건. 끄면 링크가 즉시 죽습니다.</>
-                : "링크 하나를 몇 명에게든 보내도 됩니다 — 응답자마다 줄 하나씩 쌓입니다."}
+                ? <>지금 <b>켜져 있습니다</b> · 응답  {survey.response_count}건. 끄면 링크가 즉시 죽습니다.</>
+                : "링크 하나를 몇 명에게든 보내도 됩니다. 응답자마다 줄 하나씩 쌓입니다."}
             </p>
             <div className="phv3-modal-actions">
               <button type="button" className="btn-secondary btn-sm" onClick={() => setSvOpen(false)}>닫기</button>
               {survey?.enabled && (
-                <button type="button" className="btn-secondary btn-sm" onClick={async () => { if (await saveSurvey(false)) toast("설문을 껐습니다 — 링크가 무효가 됐습니다", "success"); }}>끄기</button>
+                <button type="button" className="btn-secondary btn-sm" onClick={async () => { if (await saveSurvey(false)) toast("설문을 껐습니다. 링크가 무효가 됐습니다", "success"); }}>끄기</button>
               )}
               <button type="button" className="btn-secondary btn-sm" onClick={async () => { if (await saveSurvey()) toast("저장했습니다", "success"); }}>저장만</button>
-              <button type="button" className="btn-primary btn-sm" onClick={async () => { if (await saveSurvey(true)) toast("설문이 켜졌습니다 — 링크를 복사해 보내세요", "success"); }}>설문 켜기</button>
+              <button type="button" className="btn-primary btn-sm" onClick={async () => { if (await saveSurvey(true)) toast("설문이 켜졌습니다. 링크를 복사해 보내세요", "success"); }}>설문 켜기</button>
             </div>
           </div>
         </div>
@@ -2356,7 +2360,7 @@ export function TableV3() {
       {/* ── 엑셀 올리기 — 재고 공용 다이얼로그: 양식 다운 → 채워 올리면 미리 보고 '등록'으로 확정 ── */}
       {excelUp && deal && (
         <ExcelUploadDialog<XRow>
-          title={`${deal.name} — 엑셀로 줄 올리기`}
+          title={`${deal.name} · 엑셀로 줄 올리기`}
           desc="양식을 받아 채운 뒤 올리면 먼저 읽어 보여주고, 등록을 눌러야 저장됩니다."
           cols={excelCols} templateName={`${deal.name}_표양식`} sheetName="표"
           guide={["그룹·담당·선택 칸은 화면에 보이는 이름 그대로 적습니다."]}
@@ -2387,7 +2391,7 @@ export function TableV3() {
                 <button type="button" className="pjv3-prop" title={assigneesOf(drawerItem).map(userName).filter(Boolean).join(", ")}
                   onClick={(e) => setPop({ kind: "person", itemId: drawerItem.id, ...at(e) })}>
                   담당 · {assigneeLabel(drawerItem) || "없음"}</button>
-                <input type="date" className="pjv3-prop" aria-label="시작일" title="시작일 — 간트 막대의 왼쪽 끝"
+                <input type="date" className="pjv3-prop" aria-label="시작일" title="시작일 · 간트 막대의 왼쪽 끝"
                   value={((drawerItem as any).start_date as string) || ""}
                   onChange={(e) => saveItem(drawerItem.id, { start_date: e.target.value || null })} />
                 <input type="date" className="pjv3-prop" aria-label="마감" title="마감일" value={drawerItem.due_date || ""}
@@ -2430,11 +2434,11 @@ export function TableV3() {
                 const qDoc = (dealDocs as any[]).find((d) => d.id === q?.id) || null;
                 const cDoc = (dealDocs as any[]).find((d) => d.id === c?.id) || null;
                 return (<>
-                  <h4>돈 — 이 줄로 견적부터 청구까지 (만든 문서는 견적·전자계약 메뉴에도 똑같이)</h4>
+                  <h4>돈<span className="ui-sub">이 줄로 견적부터 청구까지 (만든 문서는 견적·전자계약 메뉴에도 똑같이)</span></h4>
                   <div className="pjv3-moneycard">
                     {!q && (
                       <button type="button" className="btn-primary btn-sm w-full"
-                        title="줄의 거래처·하위 작업(품목·금액)이 미리 채워진 견적 팝업이 열립니다 — 미리보기 포함"
+                        title="줄의 거래처·하위 작업(품목·금액)이 미리 채워진 견적 팝업이 열립니다. 미리보기 포함"
                         onClick={() => openQuoteModal(drawerItem)}>💰 견적서 만들기</button>
                     )}
                     {q && (
@@ -2479,7 +2483,7 @@ export function TableV3() {
                   if (e.key === "Enter" && !e.nativeEvent.isComposing && v.trim()) { addCheck(v.trim()); (e.target as HTMLInputElement).value = ""; }
                 }} />
 
-              <h4>팔로워 — 이 줄의 변화를 같이 보는 사람</h4>
+              <h4>팔로워<span className="ui-sub">이 줄의 변화를 같이 보는 사람</span></h4>
               <div className="pjv3-followers">
                 {(((drawerItem as any).followers || []) as string[]).map((uid) => (
                   <span key={uid} className="pjv3-follower">{userName(uid) || "?"}
@@ -2488,9 +2492,9 @@ export function TableV3() {
                 <button type="button" className="pjv3-addview" onClick={(e) => setPop({ kind: "follower", itemId: drawerItem.id, ...at(e) })}>＋ 사람</button>
               </div>
 
-              <h4>기록 — 댓글과 변경이 시간순 한 줄기</h4>
+              <h4>기록<span className="ui-sub">댓글과 변경이 시간순 한 줄기</span></h4>
               <div className="pjv3-cmtwrap">
-                <input className="pjv3-drawer-add" placeholder="댓글 적고 Enter — @로 사람 부르기" value={cmt}
+                <input className="pjv3-drawer-add" placeholder="댓글 적고 Enter · @로 사람 부르기" value={cmt}
                   onChange={(e) => setCmt(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.nativeEvent.isComposing) {
@@ -2517,7 +2521,7 @@ export function TableV3() {
                     <time className="mono-number">{ev.created_at.slice(5, 16).replace("T", " ")}</time>
                   </div>
                 ))}
-                {events.length === 0 && <div className="pjv3-tpl-mine">아직 기록이 없습니다 — 첫 댓글을 남겨 보세요</div>}
+                {events.length === 0 && <div className="pjv3-tpl-mine">아직 기록이 없습니다. 첫 댓글을 남겨 보세요</div>}
               </div>
             </div>
           </div>
@@ -2528,10 +2532,11 @@ export function TableV3() {
       {tplOpen && (
         <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget) setTplOpen(false); }}>
           <div className="phv3-modal pjv3-tpl-modal" role="dialog" aria-modal="true" aria-label="템플릿">
-            <h3 className="phv3-modal-title">템플릿 — 업무에 맞는 가로 양식</h3>
+            <h3 className="phv3-modal-title">템플릿<span className="ui-sub">업무에 맞는 가로 양식</span></h3>
             <p className="phv3-modal-desc">
-              적용하면 <b>처리 단계가 열(가로)로 붙습니다</b> — 한 줄이 한 건이라, 줄만 훑으면 어디까지 갔는지 보입니다.
+              적용하면 <b>처리 단계가 열(가로)로 붙습니다</b> · 한 줄이 한 건이라, 줄만 훑으면 어디까지 갔는지 보입니다.
               열은 나중에 자유롭게 고치고 지워도 됩니다.
+            
             </p>
             <div className="pjv3-tpl-layout">
               {/* monday 템플릿 센터의 좌측 카테고리 — 맨 위는 '만든 사람: {회사}' 대응인 우리 회사 양식 */}
@@ -2548,7 +2553,7 @@ export function TableV3() {
               <div className="pjv3-tpl-list">
                 {tplCat === MY_TPL_CAT && (
                   <div className="pjv3-tpl-save">
-                    <input value={myTplName} onChange={(e) => setMyTplName(e.target.value)} placeholder="양식 이름 — 예: 우리 회사 수주 표"
+                    <input value={myTplName} onChange={(e) => setMyTplName(e.target.value)} placeholder="양식 이름 · 예: 우리 회사 수주 표"
                       onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) saveAsTemplate(); }} />
                     <button type="button" className="btn-secondary btn-sm" onClick={saveAsTemplate}
                       title="지금 표의 열·그룹 구성을 양식으로 저장합니다(내용은 저장 안 됨)">지금 표를 양식으로 저장</button>
@@ -2570,7 +2575,7 @@ export function TableV3() {
                   </div>
                 ))}
                 {tplCat === MY_TPL_CAT && myTpls.length === 0 && (
-                  <div className="pjv3-tpl-mine">아직 저장한 양식이 없습니다 — 열·그룹을 갖춘 표에서 위 버튼으로 저장하면 여기 쌓입니다</div>
+                  <div className="pjv3-tpl-mine">아직 저장한 양식이 없습니다. 열·그룹을 갖춘 표에서 위 버튼으로 저장하면 여기 쌓입니다</div>
                 )}
               </div>
               {tplSel && (
@@ -2621,7 +2626,7 @@ export function TableV3() {
       {pop && (
         <div className={`pjv3-pop ${(pop.kind === "select" && optEdit) || (pop.kind === "status" && stEdit) ? "pjv3-pop-wide" : ""} ${"up" in pop && pop.up ? "pjv3-pop-up" : ""}`} style={{ left: pop.x, top: pop.y }}>
           {pop.kind === "status" && !stEdit && (<>
-            <div className="pjv3-pop-title">상태 — 그룹·칸반 열이 같이 바뀝니다</div>
+            <div className="pjv3-pop-title">상태 · 그룹·칸반 열이 같이 바뀝니다</div>
             {stages.map((s) => (
               <button key={s.id} type="button" className="pjv3-pop-color" style={{ background: STAGE_HEX[s.color] }}
                 onClick={() => { saveItem(pop.itemId, { status: s.id }); setPop(null); }}>{s.label}</button>
@@ -2629,7 +2634,7 @@ export function TableV3() {
             <button type="button" className="pjv3-opt-manage" onClick={() => setStEdit(true)}>상태 고치기 — 이름·색·순서·추가·삭제</button>
           </>)}
           {pop.kind === "status" && stEdit && (<>
-            <div className="pjv3-pop-title">상태 고치기 (색은 점을 눌러 순환 — 표·칸반·간트가 같이 바뀝니다)</div>
+            <div className="pjv3-pop-title">상태 고치기 (색은 점을 눌러 순환 · 표·칸반·간트가 같이 바뀝니다)</div>
             {stages.map((s, i) => (
               <div key={s.id} className="pjv3-opt-row">
                 <span className="dot" style={{ background: STAGE_HEX[s.color] }} title="색 바꾸기"
@@ -2649,7 +2654,7 @@ export function TableV3() {
                   onClick={() => { const n = [...stages]; [n[i + 1], n[i]] = [n[i], n[i + 1]]; saveStages(n); }}>↓</button>
                 {stages.length > 1 && (
                   <button type="button" className={`pjv3-del ${delArm === `stage:${s.id}` ? "arm" : ""}`}
-                    title="지우기 — 이 상태의 항목은 맨 위 그룹으로 옮겨집니다"
+                    title="지우기 · 이 상태의 항목은 맨 위 그룹으로 옮겨집니다"
                     onClick={() => armOrRun(`stage:${s.id}`, () => deleteStage(s.id))}>
                     {delArm === `stage:${s.id}` ? "한 번 더" : "✕"}
                   </button>
@@ -2674,7 +2679,7 @@ export function TableV3() {
             const multi = !pop.colKey;
             const cur = multi && it ? assigneesOf(it) : [];
             return (<>
-              <div className="pjv3-pop-title">{multi ? "담당 — 눌러서 넣고 빼기(여러 명)" : "사람 — 이름으로 검색해 고릅니다"}</div>
+              <div className="pjv3-pop-title">{multi ? "담당 · 눌러서 넣고 빼기(여러 명)" : "사람 · 이름으로 검색해 고릅니다"}</div>
               <input placeholder="이름 검색" value={personQ} autoFocus aria-label="이름 검색"
                 onChange={(e) => setPersonQ(e.target.value)} />
               <button type="button" className="text-[var(--text-dim)]" onClick={() => {
@@ -2688,7 +2693,7 @@ export function TableV3() {
                   else if (it) toggleAssignee(it, u.id);
                 }}>{multi && cur.includes(u.id) ? "✓ " : ""}{u.name || u.email}</button>
               ))}
-              {hits.length > 12 && <div className="pjv3-pop-title">앞 12명만 — 검색으로 좁히세요</div>}
+              {hits.length > 12 && <div className="pjv3-pop-title">앞 12명만 · 검색으로 좁히세요</div>}
               {hits.length === 0 && <div className="pjv3-pop-title">일치하는 사람이 없습니다</div>}
             </>);
           })()}
@@ -2696,7 +2701,7 @@ export function TableV3() {
             const qStr = partnerQ.trim().toLowerCase();
             const hits = qStr ? partners.filter((pt) => pt.name.toLowerCase().includes(qStr)) : partners;
             return (<>
-              <div className="pjv3-pop-title">거래처 — 이름 일부로 검색해 고릅니다</div>
+              <div className="pjv3-pop-title">거래처 · 이름 일부로 검색해 고릅니다</div>
               <input placeholder="거래처 검색" value={partnerQ} autoFocus aria-label="거래처 검색"
                 onChange={(e) => setPartnerQ(e.target.value)} />
               <button type="button" className="text-[var(--text-dim)]" onClick={() => {
@@ -2707,8 +2712,8 @@ export function TableV3() {
                   const it = items.find((x) => x.id === pop.itemId); if (it) saveField(it, pop.colKey, pt.name); setPop(null);
                 }}>{pt.name}</button>
               ))}
-              {hits.length > 20 && <div className="pjv3-pop-title">앞 20개만 — 검색으로 좁히세요</div>}
-              {hits.length === 0 && <div className="pjv3-pop-title">{partners.length === 0 ? "등록된 거래처가 없습니다 — 재무 › 거래처에서 등록" : "일치하는 거래처가 없습니다"}</div>}
+              {hits.length > 20 && <div className="pjv3-pop-title">앞 20개만 · 검색으로 좁히세요</div>}
+              {hits.length === 0 && <div className="pjv3-pop-title">{partners.length === 0 ? "등록된 거래처가 없습니다. 재무 › 거래처에서 등록" : "일치하는 거래처가 없습니다"}</div>}
             </>);
           })()}
           {pop.kind === "select" && (() => {
@@ -2716,7 +2721,7 @@ export function TableV3() {
             if (!col) return null;
             const opts = col.settings?.options || [];
             if (optEdit) return (<>
-              <div className="pjv3-pop-title">{col.name} — 선택지 고치기 (색은 점을 눌러 순환)</div>
+              <div className="pjv3-pop-title">{col.name} · 선택지 고치기 (색은 점을 눌러 순환)</div>
               {opts.map((o, i) => (
                 <div key={o.id} className="pjv3-opt-row">
                   <span className="dot" style={{ background: o.color || OPTION_COLORS[0] }} title="색 바꾸기"
@@ -2735,7 +2740,7 @@ export function TableV3() {
                   <button type="button" disabled={i === opts.length - 1} title="아래로"
                     onClick={() => { const n = [...opts]; [n[i + 1], n[i]] = [n[i], n[i + 1]]; saveOptions(col, n); }}>↓</button>
                   <button type="button" className={`pjv3-del ${delArm === `opt:${col.id}:${o.id}` ? "arm" : ""}`}
-                    title="지우기 — 이 값을 쓰던 칸은 비워집니다"
+                    title="지우기 · 이 값을 쓰던 칸은 비워집니다"
                     onClick={() => armOrRun(`opt:${col.id}:${o.id}`, () => deleteOption(col, o.id))}>
                     {delArm === `opt:${col.id}:${o.id}` ? "한 번 더" : "✕"}
                   </button>
@@ -2762,13 +2767,13 @@ export function TableV3() {
                   onClick={() => { const it = items.find((x) => x.id === pop.itemId); if (it) saveField(it, pop.colKey, o.id); setPop(null); }}>
                   {o.label}</button>
               ))}
-              {opts.length === 0 && <div className="pjv3-pop-title">아직 선택지가 없습니다 — 아래에서 만드세요</div>}
+              {opts.length === 0 && <div className="pjv3-pop-title">아직 선택지가 없습니다. 아래에서 만드세요</div>}
               <button type="button" className="pjv3-opt-manage" onClick={() => setOptEdit(true)}>선택지 고치기 — 이름·색·순서·추가·삭제</button>
             </>);
           })()}
           {pop.kind === "features" && (<>
-            <div className="pjv3-pop-title">＋ 기능 — 이 프로젝트에만 켭니다(팀 공유)</div>
-            {([["recur", "반복 작업", "서랍에 '반복' 줄 — 완료로 옮기면 다음 줄 자동"], ["deps", "앞뒤 순서", "서랍에 '앞 작업' 줄 — 안 끝났으면 알려줌"], ["billing", "견적·청구", "줄에 ₩ 버튼 — 견적→계약→계산서→입금"], ["survey", "설문 발송", "위에 '설문' 버튼 — 외부 링크로 받은 응답이 줄로"]] as const).map(([k, label, hint]) => (
+            <div className="pjv3-pop-title">＋ 기능 · 이 프로젝트에만 켭니다(팀 공유)</div>
+            {([["recur", "반복 작업", "서랍에 '반복' 줄 · 완료로 옮기면 다음 줄 자동"], ["deps", "앞뒤 순서", "서랍에 '앞 작업' 줄 · 안 끝났으면 알려줌"], ["billing", "견적·청구", "줄에 ₩ 버튼 · 견적→계약→계산서→입금"], ["survey", "설문 발송", "위에 '설문' 버튼 · 외부 링크로 받은 응답이 줄로"]] as const).map(([k, label, hint]) => (
               <button key={k} type="button" onClick={() => toggleFeature(k)}>
                 {features.includes(k) ? "✓ " : ""}{label}<small className="pjv3-typehint"> — {hint}</small>
               </button>
@@ -2793,7 +2798,7 @@ export function TableV3() {
             const qs = personQ.trim().toLowerCase();
             const hits = qs ? users.filter((u) => (u.name || u.email || "").toLowerCase().includes(qs)) : users;
             return (<>
-              <div className="pjv3-pop-title">팔로워 — 눌러서 넣고 빼기(여러 명)</div>
+              <div className="pjv3-pop-title">팔로워 · 눌러서 넣고 빼기(여러 명)</div>
               <input placeholder="이름 검색" value={personQ} autoFocus aria-label="이름 검색"
                 onChange={(e) => setPersonQ(e.target.value)} />
               {hits.slice(0, 12).map((u) => {
@@ -2804,12 +2809,12 @@ export function TableV3() {
                   </button>
                 );
               })}
-              {hits.length > 12 && <div className="pjv3-pop-title">앞 12명만 — 검색으로 좁히세요</div>}
+              {hits.length > 12 && <div className="pjv3-pop-title">앞 12명만 · 검색으로 좁히세요</div>}
               {hits.length === 0 && <div className="pjv3-pop-title">일치하는 사람이 없습니다</div>}
             </>);
           })()}
           {pop.kind === "addview" && (<>
-            <div className="pjv3-pop-title">보기 추가 — 표를 보는 다른 형태</div>
+            <div className="pjv3-pop-title">보기 추가 · 표를 보는 다른 형태</div>
             {!views.includes("kanban") && <button type="button" onClick={() => addView("kanban")}>칸반 — 상태별 카드로 보고, 끌어서 옮깁니다</button>}
             {!views.includes("calendar") && <button type="button" onClick={() => addView("calendar")}>캘린더 — 마감일 달력으로 봅니다</button>}
             {!views.includes("gantt") && <button type="button" onClick={() => addView("gantt")}>간트 — 시작~마감 막대로 일정을 봅니다</button>}
@@ -2823,7 +2828,7 @@ export function TableV3() {
             <button type="button" onClick={() => { setExcelUp(true); setPop(null); }}>올리기 — 양식 받아 채워서 한 번에</button>
           </>)}
           {pop.kind === "addcal" && (<>
-            <div className="pjv3-pop-title">{pop.date} 마감으로 추가 — 첫 그룹에 들어갑니다</div>
+            <div className="pjv3-pop-title">{pop.date}  마감으로 추가 · 첫 그룹에 들어갑니다</div>
             <input autoFocus placeholder="이름 적고 Enter"
               onKeyDown={(e) => {
                 const v = (e.target as HTMLInputElement).value;
@@ -2838,7 +2843,7 @@ export function TableV3() {
             if (!it || !col) return null;
             const cur = String((it.fields || {})[pop.colKey] ?? "");
             return (<>
-              <div className="pjv3-pop-title">{col.name} — 바깥을 누르면 저장됩니다</div>
+              <div className="pjv3-pop-title">{col.name} · 바깥을 누르면 저장됩니다</div>
               <textarea className="pjv3-longedit" autoFocus defaultValue={cur} rows={6}
                 onBlur={(e) => { const v = e.target.value; if (v !== cur) saveField(it, pop.colKey, v || null); }} />
             </>);
@@ -2847,7 +2852,7 @@ export function TableV3() {
             const col = cols.find((c) => c.key === pop.colKey);
             if (!col) return null;
             return (<>
-              <div className="pjv3-pop-title">수식 — 열 이름과 ＋ − × ÷ ( ) 숫자 · 빈 칸을 참조한 줄은 —</div>
+              <div className="pjv3-pop-title">수식 · 열 이름과 ＋ − × ÷ ( ) 숫자 · 빈 칸을 참조한 줄은 —</div>
               <input ref={fxInRef} defaultValue={String((col.settings as { expr?: string } | null)?.expr || "")} placeholder="예: 수량 × 단가 − 할인" />
               <div className="pjv3-fxtoks">
                 {[...fxRefNames.filter((n) => n !== col.name), "＋", "−", "×", "÷", "(", ")"].map((t) => (
@@ -2863,7 +2868,7 @@ export function TableV3() {
             if (!it) return null;
             const list = Array.isArray((it.fields || {})[pop.colKey]) ? ((it.fields || {})[pop.colKey] as { name: string; path: string }[]) : [];
             return (<>
-              <div className="pjv3-pop-title">첨부파일 — 누르면 열기 · 20MB까지</div>
+              <div className="pjv3-pop-title">첨부파일 · 누르면 열기 · 20MB까지</div>
               {list.map((f) => (
                 <div key={f.path} className="pjv3-opt-row">
                   <button type="button" className="pjv3-filename" onClick={() => openItemFile(f.path)}>📎 {f.name}</button>
@@ -2897,13 +2902,13 @@ export function TableV3() {
                   setPop(null);
                 }}>{r.title}</button>
               ))}
-              {ovResults.length === 0 && <div className="pjv3-pop-title">결과가 없습니다 — 검색어를 바꿔 보세요</div>}
+              {ovResults.length === 0 && <div className="pjv3-pop-title">결과가 없습니다. 검색어를 바꿔 보세요</div>}
               {cur != null && <button type="button" className="pjv3-opt-manage" onClick={() => { saveField(it, pop.colKey, null); setPop(null); }}>연결 풀기</button>}
             </>);
           })()}
           {pop.kind === "addcol" && (<>
             {(builtinCfg.hidden?.length ?? 0) > 0 && (<>
-              <div className="pjv3-pop-title">숨긴 기본 열 — 눌러서 되살리기</div>
+              <div className="pjv3-pop-title">숨긴 기본 열 · 눌러서 되살리기</div>
               {builtinCfg.hidden!.map((h) => (
                 <button key={h} type="button"
                   onClick={() => { saveBuiltin({ hidden: builtinCfg.hidden!.filter((x) => x !== h) }); setPop(null); }}>
@@ -2919,7 +2924,9 @@ export function TableV3() {
   );
 }
 
-/** 컬럼 추가 팝 — 이름 적고 타입 고르면 끝 (결정 125: 컬럼이 곧 구조).
+
+
+/** 컬럼 추가 팝 · 이름 적고 타입 고르면 끝 (결정 125: 컬럼이 곧 구조).
  *  2026-09-01 확장: 그룹(기본·자유도·오너뷰 연결)으로 묶고, 수식은 식 입력·자동 날짜는 기준 선택 단계가 붙는다 */
 function AddColPop({ onAdd, fxNames }: {
   onAdd: (name: string, type: FieldType, settings?: Record<string, unknown>) => void; fxNames: string[];
@@ -2929,7 +2936,7 @@ function AddColPop({ onAdd, fxNames }: {
   const [expr, setExpr] = useState("");
   if (step === "formula") return (
     <>
-      <div className="pjv3-pop-title">{`'${name}' 수식 — 열 이름과 ＋ − × ÷ ( ) 숫자`}</div>
+      <div className="pjv3-pop-title">{`'${name}' 수식 · 열 이름과 ＋ − × ÷ ( ) 숫자`}</div>
       <input autoFocus value={expr} onChange={(e) => setExpr(e.target.value)} placeholder="예: 수량 × 단가 − 할인" />
       <div className="pjv3-fxtoks">
         {[...fxNames, "＋", "−", "×", "÷", "(", ")"].map((t) => (
@@ -2942,14 +2949,14 @@ function AddColPop({ onAdd, fxNames }: {
   );
   if (step === "auto") return (
     <>
-      <div className="pjv3-pop-title">{`'${name}' — 어떤 날짜를 자동으로 보여줄까요`}</div>
+      <div className="pjv3-pop-title">{`'${name}' · 어떤 날짜를 자동으로 보여줄까요`}</div>
       <button type="button" onClick={() => onAdd(name, "auto", { mode: "created" })}>만든 날</button>
       <button type="button" onClick={() => onAdd(name, "auto", { mode: "updated" })}>마지막 수정</button>
     </>
   );
   return (
     <>
-      <div className="pjv3-pop-title">컬럼 추가 — 이름 적고 타입을 고르세요</div>
+      <div className="pjv3-pop-title">컬럼 추가 · 이름 적고 타입을 고르세요</div>
       <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 광고 ID, 마진" />
       {(["기본", "자유도", "오너뷰 연결"] as const).map((g) => (
         <div key={g}>

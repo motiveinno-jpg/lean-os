@@ -1,13 +1,13 @@
 "use client";
 import { logRead } from "@/lib/log-read";
-import { fetchPaged } from "@/lib/fetch-paged";
+import { fetchPaged }  from "@/lib/fetch-paged";
 
-// 대시보드 하단 카드 — 2026-06-09 Stitch 시안 정렬 + 다크/라이트 적응.
+// 대시보드 하단 카드 · 2026-06-09 Stitch 시안 정렬 + 다크/라이트 적응.
 //   라운드6.5 골격 정렬: 매출 추이는 DashboardRevenueTrendCard(본문 2/3 큰 차트 카드)로 분리,
 //   DashboardBottomCards 는 카드/자산 2카드 하단 풀폭 행만 담당. 실데이터·쿼리 무변경.
 //   표면(카드/행/텍스트/보더)은 테마 토큰 → 다크모드 자동 적응.
 
-import { useState } from "react";
+import  { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -17,8 +17,8 @@ import { ActivityCard } from "@/components/dashboard-activity";
 const db = supabase;
 const fmtW = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
 
-// 강조 팔레트 — CSS 토큰(라이트/다크 자동 대응)
-const A = { blue: "var(--info)", green: "var(--success)", red: "var(--danger)" };
+// 강조 팔레트 · CSS 토큰(라이트/다크 자동 대응)
+const A =  { blue: "var(--info)", green: "var(--success)", red: "var(--danger)" };
 
 // ── 정제 라인차트 (라운드7.1 공통 차트 스타일) — 인라인 SVG, 새 의존성 없음.
 //   스펙: 선 1.5px 곡선 보간(Catmull-Rom→Bezier) · 12% 그라데이션 면 · 작은 끝점+헤일로 ·
@@ -59,10 +59,11 @@ function RefinedTrendChart({ series, labels, gradId }: { series: number[]; label
   const y = (v: number) => H - padB - (v / max) * (H - padT - padB);
   const pts = series.map((v, i) => ({ x: x(i), y: y(v) }));
   const line = smoothPath(pts);
-  const area = `${line} L${x(n - 1).toFixed(1)} ${H - padB} L${x(0).toFixed(1)} ${H - padB} Z`;
+  const area = `${line} L${x(n - 1).toFixed(1)} ${H - padB} L${x(0).toFixed(1)} ${H - padB}  Z`;
   const last = pts[n - 1];
-  const xStep = Math.max(1, Math.ceil(n / 7)); // 라벨 과밀 방지 — 최대 ~7개
+  const xStep = Math.max(1, Math.ceil(n / 7)); // 라벨 과밀 방지 · 최대 ~7개
   return (
+    
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label="추이 차트">
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
@@ -128,11 +129,13 @@ export function CardsSummaryCard({ companyId, headExtra }: { companyId: string; 
   return (
     <CompactAssetCard title="카드 사용" summary={cards && cards.total > 0 ? <>이번 달 <b className="mono-number text-[var(--text)]">{fmtW(cards.total)}</b></> : undefined}
       rows={(cards?.list || []).slice(0, 5)} href="/cards" headExtra={headExtra}
-      empty="이번 달 카드 사용이 없습니다 — 카드를 연결하면 사용액이 자동 집계됩니다." />
+      empty="이번 달 카드 사용이 없습니다. 카드를 연결하면 사용액이 자동 집계됩니다." />
   );
 }
 
-// ── 자산 위젯 — 계좌별 잔액 (독립 위젯) ──
+
+
+// ── 자산 위젯 · 계좌별 잔액 (독립 위젯) ──
 export function AssetsSummaryCard({ companyId }: { companyId: string }) {
   const { data: assets } = useQuery({
     queryKey: ["dash-assets", companyId],
@@ -147,7 +150,7 @@ export function AssetsSummaryCard({ companyId }: { companyId: string }) {
   return (
     <CompactAssetCard title="계좌별 잔액" summary={assets && assets.count > 0 ? <>합계 <b className="mono-number text-[var(--text)]">{fmtW(assets.total)}</b> · {assets.count}개</> : undefined}
       rows={(assets?.list || []).slice(0, 5)} href="/bank"
-      empty="등록된 계좌가 없습니다 — 통장을 연결하면 잔액이 자동으로 모입니다." />
+      empty="등록된 계좌가 없습니다. 통장을 연결하면 잔액이 자동으로 모입니다." />
   );
 }
 

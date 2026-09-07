@@ -1,8 +1,8 @@
 "use client";
-import { logRead } from "@/lib/log-read";
+import { logRead }  from "@/lib/log-read";
 
-// settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
-import { useEffect, useState, useRef, useCallback } from "react";
+// settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할). 동작 무변경.
+import  { useEffect, useState, useRef, useCallback } from "react";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -32,7 +32,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     //   과세유형 — 무엇을 발행할 수 있는지가 여기서 갈린다 (2026-08-13). 기본은 과세.
     vat_type: "taxable" as VatBusinessType,
   });
-  //   국세청 조회로 알아낸 과세유형 — 저장된 값과 다르면 "이렇게 바꿀까요"만 권한다(자동으로 안 바꾼다)
+  //   국세청 조회로 알아낸 과세유형 · 저장된 값과 다르면 "이렇게 바꿀까요"만 권한다(자동으로 안 바꾼다)
   const [vatHint, setVatHint] = useState<VatBusinessType | null>(null);
   const [sealUrl, setSealUrl] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -118,7 +118,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
   };
 
-  // 사업자번호 국세청 자동확인 (2026-08-10 사장님 제보: 없는 번호로도 수정되던 것) — 거래처 추가와 동일 패턴.
+  // 사업자번호 국세청 자동확인 (2026-08-10 사장님 제보: 없는 번호로도 수정되던 것). 거래처 추가와 동일 패턴.
   //   10자리 입력 시 즉시 조회해 상태 표시, 저장 시 미등록·체크섬 오류는 차단(휴폐업은 확인 후 진행).
   const [bizStatus, setBizStatus] = useState<{ status: string; loading: boolean } | null>(null);
   const onBizNoChange = (val: string) => {
@@ -144,8 +144,8 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     if (digits && digits !== savedDigits) {
       if (digits.length !== 10) { toast("사업자번호는 10자리여야 합니다.", "error"); return; }
       const r = await verifyBusinessNumber(digits);
-      if (!r.valid) { toast("올바르지 않은 사업자번호입니다 (검증 실패) — 다시 확인해 주세요.", "error"); return; }
-      if (r.status === "미등록") { toast("국세청에 등록되지 않은 사업자번호입니다 — 확인 후 다시 입력해 주세요.", "error"); return; }
+      if (!r.valid) { toast("올바르지 않은 사업자번호입니다 (검증 실패). 다시 확인해 주세요.", "error"); return; }
+      if (r.status === "미등록") { toast("국세청에 등록되지 않은 사업자번호입니다. 확인 후 다시 입력해 주세요.", "error"); return; }
       if (r.status === "휴업자" || r.status === "폐업자") {
         const ok = await appConfirm(`국세청 기준 ${r.status} 상태의 번호입니다. 이 번호로 저장할까요?`, { title: "사업자 상태 확인", confirmLabel: "저장" });
         if (!ok) return;
@@ -222,8 +222,8 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     queryClient.invalidateQueries({ queryKey: ["company-info"] });
   }, [companyId, queryClient]);
 
-  // 자동 직인 생성 — Canvas 로 PNG 만든 후 storage 업로드
-  async function regenerateSealPreview(variant?: "corporate" | "double" | "single" | "square") {
+  // 자동 직인 생성 · Canvas 로 PNG 만든 후 storage 업로드
+  async function regenerateSealPreview(variant?: "corporate" | "double" | "single" | "square")  {
     if (!form.name?.trim()) {
       setUploadError("회사명을 먼저 입력하세요.");
       return;
@@ -359,8 +359,8 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
                   : bizStatus.status === "계속사업자" ? "✓ 정상 사업자"
                   : bizStatus.status === "휴업자" ? "휴업 상태의 번호입니다"
                   : bizStatus.status === "폐업자" ? "폐업된 번호입니다"
-                  : bizStatus.status === "미등록" ? "국세청에 등록되지 않은 번호입니다 — 저장할 수 없습니다"
-                  : bizStatus.status === "체크섬오류" ? "올바르지 않은 번호입니다 — 저장할 수 없습니다"
+                  : bizStatus.status === "미등록" ? "국세청에 등록되지 않은 번호입니다. 저장할 수 없습니다"
+                  : bizStatus.status === "체크섬오류" ? "올바르지 않은 번호입니다. 저장할 수 없습니다"
                   : "국세청 확인 불가 (일시 장애)"}
               </p>
             )}
@@ -675,11 +675,13 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
   );
 }
 
+
+
 /* ── 세무 파트너: 제휴 세무사 목록에서 골라 연결, 연결된 세무사 표시·해제·권한 부여 ──
    연결된 세무사는 /advisor 포털과 오너뷰 열람 모드(읽기 전용)로 이 회사를 볼 수 있다 —
    단, 여기서 부여한 메뉴 권한만 보인다(일반 구성원과 동일 모델, 연결 시 세무 기본 패키지 자동 부여).
-   목록·연결·해제·권한은 전부 SECURITY DEFINER RPC — 관리자(마스터 포함)만. */
-export function TaxAdvisorSection() {
+   목록·연결·해제·권한은 전부 SECURITY DEFINER RPC · 관리자(마스터 포함)만. */
+export function TaxAdvisorSection()  {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [permOpenFor, setPermOpenFor] = useState<string | null>(null); // link_id
@@ -704,9 +706,9 @@ export function TaxAdvisorSection() {
       return (data || []) as { link_id: string; advisor_id: string; name: string; office_name: string | null; specialty: string | null; email: string; phone: string | null; linked_at: string }[];
     },
   });
-  // 마스터 전용 RPC — 비마스터는 호출 자체를 안 한다 (forbidden 거절이 운영자
+  // 마스터 전용 RPC · 비마스터는 호출 자체를 안 한다 (forbidden 거절이 운영자
   //   오류 목록에 쌓이던 것, 2026-08-12 사장님: 게이트 넣어 안 쌓이게)
-  const { isMaster } = useMyPermissions();
+  const  { isMaster } = useMyPermissions();
   const { data: catalog = [], error: catalogError } = useQuery({
     queryKey: ["company-advisor-catalog"],
     queryFn: async () => {
@@ -726,8 +728,8 @@ export function TaxAdvisorSection() {
     mutationFn: async (advisorId: string) => {
       const { error } = await (supabase as any).rpc("company_link_advisor", { p_advisor_id: advisorId });
       if (error) throw error;
-      // 세무사에게 연결 안내 메일 — 베스트에포트 (2026-08-12)
-      supabase.functions.invoke("advisor-notify", { body: { event: "linked", advisor_id: advisorId } }).catch(() => {});
+      // 세무사에게 연결 안내 메일 · 베스트에포트 (2026-08-12)
+      supabase.functions.invoke("advisor-notify",  { body: { event: "linked", advisor_id: advisorId } }).catch(() => {});
     },
     onSuccess: () => { toast("세무사가 연결되었습니다.", "success"); invalidate(); },
     onError: () => toast("연결에 실패했습니다.", "error"),
@@ -843,7 +845,9 @@ export function TaxAdvisorSection() {
   );
 }
 
-/* ── 보안: 접속 허용 IP — company_settings.settings.ip_restriction { enabled, ips[] } ──
+
+
+/* ── 보안: 접속 허용 IP · company_settings.settings.ip_restriction  { enabled, ips[] } ──
    켠 회사만 적용(IpGate 가 앱 전역에서 판정). 켤 때 현재 IP 를 자동 포함해 스스로 잠기는 사고를 막는다. */
 export function IpRestrictionSection({ companyId }: { companyId: string | null }) {
   const queryClient = useQueryClient();
@@ -876,7 +880,7 @@ export function IpRestrictionSection({ companyId }: { companyId: string | null }
 
   const saveMut = useMutation({
     mutationFn: async ({ nextEnabled, nextIps }: { nextEnabled: boolean; nextIps: string[] }) => {
-      if (!row?.id) throw new Error("회사 설정 행이 없습니다 — 연동·인증 탭을 먼저 한 번 열어주세요");
+      if (!row?.id) throw new Error("회사 설정 행이 없습니다. 연동·인증 탭을 먼저 한 번 열어주세요");
       const nextSettings = { ...(row.settings || {}), ip_restriction: { enabled: nextEnabled, ips: nextIps } };
       const { error } = await (supabase as any).from("company_settings").update({ settings: nextSettings }).eq("id", row.id);
       if (error) throw error;
@@ -894,8 +898,9 @@ export function IpRestrictionSection({ companyId }: { companyId: string | null }
     let ips = parseIps();
     if (enabled) {
       if (ips.length === 0) { toast("허용할 IP를 1개 이상 입력하세요.", "error"); return; }
-      // 잠금 사고 방지 — 켜는 순간 현재 접속 IP 가 목록에 없으면 자동 포함
-      if (myIp && !ips.includes(myIp)) {
+      
+      // 잠금 사고 방지 · 켜는 순간 현재 접속 IP 가 목록에 없으면 자동 포함
+      if (myIp && !ips.includes(myIp))  {
         if (await appConfirm(`현재 접속 중인 IP(${myIp})가 목록에 없습니다. 저장하면 이 기기도 차단됩니다.\n현재 IP를 목록에 추가하고 저장할까요?`, { title: "현재 IP 자동 추가", confirmLabel: "추가하고 저장" })) {
           ips = [...ips, myIp];
           setIpsText(ips.join("\n"));
@@ -909,7 +914,7 @@ export function IpRestrictionSection({ companyId }: { companyId: string | null }
     <div className="company-ip-restriction-panel stg-sec">
       <div className="stg-sec-head">
         <div>
-          <h2 className="stg-sec-title">보안 — 접속 허용 IP</h2>
+          <h2 className="stg-sec-title">보안<span className="ui-sub">접속 허용 IP</span></h2>
           <p className="stg-sec-desc">
             켜면 등록한 IP(사무실 인터넷 등)에서만 접속할 수 있습니다.
             {myIp && <> 현재 이 기기의 IP: <b className="mono-number text-[var(--text)]">{myIp}</b></>}
@@ -951,7 +956,9 @@ export function IpRestrictionSection({ companyId }: { companyId: string | null }
   );
 }
 
-/* ── 회사 문서 섹션 — storage: documents/company-docs/{companyId}/{key}_{ts}.{ext} ──
+
+
+/* ── 회사 문서 섹션 · storage: documents/company-docs/{companyId}/{key}_{ts}.{ext} ──
    업로드 여부 표시 + 보기(서명 URL)·교체(기존 삭제 후 업로드)·삭제. 계약 발송·증명서 발급이 같은 경로 참조. */
 const COMPANY_DOCS = [
   { key: "business_reg", label: "사업자등록증", desc: "사업자등록증 사본" },
@@ -1034,7 +1041,7 @@ function CompanyDocsSection({ companyId }: { companyId: string | null }) {
       <div className="stg-sec-head mb-1">
         <div>
           <h2 className="stg-sec-title">회사 문서</h2>
-          <p className="stg-sec-desc">사업자등록증·법인등기부등본 등 법인 서류 — 계약서 발송·증명서 발급에 활용됩니다.</p>
+          <p className="stg-sec-desc">사업자등록증·법인등기부등본 등 법인 서류 · 계약서 발송·증명서 발급에 활용됩니다.</p>
         </div>
       </div>
       {COMPANY_DOCS.map((doc) => {
@@ -1071,7 +1078,9 @@ function CompanyDocsSection({ companyId }: { companyId: string | null }) {
   );
 }
 
-/* ── 세무사 권한 부여 패널 — 구성원 권한(PermissionTree)과 동일 카탈로그, 저장은 링크 단위 RPC ── */
+
+
+/* ── 세무사 권한 부여 패널 · 구성원 권한(PermissionTree)과 동일 카탈로그, 저장은 링크 단위 RPC ── */
 function AdvisorPermissionPanel({ linkId, advisorName }: { linkId: string; advisorName: string }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1125,7 +1134,7 @@ function AdvisorPermissionPanel({ linkId, advisorName }: { linkId: string; advis
         </button>
       </div>
       <PermissionTree checked={checked} onToggle={toggle} viewerIsMaster={false} />
-      {dirty && <div className="text-[11px] text-[var(--warning)] mt-2">변경사항이 있습니다 — 저장을 눌러야 반영됩니다.</div>}
+      {dirty && <div className="text-[11px] text-[var(--warning)] mt-2">변경사항이 있습니다. 저장을 눌러야 반영됩니다.</div>}
     </div>
   );
 }

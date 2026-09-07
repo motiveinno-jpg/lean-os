@@ -60,8 +60,8 @@ export default function ProfitSummaryPage() {
   const pct = (a: number, b: number) => (b === 0 ? null : Math.round(((a - b) / Math.abs(b)) * 100));
   const revP = pct(cur.revenue, cmp.revenue), opexP = pct(cur.opex, cmp.opex);
   const headline = s.loading ? "불러오는 중…" : cur.lines === 0
-    ? `${rangeLabel(s.range)}에는 확정 전표가 없습니다 — 수집·전표에서 전표를 만들면 여기 손익이 채워집니다.`
-    : `${rangeLabel(s.range)}은 ${cur.operating >= 0 ? `${man(cur.operating)} 남았습니다` : `${man(cur.operating)} 손실입니다`} — 매출은 ${s.cmpLabel}보다 ${revP === null ? "비교할 값이 없고" : revP > 0 ? `${revP}% 늘고` : revP < 0 ? `${Math.abs(revP)}% 줄고` : "비슷하고"}, 판관비는 ${opexP === null ? "비교할 값이 없습니다" : opexP > 0 ? `${opexP}% 늘었습니다` : opexP < 0 ? `${Math.abs(opexP)}% 줄었습니다` : "비슷합니다"}.`;
+    ? `${rangeLabel(s.range)}에는 확정 전표가 없습니다. 수집·전표에서 전표를 만들면 여기 손익이 채워집니다.`
+    : `${rangeLabel(s.range)}은 ${cur.operating >= 0 ? `${man(cur.operating)} 남았습니다` : `${man(cur.operating)} 손실입니다`}. 매출은 ${s.cmpLabel}보다 ${revP === null ? "비교할 값이 없고" : revP > 0 ? `${revP}% 늘고` : revP < 0 ? `${Math.abs(revP)}% 줄고` : "비슷하고"}, 판관비는 ${opexP === null ? "비교할 값이 없습니다" : opexP > 0 ? `${opexP}% 늘었습니다` : opexP < 0 ? `${Math.abs(opexP)}% 줄었습니다` : "비슷합니다"}.`;
   const subline = spikes.length > 0
     ? `${spikes.slice(0, 2).map((a) => `${a.name}(+${man(a.cur - a.cmp)})`).join("·")}이 늘어난 것이 판관비 변화의 큰 부분입니다.`
     : cur.lines > 0 ? "전월 대비 크게 늘어난 비용 계정은 없습니다." : "";
@@ -90,7 +90,7 @@ export default function ProfitSummaryPage() {
         {/* ② 손익 구조 */}
         <section className="pnl-panel">
           <h3>손익 구조</h3>
-          <p>매출에서 무엇이 빠져 영업이익이 남는지 · 영업이익률 {rate === null ? "—" : `${rate}%`}</p>
+          <p>영업이익률 {rate === null ? "—" : `${rate}%`}</p>
           {cur.lines === 0 ? <div className="collect-empty">전표가 없어 그릴 것이 없습니다</div> : (
             <WaterfallChart height={200} unit="원" steps={[
               { label: "매출", value: cur.revenue, kind: "add" },
@@ -105,7 +105,7 @@ export default function ProfitSummaryPage() {
         {/* ③ 무엇이 달라졌나 */}
         <section className="pnl-panel">
           <h3>무엇이 달라졌나</h3>
-          <p>{rangeLabel(s.range)} vs {cmpRangeLabel(s)}({s.cmpLabel}) · 항목별 증감 — 구분을 누르면 계정이 펼쳐지고, 계정을 누르면 원천 전표</p>
+          <p>{rangeLabel(s.range)} vs {cmpRangeLabel(s)} · 구분을 누르면 계정, 계정을 누르면 전표</p>
           <div className="pnl-tbl-wrap">
             <table className="ev-table ev-lined pnl-diff-table">
               <thead><tr><th className="text-left">항목</th><th>{rangeLabel(s.range)}</th><th>{cmpRangeLabel(s)}</th><th>증감</th><th>%</th></tr></thead>
@@ -125,7 +125,6 @@ export default function ProfitSummaryPage() {
       {/* ④ 살펴볼 것 — 규칙 4개, 링크만 */}
       <section className="pnl-panel">
         <h3>살펴볼 것</h3>
-        <p>규칙 4개로만 고릅니다(출처를 적습니다) — 처리는 사람이 합니다</p>
         <ul className="pnl-watch">
           {spikes.map((a) => (
             <li key={a.id}><span className="pnl-flag">급증</span><span>{a.name} — {s.cmpLabel} 대비 <b>+{Math.round(((a.cur - a.cmp) / a.cmp) * 100)}%</b> ({won(a.cur - a.cmp)})</span><em>장부 대조</em><button type="button" className="pnl-watch-link" onClick={() => openDrill(a.name, (l) => l.accountId === a.id)}>원천 전표 →</button></li>
@@ -134,7 +133,7 @@ export default function ProfitSummaryPage() {
             <li><span className="pnl-flag">미수금</span><span>30일 넘은 미수금 <b>{won(ar.over30)}</b> · {ar.over30Partners}곳</span><em>세금계산서 상태</em><Link href="/partners/ledger" className="pnl-watch-link">거래처 원장 →</Link></li>
           )}
           {s.data && s.data.unclassified.count > 0 && (
-            <li><span className="pnl-flag pnl-flag-w">미분류</span><span>계정 없는 통장 출금 <b>{won(s.data.unclassified.amount)}</b> · {s.data.unclassified.count}건 — 판관비에 안 들어가 있음</span><em>통장</em><Link href="/collect?tab=bank" className="pnl-watch-link">수집·전표 →</Link></li>
+            <li><span className="pnl-flag pnl-flag-w">미분류</span><span>계정 없는 통장 출금 <b>{won(s.data.unclassified.amount)}</b> · {s.data.unclassified.count}건 · 판관비에 안 들어가 있음</span><em>통장</em><Link href="/collect?tab=bank" className="pnl-watch-link">수집·전표 →</Link></li>
           )}
           {s.data && s.data.unposted.total > 0 && (
             <li><span className="pnl-flag pnl-flag-w">전표 미처리</span><span>세금계산서 {s.data.unposted.taxInvoice.toLocaleString()} · 카드 {s.data.unposted.card.toLocaleString()} · 통장 {s.data.unposted.bank.toLocaleString()}건</span><em>수집 현황</em><Link href="/collect" className="pnl-watch-link">수집·전표 →</Link></li>

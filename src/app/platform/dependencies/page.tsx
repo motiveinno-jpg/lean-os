@@ -44,8 +44,8 @@ export default function PlatformDependenciesPage() {
   const checkFailed = !!error;
   const failReason = checkFailed
     ? (/forbidden|운영자/i.test((error as any)?.message || "")
-        ? "권한 없음 — 이 화면은 플랫폼 운영자 계정(creative@mo-tive.com)만 조회할 수 있습니다."
-        : `상태 조회 실패 — ${(error as any)?.message || "네트워크 또는 서버 오류"}`)
+        ? "권한 없음. 이 화면은 플랫폼 운영자 계정(creative@mo-tive.com)만 조회할 수 있습니다."
+        : `상태 조회 실패 · ${(error as any)?.message || "네트워크 또는 서버 오류"}`)
     : null;
   const baseStatus: DepStatus | null = checkFailed || !data ? "loading" : null;
   const supabaseStatus: DepStatus = baseStatus ?? (data!.supabase.errors_1h > 50 ? "warn" : "ok");
@@ -149,7 +149,7 @@ export default function PlatformDependenciesPage() {
         <PfCard i={2} hover={false} className="ring-1 ring-[#D97706]/40">
           <div className="px-5 py-3 text-[12px]" style={{ color: "#b45309" }}>
             <span className="font-bold"><Ico e="⚠" /> 서비스 상태를 판정하지 못했습니다.</span> {failReason}
-            <span className="block mt-1 text-[11px] opacity-80">이것은 외부 서비스 장애 판정이 아닙니다 — 실제 장애 여부는 시스템 상태 화면의 신호등·타임라인에서 확인하세요.</span>
+            <span className="block mt-1 text-[11px] opacity-80">이것은 외부 서비스 장애 판정이 아닙니다. 실제 장애 여부는 시스템 상태 화면의 신호등·타임라인에서 확인하세요.</span>
           </div>
         </PfCard>
       )}

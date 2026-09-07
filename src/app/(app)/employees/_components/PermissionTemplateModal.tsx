@@ -1,6 +1,6 @@
 "use client";
 
-// 권한 템플릿 관리 팝업 (2026-08-06 사장님: "템플릿 신규생성 및 편집이 너무 복잡함 — 별도 팝업창으로").
+// 권한 템플릿 관리 팝업 (2026-08-06 사장님: "템플릿 신규생성 및 편집이 너무 복잡함. 별도 팝업창으로").
 //   예전에는 구성원 권한 화면에 인라인 패널이 열리고, 템플릿 내용이 "지금 화면에 체크된 권한"에
 //   묶여 있어 템플릿 하나 고치려면 구성원 체크박스를 먼저 맞춰야 했다.
 //   이제 팝업 안에서 왼쪽 목록으로 템플릿을 고르고, 그 템플릿의 권한을 직접 체크해 저장한다.
@@ -52,8 +52,9 @@ export function PermissionTemplateModal({ open, onClose, viewerIsMaster = true, 
         if (error) throw error;
         return name;
       }
-      // 새 템플릿 — upsert 대신 insert. (upsert 는 INSERT 경로에도 SELECT 정책을 태워 실패할 수 있다)
-      const { data: companyId } = await (supabase as any).rpc("get_my_company_id");
+      
+      // 새 템플릿 · upsert 대신 insert. (upsert 는 INSERT 경로에도 SELECT 정책을 태워 실패할 수 있다)
+      const  { data: companyId } = await (supabase as any).rpc("get_my_company_id");
       const { error } = await (supabase as any).from("permission_templates")
         .insert({ company_id: companyId, name, perm_keys });
       if (error) throw error;
@@ -65,7 +66,7 @@ export function PermissionTemplateModal({ open, onClose, viewerIsMaster = true, 
       qc.invalidateQueries({ queryKey: ["permission-templates"] });
     },
     onError: (e: any) => {
-      if (e?.code === "23505") { toast("같은 이름의 템플릿이 이미 있습니다 — 다른 이름을 쓰세요", "error"); return; }
+      if (e?.code === "23505") { toast("같은 이름의 템플릿이 이미 있습니다. 다른 이름을 쓰세요", "error"); return; }
       toast(friendlyError(e, "템플릿 저장 실패"), "error");
     },
   });
@@ -77,7 +78,7 @@ export function PermissionTemplateModal({ open, onClose, viewerIsMaster = true, 
       return t.name;
     },
     onSuccess: (name) => {
-      toast(`"${name}" 템플릿을 삭제했습니다 — 이미 적용된 구성원 권한은 그대로 유지됩니다`, "success");
+      toast(`"${name}" 템플릿을 삭제했습니다. 이미 적용된 구성원 권한은 그대로 유지됩니다`, "success");
       setDraft(null);
       qc.invalidateQueries({ queryKey: ["permission-templates"] });
     },
@@ -187,7 +188,7 @@ export function PermissionTemplateModal({ open, onClose, viewerIsMaster = true, 
                   onClick={async () => {
                     const t = templates.find((x) => x.id === draft.id);
                     if (!t) return;
-                    if (!(await confirmDialog({ title: `"${t.name}" 템플릿 삭제`, desc: "템플릿만 삭제됩니다 — 이미 적용된 구성원의 권한은 그대로 유지됩니다.", danger: true }))) return;
+                    if (!(await confirmDialog({ title: `"${t.name}" 템플릿 삭제`, desc: "템플릿만 삭제됩니다. 이미 적용된 구성원의 권한은 그대로 유지됩니다.", danger: true }))) return;
                     deleteMut.mutate(t);
                   }}
                   disabled={deleteMut.isPending}

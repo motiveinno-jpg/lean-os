@@ -47,14 +47,14 @@ export default function CollectPage() {
 
 function CollectInner() {
   const { user } = useUser();
-  const { toast } = useToast();
+  const { toast }  = useToast();
   const qc = useQueryClient();
   const companyId = user?.company_id ?? null;
 
-  //   조회기간 — 기본은 **최근 1개월** (2026-08-13 사장님 확정).
+  //   조회기간 · 기본은 **최근 1개월** (2026-08-13 사장님 확정).
   //   이번 달 1일 기준이면 매달 1~2일에 열었을 때 하루이틀치만 보여 '자료 없음'으로 읽힌다.
   const [range, setRange] = useState(defaultRange);
-  const { from, to } = range;
+  const  { from, to } = range;
   //   탭 — 'status' 는 현황판, 나머지는 그 자료의 목록 (2단계)
   //   ?tab=bank 같은 주소로 바로 그 탭을 연다 — 다른 화면들이 "여기서 처리하세요"로 보낼 때 쓴다
   const [tab, setTab] = useState<"status" | SourceKey>(() => {
@@ -74,7 +74,7 @@ function CollectInner() {
   const running = run.running;
   const state = run.state;
   useEffect(() => { restoreCollectRun(); }, []);
-  //   끝났을 때 알린다 — 시작한 화면이 아니어도(여기로 돌아온 순간) 한 번
+  //   끝났을 때 알린다. 시작한 화면이 아니어도(여기로 돌아온 순간) 한 번
   const seenFinish = useRef<number | null>(null);
   useEffect(() => {
     if (!run.finishedAt || seenFinish.current === run.finishedAt) return;
@@ -83,7 +83,7 @@ function CollectInner() {
     qc.invalidateQueries({ queryKey: ["sync-cooldowns"] });
     if (Date.now() - run.finishedAt < 60_000) {
       const errs = Object.values(run.state).filter((r) => r.phase === "error").length;
-      toast(errs ? `수집이 끝났습니다 — ${errs}종은 받지 못했습니다(창을 열어 확인)` : "수집이 끝났습니다", errs ? "info" : "success");
+      toast(errs ? `수집이 끝났습니다. ${errs}종은 받지 못했습니다(창을 열어 확인)` : "수집이 끝났습니다", errs ? "info" : "success");
     }
   }, [run.finishedAt]);   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -101,8 +101,8 @@ function CollectInner() {
     staleTime: 30_000,
   });
 
-  //   최근 수집 이력 — '받았는데 0건'인지 '못 받은' 것인지 여기서 갈린다 (2026-08-13 C안)
-  const { data: history = [] } = useQuery({
+  //   최근 수집 이력 · '받았는데 0건'인지 '못 받은' 것인지 여기서 갈린다 (2026-08-13 C안)
+  const  { data: history = [] } = useQuery({
     queryKey: ["collect-history", companyId],
     queryFn: () => fetchSyncHistory(companyId!, 30),
     enabled: !!companyId && tab === "status",
@@ -167,7 +167,8 @@ function CollectInner() {
     for (const t of types) {
       await (t === "hometax" ? cdHometax : t === "bank" ? cdBank : cdCard).run(async () => { /* 소모만 */ });
     }
-    //   여기서부터는 화면 밖에서 돈다 — 창을 닫고 다른 메뉴로 가도 계속된다
+    
+    //   여기서부터는 화면 밖에서 돈다. 창을 닫고 다른 메뉴로 가도 계속된다
     startCollect({ companyId, sources: runnable, startDate: start, endDate: end });
   };
 
@@ -182,10 +183,11 @@ function CollectInner() {
   //   ★ 현황판에는 검색조건 패널이 없으므로 여기서만 달력(parts="all")을 쓴다.
   //     목록 탭은 숫자 칸만 두고 달력을 검색조건 안으로 넣는다 (탭이 직접 그린다).
   const rangeField = <DateRangeField from={from} to={to} onChange={applyRange} />;
-  //   ★ 도는 중에도 **누를 수 있다** — 창을 닫았다가 진행 상황을 다시 열어 보는 길이다
+  //   ★ 도는 중에도 **누를 수 있다** · 창을 닫았다가 진행 상황을 다시 열어 보는 길이다
   //     (2026-08-13 사장님 지시: "닫기 눌렀을 때 창 닫히고 백그라운드에서 돌고").
   //     막아 두면 닫는 순간 진행 상황을 볼 방법이 사라진다.
   const syncButton = (
+
     <button type="button" onClick={() => setOpen(true)}
       className={running ? "btn-secondary btn-sm collect-running" : "btn-primary btn-sm"}>
       {running ? `수집 중 ${doneCount}/${totalCount} · 보기` : "수집하기"}
@@ -289,8 +291,10 @@ function CollectInner() {
                               <span className="collect-pill collect-pill-err">{st!.brokenNote}</span>
                             ) : (st?.pending ?? 0) > 0 ? (
                               <span className="collect-pill collect-pill-todo">{won(st!.pending)}</span>
+                            
                             ) : (st?.total ?? 0) === 0 ? (
-                              //   0건을 '처리 완료'라고 하면 다 해놓은 것처럼 읽힌다 — 받아온 게 없는 것뿐이다
+                              //   0건을 '처리 완료'라고 하면 다 해놓은 것처럼 읽힌다. 받아온 게 없는 것뿐이다
+                              
                               <span className="collect-pill collect-pill-none">자료 없음</span>
                             ) : (
                               <span className="collect-pill collect-pill-done">완료</span>
@@ -429,14 +433,15 @@ function CollectInner() {
 
               {running && (
                 <p className="collect-bg-note">
-                  창을 닫아도 <b>수집은 계속됩니다</b> — 다른 화면에서 일하셔도 됩니다.
-                  진행 상황은 <b>수집 중 · 보기</b> 를 눌러 다시 열 수 있습니다.
+                  창을 닫아도 <b>수집은 계속됩니다</b> · 다른 화면에서 일하셔도 됩니다.
+                  진행 상황은  <b>수집 중 · 보기</b> 를 눌러 다시 열 수 있습니다.
                 </p>
               )}
               {/*   끝난 뒤에도 지난 결과가 남는다 — 다른 화면에 갔다 와서 "받았나?" 를 여기서 확인한다 (2026-08-27) */}
               {!running && run.finishedAt && Object.keys(state).length > 0 && (
                 <p className="collect-bg-note">
-                  지난 수집 결과 ({new Date(run.finishedAt).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}) — 실패한 자료는 다시 받으세요.
+                  지난 수집 결과 ({new Date(run.finishedAt).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}). 실패한 자료는 다시 받으세요.
+                
                 </p>
               )}
               {(running || Object.keys(state).length > 0) && (

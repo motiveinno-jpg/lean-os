@@ -41,11 +41,11 @@ export function evalFormula(expr: string, resolve: (name: string) => number | nu
   const take = () => toks[pos++];
   function primary(): number | { error: string } {
     const tk = take();
-    if (!tk) return { error: "수식이 끝나지 않았어요 — 뒤가 비었습니다" };
+    if (!tk) return { error: "수식이 끝나지 않았어요. 뒤가 비었습니다" };
     if (tk.t === "num") return tk.v;
     if (tk.t === "id") {
       const v = resolve(tk.v);
-      if (v === undefined) return { error: `'${tk.v}' 열을 찾을 수 없어요 — 이름이 바뀌었거나 지워졌습니다` };
+      if (v === undefined) return { error: `'${tk.v}' 열을 찾을 수 없어요. 이름이 바뀌었거나 지워졌습니다` };
       if (v === null) { empty = true; return 0; }
       return v;
     }

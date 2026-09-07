@@ -7,16 +7,16 @@ import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import type { RichEditorRef } from "@/components/rich-editor";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase }  from "@/lib/supabase";
 
-// 인사(HR) '직접 작성'용 리치 에디터 — 표·서식·이미지·{{변수}}. 발송 경로(ContractAdminPanel/구성원)와 동일한 content_html.
+// 인사(HR) '직접 작성'용 리치 에디터 · 표·서식·이미지·{{변수}}. 발송 경로(ContractAdminPanel/구성원)와 동일한 content_html.
 const RichEditor = dynamic(() => import("@/components/rich-editor").then((m) => ({ default: m.RichEditor })), {
   ssr: false,
   loading: () => <div className="h-48 bg-[var(--bg-surface)] rounded-xl animate-pulse" />,
 });
 
-// 미리보기용 문서 HTML — body가 HTML이면 그대로, 평문(개행)이면 문단으로, 없으면 섹션형을 변환.
-//   일부 HR 서식의 content_json.body 가 <p> 없는 평문(\n)이라 HTML 렌더 시 한 덩어리가 되던 문제 대응.
+// 미리보기용 문서 HTML · body가 HTML이면 그대로, 평문(개행)이면 문단으로, 없으면 섹션형을 변환.
+//   일부 HR 서식의 content_json.body 가  <p> 없는 평문(\n)이라 HTML 렌더 시 한 덩어리가 되던 문제 대응.
 function toDocHtml(tpl: any): string {
   const cj = tpl?.content_json || {};
   const body: string = cj.body || "";

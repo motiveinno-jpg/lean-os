@@ -9,9 +9,9 @@
 
 type Brand = { key: string; file?: string; color: string; short: string; dark?: boolean };
 
-// 카드사 우선 매칭(이름에 '카드'가 있으면 카드 테이블 먼저) — "국민카드"가 kb 은행으로 잡히지 않게.
+// 카드사 우선 매칭(이름에 '카드'가 있으면 카드 테이블 먼저). "국민카드"가 kb 은행으로 잡히지 않게.
 const CARD_BRANDS: [RegExp, Brand][] = [
-  [/국민|KB/i, { key: "kbcard", file: "kbcard", color: "#FFB300", short: "KB", dark: true }],
+  [/국민|KB/i,  { key: "kbcard", file: "kbcard", color: "#FFB300", short: "KB", dark: true }],
   [/신한/, { key: "shinhancard", file: "shinhancard", color: "#0046FF", short: "신한" }],
   [/삼성/, { key: "samsungcard", color: "#1428A0", short: "삼성" }],
   [/현대/, { key: "hyundaicard", file: "hyundaicard", color: "#111111", short: "현대" }],

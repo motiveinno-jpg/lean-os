@@ -239,6 +239,7 @@ function GuestChatView({ token }: { token: string }) {
               <ChatBubble
                 key={msg.id}
                 senderName={msg.users?.name || msg.users?.email || "—"}
+                senderAvatar={msg.users?.avatar_url || null}
                 content={msg.content}
                 time={formatTime(msg.created_at)}
                 isOwn={msg.sender_id === session.userId}
@@ -281,9 +282,11 @@ function ChatPageInner() {
   return <ChatWorkspace companyId={companyId} userId={userId} selectedChannel={selectedChannel} router={router} />;
 }
 
-// 채널 행 — 팀 채널은 네모 # 아이콘 + '팀' 꼬리표, 1:1 대화는 동그란 이름 머리글자 + '1:1' 꼬리표.
+
+
+// 채널 행 · 팀 채널은 네모 # 아이콘 + '팀' 꼬리표, 1:1 대화는 동그란 이름 머리글자 + '1:1' 꼬리표.
 //   접두사 한 글자(#/@)만으로는 둘이 구분되지 않아 모양·색·꼬리표 세 가지로 갈랐다.
-function ChannelRow({ ch, active, unread, onClick }: { ch: any; active: boolean; unread: number; onClick: () => void }) {
+function ChannelRow({ ch, active, unread, onClick, avatar }: { ch: any; active: boolean; unread: number; onClick: () => void; avatar?: string | null }) {
   const isDM = ch.is_dm;
   const kindLabel = isDM ? "1:1" : ch.deal_id ? "프로젝트" : "팀";
   const label = isDM ? (ch.dm_name || "1:1 대화") : ch.name;
@@ -292,7 +295,10 @@ function ChannelRow({ ch, active, unread, onClick }: { ch: any; active: boolean;
       className={`chat-channel-row ${isDM ? "chat-channel-row-dm" : "chat-channel-row-team"} ${
         active ? "chat-channel-row-on bg-[var(--primary)] text-white" : "hover:bg-[var(--bg-surface)] text-[var(--text-muted)]"
       }`}>
-      <span className={`chat-row-icon ${isDM ? "chat-row-icon-dm" : "chat-row-icon-team"}`}>{isDM ? (label || "?").slice(0, 1) : "#"}</span>
+      {/* 1:1 은 상대 프로필 사진(users.avatar_url), 없으면 이름 첫 글자 (2026-09-07 사장님: 사진이 있는데 메신저엔 안 보인다) */}
+      <span className={`chat-row-icon ${isDM ? "chat-row-icon-dm" : "chat-row-icon-team"}`}>
+        {isDM ? (avatar ? <img src={avatar} alt="" className="chat-face-img" /> : (label || "?").slice(0, 1)) : "#"}
+      </span>
       <span className={`flex-1 truncate text-sm ${unread > 0 && !active ? "font-bold text-[var(--text)]" : "font-medium"}`}>{label}</span>
       <span className={`chat-kind-tag ${isDM ? "chat-kind-tag-dm" : "chat-kind-tag-team"}`}>{kindLabel}</span>
       {unread > 0 && (
@@ -311,7 +317,7 @@ const RAILS: Rail[] = ["people", "rooms", "schedule"];
 // ── 구성원 한 줄 — 누르면 그 사람과의 1:1 대화가 오른쪽에 열린다 (2026-08-10 사장님 지시) ──
 //   앱 계정이 없는 인사기록(userId 없음)은 대화를 걸 수 없으므로 흐리게 두고 이유를 적는다.
 function PersonRow({ p, active, unread, busy, isMe, onClick }: {
-  p: { name: string; position: string; userId: string | null; presence?: PresenceRow | null };
+  p: { name: string; position: string; userId: string | null; presence?: PresenceRow | null; avatar?: string | null };
   active: boolean; unread: number; busy: boolean; isMe: boolean; onClick: () => void;
 }) {
   const disabled = isMe || !p.userId || busy;
@@ -319,7 +325,7 @@ function PersonRow({ p, active, unread, busy, isMe, onClick }: {
     <button type="button" disabled={disabled} onClick={onClick}
       title={isMe ? "나입니다" : p.userId ? `${p.name} 님과 1:1 대화` : "앱 계정이 없어 대화를 걸 수 없습니다"}
       className={`chat-person ${active ? "chat-person-on" : ""} ${disabled ? "chat-person-off" : ""}`}>
-      <span className="chat-person-face">{(p.name || "?").slice(0, 1)}<PresenceDot row={p.presence} className="chat-person-dot" /></span>
+      <span className="chat-person-face">{p.avatar ? <img src={p.avatar} alt="" className="chat-face-img" /> : (p.name || "?").slice(0, 1)}<PresenceDot row={p.presence} className="chat-person-dot" /></span>
       <span className="chat-person-body">
         <b>{p.name}{isMe && <em>나</em>}</b>
         {/* 상태(회의중·외근…)가 있으면 직책 대신 상태 — 2026-09-04 내 상태. 근무중이면 직책 그대로 */}
@@ -399,9 +405,9 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
     enabled: !!companyId && !!userId,
     refetchInterval: 15000,
   });
-  //   구성원 디렉토리 — 부서·직책이 여기에 있다(급여 등 민감 컬럼은 RPC 가 아예 안 준다).
+  //   구성원 디렉토리 · 부서·직책이 여기에 있다(급여 등 민감 컬럼은 RPC 가 아예 안 준다).
   //   users 테이블엔 부서가 없어 이메일로 두 목록을 잇는다.
-  const { data: directory = [] } = useQuery({
+  const  { data: directory = [] } = useQuery({
     queryKey: ["chat-directory", companyId],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_company_directory");
@@ -426,7 +432,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
     const usersById = new Map<string, any>();
     for (const u of companyUsers as any[]) { if (u.email) usersByEmail.set(String(u.email).toLowerCase(), u); usersById.set(u.id, u); }
     const seen = new Set<string>();
-    const list: { key: string; name: string; dept: string; position: string; userId: string | null; presence: PresenceRow | null }[] = [];
+    const list: { key: string; name: string; dept: string; position: string; userId: string | null; presence: PresenceRow | null; avatar: string | null }[] = [];
     for (const e of directory as any[]) {
       if (e.status !== "active" && e.status !== "joined") continue;
       // 계정 연결 우선(employees.user_id), 없으면 이메일 — 이메일만 보면 같은 사람이 '미배정'에 한 번 더 보였다(2026-09-03)
@@ -434,12 +440,12 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
       if (u) seen.add(u.id);
       list.push({
         key: `d-${e.id}`, name: e.name || u?.name || e.email || "이름 없음",
-        dept: e.department || "미배정", position: e.position || "", userId: u?.id || null, presence: u || null,
+        dept: e.department || "미배정", position: e.position || "", userId: u?.id || null, presence: u || null, avatar: u?.avatar_url || null,
       });
     }
     for (const u of companyUsers as any[]) {
       if (seen.has(u.id)) continue;
-      list.push({ key: `u-${u.id}`, name: u.name || u.email || "이름 없음", dept: "미배정", position: "", userId: u.id, presence: u });
+      list.push({ key: `u-${u.id}`, name: u.name || u.email || "이름 없음", dept: "미배정", position: "", userId: u.id, presence: u, avatar: u.avatar_url || null });
     }
     const t = search.trim().toLowerCase();
     const shown = t ? list.filter((p) => `${p.name} ${p.dept} ${p.position}`.toLowerCase().includes(t)) : list;
@@ -469,10 +475,10 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
 
   const open = (id: string) => router.push(`/chat?channel=${id}${isEmbed ? "&embed=1" : ""}`);
 
-  //   구성원을 누르면 그 사람과의 1:1 대화를 연다 — 이미 있으면 그 방, 없을 때만 만든다.
+  //   구성원을 누르면 그 사람과의 1:1 대화를 연다. 이미 있으면 그 방, 없을 때만 만든다.
   //   ⚠️ 화면에 받아 둔 채널 목록으로 판단하지 않는다(아직 안 왔으면 방이 하나 더 생긴다).
   //      getOrCreateDMChannel 이 누른 그 순간 DB 를 보고 정한다.
-  const openDm = async (p: { name: string; userId: string | null }) => {
+  const openDm = async (p:  { name: string; userId: string | null }) => {
     if (!p.userId || p.userId === userId || !companyId || !userId || dmBusy) return;
     setDmBusy(p.userId);
     try {
@@ -541,25 +547,26 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
     { key: "dm", title: "1:1 대화", list: dmChannels, empty: "1:1 대화 없음" },
   ];
 
-  //   높이는 CSS 로 — zoom 안에서는 100vh 를 ÷ --app-zoom 해야 사이드바 끝선과 맞는다 (2026-08-27 사장님: "칸 크기가 좌측 사이드바랑 안 맞음")
+  //   높이는 CSS 로 · zoom 안에서는 100vh 를 ÷ --app-zoom 해야 사이드바 끝선과 맞는다 (2026-08-27 사장님: "칸 크기가 좌측 사이드바랑 안 맞음")
   return (
+    
     <div className={isEmbed ? "chat-workspace chat-workspace-embed glass-card" : "chat-workspace glass-card"}>
       {/* ── 좌측 아이콘 레일 — 사람(부서 → 구성원) / 채팅방 (2026-08-10 사장님 지시) ── */}
       <nav className="chat-rail" aria-label="메신저 보기 전환">
         <button type="button" onClick={() => pickRail("people")} aria-pressed={rail === "people"}
-          className={`chat-rail-btn ${rail === "people" ? "chat-rail-btn-on" : ""}`} title="구성원 — 부서에서 사람을 골라 1:1 대화">
+          className={`chat-rail-btn ${rail === "people" ? "chat-rail-btn-on" : ""}`} title="구성원 · 부서에서 사람을 골라 1:1 대화">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="8" r="3.4" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /><path d="M16.5 6.2a3.2 3.2 0 0 1 0 6" /><path d="M18 14.4a5.6 5.6 0 0 1 3.5 5.2" /></svg>
           <em>구성원</em>
         </button>
         <button type="button" onClick={() => pickRail("rooms")} aria-pressed={rail === "rooms"}
-          className={`chat-rail-btn ${rail === "rooms" ? "chat-rail-btn-on" : ""}`} title="채팅방 — 팀 · 프로젝트 · 1:1 목록">
+          className={`chat-rail-btn ${rail === "rooms" ? "chat-rail-btn-on" : ""}`} title="채팅방 · 팀 · 프로젝트 · 1:1 목록">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
           <em>채팅방</em>
           {totalUnread > 0 && <span className="chat-rail-badge">{totalUnread > 99 ? "99+" : totalUnread}</span>}
         </button>
         {/*  일정 · 할 일 — 대화를 보다가 그 자리에서 잡는다. 저장은 '일정 / 할 일' 메뉴와 같은 자리 */}
         <button type="button" onClick={() => pickRail("schedule")} aria-pressed={rail === "schedule"}
-          className={`chat-rail-btn ${rail === "schedule" ? "chat-rail-btn-on" : ""}`} title="일정 · 할 일 — 여기서 적으면 일정/할 일 메뉴에도 그대로 들어갑니다">
+          className={`chat-rail-btn ${rail === "schedule" ? "chat-rail-btn-on" : ""}`} title="일정 · 할 일 · 여기서 적으면 일정/할 일 메뉴에도 그대로 들어갑니다">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2" /><path d="M3 9.5h18M8 2.5v4M16 2.5v4" /><path d="M9 14.5l2 2 4-4" /></svg>
           <em>일정</em>
         </button>
@@ -626,7 +633,8 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
                   <div className="px-2.5 py-1 text-[11px] text-[var(--text-dim)]">{sec.empty}</div>
                 ) : (
                   sec.list.map((ch: any) => (
-                    <ChannelRow key={ch.id} ch={ch} active={selectedChannel === ch.id} unread={unreadMap?.get(ch.id) || 0} onClick={() => open(ch.id)} />
+                    <ChannelRow key={ch.id} ch={ch} active={selectedChannel === ch.id} unread={unreadMap?.get(ch.id) || 0} onClick={() => open(ch.id)}
+                      avatar={ch.is_dm && ch.dm_user_id ? ((companyUsers as any[]).find((u) => u.id === ch.dm_user_id)?.avatar_url || null) : null} />
                   ))
                 )}
               </SidebarSection>

@@ -74,7 +74,7 @@ function CategoryDetailModal({ companyId, year, kind, category, label, onClose, 
         <div className="cost-detail-modal-box" onClick={(e) => e.stopPropagation()}>
           <div className="cost-detail-modal-header">
             <div>
-              <div className="text-sm font-bold text-[var(--text)]">{label} — 고정비 산출 내역</div>
+              <div className="text-sm font-bold text-[var(--text)]">{label} · 고정비 산출 내역</div>
               <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{year}년 · 정기결제 등록 항목은 여기서 바로 제거할 수 있습니다</div>
             </div>
             <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
@@ -95,7 +95,7 @@ function CategoryDetailModal({ companyId, year, kind, category, label, onClose, 
                           onClick={() => removeRecurring(it.recurringId!)}
                           disabled={removing === it.recurringId}
                           className="text-[10px] px-2 py-1 rounded text-[var(--danger)] hover:bg-[var(--danger)]/10 disabled:opacity-50"
-                          title="이 정기결제를 고정비에서 제거합니다(비활성화 — 결제 이력은 유지)"
+                          title="이 정기결제를 고정비에서 제거합니다(비활성화 · 결제 이력은 유지)"
                         >{removing === it.recurringId ? "제거 중…" : "제거"}</button>
                       )}
                     </td>
@@ -116,7 +116,7 @@ function CategoryDetailModal({ companyId, year, kind, category, label, onClose, 
   return (
     <CellDetail
       companyId={companyId} year={year} month={0} rowKey="__category"
-      title={`${label} — ${kind === "fixed" ? "고정비" : "변동비"}`}
+      title={`${label} · ${kind === "fixed" ? "고정비" : "변동비"}`}
       subtitle={`${year}년 · 산출 내역`}
       clientItems={items}
       note={kind === "variable" ? VARIABLE_NOTE : category === "bank_fixed" ? FIXED_NOTE : `표의 '올해 누계'는 아래 월액 합계 × 경과월입니다. ${FIXED_NOTE}`}
@@ -398,9 +398,10 @@ export default function CostsPage() {
             <br />
             - 변동비는 법인카드 사용액과 일회성 지출(결제 대기, 취소 건 제외)을 합산합니다.
             <br />
-            - <strong style={{ color: "var(--text-muted)" }}>계정 성격이 비용이 아닌 거래는 제외</strong>합니다 — 대출 원금 상환·미지급금 상환·보증금·이체는 돈이 나가도 비용이 아니라 재무상태표 항목입니다.
+            - <strong style={{ color: "var(--text-muted)" }}>계정 성격이 비용이 아닌 거래는 제외</strong>합니다. 대출 원금 상환·미지급금 상환·보증금·이체는 돈이 나가도 비용이 아니라 재무상태표 항목입니다.
+            
             <br />
-            - 이 화면은 <strong style={{ color: "var(--text-muted)" }}>지나간 달의 실적</strong>만 봅니다(앞날 전망은 경영흐름). 손익계산서와는 기준이 다릅니다 — 여기는 <strong style={{ color: "var(--text-muted)" }}>돈이 나간 시점</strong>, 손익계산서는 세금계산서 발행 시점(발생주의)입니다.
+            - 이 화면은 <strong style={{ color: "var(--text-muted)" }}>지나간 달의 실적</strong>만 봅니다(앞날 전망은 경영흐름). 손익계산서와는 기준이 다릅니다. 여기는  <strong style={{ color: "var(--text-muted)" }}>돈이 나간 시점</strong>, 손익계산서는 세금계산서 발행 시점(발생주의)입니다.
             <br />
             - 금액을 클릭하면 어떤 내역으로 산출됐는지 팝업으로 확인할 수 있습니다.
             <br />

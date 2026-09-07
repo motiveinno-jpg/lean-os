@@ -45,10 +45,10 @@ import { TAB_COMPAT, settingsGroup, type SettingsGroupKey, type SettingsLeafKey 
 type LeafKey = SettingsLeafKey;
 
 export function SettingsShell({ group }: { group: SettingsGroupKey }) {
-  const { role } = useUser();
+  const { role }  = useUser();
   // 권한 게이트에서 early return 한 뒤에 나머지 훅들이 이어지면 role 이 바뀌는 렌더에서
-  // 훅 개수가 달라져 React #310 크래시 — 본문을 별도 컴포넌트로 분리 (2026-08-03).
-  if (role === "partner" /* (P3) 멤버는 권한 게이트가 판정 */) {
+  // 훅 개수가 달라져 React #310 크래시 · 본문을 별도 컴포넌트로 분리 (2026-08-03).
+  if (role === "partner" /* (P3) 멤버는 권한 게이트가 판정 */)  {
     return <AccessDenied detail="회사 설정은 회사 구성원 전용입니다 (외부 파트너 제외)." />;
   }
   return <SettingsPageInner group={group} />;
@@ -78,9 +78,9 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
       window.history.replaceState(null, "", url.toString());
     }
   };
-  // (2026-07-30 개편 P3) 설정 세부탭 권한 게이트 — 마스터=전체, 멤버=부여(/settings:leaf)만.
+  // (2026-07-30 개편 P3) 설정 세부탭 권한 게이트 · 마스터=전체, 멤버=부여(/settings:leaf)만.
   //   통합 탭은 구성 키 중 하나라도 부여돼 있으면 노출 (옛 부여 존중).
-  const { isMaster: permMaster, hasPerm: permHas, loading: permLoading } = useMyPermissions();
+  const  { isMaster: permMaster, hasPerm: permHas, loading: permLoading } = useMyPermissions();
   const visibleTabs = groupLeaves.filter((t) =>
     t.masterOnly ? permMaster : (permMaster || t.perms.some((p) => permHas(`/settings:${p}`))));
   const firstAllowedLeaf = visibleTabs[0]?.key;
@@ -125,8 +125,8 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
     enabled: !!companyId,
   });
 
-  // 허브 상태줄 — 실데이터 요약. 실패해도 조용히 생략(fail-soft).
-  const { data: hubCompany } = useQuery({
+  // 허브 상태줄 · 실데이터 요약. 실패해도 조용히 생략(fail-soft).
+  const  { data: hubCompany } = useQuery({
     queryKey: ["settings-hub-company", companyId],
     queryFn: async () => {
       const data = logRead('settings/hub:company', await supabase
@@ -149,8 +149,8 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
   //   8-21 사장님 요구는 "무엇이 연결됐나를 한 곳에서 본다"였고, 그래서 'API 키' 탭 목록에
   //   은행·홈택스·광고 줄까지 모아 뒀다. 그런데 같은 것이 두 탭에 나와 헷갈렸다(8-24 사장님).
   //   → 목록에서는 빼고 **탭 줄 배지**로 옮긴다. 조망은 남고 중복만 사라진다.
-  //   ★ 연동 그룹을 볼 때만 부른다 — 다른 설정 화면에서 헛돌게 하지 않는다.
-  const { data: linkedNow = [] } = useQuery({
+  //   ★ 연동 그룹을 볼 때만 부른다. 다른 설정 화면에서 헛돌게 하지 않는다.
+  const  { data: linkedNow = [] } = useQuery({
     queryKey: ["company-linked-integrations", companyId],
     queryFn: () => loadLinkedIntegrations(companyId!),
     enabled: !!companyId && group === "integration",
@@ -227,9 +227,10 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
       toast(`저장 실패: ${error.message}`, "error");
       return;
     }
+    
     setSaved(true);
     toast("현금 현황이 저장되었습니다. 대시보드에 즉시 반영됩니다.", "success");
-    // 대시보드 즉시 갱신 — refetchQueries 로 캐시 무관 강제 fetch
+    // 대시보드 즉시 갱신 · refetchQueries 로 캐시 무관 강제 fetch
     await Promise.all([
       queryClient.refetchQueries({ queryKey: ["cash-pulse"] }),
       queryClient.refetchQueries({ queryKey: ["real-burn"] }),
@@ -272,9 +273,11 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
     );
   }
 
-  //   이 그룹에서 볼 수 있는 탭이 하나도 없으면 화면을 열지 않는다 — 새 주소가 권한 뒷문이 되면 안 된다.
+  
+
+  //   이 그룹에서 볼 수 있는 탭이 하나도 없으면 화면을 열지 않는다. 새 주소가 권한 뒷문이 되면 안 된다.
   //   (권한을 아직 읽는 중이면 기다린다. 안 그러면 잠깐 '권한 없음'이 번쩍인다.)
-  if (!permLoading && visibleTabs.length === 0) {
+  if (!permLoading && visibleTabs.length === 0)  {
     return <AccessDenied detail="이 설정 항목에 대한 권한이 없습니다. 회사 마스터에게 요청하세요." />;
   }
 
@@ -382,7 +385,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
               </div>
               <div className="stg-form-grid">
                 <div>
-                  <label className="field-label">추가 현금 — 시재금 / 미연동 계좌 (원)</label>
+                  <label className="field-label">추가 현금<span className="ui-sub">시재금 / 미연동 계좌 (원)</span></label>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -597,7 +600,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
 
               {routingRules.length === 0 ? (
                 <div className="stg-empty">
-                  <div className="stg-empty-t">라우팅 규칙이 없습니다 — 기본 통장으로 지급됩니다</div>
+                  <div className="stg-empty-t">라우팅 규칙이 없습니다. 기본 통장으로 지급됩니다</div>
                   <div className="stg-empty-d">&quot;+ 규칙 추가&quot;로 비용 유형별 지급 통장을 지정할 수 있습니다.</div>
                 </div>
               ) : (

@@ -135,8 +135,10 @@ export function TopCardExpensesThisMonth({ companyId }: Props) {
   );
 }
 
+
+
 // ─────────────────────────────────────────
-// 1-b) 카드 자동이체(정기결제) 내역 — is_fixed_cost=true, 이번달
+// 1-b) 카드 자동이체(정기결제) 내역 · is_fixed_cost=true, 이번달
 // ─────────────────────────────────────────
 export function CardAutoTransferHistory({ companyId }: Props) {
   const now = new Date();
@@ -298,8 +300,8 @@ export function CardMonthlyUsage({ companyId }: Props) {
     staleTime: 60_000,
   });
 
-  // 카드별/월별 합계 (양수만) — 끝 4자리가 같은 카드는 표시 레벨에서 하나로 병합(원본 데이터는 보존).
-  const { perCard, totals, monthMax } = useMemo(() => {
+  // 카드별/월별 합계 (양수만). 끝 4자리가 같은 카드는 표시 레벨에서 하나로 병합(원본 데이터는 보존).
+  const  { perCard, totals, monthMax } = useMemo(() => {
     const tx = (txAll as any[]).filter((t: any) => Number(t.amount || 0) > 0);
 
     // 문자열에서 마지막 연속 숫자 4자리 추출 (카드번호 끝 4자리 식별용)
@@ -479,7 +481,7 @@ function CardPerCardTable({
       >
         <span className="inline-block w-3 text-center text-[10px] text-[var(--text-muted)]">{collapsed ? '▶' : '▼'}</span>
         <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">
-          카드별 {sortedCards.length}장 {collapsed ? '(접힘 — 클릭하면 펼침)' : ''}
+          카드별 {sortedCards.length}장 {collapsed ? '(접힘 · 클릭하면 펼침)' : ''}
         </div>
       </button>
       {!collapsed && (

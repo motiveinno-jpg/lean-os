@@ -67,8 +67,8 @@ const kstYmd = (d: Date) => {
 };
 
 type Cond = { dept: string[]; pos: string[]; status: string[]; etype: string[]; from: string; to: string; rows: number };
-//   기본값 = 재직만 — 예전 세그먼트 기본값(재직)을 그대로 조건 칩으로 옮겼다. 칩 ✕ 로 풀면 전체.
-const EMPTY_COND: Cond = { dept: [], pos: [], status: [], etype: [], from: "", to: "", rows: 50 };
+//   기본값 = 재직만 · 예전 세그먼트 기본값(재직)을 그대로 조건 칩으로 옮겼다. 칩 ✕ 로 풀면 전체.
+const EMPTY_COND: Cond =  { dept: [], pos: [], status: [], etype: [], from: "", to: "", rows: 50 };
 const DEFAULT_COND: Cond = { ...EMPTY_COND, status: ["active"] };
 const condCount = (c: Cond) => c.dept.length + c.pos.length + c.status.length + c.etype.length + ((c.from || c.to) ? 1 : 0);
 //   상태 조건은 화면에 보이는 묶음으로 — 재직(active·joined) / 초대됨 / 계약 대기 / 퇴사·비활성
@@ -85,7 +85,7 @@ type SortKey = "employee_number" | "name" | "department" | "position" | "etype" 
 const VIEW_OPTS = [{ value: "list", label: "리스트" }, { value: "card", label: "카드" }] as const;
 
 /**
- * 구성원 디렉토리 — 조회 화면 표준(2026-08-18 Wave 4).
+ * 구성원 디렉토리 · 조회 화면 표준(2026-08-18 Wave 4).
  *   상자 하나: 갈래 탭(부모가 준다) → [검색조건 ▾] 빠른검색 · 보기 칩 ‖ 초대 버튼 → 걸린 조건 칩 → 결과 요약 → 카드/표 → 쪽.
  *   예전 필터 바(검색·팀 select·재직/전체/퇴사 세그먼트·카드/리스트 세그먼트)는 전부 이 부품으로 대체.
  */
@@ -125,9 +125,9 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
   const etypes = useMemo(() => [...new Set(employees.map((e) => e.employment_type).filter(Boolean))] as string[], [employees]);
   const toTokens = (xs: string[], lab?: (x: string) => string): TokenItem[] => xs.map((x) => ({ value: x, label: lab ? lab(x) : x }));
 
-  // 프로필 사진 — 마이페이지에서 설정한 users.avatar_url 을 회사 단위로 조회해
+  // 프로필 사진 · 마이페이지에서 설정한 users.avatar_url 을 회사 단위로 조회해
   //   employees 행과 user_id(우선) 또는 email 로 매칭. 없으면 기존 이니셜 원형 유지.
-  const { data: userAvatars = [] } = useQuery<{ id: string; email: string | null; avatar_url: string | null }[]>({
+  const  { data: userAvatars = [] } = useQuery<{ id: string; email: string | null; avatar_url: string | null }[]>({
     queryKey: ["company-user-avatars", companyId],
     queryFn: async () => {
       const data = logRead('components/flex-people-directory:data', await db.from("users").select("id, email, avatar_url").eq("company_id", companyId));
@@ -272,7 +272,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
                   onClear={() => setDraft((c) => ({ ...c, from: "", to: "" }))} />
               </ConditionRow>
             </ConditionPanel>
-            <QuickSearch value={q} onApply={setQ} placeholder="이름 · 부서 · 직책 · 이메일 · 연락처 · 사번 — 쉼표로 여러 개, Enter" />
+            <QuickSearch value={q} onApply={setQ} placeholder="이름 · 부서 · 직책 · 이메일 · 연락처 · 사번 · 쉼표로 여러 개, Enter" />
             <ChipGroup value={view} onChange={setView} options={VIEW_OPTS} />
           </QueryBar>
           <AppliedChips chips={chips} onClearAll={clearAll} />
@@ -285,7 +285,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
           <div className="ev-scroll">
             {before}
             {shown.length === 0 ? (
-              <div className="collect-empty">조건에 맞는 구성원이 없습니다 — 검색조건을 풀어 보세요</div>
+              <div className="collect-empty">조건에 맞는 구성원이 없습니다. 검색조건을 풀어 보세요</div>
             ) : view === "card" ? (
               <div className="flex-people-card-grid emp-card-grid">{pager.view.map(renderCard)}</div>
             ) : (

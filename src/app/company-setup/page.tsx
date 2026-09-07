@@ -1,13 +1,13 @@
 "use client";
 import { logRead } from "@/lib/log-read";
-import { Ico } from "@/components/ui-icon";
+import { Ico }  from "@/components/ui-icon";
 
-// 회사 설정 단계 — 카카오/구글 소셜 가입 등 사업자번호 없이 계정만 생긴 사용자의 필수 관문.
+// 회사 설정 단계 · 카카오/구글 소셜 가입 등 사업자번호 없이 계정만 생긴 사용자의 필수 관문.
 //   이메일 가입과 동일한 규칙: 사업자번호 필수 → 형식/중복/국세청 3중 검증 →
 //   미등록이면 회사 개설(+14일 트라이얼), 기등록이면 합류 요청(승인제)으로 전환.
 //   public.users 가 이미 있으면(기존 회원) 대시보드로 통과.
 
-import { useEffect, useState } from "react";
+import  { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { bizNoDigits, formatBizNo, isValidBizNo, checkBusinessNumberRegistered, submitJoinRequest, createCompanyWithOwner, assertBizNoActive } from "@/lib/company-signup";
@@ -26,7 +26,7 @@ export default function CompanySetupPage() {
   const [joinPrompt, setJoinPrompt] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  // 명시적 중복 확인 — available 전에는 회사 개설 제출 불가.
+  // 명시적 중복 확인 · available 전에는 회사 개설 제출 불가.
   const [bizCheck, setBizCheck] = useState<"unchecked" | "checking" | "available" | "registered" | "error">("unchecked");
   const [bizCheckedDigits, setBizCheckedDigits] = useState("");
 
@@ -34,11 +34,12 @@ export default function CompanySetupPage() {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/auth"); return; }
+      
       // 이미 회사 소속(기존 회원·승인 완료)이면 통과.
-      //   2026-07-28 P0: company_id 까지 확인해야 한다 — 행만 있고 회사가 NULL 인 레거시 계정을
+      //   2026-07-28 P0: company_id 까지 확인해야 한다. 행만 있고 회사가 NULL 인 레거시 계정을
       //   대시보드로 보내면 앱 셸 가드(getCurrentUser null → /company-setup)와 무한 리다이렉트 루프.
       const existing = logRead('company-setup/page:existing', await supabase.from("users").select("id, company_id").eq("auth_id", user.id).maybeSingle());
-      if (existing?.company_id) { router.push("/dashboard"); return; }
+      if (existing?.company_id)  { router.push("/dashboard"); return; }
       setAuthUser(user as any);
       setCompanyName(user.user_metadata?.company_name || "");
       setReady(true);
@@ -94,15 +95,17 @@ export default function CompanySetupPage() {
           setJoinPrompt(dup.companyNameMasked || "등록된 회사");
           return;
         }
-        // ② 국세청 상태 확인 — 번호만으로 폐업·휴업·미등록 차단 (진위확인은 관문에서 제거, 2026-08-05)
+        
+        // ② 국세청 상태 확인 · 번호만으로 폐업·휴업·미등록 차단 (진위확인은 관문에서 제거, 2026-08-05)
         const gate = await assertBizNoActive(bizNo);
-        if (!gate.ok) {
+        if (!gate.ok)  {
           // 확인 실패도 로그 — 여기서 이탈하는 가입자가 얼마나 되는지 운영자가 봐야 한다(2026-07-29)
           try { logError({ source: "manual", message: `[간편가입] 국세청 확인 통과 실패: ${gate.error || "사유 미상"}`, context: { step: "nts_gate", biz: bizNoDigits(bizNo).slice(0, 3) + "-**-*****" } }); } catch { /* 무시 */ }
           return setError(gate.error || "사업자번호를 확인할 수 없습니다.");
         }
       }
-      // ③ 회사 개설 (+owner 연결) — 유니크 충돌 시 합류 전환.
+      
+      // ③ 회사 개설 (+owner 연결). 유니크 충돌 시 합류 전환.
       //   사업자번호가 비면 createCompanyWithOwner 가 companies.business_number 를 아예 안 넣는다.
       //   유니크 인덱스가 부분 인덱스(WHERE business_number IS NOT NULL)라 빈 회사끼리는 충돌하지 않고,
       //   나중에 회사설정에서 번호를 넣는 순간 중복 검사가 정상 작동한다.
@@ -110,7 +113,7 @@ export default function CompanySetupPage() {
       // 소셜 가입은 메타에 phone 이 없을 수 있어 이 화면에서 받은 값을 우선 사용한다.
       const phoneToSave = isValidMobile(phone) ? phone : (authUser.user_metadata?.phone || null);
       const r = await createCompanyWithOwner(authUser.id, authUser.email || "", companyName.trim(), displayName, bizNoDigits(bizNo), phoneToSave);
-      if (r.ok) { router.push("/onboarding"); return; }
+      if (r.ok)  { router.push("/onboarding"); return; }
       if (r.duplicate) { setJoinPrompt("등록된 회사"); return; }
       setError(r.error || "회사 생성에 실패했습니다. 다시 시도해주세요.");
     } catch (err: any) {
@@ -178,7 +181,9 @@ export default function CompanySetupPage() {
               </div>
               {bizCheck === "unchecked" && (
                 <p className="text-[11px] text-[var(--text-dim)] mt-1">
-                  통장·카드 자동수집, 세금계산서 발행, 결제에는 사업자번호가 필요합니다 — 그때 등록하셔도 됩니다.
+                  
+                  통장·카드 자동수집, 세금계산서 발행, 결제에는 사업자번호가 필요합니다. 그때 등록하셔도 됩니다.
+
                 </p>
               )}
               {bizCheck === "available" && (

@@ -48,7 +48,9 @@ function niceMax(v: number): number {
   return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : n <= 7.5 ? 7.5 : 10) * e;
 }
 
-/** 범례 — 계열이 둘 이상이면 늘 붙인다(색만으로 구분하게 두지 않는다) */
+
+
+/** 범례 · 계열이 둘 이상이면 늘 붙인다(색만으로 구분하게 두지 않는다) */
 export function Legend({ items }: { items: { name: string; color: string }[] }) {
   if (items.length < 2) return null;
   return (
@@ -60,7 +62,9 @@ export function Legend({ items }: { items: { name: string; color: string }[] }) 
   );
 }
 
-/** 세로 막대 — 시간 흐름·항목 비교의 기본 */
+
+
+/** 세로 막대 · 시간 흐름·항목 비교의 기본 */
 export function ColumnChart({ data, height = 200, unit = "" }: { data: Datum[]; height?: number; unit?: string }) {
   const [hover, setHover] = useState<number | null>(null);
   const max = niceMax(Math.max(1, ...data.map((d) => d.value)));
@@ -92,8 +96,8 @@ export function GroupedColumnChart({ labels, series, height = 200, unit = "", tr
   labels: string[];
   series: { name: string; values: number[] }[];
   height?: number; unit?: string;
-  /** 같은 축에 겹쳐 그리는 한 줄(예: 순이익) — 단위가 같을 때만 준다 */
-  trend?: { name: string; values: number[] };
+  /** 같은 축에 겹쳐 그리는 한 줄(예: 순이익). 단위가 같을 때만 준다 */
+  trend?:  { name: string; values: number[] };
   onColumnClick?: (i: number) => void;
   activeIndex?: number | null;
 }) {
@@ -136,7 +140,9 @@ export function GroupedColumnChart({ labels, series, height = 200, unit = "", tr
   );
 }
 
-/** 가로 막대 — 이름이 길거나 순위를 볼 때 */
+
+
+/** 가로 막대 · 이름이 길거나 순위를 볼 때 */
 export function BarChart({ data, unit = "", max: fixedMax }: { data: Datum[]; unit?: string; max?: number }) {
   const max = niceMax(fixedMax || Math.max(1, ...data.map((d) => d.value)));
   return (
@@ -154,7 +160,9 @@ export function BarChart({ data, unit = "", max: fixedMax }: { data: Datum[]; un
   );
 }
 
-/** 선 — 흐름을 본다. 계열이 여럿이면 색으로 가르고 범례를 붙인다 */
+
+
+/** 선 · 흐름을 본다. 계열이 여럿이면 색으로 가르고 범례를 붙인다 */
 export function LineChart({ series, height = 200, unit = "", styles, colors, yFmt }: {
   series: Series[]; height?: number; unit?: string;
   /** 계열별 선 모양 — 확정은 실선, 추정은 점선처럼 '얼마나 믿을 수 있나'를 선으로 (2026-08-19 자금 전망) */
@@ -207,7 +215,9 @@ export function LineChart({ series, height = 200, unit = "", styles, colors, yFm
   );
 }
 
-/** 폭포수 — 무엇이 얼마를 깎아 얼마가 남는지. 손익 구조(매출 → 원가 → 판관비 → 이익)처럼
+
+
+/** 폭포수 · 무엇이 얼마를 깎아 얼마가 남는지. 손익 구조(매출 → 원가 → 판관비 → 이익)처럼
  *  '더하고 빼서 결론에 닿는' 자료의 최적 형태다. 막대 여럿으로는 그 관계가 안 보인다.
  *  step: 'add'(더함) · 'sub'(뺌) · 'total'(그때까지의 결론) */
 export function WaterfallChart({ steps, unit = "원", height = 220 }: {
@@ -257,7 +267,9 @@ export function WaterfallChart({ steps, unit = "원", height = 220 }: {
   );
 }
 
-/** 도넛 — 무엇이 얼마를 차지하는지. 가운데에 합계를 둔다 */
+
+
+/** 도넛 · 무엇이 얼마를 차지하는지. 가운데에 합계를 둔다 */
 export function DonutChart({ data, total, unit = "", hole = 0.62 }: {
   data: Datum[]; total?: string; unit?: string; hole?: number;
 }) {
@@ -293,7 +305,9 @@ export function DonutChart({ data, total, unit = "", hole = 0.62 }: {
   );
 }
 
-/** 깔때기 — 단계마다 얼마나 남는지 */
+
+
+/** 깔때기 · 단계마다 얼마나 남는지 */
 export function FunnelChart({ data, unit = "" }: { data: Datum[]; unit?: string }) {
   const max = Math.max(1, ...data.map((d) => d.value));
   return (
@@ -315,7 +329,9 @@ export function FunnelChart({ data, unit = "" }: { data: Datum[]; unit?: string 
   );
 }
 
-/** 분산형 — 두 지표의 관계를 본다(예: 광고비 대비 CPC) */
+
+
+/** 분산형 · 두 지표의 관계를 본다(예: 광고비 대비 CPC) */
 export function ScatterChart({ points, xLabel, yLabel, height = 220 }: {
   points: { label: string; x: number; y: number }[]; xLabel: string; yLabel: string; height?: number;
 }) {
@@ -340,7 +356,9 @@ export function ScatterChart({ points, xLabel, yLabel, height = 220 }: {
   );
 }
 
-/** 묶음(클러스터) — 크기로 무게를 보여 준다. 이름이 길면 자른다 */
+
+
+/** 묶음(클러스터). 크기로 무게를 보여 준다. 이름이 길면 자른다 */
 export function ClusterChart({ data, unit = "" }: { data: Datum[]; unit?: string }) {
   const sum = data.reduce((n, d) => n + d.value, 0) || 1;
   return (

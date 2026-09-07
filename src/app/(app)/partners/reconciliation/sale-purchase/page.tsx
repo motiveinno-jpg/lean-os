@@ -60,8 +60,8 @@ const EMPTY_COND: Cond = { pt: [], side: [], vat: [], item: "", elec: "", settle
 const condCount = (c: Cond) => c.pt.length + c.side.length + c.vat.length + (c.item ? 1 : 0) + (c.elec ? 1 : 0) + c.settle.length + ((c.min || c.max) ? 1 : 0);
 
 type Acct = { id: string; code: string; name: string; account_type: string };
-//   거래처 코드는 회사에 따라 숫자로 저장돼 있기도 하다 — 화면에서는 항상 문자열로 다룬다
-type Pt = { id: string; code: string | number | null; name: string; business_number: string | null };
+//   거래처 코드는 회사에 따라 숫자로 저장돼 있기도 하다. 화면에서는 항상 문자열로 다룬다
+type Pt =  { id: string; code: string | number | null; name: string; business_number: string | null };
 
 /** 격자 한 줄 = 전표 한 장. 금액은 문자열로 두고 저장할 때 숫자로 바꾼다. */
 type Row = {
@@ -86,8 +86,8 @@ type Row = {
 };
 type RefKind = "tax_invoice" | "card_transaction" | "cash_receipt" | "stock_doc";
 
-//   상단 갈래 — 유형을 묶어 보는 필터 겸, 새 줄의 기본 유형
-const GROUPS: { key: string; label: string; codes: string[] }[] = [
+//   상단 갈래 · 유형을 묶어 보는 필터 겸, 새 줄의 기본 유형
+const GROUPS:  { key: string; label: string; codes: string[] }[] = [
   { key: "all", label: "전체", codes: [] },
   { key: "sale_tax", label: "매출세금", codes: ["11", "12"] },
   { key: "buy_tax", label: "매입세금", codes: ["51"] },
@@ -158,9 +158,9 @@ const monthAfter = (ym: string) => {
 };
 
 export default function SalePurchaseVoucherPage() {
-  const { role } = useUser();
-  //   전표는 회사 장부라 관리자만 — 일반전표 화면과 같은 기준
-  if (role !== "owner" && role !== "admin") {
+  const { role }  = useUser();
+  //   전표는 회사 장부라 관리자만 · 일반전표 화면과 같은 기준
+  if (role !== "owner" && role !== "admin")  {
     return <AccessDenied detail="매입매출전표는 대표·관리자 전용입니다." />;
   }
   return <SalePurchaseInner />;
@@ -195,9 +195,9 @@ function SalePurchaseInner() {
   const [pulled, setPulled] = useState(0);
   //   저장분을 눌러 고치는 중인 줄. 새로 치는 줄(rows)과 같은 편집기를 쓰되 저장은 update RPC 로 간다.
   const [edit, setEdit] = useState<Row | null>(null);
-  //   제목줄 정렬 — 공용 규칙(SortableTh 와 같은 ▼ 표시). 기본 일자 오름차순(자료 순서 그대로)
+  //   제목줄 정렬 · 공용 규칙(SortableTh 와 같은 ▼ 표시). 기본 일자 오름차순(자료 순서 그대로)
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "date", dir: "asc" });
-  //   native select 를 눌러 목록을 펼친 상태 — 그동안은 Enter 를 우리가 가로채지 않는다
+  //   native select 를 눌러 목록을 펼친 상태 · 그동안은 Enter 를 우리가 가로채지 않는다
   const [selectOpen, setSelectOpen] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -218,7 +218,7 @@ function SalePurchaseInner() {
     },
     enabled: !!companyId, staleTime: 300_000,
   });
-  // 거래처 간편 등록 팝업 — 어느 줄에서 열었는지·미리 채울 이름·매출/매입 갈래 (2026-09-02 사장님)
+  // 거래처 간편 등록 팝업 · 어느 줄에서 열었는지·미리 채울 이름·매출/매입 갈래 (2026-09-02 사장님)
   const [quickCreate, setQuickCreate] = useState<{ row: number; name: string; vatCode: string } | null>(null);
   const { data: partners = [] } = useQuery({
     queryKey: ["sp-partners", companyId],
@@ -238,10 +238,10 @@ function SalePurchaseInner() {
   // ── 그 달에 저장된 전표를 격자 위쪽에 그대로 올린다 (회계 프로그램처럼) ──
   //   ★ **확정 전표만** 그린다 (2026-08-24 사장님 지적: "수집·전표에서는 미처리인데 매입매출전표에는 반영돼 있다").
   //     전표 취소(unpost_evidence_voucher)는 전표를 지우지 않고 `status='rejected'` 로 남기고
-  //     원자료의 journal_entry_id 를 비운다 — 그래서 수집은 '미처리'로 돌아온다.
+  //     원자료의 journal_entry_id 를 비운다. 그래서 수집은 '미처리'로 돌아온다.
   //     이 목록만 status 를 안 걸러서 **취소한 전표가 계속 보였다.** 옆 화면(일반전표)·장부·원장은
   //     전부 status='confirmed' 로 읽는다(journal-reports.ts: "반려·임시분은 장부가 아니다").
-  const { data: saved = [] } = useQuery({
+  const  { data: saved = [] } = useQuery({
     queryKey: ["sp-saved", companyId, fromM, toM],
     queryFn: async () => {
       const to = monthAfter(toM);
@@ -259,8 +259,8 @@ function SalePurchaseInner() {
     enabled: !!companyId,
   });
 
-  /** 저장된 전표의 분개를 뜯어 본 결과 — 수정 화면을 열 때 계정을 그대로 되살리는 데 쓴다 */
-  type SavedInfo = { settle: SettleType; main: Acct | null; counter: Acct | null; vatAcct: Acct | null; mainPartner: Pt | null; counterPartner: Pt | null };
+  /** 저장된 전표의 분개를 뜯어 본 결과 · 수정 화면을 열 때 계정을 그대로 되살리는 데 쓴다 */
+  type SavedInfo =  { settle: SettleType; main: Acct | null; counter: Acct | null; vatAcct: Acct | null; mainPartner: Pt | null; counterPartner: Pt | null };
   const savedInfo = useMemo(() => {
     const m = new Map<string, SavedInfo>();
     const acctOf = (l: any): Acct | null => l?.chart_of_accounts
@@ -380,9 +380,9 @@ function SalePurchaseInner() {
   //   쪽 넘김 — 저장분만 쪽을 나눈다(기본 50줄, 줄 수는 검색조건 안). 입력 줄은 늘 맨 아래에 그대로 있다.
   //   ⚠️ 2026-08-18 사장님: "줄 수가 없는데 맞는지? 조회 건 많으면 페이지로 제공되는지?" — 표준인데 빠져 있었다.
   const pager = usePager(sortedSaved, cLive.rows, `${group}|${fromM}|${toM}|${q}|${JSON.stringify(cLive)}|${cf.key}`);
-  //   내 조건 — ★ 하나가 이 화면(조회부)의 기본값
+  //   내 조건 · ★ 하나가 이 화면(조회부)의 기본값
   const saved2 = useSavedQueries("sale-purchase", companyId);
-  const paramsNow = { group, from: fromM, to: toM, q, cond: cLive };
+  const paramsNow =  { group, from: fromM, to: toM, q, cond: cLive };
   const paramsBasic = { group: "all", ...defaultRangeMonth(), q: "", cond: EMPTY_COND };
   const applySaved = (p: Record<string, unknown>) => {
     if (typeof p.group === "string" && GROUPS.some((g) => g.key === p.group)) setGroup(p.group);
@@ -480,8 +480,9 @@ function SalePurchaseInner() {
           suggested: suggestVatType({ kind: "cash_receipt", direction: dir }),
         });
       }
-      //   0 원 건만 뺀다. 음수(수정세금계산서·환입·카드 취소)는 그대로 둔다 — 격자가 부호를 받는다.
-      for (const r of (((stk as any).data as any[]) || [])) {
+      
+      //   0 원 건만 뺀다. 음수(수정세금계산서·환입·카드 취소)는 그대로 둔다. 격자가 부호를 받는다.
+      for (const r of (((stk as any).data as any[]) || []))  {
         const ms = (r.stock_moves || []) as any[];
         //   판매는 음수(나감)로 쌓여 있다 — 부호를 살려 합치면 반품은 음수 전표로 온다(카드 취소분과 같은 규칙)
         const signed = ms.reduce((n, m) => n + Number(m.unit_price || 0) * Number(m.qty || 0), 0);
@@ -502,7 +503,7 @@ function SalePurchaseInner() {
     enabled: !!companyId && pullOpen,
   });
 
-  //   불러오면 격자 줄로 얹힌다 — 여러 건을 이어 눌러 한 번에 쌓을 수 있다
+  //   불러오면 격자 줄로 얹힌다. 여러 건을 이어 눌러 한 번에 쌓을 수 있다
   /** RPC 로 거래처를 찾거나 만들고(가맹점·카드사) Pt 로 돌려준다. 목록 캐시에도 끼워 다음 줄에서 바로 검색되게. */
   const resolvePartner = async (fn: "resolve_merchant_partner" | "resolve_card_partner", args: Record<string, unknown>): Promise<Pt | null> => {
     try {
@@ -669,8 +670,8 @@ function SalePurchaseInner() {
       case "y": patch(i, { y: a.y }); break;
       case "m": patch(i, { m: a.m }); break;
       case "d": patch(i, { d: a.d }); break;
-      //   증빙 꼬리표(refType·refId)는 따라오지 않는다 — 거래처만 같을 뿐 다른 건이다
-      case "partner": patch(i, { partner: a.partner, partnerText: a.partner?.name || a.partnerText }); setDrop(null); break;
+      //   증빙 꼬리표(refType·refId)는 따라오지 않는다. 거래처만 같을 뿐 다른 건이다
+      case "partner": patch(i,  { partner: a.partner, partnerText: a.partner?.name || a.partnerText }); setDrop(null); break;
       case "vatCode": setVat(i, a.vatCode); break;    // 유형이 세액·결제방법·분개까지 다시 만든다
       case "item": patch(i, { item: a.item }); break;
       case "supply": setSupply(i, a.supply); break;   // 공급가액을 내리면 부가세도 따라 붙는다
@@ -713,10 +714,10 @@ function SalePurchaseInner() {
     setRows((rs) => (rs.length > 1 ? rs.filter((_, k) => k !== i) : [blankRow()]));
   };
 
-  //   중복 의심 (2026-08-19, docs/20260819_PLAN_duplicate_voucher_handling.md) — 새 전표를 만들기 전에
+  //   중복 의심 (2026-08-19, docs/20260819_PLAN_duplicate_voucher_handling.md). 새 전표를 만들기 전에
   //   같은 날 같은 금액의 전표가 있으면 묻는다. 증빙에서 온 줄은 그 증빙을 기존 전표에 걸 수 있고,
   //   손으로 친 줄은 걸어 둘 것이 없어 새 전표/취소만 고른다.
-  const { askDup, dupPromptElement } = useDupVoucherPrompt();
+  const  { askDup, dupPromptElement } = useDupVoucherPrompt();
   const save = async () => {
     if (!canSave) return;
     const date = `${row.y}-${String(Number(row.m)).padStart(2, "0")}-${String(Number(row.d)).padStart(2, "0")}`;
@@ -729,7 +730,7 @@ function SalePurchaseInner() {
           try {
             if (row.refType === "card_transaction") await linkTransactionToEntry("card", row.refId, a.entryId);
             else await supabase.from(row.refType === "cash_receipt" ? "cash_receipts" : "tax_invoices").update({ journal_entry_id: a.entryId } as never).eq("id", row.refId).is("journal_entry_id", null);
-            toast("기존 전표에 연결했습니다 — 새 전표는 만들지 않았습니다", "success");
+            toast("기존 전표에 연결했습니다. 새 전표는 만들지 않았습니다", "success");
             qc.invalidateQueries({ queryKey: ["sp-pending"] });
             setRows((rs) => { const next = rs.filter((_, k) => k !== cur); return (next.length > 0 ? next : [blankRow()]); });
             setCur(0); setOverrides({});
@@ -750,8 +751,8 @@ function SalePurchaseInner() {
         memo: row.item || "",
         partner_id: l.partner?.id || null,
       }));
-      //   ★ 저장분을 고치는 중이면 update 로 간다 — 새 전표를 하나 더 만들면 안 된다
-      if (edit?.savedId) {
+      //   ★ 저장분을 고치는 중이면 update 로 간다. 새 전표를 하나 더 만들면 안 된다
+      if (edit?.savedId)  {
         const { error } = await (supabase.rpc as any)("update_sale_purchase_voucher", {
           p_entry_id: edit.savedId, p_entry_date: date, p_vat_type: row.vatCode,
           p_supply_amount: supplyNum, p_vat_amount: vatNum,
@@ -794,8 +795,8 @@ function SalePurchaseInner() {
         m.includes("PERIOD_LOCKED") ? "마감된 달이라 전표를 저장할 수 없습니다."
         : m.includes("FORBIDDEN") ? "전표를 저장할 권한이 없습니다."
         : m.includes("ALREADY_POSTED") ? "이 증빙은 이미 전표로 만들어져 있습니다."
-        : m.includes("NOT_SALE_PURCHASE") ? "이 전표는 매입매출전표가 아닙니다 — 일반전표에서 고쳐 주세요."
-        : m.includes("NOT_FOUND") ? "전표를 찾지 못했습니다 — 새로고침 후 다시 시도해 주세요."
+        : m.includes("NOT_SALE_PURCHASE") ? "이 전표는 매입매출전표가 아닙니다. 일반전표에서 고쳐 주세요."
+        : m.includes("NOT_FOUND") ? "전표를 찾지 못했습니다. 새로고침 후 다시 시도해 주세요."
         : m.includes("UNBALANCED") ? "차변과 대변이 맞지 않습니다."
         : `저장 실패: ${friendlyError(e, "알 수 없는 오류")}`, "error",
       );
@@ -843,7 +844,8 @@ function SalePurchaseInner() {
                 if (pt) patch(i, { partner: pt, partnerText: pt.name });
                 setDrop(null);
               }}
-              //   없는 거래처는 여기서 바로 등록 (2026-09-02 사장님) — 검색어가 이름 칸에 미리 들어간다
+              
+              //   없는 거래처는 여기서 바로 등록 (2026-09-02 사장님). 검색어가 이름 칸에 미리 들어간다
               onCreate={(q) => { setQuickCreate({ row: i, name: q || r.partnerText, vatCode: r.vatCode }); setDrop(null); }}
               createLabel={(q) => (q ? `"${q}" 새 거래처로 등록` : "새 거래처 등록")}
               onClose={() => setDrop(null)} />
@@ -876,7 +878,7 @@ function SalePurchaseInner() {
         ) : (
           <button type="button" className="spv-chk" data-cell={`electronic-${i}`} onClick={() => patch(i, { electronic: !r.electronic })}
             onKeyDown={(e) => onCellKey(e, i, "electronic")} onFocus={() => { if (!isEdit) setCur(i); }}
-            title="전자(세금)계산서 발행·수취분이면 켭니다 — 저장됩니다 (Enter 는 윗값 내리기 · Space 로 켜고 끕니다)">{r.electronic ? "전자입력" : "—"}</button>
+            title="전자(세금)계산서 발행·수취분이면 켭니다. 저장됩니다 (Enter 는 윗값 내리기 · Space 로 켜고 끕니다)">{r.electronic ? "전자입력" : "—"}</button>
         )}
         <select className="spv-in spv-sel" data-cell={`settle-${i}`} value={r.settle}
           onChange={(e) => { patch(i, { settle: e.target.value as SettleType }); setSelectOpen(null); }}
@@ -1026,7 +1028,7 @@ function SalePurchaseInner() {
               </ConditionRow>
             </ConditionPanel>
           } />
-        <QuickSearch value={q} onApply={setQ} placeholder="거래처 · 품명 · 사업자번호 · 금액 — 쉼표로 여러 개, Enter" />
+        <QuickSearch value={q} onApply={setQ} placeholder="거래처 · 품명 · 사업자번호 · 금액 · 쉼표로 여러 개, Enter" />
       </QueryBar>
 
       <AppliedChips chips={chips} onClearAll={clearAll} />
@@ -1135,10 +1137,11 @@ function SalePurchaseInner() {
         <div className="spv-je-head">
           <b>분개</b>
           {edit && <em className="spv-je-editing">저장된 전표 #{edit.voucherNo ?? ""} 를 고치는 중</em>}
-          <span>{t.label} · {SETTLE_LABEL[row?.settle || "credit"]} — 유형이 만든 줄입니다 · 계정을 눌러 바꿉니다</span>
+          <span>{t.label} · {SETTLE_LABEL[row?.settle || "credit"]} · 유형이 만든 줄입니다 · 계정을 눌러 바꿉니다</span>
           {isMinus && (
             <span className="spv-minus-note">
-              취소·수정분(음수) — 저장할 때 <b>차·대가 뒤집혀 반대 분개</b>로 들어갑니다
+              
+              취소·수정분(음수). 저장할 때 <b>차·대가 뒤집혀 반대 분개</b>로 들어갑니다
             </span>
           )}
         </div>

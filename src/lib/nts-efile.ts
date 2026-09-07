@@ -72,16 +72,16 @@ export function packField(f: NtsField): { bytes: number[]; issues: NtsIssue[] } 
     if (!Number.isFinite(n)) { issues.push({ field: f.name, message: `숫자가 아닙니다: ${String(f.value)}` }); return { bytes: new Array(f.len).fill(ZERO), issues }; }
     if (n < 0) issues.push({ field: f.name, message: `음수는 이 필드에 직접 못 넣습니다(규격의 부호 필드 사용): ${n}` });
     const digits = String(Math.abs(Math.round(n)));
-    if (digits.length > f.len) { issues.push({ field: f.name, message: `자릿수 초과 — ${digits.length}자리 > 폭 ${f.len}` }); return { bytes: new Array(f.len).fill(ZERO), issues }; }
+    if (digits.length > f.len) { issues.push({ field: f.name, message: `자릿수 초과 · ${digits.length}자리 > 폭 ${f.len}` }); return { bytes: new Array(f.len).fill(ZERO), issues }; }
     const out = new Array<number>(f.len).fill(ZERO);
     for (let i = 0; i < digits.length; i++) out[f.len - digits.length + i] = digits.charCodeAt(i);
     return { bytes: out, issues };
   }
   const s = String(f.value ?? "");
   const { bytes, bad } = encodeEucKr(s);
-  for (const ch of bad) issues.push({ field: f.name, message: `EUC-KR 로 표현할 수 없는 문자: '${ch}' — 값을 고쳐야 합니다` });
+  for (const ch of bad) issues.push({ field: f.name, message: `EUC-KR 로 표현할 수 없는 문자: '${ch}' · 값을 고쳐야 합니다` });
   if (bytes.length > f.len) {
-    issues.push({ field: f.name, message: `길이 초과 — ${bytes.length}바이트 > 폭 ${f.len} ('${s}')` });
+    issues.push({ field: f.name, message: `길이 초과 · ${bytes.length}바이트 > 폭 ${f.len} ('${s}')` });
     return { bytes: new Array(f.len).fill(SPACE), issues };
   }
   return { bytes: [...bytes, ...new Array(f.len - bytes.length).fill(SPACE)], issues };
@@ -97,7 +97,7 @@ export function packRecord(fields: NtsField[], expectLen?: number): { bytes: Uin
     issues.push(...r.issues);
   }
   if (expectLen != null && parts.length !== expectLen)
-    issues.push({ field: "(레코드)", message: `레코드 길이 ${parts.length} ≠ 규격 ${expectLen} — 레이아웃 테이블을 확인하세요` });
+    issues.push({ field: "(레코드)", message: `레코드 길이 ${parts.length} ≠ 규격 ${expectLen} · 레이아웃 테이블을 확인하세요` });
   return { bytes: new Uint8Array(parts), issues };
 }
 

@@ -22,7 +22,7 @@ import { useMyPermissions } from "@/lib/permissions";
 import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import { TossCardSection } from "./_components/TossCardSection";
 import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
-import { fmtBytes } from "@/lib/storage-quota";
+import { fmtBytes }  from "@/lib/storage-quota";
 
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
 const db = supabase;
@@ -30,40 +30,43 @@ const db = supabase;
 type Tab = "plan" | "credits" | "payment" | "invoices";
 type BillingCycle = "monthly" | "annual";
 
-// 2026-08-06 요금제 개편 — 무료(영구) + 오너뷰 단일 유료(2026-08-11 39,000원·VAT 별도). 구 티어는 기존 구독자 표시용.
+// 2026-08-06 요금제 개편 · 무료(영구) + 오너뷰 단일 유료(2026-08-11 39,000원·VAT 별도). 구 티어는 기존 구독자 표시용.
 //   2026-08-19 재편: 요금제 카드(기능 불릿)는 비교 표(요금제 탭 안 rows)로 바뀌어 PLAN_FEATURES 는 없앴다.
 
-function fmtW(n: number): string {
+function fmtW(n: number): string  {
   if (n === 0) return "무료";
   return `₩${n.toLocaleString()}`;
 }
 
 
+
+
+
 // 연간 결제 노출 여부. Stripe 라이브 연간 price(STRIPE_PRICE_*_ANNUAL) 등록 전까지는
 //   고르면 서버가 400 으로 막으므로 화면에서도 감춘다. 등록 후 true 로 바꾸면 열린다.
 const ANNUAL_BILLING_AVAILABLE = true;
-// 연간 할인율 표기 — lib/billing.ts 의 ANNUAL_DISCOUNT_RATE 와 같은 값을 유지할 것.
+// 연간 할인율 표기 · lib/billing.ts 의 ANNUAL_DISCOUNT_RATE 와 같은 값을 유지할 것.
 const ANNUAL_DISCOUNT_DISPLAY = 0.1;
 
-export default function BillingPage() {
-  const { role } = useUser();
-  // 게이트 early return 뒤 훅 = React #310 결함류 — 본문 분리 (2026-08-03)
-  if (role === "partner" /* (P3) 멤버는 권한 게이트가 판정 */) {
+export default function BillingPage()  {
+  const { role }  = useUser();
+  // 게이트 early return 뒤 훅 = React #310 결함류 · 본문 분리 (2026-08-03)
+  if (role === "partner" /* (P3) 멤버는 권한 게이트가 판정 */)  {
     return <AccessDenied detail="요금제 / 결제는 회사 구성원 전용입니다 (외부 파트너 제외)." />;
   }
   return <BillingPageInner />;
 }
 
 function BillingPageInner() {
-  const { toast } = useToast();
-  // 스토리지 팩 추가·해지는 대표(소유자)만 — 서버 RPC(set_storage_packs)도 같은 기준. 화면에서 미리 알려준다.
-  const { role: myRole } = useUser();
+  const { toast }  = useToast();
+  // 스토리지 팩 추가·해지는 대표(소유자)만 · 서버 RPC(set_storage_packs)도 같은 기준. 화면에서 미리 알려준다.
+  const  { role: myRole }  = useUser();
   const isOwner = myRole === "owner";
-  // 결제수단 등록은 마스터만 — 서버(엣지 함수)에서도 동일하게 막는다.
-  const { isMaster: billingIsMaster } = useMyPermissions();
+  // 결제수단 등록은 마스터만 · 서버(엣지 함수)에서도 동일하게 막는다.
+  const  { isMaster: billingIsMaster } = useMyPermissions();
   const [tab, setTab] = useState<Tab>("plan");
   const [cycle, setCycle] = useState<BillingCycle>("monthly"); // 2026-07-22 연간 토글 복원 (연간 10% 할인)
-  // 결제수단 — 국내카드(토스) 기본, 해외카드(Stripe) 선택 (2026-08-14)
+  // 결제수단 · 국내카드(토스) 기본, 해외카드(Stripe) 선택 (2026-08-14)
   const [payMethod, setPayMethod] = useState<"toss" | "stripe">("toss");
   const [packDraft, setPackDraft] = useState<number | null>(null); // 스토리지 팩 목표 수량(입력 중)
   const [packLoading, setPackLoading] = useState(false);
@@ -82,9 +85,9 @@ function BillingPageInner() {
   const { data: user, isLoading: isUserLoading, error: mainError, refetch: mainRefetch } = useQuery({ queryKey: ["currentUser"], queryFn: getCurrentUser });
   const companyId = user?.company_id;
 
-  // 충전 잔액·이력 (2026-08-07) — 월 제공량을 다 쓴 뒤 이어 쓰는 잔액.
+  // 충전 잔액·이력 (2026-08-07). 월 제공량을 다 쓴 뒤 이어 쓰는 잔액.
   //   적립은 결제 웹훅에서만 일어난다. 여기서는 보여주고 결제창을 열 뿐이다.
-  const { data: credits, refetch: refetchCredits } = useQuery({
+  const  { data: credits, refetch: refetchCredits } = useQuery({
     queryKey: ["credit-balance", companyId],
     queryFn: async () => {
       if (!companyId) return null;
@@ -148,8 +151,10 @@ function BillingPageInner() {
     }
   }
 
-  // 스토리지 팩 수량 적용(구매/해지) — 좌석과 동일 단가, provider 별 결제 반영은 서버가 처리.
-  async function applyStoragePacks(target: number) {
+  
+
+  // 스토리지 팩 수량 적용(구매/해지). 좌석과 동일 단가, provider 별 결제 반영은 서버가 처리.
+  async function applyStoragePacks(target: number)  {
     setPackLoading(true);
     try {
       const res = await fetch("/api/billing/storage-pack", {
@@ -206,9 +211,9 @@ function BillingPageInner() {
     enabled: !!companyId,
   });
 
-  // 발행 사용량(세금계산서·현금영수증 각각, 2026-08-11 분리) — 각 화면 칩과 같은 산식(getIssuanceStatus).
+  // 발행 사용량(세금계산서·현금영수증 각각, 2026-08-11 분리). 각 화면 칩과 같은 산식(getIssuanceStatus).
   //   요금제 화면에서도 발행 한도를 한눈에 (2026-08-11 사장님).
-  const { data: issuance } = useQuery({
+  const  { data: issuance } = useQuery({
     queryKey: ["issuance-status-billing", companyId],
     queryFn: () => getIssuanceStatus(companyId!),
     enabled: !!companyId,
@@ -216,8 +221,8 @@ function BillingPageInner() {
   });
 
   // 요금제 목록
-  // 연간 결제 혜택 쿠폰 — 추가인원 12명 무료 등록 (2026-07-30 사장님)
-  const { data: seatCoupons = [] } = useQuery({
+  // 연간 결제 혜택 쿠폰 · 추가인원 12명 무료 등록 (2026-07-30 사장님)
+  const  { data: seatCoupons = [] } = useQuery({
     queryKey: ["seat-coupons", companyId],
     queryFn: async () => {
       const { data } = await (supabase as any)
@@ -237,7 +242,7 @@ function BillingPageInner() {
       return data;
     },
     onSuccess: (d: any) => {
-      toast(`쿠폰이 적용되었습니다 — 추가인원 ${d.free_seats}명이 무료로 등록됩니다`, "success");
+      toast(`쿠폰이 적용되었습니다. 추가인원 ${d.free_seats}명이 무료로 등록됩니다`, "success");
       qc.invalidateQueries({ queryKey: ["seat-coupons", companyId] });
     },
     onError: (e: any) => toast(friendlyError(e, "쿠폰 사용 실패"), "error"),
@@ -269,9 +274,9 @@ function BillingPageInner() {
     enabled: !!companyId,
   });
 
-  // entitlement 단일 소스(get_company_entitlement RPC) — 해지 예약/유효기간/실효 플랜 표시.
+  // entitlement 단일 소스(get_company_entitlement RPC). 해지 예약/유효기간/실효 플랜 표시.
   //   RLS: SECURITY DEFINER + 호출자 회사 검증 가드(타 회사 조회 시 none 반환).
-  const { data: entitlement } = useQuery({
+  const  { data: entitlement } = useQuery({
     queryKey: ["entitlement", companyId],
     queryFn: async () => {
       if (!companyId) return null;
@@ -284,8 +289,8 @@ function BillingPageInner() {
     enabled: !!companyId,
   });
 
-  // 저장공간 사용량/쿼터 (get_company_storage RPC) — 스토리지 팩 카드용
-  const { data: storage, refetch: refetchStorage } = useQuery({
+  // 저장공간 사용량/쿼터 (get_company_storage RPC). 스토리지 팩 카드용
+  const  { data: storage, refetch: refetchStorage } = useQuery({
     queryKey: ["company-storage", companyId],
     queryFn: async () => {
       if (!companyId) return null;
@@ -330,7 +335,7 @@ function BillingPageInner() {
   const currentPlan = subscription?.subscription_plans as any;
   const currentSlug = currentPlan?.slug || "free";
   const hasStripeSubscription = !!subscription?.stripe_customer_id;
-  // 국내카드(토스) 구독 — 청구 주체가 토스면 Stripe 잔재(stripe_customer_id)가 남아 있어도 토스로 판정.
+  // 국내카드(토스) 구독 · 청구 주체가 토스면 Stripe 잔재(stripe_customer_id)가 남아 있어도 토스로 판정.
   //   payment_provider 는 생성 타입(database.ts)에 아직 없어 any 캐스팅.
   const hasTossSubscription = (subscription as any)?.payment_provider === "toss"
     && ["active", "past_due"].includes(subscription?.status || "");
@@ -339,10 +344,10 @@ function BillingPageInner() {
 
   // entitlement 기반 표시: 해지 예약 중이면 기존 플랜 유지 노출, 실효(만료/해지 완료) 시 Free.
   const cancelScheduled = entitlement?.display_status === "cancel_scheduled";
-  const { confirm: confirmDialog, confirmElement } = useConfirm();
+  const  { confirm: confirmDialog, confirmElement }  = useConfirm();
 
-  // 등록 카드 목록 (2026-08-05 사장님: 카드 삭제 가능하게) — 결제 수단 탭에서만 조회
-  const { data: pmData, isLoading: pmLoading } = useQuery({
+  // 등록 카드 목록 (2026-08-05 사장님: 카드 삭제 가능하게). 결제 수단 탭에서만 조회
+  const  { data: pmData, isLoading: pmLoading } = useQuery({
     queryKey: ["payment-methods", companyId],
     queryFn: async () => {
       const res = await fetch("/api/stripe/payment-methods");
@@ -376,7 +381,7 @@ function BillingPageInner() {
     ? kstDateStr(new Date(entitlement.effective_until))
     : null;
 
-  /** 연간 결제 동의 확인·기록 — 미동의면 false (국내카드·해외카드 공통) */
+  /** 연간 결제 동의 확인·기록 · 미동의면 false (국내카드·해외카드 공통) */
   async function ensureAnnualConsent(planSlug: string): Promise<boolean> {
     if (cycle !== "annual") return true;
     // 연간은 환불 불가 고지에 동의해야만 진행 — 동의 없이는 결제를 만들지 않는다.
@@ -402,8 +407,8 @@ function BillingPageInner() {
     if (!companyId) return;
     if (!(await ensureAnnualConsent(planSlug))) return;
     setIsPaymentLoading(true);
-    track("checkout_start", { plan: planSlug, cycle }); // 계측 — 결제 페이지로 넘어가기 직전
-    try {
+    track("checkout_start", { plan: planSlug, cycle }); // 계측 · 결제 페이지로 넘어가기 직전
+    try  {
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -430,7 +435,8 @@ function BillingPageInner() {
           setIsPaymentLoading(false);
           return;
         }
-        // 원인 불명(500 등) — 실제 서버 메시지는 사용자에게 숨겨지므로(friendlyError 가
+        
+        // 원인 불명(500 등). 실제 서버 메시지는 사용자에게 숨겨지므로(friendlyError 가
         // 영문·기술 메시지를 일반 문구로 대체) error_logs 에 남겨 운영자가 추적 가능하게 (2026-07-28)
         logError({
           source: "manual",
@@ -446,8 +452,10 @@ function BillingPageInner() {
     }
   }
 
-  /** 국내카드(토스) 결제 시작 — 카드가 없으면 등록창부터, 있으면 즉시 청구 (2026-08-14) */
-  async function handleTossStart(planSlug: string) {
+  
+
+  /** 국내카드(토스) 결제 시작 · 카드가 없으면 등록창부터, 있으면 즉시 청구 (2026-08-14) */
+  async function handleTossStart(planSlug: string)  {
     if (!companyId) return;
     if (!(await ensureAnnualConsent(planSlug))) return;
     setIsPaymentLoading(true);
@@ -581,16 +589,19 @@ function BillingPageInner() {
       await handleOpenPortal();
       return;
     }
-    // 결제수단 분기 — 국내카드는 토스 빌링, 해외카드는 Stripe 체크아웃.
-    if (tossEnabled && payMethod === "toss") {
+    
+    // 결제수단 분기 · 국내카드는 토스 빌링, 해외카드는 Stripe 체크아웃.
+    if (tossEnabled && payMethod === "toss")  {
       await handleTossStart(slug);
       return;
     }
     await handleStripeCheckout(slug);
   }
 
-  /** 구독 해지 모달 확인 — 서버에서 Stripe 취소까지 수행(클라 DB 직접조작 금지) */
-  async function handleCancelConfirm() {
+  
+
+  /** 구독 해지 모달 확인 · 서버에서 Stripe 취소까지 수행(클라 DB 직접조작 금지) */
+  async function handleCancelConfirm()  {
     try {
       const res = await fetch('/api/stripe/cancel', {
         method: 'POST',
@@ -873,8 +884,8 @@ function BillingPageInner() {
                   {pct >= 80 && (
                     <div className="text-[11px] font-semibold" style={{ color: tone }}>
                       {used >= quota
-                        ? "저장공간이 가득 찼습니다 — 지금은 새 파일을 올릴 수 없어요. 안 쓰는 파일을 지우거나 저장공간을 늘려 주세요."
-                        : "저장공간이 거의 찼습니다 — 가득 차면 새 파일을 올릴 수 없어요."}
+                        ? "저장공간이 가득 찼습니다. 지금은 새 파일을 올릴 수 없어요. 안 쓰는 파일을 지우거나 저장공간을 늘려 주세요."
+                        : "저장공간이 거의 찼습니다. 가득 차면 새 파일을 올릴 수 없어요."}
                     </div>
                   )}
                   <div className="text-[11px] text-[var(--text-dim)]">
@@ -941,7 +952,7 @@ function BillingPageInner() {
                     <div className="flex-1 min-w-0">
                       <span className="text-[12.5px] font-semibold text-[var(--text)]">추가인원 {c.free_seats}명 무료 등록 쿠폰</span>
                       <span className="text-[11px] text-[var(--text-muted)] ml-2">연간 결제 혜택 · 발급 {new Date(c.issued_at).toLocaleDateString("ko-KR")}{c.status === "redeemed" && c.redeemed_at && <> · 사용 {new Date(c.redeemed_at).toLocaleDateString("ko-KR")}</>}</span>
-                      <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{c.status === "issued" ? "사용하면 기본 5명 외 추가 인원을 등록해도 그 인원만큼 추가좌석 요금이 청구되지 않습니다." : "적용 중 — 추가 인원 등록 시 이 쿠폰 좌석만큼은 결제에서 제외됩니다."}</div>
+                      <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{c.status === "issued" ? "사용하면 기본 5명 외 추가 인원을 등록해도 그 인원만큼 추가좌석 요금이 청구되지 않습니다." : "적용 중 · 추가 인원 등록 시 이 쿠폰 좌석만큼은 결제에서 제외됩니다."}</div>
                     </div>
                     {c.status === "issued"
                       ? <button onClick={() => redeemCouponMut.mutate(c.id)} disabled={redeemCouponMut.isPending} className="btn-secondary btn-sm shrink-0">{redeemCouponMut.isPending ? "적용 중…" : "쿠폰 사용하기"}</button>
@@ -1049,9 +1060,9 @@ function BillingPageInner() {
               </label>
             )}
 
-            <p className="billing-note"><b>울트라</b>는 정가가 없습니다 — 회사 업무 흐름을 듣고 화면·연동 범위를 정한 뒤 견적을 드립니다(도입 문의 → 담당자 연락). 기존 오너뷰 기능은 전부 포함.</p>
+            <p className="billing-note"><b>울트라</b>는 정가가 없습니다. 회사 업무 흐름을 듣고 화면·연동 범위를 정한 뒤 견적을 드립니다(도입 문의 → 담당자 연락). 기존 오너뷰 기능은 전부 포함.</p>
             {/* 결제 가능 카드 안내 (2026-07-31 사장님) — 배너 대신 각주로 */}
-            <p className="billing-note">국내카드는 토스페이먼츠, 해외카드는 Stripe 로 결제됩니다 — 해외 결제를 차단해 둔 카드(법인카드 포함)는 Stripe 승인이 거절될 수 있으니 국내카드를 쓰거나 카드사에 확인하세요 · 요금은 원화, VAT 10% 별도 · 월간은 매월 같은 날 자동 결제.</p>
+            <p className="billing-note">국내카드는 토스페이먼츠, 해외카드는 Stripe 로 결제됩니다. 해외 결제를 차단해 둔 카드(법인카드 포함)는 Stripe 승인이 거절될 수 있으니 국내카드를 쓰거나 카드사에 확인하세요 · 요금은 원화, VAT 10% 별도 · 월간은 매월 같은 날 자동 결제.</p>
 
             {entitlement?.entitled && currentSlug !== "free" && (
               <p className="billing-cancel-line">
@@ -1116,7 +1127,7 @@ function BillingPageInner() {
             {invoicesLoading ? (
               <div className="collect-empty">불러오는 중…</div>
             ) : (invoices || []).length === 0 ? (
-              <div className="collect-empty">{currentSlug === "free" ? "청구서가 없습니다 — 유료 요금제를 시작하면 여기에 쌓입니다" : "아직 발행된 청구서가 없습니다 — 다음 결제부터 여기에 쌓입니다"}</div>
+              <div className="collect-empty">{currentSlug === "free" ? "청구서가 없습니다. 유료 요금제를 시작하면 여기에 쌓입니다" : "아직 발행된 청구서가 없습니다. 다음 결제부터 여기에 쌓입니다"}</div>
             ) : (
               <div className="ev-scroll"><table className="ev-table ev-lined billing-table">
                 <thead><tr><th style={{ width: 110 }}>날짜</th><th style={{ width: 150 }}>번호</th><th className="text-left">내용</th><th style={{ width: 120 }}>금액</th><th style={{ width: 90 }}>상태</th><th style={{ width: 130 }}></th></tr></thead>
@@ -1271,7 +1282,8 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
               <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30">
                 <span className="text-sm">🎟️</span>
                 <span className="text-xs font-semibold text-[var(--primary)]">
-                  영업코드 {salesCode.trim()} 적용 — 결제에 함께 기록됩니다
+                  영업코드 {salesCode.trim()}  적용 · 결제에 함께 기록됩니다
+                
                 </span>
               </div>
             )}

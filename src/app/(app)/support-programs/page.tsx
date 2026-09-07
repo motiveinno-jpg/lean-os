@@ -50,11 +50,12 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "history", label: "신청 이력" },
 ];
 
-//   판정 순서 — 처리할 것이 위 (조회 표준: 상태 정렬은 할 일이 위)
+//   판정 순서 · 처리할 것이 위 (조회 표준: 상태 정렬은 할 일이 위)
 const VERDICT_ORDER: Record<Verdict, number> = { high: 0, check: 1, none: 2 };
 
-//   공고 원천 — 회사가 자기 인증키를 넣어야 보인다 (상시 제도는 키 없이도 보인다)
+//   공고 원천 · 회사가 자기 인증키를 넣어야 보인다 (상시 제도는 키 없이도 보인다)
 const ANNOUNCEMENT_SOURCES = [
+  
   { key: "kstartup", label: "K-Startup 창업지원" },
   { key: "bizinfo", label: "기업마당(중앙부처·지자체)" },
 ];
@@ -64,7 +65,7 @@ const won = (n: number) => n.toLocaleString("ko-KR");
 export default function SupportProgramsPage() {
   const { role } = useUser();
   if (role !== "owner" && role !== "admin") {
-    return <AccessDenied detail="지원사업은 대표·관리자 전용입니다 — 직원 인사 정보로 자격을 판정합니다." />;
+    return <AccessDenied detail="지원사업은 대표·관리자 전용입니다. 직원 인사 정보로 자격을 판정합니다." />;
   }
   return <SupportProgramsInner />;
 }
@@ -84,7 +85,7 @@ function SupportProgramsInner() {
   //   기본은 적합도 높은 순 — 사장님 지시: "가장 적합하거나 바로 신청할 수 있는 것이 상단으로"
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "fit", dir: "desc" });
 
-  // ── 조건 — 패널 안은 초안이고, [조회] 를 눌러야 나간다 (기간 하나짜리가 아니라 여러 칸이라) ──
+  // ── 조건 · 패널 안은 초안이고, [조회] 를 눌러야 나간다 (기간 하나짜리가 아니라 여러 칸이라) ──
   const [condOpen, setCondOpen] = useState(false);
   const [q, setQ] = useState("");
   const [size, setSize] = useState(50);
@@ -103,21 +104,21 @@ function SupportProgramsInner() {
     enabled: !!companyId,
   });
 
-  //   이 회사가 인증키를 넣어 둔 공고 원천 — 안 넣었으면 공고는 안 보이고 발급 안내가 뜬다
-  const { data: connected = [] } = useQuery({
+  //   이 회사가 인증키를 넣어 둔 공고 원천 · 안 넣었으면 공고는 안 보이고 발급 안내가 뜬다
+  const  { data: connected = [] } = useQuery({
     queryKey: ["support-connected", companyId],
     queryFn: () => connectedSources(companyId!),
     enabled: !!companyId,
   });
 
-  //   공고를 마지막으로 언제 받았는지 — 목록이 허전할 때 "안 받아온 건지" 를 알 수 있어야 한다
-  const { data: syncedAt } = useQuery({
+  //   공고를 마지막으로 언제 받았는지 · 목록이 허전할 때 "안 받아온 건지" 를 알 수 있어야 한다
+  const  { data: syncedAt } = useQuery({
     queryKey: ["support-last-sync"],
     queryFn: lastSyncAt,
   });
 
-  //   회사가 이미 가진 파일 — 신청 서류를 여기서 끌어온다
-  const { data: files = [] } = useQuery({
+  //   회사가 이미 가진 파일 · 신청 서류를 여기서 끌어온다
+  const  { data: files = [] } = useQuery({
     queryKey: ["support-files", companyId],
     queryFn: () => loadCompanyFiles(companyId!),
     enabled: !!companyId,
@@ -162,8 +163,8 @@ function SupportProgramsInner() {
     onError: (e: unknown) => toast(friendlyError(e, "바꾸지 못했습니다"), "error"),
   });
 
-  // ── 판정 — 제도마다 회사 프로필과 대조한다 ────────────────────────────
-  type Row = {
+  // ── 판정 · 제도마다 회사 프로필과 대조한다 ────────────────────────────
+  type Row =  {
     program: GovProgram; judgement: Judgement; savedRow?: SavedRow; dday: number | null;
     checks: DocCheck[]; needed: number; have: number; score: FitScore;
   };
@@ -265,9 +266,11 @@ function SupportProgramsInner() {
 
   function setBoth(next: typeof applied) { setApplied(next); setDraft(next); }
 
-  //   요약 줄에서 판정 하나만 켠다 — 이미 그것만 켜져 있으면 끈다(다시 눌러 되돌리기)
+  
+
+  //   요약 줄에서 판정 하나만 켠다. 이미 그것만 켜져 있으면 끈다(다시 눌러 되돌리기)
   const onlyVerdict = applied.verdicts.length === 1 ? applied.verdicts[0] : null;
-  function toggleVerdict(v: Verdict) {
+  function toggleVerdict(v: Verdict)  {
     setBoth({ ...applied, verdicts: onlyVerdict === v ? [] : [v] });
   }
 
@@ -341,7 +344,7 @@ function SupportProgramsInner() {
               </ConditionRow>
             </ConditionPanel>
 
-            <QuickSearch value={q} onApply={setQ} placeholder="사업명 · 기관 · 분야 — 쉼표로 여러 개, Enter" />
+            <QuickSearch value={q} onApply={setQ} placeholder="사업명 · 기관 · 분야 · 쉼표로 여러 개, Enter" />
 
             <ChipGroup value={view} onChange={setView}
               options={[{ value: "list", label: "리스트" }, { value: "card", label: "카드" }] as const} />
@@ -362,7 +365,7 @@ function SupportProgramsInner() {
           <ResultStrip right={
             syncedAt
               ? <span className="sp-synced">공고 갱신 {new Date(syncedAt).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
-              : <span className="sp-synced">상시 제도만 — 공고는 아직 받지 않았습니다</span>
+              : <span className="sp-synced">상시 제도만 · 공고는 아직 받지 않았습니다</span>
           }>
             {/*   네 항목 모두 **누르면 그 조건으로 좁혀진다** (2026-08-21 사장님 지시).
                   켜진 것은 눌러서 다시 끄고, 걸린 조건 칩에도 남는다 — 조회 화면 표준 그대로. */}
@@ -395,8 +398,8 @@ function SupportProgramsInner() {
             <div className="collect-empty">불러오는 중…</div>
           ) : rows.length === 0 ? (
             <div className="collect-empty">
-              {tab === "saved" ? "담아둔 지원사업이 없습니다 — 추천에서 ☆ 를 눌러 담아 두세요."
-                : tab === "history" ? "신청 이력이 없습니다 — 담아둔 것에서 진행 상태를 바꾸면 여기로 옮겨집니다."
+              {tab === "saved" ? "담아둔 지원사업이 없습니다. 추천에서 ☆ 를 눌러 담아 두세요."
+                : tab === "history" ? "신청 이력이 없습니다. 담아둔 것에서 진행 상태를 바꾸면 여기로 옮겨집니다."
                 : profile && profile.cardFilled < CARD_TOTAL
                   ? `조건에 맞는 지원사업이 없습니다. 회사 카드를 ${CARD_TOTAL - profile.cardFilled}개 더 채우면 후보가 늘어납니다.`
                   : "조건에 맞는 지원사업이 없습니다."}
@@ -611,10 +614,10 @@ function ProgramDetail({ row, onClose, onSave, onDrop, onStatus, onOpenCard }: {
             ) : (
               <>
                 {docsAreEstimated(p) && (
-                  <p className="sp-docs-note">공고문을 읽어 확인한 목록이 아니라 <b>대부분의 사업이 요구하는 기본 서류</b>입니다 — 원문을 함께 보세요.</p>
+                  <p className="sp-docs-note">공고문을 읽어 확인한 목록이 아니라 <b>대부분의 사업이 요구하는 기본 서류</b>입니다. 원문을 함께 보세요.</p>
                 )}
                 {row.have > 0 && (
-                  <p className="sp-docs-note">✓ 표시는 <b>파일 이름으로 찾은 것</b>입니다 — 실제로 낼 서류가 맞는지 눌러서 확인해 주세요.</p>
+                  <p className="sp-docs-note">✓ 표시는 <b>파일 이름으로 찾은 것</b>입니다. 실제로 낼 서류가 맞는지 눌러서 확인해 주세요.</p>
                 )}
                 <ul className="sp-doclist">
                   {row.checks.map((c) => (

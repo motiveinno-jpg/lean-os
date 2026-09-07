@@ -40,8 +40,9 @@ const PARTNER_TABS = [
   { href: "/chat", label: "메신저", icon: "chat" },
   { href: "/guide", label: "가이드", icon: "book" },
 ];
-// (2026-07-30 개편 P2) EMPLOYEE_TABS 삭제 — 화면 한 벌: 파트너 외 전원 OWNER_TABS(권한 필터).
+// (2026-07-30 개편 P2) EMPLOYEE_TABS 삭제 · 화면 한 벌: 파트너 외 전원 OWNER_TABS(권한 필터).
 const OWNER_TABS = [
+  
   { href: "/dashboard", label: "대시보드", icon: "home" },
   // PR5: owner 의 모바일 진입도 /projects 칸반으로
   { href: "/projecthub", label: "프로젝트", icon: "briefcase" },
@@ -104,11 +105,11 @@ const ROLE_ALLOWED_ROUTES: Record<string, string[]> = {
 };
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
-  const { role, user, loading } = useUser();
+  const { role, user, loading }  = useUser();
   const pathname = usePathname();
   const router = useRouter();
-  // (2026-07-30 개편 P2) 권한 기반 가드 — 마스터는 전체, 멤버는 부여받은 메뉴 + 기본 제공만.
-  const { isMaster, hasPerm, loading: permsLoading } = useMyPermissions();
+  // (2026-07-30 개편 P2) 권한 기반 가드 · 마스터는 전체, 멤버는 부여받은 메뉴 + 기본 제공만.
+  const  { isMaster, hasPerm, loading: permsLoading } = useMyPermissions();
 
   // 온보딩 미완료 직원 → 자동 완료 처리 (직원은 회사 온보딩 대상 아님)
   useEffect(() => {
@@ -162,7 +163,9 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-/* 세무사 열람 배너 — 회사 전환 드롭다운 포함 (2026-08-11 잔손질: 포털을 거치지 않고 앱 안에서 전환) */
+
+
+/* 세무사 열람 배너 · 회사 전환 드롭다운 포함 (2026-08-11 잔손질: 포털을 거치지 않고 앱 안에서 전환) */
 function AdvisorViewingBanner({ companyName }: { companyName: string }) {
   const [companies, setCompanies] = useState<{ company_id: string; company_name: string }[]>([]);
   useEffect(() => {
@@ -195,7 +198,7 @@ function AdvisorViewingBanner({ companyName }: { companyName: string }) {
       ) : (
         <span className="font-bold">{companyName}</span>
       )}
-      <span> 열람 모드 — 세무사 파트너 계정은 읽기 전용입니다.</span>
+      <span>  열람 모드 · 세무사 파트너 계정은 읽기 전용입니다.</span>
       <a href="/advisor/dashboard" className="advisor-viewing-back">← 파트너 포털로</a>
     </div>
   );
@@ -308,8 +311,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // ── 팝업 임베드 모드 — 크롬 없이 본문만(권한·구독 게이트는 유지) ──
-  if (isEmbed) {
+  // ── 팝업 임베드 모드 · 크롬 없이 본문만(권한·구독 게이트는 유지) ──
+  if (isEmbed)  {
     return (
       <div className="embed-page min-h-screen p-4 md:p-5">
         <div className="app-content-scale w-full">
@@ -321,10 +324,13 @@ function AppContent({ children }: { children: React.ReactNode }) {
     );
   }
 
+  
+
   return (
-    // 새 디자인 시스템(시안) — 전 페이지 공통 배경: 그라데이션 + 점 패턴 + 그라데이션 orbs.
+    // 새 디자인 시스템(시안). 전 페이지 공통 배경: 그라데이션 + 점 패턴 + 그라데이션 orbs.
     //   fixed/-z-10/pointer-events-none 레이어라 스크롤·클릭·레이아웃 무영향, 39개 전 페이지 공통.
     //   카드(bg-card 솔리드)가 이 배경 위에 떠 보이는 granter/시안 룩을 일괄 부여.
+    
     <div className="relative flex min-h-screen">
       {/* 전역 모달 가드 — 어떤 모달이든 바깥 클릭 시 입력값 있으면 '취소하시겠습니까?' 확인 */}
       <GlobalModalGuard />
@@ -494,11 +500,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) { router.replace("/auth"); return; }
+      
       // 2026-07-28 P0: 세션만 보고 통과시키면 회사 설정을 마치지 않은 계정(구글 OAuth 후
       //   /company-setup 이탈, users 행 없음)이 모든 앱 페이지에서 무한 "불러오는 중"에 갇힌다.
-      //   users 행·company_id 가 없으면 회사 설정으로 보낸다 — /company-setup 은 (app) 밖이고
+      //   users 행·company_id 가 없으면 회사 설정으로 보낸다. /company-setup 은 (app) 밖이고
       //   회사가 이미 있으면 스스로 /dashboard 로 돌려보내므로 루프 없음.
-      const { getCurrentUser } = await import("@/lib/queries");
+      const  { getCurrentUser } = await import("@/lib/queries");
       const u = await getCurrentUser().catch(() => null);
       if (!u) {
         // 세무사 계정(users 행 없음)이 회사 미선택/연결 해제 상태로 앱에 오면
@@ -532,7 +539,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <BoardProvider>
           <PopupProvider>
             <GuideProvider>
-              {/*   ★ 앱 전체 글자 키우기 (2026-08-26 사장님: "전체 글자가 너무 작다는 평 — 2px 정도") — 값 하나(.app-zoom)로 사이드바·머리·본문이 같이 커진다.
+              {/*   ★ 앱 전체 글자 키우기 (2026-08-26 사장님: "전체 글자가 너무 작다는 평 · 2px 정도") — 값 하나(.app-zoom)로 사이드바·머리·본문이 같이 커진다.
                     랜딩·온보딩은 이 껍데기 밖이라 그대로. */}
               <div className="app-zoom"><AppContent>{children}</AppContent></div>
             </GuideProvider>

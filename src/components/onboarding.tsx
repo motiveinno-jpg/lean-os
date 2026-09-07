@@ -1106,7 +1106,8 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
                   {data.pfxBase64 && (
                     <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--success-dim)] border border-[var(--success)]/25 text-[var(--success)] text-xs font-semibold">
                       <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
-                      인증서 추출 완료 — {data.fileName}
+                      
+                      인증서 추출 완료 · {data.fileName}
                     </div>
                   )}
                 </>

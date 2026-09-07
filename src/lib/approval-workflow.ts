@@ -673,7 +673,7 @@ async function insertApprovalStep(row: Record<string, unknown>, requestId: strin
   const { error } = await db.from('approval_steps').insert(row as never);
   if (!error) return;
   await db.from('approval_requests').delete().eq('id', requestId);   // 최선 노력 정리
-  throw new Error('결재선을 만들지 못했습니다 — 결재선 설정을 확인하거나 관리자에게 문의해 주세요.');
+  throw new Error('결재선을 만들지 못했습니다. 결재선 설정을 확인하거나 관리자에게 문의해 주세요.');
 }
 
 /** 승인 후속 반영(휴가·초과근무) — **승인자 권한과 무관하게** 서버 함수로 처리한다 (2026-08-21 감사).
@@ -687,7 +687,7 @@ async function applyApprovalSideEffects(request: { id: string; request_type?: st
     if (skipped && skipped !== 'not_approved') {
       logError({
         source: 'manual',
-        message: `[결재 후속반영] 건너뜀(${skipped}) — ${request.request_type}: ${request.title || request.id}`,
+        message: `[결재 후속반영] 건너뜀(${skipped}). ${request.request_type}: ${request.title || request.id}`,
         context: { step: 'apply_approval_side_effects', requestId: request.id, skipped },
       });
     }
@@ -695,7 +695,7 @@ async function applyApprovalSideEffects(request: { id: string; request_type?: st
     // 승인 자체는 막지 않되, 조용히 사라지지 않게 남긴다 — 이게 이 버그의 본질이었다.
     logError({
       source: 'manual',
-      message: `[결재 후속반영] 실패 — ${request.request_type}: ${(e as Error)?.message || e}`,
+      message: `[결재 후속반영] 실패 · ${request.request_type}: ${(e as Error)?.message || e}`,
       context: { step: 'apply_approval_side_effects', requestId: request.id },
     });
   }
@@ -1474,7 +1474,7 @@ export async function deleteApprovalRequest(requestId: string): Promise<void> {
   const req = logRead('lib/approval-workflow:delTarget', await db
     .from('approval_requests').select('status').eq('id', requestId).maybeSingle());
   if (req && !['pending', 'cancelled', 'rejected'].includes(String(req.status))) {
-    throw new Error('이미 승인이 끝난 결재는 삭제할 수 없습니다 — 기록을 지우면 연차 차감·지급 건이 근거 없이 남습니다.');
+    throw new Error('이미 승인이 끝난 결재는 삭제할 수 없습니다. 기록을 지우면 연차 차감·지급 건이 근거 없이 남습니다.');
   }
   await db.from('approval_steps').delete().eq('request_id', requestId);
   await db.from('approval_comments').delete().eq('request_id', requestId);

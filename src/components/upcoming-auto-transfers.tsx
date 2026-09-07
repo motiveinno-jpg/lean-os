@@ -86,8 +86,8 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
     staleTime: 60_000,
   });
 
-  // 대출 상환일 리마인더(표시만 — 실행/이체는 사람). payment_day 기준 다음 상환일 산출.
-  const { data: loans = [] } = useQuery({
+  // 대출 상환일 리마인더(표시만 · 실행/이체는 사람). payment_day 기준 다음 상환일 산출.
+  const  { data: loans = [] } = useQuery({
     queryKey: ['loans-upcoming', companyId],
     queryFn: async () => {
       const data = logRead('components/upcoming-auto-transfers:data', await supabase
@@ -140,8 +140,10 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
       });
     }
 
-    // 대출 상환일 — 상환액은 알 수 없어(스케줄 미저장) 금액 대신 '잔액'을 리마인더로 표시.
-    for (const l of loans as any[]) {
+    
+
+    // 대출 상환일 · 상환액은 알 수 없어(스케줄 미저장) 금액 대신 '잔액'을 리마인더로 표시.
+    for (const l of loans as any[])  {
       const day = Number(l.payment_day || 0);
       if (!day || day < 1 || day > 31) continue;
       const due = computeNextDue({ day_of_month: day }, today);
@@ -273,7 +275,7 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
           ))}
           {allItems.length > items.length && (
             <a href="/payments?tab=recurring" className="upcoming-transfers-more">
-              가까운 {items.length}건만 표시했습니다 — 남은 {allItems.length - items.length}건 보기
+              가까운 {items.length}건만 표시했습니다. 남은  {allItems.length - items.length}건 보기
             </a>
           )}
         </div>

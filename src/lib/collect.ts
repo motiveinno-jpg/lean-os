@@ -171,7 +171,7 @@ export async function fetchCollectStatus(companyId: string, from: string, to: st
     const j = jobLast.get(key);
     if (!j) return null;
     //   수집은 '완료'로 끝났는데 받아온 게 0건이고 보유 자료도 없으면 저장 단계가 막힌 것이다
-    if (j.zeroRuns >= 3 && total === 0) return `수집은 되는데 ${j.zeroRuns}회 연속 0건 — 저장 단계 확인 필요`;
+    if (j.zeroRuns >= 3 && total === 0) return `수집은 되는데 ${j.zeroRuns}회 연속 0건 · 저장 단계 확인 필요`;
     return null;
   };
 
@@ -261,7 +261,7 @@ export async function waitForJob(jobId: string, onTick?: (done: number, total: n
       return { synced: Number(job.total_synced || 0), error: first?.hint || first?.message || "수집 실패" };
     }
   }
-  return { synced: 0, error: "시간이 너무 오래 걸려 기다리기를 멈췄습니다 — 수집은 뒤에서 계속됩니다" };
+  return { synced: 0, error: "시간이 너무 오래 걸려 기다리기를 멈췄습니다. 수집은 뒤에서 계속됩니다" };
 }
 
 /** 지난번 수집에 걸린 시간을 남긴다 — 현황판의 '지난번 N초'가 여기서 나온다.

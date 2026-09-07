@@ -29,7 +29,7 @@ const topN = (m: Map<string, number>, n = 10) => [...m.entries()].sort((a, b) =>
 type BankTx = { id: string; bank_account_id: string | null; transaction_date: string; amount: number; type: string; counterparty: string | null; journal_entry_id: string | null; mapping_status: string | null };
 type Acct = { id: string; bank_name: string | null; alias: string | null; account_number: string | null; balance: number; is_hidden: boolean | null };
 
-/** 통장 › 개요 — 기간 입출금 추이·출금 상위 거래처·계좌별 표 */
+/** 통장 › 개요. 기간 입출금 추이·출금 상위 거래처·계좌별 표 */
 export function BankStatusPanels({ companyId, from, to, hideAccountsTable = false }: { companyId: string | null; from: string; to: string; hideAccountsTable?: boolean }) {
   const { data: accts = [] } = useQuery({ queryKey: ["bank-status-accts", companyId], enabled: !!companyId, queryFn: async () =>
     ((await supabase.from("bank_accounts").select("id, bank_name, alias, account_number, balance, is_hidden").eq("company_id", companyId!)).data || []) as Acct[] });
@@ -82,7 +82,7 @@ export function BankStatusPanels({ companyId, from, to, hideAccountsTable = fals
 
 type CardTx = { id: string; transaction_date: string; amount: number; merchant_name: string | null; card_name: string | null; journal_entry_id: string | null };
 
-/** 카드 › 분석 — 일별 승인·카드별 비중·가맹점 상위 */
+/** 카드 › 분석 · 일별 승인·카드별 비중·가맹점 상위 */
 export function CardStatusPanels({ companyId, from, to }: { companyId: string | null; from: string; to: string }) {
   const { data: cards = [] } = useQuery({ queryKey: ["card-status-tx", companyId, from, to], enabled: !!companyId, queryFn: async () =>
     await fetchPaged<CardTx>("finance-status:card", () => (supabase.from("card_transactions").select("id, transaction_date, amount, merchant_name, card_name, journal_entry_id") as any)

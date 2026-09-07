@@ -20,8 +20,8 @@ const parse = (s: string) => {
   const [y, m, d] = String(s || "").split("-").map(Number);
   return { y: y || 0, m: m || 0, d: d || 0 };
 };
-/** 날짜를 n 일 뒤로 민 값 — 문자열로만 다룬다(UTC 로 새지 않게) */
-function minusDays(s: string, n: number): string {
+/** 날짜를 n 일 뒤로 민 값 · 문자열로만 다룬다(UTC 로 새지 않게) */
+function minusDays(s: string, n: number): string  {
   const { y, m, d } = parse(s);
   const dt = new Date(y, m - 1, d - n);
   return ymd(dt.getFullYear(), dt.getMonth() + 1, dt.getDate());
@@ -38,8 +38,8 @@ const addMonth = (y: number, m: number, n: number) => {
   const t = y * 12 + (m - 1) + n;
   return { y: Math.floor(t / 12), m: (t % 12) + 1 };
 };
-/** 그 달 달력 칸 — 앞뒤 빈칸을 이웃 달 날짜로 채워 7의 배수로 맞춘다 */
-function monthCells(y: number, m: number) {
+/** 그 달 달력 칸 · 앞뒤 빈칸을 이웃 달 날짜로 채워 7의 배수로 맞춘다 */
+function monthCells(y: number, m: number)  {
   const first = new Date(y, m - 1, 1).getDay();      // 0=일
   const len = lastDay(y, m);
   const prev = addMonth(y, m, -1);
@@ -112,13 +112,13 @@ export function DateRangeField({
     const p = parse(from || todayKst());
     return { y: p.y, m: p.m };
   });
-  //   시작일만 찍은 중간 상태 — 이때는 목록을 바꾸지 않는다
+  //   시작일만 찍은 중간 상태 · 이때는 목록을 바꾸지 않는다
   const [half, setHalf] = useState<string | null>(null);
-  //   타이핑 중인 글자 (확정 전) — 다 치면 그때 onChange 로 올린다
+  //   타이핑 중인 글자 (확정 전). 다 치면 그때 onChange 로 올린다
   const [draft, setDraft] = useState<Partial<Record<Seg, string>>>({});
   const boxRef = useRef<HTMLDivElement>(null);
   const inputs = useRef<Partial<Record<Seg, HTMLInputElement | null>>>({});
-  //   다음에 옮겨 갈 칸 — 값이 바뀌면 부모까지 다시 그려지므로 **렌더가 끝난 뒤** 옮겨야 한다.
+  //   다음에 옮겨 갈 칸 · 값이 바뀌면 부모까지 다시 그려지므로 **렌더가 끝난 뒤** 옮겨야 한다.
   //   바로 focus() 하면 아직 옛 DOM 이라 옮겨지지 않거나, 곧바로 다시 그려지며 포커스를 잃는다.
   const [focusNext, setFocusNext] = useState<Seg | null>(null);
 
@@ -190,8 +190,8 @@ export function DateRangeField({
     const digits = v.replace(/\D/g, "").slice(0, s.endsWith("y") ? 4 : 2);
     const next = { ...draft, [s]: digits };
     setDraft(next);
-    //   다 채우면 저절로 다음 칸으로 — 년4·월2·일2 고정
-    if (digits.length === (s.endsWith("y") ? 4 : 2)) {
+    //   다 채우면 저절로 다음 칸으로 · 년4·월2·일2 고정
+    if (digits.length === (s.endsWith("y") ? 4 : 2))  {
       const i = order.indexOf(s);
       const nx = order[i + 1];
       //   ★ 다음 칸으로 넘어가더라도 **그 자리에서 바로 확정**한다 (2026-08-12 사장님 지적).
@@ -313,11 +313,12 @@ export function DateRangeField({
     settle(a, b);
   };
 
-  //   자주 쓰는 기간 — 사장님이 당일·1주일을 제일 많이 쓴다 하여 맨 앞에 둔다 (2026-08-11).
+  //   자주 쓰는 기간 · 사장님이 당일·1주일을 제일 많이 쓴다 하여 맨 앞에 둔다 (2026-08-11).
   //   당일은 하루, 1주일은 **오늘 포함 최근 7일**. 나머지는 '그 달 전 같은 날부터 오늘'.
-  const QUICKS: { label: string; start: () => string }[] = isM
-    //   월 단위 빠른 선택은 **신고 주기**에 맞춘다 — 이번 달·지난 달·분기·반기·올해
+  const QUICKS:  { label: string; start: () => string }[] = isM
+    //   월 단위 빠른 선택은 **신고 주기**에 맞춘다. 이번 달·지난 달·분기·반기·올해
     ? [
+        
         { label: "이번 달", start: () => nowYM },
         { label: "지난 달", start: () => minusMonths(today, 1).slice(0, 7) },
         { label: "이번 분기", start: () => `${today.slice(0, 4)}-${pad(QUARTER_START(Number(today.slice(5, 7))))}` },
@@ -470,7 +471,7 @@ export function DateRangeField({
             {half
               ? <span className="drf-half">{half} · <b>{isM ? "나머지 한 달" : "나머지 한 날"}을 고르세요</b> (앞뒤 상관없습니다)</span>
               : empty
-                ? <span className="drf-range">전체 기간 — 아직 기간을 걸지 않았습니다</span>
+                ? <span className="drf-range">전체 기간 · 아직 기간을 걸지 않았습니다</span>
                 : <span className="drf-range mono-number">
                     {shownFrom} ~ {shownTo}{pending ? " · 확인을 눌러야 반영됩니다" : ` · ${isM ? `${months}개월` : `${days}일`}`}
                   </span>}

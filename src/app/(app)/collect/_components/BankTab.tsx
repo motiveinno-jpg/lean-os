@@ -45,9 +45,9 @@ import { usePersistedPicks } from "./use-persisted-picks";
 
 type Acct = { id: string; code: string; name: string; account_type: string };
 
-/** 표 머리단 정렬 열쇠 — 칸 하나에 하나씩 (2026-08-12) */
+/** 표 머리단 정렬 열쇠 · 칸 하나에 하나씩 (2026-08-12) */
 type SortKey = "date" | "io" | "who" | "desc" | "amount" | "state";
-type Pt = { id: string; name: string };
+type Pt =  { id: string; name: string };
 
 type Row = {
   id: string;
@@ -134,11 +134,11 @@ export function BankTab({
   onRange: (from: string, to: string) => void;
   tabsNode: ReactNode; syncButton: ReactNode; rulesHelper: HelperItem;
 }) {
-  const { toast } = useToast();
+  const { toast }  = useToast();
   const qc = useQueryClient();
   //   조회 줄에 있는 것은 **즉시** 반영된다 (기간은 page.tsx 가 쥐고 있다)
   const [q, setQ] = useState("");
-  //   검색조건 패널 — draft 는 고르는 중, live 는 '조회'를 눌러 확정된 것
+  //   검색조건 패널 · draft 는 고르는 중, live 는 '조회'를 눌러 확정된 것
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState<Cond>(EMPTY);
   const [live, setLive] = useState<Cond>(EMPTY);
@@ -153,7 +153,7 @@ export function BankTab({
   const [ptPick, setPtPick] = useState<{ id: string; q: string } | null>(null);
   //   적요 — 회사 내부 확인용으로 사람이 직접 쓴다. 비우면 서버가 통장 적요를 넣는다.
   const [memo, setMemo] = useState<Record<string, string>>({});
-  //   줄별 계정·거래처·적요 선택을 새로고침해도 유지 — 복원값보다 지금 화면에서 고른 값이 우선 (2026-08-26 사장님 제보)
+  //   줄별 계정·거래처·적요 선택을 새로고침해도 유지 · 복원값보다 지금 화면에서 고른 값이 우선 (2026-08-26 사장님 제보)
   usePersistedPicks(companyId ? `ov:collect-bk-acct:${companyId}` : null, acct,
     (saved) => setAcct((o) => ({ ...saved, ...o })));
   usePersistedPicks(companyId ? `ov:collect-bk-pt:${companyId}` : null, pt,
@@ -161,9 +161,9 @@ export function BankTab({
   usePersistedPicks(companyId ? `ov:collect-bk-memo:${companyId}` : null, memo,
     (saved) => setMemo((o) => ({ ...saved, ...o })));
   const [busy, setBusy] = useState(false);
-  //   머리단 정렬 — 기본은 일자 오름차순(통장은 날짜 순으로 본다)
+  //   머리단 정렬 · 기본은 일자 오름차순(통장은 날짜 순으로 본다)
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "date", dir: "asc" });
-  /*   ── 엑셀식 머리단 필터 + 열 너비 (2026-08-13 사장님) — 증빙 탭과 같은 방식 ── */
+  /*   ── 엑셀식 머리단 필터 + 열 너비 (2026-08-13 사장님). 증빙 탭과 같은 방식 ── */
   const [colF, setColF] = useState<Record<string, Set<string> | null>>({});
   const tableRef = useRef<HTMLTableElement | null>(null);
   const [colW, setColW] = useColWidths("collect-bk-colw-v2", {
@@ -294,7 +294,7 @@ export function BankTab({
       }
       const ar = accounts.find((a) => String(a.code) === "108");
       if (ar) setAcct((prev) => ({ ...prev, [r.id]: ar }));
-      toast(`매칭했습니다 — ${inv.counterparty_name || "계산서"}${(inv as any).deals?.name ? ` · 프로젝트 ${(inv as any).deals.name}` : ""}`, "success");
+      toast(`매칭했습니다. ${inv.counterparty_name || "계산서"}${(inv as any).deals?.name ? ` · 프로젝트 ${(inv as any).deals.name}` : ""}`, "success");
       setMatchOpen(null); setMatchPick(null);
       qc.invalidateQueries({ queryKey: ["bank-rows"] });
       qc.invalidateQueries({ queryKey: ["bank-open-invoices"] });
@@ -316,16 +316,16 @@ export function BankTab({
     staleTime: 300_000,
   });
 
-  //   학습된 규칙 — 입금자명/적요를 열쇠로 계정을 미리 채운다.
+  //   학습된 규칙 · 입금자명/적요를 열쇠로 계정을 미리 채운다.
   //   통장은 미처리가 제일 많은 곳이라(2,541건) 학습이 가장 크게 먹힌다.
-  const { data: rules } = useQuery({
+  const  { data: rules } = useQuery({
     queryKey: ["voucher-rules", companyId, "bank"],
     queryFn: () => fetchRuleMap(companyId, "bank"),
     staleTime: 60_000,
   });
 
-  //   거래처 — 상대 계정 줄에 걸 거래처를 고른다 (보통예금 줄은 서버가 통장 거래처를 붙인다)
-  const { data: partners = [] } = useQuery<Pt[]>({
+  //   거래처 · 상대 계정 줄에 걸 거래처를 고른다 (보통예금 줄은 서버가 통장 거래처를 붙인다)
+  const  { data: partners = [] } = useQuery<Pt[]>({
     queryKey: ["bank-partners", companyId],
     queryFn: async () => {
       const data = await fetchPaged<any>("bank:partners", () => supabase
@@ -335,8 +335,8 @@ export function BankTab({
     staleTime: 300_000,
   });
 
-  //   계좌 목록 — '조건 더보기'의 계좌 고르기용. 별명이 있으면 별명이 먼저다(사람이 부르는 이름).
-  const { data: bankAccounts = [] } = useQuery<{ id: string; label: string; full?: string }[]>({
+  //   계좌 목록 · '조건 더보기'의 계좌 고르기용. 별명이 있으면 별명이 먼저다(사람이 부르는 이름).
+  const  { data: bankAccounts = [] } = useQuery<{ id: string; label: string; full?: string }[]>({
     queryKey: ["bank-accounts-pick", companyId],
     queryFn: async () => {
       const data = logRead("bank:accounts-pick", await supabase
@@ -412,8 +412,8 @@ export function BankTab({
     if (acct[r.id]) return { a: acct[r.id], via: "고름" };
     const hit = rules?.get(keyOf(r).key);
     if (hit?.account) return { a: hit.account as Acct, via: ruleTag(hit.hit_count) };
-    //   학습이 없을 때만 AI 추천을 쓴다 — 사람이 쌓은 규칙이 늘 이긴다
-    if (aiAcct[r.id]) return { a: aiAcct[r.id], via: "AI" };
+    //   학습이 없을 때만 AI 추천을 쓴다. 사람이 쌓은 규칙이 늘 이긴다
+    if (aiAcct[r.id]) return  { a: aiAcct[r.id], via: "AI" };
     return { a: null, via: null };
   };
 
@@ -495,7 +495,7 @@ export function BankTab({
       return n;
     });
     setBulkOpen(false);
-    toast(`${bulkRows.length}건을 ${a.code} ${a.name} 으로 바꿨습니다 — 전표는 '일반전표 만들기'를 눌러야 만들어집니다.`, "success");
+    toast(`${bulkRows.length}건을 ${a.code} ${a.name} 으로 바꿨습니다. 전표는 '일반전표 만들기'를 눌러야 만들어집니다.`, "success");
   };
 
   //   중복 의심 팝업 (2026-08-19) — 같은 날 같은 금액의 전표가 이미 있으면 새 전표/기존 전표에 연결/취소
@@ -509,7 +509,7 @@ export function BankTab({
     if (!reason) return;
     try {
       const n = await setLedgerExcluded("bank", targets.map((r) => r.id), reason);
-      toast(`${n}건 장부 제외 — 미처리 목록에서 사라졌습니다 (상태 '장부 제외'로 다시 봅니다)`, "success");
+      toast(`${n}건 장부 제외 · 미처리 목록에서 사라졌습니다 (상태 '장부 제외'로 다시 봅니다)`, "success");
       setSel(new Set()); qc.invalidateQueries({ queryKey: ["bank-rows"] }); qc.invalidateQueries({ queryKey: ["collect-status"] });
     } catch (e) { toast(friendlyError(e, "장부 제외 실패"), "error"); }
   };
@@ -532,7 +532,7 @@ export function BankTab({
           p_memo: memoOf(r).trim() || null,
         });
         if (error) throw error;
-        //   사람이 고른 계정을 배운다 — 같은 입금자·적요가 또 나오면 미리 채운다
+        //   사람이 고른 계정을 배운다. 같은 입금자·적요가 또 나오면 미리 채운다
         const k = keyOf(r);
         await learnAccount({ kind: "bank", key: k.key, label: k.label, accountId: acc.id });
         ok += 1;
@@ -552,8 +552,8 @@ export function BankTab({
     qc.invalidateQueries({ queryKey: ["bank-partners"] });
     setBusy(false);
     if (ok > 0 && fails.length === 0) toast(`일반전표 ${ok}건을 만들었습니다`, "success");
-    else if (ok > 0) toast(`${ok}건 성공 · ${fails.length}건 실패 — ${fails[0]}`, "info");
-    else toast(`처리하지 못했습니다 — ${fails[0] ?? "알 수 없는 오류"}`, "error");
+    else if (ok > 0) toast(`${ok}건 성공 · ${fails.length}건 실패 · ${fails[0]}`, "info");
+    else toast(`처리하지 못했습니다. ${fails[0] ?? "알 수 없는 오류"}`, "error");
   };
 
   /** 처리한 줄 되돌리기 — 무엇으로 처리했느냐에 따라 길이 다르다 */
@@ -589,9 +589,9 @@ export function BankTab({
       qc.invalidateQueries({ queryKey: ["bank-rows"] });
       qc.invalidateQueries({ queryKey: ["collect-status"] });
       qc.invalidateQueries({ queryKey: ["bank-card-cands"] });
-      toast("되돌렸습니다 — 미처리로 돌아왔습니다", "info");
+      toast("되돌렸습니다. 미처리로 돌아왔습니다", "info");
     } catch (e: any) {
-      toast(`되돌리지 못했습니다 — ${friendlyError(e, String(e?.message || ""))}`, "error");
+      toast(`되돌리지 못했습니다. ${friendlyError(e, String(e?.message || ""))}`, "error");
     } finally { setBusy(false); }
   };
 
@@ -625,8 +625,8 @@ export function BankTab({
       setAiAcct((prev) => ({ ...prev, ...next }));
       const n = Object.keys(next).length;
       toast(n > 0
-        ? `계정 추천 ${n}건${miss > 0 ? ` · ${miss}건은 맞는 계정과목이 없어 직접 골라야 합니다` : ""} — 확인 후 확정하세요`
-        : "맞는 계정과목을 찾지 못했습니다 — 직접 고르세요", n > 0 ? "success" : "info");
+        ? `계정 추천 ${n}건${miss > 0 ? ` · ${miss}건은 맞는 계정과목이 없어 직접 골라야 합니다` : ""} · 확인 후 확정하세요`
+        : "맞는 계정과목을 찾지 못했습니다. 직접 고르세요", n > 0 ? "success" : "info");
     } catch (e: any) {
       toast(friendlyError(e, "계정 추천 실패"), "error");
     } finally { setAiAcctBusy(false); }
@@ -638,7 +638,7 @@ export function BankTab({
   //     다른 순서로 잡히면 엉뚱한 줄이 딸려 온다.
   //   · shown 을 쓰므로 쪽을 넘겨 잡아도 된다(같은 쪽 안이면 결과가 같다).
   //   · 고를 수 없는 줄(이미 끝난 줄(전표됨·수금매칭·이체·장부 제외))은 조용히 건너뛴다.
-  //   · Shift 로 잡은 구간은 **누른 칸이 가려는 상태**를 그대로 따른다 — 켜면 다 켜고, 끄면 다 끈다
+  //   · Shift 로 잡은 구간은 **누른 칸이 가려는 상태**를 그대로 따른다. 켜면 다 켜고, 끄면 다 끈다
   //     (잘못 잡았을 때 Shift 로 되돌릴 수 있어야 한다).
   const anchorRef = useRef<string | null>(null);
   const toggle = (id: string, shift = false) => {
@@ -693,7 +693,7 @@ export function BankTab({
       label: matchMode ? "매칭 제안 끄기" : "매칭 제안 켜기",
       source: "장부 대조",
       badge: matchTargets.length,
-      hint: "미매칭 입금 아래에 계산서 제안이 붙습니다 — 입금 ↔ 계산서 ↔ 프로젝트. 확정은 줄에서 직접 합니다",
+      hint: "미매칭 입금 아래에 계산서 제안이 붙습니다. 입금 ↔ 계산서 ↔ 프로젝트. 확정은 줄에서 직접 합니다",
       onClick: () => setMatchMode((v) => !v),
     },
     rulesHelper,
@@ -807,7 +807,7 @@ export function BankTab({
         const row = byId.get(pk.id);
         //   기간을 바꾼 뒤 옛 파일을 올리면 여기 걸린다 — 조용히 넘기지 않는다
         if (!row) { miss.push(`이 조회에 없는 줄 (${pk.id.slice(0, 8)}…)`); continue; }
-        if (doneOf(row)) { miss.push(`${row.date} ${row.who} — 이미 처리된 줄`); continue; }
+        if (doneOf(row)) { miss.push(`${row.date} ${row.who} · 이미 처리된 줄`); continue; }
         const a = byCode.get(pk.code);
         if (a) next[pk.id] = a;
       }
@@ -816,11 +816,11 @@ export function BankTab({
       const bad = [...fails, ...miss];
       toast(
         n > 0
-          ? `계정 ${n}건을 채웠습니다${bad.length ? ` · ${bad.length}건 실패 — ${bad[0]}` : ""} — 확인 후 전표를 만드세요`
-          : bad.length ? `채우지 못했습니다 — ${bad[0]}` : `채울 것이 없습니다 (빈 칸 ${blank}줄)`,
+          ? `계정 ${n}건을 채웠습니다${bad.length ? ` · ${bad.length}건 실패 · ${bad[0]}` : ""} · 확인 후 전표를 만드세요`
+          : bad.length ? `채우지 못했습니다. ${bad[0]}` : `채울 것이 없습니다 (빈 칸 ${blank}줄)`,
         n > 0 ? "success" : bad.length ? "error" : "info");
     } catch (e: any) {
-      toast(`엑셀을 읽지 못했습니다 — ${e?.message || "형식을 확인해 주세요"}`, "error");
+      toast(`엑셀을 읽지 못했습니다. ${e?.message || "형식을 확인해 주세요"}`, "error");
     }
   };
 
@@ -837,11 +837,11 @@ export function BankTab({
           amount: (r.isIn ? 1 : -1) * Math.abs(r.amount),
         })), accounts, `통장_계정채우기_${from}~${to}`) },
     { label: "채운 엑셀 올리기",
-      hint: "계정과목 칸만 채워 올리면 화면에 붙습니다 — 전표는 확인 후 직접 만듭니다",
+      hint: "계정과목 칸만 채워 올리면 화면에 붙습니다. 전표는 확인 후 직접 만듭니다",
       onClick: () => fillRef.current?.click() },
   ];
 
-  //   걸린 조건 — 조회 줄에 칩으로 남는다. 패널을 열지 않고도 알고, ✕ 로 하나씩 뺀다.
+  //   걸린 조건 · 조회 줄에 칩으로 남는다. 패널을 열지 않고도 알고, ✕ 로 하나씩 뺀다.
   const drop = (patch: Partial<Cond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
   const chips: AppliedChip[] = [
     ...quickTerms(q).map((t, i) => ({
@@ -952,7 +952,7 @@ export function BankTab({
           } />
 
         <QuickSearch value={q} onApply={setQ}
-          placeholder="거래처 · 계좌 · 계정과목 · 적요 · 금액 — 쉼표로 여러 개, Enter" />
+          placeholder="거래처 · 계좌 · 계정과목 · 적요 · 금액 · 쉼표로 여러 개, Enter" />
 
         <ExcelMenu items={excelItems} />
       </QueryBar>
@@ -964,7 +964,7 @@ export function BankTab({
         <Stat label="건수" value={`${won(shown.length)}건`} />
         <Stat label="입금" value={won(sumIn)} tone="plus" />
         <Stat label="출금" value={won(sumOut)} tone="minus" />
-        {capped && <b className="ev-cut">너무 많아 앞 20,000건만 받아왔습니다 — 기간을 좁혀 주세요</b>}
+        {capped && <b className="ev-cut">너무 많아 앞 20,000건만 받아왔습니다<span className="ui-sub">기간을 좁혀 주세요</span></b>}
       </ResultStrip>
       </QueryHead>
 
@@ -978,7 +978,7 @@ export function BankTab({
         <div className="collect-empty">읽는 중…</div>
       ) : shown.length === 0 ? (
         <div className="collect-empty">
-          {live.todo === "todo" ? "처리할 통장 거래가 없습니다 — 이 기간은 다 끝냈습니다." : "이 기간에 통장 거래가 없습니다."}
+          {live.todo === "todo" ? "처리할 통장 거래가 없습니다. 이 기간은 다 끝냈습니다." : "이 기간에 통장 거래가 없습니다."}
         </div>
       ) : (
         <div className="ev-scroll">
@@ -987,7 +987,7 @@ export function BankTab({
               <tr>
                 <th style={{ width: 34 }}>
                   <button type="button" aria-label="이 쪽 전체 선택" onClick={toggleAll}
-                    title="이 쪽 전체 선택 — 몇 줄만 고를 때는 첫 줄을 누르고 마지막 줄을 Shift+클릭"
+                    title="이 쪽 전체 선택 · 몇 줄만 고를 때는 첫 줄을 누르고 마지막 줄을 Shift+클릭"
                     className={allOn ? "collect-chk collect-chk-on" : "collect-chk"}>{allOn ? "✓" : ""}</button>
                 </th>
                 <SortableTh label="일자" sortKey="date" sort={sort} onSort={onSort} filter={thFilter("date", rows)} resize={thResize("date", 1)} />
@@ -1017,7 +1017,7 @@ export function BankTab({
                     <td>
                       {!done && (
                         <button type="button" onClick={(e) => toggle(r.id, e.shiftKey)} aria-label="선택"
-                          title="선택 — Shift 를 누르고 누르면 앞서 고른 줄부터 여기까지 한 번에"
+                          title="선택 · Shift 를 누르고 누르면 앞서 고른 줄부터 여기까지 한 번에"
                           className={on ? "collect-chk collect-chk-on" : "collect-chk"}>{on ? "✓" : ""}</button>
                       )}
                     </td>
@@ -1026,7 +1026,7 @@ export function BankTab({
                       <em className={r.isIn ? "spv-type spv-type-s" : "spv-type spv-type-b"}>{r.isIn ? "입금" : "출금"}</em>
                       {matchable && cands.length === 0 && (
                         <span className="relative inline-block">
-                          <button type="button" className="bk-find" title="맞는 계산서 제안이 없습니다 — 계산서 없는 매출일 수 있습니다. 직접 찾아 매칭하거나, 그냥 전표만 만들어도 됩니다"
+                          <button type="button" className="bk-find" title="맞는 계산서 제안이 없습니다. 계산서 없는 매출일 수 있습니다. 직접 찾아 매칭하거나, 그냥 전표만 만들어도 됩니다"
                             onClick={() => setMatchPick(matchPick === r.id ? null : r.id)}>계산서 찾기</button>
                           {matchPick === r.id && (
                             <PickList items={invPickItems} placeholder="계산서 검색 (거래처·금액·프로젝트·발행일)"
@@ -1073,12 +1073,14 @@ export function BankTab({
                             )}
                           </span>
                         </span>
+                      
                       );
-                      //   보통예금 쪽은 서버가 붙인다 — 화면은 무엇이 설지 미리 보여만 준다.
+                      //   보통예금 쪽은 서버가 붙인다. 화면은 무엇이 설지 미리 보여만 준다.
                       //   ★ 거래처 자리에 그냥 '통장' 이라고만 찍혀 **어느 통장인지 알 수 없었다**
                       //     (2026-08-13 사장님 지적). 계좌 별명·뒷자리를 그대로 보여 준다.
                       //     계좌를 모르는 줄(bank_account_id 없음)만 '통장' 으로 남는다.
                       const bankSide = (
+                        
                         <span className="bk-side bk-side-fixed"
                           title={`보통예금과 통장 거래처는 자동으로 들어갑니다${bankLabelOf(r) ? ` — ${bankLabelOf(r)}` : ""}`}>
                           <span className="ev-acct ev-acct-lock">103 보통예금</span>
@@ -1178,7 +1180,7 @@ export function BankTab({
       {/* ── 3줄 · 고른 줄로 하는 일 — 파란 버튼은 여기 하나뿐 ── */}
       <SelectionBar count={selRows.length} onClear={() => setSel(new Set())}
         summary={<>합계 <b className="mono-number">{won(selTotal)}</b>원{notReady.length > 0 && ` · ${notReady.length}건은 계정을 먼저 골라야 합니다`}{bulkRows.length > 1 && bulkIsIn === null && ` · 입금·출금이 섞여 계정과목을 함께 바꿀 수 없습니다`}</>}>
-        <button type="button" onClick={excludeSelected} disabled={busy} className="btn-secondary btn-sm" title="전표 없이 끝낸 것으로 — 중복·이체·개인 지출">장부 제외</button>
+        <button type="button" onClick={excludeSelected} disabled={busy} className="btn-secondary btn-sm" title="전표 없이 끝낸 것으로 · 중복·이체·개인 지출">장부 제외</button>
         {/*   계정과목 일괄변경 — 목록은 위로·왼쪽으로 펼친다(선택 바가 화면 바닥 오른쪽에 붙어 있다) */}
         <span className="relative inline-block ev-bulk-pick">
           <button type="button" disabled={busy || bulkIsIn === null}
@@ -1186,7 +1188,7 @@ export function BankTab({
             className="btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
             title={bulkIsIn !== null
               ? `고른 ${bulkRows.length}건의 계정과목을 한 번에 바꿉니다 (전표는 따로 '일반전표 만들기')`
-              : "입금·출금이 섞여 있습니다 — 검색조건의 입·출을 한쪽으로 좁힌 뒤 다시 고르세요"}>
+              : "입금·출금이 섞여 있습니다. 검색조건의 입·출을 한쪽으로 좁힌 뒤 다시 고르세요"}>
             {bulkIsIn === true ? "수익 계정 바꾸기" : bulkIsIn === false ? "비용 계정 바꾸기" : "계정과목 바꾸기"}
           </button>
           {bulkOpen && bulkIsIn !== null && (

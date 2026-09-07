@@ -1,13 +1,13 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
-import { fetchPaged } from "@/lib/fetch-paged";
+import { fetchPaged }  from "@/lib/fetch-paged";
 
-// 미수금 회수 미리보기 — 대시보드 카드(2026-07-14). 발행한 매출 세금계산서 중 아직 입금(settled)이
+// 미수금 회수 미리보기 · 대시보드 카드(2026-07-14). 발행한 매출 세금계산서 중 아직 입금(settled)이
 //   안 된 잔액을 거래처별로 모아 "누가 얼마 밀렸는지 + 연체일"을 보여주고, 클릭 시 거래처 원장으로 이동.
 //   입금 매칭 트리거(Phase 1)로 프로젝트/입금이 자동 연결된 데이터를 그대로 활용. 미수 없으면 카드 숨김.
 
 import Link from "next/link";
-import { ActivityCard } from "@/components/dashboard-activity";
+import  { ActivityCard } from "@/components/dashboard-activity";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
@@ -38,7 +38,7 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
       `확인 후 입금 부탁드리며, 이미 처리하셨다면 양해 부탁드립니다. 감사합니다.`;
     try {
       await navigator.clipboard.writeText(msg);
-      toast("독촉 문구를 복사했습니다 — 카톡/문자/메일에 붙여넣어 보내세요", "success");
+      toast("독촉 문구를 복사했습니다. 카톡/문자/메일에 붙여넣어 보내세요", "success");
     } catch {
       window.prompt("아래 문구를 복사하세요", msg);
     }
@@ -83,7 +83,7 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
   return (
     <ActivityCard title="미수금" href="/partners/ledger?type=sales" empty={!data || n === 0}
       summary={n > 0 ? <><b className="mono-number text-[var(--text)]">{won(data!.total)}</b> · {n}곳</> : undefined}
-      emptyText="미수금이 없습니다 — 발행한 세금계산서가 모두 회수됐습니다.">
+      emptyText="미수금이 없습니다. 발행한 세금계산서가 모두 회수됐습니다.">
       <div className="receivables-preview-list">
         {top.map((g) => (
           <div key={g.name} className="receivables-preview-row">

@@ -32,9 +32,10 @@ export default function VatCalculatorView() {
       const vat = Math.round(supply * 0.1);
       return { supply, vat, total: supply + vat };
     }
-    // 합계금액 기준 — 역산
+    
+    // 합계금액 기준 · 역산
     const supply = Math.round(n / 1.1);
-    return { supply, vat: n - supply, total: n };
+    return  { supply, vat: n - supply, total: n };
   }, [amount, basis]);
 
   // 계측 — 이 세션에서 처음 결과를 봤을 때 1회
@@ -64,8 +65,8 @@ export default function VatCalculatorView() {
               <label className="lp4-freetool-field">
                 <span className="lp4-freetool-label">입력한 금액이 무엇인가요?</span>
                 <select className="lp4-input" value={basis} onChange={(e) => setBasis(e.target.value as Basis)}>
-                  <option value="supply">공급가액 (부가세 별도) — 부가세를 더한다</option>
-                  <option value="total">합계금액 (부가세 포함) — 부가세를 빼낸다</option>
+                  <option value="supply">공급가액 (부가세 별도). 부가세를 더한다</option>
+                  <option value="total">합계금액 (부가세 포함). 부가세를 빼낸다</option>
                 </select>
               </label>
             </div>

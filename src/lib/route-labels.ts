@@ -7,7 +7,7 @@ export type RouteCrumb = { group: string | null; title: string; desc?: string };
 const ROUTE_LABELS: Record<string, RouteCrumb> = {
   // desc 가 있으면 리포트형 표준 헤더(제목+설명)가 화면 상단에 자동 표시됨(app-shell 주입).
   //   self-헤더 있는 화면(/dashboard·/reports/*·/projecthub·/settings·/chat)은 desc 생략 → 중복 방지.
-  "/dashboard": { group: "홈", title: "대시보드", desc: "오늘 챙길 것을 한눈에 — 내 업무·자금·일정·전자결재 현황을 봅니다." },
+  "/dashboard": { group: "홈", title: "대시보드", desc: "오늘 챙길 것을 한눈에 · 내 업무·자금·일정·전자결재 현황을 봅니다." },
   "/copilot": { group: "홈", title: "AI 참모" },
   "/notifications": { group: "홈", title: "알림", desc: "받은 알림을 모아 봅니다." },
   "/support-programs": { group: "홈", title: "지원사업추천", desc: "회사 자료(업종·소재지·직원·매출)로 걸러 낸 정부 지원정책입니다. 신청은 각 기관에서 합니다." },
@@ -67,17 +67,17 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/documents": { group: "업무", title: "파일보관함", desc: "회사 파일·문서를 보관합니다." },
 
   "/bank": { group: "재무", title: "통장", desc: "통장 잔액과 거래를 봅니다." },
-  "/finance/status": { group: "재무", title: "현황", desc: "작성된 전표의 현황·지표 — 확정·반려·출처, 일반·매입매출 종류, 계정과목·거래처·부가세 유형, 전표 없는 증빙을 봅니다." },
+  "/finance/status": { group: "재무", title: "현황", desc: "작성된 전표의 현황·지표 · 확정·반려·출처, 일반·매입매출 종류, 계정과목·거래처·부가세 유형, 전표 없는 증빙을 봅니다." },
   "/cards": { group: "재무", title: "카드", desc: "법인카드 사용내역을 봅니다." },
   "/payments": { group: "재무", title: "정기 지출", desc: "정기결제·고정비를 관리합니다." },
   "/finance/assets": { group: "재무", title: "고정자산", desc: "장비·차량·소프트웨어를 등록하면 달마다 감가상각 전표 초안이 생깁니다." },
-  "/finance/tax-filing": { group: "재무", title: "세무 신고", desc: "원천세·부가세 신고서를 완성해 줍니다 — 옮겨 적기만 하면 되고, 제출은 홈택스에서 합니다." },
+  "/finance/tax-filing": { group: "재무", title: "세무 신고", desc: "원천세·부가세 신고서를 완성해 줍니다. 옮겨 적기만 하면 되고, 제출은 홈택스에서 합니다." },
   "/subscriptions": { group: "자금", title: "구독 관리", desc: "구독 서비스를 관리합니다." },
   "/loans": { group: "재무", title: "대출", desc: "대출 현황을 관리합니다." },
   "/vault": { group: "재무", title: "자산", desc: "회사 자산을 관리합니다." },
 
   //   재고 (2026-08-25 신설)
-  "/inventory/profit": { group: "재고", title: "이익관리", desc: "구매·생산·판매에서 남는 돈을 원가(선입선출)가 반영된 숫자로 봅니다 — 품목·거래처·채널별 이익, 손실, 원가 층." },
+  "/inventory/profit": { group: "재고", title: "이익관리", desc: "구매·생산·판매에서 남는 돈을 원가(선입선출)가 반영된 숫자로 봅니다. 품목·거래처·채널별 이익, 손실, 원가 층." },
   "/inventory/status": { group: "재고", title: "현황", desc: "주문·판매·구매·생산을 기간으로 집계해 그래프와 표로 봅니다. 재고 금액·마진·납기 지난 주문·자재 부족을 한 화면에서." },
   "/inventory/products": { group: "재고", title: "품목", desc: "파는 것·쓰는 것을 SKU 로 등록합니다. 수량을 세지 않는 품목(서비스)도 여기서 정합니다." },
   "/inventory/stock": { group: "재고", title: "창고관리", desc: "지금 몇 개인지 봅니다. 수량은 움직인 기록의 합이라 언제 왜 변했는지 되짚을 수 있습니다." },

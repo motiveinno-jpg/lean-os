@@ -44,7 +44,8 @@ const SCOPES: { key: Scope; label: string; hint: string }[] = [
 
 type MetricKey = "visitors" | "views" | "guests" | "accounts" | "companies" | "trials";
 const METRICS: { key: MetricKey; label: string; unit: string }[] = [
-  // 범위 토글에 '전체' 가 생겨서(2026-08-25) 라벨의 "(전체)" 가 그 뜻으로 읽힌다 — 표현만 정리.
+  // 범위 토글에 '전체' 가 생겨서(2026-08-25) 라벨의 "(전체)" 가 그 뜻으로 읽힌다. 표현만 정리.
+  
   { key: "visitors", label: "방문자", unit: "명" },
   { key: "guests", label: "비로그인 방문자", unit: "명" },
   { key: "views", label: "페이지뷰", unit: "회" },
@@ -135,7 +136,9 @@ function bucketLabel(start: string, gran: Gran, long = false): string {
   return long ? `${Number(m)}월 ${Number(d)}일` : `${m}.${d}`;
 }
 
-/** 가로 막대 목록 — 값이 큰 순서, 등장 시 왼쪽에서 자란다. */
+
+
+/** 가로 막대 목록 · 값이 큰 순서, 등장 시 왼쪽에서 자란다. */
 function HBarList({ rows, unit = "" }: { rows: { label: string; v: number; title?: string }[]; unit?: string }) {
   const max = Math.max(1, ...rows.map((r) => r.v));
   return (
@@ -161,11 +164,11 @@ export function AnalyticsSection({ usage, traffic, companies, companyActivity, t
       internal_visitors: number; external_visitors: number; search_visitors: number;
       raw_views: number; deduped_views: number;
     };
-  } | null;
+  }  | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   companies: any[];
-  // 이용 형태 기간 연동용 — 회사별 마지막 활동 (platform_company_activity)
-  companyActivity?: { company_id: string; last_activity: string | null }[];
+  // 이용 형태 기간 연동용 · 회사별 마지막 활동 (platform_company_activity)
+  companyActivity?:  { company_id: string; last_activity: string | null }[];
   /** 시각 검증·테스트용 — 주면 RPC 를 부르지 않고 이 데이터로 렌더한다. */
   testData?: Analytics;
 }) {
@@ -243,7 +246,7 @@ export function AnalyticsSection({ usage, traffic, companies, companyActivity, t
   const chartRows = useMemo(() => buckets.map((b) => ({ name: bucketLabel(b.start, gran), long: bucketLabel(b.start, gran, true), value: b[metric] })), [buckets, gran, metric]);
 
   const acc = usage?.accounts;
-  // 토글 기간에 맞춘 창 — 일간: 오늘/주간/월간, 월간: 월간/분기/연간, 연간: 연간/3년/전체 활동
+  // 토글 기간에 맞춘 창 · 일간: 오늘/주간/월간, 월간: 월간/분기/연간, 연간: 연간/3년/전체 활동
   const activeRows = gran === "day"
     ? [{ label: "오늘", v: acc?.dau ?? 0 }, { label: "주간", v: acc?.wau ?? 0 }, { label: "월간", v: acc?.mau ?? 0 }]
     : gran === "month"

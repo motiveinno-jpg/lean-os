@@ -1,23 +1,23 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
-import { logRead } from "@/lib/log-read";
+import { logRead }  from "@/lib/log-read";
 
-// 고객사 관리 — 운영자 페이지 v2 (2026-09-03): 구성 도넛 + 표. 조회·필터·내보내기 동작은 종전 그대로.
+// 고객사 관리 · 운영자 페이지 v2 (2026-09-03): 구성 도넛 + 표. 조회·필터·내보내기 동작은 종전 그대로.
 
-import { useMemo, useState } from "react";
+import  { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { OpsSearch, exportCsv } from "../_components/ops-kit";
 import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSeg, PfSkeleton, PfEmpty } from "@/app/platform/_components/pf/ui";
-import { PfDonut, PfBars } from "@/app/platform/_components/pf/charts";
+import { PfDonut, PfBars }  from "@/app/platform/_components/pf/charts";
 
 const db = supabase;
 
-// 회사의 구독 배열에서 "가장 최근" 구독을 고른다 — 쿼리에 정렬이 없어 [0]이 최신이 아닐 수 있으므로
+// 회사의 구독 배열에서 "가장 최근" 구독을 고른다. 쿼리에 정렬이 없어 [0]이 최신이 아닐 수 있으므로
 //   created_at 내림차순으로 골라 오래된(canceled) 구독이 표시되는 것을 방지.
-function latestSub(company: any): any {
+function latestSub(company: any): any  {
   const subs = company?.subscriptions;
   if (!Array.isArray(subs) || subs.length === 0) return undefined;
   return [...subs].sort(
@@ -34,8 +34,8 @@ const STATUS_META: Record<string, { tone: Tone; label: string }> = {
   paused: { tone: "muted", label: "일시중지" },
 };
 
-/** 회사 한 곳의 표시 상태 — 표·집계가 같은 판정을 쓴다. */
-function statusOf(c: any): { tone: Tone; label: string; key: string } {
+/** 회사 한 곳의 표시 상태 · 표·집계가 같은 판정을 쓴다. */
+function statusOf(c: any):  { tone: Tone; label: string; key: string } {
   const sub = latestSub(c);
   if (!sub) return { tone: "muted", label: "미구독", key: "none" };
   // 체험 만료(게이트에서 차단 중)인데 status 가 trialing 으로 남아 '체험중'으로 보이던 것 정정
@@ -153,7 +153,7 @@ export default function CustomersPage() {
       {/* 구성 + 추이 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <PfCard i={5}>
-          <PfCardHead title="고객 구성" sub="가장 최근 구독 상태 기준 — 체험이 끝났는데 결제하지 않은 회사는 '체험만료'" />
+          <PfCardHead title="고객 구성" sub="가장 최근 구독 상태 기준 · 체험이 끝났는데 결제하지 않은 회사는 '체험만료'" />
           <PfCardBody>
             {isLoading ? <PfSkeleton rows={4} h={18} /> : (
               <PfDonut slices={summary.byStatus.map((s) => ({ label: s.label, value: s.n, color: toneColor[s.tone] }))} size={170} centerLabel="총 가입사" />
@@ -161,7 +161,7 @@ export default function CustomersPage() {
           </PfCardBody>
         </PfCard>
         <PfCard i={6}>
-          <PfCardHead title="월별 신규 가입" sub="최근 6개월 — 몇 곳이 새로 가입했는지" />
+          <PfCardHead title="월별 신규 가입" sub="최근 6개월 · 몇 곳이 새로 가입했는지" />
           <PfCardBody>
             {isLoading ? <PfSkeleton rows={4} h={18} /> : (
               <PfBars data={summary.months.map((m) => ({ name: m.name, n: m.n }))} series={[{ key: "n", label: "신규 가입사" }]} height={190} />

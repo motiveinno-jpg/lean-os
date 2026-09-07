@@ -44,11 +44,11 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
     enabled: !!companyId && !!userId, staleTime: 60_000,
   });
 
-  // 승인된 휴가 — leave_calendar RPC(SECURITY DEFINER) 사용 (2026-08-11).
+  // 승인된 휴가 · leave_calendar RPC(SECURITY DEFINER) 사용 (2026-08-11).
   //   왜: 이름은 employees 조인인데 급여 등 민감 컬럼 때문에 일반 직원 RLS 로 막혀
   //   "누가" 휴가인지 빈 값으로 내려왔다. RPC 는 이름·기간·단위만 최소 반환.
   //   (승인된 전자결재 휴가는 native leave_requests 에도 기록되므로 이 경로로 전부 커버)
-  const { data: leaves = [] } = useQuery({
+  const  { data: leaves = [] } = useQuery({
     queryKey: ["dash-cal-leaves", companyId],
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc("leave_calendar");

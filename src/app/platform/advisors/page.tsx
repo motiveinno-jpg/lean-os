@@ -42,8 +42,8 @@ export default function PlatformAdvisorsPage() {
     refetchInterval: 60_000,
   });
 
-  // 연결용 회사 목록 (운영자는 companies 전체 조회 가능 — customers 페이지와 동일 경로)
-  const { data: companies = [] } = useQuery({
+  // 연결용 회사 목록 (운영자는 companies 전체 조회 가능 · customers 페이지와 동일 경로)
+  const  { data: companies = [] } = useQuery({
     queryKey: ["op-advisor-companies"],
     queryFn: async () => {
       const data = logRead("platform/advisors:companies", await (db as any)
@@ -71,8 +71,8 @@ export default function PlatformAdvisorsPage() {
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const { error } = await (db as any).rpc("operator_set_advisor_status", { p_advisor_id: id, p_status: status });
       if (error) throw error;
-      // 승인 시 세무사에게 안내 메일 — 베스트에포트
-      if (status === "active") db.functions.invoke("advisor-notify", { body: { event: "approved", advisor_id: id } }).catch(() => {});
+      // 승인 시 세무사에게 안내 메일 · 베스트에포트
+      if (status === "active") db.functions.invoke("advisor-notify",  { body: { event: "approved", advisor_id: id } }).catch(() => {});
     },
     onSuccess: invalidate,
   });

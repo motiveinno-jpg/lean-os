@@ -185,7 +185,7 @@ export function classifyCardTransaction(transaction: CardTransactionInput): VATC
     categoryCode: 'general_expense',
     categoryLabel: '일반 사업경비 (미분류)',
     confidence: 'low',
-    reason: '자동 분류 불가 — 수동 확인 필요',
+    reason: '자동 분류 불가 · 수동 확인 필요',
   };
 }
 

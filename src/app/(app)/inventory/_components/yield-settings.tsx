@@ -20,7 +20,7 @@ export function YieldSettingsDialog({ companyId, onClose }: { companyId: string;
     const yv = Number(y) / 100, lv = Number(l) / 100;
     if (!(yv > 0 && yv <= 1) || !(lv >= 0 && lv < 1)) { toast("양품률은 0 초과 100 이하, 로스율은 0 이상 100 미만으로 넣으세요", "error"); return; }
     setBusy(true);
-    try { await saveInventorySettings(companyId, { yield_warn: yv, loss_warn: lv }); toast("수율 임계값을 저장했습니다 — 생산현황과 AI 브리핑에 바로 적용됩니다", "success"); qc.invalidateQueries({ queryKey: ["inv-settings"] }); onClose(); }
+    try { await saveInventorySettings(companyId, { yield_warn: yv, loss_warn: lv }); toast("수율 임계값을 저장했습니다. 생산현황과 AI 브리핑에 바로 적용됩니다", "success"); qc.invalidateQueries({ queryKey: ["inv-settings"] }); onClose(); }
     catch (e) { toast(friendlyError(e), "error"); } finally { setBusy(false); }
   };
   return (

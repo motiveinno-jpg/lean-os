@@ -80,7 +80,7 @@ function FillDialog({ ctl, onClose }: { ctl: DocCtl; onClose: () => void }) {
         //   지난 매입 단가가 있으면 그걸 우선(거래처별 단가·품목 매입가보다 최근 사실) — 출처: 장부 대조
         const lb = lastBuy?.get(r.p.id);
         if (lb?.unit_price != null && lb.unit_price > 0) { row.price = String(lb.unit_price); }
-        row.lnote = r.days != null ? `곧 부족 — ${r.days}일 뒤 0 (현재 ${won(r.have)})` : `부족분 ${won(r.short)} (안전 ${won(r.safety)} · 현재 ${won(r.have)})`;
+        row.lnote = r.days != null ? `곧 부족 · ${r.days}일 뒤 0 (현재 ${won(r.have)})` : `부족분 ${won(r.short)} (안전 ${won(r.safety)} · 현재 ${won(r.have)})`;
         return row;
       });
       return [...keep, ...add, blankRow()];
@@ -95,13 +95,13 @@ function FillDialog({ ctl, onClose }: { ctl: DocCtl; onClose: () => void }) {
   return (
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
-        <h3 className="inv-modal-title">부족분 채우기 — 발주 제안</h3>
+        <h3 className="inv-modal-title">부족분 채우기<span className="ui-sub">발주 제안</span></h3>
         <p className="inv-modal-desc">
           안전재고보다 적은 품목을 <b>부족분만큼</b> 구매 격자에 채웁니다. 수량은 여기서 고칠 수 있고, 저장은 격자에서 <b>매입 저장</b>을 눌러야 됩니다.
           안전재고가 없어도 <b>최근 30일 출고 속도</b>로 리드타임 안에 바닥나는 품목은 <b>곧 부족</b>으로 함께 올립니다(출처: 장부 대조). 거래처·단가는 지난 매입을 따릅니다. 자동 제안을 끈 품목은 빠집니다.
         </p>
         {isLoading ? <div className="inv-status-empty">불러오는 중…</div> : rows.length === 0 ? (
-          <div className="inv-status-empty">부족한 품목이 없습니다 — 모두 안전재고 이상입니다.</div>
+          <div className="inv-status-empty">부족한 품목이 없습니다. 모두 안전재고 이상입니다.</div>
         ) : (
           <div className="stg-table-wrap ch-ship-list">
             <table className="ev-table ev-lined table-inv-status-sm">
@@ -111,7 +111,7 @@ function FillDialog({ ctl, onClose }: { ctl: DocCtl; onClose: () => void }) {
                 <th>SKU</th><th>품목</th><th>이유</th><th>안전재고</th><th>현재고</th><th>부족</th><th>발주 수량</th><th>지난 매입</th>
               </tr></thead>
               <tbody>{rows.map((r) => (
-                <tr key={r.p.id} className={already.has(r.p.id) ? "doc-row-dup" : undefined} title={already.has(r.p.id) ? "이미 격자에 있는 품목 — 다시 넣지 않습니다" : undefined}>
+                <tr key={r.p.id} className={already.has(r.p.id) ? "doc-row-dup" : undefined} title={already.has(r.p.id) ? "이미 격자에 있는 품목 · 다시 넣지 않습니다" : undefined}>
                   <td className="tc"><input type="checkbox" checked={!!picked[r.p.id]} onChange={(e) => setPicked((s) => ({ ...s, [r.p.id]: e.target.checked }))} /></td>
                   <td className="mono-number text-left">{r.p.sku}</td>
                   <td className="text-left"><b>{r.p.name}</b>{r.p.spec ? <span className="ev-dim"> {r.p.spec}</span> : null}</td>
@@ -137,7 +137,9 @@ function FillDialog({ ctl, onClose }: { ctl: DocCtl; onClose: () => void }) {
   );
 }
 
-/** 다른 화면(자재 소요 등)이 sessionStorage 에 남긴 초안을 격자에 채운다 — ?prefill=1 로 들어왔을 때 한 번 (A3, 2026-08-27) */
+
+
+/** 다른 화면(자재 소요 등)이 sessionStorage 에 남긴 초안을 격자에 채운다. ?prefill=1 로 들어왔을 때 한 번 (A3, 2026-08-27) */
 export function PrefillFromStorage({ ctl }: { ctl: DocCtl }) {
   const companyId = ctl.companyId;
   const { data: products = [] } = useQuery({ queryKey: ["inv-products", companyId], queryFn: () => listProducts(companyId!), enabled: !!companyId });
@@ -155,7 +157,7 @@ export function PrefillFromStorage({ ctl }: { ctl: DocCtl }) {
       const add = rows.map((x) => { const p = byId.get(x.product_id); if (!p) return null; const row = blankRow(); row.qty = String(x.qty); ctl.fillFrom(row, p); row.lnote = x.note || ""; return row; }).filter(Boolean) as ReturnType<typeof blankRow>[];
       return [...keep, ...add, blankRow()];
     });
-    ctl.toast(`자재 부족분 ${rows.length}줄을 채웠습니다 — 수량·거래처를 확인하고 매입 저장`, "success");
+    ctl.toast(`자재 부족분 ${rows.length}줄을 채웠습니다. 수량·거래처를 확인하고 매입 저장`, "success");
   }, [products, done]);   // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }

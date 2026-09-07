@@ -48,8 +48,8 @@ export default function BusinessFlowPage() {
 
   useEffect(() => { if (blocked) return; getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); }); }, [blocked]);
 
-  /* ① 영업 파이프라인 — 진행중 상위 프로젝트 */
-  const { data: pipeline } = useQuery({
+  /* ① 영업 파이프라인 · 진행중 상위 프로젝트 */
+  const  { data: pipeline } = useQuery({
     queryKey: ["flow-pipeline", companyId],
     queryFn: async () => {
       const data = await fetchPaged<any>("flow/page:deals", () => db.from("deals").select("contract_total, stage").eq("company_id", companyId ?? "").eq("status", "active").is("archived_at", null).is("parent_deal_id", null).order("id"), 50000);
@@ -73,8 +73,8 @@ export default function BusinessFlowPage() {
     },
     enabled: !!companyId && view === "month", staleTime: 60_000,
   });
-  /* ③ 미수금 잔액 (세금계산서 status 기준 — 거래처 원장 표시와 같은 방식) */
-  const { data: receivable } = useQuery({
+  /* ③ 미수금 잔액 (세금계산서 status 기준 · 거래처 원장 표시와 같은 방식) */
+  const  { data: receivable } = useQuery({
     queryKey: ["flow-receivable", companyId],
     queryFn: async () => {
       const data = await fetchPaged<any>("flow/page:tax_invoices", () => db.from("tax_invoices").select("total_amount, issue_date").eq("company_id", companyId ?? "").eq("type", "sales").in("status", ["issued", "sent", "pending", "overdue"]).order("id"), 50000);
@@ -84,8 +84,8 @@ export default function BusinessFlowPage() {
     },
     enabled: !!companyId && view === "month", staleTime: 60_000,
   });
-  /* ④·⑤ 비용/손익 — cash-budget 월별 집계 (월별 표와 같은 소스) */
-  const { data: budget = [] } = useQuery<MonthlyBudget[]>({
+  /* ④·⑤ 비용/손익 · cash-budget 월별 집계 (월별 표와 같은 소스) */
+  const  { data: budget = [] } = useQuery<MonthlyBudget[]>({
     queryKey: ["flow-matrix-budget", companyId, view === "matrix" ? year : mYear], queryFn: () => getMonthlyBudgetOverview(companyId!, view === "matrix" ? year : mYear), enabled: !!companyId, staleTime: 60_000,
   });
   const monthBudget = budget.find((b) => b.month === month);
@@ -171,9 +171,9 @@ export default function BusinessFlowPage() {
             <section className="pnl-panel">
               <h3>막힌 곳</h3>
               <ul className="ol-gaps">
-                {(receivable?.over30 ?? 0) > 0 && <li><span>30일 넘은 미수금 <b className="mono-number bz-minus">{won(receivable!.over30)}</b> — 거래처 원장에서 확인·독촉</span><Link href="/partners/ledger" className="bz-link">원장 →</Link></li>}
-                {gap > 0 && <li><span>{mLabel} 발행액 중 <b className="mono-number">{won(gap)}</b> 아직 수금 확인 안 됨 — 입금 매칭으로 확정</span><Link href="/collect?tab=bank" className="bz-link">수집·전표 →</Link></li>}
-                {vatDday !== null && vatDday <= 30 && (monthVat?.netVAT ?? 0) > 0 && <li><span>부가세 신고 D-{vatDday} ({monthVat!.dueDate}) — 예상 납부 <b className="mono-number">{won(monthVat!.netVAT)}</b></span><Link href="/reports/vat" className="bz-link">부가세 →</Link></li>}
+                {(receivable?.over30 ?? 0) > 0 && <li><span>30일 넘은 미수금 <b className="mono-number bz-minus">{won(receivable!.over30)}</b> · 거래처 원장에서 확인·독촉</span><Link href="/partners/ledger" className="bz-link">원장 →</Link></li>}
+                {gap > 0 && <li><span>{mLabel} 발행액 중 <b className="mono-number">{won(gap)}</b>  아직 수금 확인 안 됨. 입금 매칭으로 확정</span><Link href="/collect?tab=bank" className="bz-link">수집·전표 →</Link></li>}
+                {vatDday !== null && vatDday <= 30 && (monthVat?.netVAT ?? 0) > 0 && <li><span>부가세 신고 D-{vatDday} ({monthVat!.dueDate}). 예상 납부  <b className="mono-number">{won(monthVat!.netVAT)}</b></span><Link href="/reports/vat" className="bz-link">부가세 →</Link></li>}
               </ul>
             </section>
           )}

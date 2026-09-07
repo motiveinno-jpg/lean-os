@@ -22,18 +22,18 @@ import {
   COPILOT_MAX_TOTAL_TEXT_CHARS,
   extractCopilotAttachment,
   type CopilotAttachment,
-} from "@/lib/copilot-attachments";
+}  from "@/lib/copilot-attachments";
 
-// AI 참모 — 회사 데이터를 읽고 대표가 지금 해야 할 일을 정리하는 읽기전용 AI.
+// AI 참모 · 회사 데이터를 읽고 대표가 지금 해야 할 일을 정리하는 읽기전용 AI.
 //   edge(owner-copilot)는 구조화 JSON(answer.headline/summary/actions/risks/opportunities/evidence) 반환.
 //   토큰 사용량은 ai_usage_summary RPC(서버가 company 결정) + ai_usage_log Realtime 로 실시간 표시.
 
-type Action = { priority: "high" | "medium" | "low"; title: string; detail: string; href?: string };
+type Action =  { priority: "high" | "medium" | "low"; title: string; detail: string; href?: string };
 type Risk = { title: string; detail: string; severity: "high" | "medium" | "low" };
 type Opp = { title: string; detail: string };
 type Evidence = { label: string; value: string; source?: string };
-// 자유 구성 섹션 (2026-08-07) — 제목·묶음 수를 AI 가 질문에 맞게 정한다. style 은 표시 형태만.
-type SectionItem = { title: string; detail?: string; value?: string; href?: string; level?: "high" | "medium" | "low" };
+// 자유 구성 섹션 (2026-08-07). 제목·묶음 수를 AI 가 질문에 맞게 정한다. style 은 표시 형태만.
+type SectionItem =  { title: string; detail?: string; value?: string; href?: string; level?: "high" | "medium" | "low" };
 type Section = { label: string; style: "list" | "metrics" | "actions" | "risks" | "chart"; items: SectionItem[] };
 // actions·risks·opportunities·evidence 는 구버전 답변(지난 대화 기록) 호환용으로만 남는다.
 type Answer = {
@@ -42,7 +42,7 @@ type Answer = {
   actions?: Action[]; risks?: Risk[]; opportunities?: Opp[]; evidence?: Evidence[];
 };
 
-// AI 답변 텍스트 정제 — 변수 토큰({{x}}·{x}·${x})·마크다운(**·`)이 그대로 노출돼 가독성이 떨어지던 문제 대응(2026-07-23).
+// AI 답변 텍스트 정제 · 변수 토큰({{x}}·{x}·${x})·마크다운(**·`)이 그대로 노출돼 가독성이 떨어지던 문제 대응(2026-07-23).
 function clean(s?: string): string {
   return (s || "")
     .replace(/\{\{\s*([^{}]+?)\s*\}\}/g, "$1")   // {{변수}} → 변수
@@ -52,11 +52,12 @@ function clean(s?: string): string {
     .replace(/`([^`]+)`/g, "$1")                   // `코드` → 코드
     .trim();
 }
-// 2단계(2026-07-28) — 엣지는 쓰기를 하지 않고 "무엇을 할지"만 돌려준다.
+
+// 2단계(2026-07-28). 엣지는 쓰기를 하지 않고 "무엇을 할지"만 돌려준다.
 //   실행은 이 화면이 기존 lib 함수로 한다(결재선·연장근무 게이트 등 업무 로직 재사용 + RLS 유지).
 //   tier=immediate  : 본인 범위·되돌리기 쉬움 → 도착 즉시 실행
 //   tier=confirm    : 결재선을 타는 등 → 확인 카드 노출 후 사용자가 눌러야 실행
-type PendingAction = { tool: string; tier: "immediate" | "confirm"; label: string; args: Record<string, unknown> };
+type PendingAction =  { tool: string; tier: "immediate" | "confirm"; label: string; args: Record<string, unknown> };
 type ActionState = "pending" | "running" | "done" | "cancelled" | "error";
 
 type AiMsg =
@@ -129,7 +130,7 @@ export default function CopilotPage() {
   const [attachments, setAttachments] = useState<CopilotAttachment[]>([]);
   const [attaching, setAttaching] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  //   목차에서 눌러 찾아간 질문 — 잠깐 테를 둘러 어디로 갔는지 보이게 한다 (2026-08-24)
+  //   목차에서 눌러 찾아간 질문 · 잠깐 테를 둘러 어디로 갔는지 보이게 한다 (2026-08-24)
   const [hitIdx, setHitIdx] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -163,8 +164,8 @@ export default function CopilotPage() {
     })();
   }, [companyId, historyLoaded]);
 
-  // 토큰 사용량 요약 (서버가 company 결정 — IDOR 불가)
-  const { data: usage, refetch: refetchUsage } = useQuery<Usage | null>({
+  // 토큰 사용량 요약 (서버가 company 결정 · IDOR 불가)
+  const  { data: usage, refetch: refetchUsage } = useQuery<Usage | null>({
     queryKey: ["ai-usage-summary", companyId],
     queryFn: async () => {
       const { data } = await (supabase as any).rpc("ai_usage_summary");
@@ -209,7 +210,7 @@ export default function CopilotPage() {
   const jumpTo = (i: number) => {
     const el = document.getElementById(`copilot-q-${i}`);
     if (!el) return;
-    //   ★ 부드럽게(smooth) 하지 않는다 — 대화가 길면 스크롤 높이가 28,000px 을 넘어
+    //   ★ 부드럽게(smooth) 하지 않는다. 대화가 길면 스크롤 높이가 28,000px 을 넘어
     //     애니메이션이 몇 초씩 흐르고 그동안 화면이 흔들린다(실측). 바로 앉히고, 어디 앉았는지는
     //     아래 테두리(copilot2-bubble-hit)로 알려 준다.
     el.scrollIntoView({ block: "center" });
@@ -303,16 +304,16 @@ export default function CopilotPage() {
         if (!a.date) throw new Error("정정할 날짜를 특정하지 못했습니다.");
         const { data: emp } = await supabase
           .from("employees").select("id").eq("company_id", companyId).eq("user_id", user.id).maybeSingle();
-        const employeeId = (emp as { id?: string } | null)?.id;
+        const employeeId = (emp as { id?: string }  | null)?.id;
         if (!employeeId) throw new Error("본인 직원 정보가 연결돼 있지 않습니다. 관리자에게 문의하세요.");
-        // 정정 요청은 기존 기록에 붙는다 — 그날 기록이 없으면 요청 대상이 없다.
-        const { data: rec } = await supabase
+        // 정정 요청은 기존 기록에 붙는다. 그날 기록이 없으면 요청 대상이 없다.
+        const  { data: rec } = await supabase
           .from("attendance_records").select("id")
           .eq("company_id", companyId).eq("employee_id", employeeId).eq("date", a.date).maybeSingle();
         const recordId = (rec as { id?: string } | null)?.id;
         if (!recordId) throw new Error(`${a.date} 근태 기록이 없어 정정을 요청할 수 없습니다. 관리자에게 기록 생성을 요청해 주세요.`);
         const changes: Record<string, string> = {};
-        // 시각은 KST 로 해석 — 브라우저 타임존과 무관하게 저장돼야 한다.
+        // 시각은 KST 로 해석 · 브라우저 타임존과 무관하게 저장돼야 한다.
         const ci = a.check_in_time ? kstLocalToIso(`${a.date}T${a.check_in_time}`) : null;
         const co = a.check_out_time ? kstLocalToIso(`${a.date}T${a.check_out_time}`) : null;
         if (ci) changes.check_in = ci;
@@ -331,8 +332,8 @@ export default function CopilotPage() {
         const a = action.args as { employee_id?: string; template_ids?: string[]; title?: string; send?: boolean };
         if (!a.employee_id) throw new Error("직원을 특정하지 못했습니다.");
         if (!a.template_ids?.length) throw new Error("사용할 서식이 지정되지 않았습니다.");
-        // 변수(직원명·부서·연봉·회사명)는 buildContractVariables 가 DB 에서 채운다 — AI 가 값을 만들지 않는다.
-        const { package: pkg } = await createContractPackage({
+        // 변수(직원명·부서·연봉·회사명)는 buildContractVariables 가 DB 에서 채운다. AI 가 값을 만들지 않는다.
+        const  { package: pkg } = await createContractPackage({
           companyId,
           employeeId: a.employee_id,
           title: a.title || "근로계약서",
@@ -343,7 +344,8 @@ export default function CopilotPage() {
           setActionState(idx, "done", `계약을 만들었습니다. (${a.title || "근로계약서"}) 발송은 전자계약 화면에서 할 수 있습니다.`);
           return;
         }
-        // 발송은 되돌릴 수 없다 — 생성이 끝난 뒤에만 시도하고, 실패해도 초안은 남는다.
+        
+        // 발송은 되돌릴 수 없다. 생성이 끝난 뒤에만 시도하고, 실패해도 초안은 남는다.
         const sent = await sendContractPackage(pkg.id, window.location.origin);
         setActionState(idx, "done", sent?.emailSent || sent?.inAppDelivered
           ? `계약을 만들고 직원에게 보냈습니다. (${a.title || "근로계약서"})`
@@ -526,7 +528,7 @@ export default function CopilotPage() {
             {messages.length > 0 && <button type="button" onClick={() => setMessages([])} className="btn-secondary btn-sm" aria-label="대화 초기화">대화 초기화</button>}
           </>}>
             <span className={`copilot2-conn ${connErr ? "copilot2-conn-err" : "copilot2-conn-ok"}`}><span className="copilot2-conn-dot" aria-hidden />{connErr ? "연결 오류" : "AI 연결됨"}</span>
-            <span className="text-[11px] text-[var(--text-dim)]">기준 {kstDate(usage?.as_of)} · 회사 데이터를 읽고 대표가 지금 해야 할 일을 정리합니다 — 답변은 참고용, 실행 전 확인</span>
+            <span className="text-[11px] text-[var(--text-dim)]">기준 {kstDate(usage?.as_of)}  · 회사 데이터를 읽고 대표가 지금 해야 할 일을 정리합니다. 답변은 참고용, 실행 전 확인</span>
           </QueryBar>
         </QueryHead>
         <QueryBody>
@@ -680,7 +682,7 @@ const CONTRACT_TYPE_LABEL: Record<string, string> = {
   nda: "비밀유지계약서",
 };
 
-/** 액션 카드 — immediate 는 진행/결과만, confirm 은 내용 확인 후 실행 버튼. */
+/** 액션 카드 · immediate 는 진행/결과만, confirm 은 내용 확인 후 실행 버튼. */
 function ActionCard({ msg, onRun, onCancel }: {
   msg: Extract<AiMsg, { role: "ai" }>;
   onRun?: () => void;
@@ -702,14 +704,15 @@ function ActionCard({ msg, onRun, onCancel }: {
   if (st === "running") {
     return <div className="copilot2-action-result">{act.label} 처리 중…</div>;
   }
-  // pending — immediate 는 곧 자동 실행되므로 버튼을 띄우지 않는다.
-  if (act.tier === "immediate") {
+  
+  // pending · immediate 는 곧 자동 실행되므로 버튼을 띄우지 않는다.
+  if (act.tier === "immediate")  {
     return <div className="copilot2-action-result">{act.label} 처리 중…</div>;
   }
 
   return (
     <div className="copilot2-action-confirm">
-      <div className="copilot2-action-confirm-head">{act.label} — 아래 내용으로 진행할까요?</div>
+      <div className="copilot2-action-confirm-head">{act.label} · 아래 내용으로 진행할까요?</div>
       <dl className="copilot2-action-fields">
         {act.tool === "request_attendance_edit" && (() => {
           const r = act.args as { date?: string; check_in_time?: string; check_out_time?: string; status?: string; reason?: string };
@@ -772,7 +775,7 @@ function ActionCard({ msg, onRun, onCancel }: {
               <div><dt>유형</dt><dd>{CONTRACT_TYPE_LABEL[d.document_type || ""] || "계약서"}</dd></div>
               <div><dt>원본</dt><dd>{d.source_files?.join(", ") || "첨부문서"}</dd></div>
               <div><dt>변수</dt><dd>{d.variables?.length ? d.variables.map((v) => `{{${v}}}`).join(", ") : "없음"}</dd></div>
-              <div><dt>상태</dt><dd>전자계약 양식 초안 — 외부 발송 안 함</dd></div>
+              <div><dt>상태</dt><dd>전자계약 양식 초안 · 외부 발송 안 함</dd></div>
               <div className="copilot2-contract-preview-row">
                 <dt>본문 미리보기</dt>
                 <dd>
@@ -807,8 +810,10 @@ function ActionCard({ msg, onRun, onCancel }: {
   );
 }
 
-// chart 섹션 값 표기 — 엣지가 value 에 단위 없는 숫자만 넣으라고 지시한다.
-function wonLabel(n: number): string {
+
+
+// chart 섹션 값 표기 · 엣지가 value 에 단위 없는 숫자만 넣으라고 지시한다.
+function wonLabel(n: number): string  {
   const abs = Math.abs(Math.round(n));
   const sign = n < 0 ? "-" : "";
   const eok = Math.floor(abs / 1e8);
@@ -818,7 +823,9 @@ function wonLabel(n: number): string {
   return `${sign}${abs.toLocaleString("ko-KR")}`;
 }
 
-// 가로 막대그래프 — 외부 라이브러리 없이 div 폭으로 그린다.
+
+
+// 가로 막대그래프 · 외부 라이브러리 없이 div 폭으로 그린다.
 function ChartSection({ items }: { items: SectionItem[] }) {
   const rows = items
     .map((x) => ({ title: x.title, detail: x.detail, num: Number(String(x.value ?? "").replace(/[^\d.-]/g, "")) }))
@@ -1019,7 +1026,9 @@ function LoadingCard({ stage, progress }: { stage: number; progress: number }) {
   );
 }
 
-/** 물어본 질문 목차 — **최신이 위**. 방금 물어본 것을 다시 찾는 일이 가장 많다. */
+
+
+/** 물어본 질문 목차 · **최신이 위**. 방금 물어본 것을 다시 찾는 일이 가장 많다. */
 function QuestionIndex({ messages, onJump }: { messages: AiMsg[]; onJump: (i: number) => void }) {
   const items = messages
     .map((m, i) => (m.role === "user" ? { i, text: m.text } : null))

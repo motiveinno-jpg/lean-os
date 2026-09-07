@@ -145,21 +145,21 @@ export default function OutlookPage() {
       {isLoading || !data || !base ? <div className="collect-empty">불러오는 중…</div> : (
         <div className="bz-body">
           <div className="pnl-basis-note">
-            <b>오늘 통장 잔액 + 날짜 있는 예정 항목 {data.items.length}건</b> — 세금계산서(발행+30일)·급여·대출·정기 지출·부가세·계약 회차·결재 대기. 확정 {data.items.filter((i) => i.sure === "확정").length}건 · 추정 {data.items.filter((i) => i.sure === "추정").length}건.
+            <b>오늘 통장 잔액 + 날짜 있는 예정 항목 {data.items.length}건</b> · 세금계산서(발행+30일)·급여·대출·정기 지출·부가세·계약 회차·결재 대기. 확정  {data.items.filter((i) => i.sure === "확정").length}건 · 추정 {data.items.filter((i) => i.sure === "추정").length}건.
             {data.gaps.length > 0 && <> 틀릴 수 있는 곳 <b className="text-[var(--warning)]">{data.gaps.length}</b>가지는 아래에.</>}
           </div>
           <div className="pnl-headline">
             <b>
               {base.shortfall
-                ? `${md(base.shortfall.date)}에 통장이 마이너스가 됩니다 — 그날까지 ${man(Math.abs(base.min.balance))} 모자랍니다.`
-                : `${days}일 안에는 통장이 마이너스가 되지 않습니다 — 가장 낮을 때는 ${md(base.min.date)} ${man(base.min.balance)}.`}
+                ? `${md(base.shortfall.date)}에 통장이 마이너스가 됩니다. 그날까지 ${man(Math.abs(base.min.balance))} 모자랍니다.`
+                : `${days}일 안에는 통장이 마이너스가 되지 않습니다. 가장 낮을 때는 ${md(base.min.date)} ${man(base.min.balance)}.`}
               {scen && (scen.shortfall ? ` 시나리오대로면 ${md(scen.shortfall.date)}에 모자랍니다.` : ` 시나리오대로도 ${days}일 안에는 버팁니다.`)}
             </b>
             <div className="pnl-headline-sub">오늘 {man(data.balance)} → {days}일 뒤 {man(base.end)} · 지금 속도(월 {man(data.burn)}원)로는 {rw(runwayNow)} · 예정 반영 {rw(runwayFromCurve(base, days))}</div>
           </div>
           <section className="pnl-panel">
             <h3>잔액 곡선 — 오늘부터 {days}일</h3>
-            <p>{!data.hasBank ? "통장이 연결돼 있지 않아 오늘 잔액이 0 입니다. " : ""}선 위에 손을 올리면 그날 잔액. 아래 칩은 큰 예정 건·최저점 — 누르면 그날 항목. 예정 항목 {data.items.length}건 반영.</p>
+            <p>{!data.hasBank ? "통장이 연결돼 있지 않아 오늘 잔액이 0 입니다. " : ""}선 위에 손을 올리면 그날 잔액. 아래 칩은 큰 예정 건·최저점 · 누르면 그날 항목. 예정 항목  {data.items.length}건 반영.</p>
             {chart}
           </section>
 
@@ -181,7 +181,7 @@ export default function OutlookPage() {
           <div className="bz-grid2">
             <section className="pnl-panel">
               <h3>이 전망이 틀릴 수 있는 곳</h3>
-              <p>자동으로 못 푸는 것은 사람에게 — 고치러 가는 길을 같이 적습니다.</p>
+              <p>자동으로 못 푸는 것은 사람에게 · 고치러 가는 길을 같이 적습니다.</p>
               {data.gaps.length === 0 ? <div className="collect-empty">지금은 없습니다</div> : (
                 <ul className="ol-gaps">{data.gaps.map((g) => <li key={g.key}><span>{g.text}</span><Link href={g.href} className="bz-link">고치기 →</Link></li>)}</ul>
               )}

@@ -144,8 +144,10 @@ export function LandingNav({ solid = false }: { solid?: boolean }) {
                   </div>
                 </div>
               </div>
+            
             ) : l.href === TOOLS_HREF ? (
-              // 무료 도구 — 계산기 4종 드롭다운 (2026-08-13 사장님)
+              // 무료 도구 · 계산기 4종 드롭다운 (2026-08-13 사장님)
+              
               <div
                 key={l.href}
                 className={`lp4-navdrop ${toolsDrop ? "lp4-navdrop-open" : ""}`}

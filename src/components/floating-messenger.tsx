@@ -19,14 +19,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getCurrentUser, getUnreadCounts } from "@/lib/queries";
-import { usePopups } from "@/components/popup-windows";
+import { usePopups }  from "@/components/popup-windows";
 
-//   메신저 창 크기 — **아이콘 · 채팅방 목록 · 대화창 세 칸이 한 번에 보이게** 연다
+//   메신저 창 크기 · **아이콘 · 채팅방 목록 · 대화창 세 칸이 한 번에 보이게** 연다
 //   (2026-08-10 사장님 지시, Teams 화면 기준). 좁게 열면 방을 열 때 목록이 접혀 두 칸이 된다.
 const WIN_W = 1040;
 const WIN_H = 780;
 
-export function FloatingMessenger() {
+export function FloatingMessenger()  {
   const pathname = usePathname();
   const popups = usePopups();
   // 런처 FAB 드래그 위치(뷰포트 좌상단 px). null = 기본(우하단 고정).
@@ -125,7 +125,7 @@ export function FloatingMessenger() {
         onPointerMove={onFabPointerMove}
         onPointerUp={onFabPointerUp}
         aria-label="메신저 새 창으로 열기"
-        title="메신저를 새 창으로 엽니다 — 드래그하면 이 단추 위치를 옮길 수 있습니다"
+        title="메신저를 새 창으로 엽니다. 드래그하면 이 단추 위치를 옮길 수 있습니다"
         className={`messenger-fab ${pos ? "" : "bottom-6 right-6"}`}
         style={{ background: "linear-gradient(135deg, #4338ca, #6366f1)", boxShadow: "0 8px 24px rgba(0,0,0,0.35)", ...(pos ? { left: pos.x, top: pos.y } : {}) }}
       >

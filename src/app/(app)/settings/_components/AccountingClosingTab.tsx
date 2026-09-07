@@ -85,7 +85,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
       });
       setOpenGroups((prev) => ({ ...prev, ...touchedTypes }));
       setPdfResult({ recognized: lines.length, matched, unmatched });
-      toast(`PDF에서 ${lines.length}건 인식 — ${matched}건 계정 매칭${unmatched.length ? `, ${unmatched.length}건 직접입력으로 추가` : ""}. 금액을 검토한 뒤 저장하세요.`, "success");
+      toast(`PDF에서 ${lines.length}건 인식 · ${matched}건 계정 매칭${unmatched.length ? `, ${unmatched.length}건 직접입력으로 추가` : ""}. 금액을 검토한 뒤 저장하세요.`, "success");
     } catch (e: any) {
       toast("PDF 인식 실패: " + friendlyError(e, "알 수 없는 오류"), "error");
     }
@@ -357,7 +357,8 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
       </div>
 
       <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text-muted)]">
-        현재 데이터 수집 하한: <b className="text-[var(--text)] mono-number">{floor}</b> — 이 날짜 이전 자료는 수집하지 않습니다.
+        현재 데이터 수집 하한: <b className="text-[var(--text)] mono-number">{floor}</b> · 이 날짜 이전 자료는 수집하지 않습니다.
+      
       </div>
 
       <button onClick={() => companyId && saveMut.mutate()} disabled={!companyId || saveMut.isPending}

@@ -38,7 +38,7 @@ export function ExcelUploadDialog<T>({ title, desc, cols, templateName, sheetNam
       const ok: T[] = []; const bad: string[] = [];
       r.rows.forEach((row, i) => { const p = parse(row, i + 2); if ("ok" in p) ok.push(p.ok); else bad.push(`${i + 2}행: ${p.error}`); });
       setItems(ok); setErrors(bad);
-      if (!r.rows.length) toast("읽을 줄이 없습니다 — 첫 시트의 둘째 줄부터 데이터를 넣으세요", "error");
+      if (!r.rows.length) toast("읽을 줄이 없습니다. 첫 시트의 둘째 줄부터 데이터를 넣으세요", "error");
     } catch (e) { toast(friendlyError(e), "error"); } finally { setBusy(false); }
   };
   const run = async () => {
@@ -51,7 +51,7 @@ export function ExcelUploadDialog<T>({ title, desc, cols, templateName, sheetNam
   return (
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
-        <h3 className="inv-modal-title">{title} — 엑셀 올리기</h3>
+        <h3 className="inv-modal-title">{title} · 엑셀 올리기</h3>
         <p className="inv-modal-desc">{desc || <>오너뷰 양식에 맞춰 채운 파일을 올리면 먼저 읽어서 보여 줍니다. <b>등록</b>을 눌러야 저장됩니다. 머리줄은 양식 그대로 두세요.</>}</p>
         <div className="inv-bom-base">
           <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) load(f); e.target.value = ""; }} />
@@ -59,7 +59,7 @@ export function ExcelUploadDialog<T>({ title, desc, cols, templateName, sheetNam
           <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={() => fileRef.current?.click()}>파일 고르기</button>
           <span className="ev-dim">{fileName || "아직 고른 파일이 없습니다"}</span>
         </div>
-        {missing.length > 0 && <div className="inv-paste-sum"><span className="inv-paste-bad">양식에 없는 필수 칸: {missing.join(", ")} — 양식을 내려받아 그 머리줄을 쓰세요</span></div>}
+        {missing.length > 0 && <div className="inv-paste-sum"><span className="inv-paste-bad">양식에 없는 필수 칸: {missing.join(", ")} · 양식을 내려받아 그 머리줄을 쓰세요</span></div>}
         {(items.length > 0 || errors.length > 0) && (
           <>
             <div className="inv-paste-sum">

@@ -5,9 +5,9 @@ import { logRead } from "@/lib/log-read";
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase }  from "@/lib/supabase";
 
-// 내 근로계약서 — /my-contracts 의 서명 inbox 를 마이페이지용으로 압축.
+// 내 근로계약서 · /my-contracts 의 서명 inbox 를 마이페이지용으로 압축.
 //   개인 인사기록 허브(2026-07-15): 나에게 온 계약서/서명 요청을 마이페이지에서 바로 확인·서명.
 const STATUS_INFO: Record<string, { label: string; bg: string; text: string }> = {
   sent: { label: "서명 대기", bg: "bg-[var(--warning-dim)]", text: "text-[var(--warning)]" },

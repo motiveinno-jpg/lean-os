@@ -23,11 +23,11 @@ const KINDS: { kind: Kind; label: string; desc: string; unit: string; dflt: numb
 
 const EMPTY_RULES: Rule[] = [];
 export function BizAlertRules({ companyId }: { companyId: string | null }) {
-  const { toast } = useToast();
+  const { toast }  = useToast();
   const userId = useUser().user?.id ?? null;
   const qc = useQueryClient();
-  //   기본값 [] 는 모듈 상수로 — 렌더마다 새 배열이면 아래 effect 가 무한 반복한다(2026-08-27 교훈)
-  const { data: saved = EMPTY_RULES } = useQuery<Rule[]>({
+  //   기본값 [] 는 모듈 상수로 · 렌더마다 새 배열이면 아래 effect 가 무한 반복한다(2026-08-27 교훈)
+  const  { data: saved = EMPTY_RULES } = useQuery<Rule[]>({
     queryKey: ["biz-alert-rules", companyId],
     enabled: !!companyId,
     queryFn: async () => (logRead("biz-alerts:list", await (supabase as any).from("biz_alert_rules").select("id, kind, threshold, enabled, last_fired_on").eq("company_id", companyId)) || []) as Rule[],
@@ -53,7 +53,7 @@ export function BizAlertRules({ companyId }: { companyId: string | null }) {
     try {
       const { data, error } = await (supabase as any).rpc("run_my_biz_alerts");
       if (error) throw error;
-      toast(Number(data) > 0 ? `조건 ${data}개가 맞아 알림을 보냈습니다 — 상단 알림 종에서 확인` : "지금 맞는 조건이 없습니다(오늘 이미 울린 조건은 다시 울리지 않습니다)", Number(data) > 0 ? "success" : "info");
+      toast(Number(data) > 0 ? `조건 ${data}개가 맞아 알림을 보냈습니다. 상단 알림 종에서 확인` : "지금 맞는 조건이 없습니다(오늘 이미 울린 조건은 다시 울리지 않습니다)", Number(data) > 0 ? "success" : "info");
       qc.invalidateQueries({ queryKey: ["biz-alert-rules", companyId] });
       window.dispatchEvent(new Event("sidebar-refresh-badges"));
     } catch (e) { toast(friendlyError(e, "검사 실패"), "error"); }

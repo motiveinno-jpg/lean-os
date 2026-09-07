@@ -389,7 +389,7 @@ const FONT_FAMILIES = [
   { label: "고딕", value: "'Noto Sans KR', sans-serif" },
 ];
 
-// 표 행 높이 (2026-08-10 사장님 요청 — "행 높이도 조절 가능하게") —
+// 표 행 높이 (2026-08-10 사장님 요청 · "행 높이도 조절 가능하게") —
 //   prosemirror-tables 는 열 너비만 지원해서 행은 직접 구현한다.
 //   ① tr 에 rowheight 속성을 저장(HTML 로는 style height 로 나가 미리보기·PDF 에서도 유지)
 //   ② 드래그 상호작용은 RichEditor 의 DOM 핸들러(아래 useEffect)가 담당
@@ -443,14 +443,14 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
     content,
     editable,
     immediatelyRender: false,
-    // tiptap v3 는 선택(커서) 변경만으로는 리렌더하지 않는 게 기본값 — 표 안을 클릭해도
+    // tiptap v3 는 선택(커서) 변경만으로는 리렌더하지 않는 게 기본값 · 표 안을 클릭해도
     //   툴바의 표 버튼(+열·병합 등)과 활성 상태가 안 나타나던 원인 (2026-08-10 사장님:
     //   "셀 클릭이 가능하게 해줘"). v2 처럼 트랜잭션마다 리렌더해 툴바가 커서를 따라온다.
     shouldRerenderOnTransaction: true,
     onUpdate: ({ editor }) => {
       onChange?.(editor.getHTML());
     },
-    // PM 본문에 포커스가 돌아오면 PDF 조각 타깃 해제 — 툴바가 다시 일반 본문에 적용
+    // PM 본문에 포커스가 돌아오면 PDF 조각 타깃 해제 · 툴바가 다시 일반 본문에 적용
     onFocus: ({ editor }) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (editor.storage as any).pdfActive = null;
@@ -823,8 +823,8 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
           <button type="button" onClick={() => editor.chain().focus().setHorizontalRule().run()} className={btnCls(false)} title="구분선">─</button>
           <button type="button" onClick={() => editor.chain().focus().toggleBlockquote().run()} className={btnCls(editor.isActive("blockquote"))} title="인용">" 인용</button>
           <button type="button" onClick={() => imgInputRef.current?.click()} className={btnCls(false)} title="이미지/그래프 삽입 (그래프 이미지를 넣으세요)"><Ico e="🖼" /> 이미지</button>
-          <button type="button" onClick={() => { pdfModeRef.current = "exact"; pdfInputRef.current?.click(); }} className={btnCls(false)} title="PDF 원본 모양 그대로 삽입 — 표·서식·줄바꿈이 PDF와 100% 동일 (이미지로 들어가 글자 수정은 불가)"><Ico e="📎" /> PDF 그대로</button>
-          <button type="button" onClick={() => { pdfModeRef.current = "text"; pdfInputRef.current?.click(); }} className={btnCls(false)} title="PDF 글자를 편집 가능한 텍스트·표로 추출 — 내용 수정이 필요할 때 (모양은 원본과 달라질 수 있음)"><Ico e="📝" /> PDF 글자만</button>
+          <button type="button" onClick={() => { pdfModeRef.current = "exact"; pdfInputRef.current?.click(); }} className={btnCls(false)} title="PDF 원본 모양 그대로 삽입 · 표·서식·줄바꿈이 PDF와 100% 동일 (이미지로 들어가 글자 수정은 불가)"><Ico e="📎" /> PDF 그대로</button>
+          <button type="button" onClick={() => { pdfModeRef.current = "text"; pdfInputRef.current?.click(); }} className={btnCls(false)} title="PDF 글자를 편집 가능한 텍스트·표로 추출 · 내용 수정이 필요할 때 (모양은 원본과 달라질 수 있음)"><Ico e="📝" /> PDF 글자만</button>
           <div className="w-px h-5 bg-[var(--border)] mx-1 self-center" />
 
           {/* 표 */}
@@ -836,7 +836,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
               <button type="button" onClick={() => editor.chain().focus().addRowAfter().run()} className={btnCls(false)} title="행 추가">+행</button>
               <button type="button" onClick={() => editor.chain().focus().deleteRow().run()} className={btnCls(false)} title="행 삭제">-행</button>
               {/* 셀 병합/나누기 (2026-08-10 사장님 — "모든 표에서 되게") — 병합은 셀을 끌어 여러 개 선택한 뒤 */}
-              <button type="button" onClick={() => editor.chain().focus().mergeCells().run()} className={btnCls(false)} title="선택한 셀 병합 — 셀을 끌어 여러 개 선택한 뒤 누르세요">병합</button>
+              <button type="button" onClick={() => editor.chain().focus().mergeCells().run()} className={btnCls(false)} title="선택한 셀 병합 · 셀을 끌어 여러 개 선택한 뒤 누르세요">병합</button>
               <button type="button" onClick={() => editor.chain().focus().splitCell().run()} className={btnCls(false)} title="병합된 셀 나누기">나누기</button>
               <button type="button" onClick={() => editor.chain().focus().toggleHeaderRow().run()} className={btnCls(false)} title="머리행 토글">머리</button>
               <button type="button" onClick={() => editor.chain().focus().deleteTable().run()} className={btnCls(false)} title="표 삭제">표✕</button>

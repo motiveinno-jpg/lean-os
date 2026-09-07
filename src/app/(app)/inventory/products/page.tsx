@@ -29,7 +29,7 @@ const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
 
 const PRODUCT_CONDS = [{ key: "state", label: "상태", hint: "비우면 전체", options: [{ value: "active", label: "판매중" }, { value: "inactive", label: "단종" }] }];
 const PRODUCT_XCOLS: ExcelColumn[] = [
-  { key: "sku", label: "SKU", required: true, hint: "품목 코드 — 같은 SKU 가 있으면 고칩니다", example: "TS-BK-M" },
+  { key: "sku", label: "SKU", required: true, hint: "품목 코드 · 같은 SKU 가 있으면 고칩니다", example: "TS-BK-M" },
   { key: "name", label: "품목명", required: true, example: "무지 티셔츠" },
   { key: "category", label: "분류", example: "의류" },
   { key: "spec", label: "규격", example: "블랙 / M" },
@@ -39,7 +39,7 @@ const PRODUCT_XCOLS: ExcelColumn[] = [
   { key: "cost", label: "매입가", kind: "number", hint: "참고 매입가 · 기초 원가 기본값", example: 7200 },
   { key: "overhead", label: "단위당 노무·경비", kind: "number", hint: "완제품 1개당 생산 원가에 얹는 금액", example: 0 },
   { key: "safety", label: "안전재고", kind: "number", hint: "이 아래로 내려가면 '부족'", example: 20 },
-  { key: "track", label: "수량관리", kind: "bool", hint: "예/아니오 — 아니오면 재고를 세지 않는다(서비스·비용)", example: "예" },
+  { key: "track", label: "수량관리", kind: "bool", hint: "예/아니오 · 아니오면 재고를 세지 않는다(서비스·비용)", example: "예" },
   { key: "active", label: "상태", hint: "판매중/단종(비우면 판매중)", example: "판매중" },
   { key: "memo", label: "메모", example: "" },
 ];
@@ -53,7 +53,7 @@ export default function ProductsPage() {
   useEffect(() => { getCurrentUser().then((u) => { setCompanyId(u?.company_id ?? null); setUserId(u?.id ?? null); }); }, []);
 
   const [q, setQ] = useState("");
-  //   값 필터는 검색조건에서 — 기본은 판매중만(조회 화면 표준, 2026-08-27 사장님 지적)
+  //   값 필터는 검색조건에서 · 기본은 판매중만(조회 화면 표준, 2026-08-27 사장님 지적)
   const [cond, setCond] = useState<CondLive>({ state: ["active"] });
   type SortKey = "sku" | "name" | "category" | "sale" | "cost" | "qty";
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "sku", dir: "asc" });
@@ -128,7 +128,7 @@ export default function ProductsPage() {
             <button type="button" className="btn-primary btn-sm" onClick={() => setEditing({ track_stock: true, unit: "EA", is_active: true })}>+ 품목 등록</button>
           </>}>
             <SimpleCond groups={PRODUCT_CONDS} live={cond} onApply={setCond} />
-            <QuickSearch value={q} onApply={setQ} placeholder="품목명 · SKU · 분류 · 규격 · 바코드 — 쉼표로 여러 개, Enter" />
+            <QuickSearch value={q} onApply={setQ} placeholder="품목명 · SKU · 분류 · 규격 · 바코드 · 쉼표로 여러 개, Enter" />
           </QueryBar>
           <SimpleApplied groups={PRODUCT_CONDS} live={cond} onApply={setCond} />
           <ResultStrip>
@@ -215,7 +215,7 @@ export default function ProductsPage() {
           }}
           previewHead={["SKU · 품목명", "규격", "단위", "판매가", "매입가", "안전재고", "수량관리", "새로/고침"]}
           previewRow={(v) => [`${v.sku} ${v.name}`, v.spec || "—", v.unit || "EA", v.sale_price ?? "—", v.cost_price ?? "—", v.safety_stock ?? "—", v.track_stock === false ? "아니오" : "예", v._new ? "새로" : "고침"]}
-          commit={async (items) => { let n = 0, m = 0; for (const it of items) { const { _new, ...rest } = it; await upsertProduct(companyId!, rest, userId); if (_new) n++; else m++; } qc.invalidateQueries({ queryKey: ["inv-products", companyId] }); return `품목 ${n + m}건 — 새로 ${n} · 고침 ${m}`; }}
+          commit={async (items) => { let n = 0, m = 0; for (const it of items) { const { _new, ...rest } = it; await upsertProduct(companyId!, rest, userId); if (_new) n++; else m++; } qc.invalidateQueries({ queryKey: ["inv-products", companyId] }); return `품목 ${n + m}건 · 새로 ${n} · 고침 ${m}`; }}
           onClose={() => setXlsOpen(false)} />
       )}
       {pasteOpen && companyId && (
@@ -235,7 +235,7 @@ export default function ProductsPage() {
               await qc.invalidateQueries({ queryKey: ["inv-products", companyId] });
               setEditing(null);
               toast(v.id ? "품목을 고쳤습니다" : "품목을 등록했습니다", "success");
-              //   새 품목에 자재구성을 켜 두었으면 저장 직후 자재구성 팝업 — 저장 전엔 id 가 없어 줄을 못 붙인다
+              //   새 품목에 자재구성을 켜 두었으면 저장 직후 자재구성 팝업 · 저장 전엔 id 가 없어 줄을 못 붙인다
               if (openBom) setBomFor({ ...(v as Product), id });
             } catch (e) {
               toast(friendlyError(e, "저장하지 못했습니다"), "error");
@@ -322,7 +322,7 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
             {PRODUCT_CATS.map((c) => (
               <label key={c.key}><input type="checkbox" checked={cats.has(c.key)} onChange={(e) => toggleCat(c.key, e.target.checked)} />{c.key} <em>{c.hint}</em></label>
             ))}
-            {legacy.length > 0 && <label><input type="checkbox" checked readOnly onChange={() => setV((s) => ({ ...s, category: PRODUCT_CATS.map((k) => k.key).filter((k) => cats.has(k)).join(",") || null }))} />기타: {legacy.join(", ")} <em>예전 글자 분류 — 끄면 지워짐</em></label>}
+            {legacy.length > 0 && <label><input type="checkbox" checked readOnly onChange={() => setV((s) => ({ ...s, category: PRODUCT_CATS.map((k) => k.key).filter((k) => cats.has(k)).join(",") || null }))} />기타: {legacy.join(", ")} <em>예전 글자 분류 · 끄면 지워짐</em></label>}
           </div>
         </div>
 
@@ -331,7 +331,7 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
           <input type="checkbox" checked={v.track_stock !== false} onChange={(e) => set("track_stock", e.target.checked)} />
           <span>
             <b>수량을 관리하는 품목입니다</b>
-            <em>끄면 재고에 잡히지 않습니다 — 설치비·배송비·용역·구독처럼 <b>셀 물건이 없는 것</b>. 주문·계산서에는 그대로 오릅니다.</em>
+            <em>끄면 재고에 잡히지 않습니다. 설치비·배송비·용역·구독처럼 <b>셀 물건이 없는 것</b>. 주문·계산서에는 그대로 오릅니다.</em>
           </span>
         </label>
         {/*   ★ 자재구성 — 품목 등록에서(2026-08-26 사장님). 2026-08-27: 별도 체크 대신 분류 '완제품'이면 이 줄이 뜬다. */}
@@ -339,7 +339,7 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
           <div className="inv-track inv-track-bom">
             <span>
               <b>완제품 — 자재구성{bomCount > 0 && <span className="inv-pill inv-pill-ok">자재 {bomCount}종</span>}</b>
-              <em>1개당 소요 자재·소요량을 적어 두면 생산 › 완성 기록 시 소요량만큼 자재가 출고됩니다{!initial.id ? " — 새 품목은 저장 후 자재구성 창이 열립니다" : ""}.</em>
+              <em>1개당 소요 자재·소요량을 적어 두면 생산 › 완성 기록 시 소요량만큼 자재가 출고됩니다{!initial.id ? " · 새 품목은 저장 후 자재구성 창이 열립니다" : ""}.</em>
               {initial.id && <button type="button" className="bz-link" onClick={(e) => { e.preventDefault(); onOpenBom({ ...(initial as Product), ...(v as Product) }); }}>{bomCount > 0 ? "자재구성 고치기" : "자재구성 넣기"}</button>}
             </span>
           </div>
@@ -381,7 +381,10 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
 }
 
 
-/** 품목 엑셀 붙여넣기 — 처음 시작할 때 수백 개를 하나씩 못 친다 (2026-08-25 사장님 지시, 1순위 ④)
+
+
+
+/** 품목 엑셀 붙여넣기 · 처음 시작할 때 수백 개를 하나씩 못 친다 (2026-08-25 사장님 지시, 1순위 ④)
  *  칸 차례: SKU · 품목명 · 규격 · 단위 · 판매가 · 매입가 · 안전재고 · 수량관리(예/아니오)
  *  같은 SKU 가 이미 있으면 **고친다**(두 번 올려도 두 개가 되지 않는다). */
 function ProductPasteDialog({ products, onClose, onDone, save }: {

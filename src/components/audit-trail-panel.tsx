@@ -1,11 +1,11 @@
 "use client";
-import { koFallback } from "@/lib/ko-label";
+import { koFallback }  from "@/lib/ko-label";
 
-// ── 변경 이력 — 누가 언제 무엇을 바꿨나 (2026-08-27 ERP 3순위 ④, 결정 84~85) ──
+// ── 변경 이력 · 누가 언제 무엇을 바꿨나 (2026-08-27 ERP 3순위 ④, 결정 84~85) ──
 //   audit_logs(수정·삭제 금지 RLS)를 회사 관리자가 본다. 전표·급여·서명·결재·파일·프로젝트·마감.
 //   조회 화면 표준: 검색조건(기간·종류)·빠른검색 → 표(50줄) → 줄 클릭 = 전/후 상세 팝업.
 
-import { useMemo, useState } from "react";
+import  { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
@@ -64,15 +64,15 @@ export function AuditTrailPanel({ companyId }: { companyId: string | null }) {
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-sm font-bold">변경 이력</h3>
-          <p className="text-[11px] text-[var(--text-muted)] mt-0.5">누가 언제 무엇을 바꿨나 — 전표·급여명세·서명·결재·파일·프로젝트·회계마감. 이 기록은 지우거나 고칠 수 없습니다. 급여는 금액 없이 발급 사실만 남습니다.</p>
+          <p className="text-[11px] text-[var(--text-muted)] mt-0.5">누가 언제 무엇을 바꿨나 · 전표·급여명세·서명·결재·파일·프로젝트·회계마감. 이 기록은 지우거나 고칠 수 없습니다. 급여는 금액 없이 발급 사실만 남습니다.</p>
         </div>
       </div>
       <div className="at-bar">
         <DateRangeField label={null} parts="segments" from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
         <SimpleCond groups={COND_GROUPS} live={cond} onApply={setCond} />
-        <QuickSearch value={q} onApply={setQ} placeholder="사람 · 종류 · 동작 · 내용 — 쉼표로 여러 개, Enter" />
+        <QuickSearch value={q} onApply={setQ} placeholder="사람 · 종류 · 동작 · 내용 · 쉼표로 여러 개, Enter" />
         <span className="doc-sums-sp" />
-        <span className="ev-dim">{shown.length.toLocaleString("ko")}건{rows.length >= 3000 ? " (3,000건까지만 — 기간을 줄이세요)" : ""}</span>
+        <span className="ev-dim">{shown.length.toLocaleString("ko")}건{rows.length >= 3000 ? " (3,000건까지만 · 기간을 줄이세요)" : ""}</span>
       </div>
       <SimpleApplied groups={COND_GROUPS} live={cond} onApply={setCond} />
       <div className="stg-table-wrap at-scroll">

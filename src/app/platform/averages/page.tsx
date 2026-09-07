@@ -211,7 +211,8 @@ export default function PlatformAveragesPage() {
 
       {rows.length > 0 && (
         <div className="text-[11px] text-[var(--text-dim)] px-1">
-          범위 막대 읽는 법 — 파란 상자는 가운데 50% 회사, 세로선은 중앙값, <span style={{ color: "var(--chart-2)" }}>◆</span>는 평균.
+          
+          범위 막대 읽는 법 · 파란 상자는 가운데 50% 회사, 세로선은 중앙값, <span style={{ color: "var(--chart-2)" }}>◆</span>는 평균.
           업종별로 나눠 보려면 <Link href="/platform/industry" className="text-[var(--primary)] hover:underline font-medium">업계 분석</Link>으로.
         </div>
       )}

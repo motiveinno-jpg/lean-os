@@ -1,10 +1,10 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
-import { logRead } from "@/lib/log-read";
+import { logRead }  from "@/lib/log-read";
 
-// 견적서 — 프로젝트와 별개의 독립 견적서 메뉴(프로젝트 토글 하위). 프로젝트의 견적서 탭과 동일 데이터(documents+deal_id).
+// 견적서 · 프로젝트와 별개의 독립 견적서 메뉴(프로젝트 토글 하위). 프로젝트의 견적서 탭과 동일 데이터(documents+deal_id).
 //   작성 시 기존 프로젝트 선택 또는 신규 프로젝트 생성 → 양쪽(프로젝트 운영/견적서) 연동.
-import { useMemo, useState } from "react";
+import  { useMemo, useState } from "react";
 import { DateRangeField } from "@/components/date-range-field";
 import { SortableTh, nextSort, cmp, type SortState, useColFilters } from "@/components/sortable-th";
 import {
@@ -40,11 +40,11 @@ export default function QuotesPage() {
   const { user } = useUser();
   const companyId = user?.company_id ?? null;
   const userId = user?.id ?? null;
-  const { toast } = useToast();
+  const { toast }  = useToast();
   const router = useRouter();
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
-  //   ── 조회 화면 표준 (2026-08-18 Wave 3) — 상태 칩·빠른검색·머리단 정렬·쪽 넘김. 조건이 둘뿐이라 검색조건 패널은 없다 ──
+  //   ── 조회 화면 표준 (2026-08-18 Wave 3). 상태 칩·빠른검색·머리단 정렬·쪽 넘김. 조건이 둘뿐이라 검색조건 패널은 없다 ──
   const [q, setQ] = useState("");
   const [st, setSt] = useState<string>("all");
   //   검색조건 — 프로젝트(다중)·금액 범위·작성일 기간. '조회'로 반영 (2026-08-18)
@@ -130,7 +130,7 @@ export default function QuotesPage() {
                 <AmountRange min={draft.min} max={draft.max} onMin={(v) => setDraft((c) => ({ ...c, min: v }))} onMax={(v) => setDraft((c) => ({ ...c, max: v }))} />
               </ConditionRow>
             </ConditionPanel>
-            <QuickSearch value={q} onApply={setQ} placeholder="견적서명 · 프로젝트 · 견적No. · 금액 — 쉼표로 여러 개, Enter" />
+            <QuickSearch value={q} onApply={setQ} placeholder="견적서명 · 프로젝트 · 견적No. · 금액 · 쉼표로 여러 개, Enter" />
             <ChipGroup value={st} onChange={setSt} options={statusOpts} />
           </QueryBar>
           <AppliedChips chips={chips} onClearAll={() => { setQ(""); setSt("all"); setLive(QEMPTY); setDraft(QEMPTY); }} />
@@ -143,9 +143,9 @@ export default function QuotesPage() {
           {isLoading ? (
             <div className="collect-empty">불러오는 중…</div>
           ) : quotes.length === 0 ? (
-            <div className="collect-empty">아직 견적서가 없습니다 — 오른쪽 위 [+ 견적서 작성]으로 첫 견적서를 만들어 보세요</div>
+            <div className="collect-empty">아직 견적서가 없습니다. 오른쪽 위 [+ 견적서 작성]으로 첫 견적서를 만들어 보세요</div>
           ) : shown.length === 0 ? (
-            <div className="collect-empty">이 조건에 맞는 견적서가 없습니다 — 검색·상태를 풀어 보세요</div>
+            <div className="collect-empty">이 조건에 맞는 견적서가 없습니다. 검색·상태를 풀어 보세요</div>
           ) : (
             <div className="ev-scroll">
               <table className="ev-table ev-lined quotes-table">
@@ -198,7 +198,9 @@ export default function QuotesPage() {
   );
 }
 
-// 견적서 작성 모달 — 기존 프로젝트 선택 또는 신규 프로젝트 생성
+
+
+// 견적서 작성 모달 · 기존 프로젝트 선택 또는 신규 프로젝트 생성
 function CreateQuoteModal({ companyId, userId, onClose, onCreated, toastFn }: {
   companyId: string; userId: string; onClose: () => void; onCreated: (docId: string) => void; toastFn: (m: string, t?: any) => void;
 }) {

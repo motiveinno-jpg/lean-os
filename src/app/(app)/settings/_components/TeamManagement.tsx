@@ -1,9 +1,9 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
-import { logRead } from "@/lib/log-read";
+import { logRead }  from "@/lib/log-read";
 
-// settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
-import { useState } from "react";
+// settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할). 동작 무변경.
+import  { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -62,8 +62,8 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
     enabled: !!companyId,
   });
 
-  // 합류 요청 — 가입 시 우리 사업자번호를 입력한 무소속 사용자의 승인 대기 목록 (RLS: owner/admin 만 조회됨)
-  const { data: joinRequests = [] } = useQuery({
+  // 합류 요청 · 가입 시 우리 사업자번호를 입력한 무소속 사용자의 승인 대기 목록 (RLS: owner/admin 만 조회됨)
+  const  { data: joinRequests = [] } = useQuery({
     queryKey: ["company-join-requests", companyId],
     queryFn: async () => {
       if (!companyId) return [];
@@ -77,11 +77,11 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
   });
   const [joinReason, setJoinReason] = useState<Record<string, string>>({});
   const [resolvingId, setResolvingId] = useState<string | null>(null);
-  // 처리 후 결과메일 상태 — 발송 실패 건은 재전송 배너로 노출(승인은 이미 확정, 롤백 안 함).
+  // 처리 후 결과메일 상태 · 발송 실패 건은 재전송 배너로 노출(승인은 이미 확정, 롤백 안 함).
   const [emailResults, setEmailResults] = useState<{ id: string; name: string; kind: "approved" | "rejected"; status: "sent" | "failed" }[]>([]);
   const [resendingId, setResendingId] = useState<string | null>(null);
 
-  // 결과메일 발송 — 수신자·URL·회사명은 서버(edge)가 DB 에서 결정. 클라는 requestId 만 전달.
+  // 결과메일 발송 · 수신자·URL·회사명은 서버(edge)가 DB 에서 결정. 클라는 requestId 만 전달.
   const sendResultEmail = async (id: string, name: string, kind: "approved" | "rejected"): Promise<boolean> => {
     try {
       const { data, error } = await supabase.functions.invoke("send-join-result-email", { body: { requestId: id } });
@@ -111,16 +111,16 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
       const res = await fetch("/api/join-request/resolve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // 역할 선택 폐지 — 승인하면 멤버(role 은 API 호환용 고정값). 권한은 구성원 상세에서 마스터가 부여.
+        // 역할 선택 폐지 · 승인하면 멤버(role 은 API 호환용 고정값). 권한은 구성원 상세에서 마스터가 부여.
         body: JSON.stringify({ requestId: id, action, role: "employee", reason: action === "reject" ? (joinReason[id] || null) : null }),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j?.error || "처리 실패");
       queryClient.invalidateQueries({ queryKey: ["company-join-requests"] });
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
-      // 결과 메일 발송 — 실패해도 승인/거절은 유지, 재전송 배너로 처리.
+      // 결과 메일 발송 · 실패해도 승인/거절은 유지, 재전송 배너로 처리.
       const mailed = await sendResultEmail(id, name, action === "approve" ? "approved" : "rejected");
-      if (action === "approve") {
+      if (action === "approve")  {
         toast(mailed ? "가입 승인 완료 · 안내 메일 발송" : "가입은 승인됐지만 메일 발송 실패 · 재전송하세요", mailed ? "success" : "error");
       } else {
         toast(mailed ? "요청을 거절하고 안내 메일을 보냈습니다" : "요청을 거절했지만 메일 발송 실패 · 재전송하세요", mailed ? "info" : "error");
@@ -218,8 +218,10 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
     setTimeout(() => setEmailResult(null), 4000);
   }
 
-  // (2026-08-03 역할 폐지 반영) 배지: 마스터 / 멤버 / 파트너 3종 — 관리자·직원 구분 표기 제거.
-  const memberBadge = (m: { role?: string | null; is_master?: boolean | null } | string) => {
+  
+
+  // (2026-08-03 역할 폐지 반영) 배지: 마스터 / 멤버 / 파트너 3종 · 관리자·직원 구분 표기 제거.
+  const memberBadge = (m:  { role?: string | null; is_master?: boolean | null } | string) => {
     const isMaster = typeof m !== "string" && !!m.is_master;
     const role = typeof m === "string" ? m : m.role || "employee";
     const kind = isMaster ? "master" : role === "partner" ? "partner" : "member";
@@ -247,7 +249,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
       <div className="stg-sec-head mb-4">
         <div>
           <h2 className="stg-sec-title">구성원</h2>
-          <p className="stg-sec-desc">멤버 {members.length}명 — 초대·합류 요청 승인. 권한 부여는 구성원 상세의 탭 권한에서.</p>
+          <p className="stg-sec-desc">멤버 {members.length}명 · 초대·합류 요청 승인. 권한 부여는 구성원 상세의 탭 권한에서.</p>
         </div>
         <button
           onClick={() => setShowInviteForm(!showInviteForm)}
@@ -291,7 +293,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
       {/* 합류 요청 — 가입 시 우리 회사 사업자번호를 입력한 사용자의 승인 대기 (승인 시 멤버로 연결) */}
       {joinRequests.length > 0 && (
         <div className="team-join-requests-panel">
-          <div className="text-xs font-bold text-amber-600 mb-2">📨 합류 요청 {joinRequests.length}건 — 승인하면 우리 회사 멤버로 연결됩니다</div>
+          <div className="text-xs font-bold text-amber-600 mb-2">📨 합류 요청 {joinRequests.length}건 · 승인하면 우리 회사 멤버로 연결됩니다</div>
           <div className="space-y-2">
             {joinRequests.map((r: any) => (
               <div key={r.id} className={`team-join-request-card${highlightRequestId === r.id ? " team-join-request-highlight" : ""}`}>
@@ -316,7 +318,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
                 <input
                   value={joinReason[r.id] || ""}
                   onChange={(e) => setJoinReason((m) => ({ ...m, [r.id]: e.target.value }))}
-                  placeholder="거절 사유(선택) — 거절 시 안내 메일에 포함됩니다"
+                  placeholder="거절 사유(선택). 거절 시 안내 메일에 포함됩니다"
                   maxLength={200}
                   className="team-join-reason-input"
                 />
@@ -423,7 +425,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
         return (
           <div className={isPartner ? "team-partner-invites-list" : "team-employee-invites-list"}>
             {list.length === 0 ? (
-              <div className="collect-empty">{isPartner ? "파트너 초대가 없습니다" : "멤버 초대가 없습니다"} — 위 '초대하기'로 보냅니다</div>
+              <div className="collect-empty">{isPartner ? "파트너 초대가 없습니다" : "멤버 초대가 없습니다"} · 위 '초대하기'로 보냅니다</div>
             ) : (
               <table className="ev-table ev-lined team-mgmt-table">
                 <thead><tr><th className="text-left">이름</th><th className="text-left">이메일</th><th>역할</th>{isPartner && <th>프로젝트</th>}<th>상태</th><th>보낸 날</th><th>동작</th></tr></thead>

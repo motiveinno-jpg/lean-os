@@ -151,13 +151,15 @@ function observeReveal(el: Element, cb: () => void) {
   return () => { revealIO?.unobserve(el); revealCbs.delete(el); };
 }
 
+
+
 /**
  * 좁은 화면 판정.
  *   ⚠️ 폰에서 데스크톱 화면 캡처를 그대로 축소하면 글자가 안 읽혀 "무슨 화면인지" 전달이 0이 된다.
  *      좁을 때는 같은 기능의 모바일 화면으로 바꿔 끼운다.
- *   SSR 은 항상 false(데스크톱)로 그리고 마운트 후 판정한다 — 하이드레이션 불일치를 피한다.
+ *   SSR 은 항상 false(데스크톱)로 그리고 마운트 후 판정한다. 하이드레이션 불일치를 피한다.
  */
-export function useNarrow(max = 700) {
+export function useNarrow(max = 700)  {
   const [narrow, setNarrow] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${max}px)`);

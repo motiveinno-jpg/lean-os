@@ -61,10 +61,12 @@ export default function VerifyEmailPage() {
       setState("email_confirmed_need_login");
     }
 
-    // 회사 개설 또는 합류 요청 — company-signup 공용 로직 (metadata 기반 분기).
+    
+
+    // 회사 개설 또는 합류 요청 · company-signup 공용 로직 (metadata 기반 분기).
     //   합류 경로(join_business_number)면 회사를 만들지 않고 요청만 생성 → /join-pending 이동.
     //   true 반환 = 여기서 라우팅까지 완료(호출부는 종료).
-    async function setupCompany(user: {
+    async function setupCompany(user:  {
       id: string;
       email?: string;
       user_metadata?: Record<string, string>;

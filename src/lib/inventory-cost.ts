@@ -13,7 +13,7 @@ export type MoveCost = { move_id: string; product_id: string; moved_at: string; 
 export type CostState = { method: string; computed_at: string; layers: number; costs: number; uncosted_moves: number };
 export type CostingMethod = "fifo" | "avg";
 export const COSTING_METHODS: { value: CostingMethod; label: string; desc: string }[] = [
-  { value: "fifo", label: "선입선출(FIFO)", desc: "먼저 들어온 것부터 나간다 — 어느 입고분이 나갔는지 눈으로 확인할 수 있다 (기본)" },
+  { value: "fifo", label: "선입선출(FIFO)", desc: "먼저 들어온 것부터 나간다. 어느 입고분이 나갔는지 눈으로 확인할 수 있다 (기본)" },
   { value: "avg", label: "이동평균", desc: "출고 시점까지 남은 층의 가중평균 단가로 나간다" },
 ];
 
@@ -60,8 +60,8 @@ export async function saveCostingMethod(companyId: string, method: CostingMethod
 // ── 원가 재평가 (결정 39) — 특정 시점부터 남은 층의 단가를 바꾼다. 기초 원가 입력도 같은 표(옛 단가 없으면 차액 0). ──
 export type Revaluation = { id: string; product_id: string; reval_date: string; unit_cost: number; reason: string; note: string | null; status: "active" | "cancelled"; effect_amount: number; effect_qty: number; created_at: string };
 export const REVAL_REASONS: { value: string; label: string; desc: string }[] = [
-  { value: "opening", label: "기초 원가 입력", desc: "단가 없는 층에 원가를 넣는다 — 평가손익 없음" },
-  { value: "reval_market", label: "재평가 · 시세 하락", desc: "남은 재고를 시세로 낮춰 본다 — 차액은 평가손실" },
+  { value: "opening", label: "기초 원가 입력", desc: "단가 없는 층에 원가를 넣는다. 평가손익 없음" },
+  { value: "reval_market", label: "재평가 · 시세 하락", desc: "남은 재고를 시세로 낮춰 본다. 차액은 평가손실" },
   { value: "reval_adjust", label: "재평가 · 원가 조정", desc: "잘못 들어간 단가를 이 날부터 바로잡는다" },
   { value: "other", label: "기타", desc: "사유는 비고에" },
 ];

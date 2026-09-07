@@ -45,7 +45,9 @@ export function Delta({ cur, prev, invert = false, size = "sm" }: { cur: number;
   return <span className={`${size === "xs" ? "text-[10px]" : "text-[11px]"} font-semibold ${p === 0 ? "text-[var(--text-dim)]" : good ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{p > 0 ? "▲" : p < 0 ? "▼" : ""}{Math.abs(p)}%</span>;
 }
 
-/** 상자 머리 — 기간(월 단위) · 비교 칩 · 화면별 추가 조건 ‖ 엑셀 · 인쇄 / 지표 줄 */
+
+
+/** 상자 머리 · 기간(월 단위) · 비교 칩 · 화면별 추가 조건 ‖ 엑셀 · 인쇄 / 지표 줄 */
 export function PnlHead({ s, bar, stats, excel }: { s: PnlStatusState; bar?: ReactNode; stats: ReactNode; excel?: ExcelItem[] }) {
   return (
     <ReportHead
@@ -64,21 +66,20 @@ export function PnlHead({ s, bar, stats, excel }: { s: PnlStatusState; bar?: Rea
   );
 }
 
-/** 기준 안내 한 줄 — 손익계산서와 같은 숫자 · 전표 안 된 자료 N건 */
+
+
+/** 기준 안내 한 줄 · 손익계산서와 같은 숫자 · 전표 안 된 자료 N건 */
 export function BasisNote({ s }: { s: PnlStatusState }) {
   const u = s.data?.unposted;
   return (
     <div className="pnl-basis-note">
-      <b>확정 전표 기준</b> — 손익계산서와 같은 숫자입니다.
-      {u && u.total > 0 && (<> 전표로 만들지 않은 자료 <b className="text-[var(--warning)]">{u.total.toLocaleString()}건</b>
-        {" ("}{[u.taxInvoice > 0 ? `세금계산서 ${u.taxInvoice.toLocaleString()}` : null, u.card > 0 ? `카드 ${u.card.toLocaleString()}` : null, u.bank > 0 ? `통장 ${u.bank.toLocaleString()}` : null].filter(Boolean).join(" · ")}{")"}
-        은 빠져 있습니다 · <Link href="/collect" className="font-semibold text-[var(--primary)]">수집·전표 →</Link></>)}
-      {u && u.total === 0 && <> 이 기간 자료는 모두 전표로 반영됐습니다.</>}
+      <b>확정 전표 기준</b>
+      {u && u.total > 0 && (<> · 전표로 만들지 않은 자료 <b className="text-[var(--warning)]">{u.total.toLocaleString()}건</b>은 빠져 있습니다 · <Link href="/collect" className="font-semibold text-[var(--primary)]">수집·전표 →</Link></>)}
     </div>
   );
 }
 
-/** 요약 지표 줄 — 요약 탭 기본 5개 */
+/** 요약 지표 줄 · 요약 탭 기본 5개 */
 export function CoreStats({ cur, cmp }: { cur: PnlSummary; cmp: PnlSummary }) {
   const rate = cur.revenue > 0 ? Math.round((cur.operating / cur.revenue) * 1000) / 10 : null; // 매출 0 이하면 이익률은 뜻이 없다 → '—'
   return (<>
@@ -90,8 +91,10 @@ export function CoreStats({ cur, cmp }: { cur: PnlSummary; cmp: PnlSummary }) {
   </>);
 }
 
-// ── 원천 드릴다운 — 그 계정/거래처의 전표 줄 ─────────────────────────────
-export type Drill = { title: string; sub?: string; lines: JournalLine[] };
+
+
+// ── 원천 드릴다운 · 그 계정/거래처의 전표 줄 ─────────────────────────────
+export type Drill =  { title: string; sub?: string; lines: JournalLine[] };
 export function DrillModal({ drill, onClose }: { drill: Drill | null; onClose: () => void }) {
   useModalKeys(!!drill, onClose);
   if (!drill) return null;
@@ -104,7 +107,7 @@ export function DrillModal({ drill, onClose }: { drill: Drill | null; onClose: (
           <div>
             <b>{drill.title}</b>
             {drill.sub && <span className="ml-2 text-[11px] text-[var(--text-dim)]">{drill.sub}</span>}
-            <div className="text-[11px] text-[var(--text-muted)]">전표 줄 {rows.length.toLocaleString()}개 · 합계 <b className="mono-number">{won(total)}</b> — 줄을 누르면 전표로</div>
+            <div className="text-[11px] text-[var(--text-muted)]">전표 줄 {rows.length.toLocaleString()}개 · 합계 <b className="mono-number">{won(total)}</b> · 줄을 누르면 전표로</div>
           </div>
           <button type="button" className="btn-secondary btn-sm" onClick={onClose}>닫기</button>
         </div>
@@ -123,7 +126,7 @@ export function DrillModal({ drill, onClose }: { drill: Drill | null; onClose: (
                   <td className="text-right mono-number">{l.credit ? l.credit.toLocaleString("ko-KR") : ""}</td>
                 </tr>
               ))}
-              {rows.length > 500 && <tr><td colSpan={7} className="text-center text-[11px] text-[var(--text-dim)]">500줄까지만 보입니다 — 기간을 좁혀 보세요</td></tr>}
+              {rows.length > 500 && <tr><td colSpan={7} className="text-center text-[11px] text-[var(--text-dim)]">500줄까지만 보입니다. 기간을 좁혀 보세요</td></tr>}
             </tbody>
           </table>
         </div>

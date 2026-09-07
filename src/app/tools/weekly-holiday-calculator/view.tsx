@@ -103,7 +103,7 @@ export default function WeeklyHolidayCalculatorView() {
                 <div className="lp4-freetool-result" aria-live="polite">
                   <div className="lp4-freetool-result-main">
                     <span className="lp4-freetool-result-num">해당 없음</span>
-                    <span className="lp4-freetool-result-cap">1주 소정근로시간이 {r.weeklyHours}시간 — 15시간 미만이면 주휴수당이 발생하지 않습니다</span>
+                    <span className="lp4-freetool-result-cap">1주 소정근로시간이 {r.weeklyHours}시간 · 15시간 미만이면 주휴수당이 발생하지 않습니다</span>
                   </div>
                 </div>
               )

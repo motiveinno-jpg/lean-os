@@ -101,7 +101,7 @@ export function wrapTemplatePrintHtml(bodyHtml: string): string {
   .tpl-body { padding: 18mm 16mm; font-size: 13px; line-height: 1.75; }
   .tpl-body p { margin: 2px 0; }
   .tpl-body hr.tpl-page-break { border: none; page-break-after: always; margin: 0; }
-  /* 리치에디터(TipTap) 산출물 — 표·이미지·제목이 발급 PDF에 그대로 보이도록 (2026-07-10) */
+  /* 리치에디터(TipTap) 산출물 · 표·이미지·제목이 발급 PDF에 그대로 보이도록 (2026-07-10) */
   .tpl-body table { border-collapse: collapse; width: 100%; margin: 6px 0; table-layout: fixed; page-break-inside: avoid; }
   .tpl-body th, .tpl-body td { border: 1px solid #9ca3af; padding: 4px 8px; vertical-align: top; word-break: break-word; }
   .tpl-body th { background: #f3f4f6; font-weight: 700; }
@@ -172,7 +172,7 @@ export async function detectFields(
     body: { doc_type: docType, pages },
   });
   if (error) {
-    console.warn("parse-form-template 실패 — 빈 양식으로 시작:", error);
+    console.warn("parse-form-template 실패 · 빈 양식으로 시작:", error);
     return [];
   }
   // edge 는 page/x/y/w/h/key/label/kind 반환. align/font_size 기본값 부여.

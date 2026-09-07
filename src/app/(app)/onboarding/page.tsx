@@ -9,17 +9,19 @@ import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 // 설정 > 연동·인증의 금융기관 등록 폼을 그대로 재사용 — 온보딩과 설정이 같은 코드를 본다 (2026-08-10)
 import { CodefAccountRegister } from "@/app/(app)/settings/_components/BankIntegrationTab";
-import { useSampleStatus, sampleErrorText } from "@/components/sample-data-banner";
+import { useSampleStatus, sampleErrorText }  from "@/components/sample-data-banner";
 
 // ── Constants ──
-// 2026-08-10 개편(사장님): 첫 직원·첫 프로젝트·완료 단계 제거 — 회사 정보(+사업자등록증 첨부) →
+// 2026-08-10 개편(사장님): 첫 직원·첫 프로젝트·완료 단계 제거 · 회사 정보(+사업자등록증 첨부) →
 //   인증서 등록(통장·카드·홈택스 자동 수집) 2단계로 압축. 등록을 마치면 대시보드로 이동해
 //   첫 가입자에게 탭 투어(AppTour)를 보여준다.
 
 const STEPS = [
+  
   { num: 1, label: "회사 정보", icon: "building" },
   { num: 2, label: "금융 연결", icon: "bank" },
-  // 3단계는 별도 입력 없이 탭 투어(AppTour)로 이어주는 안내 화면 — 진행바가 2개뿐이라 어색하던 것 보완 (2026-08-10 사장님)
+  // 3단계는 별도 입력 없이 탭 투어(AppTour)로 이어주는 안내 화면 · 진행바가 2개뿐이라 어색하던 것 보완 (2026-08-10 사장님)
+  
   { num: 3, label: "화면 둘러보기", icon: "compass" },
 ] as const;
 
@@ -40,11 +42,12 @@ const INDUSTRIES = [
 
 const BUSINESS_NUMBER_REGEX = /^\d{3}-\d{2}-\d{5}$/;
 
-// ── 인트로 단계 (2026-07-20 도입 — 역할 → 페인포인트 → 맞춤 가치제안 3화면 후 기존 위저드 진입).
+// ── 인트로 단계 (2026-07-20 도입 · 역할 → 페인포인트 → 맞춤 가치제안 3화면 후 기존 위저드 진입).
 //    선택 결과는 companies.automation_settings.onboarding_profile 에 저장 (스키마 무변경).
 type IntroStep = "role" | "pain" | "value";
 
 const INTRO_ROLES = [
+  
   { key: "ceo", label: "대표 · 경영진", desc: "회사 전체 현황과 자금 흐름을 한눈에 보고 싶어요" },
   { key: "finance", label: "재무 · 회계 담당", desc: "자금 관리와 증빙·세금계산서 업무를 맡고 있어요" },
   { key: "hr", label: "인사 · 총무 담당", desc: "직원 관리와 계약·근태 업무를 맡고 있어요" },
@@ -94,7 +97,7 @@ export default function OnboardingPage() {
   const [error, setError] = useState("");
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // 인트로(역할→페인포인트→가치제안) — null 이면 기존 위저드 표시
+  // 인트로(역할→페인포인트→가치제안). null 이면 기존 위저드 표시
   const [intro, setIntro] = useState<IntroStep | null>(null);
   const [introRole, setIntroRole] = useState("");
   const [introPain, setIntroPain] = useState("");
@@ -176,7 +179,9 @@ export default function OnboardingPage() {
           return;
         }
 
-        // 인트로는 아직 안 본 신규에게만 — onboarding_profile 저장 이후엔 다시 안 보임
+        
+
+        // 인트로는 아직 안 본 신규에게만 · onboarding_profile 저장 이후엔 다시 안 보임
         const aset = (comp?.automation_settings as Record<string, unknown> | null) || {};
         automationSettingsRef.current = aset;
         if (!aset.onboarding_profile && !hasCompany) {
@@ -232,8 +237,10 @@ export default function OnboardingPage() {
     if (step > 1) setStep((step - 1) as StepNumber);
   }
 
-  // 인트로 완료 — 선택 결과 저장(실패해도 진행은 막지 않음) 후 위저드 진입
-  async function finishIntro() {
+  
+
+  // 인트로 완료 · 선택 결과 저장(실패해도 진행은 막지 않음) 후 위저드 진입
+  async function finishIntro()  {
     setIntro(null);
     try {
       await db.from("companies").update({
@@ -247,9 +254,11 @@ export default function OnboardingPage() {
     }
   }
 
-  // ── Keyboard: Enter to submit (1단계만 — 2단계는 인증서 폼이 자체 입력을 갖는다) ──
+  
 
-  function handleKeyDown(e: React.KeyboardEvent) {
+  // ── Keyboard: Enter to submit (1단계만 · 2단계는 인증서 폼이 자체 입력을 갖는다) ──
+
+  function handleKeyDown(e: React.KeyboardEvent)  {
     if (step === 1 && e.key === "Enter" && !e.shiftKey) {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "TEXTAREA" || tag === "SELECT" || tag === "BUTTON") return;
@@ -492,14 +501,17 @@ export default function OnboardingPage() {
   );
 }
 
+
+
 // ═══════════════════════════════════════════
-// Step 3: 화면 둘러보기 — 탭 투어(AppTour) 안내 (2026-08-10)
+// Step 3: 화면 둘러보기 · 탭 투어(AppTour) 안내 (2026-08-10)
 // ═══════════════════════════════════════════
 
 const TOUR_PREVIEW_ITEMS = [
+  
   {
     title: "자금 현황을 한눈에",
-    desc: "대시보드·통장·카드 — 회사 돈이 어디서 들어오고 나가는지 매일 자동으로 정리되는 곳을 안내해요.",
+    desc: "대시보드·통장·카드 · 회사 돈이 어디서 들어오고 나가는지 매일 자동으로 정리되는 곳을 안내해요.",
   },
   {
     title: "손대지 않아도 채워지는 장부",
@@ -507,7 +519,7 @@ const TOUR_PREVIEW_ITEMS = [
   },
   {
     title: "종이 없는 회사 운영",
-    desc: "직원 초대, 전자결재, 전자계약, 급여명세서 발송까지 — 어디서 처리하는지 짚어드려요.",
+    desc: "직원 초대, 전자결재, 전자계약, 급여명세서 발송까지 · 어디서 처리하는지 짚어드려요.",
   },
 ];
 
@@ -626,7 +638,9 @@ function Step1Company({
   );
 }
 
-// 사업자등록증 업로드 — documents 버킷 company-docs/{companyId}/business_reg_{ts}.{ext}
+
+
+// 사업자등록증 업로드 · documents 버킷 company-docs/{companyId}/business_reg_{ts}.{ext}
 function BizRegUpload({ companyId }: { companyId: string | null }) {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -683,7 +697,7 @@ function BizRegUpload({ companyId }: { companyId: string | null }) {
             <svg className="w-4 h-4 shrink-0" style={{ color: "var(--success)" }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
             </svg>
-            <span className="onboarding-bizreg-filename">등록됨 — 사업자등록증</span>
+            <span className="onboarding-bizreg-filename">등록됨. 사업자등록증</span>
             <button type="button" onClick={doView} className="onboarding-bizreg-view">보기</button>
           </div>
         ) : (
@@ -711,12 +725,12 @@ function BizRegUpload({ companyId }: { companyId: string | null }) {
 // ═══════════════════════════════════════════
 
 function Step2Finance({ companyId, onConnected }: { companyId: string | null; onConnected: () => void }) {
-  const { toast } = useToast();
+  const { toast }  = useToast();
   const router = useRouter();
   const qc = useQueryClient();
-  //   인증서 등록 전에 샘플 회사로 먼저 둘러보기 — 빈 화면 대신 차 있는 대시보드를 보여 준다.
+  //   인증서 등록 전에 샘플 회사로 먼저 둘러보기 · 빈 화면 대신 차 있는 대시보드를 보여 준다.
   //   샘플은 실제 통장을 연결하는 순간 자동으로 지워진다. 넣기에 실패해도 온보딩은 그대로 진행된다.
-  const { data: sample } = useSampleStatus(companyId);
+  const  { data: sample } = useSampleStatus(companyId);
   const [seeding, setSeeding] = useState(false);
   const trySample = async () => {
     if (!companyId || seeding) return;

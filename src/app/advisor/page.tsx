@@ -13,7 +13,7 @@ type Advisor = { id: string; name: string; office_name: string | null; status: s
 const COVER_POINTS = [
   "연결된 고객사의 통장 잔고·거래 내역을 자료 요청 없이 바로 봅니다.",
   "매출·매입 세금계산서와 분기 부가세 흐름이 신고 기준으로 정리되어 있습니다.",
-  "월별 인건비와 원천세 내역까지 — 기장에 필요한 지면이 한 곳에 인쇄됩니다.",
+  "월별 인건비와 원천세 내역까지 · 기장에 필요한 지면이 한 곳에 인쇄됩니다.",
 ];
 
 export default function AdvisorLandingPage() {
@@ -81,8 +81,8 @@ export default function AdvisorLandingPage() {
         p_phone: phone.trim() || null, p_specialty: specialty.trim() || null,
       });
       if (err) throw err;
-      // 운영자에게 가입 알림 메일 — 베스트에포트 (실패해도 가입은 완료)
-      supabase.functions.invoke("advisor-notify", { body: { event: "registered" } }).catch(() => {});
+      // 운영자에게 가입 알림 메일 · 베스트에포트 (실패해도 가입은 완료)
+      supabase.functions.invoke("advisor-notify",  { body: { event: "registered" } }).catch(() => {});
       setPhase("pending");
     } catch (e: any) {
       setError(e?.message || "등록에 실패했습니다.");
@@ -149,8 +149,11 @@ export default function AdvisorLandingPage() {
     );
   }
 
-  // 비로그인 — 표지/인증 스플릿
+  
+
+  // 비로그인 · 표지/인증 스플릿
   return (
+    
     <div className="adv-hero">
       <div className="adv-cover">
         <div>
@@ -171,7 +174,9 @@ export default function AdvisorLandingPage() {
           </div>
         </div>
         <div className="adv-cover-foot">
-          제휴 문의 · creative@mo-tive.com — 가입 후 오너뷰 운영팀의 확인을 거쳐 고객사가 연결됩니다.
+          
+          제휴 문의 · creative@mo-tive.com · 가입 후 오너뷰 운영팀의 확인을 거쳐 고객사가 연결됩니다.
+
         </div>
       </div>
       <div className="adv-auth-side">

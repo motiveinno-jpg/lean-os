@@ -198,7 +198,9 @@ export default function HrAllowanceCatalogPanel({ companyId }: { companyId: stri
   );
 }
 
-// ── 모달 — 수당 추가/수정 ──
+
+
+// ── 모달 · 수당 추가/수정 ──
 
 function AllowanceTypeModal({
   companyId,

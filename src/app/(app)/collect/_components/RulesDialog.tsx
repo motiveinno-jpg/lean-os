@@ -51,12 +51,12 @@ export function RulesDialog({ companyId, onClose }: { companyId: string; onClose
       .from("voucher_account_rules").delete().eq("id", id).select("id");
     if (error) { toast("규칙을 지우지 못했습니다", "error"); return; }
     if (!data || (data as any[]).length === 0) {
-      toast("규칙을 지울 권한이 없습니다 — 대표·관리자만 지울 수 있습니다", "error");
+      toast("규칙을 지울 권한이 없습니다. 대표·관리자만 지울 수 있습니다", "error");
       return;
     }
     qc.invalidateQueries({ queryKey: ["voucher-rules-all"] });
     qc.invalidateQueries({ queryKey: ["voucher-rules"] });
-    toast("규칙을 지웠습니다 — 다음부터는 직접 고릅니다", "success");
+    toast("규칙을 지웠습니다. 다음부터는 직접 고릅니다", "success");
   };
 
   const shown = rows.filter((r) => kind === "all" || r.source_kind === kind);
@@ -84,7 +84,9 @@ export function RulesDialog({ companyId, onClose }: { companyId: string; onClose
             <div className="collect-empty">읽는 중…</div>
           ) : shown.length === 0 ? (
             <div className="collect-empty">
-              아직 배운 규칙이 없습니다 — 전표를 만들면 그때 고른 계정을 기억합니다.
+              
+              아직 배운 규칙이 없습니다. 전표를 만들면 그때 고른 계정을 기억합니다.
+
             </div>
           ) : (
             <div className="ev-scroll">

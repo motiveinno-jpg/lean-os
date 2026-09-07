@@ -28,12 +28,12 @@ import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { useCanAccessTab } from "@/lib/tab-access";
 import { supabase } from "@/lib/supabase";
-import { useModalKeys } from "@/hooks/use-modal-keys";
+import { useModalKeys }  from "@/hooks/use-modal-keys";
 
-// 2026-07-08 "정기 지출" 재편 — 자동 추천을 첫 화면으로. 지출결의→결재관리, 급여→인사, 구독 흡수(구독 탭).
+// 2026-07-08 "정기 지출" 재편 · 자동 추천을 첫 화면으로. 지출결의→결재관리, 급여→인사, 구독 흡수(구독 탭).
 type Tab = 'recommend' | 'recurring' | 'subscriptions' | 'fixed' | 'queue';
 
-export default function PaymentsPage() {
+export default function PaymentsPage()  {
   const { role } = useUser();
   const router = useRouter();
   const { allowed: tabAllowed, loading: tabLoading } = useCanAccessTab("/payments");
@@ -45,9 +45,9 @@ export default function PaymentsPage() {
     else if (t === 'payroll') router.replace('/employees?tab=salary');
   }, [router]);
   // 권한 게이트에서 early return 한 뒤에 나머지 훅들이 이어지면 tabLoading 이 풀리는 순간
-  // 렌더당 훅 개수가 달라져 React #310 크래시 — 본문을 별도 컴포넌트로 분리 (2026-08-03).
+  // 렌더당 훅 개수가 달라져 React #310 크래시 · 본문을 별도 컴포넌트로 분리 (2026-08-03).
   if (tabLoading) return null;
-  if (!tabAllowed) {
+  if (!tabAllowed)  {
     return <AccessDenied detail="정기 지출 접근 권한이 없습니다. 마스터에게 권한을 요청하세요." />;
   }
   return <PaymentsPageInner />;
@@ -97,16 +97,16 @@ function PaymentsPageInner() {
   };
 
   //   본체(정기결제·구독·고정비·결제 내역)가 앞, 도구(자동 추천)가 뒤 (2026-08-12)
-  //   띠에 쓸 건수 — 아직 등록 안 된 반복 지출만 센다. (자동 추천 패널이 쓰는 것과 같은 쿼리키라
+  //   띠에 쓸 건수 · 아직 등록 안 된 반복 지출만 센다. (자동 추천 패널이 쓰는 것과 같은 쿼리키라
   //   한 번만 받아 두 곳이 나눠 쓴다)
-  const { data: detectedAll = [] } = useQuery({
+  const  { data: detectedAll = [] } = useQuery({
     queryKey: ["detected-recurring", companyId],
     queryFn: () => detectRecurringFromBankTx(companyId!),
     enabled: !!companyId, staleTime: 60_000,
   });
   //   치운 후보(회사 공통)도 빼야 띠 숫자와 자동 추천 목록 건수가 같아진다.
-  //   ★ 2026-08-24 사장님 지적 전에는 이 띠가 치운 것을 안 뺐다 — "처리할 것 5건"인데 열면 2건이었다.
-  const { data: dismissedKeys } = useQuery({
+  //   ★ 2026-08-24 사장님 지적 전에는 이 띠가 치운 것을 안 뺐다. "처리할 것 5건"인데 열면 2건이었다.
+  const  { data: dismissedKeys } = useQuery({
     queryKey: ["recurring-dismissals", companyId],
     queryFn: () => listRecurringDismissals(companyId!),
     enabled: !!companyId, staleTime: 60_000,
@@ -152,7 +152,7 @@ function PaymentsPageInner() {
       {tab !== 'recommend' && tab !== 'recurring' && detectedCount > 0 && (
         <button type="button" onClick={() => setTab('recommend')} className="payments-todo-band">
           <b>처리할 것 {detectedCount.toLocaleString()}건</b>
-          <span>통장에서 새로 잡힌 반복 지출 — 한 번에 검토</span>
+          <span>통장에서 새로 잡힌 반복 지출 · 한 번에 검토</span>
           <span className="payments-todo-go">보러 가기 →</span>
         </button>
       )}
@@ -371,9 +371,9 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
     completed: { label: "실행완료", bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]" },
     rejected: { label: "거부", bg: "bg-[var(--danger-dim)]", text: "text-[var(--danger)]" },
     refunded: { label: "환불완료", bg: "bg-orange-500/10", text: "text-orange-400" },
-    // 실행 실패(잔액 부족 등)는 배지 정의가 없어 '승인대기' 로 보였다 — 토스트가 사라지면
+    // 실행 실패(잔액 부족 등)는 배지 정의가 없어 '승인대기' 로 보였다. 토스트가 사라지면
     //   실패 건을 화면에서 알 방법이 없었다 (2026-08-21 감사).
-    failed: { label: "실행실패", bg: "bg-[var(--danger-dim)]", text: "text-[var(--danger)]" },
+    failed:  { label: "실행실패", bg: "bg-[var(--danger-dim)]", text: "text-[var(--danger)]" },
   };
 
   return (
@@ -391,7 +391,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
               <span className="qk-quicks">{STATUS_OPTS.map(([v, l]) => <button key={v} type="button" onClick={() => setDraftStatus((d) => d.includes(v) ? d.filter((x) => x !== v) : [...d, v])} className={draftStatus.includes(v) ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>)}</span>
             </ConditionRow>
           </ConditionPanel>
-          <span className="text-[11px] text-[var(--text-dim)]">프로젝트 비용 스케줄·수동 등록에서 온 결제 건 — 승인까지만(이체는 은행에서)</span>
+          <span className="text-[11px] text-[var(--text-dim)]">프로젝트 비용 스케줄·수동 등록에서 온 결제 건 · 승인까지만(이체는 은행에서)</span>
         </>}
         below={<AppliedChips chips={filterSet.length ? [{ group: "상태", label: filterSet.map((v) => STATUS_OPTS.find((o) => o[0] === v)?.[1] || v).join(" · "), onRemove: () => setFilter("all") }] : []} onClearAll={() => setFilter("all")} />}
         right={<button type="button" onClick={() => setShowForm(true)} className="btn-secondary btn-sm">+ 수동 결제 등록</button>}
@@ -442,7 +442,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
       {/* Queue */}
       <div className="payment-queue-table">
         {filtered.length === 0 ? (
-          <div className="collect-empty">결제 내역이 없습니다 — 프로젝트 비용 스케줄에서 자동 생성되거나 위 '수동 결제 등록'으로 넣습니다</div>
+          <div className="collect-empty">결제 내역이 없습니다. 프로젝트 비용 스케줄에서 자동 생성되거나 위 '수동 결제 등록'으로 넣습니다</div>
         ) : (
           <div className="ev-scroll payments-scroll"><table className="ev-table ev-lined payments-table">
             <thead>
@@ -651,7 +651,7 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
 
       <div className="fixed-cost-batch-table">
         {batches.length === 0 ? (
-          <div className="collect-empty">고정비 배치가 없습니다 — 반복결제를 먼저 등록하고 위에서 이번 달 배치를 만드세요</div>
+          <div className="collect-empty">고정비 배치가 없습니다. 반복결제를 먼저 등록하고 위에서 이번 달 배치를 만드세요</div>
         ) : (
           <div className="ev-scroll payments-scroll"><table className="ev-table ev-lined payments-table">
             <thead>
@@ -699,9 +699,11 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
   );
 }
 
+
+
 // ── 고정비 배치 상세 모달 (read-only) ──
-// 계좌번호 마스킹 — 뒤 4자리만 (2026-08-19 감사: 급여 배치 상세에 직원 계좌 전체가 노출)
-function maskAccount(acc?: string | null): string {
+// 계좌번호 마스킹 · 뒤 4자리만 (2026-08-19 감사: 급여 배치 상세에 직원 계좌 전체가 노출)
+function maskAccount(acc?: string | null): string  {
   const s = String(acc || "").trim();
   if (!s) return "";
   const digits = s.replace(/\D/g, "");
@@ -750,7 +752,7 @@ function BatchDetailModal({ batchId, onClose }: { batchId: string; onClose: () =
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
           <div>
             <h3 className="text-base font-bold">{batch?.name || '배치 상세'}</h3>
-            <p className="text-[11px] text-[var(--text-dim)] mt-0.5">조회 전용 — 수정하려면 반복결제 설정 탭에서 항목을 변경 후 배치 다시 생성</p>
+            <p className="text-[11px] text-[var(--text-dim)] mt-0.5">조회 전용 · 수정하려면 반복결제 설정 탭에서 항목을 변경 후 배치 다시 생성</p>
           </div>
           <button
             onClick={onClose}
@@ -841,7 +843,9 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
   );
 }
 
-// ── 반복결제 상세 모달 (read-only — 수정 form 과 같은 레이아웃, "수정" 버튼으로 편집 모드 전환) ──
+
+
+// ── 반복결제 상세 모달 (read-only · 수정 form 과 같은 레이아웃, "수정" 버튼으로 편집 모드 전환) ──
 function RecurringDetailModal({
   item,
   categories,
@@ -870,7 +874,7 @@ function RecurringDetailModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
           <div>
             <h3 className="text-base font-bold">{item.name}</h3>
-            <p className="text-[11px] text-[var(--text-dim)] mt-0.5">조회 전용 — 수정하려면 하단의 "수정" 버튼을 누르세요.</p>
+            <p className="text-[11px] text-[var(--text-dim)] mt-0.5">조회 전용 · 수정하려면 하단의 "수정" 버튼을 누르세요.</p>
           </div>
           <button
             onClick={onClose}
@@ -1027,7 +1031,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
         <div className="inv-modal" onClick={() => setShowDetected(false)}>
           <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
             <h3 className="inv-modal-title">통장에서 잡힌 반복 지출 {newDetected.length}건</h3>
-            <p className="inv-modal-desc">같은 거래처에 같은 금액이 2개월 이상 되풀이된 통장 출금입니다. 등록하면 정기결제로 관리되고 자금 전망에 잡힙니다 — 검토·개별 등록은 <b>자동 추천</b> 탭에서.</p>
+            <p className="inv-modal-desc">같은 거래처에 같은 금액이 2개월 이상 되풀이된 통장 출금입니다. 등록하면 정기결제로 관리되고 자금 전망에 잡힙니다. 검토·개별 등록은 <b>자동 추천</b> 탭에서.</p>
             <div className="stg-table-wrap ch-ship-list">
               <table className="ev-table ev-lined table-inv-status-sm">
                 <thead><tr><th>거래처</th><th>금액</th><th>횟수</th><th>기간</th><th>추천 분류</th><th>확신</th></tr></thead>
@@ -1181,7 +1185,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
         {recurring.length === 0 ? (
           <div className="collect-empty">
             반복결제가 없습니다 — 임대료, 보험, 구독 등 매월 고정 지출을 등록하세요.
-            {newDetected.length > 0 && <> 통장에서 <b>{newDetected.length}건</b>이 잡혀 있습니다 — 위 <b>전체 자동등록</b>을 누르면 한 번에 채워집니다.</>}
+            {newDetected.length > 0 && <> 통장에서 <b>{newDetected.length}건</b>이 잡혀 있습니다. 위  <b>전체 자동등록</b>을 누르면 한 번에 채워집니다.</>}
           </div>
         ) : (
           <div className="ev-scroll payments-scroll"><table className="ev-table ev-lined payments-table">
@@ -1284,11 +1288,11 @@ function SmartSetupBanner({ companyId, userId, invalidate, onRegistered }: { com
     staleTime: 10 * 60 * 1000,
   });
 
-  // 감지 후보 개별 등록/미등록 — 반복 이체라고 전부 정기결제는 아니므로 건별 판단.
+  // 감지 후보 개별 등록/미등록 · 반복 이체라고 전부 정기결제는 아니므로 건별 판단.
   //   ★ 미등록 판단은 **회사 공통**이다 (2026-08-24 사장님 지적: "직원마다 다르게 뜸").
   //     예전엔 브라우저 localStorage 에만 남겨서 ①사장님이 치운 후보가 직원 화면엔 그대로 뜨고
   //     ②같은 사람도 PC 를 바꾸면 다시 봤다. 이제 recurring_dismissals 테이블에 남긴다.
-  const { data: dismissed } = useQuery({
+  const  { data: dismissed } = useQuery({
     queryKey: ["recurring-dismissals", companyId],
     queryFn: () => listRecurringDismissals(companyId),
     enabled: !!companyId, staleTime: 60_000,
@@ -1314,7 +1318,7 @@ function SmartSetupBanner({ companyId, userId, invalidate, onRegistered }: { com
     try {
       await dismissRecurringCandidate(companyId, detKey(d), userId);
       queryClient.invalidateQueries({ queryKey: ["recurring-dismissals", companyId] });
-      toast(`'${d.counterparty}'을(를) 정기결제가 아닌 것으로 두었습니다 — 회사 전체에서 다시 추천하지 않습니다`, "info");
+      toast(`'${d.counterparty}'을(를) 정기결제가 아닌 것으로 두었습니다. 회사 전체에서 다시 추천하지 않습니다`, "info");
     } catch (e: any) {
       toast("미등록 처리 실패: " + (e?.message || "오류"), "error");
     }
@@ -1328,7 +1332,7 @@ function SmartSetupBanner({ companyId, userId, invalidate, onRegistered }: { com
       invalidate();
       refetchDetect();
       queryClient.invalidateQueries({ queryKey: ["recurring-payments", companyId] });
-      toast(`'${d.suggestedName || d.counterparty}'을(를) 등록했습니다 — 아래 '반복 결제 설정' 탭에서 확인·수정하세요`, "success");
+      toast(`'${d.suggestedName || d.counterparty}'을(를) 등록했습니다. 아래 '반복 결제 설정' 탭에서 확인·수정하세요`, "success");
       onRegistered?.(); // 등록물이 어디 갔는지 바로 보이도록 반복 결제 설정 탭으로 전환
     } catch (e: any) {
       toast("등록 실패: " + (e?.message || "오류"), "error");
@@ -1349,8 +1353,8 @@ function SmartSetupBanner({ companyId, userId, invalidate, onRegistered }: { com
         res.taxOnPayment.created + res.expenseApproval.approved + res.bankClassification.matched +
         res.threeWayMatch.autoMatched + res.dormantDeals.detected;
       const failed = res.errors?.length ?? 0;
-      if (failed > 0) toast(`자동화 완료 — ${total}건 처리, ${failed}개 단계 실패 (아래 확인)`, "error");
-      else toast(total > 0 ? `자동화 실행 완료 — 총 ${total}건 처리` : "자동화 실행 완료 — 처리할 항목이 없습니다", total > 0 ? "success" : "info");
+      if (failed > 0) toast(`자동화 완료 · ${total}건 처리, ${failed}개 단계 실패 (아래 확인)`, "error");
+      else toast(total > 0 ? `자동화 실행 완료 · 총 ${total}건 처리` : "자동화 실행 완료 · 처리할 항목이 없습니다", total > 0 ? "success" : "info");
     } catch (e: any) {
       toast("자동화 실행 실패: " + (e?.message || "오류"), "error");
     }
@@ -1378,7 +1382,7 @@ function SmartSetupBanner({ companyId, userId, invalidate, onRegistered }: { com
     <div className="space-y-3">
       {/* 조회 줄 ‖ 이체내역 분석 · 자동화 실행 · 결과 요약(자동화 진행 현황 4단계) — 상자 머리 슬롯 (2026-08-19, 유리 카드 → Stat) */}
       <SlotHead slotId="pay-head-slot"
-        bar={<span className="text-[11px] text-[var(--text-dim)]">통장·카드에서 2개월 이상 같은 거래처·금액으로 반복된 거래를 찾아 정기결제로 등록하길 <b>제안</b>합니다 — 등록은 사람이 고릅니다</span>}
+        bar={<span className="text-[11px] text-[var(--text-dim)]">통장·카드에서 2개월 이상 같은 거래처·금액으로 반복된 거래를 찾아 정기결제로 등록하길 <b>제안</b>합니다. 등록은 사람이 고릅니다</span>}
         right={<>
           <button type="button" onClick={handleDetect} disabled={detecting} className="btn-secondary btn-sm">{detecting ? '분석 중…' : '이체내역 분석'}</button>
           <button type="button" onClick={handleRunAutomation} disabled={running} className="btn-primary btn-sm">{running ? '실행 중…' : '자동화 실행'}</button>
@@ -1399,8 +1403,9 @@ function SmartSetupBanner({ companyId, userId, invalidate, onRegistered }: { com
           <label className="payment-risky-label">
             <input type="checkbox" checked={includeRisky} onChange={(e) => setIncludeRisky(e.target.checked)} className="mt-0.5 accent-[var(--danger)]" />
             <span>
-              <span className="font-semibold text-[var(--danger)]">위험 작업 포함</span> — 소액 자동승인 · 결제→세금계산서 자동발행 · 환불→세금계산서 취소.
+              <span className="font-semibold text-[var(--danger)]">위험 작업 포함</span> · 소액 자동승인 · 결제→세금계산서 자동발행 · 환불→세금계산서 취소.
               실제 승인·세무 레코드를 자동 생성합니다. 내용을 이해한 경우에만 체크하세요.
+            
             </span>
           </label>
         </details>
@@ -1472,7 +1477,7 @@ function SmartSetupBanner({ companyId, userId, invalidate, onRegistered }: { com
         <div>
           <div className="pay-note">
             <b>이체내역에서 {freshDetected.length}건 신규 감지 · {detected.filter(d => d.alreadyRegistered).length}건 기등록</b>
-            <span>건별로 등록 여부를 고르세요 — 미등록으로 둔 항목은 <b>회사 전체</b>에서 다시 추천하지 않습니다</span>
+            <span>건별로 등록 여부를 고르세요. 미등록으로 둔 항목은 <b>회사 전체</b>에서 다시 추천하지 않습니다</span>
             {freshDetected.length > 1 && (
               <span className="ml-auto"><button type="button" className="btn-secondary btn-sm"
                 onClick={async () => {
@@ -1481,7 +1486,7 @@ function SmartSetupBanner({ companyId, userId, invalidate, onRegistered }: { com
                   await registerDetectedRecurring(companyId, freshDetected);
                   invalidate(); refetchDetect();
                   queryClient.invalidateQueries({ queryKey: ["recurring-payments", companyId] });
-                  toast(`${freshDetected.length}건을 등록했습니다 — '정기결제' 탭에서 확인·수정하세요`, "success");
+                  toast(`${freshDetected.length}건을 등록했습니다. '정기결제' 탭에서 확인·수정하세요`, "success");
                   onRegistered?.();
                 }}>전체 등록</button></span>
             )}
@@ -1502,7 +1507,7 @@ function SmartSetupBanner({ companyId, userId, invalidate, onRegistered }: { com
                     <td className="text-center">
                       <span className="inline-flex gap-1.5">
                         <button type="button" onClick={() => registerOne(d)} disabled={!!registeringKey} className="btn-secondary btn-sm" title="이 항목만 고정비(반복결제)로 등록">{registeringKey === detKey(d) ? "등록 중…" : "등록"}</button>
-                        <button type="button" onClick={() => dismissDetected(d)} disabled={!!registeringKey} className="btn-secondary btn-sm text-[var(--text-dim)]" title="정기결제가 아님 — 회사 전체에서 다시 추천하지 않습니다">미등록</button>
+                        <button type="button" onClick={() => dismissDetected(d)} disabled={!!registeringKey} className="btn-secondary btn-sm text-[var(--text-dim)]" title="정기결제가 아님 · 회사 전체에서 다시 추천하지 않습니다">미등록</button>
                       </span>
                     </td>
                   </tr>

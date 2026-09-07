@@ -13,11 +13,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { FOOTER } from "@/components/landing/content";
 import { FAQS } from "./faqs";
-import { track } from "@/lib/analytics";
+import { track }  from "@/lib/analytics";
 import TABLE from "./ganyi-2026.json";
 
-// ── 2026년 4대보험 요율 (원본: tools/insurance-calculator RATES — 개정 시 함께 수정) ──
-const RATES = {
+// ── 2026년 4대보험 요율 (원본: tools/insurance-calculator RATES · 개정 시 함께 수정) ──
+const RATES =  {
   pensionRate: 0.095, pensionCapHigh: 6_590_000, pensionCapLow: 410_000,
   healthRate: 0.0719, careRate: 0.009448, empRate: 0.018,
 };
@@ -157,8 +157,8 @@ export default function SalaryCalculatorView() {
                   <div className="lp4-freetool-result-rows">
                     <div className="lp4-freetool-result-row">
                       {r.capped
-                        ? <>국민연금은 기준소득월액 <b>상한({won(RATES.pensionCapHigh)}원)</b>까지만 부과됩니다 — 월급이 더 많아도 연금 공제액은 그대로입니다</>
-                        : <>국민연금은 기준소득월액 <b>하한({won(RATES.pensionCapLow)}원)</b>부터 부과됩니다 — 과세대상이 더 적어도 하한 기준으로 붙습니다</>}
+                        ? <>국민연금은 기준소득월액 <b>상한({won(RATES.pensionCapHigh)}원)</b>까지만 부과됩니다. 월급이 더 많아도 연금 공제액은 그대로입니다</>
+                        : <>국민연금은 기준소득월액 <b>하한({won(RATES.pensionCapLow)}원)</b>부터 부과됩니다. 과세대상이 더 적어도 하한 기준으로 붙습니다</>}
                     </div>
                   </div>
                 )}

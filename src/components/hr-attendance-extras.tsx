@@ -63,9 +63,9 @@ export function AttendanceEditRequestDialog({
   userId: string;
   initial?: { check_in?: string; check_out?: string; status?: string };
 }) {
-  const { toast } = useToast();
+  const { toast }  = useToast();
   const queryClient = useQueryClient();
-  // 빈 칸으로 시작 — 변경할 항목만 입력(출근/퇴근 따로 요청 가능). 입력한 항목만 전송·적용된다.
+  // 빈 칸으로 시작 · 변경할 항목만 입력(출근/퇴근 따로 요청 가능). 입력한 항목만 전송·적용된다.
   const [form, setForm] = useState({
     check_in: "",
     check_out: "",
@@ -78,7 +78,7 @@ export function AttendanceEditRequestDialog({
     return isNaN(d.getTime()) ? "기록 없음" : d.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
   };
 
-  // '근무중' 선택(2026-07-31 사장님) — 퇴근 전 상태를 유지한 채 출근 시각만 정정.
+  // '근무중' 선택(2026-07-31 사장님). 퇴근 전 상태를 유지한 채 출근 시각만 정정.
   //   status 로 보내지 않고(DB status 에 '근무중' 없음) 퇴근 필드를 잠가 check_in 만 요청한다.
   const isWorkingOnly = form.status === "working";
   const mut = useMutation({
@@ -126,7 +126,8 @@ export function AttendanceEditRequestDialog({
       >
         <h3 className="section-title">근태 수정 요청</h3>
         <p className="text-[10px] text-[var(--text-dim)] mb-4">
-          잘못 찍은 출퇴근 기록의 변경을 관리자에게 요청합니다(직접 수정 불가). <b className="text-[var(--text-muted)]">변경할 항목만 입력</b>하세요 — 출근·퇴근을 따로 요청할 수 있습니다.
+          잘못 찍은 출퇴근 기록의 변경을 관리자에게 요청합니다(직접 수정 불가). <b className="text-[var(--text-muted)]">변경할 항목만 입력</b>하세요. 출근·퇴근을 따로 요청할 수 있습니다.
+        
         </p>
         <div className="attendance-edit-form">
           <div>
@@ -194,8 +195,10 @@ export function AttendanceEditRequestDialog({
   );
 }
 
+
+
 // ── 관리자 대행 출퇴근 기록 (2026-07-27) ──
-//   "직원이 실수로 출근하기를 안 눌렀을 때 대신 눌러줄 수 있게" — 사장님 요청.
+//   "직원이 실수로 출근하기를 안 눌렀을 때 대신 눌러줄 수 있게" · 사장님 요청.
 //   기록이 아예 없는 날짜도 만들 수 있고, 이미 있으면 그 날 기록을 덮어쓴다.
 
 export function ManualAttendanceDialog({
@@ -231,8 +234,8 @@ export function ManualAttendanceDialog({
   // 시각을 손으로 고친 뒤에는 기본값이 다시 덮어쓰지 않도록.
   const [timesTouched, setTimesTouched] = useState(false);
 
-  // 회사 근무시간 — 출퇴근 시각 기본값 (2026-07-28 사장님 요청).
-  const { data: companySettings } = useQuery({
+  // 회사 근무시간 · 출퇴근 시각 기본값 (2026-07-28 사장님 요청).
+  const  { data: companySettings } = useQuery({
     queryKey: ["attendance-company-settings", companyId],
     queryFn: () => getAttendanceCompanySettings(companyId),
     enabled: !!companyId && open,
@@ -274,7 +277,7 @@ export function ManualAttendanceDialog({
     return kstLocalToIso(`${day}T${time}`);
   };
 
-  // 외근/출장은 status 가 아니라 attendance_type — 지각 판정은 출근 시각으로 자동('type:' 접두)
+  // 외근/출장은 status 가 아니라 attendance_type · 지각 판정은 출근 시각으로 자동('type:' 접두)
   const isTypeChoice = form.status.startsWith("type:");
   const mut = useMutation({
     mutationFn: async () => {
@@ -289,7 +292,7 @@ export function ManualAttendanceDialog({
         note: form.note || null,
         editedBy: userId || null,
       });
-      // 분 컬럼(정규/연장/야간/휴일)은 recompute 가 채운다 — 저장 즉시 화면 수치가 맞도록.
+      // 분 컬럼(정규/연장/야간/휴일)은 recompute 가 채운다. 저장 즉시 화면 수치가 맞도록.
       await recomputeAttendance({ companyId, from: form.date, to: form.date, employeeId: form.employeeId });
       return rec;
     },
@@ -304,10 +307,10 @@ export function ManualAttendanceDialog({
 
   // 출근 시각 없이 저장하면 "기록만 있고 시간이 없는" 행이 생겨 결근과 구분이 안 된다.
   const canSave = !!form.employeeId && !!form.date && !!form.checkInTime && !mut.isPending;
-  // 같은 날인데 퇴근이 출근보다 빠르면 근무시간이 0 으로 저장돼버린다 — 저장 전에 막는다.
+  // 같은 날인데 퇴근이 출근보다 빠르면 근무시간이 0 으로 저장돼버린다. 저장 전에 막는다.
   //   자정을 넘긴 근무는 '익일 퇴근' 을 켜면 되므로 그때는 정상.
   const outBeforeIn = !form.nextDayOut && !!form.checkInTime && !!form.checkOutTime
-    && form.checkOutTime <= form.checkInTime;
+    && form.checkOutTime  <= form.checkInTime;
 
   useModalKeys(open, onClose, canSave && !outBeforeIn ? () => mut.mutate() : undefined);
 
@@ -388,7 +391,7 @@ export function ManualAttendanceDialog({
                   }));
                 }}
               />
-              <span>근무 중 (아직 퇴근 전 — 퇴근 시각 비움)</span>
+              <span>근무 중 (아직 퇴근 전 · 퇴근 시각 비움)</span>
             </label>
             {/* 자정을 넘겨 퇴근한 날은 날짜 픽커 없이 표현할 수 없어 토글로 둔다. */}
             <label className="manual-attendance-nextday">
@@ -454,7 +457,9 @@ export function ManualAttendanceDialog({
   );
 }
 
-// ── C-3: 관리자 — 수정 요청 인박스 ──
+
+
+// ── C-3: 관리자 · 수정 요청 인박스 ──
 
 export function EditRequestInbox({ companyId, reviewerId }: { companyId: string; reviewerId: string }) {
   const { toast } = useToast();
@@ -536,7 +541,9 @@ export function EditRequestInbox({ companyId, reviewerId }: { companyId: string;
   );
 }
 
-// ── C-3: 관리자 — 월 일괄 재계산 액션 ──
+
+
+// ── C-3: 관리자 · 월 일괄 재계산 액션 ──
 
 export function MonthlyRecomputeButton({ companyId, from, to }: { companyId: string; from: string; to: string }) {
   const { toast } = useToast();

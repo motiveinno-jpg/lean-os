@@ -48,20 +48,20 @@ import { useToast } from "@/components/toast";
 import { useDocumentViewer } from "@/contexts/document-viewer-context";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
-import { uniquePdfName, downloadBlob } from "./_components/pdf-utils";
-// 인사(근로계약·서식) 서식 카테고리 — hr-contracts.getContractTemplates 가 인사 화면에 노출하는 것과 같은 목록.
+import { uniquePdfName, downloadBlob }  from "./_components/pdf-utils";
+// 인사(근로계약·서식) 서식 카테고리 · hr-contracts.getContractTemplates 가 인사 화면에 노출하는 것과 같은 목록.
 const HR_TEMPLATE_CATEGORIES = new Set([
   "salary_contract", "nda", "non_compete", "privacy_consent", "comprehensive_labor", "contract_labor",
 ]);
-import { FailurePanel } from "./_components/FailurePanel";
+import  { FailurePanel } from "./_components/FailurePanel";
 import { OrgBulkWizard } from "./_components/OrgBulkWizard";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
 export default function SignaturesDashboardPage() {
-  const { role } = useUser();
+  const { role }  = useUser();
   // 직원도 전자계약 발송 가능. 외부 파트너만 차단. (영구 삭제·발송실패 패널은 아래에서 관리자 전용)
-  // 게이트 early return 뒤 훅 = React #310 결함류 — 본문 분리 (2026-08-03)
-  if (role === "partner") {
+  // 게이트 early return 뒤 훅 = React #310 결함류 · 본문 분리 (2026-08-03)
+  if (role === "partner")  {
     return <AccessDenied detail="전자서명 대시보드는 회사 구성원 전용입니다." />;
   }
   return <SignaturesDashboardInner />;
@@ -72,7 +72,7 @@ function SignaturesDashboardInner() {
   const qc = useQueryClient();
   const { open: openDocViewer } = useDocumentViewer();
   const [userId, setUserId] = useState<string | null>(null);
-  // user_preferences.user_id 는 auth.users(id) 를 참조한다 — users.id 와 다른 계정이 있어
+  // user_preferences.user_id 는 auth.users(id) 를 참조한다. users.id 와 다른 계정이 있어
   //   users.id 로 쓰면 조회·저장이 조용히 어긋난다(사이드바 고정핀에서 이미 겪은 함정).
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [subTab, setSubTab] = useState<"requests" | "templates">("requests");
@@ -170,8 +170,8 @@ function SignaturesDashboardInner() {
     enabled: !!companyId,
   });
 
-  // 회사가 정한 노출 순서(양식관리 ▲▼·일괄발송 드래그) — 문서·양식 모두 이 순서를 따른다.
-  const { data: templateOrder = [] } = useQuery({
+  // 회사가 정한 노출 순서(양식관리 ▲▼·일괄발송 드래그). 문서·양식 모두 이 순서를 따른다.
+  const  { data: templateOrder = [] } = useQuery({
     queryKey: ["contract-template-order", companyId],
     queryFn: () => getContractTemplateOrder(companyId!),
     enabled: !!companyId,
@@ -194,15 +194,15 @@ function SignaturesDashboardInner() {
     return sortTemplatesByOrder(list, templateOrder);
   }, [allDocuments, hrPackageDocIds, templateOrder]);
 
-  // 계약 양식(contract_templates) — 전자계약 양식 통합(2026-07-23). 발송 목록의 양식 소스는 이걸로 일원화.
-  const { data: allContractTemplates = [] } = useQuery({
+  // 계약 양식(contract_templates). 전자계약 양식 통합(2026-07-23). 발송 목록의 양식 소스는 이걸로 일원화.
+  const  { data: allContractTemplates = [] } = useQuery({
     queryKey: ["contract-templates", companyId],
     queryFn: () => listContractTemplates(companyId!),
     enabled: !!companyId,
   });
-  // 양식관리에서 숨긴 표준 양식은 발송 목록에서도 뺀다 — 2026-08-03 사장님:
+  // 양식관리에서 숨긴 표준 양식은 발송 목록에서도 뺀다. 2026-08-03 사장님:
   //   "양식관리에서 삭제하면 발송하기에 안 나타나야 한다". 회사 양식은 실제 삭제라 목록에서 바로 빠진다.
-  const { data: hiddenTemplateIds = [] } = useQuery({
+  const  { data: hiddenTemplateIds = [] } = useQuery({
     queryKey: ["hidden-contract-templates", companyId],
     queryFn: () => getHiddenContractTemplateIds(companyId!),
     enabled: !!companyId,
@@ -224,8 +224,8 @@ function SignaturesDashboardInner() {
     return map;
   }, [requests]);
 
-  // 담당자(요청 보낸 사람) 이름 — created_by 는 uuid 라 구성원 이름으로 바꿔 보여준다.
-  const { data: memberNames = {} } = useQuery({
+  // 담당자(요청 보낸 사람) 이름 · created_by 는 uuid 라 구성원 이름으로 바꿔 보여준다.
+  const  { data: memberNames = {} } = useQuery({
     queryKey: ["signature-member-names", companyId],
     queryFn: async () => {
       const { data } = await (supabase as any)
@@ -420,7 +420,7 @@ function SignaturesDashboardInner() {
     return map;
   }, [requests, cf, search, memberNames, docNoById, batchFilter, managerFilter, reqFrom, reqTo, expFrom, expTo]);
 
-  //   쪽 넘김 — 기본 50줄. 조건이 바뀌면 1쪽으로
+  //   쪽 넘김 · 기본 50줄. 조건이 바뀌면 1쪽으로
   const pager = usePager(filtered as any[], rowsPer, `${statusFilter}|${search}|${reqFrom}|${reqTo}|${expFrom}|${expTo}|${batchFilter}|${managerFilter}|${sort.key}${sort.dir}|${cf.key}`);
   const condCountLive = (statusFilter !== "all" ? 1 : 0) + (expFrom || expTo ? 1 : 0) + (batchFilter ? 1 : 0) + (managerFilter ? 1 : 0);
   const condCountDraft = (statusFilter !== "all" ? 1 : 0) + (dExpFrom || dExpTo ? 1 : 0) + dBatch.length + dManager.length;
@@ -462,8 +462,8 @@ function SignaturesDashboardInner() {
   ];
   const clearAll = () => { setSearch(""); setStatusFilter("all"); setExpFrom(""); setExpTo(""); setBatchFilter(""); setManagerFilter(""); };
 
-  // 최근 7일 발송 실패 요약 — 대표/관리자만, 1분마다 폴링.
-  const { data: failureSummary = [] } = useQuery({
+  // 최근 7일 발송 실패 요약 · 대표/관리자만, 1분마다 폴링.
+  const  { data: failureSummary = [] } = useQuery({
     queryKey: ["signature-failure-summary", companyId],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_recent_send_failures_summary", { p_days: 7 });
@@ -507,7 +507,7 @@ function SignaturesDashboardInner() {
     onError: (err: any) => toast("서명 취소 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
-  // 영구 삭제 — 취소(soft)와 별개. 행 완전 삭제 + 선택목록에서 제거.
+  // 영구 삭제 · 취소(soft)와 별개. 행 완전 삭제 + 선택목록에서 제거.
   const deleteMut = useMutation({
     mutationFn: (id: string) => deleteSignatureRequest(id),
     onSuccess: (_d, id) => {
@@ -518,7 +518,7 @@ function SignaturesDashboardInner() {
     onError: (err: any) => toast("삭제 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
-  // 체크한 건 일괄 삭제 (2026-08-05 사장님 시안) — 한 건이라도 실패하면 건수로 알린다.
+  // 체크한 건 일괄 삭제 (2026-08-05 사장님 시안). 한 건이라도 실패하면 건수로 알린다.
   const bulkDeleteMut = useMutation({
     mutationFn: async (ids: string[]) => {
       let ok = 0;
@@ -573,7 +573,7 @@ function SignaturesDashboardInner() {
             {/* 2026-08-05 사장님: '새 계약 요청'을 단체 일괄 발송 마법사로 통합 — 한 곳에서 1건이든 여러 거래처든 같은 흐름 */}
             <button type="button" onClick={() => setShowOrgBulkWizard(true)} disabled={contractLimitReached}
               className="btn-primary btn-sm"
-              title={contractLimitReached ? `${contractStatus?.planName || "현재 요금제"}의 이번 달 전자계약 발송 한도(${contractStatus?.limit}건)를 모두 사용했습니다. 오너뷰 요금제로 올리면 무제한으로 보낼 수 있습니다.` : "계약서를 골라 거래처에 발송 — 여러 곳에 변수만 바꿔 한 번에 보낼 수도 있습니다"}>
+              title={contractLimitReached ? `${contractStatus?.planName || "현재 요금제"}의 이번 달 전자계약 발송 한도(${contractStatus?.limit}건)를 모두 사용했습니다. 오너뷰 요금제로 올리면 무제한으로 보낼 수 있습니다.` : "계약서를 골라 거래처에 발송 · 여러 곳에 변수만 바꿔 한 번에 보낼 수도 있습니다"}>
               {contractLimitReached ? "이번 달 발송 한도 소진" : "+ 새 계약 요청"}
             </button>
           </>}>
@@ -629,7 +629,7 @@ function SignaturesDashboardInner() {
                   </ConditionRow>
                 </ConditionPanel>
               } />
-            <QuickSearch value={search} onApply={setSearch} placeholder="제목 · 서명자 · 이메일 · 담당자 · 문서번호 — 쉼표로 여러 개, Enter" />
+            <QuickSearch value={search} onApply={setSearch} placeholder="제목 · 서명자 · 이메일 · 담당자 · 문서번호 · 쉼표로 여러 개, Enter" />
           </QueryBar>
 
           <AppliedChips chips={chips} onClearAll={clearAll} />
@@ -637,7 +637,7 @@ function SignaturesDashboardInner() {
           <ResultStrip right={<>
             {signedFiltered.length > 0 && (
               <button type="button" onClick={toggleSelectAllSigned} disabled={exporting} className="btn-secondary btn-sm whitespace-nowrap"
-                title="현재 목록의 서명완료 계약서를 모두 선택/해제 — 고르면 아래 줄에서 PDF 로 저장">
+                title="현재 목록의 서명완료 계약서를 모두 선택/해제 · 고르면 아래 줄에서 PDF 로 저장">
                 {allSignedSelected ? "서명완료 전체 해제" : `서명완료 ${signedFiltered.length}건 고르기`}
               </button>
             )}
@@ -650,8 +650,8 @@ function SignaturesDashboardInner() {
             {contractStatus && (
               <span className="contract-usage-chip" data-reached={contractLimitReached ? "1" : undefined}
                 title={contractStatus.limit !== null
-                  ? `${contractStatus.planName || "현재 요금제"} — 전자계약(계약 요청)은 월 ${contractStatus.limit}건까지 발송 가능합니다`
-                  : `${contractStatus.planName || "현재 요금제"} — 전자계약 발송 무제한`}>
+                  ? `${contractStatus.planName || "현재 요금제"} · 전자계약(계약 요청)은 월 ${contractStatus.limit}건까지 발송 가능합니다`
+                  : `${contractStatus.planName || "현재 요금제"} · 전자계약 발송 무제한`}>
                 {contractStatus.limit !== null ? `이번 달 발송 ${contractStatus.used}/${contractStatus.limit}건` : `이번 달 발송 ${contractStatus.used}건`}
               </span>
             )}
@@ -675,9 +675,9 @@ function SignaturesDashboardInner() {
             isLoading ? (
               <div className="collect-empty">불러오는 중…</div>
             ) : (requests as any[]).length === 0 ? (
-              <div className="collect-empty">문서에 서명을 요청해 보세요 — 계약서·NDA 등에 전자서명을 받을 수 있습니다. 오른쪽 위 [+ 새 계약 요청]</div>
+              <div className="collect-empty">문서에 서명을 요청해 보세요. 계약서·NDA 등에 전자서명을 받을 수 있습니다. 오른쪽 위 [+ 새 계약 요청]</div>
             ) : filtered.length === 0 ? (
-              <div className="collect-empty">이 조건에 맞는 계약 요청이 없습니다 — 검색조건을 풀어 보세요</div>
+              <div className="collect-empty">이 조건에 맞는 계약 요청이 없습니다. 검색조건을 풀어 보세요</div>
             ) : (
               <div className="ev-scroll">
                 <table className="ev-table ev-lined signature-table">

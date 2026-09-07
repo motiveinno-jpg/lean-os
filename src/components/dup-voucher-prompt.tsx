@@ -19,7 +19,7 @@ export function useDupVoucherPrompt() {
   const element = ask ? (
     <div className="approval-detail-modal" onClick={() => done({ action: "cancel" })}>
       <div className="pnl-drill dup-prompt" onClick={(e) => e.stopPropagation()}>
-        <div className="pnl-drill-head"><h3 className="text-sm font-bold">중복 의심 — 같은 날 같은 금액의 전표가 이미 있습니다</h3><button type="button" className="btn-secondary btn-sm" onClick={() => done({ action: "cancel" })}>취소</button></div>
+        <div className="pnl-drill-head"><h3 className="text-sm font-bold">중복 의심<span className="ui-sub">같은 날 같은 금액의 전표가 이미 있습니다</span></h3><button type="button" className="btn-secondary btn-sm" onClick={() => done({ action: "cancel" })}>취소</button></div>
         <div className="pay-form-body space-y-3">
           <div className="text-[12.5px]"><b>{ask.title}</b><span className="ml-2 text-[var(--text-muted)]">{ask.sub}</span></div>
           <table className="ev-table ev-lined dup-table">
@@ -36,7 +36,7 @@ export function useDupVoucherPrompt() {
             ))}</tbody>
           </table>
           <p className="text-[11.5px] text-[var(--text-muted)]">
-            {ask.allowLink && <><b>이미 있는 전표에 연결</b>: 새 전표를 만들지 않고 이 거래를 위 전표에 걸어 둡니다 — 장부(재무제표)는 그대로, 목록에서는 '전표됨'으로 사라지고 다시 전표를 칠 수 없습니다. 같은 돈을 두 번 올리지 않을 때 씁니다.<br /></>}
+            {ask.allowLink && <><b>이미 있는 전표에 연결</b>: 새 전표를 만들지 않고 이 거래를 위 전표에 걸어 둡니다. 장부(재무제표)는 그대로, 목록에서는 '전표됨'으로 사라지고 다시 전표를 칠 수 없습니다. 같은 돈을 두 번 올리지 않을 때 씁니다.<br /></>}
             <b>새 전표 만들기</b>: 우연히 같은 금액인 다른 거래일 때.{!ask.allowLink && " 같은 건이면 취소하고 위 전표를 고치거나 그대로 둡니다."}
           </p>
           <div className="flex justify-end gap-2">

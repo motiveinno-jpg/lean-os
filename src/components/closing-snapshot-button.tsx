@@ -21,8 +21,8 @@ export function ClosingSnapshotButton({ companyId, kind, year }: { companyId: st
     enabled: !!companyId, staleTime: 60_000,
   });
   const latest = snaps[0] || null;
-  //   최신 확정본과 지금 숫자를 비교 — 다르면 버튼에 알린다
-  const { data: liveLatest } = useQuery({
+  //   최신 확정본과 지금 숫자를 비교 · 다르면 버튼에 알린다
+  const  { data: liveLatest } = useQuery({
     queryKey: ["closing-snapshot-live", companyId, latest?.month],
     queryFn: () => computeStatements(companyId!, latest!.month),
     enabled: !!companyId && !!latest, staleTime: 60_000,
@@ -48,7 +48,7 @@ export function ClosingSnapshotButton({ companyId, kind, year }: { companyId: st
           <div className="inv-modal-box inv-modal-wide cs-box" onClick={(e) => e.stopPropagation()}>
             <div className="inv-modal-head"><h3>{title} 마감 확정본</h3><button type="button" className="inv-modal-x" onClick={() => setOpen(false)}>✕</button></div>
             {!snaps.length ? (
-              <div className="collect-empty">{year}년에 잠근 달이 없습니다 — 회계마감(경영자 화면 › 월마감 체크리스트)에서 달을 잠그면 그 순간의 {title}가 여기 남습니다.</div>
+              <div className="collect-empty">{year}년에 잠근 달이 없습니다. 회계마감(경영자 화면 › 월마감 체크리스트)에서 달을 잠그면 그 순간의  {title}가 여기 남습니다.</div>
             ) : (
               <>
                 <div className="cs-months">
@@ -63,7 +63,7 @@ export function ClosingSnapshotButton({ companyId, kind, year }: { companyId: st
                         : <> 당월 수익 <b>{won(cur.totals.revenue)}</b> · 비용 <b>{won(cur.totals.expense)}</b> · 순이익 <b>{won(cur.totals.monthNet)}</b> · 누적 순이익 <b>{won(cur.totals.ytdNet)}</b></>}
                     </p>
                     {liveCur && (diff.length
-                      ? <div className="cs-drift">⚠ 잠근 뒤 전표가 바뀌어 지금 숫자와 <b>{diff.length}개 계정</b>이 다릅니다 — 마감한 달의 전표를 반려·정정했는지 재무 › 전표 현황에서 확인하세요. 확정본은 잠금을 풀고 다시 잠글 때만 갱신됩니다.</div>
+                      ? <div className="cs-drift">⚠ 잠근 뒤 전표가 바뀌어 지금 숫자와 <b>{diff.length}개 계정</b>이 다릅니다. 마감한 달의 전표를 반려·정정했는지 재무 › 전표 현황에서 확인하세요. 확정본은 잠금을 풀고 다시 잠글 때만 갱신됩니다.</div>
                       : <div className="cs-same">✓ 지금 숫자와 같습니다</div>)}
                     <div className="stg-table-wrap cs-scroll">
                       <table className="ev-table ev-lined table-inv-status-sm">

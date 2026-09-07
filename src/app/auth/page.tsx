@@ -48,7 +48,7 @@ export default function AuthPage() {
   const [phone, setPhone] = useState(""); // 휴대전화 — 알림톡 발송 대상(2026-07-29)
   // 사업자번호가 이미 등록된 회사와 일치할 때 — 합류 요청 전환 안내 (마스킹된 회사명)
   const [joinPrompt, setJoinPrompt] = useState<string | null>(null);
-  // 명시적 중복 확인 상태 — 확인 완료(available) 전에는 회사 개설 제출 불가.
+  // 명시적 중복 확인 상태 · 확인 완료(available) 전에는 회사 개설 제출 불가.
   const [bizCheck, setBizCheck] = useState<"unchecked" | "checking" | "available" | "registered" | "error">("unchecked");
   const [bizCheckedDigits, setBizCheckedDigits] = useState("");
   const [error, setError] = useState("");
@@ -76,8 +76,8 @@ export default function AuthPage() {
       naver_user_failed: "계정 생성에 실패했습니다. 고객센터로 문의해주세요.",
       naver_session_failed: "로그인 세션을 만들지 못했습니다. 다시 시도해주세요.",
     };
-    // 중복 로그인으로 밀려난 경우 — 왜 로그아웃됐는지 안내 (2026-08-11)
-    if (sp.get("reason") === "duplicate") {
+    // 중복 로그인으로 밀려난 경우 · 왜 로그아웃됐는지 안내 (2026-08-11)
+    if (sp.get("reason") === "duplicate")  {
       setError("다른 기기에서 같은 계정으로 로그인되어 이 기기는 로그아웃되었습니다. 계속 쓰시려면 다시 로그인하세요.");
       sp.delete("reason");
       const qs0 = sp.toString();
@@ -138,8 +138,10 @@ export default function AuthPage() {
       return setError(translateAuthError(loginErr.message));
     }
 
-    // Safety net: 로그인 성공했지만 public.users가 없는 경우 — 회사 개설 또는 합류 요청 (company-signup 공용)
-    if (loginData.user) {
+    
+
+    // Safety net: 로그인 성공했지만 public.users가 없는 경우 · 회사 개설 또는 합류 요청 (company-signup 공용)
+    if (loginData.user)  {
       const result = await provisionCompanyForUser(loginData.user);
       if (result === "join_pending") {
         setLoading(false);
@@ -158,9 +160,10 @@ export default function AuthPage() {
         router.push("/onboarding");
         return;
       }
-      // 2026-07-28 P0: "error" 를 흘려보내면 대시보드 무한 로딩 — 회사 설정 재시도로
-      if (result === "error") {
-        logError({ source: "manual", message: "[가입/로그인] 회사 연결 처리 실패 — 회사 설정 재시도로 안내됨", context: { page: "login" } });
+      
+      // 2026-07-28 P0: "error" 를 흘려보내면 대시보드 무한 로딩 · 회사 설정 재시도로
+      if (result === "error")  {
+        logError({ source: "manual", message: "[가입/로그인] 회사 연결 처리 실패 · 회사 설정 재시도로 안내됨", context: { page: "login" } });
         setLoading(false);
         router.push("/company-setup");
         return;
@@ -179,8 +182,8 @@ export default function AuthPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, bizNo, bizCheck]);
 
-  // 명시적 중복 확인 — 사업자번호 오른쪽 '중복 확인' 버튼. 입력이 바뀌면 이전 결과는 무효화됨.
-  async function runBizCheck() {
+  // 명시적 중복 확인 · 사업자번호 오른쪽 '중복 확인' 버튼. 입력이 바뀌면 이전 결과는 무효화됨.
+  async function runBizCheck()  {
     setError("");
     setJoinPrompt(null);
     const digits = bizNoDigits(bizNo);
@@ -230,9 +233,10 @@ export default function AuthPage() {
         setJoinPrompt(dup.companyNameMasked || "등록된 회사");
         return;
       }
-      // 국세청 상태 확인(폐업·휴업·미등록 차단) — 번호만으로 확인, 추가 입력 없음(2026-08-05 관문 단순화)
+      
+      // 국세청 상태 확인(폐업·휴업·미등록 차단). 번호만으로 확인, 추가 입력 없음(2026-08-05 관문 단순화)
       const gate = await assertBizNoActive(bizNo);
-      if (!gate.ok) {
+      if (!gate.ok)  {
         setLoading(false);
         return setError(gate.error || "사업자번호를 확인할 수 없습니다.");
       }
@@ -244,8 +248,10 @@ export default function AuthPage() {
     await doSignup(false);
   }
 
-  // join=true: 기존 회사 합류 요청 경로 (회사 생성 안 함 — 계정만 만들고 요청 전송)
-  async function doSignup(join: boolean) {
+  
+
+  // join=true: 기존 회사 합류 요청 경로 (회사 생성 안 함. 계정만 만들고 요청 전송)
+  async function doSignup(join: boolean)  {
     setLoading(true);
     const digits = bizNoDigits(bizNo);
     const { data: authData, error: authErr } = await supabase.auth.signUp({
@@ -281,12 +287,14 @@ export default function AuthPage() {
       return;
     }
 
-    // 계측 — 신규 가입 접수 성공 (이메일 인증 전이어도 퍼널상 가입 시도 성공 시점)
-    track("sign_up", { method: "email" });
+    
 
-    // 이메일 인증이 필요한 경우 (세션 없음) — 인증 후 첫 로그인 때 provisionCompanyForUser 가
+    // 계측 · 신규 가입 접수 성공 (이메일 인증 전이어도 퍼널상 가입 시도 성공 시점)
+    track("sign_up",  { method: "email" });
+
+    // 이메일 인증이 필요한 경우 (세션 없음). 인증 후 첫 로그인 때 provisionCompanyForUser 가
     //   metadata(business_number / join_business_number)로 회사 개설·합류 요청을 이어서 처리
-    if (!authData.session) {
+    if (!authData.session)  {
       setEmailSent(true);
       return;
     }
@@ -303,7 +311,9 @@ export default function AuthPage() {
     if (created) router.push("/onboarding");
   }
 
-  // 회사 개설(+owner·스냅샷) — 무료 요금제로 시작. company-signup 공용 함수 사용 (company-setup 페이지와 단일 구현)
+  
+
+  // 회사 개설(+owner·스냅샷). 무료 요금제로 시작. company-signup 공용 함수 사용 (company-setup 페이지와 단일 구현)
   async function createCompanyAndUser(authId: string, userEmail: string, name: string, bizDigits: string): Promise<boolean> {
     const r = await createCompanyWithOwner(authId, userEmail, name, userEmail.split("@")[0], bizDigits, phone);
     if (r.ok) return true;

@@ -26,8 +26,10 @@ export function useSampleStatus(companyId?: string | null) {
   });
 }
 
-/** RPC 오류 메시지를 사람 말로 — 함수가 던지는 짧은 코드(SAMPLE_EXISTS 등)를 안내문으로 바꾼다 */
-export function sampleErrorText(message: string | undefined): string {
+
+
+/** RPC 오류 메시지를 사람 말로 · 함수가 던지는 짧은 코드(SAMPLE_EXISTS 등)를 안내문으로 바꾼다 */
+export function sampleErrorText(message: string | undefined): string  {
   const m = String(message || "");
   if (m.includes("SAMPLE_EXISTS")) return "이미 샘플 자료가 들어 있어요.";
   if (m.includes("HAS_DATA") || m.includes("CONNECTED")) return "이미 실제 자료가 있는 회사라 샘플을 넣지 않아요.";

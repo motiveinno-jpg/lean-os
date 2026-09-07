@@ -27,11 +27,11 @@ import { Gauge } from "@/components/charts/gauge";
 import { FunnelChart } from "@/components/charts/funnel-chart";
 import { PieChart } from "@/components/charts/pie-chart";
 import { PieSlice } from "@/components/charts/pie-slice";
-import { PieCenter } from "@/components/charts/pie-center";
+import { PieCenter }  from "@/components/charts/pie-center";
 
 export const PF_SERIES = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"] as const;
 
-// 1분마다 재조회되는 쿼리는 같은 값이라도 새 배열을 준다 — 그때마다 차트가 다시 애니메이션하면 무겁다(2026-09-03 사장님 "너무 느려").
+// 1분마다 재조회되는 쿼리는 같은 값이라도 새 배열을 준다. 그때마다 차트가 다시 애니메이션하면 무겁다(2026-09-03 사장님 "너무 느려").
 //   내용이 같으면 같은 참조를 돌려줘 차트가 가만히 있게 한다.
 function useStableData<T>(data: T[]): T[] {
   const key = JSON.stringify(data);
@@ -161,7 +161,9 @@ export function PfBars({ data, series, xKey = "name", height = 220, stacked = fa
   );
 }
 
-/** 동심 링 — 목표 대비 진행. items: { label, value, max, color? } */
+
+
+/** 동심 링 · 목표 대비 진행. items:  { label, value, max, color? } */
 export function PfRings({ items, size = 200, centerLabel = "합계", formatCenter, strokeWidth = 12 }: {
   items: { label: string; value: number; max: number; color?: string }[];
   size?: number;
@@ -202,7 +204,9 @@ export function PfRings({ items, size = 200, centerLabel = "합계", formatCente
   );
 }
 
-/** 노치 게이지 — 단일 비율(0~100). */
+
+
+/** 노치 게이지 · 단일 비율(0~100). */
 export function PfGauge({ pct, label, centerValue, suffix = "%", width = 180, linear = false, tone }: {
   pct: number;
   label: string;
@@ -234,7 +238,9 @@ export function PfGauge({ pct, label, centerValue, suffix = "%", width = 180, li
   );
 }
 
-/** 퍼널 — stages: { label, value, display? } (첫 단계 대비 % 자동). */
+
+
+/** 퍼널 · stages:  { label, value, display? } (첫 단계 대비 % 자동). */
 export function PfFunnel({ stages, height = 220, vertical = false }: { stages: { label: string; value: number; display?: string }[]; height?: number; vertical?: boolean }) {
   if (stages.length === 0 || stages.every((s) => s.value === 0)) return <Empty text="퍼널 데이터가 없습니다" height={height} />;
   return (
@@ -256,7 +262,9 @@ export function PfFunnel({ stages, height = 220, vertical = false }: { stages: {
   );
 }
 
-/** 도넛 — 구성비. slices: { label, value, color? }; 중앙에는 합계. */
+
+
+/** 도넛 · 구성비. slices:  { label, value, color? }; 중앙에는 합계. */
 export function PfDonut({ slices, size = 180, centerLabel = "합계", formatCenter, legend = true }: {
   slices: { label: string; value: number; color?: string }[];
   size?: number;

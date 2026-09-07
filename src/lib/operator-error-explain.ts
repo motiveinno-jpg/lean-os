@@ -76,14 +76,14 @@ const POSTGRES_CODES: Record<string, Omit<ErrorExplanation, "code">> = {
   },
   "P0001": {
     what: "DB 함수가 의도적으로 발생시킨 비즈니스 에러.",
-    why: "함수 내부 RAISE EXCEPTION (예: 잔액 부족, 권한 없음 등 — 메시지에 사유 적힘).",
+    why: "함수 내부 RAISE EXCEPTION (예: 잔액 부족, 권한 없음 등 · 메시지에 사유 적힘).",
     fix: "메시지를 그대로 사용자에게 노출 (이미 한국어). 기획 변경이 필요한 경우 RPC 수정.",
     severity: "medium",
     category: "db",
   },
   "P0002": {
     what: "찾던 행이 없어요. (NO_DATA_FOUND)",
-    why: "RPC 내부에서 SELECT … INTO 한 값이 NULL — 잘못된 ID 또는 삭제된 행.",
+    why: "RPC 내부에서 SELECT … INTO 한 값이 NULL · 잘못된 ID 또는 삭제된 행.",
     fix: "프론트에서 ID 검증, RPC 가 NULL 처리하도록 보강.",
     severity: "low",
     category: "db",
@@ -125,7 +125,7 @@ const POSTGRES_CODES: Record<string, Omit<ErrorExplanation, "code">> = {
   },
   "53300": {
     what: "DB 연결이 너무 많아요.",
-    why: "PgBouncer 풀 한도 초과 — 클라이언트 connection leak 의심.",
+    why: "PgBouncer 풀 한도 초과 · 클라이언트 connection leak 의심.",
     fix: "Supabase 대시보드에서 connection 그래프 확인. Edge function 의 close 누락 점검.",
     severity: "critical",
     category: "db",
@@ -164,7 +164,7 @@ const DOMAIN_PATTERNS: { pattern: RegExp; key: string; explain: Omit<ErrorExplan
     key: "TAX_INVOICE_ISSUE",
     explain: {
       what: "고객이 세금계산서 전자발행을 시도했는데 실패했어요.",
-      why: "홈택스/CODEF 연동 오류 — 인증서 만료, 발행 등록 미완료, 국세청 점검시간(23:30~06:00), 또는 CF-코드 오류.",
+      why: "홈택스/CODEF 연동 오류 · 인증서 만료, 발행 등록 미완료, 국세청 점검시간(23:30~06:00), 또는 CF-코드 오류.",
       fix: "메시지의 CF-코드를 확인하세요. 인증서 문제면 고객에게 설정→인증서 재등록 안내, CF-12200 계열은 CODEF 문의(알려진 BLOCKED 이슈).",
       severity: "high",
       category: "external",
@@ -175,8 +175,8 @@ const DOMAIN_PATTERNS: { pattern: RegExp; key: string; explain: Omit<ErrorExplan
     key: "CASHBILL_ISSUE",
     explain: {
       what: "고객이 현금영수증 발행을 시도했는데 실패했어요.",
-      why: "국세청(팝빌/CODEF) 연동 오류 — 식별번호 오류, 발행 등록 미완료, 또는 연동 장애.",
-      fix: "식별번호(휴대폰/사업자번호) 형식 문제면 고객 안내로 충분. 반복되면 현금영수증 연동 상태 확인(알려진 취약 경로 — 프로덕션 성공 0건 이력).",
+      why: "국세청(팝빌/CODEF) 연동 오류 · 식별번호 오류, 발행 등록 미완료, 또는 연동 장애.",
+      fix: "식별번호(휴대폰/사업자번호) 형식 문제면 고객 안내로 충분. 반복되면 현금영수증 연동 상태 확인(알려진 취약 경로 · 프로덕션 성공 0건 이력).",
       severity: "high",
       category: "external",
     },
@@ -186,8 +186,8 @@ const DOMAIN_PATTERNS: { pattern: RegExp; key: string; explain: Omit<ErrorExplan
     key: "PAYMENT",
     explain: {
       what: "결제 처리(카드 등록·구독 반영)가 실패했어요.",
-      why: "Stripe 연동 오류 — 웹훅 서명·시크릿 불일치, price 설정, 또는 카드 거절.",
-      fix: "webhook 실패면 구독이 DB에 반영 안 됐을 수 있음 — 고객사 상세에서 구독 상태를 Stripe 와 대조하세요. 반복 시 즉시 개발 확인 필요.",
+      why: "Stripe 연동 오류 · 웹훅 서명·시크릿 불일치, price 설정, 또는 카드 거절.",
+      fix: "webhook 실패면 구독이 DB에 반영 안 됐을 수 있음. 고객사 상세에서 구독 상태를 Stripe 와 대조하세요. 반복 시 즉시 개발 확인 필요.",
       severity: "critical",
       category: "external",
     },
@@ -197,7 +197,7 @@ const DOMAIN_PATTERNS: { pattern: RegExp; key: string; explain: Omit<ErrorExplan
     key: "SIGNUP",
     explain: {
       what: "가입·로그인·합류 과정에서 오류가 났어요.",
-      why: "회사 연결 실패, 합류요청/초대 처리 오류 등 — 사용자가 진행을 못 하고 있을 가능성.",
+      why: "회사 연결 실패, 합류요청/초대 처리 오류 등 · 사용자가 진행을 못 하고 있을 가능성.",
       fix: "해당 이메일 사용자가 회사에 정상 연결됐는지 사용자 관리에서 확인하고, 안 됐으면 재로그인(회사 설정 재시도) 안내.",
       severity: "high",
       category: "auth",
@@ -208,7 +208,7 @@ const DOMAIN_PATTERNS: { pattern: RegExp; key: string; explain: Omit<ErrorExplan
     key: "CODEF",
     explain: {
       what: "은행·카드·홈택스 연동(CODEF)에서 오류 코드가 반환됐어요.",
-      why: "인증 만료, 기관 점검, 또는 CODEF 측 제한 — CF-코드가 원인을 특정합니다.",
+      why: "인증 만료, 기관 점검, 또는 CODEF 측 제한 · CF-코드가 원인을 특정합니다.",
       fix: "CF-12200/CF-00007/CF-00000 은 알려진 BLOCKED 이슈(운영팀 답변 대기). 그 외 코드는 에러 해석 화면에서 코드로 검색.",
       severity: "medium",
       category: "external",
@@ -266,7 +266,7 @@ const POSTGREST_PATTERNS: { pattern: RegExp; key: string; explain: Omit<ErrorExp
     key: "RPC_OVERLOAD",
     explain: {
       what: "같은 이름의 함수가 여러 개라 PostgREST 가 못 골랐어요.",
-      why: "RPC 오버로딩 — 같은 이름 다른 인자.",
+      why: "RPC 오버로딩 · 같은 이름 다른 인자.",
       fix: "이전 버전 함수 DROP 또는 클라이언트에서 인자 명시.",
       severity: "medium",
       category: "db",
@@ -280,7 +280,7 @@ const POSTGREST_PATTERNS: { pattern: RegExp; key: string; explain: Omit<ErrorExp
 const CODEF_CODES: Record<string, Omit<ErrorExplanation, "code">> = {
   "CF-00000": {
     what: "CODEF 일반 오류.",
-    why: "원인이 다양함 — 메시지 본문 추가 단서 필요.",
+    why: "원인이 다양함. 메시지 본문 추가 단서 필요.",
     fix: "원본 에러 메시지 + 호출 시점을 운영팀에 보고.",
     severity: "medium",
     category: "external",
@@ -295,7 +295,7 @@ const CODEF_CODES: Record<string, Omit<ErrorExplanation, "code">> = {
   "CF-10302": {
     what: "은행 비밀번호가 틀려요.",
     why: "사용자가 비밀번호를 잘못 입력.",
-    fix: "사용자에게 비밀번호 재확인 안내. 5회 연속 시 계정 잠금 가능 — 더 시도 말 것.",
+    fix: "사용자에게 비밀번호 재확인 안내. 5회 연속 시 계정 잠금 가능 · 더 시도 말 것.",
     severity: "medium",
     category: "external",
   },
@@ -309,7 +309,7 @@ const CODEF_CODES: Record<string, Omit<ErrorExplanation, "code">> = {
   "CF-12200": {
     what: "추가 인증(SMS·OTP) 필요. (BLOCKED 상태)",
     why: "은행/홈택스가 추가 본인확인 요구. CODEF 운영 답변 대기 중.",
-    fix: "memory: project_hometax_blocked — 자동 우회 시도 금지. 사용자 수기 인증 안내.",
+    fix: "memory: project_hometax_blocked · 자동 우회 시도 금지. 사용자 수기 인증 안내.",
     severity: "high",
     category: "external",
   },
@@ -377,7 +377,7 @@ const STRIPE_CODES: Record<string, Omit<ErrorExplanation, "code">> = {
   },
   processing_error: {
     what: "Stripe 내부 처리 오류.",
-    why: "일시적 — 보통 재시도하면 해결.",
+    why: "일시적 · 보통 재시도하면 해결.",
     fix: "exponential backoff 으로 자동 재시도.",
     severity: "medium",
     category: "external",
@@ -492,7 +492,7 @@ const GENERIC_PATTERNS: { pattern: RegExp; key: string; explain: Omit<ErrorExpla
     key: "CHUNK_LOAD",
     explain: {
       what: "JS 청크 다운로드 실패.",
-      why: "사용자가 옛날 버전 페이지에서 새 청크 요청 — 배포 후 발생.",
+      why: "사용자가 옛날 버전 페이지에서 새 청크 요청 · 배포 후 발생.",
       fix: "프론트에서 router.refresh() 강제. 또는 Service Worker 캐시 정리.",
       severity: "low",
       category: "client",
@@ -609,7 +609,7 @@ function explainPlatformFirst(joined: string, msg: string, ctxStr = ""): ErrorEx
     return {
       what: `'${label}' 기능이 서버에서 실패했어요.${body ? ` 서버가 남긴 말: ${body}` : ""}`,
       why: "외부 서비스(은행·카드사·국세청·AI·메일) 응답 오류이거나, 처리 중 예외가 났어요.",
-      fix: "같은 시각에 같은 기능 오류가 여러 건이면 외부 서비스 장애 가능성이 커요 — 잠시 뒤 다시 시도해 보세요. 한 회사에서만 반복되면 그 회사 설정(인증서·연동 정보)을 확인하고, 계속되면 개발팀에 이 화면을 전달하세요.",
+      fix: "같은 시각에 같은 기능 오류가 여러 건이면 외부 서비스 장애 가능성이 커요. 잠시 뒤 다시 시도해 보세요. 한 회사에서만 반복되면 그 회사 설정(인증서·연동 정보)을 확인하고, 계속되면 개발팀에 이 화면을 전달하세요.",
       severity: "high", category: "external", code: `edge:${fn || "unknown"}`,
     };
   }
@@ -673,7 +673,7 @@ function explainPlatformFirst(joined: string, msg: string, ctxStr = ""): ErrorEx
     if (status === 400 && /invalid input syntax for type uuid/i.test(msg)) {
       return {
         what: `화면이 비어 있는 값을 ID 자리에 넣어 보냈어요(${table || "데이터"}). 그 화면 일부가 안 그려졌을 수 있어요.`,
-        why: "프로그램 오류예요 — 값이 아직 준비되기 전에 조회를 시작했어요.",
+        why: "프로그램 오류예요. 값이 아직 준비되기 전에 조회를 시작했어요.",
         fix: "개발팀에 '어느 화면(url)'과 이 메시지를 전달하세요. 고객 데이터는 영향이 없어요.",
         severity: "medium", category: "client", code: "db:400_uuid",
       };
@@ -767,7 +767,7 @@ export function explainError(
     if (/Stripe|stripe/.test(ctxStr)) {
       return {
         what: "Stripe 결제 중 알 수 없는 오류.",
-        why: "Stripe 코드 매핑에는 없음 — context 본문 점검 필요.",
+        why: "Stripe 코드 매핑에는 없음. context 본문 점검 필요.",
         fix: "context 전문 + Stripe 대시보드의 동일 시각 이벤트 비교.",
         severity: "medium",
         category: "external",

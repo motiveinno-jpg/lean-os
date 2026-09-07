@@ -8,13 +8,13 @@ import { supabase } from "@/lib/supabase";
 import { useMemo, useState } from "react";
 import { OpsSearch, OpsCompanySelect, OpsExportButton, exportCsv } from "../_components/ops-kit";
 import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpiKrw, PfKpi, PfBadge, PfRows, PfRow, PfEmpty, PfSkeleton } from "../_components/pf/ui";
-import { PfBars, PfDonut, PfGauge, PfTrend } from "../_components/pf/charts";
+import { PfBars, PfDonut, PfGauge, PfTrend }  from "../_components/pf/charts";
 
-// 운영자 › 수익 — v2 디자인 (2026-09-03). 데이터 조회·MRR 계산은 종전과 동일, 표시만 바꿨다.
+// 운영자 › 수익 · v2 디자인 (2026-09-03). 데이터 조회·MRR 계산은 종전과 동일, 표시만 바꿨다.
 
 const db = supabase;
 
-function fmtW(n: number): string {
+function fmtW(n: number): string  {
   const abs = Math.abs(n);
   const sign = n < 0 ? "-" : "";
   if (abs >= 1e8) return `${sign}${(abs / 1e8).toFixed(1)}억`;

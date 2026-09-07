@@ -58,8 +58,11 @@ export default function HrTemplatesPage() {
     return <AccessDenied detail="인사 양식 관리는 회사 구성원 전용입니다 (외부 파트너 제외)." />;
   }
 
-  //   갈래 탭 — 상자 안 맨 위 파란 밑줄 (2026-08-18 조회 표준 Wave 4)
+  
+
+  //   갈래 탭 · 상자 안 맨 위 파란 밑줄 (2026-08-18 조회 표준 Wave 4)
   const tabsEl = (
+    
     <div className="collect-tabs no-print">
       <button type="button" onClick={() => setTab("library")} className={tab === "library" ? "collect-tab collect-tab-on" : "collect-tab"}>서식</button>
       <button type="button" onClick={() => setTab("contracts")} className={tab === "contracts" ? "collect-tab collect-tab-on" : "collect-tab"}>
@@ -99,7 +102,7 @@ export default function HrTemplatesPage() {
                   )}
                 </div>
               }>
-                <QuickSearch value={q} onApply={setQ} placeholder="서식 이름 — 쉼표로 여러 개, Enter" />
+                <QuickSearch value={q} onApply={setQ} placeholder="서식 이름 · 쉼표로 여러 개, Enter" />
                 <span className="text-[11px] text-[var(--text-dim)]">근로·연봉계약 등 인사 서식을 만들어 두는 곳입니다.</span>
               </QueryBar>
             </QueryHead>
@@ -121,8 +124,10 @@ export default function HrTemplatesPage() {
               </div>
             </QueryBody>
           </QueryScreen>
+        
         ) : (
-          /* 전자계약 서식/회사 문서/발송 현황 — 구성원 계약서 탭에서 이관(2026-07-15). 상자 전체를 이 부품이 그린다 */
+          /* 전자계약 서식/회사 문서/발송 현황 · 구성원 계약서 탭에서 이관(2026-07-15). 상자 전체를 이 부품이 그린다 */
+          
           <ContractAdminPanel companyId={companyId} contracts={contracts} tabs={tabsEl} />
         )
       ) : (

@@ -1,12 +1,12 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
-import { logRead } from "@/lib/log-read";
+import { logRead }  from "@/lib/log-read";
 
-// 사용자 관리 — 전체 회원 검색 + 계정 지원 액션 (비밀번호/재설정링크/이메일/역할/잠금)
+// 사용자 관리 · 전체 회원 검색 + 계정 지원 액션 (비밀번호/재설정링크/이메일/역할/잠금)
 // 고객 전화 응대 흐름: 이메일·이름으로 검색 → 행 펼침 → 즉시 조치. 모든 액션은 감사 기록됨.
 // 운영자 페이지 v2 (2026-09-03): 역할 구성 도넛·회사별 상위 막대 + 목록. 조회·필터·액션은 종전 그대로.
 
-import { useMemo, useState } from "react";
+import  { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -166,7 +166,7 @@ export default function PlatformMembersPage() {
       </div>
 
       <PfCard i={7} hover={false}>
-        <PfCardHead title="사용자 목록" sub={`${filtered.length}명 — 행을 누르면 계정 지원 조치가 펼쳐집니다`} />
+        <PfCardHead title="사용자 목록" sub={`${filtered.length}명 · 행을 누르면 계정 지원 조치가 펼쳐집니다`} />
         {isLoading ? (
           <div className="px-5 pb-5"><PfSkeleton rows={6} h={16} /></div>
         ) : filtered.length === 0 ? (

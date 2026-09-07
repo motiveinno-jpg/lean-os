@@ -34,8 +34,8 @@ type Ticket = {
   attachments: Attachment[] | null;
 };
 
-// 모든 문의를 받는다 — 유형은 분류용일 뿐, 어떤 문의든 등록 가능.
-const CATEGORIES: { key: string; label: string; icon: string; desc: string }[] = [
+// 모든 문의를 받는다. 유형은 분류용일 뿐, 어떤 문의든 등록 가능.
+const CATEGORIES:  { key: string; label: string; icon: string; desc: string }[] = [
   { key: "general", label: "이용 문의", icon: "💬", desc: "사용법·기능이 궁금할 때" },
   { key: "bug", label: "오류 신고", icon: "🐞", desc: "에러·이상 동작 (스크린샷 첨부 권장)" },
   { key: "data", label: "데이터·연동", icon: "🔌", desc: "은행·홈택스 연동, 수치가 안 맞을 때" },
@@ -83,7 +83,7 @@ const MAX_FILES = 5;
 const MAX_FILE_MB = 8;
 const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
-// 첨부 스크린샷 — 프라이빗 버킷이라 서명 URL(1시간)로만 열람
+// 첨부 스크린샷 · 프라이빗 버킷이라 서명 URL(1시간)로만 열람
 function TicketShots({ attachments }: { attachments: Attachment[] }) {
   const paths = attachments.map((a) => a.path).join(",");
   const { data: urls = [] } = useQuery<{ path: string; url: string }[]>({
@@ -197,7 +197,8 @@ export default function SupportPage() {
           uploaded.length = 0;
         }
       }
-      // 3) AI 자동 진단 — 접수 완료와 무관하게 백그라운드 실행 (실패해도 무시, 결과는 운영자 화면에)
+      
+      // 3) AI 자동 진단 · 접수 완료와 무관하게 백그라운드 실행 (실패해도 무시, 결과는 운영자 화면에)
       db.auth.getSession().then(({ data: { session } }) => {
         if (!session || !process.env.NEXT_PUBLIC_SUPABASE_URL) return;
         fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/support-ticket-analyze`, {
@@ -211,7 +212,7 @@ export default function SupportPage() {
     onSuccess: (r) => {
       toast(
         r.failed > 0
-          ? `문의가 접수되었습니다. (사진 ${r.uploaded}장 첨부, ${r.failed}장 실패 — 필요하면 다시 첨부해 주세요)`
+          ? `문의가 접수되었습니다. (사진 ${r.uploaded}장 첨부, ${r.failed}장 실패 · 필요하면 다시 첨부해 주세요)`
           : "문의가 접수되었습니다. 영업일 1일 이내에 처리 후 답변드리겠습니다.",
         r.failed > 0 ? "info" : "success",
       );
@@ -233,7 +234,7 @@ export default function SupportPage() {
       <QueryScreen>
         <QueryHead>
           <div className="report-desc support-desc">
-            <b>무엇이든 문의하세요 — 모든 문의는 여기서 받습니다.</b> 전화 상담 없이 문의함으로 운영됩니다 · 영업일 1일 이내 답변 · 화면 사진을 첨부하면 더 빠르게 해결됩니다 · 접수·답변 시 알림 · 첨부 사진은 우리 회사만 봅니다
+            <b>무엇이든 문의하세요<span className="ui-sub">모든 문의는 여기서 받습니다.</span></b> 전화 상담 없이 문의함으로 운영됩니다 · 영업일 1일 이내 답변 · 화면 사진을 첨부하면 더 빠르게 해결됩니다 · 접수·답변 시 알림 · 첨부 사진은 우리 회사만 봅니다
           </div>
         </QueryHead>
         <QueryBody>

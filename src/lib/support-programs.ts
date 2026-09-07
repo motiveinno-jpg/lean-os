@@ -327,7 +327,7 @@ const unknown = (text: string, src: Reason["src"] = "회사 카드"): Reason => 
 
 /** 직원이 아예 없으면 고용 기반 제도는 전부 해당 없음 — 경계값(0명) */
 function needEmployees(p: CompanyProfile): Reason | null {
-  return p.headcount === 0 ? no("등록된 재직 직원이 없습니다 — 직원을 먼저 등록해 주세요") : null;
+  return p.headcount === 0 ? no("등록된 재직 직원이 없습니다. 직원을 먼저 등록해 주세요") : null;
 }
 
 type Rule = (p: CompanyProfile, program: GovProgram) => Judgement;
@@ -340,23 +340,23 @@ const RULES: Record<string, Rule> = {
     const rs: Reason[] = [];
 
     //   5인 이상이 원칙이지만 성장유망업종·벤처·청년창업기업은 5인 미만도 된다 → 미만이어도 잘라내지 않고 '확인'
-    if (p.headcount >= 5) rs.push(ok(`상시 ${p.headcount}명 — 5인 이상`));
-    else if (p.certifications.includes("venture")) rs.push(unknown(`상시 ${p.headcount}명 — 5인 미만이지만 벤처기업이라 예외 가능`, "회사 카드"));
-    else rs.push(unknown(`상시 ${p.headcount}명 — 5인 미만. 성장유망업종·벤처·청년창업기업이면 예외`, "제도 요건"));
+    if (p.headcount >= 5) rs.push(ok(`상시 ${p.headcount}명 · 5인 이상`));
+    else if (p.certifications.includes("venture")) rs.push(unknown(`상시 ${p.headcount}명 · 5인 미만이지만 벤처기업이라 예외 가능`, "회사 카드"));
+    else rs.push(unknown(`상시 ${p.headcount}명 · 5인 미만. 성장유망업종·벤처·청년창업기업이면 예외`, "제도 요건"));
 
     if (p.youngNewHires3m > 0) rs.push(ok(`최근 3개월 만 34세 이하 신규 입사 ${p.youngNewHires3m}명`));
-    else if (p.youngCount > 0) rs.push(unknown(`만 34세 이하 재직 ${p.youngCount}명 — 다만 최근 3개월 신규 채용은 없습니다`, "회사 자료"));
-    else if (p.birthMissing > 0) rs.push(unknown(`생년월일이 없는 직원 ${p.birthMissing}명 — 나이를 몰라 청년 인원을 셀 수 없습니다`, "회사 자료"));
-    else rs.push(no("만 34세 이하 직원이 없습니다 — 청년을 신규 채용할 때 대상이 됩니다"));
+    else if (p.youngCount > 0) rs.push(unknown(`만 34세 이하 재직 ${p.youngCount}명 · 다만 최근 3개월 신규 채용은 없습니다`, "회사 자료"));
+    else if (p.birthMissing > 0) rs.push(unknown(`생년월일이 없는 직원 ${p.birthMissing}명 · 나이를 몰라 청년 인원을 셀 수 없습니다`, "회사 자료"));
+    else rs.push(no("만 34세 이하 직원이 없습니다. 청년을 신규 채용할 때 대상이 됩니다"));
     if (p.youngCount > 0 && p.birthMissing > 0) {
-      rs.push(unknown(`생년월일이 없는 직원 ${p.birthMissing}명은 청년 집계에서 빠져 있습니다 — 실제 대상이 더 많을 수 있습니다`, "회사 자료"));
+      rs.push(unknown(`생년월일이 없는 직원 ${p.birthMissing}명은 청년 집계에서 빠져 있습니다. 실제 대상이 더 많을 수 있습니다`, "회사 자료"));
     }
 
-    if (p.resigned3m > 0) rs.push(unknown(`최근 3개월 퇴사 ${p.resigned3m}명 — 인위적 감원이면 제외됩니다(자발적 퇴사는 무관)`, "회사 자료"));
+    if (p.resigned3m > 0) rs.push(unknown(`최근 3개월 퇴사 ${p.resigned3m}명 · 인위적 감원이면 제외됩니다(자발적 퇴사는 무관)`, "회사 자료"));
     else rs.push(ok("최근 3개월 감원 없음"));
 
     if (p.insuredCount > 0) rs.push(ok(`4대보험 가입 ${p.insuredCount}명`));
-    else rs.push(unknown("4대보험 가입 표시가 된 직원이 없습니다 — 구성원 정보를 확인해 주세요", "회사 자료"));
+    else rs.push(unknown("4대보험 가입 표시가 된 직원이 없습니다. 구성원 정보를 확인해 주세요", "회사 자료"));
 
     if (p.belowMinWage > 0) rs.push(unknown(`월 급여가 최저임금 월 환산액(${won(MIN_WAGE_MONTHLY_2026)}) 미만으로 적힌 직원 ${p.belowMinWage}명`, "회사 자료"));
 
@@ -374,19 +374,19 @@ const RULES: Record<string, Rule> = {
     if (empty) return fold([empty]);
     const rs: Reason[] = [];
 
-    if (p.headcount < 10) rs.push(ok(`상시 ${p.headcount}명 — 10인 미만 사업장`));
-    else rs.push(no(`상시 ${p.headcount}명 — 10인 이상이라 대상이 아닙니다`));
+    if (p.headcount < 10) rs.push(ok(`상시 ${p.headcount}명 · 10인 미만 사업장`));
+    else rs.push(no(`상시 ${p.headcount}명 · 10인 이상이라 대상이 아닙니다`));
 
     //   두 사실을 다 적는다 — 급여 미입력만 말하면 "미입력만 채우면 되는구나"로 잘못 읽힌다
     if (p.lowPaidCount > 0) rs.push(ok(`월 보수 ${won(DURUNURI_PAY_CAP)} 미만 ${p.lowPaidCount}명`));
-    else if (p.salaryMissing > 0) rs.push(unknown(`급여가 입력된 직원 중 월 보수 ${won(DURUNURI_PAY_CAP)} 미만이 없습니다 — 다만 급여 미입력 ${p.salaryMissing}명은 판단할 수 없습니다`, "회사 자료"));
+    else if (p.salaryMissing > 0) rs.push(unknown(`급여가 입력된 직원 중 월 보수 ${won(DURUNURI_PAY_CAP)} 미만이 없습니다. 다만 급여 미입력 ${p.salaryMissing}명은 판단할 수 없습니다`, "회사 자료"));
     else rs.push(no(`월 보수 ${won(DURUNURI_PAY_CAP)} 미만인 직원이 없습니다`));
     if (p.lowPaidCount > 0 && p.salaryMissing > 0) {
-      rs.push(unknown(`급여가 입력되지 않은 직원 ${p.salaryMissing}명 — 이 인원은 계산에서 빠져 있습니다`, "회사 자료"));
+      rs.push(unknown(`급여가 입력되지 않은 직원 ${p.salaryMissing}명 · 이 인원은 계산에서 빠져 있습니다`, "회사 자료"));
     }
 
     //   신규 가입 여부는 우리 자료로 알 수 없다 — 자동으로 못 푸는 것
-    rs.push(unknown("신규 가입 근로자인지 여부 — 기존 가입자는 제외됩니다(공단 확인 필요)", "제도 요건"));
+    rs.push(unknown("신규 가입 근로자인지 여부 · 기존 가입자는 제외됩니다(공단 확인 필요)", "제도 요건"));
 
     const n = p.lowPaidCount;
     return fold(rs, n > 0 ? {
@@ -401,17 +401,17 @@ const RULES: Record<string, Rule> = {
     const rs: Reason[] = [];
     const net = p.headcount - p.headcountLastYearEnd;
 
-    if (net > 0) rs.push(ok(`상시근로자 ${net}명 순증 — 작년 말 ${p.headcountLastYearEnd}명 → 현재 ${p.headcount}명`));
-    else if (net === 0) rs.push(no(`상시근로자 순증이 없습니다 — 작년 말과 같은 ${p.headcount}명`));
-    else rs.push(no(`상시근로자가 ${-net}명 줄었습니다 — 순증이어야 공제 대상입니다`));
+    if (net > 0) rs.push(ok(`상시근로자 ${net}명 순증 · 작년 말 ${p.headcountLastYearEnd}명 → 현재 ${p.headcount}명`));
+    else if (net === 0) rs.push(no(`상시근로자 순증이 없습니다. 작년 말과 같은 ${p.headcount}명`));
+    else rs.push(no(`상시근로자가 ${-net}명 줄었습니다. 순증이어야 공제 대상입니다`));
 
     if (p.isMetro === null) rs.push(unknown("회사 주소가 없어 수도권·비수도권 단가를 정할 수 없습니다", "회사 자료"));
-    else rs.push(ok(`${p.region} — ${p.isMetro ? "수도권" : "수도권 밖"} 단가 적용`));
+    else rs.push(ok(`${p.region} · ${p.isMetro ? "수도권" : "수도권 밖"} 단가 적용`));
 
     if (p.youngCount > 0 || p.seniorCount > 0) {
-      rs.push(ok(`청년 ${p.youngCount}명 · 만 60세 이상 ${p.seniorCount}명 — 공제 단가가 더 높은 인원`));
+      rs.push(ok(`청년 ${p.youngCount}명 · 만 60세 이상 ${p.seniorCount}명 · 공제 단가가 더 높은 인원`));
     }
-    rs.push(unknown("공제 후 인원이 줄면 추징됩니다 — 유지 계획을 세무대리인과 확인하세요", "제도 요건"));
+    rs.push(unknown("공제 후 인원이 줄면 추징됩니다. 유지 계획을 세무대리인과 확인하세요", "제도 요건"));
 
     const unit = p.isMetro === false ? 15500000 : 14500000;
     return fold(rs, net > 0 ? {
@@ -427,7 +427,7 @@ const RULES: Record<string, Rule> = {
     if (empty) return fold([empty]);
     const rs: Reason[] = [];
 
-    if (p.contractCount > 0) rs.push(ok(`계약직(기간제) 재직 ${p.contractCount}명 — 전환 대상 후보`));
+    if (p.contractCount > 0) rs.push(ok(`계약직(기간제) 재직 ${p.contractCount}명 · 전환 대상 후보`));
     else rs.push(no("계약직(기간제)으로 등록된 직원이 없습니다"));
 
     rs.push(unknown("6개월 이상 근속한 기간제인지 · 전환 후 6개월 고용 유지가 가능한지 확인이 필요합니다", "제도 요건"));
@@ -445,9 +445,9 @@ const RULES: Record<string, Rule> = {
     const empty = needEmployees(p);
     if (empty) return fold([empty]);
     return fold([
-      ok(`재직 ${p.headcount}명 — 활용 인원만큼 지원받습니다`),
+      ok(`재직 ${p.headcount}명 · 활용 인원만큼 지원받습니다`),
       unknown("재택·원격·선택근무를 실제로 운영하고 근태로 증빙할 수 있어야 합니다(월 4일 이상)", "제도 요건"),
-      unknown("우선지원대상기업 해당 여부 — 업종별 기준이 다릅니다", "제도 요건"),
+      unknown("우선지원대상기업 해당 여부 · 업종별 기준이 다릅니다", "제도 요건"),
     ]);
   },
 
@@ -468,7 +468,7 @@ const RULES: Record<string, Rule> = {
     if (empty) return fold([empty]);
     return fold([
       p.newHires3m > 0
-        ? ok(`최근 3개월 신규 입사 ${p.newHires3m}명 — 대체인력으로 채용한 건이 있는지 확인해 보세요`)
+        ? ok(`최근 3개월 신규 입사 ${p.newHires3m}명 · 대체인력으로 채용한 건이 있는지 확인해 보세요`)
         : unknown("최근 3개월 신규 채용이 없습니다", "회사 자료"),
       unknown("출산휴가·육아휴직자의 빈 자리를 메우려고 채용한 인력이어야 합니다", "제도 요건"),
     ]);
@@ -480,9 +480,9 @@ const RULES: Record<string, Rule> = {
     if (empty) return fold([empty]);
     const rs: Reason[] = [];
     if (p.newHires3m > 0) rs.push(ok(`최근 3개월 신규 입사 ${p.newHires3m}명`));
-    else rs.push(unknown("최근 3개월 신규 채용이 없습니다 — 채용할 때 대상이 됩니다", "회사 자료"));
+    else rs.push(unknown("최근 3개월 신규 채용이 없습니다. 채용할 때 대상이 됩니다", "회사 자료"));
     rs.push(unknown("채용한 사람이 고용노동부 지정 취업지원 프로그램 이수자여야 합니다(우리 자료로는 알 수 없습니다)", "제도 요건"));
-    if (p.resigned3m > 0) rs.push(unknown(`최근 3개월 퇴사 ${p.resigned3m}명 — 인위적 감원이면 제외됩니다`, "회사 자료"));
+    if (p.resigned3m > 0) rs.push(unknown(`최근 3개월 퇴사 ${p.resigned3m}명 · 인위적 감원이면 제외됩니다`, "회사 자료"));
     else rs.push(ok("최근 3개월 감원 없음"));
     return fold(rs);
   },
@@ -493,8 +493,8 @@ const RULES: Record<string, Rule> = {
     if (empty) return fold([empty]);
     const n = p.youngCount + p.seniorCount;
     const rs: Reason[] = [];
-    if (n > 0) rs.push(ok(`감면 대상 후보 ${n}명 — 만 34세 이하 ${p.youngCount}명 · 만 60세 이상 ${p.seniorCount}명`));
-    else if (p.birthMissing > 0) rs.push(unknown(`생년월일이 없는 직원 ${p.birthMissing}명 — 나이를 몰라 감면 대상을 셀 수 없습니다`, "회사 자료"));
+    if (n > 0) rs.push(ok(`감면 대상 후보 ${n}명 · 만 34세 이하 ${p.youngCount}명 · 만 60세 이상 ${p.seniorCount}명`));
+    else if (p.birthMissing > 0) rs.push(unknown(`생년월일이 없는 직원 ${p.birthMissing}명 · 나이를 몰라 감면 대상을 셀 수 없습니다`, "회사 자료"));
     else rs.push(no("만 34세 이하 또는 만 60세 이상 직원이 없습니다"));
     rs.push(unknown("중소기업 해당 업종인지 확인이 필요합니다(전문서비스업 등 일부 업종 제외)", "제도 요건"));
     rs.push(ok("회사가 감면 신청서를 원천징수 관할 세무서에 내면 직원 소득세가 줄어듭니다", "제도 요건"));
@@ -522,23 +522,23 @@ const RULES: Record<string, Rule> = {
 
     if (regionIsHint) {
       if (rgs.length > 0) {
-        rs.push(unknown(`${rgs.join("·")} 관련 표시가 있습니다 — 지역 제한은 공고 원문에서 확인하세요`, "제도 요건"));
+        rs.push(unknown(`${rgs.join("·")} 관련 표시가 있습니다. 지역 제한은 공고 원문에서 확인하세요`, "제도 요건"));
       } else {
         rs.push(unknown("지역 제한은 공고 원문에서 확인하세요", "제도 요건"));
       }
       fit += 8;
     } else if (rgs.length === 0) {
-      rs.push(ok("전국 대상 — 지역 제한 없음", "제도 요건"));
+      rs.push(ok("전국 대상 · 지역 제한 없음", "제도 요건"));
       fit += 10;
     } else if (!p.region) {
-      rs.push(unknown(`${rgs.join("·")} 지역 사업 — 회사 주소가 없어 확인할 수 없습니다`, "회사 자료"));
+      rs.push(unknown(`${rgs.join("·")} 지역 사업 · 회사 주소가 없어 확인할 수 없습니다`, "회사 자료"));
       fit += 5;
     } else if (rgs.some((r) => r.includes(p.region!) || p.region!.includes(r))) {
       //   우리 지역 전용 사업은 전국 사업보다 **겨루는 곳이 적다** — 더 높이 친다
-      rs.push(ok(`소재지 ${p.region} 전용 사업 — 전국 공모보다 경쟁이 적습니다`));
+      rs.push(ok(`소재지 ${p.region} 전용 사업 · 전국 공모보다 경쟁이 적습니다`));
       fit += 15;
     } else {
-      rs.push(no(`${rgs.join("·")} 지역 사업 — 소재지가 ${p.region} 입니다`));
+      rs.push(no(`${rgs.join("·")} 지역 사업 · 소재지가 ${p.region} 입니다`));
     }
 
     // 업력 — 창업 N년 이내
@@ -546,13 +546,13 @@ const RULES: Record<string, Rule> = {
       rs.push(ok("업력 제한 없음", "제도 요건"));
       fit += 10;
     } else if (p.yearsInBusiness == null) {
-      rs.push(unknown(`창업 ${el.max_years}년 이내 대상 — 개업일이 없어 확인할 수 없습니다(회사 카드 ①)`, "회사 카드"));
+      rs.push(unknown(`창업 ${el.max_years}년 이내 대상 · 개업일이 없어 확인할 수 없습니다(회사 카드 ①)`, "회사 카드"));
       fit += 5;
     } else if (p.yearsInBusiness <= el.max_years) {
-      rs.push(ok(`업력 ${p.yearsInBusiness.toFixed(1)}년 — 창업 ${el.max_years}년 이내`));
+      rs.push(ok(`업력 ${p.yearsInBusiness.toFixed(1)}년 · 창업 ${el.max_years}년 이내`));
       fit += 15;
     } else {
-      rs.push(no(`창업 ${el.max_years}년 이내 대상 — 업력이 ${p.yearsInBusiness.toFixed(1)}년입니다`));
+      rs.push(no(`창업 ${el.max_years}년 이내 대상 · 업력이 ${p.yearsInBusiness.toFixed(1)}년입니다`));
     }
 
     // 신청 대상 — 기업이 낄 자리가 있는가
@@ -560,7 +560,7 @@ const RULES: Record<string, Rule> = {
     const forBiz = targets.some((t) => /기업|사업자|법인|창업기업|소상공인/.test(t));
     const onlyPre = targets.length > 0 && !forBiz && targets.some((t) => /예비창업|일반인|대학생|청소년/.test(t));
     if (targets.length === 0) {
-      rs.push(unknown("신청 대상이 적혀 있지 않습니다 — 공고 원문을 확인하세요", "제도 요건"));
+      rs.push(unknown("신청 대상이 적혀 있지 않습니다. 공고 원문을 확인하세요", "제도 요건"));
       fit += 5;
     } else if (forBiz) {
       rs.push(ok(`신청 대상에 기업 포함 (${targets.slice(0, 4).join("·")}${targets.length > 4 ? " 외" : ""})`, "제도 요건"));
@@ -568,7 +568,7 @@ const RULES: Record<string, Rule> = {
     } else if (onlyPre) {
       rs.push(no(`예비창업자·개인 대상입니다 (${targets.slice(0, 4).join("·")})`));
     } else {
-      rs.push(unknown(`신청 대상: ${targets.slice(0, 4).join("·")} — 우리 회사가 해당되는지 확인하세요`, "제도 요건"));
+      rs.push(unknown(`신청 대상: ${targets.slice(0, 4).join("·")} · 우리 회사가 해당되는지 확인하세요`, "제도 요건"));
       fit += 5;
     }
 
@@ -583,7 +583,7 @@ const RULES: Record<string, Rule> = {
       rs.push(unknown("회사 카드에서 관심 분야를 고르면 그 갈래를 위로 올려 드립니다(⑦)", "회사 카드"));
     }
 
-    if (el.exclude) rs.push(unknown("신청 제외 대상이 있습니다 — 공고 원문에서 확인하세요", "제도 요건"));
+    if (el.exclude) rs.push(unknown("신청 제외 대상이 있습니다. 공고 원문에서 확인하세요", "제도 요건"));
 
     const j = fold(rs);
     return { ...j, fitScore: j.verdict === "none" ? 0 : Math.min(50, fit) };
@@ -599,7 +599,7 @@ const RULES: Record<string, Rule> = {
     if (empty) return fold([empty]);
     return fold([
       ok(`상시 ${p.headcount}명`),
-      unknown("장애인 근로자 고용 여부는 우리 자료에 없습니다 — 고용하고 계시면 공단에 신청하세요", "제도 요건"),
+      unknown("장애인 근로자 고용 여부는 우리 자료에 없습니다. 고용하고 계시면 공단에 신청하세요", "제도 요건"),
       unknown("의무고용률을 초과해야 장려금이 나옵니다", "제도 요건"),
     ]);
   },
@@ -627,7 +627,7 @@ export function judge(program: GovProgram, profile: CompanyProfile): Judgement {
   if (!rule) {
     return {
       verdict: "check",
-      reasons: [{ mark: "unknown", text: "자격 요건을 자동으로 대조하지 못했습니다 — 공고 원문을 확인해 주세요", src: "제도 요건" }],
+      reasons: [{ mark: "unknown", text: "자격 요건을 자동으로 대조하지 못했습니다. 공고 원문을 확인해 주세요", src: "제도 요건" }],
     };
   }
   try {
@@ -636,7 +636,7 @@ export function judge(program: GovProgram, profile: CompanyProfile): Judgement {
     //   규칙이 터져도 화면이 죽으면 안 된다 — 모르는 것으로 내린다
     return {
       verdict: "check",
-      reasons: [{ mark: "unknown", text: "자격 대조 중 문제가 생겼습니다 — 공고 원문을 확인해 주세요", src: "제도 요건" }],
+      reasons: [{ mark: "unknown", text: "자격 대조 중 문제가 생겼습니다. 공고 원문을 확인해 주세요", src: "제도 요건" }],
     };
   }
 }
@@ -649,7 +649,7 @@ export function judge(program: GovProgram, profile: CompanyProfile): Judgement {
  */
 const SIZE_LABEL: Record<string, string> = { small_biz: "소상공인", small: "소기업", medium: "중기업" };
 const CERT_LABEL: Record<string, string> = { venture: "벤처기업", innobiz: "이노비즈", mainbiz: "메인비즈", lab: "기업부설연구소", woman: "여성기업", disabled: "장애인기업", social: "사회적기업" };
-const ev = (t: string | undefined) => (t && t.trim() ? ` — 공고: “${t.trim().slice(0, 70)}${t.trim().length > 70 ? "…" : ""}”` : "");
+const ev = (t: string | undefined) => (t && t.trim() ? ` · 공고: “${t.trim().slice(0, 70)}${t.trim().length > 70 ? "…" : ""}”` : "");
 
 export function judgeAi(ai: AiEligibility, p: CompanyProfile): Judgement {
   const rs: Reason[] = [];
@@ -657,28 +657,28 @@ export function judgeAi(ai: AiEligibility, p: CompanyProfile): Judgement {
   let coreUnknown = 0;
 
   // 지역
-  if (ai.region_scope === "nationwide") { rs.push(ok("전국 대상 — 지역 제한 없음", "제도 요건")); fit += 10; }
+  if (ai.region_scope === "nationwide") { rs.push(ok("전국 대상 · 지역 제한 없음", "제도 요건")); fit += 10; }
   else if (ai.region_scope === "restricted") {
     const rg = ai.regions || [];
-    if (!p.region) { rs.push(unknown(`${rg.join("·") || "특정 지역"} 소재 기업 대상 — 회사 주소가 없어 확인할 수 없습니다(회사 설정 › 회사정보)`, "회사 자료")); coreUnknown++; }
+    if (!p.region) { rs.push(unknown(`${rg.join("·") || "특정 지역"} 소재 기업 대상 · 회사 주소가 없어 확인할 수 없습니다(회사 설정 › 회사정보)`, "회사 자료")); coreUnknown++; }
     else if (rg.length === 0 || rg.some((r) => r === p.region || r.includes(p.region!) || p.region!.includes(r))) {
       const ds = ai.districts || [];
       if (ds.length > 0) {
-        if (!p.district) { rs.push(unknown(`${p.region} 안에서도 ${ds.slice(0, 3).join("·")} 소재 기업만 대상 — 회사 주소에 시·군·구가 없어 확인할 수 없습니다(회사 설정 › 회사정보)`, "회사 자료")); coreUnknown++; fit += 8; }
-        else if (ds.some((d) => distKey(d) === distKey(p.district!))) { rs.push(ok(`${p.district} 소재 기업 전용 — 우리 회사가 해당됩니다${ev(ai.evidence?.region)}`)); fit += 18; }
-        else rs.push(no(`${ds.slice(0, 3).join("·")} 소재 기업만 대상 — 우리는 ${p.region} ${p.district}입니다${ev(ai.evidence?.region)}`));
+        if (!p.district) { rs.push(unknown(`${p.region} 안에서도 ${ds.slice(0, 3).join("·")} 소재 기업만 대상 · 회사 주소에 시·군·구가 없어 확인할 수 없습니다(회사 설정 › 회사정보)`, "회사 자료")); coreUnknown++; fit += 8; }
+        else if (ds.some((d) => distKey(d) === distKey(p.district!))) { rs.push(ok(`${p.district} 소재 기업 전용 · 우리 회사가 해당됩니다${ev(ai.evidence?.region)}`)); fit += 18; }
+        else rs.push(no(`${ds.slice(0, 3).join("·")} 소재 기업만 대상 · 우리는 ${p.region} ${p.district}입니다${ev(ai.evidence?.region)}`));
       }
-      else { rs.push(ok(`소재지 ${p.region} 대상 사업 — 전국 공모보다 경쟁이 적습니다${ev(ai.evidence?.region)}`)); fit += 15; }
-    } else rs.push(no(`${rg.join("·")} 소재 기업 대상 — 우리 소재지는 ${p.region}입니다${ev(ai.evidence?.region)}`));
-  } else { rs.push(unknown("지역 제한이 공고에 명시돼 있지 않습니다 — 원문에서 확인하세요", "제도 요건")); coreUnknown++; fit += 5; }
+      else { rs.push(ok(`소재지 ${p.region} 대상 사업 · 전국 공모보다 경쟁이 적습니다${ev(ai.evidence?.region)}`)); fit += 15; }
+    } else rs.push(no(`${rg.join("·")} 소재 기업 대상 · 우리 소재지는 ${p.region}입니다${ev(ai.evidence?.region)}`));
+  } else { rs.push(unknown("지역 제한이 공고에 명시돼 있지 않습니다. 원문에서 확인하세요", "제도 요건")); coreUnknown++; fit += 5; }
 
   // 업종
   if (ai.industry_scope === "any") { rs.push(ok("업종 제한 없음", "제도 요건")); fit += 8; }
   else if (ai.industry_scope === "restricted") {
     const inds = ai.industries || [];
-    if (!p.ksicMain) { rs.push(unknown(`${ai.industry_note || inds.join("·")} 업종 대상 — 회사 카드에 업종(표준산업분류)을 채우면 자동 확인됩니다`, "회사 카드")); coreUnknown++; }
+    if (!p.ksicMain) { rs.push(unknown(`${ai.industry_note || inds.join("·")} 업종 대상 · 회사 카드에 업종(표준산업분류)을 채우면 자동 확인됩니다`, "회사 카드")); coreUnknown++; }
     else if (inds.includes(p.ksicMain)) { rs.push(ok(`업종 ${p.ksicMain} 대상에 포함${ev(ai.evidence?.industry)}`)); fit += 12; }
-    else rs.push(no(`${ai.industry_note || inds.join("·")} 업종 대상 — 우리 업종은 ${p.ksicMain}입니다${ev(ai.evidence?.industry)}`));
+    else rs.push(no(`${ai.industry_note || inds.join("·")} 업종 대상 · 우리 업종은 ${p.ksicMain}입니다${ev(ai.evidence?.industry)}`));
   } else { rs.push(unknown("업종 제한이 공고에 명시돼 있지 않습니다", "제도 요건")); coreUnknown++; fit += 4; }
 
   // 기업 형태
@@ -688,35 +688,35 @@ export function judgeAi(ai: AiEligibility, p: CompanyProfile): Judgement {
   const onlyPre = types.length > 0 && types.every((t) => ["예비창업자", "개인", "대학·연구기관", "농어업인", "비영리"].includes(t));
   const bigOnly = types.length > 0 && types.every((t) => ["중견기업", "대기업"].includes(t));
   if (types.length === 0) { rs.push(unknown("신청 가능한 기업 형태가 공고에 명시돼 있지 않습니다", "제도 요건")); coreUnknown++; fit += 4; }
-  else if (onlyPre) rs.push(no(`${types.join("·")} 대상입니다 — 운영 중인 회사는 해당 없음${ev(ai.evidence?.company_type)}`));
+  else if (onlyPre) rs.push(no(`${types.join("·")} 대상입니다. 운영 중인 회사는 해당 없음${ev(ai.evidence?.company_type)}`));
   else if (bigOnly) rs.push(no(`${types.join("·")} 대상입니다${ev(ai.evidence?.company_type)}`));
   else if (smeOk) { rs.push(ok(`신청 대상에 ${mine && types.includes(mine) ? mine : "중소기업"} 포함${ev(ai.evidence?.company_type)}`, "제도 요건")); fit += 8; }
-  else if (types.includes("창업기업")) { rs.push(unknown(`창업기업 대상 — 아래 업력 조건으로 판단합니다${ev(ai.evidence?.company_type)}`, "제도 요건")); fit += 4; }
-  else if (!mine && types.some((t) => ["소상공인", "소기업", "중기업"].includes(t))) { rs.push(unknown(`${types.join("·")} 대상 — 회사 카드에 기업 규모를 고르면 자동 확인됩니다`, "회사 카드")); coreUnknown++; }
-  else rs.push(no(`${types.join("·")} 대상 — 우리는 ${mine ?? "중소기업"}입니다${ev(ai.evidence?.company_type)}`));
+  else if (types.includes("창업기업")) { rs.push(unknown(`창업기업 대상 · 아래 업력 조건으로 판단합니다${ev(ai.evidence?.company_type)}`, "제도 요건")); fit += 4; }
+  else if (!mine && types.some((t) => ["소상공인", "소기업", "중기업"].includes(t))) { rs.push(unknown(`${types.join("·")} 대상 · 회사 카드에 기업 규모를 고르면 자동 확인됩니다`, "회사 카드")); coreUnknown++; }
+  else rs.push(no(`${types.join("·")} 대상 · 우리는 ${mine ?? "중소기업"}입니다${ev(ai.evidence?.company_type)}`));
 
   // 업력
   if (ai.max_years == null && ai.min_years == null) { rs.push(ok("업력 제한 없음", "제도 요건")); fit += 6; }
-  else if (p.yearsInBusiness == null) { rs.push(unknown(`업력 조건(${ai.max_years != null ? `창업 ${ai.max_years}년 이내` : ""}${ai.min_years != null ? ` ${ai.min_years}년 이상` : ""}) — 회사 카드에 개업일을 채우면 자동 확인됩니다`, "회사 카드")); coreUnknown++; }
-  else if (ai.max_years != null && p.yearsInBusiness > ai.max_years) rs.push(no(`창업 ${ai.max_years}년 이내 대상 — 업력이 ${p.yearsInBusiness.toFixed(1)}년입니다${ev(ai.evidence?.years)}`));
-  else if (ai.min_years != null && p.yearsInBusiness < ai.min_years) rs.push(no(`업력 ${ai.min_years}년 이상 대상 — 업력이 ${p.yearsInBusiness.toFixed(1)}년입니다${ev(ai.evidence?.years)}`));
-  else { rs.push(ok(`업력 ${p.yearsInBusiness.toFixed(1)}년 — 조건 충족${ev(ai.evidence?.years)}`)); fit += 12; }
+  else if (p.yearsInBusiness == null) { rs.push(unknown(`업력 조건(${ai.max_years != null ? `창업 ${ai.max_years}년 이내` : ""}${ai.min_years != null ? ` ${ai.min_years}년 이상` : ""}). 회사 카드에 개업일을 채우면 자동 확인됩니다`, "회사 카드")); coreUnknown++; }
+  else if (ai.max_years != null && p.yearsInBusiness > ai.max_years) rs.push(no(`창업 ${ai.max_years}년 이내 대상 · 업력이 ${p.yearsInBusiness.toFixed(1)}년입니다${ev(ai.evidence?.years)}`));
+  else if (ai.min_years != null && p.yearsInBusiness < ai.min_years) rs.push(no(`업력 ${ai.min_years}년 이상 대상 · 업력이 ${p.yearsInBusiness.toFixed(1)}년입니다${ev(ai.evidence?.years)}`));
+  else { rs.push(ok(`업력 ${p.yearsInBusiness.toFixed(1)}년 · 조건 충족${ev(ai.evidence?.years)}`)); fit += 12; }
 
   // 인원·매출·인증·제외
-  if (ai.employees_max != null && p.headcount > 0 && p.headcount > ai.employees_max) rs.push(no(`상시 ${ai.employees_max}명 이하 대상 — 우리는 ${p.headcount}명입니다`));
-  else if (ai.employees_min != null && p.headcount > 0 && p.headcount < ai.employees_min) rs.push(no(`상시 ${ai.employees_min}명 이상 대상 — 우리는 ${p.headcount}명입니다`));
+  if (ai.employees_max != null && p.headcount > 0 && p.headcount > ai.employees_max) rs.push(no(`상시 ${ai.employees_max}명 이하 대상 · 우리는 ${p.headcount}명입니다`));
+  else if (ai.employees_min != null && p.headcount > 0 && p.headcount < ai.employees_min) rs.push(no(`상시 ${ai.employees_min}명 이상 대상 · 우리는 ${p.headcount}명입니다`));
   else if ((ai.employees_max != null || ai.employees_min != null) && p.headcount === 0) rs.push(unknown("상시근로자 조건이 있는데 구성원 자료가 없습니다", "회사 자료"));
-  if (ai.revenue_max_krw != null) rs.push(unknown(`매출 ${Math.round(ai.revenue_max_krw / 1e8)}억 원 이하 조건 — 원문에서 기준 연도를 확인하세요`, "제도 요건"));
+  if (ai.revenue_max_krw != null) rs.push(unknown(`매출 ${Math.round(ai.revenue_max_krw / 1e8)}억 원 이하 조건 · 원문에서 기준 연도를 확인하세요`, "제도 요건"));
   if (ai.requires_export === true) {
-    if (p.hasExport === true) { rs.push(ok(`수출 실적 있는 기업 대상 — 회사 카드에 수출 있음${ev(ai.evidence?.export)}`, "회사 카드")); fit += 5; }
-    else if (p.hasExport === false) rs.push(no(`수출 실적 있는 기업 대상 — 회사 카드에 수출 없음으로 표시돼 있습니다${ev(ai.evidence?.export)}`));
-    else { rs.push(unknown(`수출 실적 있는 기업 대상 — 회사 카드 ⑥에서 수출 여부를 고르면 자동 확인됩니다${ev(ai.evidence?.export)}`, "회사 카드")); coreUnknown++; }
+    if (p.hasExport === true) { rs.push(ok(`수출 실적 있는 기업 대상 · 회사 카드에 수출 있음${ev(ai.evidence?.export)}`, "회사 카드")); fit += 5; }
+    else if (p.hasExport === false) rs.push(no(`수출 실적 있는 기업 대상 · 회사 카드에 수출 없음으로 표시돼 있습니다${ev(ai.evidence?.export)}`));
+    else { rs.push(unknown(`수출 실적 있는 기업 대상 · 회사 카드 ⑥에서 수출 여부를 고르면 자동 확인됩니다${ev(ai.evidence?.export)}`, "회사 카드")); coreUnknown++; }
   }
   const certs = ai.required_certs || [];
   if (certs.length > 0) {
     const have = certs.filter((c) => p.certifications.includes(c));
     if (have.length > 0) { rs.push(ok(`필수 인증 보유 (${have.map((c) => CERT_LABEL[c] ?? c).join("·")})`, "회사 카드")); fit += 5; }
-    else rs.push(unknown(`${certs.map((c) => CERT_LABEL[c] ?? c).join("·")} 인증이 필요합니다 — 보유하셨다면 회사 카드에 표시하세요`, "회사 카드"));
+    else rs.push(unknown(`${certs.map((c) => CERT_LABEL[c] ?? c).join("·")} 인증이 필요합니다. 보유하셨다면 회사 카드에 표시하세요`, "회사 카드"));
   }
   for (const x of (ai.exclusions || []).slice(0, 2)) rs.push(unknown(`제외 대상: ${x.slice(0, 80)}`, "제도 요건"));
 
@@ -726,7 +726,7 @@ export function judgeAi(ai: AiEligibility, p: CompanyProfile): Judgement {
 
   const hasNo = rs.some((r) => r.mark === "no");
   const verdict: Verdict = hasNo ? "none" : coreUnknown === 0 && (ai.confidence ?? 0) >= 0.6 ? "high" : "check";
-  if (!hasNo && verdict === "check" && (ai.confidence ?? 0) < 0.6) rs.push(unknown("공고 본문이 짧아 조건표의 확신이 낮습니다 — 원문을 확인하세요", "제도 요건"));
+  if (!hasNo && verdict === "check" && (ai.confidence ?? 0) < 0.6) rs.push(unknown("공고 본문이 짧아 조건표의 확신이 낮습니다. 원문을 확인하세요", "제도 요건"));
   return { verdict, reasons: rs, fitScore: verdict === "none" ? 0 : Math.min(50, fit) };
 }
 
@@ -771,25 +771,25 @@ export function scoreProgram(
   if (typeof judgement.fitScore === "number") {
     //   규칙이 직접 매긴 점수 — 공고처럼 건수가 많을 때 ✓ 개수만으로는 순위가 안 갈린다
     fit = judgement.fitScore;
-    lines.push(`자격 ${fit}/50 — 지역·업력·대상·관심 분야를 따져 매겼습니다`);
+    lines.push(`자격 ${fit}/50 · 지역·업력·대상·관심 분야를 따져 매겼습니다`);
   } else if (judgement.verdict === "high") {
     fit = 50;
-    lines.push("자격 50/50 — 확인 가능한 요건을 모두 충족");
+    lines.push("자격 50/50 · 확인 가능한 요건을 모두 충족");
   } else {
     //   모르는 값이 섞여 있다 — 아는 것의 비율만큼 준다. 바닥은 15점(전부 모른다고 0점이면 목록에서 사라진다)
     fit = Math.max(15, Math.round((okN / Math.max(1, okN + unkN)) * 50));
-    lines.push(`자격 ${fit}/50 — 확인됨 ${okN}가지 · 확인 필요 ${unkN}가지`);
+    lines.push(`자격 ${fit}/50 · 확인됨 ${okN}가지 · 확인 필요 ${unkN}가지`);
   }
 
   // ── 서류 30 ──
   const needed = requiredDocsOf(program);
   let docs = 15;
   if (needed.length === 0) {
-    lines.push("서류 15/30 — 필요 서류를 아직 모릅니다(공고 원문 확인)");
+    lines.push("서류 15/30 · 필요 서류를 아직 모릅니다(공고 원문 확인)");
   } else {
     const have = readyCount(checks);
     docs = Math.round((have / needed.length) * 30);
-    lines.push(`서류 ${docs}/30 — ${needed.length}가지 중 ${have}가지가 보관함에 있습니다`);
+    lines.push(`서류 ${docs}/30 · ${needed.length}가지 중 ${have}가지가 보관함에 있습니다`);
   }
 
   // ── 신청 20 ──
@@ -798,17 +798,17 @@ export function scoreProgram(
   const started = !program.apply_start || program.apply_start.slice(0, 10) <= today;
   const open = started && (left === null || left >= 0);
 
-  if (left === null) { ease += 10; lines.push("신청 +10 — 상시 접수(마감 없음)"); }
-  else if (!started) { ease += 4; lines.push(`신청 +4 — 아직 접수 전 (${program.apply_start?.slice(5, 10)} 시작)`); }
-  else { ease += 10; lines.push("신청 +10 — 접수 중"); }
+  if (left === null) { ease += 10; lines.push("신청 +10 · 상시 접수(마감 없음)"); }
+  else if (!started) { ease += 4; lines.push(`신청 +4 · 아직 접수 전 (${program.apply_start?.slice(5, 10)} 시작)`); }
+  else { ease += 10; lines.push("신청 +10 · 접수 중"); }
 
   const el = (program.eligibility || {}) as Eligibility;
-  if (el.online) { ease += 5; lines.push("신청 +5 — 온라인 접수"); }
+  if (el.online) { ease += 5; lines.push("신청 +5 · 온라인 접수"); }
 
   if (left !== null && left >= 0) {
-    if (left >= 14) { ease += 5; lines.push(`신청 +5 — 마감까지 ${left}일 여유`); }
-    else if (left >= 7) { ease += 3; lines.push(`신청 +3 — 마감까지 ${left}일`); }
-    else { ease += 1; lines.push(`신청 +1 — 마감이 ${left}일 남아 급합니다`); }
+    if (left >= 14) { ease += 5; lines.push(`신청 +5 · 마감까지 ${left}일 여유`); }
+    else if (left >= 7) { ease += 3; lines.push(`신청 +3 · 마감까지 ${left}일`); }
+    else { ease += 1; lines.push(`신청 +1 · 마감이 ${left}일 남아 급합니다`); }
   }
 
   const shortDocs = needed.length > 0 && readyCount(checks) < needed.length;

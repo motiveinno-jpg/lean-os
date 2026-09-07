@@ -49,7 +49,7 @@ export function DealClassificationManager({ companyId }: { companyId: string | n
       <div className="stg-sec-head mb-4">
         <div>
           <h2 className="stg-sec-title">딜 분류</h2>
-          <p className="stg-sec-desc">거래 장부·프로젝트에서 쓰는 분류 — B2B/B2C/B2G + 커스텀 카테고리.</p>
+          <p className="stg-sec-desc">거래 장부·프로젝트에서 쓰는 분류 · B2B/B2C/B2G + 커스텀 카테고리.</p>
         </div>
         <button
           onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ name: '', color: '#3b82f6' }); }}

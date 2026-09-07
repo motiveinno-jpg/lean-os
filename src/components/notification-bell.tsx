@@ -1,12 +1,12 @@
 "use client";
-import { logRead } from "@/lib/log-read";
+import { logRead }  from "@/lib/log-read";
 
-// 헤더 우측 알림 벨 — 클릭 시 현재 페이지를 유지한 채 최근 알림을 팝오버로 간소하게 보여줌
+// 헤더 우측 알림 벨 · 클릭 시 현재 페이지를 유지한 채 최근 알림을 팝오버로 간소하게 보여줌
 //   (기존엔 /notifications 로 즉시 이동해버려 지금 보던 화면을 잃었음). "전체 알림 보기" 로 이동.
 //   팝오버는 document.body 로 포털 + fixed 배치, 백드롭이 패널을 감싸는 구조(모달과 동일 관례)라
 //   round10 CSS 규칙(fixed+inset-0 직계 자식 .glass-card → 불투명)을 자동으로 물려받아 또렷하게 보임.
 
-import { useEffect, useRef, useState } from "react";
+import  { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";

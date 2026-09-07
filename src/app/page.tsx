@@ -7,17 +7,17 @@
 //      `/demo` `/features` `/ai` `/pricing` `/tools` 가 아직 그 content.ts 를 쓴다.
 import type { Metadata } from "next";
 import LandingV7 from "@/components/landing-v7/landing-v7";
-import { PRICING, SECTIONS, MOSAICS, FOOTER } from "@/components/landing-v7/content";
+import { PRICING, SECTIONS, MOSAICS, FOOTER }  from "@/components/landing-v7/content";
 
 const SITE = "https://www.owner-view.com";
 
-// SEO — 제목·설명은 랜딩 본문의 키워드와 같은 말을 쓴다 (결정 190).
-const TITLE = "중소기업 ERP 오너뷰 — 매출 KPI·판매채널 연동·회계·세무 신고·급여까지 올인원 AI ERP";
+// SEO · 제목·설명은 랜딩 본문의 키워드와 같은 말을 쓴다 (결정 190).
+const TITLE = "중소기업 ERP 오너뷰 · 매출 KPI·판매채널 연동·회계·세무 신고·급여까지 올인원 AI ERP";
 const DESC =
   "매출 KPI 대시보드, 스마트스토어·쿠팡 주문 연동, 프로젝트 업무관리, 공용 캘린더, 대용량 파일 보관, " +
   "근태관리·급여명세서, 회계 ERP·부가세 신고, 사내 매뉴얼 게시판, 사내 메신저. " +
   "따로 쓰던 프로그램을 오너뷰 하나로. 회사당 월 39,000원, 기본 기능은 계속 무료입니다.";
-const OG_IMAGE = { url: "/og-image.png", width: 1200, height: 630, alt: "오너뷰 — 회사 운영의 모든 것, 올인원 AI ERP" };
+const OG_IMAGE =  { url: "/og-image.png", width: 1200, height: 630, alt: "오너뷰 · 회사 운영의 모든 것, 올인원 AI ERP" };
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -35,8 +35,8 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", title: TITLE, description: DESC, images: [OG_IMAGE.url] },
 };
 
-// 구조화 데이터 — 값은 content.ts 단일 출처에서 파생하므로 화면과 어긋날 수 없다.
-function structuredData() {
+// 구조화 데이터 · 값은 content.ts 단일 출처에서 파생하므로 화면과 어긋날 수 없다.
+function structuredData()  {
   const organization = {
     "@type": "Organization",
     "@id": `${SITE}/#organization`,

@@ -44,7 +44,7 @@ export default function SeveranceCalculatorView() {
     const serviceDays = Math.floor((l.getTime() - h.getTime()) / 86400000) + 1;
     if (serviceDays < 365) return { under1: true as const, serviceDays };
 
-    // 퇴직일 이전 3개월의 실제 일수 — (퇴직일-3개월+1일) ~ 퇴직일.
+    // 퇴직일 이전 3개월의 실제 일수 · (퇴직일-3개월+1일) ~ 퇴직일.
     //   setMonth 오버플로 보정 (2026-08-19): 5/31 퇴직 시 "2/31"이 3/3 으로 정규화돼
     //   89일(정답 92일)로 계산되던 것 → 3개월 전 같은 날을 월말로 클램프.
     const ly = l.getFullYear(), lm = l.getMonth(), ld = l.getDate();
@@ -60,7 +60,7 @@ export default function SeveranceCalculatorView() {
     const severance = avgDaily * 30 * (serviceDays / 365);
 
     const years = Math.floor(serviceDays / 365);
-    return {
+    return  {
       under1: false as const,
       serviceDays, years,
       months: Math.floor((serviceDays % 365) / 30),
@@ -123,13 +123,13 @@ export default function SeveranceCalculatorView() {
             {result ? (
               result.under1 ? (
                 <div className="lp4-freetool-empty">
-                  재직 {result.serviceDays}일 — 계속근로 <b>1년 미만</b>은 법정 퇴직금 지급 대상이 아닙니다
+                  재직 {result.serviceDays}일 · 계속근로  <b>1년 미만</b>은 법정 퇴직금 지급 대상이 아닙니다
                 </div>
               ) : (
                 <div className="lp4-freetool-result" aria-live="polite">
                   <div className="lp4-freetool-result-main">
                     <span className="lp4-freetool-result-num">약 {won(result.severance)}원</span>
-                    <span className="lp4-freetool-result-cap">근속 {result.years}년 {result.months}개월 — 예상 퇴직금 (세전)</span>
+                    <span className="lp4-freetool-result-cap">근속 {result.years}년 {result.months}개월 · 예상 퇴직금 (세전)</span>
                   </div>
                   <div className="lp4-freetool-result-rows">
                     {/*   이 금액이 어떻게 나왔는지 — 단계별로 적는다 (2026-08-14 사장님, 연차 계산기와 같은 방식).

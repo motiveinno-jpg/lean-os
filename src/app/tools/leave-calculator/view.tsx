@@ -14,10 +14,10 @@ import { LandingNav } from "@/components/landing/landing-nav";
 import { DateField } from "@/components/date-field";
 import { FOOTER } from "@/components/landing/content";
 import { FAQS } from "./faqs";
-import { track } from "@/lib/analytics";
+import { track }  from "@/lib/analytics";
 
-// 만 개월 수 — from 에서 to 까지 "같은 날짜"가 돌아온 횟수 (예: 3/15 입사, 8/13 기준 → 4개월)
-function fullMonthsBetween(from: Date, to: Date): number {
+// 만 개월 수 · from 에서 to 까지 "같은 날짜"가 돌아온 횟수 (예: 3/15 입사, 8/13 기준 → 4개월)
+function fullMonthsBetween(from: Date, to: Date): number  {
   let m = (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth());
   if (to.getDate() < from.getDate()) m -= 1;
   return Math.max(0, m);
@@ -33,8 +33,10 @@ function addYears(d: Date, n: number): Date {
   return x;
 }
 
-/** 근속연수(만)별 연차 — 1년:15 … 21년 이상:25 */
-function annualDays(years: number): number {
+
+
+/** 근속연수(만)별 연차 · 1년:15 … 21년 이상:25 */
+function annualDays(years: number): number  {
   if (years < 1) return 0;
   return Math.min(25, 15 + Math.floor((years - 1) / 2));
 }
@@ -168,12 +170,12 @@ export default function LeaveCalculatorView() {
                         연차는 1년 단위로 부여되므로 이 숫자는 **이번 1년치**다. */}
                   <span className="lp4-freetool-result-cap">
                     근속 {result.years >= 1 ? `만 ${result.years}년 ${result.months}개월` : `${result.months}개월`}
-                    {result.kind === "over1" ? " — 이번 1년치 연차" : " — 지금까지 생긴 연차"}
+                    {result.kind === "over1" ? " · 이번 1년치 연차" : " · 지금까지 생긴 연차"}
                   </span>
                 </div>
                 <div className="lp4-freetool-result-rows">
                   {result.kind === "under1" && (
-                    <div className="lp4-freetool-result-row">1년 미만은 <b>1개월 개근마다 1일</b> (최대 11일) — 개근을 가정한 값입니다</div>
+                    <div className="lp4-freetool-result-row">1년 미만은 <b>1개월 개근마다 1일</b>  (최대 11일). 개근을 가정한 값입니다</div>
                   )}
                   {result.kind === "over1" && (
                     <div className="lp4-freetool-result-row">1년 이상은 <b>15일 + 2년마다 1일 가산</b> (최대 25일), 전년 출근율 80% 이상 기준</div>
@@ -191,7 +193,8 @@ export default function LeaveCalculatorView() {
                   {result.kind === "over1" && (
                     <div className="lp4-freetool-duo-col">
                       <div className="lp4-freetool-duo-cap">
-                        지금까지 생긴 연차 — 모두 <b>{result.accTotal}일</b>
+                        
+                        지금까지 생긴 연차 · 모두 <b>{result.accTotal}일</b>
                       </div>
                       <table className="lp4-freetool-table lp4-freetool-table-tight">
                         <thead>
@@ -209,16 +212,19 @@ export default function LeaveCalculatorView() {
                         </tbody>
                       </table>
                       <div className="lp4-freetool-duo-sub">
-                        <b>쓴 날·소멸분·수당으로 정산한 분은 빼지 않은</b> 발생 기준입니다 — 지금 쓸 수 있는 잔여 연차와는 다릅니다.
+                        <b>쓴 날·소멸분·수당으로 정산한 분은 빼지 않은</b>  발생 기준입니다. 지금 쓸 수 있는 잔여 연차와는 다릅니다.
                         연차는 생긴 날부터 1년 안에 쓰는 것이 원칙이라, 안 쓴 날은 수당으로 정산되거나 촉진제도에 따라 소멸합니다.
+                      
                       </div>
                     </div>
                   )}
                 </div>
               </div>
+            
             ) : (
-              //   달력에 '지우기'가 생겨 기준일도 비울 수 있게 됐다 — 무엇이 비었는지 그대로 적는다
+              //   달력에 '지우기'가 생겨 기준일도 비울 수 있게 됐다. 무엇이 비었는지 그대로 적는다
               //   ("입사일을 선택하세요"만 띄우면 입사일을 넣은 사람은 왜 안 되는지 모른다)
+              
               <div className="lp4-freetool-empty">
                 {!hire && !base ? "입사일과 기준일을 선택하면 바로 계산됩니다"
                   : !hire ? "입사일을 선택하면 바로 계산됩니다"

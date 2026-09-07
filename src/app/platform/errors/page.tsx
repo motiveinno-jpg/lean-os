@@ -88,7 +88,7 @@ export default function PlatformErrorsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["op-errors"] }),
   });
 
-  // 일괄 해결 (2026-08-20 사장님: 고쳐 놓은 건이 대시보드에 계속 쌓인다) — 한 건씩만 누를 수
+  // 일괄 해결 (2026-08-20 사장님: 고쳐 놓은 건이 대시보드에 계속 쌓인다). 한 건씩만 누를 수
   //   있어 아무도 표시를 안 했다. 해결로 표시하면 대시보드 24시간 카운트에서 빠지고,
   //   같은 에러가 다시 나면 새 건으로 올라온다(중복 접기는 미해결 건에만 걸린다).
   const resolveMany = useMutation({

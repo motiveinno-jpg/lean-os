@@ -52,7 +52,7 @@ const WAREHOUSE_XCOLS: ExcelColumn[] = [
 const STOCK_CONDS = (c: { low: number; zero: number; fix: number }) => [{
   key: "state", label: "상태", hint: "여러 개 고르면 그중 하나라도", options: [
     { value: "low", label: `부족 ${c.low}` }, { value: "zero", label: `품절 ${c.zero}` },
-    { value: "fix", label: `맞춰야 할 것 ${c.fix}`, title: "장부가 실물을 못 따라간 줄(음수) — 지우지 않고 맞춥니다" },
+    { value: "fix", label: `맞춰야 할 것 ${c.fix}`, title: "장부가 실물을 못 따라간 줄(음수). 지우지 않고 맞춥니다" },
   ],
 }];
 
@@ -66,7 +66,7 @@ export default function StockPage() {
 
   const [tab, setTab] = useState<Tab>("onhand");
   const [q, setQ] = useState("");
-  //   값 필터는 검색조건 패널에서(조회 화면 표준) — 조회 줄엔 칩을 늘어놓지 않는다 (2026-08-27 사장님 지적)
+  //   값 필터는 검색조건 패널에서(조회 화면 표준). 조회 줄엔 칩을 늘어놓지 않는다 (2026-08-27 사장님 지적)
   const [cond, setCond] = useState<CondLive>({});
   const [sort, setSort] = useState<SortState<StockKey>>({ key: "state", dir: "asc" });
   const [mSort, setMSort] = useState<SortState<MoveKey>>({ key: "date", dir: "desc" });
@@ -89,8 +89,8 @@ export default function StockPage() {
     queryFn: () => listMoves(companyId!, from, to),
     enabled: !!companyId && (tab === "moves" || tab === "summary"),
   });
-  //   이동평균 원가(결정 27) — 재고금액은 이것으로, 없으면 품목 매입가로
-  const { data: avgCost = new Map<string, number>() } = useQuery({ queryKey: ["inv-avgcost", companyId], queryFn: () => listAvgCost(companyId!), enabled: !!companyId });
+  //   이동평균 원가(결정 27). 재고금액은 이것으로, 없으면 품목 매입가로
+  const  { data: avgCost = new Map<string, number>() } = useQuery({ queryKey: ["inv-avgcost", companyId], queryFn: () => listAvgCost(companyId!), enabled: !!companyId });
   const { data: partners = [] } = useQuery({
     queryKey: ["inv-partners", companyId],
     queryFn: async () => {
@@ -222,14 +222,14 @@ export default function StockPage() {
                 <>
                   {/*   2026-08-27 기획 §4 — 기초 재고 올리기는 양식·올리기와 같은 성격이라 엑셀▾ 안으로. 조회 줄은 파란 1 + 엑셀 1. */}
                   <ExcelMenu items={[
-                    { label: "기초 재고 올리기", hint: "엑셀에서 SKU·수량을 복사해 붙여넣기 — 지금 있는 수량을 기초 등록으로", onClick: () => setOpeningOpen(true) },
+                    { label: "기초 재고 올리기", hint: "엑셀에서 SKU·수량을 복사해 붙여넣기 · 지금 있는 수량을 기초 등록으로", onClick: () => setOpeningOpen(true) },
                     { label: "현재고 내려받기", count: shown.length, disabled: !shown.length, onClick: () => exportToExcel(sorted.map((r) => ({ "SKU": r.product!.sku, "품목명": r.product!.name, "규격": r.product!.spec || "", "창고": r.wh?.name || "", "수량": Number(r.qty), "안전재고": r.product!.safety_stock ?? "", "상태": r.state === "fix" ? "맞춰야 함" : r.state === "zero" ? "품절" : r.state === "low" ? "부족" : "" })), "현재고", `현재고_${todayKst()}`) },
                   ]} />
                   <button type="button" className="btn-primary btn-sm" onClick={() => setDocOpen(true)}>+ 입·출고</button>
                 </>
               ) : undefined}>
                 <SimpleCond groups={STOCK_CONDS(counts)} live={cond} onApply={setCond} />
-                <QuickSearch value={q} onApply={setQ} placeholder="품목명 · SKU · 규격 · 창고 — 쉼표로 여러 개, Enter" />
+                <QuickSearch value={q} onApply={setQ} placeholder="품목명 · SKU · 규격 · 창고 · 쉼표로 여러 개, Enter" />
               </QueryBar>
               <SimpleApplied groups={STOCK_CONDS(counts)} live={cond} onApply={setCond} />
               <ResultStrip>
@@ -245,7 +245,7 @@ export default function StockPage() {
             <>
               <QueryBar>
                 <DateRangeField from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
-                <span className="text-[11px] text-[var(--text-dim)]">움직인 기록만 쌓고 현재고는 그 합입니다 — 지우지 않고 반대 기록으로 되돌립니다.</span>
+                <span className="text-[11px] text-[var(--text-dim)]">움직인 기록만 쌓고 현재고는 그 합입니다. 지우지 않고 반대 기록으로 되돌립니다.</span>
               </QueryBar>
               <ResultStrip>
                 <Stat label="움직임" value={`${won(moves.length)}줄`} />
@@ -262,7 +262,7 @@ export default function StockPage() {
                 <ChipGroup value={sumView} onChange={setSumView} options={[
                   { value: "product", label: "품목별" }, { value: "partner", label: "거래처별" }, { value: "month", label: "월별" },
                 ]} />
-                <span className="inv-hint">판매·매입 전표를 모아 봅니다 — 취소 전표는 빠집니다.</span>
+                <span className="inv-hint">판매·매입 전표를 모아 봅니다. 취소 전표는 빠집니다.</span>
               </QueryBar>
               <ResultStrip>
                 <Stat label="판매" value={`₩${won(summary.saleTotal)}`} />
@@ -311,7 +311,7 @@ export default function StockPage() {
                         <SortableTh label="규격" sortKey="spec" sort={sort} onSort={onSort} />
                         <SortableTh label="창고" sortKey="wh" sort={sort} onSort={onSort} />
                         <SortableTh label="현재고" sortKey="qty" sort={sort} onSort={onSort} />
-                        <SortableTh label="평균단가" sortKey="avg" sort={sort} onSort={onSort} title="이동평균 — 매입·기초 입고의 (수량×단가)합 ÷ 수량합. 없으면 품목 매입가" />
+                        <SortableTh label="평균단가" sortKey="avg" sort={sort} onSort={onSort} title="이동평균 · 매입·기초 입고의 (수량×단가)합 ÷ 수량합. 없으면 품목 매입가" />
                         <SortableTh label="안전재고" sortKey="safety" sort={sort} onSort={onSort} />
                         <SortableTh label="상태" sortKey="state" sort={sort} onSort={onSort} />
                       </tr></thead>
@@ -429,7 +429,7 @@ export default function StockPage() {
 
             {tab === "warehouse" && (
               warehouses.length === 0 ? (
-                <div className="collect-empty">창고가 없습니다 — 첫 입·출고에서 &lsquo;본사창고&rsquo;가 자동으로 만들어집니다.</div>
+                <div className="collect-empty">창고가 없습니다. 첫 입·출고에서 &lsquo;본사창고&rsquo;가 자동으로 만들어집니다.</div>
               ) : (
                 <div className="stg-table-wrap">
                   <table className="ev-table ev-lined table-inv-wh">
@@ -484,7 +484,7 @@ export default function StockPage() {
         <ExcelUploadDialog<{ id?: string; name: string; code: string; is_default: boolean; _new: boolean }> title="창고" cols={WAREHOUSE_XCOLS} templateName="창고_양식" sheetName="창고"
           parse={(r) => { const name = (r.name || "").trim(); if (!name) return { error: "창고명이 비었습니다" }; const code = (r.code || "").trim(); if (code.toUpperCase() === "DEFECT") return { error: "DEFECT 코드는 불량 보류 창고 전용입니다" }; const cur = warehouses.find((w) => w.name.trim() === name); return { ok: { id: cur?.id, name, code: code || cur?.code || "", is_default: r.is_default ? xBool(r.is_default, false) : (cur?.is_default ?? false), _new: !cur } }; }}
           previewHead={["창고명", "코드", "기본창고", "새로/고침"]} previewRow={(w) => [w.name, w.code || "—", w.is_default ? "예" : "아니오", w._new ? "새로" : "고침"]}
-          commit={async (items) => { let n = 0, mm = 0; for (const w of items) { await upsertWarehouse(companyId, { id: w.id, name: w.name, code: w.code || undefined, is_default: w.is_default }); if (w._new) n++; else mm++; } invalidate(); return `창고 ${n + mm}곳 — 새로 ${n} · 고침 ${mm}`; }}
+          commit={async (items) => { let n = 0, mm = 0; for (const w of items) { await upsertWarehouse(companyId, { id: w.id, name: w.name, code: w.code || undefined, is_default: w.is_default }); if (w._new) n++; else mm++; } invalidate(); return `창고 ${n + mm}곳 · 새로 ${n} · 고침 ${mm}`; }}
           onClose={() => setWhXls(false)} />
       )}
       {openingOpen && companyId && (
@@ -497,7 +497,9 @@ export default function StockPage() {
   );
 }
 
-/** 창고 추가 — 한 줄 폼 */
+
+
+/** 창고 추가 · 한 줄 폼 */
 function WarehouseAdd({ companyId, onDone }: { companyId: string | null; onDone: () => void }) {
   const { toast } = useToast();
   const [name, setName] = useState("");
@@ -514,7 +516,9 @@ function WarehouseAdd({ companyId, onDone }: { companyId: string | null; onDone:
   );
 }
 
-/** 창고 하나의 품목·수량 — 창고 갈래에서 창고를 누르면 뜬다 (2026-08-26 사장님 지시) */
+
+
+/** 창고 하나의 품목·수량 · 창고 갈래에서 창고를 누르면 뜬다 (2026-08-26 사장님 지시) */
 function WarehouseDialog({ wh, onhand, products, avgCost, onClose }: {
   wh: Warehouse; onhand: OnHand[]; products: Product[]; avgCost: Map<string, number>; onClose: () => void;
 }) {
@@ -535,7 +539,7 @@ function WarehouseDialog({ wh, onhand, products, avgCost, onClose }: {
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">{wh.name}{wh.code ? <span className="ev-dim"> · {wh.code}</span> : null}</h3>
-        <p className="inv-modal-desc">이 창고에 있는 품목 <b>{rows.length}종</b> · 수량 <b>{won(totalQty)}</b> · 재고 금액 <b>₩{won(totalAmt)}</b>(이동평균 원가) — 부족은 안전재고보다 적은 품목</p>
+        <p className="inv-modal-desc">이 창고에 있는 품목 <b>{rows.length}종</b> · 수량 <b>{won(totalQty)}</b> · 재고 금액 <b>₩{won(totalAmt)}</b>(이동평균 원가). 부족은 안전재고보다 적은 품목</p>
         <input className="field-input inv-wh-search" placeholder="품목명 · SKU · 규격으로 좁히기" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
         {rows.length === 0 ? (
           <div className="inv-status-empty">{q ? "맞는 품목이 없습니다" : "이 창고에는 재고가 없습니다"}</div>
@@ -568,7 +572,9 @@ function WarehouseDialog({ wh, onhand, products, avgCost, onClose }: {
   );
 }
 
-/** 입·출고·조정·이동 — 주문·발주 없이도 선다(결정 5) */
+
+
+/** 입·출고·조정·이동 · 주문·발주 없이도 선다(결정 5) */
 function StockDocDialog({ companyId, userId, products, warehouses, onClose, onSaved, onError }: {
   companyId: string; userId: string | null; products: Product[]; warehouses: Warehouse[];
   onClose: () => void; onSaved: (msg: string) => void; onError: (e: unknown) => void;
@@ -649,7 +655,7 @@ function StockDocDialog({ companyId, userId, products, warehouses, onClose, onSa
         {/*   음수를 막지 않는다 — 다만 재고가 어느 쪽으로 가는지를 적어 되묻는다(제안은 자동, 확정은 사람) */}
         {def && lines.some((l) => Number(l.qty) < 0) && (
           <p className="inv-warn">
-            수량이 음수인 줄은 <b>{def.label} 취소</b>로 읽습니다 — 재고가 {def.sign < 0 ? <b>다시 늘어납니다</b> : <b>다시 줄어듭니다</b>}.
+            수량이 음수인 줄은 <b>{def.label} 취소</b>로 읽습니다. 재고가  {def.sign < 0 ? <b>다시 늘어납니다</b> : <b>다시 줄어듭니다</b>}.
             되돌리는 것이 아니라 새로 샀거나 되돌려받은 것이라면 <b>반품 입고</b>·<b>반품 출고</b>를 고르세요.
           </p>
         )}
@@ -681,7 +687,9 @@ function StockDocDialog({ companyId, userId, products, warehouses, onClose, onSa
   );
 }
 
-/** 기초 재고 올리기 — 엑셀에서 복사해 붙여넣는다(SKU · 수량). 판매를 먼저 켜므로 이게 필수 조건이다. */
+
+
+/** 기초 재고 올리기 · 엑셀에서 복사해 붙여넣는다(SKU · 수량). 판매를 먼저 켜므로 이게 필수 조건이다. */
 function OpeningDialog({ companyId, userId, products, warehouses, onClose, onSaved, onError }: {
   companyId: string; userId: string | null; products: Product[]; warehouses: Warehouse[];
   onClose: () => void; onSaved: (msg: string) => void; onError: (e: unknown) => void;

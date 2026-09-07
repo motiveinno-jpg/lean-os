@@ -46,7 +46,7 @@ export const API_PROVIDERS: ApiProvider[] = [
       "활용 목적을 적고 신청하면 보통 1~2일 안에 승인됩니다.",
       "마이페이지 > 오픈API > 인증키에서 일반 인증키를 복사해 아래에 붙여넣습니다.",
     ],
-    caution: "Encoding 키·Decoding 키 둘 다 받습니다 — 어느 쪽을 넣어도 됩니다.",
+    caution: "Encoding 키·Decoding 키 둘 다 받습니다. 어느 쪽을 넣어도 됩니다.",
     usedBy: { href: "/support-programs", label: "지원사업추천" },
   },
   {
@@ -61,7 +61,7 @@ export const API_PROVIDERS: ApiProvider[] = [
       "마지막 칸은 '시스템IP주소' 대신 '시스템URL' 을 고르고 회사 홈페이지 주소를 넣습니다.",
       "신청하면 화면 아래에 바로 인증키가 뜨고 이메일로도 옵니다.",
     ],
-    caution: "IP 로 등록하면 안 됩니다 — 수집 서버 주소가 고정이 아니라 오늘은 되고 내일 막힙니다. 반드시 URL 로 등록하세요.",
+    caution: "IP 로 등록하면 안 됩니다. 수집 서버 주소가 고정이 아니라 오늘은 되고 내일 막힙니다. 반드시 URL 로 등록하세요.",
     usedBy: { href: "/support-programs", label: "지원사업추천" },
   },
   {
@@ -76,7 +76,7 @@ export const API_PROVIDERS: ApiProvider[] = [
       "등록하면 나오는 애플리케이션 ID(클라이언트 ID)와 시크릿을 복사합니다.",
       "아래 칸에 `클라이언트ID:클라이언트시크릿` 처럼 콜론(:)으로 붙여 한 줄로 넣습니다.",
     ],
-    caution: "시크릿은 등록 직후 한 번만 보입니다 — 놓쳤으면 재발급하세요. 콜론(:) 앞뒤에 빈칸을 두지 마세요.",
+    caution: "시크릿은 등록 직후 한 번만 보입니다. 놓쳤으면 재발급하세요. 콜론(:) 앞뒤에 빈칸을 두지 마세요.",
     usedBy: { href: "/inventory/channels", label: "재고 › 이커머스" },
   },
   {

@@ -36,7 +36,7 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
   const [editing, setEditing] = useState<null | {
     pageImages: string[]; pageSizes: { w: number; h: number }[]; fields: OverlayField[]; filePath: string; pageCount: number;
   }>(null);
-  // 텍스트변환 양식 — 리치에디터(표·서식)로 content_html 직접 편집. editId 있으면 기존 양식 재편집.
+  // 텍스트변환 양식 · 리치에디터(표·서식)로 content_html 직접 편집. editId 있으면 기존 양식 재편집.
   const [textEditing, setTextEditing] = useState<null | {
     filePath: string; pageCount: number; initialHtml: string; editId?: string; editName?: string; editDocType?: DocType;
   }>(null);
@@ -63,7 +63,7 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
         pageImages: pages.map((b) => `data:image/png;base64,${b}`),
         pageSizes, fields: detected, filePath, pageCount: pages.length,
       });
-      toast(detected.length > 0 ? `${detected.length}개 필드 자동 인식 — 위치를 보정하세요` : "필드를 직접 추가·배치하세요", "info");
+      toast(detected.length > 0 ? `${detected.length}개 필드 자동 인식 · 위치를 보정하세요` : "필드를 직접 추가·배치하세요", "info");
     } catch (e: any) {
       toast("처리 실패: " + (e?.message || ""), "error");
     } finally { setBusy(false); }
@@ -81,7 +81,7 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
       const filePath = await uploadTemplateFile(companyId, file);
       const pageCount = text.split("페이지 구분").length;
       setTextEditing({ filePath, pageCount, initialHtml: templateTextToHtml(text) });
-      toast("PDF 텍스트를 추출했습니다 — 내용을 다듬고 {{변수}}를 넣으세요", "info");
+      toast("PDF 텍스트를 추출했습니다. 내용을 다듬고 {{변수}}를 넣으세요", "info");
     } catch (e: any) {
       toast("텍스트 추출 실패: " + (e?.message || ""), "error");
     } finally { setBusy(false); }
@@ -164,7 +164,7 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 2026 표준 견적서" className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
         </div>
         {/* 텍스트변환이 기본(권장) — 내용 수정·표·서식·{{변수}} 가능. 오버레이는 디자인 100% 보존용 보조. */}
-        <label className={`h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer ${busy ? "bg-[var(--bg-surface)] text-[var(--text-dim)]" : "bg-[var(--primary)] text-white hover:opacity-90"}`} title="PDF를 편집 가능한 텍스트로 변환 — 내용을 직접 고치고 표·서식·{{변수}}를 넣습니다 (권장)">
+        <label className={`h-9 px-4 inline-flex items-center rounded-lg text-sm font-semibold cursor-pointer ${busy ? "bg-[var(--bg-surface)] text-[var(--text-dim)]" : "bg-[var(--primary)] text-white hover:opacity-90"}`} title="PDF를 편집 가능한 텍스트로 변환 · 내용을 직접 고치고 표·서식·{{변수}}를 넣습니다 (권장)">
           {busy ? "처리 중…" : "PDF 업로드 (텍스트 변환·권장)"}
           <input type="file" accept=".pdf,application/pdf" className="hidden" disabled={busy}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) onFileText(f); e.target.value = ""; }} />

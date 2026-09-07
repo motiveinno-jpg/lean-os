@@ -117,13 +117,14 @@ export function OwnerDashboardSection() {
 
 // ─────────── 1. KPI ───────────
 function KpiSection({ data }: { data: Summary }) {
-  const { kpi, quarter } = data;
+  const { kpi, quarter }  = data;
   const revD = deltaLabel(Number(kpi.revenue_q), Number(kpi.revenue_pq));
   const profD = deltaLabel(Number(kpi.profit_q), Number(kpi.profit_pq));
   const doneD = deltaLabel(Number(kpi.done_count_q), Number(kpi.done_count_pq));
 
-  // 풀폭 요약 밴드 — 한 카드 안에 분기 라벨 + KPI 5개 (2026-08-11 마스터 시각화 개편, 대시보드 숫자 문법)
+  // 풀폭 요약 밴드 · 한 카드 안에 분기 라벨 + KPI 5개 (2026-08-11 마스터 시각화 개편, 대시보드 숫자 문법)
   return (
+    
     <div className="kpi-section">
       <div className="master-kpi-band glass-card">
         <div className="master-kpi-band-title">
@@ -187,12 +188,14 @@ function StageDistributionSection({ data }: { data: StageDist[] }) {
   );
 }
 
+
+
 // ─────────── 3. TOP 거래처·담당자 ───────────
-// TopActorsSection (🏢 누구랑 했나 TOP 5) — 2026-05-21 사장님 요청으로 통째 제거.
+// TopActorsSection (🏢 누구랑 했나 TOP 5). 2026-05-21 사장님 요청으로 통째 제거.
 
 // ─────────── 4. 프로젝트 추이 (월/분기/년 토글) ───────────
 type TrendPeriod = "month" | "quarter" | "year";
-type TrendRow = { label: string; p_start: string; p_end: string; done_count: number; revenue: number; profit: number };
+type TrendRow =  { label: string; p_start: string; p_end: string; done_count: number; revenue: number; profit: number };
 
 function ProjectTrendSection({ fallback }: { fallback: QTrend[] }) {
   const [metric, setMetric] = useState<"done_count" | "revenue" | "profit">("revenue");

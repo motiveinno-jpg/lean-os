@@ -136,11 +136,14 @@ function calcRelationshipScore(opts: { dealCount: number; contractTotal: number;
   return { score, tier, ...palette[tier] };
 }
 
-//   갈래 탭 — 예전의 '구분 select + 활성만 버튼' 을 대신한다. 탭이 건수를 들고 있어
+
+
+//   갈래 탭 · 예전의 '구분 select + 활성만 버튼' 을 대신한다. 탭이 건수를 들고 있어
 //   누르기 전에 어디에 뭐가 있는지 보인다 (2026-08-12).
 //   ⚠️ DB 에 저장된 값은 client / vendor 다 (customer / supplier 가 아니다).
 //     처음에 짐작으로 customer·supplier 를 썼다가 탭 건수가 전부 0 으로 떠서 화면에서 잡았다.
 const KIND_TABS = [
+  
   { key: "all", label: "전체" },
   { key: "client", label: "고객사" },
   { key: "vendor", label: "공급업체" },
@@ -150,10 +153,10 @@ const KIND_TABS = [
 type KindKey = (typeof KIND_TABS)[number]["key"];
 
 /**
- * 검색조건 — 갖춰서 찾는 값들 (조회 화면 표준). ★ '조회'를 눌러야 반영된다. 빠른검색·갈래는 즉시.
+ * 검색조건 · 갖춰서 찾는 값들 (조회 화면 표준). ★ '조회'를 눌러야 반영된다. 빠른검색·갈래는 즉시.
  *   거래처는 기간이 없는 마스터라 조회기간 칸이 없다.
  */
-type Cond = { cls: string[]; region: string[]; scale: string; tags: string[]; todo: string[]; month: string[]; rows: number };
+type Cond =  { cls: string[]; region: string[]; scale: string; tags: string[]; todo: string[]; month: string[]; rows: number };
 const EMPTY_COND: Cond = { cls: [], region: [], scale: "", tags: [], todo: [], month: [], rows: 50 };
 const condCount = (c: Cond) => c.cls.length + c.region.length + (c.scale ? 1 : 0) + c.tags.length + c.todo.length + c.month.length;
 const SCALE_CHIPS = [
@@ -178,7 +181,7 @@ export default function PartnersPage() {
   const [draft, setDraft] = useState<Cond>(EMPTY_COND);
   const [live, setLive] = useState<Cond>(EMPTY_COND);
   const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
-  // U4 페이지네이션 (1e8bb2b 패턴 미러 — signatures/documents 와 동일 UX)
+  // U4 페이지네이션 (1e8bb2b 패턴 미러 · signatures/documents 와 동일 UX)
   //   필터/검색 변경 시 1페이지 리셋. classFilter/regionFilter/sizeFilter/typeFilter/activeFilter 도 의존성.
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -212,10 +215,10 @@ export default function PartnersPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showCommForm, setShowCommForm] = useState(false);
   const [commForm, setCommForm] = useState({ type: "phone" as string, summary: "", notes: "" });
-  //   갈래 탭 — typeFilter/activeFilter 를 사람이 읽는 한 덩어리로 묶은 것
+  //   갈래 탭 · typeFilter/activeFilter 를 사람이 읽는 한 덩어리로 묶은 것
   const [kindKey, setKindKey] = useState<KindKey>("all");
   //   '처리할 것' 띠에서 고른 것 (사업자번호 없음 / 담당자 없음)
-  //   머리단 정렬 — 앱 전 메뉴 같은 규칙. 기본은 이름 오름차순.
+  //   머리단 정렬 · 앱 전 메뉴 같은 규칙. 기본은 이름 오름차순.
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "name", dir: "asc" });
   const onSort = (k: SortKey) => setSort((c) => nextSort(c, k));
   //   엑셀식 머리단 필터 — 칸에 실제로 있는 값 중에서 고른다 (null = 전체)
@@ -266,9 +269,9 @@ export default function PartnersPage() {
     getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); });
   }, []);
 
-  //   거래처는 회사당 수백 곳이라 **한 번에 다 받아** 화면에서 거른다 — 조건을 바꿀 때마다 서버를 안 부른다.
+  //   거래처는 회사당 수백 곳이라 **한 번에 다 받아** 화면에서 거른다. 조건을 바꿀 때마다 서버를 안 부른다.
   //   (예전엔 갈래·검색어마다 다시 물었고, 검색은 서버 ilike 라 담당자·연락처는 안 잡혔다.)
-  const { data: rawPartners = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
+  const  { data: rawPartners = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ["partners", companyId],
     queryFn: () => getPartners(companyId!),
     enabled: !!companyId,
@@ -308,9 +311,9 @@ export default function PartnersPage() {
 
   //   요약 카드가 **서로 다른 것**을 말하게 하려고 붙인 두 숫자 (2026-08-12 UI 정리).
   //   예전 4칸은 전체·활성·표시 중이 719 로 같은 값이라 사실상 한 칸이었다.
-  //   ⚠️ '미수금 있는 곳'을 넣으려다 뺐다 — 세금계산서 2,443건 중 수금이 잡힌 건 8건뿐이라
+  //   ⚠️ '미수금 있는 곳'을 넣으려다 뺐다. 세금계산서 2,443건 중 수금이 잡힌 건 8건뿐이라
   //     501곳(거의 전부)으로 나온다. 경보가 아니라 소음이 된다. 수금 매칭이 쌓이면 그때 넣는다.
-  const { data: activity = { traded: 0, fresh: 0, tradedIds: new Set<string>(), freshIds: new Set<string>() } } =
+  const  { data: activity = { traded: 0, fresh: 0, tradedIds: new Set<string>(), freshIds: new Set<string>() } } =
     useQuery<{ traded: number; fresh: number; tradedIds: Set<string>; freshIds: Set<string> }>({
     queryKey: ["partner-activity", companyId],
     queryFn: async () => {
@@ -418,8 +421,8 @@ export default function PartnersPage() {
   const toTokens = (xs: string[]) => xs.map((v) => ({ value: v, label: v }));
 
   // 360도뷰: 거래처의 딜/문서/결제 데이터
-  //   신용 등급 — 입금 지연 이력(결정 78~80). 목록·상세에 배지, 근거는 툴팁. 제안이지 판정이 아니다.
-  const { data: creditMap } = useQuery({ queryKey: ["partner-credit", companyId], queryFn: () => fetchPartnerCredit(companyId!), enabled: !!companyId, staleTime: 60_000 });
+  //   신용 등급 · 입금 지연 이력(결정 78~80). 목록·상세에 배지, 근거는 툴팁. 제안이지 판정이 아니다.
+  const  { data: creditMap } = useQuery({ queryKey: ["partner-credit", companyId], queryFn: () => fetchPartnerCredit(companyId!), enabled: !!companyId, staleTime: 60_000 });
   const creditOf = (id: string) => creditMap?.get(id);
   const CreditBadge = ({ id, big }: { id: string; big?: boolean }) => { const c = creditOf(id); const g = c?.grade; return <span className={`cr-badge ${g ? `cr-${g}` : "cr-none"} ${big ? "cr-big" : ""}`} title={creditReason(c)}>{g ? (big ? GRADE_LABEL[g] : g) : "—"}</span>; };
 
@@ -467,9 +470,9 @@ export default function PartnersPage() {
     enabled: !!detailPartner?.id && partnerDeals.length > 0,
   });
 
-  //   ★ 흐름 한 줄(2026-08-27 ERP 2순위) — 계산서 발행·수취와 정산(입출금)을 타임라인에 같이. 그전엔 프로젝트·결제 예정·소통만이라
+  //   ★ 흐름 한 줄(2026-08-27 ERP 2순위). 계산서 발행·수취와 정산(입출금)을 타임라인에 같이. 그전엔 프로젝트·결제 예정·소통만이라
   //     "견적 → 계약 → 계산서 → 수금"의 뒷부분(계산서·수금)이 빠져 있었다.
-  const { data: partnerInvoices = [] } = useQuery({
+  const  { data: partnerInvoices = [] } = useQuery({
     queryKey: ["partner-invoices", detailPartner?.id],
     queryFn: async () => {
       if (!detailPartner) return [];
@@ -564,7 +567,7 @@ export default function PartnersPage() {
     if (c === 0 && sort.key !== "name") c = (a.name || "").localeCompare(b.name || "", "ko"); // 동률은 이름순
     return sort.dir === "asc" ? c : -c;
   });
-  //   쪽 넘김 — 기본 50줄. 조건이 바뀌면 1쪽으로
+  //   쪽 넘김 · 기본 50줄. 조건이 바뀌면 1쪽으로
   const pager = usePager(partners, live.rows, `${kindKey}|${q}|${JSON.stringify(live)}|${JSON.stringify(Object.fromEntries(Object.entries(colF).map(([k, v]) => [k, v ? [...v] : null])))}`);
   const thFilter = (k: string): ThFilterSpec => ({
     values: (rawPartners as any[]).filter(kindHit).map((p) => colVal(p, k)),
@@ -573,9 +576,9 @@ export default function PartnersPage() {
   });
   const thResize = (k: string, colIndex: number) => ({ k, colIndex, widths: colW, onResize: setColW, tableRef });
 
-  //   내 조건 — ★ 하나가 이 화면의 기본값 (DB 라 PC 를 바꿔도 따라온다)
+  //   내 조건 · ★ 하나가 이 화면의 기본값 (DB 라 PC 를 바꿔도 따라온다)
   const saved = useSavedQueries("partners", companyId);
-  const paramsNow = { kind: kindKey, q, cond: live };
+  const paramsNow =  { kind: kindKey, q, cond: live };
   const paramsBasic = { kind: "all", q: "", cond: EMPTY_COND };
   const applySaved = (p: Record<string, unknown>) => {
     if (typeof p.kind === "string" && KIND_TABS.some((k) => k.key === p.kind)) setKindKey(p.kind as KindKey);
@@ -601,7 +604,7 @@ export default function PartnersPage() {
     p.push(KIND_TABS.find((k) => k.key === kindKey)?.label || "");
     return p.filter(Boolean).slice(0, 3).join(" · ") || "내 조건";
   };
-  //   걸린 조건 — 조회 줄에 칩으로 남는다 (열지 않고도 보인다, ✕ 로 하나씩 뺀다)
+  //   걸린 조건 · 조회 줄에 칩으로 남는다 (열지 않고도 보인다, ✕ 로 하나씩 뺀다)
   const drop = (patch: Partial<Cond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
   const chips: AppliedChip[] = [
     ...quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) })),
@@ -645,7 +648,7 @@ export default function PartnersPage() {
     onError: (err: Error) => { toast("삭제 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"); },
   });
 
-  // PR: 일괄삭제 (Promise.allSettled — FK 실패행 grace 처리)
+  // PR: 일괄삭제 (Promise.allSettled · FK 실패행 grace 처리)
   const bulkDeleteMut = useMutation({
     mutationFn: async (ids: string[]) => {
       const results = await Promise.allSettled(ids.map((id) => deletePartner(id)));
@@ -729,7 +732,7 @@ export default function PartnersPage() {
     }
   }, []);
 
-  // 2026-05-21 PR-1: 400행 대량 import 지원 — 중복 검출 + 20 chunk 병렬 + 실패행 분리 리포트.
+  // 2026-05-21 PR-1: 400행 대량 import 지원 · 중복 검출 + 20 chunk 병렬 + 실패행 분리 리포트.
   const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(null);
   const [importResult, setImportResult] = useState<{
     created: number;
@@ -763,9 +766,9 @@ export default function PartnersPage() {
     let skipped = 0;
     const failed: { row: number; name: string; reason: string }[] = [];
 
-    // 2) 20 chunk 병렬 처리 (Promise.allSettled — 실패 1건이 전체 중단 안 시킴)
+    // 2) 20 chunk 병렬 처리 (Promise.allSettled · 실패 1건이 전체 중단 안 시킴)
     const CHUNK = 20;
-    for (let i = 0; i < importPreview.length; i += CHUNK) {
+    for (let i = 0; i  < importPreview.length; i += CHUNK) {
       const slice = importPreview.slice(i, i + CHUNK);
       const results = await Promise.allSettled(slice.map(async (row: any, idx: number) => {
         const rowNum = i + idx + 2; // 1-base + header
@@ -820,7 +823,7 @@ export default function PartnersPage() {
     setImportResult({ created, updated, skipped, failed });
     qc.invalidateQueries({ queryKey: ["partners"] });
     const total = created + updated + skipped + failed.length;
-    toast(`${total}건 처리 — 생성 ${created} · 중복 ${skipped} · 실패 ${failed.length}`, failed.length > 0 ? 'info' : 'success');
+    toast(`${total}건 처리 · 생성 ${created} · 중복 ${skipped} · 실패 ${failed.length}`, failed.length > 0 ? 'info' : 'success');
   }, [importPreview, companyId, qc, toast]);
 
   // 실패행 CSV 다운로드 (재시도용)
@@ -877,8 +880,9 @@ export default function PartnersPage() {
     importPreview && !importing ? confirmImport : undefined,
   );
 
-  //   엑셀 그릇 — 내려받기·템플릿·가져오기를 한 버튼에 (되는 것만)
+  //   엑셀 그릇 · 내려받기·템플릿·가져오기를 한 버튼에 (되는 것만)
   const excelItems: ExcelItem[] = [
+    
     { label: "지금 조회 결과 내려받기", count: partners.length, hint: "걸린 조건 그대로, 표에 보이는 칸 그대로", onClick: handleExport, disabled: partners.length === 0 },
     { label: "CSV 템플릿 내려받기", hint: "가져오기용 빈 양식(예시 한 줄 포함)", onClick: downloadCSVTemplate },
     { label: "CSV·엑셀로 가져오기", hint: "이름·구분·사업자번호… 열 이름은 템플릿과 같아야 합니다", onClick: () => importInputRef.current?.click() },
@@ -897,7 +901,7 @@ export default function PartnersPage() {
     },
     {
       label: detecting ? "찾는 중…" : "휴면 거래처 찾기", source: "장부 대조", disabled: detecting,
-      hint: "6개월 이상 거래·연락이 없는 곳을 '휴면'으로 표시하고 담당자에게 알립니다 — 갈래 탭 '휴면'에서 봅니다",
+      hint: "6개월 이상 거래·연락이 없는 곳을 '휴면'으로 표시하고 담당자에게 알립니다. 갈래 탭 '휴면'에서 봅니다",
       onClick: runDormancyDetect,
     },
   ];
@@ -987,7 +991,7 @@ export default function PartnersPage() {
             </ConditionPanel>
 
             <QuickSearch value={q} onApply={setQ}
-              placeholder="이름 · 담당자 · 사업자번호 · 연락처 · 태그 — 쉼표로 여러 개, Enter" />
+              placeholder="이름 · 담당자 · 사업자번호 · 연락처 · 태그 · 쉼표로 여러 개, Enter" />
           </QueryBar>
 
           <AppliedChips chips={chips} onClearAll={clearAll} />
@@ -1009,10 +1013,12 @@ export default function PartnersPage() {
             <div className="collect-empty">불러오는 중…</div>
           ) : (rawPartners as any[]).length === 0 ? (
             <div className="collect-empty">
-              거래처를 추가하면 프로젝트·세금계산서에서 바로 연결됩니다 — 오른쪽 위 [+ 새 거래처] 또는 엑셀 ▾ 가져오기
+              
+              거래처를 추가하면 프로젝트·세금계산서에서 바로 연결됩니다. 오른쪽 위 [+ 새 거래처] 또는 엑셀 ▾ 가져오기
+
             </div>
           ) : partners.length === 0 ? (
-            <div className="collect-empty">이 조건에 맞는 거래처가 없습니다 — 검색조건을 풀어 보세요</div>
+            <div className="collect-empty">이 조건에 맞는 거래처가 없습니다. 검색조건을 풀어 보세요</div>
           ) : (
             <div className="ev-scroll">
               <table ref={tableRef} className="ev-table ev-lined partner-table">
@@ -1039,7 +1045,7 @@ export default function PartnersPage() {
                     <SortableTh label="연락처" sortKey="phone" sort={sort} onSort={onSort} resize={thResize("phone", 6)} />
                     <SortableTh label="태그" sortKey="tag" sort={sort} onSort={onSort} filter={thFilter("tag")} resize={thResize("tag", 7)} />
                     <SortableTh label="상태" sortKey="status" sort={sort} onSort={onSort} filter={thFilter("status")} resize={thResize("status", 8)} />
-                    <th className="th-c" title="입금 지연 이력으로 매긴 신용 등급 — 마우스를 올리면 근거">신용</th>
+                    <th className="th-c" title="입금 지연 이력으로 매긴 신용 등급 · 마우스를 올리면 근거">신용</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1059,7 +1065,7 @@ export default function PartnersPage() {
                           <span className="inline-flex items-center gap-1.5">
                             {p.name}
                             {p.is_dormant && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold bg-amber-500/15 text-amber-500" title="6개월 이상 거래·연락 없음 — 휴면"><Ico e="💤" /> 휴면</span>
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold bg-amber-500/15 text-amber-500" title="6개월 이상 거래·연락 없음. 휴면"><Ico e="💤" /> 휴면</span>
                             )}
                           </span>
                         </td>

@@ -95,7 +95,7 @@ export async function parseAccountFill(file: File, accounts: AcctOpt[]): Promise
     const hit = byCode.get(head) ?? byName.get(want) ?? byCode.get(want);
     if (!hit) {
       fails.push(nameCount.get(want) && nameCount.get(want)! > 1
-        ? `${line}줄: '${want}' 는 같은 이름이 여럿입니다 — 코드로 적어 주세요`
+        ? `${line}줄: '${want}' 는 같은 이름이 여럿입니다. 코드로 적어 주세요`
         : `${line}줄: '${want}' 라는 계정과목이 없습니다`);
       return;
     }

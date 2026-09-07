@@ -16,7 +16,9 @@ interface ByPersonChartProps {
   payByPerson: Row;
 }
 
-/** 한 화면에 들어오는 만큼만 — 나머지는 아래 표에서 본다 */
+
+
+/** 한 화면에 들어오는 만큼만 · 나머지는 아래 표에서 본다 */
 const MAX_BARS = 12;
 
 export default function ByPersonChart({ people, payByPerson }: ByPersonChartProps) {

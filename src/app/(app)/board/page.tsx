@@ -63,9 +63,9 @@ type Post = {
   category?: string | null; // 결정 147(드팜므 문의) — 공지/매뉴얼/교육자료/자유, null=미분류(옛 글)
 };
 
-//   카테고리 — 사내 매뉴얼 저장소 요구(결정 147). 회사별 사전은 2차, 지금은 고정 4종
+//   카테고리 · 사내 매뉴얼 저장소 요구(결정 147). 회사별 사전은 2차, 지금은 고정 4종
 const POST_CATS = ["공지", "매뉴얼", "교육자료", "자유"] as const;
-type Comment = {
+type Comment =  {
   id: string;
   post_id: string;
   author_id: string | null;
@@ -104,26 +104,28 @@ function plainToHtml(text: string): string {
   return text.split("\n").map((line) => (line.trim() === "" ? "<p><br/></p>" : `<p>${escapeHtmlText(line)}</p>`)).join("");
 }
 
-/** RichEditor 빈 문서(<p></p> 등) 판별 — 텍스트·이미지·표 전부 없으면 빈 것 */
-function isEmptyHtml(html: string): boolean {
+/** RichEditor 빈 문서(<p></p>  등) 판별 · 텍스트·이미지·표 전부 없으면 빈 것 */
+function isEmptyHtml(html: string): boolean  {
   if (!html) return true;
   if (/<(img|table)/i.test(html)) return false;
   return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim() === "";
 }
 
-/** 검색용 — HTML 태그를 걷어내고 텍스트만 */
-function stripHtml(s: string): string {
+
+
+/** 검색용 · HTML 태그를 걷어내고 텍스트만 */
+function stripHtml(s: string): string  {
   return isHtmlContent(s) ? s.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ") : s;
 }
 
 export default function BoardPage() {
   const { user, role } = useUser();
-  const { toast } = useToast();
+  const { toast }  = useToast();
   const qc = useQueryClient();
   const companyId = user?.company_id ?? null;
-  // 상단 고정·해제는 마스터(또는 '/board:pin' 위임자)만 — 아무나 남의 글까지 고정·해제하던 문제
+  // 상단 고정·해제는 마스터(또는 '/board:pin' 위임자)만 · 아무나 남의 글까지 고정·해제하던 문제
   //   (2026-08-05 사장님). 화면 게이트와 별개로 DB 트리거에서도 강제한다.
-  const { isMaster, hasPerm } = useMyPermissions();
+  const  { isMaster, hasPerm } = useMyPermissions();
   const canPin = role !== "partner" && (isMaster || hasPerm("/board:pin"));
 
   const [showForm, setShowForm] = useState(false);
@@ -139,7 +141,7 @@ export default function BoardPage() {
       if (p) setOpenId(p);
     } catch { /* 무시 */ }
   }, []);
-  // 플렉스/슬랙식 2단 — 좌측 필터/검색
+  // 플렉스/슬랙식 2단 · 좌측 필터/검색
   //   보기(전체/내 글)는 조회 줄, 종류·작성자·기간은 검색조건 (2026-08-18 규칙: 값 필터는 검색조건)
   const [view, setView] = useState<"all" | "mine">("all");
   const [search, setSearch] = useState("");
@@ -161,16 +163,16 @@ export default function BoardPage() {
   const [commentFiles, setCommentFiles] = useState<Record<string, Attachment[]>>({});
   const [commentUploadingKey, setCommentUploadingKey] = useState<string | null>(null);
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
-  // v4 B1: 멘션 자동완성 상태 — postId 또는 reply key 별로 분리
+  // v4 B1: 멘션 자동완성 상태 · postId 또는 reply key 별로 분리
   // key = root: postId, reply key: `reply:${parentCommentId}`
   const [mentionQuery, setMentionQuery] = useState<{ key: string; q: string } | null>(null);
   const [draftMentions, setDraftMentions] = useState<Record<string, string[]>>({});
-  // v4 B1: 답글 — 현재 reply 입력 펼친 root comment id 와 그 draft 본문
+  // v4 B1: 답글 · 현재 reply 입력 펼친 root comment id 와 그 draft 본문
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
   const inputRefs = useRef<Record<string, HTMLTextAreaElement | HTMLInputElement | null>>({});
 
-  // 작업2 — 확장 입력 상태
+  // 작업2 · 확장 입력 상태
   const [eventDate, setEventDate] = useState<string>("");
   const [pollQuestion, setPollQuestion] = useState<string>("");
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
@@ -227,13 +229,13 @@ export default function BoardPage() {
   });
 
   // R13/R14: 투표 집계는 SECURITY DEFINER RPC get_poll_results 우선
-  //   (익명 폴은 투표자 신원 비노출 — 클라이언트가 user_id 를 직접 못 읽음).
+  //   (익명 폴은 투표자 신원 비노출 · 클라이언트가 user_id 를 직접 못 읽음).
   //   마이그레이션 미적용 환경에서는 RPC 부재 → 레거시 select 집계로 폴백.
-  const { data: pollAgg } = useQuery({
+  const  { data: pollAgg } = useQuery({
     queryKey: ["board-poll-results", openId],
     queryFn: async () => {
       const counts: Record<number, number> = {};
-      // 실명 폴이면 RPC 가 옵션별 voter_user_ids 를 함께 준다 — 이걸 버리면
+      // 실명 폴이면 RPC 가 옵션별 voter_user_ids 를 함께 준다. 이걸 버리면
       //   실명으로 만들어도 화면상 익명처럼 보인다 (2026-08-05 사장님 제보).
       const voterIds: Record<number, string[]> = {};
       try {
@@ -288,7 +290,7 @@ export default function BoardPage() {
     return map;
   }, [companyMembers, voterIdList]);
 
-  // 투표 현황 팝업 (2026-08-06 사장님 시안) — 본문에는 투표자를 노출하지 않고 여기서만 본다.
+  // 투표 현황 팝업 (2026-08-06 사장님 시안). 본문에는 투표자를 노출하지 않고 여기서만 본다.
   const [pollStatusPost, setPollStatusPost] = useState<Post | null>(null);
 
   // 내 표 — 본인 행만 조회(익명이어도 본인 선택 표시는 가능, RLS 본인범위).
@@ -348,7 +350,9 @@ export default function BoardPage() {
     return out;
   }
 
-  // RichEditor 본문 삽입 이미지 — dataURL 인라인 대신 board-files 스토리지 업로드
+  
+
+  // RichEditor 본문 삽입 이미지 · dataURL 인라인 대신 board-files 스토리지 업로드
   //   (본문이 DB text 컬럼이라 대용량 dataURL 이 그대로 저장되는 것 방지)
   async function uploadEditorImage(file: File): Promise<string> {
     const ext = file.name.split(".").pop() || "png";
@@ -426,11 +430,11 @@ export default function BoardPage() {
         }).select("id").single();
         if (error) throw error;
 
-        // 새 글 알림 — 회사 전원에게 (2026-08-06 사장님 요청: "누가 무슨 제목의 글을
+        // 새 글 알림 · 회사 전원에게 (2026-08-06 사장님 요청: "누가 무슨 제목의 글을
         //   게시판에 등록했다는 알림"). 오너뷰 안의 알림만, 메일은 보내지 않는다.
         //   entity_type=board_post 라 알림을 누르면 그 글로 바로 열린다(notification-routes).
         //   작성자 본인은 제외. 실패해도 글 등록은 이미 끝났으므로 막지 않는다.
-        try {
+        try  {
           const members = logRead('board/page:notify-members', await db
             .from("users").select("id").eq("company_id", companyId as string));
           const rows = (members || [])
@@ -566,7 +570,10 @@ export default function BoardPage() {
         }
       }
 
-      // 글 작성자 알림 — 댓글이 달리면 게시글 작성자에게 (본인 댓글 제외 · 이미 멘션 알림 받은 경우 중복 방지)
+      
+
+      // 글 작성자 알림 · 댓글이 달리면 게시글 작성자에게 (본인 댓글 제외 · 이미 멘션 알림 받은 경우 중복 방지)
+      
       {
         const post = posts.find((p) => p.id === postId);
         const authorId = post?.author_id;
@@ -585,8 +592,10 @@ export default function BoardPage() {
         }
       }
 
-      // 대댓글 알림 — 내 댓글에 답글이 달리면 원 댓글 작성자에게 (본인·멘션·글작성자와 중복 제외)
-      if (parentCommentId) {
+      
+
+      // 대댓글 알림 · 내 댓글에 답글이 달리면 원 댓글 작성자에게 (본인·멘션·글작성자와 중복 제외)
+      if (parentCommentId)  {
         const parent = logRead('board/page:parent', await db.from("board_comments").select("author_id").eq("id", parentCommentId).maybeSingle());
         const parentAuthorId = parent?.author_id as string | undefined;
         const postAuthorId = posts.find((p) => p.id === postId)?.author_id;
@@ -632,7 +641,7 @@ export default function BoardPage() {
       toast("댓글 삭제 실패: " + (e?.message || ""), "error"),
   });
 
-  // 투표 — 옵션 클릭은 '선택'까지만, 확인 버튼을 눌러야 서버에 반영한다
+  // 투표 · 옵션 클릭은 '선택'까지만, 확인 버튼을 눌러야 서버에 반영한다
   //   (2026-08-05 사장님 제보: 누르는 즉시 투표돼 오투표가 났다).
   //   pendingVote: 아직 제출 안 한 선택. null 이면 내 기존 표(myVotes)를 그대로 표시.
   const [pendingVote, setPendingVote] = useState<{ postId: string; options: number[] } | null>(null);
@@ -647,7 +656,7 @@ export default function BoardPage() {
     });
   };
 
-  // 확정 저장 — onConflict 미사용(구 (post_id,user_id) / 신 (post_id,user_id,
+  // 확정 저장 · onConflict 미사용(구 (post_id,user_id) / 신 (post_id,user_id,
   //   option_index) UNIQUE 양쪽에서 안전). 선택한 옵션 집합으로 통째 교체.
   const castVote = useMutation({
     mutationFn: async ({ postId, optionIndexes }: { postId: string; optionIndexes: number[] }) => {
@@ -755,8 +764,10 @@ export default function BoardPage() {
     setTimeout(() => el?.focus(), 0);
   }
 
-  // 댓글 트리 — root + replies map.
-  const { rootComments, replyMap } = useMemo(() => {
+  
+
+  // 댓글 트리 · root + replies map.
+  const  { rootComments, replyMap } = useMemo(() => {
     const roots: Comment[] = [];
     const map: Record<string, Comment[]> = {};
     for (const c of comments) {
@@ -769,8 +780,8 @@ export default function BoardPage() {
     return { rootComments: roots, replyMap: map };
   }, [comments]);
 
-  // 투표 마감 — 클라이언트 시각 기준. 서버측은 RLS 제약 X (B2 마이그 명시).
-  function pollExpiry(deadline?: string | null): {
+  // 투표 마감 · 클라이언트 시각 기준. 서버측은 RLS 제약 X (B2 마이그 명시).
+  function pollExpiry(deadline?: string | null):  {
     expired: boolean;
     label: string | null;
   } {
@@ -870,7 +881,7 @@ export default function BoardPage() {
               <DateRangeField label={null} from={bDraft.from} to={bDraft.to} onChange={(f, t) => setBDraft((c) => ({ ...c, from: f, to: t }))} onClear={() => setBDraft((c) => ({ ...c, from: "", to: "" }))} />
             </ConditionRow>
           </ConditionPanel>
-          <QuickSearch value={search} onApply={setSearch} placeholder="제목 · 내용 · 작성자 — 쉼표로 여러 개, Enter" />
+          <QuickSearch value={search} onApply={setSearch} placeholder="제목 · 내용 · 작성자 · 쉼표로 여러 개, Enter" />
           <ChipGroup value={view} onChange={setView} options={[{ value: "all", label: "전체" }, { value: "mine", label: "내 글" }] as const} />
         </QueryBar>
         <AppliedChips chips={bChips} onClearAll={() => { setSearch(""); setBLive(BEMPTY); setBDraft(BEMPTY); setView("all"); }} />
@@ -900,7 +911,7 @@ export default function BoardPage() {
             />
             {/* 카테고리(결정 147) — 매뉴얼·교육자료를 골라 볼 수 있게. 한 줄 셀렉트 표준 */}
             <select value={postCat} onChange={(e) => setPostCat(e.target.value)}
-              className="field-input !w-32 flex-none" aria-label="카테고리" title="카테고리 — 검색조건에서 골라 볼 수 있습니다">
+              className="field-input !w-32 flex-none" aria-label="카테고리" title="카테고리 · 검색조건에서 골라 볼 수 있습니다">
               <option value="">미분류</option>
               {POST_CATS.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
@@ -990,7 +1001,7 @@ export default function BoardPage() {
                 {/* v4 B2: 투표 마감 */}
                 <div className="mt-2 pt-2 border-t border-[var(--border)]">
                   <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">
-                    ⏰ 투표 마감 (선택) — 비우면 무제한
+                    ⏰ 투표 마감 (선택)<span className="ui-sub">비우면 무제한</span>
                   </label>
                   <DateTimeField
                     value={pollDeadline}
@@ -1251,10 +1262,10 @@ export default function BoardPage() {
                               <span className="text-[11px] text-[var(--text-muted)]">
                                 {dirty
                                   ? picked.length === 0
-                                    ? "선택 해제됨 — 확인하면 내 표가 취소됩니다"
+                                    ? "선택 해제됨. 확인하면 내 표가 취소됩니다"
                                     : `선택: ${picked.map((i) => opts[i]).filter(Boolean).join(", ")}`
                                   : myVotes.length > 0
-                                    ? "투표함 — 다시 선택하면 변경할 수 있습니다"
+                                    ? "투표함. 다시 선택하면 변경할 수 있습니다"
                                     : "선택 후 '투표하기'를 눌러야 반영됩니다"}
                               </span>
                               <div className="flex items-center gap-2 shrink-0">
@@ -1725,7 +1736,9 @@ function PollStatusDialog({ post, voterIdsByOption, voterNames, members, onClose
   );
 }
 
-// 게시판 사진 라이트박스 — 팝업 크게 보기 + 이전/다음 넘기기 + 드래그 이동(패닝) + 휠/더블클릭 확대. ESC·바깥클릭 닫힘.
+
+
+// 게시판 사진 라이트박스 · 팝업 크게 보기 + 이전/다음 넘기기 + 드래그 이동(패닝) + 휠/더블클릭 확대. ESC·바깥클릭 닫힘.
 function BoardLightbox({ images, index, onIndex, onClose }: {
   images: { url: string; name: string }[];
   index: number;

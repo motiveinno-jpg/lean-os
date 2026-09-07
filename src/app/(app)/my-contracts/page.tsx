@@ -30,8 +30,8 @@ const STATUS_INFO: Record<string, { label: string; bg: string; text: string }> =
   draft: { label: "준비 중", bg: "bg-[var(--bg-surface)]", text: "text-[var(--text-muted)]" },
 };
 
-// 내게 온 서명 요청 — 모두사인 스타일 인앱 서명 inbox.
-export default function MyContractsPage() {
+// 내게 온 서명 요청 · 모두사인 스타일 인앱 서명 inbox.
+export default function MyContractsPage()  {
   const { user } = useUser();
   const userId = user?.id ?? null;
   const companyId = user?.company_id ?? null;
@@ -122,7 +122,7 @@ export default function MyContractsPage() {
           <QueryBar right={
             <button type="button" onClick={() => refetch()} disabled={isFetching} className="btn-secondary btn-sm">{isFetching ? "갱신 중…" : "새로고침"}</button>
           }>
-            <QuickSearch value={q} onApply={setQ} placeholder="제목 · 상태 — 쉼표로 여러 개, Enter" />
+            <QuickSearch value={q} onApply={setQ} placeholder="제목 · 상태 · 쉼표로 여러 개, Enter" />
           </QueryBar>
           <AppliedChips chips={chips} onClearAll={() => setQ("")} />
           <ResultStrip>
@@ -136,7 +136,7 @@ export default function MyContractsPage() {
             <div className="collect-empty">불러오는 중…</div>
           ) : filtered.length === 0 ? (
             <div className="collect-empty">
-              {q ? "이 조건에 맞는 계약서가 없습니다 — 검색을 풀어 보세요"
+              {q ? "이 조건에 맞는 계약서가 없습니다. 검색을 풀어 보세요"
                 : filter === "pending" ? "대기 중인 서명 요청이 없습니다"
                 : filter === "completed" ? "완료된 서명이 없습니다" : "받은 계약서가 없습니다"}
             </div>

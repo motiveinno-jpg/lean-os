@@ -1,14 +1,14 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
-import { fetchPaged } from "@/lib/fetch-paged";
+import { fetchPaged }  from "@/lib/fetch-paged";
 
-// 거래처 원장 — 매출처(받을 돈)/매입처(줄 돈) 잔액 조회 (2026-06-12 메뉴 분리 핸드오프).
+// 거래처 원장 · 매출처(받을 돈)/매입처(줄 돈) 잔액 조회 (2026-06-12 메뉴 분리 핸드오프).
 //   대사 작업(확인 큐/수동 매칭/확정 내역)은 /partners/reconciliation (거래 대사)로 분리.
 //   UX(§4): 세그먼트 탭(매출처=파랑 var(--info) / 매입처=주황 var(--warning), 빨강은 연체·마이너스 전용) +
 //   요약 카드 + 좌 거래처 목록 / 우 타사 세무 서비스식 원장 시트. 탭 상태는 URL ?type= 에 반영.
 
-import { useEffect, useMemo, useState } from "react";
+import  { useEffect, useMemo, useState } from "react";
 import { DateRangeField } from "@/components/date-range-field";
 import { EmptyState } from "@/components/empty-state";
 import { PickList } from "@/components/pick-list";
@@ -43,8 +43,8 @@ const thisYear = () => new Date().getFullYear();
 const yearRange = (y: number) => ({ from: `${y}-01-01`, to: `${y}-12-31` });
 type LSortKey = "code" | "name" | "out";
 
-// 초기 탭 — URL ?type= (새로고침/공유 유지). useSearchParams 의 Suspense 요구를 피해 window 직접 읽기.
-function initialType(): ArApType {
+// 초기 탭 · URL ?type= (새로고침/공유 유지). useSearchParams 의 Suspense 요구를 피해 window 직접 읽기.
+function initialType(): ArApType  {
   if (typeof window === "undefined") return "sales";
   const t = new URLSearchParams(window.location.search).get("type");
   return t === "purchase" ? "purchase" : "sales";
@@ -75,7 +75,7 @@ export default function PartnerLedgerPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState<Cond>(EMPTY_COND);
   const [live, setLive] = useState<Cond>(EMPTY_COND);
-  //   목록 정렬 — 기본 잔액 큰 순(관리 우선순위). 머리단 정렬 부품으로.
+  //   목록 정렬 · 기본 잔액 큰 순(관리 우선순위). 머리단 정렬 부품으로.
   const [sort, setSort] = useState<SortState<LSortKey>>({ key: "out", dir: "desc" });
   const onSort = (k: LSortKey) => setSort((c) => nextSort(c, k, k === "out" ? "desc" : "asc"));
   const [selLedger, setSelLedger] = useState<string | null>(null); // 좌측 목록 선택 (partner_id, null 거래처는 "none")
@@ -88,7 +88,7 @@ export default function PartnerLedgerPage() {
   const [pickOpen, setPickOpen] = useState(false);
   //   미수 경과 칩 필터 — 요약 줄의 경과 칩을 누르면 그 경과 구간에 미결 계산서가 있는 거래처만 (재클릭 해제)
   const [ageFilter, setAgeFilter] = useState<number | null>(null);
-  // 일괄 엑셀 내보내기 — 목록 체크 선택(키=partner_id ?? "none"), 거래처마다 시트 분리
+  // 일괄 엑셀 내보내기 · 목록 체크 선택(키=partner_id ?? "none"), 거래처마다 시트 분리
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [exporting, setExporting] = useState(false);
   useEffect(() => { setCheckedIds(new Set()); }, [ledgerType, periodStart, periodEnd]);
@@ -122,12 +122,12 @@ export default function PartnerLedgerPage() {
   });
   const partnerMap = partnerInfo.names;
   const partnerCodeMap = partnerInfo.codes;
-  const { data: agingRows = [], isLoading: agingLoading } = useAging(companyId, ledgerType);
+  const { data: agingRows = [], isLoading: agingLoading }  = useAging(companyId, ledgerType);
 
   // 수동 전표만 있는 거래처(세금계산서 없음)도 해당 탭에 노출하기 위한 분류
   //   외상매출금(108) 라인 → 매출처, 외상매입금(251) 라인 → 매입처. (매입처에서 전표 도달 불가하던 버그 해소)
-  //   + 수동 전표의 AR/AP 라인이 잔액에 미치는 영향(단수차 등)도 합산 — 좌측 목록 잔액이 우측 시트와 일치.
-  const { data: voucherPartnerTypes = {} } = useQuery<Record<string, { sales?: boolean; purchase?: boolean; salesAdj?: number; purchaseAdj?: number }>>({
+  //   + 수동 전표의 AR/AP 라인이 잔액에 미치는 영향(단수차 등)도 합산 · 좌측 목록 잔액이 우측 시트와 일치.
+  const  { data: voucherPartnerTypes = {} } = useQuery<Record<string, { sales?: boolean; purchase?: boolean; salesAdj?: number; purchaseAdj?: number }>>({
     queryKey: ["ledger-voucher-partners", companyId, periodStart, periodEnd],
     queryFn: async () => {
       //   ★ 페이징 필수 — 넓은 기간엔 수기전표가 1,000행(PostgREST 기본 상한)을 넘어
@@ -151,9 +151,9 @@ export default function PartnerLedgerPage() {
     enabled: !!companyId,
   });
 
-  // 미수 경과(에이징) — 세금계산서 발행분 기준 잔액을 발행일 경과일로 버킷팅(매출처 뷰 전용, 표시만).
+  // 미수 경과(에이징). 세금계산서 발행분 기준 잔액을 발행일 경과일로 버킷팅(매출처 뷰 전용, 표시만).
   //   ⚠️ 원장 '총 미수금'(RPC)은 전표·이월 포함이라 이 에이징 합계와 다를 수 있음 → 라벨로 구분.
-  const { data: aging } = useQuery<{ buckets: { label: string; amount: number; count: number }[]; total: number; byPartner: Record<string, number[]> } | null>({
+  const  { data: aging } = useQuery<{ buckets: { label: string; amount: number; count: number }[]; total: number; byPartner: Record<string, number[]> } | null>({
     queryKey: ["ledger-ar-aging", companyId],
     enabled: !!companyId && ledgerType === "sales",
     staleTime: 60_000,
@@ -174,7 +174,7 @@ export default function PartnerLedgerPage() {
       ];
       const now = new Date();
       const todayMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-      //   거래처별로 어느 구간에 미결 계산서가 있는지 — 요약 줄 경과 칩을 눌러 목록을 거를 때 쓴다 (미지정 = "none")
+      //   거래처별로 어느 구간에 미결 계산서가 있는지 · 요약 줄 경과 칩을 눌러 목록을 거를 때 쓴다 (미지정 = "none")
       const byPartner: Record<string, number[]> = {};
       for (const r of (inv || []) as any[]) {
         if (r.status === "draft") continue;
@@ -192,7 +192,7 @@ export default function PartnerLedgerPage() {
     },
   });
 
-  // 홈택스 거래처 연결 — 세금계산서↔거래처 사업자번호 자동 연결 (원장의 전제 데이터)
+  // 홈택스 거래처 연결 · 세금계산서↔거래처 사업자번호 자동 연결 (원장의 전제 데이터)
   const linkMut = useMutation({
     mutationFn: async () => {
       const { data, error } = await db.rpc("link_invoice_partners");
@@ -306,7 +306,7 @@ export default function PartnerLedgerPage() {
   ];
   const helperItems: HelperItem[] = [
     { label: linkMut.isPending ? "연결 중…" : "홈택스 거래처 연결", source: "국세청 조회", disabled: linkMut.isPending,
-      hint: "홈택스 세금계산서의 상대를 사업자번호로 거래처에 자동 등록·연결합니다 — 원장의 전제 데이터", onClick: () => linkMut.mutate() },
+      hint: "홈택스 세금계산서의 상대를 사업자번호로 거래처에 자동 등록·연결합니다. 원장의 전제 데이터", onClick: () => linkMut.mutate() },
   ];
   const yearQuicks = [thisYear(), thisYear() - 1, thisYear() - 2].map((y) => ({ y, ...yearRange(y) }));
 
@@ -370,8 +370,8 @@ export default function PartnerLedgerPage() {
                   </ConditionRow>
                 </ConditionPanel>
               } />
-            <QuickSearch value={q} onApply={setQ} placeholder="거래처명 · 코드 · 잔액 — 쉼표로 여러 개, Enter" />
-            <span className="qk-chips" title="보기 — 원장(목록+시트) / 연령표(거래처별 경과 구간)">
+            <QuickSearch value={q} onApply={setQ} placeholder="거래처명 · 코드 · 잔액 · 쉼표로 여러 개, Enter" />
+            <span className="qk-chips" title="보기 · 원장(목록+시트) / 연령표(거래처별 경과 구간)">
               <button type="button" className={view === "ledger" ? "qk-chip qk-chip-on" : "qk-chip"} onClick={() => setView("ledger")}>원장</button>
               <button type="button" className={view === "aging" ? "qk-chip qk-chip-on" : "qk-chip"} onClick={() => setView("aging")}>연령표</button>
             </span>
@@ -387,7 +387,7 @@ export default function PartnerLedgerPage() {
             <Stat label={pal.label} value={`${shown.length.toLocaleString("ko")}곳${(sq || live.bal || ageFilter !== null) && data.length !== shown.length ? ` / ${data.length.toLocaleString("ko")}` : ""}`} />
             {/* 미수 경과 — 예전 카드 4칸을 칩으로 (2026-08-19). 누르면 그 구간에 미결 계산서가 있는 거래처만 목록에 남는다 */}
             {ledgerType === "sales" && aging && aging.total > 0 && (
-              <span className="ledger-age-chips" title={`합계 ${won(aging.total)} · 세금계산서 발행 기준 — 원장 총 미수금은 전표·이월 포함(차이 정상)`}>
+              <span className="ledger-age-chips" title={`합계 ${won(aging.total)} · 세금계산서 발행 기준 · 원장 총 미수금은 전표·이월 포함(차이 정상)`}>
                 <span className="ledger-age-lbl">미수 경과</span>
                 {aging.buckets.map((b, i) => (
                   <button key={b.label} type="button" onClick={() => setAgeFilter(ageFilter === i ? null : i)}
@@ -417,7 +417,7 @@ export default function PartnerLedgerPage() {
               <div className="ledger-list-pane">
                 {shown.length === 0 ? (
                   <div className="collect-empty">
-                    {sq || live.bal || ageFilter !== null ? "이 조건에 맞는 거래처가 없습니다 — 검색조건을 풀어 보세요" : `${periodLabel} ${pal.label} 거래가 없습니다 — AI 제안 ▾ 「홈택스 거래처 연결」을 먼저 실행해 보세요`}
+                    {sq || live.bal || ageFilter !== null ? "이 조건에 맞는 거래처가 없습니다. 검색조건을 풀어 보세요" : `${periodLabel} ${pal.label} 거래가 없습니다. AI 제안 ▾ 「홈택스 거래처 연결」을 먼저 실행해 보세요`}
                   </div>
                 ) : (
                   <div className="ev-scroll ledger-list-scroll">
@@ -482,7 +482,7 @@ export default function PartnerLedgerPage() {
                       <button type="button" className="ledger-nav-btn" disabled={selIdx < 0 || selIdx >= shown.length - 1} onClick={() => gotoIdx(selIdx + 1)} title="다음 거래처 (목록 순서)" aria-label="다음 거래처">›</button>
                       {wide && (
                         <span className="relative inline-block">
-                          <button type="button" className="btn-secondary btn-sm" onClick={() => setPickOpen((v) => !v)} title="거래처 바꾸기 — 이름·코드로 찾습니다">
+                          <button type="button" className="btn-secondary btn-sm" onClick={() => setPickOpen((v) => !v)} title="거래처 바꾸기 · 이름·코드로 찾습니다">
                             {nameOf(selRow.partner_id)} <span className="text-[var(--text-dim)]">▾</span>
                           </button>
                           {pickOpen && (

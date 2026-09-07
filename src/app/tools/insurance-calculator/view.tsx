@@ -15,10 +15,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { FOOTER } from "@/components/landing/content";
 import { FAQS } from "./faqs";
-import { track } from "@/lib/analytics";
+import { track }  from "@/lib/analytics";
 
-// ── 2026년 요율 상수 — 개정 시 여기만 수정 ──
-const RATES = {
+// ── 2026년 요율 상수 · 개정 시 여기만 수정 ──
+const RATES =  {
   yearLabel: "2026년",
   pensionRate: 0.095,          // 국민연금 총 9.5%
   pensionCapHigh: 6_590_000,   // 기준소득월액 상한 (2026.7~2027.6)
@@ -96,7 +96,7 @@ export default function InsuranceCalculatorView() {
           <div className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">무료 도구</div>
             <h1 className="lp4-h2">4대보험 계산기 <span className="lp4-freetool-yearchip">{RATES.yearLabel} 요율</span></h1>
-            <p className="lp4-sub">월급에서 얼마가 공제되고, 회사는 얼마를 더 부담하는지 — 직원과 사장님 양쪽의 몫을 한 번에 계산합니다. 회원가입 없이 무료입니다.</p>
+            <p className="lp4-sub">월급에서 얼마가 공제되고, 회사는 얼마를 더 부담하는지 · 직원과 사장님 양쪽의 몫을 한 번에 계산합니다. 회원가입 없이 무료입니다.</p>
           </div>
 
           <div className="lp4-freetool-card">
@@ -106,7 +106,7 @@ export default function InsuranceCalculatorView() {
                 <input type="text" inputMode="numeric" placeholder="3,000,000" className="lp4-input" value={comma(salary)} onChange={(e) => setSalary(e.target.value.replace(/[^0-9]/g, ""))} />
               </label>
               <label className="lp4-freetool-field">
-                <span className="lp4-freetool-label">산재보험 요율 % (선택 — 업종별 상이)</span>
+                <span className="lp4-freetool-label">산재보험 요율 % (선택 · 업종별 상이)</span>
                 <input type="text" inputMode="decimal" placeholder="예: 0.7" className="lp4-input" value={accidentRate} onChange={(e) => setAccidentRate(digits(e.target.value))} />
               </label>
             </div>
@@ -150,8 +150,8 @@ export default function InsuranceCalculatorView() {
                   <div className="lp4-freetool-result-rows">
                     <div className="lp4-freetool-result-row">
                       {r.capped
-                        ? <>국민연금은 기준소득월액 <b>상한({won(RATES.pensionCapHigh)}원)</b>까지만 부과됩니다 — 월급이 더 많아도 연금 보험료는 그대로입니다</>
-                        : <>국민연금은 기준소득월액 <b>하한({won(RATES.pensionCapLow)}원)</b>부터 부과됩니다 — 월급이 더 적어도 하한 기준으로 붙습니다</>}
+                        ? <>국민연금은 기준소득월액 <b>상한({won(RATES.pensionCapHigh)}원)</b>까지만 부과됩니다. 월급이 더 많아도 연금 보험료는 그대로입니다</>
+                        : <>국민연금은 기준소득월액 <b>하한({won(RATES.pensionCapLow)}원)</b>부터 부과됩니다. 월급이 더 적어도 하한 기준으로 붙습니다</>}
                     </div>
                   </div>
                 )}

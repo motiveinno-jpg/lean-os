@@ -44,7 +44,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             if (typeof window !== "undefined" && !msg.includes("aborted")) {
               const event = new CustomEvent("ownerview:mutation-error", { detail: msg });
               window.dispatchEvent(event);
-              // 운영자 조회용 DB 적재 — 어떤 작업/페이지였는지 context 에 기록
+              // 운영자 조회용 DB 적재 · 어떤 작업/페이지였는지 context 에 기록
               if (isInputNotice) return;
               const mKey = mutation?.options?.mutationKey;
               const actionLabel = Array.isArray(mKey) ? mKey.join(" / ") : (mKey ? String(mKey) : "데이터 저장/수정");

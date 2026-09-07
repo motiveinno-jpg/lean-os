@@ -211,7 +211,7 @@ export default function MonthlyDetailPage() {
       <AppliedChips chips={chips} onClearAll={() => apply(DEFAULT_VIEW)} />
 
       {isLoading ? <div className="collect-empty">불러오는 중…</div> : lines.length === 0 ? (
-        <div className="collect-empty">{year}년 확정 전표가 없습니다 — 수집·전표에서 전표를 만들면 여기 표가 채워집니다</div>
+        <div className="collect-empty">{year}년 확정 전표가 없습니다. 수집·전표에서 전표를 만들면 여기 표가 채워집니다</div>
       ) : view.dir === "wide" ? (
         <div className="pnl-tbl-wrap">
           <table className="ev-table ev-lined pnl-mx-table" style={{ minWidth: shownGroups.length > 6 ? 1180 : 760 }}>

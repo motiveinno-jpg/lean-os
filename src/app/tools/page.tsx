@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import ToolsHubView from "./view";
 import { SITE, TOOLS } from "./_seo";
 
-const TITLE = "무료 계산기 모음 — 연차·퇴직금·4대보험·실수령액·주휴수당·부가세";
+const TITLE = "무료 계산기 모음. 연차·퇴직금·4대보험·실수령액·주휴수당·부가세";
 const DESC =
   "사장님·인사담당자를 위한 무료 계산기 모음. 연차, 퇴직금, 4대보험, 월급 실수령액, 주휴수당, 부가세를 회원가입 없이 한 곳에서 계산하세요. 2026년 요율·최저임금 기준.";
 

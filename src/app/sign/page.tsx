@@ -1,10 +1,10 @@
 "use client";
-import { logRead } from "@/lib/log-read";
+import { logRead }  from "@/lib/log-read";
 
-// 2026-07-06 라운드8.1 — /sign, /share 는 외부(비로그인) 서명·공유 링크: 문서를 종이처럼 항상 밝게 보여주는 게
+// 2026-07-06 라운드8.1 · /sign, /share 는 외부(비로그인) 서명·공유 링크: 문서를 종이처럼 항상 밝게 보여주는 게
 // 의도(뷰어 OS 다크모드와 무관) → 배경/카드는 의도적으로 라이트 하드코딩 유지, var(--bg) 전환 금지.
 
-import { Suspense, useEffect, useState, useRef, useCallback, useMemo } from "react";
+import  { Suspense, useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import parse, { type HTMLReactParserOptions } from "html-react-parser";
 import { friendlyError } from "@/lib/friendly-error";
@@ -15,12 +15,12 @@ import { logAuditTrail } from "@/lib/audit-trail";
 import { generatePackageHash, storeDocumentHash } from "@/lib/document-integrity";
 import { parseSiyanFields, validateInputs, isFieldActive, applySignerInputsToHtml, type SignerField } from "@/lib/signature-fields";
 import { buildPartnerReplacements, applyTokenReplacements } from "@/lib/signer-replacements";
-import { usePrintIsolation } from "@/lib/use-print-isolation";
+import { usePrintIsolation }  from "@/lib/use-print-isolation";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
 
-// 2026-05-28 라이브 서명 본문 렌더 — html-react-parser 로 본문 HTML 을 React tree 로 변환.
+// 2026-05-28 라이브 서명 본문 렌더 · html-react-parser 로 본문 HTML 을 React tree 로 변환.
 //   토큰({{?라디오:...}}/{{?텍스트:...}}) 자리에 RadioInline/TextInline 컴포넌트 직접 mount.
 //   table/span/strong/img 등 RichEditor 서식은 라이브러리가 자동 보존. portal/anchor span 불필요.
 //   PDF·서명본 모달의 ☑/☐ 정적 합성(applySignerInputsToHtml)은 별도 경로로 유지.
@@ -29,7 +29,7 @@ const db = supabase;
 const RADIO_TOKEN_RE_LOCAL = /\{\{\s*\?라디오\s*:\s*([^}]+?)\s*\}\}/g;
 const TEXT_TOKEN_RE_LOCAL = /\{\{\s*\?텍스트\s*:\s*([^}]+?)\s*\}\}/g;
 
-// 라디오 인라인 — 본문 토큰 자리에 그대로 mount. 옵션 수평 wrap.
+// 라디오 인라인 · 본문 토큰 자리에 그대로 mount. 옵션 수평 wrap.
 function RadioInline({ field, value, onChange }: {
   field: { key: string; options: string[]; required: boolean };
   value: string;
@@ -54,7 +54,9 @@ function RadioInline({ field, value, onChange }: {
   );
 }
 
-// 텍스트 인라인 — when 조건은 호출처에서 active 판단 후 mount.
+
+
+// 텍스트 인라인 · when 조건은 호출처에서 active 판단 후 mount.
 function TextInline({ field, value, onChange, active }: {
   field: { key: string; when?: { key: string; value: string }; required: boolean };
   value: string;
@@ -171,7 +173,9 @@ function renderSignerBody(
   return parse(styled, options);
 }
 
-// 본문 끝의 서명 텍스트 블록 제거 — 보드 스타일 footer 로 별도 렌더하기 위해
+
+
+// 본문 끝의 서명 텍스트 블록 제거 · 보드 스타일 footer 로 별도 렌더하기 위해
 // 매칭: "{{contract_date}}" / 한국어 날짜 / 서명(인) / {{employee_seal}} 등 마커가 있는 마지막 섹션
 function stripSignatureBlock(body: string): string {
   if (!body) return body;
@@ -194,10 +198,12 @@ function stripSignatureBlock(body: string): string {
   return body.slice(0, cutAt).replace(/\s+$/, "");
 }
 
-// 보드 스타일 5열 서명 푸터 — 화면 렌더용 React 컴포넌트
+
+
+// 보드 스타일 5열 서명 푸터 · 화면 렌더용 React 컴포넌트
 // 2026-05-22 내부 /contracts/signed 와 동일한 갑/을 서명 박스 푸터.
 //   갑(회사) = 회사명·사업자번호·대표자 + 직인 이미지 / 을(서명자) = 성명·생년월일 + 서명 이미지.
-function ContractSignatureFooter(props: {
+function ContractSignatureFooter(props:  {
   contractDate?: string;
   companyName?: string;
   representative?: string;
@@ -288,9 +294,9 @@ type PackageData = {
   expired: boolean;
   company_id?: string;
   employees: { name: string; email?: string; department?: string; position?: string };
-  companies?: { name: string; seal_url?: string | null; representative?: string | null; business_number?: string | null } | null;
+  companies?: { name: string; seal_url?: string | null; representative?: string | null; business_number?: string | null }  | null;
   notes?: string;
-  // notes JSON 파싱 결과 — seal_applied_at 있으면 직인 표시
+  // notes JSON 파싱 결과 · seal_applied_at 있으면 직인 표시
   seal_url?: string | null;
   seal_applied_at?: string | null;
   seal_company_name?: string | null;
@@ -458,8 +464,8 @@ function SignContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  // 토큰 RPC(get_*_by_token) 반환은 생성 타입상 Json — 실제 shape 을 구조 타입으로 명시
-  type TokenSigReq = {
+  // 토큰 RPC(get_*_by_token) 반환은 생성 타입상 Json · 실제 shape 을 구조 타입으로 명시
+  type TokenSigReq =  {
     id: string; title: string; status: string | null;
     expires_at?: string | null; signer_name?: string | null; signer_email?: string | null;
     template_snapshot_html?: string | null; signer_inputs?: Record<string, string> | null;
@@ -513,10 +519,11 @@ function SignContent() {
             : sigReq.documents?.content_json;
           const filledDocuments = sigReq.documents
             ? { ...sigReq.documents, content_json: filledContentJson }
+            
             : sigReq.documents;
 
-          // 2026-05-28 옛 서명 — DB 에 저장된 signer_inputs 복원 (서명본 모달·완료화면 합성용)
-          if (sigReq.signer_inputs && typeof sigReq.signer_inputs === 'object') {
+          // 2026-05-28 옛 서명 · DB 에 저장된 signer_inputs 복원 (서명본 모달·완료화면 합성용)
+          if (sigReq.signer_inputs && typeof sigReq.signer_inputs === 'object')  {
             try { setSignerInputs(sigReq.signer_inputs as Record<string, string>); } catch { /* noop */ }
           }
 
@@ -542,9 +549,9 @@ function SignContent() {
             items: filledDocuments ? [{ id: sigReq.id, title: filledDocuments.name || sigReq.title, status: sigReq.status === 'signed' ? 'signed' : 'pending', documents: filledDocuments, sort_order: 0, signature_data: sigReq.signature_data ?? null, signed_at: sigReq.signed_at ?? null }] : [],
             _isGeneralDoc: true,
             _signatureRequestId: sigReq.id,
-          } as any);
-          // Mark as viewed — anon RLS 우회 SECDEF RPC (실패해도 비차단)
-          if (sigReq.status === 'sent') {
+          }  as any);
+          // Mark as viewed · anon RLS 우회 SECDEF RPC (실패해도 비차단)
+          if (sigReq.status === 'sent')  {
             try { await db.rpc("mark_signature_viewed_by_token", { p_token: token }); } catch { /* 비차단 */ }
           }
           setLoading(false);
@@ -556,9 +563,11 @@ function SignContent() {
         return;
       }
 
-      // Check expiration — 서명 "대기" 건에만 적용. 완료된 계약은 만료일이 지나도
+      
+
+      // Check expiration · 서명 "대기" 건에만 적용. 완료된 계약은 만료일이 지나도
       //   열람 가능해야 한다(2026-07-31 사장님: 완료 계약 클릭 시 만료 화면이 떠 계약서가 안 보이던 버그).
-      const expired = p.status !== "completed" && (p.expires_at ? new Date(p.expires_at) < new Date() : false);
+      const expired = p.status !== "completed" && (p.expires_at ? new Date(p.expires_at)  < new Date() : false);
 
       // Items 는 RPC 가 sort_order 정렬로 함께 반환
       const items = p.items || [];
@@ -581,10 +590,11 @@ function SignContent() {
           }
         } catch { /* notes not JSON */ }
       }
-      // 2026-05-26 갑 직인 fallback — notes.seal_url 누락 시 회사 등록 직인(companies.seal_url) 사용.
+      
+      // 2026-05-26 갑 직인 fallback · notes.seal_url 누락 시 회사 등록 직인(companies.seal_url) 사용.
       //   sealAppliedAt 도 없으면 발송 시각(sent_at)/현재로 채워 푸터가 직인 img 를 렌더하게.
       const companySeal = (p.companies as any)?.seal_url || null;
-      if (!sealUrl && companySeal) {
+      if (!sealUrl && companySeal)  {
         sealUrl = companySeal;
         sealAppliedAt = sealAppliedAt || p.sent_at || p.created_at || new Date().toISOString();
       }
@@ -871,7 +881,7 @@ function SignContent() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}`,
               },
-              // 수신자·회사명·링크는 서버가 sign_token 으로 파생 — 여기선 토큰만 전달(오픈 릴레이 차단)
+              // 수신자·회사명·링크는 서버가 sign_token 으로 파생 · 여기선 토큰만 전달(오픈 릴레이 차단)
               body: JSON.stringify({ token }),
             });
             // 완료 메일 실패는 서명 자체엔 영향 없지만, 무음이면 회사가 영영 모른다 → 운영자 로그로(2026-07-29)
@@ -1280,7 +1290,9 @@ function SignContent() {
               )}
               {(!Array.isArray(content?.sections) || content.sections.length === 0) && !content?.body && (
                 <div className="text-center text-gray-400 text-sm py-8">
-                  문서 내용을 불러올 수 없습니다 — 관리자에게 문의해주세요.
+                  
+                  문서 내용을 불러올 수 없습니다. 관리자에게 문의해주세요.
+
                 </div>
               )}
             </div>
@@ -1461,7 +1473,7 @@ function SignContent() {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                       </svg>
                       <span className="text-sm text-gray-600 font-medium">도장/직인 이미지 파일 선택</span>
-                      <p className="text-[11px] text-gray-400 mt-1">PNG·JPG, 5MB 이하 — 배경이 투명한 도장 이미지 권장</p>
+                      <p className="text-[11px] text-gray-400 mt-1">PNG·JPG, 5MB 이하 · 배경이 투명한 도장 이미지 권장</p>
                       <input
                         type="file"
                         accept="image/png,image/jpeg,image/webp"

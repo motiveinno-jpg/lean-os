@@ -40,8 +40,8 @@ type TrafficStats = {
   // 집계 범위 — all(전체) / external(내부 제외, 기본) / search(검색 유입만). 2026-08-25 신설.
   scope?: "all" | "external" | "search";
   totals: { views_today: number; visitors_today: number; views: number; visitors: number; guest_visitors: number };
-  // 범위와 무관하게 항상 오는 값 — 무엇이 빠졌는지 화면에 적기 위한 것.
-  breakdown?: {
+  // 범위와 무관하게 항상 오는 값 · 무엇이 빠졌는지 화면에 적기 위한 것.
+  breakdown?:  {
     internal_visitors: number; external_visitors: number; search_visitors: number;
     raw_views: number; deduped_views: number;
   };
@@ -49,8 +49,8 @@ type TrafficStats = {
   top_paths: { path: string; views: number; visitors: number }[];
   top_referrers: { host: string; visitors: number }[];
 };
-// 회사별 활동 (platform_company_activity RPC — 로그인·업무행위·방문의 합집합)
-type CompanyActivity = {
+// 회사별 활동 (platform_company_activity RPC · 로그인·업무행위·방문의 합집합)
+type CompanyActivity =  {
   company_id: string;
   company: string;
   last_login: string | null;
@@ -87,9 +87,11 @@ function fmtW(n: number): string {
   return `${sign}₩${abs.toLocaleString()}`;
 }
 
+
+
 // 이용 등급 판정은 _components/plan-kind.ts 로 추출(2026-07-29 분석 섹션과 공유).
-//   같은 판정이 두 벌 생기면 "카드 1개인데 목록 0" 사고가 재발한다 — 반드시 이것만 쓸 것.
-export type { PlanKind } from "./_components/plan-kind";
+//   같은 판정이 두 벌 생기면 "카드 1개인데 목록 0" 사고가 재발한다. 반드시 이것만 쓸 것.
+export type  { PlanKind } from "./_components/plan-kind";
 
 export default function PlatformOverview() {
   const qc = useQueryClient();
@@ -104,8 +106,8 @@ export default function PlatformOverview() {
     qc.invalidateQueries({ queryKey: ["p-inbox-support"] });
   };
 
-  // 현황판 모드 — 큰 화면에 상시로 띄워두므로 모든 데이터를 1분 주기로 자동 갱신한다.
-  const { data: companies = [] } = useQuery({
+  // 현황판 모드 · 큰 화면에 상시로 띄워두므로 모든 데이터를 1분 주기로 자동 갱신한다.
+  const  { data: companies = [] } = useQuery({
     queryKey: ["p-companies"],
     queryFn: async () => {
       const data = logRead('platform/page:data', await db.from("companies").select("*, users(count), subscriptions(*, subscription_plans(*))").order("created_at", { ascending: false }));
@@ -141,8 +143,8 @@ export default function PlatformOverview() {
     refetchInterval: 60_000,
   });
 
-  // 회사별 마지막 로그인·활동 — 가입사 목록 "활동" 컬럼 + "지금 활동중" 카드
-  const { data: companyActivity = [] } = useQuery<CompanyActivity[]>({
+  // 회사별 마지막 로그인·활동 · 가입사 목록 "활동" 컬럼 + "지금 활동중" 카드
+  const  { data: companyActivity = [] } = useQuery<CompanyActivity[]>({
     queryKey: ["p-company-activity"],
     queryFn: async () => {
       const { data, error } = await (db as any).rpc("platform_company_activity");
@@ -152,9 +154,9 @@ export default function PlatformOverview() {
     refetchInterval: 60_000,
   });
 
-  // CODEF 사용량 (이번 달) — 원장(codef_usage)은 RLS 가 자기 회사로 묶여 있어
+  // CODEF 사용량 (이번 달). 원장(codef_usage)은 RLS 가 자기 회사로 묶여 있어
   //   클라 직조회가 안 된다. 운영자 검증이 내장된 EF 집계를 그대로 쓴다.
-  const { data: codefUsage } = useQuery<CodefUsageSummary | null>({
+  const  { data: codefUsage } = useQuery<CodefUsageSummary | null>({
     queryKey: ["p-codef-usage"],
     queryFn: async () => {
       const { data: { session } } = await db.auth.getSession();
@@ -175,7 +177,7 @@ export default function PlatformOverview() {
     retry: 1,
   });
 
-  // 라이브 시계 — 현황판에서 "지금 몇 시 기준 화면인지" 보이게 (30초 틱)
+  // 라이브 시계 · 현황판에서 "지금 몇 시 기준 화면인지" 보이게 (30초 틱)
   //   SSR 시각과 클라 시각이 달라 hydration mismatch 가 나므로 마운트 후에만 채운다.
   const [clock, setClock] = useState<Date | null>(null);
   useEffect(() => {
@@ -184,8 +186,8 @@ export default function PlatformOverview() {
     return () => clearInterval(t);
   }, []);
 
-  // OP-A: 24h 에러 수 (error_logs 테이블 — 운영 신호)
-  const { data: recentErrors = [] } = useQuery({
+  // OP-A: 24h 에러 수 (error_logs 테이블 · 운영 신호)
+  const  { data: recentErrors = [] } = useQuery({
     queryKey: ["p-errors-24h"],
     queryFn: async () => {
       const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
@@ -202,8 +204,8 @@ export default function PlatformOverview() {
     refetchInterval: 60_000,
   });
 
-  // 운영 인박스 신호 (2026-07-28) — 아침에 봐야 할 "할 일" 카운트
-  const { data: newInquiries = [] } = useQuery({
+  // 운영 인박스 신호 (2026-07-28). 아침에 봐야 할 "할 일" 카운트
+  const  { data: newInquiries = [] } = useQuery({
     queryKey: ["p-inbox-partnership"],
     queryFn: async () => {
       const { data, error } = await (db as any).rpc("operator_list_partnership_inquiries", { p_status: "new", p_limit: 100 });
@@ -224,8 +226,8 @@ export default function PlatformOverview() {
     refetchInterval: 60_000,
   });
 
-  // 위험·성장 신호 (2026-07-28) — 합류요청 방치·휴면 고객·메일 실패·영업코드 실적·탈퇴 추이
-  const { data: opsRisk, isError: opsRiskErr } = useQuery<OpsRisk | null>({
+  // 위험·성장 신호 (2026-07-28). 합류요청 방치·휴면 고객·메일 실패·영업코드 실적·탈퇴 추이
+  const  { data: opsRisk, isError: opsRiskErr } = useQuery<OpsRisk | null>({
     queryKey: ["p-ops-risk"],
     queryFn: async () => {
       const { data, error } = await (db as any).rpc("platform_ops_risk");
@@ -236,9 +238,9 @@ export default function PlatformOverview() {
     retry: 1,
   });
 
-  // 트래픽·사용 지표 (2026-07-28) — auth.users 는 클라에서 못 읽어 운영자 전용 RPC 로 감쌌다.
+  // 트래픽·사용 지표 (2026-07-28). auth.users 는 클라에서 못 읽어 운영자 전용 RPC 로 감쌌다.
   //   두 RPC 모두 함수 안에서 is_platform_operator() 를 확인하므로 비운영자는 예외를 받는다.
-  const { data: usage, isError: usageErr } = useQuery<UsageStats | null>({
+  const  { data: usage, isError: usageErr } = useQuery<UsageStats | null>({
     queryKey: ["p-usage-stats"],
     queryFn: async () => {
       const { data, error } = await (db as any).rpc("platform_usage_stats");
@@ -261,8 +263,8 @@ export default function PlatformOverview() {
     retry: 1,
   });
 
-  // 가입 퍼널 — companies 기준 통계로는 "계정만 만들고 회사 등록 전 이탈" 이 안 잡힌다.
-  const { data: funnel, isError: funnelErr } = useQuery<FunnelStats | null>({
+  // 가입 퍼널 · companies 기준 통계로는 "계정만 만들고 회사 등록 전 이탈" 이 안 잡힌다.
+  const  { data: funnel, isError: funnelErr } = useQuery<FunnelStats | null>({
     queryKey: ["p-signup-funnel"],
     queryFn: async () => {
       const { data, error } = await (db as any).rpc("platform_signup_funnel", { p_days: 7 });
@@ -408,7 +410,7 @@ export default function PlatformOverview() {
         </>}
         actions={<>
           <PfBadge tone={todoTotal > 0 ? "warn" : "ok"} className="!text-[11px] !px-2.5 !py-1">{todoTotal > 0 ? `처리 대기 ${todoTotal}건` : "모두 처리됨 ✓"}</PfBadge>
-          {partialFail && <PfBadge tone="danger" className="!text-[11px] !px-2.5 !py-1" >일부 지표 로드 실패 — 0이 실제 0이 아닐 수 있음</PfBadge>}
+          {partialFail && <PfBadge tone="danger" className="!text-[11px] !px-2.5 !py-1" >일부 지표 로드 실패 · 0이 실제 0이 아닐 수 있음</PfBadge>}
         </>}
       />
 
@@ -493,7 +495,7 @@ export default function PlatformOverview() {
                   })}
                 </div>
                 {codefApiBars.length > 5 && (
-                  <div className="text-[10px] text-[var(--text-dim)] mt-3">외 {codefApiBars.length - 5}개 API — 상세에서 전체 확인</div>
+                  <div className="text-[10px] text-[var(--text-dim)] mt-3">외 {codefApiBars.length - 5}개 API · 상세에서 전체 확인</div>
                 )}
               </>
             )}
@@ -544,7 +546,7 @@ export default function PlatformOverview() {
                   </PfRow>
                 );
               })}
-              {recentErrors.length > 5 && <div className="pf-row-more">외 {recentErrors.length - 5}건 — 전체는 시스템 상태에서</div>}
+              {recentErrors.length > 5 && <div className="pf-row-more">외 {recentErrors.length - 5}건 · 전체는 시스템 상태에서</div>}
             </PfRows>
           )}
         </PfCard>
@@ -563,7 +565,7 @@ export default function PlatformOverview() {
                     <div className="pf-row-title">{t.subject || "(제목 없음)"}</div>
                     <div className="pf-row-sub">{t.companies?.name || "-"} · {fmtDT(t.created_at)}</div>
                   </Link>
-                  <button type="button" onClick={() => markTicketInProgress(t.id)} className="pf-btn pf-btn-sm" title="처리중으로 표시 — 답변은 고객센터에서">처리중</button>
+                  <button type="button" onClick={() => markTicketInProgress(t.id)} className="pf-btn pf-btn-sm" title="처리중으로 표시 · 답변은 고객센터에서">처리중</button>
                 </div>
               ))}
               {openTickets.length > 5 && <div className="pf-row-more">외 {openTickets.length - 5}건</div>}
@@ -609,7 +611,7 @@ export default function PlatformOverview() {
         <PfCard i={14}>
           <PfCardHead title="위험 신호" sub="체험 만료 임박 · 해지 예약 · 결제 실패 · 휴면" right={<PfBadge tone={riskRows.length > 0 ? "warn" : "ok"}>{riskRows.length}</PfBadge>} />
           {riskRows.length === 0 ? (
-            <PfEmpty ok>위험 신호가 없습니다 — 안정적입니다.</PfEmpty>
+            <PfEmpty ok>위험 신호가 없습니다. 안정적입니다.</PfEmpty>
           ) : (
             <PfRows>
               {riskRows.slice(0, 6).map((r, i) => (
@@ -662,7 +664,9 @@ export default function PlatformOverview() {
   );
 }
 
-// 운영자 목록 공용 미니 페이저 — N개씩 끊고 옆으로 넘긴다 (2026-08-20 사장님)
+
+
+// 운영자 목록 공용 미니 페이저 · N개씩 끊고 옆으로 넘긴다 (2026-08-20 사장님)
 function MiniPager({ page, pages, onPage }: { page: number; pages: number; onPage: (p: number) => void }) {
   if (pages <= 1) return null;
   return (
@@ -674,7 +678,9 @@ function MiniPager({ page, pages, onPage }: { page: number; pages: number; onPag
   );
 }
 
-// ── 오늘 가입 퍼널(카드) — 3행 오른쪽. 단계별 숫자를 퍼널 그림으로. ─────────────
+
+
+// ── 오늘 가입 퍼널(카드). 3행 오른쪽. 단계별 숫자를 퍼널 그림으로. ─────────────
 function SignupFunnelCard({ funnel, i }: { funnel: FunnelStats | null; i: number }) {
   const t = funnel?.today;
   const stages = [
@@ -712,9 +718,9 @@ function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
     { label: "회사 등록", n: t?.companies ?? 0 },
     { label: "체험 시작", n: t?.trials ?? 0 },
   ];
-  // 가장 크게 빠지는 구간 — 여기가 오늘의 병목
+  // 가장 크게 빠지는 구간 · 여기가 오늘의 병목
   let worstIdx = -1, worstDrop = 0;
-  for (let i = 1; i < steps.length; i++) {
+  for (let i = 1; i  < steps.length; i++) {
     const drop = steps[i - 1].n - steps[i].n;
     if (drop > worstDrop) { worstDrop = drop; worstIdx = i; }
   }
@@ -767,7 +773,7 @@ function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
               <div key={s.label}>
                 {i > 0 && (
                   <div className={`text-[10.5px] mb-1 ${isWorst ? "text-[var(--danger)] font-semibold" : "text-[var(--text-dim)]"}`}>
-                    ↓ {conv === null ? "—" : `전환 ${conv}%`}{isWorst ? ` · ${worstDrop}명 이탈 — 오늘의 병목` : ""}
+                    ↓ {conv === null ? "—" : `전환 ${conv}%`}{isWorst ? ` · ${worstDrop}명 이탈 · 오늘의 병목` : ""}
                   </div>
                 )}
                 <button type="button" onClick={() => setOpenStep(openStep === i ? null : i)}
@@ -804,7 +810,7 @@ function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
       )}
 
       <PfCard i={2} hover={false}>
-        <PfCardHead title="회사 등록을 안 끝낸 가입자" sub={`최근 30일 · ${pending.length}명 — 연락하면 회사 등록까지 이끌 수 있는 사람들`} />
+        <PfCardHead title="회사 등록을 안 끝낸 가입자" sub={`최근 30일 · ${pending.length}명 · 연락하면 회사 등록까지 이끌 수 있는 사람들`} />
         {pending.length === 0 ? (
           <PfEmpty ok>전원 회사 등록을 마쳤습니다.</PfEmpty>
         ) : (

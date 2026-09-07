@@ -26,7 +26,8 @@ export default function OrdersPage() {
       saveActions={[{ key: "save", label: "주문서 저장", primary: true, hint: "재고에 반영되지 않습니다" }]}
       headNote={
         <span className="inv-hint doc-note-safe">
-          입력한 내용은 <b>재고에 반영되지 않습니다</b> — 판매·구매·생산에서 불러와 저장할 때 반영됩니다.
+          입력한 내용은 <b>재고에 반영되지 않습니다</b> · 판매·구매·생산에서 불러와 저장할 때 반영됩니다.
+        
         </span>
       }
       onImport={async ({ docs, ctl }) => {
@@ -36,7 +37,7 @@ export default function OrdersPage() {
             lines: d.lines.map((l) => ({ product_id: l.product_id, qty: l.qty, unit_price: l.unit_price, supply_amount: (l.unit_price || 0) * l.qty, vat_amount: Math.round((l.unit_price || 0) * l.qty * 0.1), note: l.note })) }, ctl.userId);
           nos.push(r.orderNo);
         }
-        return `주문서 ${nos.length}건 — ${nos.slice(0, 5).join(", ")}${nos.length > 5 ? " …" : ""}`;
+        return `주문서 ${nos.length}건 · ${nos.slice(0, 5).join(", ")}${nos.length > 5 ? " …" : ""}`;
       }}
       onSave={async ({ built, ctl, editingId }) => {
         const r = await saveOrder(ctl.companyId!, {
@@ -93,7 +94,8 @@ export default function OrdersPage() {
         ctl.loadDoc(o, ls);
       }}
       onDelete={async ({ id, ctl }) => { await deleteOrder(ctl.companyId!, id); }}
-      //   ★ 주문서는 견적 역할이라 상대에게 보낼 수 있어야 한다 — 프로젝트 견적서 PDF 부품을 그대로 쓴다(1순위 ②)
+      
+      //   ★ 주문서는 견적 역할이라 상대에게 보낼 수 있어야 한다. 프로젝트 견적서 PDF 부품을 그대로 쓴다(1순위 ②)
       popupExtra={({ ctl, products }) => (
         <>
         {/*   주문 마감 (2026-08-31 사장님 스윕) — 닫는 경로가 없어 납기 지난 주문이 AI 브리핑에 영구히 떴다.
@@ -106,7 +108,7 @@ export default function OrdersPage() {
                 await setOrderStatus(ctl.companyId!, ctl.editing!.id, toClosed ? "closed" : "open");
                 qc.invalidateQueries({ queryKey: ["orders-list", ctl.companyId] });
                 qc.invalidateQueries({ queryKey: ["doc-hist"] });
-                toast(toClosed ? "주문을 마감했습니다 — 브리핑·납기 경고에서 빠집니다" : "주문을 다시 열었습니다", "success");
+                toast(toClosed ? "주문을 마감했습니다. 브리핑·납기 경고에서 빠집니다" : "주문을 다시 열었습니다", "success");
               } catch (e) { toast(friendlyError(e, "상태 변경 실패"), "error"); }
             }}>{ctl.editing.status === "closed" ? "마감 해제" : "주문 마감"}</button>
         )}

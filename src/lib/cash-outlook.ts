@@ -102,7 +102,7 @@ export async function fetchOutlook(companyId: string, days: number, userId?: str
   // 부가세 (예상)
   //   납부(+)는 나가는 돈, 환급(−)은 들어오는 돈 — 둘 다 예상
   for (const v of vat) if (within(v.dueDate) && Math.abs(v.netVAT) > 0) items.push({ id: `vat:${v.dueDate}`, date: v.dueDate, label: `부가세 ${v.quarter} ${v.netVAT > 0 ? "납부" : "환급"}`, kind: "세금", amount: -Math.round(v.netVAT), basis: "매입매출전표 예상", sure: "추정", href: "/reports/vat" });
-  if (vat.some((v) => within(v.dueDate) && Math.abs(v.netVAT) > 0)) gaps.push({ key: "vat", text: "부가세는 전표 기준 예상입니다 — 신고 후 확정 금액과 다를 수 있습니다", href: "/reports/vat" });
+  if (vat.some((v) => within(v.dueDate) && Math.abs(v.netVAT) > 0)) gaps.push({ key: "vat", text: "부가세는 전표 기준 예상입니다. 신고 후 확정 금액과 다를 수 있습니다", href: "/reports/vat" });
 
   // 세금계산서 — 미정산 잔액. 만기 칸이 없어 발행일 + 30일 (추정). 이미 지난 것은 오늘로 당김(30일 넘은 미수는 회수율 시나리오 몫이라 뺀다)
   let noDue = 0, apOverdue = 0, apOverdueAmt = 0;
@@ -121,7 +121,7 @@ export async function fetchOutlook(companyId: string, days: number, userId?: str
     items.push({ id: `ti:${r.id}`, date, label: `${r.counterparty_name || "거래처"} · 세금계산서`, kind: isSales ? "매출 입금" : "매입 지급", amount: isSales ? outstanding : -outstanding, basis: `세금계산서 ${r.issue_date} 발행 · +30일`, sure: "추정", flag: "만기 미입력", href: "/tax-invoices" });
   }
   if (noDue > 0) gaps.push({ key: "ti-due", text: `세금계산서 ${noDue}건은 만기가 없어 발행일 + 30일로 잡았습니다`, href: "/tax-invoices", count: noDue });
-  if (apOverdue > 0) gaps.push({ key: "ap-overdue", text: `발행 30일 지난 미지급 세금계산서 ${apOverdue}건 ${Math.round(apOverdueAmt / 10000).toLocaleString()}만원은 지급일을 몰라 곡선에 안 넣었습니다 — 시나리오 '큰 지출'로 넣어 봅니다`, href: "/tax-invoices", count: apOverdue });
+  if (apOverdue > 0) gaps.push({ key: "ap-overdue", text: `발행 30일 지난 미지급 세금계산서 ${apOverdue}건 ${Math.round(apOverdueAmt / 10000).toLocaleString()}만원은 지급일을 몰라 곡선에 안 넣었습니다. 시나리오 '큰 지출'로 넣어 봅니다`, href: "/tax-invoices", count: apOverdue });
 
   // 프로젝트 계약 회차 (수익 / 지출) — 날짜 있는 미완료
   for (const r of ((revSched.data || []) as any[])) if (r.due_date && within(r.due_date) && r.status !== "paid" && r.status !== "received" && r.status !== "cancelled") items.push({ id: `rs:${r.id}`, date: r.due_date, label: `${r.deals?.name || "프로젝트"} · ${r.label || "회차"}`, kind: "계약 회차", amount: Number(r.amount || 0), basis: "프로젝트 수익 회차", sure: "확정", href: "/projecthub" });
@@ -133,8 +133,8 @@ export async function fetchOutlook(companyId: string, days: number, userId?: str
 
   // 틀릴 수 있는 곳 — 통장에 매달 나가는데 등록 안 된 것(간단 규칙: 정기 지출·고정비 0건이면 안내)
   if (!hasBank) gaps.unshift({ key: "nobank", text: "통장이 연결돼 있지 않아 오늘 잔액이 0 입니다", href: "/bank" });
-  if (((recur.data || []) as any[]).length + ((fixed.data || []) as any[]).length === 0) gaps.push({ key: "norec", text: "정기 지출·고정비가 등록돼 있지 않습니다 — 등록하면 곡선이 정확해집니다", href: "/payments" });
-  if (recv.over30 > 0) gaps.push({ key: "ar30", text: `30일 넘은 미수금 ${recv.over30Partners}곳 ${Math.round(recv.over30 / 10000).toLocaleString()}만원은 곡선에 안 넣었습니다 — 시나리오 '미수 회수율'로 넣어 봅니다`, href: "/partners/ledger" });
+  if (((recur.data || []) as any[]).length + ((fixed.data || []) as any[]).length === 0) gaps.push({ key: "norec", text: "정기 지출·고정비가 등록돼 있지 않습니다. 등록하면 곡선이 정확해집니다", href: "/payments" });
+  if (recv.over30 > 0) gaps.push({ key: "ar30", text: `30일 넘은 미수금 ${recv.over30Partners}곳 ${Math.round(recv.over30 / 10000).toLocaleString()}만원은 곡선에 안 넣었습니다. 시나리오 '미수 회수율'로 넣어 봅니다`, href: "/partners/ledger" });
 
   items.sort((a, b) => a.date.localeCompare(b.date) || b.amount - a.amount);
   return { today, balance, burn, hasBank, items, arOver30: recv.over30, arOver30Partners: recv.over30Partners, gaps };

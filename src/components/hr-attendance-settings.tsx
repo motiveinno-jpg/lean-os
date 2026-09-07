@@ -51,12 +51,16 @@ export function HrWorkRuleSettingsPanel({ companyId }: { companyId: string }) {
   return <HrAttendanceSettingsPanel companyId={companyId} section="work" />;
 }
 
-//   수당 기준 (구성원 › 급여) — 가산수당 정책 + 수당 카탈로그
+
+
+//   수당 기준 (구성원 › 급여). 가산수당 정책 + 수당 카탈로그
 export function HrAllowancePolicyPanel({ companyId }: { companyId: string }) {
   return <HrAttendanceSettingsPanel companyId={companyId} section="allowance" />;
 }
 
-//   저장 patch 범위 — 두 화면이 같은 company_settings 한 행을 나눠 쓴다. 자기 칸만 보내야
+
+
+//   저장 patch 범위 · 두 화면이 같은 company_settings 한 행을 나눠 쓴다. 자기 칸만 보내야
 //   한쪽 화면에서 오래 열어 둔 값이 다른 화면의 최신 값을 덮어쓰지 않는다.
 const WORK_KEYS = ["work_start_time", "work_end_time", "lunch_minutes", "late_grace_minutes",
   "night_start_time", "night_end_time", "workdays_mask"] as const;
@@ -78,18 +82,18 @@ function HrAttendanceSettingsPanel({ companyId, section }: { companyId: string; 
     if (settings && !form) setForm(settings);
   }, [settings, form]);
 
-  //   토스트 문구 — 화면 이름과 같아야 무엇이 저장됐는지 읽힌다(2026-08-24 이관).
+  //   토스트 문구 · 화면 이름과 같아야 무엇이 저장됐는지 읽힌다(2026-08-24 이관).
   const sectionLabel = section === "work" ? "근무 기준" : "수당 기준";
   const saveMut = useMutation({
     mutationFn: (patch: Partial<AttendanceCompanySettings>) =>
       setAttendanceCompanySettings(companyId, patch),
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["hr-attendance-settings", companyId] });
-      // L 근태 — 설정 변경 시 최근 30일 attendance_records 자동 재계산.
+      // L 근태 · 설정 변경 시 최근 30일 attendance_records 자동 재계산.
       //   회사 출퇴근 기준·야간/휴일·포괄임금 토글이 바뀌어도 과거 행에 반영되게.
       //   allowance_entries chain 도 recomputeAttendance 안에 내장.
       //   실패해도 저장 자체는 성공 처리.
-      try {
+      try  {
         const today = new Date();
         const from = new Date(today);
         from.setDate(from.getDate() - 30);

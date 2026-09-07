@@ -15,13 +15,13 @@
 //   스타일은 landing-v6.css 의 lp5-aid-* (연출 타이밍도 CSS 에 있다 — 한곳에서 조율).
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { AI_DEMOS, AI_DEMO_TAG } from "@/components/landing/content";
+import { AI_DEMOS, AI_DEMO_TAG }  from "@/components/landing/content";
 
 const HOLD = 2000;      // 연출이 끝난 뒤 마지막 화면에 머무는 시간
 
-/* ══════════ 화면 6종 — 실제 앱 화면과 같은 구조로 그린다 ══════════ */
+/* ══════════ 화면 6종 · 실제 앱 화면과 같은 구조로 그린다 ══════════ */
 
-function ScreenCopilot() {
+function ScreenCopilot()  {
   return (
     <div className="lp5-aid-screen lp5-aid-cop" data-demo="copilot" data-len={4100}>
       <div className="lp5-aid-top"><span className="lp5-aid-tab">AI 참모</span><span className="lp5-aid-meta">회사 데이터 기준</span></div>
@@ -51,9 +51,12 @@ function ScreenCopilot() {
   );
 }
 
-// ⚠️ 행 수를 늘리지 말 것 — 5행(4건 + 확인 필요 1건)이 화면 박스에 들어가는 한계다.
+
+
+// ⚠️ 행 수를 늘리지 말 것 · 5행(4건 + 확인 필요 1건)이 화면 박스에 들어가는 한계다.
 //    6행이었을 때 마지막 줄이 흰 패널 밖 어두운 배경에 찍혔다(실측 1512x900).
 const TX_ROWS = [
+  
   { d: "07·28", n: "(주)디자인랩", a: "매출 · 과세", v: "+8,800,000", out: false },
   { d: "07·28", n: "아마존웹서비스", a: "지급수수료 · 불공제", v: "−412,300", out: true },
   { d: "07·27", n: "스타벅스 역삼점", a: "복리후생비 · 과세", v: "−38,000", out: true },
@@ -134,7 +137,7 @@ function ScreenRadar() {
       </div>
       {/* 예측 곡선 — 고정 높이로 늘리면 대각선 굵기가 구간마다 달라져 viewBox 비율을 따른다 */}
       <div className="lp5-aid-radgraph">
-        <svg viewBox="0 0 268 58" role="img" aria-label="향후 90일 잔고 예측 — 11월 셋째 주 바닥">
+        <svg viewBox="0 0 268 58" role="img" aria-label="향후 90일 잔고 예측 · 11월 셋째 주 바닥">
           <defs>
             <linearGradient id="lp5AidRadFill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#4F46E5" stopOpacity=".18" />
@@ -194,8 +197,10 @@ function ScreenPipe() {
   );
 }
 
+
+
 // 회사 양식 PDF 에서 찾아낸 변수들 (parse-form-template).
-//   ⚠️ 2026-08-20 이전엔 영수증 OCR 연출이었다 — 영수증 스캔 기능을 제품에서 걷어내며 서식 인식으로 교체.
+//   ⚠️ 2026-08-20 이전엔 영수증 OCR 연출이었다. 영수증 스캔 기능을 제품에서 걷어내며 서식 인식으로 교체.
 const DOC_FIELDS = [
   ["근로자명", "{{직원명}}", false],
   ["입사일", "{{입사일}}", true],
@@ -412,8 +417,8 @@ export function AiDemoRail() {
     screens.forEach((el, i) => { if (i !== index) settle(el); });
     const cur = screens[index];
     if (!cur) return;
-    if (!inView) return;                       // 화면 밖 — 타이머를 하나도 남기지 않는다
-    if (reduced) { settle(cur); return; }       // 모션 최소화 — 결과 화면만
+    if (!inView) return;                       // 화면 밖 · 타이머를 하나도 남기지 않는다
+    if (reduced)  { settle(cur); return; }       // 모션 최소화 — 결과 화면만
 
     cur.classList.remove("lp5-aid-done", "lp5-aid-play");
     void cur.offsetWidth;                      // 리플로우 강제 — 없으면 같은 장을 다시 재생할 수 없다

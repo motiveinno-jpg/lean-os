@@ -40,7 +40,7 @@ type QuoteItem = {
 };
 type PaymentStage = { label: string; ratio: number; condition: string; milestone_id?: string };
 
-// 단계별 라벨·이메일 제목 매핑 — UI 텍스트 일관화
+// 단계별 라벨·이메일 제목 매핑 · UI 텍스트 일관화
 const STAGE_LABEL: Record<QuoteApprovalStage, string> = {
   estimate: "견적서",
   contract: "계약서",
@@ -65,9 +65,11 @@ interface Props {
   stage?: QuoteApprovalStage;
 }
 
+
+
 type Mode = "edit" | "preview";
 
-// completion / settlement 는 우선 stub — 견적·계약·진척보고서 본 흐름과 분리
+// completion / settlement 는 우선 stub · 견적·계약·진척보고서 본 흐름과 분리
 // B 핸드오프: progress_report 는 ProgressReportStageCard 로 분기 (stub 제거).
 const STUB_STAGES: ReadonlySet<QuoteApprovalStage> = new Set<QuoteApprovalStage>([
   "completion",
@@ -151,9 +153,9 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
           queryClient.invalidateQueries({ queryKey: ["deal-detail", dealId] });
           queryClient.invalidateQueries({ queryKey: ["deals"] });
         } else if (row.status === "rejected") {
-          toast(`거래처가 ${STAGE_LABEL[stage]}을(를) 거절했습니다 — 사유 확인`, "error");
+          toast(`거래처가 ${STAGE_LABEL[stage]}을(를) 거절했습니다. 사유 확인`, "error");
         } else if (row.status === "revision_requested") {
-          toast(`거래처가 ${STAGE_LABEL[stage]} 수정을 요청했습니다 — 내용 확인 후 다시 보내주세요`, "info");
+          toast(`거래처가 ${STAGE_LABEL[stage]} 수정을 요청했습니다. 내용 확인 후 다시 보내주세요`, "info");
         } else if (row.status === "viewed") {
           toast(`거래처가 ${STAGE_LABEL[stage]}을(를) 봤습니다`, "info");
         }
@@ -253,7 +255,7 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
         _token = row?.approval_token ?? null;
       }
       if (!_token) {
-        throw new Error('서명 링크 생성 실패 — 잠시 후 다시 시도해 주세요');
+        throw new Error('서명 링크 생성 실패 · 잠시 후 다시 시도해 주세요');
       }
 
       // 2) status='sent' + sent_at + expires_at + recipient_*
@@ -264,16 +266,16 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
         expiresInDays: 14,
       });
 
-      // 3) 이메일 발송 (PR-D edge 분기 — 미배포 시 RESEND_API_KEY fallback 으로 success 반환)
+      // 3) 이메일 발송 (PR-D edge 분기 · 미배포 시 RESEND_API_KEY fallback 으로 success 반환)
       //   엣지 배포 전엔 fallback 으로 패스 → 패널 StatusBadge 는 정상 발송됨 표시.
-      try {
+      try  {
         await supabase.functions.invoke("send-signature-email", {
           body: {
             type: "quote",
             stage,                       // 엣지가 stage 라벨로 메일 제목·본문·CTA 분기
             to: email,
             signerName: partnerName || undefined,
-            title: dealName ? `${dealName} — ${STAGE_LABEL[stage]} 확인 요청` : `${STAGE_LABEL[stage]} 확인 요청`,
+            title: dealName ? `${dealName} · ${STAGE_LABEL[stage]} 확인 요청` : `${STAGE_LABEL[stage]} 확인 요청`,
             // 절대 URL: PR-D 엣지가 받아서 본문에 노출. 환경변수 SITE_URL 폴백.
             signUrl: buildQuoteUrl(_token),
             companyName: undefined, // 엣지가 발신자 회사명 조회 (간단 fallback)
@@ -322,7 +324,7 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
             stage,                       // 엣지가 stage 라벨로 분기
             to: email,
             signerName: partnerName || undefined,
-            title: dealName ? `${dealName} — ${STAGE_LABEL[stage]} 확인 요청 (재발송)` : `${STAGE_LABEL[stage]} 확인 요청 (재발송)`,
+            title: dealName ? `${dealName} · ${STAGE_LABEL[stage]} 확인 요청 (재발송)` : `${STAGE_LABEL[stage]} 확인 요청 (재발송)`,
             signUrl: buildQuoteUrl(token),
             amount: contractTotal || undefined,
             items: items.length > 0 ? items : undefined,
@@ -384,8 +386,10 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
     return <div className="quote-stages-loading">불러오는 중…</div>;
   }
 
-  // 완료 확인서 / 정산 확인 — 우선 stub, 다음 라운드에서 본 폼 추가
-  if (STUB_STAGES.has(stage)) {
+  
+
+  // 완료 확인서 / 정산 확인 · 우선 stub, 다음 라운드에서 본 폼 추가
+  if (STUB_STAGES.has(stage))  {
     return <StageStubCard stage={stage} approval={approval} />;
   }
 
@@ -426,10 +430,13 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
     );
   }
 
-  // estimate 본 폼 — 견적 품목 / 결제 단계 / 견적 내용
+  
+
+  // estimate 본 폼 · 견적 품목 / 결제 단계 / 견적 내용
   const sectionLabel = "견적 품목 / 결제 단계";
 
   return (
+    
     <div className="quote-stages-panel">
       <div className="quote-stages-header">
         <h3 className="text-xs font-bold text-[var(--text-muted)]">{sectionLabel}</h3>
@@ -686,7 +693,7 @@ function RejectedCard({ note, revision, onEdit }: { note: string; revision?: boo
     <div className="rejected-card">
       <div className="rejected-card-header">
         {revision
-          ? <span className="text-[11px] font-bold text-amber-400"><Ico e="🔁" /> 거래처가 수정을 요청했습니다 — 반영 후 다시 보내면 왕복 이력이 남습니다</span>
+          ? <span className="text-[11px] font-bold text-amber-400"><Ico e="🔁" />  거래처가 수정을 요청했습니다. 반영 후 다시 보내면 왕복 이력이 남습니다</span>
           : <span className="text-[11px] font-bold text-red-400"><Ico e="❌" /> 거래처가 거절했습니다</span>}
         <button
           type="button"
@@ -772,7 +779,7 @@ function PreviewCard({
       {items.length > 0 && (
         <div className="preview-items">
           <div className="preview-items-header">
-            견적 품목 ({items.length}건) — {dealName || "(이름 없음)"}
+            견적 품목 ({items.length}건). {dealName || "(이름 없음)"}
           </div>
           <div className="preview-items-table-wrap">
             <table className="w-full text-[10px]">
@@ -904,7 +911,9 @@ function ResendBar({
   return (
     <div className="resend-bar">
       <div className="text-[10px] text-amber-400 font-medium mb-1.5">
-        거절된 견적입니다 — 같은 내용으로 재발송 (수정하려면 ✏️ 수정)
+        
+        거절된 견적입니다. 같은 내용으로 재발송 (수정하려면 ✏️ 수정)
+
       </div>
       <div className="resend-bar-row">
         <input

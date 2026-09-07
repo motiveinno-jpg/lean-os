@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
 
     const { channel, from, to } = await req.json();
     const fetcher = CHANNEL_FETCHERS[String(channel)];
-    if (!fetcher) return NextResponse.json({ ok: false, message: "이 채널은 API 자동 수집을 지원하지 않습니다 — 엑셀 붙여넣기를 이용하세요.", noApi: true }, { status: 400 });
+    if (!fetcher) return NextResponse.json({ ok: false, message: "이 채널은 API 자동 수집을 지원하지 않습니다. 엑셀 붙여넣기를 이용하세요.", noApi: true }, { status: 400 });
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(from)) || !/^\d{4}-\d{2}-\d{2}$/.test(String(to))) {
       return NextResponse.json({ ok: false, message: "조회 기간을 확인하세요." }, { status: 400 });
     }
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     const { data: row } = await sb.from("company_api_keys")
       .select("key_encrypted").eq("company_id", me.company_id).eq("provider", channel).maybeSingle();
     if (!row?.key_encrypted) {
-      return NextResponse.json({ ok: false, noKey: true, message: "이 채널의 API 키가 등록되지 않았습니다 — 회사 설정 › 연동·API 키에서 등록하세요." }, { status: 404 });
+      return NextResponse.json({ ok: false, noKey: true, message: "이 채널의 API 키가 등록되지 않았습니다. 회사 설정 › 연동·API 키에서 등록하세요." }, { status: 404 });
     }
     const { data: dec, error: decErr } = await sb.rpc("decrypt_credential", { p_ciphertext: row.key_encrypted });
     if (decErr || !dec) return NextResponse.json({ ok: false, message: "저장된 인증키를 읽지 못했습니다." }, { status: 500 });

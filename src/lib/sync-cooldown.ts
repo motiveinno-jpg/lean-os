@@ -167,9 +167,9 @@ export function useSyncCooldown(companyId: string | null | undefined, type: Sync
     : reason === "quota" ? `오늘 ${quota?.daily_limit}회 다 썼습니다`
     : reason === "cooldown" ? fmtRemain(remainingMs) : null;
   const hint = reason === "plan"
-    ? "무료 요금제는 수동 수집을 쓸 수 없습니다 — 자동 수집(하루 2회)은 그대로 됩니다"
-    : reason === "quota" ? `수집이 하루 ${quota?.daily_limit}회까지입니다 — 내일 0시에 다시 채워집니다`
-    : reason === "cooldown" ? `30분 쿨타임 — ${label}` : null;
+    ? "무료 요금제는 수동 수집을 쓸 수 없습니다. 자동 수집(하루 2회)은 그대로 됩니다"
+    : reason === "quota" ? `수집이 하루 ${quota?.daily_limit}회까지입니다. 내일 0시에 다시 채워집니다`
+    : reason === "cooldown" ? `30분 쿨타임. ${label}` : null;
 
   return { disabled, remainingMs, label, reason, hint, remainingToday, manualAllowed, quota, run };
 }

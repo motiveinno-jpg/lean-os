@@ -68,7 +68,7 @@ export class StorageQuotaError extends Error {
 export function storageFullMessage(s: Pick<CompanyStorage, "usedBytes" | "quotaBytes">, fileBytes?: number): string {
   const left = Math.max(0, s.quotaBytes - s.usedBytes);
   const head = fileBytes != null
-    ? `저장공간 부족 — 파일 ${fmtBytes(fileBytes)}, 남은 공간 ${fmtBytes(left)}.`
+    ? `저장공간 부족 · 파일 ${fmtBytes(fileBytes)}, 남은 공간 ${fmtBytes(left)}.`
     : `저장공간이 가득 찼습니다 (${fmtBytes(s.usedBytes)} / ${fmtBytes(s.quotaBytes)}).`;
   return `${head} 파일을 정리하거나 설정 → 요금제에서 저장공간을 늘려 주세요.`;
 }

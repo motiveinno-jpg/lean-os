@@ -174,7 +174,9 @@ export function VatByVoucherType({ companyId, year }: { companyId: string | null
       </div>
       {rows.length === 0 ? (
         <div className="vat-voucher-empty">
-          아직 매입매출전표가 없습니다 — 세금계산서·카드·현금영수증을 전표로 처리하면 여기에 유형별로 쌓입니다.
+          
+          아직 매입매출전표가 없습니다. 세금계산서·카드·현금영수증을 전표로 처리하면 여기에 유형별로 쌓입니다.
+
         </div>
       ) : (
         <>

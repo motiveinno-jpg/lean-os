@@ -60,7 +60,7 @@ const STATUS_LABEL: Record<string, string> = {
   draft: "초안", review: "검토중", approved: "승인", executed: "체결", locked: "잠금",
 };
 const TAX_LABEL: [TaxType, string][] = [["taxable", "과세 (10%)"], ["exempt", "면세"], ["zero", "영세율"]];
-//   세금계산서의 과세유형 — 면세·영세는 세액 0 으로 발행된다(문서의 거래유형을 그대로 잇는다)
+//   세금계산서의 과세유형 · 면세·영세는 세액 0 으로 발행된다(문서의 거래유형을 그대로 잇는다)
 const TAX_KIND: Record<TaxType, "taxable" | "exempt" | "zero_rated"> = {
   taxable: "taxable", exempt: "exempt", zero: "zero_rated",
 };
@@ -180,7 +180,7 @@ export function BoardDocModal({
     existing.length >= 3 ? "three" : existing.length === 2 ? "two" : "full",
   );
   const [adv, setAdv] = useState<number>(Number(existing[0]?.ratio) || 30);
-  //   회차 예정일 — 적어 두면 그날 새벽 발행 대기(초안)가 자동으로 생긴다 (2026-08-27 ERP ③). 순서로 맞춘다(선금·중도금·잔금).
+  //   회차 예정일 · 적어 두면 그날 새벽 발행 대기(초안)가 자동으로 생긴다 (2026-08-27 ERP ③). 순서로 맞춘다(선금·중도금·잔금).
   const [termDates, setTermDates] = useState<string[]>(existing.map((x: any) => (x?.dueDate ? String(x.dueDate) : "")));
   const [mid, setMid] = useState<number>(existing.length >= 3 ? Number(existing[1]?.ratio) || 40 : 40);
 
@@ -205,8 +205,8 @@ export function BoardDocModal({
     enabled: !!doc?.id,
   });
 
-  //   견적서를 이미 거래처에 보냈나 — 보냈으면 계약과 달라져도 **덮어쓰지 않는다**
-  const { data: quoteSent } = useQuery({
+  //   견적서를 이미 거래처에 보냈나 · 보냈으면 계약과 달라져도 **덮어쓰지 않는다**
+  const  { data: quoteSent } = useQuery({
     queryKey: ["pb-quote-sent", quoteDoc?.id],
     queryFn: async () => {
       const data = logRead("BoardDocModal:quoteSent", await db.from("signature_requests")
@@ -216,8 +216,8 @@ export function BoardDocModal({
     enabled: kind === "contract" && !!quoteDoc?.id,
   });
 
-  //   이 줄에서 이미 만든 계산서 — 회차를 두 번 발행하지 않게 표시한다
-  const { data: madeInvoices = [] } = useQuery({
+  //   이 줄에서 이미 만든 계산서 · 회차를 두 번 발행하지 않게 표시한다
+  const  { data: madeInvoices = [] } = useQuery({
     queryKey: ["pb-doc-invoices", dealId],
     queryFn: async () => {
       const data = logRead("BoardDocModal:invoices", await db.from("tax_invoices")
@@ -282,8 +282,8 @@ export function BoardDocModal({
     setIssueTerm(next.label);
   }, [kind, doc?.id, issueTerms.length, (madeInvoices as any[]).length]);   // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── 견적 ↔ 계약 차이 — 계약을 고쳐서 견적과 달라졌는지 ──
-  const quoteCj = (quoteDoc?.content_json as any) || {};
+  // ── 견적 ↔ 계약 차이 · 계약을 고쳐서 견적과 달라졌는지 ──
+  const quoteCj = (quoteDoc?.content_json as any) ||  {};
   const quoteItems: any[] = Array.isArray(quoteCj.items) ? quoteCj.items : [];
   const quoteSupply = quoteItems.reduce((s, i) => s + (Number(i.supplyAmount) || 0), 0);
   const quoteTerms: any[] = Array.isArray(quoteCj.paymentSchedule) ? quoteCj.paymentSchedule : [];
@@ -358,7 +358,7 @@ export function BoardDocModal({
       setDirty(false);
     } else {
       await saveRevision({ documentId: doc.id, authorId: userId, contentJson: next as any });
-      //   문서명은 본문이 아니라 documents.name — 바뀐 때만 따로 고친다
+      //   문서명은 본문이 아니라 documents.name · 바뀐 때만 따로 고친다
       const nm = docName.trim();
       if (nm && nm !== doc.name) await db.from("documents").update({ name: nm }).eq("id", doc.id);
       setDirty(false);
@@ -479,21 +479,21 @@ export function BoardDocModal({
     const p = logRead("BoardDocModal:partner", await db.from("partners")
       .select("contact_email, contact_name, name").eq("id", partnerId).maybeSingle());
     const email = p?.contact_email || "";
-    if (!email) throw new Error(`'${partnerName}' 에 이메일이 없습니다 — 거래처 정보에 담당자 이메일을 넣어 주세요`);
+    if (!email) throw new Error(`'${partnerName}' 에 이메일이 없습니다. 거래처 정보에 담당자 이메일을 넣어 주세요`);
     const req = await createSignatureRequest({
       companyId, documentId: doc.id, title: doc.name || DOC_LABEL[kind],
       signerName: p?.contact_name || p?.name || partnerName || "거래처",
       signerEmail: email, createdBy: userId,
     });
     const r = await sendSignatureEmail(req.id);
-    // 발송 결과를 남긴다 — 안 남기면 보냈는지 알 길이 없다
+    // 발송 결과를 남긴다. 안 남기면 보냈는지 알 길이 없다
     await db.from("signature_requests").update({
       delivery_status: r.error ? "failed" : "sent",
       delivery_detail: r.error ? String(r.error).slice(0, 300) : email,
       delivery_at: new Date().toISOString(),
     }).eq("id", req.id);
     refreshDoc();
-    if (r.error) { toast(`메일 발송 실패: ${r.error} — 아래에서 재발송하거나 공유 링크를 쓰세요`, "error"); return; }
+    if (r.error) { toast(`메일 발송 실패: ${r.error} · 아래에서 재발송하거나 공유 링크를 쓰세요`, "error"); return; }
     onSent?.();
     toast(`${email} 로 보냈습니다.`, "success");
   });
@@ -592,7 +592,7 @@ export function BoardDocModal({
           <div>
             <b>{rowName || "청구 건"}</b>
             <span>{DOC_LABEL[kind]}{doc?.document_number ? ` · ${doc.document_number}` : ""}</span>
-            {!doc?.id && <em className="pb-doc-unsaved">아직 저장 전 — ‘저장’ 을 눌러야 만들어집니다</em>}
+            {!doc?.id && <em className="pb-doc-unsaved">아직 저장 전 · ‘저장’ 을 눌러야 만들어집니다</em>}
           </div>
           {kind !== "issue" && <span className={`pb-doc-st pb-doc-st-${status}`}>{STATUS_LABEL[status] || status}</span>}
           {dirty && <span className="pb-doc-dirty">저장 안 됨</span>}
@@ -625,7 +625,7 @@ export function BoardDocModal({
           )}
 
           <dl className="pb-doc-facts">
-            <div><dt>거래처</dt><dd>{partnerName || <em>미지정 — 표에서 거래처를 고르세요</em>}</dd></div>
+            <div><dt>거래처</dt><dd>{partnerName || <em>미지정 · 표에서 거래처를 고르세요</em>}</dd></div>
             {kind === "issue" && <div><dt>발행일</dt><dd><DateField value={issueDate} onChange={(e) => setIssueDate(e.target.value)} /></dd></div>}
             <div><dt>공급가</dt><dd className="pb-doc-num">{won(kind === "issue" ? issueSupply : supply)}원</dd></div>
             <div><dt>합계</dt><dd className="pb-doc-num pb-doc-total">
@@ -748,13 +748,13 @@ export function BoardDocModal({
                     <b className="pb-doc-num">{won(termAmount(t.ratio))}원</b>
                     <i>{t.condition || "협의"}</i>
                     {kind === "contract" && (
-                      <input type="date" className="pb-doc-due" value={termDates[i] || ""} title="예정일 — 적어 두면 그날 새벽 발행 대기가 자동으로 생깁니다(승인만 누르면 발행)"
+                      <input type="date" className="pb-doc-due" value={termDates[i] || ""} title="예정일 · 적어 두면 그날 새벽 발행 대기가 자동으로 생깁니다(승인만 누르면 발행)"
                         onChange={(e) => { const v = e.target.value; setTermDates((d) => { const n = [...d]; n[i] = v; return n; }); setDirty(true); }} />
                     )}
                   </li>
                 ))}
               </ul>
-              {kind === "contract" && <p className="pb-doc-hint">회차 옆 <b>예정일</b>을 적으면 그날 아침 <b>발행 대기</b>(초안)가 저절로 생기고 알림이 옵니다 — 세금·증빙에서 승인(발행)만 누르면 됩니다. 비우면 ‘＋ 발행’으로 직접 만듭니다.</p>}
+              {kind === "contract" && <p className="pb-doc-hint">회차 옆 <b>예정일</b>을 적으면 그날 아침 <b>발행 대기</b>(초안)가 저절로 생기고 알림이 옵니다. 세금·증빙에서 승인(발행)만 누르면 됩니다. 비우면 ‘＋ 발행’으로 직접 만듭니다.</p>}
               {kind === "contract" && (
                 <p className="pb-doc-hint">저장하면 표 위에서 이 회차대로 <b>청구 줄을 만들 수 있습니다</b>. ‘＋ 발행’ 은 이 회차를 그대로 씁니다.</p>
               )}
@@ -823,7 +823,7 @@ export function BoardDocModal({
           {kind !== "issue" && (<>
             <button type="button" className="pb-doc-sub" disabled={busy || !canEdit} onClick={() => save()}>저장</button>
             <button type="button" className="pb-doc-sub" disabled={busy} onClick={openPreview}
-              title="실제 인쇄될 PDF 를 그대로 봅니다 — 저장 전에도 됩니다">미리보기</button>
+              title="실제 인쇄될 PDF 를 그대로 봅니다. 저장 전에도 됩니다">미리보기</button>
             {status === "draft" && <button type="button" className="pb-doc-sub" disabled={busy || !doc?.id}
               title={doc?.id ? undefined : "먼저 저장하세요"} onClick={submit}>검토 요청</button>}
             {status === "review" && <button type="button" className="pb-doc-sub" disabled={busy} onClick={approve}>승인</button>}
@@ -927,7 +927,7 @@ export function BoardDocModal({
 
               <p className="pb-doc-hint">
                 {quoteSent
-                  ? <>이 견적서는 <b>이미 거래처에 보냈습니다</b>. 보낸 문서를 사후에 바꾸면 거래처가 가진 견적서와 기록이 달라져요 — 대신 <b>개정 견적서</b>를 새로 만들어 다시 보내세요. 원본 견적은 그대로 남습니다.</>
+                  ? <>이 견적서는 <b>이미 거래처에 보냈습니다</b>. 보낸 문서를 사후에 바꾸면 거래처가 가진 견적서와 기록이 달라져요. 대신  <b>개정 견적서</b>를 새로 만들어 다시 보내세요. 원본 견적은 그대로 남습니다.</>
                   : <>이 견적서는 <b>아직 보내지 않았습니다</b>. 계약 내용으로 맞춰도 안전합니다.</>}
               </p>
             </div>

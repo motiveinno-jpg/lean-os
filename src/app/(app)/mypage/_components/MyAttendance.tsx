@@ -72,8 +72,8 @@ export function MyAttendance({ employeeId }: { employeeId: string | null }) {
     setEditReason("");
   };
 
-  // 내 대기 중 정정 요청 — 중복 요청 방지 + "정정 대기중" 표시 (RLS: requested_by 본인 행 select 허용)
-  const { data: pendingReqs = [] } = useQuery({
+  // 내 대기 중 정정 요청 · 중복 요청 방지 + "정정 대기중" 표시 (RLS: requested_by 본인 행 select 허용)
+  const  { data: pendingReqs = [] } = useQuery({
     queryKey: ["my-attendance-edit-requests", user?.id],
     queryFn: async () => {
       const data = logRead('_components/MyAttendance:pendingReqs', await supabase
@@ -93,8 +93,8 @@ export function MyAttendance({ employeeId }: { employeeId: string | null }) {
       const origCi = timeOf(r.check_in) || "";
       const origCo = timeOf(r.check_out) || "";
       const changes: Record<string, string> = {};
-      // 시각은 KST 로 해석 — AI 참모 정정 요청과 동일 규칙 (브라우저 타임존 무관)
-      if (editCheckIn && editCheckIn !== origCi) {
+      // 시각은 KST 로 해석 · AI 참모 정정 요청과 동일 규칙 (브라우저 타임존 무관)
+      if (editCheckIn && editCheckIn !== origCi)  {
         const iso = kstLocalToIso(`${r.date}T${editCheckIn}`);
         if (iso) changes.check_in = iso;
       }
@@ -102,7 +102,7 @@ export function MyAttendance({ employeeId }: { employeeId: string | null }) {
         const iso = kstLocalToIso(`${r.date}T${editCheckOut}`);
         if (iso) changes.check_out = iso;
       }
-      if (Object.keys(changes).length === 0) throw new Error("바뀐 시각이 없습니다 — 출근 또는 퇴근 시각을 수정해 주세요.");
+      if (Object.keys(changes).length === 0) throw new Error("바뀐 시각이 없습니다. 출근 또는 퇴근 시각을 수정해 주세요.");
       if (!editReason.trim()) throw new Error("정정 사유를 입력해 주세요.");
       await createAttendanceEditRequest({
         companyId: user!.company_id!,
@@ -113,7 +113,7 @@ export function MyAttendance({ employeeId }: { employeeId: string | null }) {
       });
     },
     onSuccess: () => {
-      toast(`${editTarget?.date} 정정 요청을 보냈습니다 — 관리자 승인 후 반영됩니다`, "success");
+      toast(`${editTarget?.date} 정정 요청을 보냈습니다. 관리자 승인 후 반영됩니다`, "success");
       setEditTarget(null);
       qc.invalidateQueries({ queryKey: ["my-attendance-edit-requests", user?.id] });
     },
@@ -165,7 +165,7 @@ export function MyAttendance({ employeeId }: { employeeId: string | null }) {
   return (
     <div className="mypage-attendance-card bz-body">
       {/* 조회 줄 — [월 이동 · 검색조건 ▾] ‖ (오늘 찍기는 내 현황) */}
-      <QueryBar right={<span className="text-[11px] text-[var(--text-dim)]">출근·퇴근 시각이 잘못 찍힌 날은 줄의 '정정 요청' — 관리자 승인 후 반영</span>}>
+      <QueryBar right={<span className="text-[11px] text-[var(--text-dim)]">출근·퇴근 시각이 잘못 찍힌 날은 줄의 '정정 요청' · 관리자 승인 후 반영</span>}>
         <span className="inline-flex items-center gap-1">
           <button type="button" onClick={() => setMonth(shiftMonth(month, -1))} className="btn-secondary btn-sm" aria-label="이전 달">‹</button>
           <span className="text-xs font-bold mono-number w-[86px] text-center">{month.replace("-", "년 ")}월</span>
@@ -197,7 +197,7 @@ export function MyAttendance({ employeeId }: { employeeId: string | null }) {
       {isLoading ? (
         <div className="collect-empty">불러오는 중…</div>
       ) : shown.length === 0 ? (
-        <div className="collect-empty">{records.length === 0 ? "이 달의 출퇴근 기록이 없습니다 — 출근을 기록하면 여기 일자별로 쌓입니다" : "조건에 맞는 날이 없습니다"}</div>
+        <div className="collect-empty">{records.length === 0 ? "이 달의 출퇴근 기록이 없습니다. 출근을 기록하면 여기 일자별로 쌓입니다" : "조건에 맞는 날이 없습니다"}</div>
       ) : (
         <table className="ev-table ev-lined mypage-att-table">
           <thead><tr><th>날짜</th><th>요일</th><th>출근</th><th>퇴근</th><th>근무</th><th>연장</th><th>상태</th><th className="text-left">비고</th><th>정정</th></tr></thead>
@@ -236,7 +236,7 @@ export function MyAttendance({ employeeId }: { employeeId: string | null }) {
           <div className="w-full max-w-sm rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
             <div>
               <div className="text-sm font-bold text-[var(--text)]">출퇴근 시각 정정 요청</div>
-              <div className="text-[11px] text-[var(--text-muted)] mt-0.5 mono-number">{editTarget.date} — 직접 수정이 아니라 관리자 승인 요청입니다</div>
+              <div className="text-[11px] text-[var(--text-muted)] mt-0.5 mono-number">{editTarget.date} · 직접 수정이 아니라 관리자 승인 요청입니다</div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <label className="block">

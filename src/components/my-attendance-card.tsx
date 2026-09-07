@@ -7,12 +7,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { checkIn as hrCheckIn, checkOut as hrCheckOut, cancelCheckOut as hrCancelCheckOut } from "@/lib/hr";
 import { useToast } from "@/components/toast";
-import { AttendanceBadges } from "@/components/attendance-badges";
+import { AttendanceBadges }  from "@/components/attendance-badges";
 
 const db = supabase;
 
-// 근무 중 전환 가능한 근무 유형 — attendance_records.attendance_type CHECK 허용값과 1:1
+// 근무 중 전환 가능한 근무 유형 · attendance_records.attendance_type CHECK 허용값과 1:1
 const WORK_TYPES = [
+  
   { value: "normal", label: "사무실" },
   { value: "remote", label: "재택" },
   { value: "field_work", label: "외근" },
@@ -145,7 +146,7 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
     setBusy(true);
     try {
       await hrCancelCheckOut(employeeId, companyId, today);
-      toast("퇴근 취소 — 다시 근무 중", "success");
+      toast("퇴근 취소 · 다시 근무 중", "success");
       refresh();
     } catch (e: any) {
       toast(`퇴근 취소 실패: ${e.message || ""}`, "error");
@@ -153,8 +154,8 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
     setBusy(false);
   };
 
-  // 한 줄 압축 모드 — 상태점 + 시각 요약 + 소형 버튼. 미연결 계정은 표시 안 함(오너 화면 노이즈 방지)
-  if (compact) {
+  // 한 줄 압축 모드 · 상태점 + 시각 요약 + 소형 버튼. 미연결 계정은 표시 안 함(오너 화면 노이즈 방지)
+  if (compact)  {
     if (empLoading || !employeeId) return null;
     return (
       <div className="attendance-card-compact glass-card">

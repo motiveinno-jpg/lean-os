@@ -54,8 +54,8 @@ export function AccountChip() {
 
   useModalKeys(open, () => setOpen(false), () => { setOpen(false); router.push("/mypage"); });
 
-  //   저장 — 본인 users 행만(RLS auth_id = auth.uid()). 근무중으로 돌리면 메모·해제 시각도 지운다.
-  const savePresence = async (status: PresenceStatus, opts?: { until?: string | null; note?: string | null }) => {
+  //   저장 · 본인 users 행만(RLS auth_id = auth.uid()). 근무중으로 돌리면 메모·해제 시각도 지운다.
+  const savePresence = async (status: PresenceStatus, opts?:  { until?: string | null; note?: string | null }) => {
     if (!user?.id || saving) return;
     setSaving(true);
     const patch = status === "available"
@@ -64,8 +64,9 @@ export function AccountChip() {
     const { error } = await (supabase as any).from("users").update(patch).eq("id", user.id);
     setSaving(false);
     if (error) { toast("상태를 저장하지 못했습니다: " + (error.message || ""), "error"); return; }
+    
     await refresh();
-    //   메신저 구성원 목록·참가자 목록이 같은 칸을 읽는다 — 바로 갱신
+    //   메신저 구성원 목록·참가자 목록이 같은 칸을 읽는다. 바로 갱신
     qc.invalidateQueries({ queryKey: ["company-users"] });
     qc.invalidateQueries({ queryKey: ["chat-participants"] });
   };

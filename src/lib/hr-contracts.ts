@@ -663,7 +663,7 @@ export async function sendContractPackage(
   if (!pkg) throw new Error('계약 패키지를 찾을 수 없습니다');
   // 이메일이 없어도 직원이 OwnerView 계정이 있으면 인앱 전달 가능. 둘 다 없을 때만 실패.
   if (!pkg.employees?.email && !pkg.employees?.user_id) {
-    throw new Error('직원 이메일도 OwnerView 계정도 등록돼 있지 않습니다 — 인앱·이메일 모두 발송 불가');
+    throw new Error('직원 이메일도 OwnerView 계정도 등록돼 있지 않습니다. 인앱·이메일 모두 발송 불가');
   }
 
   // Get company name
@@ -688,7 +688,7 @@ export async function sendContractPackage(
         company_id: pkg.company_id,
         user_id: pkg.employees.user_id,
         type: 'signature_request',
-        title: `서명 요청 — ${pkg.title}`,
+        title: `서명 요청 · ${pkg.title}`,
         message: `${company?.name || ''} 에서 계약서 서명을 요청했습니다. 14일 안에 서명해주세요.`,
         entity_type: 'hr_contract_package',
         entity_id: packageId,
@@ -757,7 +757,7 @@ export async function sendContractPackage(
           else meta = { text: String(pkg.notes) };
         } catch { meta = { text: String(pkg.notes) }; }
       }
-      meta.last_send_error = `${new Date().toISOString()} — ${emailError || '경로 없음'}`;
+      meta.last_send_error = `${new Date().toISOString()} · ${emailError || '경로 없음'}`;
       await db.from('hr_contract_packages').update({ notes: JSON.stringify(meta) }).eq('id', packageId);
     } catch { /* 기록 실패가 발송 결과를 바꾸지는 않는다 */ }
     return { success: false, error: emailError || '인앱·이메일 발송 경로 모두 실패' };
@@ -781,7 +781,7 @@ export async function sendContractPackage(
       action: 'email_sent',
       timestamp: new Date().toISOString(),
       actor: company?.name || 'system',
-      details: `서명 요청 발송 — 인앱:${inAppDelivered ? 'O' : 'X'} 이메일:${emailSent ? 'O' : 'X'}${emailError ? ' (' + emailError + ')' : ''}`,
+      details: `서명 요청 발송 · 인앱:${inAppDelivered ? 'O' : 'X'} 이메일:${emailSent ? 'O' : 'X'}${emailError ? ' (' + emailError + ')' : ''}`,
     });
   } catch (e) {
     console.error('Audit log error:', e);
@@ -802,9 +802,9 @@ export async function cancelSentContractPackage(packageId: string): Promise<{ su
   if (!pkg) return { success: false, error: '계약서를 찾을 수 없습니다.' };
   const p = pkg as any;
   if (p.status !== 'sent') return { success: false, error: '발송됨 상태에서만 취소할 수 있습니다.' };
-  if (p.viewed_at) return { success: false, error: '상대가 이미 열람한 계약서입니다 — 취소할 수 없습니다.' };
+  if (p.viewed_at) return { success: false, error: '상대가 이미 열람한 계약서입니다. 취소할 수 없습니다.' };
   if ((p.hr_contract_package_items || []).some((it: any) => it.status === 'signed')) {
-    return { success: false, error: '이미 서명이 시작된 계약서입니다 — 취소할 수 없습니다.' };
+    return { success: false, error: '이미 서명이 시작된 계약서입니다. 취소할 수 없습니다.' };
   }
 
   const { error } = await db
@@ -826,7 +826,7 @@ export async function cancelSentContractPackage(packageId: string): Promise<{ su
       action: 'sending_cancelled',
       timestamp: new Date().toISOString(),
       actor: 'company',
-      details: '열람 전 발송 취소 — 서명 링크 무효화',
+      details: '열람 전 발송 취소 · 서명 링크 무효화',
     });
   } catch { /* 비차단 */ }
 

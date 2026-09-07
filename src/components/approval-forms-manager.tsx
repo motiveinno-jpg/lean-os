@@ -1,13 +1,13 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
 import { QueryBar, ChipGroup, QuickSearch, quickSearchHit } from "@/components/query-kit";
-import { logRead } from "@/lib/log-read";
+import { logRead }  from "@/lib/log-read";
 
-// 결재 양식 관리 + 빌더 (2026-07-01, HR 서비스식) — approvals '양식 관리' 탭에서 사용.
+// 결재 양식 관리 + 빌더 (2026-07-01, HR 서비스식). approvals '양식 관리' 탭에서 사용.
 //   양식 목록 + '새 양식 추가' → 빌더(이름·분류·설명·커스텀 필드·내용 템플릿·결재선 단계·옵션).
 //   저장은 approval_forms. 새 요청에서 이 양식을 선택하면 필드/템플릿/결재선이 적용된다.
 
-import { useState } from "react";
+import  { useState } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 // 기본 내용(템플릿)에도 표·서식 지원 (2026-07-29 사장님) — 저장은 HTML, 상세 화면이 sanitize 렌더.
@@ -23,8 +23,9 @@ function tplToHtml(text: string): string {
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   return text.split("\n").map((l) => (l.trim() === "" ? "<p><br/></p>" : `<p>${esc(l)}</p>`)).join("");
 }
-/** RichEditor 빈 문서 판별 — 표·이미지 없고 텍스트도 없으면 빈 값으로 저장 */
-function htmlOrEmpty(html: string): string {
+
+/** RichEditor 빈 문서 판별 · 표·이미지 없고 텍스트도 없으면 빈 값으로 저장 */
+function htmlOrEmpty(html: string): string  {
   if (!html) return "";
   if (/<(img|table)/i.test(html)) return html;
   return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim() === "" ? "" : html;
@@ -52,8 +53,8 @@ const roleLabel = (r?: string | null) => ROLE_OPTS.find((o) => o.v === r)?.l || 
 const emptyField = (): ApprovalFormField => ({ key: uid().slice(0, 8), label: "", type: "text", required: false, options: [] });
 const emptyStage = (n: number): ApprovalFormStage => ({ stage: n, name: `${n}차 승인`, approver_type: "role", approver_role: "manager", approver_user_ids: [], required_count: 1 });
 
-// 기본 제공 유형(경비청구 등) 결재선 역할 옵션 — 정책 관리 탭과 동일.
-const POLICY_ROLE_OPTS: { value: string; label: string }[] = [
+// 기본 제공 유형(경비청구 등) 결재선 역할 옵션 · 정책 관리 탭과 동일.
+const POLICY_ROLE_OPTS:  { value: string; label: string }[] = [
   { value: "manager", label: "팀장" }, { value: "director", label: "이사" }, { value: "ceo", label: "대표" },
   { value: "admin", label: "관리자" }, { value: "owner", label: "소유자" }, { value: "finance", label: "재무" },
 ];
@@ -85,7 +86,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
   const refresh = () => qc.invalidateQueries({ queryKey: ["approval-forms", companyId] });
   const userName = (id: string) => { const u = (users as any[]).find((x) => x.id === id); return u?.name || u?.email || "구성원"; };
 
-  // 필드 순서 이동 (2026-07-30 사장님 — 입력 필드 배치를 양식에서 자유롭게)
+  // 필드 순서 이동 (2026-07-30 사장님 · 입력 필드 배치를 양식에서 자유롭게)
   const [dragField, setDragField] = useState<{ list: "custom" | "default"; i: number } | null>(null);
   const moveArr = <T,>(arr: T[], from: number, to: number): T[] => {
     if (to < 0 || to >= arr.length) return arr;
@@ -98,9 +99,9 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
   const openNew = () => setEditing({ name: "", category: "", description: "", fields: [], content_template: "", stages: [emptyStage(1)], reference_user_ids: [], allow_requester_edit: true, use_attachment: true });
   const openEdit = (f: ApprovalForm) => setEditing({ ...f });
 
-  // ── 기본 제공 유형(경비청구 등) — 저장 방식(request_type 값)은 그대로 두고, 표시 이름·결재선만
+  // ── 기본 제공 유형(경비청구 등). 저장 방식(request_type 값)은 그대로 두고, 표시 이름·결재선만
   //   정책(approval_policies)으로 커스터마이즈. 여기서 "결재 양식 관리"에 같이 노출·편집한다.
-  const { data: policies = [] } = useQuery({
+  const  { data: policies = [] } = useQuery({
     queryKey: ["approval-policies", companyId],
     queryFn: () => getApprovalPolicies(companyId),
     enabled: !!companyId,
@@ -214,7 +215,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
       <QueryBar right={<button onClick={openNew} className="btn-primary btn-sm whitespace-nowrap">+ 새 양식 추가</button>}>
         <ChipGroup value={listTab} onChange={setListTab}
           options={[{ value: "company", label: `회사 결재 양식 ${(forms as ApprovalForm[]).length}` }, { value: "default", label: `기본 제공 유형 ${Object.keys(REQUEST_TYPE_LABELS).length}` }] as const} />
-        <QuickSearch value={q} onApply={setQ} placeholder="양식 이름 · 분류 — 쉼표로 여러 개, Enter" />
+        <QuickSearch value={q} onApply={setQ} placeholder="양식 이름 · 분류 · 쉼표로 여러 개, Enter" />
         <span className="text-[11px] text-[var(--text-dim)]">회사에서 쓰는 결재 양식(필드·내용·결재선)을 만들어 새 요청에서 선택합니다.</span>
       </QueryBar>
 
@@ -302,8 +303,8 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
               <label className="block text-[11px] text-[var(--text-muted)] mb-1">기본 요청 유형에 연결 <span className="text-[var(--text-dim)]">(선택)</span></label>
               <select value={editing.base_type || ""} onChange={(e) => patch({ base_type: e.target.value || null })}
                 className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm">
-                <option value="">연결 안 함 — 새 요청 목록에 양식 이름으로 따로 나옵니다</option>
-                {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v} — 새 요청에서 '{v}'을(를) 고르면 이 양식이 나옵니다</option>)}
+                <option value="">연결 안 함. 새 요청 목록에 양식 이름으로 따로 나옵니다</option>
+                {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v} · 새 요청에서 '{v}'을(를) 고르면 이 양식이 나옵니다</option>)}
               </select>
             </div>
             <div className="mb-3">
@@ -385,7 +386,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
 
             {/* 내용 템플릿 — 표·서식 지원 */}
             <div className="content-template-section">
-              <label className="block text-[11px] text-[var(--text-muted)] mb-1">기본 내용(템플릿) — 표·서식 사용 가능</label>
+              <label className="block text-[11px] text-[var(--text-muted)] mb-1">기본 내용(템플릿)<span className="ui-sub">표·서식 사용 가능</span></label>
               <RichEditor key={editing.id || "new-form"} content={tplToHtml(editing.content_template || "")}
                 onChange={(html) => patch({ content_template: htmlOrEmpty(html) })}
                 placeholder={"작성 시 상세 내용에 기본으로 채워집니다. 예: 1. 지출 항목 / 2. 사유"}
@@ -416,7 +417,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
 
             {/* 참조(CC) — 결재선과 별개, 결과를 통보만 받는 인원 (미리 지정) */}
             <div className="reference-users-section">
-              <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">참조 (선택) — 결재 여부와 무관하게 통보만 받는 인원</label>
+              <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">참조 (선택)<span className="ui-sub">결재 여부와 무관하게 통보만 받는 인원</span></label>
               <div className="flex flex-wrap gap-1 bg-[var(--bg-surface)] rounded-lg p-2">
                 {(users as any[]).length === 0 ? (
                   <span className="text-[11px] text-[var(--text-dim)] px-1 py-1">구성원이 없습니다</span>
@@ -547,7 +548,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
 
             {/* 내용 템플릿 — 이 유형 선택 시 상세 내용에 기본으로 채워짐 · 표·서식 지원 */}
             <div className="content-template-section">
-              <label className="block text-[11px] text-[var(--text-muted)] mb-1">기본 내용(템플릿) — 표·서식 사용 가능</label>
+              <label className="block text-[11px] text-[var(--text-muted)] mb-1">기본 내용(템플릿)<span className="ui-sub">표·서식 사용 가능</span></label>
               <RichEditor key={editingDefaultKey || "default-form"} content={tplToHtml(defaultForm.descriptionTemplate)}
                 onChange={(html) => setDefaultForm((s) => ({ ...s, descriptionTemplate: htmlOrEmpty(html) }))}
                 placeholder={"작성 시 상세 내용에 기본으로 채워집니다. 예: 1. 지출 항목 / 2. 사유"}
@@ -567,7 +568,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
 
             {/* 참조(CC) — 결재선과 별개, 결과를 통보만 받는 인원 (빌더와 동일) */}
             <div className="reference-users-section">
-              <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">참조 (선택) — 결재 여부와 무관하게 통보만 받는 인원</label>
+              <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">참조 (선택)<span className="ui-sub">결재 여부와 무관하게 통보만 받는 인원</span></label>
               <div className="flex flex-wrap gap-1 bg-[var(--bg-surface)] rounded-lg p-2">
                 {(users as any[]).length === 0 ? (
                   <span className="text-[11px] text-[var(--text-dim)] px-1 py-1">구성원이 없습니다</span>

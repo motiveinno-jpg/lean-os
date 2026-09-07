@@ -16,11 +16,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { CellDropdown, anchorOf, type Anchor } from "@/components/cell-dropdown";
-import { useModalKeys } from "@/hooks/use-modal-keys";
+import { useModalKeys }  from "@/hooks/use-modal-keys";
 
 const db = supabase;
 
-// .in() 대량 ID 는 GET URL 길이 초과로 400 — 200개씩 청크 조회(2026-07-29 오류로그 실사례)
+// .in() 대량 ID 는 GET URL 길이 초과로 400 · 200개씩 청크 조회(2026-07-29 오류로그 실사례)
 export async function chunkedIn<T>(
   fetchChunk: (ids: string[]) => PromiseLike<T[] | null>,
   ids: string[],
@@ -67,7 +67,7 @@ export const MATCH_LABEL: Record<string, string> = {
 };
 // 차액 마감 사유 (close_invoice_balance RPC 의 p_reason 값과 1:1)
 export const ADJ_REASONS: { id: string; label: string; desc: string }[] = [
-  { id: "withholding_tax", label: "원천징수세", desc: "3.3% / 8.8% 등 원천세 공제분 — 기납부 세액으로 마감" },
+  { id: "withholding_tax", label: "원천징수세", desc: "3.3% / 8.8% 등 원천세 공제분 · 기납부 세액으로 마감" },
   { id: "fee", label: "이체·결제 수수료", desc: "은행/PG 수수료 차감분" },
   { id: "rounding", label: "단수차", desc: "절사·반올림 등 소액 차이" },
   { id: "discount", label: "할인·에누리", desc: "합의된 금액 조정 (수정세금계산서 발행 권장)" },
@@ -157,9 +157,9 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
     enabled: !!companyId && invIds.length > 0,
   });
 
-  // 수동 전표 (직접 입력) — 이 거래처를 라인에 포함한 source='manual'·confirmed 전표.
+  // 수동 전표 (직접 입력). 이 거래처를 라인에 포함한 source='manual'·confirmed 전표.
   //   원장 그리드에 날짜순 통합되어 잔액에 반영됨(AR/AP 라인 기준). 클릭 시 수정/삭제.
-  const { data: manualVouchers = [] } = useQuery<any[]>({
+  const  { data: manualVouchers = [] } = useQuery<any[]>({
     queryKey: ["ledger-manual-vouchers", companyId, partnerId, yStart, yEnd],
     queryFn: async () => {
       const data = await fetchPaged<any>("ledger/shared:manualVouchers", () => db.from("journal_entries")
@@ -284,10 +284,11 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
   };
 
   let running = opening;
-  let cumDebit = 0;  // 누계(차변) — 기간 시작부터 누적
+  let cumDebit = 0;  // 누계(차변). 기간 시작부터 누적
   let cumCredit = 0; // 누계(대변)
 
   return (
+    
     <div className="ledger-sheet-fill">
       {/* 시트 머리 — 한 줄: [‹ › · 피커] 거래처명 · 잔액 · 유형·기간 pill ‖ + 전표 입력 · 엑셀 · 상세 · [↔ 넓게] (2026-08-19 원장 칸 확대) */}
       <div className="ledger-sheet-header ledger-sheet-header-slim">
@@ -357,7 +358,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
                               ) : e.isVoucher && e.vid ? (
                                 <button onClick={() => setEditEntryId(e.vid!)}
                                   className="text-[var(--primary)] underline decoration-dotted underline-offset-2 hover:opacity-80 text-left"
-                                  title="전표 열기 — 클릭하면 분개 확인·수정/삭제">{e.desc}</button>
+                                  title="전표 열기 · 클릭하면 분개 확인·수정/삭제">{e.desc}</button>
                               ) : e.desc}
                             </td>
                             {/* 전표 칸 — 수동 전표는 #번호(누르면 수정), 차액 마감은 '차액'(누르면 분개), 계산서·정산은 — */}
@@ -445,16 +446,18 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
   );
 }
 
+
+
 // ── 수동 전표 수정 팝업: 거래처 원장 '수동 전표' 행(파란 글씨) 클릭 → 전표 전체 편집 ──
 //   진입 대상 = source='manual' status='confirmed' 전표뿐(목록에서 그것만 노출).
-//   저장 = update_manual_voucher(p_entry_id, p_description, p_lines) — DB 가 source<>'manual'·불균형·
+//   저장 = update_manual_voucher(p_entry_id, p_description, p_lines). DB 가 source<>'manual'·불균형·
 //   마감을 거부(프론트+DB 이중검증) + 변경 전 값 journal_entry_audits 보존. 마감월이면 읽기전용.
 type ELine = { key: number; account: { id: string; code: string; name: string } | null; partner: { id: string; name: string } | null; asset?: { kind: "bank" | "card"; id: string; name: string } | null; memo: string; debit: string; credit: string };
 const AR_AP_ACCT_CODES = new Set(["108", "251"]);
 
 
-// 일자 입력 — 년(4자)·월(2자)·일(2자) 세그먼트. 칸이 차면 자동으로 다음 칸 이동.
-//   네이티브 <input type=date> 는 년도를 6자리(최대 275760년)까지 기다려 키보드 흐름이 끊김 →
+// 일자 입력 · 년(4자)·월(2자)·일(2자) 세그먼트. 칸이 차면 자동으로 다음 칸 이동.
+//   네이티브  <input type=date> 는 년도를 6자리(최대 275760년)까지 기다려 키보드 흐름이 끊김 →
 //   년 4자 입력 시 바로 월로 이동. 월/일은 첫 자리가 범위를 넘으면(월>1·일>3) 한 자리에서도 이동(네이티브 감각).
 function DateSegInput({ value, onChange, onMouseDown }: {
   value: string; onChange: (v: string) => void; onMouseDown?: (e: ReactMouseEvent) => void;
@@ -566,8 +569,8 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
     queryFn: async () => { const data = logRead('ledger/shared:data', await db.from("partners").select("id, name, business_number").eq("company_id", companyId).order("name")); return (data || []) as any[]; },
     enabled: !!companyId, staleTime: 300_000,
   });
-  // 자산관리에 등록한 통장/카드 — 거래처 피커에서 함께 선택 가능
-  const { data: bankAccts = [] } = useQuery<any[]>({
+  // 자산관리에 등록한 통장/카드 · 거래처 피커에서 함께 선택 가능
+  const  { data: bankAccts = [] } = useQuery<any[]>({
     queryKey: ["voucher-bank-accounts", companyId],
     queryFn: async () => { const data = logRead('ledger/shared:data', await db.from("bank_accounts").select("id, alias, bank_name").eq("company_id", companyId).order("alias")); return (data || []) as any[]; },
     enabled: !!companyId, staleTime: 300_000,
@@ -577,14 +580,14 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
     queryFn: async () => { const data = logRead('ledger/shared:data', await db.from("corporate_cards").select("id, card_name").eq("company_id", companyId).order("card_name")); return (data || []) as any[]; },
     enabled: !!companyId, staleTime: 300_000,
   });
-  // 프로젝트(deal) — 전표를 프로젝트 직접원가로 귀속(선택)
-  const { data: deals = [] } = useQuery<any[]>({
+  // 프로젝트(deal). 전표를 프로젝트 직접원가로 귀속(선택)
+  const  { data: deals = [] } = useQuery<any[]>({
     queryKey: ["voucher-deals", companyId],
     queryFn: async () => { const data = logRead('ledger/shared:data', await db.from("deals").select("id, name").eq("company_id", companyId).is("archived_at", null).order("name")); return (data || []) as any[]; },
     enabled: !!companyId, staleTime: 300_000,
   });
-  // 세부 프로젝트 — 선택한 프로젝트의 sub_deals (세부 귀속 시 실적원가가 v_sub_deal_pnl 에 집계)
-  const { data: subDeals = [] } = useQuery<any[]>({
+  // 세부 프로젝트 · 선택한 프로젝트의 sub_deals (세부 귀속 시 실적원가가 v_sub_deal_pnl 에 집계)
+  const  { data: subDeals = [] } = useQuery<any[]>({
     queryKey: ["voucher-sub-deals", dealId],
     queryFn: async () => { const data = logRead('ledger/shared:data', await db.from("sub_deals").select("id, name, type").eq("parent_deal_id", dealId ?? "").order("created_at")); return (data || []) as any[]; },
     enabled: !!dealId, staleTime: 300_000,
@@ -668,9 +671,9 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
         ? await db.rpc("save_manual_voucher", { p_entry_date: entryDate, p_voucher_type: "transfer", p_description: headerDesc(), p_lines: payload })
         : await db.rpc("update_manual_voucher", { p_entry_id: entryId, p_entry_date: entryDate, p_description: headerDesc(), p_lines: payload });
       if (res.error) throw new Error(res.error.message);
-      // 프로젝트 태그 (직접원가 귀속) — 신규는 반환 id, 수정은 entryId
+      // 프로젝트 태그 (직접원가 귀속). 신규는 반환 id, 수정은 entryId
       const savedId = isNew ? (res.data as string) : entryId;
-      if (savedId) {
+      if (savedId)  {
         // 생성 타입은 p_deal_id 를 non-null 로 뽑지만 SQL 은 null 허용(태그 해제) — null 전달 유지
         const { error: tagErr } = await db.rpc("set_voucher_deal", { p_entry_id: savedId, p_deal_id: dealId || null, p_sub_deal_id: dealId ? (subDealId || null) : null } as never);
         if (tagErr) throw new Error(tagErr.message);
@@ -709,7 +712,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
       onClose();
     } catch (e: any) {
       const m = String(e?.message || "");
-      toast(m.includes("PERIOD_LOCKED") ? "마감(잠금)된 회계기간 — 삭제 불가" : m || "삭제 실패", "error");
+      toast(m.includes("PERIOD_LOCKED") ? "마감(잠금)된 회계기간 · 삭제 불가" : m || "삭제 실패", "error");
     } finally { setBusy(false); }
   };
 
@@ -764,8 +767,8 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
           <div className="p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
         ) : (
           <>
-            {locked && <div className="mx-5 mt-3 px-3 py-2 rounded-lg bg-amber-500/8 border border-amber-500/25 text-[11px] text-amber-600 font-semibold"><Ico e="🔒" /> 마감(잠금)된 회계기간 — 읽기 전용 (일자를 미마감 월로 바꾸면 편집 가능)</div>}
-            <div className="px-5 pt-3 text-[10px] text-[var(--text-dim)]">적요는 아래 각 줄에 입력하세요 — 거래처 원장에 그대로 표시됩니다.</div>
+            {locked && <div className="mx-5 mt-3 px-3 py-2 rounded-lg bg-amber-500/8 border border-amber-500/25 text-[11px] text-amber-600 font-semibold"><Ico e="🔒" />  마감(잠금)된 회계기간 · 읽기 전용 (일자를 미마감 월로 바꾸면 편집 가능)</div>}
+            <div className="px-5 pt-3 text-[10px] text-[var(--text-dim)]">적요는 아래 각 줄에 입력하세요. 거래처 원장에 그대로 표시됩니다.</div>
             <div className="voucher-edit-table">
               <table className="w-full text-xs border-collapse min-w-[560px]">
                 <thead>
@@ -903,7 +906,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
               <span className="text-[11px] font-bold">
                 {totalD === 0 ? <span className="text-[var(--text-dim)] font-semibold">금액을 입력하세요</span>
                   : diff === 0 ? <span className="text-emerald-500"><Ico e="✅" /> 차대일치</span>
-                  : <span className="text-red-500"><Ico e="⚠" /> 차액 {won(Math.abs(diff))} — 저장 불가</span>}
+                  : <span className="text-red-500"><Ico e="⚠" /> 차액 {won(Math.abs(diff))} · 저장 불가</span>}
                 {missingAcct && <span className="text-amber-500 ml-2">· 계정과목 미지정</span>}
               </span>
               <div className="flex items-center gap-2">
@@ -977,7 +980,7 @@ export function AdjVoucherModal({ settlementId, type, partnerName, onClose }: {
       if (e2) throw new Error(e2.message);
       ["ledger-sheet-settle", "ledger-sheet-inv", "partner-ledger", "partner-detail-inv", "partner-detail-settle", "settlement-confirmed", "voucher-drafts", "vouchers-of-day"]
         .forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
-      toast("차액 마감 삭제 — 계산서 잔액이 원복되었습니다", "info");
+      toast("차액 마감 삭제 · 계산서 잔액이 원복되었습니다", "info");
       onClose();
     } catch (e: any) {
       toast(e?.message || "삭제 실패", "error");
@@ -1094,9 +1097,9 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
       let qb = db.from("tax_invoices")
         .select("id, issue_date, item_name, label, total_amount, supply_amount, tax_amount, settled_amount, settlement_status, nts_confirm_no")
         .eq("company_id", companyId).eq("type", type).lte("issue_date", `${year}-12-31`)
-        // 전표처리된 건만 — 원장 집계와 동일 기준 (2026-08-26 사장님)
+        // 전표처리된 건만 · 원장 집계와 동일 기준 (2026-08-26 사장님)
         .not("journal_entry_id", "is", null)
-        .order("issue_date", { ascending: false }).limit(500);
+        .order("issue_date",  { ascending: false }).limit(500);
       qb = partnerId ? qb.eq("partner_id", partnerId) : qb.is("partner_id", null);
       const { data } = await qb;
       return (data || []) as any[];
@@ -1256,7 +1259,7 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
             qc.invalidateQueries({ queryKey: ["settlement-confirmed"] });
             qc.invalidateQueries({ queryKey: ["ledger-sheet-inv"] });
             qc.invalidateQueries({ queryKey: ["ledger-sheet-settle"] });
-            toast("차액 마감 완료 — 잔액이 정리되었습니다", "success");
+            toast("차액 마감 완료 · 잔액이 정리되었습니다", "success");
           }}
           onError={(msg) => toast(msg, "error")}
         />
@@ -1275,7 +1278,7 @@ function CloseBalanceModal({ invoice, remaining, onClose, onDone, onError }: {
   const [reason, setReason] = useState<string>("");
   const [amount, setAmount] = useState<number>(remaining);
   const [busy, setBusy] = useState(false);
-  // 원천징수 추정치 — 공급가 3.3% 가 잔액과 ±1,000원 이내면 사유 기본 선택
+  // 원천징수 추정치 · 공급가 3.3% 가 잔액과 ±1,000원 이내면 사유 기본 선택
   const wh33 = Math.round(Number(invoice.supply_amount || 0) * 0.033);
   const looksWithholding = Math.abs(remaining - wh33) <= 1000;
   useEffect(() => {
@@ -1313,7 +1316,7 @@ function CloseBalanceModal({ invoice, remaining, onClose, onDone, onError }: {
                   <input type="radio" name="adj-reason" checked={reason === r.id} onChange={() => setReason(r.id)} className="mt-0.5 accent-[var(--primary)]" />
                   <span>
                     <span className="text-xs font-semibold text-[var(--text)]">{r.label}</span>
-                    {r.id === "withholding_tax" && looksWithholding && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-semibold">잔액이 3.3%와 일치 — 추천</span>}
+                    {r.id === "withholding_tax" && looksWithholding && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-semibold">잔액이 3.3%와 일치 · 추천</span>}
                     <span className="block text-[10px] text-[var(--text-dim)] mt-0.5">{r.desc}</span>
                   </span>
                 </label>

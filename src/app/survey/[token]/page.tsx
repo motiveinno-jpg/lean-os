@@ -15,7 +15,7 @@ type Survey = {
   closes_at: string | null; remaining: number | null; prevent_dup: boolean;
 };
 
-//   마감 사유별 문장 — 서버가 reason 만 주고 문장은 여기서(외부인이 읽는 화면이라 한국어 고정)
+//   마감 사유별 문장 · 서버가 reason 만 주고 문장은 여기서(외부인이 읽는 화면이라 한국어 고정)
 const CLOSED_MSG: Record<string, string> = {
   date: "마감일이 지나 접수가 끝났습니다.",
   full: "정원이 다 차서 접수가 끝났습니다.",
@@ -85,7 +85,7 @@ export default function SurveyPage() {
         const d = await r.json().catch(() => ({}));
         if (d.error === "dup") { markSent(token); setState("already"); return; }
         if (d.error === "closed") { setClosedMsg(CLOSED_MSG[d.reason as string] || CLOSED_MSG.off); setState("closed"); return; }
-        setErr(d.error === "busy" ? "지금 응답이 몰리고 있어요 — 잠시 후 다시 눌러주세요" : "제출에 실패했어요 — 잠시 후 다시 시도해주세요");
+        setErr(d.error === "busy" ? "지금 응답이 몰리고 있어요. 잠시 후 다시 눌러주세요" : "제출에 실패했어요. 잠시 후 다시 시도해주세요");
         return;
       }
       markSent(token);
@@ -97,12 +97,12 @@ export default function SurveyPage() {
 
   if (state === "loading") return <div className="svp-shell"><div className="svp-note">불러오는 중…</div></div>;
   if (state === "closed") return <div className="svp-shell"><div className="svp-note">{closedMsg}</div></div>;
-  if (state === "already") return <div className="svp-shell"><div className="svp-note">이미 응답하셨어요 — 이 설문은 1인 1회입니다. 고치실 내용이 있으면 보내주신 분께 직접 연락해주세요.</div></div>;
+  if (state === "already") return <div className="svp-shell"><div className="svp-note">이미 응답하셨어요. 이 설문은 1인 1회입니다. 고치실 내용이 있으면 보내주신 분께 직접 연락해주세요.</div></div>;
   if (state === "done") return (
     <div className="svp-shell">
       <div className="svp-card svp-done">
         <div className="svp-done-ico">✅</div>
-        <h2>접수됐습니다 — 감사합니다!</h2>
+        <h2>접수됐습니다<span className="ui-sub">감사합니다!</span></h2>
         <p>응답은 담당자에게 바로 전달됐습니다.</p>
       </div>
       <div className="svp-foot">이 설문은 오너뷰로 만들어졌습니다</div>

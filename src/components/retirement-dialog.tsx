@@ -20,7 +20,7 @@ export function RetirementDialog({ companyId, onClose }: { companyId: string; on
     setBusy(true);
     try {
       const id = await makeRetirementVoucherDraft(companyId, asof);
-      toast(id ? "충당부채 차액 전표 초안을 만들었습니다 — 재무 › 전표 현황 › 처리할 것에서 확정" : "장부 잔액과 추계가 같아 만들 전표가 없습니다", id ? "success" : "info");
+      toast(id ? "충당부채 차액 전표 초안을 만들었습니다. 재무 › 전표 현황 › 처리할 것에서 확정" : "장부 잔액과 추계가 같아 만들 전표가 없습니다", id ? "success" : "info");
     } catch (e) { toast(friendlyError(e, "초안을 만들지 못했습니다"), "error"); }
     finally { setBusy(false); }
   };
@@ -28,7 +28,7 @@ export function RetirementDialog({ companyId, onClose }: { companyId: string; on
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">퇴직금 추계 — 재직자 {rows.length}명</h3>
-        <p className="inv-modal-desc">평균임금(최근 3개월 발급 명세 총급여 ÷ 일수, 명세가 없으면 약정 월급) × 30일 × 근속년. <b>1년 미만은 0</b>(법정). 저장하지 않고 기준일마다 새로 계산합니다 — 출처: 규칙. 전표는 추계 합계와 장부(퇴직급여충당부채) 잔액의 <b>차액만</b>, 개인별 금액 없이 한 줄.</p>
+        <p className="inv-modal-desc">평균임금(최근 3개월 발급 명세 총급여 ÷ 일수, 명세가 없으면 약정 월급) × 30일 × 근속년. <b>1년 미만은 0</b>(법정). 저장하지 않고 기준일마다 새로 계산합니다. 출처: 규칙. 전표는 추계 합계와 장부(퇴직급여충당부채) 잔액의  <b>차액만</b>, 개인별 금액 없이 한 줄.</p>
         <div className="ins-rates-head">
           <label className="inv-field"><span>기준일</span><DateField value={asof} onChange={(e) => setAsof(e.target.value)} className="field-input" /></label>
           <span className="inv-hint">직접 입력한 충당금(정보 탭)은 참고로 나란히 보입니다.</span>
@@ -58,7 +58,9 @@ export function RetirementDialog({ companyId, onClose }: { companyId: string; on
   );
 }
 
-/** 퇴사 처리 모달 안 — 정산 초안 (H7). 금액은 규칙으로 채우고 확정·지급은 사람. */
+
+
+/** 퇴사 처리 모달 안 · 정산 초안 (H7). 금액은 규칙으로 채우고 확정·지급은 사람. */
 export function RetirementSettlementBox({ companyId, employeeId, monthlySalary, endDate }: { companyId: string; employeeId: string; monthlySalary: number; endDate: string }) {
   const [s, setS] = useState<Settlement | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -69,7 +71,7 @@ export function RetirementSettlementBox({ companyId, employeeId, monthlySalary, 
       {err ? <div className="collect-empty">{err}</div> : !s ? <div className="collect-empty">계산 중…</div> : (
         <table className="ev-table ev-lined table-ret-settle">
           <tbody>
-            <tr><td className="text-left">퇴직금 <span className="ev-dim">{s.eligible ? `평균임금 ₩${won(s.dailyWage)}/일 × 30 × ${s.totalDays}/365 · ${s.source}` : `근속 ${s.totalDays}일 — 1년 미만이라 법정 퇴직금 없음`}</span></td><td className="tr mono-number">₩{won(s.retirement)}</td></tr>
+            <tr><td className="text-left">퇴직금 <span className="ev-dim">{s.eligible ? `평균임금 ₩${won(s.dailyWage)}/일 × 30 × ${s.totalDays}/365 · ${s.source}` : `근속 ${s.totalDays}일 · 1년 미만이라 법정 퇴직금 없음`}</span></td><td className="tr mono-number">₩{won(s.retirement)}</td></tr>
             <tr><td className="text-left">미사용 연차 수당 <span className="ev-dim">{s.leaveRemain}일 × 통상임금 일급 ₩{won(s.ordinaryDaily)}(월급÷209h×8h)</span></td><td className="tr mono-number">₩{won(s.leavePay)}</td></tr>
             <tr><td className="text-left">마지막 달 급여 일할 <span className="ev-dim">{s.lastMonthDays}/{s.monthDays}일</span></td><td className="tr mono-number">₩{won(s.lastMonthPay)}</td></tr>
           </tbody>

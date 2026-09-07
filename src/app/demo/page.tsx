@@ -19,16 +19,16 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { CATALOG } from "@/components/landing/content";
-import { MenuGlyph } from "@/components/landing/features-view";
+import { MenuGlyph }  from "@/components/landing/features-view";
 
 const DEMO_USER = "김대표";
 
-/** 레일에 쓰는 짧은 이름 — 실제 사이드바 NAV_GROUPS 의 short 와 같게. */
+/** 레일에 쓰는 짧은 이름 · 실제 사이드바 NAV_GROUPS 의 short 와 같게. */
 const SHORT: Record<string, string> = {
   "홈": "홈", "파이낸스": "파이낸스", "분석": "분석", "워크스페이스": "워크",
   "인사관리": "인사", "회사 관리": "회사", "도움말": "도움말",
 };
-/** 그룹 아이콘 — 실제 사이드바 그룹 아이콘과 같은 모양을 CATALOG 아이콘 이름으로 고른다. */
+/** 그룹 아이콘 · 실제 사이드바 그룹 아이콘과 같은 모양을 CATALOG 아이콘 이름으로 고른다. */
 const GROUP_ICON: Record<string, string> = {
   "홈": "chart", "파이낸스": "wallet", "분석": "trend", "워크스페이스": "briefcase",
   "인사관리": "user", "회사 관리": "sheet", "도움말": "book",

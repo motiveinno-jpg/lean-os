@@ -36,8 +36,8 @@ const expenseCategoryLabel = (key: string): string => EXPENSE_CATEGORY_LABELS[ke
 // 카드 분류에 계정이 연결돼 있지 않을 때 쓰는 판관비 행 이름 — 뭉뚱그리되 정체는 밝힌다
 const CARD_UNMAPPED_LABEL = "카드 사용액 (계정 미지정)";
 
-//   카드 자동분류(classification)는 {"label":"통신비",…} 형태의 JSON 문자열로 들어온다 — 이름만 꺼낸다
-function cardLabelOf(raw: unknown): string {
+//   카드 자동분류(classification)는 {"label":"통신비",…}  형태의 JSON 문자열로 들어온다. 이름만 꺼낸다
+function cardLabelOf(raw: unknown): string  {
   const s = typeof raw === "string" ? raw.trim() : "";
   if (!s) return "";
   if (s.startsWith("{")) {
@@ -45,7 +45,8 @@ function cardLabelOf(raw: unknown): string {
   }
   return s;
 }
-//   계정과목표에서 실제로 찾은 것만 받는다 — 이름 추정으로 카드 지출의 자리를 정하지는 않는다
+
+//   계정과목표에서 실제로 찾은 것만 받는다. 이름 추정으로 카드 지출의 자리를 정하지는 않는다
 const pickKnown = (a: ReturnType<typeof classifyAccount>) => (a && a.known ? a : null);
 
 // 거래 category 가 비어있을 때만 사용하는 키워드 기반 fallback 라벨
@@ -101,8 +102,8 @@ interface PnlData {
   //   비용이 아닌 계정(자산·부채·자본)으로 분류돼 손익에서 뺀 출금 — 어디로 갔는지 알려주려고 모은다
   nonPnlOut: { category: string; nature: string; count: number; amount: number }[];
   cardUnmappedAmount: number;  // 계정이 연결 안 된 카드 사용액(판관비엔 들어가되 계정은 미상)
-  //   아직 전표로 만들지 않은 자료 — 재무제표가 비어 보이는 이유를 화면이 말하게 한다
-  unposted: { taxInvoice: number; card: number; bank: number; total: number };
+  //   아직 전표로 만들지 않은 자료 · 재무제표가 비어 보이는 이유를 화면이 말하게 한다
+  unposted:  { taxInvoice: number; card: number; bank: number; total: number };
 }
 
 /* ------------------------------------------------------------------ */
@@ -264,13 +265,15 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
     }
   }
 
+  
+
   for (const m of allMonths) revenue[m] = salesRevenue[m];
 
-  //   전표 기준에서는 '미분류 출금' 개념이 없다 — 전표가 있으면 계정이 반드시 정해져 있다.
+  //   전표 기준에서는 '미분류 출금' 개념이 없다. 전표가 있으면 계정이 반드시 정해져 있다.
   //   대신 **아직 전표로 만들지 않은 자료 건수**를 알려 준다(비어 보이는 이유).
   const uncategorizedCount = 0;
   const uncategorizedAmount = 0;
-  const nonPnlOut: { category: string; nature: string; count: number; amount: number }[] = [];
+  const nonPnlOut:  { category: string; nature: string; count: number; amount: number }[] = [];
   const cardUnmappedAmount = 0;
 
   return {
@@ -299,9 +302,9 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 export default function PnlPage() {
-  const { role } = useUser();
-  // 게이트 early return 뒤 훅 = React #310 결함류 — 본문 분리 (2026-08-03)
-  if (role === "partner") {
+  const { role }  = useUser();
+  // 게이트 early return 뒤 훅 = React #310 결함류 · 본문 분리 (2026-08-03)
+  if (role === "partner")  {
     return <AccessDenied detail="손익계산서는 회사 구성원 전용입니다 (외부 파트너 제외)." />;
   }
   return <PnlPageInner />;
@@ -681,7 +684,7 @@ function PnlPageInner() {
               data.unposted.card > 0 ? `카드 ${data.unposted.card.toLocaleString()}` : null,
               data.unposted.bank > 0 ? `통장 ${data.unposted.bank.toLocaleString()}` : null,
             ].filter(Boolean).join(" · ")}
-            {") — 그만큼 이 표에 빠져 있습니다."}
+            {"). 그만큼 이 표에 빠져 있습니다."}
             <span className="text-[var(--text-muted)]">
               {" "}<Link href="/collect" className="underline font-semibold">수집·전표</Link>에서 전표를 만들면 바로 반영됩니다.
             </span>
@@ -695,7 +698,8 @@ function PnlPageInner() {
           <span className="text-base leading-none mt-0.5"><Ico e="⚠" /></span>
           <div className="leading-relaxed">
             분류되지 않은 통장 출금 <b>{data.uncategorizedCount.toLocaleString()}건</b>(약 <b>₩{Math.round(data.uncategorizedAmount).toLocaleString()}</b>)이
-            판매관리비에 <b>반영되지 않았습니다</b> — 실제보다 영업이익이 크게 보일 수 있습니다.
+            판매관리비에 <b>반영되지 않았습니다</b> · 실제보다 영업이익이 크게 보일 수 있습니다.
+            
             <span className="text-[var(--text-muted)]"> 통장 거래내역 또는 거래 매칭에서 계정을 분류하면 손익에 자동 반영됩니다.</span>
           </div>
         </div>
@@ -709,7 +713,7 @@ function PnlPageInner() {
           <div className="leading-relaxed">
             <b>비용이 아닌 계정</b>으로 분류된 출금 {data.nonPnlOut.reduce((s, r) => s + r.count, 0).toLocaleString()}건
             (₩{Math.round(data.nonPnlOut.reduce((s, r) => s + r.amount, 0)).toLocaleString()})은
-            손익계산서에서 <b>제외</b>했습니다 — 자산·부채·자본 계정은 <Link href="/reports/bs" className="underline font-semibold">재무상태표</Link> 항목입니다.
+            손익계산서에서 <b>제외</b>했습니다. 자산·부채·자본 계정은  <Link href="/reports/bs" className="underline font-semibold">재무상태표</Link> 항목입니다.
             <div className="pnl-nonpnl-list">
               {data.nonPnlOut.slice(0, 6).map((r) => (
                 <span key={r.category} className="pnl-nonpnl-chip">
@@ -882,7 +886,7 @@ function PnlPageInner() {
       <div className="pnl-accuracy-banner kpi-callout">
         <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 16v-4m0-4h.01" /></svg>
         <p className="text-[11.5px] leading-relaxed">
-          <b>매출·매입원가는 세금계산서(발생주의) 기준</b>이라 정확합니다. 단 <b>판매관리비는 계정과목이 분류된 출금만</b> 반영됩니다 — 미분류 출금은 무엇인지 알 수 없어 제외되므로, 비용이 실제보다 적게(이익은 많게) 보일 수 있습니다. <Link href="/collect?tab=bank" className="underline font-semibold">수집·전표 › 통장</Link>에서 계정을 골라 전표를 만들수록 정확해집니다.
+          <b>매출·매입원가는 세금계산서(발생주의) 기준</b>이라 정확합니다. 단 <b>판매관리비는 계정과목이 분류된 출금만</b>  반영됩니다. 미분류 출금은 무엇인지 알 수 없어 제외되므로, 비용이 실제보다 적게(이익은 많게) 보일 수 있습니다.  <Link href="/collect?tab=bank" className="underline font-semibold">수집·전표 › 통장</Link>에서 계정을 골라 전표를 만들수록 정확해집니다.
         </p>
       </div>
 
@@ -897,11 +901,11 @@ function PnlPageInner() {
         </summary>
         <div className="px-4 pb-4 grid sm:grid-cols-2 gap-x-6 gap-y-2 text-[11.5px] leading-relaxed text-[var(--text-dim)] border-t border-[var(--border)] pt-3">
           <div>· <b className="text-[var(--text-muted)]">Ⅰ. 매출액</b> = 매출 세금계산서 공급가액(발생주의)</div>
-          <div>· <b className="text-[var(--text-muted)]">Ⅱ. 매출원가</b> = <b className="text-[var(--text-muted)]">계정과목 미지정</b> 매입 세금계산서 공급가액 + 매출원가(451)·매입(501) 계정으로 분류한 출금 — 매입 계산서에 판관비 계정을 지정하면 그쪽으로 이동(Ⅱ 클릭 → 건별 지정 가능)</div>
+          <div>· <b className="text-[var(--text-muted)]">Ⅱ. 매출원가</b> = <b className="text-[var(--text-muted)]">계정과목 미지정</b>  매입 세금계산서 공급가액 + 매출원가(451)·매입(501) 계정으로 분류한 출금 · 매입 계산서에 판관비 계정을 지정하면 그쪽으로 이동(Ⅱ 클릭 → 건별 지정 가능)</div>
           <div>· <b className="text-[var(--text-muted)]">Ⅳ. 판매비와관리비</b> = ① 판관비 계정(코드 8xx)으로 분류된 통장 출금(AI 자동분류 포함) + ② 판관비 계정을 지정한 매입 세금계산서 + ③ <b className="text-[var(--text-muted)]">법인카드 사용액</b>(분류→계정 매핑이 있으면 그 계정, 없으면 &lsquo;{CARD_UNMAPPED_LABEL}&rsquo; 한 줄). 카드 취소·환불은 음수로 상계되고, 카드대금 통장 출금은 부채 상환이라 빠지므로 이중계상되지 않습니다</div>
-          <div>· <b className="text-[var(--text-muted)]">급여</b> = 재직 중인 직원(재직·합류) 월급여 자동 반영 — 초대만 하고 합류 전인 사람은 제외. <b className="text-[var(--text-muted)]">4대보험</b> = 급여×약 10.55%(사업주 부담 추정) — 거래가 없어도 직원 등록만으로 자동 계상</div>
+          <div>· <b className="text-[var(--text-muted)]">급여</b>  = 재직 중인 직원(재직·합류) 월급여 자동 반영 · 초대만 하고 합류 전인 사람은 제외.  <b className="text-[var(--text-muted)]">4대보험</b>  = 급여×약 10.55%(사업주 부담 추정). 거래가 없어도 직원 등록만으로 자동 계상</div>
           <div>· <b className="text-[var(--text-muted)]">Ⅵ·Ⅶ·Ⅷ 영업외손익·법인세</b> = 영업외 계정(코드 9xx)으로 분류한 거래. 이자비용·기부금 등은 판관비에 섞지 않고 여기로 갑니다. 입금은 <b className="text-[var(--text-muted)]">영업외수익 계정</b>만 인식(매출 계정 입금은 세금계산서 매출과 중복이라 제외)</div>
-          <div className="sm:col-span-2">· <b className="text-[var(--text-muted)]">계정 성격 기준</b> — 자리는 <Link href="/settings" className="underline">회사설정 → 계정과목</Link>의 성격(자산·부채·자본·수익·비용)과 코드로 정합니다. <b className="text-[var(--text-muted)]">자산·부채·자본 계정(미지급금 상환·이체·보증금 등)은 손익계산서가 아니라 재무상태표 항목</b>이라 제외되며, 미분류 출금도 제외됩니다</div>
+          <div className="sm:col-span-2">· <b className="text-[var(--text-muted)]">계정 성격 기준</b> · 자리는  <Link href="/settings" className="underline">회사설정 → 계정과목</Link>의 성격(자산·부채·자본·수익·비용)과 코드로 정합니다. <b className="text-[var(--text-muted)]">자산·부채·자본 계정(미지급금 상환·이체·보증금 등)은 손익계산서가 아니라 재무상태표 항목</b>이라 제외되며, 미분류 출금도 제외됩니다</div>
         </div>
       </details>
 
@@ -921,8 +925,10 @@ function PnlPageInner() {
   );
 }
 
-/** 원장 한 줄 — 위하고 '원장조회'와 같은 칸 구성 (2026-08-12 사장님이 그 화면을 기준으로 주셨다) */
-type DrillRow = {
+
+
+/** 원장 한 줄 · 위하고 '원장조회'와 같은 칸 구성 (2026-08-12 사장님이 그 화면을 기준으로 주셨다) */
+type DrillRow =  {
   date: string; memo: string; partner: string | null;
   debit: number; credit: number; voucherNo: number | null;
 };
@@ -1011,15 +1017,16 @@ function PnlDrillModal({ companyId, source, category, label, start, end, breakdo
     if (cur) out.push({ kind: "sum", month: cur, monthly, running });
     return out;
   }, [rows, source]);
-  //   이제 전부 확정 전표를 본다 — 표와 같은 원천이라는 것을 창이 직접 말한다
+  //   이제 전부 확정 전표를 본다. 표와 같은 원천이라는 것을 창이 직접 말한다
   const srcLabel = source === "computed" ? "산출 구성" : "확정 전표";
 
   return (
+    
     <div className="pnl-drill-modal-overlay fixed inset-0" onClick={onClose}>
       <div className="pnl-drill-modal" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
           <div>
-            <div className="text-sm font-bold text-[var(--text)]">{label} — 상세 내역</div>
+            <div className="text-sm font-bold text-[var(--text)]">{label} · 상세 내역</div>
             <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{source === "computed" ? srcLabel : `${start} ~ ${end} · ${srcLabel}`}</div>
           </div>
           <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>

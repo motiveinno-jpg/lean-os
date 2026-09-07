@@ -77,7 +77,7 @@ export function SidebarAttendanceButton() {
         toast("퇴근 처리 완료", "success");
       } else {
         await hrCancelCheckOut(employeeId, companyId, today);
-        toast("퇴근 취소 — 다시 근무 중", "success");
+        toast("퇴근 취소 · 다시 근무 중", "success");
       }
       refresh();
     } catch (e: any) {
@@ -94,7 +94,7 @@ export function SidebarAttendanceButton() {
       type="button"
       onClick={handleClick}
       disabled={busy}
-      title={!isCheckedIn ? "출근 기록하기" : !isCheckedOut ? "퇴근 기록하기" : "퇴근 기록 취소 — 다시 근무 중으로"}
+      title={!isCheckedIn ? "출근 기록하기" : !isCheckedOut ? "퇴근 기록하기" : "퇴근 기록 취소 · 다시 근무 중으로"}
       className={`sidebar-attendance-btn ${
         !isCheckedIn
           ? "bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white"

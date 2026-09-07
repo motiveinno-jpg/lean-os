@@ -50,8 +50,9 @@ function hm(min: number): string {
   const h = Math.floor(min / 60), m = Math.round(min % 60);
   return m ? `${h}h ${m}m` : `${h}h`;
 }
-// "HH:MM" — check_in/out 은 timestamptz 또는 'HH:MM' 형 모두 방어
-function timeOf(v: string | null): string | null {
+
+// "HH:MM" · check_in/out 은 timestamptz 또는 'HH:MM' 형 모두 방어
+function timeOf(v: string | null): string | null  {
   if (!v) return null;
   if (/^\d{2}:\d{2}/.test(v)) return v.slice(0, 5);
   const d = new Date(v);
@@ -112,8 +113,8 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
     staleTime: 30_000,
   });
 
-  // 승인 휴가 (주간과 겹치는 건) — 반차 오전/오후 판정을 위해 단위·시각까지 읽는다 (2026-08-11 사장님)
-  const { data: leaves = [] } = useQuery<{ employee_id: string; start_date: string; end_date: string; leave_type: string; leave_unit: string | null; start_time: string | null; end_time: string | null; days: number | null }[]>({
+  // 승인 휴가 (주간과 겹치는 건). 반차 오전/오후 판정을 위해 단위·시각까지 읽는다 (2026-08-11 사장님)
+  const  { data: leaves = [] } = useQuery<{ employee_id: string; start_date: string; end_date: string; leave_type: string; leave_unit: string | null; start_time: string | null; end_time: string | null; days: number | null }[]>({
     queryKey: ["flex-work-leaves", companyId, startStr],
     queryFn: async () => {
       const data = await fetchPaged<any>('flex-work-board:leaves', () => db.from("leave_requests")
@@ -126,8 +127,8 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
     staleTime: 60_000,
   });
 
-  // 회사 공휴일 (2026-08-19 사장님: 대체휴일이 전 직원 결근으로 표시) — 결근 판정에서 제외.
-  const { data: weekHolidays = [] } = useQuery<{ date: string; name: string | null }[]>({
+  // 회사 공휴일 (2026-08-19 사장님: 대체휴일이 전 직원 결근으로 표시). 결근 판정에서 제외.
+  const  { data: weekHolidays = [] } = useQuery<{ date: string; name: string | null }[]>({
     queryKey: ["flex-work-holidays", companyId, startStr],
     queryFn: async () => {
       const data = logRead('components/flex-work-board:data', await db.from("holidays")
@@ -144,8 +145,8 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
     return m;
   }, [weekHolidays]);
 
-  //   회사 근무시간 — 셀 게이지의 '하루 근무량' 기준 (2026-08-25 사장님: 근무 진행률로 채움).
-  const { data: workCfg } = useQuery<CompanyWorkCfg>({
+  //   회사 근무시간 · 셀 게이지의 '하루 근무량' 기준 (2026-08-25 사장님: 근무 진행률로 채움).
+  const  { data: workCfg } = useQuery<CompanyWorkCfg>({
     queryKey: ["flex-work-cfg", companyId],
     queryFn: async () => {
       const { data } = await db.from("company_settings")
@@ -440,8 +441,8 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                     const a = attByEmpDate.get(key);
                     const lv = leaveByEmpDate.get(key);
                     const weekend = !isWorkdayIdx(i);
-                    //   셀 공통 박스 — 테두리로 배경과 구분되게, 글자는 진하게(2줄), 게이지는 바닥 얇은 바 (2026-08-25 사장님).
-                    if (lv) {
+                    //   셀 공통 박스 · 테두리로 배경과 구분되게, 글자는 진하게(2줄), 게이지는 바닥 얇은 바 (2026-08-25 사장님).
+                    if (lv)  {
                       const lci = a ? timeOf(a.check_in) : null;
                       const lco = a ? timeOf(a.check_out) : null;
                       const halfFrac = a && a.check_in ? Math.min(1, cellFill(a, ymd(d)).frac * 2) : 0; // 반나절 만근=1
@@ -492,7 +493,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                       return (
                         <td key={i} className={`px-1 py-2 text-center align-middle ${weekend ? "bg-[var(--bg-surface)]/30" : ""}`}>
                           {absent
-                            ? <div className="fw-cell fw-cell-box" title="지난 평일인데 출퇴근 기록·휴가가 없습니다 — 휴가 등록이나 기록 정정으로 맞추세요">
+                            ? <div className="fw-cell fw-cell-box" title="지난 평일인데 출퇴근 기록·휴가가 없습니다. 휴가 등록이나 기록 정정으로 맞추세요">
                                 <span className="fw-cell-chip" style={{ color: "var(--danger)" }}>결근</span>
                                 <span className="fw-cell-t2">기록 없음</span>
                               </div>
@@ -505,9 +506,10 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                         </td>
                       );
                     }
-                    //   근무 진행률 게이지 — 바닥 바가 왼→오로 채워진다. 퇴근했으면 근무분/기대분(대개 꽉 참),
+                    
+                    //   근무 진행률 게이지 · 바닥 바가 왼→오로 채워진다. 퇴근했으면 근무분/기대분(대개 꽉 참),
                     //     근무중(오늘)이면 지금 시각 기준으로 1분마다 실시간으로 차오른다 (2026-08-25 사장님).
-                    const { frac, inProgress } = cellFill(a, ymd(d));
+                    const  { frac, inProgress } = cellFill(a, ymd(d));
                     const ci = timeOf(a.check_in), co = timeOf(a.check_out);
                     const barColor = a.is_late ? FLEX.amber : FLEX.violet;
                     const tip = `${ci ?? "—"} ~ ${co ?? (a.auto_clocked_out ? "자동퇴근" : "근무중")} · ${hm(minutesOf(a))}${a.is_late ? " · 지각" : ""}${Number(a.overtime_minutes || 0) > 0 ? ` · 연장 ${hm(Number(a.overtime_minutes))}` : ""}`;

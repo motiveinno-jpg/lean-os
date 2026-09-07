@@ -19,7 +19,7 @@ const SOURCE_KO: Record<CopilotNote["source"], string> = { user: "직접 입력"
 
 export type AutoNote = { id: string; content: string; kind: string };
 
-/** 답변 카드 아래 "참모가 기억했어요" — 이번 대화에서 참모가 스스로 저장한 메모. 취소하면 바로 비활성. */
+/** 답변 카드 아래 "참모가 기억했어요" · 이번 대화에서 참모가 스스로 저장한 메모. 취소하면 바로 비활성. */
 export function AutoMemoryChips({ notes }: { notes?: AutoNote[] }) {
   const { toast } = useToast();
   const [list, setList] = useState<AutoNote[]>(notes ?? []);
@@ -55,7 +55,9 @@ export async function saveCopilotNote(input: {
   if (error) throw error;
 }
 
-/** 답변 카드 아래 "이 답변 바로잡기" — 교정 메모로 저장해 다음 답변부터 반영. */
+
+
+/** 답변 카드 아래 "이 답변 바로잡기" · 교정 메모로 저장해 다음 답변부터 반영. */
 export function AnswerFixForm({ companyId, userId, question }: { companyId?: string; userId?: string | null; question?: string }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);

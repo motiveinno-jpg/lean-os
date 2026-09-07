@@ -304,7 +304,7 @@ export function TaxInvoiceBulkIssueModal({ companyId, onClose }: { companyId: st
           <>
             <div className="bulk-issue-summary">
               <span className="bulk-issue-count-ok">성공 {results.filter((r) => r.ok).length}건</span>
-              {results.some((r) => !r.ok) && <span className="bulk-issue-count-bad">실패 {results.filter((r) => !r.ok).length}건 — 미발행 상태로 등록돼 목록에서 재시도할 수 있습니다</span>}
+              {results.some((r) => !r.ok) && <span className="bulk-issue-count-bad">실패 {results.filter((r) => !r.ok).length}건 · 미발행 상태로 등록돼 목록에서 재시도할 수 있습니다</span>}
             </div>
             <div className="bulk-issue-table-wrap">
               <table className="bulk-issue-table">

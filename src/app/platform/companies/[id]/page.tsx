@@ -1,13 +1,13 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
-import { logRead } from "@/lib/log-read";
+import { logRead }  from "@/lib/log-read";
 
-// 고객사 상세 — 운영 콕핏. 조회 + 실제 관리 액션:
+// 고객사 상세 · 운영 콕핏. 조회 + 실제 관리 액션:
 //   멤버: 비밀번호/재설정링크/이메일/역할/잠금 (PlatformMemberActions 공용 패널)
 //   구독: 플랜 변경 · 체험 연장 · 상태 변경 · 좌석 조정 (Stripe/Toss 연동 구독은 차단)
 // 운영자 페이지 v2 (2026-09-03): 고객 프로필 카드 + KPI 타일 + 활동 링 차트. 조회·액션은 종전 그대로.
 
-import { use, useEffect, useState } from "react";
+import  { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -31,8 +31,10 @@ function fmtDate(s: string | null | undefined): string {
   return new Date(s).toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" });
 }
 
-/** "3일 전" 같은 상대 시각 — 비전공자용 */
-function fmtAgo(s: string | null | undefined): string {
+
+
+/** "3일 전" 같은 상대 시각 · 비전공자용 */
+function fmtAgo(s: string | null | undefined): string  {
   if (!s) return "기록 없음";
   const diff = Date.now() - new Date(s).getTime();
   const m = Math.floor(diff / 60_000);
@@ -79,8 +81,8 @@ export default function PlatformCompanyDetailPage({ params }: { params: Promise<
     enabled: !!id,
   });
 
-  // 회사 소속 멤버 — 계정 지원 액션 대상
-  const { data: companyMembers = [] } = useQuery<CompanyMember[]>({
+  // 회사 소속 멤버 · 계정 지원 액션 대상
+  const  { data: companyMembers = [] } = useQuery<CompanyMember[]>({
     queryKey: ["p-company-members", id],
     queryFn: async () => {
       const rows = logRead("platform/company:members", await db
@@ -231,7 +233,7 @@ export default function PlatformCompanyDetailPage({ params }: { params: Promise<
       {/* 활동·상태 시각화 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <PfCard i={6} className="lg:col-span-2">
-          <PfCardHead title="이 회사의 활동" sub="사용자·프로젝트·거래가 얼마나 쌓였는지 — 바깥 링부터 사용자, 프로젝트, 통장 거래, 카드 거래" />
+          <PfCardHead title="이 회사의 활동" sub="사용자·프로젝트·거래가 얼마나 쌓였는지 · 바깥 링부터 사용자, 프로젝트, 통장 거래, 카드 거래" />
           <PfCardBody>
             <PfRings
               items={[
@@ -258,7 +260,7 @@ export default function PlatformCompanyDetailPage({ params }: { params: Promise<
                   <PfBadge tone={errors24h > 50 ? "danger" : errors24h > 10 ? "warn" : "ok"}>{errors24h > 50 ? "심각" : errors24h > 10 ? "주의" : "정상"}</PfBadge>
                 </span>
               </div>
-              {seatPct > 100 && <div className="text-[11px] text-[var(--danger)] font-semibold">좌석보다 사용자가 많습니다 — 좌석 조정이 필요해요</div>}
+              {seatPct > 100 && <div className="text-[11px] text-[var(--danger)] font-semibold">좌석보다 사용자가 많습니다. 좌석 조정이 필요해요</div>}
             </div>
           </PfCardBody>
         </PfCard>
@@ -269,7 +271,7 @@ export default function PlatformCompanyDetailPage({ params }: { params: Promise<
         <PfCardHead
           title="구독 관리"
           sub="요금제·체험 기간·상태·좌석을 여기서 바로 바꿉니다"
-          right={hasBilling ? <PfBadge tone="warn">{sub?.stripe_subscription_id ? "Stripe" : "Toss"} 결제 연동 — 변경은 결제사 화면에서</PfBadge> : undefined}
+          right={hasBilling ? <PfBadge tone="warn">{sub?.stripe_subscription_id ? "Stripe" : "Toss"}  결제 연동 · 변경은 결제사 화면에서</PfBadge> : undefined}
         />
         <PfCardBody>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-4">
@@ -366,7 +368,7 @@ export default function PlatformCompanyDetailPage({ params }: { params: Promise<
 
       {/* 멤버 관리 */}
       <PfCard i={9} hover={false}>
-        <PfCardHead title="구성원" sub={`${companyMembers.length}명 — 행을 누르면 비밀번호·이메일·잠금·역할 조치가 펼쳐집니다`} />
+        <PfCardHead title="구성원" sub={`${companyMembers.length}명 · 행을 누르면 비밀번호·이메일·잠금·역할 조치가 펼쳐집니다`} />
         {companyMembers.length === 0 ? (
           <PfEmpty>구성원이 없습니다</PfEmpty>
         ) : (

@@ -6,7 +6,7 @@ import { toolJsonLd } from "../_seo";
 
 const SITE = "https://www.owner-view.com";
 // 루트 레이아웃 template("%s | 오너뷰")이 접미를 붙이므로 여기엔 브랜드를 안 쓴다
-const TITLE = "퇴직금 계산기 — 입사일·월급만 넣으면 예상 퇴직금 자동 계산 (무료)";
+const TITLE = "퇴직금 계산기 · 입사일·월급만 넣으면 예상 퇴직금 자동 계산 (무료)";
 const DESC =
   "고용노동부 방식 퇴직금 계산기. 1일 평균임금 × 30일 × (재직일수 ÷ 365)로 예상 퇴직금을 계산합니다. 상여금·연차수당 반영, 회원가입 없이 무료.";
 

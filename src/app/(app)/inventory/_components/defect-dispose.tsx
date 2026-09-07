@@ -44,11 +44,11 @@ export function DefectDisposeDialog({ companyId, userId, products, onClose }: { 
       const name = byId.get(pid)?.name || "";
       if (v.action === "scrap") {
         const r = await createStockDoc(companyId, { reason: "disposal", docDate: todayKst(), warehouseId: defectWh.id, note: "불량 폐기", lines: [{ product_id: pid, qty: q, note: "불량 폐기" }] }, userId);
-        toast(`${name} ${won(q)}개 폐기 — ${r.docNo}. 손실은 다음 생산 전표 초안에 재고자산감모손실로 잡힙니다`, "success");
+        toast(`${name} ${won(q)}개 폐기 · ${r.docNo}. 손실은 다음 생산 전표 초안에 재고자산감모손실로 잡힙니다`, "success");
       } else {
         if (!v.to) { toast("옮길 창고를 고르세요", "error"); setBusy(false); return; }
         const r = await createStockDoc(companyId, { reason: "move", docDate: todayKst(), warehouseId: defectWh.id, toWarehouseId: v.to, note: "재작업 완료 · 양품 전환", lines: [{ product_id: pid, qty: q, note: "재작업 완료" }] }, userId);
-        toast(`${name} ${won(q)}개를 양품으로 옮겼습니다 — ${r.docNo}`, "success");
+        toast(`${name} ${won(q)}개를 양품으로 옮겼습니다. ${r.docNo}`, "success");
       }
       setEdit((s) => { const n = { ...s }; delete n[pid]; return n; });
       await refetch(); qc.invalidateQueries({ queryKey: ["inv-moves"] });

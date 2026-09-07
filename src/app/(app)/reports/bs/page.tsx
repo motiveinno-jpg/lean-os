@@ -61,10 +61,10 @@ interface BsData {
   payableDetails: { name: string; amount: number; date?: string | null }[];
   /* 미지급금 드릴다운: 거래처별 그룹 + 세부 인보이스 */
   payableByVendor: PayableVendor[];
-  //   아직 전표로 만들지 않은 자료 — 표가 비어 보이는 이유를 화면이 말하게 한다
-  unposted: { taxInvoice: number; card: number; bank: number; total: number };
-  //   부호가 뒤집힌 계정 — 마이너스가 왜 났는지 설명하는 데 쓴다
-  flipped: { name: string; code: string | null; nature: string; amount: number }[];
+  //   아직 전표로 만들지 않은 자료 · 표가 비어 보이는 이유를 화면이 말하게 한다
+  unposted:  { taxInvoice: number; card: number; bank: number; total: number };
+  //   부호가 뒤집힌 계정 · 마이너스가 왜 났는지 설명하는 데 쓴다
+  flipped:  { name: string; code: string | null; nature: string; amount: number }[];
 }
 
 // 통합 세부 모달용 행 (날짜/거래처/금액)
@@ -100,8 +100,8 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
     supabase.from("companies").select("tax_settings").eq("id", companyId).maybeSingle(),
   ]);
 
-  //   계정별 잔액 — 자산은 차변이 +, 부채·자본은 대변이 +
-  type Bal = { name: string; code: string | null; nature: string; amount: number };
+  //   계정별 잔액 · 자산은 차변이 +, 부채·자본은 대변이 +
+  type Bal =  { name: string; code: string | null; nature: string; amount: number };
   const byAccount = new Map<string, Bal>();
   let pnlNet = 0;                                   // 당기순이익(수익 − 비용) → 이익잉여금
   for (const l of lines) {
@@ -303,9 +303,9 @@ async function fetchBsTrend(companyId: string, months: number = 6): Promise<Tren
 }
 
 export default function BalanceSheetPage() {
-  const { role } = useUser();
-  // 게이트 early return 뒤 훅 = React #310 결함류 — 본문 분리 (2026-08-03)
-  if (role === "partner") {
+  const { role }  = useUser();
+  // 게이트 early return 뒤 훅 = React #310 결함류 · 본문 분리 (2026-08-03)
+  if (role === "partner")  {
     return <AccessDenied detail="재무상태표는 회사 구성원 전용입니다 (외부 파트너 제외)." />;
   }
   return <BalanceSheetPageInner />;
@@ -319,9 +319,9 @@ function BalanceSheetPageInner() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCompareMode, setIsCompareMode] = useState(false);
-  // 기준일 — 빈 값이면 오늘, 사용자가 지정하면 그 시점 BS 조회
+  // 기준일 · 빈 값이면 오늘, 사용자가 지정하면 그 시점 BS 조회
   const [cutoffInput, setCutoffInput] = useState<string>('');
-  // 2026-06-10 매출채권/미지급금 집계 기간(개월) — 최근 N개월 송장만 outstanding 으로 간주
+  // 2026-06-10 매출채권/미지급금 집계 기간(개월). 최근 N개월 송장만 outstanding 으로 간주
   const [showPayableDrill, setShowPayableDrill] = useState(false);
   const [expandedVendor, setExpandedVendor] = useState<string | null>(null);
   // 통합 세부 모달: 자산/부채 항목 클릭 시 열림
@@ -557,7 +557,7 @@ function BalanceSheetPageInner() {
               rows: [
                 { key: "cap", label: data.isCapitalDefault ? "자본금 (기본값)" : "자본금", amount: data.capital, prev: isCompareMode && prevData ? prevData.capital : undefined },
                 { key: "re", label: "이익잉여금", amount: data.retainedEarnings, prev: isCompareMode && prevData ? prevData.retainedEarnings : undefined,
-                  note: "누적 손익 — 손익계산서 당기순이익이 쌓인 것" },
+                  note: "누적 손익 · 손익계산서 당기순이익이 쌓인 것" },
               ] },
           ]}
           total={{ label: "부채와 자본 총계", amount: data.totalLiabilities + data.totalEquity, prev: isCompareMode && prevData ? prevData.totalLiabilities + prevData.totalEquity : undefined }} />
@@ -576,7 +576,8 @@ function BalanceSheetPageInner() {
         {/* 균형 여부 표시 — 회계 정합성 */}
         {Math.abs(data.totalAssets - (data.totalLiabilities + data.totalEquity)) > 1 && (
           <div className="md:col-span-2 px-3 py-1.5 rounded-lg bg-[var(--warning)]/10 border border-[var(--warning)]/30 text-[10px] text-[var(--warning)]">
-            <Ico e="⚠" /> 차변(자산) - 대변(부채+자본) 차이 ₩{Math.round(data.totalAssets - (data.totalLiabilities + data.totalEquity)).toLocaleString("ko-KR")} — 자본금 / 이익잉여금 데이터 확인 필요
+            <Ico e="⚠" /> 차변(자산) - 대변(부채+자본) 차이 ₩{Math.round(data.totalAssets - (data.totalLiabilities + data.totalEquity)).toLocaleString("ko-KR")} · 자본금 / 이익잉여금 데이터 확인 필요
+          
           </div>
         )}
       </div>
@@ -725,7 +726,7 @@ function BalanceSheetPageInner() {
         <div className="bs-flipped-note kpi-callout warning">
           <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M4.93 19h14.14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.2 16a2 2 0 001.73 3z" /></svg>
           <p className="text-[11.5px] leading-relaxed">
-            <b>마이너스로 보이는 이유</b> — 아래 계정은 <b>줄어드는 전표만</b> 쌓여 있습니다.{" "}
+            <b>마이너스로 보이는 이유</b> · 아래 계정은  <b>줄어드는 전표만</b> 쌓여 있습니다.{" "}
             {data.flipped.map((f) => `${f.code ? f.code + " " : ""}${f.name} ${Math.round(f.amount).toLocaleString()}`).join(" · ")}
             <br />
             예를 들어 <b>외상매출금</b>이 음수라면, 매출을 전표로 올리지 않은 채 <b>수금(입금) 전표만</b> 만든 것입니다.
@@ -747,7 +748,7 @@ function BalanceSheetPageInner() {
               data.unposted.card > 0 ? `카드 ${data.unposted.card.toLocaleString()}` : null,
               data.unposted.bank > 0 ? `통장 ${data.unposted.bank.toLocaleString()}` : null,
             ].filter(Boolean).join(" · ")}
-            {") — 그만큼 이 표에 빠져 있습니다. "}
+            {"). 그만큼 이 표에 빠져 있습니다. "}
             <Link href="/collect" className="underline font-semibold">수집·전표</Link>에서 전표를 만들면 바로 반영됩니다.
           </p>
         </div>
@@ -845,8 +846,10 @@ function BalanceSheetPageInner() {
   );
 }
 
-/* ── T자표 한쪽 — 공용 머리단 표 + 계정 줄(누르면 세부 펼침) + 소계·총계 (2026-08-19) ── */
-type BsDetail = { name: string; amount: number; date?: string | null };
+
+
+/* ── T자표 한쪽 · 공용 머리단 표 + 계정 줄(누르면 세부 펼침) + 소계·총계 (2026-08-19) ── */
+type BsDetail =  { name: string; amount: number; date?: string | null };
 type BsRow = { key: string; label: string; amount: number; prev?: number; details?: BsDetail[]; note?: string };
 type BsSection = { label: string; rows: BsRow[]; subtotalLabel: string; subtotal: number; prevSubtotal?: number };
 function BsSide({ title, sections, total, isCompareMode }: {

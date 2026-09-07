@@ -23,7 +23,7 @@ let K = 1;
 const blank = (): Row => ({ key: K++, component_id: "", label: "", qty: "", note: "" });
 const num = (v: string) => { const n = Number(String(v).replace(/[,\s]/g, "")); return Number.isNaN(n) ? 0 : n; };
 
-/** 자재구성 편집 — 품목 하나의 "1개를 만들 때 드는 자재" */
+/** 자재구성 편집 · 품목 하나의 "1개를 만들 때 드는 자재" */
 export function BomEditorDialog({ companyId, product, products, onClose }: {
   companyId: string; product: Product; products: Product[]; onClose: () => void;
 }) {
@@ -74,7 +74,7 @@ export function BomEditorDialog({ companyId, product, products, onClose }: {
   const bad = live.filter((r) => !(num(r.qty) > 0));
 
   const save = async () => {
-    if (dupIds.size) { toast("같은 자재가 두 줄 이상 있습니다 — 하나로 합치세요", "error"); return; }
+    if (dupIds.size) { toast("같은 자재가 두 줄 이상 있습니다. 하나로 합치세요", "error"); return; }
     if (bad.length) { toast("소요량이 비었거나 0인 줄이 있습니다", "error"); return; }
     setBusy(true);
     try {
@@ -82,7 +82,7 @@ export function BomEditorDialog({ companyId, product, products, onClose }: {
       for (const r of live) await upsertBomLine(companyId, { id: r.id, product_id: product.id, component_id: r.component_id, qty: num(r.qty), base_qty: baseN, note: r.note || null });
       for (const b of before) if (!live.some((r) => r.id === b.id)) await deleteBomLine(b.id);
       await qc.invalidateQueries({ queryKey: ["inv-boms", companyId] });
-      toast(live.length ? `${product.name} 자재구성 ${live.length}줄을 저장했습니다 — 1개당 자재비 ₩${won(cost)}` : `${product.name} 자재구성을 비웠습니다 — 완성해도 자재가 빠지지 않습니다`, "success");
+      toast(live.length ? `${product.name} 자재구성 ${live.length}줄을 저장했습니다. 1개당 자재비 ₩${won(cost)}` : `${product.name} 자재구성을 비웠습니다. 완성해도 자재가 빠지지 않습니다`, "success");
       onClose();
     } catch (e) { toast(friendlyError(e, "저장하지 못했습니다"), "error"); }
     finally { setBusy(false); }
@@ -163,7 +163,9 @@ export function BomEditorDialog({ companyId, product, products, onClose }: {
   );
 }
 
-/** 자재 소요 — 완제품 목록에서 하나를 누르면 그 품목의 자재만 아래에(2026-08-26 사장님: "혼재되어 보기 불편"). 과부족은 격자 전체 소요 기준. */
+
+
+/** 자재 소요. 완제품 목록에서 하나를 누르면 그 품목의 자재만 아래에(2026-08-26 사장님: "혼재되어 보기 불편"). 과부족은 격자 전체 소요 기준. */
 export function BomNeedDialog({ companyId, warehouseId, items, products, onClose, onEdit, materials, onApply }: {
   companyId: string; warehouseId: string | null;
   /** qty = 양품+불량(투입 기준). defect 는 표시용 */
@@ -247,7 +249,7 @@ export function BomNeedDialog({ companyId, warehouseId, items, products, onClose
               })}
             </div>
             {cur && (cur.lines.length === 0 ? (
-              <div className="inv-status-empty">{cur.product.name}은(는) 자재구성이 없습니다 — 완성 기록 시 자재가 출고되지 않습니다.{onEdit && <> <button type="button" className="bz-link" onClick={() => onEdit(cur.product)}>자재구성 등록</button></>}</div>
+              <div className="inv-status-empty">{cur.product.name}은(는) 자재구성이 없습니다. 완성 기록 시 자재가 출고되지 않습니다.{onEdit && <> <button type="button" className="bz-link" onClick={() => onEdit(cur.product)}>자재구성 등록</button></>}</div>
             ) : (
               <div className="stg-table-wrap ch-ship-list">
                 <table className="ev-table ev-lined table-inv-status-sm">
@@ -279,16 +281,16 @@ export function BomNeedDialog({ companyId, warehouseId, items, products, onClose
               <div className="inv-bom-base">
                 <span className="field-label">단가 제안</span>
                 <span><b className="mono-number">₩{won(Math.round(suggestCost))}</b> = 실투입 자재비 ÷ (양품 {won(cur.qty - defectOf(cur.product.id))} + 불량 {won(defectOf(cur.product.id))})</span>
-                <em className="inv-hint">로스는 원가에 얹히고, 불량은 폐기하는 순간 손실이 됩니다. 격자의 단가 칸에 직접 넣으세요 — 제안일 뿐 확정은 사람이 합니다.</em>
+                <em className="inv-hint">로스는 원가에 얹히고, 불량은 폐기하는 순간 손실이 됩니다. 격자의 단가 칸에 직접 넣으세요. 제안일 뿐 확정은 사람이 합니다.</em>
               </div>
             )}
-            <div className="inv-modal-foot">완제품 {grouped.length}종{totalShort ? <> · <b className="inv-diff-minus">자재 부족 {totalShort}종</b> — 완성 기록 시 자재 재고가 음수가 됩니다</> : <> · 자재 모두 충분</>}</div>
+            <div className="inv-modal-foot">완제품 {grouped.length}종{totalShort ? <> · <b className="inv-diff-minus">자재 부족 {totalShort}종</b> · 완성 기록 시 자재 재고가 음수가 됩니다</> : <> · 자재 모두 충분</>}</div>
           </>
         )}
         <div className="inv-modal-actions">
           {/*   A3 (2026-08-27 규칙형 자동화) — 부족 자재를 구매 입력 격자에 초안으로 넘긴다. 저장은 사람(결정 91). */}
           {totalShort > 0 && (
-            <button type="button" className="btn-secondary btn-sm" title="부족한 자재를 부족분만큼 구매 입력에 채워 엽니다 — 거래처·단가는 지난 매입 기준, 저장은 사람"
+            <button type="button" className="btn-secondary btn-sm" title="부족한 자재를 부족분만큼 구매 입력에 채워 엽니다. 거래처·단가는 지난 매입 기준, 저장은 사람"
               onClick={() => {
                 const rows = [...totalNeed.entries()].map(([id, n]) => ({ product_id: id, qty: Math.max(0, n - (have.get(id) || 0)), note: `자재 부족 (소요 ${won(n)} · 현재 ${won(have.get(id) || 0)})` })).filter((r) => r.qty > 0);
                 try { sessionStorage.setItem("inv-purchase-prefill", JSON.stringify(rows)); } catch { /* 저장 못 하면 빈 격자로 간다 */ }
@@ -298,7 +300,7 @@ export function BomNeedDialog({ companyId, warehouseId, items, products, onClose
           <span className="doc-sums-sp" />
           {onApply ? (<>
             <button type="button" className="btn-secondary btn-sm" onClick={onClose}>닫기</button>
-            <button type="button" className="btn-primary btn-sm" onClick={apply} title="실투입·로스 원인을 완성 기록에 담습니다 — 저장은 격자의 완성 기록 버튼">실투입 반영</button>
+            <button type="button" className="btn-primary btn-sm" onClick={apply} title="실투입·로스 원인을 완성 기록에 담습니다. 저장은 격자의 완성 기록 버튼">실투입 반영</button>
           </>) : <button type="button" className="btn-primary btn-sm" onClick={onClose}>닫기</button>}
         </div>
       </div>
@@ -306,7 +308,9 @@ export function BomNeedDialog({ companyId, warehouseId, items, products, onClose
   );
 }
 
-/** 생산 조회 줄의 자재 부족 배지 — 치는 동안 계속 센다. 부족이 없으면 아무것도 안 그린다. */
+
+
+/** 생산 조회 줄의 자재 부족 배지 · 치는 동안 계속 센다. 부족이 없으면 아무것도 안 그린다. */
 export function MaterialShortBadge({ ctl, onOpen }: { ctl: { companyId: string | null; live: { product_id?: string | null; qty: string; defect?: string }[]; head: Record<string, string> }; onOpen: () => void }) {
   const companyId = ctl.companyId;
   const { data: boms = [] } = useQuery({ queryKey: ["inv-boms", companyId], queryFn: () => listBoms(companyId!), enabled: !!companyId });

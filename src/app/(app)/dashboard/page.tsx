@@ -47,8 +47,8 @@ import { DashboardCalendar } from "@/components/dashboard-calendar"; // 일정·
 import { useReportWidgetEmpty } from "@/components/widget-empty-context"; // 층 1 신호 6칸 (2026-08-19 재편)
 import { ChannelHead, useSyncStatus, useUnclassifiedCounts } from "@/components/dashboard-data-status"; // 통장·카드 위젯 머리의 동기화·미분류
 import { ActivityCard, RecentProjects, RecentRevenue, RecentInvoices } from "@/components/dashboard-activity"; // 회사 활동 요약 카드(공용 셸)
-import { DashboardGrid, type CatalogWidget, type WidgetPreset } from "@/components/dashboard-grid"; // 위젯 격자 — 같은 키·순서 드래그·보기 설정
-import { BankRecentCard, ApprovalsPendingCard, EmployeesCard, PartnersCard, AnnouncementsCard, BoardCard, MyTasksCard, InventoryShortageCard } from "@/components/dashboard-menu-widgets"; // 카탈로그용 메뉴 위젯
+import { DashboardGrid, type CatalogWidget, type WidgetPreset }  from "@/components/dashboard-grid"; // 위젯 격자 · 같은 키·순서 드래그·보기 설정
+import  { BankRecentCard, ApprovalsPendingCard, EmployeesCard, PartnersCard, AnnouncementsCard, BoardCard, MyTasksCard, InventoryShortageCard } from "@/components/dashboard-menu-widgets"; // 카탈로그용 메뉴 위젯
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import { fetchTaxDeadlineChecks, setTaxDeadlineChecked } from "@/lib/tax-deadline-checks";
 import { useCompanyBizNo } from "@/lib/use-company-bizno"; // 사업자번호 미등록 유도 배너 판정
@@ -249,20 +249,20 @@ export default function DashboardPage() {
     refetchInterval: 60_000,
   });
 
-  // 요금제 — AI 브리핑은 울트라/엔터프라이즈 전용
-  const { data: subscription } = useQuery({
+  // 요금제 · AI 브리핑은 울트라/엔터프라이즈 전용
+  const  { data: subscription } = useQuery({
     queryKey: ["subscription-plan-dashboard", companyId],
     queryFn: () => getCurrentSubscription(companyId!),
     enabled: !!companyId,
     staleTime: 5 * 60_000,
   });
-  // AI 브리핑은 유료 전용 — 무료 플랜이면 규칙 브리핑으로 폴백(서버도 동일하게 막는다).
+  // AI 브리핑은 유료 전용 · 무료 플랜이면 규칙 브리핑으로 폴백(서버도 동일하게 막는다).
   //   2026-08-06 요금제 개편: ultra/enterprise 하드코딩 → '무료가 아니면 허용' 으로 교체.
   //   그대로 뒀으면 새 요금제(standard) 구독자에게 브리핑이 안 나왔다.
   const aiBriefingEnabled = !!subscription?.entitled && subscription?.planSlug !== "free";
 
   // 현금 상태 data
-  const { data: pulseRaw } = useQuery({
+  const  { data: pulseRaw } = useQuery({
     queryKey: ["cash-pulse", companyId, userId],
     queryFn: () => getCashPulseData(companyId!, userId || undefined),
     enabled: !!companyId,
@@ -363,12 +363,12 @@ export default function DashboardPage() {
       queryClient.invalidateQueries({ queryKey: ["dash-bank-recent"] });
       queryClient.invalidateQueries({ queryKey: ["dash-cards"] });
 
-      // partial(일부 실패)은 성공 스타일로 가리지 않는다 (2026-08-19 감사) — 첫 오류를 그대로 노출.
-      const firstErr = ((codefResult as any).errors || [])[0] as { message?: string; hint?: string } | undefined;
+      // partial(일부 실패)은 성공 스타일로 가리지 않는다 (2026-08-19 감사). 첫 오류를 그대로 노출.
+      const firstErr = ((codefResult as any).errors || [])[0] as  { message?: string; hint?: string } | undefined;
       if (codefResult.success && firstErr) {
         setSyncResult({
           success: false,
-          message: `부분 동기화 — 오류: ${firstErr.message}${firstErr.hint ? ` · ${firstErr.hint}` : ''}`,
+          message: `부분 동기화 · 오류: ${firstErr.message}${firstErr.hint ? ` · ${firstErr.hint}` : ''}`,
           time: now(),
         });
       } else if (codefResult.success) {
@@ -398,9 +398,9 @@ export default function DashboardPage() {
 
   const sp = dashboard.sixPack;
 
-  // (2026-07-30 사장님) 대외비(금액) 위젯 게이트 — 기본 대시보드는 전원(필수 위젯만),
+  // (2026-07-30 사장님) 대외비(금액) 위젯 게이트 · 기본 대시보드는 전원(필수 위젯만),
   //   재무·경영 위젯은 /dashboard:finance 권한 보유자(또는 마스터)만 추가·표시 가능.
-  const { isMaster: dashMaster, hasPerm: dashPerm, loading: permLoading } = useMyPermissions();
+  const  { isMaster: dashMaster, hasPerm: dashPerm, loading: permLoading } = useMyPermissions();
   const canFinance = dashMaster || dashPerm("/dashboard:finance");
   // AI 브리핑은 별도 세부 권한(2026-08-10 사장님) — 부여자에게만 보이고, 없으면 카드 자체가 안 뜬다
   const canBriefing = dashMaster || dashPerm("/dashboard:briefing");
@@ -418,12 +418,14 @@ export default function DashboardPage() {
     );
   }
 
-  // 2026-05-28 사장님 요청 — 관리자 대시보드를 대표 화면과 동일하게 통합.
+  
+
+  // 2026-05-28 사장님 요청 · 관리자 대시보드를 대표 화면과 동일하게 통합.
   // 단, 출퇴근+결재(mb-5 grid grid-cols-1 lg:grid-cols-2 gap-4) 블록은 유지하고,
   // 경영(manage) 탭은 관리자에게 숨김. (아래 owner UI 안에서 role 분기 처리)
 
   // ── 유저 로딩 실패 안내 ──
-  if (userLoadFailed) {
+  if (userLoadFailed)  {
     return (
       <div className="">
         <div className="rounded-xl border border-[var(--warning)]/30 bg-[var(--warning-dim)] p-6 text-center">
@@ -461,7 +463,7 @@ export default function DashboardPage() {
     if (dx > 0 && idx > 0) setActiveView(ids[idx - 1]);
   }, [editing, activeViewId, setActiveView]);
 
-  // ── Owner Dashboard (KAIROS 재구성 — 1페이지 컴팩트 뷰) ──
+  // ── Owner Dashboard (KAIROS 재구성 · 1페이지 컴팩트 뷰) ──
   const pulse = cashPulse;
   const pLevel = pulse ? getPulseLevel(pulse.pulseScore) : 'stable';
   const PULSE_COLORS: Record<string, { color: string; bg: string; border: string }> = {
@@ -577,8 +579,9 @@ export default function DashboardPage() {
               { id: "cards", name: "카드 사용", icon: "💳", desc: "이번 달 카드별 사용액 + 동기화·미분류", category: "자금", render: () => <CardsSummaryCard companyId={companyId} headExtra={cardHead} /> },
               { id: "approvals", name: "결재 대기", icon: "🗂️", desc: "회사 결재 대기 목록", category: "업무", render: () => <ApprovalsPendingCard companyId={companyId} /> },
               { id: "projects", name: "최근 프로젝트", icon: "💼", desc: "진행 프로젝트 단계·계약액", category: "업무", render: () => <RecentProjects companyId={companyId} /> },
-              //   게시판 = 회사가 직원에게 알리는 글, 오너뷰 공지 = 운영팀 서비스 공지 — 둘은 다른 것 (2026-09-07 사장님)
-              { id: "board", name: "게시판", icon: "📌", desc: "회사 공지·투표·첨부 — 고정 글 우선", category: "업무", render: () => <BoardCard companyId={companyId} /> },
+              //   게시판 = 회사가 직원에게 알리는 글, 오너뷰 공지 = 운영팀 서비스 공지 · 둘은 다른 것 (2026-09-07 사장님)
+              
+              { id: "board", name: "게시판", icon: "📌", desc: "회사 공지·투표·첨부 · 고정 글 우선", category: "업무", render: () => <BoardCard companyId={companyId} /> },
               { id: "announcements", name: "공지사항", icon: "📢", desc: "오너뷰 운영팀의 서비스 공지·업데이트", category: "업무", render: () => <AnnouncementsCard /> },
               { id: "todos", name: "오늘 일정·할 일", icon: "📝", desc: "내 할 일 + 다가오는 일정", category: "개인", render: () => <MyTodosWidget userId={uid} companyId={companyId} /> },
               { id: "invoices", name: "최근 세금계산서", icon: "📄", desc: "매출·매입 최근 발행", category: "경영", render: () => <RecentInvoices companyId={companyId} /> },
@@ -633,9 +636,9 @@ export default function DashboardPage() {
             if ((approvalsPending ?? 0) > 0) recommended.push("approvals");
             //   권한이 아직 안 왔을 때 그리면 기본값이 '직원' 묶음으로 굳는다 → 권한 로딩 끝난 뒤에 격자를 만든다
             if (permLoading) return <div className="collect-empty">불러오는 중…</div>;
-            //   저장 키 v3 (2026-08-20) — v2(전날, 크기 고정 시절) 배치에 신호·챙길 것을 병합하면 바닥에 흩어진다.
+            //   저장 키 v3 (2026-08-20). v2(전날, 크기 고정 시절) 배치에 신호·챙길 것을 병합하면 바닥에 흩어진다.
             //   하루 된 배치라 버리고 새 기본(신호·챙길 것 전폭 위)에서 시작.
-            return <DashboardGrid storageKey={`dashboard-grid-v3-${companyId}`} catalog={visibleCatalog} defaultActiveIds={defaultActiveIds}
+            return  <DashboardGrid storageKey={`dashboard-grid-v3-${companyId}`} catalog={visibleCatalog} defaultActiveIds={defaultActiveIds}
               recommended={recommended} sidebarCollapsed={sidebarCollapsed} presets={[]}
               // 이미 저장된 배치도 한 번 끌어올린다 — 달력이 h4(212px)로 저장돼 있으면 달이 반쯤 잘린다.
               //   새 기본값(h9)은 새로 담을 때만 적용되므로, 쓰던 분들은 이 마이그레이션이 고친다 (2026-08-21).
@@ -666,9 +669,11 @@ export default function DashboardPage() {
   );
 }
 
+
+
 // ═══ Sub-components ═══
 
-// ── 세금 일정 위젯(카탈로그용) — 다가오는 세금 마감 미리보기 ──
+// ── 세금 일정 위젯(카탈로그용). 다가오는 세금 마감 미리보기 ──
 function TaxScheduleWidget({ items, companyId, userId }: { items: ReturnType<typeof getUpcomingTaxDeadlines>; companyId: string | null; userId: string }) {
   //   2026-08-19 재편 — 공용 셸(ActivityCard)로. 날짜 칸 + D-day 칩
   //   2026-08-31 — '납부 완료' 체크(회사 단위 DB): D-day 는 달력 계산이라 이미 낸 세금도 계속 떴다.
@@ -686,19 +691,19 @@ function TaxScheduleWidget({ items, companyId, userId }: { items: ReturnType<typ
     try {
       await setTaxDeadlineChecked(companyId, id, userId || null, on);
       qc.invalidateQueries({ queryKey: ["tax-deadline-checks"] });
-      toast(on ? "납부 완료로 표시했습니다 — 세금 신호·브리핑에서 빠집니다" : "완료 표시를 해제했습니다", "success");
+      toast(on ? "납부 완료로 표시했습니다. 세금 신호·브리핑에서 빠집니다" : "완료 표시를 해제했습니다", "success");
     } catch (e: any) { toast(friendlyError(e, "표시에 실패했습니다"), "error"); }
   };
   const sorted = [...items].sort((a, b) => Number(checked.has(a.id)) - Number(checked.has(b.id)) || a.daysLeft - b.daysLeft);
   return (
     <ActivityCard title="세금·납부 일정" href={items[0]?.href || "/reports/vat"} summary={items.length > 0 ? "60일" : undefined} empty={items.length === 0}
-      emptyText="다가오는 세금 일정이 없습니다 — 60일 안에 낼 세금이 없습니다.">
+      emptyText="다가오는 세금 일정이 없습니다. 60일 안에 낼 세금이 없습니다.">
       {sorted.slice(0, 5).map((t) => {
         const done = checked.has(t.id);
         return (
           <span key={t.id} className={done ? "dash-tax-row dash-tax-row-done" : "dash-tax-row"}>
             <button type="button" aria-label={done ? "납부 완료 해제" : "납부 완료로 표시"}
-              title={done ? "완료 표시 해제" : "신고/납부를 마쳤으면 체크 — 세금 신호·브리핑에서 빠집니다"}
+              title={done ? "완료 표시 해제" : "신고/납부를 마쳤으면 체크 · 세금 신호·브리핑에서 빠집니다"}
               onClick={() => toggle(t.id, !done)}
               className={done ? "dash-tax-chk dash-tax-chk-on" : "dash-tax-chk"}>{done ? "✓" : ""}</button>
             <Link href={t.href} className={`min-w-0 flex-1 text-[13px] truncate ${done ? "line-through text-[var(--text-dim)]" : "text-[var(--text)]"}`}>{t.title}</Link>
@@ -772,8 +777,8 @@ function SummaryKpisWidget({
     refetchInterval: 60_000,
   });
 
-  // 미수금 — 발행/미수 상태 세금계산서 합계 (OverdueReceivablesWidget 동일 소스)
-  const { data: receivable = 0 } = useQuery({
+  // 미수금 · 발행/미수 상태 세금계산서 합계 (OverdueReceivablesWidget 동일 소스)
+  const  { data: receivable = 0 } = useQuery({
     queryKey: ["summary-receivable", companyId],
     queryFn: async () => {
       // 회사 전체 매출 계산서 — 1,000장 넘는 회사(모티브 1,565장)는 페이징 없이는 합계가 잘린다
@@ -872,18 +877,18 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
     refetchInterval: 60_000,
   });
 
-  // 내가 담당인 프로젝트 업무 — 담당 지정률 97%인데 여기에 안 떠서, 프로젝트를 안 열면
+  // 내가 담당인 프로젝트 업무 · 담당 지정률 97%인데 여기에 안 떠서, 프로젝트를 안 열면
   //   자기 일을 놓쳤다(2026-08-03). 개인 할일·일정과 같은 목록에서 마감일 순으로 본다.
-  const { data: myTasks = [] } = useQuery({
+  const  { data: myTasks = [] } = useQuery({
     queryKey: ["my-project-tasks", companyId, userId],
     queryFn: () => getMyProjectTasks(companyId!, userId),
     enabled: !!companyId && !!userId,
     staleTime: 60_000,
   });
 
-  // 캘린더 일정(이번 달, 공유+개인) — 다가오는 일정도 할일 위젯에 표시
+  // 캘린더 일정(이번 달, 공유+개인). 다가오는 일정도 할일 위젯에 표시
   const now = new Date();
-  const { data: events = [] } = useQuery({
+  const  { data: events = [] } = useQuery({
     queryKey: ["schedule-events", companyId, now.getFullYear(), now.getMonth(), "both", userId],
     queryFn: () => getMonthEvents(companyId!, now.getFullYear(), now.getMonth(), { scope: "all", userId }),
     enabled: !!companyId && !!userId,
@@ -921,8 +926,11 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
     return <ActivityCard title="오늘 일정 · 할 일" href="/schedule" empty emptyText="등록된 할일·일정이 없습니다." emptyAction={{ label: "할 일 추가하기", href: "/schedule" }}>{null}</ActivityCard>;
   }
 
+  
+
   return (
-    // 루트가 glass-card(흰 박스) — 제목·목록 모두 박스 안. h-full 로 셀 높이를 꽉 채움(다른 위젯과 통일).
+    // 루트가 glass-card(흰 박스). 제목·목록 모두 박스 안. h-full 로 셀 높이를 꽉 채움(다른 위젯과 통일).
+    
     <div className="dashboard-todos-widget glass-card">
       <div className="flex items-center justify-between gap-2 mb-2.5">
         <div className="flex items-baseline gap-1.5 min-w-0">
@@ -1888,10 +1896,12 @@ function DealPipelineSummary({ companyId }: { companyId: string }) {
   );
 }
 
+
+
 // ═══════════════════════════════════════════
-// DealFunnel — 프로젝트 진행 현황 깔때기 (5단계)
+// DealFunnel · 프로젝트 진행 현황 깔때기 (5단계)
 // ═══════════════════════════════════════════
-const FUNNEL_STAGES: { key: string; label: string; color: string; matches: (d: any) => boolean }[] = [
+const FUNNEL_STAGES:  { key: string; label: string; color: string; matches: (d: any) => boolean }[] = [
   { key: "lead",       label: "리드/문의",   color: "var(--text-muted)", matches: (d) => d.status === "pending" && !d.is_dormant },
   { key: "active",     label: "진행 중",     color: "var(--primary)",    matches: (d) => d.status === "active" && Number(d.contract_total || 0) === 0 && !d.is_dormant },
   { key: "quoted",     label: "견적/제안",   color: "var(--warning)",    matches: (d) => d.status === "active" && Number(d.contract_total || 0) > 0 && !d.is_dormant },
@@ -2444,7 +2454,9 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
   );
 }
 
-// ── 내 프로젝트 위젯 (직원) — 본인 담당/참여 딜만, 읽기전용 ──
+
+
+// ── 내 프로젝트 위젯 (직원). 본인 담당/참여 딜만, 읽기전용 ──
 //   보안: deals RLS 는 회사단위뿐이라 직접 select 시 전사 재무 누출.
 //   반드시 SECURITY DEFINER RPC get_my_assigned_deals() 경유(비재무 컬럼만).
 //   /deals·/partners 라우트는 직원 차단 유지 → 클릭 이동 없음(읽기전용).
@@ -2463,12 +2475,13 @@ function EmployeeProjectsWidget() {
     refetchInterval: 60_000,
   });
 
-  // 위젯 카드 클릭 → /deals?id=<id> 실제 프로젝트 화면으로 라우팅.
-  //   (직전 read-only 모달은 사용자 피드백으로 제거 — 실제 화면 이동이 기대)
+  // 위젯 카드 클릭 → /deals?id=<id>  실제 프로젝트 화면으로 라우팅.
+  //   (직전 read-only 모달은 사용자 피드백으로 제거 · 실제 화면 이동이 기대)
   //   /deals 페이지가 employee 분기로 재무 0·편집 0·본인 담당 검증 자동 수행.
   const router = useRouter();
 
   return (
+
     <div className="dashboard-employee-projects-widget">
       <div className="flex items-center gap-2 mb-3">
         <div className="dot-primary" />
@@ -2511,7 +2524,9 @@ function EmployeeProjectsWidget() {
         )}
       </div>
       <p className="caption mt-1.5">
-        ※ 본인이 담당·검토·참여로 지정된 프로젝트만 표시됩니다 (읽기 전용 — 재무 정보 비공개).
+        
+        ※ 본인이 담당·검토·참여로 지정된 프로젝트만 표시됩니다 (읽기 전용 · 재무 정보 비공개).
+
       </p>
     </div>
   );
@@ -2549,8 +2564,10 @@ function BizNoNotice() {
   );
 }
 
-// (2026-07-30 개편 P2) 마스터 안내 배너 — 권한 체계 전환 직후 구성원 권한 부여 유도. 닫으면 다시 안 뜸.
-function MasterPermissionNotice() {
+
+
+// (2026-07-30 개편 P2) 마스터 안내 배너 · 권한 체계 전환 직후 구성원 권한 부여 유도. 닫으면 다시 안 뜸.
+function MasterPermissionNotice()  {
   const { user } = useUser();
   const [dismissed, setDismissed] = useState(true);
   useEffect(() => {
@@ -2558,7 +2575,7 @@ function MasterPermissionNotice() {
     try { setDismissed(localStorage.getItem("ov:master-perm-notice") === "1"); } catch { setDismissed(false); }
   }, [user]);
   // 혼자인 회사엔 뜨지 않는다 (2026-08-20 사장님): 방금 가입한 1인 회사가 첫 화면에서
-  //   "권한 체계가 **개편**되었습니다 — **구성원** 권한을 부여해 주세요" 를 봤다.
+  //   "권한 체계가 **개편**되었습니다. **구성원** 권한을 부여해 주세요" 를 봤다.
   //   개편을 겪은 적도 없고 권한 줄 사람도 없다. 기존 고객용 공지가 신규에게까지 나가던 것.
   const companyId = (user as any)?.company_id as string | undefined;
   const { data: memberCount } = useQuery({
@@ -2575,7 +2592,7 @@ function MasterPermissionNotice() {
   return (
     <div className="master-perm-notice">
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-bold text-[var(--text)]">권한 체계가 개편되었습니다 — 마스터가 구성원 권한을 부여해 주세요</div>
+        <div className="text-sm font-bold text-[var(--text)]">권한 체계가 개편되었습니다. 마스터가 구성원 권한을 부여해 주세요</div>
         <div className="text-[11px] text-[var(--text-muted)] mt-1 leading-relaxed">
           이제 모든 구성원이 같은 화면을 쓰고, 마스터가 부여한 메뉴·기능만 보입니다. 아직 권한을 받지 못한 구성원은
           기본 메뉴(마이페이지·게시판·메신저 등)만 보입니다. <b>구성원 → 직원 선택 → 탭 권한</b>에서 메뉴별로 체크해 주세요.
@@ -2666,17 +2683,19 @@ function PartnerDashboard({ companyId, userId }: {
         });
       }
 
-      // 최근 문서 변경 — QA 2026-07-10: doc_templates 에 title/updated_at/status 없음(400) → name/created_at 기준
+      
+
+      // 최근 문서 변경 · QA 2026-07-10: doc_templates 에 title/updated_at/status 없음(400) → name/created_at 기준
       const docs = logRead('dashboard/page:docs', await db
         .from("doc_templates")
         .select("name, created_at")
         .eq("company_id", companyId!)
-        .order("created_at", { ascending: false })
+        .order("created_at",  { ascending: false })
         .limit(3));
       for (const d of docs || []) {
         activities.push({
           type: "doc",
-          text: `${d.name || "문서"} — 양식 등록`,
+          text: `${d.name || "문서"} · 양식 등록`,
           time: d.created_at ?? "",
           href: "/documents",
         });

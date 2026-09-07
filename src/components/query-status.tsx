@@ -1,9 +1,9 @@
 "use client";
 
-import { Ico } from "@/components/ui-icon";
+import { Ico }  from "@/components/ui-icon";
 
 /**
- * QueryStatus — useQuery 에러/로딩 상태 표시 컴포넌트
+ * QueryStatus · useQuery 에러/로딩 상태 표시 컴포넌트
  * 각 페이지 상단에 배치하여 네트워크 에러/로딩 상태를 표시
  */
 

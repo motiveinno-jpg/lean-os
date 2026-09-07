@@ -10,9 +10,9 @@
 "use client";
 
 import { useRef, useState, useCallback } from "react";
-import type { OverlayField, DocType } from "@/lib/form-templates";
+import type { OverlayField, DocType }  from "@/lib/form-templates";
 
-// edge KEYS 와 동일 — 드롭다운 옵션
+// edge KEYS 와 동일 · 드롭다운 옵션
 const KEY_OPTIONS: Record<DocType, string[]> = {
   quote: ["회사명", "대표자명", "거래처명", "거래처대표", "프로젝트명", "견적번호", "작성일", "유효기간", "공급가액", "부가세", "합계금액", "품목표", "비고", "서명_공급자"],
   contract: ["회사명", "대표자명", "거래처명", "거래처대표", "프로젝트명", "계약번호", "작성일", "계약시작일", "계약종료일", "계약금액", "부가세", "합계금액", "서명_갑", "서명_을", "비고"],

@@ -76,11 +76,11 @@ const DOC_CATEGORIES: Record<string, string> = {
 };
 
 export default function VaultPage() {
-  const { role, loading } = useUser();
-  // 게이트 early return 뒤 훅 = React #310 결함류 — 본문 분리 (2026-08-03).
+  const { role, loading }  = useUser();
+  // 게이트 early return 뒤 훅 = React #310 결함류 · 본문 분리 (2026-08-03).
   //   loading 가드도 추가: role 확정 전 AccessDenied 가 깜빡이던 문제 함께 차단.
   if (loading) return null;
-  if (role !== "owner") {
+  if (role !== "owner")  {
     return <AccessDenied detail="보관함(중요 자료)은 대표 계정 전용입니다." />;
   }
   return <VaultPageInner />;
@@ -414,7 +414,7 @@ function VaultPageInner() {
       level: days < 0 ? "critical" : days <= 7 ? "critical" : days <= 14 ? "warning" : "info",
       title: a.service_name || "이름 없음",
       subtitle: days < 0
-        ? `${Math.abs(days)}일 전 갱신 예정이었음 — 상태 확인 필요`
+        ? `${Math.abs(days)}일 전 갱신 예정이었음. 상태 확인 필요`
         : days === 0
         ? "오늘 갱신"
         : `${days}일 후 갱신 · 월 ${fmtW(a.monthly_cost || 0)}원`,
@@ -652,7 +652,8 @@ function VaultPageInner() {
               <div>
                 <div className="text-sm font-bold">{UNUSED_DAYS}일 이상 미사용 구독 {unusedAccounts.length}건</div>
                 <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                  월 <span className="font-semibold text-orange-400">{fmtW(unusedMonthlyCost)}원</span> 절감 가능 — 해지 검토 권장
+                  월 <span className="font-semibold text-orange-400">{fmtW(unusedMonthlyCost)}원</span>  절감 가능 · 해지 검토 권장
+                
                 </div>
               </div>
             </div>

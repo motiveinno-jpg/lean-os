@@ -95,7 +95,9 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-// 유형별 아이콘·컬러 아이덴티티 — 리스트를 훑을 때 유형이 한눈에 구분되게.
+
+
+// 유형별 아이콘·컬러 아이덴티티 · 리스트를 훑을 때 유형이 한눈에 구분되게.
 const TYPE_META: Record<string, { icon: string; bg: string; text: string }> = {
   expense: { icon: "wallet", bg: "bg-violet-500/12", text: "text-violet-500" },
   expense_report: { icon: "wallet", bg: "bg-violet-500/12", text: "text-violet-500" },
@@ -128,7 +130,9 @@ function TypeIcon({ name, className = "w-4 h-4" }: { name: string; className?: s
   }
 }
 
-// 유형 칩 — 아이콘 + 라벨 틴트 pill
+
+
+// 유형 칩 · 아이콘 + 라벨 틴트 pill
 function TypeChip({ type, label }: { type: string; label: string }) {
   const m = typeMeta(type);
   return (
@@ -139,7 +143,9 @@ function TypeChip({ type, label }: { type: string; label: string }) {
   );
 }
 
-// 결재선 진행 — 세그먼트 바 (완료=채움, 현재=펄스, 반려=빨강)
+
+
+// 결재선 진행 · 세그먼트 바 (완료=채움, 현재=펄스, 반려=빨강)
 function StageProgress({ current, total, status }: { current: number; total: number; status: string }) {
   const segs = Array.from({ length: Math.max(1, total) });
   return (
@@ -231,8 +237,10 @@ function AttachmentList({ attachments }: { attachments?: string[] }) {
   );
 }
 
-// 보드 스타일 구조화 필드 행 — 타입별 아이콘 + 라벨 + 값
-function fieldTypeIcon(type: string) {
+
+
+// 보드 스타일 구조화 필드 행 · 타입별 아이콘 + 라벨 + 값
+function fieldTypeIcon(type: string)  {
   if (type === "date") {
     return <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
   }
@@ -290,9 +298,11 @@ function leaveFieldRows(customFields?: Record<string, unknown>): { label: string
   return rows;
 }
 
+
+
 /** 초과근무 구조화 데이터(custom_fields.overtime) → 필드 행 (2026-08-20 사장님 제보:
  *  "몇 시까지 할 건지 입력해도 시간이 안 나타난다"). 신청서에 적은 일자·종료시각이
- *  상세·목록·PDF 어디에도 표시되는 경로가 없었다 — 휴가(leaveFieldRows)와 같은 방식으로 푼다. */
+ *  상세·목록·PDF 어디에도 표시되는 경로가 없었다. 휴가(leaveFieldRows)와 같은 방식으로 푼다. */
 function overtimeFieldRows(customFields?: Record<string, unknown>): { label: string; type: string; value: string }[] {
   const ot = customFields?.overtime as Record<string, unknown> | undefined;
   if (!ot || typeof ot !== "object") return [];
@@ -338,19 +348,21 @@ type ApprovalPdfReq = {
   custom_fields?: Record<string, unknown>;
 };
 
-/** 결재 문서 PDF 파일명 — 단건 저장·일괄 zip 안 파일명이 같은 규칙을 쓴다 */
+/** 결재 문서 PDF 파일명 · 단건 저장·일괄 zip 안 파일명이 같은 규칙을 쓴다 */
 function approvalPdfFileName(req: Pick<ApprovalPdfReq, "title" | "created_at">): string {
   const title = (req.title || "무제").replace(/[\\/:*?"<>|]/g, " ").replace(/\s+/g, " ").trim() || "무제";
   return `결재문서_${title}_${formatDate(req.created_at)}.pdf`;
 }
 
+
+
 /**
- * 결재 문서 PDF 생성 + 저장 — 화면(팝업)과 동일한 구성으로 만든다.
+ * 결재 문서 PDF 생성 + 저장 · 화면(팝업)과 동일한 구성으로 만든다.
  *   전체 현황 / 내 요청 / 내가 결재한 건 세 화면이 같은 결과물을 내도록 한 곳에 모았다.
  *   (과거 '내 요청'에만 PDF 가 빠져 있었고, 본문 평문화 버그도 화면마다 따로 고쳐야 했다.)
  * @returns 저장 완료 여부 (사용자가 저장 취소하면 false)
  */
-async function buildAndSaveApprovalPdf(args: {
+async function buildAndSaveApprovalPdf(args:  {
   req: ApprovalPdfReq;
   requesterName: string;
   formFields: { label: string; type: string; value: string }[];
@@ -359,17 +371,19 @@ async function buildAndSaveApprovalPdf(args: {
   return await saveBlobToUserChosenPath(blob, approvalPdfFileName(args.req));
 }
 
-/** 결재 문서 PDF 를 Blob 으로만 만든다 — 단건 저장과 전체 현황의 일괄(zip) 다운로드가 공유 */
-async function buildApprovalPdfBlob(args: {
+
+
+/** 결재 문서 PDF 를 Blob 으로만 만든다. 단건 저장과 전체 현황의 일괄(zip) 다운로드가 공유 */
+async function buildApprovalPdfBlob(args:  {
   req: ApprovalPdfReq;
   requesterName: string;
   formFields: { label: string; type: string; value: string }[];
 }): Promise<Blob> {
-  const { req, requesterName, formFields } = args;
+  const { req, requesterName, formFields }  = args;
   const timeline = await getApprovalTimeline(req.id);
-  // 상태는 목록 캐시가 아니라 DB 최신값으로 — 최종 승인 직후 목록이 갱신되기 전에 PDF 를
+  // 상태는 목록 캐시가 아니라 DB 최신값으로 · 최종 승인 직후 목록이 갱신되기 전에 PDF 를
   //   받으면 완결된 결재가 '대기'로 찍혔다 (2026-08-20 사장님 제보).
-  const { data: freshReq } = await db.from("approval_requests").select("status").eq("id", req.id).maybeSingle();
+  const  { data: freshReq } = await db.from("approval_requests").select("status").eq("id", req.id).maybeSingle();
   const status = (freshReq as { status?: string } | null)?.status || req.status;
   const attachments = (await Promise.all(
     (req.attachments || []).map(async (url) => {
@@ -423,14 +437,16 @@ function plainToHtml(text: string): string {
   return text.split("\n").map((line) => (line.trim() === "" ? "<p><br/></p>" : `<p>${escapeHtmlText(line)}</p>`)).join("");
 }
 
-/** RichEditor 빈 문서(<p></p> 등) 판별 — 텍스트·이미지·표 전부 없으면 빈 것으로 취급 */
-function isEmptyHtml(html: string): boolean {
+/** RichEditor 빈 문서(<p></p>  등) 판별 · 텍스트·이미지·표 전부 없으면 빈 것으로 취급 */
+function isEmptyHtml(html: string): boolean  {
   if (!html) return true;
   if (/<(img|table)/i.test(html)) return false;
   return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim() === "";
 }
 
-/** 상세 내용 렌더 — HTML(신규 서식)이면 sanitize 후 렌더, 평문(기존)이면 pre-wrap */
+
+
+/** 상세 내용 렌더 · HTML(신규 서식)이면 sanitize 후 렌더, 평문(기존)이면 pre-wrap */
 function DescriptionContent({ text, className = "" }: { text: string; className?: string }) {
   if (!text) return null;
   if (isHtmlDesc(text)) {
@@ -487,7 +503,7 @@ function contentWithoutFieldLines(description: string, formFields: { label: stri
 }
 
 // ── 목록 탭 공용 검색조건 (2026-08-18 사장님) ──
-//   "전체 유형·경비 청구·결제 요청 … 버튼이 너무 많다 — 유형은 검색조건에서 고르고, 기본은 전체를 한 번에."
+//   "전체 유형·경비 청구·결제 요청 … 버튼이 너무 많다. 유형은 검색조건에서 고르고, 기본은 전체를 한 번에."
 //   내 결재함·내 요청·참조·전체 현황이 같은 패널을 쓴다: 유형(다중) · 요청일 · 요청자(다중, 있을 때만) · 금액 · 줄 수.
 type LCond = { types: string[]; statuses: string[]; from: string; to: string; requester: string[]; min: string; max: string; rows: number };
 const LEMPTY: LCond = { types: [], statuses: [], from: "", to: "", requester: [], min: "", max: "", rows: 50 };
@@ -568,7 +584,7 @@ function useListFilter(opts: { types: string[]; requesters?: string[]; withStatu
       </ConditionRow>
     </ConditionPanel>
   );
-  const quick = <QuickSearch value={q} onApply={setQ} placeholder={opts.requesters ? "제목 · 요청자 · 유형 — 쉼표로 여러 개, Enter" : "제목 · 유형 — 쉼표로 여러 개, Enter"} />;
+  const quick = <QuickSearch value={q} onApply={setQ} placeholder={opts.requesters ? "제목 · 요청자 · 유형 · 쉼표로 여러 개, Enter" : "제목 · 유형 · 쉼표로 여러 개, Enter"} />;
   const applied = <AppliedChips chips={chips} onClearAll={clearAll} />;
   const key = `${q}|${JSON.stringify(live)}`;
   //   바깥(요약 줄의 상태 버튼 등)에서 상태 조건을 걸 때
@@ -577,7 +593,7 @@ function useListFilter(opts: { types: string[]; requesters?: string[]; withStatu
 }
 
 type PickOpt = { value: string; label: string; sub?: string; icon: React.ReactNode };
-// 요청 유형 피커 — 즐겨찾기(★)·검색 (2026-09-02 사장님 "요청건들이 많으면 즐겨찾기").
+// 요청 유형 피커 · 즐겨찾기(★)·검색 (2026-09-02 사장님 "요청건들이 많으면 즐겨찾기").
 //   favorites 를 주면 목록 위에 '즐겨찾기' 묶음이 먼저 오고 각 줄 오른쪽 ★ 로 넣고 뺀다.
 //   항목이 SEARCH_FROM 개 이상이면 목록 맨 위에 검색칸이 열린다(이름·부제로 거른다).
 const PICK_SEARCH_FROM = 8;
@@ -658,9 +674,11 @@ function formatDate(dateStr: string | null) {
   return kstDateStr(new Date(dateStr)); // 앱 표준 YYYY-MM-DD (점표기 혼용 정리)
 }
 
-// PDF 등 다운로드 시 저장 경로를 사용자가 직접 고를 수 있게 — 지원 브라우저(Chrome/Edge)는
+
+
+// PDF 등 다운로드 시 저장 경로를 사용자가 직접 고를 수 있게 · 지원 브라우저(Chrome/Edge)는
 // File System Access API 로 "다른 이름으로 저장" 다이얼로그 사용, 미지원 브라우저는 기존
-// <a download> 방식(브라우저 기본 다운로드 폴더)으로 자동 폴백.
+//  <a download> 방식(브라우저 기본 다운로드 폴더)으로 자동 폴백.
 async function saveBlobToUserChosenPath(blob: Blob, suggestedName: string, kind: "pdf" | "zip" = "pdf"): Promise<boolean> {
   const w = window as any;
   if (typeof w.showSaveFilePicker === "function") {
@@ -765,34 +783,34 @@ export default function ApprovalsPage() {
     window.dispatchEvent(new Event("sidebar-refresh-badges"));
   };
 
-  // Stats — 2026-07-21 QA: 전체 현황·양식/정책(관리 탭)에서만 회사 전체 집계,
+  // Stats · 2026-07-21 QA: 전체 현황·양식/정책(관리 탭)에서만 회사 전체 집계,
   //   개인 탭(내 결재함·내 요청·새 요청)에서는 내가 올린 요청만 집계 (남의 결재 건수가 섞여 보이던 혼란 제거)
   const statsCompanyScope = tab === "all" || tab === "forms" || tab === "policies";
-  const { data: stats } = useQuery({
+  const  { data: stats } = useQuery({
     queryKey: ["approval-stats", companyId, statsCompanyScope ? "company" : userId],
     queryFn: () => getApprovalStats(companyId!, statsCompanyScope ? undefined : userId!),
     enabled: !!companyId && (statsCompanyScope || !!userId),
   });
 
-  // ⚠️ 마이페이지와 **같은 캐시**를 쓴다 — 종전엔 같은 키(my-pending-count)에 이 화면은 숫자를,
+  // ⚠️ 마이페이지와 **같은 캐시**를 쓴다. 종전엔 같은 키(my-pending-count)에 이 화면은 숫자를,
   //   마이페이지는 배열을 넣어, 결재허브를 먼저 본 뒤 마이페이지로 가면 캐시에 담긴 숫자에
   //   .slice() 를 호출해 화면이 통째로 깨졌다 (2026-08-20 정다정님 3회 발생).
   //   이제 배열 하나만 캐싱하고 개수는 select 로 파생시킨다.
-  const { data: myPendingCount } = useQuery({
+  const  { data: myPendingCount } = useQuery({
     queryKey: ["my-pending-approvals", userId, companyId],
     queryFn: () => getMyPendingApprovals(userId!, companyId!),
     select: (items: unknown[]) => items.length,
     enabled: !!userId && !!companyId,
   });
 
-  // (2026-07-30 개편 P3) 세부탭 권한 게이트 — 마스터=전체, 멤버=부여받은 탭만.
+  // (2026-07-30 개편 P3) 세부탭 권한 게이트 · 마스터=전체, 멤버=부여받은 탭만.
   //   perm key 는 카탈로그(/approvals:내부탭키)와 1:1. 구 isAdmin 분기 대체.
-  const { isMaster, hasPerm } = useMyPermissions();
+  const  { isMaster, hasPerm } = useMyPermissions();
   const tabAllowed = (k: Tab) => isMaster || hasPerm(`/approvals:${k}`);
   const isAdmin = isMaster || hasPerm("/approvals:all"); // 전체 현황 권한 = 관리 조회 성격 분기 유지용
 
-  // 탭 순서(2026-07-23 재편) — 개인 업무 3종(받고·보내고·올리고) → 회사 전체 → 설정.
-  const TABS: { key: Tab; label: string; icon: string; count?: number }[] = ([
+  // 탭 순서(2026-07-23 재편). 개인 업무 3종(받고·보내고·올리고) → 회사 전체 → 설정.
+  const TABS:  { key: Tab; label: string; icon: string; count?: number }[] = ([
     { key: "my-approvals", label: "내 결재함", icon: "inbox", count: myPendingCount },
     { key: "my-requests", label: "내 요청", icon: "send" },
     // 참조 탭은 2026-08-18 사장님 지시로 내 결재함 안 '나를 참조한 건' 보기로 합쳤다 (별도 탭 불필요)
@@ -890,7 +908,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
   const { toast } = useToast();
   const [comment, setComment] = useState("");
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
-  //   일괄 승인·반려 — 줄을 골라 바닥 선택 바에서 (2026-08-19 조회 표준: 확정 버튼은 SelectionBar 하나)
+  //   일괄 승인·반려 · 줄을 골라 바닥 선택 바에서 (2026-08-19 조회 표준: 확정 버튼은 SelectionBar 하나)
   const [pickedSteps, setPickedSteps] = useState<Set<string>>(new Set());
   const [batchBusy, setBatchBusy] = useState(false);
   const [batchRejectOpen, setBatchRejectOpen] = useState(false);
@@ -911,16 +929,16 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
     queryFn: () => getMyProcessedApprovals(userId, companyId),
     enabled: !!userId && !!companyId && view === "processed",
   });
-  //   나를 참조한 건 — 예전 '참조' 탭. 결재선에 없는 참조자는 여기서만 내용을 본다 (2026-07-27 → 2026-08-18 내 결재함으로 합침)
-  const { data: referencedRequests = [] } = useQuery({
+  //   나를 참조한 건 · 예전 '참조' 탭. 결재선에 없는 참조자는 여기서만 내용을 본다 (2026-07-27 → 2026-08-18 내 결재함으로 합침)
+  const  { data: referencedRequests = [] } = useQuery({
     queryKey: ["referenced-requests", userId, companyId],
     queryFn: () => getReferencedRequests(userId, companyId),
     enabled: !!userId && !!companyId,
   });
 
-  // 커스텀 결재 양식 필드 정의 (label·type) — custom_fields 값과 짝지어 구조화된 항목으로 표시
+  // 커스텀 결재 양식 필드 정의 (label·type). custom_fields 값과 짝지어 구조화된 항목으로 표시
   //   이미 기안된 문서를 보는 화면이므로 삭제(비활성)된 양식도 포함해야 라벨을 되찾는다.
-  const { data: customForms = [] } = useQuery({
+  const  { data: customForms = [] } = useQuery({
     queryKey: ["approval-forms", companyId, "all"],
     queryFn: () => listApprovalForms({ includeInactive: true }),
     enabled: !!companyId,
@@ -1001,7 +1019,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
       : undefined,
   );
 
-  // 검색조건(유형·요청일·기안자·금액) + 빠른검색 — 전체 현황과 같은 패널 (2026-08-18 사장님: 유형 버튼 줄 제거)
+  // 검색조건(유형·요청일·기안자·금액) + 빠른검색 · 전체 현황과 같은 패널 (2026-08-18 사장님: 유형 버튼 줄 제거)
   const lf = useListFilter({
     types: [...(pendingApprovals as any[]), ...(processedApprovals as any[])].map((i) => i.requestType).concat((referencedRequests as any[]).map((r) => r.request_type)),
     requesters: [...(pendingApprovals as any[]), ...(processedApprovals as any[])].map((i) => i.requesterName).concat((referencedRequests as any[]).map((r) => r.users?.name || r.users?.email || "")),
@@ -1012,8 +1030,9 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
   const visibleProcessed = (processedApprovals as any[]).filter(matchesFilters);
   const visibleReferenced = (referencedRequests as any[]).filter((r) => lf.hit({ type: r.request_type, title: r.title, requester: r.users?.name || r.users?.email || "", amount: r.amount, created: r.created_at, status: r.status }));
 
-  // 조회 줄 — 전체 현황과 동일 구성 (조회 표준 부품: 검색조건 + 빠른검색 + 보기 칩 + 건수)
+  // 조회 줄 · 전체 현황과 동일 구성 (조회 표준 부품: 검색조건 + 빠른검색 + 보기 칩 + 건수)
   const filterBar = (
+    
     <>
       <QueryBar right={<span className="text-xs font-semibold text-[var(--text-dim)] mono-number">{(view === "pending" ? visiblePending : view === "processed" ? visibleProcessed : visibleReferenced).length}건</span>}>
         {lf.panel}
@@ -1282,8 +1301,10 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
   );
 }
 
+
+
 /**
- * 내가 이미 처리(승인·반려)한 결재 목록 — 읽기 전용.
+ * 내가 이미 처리(승인·반려)한 결재 목록 · 읽기 전용.
  *   내 결정(승인/반려)·처리일시·의견과, 문서의 최종 상태를 함께 보여준다.
  *   내가 승인했어도 다음 단계에서 반려될 수 있어 둘을 구분해 표시한다.
  */
@@ -1575,7 +1596,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
     return map;
   }, [editForms]);
 
-  // 상세 팝업에서 결재 문서 PDF 저장 — '전체 현황' 탭과 동일한 생성 경로를 쓴다
+  // 상세 팝업에서 결재 문서 PDF 저장 · '전체 현황' 탭과 동일한 생성 경로를 쓴다
   //   (2026-07-27 사장님 요청: 직원이 본인이 올린 결재를 PDF 로 보관할 수 있게).
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
   const handleDownloadApprovalPdf = async (req: any) => {
@@ -1593,7 +1614,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
   const [editForm, setEditForm] = useState({ title: "", amount: "", description: "" });
   const [editFieldValues, setEditFieldValues] = useState<Record<string, string>>({});
   const [savingEdit, setSavingEdit] = useState(false);
-  // 첨부파일 편집 — 유지할 기존 첨부 URL + 새로 추가할 파일 (2026-07-20 사장님 요청)
+  // 첨부파일 편집 · 유지할 기존 첨부 URL + 새로 추가할 파일 (2026-07-20 사장님 요청)
   const [editAttachments, setEditAttachments] = useState<string[]>([]);
   const [editNewFiles, setEditNewFiles] = useState<File[]>([]);
   const [editDragging, setEditDragging] = useState(false);
@@ -1635,7 +1656,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
         }
       }
       if (failedUploads.length > 0) {
-        toast(`첨부파일 업로드 실패 — ${failedUploads.join(" / ")}`, "error");
+        toast(`첨부파일 업로드 실패 · ${failedUploads.join(" / ")}`, "error");
       }
       const fields = editFieldsFor(editReq);
       const isLeaveReq = editReq.request_type === "leave";
@@ -2051,8 +2072,8 @@ function ReferencedRequestsTab({ companyId, userId, embedded }: { companyId: str
     enabled: !!userId && !!companyId,
   });
 
-  // 양식 필드 정의 — custom_fields 값과 짝지어 구조화 항목으로 표시 (다른 탭과 동일 규칙)
-  const { data: customForms = [] } = useQuery({
+  // 양식 필드 정의 · custom_fields 값과 짝지어 구조화 항목으로 표시 (다른 탭과 동일 규칙)
+  const  { data: customForms = [] } = useQuery({
     queryKey: ["approval-forms", companyId, "all"],
     queryFn: () => listApprovalForms({ includeInactive: true }),
     enabled: !!companyId,
@@ -2273,8 +2294,8 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
     onError: (err: any) => toast("반려 처리 실패: " + friendlyError(err, "알 수 없는 오류"), "error"),
   });
 
-  //   유형·상태는 검색조건 패널에서 여러 개 고른다(클라이언트 필터) — 서버는 전체를 한 번에 (2026-08-18 사장님: 상태 칩 줄도 검색조건으로)
-  const { data: allRequests = [], isLoading } = useQuery({
+  //   유형·상태는 검색조건 패널에서 여러 개 고른다(클라이언트 필터). 서버는 전체를 한 번에 (2026-08-18 사장님: 상태 칩 줄도 검색조건으로)
+  const  { data: allRequests = [], isLoading } = useQuery({
     queryKey: ["all-requests", companyId, restrictToOwn ? userId : null],
     queryFn: () => getApprovalRequests(companyId, {
       requesterId: restrictToOwn ? userId || undefined : undefined,
@@ -2282,8 +2303,8 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
     enabled: !!companyId && (!restrictToOwn || !!userId),
   });
 
-  // 커스텀 결재 양식 필드 정의 — custom_fields 값과 짝지어 펼침 패널에 구조화된 항목으로 표시
-  const { data: customForms = [] } = useQuery({
+  // 커스텀 결재 양식 필드 정의 · custom_fields 값과 짝지어 펼침 패널에 구조화된 항목으로 표시
+  const  { data: customForms = [] } = useQuery({
     queryKey: ["approval-forms", companyId, "all"],
     queryFn: () => listApprovalForms({ includeInactive: true }),
     enabled: !!companyId,
@@ -2872,12 +2893,12 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const [selectedReferences, setSelectedReferences] = useState<{ userId: string; name: string }[]>([]);
   const [referencesInited, setReferencesInited] = useState<string>("");
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
-  // 부서-이름·기안일·결제요청일 자동 프리필 완료 표시 — 유형(양식) 전환 시 재실행 (2026-07-21 사장님 요청)
+  // 부서-이름·기안일·결제요청일 자동 프리필 완료 표시 · 유형(양식) 전환 시 재실행 (2026-07-21 사장님 요청)
   const [autoFieldsInited, setAutoFieldsInited] = useState<string>("");
-  // 상세 내용 서식 편집기(표 등) — tiptap 은 마운트 후 content prop 변경을 반영하지 않아
+  // 상세 내용 서식 편집기(표 등). tiptap 은 마운트 후 content prop 변경을 반영하지 않아
   //   템플릿 프리필/임시저장 복원/제출 초기화 때 ref 로 직접 setContent 한다.
   const descEditorRef = useRef<RichEditorRef>(null);
-  // 양식 선택으로 자동 채운 제목 — 사용자가 직접 고친 제목과 구분하려고 들고 있는다.
+  // 양식 선택으로 자동 채운 제목 · 사용자가 직접 고친 제목과 구분하려고 들고 있는다.
   //   이게 없으면 양식을 바꿔도 처음 양식 이름이 제목에 그대로 남는다(2026-08-06 사장님 제보).
   const autoTitleRef = useRef<string>("");
   const { data: customForms = [] } = useQuery({ queryKey: ["approval-forms", companyId], queryFn: () => listApprovalForms(), enabled: !!companyId });
@@ -2906,7 +2927,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
 
   const isLeave = form.requestType === "leave";
   // 초과근무는 승인되면 근태(퇴근시간 이후 출근 허용)로 이어지므로 날짜·종료시각을 구조화해서 받는다.
-  //   (2026-08-20 사장님: 연장근무 탭을 없애고 결재로 일원화 — "승인되면 근태에 정확히 반영")
+  //   (2026-08-20 사장님: 연장근무 탭을 없애고 결재로 일원화 · "승인되면 근태에 정확히 반영")
   const isOvertime = form.requestType === "overtime";
   const [overtimeForm, setOvertimeForm] = useState({ date: "", endTime: "" });
 
@@ -2998,10 +3019,10 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     return lines;
   }, [leaveForm, leaveDays, remainingLeave, currentEmployee]);
 
-  // 설명 템플릿 자동입력은 matchedPolicy(아래) 정의 후 effect 로 처리 — 정책 템플릿 우선.
+  // 설명 템플릿 자동입력은 matchedPolicy(아래) 정의 후 effect 로 처리 · 정책 템플릿 우선.
 
   // Fetch company users for approver selection
-  const { data: companyUsers = [] } = useQuery({
+  const  { data: companyUsers = [] } = useQuery({
     queryKey: ["company-users-approvers", companyId],
     queryFn: async () => {
       const data = logRead('approvals/page:members', await db.from("users").select("id, name, email, role, avatar_url").eq("company_id", companyId).order("name"));
@@ -3080,7 +3101,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     });
     descEditorRef.current?.setContent(tplHtml);
     setDescriptionInited(form.requestType);
-    // 직원 QA #11 — 고정값(fixed) 필드는 양식 지정값으로 프리필해 제출에 포함
+    // 직원 QA #11 · 고정값(fixed) 필드는 양식 지정값으로 프리필해 제출에 포함
     const initFields: Record<string, string> = {};
     for (const fd of selectedForm.fields || []) if (fd.type === "fixed") initFields[fd.key] = fd.default_value || "";
     setCustomFieldValues(initFields);
@@ -3220,12 +3241,14 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
           }
         }
         if (failedUploads.length > 0) {
-          toast(`첨부파일 업로드 실패 — ${failedUploads.join(" / ")}`, "error");
+          toast(`첨부파일 업로드 실패 · ${failedUploads.join(" / ")}`, "error");
         }
       }
 
-      // 입력 필드(양식 필드) 값을 기본 템플릿 문구보다 위에 — 결재자가 실제 입력값을 먼저 보게 (2026-07-14)
-      //   2026-07-16: 상세 내용이 리치에디터 HTML 이 되면서 필드 라인도 HTML <p> 로 병합
+      
+
+      // 입력 필드(양식 필드) 값을 기본 템플릿 문구보다 위에 · 결재자가 실제 입력값을 먼저 보게 (2026-07-14)
+      //   2026-07-16: 상세 내용이 리치에디터 HTML 이 되면서 필드 라인도 HTML  <p> 로 병합
       //   (contentWithoutFieldLines 가 동일 규칙으로 중복 제거).
       let finalDesc: string;
       if (isLeave) {
@@ -3337,7 +3360,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               return (
                 <div className="ap-pick-row">
                   <label className="field-label">요청 유형 *</label>
-                  <TypePicker value={String(form.requestType || "")} options={merged} placeholder="유형을 고르세요 — 경비 청구 · 결제 요청 · 휴가 신청 · 회사 양식 …"
+                  <TypePicker value={String(form.requestType || "")} options={merged} placeholder="유형을 고르세요. 경비 청구 · 결제 요청 · 휴가 신청 · 회사 양식 …"
                     onChange={(v) => setForm({ ...form, requestType: v as RequestType })}
                     favorites={typeFavorites} onToggleFavorite={toggleTypeFavorite} />
                   {/* 즐겨찾기 칩 — 목록을 열지 않고 한 번에 고른다. 지워진 양식 값은 목록에 없으므로 자연히 빠진다. */}
@@ -3604,8 +3627,10 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                           /* 직원 QA #11 — 직접입력 고정값: 양식이 지정한 값 그대로(작성자 수정 불가) */
                           <input type="text" value={fd.default_value || ""} readOnly disabled
                             className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-muted)]" />
+                        
                         ) : fd.type === "amount" ? (
-                          /* 직원 QA #11 — 금액: ₩ + 천단위 콤마 */
+                          /* 직원 QA #11 · 금액: ₩ + 천단위 콤마 */
+
                           <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)] text-sm">₩</span>
                             <input inputMode="numeric" value={customFieldValues[fd.key] || ""}
@@ -3846,12 +3871,12 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                   if (!error) urls.push(supabase.storage.from("documents").getPublicUrl(path).data.publicUrl);
                   else failed.push(file.name);
                 }
-                if (failed.length > 0) toast(`첨부 저장 실패 — ${failed.join(", ")}`, "error");
+                if (failed.length > 0) toast(`첨부 저장 실패 · ${failed.join(", ")}`, "error");
                 setDraftAttachmentUrls(urls);
                 setFiles([]);
                 const draft = { form, leaveForm, description: form.description, attachmentUrls: urls };
                 localStorage.setItem(draftKey, JSON.stringify(draft));
-                toast(urls.length > 0 ? `임시저장되었습니다 — 첨부 ${urls.length}개 포함` : "임시저장되었습니다", "success");
+                toast(urls.length > 0 ? `임시저장되었습니다. 첨부 ${urls.length}개 포함` : "임시저장되었습니다", "success");
               }}
               className="btn-secondary"
             >
@@ -3971,7 +3996,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             /* 직원 QA #11 — 양식 결재선이 지정돼 있으면 그걸 미리보기에 반영(대표/CEO 강제 표시 제거).
                실제 라우팅은 이미 customApprovers(양식 결재선)로 처리됨 — 미리보기만 정합화. */
             <div className="text-xs text-[var(--text-muted)]">
-              <div className="kpi-callout mb-4">이 양식의 <b>결재선</b>이 적용됩니다 — 지정한 승인자에서 종료(대표 결재 없음)</div>
+              <div className="kpi-callout mb-4">이 양식의 <b>결재선</b>이 적용됩니다. 지정한 승인자에서 종료(대표 결재 없음)</div>
               <div className="space-y-0">
                 <div className="relative pl-8 pb-4">
                   <div className="absolute left-[13px] top-6 bottom-0 w-px bg-[var(--border)]" />
@@ -4025,14 +4050,16 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   );
 }
 
+
+
 // ══════════════════════════════════════════════
 // Tab 6: 정책 관리 (Admin)
 // ══════════════════════════════════════════════
 
-// 결재선 폼에서 편집 중인 규칙 한 줄 — 저장 시 ApprovalPolicyRule 로 접힌다. (2026-08-20)
+// 결재선 폼에서 편집 중인 규칙 한 줄 · 저장 시 ApprovalPolicyRule 로 접힌다. (2026-08-20)
 //   mode 별로 쓰는 칸이 다르지만(users→userIds, department→department, position→position)
 //   모드를 오갈 때 값이 날아가지 않게 draft 는 네 칸을 다 들고 있는다.
-type RuleDraft = {
+type RuleDraft =  {
   key: string;
   mode: PolicyRuleTargetMode;
   userIds: string[];
@@ -4141,16 +4168,16 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
     enabled: !!companyId,
   });
 
-  // 회사가 만든 양식 — '적용 양식' 선택지 (2026-08-19 사장님: 우리가 만든 양식도 결재선에 나오게).
+  // 회사가 만든 양식 · '적용 양식' 선택지 (2026-08-19 사장님: 우리가 만든 양식도 결재선에 나오게).
   //   커스텀 양식으로 올린 요청의 request_type 은 양식 이름이므로, document_type = 양식 이름이면 자동 매칭된다.
-  const { data: companyForms = [] } = useQuery({
+  const  { data: companyForms = [] } = useQuery({
     queryKey: ["approval-forms-for-policies", companyId],
     queryFn: () => listApprovalForms(),
     enabled: !!companyId,
   });
 
-  // 팀(부서) 단위 적용 대상 선택지 — employees.department 고유값 (2026-08-11)
-  const { data: departments = [] } = useQuery({
+  // 팀(부서) 단위 적용 대상 선택지 · employees.department 고유값 (2026-08-11)
+  const  { data: departments = [] } = useQuery({
     queryKey: ["policy-departments", companyId],
     queryFn: async () => {
       const data = logRead('approvals/page:departments', await db.from("employees").select("department").eq("company_id", companyId).not("department", "is", null));
@@ -4308,7 +4335,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
   return (
     <div className="ap-list">
       <QueryBar right={<button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary btn-sm whitespace-nowrap">+ 결재선 추가</button>}>
-        <QuickSearch value={pq} onApply={setPq} placeholder="결재선 이름 — 쉼표로 여러 개, Enter" />
+        <QuickSearch value={pq} onApply={setPq} placeholder="결재선 이름 · 쉼표로 여러 개, Enter" />
         <span className="text-[11px] text-[var(--text-dim)]">결재선 = 몇 단계로 누구에게 결재받고 누구를 참조할지. 양식 관리에서 양식에 붙여 씁니다.</span>
       </QueryBar>
 
@@ -4332,7 +4359,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
             <div>
               <label className="field-label">적용 양식</label>
               <select value={form.documentType} onChange={(e) => setForm({ ...form, documentType: e.target.value })} className="field-input">
-                <option value="line">공용 — 양식 관리에서 불러와 사용</option>
+                <option value="line">공용 · 양식 관리에서 불러와 사용</option>
                 <optgroup label="기본 양식">
                   {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </optgroup>
@@ -4353,8 +4380,8 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
           </div>
           <p className="mt-1.5 text-[10px] text-[var(--text-dim)]">
             {form.documentType === "line"
-              ? "공용 결재선은 자동 적용되지 않습니다 — 양식 관리 > 편집에서 불러와 붙일 때만 쓰입니다."
-              : "선택한 양식의 새 요청에 자동 적용됩니다 — 요청자에게 맞는 적용 대상의 결재선이 쓰입니다."}
+              ? "공용 결재선은 자동 적용되지 않습니다. 양식 관리 > 편집에서 불러와 붙일 때만 쓰입니다."
+              : "선택한 양식의 새 요청에 자동 적용됩니다. 요청자에게 맞는 적용 대상의 결재선이 쓰입니다."}
           </p>
 
           {/* 적용 대상별 규칙 — [대상 → 누구에게 결재받나 → 참조] 묶음을 필요한 만큼 (2026-08-20 사장님) */}
@@ -4364,7 +4391,9 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
               <button type="button" onClick={addRule} className="btn-secondary btn-sm">+ 적용 대상 추가</button>
             </div>
             <p className="ap-pol-rules-hint">
-              위에서부터 먼저 맞는 대상이 적용됩니다 — 특정 직원 &gt; 팀 &gt; 직급 &gt; 회사 전체.
+              
+              위에서부터 먼저 맞는 대상이 적용됩니다. 특정 직원 &gt; 팀 &gt; 직급 &gt; 회사 전체.
+
             </p>
 
             <div className="ap-pol-rule-list">
@@ -4403,7 +4432,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                       {departments.map((d) => <option key={d} value={d}>{d}</option>)}
                     </select>
                   ) : (
-                    <p className="ap-pol-rule-warn">등록된 부서가 없습니다 — 구성원 화면에서 직원의 부서를 먼저 입력하세요.</p>
+                    <p className="ap-pol-rule-warn">등록된 부서가 없습니다. 구성원 화면에서 직원의 부서를 먼저 입력하세요.</p>
                   )
                 )}
                 {rule.mode === "position" && (
@@ -4413,7 +4442,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                       {positions.map((p) => <option key={p} value={p}>{p}</option>)}
                     </select>
                   ) : (
-                    <p className="ap-pol-rule-warn">등록된 직급이 없습니다 — 구성원 화면에서 직원의 직급을 먼저 입력하세요.</p>
+                    <p className="ap-pol-rule-warn">등록된 직급이 없습니다. 구성원 화면에서 직원의 직급을 먼저 입력하세요.</p>
                   )
                 )}
 
@@ -4488,7 +4517,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
             <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M12 19h4.5a3.5 3.5 0 000-7h-9a3.5 3.5 0 010-7H12"/></svg>
           </div>
           <div className="text-base font-bold mb-1.5">등록된 결재선이 없습니다</div>
-          <div className="text-sm text-[var(--text-muted)]">결재선을 만들어 두면 양식 관리에서 양식에 붙일 수 있습니다 — 위 <b>+ 결재선 추가</b>로 시작하세요</div>
+          <div className="text-sm text-[var(--text-muted)]">결재선을 만들어 두면 양식 관리에서 양식에 붙일 수 있습니다. 위 <b>+ 결재선 추가</b>로 시작하세요</div>
         </div>
       ) : (
         <div className="ev-scroll">
@@ -4602,9 +4631,9 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
         p_step_id: stepId, p_new_approver_id: newApproverId,
       });
       if (error) throw error;
-      // 새 승인자 알림 — 기존 결재 요청 알림과 같은 type/entity 라 클릭 시 내 결재함으로 이동.
+      // 새 승인자 알림 · 기존 결재 요청 알림과 같은 type/entity 라 클릭 시 내 결재함으로 이동.
       //   notifications INSERT 트리거가 웹푸시까지 자동 발송. 알림 실패는 변경 자체를 막지 않는다.
-      try {
+      try  {
         const reqRow = logRead('approvals/page:reassign-title', await (supabase)
           .from("approval_requests").select("title, amount, request_type").eq("id", requestId).maybeSingle());
         if (tlCompanyId) {
@@ -4613,11 +4642,11 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
             userId: newApproverId,
             type: "approval_request",
             title: `결재 요청: ${(reqRow as any)?.title || "결재 건"}`,
-            message: "승인자로 지정되었습니다 — 내 결재함에서 확인하세요.",
+            message: "승인자로 지정되었습니다. 내 결재함에서 확인하세요.",
             entityType: "approval_request",
             entityId: requestId,
           });
-          // 메일도 함께 (2026-08-06) — 설정에서 끈 사람은 내부에서 걸러진다
+          // 메일도 함께 (2026-08-06). 설정에서 끈 사람은 내부에서 걸러진다
           await sendApprovalMails({
             userIds: [newApproverId],
             kind: "reassigned",
@@ -4804,7 +4833,9 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
   );
 }
 
-// ── 결재 댓글 스레드 (공용) — 승인/반려 후에도 대화 (approval_comments, 2026-07-10)
+
+
+// ── 결재 댓글 스레드 (공용). 승인/반려 후에도 대화 (approval_comments, 2026-07-10)
 //   2026-07-30 사장님: 관리자 화면(전체 현황)에만 있어 직원은 댓글을 못 달았다 →
 //   '내 요청' 상세에도 부착(본인 요청 건 한정), 사진·파일 첨부 지원.
 function ApprovalCommentThread({ requestId }: { requestId: string }) {
@@ -4836,12 +4867,13 @@ function ApprovalCommentThread({ requestId }: { requestId: string }) {
       for (const file of pendingFiles) {
         const path = `approvals/${me.company_id}/comments/${Date.now()}_${toBase64Url(file.name)}`;
         const { error } = await supabase.storage.from("documents").upload(path, file);
-        if (error) { toast(`첨부 업로드 실패 — ${file.name}: ${error.message}`, "error"); return; }
+        if (error) { toast(`첨부 업로드 실패 · ${file.name}: ${error.message}`, "error"); return; }
         const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
         urls.push(urlData.publicUrl);
       }
-      // attachments 컬럼은 2026-07-30 마이그레이션 추가분 — database.ts 타입 재생성 전까지 캐스팅
-      const { error } = await (supabase).from("approval_comments").insert({
+      
+      // attachments 컬럼은 2026-07-30 마이그레이션 추가분 · database.ts 타입 재생성 전까지 캐스팅
+      const  { error } = await (supabase).from("approval_comments").insert({
         company_id: me.company_id, request_id: requestId, user_id: me.id, body: commentText.trim(), attachments: urls,
       } as any);
       if (error) { toast("댓글 등록 실패: " + error.message, "error"); return; }

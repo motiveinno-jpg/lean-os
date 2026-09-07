@@ -33,8 +33,9 @@ type TourStep = {
   howTo?: { label: string; steps: string[]; link?: { label: string; href: string } };
 };
 
-// 사이드바 메뉴 기준 핵심 탭 — 메뉴가 바뀌면 여기도 갱신 (href 는 sidebar.tsx NAV_GROUPS 와 동일해야 하이라이트된다)
+// 사이드바 메뉴 기준 핵심 탭 · 메뉴가 바뀌면 여기도 갱신 (href 는 sidebar.tsx NAV_GROUPS 와 동일해야 하이라이트된다)
 const TOUR_STEPS: TourStep[] = [
+  
   { href: "/dashboard", title: "대시보드", desc: "회사 잔고·매출·오늘 할 일을 한 화면에서 봅니다. 위젯은 마우스로 자유롭게 배치할 수 있어요." },
   { href: "/copilot", title: "AI 참모", desc: "회사 데이터를 아는 AI에게 자금·매출·인사 현황을 바로 물어보세요. 결재 상신 같은 실행도 대신 해줘요." },
   {
@@ -46,7 +47,7 @@ const TOUR_STEPS: TourStep[] = [
         "설정 > 연동·인증에서 「홈택스」를 선택하세요",
         "「PC 인증서 자동 선택」을 누르면 PC의 공동인증서 목록이 뜹니다 (처음이면 안내에 따라 보안 프로그램 설치)",
         "회사 인증서를 고르고 인증서 비밀번호를 입력하세요",
-        "「홈택스 연결하기」를 누르면 끝 — 이후 세금계산서가 자동으로 모입니다",
+        "「홈택스 연결하기」를 누르면 끝 · 이후 세금계산서가 자동으로 모입니다",
       ],
       link: { label: "설정 > 연동·인증 바로 가기", href: "/settings/integration?tab=bank" },
     },
@@ -75,7 +76,7 @@ const TOUR_STEPS: TourStep[] = [
       steps: [
         "결재 허브 상단의 「양식 관리」 탭으로 이동하세요",
         "「+ 새 양식 추가」로 이름·입력 필드·내용 템플릿을 정하세요",
-        "결재선(누가 승인할지)을 단계별로 지정하면 완성 — 새 요청에서 바로 쓸 수 있어요",
+        "결재선(누가 승인할지)을 단계별로 지정하면 완성 · 새 요청에서 바로 쓸 수 있어요",
       ],
       link: { label: "양식 관리 바로 가기", href: "/approvals?tab=forms" },
     },
@@ -129,13 +130,17 @@ export function shouldStartTour(searchParams: URLSearchParams | null): boolean {
   return !!searchParams && searchParams.get("tour") === "1";
 }
 
-/** 투어가 진행 중인가 — 다른 화면(대시보드 온보딩 팝업 등)이 투어와 겹치지 않게 확인용 */
-export function isTourActive(): boolean {
+
+
+/** 투어가 진행 중인가 · 다른 화면(대시보드 온보딩 팝업 등)이 투어와 겹치지 않게 확인용 */
+export function isTourActive(): boolean  {
   if (typeof window === "undefined") return false;
   try { return sessionStorage.getItem(SS_KEY) !== null; } catch { return false; }
 }
 
-/** 앱 셸 상주 호스트 — ?tour=1(시작) 또는 진행 중 스텝(새로고침 재개)을 감지해 투어를 띄운다.
+
+
+/** 앱 셸 상주 호스트 · ?tour=1(시작) 또는 진행 중 스텝(새로고침 재개)을 감지해 투어를 띄운다.
  *  2026-08-11 사장님: 신기능이니 **기존 사용자 포함 전원**에게 로그인 후 1회 자동 표시 —
  *  user_preferences.app_tour_done_at 이 없는 계정은 자동 시작(완료·건너뛰기 시 기록돼 다시 안 뜸). */
 export function AppTourHost({ companyId }: { companyId: string | null }) {
@@ -185,9 +190,9 @@ export function AppTourHost({ companyId }: { companyId: string | null }) {
 export function AppTour({ companyId, onClose }: { companyId: string | null; onClose: () => void }) {
   // 권한별 스텝 필터 (2026-08-11 사장님) — 일반 직원은 부여받은 메뉴의 스텝만 본다.
   //   마스터는 전체, 멤버는 hasMenu(기본 제공 포함) 기준. 마지막 안내(href null)는 항상 표시.
-  const { isMaster, hasMenu, loading: permLoading } = useMyPermissions();
+  const { isMaster, hasMenu, loading: permLoading }  = useMyPermissions();
 
-  // 스텝별 '다시 보지 않기' (2026-08-11 사장님 — "건마다 누르면 그 건만 안 나오게") —
+  // 스텝별 '다시 보지 않기' (2026-08-11 사장님 · "건마다 누르면 그 건만 안 나오게") —
   //   숨긴 스텝 href 를 user_preferences.app_tour_hidden_steps(jsonb 배열)에 계정별로 기록.
   const [hiddenSteps, setHiddenSteps] = useState<string[] | null>(null); // null = 로딩 중
   useEffect(() => {
@@ -261,7 +266,8 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
   // 현재 스텝의 사이드바 항목 위치 계산 — scrollIntoView 는 스텝 진입 때 한 번만(scroll=true)
   const measure = useCallback((scroll = false) => {
     if (!step?.href) { setRect(null); return; }
-    // 같은 href 가 여러 개다(예: 상단 로고도 /dashboard) — 메뉴 라벨 텍스트가 있는 쪽을 고르고,
+    
+    // 같은 href 가 여러 개다(예: 상단 로고도 /dashboard). 메뉴 라벨 텍스트가 있는 쪽을 고르고,
     // 없으면 마지막 매치(사이드바 메뉴가 로고보다 뒤에 렌더된다). 첫 매치를 쓰면 로고가 잡힌다(2026-08-10 prod 확인).
     const els = Array.from(document.querySelectorAll(`a[href="${step.href}"], a[href="${step.href}/"]`)) as HTMLElement[];
     const label = step.title.split(" ")[0];
@@ -304,10 +310,11 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
         }
       } catch { /* 기록 실패해도 투어 종료는 진행 */ }
     }
-    // URL 에 ?tour=1 이 남아 있으면 떼어낸다 — 새로고침 시 재시작 방지 (지금 있는 화면은 유지).
+    
+    // URL 에 ?tour=1 이 남아 있으면 떼어낸다. 새로고침 시 재시작 방지 (지금 있는 화면은 유지).
     //   router.replace 는 비동기라 onClose 직후 호스트가 아직 ?tour=1 인 주소를 읽고 곧장 재시작한다 —
     //   네이티브 replaceState 로 주소를 즉시 바꾼다 (Next 14+ 셸로우 URL 갱신 공식 지원).
-    try {
+    try  {
       const sp = new URLSearchParams(window.location.search);
       if (sp.has("tour")) {
         sp.delete("tour");
@@ -319,9 +326,9 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
   }, [companyId, onClose]);
 
   const isLast = safeIdx === steps.length - 1;
-  // 말풍선 위치 — 하이라이트 오른쪽(사이드바 옆). 못 찾으면 화면 가운데.
+  // 말풍선 위치 · 하이라이트 오른쪽(사이드바 옆). 못 찾으면 화면 가운데.
   const tipStyle: React.CSSProperties = rect
-    ? {
+    ?  {
         position: "fixed",
         left: Math.min(rect.left + rect.width + 16, window.innerWidth - 340),
         top: Math.max(16, Math.min(rect.top - 8, window.innerHeight - 240)),

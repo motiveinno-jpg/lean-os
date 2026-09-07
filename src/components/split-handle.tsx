@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 export function useDragHeight(storageKey: string, opts: { min: number; max?: number; /** 손잡이가 영역 **위**에 있으면(아래로 끌면 줄어듦) true */ invert?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const [height, setHeightState] = useState<number | null>(null);
-  //   최신 값은 ref 로도 든다 — mouseup 저장이 setState 갱신자 안에서 돌면 두 번 누르기(기본으로)보다 늦게 실행돼 지운 값을 되살렸다
+  //   최신 값은 ref 로도 든다. mouseup 저장이 setState 갱신자 안에서 돌면 두 번 누르기(기본으로)보다 늦게 실행돼 지운 값을 되살렸다
   const latest = useRef<number | null>(null);
   const setHeight = useCallback((v: number | null) => { latest.current = v; setHeightState(v); }, []);
   useEffect(() => { try { const v = localStorage.getItem(storageKey); if (v) setHeight(Math.max(opts.min, Number(v))); } catch { /* 저장 못 해도 동작 */ } }, [storageKey, opts.min, setHeight]);
@@ -34,7 +34,9 @@ export function useDragHeight(storageKey: string, opts: { min: number; max?: num
   return { ref: ref as RefObject<HTMLDivElement | null>, height, onMouseDown, reset };
 }
 
-/** 잡아끄는 선 — 가운데 짧은 손잡이 표시. 두 번 누르면 기본 높이로 */
+
+
+/** 잡아끄는 선 · 가운데 짧은 손잡이 표시. 두 번 누르면 기본 높이로 */
 export function SplitHandle({ onMouseDown, onReset, title = "끌어서 높이 조절 · 두 번 누르면 기본으로" }: { onMouseDown: (e: React.MouseEvent) => void; onReset: () => void; title?: string }) {
   return (
     <div role="separator" aria-orientation="horizontal" title={title} className="split-handle no-print" onMouseDown={onMouseDown} onDoubleClick={onReset}>

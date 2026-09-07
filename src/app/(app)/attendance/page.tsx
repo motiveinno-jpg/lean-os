@@ -8,10 +8,10 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { AttendanceTab } from "@/app/(app)/employees/EmployeesPageClient";
 import { FlexWorkBoard } from "@/components/flex-work-board";
-import { EditRequestInbox } from "@/components/hr-attendance-extras";
-//   근무 기준 — 2026-08-24 회사 설정에서 이관(출퇴근 기준·유예·야간 시간대·근무 요일 + 휴일).
+import { EditRequestInbox }  from "@/components/hr-attendance-extras";
+//   근무 기준 · 2026-08-24 회사 설정에서 이관(출퇴근 기준·유예·야간 시간대·근무 요일 + 휴일).
 //   근태 판정(attendance-calc)·워크보드가 이 값으로 그리므로 근태 화면이 주인이다.
-import { HrWorkRuleSettingsPanel } from "@/components/hr-attendance-settings";
+import  { HrWorkRuleSettingsPanel } from "@/components/hr-attendance-settings";
 import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
 import { AttendanceStatusTab } from "./_components/AttendanceStatusTab";
 
@@ -33,10 +33,10 @@ export default function AttendancePage() {
   const ATT_EMP_COLS = "id,name,department,position,user_id,email,hire_date,status,employee_number";   // 사번 — 이름 옆 태그·정렬 (2026-08-27)
   // (2026-07-30 개편 P3) 관리 판정을 권한 기반으로 — 마스터 또는 '기록 상세·수정' 권한 보유자가 관리자급.
   //   본인 출퇴근(개인 동선)은 권한 무관 항상 가능.
-  const { isMaster, hasPerm } = useMyPermissions();
+  const { isMaster, hasPerm }  = useMyPermissions();
   const canManage = isMaster || hasPerm("/attendance:records");
   const canBoard = isMaster || hasPerm("/attendance:board");
-  //   근무 기준 탭 — 새 키 '/attendance:settings' 또는 **옛 키 '/settings:attendance'**.
+  //   근무 기준 탭 · 새 키 '/attendance:settings' 또는 **옛 키 '/settings:attendance'**.
   //   옛 키를 함께 받아야 어제까지 근태·가산수당을 보던 사람이 오늘 화면을 잃지 않는다(백필 0건).
   const canRules = isMaster || hasPerm("/attendance:settings") || hasPerm("/settings:attendance");
   const isEmployee = !canManage;

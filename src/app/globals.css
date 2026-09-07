@@ -10402,3 +10402,10 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
 .onb-sample-text { @apply min-w-0 flex-1 text-xs leading-relaxed text-[var(--text-muted)]; }
 .bank-sync-quota { @apply inline-flex items-center rounded-full border border-[var(--border)] px-2 py-0.5 text-[10.5px] font-semibold text-[var(--text-muted)]; }
 
+
+/* 제목 옆 부연 — 제목과 같은 줄에 작고 연하게. "제목 — 설명" 식의 줄표 대신 쓴다 (2026-09-07) */
+.ui-sub { @apply ml-1.5 text-[0.8em] font-normal text-[var(--text-dim)]; }
+
+/* 메신저 프로필 사진 — 구성원 줄·1:1 방 아이콘은 원 안을 사진으로 채우고, 말풍선 왼쪽엔 작은 사진 (2026-09-07) */
+.chat-face-img { @apply w-full h-full rounded-full object-cover; }
+.chat-bubble-avatar { @apply mt-4 mr-1.5 self-start; }

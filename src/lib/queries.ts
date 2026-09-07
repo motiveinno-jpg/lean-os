@@ -869,7 +869,7 @@ export async function deleteBankAccountSafe(companyId: string, accountNumber: st
     const { count } = await supabase.from('bank_transactions').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('bank_account_id', acct.data.id);
     n = Math.max(n, count || 0);
   }
-  if (n > 0) throw new Error(`이 통장에 거래 ${n.toLocaleString()}건이 있어 삭제할 수 없습니다 — 목록에서 안 보이게 하려면 '숨김'을 쓰세요.`);
+  if (n > 0) throw new Error(`이 통장에 거래 ${n.toLocaleString()}건이 있어 삭제할 수 없습니다. 목록에서 안 보이게 하려면 '숨김'을 쓰세요.`);
   if (!acct.data?.id) throw new Error('삭제할 통장 정보가 없습니다 (연동 정보만 있는 계좌).');
   const { error } = await supabase.from('bank_accounts').delete().eq('id', acct.data.id);
   if (error) throw error;
@@ -1206,7 +1206,7 @@ export async function getChannelByDeal(dealId: string, companyId: string) {
 export async function getMessages(channelId: string, limit = 100) {
   const data = logRead('getMessages', await supabase
     .from('chat_messages')
-    .select('*, users:sender_id(name, email)')
+    .select('*, users:sender_id(name, email, avatar_url)')
     .eq('channel_id', channelId)
     .order('created_at', { ascending: true })
     .limit(limit));
@@ -1222,7 +1222,7 @@ export async function getMessagesPaginated(
 ): Promise<{ data: any[]; hasMore: boolean }> {
   let query = supabase
     .from('chat_messages')
-    .select('*, users:sender_id(name, email)')
+    .select('*, users:sender_id(name, email, avatar_url)')
     .eq('channel_id', channelId)
     .order('created_at', { ascending: false })
     .limit(pageSize + 1); // fetch one extra to check hasMore
@@ -1243,7 +1243,7 @@ export async function getMessagesPaginated(
 export async function getPinnedMessages(channelId: string) {
   const data = logRead('getPinnedMessages', await supabase
     .from('chat_messages')
-    .select('*, users:sender_id(name, email)')
+    .select('*, users:sender_id(name, email, avatar_url)')
     .eq('channel_id', channelId)
     .eq('pinned', true)
     .order('created_at', { ascending: false }));
@@ -1275,7 +1275,7 @@ export async function getChannelEvents(channelId: string) {
 export async function searchChannelMessages(channelId: string, query: string, limit = 50) {
   const data = logRead('searchChannelMessages', await supabase
     .from('chat_messages')
-    .select('*, users:sender_id(name, email)')
+    .select('*, users:sender_id(name, email, avatar_url)')
     .eq('channel_id', channelId)
     .is('deleted_at', null)
     .ilike('content', `%${query}%`)
@@ -1353,7 +1353,7 @@ export async function getChannelFiles(channelId: string) {
 export async function getCompanyUsers(companyId: string) {
   const data = logRead('getCompanyUsers', await supabase
     .from('users')
-    .select('id, name, email, presence_status, presence_note, presence_until')   // 내 상태(2026-09-04) — 메신저 구성원 줄
+    .select('id, name, email, avatar_url, presence_status, presence_note, presence_until')   // 내 상태(2026-09-04) — 메신저 구성원 줄 · 사진(2026-09-07)
     .eq('company_id', companyId)
     .order('name'));
   return data || [];

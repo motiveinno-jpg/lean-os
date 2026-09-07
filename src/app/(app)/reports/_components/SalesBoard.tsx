@@ -69,16 +69,16 @@ export function SalesBoard({ open, onClose, companyId }: {
   const save = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     const uid = session?.user?.id;
-    if (!uid || !companyId) { toast("저장 실패 — 로그인을 확인해주세요", "error"); return; }
+    if (!uid || !companyId) { toast("저장 실패 · 로그인을 확인해주세요", "error"); return; }
     const { data } = await (supabase as any).from("user_preferences").select("dashboard_grid")
       .eq("user_id", uid).eq("company_id", companyId).maybeSingle();
     const merged = { ...(data?.dashboard_grid || {}), [DASH_KEY]: { widgets } };
     const { error } = await (supabase as any).from("user_preferences").upsert(
       { user_id: uid, company_id: companyId, dashboard_grid: merged, updated_at: new Date().toISOString() },
       { onConflict: "user_id,company_id" });
-    if (error) { toast("저장 실패 — 잠시 후 다시 시도해주세요", "error"); return; }
+    if (error) { toast("저장 실패 · 잠시 후 다시 시도해주세요", "error"); return; }
     setEdit(false); setCat(false);
-    toast("내 판으로 저장했습니다 — 다른 사람은 기본 판 그대로입니다", "success");
+    toast("내 판으로 저장했습니다. 다른 사람은 기본 판 그대로입니다", "success");
   };
 
   // ── 전표 축 ──
@@ -144,14 +144,14 @@ export function SalesBoard({ open, onClose, companyId }: {
             <option value="yoy">전년 동기</option>
           </select>
           {s.loading && <span className="text-[11px] text-[var(--text-dim)]">불러오는 중…</span>}
-          <span className="ml-auto text-[10.5px] text-[var(--text-dim)]">확정 전표 기준 — 자세한 내역은 분석 › 손익 현황 › 매출</span>
+          <span className="ml-auto text-[10.5px] text-[var(--text-dim)]">확정 전표 기준 · 자세한 내역은 분석 › 손익 현황 › 매출</span>
         </div>
         {edit && (
           <div className="pjv3-dash-editbar">
-            <b>편집 중 — 홈 대시보드와 같은 문법(＋위젯·↑↓·✕)</b>
+            <b>편집 중<span className="ui-sub">홈 대시보드와 같은 문법(＋위젯·↑↓·✕)</span></b>
             <button type="button" className="btn-secondary btn-sm ml-auto" onClick={() => setCat((v) => !v)}>＋ 위젯</button>
             <button type="button" className="btn-secondary btn-sm" onClick={() => setWidgets([...DEFAULT_W])}>기본 판으로 되돌리기</button>
-            <button type="button" className="btn-primary btn-sm" onClick={save}>저장 — 내 판으로</button>
+            <button type="button" className="btn-primary btn-sm" onClick={save}>저장 · 내 판으로</button>
           </div>
         )}
         {edit && cat && (
@@ -222,7 +222,7 @@ export function SalesBoard({ open, onClose, companyId }: {
               )}
               {w === "accounts" && (
                 <div className="pjv3-stpanel">
-                  <h3>계정별 구성 <small>어떤 매출인지 — 확정 전표 기준</small></h3>
+                  <h3>계정별 구성 <small>어떤 매출인지 · 확정 전표 기준</small></h3>
                   {accounts.length === 0 && <div className="pjv3-stempty">조회 기간에 매출 전표가 없습니다</div>}
                   {accounts.map((g) => {
                     const max = Math.max(1, ...accounts.map((x) => x.amount));
@@ -238,11 +238,11 @@ export function SalesBoard({ open, onClose, companyId }: {
               )}
               {w === "target" && (
                 <div className="pjv3-stpanel">
-                  <h3>목표 달성률 <small>이번 달({thisYm.slice(5)}월) — 목표는 홈 대시보드의 경영 목표에서</small></h3>
+                  <h3>목표 달성률 <small>이번 달({thisYm.slice(5)}월). 목표는 홈 대시보드의 경영 목표에서</small></h3>
                   {!target?.target_revenue ? (
-                    <div className="pjv3-stempty">이번 달 매출 목표가 없습니다 — 홈 대시보드의 목표 설정에서 월 목표를 넣으면 여기 달성률이 뜹니다</div>
+                    <div className="pjv3-stempty">이번 달 매출 목표가 없습니다. 홈 대시보드의 목표 설정에서 월 목표를 넣으면 여기 달성률이 뜹니다</div>
                   ) : !rangeHasThisMonth ? (
-                    <div className="pjv3-stempty">조회 기간에 이번 달이 없어 계산하지 않습니다 — 기간을 이번 달로 두면 보입니다</div>
+                    <div className="pjv3-stempty">조회 기간에 이번 달이 없어 계산하지 않습니다. 기간을 이번 달로 두면 보입니다</div>
                   ) : (
                     <>
                       <div className="pjv3-sthbar" style={{ cursor: "default", gridTemplateColumns: "64px 1fr 56px" }}>
@@ -257,8 +257,8 @@ export function SalesBoard({ open, onClose, companyId }: {
               )}
               {w === "channels" && (
                 <div className="pjv3-stpanel">
-                  <h3>판매채널별 <small>채널 주문 합(재고 › 채널 주문) — 상품별·취소/반품은 이지어드민 연동 뒤에</small></h3>
-                  {channels.length === 0 && <div className="pjv3-stempty">조회 기간에 채널 주문이 없습니다 — 재고 › 채널 주문에서 수집·붙여넣기하면 여기 모입니다</div>}
+                  <h3>판매채널별 <small>채널 주문 합(재고 › 채널 주문). 상품별·취소/반품은 이지어드민 연동 뒤에</small></h3>
+                  {channels.length === 0 && <div className="pjv3-stempty">조회 기간에 채널 주문이 없습니다. 재고 › 채널 주문에서 수집·붙여넣기하면 여기 모입니다</div>}
                   {channels.map((c) => {
                     const max = Math.max(1, ...channels.map((x) => x.amount));
                     return (
@@ -273,9 +273,9 @@ export function SalesBoard({ open, onClose, companyId }: {
               )}
             </div>
           ))}
-          {widgets.length === 0 && <div className="pjv3-stempty">위젯을 다 뺐습니다 — [기본 판으로 되돌리기] 또는 ＋ 위젯</div>}
+          {widgets.length === 0 && <div className="pjv3-stempty">위젯을 다 뺐습니다. [기본 판으로 되돌리기] 또는 ＋ 위젯</div>}
         </div>
-        <p className="pjv3-stnote">저장하면 내 계정에만 적용됩니다 · 전표 축은 위 기간을 따릅니다 — 거래처·계정 상세는 분석 › 손익 현황 › 매출, 상품·채널 상세는 이 화면(이익관리)의 표에서</p>
+        <p className="pjv3-stnote">저장하면 내 계정에만 적용됩니다 · 전표 축은 위 기간을 따릅니다. 거래처·계정 상세는 분석 › 손익 현황 › 매출, 상품·채널 상세는 이 화면(이익관리)의 표에서</p>
       </div>
     </div>
   );

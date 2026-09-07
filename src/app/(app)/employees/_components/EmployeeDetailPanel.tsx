@@ -27,9 +27,9 @@ import { LOSS_REASONS } from "@/lib/insurance-edi";
 import { calculateRetirementPay } from "@/lib/payment-batch";
 import { useUser } from "@/components/user-context";
 import { useModalKeys } from "@/hooks/use-modal-keys";
-import { cancelSentContractPackage, getContractTemplates, createContractPackage, sendContractPackage, buildContractFieldsForTemplates, type ContractField } from "@/lib/hr-contracts";
+import { cancelSentContractPackage, getContractTemplates, createContractPackage, sendContractPackage, buildContractFieldsForTemplates, type ContractField }  from "@/lib/hr-contracts";
 
-// 구성원 디렉토리(flex-people-directory)와 동일한 해시 팔레트 — 같은 직원은 어디서나 같은 아바타 색.
+// 구성원 디렉토리(flex-people-directory)와 동일한 해시 팔레트 · 같은 직원은 어디서나 같은 아바타 색.
 //   고용형태 값이 두 계열(regular/parttime ↔ full_time/part_time)로 섞여 있어 둘 다 읽는다 (2026-08-19 상세 정리)
 const ETYPE_LABEL: Record<string, string> = { regular: "정규직", full_time: "정규직", fulltime: "정규직", contract: "계약직", temporary: "계약직", parttime: "파트타임", part_time: "파트타임", intern: "인턴", freelance: "프리랜서", freelancer: "프리랜서", dispatch: "파견", daily: "일용직" };
 function avatarColor(id: string): string {
@@ -38,8 +38,10 @@ function avatarColor(id: string): string {
   return palette[Math.abs(h) % palette.length];
 }
 
+
+
 // ── Employee Detail Panel ──
-//   2026-08-27 인사 3차 — 탭 8→6: 근로계약+입사서류 → 계약·서류, 노트+발령 → 이력. 옛 키(docs·notes)로 들어오면 새 탭으로 보낸다.
+//   2026-08-27 인사 3차 · 탭 8→6: 근로계약+입사서류 → 계약·서류, 노트+발령 → 이력. 옛 키(docs·notes)로 들어오면 새 탭으로 보낸다.
 type DetailTab = "info" | "docs" | "notes" | "history" | "contracts" | "certificates" | "leave" | "access";
 const TAB_MERGE: Partial<Record<DetailTab, DetailTab>> = { docs: "contracts", notes: "history" };
 
@@ -65,7 +67,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const [ediGenerated, setEdiGenerated] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<Record<string, string>>({});
-  // 연봉 raw 입력 보존 — ÷12 → ×12 반올림으로 input 이 깨지지 않게.
+  // 연봉 raw 입력 보존 · ÷12 → ×12 반올림으로 input 이 깨지지 않게.
   const [annualSalaryInput, setAnnualSalaryInput] = useState<string>("");
 
   // 퇴사 확정 — 모달 내부(JSX)에서만 쓰던 걸 최상위로 끌어올려 useModalKeys(Enter 확인)에서도 참조 가능하게 함
@@ -78,7 +80,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
       }).eq("id", employeeId);
       if (error) throw error;
       const verify = logRead('_components/EmployeeDetailPanel:verify', await (supabase).from("employees").select("id,status").eq("id", employeeId).maybeSingle());
-      if (!verify || verify.status !== "inactive") throw new Error("상태 업데이트 실패 — 권한을 확인해주세요");
+      if (!verify || verify.status !== "inactive") throw new Error("상태 업데이트 실패 · 권한을 확인해주세요");
       queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
       queryClient.invalidateQueries({ queryKey: ["employees", companyId] });
       setShowTermModal(false);
@@ -127,8 +129,8 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
     enabled: !!employeeId,
   });
 
-  // 프로필 사진 — 마이페이지에서 설정한 users.avatar_url. user_id(우선) 또는 email 로 매칭.
-  const { data: avatarUrl = null } = useQuery<string | null>({
+  // 프로필 사진 · 마이페이지에서 설정한 users.avatar_url. user_id(우선) 또는 email 로 매칭.
+  const  { data: avatarUrl = null } = useQuery<string | null>({
     queryKey: ["employee-avatar", employeeId, emp?.user_id, emp?.email],
     queryFn: async () => {
       const db = supabase;
@@ -207,12 +209,14 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
     });
   }
 
-  // 발송 취소 (2026-08-19 사장님) — 상대가 열람·서명하기 전에만. 서명 링크까지 무효화된다.
+  
+
+  // 발송 취소 (2026-08-19 사장님). 상대가 열람·서명하기 전에만. 서명 링크까지 무효화된다.
   const cancelPkgMut = useMutation({
     mutationFn: (pkgId: string) => cancelSentContractPackage(pkgId),
     onSuccess: (r) => {
       if (!r.success) { toast(r.error || "발송 취소 실패", "error"); return; }
-      toast("발송을 취소했습니다 — 상대의 서명 링크가 무효화되었습니다", "success");
+      toast("발송을 취소했습니다. 상대의 서명 링크가 무효화되었습니다", "success");
       queryClient.invalidateQueries({ queryKey: ["emp-hr-packages", employeeId] });
     },
     onError: (err: any) => toast("발송 취소 실패: " + friendlyError(err, "알 수 없는 오류"), "error"),
@@ -267,7 +271,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
     enabled: !!employeeId && detailTab === "leave",
   });
 
-  // 연차 설정(관리자) — 휴가 신청은 전자결재로 이관됨(2026-07-15). 여기선 구성원 총괄 관점의
+  // 연차 설정(관리자). 휴가 신청은 전자결재로 이관됨(2026-07-15). 여기선 구성원 총괄 관점의
   //   연차 총 부여일수 설정/조정만 담당. 2026-07-20 부터 leave_grants(발생 이력)가 단일 출처이고
   //   leave_balances.total_days 는 그 합계로 동기화된다.
   const [leaveDaysInput, setLeaveDaysInput] = useState<string>("");
@@ -287,8 +291,8 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
     onError: (e: any) => toast("연차 설정 실패: " + friendlyError(e, "알 수 없는 오류"), "error"),
   });
 
-  // 연차 발생 이력 — 날짜별 부여/이월/조정 기록. 총 부여일수의 단일 출처.
-  const { data: empLeaveGrants = [] } = useQuery({
+  // 연차 발생 이력 · 날짜별 부여/이월/조정 기록. 총 부여일수의 단일 출처.
+  const  { data: empLeaveGrants = [] } = useQuery({
     queryKey: ["emp-leave-grants", employeeId, currentYear],
     queryFn: () => listLeaveGrants(employeeId, currentYear),
     enabled: !!employeeId && detailTab === "leave",
@@ -862,7 +866,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                 <span className="text-[var(--text-dim)]">{currentYear}년 · 사용일수는 승인된 휴가로 자동 반영</span>
               </div>
             ) : (
-              <div className="collect-empty">{currentYear}년 연차가 아직 설정되지 않았습니다 — 아래에서 총 부여일수를 정하세요</div>
+              <div className="collect-empty">{currentYear}년 연차가 아직 설정되지 않았습니다. 아래에서 총 부여일수를 정하세요</div>
             )}
 
             {/* 연차 설정(관리자) — 총 부여일수 초기화/조정. 휴가 신청/승인은 전자결재. */}
@@ -910,7 +914,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
               <div className="emp-section">
                 <div className="emp-section-head"><div className="emp-section-title">{currentYear}년 연차 발생 이력</div><span className="text-[11px] text-[var(--text-dim)]">총 부여일수 = 이 목록의 합계 · 회수는 음수로</span></div>
                 {empLeaveGrants.length === 0 ? (
-                  <div className="collect-empty">발생 이력이 없습니다 — 아래에서 추가하세요</div>
+                  <div className="collect-empty">발생 이력이 없습니다. 아래에서 추가하세요</div>
                 ) : (
                   <div className="empd-rows mb-2">
                     {empLeaveGrants.map((g) => (
@@ -1193,8 +1197,8 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
     uploadedAt: saved[d.key]?.uploadedAt,
   }));
 
-  // 입사서류 파일 열기 — employee-files private 대비 signed URL. 기존 저장 URL 에서 path 추출 폴백.
-  async function openDocFile(item: OnboardingDocItem) {
+  // 입사서류 파일 열기 · employee-files private 대비 signed URL. 기존 저장 URL 에서 path 추출 폴백.
+  async function openDocFile(item: OnboardingDocItem)  {
     let path = item.storagePath;
     if (!path && item.fileUrl) {
       const m = item.fileUrl.match(/\/object\/(?:public|sign|authenticated)\/employee-files\/([^?]+)/);
@@ -1221,8 +1225,10 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
     queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
   }
 
-  // 올린 서류 삭제 (2026-08-20 사장님 요청) — 파일·원장·체크리스트 표시를 함께 지운다.
-  async function handleFileDelete(item: OnboardingDocItem) {
+  
+
+  // 올린 서류 삭제 (2026-08-20 사장님 요청). 파일·원장·체크리스트 표시를 함께 지운다.
+  async function handleFileDelete(item: OnboardingDocItem)  {
     if (!confirm(`'${item.label}'에 올린 파일${item.fileName ? ` (${item.fileName})` : ""}을 삭제할까요?`)) return;
     setUploading(item.key);
     try {
@@ -1480,7 +1486,7 @@ function RrnField({ employeeId }: { employeeId: string }) {
         <div className="flex items-center gap-2">
           {/* '!decrypt_error' = 암호문은 있는데 복호화 실패(키 문제) — 미등록과 구별해 보여야 조용한 데이터 소실을 알아챈다 (보안 검수 P4) */}
           <span className="text-xs mono-number">{masked === "!decrypt_error"
-            ? <span className="text-[var(--danger)]">복호화 오류 — 운영자 문의</span>
+            ? <span className="text-[var(--danger)]">복호화 오류 · 운영자 문의</span>
             : masked || <span className="text-[var(--text-dim)]">미등록</span>}</span>
           <button type="button" className="btn-secondary btn-sm" onClick={() => setEditing(true)}>{masked ? "수정" : "입력"}</button>
           {masked && (
@@ -1489,7 +1495,7 @@ function RrnField({ employeeId }: { employeeId: string }) {
           )}
         </div>
       )}
-      <div className="text-[10px] text-[var(--text-dim)] mt-1">지급명세서(국세청 제출)에만 쓰입니다 — 암호화 저장되고 화면에는 마스킹으로만 보입니다.</div>
+      <div className="text-[10px] text-[var(--text-dim)] mt-1">지급명세서(국세청 제출)에만 쓰입니다. 암호화 저장되고 화면에는 마스킹으로만 보입니다.</div>
     </div>
   );
 }
@@ -1563,11 +1569,13 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
         }
       } catch { /* 보관 실패가 발급 자체를 막지는 않는다 */ }
 
+      
+
       // Log
       const certType = type === "employment" ? "재직증명서" : "경력증명서";
-      // ⚠️ issued_by/audit user_id 는 users.id — auth.uid 를 넣으면 초대 합류 직원
+      // ⚠️ issued_by/audit user_id 는 users.id · auth.uid 를 넣으면 초대 합류 직원
       //   (users.id ≠ auth_id)에게서 FK 409 로 이력 저장이 통째로 실패했다(2026-07-29).
-      const { getCurrentUser } = await import("@/lib/queries");
+      const  { getCurrentUser } = await import("@/lib/queries");
       const me = await getCurrentUser();
       if (me) {
         await saveCertificateLog({ companyId, employeeId: emp.id, certificateType: certType, certificateNumber: result.certificateNumber, issuedBy: me.id, purpose: [purpose.trim() || "제출용", submitTo.trim()].filter(Boolean).join(" / "), pdfUrl });

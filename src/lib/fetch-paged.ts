@@ -16,7 +16,7 @@ export async function fetchPaged<T = any>(scope: string, build: () => any, maxRo
     if (rows.length < PAGE) return out;
   }
   if (out.length >= maxRows) {
-    reportError(`fetchPaged.${scope}`, new Error(`fetchPaged maxRows(${maxRows}) 도달 — 초과분 절단`));
+    reportError(`fetchPaged.${scope}`, new Error(`fetchPaged maxRows(${maxRows}) 도달 · 초과분 절단`));
   }
   return out;
 }

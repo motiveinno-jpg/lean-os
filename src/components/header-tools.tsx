@@ -1,7 +1,7 @@
 "use client";
 
 // ── 상단바 도구 — 계산기 · 화면 캡처 · 메모 (2026-08-27 사장님: "상단바 알림 왼쪽으로 계산기, 화면캡쳐, 메모 아이콘") ──
-//   2차(같은 날): "상단 기능들 팝업으로. 메모는 스티커 메모 형식 — 목록도 주고, 여러 개 클릭해서 열 수 있게."
+//   2차(같은 날): "상단 기능들 팝업으로. 메모는 스티커 메모 형식 · 목록도 주고, 여러 개 클릭해서 열 수 있게."
 //   · 아이콘을 누르면 아래로 뜨는 판이 아니라 **떠 있는 창**(FloatingWindow) — 끌어서 옮기고, 다른 곳을 눌러도 안 닫힌다.
 //   · 메모: '메모 목록' 창(제목·색·핀·검색·새 메모) + 목록에서 누르는 만큼 **스티커 창이 따로** 뜬다. 스티커는 쓰다 멈추면 저장(0.8초).
 //     개인 메모(quick_notes 표) — PC 2대 어디서든 같다.
@@ -16,10 +16,10 @@ import { logRead } from "@/lib/log-read";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { todayKst } from "@/lib/kst";
-import { FloatingWindow } from "@/components/floating-window";
+import { FloatingWindow }  from "@/components/floating-window";
 
-/* ── 계산 — eval 없이 (숫자 · + − × ÷ · 괄호 · %) ── */
-function calc(expr: string): number | null {
+/* ── 계산 · eval 없이 (숫자 · + − × ÷ · 괄호 · %) ── */
+function calc(expr: string): number | null  {
   const s = expr.replace(/×/g, "*").replace(/÷/g, "/").replace(/,/g, "").replace(/\s+/g, "");
   if (!s || /[^0-9+\-*/().%]/.test(s)) return null;
   let i = 0;
@@ -95,7 +95,7 @@ const streamAlive = () => !!liveStream && liveStream.getVideoTracks().some((t) =
 export function stopCaptureStream() { liveStream?.getTracks().forEach((t) => t.stop()); liveStream = null; liveVideo = null; }
 async function grabFrame(): Promise<HTMLCanvasElement> {
   const md: any = navigator.mediaDevices;
-  if (!md?.getDisplayMedia) throw new Error("이 브라우저는 화면 캡처를 지원하지 않습니다 — Chrome·Edge 에서 쓰세요");
+  if (!md?.getDisplayMedia) throw new Error("이 브라우저는 화면 캡처를 지원하지 않습니다. Chrome·Edge 에서 쓰세요");
   const fresh = !streamAlive();
   if (fresh) {
     const dpr = window.devicePixelRatio || 1;
@@ -110,10 +110,11 @@ async function grabFrame(): Promise<HTMLCanvasElement> {
     liveVideo.srcObject = liveStream; liveVideo.muted = true;
     await liveVideo.play();
   }
+  
   const video = liveVideo!;
-  //   크기가 안정될 때까지(공유 띠로 다시 그리는 동안은 크기가 바뀐다) — 최대 2초
+  //   크기가 안정될 때까지(공유 띠로 다시 그리는 동안은 크기가 바뀐다). 최대 2초
   let w = 0, h = 0;
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i  < 10; i++) {
     await new Promise((r) => setTimeout(r, fresh ? 250 : 120));
     if (video.videoWidth === w && video.videoHeight === h && w > 0) break;
     w = video.videoWidth; h = video.videoHeight;
@@ -124,8 +125,9 @@ async function grabFrame(): Promise<HTMLCanvasElement> {
   canvas.getContext("2d")!.drawImage(video, 0, 0);
   return cropToViewport(canvas);
 }
-/** 모니터 프레임에서 브라우저의 **보이는 영역**만 — 창 위치(screenX/Y)·창틀(outer−inner) 을 픽셀 배율로 환산. 계산이 프레임 밖이면(다른 모니터를 고른 경우) 자르지 않는다 */
-function cropToViewport(frame: HTMLCanvasElement): HTMLCanvasElement {
+
+/** 모니터 프레임에서 브라우저의 **보이는 영역**만 · 창 위치(screenX/Y)·창틀(outer−inner) 을 픽셀 배율로 환산. 계산이 프레임 밖이면(다른 모니터를 고른 경우) 자르지 않는다 */
+function cropToViewport(frame: HTMLCanvasElement): HTMLCanvasElement  {
   const surface = (liveStream?.getVideoTracks()[0]?.getSettings() as any)?.displaySurface;
   if (surface && surface !== "monitor") return frame;
   const dpr = window.devicePixelRatio || 1;
@@ -151,7 +153,9 @@ async function saveCanvas(canvas: HTMLCanvasElement, suffix: string): Promise<{ 
   return { name, clip };
 }
 
-/** 영역 선택 — 찍은 프레임을 화면에 깔고 사각형을 끌어 고른다. Enter/버튼 = 저장, Esc = 취소 (2026-08-27 사장님) */
+
+
+/** 영역 선택 · 찍은 프레임을 화면에 깔고 사각형을 끌어 고른다. Enter/버튼 = 저장, Esc = 취소 (2026-08-27 사장님) */
 function RegionPicker({ frame, onPick, onCancel }: { frame: HTMLCanvasElement; onPick: (c: HTMLCanvasElement) => void; onCancel: () => void }) {
   const [sel, setSel] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const dragging = useRef(false);
@@ -185,7 +189,7 @@ function RegionPicker({ frame, onPick, onCancel }: { frame: HTMLCanvasElement; o
         </div>
       )}
       <div className="cap-bar">
-        <span>{rect && rect.w > 4 ? "영역을 골랐습니다 — Enter 또는 저장" : "저장할 영역을 마우스로 끌어 고르세요"}</span>
+        <span>{rect && rect.w > 4 ? "영역을 골랐습니다. Enter 또는 저장" : "저장할 영역을 마우스로 끌어 고르세요"}</span>
         <button type="button" className="btn-secondary btn-sm" onClick={onCancel}>취소 (Esc)</button>
         <button type="button" className="btn-primary btn-sm" disabled={!rect || rect.w < 4 || rect.h < 4} onClick={confirm}>이 영역 저장</button>
       </div>
@@ -202,7 +206,7 @@ function Capture({ onDone }: { onDone: () => void }) {
   const finish = async (canvas: HTMLCanvasElement, suffix: string) => {
     const { name, clip } = await saveCanvas(canvas, suffix);
     setLast(name);
-    toast(clip ? `${name} 내려받고 클립보드에도 넣었습니다 — 카톡·메일에 바로 붙여넣기` : `${name} 내려받았습니다`, "success");
+    toast(clip ? `${name} 내려받고 클립보드에도 넣었습니다. 카톡·메일에 바로 붙여넣기` : `${name} 내려받았습니다`, "success");
   };
   const shoot = async (mode: "full" | "region") => {
     if (busy) return;
@@ -214,12 +218,12 @@ function Capture({ onDone }: { onDone: () => void }) {
       else setFrame(canvas);   // 프레임을 깔고 영역을 고르게 — 저장은 RegionPicker 가 부른다
     } catch (e: any) {
       if (String(e?.name || "").includes("NotAllowed")) toast("캡처를 취소했습니다", "info");
-      else toast(`캡처 실패 — ${e?.message || "알 수 없는 오류"}`, "error");
+      else toast(`캡처 실패 · ${e?.message || "알 수 없는 오류"}`, "error");
     } finally { setBusy(false); document.body.classList.remove("cap-shooting"); }
   };
   return (
     <div className="ht-capture">
-      <p className="ht-hint">지금 보고 있는 화면을 PNG 로 저장하고 클립보드에도 넣습니다. 브라우저가 <b>어느 화면을 찍을지</b> 처음 한 번만 묻습니다 — <b>"전체 화면"</b>에서 이 모니터를 고르세요(원본 화질로 찍고 브라우저 안쪽만 자동으로 잘라냅니다. 브라우저 보안이라 이 물음은 건너뛸 수 없습니다). 그 뒤로는 안 묻습니다 — 브라우저의 "공유 중지"를 누르면 다음에 다시 묻습니다. <b>영역 선택</b>은 찍은 화면 위에서 사각형을 끌어 그 부분만 저장합니다.</p>
+      <p className="ht-hint">지금 보고 있는 화면을 PNG 로 저장하고 클립보드에도 넣습니다. 브라우저가 <b>어느 화면을 찍을지</b>  처음 한 번만 묻습니다. <b>"전체 화면"</b>에서 이 모니터를 고르세요(원본 화질로 찍고 브라우저 안쪽만 자동으로 잘라냅니다. 브라우저 보안이라 이 물음은 건너뛸 수 없습니다). 그 뒤로는 안 묻습니다. 브라우저의 "공유 중지"를 누르면 다음에 다시 묻습니다.  <b>영역 선택</b>은 찍은 화면 위에서 사각형을 끌어 그 부분만 저장합니다.</p>
       <div className="ht-capture-btns">
         <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={() => shoot("full")}>{busy ? "찍는 중…" : "전체 화면"}</button>
         <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={() => shoot("region")}>영역 선택</button>
@@ -307,13 +311,13 @@ function NoteList({ open, onOpen, onNew }: { open: Set<string>; onOpen: (n: Note
       <p className="ht-hint">누르면 스티커로 뜹니다 — 여러 장을 같이 열어 두고 끌어서 옮길 수 있습니다. {notes.length}장 · 핀은 위로</p>
       <div className="sn-list">
         {shown.map((n) => (
-          <button key={n.id} type="button" className={`sn-card sn-${n.color} ${open.has(n.id) ? "sn-card-open" : ""}`} onClick={() => onOpen(n)} title={open.has(n.id) ? "열려 있음 — 누르면 맨 위로" : "누르면 스티커로 열기"}>
+          <button key={n.id} type="button" className={`sn-card sn-${n.color} ${open.has(n.id) ? "sn-card-open" : ""}`} onClick={() => onOpen(n)} title={open.has(n.id) ? "열려 있음. 누르면 맨 위로" : "누르면 스티커로 열기"}>
             <b className="sn-card-title">{n.pinned ? "📌 " : ""}{n.title || (n.body.split("\n")[0].slice(0, 24) || "(빈 메모)")}</b>
             <span className="sn-card-body">{n.body.slice(0, 80)}</span>
             <span className="sn-card-when mono-number">{when(n.updated_at)}</span>
           </button>
         ))}
-        {!shown.length && <div className="ht-hint ht-note-empty">{q ? "맞는 메모가 없습니다" : "아직 메모가 없습니다 — + 새 메모"}</div>}
+        {!shown.length && <div className="ht-hint ht-note-empty">{q ? "맞는 메모가 없습니다" : "아직 메모가 없습니다. + 새 메모"}</div>}
       </div>
     </div>
   );

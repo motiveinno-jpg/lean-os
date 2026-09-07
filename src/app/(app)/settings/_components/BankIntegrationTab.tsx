@@ -37,7 +37,7 @@ const CODEF_PUBLIC: Record<string, string> = {
   "0001": "국세청 홈택스",
 };
 
-// 온보딩 '금융 연결' 단계가 같은 등록 폼을 그대로 쓴다 (2026-08-10) — export 만 추가, 동작 무변경.
+// 온보딩 '금융 연결' 단계가 같은 등록 폼을 그대로 쓴다 (2026-08-10). export 만 추가, 동작 무변경.
 export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = [] }: { companyId: string | null; onRegistered: () => void; connectedOrgs?: string[] }) {
   const { toast } = useToast();
   const [accountType, setAccountType] = useState<"bank" | "card" | "hometax">("bank");
@@ -86,8 +86,8 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
     setNotifySaved(true); setTimeout(() => setNotifySaved(false), 2000);
     toast(v ? "발행 알림 주소를 저장했습니다" : "발행 알림을 끕니다 (주소 비움)", "success");
   };
-  // 사업자번호 유무 — 없으면 실제 금융기관 연결은 못 하고 데모 체험만 열어 둔다 (2026-08-20)
-  const { hasBizNo } = useCompanyBizNo();
+  // 사업자번호 유무 · 없으면 실제 금융기관 연결은 못 하고 데모 체험만 열어 둔다 (2026-08-20)
+  const  { hasBizNo } = useCompanyBizNo();
   // Common
   const [registering, setRegistering] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -97,7 +97,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
   // 실패는 빨간 토스트로 즉시 알린다 — 화면 어디에 있든 실패를 놓치지 않게.
   useEffect(() => {
     if (!result) return;
-    if (!result.ok) toast("연결 실패 — 화면의 빨간 메시지를 확인하세요", "error");
+    if (!result.ok) toast("연결 실패 · 화면의 빨간 메시지를 확인하세요", "error");
     resultRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
@@ -254,8 +254,9 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
             setRegistering(false);
             return;
           }
-          // 3. verify API 호출 (파일 업로드 경로 — 자동 선택은 위에서 이미 검증 후 return)
-          const res = await verifyHometaxRegistration(companyId, {
+          
+          // 3. verify API 호출 (파일 업로드 경로 · 자동 선택은 위에서 이미 검증 후 return)
+          const res = await verifyHometaxRegistration(companyId,  {
             loginType: "0",
             certPassword,
             identity: hometaxIdentity || undefined,
@@ -309,11 +310,13 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
         return;
       }
 
-      // ── 은행/카드 — 기존 register/connectedId 흐름 ──
+      
+
+      // ── 은행/카드 · 기존 register/connectedId 흐름 ──
       // 개인(P) 차단 (2026-08-19): 은행 조회는 법인(/b/) API 전용이라 P 로 등록되면 등록은
       //   성공하고 이후 수집이 CF-04015 로 영영 무음 실패한다 (드림세무회계 3주 실사고).
       //   UI 토글도 막지만 제출 직전에 한 번 더 막는다.
-      if (clientType === "P") {
+      if (clientType === "P")  {
         setResult({ ok: false, msg: "개인 계정 연동은 아직 지원하지 않습니다. 법인/기업 계정으로 등록해 주세요." });
         setRegistering(false);
         return;
@@ -334,7 +337,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
           //   드림세무회계 건은 등록 성공 화면만 보고 3주간 아무도 몰랐다.
           if (res.verify && !res.verify.ok) {
             setResult({ ok: false, msg: `연결은 등록됐지만 계좌 조회가 안 됩니다 (${res.verify.code || "확인 실패"}). ${res.verify.message || ""}\n개인/법인 구분이나 인증 정보를 다시 확인해 주세요.` });
-            toast("연결 확인 실패 — 수집이 안 되는 상태입니다", "error");
+            toast("연결 확인 실패 · 수집이 안 되는 상태입니다", "error");
             onRegistered();
           } else {
             setResult({ ok: true, msg: res.verify?.ok ? "금융기관 연결 성공! (계좌 조회까지 확인됨)" : "금융기관 연결 성공!" });
@@ -356,7 +359,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
         if (res.success) {
           if (res.verify && !res.verify.ok) {
             setResult({ ok: false, msg: `연결은 등록됐지만 계좌 조회가 안 됩니다 (${res.verify.code || "확인 실패"}). ${res.verify.message || ""}\n개인/법인 구분이나 아이디·비밀번호를 다시 확인해 주세요.` });
-            toast("연결 확인 실패 — 수집이 안 되는 상태입니다", "error");
+            toast("연결 확인 실패 · 수집이 안 되는 상태입니다", "error");
             onRegistered();
           } else {
             setResult({ ok: true, msg: res.verify?.ok ? "금융기관 연결 성공! (계좌 조회까지 확인됨)" : "금융기관 연결 성공!" });
@@ -518,7 +521,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
                     type="email"
                     value={notifyEmail}
                     onChange={(e) => setNotifyEmail(e.target.value)}
-                    placeholder="예: ceo@company.com — 비우면 발송 안 함"
+                    placeholder="예: ceo@company.com · 비우면 발송 안 함"
                     className="field-input flex-1"
                   />
                   <button type="button" onClick={() => { void saveNotifyEmail(); }} className="btn-secondary btn-sm shrink-0 self-center">
@@ -610,7 +613,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
       {accountType !== "hometax" && !!organization && connectedOrgs.includes(organization) && (
         <div className="bank-integration-result-message bg-amber-500/10 text-amber-700 border border-amber-500/20">
           <b>{orgList[organization] || organization}</b>는 이미 연결돼 있습니다. 새로 발급받은 카드·계좌는 재등록 없이 다음 자동 수집에 그대로 포함됩니다.
-          지금 연결하면 기존 인증 정보를 새 {authMethod === "cert" ? "인증서" : "아이디/비밀번호"}로 교체합니다 — 인증서를 바꿀 때는 그 인증서가 {orgList[organization] || "해당 기관"} 홈페이지에 먼저 등록돼 있어야 합니다.
+          지금 연결하면 기존 인증 정보를 새 {authMethod === "cert" ? "인증서" : "아이디/비밀번호"}로 교체합니다. 인증서를 바꿀 때는 그 인증서가  {orgList[organization] || "해당 기관"} 홈페이지에 먼저 등록돼 있어야 합니다.
         </div>
       )}
 
@@ -643,11 +646,11 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
 function codefAction(code?: string): { label: string; tab?: string; retry?: boolean } | null {
   if (!code) return { label: "다시 시도", retry: true };
   if (code === "CF-00401") return { label: "인증서 다시 등록", tab: "certificate" };
-  // CF-04015/ORG_MISSING: 계정이 등록 안 됐거나 유형(개인/법인) 불일치 — 재시도로는 절대 안 풀림 (2026-08-19)
-  if (code === "CF-04015" || code === "ORG_MISSING") return { label: "계정 다시 등록", tab: "bank" };
+  // CF-04015/ORG_MISSING: 계정이 등록 안 됐거나 유형(개인/법인) 불일치 · 재시도로는 절대 안 풀림 (2026-08-19)
+  if (code === "CF-04015" || code === "ORG_MISSING") return  { label: "계정 다시 등록", tab: "bank" };
   if (code === "CF-12838" || code === "CF-12839") return { label: "ConnectedID 재등록", tab: "bank" };
-  if (code === "CF-13021") return { label: "다시 시도", retry: true }; // 외부(은행) 처리 필요 — UI에서 할 일 없음
-  if (code === "NO_DEMAND_DEPOSIT") return { label: "다시 시도", retry: true };
+  if (code === "CF-13021") return { label: "다시 시도", retry: true }; // 외부(은행) 처리 필요. UI에서 할 일 없음
+  if (code === "NO_DEMAND_DEPOSIT") return  { label: "다시 시도", retry: true };
   if (code === "CHUNK_FAIL") return { label: "다시 시도", retry: true };
   return { label: "다시 시도", retry: true };
 }
@@ -699,16 +702,18 @@ function CodefErrorCard({ item, onRetry, retrying }: { item: any; onRetry: () =>
   );
 }
 
+
+
 // ═══════════════════════════════════════════
-// Bank Integration Tab — 사용자 친화적 금융 연결
+// Bank Integration Tab · 사용자 친화적 금융 연결
 // CODEF API 키는 서버 환경변수로만 관리 (사용자 노출 X)
 // ═══════════════════════════════════════════
 export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | null; bankAccounts: BankAccount[] }) {
   const db2 = supabase;
-  const { toast } = useToast();
+  const { toast }  = useToast();
 
-  // 연결 상태 확인 — 은행/카드는 ConnectedID, 홈택스는 automation_credentials.hometax 존재 여부.
-  const { data: connectionStatus, refetch: refetchConnection } = useQuery({
+  // 연결 상태 확인 · 은행/카드는 ConnectedID, 홈택스는 automation_credentials.hometax 존재 여부.
+  const  { data: connectionStatus, refetch: refetchConnection } = useQuery({
     queryKey: ["codef-connection", companyId],
     queryFn: async () => {
       if (!companyId) return null;
@@ -783,11 +788,11 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
     setSyncing(true);
     setSyncResult(null);
     try {
-      const { syncCodefData } = await import("@/lib/data-sync");
+      const { syncCodefData }  = await import("@/lib/data-sync");
 
-      // 첫 sync 감지 — bank_transactions 0건 → 1년치 자동 가져옴 (3개월씩 4번 chunked)
+      // 첫 sync 감지 · bank_transactions 0건 → 1년치 자동 가져옴 (3개월씩 4번 chunked)
       let isFirstSync = false;
-      if (hasCodefConnection) {
+      if (hasCodefConnection)  {
         const { count } = await db2.from('bank_transactions')
           .select('id', { count: 'exact', head: true })
           .eq('company_id', companyId);
@@ -797,7 +802,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
       // 1단계: 은행/카드만 동기화. 첫 sync 면 1년치 3개월씩 분할, 일반 sync 는 default (3개월).
       let bankCardRes: any;
       if (hasCodefConnection && isFirstSync) {
-        toast('첫 동기화 — 1년치 데이터를 4구간으로 나눠 가져오는 중', 'info');
+        toast('첫 동기화 · 1년치 데이터를 4구간으로 나눠 가져오는 중', 'info');
         let totalBank = 0, totalCard = 0;
         const allErrors: any[] = [], allNotes: any[] = [];
         const today = new Date();
@@ -942,11 +947,11 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
       const ok = allErrors.length === 0 && failedChunks.length === 0;
       setSyncResult({
         ok,
-        msg: `${rangeFrom} ~ ${rangeTo} (${chunks.length}구간 처리) — ${msgParts.join(' · ')}`,
+        msg: `${rangeFrom} ~ ${rangeTo} (${chunks.length}구간 처리). ${msgParts.join(' · ')}`,
         errors: [...allErrors, ...failedChunks.map(f => ({ message: f, code: 'CHUNK_FAIL' }))].slice(0, 50),
         notes: allNotes.length > 0 ? allNotes : undefined,
       });
-      toast(ok ? '기간 동기화 완료' : `부분 완료 — 자세히는 결과 확인`, ok ? 'success' : 'info');
+      toast(ok ? '기간 동기화 완료' : `부분 완료 · 자세히는 결과 확인`, ok ? 'success' : 'info');
       await loadRecentSyncLogs();
     } catch (err: any) {
       setSyncResult({ ok: false, msg: err.message || '오류 발생' });
@@ -1190,7 +1195,8 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
             </h2>
             {/*   위 '자동 수집 연결'과 무엇이 다른지 여기서 말한다 (2026-08-24 사장님 지적) */}
             <p className="stg-sec-desc">
-              연동 밖의 계좌입니다 — 거래는 들어오지 않고 <b>잔고만</b> 대시보드 합계에 더해집니다.
+              
+              연동 밖의 계좌입니다. 거래는 들어오지 않고 <b>잔고만</b> 대시보드 합계에 더해집니다.
               추가·수정은 회계·세무 › 자금·통장에서 합니다.
             </p>
           </div>
@@ -1203,7 +1209,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
         {/*   목록은 표로 (2026-08-24 정리) — 예전엔 계좌마다 큰 카드 줄이라 여덟 개만 되어도
               화면 절반을 먹었다. 조회 화면 표준: 목록이 있는 곳은 표(머리단 가운데·숫자 오른쪽). */}
         {bankAccounts.length === 0 ? (
-          <div className="collect-empty">등록된 계좌가 없습니다 — 회계·세무 › 자금·통장에서 추가하세요.</div>
+          <div className="collect-empty">등록된 계좌가 없습니다. 회계·세무 › 자금·통장에서 추가하세요.</div>
         ) : !showManual ? null : (
           <div className="stg-table-wrap">
             <table className="ev-table ev-lined table-bank-manual">

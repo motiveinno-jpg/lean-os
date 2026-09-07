@@ -92,7 +92,7 @@ export function ContractStageCard({
   const [partnerRep, setPartnerRep] = useState<string | null>(null);
   const [partnerBiz, setPartnerBiz] = useState<string | null>(null);
 
-  // L 양방향: 갑(우리) 서명 모달 상태 — pending_our_signature → fully_signed 전환
+  // L 양방향: 갑(우리) 서명 모달 상태 · pending_our_signature → fully_signed 전환
   const [showOurSignModal, setShowOurSignModal] = useState(false);
   const [ourSignatureMethod, setOurSignatureMethod] = useState<SignatureMethod | null>(null);
   const [ourSignatureDataUrl, setOurSignatureDataUrl] = useState<string | null>(null);
@@ -223,7 +223,7 @@ export function ContractStageCard({
         token = row?.approval_token ?? null;
       }
       if (!token) {
-        throw new Error('서명 링크 생성 실패 — 잠시 후 다시 시도해 주세요');
+        throw new Error('서명 링크 생성 실패 · 잠시 후 다시 시도해 주세요');
       }
       await sendApproval({ approvalId: approvalId!, recipientEmail: email, recipientName: partnerName || undefined, expiresInDays: 14 });
       try {
@@ -231,7 +231,7 @@ export function ContractStageCard({
           body: {
             type: "quote", stage: "contract", to: email,
             signerName: partnerName || undefined,
-            title: dealName ? `${dealName} — 계약서 확인 요청` : "계약서 확인 요청",
+            title: dealName ? `${dealName} · 계약서 확인 요청` : "계약서 확인 요청",
             signUrl: buildQuoteUrl(token),
             companyName: companyInfo.name || undefined,
             amount: contractTotal || undefined,
@@ -263,7 +263,7 @@ export function ContractStageCard({
           body: {
             type: "quote", stage: "contract", to: email,
             signerName: partnerName || undefined,
-            title: dealName ? `${dealName} — 계약서 확인 요청 (재발송)` : "계약서 확인 요청 (재발송)",
+            title: dealName ? `${dealName} · 계약서 확인 요청 (재발송)` : "계약서 확인 요청 (재발송)",
             signUrl: buildQuoteUrl(token),
             companyName: companyInfo.name || undefined,
             amount: contractTotal || undefined,
@@ -374,7 +374,7 @@ export function ContractStageCard({
               const latest = await getLatestApproval(dealId, "contract");
               if (latest) onApprovalChange(latest);
               queryClient.invalidateQueries({ queryKey: ["project-detail", dealId] });
-              toast("계약 최종 성립 — 양측 서명 완료", "success");
+              toast("계약 최종 성립 · 양측 서명 완료", "success");
               setShowOurSignModal(false);
               setOurSignatureMethod(null);
               setOurSignatureDataUrl(null);
@@ -499,7 +499,7 @@ export function ContractStageCard({
             </button>
           </div>
           {missingVars.length > 0 && (
-            <div className="mt-1.5 text-[10px] text-amber-400"><Ico e="⚠" /> {missingVars.length}개 변수가 비어있습니다 — 본문에 {"{변수명}"} 그대로 노출됩니다.</div>
+            <div className="mt-1.5 text-[10px] text-amber-400"><Ico e="⚠" /> {missingVars.length}개 변수가 비어있습니다. 본문에  {"{변수명}"} 그대로 노출됩니다.</div>
           )}
           <div className="mt-1.5 text-[10px] text-[var(--text-dim)]">
             만료: 14일 · 거래처가 승인하면 자동으로 진행 중 단계로 전환됩니다
@@ -510,7 +510,7 @@ export function ContractStageCard({
       {/* 재발송 (거절·수정 요청 상태 — 핑퐁 왕복) */}
       {!readonly && (approval?.status === "rejected" || approval?.status === "revision_requested") && (
         <div className="contract-resend-section">
-          <div className="text-[10px] text-amber-400 font-medium mb-1.5">{approval?.status === "revision_requested" ? "수정 요청된 계약서 — 반영 후 재발송 (왕복 이력이 남습니다)" : "거절된 계약서 — 양식·변수 수정 후 재발송"}</div>
+          <div className="text-[10px] text-amber-400 font-medium mb-1.5">{approval?.status === "revision_requested" ? "수정 요청된 계약서 · 반영 후 재발송 (왕복 이력이 남습니다)" : "거절된 계약서 · 양식·변수 수정 후 재발송"}</div>
           <div className="flex flex-col sm:flex-row gap-1.5">
             <input
               type="email"
@@ -559,7 +559,7 @@ function PendingOurSignatureCard({ approval, onClick }: { approval: ApprovalLite
     : "—";
   return (
     <div className="pending-our-signature-card">
-      <div className="text-[12px] font-bold text-orange-400"><Ico e="✍" /> 거래처 서명 완료 — 우리(갑) 서명 대기</div>
+      <div className="text-[12px] font-bold text-orange-400"><Ico e="✍" />  거래처 서명 완료 · 우리(갑) 서명 대기</div>
       <div className="text-[11px] text-[var(--text)]">
         거래처가 {partnerMethodLabel}으로 승인했습니다 ({signedAt} KST).
         이제 우리 측 서명·도장 후 계약이 최종 성립됩니다.
@@ -676,7 +676,7 @@ function SignedContractCard({ approval }: { approval: ApprovalLite }) {
   return (
     <div className="signed-contract-card">
       <div className="flex items-center justify-between gap-2">
-        <div className="text-[11px] font-bold text-emerald-400"><Ico e="✅" /> 계약 승인 완료 — 서명·날인 회수됨</div>
+        <div className="text-[11px] font-bold text-emerald-400"><Ico e="✅" />  계약 승인 완료 · 서명·날인 회수됨</div>
       </div>
       <div className="text-[11px] text-[var(--text)] space-y-0.5">
         <div>{methodLabel}{approval.recipient_name ? ` · ${approval.recipient_name}` : ""}</div>

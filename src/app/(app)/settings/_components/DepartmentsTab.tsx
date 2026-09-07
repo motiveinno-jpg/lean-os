@@ -1,11 +1,11 @@
 "use client";
-import { logRead } from "@/lib/log-read";
+import { logRead }  from "@/lib/log-read";
 
-// 부서 마스터 관리 (2026-06-29) — 목표형 성과 입력 부서 귀속용.
+// 부서 마스터 관리 (2026-06-29). 목표형 성과 입력 부서 귀속용.
 //   추가 / 이름변경 / 정렬(sort_order) / 보관(archived_at soft delete). 회사스코프 RLS.
 //   보관 부서는 신규 선택지에서 제외(기존 entry 참조는 유지).
 
-import { useState } from "react";
+import  { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
@@ -99,7 +99,7 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
       <div className="stg-sec-head mb-1">
         <div>
           <h2 className="stg-sec-title">부서</h2>
-          <p className="stg-sec-desc">성과 입력·일정 공유에서 선택하는 부서 목록 — 보관하면 새 선택지에서 빠지고 기존 기록은 유지됩니다.</p>
+          <p className="stg-sec-desc">성과 입력·일정 공유에서 선택하는 부서 목록 · 보관하면 새 선택지에서 빠지고 기존 기록은 유지됩니다.</p>
         </div>
       </div>
 
@@ -113,7 +113,8 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
       {unregistered.length > 0 && (
         <div className="departments-found">
           <div className="departments-found-head">
-            구성원 기록에는 있지만 아직 등록되지 않은 부서 {unregistered.length}개 — 등록하면 성과 입력·일정 공유·구성원 화면의 부서 목록이 서로 맞습니다.
+            구성원 기록에는 있지만 아직 등록되지 않은 부서 {unregistered.length}개 · 등록하면 성과 입력·일정 공유·구성원 화면의 부서 목록이 서로 맞습니다.
+            
             <button type="button" className="btn-secondary btn-sm" disabled={addMut.isPending}
               onClick={async () => { for (const n of unregistered) { try { await addMut.mutateAsync(n); } catch { /* 중복 등은 개별 토스트 */ } } }}>모두 등록</button>
           </div>

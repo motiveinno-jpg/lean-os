@@ -22,7 +22,7 @@ export function BizCertUpload({ onExtracted, compact }: { onExtracted: (f: BizCe
       onExtracted(r.fields, { confidence: r.confidence, notes: r.notes });
       const low = r.confidence < 0.7 || !!r.notes;
       setMsg({ tone: low ? "warn" : "ok", text: low
-        ? `${filled}개 칸을 채웠습니다. 확인이 필요한 부분: ${r.notes || "일부 글자가 흐릿합니다"} — 저장 전에 한 번 더 봐 주세요.`
+        ? `${filled}개 칸을 채웠습니다. 확인이 필요한 부분: ${r.notes || "일부 글자가 흐릿합니다"} · 저장 전에 한 번 더 봐 주세요.`
         : `${filled}개 칸을 채웠습니다. 내용을 확인하고 저장하세요.` });
     } catch (e) {
       setMsg({ tone: "err", text: e instanceof Error ? e.message : "사업자등록증을 읽지 못했습니다." });

@@ -108,7 +108,7 @@ export const ROLE_PRESETS: RolePresetDef[] = [
   {
     id: 'ceo',
     label: '경영/의사결정',
-    description: '대표이사, 경영자 — 핵심 KPI와 현금흐름 중심',
+    description: '대표이사, 경영자 · 핵심 KPI와 현금흐름 중심',
     icon: '👔',
     defaultWidgets: [
       'summary_kpis', 'quick_nav', 'my_todos', 'growth_tracking',
@@ -117,7 +117,7 @@ export const ROLE_PRESETS: RolePresetDef[] = [
   {
     id: 'accounting',
     label: '회계/재무',
-    description: '회계담당자, CFO — 거래내역과 마감 중심',
+    description: '회계담당자, CFO · 거래내역과 마감 중심',
     icon: '🧮',
     defaultWidgets: [
       'financial_overview', 'overdue_receivables', 'burn_rate_trend', 'automation_status',
@@ -126,7 +126,7 @@ export const ROLE_PRESETS: RolePresetDef[] = [
   {
     id: 'hr',
     label: '인사/총무',
-    description: '인사담당자, 총무 — 요약과 할 일 중심',
+    description: '인사담당자, 총무 · 요약과 할 일 중심',
     icon: '📋',
     defaultWidgets: [
       'summary_kpis', 'quick_nav', 'my_todos',
@@ -135,7 +135,7 @@ export const ROLE_PRESETS: RolePresetDef[] = [
   {
     id: 'sales',
     label: '영업/프로젝트',
-    description: '영업담당자, PM — 딜과 성장 중심',
+    description: '영업담당자, PM · 딜과 성장 중심',
     icon: '🎯',
     defaultWidgets: [
       'summary_kpis', 'growth_tracking',

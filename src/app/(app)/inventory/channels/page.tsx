@@ -47,13 +47,13 @@ export default function ChannelsPage() {
   const [userId, setUserId] = useState<string | null>(null);
   useEffect(() => { getCurrentUser().then((u) => { setCompanyId(u?.company_id ?? null); setUserId(u?.id ?? null); }); }, []);
 
-  //   첫 갈래 = 현황(결정 148, 2026-09-02 사장님 승인) — 들어오면 수집·판매·배송이 먼저 보인다
+  //   첫 갈래 = 현황(결정 148, 2026-09-02 사장님 승인). 들어오면 수집·판매·배송이 먼저 보인다
   const [tab, setTab] = useState<Tab>("status");
   const { data: products = [] } = useQuery({ queryKey: ["inv-products", companyId], queryFn: () => listProducts(companyId!), enabled: !!companyId });
   const ctl = useDocEditor(companyId, userId, "channel", products);
   //   상품 연결·이력 갈래가 보는 채널(칩). 주문 가져오기 격자는 줄마다 채널 칸이 따로 있다.
   const [channel, setChannel] = useState<ChannelValue>("smartstore");   // 새 연결·붙여넣기 팝업의 기본 채널
-  //   목록의 채널 필터는 검색조건(다중, 비우면 전체) — 조회 줄에 채널 칩을 늘어놓지 않는다 (2026-08-27 사장님 지적)
+  //   목록의 채널 필터는 검색조건(다중, 비우면 전체). 조회 줄에 채널 칩을 늘어놓지 않는다 (2026-08-27 사장님 지적)
   const [cond, setCond] = useState<CondLive>({});
   const [q, setQ] = useState("");
   const [addOpen, setAddOpen] = useState(false);
@@ -106,7 +106,7 @@ export default function ChannelsPage() {
     pending: imports.filter((i) => i.ship_status === "pending").length,
   }), [codes, imports, channel]);
 
-  // ── 현황(결정 148) — 운영 콕핏: 수집·판매·배송을 첫 갈래에서 한눈에. 모든 숫자는 눌러서 갈래로 ──
+  // ── 현황(결정 148). 운영 콕핏: 수집·판매·배송을 첫 갈래에서 한눈에. 모든 숫자는 눌러서 갈래로 ──
   const [stRange, setStRange] = useState<"today" | "7d" | "30d" | "month">("7d");
   const [stCh, setStCh] = useState<string>("");   // "" = 전체
   const stData = useMemo(() => {
@@ -141,7 +141,8 @@ export default function ChannelsPage() {
       const hit = days.find((x) => x.d === i.order_date);
       if (hit) hit.n += 1;
     }
-    //   수집 상태 — 채널별 마지막 등록 시각(전체 이력 기준). 3일+ 끊기면 빨간불
+    
+    //   수집 상태 · 채널별 마지막 등록 시각(전체 이력 기준). 3일+ 끊기면 빨간불
     const last = new Map<string, string>();
     for (const i of imports) { const cur = last.get(i.channel); if (!cur || i.imported_at > cur) last.set(i.channel, i.imported_at); }
     const sync = CHANNELS.filter((c) => last.has(c.value)).map((c) => {
@@ -227,7 +228,7 @@ export default function ChannelsPage() {
                 <button type="button" className="btn-primary btn-sm" onClick={() => setAddOpen(true)}>+ 상품 연결</button>
               </>) : undefined}>
                 <SimpleCond groups={[{ key: "channel", label: "채널", hint: "비우면 전체", options: chChips.map((c) => ({ value: c.value, label: c.label })) }]} live={cond} onApply={setCond} />
-                <QuickSearch value={q} onApply={setQ} placeholder="채널 상품코드 · 상품명 · SKU — 쉼표로 여러 개, Enter" />
+                <QuickSearch value={q} onApply={setQ} placeholder="채널 상품코드 · 상품명 · SKU · 쉼표로 여러 개, Enter" />
               </QueryBar>
               <SimpleApplied groups={[{ key: "channel", label: "채널", options: chChips.map((c) => ({ value: c.value, label: c.label })) }]} live={cond} onApply={setCond} />
               <ResultStrip>
@@ -249,7 +250,7 @@ export default function ChannelsPage() {
                   })), "가져오기 이력", `채널주문_${channelLabel(channel)}_${todayKst()}`)}>엑셀</button>
               }>
                 <SimpleCond groups={[{ key: "channel", label: "채널", hint: "비우면 전체", options: chChips.map((c) => ({ value: c.value, label: c.label })) }]} live={cond} onApply={setCond} />
-                <QuickSearch value={q} onApply={setQ} placeholder="주문번호 · 주문자 · 수취인 · 연락처 · 주소 — 쉼표로 여러 개, Enter" />
+                <QuickSearch value={q} onApply={setQ} placeholder="주문번호 · 주문자 · 수취인 · 연락처 · 주소 · 쉼표로 여러 개, Enter" />
                 <span className="inv-hint">등록된 주문번호는 <b>다시 가져와도 건너뜁니다</b> (재고 중복 차감 방지).</span>
               </QueryBar>
               <SimpleApplied groups={[{ key: "channel", label: "채널", options: chChips.map((c) => ({ value: c.value, label: c.label })) }]} live={cond} onApply={setCond} />
@@ -275,7 +276,7 @@ export default function ChannelsPage() {
                   <button type="button" className="pjv3-stcard" onClick={() => goList(stCh || undefined)}>
                     <span className="k">기간 주문</span><b className="v num">{won(stData.total)}건</b>
                     <span className="text-[10px] text-[var(--text-dim)]">어제 {stData.yestN} · 오늘 {stData.todayN}</span></button>
-                  <button type="button" className="pjv3-stcard" title="주문 금액 합 — 채널 수수료 정산 전" onClick={() => goList(stCh || undefined)}>
+                  <button type="button" className="pjv3-stcard" title="주문 금액 합 · 채널 수수료 정산 전" onClick={() => goList(stCh || undefined)}>
                     <span className="k">주문 금액</span><b className="v num">{won(stData.amount)}</b>
                     <span className="text-[10px] text-[var(--text-dim)]">{stData.total ? `평균 ${won(stData.amount / stData.total)}원/건` : "—"}</span></button>
                   <button type="button" className={`pjv3-stcard ${stData.pending > 0 ? "warn" : ""}`}
@@ -291,7 +292,7 @@ export default function ChannelsPage() {
                 </div>
                 <div className="ch-st-grid">
                   <div className="pjv3-stpanel">
-                    <h3>채널별 <small>막대 = 주문 금액 비중 — 줄을 누르면 그 채널 주문만</small></h3>
+                    <h3>채널별 <small>막대 = 주문 금액 비중 · 줄을 누르면 그 채널 주문만</small></h3>
                     <div className="stg-table-wrap"><table className="ev-table ev-lined ch-st-table">
                       <thead><tr><th className="text-left">채널</th><th>주문</th><th>금액</th><th>평균</th><th>출고 대기</th><th>완료율</th></tr></thead>
                       <tbody>
@@ -317,7 +318,7 @@ export default function ChannelsPage() {
                     </table></div>
                   </div>
                   <div className="pjv3-stpanel">
-                    <h3>일별 주문 <small>최근 14일 — 주문일 기준</small></h3>
+                    <h3>일별 주문 <small>최근 14일 · 주문일 기준</small></h3>
                     <div className="ch-st-flow">
                       {stData.days.map((d) => {
                         const max = Math.max(1, ...stData.days.map((x) => x.n));
@@ -330,7 +331,7 @@ export default function ChannelsPage() {
                         );
                       })}
                     </div>
-                    <h3 className="!mt-4">배송 흐름 <small>기간 내 — 칸을 누르면 출고 처리로</small></h3>
+                    <h3 className="!mt-4">배송 흐름 <small>기간 내 · 칸을 누르면 출고 처리로</small></h3>
                     <div className="pjv3-stmoney">
                       <button type="button" className={`mstep ${stData.pending > 0 ? "ch-st-warn" : ""}`}
                         onClick={() => { ship.setView("pending"); setTab("ship"); }}>
@@ -345,12 +346,12 @@ export default function ChannelsPage() {
                   </div>
                 </div>
                 <div className="pjv3-stpanel !mt-3">
-                  <h3>수집 상태 <small>채널별 마지막으로 주문이 들어온 시각 — 오래 끊기면 빨간불</small></h3>
+                  <h3>수집 상태 <small>채널별 마지막으로 주문이 들어온 시각 · 오래 끊기면 빨간불</small></h3>
                   {stData.sync.map((s) => (
                     <div key={s.ch} className="ch-st-sync">
                       <b className="w-24">{s.label}</b>
                       <span className={`text-[11px] ${s.ageDays >= 3 ? "font-bold text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>
-                        마지막 등록 {s.at.slice(5, 16).replace("T", " ")}{s.ageDays >= 3 ? ` — ${s.ageDays}일 전` : ""}{s.api ? " · API 연동 가능 채널" : ""}
+                        마지막 등록 {s.at.slice(5, 16).replace("T", " ")}{s.ageDays >= 3 ? ` · ${s.ageDays}일 전` : ""}{s.api ? " · API 연동 가능 채널" : ""}
                       </span>
                       {/* API 채널은 가져오기 갈래로 오면서 API 팝업이 바로 열린다 — 클릭 한 번 절약 */}
                       {s.api ? (
@@ -375,7 +376,7 @@ export default function ChannelsPage() {
                   연결된 상품이 없습니다. <b>+ 상품 연결</b>에서
                   <b> 채널 상품코드</b>와 <b>SKU</b>를 연결하세요.<br />
                   연결된 상품코드는 주문 가져오기에서 자동으로 품목에 대응됩니다.
-                  <span className="inv-soon-note">상품명으로 자동 대응하지 않는 이유 — 유사한 상품명이 잘못 대응되면 재고 오류로 이어집니다.</span>
+                  <span className="inv-soon-note">상품명으로 자동 대응하지 않는 이유 · 유사한 상품명이 잘못 대응되면 재고 오류로 이어집니다.</span>
                 </div>
               ) : (
                 <div className="stg-table-wrap">
@@ -625,16 +626,17 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
     const wh = built.head.wh;
     if (!ctl.live.length) { toast("입력된 항목이 없습니다", "error"); return; }
     if (!wh) { toast("출고 창고를 선택하세요", "error"); return; }
-    //   ★ 채널은 붙여넣기·가져오기만 정한다 — 손으로 친 줄은 채널이 없어 등록할 수 없다(어느 채널 주문인지 모른다)
-    if (counts.noCh) { toast(`채널이 없는 줄 ${counts.noCh} — 채널은 엑셀 붙여넣기·채널에서 가져오기로만 정해집니다`, "error"); return; }
-    if (counts.nocode) { toast(`미연결 상품코드 ${counts.nocode}줄 — 품목을 고르거나 상품 연결에서 등록하세요`, "error"); return; }
+    
+    //   ★ 채널은 붙여넣기·가져오기만 정한다. 손으로 친 줄은 채널이 없어 등록할 수 없다(어느 채널 주문인지 모른다)
+    if (counts.noCh)  { toast(`채널이 없는 줄 ${counts.noCh} · 채널은 엑셀 붙여넣기·채널에서 가져오기로만 정해집니다`, "error"); return; }
+    if (counts.nocode) { toast(`미연결 상품코드 ${counts.nocode}줄 · 품목을 고르거나 상품 연결에서 등록하세요`, "error"); return; }
     const lines = built.lines.filter((l) => l.flag !== "dup");
     if (lines.some((l) => !l.product_id || !(l.qty > 0) || !l.ono)) { toast("주문번호·품목·수량을 확인하세요", "error"); return; }
     if (!lines.length) { toast("모두 이미 등록된 주문번호입니다", "error"); return; }
     //   채널별로 한 전표씩
     const groups = new Map<string, typeof lines>();
     for (const l of lines) { groups.set(l.ch, [...(groups.get(l.ch) || []), l]); }
-    const msg = `${lines.length}줄을 출고(판매)로 등록합니다 — ${[...groups.entries()].map(([ch, ls]) => `${channelLabel(ch)} ${ls.length}줄`).join(" · ")}.`
+    const msg = `${lines.length}줄을 출고(판매)로 등록합니다. ${[...groups.entries()].map(([ch, ls]) => `${channelLabel(ch)} ${ls.length}줄`).join(" · ")}.`
       + `${counts.dup ? ` 이미 등록된 ${counts.dup}줄은 건너뜁니다.` : ""}`
       + `${counts.suggest ? ` 연결 제안 ${counts.suggest}줄은 상품 연결에 기억됩니다(다음부터 자동).` : ""} 진행할까요?`;
     if (!(await appConfirm(msg, { confirmLabel: "진행" }))) return;
@@ -677,7 +679,7 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
           <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={save}>출고 등록</button>
         </>
       ) : undefined}>
-        <span className="inv-hint doc-note-move">저장하면 <b>재고가 즉시 차감</b>되고 주문번호가 기록됩니다 — 채널마다 전표 한 건, 같은 주문번호는 중복 등록되지 않습니다.</span>
+        <span className="inv-hint doc-note-move">저장하면 <b>재고가 즉시 차감</b>되고 주문번호가 기록됩니다. 채널마다 전표 한 건, 같은 주문번호는 중복 등록되지 않습니다.</span>
       </QueryBar>
       <ResultStrip>
         <Stat label="줄" value={`${won(ctl.sums.lines)}개`} />
@@ -727,7 +729,7 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
 }
 
 type FieldPick = { on: string[]; off: string[] };
-/** 가져올 항목 안내 — 회사 양식(입력 항목)이 곧 선택기다 */
+/** 가져올 항목 안내 · 회사 양식(입력 항목)이 곧 선택기다 */
 function FieldPickLine({ pick, openForm }: { pick: FieldPick; openForm: () => void }) {
   return (
     <p className="inv-foot ch-pick">
@@ -738,7 +740,9 @@ function FieldPickLine({ pick, openForm }: { pick: FieldPick; openForm: () => vo
   );
 }
 
-// ── 엑셀 붙여넣기 — 채널을 고르고 격자에 깐다 ──────────────────────────────
+
+
+// ── 엑셀 붙여넣기 · 채널을 고르고 격자에 깐다 ──────────────────────────────
 function PasteDialog({ tabs, pick, openForm, onClose, onRows }: { tabs?: React.ReactNode; pick: FieldPick; openForm: () => void; onClose: () => void; onRows: (r: (RawOrderRow & { channel: string })[]) => void }) {
   const [channel, setChannel] = useState<ChannelValue>(CHANNELS[0].value);
   const [text, setText] = useState("");
@@ -770,7 +774,9 @@ function PasteDialog({ tabs, pick, openForm, onClose, onRows }: { tabs?: React.R
         <h3 className="inv-modal-title">주문 엑셀 붙여넣기</h3>
         <p className="inv-modal-desc">
           열 순서: <b>주문번호 · 채널 상품코드 · 수량</b> · 단가 · 주문일 · 주문자 · <b>수취인 · 연락처 · 주소 · 배송 요청 · 우편번호</b>
-          (4열부터는 선택 — 비우려면 빈 칸으로 두세요). 엑셀에서 해당 열을 복사해 붙여 넣으세요. 격자에 채워지기만 하고, 출고 등록은 따로 누릅니다.
+          
+          (4열부터는 선택 · 비우려면 빈 칸으로 두세요). 엑셀에서 해당 열을 복사해 붙여 넣으세요. 격자에 채워지기만 하고, 출고 등록은 따로 누릅니다.
+        
         </p>
         <FieldPickLine pick={pick} openForm={openForm} />
         <label className="inv-field"><span>채널 *</span>
@@ -800,7 +806,9 @@ function PasteDialog({ tabs, pick, openForm, onClose, onRows }: { tabs?: React.R
   );
 }
 
-// ── 채널 API 에서 한 번에 가져오기 — 키가 등록된 채널을 모두 부른다 ──────────
+
+
+// ── 채널 API 에서 한 번에 가져오기 · 키가 등록된 채널을 모두 부른다 ──────────
 function FetchDialog({ tabs, pick, openForm, onClose, onRows }: { tabs?: React.ReactNode; pick: FieldPick; openForm: () => void; onClose: () => void; onRows: (r: (RawOrderRow & { channel: string })[]) => void }) {
   const [from, setFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().slice(0, 10); });
   const [to, setTo] = useState(todayKst);
@@ -813,8 +821,8 @@ function FetchDialog({ tabs, pick, openForm, onClose, onRows }: { tabs?: React.R
         {tabs}
         <h3 className="inv-modal-title">채널에서 주문 가져오기</h3>
         <p className="inv-modal-desc">
-          설정에 API 키가 등록된 채널({apiChannels.map((c) => c.label).join(" · ")})의 결제 완료 주문을 <b>한 번에</b> 받아
-          채널순으로 격자에 채웁니다. 재고에는 아직 반영되지 않습니다 — 확인 후 <b>출고 등록</b>을 누르세요.
+          설정에 API 키가 등록된 채널({apiChannels.map((c) => c.label).join(" · ")})의 결제 완료 주문을 <b>한 번에</b>  받아
+          채널순으로 격자에 채웁니다. 재고에는 아직 반영되지 않습니다. 확인 후  <b>출고 등록</b>을 누르세요.
           나머지 채널은 엑셀 붙여넣기를 이용합니다.
         </p>
         <FieldPickLine pick={pick} openForm={openForm} />
@@ -852,7 +860,7 @@ function FetchDialog({ tabs, pick, openForm, onClose, onRows }: { tabs?: React.R
 }
 
 // ── 출고 처리 · 송장 (2026-08-26 사장님 지시 ②) ─────────────────────────────────
-//   "이커머스는 출고 처리를 해야 한다 — 배송 요청사항·주문자 정보(연락처·주소)를 가져와야 의미가 있다."
+//   "이커머스는 출고 처리를 해야 한다. 배송 요청사항·주문자 정보(연락처·주소)를 가져와야 의미가 있다."
 //   ★ 기준 — 출고 등록(재고 차감)과 **발송(송장)** 은 다른 일이다. 재고는 등록 순간 빠지고, 여기서는 '실제로 보냈나'만 다룬다.
 //     상태는 출고 대기 → 발송(송장 있음) → 배송 완료. 되돌리기는 발송 취소(송장 지움·대기로).
 //   ★ 송장 파일은 택배사 공통 열(주문번호·수취인·연락처·주소·상품·수량·배송 메시지)로 낸다 —
@@ -928,7 +936,7 @@ function useShipPanel({ companyId, userId, imports, products, canWrite, onDone }
     const rows = target.map((i) => sheetRow(i, itemsOf(i), layout.columns));
     exportToExcel(rows, "송장", `송장_${layout.name.replace(/[\\/:*?"<>|]/g, "")}_${todayKst()}`);
     setSheetOpen(false);
-    toast(`${rows.length}줄을 '${layout.name}' 양식으로 내려받았습니다 — 택배사 프로그램에 올리고, 돌려받은 송장번호를 '송장번호 붙여넣기'로 넣으세요`, "success");
+    toast(`${rows.length}줄을 '${layout.name}' 양식으로 내려받았습니다. 택배사 프로그램에 올리고, 돌려받은 송장번호를 '송장번호 붙여넣기'로 넣으세요`, "success");
   };
 
   const head = (
@@ -938,7 +946,7 @@ function useShipPanel({ companyId, userId, imports, products, canWrite, onDone }
       ) : undefined}>
         <ChipGroup value={view} onChange={(v) => { setView(v as ShipView); setSel(new Set()); }}
           options={SHIP_VIEWS.map(([k, l]) => ({ value: k, label: k === "all" ? l : `${l} ${counts[k as keyof typeof counts]}` }))} />
-        <QuickSearch value={q} onApply={setQ} placeholder="주문번호 · 수취인 · 연락처 · 주소 · 상품 · 송장번호 — 쉼표로 여러 개, Enter" />
+        <QuickSearch value={q} onApply={setQ} placeholder="주문번호 · 수취인 · 연락처 · 주소 · 상품 · 송장번호 · 쉼표로 여러 개, Enter" />
       </QueryBar>
       <ResultStrip>
         <Stat label="출고 대기" value={`${counts.pending}건`} tone={counts.pending ? "minus" : undefined} />
@@ -1032,7 +1040,9 @@ function useShipPanel({ companyId, userId, imports, products, canWrite, onDone }
   return { head, body, pagerEl, selbar, dialogs, setView };
 }
 
-/** 송장 양식 고르기 — 표준 택배사 양식 + 내 양식. 미리보기(열 머리글)와 [양식 만들기/고치기] */
+
+
+/** 송장 양식 고르기 · 표준 택배사 양식 + 내 양식. 미리보기(열 머리글)와 [양식 만들기/고치기] */
 function SheetDialog({ companyId, userId, count, onClose, onExport }: {
   companyId: string; userId: string | null; count: number; onClose: () => void; onExport: (l: SheetLayout) => void;
 }) {
@@ -1082,7 +1092,7 @@ function SheetDialog({ companyId, userId, count, onClose, onExport }: {
                 await qc.invalidateQueries({ queryKey: ["sheet-layouts", companyId] });
                 const saved = (await listSheetLayouts(companyId)).find((x) => x.name === l.name.trim());
                 if (saved) setPick(saved.id);
-                setEditing(null); toast("양식을 저장했습니다 — 회사 전체에서 쓸 수 있습니다", "success");
+                setEditing(null); toast("양식을 저장했습니다. 회사 전체에서 쓸 수 있습니다", "success");
               } catch (e) { toast(friendlyError(e, "양식을 저장하지 못했습니다"), "error"); }
             }} />
         )}
@@ -1091,7 +1101,9 @@ function SheetDialog({ companyId, userId, count, onClose, onExport }: {
   );
 }
 
-/** 양식 편집 — 열 추가·순서·머리글 이름. 값은 SHEET_FIELDS 중에서 고른다 */
+
+
+/** 양식 편집 · 열 추가·순서·머리글 이름. 값은 SHEET_FIELDS 중에서 고른다 */
 function SheetLayoutEditor({ layout, onClose, onSave }: { layout: SheetLayout; onClose: () => void; onSave: (l: SheetLayout) => void }) {
   const [name, setName] = useState(layout.name);
   const [cols, setCols] = useState<SheetColumn[]>(layout.columns);
@@ -1134,7 +1146,9 @@ function SheetLayoutEditor({ layout, onClose, onSave }: { layout: SheetLayout; o
   );
 }
 
-/** 발송 처리 — 택배사 하나 + 줄마다 송장번호(없어도 발송으로 기록할 수 있다: 직접 배달·방문 수령) */
+
+
+/** 발송 처리 · 택배사 하나 + 줄마다 송장번호(없어도 발송으로 기록할 수 있다: 직접 배달·방문 수령) */
 function ShipDialog({ rows, itemText, onClose, onSave }: {
   rows: OrderImport[]; itemText: (i: OrderImport) => string; onClose: () => void;
   onSave: (carrier: string, tracking: Record<string, string>) => void;
@@ -1172,7 +1186,9 @@ function ShipDialog({ rows, itemText, onClose, onSave }: {
   );
 }
 
-/** 송장번호 붙여넣기 — 택배사 프로그램이 준 "주문번호 ⇥ 송장번호" */
+
+
+/** 송장번호 붙여넣기 · 택배사 프로그램이 준 "주문번호 ⇥ 송장번호" */
 function PasteTrackingDialog({ imports, onClose, onSave }: {
   imports: OrderImport[]; onClose: () => void; onSave: (carrier: string, pairs: { id: string; no: string }[]) => void;
 }) {

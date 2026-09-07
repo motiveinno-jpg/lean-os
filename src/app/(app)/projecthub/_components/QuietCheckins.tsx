@@ -57,7 +57,7 @@ export function QuietCheckins({ companyId, userId, deals, tasks, outstandingOf, 
     enabled: !!companyId && dealIds.length > 0,
   });
 
-  // 이번 주는 넘기기 — 주차 단위로 기억한다(다음 주엔 다시 묻는다).
+  // 이번 주는 넘기기 · 주차 단위로 기억한다(다음 주엔 다시 묻는다).
   const [snoozed, setSnoozed] = useState<string[]>([]);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -73,7 +73,7 @@ export function QuietCheckins({ companyId, userId, deals, tasks, outstandingOf, 
 
   const rows = useMemo(() => {
     if (!deals.length) return [] as { deal: Deal; quietDays: number; draft: string }[];
-    // 프로젝트별 마지막 움직임 — 프로젝트 자체 수정 / 업무 변경 / 지난 체크인 중 가장 최근
+    // 프로젝트별 마지막 움직임. 프로젝트 자체 수정 / 업무 변경 / 지난 체크인 중 가장 최근
     const lastAct: Record<string, number> = {};
     const touch = (id: string, iso?: string | null) => {
       if (!id || !iso) return;

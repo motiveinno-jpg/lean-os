@@ -109,20 +109,22 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
           return (
             <button key={c.key} type="button"
               className={`chat-cal-day ${c.key === today ? "chat-cal-day-today" : ""} ${inDrag ? "chat-cal-day-pick" : ""}`}
-              //   눌러서 끌면 여러 날 — 손을 떼는 순간(window mouseup) 입력 창이 열린다
+              
+              //   눌러서 끌면 여러 날 · 손을 떼는 순간(window mouseup) 입력 창이 열린다
               onMouseDown={() => { dragRef.current = { start: c.key }; setDragTo(c.key); }}
               onMouseEnter={() => { if (dragRef.current) setDragTo(c.key); }}
-              //   키보드로도 열 수 있게 — Enter/Space 는 하루짜리로 연다
+              
+              //   키보드로도 열 수 있게 · Enter/Space 는 하루짜리로 연다
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   setOpen({ mode: "new", from: c.key, to: c.key });
                 }
               }}
-              title={`${c.key} — 누르면 그 날, 끌면 여러 날 일정`}>
+              title={`${c.key} · 누르면 그 날, 끌면 여러 날 일정`}>
               <span className={`chat-cal-daynum ${dow === 0 ? "chat-cal-sun" : dow === 6 ? "chat-cal-sat" : ""}`}>{c.d}</span>
               {list.slice(0, 3).map((e) => (
-                <span key={e.id} className={`chat-cal-ev ${EVENT_COLOR_BG[e.color] || ""}`} title={`${e.title} — 누르면 내용을 봅니다`}
+                <span key={e.id} className={`chat-cal-ev ${EVENT_COLOR_BG[e.color] || ""}`} title={`${e.title} · 누르면 내용을 봅니다`}
                   onMouseDown={(ev) => { ev.stopPropagation(); }}
                   onClick={(ev) => { ev.stopPropagation(); setOpen({ mode: "view", event: e }); }}>{e.title}</span>
               ))}

@@ -44,12 +44,12 @@ export const DOC_CATALOG: DocSpec[] = [
   {
     key: "biz_cert", label: "사업자등록증명", source: "홈택스", validDays: 30,
     url: "https://www.hometax.go.kr", match: ["사업자등록증명", "사업자 등록 증명"],
-    hint: "'등록증'과 다른 서류입니다 — 발급일이 최근이어야 합니다.",
+    hint: "'등록증'과 다른 서류입니다. 발급일이 최근이어야 합니다.",
   },
   {
     key: "tax_clear_national", label: "국세 완납증명서", source: "홈택스", validDays: 30,
     url: "https://www.hometax.go.kr", match: ["국세완납", "국세 완납", "납세증명", "납세 증명"],
-    hint: "체납이 있으면 발급되지 않습니다 — 신청 전에 미리 떼 보세요.",
+    hint: "체납이 있으면 발급되지 않습니다. 신청 전에 미리 떼 보세요.",
   },
   {
     key: "tax_clear_local", label: "지방세 완납증명서", source: "위택스", validDays: 30,
@@ -110,7 +110,7 @@ export const DOC_CATALOG: DocSpec[] = [
   {
     key: "biz_plan", label: "사업계획서", source: "회사 작성",
     match: ["사업계획", "사업 계획"],
-    hint: "공고마다 정해진 양식이 있습니다 — 공고문에서 내려받으세요.",
+    hint: "공고마다 정해진 양식이 있습니다. 공고문에서 내려받으세요.",
   },
   {
     key: "venture_cert", label: "벤처기업확인서", source: "정부24",
@@ -224,7 +224,7 @@ export function checkDoc(spec: DocSpec, files: CompanyFile[], today: string): Do
     if (spec.validDays && ageDays !== undefined && ageDays > spec.validDays) {
       return {
         spec, status: "stale", file: hit, ageDays,
-        note: `보관함에 있지만 올린 지 ${ageDays}일 됐습니다 — ${spec.validDays}일 이내 발급본을 요구합니다`,
+        note: `보관함에 있지만 올린 지 ${ageDays}일 됐습니다. ${spec.validDays}일 이내 발급본을 요구합니다`,
       };
     }
     return { spec, status: "have", file: hit, ageDays, note: "파일보관함에서 찾았습니다" };

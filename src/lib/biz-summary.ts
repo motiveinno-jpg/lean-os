@@ -98,7 +98,7 @@ export async function fetchBizSummary(companyId: string, month: string, userId?:
   // ── 이번 주 챙길 것 (규칙 — 찾아만 놓는다, 확인은 사람이) ──
   const todos: Todo[] = [];
   if (arap0.over30 > 0) todos.push({ key: "ar30", kind: "미수", tone: "r", text: `30일 넘은 미수금 ${arap0.over30Partners}곳`, sub: "세금계산서 발행일 기준 · 잔액 = 총액 − 입금", amount: arap0.over30, href: "/partners/ledger" });
-  if (unposted.taxInvoice > 0) todos.push({ key: "unposted-ti", kind: "전표", tone: "y", text: `세금계산서 ${unposted.taxInvoice}건 미처리 — 손익이 실제와 다르게 보입니다`, amount: unpostedSalesAmt > 0 ? unpostedSalesAmt : undefined, href: "/collect" });
+  if (unposted.taxInvoice > 0) todos.push({ key: "unposted-ti", kind: "전표", tone: "y", text: `세금계산서 ${unposted.taxInvoice}건 미처리 · 손익이 실제와 다르게 보입니다`, amount: unpostedSalesAmt > 0 ? unpostedSalesAmt : undefined, href: "/collect" });
   if (unposted.card + unposted.bank > 0) todos.push({ key: "unposted-etc", kind: "전표", tone: "y", text: `카드 ${unposted.card}건 · 통장 ${unposted.bank}건 미처리`, href: "/collect" });
   if (vatNext && vatNextRaw!.netVAT > 0) todos.push({ key: "vat", kind: "세금", tone: vatNext.dday <= 14 ? "r" : "y", text: `부가세 납부 D-${vatNext.dday}`, sub: `${vatNext.due} · 예상`, amount: vatNext.amount, href: "/reports/vat" });
   if (balance < due30) todos.push({ key: "short", kind: "자금", tone: "r", text: "30일 안에 낼 돈이 통장 잔액보다 많습니다", sub: `낼 돈 ${Math.round(due30).toLocaleString()} > 잔액 ${Math.round(balance).toLocaleString()}`, href: "/reports/outlook" });

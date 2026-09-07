@@ -18,19 +18,23 @@ export function useTheme() {
   return useContext(ThemeContext);
 }
 
+
+
 const THEME_KEY = "leanos-theme";
 
-/** 저장해 둔 취향 — 없거나 이상한 값이면 밝은 화면 */
-function savedTheme(): Theme {
+/** 저장해 둔 취향 · 없거나 이상한 값이면 밝은 화면 */
+function savedTheme(): Theme  {
   if (typeof window === "undefined") return "light";
   return localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light";
 }
 
+
+
 /*  ── 랜딩 계열은 언제나 밝게 (2026-08-14 사장님 지시로 이 PC 에서 처리) ──
  *
- *  랜딩·무료 도구 화면(landing.css, lp4-)은 **밝은 화면 하나로만** 그려져 있다 — 어두운 짝이 없다.
+ *  랜딩·무료 도구 화면(landing.css, lp4-)은 **밝은 화면 하나로만** 그려져 있다. 어두운 짝이 없다.
  *  그런데 달력·드롭다운처럼 **화면 위로 겹쳐 뜨는 부품은 body 로 나가** 랜딩 화면 바깥에 그려지고,
- *  거기서는 <html data-theme> 를 그대로 따른다. 그래서 앱에서 다크를 쓰던 사람이 무료 도구에 오면
+ *  거기서는  <html data-theme> 를 그대로 따른다. 그래서 앱에서 다크를 쓰던 사람이 무료 도구에 오면
  *  밝은 페이지 위에 **검은 달력**이 떴다 (2026-08-14 무료 도구 달력 교체 때 실측으로 확인).
  *
  *  고치는 자리를 부품(달력)이 아니라 **테마**로 잡은 이유: 달력만 고쳐 두면 다음에 랜딩에 올려 쓰는

@@ -119,7 +119,7 @@ export const STARTERS: Starter[] = [
   },
   {
     key: "internal", icon: "🛠", name: "사내 개선·TF",
-    desc: "할 일 · 회의록 위주 — 돈 없는 프로젝트",
+    desc: "할 일 · 회의록 위주 · 돈 없는 프로젝트",
     firstTab: "todo",
     seeds: [
       { kind: "todo", name: "현황 정리" },

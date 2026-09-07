@@ -1,22 +1,22 @@
 "use client";
-import { koFallback } from "@/lib/ko-label";
+import { koFallback }  from "@/lib/ko-label";
 
-// 광고 계정 연동 — 회사가 쓰는 광고 계정을 여기 한 번만 등록하고, 프로젝트에서는 골라 쓴다
+// 광고 계정 연동 · 회사가 쓰는 광고 계정을 여기 한 번만 등록하고, 프로젝트에서는 골라 쓴다
 //   (2026-08-06 사장님 지시: "대행사면 클라이언트마다 광고계정을 등록할 수도 있다").
 //
 // ⚠️ 키는 저장하는 순간 DB 안에서 암호화되고, **다시는 화면으로 내려오지 않는다**.
 //    (등록돼 있는지 여부만 보여 준다. 바꾸려면 새로 넣는다.)
 
-import { useRef, useState } from "react";
+import  { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
-import { useToast } from "@/components/toast";
+import { useToast }  from "@/components/toast";
 
 const db = supabase as any;
 
-/** 지금 붙는 매체 — 검색광고부터. 나머지는 키 발급 절차가 끝나는 대로 연다 */
-const PLATFORMS: { key: string; label: string; idLabel: string; idHint: string; ready: boolean }[] = [
+/** 지금 붙는 매체 · 검색광고부터. 나머지는 키 발급 절차가 끝나는 대로 연다 */
+const PLATFORMS:  { key: string; label: string; idLabel: string; idHint: string; ready: boolean }[] = [
   { key: "naver_sa", label: "네이버 검색광고", idLabel: "CUSTOMER ID", idHint: "검색광고 > 도구 > API 사용 관리에서 확인", ready: true },
   { key: "naver_gfa", label: "네이버 GFA(성과형 디스플레이)", idLabel: "고객 ID", idHint: "검색광고와 다른 키입니다", ready: false },
   { key: "google_ads", label: "구글 애즈", idLabel: "고객 ID", idHint: "개발자 토큰 승인 후", ready: false },
@@ -94,7 +94,7 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
       if (error) throw new Error(error.message);
       const r = (data as any)?.results?.[0];
       qc.invalidateQueries({ queryKey: ["ad-accounts", companyId] });
-      if (r?.ok) toast(`${acc.label} — 캠페인 ${r.campaigns}개, 최근 3일치 ${r.rows}줄을 가져왔습니다.`, "success");
+      if (r?.ok) toast(`${acc.label} · 캠페인 ${r.campaigns}개, 최근 3일치 ${r.rows}줄을 가져왔습니다.`, "success");
       else toast(r?.error || "가져오지 못했습니다.", "error");
     } catch (e: any) {
       toast(e?.message || "가져오기 실패", "error");
@@ -165,7 +165,7 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
               <select value={form.platform} onChange={(e) => setForm((f) => ({ ...f, platform: e.target.value }))}>
                 {PLATFORMS.map((p) => (
                   <option key={p.key} value={p.key} disabled={!p.ready}>
-                    {p.label}{p.ready ? "" : " — 준비 중"}
+                    {p.label}{p.ready ? "" : " · 준비 중"}
                   </option>
                 ))}
               </select>
@@ -193,7 +193,7 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
                 onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value.trim() }))} placeholder="0100000000…" />
             </label>
             <label className="ad-acc-field">
-              <span>비밀키 <em className="ad-acc-hint">시크릿 키 — API 키와 헷갈리기 쉽습니다</em></span>
+              <span>비밀키 <em className="ad-acc-hint">시크릿 키 · API 키와 헷갈리기 쉽습니다</em></span>
               <input value={form.apiSecret} autoComplete="off" data-1p-ignore data-lpignore="true" spellCheck={false}
                 className={reveal ? "" : "ad-acc-secret"}
                 onChange={(e) => setForm((f) => ({ ...f, apiSecret: e.target.value.trim() }))} placeholder="0100000000…" />

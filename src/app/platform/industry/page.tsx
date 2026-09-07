@@ -8,11 +8,11 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfEmpty, PfRows, PfRow, PfBar } from "@/app/platform/_components/pf/ui";
-import { PfDonut, PfBars } from "@/app/platform/_components/pf/charts";
+import { PfDonut, PfBars }  from "@/app/platform/_components/pf/charts";
 
 const db = supabase;
 
-// KSIC 대분류 간소화 — 13개 카테고리
+// KSIC 대분류 간소화 · 13개 카테고리
 const INDUSTRY_OPTIONS = [
   "IT/소프트웨어",
   "제조",
@@ -29,7 +29,7 @@ const INDUSTRY_OPTIONS = [
   "기타",
 ];
 
-function fmtW(n: number | null | undefined): string {
+function fmtW(n: number | null | undefined): string  {
   const x = Number(n || 0);
   const abs = Math.abs(x);
   const sign = x < 0 ? "-" : "";

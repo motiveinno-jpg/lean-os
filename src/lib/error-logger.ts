@@ -124,7 +124,7 @@ export function explainError(rawMessage: string, context?: Record<string, unknow
   if (/not_advisor|not_linked|not_master|app_denied|not authorized|운영자만|권한이 없습니다/.test(hay)) {
     return {
       type: "app_denied", severity: "low",
-      title: "권한 없음 — 정상 거절",
+      title: "권한 없음. 정상 거절",
       detail: "권한이 없는 계정의 요청을 앱이 설계대로 거절했습니다 (예: 세무사가 아닌 계정의 세무사 화면 접속, 마스터 전용 조회). 보안이 동작한 기록이지 결함이 아닙니다.",
       hint: "권한 경계 정상 동작",
       fix: [
@@ -247,7 +247,7 @@ export function explainError(rawMessage: string, context?: Record<string, unknow
       type: "ai_monthly_cap", severity: "low",
       title: "AI 월 사용 한도 도달 (고객 안내)",
       detail: "해당 회사가 요금제의 월 AI 사용 한도에 도달해 안내 문구가 나간 것입니다. 서버 장애가 아닙니다.",
-      hint: "요금제 한도 — 다음 달 초기화",
+      hint: "요금제 한도 · 다음 달 초기화",
       fix: ["반복되면 해당 회사에 상위 요금제 안내", "한도 집계가 이상하면 ai_usage_log 의 feature 별 건수 확인"],
     };
   }
@@ -279,7 +279,7 @@ export function explainError(rawMessage: string, context?: Record<string, unknow
       title: "예약 호출(크론 → 서버 기능) 실패",
       detail: "예약 작업이 서버 기능을 불렀는데 5xx 응답이나 시간 초과였습니다.",
       hint: "같은 시각의 서버 기능 오류와 짝지어 보기",
-      fix: ["같은 시각 '서버 기능 실패' 항목이 있으면 그것이 원인", "없으면 함수가 응답 전에 죽은 것 — 함수 로그 확인"],
+      fix: ["같은 시각 '서버 기능 실패' 항목이 있으면 그것이 원인", "없으면 함수가 응답 전에 죽은 것 · 함수 로그 확인"],
     };
   }
   if (/^server$/.test(hay)) {
@@ -313,7 +313,7 @@ export function explainError(rawMessage: string, context?: Record<string, unknow
       detail: "서버 또는 DB가 제때 응답하지 못했습니다. DB 과부하/다운 또는 무거운 쿼리일 수 있습니다.",
       hint: "백엔드 응답 지연",
       fix: [
-        "Supabase 프로젝트 상태(헬스) 확인 — db/auth/rest",
+        "Supabase 프로젝트 상태(헬스) 확인 · db/auth/rest",
         "필요 시 DB 재시작 또는 느린 쿼리 인덱스 추가",
         "동일 시간대 반복되면 인프라(요금제/커넥션) 점검",
       ],
@@ -404,8 +404,8 @@ export function explainError(rawMessage: string, context?: Record<string, unknow
       detail: "정의되지 않았거나 선언 전인 변수를 참조해 화면이 죽었습니다. 빌드는 통과하지만 실행 시 터지는 코드 결함으로, 배포·개발 중간 상태에서 주로 발생합니다.",
       hint: "변수/상수 참조가 임포트·선언과 어긋남",
       fix: [
-        "메시지의 식별자를 코드에서 grep — 임포트 누락 또는 선언 순서 확인",
-        "URL 이 localhost 면 개발 중 잔재 — 커밋 완료 후 재발 없는지 확인",
+        "메시지의 식별자를 코드에서 grep · 임포트 누락 또는 선언 순서 확인",
+        "URL 이 localhost 면 개발 중 잔재 · 커밋 완료 후 재발 없는지 확인",
         "프로덕션이면 즉시 수정 배포 (해당 화면 전체가 안 뜨는 상태)",
       ],
     };
@@ -440,7 +440,7 @@ export function explainError(rawMessage: string, context?: Record<string, unknow
       hint: "컴포넌트 렌더 규칙 위반",
       fix: [
         "메시지의 오류 번호를 react.dev/errors/{번호} 에서 확인",
-        "#310 은 훅이 조건부·조기 반환 뒤에 있는 경우 — 게이트를 래퍼로 분리",
+        "#310 은 훅이 조건부·조기 반환 뒤에 있는 경우 · 게이트를 래퍼로 분리",
         "배포 직후 한 사용자에게 몰렸다면 이미 고쳐졌는지 커밋 시각과 대조",
       ],
     };
@@ -459,7 +459,7 @@ export function explainError(rawMessage: string, context?: Record<string, unknow
     type: "unknown", severity: "medium",
     title: "분류되지 않은 오류",
     detail: "자동 분류 규칙에 매칭되지 않은 에러입니다. 아래 원본 메시지와 스택을 보고 원인을 파악하세요.",
-    hint: "신규 패턴 — 분류 미등록",
+    hint: "신규 패턴 · 분류 미등록",
     fix: [
       "원본 메시지/스택으로 원인 파악",
       "자주 보이면 explainError 에 분류 규칙 추가",

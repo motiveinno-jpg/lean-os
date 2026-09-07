@@ -57,23 +57,23 @@ const fmtKst = (iso: string) =>
 function feedLine(f: Feed["feed"][number]): { icon: string; text: string; sub: string; tone?: "danger" | "warn" } {
   switch (f.kind) {
     case "account":
-      return { icon: "🧑", text: `계정 생성 — ${f.who}`, sub: `${f.what === "email" ? "이메일" : f.what} 가입` };
+      return { icon: "🧑", text: `계정 생성 · ${f.who}`, sub: `${f.what === "email" ? "이메일" : f.what} 가입` };
     case "company":
-      return { icon: "🏢", text: `회사 개설 — ${f.who}`, sub: f.what ? `사업자번호 ${f.what}` : "" };
+      return { icon: "🏢", text: `회사 개설 · ${f.who}`, sub: f.what ? `사업자번호 ${f.what}` : "" };
     case "subscription":
       return {
         icon: "💳",
-        text: `${f.who} — ${f.what === "trialing" ? "무료체험 시작" : "구독 시작"}`,
+        text: `${f.who} · ${f.what === "trialing" ? "무료체험 시작" : "구독 시작"}`,
         sub: f.extra ? `${f.extra} 플랜` : "",
       };
     case "audit":
-      return { icon: "📋", text: `${f.who || "고객사"} — ${auditLabel(f.what)}`, sub: f.extra ? `처리: ${f.extra}` : "" };
+      return { icon: "📋", text: `${f.who || "고객사"} · ${auditLabel(f.what)}`, sub: f.extra ? `처리: ${f.extra}` : "" };
     case "error": {
       const exp = explainError(f.what, f.extra, null);
-      return { icon: "⚠️", text: `오류 — ${exp?.what || f.what || "알 수 없는 오류"}`, sub: `${f.who ? `발생: ${f.who}` : ""}${exp?.fix ? ` · 조치: ${exp.fix}` : ""}`, tone: "danger" };
+      return { icon: "⚠️", text: `오류 · ${exp?.what || f.what || "알 수 없는 오류"}`, sub: `${f.who ? `발생: ${f.who}` : ""}${exp?.fix ? ` · 조치: ${exp.fix}` : ""}`, tone: "danger" };
     }
     case "operator":
-      return { icon: "🛠️", text: `운영자 작업 — ${f.what}`, sub: f.who || "" };
+      return { icon: "🛠️", text: `운영자 작업 · ${f.what}`, sub: f.who || "" };
     default:
       return { icon: "•", text: f.what || f.kind, sub: "" };
   }
@@ -83,7 +83,7 @@ type LightTone = "ok" | "warn" | "danger" | "loading";
 const LIGHT_LABEL: Record<LightTone, string> = { ok: "정상", warn: "주의", danger: "문제", loading: "확인 중" };
 const LIGHT_BADGE: Record<LightTone, "ok" | "warn" | "danger" | "muted"> = { ok: "ok", warn: "warn", danger: "danger", loading: "muted" };
 
-/** 신호등 타일 — 한 항목의 지금 상태. */
+/** 신호등 타일 · 한 항목의 지금 상태. */
 function Light({ label, tone, desc, i }: { label: string; tone: LightTone; desc: string; i: number }) {
   const dot = tone === "ok" ? "pf-live" : tone === "loading" ? "pf-live pf-live-off" : "";
   const dotColor = tone === "warn" ? "#D97706" : tone === "danger" ? "var(--danger)" : undefined;
@@ -148,7 +148,7 @@ export default function PlatformHealthPage() {
     return feed.filter((f) => f.who === companyFilter);
   }, [data, companyFilter]);
 
-  // 전체 판정 한 줄 — 신호등 5개 중 가장 나쁜 것
+  // 전체 판정 한 줄 · 신호등 5개 중 가장 나쁜 것
   const worst: LightTone = [signupTone, payTone, errTone, depsTone].includes("danger") ? "danger"
     : [signupTone, payTone, errTone, depsTone].includes("warn") ? "warn"
     : !h ? "loading" : "ok";
@@ -158,6 +158,7 @@ export default function PlatformHealthPage() {
     : "모든 항목이 정상이에요";
 
   return (
+    
     <PfPage>
       <PfPageHead
         eyebrow="운영"
@@ -172,8 +173,8 @@ export default function PlatformHealthPage() {
           <div className="px-5 py-3 text-[12px] text-[var(--danger)]">
             <span className="font-bold"><Ico e="⚠" /> 데이터를 불러오지 못했습니다.</span>{" "}
             {/forbidden|운영자/i.test((feedError as any)?.message || "")
-              ? "권한 없음 — 플랫폼 운영자 계정(creative@mo-tive.com)만 조회할 수 있습니다."
-              : `조회 실패 — ${(feedError as any)?.message || "네트워크 또는 서버 오류"}`}
+              ? "권한 없음. 플랫폼 운영자 계정(creative@mo-tive.com)만 조회할 수 있습니다."
+              : `조회 실패 · ${(feedError as any)?.message || "네트워크 또는 서버 오류"}`}
           </div>
         </PfCard>
       )}
@@ -181,9 +182,9 @@ export default function PlatformHealthPage() {
       {/* ① 지금 문제 있나 — 신호등 타일 */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         <Light i={2} label="가입" tone={signupTone}
-          desc={h ? `24시간 계정 ${h.signup.accounts}명 · 회사 등록 ${h.signup.companies}곳${signupTone === "warn" ? " — 계정만 생기고 회사 등록이 없어요" : ""}` : "확인 중"} />
+          desc={h ? `24시간 계정 ${h.signup.accounts}명 · 회사 등록 ${h.signup.companies}곳${signupTone === "warn" ? " · 계정만 생기고 회사 등록이 없어요" : ""}` : "확인 중"} />
         <Light i={3} label="결제" tone={payTone}
-          desc={h ? (h.payment.failures > 0 ? `결제 실패 ${h.payment.failures}건 — 확인이 필요해요` : `구독 시작 ${h.payment.subs_started}건 · 실패 없음`) : "확인 중"} />
+          desc={h ? (h.payment.failures > 0 ? `결제 실패 ${h.payment.failures}건 · 확인이 필요해요` : `구독 시작 ${h.payment.subs_started}건 · 실패 없음`) : "확인 중"} />
         <Light i={4} label="오류" tone={errTone}
           desc={h ? (h.errors_24h === 0 ? "24시간 동안 오류 없음" : `24시간 동안 ${h.errors_24h}건`) : "확인 중"} />
         <Light i={5} label="외부 서비스" tone={depsTone}
@@ -222,7 +223,7 @@ export default function PlatformHealthPage() {
         {isLoading ? (
           <div className="px-5 pb-5"><PfSkeleton rows={6} h={14} /></div>
         ) : feedError ? (
-          <PfEmpty>위 안내를 확인하세요 — 데이터 조회에 실패했습니다.</PfEmpty>
+          <PfEmpty>위 안내를 확인하세요. 데이터 조회에 실패했습니다.</PfEmpty>
         ) : shownFeed.length === 0 ? (
           <PfEmpty>{companyFilter === "all" ? "최근 48시간 동안 기록된 활동이 없습니다." : "이 회사의 최근 활동이 없습니다."}</PfEmpty>
         ) : (

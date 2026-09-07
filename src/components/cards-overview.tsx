@@ -10,9 +10,9 @@ import { downloadCsv, rangeSuffix } from "@/lib/csv-export";
 import { DateField } from "@/components/date-field";
 import { useQuery } from "@tanstack/react-query";
 import { TileIcon } from "@/components/ui/icon-tile";
-import { getCardSpendByCompany, type CardSpendCard } from "@/lib/card-transactions";
+import { getCardSpendByCompany, type CardSpendCard }  from "@/lib/card-transactions";
 
-// 카드사 브랜드색 매핑 상수 (하드코딩 금지 규칙 — 브랜드색은 매핑 상수 허용)
+// 카드사 브랜드색 매핑 상수 (하드코딩 금지 규칙 · 브랜드색은 매핑 상수 허용)
 //   logo: public/card-logos/{logo} 파일이 있으면 로고 이미지 표시, 없으면(404) 색상 이니셜로 자동 폴백.
 const COMPANY_STYLE: Record<string, { color: string; initial: string; fg?: string; logo?: string }> = {
   국민카드: { color: "#FFBC00", initial: "KB", fg: "#1a1a1a", logo: "kb.svg" },
@@ -98,7 +98,9 @@ function defaultRange(): { from: Date; to: Date } {
   return { from, to: now };
 }
 
-// TeamHub KPI 카드 — 상단 통계 (지출 기준: 증가=danger 빨강, 감소=success 초록)
+
+
+// TeamHub KPI 카드 · 상단 통계 (지출 기준: 증가=danger 빨강, 감소=success 초록)
 function StatCard({ tone, icon, label, value, trend }: {
   tone: "danger" | "brand" | "info" | "warning";
   icon: string;

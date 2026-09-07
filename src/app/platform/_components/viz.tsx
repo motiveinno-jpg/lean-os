@@ -10,7 +10,7 @@ export const VIZ_GRAY = "#9ca3af";
 
 export type DonutSegment = { label: string; value: number; color: string };
 
-/** 도넛 차트 — 중앙 헤드라인 + 세그먼트 2px 간격. 범례/수치는 호출측이 옆에 리스트로 붙인다. */
+/** 도넛 차트 · 중앙 헤드라인 + 세그먼트 2px 간격. 범례/수치는 호출측이 옆에 리스트로 붙인다. */
 export function Donut({ segments, size = 148, thickness = 15, centerTop, centerSub }: {
   segments: DonutSegment[];
   size?: number;
@@ -63,7 +63,9 @@ export function Donut({ segments, size = 148, thickness = 15, centerTop, centerS
   );
 }
 
-/** 반원 게이지 — 단일 비율(0~100%)용. 다크 카드 안에서도 쓰므로 색을 인자로 받는다. */
+
+
+/** 반원 게이지 · 단일 비율(0~100%)용. 다크 카드 안에서도 쓰므로 색을 인자로 받는다. */
 export function GaugeArc({ pct, size = 120, thickness = 10, color = "#2a78d6", track = "rgba(148,163,184,0.25)", label }: {
   pct: number;
   size?: number;
@@ -89,7 +91,9 @@ export function GaugeArc({ pct, size = 120, thickness = 10, color = "#2a78d6", t
   );
 }
 
-/** 도넛 옆 범례 리스트 — 색 점은 식별만, 수치는 텍스트 토큰. (표 뷰 겸용) */
+
+
+/** 도넛 옆 범례 리스트 · 색 점은 식별만, 수치는 텍스트 토큰. (표 뷰 겸용) */
 export function VizLegend({ rows }: {
   rows: { label: string; color: string; value: string; sub?: string }[];
 }) {

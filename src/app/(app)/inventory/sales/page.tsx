@@ -28,7 +28,7 @@ export default function SalesPage() {
             lines: d.lines.map((l) => ({ product_id: l.product_id, qty: l.qty, unit_price: l.unit_price, note: l.note })) }, ctl.userId);
           nos.push(r.docNo);
         }
-        return `${nos.length}건 기록했습니다 — ${nos.slice(0, 5).join(", ")}${nos.length > 5 ? " …" : ""}`;
+        return `${nos.length}건 기록했습니다. ${nos.slice(0, 5).join(", ")}${nos.length > 5 ? " …" : ""}`;
       }}
       onSave={async ({ built, ctl, editingId }) => {
         const wh = built.head.wh;
@@ -45,7 +45,7 @@ export default function SalesPage() {
         };
         if (editingId) {
           const r = await updateStockDoc(ctl.companyId!, editingId, input, ctl.userId);
-          return `${r.docNo} 을 수정했습니다 — 재고가 수정한 수량으로 반영됩니다`;
+          return `${r.docNo} 을 수정했습니다. 재고가 수정한 수량으로 반영됩니다`;
         }
         const r = await createStockDoc(ctl.companyId!, input, ctl.userId);
         //   거래처별 단가가 저절로 남는다(결정 26) — 실패해도 저장은 된 것이라 조용히 넘긴다
@@ -67,7 +67,7 @@ export default function SalesPage() {
           who: d.note || whs.find((w) => w.id === d.warehouse_id)?.name || "",
           label: (d.order_id ? `${orderNo.get(d.order_id) || "주문"} 에서 · ` : "") + `${d.lines}품목`,
           lines: d.lines, total: d.supply + d.vat,
-          //   전표가 섰는지 — 매입매출전표 › 증빙에서 불러오기로 만든다(제안은 자동, 확정은 사람)
+          //   전표가 섰는지 · 매입매출전표 › 증빙에서 불러오기로 만든다(제안은 자동, 확정은 사람)
           state: d.status === "cancelled" ? `취소${d.cancel_reason ? " · " + d.cancel_reason : ""}` : d.journal_entry_id ? "전표 있음" : "전표 없음",
           stateTone: d.status === "cancelled" ? "danger" : d.journal_entry_id ? "ok" : "warn",
         }));
@@ -91,7 +91,7 @@ export default function SalesPage() {
         );
       }}
       onCancel={async ({ id, ctl, reason }) => { await cancelStockDoc(id, reason, ctl.userId); }}
-      onReturn={async ({ id, ctl }) => { const r = await returnStockDoc(ctl.companyId!, id, ctl.userId); return `${r.docNo} 로 반품 처리했습니다 — 재고가 되돌아갔습니다`; }}
+      onReturn={async ({ id, ctl }) => { const r = await returnStockDoc(ctl.companyId!, id, ctl.userId); return `${r.docNo} 로 반품 처리했습니다. 재고가 되돌아갔습니다`; }}
     />
   );
 }
