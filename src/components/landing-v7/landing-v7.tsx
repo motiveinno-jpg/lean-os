@@ -20,14 +20,14 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRef } from "react";
+import { Fragment, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 
 import "@/app/landing-v7.css";
 import {
-  HERO, HERO_VIDEO, HERO_SCENES, SECTION_HEAD, SECTIONS,
+  HERO, HERO_VIDEO, HERO_SCENES, SECTION_HEAD, SECTIONS, PROJECT_VIEWS,
   FLOW, STEPS, PRICING, TOOLS, TRUST, CTA, NAV, FOOTER,
 } from "@/components/landing-v7/content";
 
@@ -503,6 +503,30 @@ export default function LandingV7() {
         loop(chat, tl);
       }
 
+      /* ══ 프로젝트 보기 4종 — 흩어져 있던 조각이 제자리로 모인다 ══ */
+      //  다른 구간과 겹치지 않는 효과다: 조각마다 다른 방향에서 들어와 겹친 자리에 얹힌다.
+      //  자리잡기(entry)는 조각(.lp7-vpanel)에, 스크롤 시차(parallax)는 그 바깥 칸(.lp7-vslot)에 건다 —
+      //  한 요소에 둘을 같이 걸면 서로의 transform 을 밀어낸다.
+      const pviews = q(".lp7-views")[0];
+      if (pviews) {
+        reveal(pviews.querySelectorAll(".lp7-views-head > *"), { stagger: 0.08 }, pviews);
+        const enterX = [-56, 64, -48, 56];
+        const enterY = [26, -34, 44, 38];
+        pviews.querySelectorAll<HTMLElement>(".lp7-vpanel").forEach((panel, i) => {
+          gsap.from(panel, {
+            x: enterX[i] ?? 0, y: enterY[i] ?? 0, scale: 0.94, autoAlpha: 0,
+            duration: 0.85, delay: i * 0.12, ease: "power3.out",
+            scrollTrigger: { trigger: pviews, start: "top 74%" },
+          });
+        });
+        gsap.from(pviews.querySelectorAll(".lp7-vtag"), {
+          scale: 0.4, autoAlpha: 0, duration: 0.45, stagger: 0.12, delay: 0.4, ease: "back.out(2)",
+          scrollTrigger: { trigger: pviews, start: "top 74%" },
+        });
+        reveal(pviews.querySelectorAll(".lp7-vnote"), { y: 18, duration: 0.5, stagger: 0.08 },
+          pviews.querySelector(".lp7-vnotes"));
+      }
+
       /* ══ 흐름도 — 자료가 왼쪽에서 들어와 오른쪽으로 나간다 ══ */
       const flow = q(".lp7-flow")[0];
       if (flow) {
@@ -605,6 +629,20 @@ export default function LandingV7() {
       return () => cleanups.forEach((fn) => fn());
     }, root);
 
+    /* ══ 보기 4종 조각의 스크롤 시차 ══
+       겹쳐 놓은 넓은 화면에서만 건다 — 1180px 아래에서는 조각이 나란히 놓여 시차가 어긋나 보인다. */
+    mm.add("(prefers-reduced-motion: no-preference) and (min-width: 1181px)", () => {
+      const stage = root.current?.querySelector(".lp7-views-stage");
+      if (!stage) return;
+      const drift = [-7, 7, -5, 9];
+      stage.querySelectorAll<HTMLElement>(".lp7-vslot").forEach((slot, i) => {
+        gsap.to(slot, {
+          yPercent: drift[i] ?? 0, ease: "none",
+          scrollTrigger: { trigger: stage, start: "top bottom", end: "bottom top", scrub: 0.6 },
+        });
+      });
+    });
+
     return () => mm.revert();
   }, { scope: root });
 
@@ -693,9 +731,10 @@ export default function LandingV7() {
         <p className="lp7-lead">{SECTION_HEAD.lead}</p>
       </section>
 
-      {/* ── 9챕터 ── */}
+      {/* ── 9챕터 (프로젝트 챕터 뒤에는 '보기 4종' 구간이 붙는다) ── */}
       {SECTIONS.map((s) => (
-        <section key={s.key} id={`sec-${s.key}`} className="lp7-chapter" data-side={s.side}>
+        <Fragment key={s.key}>
+        <section id={`sec-${s.key}`} className="lp7-chapter" data-side={s.side}>
           <div className="lp7-copy">
             <div className="lp7-kicker">{s.no} {s.eyebrow}</div>
             <h2 className={`lp7-h3${s.title.length > 34 ? " lp7-h3-sm" : ""}`}>{s.title}</h2>
@@ -729,6 +768,35 @@ export default function LandingV7() {
             </div>
           </div>
         </section>
+
+        {/* ── 프로젝트 보기 4종 — 실제 화면 조각을 겹쳐 놓는다 (오두 벤치마킹) ── */}
+        {s.key === "project" && (
+          <section id="sec-project-views" className="lp7-views">
+            <div className="lp7-views-head">
+              <div className="lp7-kicker">{PROJECT_VIEWS.eyebrow}</div>
+              <h2 className="lp7-h2 lp7-views-title">{PROJECT_VIEWS.title}</h2>
+              <p className="lp7-lead">{PROJECT_VIEWS.lead}</p>
+              <div className="lp7-loc"><b>위치</b> {PROJECT_VIEWS.loc}</div>
+            </div>
+            <div className="lp7-views-stage">
+              {PROJECT_VIEWS.shots.map((v) => (
+                <div key={v.key} className={`lp7-vslot lp7-vs-${v.key}`}>
+                  <figure className="lp7-vpanel">
+                    <span className="lp7-vtag">{v.label}</span>
+                    <Image className="lp7-vshot" src={v.src} alt={v.alt} width={v.w} height={v.h}
+                      sizes="(max-width: 780px) 100vw, (max-width: 1180px) 46vw, 620px" />
+                  </figure>
+                </div>
+              ))}
+            </div>
+            <div className="lp7-vnotes">
+              {PROJECT_VIEWS.shots.map((v) => (
+                <div key={v.key} className="lp7-vnote"><b>{v.label}</b><span>{v.note}</span></div>
+              ))}
+            </div>
+          </section>
+        )}
+        </Fragment>
       ))}
 
       {/* ── 자동 수집 → 세무 신고 한 흐름 ── */}

@@ -318,6 +318,46 @@
 .lp7-bub.file { display: flex; align-items: center; gap: 6px; }
 .lp7-read { text-align: right; font-size: 11px; color: var(--lp7-brand); font-weight: 800; }
 
+/* ══ 프로젝트 보기 4종 — 겹친 캡처 모자이크 (2026-09-07) ══
+   오두의 '최적화된 프로세스로 생산성 향상' 처럼 실제 화면 조각을 겹쳐 놓는다.
+   ⚠️ 조각의 자리·크기는 %(무대 폭 기준)다 — 무대에 aspect-ratio 를 줘서 폭이 줄면 통째로 같이 줄어든다.
+      px 로 잡으면 1180px 아래에서 조각이 서로를 덮는다. */
+.lp7-views { padding: 104px var(--lp7-pad) 0; }
+.lp7-views-head { text-align: center; }
+.lp7-views-title { margin-top: 12px; white-space: pre-line; }
+.lp7-views-head .lp7-lead { max-width: 820px; margin-top: 14px; font-size: clamp(15px, 1.25vw, 18px); }
+.lp7-views-head .lp7-loc { margin-top: 18px; }
+
+.lp7-views-stage { position: relative; margin: 44px auto 0; max-width: 1240px; aspect-ratio: 1200 / 640; }
+.lp7-vslot { position: absolute; will-change: transform; }
+.lp7-vs-table { left: 0; top: 0; width: 60%; z-index: 1; }
+.lp7-vs-calendar { left: 53%; top: 9%; width: 45%; z-index: 2; }
+.lp7-vs-kanban { left: 3%; top: 58%; width: 37%; z-index: 3; }
+.lp7-vs-gantt { left: 42%; top: 52%; width: 55%; z-index: 4; }
+
+/* 흰 테를 두른 조각 — 화면 캡처가 배경 위에 그냥 놓이면 어디까지가 화면인지 안 보인다 */
+.lp7-vpanel {
+  position: relative; margin: 0; padding: 6px; background: #fff; border-radius: 16px;
+  box-shadow: 0 26px 64px rgba(11, 11, 15, .16), 0 0 0 1px var(--lp7-line);
+  will-change: transform;
+}
+.lp7-vshot { display: block; width: 100%; height: auto; border-radius: 11px; }
+.lp7-vtag {
+  position: absolute; top: -12px; left: 16px; z-index: 1;
+  font-size: 12px; font-weight: 800; letter-spacing: -.01em; color: #fff;
+  background: var(--lp7-brand); padding: 5px 12px; border-radius: 999px;
+  box-shadow: 0 6px 16px rgba(79, 70, 229, .3);
+}
+
+/* 조각마다 한 줄 설명 — 그림 위에 얹으면 캡처를 가린다 */
+.lp7-vnotes {
+  margin: 40px auto 0; max-width: 1240px;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px;
+}
+.lp7-vnote { border-top: 2px solid var(--lp7-line); padding-top: 12px; text-align: left; }
+.lp7-vnote b { display: block; font-size: 14.5px; font-weight: 800; color: var(--lp7-brand); }
+.lp7-vnote span { display: block; margin-top: 5px; font-size: 13.5px; line-height: 1.6; color: var(--lp7-ink2); }
+
 /* ══ 흐름도 ══ */
 .lp7-flow { background: var(--lp7-canvas2); margin-top: 110px; padding: 96px var(--lp7-pad); text-align: center; }
 .lp7-flow-kicker { margin: 0; font-size: clamp(16px, 1.6vw, 22px); font-weight: 800; color: var(--lp7-brand); letter-spacing: -.02em; }
@@ -432,6 +472,10 @@
   .lp7-arrow svg { transform: rotate(90deg); }
   .lp7-price-grid { grid-template-columns: minmax(0, 1fr); gap: 32px; }
   .lp7-tool-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* 좁아지면 겹쳐 놓기를 그만둔다 — 겹친 채로 줄이면 서로를 덮어 못 읽는다 */
+  .lp7-views-stage { position: static; aspect-ratio: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px 20px; }
+  .lp7-vslot { position: static; width: auto; }
+  .lp7-vnotes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 780px) {
   .lp7-root { --lp7-pad: 20px; }
@@ -441,6 +485,8 @@
   .lp7-check i { width: 16px; height: 16px; }
   .lp7-step-grid, .lp7-plans, .lp7-trust { grid-template-columns: minmax(0, 1fr); }
   .lp7-tool-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lp7-views-stage, .lp7-vnotes { grid-template-columns: minmax(0, 1fr); }
+  .lp7-views { padding-top: 56px; }
   .lp7-sechead, .lp7-chapter, .lp7-price, .lp7-tools, .lp7-trust { padding-top: 56px; }
   .lp7-flow, .lp7-steps { padding: 56px var(--lp7-pad); margin-top: 56px; }
   .lp7-cta { padding: 72px var(--lp7-pad) 84px; }
