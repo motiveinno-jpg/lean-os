@@ -1153,26 +1153,46 @@ export async function getChannels(companyId: string, userId?: string) {
   const myChannelIds = new Set((myMemberships || []).map((p: any) => p.channel_id));
   const visible = data.filter((ch: any) => !ch.is_dm || myChannelIds.has(ch.id));
 
-  // DM 채널은 저장명이 "DM-<timestamp>" 이므로 상대 참가자 이름을 dm_name 으로 부착해 표시용으로 쓴다.
-  const dmIds = visible.filter((ch: any) => ch.is_dm).map((ch: any) => ch.id);
-  if (dmIds.length > 0) {
+  // DM 채널 이름은 저장명이 "DM-<timestamp>" 이라 상대 이름을 붙여 표시한다.
+  //   상대는 방에 박아 둔 dm_user_ids(2026-09-07) 로 정한다 — 상대가 '나가기' 해서 참가자에서 빠져도
+  //   누구였는지 남아 dm_name 이 내 이름으로 떨어지지 않는다. 옛 방(dm_user_ids 없음)은 참가자로 보정.
+  const dmChs = visible.filter((ch: any) => ch.is_dm);
+  if (dmChs.length > 0) {
+    const dmIds = dmChs.map((ch: any) => ch.id);
     const parts = logRead('getChannels', await db
-      .from('chat_participants')
-      .select('channel_id, user_id, users(name, email)')
-      .in('channel_id', dmIds));
-    const byChannel = new Map<string, any[]>();
+      .from('chat_participants').select('channel_id, user_id').in('channel_id', dmIds));
+    const presentByChannel = new Map<string, Set<string>>();
     for (const p of (parts || []) as any[]) {
-      const arr = byChannel.get(p.channel_id) || [];
-      arr.push(p);
-      byChannel.set(p.channel_id, arr);
+      const set = presentByChannel.get(p.channel_id) || new Set<string>();
+      if (p.user_id) set.add(p.user_id);
+      presentByChannel.set(p.channel_id, set);
+    }
+    //   상대 id 모으기 — dm_user_ids 우선, 없으면 현재 참가자
+    const otherIdByCh = new Map<string, string | null>();
+    const needUserIds = new Set<string>();
+    for (const ch of dmChs as any[]) {
+      const pair: string[] = Array.isArray(ch.dm_user_ids) && ch.dm_user_ids.length
+        ? ch.dm_user_ids
+        : [...(presentByChannel.get(ch.id) || [])];
+      const other = pair.find((id: string) => id && id !== userId) || null;
+      otherIdByCh.set(ch.id, other);
+      if (other) needUserIds.add(other);
+    }
+    const nameById = new Map<string, { name: string | null; email: string | null }>();
+    if (needUserIds.size > 0) {
+      const urows = logRead('getChannels', await db
+        .from('users').select('id, name, email').in('id', [...needUserIds]));
+      for (const u of (urows || []) as any[]) nameById.set(u.id, { name: u.name, email: u.email });
     }
     for (const ch of visible as any[]) {
       if (!ch.is_dm) continue;
-      const others = (byChannel.get(ch.id) || []).filter((p: any) => p.user_id !== userId);
-      const o = others[0] || (byChannel.get(ch.id) || [])[0];
-      ch.dm_name = o?.users?.name || o?.users?.email || null;
-      //   상대 user_id — 구성원 목록에서 사람을 누를 때 '이미 있는 DM' 을 찾는 데 쓴다(중복 생성 방지)
-      ch.dm_user_id = o?.user_id || null;
+      const other = otherIdByCh.get(ch.id) || null;
+      const info = other ? nameById.get(other) : null;
+      const baseName = info?.name || info?.email || null;
+      //   상대가 나가서 지금 참가자에 없으면 (나감) 을 붙여 방을 구분해 준다
+      const left = !!other && !(presentByChannel.get(ch.id)?.has(other));
+      ch.dm_name = baseName ? (left ? `${baseName} (나감)` : baseName) : (other ? null : "대화 상대 없음");
+      ch.dm_user_id = other;
     }
   }
   return visible;

@@ -418,13 +418,16 @@ export async function createDMChannel(params: {
 }) {
   const db = supabase;
   const name = `DM-${Date.now()}`;
+  //   두 사람 id 를 방에 박아 둔다 — 나중에 한쪽이 나가도 상대가 누구였는지 남는다(dm_name 이 내 이름으로 떨어지던 버그, 2026-09-07)
+  const dmIds = [...new Set(params.participantIds.filter(Boolean))];
   const { data, error } = await db
     .from('chat_channels')
     .insert({
       company_id: params.companyId,
       name,
       is_dm: true,
-    })
+      dm_user_ids: dmIds,
+    } as never)
     .select()
     .single();
   if (error) throw error;
