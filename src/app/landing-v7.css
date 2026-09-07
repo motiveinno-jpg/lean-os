@@ -328,15 +328,28 @@
 .lp7-views-head .lp7-lead { max-width: 820px; margin-top: 14px; font-size: clamp(15px, 1.25vw, 18px); }
 .lp7-views-head .lp7-loc { margin-top: 18px; }
 
-.lp7-views-stage { position: relative; margin: 44px auto 0; max-width: 1240px; aspect-ratio: 1240 / 660; }
+.lp7-views-stage { position: relative; margin: 44px auto 0; max-width: 1240px; }
 .lp7-vslot { position: absolute; will-change: transform; }
-/*  자리는 조각의 실제 가로세로비에 맞춰 잡았다 — 캡처를 다시 찍어 비율이 달라지면 여기도 같이 고친다.
-    (표 0.56 · 칸반 0.72 · 캘린더 0.40 · 간트 0.38, 2026-09-07 기준) */
+
+/*  ⚠️ 자리·크기는 조각의 **실제 가로세로비**에 맞춰 잡는다 — 캡처를 다시 찍어 비율이 달라지면
+    무대의 aspect-ratio 와 아래 자리들을 같이 고쳐야 조각이 무대 밖으로 삐져나가지 않는다.
+    이름표가 옆 조각 위에 걸치지 않도록, 조각 왼쪽 끝은 왼쪽 이웃의 오른쪽 끝에 맞춘다. */
+
+/*  프로젝트 (표 0.56 · 칸반 0.72 · 캘린더 0.39 · 간트 0.38) */
+.lp7-views[data-m="project"] .lp7-views-stage { aspect-ratio: 1240 / 660; }
 .lp7-vs-table { left: 0; top: 0; width: 58%; z-index: 1; }
 .lp7-vs-calendar { left: 52%; top: 6%; width: 46%; z-index: 2; }
-/*  칸반 오른쪽 끝(2%+33%=35%)에 간트 왼쪽 끝을 붙인다 — 간트 이름표가 칸반 위에 걸치지 않게 */
 .lp7-vs-kanban { left: 2%; top: 46%; width: 33%; z-index: 4; }
 .lp7-vs-gantt { left: 35%; top: 52%; width: 58%; z-index: 3; }
+
+/*  인사 (워크보드 0.54 · 근태현황 0.45 · 명부 0.45 · 연차 0.43) — 넷 다 가로로 길어 층을 쌓듯 놓는다 */
+.lp7-views[data-m="hr"] .lp7-views-stage { aspect-ratio: 1240 / 770; }
+.lp7-vs-workboard { left: 0; top: 0; width: 56%; z-index: 1; }
+.lp7-vs-attstatus { left: 50%; top: 8%; width: 48%; z-index: 2; }
+/*  연차가 명부 위에 오게 둔다 — 아래로 깔면 '연차' 이름표가 명부에 덮여 안 보인다.
+    덤으로 명부의 이메일 열이 가려져 표시용 주소가 화면에 덜 남는다. */
+.lp7-vs-members { left: 6%; top: 46%; width: 50%; z-index: 3; }
+.lp7-vs-leave { left: 44%; top: 55%; width: 54%; z-index: 4; }
 
 /* 흰 테를 두른 조각 — 화면 캡처가 배경 위에 그냥 놓이면 어디까지가 화면인지 안 보인다 */
 .lp7-vpanel {

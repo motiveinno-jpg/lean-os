@@ -25,7 +25,15 @@ const DEAL = process.env.DEAL || "f5cce6e8-bb2b-4585-b1ca-0a9bf69e2fdd"; // [시
 //   ⚠️ 오너뷰는 **계정당 세션 1개**다(single-session-guard). 사장님이 쓰는 중에 이 스크립트가
 //      같은 계정으로 로그인하면 사장님 화면이 "중복 로그인"으로 튕긴다. 낮에는 QA 시드 계정을 쓰거나
 //      사장님이 안 쓰는 시간에 돌린다.
+//   --qa 를 주면 QA 시드 계정으로 든다. 그 회사는 **가상 인물·샘플 자료**뿐이라 개인정보가 없고,
+//   사장님 세션도 쫓아내지 않는다. 계정 값은 여기에 또 적지 않고 blog-capture.mjs 한 곳에서 읽는다.
 let EMAIL = process.env.SHOT_EMAIL, PW = process.env.SHOT_PW;
+if (process.argv.includes("--qa")) {
+  const src = fs.readFileSync(path.join(process.cwd(), "scripts", "blog-capture.mjs"), "utf8");
+  EMAIL = src.match(/BLOG_CAPTURE_EMAIL \|\| "([^"]+)"/)?.[1];
+  PW = src.match(/BLOG_CAPTURE_PASSWORD \|\| "([^"]+)"/)?.[1];
+  if (!EMAIL || !PW) throw new Error("blog-capture.mjs 에서 QA 시드 계정을 못 읽었습니다");
+}
 if (!EMAIL || !PW) {
   const CRED = path.join(process.env.HOME || process.env.USERPROFILE,
     ".claude/projects/C--Users-----Desktop-motive-lean-os/memory/reference-ownerview-login.md");
@@ -107,14 +115,17 @@ const SETS = {
     ],
   },
 
-  // ③ 인사 — 사람이 일하고 정산되는 길
+  // ③ 인사 — 사람이 일하고 정산되는 길.
+  //    ⚠️ **가상 인물뿐인 QA 시드 회사**에서 찍는다 (`--qa`). 실제 직원 이름·급여를 공개 페이지에 올리지 않는다.
+  //       (2026-09-07 사장님 "인사 부분 가상 데이터로")
   hr: {
+    qaOnly: true,
     tabSel: '.collect-tabs button:has-text("%s")',
     shots: [
-      { name: "hv-attendance-v1", route: "/attendance", sel: ".app-content-scale", maxH: 600 },
-      { name: "hv-members-v1",    route: "/employees",  sel: ".app-content-scale", maxH: 540, rowSel: ".ev-table tbody tr" },
-      { name: "hv-leave-v1",      route: "/leave",      sel: ".app-content-scale", maxH: 500, rowSel: ".ev-table tbody tr" },
-      { name: "hv-approvals-v1",  route: "/approvals",  sel: ".app-content-scale", maxH: 500, rowSel: ".ev-table tbody tr" },
+      { name: "hv-workboard-v1",  route: "/attendance", sel: ".app-content-scale", maxH: 600 },
+      { name: "hv-attstatus-v1",  route: "/attendance", tab: "근태 현황", sel: ".app-content-scale", maxH: 520, rowSel: ".ev-table tbody tr" },
+      { name: "hv-members-v1",    route: "/employees",  sel: ".app-content-scale", maxH: 520, rowSel: "table tbody tr" },
+      { name: "hv-leave-v1",      route: "/employees",  tab: "휴가", sel: ".app-content-scale", maxH: 500, rowSel: "table tbody tr" },
     ],
   },
 };
@@ -123,7 +134,8 @@ const SETS = {
 const args = process.argv.slice(2);
 const surveyAt = args.indexOf("--survey");
 const survey = surveyAt >= 0 ? args.slice(surveyAt + 1) : null;
-const wanted = survey ? [] : (args.length ? args : Object.keys(SETS));
+const picked = args.filter((a) => !a.startsWith("--"));
+const wanted = survey ? [] : (picked.length ? picked : Object.keys(SETS));
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({
