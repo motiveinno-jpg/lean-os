@@ -18,7 +18,8 @@ import { friendlyError } from "@/lib/friendly-error";
 import { subscribeToMessages, subscribeToMessageUpdates, subscribeToReactions, subscribeToParticipants, unsubscribe, type RealtimeStatus } from "@/lib/realtime";
 import { useToast } from "@/components/toast";
 import { ChatBubble } from "@/components/chat-bubble";
-import { PresenceText } from "@/components/presence-badge";
+import { WorkStatusChip } from "@/components/presence-badge";
+import { useWorkStatus } from "@/lib/use-work-status";
 import { ChatInput } from "@/components/chat-input";
 import { ChatSearch } from "@/components/chat-search";
 import { useModalKeys } from "@/hooks/use-modal-keys";
@@ -521,6 +522,8 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
     enabled: !!channelId && tab === 'files',
   });
 
+  // 상대의 근무 상태 — 계정만 알아도 직원 기록을 찾도록 디렉토리까지 읽는다
+  const { statusForUser } = useWorkStatus(companyId, { withDirectory: true });
   const { data: companyUsers = [] } = useQuery({
     queryKey: ["company-users", companyId],
     queryFn: () => getCompanyUsers(companyId!),
@@ -795,6 +798,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
   // DM 채널은 저장명이 "DM-<timestamp>" → 상대 참가자 이름으로 표시
   const isDMChannel = !!(channel as any)?.is_dm;
   const dmPeer = isDMChannel ? participants.find((p: any) => p.user_id !== userId) : null;
+  const dmPeerStatus = dmPeer ? statusForUser((dmPeer as any).user_id) : null;
   const headerName = isDMChannel
     ? ((dmPeer as any)?.users?.name || (dmPeer as any)?.users?.email || "1:1 대화")
     : (channel?.name || "...");
@@ -820,8 +824,8 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
               {isDMChannel ? "1:1 대화" : ((channel as any)?.deals?.name ? `프로젝트: ${(channel as any).deals.name}` : "팀 채널")}
               {" · "}
               {participants.length}명 참가
-              {/* 상대의 상태(회의중·외근…) — 내 상태(2026-09-04). 근무중이면 아무것도 안 붙는다 */}
-              {isDMChannel && dmPeer && <PresenceText row={(dmPeer as any).users} className="chat-room-presence" />}
+              {/* 상대의 근무 상태(외근·미출근·퇴근…). 근무중이면 아무것도 안 붙는다. 디렉토리·구성원 목록과 같은 계산 */}
+              {isDMChannel && dmPeerStatus && dmPeerStatus.id !== "working" && <WorkStatusChip status={dmPeerStatus} className="chat-room-presence" />}
             </div>
           </div>
         </div>

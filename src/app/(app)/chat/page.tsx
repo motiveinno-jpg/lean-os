@@ -8,7 +8,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   getCurrentUser, getChannels, getDeals, getUnreadCounts, getChannel, getMessages, getMessagesPaginated, getParticipants, getChannelEvents,
-  searchChannelMessages, getBatchReactions, getActionCards, getChannelFiles, getCompanyUsers,
+  searchChannelMessages, getBatchReactions, getActionCards, getChannelFiles,
 } from "@/lib/queries";
 import { createChannel, sendMessage, togglePin, markAsRead, uploadChatFile, sendMessageWithMentions, addReaction, removeReaction, editMessage, deleteMessage, createTeamChannel, createDMChannel, getOrCreateDMChannel, inviteParticipant, getOrCreateInviteToken, getChatInviteUrl, sendSystemMessage } from "@/lib/chat";
 import { subscribeToMessages, subscribeToMessageUpdates, subscribeToReactions, unsubscribe, type RealtimeStatus } from "@/lib/realtime";
@@ -21,7 +21,9 @@ import { ChatRoomView } from "@/components/chat-room-view";
 import { ChatSchedulePanel } from "@/components/chat-schedule-panel";
 import { ChatScheduleCalendar } from "@/components/chat-schedule-calendar";
 import { useModalKeys } from "@/hooks/use-modal-keys";
-import { PresenceDot, PresenceText } from "@/components/presence-badge";
+import { PresenceDot, WorkStatusChip } from "@/components/presence-badge";
+import { useWorkStatus } from "@/lib/use-work-status";
+import type { WorkStatus } from "@/lib/work-status";
 import type { PresenceRow } from "@/lib/presence";
 
 // ── Guest Chat View (previously chat/guest/[token]/client.tsx) ──
@@ -317,7 +319,7 @@ const RAILS: Rail[] = ["people", "rooms", "schedule"];
 // ── 구성원 한 줄 — 누르면 그 사람과의 1:1 대화가 오른쪽에 열린다 (2026-08-10 사장님 지시) ──
 //   앱 계정이 없는 인사기록(userId 없음)은 대화를 걸 수 없으므로 흐리게 두고 이유를 적는다.
 function PersonRow({ p, active, unread, busy, isMe, onClick }: {
-  p: { name: string; position: string; userId: string | null; presence?: PresenceRow | null; avatar?: string | null };
+  p: { name: string; position: string; userId: string | null; presence?: PresenceRow | null; avatar?: string | null; status?: WorkStatus | null };
   active: boolean; unread: number; busy: boolean; isMe: boolean; onClick: () => void;
 }) {
   const disabled = isMe || !p.userId || busy;
@@ -328,9 +330,8 @@ function PersonRow({ p, active, unread, busy, isMe, onClick }: {
       <span className="chat-person-face">{p.avatar ? <img src={p.avatar} alt="" className="chat-face-img" /> : (p.name || "?").slice(0, 1)}<PresenceDot row={p.presence} className="chat-person-dot" /></span>
       <span className="chat-person-body">
         <b>{p.name}{isMe && <em>나</em>}</b>
-        {/* 상태(회의중·외근…)가 있으면 직책 대신 상태 — 2026-09-04 내 상태. 근무중이면 직책 그대로 */}
-        {p.presence && <PresenceText row={p.presence} className="chat-person-presence" />}
-        {p.position && !(p.presence && (p.presence.presence_status || "available") !== "available" && (!p.presence.presence_until || new Date(p.presence.presence_until).getTime() > Date.now())) && <i>{p.position}</i>}
+        {/* 근무 상태(외근·미출근·퇴근…)가 있으면 직책 대신 상태. 근무중은 기본이라 직책 그대로. 디렉토리와 같은 계산 */}
+        {p.status && p.status.id !== "working" ? <WorkStatusChip status={p.status} className="chat-person-presence" /> : p.position ? <i>{p.position}</i> : null}
       </span>
       {unread > 0 && <span className="chat-person-badge">{unread > 99 ? "99+" : unread}</span>}
     </button>
@@ -393,12 +394,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
     queryFn: () => getDeals(companyId!),
     enabled: !!companyId,
   });
-  const { data: companyUsers = [] } = useQuery({
-    queryKey: ["company-users", companyId],
-    queryFn: () => getCompanyUsers(companyId!),
-    enabled: !!companyId,
-    refetchInterval: 30_000,   // 구성원 상태(회의중 등)가 30초 안에 따라온다 — 내 상태(2026-09-04)
-  });
+  const { statusOf, companyUsers } = useWorkStatus(companyId);
   const { data: unreadMap } = useQuery({
     queryKey: ["chat-unread", companyId, userId],
     queryFn: () => getUnreadCounts(companyId!, userId!),
@@ -432,7 +428,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
     const usersById = new Map<string, any>();
     for (const u of companyUsers as any[]) { if (u.email) usersByEmail.set(String(u.email).toLowerCase(), u); usersById.set(u.id, u); }
     const seen = new Set<string>();
-    const list: { key: string; name: string; dept: string; position: string; userId: string | null; presence: PresenceRow | null; avatar: string | null }[] = [];
+    const list: { key: string; name: string; dept: string; position: string; userId: string | null; presence: PresenceRow | null; avatar: string | null; status: WorkStatus | null }[] = [];
     for (const e of directory as any[]) {
       if (e.status !== "active" && e.status !== "joined") continue;
       // 계정 연결 우선(employees.user_id), 없으면 이메일 — 이메일만 보면 같은 사람이 '미배정'에 한 번 더 보였다(2026-09-03)
@@ -441,11 +437,12 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
       list.push({
         key: `d-${e.id}`, name: e.name || u?.name || e.email || "이름 없음",
         dept: e.department || "미배정", position: e.position || "", userId: u?.id || null, presence: u || null, avatar: u?.avatar_url || null,
+        status: statusOf({ id: e.id, user_id: u?.id || e.user_id, email: e.email }),
       });
     }
     for (const u of companyUsers as any[]) {
       if (seen.has(u.id)) continue;
-      list.push({ key: `u-${u.id}`, name: u.name || u.email || "이름 없음", dept: "미배정", position: "", userId: u.id, presence: u, avatar: u.avatar_url || null });
+      list.push({ key: `u-${u.id}`, name: u.name || u.email || "이름 없음", dept: "미배정", position: "", userId: u.id, presence: u, avatar: u.avatar_url || null, status: statusOf({ user_id: u.id, email: u.email }) });
     }
     const t = search.trim().toLowerCase();
     const shown = t ? list.filter((p) => `${p.name} ${p.dept} ${p.position}`.toLowerCase().includes(t)) : list;
@@ -459,7 +456,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
     return [...groups.entries()]
       .map(([dept, people]) => ({ dept, people: people.sort((a, b) => a.name.localeCompare(b.name)) }))
       .sort((a, b) => (a.dept === "미배정" ? 1 : b.dept === "미배정" ? -1 : a.dept.localeCompare(b.dept)));
-  }, [directory, companyUsers, search]);
+  }, [directory, companyUsers, search, statusOf]);
 
   const toggleDept = (d: string) => setOpenDepts((prev) => {
     const next = new Set(prev);

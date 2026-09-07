@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import { QueryScreen, QueryHead, QueryBody, QueryBar, QuickSearch, quickSearchHit, ChipGroup, ConditionPanel, ConditionRow, AppliedChips, ResultStrip, Stat, Pager, usePager, type AppliedChip } from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
@@ -11,12 +11,8 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { logRead } from "@/lib/log-read";
 import { formatPhone } from "@/lib/phone";
-import { getCompanyUsers } from "@/lib/queries";
 import { WorkStatusChip } from "@/components/presence-badge";
-import type { PresenceRow } from "@/lib/presence";
-import { deriveWorkStatus, type WorkTodayRow } from "@/lib/work-status";
-import { companyWorkCfgFromRow, kstNowMin } from "@/lib/attendance-schedule";
-import { todayKst } from "@/lib/kst";
+import { useWorkStatus } from "@/lib/use-work-status";
 
 // 직원용 구성원 디렉토리 — 읽기 전용. 누가 어느 부서/직책에 있는지만 보여준다.
 //   2026-08-19 조회 화면 표준(인사 메뉴 점검): 상자 + [검색조건(부서) · 빠른검색 · 보기 칩(리스트/카드) ‖ 인원] + 표(정렬) + 쪽. 카드는 보기 옵션.
@@ -48,57 +44,8 @@ export default function TeamPage() {
     },
     enabled: !!companyId,
   });
-  // 이름 옆 상태(근무중·외근 등) — 계정 칩에서 고른 값이 users 행에 있다. 30초마다 다시 읽어 남의 상태 변화가 따라온다.
-  const { data: companyUsers = [] } = useQuery({
-    queryKey: ["company-users", companyId],
-    queryFn: () => getCompanyUsers(companyId!),
-    enabled: !!companyId,
-    refetchInterval: 30_000,
-  });
-  // 오늘 출퇴근·휴가 신호. 결근·미출근·퇴근은 이걸로 안다. 상태를 따로 고르지 않은 사람이 근무중으로만 보이던 문제.
-  const { data: workToday = [] } = useQuery({
-    queryKey: ["company-work-today", companyId],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_company_work_today");
-      if (error) throw error;
-      return (data ?? []) as WorkTodayRow[];
-    },
-    enabled: !!companyId,
-    refetchInterval: 30_000,
-  });
-  const { data: workCfg } = useQuery({
-    queryKey: ["company-work-cfg", companyId],
-    queryFn: async () => {
-      const { data } = await supabase.from("company_settings")
-        .select("work_start_time, work_end_time, lunch_minutes, late_grace_minutes, workdays_mask").eq("company_id", companyId!).maybeSingle();
-      return companyWorkCfgFromRow(data as any);
-    },
-    enabled: !!companyId,
-  });
-  const todayStr = todayKst();
-  const { data: holidayToday = false } = useQuery({
-    queryKey: ["company-holiday-today", companyId, todayStr],
-    queryFn: async () => {
-      const { data } = await supabase.from("holidays").select("date").eq("company_id", companyId!).eq("date", todayStr).limit(1);
-      return (data?.length ?? 0) > 0;
-    },
-    enabled: !!companyId,
-  });
-  const [nowMin, setNowMin] = useState(() => kstNowMin());
-  useEffect(() => { const t = setInterval(() => setNowMin(kstNowMin()), 60_000); return () => clearInterval(t); }, []);
-  const statusOf = useMemo(() => {
-    const byId = new Map<string, PresenceRow>();
-    const byEmail = new Map<string, PresenceRow>();
-    for (const u of companyUsers as any[]) { byId.set(u.id, u); if (u.email) byEmail.set(String(u.email).toLowerCase(), u); }
-    const todayByEmp = new Map<string, WorkTodayRow>();
-    for (const r of workToday) todayByEmp.set(r.employee_id, r);
-    const cfg = workCfg ?? companyWorkCfgFromRow(null);
-    const holidays = holidayToday ? new Set([todayStr]) : null;
-    return (e: { id: string; user_id?: string | null; email?: string | null }) => {
-      const presence = (e.user_id && byId.get(e.user_id)) || (e.email ? byEmail.get(String(e.email).toLowerCase()) : null) || null;
-      return deriveWorkStatus({ presence, today: todayByEmp.get(e.id), cfg, todayStr, nowMin, holidays });
-    };
-  }, [companyUsers, workToday, workCfg, holidayToday, todayStr, nowMin]);
+  // 이름 옆 근무 상태 — 메신저와 같은 계산(use-work-status.ts)
+  const { statusOf } = useWorkStatus(companyId);
   const allDepts = useMemo(() => [...new Set(employees.map((e) => e.department || "미배정"))].sort(), [employees]);
 
   // 조직도 (2026-08-19 사장님: 디렉토리에서 조직도도 보이게) — 회사 루트 → 부서 상자 → 직책 서열순 구성원.
