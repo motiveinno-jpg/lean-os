@@ -579,7 +579,7 @@ export default function DashboardPage() {
               { id: "projects", name: "최근 프로젝트", icon: "💼", desc: "진행 프로젝트 단계·계약액", category: "업무", render: () => <RecentProjects companyId={companyId} /> },
               //   게시판 = 회사가 직원에게 알리는 글, 오너뷰 공지 = 운영팀 서비스 공지 — 둘은 다른 것 (2026-09-07 사장님)
               { id: "board", name: "게시판", icon: "📌", desc: "회사 공지·투표·첨부 — 고정 글 우선", category: "업무", render: () => <BoardCard companyId={companyId} /> },
-              { id: "announcements", name: "오너뷰 공지", icon: "📢", desc: "오너뷰 운영팀의 서비스 공지·업데이트", category: "업무", render: () => <AnnouncementsCard /> },
+              { id: "announcements", name: "공지사항", icon: "📢", desc: "오너뷰 운영팀의 서비스 공지·업데이트", category: "업무", render: () => <AnnouncementsCard /> },
               { id: "todos", name: "오늘 일정·할 일", icon: "📝", desc: "내 할 일 + 다가오는 일정", category: "개인", render: () => <MyTodosWidget userId={uid} companyId={companyId} /> },
               { id: "invoices", name: "최근 세금계산서", icon: "📄", desc: "매출·매입 최근 발행", category: "경영", render: () => <RecentInvoices companyId={companyId} /> },
               { id: "assets", name: "계좌별 잔액", icon: "🏦", desc: "계좌별 잔액·합계", category: "자금", render: () => <AssetsSummaryCard companyId={companyId} /> },

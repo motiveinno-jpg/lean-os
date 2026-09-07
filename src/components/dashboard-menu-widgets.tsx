@@ -216,10 +216,10 @@ export function AnnouncementsCard() {
     },
   });
   //   공지사항 = 오너뷰 운영팀이 쓰는 서비스 공지(DB 도 운영자만 쓸 수 있다). 회사가 직원에게 알리는 글은 게시판이다.
-  //   예전 빈 화면의 "첫 공지 쓰기" 는 회사가 쓸 수도 없는 곳으로 보내고 있었다 (2026-09-07 사장님).
+  //   빈 화면은 '없다' 고만 한다 — 게시판으로 보내지 않는다(게시판 위젯이 따로 있다) (2026-09-07 사장님).
   return (
-    <ActivityCard title="오너뷰 공지" href="/announcements" empty={data.length === 0}
-      emptyText="오너뷰 운영팀의 공지가 아직 없어요. 회사 안내는 게시판에 써요." emptyAction={{ label: "게시판 열기", href: "/board" }}>
+    <ActivityCard title="공지사항" href="/announcements" empty={data.length === 0}
+      emptyText="등록된 공지가 없습니다.">
       {data.map((a) => (
         <Link key={a.id} href="/announcements" className="dash-announcement-row">
           {a.pinned && <span className="text-[11px] shrink-0"><Ico e="📌" /></span>}
