@@ -2676,6 +2676,8 @@ export type Database = {
           is_primary: boolean | null
           memo: string | null
           role: string
+          source: string
+          sync_enabled: boolean
         }
         Insert: {
           account_number: string
@@ -2689,6 +2691,8 @@ export type Database = {
           is_primary?: boolean | null
           memo?: string | null
           role?: string
+          source?: string
+          sync_enabled?: boolean
         }
         Update: {
           account_number?: string
@@ -2702,6 +2706,8 @@ export type Database = {
           is_primary?: boolean | null
           memo?: string | null
           role?: string
+          source?: string
+          sync_enabled?: boolean
         }
         Relationships: [
           {

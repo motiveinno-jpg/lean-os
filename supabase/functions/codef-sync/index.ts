@@ -92,6 +92,17 @@ function pushFreeLimitNotice(errors: SyncError[], org: string, label: string) {
   errors.push({ accountNo: "", organization: org, code: "FREE_ACCOUNT_LIMIT",
     message: `무료 요금제 한도(3개)를 넘어 수집을 켜지 않은 항목: ${label}`, hint: FREE_LIMIT_HINT });
 }
+/** 회사 안에서 계좌번호가 같은 통장 찾기. 정확히 같은 번호가 없으면 숫자만 비교해 수기로 넣은 통장(하이픈 포함)도 이어 붙인다. */
+async function findBankAccountByNumber(supabase: any, companyId: string, accountNo: string): Promise<{ id: string; alias: string | null } | null> {
+  const exact = await supabase.from("bank_accounts").select("id, alias").eq("company_id", companyId).eq("account_number", accountNo).maybeSingle();
+  if (exact.data?.id) return exact.data;
+  const digits = String(accountNo).replace(/[^0-9]/g, "");
+  if (!digits) return null;
+  const { data } = await supabase.from("bank_accounts").select("id, alias, account_number").eq("company_id", companyId);
+  const hit = ((data || []) as Array<{ id: string; alias: string | null; account_number: string }>)
+    .find((a) => String(a.account_number || "").replace(/[^0-9]/g, "") === digits);
+  return hit ? { id: hit.id, alias: hit.alias } : null;
+}
 /** 통장 행 넣기 — 한도에 걸리면 수집 꺼진 상태로 넣는다. 반환: "on" | "off" | "error" */
 async function insertBankAccountRow(supabase: any, row: Record<string, unknown>, errors: SyncError[], org: string, label: string): Promise<"on" | "off" | "error"> {
   const { error } = await supabase.from("bank_accounts").insert(row);
@@ -487,18 +498,14 @@ async function syncBankBalanceOnly(
       if (!accountNo) continue;
       const balance = Number(bankAcct.resAccountBalance || 0);
 
-      const existing = await supabase
-        .from("bank_accounts")
-        .select("id")
-        .eq("company_id", companyId)
-        .eq("account_number", accountNo)
-        .maybeSingle();
+      const existing = await findBankAccountByNumber(supabase, companyId, accountNo);
 
-      if (existing.data?.id) {
+      if (existing?.id) {
         await supabase.from("bank_accounts").update({
           balance,
           bank_name: BANK_CODES[org] || org,
-        }).eq("id", existing.data.id);
+          source: "codef",
+        }).eq("id", existing.id);
         updated++;
       } else {
         const aliasGuess = bankAcct.resAccountNickName || bankAcct.resAccountName ||
@@ -509,6 +516,7 @@ async function syncBankBalanceOnly(
           account_number: accountNo,
           alias: aliasGuess,
           balance,
+          source: "codef",
         }, errors, org, aliasGuess);
         if (put !== "error") updated++;
       }
@@ -622,17 +630,13 @@ async function syncBankTransactions(
       const balance = Number(bankAcct.resAccountBalance || 0);
       const aliasGuess = bankAcct.resAccountNickName || bankAcct.resAccountName ||
         `${BANK_CODES[org] || org} ${(bankAcct.resAccountDisplay || accountNo).slice(-4)}`;
-      const existing = await supabase
-        .from("bank_accounts")
-        .select("id, alias")
-        .eq("company_id", companyId)
-        .eq("account_number", accountNo)
-        .maybeSingle();
-      if (existing.data?.id) {
+      const existing = await findBankAccountByNumber(supabase, companyId, accountNo);
+      if (existing?.id) {
         await supabase.from("bank_accounts").update({
           balance,
           bank_name: BANK_CODES[org] || org,
-        }).eq("id", existing.data.id);
+          source: "codef",
+        }).eq("id", existing.id);
       } else {
         await insertBankAccountRow(supabase, {
           company_id: companyId,
@@ -640,6 +644,7 @@ async function syncBankTransactions(
           account_number: accountNo,
           alias: aliasGuess,
           balance,
+          source: "codef",
         }, errors, org, aliasGuess);
       }
     }

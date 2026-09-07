@@ -775,6 +775,11 @@ export async function getBankAccounts(companyId: string) {
   return (data || []) as BankAccount[];
 }
 
+/** 계좌번호에서 공백·하이픈을 뗀다. 은행 수집기는 숫자만 오므로 같은 통장으로 이어지게 하기 위함. */
+export function normalizeAccountNumber(raw: string): string {
+  return String(raw || '').replace(/[\s-]/g, '');
+}
+
 export async function upsertBankAccount(account: {
   id?: string;
   company_id: string;
@@ -785,6 +790,7 @@ export async function upsertBankAccount(account: {
   balance?: number;
   is_primary?: boolean;
 }) {
+  account = { ...account, account_number: normalizeAccountNumber(account.account_number) };
   if (account.id) {
     const { error } = await supabase
       .from('bank_accounts')

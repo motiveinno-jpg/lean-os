@@ -239,7 +239,12 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
     setTimeout(() => setSaved(false), 2000);
   }
 
-  const totalBankBalance = bankAccounts.reduce((s: number, a: BankAccount) => s + Number(a.balance || 0), 0);
+  const linkedAccounts = bankAccounts.filter((a: BankAccount) => a.source === "codef");
+  const manualAccounts = bankAccounts.filter((a: BankAccount) => a.source !== "codef");
+  const sumBalance = (list: BankAccount[]) => list.reduce((s: number, a: BankAccount) => s + Number(a.balance || 0), 0);
+  const linkedBalance = sumBalance(linkedAccounts);
+  const manualBalance = sumBalance(manualAccounts);
+  const totalBankBalance = linkedBalance + manualBalance;
   const totalCash = totalBankBalance + (Number(balance) || 0);
   // 생존 개월수 분모 = 반복결제 + 재직자 급여 + 추가 고정비 (2026-08-19 감사):
   //   종전엔 "추가 월 고정비" 입력값만 나눠 실제 고정비 5천만/입력 5백만 회사가 "20개월"로 보였다.
@@ -414,12 +419,57 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
               </div>
             </section>
 
-            {/* 미연동 통장 (수기) */}
+            {/* 연동 통장 — 은행 연동 수집기가 만든 통장. 잔고·거래내역이 자동으로 들어온다. */}
+            <section className="stg-card">
+              <div className="stg-card-head">
+                <div>
+                  <h3 className="stg-card-title">연동 통장</h3>
+                  <p className="stg-card-desc">은행에서 잔고와 거래내역을 자동으로 가져옵니다 · 총 ₩{linkedBalance.toLocaleString()}</p>
+                </div>
+                <a href="/settings/integration" className="btn-secondary btn-sm shrink-0">은행 연결</a>
+              </div>
+              {linkedAccounts.length === 0 ? (
+                <div className="stg-empty">
+                  <div className="text-3xl mb-3"><Ico e="🏦" /></div>
+                  <div className="stg-empty-t">아직 연결된 은행이 없습니다.</div>
+                  <div className="stg-empty-d">연동·API 키 › 은행연동에서 은행을 연결하면 통장이 자동으로 생깁니다.</div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {linkedAccounts.map((acc: BankAccount) => (
+                    <div key={acc.id} className="stg-list-row">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{acc.alias || acc.bank_name}</span>
+                          {acc.is_primary && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)]">주</span>
+                          )}
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)]">
+                            {BANK_ROLES.find(r => r.value === acc.role)?.label || acc.role}
+                          </span>
+                          {acc.sync_enabled === false && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600">수집 꺼짐</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-[var(--text-dim)] mt-0.5">
+                          {acc.bank_name} {acc.account_number}
+                        </div>
+                      </div>
+                      <div className="text-right flex items-center gap-3">
+                        <span className="text-sm font-bold mono-number">₩{Number(acc.balance || 0).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* 미연동 통장 — 사용자가 직접 등록. 잔고만 합계에 더해지고 거래내역은 들어오지 않는다. */}
             <section className="stg-card">
               <div className="stg-card-head">
                 <div>
                   <h3 className="stg-card-title">미연동 통장</h3>
-                  <p className="stg-card-desc">연동되지 않은 계좌를 직접 등록해 잔고에 더합니다 · 총 ₩{totalBankBalance.toLocaleString()}</p>
+                  <p className="stg-card-desc">직접 입력한 잔고를 가용 현금에 더합니다. 거래내역은 들어오지 않습니다 · 총 ₩{manualBalance.toLocaleString()}</p>
                 </div>
                 <button onClick={() => setShowBankForm(!showBankForm)} className="btn-secondary btn-sm shrink-0">+ 통장 추가</button>
               </div>
@@ -441,7 +491,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
                       <input
                         value={bankForm.account_number}
                         onChange={(e) => setBankForm({ ...bankForm, account_number: e.target.value })}
-                        placeholder="123-456-789012"
+                        placeholder="숫자만 입력"
                         className="field-input-sm"
                       />
                     </div>
@@ -502,15 +552,15 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
                 </div>
               )}
 
-              {bankAccounts.length === 0 ? (
+              {manualAccounts.length === 0 ? (
                 <div className="stg-empty">
                   <div className="text-3xl mb-3"><Ico e="🏦" /></div>
-                  <div className="stg-empty-t">아직 등록된 통장이 없습니다.</div>
-                  <div className="stg-empty-d">통장 추가 버튼으로 계좌를 등록하세요.</div>
+                  <div className="stg-empty-t">아직 직접 등록한 통장이 없습니다.</div>
+                  <div className="stg-empty-d">연동되지 않는 통장은 통장 추가 버튼으로 등록하세요.</div>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {bankAccounts.map((acc: BankAccount) => (
+                  {manualAccounts.map((acc: BankAccount) => (
                     <div key={acc.id} className="stg-list-row">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -530,7 +580,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
                         <span className="text-sm font-bold mono-number">₩{Number(acc.balance || 0).toLocaleString()}</span>
                         <button
                           onClick={async () => {
-                            const { ok } = await confirm({ title: "통장 연결 삭제", desc: "기존 거래내역은 유지됩니다.", danger: true });
+                            const { ok } = await confirm({ title: "통장 삭제", desc: "기존 거래내역은 유지됩니다.", danger: true });
                             if (ok) deleteBankMut.mutate(acc.id);
                           }}
                           className="text-xs text-red-400/60 hover:text-red-400 transition"
