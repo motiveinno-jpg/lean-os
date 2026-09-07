@@ -57,6 +57,16 @@ const MEASURE = `(spec) => {
 
   // 가로로 넘치는 표는 감싼 상자의 오른쪽에서 끊는다 (배경 그라데이션이 끼지 않게)
   if (spec.clipToParent && el.parentElement) right = Math.min(right, el.parentElement.getBoundingClientRect().right);
+  // 폭을 줄여야 하면 **열 경계**에서 끊는다 (열 한가운데가 잘리면 잘못 만든 그림처럼 보인다)
+  if (spec.maxW && right - x > spec.maxW) {
+    let cut = x + spec.maxW;
+    if (spec.colSel) {
+      const cols = [...document.querySelectorAll(spec.colSel)].map((e) => e.getBoundingClientRect())
+        .filter((b) => b.right > x && b.right <= cut);
+      if (cols.length) cut = Math.max(...cols.map((b) => b.right));
+    }
+    right = cut;
+  }
   // 여러 칸을 품는 조각(칸반 등)은 칸들의 실제 범위로 좁힌다 — 빈 오른쪽이 남지 않게
   if (spec.innerSel) {
     const bs = [...document.querySelectorAll(spec.innerSel)].map((e) => e.getBoundingClientRect());
@@ -105,13 +115,17 @@ const SETS = {
   },
 
   // ② 재고 — 물건이 들어오고 나가는 길. 화면마다 라우트가 달라 조각마다 route 를 준다.
+  //    ⚠️ 판매 문서의 거래처는 비워 뒀다 — 실제 거래처명이 공개 페이지에 나가면 안 된다.
+  //       그래서 이익관리는 '거래처·채널별' 이 아니라 '종합' 탭을 쓴다.
   inventory: {
     tabSel: '.collect-tabs button:has-text("%s")',
     shots: [
-      { name: "iv-channels-v1", route: "/inventory/channels", sel: ".app-content-scale", maxH: 600, rowSel: ".ev-table tbody tr" },
-      { name: "iv-stock-v1",    route: "/inventory/stock",    sel: ".app-content-scale", maxH: 540, rowSel: ".ev-table tbody tr" },
-      { name: "iv-orders-v1",   route: "/inventory/orders",   sel: ".app-content-scale", maxH: 500, rowSel: ".ev-table tbody tr" },
-      { name: "iv-profit-v1",   route: "/inventory/profit",   sel: ".app-content-scale", maxH: 540, rowSel: ".ev-table tbody tr" },
+      { name: "iv-stock-v1",    route: "/inventory/stock",    sel: ".app-content-scale", maxH: 540, rowSel: "table tbody tr" },
+      { name: "iv-channels-v1", route: "/inventory/channels", sel: ".app-content-scale", maxH: 520, rowSel: "table tbody tr" },
+      //   '상태' 열은 뺀다 — 시연 판매라 전부 '전표 없음' 이고, 그 말이 랜딩에서 오해를 부른다
+      { name: "iv-sales-v1",    route: "/inventory/sales",    tab: "이력", sel: ".app-content-scale",
+        maxH: 500, rowSel: "table tbody tr", maxW: 1010, colSel: "table thead th" },
+      { name: "iv-profit-v1",   route: "/inventory/profit",   sel: ".app-content-scale", maxH: 520, rowSel: "table tbody tr" },
     ],
   },
 

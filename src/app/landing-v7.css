@@ -342,6 +342,13 @@
 .lp7-vs-kanban { left: 2%; top: 46%; width: 33%; z-index: 4; }
 .lp7-vs-gantt { left: 35%; top: 52%; width: 58%; z-index: 3; }
 
+/*  재고 (이익 0.47 · 현재고 0.47 · 판매이력 0.50 · 이커머스 0.38) */
+.lp7-views[data-m="inventory"] .lp7-views-stage { aspect-ratio: 1240 / 695; }
+.lp7-vs-profit { left: 0; top: 0; width: 58%; z-index: 1; }
+.lp7-vs-stock { left: 52%; top: 10%; width: 46%; z-index: 2; }
+.lp7-vs-sales { left: 4%; top: 46%; width: 34%; z-index: 3; }
+.lp7-vs-channels { left: 36%; top: 52%; width: 58%; z-index: 4; }
+
 /*  인사 (워크보드 0.54 · 근태현황 0.45 · 명부 0.45 · 연차 0.43) — 넷 다 가로로 길어 층을 쌓듯 놓는다 */
 .lp7-views[data-m="hr"] .lp7-views-stage { aspect-ratio: 1240 / 770; }
 .lp7-vs-workboard { left: 0; top: 0; width: 56%; z-index: 1; }
