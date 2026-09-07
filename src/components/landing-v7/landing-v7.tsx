@@ -27,7 +27,7 @@ import { useGSAP } from "@gsap/react";
 
 import "@/app/landing-v7.css";
 import {
-  HERO, HERO_VIDEO, HERO_SCENES, SECTION_HEAD, SECTIONS, MOSAICS,
+  HERO, HERO_VIDEO, HERO_SCENES, HERO_SCENES_NOTE, SECTION_HEAD, SECTIONS, MOSAICS,
   FLOW, STEPS, PRICING, TOOLS, TRUST, CTA, NAV, FOOTER,
 } from "@/components/landing-v7/content";
 import type { Mosaic } from "@/components/landing-v7/content";
@@ -739,20 +739,23 @@ export default function LandingV7() {
                   <path d="M5 3l14 8.5-6.5 1.5-3.5 6z" />
                 </svg>
               </div>
-              <video
-                className="lp7-video" poster={HERO_VIDEO.poster}
-                autoPlay muted loop playsInline preload="metadata"
-                aria-label="오너뷰 실제 화면 녹화 — 대시보드, 수집·전표, 프로젝트, 근태 관리"
-              >
-                <source src={HERO_VIDEO.webm} type="video/webm" />
-                <source src={HERO_VIDEO.mp4} type="video/mp4" />
-              </video>
+              {/* 영상은 다시 찍는 동안 비워 둔다 — 없으면 위의 캡처 판이 그대로 돈다 (결정 220) */}
+              {HERO_VIDEO && (
+                <video
+                  className="lp7-video" poster={HERO_VIDEO.poster}
+                  autoPlay muted loop playsInline preload="metadata"
+                  aria-label="오너뷰 실제 화면 녹화 — 대시보드, 수집·전표, 프로젝트, 근태 관리"
+                >
+                  <source src={HERO_VIDEO.webm} type="video/webm" />
+                  <source src={HERO_VIDEO.mp4} type="video/mp4" />
+                </video>
+              )}
             </div>
           </div>
           <div className="lp7-playbar">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="#3a3a46" aria-hidden><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
             <span className="lp7-prog"><i /></span>
-            <span className="lp7-playnote">{HERO_VIDEO.note}</span>
+            <span className="lp7-playnote">{HERO_VIDEO ? HERO_VIDEO.note : HERO_SCENES_NOTE}</span>
           </div>
         </div>
       </section>

@@ -42,12 +42,15 @@ export const HERO = {
 //   장면: 대시보드 → 수집·전표 → 프로젝트 → 근태 관리 (29초)
 //   ⚠️ 통장 화면은 일부러 넣지 않았다 — 실제 계좌번호가 그대로 보이므로 공개 페이지에 올릴 수 없다.
 //   ⚠️ 다시 찍으면 파일명 뒤에 -v2 를 붙인다. 같은 이름으로 덮으면 캐시 때문에 옛 영상이 계속 나온다.
-export const HERO_VIDEO = {
-  webm: "/video/ownerview-hero.webm",   // VP9 · 917KB
-  mp4: "/video/ownerview-hero.mp4",     // H.264 · 1.04MB (Safari 용)
-  poster: "/video/ownerview-hero-poster.jpg",
-  note: "0:29 · 무음 · 자동 재생 · 마우스를 올리면 멈춥니다",
-};
+// ⛔ 2026-09-07 **영상을 내렸다** (사장님 "실제 데이터는 노출되면 안 됨").
+//    9/4 에 찍은 영상은 **모티브 실계정**으로 촬영해 첫 장면 대시보드에 실제 거래처명과
+//    미수금 금액이 그대로 보였다. 파일도 저장소에서 지웠다.
+//    다시 찍을 때는 **QA 시드 회사(가상)** 계정으로 찍고 여기에 경로를 넣는다(파일명 -v2).
+//    null 이면 화면은 아래 HERO_SCENES(가상 회사 캡처) 교차로 돌아간다.
+export const HERO_VIDEO: { webm: string; mp4: string; poster: string; note: string } | null = null;
+
+/** 영상이 없을 때 재생줄에 적는 말 */
+export const HERO_SCENES_NOTE = "실제 화면 4장 · 자동 전환 · 마우스를 올리면 멈춥니다";
 
 // 영상을 못 트는 브라우저(구형 iOS Safari 등)를 위한 대체 — 같은 장면의 실제 화면 캡처를 교차시킨다.
 //   ⚠️ 영상이 재생되면 이 판은 쓰이지 않는다. 장면·차례는 영상과 같게 유지한다.
