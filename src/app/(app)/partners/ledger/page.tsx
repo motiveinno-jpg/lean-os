@@ -302,7 +302,6 @@ export default function PartnerLedgerPage() {
   };
   const checkedRows = shown.filter((r) => checkedIds.has(r.partner_id ?? "none"));
   const excelItems: ExcelItem[] = [
-    { label: "선택한 거래처 원장 내려받기", count: checkedRows.length, hint: "거래처마다 시트 하나 · 회계기간 그대로", disabled: exporting || checkedRows.length === 0, onClick: () => runExport(checkedRows) },
     { label: "보이는 거래처 전부 내려받기", count: shown.length, hint: "걸린 조건 그대로 · 많으면 시간이 걸립니다", disabled: exporting || shown.length === 0, onClick: () => runExport(shown) },
   ];
   const helperItems: HelperItem[] = [

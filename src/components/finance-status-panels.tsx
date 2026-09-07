@@ -30,7 +30,7 @@ type BankTx = { id: string; bank_account_id: string | null; transaction_date: st
 type Acct = { id: string; bank_name: string | null; alias: string | null; account_number: string | null; balance: number; is_hidden: boolean | null };
 
 /** 통장 › 개요 — 기간 입출금 추이·출금 상위 거래처·계좌별 표 */
-export function BankStatusPanels({ companyId, from, to }: { companyId: string | null; from: string; to: string }) {
+export function BankStatusPanels({ companyId, from, to, hideAccountsTable = false }: { companyId: string | null; from: string; to: string; hideAccountsTable?: boolean }) {
   const { data: accts = [] } = useQuery({ queryKey: ["bank-status-accts", companyId], enabled: !!companyId, queryFn: async () =>
     ((await supabase.from("bank_accounts").select("id, bank_name, alias, account_number, balance, is_hidden").eq("company_id", companyId!)).data || []) as Acct[] });
   const { data: bank = [] } = useQuery({ queryKey: ["bank-status-tx", companyId, from, to], enabled: !!companyId, queryFn: async () =>
@@ -65,7 +65,7 @@ export function BankStatusPanels({ companyId, from, to }: { companyId: string | 
           {s.perCp.size ? <BarChart unit="원" data={topN(s.perCp)} /> : <div className="inv-status-empty">출금이 없습니다</div>}
         </div>
       </div>
-      <div className="pnl-panel">
+      {!hideAccountsTable && <div className="pnl-panel">
         <h3>계좌별</h3><p>잔액은 지금, 입출금은 {from} ~ {to}</p>
         <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status">
           <thead><tr><th>계좌</th><th>잔액</th><th>입금</th><th>출금</th><th>거래 건수</th><th>최근 거래일</th></tr></thead>
@@ -75,7 +75,7 @@ export function BankStatusPanels({ companyId, from, to }: { companyId: string | 
               <td className="tr mono-number">{r?.n || 0}</td><td className="mono-number tc">{r?.last || "—"}</td></tr>
           ); })}{s.visible.length === 0 && <tr><td colSpan={6} className="tc ev-dim">연결된 계좌가 없습니다</td></tr>}</tbody>
         </table></div>
-      </div>
+      </div>}
     </div>
   );
 }

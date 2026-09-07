@@ -125,7 +125,7 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
     + manualOnly.reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
   const shown = list.slice(0, maxItems);
   const txLink = onOpenTransactions
-    ? <button type="button" onClick={onOpenTransactions} className="text-[var(--primary)] hover:underline font-medium">거래내역</button>
+    ? <button type="button" onClick={onOpenTransactions} className="text-[var(--primary)] hover:underline font-medium">이 거래 보기 →</button>
     : <Link href="/bank?tab=transactions" className="text-[var(--primary)] hover:underline font-medium">거래내역</Link>;
 
   return (

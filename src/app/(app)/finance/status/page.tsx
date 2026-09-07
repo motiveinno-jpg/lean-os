@@ -285,7 +285,7 @@ export default function FinanceStatusPage() {
               exportToExcel(rows, name, `전표현황_${name}_${from}_${to}`);
             }}>엑셀</button>
           }>
-            <DateRangeField from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+            {tab !== "todo" && <DateRangeField from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />}
             <span className="inv-hint">작성된 전표의 현황·지표 — 손익·재무상태는 <Link href="/reports/summary" className="bz-link">분석</Link>, 전표 만들기는 <Link href="/collect" className="bz-link">수집·전표</Link></span>
           </QueryBar>
           <ResultStrip>{stats[tab]}</ResultStrip>

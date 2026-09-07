@@ -384,7 +384,7 @@ export default function LoansPage() {
               icon="🏦"
               title="대출 정보를 등록하면 상환 일정이 자동 관리됩니다"
               desc="이자, 원금 상환 스케줄을 한눈에 확인하세요"
-              action={<button onClick={() => setTab("register")} className="btn-primary">+ 대출 등록</button>}
+              action={null}
             />
           ) : (
             <div className="divide-y divide-[var(--border)]/50">

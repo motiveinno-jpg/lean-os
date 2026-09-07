@@ -625,19 +625,6 @@ function PnlPageInner() {
             전기 비교
           </button>
           <button
-            onClick={() => setRefreshKey(k => k + 1)}
-            aria-label="새로고침"
-            title="DB 에서 최신 데이터 다시 불러오기"
-            className="btn-secondary btn-sm"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
-              <polyline points="23 4 23 10 17 10" />
-              <polyline points="1 20 1 14 7 14" />
-              <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
-            </svg>
-            새로고침
-          </button>
-          <button
             onClick={handleExportCsv}
             aria-label="CSV 다운로드"
             className="btn-secondary btn-sm"

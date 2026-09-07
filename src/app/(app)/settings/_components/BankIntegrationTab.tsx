@@ -981,7 +981,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
                   className="btn-secondary btn-sm"
                   title="원하는 기간으로 과거 거래 다시 가져오기 (누락분 채워넣기)"
                 >
-                  <Ico e="📅" /> 기간 선택 sync
+                  <Ico e="📅" /> 기간 지정
                 </button>
               )}
               <button onClick={handleSync} disabled={syncing} className="btn-primary btn-sm">
@@ -1031,7 +1031,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
               </div>
               <button onClick={handleRangeSync} disabled={syncing}
                 className="ml-auto btn-primary btn-sm">
-                {syncing ? '동기화 중...' : '이 기간 sync'}
+                {syncing ? '동기화 중...' : '이 기간 동기화'}
               </button>
             </div>
             {rangeProgress && (
@@ -1138,7 +1138,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
               <div className="bank-integration-sync-log-list">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-xs font-semibold">최근 CODEF 동기화 이력</div>
-                  <button onClick={loadRecentSyncLogs} className="text-[10px] text-[var(--primary)] hover:underline">새로고침</button>
+                  <button onClick={loadRecentSyncLogs} className="text-[10px] text-[var(--primary)] hover:underline">이력 다시 불러오기</button>
                 </div>
                 <ul className="space-y-1.5">
                   {recentSyncLogs.map((log) => {

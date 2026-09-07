@@ -908,8 +908,8 @@ export default function CardsPage() {
             {tabsEl}
             <QueryBar right={actionsRow}>
               {/* 기간 — 조회 줄에 하나(2026-08-18). 카드 탭에서 카드 선택 시 그 카드 거래·연동 기간에 적용. 거래내역 탭은 자기 조회 줄에 기간 칸이 있다 */}
-              <DateRangeField label="카드 거래 기간" from={cardTxFrom} to={cardTxTo}
-                onChange={(f, t) => { setCardTxFrom(f); setCardTxTo(t); }} />
+              {tab === "cards" && <DateRangeField label="카드 거래 기간" from={cardTxFrom} to={cardTxTo}
+                onChange={(f, t) => { setCardTxFrom(f); setCardTxTo(t); }} />}
               {tab === "cards" && cards.length > 0 && <ChipGroup value={cardsView} onChange={setCardsView} options={[{ value: "list", label: "리스트" }, { value: "card", label: "카드" }] as const} />}
               {tab === "cards" && syncQuota?.free && (
                 <span className="bank-sync-quota" title="무료 요금제는 통장·카드 합쳐 3개까지 거래를 가져옵니다. 나머지는 목록에만 두고 '수집 켜기'로 바꿔 쓸 수 있어요.">무료 요금제 · 수집 {syncQuota.used}/{syncQuota.limit}</span>

@@ -502,7 +502,7 @@ function VaultPageInner() {
               onClick={() => { setShowForm(!showForm); setEditingId(null); if (tab === "accounts") setAccForm({ serviceName: "", url: "", loginId: "", loginPassword: "", monthlyCost: "", paymentMethod: "", billingDay: "", renewalDate: "", notes: "" }); if (tab === "assets") setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "", attachmentUrl: "" }); if (tab === "docs") setDocForm({ category: "contract", name: "", fileUrl: "", linkedDealId: "", expiryDate: "", tags: "" }); }}
               className="btn-primary"
             >
-              + 추가
+              + 자산 등록
             </button>
           )}
         </div>
@@ -1091,7 +1091,6 @@ function VaultPageInner() {
               <div className="text-5xl mb-4"><Ico e="📦" /></div>
               <div className="text-base font-bold mb-1.5">자산이 없습니다</div>
               <div className="text-xs text-[var(--text-muted)]">유형/무형 자산을 등록하면 감가상각 장부가를 자동으로 계산해 드립니다</div>
-              <button onClick={() => { setShowForm(true); setEditingId(null); setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "", attachmentUrl: "" }); }} className="btn-primary mt-5">+ 자산 추가</button>
             </div>
           ) : (
             <table className="ev-table ev-lined vault-assets-table">

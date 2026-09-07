@@ -4488,8 +4488,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
             <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M12 19h4.5a3.5 3.5 0 000-7h-9a3.5 3.5 0 010-7H12"/></svg>
           </div>
           <div className="text-base font-bold mb-1.5">등록된 결재선이 없습니다</div>
-          <div className="text-sm text-[var(--text-muted)] mb-5">결재선을 만들어 두면 양식 관리에서 양식에 붙일 수 있습니다</div>
-          <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary btn-sm">+ 결재선 추가</button>
+          <div className="text-sm text-[var(--text-muted)]">결재선을 만들어 두면 양식 관리에서 양식에 붙일 수 있습니다 — 위 <b>+ 결재선 추가</b>로 시작하세요</div>
         </div>
       ) : (
         <div className="ev-scroll">

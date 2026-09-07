@@ -1833,7 +1833,6 @@ export function TableV3() {
                 <select value={pvVal} onChange={(e) => setPvVal(e.target.value as "count" | "amount")} aria-label="값">
                   <option value="count">건수</option><option value="amount">금액 합</option>
                 </select>
-                <button type="button" className="btn-secondary btn-sm ml-auto" onClick={exportPivot}>엑셀 내려받기</button>
               </div>
               <div className="pjv3-pvscroll">
                 <table className="pjv3-pv">
@@ -2820,6 +2819,7 @@ export function TableV3() {
           {pop.kind === "excel" && (<>
             <div className="pjv3-pop-title">엑셀</div>
             <button type="button" onClick={() => { exportRows(); setPop(null); }}>내려받기 — 지금 보이는 줄 그대로</button>
+            <button type="button" onClick={() => { exportPivot(); setPop(null); }}>집계표 내려받기 — 현황의 집계표 그대로</button>
             <button type="button" onClick={() => { setExcelUp(true); setPop(null); }}>올리기 — 양식 받아 채워서 한 번에</button>
           </>)}
           {pop.kind === "addcal" && (<>

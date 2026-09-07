@@ -668,7 +668,7 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
     <>
       <QueryBar right={canWrite ? (
         <>
-          <button type="button" className="btn-secondary btn-sm" onClick={() => setImportOpen("paste")}>주문 가져오기</button>
+          <button type="button" className="btn-secondary btn-sm" onClick={() => setImportOpen("paste")}>+ 주문 붙여넣기</button>
           {/*   ★ 2026-08-27 — 보조 동작은 '도구 ▾' 하나로(조회 줄 버튼 정리) */}
           <HelperMenu label="도구" items={[
             { label: "채널순 정렬", source: "입력", hint: "줄을 채널별로 모아 전표가 채널마다 하나가 되게", disabled: ctl.live.length < 2, onClick: () => ctl.setRows((s) => [...sortByChannel(s.filter((r) => r.product_id || r.sku.trim() || r.ono.trim() || r.ccode.trim())), blankRow()]) },

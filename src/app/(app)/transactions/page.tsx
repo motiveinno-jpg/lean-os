@@ -1112,34 +1112,6 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
             선택 {selectedIds.size}건 매핑
           </button>
         )}
-        <button
-          onClick={() => {
-            if (!bankTx.length) return;
-            const lines = ['날짜,거래처,적요,유형,금액,상태,카테고리'];
-            bankTx.forEach((tx: any) => {
-              lines.push([
-                tx.transaction_date,
-                `"${(tx.counterparty || '').replace(/"/g, '""')}"`,
-                `"${(tx.description || '').replace(/"/g, '""')}"`,
-                tx.type === 'income' ? '입금' : '출금',
-                tx.amount,
-                tx.mapping_status === 'unmapped' ? '미매핑' : tx.mapping_status === 'auto_mapped' ? '자동' : tx.mapping_status === 'manual_mapped' ? '수동' : '무시',
-                tx.category || '',
-              ].join(','));
-            });
-            const bom = '\uFEFF';
-            const blob = new Blob([bom + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `거래내역_${todayKst()}.csv`;
-            a.click();
-            URL.revokeObjectURL(url);
-          }}
-          className="btn-secondary whitespace-nowrap hidden"
-        >
-          CSV 내보내기
-        </button>
       </div>
       )}
 
@@ -1399,7 +1371,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
               icon="📐"
               title="분류 규칙이 없습니다"
               desc="규칙을 추가하면 거래가 자동으로 분류됩니다."
-              action={<button onClick={() => setShowRuleForm(!showRuleForm)} className="btn-primary">+ 규칙 추가</button>}
+              action={null}
             />
           ) : (
             <div className="rule-list">
@@ -1427,15 +1399,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
       {/* Inbox / All Tabs */}
       {(tab === 'inbox' || tab === 'all') && (
         <>
-          {/* ═══ granter 계좌 스타일 통장 개요 — 미분류 정리(거래 자동화)에선 숨김: 통장 페이지와 중복(계좌·지출예정·자동이체·이번달지출). ═══ */}
-          {companyId && tab !== 'inbox' && (
-            <BankAccountsOverview
-              companyId={companyId}
-              selectedAccountNo={selectedAccountNo}
-              onSelect={(no) => setSelectedAccountNo(no)}
-            />
-          )}
-
+          {/* 통장·카드 개요 위젯은 뺐다 — 이 화면의 조회 줄과 검색칸·기간·내보내기·새로고침이 두 벌씩 겹쳤다. 계좌·카드 현황은 통장·카드 화면에서 */}
           {/* 메인 카드 2열 — 다가오는 자동이체 + 이번달 큰 지출 TOP5 — inbox 숨김(통장 중복) */}
           {companyId && tab !== 'inbox' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">

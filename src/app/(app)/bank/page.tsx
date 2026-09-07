@@ -856,7 +856,7 @@ export default function BankPage() {
       {/* 개요 — 계좌별 잔액·자동이체 예정·자동이체 내역·이번달 큰 지출 */}
       {tab === "overview" && (<>
         {/* 이번 달 입출금 추이·출금 상위 거래처·계좌별 표 — 재무 › 현황에서 옮겨 옴 (2026-08-26 사장님: "통장 부분은 통장 쪽으로") */}
-        <BankStatusPanels companyId={companyId} from={todayKst().slice(0, 7) + "-01"} to={todayKst()} />
+        <BankStatusPanels companyId={companyId} from={todayKst().slice(0, 7) + "-01"} to={todayKst()} hideAccountsTable />
         <div className="bank-overview-panel">
           {/*  돈이 어느 통장에 몰려 있나 — 총자산 카드는 합계만 말한다.
                통장 이름이 길어(은행명 + 별칭) 세로 막대에선 잘리므로 가로 막대로 읽는다.
