@@ -20,7 +20,9 @@ const req = createRequire(path.join(process.env.REPO || process.cwd(), "package.
 const { chromium } = req("playwright");
 
 const BASE = process.env.BASE || "https://www.owner-view.com";
-const DEAL = process.env.DEAL || "f5cce6e8-bb2b-4585-b1ca-0a9bf69e2fdd"; // [시연] 고객 용역·납품
+// 촬영 대상 프로젝트 — **QA 시드 회사(가상)** 의 '하늘건설 사옥 리뉴얼 웹 구축' (결정 220).
+//   2026-09-07 이전에는 모티브 [시연] 프로젝트를 썼는데, 담당자 칸에 실제 직원 실명이 들어갔다.
+const DEAL = process.env.DEAL || "dd000000-0000-4000-8000-000000000001";
 //   계정 — 기본은 모티브 계정(로컬 메모리 파일). SHOT_EMAIL/SHOT_PW 로 갈아 끼울 수 있다.
 //   ⚠️ 오너뷰는 **계정당 세션 1개**다(single-session-guard). 사장님이 쓰는 중에 이 스크립트가
 //      같은 계정으로 로그인하면 사장님 화면이 "중복 로그인"으로 튕긴다. 낮에는 QA 시드 계정을 쓰거나
@@ -101,31 +103,35 @@ const MEASURE = `(spec) => {
    묶음 하나 = 랜딩의 모자이크 구간 하나. 조각은 넷이고, 넷 다 **같은 화면 계열**이어야
    "하나에서 갈라진 보기"로 읽힌다. 서로 다른 회사·다른 자료를 섞으면 '각각 다른 화면'이 된다. */
 const SETS = {
-  // ① 프로젝트 — 같은 프로젝트를 보기만 바꿔 찍는다 (결정 204)
+  // ① 프로젝트 — 같은 프로젝트를 보기만 바꿔 찍는다 (결정 204).
+  //    ⚠️ **QA 시드 회사(가상)** 에서 찍는다 (`--qa`, 결정 220).
   project: {
+    qaOnly: true,
     route: `/projecthub/${DEAL}/`,
     ready: "table.pjv3-sheet",
     tabSel: '.pjv3-views button:has-text("%s")',
     shots: [
-      { name: "pv-table-v1",    sel: "table.pjv3-sheet", clipToParent: true, maxH: 620, rowSel: "table.pjv3-sheet tbody tr" },
-      { name: "pv-kanban-v1",   tab: "칸반",   sel: ".pjv3-kb",        innerSel: ".pjv3-kcol", pad: 10 },
-      { name: "pv-calendar-v1", tab: "캘린더", sel: ".pjv3-calwrap",   cutAfterSel: ".pjv3-calcell", cutAfterIdx: 27, pad: 6 },
-      { name: "pv-gantt-v1",    tab: "간트",   sel: ".pjv3-ganttwrap", maxH: 430, rowSel: ".pjv3-gr, .pjv3-ggroup", pad: 6 },
+      { name: "pv-table-v3",    sel: "table.pjv3-sheet", clipToParent: true, maxH: 620, rowSel: "table.pjv3-sheet tbody tr" },
+      { name: "pv-kanban-v3",   tab: "칸반",   sel: ".pjv3-kb",        innerSel: ".pjv3-kcol", pad: 10 },
+      { name: "pv-calendar-v3", tab: "캘린더", sel: ".pjv3-calwrap",   cutAfterSel: ".pjv3-calcell", cutAfterIdx: 27, pad: 6 },
+      { name: "pv-gantt-v3",    tab: "간트",   sel: ".pjv3-ganttwrap", maxH: 430, rowSel: ".pjv3-gr, .pjv3-ggroup", pad: 6 },
     ],
   },
 
   // ② 재고 — 물건이 들어오고 나가는 길. 화면마다 라우트가 달라 조각마다 route 를 준다.
-  //    ⚠️ 판매 문서의 거래처는 비워 뒀다 — 실제 거래처명이 공개 페이지에 나가면 안 된다.
+  //    ⚠️ **QA 시드 회사(가상)** 에서 찍는다 (`--qa`, 결정 220).
+  //    ⚠️ 판매 문서의 거래처는 비워 뒀다 — 거래처 칸에 실제 상호가 나가면 안 된다.
   //       그래서 이익관리는 '거래처·채널별' 이 아니라 '종합' 탭을 쓴다.
   inventory: {
+    qaOnly: true,
     tabSel: '.collect-tabs button:has-text("%s")',
     shots: [
-      { name: "iv-stock-v1",    route: "/inventory/stock",    sel: ".app-content-scale", maxH: 540, rowSel: "table tbody tr" },
-      { name: "iv-channels-v1", route: "/inventory/channels", sel: ".app-content-scale", maxH: 520, rowSel: "table tbody tr" },
+      { name: "iv-stock-v2",    route: "/inventory/stock",    sel: ".app-content-scale", maxH: 540, rowSel: "table tbody tr" },
+      { name: "iv-channels-v2", route: "/inventory/channels", sel: ".app-content-scale", maxH: 520, rowSel: "table tbody tr" },
       //   '상태' 열은 뺀다 — 시연 판매라 전부 '전표 없음' 이고, 그 말이 랜딩에서 오해를 부른다
-      { name: "iv-sales-v1",    route: "/inventory/sales",    tab: "이력", sel: ".app-content-scale",
+      { name: "iv-sales-v2",    route: "/inventory/sales",    tab: "이력", sel: ".app-content-scale",
         maxH: 500, rowSel: "table tbody tr", maxW: 1010, colSel: "table thead th" },
-      { name: "iv-profit-v1",   route: "/inventory/profit",   sel: ".app-content-scale", maxH: 520, rowSel: "table tbody tr" },
+      { name: "iv-profit-v2",   route: "/inventory/profit",   sel: ".app-content-scale", maxH: 520, rowSel: "table tbody tr" },
     ],
   },
 

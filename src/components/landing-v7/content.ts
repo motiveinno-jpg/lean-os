@@ -193,8 +193,9 @@ export const SECTIONS: Section[] = [
 //      "하나에서 갈라진 화면"이 아니라 "각각 다른 화면"으로 읽힌다.
 //   ⚠️ 조각은 실제 화면 캡처다 — 다시 찍으려면 `node scripts/capture-landing-shots.mjs <묶음>`.
 //      새로 찍어 그림이 달라지면 파일명 번호를 올린다(-v2 → -v3). 덮으면 캐시가 옛 그림을 계속 준다.
-//   ⚠️ **인사 조각은 QA 시드 회사(가상 인물)에서 찍는다** (2026-09-07 사장님 "인사 부분 가상 데이터로").
-//      실제 직원 이름·급여는 공개 페이지에 올리지 않는다.
+//   ⛔ **모든 조각은 QA 시드 회사(가상)에서 찍는다** (결정 220 — 2026-09-07 사장님
+//      "실제 데이터는 노출되면 안 됨"). 그전에는 프로젝트·재고를 모티브 실계정으로 찍어
+//      직원 실명과 실제 재고·금액이 들어가 있었다. `--qa` 없이 찍지 말 것.
 //   ⚠️ 각 구간의 H2 는 앞 챕터와 겹쳐 읽히지 않게, 키워드 나열은 eyebrow 로 내리고
 //      H2 는 그 구간이 말할 한 가지만 말한다.
 
@@ -226,22 +227,22 @@ export const MOSAICS: Mosaic[] = [
     shots: [
       {
         key: "table", label: "표", note: "담당·상태·마감·금액을 한 줄에. 그룹마다 합계가 붙습니다.",
-        src: "/product/pv-table-v2.png", w: 2216, h: 1234,
+        src: "/product/pv-table-v3.png", w: 2216, h: 1234,
         alt: "오너뷰 프로젝트 표 보기 — 담당·상태·마감·금액·거래처 열과 그룹별 합계",
       },
       {
         key: "kanban", label: "칸반", note: "카드를 끌어 다른 열에 놓으면 상태가 바뀝니다.",
-        src: "/product/pv-kanban-v2.png", w: 1678, h: 1210,
+        src: "/product/pv-kanban-v3.png", w: 1678, h: 1210,
         alt: "오너뷰 프로젝트 칸반 보기 — 상태별 열과 끌어 옮기는 카드",
       },
       {
         key: "calendar", label: "캘린더", note: "마감일 기준 달력. 날짜의 ＋로 그 자리에서 추가합니다.",
-        src: "/product/pv-calendar-v2.png", w: 2240, h: 880,
+        src: "/product/pv-calendar-v3.png", w: 2240, h: 880,
         alt: "오너뷰 프로젝트 캘린더 보기 — 마감일 기준 월 달력과 상태 색 칩",
       },
       {
         key: "gantt", label: "간트", note: "시작~마감을 막대로. 세로선이 오늘입니다.",
-        src: "/product/pv-gantt-v2.png", w: 2240, h: 858,
+        src: "/product/pv-gantt-v3.png", w: 2240, h: 858,
         alt: "오너뷰 프로젝트 간트 보기 — 시작일부터 마감일까지 막대와 오늘 선",
       },
     ],
@@ -257,22 +258,22 @@ export const MOSAICS: Mosaic[] = [
     shots: [
       {
         key: "profit", label: "이익관리", note: "매출·원가·이익과 이익률. 품목별로 뭐가 남는지 보입니다.",
-        src: "/product/iv-profit-v1.png", w: 2238, h: 1040,
+        src: "/product/iv-profit-v2.png", w: 2238, h: 1040,
         alt: "오너뷰 이익관리 — 매출·매출원가·매출총이익·이익률과 일별 추이, 품목별 이익",
       },
       {
         key: "stock", label: "현재고", note: "창고별 수량과 평균단가. 안전재고를 밑돌면 부족·품절로 표시됩니다.",
-        src: "/product/iv-stock-v1.png", w: 2238, h: 1060,
+        src: "/product/iv-stock-v2.png", w: 2238, h: 1058,
         alt: "오너뷰 창고관리 현재고 — SKU·품목·창고별 수량과 평균단가, 부족·품절 표시",
       },
       {
         key: "sales", label: "판매 이력", note: "나간 문서가 그대로 쌓입니다. 줄을 누르면 그 입력 화면이 열립니다.",
-        src: "/product/iv-sales-v1.png", w: 1988, h: 992,
+        src: "/product/iv-sales-v2.png", w: 1916, h: 992,
         alt: "오너뷰 판매 이력 — 출고 문서 번호·일자·품목 수·합계",
       },
       {
         key: "channels", label: "이커머스", note: "스마트스토어·쿠팡 주문과 출고 대기. 채널별로 갈라 봅니다.",
-        src: "/product/iv-channels-v1.png", w: 2238, h: 850,
+        src: "/product/iv-channels-v2.png", w: 2238, h: 850,
         alt: "오너뷰 이커머스 현황 — 스마트스토어·쿠팡 주문 건수·금액·출고 대기와 일별 주문",
       },
     ],
