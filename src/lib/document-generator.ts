@@ -1152,7 +1152,6 @@ export interface ApprovalPdfParams {
     approverName: string;
     statusLabel: string;
     comment?: string;
-    decidedAt: string | null; // 표시용 포맷 완료 문자열
   }[];
 }
 
@@ -1275,13 +1274,12 @@ export async function generateApprovalPdf(params: ApprovalPdfParams): Promise<Bl
 
     autoTable(doc, {
       startY: y,
-      head: [['단계', '결재자', '상태', '의견', '처리일시']],
+      head: [['단계', '결재자', '상태', '의견']],
       body: params.steps.map((s) => [
         `${s.stage}. ${s.stageName}`,
         s.approverName,
         s.statusLabel,
         s.comment || '-',
-        s.decidedAt || '대기 중',
       ]),
       theme: 'grid',
       styles: { fontSize: 8, cellPadding: 2.5, font: 'NanumGothic' },
@@ -1290,8 +1288,7 @@ export async function generateApprovalPdf(params: ApprovalPdfParams): Promise<Bl
         0: { cellWidth: 30 },
         1: { cellWidth: 28 },
         2: { cellWidth: 20, halign: 'center' },
-        3: { cellWidth: 58 },
-        4: { cellWidth: 36 },
+        3: { cellWidth: 104 },
       },
       margin: { left: 14, right: 14 },
       alternateRowStyles: { fillColor: [248, 249, 250] },

@@ -421,7 +421,6 @@ async function buildApprovalPdfBlob(args:  {
       approverName: st.approver_name || "담당자",
       statusLabel: STATUS_CONFIG[st.status]?.label || koFallback(st.status),
       comment: st.comment || undefined,
-      decidedAt: st.decided_at ? formatDateTime(st.decided_at) : null,
     })),
   });
 }
@@ -1232,7 +1231,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
             </div>
             <h3 className="text-[20px] font-extrabold leading-tight mt-2 mb-1.5">{selected.title}</h3>
             <div className="text-xs text-[var(--text-dim)] mb-1.5">
-              {REQUEST_TYPE_LABELS[selected.requestType as RequestType] || selected.requestType} · {selected.requesterName || "알 수 없음"} · {formatDate(selected.createdAt)}
+              {REQUEST_TYPE_LABELS[selected.requestType as RequestType] || selected.requestType} · {selected.requesterName || "알 수 없음"} · {approvalDraftDate(selectedFormFields) || formatDate(selected.createdAt)}
             </div>
             <div className="approval-reference-line text-[11px] text-[var(--text-dim)] mb-5">
               {Array.isArray(selected.referenceUsers) && selected.referenceUsers.length > 0
@@ -1507,7 +1506,7 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
             </div>
             <h3 className="text-[20px] font-extrabold leading-tight mt-2 mb-1.5">{selected.title}</h3>
             <div className="text-xs text-[var(--text-dim)] mb-1.5">
-              {REQUEST_TYPE_LABELS[selected.requestType as RequestType] || selected.requestType} · 기안 {selected.requesterName || "알 수 없음"} · {formatDate(selected.createdAt)}
+              {REQUEST_TYPE_LABELS[selected.requestType as RequestType] || selected.requestType} · 기안 {selected.requesterName || "알 수 없음"} · {approvalDraftDate(fields) || formatDate(selected.createdAt)}
             </div>
             <div className="text-[11px] text-[var(--text-dim)] mb-5">
               {selected.decidedAt ? `내 처리 ${formatDateTime(selected.decidedAt)} · ` : ""}{selected.stage}단계 {selected.stageName || ""}
@@ -1870,7 +1869,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
               </div>
               <h3 className="text-[20px] font-extrabold leading-tight mt-2 mb-1.5">{req.title}</h3>
               <div className="text-xs text-[var(--text-dim)] mb-1.5">
-                {REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type} · {formatDate(req.created_at)}
+                {REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type} · {approvalDraftDate(fields) || formatDate(req.created_at)}
               </div>
               {Array.isArray(req.reference_user_ids) && req.reference_user_ids.length > 0 && (
                 <div className="approval-reference-line text-[11px] text-[var(--text-dim)] mb-5">
@@ -2639,7 +2638,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
               </div>
               <h3 className="text-[20px] font-extrabold leading-tight mt-2 mb-1.5">{req.title}</h3>
               <div className="text-xs text-[var(--text-dim)] mb-1.5">
-                {REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type} · {requesterNames.get(req.requester_id) || "알 수 없음"} · {formatDate(req.created_at)}
+                {REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type} · {requesterNames.get(req.requester_id) || "알 수 없음"} · {approvalDraftDate(reqFormFields) || formatDate(req.created_at)}
               </div>
               <div className="approval-reference-line text-[11px] text-[var(--text-dim)] mb-5">
                 {Array.isArray(req.reference_user_ids) && req.reference_user_ids.length > 0
