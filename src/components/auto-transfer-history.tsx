@@ -8,7 +8,7 @@ import { TileIcon } from "@/components/ui/icon-tile";
 import { getBankTransactions } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
 import { getRecurringPayments } from "@/lib/approval-center";
-import { reconcileRecurringMonth, cardTxToLite, RECURRING_CATEGORY_LABEL, type BankTxLite } from "@/lib/recurring-match";
+import { reconcileRecurringMonth, cardTxToLite, inferPayMethods, RECURRING_CATEGORY_LABEL, type BankTxLite } from "@/lib/recurring-match";
 
 interface Props {
   companyId: string;
@@ -43,8 +43,10 @@ const md = (ds: string | null | undefined) => {
 export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransactions, variant = "bank" }: Props) {
   const now = new Date();
   const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const dateFrom = startOfMonth(now);
   const dateTo = endOfMonth(now);
+  //   최근 3개월을 읽는다 — 정기 지출에는 '결제 수단' 항목이 없어서, 실제로 통장에서 나갔는지 카드로 결제됐는지를
+  //   출금 이력이 말하게 한다(2026-09-07 사장님: "안형영 1,595,000 은 계좌이체인데 왜 카드 화면에"). 이번 달 대조는 그 안에서 거른다.
+  const dateFrom = startOfMonth(new Date(now.getFullYear(), now.getMonth() - 2, 1));
   const today = todayKst();
 
   const { data: rows = [] } = useQuery({
@@ -60,7 +62,7 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
       const { data } = await supabase.from("card_transactions")
         .select("id, transaction_date, amount, merchant_name, memo, category, card_name, is_fixed_cost")
         .eq("company_id", companyId).gte("transaction_date", dateFrom).lte("transaction_date", dateTo).gt("amount", 0)
-        .order("transaction_date", { ascending: false }).limit(2000);
+        .order("transaction_date", { ascending: false }).limit(5000);
       return (data || []) as any[];
     },
     enabled: !!companyId,
@@ -73,11 +75,21 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
     staleTime: 60_000,
   });
 
-  const { rows: list, manualOnly } = useMemo(() => {
+  const { rows: list, manualOnly, unknownCount } = useMemo(() => {
     const bankTx: BankTxLite[] = (rows as any[]).map((r) => ({ ...r, source: "bank" as const, sourceLabel: r.bank_accounts?.alias || r.bank_accounts?.bank_name || null }));
     const cardTx: BankTxLite[] = (cardRows as any[]).map(cardTxToLite);
-    return reconcileRecurringMonth(recurring as any[], [...bankTx, ...cardTx], ym, today);
-  }, [recurring, rows, cardRows, ym, today]);
+    const history = [...bankTx, ...cardTx];
+    const method = inferPayMethods(recurring as any[], history);
+    const thisMonth = history.filter((t) => String(t.transaction_date || "").startsWith(ym));
+    const all = reconcileRecurringMonth(recurring as any[], thisMonth, ym, today);
+    //   이 화면의 수단(통장/카드)으로 나가는 것 + 아직 어디로 나가는지 모르는 것만. 다른 수단 것은 다른 화면이 보여 준다.
+    const keep = (rp: any) => { const m = method.get(rp) || "unknown"; return m === variant || m === "unknown"; };
+    return {
+      rows: all.rows.filter((r) => keep(r.rp)),
+      manualOnly: all.manualOnly.filter((t) => (t.source || "bank") === variant),
+      unknownCount: all.rows.filter((r) => keep(r.rp) && (method.get(r.rp) || "unknown") === "unknown").length,
+    };
+  }, [recurring, rows, cardRows, ym, today, variant]);
   const paid = list.filter((r) => r.state === "paid");
   const missing = list.filter((r) => r.state === "missing");
   const due = list.filter((r) => r.state === "due");
@@ -96,7 +108,8 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
           <div>
             <h2 className="text-[15px] font-bold text-[var(--text)]">{variant === "card" ? "정기 지출 결제 확인" : "정기 지출 출금 확인"}</h2>
             <span className="caption">
-              {ym} · 정기 지출 {list.length}건 — 나감 {paid.length}{missing.length > 0 ? ` · 확인 필요 ${missing.length}` : ""} · 예정 {due.length}
+              {ym} · {variant === "card" ? "카드로 내는" : "통장에서 나가는"} 정기 지출 {list.length}건
+              {unknownCount > 0 ? `(아직 수단 미확인 ${unknownCount})` : ""} — 나감 {paid.length}{missing.length > 0 ? ` · 확인 필요 ${missing.length}` : ""} · 예정 {due.length}
               {manualOnly.length > 0 ? ` · 직접 표시 ${manualOnly.length}` : ""}
             </span>
           </div>
@@ -111,9 +124,11 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
 
       {list.length === 0 && manualOnly.length === 0 ? (
         <div className="auto-transfer-history-empty">
-          등록된 정기 지출이 없어요.
+          {(recurring as any[]).some((r) => r.is_active !== false)
+            ? (variant === "card" ? "카드로 결제되는 정기 지출이 없어요 — 등록된 것은 모두 통장에서 나가고 있어요." : "통장에서 나가는 정기 지출이 없어요 — 등록된 것은 모두 카드로 결제되고 있어요.")
+            : "등록된 정기 지출이 없어요."}
           <div className="text-[10px] mt-1">
-            <Link href="/payments" className="text-[var(--primary)] hover:underline font-medium">정기 지출</Link>에 월세·보험·구독을 등록해 두면, 달마다 통장에서 나갔는지 여기서 확인돼요.
+            <Link href="/payments" className="text-[var(--primary)] hover:underline font-medium">정기 지출</Link>에 월세·보험·구독을 등록해 두면, 달마다 {variant === "card" ? "카드로 결제됐는지" : "통장에서 나갔는지"} 여기서 확인돼요.
           </div>
         </div>
       ) : (

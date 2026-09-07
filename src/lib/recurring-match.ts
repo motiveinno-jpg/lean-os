@@ -136,3 +136,20 @@ export function reconcileRecurringMonth(
   rows.sort((a, b) => order[a.state] - order[b.state] || String(a.dueDate || "").localeCompare(String(b.dueDate || "")));
   return { rows, manualOnly };
 }
+
+/** 정기 지출의 결제 수단 — 등록 항목엔 수단이 없으니 실제 출금 이력(최근 몇 달)이 말하게 한다.
+ *  가장 최근에 맞은 출금이 카드면 'card', 통장이면 'bank', 한 번도 안 맞았으면 'unknown'. */
+export function inferPayMethods(recurring: RecurringLite[] | null | undefined, history: BankTxLite[] | null | undefined): Map<RecurringLite, "bank" | "card" | "unknown"> {
+  const patterns = buildRecurringPatterns(recurring);
+  const out = new Map<RecurringLite, "bank" | "card" | "unknown">();
+  for (const p of patterns) out.set(p.rp, "unknown");
+  const sorted = [...(history || [])].sort((a, b) => String(b.transaction_date || "").localeCompare(String(a.transaction_date || "")));
+  const decided = new Set<RecurringLite>();
+  for (const tx of sorted) {
+    const rp = matchRecurring(tx, patterns);
+    if (!rp || decided.has(rp)) continue;
+    out.set(rp, tx.source === "card" ? "card" : "bank");
+    decided.add(rp);
+  }
+  return out;
+}

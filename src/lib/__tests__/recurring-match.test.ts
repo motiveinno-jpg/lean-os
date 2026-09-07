@@ -1,6 +1,6 @@
 // 통장 출금 ↔ 정기 지출 짝 맞추기 — 통장 개요 '자동이체 연결 내역' 이 이 규칙으로 채워진다 (2026-09-07).
 import { describe, it, expect } from "vitest";
-import { buildRecurringPatterns, matchRecurring, isAutoTransferTx, dueDateInMonth, reconcileRecurringMonth, cardTxToLite } from "../recurring-match";
+import { buildRecurringPatterns, matchRecurring, isAutoTransferTx, dueDateInMonth, reconcileRecurringMonth, cardTxToLite, inferPayMethods } from "../recurring-match";
 
 const RP = [
   { id: "r1", name: "사무실 임대료", recipient_name: "한빛빌딩", amount: 1_500_000, category: "rent", is_active: true },
@@ -70,5 +70,21 @@ describe("카드 결제도 같은 규칙으로", () => {
     const { rows } = reconcileRecurringMonth(RP3, [tx], "2026-09", "2026-09-07");
     expect(rows[0].state).toBe("paid"); expect(rows[0].tx?.sourceLabel).toBe("롯데카드");
     expect(cardTxToLite({ merchant_name: "x", amount: 1, is_fixed_cost: true }).is_auto_transfer).toBe(true);
+  });
+});
+
+describe("결제 수단 판별 — 통장 화면엔 통장 것, 카드 화면엔 카드 것", () => {
+  it("최근 출금이 통장이면 bank, 카드면 card, 없으면 unknown", () => {
+    const RP4 = [
+      { id: "rent", name: "안형영 (기타)", recipient_name: "안형영", amount: 1595000, is_active: true },
+      { id: "slack", name: "슬랙 프로", recipient_name: "Slack", amount: 132000, is_active: true },
+      { id: "kt", name: "(주)케이티", amount: 42900, is_active: true },
+    ];
+    const hist = [
+      { type: "expense", counterparty: "안형영", amount: 1595000, transaction_date: "2026-08-03", source: "bank" as const },
+      cardTxToLite({ transaction_date: "2026-08-05", amount: 132000, merchant_name: "SLACK", card_name: "롯데카드" }),
+    ];
+    const m = inferPayMethods(RP4, hist);
+    expect(m.get(RP4[0])).toBe("bank"); expect(m.get(RP4[1])).toBe("card"); expect(m.get(RP4[2])).toBe("unknown");
   });
 });

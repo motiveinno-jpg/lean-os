@@ -165,7 +165,15 @@ export async function middleware(request: NextRequest) {
   // 로그인 사용자의 보호 화면 — 중복 로그인·회사 IP 제한을 서버가 강제한다(종전엔 화면 안내만).
   if (user && !isPublicRoute(pathname) && !pathname.startsWith('/_next')) {
     const ip = clientIp(request);
-    const key = `${user.id}|${ip}`;
+    //   캐시 키에 세션 id 를 넣는다 — 사용자|IP 만으로 묶으면 같은 자리에서 다시 로그인한 새 세션이
+    //   옛 세션의 판정을 60초 동안 물려받는다 (2026-09-07). 토큰이 없으면 사용자|IP 로.
+    let sid = '';
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const tok = session?.access_token;
+      if (tok) { const payload = JSON.parse(Buffer.from(tok.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8')); sid = String(payload?.session_id || ''); }
+    } catch { /* 키만 거칠어질 뿐 판정은 그대로 */ }
+    const key = `${user.id}|${sid}|${ip}`;
     const cached = gateCache.get(key);
     let verdict = cached && Date.now() - cached.at < GATE_TTL_MS ? cached : null;
     if (!verdict) {
