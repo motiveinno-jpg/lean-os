@@ -349,6 +349,13 @@
 .lp7-vs-sales { left: 4%; top: 46%; width: 34%; z-index: 3; }
 .lp7-vs-channels { left: 36%; top: 52%; width: 58%; z-index: 4; }
 
+/*  회계·세무 (증빙 0.46 · 부가세 0.47 · 전표 0.45 · 손익 0.46) — 넷이 거의 같은 비율이라 층을 쌓듯 */
+.lp7-views[data-m="accounting"] .lp7-views-stage { aspect-ratio: 1240 / 750; }
+.lp7-vs-invoices { left: 0; top: 0; width: 56%; z-index: 1; }
+.lp7-vs-tax { left: 50%; top: 8%; width: 48%; z-index: 2; }
+.lp7-vs-voucher { left: 5%; top: 46%; width: 49%; z-index: 3; }
+.lp7-vs-profit { left: 43%; top: 54%; width: 55%; z-index: 4; }
+
 /*  인사 (워크보드 0.54 · 근태현황 0.45 · 명부 0.45 · 연차 0.43) — 넷 다 가로로 길어 층을 쌓듯 놓는다 */
 .lp7-views[data-m="hr"] .lp7-views-stage { aspect-ratio: 1240 / 770; }
 .lp7-vs-workboard { left: 0; top: 0; width: 56%; z-index: 1; }

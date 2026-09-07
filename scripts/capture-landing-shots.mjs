@@ -129,6 +129,21 @@ const SETS = {
     ],
   },
 
+  // ④ 회계·세무 — 자료가 들어와 신고서까지 가는 길.
+  //    ⚠️ **가상 거래처뿐인 QA 시드 회사**에서 찍는다 (`--qa`). 실제 거래처명·금액을 공개 페이지에 올리지 않는다.
+  //    ⚠️ 통장 화면은 담지 않는다 — 계좌번호가 그대로 보인다 (결정 200).
+  accounting: {
+    qaOnly: true,
+    tabSel: '.collect-tabs button:has-text("%s")',
+    shots: [
+      { name: "av-invoices-v1", route: "/tax-invoices",       sel: ".app-content-scale", maxH: 520, rowSel: "table tbody tr" },
+      { name: "av-tax-v1",      route: "/finance/tax-filing", tab: "부가세",       sel: ".app-content-scale", maxH: 560, rowSel: "table tbody tr" },
+      { name: "av-voucher-v1",  route: "/finance/status",     tab: "매입매출전표", sel: ".app-content-scale", maxH: 500, rowSel: "table tbody tr" },
+      //   수집 현황은 담지 않는다 — QA 시드는 무료 요금제라 '자료 없음 · 유료 요금제 기능' 만 늘어선다
+      { name: "av-profit-v1",   route: "/reports/profit",     sel: ".app-content-scale", maxH: 520, rowSel: "table tbody tr" },
+    ],
+  },
+
   // ③ 인사 — 사람이 일하고 정산되는 길.
   //    ⚠️ **가상 인물뿐인 QA 시드 회사**에서 찍는다 (`--qa`). 실제 직원 이름·급여를 공개 페이지에 올리지 않는다.
   //       (2026-09-07 사장님 "인사 부분 가상 데이터로")
