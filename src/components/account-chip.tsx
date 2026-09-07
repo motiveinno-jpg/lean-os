@@ -145,7 +145,7 @@ export function AccountChip() {
                     onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
                 </label>
               </div>
-              <p className="presence-hint">{presence.status === "available" ? "상태를 고르면 위 시간 동안 메신저의 내 이름 옆에 표시됩니다." : "시간이 지나면 자동으로 근무중이 됩니다."}</p>
+              <p className="presence-hint">{presence.status === "available" ? "상태를 고르면 위 시간 동안 메신저와 구성원 디렉토리의 내 이름 옆에 표시됩니다." : "시간이 지나면 자동으로 근무중이 됩니다."}</p>
             </div>
 
             <div className="account-chip-details">

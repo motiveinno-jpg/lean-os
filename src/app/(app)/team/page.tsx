@@ -11,6 +11,9 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { logRead } from "@/lib/log-read";
 import { formatPhone } from "@/lib/phone";
+import { getCompanyUsers } from "@/lib/queries";
+import { PresenceChip } from "@/components/presence-badge";
+import type { PresenceRow } from "@/lib/presence";
 
 // 직원용 구성원 디렉토리 — 읽기 전용. 누가 어느 부서/직책에 있는지만 보여준다.
 //   2026-08-19 조회 화면 표준(인사 메뉴 점검): 상자 + [검색조건(부서) · 빠른검색 · 보기 칩(리스트/카드) ‖ 인원] + 표(정렬) + 쪽. 카드는 보기 옵션.
@@ -42,6 +45,20 @@ export default function TeamPage() {
     },
     enabled: !!companyId,
   });
+  // 이름 옆 상태(근무중·외근 등) — 계정 칩에서 고른 값이 users 행에 있다. 30초마다 다시 읽어 남의 상태 변화가 따라온다.
+  const { data: companyUsers = [] } = useQuery({
+    queryKey: ["company-users", companyId],
+    queryFn: () => getCompanyUsers(companyId!),
+    enabled: !!companyId,
+    refetchInterval: 30_000,
+  });
+  const presenceOf = useMemo(() => {
+    const byId = new Map<string, PresenceRow>();
+    const byEmail = new Map<string, PresenceRow>();
+    for (const u of companyUsers as any[]) { byId.set(u.id, u); if (u.email) byEmail.set(String(u.email).toLowerCase(), u); }
+    return (e: { user_id?: string | null; email?: string | null }): PresenceRow | null =>
+      (e.user_id && byId.get(e.user_id)) || (e.email ? byEmail.get(String(e.email).toLowerCase()) : null) || null;
+  }, [companyUsers]);
   const allDepts = useMemo(() => [...new Set(employees.map((e) => e.department || "미배정"))].sort(), [employees]);
 
   // 조직도 (2026-08-19 사장님: 디렉토리에서 조직도도 보이게) — 회사 루트 → 부서 상자 → 직책 서열순 구성원.
@@ -168,7 +185,7 @@ export default function TeamPage() {
                   <tbody>
                     {pager.view.map((e) => (
                       <tr key={e.id}>
-                        <td className="text-left"><span className="team-avatar">{(e.name || "?").slice(0, 1)}</span><b>{e.name || "—"}</b></td>
+                        <td className="text-left"><span className="team-avatar">{(e.name || "?").slice(0, 1)}</span><b>{e.name || "—"}</b><PresenceChip row={presenceOf(e)} className="ml-2" /></td>
                         <td className="text-center">{e.department || <span className="text-[var(--text-dim)]">미배정</span>}</td>
                         <td className="text-center">{e.position || "—"}</td>
                         <td className="text-left">{e.email ? <a href={`mailto:${e.email}`} className="bz-link font-normal">{e.email}</a> : "—"}</td>
@@ -195,6 +212,7 @@ export default function TeamPage() {
                           <span className="team-avatar">{(e.name || "?").slice(0, 1)}</span>
                           <span className="text-sm font-bold">{e.name}</span>
                           <span className="text-[11px] text-[var(--text-muted)]">{e.position}</span>
+                          <PresenceChip row={presenceOf(e)} />
                         </div>
                       ))}
                     </div>
@@ -218,6 +236,7 @@ export default function TeamPage() {
                             <div key={e.id} className="org-member">
                               <span className="team-avatar">{(e.name || "?").slice(0, 1)}</span>
                               <span className="text-xs font-semibold truncate flex-1">{e.name || "—"}</span>
+                              <PresenceChip row={presenceOf(e)} className="shrink-0" />
                               <span className="text-[11px] text-[var(--text-muted)] shrink-0">{e.position || ""}</span>
                             </div>
                           ))}
@@ -242,7 +261,7 @@ export default function TeamPage() {
                         <div key={e.id} className="team-card">
                           <span className="team-avatar team-avatar-lg">{(e.name || "?").slice(0, 1)}</span>
                           <div className="min-w-0 flex-1">
-                            <div className="text-sm font-bold truncate">{e.name || "—"}</div>
+                            <div className="text-sm font-bold truncate flex items-center gap-2"><span className="truncate">{e.name || "—"}</span><PresenceChip row={presenceOf(e)} /></div>
                             <div className="text-xs text-[var(--text-muted)] truncate">{e.position || "직책 미지정"}</div>
                             {e.email && <div className="text-[11px] text-[var(--text-dim)] truncate mt-1"><Ico e="✉" /> {e.email}</div>}
                             {e.phone && <div className="text-[11px] text-[var(--text-dim)] truncate"><Ico e="📞" /> {formatPhone(e.phone)}</div>}
