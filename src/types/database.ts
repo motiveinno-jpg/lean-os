@@ -19656,6 +19656,21 @@ export type Database = {
           updated_count: number
         }[]
       }
+      register_admin_leave: {
+        Args: {
+          p_company_id: string
+          p_days: number
+          p_employee_id: string
+          p_end_date: string
+          p_end_time?: string | null
+          p_leave_type: string
+          p_leave_unit?: string
+          p_reason?: string | null
+          p_start_date: string
+          p_start_time?: string | null
+        }
+        Returns: string
+      }
       recompute_bank_balances: { Args: { p_company: string }; Returns: number }
       recompute_monthly_financials: {
         Args: { p_company_id: string; p_from?: string; p_to?: string }

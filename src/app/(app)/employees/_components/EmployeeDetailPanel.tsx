@@ -12,7 +12,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { friendlyError } from "@/lib/friendly-error";
 import { useToast } from "@/components/toast";
-import { updateEmployee, LEAVE_TYPES, calculateAnnualLeave } from "@/lib/hr";
+import { updateEmployee, LEAVE_TYPES, LEAVE_UNITS, calculateAnnualLeave, calcLeaveDays, registerAdminLeave } from "@/lib/hr";
 import { getCompanyLeaveTypes, defaultCompanyLeaveTypes } from "@/lib/leave-grants";
 import { listLeaveGrants, addLeaveGrant, deleteLeaveGrant, setBaseLeaveGrant, GRANT_TYPE_LABELS, type LeaveGrant, type LeaveGrantType } from "@/lib/leave-grants";
 import { uploadEmployeeFile, deleteEmployeeFileByPath, getSignedUrl } from "@/lib/file-storage";
@@ -50,6 +50,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   // 급여·계좌·퇴직금은 급여 권한자만 (2026-08-19 감사): 종전엔 인력관리 권한만으로
   //   전 직원 연봉·계좌번호가 보여 급여 탭의 권한 분리가 여기서 무력화됐다.
   const canSeeSalary = _panelIsMaster || _panelHasPerm("/employees:salary");
+  const canRegisterLeave = _panelIsMaster || _panelHasPerm("/employees:leave");
   const viewerHasGrantPerm = _panelHasPerm("/employees:permissions");
   const [detailTab, setDetailTab] = useState<DetailTab>((initialTab && (TAB_MERGE[initialTab] || initialTab)) || "info");
   const { user: viewer } = useUser();
@@ -328,6 +329,54 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
       return data || [];
     },
     enabled: !!employeeId && detailTab === "leave",
+  });
+
+  const [showLeaveRegistration, setShowLeaveRegistration] = useState(false);
+  const [leaveRegistration, setLeaveRegistration] = useState({
+    leaveType: "annual",
+    leaveUnit: "full_day",
+    halfDayPeriod: "am" as "am" | "pm",
+    startDate: "",
+    endDate: "",
+    startTime: "",
+    endTime: "",
+    reason: "",
+  });
+  const { data: registrationBusinessDays } = useQuery({
+    queryKey: ["leave-days", companyId, leaveRegistration.startDate, leaveRegistration.endDate],
+    enabled: !!companyId && !!leaveRegistration.startDate && leaveRegistration.leaveUnit === "full_day",
+    queryFn: () => calcLeaveDays(companyId, leaveRegistration.startDate, leaveRegistration.endDate || leaveRegistration.startDate),
+  });
+  const registrationDays = leaveRegistration.leaveUnit === "half_day" ? 0.5
+    : leaveRegistration.leaveUnit === "two_hours" ? 0.25
+    : !leaveRegistration.startDate ? 0
+    : (registrationBusinessDays ?? 0);
+  const registrationTimeInvalid = leaveRegistration.leaveUnit === "two_hours"
+    && (!leaveRegistration.startTime || !leaveRegistration.endTime || leaveRegistration.startTime >= leaveRegistration.endTime);
+  const registerLeaveMut = useMutation({
+    mutationFn: () => registerAdminLeave({
+      companyId,
+      employeeId,
+      leaveType: leaveRegistration.leaveType,
+      leaveUnit: leaveRegistration.leaveUnit as "full_day" | "half_day" | "two_hours",
+      halfDayPeriod: leaveRegistration.leaveUnit === "half_day" ? leaveRegistration.halfDayPeriod : undefined,
+      startDate: leaveRegistration.startDate,
+      endDate: leaveRegistration.endDate || leaveRegistration.startDate,
+      startTime: leaveRegistration.startTime || undefined,
+      endTime: leaveRegistration.endTime || undefined,
+      days: registrationDays,
+      reason: leaveRegistration.reason,
+    }),
+    onSuccess: () => {
+      invalidateLeave();
+      queryClient.invalidateQueries({ queryKey: ["emp-leave-requests", employeeId] });
+      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-records"] });
+      setLeaveRegistration({ leaveType: "annual", leaveUnit: "full_day", halfDayPeriod: "am", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
+      setShowLeaveRegistration(false);
+      toast("휴가가 바로 등록되었습니다.", "success");
+    },
+    onError: (e: any) => toast("휴가 등록 실패: " + friendlyError(e, "알 수 없는 오류"), "error"),
   });
 
   const BANK_LABELS: Record<string, string> = {
@@ -867,6 +916,76 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
               </div>
             ) : (
               <div className="collect-empty">아직 {currentYear}년 연차가 없습니다. 아래에서 부여일수를 정하세요.</div>
+            )}
+
+            {/* 휴가 관리 권한자의 직접 등록은 별도 결재 없이 즉시 승인한다. */}
+            {canRegisterLeave && (
+              <div className="emp-section">
+                <div className="emp-section-head">
+                  <div>
+                    <div className="emp-section-title">휴가 직접 등록</div>
+                    <div className="text-[11px] text-[var(--text-dim)] mt-1">여기서 등록한 휴가는 승인 절차 없이 바로 반영됩니다.</div>
+                  </div>
+                  <button type="button" onClick={() => setShowLeaveRegistration((open) => !open)} className="btn-primary btn-sm">
+                    {showLeaveRegistration ? "닫기" : "휴가 등록"}
+                  </button>
+                </div>
+
+                {showLeaveRegistration && (
+                  <div className="mt-3 pt-3 border-t border-[var(--border)]">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className="text-xs text-[var(--text-muted)]">휴가 유형
+                        <select value={leaveRegistration.leaveType} onChange={(e) => setLeaveRegistration((p) => ({ ...p, leaveType: e.target.value }))} className="field-input w-full mt-1">
+                          {companyLeaveTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+                        </select>
+                      </label>
+                      <label className="text-xs text-[var(--text-muted)]">사용 단위
+                        <select value={leaveRegistration.leaveUnit} onChange={(e) => setLeaveRegistration((p) => ({ ...p, leaveUnit: e.target.value }))} className="field-input w-full mt-1">
+                          {LEAVE_UNITS.map((unit) => <option key={unit.value} value={unit.value}>{unit.label}</option>)}
+                        </select>
+                      </label>
+                      <label className="text-xs text-[var(--text-muted)]">시작일
+                        <DateField value={leaveRegistration.startDate} onChange={(e) => setLeaveRegistration((p) => ({ ...p, startDate: e.target.value }))} className="field-input mt-1" />
+                      </label>
+                      {leaveRegistration.leaveUnit === "full_day" && (
+                        <label className="text-xs text-[var(--text-muted)]">종료일
+                          <DateField value={leaveRegistration.endDate} onChange={(e) => setLeaveRegistration((p) => ({ ...p, endDate: e.target.value }))} className="field-input mt-1" />
+                        </label>
+                      )}
+                      {leaveRegistration.leaveUnit === "half_day" && (
+                        <div>
+                          <div className="text-xs text-[var(--text-muted)] mb-1">반차 시간대</div>
+                          <div className="flex gap-2">
+                            {([['am', '오전'], ['pm', '오후']] as const).map(([value, label]) => (
+                              <button key={value} type="button" onClick={() => setLeaveRegistration((p) => ({ ...p, halfDayPeriod: value }))} className={`btn-secondary btn-sm flex-1 ${leaveRegistration.halfDayPeriod === value ? "border-[var(--primary)] text-[var(--primary)]" : ""}`}>{label} 반차</button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {leaveRegistration.leaveUnit === "two_hours" && (
+                        <div>
+                          <div className="text-xs text-[var(--text-muted)] mb-1">시간대</div>
+                          <div className="flex gap-2">
+                            <input type="time" value={leaveRegistration.startTime} onChange={(e) => setLeaveRegistration((p) => ({ ...p, startTime: e.target.value }))} className="field-input min-w-0" />
+                            <input type="time" value={leaveRegistration.endTime} onChange={(e) => setLeaveRegistration((p) => ({ ...p, endTime: e.target.value }))} className="field-input min-w-0" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <label className="block text-xs text-[var(--text-muted)] mt-3">사유
+                      <input value={leaveRegistration.reason} onChange={(e) => setLeaveRegistration((p) => ({ ...p, reason: e.target.value }))} placeholder="개인 사유" className="field-input w-full mt-1" />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => registerLeaveMut.mutate()}
+                      disabled={!leaveRegistration.startDate || (!!leaveRegistration.endDate && leaveRegistration.endDate < leaveRegistration.startDate) || registrationDays <= 0 || registrationTimeInvalid || registerLeaveMut.isPending}
+                      className="btn-primary btn-sm mt-3 disabled:opacity-50"
+                    >
+                      {registerLeaveMut.isPending ? "등록 중..." : `바로 등록 (${registrationDays}일)`}
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* 연차 설정(관리자) — 총 부여일수 초기화/조정. 휴가 신청/승인은 전자결재. */}
@@ -1606,4 +1725,3 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
 }
 
 // (P4) TabAccessSection 삭제 — PermissionSection(권한 트리)으로 대체.
-

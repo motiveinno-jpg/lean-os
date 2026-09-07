@@ -62,6 +62,7 @@ import { useAvatarMap } from "@/hooks/use-avatar-map";
 import { listApprovalForms, type ApprovalForm } from "@/lib/approval-forms";
 import { computeHalfDaySlot, LEAVE_TYPES, calcLeaveDays } from "@/lib/hr";
 import { generateApprovalPdf } from "@/lib/document-generator";
+import { approvalDraftDate } from "@/lib/approval-pdf";
 import { openStoredFile, downloadStoredFile, resolveSignedUrl } from "@/lib/file-storage";
 import { getCompanyLeaveTypes, defaultCompanyLeaveTypes } from "@/lib/leave-grants";
 import { sendApprovalMails } from "@/lib/approval-email";
@@ -400,6 +401,7 @@ async function buildApprovalPdfBlob(args:  {
   )).filter((a): a is { name: string; url: string } => !!a);
 
   const contentText = contentWithoutFieldLines(req.description || "", formFields);
+  const draftDate = approvalDraftDate(formFields);
   return await generateApprovalPdf({
     title: req.title,
     requestTypeLabel: REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type,
@@ -410,7 +412,8 @@ async function buildApprovalPdfBlob(args:  {
     descriptionHtml: contentText && isHtmlDesc(contentText) ? sanitizeDocumentHtml(contentText) : undefined,
     description: contentText && !isHtmlDesc(contentText) ? contentText : undefined,
     formFields: formFields.length > 0 ? formFields : undefined,
-    createdAt: formatDate(req.created_at),
+    // 양식에서 사용자가 입력한 기안일을 우선하고, 기안일 필드가 없는 옛 결재만 등록일로 표시한다.
+    createdAt: draftDate || formatDate(req.created_at),
     attachments: attachments.length > 0 ? attachments : undefined,
     steps: timeline.map((st) => ({
       stage: st.stage,

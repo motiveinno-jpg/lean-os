@@ -1422,6 +1422,49 @@ export async function createLeaveRequest(params: {
   return data;
 }
 
+// ── Leave: 관리자 직접 등록 ──
+// 구성원 상세에서 휴가 관리 권한자가 등록한 휴가는 결재 요청 없이 승인 상태로 확정한다.
+// 권한·회사 범위·잔여 연차 검증은 SECURITY DEFINER RPC에서 원자적으로 처리한다.
+export async function registerAdminLeave(params: {
+  companyId: string;
+  employeeId: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+  days: number;
+  reason?: string;
+  leaveUnit?: LeaveUnit;
+  startTime?: string;
+  endTime?: string;
+  halfDayPeriod?: 'am' | 'pm';
+}) {
+  const unit = params.leaveUnit || 'full_day';
+  const days = unit === 'half_day' ? 0.5 : unit === 'two_hours' ? 0.25 : params.days;
+
+  let startTime = params.startTime || null;
+  let endTime = params.endTime || null;
+  if (unit === 'half_day') {
+    const slot = await computeHalfDaySlot(params.companyId, params.halfDayPeriod || 'am');
+    startTime = slot.start;
+    endTime = slot.end;
+  }
+
+  const { data, error } = await db.rpc('register_admin_leave', {
+    p_company_id: params.companyId,
+    p_employee_id: params.employeeId,
+    p_leave_type: params.leaveType,
+    p_start_date: params.startDate,
+    p_end_date: params.endDate,
+    p_days: days,
+    p_reason: params.reason?.trim() || null,
+    p_leave_unit: unit,
+    p_start_time: startTime,
+    p_end_time: endTime,
+  });
+  if (error) throw error;
+  return data;
+}
+
 //   연차 잔여(leave_balances)에서 차감하지 않는 유형 (2026-09-01 사장님: "공가(예비군)도 연차에 반영된다").
 //   공가·병가·경조·출산 등 법정 별도 휴가는 연차와 무관한데, 종전엔 유형 무관 전부 차감됐다.
 //   annual 과 회사 커스텀 유형만 차감 유지(커스텀은 회사가 연차성으로 쓸 수 있어 기존 동작 보존).
