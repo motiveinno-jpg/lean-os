@@ -258,11 +258,13 @@ export function MyTasksCard({ companyId, userId }: { companyId: string; userId: 
         const d = dday(t.due_date);
         const overdue = d != null && d < 0;
         return (
-          <Link key={t.id} href={`/projecthub/${t.deal_id}?tab=work`}
-            className="dash-task-row" title={t.dealName}>
-            <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{t.title || "할 일"}</span>
+          <Link key={t.id} href={`/projecthub/${t.deal_id}?tab=work`} className="dash-mytask-row" title={`${t.title} · ${t.dealName}`}>
+            <span className="min-w-0 flex-1">
+              <span className="dash-mytask-title">{t.title || "할 일"}</span>
+              <span className="dash-mytask-deal">{t.dealName}</span>
+            </span>
             {t.due_date && (
-              <span className="text-[10px] font-semibold shrink-0" style={{ color: overdue ? "var(--danger)" : d === 0 ? "var(--warning)" : "var(--text-dim)" }}>
+              <span className="dash-mytask-due" style={{ color: overdue ? "var(--danger)" : d === 0 ? "var(--warning)" : "var(--text-dim)" }}>
                 {overdue ? `${-d!}일 지연` : d === 0 ? "오늘" : `D-${d}`}
               </span>
             )}

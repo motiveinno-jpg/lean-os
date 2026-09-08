@@ -3455,6 +3455,11 @@ table.table-bank-manual { min-width: 640px; }
 .ph-checkin-save { @apply h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-[12.5px] font-bold whitespace-nowrap transition hover:opacity-90 disabled:opacity-45; }
 /* 개인 할 일 ↔ 프로젝트 업무 잇기 — 대시보드 위젯 / 일정 › 할 일 */
 .dash-task-row { @apply flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition; }
+/* 내 담당 업무 위젯 줄 — 제목 위·프로젝트명 아래, 기한은 오른쪽 안쪽 */
+.dash-mytask-row { @apply flex items-center gap-2.5 py-2 pl-1 pr-2 no-underline rounded-md hover:bg-[var(--bg-surface)] transition; }
+.dash-mytask-title { @apply block truncate text-[12.5px] font-semibold text-[var(--text)]; }
+.dash-mytask-deal { @apply block truncate text-[10.5px] text-[var(--text-dim)]; }
+.dash-mytask-due { @apply shrink-0 whitespace-nowrap text-[11px] font-bold tabular-nums; }
 
 /* 체크인 초안 채우기 — 빈 칸을 사람이 채우던 것을 숫자로 먼저 채운다(4단계) */
 .checkin-draft-row { @apply flex flex-wrap items-center justify-between gap-2 mb-1; }
@@ -4808,7 +4813,6 @@ table.pnl-drill-table { min-width: 760px; }
 .dash-employee-row { @apply flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition; }
 .dash-partner-row { @apply flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition; }
 .dash-announcement-row { @apply flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition; }
-.dash-task-row { @apply flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition; }
 
 .bar-list { @apply space-y-2; }
 .status-timeline { @apply flex items-center gap-1.5 flex-wrap; }
