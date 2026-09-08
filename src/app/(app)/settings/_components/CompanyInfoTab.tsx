@@ -155,6 +155,16 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     saveMut.mutate();
   };
 
+  //   company-assets URL 에서 저장소 경로를 뽑는다 — 교체·삭제 때 옛 파일을 지워 흔적을 안 남긴다 (2026-09-08, 아바타와 동일 규칙)
+  const assetPathOf = (url: string | null | undefined): string | null => {
+    const m = String(url || "").match(/\/object\/(?:public|sign|authenticated)\/company-assets\/([^?]+)/);
+    return m ? decodeURIComponent(m[1]) : null;
+  };
+  const removeAsset = async (url: string | null | undefined) => {
+    const p = assetPathOf(url);
+    if (p) await db.storage.from("company-assets").remove([p]).catch(() => {});
+  };
+
   const handleFileUpload = useCallback(async (file: File, type: "seal" | "logo") => {
     if (!companyId) return;
     setUploadError("");
@@ -174,6 +184,12 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
 
     setUploading(type);
     try {
+      const updateField = type === "seal" ? "seal_url" : "logo_url";
+      //   교체 전에 '지금 DB 에 박힌 옛 파일'을 읽어 둔다 — React state(sealUrl 등)는 useCallback stale 위험이 있어
+      //   DB 현재값을 authoritative 로 쓴다 (2026-09-08 검증에서 stale 로 옛 파일이 안 지워지는 것을 잡음).
+      const prevRow = await db.from("companies").select("seal_url, logo_url").eq("id", companyId).maybeSingle();
+      const prevUrl = type === "seal" ? (prevRow.data as any)?.seal_url : (prevRow.data as any)?.logo_url;
+
       const ext = file.name.split(".").pop()?.toLowerCase() || "png";
       const filePath = `${companyId}/${type}_${Date.now()}.${ext}`;
 
@@ -190,7 +206,6 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
       const publicUrl = urlData.publicUrl;
 
       // Update company record
-      const updateField = type === "seal" ? "seal_url" : "logo_url";
       const { error: dbErr } = await db
         .from("companies")
         .update({ [updateField]: publicUrl } as never)
@@ -198,6 +213,8 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
 
       if (dbErr) throw dbErr;
 
+      //   새 파일이 DB 에 붙었으니 옛 파일을 지운다 — seal/logo 는 경로에 Date.now() 가 들어가 교체할 때마다 쌓였다
+      if (assetPathOf(prevUrl) !== filePath) await removeAsset(prevUrl);
       if (type === "seal") setSealUrl(publicUrl);
       else setLogoUrl(publicUrl);
 
@@ -207,19 +224,24 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     } finally {
       setUploading(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, queryClient]);
 
   const handleRemoveFile = useCallback(async (type: "seal" | "logo") => {
     if (!companyId) return;
     const updateField = type === "seal" ? "seal_url" : "logo_url";
+    //   지금 DB 에 박힌 파일을 읽어 지운다 — null 만 하면 지운 직인/로고 파일이 저장소에 남는다(2026-09-08, 아바타 사고와 동종)
+    const prevRow = await db.from("companies").select("seal_url, logo_url").eq("id", companyId).maybeSingle();
+    const prevUrl = type === "seal" ? (prevRow.data as any)?.seal_url : (prevRow.data as any)?.logo_url;
     await db
       .from("companies")
       .update({ [updateField]: null } as never)
       .eq("id", companyId);
-
+    await removeAsset(prevUrl);
     if (type === "seal") setSealUrl(null);
     else setLogoUrl(null);
     queryClient.invalidateQueries({ queryKey: ["company-info"] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, queryClient]);
 
   // 자동 직인 생성 · Canvas 로 PNG 만든 후 storage 업로드
@@ -260,11 +282,14 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
         .from("company-assets")
         .getPublicUrl(filePath);
       const publicUrl = urlData.publicUrl;
+      const prevSealRow = await db.from("companies").select("seal_url").eq("id", companyId).maybeSingle();
+      const prevSeal = (prevSealRow.data as any)?.seal_url;
       const { error: dbErr } = await db
         .from("companies")
         .update({ seal_url: publicUrl })
         .eq("id", companyId);
       if (dbErr) throw dbErr;
+      if (assetPathOf(prevSeal) !== filePath) await removeAsset(prevSeal);   // 새 자동 직인이 붙었으니 옛 파일 정리 (2026-09-08, DB 현재값 기준)
       setSealUrl(publicUrl);
       setSealPreview(null);
       queryClient.invalidateQueries({ queryKey: ["company-info"] });
