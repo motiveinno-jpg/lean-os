@@ -154,8 +154,15 @@ export default function MyPage() {
     if (!userId) return;
     setUploadingAvatar(true);
     try {
+      //   지울 파일 경로를 avatar_url 에서 뽑아 둔다(업로드 교체 때와 같은 방식)
+      const prevPath = (() => {
+        const m = String((userInfo as any)?.avatar_url || "").match(/\/object\/(?:public|sign|authenticated)\/company-assets\/([^?]+)/);
+        return m ? decodeURIComponent(m[1]) : null;
+      })();
       const { error } = await supabase.from("users").update({ avatar_url: null }).eq("id", userId);
       if (error) throw new Error(error.message);
+      //   파일도 함께 지운다 — avatar_url 만 비우면 지운 사진 파일이 저장소에 남아, 나중에 '유실'로 오인·복구될 빌미가 된다 (2026-09-08 사고)
+      if (prevPath) await supabase.storage.from("company-assets").remove([prevPath]).catch(() => {});
       toast("기본 이미지로 변경되었습니다", "success");
       refreshAvatar();
     } catch (err: any) {
