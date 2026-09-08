@@ -1,5 +1,6 @@
 import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
+import { sendAlimtalk, resolvePhone, companyName } from "../_shared/alimtalk.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 // 2026-07-06 보안감사 P0: 하드코딩 Resend 키 제거 — env 로만. (노출된 키는 사장님이 Resend 대시보드에서 로테이션 필요)
@@ -28,6 +29,7 @@ interface ApprovalPayload {
   // 수신자의 auth uid — 수신 거부 판정과 수신 주소 재정의를 서버에서 처리한다.
   //   notification_prefs 는 RLS 로 본인 것만 읽히므로 브라우저에서는 판정할 수 없다(2026-08-06).
   recipientAuthId?: string;
+  requesterName?: string;
   requesterName?: string;
   amount?: number;
   stage?: number;
@@ -326,6 +328,22 @@ Deno.serve(withSentry("send-approval-email", async (req: Request) => {
     });
     const data = await res.json();
     if (!res.ok) { console.error("Resend error:", data); throw new Error(data.message || "Failed"); }
+    // 알림톡은 메일과 병행 — 번호가 없거나 키가 없으면 조용히 건너뛴다(메일 결과와 무관).
+    try {
+      const phone = await resolvePhone(company, { authId: payload.recipientAuthId, email: payload.email });
+      const cname = await companyName(company);
+      const isExpense = /지출|경비|expense/i.test(`${payload.actionType} ${typeLabel}`);
+      if (payload.kind) {
+        await sendAlimtalk({ companyId: company, template: "approval_request", phone, recipientAuthId: payload.recipientAuthId,
+          variables: { company_name: cname, approver_name: payload.recipientName || "", requester_name: payload.requesterName || "", action_type: typeLabel, action_title: payload.actionTitle } });
+      } else if (payload.result === "approved" && isExpense) {
+        await sendAlimtalk({ companyId: company, template: "expense_approved", phone, recipientAuthId: payload.recipientAuthId, skipPrefCheck: true,
+          variables: { company_name: cname, recipient_name: payload.recipientName || "", expense_title: payload.actionTitle, amount: String((payload as any).amount ?? "") } });
+      } else if (payload.result) {
+        await sendAlimtalk({ companyId: company, template: "approval_result", phone, recipientAuthId: payload.recipientAuthId, skipPrefCheck: true,
+          variables: { company_name: cname, recipient_name: payload.recipientName || "", action_type: typeLabel, action_title: payload.actionTitle, result: payload.result === "approved" ? "승인" : "반려" } });
+      }
+    } catch (e) { console.error("alimtalk skipped:", e); }
     return new Response(JSON.stringify({ success: true, id: data.id }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

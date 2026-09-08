@@ -1,4 +1,5 @@
 import { tfetch } from "../_shared/http.ts";
+import { sendAlimtalk, isAlimtalkConfigured } from "../_shared/alimtalk.ts";
 import { withSentry } from "../_shared/sentry.ts";
 import { safeEqual } from "../_shared/ingest-auth.ts";
 // 자금일보 자동 발송 — 매일 KST 09:00 pg_cron 호출.
@@ -9,11 +10,10 @@ import { safeEqual } from "../_shared/ingest-auth.ts";
 //   send-now — 사용자 수동 테스트 (특정 회사 + 날짜).
 //
 // 인증: HOMETAX_CRON_SECRET 또는 user JWT.
-// Solapi 발송: SOLAPI_API_KEY/SECRET/PFID/TEMPLATE_ID 4개 secret 필요. 없으면 skip.
+// 알림톡 발송: _shared/alimtalk.ts (NHN Cloud). KAKAO_ALIMTALK_API_KEY·KAKAO_SECRET_KEY·KAKAO_SENDER_KEY 없으면 skip.
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createHmac, randomBytes } from "node:crypto";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -54,59 +54,12 @@ async function buildReport(supabase: any, companyId: string, reportDate: string)
   };
 }
 
-// ─── Solapi 알림톡 발송 ───
-// HMAC SHA256 서명 — Solapi 인증 표준.
-function buildSolapiAuth(apiKey: string, apiSecret: string) {
-  const date = new Date().toISOString();
-  const salt = randomBytes(16).toString("hex");
-  const data = date + salt;
-  const signature = createHmac("sha256", apiSecret).update(data).digest("hex");
-  return `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`;
-}
-
-async function sendKakaoAlimtalk(
-  to: string,
-  templateId: string,
-  pfId: string,
-  variables: Record<string, string>,
-  apiKey: string,
-  apiSecret: string,
-) {
-  const auth = buildSolapiAuth(apiKey, apiSecret);
-  const body = {
-    message: {
-      to,
-      from: undefined,  // 알림톡은 발신번호 미사용 (PFID 가 발신 식별)
-      kakaoOptions: {
-        pfId,
-        templateId,
-        variables,
-      },
-    },
-  };
-  const res = await tfetch("https://api.solapi.com/messages/v4/send", {
-    method: "POST",
-    headers: {
-      Authorization: auth,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  const txt = await res.text();
-  return { ok: res.status >= 200 && res.status < 300, status: res.status, body: txt };
-}
-
 // ─── 한 회사의 자금일보 발송 ───
 async function sendForCompany(
   supabase: any,
   companyId: string,
   reportDate: string,
-  config: {
-    apiKey?: string;
-    apiSecret?: string;
-    pfId?: string;
-    templateId?: string;
-  },
+  _config?: unknown,
 ) {
   const { data: setting } = await supabase
     .from("notification_settings")
@@ -120,40 +73,26 @@ async function sendForCompany(
 
   const r = await buildReport(supabase, companyId, reportDate);
   const variables = {
-    "#{회사명}": r.회사명,
-    "#{기준일}": r.기준일,
-    "#{카드지출}": r.카드지출.toLocaleString(),
-    "#{은행출금}": r.은행출금.toLocaleString(),
-    "#{은행입금}": r.은행입금.toLocaleString(),
-    "#{매입계산서}": r.매입계산서.toLocaleString(),
-    "#{매출계산서}": r.매출계산서.toLocaleString(),
-    "#{잔액}": r.잔액.toLocaleString(),
+    company_name: r.회사명,
+    report_date: r.기준일,
+    card_out: r.카드지출.toLocaleString(),
+    bank_out: r.은행출금.toLocaleString(),
+    bank_in: r.은행입금.toLocaleString(),
+    purchase_invoices: r.매입계산서.toLocaleString(),
+    sales_invoices: r.매출계산서.toLocaleString(),
+    balance: r.잔액.toLocaleString(),
   };
 
-  // Solapi 키 없으면 dry-run (검수 전 확인용)
-  if (!config.apiKey || !config.apiSecret || !config.pfId || !config.templateId) {
-    return {
-      sent: 0,
-      skipped: "solapi_not_configured",
-      report: r,
-      variables,
-      recipients: phones,
-    };
+  // 키 없으면 dry-run (검수 전 확인용) — 공용 발송기가 skipped 로 기록만 남긴다
+  if (!isAlimtalkConfigured()) {
+    return { sent: 0, skipped: "kakao_not_configured", report: r, variables, recipients: phones };
   }
-
   const results = [];
   for (const to of phones) {
-    const r = await sendKakaoAlimtalk(
-      to.replace(/[^0-9]/g, ""),
-      config.templateId,
-      config.pfId,
-      variables,
-      config.apiKey,
-      config.apiSecret,
-    );
-    results.push({ to, ...r });
+    const x = await sendAlimtalk({ companyId, template: "daily_report", phone: to, skipPrefCheck: true, variables });
+    results.push({ to, ok: x.sent, status: x.status, reason: x.reason ?? null });
   }
-  const sent = results.filter(x => x.ok).length;
+  const sent = results.filter((x) => x.ok).length;
   return { sent, total: phones.length, results, report: r };
 }
 
@@ -191,13 +130,7 @@ serve(withSentry("daily-report", async (req) => {
       }
     }
 
-    // Solapi config
-    const cfg = {
-      apiKey: Deno.env.get("SOLAPI_API_KEY"),
-      apiSecret: Deno.env.get("SOLAPI_API_SECRET"),
-      pfId: Deno.env.get("SOLAPI_KAKAO_PFID"),
-      templateId: Deno.env.get("SOLAPI_TEMPLATE_ID_DAILY"),
-    };
+    const cfg = undefined;
 
     if (action === "send-now") {
       // 사용자 수동 테스트. companyId + reportDate (옵션, default 어제) 받음.
@@ -278,7 +211,7 @@ serve(withSentry("daily-report", async (req) => {
         ok: true, kstHour, reportDate,
         triggered: companies?.length || 0,
         results,
-        solapi_configured: !!(cfg.apiKey && cfg.pfId && cfg.templateId),
+        kakao_configured: isAlimtalkConfigured(),
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 

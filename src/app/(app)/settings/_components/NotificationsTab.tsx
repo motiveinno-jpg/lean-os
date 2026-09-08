@@ -8,8 +8,9 @@ import React,  { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 import { useToast } from "@/components/toast";
+import { formatPhone } from "@/lib/phone";
 
-type NotifChannel = "email" | "push";
+type NotifChannel = "email" | "push" | "kakao";
 type NotifEvent =
   | "approval_pending"
   | "approval_reference"
@@ -19,11 +20,14 @@ type NotifEvent =
   | "chat_mention"
   | "board_post"
   | "weekly_report"
-  | "system_alert";
+  | "system_alert"
+  | "payslip_ready"
+  | "contract_sign";
 
 interface NotifPrefs {
   email: { enabled: boolean; address: string; events: Record<NotifEvent, boolean> };
   push: { enabled: boolean; events: Record<NotifEvent, boolean> };
+  kakao: { enabled: boolean; events: Record<NotifEvent, boolean> };
   quietHours: { enabled: boolean; start: string; end: string };
 }
 
@@ -41,7 +45,11 @@ const NOTIF_EVENTS:  { key: NotifEvent; label: string; desc: string; channels?: 
   { key: "board_post", label: "게시판 새 글", desc: "회사 게시판에 새 글이 등록될 때", channels: ["push"] },
   { key: "weekly_report", label: "주간 리포트", desc: "매주 월요일 오전 9시 요약 리포트" },
   { key: "system_alert", label: "시스템 경고", desc: "런웨이·현금흐름이 기준을 넘을 때" },
+  { key: "payslip_ready", label: "급여명세서 발급", desc: "내 급여명세서가 발급될 때", channels: ["kakao"] },
+  { key: "contract_sign", label: "전자계약 서명 요청", desc: "서명할 근로계약 서류가 도착할 때", channels: ["kakao"] },
 ];
+//   카카오톡은 심사받은 문구가 있는 사건만 보낸다 — 아래 목록 밖의 사건은 토글이 보이지 않는다.
+const KAKAO_EVENTS: NotifEvent[] = ["approval_pending", "approval_reference", "payslip_ready", "contract_sign"];
 
 const DEFAULT_NOTIF_PREFS: NotifPrefs = {
   email: {
@@ -57,6 +65,8 @@ const DEFAULT_NOTIF_PREFS: NotifPrefs = {
       board_post: false,   //   게시판은 메일 발송 자체가 없음 — 자리만 채움 (Record<NotifEvent, boolean>)
       weekly_report: true,
       system_alert: true,
+      payslip_ready: false,   //   메일은 명세서 발송 자체가 별도 — 자리만 채움
+      contract_sign: false,
     },
   },
   push: {
@@ -71,6 +81,24 @@ const DEFAULT_NOTIF_PREFS: NotifPrefs = {
       board_post: true,   //   기존 동작 유지 — 지금까지 무조건 발송이었으므로 기본 ON (2026-08-26)
       weekly_report: false,
       system_alert: true,
+      payslip_ready: false,
+      contract_sign: false,
+    },
+  },
+  kakao: {
+    enabled: true,
+    events: {
+      approval_pending: true,
+      approval_reference: true,
+      deal_status: false,
+      payment_due: false,
+      tax_invoice: false,
+      chat_mention: false,
+      board_post: false,
+      weekly_report: false,
+      system_alert: false,
+      payslip_ready: true,
+      contract_sign: true,
     },
   },
   quietHours: { enabled: false, start: "22:00", end: "08:00" },
@@ -81,6 +109,7 @@ const NOTIF_STORAGE_KEY = "leanos-notification-prefs";
 export function NotificationsTab({ companyId }: { companyId: string | null }) {
   const { toast } = useToast();
   const [prefs, setPrefs] = useState<NotifPrefs>(DEFAULT_NOTIF_PREFS);
+  const [myPhone, setMyPhone] = useState<string | null>(null);   //   카카오톡을 받을 번호 — 직원 기록의 전화번호
   const [loaded, setLoaded] = useState(false);
   const [, setSaving] = useState(false);   //   저장 중 표시는 띠와 함께 뺐다
   const [pushSupported, setPushSupported] = useState(false);
@@ -107,6 +136,14 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
       try {
         const u = await getCurrentUser();
         email = u?.email || "";
+        try {
+          if (u?.company_id) {
+            const emp = logRead("settings/NotificationsTab:phone", await (supabase).from("employees").select("phone")
+              .eq("company_id", u.company_id).or(`user_id.eq.${u.id},email.ilike.${(u.email || "").replace(/[,()]/g, "")}`).not("phone", "is", null).limit(1).maybeSingle()) as { phone?: string | null } | null;
+            const digits = String(emp?.phone || (u as any)?.phone || "").replace(/[^0-9]/g, "");
+            setMyPhone(digits.length >= 10 ? digits : null);
+          }
+        } catch {}
         const authUid = (u as { auth_id?: string } | null)?.auth_id || u?.id;
         if (authUid) {
           const row = logRead("settings/NotificationsTab:prefs", await (supabase)
@@ -115,7 +152,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
             .eq("user_id", authUid)
             .maybeSingle()) as { prefs?: Partial<NotifPrefs> } | null;
           if (row?.prefs && typeof row.prefs === "object") {
-            const merged = { ...DEFAULT_NOTIF_PREFS, ...row.prefs };
+            const merged = { ...DEFAULT_NOTIF_PREFS, ...row.prefs, kakao: { ...DEFAULT_NOTIF_PREFS.kakao, ...(row.prefs.kakao || {}), events: { ...DEFAULT_NOTIF_PREFS.kakao.events, ...(row.prefs.kakao?.events || {}) } } };
             setPrefs(merged);
             try { localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(merged)); } catch {}
             fromServer = true;
@@ -125,7 +162,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
       if (!fromServer) {
         try {
           const raw = localStorage.getItem(NOTIF_STORAGE_KEY);
-          if (raw) setPrefs({ ...DEFAULT_NOTIF_PREFS, ...JSON.parse(raw) });
+          if (raw) { const j = JSON.parse(raw); setPrefs({ ...DEFAULT_NOTIF_PREFS, ...j, kakao: { ...DEFAULT_NOTIF_PREFS.kakao, ...(j.kakao || {}), events: { ...DEFAULT_NOTIF_PREFS.kakao.events, ...(j.kakao?.events || {}) } } }); }
         } catch {}
       }
       if (email) {
@@ -259,7 +296,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
     setPrefs((p) => {
       const next = { ...((p[channel] as any).events) };
       for (const ev of NOTIF_EVENTS) {
-        if (ev.channels && !ev.channels.includes(channel)) continue;   //   그 채널에 없는 이벤트는 건드리지 않는다
+        if (channel === "kakao" ? !KAKAO_EVENTS.includes(ev.key) : (ev.channels && !ev.channels.includes(channel))) continue;   //   그 채널에 없는 이벤트는 건드리지 않는다
         next[ev.key] = enabled;
       }
       return { ...p, [channel]: { ...(p[channel] as any), events: next } };
@@ -302,6 +339,30 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
           channel="email"
           enabled={prefs.email.enabled}
           values={prefs.email.events}
+          onChange={setEventEnabled}
+          onAll={setAllEvents}
+        />
+      </ChannelSection>
+
+      {/* KakaoTalk Channel — 알림톡. 회사 카카오 채널로 보내며, 심사받은 문구가 있는 사건만 */}
+      <ChannelSection
+        title="카카오톡"
+        desc="회사 카카오톡 채널로 알림톡을 받습니다."
+        enabled={prefs.kakao.enabled}
+        onToggle={(v) => setPrefs((p) => ({ ...p, kakao: { ...p.kakao, enabled: v } }))}
+      >
+        <div className="notification-email-address-field">
+          <label className="field-label">받는 번호</label>
+          {myPhone ? (
+            <div className="text-sm text-[var(--text)]">{formatPhone(myPhone)} <span className="text-[11px] text-[var(--text-dim)]">· 인사 › 구성원의 내 전화번호입니다.</span></div>
+          ) : (
+            <div className="text-xs text-[var(--warning)]">등록된 전화번호가 없어 카카오톡을 받을 수 없습니다. 인사 › 구성원에서 내 전화번호를 넣어 주세요.</div>
+          )}
+        </div>
+        <EventGrid
+          channel="kakao"
+          enabled={prefs.kakao.enabled}
+          values={prefs.kakao.events}
           onChange={setEventEnabled}
           onAll={setAllEvents}
         />
@@ -469,8 +530,8 @@ function DailyReportCard({ companyId }: { companyId: string | null }) {
         toast(`발송 실패: ${result.error || res.status}`, "error");
         return;
       }
-      if (result.skipped === "solapi_not_configured") {
-        toast(`Solapi 키 미설정 · 검수 통과 후 환경변수 추가 필요. 데이터: ${JSON.stringify(result.report).slice(0, 100)}...`, "info");
+      if (result.skipped === "kakao_not_configured" || result.skipped === "solapi_not_configured") {
+        toast(`카카오 알림톡 키가 아직 없어 보내지 않았습니다. 내용은 준비됐습니다: ${JSON.stringify(result.report).slice(0, 100)}`, "info");
       } else if (result.skipped) {
         toast(`발송 skip: ${result.skipped}`, "info");
       } else {
@@ -649,7 +710,7 @@ function EventGrid({
         </div>
       </div>
       <div className="space-y-1.5">
-        {NOTIF_EVENTS.filter((ev) => !ev.channels || ev.channels.includes(channel)).map((ev) => (
+        {NOTIF_EVENTS.filter((ev) => (channel === "kakao" ? KAKAO_EVENTS.includes(ev.key) : !ev.channels || ev.channels.includes(channel))).map((ev) => (
           <label
             key={ev.key}
             className="flex items-start justify-between gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--border)] transition cursor-pointer"

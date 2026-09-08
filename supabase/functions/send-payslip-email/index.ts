@@ -1,6 +1,7 @@
 import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
 import { escapeHtml, isAppUrl, resolveCaller, recipientInCompany, deny } from "../_shared/mail-guard.ts";
+import { sendAlimtalk, resolvePhone } from "../_shared/alimtalk.ts";
 const esc = escapeHtml;
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -88,6 +89,13 @@ serve(withSentry("send-payslip-email", async (req) => {
     });
 
     if (emailRes.ok) {
+      // 알림톡 병행 — 명세서 자체는 메일(비밀번호 PDF)로 가고, 톡은 "발급됐다" 안내만
+      try {
+        const phone = await resolvePhone(caller.companyId, { email: data.email });
+        const month = String(data.monthLabel || "").match(/(\d{1,2})\s*월/)?.[1] || String(data.monthLabel || "");
+        await sendAlimtalk({ companyId: caller.companyId, template: "payslip_ready", phone,
+          variables: { company_name: String(data.companyName || ""), employee_name: String(data.employeeName || data.name || ""), month } });
+      } catch (e) { console.error("alimtalk skipped:", e); }
       return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     } else {
       const err = await emailRes.text();

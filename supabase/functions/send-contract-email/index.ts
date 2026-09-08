@@ -1,6 +1,7 @@
 import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
 import { escapeHtml, isAppUrl, resolveCaller, recipientInCompany, deny } from "../_shared/mail-guard.ts";
+import { sendAlimtalk, digits } from "../_shared/alimtalk.ts";
 const esc = escapeHtml;
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -33,7 +34,7 @@ Deno.serve(withSentry("send-contract-email", async (req: Request) => {
     );
     const { data: pkg } = await admin
       .from('hr_contract_packages')
-      .select('id, title, expires_at, sign_token, employees(name, email), companies(name)')
+      .select('id, title, expires_at, sign_token, company_id, employees(name, email, phone), companies(name)')
       .eq('sign_token', token)
       .maybeSingle();
 
@@ -124,6 +125,11 @@ Deno.serve(withSentry("send-contract-email", async (req: Request) => {
     }
 
     const result = await res.json();
+    // 알림톡 병행 — 서명 링크는 메일에만 있고 톡은 요청 안내만
+    try {
+      await sendAlimtalk({ companyId: (pkg as any).company_id || null, template: "contract_sign", phone: digits(emp.phone), skipPrefCheck: true,
+        variables: { company_name: companyName, contract_title: packageTitle } });
+    } catch (e) { console.error("alimtalk skipped:", e); }
     return new Response(JSON.stringify({ success: true, id: result.id }), {
       headers: { 'Content-Type': 'application/json' },
     });
