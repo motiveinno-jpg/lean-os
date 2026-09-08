@@ -97,7 +97,7 @@ describe("권한 게이트", () => {
 
 describe("해지 흐름", () => {
   it("Stripe 구독이면 실취소(cancel_at_period_end) 호출 + DB status 유지·예약 플래그", async () => {
-    st.sub = { id: "sub-1", company_id: "co-1", stripe_subscription_id: "sub_stripe_1", plan_slug: "basic", status: "active", current_period_end: "2026-08-01T00:00:00Z" };
+    st.sub = { id: "sub-1", company_id: "co-1", stripe_subscription_id: "sub_stripe_1", plan_slug: "standard", status: "active", current_period_end: "2026-08-01T00:00:00Z" };
     const res = await POST(makeRequest({ reason: "비쌈" }));
     expect(res.status).toBe(200);
     expect(st.stripeUpdate).toHaveBeenCalledWith("sub_stripe_1", { cancel_at_period_end: true });
@@ -111,7 +111,7 @@ describe("해지 흐름", () => {
   });
 
   it("immediate 여도 Stripe(유료 active) 면 즉시 canceled 로 내리지 않고 기간말 예약", async () => {
-    st.sub = { id: "sub-1", company_id: "co-1", stripe_subscription_id: "sub_stripe_1", plan_slug: "basic", status: "active", current_period_end: "2026-08-01T00:00:00Z" };
+    st.sub = { id: "sub-1", company_id: "co-1", stripe_subscription_id: "sub_stripe_1", plan_slug: "standard", status: "active", current_period_end: "2026-08-01T00:00:00Z" };
     await POST(makeRequest({ immediate: true }));
     expect(st.stripeUpdate).toHaveBeenCalledWith("sub_stripe_1", { cancel_at_period_end: true });
     expect(st.stripeCancel).not.toHaveBeenCalled();
@@ -131,7 +131,7 @@ describe("해지 흐름", () => {
   });
 
   it("유료(active) 는 immediate 없으면 기간말 예약(status 유지)", async () => {
-    st.sub = { id: "sub-1", company_id: "co-1", stripe_subscription_id: null, plan_slug: "basic", status: "active", current_period_end: "2026-08-01T00:00:00Z" };
+    st.sub = { id: "sub-1", company_id: "co-1", stripe_subscription_id: null, plan_slug: "standard", status: "active", current_period_end: "2026-08-01T00:00:00Z" };
     const res = await POST(makeRequest());
     expect(res.status).toBe(200);
     const up = st.updated.find((u) => u.table === "subscriptions");
@@ -144,7 +144,7 @@ describe("해지 흐름", () => {
   });
 
   it("Stripe 취소 실패 시 500 — DB 를 canceled/예약으로 바꾸지 않는다", async () => {
-    st.sub = { id: "sub-1", company_id: "co-1", stripe_subscription_id: "sub_stripe_1", plan_slug: "basic", status: "active" };
+    st.sub = { id: "sub-1", company_id: "co-1", stripe_subscription_id: "sub_stripe_1", plan_slug: "standard", status: "active" };
     st.stripeUpdate.mockRejectedValueOnce(new Error("stripe down"));
     const res = await POST(makeRequest());
     expect(res.status).toBe(500);

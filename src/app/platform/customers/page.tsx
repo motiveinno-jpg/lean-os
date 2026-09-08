@@ -196,7 +196,7 @@ export default function CustomersPage() {
                   const sub = latestSub(c);
                   const plan = sub?.subscription_plans;
                   const st = statusOf(c);
-                  const planTone: Tone = plan?.slug === "business" || plan?.slug === "pro" || plan?.slug === "standard" || plan?.slug === "ultra" ? "info" : plan?.slug === "starter" ? "ok" : "muted";
+                  const planTone: Tone = plan?.slug === "standard" || plan?.slug === "ultra" ? "info" : "muted";
                   return (
                     <tr key={c.id} onClick={() => router.push(`/platform/companies/${c.id}`)} className="cursor-pointer">
                       <td className="max-w-[280px]">

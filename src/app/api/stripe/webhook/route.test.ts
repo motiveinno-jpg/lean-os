@@ -110,7 +110,7 @@ describe("서명 게이트", () => {
 describe("checkout.session.completed", () => {
   const session = {
     id: "cs_1", subscription: "sub_1", customer: "cus_1",
-    metadata: { companyId: "co-1", planSlug: "basic", seatCount: "7" },
+    metadata: { companyId: "co-1", planSlug: "standard", seatCount: "7" },
   };
 
   it("기존 구독 있으면 update 경로(trialing) + billing_events 기록", async () => {
@@ -127,7 +127,7 @@ describe("checkout.session.completed", () => {
     expect(up?.row.stripe_subscription_id).toBe("sub_1");
     expect(st.inserted.filter((i) => i.table === "subscriptions")).toHaveLength(0);
     // companies.current_plan 도 갱신
-    expect(st.updated.find((u) => u.table === "companies")?.row.current_plan).toBe("basic");
+    expect(st.updated.find((u) => u.table === "companies")?.row.current_plan).toBe("standard");
     expect(st.inserted.find((i) => i.table === "billing_events")?.row.event_type).toBe("checkout_completed");
   });
 

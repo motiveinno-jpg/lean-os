@@ -199,10 +199,7 @@ export default function SystemPage() {
                   <div className="flex items-center justify-between mb-0.5">
                     <span className="font-bold text-[13px] text-[var(--text)]">{p.name}</span>
                     <span className="text-[13px] font-bold mono-number text-[var(--primary)]">
-                      {/* 엔터프라이즈는 가격 정책 미확정 — 고객용 billing 화면과 동일하게 표기 */}
-                      {p.slug === "enterprise"
-                        ? "별도 문의"
-                        : `₩${(p.base_price || 0).toLocaleString()}/월`}
+                      {`₩${(p.base_price || 0).toLocaleString()}/월`}
                     </span>
                   </div>
                   <div className="text-[11px] text-[var(--text-dim)]">

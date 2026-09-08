@@ -11,7 +11,8 @@ import { supabase } from './supabase';
 const db = supabase;
 
 // ── 플랜 타입 정의 ──
-export type PlanSlug = 'free' | 'starter' | 'basic' | 'business' | 'ultra' | 'pro' | 'enterprise';
+//   현재 요금제는 무료·오너뷰(standard)·울트라(자사 전용) 셋뿐. 옛 이름(starter·basic·business·pro·enterprise)은 정리했다.
+export type PlanSlug = 'free' | 'standard' | 'ultra';
 
 export interface PlanInfo {
   id: string;
@@ -337,31 +338,24 @@ export interface UsageLimits {
   maxStorageMb: number;
 }
 
-// 플랜별 기본 제한 (DB에 없을 경우 폴백)
+// 플랜별 기본 제한 (DB에 없을 경우 폴백) — 공개 요금표와 같은 값
 const PLAN_LIMITS: Partial<Record<PlanSlug, UsageLimits>> = {
   free: {
-    maxSeats: 3,
-    maxProjects: 2,
+    maxSeats: 5,
+    maxProjects: 9999,
     maxSignatures: 5,
-    maxAiCalls: 50,
-    maxStorageMb: 100,
+    maxAiCalls: 9999,
+    maxStorageMb: 500,
   },
-  starter: {
-    maxSeats: 10,
-    maxProjects: 10,
-    maxSignatures: 50,
-    maxAiCalls: 500,
-    maxStorageMb: 1024,
+  standard: {
+    maxSeats: null, // 추가 1명당 과금
+    maxProjects: 9999,
+    maxSignatures: 9999,
+    maxAiCalls: 9999,
+    maxStorageMb: 500,
   },
-  business: {
-    maxSeats: 50,
-    maxProjects: 100,
-    maxSignatures: 500,
-    maxAiCalls: 5000,
-    maxStorageMb: 10240,
-  },
-  enterprise: {
-    maxSeats: null, // 무제한
+  ultra: {
+    maxSeats: null,
     maxProjects: 9999,
     maxSignatures: 9999,
     maxAiCalls: 99999,
