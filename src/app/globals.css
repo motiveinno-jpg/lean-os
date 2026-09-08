@@ -4070,6 +4070,7 @@ table.leave-req-table { min-width: 960px; } /* table. — .ev-table(뒤에 정�
 .panel-header-compact { @apply flex items-center justify-between gap-2; }
 .template-row { @apply flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)]/60 border border-[var(--border)]/50; }
 .template-standard-badge { @apply text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--info)]/10 text-[var(--info)] align-middle; }
+.template-personal-badge { @apply shrink-0 self-center text-[10px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap; background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
 .template-order-buttons { @apply flex flex-col shrink-0; }
 /* 양식 순서 드래그 (2026-08-06) — ▲▼ 와 함께 제공 */
 .template-drag-handle { @apply shrink-0 text-[var(--text-dim)] cursor-grab select-none text-sm leading-none; }

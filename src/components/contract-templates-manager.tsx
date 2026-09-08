@@ -20,6 +20,7 @@ const RichEditor = dynamic(() => import("@/components/rich-editor").then((m) => 
   loading: () => <div className="h-48 bg-[var(--bg-surface)] rounded-xl animate-pulse" />,
 });
 import { useModalKeys } from "@/hooks/use-modal-keys";
+import { useUser } from "@/components/user-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
@@ -43,6 +44,8 @@ interface Props { companyId: string }
 export default function ContractTemplatesManager({ companyId }: Props) {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { user } = useUser();
+  const myUserId = user?.id ?? null;   // users.id — 개인 양식 소유자 판정(created_by)
 
   const { data: templates = [], isLoading } = useQuery<ContractTemplate[]>({
     queryKey: ["contract-templates", companyId],
@@ -52,7 +55,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
 
   // 표준/회사 양식을 탭으로 분리 (2026-08-06 사장님: "회사 양식 찾으려면 너무 밑으로 내려가야 해").
   //   기본은 '우리 회사 양식' · 실제로 매일 쓰는 쪽이 먼저 보이게.
-  const [listTab, setListTab] = useState<"company" | "system">("company");
+  const [listTab, setListTab] = useState<"company" | "personal" | "system">("company");
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<ContractTemplate | null>(null);
   // 표준 양식 '복제해서 수정' 원본 · 신규 폼에 본문을 실어 연다 (2026-08-05 사장님 제보: 빈 페이지가 뜨던 문제)
@@ -60,7 +63,9 @@ export default function ContractTemplatesManager({ companyId }: Props) {
   // '양식 추가' → 먼저 방식 선택(근로계약과 동일): PDF 업로드 / 직접 작성 → 그 모드로 편집기 오픈.
   const [chooserOpen, setChooserOpen] = useState(false);
   const [initialMode, setInitialMode] = useState<"html" | "pdf">("html");
-  const startAdd = (mode: "html" | "pdf") => { setInitialMode(mode); setEditing(null); setDuplicateFrom(null); setShowAdd(true); setChooserOpen(false); };
+  // 개인 양식 탭에서 '양식 추가' 를 누르면 개인 양식으로 만든다(만든 사람에게만 보임).
+  const [addPersonal, setAddPersonal] = useState(false);
+  const startAdd = (mode: "html" | "pdf") => { setInitialMode(mode); setEditing(null); setDuplicateFrom(null); setAddPersonal(listTab === "personal"); setShowAdd(true); setChooserOpen(false); };
 
   // 회사가 정한 노출 순서 · 양식관리·발송 목록이 같은 배열을 본다(2026-08-03 사장님: "순서도 내가 변경할 수 있게").
   const  { data: templateOrder = [] } = useQuery({
@@ -73,7 +78,12 @@ export default function ContractTemplatesManager({ companyId }: Props) {
     [templates, templateOrder],
   );
   const companyTemplates = useMemo(
-    () => sortTemplatesByOrder(templates.filter((t) => !t.is_system), templateOrder),
+    () => sortTemplatesByOrder(templates.filter((t) => !t.is_system && !t.is_personal), templateOrder),
+    [templates, templateOrder],
+  );
+  // 개인 양식 — RLS 가 본인 것만 내려주므로 여기 담긴 건 모두 내 것이다.
+  const personalTemplates = useMemo(
+    () => sortTemplatesByOrder(templates.filter((t) => t.is_personal), templateOrder),
     [templates, templateOrder],
   );
   const orderMut = useMutation({
@@ -196,6 +206,13 @@ export default function ContractTemplatesManager({ companyId }: Props) {
           우리 회사 양식 <span className="template-section-count">{companyTemplates.length}</span>
         </button>
         <button
+          onClick={() => setListTab("personal")}
+          className={`seg-item ${listTab === "personal" ? "seg-item-active" : ""}`}
+          title="내가 만든 양식은 나에게만 보입니다."
+        >
+          개인 양식 <span className="template-section-count">{personalTemplates.length}</span>
+        </button>
+        <button
           onClick={() => setListTab("system")}
           className={`seg-item ${listTab === "system" ? "seg-item-active" : ""}`}
         >
@@ -297,6 +314,44 @@ export default function ContractTemplatesManager({ companyId }: Props) {
         </div>
       ))}
 
+      {/* 개인 양식 — 만든 사람에게만 보인다(RLS 격리). 순서는 개인별이 아니라 회사 배열을 공유하므로 드래그·▲▼ 는 빼고 수정/삭제만. */}
+      {listTab === "personal" && (
+        <div>
+          <div className="text-[11px] text-[var(--text-dim)] mb-1.5">
+            여기에 추가한 양식은 <b>나에게만</b> 보입니다(같은 회사 다른 직원에겐 보이지 않습니다). 발송·계약 화면에서도 나만 고를 수 있습니다.
+          </div>
+          {personalTemplates.length === 0 ? (
+            <div className="templates-empty">
+              아직 개인 양식이 없습니다. <b>+ 양식 추가</b>로 나만 쓰는 양식을 만들어 보세요.
+            </div>
+          ) : (
+            <div className="grid gap-1.5">
+              {personalTemplates.map((t) => (
+                <div key={t.id} className="template-row">
+                  <span className="template-personal-badge" title="나에게만 보이는 양식">🔒 개인</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-[var(--text)] truncate">{t.name}</div>
+                    <div className="caption">변수 {t.variables.length}개 · {t.file_type === "pdf" ? "PDF" : "직접 작성"}</div>
+                  </div>
+                  <button
+                    onClick={() => setEditing(t)}
+                    className="text-[10px] px-2 py-1 rounded bg-[var(--bg)] text-[var(--text-muted)] hover:text-[var(--text)] transition"
+                  >
+                    수정
+                  </button>
+                  <button
+                    onClick={async () => { if (await appConfirm(`'${t.name}' 개인 양식을 삭제하시겠습니까?`, { danger: true })) deleteMut.mutate(t.id); }}
+                    className="text-[10px] px-2 py-1 rounded text-red-400 hover:bg-red-500/10 transition"
+                  >
+                    삭제
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {(showAdd || editing) && (
         <TemplateEditorModal
           key={duplicateFrom?.id || editing?.id || "new"}
@@ -305,6 +360,8 @@ export default function ContractTemplatesManager({ companyId }: Props) {
           duplicateFrom={duplicateFrom}
           systemTemplates={systemTemplates}
           initialMode={initialMode}
+          asPersonal={addPersonal}
+          currentUserId={myUserId}
           onClose={() => { setShowAdd(false); setEditing(null); setDuplicateFrom(null); }}
           onSaved={() => {
             qc.invalidateQueries({ queryKey: ["contract-templates", companyId] });
@@ -329,6 +386,8 @@ function TemplateEditorModal({
   duplicateFrom,
   systemTemplates,
   initialMode,
+  asPersonal,
+  currentUserId,
   onClose,
   onSaved,
 }: {
@@ -338,6 +397,10 @@ function TemplateEditorModal({
   duplicateFrom: ContractTemplate | null;
   systemTemplates: ContractTemplate[];
   initialMode: "html" | "pdf";
+  /** 개인 양식 탭에서 새로 만드는 중이면 true — 저장 시 나에게만 보이는 양식이 된다 */
+  asPersonal: boolean;
+  /** 개인 양식 소유자 users.id */
+  currentUserId: string | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -439,8 +502,10 @@ function TemplateEditorModal({
       fileUrl: fileType === "pdf" ? fileUrl : null,
       fileType,
       variables: detectedVars,
+      isPersonal: asPersonal,
+      createdBy: asPersonal ? currentUserId : null,
     }),
-    onSuccess: () => { toast("계약서 양식 추가 완료", "success"); onSaved(); },
+    onSuccess: () => { toast(asPersonal ? "개인 양식 추가 완료 — 나에게만 보입니다" : "계약서 양식 추가 완료", "success"); onSaved(); },
     onError: (e: any) => toast(`저장 실패: ${friendlyError(e, "권한이 없거나 일시 오류")}`, "error"),
   });
 
@@ -477,6 +542,7 @@ function TemplateEditorModal({
 
   function canSave() {
     if (readonly) return false;
+    if (asPersonal && !editing && !currentUserId) return false;   // 소유자 판정 불가면 개인 양식 저장 막음
     if (!name.trim()) return false;
     if (fileType === "pdf") return !!fileUrl;
     if (fileType === "markdown") return !!bodyMarkdown.trim();
@@ -499,8 +565,9 @@ function TemplateEditorModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)] shrink-0">
           <div>
-            <h2 className="text-sm font-bold text-[var(--text)]">{readonly ? "시스템 양식 미리보기" : editing ? "계약 양식 수정" : duplicateFrom ? "표준 양식 복제" : "계약 양식 추가"}</h2>
+            <h2 className="text-sm font-bold text-[var(--text)]">{readonly ? "시스템 양식 미리보기" : editing ? "계약 양식 수정" : duplicateFrom ? "표준 양식 복제" : asPersonal ? "개인 양식 추가" : "계약 양식 추가"}</h2>
             {readonly && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">시스템 양식은 수정/삭제할 수 없습니다.</p>}
+            {!readonly && !editing && asPersonal && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">🔒 저장하면 나에게만 보이는 개인 양식이 됩니다.</p>}
             {!readonly && !editing && duplicateFrom && (
               <p className="text-[11px] text-[var(--text-dim)] mt-0.5">‘{duplicateFrom.name}’을 복제했습니다. 저장하면 우리 회사 양식이 됩니다.</p>
             )}

@@ -5,8 +5,9 @@
 //   is_system=false 는 회사별 자체 양식 (admin 만 CRUD).
 //
 // RLS:
-//   SELECT  = is_system OR company_id=get_my_company_id()
-//   WRITE   = is_company_admin() + company_id=get_my_company_id()
+//   SELECT  = (is_system OR company_id=get_my_company_id())  AND  (is_personal=false OR created_by=나)
+//   WRITE   = is_company_admin()/has_perm  (회사 공용)  OR  본인 개인 양식(is_personal + created_by=나)
+//   개인 양식(is_personal=true, 마이그 20260908130000): 만든 사람에게만 보이고 본인만 CRUD.
 //
 // 호출자:
 //   - C: contract-templates-manager.tsx (settings 회사 자체 양식 관리)
@@ -27,6 +28,7 @@ export interface ContractTemplate {
   body_markdown: string | null;
   variables: string[];
   is_system: boolean;
+  is_personal: boolean;
   is_active: boolean;
   sort_order: number;
   file_url: string | null;
@@ -44,7 +46,7 @@ export interface ContractTemplate {
 export async function listContractTemplates(companyId: string): Promise<ContractTemplate[]> {
   const { data, error } = await db
     .from("contract_templates")
-    .select("id, company_id, name, code, body_html, body_markdown, variables, is_system, is_active, sort_order, file_url, file_type, created_by, created_at, updated_at")
+    .select("id, company_id, name, code, body_html, body_markdown, variables, is_system, is_personal, is_active, sort_order, file_url, file_type, created_by, created_at, updated_at")
     // RLS 가 is_system + 회사 격리 — OR 필터 불필요
     .order("is_system", { ascending: false })
     .order("sort_order", { ascending: true });
@@ -61,6 +63,10 @@ export async function createContractTemplate(params: {
   fileType?: "html" | "markdown" | "pdf";
   variables?: string[];
   sortOrder?: number;
+  /** 개인 양식(만든 사람에게만 보임). true 면 createdBy(=본인 users.id) 를 반드시 넘긴다. */
+  isPersonal?: boolean;
+  /** 개인 양식 소유자 users.id — RLS insert 정책이 created_by = current_app_user_id() 를 요구한다. */
+  createdBy?: string | null;
 }): Promise<ContractTemplate> {
   const vars = params.variables ?? extractVariables(params.bodyHtml || params.bodyMarkdown || "");
   const insertRow = {
@@ -73,10 +79,14 @@ export async function createContractTemplate(params: {
     variables: vars,
     sort_order: params.sortOrder ?? 100,
     is_system: false,
+    is_personal: params.isPersonal === true,
+    // 개인 양식만 created_by 를 채운다(RLS insert 정책 통과·소유자 판정). 회사 공용은 종전대로 null.
+    ...(params.isPersonal ? { created_by: params.createdBy ?? null } : {}),
   };
   const { data, error } = await db
     .from("contract_templates")
-    .insert(insertRow)
+    // is_personal 은 마이그 20260908130000 로 추가 — 생성 타입 갱신 전까지 as never (본 파일 update 와 동일 패턴)
+    .insert(insertRow as never)
     .select()
     .single();
   if (error) throw error;
