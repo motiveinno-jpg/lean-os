@@ -1,5 +1,6 @@
 "use client";
 import { CardStatusPanels } from "@/components/finance-status-panels";
+import { reorderCorporateCards } from "@/lib/card-transactions";
 import { DonutChart, Legend, vizColor } from "@/components/charts/kit";
 import { downloadCsv, rangeSuffix } from "@/lib/csv-export";
 import { logRead } from "@/lib/log-read";
@@ -213,6 +214,19 @@ export default function CardsPage() {
   const [cardEdit, setCardEdit] = useState<{ id: string; name: string; memo: string; number: string } | null>(null);
   const [cardSaving, setCardSaving] = useState(false);
   const refreshCards = () => { queryClient.invalidateQueries({ queryKey: ["cards-page-corporate"] }); queryClient.invalidateQueries({ queryKey: ["corporate-cards"] }); };
+  //   카드 순서 바꾸기 — 목록 행을 끌어 놓는다(2026-09-08 사장님). 화면은 바로 바뀌고, sort_order 를 저장한다.
+  const [dragCardIdx, setDragCardIdx] = useState<number | null>(null);
+  const [overCardIdx, setOverCardIdx] = useState<number | null>(null);
+  const moveCard = async (from: number, to: number) => {
+    if (from === to || from < 0 || to < 0) return;
+    const next = [...(cards as any[])];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    queryClient.setQueryData(["cards-page-corporate", companyId], next);   // 낙관적 반영
+    try { await reorderCorporateCards(next.map((c) => c.id)); }
+    catch (e: any) { toast(`순서 저장 실패: ${e?.message || ""}`, "error"); refreshCards(); return; }
+    queryClient.invalidateQueries({ queryKey: ["corporate-cards"] });
+  };
   const saveCardEdit = async () => {
     if (!cardEdit) return;
     const name = cardEdit.name.trim(); if (!name) { toast("카드 이름을 입력해 주세요", "error"); return; }
@@ -282,6 +296,8 @@ export default function CardsPage() {
       const data = logRead('cards/page:data', await db.from("corporate_cards")
         .select("*")
         .eq("company_id", companyId ?? "")
+        //   사용자가 정한 순서(sort_order). 백필 전 옛 회사·동률은 등록일순 (2026-09-08)
+        .order("sort_order", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: true }));
       return (data || []) as any[];
     },
@@ -955,10 +971,18 @@ export default function CardsPage() {
             {/* 카드 미니 그리드 — 클릭 시 그 카드 거래내역 영역으로 스크롤+필터 */}
             {cardsView === "list" ? (
               <table className="ev-table ev-lined cards-table">
-                <thead><tr><th className="text-left">카드</th><th>종류</th><th>끝번호</th><th>카드사</th><th className="text-left">메모</th><th>결제일</th><th>한도</th><th>동작</th></tr></thead>
+                <thead><tr><th className="w-8" title="끌어서 순서 변경"></th><th className="text-left">카드</th><th>종류</th><th>끝번호</th><th>카드사</th><th className="text-left">메모</th><th>결제일</th><th>한도</th><th>동작</th></tr></thead>
                 <tbody>
                   {cards.map((card: any, idx: number) => ({ card, idx })).filter(({ card }) => showHiddenCards || card.is_active !== false).map(({ card, idx }) => (
-                    <tr key={card.id} className={`pnl-row-acct ${idx === selectedCardIdx ? "cards-row-on" : ""} ${card.is_active === false ? "opacity-60" : ""}`} onClick={() => handleSelectCardForTx(card, idx)} title="누르면 이 카드 거래내역">
+                    <tr key={card.id}
+                      draggable
+                      onDragStart={(e) => { setDragCardIdx(idx); e.dataTransfer.effectAllowed = "move"; }}
+                      onDragOver={(e) => { e.preventDefault(); if (overCardIdx !== idx) setOverCardIdx(idx); }}
+                      onDrop={(e) => { e.preventDefault(); if (dragCardIdx !== null) moveCard(dragCardIdx, idx); setDragCardIdx(null); setOverCardIdx(null); }}
+                      onDragEnd={() => { setDragCardIdx(null); setOverCardIdx(null); }}
+                      className={`pnl-row-acct ${idx === selectedCardIdx ? "cards-row-on" : ""} ${card.is_active === false ? "opacity-60" : ""} ${dragCardIdx === idx ? "opacity-40" : ""} ${overCardIdx === idx && dragCardIdx !== null && dragCardIdx !== idx ? "cards-row-drop" : ""}`}
+                      onClick={() => handleSelectCardForTx(card, idx)} title="누르면 이 카드 거래내역 · 끌어서 순서 변경">
+                      <td className="text-center cursor-grab select-none text-[var(--text-dim)] hover:text-[var(--text)]" onClick={(e) => e.stopPropagation()} title="끌어서 순서 변경">⋮⋮</td>
                       <td className="text-left font-semibold">{card.card_name || "카드"}{card.is_active === false && <span className="ol-sure ml-1.5">숨김</span>}{card.sync_enabled === false && <span className="ol-sure ml-1.5" title="거래를 가져오지 않는 카드 · '수집 켜기'로 되돌립니다">수집 꺼짐</span>}</td>
                       <td className="text-center"><span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${cardTypeBadgeClass(card.card_type)}`}>{cardTypeLabel(card.card_type)}</span></td>
                       <td className="text-center mono-number text-[var(--text-muted)] whitespace-nowrap">{cardNoDisplay(card.card_number)}</td>

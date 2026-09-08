@@ -14,8 +14,17 @@ export async function getCorporateCards(companyId: string) {
     .from('corporate_cards')
     .select('*')
     .eq('company_id', companyId)
+    //   사용자가 정한 순서(sort_order, 작을수록 위). 옛 회사(백필 전)나 동률은 등록일 역순으로 (2026-09-08)
+    .order('sort_order', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false }));
   return data || [];
+}
+
+/** 카드 순서 저장 — id 배열 순서대로 0,1,2… (본인 회사만, RPC 가 회사 격리 강제) */
+export async function reorderCorporateCards(orderedIds: string[]) {
+  //   RPC 는 생성 타입(src/types/database.ts)에 아직 없다 — 타입 재생성 전까지 캐스팅 (2026-09-08)
+  const { error } = await (supabase.rpc as any)('reorder_corporate_cards', { p_ids: orderedIds });
+  if (error) throw error;
 }
 
 export async function upsertCorporateCard(params: {
