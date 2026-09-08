@@ -50,6 +50,9 @@ const NOTIF_EVENTS:  { key: NotifEvent; label: string; desc: string; channels?: 
 ];
 //   카카오톡은 심사받은 문구가 있는 사건만 보낸다 — 아래 목록 밖의 사건은 토글이 보이지 않는다.
 const KAKAO_EVENTS: NotifEvent[] = ["approval_pending", "approval_reference", "payslip_ready", "contract_sign"];
+//   카카오톡 채널 노출 스위치 — 발신프로필·템플릿 심사·서버 키가 갖춰지기 전까지는 설정 화면에 보이지 않는다.
+//   서버는 키가 없으면 어차피 보내지 않으므로 이 값은 화면 노출만 정한다. 준비되면 true 로.
+const KAKAO_CHANNEL_VISIBLE = false;
 
 const DEFAULT_NOTIF_PREFS: NotifPrefs = {
   email: {
@@ -345,6 +348,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
       </ChannelSection>
 
       {/* KakaoTalk Channel — 알림톡. 회사 카카오 채널로 보내며, 심사받은 문구가 있는 사건만 */}
+      {KAKAO_CHANNEL_VISIBLE && (
       <ChannelSection
         title="카카오톡"
         desc="회사 카카오톡 채널로 알림톡을 받습니다."
@@ -367,6 +371,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
           onAll={setAllEvents}
         />
       </ChannelSection>
+      )}
 
       {/* Push Channel */}
       <ChannelSection
