@@ -45,8 +45,7 @@ export default function SystemPage() {
   const { data: plans = [] } = useQuery({
     queryKey: ["p-sys-plans"],
     queryFn: async () => {
-      // 비활성 요금제(구버전)는 숨긴다 — 2026-07-28 이전엔 필터가 없어 지운 줄 알았던
-      //   Starter·Pro 가 계속 보였다. 실제 행 삭제는 별건으로 처리함.
+      // 판매하지 않는 요금제(자사 전용 울트라)는 숨긴다.
       const data = logRead('system/page:data', await db.from("subscription_plans")
         .select("*").eq("is_active", true).order("base_price", { ascending: true }));
       return data || [];

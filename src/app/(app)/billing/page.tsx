@@ -30,7 +30,7 @@ const db = supabase;
 type Tab = "plan" | "credits" | "payment" | "invoices";
 type BillingCycle = "monthly" | "annual";
 
-// 2026-08-06 요금제 개편 · 무료(영구) + 오너뷰 단일 유료(2026-08-11 39,000원·VAT 별도). 구 티어는 기존 구독자 표시용.
+// 요금제는 무료(영구)와 오너뷰(39,000원·VAT 별도) 둘. 울트라는 자사 전용이라 판매 목록에 나오지 않는다.
 //   2026-08-19 재편: 요금제 카드(기능 불릿)는 비교 표(요금제 탭 안 rows)로 바뀌어 PLAN_FEATURES 는 없앴다.
 
 function fmtW(n: number): string  {

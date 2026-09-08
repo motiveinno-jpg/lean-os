@@ -11,7 +11,7 @@
  *   STRIPE_SECRET_KEY_LIVE=sk_live_xxx node scripts/create-storage-pack-prices.mjs --apply   # 실제 생성
  *   (테스트 모드 확인은 sk_test_ 키. STRIPE_SECRET_KEY 도 읽는다.)
  *
- * 안전장치(scripts/create-annual-prices.mjs 와 동일 패턴):
+ * 안전장치:
  *   · 상품은 "기존 좌석 월간 Price 의 product" 로 찾는다(STRIPE_PRICE_STANDARD_EXTRA_SEAT_MONTHLY 환경변수가
  *     있으면 그것, 없으면 이름 'OwnerView 오너뷰'/'오너뷰'/'standard' 로 검색). 라이브/테스트는 상품 ID 가 다르다.
  *   · lookup_key(ownerview_storage_pack_monthly / _annual) 로 중복 생성을 막는다 — 두 번 실행해도 건너뛴다.

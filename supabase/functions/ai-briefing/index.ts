@@ -414,8 +414,7 @@ Deno.serve(withSentry("ai-briefing", async (req) => {
     if (!companyId) return fail();
 
     // AI 브리핑은 유료 전용 — 서버 강제. 무료는 fail()=규칙 브리핑 폴백(무료 AI 소진 방지).
-    //   2026-08-06 요금제 개편: plan_slug 직접 비교(ultra/enterprise 하드코딩)를 실효 플랜 판정으로 교체.
-    //   그대로 뒀으면 새 요금제(standard) 구독자에게 브리핑이 통째로 안 나왔다.
+    //   플랜 이름을 직접 비교하지 않고 실효 플랜(entitlement)으로 판정한다.
     const { data: entRow } = await admin
       .rpc("get_company_entitlement", { p_company_id: companyId })
       .maybeSingle();

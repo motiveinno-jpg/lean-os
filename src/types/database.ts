@@ -16111,7 +16111,6 @@ export type Database = {
           included_seats: number | null
           is_active: boolean | null
           list_price: number | null
-          max_employees: number | null
           max_seats: number | null
           monthly_ai_call_limit: number | null
           monthly_ai_token_limit: number | null
@@ -16122,12 +16121,10 @@ export type Database = {
           monthly_tax_invoice_limit: number | null
           name: string
           per_seat_price: number
-          semiannual_discount: number | null
           slug: string
           sort_order: number | null
           stripe_price_annual: string | null
           stripe_price_monthly: string | null
-          stripe_price_semiannual: string | null
           stripe_product_id: string | null
         }
         Insert: {
@@ -16141,7 +16138,6 @@ export type Database = {
           included_seats?: number | null
           is_active?: boolean | null
           list_price?: number | null
-          max_employees?: number | null
           max_seats?: number | null
           monthly_ai_call_limit?: number | null
           monthly_ai_token_limit?: number | null
@@ -16152,12 +16148,10 @@ export type Database = {
           monthly_tax_invoice_limit?: number | null
           name: string
           per_seat_price?: number
-          semiannual_discount?: number | null
           slug: string
           sort_order?: number | null
           stripe_price_annual?: string | null
           stripe_price_monthly?: string | null
-          stripe_price_semiannual?: string | null
           stripe_product_id?: string | null
         }
         Update: {
@@ -16171,7 +16165,6 @@ export type Database = {
           included_seats?: number | null
           is_active?: boolean | null
           list_price?: number | null
-          max_employees?: number | null
           max_seats?: number | null
           monthly_ai_call_limit?: number | null
           monthly_ai_token_limit?: number | null
@@ -16182,12 +16175,10 @@ export type Database = {
           monthly_tax_invoice_limit?: number | null
           name?: string
           per_seat_price?: number
-          semiannual_discount?: number | null
           slug?: string
           sort_order?: number | null
           stripe_price_annual?: string | null
           stripe_price_monthly?: string | null
-          stripe_price_semiannual?: string | null
           stripe_product_id?: string | null
         }
         Relationships: []

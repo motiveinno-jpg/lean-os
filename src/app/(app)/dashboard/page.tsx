@@ -257,8 +257,7 @@ export default function DashboardPage() {
     staleTime: 5 * 60_000,
   });
   // AI 브리핑은 유료 전용 · 무료 플랜이면 규칙 브리핑으로 폴백(서버도 동일하게 막는다).
-  //   2026-08-06 요금제 개편: ultra/enterprise 하드코딩 → '무료가 아니면 허용' 으로 교체.
-  //   그대로 뒀으면 새 요금제(standard) 구독자에게 브리핑이 안 나왔다.
+  //   플랜 이름을 직접 비교하지 않고 '무료가 아니면 허용' 으로 판정한다.
   const aiBriefingEnabled = !!subscription?.entitled && subscription?.planSlug !== "free";
 
   // 현금 상태 data
