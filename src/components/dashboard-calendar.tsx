@@ -152,17 +152,26 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
           const marks = byDate[key];
           const isToday = key === todayStr;
           const isSel = key === selected;
+          const dayLeaves = leaveByDate[key] || [];
           return (
             <button key={key} type="button" onClick={() => setSelected(key)}
-              className={`dashboard-calendar-cell rounded-lg flex flex-col items-center justify-center leading-none transition ${
+              className={`dashboard-calendar-cell rounded-lg flex flex-col items-center justify-center leading-none overflow-hidden transition ${
                 isSel ? "bg-[var(--primary)] text-white font-bold" : isToday ? "bg-[var(--primary)]/12 text-[var(--primary)] font-bold" : "text-[var(--text)] hover:bg-[var(--bg-surface)]"
               }`}>
               <span className="text-[11px]">{d}</span>
-              <span className="flex gap-0.5 mt-0.5 h-1 items-center">
-                {marks?.event ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--primary)]"}`} /> : null}
-                {marks?.todo ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--warning)]"}`} /> : null}
-                {marks?.leave ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--success)]"}`} /> : null}
-              </span>
+              {/* 일정·할 일은 점으로 (휴가는 아래에 이름으로 직접 보인다) */}
+              {(marks?.event || marks?.todo) ? (
+                <span className="flex gap-0.5 mt-0.5 h-1 items-center">
+                  {marks?.event ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--primary)]"}`} /> : null}
+                  {marks?.todo ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--warning)]"}`} /> : null}
+                </span>
+              ) : null}
+              {/* 직원 휴가는 달력 칸에 이름으로 (2026-09-08 사장님) — 여러 명이면 "외 N" */}
+              {dayLeaves.length ? (
+                <span className={`dashboard-calendar-leave ${isSel ? "on" : ""}`} title={dayLeaves.map((l) => `${l.name} ${l.label}`).join(", ")}>
+                  {dayLeaves[0].name}{dayLeaves.length > 1 ? ` 외${dayLeaves.length - 1}` : ""}
+                </span>
+              ) : null}
             </button>
           );
         })}

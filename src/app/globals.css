@@ -4988,6 +4988,8 @@ table.pnl-drill-table { min-width: 760px; }
 .dashboard-calendar-weekdays { @apply grid grid-cols-7 gap-0.5 mb-1 shrink-0; }
 .dashboard-calendar-days { @apply grid grid-cols-7 auto-rows-fr gap-0.5 flex-1 min-h-0; }
 .dashboard-calendar-cell { @apply w-full h-full min-h-[26px]; }
+.dashboard-calendar-leave { @apply mt-0.5 max-w-[92%] truncate text-[8px] leading-tight px-1 py-px rounded-full font-semibold; background: color-mix(in srgb, var(--success) 16%, transparent); color: var(--success); }
+.dashboard-calendar-leave.on { background: rgba(255,255,255,0.28); color: #fff; }
 /* 고른 날짜의 일정 — 길어지면 여기서만 스크롤(카드 밖으로 밀지 않는다) */
 .dashboard-calendar-selected { @apply mt-3 border-t border-[var(--border)] pt-2.5 shrink-0 max-h-[38%] overflow-y-auto; }
 .dashboard-calendar-items { @apply flex flex-col gap-1; }
