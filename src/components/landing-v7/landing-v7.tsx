@@ -217,7 +217,7 @@ export default function LandingV7() {
     const mm = gsap.matchMedia();
 
     // 움직임 줄이기를 켠 사람에게는 애니메이션을 아예 만들지 않는다 — 화면은 이미 최종 상태다.
-    mm.add("(prefers-reduced-motion: no-preference)", () => {
+    mm.add("(prefers-reduced-motion: no-preference)", (ctx) => {
       const q = gsap.utils.selector(root);
       const cleanups: Array<() => void> = [];
 
@@ -591,11 +591,16 @@ export default function LandingV7() {
         });
         const core = flow.querySelector(".lp7-flow-core");
         if (core) {
-          gsap.from(core, { scale: 0.92, autoAlpha: 0, duration: 0.7, delay: 0.15, scrollTrigger: { trigger: flow, start: "top 72%" } });
-          // 배경 층: 가운데 판이 천천히 숨 쉰다
-          const breathe = gsap.timeline({ repeat: -1, yoyo: true });
-          breathe.to(core, { scale: 1.015, duration: 1.6, ease: "sine.inOut" });
-          loop(flow, breathe);
+          //   숨 쉬기(scale 반복)는 등장 트윈이 끝난 뒤에 만든다 — 같은 요소·같은 속성에 두 트윈이 동시에 돌면
+          //   등장 값(0.92)에서 멈춘 채 남는다. 나중에 만드는 것도 ctx.add 로 같은 문맥에 담아 정리 때 같이 지운다.
+          gsap.from(core, {
+            scale: 0.92, autoAlpha: 0, duration: 0.7, delay: 0.15, scrollTrigger: { trigger: flow, start: "top 72%" },
+            onComplete: () => ctx.add(() => {
+              const breathe = gsap.timeline({ repeat: -1, yoyo: true });
+              breathe.to(core, { scale: 1.015, duration: 1.6, ease: "sine.inOut" });
+              loop(flow, breathe);
+            }),
+          });
         }
         // 점이 화살표를 타고 흐른다
         const dots = flow.querySelectorAll(".lp7-arrow-dot");
@@ -659,7 +664,9 @@ export default function LandingV7() {
       /* ══ 마지막 CTA · 빛이 떠다니고 버튼이 숨 쉰다 ══ */
       const cta = q(".lp7-cta")[0];
       if (cta)  {
-        reveal(cta.querySelectorAll(".lp7-h2, .lp7-cta .lp7-btn-lg, .lp7-cta p"), { stagger: 0.1 }, cta);
+        //   버튼은 감싸는 상자를 띄운다 — 버튼 자체에는 아래에서 그림자 맥동이 계속 도는데, 같은 요소에 두 트윈이 겹치면
+        //   등장 트윈의 y 가 28px 에서 멈춘 채 남아 아래 안내문과 겹쳤다.
+        reveal(cta.querySelectorAll(".lp7-h2, .lp7-cta-btn, .lp7-cta p"), { stagger: 0.1 }, cta);
         const blobs = cta.querySelectorAll(".lp7-blob");
         blobs.forEach((b, i) => {
           const tl = gsap.timeline({ repeat: -1, yoyo: true, defaults: { ease: "sine.inOut" } });
