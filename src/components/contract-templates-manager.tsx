@@ -35,6 +35,8 @@ import {
   setContractTemplateHidden,
   getContractTemplateOrder,
   setContractTemplateOrder,
+  getPersonalTemplateOrder,
+  setPersonalTemplateOrder,
   sortTemplatesByOrder,
   type ContractTemplate,
 } from "@/lib/contract-templates";
@@ -81,18 +83,38 @@ export default function ContractTemplatesManager({ companyId }: Props) {
     () => sortTemplatesByOrder(templates.filter((t) => !t.is_system && !t.is_personal), templateOrder),
     [templates, templateOrder],
   );
+  // 개인 양식 순서는 계정 단위(회사 공용 순서와 별개) — user_preferences 에 저장.
+  const { data: personalOrder = [] } = useQuery({
+    queryKey: ["contract-personal-order", companyId],
+    queryFn: () => getPersonalTemplateOrder(companyId),
+    enabled: !!companyId,
+  });
   // 개인 양식 — RLS 가 본인 것만 내려주므로 여기 담긴 건 모두 내 것이다.
   const personalTemplates = useMemo(
-    () => sortTemplatesByOrder(templates.filter((t) => t.is_personal), templateOrder),
-    [templates, templateOrder],
+    () => sortTemplatesByOrder(templates.filter((t) => t.is_personal), personalOrder),
+    [templates, personalOrder],
   );
+  const personalOrderMut = useMutation({
+    mutationFn: (ids: string[]) => setPersonalTemplateOrder(companyId, ids),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["contract-personal-order", companyId] }),
+    onError: (e: any) => toast(`순서 저장 실패: ${friendlyError(e, "일시 오류")}`, "error"),
+  });
   const orderMut = useMutation({
     mutationFn: (ids: string[]) => setContractTemplateOrder(companyId, ids),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["contract-template-order", companyId] }),
     onError: (e: any) => toast(`순서 저장 실패: ${friendlyError(e, "일시 오류")}`, "error"),
   });
   // 섹션 안에서 한 칸 이동 — 저장은 두 섹션의 현재 표시 순서를 합친 전체 id 배열(정렬은 섹션별 index 비교라 안전)
-  const moveTemplate = (section: "system" | "company", index: number, dir: -1 | 1) => {
+  //   개인 양식은 계정 단위 순서라 그 목록만 따로 저장한다.
+  const moveTemplate = (section: "system" | "company" | "personal", index: number, dir: -1 | 1) => {
+    if (section === "personal") {
+      const list = [...personalTemplates];
+      const j = index + dir;
+      if (j < 0 || j >= list.length) return;
+      [list[index], list[j]] = [list[j], list[index]];
+      personalOrderMut.mutate(list.map((t) => t.id));
+      return;
+    }
     const list = [...(section === "system" ? systemTemplates : companyTemplates)];
     const j = index + dir;
     if (j < 0 || j >= list.length) return;
@@ -107,9 +129,18 @@ export default function ContractTemplatesManager({ companyId }: Props) {
   //   결재 '새 요청' 화면의 블록 정렬과 같은 HTML5 드래그 규약.
   //   저장 배열은 moveTemplate 과 동일하게 두 섹션의 현재 표시 순서를 합쳐 만든다.
   const [dragId, setDragId] = useState<string | null>(null);
-  const [dragSection, setDragSection] = useState<"system" | "company" | null>(null);
-  const dropOnTemplate = (section: "system" | "company", targetId: string) => {
+  const [dragSection, setDragSection] = useState<"system" | "company" | "personal" | null>(null);
+  const dropOnTemplate = (section: "system" | "company" | "personal", targetId: string) => {
     if (!dragId || dragId === targetId || dragSection !== section) return; // 섹션을 넘나드는 이동은 막는다
+    if (section === "personal") {
+      const list = personalTemplates.map((t) => t.id);
+      const next = list.filter((id) => id !== dragId);
+      const at = next.indexOf(targetId);
+      if (at < 0) return;
+      next.splice(at, 0, dragId);
+      personalOrderMut.mutate(next);
+      return;
+    }
     const list = (section === "system" ? systemTemplates : companyTemplates).map((t) => t.id);
     const next = list.filter((id) => id !== dragId);
     const at = next.indexOf(targetId);
@@ -118,8 +149,8 @@ export default function ContractTemplatesManager({ companyId }: Props) {
     const other = (section === "system" ? companyTemplates : systemTemplates).map((t) => t.id);
     orderMut.mutate(section === "system" ? [...other, ...next] : [...next, ...other]);
   };
-  // 행에 붙일 드래그 속성 — 두 섹션이 같은 동작을 쓰도록 한곳에서 만든다
-  const dragProps = (section: "system" | "company", id: string) => ({
+  // 행에 붙일 드래그 속성 — 세 섹션이 같은 동작을 쓰도록 한곳에서 만든다
+  const dragProps = (section: "system" | "company" | "personal", id: string) => ({
     draggable: true,
     onDragStart: (e: React.DragEvent) => {
       const t = e.target as HTMLElement;
@@ -314,7 +345,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
         </div>
       ))}
 
-      {/* 개인 양식 — 만든 사람에게만 보인다(RLS 격리). 순서는 개인별이 아니라 회사 배열을 공유하므로 드래그·▲▼ 는 빼고 수정/삭제만. */}
+      {/* 개인 양식 — 만든 사람에게만 보인다(RLS 격리). 순서는 계정 단위(회사 공용 순서와 별개)라 손잡이 드래그·▲▼ 로 바꾼다. */}
       {listTab === "personal" && (
         <div>
           <div className="text-[11px] text-[var(--text-dim)] mb-1.5">
@@ -326,8 +357,17 @@ export default function ContractTemplatesManager({ companyId }: Props) {
             </div>
           ) : (
             <div className="grid gap-1.5">
-              {personalTemplates.map((t) => (
-                <div key={t.id} className="template-row">
+              {personalTemplates.map((t, i) => (
+                <div
+                  key={t.id}
+                  {...dragProps("personal", t.id)}
+                  className={`template-row ${dragId === t.id ? "template-row-dragging" : ""}`}
+                >
+                  <span className="template-drag-handle" title="끌어서 순서 변경">⠿</span>
+                  <div className="template-order-buttons">
+                    <button onClick={() => moveTemplate("personal", i, -1)} disabled={i === 0 || personalOrderMut.isPending} title="위로">▲</button>
+                    <button onClick={() => moveTemplate("personal", i, 1)} disabled={i === personalTemplates.length - 1 || personalOrderMut.isPending} title="아래로">▼</button>
+                  </div>
                   <span className="template-personal-badge" title="나에게만 보이는 양식">🔒 개인</span>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-semibold text-[var(--text)] truncate">{t.name}</div>

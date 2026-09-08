@@ -177,6 +177,46 @@ export async function setContractTemplateOrder(companyId: string, ids: string[])
   if (error) throw error;
 }
 
+// ──────────────────────────────────────────────────────────
+// 개인 양식 순서 — 계정 단위 (2026-09-08 사장님: "개인 양식도 순서 변경")
+// ──────────────────────────────────────────────────────────
+//   회사 공용 순서(company_settings)는 회사 전체가 공유하므로 개인 양식엔 맞지 않다.
+//   개인 순서는 그 사람만의 것 → user_preferences.signature_list_prefs.personal_template_order 에 id 배열로.
+//   ⚠️ user_preferences.user_id 는 auth.users(id) — 세션 uid 로 조회/저장한다([[approval-type-favorites]] 와 동일 함정).
+const PERSONAL_ORDER_KEY = "personal_template_order";
+
+export async function getPersonalTemplateOrder(companyId: string): Promise<string[]> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const uid = session?.user?.id;
+  if (!uid) return [];
+  const { data } = await (db as any)
+    .from("user_preferences")
+    .select("signature_list_prefs")
+    .eq("user_id", uid)
+    .eq("company_id", companyId)
+    .maybeSingle();
+  const ids = ((data as any)?.signature_list_prefs || {})[PERSONAL_ORDER_KEY];
+  return Array.isArray(ids) ? ids.filter((v: unknown) => typeof v === "string") : [];
+}
+
+export async function setPersonalTemplateOrder(companyId: string, ids: string[]): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const uid = session?.user?.id;
+  if (!uid) throw new Error("로그인이 필요합니다.");
+  const { data } = await (db as any)
+    .from("user_preferences")
+    .select("signature_list_prefs")
+    .eq("user_id", uid)
+    .eq("company_id", companyId)
+    .maybeSingle();
+  const prefs = { ...(((data as any)?.signature_list_prefs) || {}) } as Record<string, unknown>;
+  prefs[PERSONAL_ORDER_KEY] = ids;
+  const { error } = await (db as any)
+    .from("user_preferences")
+    .upsert({ user_id: uid, company_id: companyId, signature_list_prefs: prefs, updated_at: new Date().toISOString() }, { onConflict: "user_id,company_id" });
+  if (error) throw error;
+}
+
 /** 저장된 순서(id 배열)대로 정렬 — 배열에 있는 것 먼저(그 순서), 없는 것은 기존 순서 유지로 뒤에. */
 export function sortTemplatesByOrder<T extends { id: string }>(templates: T[], order: string[]): T[] {
   if (!order.length) return templates;
