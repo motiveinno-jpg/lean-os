@@ -20,7 +20,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
@@ -174,7 +174,7 @@ function ChapterWidget({ k }: { k: string }) {
 /* ── 겹친 캡처 모자이크 한 구간 ──────────────────────────── */
 //  조각 넷을 겹쳐 놓는다. 어디에 얼마만큼 놓을지는 CSS 가 정한다
 //  (`[data-m="키"] .lp7-vs-조각키`). 조각의 실제 가로세로비에 맞춰야 해서 묶음마다 다르다.
-function MosaicSection({ m, onZoom }: { m: Mosaic; onZoom: (z: ZoomSrc) => void }) {
+function MosaicSection({ m }: { m: Mosaic }) {
   return (
     <section id={`sec-${m.key}-views`} className="lp7-views" data-m={m.key}>
       <div className="lp7-views-head">
@@ -188,9 +188,8 @@ function MosaicSection({ m, onZoom }: { m: Mosaic; onZoom: (z: ZoomSrc) => void 
           <div key={v.key} className={`lp7-vslot lp7-vs-${v.key}`}>
             <figure className="lp7-vpanel">
               <span className="lp7-vtag">{v.label}</span>
-              <Image className="lp7-vshot lp7-zoomable" src={v.src} alt={v.alt} width={v.w} height={v.h} unoptimized
-                sizes="(max-width: 780px) 100vw, (max-width: 1180px) 46vw, 620px"
-                onClick={() => onZoom({ src: v.src, alt: v.alt, w: v.w, h: v.h })} />
+              <Image className="lp7-vshot" src={v.src} alt={v.alt} width={v.w} height={v.h}
+                sizes="(max-width: 780px) 100vw, (max-width: 1180px) 46vw, 620px" />
             </figure>
           </div>
         ))}
@@ -205,43 +204,7 @@ function MosaicSection({ m, onZoom }: { m: Mosaic; onZoom: (z: ZoomSrc) => void 
 }
 
 /* ── 본체 ───────────────────────────────────────────────── */
-
-/* ── 원본 크기 보기 ─────────────────────────────────────────
-   제품 화면은 무손실 webp 를 서버 가공 없이 그대로 보낸다(unoptimized). 상자가 작아 글자가 줄어 보이므로
-   누르면 원본을 화면 가득 연다. '실제 크기' 는 이미지 픽셀을 화면 픽셀에 1:1 로 맞춘다. */
-type ZoomSrc = { src: string; alt: string; w: number; h: number };
-function Lightbox({ img, onClose }: { img: ZoomSrc | null; onClose: () => void }) {
-  const [actual, setActual] = useState(false);
-  const [dpr, setDpr] = useState(1);
-  useEffect(() => {
-    if (!img) return;
-    setActual(false);
-    setDpr(window.devicePixelRatio || 1);
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow; document.body.style.overflow = "hidden";
-    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
-  }, [img, onClose]);
-  if (!img) return null;
-  return (
-    <div className="lp7-zoom" role="dialog" aria-modal="true" aria-label={img.alt} onClick={onClose}>
-      <div className="lp7-zoom-bar" onClick={(e) => e.stopPropagation()}>
-        <span className="lp7-zoom-name">{img.alt}</span>
-        <button type="button" className={`lp7-zoom-btn ${!actual ? "is-on" : ""}`} onClick={() => setActual(false)}>화면에 맞춤</button>
-        <button type="button" className={`lp7-zoom-btn ${actual ? "is-on" : ""}`} onClick={() => setActual(true)}>실제 크기</button>
-        <button type="button" className="lp7-zoom-close" onClick={onClose} aria-label="닫기">×</button>
-      </div>
-      <div className={`lp7-zoom-body ${actual ? "is-actual" : ""}`} onClick={(e) => { e.stopPropagation(); setActual((v) => !v); }}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- 원본 그대로, 가공 없이 */}
-        <img src={img.src} alt={img.alt} width={img.w} height={img.h}
-          style={actual ? { width: `${img.w / dpr}px`, height: "auto", maxWidth: "none" } : undefined} />
-      </div>
-    </div>
-  );
-}
-
 export default function LandingV7() {
-  const [zoom, setZoom] = useState<ZoomSrc | null>(null);
   const root = useRef<HTMLDivElement>(null);
 
   useGSAP(() => {
@@ -795,8 +758,7 @@ export default function LandingV7() {
               {/* 대체 판 — 영상을 트는 브라우저에서는 스크립트가 이 판을 지운다 */}
               <div className="lp7-fallback">
                 {scenes.map((s, i) => (
-                  <Image key={s.src} className="lp7-scene lp7-zoomable" src={s.src} alt={s.alt} fill sizes="(max-width: 1180px) 100vw, 1160px" priority={i === 0} unoptimized
-                    onClick={() => setZoom({ src: s.src, alt: s.alt, w: s.w, h: s.h })} />
+                  <Image key={s.src} className="lp7-scene" src={s.src} alt={s.alt} fill sizes="(max-width: 1180px) 100vw, 1160px" priority={i === 0} />
                 ))}
                 {scenes.map((s, i) => (
                   <span key={`cap-${s.src}`} className="lp7-cap"><b>{i + 1}</b>{s.cap}</span>
@@ -859,8 +821,7 @@ export default function LandingV7() {
           </div>
           <div className="lp7-visual">
             <div className="lp7-stack">
-              <Image className="lp7-shot lp7-zoomable" src={s.shot.src} alt={s.shot.alt} width={s.shot.w} height={s.shot.h} sizes="(max-width: 1180px) 100vw, 720px" unoptimized
-                onClick={() => setZoom({ src: s.shot.src, alt: s.shot.alt, w: s.shot.w, h: s.shot.h })} />
+              <Image className="lp7-shot" src={s.shot.src} alt={s.shot.alt} width={s.shot.w} height={s.shot.h} sizes="(max-width: 1180px) 100vw, 720px" />
               {s.key === "channel" && (
                 <>
                   <div className="lp7-toast"><i />스마트스토어 새 주문 12건 · 출고 대기</div>
@@ -874,7 +835,7 @@ export default function LandingV7() {
 
         {/* ── 겹친 캡처 모자이크 — 그 챕터 뒤에 붙는다 (오두 벤치마킹) ── */}
         {MOSAICS.filter((m) => m.after === s.key).map((m) => (
-          <MosaicSection onZoom={setZoom} key={m.key} m={m} />
+          <MosaicSection key={m.key} m={m} />
         ))}
         </Fragment>
       ))}
@@ -989,7 +950,6 @@ export default function LandingV7() {
         </div>
         <div className="lp7-footer-kw">{FOOTER.keywords}</div>
       </footer>
-      <Lightbox img={zoom} onClose={() => setZoom(null)} />
     </div>
   );
 }

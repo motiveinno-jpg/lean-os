@@ -539,20 +539,3 @@
   .lp7-shimmer { background: none; -webkit-background-clip: initial; background-clip: initial; color: var(--lp7-brand); }
   .lp7-tool { transition: none; }
 }
-
-/* ── 제품 화면 원본 크기 보기 ── */
-.lp7-zoomable { cursor: zoom-in; }
-.lp7-zoom { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; background: rgba(12, 12, 24, .92); backdrop-filter: blur(6px); animation: lp7-zoom-in .18s ease-out; }
-@keyframes lp7-zoom-in { from { opacity: 0; } to { opacity: 1; } }
-.lp7-zoom-bar { display: flex; align-items: center; gap: 8px; padding: 12px 16px; color: #fff; }
-.lp7-zoom-name { flex: 1; min-width: 0; font-size: 13px; font-weight: 700; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lp7-zoom-btn { font-size: 12.5px; font-weight: 700; color: #fff; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.25); background: transparent; }
-.lp7-zoom-btn.is-on { background: #fff; color: #1a1a2e; border-color: #fff; }
-.lp7-zoom-close { width: 34px; height: 34px; border-radius: 999px; font-size: 22px; line-height: 1; color: #fff; border: 1px solid rgba(255,255,255,.25); background: transparent; margin-left: 4px; }
-.lp7-zoom-close:hover, .lp7-zoom-btn:hover { background: rgba(255,255,255,.14); }
-.lp7-zoom-body { flex: 1; min-height: 0; overflow: auto; display: flex; align-items: flex-start; justify-content: center; padding: 0 16px 24px; cursor: zoom-in; }
-.lp7-zoom-body img { display: block; max-width: 100%; height: auto; border-radius: 10px; box-shadow: 0 20px 60px rgba(0,0,0,.5); background: #fff; margin: auto; }
-.lp7-zoom-body.is-actual { cursor: zoom-out; align-items: flex-start; justify-content: flex-start; }
-.lp7-zoom-body.is-actual img { border-radius: 0; margin: 0 auto; }
-/* 화면 위에 떠 있는 장식(위젯·알림·꼬리표)은 클릭을 가로채지 않는다 — 아래 제품 화면을 눌러 원본을 열 수 있게 */
-.lp7-wg, .lp7-toast, .lp7-vtag, .lp7-cap { pointer-events: none; }
