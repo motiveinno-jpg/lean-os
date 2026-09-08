@@ -11,7 +11,7 @@ import { supabase } from './supabase';
 const db = supabase;
 
 // ── 플랜 타입 정의 ──
-//   현재 요금제는 무료·오너뷰(standard)·울트라(자사 전용) 셋뿐. 옛 이름(starter·basic·business·pro·enterprise)은 정리했다.
+//   요금제는 무료·오너뷰(standard)·울트라(자사 전용) 셋뿐이다.
 export type PlanSlug = 'free' | 'standard' | 'ultra';
 
 export interface PlanInfo {
