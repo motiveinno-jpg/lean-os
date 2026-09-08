@@ -36,6 +36,12 @@ AI 참모가 회사 데이터를 근거로 "오늘 챙길 것"과 경영 질문�
 - 급여명세서·4대보험 자동계산이 되는 무료 인사 프로그램
 - 견적서부터 전자계약, 세금계산서, 입금 확인까지 이어지는 수주 관리
 
+## 경영 가이드 (블로그)
+
+- [중소기업 ERP 고르는 기준 7가지](https://www.owner-view.com/blog/smb-erp-guide): 기능 범위·과금 구조·판매채널 연동 등 선택 기준과 유형 비교표
+- [회계 프로그램 vs 올인원 ERP](https://www.owner-view.com/blog/accounting-program-vs-all-in-one-erp): 언제 회계 전문 프로그램으로 충분하고 언제 올인원이 맞는지 판단 기준
+- [미수금 관리 아침 3분 루틴](https://www.owner-view.com/blog/receivables-management): 미수금이 쌓이는 구조적 이유와 실전 루틴 5단계, 독촉 문자 템플릿
+
 ## 회사 정보
 
 - 운영사: 주식회사 모티브이노베이션 (MOTIVE INNOVATION Inc., 대한민국)

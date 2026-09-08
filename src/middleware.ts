@@ -79,7 +79,7 @@ const PUBLIC_ROUTES = [
 // 토큰이 경로 조각으로 붙는 외부 공개 라우트 — 정확 일치로는 /quote/<token> 이 걸리지 않아
 //   비로그인 거래처가 로그인으로 튕겼다(2026-08-31 QA 실측 — 견적 외부 승인 실사용 0건의 원인).
 //   /sign·/share 는 토큰을 쿼리로 받아 정확 일치로 충분, 여기엔 경로형만 넣는다.
-const PUBLIC_PREFIXES = ['/quote/', '/portal/'];
+const PUBLIC_PREFIXES = ['/quote/', '/portal/', '/blog'];  // /blog — GEO 콘텐츠 허브, 비로그인 공개 (2026-09-08)
 
 function isPublicRoute(pathname: string): boolean {
   // API 라우트는 자체 인증 처리

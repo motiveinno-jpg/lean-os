@@ -26,6 +26,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/tools/salary-calculator`, changeFrequency: "monthly", priority: 0.9, lastModified: TOOLS_LASTMOD },
     { url: `${BASE}/tools/weekly-holiday-calculator`, changeFrequency: "monthly", priority: 0.9, lastModified: TOOLS_LASTMOD },
     { url: `${BASE}/tools/vat-calculator`, changeFrequency: "monthly", priority: 0.9, lastModified: TOOLS_LASTMOD },
+    // 블로그 — GEO/AI검색 인용용 전문 콘텐츠 허브 (2026-09-08 신설). 글 추가 시 blog/posts.ts 와 함께 갱신.
+    { url: `${BASE}/blog`, changeFrequency: "weekly", priority: 0.8, lastModified: "2026-09-08" },
+    { url: `${BASE}/blog/smb-erp-guide`, changeFrequency: "monthly", priority: 0.8, lastModified: "2026-09-08" },
+    { url: `${BASE}/blog/accounting-program-vs-all-in-one-erp`, changeFrequency: "monthly", priority: 0.8, lastModified: "2026-09-08" },
+    { url: `${BASE}/blog/receivables-management`, changeFrequency: "monthly", priority: 0.8, lastModified: "2026-09-08" },
     { url: `${BASE}/security`, changeFrequency: "yearly", priority: 0.4 },
     { url: `${BASE}/auth`, changeFrequency: "yearly", priority: 0.5 },
     { url: `${BASE}/terms`, changeFrequency: "yearly", priority: 0.3 },
