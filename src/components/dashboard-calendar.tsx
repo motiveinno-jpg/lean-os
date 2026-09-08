@@ -166,10 +166,11 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
                   {marks?.todo ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--warning)]"}`} /> : null}
                 </span>
               ) : null}
-              {/* 직원 휴가는 달력 칸에 이름으로 (2026-09-08 사장님) — 여러 명이면 "외 N" */}
+              {/* 직원 휴가는 달력 칸에 이름·종류로 (2026-09-08 사장님) — 여러 명이면 "외 N" + "휴가 N건" */}
               {dayLeaves.length ? (
                 <span className={`dashboard-calendar-leave ${isSel ? "on" : ""}`} title={dayLeaves.map((l) => `${l.name} ${l.label}`).join(", ")}>
-                  {dayLeaves[0].name}{dayLeaves.length > 1 ? ` 외${dayLeaves.length - 1}` : ""}
+                  <span>{dayLeaves[0].name}{dayLeaves.length > 1 ? ` 외${dayLeaves.length - 1}` : ""}</span>
+                  <span className="dashboard-calendar-leave-type">{dayLeaves.length > 1 ? `휴가 ${dayLeaves.length}건` : dayLeaves[0].label}</span>
                 </span>
               ) : null}
             </button>
