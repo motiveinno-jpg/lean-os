@@ -13,7 +13,7 @@ import { Ico }  from "@/components/ui-icon";
 //   기능 보존: 큰 카드 디스플레이 + 사용현황 + 미니그리드 + 거래내역 검색/필터 + 분석 stat·차트.
 //   가짜 데이터 금지: 카드번호 끝4 only, credit_limit/리워드 없으면 영역 hide, 실 카테고리.
 
-import  { useEffect, useMemo, useRef, useState } from "react";
+import  { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DateField } from "@/components/date-field";
 import { DateRangeField } from "@/components/date-range-field";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -218,27 +218,6 @@ export default function CardsPage() {
   const [cardEdit, setCardEdit] = useState<{ id: string; name: string; memo: string; number: string } | null>(null);
   const [cardSaving, setCardSaving] = useState(false);
   const refreshCards = () => { queryClient.invalidateQueries({ queryKey: ["cards-page-corporate"] }); queryClient.invalidateQueries({ queryKey: ["corporate-cards"] }); };
-  //   카드 순서 바꾸기 — ↑/↓ 버튼으로 한 칸씩(2026-09-08 사장님: 드래그 모션이 잘 안 보이고 불편). 관리자만.
-  //   화면에 보이는 목록 기준으로 이웃과 자리를 바꾸고, 전체 순서를 sort_order 로 저장한다.
-  const [movingId, setMovingId] = useState<string | null>(null);
-  const moveCardStep = async (cardId: string, dir: -1 | 1) => {
-    if (!canReorder || movingId) return;
-    const all = cards as any[];
-    const visible = all.filter((c) => showHiddenCards || c.is_active !== false);
-    const vi = visible.findIndex((c) => c.id === cardId);
-    const nb = visible[vi + dir];
-    if (!nb) return;                                   // 맨 위에서 ↑, 맨 아래에서 ↓ 는 무시
-    const next = [...all];
-    const ia = next.findIndex((c) => c.id === cardId);
-    const ib = next.findIndex((c) => c.id === nb.id);
-    [next[ia], next[ib]] = [next[ib], next[ia]];        // 두 카드의 전체 순서 자리 교환
-    setMovingId(cardId);
-    queryClient.setQueryData(["cards-page-corporate", companyId], next);   // 낙관적 반영(부드러운 전환)
-    try { await reorderCorporateCards(next.map((c) => c.id)); }
-    catch (e: any) { toast(`순서 저장 실패: ${e?.message || ""}`, "error"); refreshCards(); }
-    finally { setMovingId(null); }
-    queryClient.invalidateQueries({ queryKey: ["corporate-cards"] });
-  };
   const saveCardEdit = async () => {
     if (!cardEdit) return;
     const name = cardEdit.name.trim(); if (!name) { toast("카드 이름을 입력해 주세요", "error"); return; }
@@ -315,6 +294,70 @@ export default function CardsPage() {
     },
     enabled: !!companyId,
   });
+
+  //   카드 순서 바꾸기 (2026-09-08 사장님) — ▲▼ 버튼 + 드래그 둘 다. 관리자만. 줄이 실제로 미끄러지듯 움직이게 FLIP 애니메이션.
+  const [movingId, setMovingId] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  //   FLIP: 순서가 바뀌기 직전 각 줄의 화면 위치를 기억했다가, 바뀐 뒤 그 차이만큼 되돌렸다 0 으로 미끄러뜨린다
+  const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
+  const prevRects = useRef<Map<string, number>>(new Map());
+  const cardOrderKey = (cards as any[]).map((c) => c.id).join(",");
+  useLayoutEffect(() => {
+    const prev = prevRects.current;
+    rowRefs.current.forEach((el, id) => {
+      const top = el.getBoundingClientRect().top;
+      const was = prev.get(id);
+      if (was != null && Math.abs(was - top) > 1) {
+        el.style.transition = "none";
+        el.style.transform = `translateY(${was - top}px)`;
+        requestAnimationFrame(() => {
+          el.style.transition = "transform 0.28s cubic-bezier(0.2,0.8,0.2,1)";
+          el.style.transform = "";
+        });
+      }
+    });
+    //   다음 변경을 위해 현재 위치 저장
+    const nextRects = new Map<string, number>();
+    rowRefs.current.forEach((el, id) => nextRects.set(id, el.getBoundingClientRect().top));
+    prevRects.current = nextRects;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardOrderKey]);
+
+  //   전체 순서(id 배열)를 저장 — 낙관적 반영 후 RPC. 화면 반영은 setQueryData 로 즉시.
+  const commitOrder = async (nextIds: string[], highlightId: string) => {
+    const all = cards as any[];
+    const byId = new Map(all.map((c) => [c.id, c]));
+    const next = nextIds.map((id) => byId.get(id)).filter(Boolean);
+    setMovingId(highlightId);
+    queryClient.setQueryData(["cards-page-corporate", companyId], next);
+    try { await reorderCorporateCards(nextIds); }
+    catch (e: any) { toast(`순서 저장 실패: ${e?.message || ""}`, "error"); refreshCards(); }
+    finally { setTimeout(() => setMovingId(null), 600); }
+    queryClient.invalidateQueries({ queryKey: ["corporate-cards"] });
+  };
+  //   ▲▼ 한 칸 — 보이는 목록 기준 이웃과 자리 교환
+  const moveCardStep = async (cardId: string, dir: -1 | 1) => {
+    if (!canReorder || movingId) return;
+    const all = cards as any[];
+    const visible = all.filter((c) => showHiddenCards || c.is_active !== false);
+    const vi = visible.findIndex((c) => c.id === cardId);
+    const nb = visible[vi + dir];
+    if (!nb) return;
+    const ids = all.map((c) => c.id);
+    const ia = ids.indexOf(cardId), ib = ids.indexOf(nb.id);
+    [ids[ia], ids[ib]] = [ids[ib], ids[ia]];
+    await commitOrder(ids, cardId);
+  };
+  //   드래그 — dragId 를 targetId 자리로 옮긴다(전체 순서 배열에서 이동)
+  const moveCardTo = async (fromId: string, toId: string) => {
+    if (!canReorder || fromId === toId) return;
+    const ids = (cards as any[]).map((c) => c.id);
+    const from = ids.indexOf(fromId), to = ids.indexOf(toId);
+    if (from < 0 || to < 0) return;
+    ids.splice(to, 0, ids.splice(from, 1)[0]);
+    await commitOrder(ids, fromId);
+  };
 
   // 이번 달 카드 거래 (분석 stat + 카드별 사용액·거래수)
   const { data: monthTx = [] } = useQuery({
@@ -983,17 +1026,26 @@ export default function CardsPage() {
             {/* 카드 미니 그리드 — 클릭 시 그 카드 거래내역 영역으로 스크롤+필터 */}
             {cardsView === "list" ? (
               <table className="ev-table ev-lined cards-table">
-                <thead><tr>{canReorder && <th className="w-12" title="순서">순서</th>}<th className="text-left">카드</th><th>종류</th><th>끝번호</th><th>카드사</th><th className="text-left">메모</th><th>결제일</th><th>한도</th><th>동작</th></tr></thead>
+                <thead><tr>{canReorder && <th className="w-16" title="끌거나 ▲▼ 로 순서 변경">순서</th>}<th className="text-left">카드</th><th>종류</th><th>끝번호</th><th>카드사</th><th className="text-left">메모</th><th>결제일</th><th>한도</th><th>동작</th></tr></thead>
                 <tbody>
                   {(() => { const visibleCards = cards.map((card: any, idx: number) => ({ card, idx })).filter(({ card }) => showHiddenCards || card.is_active !== false); return visibleCards.map(({ card, idx }, vi) => (
                     <tr key={card.id}
-                      className={`pnl-row-acct cards-row-move ${idx === selectedCardIdx ? "cards-row-on" : ""} ${card.is_active === false ? "opacity-60" : ""} ${movingId === card.id ? "cards-row-moving" : ""}`}
+                      ref={(el) => { if (el) rowRefs.current.set(card.id, el); else rowRefs.current.delete(card.id); }}
+                      onDragOver={canReorder ? (e) => { if (dragId) { e.preventDefault(); if (dragOverId !== card.id) setDragOverId(card.id); } } : undefined}
+                      onDrop={canReorder ? (e) => { e.preventDefault(); if (dragId) moveCardTo(dragId, card.id); setDragId(null); setDragOverId(null); } : undefined}
+                      className={`pnl-row-acct cards-row-move ${idx === selectedCardIdx ? "cards-row-on" : ""} ${card.is_active === false ? "opacity-60" : ""} ${movingId === card.id ? "cards-row-moving" : ""} ${dragId === card.id ? "cards-row-dragging" : ""} ${dragOverId === card.id && dragId && dragId !== card.id ? "cards-row-drop" : ""}`}
                       onClick={() => handleSelectCardForTx(card, idx)} title="누르면 이 카드 거래내역">
                       {canReorder && (
                         <td className="text-center align-middle" onClick={(e) => e.stopPropagation()}>
-                          <span className="cards-move-btns">
-                            <button type="button" onClick={() => moveCardStep(card.id, -1)} disabled={vi === 0 || !!movingId} className="cards-move-btn" title="위로" aria-label="위로 이동">▲</button>
-                            <button type="button" onClick={() => moveCardStep(card.id, 1)} disabled={vi === visibleCards.length - 1 || !!movingId} className="cards-move-btn" title="아래로" aria-label="아래로 이동">▼</button>
+                          <span className="cards-move-cell">
+                            <span className="cards-drag-handle" draggable
+                              onDragStart={(e) => { setDragId(card.id); e.dataTransfer.effectAllowed = "move"; }}
+                              onDragEnd={() => { setDragId(null); setDragOverId(null); }}
+                              title="끌어서 순서 변경" aria-label="끌어서 순서 변경">⠿</span>
+                            <span className="cards-move-btns">
+                              <button type="button" onClick={() => moveCardStep(card.id, -1)} disabled={vi === 0 || !!movingId} className="cards-move-btn" title="위로" aria-label="위로 이동">▲</button>
+                              <button type="button" onClick={() => moveCardStep(card.id, 1)} disabled={vi === visibleCards.length - 1 || !!movingId} className="cards-move-btn" title="아래로" aria-label="아래로 이동">▼</button>
+                            </span>
                           </span>
                         </td>
                       )}
