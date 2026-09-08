@@ -23,6 +23,7 @@ const BASE = process.env.BASE || "https://www.owner-view.com";
 // 촬영 대상 프로젝트 — **QA 시드 회사(가상)** 의 '하늘건설 사옥 리뉴얼 웹 구축' (결정 220).
 //   2026-09-07 이전에는 모티브 [시연] 프로젝트를 썼는데, 담당자 칸에 실제 직원 실명이 들어갔다.
 const DEAL = process.env.DEAL || "dd000000-0000-4000-8000-000000000001";
+const CHAT = process.env.CHAT || "88000000-0000-4000-8000-000000000001";
 //   계정 — 기본은 모티브 계정(로컬 메모리 파일). SHOT_EMAIL/SHOT_PW 로 갈아 끼울 수 있다.
 //   ⚠️ 오너뷰는 **계정당 세션 1개**다(single-session-guard). 사장님이 쓰는 중에 이 스크립트가
 //      같은 계정으로 로그인하면 사장님 화면이 "중복 로그인"으로 튕긴다. 낮에는 QA 시드 계정을 쓰거나
@@ -44,6 +45,8 @@ if (!EMAIL || !PW) {
   [, EMAIL, PW] = m;
 }
 const OUT = path.join(process.cwd(), "public", "product");
+/** 조각의 아래를 끊을 때 기준으로 삼는 경계 — 카드·표 줄. 카드 한가운데가 잘리지 않게 */
+const CARDS = ".glass-card, [class*='-card'], .fw-row, table tbody tr";
 
 /* ── 브라우저 안에서 도는 자·자르개 ──────────────────────────────
    페이지 배경이 비치거나 줄 한가운데가 잘리면 조각이 지저분해 보인다.
@@ -111,10 +114,20 @@ const SETS = {
     ready: "table.pjv3-sheet",
     tabSel: '.pjv3-views button:has-text("%s")',
     shots: [
-      { name: "pv-table-v3",    sel: "table.pjv3-sheet", clipToParent: true, maxH: 620, rowSel: "table.pjv3-sheet tbody tr" },
-      { name: "pv-kanban-v3",   tab: "칸반",   sel: ".pjv3-kb",        innerSel: ".pjv3-kcol", pad: 10 },
-      { name: "pv-calendar-v3", tab: "캘린더", sel: ".pjv3-calwrap",   cutAfterSel: ".pjv3-calcell", cutAfterIdx: 27, pad: 6 },
-      { name: "pv-gantt-v3",    tab: "간트",   sel: ".pjv3-ganttwrap", maxH: 430, rowSel: ".pjv3-gr, .pjv3-ggroup", pad: 6 },
+      { name: "pv-table-v4",    sel: "table.pjv3-sheet", clipToParent: true, maxH: 620, rowSel: "table.pjv3-sheet tbody tr" },
+      { name: "pv-calendar-v4", tab: "캘린더", sel: ".pjv3-calwrap",   cutAfterSel: ".pjv3-calcell", cutAfterIdx: 27, pad: 6 },
+      { name: "pv-gantt-v4",    tab: "간트",   sel: ".pjv3-ganttwrap", maxH: 430, rowSel: ".pjv3-gr, .pjv3-ggroup", pad: 6 },
+    ],
+  },
+
+  //    칸반은 세 열이 1180 에 다 안 들어가 따로 넓게 찍는다.
+  kanban: {
+    qaOnly: true, vw: 1300,
+    route: `/projecthub/${DEAL}/`,
+    ready: "table.pjv3-sheet",
+    tabSel: '.pjv3-views button:has-text("%s")',
+    shots: [
+      { name: "pv-kanban-v4",   tab: "칸반",   sel: ".pjv3-kb",        innerSel: ".pjv3-kcol", pad: 10 },
     ],
   },
 
@@ -126,12 +139,12 @@ const SETS = {
     qaOnly: true,
     tabSel: '.collect-tabs button:has-text("%s")',
     shots: [
-      { name: "iv-stock-v2",    route: "/inventory/stock",    sel: ".app-content-scale", maxH: 540, rowSel: "table tbody tr" },
-      { name: "iv-channels-v2", route: "/inventory/channels", sel: ".app-content-scale", maxH: 520, rowSel: "table tbody tr" },
+      { name: "iv-stock-v3",    route: "/inventory/stock",    sel: ".app-content-scale", maxH: 540, rowSel: "table tbody tr" },
+      { name: "iv-channels-v3", route: "/inventory/channels", sel: ".app-content-scale", maxH: 520, rowSel: "table tbody tr" },
       //   '상태' 열은 뺀다 — 시연 판매라 전부 '전표 없음' 이고, 그 말이 랜딩에서 오해를 부른다
-      { name: "iv-sales-v2",    route: "/inventory/sales",    tab: "이력", sel: ".app-content-scale",
+      { name: "iv-sales-v3",    route: "/inventory/sales",    tab: "이력", sel: ".app-content-scale",
         maxH: 500, rowSel: "table tbody tr", maxW: 1010, colSel: "table thead th" },
-      { name: "iv-profit-v2",   route: "/inventory/profit",   sel: ".app-content-scale", maxH: 520, rowSel: "table tbody tr" },
+      { name: "iv-profit-v3",   route: "/inventory/profit",   sel: ".app-content-scale", maxH: 520, rowSel: "table tbody tr" },
     ],
   },
 
@@ -142,25 +155,54 @@ const SETS = {
     qaOnly: true,
     tabSel: '.collect-tabs button:has-text("%s")',
     shots: [
-      { name: "av-invoices-v1", route: "/tax-invoices",       sel: ".app-content-scale", maxH: 520, rowSel: "table tbody tr" },
-      { name: "av-tax-v1",      route: "/finance/tax-filing", tab: "부가세",       sel: ".app-content-scale", maxH: 560, rowSel: "table tbody tr" },
-      { name: "av-voucher-v1",  route: "/finance/status",     tab: "매입매출전표", sel: ".app-content-scale", maxH: 500, rowSel: "table tbody tr" },
+      { name: "av-invoices-v2", route: "/tax-invoices",       sel: ".app-content-scale", maxH: 520, rowSel: "table tbody tr" },
+      { name: "av-tax-v2",      route: "/finance/tax-filing", tab: "부가세",       sel: ".app-content-scale", maxH: 560, rowSel: "table tbody tr" },
+      { name: "av-voucher-v2",  route: "/finance/status",     tab: "매입매출전표", sel: ".app-content-scale", maxH: 500, rowSel: "table tbody tr" },
       //   수집 현황은 담지 않는다 — QA 시드는 무료 요금제라 '자료 없음 · 유료 요금제 기능' 만 늘어선다
-      { name: "av-profit-v1",   route: "/reports/profit",     sel: ".app-content-scale", maxH: 520, rowSel: "table tbody tr" },
+      { name: "av-profit-v2",   route: "/reports/profit",     sel: ".app-content-scale", maxH: 520, rowSel: "table tbody tr" },
     ],
   },
 
   // ③ 인사 — 사람이 일하고 정산되는 길.
   //    ⚠️ **가상 인물뿐인 QA 시드 회사**에서 찍는다 (`--qa`). 실제 직원 이름·급여를 공개 페이지에 올리지 않는다.
   //       (2026-09-07 사장님 "인사 부분 가상 데이터로")
+  // ④ 기능 소개 큰 조각 — 랜딩 각 절의 대표 화면. 상자가 676px 이라 **좁은 뷰포트(1180)** 로 찍어
+  //    글자가 실제 크기에 가깝게 보이게 한다(1560 으로 찍으면 59% 로 줄어 뭉개져 보였다).
+  //    머리(빵부스러기·검색)는 빼고 본문만 담는다.
+  feature: {
+    qaOnly: true, vw: 1180,
+    tabSel: '.collect-tabs button:has-text("%s")',
+    shots: [
+      { name: "f-profit-v2",       route: "/reports/profit",     sel: ".app-content-scale", maxH: 430, rowSel: CARDS },
+      { name: "f-inv-channels-v2", route: "/inventory/channels", sel: ".app-content-scale", maxH: 560, rowSel: CARDS },
+      { name: "f-projects-v6",     route: "/projecthub",         sel: ".app-content-scale", maxH: 520, rowSel: CARDS },
+      { name: "f-schedule-v5",     route: "/schedule",           sel: ".app-content-scale", maxH: 520 },
+      { name: "f-documents-v5",    route: "/documents",          sel: ".app-content-scale", maxH: 520, rowSel: CARDS },
+      { name: "f-hr-v6",           route: "/attendance",         sel: ".app-content-scale", maxH: 520, rowSel: CARDS },
+      { name: "f-bank-v5",         route: "/collect",            sel: ".app-content-scale", maxH: 520, rowSel: CARDS },
+      { name: "f-board-v5",        route: "/board",              sel: ".app-content-scale", maxH: 520, rowSel: CARDS },
+      { name: "f-chat-v5",         route: `/chat?channel=${CHAT}`, sel: ".app-content-scale", maxH: 520 },
+    ],
+  },
+  // ⑤ 히어로 대체 판 — 1160px 상자에 16:9 로 들어가므로 넓게(1560) 찍어도 거의 1:1 이다.
+  hero: {
+    qaOnly: true, vw: 1560, vh: 975,
+    shots: [
+      { name: "hero-dashboard-v7", route: "/dashboard",  full: true },
+      { name: "hero-bank-v5",      route: "/collect",    full: true },
+      { name: "hero-projects-v6",  route: "/projecthub", full: true },
+      { name: "hero-hr-v6",        route: "/attendance", full: true },
+    ],
+  },
+
   hr: {
     qaOnly: true,
     tabSel: '.collect-tabs button:has-text("%s")',
     shots: [
-      { name: "hv-workboard-v1",  route: "/attendance", sel: ".app-content-scale", maxH: 600 },
-      { name: "hv-attstatus-v1",  route: "/attendance", tab: "근태 현황", sel: ".app-content-scale", maxH: 520, rowSel: ".ev-table tbody tr" },
-      { name: "hv-members-v1",    route: "/employees",  sel: ".app-content-scale", maxH: 520, rowSel: "table tbody tr" },
-      { name: "hv-leave-v1",      route: "/employees",  tab: "휴가", sel: ".app-content-scale", maxH: 500, rowSel: "table tbody tr" },
+      { name: "hv-workboard-v2",  route: "/attendance", sel: ".app-content-scale", maxH: 600 },
+      { name: "hv-attstatus-v2",  route: "/attendance", tab: "근태 현황", sel: ".app-content-scale", maxH: 520, rowSel: ".ev-table tbody tr" },
+      { name: "hv-members-v2",    route: "/employees",  sel: ".app-content-scale", maxH: 520, rowSel: "table tbody tr" },
+      { name: "hv-leave-v2",      route: "/employees",  tab: "휴가", sel: ".app-content-scale", maxH: 500, rowSel: "table tbody tr" },
     ],
   },
 };
@@ -173,10 +215,30 @@ const picked = args.filter((a) => !a.startsWith("--"));
 const wanted = survey ? [] : (picked.length ? picked : Object.keys(SETS));
 
 const browser = await chromium.launch();
-const ctx = await browser.newContext({
-  viewport: { width: 1560, height: 1000 }, deviceScaleFactor: 2, locale: "ko-KR", timezoneId: "Asia/Seoul",
+const DEFAULT_VW = Number(process.env.VW || 1180);
+//   캡처에 끼어드는 안내(투어·시작 체크리스트·권한 배너·햄버거 힌트)는 미리 끈다
+const INIT = () => {
+  localStorage.setItem("ov-app-tour-dismissed-at", String(Date.now()));
+  localStorage.setItem("leanos-getting-started-dismissed", "1");
+  localStorage.setItem("ov:master-perm-notice", "1");
+  localStorage.setItem("hint:hamburger", "1");
+};
+let ctx = await browser.newContext({
+  viewport: { width: DEFAULT_VW, height: 1000 }, deviceScaleFactor: 2, locale: "ko-KR", timezoneId: "Asia/Seoul",
 });
-const page = await ctx.newPage();
+await ctx.addInitScript(INIT);
+let page = await ctx.newPage();
+let curVw = DEFAULT_VW, curVh = 1000;
+/** 묶음이 다른 폭을 원하면 로그인 상태를 들고 새 창을 연다 */
+async function useViewport(vw, vh = 1000) {
+  if (vw === curVw && vh === curVh) return;
+  const state = await ctx.storageState();
+  await ctx.close();
+  ctx = await browser.newContext({ viewport: { width: vw, height: vh }, deviceScaleFactor: 2, locale: "ko-KR", timezoneId: "Asia/Seoul", storageState: state });
+  await ctx.addInitScript(INIT);
+  page = await ctx.newPage();
+  curVw = vw; curVh = vh;
+}
 
 console.log("로그인");
 await page.goto(`${BASE}/auth/`, { waitUntil: "domcontentloaded" });
@@ -206,6 +268,7 @@ if (survey) {
     const set = SETS[key];
     if (!set) { console.log(`   (모르는 묶음: ${key})`); continue; }
     console.log(`묶음 ${key}`);
+    await useViewport(set.vw || DEFAULT_VW, set.vh || 1000);
     let at = null;
     for (const s of set.shots) {
       const route = s.route ?? set.route;
@@ -219,6 +282,11 @@ if (survey) {
       if (s.tab) {
         await page.locator(set.tabSel.replace("%s", s.tab)).first().click();
         await page.waitForTimeout(1300);
+      }
+      if (s.full) {
+        await page.screenshot({ path: path.join(OUT, `${s.name}.png`) });
+        console.log(`   ${s.name}.png  창 전체 ${curVw}x${curVh} (css)`);
+        continue;
       }
       await page.waitForSelector(s.sel, { timeout: 20000 });
       const box = await page.evaluate(`(${MEASURE})(${JSON.stringify(s)})`);

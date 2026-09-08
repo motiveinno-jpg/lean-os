@@ -55,10 +55,10 @@ export const HERO_SCENES_NOTE = "실제 화면 4장 · 자동 전환 · 마우�
 // 영상을 못 트는 브라우저(구형 iOS Safari 등)를 위한 대체 — 같은 장면의 실제 화면 캡처를 교차시킨다.
 //   ⚠️ 영상이 재생되면 이 판은 쓰이지 않는다. 장면·차례는 영상과 같게 유지한다.
 export const HERO_SCENES = [
-  { src: "/product/dashboard-v6.webp", w: 3120, h: 1950, cap: "대시보드 · 매출·잔고·오늘 챙길 일", alt: "오너뷰 대시보드 · 매출·잔고·미수금과 오늘 챙길 일" },
-  { src: "/product/f-bank-v4.webp", w: 2288, h: 1116, cap: "수집·전표 · 거래가 자동으로 들어옵니다", alt: "오너뷰 수집·전표 · 통장·카드·세금계산서 자동 수집" },
-  { src: "/product/f-projects-v5.webp", w: 2288, h: 1432, cap: "프로젝트 · 단계·담당자·마감을 표 하나에", alt: "오너뷰 프로젝트 · 표 형태 파이프라인" },
-  { src: "/product/f-hr-v5.webp", w: 3200, h: 2000, cap: "근태 관리 · 근태가 급여로 이어집니다", alt: "오너뷰 근태 관리 · 주간 워크보드" },
+  { src: "/product/hero-dashboard-v7.webp", w: 3120, h: 1950, cap: "대시보드 · 매출·잔고·오늘 챙길 일", alt: "오너뷰 대시보드 · 매출·잔고·미수금과 오늘 챙길 일" },
+  { src: "/product/hero-bank-v5.webp", w: 3120, h: 1950, cap: "수집·전표 · 거래가 자동으로 들어옵니다", alt: "오너뷰 수집·전표 · 통장·카드·세금계산서 자동 수집" },
+  { src: "/product/hero-projects-v6.webp", w: 3120, h: 1950, cap: "프로젝트 · 단계·담당자·마감을 표 하나에", alt: "오너뷰 프로젝트 · 표 형태 파이프라인" },
+  { src: "/product/hero-hr-v6.webp", w: 3120, h: 1950, cap: "근태 관리 · 근태가 급여로 이어집니다", alt: "오너뷰 근태 관리 · 주간 워크보드" },
 ];
 
 export const SECTION_HEAD = {
@@ -94,7 +94,7 @@ export const SECTIONS: Section[] = [
       "채널별·상품별·월별 매출과 전월·전년 비교, 목표 달성률을 한 화면에서 봅니다. " +
       "목표는 홈 대시보드에서 정하고, 숫자는 확정 전표를 기준으로 계산됩니다. 판매채널 주문의 출고·배송 진행은 이커머스 현황에서 봅니다.",
     loc: "재고 › 이익관리 › KPI 현황판",
-    shot: { src: "/product/f-profit-v1.webp", w: 2288, h: 1432, alt: "오너뷰 손익 현황 · 매출 구조와 증감" },
+    shot: { src: "/product/f-profit-v2.webp", w: 1478, h: 860, alt: "오너뷰 손익 현황 · 매출 구조와 증감" },
     side: "right",
   },
   {
@@ -104,7 +104,7 @@ export const SECTIONS: Section[] = [
       "설정에서 API 키만 등록하면 주문이 자동으로 들어옵니다. " +
       "들어온 주문은 출고와 재고에 반영되고, 매출은 전표와 KPI 로 그대로 이어집니다. 택배사 송장도 같은 화면에서 처리합니다.",
     loc: "재고 › 이커머스 · 설정 › 연동·API 키",
-    shot: { src: "/product/f-inv-channels-v1.webp", w: 2640, h: 2000, alt: "오너뷰 이커머스 · 판매채널 주문 가져오기" },
+    shot: { src: "/product/f-inv-channels-v2.webp", w: 1478, h: 888, alt: "오너뷰 이커머스 · 판매채널 주문 가져오기" },
     side: "left",
   },
   {
@@ -120,7 +120,7 @@ export const SECTIONS: Section[] = [
       "보드 템플릿 8종 · 수익형·목표형·실행형",
     ],
     loc: "업무 › 프로젝트 · 전자계약 · 결재 허브",
-    shot: { src: "/product/f-projects-v5.webp", w: 2288, h: 1432, alt: "오너뷰 프로젝트 · 표 형태 파이프라인" },
+    shot: { src: "/product/f-projects-v6.webp", w: 1478, h: 684, alt: "오너뷰 프로젝트 · 표 형태 파이프라인" },
     side: "right",
   },
   {
@@ -130,7 +130,7 @@ export const SECTIONS: Section[] = [
       "회의·거래처 방문·납품·세금 신고 마감·휴가·외근까지 회사의 모든 일정을 한 캘린더에 올리고, 개인·부서·전체 공개 범위를 정합니다. " +
       "반복 일정과 알림(당일 아침, 하루 전, 원하는 시각 등 여러 개)을 걸 수 있고, 할 일과 프로젝트 마감이 같은 화면에 보입니다.",
     loc: "업무 › 일정 / 할 일",
-    shot: { src: "/product/f-schedule-v4.webp", w: 2288, h: 1432, alt: "오너뷰 일정과 할 일 · 공용 캘린더" },
+    shot: { src: "/product/f-schedule-v5.webp", w: 1478, h: 1040, alt: "오너뷰 일정과 할 일 · 공용 캘린더" },
     side: "left",
   },
   {
@@ -140,7 +140,7 @@ export const SECTIONS: Section[] = [
       "폴더별로 부서·개인 공개 범위를 정하고, 같은 이름의 파일을 다시 올리면 버전이 자동으로 쌓입니다. " +
       "파일당 500MB 까지 올릴 수 있고, 수백 GB 규모는 저장공간 추가로 수용합니다. 계약서·서명 문서도 같은 보관함에 들어옵니다.",
     loc: "업무 › 파일보관함",
-    shot: { src: "/product/f-documents-v4.webp", w: 2288, h: 1432, alt: "오너뷰 파일보관함. 폴더와 파일 목록" },
+    shot: { src: "/product/f-documents-v5.webp", w: 1478, h: 894, alt: "오너뷰 파일보관함. 폴더와 파일 목록" },
     side: "right",
   },
   {
@@ -150,7 +150,7 @@ export const SECTIONS: Section[] = [
       "직원 정보, 출퇴근·근무시간, 연차 자동 계산, 휴가 신청과 승인, 급여명세서까지 한곳에서 처리합니다. " +
       "4대보험과 원천세는 요율표로 자동 산출되고, 승인하면 명세서가 전 직원에게 발송됩니다.",
     loc: "인사 › 구성원 · 근태 관리 (휴가 승인은 업무 › 결재 허브)",
-    shot: { src: "/product/f-hr-v5.webp", w: 3200, h: 2000, alt: "오너뷰 근태 관리 · 주간 워크보드" },
+    shot: { src: "/product/f-hr-v6.webp", w: 1478, h: 986, alt: "오너뷰 근태 관리 · 주간 워크보드" },
     side: "left",
   },
   {
@@ -160,7 +160,7 @@ export const SECTIONS: Section[] = [
       "은행·카드 거래 자동 수집, 세금계산서, 전표, 재고·원가·이익, 거래처, 월결산, 세무 신고 준비까지 자체 제공하므로 별도 ERP 없이 운영됩니다. " +
       "부가세·원천세 신고서는 완성된 상태로 나와 홈택스에 옮겨 적기만 하면 됩니다.",
     loc: "재무 · 재고 메뉴",
-    shot: { src: "/product/f-bank-v4.webp", w: 2288, h: 1116, alt: "오너뷰 수집·전표 · 자료를 받아 전표까지" },
+    shot: { src: "/product/f-bank-v5.webp", w: 1478, h: 726, alt: "오너뷰 수집·전표 · 자료를 받아 전표까지" },
     side: "right",
   },
   {
@@ -170,7 +170,7 @@ export const SECTIONS: Section[] = [
       "게시판에 공지 / 매뉴얼 / 교육자료 / 자유 카테고리를 두어 CS·상품등록·물류 매뉴얼을 분류해 올리고 검색합니다. " +
       "새로 합류한 직원은 온보딩 때 같은 곳에서 읽습니다.",
     loc: "업무 › 게시판",
-    shot: { src: "/product/f-board-v4.webp", w: 2288, h: 1432, alt: "오너뷰 게시판 · 공지와 매뉴얼" },
+    shot: { src: "/product/f-board-v5.webp", w: 1478, h: 626, alt: "오너뷰 게시판 · 공지와 매뉴얼" },
     side: "left",
   },
   {
@@ -180,7 +180,7 @@ export const SECTIONS: Section[] = [
       "1:1·그룹·프로젝트별 대화, @멘션 알림, 파일 전송이 되고 상대가 읽었는지 표시됩니다. " +
       "회의중·외근 같은 내 상태를 이름 옆에 보여주고, 외부 파트너도 초대해 같은 채널에서 이야기합니다.",
     loc: "업무 › 메신저",
-    shot: { src: "/product/f-chat-v4.webp", w: 2288, h: 1432, alt: "오너뷰 메신저 · 프로젝트 채널과 읽음 표시" },
+    shot: { src: "/product/f-chat-v5.webp", w: 1478, h: 1040, alt: "오너뷰 메신저 · 프로젝트 채널과 읽음 표시" },
     side: "right",
   },
 ];
@@ -227,22 +227,22 @@ export const MOSAICS: Mosaic[] = [
     shots: [
       {
         key: "table", label: "표", note: "담당·상태·마감·금액을 한 줄에. 그룹마다 합계가 붙습니다.",
-        src: "/product/pv-table-v3.webp", w: 2216, h: 1234,
+        src: "/product/pv-table-v4.webp", w: 1456, h: 1234,
         alt: "오너뷰 프로젝트 표 보기 · 담당·상태·마감·금액·거래처 열과 그룹별 합계",
       },
       {
         key: "kanban", label: "칸반", note: "카드를 끌어 다른 열에 놓으면 상태가 바뀝니다.",
-        src: "/product/pv-kanban-v3.webp", w: 1678, h: 1210,
+        src: "/product/pv-kanban-v4.webp", w: 1678, h: 1210,
         alt: "오너뷰 프로젝트 칸반 보기 · 상태별 열과 끌어 옮기는 카드",
       },
       {
         key: "calendar", label: "캘린더", note: "마감일 기준 달력. 날짜의 ＋로 그 자리에서 추가합니다.",
-        src: "/product/pv-calendar-v3.webp", w: 2240, h: 880,
+        src: "/product/pv-calendar-v4.webp", w: 1480, h: 880,
         alt: "오너뷰 프로젝트 캘린더 보기 · 마감일 기준 월 달력과 상태 색 칩",
       },
       {
         key: "gantt", label: "간트", note: "시작~마감을 막대로. 세로선이 오늘입니다.",
-        src: "/product/pv-gantt-v3.webp", w: 2240, h: 858,
+        src: "/product/pv-gantt-v4.webp", w: 1480, h: 858,
         alt: "오너뷰 프로젝트 간트 보기 · 시작일부터 마감일까지 막대와 오늘 선",
       },
     ],
@@ -258,22 +258,22 @@ export const MOSAICS: Mosaic[] = [
     shots: [
       {
         key: "profit", label: "이익관리", note: "매출·원가·이익과 이익률. 품목별로 뭐가 남는지 보입니다.",
-        src: "/product/iv-profit-v2.webp", w: 2238, h: 1040,
+        src: "/product/iv-profit-v3.webp", w: 1478, h: 1040,
         alt: "오너뷰 이익관리 · 매출·매출원가·매출총이익·이익률과 일별 추이, 품목별 이익",
       },
       {
         key: "stock", label: "현재고", note: "창고별 수량과 평균단가. 안전재고를 밑돌면 부족·품절로 표시됩니다.",
-        src: "/product/iv-stock-v2.webp", w: 2238, h: 1058,
+        src: "/product/iv-stock-v3.webp", w: 1478, h: 1058,
         alt: "오너뷰 창고관리 현재고 · SKU·품목·창고별 수량과 평균단가, 부족·품절 표시",
       },
       {
         key: "sales", label: "판매 이력", note: "나간 문서가 그대로 쌓입니다. 줄을 누르면 그 입력 화면이 열립니다.",
-        src: "/product/iv-sales-v2.webp", w: 1916, h: 992,
+        src: "/product/iv-sales-v3.webp", w: 1478, h: 938,
         alt: "오너뷰 판매 이력 · 출고 문서 번호·일자·품목 수·합계",
       },
       {
         key: "channels", label: "이커머스", note: "스마트스토어·쿠팡 주문과 출고 대기. 채널별로 갈라 봅니다.",
-        src: "/product/iv-channels-v2.webp", w: 2238, h: 850,
+        src: "/product/iv-channels-v3.webp", w: 1478, h: 888,
         alt: "오너뷰 이커머스 현황 · 스마트스토어·쿠팡 주문 건수·금액·출고 대기와 일별 주문",
       },
     ],
@@ -289,22 +289,22 @@ export const MOSAICS: Mosaic[] = [
     shots: [
       {
         key: "invoices", label: "세금·증빙", note: "발행할 것이 대기 줄에 쌓입니다. 골라서 한 번에 발행합니다.",
-        src: "/product/av-invoices-v1.webp", w: 2238, h: 1036,
+        src: "/product/av-invoices-v2.webp", w: 1478, h: 990,
         alt: "오너뷰 세금계산서 발행 대기 · 거래처·품목·공급가액·세액·합계",
       },
       {
         key: "tax", label: "부가세 신고서", note: "확정 전표를 신고서 칸에 그대로 넣어 줍니다. 납부 예상까지.",
-        src: "/product/av-tax-v1.webp", w: 2238, h: 1052,
+        src: "/product/av-tax-v2.webp", w: 1478, h: 1092,
         alt: "오너뷰 부가세 신고서 · 과세표준·매출세액·매입세액·납부세액",
       },
       {
         key: "voucher", label: "매입매출전표", note: "매출·매입이 일별로 쌓이고 납부 예상이 같이 나옵니다.",
-        src: "/product/av-voucher-v1.webp", w: 2238, h: 1000,
+        src: "/product/av-voucher-v2.webp", w: 1478, h: 1000,
         alt: "오너뷰 매입매출전표 현황 · 매출·매입 공급가와 세액, 일별 금액",
       },
       {
         key: "profit", label: "손익", note: "이번 달 얼마 남았는지와, 전월 대비 무엇이 달라졌는지.",
-        src: "/product/av-profit-v1.webp", w: 2238, h: 1018,
+        src: "/product/av-profit-v2.webp", w: 1478, h: 1004,
         alt: "오너뷰 손익 요약 · 매출·매출원가·판관비·영업이익과 전월 비교",
       },
     ],
@@ -320,22 +320,22 @@ export const MOSAICS: Mosaic[] = [
     shots: [
       {
         key: "workboard", label: "워크보드", note: "오늘 누가 왔고 누가 안 왔는지. 지각·미출근을 그 자리에서 알립니다.",
-        src: "/product/hv-workboard-v1.webp", w: 2238, h: 1200,
+        src: "/product/hv-workboard-v2.webp", w: 1478, h: 1200,
         alt: "오너뷰 근태 워크보드 · 주간 출퇴근과 지각·미출근 표시",
       },
       {
         key: "attstatus", label: "근태 현황", note: "기간을 잡으면 부서별 출근율·지각·연장이 한 표로 나옵니다.",
-        src: "/product/hv-attstatus-v1.webp", w: 2238, h: 1008,
+        src: "/product/hv-attstatus-v2.webp", w: 1478, h: 1014,
         alt: "오너뷰 근태 현황 · 부서별 출근율·지각·연장·총 근무시간",
       },
       {
         key: "members", label: "구성원", note: "사번·부서·직책·근속. 인건비와 퇴직충당금이 같이 계산됩니다.",
-        src: "/product/hv-members-v1.webp", w: 2238, h: 1012,
+        src: "/product/hv-members-v2.webp", w: 1478, h: 1010,
         alt: "오너뷰 구성원 명부 · 사번·부서·직책·입사일·근속과 연 인건비",
       },
       {
         key: "leave", label: "연차", note: "부여일수에서 쓴 만큼 빠집니다. 월별로 언제 썼는지 보입니다.",
-        src: "/product/hv-leave-v1.webp", w: 2238, h: 966,
+        src: "/product/hv-leave-v2.webp", w: 1478, h: 966,
         alt: "오너뷰 직원별 연차 · 부여일수·월별 사용·잔여일수",
       },
     ],
