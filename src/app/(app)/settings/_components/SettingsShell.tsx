@@ -11,7 +11,7 @@ import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser, getBankAccounts, upsertBankAccount, deleteBankAccount, getRoutingRules, upsertRoutingRule } from "@/lib/queries";
-import { COST_TYPES, BANK_ROLES } from "@/lib/routing";
+import { COST_TYPES, COST_TYPE_LABELS, BANK_ROLES } from "@/lib/routing";
 import { ChartOfAccountsManager } from "@/components/chart-of-accounts-manager";
 import type { BankAccount } from "@/types/models";
 import { useUser } from "@/components/user-context";
@@ -658,7 +658,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
                   {routingRules.map((rule: any) => (
                     <div key={rule.id} className="stg-list-row">
                       <span className="text-sm font-medium">
-                        {COST_TYPES.find(t => t.value === rule.cost_type)?.label || rule.cost_type}
+                        {COST_TYPE_LABELS[rule.cost_type] || rule.cost_type}
                       </span>
                       <span className="text-xs text-[var(--text-muted)]">
                         → {rule.bank_accounts?.alias || rule.bank_accounts?.bank_name || "미지정"}

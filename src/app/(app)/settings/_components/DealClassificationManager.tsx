@@ -73,15 +73,6 @@ export function DealClassificationManager({ companyId }: { companyId: string | n
             </div>
             <div>
               <label className="field-label">색상</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={form.color}
-                  onChange={(e) => setForm({ ...form, color: e.target.value })}
-                  className="w-8 h-8 rounded border border-[var(--border)] cursor-pointer"
-                />
-                <span className="text-xs text-[var(--text-dim)] font-mono">{form.color}</span>
-              </div>
             </div>
           </div>
           <div className="flex gap-2">

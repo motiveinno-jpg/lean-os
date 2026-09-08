@@ -388,7 +388,7 @@ export function ProjectQuoteStages({ dealId, companyId, readonly, stage = "estim
 
   
 
-  // 완료 확인서 / 정산 확인 · 우선 stub, 다음 라운드에서 본 폼 추가
+  // 완료 확인서 / 정산 확인 · 거래처 문서가 없는 단계 — 상태 카드만 보여 준다
   if (STUB_STAGES.has(stage))  {
     return <StageStubCard stage={stage} approval={approval} />;
   }
@@ -890,7 +890,7 @@ function StageStubCard({ stage, approval }: { stage: QuoteApprovalStage; approva
         {approval && <StatusBadge approval={approval} />}
       </div>
       <div className="stage-stub-body">
-        {label} 단계는 준비 중입니다.<br/>
+        이 단계에는 거래처에 보내는 문서가 없습니다. 프로젝트 상태만 관리합니다.<br/>
         <span className="caption">현재 단계: <span className="text-[var(--text)] font-semibold">{label}</span> · {STAGE_NEXT_HINT[stage]}</span>
       </div>
     </div>

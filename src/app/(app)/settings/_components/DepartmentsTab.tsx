@@ -99,7 +99,7 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
       <div className="stg-sec-head mb-1">
         <div>
           <h2 className="stg-sec-title">부서</h2>
-          <p className="stg-sec-desc">성과 입력과 일정 공유에서 고르는 부서 목록입니다.</p>
+          <p className="stg-sec-desc">구성원 상세에서 고르는 부서 목록입니다.</p>
         </div>
       </div>
 

@@ -694,7 +694,7 @@ export default function AuthPage() {
                 {phone && !isValidMobile(phone) && (
                   <p className="text-[11px] text-[var(--danger)] mt-1">휴대전화 번호 형식이 올바르지 않습니다.</p>
                 )}
-                <p className="text-[11px] text-[var(--text-dim)] mt-1">결재·계약 알림을 카카오톡으로 받는 데 사용됩니다. 나중에 설정에서 입력해도 됩니다.</p>
+                <p className="text-[11px] text-[var(--text-dim)] mt-1">나중에 카카오톡 알림을 켤 때 씁니다. 지금 알림은 이메일과 브라우저 푸시로 갑니다. 나중에 입력해도 됩니다.</p>
               </div>
             )}
             <div className="password-field">

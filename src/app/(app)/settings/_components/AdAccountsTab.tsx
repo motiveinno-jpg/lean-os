@@ -119,7 +119,7 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
         <div>
           <h3 className="ad-acc-title">광고 계정</h3>
           <p className="ad-acc-desc">
-            등록한 광고 계정을 프로젝트마다 골라 씁니다.
+            등록하면 매일 광고 성과를 모아 AI 참모가 답할 때 씁니다.
             <b> 키는 저장 즉시 암호화됩니다.</b>
           </p>
         </div>

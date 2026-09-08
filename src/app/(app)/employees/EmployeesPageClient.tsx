@@ -349,8 +349,6 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
     enabled: !!companyId,
   });
 
-  const [showAcqEdi, setShowAcqEdi] = useState(false);
-  const [acqEdiData, setAcqEdiData] = useState<{ name: string; department: string; position: string; salary: string } | null>(null);
 
   const inviteMut = useMutation({
     mutationFn: async () => {
@@ -392,8 +390,6 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
           : { ok: false, msg: result.error || "이메일 발송 실패 (초대 링크는 생성됨)" }
         );
       }
-      setAcqEdiData({ name: form.name || form.email.split("@")[0], department: form.department, position: form.position, salary: form.salary });
-      setShowAcqEdi(true);
       setShowForm(false);
       setForm({ email: "", name: "", role: "employee", department: "", position: "", salary: "", hireDate: "", employeeNumber: "" });
     },
@@ -468,7 +464,7 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
 
   const pendingInvites = invitations.filter((i: any) => i.status === "pending");
   //   보여 줄 것이 하나도 없으면 자리도 안 잡는다 (표 위 빈 띠 방지)
-  if (!showBulkInvite && !inviteMsg && !(showAcqEdi && acqEdiData) && !showForm && pendingInvites.length === 0) return null;
+  if (!showBulkInvite && !inviteMsg && !showForm && pendingInvites.length === 0) return null;
 
   return (
     <div className="employee-invite-section">
@@ -493,23 +489,6 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
         </div>
       )}
 
-      {showAcqEdi && acqEdiData && (
-        <div className="employee-insurance-edi-panel">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <div className="text-sm font-bold text-[var(--info)] flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                4대보험 취득신고 · Web EDI 업로드 파일 (준비 중)
-              </div>
-              <p className="text-[10px] text-[var(--text-dim)] mt-1">신규 직원 <span className="font-semibold text-[var(--text)]">{acqEdiData.name}</span>의 Web EDI 파일은 준비 중입니다.</p>
-            </div>
-            <button onClick={() => { setShowAcqEdi(false); setAcqEdiData(null); }} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">닫기</button>
-          </div>
-          <div className="edi-prep-notice">
-            <b>Web EDI 취득신고 파일</b>은 준비 중이라 <b>공단 Web EDI</b>에서 직접 신고해 주세요.
-          </div>
-        </div>
-      )}
 
       {showForm && (
         <div className="employee-invite-form glass-card">

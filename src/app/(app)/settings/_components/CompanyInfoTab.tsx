@@ -89,7 +89,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
           phone: form.phone || null,
           business_type: form.business_type || null,
           business_category: form.business_category || null,
-          // 자본금 — 전용 컬럼이 없어 tax_settings(jsonb)에 저장. 재무상태표(자본금)가 읽음.
+          // 자본금 — 전용 컬럼이 없어 tax_settings(jsonb)에 저장. 참고용이며 재무상태표는 전표만 집계한다.
           tax_settings: {
             ...((company?.tax_settings as Record<string, unknown> | null) || {}),
             capital: form.capital ? Number(String(form.capital).replace(/[^0-9]/g, "")) : null,
@@ -457,7 +457,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
           </div>
         </div>
         <div className="stg-frow">
-          <div className="stg-frow-label"><b>자본금 (원)</b><small>등기부상 자본금을 입력합니다.</small></div>
+          <div className="stg-frow-label"><b>자본금 (원)</b><small>참고용입니다. 재무상태표는 전표의 자본금 계정만 집계합니다.</small></div>
           <div className="stg-frow-body">
             <input
               inputMode="numeric"
@@ -495,7 +495,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
         <div className="stg-sec-head mb-5">
           <div>
             <h2 className="stg-sec-title">직인 및 로고</h2>
-            <p className="stg-sec-desc">전자계약 서명과 견적서·명세서 머리에 사용됩니다.</p>
+            <p className="stg-sec-desc">직인은 전자계약 서명과 계약서 PDF에 찍힙니다. 로고는 회사 정보에 보관됩니다.</p>
           </div>
         </div>
         {uploadError && (
@@ -905,9 +905,11 @@ export function IpRestrictionSection({ companyId }: { companyId: string | null }
 
   const saveMut = useMutation({
     mutationFn: async ({ nextEnabled, nextIps }: { nextEnabled: boolean; nextIps: string[] }) => {
-      if (!row?.id) throw new Error("회사 설정 행이 없습니다. 연동·인증 탭을 먼저 한 번 열어주세요");
-      const nextSettings = { ...(row.settings || {}), ip_restriction: { enabled: nextEnabled, ips: nextIps } };
-      const { error } = await (supabase as any).from("company_settings").update({ settings: nextSettings }).eq("id", row.id);
+      //   설정 행이 아직 없는 회사도 저장된다 — 종전엔 "연동 탭을 먼저 열라"며 막혔다.
+      const nextSettings = { ...(row?.settings || {}), ip_restriction: { enabled: nextEnabled, ips: nextIps } };
+      const { error } = row?.id
+        ? await (supabase as any).from("company_settings").update({ settings: nextSettings }).eq("id", row.id)
+        : await (supabase as any).from("company_settings").insert({ company_id: companyId, settings: nextSettings });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -1066,7 +1068,7 @@ function CompanyDocsSection({ companyId }: { companyId: string | null }) {
       <div className="stg-sec-head mb-1">
         <div>
           <h2 className="stg-sec-title">회사 문서</h2>
-          <p className="stg-sec-desc">계약서 발송과 증명서 발급에 쓰이는 법인 서류입니다.</p>
+          <p className="stg-sec-desc">법인 서류를 한곳에 보관합니다. 여기서 열어 보거나 내려받습니다.</p>
         </div>
       </div>
       {COMPANY_DOCS.map((doc) => {

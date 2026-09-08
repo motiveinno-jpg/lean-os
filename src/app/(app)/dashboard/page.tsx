@@ -1284,11 +1284,12 @@ function RiskCard({ label, items, count }: { label: RiskLabel; items: RiskItem[]
   );
 }
 
+//   갈 곳(href)이 있는 행동만 그린다 — 종전엔 '독촉 메시지 생성·비용 재검토·일정 재조정·지급 승인 보류' 가
+//   눌러도 "[준비중]" 안내만 띄우는 가짜 버튼이었다. 기능이 생기면 href 를 주면 된다.
 function ActionBtn({ text, href }: { text: string; href?: string }) {
-  const { toast } = useToast();
   const cls = "px-2 py-1 rounded text-[10px] font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition cursor-pointer";
-  if (href) return <Link href={href} className={cls}>{text}</Link>;
-  return <button className={cls} onClick={() => toast(`[준비중] ${text}`, "info")}>{text}</button>;
+  if (!href) return null;
+  return <Link href={href} className={cls}>{text}</Link>;
 }
 
 function GrowthSection({ growth }: { growth: FounderDashboardData['growth'] }) {

@@ -1224,25 +1224,6 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                   </div>
                 </div>
 
-                {/* 4대보험 상실신고 · Web EDI (준비 중) */}
-                <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-3">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="text-xs font-semibold text-[var(--text-muted)]">4대보험 상실신고 · Web EDI (준비 중)</div>
-                    {ediGenerated && <span className="text-[10px] text-[var(--success)] font-medium">신고 완료 표시됨</span>}
-                  </div>
-                  {/* P0(2026-07-23): 기존 생성기는 공식 규격이 아닌 자체 TXT라 Web EDI 에서 거부됨.
-                      정식 상실신고 XLSX 규격 적용 전까지 제출용 다운로드 비활성 — 잘못된 파일을 제출용으로 내보내지 않는다. */}
-                  <div className="edi-prep-notice mb-2">
-                    <b>Web EDI 상실신고 파일</b>은 준비 중이라 <b>공단 Web EDI</b>에서 직접 신고해 주세요.
-                  </div>
-                  <button
-                    onClick={() => { setEdiGenerated(true); setTermChecklist((prev) => ({ ...prev, insurance: true })); }}
-                    disabled={ediGenerated}
-                    className="w-full py-2 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-hover)] disabled:opacity-40 disabled:cursor-not-allowed text-[var(--text)] rounded-lg text-xs font-semibold transition"
-                  >
-                    {ediGenerated ? "신고 완료로 표시됨" : "공단에서 직접 신고함 · 완료로 표시"}
-                  </button>
-                </div>
 
               </div>
               {/* 푸터 — 확정 */}

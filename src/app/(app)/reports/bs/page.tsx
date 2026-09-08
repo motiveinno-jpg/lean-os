@@ -8,6 +8,7 @@ import { DateField } from "@/components/date-field";
 import { ReportHead } from "../_components/ReportHead";
 import { Stat } from "@/components/query-kit";
 import { fetchJournalLines, countUnposted, bsAmount } from "@/lib/journal-reports";
+import { getAccountingClosing, lineDebit, lineCredit } from "@/lib/accounting-closing";
 import { ClosingSnapshotButton } from "@/components/closing-snapshot-button";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -52,6 +53,9 @@ interface BsData {
   /* Equity */
   capital: number;
   isCapitalDefault: boolean;
+  /** 회계마감 설정의 기초잔액이 집계에 들어갔는가 · 차변≠대변이면 unbalanced */
+  openingApplied: boolean;
+  openingUnbalanced: boolean;
   retainedEarnings: number;
   totalEquity: number;
   /* Detail rows */
@@ -72,7 +76,6 @@ interface BsData {
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
-const DEFAULT_CAPITAL = 10_000_000;
 
 function formatKrw(value: number): string {
   if (value === 0) return "-";
@@ -94,10 +97,11 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
   const cutoff = cutoffDate || todayKst();
   const fromDate = `${cutoff.slice(0, 4)}-01-01`;
 
-  const [lines, unposted, companyRes] = await Promise.all([
+  const [lines, unposted, companyRes, closing] = await Promise.all([
     fetchJournalLines(companyId, fromDate, cutoff),
     countUnposted(companyId, fromDate, cutoff),
     supabase.from("companies").select("tax_settings").eq("id", companyId).maybeSingle(),
+    getAccountingClosing(companyId).catch(() => null),
   ]);
 
   //   계정별 잔액 · 자산은 차변이 +, 부채·자본은 대변이 +
@@ -112,6 +116,24 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
     const cur = byAccount.get(l.accountId) || { name: l.name, code: l.code, nature: l.nature, amount: 0 };
     cur.amount += bsAmount(l);
     byAccount.set(l.accountId, cur);
+  }
+  //   회계마감 설정의 기초잔액 — 마감일까지의 잔액을 계정별로 더한다(자산은 차변+, 부채·자본은 대변+).
+  //   종전엔 설정에서 입력만 받고 어느 보고서도 읽지 않아, 기초잔액 칸이 아무 효과 없는 입력이었다.
+  let openingApplied = false, openingUnbalanced = false;
+  const openingLines = (closing?.opening_lines || []).filter((l) => l.account_type === "asset" || l.account_type === "liability" || l.account_type === "equity");
+  if (openingLines.length && (!closing?.closing_date || closing.closing_date <= cutoff)) {
+    let dSum = 0, cSum = 0;
+    for (const l of openingLines) {
+      const d = lineDebit(l), c = lineCredit(l);
+      if (!d && !c) continue;
+      dSum += d; cSum += c;
+      const key = l.account_id || `opening:${l.code}`;
+      const cur = byAccount.get(key) || { name: l.name, code: l.code || null, nature: l.account_type as string, amount: 0 };
+      cur.amount += l.account_type === "asset" ? d - c : c - d;
+      byAccount.set(key, cur);
+      openingApplied = true;
+    }
+    openingUnbalanced = openingApplied && Math.round(dSum) !== Math.round(cSum);
   }
   const all = [...byAccount.values()].filter((b) => Math.round(b.amount) !== 0);
   const codeNum = (c: string | null) => parseInt(String(c || "").replace(/\D/g, ""), 10);
@@ -183,6 +205,8 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
     totalLiabilities,
     capital,
     isCapitalDefault,
+    openingApplied,
+    openingUnbalanced,
     retainedEarnings,
     totalEquity,
     bankAccountDetails,
@@ -712,11 +736,16 @@ function BalanceSheetPageInner() {
       </div>
 
       {/* 데이터 신뢰도 배너 — 자본 섹션 추정값 안내 (정확도 투명성) */}
+      {data.openingApplied && (
+        <div className="kpi-callout info">
+          <p className="text-[11.5px] leading-relaxed">회계마감 설정의 기초잔액이 포함되었습니다.{data.openingUnbalanced ? " 기초잔액의 차변과 대변 합계가 달라 자산과 부채·자본이 맞지 않을 수 있습니다." : ""}</p>
+        </div>
+      )}
       {data.isCapitalDefault && (
         <div className="bs-capital-warning kpi-callout warning">
           <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.3 3.86l-8.1 14A1 1 0 003 19.5h18a1 1 0 00.87-1.5l-8.1-14a1 1 0 00-1.74 0z" /></svg>
           <p className="text-[11.5px] leading-relaxed">
-            <b>자본금이 미등록 상태입니다.</b> 기본값 {DEFAULT_CAPITAL.toLocaleString("ko-KR")}원으로 표시 중이라 자본·이익잉여금이 부정확합니다. <Link href="/settings?tab=company" className="underline font-semibold">회사 설정 → 회사정보</Link>에서 자본금을 입력하면 정확해집니다.
+            <b>자본금 전표가 없습니다.</b> 자본 항목이 0으로 표시됩니다. <Link href="/settings/finance?tab=closing" className="underline font-semibold">회계·세무 설정 → 회계마감</Link>의 기초잔액에 자본금(331)을 넣거나, 자본금 전표를 입력하면 반영됩니다.
           </p>
         </div>
       )}

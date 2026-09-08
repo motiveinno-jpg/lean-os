@@ -1,5 +1,7 @@
 "use client";
 
+import { notFound } from "next/navigation";
+
 // 디자인 시스템 갤러리 — 오너뷰가 쓰는 부품을 한 화면에 모아 둔다 (2026-08-05).
 //
 //   왜 만드나: 화면을 고칠 때마다 globals.css 6,000줄을 뒤지거나 임시 HTML 을 손으로
@@ -38,6 +40,8 @@ const STATUS_COLORS = [
 ];
 
 export default function DesignSystemPage() {
+  //   개발용 부품 갤러리 — 배포 환경에서는 404. 앱 안에서 링크 없이 열리던 개발 화면이 사용자에게 보이지 않게.
+  if (process.env.NODE_ENV === "production") notFound();
   const [seg, setSeg] = useState("a");
 
   return (

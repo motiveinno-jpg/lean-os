@@ -478,7 +478,7 @@ function QuoteApprovalPageInner() {
             <section>
               <Label>{stageLabel}</Label>
               <div className="border border-gray-200 rounded-lg p-6 bg-gray-50 text-xs text-gray-500 text-center">
-                {stageLabel} 단계 본문은 준비 중입니다. 발송자에게 문의해 주세요.
+                이 단계에는 확인할 문서가 없습니다. 궁금한 점은 발송자에게 문의해 주세요.
               </div>
             </section>
           )}

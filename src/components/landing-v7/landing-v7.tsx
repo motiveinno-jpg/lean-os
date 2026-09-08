@@ -825,7 +825,7 @@ export default function LandingV7() {
               {s.key === "channel" && (
                 <>
                   <div className="lp7-toast"><i />스마트스토어 새 주문 12건 · 출고 대기</div>
-                  <div className="lp7-toast"><i />쿠팡 새 주문 7건 · 재고 반영됨</div>
+                  <div className="lp7-toast"><i />쿠팡 새 주문 7건 · 출고 대기</div>
                 </>
               )}
               <ChapterWidget k={s.key} />

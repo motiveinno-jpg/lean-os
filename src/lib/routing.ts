@@ -67,15 +67,21 @@ export async function resolveBank(
 }
 
 // ── Cost type labels ──
+//   규칙을 고를 수 있는 유형은 실제로 판정에 쓰이는 것만 — 지출결의('expense')·구매('purchase')·기본, 그리고
+//   정기 지출 분류(급여·임대료·보험). 세금·외주비·광고비는 어느 호출도 넘기지 않아 규칙을 만들어도 맞지 않았다.
 export const COST_TYPES = [
+  { value: 'expense', label: '지출결의' },
+  { value: 'purchase', label: '구매' },
   { value: 'salary', label: '급여' },
-  { value: 'tax', label: '세금' },
-  { value: 'outsource', label: '외주비' },
-  { value: 'advertising', label: '광고비' },
   { value: 'rent', label: '임대료' },
   { value: 'insurance', label: '보험' },
   { value: 'default', label: '기본' },
 ] as const;
+/** 옛 규칙에 남아 있을 수 있는 유형 이름 */
+export const COST_TYPE_LABELS: Record<string, string> = {
+  expense: '지출결의', purchase: '구매', salary: '급여', rent: '임대료', insurance: '보험', default: '기본',
+  tax: '세금', outsource: '외주비', advertising: '광고비',
+};
 
 // ── Bank role labels ──
 export const BANK_ROLES = [

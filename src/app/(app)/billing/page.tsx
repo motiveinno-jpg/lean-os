@@ -997,13 +997,13 @@ function BillingPageInner() {
                 { f: "전자계약", free: "월 5건", std: "무제한", ultra: "무제한" },
                 { f: "통장·카드 연결", free: "3개 · 하루 2회", std: "무제한 · 하루 2회 + 즉시", ultra: "무제한 + 연동 주기 협의" },
                 { f: "홈택스 자동 수집", free: "—", std: "✓", ultra: "✓" },
-                { f: "AI 참모", free: "월 10만 토큰", std: "월 50만 토큰", ultra: "협의(전용 한도)" },
+                { f: "AI 참모", free: "월 10만 토큰", std: "월 100만 토큰", ultra: "협의(전용 한도)" },
                 { f: "AI 브리핑", free: "기본형(규칙)", std: "매일 자동 분석", ultra: "회사 지표에 맞춘 브리핑" },
                 { f: "전자결재·근태·급여·프로젝트·게시판", free: "무제한", std: "무제한", ultra: "무제한" },
                 { f: "회사 시스템에 맞춘 별도 UX 구축", free: "—", std: "—", ultra: "✓ 화면·흐름 맞춤 설계" },
                 { f: "기존 시스템 연동(ERP·그룹웨어·회계)", free: "—", std: "—", ultra: "✓ 협의" },
                 { f: "데이터 이관 · 온보딩 교육", free: "—", std: "셀프 가이드", ultra: "✓ 전담 담당자" },
-                { f: "지원", free: "고객센터", std: "고객센터 · 우선 답변", ultra: "전담 채널 · 응답 시간 약속(SLA)" },
+                { f: "지원", free: "고객센터", std: "고객센터 · 우선 답변", ultra: "전담 채널 · 응답 시간 협의" },
               ];
               const cell = (v: string) => v === "—" ? <span className="text-[var(--text-dim)]">—</span> : v === "✓" ? <span className="billing-ok">✓</span> : v.startsWith("✓") ? <><span className="billing-ok">✓</span> {v.slice(1).trim()}</> : v;
               return (

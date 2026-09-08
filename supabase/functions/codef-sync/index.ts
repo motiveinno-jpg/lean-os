@@ -103,6 +103,12 @@ async function findBankAccountByNumber(supabase: any, companyId: string, account
     .find((a) => String(a.account_number || "").replace(/[^0-9]/g, "") === digits);
   return hit ? { id: hit.id, alias: hit.alias } : null;
 }
+/** 사용자가 건 '연동 일시정지'(company_settings.settings.sync_paused_until) 가 아직 유효한가 — 자동 수집도 이 시간엔 쉰다.
+ *  종전엔 화면의 수동 수집만 막고 크론은 그대로 돌아, 홈택스에 직접 로그인하려고 멈춘 회사가 중복 로그인으로 튕겼다. */
+function syncPausedNow(settings: unknown): boolean {
+  const until = (settings as { sync_paused_until?: string } | null)?.sync_paused_until;
+  return !!until && new Date(until).getTime() > Date.now();
+}
 /** 통장 행 넣기 — 한도에 걸리면 수집 꺼진 상태로 넣는다. 반환: "on" | "off" | "error" */
 async function insertBankAccountRow(supabase: any, row: Record<string, unknown>, errors: SyncError[], org: string, label: string): Promise<"on" | "off" | "error"> {
   const { error } = await supabase.from("bank_accounts").insert(row);
@@ -2341,14 +2347,14 @@ serve(withSentry("codef-sync", async (req) => {
     if (action === "bank-cron-tick") {
       const { data: allCompanies } = await supabase
         .from("company_settings")
-        .select("company_id, codef_connected_id, codef_client_id")
+        .select("company_id, codef_connected_id, codef_client_id, settings")
         .not("codef_connected_id", "is", null)
         .neq("codef_connected_id", "")
         .order("company_id")
         .limit(500);   // 50 → 500 (2026-08-19): 연동 51번째 회사부터 자동수집이 무음 누락되던 상한. order 로 결정적.
       // 체험 만료·해지 기간종료 회사 제외 — 페이월 뒤 회사에 CODEF 과금 누수 방지
       const billable = await filterBillableCompanies(supabase, (allCompanies || []).map((c: any) => c.company_id));
-      const companies = (allCompanies || []).filter((c: any) => billable.has(c.company_id));
+      const companies = (allCompanies || []).filter((c: any) => billable.has(c.company_id) && !syncPausedNow(c.settings));
       const selfUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/codef-sync`;
       const cronSecretForChain = CRON_SECRET;
       const triggers = (companies || []).map((c: any) =>
@@ -2384,14 +2390,14 @@ serve(withSentry("codef-sync", async (req) => {
     if (action === "card-cron-tick") {
       const { data: allCardCompanies } = await supabase
         .from("company_settings")
-        .select("company_id, codef_connected_id")
+        .select("company_id, codef_connected_id, settings")
         .not("codef_connected_id", "is", null)
         .neq("codef_connected_id", "")
         .order("company_id")
         .limit(500);   // 50 → 500 (2026-08-19): 연동 51번째 회사부터 자동수집이 무음 누락되던 상한. order 로 결정적.
       // 체험 만료·해지 기간종료 회사 제외 — bank-cron-tick 과 동일 가드
       const cardBillable = await filterBillableCompanies(supabase, (allCardCompanies || []).map((c: any) => c.company_id));
-      const companies = (allCardCompanies || []).filter((c: any) => cardBillable.has(c.company_id));
+      const companies = (allCardCompanies || []).filter((c: any) => cardBillable.has(c.company_id) && !syncPausedNow(c.settings));
       const selfUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/codef-sync`;
       const triggers = (companies || []).flatMap((c: any) => [
         fetch(selfUrl, {
