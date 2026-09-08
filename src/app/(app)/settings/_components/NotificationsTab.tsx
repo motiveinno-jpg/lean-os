@@ -16,10 +16,8 @@ type NotifEvent =
   | "approval_reference"
   | "deal_status"
   | "payment_due"
-  | "tax_invoice"
   | "chat_mention"
   | "board_post"
-  | "weekly_report"
   | "system_alert"
   | "payslip_ready"
   | "contract_sign";
@@ -36,20 +34,17 @@ interface NotifPrefs {
 //   channels 를 지정하면 그 채널 목록에만 토글이 보인다. 게시판 새 글은 메일을 아예 안 보내므로
 //   (board/page.tsx 주석: "오너뷰 안의 알림만, 메일은 보내지 않는다") 푸시에만 노출 (2026-08-26).
 const NOTIF_EVENTS:  { key: NotifEvent; label: string; desc: string; channels?: NotifChannel[] }[] = [
-  { key: "approval_pending", label: "결재 요청", desc: "내가 결재해야 할 항목이 새로 등록될 때" },
-  { key: "approval_reference", label: "결재 참조", desc: "참조로 공유된 결재가 있을 때" },
-  { key: "deal_status", label: "프로젝트 상태 변경", desc: "프로젝트가 다음 단계로 이동하거나 완료될 때" },
-  { key: "payment_due", label: "결제 마감 임박", desc: "결제·지급일이 7일 안으로 다가올 때" },
-  { key: "tax_invoice", label: "세금계산서 발행/수신", desc: "세금계산서를 발행하거나 받을 때" },
-  { key: "chat_mention", label: "채팅 멘션", desc: "팀 채팅에서 @멘션 받을 때" },
+  //   토글은 실제로 그 설정을 읽어 보내거나 막는 채널에만 보인다. 메일은 결재 알림만 이 설정을 따른다.
+  { key: "approval_pending", label: "결재 요청", desc: "내가 결재해야 할 항목이 새로 등록될 때", channels: ["email", "push", "kakao"] },
+  { key: "approval_reference", label: "결재 참조", desc: "참조로 공유된 결재가 있을 때", channels: ["email", "push", "kakao"] },
+  { key: "deal_status", label: "프로젝트 변경", desc: "내가 맡은 프로젝트 할 일이 바뀌거나 댓글이 달릴 때", channels: ["push"] },
+  { key: "payment_due", label: "구독 결제 안내", desc: "오너뷰 구독 결제일이나 체험 종료가 다가올 때", channels: ["push"] },
+  { key: "chat_mention", label: "채팅 멘션", desc: "팀 채팅에서 @멘션 받을 때", channels: ["push"] },
   { key: "board_post", label: "게시판 새 글", desc: "회사 게시판에 새 글이 등록될 때", channels: ["push"] },
-  { key: "weekly_report", label: "주간 리포트", desc: "매주 월요일 오전 9시 요약 리포트" },
-  { key: "system_alert", label: "시스템 경고", desc: "런웨이·현금흐름이 기준을 넘을 때" },
+  { key: "system_alert", label: "시스템 경고", desc: "수집 오류, 경영 알림 조건 검사 결과, 자동 퇴근 처리 등", channels: ["push"] },
   { key: "payslip_ready", label: "급여명세서 발급", desc: "내 급여명세서가 발급될 때", channels: ["kakao"] },
   { key: "contract_sign", label: "전자계약 서명 요청", desc: "서명할 근로계약 서류가 도착할 때", channels: ["kakao"] },
 ];
-//   카카오톡은 심사받은 문구가 있는 사건만 보낸다 — 아래 목록 밖의 사건은 토글이 보이지 않는다.
-const KAKAO_EVENTS: NotifEvent[] = ["approval_pending", "approval_reference", "payslip_ready", "contract_sign"];
 //   카카오톡 채널 노출 스위치 — 발신프로필·템플릿 심사·서버 키가 갖춰지기 전까지는 설정 화면에 보이지 않는다.
 //   서버는 키가 없으면 어차피 보내지 않으므로 이 값은 화면 노출만 정한다. 준비되면 true 로.
 const KAKAO_CHANNEL_VISIBLE = false;
@@ -63,10 +58,8 @@ const DEFAULT_NOTIF_PREFS: NotifPrefs = {
       approval_reference: true,
       deal_status: false,
       payment_due: true,
-      tax_invoice: true,
       chat_mention: false,
       board_post: false,   //   게시판은 메일 발송 자체가 없음 — 자리만 채움 (Record<NotifEvent, boolean>)
-      weekly_report: true,
       system_alert: true,
       payslip_ready: false,   //   메일은 명세서 발송 자체가 별도 — 자리만 채움
       contract_sign: false,
@@ -79,10 +72,8 @@ const DEFAULT_NOTIF_PREFS: NotifPrefs = {
       approval_reference: true,
       deal_status: true,
       payment_due: true,
-      tax_invoice: false,
       chat_mention: true,
       board_post: true,   //   기존 동작 유지 — 지금까지 무조건 발송이었으므로 기본 ON (2026-08-26)
-      weekly_report: false,
       system_alert: true,
       payslip_ready: false,
       contract_sign: false,
@@ -95,10 +86,8 @@ const DEFAULT_NOTIF_PREFS: NotifPrefs = {
       approval_reference: true,
       deal_status: false,
       payment_due: false,
-      tax_invoice: false,
       chat_mention: false,
       board_post: false,
-      weekly_report: false,
       system_alert: false,
       payslip_ready: true,
       contract_sign: true,
@@ -299,7 +288,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
     setPrefs((p) => {
       const next = { ...((p[channel] as any).events) };
       for (const ev of NOTIF_EVENTS) {
-        if (channel === "kakao" ? !KAKAO_EVENTS.includes(ev.key) : (ev.channels && !ev.channels.includes(channel))) continue;   //   그 채널에 없는 이벤트는 건드리지 않는다
+        if (ev.channels && !ev.channels.includes(channel)) continue;   //   그 채널에 없는 이벤트는 건드리지 않는다
         next[ev.key] = enabled;
       }
       return { ...p, [channel]: { ...(p[channel] as any), events: next } };
@@ -323,7 +312,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
       {/* Email Channel */}
       <ChannelSection
         title="이메일"
-        desc="중요한 알림을 메일로 받습니다."
+        desc="결재 요청·참조 메일에 적용됩니다. 급여명세서·계약 서명·세금계산서 메일은 받는 사람 주소로 항상 갑니다."
         enabled={prefs.email.enabled}
         onToggle={(v) => setPrefs((p) => ({ ...p, email: { ...p.email, enabled: v } }))}
       >
@@ -421,7 +410,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="text-sm font-bold">방해금지 시간대</h3>
-            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">이 시간에는 긴급 알림만 보냅니다.</p>
+            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">이 시간에는 브라우저 푸시를 보내지 않습니다. 메일에는 적용되지 않습니다.</p>
           </div>
           <Toggle
             checked={prefs.quietHours.enabled}
@@ -452,8 +441,8 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
         )}
       </div>
 
-      {/* 자금일보 카카오 알림톡 — 매일 KST 09:00 자동 발송 */}
-      <DailyReportCard companyId={companyId} />
+      {/* 자금일보 카카오 알림톡 — 매일 KST 09:00 자동 발송. 카카오 키·심사가 끝나기 전엔 보이지 않는다(켜도 아무것도 안 온다). */}
+      {KAKAO_CHANNEL_VISIBLE && <DailyReportCard companyId={companyId} />}
 
       {/* 저장 띠(기본값으로·저장)는 2026-08-19 사장님 지시로 뺐다 — 바꾸면 자동 저장(아래 useEffect). */}
     </div>
@@ -715,7 +704,7 @@ function EventGrid({
         </div>
       </div>
       <div className="space-y-1.5">
-        {NOTIF_EVENTS.filter((ev) => (channel === "kakao" ? KAKAO_EVENTS.includes(ev.key) : !ev.channels || ev.channels.includes(channel))).map((ev) => (
+        {NOTIF_EVENTS.filter((ev) => !ev.channels || ev.channels.includes(channel)).map((ev) => (
           <label
             key={ev.key}
             className="flex items-start justify-between gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--border)] transition cursor-pointer"

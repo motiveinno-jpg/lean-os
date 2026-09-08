@@ -66,7 +66,7 @@ export function BizAlertRules({ companyId }: { companyId: string | null }) {
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-sm font-bold">경영 알림 조건</h3>
-          <p className="text-[11px] text-[var(--text-muted)] mt-0.5" title="매일 08:00에 검사하며 같은 조건은 하루 한 번만 알립니다.">켜 둔 조건을 매일 아침 검사해 대표와 관리자에게 알립니다.</p>
+          <p className="text-[11px] text-[var(--text-muted)] mt-0.5" title="매일 08:00에 검사하며 같은 조건은 하루 한 번만 알립니다.">켜 둔 조건을 매일 아침 검사해 대표와 관리자에게 브라우저 푸시(시스템 경고)로 알립니다.</p>
         </div>
         <button type="button" className="btn-secondary btn-sm" disabled={busy === "run"} onClick={runNow} title="오늘 기준으로 바로 검사">{busy === "run" ? "검사 중…" : "지금 검사"}</button>
       </div>

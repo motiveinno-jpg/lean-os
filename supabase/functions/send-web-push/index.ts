@@ -52,11 +52,11 @@ Deno.serve(withSentry("send-web-push", async (req) => {
     overtime_auto_clockout: "system_alert",
     payment: "payment_due",
     payment_due: "payment_due",
-    tax_invoice: "tax_invoice",
-    deal: "deal_status",
+    // 프로젝트 알림의 실제 타입은 deal_update(할 일 변경·댓글)·project_checkin_due 다 — 종전 매핑(deal/project)은
+    //   허용 타입에 없는 이름이라 '프로젝트 상태 변경' 토글이 한 번도 적용되지 않았다.
+    deal_update: "deal_status",
+    project_checkin_due: "deal_status",
     deal_status: "deal_status",
-    project: "deal_status",
-    weekly_report: "weekly_report",
   };
   try {
     // notification_prefs.user_id 는 auth.users(id), 여기 userId 는 notifications.user_id = public.users(id).

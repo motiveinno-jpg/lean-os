@@ -68,9 +68,14 @@ export async function resolvePhone(companyId: string, who: { authId?: string | n
 }
 
 /** 수신자 계정의 카카오톡 알림 설정. 설정이 없으면 켜진 것으로 본다(기본값과 같음). */
-export async function kakaoPrefAllows(authId: string | null | undefined, event: string): Promise<boolean> {
+export async function kakaoPrefAllows(authId: string | null | undefined, event: string, email?: string | null): Promise<boolean> {
+  const db = admin();
+  if (!authId && email) {
+    const { data: u } = await db.from("users").select("auth_id").ilike("email", email).limit(1).maybeSingle();
+    authId = u?.auth_id || null;
+  }
   if (!authId) return true;
-  const { data } = await admin().from("notification_prefs").select("prefs").eq("user_id", authId).maybeSingle();
+  const { data } = await db.from("notification_prefs").select("prefs").eq("user_id", authId).maybeSingle();
   const k = (data?.prefs as any)?.kakao;
   if (!k) return true;
   if (k.enabled === false) return false;
@@ -87,6 +92,7 @@ export async function sendAlimtalk(args: {
   phone: string | null | undefined;
   variables: Record<string, string>;
   recipientAuthId?: string | null;
+  recipientEmail?: string | null;
   skipPrefCheck?: boolean;
 }): Promise<AlimtalkResult> {
   const db = admin();
@@ -102,7 +108,7 @@ export async function sendAlimtalk(args: {
     }).then(() => {}, () => {});
   };
   if (phone.length < 10) { await log("skipped", { reason: "no_phone" }); return { sent: false, status: "skipped", reason: "no_phone" }; }
-  if (!args.skipPrefCheck && !(await kakaoPrefAllows(args.recipientAuthId, ALIMTALK_TEMPLATES[args.template].event))) {
+  if (!args.skipPrefCheck && !(await kakaoPrefAllows(args.recipientAuthId, ALIMTALK_TEMPLATES[args.template].event, args.recipientEmail))) {
     await log("skipped", { reason: "opted_out" }); return { sent: false, status: "skipped", reason: "opted_out" };
   }
   const appKey = Deno.env.get("KAKAO_ALIMTALK_API_KEY"), secret = Deno.env.get("KAKAO_SECRET_KEY"), senderKey = Deno.env.get("KAKAO_SENDER_KEY");

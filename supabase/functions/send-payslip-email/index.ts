@@ -93,7 +93,7 @@ serve(withSentry("send-payslip-email", async (req) => {
       try {
         const phone = await resolvePhone(caller.companyId, { email: data.email });
         const month = String(data.monthLabel || "").match(/(\d{1,2})\s*월/)?.[1] || String(data.monthLabel || "");
-        await sendAlimtalk({ companyId: caller.companyId, template: "payslip_ready", phone,
+        await sendAlimtalk({ companyId: caller.companyId, template: "payslip_ready", phone, recipientEmail: String(data.email || ""),
           variables: { company_name: String(data.companyName || ""), employee_name: String(data.employeeName || data.name || ""), month } });
       } catch (e) { console.error("alimtalk skipped:", e); }
       return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
