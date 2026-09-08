@@ -920,90 +920,60 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
     ...(myTasks as any[]).map((t) => ({ kind: "task" as const, id: t.id, title: t.title, date: t.due_date, raw: t })),
     ...upcomingEvents.map((e) => ({ kind: "event" as const, id: e.id, title: e.title, date: e.start_at, raw: e })),
   ].sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
-  useReportWidgetEmpty(items.length === 0);   // 비면 격자가 한 줄로 접는다 (2026-09-03 v2 결정 149)
-  //   빈 상태는 공용 셸의 한 줄 꼴로 — 자체 빈 상자(72px)는 접힌 칸(44px)에 안 들어간다
-  if (items.length === 0) {
-    return <ActivityCard title="오늘 일정 · 할 일" href="/schedule" empty emptyText="아직 할 일·일정이 없습니다." emptyAction={{ label: "할 일 추가하기", href: "/schedule" }}>{null}</ActivityCard>;
-  }
-
-  
-
+  //   내 담당 업무 위젯과 같은 틀 — 공용 카드 셸, 제목·부제 두 줄, 오른쪽 기한. 종류(일정·업무·할 일)는 부제 앞에.
+  const todayStr = kstDateStr(today);
+  const dueLabel = (d: Date | null, o?: { event?: boolean; allDay?: boolean }) => {
+    if (!d) return null;
+    const diff = Math.round((new Date(kstDateStr(d)).getTime() - new Date(todayStr).getTime()) / 86400000);
+    if (diff < 0) return o?.event ? { text: `${-diff}일 전`, color: "var(--text-dim)" } : { text: `${-diff}일 지연`, color: "var(--danger)" };
+    if (diff === 0) return { text: o?.event && !o.allDay ? d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : "오늘", color: "var(--warning)" };
+    return { text: `D-${diff}`, color: "var(--text-dim)" };
+  };
   return (
-    // 루트가 glass-card(흰 박스). 제목·목록 모두 박스 안. h-full 로 셀 높이를 꽉 채움(다른 위젯과 통일).
-    
-    <div className="dashboard-todos-widget glass-card">
-      <div className="flex items-center justify-between gap-2 mb-2.5">
-        <div className="flex items-baseline gap-1.5 min-w-0">
-          <h2 className="text-[13px] font-bold text-[var(--text)] truncate">오늘 일정 · 할 일</h2>
-          {items.length > 0 && <span className="text-[11px] font-semibold text-[var(--text-dim)] mono-number">{items.length}</span>}
-        </div>
-        <Link href="/schedule" className="widget-more-link">전체보기 →</Link>
-      </div>
-      {/* 항목이 많으면 이 안에서만 스크롤한다 — 예전엔 카드 높이가 타일에 고정된 채 내용만 넘쳐
-          카드 배경 밖으로 글자가 삐져나왔다 (2026-08-21 사장님 제보). */}
-      <div className="dashboard-todos-body">
-      {items.length === 0 ? (
-        <div className="widget-empty">
-          <span className="widget-empty-text">아직 할 일·일정이 없습니다.</span>
-          <Link href="/schedule" className="widget-empty-action">할 일 추가하기 →</Link>
-        </div>
-      ) : (
-        <div className="space-y-1.5">
-          {items.slice(0, 7).map((it) => {
-            const d = it.date ? new Date(it.date) : null;
-            const overdue = (it.kind === "todo" || it.kind === "task") && d ? d < today : false;
-            if (it.kind === "event") {
-              return (
-                <Link key={`ev-${it.id}`} href="/schedule" className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--primary)]/5 border border-[var(--primary)]/15 hover:bg-[var(--primary)]/10 transition">
-                  <span className="w-4 h-4 flex items-center justify-center text-[11px] flex-shrink-0"><Ico e="📅" /></span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-semibold text-[var(--text)] truncate">{it.title}</div>
-                    {d && <div className="text-[10px] text-[var(--text-dim)]">{kstDateStr(d)}{it.raw.all_day ? "" : ` ${d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}`}</div>}
-                  </div>
-                  <span className="text-[9px] font-semibold text-[var(--primary)] flex-shrink-0">일정</span>
-                </Link>
-              );
-            }
-            if (it.kind === "task") {
-              return (
-                <Link key={`pt-${it.id}`} href={`/projecthub/${it.raw.deal_id}?tab=work`} className="dash-task-row">
-                  <span className="w-4 h-4 flex items-center justify-center text-[11px] flex-shrink-0"><Ico e="📁" /></span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-semibold text-[var(--text)] truncate">{it.title}</div>
-                    <div className={`text-[10px] truncate ${overdue ? "text-red-400 font-bold" : "text-[var(--text-dim)]"}`}>
-                      {overdue ? "기한 지남 · " : ""}{it.raw.dealName}
-                    </div>
-                  </div>
-                  <span className="text-[9px] font-semibold text-[var(--text-muted)] flex-shrink-0">업무</span>
-                </Link>
-              );
-            }
-            const pr = PRIORITY_LABEL[(it.raw as ScheduleEvent).priority];
-            return (
-              <div key={`td-${it.id}`} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--bg-surface)]">
-                <button onClick={() => handleToggle(it.raw)} disabled={toggling === it.id}
-                  className="w-4 h-4 rounded border border-[var(--border)] flex-shrink-0 hover:border-[var(--primary)] transition disabled:opacity-50" aria-label="완료 처리" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-[var(--text)] truncate">{it.title}</div>
-                  {d && (
-                    <div className={`text-[10px] ${overdue ? 'text-red-400 font-bold' : 'text-[var(--text-dim)]'}`}>
-                      {overdue ? '기한 지남 · ' : ''}{kstDateStr(d)}
-                    </div>
-                  )}
-                </div>
-                <span className={`text-[9px] font-semibold ${pr.color} flex-shrink-0`}>{pr.label}</span>
-              </div>
-            );
-          })}
-          {items.length > 7 && (
-            <div className="text-[10px] text-[var(--text-dim)] text-center pt-1">
-              외 {items.length - 7}건 더
-            </div>
-          )}
-        </div>
-      )}
-      </div>
-    </div>
+    <ActivityCard title="오늘 일정 · 할 일" href="/schedule" count={items.length} empty={items.length === 0}
+      emptyText="아직 할 일·일정이 없습니다." emptyAction={{ label: "할 일 추가하기", href: "/schedule" }}>
+      {items.slice(0, 15).map((it) => {
+        const d = it.date ? new Date(it.date) : null;
+        if (it.kind === "event") {
+          const due = dueLabel(d, { event: true, allDay: !!it.raw.all_day });
+          const when = d ? `${kstDateStr(d).slice(5).replace("-", "/")}${it.raw.all_day ? "" : ` ${d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}`}` : "";
+          return (
+            <Link key={`ev-${it.id}`} href="/schedule" className="dash-mytask-row" title={it.title}>
+              <span className="min-w-0 flex-1">
+                <span className="dash-mytask-title">{it.title}</span>
+                <span className="dash-mytask-deal">일정{when ? ` · ${when}` : ""}</span>
+              </span>
+              {due && <span className="dash-mytask-due" style={{ color: due.color }}>{due.text}</span>}
+            </Link>
+          );
+        }
+        if (it.kind === "task") {
+          const due = dueLabel(d);
+          return (
+            <Link key={`pt-${it.id}`} href={`/projecthub/${it.raw.deal_id}?tab=work`} className="dash-mytask-row" title={`${it.title} · ${it.raw.dealName}`}>
+              <span className="min-w-0 flex-1">
+                <span className="dash-mytask-title">{it.title}</span>
+                <span className="dash-mytask-deal">업무 · {it.raw.dealName}</span>
+              </span>
+              {due && <span className="dash-mytask-due" style={{ color: due.color }}>{due.text}</span>}
+            </Link>
+          );
+        }
+        const pr = PRIORITY_LABEL[(it.raw as ScheduleEvent).priority];
+        const due = dueLabel(d);
+        return (
+          <div key={`td-${it.id}`} className="dash-mytask-row" title={it.title}>
+            <button onClick={() => handleToggle(it.raw)} disabled={toggling === it.id}
+              className="w-4 h-4 rounded border border-[var(--border)] flex-shrink-0 hover:border-[var(--primary)] transition disabled:opacity-50" aria-label="완료 처리" />
+            <span className="min-w-0 flex-1">
+              <span className="dash-mytask-title">{it.title}</span>
+              <span className="dash-mytask-deal">할 일{pr?.label ? ` · ${pr.label}` : ""}</span>
+            </span>
+            {due && <span className="dash-mytask-due" style={{ color: due.color }}>{due.text}</span>}
+          </div>
+        );
+      })}
+    </ActivityCard>
   );
 }
 

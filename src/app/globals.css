@@ -1643,8 +1643,6 @@ table.sched-table { min-width: 900px; }
 
 .dashboard-quick-nav-widget { @apply mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4; }
 .dashboard-summary-kpis-widget { @apply mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4; }
-.dashboard-todos-widget { @apply p-4 flex flex-col h-full; }
-.dashboard-todos-body { @apply flex-1; }   /* 위젯 타일 안에서는 여기서만 스크롤 (아래 tile 규칙) */
 .dashboard-six-pack-cell { @apply px-3 py-3; }
 .dashboard-cash-pulse-widget { @apply mb-5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4; }
 .dashboard-overdue-receivables-widget { @apply mb-5 p-5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]; }
@@ -8449,7 +8447,6 @@ table.dup-table { min-width: 0; }
    항목이 많은 위젯은 글자가 카드 배경 밖으로 삐져나왔다(스크롤하면 더 도드라졌다).
    머리단은 고정하고 몸통만 스크롤 — 조회 화면 표준(CLAUDE.md)과 같은 방식. */
 .dashboard-widget-tile .activity-card-rows { @apply flex-1 min-h-0 overflow-y-auto; }
-.dashboard-widget-tile .dashboard-todos-body { @apply flex-1 min-h-0 overflow-y-auto; }
 .activity-card-summary { @apply text-[12.5px] text-[var(--text-muted)] truncate; }
 .dash-tax-row { @apply flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition; }
 /* 납부 완료 체크 (2026-08-31) — 완료 줄은 흐리게, 체크 버튼은 워크보드 톤의 작은 사각 */
