@@ -1,4 +1,6 @@
 "use client";
+
+import { lastStageId } from "@/lib/project-items";
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
@@ -533,8 +535,7 @@ export default function ProjectHubPage() {
     //   완료 판정 = 그 프로젝트 단계의 마지막 그룹(간트·표와 같은 규칙). item_stages 가 null 이면 기본 3단계의 'done'.
     const lastStage: Record<string, string> = {};
     for (const d of topDeals as any[]) {
-      const st = Array.isArray(d.item_stages) ? d.item_stages : null;
-      lastStage[d.id] = st?.length ? String(st[st.length - 1].id) : "done";
+      lastStage[d.id] = lastStageId(d.item_stages);
     }
     const day = 86400000;
     for (const it of v3Items) {
@@ -662,8 +663,7 @@ export default function ProjectHubPage() {
     const lastStage: Record<string, string> = {};
     for (const d of topDeals as any[]) {
       dealName[d.id] = d.name || "";
-      const st = Array.isArray(d.item_stages) ? d.item_stages : null;
-      lastStage[d.id] = st?.length ? String(st[st.length - 1].id) : "done";
+      lastStage[d.id] = lastStageId(d.item_stages);
     }
     const parents = v3Items.filter((it) => !it.parent_id && dealName[it.deal_id] !== undefined);
     const isDone = (it: (typeof parents)[number]) => it.status === (lastStage[it.deal_id] ?? "done");
@@ -722,8 +722,7 @@ export default function ProjectHubPage() {
     const lastStage: Record<string, string> = {};
     const dealName: Record<string, string> = {};
     for (const d of topDeals as any[]) {
-      const st = Array.isArray(d.item_stages) ? d.item_stages : null;
-      lastStage[d.id] = st?.length ? String(st[st.length - 1].id) : "done";
+      lastStage[d.id] = lastStageId(d.item_stages);
       dealName[d.id] = d.name || "";
     }
     return v3Items

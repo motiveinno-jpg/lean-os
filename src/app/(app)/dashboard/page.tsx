@@ -586,7 +586,7 @@ export default function DashboardPage() {
               { id: "todos", name: "오늘 일정·할 일", icon: "📝", desc: "내 할 일과 다가오는 일정", category: "개인", render: () => <MyTodosWidget userId={uid} companyId={companyId} /> },
               { id: "invoices", name: "최근 세금계산서", icon: "📄", desc: "매출·매입 최근 발행", category: "경영", render: () => <RecentInvoices companyId={companyId} /> },
               { id: "assets", name: "계좌별 잔액", icon: "🏦", desc: "계좌별 잔액·합계", category: "자금", render: () => <AssetsSummaryCard companyId={companyId} /> },
-              { id: "work-tasks", name: "내 담당 업무", icon: "✅", desc: "나에게 배정된 프로젝트 태스크", category: "개인", render: () => <MyTasksCard userId={uid} /> },
+              { id: "work-tasks", name: "내 담당 업무", icon: "✅", desc: "나에게 배정된 프로젝트 태스크", category: "개인", render: () => <MyTasksCard companyId={companyId} userId={uid} /> },
               // 달력은 6주가 들어가야 해서 기본 h(4=212px)로는 달이 반쯤 잘렸다(2026-08-21 제보).
               //   이제 칸이 타일 높이를 나눠 가지므로 h 만 넉넉하면 어떤 폭에서도 통째로 보인다.
               { id: "calendar", name: "달력", icon: "📅", desc: "이번 달 일정·할 일 달력", category: "개인", w: 4, h: 10, minH: 6,   // 2단 — 6주가 통째로(결정 157)

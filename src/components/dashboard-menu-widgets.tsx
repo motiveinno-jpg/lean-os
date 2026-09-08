@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { getMyProjectTasks } from "@/lib/my-project-tasks";
 import { todayKst } from "@/lib/kst";
 import { Ico }  from "@/components/ui-icon";
 
@@ -242,27 +243,23 @@ export function AnnouncementsCard()  {
 
 
 
-// ── 내 담당 업무 · 나에게 배정된 프로젝트 태스크(마감 임박 우선) ──
-export function MyTasksCard({ userId }: { userId: string }) {
+// ── 내 담당 업무 · 나에게 배정된 프로젝트 업무(마감 임박 우선) ──
+//   조회는 lib/my-project-tasks.ts 하나 — 오늘 할 일 위젯·일정 화면과 같은 목록이어야 한다.
+export function MyTasksCard({ companyId, userId }: { companyId: string; userId: string }) {
   const { data = [] } = useQuery({
-    queryKey: ["dash-my-tasks", userId],
-    enabled: !!userId, staleTime: 60_000,
-    queryFn: async () => {
-      const data = logRead('components/dashboard-menu-widgets:data', await db.from("project_tasks").select("id, title, due_date, deal_id")
-        .eq("assignee_id", userId).is("archived_at", null).neq("status", "done")
-        .order("due_date", { ascending: true, nullsFirst: false }).limit(15));
-      return (data || []) as any[];
-    },
+    queryKey: ["my-project-tasks", companyId, userId],
+    enabled: !!companyId && !!userId, staleTime: 60_000,
+    queryFn: () => getMyProjectTasks(companyId, userId),
   });
   return (
     <ActivityCard title="내 담당 업무" href="/projecthub" count={data.length} empty={data.length === 0}
       emptyText="아직 배정된 업무가 없습니다.">
-      {data.map((t) => {
+      {data.slice(0, 15).map((t) => {
         const d = dday(t.due_date);
         const overdue = d != null && d < 0;
         return (
-          <Link key={t.id} href={t.deal_id ? `/projecthub/${t.deal_id}` : "/projecthub"}
-            className="dash-task-row">
+          <Link key={t.id} href={`/projecthub/${t.deal_id}?tab=work`}
+            className="dash-task-row" title={t.dealName}>
             <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{t.title || "할 일"}</span>
             {t.due_date && (
               <span className="text-[10px] font-semibold shrink-0" style={{ color: overdue ? "var(--danger)" : d === 0 ? "var(--warning)" : "var(--text-dim)" }}>

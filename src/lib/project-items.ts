@@ -47,6 +47,11 @@ export function stagesOf(raw: unknown): ItemStage[] {
   return DEFAULT_STAGES;
 }
 
+/** 프로젝트의 "완료" 단계 id — 단계 목록의 마지막. 목록이 없으면 기본 3단계의 done. 표·간트·대시보드가 같은 규칙. */
+export function lastStageId(raw: unknown): string {
+  return Array.isArray(raw) && raw.length > 0 ? String((raw[raw.length - 1] as { id?: unknown })?.id ?? "done") : "done";
+}
+
 export function stageLabel(stages: ItemStage[], id: string): string {
   return stages.find((s) => s.id === id)?.label || (id === "done" ? "완료" : id === "doing" ? "진행 중" : "대기");
 }
