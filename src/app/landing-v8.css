@@ -1,0 +1,355 @@
+/* ══════════════════════════════════════════════════════════════
+   랜딩 v8 — 오두 홈 뼈대를 실측해 옮긴 판 (목업 landing-v11 → 운영)
+   ⚠️ 이 파일의 규칙은 **전부 `.lp8` 안에서만** 걷는다.
+      .ui · .row · .frame · .card · .step 같은 흔한 이름이 globals.css 에도 있어,
+      가두지 않으면 앱 전 화면이 흔들린다. 새 규칙을 넣을 때도 `.lp8` 을 떼지 말 것.
+   ⚠️ 글꼴은 새로 받지 않는다 — globals.css 가 이미 Inter · Pretendard 를 받아 둔다.
+   실측값(2026-09-07) container 1320 · H1 64/600 · H2 48/600 · lead 24/300 · p 20/400
+              여백 48·64 / 64·64 / 0·64 / 0·192 / 96·96 / 192·96 · 바탕 #fff/#f3f4f6/#f9fafb
+   ══════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════
+   오너뷰 랜딩 — 오두 **홈**(odoo.com/ko_KR) 뼈대를 실측해 옮긴 판
+   2026-09-07 실측
+     container 1320 · nav 60 · H1 64/600 가운데 · H2 48/600 가운데 · CTA H3 64
+     문단: 큰 약속은 24/300, 설명은 20/400
+     구간 차례  히어로 → 앱 아이콘 벽 → 문제 제기 → 한 줄 → 「효율적이고 정확한
+       업무 처리」(영상) → 「최적화된 프로세스로 생산성 향상」(겹친 캡처) →
+       「AI 활용은 기본」(영상) → …
+     겹친 캡처 실측 : 큰 것 839×581 (좌 20.6% · 상 24%) + 작은 것 302×382 (좌 5.5% · 상 16.7%)
+     구간 여백 48·64 / 64·64 / 0·64 / 64·0 / 0·192 / 96·96 / 96·48 / 192·96
+     배경 3종 #fff · #f3f4f6 · #f9fafb
+     업종은 오두처럼 상단 「업종별」 메가메뉴 + 본문 업종 탭
+   ⚠ 오두 브랜드 자주(#714B67)·오두 일러스트·오두 영상·오두 문구는 안 가져온다.
+   ══════════════════════════════════════════════════════════════ */
+.lp8{
+  --bg: #ffffff; --bg-100: #f9fafb; --bg-200: #f3f4f6;
+  --line: #e5e7eb; --thumb-line: #dee2e6;
+  --ink: #111827; --ink-2: #374151; --ink-3: #6b7280; --ink-4: #9ca3af;
+  --brand: #4f46e5; --brand-d: #4338ca; --brand-l: #eef0ff;
+  --ok: #0f9d58; --warn: #b45309; --bad: #dc2626;
+
+  --app-bg: #ffffff; --app-bg-2: #f5f6fb; --app-line: #e6e8f0; --app-line-2: #eef0f5;
+  --app-ink: #1b1b22; --app-ink-3: #55555f; --app-ink-4: #8a8a96; --app-brand: #4f46e5;
+
+  --container: 1320px; --gut: 24px;
+  --f: 'Inter', 'Pretendard Variable', Pretendard, 'Noto Sans KR', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  html:not([data-theme="light"]) .lp8{
+    --bg: #0f1117; --bg-100: #151822; --bg-200: #1b1f2b; --line: #2a3040; --thumb-line: #333a4a;
+    --ink: #f3f4f6; --ink-2: #cbd0da; --ink-3: #9aa1af; --ink-4: #6e7684;
+    --brand: #7c74f5; --brand-d: #9a94f8; --brand-l: #1e1d3a;
+  }
+}
+html[data-theme="dark"] .lp8{
+  --bg: #0f1117; --bg-100: #151822; --bg-200: #1b1f2b; --line: #2a3040; --thumb-line: #333a4a;
+  --ink: #f3f4f6; --ink-2: #cbd0da; --ink-3: #9aa1af; --ink-4: #6e7684;
+  --brand: #7c74f5; --brand-d: #9a94f8; --brand-l: #1e1d3a;
+}
+
+.lp8, .lp8 *{ box-sizing: border-box; }
+.lp8{ margin: 0; background: var(--bg); color: var(--ink-2); font-family: var(--f); font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+  /* 한글은 낱말 중간에서 끊지 않는다 — 띄어쓰기 자리에서만 다음 줄로 넘긴다.
+     (기본값이면 "골라 쓰세요" 가 "골 / 라 쓰세요" 로 갈라진다) */
+  word-break: keep-all; overflow-wrap: break-word; }
+.lp8 p, .lp8 li, .lp8 .sit, .lp8 .lead24, .lp8 .p20{ text-wrap: pretty; }
+/* 좁은 칸과 인용문은 마지막 줄에 한두 마디만 남지 않게 고르게 나눈다 */
+.lp8 .feat p, .lp8 .step p, .lp8 .cmp-row span, .lp8 .sit{ text-wrap: pretty }
+.lp8 .wall-note span, .lp8 .vcaption{ text-wrap: balance }
+/* 문장 경계 줄바꿈 — 좁은 화면에서는 끈다 */
+@media (max-width: 700px){ .lp8 br.brk{ display: none } }
+/* 제품 화면 모형은 칸이 좁아 낱말을 붙들면 넘친다 — 안쪽만 예외 */
+.lp8 .ui, .lp8 .ui *{ word-break: normal; text-wrap: wrap; }
+.lp8 h1, .lp8 h2, .lp8 h3, .lp8 h4, .lp8 h5{ margin: 0; color: var(--ink); font-weight: 600; line-height: 1.2; letter-spacing: -.02em; text-wrap: balance; }
+.lp8 h1{ font-size: clamp(38px, 5vw, 64px); }
+.lp8 h2{ font-size: clamp(30px, 3.9vw, 48px); }
+.lp8 h3.cta-h{ font-size: clamp(36px, 5vw, 64px); }
+.lp8 p{ margin: 0; }
+.lp8 a{ color: inherit; text-decoration: none; }
+.lp8 img, .lp8 svg{ max-width: 100%; }
+.lp8 .num{ font-variant-numeric: tabular-nums; }
+.lp8 .container{ width: min(var(--container), 100% - var(--gut) * 2); margin-inline: auto; }
+.lp8 .lead24{ font-size: clamp(18px, 1.62vw, 24px); font-weight: 300; color: var(--ink-2); line-height: 1.5; }
+.lp8 .p20{ font-size: clamp(16px, 1.35vw, 20px); font-weight: 400; color: var(--ink-2); line-height: 1.6; }
+.lp8 .sec-100{ background: var(--bg-100) } .lp8 .sec-200{ background: var(--bg-200) }
+.lp8 .pt0{ padding-top: 0 } .lp8 .pt48{ padding-top: 48px } .lp8 .pt64{ padding-top: 64px }
+.lp8 .pt96{ padding-top: 96px } .lp8 .pt192{ padding-top: 192px }
+.lp8 .pb0{ padding-bottom: 0 } .lp8 .pb48{ padding-bottom: 48px } .lp8 .pb64{ padding-bottom: 64px }
+.lp8 .pb96{ padding-bottom: 96px } .lp8 .pb192{ padding-bottom: 192px }
+.lp8 .mid-narrow{ max-width: 820px; margin-inline: auto; text-align: center; }
+.lp8 .thumb{ padding: 4px; background: #fff; border: 1px solid var(--thumb-line); border-radius: 4px; }
+
+.lp8 .btn{ display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--f); font-weight: 600; font-size: 18px; line-height: 1.2; padding: 16px 32px; border-radius: 4px; border: 0; cursor: pointer; transition: background .15s, color .15s; }
+.lp8 .btn-fill{ background: var(--brand); color: #fff } .lp8 .btn-fill:hover{ background: var(--brand-d) }
+.lp8 .btn-soft{ background: var(--bg-200); color: var(--brand) } .lp8 .btn-soft:hover{ background: var(--line) }
+.lp8 .btn-sm{ font-size: 12px; padding: 8px 16px }
+.lp8 .btn-line{ background: transparent; color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand) }
+.lp8 .btn-line:hover{ background: var(--brand-l) }
+
+/* ── 머리 + 업종별 메가메뉴 ───────────────────────── */
+.lp8 .nav{ position: sticky; top: 0; z-index: 80; height: 60px; background: color-mix(in srgb, var(--bg) 94%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.lp8 .nav-in{ display: flex; align-items: center; gap: 24px; height: 60px; }
+.lp8 .brand{ display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 19px; color: var(--ink); letter-spacing: -.03em }
+.lp8 .brand i{ width: 22px; height: 22px; border-radius: 6px; background: var(--brand); display: grid; place-items: center }
+.lp8 .nav-links{ display: flex; gap: 4px; margin-left: auto; font-size: 14px; font-weight: 500 }
+.lp8 .nav-links > *{ padding: 8px 10px; border-radius: 4px; color: var(--ink-3); cursor: pointer; background: none; border: 0; font: inherit }
+.lp8 .nav-links > *:hover{ color: var(--ink); background: var(--bg-200) }
+.lp8 .nav-links .open{ color: var(--brand); background: var(--brand-l) }
+.lp8 .mega{ position: absolute; left: 0; right: 0; top: 60px; background: var(--bg); border-bottom: 1px solid var(--line); box-shadow: 0 20px 40px -30px rgba(17,24,39,.5); display: none; }
+.lp8 .mega.is-open{ display: block }
+.lp8 .mega-in{ display: grid; grid-template-columns: repeat(6, 1fr); gap: 28px; padding: 30px 0 34px }
+.lp8 .mega h6{ margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--ink-4); text-transform: none }
+.lp8 .mega a{ display: block; padding: 5px 0; font-size: 14px; color: var(--ink-2) }
+.lp8 .mega a:hover{ color: var(--brand) }
+.lp8 .mega-foot{ border-top: 1px solid var(--line); padding: 14px 0 18px; font-size: 13.5px; color: var(--ink-4) }
+.lp8 .nav-cta{ display: flex; gap: 8px; align-items: center }
+
+/* ── §0 히어로 (오두 pad 48/64, 가운데) ───────────── */
+.lp8 .hero{ padding: 48px 0 64px; text-align: center }
+.lp8 .hero .lead24{ max-width: 900px; margin: 22px auto 0 }
+.lp8 .hero .price{ margin-top: 14px; font-size: 17px; font-weight: 600; color: var(--ink) }
+.lp8 .hero .price span{ font-weight: 400; color: var(--ink-3) }
+.lp8 .hero-cta{ display: flex; gap: 12px; justify-content: center; margin-top: 30px; flex-wrap: wrap }
+
+/* ── §1 메뉴 아이콘 벽 (오두 앱 벽 자리) ──────────── */
+.lp8 .wall{ display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px }  /* 32 = 8 × 4, 빈 칸 없이 떨어진다 */
+.lp8 .wall button{ display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 12px 4px 10px; background: #fff; border: 1px solid var(--line); border-radius: 8px; font-family: var(--f); cursor: pointer; transition: transform .14s, box-shadow .14s }
+.lp8 .wall button:hover{ transform: translateY(-2px); box-shadow: 0 10px 20px -14px rgba(17,24,39,.6) }
+.lp8 .wall .ic{ color: var(--brand) }
+.lp8 .wall .nm{ font-size: 10.5px; color: var(--ink-3); text-align: center; line-height: 1.3 }
+.lp8 .wall-note{ display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 30px; flex-wrap: wrap; font-size: 17px; font-weight: 600; color: var(--ink) }
+
+/* ── §2 문제 제기 ─────────────────────────────────── */
+.lp8 .problem{ text-align: center }
+.lp8 .problem .big{ font-size: clamp(24px, 2.8vw, 34px); font-weight: 600; color: var(--ink); letter-spacing: -.025em; line-height: 1.35 }
+.lp8 .problem .sub{ margin-top: 18px; max-width: 760px; margin-inline: auto }
+.lp8 .oneline{ text-align: center; font-size: clamp(19px, 2.1vw, 27px); font-weight: 300; color: var(--ink-2); max-width: 900px; margin-inline: auto; line-height: 1.5 }
+.lp8 .oneline b{ font-weight: 600; color: var(--ink) }
+
+/* ── 영상 (오두 738×560 · muted · loop) ───────────── */
+.lp8 .videobox{ position: relative; aspect-ratio: 738 / 560; background: var(--app-bg); overflow: hidden; border-radius: 4px }
+.lp8 .videobox .cut{ position: absolute; inset: 0; opacity: 0; transition: opacity .5s; display: grid }
+.lp8 .videobox .cut.on{ opacity: 1 }
+.lp8 .vbar{ position: absolute; left: 0; right: 0; bottom: 0; z-index: 4; display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: linear-gradient(transparent, rgba(17,24,39,.78) 45%); color: #fff; font-size: 11.5px }
+.lp8 .vbar button{ border: 0; background: rgba(255,255,255,.18); color: #fff; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; display: grid; place-items: center; flex: none }
+.lp8 .vbar .track{ flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.28); overflow: hidden }
+.lp8 .vbar .track i{ display: block; height: 3px; background: #fff; width: 0 }
+.lp8 .vbar .cap{ opacity: .85; white-space: nowrap }
+.lp8 .vwrap{ width: min(738px, 100%); margin-inline: auto }
+.lp8 .vcaption{ margin-top: 14px; text-align: center; font-size: 12.5px; color: var(--ink-4) }
+/* 영상 아래 장면 목차 — 무엇이 지나가는지 글로도 보이게 */
+.lp8 .vcuts{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 16px }
+.lp8 .vcuts button{ text-align: left; padding: 11px 13px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); font-family: var(--f); font-size: 13px; color: var(--ink-3); cursor: pointer; transition: .15s; line-height: 1.4 }
+.lp8 .vcuts button b{ display: block; font-size: 11px; font-weight: 700; color: var(--ink-4); margin-bottom: 4px }
+.lp8 .vcuts button[aria-current="true"]{ border-color: var(--brand); background: var(--brand-l); color: var(--ink) }
+.lp8 .vcuts button[aria-current="true"] b{ color: var(--brand) }
+@media (max-width: 700px){ .lp8 .vcuts{ grid-template-columns: repeat(2, 1fr) } }
+
+/* ── §5 화면 조각 콜라주 — 여러 화면이 겹겹이 떠 있다 ── */
+.lp8 .collage{ position: relative; aspect-ratio: 1240 / 690; margin-top: 56px }
+.lp8 .cg{ position: absolute }
+.lp8 .cg .thumb{ box-shadow: 0 30px 60px -32px rgba(17,24,39,.55), 0 2px 6px rgba(17,24,39,.06) }
+/* 주인공은 왼쪽 위, 가장 크게. 나머지는 그 가장자리에만 걸친다 */
+.lp8 .cg1{ left: 0;   top: 6%;    width: 60%; z-index: 1 }
+.lp8 .cg2{ right: 0;  top: 0;     width: 42%; z-index: 3 }
+.lp8 .cg3{ right: 4%; bottom: 0;  width: 40%; z-index: 3 }
+.lp8 .cg5{ left: 13%; bottom: 0;  width: 36%; z-index: 2 }
+@media (max-width: 1000px){
+  .lp8 .collage{ position: static; aspect-ratio: auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px }
+  .lp8 .cg{ position: static; width: auto }
+}
+
+/* ── §6 AI가 정리하는 장면 ─────────────────────────── */
+.lp8 .sortwrap{ width: min(900px, 100%); margin: 44px auto 0 }
+.lp8 .sd-row{ position: relative; transition: background .25s }
+.lp8 .sd-row.scan{ background: #f2f3ff }
+.lp8 .sd-acct{ position: relative; min-height: 26px }
+.lp8 .sd-acct .ph{ position: absolute; left: 0; top: 7px; width: 62px; height: 8px; border-radius: 4px; background: #e8eaf1; transition: opacity .3s }
+.lp8 .sd-acct .val{ position: absolute; left: 0; top: 0; opacity: 0; transition: opacity .3s }
+.lp8 .sd-acct .val b{ display: block; font-size: 11px; font-weight: 600; color: #4f46e5; line-height: 1.35 }
+.lp8 .sd-acct .val i{ display: block; font-size: 9px; font-style: normal; color: var(--app-ink-4); line-height: 1.3 }
+.lp8 .sd-st{ position: relative; min-height: 20px }
+.lp8 .sd-st .st{ position: absolute; left: 50%; transform: translateX(-50%); top: 2px; transition: opacity .3s }
+.lp8 .sd-st .st-w{ background: #eef0f5; color: #9195a3 }
+.lp8 .sd-st .st-b{ opacity: 0 }
+.lp8 .sd-row.done .ph{ opacity: 0 }
+.lp8 .sd-row.done .val{ opacity: 1 }
+.lp8 .sd-row.done .st-w{ opacity: 0 }
+.lp8 .sd-row.done .st-b{ opacity: 1 }
+.lp8 .sd-bar{ margin-top: 10px; display: flex; align-items: center; gap: 10px; background: var(--app-bg-2); border-radius: 8px; padding: 9px 11px; color: var(--app-ink-3) }
+.lp8 .sd-bar .go{ margin-left: auto; background: #c7cbf5; color: #fff; border-radius: 6px; padding: 6px 16px; font-weight: 700; transition: background .3s, box-shadow .3s }
+.lp8 .sd-bar.ready .go{ background: #4f46e5 }
+@media (prefers-reduced-motion: no-preference){
+  .lp8 .sd-bar.ready .go{ animation: lp8-goPulse 1.4s ease-out 2 }
+  @keyframes lp8-goPulse{ 0% { box-shadow: 0 0 0 0 rgba(79,70,229,.45) } 70%, 100% { box-shadow: 0 0 0 12px rgba(79,70,229,0) } }
+}
+
+/* ── §6 AI 결재란 ─────────────────────────────────── */
+.lp8 .flowbar{ display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 24px; align-items: center; margin-top: 44px; text-align: left }
+.lp8 .flowbar .side{ border: 1px solid var(--line); border-radius: 4px; padding: 18px 20px 20px; background: var(--bg) }
+.lp8 .flowbar .side > b{ display: block; font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--ink-4); margin-bottom: 12px }
+.lp8 .flowbar .chips{ display: flex; flex-wrap: wrap; gap: 8px }
+.lp8 .flowbar .chips span{ font-size: 13.5px; color: var(--ink-2); background: var(--bg-100); border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px }
+.lp8 .flowbar .out{ background: var(--brand-l); border-color: color-mix(in srgb, var(--brand) 30%, transparent) }
+.lp8 .flowbar .out > b{ color: var(--brand) }
+.lp8 .flowbar .out .chips span{ background: var(--bg); border-color: color-mix(in srgb, var(--brand) 25%, transparent); color: var(--brand-d); font-weight: 600 }
+.lp8 .flowbar .mid{ display: grid; justify-items: center; gap: 8px; color: var(--brand) }
+.lp8 .flowbar .mid span{ font-size: 12px; font-weight: 700; white-space: nowrap }
+@media (max-width: 820px){
+  .lp8 .flowbar{ grid-template-columns: minmax(0, 1fr); gap: 16px }
+  .lp8 .flowbar .mid svg{ transform: rotate(90deg) }
+}
+.lp8 .steps{ display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 44px; border-top: 1px solid var(--line); text-align: left }
+.lp8 .step{ padding: 30px 30px 6px; border-right: 1px solid var(--line) }
+.lp8 .step:first-child{ padding-left: 0 }
+.lp8 .step:last-child{ border-right: 0; padding-right: 0 }
+.lp8 .step .no{ display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--brand-l); color: var(--brand); font-size: 13px; font-weight: 700; margin-bottom: 14px }
+.lp8 .step h4{ font-size: 20px; margin-bottom: 8px }
+.lp8 .step p{ font-size: 15px; color: var(--ink-3) }
+.lp8 .step.human .no{ background: var(--brand); color: #fff }
+.lp8 .step.human h4{ color: var(--brand) }
+
+/* ── §8 기존 ERP와 다른 점 — 표 ────────────────────── */
+.lp8 .cmp{ margin-top: 44px; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: var(--bg) }
+.lp8 .cmp-head, .lp8 .cmp-row{ display: grid; grid-template-columns: 150px minmax(0, 1fr) minmax(0, 1.25fr); gap: 24px; padding: 16px 24px; align-items: start }
+.lp8 .cmp-head{ background: var(--bg-200); font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--ink-4) }
+.lp8 .cmp-head .us{ color: var(--brand) }
+.lp8 .cmp-row{ border-top: 1px solid var(--line); font-size: 15px; line-height: 1.55 }
+.lp8 .cmp-row .k{ font-weight: 600; color: var(--ink) }
+.lp8 .cmp-row .a{ color: var(--ink-4) }
+.lp8 .cmp-row .b{ color: var(--ink-2) }
+.lp8 .cmp-row .b b{ color: var(--ink); font-weight: 600 }
+@media (max-width: 820px){
+  .lp8 .cmp-head{ display: none }
+  .lp8 .cmp-row{ grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 18px 20px }
+  .lp8 .cmp-row .a::before{ content: '흔한 ERP · '; font-weight: 600 }
+  .lp8 .cmp-row .b::before{ content: '오너뷰 · '; font-weight: 700; color: var(--brand) }
+}
+
+/* ── §8 기능 아홉 ─────────────────────────────────── */
+.lp8 .feat-grid{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px 40px; margin-top: 44px }
+.lp8 .feat h5{ display: flex; align-items: center; gap: 9px; font-size: 17px; margin-bottom: 6px }
+.lp8 .feat h5 svg{ color: var(--brand); flex: none }
+.lp8 .feat p{ font-size: 14.5px; color: var(--ink-3) }
+.lp8 .feat .where{ display: inline-block; margin-top: 8px; font-size: 12px; color: var(--ink-4); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 2px 8px }
+.lp8 .sec-200 .feat .where{ background: var(--bg) }
+
+/* ── §9 숫자 · §10 후기 · §11 CTA ─────────────────── */
+.lp8 .figures{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; text-align: center }
+.lp8 .figure b{ display: block; font-size: clamp(32px, 4vw, 52px); font-weight: 600; color: var(--ink); letter-spacing: -.035em; line-height: 1.1 }
+.lp8 .figure span{ display: block; margin-top: 8px; font-size: 14.5px; color: var(--ink-3) }
+.lp8 .finale{ padding: 192px 0 96px; text-align: center }
+.lp8 .finale p{ margin-top: 16px; font-size: 15px; color: var(--ink-3) }
+.lp8 .topics{ display: flex; flex-wrap: wrap; gap: 8px }
+.lp8 .topics span{ display: inline-block; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); font-size: 13.5px; color: var(--ink-3) }
+.lp8 .foot{ padding: 40px 0 60px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-4) }
+.lp8 .foot-row{ display: flex; gap: 20px; flex-wrap: wrap; justify-content: space-between }
+.lp8 .foot a:hover{ color: var(--brand) }
+
+.lp8 .frame{ background: var(--app-bg); border-radius: 4px; overflow: hidden }
+.lp8 .frame-bar{ display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: var(--app-bg-2); border-bottom: 1px solid var(--app-line); font-size: 11px; color: var(--app-ink-4) }
+.lp8 .frame-bar b{ width: 8px; height: 8px; border-radius: 50%; background: #d6d8e2; display: block }
+.lp8 .frame-bar .url{ margin-left: 6px }
+.lp8 .frame-bar .live{ margin-left: auto; display: inline-flex; align-items: center; gap: 5px; color: var(--ok) }
+.lp8 .frame-bar .live i{ width: 6px; height: 6px; border-radius: 50%; background: var(--ok); display: block }
+.lp8 .scaler{ position: relative; overflow: hidden; min-width: 0 }
+.lp8 .frame, .lp8 .thumb, .lp8 .row > *, .lp8 .ind-body > *, .lp8 .flow2 > *, .lp8 .vwrap, .lp8 .board-mid{ min-width: 0 }
+.lp8 .scaler-in{ width: calc(var(--dw, 620) * 1px); transform-origin: top left }
+.lp8 :focus-visible{ outline: 3px solid var(--brand); outline-offset: 2px; border-radius: 4px }
+
+/* ══ 제품 화면 모형 — 실제 앱 색 그대로 ══ */
+.lp8 .ui{ padding: 10px 12px 12px; font-size: 11px; color: var(--app-ink-3); background: var(--app-bg); line-height: 1.5 }
+.lp8 .ui-bar{ display: flex; align-items: center; gap: 5px; padding-bottom: 9px; margin-bottom: 7px; border-bottom: 1px solid var(--app-line); flex-wrap: wrap }
+.lp8 .ui-chip{ font-size: 10.5px; font-weight: 600; padding: 4px 9px; border-radius: 5px }
+.lp8 .ui-chip.on{ color: var(--app-brand); border-bottom: 2px solid var(--app-brand); border-radius: 0 }
+.lp8 .ui-chip.off{ color: var(--app-ink-4) }
+.lp8 .ui-row{ display: grid; gap: 6px; padding: 5px 2px; border-bottom: 1px solid var(--app-line-2); align-items: center }
+.lp8 .ui-head{ background: var(--app-bg-2); font-weight: 600; color: var(--app-ink-3); border-bottom: 1px solid var(--app-line); text-align: center }
+.lp8 .ui-row .r{ text-align: right }
+.lp8 .st{ display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 9.5px; font-weight: 700; white-space: nowrap }
+.lp8 .st-a{ background: #eef0ff; color: #4f46e5 } .lp8 .st-b{ background: #fef3c7; color: #92400e }
+.lp8 .st-c{ background: #dcfce7; color: #166534 } .lp8 .st-d{ background: #fee2e2; color: #991b1b }
+
+@media (max-width: 1080px){
+  .lp8 .pt96{ padding-top: 64px } .lp8 .pb96{ padding-bottom: 64px }
+  .lp8 .pt192{ padding-top: 96px } .lp8 .pb192{ padding-bottom: 96px }
+  .lp8 .finale{ padding: 96px 0 72px }
+  .lp8 .wall{ grid-template-columns: repeat(4, 1fr) }   /* 32 = 4 × 8 */
+  .lp8 .mega-in{ grid-template-columns: repeat(3, 1fr) }
+  .lp8 .ind-body{ grid-template-columns: 1fr; gap: 30px }
+  .lp8 .feat-grid{ grid-template-columns: repeat(2, 1fr) }
+  .lp8 .figures{ grid-template-columns: repeat(2, 1fr); gap: 34px 24px }
+}
+@media (max-width: 680px){
+  .lp8 .nav-links{ display: none }
+  .lp8 .feat-grid, .lp8 .steps{ grid-template-columns: 1fr }
+  .lp8 .step{ border-right: 0; border-bottom: 1px solid var(--line); padding: 22px 0 }
+  .lp8 .step:last-child{ border-bottom: 0 }
+}
+/* ══════════════════════════════════════════════════════════════
+   움직임 — 오두처럼 스크롤에 맞춰 은은하게 떠오른다.
+   자바스크립트가 죽어도 글은 보인다(html.js 가 붙어야만 숨는다).
+   ══════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: no-preference){
+  html.js .lp8 .rise{ opacity: 0; transform: translateY(20px);
+    transition: opacity .6s cubic-bezier(.22,.61,.36,1), transform .6s cubic-bezier(.22,.61,.36,1) }
+  html.js .lp8 .rise.in{ opacity: 1; transform: none }
+
+  /* 히어로는 기다리지 않고 바로 뜬다 */
+  .lp8 .hero h1{ animation: lp8-heroIn .75s cubic-bezier(.22,.61,.36,1) both }
+  .lp8 .hero .lead24{ animation: lp8-heroIn .75s .09s cubic-bezier(.22,.61,.36,1) both }
+  .lp8 .hero-cta{ animation: lp8-heroIn .75s .18s cubic-bezier(.22,.61,.36,1) both }
+  @keyframes lp8-heroIn{ from { opacity: 0; transform: translateY(16px) } to { opacity: 1; transform: none } }
+
+  /* 형광 밑칠 — 구간이 보이면 좌에서 우로 채워진다 */
+  .lp8 .hl{ background-size: 0% 36% }
+  .lp8 .in .hl, .lp8 .rise.in .hl, .lp8 .hl.in{ background-size: 100% 36% }
+
+  /* 화면 조각이 물 위에 뜬 것처럼 아주 천천히 오르내린다 */
+  html.js .lp8 .cg .thumb{ animation: lp8-floaty 7.5s ease-in-out infinite }
+  .lp8 .cg2 .thumb{ animation-delay: -1.3s } .lp8 .cg3 .thumb{ animation-delay: -2.6s }
+  .lp8 .cg5 .thumb{ animation-delay: -3.9s }
+  @keyframes lp8-floaty{ 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-8px) } }
+  .lp8 .cg .thumb{ transition: box-shadow .2s }
+  .lp8 .cg:hover .thumb{ box-shadow: 0 36px 70px -30px rgba(79,70,229,.6), 0 2px 6px rgba(17,24,39,.08) }
+
+  /* 확정 도장이 찍히듯 */
+  .lp8 .stamp-in{ animation: lp8-stampIn .5s cubic-bezier(.34,1.56,.64,1) both }
+  @keyframes lp8-stampIn{ from { opacity: 0; transform: scale(1.5) } to { opacity: 1; transform: scale(1) } }
+
+  .lp8 .btn{ transition: background .15s, color .15s, transform .12s, box-shadow .15s }
+  .lp8 .btn-fill:hover, .lp8 .btn-soft:hover{ transform: translateY(-1px); box-shadow: 0 8px 18px -10px rgba(79,70,229,.7) }
+  .lp8 .wall button{ transition: transform .16s, box-shadow .16s, border-color .16s }
+  .lp8 .feat{ transition: transform .16s }
+  .lp8 .feat:hover{ transform: translateY(-2px) }
+  .lp8 .cmp-row{ transition: background .16s }
+  .lp8 .cmp-row:hover{ background: var(--bg-100) }
+  .lp8 .vcuts button{ transition: border-color .15s, background .15s, transform .12s }
+  .lp8 .vcuts button:hover{ transform: translateY(-1px) }
+}
+/* 형광 밑칠 — 움직임을 끈 사람에게도 강조는 보인다 */
+.lp8 .hl{ font-style: normal; background-image: linear-gradient(var(--brand-l), var(--brand-l));
+  background-repeat: no-repeat; background-position: 0 88%; background-size: 100% 36%;
+  padding: 0 3px; border-radius: 2px }
+
+@media (prefers-reduced-motion: reduce){ .lp8, .lp8 *, .lp8 *::before, .lp8 *::after{ animation: none !important; transition: none !important } }
+
+/* ══════════════════════════════════════════════════════════════
+   운영 이관에서 생긴 마커 클래스 — 목업의 인라인 style 을 옮긴 것.
+   값은 목업(landing-v11)과 같다. 이름은 전부 lp8- 로 시작해 앱과 겹치지 않는다.
+   ══════════════════════════════════════════════════════════════ */
+.lp8 .lp8-center{ text-align: center }
+.lp8 .lp8-strong{ font-weight: 600; color: var(--ink) }
+.lp8 .lp8-plain{ font-style: normal }
+.lp8 .lp8-lead-mid{ max-width: 640px; margin: 20px auto 40px; text-align: center }
+.lp8 .lp8-lead-tight{ margin-bottom: 0 }
+.lp8 .lp8-h2-gap{ margin-bottom: 22px }
+.lp8 .lp8-sub-narrow{ margin-top: 20px; max-width: 607px }
+.lp8 .lp8-sub-wide{ margin-top: 20px; max-width: 660px }
+.lp8 .lp8-cut-scaler{ --dw: 720; align-self: start }
+.lp8 .lp8-sort-scaler{ --dw: 900 }
+.lp8 .lp8-finale-cta{ margin-top: 34px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap }
+.lp8 .lp8-topics-h{ font-size: 15px; font-weight: 600; margin-bottom: 6px }
+.lp8 .lp8-topics-p{ font-size: 13.5px; color: var(--ink-4); margin-bottom: 20px }
+.lp8 .lp8-foot-links{ display: flex; gap: 14px; flex-wrap: wrap }
