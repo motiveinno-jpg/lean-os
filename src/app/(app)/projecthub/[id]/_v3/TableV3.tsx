@@ -72,6 +72,28 @@ type Pop =
   | { kind: "bulkstatus"; x: number; y: number; up?: boolean }
   | { kind: "bulkassign"; x: number; y: number; up?: boolean };
 
+// 표 안 날짜 편집 칸 — DateField 를 감싸 마지막 값만 저장. 포커스가 달력 팝오버로 옮겨 가는 것은 이탈로 보지 않는다.
+function DateEditCell({ value, onDone, onCancel }: { value: string; onDone: (v: string) => void; onCancel: () => void }) {
+  const latest = useRef(value);
+  const closed = useRef(false);
+  const wrap = useRef<HTMLSpanElement>(null);
+  const finish = (save: boolean) => { if (closed.current) return; closed.current = true; if (save) onDone(latest.current); else onCancel(); };
+  return (
+    <span className="contents" ref={wrap}
+      onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) setTimeout(() => finish(true), 0); if (e.key === "Escape") finish(false); }}
+      onBlur={(e) => {
+        const to = e.relatedTarget as Node | null;
+        const pop = typeof document !== "undefined" ? document.getElementById("datefield-pop") : null;
+        if (to && (e.currentTarget.contains(to) || (pop && pop.contains(to)))) return;
+        setTimeout(() => { const p2 = document.getElementById("datefield-pop"); if (p2 && p2.contains(document.activeElement)) return; finish(true); }, 150);
+      }}>
+      <DateField autoFocus className="pjv3-cell" value={value} onChange={(e) => { latest.current = e.target.value; }}
+        // 달력에서 날짜를 눌러 팝오버가 닫히면 포커스가 어디에도 없다 — 그때도 저장하고 닫는다(입력칸에 포커스가 남아 있으면 계속 편집)
+        onBlur={() => setTimeout(() => { if (!wrap.current?.contains(document.activeElement)) finish(true); }, 0)} />
+    </span>
+  );
+}
+
 export function TableV3() {
   const params = useParams();
   const dealId = String(params?.id || "");
@@ -1398,11 +1420,8 @@ export function TableV3() {
       await saveField(it, colKey, type === "number" ? (v === "" ? null : Number(v)) : v);
     };
     // 날짜는 공용 DateField — 키보드 입력 해석(연도 4자리·실재 날짜만)이 한 곳에서 이뤄진다. 브라우저 기본 date 입력은 쓰지 않는다.
-    if (editing && type === "date") return (
-      <DateField autoFocus className="pjv3-cell" value={value}
-        onChange={(e) => commit(e.target.value)}
-        onBlur={() => setEdit((cur) => (cur?.itemId === it.id && cur?.colKey === colKey ? null : cur))} />
-    );
+    //   부품은 "2026-08-2" 처럼 치는 도중에도 값을 내보내므로, 칸은 그때 닫지 않고 Enter·Escape·포커스 이탈 때 마지막 값으로 한 번 저장한다.
+    if (editing && type === "date") return <DateEditCell value={value} onDone={commit} onCancel={() => setEdit(null)} />;
     if (editing) return (
       <input ref={editRef} className="pjv3-cell" defaultValue={value} type="text"
         inputMode={type === "number" ? "decimal" : undefined}
