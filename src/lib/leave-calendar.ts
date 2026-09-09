@@ -13,7 +13,17 @@ export type LeaveCalRow = {
   start_date: string;
   end_date: string | null;
   start_time: string | null;
+  employee_id?: string | null;
+  user_id?: string | null;
+  employee_email?: string | null;
 };
+
+/** 이 휴가가 지금 로그인한 사람의 것인가 — 직원 기록의 계정 연결이 먼저, 없으면 이메일 */
+export function isMyLeave(l: LeaveCalRow, me: { userId?: string | null; email?: string | null }): boolean {
+  if (me.userId && l.user_id && l.user_id === me.userId) return true;
+  const a = String(l.employee_email || "").toLowerCase(), b = String(me.email || "").toLowerCase();
+  return !!a && !!b && a === b;
+}
 
 export async function fetchLeaveCalendar(): Promise<LeaveCalRow[]> {
   const { data, error } = await (supabase as any).rpc("leave_calendar");

@@ -20,7 +20,7 @@ import {
   type ScheduleScope,
 } from "@/lib/schedule";
 import { ScheduleItemDialog, type ScheduleDialogTarget } from "@/components/schedule-item-dialog";
-import { fetchLeaveCalendar, buildLeaveByDate } from "@/lib/leave-calendar";
+import { fetchLeaveCalendar, buildLeaveByDate, isMyLeave } from "@/lib/leave-calendar";
 import { useToast } from "@/components/toast";
 import Link from "next/link";
 import {
@@ -39,11 +39,12 @@ export default function SchedulePage() {
   const { toast } = useToast();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [myEmail, setMyEmail] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("calendar");
 
   useEffect(() => {
     getCurrentUser().then((u) => {
-      if (u) { setCompanyId(u.company_id); setUserId(u.id); }
+      if (u) { setCompanyId(u.company_id); setUserId(u.id); setMyEmail(u.email || null); }
     });
   }, []);
 
@@ -60,7 +61,7 @@ export default function SchedulePage() {
   return (
     <div className="qk-shell schedule-page">
       {tab === "calendar" && companyId && userId && (
-        <CalendarTab companyId={companyId} userId={userId} toast={toast} tabs={tabsEl} />
+        <CalendarTab companyId={companyId} userId={userId} myEmail={myEmail} toast={toast} tabs={tabsEl} />
       )}
       {tab === "list" && companyId && userId && (
         <ScheduleListTab companyId={companyId} userId={userId} toast={toast} tabs={tabsEl} />
@@ -71,7 +72,7 @@ export default function SchedulePage() {
 
 // ─── Calendar ──────────────────────────────────────────────────────────
 
-function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; userId: string; toast: any; tabs?: React.ReactNode }) {
+function CalendarTab({ companyId, userId, myEmail, toast, tabs }: { companyId: string; userId: string; myEmail?: string | null; toast: any; tabs?: React.ReactNode }) {
   const queryClient = useQueryClient();
   const today = new Date();
   const [view, setView] = useState({ year: today.getFullYear(), monthIdx0: today.getMonth() });
@@ -97,7 +98,11 @@ function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; us
     queryFn: fetchLeaveCalendar,
     enabled: !!companyId, staleTime: 60_000,
   });
-  const leaveByDate = useMemo(() => buildLeaveByDate(leaves), [leaves]);
+  //   '내 것만' 이면 휴가도 내 것만 — 종전엔 일정만 좁히고 휴가는 전 직원 것이 그대로 보였다.
+  const leaveByDate = useMemo(
+    () => buildLeaveByDate(scope === "mine" ? leaves.filter((l) => isMyLeave(l, { userId, email: myEmail })) : leaves),
+    [leaves, scope, userId, myEmail],
+  );
 
   const grid = useMemo(() => buildMonthGrid(view.year, view.monthIdx0), [view.year, view.monthIdx0]);
 
@@ -164,7 +169,7 @@ function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; us
           {/* 보기 전환 — 무엇이 보이는지는 공개 범위(RLS)가 정한다. 여기서는 내 것만 좁혀 볼 뿐 */}
           <ChipGroup value={scope} onChange={setScope} options={[{ value: "all", label: "전체" }, { value: "mine", label: "내 것만" }] as const} />
           <span className="text-[11px] text-[var(--text-dim)]">
-            {scope === "all" ? "내가 볼 수 있는 일정 전부 · 나만 보는 일정, 나에게 공유된 일정, 전체 공개 일정" : "내가 만든 일정만"}
+            {scope === "all" ? "내가 볼 수 있는 일정 전부 · 나만 보는 일정, 나에게 공유된 일정, 전체 공개 일정, 직원 휴가" : "내가 만든 일정과 내 휴가만"}
           </span>
         </QueryBar>
       </QueryHead>
