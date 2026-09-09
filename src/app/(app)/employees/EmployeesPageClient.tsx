@@ -668,6 +668,29 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     }
     return s;
   }, [monthLeaves]);
+  // 날짜 → (직원 → 휴가 유형). 달력 칸의 휴가 인원과 선택일 패널의 명단이 같은 원천을 본다.
+  const leaveByDay = useMemo(() => {
+    const m = new Map<string, Map<string, string>>();
+    for (const lv of monthLeaves as any[]) {
+      if (!lv.start_date || !lv.end_date) continue;
+      let d = new Date(String(lv.start_date).slice(0, 10) + "T00:00:00Z");
+      const end = new Date(String(lv.end_date).slice(0, 10) + "T00:00:00Z");
+      let guard = 0;
+      while (d <= end && guard++ < 400) {
+        const k = d.toISOString().slice(0, 10);
+        if (!m.has(k)) m.set(k, new Map());
+        m.get(k)!.set(lv.employee_id, String(lv.leave_type || ""));
+        d = new Date(d.getTime() + 86400000);
+      }
+    }
+    return m;
+  }, [monthLeaves]);
+  const { data: calLeaveTypes = defaultCompanyLeaveTypes() } = useQuery({
+    queryKey: ["company-leave-types", companyId],
+    queryFn: () => getCompanyLeaveTypes(companyId!),
+    enabled: !!companyId,
+  });
+  const calLeaveTypeLabel = (v: string) => calLeaveTypes.find((t) => t.value === v)?.label || LEAVE_TYPES.find((t) => t.value === v)?.label || v || "휴가";
   //   월간 요약 '연차' 칼럼용 — 연차성(차감 유형)만. 공가·경조 등 법정 별도 휴가까지 연차로 세던 것
   //   (2026-09-01, 직원별 연차 표와 같은 버그). 결근 파생(leaveDaySet)은 유형 무관 전체가 맞아 그대로.
   const annualDaySet = useMemo(() => {
@@ -955,6 +978,17 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     return byStatus;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveSelectedDay, activeEmployees, records, calendarData, leaveDaySet, showDerivedAbsence, todayStr, holidayDaySet]);
+  // 선택한 날짜의 휴가자 — 이름·부서·휴가 유형. 미래 날짜도 승인된 휴가면 보인다.
+  const dayLeaveList = useMemo(() => {
+    if (!effectiveSelectedDay) return [] as { id: string; name: string; department: string; type: string }[];
+    const m = leaveByDay.get(effectiveSelectedDay);
+    if (!m) return [];
+    return (activeEmployees as any[])
+      .filter((emp) => m.has(emp.id))
+      .map((emp) => ({ id: emp.id, name: emp.name, department: emp.department || "미배정", type: calLeaveTypeLabel(m.get(emp.id) || "") }))
+      .sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveSelectedDay, activeEmployees, leaveByDay, calLeaveTypes]);
 
   return (
     <div>
@@ -1070,8 +1104,9 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                 const dayStatusCounts = new Map<string, number>();
                 //   휴가는 결근 파생을 막기만 했지 칸에 안 보였다(빈 칸) → 휴가 인원도 세어 초록 칩으로 보인다 (2026-09-09 사장님)
                 let leaveCount = 0;
+                const leaveNames: string[] = [];
                 activeEmployees.forEach((emp: any) => {
-                  if (leaveDaySet.has(`${emp.id}:${dateStr}`)) leaveCount++;
+                  if (leaveDaySet.has(`${emp.id}:${dateStr}`)) { leaveCount++; leaveNames.push(`${emp.name}(${calLeaveTypeLabel(leaveByDay.get(dateStr)?.get(emp.id) || "")})`); }
                   const rec = records.find((r: any) => r.employee_id === emp.id && r.date === dateStr);
                   let status = rec ? effectiveStatus(rec) : (calendarData.empMap[emp.id]?.[dateStr] || null);
                   // 결근 파생: 기록 없는 과거 평일(공휴일 제외) + 휴가 아님 + 입사일 이후 → 결근 (토글 ON일 때만)
@@ -1104,7 +1139,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                     {/*   2026-08-27 사장님 — 워크보드 셀과 같은 톤: 상태별 작은 상자(테두리·바닥 채움·오른쪽 색띠·칩+인원). 채움 폭 = 그 상태 인원 ÷ 재직 인원 */}
                     <div className="att-cal-rows">
                       {leaveCount > 0 && (
-                        <span className="att-cal-row" title={`휴가 ${leaveCount}명`}>
+                        <span className="att-cal-row" title={`휴가 ${leaveCount}명 · ${leaveNames.join(", ")}`}>
                           <span className="att-cal-chip" style={{ background: "color-mix(in srgb, var(--success) 14%, transparent)", color: "var(--success)" }}>휴가</span>
                           <span className="att-cal-track">
                             <span className="att-cal-fill" style={{ width: `${Math.max(12, Math.round((leaveCount / Math.max(1, activeEmployees.length)) * 100))}%`, background: "linear-gradient(90deg, color-mix(in srgb, var(--success) 20%, transparent), color-mix(in srgb, var(--success) 6%, transparent))" }}><span className="att-cal-edge" style={{ background: "var(--success)" }} /></span>
@@ -1183,10 +1218,26 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                   <div className="glass-card p-5 flex-1 flex flex-col min-h-0">
                     <div className="text-sm font-bold text-[var(--text)]">{dNum}일 {weekday}</div>
                     <div className="text-[11px] text-[var(--text-dim)] mb-3">날짜를 누르면 그날 현황이 보입니다.</div>
-                    {groups.length === 0 ? (
+                    {groups.length === 0 && dayLeaveList.length === 0 ? (
                       <div className="text-xs text-[var(--text-dim)]">해당 날짜 기록이 없습니다.</div>
                     ) : (
                       <div className="space-y-3 overflow-y-auto">
+                        {/* 휴가자 — 달력 칸의 초록 '휴가' 칩과 같은 명단. 유형(연차·병가…)을 이름 옆에 */}
+                        {dayLeaveList.length > 0 && (
+                          <div>
+                            <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-muted)] mb-1">
+                              <span className="w-2 h-2 rounded-full bg-[var(--success)]" />
+                              휴가 <span className="text-[var(--text-dim)] font-normal">{dayLeaveList.length}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {dayLeaveList.map((emp) => (
+                                <span key={emp.id} className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-xs text-[var(--text)]" title={emp.department}>
+                                  {emp.name}<span className="text-[10px] text-[var(--success)] font-semibold">{emp.type}</span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         {/* 상태 → 부서 → 이름 (2026-08-19 사장님: 직원이 많으면 이름 칩이 넘친다 → 부서 줄을 열어 본다) */}
                         {groups.map((s) => {
                           const list = dayDetail![s.value];
