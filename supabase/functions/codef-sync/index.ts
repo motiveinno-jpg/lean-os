@@ -744,7 +744,8 @@ async function syncBankTransactions(
           source: "codef_bank",
           mapping_status: "unmapped",
           external_id: externalId,
-          raw_data: { accountNo: maskTail(accountNo), organization: org, trDate: tStr, trTime: _trTime, counterAccount: maskTail(tx.resCounterAccount || ""), descs: _descs },
+          //   accountNo 는 마스킹하지 않는다 — 자동 연결 트리거·통장 탭·계좌 필터가 이 값으로 통장을 찾는다(마스킹했더니 9/7 이후 거래가 통장에 안 붙었다). 상대 계좌만 가린다.
+          raw_data: { accountNo, organization: org, trDate: tStr, trTime: _trTime, counterAccount: maskTail(tx.resCounterAccount || ""), descs: _descs },
         }, { onConflict: "external_id", ignoreDuplicates: true });
 
         if (!error) totalSynced++;
