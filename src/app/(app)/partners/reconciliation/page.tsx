@@ -73,7 +73,9 @@ export default function ReconciliationPage() {
   });
   //   조회기간 = 매칭 엔진 기간. 기본 최근 1개월(조회 화면 표준). 최대 6개월(서버 클램프).
   //   여러 기간 반복해도 기존 매칭 누적. ★ 조회값은 기억하지 않는다 — 편의는 '내 조건'.
-  const [engStart, setEngStart] = useState(() => defaultRange().from);
+  //   기본 기간 = 올해 1/1~오늘. 원장이 '한 해' 기준이라 정산 검토 큐도 같은 범위로 맞춰,
+  //   매칭 엔진이 만든 올해 제안이 큐에 다 보이게 한다(종전 기본값 '최근 1개월'은 대부분 가려졌다, 2026-09-09).
+  const [engStart, setEngStart] = useState(() => defaultRange().to.slice(0, 4) + "-01-01");
   const [engEnd, setEngEnd] = useState(() => defaultRange().to);
 
   // 확인 큐 — 미처리(suggested/needs_review)만. 뷰가 이미 필터하지만(2026-06-12 prod 정의 검증)
@@ -169,11 +171,23 @@ export default function ReconciliationPage() {
 
   const engineMut = useMutation({
     mutationFn: async () => {
-      // 기간 지정형 — 호출당 최대 6개월(서버 클램프). 커넥션 장기 보유로 인한 504 방지.
-      const { data, error } = await db.rpc("generate_settlement_suggestions", { p_start: engStart, p_end: engEnd });
-      if (error) throw new Error(error.message); return data as { resolved: number; suggested: number };
+      //   매칭 엔진은 화면 기간(기본 1개월)과 무관하게 최근 2년치 입금을 훑는다 — 서버가 호출당 186일만 처리하므로
+      //   180일 창으로 나눠 반복(504 방지). 오래된 입금도 제안이 생기게 하고, 확정은 사람이 검토 화면에서
+      //   한다(2026-09-09 사장님: 제안만 개선, 자동확정 없음). 제안 생성은 장부를 바꾸지 않는다.
+      const DAY = 86400000, WIN = 180 * DAY, LOOKBACK = 730 * DAY;
+      const dstr = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+      const endMs = Date.parse(engEnd + "T00:00:00Z");
+      let resolved = 0, suggested = 0;
+      for (let ws = endMs - LOOKBACK; ws <= endMs; ws = ws + WIN + DAY) {
+        const we = Math.min(ws + WIN, endMs);
+        const { data, error } = await db.rpc("generate_settlement_suggestions", { p_start: dstr(ws), p_end: dstr(we) });
+        if (error) throw new Error(error.message);
+        resolved += Number((data as any)?.resolved ?? 0);
+        suggested += Number((data as any)?.suggested ?? 0);
+      }
+      return { resolved, suggested };
     },
-    onSuccess: (r) => { invalidateAll(); toast(`거래처 ${r?.resolved ?? 0}건 해소 · 제안 ${r?.suggested ?? 0}건 생성`, "success"); },
+    onSuccess: (r) => { invalidateAll(); toast(`최근 2년 입금 훑음 · 거래처 ${r?.resolved ?? 0}건 해소 · 제안 ${r?.suggested ?? 0}건 생성 (기간을 넓히면 큐에서 확인)`, "success"); },
     onError: (e: any) => toast(e?.message || "매칭 엔진 실패", "error"),
   });
 
@@ -660,8 +674,8 @@ export default function ReconciliationPage() {
   const pct = doneCnt + waitCnt > 0 ? Math.round((doneCnt / (doneCnt + waitCnt)) * 100) : 100;
   const helperItems: HelperItem[] = [
     {
-      label: engineMut.isPending ? "매칭 중…" : "이 기간 규칙 매칭", source: "장부 대조",
-      hint: `${engStart} ~ ${engEnd} 미정산 입금을 세금계산서와 맞춰 제안을 만듭니다.`,
+      label: engineMut.isPending ? "매칭 중…" : "규칙 매칭 (최근 2년)", source: "장부 대조",
+      hint: `최근 2년치 미정산 입금을 세금계산서와 맞춰 제안을 만듭니다(확정은 검토 후 직접). 오래된 입금도 포함.`,
       disabled: engineMut.isPending || !engStart || !engEnd || engStart > engEnd,
       onClick: () => engineMut.mutate(),
     },
