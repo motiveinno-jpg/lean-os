@@ -3464,7 +3464,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
           ) : (
             <div className="leave-type-editor glass-card">
               <p className="text-[11px] text-[var(--text-dim)] mb-3">
-                유형 이름과 기본 일수를 회사 규정에 맞게 고칩니다.
+                유형 이름과 기본 일수를 회사 규정에 맞게 고칩니다. <b>연차만 잔여가 자동 차감·관리</b>되며, 그 외 유형의 기본 일수는 안내용 기준값입니다(자동 차감·한도 없음).
               </p>
               <div className="leave-type-editor-rows">
                 {(draftTypes || []).map((t, i) => (

@@ -1128,7 +1128,9 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                 {companyLeaveTypes.slice(0, 6).map((lt) => {
                   const used = empLeaveRequests.filter((r: any) => r.leave_type === lt.value && r.status === "approved")
                     .reduce((s: number, r: any) => s + Number(r.days || 0), 0);
-                  return <span key={lt.value}>{lt.label} <b className="mono-number">{used > 0 ? `${used}일` : "—"}</b><small className="text-[var(--text-dim)]"> / {lt.defaultDays}일</small></span>;
+                  //   '기준'은 회사 안내 일수일 뿐, 연차 외 유형은 잔여를 자동 차감·제한하지 않는다(2026-09-09 사장님).
+                  //   종전 '사용 / 기준' 표기는 '몇 중 몇 남음'처럼 보여 한도인 것으로 오해됐다.
+                  return <span key={lt.value} title={lt.value === "annual" ? "연차 잔여는 자동 관리됩니다" : "기준 일수는 회사 안내값 — 잔여를 자동 차감하지 않습니다"}>{lt.label} <b className="mono-number">{used > 0 ? `${used}일` : "—"}</b>{lt.defaultDays > 0 && <small className="text-[var(--text-dim)]"> · 기준 {lt.defaultDays}일</small>}</span>;
                 })}
               </div>
             </div>
