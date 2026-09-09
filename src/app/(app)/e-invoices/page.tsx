@@ -57,6 +57,19 @@ const condCount = (c: Cond) => c.partner.length + (c.item ? 1 : 0) + ((c.min || 
 /** 전자세금계산서 목록 정렬 열쇠 — 칸 하나에 하나씩 (2026-08-12) */
 type EiSortKey = "issue_date" | "counterparty_name" | "item_name" | "supply_amount" | "tax_amount" | "total" | "status";
 
+//   상태 배지 — 실제 status 를 반영한다. 종전엔 모든 행이 '발행'으로 하드코딩돼 수정·취소분도 발행으로 보였다(2026-09-09 사장님).
+const EI_STATUS_PILL: Record<string, { label: string; cls: string }> = {
+  issued: { label: "발행", cls: "collect-pill-done" },
+  modified: { label: "수정발행", cls: "collect-pill-todo" },
+  cancelled: { label: "취소", cls: "collect-pill-err" },
+  canceled: { label: "취소", cls: "collect-pill-err" },
+  received: { label: "수취", cls: "collect-pill-done" },
+};
+function eiStatusPill(status: unknown): { label: string; cls: string } {
+  const s = String(status || "").trim();
+  return EI_STATUS_PILL[s] || (s ? { label: s, cls: "collect-pill-none" } : { label: "발행", cls: "collect-pill-done" });
+}
+
 export default function EInvoicesPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -508,7 +521,7 @@ export default function EInvoicesPage() {
                       <td className="tr mono-number">{Number(inv.supply_amount || 0).toLocaleString("ko")}</td>
                       <td className="tr mono-number ev-dim">{Number(inv.tax_amount || 0).toLocaleString("ko")}</td>
                       <td className="tr mono-number ev-total">{Number(inv.total_amount || inv.supply_amount || 0).toLocaleString("ko")}</td>
-                      <td className="tc"><span className="collect-pill collect-pill-done">발행</span></td>
+                      <td className="tc">{(() => { const p = eiStatusPill(inv.status); return <span className={`collect-pill ${p.cls}`}>{p.label}</span>; })()}</td>
                     </tr>
                   ))}
                 </tbody>
