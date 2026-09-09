@@ -77,12 +77,21 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
     if (Number(l.days) === 0.5) return "반차"; // 구 데이터 방어 — unit 없이 0.5일로만 기록된 건
     return leaveLabel(String(l.leave_type || ""));
   };
+  // 휴가 종류별 색 (달력이 알록달록 안 하도록 은은한 톤) — 반차/시간차는 단위, 그 외는 leave_type.
+  const leaveTone = (l: any): "annual" | "half" | "sick" | "official" | "etc" => {
+    if (l.leave_unit === "half_day" || l.leave_unit === "two_hours" || Number(l.days) === 0.5) return "half";
+    const t = String(l.leave_type || "");
+    if (t === "annual") return "annual";
+    if (t === "sick") return "sick";
+    if (t === "official" || t === "public") return "official";
+    return "etc";
+  };
 
   // 휴가는 기간(start_date~end_date)이라 날짜별로 펼쳐 둔다.
   //   날짜 문자열끼리만 더해 나가므로 타임존 변환이 끼어들지 않는다
   //   (new Date 로 돌리면 KST 자정이 UTC 전날로 밀려 하루 어긋난 전례가 있다).
   const leaveByDate = useMemo(() => {
-    const map: Record<string, { name: string; label: string }[]> = {};
+    const map: Record<string, { name: string; label: string; tone: string }[]> = {};
     const nextDay = (d: string) => {
       const [y, m, dd] = d.split("-").map(Number);
       const t = new Date(Date.UTC(y, m - 1, dd + 1));
@@ -94,10 +103,11 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
       if (!from) continue;
       const name = l.employee_name || l.employees?.name || "";
       const label = displayLabel(l);
+      const tone = leaveTone(l);
       let cur = from;
       // 방어: 잘못 입력된 기간(끝<시작)이나 비정상적으로 긴 기간에서 무한 루프 방지
       for (let i = 0; i < 366 && cur <= to; i++) {
-        (map[cur] || (map[cur] = [])).push({ name, label });
+        (map[cur] || (map[cur] = [])).push({ name, label, tone });
         cur = nextDay(cur);
       }
     }
@@ -166,11 +176,11 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
                   {marks?.todo ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--warning)]"}`} /> : null}
                 </span>
               ) : null}
-              {/* 직원 휴가는 달력 칸에 이름·종류로 (2026-09-08 사장님) — 여러 명이면 "외 N" + "휴가 N건" */}
+              {/* 직원 휴가는 달력 칸에 이름·종류로, 종류별 색으로 (2026-09-09 사장님) — 여러 명이면 "외 N" */}
               {dayLeaves.length ? (
-                <span className={`dashboard-calendar-leave ${isSel ? "on" : ""}`} title={dayLeaves.map((l) => `${l.name} ${l.label}`).join(", ")}>
-                  <span>{dayLeaves[0].name}{dayLeaves.length > 1 ? ` 외${dayLeaves.length - 1}` : ""}</span>
-                  <span className="dashboard-calendar-leave-type">{dayLeaves.length > 1 ? `휴가 ${dayLeaves.length}건` : dayLeaves[0].label}</span>
+                <span className={`cal-leave cal-leave-${dayLeaves[0].tone} ${isSel ? "on" : ""}`} title={dayLeaves.map((l) => `${l.name} ${l.label}`).join(", ")}>
+                  <span className="cal-leave-name">{dayLeaves[0].name}{dayLeaves.length > 1 ? ` 외${dayLeaves.length - 1}` : ""}</span>
+                  <span className="cal-leave-type">{dayLeaves.length > 1 ? `휴가 ${dayLeaves.length}건` : dayLeaves[0].label}</span>
                 </span>
               ) : null}
             </button>
