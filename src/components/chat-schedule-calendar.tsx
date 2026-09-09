@@ -16,6 +16,7 @@ import {
   getMonthEvents, eventDateKeys, EVENT_COLOR_BG,
   type ScheduleEvent,
 } from "@/lib/schedule";
+import { fetchLeaveCalendar, buildLeaveByDate } from "@/lib/leave-calendar";
 
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -54,6 +55,14 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
     queryFn: () => getMonthEvents(companyId!, view.y, view.m0, { scope: "all", userId: userId || undefined }),
     enabled: !!companyId,
   });
+
+  //   승인 휴가 — 일정 달력과 같은 소스로 이 달력에도 표시(2026-09-09 사장님)
+  const { data: leaves = [] } = useQuery({
+    queryKey: ["chat-cal-leaves", companyId],
+    queryFn: fetchLeaveCalendar,
+    enabled: !!companyId, staleTime: 60_000,
+  });
+  const leaveByDay = useMemo(() => buildLeaveByDate(leaves), [leaves]);
 
   //   날짜별로 모아 둔다 — 기간 일정은 걸친 날마다 들어간다(일정 화면과 같은 규칙)
   const byDay = useMemo(() => {
@@ -129,6 +138,11 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
                   onClick={(ev) => { ev.stopPropagation(); setOpen({ mode: "view", event: e }); }}>{e.title}</span>
               ))}
               {list.length > 3 && <span className="chat-cal-more">+{list.length - 3}</span>}
+              {/* 직원 휴가 — 일정 아래에 초록 칩 (2026-09-09 사장님) */}
+              {(leaveByDay[c.key] || []).map((lv, li) => (
+                <span key={`lv${li}`} className="chat-cal-leave" title={`${lv.name} ${lv.label}`}
+                  onMouseDown={(ev) => ev.stopPropagation()}>{lv.name} {lv.label}</span>
+              ))}
             </button>
           );
         })}

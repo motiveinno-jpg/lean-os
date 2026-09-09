@@ -1067,7 +1067,10 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                 //   전 직원 결근으로 표시됐다. 지각 판정(엣지)과 동일하게 holidays 를 반영.
                 const isPastWeekday = dateStr  < todayStr && !isWeekend && !holidayDaySet.has(dateStr);
                 const dayStatusCounts = new Map<string, number>();
+                //   휴가는 결근 파생을 막기만 했지 칸에 안 보였다(빈 칸) → 휴가 인원도 세어 초록 칩으로 보인다 (2026-09-09 사장님)
+                let leaveCount = 0;
                 activeEmployees.forEach((emp: any) => {
+                  if (leaveDaySet.has(`${emp.id}:${dateStr}`)) leaveCount++;
                   const rec = records.find((r: any) => r.employee_id === emp.id && r.date === dateStr);
                   let status = rec ? effectiveStatus(rec) : (calendarData.empMap[emp.id]?.[dateStr] || null);
                   // 결근 파생: 기록 없는 과거 평일(공휴일 제외) + 휴가 아님 + 입사일 이후 → 결근 (토글 ON일 때만)
@@ -1099,6 +1102,15 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                     </div>
                     {/*   2026-08-27 사장님 — 워크보드 셀과 같은 톤: 상태별 작은 상자(테두리·바닥 채움·오른쪽 색띠·칩+인원). 채움 폭 = 그 상태 인원 ÷ 재직 인원 */}
                     <div className="att-cal-rows">
+                      {leaveCount > 0 && (
+                        <span className="att-cal-row" title={`휴가 ${leaveCount}명`}>
+                          <span className="att-cal-chip" style={{ background: "color-mix(in srgb, var(--success) 14%, transparent)", color: "var(--success)" }}>휴가</span>
+                          <span className="att-cal-track">
+                            <span className="att-cal-fill" style={{ width: `${Math.max(12, Math.round((leaveCount / Math.max(1, activeEmployees.length)) * 100))}%`, background: "linear-gradient(90deg, color-mix(in srgb, var(--success) 20%, transparent), color-mix(in srgb, var(--success) 6%, transparent))" }}><span className="att-cal-edge" style={{ background: "var(--success)" }} /></span>
+                          </span>
+                          <span className="att-cal-n">{leaveCount}</span>
+                        </span>
+                      )}
                       {ATTENDANCE_STATUS.filter((s) => dayStatusCounts.get(s.value)).map((s) => {
                         const n = dayStatusCounts.get(s.value) || 0; const c = statusCssColor(s.value);
                         return (

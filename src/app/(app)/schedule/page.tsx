@@ -20,6 +20,7 @@ import {
   type ScheduleScope,
 } from "@/lib/schedule";
 import { ScheduleItemDialog, type ScheduleDialogTarget } from "@/components/schedule-item-dialog";
+import { fetchLeaveCalendar, buildLeaveByDate } from "@/lib/leave-calendar";
 import { useToast } from "@/components/toast";
 import Link from "next/link";
 import {
@@ -88,6 +89,15 @@ function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; us
     queryFn: () => getMonthEvents(companyId, view.year, view.monthIdx0, { scope, userId }),
     enabled: !!companyId,
   });
+
+  // 승인 휴가 — 대시보드 달력과 같은 소스(leave_calendar RPC). 종전엔 이 달력에만 안 떠서
+  //   위젯에서 '전체보기'로 오면 휴가가 사라졌다(2026-09-09 사장님).
+  const { data: leaves = [] } = useQuery({
+    queryKey: ["schedule-leaves", companyId],
+    queryFn: fetchLeaveCalendar,
+    enabled: !!companyId, staleTime: 60_000,
+  });
+  const leaveByDate = useMemo(() => buildLeaveByDate(leaves), [leaves]);
 
   const grid = useMemo(() => buildMonthGrid(view.year, view.monthIdx0), [view.year, view.monthIdx0]);
 
@@ -268,6 +278,13 @@ function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; us
                       {expandedDays.has(weekKey) ? "접기 ▴" : `+${cellEvents.length - 3}개 더`}
                     </button>
                   )}
+                  {/* 직원 휴가 — 일정 아래에 초록 칩으로 (승인 휴가, 2026-09-09 사장님) */}
+                  {(leaveByDate[dateStr] || []).map((lv, li) => (
+                    <div key={`lv${li}`} className="sched-leave-chip" title={`${lv.name} ${lv.label}`} onClick={(ev) => ev.stopPropagation()}>
+                      <span className="sched-leave-dot" />
+                      <span className="truncate">{lv.name} <span className="opacity-70">{lv.label}</span></span>
+                    </div>
+                  ))}
                 </div>
               </div>
             );
