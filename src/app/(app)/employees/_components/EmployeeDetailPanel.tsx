@@ -1,6 +1,7 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
 import { Ico } from "@/components/ui-icon";
+import { CopyButton } from "@/components/copy-text";
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 import { formatPhone } from "@/lib/phone";
@@ -503,10 +504,10 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                   <InfoRow label="직책" value={emp.position} />
                   <InfoRow label="직급" value={emp.job_grade} />
                   <InfoRow label="입사일" value={emp.hire_date} />
-                  <InfoRow label="근속기간" value={emp.hire_date ? (() => { const d = new Date(emp.hire_date); const now = new Date(); const months = (now.getFullYear() - d.getFullYear()) * 12 + now.getMonth() - d.getMonth(); const y = Math.floor(months / 12); const m = months % 12; return y > 0 ? `${y}년 ${m}개월` : `${m}개월`; })() : undefined} />
+                  <InfoRow label="근속기간" copy={false} value={emp.hire_date ? (() => { const d = new Date(emp.hire_date); const now = new Date(); const months = (now.getFullYear() - d.getFullYear()) * 12 + now.getMonth() - d.getMonth(); const y = Math.floor(months / 12); const m = months % 12; return y > 0 ? `${y}년 ${m}개월` : `${m}개월`; })() : undefined} />
                   <InfoRow label="고용형태" value={ETYPE_LABEL[emp.employment_type ?? ""] || emp.employment_type || ""} />
-                  <InfoRow label="4대보험" value={emp.is_4_insurance ? "가입" : "미가입"} />
-                  <InfoRow label="부양가족 수" value={`${(emp as any).dependents ?? 1}명`} />
+                  <InfoRow label="4대보험" copy={false} value={emp.is_4_insurance ? "가입" : "미가입"} />
+                  <InfoRow label="부양가족 수" copy={false} value={`${(emp as any).dependents ?? 1}명`} />
                 </>)}
               </div>
             </div>
@@ -574,7 +575,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                   <InfoRow label="생년월일" value={emp.birth_date} />
                   <InfoRow label="주소" value={emp.address} />
                   <InfoRow label="비상연락처" value={emp.emergency_contact ? `${emp.emergency_contact} (${formatPhone(emp.emergency_phone)})` : undefined} />
-                  <InfoRow label="전자서명" value={emp.saved_signature ? "등록됨" : "미등록"} />
+                  <InfoRow label="전자서명" copy={false} value={emp.saved_signature ? "등록됨" : "미등록"} />
                 </>)}
               </div>
               {/* 주민등록번호 — 암호화 저장(2026-08-31 결정 108). employees 컬럼이 아니라 전용 RPC 라
@@ -1640,11 +1641,16 @@ function RrnField({ employeeId }: { employeeId: string }) {
   );
 }
 
-function InfoRow({ label, value }: { label: string; value?: string | null }) {
+// 값이 있으면 옆에 복사 단추를 둔다(사번·이메일·계좌번호처럼 그대로 옮겨 적는 값). 파생 표시("가입/미가입" 등)는 copy={false}.
+function InfoRow({ label, value, copy = true }: { label: string; value?: string | null; copy?: boolean }) {
+  const text = (value || "").trim();
   return (
-    <div>
+    <div className="info-copy-row">
       <div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">{label}</div>
-      <div className="text-xs text-[var(--text)]">{value || "—"}</div>
+      <div className="text-xs text-[var(--text)] flex items-center gap-1 min-w-0">
+        <span className="min-w-0 break-all">{text || "—"}</span>
+        {copy && text ? <CopyButton value={text} label={label} /> : null}
+      </div>
     </div>
   );
 }

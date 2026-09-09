@@ -8216,7 +8216,7 @@ table.team-table { min-width: 760px; }
 .team-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 text-xs; }
 /* 값 옆 복사 단추 — 평소엔 흐리고, 줄에 마우스를 올리면 또렷해진다 */
 .copy-btn { @apply inline-flex h-5 w-5 shrink-0 items-center justify-center rounded align-middle text-[13px] text-[var(--text-dim)] opacity-50 transition hover:bg-[var(--bg-surface)] hover:text-[var(--primary)] hover:opacity-100; }
-tr:hover .copy-btn, .team-card:hover .copy-btn { @apply opacity-100; }
+tr:hover .copy-btn, .team-card:hover .copy-btn, .info-copy-row:hover .copy-btn { @apply opacity-100; }
 .copy-btn.is-done { @apply text-[var(--success)] opacity-100; }
 .copy-cell { @apply inline-flex items-center gap-1; }
 .team-avatar { @apply mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary)]/10 text-[11px] font-bold text-[var(--primary)]; }
