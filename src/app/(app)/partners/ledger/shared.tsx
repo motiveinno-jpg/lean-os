@@ -10,7 +10,8 @@ import { fetchPaged } from "@/lib/fetch-paged";
 //   타입·포맷·그리드 유틸·원장 시트·거래처 상세(차액 마감 포함).
 //   색 규칙(핸드오프 §4-2): 매출처=파랑(var(--info)) / 매입처=주황(var(--warning)). 빨강은 연체·마이너스 전용.
 
-import { Fragment, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { DateField } from "@/components/date-field";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -456,62 +457,6 @@ type ELine = { key: number; account: { id: string; code: string; name: string } 
 const AR_AP_ACCT_CODES = new Set(["108", "251"]);
 
 
-// 일자 입력 · 년(4자)·월(2자)·일(2자) 세그먼트. 칸이 차면 자동으로 다음 칸 이동.
-//   네이티브  <input type=date> 는 년도를 6자리(최대 275760년)까지 기다려 키보드 흐름이 끊김 →
-//   년 4자 입력 시 바로 월로 이동. 월/일은 첫 자리가 범위를 넘으면(월>1·일>3) 한 자리에서도 이동(네이티브 감각).
-function DateSegInput({ value, onChange, onMouseDown }: {
-  value: string; onChange: (v: string) => void; onMouseDown?: (e: ReactMouseEvent) => void;
-}) {
-  const parse = (v: string): [string, string, string] =>
-    (/^\d{4}-\d{2}-\d{2}$/.test(v) ? (v.split("-") as [string, string, string]) : ["", "", ""]);
-  const [seg, setSeg] = useState<[string, string, string]>(() => parse(value));
-  const lastEmit = useRef<string>(value);
-  // 외부에서 value 가 바뀐 경우에만 세그먼트 재동기화. 우리가 emit 한 값은 무시 —
-  //   한 자리만 쳐도 commit 이 "01" 로 0패딩한 값을 되돌려 넣어 둘째 자리 입력을 막던 버그 해결.
-  useEffect(() => {
-    if (value !== lastEmit.current) { setSeg(parse(value)); lastEmit.current = value; }
-  }, [value]);
-  const yRef = useRef<HTMLInputElement>(null);
-  const mRef = useRef<HTMLInputElement>(null);
-  const dRef = useRef<HTMLInputElement>(null);
-
-  const commit = (s: [string, string, string]) => {
-    if (s[0].length === 4 && s[1] && s[2]) {
-      const mi = Math.min(12, Math.max(1, Number(s[1])));
-      const di = Math.min(31, Math.max(1, Number(s[2])));
-      const out = `${s[0]}-${String(mi).padStart(2, "0")}-${String(di).padStart(2, "0")}`;
-      lastEmit.current = out;
-      onChange(out);
-    }
-  };
-  const set = (i: 0 | 1 | 2, raw: string, max: number, next: RefObject<HTMLInputElement | null> | null, smartMax?: number) => {
-    const v = raw.replace(/\D/g, "").slice(0, max);
-    const ns: [string, string, string] = [...seg]; ns[i] = v; setSeg(ns); commit(ns);
-    const advance = v.length >= max || (smartMax !== undefined && v.length === 1 && Number(v) > smartMax);
-    if (advance) next?.current?.focus();
-  };
-  const back = (i: 1 | 2, prev: RefObject<HTMLInputElement | null>) => (e: { key: string }) => {
-    if (e.key === "Backspace" && !seg[i]) prev.current?.focus();
-  };
-  const inp = "bg-transparent text-center text-[11px] text-[var(--text)] focus:outline-none mono-number";
-  return (
-    <span onMouseDown={onMouseDown}
-      className="inline-flex items-center gap-0.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded px-1.5 py-0.5">
-      <input ref={yRef} value={seg[0]} inputMode="numeric" placeholder="YYYY" aria-label="년"
-        onFocus={(e) => e.currentTarget.select()}
-        onChange={(e) => set(0, e.target.value, 4, mRef)} className={`${inp} w-[34px]`} />
-      <span className="text-[var(--text-dim)]">-</span>
-      <input ref={mRef} value={seg[1]} inputMode="numeric" placeholder="MM" aria-label="월"
-        onFocus={(e) => e.currentTarget.select()}
-        onChange={(e) => set(1, e.target.value, 2, dRef, 1)} onKeyDown={back(1, yRef)} className={`${inp} w-[20px]`} />
-      <span className="text-[var(--text-dim)]">-</span>
-      <input ref={dRef} value={seg[2]} inputMode="numeric" placeholder="DD" aria-label="일"
-        onFocus={(e) => e.currentTarget.select()}
-        onChange={(e) => set(2, e.target.value, 2, null, 3)} onKeyDown={back(2, mRef)} className={`${inp} w-[20px]`} />
-    </span>
-  );
-}
-
 // entryId 있으면 수정, newFor 면 신규 입력(거래처원장 '+ 전표 입력'). 그리드·차대검증·포털·드래그를 공유.
 //   신규 저장 = save_manual_voucher, 수정 저장 = update_manual_voucher (둘 다 DB 이중검증).
 export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor }: {
@@ -740,7 +685,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
             <div className="text-base font-bold text-[var(--text)]">{isNew ? "신규 전표 입력" : <>전표 수정 {voucherNo != null && <span className="text-[var(--text-dim)] mono-number">#{voucherNo}</span>}</>}</div>
             <div className="text-[11px] text-[var(--text-dim)] mt-0.5 flex items-center gap-1.5 flex-wrap">
               <span>일자</span>
-              <DateSegInput value={entryDate} onMouseDown={(e) => e.stopPropagation()} onChange={setEntryDate} />
+              <span onMouseDown={(e) => e.stopPropagation()} className="inline-flex"><DateField value={entryDate} onChange={(e) => setEntryDate(e.target.value)} className="voucher-edit-date" /></span>
               <span className="ml-0.5">· 프로젝트</span>
               <select value={dealId ?? ""} onMouseDown={(e) => e.stopPropagation()} onChange={(e) => { setDealId(e.target.value || null); setSubDealId(null); }} disabled={locked}
                 title="이 전표를 프로젝트 직접원가로 귀속(비용계정 라인만 집계)"
