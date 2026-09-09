@@ -1,3 +1,4 @@
+import { resolveSealUrl } from "@/lib/signatures";
 import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 // 저장된 견적 문서(content_json)로 실제 견적서 PDF Blob 생성 — projecthub 미리보기/인쇄 공용.
@@ -103,7 +104,7 @@ export async function buildQuoteBlobFromDoc(doc: any, companyId: string, userId?
     totalAmount: supplyAmt + taxAmt,
     validUntil: cj.header?.validUntil || cj.validUntil || "견적일로부터 30일",
     notes: cj.notes || "",
-    sealUrl: doc?.seal_applied ? company.data?.seal_url ?? undefined : undefined,
+    sealUrl: doc?.seal_applied ? (await resolveSealUrl(company.data?.seal_url)) ?? undefined : undefined,
     managerName: mgrName || currentUser?.name || undefined,
     managerContact: mgrName ? (mgrEmail || undefined) : (currentUser?.email || undefined),
     paymentTerms: cj.header?.paymentTerms || undefined,

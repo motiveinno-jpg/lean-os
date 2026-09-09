@@ -1,3 +1,4 @@
+import { resolveSealUrl } from '@/lib/signatures';
 import { legalInsuranceRates, type InsuranceRates } from './insurance-rates';
 import { logRead } from "@/lib/log-read";
 /**
@@ -492,7 +493,7 @@ export async function sendPayslipEmails(
         representative: (company as any)?.representative || undefined,
         businessNumber: (company as any)?.business_number || undefined,
         companyAddress: (company as any)?.address || undefined,
-        sealUrl: (company as any)?.seal_url || undefined,
+        sealUrl: (await resolveSealUrl((company as any)?.seal_url)) || undefined,
         periodLabel: monthLabel,
         department: emp.department || undefined,
         position: emp.position || undefined,

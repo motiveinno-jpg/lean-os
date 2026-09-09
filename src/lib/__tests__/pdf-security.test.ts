@@ -42,6 +42,15 @@ describe("isAllowedAssetUrl — SSRF 가드", () => {
   it("깨진 URL 차단", () => {
     expect(isAllowedAssetUrl("not a url", OV)).toBe(false);
   });
+  it("다른 Supabase 프로젝트 호스트 차단 (S12)", () => {
+    expect(isAllowedAssetUrl("https://otherproject.supabase.co/storage/v1/object/public/x/a.png", OV)).toBe(false);
+  });
+  it("프로젝트 URL 미설정이면 아무것도 허용하지 않는다 (S12)", () => {
+    expect(isAllowedAssetUrl(`${OV}/storage/v1/object/public/seals/a.png`, "")).toBe(false);
+  });
+  it("자격 증명이 박힌 URL 차단", () => {
+    expect(isAllowedAssetUrl(`https://user:pw@njbvdkuvtdtkxyylwngn.supabase.co/storage/v1/object/public/x.png`, OV)).toBe(false);
+  });
 });
 
 describe("sanitize — XSS 가드", () => {

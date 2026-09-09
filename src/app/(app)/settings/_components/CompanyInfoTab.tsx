@@ -14,6 +14,7 @@ import {
 } from "@/lib/vat-business-type";
 import { PermissionTree } from "../../employees/_components/PermissionTree";
 import { useMyPermissions } from "@/lib/permissions";
+import { SignedImg } from "@/components/signed-media";
 
 export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
   const db = supabase;
@@ -156,14 +157,16 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
   };
 
   //   company-assets URL 에서 저장소 경로를 뽑는다 — 교체·삭제 때 옛 파일을 지워 흔적을 안 남긴다 (2026-09-08, 아바타와 동일 규칙)
-  const assetPathOf = (url: string | null | undefined): string | null => {
-    const m = String(url || "").match(/\/object\/(?:public|sign|authenticated)\/company-assets\/([^?]+)/);
-    return m ? decodeURIComponent(m[1]) : null;
+  //   직인은 비공개 버킷(company-private), 로고는 공개 버킷(company-assets). 옛 직인(공개 버킷)도 지울 수 있게 URL 에서 버킷을 읽는다.
+  const assetRefOf = (url: string | null | undefined): { bucket: string; path: string } | null => {
+    const m = String(url || "").match(/\/object\/(?:public|sign|authenticated)\/(company-assets|company-private)\/([^?]+)/);
+    return m ? { bucket: m[1], path: decodeURIComponent(m[2]) } : null;
   };
   const removeAsset = async (url: string | null | undefined) => {
-    const p = assetPathOf(url);
-    if (p) await db.storage.from("company-assets").remove([p]).catch(() => {});
+    const ref = assetRefOf(url);
+    if (ref) await db.storage.from(ref.bucket).remove([ref.path]).catch(() => {});
   };
+  const bucketFor = (type: "seal" | "logo") => (type === "seal" ? "company-private" : "company-assets");
 
   const handleFileUpload = useCallback(async (file: File, type: "seal" | "logo") => {
     if (!companyId) return;
@@ -191,16 +194,17 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
       const prevUrl = type === "seal" ? (prevRow.data as any)?.seal_url : (prevRow.data as any)?.logo_url;
 
       const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-      const filePath = `${companyId}/${type}_${Date.now()}.${ext}`;
+      const filePath = type === "seal" ? `${companyId}/seal/seal_${Date.now()}.${ext}` : `${companyId}/${type}_${Date.now()}.${ext}`;
 
       const { error: uploadErr } = await supabase.storage
-        .from("company-assets")
+        .from(bucketFor(type))
         .upload(filePath, file, { upsert: true });
 
       if (uploadErr) throw uploadErr;
 
+      //   저장하는 URL 은 public 형태 — 비공개 버킷은 읽을 때 signStorageUrls 가 서명 URL 로 바꾼다
       const { data: urlData } = supabase.storage
-        .from("company-assets")
+        .from(bucketFor(type))
         .getPublicUrl(filePath);
 
       const publicUrl = urlData.publicUrl;
@@ -214,7 +218,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
       if (dbErr) throw dbErr;
 
       //   새 파일이 DB 에 붙었으니 옛 파일을 지운다 — seal/logo 는 경로에 Date.now() 가 들어가 교체할 때마다 쌓였다
-      if (assetPathOf(prevUrl) !== filePath) await removeAsset(prevUrl);
+      if (assetRefOf(prevUrl)?.path !== filePath) await removeAsset(prevUrl);
       if (type === "seal") setSealUrl(publicUrl);
       else setLogoUrl(publicUrl);
 
@@ -273,13 +277,13 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     try {
       const { generateCompanySeal } = await import("@/lib/seal-generator");
       const blob = await generateCompanySeal(form.name, { variant: sealVariant, title: "대표이사" });
-      const filePath = `${companyId}/seal_auto_${Date.now()}.png`;
+      const filePath = `${companyId}/seal/seal_auto_${Date.now()}.png`;
       const { error: uploadErr } = await supabase.storage
-        .from("company-assets")
+        .from("company-private")
         .upload(filePath, blob, { upsert: true, contentType: "image/png" });
       if (uploadErr) throw uploadErr;
       const { data: urlData } = supabase.storage
-        .from("company-assets")
+        .from("company-private")
         .getPublicUrl(filePath);
       const publicUrl = urlData.publicUrl;
       const prevSealRow = await db.from("companies").select("seal_url").eq("id", companyId).maybeSingle();
@@ -289,7 +293,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
         .update({ seal_url: publicUrl })
         .eq("id", companyId);
       if (dbErr) throw dbErr;
-      if (assetPathOf(prevSeal) !== filePath) await removeAsset(prevSeal);   // 새 자동 직인이 붙었으니 옛 파일 정리 (2026-09-08, DB 현재값 기준)
+      if (assetRefOf(prevSeal)?.path !== filePath) await removeAsset(prevSeal);   // 새 자동 직인이 붙었으니 옛 파일 정리 (DB 현재값 기준)
       setSealUrl(publicUrl);
       setSealPreview(null);
       queryClient.invalidateQueries({ queryKey: ["company-info"] });
@@ -508,7 +512,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
             <div className="company-asset-dropzone">
               {sealUrl ? (
                 <>
-                  <img
+                  <SignedImg
                     src={sealUrl}
                     alt="직인"
                     className="company-asset-img"

@@ -290,7 +290,7 @@ export async function updateSignatureStatus(
 // ── Save Signature Data ──
 // 서명 이미지를 본문 스냅샷에 합성 — sig-box[data-role="을"] 우선, 없으면 본문 끝 append.
 // 2026-05-28 signerInputs(라디오/조건부 텍스트) 가 있으면 본문 ?-prefix 토큰을 결과로 합성.
-function buildSignedContractHtml(
+export function buildSignedContractHtml(
   snapshotHtml: string | null | undefined,
   signatureData: { type: 'draw' | 'type' | 'upload'; data: string },
   signerName?: string | null,
@@ -304,22 +304,24 @@ function buildSignedContractHtml(
     html = applySignerInputsToHtml(html, signerInputs);
   }
   const signedAtKst = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+  //   타이핑 서명은 글자 그대로 넣는다 — 이스케이프하지 않으면 서명 칸으로 HTML 이 들어온다.
+  const esc = (v: string) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const sigInline = signatureData.type === 'type'
-    ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;font-family:'Nanum Pen Script',cursive;font-size:28px;color:#111">${signatureData.data}</span>`
+    ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;font-family:'Nanum Pen Script',cursive;font-size:28px;color:#111">${esc(signatureData.data)}</span>`
     : `<img src="${signatureData.data}" alt="서명" style="width:100%;height:100%;object-fit:contain"/>`;
   const sigBoxRe = /(<span class="sig-box" data-role="을"[^>]*>)([\s\S]*?)(<\/span>)/;
   if (sigBoxRe.test(html)) {
     return html.replace(sigBoxRe, `$1${sigInline}$3`);
   }
   const sigImgBlock = signatureData.type === 'type'
-    ? `<div style="display:inline-block;font-family:'Nanum Pen Script',cursive;font-size:32px;padding:8px 16px;border-bottom:2px solid #111">${signatureData.data}</div>`
+    ? `<div style="display:inline-block;font-family:'Nanum Pen Script',cursive;font-size:32px;padding:8px 16px;border-bottom:2px solid #111">${esc(signatureData.data)}</div>`
     : `<img src="${signatureData.data}" style="max-height:80px;max-width:200px;background:#fff;padding:4px"/>`;
   return html + `
 <div style="margin-top:40px;text-align:right;page-break-inside:avoid">
   <div style="display:inline-block">
     <div style="font-size:11px;color:#6b7280;margin-bottom:4px">거래처 서명</div>
     ${sigImgBlock}
-    <div style="font-size:10px;color:#9ca3af;margin-top:4px">${signerName || ''} · ${signedAtKst}</div>
+    <div style="font-size:10px;color:#9ca3af;margin-top:4px">${esc(signerName || '')} · ${signedAtKst}</div>
   </div>
 </div>`;
 }
@@ -337,32 +339,16 @@ export async function saveSignature(
   signerInputs?: Record<string, string> | null,
 ) {
   if (signToken) {
-    // anon 경로: get_signature_request_by_token 으로 검증·스냅샷 조회 → submit_signature_by_token 으로 저장.
-    const ex = logRead('lib/signatures:ex', await db.rpc('get_signature_request_by_token', { p_token: signToken })) as
-      { id: string; status?: string | null; expires_at?: string | null; template_snapshot_html?: string | null; signer_name?: string | null } | null;
-    if (!ex) throw new Error('서명 요청을 찾을 수 없습니다');
-    if (ex.status === 'signed') throw new Error('이미 서명 완료된 요청입니다');
-    if (ex.expires_at && new Date(ex.expires_at) < new Date()) throw new Error('서명 요청이 만료되었습니다');
-    const signedContractHtml = buildSignedContractHtml(ex.template_snapshot_html, signatureData, ex.signer_name, signerInputs);
-    const { error } = await db.rpc('submit_signature_by_token', {
-      p_token: signToken,
-      p_signature_data: signatureData,
-      p_signed_contract_html: signedContractHtml ?? undefined,
-      p_signature_method: signatureData.type,
-      p_signature_data_url: signatureData.data,
-      p_ip: ipAddress || undefined,
+    // 외부(anon) 경로: 합성·저장은 서버(/api/sign/submit)가 한다 — 브라우저가 만든 계약서 HTML 은 더 이상 믿지 않는다.
+    //   서버가 보관된 원문 스냅샷에 허용 입력값과 서명만 합성하고, 원문·최종본 해시와 서버가 본 IP 를 남긴다.
+    const res = await fetch('/api/sign/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: signToken, signatureData, signerInputs: signerInputs || null }),
     });
-    if (error) throw error;
-    // signer_inputs 저장 — 별도 SECDEF RPC(save_signer_inputs_by_token) 사용 (anon RLS UPDATE 우회).
-    // 마이그레이션 미적용 시 best-effort fail (서명 자체는 이미 성공 — 입력값만 누락).
-    if (signerInputs && Object.keys(signerInputs).length > 0) {
-      try {
-        await db.rpc('save_signer_inputs_by_token', { p_token: signToken, p_inputs: signerInputs });
-      } catch (e) {
-        console.warn('save_signer_inputs_by_token failed (RPC may not be deployed yet):', e);
-      }
-    }
-    return { id: ex.id, status: 'signed' };
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body?.error || '서명 제출에 실패했습니다');
+    return { id: body.id as string, status: 'signed' };
   }
   // Check if signature request exists and is not expired + 본문 스냅샷 같이 조회
   //   2026-05-21: 회수 흐름 통합 — template_snapshot_html 있으면 서명 이미지 합성하여 signed_contract_html 저장
@@ -534,13 +520,24 @@ export type PartnerVarColumn = 'name'|'representative'|'contact_name'|'contact_e
 // 직인 이미지를 data: URI 로 — 저장되는 계약서 HTML 에 저장소 주소가 남지 않게 한다(주소가 새면 직인 파일이 통째로 노출).
 //   문서가 자체 완결되므로 비로그인 서명·견적 화면과 PDF 에서도 주소 유효기간과 무관하게 보인다. 실패하면 원래 주소로.
 const sealDataCache = new Map<string, string>();
+/** 직인·이미지 저장 URL 을 지금 읽을 수 있는 URL 로 — 비공개 버킷(company-private)이면 1시간짜리 서명 URL. data: 는 그대로. */
+export async function resolveSealUrl(url: string | null | undefined): Promise<string | null> {
+  if (!url) return null;
+  if (url.startsWith('data:')) return url;
+  try {
+    const { signStorageUrls } = await import('@/lib/file-storage');
+    const map = await signStorageUrls([url]);
+    return map[url] || url;
+  } catch { return url; }
+}
+
 export async function sealAsDataUrl(url: string | null | undefined): Promise<string | null> {
   if (!url) return null;
   if (url.startsWith('data:')) return url;
   const hit = sealDataCache.get(url);
   if (hit) return hit;
   try {
-    const res = await fetch(url);
+    const res = await fetch((await resolveSealUrl(url)) || url);
     if (!res.ok) return url;
     const blob = await res.blob();
     if (blob.size > 2 * 1024 * 1024) return url;

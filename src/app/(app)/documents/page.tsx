@@ -26,7 +26,7 @@ import { saveRevision, submitForReview, approveDocument, lockDocument } from "@/
 import { createTaxInvoice, issueTaxInvoice, INVOICE_TYPES, INVOICE_STATUS, invoiceStatusMeta } from "@/lib/tax-invoice";
 import { forceApproveDocument } from "@/lib/deal-pipeline";
 import { classifyDocument, getDocTypeInfo, DOC_INTEL_TYPES, saveDocumentIntelligence, extractContractFields } from "@/lib/doc-intelligence";
-import { createSignatureRequest, getSignatureRequests, getDocumentSignatures, updateSignatureStatus, saveSignature, cancelSignature, getSignatureStatusInfo, SIGNATURE_STATUS, applyCompanySeal, sendSignatureEmail, createBulkSignatureRequests, sendSignatureReminder, bulkSendReminders, getDocumentSignatureAudit } from "@/lib/signatures";
+import { createSignatureRequest, getSignatureRequests, getDocumentSignatures, updateSignatureStatus, saveSignature, cancelSignature, getSignatureStatusInfo, SIGNATURE_STATUS, applyCompanySeal, sendSignatureEmail, createBulkSignatureRequests, sendSignatureReminder, bulkSendReminders, getDocumentSignatureAudit, resolveSealUrl } from "@/lib/signatures";
 import { createNotification } from "@/lib/notifications";
 import { useMyPermissions } from "@/lib/permissions";
 import { uploadFile, getFilesForDocument, createFolder, getFolders, deleteFolder, moveFilesToFolder, searchFiles, deleteFile, pruneUnreferencedDocumentFiles, downloadStoredFile, updateFolderVisibility, getFileVersions, type FolderVisibility } from "@/lib/file-storage";
@@ -597,7 +597,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     totalAmount: supplyAmt + taxAmt,
                     validUntil: cj.header?.validUntil || quoteHeader.validUntil || cj.validUntil || '견적일로부터 30일',
                     notes: cj.notes || '',
-                    sealUrl: (doc as any).seal_applied ? company.data?.seal_url ?? undefined : undefined,
+                    sealUrl: (doc as any).seal_applied ? (await resolveSealUrl(company.data?.seal_url)) ?? undefined : undefined,
                     managerName: mgrName || currentUser?.name || undefined,
                     managerContact: mgrName ? (mgrEmail || undefined) : (currentUser?.email || undefined),
                     paymentTerms: cj.header?.paymentTerms || quoteHeader.paymentTerms || undefined,

@@ -1,4 +1,5 @@
 "use client";
+import { resolveSealUrl } from "@/lib/signatures";
 import { koFallback } from "@/lib/ko-label";
 import { appConfirm } from "@/components/global-confirm";
 import { downloadCsv } from "@/lib/csv-export";
@@ -1922,7 +1923,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
         representative: companyMeta?.representative || undefined,
         businessNumber: companyMeta?.business_number || undefined,
         companyAddress: companyMeta?.address || undefined,
-        sealUrl: companyMeta?.seal_url || undefined,
+        sealUrl: (await resolveSealUrl(companyMeta?.seal_url)) || undefined,
         periodLabel,
         department: meta.department || undefined,
         position: meta.position || undefined,

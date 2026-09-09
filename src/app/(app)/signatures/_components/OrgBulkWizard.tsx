@@ -5,7 +5,7 @@ import { Ico } from "@/components/ui-icon";
 import { useEffect, useMemo, useState } from "react";
 import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import Link from "next/link";
-import { createBulkSignatureRequestsToOrgs, normalizeVariableTokens, buildOrgContractSnapshotHtml, type PartnerVarColumn } from "@/lib/signatures";
+import { createBulkSignatureRequestsToOrgs, normalizeVariableTokens, buildOrgContractSnapshotHtml, type PartnerVarColumn, resolveSealUrl } from "@/lib/signatures";
 import { materializeContractTemplate } from "@/lib/documents";
 import { upsertPartner } from "@/lib/partners";
 import { verifyBusinessNumber } from "@/lib/business-verification";
@@ -398,6 +398,8 @@ export function OrgBulkWizard({
         .select("name, business_number, representative, address, seal_url")
         .eq("id", companyId)
         .maybeSingle());
+      // 직인은 비공개 버킷에 있을 수 있어 미리보기엔 서명 URL 을 넣는다(발송본은 saveSignature 쪽에서 data: 로 합성)
+      if (data?.seal_url) (data as any).seal_url = (await resolveSealUrl(data.seal_url)) || data.seal_url;
       if (alive) setCompany(data || {});
     })();
     return () => { alive = false; };

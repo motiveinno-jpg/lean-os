@@ -163,7 +163,10 @@ export async function middleware(request: NextRequest) {
   }
 
   // 로그인 사용자의 보호 화면 — 중복 로그인·회사 IP 제한을 서버가 강제한다(종전엔 화면 안내만).
-  if (user && !isPublicRoute(pathname) && !pathname.startsWith('/_next')) {
+  //   /api 도 같은 게이트를 지난다 — 종전엔 '자체 인증' 이유로 건너뛰어 화면에서 차단된 세션이 API 로는 통했다.
+  //   (데이터 API(PostgREST) 쪽은 DB 의 pgrst_session_gate 가 같은 판정을 한다.)
+  const gated = (!isPublicRoute(pathname) || (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth') && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/my-ip') && !pathname.startsWith('/api/track') && !pathname.startsWith('/api/sign/') && !pathname.startsWith('/api/stripe/webhook') && !pathname.startsWith('/api/billing/toss')));
+  if (user && gated && !pathname.startsWith('/_next')) {
     const ip = clientIp(request);
     //   캐시 키에 세션 id 를 넣는다 — 사용자|IP 만으로 묶으면 같은 자리에서 다시 로그인한 새 세션이
     //   옛 세션의 판정을 60초 동안 물려받는다 (2026-09-07). 토큰이 없으면 사용자|IP 로.
@@ -190,6 +193,9 @@ export async function middleware(request: NextRequest) {
       gateCache.set(key, verdict);
     }
     if (!verdict.ok && (verdict.reason === 'duplicate' || verdict.reason === 'ip')) {
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: { code: 'SESSION_GATE', reason: verdict.reason, message: verdict.reason === 'ip' ? '허용되지 않은 접속 위치입니다.' : '다른 곳에서 로그인되어 이 세션은 종료되었습니다.' } }, { status: 403 });
+      }
       const url = request.nextUrl.clone();
       url.pathname = '/auth';
       url.search = `?reason=${verdict.reason}`;

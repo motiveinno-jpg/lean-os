@@ -91,8 +91,8 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/html-pdf": ["./node_modules/@sparticuz/chromium/bin/**", "./node_modules/dompurify/dist/purify.min.js"],
     "/api/html-pdf/route": ["./node_modules/@sparticuz/chromium/bin/**", "./node_modules/dompurify/dist/purify.min.js"],
-    "/api/contract-pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
-    "/api/contract-pdf/route": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/api/contract-pdf": ["./node_modules/@sparticuz/chromium/bin/**", "./node_modules/dompurify/dist/purify.min.js"],
+    "/api/contract-pdf/route": ["./node_modules/@sparticuz/chromium/bin/**", "./node_modules/dompurify/dist/purify.min.js"],
   },
   images: {
     remotePatterns: [

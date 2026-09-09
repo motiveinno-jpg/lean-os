@@ -2,10 +2,39 @@ import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
-import { buildSignedContractPrintHtml, STRIP_BODY_SIGNATURE_FN } from "@/lib/contract-print-html";
+import { buildSignedContractPrintHtml, STRIP_BODY_SIGNATURE_FN, PRETENDARD_CSS } from "@/lib/contract-print-html";
+import { PDF_SANITIZE_CONFIG, PDF_SANITIZE_URI_REGEXP_SOURCE } from "@/lib/pdf-sanitize-config";
+import { isAllowedAssetUrl } from "@/lib/pdf-fetch-guard";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { Browser } from "puppeteer-core";
 import { getPdfBrowser } from "@/lib/headless-chrome";
 import { fetchAssetAsDataUrl } from "@/lib/pdf-fetch-guard";
+
+// 서명자가 남긴 HTML(signed_contract_html)은 외부 입력이다 — 렌더 전에 headless Chrome 안에서 DOMPurify 로 정제하고,
+//   네트워크는 data:·자사 Storage·폰트 CDN 만 연다(내부망·임의 호스트 요청 차단). html-pdf 경로와 같은 방어.
+const FONT_CDN = "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@";
+/** 직인 저장 URL → data URL. 비공개 버킷은 서버(service_role)가 직접 내려받고, data: 는 그대로, 그 외 URL 은 allowlist 페치. */
+async function sealToDataUrl(admin: ReturnType<typeof createSupabaseAdminClient>, url: string): Promise<string | null> {
+  if (url.startsWith("data:image/")) return url;
+  const m = url.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/?#]+)\/([^?#]+)/);
+  if (m) {
+    try {
+      const { data } = await admin.storage.from(m[1]).download(decodeURIComponent(m[2]));
+      if (data) {
+        const ct = data.type && data.type.startsWith("image/") ? data.type : "image/png";
+        const buf = Buffer.from(await data.arrayBuffer());
+        if (buf.byteLength <= 5 * 1024 * 1024) return `data:${ct};base64,${buf.toString("base64")}`;
+      }
+    } catch { /* 아래 allowlist 페치로 */ }
+  }
+  return fetchAssetAsDataUrl(url);
+}
+let purifySrc: string | null = null;
+function loadPurify(): string {
+  if (!purifySrc) purifySrc = readFileSync(join(process.cwd(), "node_modules/dompurify/dist/purify.min.js"), "utf8");
+  return purifySrc;
+}
 
 // 서명완료 계약서 → 네이티브 인쇄 품질 PDF (업체별 1파일). 클라이언트가 chunk 로 호출 → zip.
 export const runtime = "nodejs";
@@ -77,7 +106,7 @@ export async function POST(req: NextRequest) {
           overlayBytes = await blob.arrayBuffer();
           overlayFields = (tpl.fields as any[]) || [];
           const sealUrl = (list[0] as any)?.companies?.seal_url;
-          if (sealUrl) sealDataUrl = await fetchAssetAsDataUrl(sealUrl);
+          if (sealUrl) sealDataUrl = await sealToDataUrl(admin, sealUrl);
         }
       }
     } catch { overlayFields = null; overlayBytes = null; }
@@ -117,8 +146,29 @@ export async function POST(req: NextRequest) {
       if (!browser) browser = await getPdfBrowser();
       const page = await browser.newPage();
       try {
+        page.setDefaultNavigationTimeout(30000);
+        page.setDefaultTimeout(30000);
+        await page.setRequestInterception(true);
+        page.on("request", (rq) => {
+          const u = rq.url();
+          if (u.startsWith("data:") || u.startsWith("blob:") || u === "about:blank") return void rq.continue();
+          if (u.startsWith(FONT_CDN) || u === PRETENDARD_CSS) return void rq.continue();
+          if (isAllowedAssetUrl(u)) return void rq.continue();
+          return void rq.abort();
+        });
+        // 본문 정제 — dirty HTML 은 evaluate 의 데이터 인자로만 넘어가므로 정제 전에 실행될 길이 없다.
+        await page.setContent("<!doctype html><html><body></body></html>");
+        await page.addScriptTag({ content: loadPurify() });
+        const cleanBody: string = await page.evaluate(
+          (dirty, cfg, uriSrc) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const dp = (window as any).DOMPurify;
+            return dp.sanitize(dirty, { ...cfg, ALLOWED_URI_REGEXP: new RegExp(uriSrc, "i") });
+          },
+          r.signed_contract_html || r.template_snapshot_html || "", PDF_SANITIZE_CONFIG, PDF_SANITIZE_URI_REGEXP_SOURCE,
+        );
         const html = buildSignedContractPrintHtml({
-          bodyHtml: r.signed_contract_html || r.template_snapshot_html || "",
+          bodyHtml: cleanBody,
           company: r.companies || null,
           partner: partner
             ? { name: partner.name, business_number: partner.business_number, representative: partner.representative }

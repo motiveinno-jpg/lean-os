@@ -56,3 +56,12 @@ export async function requirePerm(
   if (!perm) return { ok: false, status: 403, error: "권한이 없습니다. 마스터에게 권한을 요청하세요." };
   return { ok: true, caller };
 }
+
+/** 접속 IP — middleware 의 clientIp 와 같은 규칙(x-real-ip → x-vercel-forwarded-for → X-Forwarded-For 마지막 홉). */
+export function clientIpFromHeaders(h: { get(name: string): string | null }): string {
+  const real = h.get("x-real-ip") || h.get("x-vercel-forwarded-for");
+  if (real) return real.split(",")[0].trim();
+  const xff = h.get("x-forwarded-for") || "";
+  const parts = xff.split(",").map((p) => p.trim()).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : "unknown";
+}

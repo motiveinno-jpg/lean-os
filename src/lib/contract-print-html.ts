@@ -12,7 +12,7 @@
  */
 
 // Pretendard(한글 웹폰트) — headless 페이지엔 우리 사이트 CSP 미적용이라 CDN 직접 로드 가능
-const PRETENDARD_CSS =
+export const PRETENDARD_CSS =
   "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css";
 
 export type ContractPrintData = {
