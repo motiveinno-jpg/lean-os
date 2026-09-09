@@ -295,6 +295,8 @@ export function DateField({
           //     Tab 으로 지나가거나 화면이 커서를 줄 때 달력이 아랫줄을 덮던 것을 막는다. 열기는 칸·아이콘 클릭(onClick).
           onFocus={() => { focusedAt.current = Date.now(); setTimeout(() => inputRef.current?.select(), 0); }}
           onMouseUp={(e) => { if (Date.now() - focusedAt.current < 300) e.preventDefault(); }}
+          // 이미 포커스된 칸을 다시 눌러도 전체 선택 — 날짜는 통째로 다시 치는 값이라 중간에 끼워 넣지 않는다.
+          onClick={() => inputRef.current?.select()}
           onBlur={handleInputBlur}
           onKeyDown={(e) => {
             if (e.key === "Enter") { e.preventDefault(); commitDraft(); }
