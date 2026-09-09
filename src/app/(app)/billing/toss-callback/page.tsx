@@ -49,7 +49,7 @@ export default function TossCallbackPage() {
         const pendingRaw = sessionStorage.getItem("toss-pending-start");
         if (pendingRaw)  {
           sessionStorage.removeItem("toss-pending-start");
-          let pending: { planSlug?: string; billingCycle?: string; authId?: string; ts?: number } | null = null;
+          let pending: { planSlug?: string; billingCycle?: string; authId?: string; ts?: number; salesCode?: string } | null = null;
           try { pending = JSON.parse(pendingRaw); } catch { /* 손상된 값은 무시 */ }
           // 예약을 만든 그 사용자가 10분 안에 돌아온 경우에만 결제를 잇는다 —
           // 다른 계정 세션·묵은 예약이 예고 없이 결제되는 것을 막는다 (보안 리뷰 H-2).
@@ -67,6 +67,8 @@ export default function TossCallbackPage() {
               // 카드는 등록됐다 — 결제만 실패. 사유를 그대로 보여주고 결제 화면에서 재시도하게 한다.
               throw new Error(`카드는 등록되었지만 결제에 실패했습니다: ${j2?.error || "잠시 후 다시 시도해 주세요"}`);
             }
+            //   영업코드 기록 — 카드 등록 후 결제된 경우도 토스 경로라 종전엔 안 기록됐다. 멱등 RPC.
+            if (pending.salesCode) { try { await (supabase as any).rpc("redeem_sales_code", { p_code: pending.salesCode }); } catch { /* 추적 실패는 결제에 영향 없음 */ } }
             setState("done");
             setMessage(j2.chargedNow
               ? "결제가 완료되었습니다! 플랜이 열렸습니다."

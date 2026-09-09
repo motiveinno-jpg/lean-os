@@ -472,6 +472,7 @@ function BillingPageInner() {
         //   주워 예고 없이 결제되는 것을 콜백이 걸러낸다 (2026-08-14 보안 리뷰 H-2).
         sessionStorage.setItem("toss-pending-start", JSON.stringify({
           planSlug, billingCycle: cycle, authId: session.user.id, ts: Date.now(),
+          salesCode: salesCode.trim() ? salesCode.trim().toUpperCase() : undefined,
         }));
         const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/toss-billing-key`, {
           method: "POST",
@@ -497,6 +498,8 @@ function BillingPageInner() {
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok || !j.ok) throw new Error(j?.error || "결제에 실패했습니다");
+      //   영업코드 기록 — 종전엔 토스 경로에서 버려졌다(화면은 '함께 기록됩니다'라고 표시). 멱등 RPC 로 실제 기록.
+      if (salesCode.trim()) { try { await (db as any).rpc("redeem_sales_code", { p_code: salesCode.trim().toUpperCase() }); } catch { /* 추적 실패는 결제에 영향 없음 */ } }
       qc.invalidateQueries({ queryKey: ["subscription"] });
       qc.invalidateQueries({ queryKey: ["entitlement"] });
       qc.invalidateQueries({ queryKey: ["invoices"] });
