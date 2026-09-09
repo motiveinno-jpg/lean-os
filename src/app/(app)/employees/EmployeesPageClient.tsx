@@ -613,7 +613,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   const [sumCond, setSumCond] = useState<SumCond>(SUM_COND0);
   const [sumDraft, setSumDraft] = useState<SumCond>(SUM_COND0);
   const [sumPanel, setSumPanel] = useState(false);
-  const SUM_HAS: [string, string][] = [["leaveDays", "연차 쓴 사람"], ["lateDays", "지각 있음"], ["absentDays", "결근 있음"], ["remoteDays", "재택 있음"], ["halfDays", "반차 있음"], ["overtimeMinutesSum", "연장근무 있음"], ["nightMinutesSum", "야간근무 있음"], ["holidayMinutesSum", "휴일근무 있음"], ["alwTotal", "수당 있음"]];
+  const SUM_HAS: [string, string][] = [["leaveDays", "연차 쓴 사람"], ["lateDays", "지각 있음"], ["absentDays", "결근 있음"], ["remoteDays", "재택 있음"], ["overtimeMinutesSum", "연장근무 있음"], ["nightMinutesSum", "야간근무 있음"], ["holidayMinutesSum", "휴일근무 있음"], ["alwTotal", "수당 있음"]];
   const [dayDeptOpen, setDayDeptOpen] = useState<Map<string, boolean>>(new Map());
   // 표시용 상태 — 두 컬럼의 축이 다르다 (2026-08-07 정리).
   //   status  = 그 날의 근무 형태(출근/재택/반차/결근)
@@ -650,7 +650,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     queryKey: ["attendance-cal-leaves", companyId, selectedMonth],
     queryFn: async () => {
       const data = await fetchPaged<any>('employees:monthLeaves', () => (supabase).from("leave_requests")
-        .select("employee_id, start_date, end_date, status, leave_type")
+        .select("employee_id, start_date, end_date, status, leave_type, leave_unit")
         .eq("company_id", companyId).eq("status", "approved")
         .lte("start_date", monthEnd).gte("end_date", monthStart).order("start_date"), 20000);
       return data || [];
@@ -693,17 +693,38 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   const calLeaveTypeLabel = (v: string) => calLeaveTypes.find((t) => t.value === v)?.label || LEAVE_TYPES.find((t) => t.value === v)?.label || v || "휴가";
   //   월간 요약 '연차' 칼럼용 — 연차성(차감 유형)만. 공가·경조 등 법정 별도 휴가까지 연차로 세던 것
   //   (2026-09-01, 직원별 연차 표와 같은 버그). 결근 파생(leaveDaySet)은 유형 무관 전체가 맞아 그대로.
-  const annualDaySet = useMemo(() => {
-    const s = new Set<string>();
+  //   반차 0.5일·2시간 0.25일로 환산해 "1.5일" 처럼 보이고, 종일·반차·2시간 건수를 따로 들고 있어 눌러서 내역을 본다.
+  //   연차 잔액(leave_used_from_requests)과 같은 기준(승인 + 차감 유형 + 단위 환산).
+  type AnnualUsage = { days: number; full: number; half: number; quarter: number };
+  const annualUsage = useMemo(() => {
+    const m = new Map<string, AnnualUsage>();
     for (const lv of monthLeaves as any[]) {
       if (!lv.start_date || !lv.end_date || NON_DEDUCT_LEAVE_TYPES.has(String(lv.leave_type))) continue;
+      const unit = String(lv.leave_unit || "full_day");
+      const per = LEAVE_UNITS.find((u) => u.value === unit)?.days ?? 1;
       let d = new Date(String(lv.start_date).slice(0, 10) + "T00:00:00Z");
       const end = new Date(String(lv.end_date).slice(0, 10) + "T00:00:00Z");
       let guard = 0;
-      while (d <= end && guard++ < 400) { s.add(`${lv.employee_id}:${d.toISOString().slice(0, 10)}`); d = new Date(d.getTime() + 86400000); }
+      while (d <= end && guard++ < 400) {
+        const ds = d.toISOString().slice(0, 10);
+        if (ds >= monthStart && ds <= monthEnd) {
+          const u = m.get(lv.employee_id) || { days: 0, full: 0, half: 0, quarter: 0 };
+          u.days += per;
+          if (unit === "half_day") u.half++; else if (unit === "two_hours") u.quarter++; else u.full++;
+          m.set(lv.employee_id, u);
+        }
+        d = new Date(d.getTime() + 86400000);
+      }
     }
-    return s;
-  }, [monthLeaves]);
+    return m;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthLeaves, monthStart, monthEnd]);
+  const fmtLeaveDays = (n: number) => `${Number(n.toFixed(2))}일`;
+  const leaveBreakdown = (r: { leaveFull?: number; leaveHalf?: number; leaveQuarter?: number }) => {
+    const full = r.leaveFull || 0, half = r.leaveHalf || 0, quarter = r.leaveQuarter || 0;
+    return [full > 0 ? `연차 ${full}일` : "", half > 0 ? `반차 ${half}회` : "", quarter > 0 ? `2시간 ${quarter}회` : ""].filter(Boolean).join(" · ");
+  };
+  const [leaveDetailKey, setLeaveDetailKey] = useState<string | null>(null);
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
   // 결근 파생용 · 회사 공휴일 (2026-08-19 사장님: 공휴일에 출근 안 한 날이 결근으로 표시됨).
@@ -1042,11 +1063,11 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                 //   다른 화면과 같은 공통 함수로 (2026-08-12) — 숫자는 서식 없이 넘겨 엑셀이 숫자로 읽게 한다
                 downloadCsv(
                   `근태_월간요약_${selectedMonth}`,
-                  ["부서", "직원", "출근일", "지각횟수", "지각합계(분)", "연장(분)", "야간(분)", "휴일(분)", "결근", "재택", "반차", "총근무(h)"],
+                  ["부서", "직원", "출근일", "지각횟수", "지각합계(분)", "연장(분)", "야간(분)", "휴일(분)", "결근", "재택", "연차(일)", "연차(종일)", "반차(회)", "총근무(h)"],
                   (summary as any[]).map((s) => [
                     s.department || "미배정", s.name, s.totalDays, s.lateDays, Math.round(s.lateMinutesSum || 0),
                     Math.round(s.overtimeMinutesSum || 0), Math.round(s.nightMinutesSum || 0), Math.round(s.holidayMinutesSum || 0),
-                    s.absentDays, s.remoteDays, s.halfDays, Number(s.totalHours.toFixed(1)),
+                    s.absentDays, s.remoteDays, annualUsage.get(s.employee_id)?.days || 0, annualUsage.get(s.employee_id)?.full || 0, annualUsage.get(s.employee_id)?.half || 0, Number(s.totalHours.toFixed(1)),
                   ]),
                 );
               } }]} />
@@ -1453,8 +1474,8 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
         }
         //   표 정렬·빠른검색 (2026-08-19 사장님: 직원이 많아지면 카드 격자로는 못 본다 → 표 + 정렬 + 검색)
         //   연차 = 이 달 승인 **연차성** 휴가일 수 — 공가·경조 등 별도 휴가는 빼고 센다 (2026-09-01)
-        const leaveCount = (empId: string) => { let n = 0; annualDaySet.forEach((k: string) => { if (k.startsWith(`${empId}:${selectedMonth}-`)) n++; }); return n; };
-        const rowsAll = (summary as any[]).map((s) => ({ ...s, employee_number: empById.get(s.employee_id)?.employee_number || null, ratio: workdaysSoFar > 0 ? Math.min(1, s.totalDays / workdaysSoFar) : 0, alwTotal: allowanceByEmployee.get(s.employee_id)?.total ?? 0, leaveDays: leaveCount(s.employee_id) }));
+        const leaveCount = (empId: string) => annualUsage.get(empId)?.days || 0;
+        const rowsAll = (summary as any[]).map((s) => ({ ...s, employee_number: empById.get(s.employee_id)?.employee_number || null, ratio: workdaysSoFar > 0 ? Math.min(1, s.totalDays / workdaysSoFar) : 0, alwTotal: allowanceByEmployee.get(s.employee_id)?.total ?? 0, leaveDays: leaveCount(s.employee_id), leaveFull: annualUsage.get(s.employee_id)?.full || 0, leaveHalf: annualUsage.get(s.employee_id)?.half || 0, leaveQuarter: annualUsage.get(s.employee_id)?.quarter || 0 }));
         const rows = rowsAll.filter((r) => quickSearchHit(sumQ, [r.name, r.department])
             && (sumCond.depts.length === 0 || sumCond.depts.includes(r.department || "미배정"))
             && sumCond.has.every((k) => Number((r as any)[k] || 0) > 0)
@@ -1470,10 +1491,11 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
           department: d, list, n: list.length,
           totalDays: list.reduce((x, r) => x + (r.totalDays || 0), 0) / list.length,
           leaveDays: list.reduce((x, r) => x + (r.leaveDays || 0), 0),
+          leaveFull: list.reduce((x, r) => x + (r.leaveFull || 0), 0), leaveHalf: list.reduce((x, r) => x + (r.leaveHalf || 0), 0), leaveQuarter: list.reduce((x, r) => x + (r.leaveQuarter || 0), 0),
           nightMinutesSum: list.reduce((x, r) => x + (r.nightMinutesSum || 0), 0), holidayMinutesSum: list.reduce((x, r) => x + (r.holidayMinutesSum || 0), 0),
           ratio: list.reduce((x, r) => x + (r.ratio || 0), 0) / list.length,
           lateDays: list.reduce((x, r) => x + (r.lateDays || 0), 0), absentDays: list.reduce((x, r) => x + (r.absentDays || 0), 0),
-          remoteDays: list.reduce((x, r) => x + (r.remoteDays || 0), 0), halfDays: list.reduce((x, r) => x + (r.halfDays || 0), 0),
+          remoteDays: list.reduce((x, r) => x + (r.remoteDays || 0), 0),
           overtimeMinutesSum: list.reduce((x, r) => x + (r.overtimeMinutesSum || 0), 0), totalHours: list.reduce((x, r) => x + (r.totalHours || 0), 0),
           alwTotal: list.reduce((x, r) => x + (r.alwTotal || 0), 0),
         })).sort((a, b) => { const k = sumSort.key as string; if (k === "name") return a.department.localeCompare(b.department) * (sumSort.dir === "asc" ? 1 : -1); const av = (a as any)[k] ?? 0, bv = (b as any)[k] ?? 0; return (av - bv) * (sumSort.dir === "asc" ? 1 : -1); });
@@ -1528,7 +1550,6 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                     {th("지각", "lateDays")}
                     {th("결근", "absentDays")}
                     {th("재택", "remoteDays")}
-                    {th("반차", "halfDays")}
                     {th("연차", "leaveDays")}
                     {th("연장(분)", "overtimeMinutesSum")}
                     {th("야간(분)", "nightMinutesSum")}
@@ -1539,7 +1560,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                 </thead>
                 <tbody>
                   {rows.length === 0 ? (
-                    <tr><td colSpan={isAdminForAllowance ? 13 : 12} className="text-center text-[var(--text-dim)] py-6">{sumQ ? "조건에 맞는 직원이 없습니다." : "이 달 근태 기록이 없습니다."}</td></tr>
+                    <tr><td colSpan={isAdminForAllowance ? 12 : 11} className="text-center text-[var(--text-dim)] py-6">{sumQ ? "조건에 맞는 직원이 없습니다." : "이 달 근태 기록이 없습니다."}</td></tr>
                   ) : deptRows.map((d) => {
                     const open = sumOpen.has(d.department) ? !!sumOpen.get(d.department) : autoOpen;
                     return (
@@ -1551,8 +1572,12 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                           <td className={`text-center mono-number ${d.lateDays > 0 ? "text-[var(--warning)] font-bold" : "text-[var(--text-dim)]"}`}>{d.lateDays > 0 ? `${d.lateDays}회` : "—"}</td>
                           <td className={`text-center mono-number ${d.absentDays > 0 ? "text-[var(--danger)] font-bold" : "text-[var(--text-dim)]"}`}>{d.absentDays > 0 ? `${d.absentDays}일` : "—"}</td>
                           <td className="text-center mono-number text-[var(--text-muted)]">{d.remoteDays > 0 ? `${d.remoteDays}일` : "—"}</td>
-                          <td className="text-center mono-number text-[var(--text-muted)]">{d.halfDays > 0 ? `${d.halfDays}회` : "—"}</td>
-                          <td className="text-center mono-number text-[var(--text-muted)]">{d.leaveDays > 0 ? `${d.leaveDays}일` : "—"}</td>
+                          <td className="text-center mono-number text-[var(--text-muted)]">{d.leaveDays > 0 ? (
+                            <button type="button" className="att-leave-cell" title={leaveBreakdown(d)} onClick={(e) => { e.stopPropagation(); setLeaveDetailKey((k) => (k === `d:${d.department}` ? null : `d:${d.department}`)); }}>
+                              {fmtLeaveDays(d.leaveDays)}
+                              {leaveDetailKey === `d:${d.department}` && <span className="att-leave-detail">{leaveBreakdown(d)}</span>}
+                            </button>
+                          ) : "—"}</td>
                           <td className="text-right mono-number text-[var(--text-muted)]">{Math.round(d.overtimeMinutesSum) > 0 ? Math.round(d.overtimeMinutesSum).toLocaleString() : "—"}</td>
                           <td className="text-right mono-number text-[var(--text-muted)]">{Math.round(d.nightMinutesSum) > 0 ? Math.round(d.nightMinutesSum).toLocaleString() : "—"}</td>
                           <td className="text-right mono-number text-[var(--text-muted)]">{Math.round(d.holidayMinutesSum) > 0 ? Math.round(d.holidayMinutesSum).toLocaleString() : "—"}</td>
@@ -1571,8 +1596,12 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                         <td className={`text-center mono-number ${s.lateDays > 0 ? "text-[var(--warning)] font-bold" : "text-[var(--text-dim)]"}`}>{s.lateDays > 0 ? `${s.lateDays}회` : "—"}</td>
                         <td className={`text-center mono-number ${s.absentDays > 0 ? "text-[var(--danger)] font-bold" : "text-[var(--text-dim)]"}`}>{s.absentDays > 0 ? `${s.absentDays}일` : "—"}</td>
                         <td className="text-center mono-number text-[var(--text-muted)]">{s.remoteDays > 0 ? `${s.remoteDays}일` : "—"}</td>
-                        <td className="text-center mono-number text-[var(--text-muted)]">{s.halfDays > 0 ? `${s.halfDays}회` : "—"}</td>
-                        <td className="text-center mono-number text-[var(--text-muted)]">{s.leaveDays > 0 ? `${s.leaveDays}일` : "—"}</td>
+                        <td className="text-center mono-number text-[var(--text-muted)]">{s.leaveDays > 0 ? (
+                          <button type="button" className="att-leave-cell" title={leaveBreakdown(s)} onClick={(e) => { e.stopPropagation(); setLeaveDetailKey((k) => (k === s.employee_id ? null : s.employee_id)); }}>
+                            {fmtLeaveDays(s.leaveDays)}
+                            {leaveDetailKey === s.employee_id && <span className="att-leave-detail">{leaveBreakdown(s)}</span>}
+                          </button>
+                        ) : "—"}</td>
                         <td className="text-right mono-number text-[var(--text-muted)]">{Math.round(s.overtimeMinutesSum || 0) > 0 ? Math.round(s.overtimeMinutesSum || 0).toLocaleString() : "—"}</td>
                         <td className="text-right mono-number text-[var(--text-muted)]">{Math.round(s.nightMinutesSum || 0) > 0 ? Math.round(s.nightMinutesSum || 0).toLocaleString() : "—"}</td>
                         <td className="text-right mono-number text-[var(--text-muted)]">{Math.round(s.holidayMinutesSum || 0) > 0 ? Math.round(s.holidayMinutesSum || 0).toLocaleString() : "—"}</td>
