@@ -34,7 +34,7 @@ Deno.serve(withSentry("send-contract-email", async (req: Request) => {
     );
     const { data: pkg } = await admin
       .from('hr_contract_packages')
-      .select('id, title, expires_at, sign_token, company_id, employees(name, email, phone), companies(name)')
+      .select('id, title, expires_at, sign_token, company_id, status, last_mail_sent_at, employees(name, email, phone), companies(name)')
       .eq('sign_token', token)
       .maybeSingle();
 
@@ -42,6 +42,17 @@ Deno.serve(withSentry("send-contract-email", async (req: Request) => {
     if (!pkg || (pkg.expires_at && new Date(pkg.expires_at) < new Date())) {
       return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
+
+    // 완료·취소된 패키지엔 '서명 요청' 메일을 다시 보내지 않는다(서명 완료 뒤 요청 메일이 또 가던 문제 포함).
+    if (['completed', 'cancelled', 'expired'].includes(String((pkg as any).status || ''))) {
+      return new Response(JSON.stringify({ ok: true, skipped: 'package_' + (pkg as any).status }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    // 토큰만 아는 사람이 반복 요청해 메일·알림톡을 퍼붓지 못하게 — 패키지당 10분에 한 번.
+    const lastAt = (pkg as any).last_mail_sent_at ? new Date((pkg as any).last_mail_sent_at).getTime() : 0;
+    if (lastAt && Date.now() - lastAt < 10 * 60 * 1000) {
+      return new Response(JSON.stringify({ error: '잠시 후 다시 시도해 주세요.', retry_after_sec: Math.ceil((10 * 60 * 1000 - (Date.now() - lastAt)) / 1000) }), { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '600' } });
+    }
+    await admin.from('hr_contract_packages').update({ last_mail_sent_at: new Date().toISOString() }).eq('id', (pkg as any).id);
 
     const emp = (pkg as any).employees || {};
     const comp = (pkg as any).companies || {};
