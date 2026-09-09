@@ -357,6 +357,7 @@ export default function DashboardPage() {
       queryClient.invalidateQueries({ queryKey: ["codef-sync-freshness"] });
       queryClient.invalidateQueries({ queryKey: ["unclassified-count-by-channel"] });
       queryClient.invalidateQueries({ queryKey: ["dash-bank-recent"] });
+      queryClient.invalidateQueries({ queryKey: ["dash-bank-today"] });   // 오늘 입금·출금·건수 요약도 방금 받아온 거래로 다시 센다
       queryClient.invalidateQueries({ queryKey: ["dash-cards"] });
 
       // partial(일부 실패)은 성공 스타일로 가리지 않는다 (2026-08-19 감사). 첫 오류를 그대로 노출.

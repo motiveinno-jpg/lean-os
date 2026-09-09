@@ -63,7 +63,8 @@ export function BankRecentCard({ companyId, headExtra }: { companyId: string; he
     enabled: !!companyId, staleTime: 60_000,
     queryFn: async () => {
       const rows = logRead('components/dashboard-menu-widgets:today', await db.from("bank_transactions")
-        .select("type, amount").eq("company_id", companyId).gte("transaction_date", today).lt("transaction_date", `${today}T23:59:59.999`)) as any[] | null;
+        //   transaction_date 는 date 칼럼 — 시각을 붙인 범위(< 오늘T23:59:59)로 물으면 DB 가 끝값을 오늘 날짜로 잘라 "오늘 ≤ x < 오늘" 이 되어 항상 0건이었다.
+        .select("type, amount").eq("company_id", companyId).eq("transaction_date", today)) as any[] | null;
       let inn = 0, out = 0, n = 0;
       for (const t of rows || []) { const a = Number(t.amount || 0); const isIn = t.type === "in" || t.type === "deposit" || a > 0; if (isIn) inn += Math.abs(a); else out += Math.abs(a); n += 1; }
       return { inn, out, n };
