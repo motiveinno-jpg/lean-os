@@ -133,11 +133,14 @@ export default function PartnerLedgerPage() {
       //   ★ 페이징 필수 — 넓은 기간엔 수기전표가 1,000행(PostgREST 기본 상한)을 넘어
       //     상한에서 잘리면 거래처 조정액 집계가 누락된다 (2026-08-28).
       const data = await fetchPaged('ledger/page:data', () => db.from("journal_entries")
-        .select("journal_lines(partner_id, debit, credit, chart_of_accounts(code))")
+        .select("reference_type, journal_lines(partner_id, debit, credit, chart_of_accounts(code))")
         .eq("company_id", companyId ?? "").eq("source", "manual").eq("status", "confirmed")
         .gte("entry_date", periodStart).lte("entry_date", periodEnd).order("entry_date"), 50000);
       const m: Record<string, { sales?: boolean; purchase?: boolean; salesAdj?: number; purchaseAdj?: number }> = {};
       for (const e of (data || []) as any[]) {
+        //   세금계산서로 자동 생성된 매입매출전표(reference_type='tax_invoice')는 위 RPC 가 이미 계산서로 세므로
+        //   여기서 또 더하면 잔액이 두 배가 된다(우측 시트도 이 조건으로 뺀다, 2026-09-09 사장님 원장 잔액 오류).
+        if (e.reference_type === "tax_invoice") continue;
         for (const l of (e.journal_lines || [])) {
           if (!l.partner_id) continue;
           const code = l.chart_of_accounts?.code;

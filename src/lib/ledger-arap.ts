@@ -22,7 +22,7 @@ export async function fetchLedgerArAp(companyId: string): Promise<LedgerArAp> {
     db.rpc("get_partner_ledger_by_year", { p_year: year }),
     //   ★ 페이징 필수 — 수기전표 1,000행 절단 방지 (원장 화면과 동일, 2026-08-28 교훈)
     fetchPaged<any>("ledger-arap:manual", () => db.from("journal_entries")
-      .select("journal_lines(partner_id, debit, credit, chart_of_accounts(code))")
+      .select("reference_type, journal_lines(partner_id, debit, credit, chart_of_accounts(code))")
       .eq("company_id", companyId).eq("source", "manual").eq("status", "confirmed")
       .gte("entry_date", `${year}-01-01`).lte("entry_date", `${year}-12-31`).order("entry_date"), 50000),
     fetchPaged<any>("ledger-arap:aging", () => db.from("tax_invoices")
@@ -45,6 +45,8 @@ export async function fetchLedgerArAp(companyId: string): Promise<LedgerArAp> {
       Number(r.prior_outstanding || 0) + Number(r.period_outstanding || 0));
   }
   for (const e of ((manual || []) as any[])) {
+    //   세금계산서 자동 전표(reference_type='tax_invoice')는 RPC 가 이미 계산서로 세므로 제외(중복합산 방지, 2026-09-09).
+    if (e.reference_type === "tax_invoice") continue;
     for (const l of (e.journal_lines || [])) {
       if (!l.partner_id) continue;
       const code = l.chart_of_accounts?.code;
