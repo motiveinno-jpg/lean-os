@@ -83,9 +83,10 @@ export default function ReconciliationPage() {
   const { data: queueRaw = [], isLoading: qLoading } = useQuery<QueueRow[]>({
     queryKey: ["settlement-queue", companyId],
     queryFn: async () => {
-      const data = logRead('reconciliation/page:data', await db.from("v_settlement_review_queue").select("*").eq("company_id", companyId ?? "")
-        .order("confidence", { ascending: false }));
-      return ((data || []) as QueueRow[]).filter((m) => QUEUE_STATUSES.includes(m.status));
+      //   무페이징이면 PostgREST 상한(1000행)에 조용히 잘려 대기/정리율 숫자가 틀어진다 → fetchPaged (2026-09-09).
+      const data = await fetchPaged<QueueRow>('reconciliation:queue', () => db.from("v_settlement_review_queue").select("*").eq("company_id", companyId ?? "")
+        .order("confidence", { ascending: false }).order("id", { ascending: false }));
+      return (data as QueueRow[]).filter((m) => QUEUE_STATUSES.includes(m.status));
     },
     enabled: !!companyId,
     refetchInterval: 30_000,
@@ -126,9 +127,10 @@ export default function ReconciliationPage() {
   const { data: confirmed = [] } = useQuery<QueueRow[]>({
     queryKey: ["settlement-confirmed", companyId],
     queryFn: async () => {
-      const data = logRead('reconciliation/page:data', await db.from("v_settlement_confirmed").select("*").eq("company_id", companyId ?? "")
-        .order("updated_at", { ascending: false }).limit(300));
-      return (data || []) as QueueRow[];
+      //   종전 .limit(300) 이 '확정' 건수·정리율을 300 에서 고정시켜 규모 큰 회사에서 과소 표시됐다 → fetchPaged (2026-09-09).
+      const data = await fetchPaged<QueueRow>('reconciliation:confirmed', () => db.from("v_settlement_confirmed").select("*").eq("company_id", companyId ?? "")
+        .order("updated_at", { ascending: false }).order("id", { ascending: false }));
+      return data as QueueRow[];
     },
     enabled: !!companyId,
   });

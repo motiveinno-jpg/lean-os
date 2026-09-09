@@ -63,7 +63,7 @@ const GROUPS: Group[] = [
       { href: "/reports/pnl", label: "손익계산서", desc: "표준 양식의 기간별 손익계산서입니다." },
       { href: "/reports/bs", label: "재무상태표", desc: "기준일의 자산·부채·자본입니다." },
       { href: "/reports/costs", label: "비용 분석", desc: "고정비와 변동비의 구성과 추이를 봅니다." },
-      { href: "/reports/by-person", label: "인원별 지출", desc: "법인카드 사용액과 급여를 사람 기준으로 봅니다." },
+      { href: "/reports/by-person", label: "인원별 급여", desc: "직원별 급여를 사람·월 기준으로 봅니다." },
       { href: "/reports/three-way-match", label: "3-Way 매칭", desc: "계약, 세금계산서, 입금을 맞춰 봅니다." },
     ],
   },

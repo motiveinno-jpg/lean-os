@@ -303,7 +303,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
   const [statusPanel, setStatusPanel] = useState(false);
   const [draftStatus, setDraftStatus] = useState<string[]>([]);
   //   'failed'(실행 실패) 를 필터에도 넣는다 — 없으면 실패 건만 따로 볼 방법이 없다 (2026-08-21)
-  const STATUS_OPTS: [string, string][] = [["pending", "승인대기"], ["approved", "승인완료"], ["executed", "실행완료"], ["failed", "실행실패"], ["refunded", "환불"], ["rejected", "거부"]];
+  const STATUS_OPTS: [string, string][] = [["pending", "승인대기"], ["approved", "승인완료"], ["executed", "완료"], ["failed", "미완료"], ["refunded", "환불"], ["rejected", "거부"]];
 
   function toggleOne(id: string) {
     setSelectedIds(prev => {
@@ -367,13 +367,13 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
   const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
     pending: { label: "승인대기", bg: "bg-[var(--warning-dim)]", text: "text-[var(--warning)]" },
     approved: { label: "승인완료", bg: "bg-[var(--info-dim)]", text: "text-[var(--info)]" },
-    executed: { label: "실행완료", bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]" },
-    completed: { label: "실행완료", bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]" },
+    //   오너뷰는 이체를 하지 않는다(은행에서 이체). 그래서 앱이 '실행'한 것처럼 보이던 '실행완료/실행실패'
+    //   표기를 '완료/미완료'로 바꾼다. executed/completed 는 과거 흐름의 잔여 상태다(2026-09-09 사장님).
+    executed: { label: "완료", bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]" },
+    completed: { label: "완료", bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]" },
     rejected: { label: "거부", bg: "bg-[var(--danger-dim)]", text: "text-[var(--danger)]" },
     refunded: { label: "환불완료", bg: "bg-orange-500/10", text: "text-orange-400" },
-    // 실행 실패(잔액 부족 등)는 배지 정의가 없어 '승인대기' 로 보였다. 토스트가 사라지면
-    //   실패 건을 화면에서 알 방법이 없었다 (2026-08-21 감사).
-    failed:  { label: "실행실패", bg: "bg-[var(--danger-dim)]", text: "text-[var(--danger)]" },
+    failed:  { label: "미완료", bg: "bg-[var(--danger-dim)]", text: "text-[var(--danger)]" },
   };
 
   return (
@@ -398,7 +398,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
         stats={<>
           <Stat label="승인 대기" value={<>{stats?.pendingCount ?? 0}건 <small className="mono-number font-normal text-[var(--text-dim)]">₩{(stats?.pendingAmount ?? 0).toLocaleString()}</small></>} tone="minus" />
           <Stat label="승인 완료" value={<>{stats?.approvedCount ?? 0}건 <small className="mono-number font-normal text-[var(--text-dim)]">₩{(stats?.approvedAmount ?? 0).toLocaleString()}</small></>} />
-          <Stat label="실행 완료" value={<>{stats?.executedCount ?? 0}건 <small className="mono-number font-normal text-[var(--text-dim)]">₩{(stats?.executedAmount ?? 0).toLocaleString()}</small></>} tone="plus" />
+          <Stat label="완료" value={<>{stats?.executedCount ?? 0}건 <small className="mono-number font-normal text-[var(--text-dim)]">₩{(stats?.executedAmount ?? 0).toLocaleString()}</small></>} tone="plus" />
           <Stat label="통장 총 잔고" value={<>₩{bankAccounts.reduce((s: number, a: any) => s + Number(a.balance || 0), 0).toLocaleString()} <small className="font-normal text-[var(--text-dim)]">{bankAccounts.length}개</small></>} />
         </>} />
 
@@ -522,7 +522,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
                 <div className="flex justify-between text-sm"><span className="text-[var(--text-dim)]">결제일</span><span>{receiptItem.executed_at ? new Date(receiptItem.executed_at).toLocaleString('ko-KR') : (receiptItem.created_at ? new Date(receiptItem.created_at).toLocaleString('ko-KR') : '—')}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-[var(--text-dim)]">설명</span><span className="text-right max-w-[60%]">{stripInternalTag(receiptItem.description) || '—'}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-[var(--text-dim)]">통장</span><span>{receiptItem.bank_accounts?.alias || receiptItem.bank_accounts?.bank_name || '—'}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-[var(--text-dim)]">상태</span><span className={receiptItem.status === 'refunded' ? 'text-orange-400 font-semibold' : 'text-green-400 font-semibold'}>{receiptItem.status === 'refunded' ? '환불완료' : '실행완료'}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-[var(--text-dim)]">상태</span><span className={receiptItem.status === 'refunded' ? 'text-orange-400 font-semibold' : 'text-green-400 font-semibold'}>{receiptItem.status === 'refunded' ? '환불완료' : '완료'}</span></div>
                 {receiptItem.status === 'refunded' && receiptItem.refund_reason && (
                   <div className="flex justify-between text-sm"><span className="text-[var(--text-dim)]">환불사유</span><span className="text-right max-w-[60%] text-orange-400">{receiptItem.refund_reason}</span></div>
                 )}
