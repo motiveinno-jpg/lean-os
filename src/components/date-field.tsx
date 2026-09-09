@@ -55,7 +55,25 @@ function isCompleteDateInput(text: string): boolean  {
   const t = text.trim();
   if (/^\d{8}$/.test(t)) return true;
   const parts = t.replace(/[.\s/년월일]+/g, "-").split("-").filter(Boolean);
-  return parts.length === 3 && /^\d{4}$/.test(parts[0]);
+  // "2026-09-2" 처럼 일이 한 자리면 아직 치는 중일 수 있다 — 월·일 두 자리까지 채워졌을 때만 완성으로 본다.
+  return parts.length === 3 && /^\d{4}$/.test(parts[0]) && /^\d{2}$/.test(parts[1]) && /^\d{2}$/.test(parts[2]);
+}
+
+// 숫자만 칠 때 YYYY-MM-DD 로 자동 정리 — 연도 4자리를 치면 "-" 가 붙어 바로 월로 넘어가고, 월 두 자리 뒤에도 "-" 가 붙는다.
+//   연도 범위(1900~2200)가 아닌 앞자리(예: "0821" = 올해 8/21 축약)나 "8-21" 같은 축약형은 손대지 않고 Enter/블러 때 해석한다.
+//   지우는 중에는 방금 붙인 "-" 를 다시 붙이지 않아 백스페이스가 막히지 않는다.
+function maskYmd(raw: string, deleting: boolean): string | null {
+  const t = raw.trim();
+  if (!/^[\d-]*$/.test(t)) return null;
+  const digits = t.replace(/-/g, "");
+  if (digits.length < 4) return /^\d*$/.test(t) ? digits : null;
+  const y = +digits.slice(0, 4);
+  if (y < 1900 || y > 2200) return null;
+  const d8 = digits.slice(0, 8);
+  let out = d8.slice(0, 4);
+  if (d8.length > 4 || (d8.length === 4 && !deleting)) out += "-" + d8.slice(4, 6);
+  if (d8.length > 6 || (d8.length === 6 && !deleting)) out += "-" + d8.slice(6, 8);
+  return out;
 }
 
 // 12년 묶음 그리드의 시작 연도
@@ -158,14 +176,19 @@ export function DateField({
   };
 
   // autoFocus: 마운트 시 달력 자동 오픈 (인라인 편집 셀용)
-  useEffect(() => { if (autoFocus) { inputRef.current?.focus(); toggle(); } /* eslint-disable-next-line */ }, []);
+  useEffect(() => { if (autoFocus) { inputRef.current?.focus(); inputRef.current?.select(); toggle(); } /* eslint-disable-next-line */ }, []);
+  // 포커스 직후의 mouseup 이 전체 선택을 풀어 버리면 기존 값 앞뒤에 덧붙어 "202026-09-20" 이 된다 — 그 mouseup 은 무시한다.
+  const focusedAt = useRef(0);
   // onBlur: 팝오버가 닫힐 때 호출 (편집 종료 신호)
   const prevOpen = useRef(false);
   useEffect(() => { if (prevOpen.current && !open) { setPick(false); onBlur?.(); } prevOpen.current = open; /* eslint-disable-next-line */ }, [open]);
 
   // ── 키보드 입력 ──
   const withinRange = (v: string) => !((min && v < min) || (max && v > max));
-  const handleType = (raw: string) => {
+  const prevTypedLen = useRef(0);
+  const handleType = (typed: string) => {
+    const raw = maskYmd(typed, typed.length < prevTypedLen.current) ?? typed;
+    prevTypedLen.current = raw.length;
     setEditing(true);
     setDraft(raw);
     // 치는 도중에도 달력이 실시간으로 따라간다 — 연도만 쳐도(예: "2025") 그 해로 이동 (2026-08-25 사장님)
@@ -270,7 +293,8 @@ export function DateField({
           //   달력만 클릭할 땐 타이핑이 없으므로 값은 그대로 보존된다.
           //   ★ 포커스만으로는 달력을 열지 않는다(2026-08-26 사장님 · "달력은 클릭했을 때만, 평소엔 입력만").
           //     Tab 으로 지나가거나 화면이 커서를 줄 때 달력이 아랫줄을 덮던 것을 막는다. 열기는 칸·아이콘 클릭(onClick).
-          onFocus={() => { setTimeout(() => inputRef.current?.select(), 0); }}
+          onFocus={() => { focusedAt.current = Date.now(); setTimeout(() => inputRef.current?.select(), 0); }}
+          onMouseUp={(e) => { if (Date.now() - focusedAt.current < 300) e.preventDefault(); }}
           onBlur={handleInputBlur}
           onKeyDown={(e) => {
             if (e.key === "Enter") { e.preventDefault(); commitDraft(); }
