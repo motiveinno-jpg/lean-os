@@ -7,6 +7,7 @@
 //   1단계 범위: 현황 판 4칸 + 탭 4 + 입력줄 + 항목 팝업(팔로워·하위·태그·우선순위·기간) +
 //   일괄 처리 + 단계 이름 편집 + 증빙·문서 읽기 전용. 연결 제안·초안·결재 게이트는 2~3단계.
 
+import { DateField } from "@/components/date-field";
 import { useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -502,7 +503,7 @@ export function HubV3() {
               <option value="">담당 없음</option>
               {users.map((u) => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
             </select>
-            <input className="phv3-field" type="date" value={inDue} onChange={(e) => setInDue(e.target.value)} aria-label="기한" />
+            <DateField className="phv3-field" value={inDue} onChange={(e) => setInDue(e.target.value)} title="기한" placeholder="기한" />
           </>)}
           {(inKind === "spend" || inKind === "revenue") && (<>
             <input className="phv3-field phv3-w130" placeholder="거래처" value={inPartner} onChange={(e) => setInPartner(e.target.value)} />
@@ -843,10 +844,10 @@ function ItemModal({ item, users, userName, stages, childItems, onClose, onPatch
             </select>
           </label>
           <label>시작일
-            <input className="phv3-field" type="date" value={item.start_date || ""} onChange={(e) => onPatch({ start_date: e.target.value || null })} />
+            <DateField className="phv3-field" value={item.start_date || ""} onChange={(e) => onPatch({ start_date: e.target.value || null })} />
           </label>
           <label>기한
-            <input className="phv3-field" type="date" value={item.due_date || ""} onChange={(e) => onPatch({ due_date: e.target.value || null })} />
+            <DateField className="phv3-field" value={item.due_date || ""} onChange={(e) => onPatch({ due_date: e.target.value || null })} />
           </label>
           <label>우선순위
             <select className="phv3-field" value={item.priority || ""} onChange={(e) => onPatch({ priority: e.target.value || null })}>

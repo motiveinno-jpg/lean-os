@@ -1,4 +1,5 @@
 "use client";
+import { DateField } from "@/components/date-field";
 import { koFallback } from "@/lib/ko-label";
 
 // 프로젝트 v3 — 먼데이식 표 입력 (2026-08-31 결정 130·124·132, docs/20260831_PLAN_projecthub_v3_impl.md 1단계)
@@ -1396,8 +1397,14 @@ export function TableV3() {
       if (colKey === "plan_amount") { await saveItem(it.id, { plan_amount: v === "" ? null : Number(v.replace(/[^0-9.-]/g, "")) }); return; }
       await saveField(it, colKey, type === "number" ? (v === "" ? null : Number(v)) : v);
     };
+    // 날짜는 공용 DateField — 키보드 입력 해석(연도 4자리·실재 날짜만)이 한 곳에서 이뤄진다. 브라우저 기본 date 입력은 쓰지 않는다.
+    if (editing && type === "date") return (
+      <DateField autoFocus className="pjv3-cell" value={value}
+        onChange={(e) => commit(e.target.value)}
+        onBlur={() => setEdit((cur) => (cur?.itemId === it.id && cur?.colKey === colKey ? null : cur))} />
+    );
     if (editing) return (
-      <input ref={editRef} className="pjv3-cell" defaultValue={value} type={type === "date" ? "date" : "text"}
+      <input ref={editRef} className="pjv3-cell" defaultValue={value} type="text"
         inputMode={type === "number" ? "decimal" : undefined}
         onBlur={(e) => commit(e.target.value)}
         onKeyDown={(e) => {
@@ -2303,7 +2310,7 @@ export function TableV3() {
             <div className="pjv3-sv-field"><label>받는 조건<span className="ui-sub">비워 두면 제한 없음</span></label>
               <div className="pjv3-sv-limits">
                 <span>마감일</span>
-                <input type="date" value={svForm.closesAt} aria-label="마감일"
+                <DateField value={svForm.closesAt} title="마감일"
                   onChange={(e) => setSvForm((f) => ({ ...f, closesAt: e.target.value }))} />
                 <span>최대 응답</span>
                 <input type="text" inputMode="numeric" placeholder="제한 없음" value={svForm.maxResp} aria-label="최대 응답 수"
@@ -2391,10 +2398,10 @@ export function TableV3() {
                 <button type="button" className="pjv3-prop" title={assigneesOf(drawerItem).map(userName).filter(Boolean).join(", ")}
                   onClick={(e) => setPop({ kind: "person", itemId: drawerItem.id, ...at(e) })}>
                   담당 · {assigneeLabel(drawerItem) || "없음"}</button>
-                <input type="date" className="pjv3-prop" aria-label="시작일" title="시작일 · 간트 막대의 왼쪽 끝"
+                <DateField className="pjv3-prop" title="시작일 · 간트 막대의 왼쪽 끝" placeholder="시작일"
                   value={((drawerItem as any).start_date as string) || ""}
                   onChange={(e) => saveItem(drawerItem.id, { start_date: e.target.value || null })} />
-                <input type="date" className="pjv3-prop" aria-label="마감" title="마감일" value={drawerItem.due_date || ""}
+                <DateField className="pjv3-prop" title="마감일" placeholder="마감" value={drawerItem.due_date || ""}
                   onChange={(e) => saveItem(drawerItem.id, { due_date: e.target.value || null })} />
               </div>
               {featOn("recur") && (

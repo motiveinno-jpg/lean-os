@@ -748,7 +748,7 @@ export function BoardDocModal({
                     <b className="pb-doc-num">{won(termAmount(t.ratio))}원</b>
                     <i>{t.condition || "협의"}</i>
                     {kind === "contract" && (
-                      <input type="date" className="pb-doc-due" value={termDates[i] || ""} title="예정일을 적으면 그날 발행 대기가 자동으로 만들어집니다."
+                      <DateField className="pb-doc-due" value={termDates[i] || ""} title="예정일을 적으면 그날 발행 대기가 자동으로 만들어집니다."
                         onChange={(e) => { const v = e.target.value; setTermDates((d) => { const n = [...d]; n[i] = v; return n; }); setDirty(true); }} />
                     )}
                   </li>
