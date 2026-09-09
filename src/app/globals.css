@@ -4915,6 +4915,8 @@ table.pnl-drill-table { min-width: 760px; }
 @keyframes fw-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.6); } }
 /* 반차·휴가·결근·공휴일 — 부드러운 알약 라벨 */
 .fw-cell-chip { @apply relative z-10 text-[11.5px] font-bold leading-none; }
+/* 근무 형태(외근·출장·당직·재택) 모서리 태그 (2026-09-09) */
+.fw-cell-type { @apply absolute top-0.5 right-0.5 z-10 px-1 rounded text-[8px] font-bold leading-tight pointer-events-none; }
 /* IP 접속 제한 차단 화면 (2026-08-11) */
 .ip-gate-overlay { @apply fixed inset-0 z-[200] flex items-center justify-center p-4; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(6px); }
 .ip-gate-card { @apply w-full max-w-sm p-6; }

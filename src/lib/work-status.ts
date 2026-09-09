@@ -62,14 +62,25 @@ export function deriveWorkStatus(args: {
   const leave = leaveKindOf(today);
   if (leave === "full") return { id: "leave", label: "휴가", tone: "grey", detail: "오늘 휴가" };
 
+  //   근무 형태(외근·출장·당직·재택)는 attendance_type 에 저장되는데 종전엔 재택만 알아봐서
+  //   외근·출장·당직이 종합 화면에서 그냥 '근무중'으로 뭉개졌다(2026-09-09 사장님). 여기서 라벨을 살린다.
+  const at = String(today.attendance_type || "");
+  const typeLabel = at === "business_trip" ? "출장" : at === "field_work" ? "외근" : at === "on_duty" ? "당직"
+    : (at === "remote" || today.att_status === "remote") ? "원격 근무" : null;
+  const typeId = at === "business_trip" ? "business_trip" : at === "field_work" ? "field_work" : at === "on_duty" ? "on_duty"
+    : typeLabel ? "remote" : "working";
+  const typeTone: WorkTone = at === "on_duty" ? "purple" : (typeLabel && typeId !== "remote") ? "blue" : "green";
+
   if (today.check_in || today.att_status) {
     if (today.check_out) return { id: "checked_out", label: "퇴근", tone: "grey", detail: `${hm(today.check_out)} 퇴근` };
     if (today.att_status === "absent") return { id: "absent", label: "결근", tone: "red", detail: "" };
-    const remote = today.attendance_type === "remote" || today.att_status === "remote";
     const half = today.att_status === "half_day" || leave === "am" || leave === "pm" || leave === "half";
     const parts = [today.check_in ? `${hm(today.check_in)} 출근` : "", half ? "반차" : "", today.att_status === "late" ? "지각" : ""].filter(Boolean);
-    return { id: remote ? "remote" : "working", label: remote ? "원격 근무" : "근무중", tone: "green", detail: parts.join(" · ") };
+    return { id: typeId, label: typeLabel || "근무중", tone: typeTone, detail: parts.join(" · ") };
   }
+
+  //   기록(체크인)은 없지만 외근·출장·당직으로 지정된 날 — 미출근/결근으로 잡지 않고 그 형태로 보인다.
+  if (typeLabel && typeId !== "remote") return { id: typeId, label: typeLabel, tone: typeTone, detail: "" };
 
   if (leave === "am" || leave === "half") return { id: "leave_half", label: leave === "am" ? "오전 반차" : "반차", tone: "grey", detail: "" };
 

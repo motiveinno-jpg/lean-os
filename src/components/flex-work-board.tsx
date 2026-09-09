@@ -27,6 +27,7 @@ type Att = {
   employee_id: string; date: string; check_in: string | null; check_out: string | null;
   regular_minutes: number | null; overtime_minutes: number | null; night_minutes: number | null;
   work_hours: number | null; is_late: boolean | null; status: string | null; auto_clocked_out?: boolean;
+  attendance_type?: string | null;
 };
 
 const DAY_LABEL = ["월", "화", "수", "목", "금", "토", "일"];
@@ -105,7 +106,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
     queryKey: ["flex-work-week", companyId, startStr],
     queryFn: async () => {
       const data = await fetchPaged<Att>('flex-work-board:att', () => db.from("attendance_records")
-        .select("employee_id, date, check_in, check_out, regular_minutes, overtime_minutes, night_minutes, work_hours, is_late, status, auto_clocked_out")
+        .select("employee_id, date, check_in, check_out, regular_minutes, overtime_minutes, night_minutes, work_hours, is_late, status, auto_clocked_out, attendance_type")
         .eq("company_id", companyId).gte("date", startStr).lte("date", endStr).order("date"), 20000);
       return (data || []) as Att[];
     },
@@ -512,7 +513,12 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                     const  { frac, inProgress } = cellFill(a, ymd(d));
                     const ci = timeOf(a.check_in), co = timeOf(a.check_out);
                     const barColor = a.is_late ? FLEX.amber : FLEX.violet;
-                    const tip = `${ci ?? "—"} ~ ${co ?? (a.auto_clocked_out ? "자동퇴근" : "근무중")} · ${hm(minutesOf(a))}${a.is_late ? " · 지각" : ""}${Number(a.overtime_minutes || 0) > 0 ? ` · 연장 ${hm(Number(a.overtime_minutes))}` : ""}`;
+                    //   근무 형태(외근·출장·당직·재택)를 칸 모서리에 작은 태그로 — 종전엔 시각만 보여 어디 근무인지 몰랐다 (2026-09-09 사장님)
+                    const atype = String(a.attendance_type || "");
+                    const atLabel = atype === "business_trip" ? "출장" : atype === "field_work" ? "외근" : atype === "on_duty" ? "당직"
+                      : (atype === "remote" || a.status === "remote") ? "재택" : null;
+                    const atColor = atype === "on_duty" ? "var(--primary)" : atLabel === "재택" ? "var(--success)" : "var(--info)";
+                    const tip = `${atLabel ? atLabel + " · " : ""}${ci ?? "—"} ~ ${co ?? (a.auto_clocked_out ? "자동퇴근" : "근무중")} · ${hm(minutesOf(a))}${a.is_late ? " · 지각" : ""}${Number(a.overtime_minutes || 0) > 0 ? ` · 연장 ${hm(Number(a.overtime_minutes))}` : ""}`;
                     return (
                       <td key={i} className={`px-1 py-2 align-middle ${weekend ? "bg-[var(--bg-surface)]/30" : ""}`} title={tip}>
                         <div className="fw-cell fw-cell-box">
@@ -521,6 +527,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                           {ci && frac > 0 && (
                             <div className="fw-cell-fill-live" style={{ width: `${Math.max(frac * 100, 5)}%`, background: barColor }} />
                           )}
+                          {atLabel && <span className="fw-cell-type" style={{ color: atColor, background: `color-mix(in srgb, ${atColor} 15%, transparent)` }}>{atLabel}</span>}
                           <span className="fw-cell-t1">{ci ?? "—"}</span>
                           {co ? <span className="fw-cell-t2">{co}</span>
                             : inProgress ? <span className="fw-cell-live"><span className="fw-cell-live-dot" />근무중</span>
