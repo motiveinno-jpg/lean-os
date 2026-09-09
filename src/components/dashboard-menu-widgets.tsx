@@ -43,6 +43,7 @@ function Badge({ label, tone }: { label: string; tone: string }) {
   return <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: soft(tone), color: tone }}>{label}</span>;
 }
 
+const isBankIncome = (t: { type?: string | null }) => t.type === "income";
 // ── 통장 — 최근 거래내역 ──
 //   2026-08-19 재편 — headExtra(동기화 시각·미분류·↻)는 대시보드가 넣어 준다
 export function BankRecentCard({ companyId, headExtra }: { companyId: string; headExtra?: React.ReactNode }) {
@@ -66,7 +67,8 @@ export function BankRecentCard({ companyId, headExtra }: { companyId: string; he
         //   transaction_date 는 date 칼럼 — 시각을 붙인 범위(< 오늘T23:59:59)로 물으면 DB 가 끝값을 오늘 날짜로 잘라 "오늘 ≤ x < 오늘" 이 되어 항상 0건이었다.
         .select("type, amount").eq("company_id", companyId).eq("transaction_date", today)) as any[] | null;
       let inn = 0, out = 0, n = 0;
-      for (const t of rows || []) { const a = Number(t.amount || 0); const isIn = t.type === "in" || t.type === "deposit" || a > 0; if (isIn) inn += Math.abs(a); else out += Math.abs(a); n += 1; }
+      //   입출금 구분은 통장 화면과 같은 규칙: type === "income" 만 입금. 금액은 출금도 양수로 저장돼 있어 부호로 가르면 전부 입금이 된다.
+      for (const t of rows || []) { const a = Number(t.amount || 0); if (isBankIncome(t)) inn += Math.abs(a); else out += Math.abs(a); n += 1; }
       return { inn, out, n };
     },
   });
@@ -79,7 +81,7 @@ export function BankRecentCard({ companyId, headExtra }: { companyId: string; he
         <Link href="/bank" className="dash-tile"><span className="l">오늘 거래</span><span className="v mono-number">{todaySum ? `${todaySum.n}건` : "—"}</span></Link>
       </div>
       {data.slice(0, 3).map((t) => {
-        const isIn = t.type === "in" || t.type === "deposit" || Number(t.amount) > 0;
+        const isIn = isBankIncome(t);
         return (
           <Link key={t.id} href="/bank" className="dash-bank-row">
             <span className="min-w-0 flex-1 text-[13px] text-[var(--text)] truncate">{t.counterparty || t.description || "-"}</span>
