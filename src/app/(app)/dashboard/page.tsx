@@ -23,7 +23,6 @@ import { LineChart } from "@/components/line-chart";
 import { FunnelChart, type FunnelStage } from "@/components/funnel-chart";
 import { UpcomingScheduleCard } from "@/components/upcoming-schedule";
 import { DrillDownTable } from "@/components/drill-down-table";
-import { OnboardingWizard, shouldShowOnboarding } from "@/components/onboarding";
 import { isTourActive } from "@/components/app-tour";
 import { SampleDataBanner } from "@/components/sample-data-banner";
 import { supabase } from "@/lib/supabase";
@@ -103,7 +102,6 @@ export default function DashboardPage() {
   const [userEmail, setUserEmail] = useState("");
   const [uploading, setUploading] = useState(false);
   const [parseResult, setParseResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [showOnboarding, setShowOnboarding] = useState(false);
   // 첫 가입 탭 투어는 앱 셸(AppTourHost)이 띄운다 — 여기서는 투어 중일 때 온보딩 체크리스트 팝업만 억제 (2026-08-10).
   //   isTourActive() 는 sessionStorage 조회라 반응형이 아니다 — 투어가 끝나면 체크리스트가 다시
   //   나타나야 하므로 가볍게 폴링해 상태로 들고 있는다 (2026-08-20).
@@ -152,10 +150,8 @@ export default function DashboardPage() {
           .eq("company_id", u.company_id);
         const dc = count ?? 0;
         setDealCount(dc);
-        const tourRequested = (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("tour") === "1") || isTourActive();
-        if (shouldShowOnboarding(dc) && !tourRequested) {
-          setShowOnboarding(true);
-        }
+        //   옛 7단계 온보딩 마법사(통장 잔고 수기입력·직원등록·첫 프로젝트)는 폐기 —
+        //   신규 안내는 /onboarding 리디자인 + 아래 GettingStartedChecklist 가 대신한다 (2026-09-09 사장님).
       } else if (retries < 2) {
         // 회원가입 직후 user 레코드 생성 지연 가능 — 재시도
         retries++;
@@ -495,23 +491,6 @@ export default function DashboardPage() {
       {/* (2026-07-30 개편 P2) 마스터 안내 — 권한 미부여 구성원은 기본 메뉴만 보임 */}
       <MasterPermissionNotice />
 
-      {/* ═══ 온보딩 위저드 (신규 가입 시) ═══ */}
-      {showOnboarding && companyId && (
-        <OnboardingWizard
-          companyId={companyId}
-          companyName={companyName}
-          onComplete={() => {
-            setShowOnboarding(false);
-            queryClient.invalidateQueries({ queryKey: ["founder-data"] });
-            const db = supabase;
-            db.from("deals")
-              .select("id", { count: "exact", head: true })
-              .eq("company_id", companyId ?? "")
-              .then(({ count }: { count: number | null }) => setDealCount(count ?? 0));
-          }}
-        />
-      )}
-
       {/* ═══ [배너] 체크리스트 — 접힌 상태 기본 ═══ */}
       {/* 투어 중에는 비켜선다 (2026-08-20 사장님): 신규 가입 첫 화면에서 배너·체크리스트·12단계
           투어가 한꺼번에 뜨고, 투어 말풍선이 체크리스트 첫 줄을 덮어 글자가 잘려 보였다.
@@ -519,7 +498,7 @@ export default function DashboardPage() {
       {/* 샘플 회사 체험 중이면 늘 맨 위에 — 지금 보는 숫자가 샘플임을 잊지 않게 */}
       {companyId && <SampleDataBanner companyId={companyId} />}
 
-      {!showOnboarding && companyId && !tourActive && (
+      {companyId && !tourActive && (
         <GettingStartedChecklist companyId={companyId} />
       )}
 

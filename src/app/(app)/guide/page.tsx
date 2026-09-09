@@ -3,7 +3,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Ico, icoColor } from "@/components/ui-icon";
 import Link from 'next/link';
-import { resetOnboardingDismiss } from '@/components/onboarding';
 import { useMyPermissions, matchCatalogRoute } from '@/lib/permissions';
 import { QueryScreen, QueryHead, QueryBody, QueryBar } from "@/components/query-kit";
 
@@ -686,7 +685,7 @@ export default function GuidePage() {
           <QueryBar right={<>
             <span className="text-[11px] text-[var(--text-dim)]">{filteredFeatures.length}개 기능</span>
             <button type="button" onClick={isAllExpanded ? collapseAll : expandAll} className="btn-secondary btn-sm">{isAllExpanded ? "모두 접기" : "모두 펼치기"}</button>
-            {isMaster && <button type="button" onClick={() => { resetOnboardingDismiss(); window.location.href = "/dashboard"; }} className="btn-secondary btn-sm" title="초기 설정을 다시 시작합니다.">초기 설정 다시 하기</button>}
+            {isMaster && <button type="button" onClick={() => { window.location.href = "/onboarding"; }} className="btn-secondary btn-sm" title="초기 설정을 다시 시작합니다.">초기 설정 다시 하기</button>}
           </>}>
             <div className="qk-quick-search gd-search-bar">
               <input type="text" className="qk-input h-8 w-full px-2.5 text-xs" placeholder="어떤 기능을 찾으세요?" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} aria-label="기능 검색" />
