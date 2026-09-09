@@ -7855,7 +7855,14 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
   .collect-page > .collect-note,
   .ev-wrap > .collect-note { @apply shrink-0; }
   /* 표 머리단은 어느 화면에서든 스크롤 안에서 붙어 있는다 */
-  .qk-body > .ev-scroll thead th { position: sticky; top: 0; z-index: 3; }
+  .qk-body > .ev-scroll thead th {
+    position: sticky; top: 0; z-index: 3;
+    /* 고정 머리단은 반드시 불투명해야 한다 — surface 색이 반투명이라 스크롤한 본문 글자가 요일 위로 비쳤다(근태 워크보드).
+       card 색 위에 surface 색을 한 겹 더 깔아 원래 색은 유지하면서 뒤를 가린다. */
+    background-color: var(--bg-card);
+    background-image: linear-gradient(var(--bg-surface), var(--bg-surface));
+    box-shadow: 0 1px 0 var(--border);
+  }
 .ev-scroll .fw-table thead th.fw-th-name { z-index: 7; }   /* 본문 이름 칸(z5)이 머리단 '구성원'을 덮어 안 내려오는 것처럼 보였다 (2026-08-27 사장님) */
 }
 /* 표 머리단은 스크롤 안에서 붙어 있는다 — 아래로 내려가도 어느 칸인지 안 잊는다.
