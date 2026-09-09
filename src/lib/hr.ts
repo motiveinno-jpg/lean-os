@@ -78,12 +78,12 @@ export async function updateEmployee(employeeId: string, updates: Record<string,
     'salary', 'bank_name', 'bank_account', 'bank_holder',
     'employee_number', 'hire_date', 'is_4_insurance',
     'meal_allowance_included', 'contract_type',
-    'work_start_time', 'work_end_time',
+    'work_start_time', 'work_end_time', 'dependents',
   ];
   // date/number 컬럼 — 빈 string 받으면 Postgres 가 invalid 에러.
   // 빈 값은 null 로 정규화.
   const dateFields = new Set(['birth_date', 'hire_date']);
-  const numericFields = new Set(['salary']);
+  const numericFields = new Set(['salary', 'dependents']);
 
   const filtered: Record<string, unknown> = {};
   for (const key of allowedFields) {

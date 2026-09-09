@@ -33,7 +33,7 @@ export async function previewPayroll(
   const rates = await fetchInsuranceRates(companyId, rateYear);
   const employees = logRead('lib/payroll:employees', await db
     .from('employees')
-    .select('id, name, salary, status, meal_allowance_included, hire_date, birth_date, non_taxable_amount, is_4_insurance, employee_number, employment_type')
+    .select('id, name, salary, status, meal_allowance_included, hire_date, birth_date, non_taxable_amount, is_4_insurance, employee_number, employment_type, dependents')
     .eq('company_id', companyId)
     .in('status', ['active', 'joined', 'invited']));
 
@@ -130,7 +130,8 @@ export async function previewPayroll(
     const item = calculatePayroll(salary, emp.name, emp.id, {
       rates, insured: !isBiz && emp.is_4_insurance !== false,
       nonTaxableAmount: nonTaxable,
-      dependents: 1,
+      //   부양가족 수(본인 포함) — 종전엔 1 고정이라 부양가족 있는 직원 소득세가 과다했다 (2026-09-09 사장님).
+      dependents: Math.max(1, Number((emp as any).dependents) || 1),
       taxableAllowance: allowance, // 과세 수당 → 소득세·국민연금·건강·고용보험 자동 가산
       businessIncome: isBiz,
     });

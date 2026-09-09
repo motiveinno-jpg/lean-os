@@ -431,7 +431,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
           </div>
           <div className="flex items-center gap-2 shrink-0 pb-0.5">
             {!isEditing && detailTab === "info" && (
-              <button onClick={() => { setEditData({ name: emp.name || "", department: emp.department || "", position: emp.position || "", job_grade: emp.job_grade || "", employment_type: emp.employment_type || "", employee_number: emp.employee_number || "", hire_date: emp.hire_date || "", email: emp.email || "", phone: formatPhone(emp.phone), birth_date: emp.birth_date || "", address: emp.address || "", emergency_contact: emp.emergency_contact || "", emergency_phone: formatPhone(emp.emergency_phone), salary: emp.salary ? String(emp.salary) : "", bank_name: emp.bank_name || "", bank_account: emp.bank_account || "", bank_holder: emp.bank_holder || "", is_4_insurance: emp.is_4_insurance ? "true" : "false", work_start_time: emp.work_start_time ? emp.work_start_time.slice(0, 5) : "", work_end_time: emp.work_end_time ? emp.work_end_time.slice(0, 5) : "" }); setAnnualSalaryInput(emp.salary ? String(Number(emp.salary) * 12) : ""); setIsEditing(true); }} className="btn-secondary btn-sm">
+              <button onClick={() => { setEditData({ name: emp.name || "", department: emp.department || "", position: emp.position || "", job_grade: emp.job_grade || "", employment_type: emp.employment_type || "", employee_number: emp.employee_number || "", hire_date: emp.hire_date || "", email: emp.email || "", phone: formatPhone(emp.phone), birth_date: emp.birth_date || "", address: emp.address || "", emergency_contact: emp.emergency_contact || "", emergency_phone: formatPhone(emp.emergency_phone), salary: emp.salary ? String(emp.salary) : "", bank_name: emp.bank_name || "", bank_account: emp.bank_account || "", bank_holder: emp.bank_holder || "", is_4_insurance: emp.is_4_insurance ? "true" : "false", dependents: (emp as any).dependents != null ? String((emp as any).dependents) : "1", work_start_time: emp.work_start_time ? emp.work_start_time.slice(0, 5) : "", work_end_time: emp.work_end_time ? emp.work_end_time.slice(0, 5) : "" }); setAnnualSalaryInput(emp.salary ? String(Number(emp.salary) * 12) : ""); setIsEditing(true); }} className="btn-secondary btn-sm">
                 수정
               </button>
             )}
@@ -473,7 +473,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                 <span className="text-xs font-semibold text-[var(--info)]">정보 수정 중</span>
                 <div className="flex gap-2">
                   <button onClick={() => setIsEditing(false)} className="btn-secondary btn-sm">취소</button>
-                  <button onClick={async () => { try { await updateEmployee(employeeId, { ...editData, salary: editData.salary ? Number(editData.salary) : undefined, is_4_insurance: editData.is_4_insurance === "true" }); queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] }); queryClient.invalidateQueries({ queryKey: ["employees"] }); setIsEditing(false); toast("저장 완료", "success"); } catch (e: any) { toast(friendlyError(e, "저장 실패"), "error"); } }} className="btn-primary btn-sm">저장</button>
+                  <button onClick={async () => { try { await updateEmployee(employeeId, { ...editData, salary: editData.salary ? Number(editData.salary) : undefined, is_4_insurance: editData.is_4_insurance === "true", dependents: editData.dependents ? Math.max(1, Number(editData.dependents) || 1) : 1 }); queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] }); queryClient.invalidateQueries({ queryKey: ["employees"] }); setIsEditing(false); toast("저장 완료", "success"); } catch (e: any) { toast(friendlyError(e, "저장 실패"), "error"); } }} className="btn-primary btn-sm">저장</button>
                 </div>
               </div>
             )}
@@ -495,6 +495,8 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                   <EditField label="입사일" value={editData.hire_date} onChange={(v) => setEditData({ ...editData, hire_date: v })} type="date" />
                   <div><div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">고용형태</div><select value={editData.employment_type} onChange={(e) => setEditData({ ...editData, employment_type: e.target.value })} className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"><option value="">선택</option><option value="regular">정규직</option><option value="contract">계약직</option><option value="parttime">파트타임</option><option value="intern">인턴</option>{editData.employment_type && !["", "regular", "contract", "parttime", "intern"].includes(editData.employment_type) && <option value={editData.employment_type}>{ETYPE_LABEL[editData.employment_type] || editData.employment_type}</option>}</select></div>
                   <div><div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">4대보험</div><select value={editData.is_4_insurance} onChange={(e) => setEditData({ ...editData, is_4_insurance: e.target.value })} className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"><option value="true">가입</option><option value="false">미가입</option></select></div>
+                  {/* 부양가족 수(본인 포함) — 급여 소득세(간이세액표) 계산에 반영 (2026-09-09) */}
+                  <div><div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">부양가족 수 <span className="text-[var(--text-dim)] font-normal">(본인 포함)</span></div><input type="text" inputMode="numeric" value={editData.dependents ?? "1"} onChange={(e) => setEditData({ ...editData, dependents: e.target.value.replace(/[^0-9]/g, "") })} placeholder="1" className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" /></div>
                 </>) : (<>
                   <InfoRow label="사번" value={emp.employee_number} />
                   <InfoRow label="부서" value={emp.department} />
@@ -504,6 +506,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                   <InfoRow label="근속기간" value={emp.hire_date ? (() => { const d = new Date(emp.hire_date); const now = new Date(); const months = (now.getFullYear() - d.getFullYear()) * 12 + now.getMonth() - d.getMonth(); const y = Math.floor(months / 12); const m = months % 12; return y > 0 ? `${y}년 ${m}개월` : `${m}개월`; })() : undefined} />
                   <InfoRow label="고용형태" value={ETYPE_LABEL[emp.employment_type ?? ""] || emp.employment_type || ""} />
                   <InfoRow label="4대보험" value={emp.is_4_insurance ? "가입" : "미가입"} />
+                  <InfoRow label="부양가족 수" value={`${(emp as any).dependents ?? 1}명`} />
                 </>)}
               </div>
             </div>
@@ -1508,6 +1511,7 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
 
 // ── D-8: 관리자 인사노트 ──
 function AdminNotesSection({ employeeId, emp, queryClient }: { employeeId: string; emp: any; queryClient: any }) {
+  const { user: viewer } = useUser();
   const [noteText, setNoteText] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -1519,7 +1523,7 @@ function AdminNotesSection({ employeeId, emp, queryClient }: { employeeId: strin
     try {
       const newNote = {
         text: noteText.trim(),
-        author: "관리자",
+        author: viewer?.name || viewer?.email || "관리자",
         date: new Date().toISOString(),
       };
       const updated = [...notes, newNote];
