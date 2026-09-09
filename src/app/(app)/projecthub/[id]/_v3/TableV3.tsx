@@ -74,6 +74,8 @@ type Pop =
 
 // 표 안 날짜 편집 칸 — DateField 를 감싸 마지막 값만 저장. 포커스가 달력 팝오버로 옮겨 가는 것은 이탈로 보지 않는다.
 function DateEditCell({ value, onDone, onCancel }: { value: string; onDone: (v: string) => void; onCancel: () => void }) {
+  // 부품은 제어형이어야 한다 — 치는 도중 확정된 값을 다시 넘겨줘야 이어서 치는 글자가 그 값 뒤에 붙는다("2026-08-2" → "2026-08-27").
+  const [draft, setDraft] = useState(value);
   const latest = useRef(value);
   const closed = useRef(false);
   const wrap = useRef<HTMLSpanElement>(null);
@@ -87,7 +89,7 @@ function DateEditCell({ value, onDone, onCancel }: { value: string; onDone: (v: 
         if (to && (e.currentTarget.contains(to) || (pop && pop.contains(to)))) return;
         setTimeout(() => { const p2 = document.getElementById("datefield-pop"); if (p2 && p2.contains(document.activeElement)) return; finish(true); }, 150);
       }}>
-      <DateField autoFocus className="pjv3-cell" value={value} onChange={(e) => { latest.current = e.target.value; }}
+      <DateField autoFocus className="pjv3-cell" value={draft} onChange={(e) => { latest.current = e.target.value; setDraft(e.target.value); }}
         // 달력에서 날짜를 눌러 팝오버가 닫히면 포커스가 어디에도 없다 — 그때도 저장하고 닫는다(입력칸에 포커스가 남아 있으면 계속 편집)
         onBlur={() => setTimeout(() => { if (!wrap.current?.contains(document.activeElement)) finish(true); }, 0)} />
     </span>
