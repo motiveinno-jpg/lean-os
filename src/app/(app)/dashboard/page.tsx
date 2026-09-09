@@ -51,6 +51,7 @@ import  { BankRecentCard, ApprovalsPendingCard, EmployeesCard, PartnersCard, Ann
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import { fetchTaxDeadlineChecks, setTaxDeadlineChecked } from "@/lib/tax-deadline-checks";
 import { useCompanyBizNo } from "@/lib/use-company-bizno"; // 사업자번호 미등록 유도 배너 판정
+import { MorningBrief } from "@/components/morning-brief"; // AI 브리핑 — 격자 위 맨 윗줄(2026-09-09 사장님 지시)
 
 // ── Formatters ──
 function fmtW(n: number): string {
@@ -512,6 +513,24 @@ export default function DashboardPage() {
                예전 '동기화 줄 + 노란 미분류 배너 + 위젯 편집'은 없앴다 — 동기화·미분류는 통장/카드 위젯 머리에. ── */}
           {/* 층 1(신호)·층 2(챙길 것)는 2026-08-20 위젯이 됐고, 2026-09-04 사장님 지시로 카탈로그에서 뺐다(부록 격자만 메인).
               날짜·회사 이름과 '보기 설정'은 격자 머리 한 줄(headLeft)로 올라가 최상단 오른쪽에 보기 설정이 온다. */}
+
+          {/* ── AI 브리핑 — 격자 **위** 맨 윗줄 (2026-09-09 사장님 "대시보드에 AI브리핑 맨위에 넣어줘").
+               위젯으로 넣지 않은 이유: 카탈로그 위젯은 사람마다 자리를 옮기고 지울 수 있어 '맨 위'가 지켜지지 않는다.
+               ⚠️ 권한 /dashboard:briefing 보유자에게만 보인다 (2026-08-10 규칙 — 부여자 외에는 카드 자체가 안 뜬다).
+               ⚠️ AI 호출이 실패하면(요금·한도) 오류를 띄우지 않고 **규칙으로 만든 브리핑**으로 내려간다 —
+                  morning-brief.tsx 의 aiBriefData 가 null 이면 아래 자연어 조립 경로를 탄다. ── */}
+          {canBriefing && (
+            <MorningBrief
+              variant="full"
+              userName={userName}
+              companyName={companyName}
+              cashPulse={cashPulse}
+              dashboard={dashboard}
+              hasData={hasData}
+              userId={userId || undefined}
+              aiBriefingEnabled
+            />
+          )}
 
           {/* 동기화·엑셀 결과 토스트 — 위젯 머리 ↻ 를 누른 뒤 결과가 여기 뜬다 */}
           {canFinance && parseResult && (
