@@ -1796,10 +1796,14 @@ table.approval-table { min-width: 860px; } /* table. — .ev-table 의 min-width
 .board-post-badges { @apply flex items-center gap-2 flex-wrap; }
 /*   게시판 표 (2026-08-18 조회 표준) — 줄 클릭으로 아래에 본문·투표·첨부·댓글 펼침 */
 table.board-table { min-width: 900px; }
-.board-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 text-xs; }
-.board-table tbody tr.board-row { @apply cursor-pointer; }
+.board-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2.5 text-xs; }
+.board-table tbody td:first-child { @apply pl-4; }
+.board-table tbody tr.board-row { @apply cursor-pointer transition-colors; }
 .board-table tbody tr.board-row:hover td { background: var(--bg-surface); }
-.board-table tbody tr.board-row-open td { background: color-mix(in srgb, var(--primary) 5%, transparent); }
+.board-table tbody tr.board-row-open td { background: color-mix(in srgb, var(--primary) 6%, transparent); }
+/* 상단 고정 글 — 왼쪽에 얇은 강조선 + 아주 옅은 틴트로 눈에 띄게 */
+.board-table tbody tr.board-row-pinned td { background: color-mix(in srgb, var(--primary) 4%, transparent); }
+.board-table tbody tr.board-row-pinned td:first-child { box-shadow: inset 3px 0 0 0 var(--primary); }
 .board-table tbody tr.board-detail-row > td { @apply bg-[var(--bg-surface)]/40 p-0; max-width: 0; white-space: normal; } /* max-width:0 — 펼침 칸이 표 폭을 넘어 늘어나지 않게 */
 .board-table .board-post-detail { @apply overflow-x-auto; }
 .board-table .board-post-detail { @apply px-5 py-4; }
@@ -10416,10 +10420,19 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
 .att-detail-empty { @apply py-6 text-center text-[var(--text-dim)]; }
 
 /* ── 게시판 목록 제목 줄: 압정 칸 고정폭 → 제목 시작 위치 통일, 배지는 제목 뒤 ── */
-.board-post-line { @apply flex min-w-0 items-center gap-2; }
+.board-post-line { @apply flex min-w-0 items-center gap-3; }
 .board-pin-slot { @apply inline-flex w-4 shrink-0 items-center justify-center text-[12px]; }
-.board-post-title { @apply min-w-0 truncate text-sm font-bold text-[var(--text)]; }
-.board-post-tags { @apply inline-flex shrink-0 items-center gap-1.5; }
+.board-post-title { @apply flex-1 min-w-0 truncate text-sm font-semibold text-[var(--text)]; }
+.board-row:hover .board-post-title, .board-row-open .board-post-title { color: var(--primary); }
+/* 오른쪽 고정 클러스터 — 배지들과 펼침 화살표가 제목 길이와 무관하게 항상 같은 오른쪽 자리에 온다 */
+.board-post-meta { @apply inline-flex shrink-0 items-center gap-1.5; }
+.board-chip { @apply inline-flex items-center gap-1 shrink-0 text-[10px] font-semibold leading-none px-2 py-1 rounded-full whitespace-nowrap; }
+.board-chip-cat   { background: var(--bg); color: var(--text-dim); border: 1px solid var(--border); }
+.board-chip-event { background: var(--info-dim); color: var(--info); }
+.board-chip-poll  { background: color-mix(in srgb, var(--primary) 10%, transparent); color: var(--primary); }
+.board-chip-file  { background: var(--warning-dim); color: var(--warning); }
+.board-chevron { @apply w-4 h-4 shrink-0 ml-0.5 transition-transform; color: var(--text-dim); }
+.board-row:hover .board-chevron, .board-row-open .board-chevron { color: var(--primary); }
 
 /* ── 열 너비 고정 표: 정렬·쪽 이동으로 보이는 줄이 바뀌어도 열 폭이 안 흔들린다 — 폭은 머리단(useColWidths)이 정한다 ── */
 .ev-table.ev-cols-fixed { table-layout: fixed; }

@@ -1121,36 +1121,34 @@ export default function BoardPage() {
             const isMulti = !!p.poll_multi;
             return (
               <Fragment key={p.id}>
-                <tr className={open ? "board-row board-row-open" : "board-row"} onClick={() => setOpenId(open ? null : p.id)}>
+                <tr className={`board-row ${open ? "board-row-open" : ""} ${p.pinned ? "board-row-pinned" : ""}`} onClick={() => setOpenId(open ? null : p.id)}>
                   <td className="text-left">
-                    {/* 제목 줄 = [압정 칸(고정이면 📌, 아니면 빈칸 — 폭은 같게)] 제목 [분류·일정·투표·첨부 배지] ▾
-                        배지가 제목 앞에 오면 글마다 제목 시작 위치가 제각각이라 배지를 제목 뒤로 보냈다. */}
+                    {/* 제목 줄 = [압정 칸] 제목(남는 폭 채움·말줄임) ‖ 오른쪽 고정 클러스터[분류·일정·투표·첨부 배지] ▾
+                        제목을 flex-1 로 늘려, 배지·화살표가 글자 길이와 무관하게 항상 같은 오른쪽 자리에 정렬되게 한다. */}
                     <div className="board-post-line">
                       <span className="board-pin-slot" title={p.pinned ? "상단 고정" : undefined}>{p.pinned && <Ico e="📌" tone="mono" />}</span>
                       <span className="board-post-title">{p.title}</span>
-                      <span className="board-post-tags">
+                      <span className="board-post-meta">
                         {p.category && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg)] border border-[var(--border)] text-[var(--text-dim)] font-semibold">
-                            {p.category}
-                          </span>
+                          <span className="board-chip board-chip-cat">{p.category}</span>
                         )}
                         {p.event_date && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--info-dim)] text-[var(--info)] font-semibold">
+                          <span className="board-chip board-chip-event">
                             <Ico e="📅" tone="mono" /> {kstDateStr(new Date(p.event_date))}
                           </span>
                         )}
                         {p.poll_question && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">
+                          <span className="board-chip board-chip-poll">
                             <Ico e="🗳" tone="mono" /> 투표
                           </span>
                         )}
                         {(p.attachments?.length ?? 0) > 0 && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--warning-dim)] text-[var(--warning)] font-semibold">
+                          <span className="board-chip board-chip-file">
                             <Ico e="📎" /> {p.attachments!.length}
                           </span>
                         )}
+                        <svg className={`board-chevron ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" /></svg>
                       </span>
-                      <svg className={`w-3.5 h-3.5 shrink-0 text-[var(--text-dim)] transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" /></svg>
                     </div>
                   </td>
                   <td className="text-center">
