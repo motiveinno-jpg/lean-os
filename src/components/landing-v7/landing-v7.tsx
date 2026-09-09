@@ -811,7 +811,9 @@ export default function LandingV7() {
             {s.key === "channel" && (
               <div className="lp7-marquee">
                 <div className="lp7-marquee-track">
-                  {[0, 1].map((dup) => ["스마트스토어", "쿠팡", "CJ대한통운", "롯데택배", "로젠택배", "한진택배"].map((c) => (
+                  {/* 실제 API 로 주문이 연동되는 채널만(CHANNEL_HAS_API=스마트스토어·쿠팡). 그 외 채널·택배사는
+                      엑셀 붙여넣기/송장이라 '연동' 로고에서 뺐다(2026-09-09 — 없는 연동을 암시하지 않도록) */}
+                  {[0, 1].map((dup) => ["스마트스토어", "쿠팡"].map((c) => (
                     <span key={`${dup}-${c}`} className="lp7-chip">{c}</span>
                   )))}
                 </div>

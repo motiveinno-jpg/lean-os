@@ -48,7 +48,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/transactions": { group: "재무", title: "자동 분류", desc: "미분류 지출을 비용 항목으로 정리·자동화합니다. (전표·수금 처리는 수집·전표의 통장 탭)" },
 
   "/schedule": { group: "업무", title: "일정 / 할 일", desc: "일정과 할 일을 관리합니다." },
-  "/projecthub/quotes": { group: "업무", title: "견적 수취함", desc: "협력사에서 받은 견적을 모아 봅니다." },
+  "/projecthub/quotes": { group: "업무", title: "견적서", desc: "자사 견적서를 만들고 관리합니다." },
   "/projecthub": { group: "업무", title: "프로젝트", desc: "회사 일을 프로젝트 단위로 모아 관리합니다." },
   "/projects": { group: "업무", title: "워크플로우", desc: "전사 작업 보드를 봅니다." },
   "/deals": { group: "업무", title: "프로젝트", desc: "프로젝트를 관리합니다." },

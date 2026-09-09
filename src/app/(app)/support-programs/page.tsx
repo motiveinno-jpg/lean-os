@@ -8,6 +8,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { useModalKeys } from "@/hooks/use-modal-keys";
+import { upsertEvent } from "@/lib/schedule";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { SupportCompanyCard } from "@/components/support-company-card";
 import {
@@ -571,6 +572,25 @@ function ProgramDetail({ row, onClose, onSave, onDrop, onStatus, onOpenCard }: {
 }) {
   useModalKeys(true, onClose);
   const { program: p, judgement: j } = row;
+  //   '일정에 적기' — 종전엔 /schedule 로 이동만 하고 마감일·사업명을 안 넘겨 아무것도 안 적혔다(2026-09-09 사장님).
+  //   여기서 바로 일정을 만든다: 마감일(없으면 오늘)에 종일 일정 '[지원사업] 사업명 접수마감'.
+  const { user } = useUser();
+  const { toast: spToast } = useToast();
+  const spQc = useQueryClient();
+  const addToSchedule = useMutation({
+    mutationFn: () => upsertEvent({
+      companyId: user!.company_id!, userId: user!.id,
+      title: `[지원사업] ${p.title} 접수마감`,
+      description: p.detail_url || p.org || undefined,
+      startAt: (p.apply_end ? String(p.apply_end).slice(0, 10) : todayKst()),
+      allDay: true, color: "amber", visibility: "private",
+    }),
+    onSuccess: () => {
+      ["schedule-events", "schedule-items", "chat-cal-events", "my-todos-open"].forEach((k) => spQc.invalidateQueries({ queryKey: [k] }));
+      spToast(p.apply_end ? `${String(p.apply_end).slice(0, 10)} 일정에 담았습니다` : "오늘 일정에 담았습니다", "success");
+    },
+    onError: (e: any) => spToast(friendlyError(e, "일정 추가에 실패했습니다"), "error"),
+  });
 
   return (
     <div className="sp-modal-back" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -696,7 +716,9 @@ function ProgramDetail({ row, onClose, onSave, onDrop, onStatus, onOpenCard }: {
           {p.detail_url && (
             <a className="btn-secondary btn-sm" href={p.detail_url} target="_blank" rel="noreferrer noopener">공고 원문 열기 ↗</a>
           )}
-          <Link className="btn-secondary btn-sm" href="/schedule">일정에 적기</Link>
+          <button type="button" className="btn-secondary btn-sm" disabled={addToSchedule.isPending || !user?.company_id} onClick={() => addToSchedule.mutate()}>
+            {addToSchedule.isPending ? "담는 중…" : "일정에 적기"}
+          </button>
           {row.savedRow
             ? <button type="button" className="btn-secondary btn-sm" onClick={onDrop}>관심에서 빼기</button>
             : <button type="button" className="btn-primary btn-sm" onClick={onSave}>관심 담기</button>}

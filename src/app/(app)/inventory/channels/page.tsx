@@ -345,11 +345,12 @@ export default function ChannelsPage() {
                   </div>
                 </div>
                 <div className="pjv3-stpanel !mt-3">
-                  <h3>수집 상태 <small>채널별 마지막 주문 시각입니다.</small></h3>
+                  <h3>수집 상태 <small>채널별 마지막 주문 시각입니다. 수집은 수동(버튼/엑셀)이라 시간이 지나도 '끊긴' 것이 아닙니다.</small></h3>
                   {stData.sync.map((s) => (
                     <div key={s.ch} className="ch-st-sync">
                       <b className="w-24">{s.label}</b>
-                      <span className={`text-[11px] ${s.ageDays >= 3 ? "font-bold text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>
+                      {/*   자동 수집(스케줄러)이 없으므로 오래됐다고 빨간 '끊김'으로 겁주지 않는다 — 마지막 수집 시각만 담담히 (2026-09-09 사장님) */}
+                      <span className="text-[11px] text-[var(--text-dim)]">
                         마지막 등록 {s.at.slice(5, 16).replace("T", " ")}{s.ageDays >= 3 ? ` · ${s.ageDays}일 전` : ""}{s.api ? " · API 연동 가능 채널" : ""}
                       </span>
                       {/* API 채널은 가져오기 갈래로 오면서 API 팝업이 바로 열린다 — 클릭 한 번 절약 */}

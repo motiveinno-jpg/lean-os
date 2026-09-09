@@ -7,7 +7,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getMonthEvents, type ScheduleTodo } from "@/lib/schedule";
+import { getMonthEvents } from "@/lib/schedule";
 import { LEAVE_TYPES } from "@/lib/hr";
 import { supabase } from "@/lib/supabase";
 import { getCompanyLeaveTypes, defaultCompanyLeaveTypes } from "@/lib/leave-grants";
@@ -104,16 +104,16 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
     return map;
   }, [leaves, companyLeaveTypes]);   // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 날짜별 마커 집계
-  const byDate: Record<string, { todo: number; event: number; leave: number }> = {};
-  const bump = (raw: string | null | undefined, kind: "todo" | "event") => {
+  // 날짜별 마커 집계 — 할 일은 일정(schedule_events)으로 합쳐져 파란 '일정' 점으로 나온다(별도 주황 점 없음).
+  const byDate: Record<string, { event: number; leave: number }> = {};
+  const bump = (raw: string | null | undefined) => {
     const k = kstDay(raw);
     if (!k) return;
-    (byDate[k] || (byDate[k] = { todo: 0, event: 0, leave: 0 }))[kind]++;
+    (byDate[k] || (byDate[k] = { event: 0, leave: 0 })).event++;
   };
-  (events as any[]).forEach((e) => { if (!e.completed) bump(e.start_at, "event"); });
+  (events as any[]).forEach((e) => { if (!e.completed) bump(e.start_at); });
   Object.entries(leaveByDate).forEach(([k, list]) => {
-    (byDate[k] || (byDate[k] = { todo: 0, event: 0, leave: 0 })).leave = list.length;
+    (byDate[k] || (byDate[k] = { event: 0, leave: 0 })).leave = list.length;
   });
 
   // 달력 셀
@@ -125,17 +125,13 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
 
   // 선택일 항목
   const selEvents = (events as any[]).filter((e) => kstDay(e.start_at) === selected && !e.completed);
-  const selTodos: ScheduleTodo[] = [];   // 합쳐진 뒤로는 비어 있다(위 주석 참고)
-  const selItems = [
-    ...selEvents.map((e) => ({ id: `e${e.id}`, title: e.title as string, kind: "event" as const })),
-    ...selTodos.map((t) => ({ id: `t${t.id}`, title: t.title, kind: "todo" as const })),
-  ];
+  const selItems = selEvents.map((e) => ({ id: `e${e.id}`, title: e.title as string, kind: "event" as const }));
   const selLeaves = leaveByDate[selected] || [];
 
   return (
     <div className="dashboard-calendar glass-card">
       <div className="dashboard-calendar-header">
-        <h3 className="text-[13px] font-bold text-[var(--text)]">{year}년 {month + 1}월 <span className="text-[var(--text-dim)] font-normal">일정 · 할 일 · 휴가</span></h3>
+        <h3 className="text-[13px] font-bold text-[var(--text)]">{year}년 {month + 1}월 <span className="text-[var(--text-dim)] font-normal">일정 · 휴가</span></h3>
         <Link href="/schedule" className="widget-more-link">전체보기 →</Link>
       </div>
 
@@ -160,9 +156,7 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
               <span className="text-[11px]">{d}</span>
               {/* 일정(파랑)·할 일(주황)·휴가(초록)는 점으로 — 날짜를 누르면 아래에 누구·무슨 휴가인지 나온다 */}
               <span className="flex gap-0.5 mt-0.5 h-1 items-center">
-                {marks?.event ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--primary)]"}`} /> : null}
-                {marks?.todo ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--warning)]"}`} /> : null}
-                {marks?.leave ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--success)]"}`} /> : null}
+                {marks?.event ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--primary)]"}`} /> : null}                {marks?.leave ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--success)]"}`} /> : null}
               </span>
             </button>
           );

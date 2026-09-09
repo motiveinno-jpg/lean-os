@@ -10,7 +10,7 @@ import {
   getCurrentUser, getChannels, getDeals, getUnreadCounts, getChannel, getMessages, getMessagesPaginated, getParticipants, getChannelEvents,
   searchChannelMessages, getBatchReactions, getActionCards, getChannelFiles,
 } from "@/lib/queries";
-import { createChannel, sendMessage, togglePin, markAsRead, uploadChatFile, sendMessageWithMentions, addReaction, removeReaction, editMessage, deleteMessage, createTeamChannel, createDMChannel, getOrCreateDMChannel, inviteParticipant, getOrCreateInviteToken, getChatInviteUrl, sendSystemMessage } from "@/lib/chat";
+import { createChannel, sendMessage, togglePin, markAsRead, uploadChatFile, sendMessageWithMentions, addReaction, removeReaction, editMessage, deleteMessage, createTeamChannel, getOrCreateDMChannel, inviteParticipant, getOrCreateInviteToken, getChatInviteUrl, sendSystemMessage } from "@/lib/chat";
 import { subscribeToMessages, subscribeToMessageUpdates, subscribeToReactions, unsubscribe, type RealtimeStatus } from "@/lib/realtime";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
@@ -514,7 +514,8 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
   const createDMMut = useMutation({
     mutationFn: () => {
       if (!userId || !companyId) throw new Error("Not authenticated");
-      return createDMChannel({ companyId, participantIds: [userId, dmUserId] });
+      //   기존 1:1 방이 있으면 재사용 — 종전엔 createDMChannel 로 매번 새 방을 만들어 대화가 쪼개졌다(2026-09-09 사장님).
+      return getOrCreateDMChannel({ companyId, meId: userId, otherId: dmUserId });
     },
     onSuccess: (ch: any) => {
       queryClient.invalidateQueries({ queryKey: ["chat-channels"] });

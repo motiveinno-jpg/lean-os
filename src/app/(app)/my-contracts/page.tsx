@@ -72,7 +72,7 @@ export default function MyContractsPage()  {
   const cfSpec = (k: keyof ReturnType<typeof colVal>) => cf.spec(k, packages.map((p) => colVal(p)[k]));
   const filtered = useMemo(() => {
     let arr = packages.filter((p) => cf.hit(colVal(p)));
-    if (filter === "pending") arr = arr.filter((p) => ["sent", "partially_signed", "draft"].includes(p.status));
+    if (filter === "pending") arr = arr.filter((p) => ["sent", "partially_signed"].includes(p.status));
     else if (filter === "completed") arr = arr.filter((p) => p.status === "completed");
     arr = arr.filter((p) => quickSearchHit(q, [p.title, stLabel(p)]));
     const val = (p: Package) => {
@@ -89,7 +89,7 @@ export default function MyContractsPage()  {
   const chips: AppliedChip[] = quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) }));
 
   const counts = useMemo(() => {
-    const pending = packages.filter((p) => ["sent", "partially_signed", "draft"].includes(p.status)).length;
+    const pending = packages.filter((p) => ["sent", "partially_signed"].includes(p.status)).length;
     const completed = packages.filter((p) => p.status === "completed").length;
     return { pending, completed, all: packages.length };
   }, [packages]);

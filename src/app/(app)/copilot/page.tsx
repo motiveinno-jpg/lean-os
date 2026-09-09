@@ -127,6 +127,8 @@ export default function CopilotPage() {
   const [planLocked, setPlanLocked] = useState(false);
   const [limitExceeded, setLimitExceeded] = useState(false);
   const [connErr, setConnErr] = useState(false);
+  //   실제 응답을 한 번이라도 받기 전엔 '연결됨'을 초록으로 단정하지 않는다(종전엔 확인 없이 기본 초록, 2026-09-09).
+  const [connOk, setConnOk] = useState(false);
   const [attachments, setAttachments] = useState<CopilotAttachment[]>([]);
   const [attaching, setAttaching] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -483,6 +485,7 @@ export default function CopilotPage() {
         }];
       });
       setConnErr(false);
+      setConnOk(true);
       // 위험 낮은 액션(본인 출퇴근)은 확인 없이 바로 실행 — 사장님 요청("출근 찍어줘" 한 번에).
       if (act && act.tier === "immediate" && aiIndex >= 0) void runAction(aiIndex, act);
       // DB에 대화 기록 저장 (company_id는 서버 트리거가 자동 채움)
@@ -527,7 +530,7 @@ export default function CopilotPage() {
             <CopilotNotesButton companyId={companyId} userId={user?.id ?? null} />
             {messages.length > 0 && <button type="button" onClick={() => setMessages([])} className="btn-secondary btn-sm" aria-label="대화 초기화">대화 초기화</button>}
           </>}>
-            <span className={`copilot2-conn ${connErr ? "copilot2-conn-err" : "copilot2-conn-ok"}`}><span className="copilot2-conn-dot" aria-hidden />{connErr ? "연결 오류" : "AI 연결됨"}</span>
+            <span className={`copilot2-conn ${connErr ? "copilot2-conn-err" : connOk ? "copilot2-conn-ok" : ""}`}><span className="copilot2-conn-dot" aria-hidden />{connErr ? "연결 오류" : connOk ? "AI 연결됨" : "AI 참모"}</span>
             <span className="text-[11px] text-[var(--text-dim)]">기준 {kstDate(usage?.as_of)} · 회사 데이터를 근거로 오늘 할 일을 정리합니다.</span>
           </QueryBar>
         </QueryHead>

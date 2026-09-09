@@ -386,17 +386,8 @@ export function buildVariableMap(employee: any, company: any): Record<string, st
   probationEnd.setMonth(probationEnd.getMonth() + 3);
   const probationEndStr = kstDateStr(probationEnd);
 
-  // Birth date from resident number (YYMMDD)
-  // employees 에 resident_number 컬럼 없음(주민번호 미저장) — 항상 빈값이라 계약서엔 placeholder 로 나감
-  const rn = '';
-  let birthDateStr = '';
-  if (rn.length >= 6) {
-    const yy = rn.slice(0, 2);
-    const mm = rn.slice(2, 4);
-    const dd = rn.slice(4, 6);
-    const century = (rn.length >= 8 && (rn[7] === '3' || rn[7] === '4')) ? '20' : '19';
-    birthDateStr = `${century}${yy}년 ${mm}월 ${dd}일`;
-  }
+  //   주민등록번호는 employee_rrn 에 암호화 저장되지만, 민감정보라 계약서 본문에 자동으로 박지 않고
+  //   빈 자리표시자(fill-in)로 둔다 — 인쇄·검토 시 직접 채운다(2026-09-09). 생년월일은 employee.birth_date 로 채운다.
 
   // Salary breakdown table for 연봉계약서
   const mealAllowance = 200000; // 식대 비과세
@@ -427,7 +418,7 @@ export function buildVariableMap(employee: any, company: any): Record<string, st
 
     // Contract template variables
     contract_date: today,
-    birth_date: birthDateStr || employee.birth_date || '',
+    birth_date: employee.birth_date || '',
     probation_start: employee.hire_date || today,
     probation_end: probationEndStr,
     probation_pay_rate: '100%',
@@ -439,6 +430,7 @@ export function buildVariableMap(employee: any, company: any): Record<string, st
     // Korean keys (for backward compatibility with custom templates)
     직원명: employee.name || '',
     주민등록번호: '______-_______',
+    주민번호: '______-_______',   // {{주민번호}} 별칭 — 종전엔 이 키가 없어 커스텀 양식에서 미치환
     부서: employee.department || '',
     직급: employee.position || '',
     입사일: employee.hire_date || today,
@@ -455,7 +447,7 @@ export function buildVariableMap(employee: any, company: any): Record<string, st
     // 2026-07-28 서식 한글화 — built-in 템플릿 변수 = Step 3 입력 필드 key 와 동일
     계약일: today,
     계약일자: today,
-    생년월일: birthDateStr || employee.birth_date || '',
+    생년월일: employee.birth_date || '',
     수습시작일: employee.hire_date || today,
     수습종료일: probationEndStr,
     수습급여율: '100%',

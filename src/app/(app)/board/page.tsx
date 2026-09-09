@@ -1054,12 +1054,9 @@ export default function BoardPage() {
             </button>
             <button
               onClick={() => savePost.mutate()}
-              disabled={
-                savePost.isPending ||
-                uploading ||
-                !form.title.trim() ||
-                !form.content.trim()
-              }
+              /*   빈 본문 판정은 canSavePost(isEmptyHtml) 로 통일 — content 는 리치 에디터 HTML 이라
+                   빈 글도 '<p></p>' 로 truthy 여서 .trim() 게이트가 헛돌아 눌리면 에러가 났다(2026-09-09). */
+              disabled={!canSavePost}
               className="btn-primary"
             >
               {uploading
