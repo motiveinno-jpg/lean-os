@@ -170,8 +170,10 @@ export async function fetchCollectStatus(companyId: string, from: string, to: st
   const brokenOf = (key: SourceKey, total: number): string | null => {
     const j = jobLast.get(key);
     if (!j) return null;
-    //   수집은 '완료'로 끝났는데 받아온 게 0건이고 보유 자료도 없으면 저장 단계가 막힌 것이다
-    if (j.zeroRuns >= 3 && total === 0) return `수집은 되는데 ${j.zeroRuns}회 연속 0건 · 저장 단계 확인 필요`;
+    //   수집(홈택스 로그인·조회)은 완료됐는데 최근 여러 번 새로 가져온 게 0건이고 보유 자료도 없는 상태.
+    //   운영자용 진단 문구('저장 단계 확인')를 사장님 화면에 그대로 보여줘 어려웠다 → 사실만 쉬운 말로 (2026-09-09 사장님).
+    //   해당 기간에 발행·수취 내역이 없으면 정상이므로 '오류'가 아니라 담담한 안내로 톤을 낮춘다.
+    if (j.zeroRuns >= 3 && total === 0) return `수집은 됐는데 새로 들어온 내역이 없어요`;
     return null;
   };
 

@@ -279,7 +279,7 @@ function CollectInner() {
                       const broken = !!st?.brokenNote;
                       return (
                         <tr key={s.key} onClick={() => setTab(s.key)}
-                          className={broken ? "cs-row cs-row-bad" : "cs-row"}>
+                          className="cs-row">
                           <td>
                             <span className="cs-name">
                               <i className="cs-ico">{s.icon}</i>{s.label}
@@ -288,7 +288,10 @@ function CollectInner() {
                           <td className="tr mono-number cs-total">{won(st?.total ?? 0)}</td>
                           <td className="tc">
                             {broken ? (
-                              <span className="collect-pill collect-pill-err">{st!.brokenNote}</span>
+                              <span className="collect-pill collect-pill-todo"
+                                title="홈택스 로그인·조회는 정상인데, 최근 여러 번 새로 가져온 내역이 0건입니다. 그 기간에 발행·수취 내역이 없으면 정상이에요. 분명히 있는데도 계속 0건이면 고객센터에 알려주세요.">
+                                {st!.brokenNote}
+                              </span>
                             ) : (st?.pending ?? 0) > 0 ? (
                               <span className="collect-pill collect-pill-todo">{won(st!.pending)}</span>
                             
@@ -402,8 +405,8 @@ function CollectInner() {
                           {cd.disabled && <span className="collect-pick-block"> · {cd.label}</span>}
                         </span>
                       </span>
-                      <span className={st?.brokenNote ? "collect-est collect-est-err" : "collect-est"}>
-                        {st?.brokenNote ? "점검 중" : st?.lastSeconds != null ? `${fmtSec(st.lastSeconds)}` : "기록 없음"}
+                      <span className="collect-est" title={st?.brokenNote ? "최근 수집에서 새로 들어온 내역이 없습니다." : undefined}>
+                        {st?.brokenNote ? "새 내역 없음" : st?.lastSeconds != null ? `${fmtSec(st.lastSeconds)}` : "기록 없음"}
                       </span>
                     </button>
                   );
