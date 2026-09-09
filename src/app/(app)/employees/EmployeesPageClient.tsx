@@ -25,7 +25,7 @@ import {
   getAttendanceRecords, getMonthlyAttendanceSummary,
   recomputeAttendance,
   calculateWeeklyHours,
-  getLeaveRequests, createLeaveRequest, approveLeaveRequest, rejectLeaveRequest, calcLeaveDays,
+  getLeaveRequests, createLeaveRequest, registerAdminLeave, approveLeaveRequest, rejectLeaveRequest, calcLeaveDays,
   getLeaveBalances, correctAttendanceRecord,
   calculateAnnualLeave,
   cancelLeaveRequest, getCompanyMembers,
@@ -2442,6 +2442,24 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
         days = await calcLeaveDays(companyId!, form.startDate, form.endDate || form.startDate);
       }
 
+      const approvers = form.approverSteps.filter(Boolean);
+      //   승인자를 지정했으면 결재 요청(승인 대기)으로, 지정 안 했으면 관리자 직접 등록(즉시 승인)으로.
+      //   종전엔 승인자 없이도 pending 으로 저장돼 어느 화면에도 안 나타났다(2026-09-09 사장님).
+      if (approvers.length === 0) {
+        return registerAdminLeave({
+          companyId: companyId!,
+          employeeId: form.employeeId,
+          leaveType: form.leaveType,
+          startDate: form.startDate,
+          endDate: form.endDate || form.startDate,
+          days,
+          reason: form.reason,
+          leaveUnit: unit as any,
+          halfDayPeriod: unit === "half_day" ? form.halfDayPeriod : undefined,
+          startTime: form.startTime || undefined,
+          endTime: form.endTime || undefined,
+        });
+      }
       return createLeaveRequest({
         companyId: companyId!,
         employeeId: form.employeeId,
@@ -2454,7 +2472,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
         halfDayPeriod: unit === "half_day" ? form.halfDayPeriod : undefined,
         startTime: form.startTime || undefined,
         endTime: form.endTime || undefined,
-        approverIds: form.approverSteps.filter(Boolean),
+        approverIds: approvers,
         ccUserIds: form.ccUserIds,
       });
     },
@@ -2481,8 +2499,11 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     : quick.leaveUnit === "two_hours" ? 0.25
     : !quick.startDate ? 0
     : (quickBizDays ?? 0);
+  //   관리자가 이름 클릭 → 바로 등록하는 팝업은 '결재 없이 확정'이 취지다. 종전엔 createLeaveRequest 로
+  //   pending 저장돼 승인자도 없이 떠서, 워크보드·근태·달력·연차잔액 어디에도 안 나타났다(2026-09-09 사장님).
+  //   구성원 상세 등록과 동일하게 registerAdminLeave(승인 상태로 확정)로 통일한다.
   const createQuickLeave = useMutation({
-    mutationFn: () => createLeaveRequest({
+    mutationFn: () => registerAdminLeave({
       companyId: companyId!,
       employeeId: rosterEmp!.id,
       leaveType: quick.leaveType,
@@ -2492,8 +2513,6 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
       reason: quick.reason,
       leaveUnit: quick.leaveUnit as any,
       halfDayPeriod: quick.leaveUnit === "half_day" ? quick.halfDayPeriod : undefined,
-      approverIds: [],
-      ccUserIds: [],
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
