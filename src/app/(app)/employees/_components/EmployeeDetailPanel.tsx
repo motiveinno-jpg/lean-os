@@ -65,7 +65,6 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const [termChecklist, setTermChecklist] = useState({ equipment: false, systemAccess: false, handover: false, insurance: false });
   const [terminating, setTerminating] = useState(false);
   const [termLossReason, setTermLossReason] = useState("11");
-  const [ediGenerated, setEdiGenerated] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<Record<string, string>>({});
   // 연봉 raw 입력 보존 · ÷12 → ×12 반올림으로 input 이 깨지지 않게.
@@ -75,10 +74,19 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   async function confirmTermination() {
     setTerminating(true);
     try {
+      //   상실사유·체크리스트를 실제로 저장한다(종전엔 고르기만 하고 버려졌다, 2026-09-09 사장님).
+      const offboarding = {
+        loss_reason: termLossReason,
+        loss_reason_label: LOSS_REASONS.find((r) => r.code === termLossReason)?.label || null,
+        checklist: { ...termChecklist },
+        completed_by: viewer?.id || null,
+        completed_at: new Date().toISOString(),
+      };
       const { error } = await (supabase).from("employees").update({
         status: "inactive",
         resignation_date: termDate,
-      }).eq("id", employeeId);
+        offboarding,
+      } as never).eq("id", employeeId);
       if (error) throw error;
       const verify = logRead('_components/EmployeeDetailPanel:verify', await (supabase).from("employees").select("id,status").eq("id", employeeId).maybeSingle());
       if (!verify || verify.status !== "inactive") throw new Error("상태 업데이트 실패 · 권한을 확인해주세요");
@@ -499,6 +507,33 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                 </>)}
               </div>
             </div>
+            {/* 퇴사 정보 — 퇴사 처리 때 기록한 상실사유·오프보딩 체크리스트 (2026-09-09) */}
+            {!isEditing && (emp.status === "inactive" || emp.status === "resigned") && (emp.resignation_date || (emp as any).offboarding) && (() => {
+              const ob = (emp as any).offboarding as { loss_reason?: string; loss_reason_label?: string; checklist?: Record<string, boolean> } | null;
+              return (
+              <div className="employee-info-section">
+                <div className="text-xs font-bold text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+                  퇴사 정보
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <InfoRow label="퇴사일" value={emp.resignation_date} />
+                  {ob?.loss_reason && (
+                    <InfoRow label="상실사유" value={`${ob.loss_reason} - ${ob.loss_reason_label || ""}`} />
+                  )}
+                </div>
+                {ob?.checklist && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {([["equipment", "장비 반납"], ["systemAccess", "시스템 접근 해제"], ["handover", "인수인계"], ["insurance", "4대보험 상실 신고"]] as const).map(([k, label]) => (
+                      <span key={k} className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${ob.checklist?.[k] ? "bg-[var(--success-dim)] text-[var(--success)]" : "bg-[var(--bg-surface)] text-[var(--text-dim)]"}`}>
+                        {ob.checklist?.[k] ? "✓ " : "· "}{label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              );
+            })()}
             {/* 근무시간 (개인 설정) */}
             <div className="employee-info-section">
               <div className="text-xs font-bold text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
@@ -1209,7 +1244,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                       { key: "equipment" as const, label: "장비 반납 완료" },
                       { key: "systemAccess" as const, label: "사내 시스템 접근 해제" },
                       { key: "handover" as const, label: "인수인계 완료" },
-                      { key: "insurance" as const, label: ediGenerated ? "4대보험 상실 신고 (EDI 생성 완료)" : "4대보험 상실 신고" },
+                      { key: "insurance" as const, label: "4대보험 상실 신고" },
                     ]).map((item) => (
                       <label key={item.key} className="flex items-center gap-2.5 px-3 py-2 bg-[var(--bg-surface)] rounded-lg border border-[var(--border)] cursor-pointer hover:border-[var(--primary)] transition">
                         <input
