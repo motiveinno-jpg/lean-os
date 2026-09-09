@@ -4989,18 +4989,6 @@ table.pnl-drill-table { min-width: 760px; }
 .dashboard-calendar-weekdays { @apply grid grid-cols-7 gap-0.5 mb-1 shrink-0; }
 .dashboard-calendar-days { @apply grid grid-cols-7 auto-rows-fr gap-0.5 flex-1 min-h-0; }
 .dashboard-calendar-cell { @apply w-full h-full min-h-[26px]; }
-/* 달력 칸 휴가 칩 — 종류별 은은한 색, 이름(진하게)·종류(작게) 두 줄. (2026-09-09) */
-.cal-leave { @apply mt-1 flex flex-col items-center max-w-[94%] min-w-0 leading-none rounded-md px-1.5 py-0.5; --cal-leave-c: var(--success); background: color-mix(in srgb, var(--cal-leave-c) 13%, transparent); }
-.cal-leave-name { @apply max-w-full truncate text-[8.5px] font-bold; color: var(--cal-leave-c); }
-.cal-leave-type { @apply max-w-full truncate text-[7.5px] font-medium mt-px; color: var(--cal-leave-c); opacity: 0.72; }
-.cal-leave-annual   { --cal-leave-c: var(--success); }
-.cal-leave-half     { --cal-leave-c: var(--warning); }
-.cal-leave-sick     { --cal-leave-c: var(--danger); }
-.cal-leave-official { --cal-leave-c: var(--info, var(--primary)); }
-.cal-leave-etc      { --cal-leave-c: var(--primary); }
-.cal-leave.on { background: rgba(255,255,255,0.26); }
-.cal-leave.on .cal-leave-name, .cal-leave.on .cal-leave-type { color: #fff; opacity: 1; }
-.cal-leave.on .cal-leave-type { opacity: 0.85; }
 /* 고른 날짜의 일정 — 길어지면 여기서만 스크롤(카드 밖으로 밀지 않는다) */
 .dashboard-calendar-selected { @apply mt-3 border-t border-[var(--border)] pt-2.5 shrink-0 max-h-[38%] overflow-y-auto; }
 .dashboard-calendar-items { @apply flex flex-col gap-1; }

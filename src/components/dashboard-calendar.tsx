@@ -77,21 +77,12 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
     if (Number(l.days) === 0.5) return "반차"; // 구 데이터 방어 — unit 없이 0.5일로만 기록된 건
     return leaveLabel(String(l.leave_type || ""));
   };
-  // 휴가 종류별 색 (달력이 알록달록 안 하도록 은은한 톤) — 반차/시간차는 단위, 그 외는 leave_type.
-  const leaveTone = (l: any): "annual" | "half" | "sick" | "official" | "etc" => {
-    if (l.leave_unit === "half_day" || l.leave_unit === "two_hours" || Number(l.days) === 0.5) return "half";
-    const t = String(l.leave_type || "");
-    if (t === "annual") return "annual";
-    if (t === "sick") return "sick";
-    if (t === "official" || t === "public") return "official";
-    return "etc";
-  };
 
   // 휴가는 기간(start_date~end_date)이라 날짜별로 펼쳐 둔다.
   //   날짜 문자열끼리만 더해 나가므로 타임존 변환이 끼어들지 않는다
   //   (new Date 로 돌리면 KST 자정이 UTC 전날로 밀려 하루 어긋난 전례가 있다).
   const leaveByDate = useMemo(() => {
-    const map: Record<string, { name: string; label: string; tone: string }[]> = {};
+    const map: Record<string, { name: string; label: string }[]> = {};
     const nextDay = (d: string) => {
       const [y, m, dd] = d.split("-").map(Number);
       const t = new Date(Date.UTC(y, m - 1, dd + 1));
@@ -103,11 +94,10 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
       if (!from) continue;
       const name = l.employee_name || l.employees?.name || "";
       const label = displayLabel(l);
-      const tone = leaveTone(l);
       let cur = from;
       // 방어: 잘못 입력된 기간(끝<시작)이나 비정상적으로 긴 기간에서 무한 루프 방지
       for (let i = 0; i < 366 && cur <= to; i++) {
-        (map[cur] || (map[cur] = [])).push({ name, label, tone });
+        (map[cur] || (map[cur] = [])).push({ name, label });
         cur = nextDay(cur);
       }
     }
@@ -162,27 +152,18 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
           const marks = byDate[key];
           const isToday = key === todayStr;
           const isSel = key === selected;
-          const dayLeaves = leaveByDate[key] || [];
           return (
             <button key={key} type="button" onClick={() => setSelected(key)}
-              className={`dashboard-calendar-cell rounded-lg flex flex-col items-center justify-center leading-none overflow-hidden transition ${
+              className={`dashboard-calendar-cell rounded-lg flex flex-col items-center justify-center leading-none transition ${
                 isSel ? "bg-[var(--primary)] text-white font-bold" : isToday ? "bg-[var(--primary)]/12 text-[var(--primary)] font-bold" : "text-[var(--text)] hover:bg-[var(--bg-surface)]"
               }`}>
               <span className="text-[11px]">{d}</span>
-              {/* 일정·할 일은 점으로 (휴가는 아래에 이름으로 직접 보인다) */}
-              {(marks?.event || marks?.todo) ? (
-                <span className="flex gap-0.5 mt-0.5 h-1 items-center">
-                  {marks?.event ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--primary)]"}`} /> : null}
-                  {marks?.todo ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--warning)]"}`} /> : null}
-                </span>
-              ) : null}
-              {/* 직원 휴가는 달력 칸에 이름·종류로, 종류별 색으로 (2026-09-09 사장님) — 여러 명이면 "외 N" */}
-              {dayLeaves.length ? (
-                <span className={`cal-leave cal-leave-${dayLeaves[0].tone} ${isSel ? "on" : ""}`} title={dayLeaves.map((l) => `${l.name} ${l.label}`).join(", ")}>
-                  <span className="cal-leave-name">{dayLeaves[0].name}{dayLeaves.length > 1 ? ` 외${dayLeaves.length - 1}` : ""}</span>
-                  <span className="cal-leave-type">{dayLeaves.length > 1 ? `휴가 ${dayLeaves.length}건` : dayLeaves[0].label}</span>
-                </span>
-              ) : null}
+              {/* 일정(파랑)·할 일(주황)·휴가(초록)는 점으로 — 날짜를 누르면 아래에 누구·무슨 휴가인지 나온다 */}
+              <span className="flex gap-0.5 mt-0.5 h-1 items-center">
+                {marks?.event ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--primary)]"}`} /> : null}
+                {marks?.todo ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--warning)]"}`} /> : null}
+                {marks?.leave ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--success)]"}`} /> : null}
+              </span>
             </button>
           );
         })}
