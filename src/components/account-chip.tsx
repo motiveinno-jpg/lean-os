@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Avatar } from "@/components/avatar";
@@ -71,6 +72,12 @@ export function AccountChip() {
 
   useModalKeys(open, () => setOpen(false), () => { setOpen(false); router.push("/mypage"); });
 
+  //   로그아웃 — 사이드바와 같은 경로(세션 종료 후 통째로 새로 뜬다). 팝오버에도 둔다 (2026-09-10 사장님).
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = "/auth";
+  };
+
   //   저장 · 본인 users 행만(RLS auth_id = auth.uid()). 근무중으로 돌리면 메모·해제 시각도 지운다.
   const savePresence = async (status: PresenceStatus, opts?:  { until?: string | null; note?: string | null }) => {
     if (!user?.id || saving) return;
@@ -101,11 +108,11 @@ export function AccountChip() {
           <Avatar name={user?.name || user?.email} src={user?.avatar_url} size={30} />
           <PresenceDot row={user as any} className="account-chip-dot" />
         </span>
-        <span className="hidden md:block min-w-0 text-left">
-          <span className="block text-xs font-bold text-[var(--text)] leading-4 truncate max-w-[110px]">
-            {user?.name || user?.email?.split("@")[0] || ""}
-          </span>
-          <span className="block text-[10px] text-[var(--text-dim)] leading-3 truncate max-w-[110px]">{presence.status === "available" ? whoLabel : presenceText(presence)}</span>
+        {/*   폭 고정 — 상태를 바꾸면 아랫줄 글자 길이가 달라지는데, 폭이 글자를 따라가면
+              칩이 늘었다 줄었다 하면서 머리 줄(알림·도움말)까지 밀렸다 (2026-09-10 사장님). */}
+        <span className="account-chip-who">
+          <span className="account-chip-who-name">{user?.name || user?.email?.split("@")[0] || ""}</span>
+          <span className="account-chip-who-sub">{presence.status === "available" ? whoLabel : presenceText(presence)}</span>
         </span>
       </button>
 
@@ -179,11 +186,11 @@ export function AccountChip() {
             </div>
 
             <div className="account-chip-footer">
-              <button
-                onClick={() => { setOpen(false); router.push("/mypage"); }}
-                className="w-full flex items-center justify-center gap-1.5 text-[12px] font-semibold text-[var(--primary)] hover:underline"
-              >
-                마이페이지로 이동 →
+              <button onClick={() => { setOpen(false); router.push("/mypage"); }} className="account-chip-footer-btn">
+                마이페이지
+              </button>
+              <button onClick={handleLogout} className="account-chip-footer-btn is-danger">
+                <LogOut size={13} strokeWidth={2.2} />로그아웃
               </button>
             </div>
           </div>

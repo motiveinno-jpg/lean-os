@@ -4687,7 +4687,13 @@ table.pnl-drill-table { min-width: 760px; }
 .account-chip-popover-header { @apply flex items-center justify-between px-4 py-3 border-b border-[var(--border)]; }
 .account-chip-identity { @apply flex items-center gap-3 px-4 py-4; }
 .account-chip-details { @apply px-4 pb-3 space-y-1.5 text-[12px]; }
-.account-chip-footer { @apply px-4 py-2.5 border-t border-[var(--border)]; }
+.account-chip-footer { @apply px-4 py-2.5 border-t border-[var(--border)] flex items-center gap-2; }
+.account-chip-footer-btn { @apply flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] py-1.5 text-[12px] font-semibold text-[var(--text)] transition hover:bg-[var(--bg-surface)]; }
+.account-chip-footer-btn.is-danger { @apply text-[var(--danger)] border-[var(--danger)]/30 hover:bg-[var(--danger)]/10; }
+/*   이름·상태 칸은 폭 고정 — 글자 길이를 따라가면 상태를 바꿀 때마다 머리 줄이 흔들린다 */
+.account-chip-who { @apply hidden md:block w-[110px] text-left; }
+.account-chip-who-name { @apply block text-xs font-bold text-[var(--text)] leading-4 truncate; }
+.account-chip-who-sub { @apply block text-[10px] text-[var(--text-dim)] leading-3 truncate; }
 /* 내 상태 (2026-09-04) — 계정 칩·팝오버·메신저가 같은 점(.presence-dot) */
 .presence-dot { @apply inline-block h-2 w-2 shrink-0 rounded-full align-middle; }
 .presence-dot-meeting { background: var(--warning); }
@@ -5042,9 +5048,13 @@ table.pnl-drill-table { min-width: 760px; }
 .dashboard-calendar-sel-date { @apply text-[12px] font-bold text-[var(--text)]; }
 .dashboard-calendar-sel-today { @apply px-1.5 py-px rounded-md text-[10px] font-bold text-[var(--primary)] bg-[var(--primary)]/10; }
 .dashboard-calendar-sel-count { @apply ml-auto text-[11px] font-semibold text-[var(--text-dim)]; }
+.dashboard-calendar-sel-none { @apply ml-auto text-[11px] text-[var(--text-dim)]; }
+/* 빈 날 — 그 자리에 다가오는 일정을 대신 놓는다 */
+.dashboard-calendar-upcoming-head { @apply text-[10.5px] font-bold text-[var(--text-dim)] mb-0.5; }
 .dashboard-calendar-items { @apply flex flex-col gap-1; }
 .dashboard-calendar-item { @apply flex items-center gap-2 px-2 py-1.5 rounded-lg no-underline bg-[var(--bg-surface)] hover:bg-[var(--border)] transition; }
 .dashboard-calendar-item-bar { @apply w-[3px] h-3.5 rounded-full shrink-0; }
+.dashboard-calendar-item-date { @apply shrink-0 text-[11px] font-semibold text-[var(--text-muted)] tabular-nums; }
 .dashboard-calendar-item-bar.is-event { background: var(--primary); }
 .dashboard-calendar-item-bar.is-leave { background: var(--success); }
 .dashboard-calendar-item-title { @apply text-[12px] font-medium text-[var(--text)] truncate; }

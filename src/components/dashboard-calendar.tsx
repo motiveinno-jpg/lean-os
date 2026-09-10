@@ -60,6 +60,16 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
     enabled: !!companyId && !!userId, staleTime: 60_000,
   });
 
+  //   다음 달 일정도 미리 읽어 둔다 — 빈 날의 '다가오는 일정'이 달 경계에서 끊기면(28일에 이번 달이 비면)
+  //   정작 다음 주 일정이 있는데 아무것도 없다고 나온다. 조회 키가 같아 › 로 넘기면 그대로 쓰인다.
+  const nextMonthAt = new Date(year, month + 1, 1);
+  const nextY = nextMonthAt.getFullYear(), nextM = nextMonthAt.getMonth();
+  const { data: nextEvents = [] } = useQuery({
+    queryKey: ["schedule-events", companyId, nextY, nextM, "both", userId],
+    queryFn: () => getMonthEvents(companyId, nextY, nextM, { scope: "all", userId }),
+    enabled: !!companyId && !!userId, staleTime: 60_000,
+  });
+
   // 승인된 휴가 · leave_calendar RPC(SECURITY DEFINER) 사용 (2026-08-11).
   //   왜: 이름은 employees 조인인데 급여 등 민감 컬럼 때문에 일반 직원 RLS 로 막혀
   //   "누가" 휴가인지 빈 값으로 내려왔다. RPC 는 이름·기간·단위만 최소 반환.
@@ -157,6 +167,36 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
   const selCount = selEvents.length + selLeaves.length;
   const selWd = WD[new Date(Number(selected.slice(0, 4)), Number(selected.slice(5, 7)) - 1, Number(selected.slice(8, 10))).getDay()];
 
+  //   고른 날이 비었으면 그 자리에 '다가오는 일정' (2026-09-10 사장님) — 빈 칸에 "없습니다" 한 줄만 두면
+  //   달력 아래가 그냥 빈 카드였다. 기준일은 오늘, 미래의 빈 날을 고른 경우엔 그 날.
+  const anchor = selected > todayStr ? selected : todayStr;
+  const upcoming = useMemo(() => {
+    if (selCount > 0) return [];
+    type Up = { key: string; date: string; title: string; kind: "event" | "leave"; tag?: string };
+    const rows: Up[] = [];
+    const seenEvent = new Set<string>();
+    for (const e of [...(events as any[]), ...(nextEvents as any[])]) {
+      if (e.completed || seenEvent.has(e.id)) continue;
+      seenEvent.add(e.id);
+      const d = kstDay(e.start_at);
+      if (!d || d < anchor) continue;
+      rows.push({ key: `e${e.id}`, date: d, title: String(e.title || "제목 없는 일정"), kind: "event" });
+    }
+    for (const [d, list] of Object.entries(leaveByDate)) {
+      if (d < anchor) continue;
+      list.forEach((l, i) => rows.push({ key: `l${d}-${i}`, date: d, title: l.name, kind: "leave", tag: l.label }));
+    }
+    rows.sort((a, b) => a.date.localeCompare(b.date));
+    //   여러 날짜 휴가는 날짜별로 펼쳐 둔 것이라 같은 사람이 줄줄이 뜬다 — 가장 이른 하루만 남긴다
+    const seenLeave = new Set<string>();
+    return rows.filter((r) => {
+      if (r.kind !== "leave") return true;
+      const k = `${r.title}|${r.tag}`;
+      if (seenLeave.has(k)) return false;
+      seenLeave.add(k); return true;
+    }).slice(0, 5);
+  }, [events, nextEvents, leaveByDate, anchor, selCount]);
+
   return (
     <div className="dashboard-calendar glass-card">
       <div className="dashboard-calendar-header">
@@ -212,10 +252,26 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
             {Number(selected.slice(5, 7))}월 {Number(selected.slice(8, 10))}일 ({selWd})
           </span>
           {selected === todayStr && <span className="dashboard-calendar-sel-today">오늘</span>}
-          {selCount > 0 && <span className="dashboard-calendar-sel-count">{selCount}건</span>}
+          {selCount > 0
+            ? <span className="dashboard-calendar-sel-count">{selCount}건</span>
+            : <span className="dashboard-calendar-sel-none">일정 없음</span>}
         </div>
         {selCount === 0 ? (
-          <div className="dashboard-calendar-empty"><span>일정도 휴가도 없는 날입니다</span></div>
+          upcoming.length > 0 ? (
+            <div className="dashboard-calendar-items">
+              <div className="dashboard-calendar-upcoming-head">다가오는 일정</div>
+              {upcoming.map((u) => (
+                <Link key={u.key} href={u.kind === "event" ? "/schedule" : "/employees?tab=leave"} className="dashboard-calendar-item">
+                  <span className={`dashboard-calendar-item-bar ${u.kind === "event" ? "is-event" : "is-leave"}`} />
+                  <span className="dashboard-calendar-item-date">{Number(u.date.slice(5, 7))}/{Number(u.date.slice(8, 10))}</span>
+                  <span className="dashboard-calendar-item-title">{u.title}</span>
+                  {u.tag && <span className="dashboard-calendar-item-tag">{u.tag}</span>}
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="dashboard-calendar-empty"><span>다가오는 일정이 없습니다</span></div>
+          )
         ) : (
           <div className="dashboard-calendar-items">
             {selEvents.slice(0, 6).map((e: any) => (
