@@ -59,6 +59,7 @@ type Row = {
   partnerId: string | null;
   bankId: string | null;   // 어느 계좌의 거래인가 (조건 더보기의 '계좌')
   posted: boolean;         // 전표가 있다
+  mappingStatus: string;   // unmapped/auto_mapped/manual_mapped — 계정 추천(엣지)은 unmapped 만 본다
   taxLinked: boolean;      // 세금계산서와 매칭됐다 (AI 매칭 — bank_transactions.tax_invoice_id)
   settled: boolean;        // 매칭이 확정됐다
   settledAmount: number;
@@ -361,7 +362,7 @@ export function BankTab({
       //     잘려 기간을 넓히는 의미가 없었다. 읽기 실패는 fetchAllPages 가 던진다
       //     ('처리할 거래가 없습니다'로 보여 다 끝낸 줄 알면 안 된다 — PGRST201 로 실제로 그랬다).
       const got = await fetchAllPages<any>((a, b) => supabase.from("bank_transactions")
-        .select("id, transaction_date, amount, type, counterparty, description, partner_id, bank_account_id, journal_entry_id, ledger_excluded_reason, tax_invoice_id, settlement_status, settled_amount, is_auto_transfer, invoice_settlements(id, status, match_type), card_transactions!card_transactions_bank_transaction_id_fkey(id)")
+        .select("id, transaction_date, amount, type, counterparty, description, partner_id, bank_account_id, journal_entry_id, ledger_excluded_reason, tax_invoice_id, settlement_status, settled_amount, mapping_status, is_auto_transfer, invoice_settlements(id, status, match_type), card_transactions!card_transactions_bank_transaction_id_fkey(id)")
         .eq("company_id", companyId)
         .gte("transaction_date", from).lte("transaction_date", to)
         .order("transaction_date").range(a, b));
@@ -386,6 +387,7 @@ export function BankTab({
           partnerId: r.partner_id || null,
           bankId: r.bank_account_id || null,
           posted: !!r.journal_entry_id,
+          mappingStatus: String(r.mapping_status || "unmapped"),
           settled: ["settled", "partial"].includes(String(r.settlement_status || "")),
           taxLinked: !!r.tax_invoice_id,
           settledAmount: Number(r.settled_amount || 0),
@@ -600,7 +602,7 @@ export function BankTab({
    *  ★ 수금 매칭 추천과는 **다른 일**이다 — 이건 계정·비목, 저건 세금계산서 짝짓기. 이름을 갈라 둔다. */
   const runAcctSuggest = async () => {
     if (aiAcctBusy || !companyId) return;
-    const targets = shown.filter((r) => !doneOf(r) && !r.isIn && !acctOf(r).a).slice(0, 20);
+    const targets = shown.filter((r) => !doneOf(r) && !r.isIn && !acctOf(r).a && r.mappingStatus === "unmapped").slice(0, 20);
     if (targets.length === 0) { toast("추천할 미처리 지출이 없습니다", "info"); return; }
     setAiAcctBusy(true);
     try {
@@ -686,7 +688,7 @@ export function BankTab({
   //   ★ 추천 두 가지는 하는 일이 다르므로 이름을 갈라 둔다 (2026-08-11):
   //     계정 추천 = 무슨 비용인가(비목·계정) · 수금 매칭 추천 = 어느 계산서의 입금인가
   //   ★ 줄마다 **출처를 적는다** — 배운 규칙은 AI 가 아니라 사람이 고른 것을 기억해 둔 것이다.
-  const suggestable = shown.filter((r) => !doneOf(r) && !r.isIn && !acctOf(r).a).length;
+  const suggestable = shown.filter((r) => !doneOf(r) && !r.isIn && !acctOf(r).a && r.mappingStatus === "unmapped").length;   // 엣지(classify-transactions)와 같은 대상 — 배지 20인데 추천 0건이 오던 것
   const helpers: HelperItem[] = [
     {
       //   그릇(AI 제안)에 AI 가 이미 적혀 있으니 안에서는 뺀다 — '매칭 제안' (2026-08-13 사장님 확정)

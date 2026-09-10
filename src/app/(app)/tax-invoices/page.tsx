@@ -3414,7 +3414,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
                         <td className="py-2 px-1 text-center font-mono" style={{ borderRight: "1px solid #eee" }}>{it.qty || 1}</td>
                         <td className="py-2 px-2 text-right font-mono" style={{ borderRight: "1px solid #eee" }}>₩{Number(it.unitCost || 0).toLocaleString()}</td>
                         <td className="py-2 px-2 text-right font-mono" style={{ borderRight: "1px solid #eee" }}>₩{lineSupply.toLocaleString()}</td>
-                        <td className="py-2 px-2 text-right font-mono">₩{(taxAmt > 0 ? Math.round(lineSupply * 0.1) : 0).toLocaleString()}</td>
+                        <td className="py-2 px-2 text-right font-mono">₩{(taxAmt !== 0 ? Math.round(lineSupply * 0.1) : 0).toLocaleString()}</td>
                       </tr>
                     );
                   })

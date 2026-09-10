@@ -74,18 +74,18 @@ export async function getCashReceipts(companyId: string, params?: {
   endDate?: string;
   status?: string;
 }) {
-  let query = db.from('cash_receipts')
-    .select('*')
-    .eq('company_id', companyId)
-    .order('issue_date', { ascending: false });
-
-  if (params?.type) query = query.eq('type', params.type);
-  if (params?.startDate) query = query.gte('issue_date', params.startDate);
-  if (params?.endDate) query = query.lte('issue_date', params.endDate);
-  if (params?.status) query = query.eq('status', params.status);
-
-  const { data, error } = await query;
-  if (error) throw error;
+  //   1,000행 상한 — 기간이 넓으면 목록·배지·합계가 조용히 잘렸다
+  const { fetchPaged } = await import('./fetch-paged');
+  const data = await fetchPaged<CashReceipt>('cash-receipts:list', () => {
+    let query = db.from('cash_receipts')
+      .select('*')
+      .eq('company_id', companyId);
+    if (params?.type) query = query.eq('type', params.type);
+    if (params?.startDate) query = query.gte('issue_date', params.startDate);
+    if (params?.endDate) query = query.lte('issue_date', params.endDate);
+    if (params?.status) query = query.eq('status', params.status);
+    return query.order('issue_date', { ascending: false }).order('id');
+  }, 50000, { strict: true });
   return (data || []) as CashReceipt[];
 }
 
@@ -229,12 +229,13 @@ export async function getCashReceiptSummary(
   startDate: string,
   endDate: string,
 ): Promise<CashReceiptSummary> {
-  const data = logRead('lib/cash-receipts:data', await db.from('cash_receipts')
+  const { fetchPaged } = await import('./fetch-paged');
+  const data = await fetchPaged<any>('lib/cash-receipts:summary', () => db.from('cash_receipts')
     .select('type, amount, tax_amount, status, source')
     .eq('company_id', companyId)
     .gte('issue_date', startDate)
     .lte('issue_date', endDate)
-    .neq('status', 'void'));
+    .neq('status', 'void').order('issue_date').order('id'), 50000, { strict: true });
 
   const result: CashReceiptSummary = {
     incomeCount: 0, incomeTotal: 0, incomeTax: 0,

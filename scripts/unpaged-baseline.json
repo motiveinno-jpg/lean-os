@@ -43,7 +43,6 @@
   "src/lib/budget-detail.ts": 4,
   "src/lib/card-transactions.ts": 3,
   "src/lib/cash-budget.ts": 11,
-  "src/lib/cash-receipts.ts": 2,
   "src/lib/certificates.ts": 1,
   "src/lib/closing-snapshot.ts": 1,
   "src/lib/collect.ts": 5,
@@ -71,5 +70,5 @@
   "src/lib/support-programs.ts": 2,
   "src/lib/sync-cooldown.ts": 1,
   "src/lib/tax-deadline-checks.ts": 1,
-  "src/lib/tax-invoice.ts": 4
+  "src/lib/tax-invoice.ts": 1
 }

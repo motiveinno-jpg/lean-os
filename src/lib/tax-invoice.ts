@@ -201,26 +201,28 @@ export async function threeWayMatch(companyId: string): Promise<ThreeWayMatchRes
   } catch { /* use default */ }
 
   // Fetch all sales invoices (with linked deal if any)
-  const invoices = logRead('lib/tax-invoice:invoices', await supabase
+  //   1,000행 상한 — 계산서·프로젝트·수금 예정이 많으면 뒤가 잘려 매칭이 조용히 빠졌다
+  const { fetchPaged } = await import('./fetch-paged');
+  const invoices = await fetchPaged<any>('lib/tax-invoice:invoices', () => supabase
     .from('tax_invoices')
     .select('*, deals(*)')
     .eq('company_id', companyId)
     .eq('type', 'sales')
-    .neq('status', 'void'));
+    .neq('status', 'void').order('issue_date').order('id'), 50000);
 
   if (!invoices) return [];
 
   // Fetch ALL deals for smart matching (unlinked invoices)
-  const allDeals = logRead('lib/tax-invoice:allDeals', await supabase
+  const allDeals = await fetchPaged<any>('lib/tax-invoice:allDeals', () => supabase
     .from('deals')
     .select('id, name, contract_total')
-    .eq('company_id', companyId));
+    .eq('company_id', companyId).order('id'), 50000);
 
   // Fetch ALL revenue schedule entries (not just received) for partial matching
-  const allRevenues = logRead('lib/tax-invoice:allRevenues', await supabase
+  const allRevenues = await fetchPaged<any>('lib/tax-invoice:allRevenues', () => supabase
     .from('deal_revenue_schedule')
     .select('*, deals!inner(company_id)')
-    .eq('deals.company_id', companyId));
+    .eq('deals.company_id', companyId).order('id'), 50000);
 
   const receivedByDeal = new Map<string, number>();
   const schedulesByDeal = new Map<string, { amount: number; status: string; label?: string }[]>();
