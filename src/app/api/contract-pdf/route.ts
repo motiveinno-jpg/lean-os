@@ -10,6 +10,7 @@ import { join } from "node:path";
 import type { Browser } from "puppeteer-core";
 import { getPdfBrowser } from "@/lib/headless-chrome";
 import { fetchAssetAsDataUrl } from "@/lib/pdf-fetch-guard";
+import { requirePerm } from "@/lib/api-authz";
 
 // 서명자가 남긴 HTML(signed_contract_html)은 외부 입력이다 — 렌더 전에 headless Chrome 안에서 DOMPurify 로 정제하고,
 //   네트워크는 data:·자사 Storage·폰트 CDN 만 연다(내부망·임의 호스트 요청 차단). html-pdf 경로와 같은 방어.
@@ -44,8 +45,9 @@ export const maxDuration = 300;
 // 브라우저 기동은 공용 런처로 — Vercel 라이브러리 미추출(libnss3) 우회 포함 (headless-chrome.ts)
 
 export async function POST(req: NextRequest) {
+  let browser: Browser | null = null;
   try {
-    // 1) 인증 + 권한 (대표/관리자만 — signatures 페이지 게이트와 동일)
+    // 1) 인증 + 현행 전자계약 메뉴 권한 (마스터 또는 위임 권한)
     const ss = await createSupabaseServerClient();
     const {
       data: { user },
@@ -53,15 +55,8 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
 
     const admin = createSupabaseAdminClient();
-    const urow = logRead('contract-pdf/route:urow', await admin
-      .from("users")
-      .select("company_id, role")
-      .eq("auth_id", user.id)
-      .maybeSingle());
-    if (!urow?.company_id) return NextResponse.json({ error: "회사 정보 없음" }, { status: 403 });
-    if (!urow.role || !["owner", "admin"].includes(urow.role)) {
-      return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
-    }
+    const access = await requirePerm(admin, user.id, "/signatures");
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
     const body = await req.json().catch(() => null);
     const ids: string[] = Array.isArray(body?.ids) ? body.ids.filter((x: unknown) => typeof x === "string") : [];
@@ -69,14 +64,15 @@ export async function POST(req: NextRequest) {
     if (ids.length > 20) return NextResponse.json({ error: "한 번에 최대 20건" }, { status: 400 });
 
     // 2) 본인 회사 + 서명완료 건만 (회사 격리)
-    const rows = logRead('contract-pdf/route:rows', await admin
+    const { data: rows, error: rowsError } = await admin
       .from("signature_requests")
       .select(
         "id, signer_name, signature_data_url, signed_contract_html, template_snapshot_html, signed_at, partner_id, status, companies(name, business_number, representative, seal_url)",
       )
       .in("id", ids)
-      .eq("company_id", urow.company_id)
-      .eq("status", "signed"));
+      .eq("company_id", access.caller.companyId)
+      .eq("status", "signed");
+    if (rowsError) throw rowsError;
 
     const list = rows || [];
     // 거래처(을) 정보 — partner_id 별도 조회
@@ -86,60 +82,22 @@ export async function POST(req: NextRequest) {
       const ps = logRead('contract-pdf/route:ps', await admin
         .from("partners")
         .select("id, name, business_number, representative")
+        .eq("company_id", access.caller.companyId)
         .in("id", pIds));
       (ps || []).forEach((p: any) => pMap.set(p.id, p));
     }
 
-    // P4 — 활성 계약 양식(오버레이)이 있으면 puppeteer 대신 pdf-lib 오버레이로 최종본 생성(없으면 현행 폴백).
-    let overlayFields: any[] | null = null;
-    let overlayBytes: ArrayBuffer | null = null;
-    let sealDataUrl: string | null = null;
-    try {
-      const tpl = logRead('contract-pdf/route:tpl', await (admin as any)
-        .from("pdf_form_templates")
-        .select("file_path, fields")
-        .eq("company_id", urow.company_id).eq("doc_type", "contract").eq("is_active", true)
-        .maybeSingle());
-      if (tpl?.file_path) {
-        const blob = logRead('contract-pdf/route:blob', await admin.storage.from("form-templates").download(tpl.file_path));
-        if (blob) {
-          overlayBytes = await blob.arrayBuffer();
-          overlayFields = (tpl.fields as any[]) || [];
-          const sealUrl = (list[0] as any)?.companies?.seal_url;
-          if (sealUrl) sealDataUrl = await sealToDataUrl(admin, sealUrl);
-        }
-      }
-    } catch { overlayFields = null; overlayBytes = null; }
-
-    let browser: Browser | null = null; // 폴백(현행) 경로에서만 지연 launch
-    const results: { id: string; pdfBase64?: string; error?: string }[] = [];
+    // 서명 시점 본문만 출력한다. 회사의 현재 양식으로 과거 계약을 재작성하면 안 된다.
+    const results: { id: string; pdfBase64?: string; error?: string }[] = [...new Set(ids)]
+      .filter((id) => !list.some((row) => row.id === id))
+      .map((id) => ({ id, error: "서명 완료 계약서를 찾을 수 없거나 열람 권한이 없습니다." }));
 
     for (const r of list as any[]) {
       const partner = r.partner_id ? pMap.get(r.partner_id) : null;
 
-      // ── 오버레이 경로 (활성 계약 양식) ──
-      if (overlayFields && overlayBytes) {
-        try {
-          const { fillFormTemplate } = await import("@/lib/pdf-overlay");
-          const dateStr = r.signed_at ? String(r.signed_at).slice(0, 10) : "";
-          const filled = await fillFormTemplate(overlayBytes, overlayFields, {
-            values: {
-              회사명: r.companies?.name ?? "",
-              대표자명: r.companies?.representative ?? "",
-              거래처명: partner?.name ?? r.signer_name ?? "",
-              거래처대표: partner?.representative ?? "",
-              작성일: dateStr,
-              계약시작일: dateStr,
-              서명_갑: sealDataUrl ?? "",
-              서명_을: r.signature_data_url ?? "",
-            },
-          });
-          results.push({ id: r.id, pdfBase64: Buffer.from(filled).toString("base64") });
-          continue;
-        } catch (e) {
-          // 오버레이 실패 → 포기하지 않고 현행 puppeteer 렌더로 폴백(저장 누락 방지).
-          console.warn("[contract-pdf] overlay 실패, puppeteer 폴백:", (e as Error)?.message);
-        }
+      if (!r.signed_contract_html?.trim() && !r.template_snapshot_html?.trim()) {
+        results.push({ id: r.id, error: "서명 당시 계약 본문이 없어 출력할 수 없습니다." });
+        continue;
       }
 
       // ── 폴백: 현행 puppeteer 렌더 ──
@@ -169,7 +127,7 @@ export async function POST(req: NextRequest) {
         );
         const html = buildSignedContractPrintHtml({
           bodyHtml: cleanBody,
-          company: r.companies || null,
+          company: r.companies ? { ...r.companies, seal_url: r.companies.seal_url ? await sealToDataUrl(admin, r.companies.seal_url) : null } : null,
           partner: partner
             ? { name: partner.name, business_number: partner.business_number, representative: partner.representative }
             : { name: r.signer_name },

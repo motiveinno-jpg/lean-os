@@ -17,10 +17,17 @@ const PACK_URL =
   "https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar";
 
 let _browser: Browser | null = null;
+let _launching: Promise<Browser> | null = null;
 
 export async function getPdfBrowser(): Promise<Browser> {
   if (_browser && _browser.connected) return _browser;
+  // 여러 PDF 요청이 동시에 들어와도 공용 브라우저는 한 번만 기동한다.
+  // 개별 요청은 자기 페이지만 닫는다. 공용 브라우저를 닫으면 다른 출력이 끊긴다.
+  if (!_launching) _launching = launchPdfBrowser().finally(() => { _launching = null; });
+  return _launching;
+}
 
+async function launchPdfBrowser(): Promise<Browser> {
   // Lambda 감지 통과용 — Vercel(리눅스)에서만. 로컬 mac 개발은 건드리지 않는다.
   if (process.platform === "linux" && !process.env["AWS_EXECUTION_ENV"] && !process.env["AWS_LAMBDA_JS_RUNTIME"]) {
     process.env["AWS_EXECUTION_ENV"] = "AWS_Lambda_nodejs22.x";
