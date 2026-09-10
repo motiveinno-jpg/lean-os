@@ -50,6 +50,7 @@ import { QueryErrorBanner } from "@/components/query-status";
 import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { generateEmploymentCertificate, generateCareerCertificate, getCertificateLogs, saveCertificateLog } from "@/lib/certificates";
+import { CertificatePdfButton } from "@/components/certificate-pdf-button";
 import { listAppointments, appointmentLines } from "@/lib/hr-appointments";
 import { fetchRetirementEstimates } from "@/lib/retirement";
 import { RetirementDialog } from "@/components/retirement-dialog";
@@ -2148,6 +2149,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
       const result = await sendPayslipEmails("preview", companyId, label, { employeeIds });
       const target = employeeIds && employeeIds.length === 1 ? '개인' : `${result.sent + result.failed}명`;
       toast(`급여명세서 ${target} 발송: ${result.sent}건 성공, ${result.failed}건 실패`, result.failed > 0 ? "error" : "success");
+      if (result.errors?.length) toast(result.errors.join("\n"), "error");
       if (result.errors && result.errors.length > 0) {
         console.warn('payslip send errors:', result.errors);
       }
@@ -4126,12 +4128,15 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
 
     setIsGenerating(true);
     try {
+      if (certType === "career" && !["active", "joined"].includes(employee.status) && !employee.resignation_date && !employee.end_date) {
+        throw new Error("경력증명서 발급 전에 직원의 퇴사일을 등록해 주세요.");
+      }
       const empData = {
         name: employee.name,
         department: employee.department,
         position: employee.position,
         hire_date: employee.hire_date || todayKst(),
-        end_date: !["active", "joined"].includes(employee.status) ? employee.updated_at?.slice(0, 10) : undefined,
+        end_date: !["active", "joined"].includes(employee.status) ? (employee.resignation_date || employee.end_date || undefined) : undefined,
         employee_number: employee.employee_number,
         birth_date: employee.birth_date,
       };
@@ -4166,14 +4171,6 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
         });
       }
 
-      // Download the PDF
-      const url = URL.createObjectURL(result.pdf);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${certType === "employment" ? "재직증명서" : "경력증명서"}_${employee.name}_${result.certificateNumber}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-
       // Save log
       await saveCertificateLog({
         companyId,
@@ -4183,9 +4180,17 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
         issuedBy: userId,
         purpose: purpose || undefined,
         submitTo: submitTo || undefined,
+        pdf: result.pdf,
       });
 
       queryClient.invalidateQueries({ queryKey: ["certificate-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["emp-cert-logs", selectedEmpId] });
+      const url = URL.createObjectURL(result.pdf);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${certType === "employment" ? "재직증명서" : "경력증명서"}_${employee.name}_${result.certificateNumber}.pdf`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
       setPurpose("");
       setSubmitTo("");
       toast(`증명서가 발급되었습니다.\n증명서번호: ${result.certificateNumber}`, "success");
@@ -4273,6 +4278,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
                 <th>용도</th>
                 <th>발급자</th>
                 <th>발급일</th>
+                <th>보관본</th>
               </tr>
             </thead>
             <tbody>
@@ -4297,6 +4303,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
                   <td className="px-5 py-3 text-xs text-[var(--text-dim)]">
                     {log.created_at ? kstDateStr(new Date(log.created_at)) : "--"}
                   </td>
+                  <td><CertificatePdfButton url={log.pdf_url} number={log.certificate_number} /></td>
                 </tr>
               ))}
             </tbody>
@@ -4319,22 +4326,30 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
   const [year, setYear] = useState(currentYear);
   //   G6 (2026-08-27 인사 6차). 제출 상태를 localStorage(브라우저마다 달랐다) 대신 year_end_tax_status 표에. 담당자 둘이 봐도 같다.
   type Status = "pending" | "submitted" | "reviewed";
-  const [statuses, setStatuses] = useState<Record<string, Status>>({});
-
-  useEffect(() => {
-    if (!companyId) return;
-    let alive = true;
-    (supabase as any).from("year_end_tax_status").select("employee_id, status").eq("company_id", companyId).eq("year", year)
-      .then(({ data }: { data: { employee_id: string; status: Status }[] | null }) => { if (!alive) return; const m: Record<string, Status> = {}; for (const r of (data || [])) m[r.employee_id] = r.status; setStatuses(m); });
-    return () => { alive = false; };
-  }, [companyId, year]);
-
-  const setStatus = async (id: string, s: Status) => {
-    setStatuses((prev) => ({ ...prev, [id]: s }));
-    if (!companyId) return;
-    const { error } = await (supabase as any).from("year_end_tax_status").upsert({ company_id: companyId, employee_id: id, year, status: s, updated_at: new Date().toISOString() }, { onConflict: "company_id,employee_id,year" });
-    if (error) toast(friendlyError(error, "상태를 저장하지 못했습니다"), "error");
-  };
+  const qc = useQueryClient();
+  const statusKey = ["year-end-tax-status", companyId, year];
+  const { data: statuses = {}, isPending: loadingStatuses, error: statusError } = useQuery({
+    queryKey: statusKey,
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("year_end_tax_status").select("employee_id, status").eq("company_id", companyId).eq("year", year);
+      if (error) throw error;
+      return Object.fromEntries((data || []).map((r: { employee_id: string; status: Status }) => [r.employee_id, r.status])) as Record<string, Status>;
+    },
+  });
+  const statusMutation = useMutation({
+    mutationFn: async ({ id, status, targetYear }: { id: string; status: Status; targetYear: number }) => {
+      if (!companyId) throw new Error("회사 정보를 확인할 수 없습니다.");
+      const { error } = await (supabase as any).from("year_end_tax_status").upsert({ company_id: companyId, employee_id: id, year: targetYear, status, updated_at: new Date().toISOString() }, { onConflict: "company_id,employee_id,year" });
+      if (error) throw error;
+    },
+    onSuccess: (_, { id, status, targetYear }) => {
+      const key = ["year-end-tax-status", companyId, targetYear];
+      qc.setQueryData<Record<string, Status>>(key, (previous) => ({ ...previous, [id]: status }));
+      void qc.invalidateQueries({ queryKey: key });
+    },
+    onError: (error) => toast(friendlyError(error, "상태를 저장하지 못했습니다"), "error"),
+  });
 
   const counts = useMemo(() => {
     const c = { pending: 0, submitted: 0, reviewed: 0 };
@@ -4390,13 +4405,15 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
             홈택스 열기 ↗
           </a>
           <button onClick={sendReminderToAll} className="btn-secondary btn-sm">
-            전체 안내 발송
+            안내 메일 작성
           </button>
         </div>
       </div>
 
+      {statusError && <p role="alert" className="text-xs text-[var(--danger)]">제출 현황을 불러오지 못했습니다. <button onClick={() => qc.invalidateQueries({ queryKey: statusKey })}>다시 시도</button></p>}
+      {loadingStatuses && <p className="text-xs text-[var(--text-muted)]">제출 현황을 불러오는 중입니다.</p>}
       {/* 진행률 바 */}
-      <div className="yeartax-progress-bar">
+      <div className="yeartax-progress-bar" hidden={loadingStatuses || !!statusError}>
         <div className="flex items-center justify-between text-xs mb-2">
           <span className="text-[var(--text-muted)]">제출 진행률</span>
           <span className="font-bold">{counts.submitted + counts.reviewed} / {employees.length}명 ({completedPct}%)</span>
@@ -4414,7 +4431,7 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
 
       {employees.length === 0 ? (
         <div className="text-center py-8 text-xs text-[var(--text-dim)]">재직 중인 직원이 없습니다.</div>
-      ) : (
+      ) : loadingStatuses || statusError ? null : (
         <div className="yeartax-status-table">
           <table className="w-full min-w-[600px]">
             <thead>
@@ -4444,7 +4461,8 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
                         {(["pending", "submitted", "reviewed"] as Status[]).map((opt) => (
                           <button
                             key={opt}
-                            onClick={() => setStatus(e.id, opt)}
+                            onClick={() => statusMutation.mutate({ id: e.id, status: opt, targetYear: year })}
+                            disabled={statusMutation.isPending}
                             className={`text-[10px] px-2 py-1 rounded-md transition ${s === opt ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--bg)]"}`}
                           >
                             {STATUS_META[opt].label}
@@ -4546,4 +4564,3 @@ function HalfDaySlotSettings({ companyId }: { companyId: string }) {
     </div>
   );
 }
-
