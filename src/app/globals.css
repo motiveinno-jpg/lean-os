@@ -8320,7 +8320,8 @@ table.team-mgmt-table { min-width: 640px; }
 .gd-search-bar { @apply flex min-w-[280px] flex-1 items-center gap-1.5; }
 .gd-root.qk-shell { max-width: none; }
 /* ── 고객센터 조회 표준 상자 (2026-08-19) ── */
-.support-page-root.qk-shell { max-width: none; @apply space-y-0; }
+/* qk-shell 은 세로 flex 안에 놓이므로 mx-auto 가 있으면 폭이 내용 크기로 줄어 휴대폰 폭처럼 보인다 — 여백을 없애고 꽉 채운다 */
+.support-page-root.qk-shell { max-width: none; margin-inline: 0; width: 100%; @apply space-y-0; }
 .qk-body > .support-scroll { @apply absolute inset-0 space-y-4 overflow-auto p-4; }
 .support-desc { @apply px-3.5 py-2 text-[12px] text-[var(--text-muted)]; }
 .support-desc > b { @apply text-[var(--text)]; }
