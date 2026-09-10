@@ -423,6 +423,14 @@ serve(withSentry("hometax-issue", async (req) => {
       //   검증 반려건은 통과 — 아래 정상 발행 로직으로 (품목 세액 버그도 이제 고쳐져 재발행이 성공한다)
     }
 
+    // 3-0.5) 매입 계산서는 거래처가 공급자다 — 우리 명의로 국세청에 발행하면 안 된다(수정계산서 경로로 새던 구멍)
+    if (invoice.type !== "sales") {
+      return new Response(JSON.stringify({
+        error: "매입 세금계산서는 우리 회사가 발행할 수 없습니다. 공급자(거래처)가 발행합니다.",
+        code: "PURCHASE_NOT_ISSUABLE",
+      }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // 3-1) 수정세금계산서(수정발행) 판정 + 전제조건 검증
     //   기존엔 이 분기가 없어 수정세금계산서도 issueType "정발행" 으로 전송됐다 —
     //   국세청에 잘못된 문서가 나가는 경로였으므로 여기서 반드시 걸러낸다.
@@ -470,8 +478,8 @@ serve(withSentry("hometax-issue", async (req) => {
       modification = { originalConfirmNo: orgConfirmNo, reasonCode };
     }
 
-    // 3) 이미 발행된 건 중복 방지
-    if (invoice.nts_issue_status === "issued" && invoice.nts_confirm_no) {
+    // 3) 이미 발행된 건 중복 방지 — 승인번호는 다음 영업일에 붙으므로 '전송 완료(issued)' 자체를 기준으로 막는다
+    if (invoice.nts_issue_status === "issued") {
       return new Response(JSON.stringify({
         success: true, alreadyIssued: true,
         nts_confirm_no: invoice.nts_confirm_no,
@@ -611,15 +619,18 @@ serve(withSentry("hometax-issue", async (req) => {
       // 승인번호 추출 — CODEF 발행 응답: ntsconfirmNum(24자리, 소문자 c). 폴백 다수 유지.
       //   2026-08-04: 하이픈 포함 형식(resApprovalNo 등 폴백)이 섞이면 codef-sync upsert 키와
       //   어긋나 같은 계산서가 중복 저장됨 → 저장 전 항상 정규화(영숫자만).
+      //   sendToNtsYn:"N" 으로 보내므로 승인번호는 다음 영업일 전송 뒤에야 붙는다 — 그때까지는 null 로 둔다.
+      //   빈 문자열을 넣으면 (company_id, nts_confirm_no) 유니크에 걸려 두 번째 발행부터 저장이 조용히 실패했고,
+      //   화면은 '미발행' 로 남아 같은 건을 다시 보내게 했다(국세청 문서 중복). 승인번호는 홈택스 수집이 채운다.
       const ntsConfirmNum = normalizeNtsConfirmNum(
         codefResp.data?.ntsconfirmNum ||
         codefResp.data?.ntsConfirmNum ||
         codefResp.data?.resIssueNum ||
         codefResp.data?.resApprovalNo ||
         codefResp.data?.resInvoiceNumber ||
-        "");
+        "") || null;
 
-      await supabase.from("tax_invoices").update({
+      const { error: saveErr } = await supabase.from("tax_invoices").update({
         nts_issue_status: "issued",
         nts_confirm_no: ntsConfirmNum,
         nts_issued_at: new Date().toISOString(),
@@ -628,6 +639,14 @@ serve(withSentry("hometax-issue", async (req) => {
         issue_date: invoice.issue_date || new Date().toISOString().split("T")[0],
         auto_issued: false,
       }).eq("id", invoice_id);
+      if (saveErr) {
+        //   CODEF 는 이미 받았다. 상태 저장 실패를 '발행 완료' 로 답하면 사용자가 다시 눌러 이중 발행이 된다.
+        console.error("[hometax-issue] issued but state save failed:", saveErr.message);
+        return new Response(JSON.stringify({
+          error: "전송은 됐지만 상태 저장에 실패했습니다. 다시 발행하지 말고 홈택스 동기화로 승인번호를 확인하세요.",
+          code: "ISSUED_STATE_SAVE_FAILED",
+        }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
 
       // 충전 차감 — 월 제공량이 남아 있으면 함수가 아무것도 하지 않는다(사용 집계로 자동 반영).
       //   제공량을 다 쓴 뒤 발행한 건만 충전 잔액에서 1건 빠진다. 실패해도 발행은 이미 끝났으므로 막지 않는다.

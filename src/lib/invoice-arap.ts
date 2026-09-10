@@ -26,10 +26,12 @@ export async function fetchInvoiceArAp(companyId: string): Promise<InvoiceArAp> 
   let ar = 0, ap = 0, over30 = 0; const overPartners = new Set<string>();
   for (const r of ((rows || []) as any[])) {
     const bal = Number(r.total_amount || r.supply_amount || 0) - Number(r.settled_amount || 0);
-    if (bal <= 1) continue;
+    //   마이너스(수정·환입) 계산서는 원본을 상계해야 한다 — 건너뛰면 계약 해제 뒤에도 받을 돈이 그대로였다
+    if (Math.abs(bal) <= 1) continue;
     if (r.type === "purchase") { ap += bal; continue; }
     if (r.type !== "sales") continue;
     ar += bal;
+    if (bal <= 0) continue;
     const days = r.issue_date ? Math.floor((todayMs - new Date(String(r.issue_date).slice(0, 10)).getTime()) / 86400000) : 0;
     if (days > 30) { over30 += bal; overPartners.add(r.counterparty_name || "(미상)"); }
   }

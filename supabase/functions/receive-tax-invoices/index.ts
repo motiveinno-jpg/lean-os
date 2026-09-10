@@ -136,9 +136,10 @@ Deno.serve(withSentry("receive-tax-invoices", async (req: Request) => {
 
     if (newInvoices.length > 0) {
       const rows = newInvoices.map((inv) => {
-        const supplyAmount = Math.abs(inv.supply_amount);
-        const taxAmount = inv.tax_amount ?? Math.round(supplyAmount * 0.1);
-        const totalAmount = inv.total_amount ?? supplyAmount + taxAmount;
+        //   수정·환입 계산서는 음수다 — 절대값으로 뒤집으면 매출·부가세가 부풀었다. 세액은 준 값을 쓰고 없을 때만 10%.
+        const supplyAmount = Number(inv.supply_amount || 0);
+        const taxAmount = inv.tax_amount != null ? Number(inv.tax_amount) : Math.round(supplyAmount * 0.1);
+        const totalAmount = inv.total_amount != null ? Number(inv.total_amount) : supplyAmount + taxAmount;
 
         return {
           company_id: companyId,
@@ -174,17 +175,22 @@ Deno.serve(withSentry("receive-tax-invoices", async (req: Request) => {
       // Fetch sales invoices for matching
       const { data: salesInvoices } = await supabase
         .from("tax_invoices")
-        .select("id, deal_id, total_amount, status, deals(contract_total)")
+        .select("id, deal_id, total_amount, supply_amount, status, deals(contract_total)")
         .eq("company_id", companyId)
         .eq("type", "sales")
+        .not("deal_id", "is", null)
         .neq("status", "void")
-        .neq("status", "matched");
+        .neq("status", "matched")
+        .limit(1000);
 
       if (salesInvoices && salesInvoices.length > 0) {
+        //   이 회사 프로젝트의 수금 예정만 — 회사 조건 없이 전 회사 수금을 읽던 것
+        const dealIds = [...new Set((salesInvoices as any[]).map((i) => i.deal_id).filter(Boolean))];
         const { data: revenues } = await supabase
           .from("deal_revenue_schedule")
           .select("deal_id, amount")
-          .eq("status", "received");
+          .eq("status", "received")
+          .in("deal_id", dealIds);
 
         const receivedByDeal = new Map<string, number>();
         (revenues || []).forEach((r: any) => {
@@ -195,8 +201,9 @@ Deno.serve(withSentry("receive-tax-invoices", async (req: Request) => {
 
         for (const inv of salesInvoices as any[]) {
           if (!inv.deal_id) continue;
+          //   계약금액은 공급가 기준(정식 로직 tax-invoice.ts 와 같게) — 합계(부가세 포함)와 비교하면 정상 건이 안 맞았다
           const contractAmount = Number(inv.deals?.contract_total || 0);
-          const invoiceAmount = Number(inv.total_amount || 0);
+          const invoiceAmount = Number(inv.supply_amount || 0);
           const receivedAmount = receivedByDeal.get(inv.deal_id) || 0;
 
           const tolerance = 0.01;

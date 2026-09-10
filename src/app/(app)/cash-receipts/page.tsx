@@ -1080,7 +1080,7 @@ export default function CashReceiptsPage() {
                               {ntsBusyId === r.id ? "조회 중..." : "승인번호 조회"}
                             </button>
                           )}
-                          {r.status === "issued" && (
+                          {r.status === "issued" && r.source !== "hometax_sync" && (
                             <button
                               onClick={() => handleCancel(r)}
                               disabled={ntsBusyId === r.id}

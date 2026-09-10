@@ -480,9 +480,10 @@ export default function EInvoicesPage() {
 
           <ResultStrip>
             <Stat label="건수" value={`${filtered.length.toLocaleString("ko")}건`} />
-            <Stat label="공급가액" value={fmt(filtered.reduce((s: number, r: any) => s + Number(r.supply_amount || 0), 0))} />
-            <Stat label="세액" value={fmt(filtered.reduce((s: number, r: any) => s + Number(r.tax_amount || 0), 0))} />
-            <Stat label="합계" value={fmt(filtered.reduce((s: number, r: any) => s + Number(r.total_amount || r.supply_amount || 0), 0))} />
+            {/* 취소·무효 건은 합계에서 뺀다(배지는 구분해 그리면서 합계는 안 빼던 것) */}
+            <Stat label="공급가액" value={fmt(filtered.filter((r: any) => !["void", "cancelled"].includes(String(r.status))).reduce((s: number, r: any) => s + Number(r.supply_amount || 0), 0))} />
+            <Stat label="세액" value={fmt(filtered.filter((r: any) => !["void", "cancelled"].includes(String(r.status))).reduce((s: number, r: any) => s + Number(r.tax_amount || 0), 0))} />
+            <Stat label="합계" value={fmt(filtered.filter((r: any) => !["void", "cancelled"].includes(String(r.status))).reduce((s: number, r: any) => s + Number(r.total_amount || r.supply_amount || 0), 0))} />
             <span className="text-[10.5px] text-[var(--text-dim)]">면세 계산서는 세액이 0원입니다.</span>
           </ResultStrip>
         </QueryHead>

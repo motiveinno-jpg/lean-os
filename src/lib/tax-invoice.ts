@@ -114,6 +114,8 @@ export async function createTaxInvoice(params: {
       //   jsonb 칸이라 생성 타입은 Json — 줄 배열을 그대로 넣는다
       items: (params.items && params.items.length > 0 ? params.items : []) as unknown as never,
       tax_kind: taxKind,
+      //   면세는 전자계산서 화면(/e-invoices)이 doc_kind 로 가른다 — 안 넣으면 기본 'tax' 라 세금계산서 목록에 섞였다
+      doc_kind: taxKind === 'exempt' ? 'exempt' : 'tax',
       source: 'manual',
     })
     .select()

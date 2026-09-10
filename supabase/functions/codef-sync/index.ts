@@ -2008,8 +2008,37 @@ async function syncHometaxInvoices(
         debug.push(`${direction} existing-keys select error: ${exErr.message}`);
       } else {
         const existingSet = new Set((existingRows || []).map((r: any) => r.nts_confirm_no));
-        const newRows = rowsToUpsert.filter((r) => !existingSet.has(r.nts_confirm_no));
+        let newRows = rowsToUpsert.filter((r) => !existingSet.has(r.nts_confirm_no));
         const existingIds = (existingRows || []).map((r: any) => r.id);
+
+        //   우리가 앱에서 발행(전송)했지만 승인번호가 아직 없는 매출 계산서는 새 행이 아니라 그 행에 승인번호를 채운다.
+        //   (발행은 sendToNtsYn:"N" 이라 승인번호가 다음 영업일에 붙는다 — 새 행으로 넣으면 같은 계산서가 2행, 매출·부가세 이중)
+        if (newRows.length > 0) {
+          const { data: awaiting } = await supabase.from("tax_invoices")
+            .select("id, type, counterparty_bizno, issue_date, total_amount")
+            .eq("company_id", companyId).eq("source", "manual").eq("nts_issue_status", "issued").is("nts_confirm_no", null)
+            .limit(1000);
+          if (awaiting && awaiting.length > 0) {
+            const norm = (b: unknown) => String(b || "").replace(/[^0-9]/g, "");
+            const used = new Set<string>();
+            const stillNew: typeof newRows = [];
+            for (const r of newRows) {
+              const hit = (awaiting as any[]).find((a) => !used.has(a.id) && a.type === (r as any).type
+                && norm(a.counterparty_bizno) === norm((r as any).counterparty_bizno)
+                && String(a.issue_date) === String((r as any).issue_date)
+                && Math.abs(Number(a.total_amount || 0) - Number((r as any).total_amount || 0)) < 1);
+              if (!hit) { stillNew.push(r); continue; }
+              used.add(hit.id);
+              const { error: fillErr } = await supabase.from("tax_invoices")
+                .update({ nts_confirm_no: (r as any).nts_confirm_no, hometax_synced_at: new Date().toISOString(),
+                          nts_issued_at: (r as any).nts_issued_at ?? undefined, status: (r as any).status ?? "issued" })
+                .eq("id", hit.id).is("nts_confirm_no", null);
+              if (fillErr) { debug.push(`${direction} confirm-no fill error: ${fillErr.message}`); stillNew.push(r); }
+              else totalSynced += 1;
+            }
+            newRows = stillNew;
+          }
+        }
 
         if (newRows.length > 0) {
           const { error } = await supabase.from("tax_invoices").upsert(newRows, { onConflict: "company_id,nts_confirm_no" });

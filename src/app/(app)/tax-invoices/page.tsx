@@ -117,6 +117,7 @@ interface DuplicateGroup {
 function detectDuplicateInvoices(invoices: any[]): DuplicateGroup[] {
   const groups = new Map<string, { invoices: any[]; count: number }>();
   for (const inv of invoices) {
+    if (inv.status === "void") continue;   // 무효 건은 중복의 근거가 아니다
     const key = `${inv.counterparty_name}|${Number(inv.total_amount)}|${inv.issue_date}`;
     const existing = groups.get(key);
     if (existing) {
@@ -1131,8 +1132,9 @@ function TaxInvoicesPageInner() {
   //   입금 여부는 정산(settlement_status)이 원천 — 옛 경로가 남긴 status='matched' 도 함께 본다
   const isPaid = (inv: any) => inv.status === "matched" || ["partial", "settled"].includes(String(inv.settlement_status || ""));
   const isSent = (inv: any) => inv.nts_issue_status === "issued" || !!inv.nts_confirm_no;
+  //   발행 대기 = 우리가 만든 매출 계산서 중 미전송 — 손으로 등록한 매입 계산서는 승인번호가 붙을 일이 없어 영원히 남았다
   const waitInvoices = useMemo(
-    () => invoices.filter((inv: any) => isOurs(inv) && !isSent(inv)), [invoices]);
+    () => invoices.filter((inv: any) => isOurs(inv) && inv.type === "sales" && !isSent(inv) && inv.status !== "void"), [invoices]);
   const doneInvoices = useMemo(
     () => invoices.filter((inv: any) => isOurs(inv) && isSent(inv)), [invoices]);
   //   짝 없는 발행 건 — 입금(status!=='matched') 또는 프로젝트(deal_id 없음)가 안 붙은 것.
@@ -3092,7 +3094,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
   // ── 홈택스 전자세금계산서 양식용 공급자/공급받는자 정리 ──
   //   매출: 공급자=우리회사, 공급받는자=거래처. 매입: 반대.
   const isSales = inv.type === 'sales';
-  const issuedToNts = !!inv.nts_confirm_no; // 국세청 승인번호 보유 = 전송(발행)됨
+  const issuedToNts = !!inv.nts_confirm_no || inv.nts_issue_status === 'issued'; // 전송됨 — 승인번호는 다음 영업일에 붙는다
   // 직원 QA 세금계산서2 — 사업자번호 XXX-XX-XXXXX 포맷 + 상호 "+"(공백 인코딩) → 공백 정규화
   const fmtBizNo = (b: string) => { const d = (b || '').replace(/[^0-9]/g, ''); return d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}` : (b || ''); };
   const cleanNm = (s: string) => (s || '').replace(/\+/g, ' ').trim();
@@ -3536,7 +3538,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
               </div>
             )}
             <div className="flex items-center gap-2 flex-wrap">
-              {inv.status === 'draft' && (
+              {inv.status === 'draft' && inv.type === 'sales' && (
                 <button
                   onClick={handleIssue}
                   disabled={issueLoading || issuanceLimitReached}
@@ -3559,7 +3561,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
               >
                 이메일 발송
               </button>
-              <button
+              {inv.type === 'sales' && (<button
                 onClick={() => onModify(inv)}
                 disabled={!MODIFY_ISSUE_AVAILABLE}
                 title={MODIFY_ISSUE_AVAILABLE ? "수정세금계산서 만들기 · 초안 생성 후 목록에서 발행" : "국세청 연동 기관 승인 대기 중입니다. 곧 지원 예정입니다."}
@@ -3570,7 +3572,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
                 }
               >
                 수정세금계산서{MODIFY_ISSUE_AVAILABLE ? "" : " (업데이트 예정)"}
-              </button>
+              </button>)}
               <button
                 onClick={() => { ensurePrintStyles(); window.print(); }}
                 className="px-4 py-2 bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-lg text-sm border border-[var(--border)] transition"

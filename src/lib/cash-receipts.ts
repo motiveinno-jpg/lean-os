@@ -130,10 +130,13 @@ export async function createCashReceipt(params: {
 }
 
 export async function cancelCashReceipt(receiptId: string) {
-  const { error } = await db.from('cash_receipts')
+  //   홈택스에서 수집한 건은 국세청 취소거래가 따로 들어와 상계된다 — 여기서 cancelled 로 찍으면
+  //   cashReceiptSign 이 -1 로 보아 매출이 원래 금액의 두 배만큼 빠진다.
+  const { data, error } = await db.from('cash_receipts')
     .update({ status: 'cancelled' })
-    .eq('id', receiptId);
+    .eq('id', receiptId).neq('source', 'hometax_sync').select('id');
   if (error) throw error;
+  if (!data?.length) throw new Error('홈택스에서 수집한 현금영수증은 여기서 취소할 수 없습니다. 국세청 취소거래가 수집되면 자동으로 상계됩니다.');
 }
 
 // ── 국세청 실발행 (CODEF ↔ 팝빌) — cashbill-issue 엣지 ──

@@ -151,7 +151,7 @@ Deno.serve(withSentry("process-invoice-queue", async (req: Request) => {
     let autoMatched = 0;
     const { data: unmatchedInvoices } = await supabase
       .from("tax_invoices")
-      .select("id, deal_id, total_amount, deals(contract_total)")
+      .select("id, deal_id, total_amount, supply_amount, deals(contract_total)")
       .eq("type", "sales")
       .not("deal_id", "is", null)
       .not("status", "in", '("matched","void")')
@@ -172,8 +172,9 @@ Deno.serve(withSentry("process-invoice-queue", async (req: Request) => {
       });
 
       for (const inv of unmatchedInvoices as any[]) {
+        //   계약금액은 공급가(부가세 제외) 기준 — 합계와 비교하면 10% 차이로 정상 건이 절대 안 맞았다
         const contractAmt = Number(inv.deals?.contract_total || 0);
-        const invoiceAmt = Number(inv.total_amount || 0);
+        const invoiceAmt = Number(inv.supply_amount || inv.total_amount || 0);
         const receivedAmt = receivedByDeal.get(inv.deal_id) || 0;
 
         if (contractAmt <= 0 || invoiceAmt <= 0) continue;
