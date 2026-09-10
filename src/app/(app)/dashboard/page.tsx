@@ -586,8 +586,10 @@ export default function DashboardPage() {
               { id: "assets", name: "계좌별 잔액", icon: "🏦", desc: "계좌별 잔액·합계", category: "자금", render: () => <AssetsSummaryCard companyId={companyId} /> },
               { id: "work-tasks", name: "내 담당 업무", icon: "✅", desc: "나에게 배정된 프로젝트 태스크", category: "개인", render: () => <MyTasksCard companyId={companyId} userId={uid} /> },
               // 달력은 6주가 들어가야 해서 기본 h(4=212px)로는 달이 반쯤 잘렸다(2026-08-21 제보).
-              //   이제 칸이 타일 높이를 나눠 가지므로 h 만 넉넉하면 어떤 폭에서도 통째로 보인다.
-              { id: "calendar", name: "달력", icon: "📅", desc: "이번 달 일정·할 일 달력", category: "개인", w: 4, h: 10, minH: 6,   // 2단 — 6주가 통째로(결정 157)
+              //   2026-09-10 사장님 "크기 고정, 지금보다 크게": 한 열(w4) × h11(604px)로 못박는다(fixed).
+              //   6주 격자·고른 날 목록이 이 높이에 맞춰 설계돼 있어, 사람이 줄이면 다시 답답해진다.
+              //   fixed 는 저장된 크기도 무시하므로 쓰던 분들도 이 크기로 바뀐다(자리는 그대로).
+              { id: "calendar", name: "달력", icon: "📅", desc: "이번 달 일정·휴가 달력", category: "개인", w: 4, h: 11, fixed: true,
                 render: () => <DashboardCalendar userId={uid} companyId={companyId} /> },
               { id: "employees", name: "구성원", icon: "👥", desc: "재직 인원", category: "업무", render: () => <EmployeesCard companyId={companyId} /> },
               { id: "partners", name: "거래처", icon: "🤝", desc: "등록 거래처", category: "업무", render: () => <PartnersCard companyId={companyId} /> },

@@ -1,5 +1,7 @@
 "use client";
 import { comparePeople, compareByName } from "@/lib/people-sort";
+import { comparePosition } from "@/lib/position-rank";
+import { usePositionOptions } from "@/components/org-option-fields";
 import { formatPhone } from "@/lib/phone";
 import { logRead } from "@/lib/log-read";
 
@@ -122,6 +124,8 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
 
   const depts = useMemo(() => [...new Set(employees.map((e) => e.department).filter(Boolean))] as string[], [employees]);
   const positions = useMemo(() => [...new Set(employees.map((e) => e.job_title || e.position).filter(Boolean))] as string[], [employees]);
+  //   회사가 설정에 넣어 둔 직책 목록 — 표준 사다리에 없는 직책(CTO 등)의 정렬 차례를 정한다
+  const { data: positionOptions = [] } = usePositionOptions(companyId);
   const etypes = useMemo(() => [...new Set(employees.map((e) => e.employment_type).filter(Boolean))] as string[], [employees]);
   const toTokens = (xs: string[], lab?: (x: string) => string): TokenItem[] => xs.map((x) => ({ value: x, label: lab ? lab(x) : x }));
 
@@ -181,9 +185,13 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
     //   "이름으로 정렬해도 사번으로 정렬된다" 수정). 다른 칸은 그 칸 값 뒤 사번규칙으로 안정 정렬.
     if (sort.key === "employee_number") return base.filter((e) => cf.hit(colVal(e))).sort((a, b) => comparePeople(a, b) * dir);
     if (sort.key === "name") return base.filter((e) => cf.hit(colVal(e))).sort((a, b) => compareByName(a, b) * dir);
+    //   직책 정렬 = 직책급 순 (2026-09-10 사장님: "가나다가 아니라 직책급 순") — 오름차순이 대표 → 사원.
+    //   기준은 표준 직책 사다리, 회사가 만든 직책은 회사 설정 목록의 차례. lib/position-rank.ts 한 곳에 있다.
+    if (sort.key === "position") return base.filter((e) => cf.hit(colVal(e)))
+      .sort((a, b) => comparePosition(a.job_title || a.position, b.job_title || b.position, positionOptions) * dir || comparePeople(a, b));
     return base.filter((e) => cf.hit(colVal(e))).sort((a, b) => cmp(val(a), val(b)) * dir || comparePeople(a, b));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [base, sort, cf.key]);
+  }, [base, sort, cf.key, positionOptions]);
   const cfSpec = (k: keyof ReturnType<typeof colVal>) => cf.spec(k, base.map((e) => colVal(e)[k]));
   const previewCount = employees.filter((e) => condHit(e, draft)).length;
   const pager = usePager(shown, live.rows, `${q}|${JSON.stringify(live)}|${cf.key}|${view}`);

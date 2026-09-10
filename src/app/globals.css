@@ -4991,14 +4991,67 @@ table.pnl-drill-table { min-width: 760px; }
    원인 — 날짜 칸이 aspect-square 라 위젯 폭이 넓어질수록 세로가 같이 늘어(1280px 383 → 1920px 510px)
    고정 높이 타일을 넘겼다. 폭에 맞춰 세로를 정하지 말고, 타일이 준 높이를 6주가 나눠 갖게 한다.
    → 어떤 폭·어떤 높이에서도 달이 통째로 보이고, 크기를 줄여도 칸만 납작해질 뿐 잘리지 않는다. */
+/* 2026-09-10 사장님 "크기 고정하고 지금보다 크게, 이쁘게" — 타일 크기는 카탈로그가 고정(w4·h13)하고
+   여기서는 그 높이를 머리(고정)·날짜 6줄(남는 높이 분배)·고른 날 목록(고정 34%)이 나눠 갖는다. */
 .dashboard-calendar { @apply p-4 h-full flex flex-col; }
-.dashboard-calendar-header { @apply flex items-center justify-between mb-3 shrink-0; }
-.dashboard-calendar-weekdays { @apply grid grid-cols-7 gap-0.5 mb-1 shrink-0; }
-.dashboard-calendar-days { @apply grid grid-cols-7 auto-rows-fr gap-0.5 flex-1 min-h-0; }
-.dashboard-calendar-cell { @apply w-full h-full min-h-[26px]; }
-/* 고른 날짜의 일정 — 길어지면 여기서만 스크롤(카드 밖으로 밀지 않는다) */
-.dashboard-calendar-selected { @apply mt-3 border-t border-[var(--border)] pt-2.5 shrink-0 max-h-[38%] overflow-y-auto; }
+
+/* 머리 — 큰 달 숫자 + 연도, 오른쪽에 달 이동·전체보기 */
+.dashboard-calendar-header { @apply flex items-center justify-between gap-2 mb-2.5 shrink-0; }
+.dashboard-calendar-title { @apply flex items-baseline gap-1.5 min-w-0; }
+.dashboard-calendar-month { @apply text-[19px] font-extrabold tracking-tight text-[var(--text)] leading-none; }
+.dashboard-calendar-year { @apply text-[12px] font-semibold text-[var(--text-dim)] leading-none; }
+.dashboard-calendar-nav { @apply flex items-center gap-1 shrink-0; }
+.dashboard-calendar-nav-btn { @apply w-6 h-6 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)] transition; }
+.dashboard-calendar-today-btn { @apply h-6 px-2 rounded-lg text-[11px] font-bold text-[var(--primary)] bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 transition; }
+.dashboard-calendar-more { @apply ml-1 text-[11px] font-semibold text-[var(--text-dim)] hover:text-[var(--primary)] no-underline transition; }
+
+/* 요일 줄 */
+.dashboard-calendar-weekdays { @apply grid grid-cols-7 gap-1 pb-1.5 mb-1.5 border-b border-[var(--border)] shrink-0; }
+.dashboard-calendar-wd { @apply text-center text-[10.5px] font-bold text-[var(--text-dim)]; }
+.dashboard-calendar-wd.is-sun { color: var(--danger); }
+.dashboard-calendar-wd.is-sat { color: var(--primary); }
+
+/* 날짜 격자 — 앞뒤 달까지 채운 6줄 고정. 칸 높이는 타일이 준 높이를 나눠 갖는다(폭이 넓어져도 안 넘친다) */
+.dashboard-calendar-days { @apply grid grid-cols-7 auto-rows-[66px] gap-1 shrink-0; }
+.dashboard-calendar-cell { @apply w-full h-full min-h-[30px] rounded-xl flex flex-col items-center justify-center gap-1 leading-none transition; }
+.dashboard-calendar-cell:hover { @apply bg-[var(--bg-surface)]; }
+.dashboard-calendar-num { @apply text-[13.5px] font-semibold text-[var(--text)]; }
+.dashboard-calendar-cell.is-sun .dashboard-calendar-num { color: var(--danger); }
+.dashboard-calendar-cell.is-sat .dashboard-calendar-num { color: var(--primary); }
+/* 앞뒤 달 — 자리는 채우되 눈에 걸리지 않게(첫 줄·끝 줄에 이가 빠져 보이지 않는다) */
+.dashboard-calendar-cell.is-out .dashboard-calendar-num { @apply text-[var(--text-dim)] font-normal opacity-55; }
+/* 오늘 — 옅은 브랜드 바탕 */
+.dashboard-calendar-cell.is-today { @apply bg-[var(--primary)]/10; }
+.dashboard-calendar-cell.is-today .dashboard-calendar-num { @apply text-[var(--primary)] font-extrabold; }
+/* 고른 날 — 꽉 찬 브랜드 */
+.dashboard-calendar-cell.is-sel { background: var(--primary); box-shadow: 0 4px 10px -4px color-mix(in srgb, var(--primary) 70%, transparent); }
+.dashboard-calendar-cell.is-sel:hover { background: var(--primary); }
+.dashboard-calendar-cell.is-sel .dashboard-calendar-num { @apply text-white font-extrabold; }
+
+/* 그날 있는 것 — 파랑 일정 · 초록 휴가 (누가·무엇인지는 아래 목록에서) */
+.dashboard-calendar-dots { @apply flex items-center gap-[3px] h-[5px]; }
+.dashboard-calendar-dot { @apply w-[5px] h-[5px] rounded-full; }
+.dashboard-calendar-dot.is-event { background: var(--primary); }
+.dashboard-calendar-dot.is-leave { background: var(--success); }
+.dashboard-calendar-cell.is-sel .dashboard-calendar-dot { @apply bg-white; }
+.dashboard-calendar-cell.is-out .dashboard-calendar-dot { @apply opacity-40; }
+
+/* 고른 날짜의 일정 — 날짜 격자는 칸 높이가 고정이라 남는 높이는 전부 여기. 길어지면 여기서만 스크롤 */
+.dashboard-calendar-selected { @apply mt-2.5 border-t border-[var(--border)] pt-2.5 flex-1 min-h-[84px] flex flex-col overflow-y-auto; }
+.dashboard-calendar-sel-head { @apply flex items-center gap-1.5 mb-1.5; }
+.dashboard-calendar-sel-date { @apply text-[12px] font-bold text-[var(--text)]; }
+.dashboard-calendar-sel-today { @apply px-1.5 py-px rounded-md text-[10px] font-bold text-[var(--primary)] bg-[var(--primary)]/10; }
+.dashboard-calendar-sel-count { @apply ml-auto text-[11px] font-semibold text-[var(--text-dim)]; }
 .dashboard-calendar-items { @apply flex flex-col gap-1; }
+.dashboard-calendar-item { @apply flex items-center gap-2 px-2 py-1.5 rounded-lg no-underline bg-[var(--bg-surface)] hover:bg-[var(--border)] transition; }
+.dashboard-calendar-item-bar { @apply w-[3px] h-3.5 rounded-full shrink-0; }
+.dashboard-calendar-item-bar.is-event { background: var(--primary); }
+.dashboard-calendar-item-bar.is-leave { background: var(--success); }
+.dashboard-calendar-item-title { @apply text-[12px] font-medium text-[var(--text)] truncate; }
+.dashboard-calendar-item-tag { @apply ml-auto shrink-0 text-[10.5px] font-semibold text-[var(--text-muted)]; }
+.dashboard-calendar-item-more { @apply text-[11px] text-[var(--text-dim)] hover:text-[var(--primary)] no-underline pl-1; }
+/* 아무것도 없는 날 — 남는 자리 한가운데. 위쪽에 한 줄만 두면 아래가 빈 카드로 보인다 */
+.dashboard-calendar-empty { @apply flex-1 grid place-items-center text-[11.5px] text-[var(--text-dim)] pb-2; }
 
 /* access-denied.tsx */
 .access-denied-panel { @apply max-w-md w-full p-6 sm:p-8 text-center; }

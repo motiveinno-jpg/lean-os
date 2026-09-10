@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Avatar } from "@/components/avatar";
 import { useUser } from "@/components/user-context";
 import { useModalKeys } from "@/hooks/use-modal-keys";
@@ -27,6 +27,23 @@ export function AccountChip() {
   const btnRef = useRef<HTMLButtonElement>(null);
   // (2026-08-03 역할 폐지 반영) 표시는 마스터/멤버/파트너 3종 — 관리자·직원 구분 표기 제거.
   const roleLabel = (user as any)?.is_master ? "마스터" : role === "partner" ? "파트너" : "멤버";
+
+  //   이름 아래·팝오버에 적는 것 = **부서 · 직책** (2026-09-10 사장님) — '멤버'는 누구에게나 같은 말이라
+  //   내 자리를 알려 주지 못한다. 인사기록(employees)의 부서·직책을 쓰고, 인사기록이 없거나
+  //   부서·직책이 비어 있으면 종전대로 역할을 적는다.
+  const { data: myEmp } = useQuery({
+    queryKey: ["account-chip-org", user?.company_id, user?.id],
+    enabled: !!user?.company_id && !!user?.id,
+    staleTime: 300_000,
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("employees")
+        .select("department, position, job_title")
+        .eq("company_id", user!.company_id).eq("user_id", user!.id).maybeSingle();
+      return data as { department: string | null; position: string | null; job_title: string | null } | null;
+    },
+  });
+  const orgLabel = [myEmp?.department, myEmp?.job_title || myEmp?.position].filter(Boolean).join(" · ");
+  const whoLabel = orgLabel || roleLabel;
 
   //   내 상태 — 저장값을 화면 기준(만료 반영)으로 읽는다
   const presence = effectivePresence(user as any);
@@ -88,7 +105,7 @@ export function AccountChip() {
           <span className="block text-xs font-bold text-[var(--text)] leading-4 truncate max-w-[110px]">
             {user?.name || user?.email?.split("@")[0] || ""}
           </span>
-          <span className="block text-[10px] text-[var(--text-dim)] leading-3 truncate max-w-[110px]">{presence.status === "available" ? roleLabel : presenceText(presence)}</span>
+          <span className="block text-[10px] text-[var(--text-dim)] leading-3 truncate max-w-[110px]">{presence.status === "available" ? whoLabel : presenceText(presence)}</span>
         </span>
       </button>
 
@@ -150,8 +167,8 @@ export function AccountChip() {
 
             <div className="account-chip-details">
               <div className="flex items-center justify-between">
-                <span className="text-[var(--text-dim)]">역할</span>
-                <span className="font-semibold text-[var(--text)]">{roleLabel}</span>
+                <span className="text-[var(--text-dim)]">{orgLabel ? "소속" : "역할"}</span>
+                <span className="font-semibold text-[var(--text)] truncate max-w-[160px]">{whoLabel}</span>
               </div>
               {user?.companies?.name && (
                 <div className="flex items-center justify-between">

@@ -29,6 +29,9 @@ export type CatalogWidget = {
   x?: number; y?: number; w?: number; h?: number;
   //   크기 조절 하한 (2026-08-20 사장님: 위젯 크기 자유 조절 복원) — 신호 줄처럼 좁으면 깨지는 위젯이 정한다
   minW?: number; minH?: number;
+  //   크기 고정 (2026-09-10 사장님, 달력) — 사람이 줄이거나 늘릴 수 없고 저장된 크기도 무시한다.
+  //   내용이 그 크기에 맞춰 설계된 위젯용. 자리 옮기기(드래그)는 그대로 된다.
+  fixed?: boolean;
   render: () => React.ReactNode;
 };
 
@@ -272,10 +275,12 @@ export function DashboardGrid({
     //   저장본에 w·h 가 있으면 그 크기, 없으면 카탈로그 선언 크기. 빈 위젯은 한 줄로 접히고 조절 불가(결정 153 유지).
     return active.map((w) => {
       const l = saved[w.id] || def[w.id];
-      const size = { w: l.w || w.w || 4, h: l.h || w.h || 5 };
+      //   fixed 위젯은 저장본 크기를 안 본다 — 카탈로그가 정한 크기가 곧 디자인이다(달력의 6주 격자)
+      const size = w.fixed ? { w: w.w || 4, h: w.h || 5 } : { w: l.w || w.w || 4, h: l.h || w.h || 5 };
       //   빈 위젯은 한 줄로 접되 자리는 사람이 둔 곳 그대로(2026-09-04 사장님: "오늘 일정·내 담당 업무를 사이에 넣으면 원래 자리로 돌아간다" —
       //   예전엔 y+100000 으로 바닥에 밀고 자리도 저장하지 않아 드래그가 무효였다)
       if (emptyIds.has(w.id)) return { i: w.id, x: l.x, y: l.y, w: size.w, h: 1, minW: 3, minH: 1, isResizable: false };
+      if (w.fixed) return { i: w.id, x: l.x, y: l.y, ...size, minW: size.w, maxW: size.w, minH: size.h, maxH: size.h, isResizable: false };
       return { i: w.id, x: l.x, y: l.y, ...size, minW: w.minW ?? 3, minH: w.minH ?? 2, isResizable: edit && !isMobile };
     });
   }, [layout, activeIds, catMap, catalogIds, emptyIds, edit, isMobile]);
@@ -301,7 +306,10 @@ export function DashboardGrid({
           map[it.i] = { i: it.i, x: it.x, y: it.y, w: prevL?.w || cat?.w || 4, h: prevL?.h || cat?.h || 5, minW: prevL?.minW ?? cat?.minW, minH: prevL?.minH ?? cat?.minH };
           continue;
         }
-        map[it.i] = { i: it.i, x: it.x, y: it.y, w: it.w, h: it.h, minW: it.minW, minH: it.minH };
+        const catFixed = catMap[it.i]?.fixed ? catMap[it.i] : null;   // 크기 고정 위젯: 자리만 저장하고 크기는 카탈로그 값을 지킨다
+        map[it.i] = catFixed
+          ? { i: it.i, x: it.x, y: it.y, w: catFixed.w || 4, h: catFixed.h || 5 }
+          : { i: it.i, x: it.x, y: it.y, w: it.w, h: it.h, minW: it.minW, minH: it.minH };
       }
       const next = Object.values(map);
       stateRef.current = { ...stateRef.current, layout: next };

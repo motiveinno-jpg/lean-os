@@ -1,12 +1,17 @@
 "use client";
 
-// 대시보드 미니 캘린더 — 이번 달 일정(파랑)·할 일(주황)·직원 휴가(초록)를 달력으로 한눈에.
+// 대시보드 달력 — 이번 달 일정(파랑)·직원 휴가(초록)를 달력으로 한눈에.
 //   날짜 클릭 시 그날 항목을 아래에 간략 표시, 클릭하면 /schedule 로 이동. 데이터는 MyTodosWidget 과 동일 캐시 공유.
 //   휴가 추가 (2026-08-07 사장님): 일정 아래에 "누구누구 연차" 로 이어서 보이게.
+//   2026-09-10 사장님 "크기 고정하고 지금보다 크게, 이쁘게":
+//     · 타일 크기를 카탈로그가 고정(dashboard/page.tsx 의 fixed) — 어떤 폭에서도 6주가 같은 모양으로 들어간다.
+//     · 앞뒤 달 날짜를 흐리게 채워 첫 줄·끝 줄이 이가 빠지지 않게 한다.
+//     · 달 이동(‹ ›)을 붙였다. 휴가는 leave_calendar 가 전 기간을 주고 일정은 달 단위로 다시 읽는다.
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getMonthEvents } from "@/lib/schedule";
 import { LEAVE_TYPES } from "@/lib/hr";
 import { supabase } from "@/lib/supabase";
@@ -32,10 +37,21 @@ function kstDay(raw: string | null | undefined): string {
 
 export function DashboardCalendar({ userId, companyId }: { userId: string; companyId: string }) {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth(); // 0-index
-  const todayStr = ymd(year, month, now.getDate());
+  const todayStr = ymd(now.getFullYear(), now.getMonth(), now.getDate());
+  //   보고 있는 달 — 기본은 이번 달. ‹ › 로 옮기면 일정은 그 달을 다시 읽는다.
+  const [cursor, setCursor] = useState({ y: now.getFullYear(), m: now.getMonth() });
+  const { y: year, m: month } = cursor;
   const [selected, setSelected] = useState<string>(todayStr);
+  const isThisMonth = year === now.getFullYear() && month === now.getMonth();
+
+  const moveMonth = (delta: number) => {
+    const d = new Date(year, month + delta, 1);
+    const ny = d.getFullYear(), nm = d.getMonth();
+    setCursor({ y: ny, m: nm });
+    //   옮긴 달이 이번 달이면 오늘을, 아니면 그 달 1일을 고른 상태로 — 아래 목록이 늘 그 달을 가리킨다
+    setSelected(ny === now.getFullYear() && nm === now.getMonth() ? todayStr : ymd(ny, nm, 1));
+  };
+  const goToday = () => { setCursor({ y: now.getFullYear(), m: now.getMonth() }); setSelected(todayStr); };
 
   //   '할 일' 은 일정으로 합쳐졌다(2026-08-10) — 날짜가 있으면 아래 events 로 이미 들어온다.
   const { data: events = [] } = useQuery({
@@ -116,47 +132,74 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
     (byDate[k] || (byDate[k] = { event: 0, leave: 0 })).leave = list.length;
   });
 
-  // 달력 셀
+  // 달력 칸 — 앞뒤 달 날짜로 첫 주·마지막 주의 빈 자리를 채운다(이가 빠져 보이지 않게).
   const startWd = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const cells: (number | null)[] = [];
-  for (let i = 0; i < startWd; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  const prevDays = new Date(year, month, 0).getDate();
+  const cells = useMemo(() => {
+    const out: { key: string; day: number; out: boolean }[] = [];
+    for (let i = startWd - 1; i >= 0; i--) {
+      const d = new Date(year, month - 1, prevDays - i);
+      out.push({ key: ymd(d.getFullYear(), d.getMonth(), d.getDate()), day: prevDays - i, out: true });
+    }
+    for (let d = 1; d <= daysInMonth; d++) out.push({ key: ymd(year, month, d), day: d, out: false });
+    //   마지막 주만 채운다 — 무조건 6줄로 맞추면 9월처럼 5주로 끝나는 달에 회색 줄 하나가 통째로 남는다
+    for (let d = 1; out.length % 7 !== 0; d++) {
+      const nd = new Date(year, month + 1, d);
+      out.push({ key: ymd(nd.getFullYear(), nd.getMonth(), nd.getDate()), day: d, out: true });
+    }
+    return out;
+  }, [year, month, startWd, daysInMonth, prevDays]);
 
   // 선택일 항목
   const selEvents = (events as any[]).filter((e) => kstDay(e.start_at) === selected && !e.completed);
-  const selItems = selEvents.map((e) => ({ id: `e${e.id}`, title: e.title as string, kind: "event" as const }));
   const selLeaves = leaveByDate[selected] || [];
+  const selCount = selEvents.length + selLeaves.length;
+  const selWd = WD[new Date(Number(selected.slice(0, 4)), Number(selected.slice(5, 7)) - 1, Number(selected.slice(8, 10))).getDay()];
 
   return (
     <div className="dashboard-calendar glass-card">
       <div className="dashboard-calendar-header">
-        <h3 className="text-[13px] font-bold text-[var(--text)]">{year}년 {month + 1}월 <span className="text-[var(--text-dim)] font-normal">일정 · 휴가</span></h3>
-        <Link href="/schedule" className="widget-more-link">전체보기 →</Link>
+        <div className="dashboard-calendar-title">
+          <span className="dashboard-calendar-month">{month + 1}월</span>
+          <span className="dashboard-calendar-year">{year}</span>
+        </div>
+        <div className="dashboard-calendar-nav">
+          {!isThisMonth && (
+            <button type="button" onClick={goToday} className="dashboard-calendar-today-btn">오늘</button>
+          )}
+          <button type="button" onClick={() => moveMonth(-1)} aria-label="이전 달" className="dashboard-calendar-nav-btn">
+            <ChevronLeft size={15} strokeWidth={2.4} />
+          </button>
+          <button type="button" onClick={() => moveMonth(1)} aria-label="다음 달" className="dashboard-calendar-nav-btn">
+            <ChevronRight size={15} strokeWidth={2.4} />
+          </button>
+          <Link href="/schedule" className="dashboard-calendar-more">전체보기</Link>
+        </div>
       </div>
 
       <div className="dashboard-calendar-weekdays">
         {WD.map((w, i) => (
-          <div key={w} className={`text-center text-[10px] font-semibold ${i === 0 ? "text-[var(--danger)]" : i === 6 ? "text-[var(--primary)]" : "text-[var(--text-dim)]"}`}>{w}</div>
+          <div key={w} className={`dashboard-calendar-wd ${i === 0 ? "is-sun" : i === 6 ? "is-sat" : ""}`}>{w}</div>
         ))}
       </div>
 
       <div className="dashboard-calendar-days">
-        {cells.map((d, i) => {
-          if (d === null) return <div key={`x${i}`} className="dashboard-calendar-cell" />;
-          const key = ymd(year, month, d);
-          const marks = byDate[key];
-          const isToday = key === todayStr;
-          const isSel = key === selected;
+        {cells.map((c, i) => {
+          const marks = byDate[c.key];
+          const isToday = c.key === todayStr;
+          const isSel = c.key === selected;
+          const wd = i % 7;
+          //   일정·휴가 점은 최대 3개까지 — 그 이상은 아래 목록에서 센다
+          const dots: string[] = [];
+          for (let k = 0; k < Math.min(marks?.event || 0, 2); k++) dots.push("is-event");
+          for (let k = 0; k < Math.min(marks?.leave || 0, 2); k++) dots.push("is-leave");
           return (
-            <button key={key} type="button" onClick={() => setSelected(key)}
-              className={`dashboard-calendar-cell rounded-lg flex flex-col items-center justify-center leading-none transition ${
-                isSel ? "bg-[var(--primary)] text-white font-bold" : isToday ? "bg-[var(--primary)]/12 text-[var(--primary)] font-bold" : "text-[var(--text)] hover:bg-[var(--bg-surface)]"
-              }`}>
-              <span className="text-[11px]">{d}</span>
-              {/* 일정(파랑)·할 일(주황)·휴가(초록)는 점으로 — 날짜를 누르면 아래에 누구·무슨 휴가인지 나온다 */}
-              <span className="flex gap-0.5 mt-0.5 h-1 items-center">
-                {marks?.event ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--primary)]"}`} /> : null}                {marks?.leave ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--success)]"}`} /> : null}
+            <button key={c.key} type="button" onClick={() => setSelected(c.key)}
+              className={`dashboard-calendar-cell${c.out ? " is-out" : ""}${isToday ? " is-today" : ""}${isSel ? " is-sel" : ""}${wd === 0 ? " is-sun" : wd === 6 ? " is-sat" : ""}`}>
+              <span className="dashboard-calendar-num">{c.day}</span>
+              <span className="dashboard-calendar-dots">
+                {dots.slice(0, 3).map((k, di) => <span key={di} className={`dashboard-calendar-dot ${k}`} />)}
               </span>
             </button>
           );
@@ -164,28 +207,37 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
       </div>
 
       <div className="dashboard-calendar-selected">
-        <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">
-          {Number(selected.slice(5, 7))}월 {Number(selected.slice(8, 10))}일{selected === todayStr ? " · 오늘" : ""}
+        <div className="dashboard-calendar-sel-head">
+          <span className="dashboard-calendar-sel-date">
+            {Number(selected.slice(5, 7))}월 {Number(selected.slice(8, 10))}일 ({selWd})
+          </span>
+          {selected === todayStr && <span className="dashboard-calendar-sel-today">오늘</span>}
+          {selCount > 0 && <span className="dashboard-calendar-sel-count">{selCount}건</span>}
         </div>
-        {selItems.length === 0 && selLeaves.length === 0 ? (
-          <div className="text-[11px] text-[var(--text-dim)] py-1">일정·할 일·휴가가 없습니다.</div>
+        {selCount === 0 ? (
+          <div className="dashboard-calendar-empty"><span>일정도 휴가도 없는 날입니다</span></div>
         ) : (
           <div className="dashboard-calendar-items">
-            {selItems.slice(0, 4).map((it) => (
-              <Link key={it.id} href="/schedule" className="flex items-center gap-2 text-[12px] text-[var(--text)] no-underline hover:text-[var(--primary)] transition">
-                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${it.kind === "event" ? "bg-[var(--primary)]" : "bg-[var(--warning)]"}`} />
-                <span className="truncate">{it.title}</span>
+            {selEvents.slice(0, 6).map((e: any) => (
+              <Link key={`e${e.id}`} href="/schedule" className="dashboard-calendar-item">
+                <span className="dashboard-calendar-item-bar is-event" />
+                <span className="dashboard-calendar-item-title">{e.title}</span>
               </Link>
             ))}
-            {selItems.length > 4 && <Link href="/schedule" className="text-[11px] text-[var(--text-dim)] hover:text-[var(--primary)] no-underline">외 {selItems.length - 4}건 →</Link>}
+            {selEvents.length > 6 && (
+              <Link href="/schedule" className="dashboard-calendar-item-more">일정 외 {selEvents.length - 6}건 →</Link>
+            )}
             {/* 휴가는 일정 아래에 이어서 — "누구누구 연차" (2026-08-07 사장님) */}
-            {selLeaves.slice(0, 4).map((l, i) => (
-              <Link key={`l${i}`} href="/employees?tab=leave" className="flex items-center gap-2 text-[12px] text-[var(--text)] no-underline hover:text-[var(--primary)] transition">
-                <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-[var(--success)]" />
-                <span className="truncate">{l.name} {l.label}</span>
+            {selLeaves.slice(0, 6).map((l, i) => (
+              <Link key={`l${i}`} href="/employees?tab=leave" className="dashboard-calendar-item">
+                <span className="dashboard-calendar-item-bar is-leave" />
+                <span className="dashboard-calendar-item-title">{l.name}</span>
+                <span className="dashboard-calendar-item-tag">{l.label}</span>
               </Link>
             ))}
-            {selLeaves.length > 4 && <Link href="/employees?tab=leave" className="text-[11px] text-[var(--text-dim)] hover:text-[var(--primary)] no-underline">휴가 외 {selLeaves.length - 4}명 →</Link>}
+            {selLeaves.length > 6 && (
+              <Link href="/employees?tab=leave" className="dashboard-calendar-item-more">휴가 외 {selLeaves.length - 6}명 →</Link>
+            )}
           </div>
         )}
       </div>

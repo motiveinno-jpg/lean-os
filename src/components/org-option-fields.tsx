@@ -12,7 +12,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { logRead } from "@/lib/log-read";
 
-const DEFAULT_POSITIONS = ["대표", "이사", "부장", "차장", "과장", "대리", "주임", "사원"];
+export const DEFAULT_POSITIONS = ["대표", "이사", "부장", "차장", "과장", "대리", "주임", "사원"];
 
 const FIELD_CLS = "w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]";
 const ADD_SENTINEL = "__add__";
@@ -33,7 +33,8 @@ function useDepartmentOptions(companyId: string | null) {
   });
 }
 
-function usePositionOptions(companyId: string | null) {
+//   회사가 정한 직책 목록 — 직책 칸의 후보이자 정렬 기준(lib/position-rank 의 ②)이라 밖에서도 쓴다
+export function usePositionOptions(companyId: string | null) {
   return useQuery({
     queryKey: ["position-options", companyId],
     enabled: !!companyId,
