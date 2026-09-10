@@ -16,7 +16,7 @@ import { getCompanyUsers } from "@/lib/queries";
 import { ChatEmojiPicker } from "@/components/chat-emoji-picker";
 import { resolveSignedUrl } from "@/lib/file-storage";
 import {
-  getDepartments, uploadScheduleFile, VISIBILITY_LABEL,
+  getDepartments, uploadScheduleFile, VISIBILITY_LABEL, dateKeyOf,
   type EventColor, type ScheduleAttachment, type ScheduleEvent, type Visibility, type ScheduleReminder, remindersOf } from "@/lib/schedule";
 import { supabase } from "@/lib/supabase";
 
@@ -56,8 +56,9 @@ export type ScheduleDraft = {
 
 /** 저장된 일정 → 편집용 초안. 새로 만들 때는 날짜만 넣어 부르면 된다. */
 export function draftFromEvent(e?: Partial<ScheduleEvent> | null, fallback?: { from?: string; to?: string }): ScheduleDraft {
-  const from = (e?.start_at || "").slice(0, 10) || fallback?.from || "";
-  const to = (e?.end_at || "").slice(0, 10) || fallback?.to || from;
+  const source = e?.recurrence_source ?? e;
+  const from = (source?.start_at ? dateKeyOf(source.start_at) : "") || fallback?.from || "";
+  const to = (source?.end_at ? dateKeyOf(source.end_at) : "") || fallback?.to || from;
   return {
     id: e?.id,
     title: e?.title || "",

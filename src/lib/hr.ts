@@ -1056,14 +1056,13 @@ export async function upsertAttendanceRecordAsAdmin(params: {
 
 // ── Attendance: Get records by date range ──
 export async function getAttendanceRecords(companyId: string, startDate: string, endDate: string) {
-  const data = logRead('lib/hr:data', await db
+  return fetchPaged('lib/hr:attendanceRecords', () => db
     .from('attendance_records')
     .select('*, employees(name, department)')
     .eq('company_id', companyId)
     .gte('date', startDate)
     .lte('date', endDate)
-    .order('date', { ascending: false }));
-  return data || [];
+    .order('date', { ascending: false }).order('id'), 50000, { strict: true });
 }
 
 // ── Attendance: Weekly hours (52-hour monitoring) ──
