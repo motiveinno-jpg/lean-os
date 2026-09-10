@@ -133,11 +133,10 @@ function CollectInner() {
   //   '새로 들어온 것만' = 고른 자료 중 가장 오래된 마지막 수집일부터. 기록이 없으면 이번 달 1일부터.
   const autoFrom = useMemo(() => {
     if (!status) return from;
-    const days = picked
-      .map((k) => status[k]?.lastSyncAt)
-      .filter(Boolean)
-      .map((iso) => String(iso).slice(0, 10));
-    if (days.length === 0) return from;
+    //   한 번도 받지 않은 자료가 섞여 있으면 기본 기간 시작부터 — 다른 자료의 마지막 수집일로 자르면 그 자료의 과거가 통째로 빠진다
+    const stamps = picked.map((k) => status[k]?.lastSyncAt);
+    if (stamps.length === 0 || stamps.some((v) => !v)) return from;
+    const days = stamps.map((iso) => String(iso).slice(0, 10));
     return days.sort()[0];
   }, [status, picked, from]);
 
@@ -164,12 +163,15 @@ function CollectInner() {
     try { localStorage.setItem("collect-picked", JSON.stringify(picked)); } catch { /* ignore */ }
     //   요금제·쿨타임을 서버가 한 번 더 검사하고 기록한다 (자료 종류별로 각각)
     const types = [...new Set(runnable.map((k) => (HOMETAX_SOURCES.includes(k) ? "hometax" : k)))];
+    //   서버가 쿨타임·요금제로 막은 자료는 빼고 돌린다 — 결과를 안 보고 무조건 시작하면 한도가 있으나 마나다
+    const allowed = new Set<string>();
     for (const t of types) {
-      await (t === "hometax" ? cdHometax : t === "bank" ? cdBank : cdCard).run(async () => { /* 소모만 */ });
+      await (t === "hometax" ? cdHometax : t === "bank" ? cdBank : cdCard).run(async () => { allowed.add(t); });
     }
-    
+    const allowedSources = runnable.filter((k) => allowed.has(HOMETAX_SOURCES.includes(k) ? "hometax" : k));
+    if (allowedSources.length === 0) return;   //   막힌 이유는 cd 훅이 화면에 띄운다
     //   여기서부터는 화면 밖에서 돈다. 창을 닫고 다른 메뉴로 가도 계속된다
-    startCollect({ companyId, sources: runnable, startDate: start, endDate: end });
+    startCollect({ companyId, sources: allowedSources, startDate: start, endDate: end });
   };
 
   const totalPending = SOURCES.reduce((n, s) => n + (status?.[s.key]?.pending ?? 0), 0);

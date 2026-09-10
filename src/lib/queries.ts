@@ -2361,8 +2361,8 @@ export async function getCashPulseData(companyId: string, userId?: string) {
     // 10. Cash snapshot — 사용자가 설정 → 일반설정에서 입력한 수동 보정값
     db.from('cash_snapshot').select('current_balance, monthly_fixed_cost').eq('company_id', companyId).maybeSingle(),
     // 11. 고정비 표 · 12. 대출 — 월 고정 지출에 들어간다
-    db.from('fixed_costs').select('name, amount, end_date').eq('company_id', companyId).eq('is_recurring', true),
-    db.from('loans').select('*').eq('company_id', companyId).eq('status', 'active'),
+    db.from('fixed_costs').select('name, amount, end_date').eq('company_id', companyId).eq('is_recurring', true).limit(1000),
+    db.from('loans').select('*').eq('company_id', companyId).eq('status', 'active').limit(1000),
   ]);
   const { estimateMonthlyPayment } = await import('./cash-budget');
   const recNamesForFixed = new Set((recurring.data || []).map((r: any) => String(r.name || '').toLowerCase().replace(/\s+/g, '')));

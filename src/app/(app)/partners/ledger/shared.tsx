@@ -556,7 +556,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
       if (savedId)  {
         // 생성 타입은 p_deal_id 를 non-null 로 뽑지만 SQL 은 null 허용(태그 해제) — null 전달 유지
         const { error: tagErr } = await db.rpc("set_voucher_deal", { p_entry_id: savedId, p_deal_id: dealId || null, p_sub_deal_id: dealId ? (subDealId || null) : null } as never);
-        if (tagErr) throw new Error(tagErr.message);
+        if (tagErr) toast(`전표는 저장됐습니다. 프로젝트 연결만 실패했습니다: ${String(tagErr.message || "")}`, "error");   // 저장은 끝났다 — 예외로 던지면 다시 저장해 이중 전표가 된다
       }
       toast(isNew ? "전표 입력됨" : "전표 수정됨", "success");
       onSaved();

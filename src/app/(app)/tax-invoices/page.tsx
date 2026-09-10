@@ -1188,6 +1188,8 @@ function TaxInvoicesPageInner() {
       unsent: {
         draft: agg(ours.filter((r: any) => !isSent(r) && st(r) === "draft")),
         pending: agg(ours.filter((r: any) => !isSent(r) && st(r) === "pending")),
+        //   전송은 됐는데 승인번호를 기다리는 건(다음 영업일 전송) — '전송대기' 와 같은 숫자를 두 번 찍던 자리
+        awaiting: agg(ours.filter((r: any) => r.nts_issue_status === "issued" && !r.nts_confirm_no)),
         failed: agg(ours.filter((r: any) => !isSent(r) && st(r) === "failed")),
         total: agg(ours.filter((r: any) => !isSent(r))),
       },
@@ -1429,7 +1431,8 @@ function TaxInvoicesPageInner() {
   // 전표처리 대상: 무효 아님 + 아직 전표 미생성. 발행 여부와 무관(발행완료 건도 기장 필요).
   const isVoucherable = (inv: any) => inv.status !== 'void' && !inv.journal_entry_id;
   // 체크박스 선택 가능 = 일괄 발행/삭제 또는 전표처리 중 하나라도 가능한 행
-  const selectableInList = currentList.filter((inv: any) => isUnissued(inv) || isVoucherable(inv));
+  //   전표는 수집·전표 소관 — 여기서 고를 수 있는 건 발행·삭제 대상(미발행)뿐. 발행된 건을 고르면 버튼 없는 바만 떴다
+  const selectableInList = currentList.filter((inv: any) => isUnissued(inv));
   const selectedRows = selectableInList.filter((inv: any) => selectedIds.has(inv.id));
   const selectedIssuable = selectedRows.filter((inv: any) => inv.type === 'sales' && isUnissued(inv)); // 발행 가능(매출 미발행)
   const selectedDeletable = selectedRows.filter((inv: any) => isUnissued(inv)); // 삭제 가능(미발행만)
@@ -1542,6 +1545,12 @@ function TaxInvoicesPageInner() {
               </span>
             )}
             <ExcelMenu items={tiExcelItems} />
+            {isHometaxConnected && (
+              <button type="button" className="btn-secondary btn-sm" onClick={() => hometaxPauseMut.mutate()} disabled={hometaxPauseMut.isPending}
+                title="홈택스에 직접 로그인할 때 연동을 30분 멈춥니다. 다른 화면의 '정지 해제' 안내가 가리키는 자리">
+                {isHometaxPaused ? `연동 정지 해제 (${new Date(hometaxPausedUntil!).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}까지)` : "홈택스 연동 정지"}
+              </button>
+            )}
             {/*   AI 제안 — 보조 기능 모음(조회 표준 이름). 줄마다 출처를 적는다. */}
             {/*   메뉴 안에서는 AI 를 뺀다 — 그릇(AI 제안)에 이미 적혀 있다 (2026-08-13 사장님 확정).
                   회계자료(3방향 대조표)로 넘어가던 링크는 없앴다 — 처리는 메뉴 이동 없이 여기서. */}
@@ -1770,7 +1779,7 @@ function TaxInvoicesPageInner() {
                     {tiPager.view.map((inv: any) => {
                       const sc = invoiceStatusMeta(inv.status, inv.type);
                       const posted = !!inv.journal_entry_id;
-                      const canSelect = isUnissued(inv) || isVoucherable(inv);
+                      const canSelect = isUnissued(inv);
                       const canIssue = inv.type === 'sales' && isUnissued(inv);
                       //   과세유형이 회사와 안 맞는 옛 초안 — 누르면 서버가 거절하므로 이유를 미리 적어 준다
                       const kindBlocked = taxKindBlockedReason(vatBiz, (inv.tax_kind || "taxable") as TaxKind);
@@ -2036,7 +2045,7 @@ function TaxInvoicesPageInner() {
                     {row("", "전송대기", S.unsent.pending, toWait)}
                     {/*   전송중 — CODEF 즉시전송 버그로 sendToNtsYn="N" 이라 팝빌 등록 후
                           **다음 영업일**에 국세청으로 간다. 하루 넘게 머무는 실재하는 구간이다. */}
-                    {row("", "전송중", S.unsent.pending, toWait)}
+                    {row("", "전송중", S.unsent.awaiting, toWait)}
                     {row("", "오류", S.unsent.failed, { text: "사유 보기", on: () => setTab("wait") }, true)}
                     {sub("미전송 계", S.unsent.total)}
 

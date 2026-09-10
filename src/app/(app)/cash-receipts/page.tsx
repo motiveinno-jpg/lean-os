@@ -640,7 +640,7 @@ export default function CashReceiptsPage() {
       <QueryScreen>
         <QueryHead>
           <div className="collect-tabs no-print">
-            {([["income", "매출 (발행)", summary?.incomeCount], ["expense", "매입 (수취)", summary?.expenseCount]] as [Tab, string, number | undefined][]).map(([t, label, n]) => (
+            {([["income", "매출 (발행)", summary?.incomeCount], ["expense", "매입 (수취)", summary?.expenseCount], ["register", "수동 등록", undefined]] as [Tab, string, number | undefined][]).map(([t, label, n]) => (
               <button key={t} type="button" onClick={() => setTab(t)}
                 className={tab === t ? "collect-tab collect-tab-on" : "collect-tab"}>
                 {label}{n != null && <span className="collect-tab-cnt">{n.toLocaleString()}</span>}

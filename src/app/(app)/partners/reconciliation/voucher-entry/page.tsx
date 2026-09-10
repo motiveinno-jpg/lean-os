@@ -534,6 +534,12 @@ export default function VoucherEntryPage() {
   const errMsg = (m: string) =>
     m.includes("PERIOD_LOCKED") ? "마감(잠금)된 회계기간입니다. 저장/수정/삭제 불가"
       : m.includes("UNBALANCED") ? "차변·대변 합계가 일치하지 않습니다"
+      : m.includes("NOT_MANUAL") ? "매입매출전표나 자동 전표는 여기서 고칠 수 없습니다. '매입매출전표' 메뉴나 원래 화면에서 고쳐 주세요"
+      : m.includes("NEED_TWO_LINES") ? "전표는 줄이 두 개 이상이어야 합니다"
+      : m.includes("FORBIDDEN") ? "전표 입력 권한이 없습니다"
+      : m.includes("INVALID_PARTNER") ? "거래처가 우리 회사 것이 아닙니다"
+      : m.includes("INVALID_ACCOUNT") ? "계정과목이 올바르지 않습니다"
+      : m.includes("ALREADY_POSTED") ? "그 거래는 이미 전표가 있습니다"
       : m.includes("does not exist") ? "전표 수정 기능이 아직 준비되지 않았습니다" : m;
 
   // ── 저장: 하단 편집 전표 커밋 + 상단 새 전표 저장 → §3-3-B 즉시 반영(리페치+하이라이트+스크롤+N번 토스트) ──
@@ -555,6 +561,16 @@ export default function VoucherEntryPage() {
       
       let newId: string | null = null;
       const newIds: string[] = [];
+      const savedDates = new Set<string>();
+      //   날짜별로 RPC 를 따로 부르므로 트랜잭션이 아니다 — 마감된 달이 섞여 있으면 시작하기 전에 전부 거른다
+      //   (둘째 장에서 막히면 첫 장은 저장됐는데 화면은 실패로 보여 다시 누르면 이중 전표가 됐다)
+      if (pendGroups.length > 0 && companyId) {
+        const months = [...new Set(pendGroups.map(([d]) => String(d).slice(0, 7)))];
+        const { data: locked } = await db.from("closing_checklists").select("month").eq("company_id", companyId).eq("status", "locked").in("month", months);
+        if (locked && locked.length > 0) {
+          throw new Error(`${locked.map((l: any) => l.month).join(", ")} 은 회계마감으로 잠겨 있어 저장할 수 없습니다. 그 날짜 줄을 빼거나 마감을 풀어 주세요`);
+        }
+      }
       //   ★ 같은 날짜 줄끼리 한 장 · 날짜가 여러 개면 전표도 여러 장 (2026-09-02 사장님: 줄마다 날짜)
       for (const [gDate, gLines] of pendGroups)  {
         const gDebit = gLines.reduce((s, l) => s + normDC(l).d, 0);
@@ -565,7 +581,7 @@ export default function VoucherEntryPage() {
           const total = vtype === "cash_in" ? gCredit : vtype === "cash_out" ? gDebit : Math.max(gDebit, gCredit);
           if (total > 0) {
             const [bk, cd] = await Promise.all([
-              db.from("bank_transactions").select("id, amount, counterparty, journal_entry_id").eq("company_id", companyId ?? "").eq("transaction_date", gDate).not("journal_entry_id", "is", null).eq("amount", total),
+              db.from("bank_transactions").select("id, amount, counterparty, journal_entry_id").eq("company_id", companyId ?? "").eq("transaction_date", gDate).not("journal_entry_id", "is", null).or(`amount.eq.${total},amount.eq.${-total}`),
               db.from("card_transactions").select("id, amount, merchant_name, journal_entry_id").eq("company_id", companyId ?? "").eq("transaction_date", gDate).not("journal_entry_id", "is", null).eq("amount", total),
             ]);
             const dups = [...((bk.data || []) as any[]).map((r) => `통장 ${r.counterparty || ""} ${Number(r.amount).toLocaleString()}`), ...((cd.data || []) as any[]).map((r) => `카드 ${r.merchant_name || ""} ${Number(r.amount).toLocaleString()}`)];
@@ -582,16 +598,28 @@ export default function VoucherEntryPage() {
         const { data, error } = await db.rpc("save_manual_voucher", {
           p_entry_date: gDate, p_voucher_type: vtype, p_description: gLines[0]?.memo || "", p_lines: payload,
         });
-        if (error) throw new Error(errMsg(String(error.message)));
+        if (error) {
+          //   앞 날짜는 이미 저장됐다 — 그 줄은 입력칸에서 빼고 실패한 날짜만 남긴다(다시 누르면 이중 전표가 되지 않게)
+          if (savedDates.size > 0) {
+            setPend((ls) => ls.filter((l) => !savedDates.has(l.date)));
+            await qc.invalidateQueries({ queryKey: ["vouchers-of-day"] });
+          }
+          throw new Error(`${savedDates.size > 0 ? `${savedDates.size}장은 저장됐고 ` : ""}${gDate} 전표 저장 실패: ${errMsg(String(error.message))}`);
+        }
         newId = data as string;
         newIds.push(newId);
+        savedDates.add(gDate);
       }
       if (newIds.length > 0) {
         //   불러온 통장/카드 거래에 전표를 건다 → 수집·전표/통장/카드에서 '전표됨', 다시 전표 못 침(ALREADY_POSTED). 여러 장이면 첫 장에 건다.
         if (linkedSrc) {
-          const tbl = linkedSrc.kind === "bank" ? "bank_transactions" : "card_transactions";
-          const { error: linkErr } = await db.from(tbl).update({ journal_entry_id: newIds[0] } as never).eq("id", linkedSrc.id).is("journal_entry_id", null);
-          if (linkErr) toast(`전표는 저장됐지만 ${linkedSrc.kind === "bank" ? "통장" : "카드"} 거래 연결에 실패했습니다: ${linkErr.message}`, "error");
+          try {
+            const { linkTransactionToEntry } = await import("@/lib/dup-voucher");
+            const ok = await linkTransactionToEntry(linkedSrc.kind, linkedSrc.id, newIds[0]);
+            if (!ok) toast(`전표는 저장됐지만 ${linkedSrc.kind === "bank" ? "통장" : "카드"} 거래는 이미 다른 전표에 연결돼 있습니다`, "error");
+          } catch (linkErr: any) {
+            toast(`전표는 저장됐지만 ${linkedSrc.kind === "bank" ? "통장" : "카드"} 거래 연결에 실패했습니다: ${errMsg(String(linkErr?.message || ""))}`, "error");
+          }
           setLinkedSrc(null);
           qc.invalidateQueries({ queryKey: ["ve-import"] });
         }
@@ -1234,7 +1262,9 @@ export default function VoucherEntryPage() {
                   <td className="px-2 py-2.5 text-right mono-number text-sm text-[var(--text)]">{sumD.toLocaleString()}</td>
                   <td className="px-2 py-2.5 text-right mono-number text-sm text-[var(--text)]">{sumC.toLocaleString()}</td>
                   <td colSpan={2} className="px-2 py-2.5">
-                    <span className="inline-flex px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-[11px] font-bold">차대일치</span>
+                    {sumD === sumC
+                      ? <span className="inline-flex px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-[11px] font-bold">차대일치</span>
+                      : <span className="inline-flex px-2.5 py-1 rounded-full bg-red-500/10 text-red-500 text-[11px] font-bold">차액 {Math.abs(sumD - sumC).toLocaleString()}</span>}
                   </td>
                 </tr>
               </tfoot>

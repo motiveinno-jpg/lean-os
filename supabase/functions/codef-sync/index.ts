@@ -47,6 +47,20 @@ const CARD_COMPANY_SHORT: Record<string, string> = {
 //   2026-09-03 사장님: 롯데(아멕스 15자리)는 뒤 3자리만 보이는데 종전 규칙(숫자만 남기고 오른쪽 4자리)이
 //   앞자리 '2'를 끌어와 "2923"이라는 없는 번호를 만들었다(실제 7923). 마지막 '*' 뒤의 숫자만 쓰고,
 //   4자리 미만이면 등록된 카드번호의 끝부분과 맞춘다(cardMatches). DB 트리거 trg_link_card_tx 와 같은 규칙.
+
+/** PostgREST 는 한 번에 1,000행까지만 준다 — 대사 조회는 기간이 넓으면 그 위를 넘으므로 끝까지 받는다 */
+async function pageAllRows<T>(build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>, max = 50000): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; from < max; from += 1000) {
+    const { data, error } = await build(from, from + 999);
+    if (error) throw error;
+    const rows = data || [];
+    out.push(...rows);
+    if (rows.length < 1000) break;
+  }
+  return out;
+}
+
 function cardLast4(masked: unknown): string | null {
   const raw = String(masked ?? "");
   let tail = raw.replace(/^.*\*/, "").replace(/[^0-9]/g, "");
@@ -733,7 +747,7 @@ async function syncBankTransactions(
           companyId, accountNo, tStr, _trTime, String(_amt), _type, String(_bal), counterparty,
         ].join("|");
 
-        const { error } = await supabase.from("bank_transactions").upsert({
+        const { data: inserted, error } = await supabase.from("bank_transactions").upsert({
           company_id: companyId,
           transaction_date: formattedDate,
           amount: _amt,
@@ -746,9 +760,10 @@ async function syncBankTransactions(
           external_id: externalId,
           //   accountNo 는 마스킹하지 않는다 — 자동 연결 트리거·통장 탭·계좌 필터가 이 값으로 통장을 찾는다(마스킹했더니 9/7 이후 거래가 통장에 안 붙었다). 상대 계좌만 가린다.
           raw_data: { accountNo, organization: org, trDate: tStr, trTime: _trTime, counterAccount: maskTail(tx.resCounterAccount || ""), descs: _descs },
-        }, { onConflict: "external_id", ignoreDuplicates: true });
+        }, { onConflict: "external_id", ignoreDuplicates: true }).select("id");
 
-        if (!error) totalSynced++;
+        //   중복이라 건너뛴 행은 돌려주지 않는다 — 실제로 들어간 건만 센다("852건 받음" 이 매번 뜨던 것)
+        if (!error) { if (inserted && inserted.length > 0) totalSynced++; }
         else {
           acctInsertErrors++;
           if (!firstInsertErr) firstInsertErr = error.message;
@@ -1035,14 +1050,15 @@ const merchantKey = (name: string): string => {
           //   기존 행을 UPDATE 해 mapping_status 가 unmapped 로 되돌아가고 사용자 분류·비고가
           //   카드사 응답으로 덮어써졌다. 승인내역 경로와 동일하게 기존 행은 절대 건드리지 않는다.
           //   (금액 정정은 위 dupRow 분기가 미사용 행에 한해 별도로 수행)
-          const { error } = await supabase.from("card_transactions").upsert(upsertRow, { onConflict: "external_id", ignoreDuplicates: true });
+          const { data: insertedCard, error } = await supabase.from("card_transactions").upsert(upsertRow, { onConflict: "external_id", ignoreDuplicates: true }).select("id");
 
           if (error) {
             if (!debuggedInsertErr) {
               debug.push(`card ${org} insert error: ${error.message} | code: ${error.code}`);
               debuggedInsertErr = true;
             }
-          } else {
+          } else if (insertedCard && insertedCard.length > 0) {
+            //   중복(external_id)·같은 건 트리거로 버려진 행은 안 센다
             totalSynced++;
           }
           }
@@ -1097,10 +1113,10 @@ const merchantKey = (name: string): string => {
   if (!biznoOnly && fetchedForRecon.length > 0) {
     try {
       const dates = [...new Set(fetchedForRecon.map((f) => f.date))];
-      const { data: dbRows } = await supabase.from("card_transactions")
+      const dbRows = await pageAllRows<any>((a, b) => supabase.from("card_transactions")
         .select("transaction_date, approval_number, amount, merchant_name")
         .eq("company_id", companyId)
-        .in("transaction_date", dates);
+        .in("transaction_date", dates).order("id").range(a, b));
       const byApproval = new Set<string>();
       const byContent = new Set<string>();
       for (const r of (dbRows || [])) {
@@ -1117,10 +1133,10 @@ const merchantKey = (name: string): string => {
           await supabase.from("card_transactions").upsert(f.row, { onConflict: "external_id", ignoreDuplicates: true });
         }
         // 재적재 후 실존 재확인
-        const { data: recheck } = await supabase.from("card_transactions")
+        const recheck = await pageAllRows<any>((a, b) => supabase.from("card_transactions")
           .select("transaction_date, approval_number, amount, merchant_name")
           .eq("company_id", companyId)
-          .in("transaction_date", [...new Set(missing.map((f) => f.date))]);
+          .in("transaction_date", [...new Set(missing.map((f) => f.date))]).order("id").range(a, b));
         const byApproval2 = new Set<string>();
         const byContent2 = new Set<string>();
         for (const r of (recheck || [])) {

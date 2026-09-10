@@ -32,14 +32,17 @@ export function RulesDialog({ companyId, onClose }: { companyId: string; onClose
   const [kind, setKind] = useState<string>("all");
 
   const { data: rows = [], isLoading } = useQuery<Row[]>({
-    queryKey: ["voucher-rules-all", companyId],
+    queryKey: ["voucher-rules-all", companyId, kind],
     queryFn: async () => {
-      const data = logRead("rules:list", await (supabase as any)
-        .from("voucher_account_rules")
-        .select("id, source_kind, match_label, match_key, hit_count, vat_type, last_used_at, chart_of_accounts(code, name)")
-        .eq("company_id", companyId)
-        .order("hit_count", { ascending: false }).order("last_used_at", { ascending: false })
-        .limit(500));
+      //   500개에서 자른 뒤 종류로 거르면 그 뒤 규칙은 지울 수도 볼 수도 없다 — 종류는 서버에서, 개수는 끝까지
+      const { fetchPaged } = await import("@/lib/fetch-paged");
+      const data = await fetchPaged<any>("rules:list", () => {
+        let q = (supabase as any).from("voucher_account_rules")
+          .select("id, source_kind, match_label, match_key, hit_count, vat_type, last_used_at, chart_of_accounts(code, name)")
+          .eq("company_id", companyId);
+        if (kind !== "all") q = q.eq("source_kind", kind);
+        return q.order("hit_count", { ascending: false }).order("last_used_at", { ascending: false }).order("id");
+      }, 50000);
       return ((data as any[]) || []) as Row[];
     },
   });
@@ -59,7 +62,7 @@ export function RulesDialog({ companyId, onClose }: { companyId: string; onClose
     toast("규칙을 지웠습니다. 다음부터는 직접 고릅니다", "success");
   };
 
-  const shown = rows.filter((r) => kind === "all" || r.source_kind === kind);
+  const shown = rows;
 
   return (
     <div className="collect-overlay" onClick={onClose}>

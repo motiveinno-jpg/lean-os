@@ -520,7 +520,11 @@ export default function CardsPage() {
   // 직원 QA 카드(그랜터) — 같은 가맹점 미처리 거래 전체에 같은 계정·사유·태그·사용직원 일괄 적용
   const doPostSameMerchant = async () => {
     if (!postCard || !postAccountId || posting) return;
-    const targets = (cardTx as any[]).filter((t) => (t.merchant_name || "") === (postCard.merchant_name || "") && !t.journal_entry_id);
+    //   화면 목록(500건·조회기간)이 아니라 이 가맹점의 미처리 거래 전부를 DB 에서 센다 — 기간 밖 건이 남는데 다 끝난 줄 알던 것
+    const { fetchPaged } = await import("@/lib/fetch-paged");
+    const targets = await fetchPaged<any>("cards:sameMerchant", () => db.from("card_transactions").select("id")
+      .eq("company_id", companyId ?? "").eq("merchant_name", postCard.merchant_name || "")
+      .is("journal_entry_id", null).is("ledger_excluded_reason", null).order("id"), 50000);
     if (targets.length === 0) return;
     setPosting(true);
     try {

@@ -565,7 +565,7 @@ export async function getCostBreakdown(
       .gte('created_at', `${startDate}T00:00:00+09:00`)   // created_at 은 시각 — 한국 시간 경계로 자른다
       .lte('created_at', `${endDate}T23:59:59+09:00`),
     //   고정비(fixed_costs) — "prod 미존재" 주석은 옛말이다(정기 지출 › 고정비 탭이 쓴다). 월별표와 같은 원천을 읽어야 위아래 합이 맞는다
-    db.from('fixed_costs').select('name, amount, category, start_date, end_date').eq('company_id', companyId).eq('is_recurring', true),
+    db.from('fixed_costs').select('name, amount, category, start_date, end_date').eq('company_id', companyId).eq('is_recurring', true).limit(1000),
   ]);
 
   // 고정비: 월액 → 연 환산(*12)

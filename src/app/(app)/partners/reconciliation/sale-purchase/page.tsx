@@ -140,7 +140,7 @@ let K = 1;
 //   (이미 다 차 있으니). 내리는 건 Enter 로 사람이 고른다 (2026-08-11).
 const blankRow = (): Row => ({
   key: K++,
-  y: String(new Date().getFullYear()), m: "", d: "",
+  y: todayKst().slice(0, 4), m: "", d: "",
   partner: null, partnerText: "",
   vatCode: "11", item: "",
   supply: "", vat: "",
@@ -159,9 +159,10 @@ const monthAfter = (ym: string) => {
 
 export default function SalePurchaseVoucherPage() {
   const { role }  = useUser();
-  //   전표는 회사 장부라 관리자만 · 일반전표 화면과 같은 기준
-  if (role !== "owner" && role !== "admin")  {
-    return <AccessDenied detail="매입매출전표는 대표·관리자 전용입니다." />;
+  //   메뉴 권한은 app-shell 이 권한표(/partners/reconciliation/sale-purchase)로 이미 막는다 — 여기서 역할로 또 막으면
+  //   권한표에서 준 권한이 죽는다. 일반전표 화면과 같이 세무사(partner)만 제외.
+  if (role === "partner")  {
+    return <AccessDenied detail="매입매출전표는 세무사 계정에서 열 수 없습니다." />;
   }
   return <SalePurchaseInner />;
 }
@@ -925,8 +926,9 @@ function SalePurchaseInner() {
   };
 
   //   격자 아래 소계 — 저장분 + 지금 치고 있는 줄
-  const sumSupply = savedRows.reduce((s, r) => s + numOf(r.supply), 0) + rows.reduce((s, r) => s + numOf(r.supply), 0);
-  const sumVat = savedRows.reduce((s, r) => s + numOf(r.vat), 0) + rows.reduce((s, r) => s + numOf(r.vat), 0);
+  //   위 결과 줄과 같은 범위(걸린 조건·빠른검색을 통과한 저장분) — 한 화면에 두 합계가 나오던 것
+  const sumSupply = shownSaved.reduce((s, r) => s + numOf(r.supply), 0) + rows.reduce((s, r) => s + numOf(r.supply), 0);
+  const sumVat = shownSaved.reduce((s, r) => s + numOf(r.vat), 0) + rows.reduce((s, r) => s + numOf(r.vat), 0);
 
   //   엑셀 그릇 — 지금 조회 결과(저장분)
   const excelItems: ExcelItem[] = [
@@ -995,7 +997,7 @@ function SalePurchaseInner() {
               {/*   구분(매출/매입)은 갈래가 '전체'일 때만 뜻이 있다 — 매출세금 탭에서 매입을 고르게 두면 조건이 거짓말한다 (2026-08-18 사장님) */}
               {group === "all" && <ConditionRow label="구분">
                 <span className="qk-quicks">
-                  {[{ v: "sale", l: "매출" }, { v: "buy", l: "매입" }].map((o) => (
+                  {[{ v: "sale", l: "매출" }, { v: "purchase", l: "매입" }].map((o) => (
                     <button key={o.v} type="button" onClick={() => setD("side")(toggleIn(cDraft.side, o.v))}
                       className={cDraft.side.includes(o.v) ? "qk-quick qk-quick-on" : "qk-quick"}>{o.l}</button>
                   ))}
