@@ -74,15 +74,19 @@ const TESTERS: Record<string, (key: string) => Promise<TestResult>> = {
 
 export async function POST(req: NextRequest) {
   try {
-    //   로그인한 대표·관리자만 — 남의 키를 우리 서버로 확인해 주는 통로가 되면 안 된다
+    // 회사 설정의 API 키 탭과 동일한 마스터·위임 권한을 사용한다.
     const sb = await createSupabaseServerClient();
     const { data: { user } } = await sb.auth.getUser();
     if (!user) return NextResponse.json({ ok: false, message: "로그인이 필요합니다." }, { status: 401 });
 
     const { data: me } = await sb.from("users")
-      .select("id, company_id, role").eq("auth_id", user.id).maybeSingle();
-    if (!me?.company_id || !["owner", "admin"].includes(String(me.role))) {
-      return NextResponse.json({ ok: false, message: "대표·관리자만 확인할 수 있습니다." }, { status: 403 });
+      .select("id, company_id, is_master").eq("auth_id", user.id).maybeSingle();
+    if (!me?.company_id) return NextResponse.json({ ok: false, message: "회사 정보가 없습니다." }, { status: 403 });
+    if (!me.is_master) {
+      const results = await Promise.all(["/settings:api-keys", "/settings:ads"].map((p_key) => sb.rpc("has_perm", { p_key })));
+      if (!results.some((r) => !r.error && r.data === true)) {
+        return NextResponse.json({ ok: false, message: "API 키 관리 권한이 없습니다." }, { status: 403 });
+      }
     }
 
     const { provider, key, useStored } = await req.json();
