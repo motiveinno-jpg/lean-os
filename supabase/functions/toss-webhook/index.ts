@@ -28,24 +28,9 @@ function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 }
 
-async function notifyMasters(
-  supabase: any, companyId: string, title: string, message: string,
-) {
-  try {
-    const { data: masters } = await supabase
-      .from("users").select("id").eq("company_id", companyId).eq("is_master", true);
-    const rows = (masters || []).map((m: { id: string }) => ({
-      company_id: companyId, user_id: m.id, type: "billing", title, message, link: "/billing",
-    }));
-    if (rows.length) await supabase.from("notifications").insert(rows);
-  } catch (e) {
-    console.error("notifyMasters failed", e);
-  }
-}
-
 serve(withSentry("toss-webhook", async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  // 토스가 재전송하지 않도록 실패해도 200 을 준다 — 처리 결과는 로그·이벤트로 남긴다.
+  // 처리 실패는 비-200으로 재전송을 요청한다. 정상 반영은 DB RPC 한 트랜잭션으로 처리.
   if (req.method !== "POST") return json({ ok: true, ignored: "method" });
 
   let body: Record<string, any>;
@@ -53,8 +38,7 @@ serve(withSentry("toss-webhook", async (req: Request) => {
 
   // 이벤트 모양이 여러 가지라 paymentKey 를 넓게 찾는다(data.paymentKey / paymentKey).
   const paymentKey: string | undefined = body?.data?.paymentKey || body?.paymentKey;
-  const orderIdHint: string | undefined = body?.data?.orderId || body?.orderId;
-  if (!paymentKey) return json({ ok: true, ignored: "no paymentKey" });
+  if (typeof paymentKey !== "string" || !paymentKey || paymentKey.length > 200) return json({ ok: true, ignored: "no paymentKey" });
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -64,36 +48,39 @@ serve(withSentry("toss-webhook", async (req: Request) => {
   const secretKey = Deno.env.get("TOSS_SECRET_KEY");
   if (!secretKey) {
     console.error("TOSS_SECRET_KEY not configured — webhook ignored");
-    return json({ ok: true, ignored: "not configured" });
+    return json({ ok: false, error: "not configured" }, 503);
   }
 
   // ── 본문을 믿지 않고 토스에 되묻는다 ──
   let payment: Record<string, any>;
   try {
-    const res = await tfetch(`https://api.tosspayments.com/v1/payments/${paymentKey}`, {
+    const res = await tfetch(`https://api.tosspayments.com/v1/payments/${encodeURIComponent(paymentKey)}`, {
       headers: { Authorization: `Basic ${btoa(`${secretKey}:`)}` },
     });
     const data = await res.json();
     if (!res.ok) {
       console.error("payment lookup failed", data?.code, data?.message);
-      return json({ ok: true, ignored: "lookup failed" });
+      return json({ ok: false, error: "lookup failed" }, 502);
     }
     payment = data;
   } catch (e) {
     console.error("payment lookup exception", e);
-    return json({ ok: true, ignored: "lookup error" });
+    return json({ ok: false, error: "lookup error" }, 502);
   }
 
   const status = String(payment.status || "");
-  const orderId = String(payment.orderId || orderIdHint || "");
+  const orderId = String(payment.orderId || "");
+  if (!orderId || payment.paymentKey !== paymentKey) return json({ ok: false, error: "invalid payment response" }, 502);
 
   // 우리 청구서에 없는 주문이면 우리 일이 아니다(위조·타 상점 요청 차단).
-  const { data: invoice } = await supabase
+  const { data: invoice, error: invoiceError } = await supabase
     .from("invoices")
     .select("id, company_id, subscription_id, total_amount, status")
     .eq("toss_order_id", orderId)
     .maybeSingle();
-  if (!invoice) return json({ ok: true, ignored: "unknown order" });
+  if (invoiceError) return json({ ok: false, error: "invoice lookup failed" }, 503);
+  // 결제 응답과 청구서 INSERT가 경합할 수 있다. 타 상점 요청은 위 토스 조회에서 걸러진다.
+  if (!invoice) return json({ ok: false, error: "invoice not ready" }, 503);
 
   if (!VOID_STATUSES.has(status)) {
     // DONE 등 정상 상태 — 이미 반영돼 있다. 흔적만 남기고 끝낸다.
@@ -101,31 +88,12 @@ serve(withSentry("toss-webhook", async (req: Request) => {
   }
 
   // ── 결제가 무효가 됐다 — 청구서를 되돌리고 구독을 미납으로 내린다 ──
-  if (invoice.status !== "canceled") {
-    await supabase.from("invoices")
-      .update({ status: "canceled" })
-      .eq("id", invoice.id);
-
-    if (invoice.subscription_id) {
-      await supabase.from("subscriptions").update({
-        status: "past_due",
-        last_payment_error: `토스 결제 ${status}`,
-        updated_at: new Date().toISOString(),
-      }).eq("id", invoice.subscription_id);
-    }
-
-    await supabase.from("billing_events").insert({
-      company_id: invoice.company_id,
-      event_type: "refund",
-      metadata: { provider: "toss", orderId, paymentKey, status, amount: invoice.total_amount },
-    });
-
-    await notifyMasters(
-      supabase, invoice.company_id,
-      "결제가 취소되었습니다",
-      `${Number(invoice.total_amount).toLocaleString("ko-KR")}원 결제가 취소(${status})되어 구독이 미납 상태가 되었습니다. 결제수단을 확인해 주세요.`,
-    );
+  const { data: applied, error: applyError } = await supabase.rpc("apply_toss_payment_void", {
+    p_order_id: orderId, p_payment_key: paymentKey, p_status: status,
+  });
+  if (applyError || applied?.handled !== true) {
+    console.error("payment void apply failed", applyError?.message);
+    return json({ ok: false, error: "payment update failed" }, 503);
   }
-
-  return json({ ok: true, status, handled: true });
+  return json({ ok: true, status, ...applied });
 }));
