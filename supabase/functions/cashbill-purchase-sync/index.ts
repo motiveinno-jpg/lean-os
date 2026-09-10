@@ -294,6 +294,8 @@ serve(withSentry("cashbill-purchase-sync", async (req) => {
         issue_date: issueDate,
         approval_number: approvalNo,
         purpose: "expenditure_proof",
+        //   공제 구분은 컬럼으로 — 메모 문자열에만 있으면 '매입세액 공제' 집계가 불공제까지 더한다
+        is_deductible: deduct ? !/불공제/.test(deduct) : null,
         // 취소거래로 내려온 행은 취소 상태로 적재 — 합계 이중집계 방지
         status: /취소/.test(transType) ? "cancelled" : "issued",
         source: "hometax_sync",

@@ -222,6 +222,8 @@ export interface CashReceiptSummary {
   expenseCount: number;
   expenseTotal: number;
   expenseTax: number;
+  /** 매입 현금영수증 중 지출증빙용이고 공제 구분이 '불공제'가 아닌 것의 세액 — '매입세액 공제' 칸은 이것 */
+  expenseDeductibleTax: number;
 }
 
 export async function getCashReceiptSummary(
@@ -231,7 +233,7 @@ export async function getCashReceiptSummary(
 ): Promise<CashReceiptSummary> {
   const { fetchPaged } = await import('./fetch-paged');
   const data = await fetchPaged<any>('lib/cash-receipts:summary', () => db.from('cash_receipts')
-    .select('type, amount, tax_amount, status, source')
+    .select('type, amount, tax_amount, status, source, purpose, is_deductible')
     .eq('company_id', companyId)
     .gte('issue_date', startDate)
     .lte('issue_date', endDate)
@@ -239,7 +241,7 @@ export async function getCashReceiptSummary(
 
   const result: CashReceiptSummary = {
     incomeCount: 0, incomeTotal: 0, incomeTax: 0,
-    expenseCount: 0, expenseTotal: 0, expenseTax: 0,
+    expenseCount: 0, expenseTotal: 0, expenseTax: 0, expenseDeductibleTax: 0,
   };
 
   for (const r of (data || [])) {
@@ -254,6 +256,10 @@ export async function getCashReceiptSummary(
       result.expenseCount++;
       result.expenseTotal += sign * Number(r.amount || 0);
       result.expenseTax += sign * Number(r.tax_amount || 0);
+      //   소득공제용(income_deduction)이나 불공제로 표시된 건은 매입세액 공제가 아니다
+      if ((r.purpose || 'expenditure_proof') === 'expenditure_proof' && r.is_deductible !== false) {
+        result.expenseDeductibleTax += sign * Number(r.tax_amount || 0);
+      }
     }
   }
 

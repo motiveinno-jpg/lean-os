@@ -773,7 +773,7 @@ export default function CashReceiptsPage() {
             {summary && <>
               <Stat label={`매출 발행 ${summary.incomeCount.toLocaleString()}건`} value={`₩${summary.incomeTotal.toLocaleString()}`} />
               <Stat label={`매입 수취 ${summary.expenseCount.toLocaleString()}건`} value={`₩${summary.expenseTotal.toLocaleString()}`} />
-              <Stat label="매입세액 공제" value={`₩${summary.expenseTax.toLocaleString()}`} />
+              <Stat label="매입세액 공제" value={`₩${summary.expenseDeductibleTax.toLocaleString()}`} title="지출증빙용 중 국세청 공제 구분이 '불공제'가 아닌 건의 세액. 소득공제용·불공제 건은 뺀다" />
             </>}
           </ResultStrip>
         </QueryHead>

@@ -190,6 +190,7 @@ function SalePurchaseInner() {
   const [saving, setSaving] = useState(false);
   const [overrides, setOverrides] = useState<Record<string, Acct | null>>({});
   const [acctPick, setAcctPick] = useState<{ line: number; q: string } | null>(null);
+  const [cardPtPick, setCardPtPick] = useState<number | null>(null);   // 분개표 상대계정 줄의 카드사 고르기
   const [pullOpen, setPullOpen] = useState(false);
   //   좁은 화면 기본값은 '읽기' — 14칸 격자를 폰에서 치는 일은 없다. 그래도 쳐야 하면 이 토글로 편다.
   const [phoneGrid, setPhoneGrid] = useState(false);
@@ -572,7 +573,7 @@ function SalePurchaseInner() {
       ? (row?.settle === "card" ? (row?.counterPartner ?? null) : (row?.partner ?? null))
       : (row?.partner ?? null);
     return {
-      i, side: d.side, locked: d.locked,
+      i, side: d.side, locked: d.locked, isCounter,
       account: overrides[`${row?.key}:${i}`] !== undefined
         ? overrides[`${row?.key}:${i}`]
         : (d.code ? acctByCode.get(d.code) || null : row?.mainAccount || null),
@@ -1186,7 +1187,23 @@ function SalePurchaseInner() {
                 </div>
                 <span className="tr spv-amt">{l.side === "debit" ? won(l.amount) : ""}</span>
                 <span className="tr spv-amt">{l.side === "credit" ? won(l.amount) : ""}</span>
-                <span className="spv-ell spv-dim" title={l.partner?.name || ""}>{l.partner?.name || "—"}</span>
+                {l.isCounter && row?.settle === "card" ? (
+                  //   카드 결제의 상대계정(미지급금) 줄 거래처 = 카드사. 증빙에서 불러오면 자동으로 채우지만 손으로 칠 땐 여기서 고른다
+                  <div className="relative">
+                    <button type="button" className={l.partner ? "spv-acct" : "spv-acct spv-acct-empty"}
+                      onClick={() => setCardPtPick(cardPtPick === l.i ? null : l.i)}>
+                      {l.partner?.name || "카드사를 고르세요"}
+                    </button>
+                    {cardPtPick === l.i && (
+                      <PickList items={partners.map((pt) => ({ id: pt.id, code: pt.code != null ? String(pt.code) : "", name: pt.name }))}
+                        placeholder="카드사 검색 (이름·코드)"
+                        onPick={(sel) => { const pt = partners.find((x) => x.id === sel.id); if (pt) patch(cur, { counterPartner: pt }); setCardPtPick(null); }}
+                        onClose={() => setCardPtPick(null)} />
+                    )}
+                  </div>
+                ) : (
+                  <span className="spv-ell spv-dim" title={l.partner?.name || ""}>{l.partner?.name || "—"}</span>
+                )}
                 <span className="spv-ell spv-dim">{row?.item || "—"}</span>
               </div>
             ))}

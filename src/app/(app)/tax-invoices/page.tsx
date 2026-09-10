@@ -1,9 +1,8 @@
 "use client";
-import { WaterfallChart } from "@/components/charts/kit";
 import { getHometaxPausedUntil, setHometaxPause, clearHometaxPause } from "@/lib/data-sync";
 import { useMyPermissions } from "@/lib/permissions";
 import { Ico } from "@/components/ui-icon";
-import { todayKst, kstDateStr } from "@/lib/kst";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 import { SortableTh, type ThFilterSpec } from "@/components/sortable-th";
 import {
@@ -20,7 +19,6 @@ import  {
 import { exportToExcel as exportSheet } from "@/lib/excel-export";
 
 import Link from "next/link";
-import { MonthField } from "@/components/month-field";
 import { DateRangeField } from "@/components/date-range-field";
 import { DateField } from "@/components/date-field";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -36,14 +34,11 @@ import { useColWidths } from "../partners/ledger/shared";
 import {
   createTaxInvoice,
   markInvoiceMatched,
-  getTaxInvoiceSummary,
-  getVATPreview,
   modifyTaxInvoice,
   getInvoiceQueue,
   approveQueueItem,
   getHomeTaxSyncLogs,
   INVOICE_TYPES,
-  INVOICE_STATUS,
   invoiceStatusMeta,
   issueTaxInvoice,
   registerHometaxIssuer,
@@ -51,12 +46,10 @@ import {
 } from "@/lib/tax-invoice";
 import { getTaxInvoiceIssuanceStatus } from "@/lib/billing";
 import type { PeriodType } from "@/lib/tax-invoice";
-import { getCardDeductionSummary } from "@/lib/card-transactions";
 import * as XLSX from "xlsx";
 import { TaxInvoiceBulkIssueModal } from "@/components/tax-invoice-bulk-issue";
 import { QueryErrorBanner } from "@/components/query-status";
 import { ToolbarPopover, ToolbarPopoverItem } from "@/components/toolbar-popover";
-import { summarizeByVatType } from "@/lib/vat-voucher";
 import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm-dialog";
@@ -145,82 +138,10 @@ function detectDuplicateInvoices(invoices: any[]): DuplicateGroup[] {
 }
 
 // ── 3-Way Matching Visualization ──
-function ThreeWayMatchVisual({ result }: { result: any }) {
-  const r = result;
-  const hasPO = r.contractAmount > 0;
-  const hasPayment = r.receivedAmount > 0;
-  const poToInvoice = r.amountMatch;
-  const invoiceToPayment = r.paymentMatch;
-
-  return (
-    <div className="flex items-center gap-1.5 text-xs">
-      {/* PO */}
-      <div className={`flex items-center gap-1 px-2 py-1 rounded-lg border ${
-        hasPO ? "border-[var(--border)] bg-[var(--bg-surface)]" : "border-dashed border-[var(--border)] opacity-50"
-      }`}>
-        <span className="font-medium">PO</span>
-        {hasPO && <span className="text-[10px] text-[var(--text-muted)]">{fmt(r.contractAmount)}</span>}
-      </div>
-      {/* Arrow PO -> Invoice */}
-      <span className={`text-sm font-bold ${
-        !hasPO ? "text-[var(--text-dim)]" : poToInvoice ? "text-green-400" : "text-red-400"
-      }`}>
-        {!hasPO ? "—" : poToInvoice ? "✓" : "✗"}
-      </span>
-      {/* Invoice */}
-      <div className="flex items-center gap-1 px-2 py-1 rounded-lg border border-[var(--primary)]/30 bg-[var(--primary)]/5">
-        <span className="font-medium text-[var(--primary)]">계산서</span>
-        <span className="text-[10px] text-[var(--text-muted)]">{fmt(r.invoiceSupplyAmount)}(공급가)</span>
-      </div>
-      {hasPO && !poToInvoice && (
-        <span className="px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 text-[9px] font-bold whitespace-nowrap">차액 {fmt(Math.abs(r.contractAmount - r.invoiceSupplyAmount))}</span>
-      )}
-      {r.suggestedDeal && poToInvoice && (
-        <span className="px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-500 text-[9px] font-bold whitespace-nowrap">추천</span>
-      )}
-      {/* Arrow Invoice -> Payment */}
-      <span className={`text-sm font-bold ${
-        !hasPayment ? "text-[var(--text-dim)]" : invoiceToPayment ? "text-green-400" : "text-red-400"
-      }`}>
-        {!hasPayment ? "—" : invoiceToPayment ? "✓" : "✗"}
-      </span>
-      {/* Payment */}
-      <div className={`flex items-center gap-1 px-2 py-1 rounded-lg border ${
-        hasPayment ? "border-[var(--border)] bg-[var(--bg-surface)]" : "border-dashed border-[var(--border)] opacity-50"
-      }`}>
-        <span className="font-medium">결제</span>
-        {hasPayment && <span className="text-[10px] text-[var(--text-muted)]">{fmt(r.receivedAmount)}</span>}
-      </div>
-      {hasPayment && !invoiceToPayment && (
-        <span className="px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 text-[9px] font-bold whitespace-nowrap">차액 {fmt(Math.abs(r.gap))}</span>
-      )}
-    </div>
-  );
-}
 
 // ── Excel export ──
-function exportToExcel(invoices: any[], filename: string) {
-  const ws = XLSX.utils.json_to_sheet(
-    invoices.map((inv) => ({
-      거래처: inv.counterparty_name,
-      사업자번호: inv.counterparty_bizno || "",
-      공급가액: Number(inv.supply_amount),
-      세액: Number(inv.tax_amount),
-      합계: Number(inv.total_amount),
-      발행일: inv.issue_date,
-      상태: invoiceStatusMeta(inv.status, inv.type).label,
-    }))
-  );
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "세금계산서");
-  XLSX.writeFile(wb, filename);
-}
 
 // ── Helpers ──
-function getCurrentMonth() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
 
 function fmt(n: number) {
   return "₩" + Math.round(n).toLocaleString("ko");
@@ -434,7 +355,6 @@ function TaxInvoicesPageInner() {
     localStorage.removeItem("tax-invoices-viewFromMonth");
     localStorage.removeItem("tax-invoices-viewToMonth");
   }, []);
-  const [periodType, setPeriodType] = useState<PeriodType>("monthly");
   const [showForm, setShowForm] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [showModifyModal, setShowModifyModal] = useState(false);
@@ -514,9 +434,7 @@ function TaxInvoicesPageInner() {
   const [dealSuggest, setDealSuggest] = useState<any>(null);
   // 거래매칭 · 목록에서 통장 입출금 거래를 바로 연결 (인라인 팝업)
   const [linkInvoice, setLinkInvoice] = useState<any>(null);
-  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [expandedDupKey, setExpandedDupKey] = useState<string | null>(null);
   //   점검 리포트는 접힌 채로 시작한다. 목록이 첫 화면에 올라오게 (2026-08-10)
   const [checkOpen, setCheckOpen] = useState(false);
   const [dismissedDups, setDismissedDups] = useState<Set<string>>(new Set());
@@ -765,15 +683,6 @@ function TaxInvoicesPageInner() {
   // 직원 QA 손익계산서 — 매입 세금계산서에 손익 계정과목(expense_category) 일괄 지정.
   //   지정하면 손익계산서에서 매출원가(COGS) 대신 그 판관비 항목으로 집계됨.
   const [bulkExpenseCat, setBulkExpenseCat] = useState("");
-  const applyBulkExpenseCat = async () => {
-    if (!bulkExpenseCat || selectedIds.size === 0) return;
-    const ids = Array.from(selectedIds);
-    const { error } = await (supabase).from("tax_invoices").update({ expense_category: bulkExpenseCat }).in("id", ids);
-    if (error) { toast("계정과목 지정 실패: " + error.message, "error"); return; }
-    toast(`매입 세금계산서 ${ids.length}건에 '${bulkExpenseCat}' 지정 · 손익계산서에서 매출원가 대신 판관비로 반영됩니다`, "success");
-    setBulkExpenseCat(""); setSelectedIds(new Set());
-    invalidateTaxInvoiceReaders(queryClient);   //   원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
-  };
 
   // Deals for linking
   const { data: dealsForLink = [] } = useQuery({
@@ -801,7 +710,6 @@ function TaxInvoicesPageInner() {
 
   //   부가세 미리보기 · 기간별 집계 · 카드공제 세 조회는 **분석(/reports/vat)** 으로 갔다 (2026-08-13).
   //   여기 남겨 두면 발행 화면을 열 때마다 안 쓰는 세 번의 조회가 돈다.
-  const currentYear = Number(viewToMonth.split("-")[0]);
 
   /*   기간 밖의 미발행 — **할 일을 기간으로 숨기면 안 된다** (2026-08-13).
    *   조회기간 기본값이 최근 1개월이 되면서, 몇 달 전에 만들어 둔 미발행 초안이 화면에서
@@ -907,20 +815,6 @@ function TaxInvoicesPageInner() {
   });
 
   // Incremental sync 기준 시각 · company_settings.last_hometax_sync_at
-  const  { data: lastHometaxSyncAt } = useQuery({
-    queryKey: ["last-hometax-sync-at", companyId],
-    queryFn: async () => {
-      const db = supabase;
-      const data = logRead('tax-invoices/page:data', await db
-        .from('company_settings')
-        .select('last_hometax_sync_at')
-        .eq('company_id', companyId!)
-        .maybeSingle());
-      // react-query 는 undefined 반환을 에러로 취급 — 행/컬럼 없으면 null 로 정규화 (2026-07-16 QA)
-      return (data?.last_hometax_sync_at ?? null) as string | null;
-    },
-    enabled: !!companyId,
-  });
 
   // 페이지 mount 시 — 진행 중인 background job 감지 (사용자가 페이지 떠났다 다시 와도 진행 표시).
   useEffect(() => {
@@ -1084,36 +978,11 @@ function TaxInvoicesPageInner() {
     onError: (err: any) => toast("세금계산서 등록 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
-  const markMatchedMut = useMutation({
-    mutationFn: (id: string) => markInvoiceMatched(id),
-    onSuccess: invalidate,
-    onError: (err: any) => toast("매칭 처리 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
-  });
 
   // Derived data
   const salesInvoices = invoices.filter((inv: any) => inv.type === "sales");
   const purchaseInvoices = invoices.filter((inv: any) => inv.type === "purchase");
 
-  const totalSales = salesInvoices.reduce(
-    (s: number, inv: any) => s + Number(inv.total_amount || 0),
-    0
-  );
-  const totalPurchase = purchaseInvoices.reduce(
-    (s: number, inv: any) => s + Number(inv.total_amount || 0),
-    0
-  );
-  const unmatched = invoices.filter(
-    (inv: any) => inv.status !== "matched" && inv.status !== "void"
-  ).length;
-  const vatEstimate =
-    salesInvoices.reduce(
-      (s: number, inv: any) => s + Number(inv.tax_amount || 0),
-      0
-    ) -
-    purchaseInvoices.reduce(
-      (s: number, inv: any) => s + Number(inv.tax_amount || 0),
-      0
-    );
 
   // Duplicate detection
   const duplicateInvoices = useMemo(() => detectDuplicateInvoices(invoices), [invoices]);
@@ -1164,11 +1033,6 @@ function TaxInvoicesPageInner() {
     if (!y || !m) return "";
     const ny = m === 12 ? y + 1 : y, nm = m === 12 ? 1 : m + 1;
     return `${ny}-${String(nm).padStart(2, "0")}-10`;
-  };
-  const daysLeft = (deadline: string): number | null => {
-    if (!deadline) return null;
-    return Math.round((new Date(deadline + "T00:00:00+09:00").getTime()
-      - new Date(todayKst() + "T00:00:00+09:00").getTime()) / 86400000);
   };
 
   const issueSummary = useMemo(() => {
@@ -1242,7 +1106,6 @@ function TaxInvoicesPageInner() {
       filter={tiThFilter(k)} resize={thResize(k, colIndex)} />
   );
   // 대량 목록 렌더 상한 — 넓은 기간 선택 시 최대 1만 건 일괄 DOM 렌더로 화면이 멈추던 것 방지 (합계·건수는 전체 기준 유지)
-  const [visibleRows, setVisibleRows] = useState(200);
   const displayList = useMemo(() => {
     const arr = [...currentList];
     arr.sort((a: any, b: any) => {
@@ -1416,15 +1279,6 @@ function TaxInvoicesPageInner() {
 
   const validRowCount = rows.filter(isRowValid).length;
   const canSubmit = validRowCount > 0;
-  const rowsTotal = rows.reduce(
-    (a, r) => {
-      const s = Number(r.supplyAmount) || 0;
-      a.supply += s;
-      a.tax += r.taxKind === "taxable" ? Math.round(s * 0.1) : 0; // 영세율·면세 = 세액 0
-      return a;
-    },
-    { supply: 0, tax: 0 },
-  );
 
   // 미발행 = 홈택스 승인번호 없음 + 무효 아님 (일괄 발행/삭제 대상 — 발행완료 건은 보호)
   const isUnissued = (inv: any) => !inv.nts_confirm_no && inv.status !== 'void';
@@ -1777,13 +1631,11 @@ function TaxInvoicesPageInner() {
                   </thead>
                   <tbody>
                     {tiPager.view.map((inv: any) => {
-                      const sc = invoiceStatusMeta(inv.status, inv.type);
                       const posted = !!inv.journal_entry_id;
                       const canSelect = isUnissued(inv);
                       const canIssue = inv.type === 'sales' && isUnissued(inv);
                       //   과세유형이 회사와 안 맞는 옛 초안 — 누르면 서버가 거절하므로 이유를 미리 적어 준다
                       const kindBlocked = taxKindBlockedReason(vatBiz, (inv.tax_kind || "taxable") as TaxKind);
-                      const notIssued = inv.type === 'sales' && inv.status !== 'draft' && !inv.nts_confirm_no;
                       return (
                         <tr key={inv.id} onClick={() => setSelectedInvoice(inv)}
                           className="tax-invoice-row">
@@ -3998,21 +3850,3 @@ function IssueConfirmModal({ invoices, partners, vatBiz, onDone, onClose }: {
   );
 }
 
-function MatchBadge({ ok, na }: { ok: boolean; na: boolean }) {
-  if (na) {
-    return (
-      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-500/10 text-gray-500">
-        N/A
-      </span>
-    );
-  }
-  return (
-    <span
-      className={`text-xs px-2 py-0.5 rounded-full ${
-        ok ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"
-      }`}
-    >
-      {ok ? "일치" : "불일치"}
-    </span>
-  );
-}
