@@ -405,6 +405,12 @@ export async function approveBatch(batchId: string, userId: string): Promise<voi
 
 // ── Send payslip emails to all employees in a payroll batch ──
 
+export function payslipMonthKey(label: string): string | null {
+  const match = label.match(/(\d{4})\s*년\s*(\d{1,2})\s*월/) || label.match(/(?:^|\s)(\d{4})-(\d{2})(?=\s|$)/);
+  if (!match || Number(match[2]) < 1 || Number(match[2]) > 12) return null;
+  return `${match[1]}-${String(Number(match[2])).padStart(2, '0')}`;
+}
+
 export async function sendPayslipEmails(
   batchId: string,
   companyId: string,
@@ -438,7 +444,8 @@ export async function sendPayslipEmails(
   if (options?.employeeIds && options.employeeIds.length > 0) {
     q = q.in('id', options.employeeIds);
   }
-  const { data: employees } = await q;
+  const { data: employees, error: employeesError } = await q;
+  if (employeesError) throw employeesError;
 
   if (!employees?.length) return { sent: 0, failed: 0 };
 
@@ -446,14 +453,14 @@ export async function sendPayslipEmails(
   const monthLabel = batchName.replace(/\s*급여\s*$/, '') || batchName;
 
   // 월별 명세서 수정값(override) — "YYYY년 M월" → "YYYY-MM" 로 변환 후 조회
-  const monthMatch = monthLabel.match(/(\d{4})\s*년\s*(\d{1,2})\s*월/);
-  const monthKey = monthMatch
-    ? `${monthMatch[1]}-${String(Number(monthMatch[2])).padStart(2, '0')}`
-    : null;
+  const monthKey = payslipMonthKey(monthLabel);
+  if (!monthKey) {
+    throw new Error("급여 대상 월을 확인할 수 없습니다. 대상 월을 다시 선택해 주세요.");
+  }
 
   // Get auth session for EF call
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return { sent: 0, failed: 0 };
+  if (!session) throw new Error("다시 로그인한 뒤 급여명세서를 발송해 주세요.");
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   let sent = 0;
@@ -480,7 +487,7 @@ export async function sendPayslipEmails(
 
   for (const item of payItems) {
     const emp = empMeta.get(item.employeeId);
-    if (!emp) { continue; }
+    if (!emp) { failed++; errors.push(`${item.employeeName}: 직원 정보를 찾을 수 없음`); continue; }
     if (!emp.email) { failed++; errors.push(`${item.employeeName}: 이메일 없음`); continue; }
 
     // PDF 생성 — 비밀번호 = 생년월일 (YYYYMMDD)
@@ -504,7 +511,9 @@ export async function sendPayslipEmails(
       // jsPDF 의 base64 output
       const dataUri = doc.output('datauristring');
       pdfBase64 = dataUri.split(',')[1]; // "data:application/pdf;base64,..." → base64 only
+      if (!pdfBase64) throw new Error("PDF 첨부 내용이 비어 있습니다.");
     } catch (e: any) {
+      failed++;
       errors.push(`${item.employeeName}: PDF 생성 실패 ${e.message || ''}`);
       // PDF 없이 계속 진행하면 첨부 없는 빈 메일이 나가고 발급 기록까지 'issued'로 박제된다
       //   (2026-08-19 감사). 이 직원은 발송을 건너뛰고 실패로 남긴다 — 재시도 시 다시 시도됨.
@@ -530,11 +539,12 @@ export async function sendPayslipEmails(
           hasPassword: !!password,
         }),
       });
-      if (res.ok) {
+      const responseBody = await res.json().catch(() => null);
+      if (res.ok && responseBody?.success === true && !responseBody?.fallback) {
         sent++;
         // 발급 기록 — 직원 마이페이지 '내 급여명세서'의 유일한 소스 (2026-08-06).
         //   메일만 보내고 아무 기록도 남기지 않아 직원 화면이 늘 비어 있던 문제.
-        //   발송한 그 순간의 금액을 그대로 박제한다(이후 관리자가 명세를 고쳐도 발급본은 불변).
+        //   최근 발급한 금액을 저장한다. 같은 달 재발급 시 최신 발급본으로 교체된다.
         //   실패해도 발송 자체는 성공이므로 메일 결과를 뒤집지 않는다.
         if (monthKey) {
           await db.from('payroll_items').upsert({
@@ -563,8 +573,7 @@ export async function sendPayslipEmails(
       }
       else {
         failed++;
-        const errBody = await res.text().catch(() => '');
-        errors.push(`${item.employeeName}: HTTP ${res.status} ${errBody.slice(0, 200)}`);
+        errors.push(`${item.employeeName}: ${String(responseBody?.error || '메일 발송을 확인하지 못했습니다.').slice(0, 200)}`);
       }
     } catch (e: any) {
       failed++;
