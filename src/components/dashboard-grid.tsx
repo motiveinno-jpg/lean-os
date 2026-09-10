@@ -103,7 +103,10 @@ export function DashboardGrid({
   presets?: WidgetPreset[];
   // 위젯 내용이 커졌을 때 이미 저장된 배치를 한 번만 끌어올린다(id 가 바뀔 때만 재적용).
   //   저장본이 있는 계정은 카탈로그 기본 크기를 안 쓰기 때문에, 이게 없으면 큰 카드가 옛 높이에 갇힌다.
-  layoutMigration?: { id: string; minH: Record<string, number>; set?: Record<string, Partial<Pick<Layout, "x" | "y" | "w" | "h">>> };
+  //   toTop: 그 위젯을 맨 위 왼쪽으로 올리고 나머지는 그 높이만큼 아래로 민다. set 으로 x·y 만 박으면
+  //   이미 0,0 을 쓰던 위젯이 그 자리를 지키고(격자가 겹침을 아래로 푼다) 달력이 두 번째로 밀린다.
+  //   민 뒤에는 세로 압축이 열마다 다시 당겨 올리므로, 옆 열 위젯은 제자리로 돌아온다.
+  layoutMigration?: { id: string; minH: Record<string, number>; set?: Record<string, Partial<Pick<Layout, "x" | "y" | "w" | "h">>>; toTop?: { id: string; h: number } };
   // 기본 활성 목록이 바뀌었을 때, 이미 저장된 선택에도 새 기본값을 1회 병합한다(id 가 바뀔 때만 재적용).
   //   병합 후 사용자가 위젯을 빼면 그 선택은 그대로 유지된다.
   activeMigration?: string;
@@ -121,6 +124,10 @@ export function DashboardGrid({
     });
     for (const [id, set] of Object.entries(layoutMigration.set || {})) {
       if (!out.some((l) => l.i === id)) out.push({ i: id, x: set.x ?? 0, y: set.y ?? 0, w: set.w ?? 4, h: set.h ?? 4 });
+    }
+    const top = layoutMigration.toTop;
+    if (top && out.some((l) => l.i === top.id)) {
+      return out.map((l) => (l.i === top.id ? { ...l, x: 0, y: 0 } : { ...l, y: (l.y ?? 0) + top.h }));
     }
     return out;
   };

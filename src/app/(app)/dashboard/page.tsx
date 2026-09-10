@@ -589,7 +589,8 @@ export default function DashboardPage() {
               //   2026-09-10 사장님 "크기 고정, 지금보다 크게": 한 열(w4) × h11(604px)로 못박는다(fixed).
               //   6주 격자·고른 날 목록이 이 높이에 맞춰 설계돼 있어, 사람이 줄이면 다시 답답해진다.
               //   fixed 는 저장된 크기도 무시하므로 쓰던 분들도 이 크기로 바뀐다(자리는 그대로).
-              { id: "calendar", name: "달력", icon: "📅", desc: "이번 달 일정·휴가 달력", category: "개인", w: 4, h: 11, fixed: true,
+              //   자리도 기본은 맨 위 왼쪽 (2026-09-10 사장님) — 달력은 매일 먼저 보는 것이라 스크롤 아래에 있으면 안 된다.
+              { id: "calendar", name: "달력", icon: "📅", desc: "이번 달 일정·휴가 달력", category: "개인", x: 0, y: 0, w: 4, h: 11, fixed: true,
                 render: () => <DashboardCalendar userId={uid} companyId={companyId} /> },
               { id: "employees", name: "구성원", icon: "👥", desc: "재직 인원", category: "업무", render: () => <EmployeesCard companyId={companyId} /> },
               { id: "partners", name: "거래처", icon: "🤝", desc: "등록 거래처", category: "업무", render: () => <PartnersCard companyId={companyId} /> },
@@ -645,7 +646,10 @@ export default function DashboardPage() {
               //   2026-09-03 v2: 챙길 것을 8열로 줄이고 오른쪽에 오늘 한눈(4열)을 끼운다 — 저장된 배치도 이 한 번은 따라온다.
               //   2026-09-04: 부록 격자와 같은 마이그레이션 키(report-20260903) — 부록에서 쓰던 배치가 그대로 메인이 된다.
               //   2026-09-07: 게시판 위젯을 새로 넣었다 — 이미 저장된 배치·선택에도 1회 병합(맨 아래에 붙고, 이후 빼면 그 선택이 남는다)
-              layoutMigration={{ id: "board-20260907", minH: { calendar: 7 }, set: { board: { x: 0, y: 999, w: 4, h: 5 } } }}
+              //   2026-09-10: 달력을 맨 위 왼쪽으로. 저장된 배치도 이 한 번은 따라온다(자리를 비켜 준 위젯은 아래로 밀린다).
+              //   board 는 여기서 빼 둔다 — 마이그레이션 아이디가 바뀌면 set 전체가 다시 걸려,
+              //   9/7 이후 게시판을 옮겨 둔 분들의 자리가 또 맨 아래로 돌아간다.
+              layoutMigration={{ id: "calendar-topleft-20260910b", minH: {}, toTop: { id: "calendar", h: 11 } }}
               activeMigration="board-20260907"
               headLeft={
                 <div className="dash-head">
