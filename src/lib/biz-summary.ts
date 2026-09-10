@@ -53,7 +53,8 @@ export async function fetchBizSummary(companyId: string, month: string, userId?:
     //   받을 돈·낼 돈 — 세금계산서 잔액 기준(lib/invoice-arap, 2026-09-03 사장님 결정). 원장 기준(ledger-arap)은
     //   회계 자료 전용으로 남긴다 — 대시보드 6칸만 원장 기준이라 미수금 위젯·AI 요약과 숫자가 달랐다.
     fetchInvoiceArAp(companyId),
-    getVATPreview(companyId, year),
+    //   1~3월엔 코앞의 납부(전년 2기 확정, 1/25)가 올해 예상에 없다 — 전년도 것도 함께 보고 납부일이 남은 것만 쓴다
+    Promise.all([getVATPreview(companyId, year - 1), getVATPreview(companyId, year)]).then(([a, b]) => [...a, ...b]),
     getLoanStatuses(companyId),
   ]);
   const pulse = pulseRaw ? buildCashPulse(pulseRaw) : null;

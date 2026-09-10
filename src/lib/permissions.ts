@@ -99,6 +99,8 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       //   세무 신고 (2026-08-31 세무 1차) — 급여 총액이 보이므로 급여와 같은 급의 money 권한. ★ 배포와 함께 백필 필요.
       { route: "/finance/tax-filing", label: "세무 신고", money: true, desc: "원천세·부가세 신고서 완성 · 제출은 홈택스에서" },
       { route: "/payments", label: "정기 지출", money: true },
+      //   사이드바에선 내렸지만 경영 요약·일정·자금 전망이 링크한다 — 권한표에 없으면 누구나 대출 잔액·금리를 본다
+      { route: "/loans", label: "대출", money: true, hidden: true },
       //   2026-08-11 사이드바에서 내림(수집·전표 통장 탭이 대신). 주소로는 열리므로 게이트·옛 부여 키 호환을 위해 남긴다 — 표에는 안 그림
       { route: "/transactions", label: "자동 분류", money: true, hidden: true },
       { route: "/finance/status", label: "현황", money: true, desc: "작성된 전표의 현황·지표 · 확정·반려·종류·계정과목·부가세 유형·전표 없는 증빙" },

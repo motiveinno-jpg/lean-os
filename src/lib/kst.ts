@@ -73,6 +73,13 @@ export function mondayOfStr(date: string): string {
 }
 
 /** 두 날짜 사이 일수(a - b) */
+/** 어떤 날짜(YYYY-MM-DD)부터 오늘(KST)까지 며칠 지났나 — 로컬 자정과 UTC 자정을 섞어 하루 적게 나오던 것을 막는다 */
+export function daysSinceKst(date: string): number {
+  const t = Date.parse(String(date).slice(0, 10) + "T00:00:00Z");
+  if (!Number.isFinite(t)) return 0;
+  return Math.floor((Date.parse(todayKst() + "T00:00:00Z") - t) / 86400000);
+}
+
 export function daysBetweenStr(a: string, b: string): number {
   const p = (x: string) => { const [y, m, d] = String(x).slice(0, 10).split("-").map(Number); return Date.UTC(y, (m || 1) - 1, d || 1); };
   return Math.round((p(a) - p(b)) / 86_400_000);

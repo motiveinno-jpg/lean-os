@@ -1,3 +1,5 @@
+import { daysSinceKst } from "@/lib/kst";
+import { ledgerInvoiceFilter } from "@/lib/ledger-sheet";
 // 손익 현황 — 확정 전표 기준 집계 (2026-08-19 기획: docs/20260819_PLAN_pnl_status_redesign.md)
 //   ★ 손익계산서와 같은 줄(fetchJournalLines)만 본다. 세금계산서·카드·통장은 원천 드릴다운·미처리 건수로만.
 //   이 파일은 셈만 한다 — 화면은 reports/profit·revenue·expense 가 그린다.
@@ -101,15 +103,12 @@ export const pctChange = (cur: number, prev: number): number | null => (prev ===
 export async function fetchReceivables(companyId: string): Promise<{ total: number; over30: number; over30Partners: number; rows: { name: string; amount: number; issueDate: string; days: number }[] }> {
   //   원장 에이징과 같은 기준(전표처리된 발행분만) — 발행만 되고 전표가 없는 계산서까지 미수로 세면
   //   원장·경영요약과 다른(부풀린) 숫자가 됐다 (2026-09-01 전수점검 ①, 2026-08-26 사장님 기준)
-  const data = await fetchPaged<any>("pnl-status:ar", () => supabase.from("tax_invoices")
+  const data = await fetchPaged<any>("pnl-status:ar", () => ledgerInvoiceFilter(supabase.from("tax_invoices")
     .select("counterparty_name, total_amount, supply_amount, settled_amount, issue_date, status")
-    .eq("company_id", companyId).eq("type", "sales")
-    .not("journal_entry_id", "is", null)
-    .not("status", "in", "(void,draft,cancelled)").order("id"), 50000);
-  const today = new Date();
+    .eq("company_id", companyId).eq("type", "sales")).neq("status", "cancelled").order("id"), 50000);
   const rows = ((data || []) as any[])
     .map((r) => {
-      const d = r.issue_date ? Math.floor((today.getTime() - new Date(r.issue_date).getTime()) / 86400000) : 0;
+      const d = r.issue_date ? daysSinceKst(String(r.issue_date)) : 0;
       const bal = Number(r.total_amount || r.supply_amount || 0) - Number(r.settled_amount || 0);
       return { name: r.counterparty_name || "(미상)", amount: bal, issueDate: String(r.issue_date || ""), days: d };
     })

@@ -61,7 +61,7 @@ export async function fetchOutlook(companyId: string, days: number, userId?: str
     fetchPagedRes<any>("cash-outlook:ti", () => supabase.from("tax_invoices").select("id, type, counterparty_name, total_amount, settled_amount, issue_date, status").eq("company_id", companyId).neq("status", "void").gte("issue_date", addDays(today, -180)).order("id"), 50000),
     supabase.from("fixed_costs").select("id, name, amount, payment_day, is_recurring, end_date").eq("company_id", companyId),
     supabase.from("recurring_payments").select("id, name, amount, day_of_month, is_active").eq("company_id", companyId).eq("is_active", true),
-    getVATPreview(companyId, year),
+    Promise.all([getVATPreview(companyId, year - 1), getVATPreview(companyId, year)]).then(([a, b]) => [...a, ...b]),
     getLoanStatuses(companyId),
     supabase.from("deal_revenue_schedule").select("id, amount, due_date, status, label, deals!inner(company_id, name)").eq("deals.company_id", companyId),
     supabase.from("deal_cost_schedule").select("id, amount, due_date, status, deal_nodes!inner(deal_id, name, deals!inner(company_id))").eq("deal_nodes.deals.company_id", companyId),

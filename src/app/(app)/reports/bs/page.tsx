@@ -1,4 +1,5 @@
 "use client";
+import { addDaysStr } from "@/lib/kst";
 import { GroupedColumnChart, Legend, vizColor } from "@/components/charts/kit";
 
 import { todayKst } from "@/lib/kst";
@@ -95,13 +96,15 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
   //     이제 확정 전표의 자산·부채·자본 계정 잔액을 그대로 쓴다(회계연도 1/1 ~ 기준일 누적).
   //     ⚠️ 통장 잔액과 장부(103 보통예금) 잔액이 다를 수 있는데, 그 차이가 곧 **아직 안 친 전표**다.
   const cutoff = cutoffDate || todayKst();
-  const fromDate = `${cutoff.slice(0, 4)}-01-01`;
+  const closing = await getAccountingClosing(companyId).catch(() => null);
+  //   기초잔액(마감일 잔액)이 있으면 그 다음 날부터 누적한다 — 회계연도 1/1 로 고정하면 기중 마감일엔 이중, 마감 다음 해엔 전년 활동이 빠졌다
+  const closingDate = closing?.closing_date && closing.closing_date < cutoff ? String(closing.closing_date).slice(0, 10) : null;
+  const fromDate = closingDate ? addDaysStr(closingDate, 1) : `${cutoff.slice(0, 4)}-01-01`;
 
-  const [lines, unposted, companyRes, closing] = await Promise.all([
+  const [lines, unposted, companyRes] = await Promise.all([
     fetchJournalLines(companyId, fromDate, cutoff),
     countUnposted(companyId, fromDate, cutoff),
     supabase.from("companies").select("tax_settings").eq("id", companyId).maybeSingle(),
-    getAccountingClosing(companyId).catch(() => null),
   ]);
 
   //   계정별 잔액 · 자산은 차변이 +, 부채·자본은 대변이 +
@@ -180,7 +183,9 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
   //   이익잉여금 = 전표의 잉여금 계정 + 이번 기간 당기순이익
   const retainedFromJournal = equities.filter((b) => codeNum(b.code) >= 350).reduce((s, b) => s + b.amount, 0);
   const retainedEarnings = retainedFromJournal + pnlNet;
-  const totalEquity = capital + retainedEarnings;
+  //   자본 합계는 자본 계정 **전부**(332~349 우선주자본금·출자금·주식발행초과금 등, 코드 없는 기초잔액 줄 포함) + 당기순이익.
+  //   자본금(331)과 350 이상만 더하면 그 사이 계정이 빠져 부채와의 균형이 깨진다.
+  const totalEquity = equities.reduce((s, b) => s + b.amount, 0) + pnlNet;
 
   const fixedAssetDetails = assets.filter((b) => codeNum(b.code) >= 200)
     .map((b) => ({ name: detail(b).name, value: detail(b).amount, type: "장부" }));

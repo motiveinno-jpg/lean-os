@@ -1,4 +1,6 @@
 "use client";
+import { fetchInvoiceLinkedEntryIds } from "@/lib/ledger-sheet";
+import { daysSinceKst } from "@/lib/kst";
 import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 import { fetchPaged }  from "@/lib/fetch-paged";
@@ -103,7 +105,7 @@ export default function PartnerLedgerPage() {
   const { data: rows = [], isLoading: lLoading } = useQuery<LedgerRow[]>({
     queryKey: ["partner-ledger", companyId, rpcYear],
     queryFn: async () => {
-      const data = logRead('ledger/page:data', await db.rpc("get_partner_ledger_by_year", { p_year: rpcYear }));
+      const data = logRead('ledger/page:data', await (db as any).rpc("get_partner_ledger_by_period", { p_from: periodStart, p_to: periodEnd }));
       return (data || []) as LedgerRow[];
     },
     enabled: !!companyId,
@@ -132,15 +134,20 @@ export default function PartnerLedgerPage() {
     queryFn: async () => {
       //   ★ 페이징 필수 — 넓은 기간엔 수기전표가 1,000행(PostgREST 기본 상한)을 넘어
       //     상한에서 잘리면 거래처 조정액 집계가 누락된다 (2026-08-28).
-      const data = await fetchPaged('ledger/page:data', () => db.from("journal_entries")
-        .select("reference_type, journal_lines(partner_id, debit, credit, chart_of_accounts(code))")
-        .eq("company_id", companyId ?? "").eq("source", "manual").eq("status", "confirmed")
-        .gte("entry_date", periodStart).lte("entry_date", periodEnd).order("entry_date"), 50000);
+      //   기간 시작 전 전표도 읽는다 — 잔액은 누적이라 전년도에 친 수기 전표가 이월에서 빠지면 안 된다
+      const [data, linked] = await Promise.all([
+        fetchPaged('ledger/page:data', () => db.from("journal_entries")
+          .select("id, reference_type, journal_lines(partner_id, debit, credit, chart_of_accounts(code))")
+          .eq("company_id", companyId ?? "").eq("source", "manual").eq("status", "confirmed")
+          .lte("entry_date", periodEnd).order("entry_date").order("id"), 50000),
+        fetchInvoiceLinkedEntryIds(companyId ?? ""),
+      ]);
       const m: Record<string, { sales?: boolean; purchase?: boolean; salesAdj?: number; purchaseAdj?: number }> = {};
       for (const e of (data || []) as any[]) {
         //   세금계산서로 자동 생성된 매입매출전표(reference_type='tax_invoice')는 위 RPC 가 이미 계산서로 세므로
         //   여기서 또 더하면 잔액이 두 배가 된다(우측 시트도 이 조건으로 뺀다, 2026-09-09 사장님 원장 잔액 오류).
-        if (e.reference_type === "tax_invoice") continue;
+        //   계산서가 가리키는 전표는 계산서 줄로 이미 센다 — reference_type 으로 가르면 초안 계산서를 나중에 발행했을 때 두 번 잡혔다
+        if (linked.has(e.id)) continue;
         for (const l of (e.journal_lines || [])) {
           if (!l.partner_id) continue;
           const code = l.chart_of_accounts?.code;
@@ -175,15 +182,13 @@ export default function PartnerLedgerPage() {
         { label: "61–90일", min: 61, max: 90, amount: 0, count: 0 },
         { label: "90일+", min: 91, max: Infinity, amount: 0, count: 0 },
       ];
-      const now = new Date();
-      const todayMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
       //   거래처별로 어느 구간에 미결 계산서가 있는지 · 요약 줄 경과 칩을 눌러 목록을 거를 때 쓴다 (미지정 = "none")
       const byPartner: Record<string, number[]> = {};
       for (const r of (inv || []) as any[]) {
         if (r.status === "draft") continue;
         const bal = Number(r.total_amount || r.supply_amount || 0) - Number(r.settled_amount || 0);
         if (bal <= 1) continue;
-        const days = r.issue_date ? Math.floor((todayMs - new Date(String(r.issue_date).slice(0, 10)).getTime()) / 86400000) : 0;
+        const days = r.issue_date ? daysSinceKst(String(r.issue_date)) : 0;
         const bi = Math.max(0, buckets.findIndex((x) => days >= x.min && days <= x.max));
         const b = buckets[bi] || buckets[3];
         b.amount += bal; b.count += 1;

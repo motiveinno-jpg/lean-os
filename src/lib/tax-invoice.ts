@@ -396,14 +396,17 @@ export async function getTaxInvoiceSummary(
   const endDate = `${year}-12-31`;
 
   const { fetchAllPaginated } = await import('./supabase-paginated');
+  //   결정적 정렬(id)이 없으면 1,000건 넘는 해에 행이 겹치거나 빠진다 · 미발행 초안은 매출세액이 아니다
   const invoices = await fetchAllPaginated<any>((from, to) =>
     supabase
       .from('tax_invoices')
       .select('type, supply_amount, tax_amount, total_amount, issue_date')
       .eq('company_id', companyId)
       .neq('status', 'void')
+      .neq('status', 'draft')
       .gte('issue_date', startDate)
       .lte('issue_date', endDate)
+      .order('issue_date').order('id')
       .range(from, to)
   );
 
@@ -488,13 +491,16 @@ export async function getVATPreview(companyId: string, year: number): Promise<VA
   //   별개의 마이너스 매출 행이라, issued 만 집계하면 취소분이 안 빠져 매출세액이 과다했다.
   //   매입 현금영수증 공제는 증빙 요건 판단이 필요해 미반영(보수적).
   const { cashReceiptSign } = await import('./cash-receipts');
-  const crData = logRead('lib/tax-invoice:crData', await db
+  //   1,000행 상한 — 현금영수증이 많은 회사에서 매출세액이 조용히 잘렸다
+  const { fetchPaged } = await import('./fetch-paged');
+  const crData = await fetchPaged<any>('lib/tax-invoice:crData', () => db
     .from('cash_receipts')
     .select('tax_amount, issue_date, status, source')
     .eq('company_id', companyId)
     .eq('type', 'income')
     .gte('issue_date', `${year}-01-01`)
-    .lt('issue_date', `${year + 1}-01-01`));
+    .lt('issue_date', `${year + 1}-01-01`)
+    .order('issue_date').order('id'), 50000);
 
   const crByQuarter = new Map<string, number>();
   (crData || []).forEach((c: any) => {

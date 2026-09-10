@@ -48,7 +48,7 @@ export async function fetchJournalLines(
       .eq("company_id", companyId)
       .eq("status", "confirmed")          // ★ 확정된 전표만 — 반려·임시분은 장부가 아니다
       .gte("entry_date", fromDate).lte("entry_date", toDate)
-      .order("entry_date")
+      .order("entry_date").order("id")   // 같은 날짜가 페이지 경계에 걸리면 순서가 흔들려 줄이 겹치거나 빠진다
       .range(page * PAGE, page * PAGE + PAGE - 1));
     const rows = (data as any[]) || [];
     for (const e of rows) {

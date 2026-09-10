@@ -4,6 +4,7 @@ import { Ico } from "@/components/ui-icon";
 import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 import { fetchPaged } from "@/lib/fetch-paged";
+import { fetchLedgerSheetData, ledgerInvoiceFilter, type LedgerSheetData } from "@/lib/ledger-sheet";
 
 // 거래처 원장 ↔ 거래 대사 공유 모듈 (2026-06-12 메뉴 분리 핸드오프).
 //   /partners/ledger (조회: 원장) 와 /partners/reconciliation (작업: 대사) 가 공용으로 쓰는
@@ -22,18 +23,8 @@ import { useModalKeys }  from "@/hooks/use-modal-keys";
 const db = supabase;
 
 // .in() 대량 ID 는 GET URL 길이 초과로 400 · 200개씩 청크 조회(2026-07-29 오류로그 실사례)
-export async function chunkedIn<T>(
-  fetchChunk: (ids: string[]) => PromiseLike<T[] | null>,
-  ids: string[],
-  size = 200,
-): Promise<T[]> {
-  const out: T[] = [];
-  for (let i = 0; i < ids.length; i += size) {
-    const part = await fetchChunk(ids.slice(i, i + size));
-    if (part) out.push(...part);
-  }
-  return out;
-}
+import { chunkedIn } from "@/lib/chunked-in";
+export { chunkedIn };
 
 // ── 타입 ──
 export type LedgerRow = {
@@ -111,72 +102,15 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
   const [editEntryId, setEditEntryId] = useState<string | null>(null); // 클릭한 수동 전표 ID → 수정 모달
   const [newOpen, setNewOpen] = useState(false); // '+ 전표 입력' 신규 모달
 
-  // 발생: 해당 거래처 세금계산서 (연말까지 — 전기이월 산출 위해 과거 포함)
-  const { data: invoices = [], isLoading } = useQuery<any[]>({
-    queryKey: ["ledger-sheet-inv", companyId, partnerId, type, yStart, yEnd],
-    queryFn: async () => {
-      const data = await fetchPaged<any>("ledger/shared:invoices", () => {
-        const qb = db.from("tax_invoices")
-          // journal_entries 임베드 = 연결 전표의 번호 — 계산서 줄에서 전표를 바로 열기 위함 (2026-08-26 사장님).
-          //   ⚠️ FK 힌트 필수: journal_entries.linked_invoice_id 역방향 FK 도 있어 이름만 쓰면 PGRST201(모호)로 조회 전체가 빈다.
-          .select("id, issue_date, item_name, label, total_amount, journal_entry_id, journal_entries!tax_invoices_journal_entry_id_fkey(voucher_no)")
-          .eq("company_id", companyId).eq("type", type).neq("status", "void")
-          // 실제 홈택스 발행분만 — 국세청 승인번호(nts_confirm_no) 있는 건. 미발행 수동/테스트 draft 제외.
-          .not("nts_confirm_no", "is", null)
-          // 전표처리된 건만 — 좌측 목록 RPC(get_partner_ledger_by_year)와 동일 기준 (2026-08-26 사장님)
-          .not("journal_entry_id", "is", null)
-          .lte("issue_date", yEnd)
-          .order("issue_date", { ascending: true }).order("id");
-        return partnerId ? qb.eq("partner_id", partnerId) : qb.is("partner_id", null);
-      }, 50000);
-      return (data || []) as any[];
-    },
+  // 계산서·확정 정산·수기 전표 — 원장 규칙 한 벌(lib/ledger-sheet.ts). 엑셀·상세 창도 같은 함수를 쓴다.
+  const { data: sheetData, isLoading } = useQuery<LedgerSheetData>({
+    queryKey: ["ledger-sheet-data", companyId, partnerId, type, yEnd],
+    queryFn: () => fetchLedgerSheetData(companyId, partnerId, type, yEnd),
     enabled: !!companyId,
   });
-
-  // 회수/지급: 확정 정산 (통장 거래일 기준, 차액마감은 생성일)
-  const invIds = invoices.map((i) => i.id);
-  const { data: settles = [] } = useQuery<any[]>({
-    queryKey: ["ledger-sheet-settle", companyId, partnerId, type, yStart, yEnd, invIds.join(",")],
-    queryFn: async () => {
-      if (invIds.length === 0) return [];
-      const setts = await chunkedIn((ids) => db.from("invoice_settlements")
-        .select("id, tax_invoice_id, amount, match_type, adjustment_reason, bank_transaction_id, created_at")
-        .eq("status", "confirmed").in("tax_invoice_id", ids).then((r: any) => logRead('ledger/shared:setts', r)), invIds);
-      const btIds = [...new Set((setts || []).map((s: any) => s.bank_transaction_id).filter(Boolean))];
-      const btMap: Record<string, { date: string; cp: string | null }> = {};
-      if (btIds.length) {
-        const bts = await chunkedIn((ids) => db.from("bank_transactions").select("id, transaction_date, counterparty").in("id", ids).then((r: any) => logRead('ledger/shared:bts', r)), btIds);
-        for (const b of (bts || []) as any[]) btMap[b.id] = { date: b.transaction_date, cp: b.counterparty };
-      }
-      return ((setts || []) as any[]).map((s) => ({
-        ...s,
-        date: s.bank_transaction_id ? (btMap[s.bank_transaction_id]?.date || String(s.created_at).slice(0, 10)) : String(s.created_at).slice(0, 10),
-        cp: s.bank_transaction_id ? btMap[s.bank_transaction_id]?.cp : null,
-      }));
-    },
-    enabled: !!companyId && invIds.length > 0,
-  });
-
-  // 수동 전표 (직접 입력). 이 거래처를 라인에 포함한 source='manual'·confirmed 전표.
-  //   원장 그리드에 날짜순 통합되어 잔액에 반영됨(AR/AP 라인 기준). 클릭 시 수정/삭제.
-  const  { data: manualVouchers = [] } = useQuery<any[]>({
-    queryKey: ["ledger-manual-vouchers", companyId, partnerId, yStart, yEnd],
-    queryFn: async () => {
-      const data = await fetchPaged<any>("ledger/shared:manualVouchers", () => db.from("journal_entries")
-        .select("id, entry_date, description, voucher_no, reference_type, journal_lines(debit, credit, partner_id, description, chart_of_accounts(code))")
-        .eq("company_id", companyId).eq("source", "manual").eq("status", "confirmed")
-        .gte("entry_date", yStart).lte("entry_date", yEnd)
-        .order("entry_date", { ascending: true }).order("voucher_no", { ascending: true }).order("id"), 50000);
-      return ((data || []) as any[]).filter((e) =>
-        //   세금계산서로 만든 매입매출전표는 뺀다 — 그 계산서가 이미 위에서 한 줄로 잡히기 때문에
-        //   같이 세면 잔액이 두 배가 된다 (2026-08-11)
-        e.reference_type !== "tax_invoice"
-        && (e.journal_lines || []).some((l: any) => l.partner_id === partnerId),
-      );
-    },
-    enabled: !!companyId && !!partnerId,
-  });
+  const invoices = sheetData?.invoices ?? [];
+  const settles = sheetData?.settles ?? [];
+  const manualVouchers = sheetData?.manualVouchers ?? [];
 
   // 정산 자동 전표(차액 잡손익 포함) — 정산 줄을 클릭하면 이 전표를 수정(잡손실→이자·수수료 등 계정 변경).
   const settleIds = settles.map((s) => s.id);
@@ -238,7 +172,8 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
 
     const all: SheetEntry[] = [...invoices.map(occur), ...settles.map(settle), ...voucherRows];
     const before = all.filter((e) => e.date < yStart);
-    const within = all.filter((e) => e.date >= yStart).sort((a, b) => a.date.localeCompare(b.date) || (b.debit + b.credit) - (a.debit + a.credit));
+    //   기간 끝을 넘는 줄(계산서는 조회에서 잘렸지만 정산·전표는 아니다)은 엑셀과 같이 뺀다
+    const within = all.filter((e) => e.date >= yStart && e.date <= yEnd).sort((a, b) => a.date.localeCompare(b.date) || (b.debit + b.credit) - (a.debit + a.credit));
     const dir = (e: SheetEntry) => (isSales ? e.debit - e.credit : e.credit - e.debit);
     const opening = before.reduce((s, e) => s + dir(e), 0);
 
@@ -1039,14 +974,14 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
   const { data: invoices = [], isLoading } = useQuery<any[]>({
     queryKey: ["partner-detail-inv", companyId, partnerId, type, year],
     queryFn: async () => {
-      let qb = db.from("tax_invoices")
-        .select("id, issue_date, item_name, label, total_amount, supply_amount, tax_amount, settled_amount, settlement_status, nts_confirm_no")
-        .eq("company_id", companyId).eq("type", type).lte("issue_date", `${year}-12-31`)
-        // 전표처리된 건만 · 원장 집계와 동일 기준 (2026-08-26 사장님)
-        .not("journal_entry_id", "is", null)
-        .order("issue_date",  { ascending: false }).limit(500);
-      qb = partnerId ? qb.eq("partner_id", partnerId) : qb.is("partner_id", null);
-      const { data } = await qb;
+      //   원장 규칙(무효·초안 제외, 전표처리된 것)과 같은 조건 · 500건에서 잘리지 않게 페이징
+      const data = await fetchPaged<any>("ledger/detail:inv", () => {
+        const qb = ledgerInvoiceFilter(db.from("tax_invoices")
+          .select("id, issue_date, item_name, label, total_amount, supply_amount, tax_amount, settled_amount, settlement_status, nts_confirm_no")
+          .eq("company_id", companyId).eq("type", type)).lte("issue_date", `${year}-12-31`)
+          .order("issue_date", { ascending: false }).order("id");
+        return partnerId ? qb.eq("partner_id", partnerId) : qb.is("partner_id", null);
+      }, 50000);
       return (data || []) as any[];
     },
     enabled: !!companyId,

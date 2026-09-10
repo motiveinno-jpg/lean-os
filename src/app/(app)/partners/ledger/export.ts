@@ -6,7 +6,8 @@ import { fetchPaged } from "@/lib/fetch-paged";
 
 import * as XLSX from "xlsx-js-style";
 import { supabase } from "@/lib/supabase";
-import { ADJ_REASON_LABEL, chunkedIn } from "./shared";
+import { ADJ_REASON_LABEL } from "./shared";
+import { fetchLedgerSheetData } from "@/lib/ledger-sheet";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
@@ -17,52 +18,9 @@ type Entry = { date: string; desc: string; debit: number; credit: number };
 
 async function fetchLedgerEntries(companyId: string, partnerId: string | null, type: string, yStart: string, yEnd: string): Promise<Entry[]> {
   const isSales = type === "sales";
-
-  // 발생: 해당 거래처 세금계산서 (시트와 동일 — 홈택스 발행분만, 전기이월 위해 과거 포함)
-  const invoices = await fetchPaged<any>("ledger/export:invoices", () => {
-    const qb = db.from("tax_invoices")
-      .select("id, issue_date, item_name, label, total_amount")
-      .eq("company_id", companyId).eq("type", type).neq("status", "void")
-      .not("nts_confirm_no", "is", null)
-      .lte("issue_date", yEnd)
-      .order("issue_date", { ascending: true }).order("id");
-    return partnerId ? qb.eq("partner_id", partnerId) : qb.is("partner_id", null);
-  }, 50000);
-  const invRows = (invoices || []) as any[];
-
-  // 회수/지급: 확정 정산 (통장 거래일 기준, 차액마감은 생성일)
-  const invIds = invRows.map((i) => i.id);
-  let settles: any[] = [];
-  if (invIds.length > 0) {
-    //   ★ invIds/btIds 는 이제 페이징으로 수천 개까지 커질 수 있어 .in() 한 방이면 URL 상한을 넘는다 —
-    //     chunkedIn 으로 200개씩 나눠 조회한다 (2026-08-28).
-    const setts = await chunkedIn((ids) => db.from("invoice_settlements")
-      .select("id, tax_invoice_id, amount, match_type, adjustment_reason, bank_transaction_id, created_at")
-      .eq("status", "confirmed").in("tax_invoice_id", ids).then((r: any) => logRead('ledger/export:setts', r)), invIds);
-    const btIds = [...new Set(((setts || []) as any[]).map((s) => s.bank_transaction_id).filter(Boolean))] as string[];
-    const btMap: Record<string, { date: string; cp: string | null }> = {};
-    if (btIds.length) {
-      const bts = await chunkedIn((ids) => db.from("bank_transactions").select("id, transaction_date, counterparty").in("id", ids).then((r: any) => logRead('ledger/export:bts', r)), btIds);
-      for (const b of (bts || []) as any[]) btMap[b.id] = { date: b.transaction_date, cp: b.counterparty };
-    }
-    settles = ((setts || []) as any[]).map((s) => ({
-      ...s,
-      date: s.bank_transaction_id ? (btMap[s.bank_transaction_id]?.date || String(s.created_at).slice(0, 10)) : String(s.created_at).slice(0, 10),
-      cp: s.bank_transaction_id ? btMap[s.bank_transaction_id]?.cp : null,
-    }));
-  }
-
-  // 수동 전표 — 이 거래처 라인을 포함한 manual·confirmed 전표 (AR/AP 라인 전부 반영)
-  const mv = await fetchPaged<any>("ledger/export:mv", () => db.from("journal_entries")
-    .select("id, entry_date, description, voucher_no, reference_type, journal_lines(debit, credit, partner_id, description, chart_of_accounts(code))")
-    .eq("company_id", companyId).eq("source", "manual").eq("status", "confirmed")
-    .gte("entry_date", yStart).lte("entry_date", yEnd)
-    .order("entry_date", { ascending: true }).order("voucher_no", { ascending: true }).order("id"), 50000);
-  //   세금계산서로 만든 매입매출전표는 뺀다 — 계산서가 이미 한 줄로 잡혀 있어 이중계상이 된다 (화면과 같은 규칙)
-  const manualVouchers = ((mv || []) as any[]).filter((e) =>
-    e.reference_type !== "tax_invoice"
-    && (e.journal_lines || []).some((l: any) => l.partner_id === partnerId),
-  );
+  void yStart;
+  //   화면 시트와 같은 함수·같은 규칙(lib/ledger-sheet.ts) — 엑셀만 전표 없는 계산서를 넣어 잔액이 달랐다
+  const { invoices: invRows, settles, manualVouchers } = await fetchLedgerSheetData(companyId, partnerId, type, yEnd);
 
   const arApCode = isSales ? "108" : "251";
   const occur = (inv: any): Entry => ({

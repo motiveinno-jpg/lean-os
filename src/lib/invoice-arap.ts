@@ -8,21 +8,18 @@
 //   '30일+' = 발행일 기준 30일 경과한 매출 계산서 잔액(전표 처리 여부와 무관).
 import { supabase } from "@/lib/supabase";
 import { fetchPaged } from "@/lib/fetch-paged";
-import { kstDateStr } from "@/lib/kst";
+import { daysSinceKst } from "@/lib/kst";
+import { ledgerInvoiceFilter } from "@/lib/ledger-sheet";
 
 const db = supabase as any;
 
 export type InvoiceArAp = { ar: number; ap: number; over30: number; over30Partners: number };
 
 export async function fetchInvoiceArAp(companyId: string): Promise<InvoiceArAp> {
-  const since = new Date(); since.setDate(since.getDate() - 730);   // 2년 — 그보다 오래된 미정산은 원장에서 다룬다
-  const rows = await fetchPaged<any>("invoice-arap:rows", () => db.from("tax_invoices")
+  //   원장과 같은 포함 기준(무효·초안·취소 제외, 전표처리된 것) — 화면마다 다른 '미수금' 이 나오던 뿌리
+  const rows = await fetchPaged<any>("invoice-arap:rows", () => ledgerInvoiceFilter(db.from("tax_invoices")
     .select("type, total_amount, supply_amount, settled_amount, issue_date, status, counterparty_name")
-    .eq("company_id", companyId).neq("status", "void").neq("status", "draft")
-    .gte("issue_date", kstDateStr(since)).order("issue_date"), 50000);
-
-  const now = new Date();
-  const todayMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    .eq("company_id", companyId)).neq("status", "cancelled").order("issue_date").order("id"), 50000);
   let ar = 0, ap = 0, over30 = 0; const overPartners = new Set<string>();
   for (const r of ((rows || []) as any[])) {
     const bal = Number(r.total_amount || r.supply_amount || 0) - Number(r.settled_amount || 0);
@@ -32,7 +29,7 @@ export async function fetchInvoiceArAp(companyId: string): Promise<InvoiceArAp> 
     if (r.type !== "sales") continue;
     ar += bal;
     if (bal <= 0) continue;
-    const days = r.issue_date ? Math.floor((todayMs - new Date(String(r.issue_date).slice(0, 10)).getTime()) / 86400000) : 0;
+    const days = r.issue_date ? daysSinceKst(String(r.issue_date)) : 0;
     if (days > 30) { over30 += bal; overPartners.add(r.counterparty_name || "(미상)"); }
   }
   return { ar, ap, over30, over30Partners: overPartners.size };

@@ -1,5 +1,6 @@
 "use client";
-import { kstDateStr } from "@/lib/kst";
+import { daysSinceKst } from "@/lib/kst";
+import { ledgerInvoiceFilter } from "@/lib/ledger-sheet";
 import { fetchPaged }  from "@/lib/fetch-paged";
 
 // 미수금 회수 미리보기 · 대시보드 카드(2026-07-14). 발행한 매출 세금계산서 중 아직 입금(settled)이
@@ -49,22 +50,17 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
     enabled: !!companyId,
     staleTime: 60_000,
     queryFn: async () => {
-      const since = new Date();
-      since.setDate(since.getDate() - 400);
-      const rows = await fetchPaged<any>('components/receivables-preview:rows', () => db.from("tax_invoices")
+      //   원장·6칸 KPI 와 같은 기준(전표처리된 발행분, 무효·초안·취소 제외) — 위젯만 400일·전표 무관으로 세어 숫자가 달랐다
+      const rows = await fetchPaged<any>('components/receivables-preview:rows', () => ledgerInvoiceFilter(db.from("tax_invoices")
         .select("counterparty_name, total_amount, supply_amount, settled_amount, issue_date, status")
-        .eq("company_id", companyId).eq("type", "sales").neq("status", "void")
-        .gte("issue_date", kstDateStr(since))
+        .eq("company_id", companyId).eq("type", "sales")).neq("status", "cancelled")
         .order("id"), 50000);
-      const now = new Date();
-      const todayMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
       const byCp: Record<string, CpGroup> = {};
       for (const r of (rows || []) as any[]) {
-        if (r.status === "draft") continue;
         const bal = Number(r.total_amount || r.supply_amount || 0) - Number(r.settled_amount || 0);
         if (bal <= 1) continue;
         const name = r.counterparty_name || "미상";
-        const days = r.issue_date ? Math.floor((todayMs - new Date(String(r.issue_date).slice(0, 10)).getTime()) / 86400000) : 0;
+        const days = r.issue_date ? daysSinceKst(String(r.issue_date)) : 0;
         const g = byCp[name] || (byCp[name] = { name, outstanding: 0, oldestDays: 0, count: 0 });
         g.outstanding += bal;
         g.count += 1;

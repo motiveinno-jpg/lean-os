@@ -71,7 +71,7 @@ export default function FinanceStatusPage() {
     catch (e) { toast(friendlyError(e), "error"); }
   };
   //   ★ ERP 공백 ② — 결산 초안(재고자산 맞추기·급여)을 여기서 바로 만든다. 월 1일 새벽엔 자동. 확정은 아래 목록에서.
-  const [closeMonth, setCloseMonth] = useState(() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 7); });
+  const [closeMonth, setCloseMonth] = useState(() => { const t = todayKst(); const y = Number(t.slice(0, 4)), m = Number(t.slice(5, 7)); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`; });
   const [closeBusy, setCloseBusy] = useState<"inventory" | "payroll" | "depreciation" | "retirement" | null>(null);
   const makeCloseDraft = async (kind: "inventory" | "payroll" | "depreciation" | "retirement") => {
     if (closeBusy) return;
@@ -110,7 +110,7 @@ export default function FinanceStatusPage() {
   const { data: unposted } = q("fin-status-unposted", async () => {
     const [ti, card, bank] = await Promise.all([
       cnt((supabase.from("tax_invoices").select("id", { count: "exact", head: true }) as any).eq("company_id", companyId!).is("journal_entry_id", null).neq("status", "void").gte("issue_date", from).lte("issue_date", to)),
-      cnt((supabase.from("card_transactions").select("id", { count: "exact", head: true }) as any).eq("company_id", companyId!).is("journal_entry_id", null).gte("transaction_date", from).lte("transaction_date", to)),
+      cnt((supabase.from("card_transactions").select("id", { count: "exact", head: true }) as any).eq("company_id", companyId!).is("journal_entry_id", null).is("ledger_excluded_reason", null).gte("transaction_date", from).lte("transaction_date", to)),
       cnt((supabase.from("bank_transactions").select("id", { count: "exact", head: true }) as any).eq("company_id", companyId!).is("journal_entry_id", null).is("ledger_excluded_reason", null).eq("settlement_status", "open").gte("transaction_date", from).lte("transaction_date", to)),
     ]);
     return { ti, card, bank, total: ti + card + bank };

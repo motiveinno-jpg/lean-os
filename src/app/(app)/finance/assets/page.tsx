@@ -50,7 +50,7 @@ export default function FixedAssetsPage() {
   const [dispose, setDispose] = useState<FixedAsset | null>(null);
   const [dOn, setDOn] = useState(todayKst()); const [dAmt, setDAmt] = useState("");
   const [hist, setHist] = useState<FixedAsset | null>(null);
-  const [deprMonth, setDeprMonth] = useState(() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 7); });
+  const [deprMonth, setDeprMonth] = useState(() => { const t = todayKst(); const y = Number(t.slice(0, 4)), m = Number(t.slice(5, 7)); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`; });
   useModalKeys(!!form, () => setForm(null));
   useModalKeys(!!dispose, () => setDispose(null));
   useModalKeys(!!hist, () => setHist(null));
