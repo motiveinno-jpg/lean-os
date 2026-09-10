@@ -14,7 +14,7 @@ import { getCompanyUsers } from "@/lib/queries";
 import { resolveSignedUrl } from "@/lib/file-storage";
 import { ScheduleItemEditor, draftFromEvent, type ScheduleDraft } from "@/components/schedule-item-editor";
 import {
-  upsertEvent, deleteEvent, toggleEventCompleted, formatEventRange,
+  upsertEvent, deleteEvent, toggleEventCompleted, formatEventRange, canManageScheduleEvent,
   VISIBILITY_LABEL, type EventColor, type ScheduleAttachment, type ScheduleEvent, remindersOf } from "@/lib/schedule";
 
 const DOT: Record<EventColor, string> = {
@@ -47,13 +47,16 @@ export function ScheduleItemDialog({
   }, [target.mode === "view" ? target.event.id : `${target.from}~${target.to}`]);
 
   const refresh = () => {
-    for (const key of ["schedule-events", "schedule-items", "chat-cal-events", "chat-schedule-events"]) {
+    for (const key of ["schedule-events", "schedule-items", "chat-cal-events", "chat-schedule-events", "my-todos-open"]) {
       qc.invalidateQueries({ queryKey: [key] });
     }
   };
 
   const save = useMutation({
     mutationFn: () => {
+      if (!companyId || !userId || (target.mode === "view" && !canManageScheduleEvent(target.event, userId))) {
+        throw new Error("일정 변경 권한이 없습니다.");
+      }
       const d = editing!;
       const from = d.from, to = d.to || d.from;
       const [a, b] = !from ? ["", ""] : (from <= to ? [from, to] : [to, from]);
@@ -61,8 +64,8 @@ export function ScheduleItemDialog({
       return upsertEvent({
         id: d.id, companyId: companyId!, userId: userId!,
         title: d.title.trim(), description: d.description.trim() || undefined,
-        startAt: a ? `${a}T00:00:00` : null,
-        endAt: a && b > a ? `${b}T00:00:00` : null,
+        startAt: a ? `${a}T00:00:00+09:00` : null,
+        endAt: a && b > a ? `${b}T00:00:00+09:00` : null,
         allDay: true, color: d.color,
         visibility: d.visibility, targetUserIds: d.targetUserIds, targetDepartments: d.targetDepartments,
         attachments: d.attachments,
@@ -103,11 +106,12 @@ export function ScheduleItemDialog({
   }
 
   const e = (target as { mode: "view"; event: ScheduleEvent }).event;
+  const canManage = canManageScheduleEvent(e, userId);
   return <ScheduleItemView
     event={e} companyId={companyId} busy={busy}
-    onEdit={() => setEditing(draftFromEvent(e))}
-    onToggleDone={() => done.mutate({ id: e.id, completed: !e.completed })}
-    onDelete={e.user_id === userId ? () => remove.mutate(e.id) : undefined}
+    onEdit={canManage ? () => setEditing(draftFromEvent(e)) : undefined}
+    onToggleDone={canManage ? () => done.mutate({ id: e.id, completed: !e.completed }) : undefined}
+    onDelete={canManage ? () => remove.mutate(e.id) : undefined}
     onClose={onClose} />;
 }
 
@@ -120,8 +124,8 @@ function ScheduleItemView({
   event: ScheduleEvent;
   companyId: string | null;
   busy?: boolean;
-  onEdit: () => void;
-  onToggleDone: () => void;
+  onEdit?: () => void;
+  onToggleDone?: () => void;
   onDelete?: () => void;
   onClose: () => void;
 }) {
@@ -201,10 +205,11 @@ function ScheduleItemView({
         <footer>
           {onDelete && <button type="button" className="sched-view-del" disabled={busy} onClick={onDelete}>삭제</button>}
           <span className="sched-spacer" />
-          <button type="button" className="sched-view-act" disabled={busy} onClick={onToggleDone}>
+          {onToggleDone && <button type="button" className="sched-view-act" disabled={busy} onClick={onToggleDone}>
             {event.completed ? "완료 취소" : "완료 처리"}
-          </button>
-          <button type="button" className="sched-view-act" disabled={busy} onClick={onEdit}>수정</button>
+          </button>}
+          {onEdit && <button type="button" className="sched-view-act" disabled={busy} onClick={onEdit}>수정</button>}
+          {!onEdit && <span className="text-xs text-[var(--text-muted)]">공유받은 일정 · 읽기 전용</span>}
         </footer>
       </div>
     </div>

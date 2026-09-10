@@ -1,4 +1,6 @@
 import { supabase } from "./supabase";
+import { fetchPaged } from "./fetch-paged";
+import { addDaysStr, kstDateTimeLocal } from "./kst";
 
 const db = supabase;
 
@@ -64,14 +66,21 @@ export interface ScheduleEvent {
   reminders: ScheduleReminder[] | null;
   created_at: string;
   updated_at: string;
+  /** 가상 회차를 편집해도 원본 시작일이 회차 날짜로 바뀌지 않도록 보존한다. */
+  recurrence_source?: { start_at: string; end_at: string | null };
+}
+
+export function canManageScheduleEvent(event: Pick<ScheduleEvent, "user_id">, userId: string | null): boolean {
+  return !!userId && event.user_id === userId;
 }
 
 export async function toggleEventCompleted(id: string, completed: boolean): Promise<void> {
-  const { error } = await db
+  const { data, error } = await db
     .from("schedule_events")
     .update({ completed, completed_at: completed ? new Date().toISOString() : null })
-    .eq("id", realId(id));
+    .eq("id", realId(id)).select("id").maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error("일정이 삭제되었거나 변경 권한이 없습니다.");
 }
 
 /**
@@ -95,14 +104,16 @@ export async function getMonthEvents(
   opts?: { scope?: ScheduleScope; userId?: string },
 ): Promise<ScheduleEvent[]> {
   // monthIdx0 = 0~11 (JS Date convention)
-  const start = new Date(year, monthIdx0, 1).toISOString();
-  const end = new Date(year, monthIdx0 + 1, 1).toISOString();
+  const monthKey = (offset: number) => new Date(Date.UTC(year, monthIdx0 + offset, 1)).toISOString().slice(0, 10);
+  const start = `${monthKey(0)}T00:00:00+09:00`;
+  const end = `${monthKey(1)}T00:00:00+09:00`;
   const scope: ScheduleScope = opts?.scope ?? "all";
   // 기간 일정(end_at 있음)은 시작이 이전 달이어도 이번 달에 걸칠 수 있으므로
   // "start_at < 다음 달 1일" 인 행을 모두 가져온 뒤,
   // end_at(있으면) 또는 start_at 이 이번 달과 겹치는지 클라이언트에서 필터한다.
   //   ⚠️ **볼 수 있는 범위는 RLS 가 정한다**(나만/구성원/부서/전체). 아래 필터는 보기 전환일 뿐이다.
-  let q = db
+  const rows = await fetchPaged<ScheduleEvent>("schedule:month", () => {
+    let q = db
     .from("schedule_events")
     .select("*")
     .eq("company_id", companyId)
@@ -111,15 +122,12 @@ export async function getMonthEvents(
   if (scope === "mine") {
     q = q.eq("user_id", opts?.userId ?? "00000000-0000-0000-0000-000000000000");
   }
-  const { data, error } = await q.order("start_at");
-  if (error) throw error;
-  const rows = (data || []) as unknown as ScheduleEvent[];
-  const monthStart = new Date(year, monthIdx0, 1);
-  const monthEnd = new Date(year, monthIdx0 + 1, 1);
+    return q.order("start_at").order("id");
+  }, 50000, { strict: true });
   const out: ScheduleEvent[] = [];
   for (const e of rows) {
     const effectiveEnd = e.end_at ?? e.start_at;
-    const inMonth = !!effectiveEnd && effectiveEnd >= start;
+    const inMonth = !!effectiveEnd && dateKeyOf(effectiveEnd) >= monthKey(0);
     if (!e.recurrence?.freq) {
       if (inMonth) out.push(e);
       continue;
@@ -127,36 +135,42 @@ export async function getMonthEvents(
     //   반복(결정 145) — 원본 회차는 원본 행이, 이후 회차는 여기서 펼친 가상 행이 담당.
     //   가상 행의 id 는 `{원본id}@{날짜}` — 수정·삭제·완료는 realId() 로 원본에 간다(회차 전체 반영).
     if (inMonth) out.push(e);
-    out.push(...expandRecurrence(e, monthStart, monthEnd));
+    out.push(...expandRecurrence(e, monthKey(0), monthKey(1)));
   }
   return out.sort((a, b) => String(a.start_at).localeCompare(String(b.start_at)));
 }
 
 /** 반복 일정의 이번 달 가상 회차 — 행을 만들지 않고 보여주기만 한다(결정 145).
  *  매월 반복은 그 날짜가 없는 달(31일 등)에는 건너뛴다 — 억지로 말일로 옮기지 않는다. */
-function expandRecurrence(e: ScheduleEvent, monthStart: Date, monthEnd: Date): ScheduleEvent[] {
+function expandRecurrence(e: ScheduleEvent, monthStart: string, monthEnd: string): ScheduleEvent[] {
   const rec = e.recurrence;
   if (!rec?.freq || !e.start_at) return [];
-  const base = new Date(e.start_at);
+  const asInstant = (value: string) => /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : `${value}+09:00`;
+  const base = new Date(asInstant(e.start_at));
   if (Number.isNaN(base.getTime())) return [];
-  const durMs = e.end_at ? Math.max(0, new Date(e.end_at).getTime() - base.getTime()) : 0;
-  const pad = (n: number) => String(n).padStart(2, "0");
+  const durMs = e.end_at ? Math.max(0, new Date(asInstant(e.end_at)).getTime() - base.getTime()) : 0;
+  const baseKey = dateKeyOf(asInstant(e.start_at));
+  const baseWeekday = new Date(`${baseKey}T00:00:00Z`).getUTCDay();
+  const baseTime = kstDateTimeLocal(base.toISOString()).slice(11, 16);
   const occ: ScheduleEvent[] = [];
-  for (const d = new Date(monthStart); d < monthEnd; d.setDate(d.getDate() + 1)) {
-    if (d.getTime() <= base.getTime()) continue; // 원본 이전·당일은 원본 몫
+  // 전월에 시작해 이번 달까지 걸친 반복 회차도 포함한다.
+  const lookback = Math.min(366, Math.ceil(durMs / 86400000));
+  for (let ymd = addDaysStr(monthStart, -lookback); ymd < monthEnd; ymd = addDaysStr(ymd, 1)) {
+    if (ymd <= baseKey) continue;
     const hit = rec.freq === "daily"
-      || (rec.freq === "weekly" && d.getDay() === (rec.weekday ?? base.getDay()))
-      || (rec.freq === "monthly" && d.getDate() === base.getDate());
+      || (rec.freq === "weekly" && new Date(`${ymd}T00:00:00Z`).getUTCDay() === (rec.weekday ?? baseWeekday))
+      || (rec.freq === "monthly" && ymd.slice(8, 10) === baseKey.slice(8, 10));
     if (!hit) continue;
-    const s = new Date(d); s.setHours(base.getHours(), base.getMinutes(), 0, 0);
-    const ymd = `${s.getFullYear()}-${pad(s.getMonth() + 1)}-${pad(s.getDate())}`;
+    const s = new Date(`${ymd}T${baseTime}:00+09:00`);
+    const endAt = durMs > 0 ? new Date(s.getTime() + durMs).toISOString() : null;
+    if (dateKeyOf(endAt || s.toISOString()) < monthStart) continue;
     occ.push({
       ...e,
       id: `${e.id}@${ymd}`,
-      start_at: `${ymd}T${pad(s.getHours())}:${pad(s.getMinutes())}:00`,
-      end_at: durMs > 0 ? (() => { const t = new Date(s.getTime() + durMs); return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}T${pad(t.getHours())}:${pad(t.getMinutes())}:00`; })() : null,
+      recurrence_source: { start_at: e.start_at, end_at: e.end_at },
+      start_at: s.toISOString(),
+      end_at: endAt,
     });
-    if (occ.length >= 62) break; // 안전 상한 — 한 달에 이보다 많을 수 없다
   }
   return occ;
 }
@@ -210,15 +224,36 @@ export async function upsertEvent(input: {
     reminded_at: null,
     reminders_sent: [],
   };
-  if (input.id) row.id = realId(input.id);
-  const { data, error } = await db.from("schedule_events").upsert(row).select().single();
+  if (input.id) {
+    const id = realId(input.id);
+    const { data: previous, error: readError } = await db.from("schedule_events")
+      .select("start_at, end_at, reminders, reminder")
+      .eq("id", id).eq("company_id", input.companyId).eq("user_id", input.userId).maybeSingle();
+    if (readError) throw readError;
+    if (!previous) throw new Error("일정이 삭제되었거나 변경 권한이 없습니다.");
+    //   생성된 타입에 reminders 칼럼이 아직 없어 넓게 받는다(마이그 20260903090000 로 실재)
+    const prev = previous as unknown as { start_at: string | null; end_at: string | null; reminders?: unknown; reminder?: unknown };
+    const instant = (value: string | null) => value ? new Date(value).getTime() : null;
+    if (instant(prev.start_at) === instant(row.start_at) && instant(prev.end_at) === instant(row.end_at)
+      && JSON.stringify(remindersOf(prev as any)) === JSON.stringify(remindersOf(row))) {
+      delete row.reminded_at;
+      delete row.reminders_sent;
+    }
+    if (input.priority === undefined) delete row.priority;
+    const { data, error } = await db.from("schedule_events").update(row)
+      .eq("id", id).eq("company_id", input.companyId).eq("user_id", input.userId).select().single();
+    if (error) throw error;
+    return data as unknown as ScheduleEvent;
+  }
+  const { data, error } = await db.from("schedule_events").insert(row).select().single();
   if (error) throw error;
   return data as unknown as ScheduleEvent;
 }
 
 export async function deleteEvent(id: string): Promise<void> {
-  const { error } = await db.from("schedule_events").delete().eq("id", realId(id));
+  const { data, error } = await db.from("schedule_events").delete().eq("id", realId(id)).select("id").maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error("일정이 삭제되었거나 삭제 권한이 없습니다.");
 }
 
 // ── Todos ──────────────────────────────────────────────────────────────
@@ -274,6 +309,7 @@ export function dateKeyOf(ts: string): string {
   // KST 보정 (2026-08-19 감사): 종일 일정이 KST 자정(=전날 15:00Z)으로 저장된 행이 실재해
   //   UTC slice 만 하면 /schedule 달력·채팅 달력이 대시보드 달력과 다른 날에 표시했다.
   //   dashboard-calendar.tsx 의 kstDay 픽스(2026-08-07)와 동일 규칙.
+  if (!/(?:Z|[+-]\d{2}:?\d{2})$/i.test(ts)) return ts.slice(0, 10);
   const t = Date.parse(ts);
   if (Number.isFinite(t)) return new Date(t + 9 * 3600 * 1000).toISOString().slice(0, 10);
   return ts.slice(0, 10);
@@ -340,12 +376,12 @@ export async function getScheduleItems(
   companyId: string,
   opts?: { includeDone?: boolean; mineOnly?: boolean; userId?: string },
 ): Promise<ScheduleEvent[]> {
-  let q = db.from("schedule_events").select("*").eq("company_id", companyId);
-  if (!opts?.includeDone) q = q.eq("completed", false);
-  if (opts?.mineOnly) q = q.eq("user_id", opts?.userId ?? "00000000-0000-0000-0000-000000000000");
-  const { data, error } = await q;
-  if (error) throw error;
-  const rows = (data || []) as unknown as ScheduleEvent[];
+  const rows = await fetchPaged<ScheduleEvent>("schedule:items", () => {
+    let q = db.from("schedule_events").select("*").eq("company_id", companyId);
+    if (!opts?.includeDone) q = q.eq("completed", false);
+    if (opts?.mineOnly) q = q.eq("user_id", opts?.userId ?? "00000000-0000-0000-0000-000000000000");
+    return q.order("id");
+  }, 50000, { strict: true });
   return rows.sort((a, b) => {
     if (a.completed !== b.completed) return a.completed ? 1 : -1;
     //   날짜 없는 것은 맨 뒤 — 언제 할지 정하지 않은 일이다

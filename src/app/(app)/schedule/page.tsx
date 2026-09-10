@@ -10,6 +10,8 @@ import {
   getMonthEvents,
   getScheduleItems,
   toggleEventCompleted,
+  canManageScheduleEvent,
+  dateKeyOf,
   EVENT_COLOR_BG,
   VISIBILITY_LABEL,
   eventDateKeys,
@@ -382,9 +384,10 @@ function ScheduleListTab({ companyId, userId, toast, tabs }: { companyId: string
   const doneMut = useMutation({
     mutationFn: ({ id, completed }: { id: string; completed: boolean }) => toggleEventCompleted(id, completed),
     onSuccess: refresh,
+    onError: (e: Error) => toast(e.message || "완료 처리 실패", "error"),
   });
 
-  const day = (v?: string | null) => (v ? String(v).slice(0, 10) : "");
+  const day = (v?: string | null) => (v ? dateKeyOf(v) : "");
   const hit = (e: ScheduleEvent) => {
     if (live.vis.length && !live.vis.includes(e.visibility)) return false;
     if ((live.from || live.to) && !e.start_at) return false;
@@ -476,6 +479,7 @@ function ScheduleListTab({ companyId, userId, toast, tabs }: { companyId: string
                   <tr key={e.id} className="sched-row" onClick={() => setDialog({ mode: "view", event: e })}>
                     <td className="text-center" onClick={(ev) => ev.stopPropagation()}>
                       <input type="checkbox" checked={e.completed}
+                        disabled={!canManageScheduleEvent(e, userId) || doneMut.isPending}
                         onChange={(ev) => doneMut.mutate({ id: e.id, completed: ev.target.checked })}
                         title={e.completed ? "완료 취소" : "완료"} />
                     </td>

@@ -5,17 +5,27 @@ import { reportError } from './friendly-error';
 // 1000행으로 강제 하향한다. 합계·카운트 집계에 먹이는 쿼리가 이걸 밟으면 숫자가 조용히 틀어짐.
 // build() 는 호출마다 새 쿼리 빌더를 반환해야 하며(빌더 재사용 불가), 페이징 안정성을 위해
 // 결정적 정렬(마지막에 id 타이브레이커)을 포함해야 한다. maxRows 도달 시 보고 후 절단 반환.
-export async function fetchPaged<T = any>(scope: string, build: () => any, maxRows = 20000): Promise<T[]> {
+export async function fetchPaged<T = any>(scope: string, build: () => any, maxRows = 20000, options?: { strict?: boolean }): Promise<T[]> {
   const PAGE = 1000;
   const out: T[] = [];
   for (let from = 0; from < maxRows; from += PAGE) {
     const { data, error } = await build().range(from, Math.min(from + PAGE, maxRows) - 1);
-    if (error) { reportError(`fetchPaged.${scope}`, error); break; }
+    if (error) {
+      reportError(`fetchPaged.${scope}`, error);
+      if (options?.strict) throw error;
+      break;
+    }
     const rows = (data || []) as T[];
     out.push(...rows);
     if (rows.length < PAGE) return out;
   }
   if (out.length >= maxRows) {
+    if (options?.strict) {
+      const { data, error } = await build().range(maxRows, maxRows);
+      if (error) throw error;
+      if (!data?.length) return out;
+      throw new Error("조회 가능한 건수를 넘었습니다. 기간을 줄여 다시 조회해 주세요.");
+    }
     reportError(`fetchPaged.${scope}`, new Error(`fetchPaged maxRows(${maxRows}) 도달 · 초과분 절단`));
   }
   return out;
