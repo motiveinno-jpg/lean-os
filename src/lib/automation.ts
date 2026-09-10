@@ -223,16 +223,9 @@ export async function autoMatchTransactions(companyId: string) {
 
     // Auto-match only if score >= 90
     if (bestScore >= 90 && bestInvoice) {
-      // 2026-07-20: transaction_matches 실스키마 = transaction_id/match_score/status 뿐
-      //   (company_id·bank_transaction_id·tax_invoice_id·deal_id·match_type 은 유령컬럼 → 매칭 기록이 항상 400).
-      //   계산서 연결의 정식 경로는 invoice_settlements — 여기선 스키마가 허용하는 기록만 남긴다.
-      //   status 허용값은 auto|review|unmatched — 'confirmed' 는 400 이었다(무음, 2026-08-20 감사).
-      await db.from('transaction_matches').insert({
-        transaction_id: tx.id,
-        match_score: bestScore,
-        status: 'auto',
-      });
-
+      //   transaction_matches 는 쓰지 않는다 — FK 가 옛 transactions 표(빈 표)를 가리켜 통장 거래 id 로는
+      //   RLS 검사(transactions 에 있는가)에 항상 걸려 403 이었고(2026-09-09 대시보드), 읽는 화면도 없다.
+      //   맞춘 결과는 아래 bank_transactions.tax_invoice_id · mapping_status 가 기록이다.
       // Update bank transaction — mapped_by 는 uuid 컬럼이라 'system' 문자열 금지(22P02).
       //   ★ 어떤 계산서와 맞췄는지도 남긴다 (2026-08-21 감사): 종전엔 상대(bestInvoice)를 어느
       //   컬럼에도 안 넣어서, "거래 자동매칭 N건" 이라고 보고해 놓고 3-Way 매칭 화면의 '매칭됨'
@@ -249,6 +242,12 @@ export async function autoMatchTransactions(companyId: string) {
   }
 
   return { matched };
+}
+
+//   알림 받는 사람 — 회사의 대표·관리자(users.role). 휴면 감지는 담당자를 따로 두지 않아 관리자 전원에게 간다.
+async function adminUserIds(companyId: string): Promise<string[]> {
+  const { data } = await db.from('users').select('id').eq('company_id', companyId).in('role', ['owner', 'admin']).limit(1000);
+  return ((data || []) as { id: string }[]).map((u) => u.id);
 }
 
 // ══════════════════════════════════════════
@@ -272,18 +271,20 @@ export async function detectDormantDeals(companyId: string) {
   const ids = candidates.map((d: any) => d.id);
   await db.from('deals').update({ is_dormant: true }).in('id', ids);
 
-  // Create notifications
-  const notifications = candidates.map((d: any) => ({
+  // Create notifications — 받는 사람은 회사의 대표·관리자. user_id 가 not null 이라 받는 사람 없이는 400 이었다(2026-09-09).
+  const admins = await adminUserIds(companyId);
+  const notifications = candidates.flatMap((d: any) => admins.map((uid) => ({
     company_id: companyId,
-    type: 'system', // notifications_type_check 에 dormant_deal 없음 → 매번 CHECK 위반이었음 (후속: 마이그로 타입 추가)
+    user_id: uid,
+    type: 'system',
     title: `휴면 프로젝트 감지: ${d.name}`,
     message: `30일 이상 활동이 없습니다. 확인이 필요합니다.`,
     entity_type: 'deal',
     entity_id: d.id,
     is_read: false,
-  }));
+  })));
 
-  await db.from('notifications').insert(notifications as never).select();
+  if (notifications.length > 0) await db.from('notifications').insert(notifications as never);
 
   return { detected: candidates.length, deals: candidates.map((d: any) => d.name) };
 }
@@ -326,16 +327,18 @@ export async function detectDormantPartners(companyId: string) {
     const ids = newDormant.map((p) => p.id);
     await db.from('partners').update({ is_dormant: true, dormancy_detected_at: new Date().toISOString() }).in('id', ids);
     // ⑤ 리마인더 알림 — 담당자(관리자) 에게 휴면 거래처 연락 권유
-    const notifications = newDormant.map((p) => ({
+    const admins = await adminUserIds(companyId);
+    const notifications = newDormant.flatMap((p) => admins.map((uid) => ({
       company_id: companyId,
-      type: 'system', // notifications_type_check 에 dormant_partner 없음 → 매번 CHECK 위반이었음
+      user_id: uid,
+      type: 'system',
       title: `휴면 거래처 감지: ${p.name}`,
       message: `6개월 이상 거래·연락이 없습니다. 리마인더 연락을 권장합니다.`,
       entity_type: 'partner',
       entity_id: p.id,
       is_read: false,
-    }));
-    await db.from('notifications').insert(notifications as never);
+    })));
+    if (notifications.length > 0) await db.from('notifications').insert(notifications as never);
   }
   if (reactivated.length > 0) {
     await db.from('partners').update({ is_dormant: false, dormancy_detected_at: null }).in('id', reactivated.map((p) => p.id));
