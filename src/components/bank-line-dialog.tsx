@@ -70,22 +70,9 @@ export function bankLineState(tx: BankLineTx, pendingIds?: Set<string>): BankLin
 
 
 /** 정산 초안 확정·반려 · 잠긴 달이면 확정하지 않는다(트리거가 전표를 안 만들어 '확정'만 남는다). 확정 뒤 전표가 실제로 생겼는지 되짚는다. */
-export async function decideSettlement(id: string, st: "confirmed" | "rejected", companyId: string, txDate?: string | null): Promise<"posted" | "rejected" | "locked" | "no_voucher"> {
-  if (st === "confirmed" && txDate) {
-    const { count } = await (supabase as any).from("closing_checklists").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("month", txDate.slice(0, 7)).eq("status", "locked");
-    if (count) return "locked";
-  }
-  const { error } = await (supabase as any).from("invoice_settlements").update({ status: st }).eq("id", id);
-  if (error) throw error;
-  if (st === "rejected") return "rejected";
-  const { count: n } = await (supabase as any).from("journal_entries").select("id", { count: "exact", head: true }).eq("linked_settlement_id", id).neq("status", "rejected");
-  return n ? "posted" : "no_voucher";
-}
-export const settlementResultToast = (r: "posted" | "rejected" | "locked" | "no_voucher", month?: string): { msg: string; kind: "success" | "error" | "info" } =>
-  r === "posted" ? { msg: "확정 · 정산 전표를 만들었습니다", kind: "success" }
-  : r === "rejected" ? { msg: "반려했습니다", kind: "success" }
-  : r === "locked" ? { msg: `${month || "그 달"}은 회계마감으로 잠겨 있어 확정하지 않았습니다. 전표가 생기지 않습니다. 마감을 풀고 다시 확정하세요`, kind: "error" }
-  : { msg: "확정했지만 전표가 생기지 않았습니다. 계정과목에 103 보통예금·108 외상매출금·251 외상매입금이 있는지 확인하세요", kind: "info" };
+//   정산 확정·반려 규칙은 lib/settlements.ts 한 곳 — 세금·증빙·수집·전표의 '연결'도 같은 길을 쓴다
+import { decideSettlement, settlementResultToast } from "@/lib/settlements";
+export { decideSettlement, settlementResultToast };
 
 export function BankLineDialog({ tx, companyId, onClose, onDone }: {
   tx: BankLineTx; companyId: string; onClose: () => void; onDone?: () => void;

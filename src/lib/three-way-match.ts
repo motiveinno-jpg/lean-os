@@ -181,38 +181,25 @@ export async function listMatchedInvoices(
   }));
 }
 
-// 매칭 해제 — confirm 한 매칭을 되돌림
+// 매칭 해제 — 정산을 반려하면 트리거가 정산액·정산 전표를 되돌린다
 export async function unmatchInvoice(bankTxId: string, invoiceId: string): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase;
-  const { error: txErr } = await db
-    .from('bank_transactions')
-    .update({ tax_invoice_id: null })
-    .eq('id', bankTxId);
-  if (txErr) throw txErr;
-  // 매칭 해제 시 lifecycle status 를 'unmatched'(비표준값 → UI 가 '작성중'으로 오표시)로 덮지 말고
-  //   원래 상태(매출=발행 issued / 매입=수취 received)로 되돌린다. 입금 매칭 여부는 settlement_status 소관.
-  const inv = logRead('lib/three-way-match:inv', await db.from('tax_invoices').select('type').eq('id', invoiceId).maybeSingle());
-  const restored = inv?.type === 'purchase' ? 'received' : 'issued';
-  const { error: invErr } = await db
-    .from('tax_invoices')
-    .update({ status: restored })
-    .eq('id', invoiceId);
-  if (invErr) throw invErr;
+  const { unsettleBankTxFromInvoice } = await import("@/lib/settlements");
+  const inv = logRead('lib/three-way-match:inv', await supabase.from('tax_invoices').select('company_id, type, status').eq('id', invoiceId).maybeSingle());
+  if (!inv?.company_id) throw new Error('계산서를 찾을 수 없습니다.');
+  await unsettleBankTxFromInvoice(inv.company_id, bankTxId, invoiceId);
+  //   옛 경로가 남긴 'matched' 상태는 원래 상태로 되돌린다(입금 여부는 settlement_status 소관)
+  if (inv.status === 'matched') {
+    const restored = inv.type === 'purchase' ? 'received' : 'issued';
+    await supabase.from('tax_invoices').update({ status: restored }).eq('id', invoiceId);
+  }
 }
 
-// 매칭 확정 — bank_transactions.tax_invoice_id 갱신 + invoice status='matched'
+// 매칭 확정 — 정산(invoice_settlements) 한 건을 만들어 확정한다. 계산서 정산액·상태·정산 전표는 트리거가 처리.
+//   예전엔 tax_invoices.status='matched' 만 찍어 원장·미수금은 그대로였는데 목록은 '입금 ✓' 로 보였다.
 export async function confirmThreeWayMatch(bankTxId: string, invoiceId: string): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase;
-  const { error: txErr } = await db
-    .from('bank_transactions')
-    .update({ tax_invoice_id: invoiceId })
-    .eq('id', bankTxId);
-  if (txErr) throw txErr;
-  const { error: invErr } = await db
-    .from('tax_invoices')
-    .update({ status: 'matched' })
-    .eq('id', invoiceId);
-  if (invErr) throw invErr;
+  const { settleBankTxWithInvoice, settlementResultToast } = await import("@/lib/settlements");
+  const inv = logRead('lib/three-way-match:inv2', await supabase.from('tax_invoices').select('company_id').eq('id', invoiceId).maybeSingle());
+  if (!inv?.company_id) throw new Error('계산서를 찾을 수 없습니다.');
+  const r = await settleBankTxWithInvoice(inv.company_id, bankTxId, invoiceId, 'manual');
+  if (r === 'locked') throw new Error(settlementResultToast(r).msg);
 }

@@ -72,6 +72,7 @@ export const STD = {
   vatIn: "135",       // 부가세대급금
   ap: "251",          // 외상매입금
   payable: "253",     // 미지급금 (카드사 포함)
+  cardReceivable: "120", // 미수금 (카드 매출 — 카드사에서 받을 돈)
   vatOut: "255",      // 부가세예수금
   sales: "404",       // 제품매출
 } as const;
@@ -127,7 +128,8 @@ export function buildVoucherLines(input: BuildInput): DraftLine[] {
     });
     switch (input.settle) {
       case "cash": return pick(STD.bank, "보통예금");
-      case "card": return pick(STD.payable, "미지급금");
+      //   카드 매출은 카드사에서 받을 돈(미수금 120), 카드 매입은 카드사에 줄 돈(미지급금 253)
+      case "card": return t.side === "sale" ? pick(STD.cardReceivable, "미수금") : pick(STD.payable, "미지급금");
       case "mixed": return pick(null, "직접 지정");
       default: return t.side === "sale" ? pick(STD.ar, "외상매출금") : pick(STD.ap, "외상매입금");
     }

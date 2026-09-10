@@ -36,12 +36,13 @@ export async function findDuplicateEntries(companyId: string, date: string, amou
   }));
 }
 
-/** 거래를 기존 전표에 건다 — 전표는 안 만든다. 이미 전표가 걸린 거래면 아무것도 안 하고 false */
-export async function linkTransactionToEntry(kind: "bank" | "card", txId: string, entryId: string): Promise<boolean> {
-  const tbl = kind === "bank" ? "bank_transactions" : "card_transactions";
-  const { data, error } = await supabase.from(tbl).update({ journal_entry_id: entryId } as never).eq("id", txId).is("journal_entry_id", null).select("id");
+/** 거래를 기존 전표에 건다 — 전표는 안 만든다. 이미 전표가 걸린 거래면 아무것도 안 하고 false.
+ *  권한·회사·마감월·전표 상태 검사는 서버(link_transaction_to_entry)가 한다 — 화면이 표를 직접 고치면 그 검사를 하나도 안 거친다. */
+export type LinkKind = "bank" | "card" | "cash_receipt" | "tax_invoice" | "stock_doc";
+export async function linkTransactionToEntry(kind: LinkKind, txId: string, entryId: string): Promise<boolean> {
+  const { data, error } = await (supabase.rpc as any)("link_transaction_to_entry", { p_kind: kind, p_tx_id: txId, p_entry_id: entryId });
   if (error) throw error;
-  return (data || []).length > 0;
+  return data === true;
 }
 
 export const SOURCE_LABEL: Record<string, string> = { manual: "수기(일반전표)", bank: "통장", card: "카드", tax_invoice: "세금계산서", cash_receipt: "현금영수증", sale_purchase: "매입매출전표", auto: "자동" };
@@ -52,10 +53,8 @@ export const EXCLUDE_LABEL: Record<string, string> = { dup: "중복", transfer: 
 export const excludeLabelOf = (reason: string | null | undefined) => { if (!reason) return ""; const [k, ...rest] = reason.split(":"); return `${EXCLUDE_LABEL[k] || k}${rest.length ? ` · ${rest.join(":")}` : ""}`; };
 export async function setLedgerExcluded(kind: "bank" | "card", txIds: string[], reason: string | null): Promise<number> {
   if (txIds.length === 0) return 0;
-  const tbl = kind === "bank" ? "bank_transactions" : "card_transactions";
-  let q = supabase.from(tbl).update({ ledger_excluded_reason: reason } as never).in("id", txIds);
-  if (reason) q = q.is("journal_entry_id", null);   // 전표가 있는 건은 제외로 못 바꾼다(전표를 취소하는 게 맞다)
-  const { data, error } = await q.select("id");
+  //   전표가 있는 건은 제외로 못 바꾼다(전표를 취소하는 게 맞다) · 마감된 달은 거부 — 서버 규칙
+  const { data, error } = await (supabase.rpc as any)("set_ledger_excluded", { p_kind: kind, p_ids: txIds, p_reason: reason });
   if (error) throw error;
-  return (data || []).length;
+  return Number(data || 0);
 }

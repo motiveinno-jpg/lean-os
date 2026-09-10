@@ -1128,6 +1128,8 @@ function TaxInvoicesPageInner() {
    *   받아온 것(codef_hometax)은 수집·전표가 본다. 여기서 섞으면 "내가 낸 것"이 2,535건에 파묻힌다.
    */
   const isOurs = (inv: any) => (inv.source || "manual") === "manual";
+  //   입금 여부는 정산(settlement_status)이 원천 — 옛 경로가 남긴 status='matched' 도 함께 본다
+  const isPaid = (inv: any) => inv.status === "matched" || ["partial", "settled"].includes(String(inv.settlement_status || ""));
   const isSent = (inv: any) => inv.nts_issue_status === "issued" || !!inv.nts_confirm_no;
   const waitInvoices = useMemo(
     () => invoices.filter((inv: any) => isOurs(inv) && !isSent(inv)), [invoices]);
@@ -1323,7 +1325,7 @@ function TaxInvoicesPageInner() {
   const tiFiltered = useMemo(() => (displayList as any[]).filter((r) =>
     matchCond(r, live) && tiColHit(r)
     //   '미매칭만' — 발행 내역에서만 뜻이 있다(발행 전 건은 아직 매칭 대상이 아니다)
-    && !(gapOnly && tab === "done" && r.status === "matched" && r.deal_id)),
+    && !(gapOnly && tab === "done" && isPaid(r) && r.deal_id)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [displayList, q, live, colF, gapOnly, tab]);
   const tiPager = usePager(tiFiltered, live.size, `${tab}|${gapOnly}|${viewFromMonth}|${viewToMonth}|${q}|${JSON.stringify(live)}|${JSON.stringify(Object.fromEntries(Object.entries(colF).map(([k, v]) => [k, v ? [...v] : null])))}`);
@@ -1851,8 +1853,8 @@ function TaxInvoicesPageInner() {
                           {tab === "done" && (
                             <td className="px-3 py-2 text-center whitespace-nowrap border-l border-[var(--border)]/40">
                               <span className="ti-pair">
-                                <i className={inv.status === "matched" ? "ti-pair-ok" : "ti-pair-no"}>
-                                  {inv.status === "matched" ? "입금 ✓" : "입금 —"}
+                                <i className={isPaid(inv) ? "ti-pair-ok" : "ti-pair-no"}>
+                                  {isPaid(inv) ? "입금 ✓" : "입금 —"}
                                 </i>
                                 <i className={inv.deal_id ? "ti-pair-ok" : "ti-pair-no"}>
                                   {inv.deal_id ? "프로젝트 ✓" : "프로젝트 —"}
@@ -1874,7 +1876,7 @@ function TaxInvoicesPageInner() {
                                 </button>
                               )}
                               {/* 거래매칭 — 통장 입출금 거래에 바로 연결 */}
-                              {inv.status === "matched" ? (
+                              {isPaid(inv) ? (
                                 <button
                                   onClick={() => setLinkInvoice(inv)}
                                   className="inline-flex items-center gap-0.5 px-2 py-1 rounded text-[11px] font-semibold bg-green-500/12 text-green-600 hover:bg-green-500/20 transition"
@@ -2915,7 +2917,7 @@ function TaxInvoicesPageInner() {
 function LinkTxPopup({ invoice, companyId, onClose, onDone }: { invoice: any; companyId: string; onClose: () => void; onDone: () => void }) {
   const { toast } = useToast();
   const isSales = invoice.type === "sales";
-  const isMatched = invoice.status === "matched";
+  const isMatched = invoice.status === "matched" || ["partial", "settled"].includes(String(invoice.settlement_status || ""));
   const [busy, setBusy] = useState(false);
 
   const { data: candidates = [], isLoading } = useQuery({

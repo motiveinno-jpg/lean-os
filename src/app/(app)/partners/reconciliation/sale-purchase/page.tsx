@@ -728,8 +728,10 @@ function SalePurchaseInner() {
         if (a.action === "cancel") return;
         if (a.action === "link" && row.refType && row.refId) {
           try {
-            if (row.refType === "card_transaction") await linkTransactionToEntry("card", row.refId, a.entryId);
-            else await supabase.from(row.refType === "cash_receipt" ? "cash_receipts" : "tax_invoices").update({ journal_entry_id: a.entryId } as never).eq("id", row.refId).is("journal_entry_id", null);
+            //   재고전표를 tax_invoices 에 UPDATE 하던 버그(0행인데 성공 토스트) — 종류별로 서버가 연결하고 0행이면 오류
+            const linkKind = row.refType === "card_transaction" ? "card" : row.refType === "cash_receipt" ? "cash_receipt" : row.refType === "stock_doc" ? "stock_doc" : "tax_invoice";
+            const linked = await linkTransactionToEntry(linkKind, row.refId, a.entryId);
+            if (!linked) throw new Error("이미 전표가 있거나 연결할 수 없는 증빙입니다.");
             toast("기존 전표에 연결했습니다. 새 전표는 만들지 않았습니다", "success");
             qc.invalidateQueries({ queryKey: ["sp-pending"] });
             setRows((rs) => { const next = rs.filter((_, k) => k !== cur); return (next.length > 0 ? next : [blankRow()]); });

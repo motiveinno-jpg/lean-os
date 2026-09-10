@@ -554,13 +554,17 @@ export function EvidenceTab({
       //     부가세를 안 떼므로 금액은 합계 그대로 가고, 분개는 차) 비용 / 대) 미지급금 두 줄이다.
       if (vatCodeOf(r) === GENERAL_CODE)  {
         const total = r.supply + r.vat;
+        //   취소(음수)건은 좌우를 뒤집어 절대값으로 — 매입매출 경로(normalizeSides)와 같은 규칙
+        const gn = normalizeSides([{ side: "debit", amount: total }, { side: "credit", amount: total }]);
         const g = [
-          { account_id: resolved[0]!.id, debit: total, credit: 0, memo: r.item || "", partner_id: mainPid },
-          { account_id: (acctByCode.get(STD.payable) ?? resolved[resolved.length - 1]!)!.id, debit: 0, credit: total, memo: r.item || "", partner_id: cardPid },
+          { account_id: resolved[0]!.id, debit: gn[0].side === "debit" ? gn[0].amount : 0, credit: gn[0].side === "credit" ? gn[0].amount : 0, memo: r.item || "", partner_id: mainPid },
+          { account_id: (acctByCode.get(STD.payable) ?? resolved[resolved.length - 1]!)!.id, debit: gn[1].side === "debit" ? gn[1].amount : 0, credit: gn[1].side === "credit" ? gn[1].amount : 0, memo: r.item || "", partner_id: cardPid },
         ];
+        //   원거래(참조)를 함께 넘겨야 그 줄이 '전표됨' 이 되고 두 번 만들 수 없다 — 안 넘기던 시절엔 누를 때마다 전표가 또 생겼다
         const { error: ge } = await (supabase.rpc as any)("save_manual_voucher", {
           p_entry_date: r.date, p_voucher_type: "cash_out",
           p_description: r.item || r.partnerName, p_lines: g,
+          p_reference_type: REF_TYPE[kind], p_reference_id: r.id,
         });
         if (ge) { fails.push(`${r.partnerName}: ${friendlyError(ge, "일반전표 저장 실패")}`); }
         else ok += 1;
