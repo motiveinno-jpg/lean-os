@@ -18,6 +18,7 @@ import { getCompanyLeaveTypes, defaultCompanyLeaveTypes } from "@/lib/leave-gran
 import { listLeaveGrants, addLeaveGrant, deleteLeaveGrant, setBaseLeaveGrant, GRANT_TYPE_LABELS, type LeaveGrant, type LeaveGrantType } from "@/lib/leave-grants";
 import { uploadEmployeeFile, deleteEmployeeFileByPath, getSignedUrl } from "@/lib/file-storage";
 import { generateEmploymentCertificate, generateCareerCertificate, saveCertificateLog } from "@/lib/certificates";
+import { CertificatePdfButton } from "@/components/certificate-pdf-button";
 import { CertChoiceField, CERT_PURPOSE_OPTIONS, CERT_SUBMIT_TO_OPTIONS } from "@/components/cert-issue-fields";
 import { PermissionSection } from "./PermissionSection";
 import { AppointmentsSection } from "./appointments-section";
@@ -930,9 +931,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                         <span className="text-xs font-medium">{log.certificate_type}</span>
                         <span className="caption mono-number">{log.certificate_number} · {kstDateStr(new Date(log.created_at))}</span>
                       </div>
-                      {log.pdf_url && (
-                        <a href={log.pdf_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[var(--primary)] hover:underline">PDF</a>
-                      )}
+                      <CertificatePdfButton url={log.pdf_url} number={log.certificate_number} />
                     </div>
                   ))}
                 </div>
@@ -1699,34 +1698,23 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
         });
       }
 
-      const url = URL.createObjectURL(result.pdf);
-      window.open(url, "_blank");
-
-      // 발급본 보관 (2026-08-21 감사): 종전엔 PDF 를 브라우저 blob 으로만 만들고 pdf_url 을
-      //   한 번도 넘기지 않아, 발급 내역의 PDF 링크가 **영원히 안 그려졌다**. 한 번 발급한
-      //   대외 제출용 증명서를 다시 받을 방법이 없어 재발급하면 번호만 하나 더 늘었다.
-      let pdfUrl: string | undefined;
-      try {
-        const path = `${companyId}/certificates/${result.certificateNumber}.pdf`;
-        const { error: upErr } = await supabase.storage.from("documents")
-          .upload(path, result.pdf, { contentType: "application/pdf", upsert: true });
-        if (!upErr) {
-          pdfUrl = supabase.storage.from("documents").getPublicUrl(path).data.publicUrl;
-        }
-      } catch { /* 보관 실패가 발급 자체를 막지는 않는다 */ }
-
-      
-
       // Log
       const certType = type === "employment" ? "재직증명서" : "경력증명서";
       // ⚠️ issued_by/audit user_id 는 users.id · auth.uid 를 넣으면 초대 합류 직원
       //   (users.id ≠ auth_id)에게서 FK 409 로 이력 저장이 통째로 실패했다(2026-07-29).
       const  { getCurrentUser } = await import("@/lib/queries");
       const me = await getCurrentUser();
-      if (me) {
-        await saveCertificateLog({ companyId, employeeId: emp.id, certificateType: certType, certificateNumber: result.certificateNumber, issuedBy: me.id, purpose: [purpose.trim() || "제출용", submitTo.trim()].filter(Boolean).join(" / "), pdfUrl });
-      }
+      if (!me) throw new Error("다시 로그인한 뒤 발급해 주세요.");
+      await saveCertificateLog({ companyId, employeeId: emp.id, certificateType: certType, certificateNumber: result.certificateNumber, issuedBy: me.id, purpose: finalPurpose, submitTo: submitTo.trim(), pdf: result.pdf });
+      const url = URL.createObjectURL(result.pdf);
+      const a = document.createElement("a");
+      a.href = url; a.download = `${certType}_${emp.name}_${result.certificateNumber}.pdf`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
       queryClient.invalidateQueries({ queryKey: ["emp-cert-logs", emp.id] });
+      queryClient.invalidateQueries({ queryKey: ["certificate-logs", companyId] });
+      setOpen(false);
+      toast("증명서를 발급하고 원본을 보관했습니다.", "success");
     } catch (err: any) {
       toast(friendlyError(err, "증명서 생성 실패"), "error");
     } finally {

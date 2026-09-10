@@ -490,6 +490,8 @@ export async function saveCertificateLog(params: {
   purpose?: string;
   submitTo?: string;
   pdfUrl?: string;
+  /** 발급한 원본. private documents 버킷에 저장한 뒤 이력을 기록한다. */
+  pdf?: Blob;
 }): Promise<void> {
   // 제출처는 별도 컬럼 없이 용도에 병기 — 이력 화면·감사로그에 그대로 노출
   const purposeWithSubmitTo = [params.purpose, params.submitTo ? `제출처: ${params.submitTo}` : '']
@@ -507,6 +509,17 @@ export async function saveCertificateLog(params: {
     if (u?.id) issuedByUserId = u.id;
   }
 
+  let pdfUrl = params.pdfUrl;
+  if (params.pdf) {
+    // documents 정책은 두 번째 폴더를 회사 ID로 검사한다. 재발급 원본 덮어쓰기 금지.
+    const path = `certificates/${params.companyId}/${crypto.randomUUID()}.pdf`;
+    const { error: uploadError } = await supabase.storage.from('documents')
+      .upload(path, params.pdf, { contentType: 'application/pdf', upsert: false });
+    if (uploadError) throw new Error(`증명서 PDF 보관 실패: ${uploadError.message}`);
+    // 영구 식별자만 저장한다. private 버킷이므로 열 때 반드시 signed URL을 발급한다.
+    pdfUrl = supabase.storage.from('documents').getPublicUrl(path).data.publicUrl;
+  }
+
   const { error } = await db.from('certificate_logs').insert({
     company_id: params.companyId,
     employee_id: params.employeeId,
@@ -514,7 +527,7 @@ export async function saveCertificateLog(params: {
     certificate_number: params.certificateNumber,
     issued_by: issuedByUserId,
     purpose: purposeWithSubmitTo,
-    pdf_url: params.pdfUrl || null,
+    pdf_url: pdfUrl || null,
   });
 
   if (error) throw error;
