@@ -24,6 +24,8 @@ export interface CashPulseInput {
   // 설정 → 일반설정 → 현금 현황의 사용자 보정값 (cash_snapshot 테이블)
   manualCashAdjustment?: number;     // 시재금/미연동 계좌 등 추가 현금. 잔액에 더함.
   monthlyFixedCostOverride?: number;  // 사용자가 직접 입력한 추가 월 고정비. 반복결제+직원급여 외에 더 합산 (임대료/보험 등 미등록 항목).
+  fixedCostsMonthly?: number;         // 고정비 표(fixed_costs) 월액 — 정기 지출과 이름이 겹치는 것은 뺀 값
+  loanMonthly?: number;               // 대출 월 상환(원리금 또는 이자)
 }
 
 // ── Output ──
@@ -102,7 +104,9 @@ export function buildCashPulse(input: CashPulseInput): CashPulseResult {
   const recurringTotal = input.recurringPayments
     .filter(r => r.is_active)
     .reduce((s, r) => s + Number(r.amount || 0), 0);
-  const monthlyBurn = recurringTotal + input.employeeSalaryTotal + Number(input.monthlyFixedCostOverride || 0);
+  //   '30일 안에 낼 돈'(경영 요약)과 같은 재료 — 고정비·대출을 빼면 운영 가능 개월이 실제보다 길게 나온다
+  const monthlyBurn = recurringTotal + input.employeeSalaryTotal + Number(input.monthlyFixedCostOverride || 0)
+    + Number(input.fixedCostsMonthly || 0) + Number(input.loanMonthly || 0);
 
   // 3. Pending payment queue (approved but not executed)
   const pendingPayments = input.paymentQueue

@@ -2332,7 +2332,7 @@ export async function touchDealActivity(dealId: string) {
 export async function getCashPulseData(companyId: string, userId?: string) {
   const db = supabase;
 
-  const [banks, revenue, costs, recurring, employees, paymentQ, riskItems, approvalItems, myApprovalSteps, snapshot] = await Promise.all([
+  const [banks, revenue, costs, recurring, employees, paymentQ, riskItems, approvalItems, myApprovalSteps, snapshot, fixedCostsRows, loanRows] = await Promise.all([
     // 1. Bank balances
     supabase.from('bank_accounts').select('balance').eq('company_id', companyId),
     // 2. Revenue schedules
@@ -2340,11 +2340,11 @@ export async function getCashPulseData(companyId: string, userId?: string) {
     // 3. Cost schedules
     db.from('deal_cost_schedule').select('amount, due_date, status, deal_nodes!inner(deal_id, deals!inner(company_id))').eq('deal_nodes.deals.company_id', companyId),
     // 4. Recurring payments
-    db.from('recurring_payments').select('amount, is_active').eq('company_id', companyId),
+    db.from('recurring_payments').select('name, amount, is_active').eq('company_id', companyId),
     // 5. Employee salary total
     supabase.from('employees').select('salary').eq('company_id', companyId).in('status', ['active', 'joined']),
-    // 6. Payment queue
-    supabase.from('payment_queue').select('amount, status').eq('company_id', companyId),
+    // 6. Payment queue — 대기·승인만(몇 해 전 미처리 큐가 오늘 잔액 예측을 갉아먹지 않게)
+    supabase.from('payment_queue').select('amount, status').eq('company_id', companyId).in('status', ['pending', 'approved']),
     // 7. Risk count (financial_items with risk_label)
     supabase.from('financial_items').select('risk_label').eq('company_id', companyId).not('risk_label', 'is', null),
     // 8. Pending approvals (documents in review)
@@ -2360,7 +2360,15 @@ export async function getCashPulseData(companyId: string, userId?: string) {
       : Promise.resolve({ data: null }),
     // 10. Cash snapshot — 사용자가 설정 → 일반설정에서 입력한 수동 보정값
     db.from('cash_snapshot').select('current_balance, monthly_fixed_cost').eq('company_id', companyId).maybeSingle(),
+    // 11. 고정비 표 · 12. 대출 — 월 고정 지출에 들어간다
+    db.from('fixed_costs').select('name, amount, end_date').eq('company_id', companyId).eq('is_recurring', true),
+    db.from('loans').select('*').eq('company_id', companyId).eq('status', 'active'),
   ]);
+  const { estimateMonthlyPayment } = await import('./cash-budget');
+  const recNamesForFixed = new Set((recurring.data || []).map((r: any) => String(r.name || '').toLowerCase().replace(/\s+/g, '')));
+  const todayStr = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  const fixedCostsMonthly = ((fixedCostsRows as any)?.data || []).filter((f: any) => !(f.end_date && String(f.end_date) < todayStr) && !recNamesForFixed.has(String(f.name || '').toLowerCase().replace(/\s+/g, ''))).reduce((s: number, f: any) => s + Number(f.amount || 0), 0);
+  const loanMonthly = ((loanRows as any)?.data || []).reduce((s: number, l: any) => s + estimateMonthlyPayment(l), 0);
 
   const employeeSalaryTotal = (employees.data || []).reduce((s: number, e: any) => s + Number(e.salary || 0), 0);
 
@@ -2418,6 +2426,8 @@ export async function getCashPulseData(companyId: string, userId?: string) {
     pendingApprovalCount,
     arOver30Amount,
     matchedRate,
+    fixedCostsMonthly,
+    loanMonthly,
     manualCashAdjustment: Number((snapshot as any)?.data?.current_balance || 0),
     monthlyFixedCostOverride: Number((snapshot as any)?.data?.monthly_fixed_cost || 0),
   };

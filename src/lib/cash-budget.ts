@@ -73,6 +73,8 @@ export interface LoanStatus {
   repaymentType: 'bullet' | 'equal_principal' | 'equal_payment';
   monthlyPayment: number;
   interestRate: number;
+  paymentDay?: number | null;
+  interestDay?: number | null;
   note?: string;
 }
 
@@ -205,6 +207,9 @@ export async function getLoanStatuses(companyId: string): Promise<LoanStatus[]> 
     repaymentType: mapRepaymentType(row.loan_type),
     monthlyPayment: estimateMonthlyPayment(row),
     interestRate: Number(row.interest_rate || 0),
+    //   대출 화면에서 받는 상환일·이자일 — 자금 전망이 매월 5일로 고정하지 않고 이것을 쓴다
+    paymentDay: row.payment_day ? Number(row.payment_day) : null,
+    interestDay: row.interest_day ? Number(row.interest_day) : null,
     note: row.notes,
   }));
 }
@@ -220,7 +225,7 @@ function mapRepaymentType(loanType: string): LoanStatus['repaymentType'] {
   return map[loanType] || 'equal_principal';
 }
 
-function estimateMonthlyPayment(row: any): number {
+export function estimateMonthlyPayment(row: any): number {
   const remaining = Number(row.remaining_balance || 0);
   const rate = Number(row.interest_rate || 0) / 100 / 12;
   const start = row.start_date ? new Date(row.start_date) : new Date();
@@ -316,6 +321,7 @@ export async function getMonthlyBudgetOverview(
     fetchPagedRes('cashBudget.taxInvoices', () => db.from('tax_invoices')
       .select('supply_amount, tax_amount, issue_date, type')
       .eq('company_id', companyId)
+      .neq('status', 'void').neq('status', 'draft')   // 무효·미발행 초안은 매출이 아니다(같은 화면의 다른 표와 같은 기준)
       .gte('issue_date', startDate)
       .lte('issue_date', endDate)
       .order('id', { ascending: true })),
@@ -403,16 +409,21 @@ export async function getMonthlyBudgetOverview(
 
     // ── Fixed Costs ──
     // Combine recurring_payments + fixed_costs tables
-    const recurringTotal = recurring.reduce(
+    //   정기 지출은 등록한 달부터 — 지난달 등록한 것이 1월부터 매달 잡히던 것
+    const recurringInMonth = recurring.filter((rp: any) => !rp.created_at || String(rp.created_at).slice(0, 7) <= monthPrefix);
+    const recurringTotal = recurringInMonth.reduce(
       (sum: number, rp: any) => sum + Number(rp.amount || 0),
       0,
     );
+    //   정기 지출과 이름이 같은 고정비는 한 번만(자금 전망·일 단위 예측과 같은 규칙 — 월별표만 두 번 더했다)
+    const recNames = new Set(recurringInMonth.map((rp: any) => String(rp.name || '').toLowerCase().replace(/\s+/g, '')));
     const fixedCostTotal = fixedCosts
       .filter((fc: any) => {
         const [fy, fm] = monthPrefix.split('-').map(Number);
         const fLastDay = new Date(fy, fm, 0).getDate();
         if (fc.start_date && fc.start_date > `${monthPrefix}-${String(fLastDay).padStart(2, '0')}`) return false;
         if (fc.end_date && fc.end_date < `${monthPrefix}-01`) return false;
+        if (recNames.has(String(fc.name || '').toLowerCase().replace(/\s+/g, ''))) return false;
         return true;
       })
       .reduce((sum: number, fc: any) => sum + Number(fc.amount || 0), 0);
@@ -525,7 +536,7 @@ export async function getCostBreakdown(
   const startDate = `${year}-01-01`;
   const endDate = `${year}-12-31`;
 
-  const [recurringRes, salaryTotal, cardRes, bankFixedRes, accountMap, pqRes] = await Promise.all([
+  const [recurringRes, salaryTotal, cardRes, bankFixedRes, accountMap, pqRes, fixedCostsRes] = await Promise.all([
     db.from('recurring_payments')
       .select('name, amount, category, is_active')
       .eq('company_id', companyId)
@@ -551,15 +562,27 @@ export async function getCostBreakdown(
     db.from('payment_queue')
       .select('amount, category, status, created_at, is_recurring')
       .eq('company_id', companyId)
-      .gte('created_at', startDate)
-      .lte('created_at', `${endDate}T23:59:59`),
+      .gte('created_at', `${startDate}T00:00:00+09:00`)   // created_at 은 시각 — 한국 시간 경계로 자른다
+      .lte('created_at', `${endDate}T23:59:59+09:00`),
+    //   고정비(fixed_costs) — "prod 미존재" 주석은 옛말이다(정기 지출 › 고정비 탭이 쓴다). 월별표와 같은 원천을 읽어야 위아래 합이 맞는다
+    db.from('fixed_costs').select('name, amount, category, start_date, end_date').eq('company_id', companyId).eq('is_recurring', true),
   ]);
 
   // 고정비: 월액 → 연 환산(*12)
   const fixedMonthly: Record<string, number> = {};
+  const recNamesAll = new Set<string>();
   for (const rp of (recurringRes.data || [])) {
+    recNamesAll.add(String(rp.name || '').toLowerCase().replace(/\s+/g, ''));
     const k = mapRecurringCategory(rp.category);
     fixedMonthly[k] = (fixedMonthly[k] || 0) + Number(rp.amount || 0);
+  }
+  //   고정비 표 — 정기 지출과 이름이 겹치면 한 번만, 올해에 걸친 것만
+  for (const fc of ((fixedCostsRes as any)?.data || []) as any[]) {
+    if (recNamesAll.has(String(fc.name || '').toLowerCase().replace(/\s+/g, ''))) continue;
+    if (fc.start_date && String(fc.start_date) > endDate) continue;
+    if (fc.end_date && String(fc.end_date) < startDate) continue;
+    const k = mapRecurringCategory(fc.category);
+    fixedMonthly[k] = (fixedMonthly[k] || 0) + Number(fc.amount || 0);
   }
   // 급여(employees) — recurring_payments 에 급여를 따로 등록하지 않는 한 중복 없음.
   //   fixed_costs 테이블 부재로 중복 위험 0 (prod 검증).
@@ -639,8 +662,8 @@ export async function getCostCategoryDetail(
     const data = await fetchPaged<any>('lib/cash-budget:pq', () => db.from('payment_queue')
       .select('description, category, amount, status, created_at, is_recurring')
       .eq('company_id', companyId)
-      .gte('created_at', startDate)
-      .lte('created_at', `${endDate}T23:59:59`)
+      .gte('created_at', `${startDate}T00:00:00+09:00`)
+      .lte('created_at', `${endDate}T23:59:59+09:00`)
       .order('created_at', { ascending: false })
       .order('id'), 50000);
     return (data || [])

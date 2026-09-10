@@ -89,7 +89,7 @@ export async function fetchBizSummary(companyId: string, month: string, userId?:
   const ap = arap0.ap;
   const salary = pulseRaw?.employeeSalaryTotal ?? 0;
   const recurring = (pulseRaw?.recurringPayments || []).filter((r) => r.is_active).reduce((s, r) => s + Number(r.amount || 0), 0);
-  const loanMonthly = loans.filter((l) => l.repaymentType !== "bullet").reduce((s, l) => s + Number(l.monthlyPayment || 0), 0);
+  const loanMonthly = loans.reduce((s, l) => s + Number(l.monthlyPayment || 0), 0);   // 만기일시상환도 매달 이자는 나간다
   const vat30 = vatNext && vatNext.dday <= 30 && vatNextRaw!.netVAT > 0 ? vatNext.amount : 0;
   //   '30일 안에 낼 돈' = 날짜가 있는 예정(급여·정기 지출·대출 월 상환·부가세 30일 내). 미지급금은 만기를 모르므로 잔액으로만 따로 보여 준다
   //   (원장 미지급 잔액이 수억이면 전부 30일 안에 나가는 것처럼 읽혀 신호가 늘 빨갛다).

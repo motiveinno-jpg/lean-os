@@ -215,7 +215,9 @@ export default function TaxFilingPage() {
     queryFn: () => computeStatements(companyId!, `${year}-12`),
   });
   const cit = useMemo(() => {
-    const income = Math.round(citStmt?.totals.ytdNet || 0);
+    //   과세표준은 법인세비용 차감 전 이익 — 손익의 당기순이익엔 998 법인세비용이 이미 빠져 있어 더해 준다
+    const taxExpense = (citStmt?.pnl || []).filter((p) => String(p.code || "") === "998").reduce((s, p) => s + Number(p.ytd || 0), 0);
+    const income = Math.round((citStmt?.totals.ytdNet || 0) + taxExpense);
     const c = citOf(income);
     const local = Math.floor(c.total * 0.1);
     return { income, ...c, local, sum: c.total + local };

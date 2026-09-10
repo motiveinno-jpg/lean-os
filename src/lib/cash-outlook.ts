@@ -95,8 +95,10 @@ export async function fetchOutlook(companyId: string, days: number, userId?: str
 
   // 대출 — 월 상환 + 만기 일시상환
   for (const l of loans) {
-    if (l.repaymentType !== "bullet" && l.monthlyPayment > 0) for (const d of monthlyDates(today, days, 5)) items.push({ id: `loan:${l.id}:${d}`, date: d, label: `${l.name} 원리금`, kind: "대출 상환", amount: -Number(l.monthlyPayment), basis: `대출 등록 · ${l.lender}`, sure: "확정", href: "/loans" });
+    //   상환일은 대출 화면에서 받은 값(없으면 5일). 만기일시상환도 매달 이자는 나간다
+    if (l.repaymentType !== "bullet" && l.monthlyPayment > 0) for (const d of monthlyDates(today, days, l.paymentDay || 5)) items.push({ id: `loan:${l.id}:${d}`, date: d, label: `${l.name} 원리금`, kind: "대출 상환", amount: -Number(l.monthlyPayment), basis: `대출 등록 · ${l.lender}`, sure: "확정", href: "/loans" });
     if (l.repaymentType === "bullet" && l.maturityDate && within(l.maturityDate)) items.push({ id: `loanb:${l.id}`, date: l.maturityDate, label: `${l.name} 만기 일시상환`, kind: "대출 상환", amount: -Number(l.remainingAmount), basis: "대출 등록 · 만기", sure: "확정", flag: "큰 지출", href: "/loans" });
+    if (l.repaymentType === "bullet" && l.monthlyPayment > 0) for (const d of monthlyDates(today, days, l.interestDay || l.paymentDay || 5)) { if (!l.maturityDate || d <= l.maturityDate) items.push({ id: `loani:${l.id}:${d}`, date: d, label: `${l.name} 이자`, kind: "대출 상환", amount: -Number(l.monthlyPayment || 0), basis: "만기일시상환 · 월 이자(잔액×이율÷12)", sure: "예상", href: "/loans" } as any); }
   }
 
   // 부가세 (예상)

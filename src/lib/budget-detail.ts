@@ -47,6 +47,7 @@ export async function getBudgetCellDetail(
   if (rowKey === "salesRevenue") {
     const data = logRead('lib/budget-detail:data', await db.from("tax_invoices").select("*")
       .eq("company_id", companyId).eq("type", "sales")
+      .neq("status", "void").neq("status", "draft")   // 셀 값과 같은 기준
       .gte("issue_date", start).lt("issue_date", next)
       .order("issue_date", { ascending: true }));
     return (data ?? []).map((r: any) => ({
@@ -88,9 +89,11 @@ export async function getBudgetCellDetail(
     }));
     const mm = String(month).padStart(2, "0");
     const lastDay = new Date(year, month, 0).getDate();
+    const recNames = new Set((recRes.data ?? []).map((r: any) => String(r.name || "").toLowerCase().replace(/\s+/g, "")));
     for (const fc of (fcRes.data ?? [])) {
       if (fc.start_date && fc.start_date > `${year}-${mm}-${String(lastDay).padStart(2, "0")}`) continue;
       if (fc.end_date && fc.end_date < `${year}-${mm}-01`) continue;
+      if (recNames.has(String(fc.name || "").toLowerCase().replace(/\s+/g, ""))) continue;   // 정기 지출과 겹치면 셀과 같이 한 번만
       items.push({ label: pick(fc, ["name", "memo", "description", "category"], "고정비"), sub: fc.category ?? undefined, amount: Number(fc.amount || 0), refType: "fixed_cost", refId: fc.id });
     }
     //   급여 — 셀 값에 들어가므로 내역에도 세운다 (2026-08-10, 예전엔 셀에도 내역에도 없었다)
