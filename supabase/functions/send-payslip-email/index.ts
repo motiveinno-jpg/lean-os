@@ -58,14 +58,18 @@ serve(withSentry("send-payslip-email", async (req) => {
     const data = await req.json();
     const caller = await resolveCaller(req);
     if (!caller) return deny("회사에 소속된 계정만 보낼 수 있습니다.", 403, corsHeaders);
-    if (!(caller.isMaster || ["owner", "admin"].includes(caller.role))) return deny("급여명세서는 대표·관리자만 보낼 수 있습니다.", 403, corsHeaders);
+    if (!caller.isMaster) {
+      const { data: allowed, error } = await supabase.rpc("has_perm", { p_key: "/employees:salary" });
+      if (error || allowed !== true) return deny("급여명세서 발송 권한이 없습니다.", 403, corsHeaders);
+    }
     if (!(await recipientInCompany(caller.companyId, data?.email, ["employee", "user"]))) return deny("이 회사 구성원의 주소가 아닙니다.", 403, corsHeaders);
     const html = buildPayslipHTML(data);
 
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     if (!RESEND_API_KEY) {
-      return new Response(JSON.stringify({ success: true, fallback: true, html }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return deny("메일 발송 설정이 없어 발송하지 못했습니다. 관리자에게 문의해 주세요.", 503, corsHeaders);
     }
+    if (!data.pdfBase64 || !data.pdfFilename) return deny("급여명세서 PDF 첨부가 필요합니다.", 400, corsHeaders);
 
     // PDF 첨부 (비밀번호 걸린 명세서)
     const attachments: any[] = [];
