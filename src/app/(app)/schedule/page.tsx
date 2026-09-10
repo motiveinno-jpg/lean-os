@@ -316,12 +316,15 @@ function CalendarTab({ companyId, userId, myEmail, toast, tabs }: { companyId: s
                     </button>
                   )}
                   {/* 직원 휴가 — 일정 아래에 초록 칩으로 (승인 휴가, 2026-09-09 사장님) */}
-                  {(leaveByDate[dateStr] || []).map((lv, li) => (
-                    <div key={`lv${li}`} className="sched-leave-chip" title={`${lv.name} ${lv.label}`} onClick={(ev) => ev.stopPropagation()}>
-                      <span className="sched-leave-dot" />
-                      <span className="truncate">{lv.name} <span className="opacity-70">{lv.label}</span></span>
-                    </div>
-                  ))}
+                  {/*   여러 날 휴가는 일정 막대처럼 시작·중간·끝 칸을 이어 붙인다. 이름은 시작 칸과 주가 바뀐 첫 칸(일요일)에만 */}
+                  {(leaveByDate[dateStr] || []).map((lv) => {
+                    const showLabel = lv.role === "single" || lv.role === "start" || dow === 0;
+                    return (
+                      <div key={`${lv.key}-${dateStr}`} className={`sched-leave-chip is-${lv.role}`} title={`${lv.name} ${lv.label}`} onClick={(ev) => ev.stopPropagation()}>
+                        {showLabel ? (<><span className="sched-leave-dot" /><span className="truncate">{lv.name} <span className="opacity-70">{lv.label}</span></span></>) : <span className="truncate opacity-0">·</span>}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );

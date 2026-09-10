@@ -48,7 +48,8 @@ export function leaveDisplayLabel(
   return LEAVE_TYPES.find((x) => x.value === t)?.label || t;
 }
 
-export type LeaveByDateEntry = { name: string; label: string };
+/** role — 하루짜리(single) / 여러 날의 시작(start)·중간(mid)·끝(end). 달력이 연속 막대로 이어 그릴 때 쓴다. key 는 같은 휴가를 날짜 사이에서 묶는 값. */
+export type LeaveByDateEntry = { name: string; label: string; key: string; role: "single" | "start" | "mid" | "end" };
 
 // 기간(start_date~end_date)을 날짜별로 펼쳐 map[YYYY-MM-DD] = [{name,label}] 로.
 //   ⚠️ 날짜 문자열끼리만 더한다(UTC 자정 기준) — new Date 로 로컬 변환하면 KST 자정이 전날로 밀려 하루 어긋난다.
@@ -67,11 +68,15 @@ export function buildLeaveByDate(
     if (!from) continue;
     const name = l.employee_name || "";
     const label = leaveDisplayLabel(l, typeLabel);
+    const key = `${l.employee_id || l.user_id || name}|${from}|${to}`;
     let cur = from;
     for (let i = 0; i < 366 && cur <= to; i++) {
-      (map[cur] || (map[cur] = [])).push({ name, label });
+      const role: LeaveByDateEntry["role"] = from === to ? "single" : cur === from ? "start" : cur === to ? "end" : "mid";
+      (map[cur] || (map[cur] = [])).push({ name, label, key, role });
       cur = nextDay(cur);
     }
   }
+  //   같은 휴가가 날짜마다 같은 줄에 놓이도록(막대가 위아래로 어긋나지 않게) 시작일·이름 순으로 정렬
+  for (const k of Object.keys(map)) map[k].sort((a, b) => a.key.localeCompare(b.key, "ko"));
   return map;
 }

@@ -10128,6 +10128,10 @@ table.ch-st-table { min-width: 520px; } /* table. — .ev-table(뒤에 정의) �
 /* 일정 달력 칸의 직원 휴가 칩 (2026-09-09) */
 .sched-leave-chip { @apply flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded cursor-default; background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
 .sched-leave-dot { @apply w-1.5 h-1.5 rounded-full shrink-0; background: var(--success); }
+/* 여러 날 휴가 막대 — 칸 안쪽 여백(p-1.5)만큼 밀어 옆 칸과 이어 보이게. 일정 막대(-mx-1.5)와 같은 규칙 */
+.sched-leave-chip.is-start { @apply rounded-r-none -mr-1.5; }
+.sched-leave-chip.is-mid { @apply rounded-none -mx-1.5; }
+.sched-leave-chip.is-end { @apply rounded-l-none -ml-1.5; }
 
 /* ── AI 참모 회사 메모(기억) — copilot-notes.tsx (2026-09-03) ── */
 .cpn-open { @apply whitespace-nowrap; }
