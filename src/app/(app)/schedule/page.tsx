@@ -20,7 +20,7 @@ import {
   type ScheduleScope,
 } from "@/lib/schedule";
 import { ScheduleItemDialog, type ScheduleDialogTarget } from "@/components/schedule-item-dialog";
-import { fetchLeaveCalendar, buildLeaveByDate, isMyLeave } from "@/lib/leave-calendar";
+import { fetchLeaveCalendar, buildLeaveByDate, isMyLeave, type LeaveCalRow } from "@/lib/leave-calendar";
 import { useToast } from "@/components/toast";
 import Link from "next/link";
 import {
@@ -99,9 +99,31 @@ function CalendarTab({ companyId, userId, myEmail, toast, tabs }: { companyId: s
     enabled: !!companyId, staleTime: 60_000,
   });
   //   '내 것만' 이면 휴가도 내 것만 — 종전엔 일정만 좁히고 휴가는 전 직원 것이 그대로 보였다.
+  // 부서 필터 — 일정은 만든 사람의 부서(인사기록) 또는 '부서 공개'로 지정된 부서, 휴가는 그 직원의 부서로 가른다.
+  //   부서는 구성원 디렉토리(get_company_directory)에서 읽는다 — 다른 화면과 같은 원천.
+  const [dept, setDept] = useState<string>("");
+  const { data: directory = [] } = useQuery({
+    queryKey: ["company-directory", companyId],
+    queryFn: async () => { const { data, error } = await supabase.rpc("get_company_directory"); if (error) throw error; return (data || []) as unknown as { id: string; name: string; department: string | null; email: string | null; user_id: string | null; status: string | null }[]; },
+    enabled: !!companyId, staleTime: 5 * 60_000,
+  });
+  const NO_DEPT = "미배정";
+  const deptOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const d of directory) if (d.status === "active" || d.status === "joined" || !d.status) set.add((d.department || "").trim() || NO_DEPT);
+    return [...set].sort((a, b) => (a === NO_DEPT ? 1 : b === NO_DEPT ? -1 : a.localeCompare(b, "ko")));
+  }, [directory]);
+  const deptOf = useMemo(() => {
+    const byUser = new Map<string, string>(), byEmp = new Map<string, string>(), byEmail = new Map<string, string>();
+    for (const d of directory) { const dn = (d.department || "").trim() || NO_DEPT; if (d.user_id) byUser.set(d.user_id, dn); byEmp.set(d.id, dn); if (d.email) byEmail.set(d.email.toLowerCase(), dn); }
+    return { byUser, byEmp, byEmail };
+  }, [directory]);
+  const eventInDept = (e: ScheduleEvent) => !dept || (e.user_id ? deptOf.byUser.get(e.user_id) === dept : false) || (e.visibility === "departments" && (e.target_departments || []).includes(dept));
+  const leaveInDept = (l: LeaveCalRow) => !dept || (l.employee_id && deptOf.byEmp.get(l.employee_id) === dept) || (l.user_id && deptOf.byUser.get(l.user_id) === dept) || (l.employee_email && deptOf.byEmail.get(l.employee_email.toLowerCase()) === dept);
   const leaveByDate = useMemo(
-    () => buildLeaveByDate(scope === "mine" ? leaves.filter((l) => isMyLeave(l, { userId, email: myEmail })) : leaves),
-    [leaves, scope, userId, myEmail],
+    () => buildLeaveByDate((scope === "mine" ? leaves.filter((l) => isMyLeave(l, { userId, email: myEmail })) : leaves).filter(leaveInDept)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [leaves, scope, userId, myEmail, dept, deptOf],
   );
 
   const grid = useMemo(() => buildMonthGrid(view.year, view.monthIdx0), [view.year, view.monthIdx0]);
@@ -110,13 +132,15 @@ function CalendarTab({ companyId, userId, myEmail, toast, tabs }: { companyId: s
     // 기간 일정은 시작~종료 사이 모든 날짜 칸에 노출 (단일 일정은 시작일 1칸).
     const map = new Map<string, ScheduleEvent[]>();
     for (const e of events) {
+      if (!eventInDept(e)) continue;
       for (const dateKey of eventDateKeys(e)) {
         if (!map.has(dateKey)) map.set(dateKey, []);
         map.get(dateKey)!.push(e);
       }
     }
     return map;
-  }, [events]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events, dept, deptOf]);
 
   const toggleDoneMut = useMutation({
     mutationFn: ({ id, completed }: { id: string; completed: boolean }) => toggleEventCompleted(id, completed),
@@ -168,8 +192,16 @@ function CalendarTab({ companyId, userId, myEmail, toast, tabs }: { companyId: s
           )}
           {/* 보기 전환 — 무엇이 보이는지는 공개 범위(RLS)가 정한다. 여기서는 내 것만 좁혀 볼 뿐 */}
           <ChipGroup value={scope} onChange={setScope} options={[{ value: "all", label: "전체" }, { value: "mine", label: "내 것만" }] as const} />
+          {/* 부서로 좁혀 보기 — 일정은 만든 사람·부서 공개 대상, 휴가는 그 직원의 부서 */}
+          {scope === "all" && deptOptions.length > 0 && (
+            <select value={dept} onChange={(e) => setDept(e.target.value)} aria-label="부서" title="부서로 좁혀 봅니다"
+              className={`text-xs px-2 py-1 rounded-lg border bg-[var(--bg-surface)] ${dept ? "border-[var(--primary)] text-[var(--primary)] font-semibold" : "border-[var(--border)] text-[var(--text)]"}`}>
+              <option value="">부서 전체</option>
+              {deptOptions.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          )}
           <span className="text-[11px] text-[var(--text-dim)]">
-            {scope === "all" ? "내가 볼 수 있는 일정 전부 · 나만 보는 일정, 나에게 공유된 일정, 전체 공개 일정, 직원 휴가" : "내가 만든 일정과 내 휴가만"}
+            {scope === "all" ? (dept ? `${dept} 사람이 만든 일정, ${dept}에 공개된 일정, ${dept} 직원 휴가` : "내가 볼 수 있는 일정 전부 · 나만 보는 일정, 나에게 공유된 일정, 전체 공개 일정, 직원 휴가") : "내가 만든 일정과 내 휴가만"}
           </span>
         </QueryBar>
       </QueryHead>
