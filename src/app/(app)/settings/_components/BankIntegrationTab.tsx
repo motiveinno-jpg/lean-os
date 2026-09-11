@@ -65,7 +65,6 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
   const [autoKeyB64, setAutoKeyB64] = useState("");
   const [certFileName, setCertFileName] = useState("");
   // Hometax 전용 — 대표자 주민번호 앞 7자리 (선택)
-  const [hometaxIdentity, setHometaxIdentity] = useState("");
   // 발행 알림 메일 (선택, 2026-08-13 사장님) — companies.tax_settings.invoice_notify_email.
   //   세금계산서 발행 성공 시 hometax-issue 가 이 주소로 알림을 보낸다. 비우면 발송 안 함.
   const [notifyEmail, setNotifyEmail] = useState("");
@@ -183,7 +182,6 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
               loginType: "0",
               certPassword,
               pfxFile: autoPfxB64,
-              identity: hometaxIdentity || undefined,
             });
             if (!(pre.success && pre.registered)) {
               setResult({ ok: false, msg: (pre.message || pre.error || "홈택스 인증 실패") + "\n(기존 등록 파일은 변경하지 않았습니다)" + (pre.hint ? `\n→ ${pre.hint}` : "") });
@@ -227,7 +225,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
                 ...((prevCred?.credentials as Record<string, unknown>) || {}),
                 login_method: "certificate",
                 cert_password: encPfxPw || "",   // sync 가 읽는 키 — PFX 와 같은 비밀번호
-                pfx_password: encPfxPw || "",
+                //   pfx_password 는 뺐다 (2026-09-11): 같은 값을 두 이름으로 넣었는데 읽는 코드가 0이었다.
               },
               updated_at: new Date().toISOString(),
             }, { onConflict: "company_id,service" });
@@ -281,7 +279,6 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
           const res = await verifyHometaxRegistration(companyId,  {
             loginType: "0",
             certPassword,
-            identity: hometaxIdentity || undefined,
           });
           if (res.success && res.registered) {
             setResult({ ok: true, msg: "홈택스 등록 확인 완료. 이제 세금계산서 동기화를 사용할 수 있습니다." });
@@ -314,7 +311,6 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
             loginType: "1",
             id: loginId,
             userPassword: loginPw,
-            identity: hometaxIdentity || undefined,
           });
           if (res.success && res.registered) {
             setResult({ ok: true, msg: "홈택스 등록 확인 완료." });
@@ -522,19 +518,9 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
         <div className="bank-integration-org-select">
           {accountType === "hometax" && (
             <div className="bank-integration-hometax-identity">
-              <label className="field-label">대표자 주민번호 앞 7자리 <span className="caption">(선택)</span></label>
-              <input
-                type="password"
-                inputMode="numeric"
-                maxLength={7}
-                value={hometaxIdentity}
-                onChange={(e) => setHometaxIdentity(e.target.value.replace(/[^0-9]/g, ""))}
-                placeholder="예: 8001011"
-                className="field-input"
-              />
-              <p className="text-[10px] text-[var(--text-dim)] mt-1">
-                법인은 대표자 주민번호 앞 7자리를 입력합니다. 인증에만 쓰고 저장하지 않습니다.
-              </p>
+              {/*   '대표자 주민번호 앞 7자리' 칸은 뺐다 (2026-09-11). 값을 받아 hometax-verify 로 보냈지만
+                    그 함수는 identity 를 읽지 않는다 — 개인정보를 받아서 버리고 있었다. 실제 인증에 쓰이는
+                    자리에는 사업자번호가 자동으로 들어간다(codef-sync 가 companies.business_number 를 쓴다). */}
 
               {/* 발행 알림 메일 (선택) — 세금계산서 발행 성공 시 이 주소로 알림 (2026-08-13 사장님) */}
               <div className="mt-4">

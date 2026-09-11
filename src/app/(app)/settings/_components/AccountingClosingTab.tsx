@@ -152,8 +152,12 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
 
   const floor = computeSyncFloor(closingDate || null);
   const allLines = Object.values(byKey);
-  const totalDebit = openingDebit(allLines);
-  const totalCredit = openingCredit(allLines);
+  //   합계·균형은 재무상태표가 실제로 읽는 것만 센다 — 자산·부채·자본 (2026-09-11).
+  //   예전엔 수익·비용 줄까지 더해, 여기선 초록색 '일치'인데 재무상태표에서는 불일치가 뜨고
+  //   사장님은 어디를 고쳐야 할지 알 수 없었다. reports/bs 의 필터와 같은 기준이다.
+  const bsLines = allLines.filter((l) => l.account_type === "asset" || l.account_type === "liability" || l.account_type === "equity");
+  const totalDebit = openingDebit(bsLines);
+  const totalCredit = openingCredit(bsLines);
   const balanced = Math.abs(totalDebit - totalCredit) < 0.001;
   const hasCoa = (coa as ChartOfAccount[]).length > 0;
 

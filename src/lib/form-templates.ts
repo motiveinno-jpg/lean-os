@@ -19,6 +19,8 @@ export interface PdfFormTemplate {
   doc_type: DocType;
   file_path: string;
   page_count: number;
+  /**   저장만 하고 되읽는 곳이 없다 (2026-09-11 확인). 오버레이 좌표가 0~1 정규화라 페이지 실측 크기가
+   *    필요 없어진 뒤로 남은 칸이다. 컬럼을 지우려면 마이그레이션이 필요해 지금은 그대로 둔다. */
   page_sizes: { w: number; h: number }[];
   fields: OverlayField[];
   is_active: boolean;

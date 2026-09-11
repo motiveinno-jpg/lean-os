@@ -498,8 +498,8 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
       <div className="company-seal-logo-panel stg-sec">
         <div className="stg-sec-head mb-5">
           <div>
-            <h2 className="stg-sec-title">직인 및 로고</h2>
-            <p className="stg-sec-desc">직인은 전자계약 서명과 계약서 PDF에 찍힙니다. 로고는 회사 정보에 보관됩니다.</p>
+            <h2 className="stg-sec-title">직인</h2>
+            <p className="stg-sec-desc">전자계약 서명과 계약서 PDF에 찍힙니다.</p>
           </div>
         </div>
         {uploadError && (
@@ -631,64 +631,8 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
             )}
           </div>
 
-          {/* Logo Upload */}
-          <div className="company-logo-upload">
-            <label className="field-label mb-2">회사 로고</label>
-            <div className="company-asset-dropzone">
-              {logoUrl ? (
-                <>
-                  <img
-                    src={logoUrl}
-                    alt="로고"
-                    className="company-asset-img"
-                  />
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      onClick={() => logoInputRef.current?.click()}
-                      className="text-xs text-[var(--primary)] hover:underline"
-                    >
-                      변경
-                    </button>
-                    <button
-                      onClick={() => handleRemoveFile("logo")}
-                      className="text-xs text-red-400/60 hover:text-red-400"
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="w-12 h-12 rounded-full bg-[var(--bg-surface)] flex items-center justify-center text-[var(--text-dim)]">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                      <circle cx="8.5" cy="8.5" r="1.5" />
-                      <polyline points="21 15 16 10 5 21" />
-                    </svg>
-                  </div>
-                  <button
-                    onClick={() => logoInputRef.current?.click()}
-                    disabled={uploading === "logo"}
-                    className="text-xs text-[var(--primary)] font-semibold hover:underline disabled:opacity-50"
-                  >
-                    {uploading === "logo" ? "업로드 중..." : "로고 업로드"}
-                  </button>
-                  <p className="caption">PNG·JPG 최대 5MB.</p>
-                </>
-              )}
-            </div>
-            <input
-              ref={logoInputRef}
-              type="file"
-              accept=".png,.jpg,.jpeg"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleFileUpload(file, "logo");
-                e.target.value = "";
-              }}
-            />
-          </div>
+          {/*   회사 로고 올리는 칸은 뺐다 (2026-09-11). 저장은 됐지만 읽는 코드가 한 곳도 없어
+                견적서·계약서 어느 문서에도 찍히지 않았다. 문서에 로고를 넣게 되면 그때 다시 둔다. */}
         </div>
       </div>
 
