@@ -316,7 +316,7 @@ async function handleTrialWillEnd(subscription: Stripe.Subscription) {
   const dateStr = trialEnd ? new Date(trialEnd).toISOString().slice(0, 10) : '곧';
 
   const admins = logRead('webhook/route:trialAdmins', await db
-    .from('users').select('id').eq('company_id', companyId).in('role', ['owner', 'admin']));
+    .from('users').select('id').eq('company_id', companyId).eq('is_master', true));
   if (admins?.length) {
     await db.from('notifications').insert(admins.map((a: any) => ({
       company_id: companyId, user_id: a.id, type: 'payment_due',
@@ -479,7 +479,7 @@ async function notifyBillingPaid(invoice: Stripe.Invoice, sub: any, amountWon: n
     const company = logRead('webhook/route:company', await db
       .from('companies').select('name, representative').eq('id', sub.company_id).maybeSingle());
     const owner = logRead('webhook/route:owner', await db
-      .from('users').select('email').eq('company_id', sub.company_id).eq('role', 'owner').limit(1).maybeSingle());
+      .from('users').select('email').eq('company_id', sub.company_id).eq('is_master', true).limit(1).maybeSingle());
 
     const hookSecret = process.env.BILLING_HOOK_SECRET;
     const fnUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-billing-notification`;
@@ -553,7 +553,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice, eventId?: str
 
   // 대표/관리자 in-app 알림 — 결제수단 확인 유도(type 은 CHECK 허용값 payment_due 사용).
   const admins = logRead('webhook/route:failAdmins', await db
-    .from('users').select('id').eq('company_id', sub.company_id).in('role', ['owner', 'admin']));
+    .from('users').select('id').eq('company_id', sub.company_id).eq('is_master', true));
   if (admins?.length) {
     await db.from('notifications').insert(admins.map((a: any) => ({
       company_id: sub.company_id, user_id: a.id, type: 'payment_due',
@@ -587,7 +587,7 @@ async function notifyBillingFailed(invoice: Stripe.Invoice, sub: any, amountWon:
     const company = logRead('webhook/route:failCompany', await db
       .from('companies').select('name, representative').eq('id', sub.company_id).maybeSingle());
     const owner = logRead('webhook/route:failOwner', await db
-      .from('users').select('email').eq('company_id', sub.company_id).eq('role', 'owner').limit(1).maybeSingle());
+      .from('users').select('email').eq('company_id', sub.company_id).eq('is_master', true).limit(1).maybeSingle());
 
     const hookSecret = process.env.BILLING_HOOK_SECRET;
     const fnUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-billing-notification`;

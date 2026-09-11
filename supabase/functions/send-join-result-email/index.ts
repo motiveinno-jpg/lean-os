@@ -35,9 +35,9 @@ serve(withSentry("send-join-result-email", async (req) => {
     const { data: { user }, error: uErr } = await admin.auth.getUser(token);
     if (!user || uErr) return j({ error: "Unauthorized" }, 401);
 
-    const { data: caller } = await admin.from("users").select("company_id, role").eq("auth_id", user.id).maybeSingle();
-    if (!caller?.company_id || !["owner", "admin"].includes(caller.role || "")) {
-      return j({ error: "대표/관리자만 사용할 수 있습니다." }, 403);
+    const { data: caller } = await admin.from("users").select("company_id, is_master").eq("auth_id", user.id).maybeSingle();
+    if (!caller?.company_id || !caller.is_master) {
+      return j({ error: "마스터만 사용할 수 있습니다." }, 403);
     }
 
     const body = await req.json().catch(() => ({}));

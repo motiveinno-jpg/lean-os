@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 회사 대표/관리자에게 인앱 알림 — 이메일 인증된 신규 요청 생성 시점에만(중복 확인 시점 아님).
-    const admins = logRead('join-request/route:admins', await admin.from('users').select('id').eq('company_id', company.id).in('role', ['owner', 'admin']));
+    const admins = logRead('join-request/route:admins', await admin.from('users').select('id').eq('company_id', company.id).eq('is_master', true));
     if (admins?.length) {
       const { error: notifErr } = await admin.from('notifications').insert(admins.map((a: any) => ({
         company_id: company.id, user_id: a.id, type: 'company_join_request',

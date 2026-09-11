@@ -12,6 +12,7 @@ import { createApprovalRequest } from './approval-workflow';
 import { createQueueEntry } from './payment-queue';
 import { resolveBank } from './routing';
 import { autoMatchLoanPayments } from './loans';
+import { getCompanyManagerIds, getAutomationActorId } from './company-managers';
 
 const db = supabase;
 
@@ -244,10 +245,9 @@ export async function autoMatchTransactions(companyId: string) {
   return { matched };
 }
 
-//   알림 받는 사람 — 회사의 대표·관리자(users.role). 휴면 감지는 담당자를 따로 두지 않아 관리자 전원에게 간다.
+//   알림 받는 사람 — 마스터 + 권한 보유자. 휴면 감지는 담당자를 따로 두지 않아 관리자 전원에게 간다.
 async function adminUserIds(companyId: string): Promise<string[]> {
-  const { data } = await db.from('users').select('id').eq('company_id', companyId).in('role', ['owner', 'admin']).limit(1000);
-  return ((data || []) as { id: string }[]).map((u) => u.id);
+  return getCompanyManagerIds(companyId);
 }
 
 // ══════════════════════════════════════════
@@ -571,6 +571,11 @@ export async function autoLinkApprovedContractsToSchedule(companyId: string) {
 
   if (!approvedDocs?.length) return { linked: 0 };
 
+  //   승인자도 uuid 여야 한다. documents.ts 는 uuid 가 아니면 파이프라인을 건너뛰게 막아 뒀는데,
+  //   그 탓에 자동 승인 건만 계약서 PDF 가 영영 안 생겼다. 마스터 id 를 넘겨 정상 경로로 태운다.
+  const actorId = await getAutomationActorId(companyId);
+  if (!actorId) return { linked: 0, skipped: 'no_master' as const };
+
   let linked = 0;
   for (const doc of approvedDocs) {
     const content = doc.content_json as any;
@@ -589,7 +594,7 @@ export async function autoLinkApprovedContractsToSchedule(companyId: string) {
     await onDocumentApproved({
       documentId: doc.id,
       companyId,
-      approverId: 'system',
+      approverId: actorId,
     });
     linked++;
   }
@@ -609,6 +614,11 @@ export async function autoCreateExpenseFromRecurring(companyId: string) {
     .eq('is_active', true));
 
   if (!recurring?.length) return { created: 0 };
+
+  //   결재 요청자는 uuid NOT NULL 이다. 예전엔 'system' 문자열을 넣어 22P02 로 매번 실패했고
+  //   (자동 생성 결재가 운영에 0건이었다) 화면엔 "단계 실패" 만 떴다. 마스터 이름으로 올린다.
+  const actorId = await getAutomationActorId(companyId);
+  if (!actorId) return { created: 0, skipped: 'no_master' as const };
 
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -639,7 +649,7 @@ export async function autoCreateExpenseFromRecurring(companyId: string) {
     const request = await createApprovalRequest({
       companyId,
       requestType: 'expense',
-      requesterId: 'system',
+      requesterId: actorId,
       title: `${r.name} (${currentMonth})`,
       amount,
       description: `자동생성: 반복결제 "${r.name}" / 카테고리: ${r.category || '기타'}`,
@@ -685,6 +695,10 @@ export async function autoCreateExpenseFromContract(companyId: string) {
 
   if (!schedules?.length) return { created: 0 };
 
+  //   위와 같은 이유로 마스터 이름으로 올린다('system' 은 uuid 칸에 들어가지 않는다).
+  const actorId = await getAutomationActorId(companyId);
+  if (!actorId) return { created: 0, skipped: 'no_master' as const };
+
   // Check which already have approval requests
   const existingRequests = logRead('lib/automation:existingRequests', await db
     .from('approval_requests')
@@ -708,7 +722,7 @@ export async function autoCreateExpenseFromContract(companyId: string) {
       companyId,
       requestType: 'payment',
       requestId: sched.id,
-      requesterId: 'system',
+      requesterId: actorId,
       title: `${dealName} - ${label}`,
       amount,
       description: `계약 기반 자동생성: ${dealName} / ${label} / 기한: ${sched.due_date || '미정'}`,

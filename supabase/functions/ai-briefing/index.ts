@@ -348,7 +348,7 @@ async function runCron(admin: ReturnType<typeof createClient>): Promise<Response
       try {
         const parsed = JSON.parse(content);
         const { data: owners } = await admin.from("users")
-          .select("id").eq("company_id", companyId).eq("role", "owner").limit(3);
+          .select("id").eq("company_id", companyId).eq("is_master", true).limit(3);
         for (const o of (owners || []) as any[]) {
           await admin.from("notifications").insert({
             company_id: companyId, user_id: o.id, type: "system",
@@ -369,7 +369,7 @@ async function runCron(admin: ReturnType<typeof createClient>): Promise<Response
             inv.unshipped ? `미발송 온라인 주문 ${inv.unshipped}건` : "",
           ].filter(Boolean).join(" · ");
           const { data: admins } = await admin.from("users")
-            .select("id").eq("company_id", companyId).in("role", ["owner", "admin"]).limit(10);
+            .select("id").eq("company_id", companyId).eq("is_master", true).limit(10);
           for (const u of (admins || []) as any[]) {
             //   같은 날 같은 알림이 이미 있으면 안 보낸다(하루 한 번)
             const { count } = await admin.from("notifications").select("id", { count: "exact", head: true })

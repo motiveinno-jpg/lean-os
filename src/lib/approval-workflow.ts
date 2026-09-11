@@ -558,7 +558,7 @@ export async function createApprovalRequest(params: {
           .from('users')
           .select('id, name')
           .eq('company_id', params.companyId)
-          .in('role', ['ceo', 'admin', 'owner'])
+          .eq('is_master', true)
           .limit(requiredCount));
         approverList.push(...(fallbackApprovers || []));
       }
@@ -1438,7 +1438,7 @@ export async function resubmitRequest(
         .from('users')
         .select('id')
         .eq('company_id', request.company_id)
-        .in('role', ['ceo', 'admin', 'owner'])
+        .eq('is_master', true)
         .limit(requiredCount));
       approverList.push(...(fallback || []));
     }

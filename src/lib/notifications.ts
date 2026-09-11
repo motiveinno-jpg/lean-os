@@ -4,6 +4,7 @@
  */
 
 import { supabase } from './supabase';
+import { getCompanyManagerIds } from './company-managers';
 
 const db = supabase;
 
@@ -142,15 +143,9 @@ export async function createNotification(params: {
 //   - notifications 테이블 insert (필수)
 // ════════════════════════════════════════════════════════════════════════
 
-// 회사의 admin/owner user id 목록 조회 (notifications insert 대상).
+// 알림을 받을 사람 — 마스터 + 권한 보유자. 판정은 company-managers 한 곳에만 둔다.
 async function getCompanyAdminOwnerIds(companyId: string): Promise<string[]> {
-  const { data, error } = await db
-    .from('users')
-    .select('id')
-    .eq('company_id', companyId)
-    .in('role', ['owner', 'admin']);
-  if (error) return [];
-  return (data || []).map((u: { id: string }) => u.id);
+  return getCompanyManagerIds(companyId);
 }
 
 // B. 승인/반려 → 신청자에게 알림.

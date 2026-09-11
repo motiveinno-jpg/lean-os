@@ -577,7 +577,7 @@ serve(withSentry("hometax-issue", async (req) => {
       "";
     if (!invoicerEmail) {
       const { data: owner } = await supabase.from("users")
-        .select("email").eq("company_id", invoice.company_id).eq("role", "owner")
+        .select("email").eq("company_id", invoice.company_id).eq("is_master", true)
         .order("created_at").limit(1).maybeSingle();
       invoicerEmail = owner?.email || "";
     }

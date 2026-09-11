@@ -746,7 +746,7 @@ function TaxInvoicesPageInner() {
       let email = (data as any)?.automation_settings?.invoicer_email || '';
       if (!email) {
         const owner = logRead('tax-invoices/page:owner-email', await (supabase)
-          .from('users').select('email').eq('company_id', companyId!).eq('role', 'owner')
+          .from('users').select('email').eq('company_id', companyId!).eq('is_master', true)
           .order('created_at').limit(1).maybeSingle());
         email = (owner as any)?.email || '';
       }

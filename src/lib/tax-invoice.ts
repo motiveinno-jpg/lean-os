@@ -145,12 +145,12 @@ async function autoCreateExpenseReport(companyId: string, invoice: TaxInvoice) {
   try {
     const { createApprovalRequest } = await import('./approval-workflow');
 
-    // Get a user for the request (company owner)
+    // 결재를 올릴 사람 — 회사 마스터(users.role 은 전부 'member' 라 역할로 못 찾는다)
     const owner = logRead('lib/tax-invoice:owner', await supabase
       .from('users')
       .select('id')
       .eq('company_id', companyId)
-      .eq('role', 'owner')
+      .eq('is_master', true)
       .limit(1)
       .maybeSingle());
 

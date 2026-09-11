@@ -9,6 +9,7 @@ import { logError } from "@/lib/error-logger";
 import { supabase } from './supabase';
 import { fetchPaged } from './fetch-paged';
 import { getCurrentUser } from './queries';
+import { currentUserIsManager } from './company-managers';
 import {
   calcDailyAttendance,
   calcLegacyWorkHours,
@@ -494,7 +495,7 @@ export async function recomputeAttendance(params: {
   //   서버 권한은 RLS 가 최종 가드 — 클라이언트 체크는 UX 만.
   try {
     const me = await getCurrentUser();
-    const isAdmin = me?.role === 'owner' || me?.role === 'admin';
+    const isAdmin = await currentUserIsManager(me as any, '/employees');
     if (!isAdmin) {
       const myEmpId = await db
         .from('employees')
@@ -705,7 +706,7 @@ export async function createAttendanceEditRequest(params: {
       .from('users')
       .select('id')
       .eq('company_id', params.companyId)
-      .in('role', ['owner', 'admin']));
+      .eq('is_master', true));
     const rows = (admins || []).map((a: { id: string }) => ({
       company_id: params.companyId,
       user_id: a.id,
@@ -1364,7 +1365,7 @@ export async function createLeaveRequest(params: {
   try {
     const [{ data: emp }, { data: admins }] = await Promise.all([
       db.from('employees').select('name').eq('id', params.employeeId).maybeSingle(),
-      db.from('users').select('id').eq('company_id', params.companyId).in('role', ['owner', 'admin']),
+      db.from('users').select('id').eq('company_id', params.companyId).eq('is_master', true),
     ]);
     const empName = emp?.name || '직원';
     const leaveLabel = LEAVE_TYPES.find((t) => t.value === params.leaveType)?.label || params.leaveType;
@@ -1536,9 +1537,9 @@ export async function approveLeaveRequest(id: string, approverId: string) {
 
   const nowIso = new Date().toISOString();
 
-  // 승인 권한 가드: 현재 단계의 지정 승인자 또는 owner/admin.
+  // 승인 권한 가드: 현재 단계의 지정 승인자 또는 마스터·결재 권한 보유자.
   const me = await getCurrentUser();
-  const isAdmin = me?.role === 'owner' || me?.role === 'admin';
+  const isAdmin = await currentUserIsManager(me as any, '/approvals');
 
   // ── Flex N단계 체인 ──
   const steps = parseSteps(request.approval_steps);
@@ -1648,7 +1649,7 @@ export async function rejectLeaveRequest(id: string, approverId: string) {
   if (!request) throw new Error('휴가 신청을 찾을 수 없습니다');
 
   const me = await getCurrentUser();
-  const isAdmin = me?.role === 'owner' || me?.role === 'admin';
+  const isAdmin = await currentUserIsManager(me as any, '/approvals');
   const nowIso = new Date().toISOString();
 
   // ── Flex N단계 체인 ──
@@ -1778,7 +1779,7 @@ export async function cancelLeaveRequest(id: string, opts?: {
     if (request.approved_by) approverIds.add(request.approved_by);
     if (approverIds.size === 0) {
       const { data: admins } = await db
-        .from('users').select('id').eq('company_id', request.company_id).in('role', ['owner', 'admin']);
+        .from('users').select('id').eq('company_id', request.company_id).eq('is_master', true);
       (admins || []).forEach((a: { id: string }) => approverIds.add(a.id));
     }
 

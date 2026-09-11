@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     const admin = createSupabaseAdminClient() as any;
     const userRow = logRead('cancel/route:userRow', await admin
       .from('users')
-      .select('company_id, role')
+      .select('company_id, is_master')
       .eq('auth_id', user.id)
       .maybeSingle());
     if (!userRow?.company_id) {
@@ -40,9 +40,9 @@ export async function POST(request: NextRequest) {
         { status: 403 },
       );
     }
-    if (!['owner', 'admin'].includes(userRow.role || '')) {
+    if (!userRow.is_master) {
       return NextResponse.json(
-        { error: { code: 'FORBIDDEN', message: '구독 해지는 대표/관리자만 가능합니다' } },
+        { error: { code: 'FORBIDDEN', message: '구독 해지는 마스터만 가능합니다' } },
         { status: 403 },
       );
     }

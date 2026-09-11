@@ -9,7 +9,7 @@ const h = vi.hoisted(() => {
     policies: [] as Row[],          // entity_type = 요청 유형 매칭 결과
     defaultPolicies: [] as Row[],   // entity_type = 'default' 폴백
     usersByRole: {} as Record<string, Row[]>,
-    fallbackUsers: [] as Row[],     // role in ('ceo','admin','owner') 폴백 조회 결과
+    fallbackUsers: [] as Row[],     // is_master 폴백 조회 결과
     // 요청자 부서·직급 (2026-08-20 적용 대상별 규칙 매칭에서 조회) — user_id → {department, position}
     employeeByUser: {} as Record<string, Row>,
     inserted: [] as { table: string; row: Row }[],
@@ -28,8 +28,9 @@ const h = vi.hoisted(() => {
         return { data: et === "default" ? state.defaultPolicies : state.policies, error: null };
       }
       if (table === "users") {
-        const inF = s.filters.find((f: any) => f.op === "in" && f.col === "role");
-        if (inF) return { data: state.fallbackUsers, error: null };
+        //   폴백은 이제 마스터(is_master) 로 찾는다 — 역할 폐지 후 role 로는 한 줄도 안 잡힌다
+        const masterF = s.filters.find((f: any) => f.op === "eq" && f.col === "is_master");
+        if (masterF) return { data: state.fallbackUsers, error: null };
         const role = s.filters.find((f: any) => f.op === "eq" && f.col === "role")?.val;
         return { data: state.usersByRole[role] || [], error: null };
       }
@@ -166,7 +167,7 @@ describe("createApprovalRequest — 정책 폴백·승인자 해석", () => {
     expect(steps()).toEqual([expect.objectContaining({ stage: 1, stage_name: "최종 승인", approver_id: "u-ceo" })]);
   });
 
-  it("역할 보유자 없음 → ceo/admin/owner 폴백 조회로 배정", async () => {
+  it("역할 보유자 없음 → 마스터 폴백 조회로 배정", async () => {
     st.policies = [{ id: "p", auto_approve_below: 0, stages: [{ stage: 1, name: "재무 승인", approver_role: "finance", required_count: 1 }] }];
     st.fallbackUsers = [{ id: "u-owner" }];
     await createApprovalRequest({ ...base, requestType: "expense", amount: 10_000 });

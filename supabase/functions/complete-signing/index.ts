@@ -254,7 +254,7 @@ serve(withSentry("complete-signing", async (req) => {
           .from("users")
           .select("id")
           .eq("company_id", pkg.company_id)
-          .in("role", ["owner", "admin"]);
+          .eq("is_master", true);
         (admins || []).forEach((a: { id: string }) => recipientIds.add(a.id));
 
         // 직원 이름 (알림 message 용)

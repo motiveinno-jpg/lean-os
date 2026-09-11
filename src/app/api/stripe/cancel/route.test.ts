@@ -66,7 +66,7 @@ const makeRequest = (body: Record<string, any> = {}) =>
 
 beforeEach(() => {
   st.authUser = { id: "auth-1" };
-  st.userRow = { company_id: "co-1", role: "owner" };
+  st.userRow = { company_id: "co-1", is_master: true };
   st.sub = null;
   st.updated = []; st.inserted = [];
   st.updateError = null;
