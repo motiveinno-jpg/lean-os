@@ -3599,6 +3599,10 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                     key: "title",
                     node: (
                       <div>
+                        {/* 양식 관리에서 넣은 '설명'을 제목 위에 주석처럼 보여준다(작성자 안내). 종전엔 어디에도 안 나왔다(2026-09-11 사장님). */}
+                        {selectedForm?.description?.trim() && (
+                          <div className="ap-form-desc-note">{selectedForm.description}</div>
+                        )}
                         <label className="block text-xs text-[var(--text-muted)] mb-1">제목 *</label>
                         <input
                           value={form.title}

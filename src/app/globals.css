@@ -3764,6 +3764,8 @@ table.notif-table { min-width: 960px; }
 /*   결재선 폼 (2026-08-18) — 이름·단계 수·적용 대상 한 줄, 단계별 승인자 한 줄씩, 참조 칩 */
 .ap-pol-head { @apply mb-3 flex items-center gap-3; }
 .ap-pol-head .section-title { @apply mb-0; }
+/* 양식 '설명'을 새 요청 제목 위에 주석처럼 (2026-09-11) — 왼쪽 강조선 + 옅은 배경, 줄바꿈 유지 */
+.ap-form-desc-note { @apply mb-2 whitespace-pre-wrap rounded-lg border-l-2 border-[var(--primary)] bg-[var(--primary)]/5 px-3 py-2 text-[12px] leading-relaxed text-[var(--text-muted)]; }
 /*   2026-08-20: 단계 수·적용 대상이 규칙 블록 안으로 옮겨가 윗줄 칸이 3→2개 (셋째 열이 비어 보이던 것) */
 .ap-pol-grid { @apply grid grid-cols-1 gap-3 sm:grid-cols-2; }
 .ap-pol-stages { @apply mt-3 flex flex-col gap-2; }
