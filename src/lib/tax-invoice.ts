@@ -72,6 +72,9 @@ export async function createTaxInvoice(params: {
   partnerId?: string;
   // 과세유형(직원 QA 그랜터) — taxable(과세)/zero_rated(영세율)/exempt(면세). 영세율·면세는 세액 0.
   taxKind?: 'taxable' | 'zero_rated' | 'exempt';
+  //   세액을 직접 주는 경우(엑셀 일괄발행처럼 공급가액·세액·공급대가를 사람이 적어 오는 길).
+  //   안 주면 종전대로 과세유형으로 계산한다. 국세청에는 이 값이 그대로 나간다.
+  taxAmount?: number;
   // 거래처 정보 — 계산서에 그대로 찍히고 국세청으로 나간다. 등록된 거래처가 아니어도 채울 수 있게
   //   계산서 행에 저장한다 (2026-08-10: 발행 함수가 이 값을 먼저 읽도록 고쳤다).
   counterpartyRepresentative?: string;
@@ -81,7 +84,9 @@ export async function createTaxInvoice(params: {
   items?: TaxInvoiceItem[];
 }): Promise<TaxInvoice | null> {
   const taxKind = params.taxKind || 'taxable';
-  const taxAmount = taxKind === 'taxable' ? Math.round(params.supplyAmount * DEFAULT_VAT_RATE) : 0;
+  const taxAmount = params.taxAmount != null
+    ? Math.round(params.taxAmount)
+    : (taxKind === 'taxable' ? Math.round(params.supplyAmount * DEFAULT_VAT_RATE) : 0);
   const totalAmount = params.supplyAmount + taxAmount;
 
   // 파이프라인에서 자동 생성 시 status: 'draft' 강제

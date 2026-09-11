@@ -26,6 +26,8 @@ type ParsedRow = {
   email: string;
   itemName: string;
   supplyAmount: number;
+  taxAmount: number;            // 세액 — 엑셀에 적힌 값을 그대로 쓴다(빈칸이면 과세유형으로 계산)
+  totalAmount: number;          // 공급대가 = 공급가액 + 세액
   taxKind: "taxable" | "zero_rated" | "exempt";
   memo: string;
   errors: string[];            // 비면 정상
@@ -33,13 +35,15 @@ type ParsedRow = {
 
 type IssueResult = { row: ParsedRow; ok: boolean; error?: string; ntsNo?: string };
 
+//   공급가액·세액·공급대가를 모두 적을 수 있다 (2026-09-11 사장님). 셋 중 둘만 적어도 나머지 하나는
+//   자동으로 채운다. 셋 다 적었는데 합이 안 맞으면 그 행만 오류로 표시하고 넘어간다.
 const HEADERS = [
   "작성일자*", "공급받는자 상호*", "사업자등록번호*", "대표자", "업태", "종목",
-  "이메일", "품목명", "공급가액*", "과세유형(과세/영세율/면세)", "비고",
+  "이메일", "품목명", "공급가액", "세액", "공급대가(합계)", "과세유형(과세/영세율/면세)", "비고",
 ];
 const EXAMPLE = [
   "2026-07-01", "(주)오너뷰상사", "123-45-67890", "홍길동", "도소매", "사무용품",
-  "billing@example.com", "7월 사무용품 납품", 1000000, "과세", "월 정기 납품분",
+  "billing@example.com", "7월 사무용품 납품", 1000000, 100000, 1100000, "과세", "월 정기 납품분",
 ];
 
 const digits = (v: unknown) => String(v ?? "").replace(/[^0-9]/g, "");
@@ -71,6 +75,45 @@ function parseTaxKind(v: unknown): ParsedRow["taxKind"] | null {
   return null;
 }
 
+/** 엑셀 칸 → 숫자. 빈 칸은 null, 숫자가 아니면 NaN. */
+export function parseMoney(v: unknown): number | null {
+  const t = String(v ?? "").trim();
+  if (!t) return null;
+  const n = Number(t.replace(/[,원\s]/g, ""));
+  return Number.isFinite(n) ? n : NaN;
+}
+
+/**
+ *  공급가액·세액·공급대가를 맞춘다 (2026-09-11 사장님: 엑셀에 셋 다 쓸 수 있게).
+ *  셋 중 둘만 적어도 나머지 하나를 채우고, 셋 다 적혔으면 합이 맞는지 본다(1원 반올림 차이는 통과).
+ *  공급대가만 적었으면 과세는 1.1 로 갈라 넣고, 영세율·면세는 세액이 0이다.
+ */
+export function reconcileAmounts(
+  sIn: number | null, tIn: number | null, gIn: number | null, taxable: boolean,
+): { supply: number; tax: number; errors: string[] } {
+  const errors: string[] = [];
+  for (const [v, label] of [[sIn, "공급가액"], [tIn, "세액"], [gIn, "공급대가"]] as [number | null, string][]) {
+    if (v != null && (Number.isNaN(v) || v < 0)) errors.push(`${label}이 숫자가 아님`);
+  }
+  if (errors.length) return { supply: 0, tax: 0, errors };
+
+  let supply = 0, tax = 0;
+  if (sIn != null && tIn != null) { supply = sIn; tax = tIn; }
+  else if (sIn != null && gIn != null) { supply = sIn; tax = gIn - sIn; }
+  else if (tIn != null && gIn != null) { supply = gIn - tIn; tax = tIn; }
+  else if (sIn != null) { supply = sIn; tax = taxable ? Math.round(sIn * 0.1) : 0; }
+  else if (gIn != null) { supply = taxable ? Math.round(gIn / 1.1) : gIn; tax = gIn - supply; }
+  else return { supply: 0, tax: 0, errors: ["공급가액·세액·공급대가 중 최소 하나는 적어야 합니다"] };
+
+  if (supply <= 0) errors.push("공급가액이 0보다 커야 합니다");
+  if (tax < 0) errors.push("세액이 음수입니다 — 공급가액과 공급대가를 확인하세요");
+  if (sIn != null && tIn != null && gIn != null && Math.abs(sIn + tIn - gIn) > 1) {
+    errors.push(`공급가액+세액(${(sIn + tIn).toLocaleString()})이 공급대가(${gIn.toLocaleString()})와 다릅니다`);
+  }
+  if (!taxable && tax !== 0) errors.push("영세율·면세는 세액이 0이어야 합니다");
+  return { supply, tax, errors };
+}
+
 function parseRows(ws: XLSX.WorkSheet): ParsedRow[] {
   const raw = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: true });
   const out: ParsedRow[] = [];
@@ -78,7 +121,7 @@ function parseRows(ws: XLSX.WorkSheet): ParsedRow[] {
   for (let i = 1; i < raw.length; i++) {
     const r = raw[i] as unknown[];
     if (!r || r.every((c) => c == null || String(c).trim() === "")) continue;
-    const [dt, name, bizno, rep, btype, bitem, email, item, amt, kind, memo] = r;
+    const [dt, name, bizno, rep, btype, bitem, email, item, amt, taxCell, totalCell, kind, memo] = r;
     if (String(name ?? "").trim() === "(주)오너뷰상사" && digits(bizno) === "1234567890") continue;
 
     const errors: string[] = [];
@@ -88,10 +131,12 @@ function parseRows(ws: XLSX.WorkSheet): ParsedRow[] {
     if (!cname) errors.push("상호 누락");
     const bz = digits(bizno);
     if (bz.length !== 10) errors.push("사업자번호 10자리 아님");
-    const amount = Number(String(amt ?? "").toString().replace(/[,원\s]/g, ""));
-    if (!Number.isFinite(amount) || amount <= 0) errors.push("공급가액이 0보다 큰 숫자가 아님");
     const taxKind = parseTaxKind(kind);
     if (!taxKind) errors.push("과세유형은 과세/영세율/면세 중 하나");
+    const sIn = parseMoney(amt), tIn = parseMoney(taxCell), gIn = parseMoney(totalCell);
+    const money = reconcileAmounts(sIn, tIn, gIn, (taxKind || "taxable") === "taxable");
+    errors.push(...money.errors);
+    const amount = money.supply, tax = money.tax;
     const mail = String(email ?? "").trim();
     if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) errors.push("이메일 형식 오류");
 
@@ -106,6 +151,8 @@ function parseRows(ws: XLSX.WorkSheet): ParsedRow[] {
       email: mail,
       itemName: String(item ?? "").trim(),
       supplyAmount: Number.isFinite(amount) ? amount : 0,
+      taxAmount: Number.isFinite(tax) ? tax : 0,
+      totalAmount: (Number.isFinite(amount) ? amount : 0) + (Number.isFinite(tax) ? tax : 0),
       taxKind: taxKind || "taxable",
       memo: String(memo ?? "").trim(),
       errors,
@@ -116,7 +163,7 @@ function parseRows(ws: XLSX.WorkSheet): ParsedRow[] {
 
 export function downloadBulkIssueTemplate() {
   const ws = XLSX.utils.aoa_to_sheet([HEADERS, EXAMPLE]);
-  ws["!cols"] = [12, 20, 15, 10, 12, 12, 22, 24, 14, 20, 24].map((w) => ({ wch: w }));
+  ws["!cols"] = [12, 20, 15, 10, 12, 12, 22, 24, 14, 12, 14, 20, 24].map((w) => ({ wch: w }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "일괄발행");
   XLSX.writeFile(wb, "세금계산서_일괄발행_양식.xlsx");
@@ -175,6 +222,8 @@ export function TaxInvoiceBulkIssueModal({ companyId, onClose }: { companyId: st
           counterpartyBusinessType: r.businessType || undefined,
           counterpartyBusinessItem: r.businessItem || undefined,
           supplyAmount: r.supplyAmount,
+          //   엑셀에 적힌 세액을 그대로 쓴다 — 국세청에도 이 값이 나간다 (2026-09-11)
+          taxAmount: r.taxAmount,
           issueDate: r.issueDate,
           taxKind: r.taxKind,
           // 품목은 item_name 으로 — label 에 넣으면 홈택스 품목이 "용역"으로 나간다(2026-08-05 교정).
@@ -208,6 +257,8 @@ export function TaxInvoiceBulkIssueModal({ companyId, onClose }: { companyId: st
 
   const won = (n: number) => "₩" + n.toLocaleString("ko-KR");
   const totalSupply = valid.reduce((s, r) => s + r.supplyAmount, 0);
+  const totalTax = valid.reduce((s, r) => s + r.taxAmount, 0);
+  const totalSum = totalSupply + totalTax;
 
   return (
     <div className="bulk-issue-overlay" onClick={() => { if (!issuing) onClose(); }}>
@@ -231,6 +282,10 @@ export function TaxInvoiceBulkIssueModal({ companyId, onClose }: { companyId: st
         {!rows && !results && (
           <div className="bulk-issue-step1">
             <button onClick={downloadBulkIssueTemplate} className="btn-secondary">① 엑셀 양식 다운로드</button>
+            <p className="bulk-issue-hint">
+              공급가액·세액·공급대가는 셋 중 <b>둘만 적어도</b> 나머지 하나를 채웁니다.
+              공급대가만 적으면 과세는 1.1로 갈라 넣습니다. 셋 다 적었는데 합이 맞지 않으면 그 행만 오류로 표시합니다.
+            </p>
             <label className="btn-primary cursor-pointer">
               ② 채운 양식 업로드
               <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden"
@@ -248,7 +303,9 @@ export function TaxInvoiceBulkIssueModal({ companyId, onClose }: { companyId: st
           <>
             <div className="bulk-issue-summary">
               <span className="bulk-issue-file">{fileName}</span>
-              <span className="bulk-issue-count-ok">정상 {valid.length}건 · {won(totalSupply)}</span>
+              <span className="bulk-issue-count-ok">
+                정상 {valid.length}건 · 공급가액 {won(totalSupply)} · 세액 {won(totalTax)} · 합계 {won(totalSum)}
+              </span>
               {invalid.length > 0 && <span className="bulk-issue-count-bad">오류 {invalid.length}건 (발행 제외)</span>}
               {overQuota && (
                 <span className="bulk-issue-count-bad">
@@ -262,7 +319,8 @@ export function TaxInvoiceBulkIssueModal({ companyId, onClose }: { companyId: st
                 <thead>
                   <tr>
                     <th>행</th><th>작성일자</th><th>상호</th><th>사업자번호</th><th>품목</th>
-                    <th className="text-right">공급가액</th><th>과세유형</th><th>검증</th>
+                    <th className="text-right">공급가액</th><th className="text-right">세액</th>
+                    <th className="text-right">공급대가</th><th>과세유형</th><th>검증</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -274,6 +332,8 @@ export function TaxInvoiceBulkIssueModal({ companyId, onClose }: { companyId: st
                       <td className="mono-number">{r.counterpartyBizno ? `${r.counterpartyBizno.slice(0,3)}-${r.counterpartyBizno.slice(3,5)}-${r.counterpartyBizno.slice(5)}` : "—"}</td>
                       <td>{r.itemName || "—"}</td>
                       <td className="text-right mono-number">{r.supplyAmount ? won(r.supplyAmount) : "—"}</td>
+                      <td className="text-right mono-number">{r.errors.length ? "—" : won(r.taxAmount)}</td>
+                      <td className="text-right mono-number"><b>{r.errors.length ? "—" : won(r.totalAmount)}</b></td>
                       <td>{r.taxKind === "taxable" ? "과세" : r.taxKind === "zero_rated" ? "영세율" : "면세"}</td>
                       <td>{r.errors.length ? <span className="bulk-issue-err">{r.errors.join(" · ")}</span> : <span className="bulk-issue-ok">정상</span>}</td>
                     </tr>
