@@ -58,6 +58,11 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
   // PC 인증서 자동 선택 (CodefCert 엔진) — 은행/카드 연결에 사용, 홈택스는 der/key 파일 저장이 필요해 파일 방식 유지
   const [certSource, setCertSource] = useState<"auto" | "file">("auto");
   const [autoPfxB64, setAutoPfxB64] = useState("");
+  //   자동 선택기가 함께 뽑아 주는 der/key. 홈택스 현금영수증 매입 수집(cashbill-purchase-sync)은
+  //   pfx 가 아니라 signCert.der + signPri.key 만 찾는다 — 예전엔 이 둘을 버려서, 자동 선택으로
+  //   연결하면 "연결 완료" 인데 현금영수증 가져오기는 "인증서를 먼저 등록하세요" 가 났다 (2026-09-11).
+  const [autoDerB64, setAutoDerB64] = useState("");
+  const [autoKeyB64, setAutoKeyB64] = useState("");
   const [certFileName, setCertFileName] = useState("");
   // Hometax 전용 — 대표자 주민번호 앞 7자리 (선택)
   const [hometaxIdentity, setHometaxIdentity] = useState("");
@@ -196,6 +201,21 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
               setResult({ ok: false, msg: `인증서 저장 실패: ${upPfxErr.message}` });
               setRegistering(false);
               return;
+            }
+            //   현금영수증 매입 수집은 signCert.der + signPri.key 만 읽는다. 자동 선택기가 함께 뽑아 준
+            //   이 둘을 같이 올려 둬야 "연결 완료" 인데 현금영수증만 인증서 없음이 나는 일이 없다.
+            if (autoDerB64 && autoKeyB64) {
+              const derBytesAuto = Uint8Array.from(atob(autoDerB64), (c) => c.charCodeAt(0));
+              const keyBytesAuto = Uint8Array.from(atob(autoKeyB64), (c) => c.charCodeAt(0));
+              const [derUp, keyUp] = await Promise.all([
+                supabase.storage.from("certificates").upload(`${companyId}/signCert.der`, new Blob([derBytesAuto]), { upsert: true }),
+                supabase.storage.from("certificates").upload(`${companyId}/signPri.key`, new Blob([keyBytesAuto]), { upsert: true }),
+              ]);
+              if (derUp.error || keyUp.error) {
+                setResult({ ok: false, msg: `인증서 저장 실패: ${(derUp.error || keyUp.error)!.message}` });
+                setRegistering(false);
+                return;
+              }
             }
             const encPfxPw = await encCred(certPassword);
             const { data: prevCred } = await supabase.from("automation_credentials")
@@ -552,10 +572,13 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
 
               {certSource === "auto" && (
                 <CertAutoPicker
-                  onExtracted={({ pfxBase64, certName, password }) => {
+                  onExtracted={({ pfxBase64, derB64, keyB64, certName, password }) => {
                     // 엔진 원본 PFX 를 그대로 사용 (certType "pfx"). 은행/카드는 계정등록,
                     // 홈택스는 검증 통과 시 hometax.pfx 로 저장 — 변환본은 쓰지 않는다.
+                    //   der/key 도 같이 받아 둔다 — 현금영수증 매입 수집이 그 둘만 본다.
                     setAutoPfxB64(pfxBase64);
+                    setAutoDerB64(derB64 || "");
+                    setAutoKeyB64(keyB64 || "");
                     setCertPassword(password);
                     setCertFileName(certName);
                   }}

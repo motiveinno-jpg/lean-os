@@ -40,14 +40,27 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Stripe 구독 해지 (있을 때만) — 실패하면 삭제를 진행하지 않는다 ──
-    const { data: sub } = await admin
+    //   ⚠️ maybeSingle() 을 쓰면 안 된다 (2026-09-11): subscriptions 에 company_id 유니크 제약이 없어
+    //   행이 두 개가 되는 순간 조회가 오류로 끝나고 sub 가 null 이 된다. 그러면 해지 호출을 통째로
+    //   건너뛴 채 회사만 지워져, 이 파일 머리말이 경고한 "회사는 없는데 결제는 계속 나가는" 상태가 된다.
+    //   전부 읽어서 살아 있는 구독을 하나도 빠뜨리지 않고 해지한다.
+    const { data: subsRaw, error: subErr } = await admin
       .from('subscriptions')
       .select('stripe_subscription_id, status, payment_provider')
-      .eq('company_id', company.id)
-      .maybeSingle() as unknown as
-      { data: { stripe_subscription_id: string | null; status: string | null } | null };
-    const stripeSubId = (sub as { stripe_subscription_id?: string | null } | null)?.stripe_subscription_id;
-    if (stripeSubId && sub?.status !== 'canceled') {
+      .eq('company_id', company.id);
+    if (subErr) {
+      console.error('[company-delete] 구독 조회 실패:', subErr.message);
+      return NextResponse.json(
+        { error: '결제 구독을 확인하지 못해 삭제를 중단했습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 502 },
+      );
+    }
+    const subs = (subsRaw || []) as Array<{ stripe_subscription_id: string | null; status: string | null; payment_provider: string | null }>;
+    //   토스 구독은 여기서 끊을 API 가 없다 — 행이 지워지면 크론이 청구를 멈춘다. 화면 문구는 그 사실에 맞춰 둔다.
+    const liveStripe = subs.filter((x) => x.stripe_subscription_id && x.status !== 'canceled');
+    for (const one of liveStripe) {
+      const stripeSubId = one.stripe_subscription_id as string;
+      {
       try {
         const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-02-24.acacia' });
         await stripe.subscriptions.cancel(stripeSubId);
@@ -61,6 +74,7 @@ export async function POST(request: NextRequest) {
             { status: 502 },
           );
         }
+      }
       }
     }
 

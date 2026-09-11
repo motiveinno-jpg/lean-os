@@ -766,7 +766,10 @@ function MatchingRuleCard({ companyId }: { companyId: string | null }) {
   }, [taxSettings]);
   async function saveTolerance() {
     if (!companyId) return;
-    const merged = { ...(taxSettings || {}), matching_tolerance: Math.min(100, Math.max(0, Number(tolerance) || 1)) };
+    //   0 도 뜻이 있는 값(금액이 딱 맞을 때만 매칭)이라 그대로 저장한다. 예전엔 `Number(x) || 1` 이라
+    //   0 이 조용히 1% 로 바뀌었다. 상한도 입력칸과 같은 10 으로 맞춘다(예전엔 100 까지 통과했다). 2026-09-11
+    const parsed = Number(tolerance);
+    const merged = { ...(taxSettings || {}), matching_tolerance: Number.isFinite(parsed) ? Math.min(10, Math.max(0, parsed)) : 1 };
     const { error } = await supabase.from("companies").update({ tax_settings: merged }).eq("id", companyId);
     if (error) { toast(`저장 실패: ${error.message}`, "error"); return; }
     qc.invalidateQueries({ queryKey: ["tax-settings"] });

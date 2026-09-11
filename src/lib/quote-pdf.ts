@@ -171,11 +171,15 @@ export async function buildContractBlobFromDoc(doc: any, companyId: string, _use
     회사명: companyName,
     공급자: companyName,
     대표자명: company.data?.representative || "",
+    //   편집기가 예전에 권하던 이름들 — 이미 그렇게 만들어 둔 양식이 빈칸으로 나오지 않게 같은 값을 함께 둔다
+    //   (2026-09-11: {{대표자}}·{{계약일자}} 가 치환표에 없어 완성 PDF 에서 조용히 사라졌다)
+    대표자: company.data?.representative || "",
     거래처명: cpName,
     수신: cpName,
     거래처대표: partnerRow?.representative || "",
     계약금액: supplyAmt ? won(supplyAmt) : "",
     계약일: cj.issueDate || "",
+    계약일자: cj.issueDate || "",
     계약시작일: cj.contractStart || "",
     계약종료일: cj.contractEnd || "",
     용역내용: workText,

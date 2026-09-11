@@ -7,6 +7,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getDealClassifications, upsertDealClassification, deleteDealClassification } from "@/lib/queries";
 import { useToast } from "@/components/toast";
 
+//   미리 고르는 색 — 기본 3종(B2B 파랑·B2C 초록·B2G 주황)과 눈에 구분되는 색들
+const DEAL_COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#14b8a6", "#ec4899", "#64748b"];
+
 export function DealClassificationManager({ companyId }: { companyId: string | null }) {
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -72,7 +75,20 @@ export function DealClassificationManager({ companyId }: { companyId: string | n
               />
             </div>
             <div>
-              <label className="field-label">색상</label>
+              {/*   색은 대시보드 '분류별 현황'과 월간 보고서가 실제로 읽어 점을 그린다
+                    (lib/queries.ts 의 classificationColors → lib/engines.ts). 2026-09-08 에 "쓰이지 않는다"는
+                    판단으로 고르는 칸을 뺐는데 사실이 아니었고, 그 뒤로 모든 분류가 같은 파란 점이 됐다.
+                    2026-09-11 되살림 — 미리 고른 색 + 직접 고르기. */}
+              <label className="field-label">색상<span className="ui-sub">대시보드 분류별 현황의 점 색</span></label>
+              <div className="deal-classification-colors">
+                {DEAL_COLORS.map((c) => (
+                  <button key={c} type="button" aria-label={`색상 ${c}`} onClick={() => setForm({ ...form, color: c })}
+                    className={form.color.toLowerCase() === c ? "deal-color-dot is-on" : "deal-color-dot"}
+                    style={{ background: c }} />
+                ))}
+                <input type="color" value={form.color} aria-label="직접 고르기"
+                  onChange={(e) => setForm({ ...form, color: e.target.value })} className="deal-color-input" />
+              </div>
             </div>
           </div>
           <div className="flex gap-2">

@@ -3077,6 +3077,11 @@ table.table-bank-manual { min-width: 640px; }
 .company-delete-done { @apply text-sm text-[var(--text-muted)] bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-6 text-center; }
 .settings-deal-classification { @apply p-6; }
 .deal-classification-form { @apply p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-3; }
+/*   딜 분류 색 고르기 — 대시보드 분류별 현황의 점 색을 정한다 (2026-09-11 복구) */
+.deal-classification-colors { @apply flex items-center gap-1.5 flex-wrap; }
+.deal-color-dot { @apply w-6 h-6 rounded-full border-2 border-transparent transition hover:scale-110; }
+.deal-color-dot.is-on { @apply border-[var(--text)] scale-110; }
+.deal-color-input { @apply w-6 h-6 rounded-full border border-[var(--border)] bg-transparent p-0 cursor-pointer; }
 .deal-classification-list { @apply space-y-2; }
 .deal-classification-row { @apply flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
 .account-info-card { @apply p-6; }

@@ -8,6 +8,7 @@
 //   세무자동화(tax) 탭에서 렌더.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { todayKst } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DateField } from "@/components/date-field";
@@ -235,7 +236,9 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
       <div className="stg-frow">
         <div className="stg-frow-label"><b>회계 마감일</b><small>비우면 최근 2년치를 수집합니다.</small></div>
         <div className="stg-frow-body">
-          <DateField value={closingDate} onChange={(e) => setClosingDate(e.target.value)}
+          {/*   오늘까지만 — 미래 날짜를 넣으면 조회 구간이 뒤집혀 거래가 한 건도 안 들어온다.
+                수집기(codef-sync)가 이미 오늘로 눌러 담고 있지만, 화면에서 못 넣게 하는 것이 맞다 (2026-09-11). */}
+          <DateField value={closingDate} max={todayKst()} onChange={(e) => setClosingDate(e.target.value)}
             className="field-input" />
         </div>
       </div>
