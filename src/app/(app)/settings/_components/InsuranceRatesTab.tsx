@@ -16,7 +16,7 @@ export function InsuranceRatesTab({ companyId, userId }: { companyId: string; us
   const qc = useQueryClient();
   const thisYear = new Date().getFullYear();
   const [year, setYear] = useState(thisYear);
-  const { data } = useQuery({ queryKey: ["insurance-rates", companyId, year], queryFn: () => fetchInsuranceRates(companyId, year) });
+  const { data, isFetching } = useQuery({ queryKey: ["insurance-rates", companyId, year], queryFn: () => fetchInsuranceRates(companyId, year) });
   const [v, setV] = useState<InsuranceRates | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => { if (data) setV(data); }, [data]);
@@ -30,6 +30,15 @@ export function InsuranceRatesTab({ companyId, userId }: { companyId: string; us
     { label: "산재보험", er: "ia_rate", hint: "회사만 부담하며 업종별 요율을 따릅니다." },
   ];
   const save = async () => {
+    //   연도를 바꾼 직후에는 새 해 값이 아직 안 왔다. 그때 저장하면 이전 해 숫자가 새 해로 들어간다 (2026-09-11).
+    if (isFetching) { toast("요율을 읽는 중입니다. 잠시 후 저장하세요", "info"); return; }
+    //   말이 안 되는 값을 막는다 — 요율은 0~100%, 하한은 상한보다 클 수 없다.
+    const pcts: (keyof InsuranceRates)[] = ["np_emp", "np_er", "hi_emp", "hi_er", "ltc_pct", "ei_emp", "ei_er", "ia_rate"];
+    const badPct = pcts.find((k) => { const n = Number(v[k]); return !Number.isFinite(n) || n < 0 || n > 100; });
+    if (badPct) { toast("요율은 0~100 사이로 적어 주세요", "error"); return; }
+    if (Number(v.np_floor) > Number(v.np_ceiling) || Number(v.hi_floor) > Number(v.hi_ceiling)) {
+      toast("하한이 상한보다 클 수 없습니다", "error"); return;
+    }
     setBusy(true);
     try { await saveInsuranceRates(companyId, { ...v, year }, userId); await qc.invalidateQueries({ queryKey: ["insurance-rates", companyId] }); toast(`${year}년 요율을 저장했습니다. 이 해의 급여 계산에 바로 적용`, "success"); }
     catch (e) { toast(friendlyError(e, "저장하지 못했습니다"), "error"); }

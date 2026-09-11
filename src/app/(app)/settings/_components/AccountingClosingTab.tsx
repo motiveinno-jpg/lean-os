@@ -9,6 +9,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { todayKst } from "@/lib/kst";
+import { useUser } from "@/components/user-context";
 import { Ico } from "@/components/ui-icon";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DateField } from "@/components/date-field";
@@ -33,6 +34,7 @@ const parseNum = (s: string) => Number(s.replace(/[^0-9-]/g, "").replace(/(?!^)-
 const fmtNum = (n: number) => (n ? n.toLocaleString("ko-KR") : "");
 
 export function AccountingClosingTab({ companyId }: { companyId: string | null }) {
+  const myUserId = useUser().user?.id ?? null;
   const { toast } = useToast();
   const qc = useQueryClient();
   const enabled = !!companyId;
@@ -145,7 +147,8 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
   const manualLines = useMemo(() => Object.values(byKey).filter((l) => !l.account_id), [byKey]);
 
   const saveMut = useMutation({
-    mutationFn: () => saveAccountingClosing(companyId!, null, { closing_date: closingDate || null, opening_lines: Object.values(byKey), note: note.trim() || null }),
+    //   두 번째 인자가 '누가 바꿨나'(updated_by) 인데 늘 null 이라 마감 변경 기록이 남지 않았다 (2026-09-11).
+    mutationFn: () => saveAccountingClosing(companyId!, myUserId, { closing_date: closingDate || null, opening_lines: Object.values(byKey), note: note.trim() || null }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["accounting-closing", companyId] }); toast("회계마감 설정이 저장되었습니다. 다음 수집부터 마감일 이전 자료는 제외됩니다.", "success"); },
     onError: (e: any) => toast("저장 실패: " + friendlyError(e, "알 수 없는 오류"), "error"),
   });

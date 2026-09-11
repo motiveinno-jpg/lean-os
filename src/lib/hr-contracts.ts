@@ -1,4 +1,5 @@
 import { todayKst, kstDateStr } from "@/lib/kst";
+import { fetchInsuranceRates, type InsuranceRates } from "@/lib/insurance-rates";
 import { logRead } from "@/lib/log-read";
 /**
  * OwnerView HR Contract Package Engine
@@ -351,7 +352,8 @@ export async function buildContractVariables(
 
   if (!company) throw new Error('회사 정보를 찾을 수 없습니다');
 
-  const vars = buildVariableMap(employee, company);
+  const contractRates = await fetchInsuranceRates(companyId, new Date().getFullYear()).catch(() => undefined);
+  const vars = buildVariableMap(employee, company, contractRates);
 
   // Apply overrides
   if (overrides) {
@@ -364,10 +366,14 @@ export async function buildContractVariables(
 /** 직원·회사 정보 → 계약서 변수 기본값 사전.
  *  서명본 치환(buildContractVariables)과 구성원 상세 '필수 입력 정보'의 자동 채움이 같은 값을
  *  쓰도록 DB 조회 없는 순수 계산만 분리했다(2026-07-31). 값 산식은 기존과 동일. */
-export function buildVariableMap(employee: any, company: any): Record<string, string> {
+export function buildVariableMap(employee: any, company: any, rates?: InsuranceRates): Record<string, string> {
   // Calculate payroll deductions
   const monthlySalary = Math.round(Number(employee.salary || 0) / 12);
-  const payroll = monthlySalary > 0 ? calculatePayroll(monthlySalary, employee.name, employee.id) : null;
+  //   회사가 설정에 넣은 4대보험 요율로 계산한다 (2026-09-11). 안 넘기면 법정 기본값으로 떨어져
+  //   설정 화면의 "이 해의 급여 계산에 바로 적용" 이 계약서에서만 거짓이 됐다.
+  const payroll = monthlySalary > 0
+    ? calculatePayroll(monthlySalary, employee.name, employee.id, rates ? { rates } : {})
+    : null;
 
   // Comprehensive labor: calculate base + OT split (roughly 83% base, 17% OT for 20hr/mo)
   const basePay = Math.round(monthlySalary * 0.83);

@@ -307,6 +307,13 @@ export async function setActiveTemplate(
   if (error) throw error;
 }
 
+/**  활성 해제 — 기본 디자인으로 되돌린다 (2026-09-11).
+ *   전에는 끄는 길이 없어 "잠깐 기본으로 써 보자"가 곧 양식 삭제(원본 PDF까지 소멸)였다. */
+export async function deactivateTemplate(id: string): Promise<void> {
+  const { error } = await db.from("pdf_form_templates").update({ is_active: false }).eq("id", id);
+  if (error) throw error;
+}
+
 export async function deleteFormTemplate(id: string, filePath?: string): Promise<void> {
   if (filePath) {
     await db.storage.from(BUCKET).remove([filePath]).catch(() => {});

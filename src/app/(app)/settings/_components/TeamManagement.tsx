@@ -432,14 +432,15 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
               <div className="collect-empty">{isPartner ? "아직 파트너 초대가 없습니다." : "아직 멤버 초대가 없습니다."} 초대하기로 보내세요.</div>
             ) : (
               <table className="ev-table ev-lined team-mgmt-table">
-                <thead><tr><th className="text-left">이름</th><th className="text-left">이메일</th><th>역할</th>{isPartner && <th>프로젝트</th>}<th>상태</th><th>보낸 날</th><th>동작</th></tr></thead>
+                {/*   '역할'·'프로젝트' 열을 뺐다 (2026-09-11). 역할은 이 표에서 언제나 한 값만 나오고
+                      (멤버 초대는 '멤버', 파트너 초대는 '파트너'), 프로젝트는 값을 넣는 경로가 없어 늘 비었다. */}
+                <thead><tr><th className="text-left">이름</th><th className="text-left">이메일</th><th>상태</th><th>보낸 날</th><th>동작</th></tr></thead>
                 <tbody>
                   {list.map((inv: any) => (
                     <tr key={inv.id}>
                       <td className="text-left font-semibold">{inv.name || inv.email}</td>
                       <td className="text-left text-[var(--text-muted)]">{inv.email}</td>
-                      <td className="text-center">{memberBadge(isPartner ? "partner" : (inv.role || "employee"))}</td>
-                      {isPartner && <td className="text-center text-[var(--text-muted)]">{inv.deals?.name || "—"}</td>}
+
                       <td className="text-center"><span className={`ol-sure ${inv.status === "pending" ? "ol-sure-est" : inv.status === "accepted" ? "ol-sure-ok" : ""}`}>{inv.status === "pending" ? "대기중" : inv.status === "accepted" ? "수락됨" : "취소됨"}</span></td>
                       <td className="text-center mono-number text-[var(--text-muted)]">{String(inv.created_at || "").slice(0, 10)}</td>
                       <td className="text-center">

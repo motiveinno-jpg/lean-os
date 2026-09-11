@@ -80,18 +80,21 @@ const DEFAULT_NOTIF_PREFS: NotifPrefs = {
       contract_sign: false,
     },
   },
+  //   채널이 열리기 전(KAKAO_CHANNEL_VISIBLE=false)에는 사용자가 이 값을 본 적도 끈 적도 없다.
+  //   기본을 켜짐으로 두면 키가 붙는 날 급여명세서·계약 서명 요청이 예고 없이 개인 휴대폰으로 나간다.
+  //   채널을 열 때 사용자가 직접 켜게 한다 (2026-09-11).
   kakao: {
-    enabled: true,
+    enabled: false,
     events: {
-      approval_pending: true,
-      approval_reference: true,
+      approval_pending: false,
+      approval_reference: false,
       deal_status: false,
       payment_due: false,
       chat_mention: false,
       board_post: false,
       system_alert: false,
-      payslip_ready: true,
-      contract_sign: true,
+      payslip_ready: false,
+      contract_sign: false,
     },
   },
   quietHours: { enabled: false, start: "22:00", end: "08:00" },

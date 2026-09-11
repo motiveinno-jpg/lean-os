@@ -912,12 +912,15 @@ export function IpRestrictionSection({ companyId }: { companyId: string | null }
         <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="w-5 h-5 rounded accent-[var(--primary)]" />
       </label>
       <div className="stg-frow stg-frow-wide">
-        <div className="stg-frow-label"><b>허용 IP 목록</b><small>한 줄에 하나씩</small></div>
+        {/*   판정은 문자열 완전일치(session_gate)라 대역 표기를 넣으면 저장은 되고 아무도 못 들어온다.
+              지원하지 않는다는 사실을 칸 옆에 적는다 (2026-09-11). */}
+        <div className="stg-frow-label"><b>허용 IP 목록</b><small>한 줄에 하나씩 · 대역(/24) 표기는 아직 안 됩니다</small></div>
         <div className="stg-frow-body">
           <textarea
             value={ipsText}
             onChange={(e) => setIpsText(e.target.value)}
             placeholder={"예)\n211.234.56.78\n121.140.11.22"}
+            title="한 줄에 하나씩, 주소를 그대로 적습니다. 211.234.56.0/24 같은 대역 표기는 아직 받지 않습니다."
             rows={4}
             className="field-input font-mono text-[12px] leading-relaxed"
             style={{ height: "auto" }}
