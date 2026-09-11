@@ -10575,3 +10575,9 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
 .approval-missing-required {
   @apply order-2 text-xs text-amber-600;
 }
+
+/*   세금계산서 여러 장 — 거래처 후보 목록에서 키보드로 고른 줄 */
+.tax-partner-opt-on {
+  @apply bg-[var(--bg-surface)];
+  box-shadow: inset 2px 0 0 var(--primary);
+}

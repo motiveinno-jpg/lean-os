@@ -15,6 +15,8 @@ interface CurrencyInputProps {
   onBlur?: () => void;
   /** input id (label htmlFor 연결용) */
   id?: string;
+  /** 바깥(격자)이 Enter·화살표로 칸을 옮길 수 있게 키 이벤트를 넘겨받는다 */
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
 
@@ -25,7 +27,7 @@ interface CurrencyInputProps {
  */
 export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
   function CurrencyInput(
-    { value, onValueChange, placeholder, className, disabled, allowNegative, onBlur, id },
+    { value, onValueChange, placeholder, className, disabled, allowNegative, onBlur, id, onKeyDown },
     ref,
   ) {
     const raw = String(value ?? "");
@@ -37,6 +39,7 @@ export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
 
     return (
       <input
+        onKeyDown={onKeyDown}
         ref={ref}
         id={id}
         type="text"

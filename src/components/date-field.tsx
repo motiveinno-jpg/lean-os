@@ -110,7 +110,7 @@ function partialView(text: string, fallbackYear: number):  { y: number; m: numbe
 
 export function DateField({
   value, onChange, min, max, className = "", disabled, placeholder = "연도-월-일", id, name,
-  title, style, autoFocus, onBlur,
+  title, style, autoFocus, onBlur, onKeyDown,
 }: {
   value?: string | null;
   onChange?: (e: ChangeLike) => void;
@@ -118,6 +118,9 @@ export function DateField({
   className?: string; disabled?: boolean; placeholder?: string;
   id?: string; name?: string;
   title?: string; style?: CSSProperties; autoFocus?: boolean; onBlur?: () => void;
+  //   바깥(격자)이 Enter·화살표로 칸을 옮길 수 있게 키 이벤트를 넘겨준다.
+  //   날짜 확정(commitDraft)·달력 닫기를 **먼저** 하고 부르므로, 받는 쪽은 이동만 하면 된다.
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }) {
   const [open, setOpen] = useState(false);
   // 머리 클릭 드릴다운: false(일) → "year"(연도 그리드) → "month"(월 그리드) → false(일)
@@ -301,6 +304,7 @@ export function DateField({
           onKeyDown={(e) => {
             if (e.key === "Enter") { e.preventDefault(); commitDraft(); }
             if (e.key === "Escape") { setEditing(false); setDraft(value || ""); setOpen(false); }
+            onKeyDown?.(e);
           }}
           className={`date-field-typed-input mono-number ${value || editing ? "text-[var(--text)]" : ""}`}
         />

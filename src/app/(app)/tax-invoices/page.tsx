@@ -24,6 +24,7 @@ import { DateField } from "@/components/date-field";
 import { useSearchParams, useRouter } from "next/navigation";
 import { friendlyError } from "@/lib/friendly-error";
 import { Fragment, useEffect, useState, useMemo, useRef } from "react";
+import { useGridKeys } from "@/hooks/use-grid-keys";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { invalidateTaxInvoiceReaders } from "@/lib/tax-invoice-invalidate";
@@ -504,6 +505,15 @@ function TaxInvoicesPageInner() {
   });
   const [rows, setRows] = useState<FormRow[]>(() => [blankRow()]);
   const [dropdownRowKey, setDropdownRowKey] = useState<string | null>(null);
+  //   거래처 후보 목록에서 키보드로 고르기 — ↑↓ 로 옮기고 Enter 로 넣는다(2026-09-11 사장님)
+  const [dropIdx, setDropIdx] = useState(0);
+  //   '여러 장 한꺼번에' 격자 — 칸을 data-cell 로 찾는다
+  const multiGridRef = useRef<HTMLDivElement | null>(null);
+  //   사용자가 직접 손댄 칸. 유형("매출")·수량("1")은 기본값이 있어 '비었는지' 로는
+  //   윗줄 복사 여부를 가릴 수 없다 — 안 건드린 칸이면 Enter 에 윗줄 값을 내려받는다.
+  const [touchedCells, setTouchedCells] = useState<Set<string>>(new Set());
+  const markTouched = (rowKey: string, cell: string) =>
+    setTouchedCells((t) => (t.has(`${rowKey}:${cell}`) ? t : new Set(t).add(`${rowKey}:${cell}`)));
   const [calcRowKey, setCalcRowKey] = useState<string | null>(null);   //   여러 장 — 🧮 계산기가 펼쳐진 줄 (2026-08-31)
   //   한 장 쓰기(품목 여러 줄) / 여러 장 한꺼번에(한 줄 = 한 장) — 2026-08-10
   const [formMode, setFormMode] = useState<"single" | "multi">("single");
@@ -576,6 +586,78 @@ function TaxInvoicesPageInner() {
     counterpartyEmail: p.contact_email || "",
     partnerId: p.id,
   });
+
+  // ── '여러 장 한꺼번에' 키보드 격자 (2026-09-11 사장님) ──────────────────────
+  //   규칙은 use-grid-keys 한 곳에 있다(재고 전표 편집기와 같은 규칙):
+  //   Enter = 빈 칸이면 윗줄 값 내려받고 다음 칸 / 마지막 칸이면 새 줄,  ↑↓ = 같은 칸 위아래,
+  //   ←→ = 글자 커서가 칸 끝일 때만 옆 칸. 유형(select)은 ↑↓ 가 값 고르기라 그대로 둔다.
+  const MULTI_CELLS = ["type", "issueDate", "counterpartyName", "itemName", "qty", "unitCost"];
+  const multiCellValue = (r: FormRow, cell: string): string => {
+    if (cell === "type") return r.type || "";
+    if (cell === "issueDate") return r.issueDate || "";
+    if (cell === "counterpartyName") return r.counterpartyName || "";
+    if (cell === "itemName") return r.items[0]?.name || "";
+    if (cell === "qty") return r.items[0]?.qty || "";
+    if (cell === "unitCost") return r.items[0]?.unitCost || "";
+    return "";
+  };
+  const gridKeys = useGridKeys({
+    cells: MULTI_CELLS,
+    gridRef: multiGridRef,
+    rowCount: rows.length,
+    addRow: () => setRows((rs) => [...rs, blankRow()]),
+    keepNativeUpDown: (cell) => cell === "type",
+    //   후보 목록이 열려 있으면 ↑↓·Enter 는 목록이 먼저 쓴다
+    skip: (i, cell) => cell === "counterpartyName" && dropdownRowKey === rows[i]?.key,
+    isEmpty: (i, cell) => {
+      const r = rows[i];
+      if (!r) return false;
+      if (touchedCells.has(`${r.key}:${cell}`)) return false;      // 직접 고친 값은 덮지 않는다
+      return true;                                                 // 안 건드린 칸 = 윗줄에서 내려받는다
+    },
+    copyDown: (i, cell) => {
+      const up = rows[i - 1];
+      const cur = rows[i];
+      if (!up || !cur) return;
+      if (cell === "type") patchRow(cur.key, { type: up.type });
+      else if (cell === "issueDate") patchRow(cur.key, { issueDate: up.issueDate });
+      else if (cell === "counterpartyName") {
+        //   거래처는 이름만 내리면 사업자번호·대표자가 빈 채로 남는다 — 딸린 값을 같이 옮긴다
+        patchRow(cur.key, {
+          counterpartyName: up.counterpartyName,
+          counterpartyBizno: up.counterpartyBizno,
+          counterpartyBusinessType: up.counterpartyBusinessType,
+          counterpartyBusinessItem: up.counterpartyBusinessItem,
+          counterpartyRepresentative: up.counterpartyRepresentative,
+          counterpartyAddress: up.counterpartyAddress,
+          counterpartyEmail: up.counterpartyEmail,
+          partnerId: up.partnerId,
+        });
+      }
+      else if (cell === "itemName") patchItem(cur.key, cur.items[0].key, { name: up.items[0]?.name || "" });
+      else if (cell === "qty") patchItem(cur.key, cur.items[0].key, { qty: up.items[0]?.qty || "" });
+      else if (cell === "unitCost") patchItem(cur.key, cur.items[0].key, { unitCost: up.items[0]?.unitCost || "" });
+    },
+  });
+
+  /** 거래처 후보 목록의 키 처리 — 열려 있을 때만. 처리했으면 true. */
+  const partnerDropKey = (e: React.KeyboardEvent, row: FormRow, rowIndex: number): boolean => {
+    if (dropdownRowKey !== row.key) return false;
+    const list = filterPartners(row.counterpartyName).slice(0, 10);
+    if (list.length === 0) return false;
+    if (e.key === "ArrowDown") { e.preventDefault(); setDropIdx((n) => (n + 1) % list.length); return true; }
+    if (e.key === "ArrowUp") { e.preventDefault(); setDropIdx((n) => (n - 1 + list.length) % list.length); return true; }
+    if (e.key === "Escape") { e.preventDefault(); setDropdownRowKey(null); return true; }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      applyPartner(row.key, list[Math.min(dropIdx, list.length - 1)]);
+      setDropdownRowKey(null);
+      setDropIdx(0);
+      gridKeys.focusCell(rowIndex, "itemName");   // 고른 뒤 다음 칸으로
+      return true;
+    }
+    return false;
+  };
 
   //   발행에 필요한데 비어 있는 것 — 입력 단계에서 알려 준다(발행 때 빈칸으로 나가는 걸 막는다)
   const missingBuyerFields = (r: FormRow) => {
@@ -2221,7 +2303,7 @@ function TaxInvoicesPageInner() {
             })() : (
               /* 여러 장 한꺼번에 · 사업자번호·대표자까지만 보여 준다 (2026-08-10 사장님) */
               
-              <div className="min-w-[860px]">
+              <div className="min-w-[860px]" ref={multiGridRef}>
                 <div className="tax-multi-row tax-multi-head">
                   <span />
                   <span>유형</span><span>작성일자 *</span><span>거래처 *</span><span>사업자번호</span><span>대표자</span>
@@ -2235,29 +2317,40 @@ function TaxInvoicesPageInner() {
                     <Fragment key={row.key}>
                     <div className="tax-multi-row">
                       <span className="tax-item-no">{i + 1}</span>
-                      <select value={row.type} onChange={(e) => patchRow(row.key, { type: e.target.value as "sales" | "purchase" })}
+                      <select value={row.type} onChange={(e) => { markTouched(row.key, "type"); patchRow(row.key, { type: e.target.value as "sales" | "purchase" }); }}
+                        data-cell={`type-${i}`}
+                        onKeyDown={(e) => gridKeys.onCellKey(e, i, "type")}
                         className="tax-item-input">
                         {INVOICE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>
-                      <DateField value={row.issueDate} max="9999-12-31"
-                        onChange={(e) => {
-                          const parts = e.target.value.split("-");
-                          if (parts[0] && parts[0].length > 4) parts[0] = parts[0].slice(0, 4);
-                          patchRow(row.key, { issueDate: parts.join("-") });
-                        }}
-                        className="tax-item-input" />
+                      <div data-cell={`issueDate-${i}`}>
+                        <DateField value={row.issueDate} max="9999-12-31"
+                          onChange={(e) => {
+                            markTouched(row.key, "issueDate");
+                            const parts = e.target.value.split("-");
+                            if (parts[0] && parts[0].length > 4) parts[0] = parts[0].slice(0, 4);
+                            patchRow(row.key, { issueDate: parts.join("-") });
+                          }}
+                          onKeyDown={(e) => gridKeys.onCellKey(e, i, "issueDate")}
+                          className="tax-item-input" />
+                      </div>
                       <div className="relative">
                         <input value={row.counterpartyName}
-                          onChange={(e) => { patchRow(row.key, { counterpartyName: e.target.value, partnerId: "" }); setDropdownRowKey(row.key); }}
-                          onFocus={() => { if (row.counterpartyName) setDropdownRowKey(row.key); }}
+                          data-cell={`counterpartyName-${i}`}
+                          onChange={(e) => { markTouched(row.key, "counterpartyName"); patchRow(row.key, { counterpartyName: e.target.value, partnerId: "" }); setDropdownRowKey(row.key); setDropIdx(0); }}
+                          onFocus={() => { if (row.counterpartyName) { setDropdownRowKey(row.key); setDropIdx(0); } }}
                           onBlur={() => setTimeout(() => setDropdownRowKey((k) => (k === row.key ? null : k)), 200)}
+                          onKeyDown={(e) => { if (!partnerDropKey(e, row, i)) gridKeys.onCellKey(e, i, "counterpartyName"); }}
                           placeholder="거래처 검색" className="tax-item-input w-full" />
                         {dropdownRowKey === row.key && filterPartners(row.counterpartyName).length > 0 && (
                           <div className="tax-form-partner-drop">
-                            {filterPartners(row.counterpartyName).slice(0, 10).map((p: any) => (
+                            {filterPartners(row.counterpartyName).slice(0, 10).map((p: any, pi: number) => (
                               <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()}
-                                onClick={() => { applyPartner(row.key, p); setDropdownRowKey(null); }}
-                                className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-xs">
+                                //   목록이 길면 화살표로 내려갈 때 가려진 항목이 따라 보이게 한다
+                                ref={pi === dropIdx ? (el) => el?.scrollIntoView({ block: "nearest" }) : undefined}
+                                onMouseEnter={() => setDropIdx(pi)}
+                                onClick={() => { applyPartner(row.key, p); setDropdownRowKey(null); setDropIdx(0); }}
+                                className={`w-full text-left px-3 py-2 text-xs ${pi === dropIdx ? "tax-partner-opt-on" : "hover:bg-[var(--bg-surface)]"}`}>
                                 <div className="flex items-center justify-between gap-2">
                                   <span className="font-medium truncate">{p.name}</span>
                                   {p.business_number && <span className="caption shrink-0">{p.business_number}</span>}
@@ -2274,14 +2367,19 @@ function TaxInvoicesPageInner() {
                       <span className={`tax-multi-ro ${!row.counterpartyRepresentative ? "tax-multi-ro-miss" : ""}`} title={row.counterpartyRepresentative || "비어 있음"}>
                         {row.counterpartyRepresentative || "비어 있음"}
                       </span>
-                      <input value={row.items[0]?.name || ""} onChange={(e) => patchItem(row.key, row.items[0].key, { name: e.target.value })}
+                      <input value={row.items[0]?.name || ""} onChange={(e) => { markTouched(row.key, "itemName"); patchItem(row.key, row.items[0].key, { name: e.target.value }); }}
+                        data-cell={`itemName-${i}`}
+                        onKeyDown={(e) => gridKeys.onCellKey(e, i, "itemName")}
                         placeholder="품목명" className="tax-item-input" />
-                      <input value={row.items[0]?.qty || ""} onChange={(e) => patchItem(row.key, row.items[0].key, { qty: e.target.value })}
+                      <input value={row.items[0]?.qty || ""} onChange={(e) => { markTouched(row.key, "qty"); patchItem(row.key, row.items[0].key, { qty: e.target.value }); }}
+                        data-cell={`qty-${i}`}
+                        onKeyDown={(e) => gridKeys.onCellKey(e, i, "qty")}
                         inputMode="decimal" placeholder="1" className="tax-item-input text-right" />
                       {/*   allowNegative (2026-08-31 사장님) — 수정세금계산서·환입 등 마이너스 계산서를 여러 장에서도.
                             🧮 = 공급대가(부가세 포함)로 이 줄 단가 역산 — 한 장 쓰기의 계산기와 동일 부품 */}
-                      <div className="relative">
-                        <CurrencyInput value={row.items[0]?.unitCost || ""} onValueChange={(raw: string) => patchItem(row.key, row.items[0].key, { unitCost: raw })}
+                      <div className="relative" data-cell={`unitCost-${i}`}>
+                        <CurrencyInput value={row.items[0]?.unitCost || ""} onValueChange={(raw: string) => { markTouched(row.key, "unitCost"); patchItem(row.key, row.items[0].key, { unitCost: raw }); }}
+                          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => gridKeys.onCellKey(e, i, "unitCost")}
                           allowNegative placeholder="0" className="tax-item-input tax-unitcost-input text-right w-full" />
                         <button type="button" title="공급대가(부가세 포함)로 단가 계산"
                           onClick={() => setCalcRowKey((k) => (k === row.key ? null : row.key))}
