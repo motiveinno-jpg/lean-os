@@ -307,7 +307,9 @@ export async function getMonthlyBudgetOverview(
 
     // Recurring payments (for fixed cost estimates) — name 은 통장 고정비 체크 거래와의 중복 제거 매칭용
     db.from('recurring_payments')
-      .select('name, amount, category, is_active, day_of_month')
+      //   created_at 은 아래 '등록한 달부터' 필터가 쓴다 — 빼면 필터가 항상 통과해
+      //   지난달 등록한 정기 지출이 올해 1월부터 매달 잡힌다(월 245만원 × 지난 달 수).
+      .select('name, amount, category, is_active, day_of_month, created_at')
       .eq('company_id', companyId)
       .eq('is_active', true),
 

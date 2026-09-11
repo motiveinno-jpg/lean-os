@@ -11,7 +11,7 @@ import { buildCashPulse } from "@/lib/cash-pulse";
 import { getVATPreview } from "@/lib/tax-invoice";
 import { getLoanStatuses } from "@/lib/cash-budget";
 import { fetchReceivables } from "@/lib/pnl-status";
-import { todayKst } from "@/lib/kst";
+import { todayKst, addDaysStr, daysBetweenStr } from "@/lib/kst";
 
 export type ItemKind = "급여" | "정기 지출" | "대출 상환" | "세금" | "매출 입금" | "매입 지급" | "계약 회차" | "계약 지출" | "결재 대기" | "시나리오";
 export type OutlookItem = {
@@ -41,8 +41,12 @@ export type OutlookData = {
 export type CurvePoint = { date: string; day: number; balance: number; items: OutlookItem[] };
 export type Curve = { points: CurvePoint[]; min: CurvePoint; shortfall: CurvePoint | null; end: number };
 
-const addDays = (d: string, n: number) => { const t = new Date(d + "T00:00:00"); t.setDate(t.getDate() + n); return t.toISOString().slice(0, 10); };
-const dayDiff = (a: string, b: string) => Math.round((new Date(b + "T00:00:00").getTime() - new Date(a + "T00:00:00").getTime()) / 864e5);
+//   날짜 더하기·빼기는 kst.ts 한 곳만 쓴다. 여기서 다시 만들어 쓴 판은 로컬 자정으로 만든 시각을
+//   toISOString() 으로 UTC 문자열로 바꿔, 한국에서 결과가 하루씩 밀렸다
+//   (addDays("2026-09-11", 0) → "2026-09-10", 발행일+30일이 29일이 됐다).
+//   자금 전망 곡선의 날짜와 부족 시점, 계산서 만기가 전부 이 함수를 탄다.
+const addDays = (d: string, n: number) => addDaysStr(d, n);
+const dayDiff = (a: string, b: string) => daysBetweenStr(b, a);
 const clampDay = (y: number, m: number, d: number) => Math.min(d, new Date(y, m, 0).getDate());
 /** 오늘부터 horizon 안의 '매월 day 일' 날짜들 */
 function monthlyDates(today: string, days: number, day: number): string[] {

@@ -1924,8 +1924,12 @@ export interface MonthlyIncomeExpense {
 }
 
 export async function getMonthlyIncomeExpense(companyId: string): Promise<MonthlyIncomeExpense[]> {
-  const sixMonthsAgo = new Date();
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+  //   ⚠️ setMonth 로 달을 빼면 말일에 넘친다 — 7월 31일에 -5개월을 하면 2월 31일이 없어
+  //   3월 3일이 된다. 그래서 매달 29~31일에 버킷 키가 03,03,05,05,07,07 처럼 중복돼
+  //   6칸이 3칸으로 줄고 4월·6월 데이터가 통째로 사라졌다. 1일로 고정해 만든다.
+  const now = new Date();
+  const monthStart = (back: number) => new Date(now.getFullYear(), now.getMonth() - back, 1);
+  const sixMonthsAgo = monthStart(5);
   const startDate = `${sixMonthsAgo.getFullYear()}-${String(sixMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`;
 
   // 6개월 거래가 1000행을 넘으면 서버 절단(max_rows)으로 최근 달이 과소집계되던 것을 페이징으로 복원
@@ -1939,8 +1943,7 @@ export async function getMonthlyIncomeExpense(companyId: string): Promise<Monthl
   const buckets: Record<string, { income: number; expense: number }> = {};
 
   for (let i = 0; i < 6; i++) {
-    const d = new Date();
-    d.setMonth(d.getMonth() - (5 - i));
+    const d = monthStart(5 - i);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     buckets[key] = { income: 0, expense: 0 };
   }
