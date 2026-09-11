@@ -69,7 +69,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
     key: "finance", label: "회계·세무", route: "/settings/finance", icon: "book",
     leaves: [
       { key: "cash", label: "자금·통장", perms: ["cash"],
-        title: "자금·통장", desc: "가용 현금 기준과 지급 통장을 설정합니다.",
+        title: "자금·통장", desc: "가용 현금 기준·지급 통장·장부 매칭 규칙을 설정합니다.",
         icon: "M2 9h20M4 5h16a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2zM6 14h4" },
       { key: "chart", label: "계정과목·분류", perms: ["chart", "deal"],
         title: "계정과목·분류", desc: "계정과목과 거래 분류를 관리합니다.",

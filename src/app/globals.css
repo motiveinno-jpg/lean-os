@@ -3114,6 +3114,8 @@ table.table-bank-manual { min-width: 640px; }
 .closing-party-list { @apply mt-2 pl-2 sm:pl-6 space-y-1.5 border-l-2 border-[var(--border)]/60; }
 .closing-party-row { @apply flex flex-wrap sm:flex-nowrap items-center gap-1.5; }
 .closing-account-row { @apply px-3 py-2; }
+/*   같은 이름 계정이 여러 개일 때 무엇이 다른지 적는 꼬리표 (제조·판관 / 무엇의 대손충당금인지) */
+.closing-acct-qualifier { @apply ml-1.5 px-1.5 py-px rounded-md align-middle text-[10px] font-semibold text-[var(--text-muted)] bg-[var(--bg-surface)]; }
 .closing-panel { @apply p-6 space-y-4; }
 .closing-pdf-upload-panel { @apply rounded-xl border border-[var(--primary)]/25 bg-[var(--primary)]/5 p-4 shadow-sm; }
 .closing-manual-line { @apply rounded-xl border border-dashed border-[var(--border)] p-2.5; }

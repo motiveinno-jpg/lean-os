@@ -669,6 +669,12 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
                 </div>
               )}
             </section>
+
+            {/*   장부 매칭 허용오차 — 2026-09-11 회계마감 탭에서 옮겨 왔다 (사장님: "너무 난잡해 보인다").
+                  마감은 '언제 이전 자료를 안 볼지'를 정하는 곳이고 이것은 계약·계산서·입금을 맞추는
+                  규칙이라 서로 남이었다. 한 탭에 파란 저장 버튼이 둘이던 것도 이걸로 없어진다.
+                  입금을 장부와 맞추는 일이라 자금·통장 쪽이 제자리다. */}
+            <MatchingRuleCard companyId={companyId} />
           </div>
         )}
 
@@ -711,7 +717,6 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
         {tab === "closing" && (
           <div className="space-y-5">
             <AccountingClosingTab companyId={companyId} />
-            <MatchingRuleCard companyId={companyId} />
           </div>
         )}
 

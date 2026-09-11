@@ -13,6 +13,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DateField } from "@/components/date-field";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
+import { buildAccountQualifiers } from "@/lib/account-label";
 import { getBankAccounts } from "@/lib/queries";
 import { getChartOfAccounts, type ChartOfAccount } from "@/lib/ledger";
 import { getCorporateCards } from "@/lib/card-transactions";
@@ -118,7 +119,8 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
     const q = search.trim().toLowerCase();
     const list = coa as ChartOfAccount[];
     if (!q) return list;
-    return list.filter((a) => a.code?.toLowerCase().includes(q) || a.name?.toLowerCase().includes(q));
+    return list.filter((a) => a.code?.toLowerCase().includes(q) || a.name?.toLowerCase().includes(q)
+      || (buildAccountQualifiers(coa as ChartOfAccount[])[String(a.code)] || "").toLowerCase().includes(q));
   }, [coa, search]);
 
   const setLine = (key: string, updater: (l: OpeningLine) => OpeningLine) => setByKey((prev) => ({ ...prev, [key]: updater(prev[key]) }));
@@ -181,6 +183,9 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
     </div>
   );
 
+  //   이름이 겹치는 계정에만 붙는 꼬리표(제조·판관 / 무엇의 대손충당금인지). 규칙은 lib/account-label.ts 한 곳.
+  const qualifiers = useMemo(() => buildAccountQualifiers(coa as ChartOfAccount[]), [coa]);
+
   const accountRow = (acc: ChartOfAccount) => {
     const l = byKey[acc.id];
     const isParty = l?.mode === "party";
@@ -189,7 +194,12 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
       <div key={acc.id} className={`closing-account-row ${(d || c) ? "bg-[var(--primary)]/5" : ""}`}>
         <div className="flex items-center gap-2">
           <span className="w-12 shrink-0 text-[11px] text-[var(--text-dim)] mono-number">{acc.code}</span>
-          <span className="flex-1 min-w-0 text-sm text-[var(--text)] truncate">{acc.name}</span>
+          <span className="flex-1 min-w-0 text-sm text-[var(--text)] truncate">
+            {acc.name}
+            {qualifiers[String(acc.code)] && (
+              <span className="closing-acct-qualifier" title="같은 이름의 계정이 여러 개라 무엇이 다른지 적었습니다">{qualifiers[String(acc.code)]}</span>
+            )}
+          </span>
           <button onClick={() => toggleParty(acc)} title="거래처별로 나눠 입력"
             className={`text-[10px] px-1.5 py-1 rounded whitespace-nowrap ${isParty ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:bg-[var(--bg-surface)] border border-[var(--border)]"}`}>거래처별</button>
           {isParty ? (
