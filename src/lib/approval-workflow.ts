@@ -1045,6 +1045,9 @@ export async function getMyPendingApprovals(
     stepId: s.id,
     stage: s.stage,
     stageName: s.stage_name,
+    //   요청의 상태 — 내 결재함 검색조건의 '상태' 칸이 이 값을 본다(처리 목록과 같은 이름).
+    //   예전엔 대기 목록만 이 칸이 없어, 상태를 고르면 목록이 통째로 0건이 됐다.
+    requestStatus: s.approval_requests?.status,
     requestId: s.approval_requests?.id,
     title: s.approval_requests?.title,
     amount: s.approval_requests?.amount,

@@ -2587,7 +2587,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
   const [quick, setQuick] = useState({ leaveType: "annual", leaveUnit: "full_day", halfDayPeriod: "am" as "am" | "pm", startDate: "", endDate: "", reason: "" });
   const resetQuick = () => setQuick({ leaveType: "annual", leaveUnit: "full_day", halfDayPeriod: "am", startDate: "", endDate: "", reason: "" });
   // 근무일 기준 일수 (2026-08-19). 주말·공휴일 미차감. 표시·저장 모두 이 값 사용.
-  const  { data: quickBizDays } = useQuery({
+  const  { data: quickBizDays, isFetching: quickDaysLoading } = useQuery({
     queryKey: ["leave-days", companyId, quick.startDate, quick.endDate],
     enabled: !!companyId && !!quick.startDate && quick.leaveUnit === "full_day",
     queryFn: () => calcLeaveDays(companyId!, quick.startDate, quick.endDate || quick.startDate),
@@ -4009,7 +4009,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                         <button onClick={() => { setQuickOpen(false); resetQuick(); }} disabled={createQuickLeave.isPending} className="leave-quick-cancel">취소</button>
                         <button
                           onClick={() => createQuickLeave.mutate()}
-                          disabled={!quick.startDate || createQuickLeave.isPending}
+                          disabled={!quick.startDate || quickDaysLoading || quickDays <= 0 || createQuickLeave.isPending}   /* 0일 저장 방지 — 계산 중이거나 0일이면 못 누른다 */
                           className="btn-primary btn-sm disabled:opacity-40"
                         >
                           {createQuickLeave.isPending ? "등록 중..." : "등록"}

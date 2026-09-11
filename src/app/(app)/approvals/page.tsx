@@ -982,7 +982,10 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
   });
 
   const runBatch = async (kind: "approve" | "reject", reason?: string) => {
-    const ids = [...pickedSteps].filter((id) => (pendingApprovals as any[]).some((p) => p.stepId === id));
+    //   ⚠️ 대상은 **지금 목록에 보이는 것** 만. 예전엔 필터 이전 전체를 봐서, 줄을 고른 뒤
+    //   검색조건을 걸어 일부가 목록에서 사라져도 그것까지 승인됐다. 승인은 되돌릴 수 없다.
+    //   (전체 현황 탭은 이미 같은 이유로 보이는 쪽 기준을 쓴다.)
+    const ids = [...pickedSteps].filter((id) => visiblePending.some((p: any) => p.stepId === id));
     if (ids.length === 0) return;
     setBatchBusy(true);
     let ok = 0, fail = 0;
@@ -1027,7 +1030,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
     requesters: [...(pendingApprovals as any[]), ...(processedApprovals as any[])].map((i) => i.requesterName).concat((referencedRequests as any[]).map((r) => r.users?.name || r.users?.email || "")),
     withStatus: true,
   });
-  const matchesFilters = (item: any) => lf.hit({ type: item.requestType, title: item.title, requester: item.requesterName, amount: item.amount, created: item.createdAt || item.created_at || item.requestedAt || "" });
+  const matchesFilters = (item: any) => lf.hit({ type: item.requestType, title: item.title, requester: item.requesterName, amount: item.amount, status: item.requestStatus, created: item.createdAt || item.created_at || item.requestedAt || "" });
   const visiblePending = (pendingApprovals as any[]).filter(matchesFilters);
   const visibleProcessed = (processedApprovals as any[]).filter(matchesFilters);
   const visibleReferenced = (referencedRequests as any[]).filter((r) => lf.hit({ type: r.request_type, title: r.title, requester: r.users?.name || r.users?.email || "", amount: r.amount, created: r.created_at, status: r.status }));
@@ -2967,7 +2970,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
 
   // Calculate leave days
   // 근무일 기준 (2026-08-19 감사): 달력 일수는 금~월 휴가를 4일로 차감했다(실제 1일).
-  const { data: leaveBizDays } = useQuery({
+  const { data: leaveBizDays, isFetching: leaveDaysLoading } = useQuery({
     queryKey: ["leave-days", companyId, leaveForm.startDate, leaveForm.endDate],
     enabled: !!companyId && !!leaveForm.startDate && leaveForm.leaveUnit === "full_day",
     queryFn: () => calcLeaveDays(companyId, leaveForm.startDate, leaveForm.endDate || leaveForm.startDate),
@@ -3207,11 +3210,20 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       : 0;
 
   // 초과근무는 일자·종료시각이 그대로 근태로 넘어간다 — 둘 다 있어야 제출 (2026-08-20 사장님).
+  //   양식의 필수(*) 칸 — 별표는 그려 놓고 검사는 어디에도 없어서, 빈 칸("-") 문서가
+  //   그대로 결재자에게 갔다. 표시한 대로 막는다.
+  const missingRequired = (activeFields as any[])
+    .filter((fd) => fd?.required && !String(customFieldValues[fd.key] ?? "").trim())
+    .map((fd) => String(fd.label || fd.key));
+
+  //   ⚠️ 일수가 0이면 올리지 않는다. 근무일 계산이 끝나기 전(종료일을 막 바꾼 직후)에 제출하면
+  //   days: 0 으로 저장되고, 승인 트리거가 `일수 > 0` 일 때만 차감하므로 연차가 전혀 안 깎였다.
+  //   같은 동작의 구성원 상세 패널은 이미 이 검사를 하고 있었다 — 규칙을 맞춘다.
   const canSubmit = isLeave
-    ? !!leaveForm.startDate && !!leaveForm.leaveType
+    ? !!leaveForm.startDate && !!leaveForm.leaveType && !leaveDaysLoading && leaveDays > 0
     : isOvertime
       ? !!form.title.trim() && !!overtimeForm.date && !!overtimeForm.endTime
-      : !!form.title.trim();
+      : !!form.title.trim() && missingRequired.length === 0;
 
   // 종료시각 기본값은 본인이 설정한 퇴근시각 — 없으면 비워 두고 직접 고르게 한다(임의 시각 금지).
   const myWorkEnd = useMemo(() => {
@@ -3854,7 +3866,14 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
           </div>
 
           {typeChosen && (
-          <div className="flex gap-2 mt-6">
+          <div className="flex gap-2 mt-6 items-center">
+            {/*   왜 못 누르는지 적어 준다 — 안 그러면 버튼이 고장 난 것처럼 보인다 */}
+            {!canSubmit && missingRequired.length > 0 && (
+              <span className="approval-missing-required">{missingRequired.join(" · ")} 을(를) 입력해 주세요</span>
+            )}
+            {!canSubmit && missingRequired.length === 0 && isLeave && !!leaveForm.startDate && leaveDays <= 0 && !leaveDaysLoading && (
+              <span className="approval-missing-required">휴가 일수가 0일입니다. 기간을 확인해 주세요</span>
+            )}
             <button
               onClick={() => canSubmit && createMut.mutate()}
               disabled={!canSubmit || createMut.isPending}

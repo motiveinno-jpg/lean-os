@@ -10570,3 +10570,8 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
 .app-enter-error-msg {
   @apply text-sm text-[var(--text-muted)];
 }
+
+/*   결재 새 요청 — 제출이 막힌 이유 */
+.approval-missing-required {
+  @apply order-2 text-xs text-amber-600;
+}
