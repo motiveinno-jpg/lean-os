@@ -56,11 +56,15 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
   const [dirty, setDirty] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
-  const { data: saved, isLoading } = useQuery({
+  //   ⚠️ 조회 실패를 '권한 0개' 로 삼키면 안 된다. 전부 해제된 트리가 뜨고, 관리자가
+  //   한 칸만 켜고 저장하면 set_member_permissions 가 전체 교체라 나머지 권한이 사라진다.
+  //   오류를 던져 화면이 '불러오지 못했습니다' 로 남게 하고, 저장도 막는다.
+  const { data: saved, isLoading, isError: loadFailed } = useQuery({
     queryKey: ["member-permissions", targetUserId],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data, error } = await (supabase as any)
         .from("member_permissions").select("perm_key").eq("user_id", targetUserId!);
+      if (error) throw error;
       return new Set<string>((data || []).map((r: any) => r.perm_key));
     },
     enabled: !!targetUserId,
@@ -111,6 +115,9 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
 
   const saveMut = useMutation({
     mutationFn: async () => {
+      //   불러오기가 실패한 상태에서 저장하면 '지금 화면에 보이는 것' 이 전부가 되어
+      //   기존 권한이 통째로 날아간다. 원래 값을 모를 때는 저장하지 않는다.
+      if (loadFailed || !saved) throw new Error("현재 권한을 불러오지 못했습니다. 새로고침한 뒤 다시 시도해 주세요.");
       const { data, error } = await (supabase as any).rpc("set_member_permissions", {
         p_user_id: targetUserId, p_perm_keys: Array.from(checked),
       });
@@ -162,6 +169,14 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
     return <div className="text-xs text-[var(--text-muted)] py-4">이 구성원은 <b>마스터</b>라 모든 권한을 가집니다.</div>;
   }
   if (isLoading) return <div className="text-xs text-[var(--text-dim)] py-4">권한 불러오는 중...</div>;
+  //   못 불러왔으면 빈 트리를 보여 주지 않는다 — 빈 화면은 '권한 없음' 이라는 거짓말이고,
+  //   그 상태로 저장하면 기존 권한이 지워진다.
+  if (loadFailed) return (
+    <div className="perm-load-failed">
+      <p>권한을 불러오지 못했습니다. 저장을 막아 뒀습니다.</p>
+      <button type="button" onClick={() => qc.invalidateQueries({ queryKey: ["member-permissions", targetUserId] })} className="btn-secondary btn-sm">다시 불러오기</button>
+    </div>
+  );
 
   return (
     <div className="member-permission-tree perm-section">

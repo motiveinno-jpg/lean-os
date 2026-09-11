@@ -7,8 +7,13 @@ export type SettleResult = "posted" | "rejected" | "locked" | "no_voucher";
 
 export async function decideSettlement(id: string, st: "confirmed" | "rejected", companyId: string, txDate?: string | null): Promise<SettleResult> {
   if (st === "confirmed" && txDate) {
-    const { count } = await (supabase as any).from("closing_checklists").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("month", txDate.slice(0, 7)).eq("status", "locked");
-    if (count) return "locked";
+    //   ⚠️ 조회가 실패하면 count 가 없어 '안 잠김' 으로 통과한다 — 마감한 달의 정산이
+    //   확정될 수 있었다. 잠금 여부를 모르면 확정하지 않는다(막는 쪽이 안전하다).
+    const lockRes = await (supabase as any).from("closing_checklists")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId).eq("month", txDate.slice(0, 7)).eq("locked", true);
+    if (lockRes.error) throw lockRes.error;
+    if (lockRes.count) return "locked";
   }
   const { error } = await (supabase as any).from("invoice_settlements").update({ status: st }).eq("id", id);
   if (error) throw error;

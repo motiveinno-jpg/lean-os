@@ -11,7 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { fetchPaged } from "@/lib/fetch-paged";
-import { getMonthlyAttendanceSummary, NON_DEDUCT_LEAVE_TYPES, LEAVE_TYPES, LEAVE_UNITS } from "@/lib/hr";
+import { getMonthlyAttendanceSummary, isNonDeductLeave, LEAVE_TYPES, LEAVE_UNITS } from "@/lib/hr";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { downloadCsv } from "@/lib/csv-export";
 import { DateRangeField } from "@/components/date-range-field";
@@ -143,7 +143,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
     //   '연차' 칼럼은 연차성(차감 유형)만 센다 — 공가·경조 등 별도 휴가까지 연차로 세던 것 (2026-09-01, 직원별 연차 표와 같은 버그)
     //   반차 0.5일·2시간 0.25일로 환산해 "1.5일" 처럼 보인다(연차 잔액 계산과 같은 기준). 종일·반차·2시간 건수는 칸을 눌렀을 때 보여 준다.
     const leaveCntByEmpMonth = new Map<string, { full: number; half: number; quarter: number }>();
-    for (const lv of leaves) { if (!lv.start_date || !lv.end_date || NON_DEDUCT_LEAVE_TYPES.has(String(lv.leave_type))) continue; const unit = String(lv.leave_unit || "full_day"); const per = LEAVE_UNITS.find((u) => u.value === unit)?.days ?? 1; let d = new Date(String(lv.start_date).slice(0, 10) + "T00:00:00Z"); const end = new Date(String(lv.end_date).slice(0, 10) + "T00:00:00Z"); let g = 0; while (d <= end && g++ < 400) { const ds = d.toISOString().slice(0, 10); if (ds >= rangeFrom && ds <= rangeTo) { const k = `${lv.employee_id}:${ds.slice(0, 7)}`; leaveByEmpMonth.set(k, (leaveByEmpMonth.get(k) || 0) + per); const cnt = leaveCntByEmpMonth.get(k) || { full: 0, half: 0, quarter: 0 }; if (unit === "half_day") cnt.half++; else if (unit === "two_hours") cnt.quarter++; else cnt.full++; leaveCntByEmpMonth.set(k, cnt); } d = new Date(d.getTime() + 86400000); } }
+    for (const lv of leaves) { if (!lv.start_date || !lv.end_date || isNonDeductLeave(String(lv.leave_type))) continue; const unit = String(lv.leave_unit || "full_day"); const per = LEAVE_UNITS.find((u) => u.value === unit)?.days ?? 1; let d = new Date(String(lv.start_date).slice(0, 10) + "T00:00:00Z"); const end = new Date(String(lv.end_date).slice(0, 10) + "T00:00:00Z"); let g = 0; while (d <= end && g++ < 400) { const ds = d.toISOString().slice(0, 10); if (ds >= rangeFrom && ds <= rangeTo) { const k = `${lv.employee_id}:${ds.slice(0, 7)}`; leaveByEmpMonth.set(k, (leaveByEmpMonth.get(k) || 0) + per); const cnt = leaveCntByEmpMonth.get(k) || { full: 0, half: 0, quarter: 0 }; if (unit === "half_day") cnt.half++; else if (unit === "two_hours") cnt.quarter++; else cnt.full++; leaveCntByEmpMonth.set(k, cnt); } d = new Date(d.getTime() + 86400000); } }
     const alwByEmpMonth = new Map<string, number>();
     for (const a of allowances) { const k = `${a.employee_id}:${a.payroll_month}`; alwByEmpMonth.set(k, (alwByEmpMonth.get(k) || 0) + Number(a.amount || 0)); }
     const empInfo = new Map<string, { name: string; department: string }>();
@@ -230,7 +230,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
     const leaveOn = (empId: string, ds: string) => leaves.find((lv) => lv.employee_id === empId && String(lv.start_date).slice(0, 10) <= ds && String(lv.end_date).slice(0, 10) >= ds);
     if (detail.kind === "leaveDays") {
       for (const lv of leaves) {
-        if (!lv.start_date || !lv.end_date || NON_DEDUCT_LEAVE_TYPES.has(String(lv.leave_type))) continue;
+        if (!lv.start_date || !lv.end_date || isNonDeductLeave(String(lv.leave_type))) continue;
         const s = String(lv.start_date).slice(0, 10), e = String(lv.end_date).slice(0, 10);
         const span = s === e ? "" : ` · ${s}~${e}`;
         const unit = leaveUnitLabel(lv.leave_unit); const days = Number(lv.days || 0);

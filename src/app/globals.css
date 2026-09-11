@@ -10581,3 +10581,8 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
   @apply bg-[var(--bg-surface)];
   box-shadow: inset 2px 0 0 var(--primary);
 }
+
+/*   구성원 권한 — 불러오기 실패 안내(빈 트리를 권한 없음으로 오해하지 않게) */
+.perm-load-failed {
+  @apply flex flex-col items-start gap-2 py-4 text-xs text-amber-600;
+}

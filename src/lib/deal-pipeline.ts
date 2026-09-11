@@ -50,7 +50,9 @@ export async function createDocumentFromDeal(params: {
   // Fetch deal + partner info
   const { data: deal, error: dealError } = await db
     .from('deals')
-    .select('*, partners!deals_partner_id_fkey(name, business_number, contact_email, contact_phone)')
+    //   representative·address 는 자동 생성 계약서의 '을' 칸에 들어간다 — 예전엔 안 가져와서
+    //   승인으로 만들어지는 계약서의 대표이사·주소가 늘 빈칸으로 인쇄됐다.
+    .select('*, partners!deals_partner_id_fkey(name, business_number, contact_email, contact_phone, representative, address)')
     .eq('id', dealId)
     .eq('company_id', companyId)
     .single();
@@ -60,13 +62,18 @@ export async function createDocumentFromDeal(params: {
   // Resolve partner info: deals_partner_id_fkey → partner_company_id → counterparty fallback
   let partnerName = deal.partners?.name || '';
   let partnerBizNo = deal.partners?.business_number || '';
+  let partnerRepresentative = deal.partners?.representative || '';
+  let partnerAddress = deal.partners?.address || '';
   if (!partnerName && deal.partner_company_id) {
-    const partnerCompany = logRead('lib/deal-pipeline:partnerCompany', await db.from('companies').select('name, business_number').eq('id', deal.partner_company_id).maybeSingle());
+    const partnerCompany = logRead('lib/deal-pipeline:partnerCompany', await db.from('companies').select('name, business_number, representative, address').eq('id', deal.partner_company_id).maybeSingle());
     if (partnerCompany) {
       partnerName = partnerCompany.name || '';
       partnerBizNo = partnerCompany.business_number || '';
+      partnerRepresentative = (partnerCompany as { representative?: string | null }).representative || '';
+      partnerAddress = (partnerCompany as { address?: string | null }).address || '';
     }
   }
+
   if (!partnerName) partnerName = deal.counterparty || '';
   const contractTotal = Number(deal.contract_total || 0);
 
@@ -93,6 +100,9 @@ export async function createDocumentFromDeal(params: {
     partnerBizNo,
     partnerEmail: deal.partners?.contact_email || '',
     partnerPhone: deal.partners?.contact_phone || '',
+    //   계약서 '을' 칸이 읽는 이름 그대로 — 여기서 안 실으면 PDF 에 빈칸으로 찍힌다
+    counterpartyRepresentative: partnerRepresentative,
+    counterpartyAddress: partnerAddress,
     contractTotal,
     supplyAmount: contractTotal,
     taxAmount: Math.round(contractTotal * 0.1),
