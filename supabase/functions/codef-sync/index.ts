@@ -2537,7 +2537,19 @@ serve(withSentry("codef-sync", async (req) => {
           });
         }
       } catch (e: any) {
-        return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        //   여기서 바로 return 하면 아래 sync_logs 기록에 도달하지 못하고, status 200 이라
+        //   _shared/sentry.ts 의 5xx 감지에도 안 걸려 그 회사 수집이 며칠 멈춰도 흔적이 없었다.
+        //   실패를 먼저 남기고 5xx 로 돌려준다.
+        try {
+          await supabase.from("sync_logs").insert({
+            company_id: companyId,
+            sync_type: "codef_bank_cron",
+            status: "error",
+            details: { cron: true, fatal: e?.message || String(e) },
+            synced_by: null,
+          });
+        } catch { /* 기록 실패가 응답을 막지는 않는다 */ }
+        return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       // 은행 미등록 회사(카드만 연동 등)도 동일 — 크론 대상 아님을 error 로 기록하지 않는다.
       if ((bankRes?.errors?.length ?? 0) > 0 && bankRes.errors.every((e: any) => e.code === "NO_BANK_ACCOUNTS")) {
@@ -2587,7 +2599,19 @@ serve(withSentry("codef-sync", async (req) => {
           });
         }
       } catch (e: any) {
-        return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        //   여기서 바로 return 하면 아래 sync_logs 기록에 도달하지 못하고, status 200 이라
+        //   _shared/sentry.ts 의 5xx 감지에도 안 걸려 그 회사 수집이 며칠 멈춰도 흔적이 없었다.
+        //   실패를 먼저 남기고 5xx 로 돌려준다.
+        try {
+          await supabase.from("sync_logs").insert({
+            company_id: companyId,
+            sync_type: "codef_card_cron",
+            status: "error",
+            details: { cron: true, fatal: e?.message || String(e) },
+            synced_by: null,
+          });
+        } catch { /* 기록 실패가 응답을 막지는 않는다 */ }
+        return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       // 카드 미등록 회사는 "오류"가 아니라 크론 대상 아님 — 매 크론마다 error 로그가 쌓여
       //   진짜 장애와 구분이 안 됐다(2026-08-19 실측: 미등록 1개사만으로 14일간 error 46건).
@@ -2728,7 +2752,19 @@ serve(withSentry("codef-sync", async (req) => {
       try {
         apprRes = await syncCardApprovals(supabase, token, companyId, cid, startC, endC);
       } catch (e: any) {
-        return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        //   여기서 바로 return 하면 아래 sync_logs 기록에 도달하지 못하고, status 200 이라
+        //   _shared/sentry.ts 의 5xx 감지에도 안 걸려 그 회사 수집이 며칠 멈춰도 흔적이 없었다.
+        //   실패를 먼저 남기고 5xx 로 돌려준다.
+        try {
+          await supabase.from("sync_logs").insert({
+            company_id: companyId,
+            sync_type: "codef_card_approval_cron",
+            status: "error",
+            details: { cron: true, fatal: e?.message || String(e) },
+            synced_by: null,
+          });
+        } catch { /* 기록 실패가 응답을 막지는 않는다 */ }
+        return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       try {
         await supabase.from("sync_logs").insert({
@@ -3504,7 +3540,11 @@ serve(withSentry("codef-sync", async (req) => {
     ];
     // 환경/설정성 안내(외부 액션 필요, 코드로 못 고침)는 errors가 아닌 notes로 분리 — 사용자 빨간 알림 안 뜨게
     // CF-00003: 상품 미활성화 / CF-00401: 권한 없음 / CF-13021: 계좌 형식 불일치 / NO_DEMAND_DEPOSIT: 입출금 계좌 미등록
-    const noteCodes = new Set(["CF-00003", "CF-00401", "CF-13021", "NO_DEMAND_DEPOSIT", "CF-TIMEOUT", "CF-12200"]);
+    //   ⚠️ CF-TIMEOUT(게이트웨이 무응답)·CF-12200(기관 오류)은 여기 넣지 않는다. 주석은 네 가지만
+    //   설명하는데 집합엔 여섯 개가 들어 있어, 전 계좌가 타임아웃으로 0건이어도 "부분 동기화 ·
+    //   오류 0건" 으로 성공 보고가 나갔다. 수집이 며칠 멈춰도 아무도 모르던 이유다.
+    //   둘 다 다시 시도하면 풀릴 수 있는 **장애**라 errors 로 올려 화면과 sync_logs 에 드러낸다.
+    const noteCodes = new Set(["CF-00003", "CF-00401", "CF-13021", "NO_DEMAND_DEPOSIT"]);
     const errors = allEntries.filter(e => !noteCodes.has(e.code));
     const notes = allEntries.filter(e => noteCodes.has(e.code));
     const totalSynced =

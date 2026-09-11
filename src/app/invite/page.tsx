@@ -75,12 +75,18 @@ function InviteContent() {
         body: JSON.stringify({ email, password, name, token }),
       });
 
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "가입 처리 실패");
+      //   본문이 JSON 이 아닐 수 있다(서버 오류면 HTML 이 온다) — 그대로 파싱하면
+      //   "Unexpected token '<'" 이 사용자 화면에 영문으로 뜬다. 상태 코드를 먼저 본다.
+      const result = await res.json().catch(() => ({} as { error?: string; existingUser?: boolean }));
+      if (!res.ok) {
+        throw new Error(result.error || `가입 처리에 실패했습니다. (오류 ${res.status})`);
+      }
 
       if (result.existingUser) {
-        const { error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
-        if (loginErr) throw loginErr;
+        //   기존 회원은 서버가 **이미 본인으로 로그인한 세션**일 때만 합류시킨다
+        //   (그렇지 않으면 위에서 403 으로 막힌다). 즉 여기 도달했으면 이미 로그인 상태다.
+        //   예전엔 이 자리에서 방금 입력한 새 비밀번호로 또 로그인을 시도해 반드시 실패했고,
+        //   서버는 합류를 끝냈는데 화면만 "Invalid login credentials" 로 끝났다.
       } else {
         const { error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
         if (loginErr) throw loginErr;
