@@ -20,6 +20,7 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { QueryErrorBanner } from "@/components/query-status";
 import { AccessDenied } from "@/components/access-denied";
 import { BankIntegrationTab } from "./BankIntegrationTab";
+import { splitBankAccounts, sumBankBalance, BANK_GROUP_LABEL } from "@/lib/bank-accounts";
 import { ApiKeysTab } from "./ApiKeysTab";
 import { TeamManagement } from "./TeamManagement";
 import { DepartmentsTab } from "./DepartmentsTab";
@@ -239,11 +240,11 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
     setTimeout(() => setSaved(false), 2000);
   }
 
-  const linkedAccounts = bankAccounts.filter((a: BankAccount) => a.source === "codef");
-  const manualAccounts = bankAccounts.filter((a: BankAccount) => a.source !== "codef");
-  const sumBalance = (list: BankAccount[]) => list.reduce((s: number, a: BankAccount) => s + Number(a.balance || 0), 0);
-  const linkedBalance = sumBalance(linkedAccounts);
-  const manualBalance = sumBalance(manualAccounts);
+  //   연동/직접 등록 판정과 이름은 lib/bank-accounts.ts 한 곳 — 화면마다 source 를 직접 비교하다
+  //   은행연동 탭이 갈래를 안 나눈 전체 목록을 쓰는 일이 있었다 (2026-09-11 사장님 제보)
+  const { auto: linkedAccounts, manual: manualAccounts } = splitBankAccounts(bankAccounts as BankAccount[]);
+  const linkedBalance = sumBankBalance(linkedAccounts);
+  const manualBalance = sumBankBalance(manualAccounts);
   const totalBankBalance = linkedBalance + manualBalance;
   const totalCash = totalBankBalance + (Number(balance) || 0);
   // 생존 개월수 분모 = 반복결제 + 재직자 급여 + 추가 고정비 (2026-08-19 감사):
@@ -349,7 +350,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
       <div className="stg-main">
         <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
 
-        {/* ═══ 자금·통장 — 가용 현금 집계 + 미연동 통장 + 비용 라우팅 ═══ */}
+        {/* ═══ 자금·통장 — 가용 현금 집계 + 직접 등록한 통장 + 비용 라우팅 ═══ */}
         {tab === "cash" && (
           <div className="space-y-5">
             {/* 요약 밴드 — 대시보드 숫자 문법(라벨 위·값 아래) */}
@@ -423,7 +424,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
             <section className="stg-card">
               <div className="stg-card-head">
                 <div>
-                  <h3 className="stg-card-title">연동 통장</h3>
+                  <h3 className="stg-card-title">{BANK_GROUP_LABEL.auto}</h3>
                   <p className="stg-card-desc">은행에서 잔고와 거래내역을 자동으로 가져옵니다 · 총 ₩{linkedBalance.toLocaleString()}</p>
                 </div>
                 <a href="/settings/integration" className="btn-secondary btn-sm shrink-0">은행 연결</a>
@@ -464,11 +465,11 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
               )}
             </section>
 
-            {/* 미연동 통장 — 사용자가 직접 등록. 잔고만 합계에 더해지고 거래내역은 들어오지 않는다. */}
+            {/* 직접 등록한 통장 — 잔고만 합계에 더해지고 거래내역은 들어오지 않는다. 이름은 BANK_GROUP_LABEL 한 곳. */}
             <section className="stg-card">
               <div className="stg-card-head">
                 <div>
-                  <h3 className="stg-card-title">미연동 통장</h3>
+                  <h3 className="stg-card-title">{BANK_GROUP_LABEL.manual}</h3>
                   <p className="stg-card-desc">직접 입력한 잔고를 가용 현금에 더합니다. 거래내역은 들어오지 않습니다 · 총 ₩{manualBalance.toLocaleString()}</p>
                 </div>
                 <button onClick={() => setShowBankForm(!showBankForm)} className="btn-secondary btn-sm shrink-0">+ 통장 추가</button>

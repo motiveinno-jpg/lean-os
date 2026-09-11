@@ -1,5 +1,7 @@
 "use client";
 
+import { splitBankAccounts, sumBankBalance, BANK_GROUP_LABEL } from "@/lib/bank-accounts";
+
 // settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
@@ -708,6 +710,10 @@ function CodefErrorCard({ item, onRetry, retrying }: { item: any; onRetry: () =>
 // CODEF API 키는 서버 환경변수로만 관리 (사용자 노출 X)
 // ═══════════════════════════════════════════
 export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | null; bankAccounts: BankAccount[] }) {
+  //   ★ 받은 목록은 회사 통장 **전부**다. 여기서 갈래를 나눠 쓴다 — 예전엔 부모가 갈라 주기를
+  //   기대하고 그대로 썼는데, 부모가 전체를 넘기는 바람에 아래 '직접 등록한 통장' 칸이 연동 통장
+  //   8개를 세고 있었다(2026-09-11 사장님 제보). 안에서 나누면 넘기는 쪽이 틀릴 수가 없다.
+  const manualAccounts = splitBankAccounts(bankAccounts).manual;
   const db2 = supabase;
   const { toast }  = useToast();
 
@@ -878,7 +884,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
   }
 
   const [rangeProgress, setRangeProgress] = useState<string>('');
-  //   직접 적어 넣은 통장 — **기본은 접어 둔다** (2026-08-24 사장님: "표가 너무 커서 정리가 필요하다").
+  //   직접 등록한 통장 — **기본은 접어 둔다** (2026-08-24 사장님: "표가 너무 커서 정리가 필요하다").
   //   여기서 고칠 수 있는 것이 없다(추가·수정은 회계·세무 › 자금·통장). 이 탭에서 알아야 할 것은
   //   "연동 밖 계좌가 몇 개고 잔고가 얼마나 합산되나" 한 줄이라 그것만 펴 둔다.
   const [showManual, setShowManual] = useState(false);
@@ -967,7 +973,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
       <div className="bank-integration-status-card stg-sec">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            {/*   이름을 '자동 수집 연결'로 (2026-08-24) — 아래 '직접 적어 넣은 통장'과 무엇이 다른지
+            {/*   이름을 '자동 수집 연결'로 (2026-08-24) — 아래 '직접 등록한 통장'과 무엇이 다른지
                   이름만으로 갈리게 한다. 여기 = 저절로 들어오는 것, 아래 = 사람이 적는 것. */}
             <h2 className="stg-sec-title">자동 수집 연결</h2>
             {isConnected ? (
@@ -1180,34 +1186,34 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
         connectedOrgs={[...codefAccounts.bank, ...codefAccounts.card].map((a: any) => String(a.organization || ""))}
       />
 
-      {/* 수동 등록 계좌 */}
+      {/* 직접 등록한 통장 — 연동 밖 계좌. 이름은 BANK_GROUP_LABEL 한 곳에서 정한다 */}
       <div className="bank-integration-manual-accounts stg-sec">
         <div className="stg-sec-head mb-3">
           <div>
             <h2 className="stg-sec-title">
-              직접 적어 넣은 통장
-              {bankAccounts.length > 0 && (
+              {BANK_GROUP_LABEL.manual}
+              {manualAccounts.length > 0 && (
                 <span className="bank-manual-sum">
-                  {bankAccounts.length}개 · 합계 <b className="mono-number">₩{bankAccounts.reduce((n, a) => n + Number(a.balance || 0), 0).toLocaleString()}</b>
+                  {manualAccounts.length}개 · 합계 <b className="mono-number">₩{sumBankBalance(manualAccounts).toLocaleString()}</b>
                 </span>
               )}
             </h2>
             {/*   위 '자동 수집 연결'과 무엇이 다른지 여기서 말한다 (2026-08-24 사장님 지적) */}
             <p className="stg-sec-desc">
-              연동되지 않은 계좌로, <b>잔고만</b> 대시보드 합계에 더해집니다.
+              은행에 연결하지 않고 손으로 등록한 통장입니다. 거래내역은 들어오지 않고 <b>잔고만</b> 합계에 더해집니다.
               추가·수정은 회계·세무 › 자금·통장에서 합니다.
             </p>
           </div>
-          {bankAccounts.length > 0 && (
+          {manualAccounts.length > 0 && (
             <button type="button" className="btn-secondary btn-sm shrink-0" onClick={() => setShowManual((v) => !v)}>
-              {showManual ? "접기" : `목록 보기 (${bankAccounts.length})`}
+              {showManual ? "접기" : `목록 보기 (${manualAccounts.length})`}
             </button>
           )}
         </div>
         {/*   목록은 표로 (2026-08-24 정리) — 예전엔 계좌마다 큰 카드 줄이라 여덟 개만 되어도
               화면 절반을 먹었다. 조회 화면 표준: 목록이 있는 곳은 표(머리단 가운데·숫자 오른쪽). */}
-        {bankAccounts.length === 0 ? (
-          <div className="collect-empty">아직 등록된 계좌가 없습니다. 회계·세무 › 자금·통장에서 추가하세요.</div>
+        {manualAccounts.length === 0 ? (
+          <div className="collect-empty">직접 등록한 통장이 없습니다. 이 회사의 통장은 모두 연동으로 들어옵니다.</div>
         ) : !showManual ? null : (
           <div className="stg-table-wrap">
             <table className="ev-table ev-lined table-bank-manual">
@@ -1221,7 +1227,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
                 </tr>
               </thead>
               <tbody>
-                {bankAccounts.map((acc) => (
+                {manualAccounts.map((acc) => (
                   <tr key={acc.id}>
                     <td className="text-left"><b>{acc.alias || acc.bank_name}</b></td>
                     <td className="tc">{acc.bank_name}</td>
