@@ -1512,6 +1512,7 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
 // ── D-8: 관리자 인사노트 ──
 function AdminNotesSection({ employeeId, emp, queryClient }: { employeeId: string; emp: any; queryClient: any }) {
   const { user: viewer } = useUser();
+  const { toast } = useToast();
   const [noteText, setNoteText] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -1527,9 +1528,17 @@ function AdminNotesSection({ employeeId, emp, queryClient }: { employeeId: strin
         date: new Date().toISOString(),
       };
       const updated = [...notes, newNote];
-      await (supabase).from("employees").update({ admin_notes: updated }).eq("id", employeeId);
+      //   ⚠️ 저장 결과를 확인한다. 예전엔 error 를 안 받아 RLS·네트워크로 막혀도 바로
+      //   입력칸을 비워, 작성자는 저장된 줄 알고 화면을 떠났다(같은 파일의 서류 저장은
+      //   이미 오류를 던진다). 0행 매칭도 오류로 본다 — 안 바뀌었는데 성공일 수 없다.
+      const { data: savedRows, error: noteErr } = await (supabase)
+        .from("employees").update({ admin_notes: updated }).eq("id", employeeId).select("id");
+      if (noteErr) throw noteErr;
+      if (!savedRows || savedRows.length === 0) throw new Error("인사노트를 저장하지 못했습니다. 권한을 확인해 주세요.");
       queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
       setNoteText("");
+    } catch (e: any) {
+      toast(e?.message || "인사노트를 저장하지 못했습니다", "error");
     } finally {
       setSaving(false);
     }

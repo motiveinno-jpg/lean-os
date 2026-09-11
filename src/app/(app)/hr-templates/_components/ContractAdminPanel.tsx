@@ -156,14 +156,24 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
     );
     if (draftIds.length === 0) return;
     setBatchSending(true);
+    //   ⚠️ sendContractPackage 는 전달 실패 시 던지지 않고 { success:false } 를 돌려준다 —
+    //   예전엔 catch 만 두고 반환값을 안 봐서, 10건 골라 10건 다 실패해도 화면은 조용히
+    //   새로고침만 됐다. 성공·실패를 세어 알린다.
+    let ok = 0;
+    const failed: string[] = [];
     for (const id of draftIds) {
       try {
-        await sendContractPackage(id);
-      } catch (_) { /* skip failures */ }
+        const r = await sendContractPackage(id);
+        if (r && (r as { success?: boolean }).success === false) failed.push((r as { error?: string }).error || "발송 실패");
+        else ok += 1;
+      } catch (e: any) { failed.push(e?.message || "발송 실패"); }
     }
     queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
     setSelectedIds(new Set());
     setBatchSending(false);
+    if (failed.length === 0) toast(`${ok}건을 보냈습니다`, "success");
+    else if (ok === 0) toast(`${failed.length}건 모두 보내지 못했습니다 · ${failed[0]}`, "error");
+    else toast(`${ok}건 보냄 · ${failed.length}건 실패 · ${failed[0]}`, "error");
   }
 
   function toggleSelect(id: string) {

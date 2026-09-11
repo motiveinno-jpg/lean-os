@@ -1667,6 +1667,7 @@ function DocumentsPageInner() {
     auto_renewal: false, renewal_notice_days: 30, amount: '', notes: '',
   });
   const [archiveFiles, setArchiveFiles] = useState<File[]>([]);
+  const [archiveSaving, setArchiveSaving] = useState(false);   // 등록 진행 중 잠금 — 두 번 눌러 두 번 올라가는 것 방지
 
   // (구) ?tab=signatures 딥링크 — 전자계약 전용 메뉴(/signatures)로 이전돼 제거됨.
 
@@ -2231,14 +2232,21 @@ function DocumentsPageInner() {
                 </div>
                 <div className="flex gap-2">
                   <button
+                    disabled={archiveSaving}
                     onClick={async () => {
                       if (!archiveForm.title || !companyId || !userId) return;
+                      //   ⚠️ 오류 처리가 통째로 없었다. 저장공간 초과·형식 오류로 올리기가 던지면
+                      //   안내 없이 멈추고, insert 실패도 확인하지 않은 채 폼이 닫혀 목록만
+                      //   새로고침돼 등록된 줄 알았다. 진행 중 잠금도 없어 두 번 누르면 두 번 올라갔다.
+                      if (archiveSaving) return;
+                      setArchiveSaving(true);
+                      try {
                       const fileUrls: string[] = [];
                       for (const file of archiveFiles) {
                         const result = await uploadFile({ companyId, bucket: 'document-files', file, context: {}, category: 'contract', userId });
                         if (result?.fileUrl) fileUrls.push(result.fileUrl);
                       }
-                      await db.from('contract_archives').insert({
+                      const { error: arcErr } = await db.from('contract_archives').insert({
                         company_id: companyId,
                         title: archiveForm.title,
                         contract_type: archiveForm.contract_type,
@@ -2251,11 +2259,18 @@ function DocumentsPageInner() {
                         notes: archiveForm.notes || null,
                         file_urls: fileUrls,
                         created_by: userId,
-                      });
+                      }).select('id');
+                      if (arcErr) throw arcErr;
                       setArchiveForm({ title: '', contract_type: 'service', counterparty: '', start_date: '', end_date: '', auto_renewal: false, renewal_notice_days: 30, amount: '', notes: '' });
                       setArchiveFiles([]);
                       setShowArchiveForm(false);
                       queryClient.invalidateQueries({ queryKey: ['contract-archives'] });
+                      toast('계약서를 등록했습니다', 'success');
+                      } catch (e: any) {
+                        toast(friendlyError(e, '계약서를 등록하지 못했습니다'), 'error');
+                      } finally {
+                        setArchiveSaving(false);
+                      }
                     }}
                     className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold">등록</button>
                   <button onClick={() => setShowArchiveForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-xs">취소</button>

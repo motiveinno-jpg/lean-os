@@ -33,6 +33,15 @@ function daysAgo(n: number): string {
   return t.toISOString().slice(0, 10);
 }
 
+//   ⚠️ supabase-js 는 조회가 실패해도 던지지 않고 { data: null, error } 를 돌려준다.
+//   아래 점검들은 전부 try/catch + `data ?? []` 라서, RLS·타임아웃으로 8개가 모두 실패해도
+//   rows 가 빈 배열이 되어 지적 0건·실패 0건 — "문제 없음" 리포트가 그대로 나갔다.
+//   조회 결과는 반드시 이 함수를 통과시킨다. 실패하면 던져서 바깥 catch 가 failed 로 센다.
+function rowsOf<T>(res: { data: unknown; error: unknown }, what: string): T[] {
+  if (res.error) throw new Error(`${what} 조회 실패: ${(res.error as { message?: string })?.message || String(res.error)}`);
+  return (res.data ?? []) as T[];
+}
+
 export async function collectDataHealth(admin: Admin, companyId: string): Promise<HealthReport> {
   const findings: HealthFinding[] = [];
   let failed = 0;
@@ -41,9 +50,9 @@ export async function collectDataHealth(admin: Admin, companyId: string): Promis
 
   // ① 재직자 급여 미입력·0원 — 인건비 합계와 급여명세서가 전부 틀어진다.
   try {
-    const { data } = await admin.from("employees")
-      .select("name, salary, status").eq("company_id", companyId).in("status", ACTIVE);
-    const rows = (data ?? []) as { name: string; salary: number | null }[];
+    const rows = rowsOf<{ name: string; salary: number | null }>(
+      await admin.from("employees").select("name, salary, status").eq("company_id", companyId).in("status", ACTIVE),
+      "재직자 급여");
     const missing = rows.filter((r) => r.salary === null).map((r) => r.name);
     const zero = rows.filter((r) => r.salary !== null && Number(r.salary) === 0).map((r) => r.name);
     if (missing.length) {
@@ -64,13 +73,15 @@ export async function collectDataHealth(admin: Admin, companyId: string): Promis
 
   // ② 연차 잔여 음수 — 부여분보다 더 쓴 상태.
   try {
-    const { data } = await admin.from("leave_balances")
+    const rows = rowsOf<{ employee_id: string>(
+      await admin.from("leave_balances")
       .select("employee_id, remaining_days, total_days, used_days")
-      .eq("company_id", companyId).eq("year", thisYear).lt("remaining_days", 0);
-    const rows = (data ?? []) as { employee_id: string; remaining_days: number; total_days: number; used_days: number }[];
+      .eq("company_id", companyId).eq("year", thisYear).lt("remaining_days", 0),
+      "rows"); remaining_days: number; total_days: number; used_days: number }[];
     if (rows.length) {
-      const { data: emps } = await admin.from("employees").select("id, name").eq("company_id", companyId);
-      const nameOf = new Map(((emps ?? []) as { id: string; name: string }[]).map((e) => [e.id, e.name]));
+      const emps = rowsOf<{ id: string; name: string }>(
+        await admin.from("employees").select("id, name").eq("company_id", companyId), "직원 이름");
+      const nameOf = new Map(emps.map((e) => [e.id, e.name]));
       findings.push({
         area: "연차", severity: "high", count: rows.length,
         title: `연차 초과 사용 ${rows.length}명`,
@@ -83,14 +94,16 @@ export async function collectDataHealth(admin: Admin, companyId: string): Promis
 
   // ③ 비정상 지각 — 4시간 이상 지각으로 기록된 출근. 대부분 출근 시각 입력 오류다.
   try {
-    const { data } = await admin.from("attendance_records")
+    const rows = rowsOf<{ employee_id: string>(
+      await admin.from("attendance_records")
       .select("employee_id, date, late_minutes")
       .eq("company_id", companyId).gte("date", daysAgo(60)).gte("late_minutes", 240)
-      .order("late_minutes", { ascending: false }).limit(20);
-    const rows = (data ?? []) as { employee_id: string; date: string; late_minutes: number }[];
+      .order("late_minutes", { ascending: false }).limit(20),
+      "rows"); date: string; late_minutes: number }[];
     if (rows.length) {
-      const { data: emps } = await admin.from("employees").select("id, name").eq("company_id", companyId);
-      const nameOf = new Map(((emps ?? []) as { id: string; name: string }[]).map((e) => [e.id, e.name]));
+      const emps = rowsOf<{ id: string; name: string }>(
+        await admin.from("employees").select("id, name").eq("company_id", companyId), "직원 이름");
+      const nameOf = new Map(emps.map((e) => [e.id, e.name]));
       findings.push({
         area: "근태", severity: "medium", count: rows.length,
         title: `지각 4시간 이상 기록 ${rows.length}건 (최근 60일)`,
@@ -103,12 +116,13 @@ export async function collectDataHealth(admin: Admin, companyId: string): Promis
 
   // ④ 퇴근 미기록 — 어제까지의 근무일인데 출근만 찍힘(자동퇴근도 안 잡힌 것).
   try {
-    const { data } = await admin.from("attendance_records")
+    const rows = rowsOf<{ employee_id: string }>(
+      await admin.from("attendance_records")
       .select("employee_id, date")
       .eq("company_id", companyId)
       .gte("date", daysAgo(14)).lt("date", today)
-      .not("check_in", "is", null).is("check_out", null);
-    const rows = (data ?? []) as { employee_id: string }[];
+      .not("check_in", "is", null).is("check_out", null),
+      "rows");
     if (rows.length) {
       findings.push({
         area: "근태", severity: "low", count: rows.length,
@@ -120,12 +134,13 @@ export async function collectDataHealth(admin: Admin, companyId: string): Promis
 
   // ⑤ 서명 방치 — 보낸 지 14일 넘도록 서명이 안 된 요청.
   try {
-    const { data } = await admin.from("signature_requests")
+    const rows = rowsOf<{ title: string>(
+      await admin.from("signature_requests")
       .select("title, signer_name, sent_at")
       .eq("company_id", companyId).in("status", ["sent", "viewed"])
       .lt("sent_at", `${daysAgo(14)}T00:00:00+09:00`)
-      .order("sent_at", { ascending: true }).limit(100);
-    const rows = (data ?? []) as { title: string; signer_name: string | null; sent_at: string }[];
+      .order("sent_at", { ascending: true }).limit(100),
+      "rows"); signer_name: string | null; sent_at: string }[];
     if (rows.length) {
       findings.push({
         area: "전자계약", severity: rows.length >= 10 ? "medium" : "low", count: rows.length,
@@ -137,12 +152,13 @@ export async function collectDataHealth(admin: Admin, companyId: string): Promis
 
   // ⑥ 결재 대기 장기화 — 7일 넘게 pending.
   try {
-    const { data } = await admin.from("approval_requests")
+    const rows = rowsOf<{ title: string>(
+      await admin.from("approval_requests")
       .select("title, created_at")
       .eq("company_id", companyId).eq("status", "pending")
       .lt("created_at", `${daysAgo(7)}T00:00:00+09:00`)
-      .order("created_at", { ascending: true }).limit(50);
-    const rows = (data ?? []) as { title: string; created_at: string }[];
+      .order("created_at", { ascending: true }).limit(50),
+      "rows"); created_at: string }[];
     if (rows.length) {
       findings.push({
         area: "결재", severity: "medium", count: rows.length,
@@ -155,12 +171,13 @@ export async function collectDataHealth(admin: Admin, companyId: string): Promis
   // ⑦ 오래된 미정산 매출 — 발행 90일이 지났는데 정산 입력이 없는 세금계산서.
   //    실제 미수일 수도, 받았는데 정산 입력을 안 한 것일 수도 있다 — 단정하지 않고 확인을 요청한다.
   try {
-    const { data } = await admin.from("tax_invoices")
+    const rows = rowsOf<{ total_amount: number | null>(
+      await admin.from("tax_invoices")
       .select("total_amount, settled_amount")
       .eq("company_id", companyId).eq("type", "sales")
       .neq("status", "cancelled").is("original_invoice_id", null)
-      .lt("issue_date", daysAgo(90)).limit(3000);
-    const rows = (data ?? []) as { total_amount: number | null; settled_amount: number | null }[];
+      .lt("issue_date", daysAgo(90)).limit(3000),
+      "rows"); settled_amount: number | null }[];
     let sum = 0, cnt = 0;
     for (const r of rows) {
       const un = Number(r.total_amount ?? 0) - Number(r.settled_amount ?? 0);

@@ -105,6 +105,8 @@ Deno.serve(withSentry("send-web-push", async (req) => {
 
   const notif = JSON.stringify({ title, body: body || "", url: url || "/", tag: tag || undefined });
   let sent = 0, removed = 0;
+  let failed = 0;                        // 보내지 못한 건 — '구독자 없음' 과 구분한다
+  let firstError: string | null = null;
   for (const s of subs as any[]) {
     try {
       await webpush.sendNotification(
@@ -115,10 +117,23 @@ Deno.serve(withSentry("send-web-push", async (req) => {
     } catch (e: any) {
       const code = e?.statusCode;
       if (code === 404 || code === 410) {
+        //   구독이 사라진 것 — 지우는 게 정상 처리다
         await admin.from("push_subscriptions").delete().eq("id", s.id);
         removed++;
+      } else {
+        //   ⚠️ 그 밖의 실패(VAPID 키 불일치 403·푸시 서비스 5xx·타임아웃)를 예전엔 로그 한 줄
+        //   없이 버리고 실패 건수도 응답에 안 넣었다. 전 구독이 403 이어도 {sent:0, removed:0}
+        //   200 이 나가 '구독자 없음' 과 구분되지 않았다.
+        failed++;
+        if (firstError === null) firstError = `${code ?? "?"} ${String(e?.message || e).slice(0, 160)}`;
+        console.error(`[send-web-push] 발송 실패 sub=${s.id} code=${code ?? "?"}`, e?.message || e);
       }
     }
   }
-  return new Response(JSON.stringify({ sent, removed }), { headers: { "Content-Type": "application/json" } });
+  if (failed > 0) console.error(`[send-web-push] ${failed}건 실패 (보냄 ${sent} · 정리 ${removed}) · 첫 오류: ${firstError}`);
+  return new Response(JSON.stringify({ sent, removed, failed, error: firstError }), {
+    //   전부 실패했으면 5xx 로 돌려 sentry 감지와 운영자 화면에 잡히게 한다
+    status: sent === 0 && failed > 0 ? 500 : 200,
+    headers: { "Content-Type": "application/json" },
+  });
 }));
