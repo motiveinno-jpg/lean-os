@@ -119,6 +119,7 @@ export async function syncBankBalances(companyId: string): Promise<SyncResult> {
     }
 
     let updatedCount = 0;
+    let failedCount = 0;   // 저장이 막힌 계좌 — 성공으로 뭉개지 않는다
     for (const account of accounts) {
       const target = account.account_number
         ? latestBalByAcct.get(account.account_number)
@@ -130,16 +131,19 @@ export async function syncBankBalances(companyId: string): Promise<SyncResult> {
           .from('bank_accounts')
           .update({ balance: target })
           .eq('id', account.id);
-        if (!upErr) updatedCount++;
+        if (upErr) failedCount++; else updatedCount++;
       } else {
         updatedCount++; // 이미 최신
       }
     }
 
+    //   전부 실패해도 예전엔 "0개 최신화 완료" 로 성공 처리됐다 — 막힌 건수를 같이 말한다
     return resultOk(
       'bank_balances',
       updatedCount,
-      `${accounts.length}개 계좌 중 ${updatedCount}개 잔액 최신화 완료`
+      failedCount > 0
+        ? `${accounts.length}개 계좌 중 ${updatedCount}개 최신화 · ${failedCount}개 저장 실패`
+        : `${accounts.length}개 계좌 중 ${updatedCount}개 잔액 최신화 완료`
     );
   } catch (err: any) {
     return resultErr('bank_balances', `계좌 잔액 동기화 오류: ${err.message}`);
@@ -817,26 +821,34 @@ export async function getSyncPausedUntil(companyId: string): Promise<string | nu
   }
 }
 
+//   연동 정지 표시를 company_settings 에 쓴다. 저장 실패를 반드시 던진다 —
+//   예전엔 update/insert 의 결과를 아예 안 받아, 저장이 막혀도 호출부가 "30분간 정지했습니다.
+//   은행에 직접 로그인해도 강제 로그아웃되지 않습니다" 를 띄웠다. 실제로는 30초 뒤 재조회에서
+//   표시가 풀리고 수집이 다시 로그인해 IBK 등에서 사용자가 강제 로그아웃됐다.
+async function writeSyncSetting(companyId: string, patch: Record<string, unknown>, dropKeys: string[] = []) {
+  const data = logRead('lib/data-sync:settings', await db
+    .from('company_settings').select('settings').eq('company_id', companyId).maybeSingle());
+  const settings = { ...((data?.settings as any) || {}), ...patch };
+  for (const k of dropKeys) delete (settings as Record<string, unknown>)[k];
+  if (data) {
+    const { error } = await db.from('company_settings').update({ settings }).eq('company_id', companyId).select('company_id');
+    if (error) throw error;
+  } else {
+    const { error } = await db.from('company_settings').insert({ company_id: companyId, settings }).select('company_id');
+    if (error) throw error;
+  }
+}
+
 /** 연동을 minutes 분간 일시정지. 만료시각(ISO) 반환. */
 export async function setSyncPause(companyId: string, minutes = 30): Promise<string> {
   const until = new Date(Date.now() + minutes * 60 * 1000).toISOString();
-  const data = logRead('lib/data-sync:data', await db.from('company_settings').select('settings').eq('company_id', companyId).maybeSingle());
-  const settings = { ...((data?.settings as any) || {}), sync_paused_until: until };
-  if (data) {
-    await db.from('company_settings').update({ settings }).eq('company_id', companyId);
-  } else {
-    await db.from('company_settings').insert({ company_id: companyId, settings });
-  }
+  await writeSyncSetting(companyId, { sync_paused_until: until });
   return until;
 }
 
 /** 일시정지 해제(즉시 재개). */
 export async function clearSyncPause(companyId: string): Promise<void> {
-  const data = logRead('lib/data-sync:data', await db.from('company_settings').select('settings').eq('company_id', companyId).maybeSingle());
-  if (!data) return;
-  const settings = { ...((data.settings as any) || {}) };
-  delete settings.sync_paused_until;
-  await db.from('company_settings').update({ settings }).eq('company_id', companyId);
+  await writeSyncSetting(companyId, {}, ['sync_paused_until']);
 }
 
 // ── 홈택스 연동 일시정지 (2026-07-30 사장님 — 통장 정지 버튼과 동일 UX) ──
@@ -856,22 +868,12 @@ export async function getHometaxPausedUntil(companyId: string): Promise<string |
 
 export async function setHometaxPause(companyId: string, minutes = 30): Promise<string> {
   const until = new Date(Date.now() + minutes * 60 * 1000).toISOString();
-  const data = logRead('lib/data-sync:data', await db.from('company_settings').select('settings').eq('company_id', companyId).maybeSingle());
-  const settings = { ...((data?.settings as any) || {}), hometax_sync_paused_until: until };
-  if (data) {
-    await db.from('company_settings').update({ settings }).eq('company_id', companyId);
-  } else {
-    await db.from('company_settings').insert({ company_id: companyId, settings });
-  }
+  await writeSyncSetting(companyId, { hometax_sync_paused_until: until });
   return until;
 }
 
 export async function clearHometaxPause(companyId: string): Promise<void> {
-  const data = logRead('lib/data-sync:data', await db.from('company_settings').select('settings').eq('company_id', companyId).maybeSingle());
-  if (!data) return;
-  const settings = { ...((data.settings as any) || {}) };
-  delete settings.hometax_sync_paused_until;
-  await db.from('company_settings').update({ settings }).eq('company_id', companyId);
+  await writeSyncSetting(companyId, {}, ['hometax_sync_paused_until']);
 }
 
 // ── CODEF API Sync ──

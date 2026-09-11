@@ -434,6 +434,7 @@ export async function autoApproveSmallExpenses(companyId: string, threshold: num
   if (!pending?.length) return { approved: 0 };
 
   let approved = 0;
+  let failed = 0;   // 저장이 막힌 건 — 건수를 부풀리지 않는다
 
   for (const exp of pending) {
     // Skip if no receipt for travel/entertainment
@@ -442,10 +443,12 @@ export async function autoApproveSmallExpenses(companyId: string, threshold: num
       if (!exp.receipt_urls?.length) continue; // Require receipt
     }
 
-    // Auto-approve
-    await db.from('expense_requests').update({
+    //   ⚠️ 결과를 확인한다. 같은 파일의 다른 네 곳은 전부 if (upErr) 로 막아 뒀는데
+    //   여기만 빠져서, 저장이 막혀도 아래 approved++ 가 그냥 돌았다.
+    const { error: upErr } = await db.from('expense_requests').update({
       status: 'approved',
-    }).eq('id', exp.id);
+    }).eq('id', exp.id).select('id');
+    if (upErr) { failed++; continue; }
 
     // Create approval record
     await db.from('expense_approvals').insert({
@@ -461,7 +464,7 @@ export async function autoApproveSmallExpenses(companyId: string, threshold: num
     approved++;
   }
 
-  return { approved, total: pending.length };
+  return { approved, failed, total: pending.length };
 }
 
 // ══════════════════════════════════════════
@@ -855,7 +858,10 @@ export async function autoCancelTaxInvoiceOnRefund(companyId: string) {
 
     for (const inv of invoices) {
       // void_reason/voided_at 은 tax_invoices 에 없는 유령컬럼(update 가 항상 400 → 자동 void 전멸)이라 제거
-      await db.from('tax_invoices').update({ status: 'void' }).eq('id', inv.id);
+      //   ⚠️ 그 '전멸' 을 아무도 못 알아챈 이유가 정확히 이 무조건 cancelledCount++ 였다.
+      //   결과를 확인하고, 막힌 건은 세지 않는다.
+      const { error: vErr } = await db.from('tax_invoices').update({ status: 'void' }).eq('id', inv.id).select('id');
+      if (vErr) continue;
       cancelledCount++;
     }
   }

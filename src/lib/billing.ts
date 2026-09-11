@@ -384,6 +384,9 @@ export async function getIssuanceStatus(companyId: string): Promise<{
     getEffectivePlanLimit(companyId, 'monthly_cashbill_limit'),
     (db as any).rpc('get_monthly_issue_usage', { p_company_id: companyId }),
   ]);
+  //   ⚠️ 조회가 실패하면 "0건 사용" 으로 보여 남은 건수가 한도 전체로 표시된다.
+  //   사용자는 여유가 있는 줄 알고 발행을 눌렀다가 서버 트리거에 거절당한다.
+  if (usage.error) throw usage.error;
   const row = Array.isArray(usage.data) ? usage.data[0] : usage.data;
   const taxUsed = Number(row?.tax_count ?? 0);
   const cashUsed = Number(row?.cash_count ?? 0);
@@ -440,11 +443,13 @@ export async function getContractIssuanceStatus(companyId: string): Promise<Issu
 
   // KST 기준 이달 1일 0시 (트리거와 동일 경계)
   const monthStart = `${todayKst().slice(0, 7)}-01T00:00:00+09:00`;
-  const { count } = await db
+  const { count, error: cntErr } = await db
     .from('signature_requests')
     .select('id', { count: 'exact', head: true })
     .eq('company_id', companyId)
     .gte('created_at', monthStart);
+  //   같은 이유 — 실패를 0건 사용으로 보여 주면 한도가 남은 것처럼 거짓말을 한다
+  if (cntErr) throw cntErr;
   const used = count || 0;
   return { limit, used, remaining: Math.max(0, limit - used), planName };
 }

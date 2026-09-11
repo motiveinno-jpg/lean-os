@@ -139,7 +139,11 @@ export default function OnboardingPage() {
   // ── Initialize: check existing data ──
 
   useEffect(() => {
-    if (userLoading || !companyId) return;
+    //   companyId 가 없으면 예전엔 여기서 빠져나가 isInitialized 가 영원히 false 였다
+    //   ("설정 상태를 확인하는 중..." 에 갇힘). 사용자 조회가 끝났는데 회사가 없으면
+    //   확인은 끝난 것이므로 초기화를 마치고 화면을 그린다.
+    if (userLoading) return;
+    if (!companyId) { setIsInitialized(true); return; }
 
     // 직원/파트너 역할은 온보딩 불필요 → 대시보드로
     if (user && !(user as any).is_master) { // (P3) 회사 온보딩은 마스터만 — 멤버·파트너는 스킵
@@ -209,16 +213,20 @@ export default function OnboardingPage() {
     setSaving(true);
     setError("");
     try {
-      const { error: e } = await db.from("companies").update({
+      //   ⚠️ .select() 로 실제 바뀐 행을 받아야 한다. 0행 매칭(RLS 차단·companyId 빈 문자열)은
+      //   오류가 아니라서, 예전엔 아무것도 안 바뀐 채 "저장되었습니다" 가 뜨고 다음 단계로 넘어갔다.
+      if (!companyId) throw new Error("회사 정보를 찾지 못했습니다. 새로고침한 뒤 다시 시도해 주세요.");
+      const { data: saved, error: e } = await db.from("companies").update({
         name: company.name.trim(),
         business_number: company.businessNumber.trim(),
         industry: company.industry || null,
         address: company.address || null,
         representative: company.representative.trim(),
         phone: company.phone || null,
-      }).eq("id", companyId ?? "");
+      }).eq("id", companyId).select("id");
 
       if (e) throw e;
+      if (!saved || saved.length === 0) throw new Error("회사 정보를 저장하지 못했습니다. 권한을 확인해 주세요.");
       setCompanyDone(true);
       toast("회사 정보가 저장되었습니다", "success");
       setStep(2);
