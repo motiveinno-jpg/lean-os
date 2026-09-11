@@ -8,6 +8,7 @@ import React,  { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 import { useToast } from "@/components/toast";
+import { useUser } from "@/components/user-context";
 import { formatPhone } from "@/lib/phone";
 
 type NotifChannel = "email" | "push" | "kakao";
@@ -99,6 +100,9 @@ const DEFAULT_NOTIF_PREFS: NotifPrefs = {
 const NOTIF_STORAGE_KEY = "leanos-notification-prefs";
 
 export function NotificationsTab({ companyId }: { companyId: string | null }) {
+  //   경영 알림 조건을 볼 사람 = 그 알림을 받는 사람. run_biz_alerts_for 가 owner·admin 에게 보낸다.
+  const { user: me, role: myRole } = useUser();
+  const canBizAlerts = !!(me as any)?.is_master || myRole === "owner" || myRole === "admin";
   const { toast } = useToast();
   const [prefs, setPrefs] = useState<NotifPrefs>(DEFAULT_NOTIF_PREFS);
   const [myPhone, setMyPhone] = useState<string | null>(null);   //   카카오톡을 받을 번호 — 직원 기록의 전화번호
@@ -402,8 +406,11 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
         />
       </ChannelSection>
 
-      {/* 경영 알림 조건 — 조건형 (2026-08-27 ERP 3순위) */}
-      <BizAlertRules companyId={companyId} />
+      {/* 경영 알림 조건 — 조건형 (2026-08-27 ERP 3순위).
+          알림을 받는 사람(대표·관리자)만 조건을 정한다 (2026-09-11 사장님: 일반 멤버에게도 보였다).
+          회사 자금 기준이 걸려 있는 판이라 숨기는 것으로 끝내지 않고 DB 정책도 같은 기준으로 막았다
+          (마이그레이션 20260911100000). 위·아래 칸은 개인 알림 설정이라 전원에게 그대로 보인다. */}
+      {canBizAlerts && <BizAlertRules companyId={companyId} />}
 
       {/* Quiet Hours */}
       <div className="notification-quiet-hours-card glass-card">
