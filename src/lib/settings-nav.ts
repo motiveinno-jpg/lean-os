@@ -83,7 +83,9 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
         title: "세무 파트너", desc: "세무사를 연결하고 열람 범위를 정합니다.",
         icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" },
       //   4대보험 요율 (2026-08-27 인사 2차, 결정 96) — 급여 계산이 읽는 연도별 요율표. 회계마감·자금 권한자도 본다(옛 권한 승계).
-      { key: "insurance", label: "4대보험 요율", perms: ["insurance", "closing", "cash"],
+      //   2026-09-11: "cash"(자금·통장)를 뺐다 — 전 직원 급여 산식인데 자금 담당자에게 딸려 갔다.
+      //   DB 도 같은 기준으로 막았다(마이그 20260911150000).
+      { key: "insurance", label: "4대보험 요율", perms: ["insurance", "closing"],
         title: "4대보험 요율", desc: "4대보험 요율과 상·하한을 연도별로 둡니다.",
         icon: "M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z" },
     ],

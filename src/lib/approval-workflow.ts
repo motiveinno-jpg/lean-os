@@ -485,7 +485,9 @@ export async function createApprovalRequest(params: {
       entityType: 'approval_request',
       entityId: request.id,
       action: 'auto_approved',
-      afterJson: { amount, threshold: autoApproveBelow },
+      //   금액은 남기지 않는다 — audit_logs 는 회사 전원이 본다(결정 85, 급여 로그와 같은 기준).
+      //   자동승인됐다는 사실과 그 기준만 남기면 이력으로 충분하다.
+      afterJson: { auto_approved: true, threshold: autoApproveBelow },
     });
     return request as ApprovalRequest;
   }
@@ -590,7 +592,8 @@ export async function createApprovalRequest(params: {
     entityType: 'approval_request',
     entityId: request.id,
     action: 'created',
-    afterJson: { title: params.title, amount, requestType: params.requestType, totalStages },
+    //   금액 제외 (결정 85 — audit_logs 는 회사 전원 열람)
+    afterJson: { title: params.title, requestType: params.requestType, totalStages },
   });
 
   // Notify all approvers of stage 1
@@ -1459,7 +1462,8 @@ export async function resubmitRequest(
     entityType: 'approval_request',
     entityId: requestId,
     action: 'resubmitted',
-    afterJson: { title: title || request.title, amount: amount ?? request.amount },
+    //   금액 제외 (결정 85 — audit_logs 는 회사 전원 열람)
+    afterJson: { title: title || request.title },
   });
 }
 

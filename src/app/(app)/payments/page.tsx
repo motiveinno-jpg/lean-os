@@ -267,7 +267,8 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
         action: 'update',
         entity_type: 'payment',
         entity_id: refundItem.id,
-        metadata: { action: 'refund', reason: refundReason.trim(), amount: refundItem.amount, entity_name: stripInternalTag(refundItem.description) || '결제' },
+        //   금액은 빼고 남긴다 — audit_logs 는 회사 전원이 본다(결정 85, 급여 로그와 같은 기준)
+        metadata: { action: 'refund', reason: refundReason.trim(), entity_name: stripInternalTag(refundItem.description) || '결제' },
         created_at: new Date().toISOString(),
       });
       queueToast(`₩${Number(refundItem.amount).toLocaleString()} 환불 처리되었습니다`, 'success');

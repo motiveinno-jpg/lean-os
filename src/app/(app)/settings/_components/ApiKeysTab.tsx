@@ -11,6 +11,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
+import { useMyPermissions } from "@/lib/permissions";
+import { useUser } from "@/components/user-context";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { friendlyError } from "@/lib/friendly-error";
 import { appConfirm } from "@/components/global-confirm";
@@ -28,6 +30,12 @@ const fmt = (iso: string | null) =>
 
 // 외부 자동화(n8n 등) 인입 키 · 회사별 비밀키. 발급 즉시 한 번만 보이고, 다시 발급하면 이전 키는 즉시 막힌다.
 function IngestKeyCard({ companyId }: { companyId: string }) {
+  //   인입 키는 DB 가 대표·관리자만 받는다(company_ingest_keys 정책 + rotate_ingest_key).
+  //   탭은 /settings:api-keys·/settings:ads 로 열려, 위임받은 사람 눈에는 목록이 빈 채로 '발급' 버튼만
+  //   활성으로 보이고 누르면 권한 오류만 났다 (2026-09-11). 할 수 없는 일은 버튼으로 보여 주지 않는다.
+  const { isMaster } = useMyPermissions();
+  const { user: meUser } = useUser();
+  const canIssue = isMaster || ["owner", "admin"].includes(String((meUser as any)?.role || ""));
   const { toast } = useToast();
   const qc = useQueryClient();
   const [issued, setIssued] = useState<string | null>(null);
@@ -64,7 +72,9 @@ function IngestKeyCard({ companyId }: { companyId: string }) {
         )}
       </div>
       <div className="apik-acts">
-        <button type="button" className="btn-secondary btn-sm" onClick={rotate}>{active ? "다시 발급" : "발급"}</button>
+        {canIssue
+          ? <button type="button" className="btn-secondary btn-sm" onClick={rotate}>{active ? "다시 발급" : "발급"}</button>
+          : <span className="text-[11px] text-[var(--text-dim)]">대표·관리자만 발급할 수 있습니다</span>}
       </div>
     </div>
   );
