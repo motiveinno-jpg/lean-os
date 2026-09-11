@@ -103,6 +103,10 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       { route: "/loans", label: "대출", money: true, hidden: true },
       //   2026-08-11 사이드바에서 내림(수집·전표 통장 탭이 대신). 주소로는 열리므로 게이트·옛 부여 키 호환을 위해 남긴다 — 표에는 안 그림
       { route: "/transactions", label: "자동 분류", money: true, hidden: true },
+      //   사이드바에 없지만 대시보드 '다가오는 일정'(구독 갱신)이 링크하고 화면이 이 키로 막는다.
+      //   표에 없으면 마스터가 줄 방법이 없어, 일반 구성원은 "마스터에게 요청하세요" 안내를 보고도
+      //   영영 못 들어가는 막다른 길이 된다(역할 폐지 때 권한 게이트로 바꾸며 생겼다).
+      { route: "/vault", label: "파일보관함", money: true, desc: "계정·구독 정보와 회사 파일" },
       { route: "/finance/status", label: "현황", money: true, desc: "작성된 전표의 현황·지표 · 확정·반려·종류·계정과목·부가세 유형·전표 없는 증빙" },
     ],
   },

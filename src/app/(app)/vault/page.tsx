@@ -106,6 +106,9 @@ function VaultPageInner() {
     serviceName: "", url: "", loginId: "", loginPassword: "", monthlyCost: "",
     paymentMethod: "", billingDay: "", renewalDate: "", notes: "",
   });
+  //   저장된 비밀번호를 못 불러왔을 때 — 칸이 빈 이유를 적어 준다(빈 칸을 '없음'으로 오해하면
+  //   그대로 저장했다가 사라진 줄 안다). 저장은 비밀번호만 건드리지 않는다.
+  const [pwLoadFailed, setPwLoadFailed] = useState(false);
   // Asset form
   const [assetForm, setAssetForm] = useState({
     type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "", attachmentUrl: "",
@@ -161,7 +164,7 @@ function VaultPageInner() {
       invalidate();
       setShowForm(false);
       setEditingId(null);
-      setAccForm({ serviceName: "", url: "", loginId: "", loginPassword: "", monthlyCost: "", paymentMethod: "", billingDay: "", renewalDate: "", notes: "" });
+      setPwLoadFailed(false); setAccForm({ serviceName: "", url: "", loginId: "", loginPassword: "", monthlyCost: "", paymentMethod: "", billingDay: "", renewalDate: "", notes: "" });
     },
     onError: (err: any) => toast(`계정 추가 실패: ${err.message || err}`, "error"),
   });
@@ -211,9 +214,14 @@ function VaultPageInner() {
       service_name: accForm.serviceName,
       url: accForm.url || null,
       login_id: accForm.loginId || null,
-      //   비밀번호는 평문 컬럼에 두지 않는다 — 서버 키로 암호화한 값만 저장
+      //   비밀번호는 평문 컬럼에 두지 않는다 — 서버 키로 암호화한 값만 저장.
+      //   ⚠️ 칸이 비었다고 null 로 덮지 않는다. 복호화가 막혀 못 불러온 것일 수도 있고,
+      //   그 경우 저장 한 번에 암호가 복구 불가로 사라진다(실제로 그럴 수 있던 경로였다).
+      //   비운 채 저장 = "안 바꿈". 지우려면 아래 '비밀번호 지우기' 를 쓴다.
       login_password: null,
-      encrypted_password: accForm.loginPassword ? await encryptCredential(accForm.loginPassword) : null,
+      ...(accForm.loginPassword
+        ? { encrypted_password: await encryptCredential(accForm.loginPassword) }
+        : {}),
       monthly_cost: Number(accForm.monthlyCost) || 0,
       payment_method: accForm.paymentMethod || null,
       billing_day: accForm.billingDay ? Number(accForm.billingDay) : null,
@@ -224,7 +232,7 @@ function VaultPageInner() {
       invalidate();
       setShowForm(false);
       setEditingId(null);
-      setAccForm({ serviceName: "", url: "", loginId: "", loginPassword: "", monthlyCost: "", paymentMethod: "", billingDay: "", renewalDate: "", notes: "" });
+      setPwLoadFailed(false); setAccForm({ serviceName: "", url: "", loginId: "", loginPassword: "", monthlyCost: "", paymentMethod: "", billingDay: "", renewalDate: "", notes: "" });
     },
     onError: (err: any) => toast(`계정 수정 실패: ${err.message || err}`, "error"),
   });
@@ -502,7 +510,7 @@ function VaultPageInner() {
           )}
           {tab !== "discovery" && (
             <button
-              onClick={() => { setShowForm(!showForm); setEditingId(null); if (tab === "accounts") setAccForm({ serviceName: "", url: "", loginId: "", loginPassword: "", monthlyCost: "", paymentMethod: "", billingDay: "", renewalDate: "", notes: "" }); if (tab === "assets") setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "", attachmentUrl: "" }); if (tab === "docs") setDocForm({ category: "contract", name: "", fileUrl: "", linkedDealId: "", expiryDate: "", tags: "" }); }}
+              onClick={() => { setShowForm(!showForm); setEditingId(null); if (tab === "accounts") { setPwLoadFailed(false); setAccForm({ serviceName: "", url: "", loginId: "", loginPassword: "", monthlyCost: "", paymentMethod: "", billingDay: "", renewalDate: "", notes: "" }); } if (tab === "assets") setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "", attachmentUrl: "" }); if (tab === "docs") setDocForm({ category: "contract", name: "", fileUrl: "", linkedDealId: "", expiryDate: "", tags: "" }); }}
               className="btn-primary"
             >
               + 자산 등록
@@ -726,6 +734,9 @@ function VaultPageInner() {
               <label className="block text-xs text-[var(--text-muted)] mb-1">비밀번호</label>
               <input type="password" value={accForm.loginPassword} onChange={(e) => setAccForm({ ...accForm, loginPassword: e.target.value })}
                 className="field-input" />
+              {pwLoadFailed && (
+                <p className="vault-pw-load-failed">저장된 비밀번호를 불러오지 못했습니다. 비워 둔 채 저장하면 원래 값이 그대로 유지됩니다.</p>
+              )}
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">결제수단</label>
@@ -951,15 +962,21 @@ function VaultPageInner() {
                       setEditingId(acc.id);
                       // Decrypt the password if it's stored encrypted
                       let plainPassword = "";
+                      //   복호화가 막히거나 실패하면(권한·키 미설정) 빈 칸이 된다. 그대로 저장하면
+                      //   저장돼 있던 암호가 null 로 덮여 복구 불가로 사라진다 — 실패를 기억해 두고
+                      //   저장 쪽에서 비밀번호 칸만 건드리지 않게 한다.
+                      let decryptFailed = false;
                       if (acc.encrypted_password) {
                         try {
                           plainPassword = (await decryptCredential(acc.encrypted_password)) || "";
                         } catch {
                           plainPassword = "";
+                          decryptFailed = true;
                         }
                       } else if (acc.login_password && acc.login_password !== "***encrypted***") {
                         plainPassword = acc.login_password;
                       }
+                      setPwLoadFailed(decryptFailed);
                       setAccForm({ serviceName: acc.service_name || "", url: acc.url || "", loginId: acc.login_id || "", loginPassword: plainPassword, monthlyCost: String(acc.monthly_cost || ""), paymentMethod: acc.payment_method || "", billingDay: acc.billing_day ? String(acc.billing_day) : "", renewalDate: acc.renewal_date || "", notes: acc.notes || "" }); setShowForm(true); }}>
                       <td className="p-4">
                         <div className="font-semibold">{acc.service_name}</div>
