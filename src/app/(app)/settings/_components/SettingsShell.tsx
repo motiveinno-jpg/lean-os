@@ -10,7 +10,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { getCurrentUser, getBankAccounts, upsertBankAccount, deleteBankAccount, getRoutingRules, upsertRoutingRule } from "@/lib/queries";
+import { getCurrentUser, getBankAccounts, upsertBankAccount, deleteBankAccount, getRoutingRules, upsertRoutingRule, deleteRoutingRule } from "@/lib/queries";
 import { COST_TYPES, COST_TYPE_LABELS, BANK_ROLES } from "@/lib/routing";
 import { ChartOfAccountsManager } from "@/components/chart-of-accounts-manager";
 import type { BankAccount } from "@/types/models";
@@ -194,6 +194,12 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
     onError: (err: any) => toast(`삭제 실패: ${err.message || err}`, "error"),
   });
 
+  const delRuleMut = useMutation({
+    mutationFn: (id: string) => deleteRoutingRule(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["routing-rules"] }),
+    onError: (err: any) => toast(`규칙 삭제 실패: ${friendlyError(err, "알 수 없는 오류")}`, "error"),
+  });
+
   const addRuleMut = useMutation({
     mutationFn: () => upsertRoutingRule({
       company_id: companyId!,
@@ -255,17 +261,31 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
     enabled: !!companyId,
     staleTime: 60_000,
     queryFn: async () => {
-      const [{ data: rec }, { data: emps }] = await Promise.all([
-        supabase.from("recurring_payments").select("amount").eq("company_id", companyId!).eq("is_active", true),
+      //   대시보드(lib/cash-pulse)와 같은 재료 — 고정비 표·대출 월 상환까지 센다 (2026-09-11)
+      const [{ data: rec }, { data: emps }, { data: fx }, { data: loans }] = await Promise.all([
+        supabase.from("recurring_payments").select("name, amount").eq("company_id", companyId!).eq("is_active", true),
         supabase.from("employees").select("salary, status").eq("company_id", companyId!).in("status", ["active", "joined"]),
+        supabase.from("fixed_costs").select("name, amount, end_date").eq("company_id", companyId!).eq("is_recurring", true).limit(1000),
+        supabase.from("loans").select("*").eq("company_id", companyId!).eq("status", "active").limit(1000),
       ]);
+      const { estimateMonthlyPayment } = await import("@/lib/cash-budget");
+      //   반복결제와 이름이 같은 고정비는 두 번 세지 않는다 — queries.ts 의 집계와 같은 규칙
+      const norm = (v: unknown) => String(v || "").toLowerCase().replace(/\s+/g, "");
+      const recNames = new Set((rec || []).map((r: any) => norm(r.name)));
+      const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
       return {
         recurring: (rec || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0),
         salary: (emps || []).reduce((s: number, e: any) => s + Number(e.salary || 0), 0),
+        fixedCosts: (fx || []).filter((f: any) => !(f.end_date && String(f.end_date) < today) && !recNames.has(norm(f.name)))
+          .reduce((s: number, f: any) => s + Number(f.amount || 0), 0),
+        loans: (loans || []).reduce((s: number, l: any) => s + estimateMonthlyPayment(l), 0),
       };
     },
   });
-  const monthlyBurnTotal = (burnParts?.recurring || 0) + (burnParts?.salary || 0) + (Number(fixedCost) || 0);
+  //   대시보드(lib/cash-pulse)와 같은 재료로 센다 — 고정비 표와 대출 월 상환을 빼면 운영 가능 개월이
+  //   실제보다 길게 나온다. 2026-09-11 이전엔 이 화면만 그 둘을 빼고 세서 대시보드와 숫자가 달랐다.
+  const monthlyBurnTotal = (burnParts?.recurring || 0) + (burnParts?.salary || 0) + (Number(fixedCost) || 0)
+    + (burnParts?.fixedCosts || 0) + (burnParts?.loans || 0);
   const runwayMonths = totalCash > 0 && monthlyBurnTotal > 0 ? totalCash / monthlyBurnTotal : null;
 
   if (pageLoading) {
@@ -365,7 +385,9 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
               <div className="stg-stat">
                 <div className="stg-stat-label">추가 현금</div>
                 <div className="stg-stat-value">₩{(Number(balance) || 0).toLocaleString()}</div>
-                <div className="stg-stat-sub">시재금·미연동 계좌</div>
+                {/*   '미연동 계좌' 라고 적어 두면 아래 '직접 등록한 통장'과 겹쳐 같은 돈이 두 번 잡힌다
+                      (그 통장 잔고는 이미 위 '전체 통장 합산'에 들어 있다). 2026-09-11 */}
+                <div className="stg-stat-sub">통장에 없는 현금(시재금)</div>
               </div>
               <div className="stg-stat">
                 <div className="stg-stat-label">총 가용 현금</div>
@@ -391,7 +413,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
               </div>
               <div className="stg-form-grid">
                 <div>
-                  <label className="field-label">추가 현금<span className="ui-sub">시재금 / 미연동 계좌 (원)</span></label>
+                  <label className="field-label">추가 현금<span className="ui-sub">통장에 없는 현금 · 시재금 (원)</span></label>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -664,6 +686,9 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
                       <span className="text-xs text-[var(--text-muted)]">
                         → {rule.bank_accounts?.alias || rule.bank_accounts?.bank_name || "미지정"}
                       </span>
+                      {/*   지우는 길이 없어 한 번 만들면 되돌릴 수 없었다 (2026-09-11) */}
+                      <button type="button" className="btn-secondary btn-sm ml-auto text-[var(--danger)]"
+                        onClick={() => delRuleMut.mutate(rule.id)} disabled={delRuleMut.isPending}>삭제</button>
                     </div>
                   ))}
                 </div>

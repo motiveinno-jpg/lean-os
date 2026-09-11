@@ -750,12 +750,12 @@ export async function saveExcelData(
     }
   }
 
-  // Update cash_snapshot with latest balance
+  //   월 고정비만 갱신한다. current_balance 는 '추가 현금(통장에 없는 시재금)' 칸이라
+  //   엑셀의 통장잔액으로 덮으면 실제 통장 합계에 또 더해져 가용 현금이 두 배로 잡힌다 (2026-09-11).
   const latestMonth = months.sort((a, b) => b.month.localeCompare(a.month))[0];
   if (latestMonth) {
     await supabase.from('cash_snapshot').upsert({
       company_id: companyId,
-      current_balance: latestMonth.bank_balance,
       monthly_fixed_cost: latestMonth.fixed_cost,
     }, { onConflict: 'company_id' });
   }
@@ -917,6 +917,11 @@ export async function getRoutingRules(companyId: string) {
   return data || [];
 }
 
+export async function deleteRoutingRule(id: string) {
+  const { error } = await supabase.from('routing_rules').delete().eq('id', id);
+  if (error) throw error;
+}
+
 export async function upsertRoutingRule(rule: {
   id?: string;
   company_id: string;
@@ -924,6 +929,14 @@ export async function upsertRoutingRule(rule: {
   bank_account_id: string;
   priority?: number;
 }) {
+  //   같은 비용 유형은 한 줄만 둔다 (2026-09-11) — 표에 (회사, 유형) 유니크가 없어 두 번 추가하면
+  //   행이 둘 남고, 둘 다 priority 0 이라 resolveBank 가 어느 쪽을 고를지 정해지지 않았다.
+  if (!rule.id) {
+    const { data: dup } = await supabase.from('routing_rules').select('id')
+      .eq('company_id', rule.company_id).eq('cost_type', rule.cost_type).limit(1);
+    const existing = (dup || [])[0] as { id: string } | undefined;
+    if (existing) rule = { ...rule, id: existing.id };
+  }
   if (rule.id) {
     const { error } = await supabase
       .from('routing_rules')
