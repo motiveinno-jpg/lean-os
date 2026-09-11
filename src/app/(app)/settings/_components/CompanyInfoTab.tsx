@@ -801,10 +801,15 @@ export function TaxAdvisorSection()  {
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
+                  {/*   권한 설정·연결 해제는 서버가 관리자만 받는다. 예전엔 아무에게나 버튼이 보이고
+                        누르면 이유 없는 "해제에 실패했습니다"만 떴다 (2026-09-11). */}
+                  {isMaster && (
                   <button
                     className="company-advisor-perm-btn"
                     onClick={() => setPermOpenFor(permOpenFor === a.link_id ? null : a.link_id)}
                   >{permOpenFor === a.link_id ? "권한 닫기" : "권한 설정"}</button>
+                  )}
+                  {isMaster && (
                   <button
                     className="company-advisor-unlink-btn"
                     disabled={unlinkMut.isPending}
@@ -813,6 +818,7 @@ export function TaxAdvisorSection()  {
                         unlinkMut.mutate({ linkId: a.link_id, advisorId: a.advisor_id });
                     }}
                   >연결 해제</button>
+                  )}
                 </div>
               </div>
               {permOpenFor === a.link_id && <AdvisorPermissionPanel linkId={a.link_id} advisorName={a.name} />}
@@ -844,7 +850,9 @@ export function TaxAdvisorSection()  {
 
       {!catalogError && (
         myAdvisors.length === 0 && unlinked.length === 0 ? (
-          <p className="text-xs text-[var(--text-dim)] mt-3">아직 등록된 제휴 세무사가 없습니다.</p>
+          <p className="text-xs text-[var(--text-dim)] mt-3">
+            {isMaster ? "아직 등록된 제휴 세무사가 없습니다." : "제휴 세무사 목록은 마스터만 볼 수 있습니다."}
+          </p>
         ) : unlinked.length > 0 && (
           <div className="mt-4">
             <div className="text-[11px] font-bold text-[var(--text-muted)] mb-2">제휴 세무사 목록</div>

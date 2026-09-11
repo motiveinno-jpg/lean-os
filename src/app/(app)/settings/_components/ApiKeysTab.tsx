@@ -120,7 +120,7 @@ export function ApiKeysTab({ companyId, userId }: { companyId: string; userId: s
   return (
     <div className="apik-wrap">
       <p className="apik-intro">
-        광고 매체와 공공기관에서 <b>회사 이름으로 발급받은 키</b>를 등록합니다.
+        광고 매체·쇼핑몰·공공기관에서 <b>회사 이름으로 발급받은 키</b>를 등록합니다.
         은행·카드·홈택스는 <Link href="/settings/integration?tab=bank" className="apik-link">은행연동</Link> 탭에서 연결합니다.
       </p>
 

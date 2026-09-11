@@ -72,7 +72,7 @@ export function AuditTrailPanel({ companyId }: { companyId: string | null }) {
         <SimpleCond groups={COND_GROUPS} live={cond} onApply={setCond} />
         <QuickSearch value={q} onApply={setQ} placeholder="사람 · 종류 · 동작 · 내용 · 쉼표로 여러 개, Enter" />
         <span className="doc-sums-sp" />
-        <span className="ev-dim">{shown.length.toLocaleString("ko")}건{rows.length >= 3000 ? " · 3,000건까지만 표시됩니다." : ""}</span>
+        <span className="ev-dim">{shown.length.toLocaleString("ko")}건</span>
       </div>
       <SimpleApplied groups={COND_GROUPS} live={cond} onApply={setCond} />
       <div className="stg-table-wrap at-scroll">

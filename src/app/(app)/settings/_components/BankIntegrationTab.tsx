@@ -487,9 +487,11 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
                 등록 직후 1회 실제 조회로 검증해 무음 실패를 막는다. */}
           <div>
             <label className="field-label">명의</label>
+            {/*   개인(P) 은 홈택스만 된다. 은행·카드는 법인 API 전용이라 등록은 되고 수집이 무음 실패한다
+                  (드림세무회계 3주 실사고). 고를 수는 있는데 누르면 안 된다고 하는 대신, 아예 못 고르게 한다. */}
             <select value={clientType} onChange={(e) => setClientType(e.target.value as "P" | "B")} className="field-input">
               <option value="B">법인/기업</option>
-              <option value="P">개인</option>
+              <option value="P" disabled={accountType !== "hometax"}>개인{accountType !== "hometax" ? " (홈택스만 가능)" : ""}</option>
             </select>
           </div>
           <div>
@@ -607,7 +609,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
                   <input type={showCertPw ? "text" : "password"} value={certPassword} onChange={(e) => setCertPassword(e.target.value)} placeholder="인증서 비밀번호" className="field-input pr-16" />
                   <button type="button" onClick={() => setShowCertPw(!showCertPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text)]">{showCertPw ? "숨기기" : "보기"}</button>
                 </div>
-                <p className="text-[10px] text-[var(--text-dim)] mt-1">인증서와 비밀번호는 암호화되며 오너뷰에 저장되지 않습니다.</p>
+                <p className="text-[10px] text-[var(--text-dim)] mt-1">인증서와 비밀번호는 회사 전용 영역에 암호화해 보관하며, 자료를 가져올 때만 서버가 꺼내 씁니다.</p>
               </div>
               </>
               )}
@@ -625,7 +627,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
                   <input type={showPw ? "text" : "password"} value={loginPw} onChange={(e) => setLoginPw(e.target.value)} placeholder="비밀번호" className="field-input pr-16" />
                   <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text)]">{showPw ? "숨기기" : "보기"}</button>
                 </div>
-                <p className="text-[10px] text-[var(--text-dim)] mt-1">비밀번호는 암호화되며 오너뷰에 저장되지 않습니다.</p>
+                <p className="text-[10px] text-[var(--text-dim)] mt-1">비밀번호는 회사 전용 영역에 암호화해 보관하며, 자료를 가져올 때만 서버가 꺼내 씁니다.</p>
               </div>
             </>
           )}
@@ -1130,8 +1132,10 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
                     ))}
                   </div>
                 )}
+                {/*   홈택스만 연결한 회사는 계좌·카드가 없는 것이 정상이다. 예전엔 "불러올 수 없습니다"라는
+                      오류조 문구가 떠서, 바로 위의 "홈택스 연결됨" 초록 문구와 서로 모순됐다 (2026-09-11). */}
                 {codefAccounts.bank.length === 0 && codefAccounts.card.length === 0 && (
-                  <p className="text-xs text-[var(--text-dim)] text-center py-2">연결된 계좌/카드 정보를 불러올 수 없습니다. 아래에서 추가로 연결하세요.</p>
+                  <p className="text-xs text-[var(--text-dim)] text-center py-2">아직 연결된 계좌·카드가 없습니다. 아래에서 은행이나 카드를 연결하세요.</p>
                 )}
               </>
             )}

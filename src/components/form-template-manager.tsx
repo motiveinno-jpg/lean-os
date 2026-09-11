@@ -28,7 +28,7 @@ const TEMPLATE_VARS: Record<DocType, string[]> = {
   hr_form: ["{{성명}}", "{{주민번호}}", "{{부서}}", "{{직급}}", "{{입사일}}", "{{연봉}}", "{{작성일자}}"],
 };
 
-const DOC_LABEL: Record<DocType, string> = { quote: "견적서", contract: "전자계약", hr_form: "인사 양식" };
+const DOC_LABEL: Record<DocType, string> = { quote: "견적서", contract: "프로젝트 계약서", hr_form: "인사 양식" };
 
 export function FormTemplateManager({ companyId, only }: { companyId: string | null; only?: DocType }) {
   const { toast } = useToast();
@@ -150,7 +150,7 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
   return (
     <div className="form-template-manager glass-card">
       <h2 className="text-base font-bold text-[var(--text)] mb-1">{only ? `${DOC_LABEL[only]} 양식 PDF` : "회사 양식 PDF"}</h2>
-      <p className="text-xs text-[var(--text-muted)] mb-4">회사가 쓰던 {only ? DOC_LABEL[only] : "견적서·전자계약"} PDF를 올리면 그 디자인 그대로 문서를 만듭니다.</p>
+      <p className="text-xs text-[var(--text-muted)] mb-4">회사가 쓰던 {only ? DOC_LABEL[only] : "견적서·프로젝트 계약서"} PDF를 올리면 그 디자인 그대로 문서를 만듭니다.</p>
 
       {/* 업로드 폼 */}
       <div className="template-upload-form">
@@ -159,7 +159,7 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
           <label className="block text-[11px] text-[var(--text-muted)] mb-1">종류</label>
           <select value={docType} onChange={(e) => setDocType(e.target.value as DocType)} className="h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm">
             <option value="quote">견적서</option>
-            <option value="contract">전자계약</option>
+            <option value="contract">프로젝트 계약서</option>
           </select>
         </div>
         )}

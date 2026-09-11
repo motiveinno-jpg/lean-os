@@ -40,6 +40,8 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
     enabled: !!companyId,
   });
 
+  //   '멤버' 수에 외부 파트너를 넣지 않는다 (2026-09-11) — 파트너도 같은 users 표에 들어오는데
+  //   화면은 '멤버 N명'이라 적어 협력사까지 우리 식구로 세고 있었다. 목록은 그대로 두고 숫자만 가른다.
   const { data: members = [] } = useQuery({
     queryKey: ["team-members", companyId],
     queryFn: async () => {
@@ -49,6 +51,8 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
     },
     enabled: !!companyId,
   });
+  const staffCount = (members as any[]).filter((m) => m.role !== "partner").length;
+  const partnerCount = (members as any[]).filter((m) => m.role === "partner").length;
 
   const { data: empInvites = [] } = useQuery({
     queryKey: ["employee-invitations", companyId],
@@ -249,7 +253,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
       <div className="stg-sec-head mb-4">
         <div>
           <h2 className="stg-sec-title">구성원</h2>
-          <p className="stg-sec-desc">멤버 {members.length}명 · 초대와 합류 요청을 처리합니다.</p>
+          <p className="stg-sec-desc">멤버 {staffCount}명{partnerCount > 0 ? ` · 파트너 ${partnerCount}명` : ""} · 초대와 합류 요청을 처리합니다.</p>
         </div>
         <button
           onClick={() => setShowInviteForm(!showInviteForm)}
@@ -262,7 +266,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
       {/* 보기 칩 — 두 층 탭 금지(2026-08-19 조회 표준): 갈래는 회사 설정 탭 한 줄, 여기는 '보기' 칩 */}
       <div className="qk-chips mb-3">
         {([
-          { key: "members" as const, label: `멤버 ${members.length}` },
+          { key: "members" as const, label: `멤버 ${staffCount}` },
           { key: "employees" as const, label: `멤버 초대 ${empInvites.length}` },
           { key: "partners" as const, label: `파트너 초대 ${partnerInvites.length}` },
         ]).map((t) => (
