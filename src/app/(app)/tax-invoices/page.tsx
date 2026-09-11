@@ -13,7 +13,7 @@ import  {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ExcelMenu, HelperMenu,
   SavedTabs, ConditionSave, ConditionPanel, ConditionRow, TokenField, AmountRange, ChipGroup,
   AppliedChips, QuickSearch, quickSearchHit, quickTerms, amountHit, RowsPerPage,
-  Pager, usePager, useSavedQueries, SelectionBar, defaultRangeMonth, periodQuicksMonth,
+  Pager, usePager, useSavedQueries, SelectionBar, defaultRange, periodQuicks,
   type ExcelItem, type AppliedChip,
 } from "@/components/query-kit";
 import { exportToExcel as exportSheet } from "@/lib/excel-export";
@@ -342,18 +342,17 @@ function TaxInvoicesPageInner() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, taxTabMaster]);
-  /*   조회기간 — 월 단위. 기본은 **지난달 ~ 이번 달** (조회 화면 표준).
-   *   ★ 예전엔 localStorage 에 기억해 뒀는데, 표준이 **조회값 자동 기억을 금지**한다 —
-   *     나갔다 오면 기본값이어야 한다. 실제로 기억된 값이 `2026-03 ~ 2027-02`(미래까지)로
-   *     남아 있어서 "왜 이 기간이지"가 됐다. 편의는 **내 조건**(★ 기본, DB)이 맡는다.
+  /*   조회기간 — 일 단위(YYYY-MM-DD). 기본은 **최근 1개월** (조회 화면 표준). '오늘 하루만'도 from=to 로 본다.
+   *   ★ 예전엔 월 단위였는데(사장님: 일단위로도 조회되게, 2026-09-11) 달력을 날짜까지 고르게 바꿨다.
+   *   ★ 조회값 자동 기억 금지 — 나갔다 오면 기본값. 편의는 **내 조건**(★ 기본, DB)이 맡는다.
    */
-  const [viewFromMonth, setViewFromMonth] = useState(() => defaultRangeMonth().from);
-  const [viewToMonth, setViewToMonth] = useState(() => defaultRangeMonth().to);
+  const [viewFrom, setViewFrom] = useState(() => defaultRange().from);
+  const [viewTo, setViewTo] = useState(() => defaultRange().to);
   //   예전에 남겨 둔 기억값 청소 — 다음 배포에서는 이 두 줄도 지운다
   useEffect(() => {
     if (typeof window === "undefined") return;
-    localStorage.removeItem("tax-invoices-viewFromMonth");
-    localStorage.removeItem("tax-invoices-viewToMonth");
+    localStorage.removeItem("tax-invoices-viewFrom");
+    localStorage.removeItem("tax-invoices-viewTo");
   }, []);
   const [showForm, setShowForm] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -361,7 +360,7 @@ function TaxInvoicesPageInner() {
   const [modifyTarget, setModifyTarget] = useState<any>(null);
   const [modifyReason, setModifyReason] = useState("");
   const [modifyAmount, setModifyAmount] = useState("");
-  // 동기화 기간 = 상단 조회기간(viewFromMonth~viewToMonth) 공용 — 별도 월 피커 이원화 제거 (기준 통일)
+  // 동기화 기간 = 상단 조회기간(viewFrom~viewTo) 공용 — 별도 월 피커 이원화 제거 (기준 통일)
   // 불러오기는 현금영수증 화면과 동일하게 백그라운드 job 하나로 통일 (2026-07-31 사장님 "방식 통일").
   // 백그라운드 진행 중인 job ID (Realtime 구독용) — localStorage 와 동기화하여 페이지 무관 chain.
   const [activeJobId, setActiveJobIdRaw] = useState<string | null>(() => {
@@ -386,15 +385,13 @@ function TaxInvoicesPageInner() {
     if (!silent) toast("멈춘 백그라운드 동기화를 해제했습니다. 다시 시도할 수 있습니다.", "info");
   };
   // Background sync 시작 · 즉시 응답 받고 사용자는 페이지 떠나도 됨.
-  async function runHometaxSyncBackground(fromMonth: string, toMonth: string)  {
+  async function runHometaxSyncBackground(from: string, to: string)  {
     if (!companyId) { toast('회사 정보를 불러올 수 없습니다', 'error'); return; }
     if (!isHometaxConnected) { toast('먼저 설정 > 은행연동에서 홈택스를 연결하세요', 'error'); return; }
-    if (fromMonth > toMonth) { toast('시작 월이 종료 월보다 늦을 수 없습니다', 'error'); return; }
-    const [fy, fm] = fromMonth.split('-').map(Number);
-    const [ty, tm] = toMonth.split('-').map(Number);
-    const lastDay = new Date(ty, tm, 0).getDate();
-    const startDate = `${fromMonth}-01`;
-    const endDate = `${toMonth}-${String(lastDay).padStart(2, '0')}`;
+    if (from > to) { toast('시작일이 종료일보다 늦을 수 없습니다', 'error'); return; }
+    //   조회기간이 일 단위가 되면서(2026-09-11) 그대로 넘긴다 — codef-sync 는 원래 startDate/endDate(일)를 받는다(수집 로직 무변경).
+    const startDate = from;
+    const endDate = to;
     // 홈택스 연동 일시정지 중이면 시작하지 않음. 현금영수증 화면과 동일한 가드(2026-07-31 통일)
     if (isHometaxPaused)  {
       const t = new Date(hometaxPausedUntil!).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
@@ -418,11 +415,10 @@ function TaxInvoicesPageInner() {
       }
       if (!res.ok || !result.jobId) throw new Error(result.error || '백그라운드 시작 실패');
       setActiveJobId(result.jobId);
-      toast(`백그라운드 동기화 시작됨 (${fromMonth} ~ ${toMonth}). 페이지 떠나도 됩니다.`, 'success');
+      toast(`백그라운드 동기화 시작됨 (${from} ~ ${to}). 페이지 떠나도 됩니다.`, 'success');
       // 동기화 범위로 보기 자동 세팅
-      setViewFromMonth(fromMonth);
-      setViewToMonth(toMonth);
-      void fy; void fm;
+      setViewFrom(from);
+      setViewTo(to);
     } catch (err: any) {
       toast(`백그라운드 동기화 시작 실패: ${err.message}`, 'error');
     }
@@ -626,12 +622,9 @@ function TaxInvoicesPageInner() {
     })();
   }, [companyId]);
 
-  // 보기 기간 계산 · viewFromMonth ~ viewToMonth 전체. 단일 월 보고 싶으면 from=to 로 설정.
-  const  { startDate, endDate } = useMemo(() => {
-    const [ty, tm] = viewToMonth.split('-').map(Number);
-    const lastDay = new Date(ty, tm, 0).getDate();
-    return { startDate: `${viewFromMonth}-01`, endDate: `${viewToMonth}-${String(lastDay).padStart(2, '0')}` };
-  }, [viewFromMonth, viewToMonth]);
+  // 보기 기간 · viewFrom ~ viewTo (일 단위). '오늘 하루만'이면 from=to.
+  const startDate = viewFrom;
+  const endDate = viewTo;
 
   // 탭/보기기간 변경 시 선택 초기화
   useEffect(() => { setSelectedIds(new Set()); }, [tab, startDate, endDate]);
@@ -717,17 +710,17 @@ function TaxInvoicesPageInner() {
    *   그래서 기간을 넓히라고 **알려만 준다** — 조건을 몰래 바꾸지는 않는다.
    */
   const { data: waitOutside = 0 } = useQuery({
-    queryKey: ["ti-wait-outside", companyId, viewFromMonth, viewToMonth],
+    queryKey: ["ti-wait-outside", companyId, viewFrom, viewTo],
     queryFn: async () => {
-      const from = `${viewFromMonth}-01`;
-      const [ty, tm] = viewToMonth.split("-").map(Number);
-      const to = `${tm === 12 ? ty + 1 : ty}-${String(tm === 12 ? 1 : tm + 1).padStart(2, "0")}-01`;
+      //   조회기간 [viewFrom, viewTo] 밖 = 시작일보다 앞이거나 종료일 다음날부터 (일 단위)
+      const from = viewFrom;
+      const toExcl = new Date(Date.parse(`${viewTo}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
       const { count } = await (supabase as any).from("tax_invoices")
         .select("id", { count: "exact", head: true })
         .eq("company_id", companyId!).eq("source", "manual").eq("type", "sales")
         .neq("status", "void").is("nts_confirm_no", null)
         .neq("nts_issue_status", "issued")
-        .or(`issue_date.lt.${from},issue_date.gte.${to}`);
+        .or(`issue_date.lt.${from},issue_date.gte.${toExcl}`);
       return count || 0;
     },
     enabled: !!companyId && (tab === "wait" || tab === "issue-status"),
@@ -916,6 +909,12 @@ function TaxInvoicesPageInner() {
     mutationFn: async () => {
       //   '한 장 쓰기' 는 첫 행만, '여러 장' 은 유효한 행 전부
       const valid = (formMode === "single" ? rows.slice(0, 1) : rows).filter(isRowValid);
+      //   등록하면 곧바로 홈택스에 전자발행한다 (2026-09-11 사장님: "그냥 등록하면 바로 발행되게").
+      //   단 이번 달 남은 발행 한도만큼만 — 한도 초과분·발행 실패분(인증서 미등록 등)은 만들어만 두고
+      //   '발행 대기' 에 남겨 손으로 발행할 수 있게 한다. 매입 계산서는 우리가 발행하지 않는다.
+      let remaining = issuanceStatus?.limit == null ? Infinity : (issuanceStatus.remaining ?? 0);
+      let created = 0, issued = 0, failed = 0, skipped = 0;
+      let firstError = "";
       for (const r of valid) {
         //   품목 줄 — 이름이 있는 줄만 저장한다. 계산서 공급가액은 줄 합계다.
         const items = r.items
@@ -927,7 +926,7 @@ function TaxInvoicesPageInner() {
             unitCost: Math.round(Number(it.unitCost) || 0),
             supplyAmount: itemSupply(it),
           }));
-        await createTaxInvoice({
+        const newInv = await createTaxInvoice({
           companyId: companyId!,
           type: r.type,
           counterpartyName: r.counterpartyName,
@@ -965,12 +964,36 @@ function TaxInvoicesPageInner() {
             await supabase.from("partners").update(patch as never).eq("id", r.partnerId);
           }
         }
+
+        created++;
+        //   등록 즉시 홈택스 발행 — 매출만, 남은 한도 안에서. 실패해도 계산서는 살리고 '발행 대기' 에 남긴다.
+        if (newInv && r.type === "sales" && !(newInv as any).nts_confirm_no) {
+          if (remaining <= 0) { skipped++; continue; }
+          try {
+            await issueTaxInvoice((newInv as any).id);
+            issued++; remaining--;
+          } catch (e: any) {
+            failed++;
+            if (!firstError) firstError = e?.message ? `${e.message}${e.hint ? " — " + e.hint : ""}` : "발행 실패";
+          }
+        }
       }
-      return valid.length;
+      return { created, issued, failed, skipped, firstError };
     },
-    onSuccess: (count: number) => {
-      toast(`세금계산서 ${count}장이 등록되었습니다. 홈택스 전자발행은 목록에서 해당 건을 눌러 별도로 진행하세요.`, "success");
+    onSuccess: ({ created, issued, failed, skipped, firstError }) => {
+      //   대부분은 매출 1장 → 발행 완료. 실패·한도초과분은 '발행 대기' 로 안내한다.
+      if (failed > 0) {
+        toast(`계산서 ${created}장 등록. ${issued > 0 ? `${issued}장 홈택스 발행 완료, ` : ""}${failed}장은 발행 실패해 '발행 대기' 에 남겼습니다 (${firstError}). 대기 목록에서 다시 발행하세요.`, "error");
+      } else if (skipped > 0) {
+        toast(`계산서 ${created}장 등록. ${issued > 0 ? `${issued}장 홈택스 발행 완료, ` : ""}이번 달 발행 한도를 넘겨 ${skipped}장은 '발행 대기' 에 남겼습니다.`, "info");
+      } else if (issued > 0) {
+        toast(issued === 1 ? "세금계산서를 홈택스에 발행했습니다." : `세금계산서 ${issued}장을 홈택스에 발행했습니다.`, "success");
+      } else {
+        //   매입 등 발행 대상이 아닌 건 — 등록만
+        toast(`세금계산서 ${created}장이 등록되었습니다.`, "success");
+      }
       invalidate();
+      queryClient.invalidateQueries({ queryKey: ["tax-invoice-issuance-status"] });
       setShowForm(false);
       setRows([blankRow()]);
       setDropdownRowKey(null);
@@ -1195,17 +1218,17 @@ function TaxInvoicesPageInner() {
     && !(gapOnly && tab === "done" && isPaid(r) && r.deal_id)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [displayList, q, live, colF, gapOnly, tab]);
-  const tiPager = usePager(tiFiltered, live.size, `${tab}|${gapOnly}|${viewFromMonth}|${viewToMonth}|${q}|${JSON.stringify(live)}|${JSON.stringify(Object.fromEntries(Object.entries(colF).map(([k, v]) => [k, v ? [...v] : null])))}`);
+  const tiPager = usePager(tiFiltered, live.size, `${tab}|${gapOnly}|${viewFrom}|${viewTo}|${q}|${JSON.stringify(live)}|${JSON.stringify(Object.fromEntries(Object.entries(colF).map(([k, v]) => [k, v ? [...v] : null])))}`);
   const tiPreview = useMemo(() => (displayList as any[]).filter((r) => matchCond(r, draft)).length,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [displayList, q, draft]);
 
   //   내 조건 — ★ 하나가 이 화면의 기본값 (DB 라 PC 를 바꿔도 따라온다)
   const tiSaved = useSavedQueries(`tax-invoices:${tab}`, companyId);
-  const tiParamsNow = { from: viewFromMonth, to: viewToMonth, q, cond: live };
-  const tiParamsBasic = { ...defaultRangeMonth(), q: "", cond: TI_EMPTY };
+  const tiParamsNow = { from: viewFrom, to: viewTo, q, cond: live };
+  const tiParamsBasic = { ...defaultRange(), q: "", cond: TI_EMPTY };
   const applyTiSaved = (p: Record<string, unknown>) => {
-    if (typeof p.from === "string" && typeof p.to === "string") { setViewFromMonth(p.from); setViewToMonth(p.to); }
+    if (typeof p.from === "string" && typeof p.to === "string") { setViewFrom(p.from); setViewTo(p.to); }
     if (typeof p.q === "string") setQ(p.q);
     const c = { ...TI_EMPTY, ...(p.cond as Partial<TiCond> | undefined) };
     setDraft(c); setLive(c);
@@ -1267,14 +1290,14 @@ function TaxInvoicesPageInner() {
       hint: "현재 목록을 더존 양식으로 내려받습니다.",
       onClick: async () => {
         const { exportTaxInvoicesDouzone } = await import("@/lib/export-douzone");
-        exportTaxInvoicesDouzone(currentList as any, `${viewFromMonth}_${viewToMonth}`);
+        exportTaxInvoicesDouzone(currentList as any, `${viewFrom}_${viewTo}`);
       } },
     { label: "조회 결과 전부 내려받기", count: tiFiltered.length,
       hint: "조회 결과 전체를 내려받습니다.",
-      onClick: () => exportSheet(tiXlsRows(tiFiltered), "세금계산서", `발행_${viewFromMonth}~${viewToMonth}`) },
+      onClick: () => exportSheet(tiXlsRows(tiFiltered), "세금계산서", `발행_${viewFrom}~${viewTo}`) },
     { label: "지금 쪽만 내려받기", count: tiPager.view.length,
       hint: `${tiPager.from}번째부터 ${tiPager.to}번째 줄까지 내려받습니다.`,
-      onClick: () => exportSheet(tiXlsRows(tiPager.view), "세금계산서", `발행_${viewFromMonth}~${viewToMonth}_${tiPager.page}쪽`) },
+      onClick: () => exportSheet(tiXlsRows(tiPager.view), "세금계산서", `발행_${viewFrom}~${viewTo}_${tiPager.page}쪽`) },
   ];
 
   const validRowCount = rows.filter(isRowValid).length;
@@ -1422,17 +1445,17 @@ function TaxInvoicesPageInner() {
           </>}>
             {/*   기간을 치는 칸은 화면에 하나뿐. 달력은 검색조건 안에 있고,
                   오른쪽 끝에 '검색조건'이 붙어 한 덩어리로 보인다. */}
-            <DateRangeField unit="month" label={null} parts="segments"
-              from={viewFromMonth} to={viewToMonth}
-              onChange={(f, t) => { setViewFromMonth(f); setViewToMonth(t); }}
+            <DateRangeField unit="day" label={null} parts="segments"
+              from={viewFrom} to={viewTo}
+              onChange={(f, t) => { setViewFrom(f); setViewTo(t); }}
               trailing={
                 <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen}
                   activeCount={tiCondCount(live)} anchorSel=".drf"
                   tabs={<SavedTabs list={tiSaved.list} current={tiParamsNow} basic={tiParamsBasic}
                     onApply={(s) => { applyTiSaved(s.params || {}); setPanelOpen(false); }}
                     onBasic={() => {
-                      const b = defaultRangeMonth();
-                      setViewFromMonth(b.from); setViewToMonth(b.to);
+                      const b = defaultRange();
+                      setViewFrom(b.from); setViewTo(b.to);
                       setQ(""); setDraft(TI_EMPTY); setLive(TI_EMPTY);
                     }}
                     onRemove={tiSaved.remove} onSetDefault={tiSaved.setDefault} />}
@@ -1441,7 +1464,7 @@ function TaxInvoicesPageInner() {
                       onClick={() => setDraft({ ...TI_EMPTY, size: draft.size })}>조건 지우기</button>
                     <ConditionSave suggest={tiSuggestName}
                       onSave={(name, asDefault) => {
-                        tiSaved.save(name, { from: viewFromMonth, to: viewToMonth, q, cond: draft }, asDefault);
+                        tiSaved.save(name, { from: viewFrom, to: viewTo, q, cond: draft }, asDefault);
                         setLive(draft); setPanelOpen(false);
                       }} />
                     <span className="ml-auto text-[11px] text-[var(--text-dim)]">{tiPreview.toLocaleString("ko")}건</span>
@@ -1449,16 +1472,16 @@ function TaxInvoicesPageInner() {
                     <button type="button" className="btn-primary btn-sm"
                       onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
                   </>}>
-                  <ConditionRow label="조회기간" hint="월 단위">
-                    <span className="qk-range-txt">{viewFromMonth} ~ {viewToMonth}</span>
-                    <DateRangeField unit="month" label={null} parts="calendar" confirm
-                      from={viewFromMonth} to={viewToMonth}
-                      onChange={(f, t) => { setViewFromMonth(f); setViewToMonth(t); }} />
+                  <ConditionRow label="조회기간" hint="일 단위">
+                    <span className="qk-range-txt">{viewFrom} ~ {viewTo}</span>
+                    <DateRangeField unit="day" label={null} parts="calendar" confirm
+                      from={viewFrom} to={viewTo}
+                      onChange={(f, t) => { setViewFrom(f); setViewTo(t); }} />
                     <span className="qk-quicks">
-                      {periodQuicksMonth().map((pq) => (
+                      {periodQuicks().map((pq) => (
                         <button key={pq.key} type="button"
-                          onClick={() => { setViewFromMonth(pq.from); setViewToMonth(pq.to); }}
-                          className={viewFromMonth === pq.from && viewToMonth === pq.to ? "qk-quick qk-quick-on" : "qk-quick"}>
+                          onClick={() => { setViewFrom(pq.from); setViewTo(pq.to); }}
+                          className={viewFrom === pq.from && viewTo === pq.to ? "qk-quick qk-quick-on" : "qk-quick"}>
                           {pq.label}
                         </button>
                       ))}
@@ -1510,7 +1533,7 @@ function TaxInvoicesPageInner() {
                 <span className="ti-strip-bad">
                   이 기간 밖에 미발행 <b>{waitOutside.toLocaleString("ko")}건</b>이 더 있습니다.
                   <button type="button" className="ti-strip-go"
-                    onClick={() => { setViewFromMonth(`${todayKst().slice(0, 4)}-01`); setViewToMonth(todayKst().slice(0, 7)); }}>
+                    onClick={() => { setViewFrom(`${todayKst().slice(0, 4)}-01`); setViewTo(todayKst().slice(0, 7)); }}>
                     올해 전체로 넓히기
                   </button>
                 </span>
@@ -1530,7 +1553,7 @@ function TaxInvoicesPageInner() {
                 <span className="ti-strip-bad">
                   이 기간 밖에 미발행 <b>{waitOutside.toLocaleString("ko")}건</b>이 더 있습니다.
                   <button type="button" className="ti-strip-go"
-                    onClick={() => { setViewFromMonth(`${todayKst().slice(0, 4)}-01`); setViewToMonth(todayKst().slice(0, 7)); }}>
+                    onClick={() => { setViewFrom(`${todayKst().slice(0, 4)}-01`); setViewTo(todayKst().slice(0, 7)); }}>
                     올해 전체로 넓히기
                   </button>
                 </span>
@@ -2293,10 +2316,16 @@ function TaxInvoicesPageInner() {
               )}
             </div>
             <div className="flex items-center gap-2">
+              {/*   매출은 등록과 동시에 홈택스로 발행된다 (2026-09-11) — 매입은 등록만 */}
+              <span className="text-[11px] text-[var(--text-dim)]">매출은 <b className="text-[var(--text-muted)]">등록 즉시 홈택스 발행</b>됩니다.</span>
               <button onClick={() => setShowForm(false)} className="btn-secondary text-xs">취소</button>
               <button onClick={() => canSubmit && createMut.mutate()} disabled={!canSubmit || createMut.isPending}
                 className="btn-primary text-xs disabled:opacity-50 disabled:cursor-not-allowed">
-                {createMut.isPending ? "등록 중..." : formMode === "single" ? "등록" : `${validRowCount}장 등록`}
+                {createMut.isPending
+                  ? "발행 중..."
+                  : formMode === "single"
+                    ? (rows[0].type === "sales" ? "등록·발행" : "등록")
+                    : `${validRowCount}장 등록·발행`}
               </button>
             </div>
           </div>
@@ -2318,11 +2347,11 @@ function TaxInvoicesPageInner() {
                       </Link>
                     ) : (
                       <ToolbarPopoverItem
-                        onClick={() => { close(); hometaxCd.run(() => runHometaxSyncBackground(viewFromMonth, viewToMonth)); }}
+                        onClick={() => { close(); hometaxCd.run(() => runHometaxSyncBackground(viewFrom, viewTo)); }}
                         disabled={!!activeJobId || hometaxCd.disabled}
                         hint={hometaxCd.hint
                           ? hometaxCd.hint
-                          : `조회기간(${viewFromMonth} ~ ${viewToMonth}) 범위로 홈택스에 이미 발행된 세금계산서를 가져옵니다${lastSyncData ? ` · 마지막 업데이트 ${new Date(lastSyncData).toLocaleString("ko", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}`}>
+                          : `조회기간(${viewFrom} ~ ${viewTo}) 범위로 홈택스에 이미 발행된 세금계산서를 가져옵니다${lastSyncData ? ` · 마지막 업데이트 ${new Date(lastSyncData).toLocaleString("ko", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}`}>
                         <span aria-live="polite">
                           {activeJobId
                             ? `가져오는 중 ${(activeJob?.current_progress as any)?.done || 0}/${(activeJob?.current_progress as any)?.total || 0}`
@@ -2340,7 +2369,7 @@ function TaxInvoicesPageInner() {
                         onClick={async () => {
                           close();
                           const { exportTaxInvoicesDouzone } = await import("@/lib/export-douzone");
-                          exportTaxInvoicesDouzone(currentList as any, `${viewFromMonth}_${viewToMonth}`);
+                          exportTaxInvoicesDouzone(currentList as any, `${viewFrom}_${viewTo}`);
                         }}
                         hint="현재 목록을 엑셀로 내보내기">
                         엑셀 내보내기
