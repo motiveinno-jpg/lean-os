@@ -21,11 +21,14 @@ const db = supabase;
 // ══════════════════════════════════════════
 export async function applyBankClassificationRules(companyId: string) {
   // Fetch all unmapped bank transactions
-  const unmapped = logRead('lib/automation:unmapped', await db
+  //   미분류가 1000행(서버 max_rows) 넘으면 잘려서 뒤쪽이 통째로 안 돌던 것 페이징.
+  //   바로 아래 카드 쪽은 같은 주석과 함께 이미 고쳐 뒀는데 통장만 남아 있었다.
+  const unmapped = await fetchPaged<any>('applyBankClassificationRules', () => db
     .from('bank_transactions')
     .select('id, counterparty, description, amount, type')
     .eq('company_id', companyId)
-    .eq('mapping_status', 'unmapped'));
+    .eq('mapping_status', 'unmapped')
+    .order('id', { ascending: true }));
 
   if (!unmapped?.length) return { processed: 0, matched: 0 };
 

@@ -1,4 +1,5 @@
 import { withSentry } from "../_shared/sentry.ts";
+import { tfetch } from "../_shared/http.ts";
 import { safeEqual, maskTail } from "../_shared/ingest-auth.ts";
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -221,19 +222,40 @@ async function getCodefToken(clientId: string, clientSecret: string): Promise<st
   }
 
   const basicAuth = btoa(`${clientId}:${clientSecret}`);
-  const res = await fetch(CODEF_TOKEN_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Basic ${basicAuth}`,
-    },
-    body: "grant_type=client_credentials&scope=read",
-  });
+  //   ⚠️ 이 파일에서 유일하게 맨 fetch 를 쓰던 자리였다(다른 호출은 전부 상한이 있다).
+  //   토큰 발급이 멈추면 수집 전체가 플랫폼 한계까지 매달렸다. 30초 상한 + 1회 재시도.
+  let res: Response | null = null;
+  let lastErr: unknown = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      res = await tfetch(CODEF_TOKEN_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${basicAuth}`,
+        },
+        body: "grant_type=client_credentials&scope=read",
+      }, 30_000);
+      if (res.ok) break;
+      lastErr = new Error(`CODEF token error: ${res.status}`);
+    } catch (e) {
+      lastErr = e;
+    }
+    if (attempt === 0) await new Promise((r) => setTimeout(r, 800));
+  }
+  if (!res || !res.ok) throw lastErr instanceof Error ? lastErr : new Error(`CODEF token error: ${res?.status ?? "no response"}`);
 
-  if (!res.ok) throw new Error(`CODEF token error: ${res.status}`);
-  const data = await res.json();
-  tokenCache = { token: data.access_token, expiresAt: Date.now() + (data.expires_in - 60) * 1000 };
-  return data.access_token;
+  //   ⚠️ 응답 모양을 확인한다. 200 인데 access_token 이 없으면 이후 모든 요청이
+  //   'Bearer undefined' 로 나가고, expires_in 이 없으면 expiresAt 이 NaN 이 되어
+  //   캐시가 영구 무효 — 호출마다 재발급(과금)이 된다.
+  const data = await res.json().catch(() => null) as { access_token?: string; expires_in?: number } | null;
+  const token = String(data?.access_token || "");
+  if (!token) throw new Error("CODEF token error: 응답에 access_token 이 없습니다");
+  const ttlSec = Number(data?.expires_in);
+  //   만료 정보가 없으면 짧게(10분) 잡아 둔다 — NaN 으로 캐시를 무력화하지 않는다
+  const ttlMs = Number.isFinite(ttlSec) && ttlSec > 60 ? (ttlSec - 60) * 1000 : 10 * 60 * 1000;
+  tokenCache = { token, expiresAt: Date.now() + ttlMs };
+  return token;
 }
 
 // CODEF 게이트웨이 응답이 멈출 때 Edge Function 150초 timeout (HTTP 546) 회째.

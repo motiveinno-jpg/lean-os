@@ -5,6 +5,7 @@ import { logRead } from "@/lib/log-read";
  */
 
 import { supabase } from './supabase';
+import { fetchPaged } from './fetch-paged';
 import { logAudit } from './audit-log';
 import { applySignerInputsToHtml } from './signature-fields';
 
@@ -220,22 +221,18 @@ export async function getSignatureRequests(companyId: string, status?: string) {
   // 목록 전용 컬럼만 — 거대 HTML/base64 컬럼(signed_contract_html, template_snapshot_html,
   //   our_signed_contract_html, *_url, signature_data_url 등) 제외. 전문은 ContractViewer 가 별도 조회.
   //   (기존 select('*') 가 계약서 전문 HTML 통째 전송으로 목록 쿼리 ~2초 → 컬럼 한정으로 단축)
-  let query = db
-    .from('signature_requests')
-    // signature_data(서명 base64 ~20KB/행)·signer_inputs 는 목록에서 제외 — '서명본 보기' 클릭 시 getSignatureProof 로 단건 조회.
-    //   (615행 × 20KB ≈ 12MB 통째 전송이 30초 폴링마다 발생해 목록 쿼리 ~1.1초였음)
-    // created_by → 표의 '담당자'(요청 보낸 사람) 열. partners.representative → '대표자' 열.
-    .select('id, company_id, document_id, title, status, signer_name, signer_email, signer_phone, sent_at, viewed_at, signed_at, expires_at, created_at, created_by, sign_token, reminder_count, partner_id, batch_id, batch_seq, signature_method, our_signed_at, delivery_status, delivery_detail, delivery_at, documents(name, status), partners(name, representative)')
-    .eq('company_id', companyId)
-    .order('created_at', { ascending: false });
-
-  if (status) {
-    query = query.eq('status', status);
-  }
-
-  const { data, error } = await query;
-  if (error) throw error;
-  return data || [];
+  //   페이징 없이 부르면 서버 상한(1000행)에서 잘린다 — 주석의 "615행" 이 말하듯
+  //   이미 한계에 가깝다. 잘리면 옛 서명 요청이 목록에서 사라지는데 표시가 없다.
+  return await fetchPaged<any>('getSignatureRequests', () => {
+    let q = db
+      .from('signature_requests')
+      .select('id, company_id, document_id, title, status, signer_name, signer_email, signer_phone, sent_at, viewed_at, signed_at, expires_at, created_at, created_by, sign_token, reminder_count, partner_id, batch_id, batch_seq, signature_method, our_signed_at, delivery_status, delivery_detail, delivery_at, documents(name, status), partners(name, representative)')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false });
+    if (status) q = q.eq('status', status);
+    return q;
+  }, 50000, { strict: true });
 }
 
 // ── 서명본(증거) 단건 조회 — 목록에서 뺀 무거운 컬럼을 '서명본 보기' 클릭 시에만 가져온다 ──

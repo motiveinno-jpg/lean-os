@@ -1102,13 +1102,16 @@ export async function getDocTemplates(companyId: string) {
 
 // ── Documents ──
 export async function getDocuments(companyId: string) {
-  const data = logRead('getDocuments', await supabase
+  //   페이징 없이 부르면 서버 상한(1000행)에서 조용히 잘린다 — 옛 문서가 목록에서
+  //   통째로 사라지는데 화면에는 아무 표시가 없다. 같은 저장소의 70여 파일이 쓰는
+  //   fetchPaged 로 맞춘다(정렬에 id 타이브레이커를 붙여야 쪽 경계가 안정된다).
+  return await fetchPaged<any>('getDocuments', () => supabase
     .from('documents')
     // category — 전자계약 발송 목록에서 인사(근로계약·서식) 문서를 걸러내는 데 쓴다(2026-08-03).
     .select('*, deals(name), doc_templates(name, type, category), users!documents_created_by_fkey(name, email)')
     .eq('company_id', companyId)
-    .order('created_at', { ascending: false }));
-  return data || [];
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false }));
 }
 
 // 문서 영구삭제 — delete_document RPC (SECURITY DEFINER, 회사격리+서명요청 보호+부속데이터 정리).
