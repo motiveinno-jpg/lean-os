@@ -606,6 +606,10 @@ function TaxInvoicesPageInner() {
     gridRef: multiGridRef,
     rowCount: rows.length,
     addRow: () => setRows((rs) => [...rs, blankRow()]),
+    //   Enter 로 윗줄에서 내려받을 칸 — 거래처·단가는 뺀다(2026-09-11 사장님).
+    //   줄마다 달라야 하는 값이라, 복사되면 엉뚱한 거래처로 계산서가 나가거나 금액이 틀어진다.
+    //   단가에서 Enter 는 복사 없이 새 줄만 만든다.
+    copyCells: ["type", "issueDate", "itemName", "qty"],
     keepNativeUpDown: (cell) => cell === "type",
     //   후보 목록이 열려 있으면 ↑↓·Enter 는 목록이 먼저 쓴다
     skip: (i, cell) => cell === "counterpartyName" && dropdownRowKey === rows[i]?.key,
@@ -621,22 +625,8 @@ function TaxInvoicesPageInner() {
       if (!up || !cur) return;
       if (cell === "type") patchRow(cur.key, { type: up.type });
       else if (cell === "issueDate") patchRow(cur.key, { issueDate: up.issueDate });
-      else if (cell === "counterpartyName") {
-        //   거래처는 이름만 내리면 사업자번호·대표자가 빈 채로 남는다 — 딸린 값을 같이 옮긴다
-        patchRow(cur.key, {
-          counterpartyName: up.counterpartyName,
-          counterpartyBizno: up.counterpartyBizno,
-          counterpartyBusinessType: up.counterpartyBusinessType,
-          counterpartyBusinessItem: up.counterpartyBusinessItem,
-          counterpartyRepresentative: up.counterpartyRepresentative,
-          counterpartyAddress: up.counterpartyAddress,
-          counterpartyEmail: up.counterpartyEmail,
-          partnerId: up.partnerId,
-        });
-      }
       else if (cell === "itemName") patchItem(cur.key, cur.items[0].key, { name: up.items[0]?.name || "" });
       else if (cell === "qty") patchItem(cur.key, cur.items[0].key, { qty: up.items[0]?.qty || "" });
-      else if (cell === "unitCost") patchItem(cur.key, cur.items[0].key, { unitCost: up.items[0]?.unitCost || "" });
     },
   });
 

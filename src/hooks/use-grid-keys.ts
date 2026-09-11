@@ -6,8 +6,10 @@
 //   규칙이 두 벌이 되면 화면마다 엔터 동작이 달라지므로 여기 한 벌만 둔다.
 //
 //   ─ 규칙 ─────────────────────────────────────────────────────────────────
-//   Enter        그 칸이 비어 있으면 윗줄 값을 내려받고, 다음 칸으로 간다.
-//                마지막 칸이면 아랫줄 첫 칸으로 — 마지막 줄이면 새 줄을 만든다.
+//   Enter        다음 칸으로 간다. 마지막 칸이면 아랫줄 첫 칸 — 마지막 줄이면 새 줄.
+//                윗줄 값 내려받기는 `copyCells` 에 적은 칸에서만 일어난다(적지 않으면 이동만).
+//                줄마다 달라지는 칸(거래처·단가)을 복사하면 잘못된 값이 조용히 들어가므로
+//                기본은 '복사 안 함' 이다 — 복사할 칸을 화면이 명시한다.
 //   ↓ / ↑        같은 칸으로 아랫줄 / 윗줄. 마지막 줄에서 ↓ 면 새 줄.
 //   → / ←        글자 커서가 칸 끝(맨 앞)이거나 값이 통째로 선택돼 있을 때 옆 칸으로.
 //                글자 사이에 커서가 있으면 글자 이동 — 타이핑 중에 칸을 벗어나지 않는다.
@@ -32,8 +34,14 @@ export type GridKeysOptions = {
    *     '빈 문자열' 이 아니라 '직접 손댔는지' 로 판단해야 Enter 복사가 실제로 동작한다.
    */
   isEmpty: (rowIndex: number, cell: string) => boolean;
-  /** 윗줄 값을 이 줄로 내려받기. 거래처처럼 딸린 값(사업자번호 등)도 같이 옮긴다. */
+  /** 윗줄 값을 이 줄로 내려받기. 딸린 값이 있으면 같이 옮긴다. */
   copyDown: (rowIndex: number, cell: string) => void;
+  /**
+   *  Enter 로 윗줄 값을 내려받을 칸들. 여기 적힌 칸에서만 복사가 일어난다.
+   *  ⚠️ 줄마다 값이 달라야 하는 칸(거래처·단가 등)은 적지 않는다 — 복사되면
+   *     엉뚱한 거래처로 계산서가 나가거나 금액이 잘못 들어간다.
+   */
+  copyCells?: string[];
   /** 참이면 이 칸에서는 ↑↓ 를 가로채지 않는다(예: select 는 ↑↓ 가 값 고르기다). */
   keepNativeUpDown?: (cell: string) => boolean;
   /** 참이면 키 처리를 통째로 건너뛴다(예: 거래처 후보 목록이 열려 있을 때). */
@@ -41,7 +49,7 @@ export type GridKeysOptions = {
 };
 
 export function useGridKeys(opts: GridKeysOptions) {
-  const { cells, gridRef, rowCount, addRow, isEmpty, copyDown, keepNativeUpDown, skip } = opts;
+  const { cells, gridRef, rowCount, addRow, isEmpty, copyDown, copyCells, keepNativeUpDown, skip } = opts;
 
   /** 그 칸으로 커서를 옮긴다. 줄이 막 생긴 직후면 다음 그림 뒤에 잡히도록 미룬다. */
   const focusCell = useCallback((rowIndex: number, cell: string) => {
@@ -97,8 +105,8 @@ export function useGridKeys(opts: GridKeysOptions) {
 
     if (e.key !== "Enter") return;
     e.preventDefault();
-    //   빈 칸이면 윗줄에서 내려받는다 — 유형·작성일자·품목명·수량이 대개 같은 줄의 반복이다
-    if (rowIndex > 0 && isEmpty(rowIndex, cell)) copyDown(rowIndex, cell);
+    //   복사하기로 정한 칸이고, 아직 사용자가 정하지 않았으면 윗줄에서 내려받는다
+    if (rowIndex > 0 && copyCells?.includes(cell) && isEmpty(rowIndex, cell)) copyDown(rowIndex, cell);
 
     if (ci < cells.length - 1) {
       focusCell(rowIndex, cells[ci + 1]);
@@ -107,7 +115,7 @@ export function useGridKeys(opts: GridKeysOptions) {
     //   마지막 칸 — 아랫줄 첫 칸으로. 마지막 줄이었으면 새 줄을 만든다.
     if (rowIndex === rowCount - 1) addRow();
     focusCell(rowIndex + 1, cells[0]);
-  }, [cells, rowCount, addRow, isEmpty, copyDown, keepNativeUpDown, skip, focusCell]);
+  }, [cells, rowCount, addRow, isEmpty, copyDown, copyCells, keepNativeUpDown, skip, focusCell]);
 
   return { focusCell, onCellKey };
 }
