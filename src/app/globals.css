@@ -10562,3 +10562,11 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
 .vault-pw-load-failed {
   @apply mt-1 text-xs text-amber-600;
 }
+
+/*   앱 진입 확인이 실패했을 때 — 회전 원만 영원히 돌지 않게 */
+.app-enter-error {
+  @apply flex flex-col items-center gap-3 px-6 text-center;
+}
+.app-enter-error-msg {
+  @apply text-sm text-[var(--text-muted)];
+}

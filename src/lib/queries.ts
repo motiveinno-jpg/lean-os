@@ -51,11 +51,26 @@ async function _fetchCurrentUser(): Promise<CurrentUser | null> {
   const user = session?.user;
   if (!user) return null;
   // maybeSingle: users 테이블에 행이 없어도 에러 대신 null 반환
-  const { data, error } = await supabase
-    .from('users')
-    .select('*, companies!users_company_id_fkey(*)')
-    .eq('auth_id', user.id)
-    .maybeSingle();
+  //
+  //   ⚠️ 조회 실패와 '사용자 없음' 은 다르다. 예전엔 둘 다 null 로 뭉개서, 잠깐의 네트워크
+  //   오류 한 번에 회사·권한이 통째로 사라졌다 — 사이드바가 기본 메뉴만 남고 통장·구성원
+  //   화면은 대시보드로 튕기며, 사용자가 직접 새로고침하기 전까지 풀리지 않았다
+  //   (useMyPermissions 는 user.id 가 없으면 아예 안 돌아 재시도조차 없다).
+  //   세션은 있는데 조회만 실패한 것이므로 짧게 두 번 더 해 본다.
+  let data: any = null;
+  let error: any = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await supabase
+      .from('users')
+      .select('*, companies!users_company_id_fkey(*)')
+      .eq('auth_id', user.id)
+      .maybeSingle();
+    data = res.data; error = res.error;
+    if (!error) break;
+    if (attempt < 2) await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+  }
+  //   세 번 다 실패하면 null 을 돌려준다(호출부 69곳의 계약을 바꾸지 않는다). 대신
+  //   UserProvider 가 뒤에서 다시 시도해, 네트워크가 돌아오면 새로고침 없이 복구된다.
   if (error) { console.error('getCurrentUser error:', error.message); return null; }
   // auth_id로 못 찾으면 id로 폴백 (이전 데이터 호환)
   if (!data) {

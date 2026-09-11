@@ -498,7 +498,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
 
+  const [enterError, setEnterError] = useState<string | null>(null);
+
   useEffect(() => {
+    //   ⚠️ setReady(true) 가 이 체인 안에만 있다. 예전엔 .catch 도 시간 제한도 없어서
+    //   ① 여러 탭을 쓸 때 나는 인증 토큰 잠금 충돌로 getSession 이 거절되거나
+    //   ② 배포 직후 import("@/lib/queries") 가 옛 코드 조각을 못 찾으면(ChunkLoadError)
+    //   화면에 회전 원 하나만 남고 영원히 멈췄다. 실패는 화면에 적고 다시 시도할 수단을 준다.
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) { router.replace("/auth"); return; }
       
@@ -517,6 +523,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         return;
       }
       setReady(true);
+    }).catch((e: any) => {
+      console.error("[app-shell] 진입 확인 실패:", e);
+      setEnterError(
+        String(e?.name || "") === "ChunkLoadError" || /Loading chunk|dynamically imported module/i.test(String(e?.message || ""))
+          ? "새 버전이 배포되었습니다. 새로고침해 주세요."
+          : "로그인 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      );
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
@@ -528,7 +541,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   if (!ready) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+        {enterError ? (
+          <div className="app-enter-error">
+            <p className="app-enter-error-msg">{enterError}</p>
+            <button onClick={() => window.location.reload()} className="btn-primary btn-sm">다시 시도</button>
+          </div>
+        ) : (
+          <div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+        )}
       </div>
     );
   }

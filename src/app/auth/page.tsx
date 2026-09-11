@@ -142,7 +142,16 @@ export default function AuthPage() {
 
     // Safety net: 로그인 성공했지만 public.users가 없는 경우 · 회사 개설 또는 합류 요청 (company-signup 공용)
     if (loginData.user)  {
-      const result = await provisionCompanyForUser(loginData.user);
+      //   provisionCompanyForUser 는 안에서 맨 fetch 를 쓴다 — 오프라인·서버 장애면 거절된다.
+      //   예전엔 여기 오류 처리가 없어 handleLogin 이 통째로 끊기고 setLoading(false) 에
+      //   도달하지 못해, 버튼이 "처리 중..." 으로 잠긴 채 오류 문구도 안 떴다.
+      let result: Awaited<ReturnType<typeof provisionCompanyForUser>>;
+      try {
+        result = await provisionCompanyForUser(loginData.user);
+      } catch (e: any) {
+        setLoading(false);
+        return setError("회사 정보를 확인하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.");
+      }
       if (result === "join_pending") {
         setLoading(false);
         router.push("/join-pending");

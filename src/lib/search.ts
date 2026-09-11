@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { logRead } from '@/lib/log-read';
 
 // ── Global Search (pg_trgm GIN) ──
 
@@ -30,7 +31,8 @@ export async function globalSearch(
 ): Promise<GlobalSearchResult> {
   if (!query || query.length < 2) return { ...EMPTY_RESULT };
 
-  const pattern = `%${query}%`;
+  //   ilike 의 특수문자를 막는다 — "50%" 가 "50" 과 같아지고 "A_B" 가 "AxB" 까지 잡혔다
+  const pattern = `%${query.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
 
   const [deals, documents, partners, taxInvoices, bankTransactions, chatMessages, employees] =
     await Promise.all([
@@ -84,6 +86,11 @@ export async function globalSearch(
         .ilike('name', pattern)
         .limit(5),
     ]);
+
+  //   일곱 갈래 중 하나가 막혀도 예전엔 "결과 없음" 으로만 보였다 — 어디가 실패했는지 남긴다
+  for (const [name, res] of Object.entries({ deals, documents, partners, taxInvoices, bankTransactions, chatMessages, employees })) {
+    if ((res as { error?: unknown })?.error) logRead(`search:${name}`, res as { data: unknown; error: unknown });
+  }
 
   const d = deals.data ?? [];
   const doc = documents.data ?? [];

@@ -79,7 +79,12 @@ export function GlobalSearch() {
   const doSearch = useCallback((q: string) => {
     if (!companyId || q.length < 2) { setResults(null); setLoading(false); return; }
     setLoading(true);
-    globalSearch(companyId, q).then((r) => { setResults(r); setLoading(false); });
+    //   globalSearch 가 거절되면 setLoading(false) 에 도달하지 못해 스피너가 영원히 돈다
+    //   (창을 닫았다 열어야만 풀렸다). 실패해도 반드시 로딩을 끝낸다.
+    globalSearch(companyId, q)
+      .then((r) => { setResults(r); })
+      .catch((e) => { console.error('[global-search] 검색 실패:', e); setResults(null); })
+      .finally(() => { setLoading(false); });
   }, [companyId]);
 
   const onInputChange = (value: string) => {
