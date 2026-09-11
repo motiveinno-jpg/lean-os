@@ -33,6 +33,7 @@ import { uploadFile, getFilesForDocument, createFolder, getFolders, deleteFolder
 import { getCompanyStorage, fmtBytes as fmtQuotaBytes } from "@/lib/storage-quota";
 import { getDepartments } from "@/lib/schedule";
 import { generateDocumentPDF, generateQuotePDF, issueDocument } from "@/lib/document-generator";
+import { quoteTotals } from "@/lib/quote-total";
 import { getActiveTemplate, downloadTemplateFile, buildQuoteValues } from "@/lib/form-templates";
 import { fillFormTemplate } from "@/lib/pdf-overlay";
 import { FileUploadMulti } from "@/components/file-upload-multi";
@@ -344,15 +345,24 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     if (!counterparty) { toast("거래처를 입력하세요", "error"); return; }
     setIssuing(true);
     try {
+      //   문서의 거래유형을 그대로 잇는다. 예전엔 taxKind·itemName·status 를 안 넘겨
+      //   기본값(과세 10% · 품목 "용역" · 곧바로 발행)으로 떨어졌다 — 면세 견적서에도
+      //   세액이 붙고, 국세청에 나가는 품목이 "용역" 으로 고정되고, 발행 대기를 건너뛰었다.
+      //   프로젝트 쪽(BoardDocModal)은 넷 다 제대로 넘긴다.
+      const taxKind: "taxable" | "exempt" | "zero_rated" =
+        quoteHeader.taxType === "exempt" ? "exempt"
+        : quoteHeader.taxType === "zero" ? "zero_rated"
+        : "taxable";
       if (mode === "per-item") {
         for (const it of items) {
           await createTaxInvoice({
             companyId: companyId!, dealId: (doc as any)?.deal_id || undefined, type: "sales",
             counterpartyName: counterparty, partnerId: quoteHeader.partnerId || undefined,
             supplyAmount: Number(it.supplyAmount || 0), issueDate, label: it.name || "품목",
+            itemName: it.name || undefined, taxKind, status: "draft",
           });
         }
-        toast(`품목별 세금계산서 ${items.length}건을 생성했습니다`, "success");
+        toast(`품목별 세금계산서 ${items.length}건을 발행 대기로 만들었습니다`, "success");
       } else {
         const total = items.reduce((s: number, i: any) => s + Number(i.supplyAmount || 0), 0);
         const label = items.length === 1 ? (items[0].name || "품목") : `${items[0].name || "품목"} 외 ${items.length - 1}건`;
@@ -360,8 +370,9 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           companyId: companyId!, dealId: (doc as any)?.deal_id || undefined, type: "sales",
           counterpartyName: counterparty, partnerId: quoteHeader.partnerId || undefined,
           supplyAmount: total, issueDate, label,
+          itemName: label, taxKind, status: "draft",
         });
-        toast("세금계산서(일괄)를 생성했습니다", "success");
+        toast("세금계산서(일괄)를 발행 대기로 만들었습니다", "success");
       }
       setSavedModal(false);
       window.location.href = "/tax-invoices";
@@ -534,8 +545,14 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     unitPrice: Number(it.unitPrice) || 0,
                     amount: Number(it.supplyAmount) || (Number(it.quantity || 1) * Number(it.unitPrice || 0)),
                   }));
-                  const supplyAmt = items.reduce((s: number, i: any) => s + i.amount, 0);
-                  const taxAmt = Math.round(supplyAmt * 0.1);
+                  //   화면 요약·미리보기와 같은 계산을 쓴다. 예전엔 여기서만 공급가액 합계에
+                  //   일률적으로 10% 를 붙이고 할인을 몰라서, 거래처가 받는 PDF 의 금액이
+                  //   화면과 달랐다(할인 100만원이 그냥 빠지고, 면세 품목에도 세액이 붙었다).
+                  const qTotals = quoteTotals(items as any[], (cj.header?.discount ?? quoteHeader.discount));
+                  const supplyAmt = qTotals.supply;
+                  const taxAmt = qTotals.tax;
+                  const discountAmt = qTotals.discount;
+                  const grandAmt = qTotals.total;
                   // 회사 대표 계좌 가져오기
                   const bankAcct = logRead('documents/page:bankAcct', await db.from('bank_accounts').select('bank_name, account_number, alias').eq('company_id', companyId ?? '').eq('is_primary', true).limit(1).maybeSingle());
                   const currentUser = logRead('documents/page:currentUser', await db.from('users').select('name, email').eq('id', userId ?? '').maybeSingle());
@@ -576,8 +593,10 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                       validUntil: cj.header?.validUntil || quoteHeader.validUntil,
                       supplyAmount: supplyAmt,
                       taxAmount: taxAmt,
-                      totalAmount: supplyAmt + taxAmt,
-                      notes: cj.notes,
+                      totalAmount: grandAmt,
+                      notes: discountAmt > 0
+                        ? `할인 -${discountAmt.toLocaleString('ko-KR')}원\n${cj.notes || ''}`.trim()
+                        : cj.notes,
                     }), items: (items as any[]).map((it) => ({ name: it.name, quantity: it.qty, unitPrice: it.unitPrice, amount: it.amount })) });
                     pdfBlob = new Blob([filled as BlobPart], { type: "application/pdf" });
                   } else {
@@ -594,7 +613,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     items,
                     supplyAmount: supplyAmt,
                     taxAmount: taxAmt,
-                    totalAmount: supplyAmt + taxAmt,
+                    totalAmount: grandAmt,
                     validUntil: cj.header?.validUntil || quoteHeader.validUntil || cj.validUntil || '견적일로부터 30일',
                     notes: cj.notes || '',
                     sealUrl: (doc as any).seal_applied ? (await resolveSealUrl(company.data?.seal_url)) ?? undefined : undefined,
@@ -1114,10 +1133,11 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           {/* ── 견적서 미리보기 (헤더·품목 값으로 구성된 결과물) ── */}
           {(contentType === 'invoice' || contentType === 'quote') && (() => {
             const validItems = editItems.filter((i: any) => i && (i.name || Number(i.supplyAmount)));
-            const supplyTotal = editItems.reduce((s: number, i: any) => s + Number(i.supplyAmount || 0), 0);
-            const taxTotal = editItems.reduce((s: number, i: any) => s + Number(i.taxAmount || 0), 0);
-            const discountVal = Number((quoteHeader as any).discount) || 0;
-            const grand = supplyTotal + taxTotal - discountVal;
+            const t = quoteTotals(editItems as any[], (quoteHeader as any).discount);
+            const supplyTotal = t.supply;
+            const taxTotal = t.tax;
+            const discountVal = t.discount;
+            const grand = t.total;
             const w = (n: number) => `₩${(Number(n) || 0).toLocaleString('ko')}`;
             return (
               <div ref={previewRef} className="quote-preview-panel glass-card">
@@ -2335,7 +2355,13 @@ function DocumentsPageInner() {
                               try {
                                 await issueTaxInvoice(inv.id);
                                 invalidate();
-                              } catch { /* silent */ }
+                                toast("세금계산서를 발행했습니다", "success");
+                              } catch (e: any) {
+                                //   issueTaxInvoice 는 인증서 만료·사업자번호 누락 같은 원인과
+                                //   해결 힌트를 담아 던진다. 예전엔 그걸 통째로 버려서 사용자는
+                                //   아무 메시지도 못 보고 버튼이 안 눌린 줄 알고 계속 눌렀다.
+                                toast(e?.message || "세금계산서 발행에 실패했습니다", "error");
+                              }
                             }}
                             className="text-[10px] px-2 py-1 bg-blue-500/10 text-blue-400 rounded-lg font-semibold hover:bg-blue-500/20 transition">
                             발행

@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { CurrencyInput } from "@/components/currency-input";
 import { useModalKeys } from "@/hooks/use-modal-keys";
+import { quoteTotals } from "@/lib/quote-total";
 
 export type QuoteCol = {
   key: string;
@@ -197,10 +198,12 @@ export function QuoteItemsTable({
       {/* 요약 — 할인 + 이익계산 */}
       {(() => {
         const supplyTotal = rows.reduce((a, r) => a + (Number(r.supplyAmount) || 0), 0);
-        const taxTotal = rows.reduce((a, r) => a + (Number(r.taxAmount) || 0), 0);
         const hasCost = cols.some((c) => c.key === "cost");
         const costTotal = rows.reduce((a, r) => a + (Number(r.cost) || 0) * (Number(r.quantity) || 1), 0);
-        const grand = supplyTotal + taxTotal - (Number(discount) || 0);
+        //   합계는 quote-total 한 곳에서만 — 화면·PDF·세금계산서가 갈라지지 않게
+        const t = quoteTotals(rows as any[], discount);
+        const taxTotal = t.tax;
+        const grand = t.total;
         const profit = supplyTotal - costTotal;
         const profitRate = supplyTotal ? profit / supplyTotal : 0;
         return (
