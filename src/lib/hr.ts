@@ -524,16 +524,21 @@ export async function recomputeAttendance(params: {
     hs.forEach((h) => holidaySet.add(h.date));
   }
 
-  // 근태 행
-  let q = db
-    .from('attendance_records')
-    .select('id, employee_id, date, check_in, check_out, attendance_type, status, is_late, late_minutes, regular_minutes, overtime_minutes, night_minutes, holiday_minutes, is_holiday')
-    .eq('company_id', params.companyId)
-    .gte('date', params.from)
-    .lte('date', params.to);
-  if (params.employeeId) q = q.eq('employee_id', params.employeeId);
-  const { data: rows, error } = await q;
-  if (error) throw error;
+  //   ⚠️ 페이징 없이 부르면 PostgREST 상한(1000행)에서 조용히 잘린다 — 직원 33명 × 30일이면
+  //   이미 상한이다. 나머지 직원의 지각·연장·야간·휴일 분이 옛 값으로 남고 급여 가산분이
+  //   틀어지는데, 화면에는 "재계산 완료" 가 떴다. 같은 파일의 월별 집계는 이미 페이징을 쓴다.
+  const rows = await fetchPaged<any>('lib/hr:recomputeRecords', () => {
+    let q = db
+      .from('attendance_records')
+      .select('id, employee_id, date, check_in, check_out, attendance_type, status, is_late, late_minutes, regular_minutes, overtime_minutes, night_minutes, holiday_minutes, is_holiday')
+      .eq('company_id', params.companyId)
+      .gte('date', params.from)
+      .lte('date', params.to)
+      .order('date', { ascending: true })
+      .order('id', { ascending: true });
+    if (params.employeeId) q = q.eq('employee_id', params.employeeId);
+    return q;
+  }, 50000, { strict: true });
 
   // 직원별 출퇴근시간 override — 회사 기본 settings 위에 개인 설정이 있으면 그 직원 행에만 덮어씀.
   const distinctEmpIds = [...new Set((rows || []).map((r: any) => r.employee_id).filter(Boolean))] as string[];
@@ -550,13 +555,16 @@ export async function recomputeAttendance(params: {
   //   종전엔 승인 휴가 전부를 on_leave=true 로 뭉개 반차도 work=0 이 됐고,
   //   지각 판정도 휴가를 몰라 오전 반차 후 출근이 지각으로 남았다.
   //   이제 종일만 on_leave, 부분 휴가는 지각 기준시각 보정(exempt)으로 넘긴다.
-  const leaves = logRead('lib/hr:leaves', await db
+  //   휴가 행도 같은 이유로 페이징 — 여기가 잘리면 종일 휴가가 결근으로 뒤집힌다
+  const leaves = await fetchPaged<any>('lib/hr:leaves', () => db
     .from('leave_requests')
     .select('employee_id, start_date, end_date, status, leave_unit, start_time, end_time, days')
     .eq('company_id', params.companyId)
     .eq('status', 'approved')
     .lte('start_date', params.to)
-    .gte('end_date', params.from));
+    .gte('end_date', params.from)
+    .order('start_date', { ascending: true })
+    .order('id', { ascending: true }), 50000, { strict: true });
   const leaveRowsByEmpDate = new Map<string, any[]>();
   (leaves || []).forEach((l: any) => {
     const s = new Date(l.start_date);

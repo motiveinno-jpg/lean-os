@@ -941,18 +941,30 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
         (supabase).from("attendance_records").select("employee_id, status, is_late").eq("company_id", companyId).eq("date", kstToday),
         (supabase).from("leave_requests").select("employee_id").eq("company_id", companyId).eq("status", "approved").lte("start_date", kstToday).gte("end_date", kstToday),
       ]);
+      //   ⚠️ 조회가 실패하면 출근·지각·휴가가 모두 0이 되고 결근 카드가 전원으로 찍힌다.
+      //   숫자를 지어내지 말고 실패를 알린다.
+      if (attRes.error) throw attRes.error;
+      if (leaveRes.error) throw leaveRes.error;
+
       const present = new Set<string>();
       const late = new Set<string>();
+      const absentRecorded = new Set<string>();
       for (const r of (attRes.data || []) as any[]) {
+        //   ⚠️ status 를 봐야 한다. 예전엔 is_late 만 보고 나머지를 전부 '출근' 으로 넣어,
+        //   관리자가 결근으로 기록한 사람이 출근으로 집계되고 결근 카드가 그만큼 줄었다.
+        const st = String(r.status || "");
+        if (st === "absent") { absentRecorded.add(r.employee_id); continue; }
         if (r.is_late) late.add(r.employee_id);   // 지각 판정은 is_late 단일 소스 (2026-08-07)
         else present.add(r.employee_id);
       }
       const leaveSet = new Set<string>(((leaveRes.data || []) as any[]).map((r) => r.employee_id));
       // 휴가자는 출근/지각 집계에서 제외(중복 방지)
       for (const id of leaveSet) { present.delete(id); late.delete(id); }
+      for (const id of leaveSet) absentRecorded.delete(id);
       return {
         present: present.size, late: late.size, leave: leaveSet.size,
         presentIds: [...present], lateIds: [...late], leaveIds: [...leaveSet],
+        absentRecordedIds: [...absentRecorded],
       };
     },
     enabled: !!companyId && !isEmployeeRole,
@@ -966,6 +978,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     const late = (todayStatus?.lateIds || []).map(nameOf);
     const leave = (todayStatus?.leaveIds || []).map(nameOf);
     const counted = new Set([...(todayStatus?.presentIds || []), ...(todayStatus?.lateIds || []), ...(todayStatus?.leaveIds || [])]);
+    //   결근으로 '기록된' 사람은 기록이 있어도 결근이다 — counted 에 넣지 않아 아래에서 잡힌다
     // 공휴일·주말엔 결근 명단도 비운다 + 입사 전 직원 제외 (2026-08-19 감사: 카드는 0인데
     // 클릭하면 전 직원 명단이 나오던 모순).
     const todayIsOff = holidayDaySet.has(todayStr) || [0, 6].includes(today.getDay());

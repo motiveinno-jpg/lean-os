@@ -53,7 +53,7 @@
   "src/lib/hr-appointments.ts": 1,
   "src/lib/hr-contracts.ts": 2,
   "src/lib/hr-todo.ts": 4,
-  "src/lib/hr.ts": 8,
+  "src/lib/hr.ts": 6,
   "src/lib/inventory-channels.ts": 1,
   "src/lib/inventory-cost.ts": 1,
   "src/lib/inventory-orders.ts": 2,

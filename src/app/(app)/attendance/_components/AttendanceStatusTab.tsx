@@ -104,6 +104,30 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
     return Math.max(0, n);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [holidays, rangeFrom, rangeTo, todayStr, workMask]);
+  //   ⚠️ 출근율 분모는 **그 사람이 재직한 날** 이어야 한다. 예전엔 전 직원이 기간 전체
+  //   근무일을 같은 분모로 썼다 — 이달 20일 입사자는 개근해도 20% 남짓으로 찍히고
+  //   부서 평균까지 끌어내렸다(결근 파생은 입사일을 거르는데 출근율만 안 걸렀다).
+  const workdaysFor = useMemo(() => {
+    const hol = new Set(holidays.map((h: any) => String(h.date).slice(0, 10)));
+    const endAll = rangeTo < todayStr ? rangeTo : todayStr;
+    const cache = new Map<string, number>();
+    return (hire?: string | null, left?: string | null) => {
+      const from = hire && hire > rangeFrom ? hire : rangeFrom;
+      const to = left && left < endAll ? left : endAll;
+      const key = `${from}|${to}`;
+      if (cache.has(key)) return cache.get(key)!;
+      let n = 0;
+      for (let d = new Date(from + "T00:00:00Z"); d.toISOString().slice(0, 10) <= to; d = new Date(d.getTime() + 86400000)) {
+        const ds = d.toISOString().slice(0, 10);
+        if (!isWorkDow(d.getUTCDay()) || hol.has(ds)) continue;
+        n++;
+      }
+      cache.set(key, Math.max(0, n));
+      return cache.get(key)!;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [holidays, rangeFrom, rangeTo, todayStr, workMask]);
+
   const workdaysByMonth = useMemo(() => {
     const hol = new Set(holidays.map((h: any) => String(h.date).slice(0, 10)));
     const m: Record<string, number> = {};
@@ -125,6 +149,15 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
     const empInfo = new Map<string, { name: string; department: string }>();
     for (const e of employees) empInfo.set(e.id, { name: e.name || "", department: e.department || "" });
     const map = new Map<string, Row>();
+    //   재직 기간 — 출근율 분모와 결근 파생이 같이 쓴다
+    const hireAll = new Map<string, string>();
+    const leftAll = new Map<string, string>();
+    for (const e of employees) {
+      if (e.hire_date) hireAll.set(e.id, String(e.hire_date).slice(0, 10));
+      const end = (e as { resignation_date?: string | null }).resignation_date;
+      if (end) leftAll.set(e.id, String(end).slice(0, 10));
+      else if (["resigned", "inactive"].includes(String(e.status || ""))) leftAll.set(e.id, "0000-00-00");
+    }
     const blank = (id: string, name: string, dept: string): Row => ({ employee_id: id, name, department: dept || "미배정", totalDays: 0, lateDays: 0, lateMinutesSum: 0, overtimeMinutesSum: 0, nightMinutesSum: 0, holidayMinutesSum: 0, absentDays: 0, remoteDays: 0, halfDays: 0, totalHours: 0, leaveDays: 0, leaveFull: 0, leaveHalf: 0, leaveQuarter: 0, alwTotal: 0, ratio: 0, months: {} });
     for (const { month, rows } of monthly) {
       for (const s of rows) {
@@ -151,8 +184,11 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
       const recorded = new Set(recordDays.map((r: any) => `${r.employee_id}:${String(r.date).slice(0, 10)}`));
       const onLeave = new Set<string>();
       for (const lv of leaves) { if (!lv.start_date || !lv.end_date) continue; for (let d = new Date(String(lv.start_date).slice(0, 10) + "T00:00:00Z"); d.toISOString().slice(0, 10) <= String(lv.end_date).slice(0, 10); d = new Date(d.getTime() + 86400000)) onLeave.add(`${lv.employee_id}:${d.toISOString().slice(0, 10)}`); }
-      const hireOf = new Map<string, string>();
-      for (const e of employees) if (e.hire_date) hireOf.set(e.id, String(e.hire_date).slice(0, 10));
+      //   ⚠️ 퇴사일 이후는 결근이 아니다. 위에서 퇴사자를 '새로 추가' 만 안 했을 뿐,
+      //   그 달에 기록이 있어 이미 목록에 든 퇴사자는 남아 있다. 예전엔 입사일만 걸러서
+      //   3월 5일 퇴사자에게 3/6~오늘의 평일이 전부 결근으로 쌓여 부서 합계가 폭증했다
+      //   (같은 데이터를 쓰는 기록 상세 달력은 퇴사자를 빼므로 두 화면 숫자가 달랐다).
+      const hireOf = hireAll, leftOf = leftAll;
       for (const r of map.values()) {
         for (const ym of months) {
           let n = 0; const end = lastDayOf(ym) < todayStr ? lastDayOf(ym) : todayStr;
@@ -160,6 +196,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
             const ds = d.toISOString().slice(0, 10); const dow = d.getUTCDay();
             if (ds >= todayStr || !isWorkDow(dow) || hol.has(ds)) continue;
             const hire = hireOf.get(r.employee_id); if (hire && ds < hire) continue;
+            const left = leftOf.get(r.employee_id); if (left && ds > left) continue;
             const k = `${r.employee_id}:${ds}`; if (recorded.has(k) || onLeave.has(k)) continue;
             n++;
             if (!derivedAbsent.has(r.employee_id)) derivedAbsent.set(r.employee_id, []);
@@ -171,10 +208,10 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
         }
       }
     }
-    for (const r of map.values()) { for (const m of months) { const k = `${r.employee_id}:${m}`; if (!r.months[m] && (leaveByEmpMonth.get(k) || alwByEmpMonth.get(k))) { const mr = blank(r.employee_id, r.name, r.department); mr.leaveDays = leaveByEmpMonth.get(k) || 0; mr.alwTotal = alwByEmpMonth.get(k) || 0; r.months[m] = mr; r.leaveDays += mr.leaveDays; r.alwTotal += mr.alwTotal; } } r.ratio = workdays > 0 ? Math.min(1, r.totalDays / workdays) : 0; }
+    for (const r of map.values()) { for (const m of months) { const k = `${r.employee_id}:${m}`; if (!r.months[m] && (leaveByEmpMonth.get(k) || alwByEmpMonth.get(k))) { const mr = blank(r.employee_id, r.name, r.department); mr.leaveDays = leaveByEmpMonth.get(k) || 0; mr.alwTotal = alwByEmpMonth.get(k) || 0; r.months[m] = mr; r.leaveDays += mr.leaveDays; r.alwTotal += mr.alwTotal; } } r.ratio = (() => { const wd = workdaysFor(hireAll.get(r.employee_id), leftAll.get(r.employee_id)); return wd > 0 ? Math.min(1, r.totalDays / wd) : 0; })(); }
     return { rowsAll: [...map.values()], derivedAbsent };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monthly, leaves, allowances, employees, months, workdays, workdaysByMonth, rangeFrom, rangeTo, recordDays, holidays, todayStr, workMask]);
+  }, [monthly, leaves, allowances, employees, months, workdays, workdaysFor, workdaysByMonth, rangeFrom, rangeTo, recordDays, holidays, todayStr, workMask]);
 
   // ── 숫자 칸 팝업 · 눌린 칸(종류·직원·달)에 해당하는 날짜·내용 목록 ──
   const [detail, setDetail] = useState<DetailScope | null>(null);
