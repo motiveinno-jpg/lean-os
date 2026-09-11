@@ -493,7 +493,13 @@ function SignContent() {
         const sigReq = logRead('sign/page:sigReq', await db.rpc("get_signature_request_by_token", { p_token: token })) as TokenSigReq | null;
 
         if (sigReq) {
-          const expired = sigReq.expires_at ? new Date(sigReq.expires_at) < new Date() : false;
+          //   ⚠️ 만료 시각만 보면 안 된다. 발송자가 요청을 취소하면 status 만 'expired' 로 바뀌고
+          //   expires_at 은 그대로라, 취소된 링크가 정상 서명 화면으로 열렸다. 서명자는 계약서를
+          //   다 읽고 서명까지 그린 뒤 마지막에 DB 가드에 걸려 알 수 없는 메시지를 봤다.
+          //   서명할 수 없는 상태면 처음부터 그렇게 보여 준다.
+          const closedStatuses = ["expired", "cancelled", "canceled", "voided", "rejected"];
+          const expired = (sigReq.expires_at ? new Date(sigReq.expires_at) < new Date() : false)
+            || closedStatuses.includes(String(sigReq.status || ""));
           // 2026-05-21: anon RLS 우회 — SECURITY DEFINER RPC 로 company + partner 한 번에 조회.
           //   sign_token 검증 후 안전하게 갑/을 컨텍스트 반환.
           //   기존 partners RLS = company_id = get_my_company_id() 가 anon 차단해 표시 단 치환 불가했던 회귀 정공 fix.
@@ -517,10 +523,16 @@ function SignContent() {
           const filledContentJson = sigReq.documents?.content_json
             ? { ...sigReq.documents.content_json, body: effectiveBody }
             : sigReq.documents?.content_json;
+          //   ⚠️ 원본 문서를 지우면 signature_requests.document_id 가 NULL 로 풀려
+          //   sigReq.documents 가 없어진다. 예전엔 그때 items 가 빈 배열이 되어, 보관돼 있는
+          //   계약 원문(template_snapshot_html)을 두고도 "문서 내용을 불러올 수 없습니다" 만
+          //   떴다. 서명란은 보이는데 눌러도 가드에 걸려 토스트 하나 없이 끝났다.
+          //   보관본이 있으면 그것으로 문서를 세운다 — 서명의 증거는 원본이 아니라 보관본이다.
           const filledDocuments = sigReq.documents
             ? { ...sigReq.documents, content_json: filledContentJson }
-            
-            : sigReq.documents;
+            : (typeof snapshotHtml === "string" && snapshotHtml.trim())
+              ? ({ name: sigReq.title, status: "approved", content_json: { body: snapshotHtml } } as unknown as typeof sigReq.documents)
+              : sigReq.documents;
 
           // 2026-05-28 옛 서명 · DB 에 저장된 signer_inputs 복원 (서명본 모달·완료화면 합성용)
           if (sigReq.signer_inputs && typeof sigReq.signer_inputs === 'object')  {
