@@ -1,5 +1,6 @@
 "use client";
 import { BizAlertRules } from "@/components/biz-alert-rules";
+import { useMyPermissions } from "@/lib/permissions";
 import { logRead } from "@/lib/log-read";
 import { Ico }  from "@/components/ui-icon";
 
@@ -104,8 +105,11 @@ const NOTIF_STORAGE_KEY = "leanos-notification-prefs";
 
 export function NotificationsTab({ companyId }: { companyId: string | null }) {
   //   경영 알림 조건을 볼 사람 = 그 알림을 받는 사람. run_biz_alerts_for 가 owner·admin 에게 보낸다.
-  const { user: me, role: myRole } = useUser();
-  const canBizAlerts = !!(me as any)?.is_master || myRole === "owner" || myRole === "admin";
+  const { user: me } = useUser();
+  const { hasPerm: bizPerm } = useMyPermissions();
+  //   2026-09-11 역할 폐지 — DB(biz_alert_rules)와 같은 기준: 마스터 또는 돈을 보는 권한자
+  const canBizAlerts = !!(me as any)?.is_master || bizPerm("/bank") || bizPerm("/finance/status")
+    || bizPerm("/reports") || bizPerm("/dashboard:finance");
   const { toast } = useToast();
   const [prefs, setPrefs] = useState<NotifPrefs>(DEFAULT_NOTIF_PREFS);
   const [myPhone, setMyPhone] = useState<string | null>(null);   //   카카오톡을 받을 번호 — 직원 기록의 전화번호

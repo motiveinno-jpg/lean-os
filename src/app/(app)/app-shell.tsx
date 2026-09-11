@@ -113,7 +113,8 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
 
   // 온보딩 미완료 직원 → 자동 완료 처리 (직원은 회사 온보딩 대상 아님)
   useEffect(() => {
-    if (loading || !user || role !== "employee") return;
+    //   2026-09-11 역할 폐지 — 회사 온보딩 대상은 마스터다. 그 밖의 구성원은 자동 완료.
+    if (loading || !user || (user as any)?.is_master) return;
     (async () => {
       const emp = logRead('(app)/app-shell:emp', await supabase
         .from("employees")

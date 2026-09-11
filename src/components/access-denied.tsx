@@ -12,38 +12,24 @@ import { useUser, type UserRole } from "@/components/user-context";
 type RecMenu = { href: string; label: string; emoji: string };
 
 const RECOMMEND_BY_ROLE: Record<UserRole, RecMenu[]> = {
-  owner: [
+  //   2026-09-11 역할 폐지 — 대표·관리자·직원별 추천을 없애고 계정 종류로만 나눈다.
+  member: [
     { href: "/dashboard", label: "대시보드", emoji: "🏠" },
     { href: "/approvals", label: "결재함", emoji: "📋" },
-    { href: "/collect?tab=bank", label: "수집·전표", emoji: "💳" },
-  ],
-  admin: [
-    { href: "/dashboard", label: "대시보드", emoji: "🏠" },
-    { href: "/approvals", label: "결재함", emoji: "📋" },
-    { href: "/employees", label: "인사관리", emoji: "👤" },
-  ],
-  employee: [
-    { href: "/dashboard", label: "홈", emoji: "🏠" },
-    { href: "/attendance", label: "근태/출퇴근", emoji: "⏰" },
-    { href: "/leave", label: "휴가 신청", emoji: "🏖️" },
+    { href: "/schedule", label: "일정", emoji: "📅" },
   ],
   partner: [
-    { href: "/dashboard", label: "홈", emoji: "🏠" },
-    { href: "/projects", label: "프로젝트", emoji: "📋" },
-    { href: "/documents", label: "문서/계약", emoji: "📄" },
+    { href: "/dashboard", label: "대시보드", emoji: "🏠" },
+    { href: "/chat", label: "메신저", emoji: "💬" },
   ],
   advisor: [
     { href: "/dashboard", label: "대시보드", emoji: "🏠" },
-    { href: "/tax-invoices", label: "세금계산서", emoji: "🧾" },
-    { href: "/advisor/dashboard", label: "파트너 포털", emoji: "📒" },
+    { href: "/partners/ledger", label: "거래처 원장", emoji: "📒" },
   ],
 };
 
-// (2026-08-03 역할 폐지 반영) 관리자·직원 구분 표기 제거 · 멤버로 통일 (마스터는 아래 is_master 로 판정).
 const ROLE_LABEL: Record<UserRole, string> = {
-  owner: "대표",
-  admin: "멤버",
-  employee: "멤버",
+  member: "멤버",
   partner: "파트너",
   advisor: "세무 파트너",
 };
@@ -57,7 +43,7 @@ export function AccessDenied({
 }) {
   const { role, user } = useUser();
   const qc = useQueryClient();
-  const recs = RECOMMEND_BY_ROLE[role] || RECOMMEND_BY_ROLE.employee;
+  const recs = RECOMMEND_BY_ROLE[role] || RECOMMEND_BY_ROLE.member;
   const roleLabel = (user as any)?.is_master ? "마스터" : ROLE_LABEL[role] || "사용자";
   // 이 화면이 떠 있는 동안 10초마다 권한 재확인 — 마스터가 방금 부여하면 자동으로 풀린다
   //   (2026-07-31: 템플릿 부여 직후 캐시로 '권한 없음'이 유지되던 문제)

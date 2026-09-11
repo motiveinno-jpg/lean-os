@@ -1,5 +1,6 @@
 "use client";
 import { koFallback } from "@/lib/ko-label";
+import { useMyPermissions } from "@/lib/permissions";
 
 import { kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
@@ -79,9 +80,11 @@ export default function VaultPage() {
   const { role, loading }  = useUser();
   // 게이트 early return 뒤 훅 = React #310 결함류 · 본문 분리 (2026-08-03).
   //   loading 가드도 추가: role 확정 전 AccessDenied 가 깜빡이던 문제 함께 차단.
+  const { isMaster, hasPerm } = useMyPermissions();
   if (loading) return null;
-  if (role !== "owner")  {
-    return <AccessDenied detail="보관함(중요 자료)은 대표 계정 전용입니다." />;
+  //   2026-09-11 역할 폐지 — 마스터 또는 보관함 권한자
+  if (!(isMaster || hasPerm("/vault"))) {
+    return <AccessDenied detail="보관함 권한이 없습니다. 마스터에게 요청하세요." />;
   }
   return <VaultPageInner />;
 }

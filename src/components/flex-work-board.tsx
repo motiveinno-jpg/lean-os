@@ -87,7 +87,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
   /** 조회 줄 오른쪽에 붙일 것(재직 인원 등) */
   headRight?: ReactNode;
 }) {
-  const isEmployee = role === "employee";
+  const isEmployee = role !== "manager";   // 호출부가 넘기는 화면 모드 — 관리 권한자면 "manager" (2026-09-11 역할 폐지)
   const [weekStart, setWeekStart] = useState<Date>(() => mondayOf(kstToday()));
   //   구성원 정렬 (2026-08-25 사장님) — 가나다순(기본)·근무시간순·팀별
   const [sortMode, setSortMode] = useState<"hours" | "name" | "team">("name");

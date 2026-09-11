@@ -35,7 +35,7 @@ function IngestKeyCard({ companyId }: { companyId: string }) {
   //   활성으로 보이고 누르면 권한 오류만 났다 (2026-09-11). 할 수 없는 일은 버튼으로 보여 주지 않는다.
   const { isMaster } = useMyPermissions();
   const { user: meUser } = useUser();
-  const canIssue = isMaster || ["owner", "admin"].includes(String((meUser as any)?.role || ""));
+  const canIssue = isMaster;   // 2026-09-11 역할 폐지 — DB(company_ingest_keys)가 마스터만 받는다
   const { toast } = useToast();
   const qc = useQueryClient();
   const [issued, setIssued] = useState<string | null>(null);

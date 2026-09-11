@@ -40,11 +40,11 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/dashboard", label: "대시보드", icon: "grid" },
       { href: "/notifications", label: "알림", icon: "bell", badgeKey: "notifications" },
       { href: "/mypage", label: "마이페이지", icon: "user" },
-      { href: "/copilot", label: "AI 참모", icon: "sparkles", roles: ["owner", "admin"] },
+      { href: "/copilot", label: "AI 참모", icon: "sparkles" },
       //   지원사업 · 정부 지원정책 큐레이션 (2026-08-21 사장님 지시). 회사 자료로 걸러 주는 곳.
       //   매일 여는 순서 원칙에서 주 1회쯤 여는 성격이라 AI 참모 아래. 직원 인사 정보로 자격을 판정해 대표·관리자 전용.
       
-      { href: "/support-programs", label: "지원사업추천", icon: "gift", roles: ["owner", "admin"] },
+      { href: "/support-programs", label: "지원사업추천", icon: "gift" },
       // 마스터 전용 · 대시보드 하단 경영 종합 3종(커맨드 센터·프로젝트 경영·월결산) 이동 (2026-08-10 사장님)
       
       { href: "/master", label: "마스터", icon: "shield", masterOnly: true },
@@ -59,23 +59,23 @@ const NAV_GROUPS: NavGroup[] = [
     //   ★ 다섯은 사장님이 정한 "5개까지만 편다"의 **정확한 상한**이다. 앞으로 더할 것은 메뉴가 아니라 화면 안 갈래 탭으로.
     label: "재고", short: "재고", icon: "package",
     items: [
-      { href: "/inventory/products", label: "품목", icon: "package", roles: ["owner", "admin"], layer: "기초" },
+      { href: "/inventory/products", label: "품목", icon: "package", layer: "기초" },
       //   ★ 그룹 이름이 재고라 안쪽은 '창고관리' · "재고 › 재고" 중복·'현재고'는 상태어라 어색(2026-08-26 사장님)
       
-      { href: "/inventory/stock", label: "창고관리", icon: "layers", roles: ["owner", "admin"] },
+      { href: "/inventory/stock", label: "창고관리", icon: "layers" },
       //   ★ 차례는 주문 · 판매 · 구매 · 생산 (2026-08-25 사장님 지시).
       //     주문서는 약속이라 재고를 안 건드리고, 나머지 셋이 그것을 불러와 재고를 움직인다.
-      { href: "/inventory/orders", label: "주문", icon: "clipboard", roles: ["owner", "admin"], layer: "거래" },
-      { href: "/inventory/sales", label: "판매", icon: "arrow-right-left", roles: ["owner", "admin"] },
-      { href: "/inventory/purchase", label: "구매", icon: "download", roles: ["owner", "admin"] },
-      { href: "/inventory/production", label: "생산", icon: "kanban", roles: ["owner", "admin"] },
-      { href: "/inventory/channels", label: "이커머스", icon: "link", roles: ["owner", "admin"], layer: "연동" },
+      { href: "/inventory/orders", label: "주문", icon: "clipboard", layer: "거래" },
+      { href: "/inventory/sales", label: "판매", icon: "arrow-right-left" },
+      { href: "/inventory/purchase", label: "구매", icon: "download" },
+      { href: "/inventory/production", label: "생산", icon: "kanban" },
+      { href: "/inventory/channels", label: "이커머스", icon: "link", layer: "연동" },
       //   ★ 현황 · 주문·판매·구매·생산을 한 화면에 집계·그래프로. 맨 아래(2026-08-26 사장님: "현황이 제일 아래쪽으로").
       
-      { href: "/inventory/status", label: "현황", icon: "bar-chart", roles: ["owner", "admin"], layer: "현황" },
+      { href: "/inventory/status", label: "현황", icon: "bar-chart", layer: "현황" },
       //   ★ 이익관리 (결정 40, 2026-08-26 사장님). 원가(FIFO) 반영 이익. 4글자는 사장님 확정 예외.
       
-      { href: "/inventory/profit", label: "이익관리", icon: "trending-up", roles: ["owner", "admin"] },
+      { href: "/inventory/profit", label: "이익관리", icon: "trending-up" },
     ],
   },
   {
@@ -87,37 +87,37 @@ const NAV_GROUPS: NavGroup[] = [
       //   2026-08-19 사장님 확정(A안) — 층으로 쌓는다: 기초(통장·카드·거래처) → 자료(수집·전표·세금·증빙) → 기장(일반·매입매출전표) → 예정(정기 지출).
       //   "위에 있는 것이 아래를 먹여 살린다" — 새 회사는 위에서부터 차례로 채우면 된다. (예전: 매일 여는 수집·전표가 첫 자리)
       //   통장·카드·정기 지출은 옛 '자금' 그룹에서 왔다(2026-08-19 사장님: 자금 그룹 폐지).
-      { href: "/bank", label: "통장", icon: "arrow-right-left", roles: ["owner", "admin"], layer: "기초" },
-      { href: "/cards", label: "카드", icon: "wallet", roles: ["owner", "admin"] },
-      { href: "/partners", label: "거래처", icon: "users", roles: ["owner", "admin"], match: ["/partners"] },
+      { href: "/bank", label: "통장", icon: "arrow-right-left", layer: "기초" },
+      { href: "/cards", label: "카드", icon: "wallet" },
+      { href: "/partners", label: "거래처", icon: "users", match: ["/partners"] },
       //   흩어져 있던 다섯 화면의 수집을 모은 입구 (2026-08-11). 자료를 받아 전표까지 여기서 끝낸다.
-      { href: "/collect", label: "수집·전표", icon: "download", roles: ["owner", "admin"], match: ["/collect"], layer: "자료" },
-      { href: "/tax-invoices", label: "세금·증빙", icon: "receipt", roles: ["owner", "admin"], match: ["/tax-invoices", "/cash-receipts", "/e-invoices"] },
+      { href: "/collect", label: "수집·전표", icon: "download", match: ["/collect"], layer: "자료" },
+      { href: "/tax-invoices", label: "세금·증빙", icon: "receipt", match: ["/tax-invoices", "/cash-receipts", "/e-invoices"] },
       //   2026-08-11 — '자동 분류'를 메뉴에서 내렸다(사장님 지시).
       //     · 통장 줄 처리(수금 매칭·전표·계좌이동·카드 다대일·되돌리기·추천)는 전부 수집·전표 통장 탭으로 갔고,
       //     · 마지막 남았던 **비목**도 이제 전표를 만들 때 함께 붙는다(post_bank_voucher 가 category 를 채운다).
       //     · 그래서 이 화면에는 새로 할 일이 남지 않았다.
       //   ★ **라우트는 살려 둔다** — /transactions 와 /partners/reconciliation 은 주소로 들어가면 그대로 열린다.
       //     즐겨찾기·옛 링크가 막히지 않게, 되돌릴 땐 이 줄만 다시 넣으면 된다.
-      //   { href: "/transactions", label: "자동 분류", icon: "book", roles: ["owner", "admin"], match: ["/transactions", "/partners/reconciliation"] },
+      //   { href: "/transactions", label: "자동 분류", icon: "book", match: ["/transactions", "/partners/reconciliation"] },
       // 전표는 두 갈래로 나눠 각각 메뉴로 둔다 (2026-08-11 사장님 지시 · 탭 말고 메뉴).
       //   일반전표 = 통장·대체·결산 / 매입매출전표 = 세금계산서·카드·현금영수증(부가세 유형이 붙는 거래).
       //   경로가 /partners/reconciliation 하위지만 match로 자기 경로만 지정 → 최장매치로 각각 단독 활성.
       
-      { href: "/partners/reconciliation/voucher-entry", label: "일반전표", icon: "edit-3", roles: ["owner", "admin"], match: ["/partners/reconciliation/voucher-entry"], layer: "기장" },
-      { href: "/partners/reconciliation/sale-purchase", label: "매입매출전표", icon: "receipt", roles: ["owner", "admin"], match: ["/partners/reconciliation/sale-purchase"] },
+      { href: "/partners/reconciliation/voucher-entry", label: "일반전표", icon: "edit-3", match: ["/partners/reconciliation/voucher-entry"], layer: "기장" },
+      { href: "/partners/reconciliation/sale-purchase", label: "매입매출전표", icon: "receipt", match: ["/partners/reconciliation/sale-purchase"] },
       //   고정자산 · 장비·차량·소프트웨어 등록 → 월 감가상각 초안 (2026-08-27 ERP 공백 ⑤). 기장 층의 끝.
       
-      { href: "/finance/assets", label: "고정자산", icon: "box", roles: ["owner", "admin"] },
+      { href: "/finance/assets", label: "고정자산", icon: "box" },
       //   세무 신고 · 원천세·부가세 신고서 완성까지, 제출은 홈택스에서 사람 (2026-08-31 세무 1차, 결정 107)
       
-      { href: "/finance/tax-filing", label: "세무 신고", icon: "receipt", roles: ["owner", "admin"], layer: "신고" },
+      { href: "/finance/tax-filing", label: "세무 신고", icon: "receipt", layer: "신고" },
       //   정기 지출은 실적이 아니라 '예정' · 성격이 달라 맨 아래. (분석 '자금 전망' 옆으로 옮길지는 사장님 결정 대기)
       
-      { href: "/payments", label: "정기 지출", icon: "clock", roles: ["owner", "admin"], layer: "예정" },
+      { href: "/payments", label: "정기 지출", icon: "clock", layer: "예정" },
       //   ★ 현황 · 작성된 전표의 현황·지표. 통장·카드는 각자 화면의 개요/분석, 손익은 분석이 맡는다 (2026-08-26 사장님, 같은 날 재편).
       
-      { href: "/finance/status", label: "현황", icon: "bar-chart", roles: ["owner", "admin"], layer: "현황" },
+      { href: "/finance/status", label: "현황", icon: "bar-chart", layer: "현황" },
       // 2026-07-28 대출·자산은 실제로 쓰지 않는 기능이라 사이드바에서 내렸다(사장님 확인). 라우트(/loans, /vault)는 그대로.
     ],
   },
@@ -127,11 +127,11 @@ const NAV_GROUPS: NavGroup[] = [
       // 메뉴 순서: 일정/할일 → 프로젝트 → 승인요청 → 게시판 → 메신저 (전자계약은 끝 유지)
       //   '워크플로우'(전사 칸반 /projects)는 실행형 프로젝트 상세 마지막 탭으로 이동 (2026-06-30).
       { href: "/schedule", label: "일정 / 할 일", icon: "calendar" },
-      { href: "/projecthub", label: "프로젝트", icon: "briefcase", roles: ["owner", "admin"] },
-      { href: "/approvals", label: "결재 허브", icon: "clipboard-check", badgeKey: "approvals", roles: ["owner", "admin"] },
+      { href: "/projecthub", label: "프로젝트", icon: "briefcase" },
+      { href: "/approvals", label: "결재 허브", icon: "clipboard-check", badgeKey: "approvals" },
       { href: "/board", label: "게시판", icon: "message-square" },
       { href: "/chat", label: "메신저", icon: "message-circle", badgeKey: "chat" },
-      { href: "/signatures", label: "전자계약", icon: "edit-3", roles: ["owner", "admin"] },
+      { href: "/signatures", label: "전자계약", icon: "edit-3" },
       //   파일보관함. 인사관리 → 워크스페이스 (2026-08-20 사장님: 문서는 인사만의 것이 아니다)
       
       { href: "/documents", label: "파일보관함", icon: "folder" },
@@ -144,9 +144,9 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "인사", short: "인사", icon: "user-check",
     items: [
-      { href: "/employees", label: "구성원", icon: "user-check", roles: ["owner", "admin"] },
-      { href: "/attendance", label: "근태 관리", icon: "calendar", roles: ["owner", "admin"] },
-      { href: "/hr-templates", label: "근로계약·서식", icon: "file-text", roles: ["owner", "admin"] },
+      { href: "/employees", label: "구성원", icon: "user-check" },
+      { href: "/attendance", label: "근태 관리", icon: "calendar" },
+      { href: "/hr-templates", label: "근로계약·서식", icon: "file-text" },
     ],
   },
   {
@@ -156,18 +156,18 @@ const NAV_GROUPS: NavGroup[] = [
     //   거래처 원장도 여기로 옮겼다 — 판단용 장부라 '보는 곳'이 맞다(거래처 화면의 링크는 그대로 둔다).
     label: "분석", short: "분석", icon: "bar-chart",
     items: [
-      { href: "/reports/summary", permKey: "/reports", label: "경영 요약", icon: "bar-chart", roles: ["owner", "admin"], match: ["/reports", "/reports/summary"] },
-      { href: "/reports/profit", permKey: "/reports", label: "손익 현황", icon: "trending-up", roles: ["owner", "admin"], match: ["/reports/profit", "/reports/revenue", "/reports/expense", "/reports/monthly"] },
-      { href: "/reports/outlook", permKey: "/reports", label: "자금 전망", icon: "clock", roles: ["owner", "admin"], match: ["/reports/upcoming", "/reports/outlook", "/reports/flow"] },
-      { href: "/reports/statements", permKey: "/reports", label: "회계 자료", icon: "file-text", roles: ["owner", "admin"], match: ["/reports/statements", "/reports/pnl", "/reports/bs", "/reports/costs", "/reports/by-person", "/reports/three-way-match"] },
+      { href: "/reports/summary", permKey: "/reports", label: "경영 요약", icon: "bar-chart", match: ["/reports", "/reports/summary"] },
+      { href: "/reports/profit", permKey: "/reports", label: "손익 현황", icon: "trending-up", match: ["/reports/profit", "/reports/revenue", "/reports/expense", "/reports/monthly"] },
+      { href: "/reports/outlook", permKey: "/reports", label: "자금 전망", icon: "clock", match: ["/reports/upcoming", "/reports/outlook", "/reports/flow"] },
+      { href: "/reports/statements", permKey: "/reports", label: "회계 자료", icon: "file-text", match: ["/reports/statements", "/reports/pnl", "/reports/bs", "/reports/costs", "/reports/by-person", "/reports/three-way-match"] },
       //   부가세 · 세금계산서 화면의 탭이었는데 분석으로 옮겼다 (2026-08-13 사장님 지시).
       //   세금·증빙이 '발행하는 곳'이 되면서, 매입 자료로 계산하는 신고용 화면은 성격이 안 맞아졌다.
       //   순서 (2026-08-20 전수 점검): 요약 → 현재(손익) → 미래(전망) → 자료(회계 자료·거래처 원장) → 신고(부가세, 신고철에만 여는 행사성이라 맨 아래)
       
-      { href: "/partners/ledger", label: "거래처 원장", icon: "book", roles: ["owner", "admin"], match: ["/partners/ledger"] },
+      { href: "/partners/ledger", label: "거래처 원장", icon: "book", match: ["/partners/ledger"] },
       //   ★ 위 '5개까지만 편다'를 하나 넘긴다. 부가세는 원래 최상위 탭이었고 신고철마다 찾는 화면이라 하위로 접으면 못 찾는다.
       
-      { href: "/reports/vat", permKey: "/reports", label: "부가세", icon: "receipt", roles: ["owner", "admin"], match: ["/reports/vat"] },
+      { href: "/reports/vat", permKey: "/reports", label: "부가세", icon: "receipt", match: ["/reports/vat"] },
     ],
   },
   {
@@ -182,13 +182,13 @@ const NAV_GROUPS: NavGroup[] = [
       //       (설정 화면 안에 또 패널을 뒀다). 이번엔 화면 안에 패널을 만들지 않는다.
       //   목록·순서·권한 키의 원본은 lib/settings-nav.ts 하나다 — 여기에 다시 적지 않는다(적으면 어긋난다).
       ...SETTINGS_GROUPS.map((g, i): NavItem => ({
-        href: g.route, label: g.label, icon: g.icon, roles: ["owner", "admin"],
+        href: g.route, label: g.label, icon: g.icon,
         anyPerm: groupPermKeys(g),
         layer: i === 0 ? "회사 설정" : undefined,
       })),
       //   요금제는 설정 안으로 넣지 않는다. 돈이 나가는 화면이라 권한(money)이 따로 붙고 성격이 다르다.
       
-      { href: "/billing", label: "요금제", icon: "credit-card", roles: ["owner", "admin"], layer: "구독" },
+      { href: "/billing", label: "요금제", icon: "credit-card", layer: "구독" },
     ],
   },
   {

@@ -139,7 +139,8 @@ export function SubscriptionsPanel() {
     onError: (e: any) => toast(`처리 실패: ${e?.message || e}`, "error"),
   });
 
-  if (role !== "owner" && role !== "admin" && role !== "employee") {
+  //   2026-09-11 역할 폐지 — 회사 구성원이면 본다(파트너·세무사는 회사 구성원이 아니다)
+  if (role === "partner") {
     return <AccessDenied detail="구독 현황은 회사 구성원만 볼 수 있습니다." />;
   }
   if (!companyId) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;

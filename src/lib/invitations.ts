@@ -55,7 +55,8 @@ export async function createEmployeeInvitation(params: {
   companyId: string;
   email: string;
   name?: string;
-  role?: 'employee' | 'admin';
+  //   2026-09-11 역할 폐지 — 초대로 들어오는 사람은 멤버. 권한은 들어온 뒤 마스터가 준다.
+  role?: 'member';
   invitedBy: string;
 }) {
   const expiresAt = new Date();
@@ -67,7 +68,7 @@ export async function createEmployeeInvitation(params: {
       company_id: params.companyId,
       email: params.email,
       name: params.name || null,
-      role: params.role || 'employee',
+      role: params.role || 'member',
       invited_by: params.invitedBy,
       expires_at: expiresAt.toISOString(),
     })
@@ -162,7 +163,8 @@ export async function sendInviteEmail(params: {
 export async function addExistingMemberAsEmployee(params: {
   email: string;
   name?: string;
-  role?: 'employee' | 'admin';
+  //   2026-09-11 역할 폐지 — 초대로 들어오는 사람은 멤버. 권한은 들어온 뒤 마스터가 준다.
+  role?: 'member';
   department?: string;
   position?: string;
   salary?: string | number;

@@ -3,7 +3,9 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { getCurrentUser, clearCurrentUserCache, type CurrentUser } from "@/lib/queries";
 
-export type UserRole = "owner" | "admin" | "employee" | "partner" | "advisor";
+//   계정 종류. 대표·관리자·직원 구분은 2026-09-11 에 없앴다 — 마스터 여부(is_master)와
+//   권한(member_permissions)이 전부다. partner 는 외부 협력사, advisor 는 제휴 세무사 계정.
+export type UserRole = "member" | "partner" | "advisor";
 
 interface UserContextType {
   user: CurrentUser | null;
@@ -14,7 +16,7 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType>({
   user: null,
-  role: "employee",
+  role: "member",
   loading: true,
   refresh: async () => {},
 });
@@ -43,7 +45,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     refresh();
   }, []);
 
-  const role = (user?.role as UserRole) || "employee";
+  const role = (user?.role as UserRole) || "member";
 
   return (
     <UserContext.Provider value={{ user, role, loading, refresh }}>

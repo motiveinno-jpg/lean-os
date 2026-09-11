@@ -106,7 +106,7 @@ export default function AttendancePage() {
     <div className="qk-shell attendance-page">
       {gal === "work" ? (
         /* 보드 스타일: 주간 52h 게이지·타임라인 — 상자 전체를 워크보드 부품이 그린다 */
-        <FlexWorkBoard companyId={companyId} employees={employees} role={canManage ? "owner" : "employee"} userId={userId} tabs={tabsEl} headRight={headRight} />
+        <FlexWorkBoard companyId={companyId} employees={employees} role={canManage ? "manager" : "member"} userId={userId} tabs={tabsEl} headRight={headRight} />
       ) : (
         <QueryScreen>
           <QueryHead>{tabsEl}</QueryHead>
@@ -123,7 +123,7 @@ export default function AttendancePage() {
                     userId={userId}
                     userEmail={userEmail}
                     queryClient={queryClient}
-                    role={canManage ? "owner" : "employee"}
+                    role={canManage ? "manager" : "member"}
                   />
                 </>
               )}

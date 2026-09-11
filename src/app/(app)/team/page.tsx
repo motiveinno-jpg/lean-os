@@ -156,7 +156,7 @@ export default function TeamPage() {
             ) : filtered.length === 0 ? (
               <div className="collect-empty">
                 {search || depts.length ? "조건에 맞는 구성원이 없습니다." : "아직 구성원이 없습니다."}
-                {!search && !depts.length && role !== "employee" && <> · <Link href="/employees" className="bz-link">직원 관리로 →</Link></>}
+                {!search && !depts.length && <> · <Link href="/employees" className="bz-link">구성원 관리로 →</Link></>}
               </div>
             ) : view === "list" ? (
               <>

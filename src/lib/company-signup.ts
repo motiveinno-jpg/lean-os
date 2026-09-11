@@ -135,14 +135,14 @@ export async function createCompanyWithOwner(
   //   생성 RLS 403, 메뉴 접근 불가). 개설자는 그 회사의 마스터다.
   let userErr: { code?: string; message: string } | null = (await db.from("users").insert({
     id: authId, auth_id: authId, company_id: companyId,
-    email, name: displayName, role: "owner", is_master: true,
+    email, name: displayName, role: "member", is_master: true,   // 2026-09-11 역할 폐지 — 구분은 is_master
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any)).error;
   if (userErr?.code === "23505") {
     // 레거시 limbo(행은 있는데 company_id NULL) — 본인 행 update 는 UPDATE 정책(auth_id=auth.uid())으로 허용.
     const { data: updated, error: updErr } = await db.from("users")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .update({ company_id: companyId, role: "owner", is_master: true, name: displayName, email } as any)
+      .update({ company_id: companyId, role: "member", is_master: true, name: displayName, email } as any)
       .eq("id", authId)
       .select("id");
     userErr = updErr || (updated && updated.length > 0 ? null : { message: "기존 계정 정보를 갱신하지 못했습니다. 고객센터로 문의해주세요." });

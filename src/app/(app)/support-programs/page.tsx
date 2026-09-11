@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useMyPermissions } from "@/lib/permissions";
 import Link from "next/link";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useUser } from "@/components/user-context";
@@ -64,9 +65,10 @@ const ANNOUNCEMENT_SOURCES = [
 const won = (n: number) => n.toLocaleString("ko-KR");
 
 export default function SupportProgramsPage() {
-  const { role } = useUser();
-  if (role !== "owner" && role !== "admin") {
-    return <AccessDenied detail="지원사업은 대표와 관리자만 볼 수 있습니다." />;
+  //   2026-09-11 역할 폐지 — 마스터 또는 지원사업 권한자
+  const { isMaster, hasPerm } = useMyPermissions();
+  if (!(isMaster || hasPerm("/support-programs"))) {
+    return <AccessDenied detail="지원사업 권한이 없습니다. 마스터에게 요청하세요." />;
   }
   return <SupportProgramsInner />;
 }

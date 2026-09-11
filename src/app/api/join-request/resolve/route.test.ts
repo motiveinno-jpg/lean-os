@@ -84,15 +84,12 @@ describe("승인/거절 권한·매핑", () => {
     expect(j.role).toBe("employee");
   });
 
-  it("body.role=owner 여도 RPC 엔 employee 로 전달(owner 승격 불가)", async () => {
-    st.rpcArgs = null;
-    await POST(makeReq({ requestId: "r1", action: "approve", role: "owner" }));
-    expect(st.rpcArgs?.p_role).toBe("employee");
-  });
-
-  it("body.role=admin 은 admin 으로 전달", async () => {
-    st.rpcArgs = null;
-    await POST(makeReq({ requestId: "r1", action: "approve", role: "admin" }));
-    expect(st.rpcArgs?.p_role).toBe("admin");
+  //   2026-09-11 역할 폐지 — 무엇을 보내든 들어오는 사람은 'member' 다. 권한은 마스터가 따로 준다.
+  it("body.role 이 무엇이든 RPC 엔 member 로 전달", async () => {
+    for (const sent of ["owner", "admin", "employee", undefined]) {
+      st.rpcArgs = null;
+      await POST(makeReq({ requestId: "r1", action: "approve", ...(sent ? { role: sent } : {}) }));
+      expect(st.rpcArgs?.p_role).toBe("member");
+    }
   });
 });

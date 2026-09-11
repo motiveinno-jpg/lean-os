@@ -159,9 +159,9 @@ const ForeignBadge = ({ tx }: { tx: any }) => { const f = foreignOf(tx); return 
 
 export default function CardsPage() {
   const { user, role } = useUser();
-  const { isMaster } = useMyPermissions();
+  const { isMaster, hasPerm } = useMyPermissions();
   //   카드 순서 변경은 관리자만(마스터·대표·관리자). 일반 직원은 순서를 못 바꾼다 (2026-09-08 사장님).
-  const canReorder = isMaster || role === "owner" || role === "admin";
+  const canReorder = isMaster || hasPerm("/cards");   // 2026-09-11 역할 폐지
   const { toast }  = useToast();
   const queryClient = useQueryClient();
   const companyId = user?.company_id ?? null;

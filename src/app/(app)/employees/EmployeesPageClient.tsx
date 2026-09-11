@@ -176,7 +176,7 @@ export default function EmployeesPage()  {
   const [retireOpen, setRetireOpen] = useState(false);
   const [todoOpen, setTodoOpen] = useState(false);
   const { data: hrTodos, isLoading: todoLoading } = useQuery({ queryKey: ["hr-todos", companyId, todayKst(), employees.length], queryFn: () => fetchHrTodos(companyId!, employees), enabled: !!companyId && !isEmployee && employees.length > 0, staleTime: 120_000 });
-  const { data: retireRows } = useQuery({ queryKey: ["retirement-est", companyId, todayKst()], queryFn: () => fetchRetirementEstimates(companyId!, todayKst()), enabled: !!companyId && role !== "employee", staleTime: 300_000 });
+  const { data: retireRows } = useQuery({ queryKey: ["retirement-est", companyId, todayKst()], queryFn: () => fetchRetirementEstimates(companyId!, todayKst()), enabled: !!companyId, staleTime: 300_000 });
   const retireTotal = retireRows ? retireRows.reduce((s, r) => s + r.estimate, 0) : null;
   const activeCount = employees.filter((e: any) => ["active", "joined"].includes(e.status)).length;
 
@@ -332,7 +332,7 @@ export default function EmployeesPage()  {
 //   목록 테이블·조직도·역할 관리 등 관리 화면은 삭제(수정은 디렉토리 상세보기에서).
 function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setShowForm, showBulkInvite, setShowBulkInvite }: any) {
   const { toast } = useToast();
-  const [form, setForm] = useState({ email: "", name: "", role: "employee" as "employee" | "admin", department: "", position: "", salary: "", hireDate: "", employeeNumber: "" });
+  const [form, setForm] = useState({ email: "", name: "", role: "member" as const, department: "", position: "", salary: "", hireDate: "", employeeNumber: "" });
   const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; msg: string } | null>(null);
   const [addExisting, setAddExisting] = useState(false);
   // 엑셀 대량 초대 (2026-07-31 사장님) — 단건 초대와 동일 경로를 행 단위로 반복 (열림 상태는 부모 조회 줄 버튼이 쥔다)
@@ -393,7 +393,7 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
         );
       }
       setShowForm(false);
-      setForm({ email: "", name: "", role: "employee", department: "", position: "", salary: "", hireDate: "", employeeNumber: "" });
+      setForm({ email: "", name: "", role: "member", department: "", position: "", salary: "", hireDate: "", employeeNumber: "" });
     },
     onError: (err: any) => {
       const msg = err.message || "";
@@ -420,7 +420,7 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
       queryClient.invalidateQueries({ queryKey: ["employee-invitations"] });
       setInviteMsg({ ok: true, msg: `${r?.name || "회원"}님을 직원으로 추가했습니다.` });
       setShowForm(false);
-      setForm({ email: "", name: "", role: "employee", department: "", position: "", salary: "", hireDate: "", employeeNumber: "" });
+      setForm({ email: "", name: "", role: "member", department: "", position: "", salary: "", hireDate: "", employeeNumber: "" });
       setTimeout(() => setInviteMsg(null), 4000);
     },
     onError: (err: any) => {
@@ -591,13 +591,15 @@ function shiftMonth(ym: string, delta: number): string {
 
 //   mode (2026-08-19 사장님): "records" = 달력·그 날 현황(기록 상세 갈래), "summary" = 부서→직원 월간 요약만(월간 요약 갈래, 예전 연장근무 갈래 자리)
 export function AttendanceTab({ employees, companyId, userId, userEmail, queryClient, role, mode = "records" }: any) {
+  //   2026-09-11 역할 폐지 — 관리 여부는 권한으로 본다(role prop 은 호출부 호환으로 남겨 둔다)
+  const { isMaster, hasPerm } = useMyPermissions();
   const { toast } = useToast();
   const today = new Date();
   const [selectedMonth, setSelectedMonth] = useState(
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`
   );
   // 직원 역할은 '데이터'(표) 기본 · 본인 기록 옆 '수정 요청' 동선이 표에 있음. 관리자는 캘린더 조망 유지.
-  const [viewMode, setViewMode] = useState<"calendar" | "table">(role === "employee" ? "table" : "calendar");
+  const [viewMode, setViewMode] = useState<"calendar" | "table">("calendar");   // 2026-09-11 역할 폐지
   const showDerivedAbsence = true; // 결근 자동표시(과거 평일 무기록) — 항상 on (2026-07-15 리디자인에서 토글 UI 제거)
   // 근태 캘린더 리디자인(2026-07-15) — 선택한 날짜(우측 패널에 그 날 직원별 출근 현황 표시).
   //   기본값은 오늘(선택 월이 이번 달일 때만) — 이미지 시안처럼 진입 시 바로 오늘 상세가 보임.
@@ -784,7 +786,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   // recomputeMonthlyAllowancesForCompany 자동 호출은 본 PR 에서 제거됨.
 
   // Admin attendance correction
-  const isAdmin = role === "owner" || role === "admin";
+  const isAdmin = isMaster || hasPerm("/employees:employees");   // 2026-09-11 역할 폐지
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ check_in: "", check_out: "", status: "" });
 
@@ -906,7 +908,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   }, [records, arSort, arCf.key, empById]);
   const activeEmployees = employees.filter((e: any) => e.status === "active" || e.status === "joined");
   // employee 역할: 본인 직원 레코드 자동 선택 (user_id 매칭 → 이메일 폴백)
-  const isEmployeeRole = role === "employee";
+  const isEmployeeRole = !(isMaster || hasPerm("/employees:employees"));   // 2026-09-11 역할 폐지 — 관리 권한이 없는 사람
 
   // 관리자 분기 — 직원별 월간 수당 합산 (allowance_entries × allowance_types).
   //   key: employee_id → { overtime, night, holiday, on_duty, etc, total }

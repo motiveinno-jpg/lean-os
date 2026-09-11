@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     const requestId = String(body.requestId || '');
     const action = body.action === 'approve' ? 'approve' : body.action === 'reject' ? 'reject' : null;
     if (!requestId || !action) return NextResponse.json({ error: 'requestId, action(approve|reject)이 필요합니다.' }, { status: 400 });
-    const role = body.role === 'admin' ? 'admin' : 'employee'; // owner 조작 금지 — RPC 도 재차 강제
+    const role = 'member';   // 2026-09-11 역할 폐지 — 들어오는 사람은 전부 멤버, 권한은 마스터가 따로 준다
     const reason = String(body.reason || '').slice(0, 500) || null;
 
     // 원자적 처리 — 권한·상태·만료·타회사소속 재검증 + users 연결 + 요청 상태 + 알림을 단일 트랜잭션 RPC 로.

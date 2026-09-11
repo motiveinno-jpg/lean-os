@@ -188,7 +188,7 @@ export function EmployeeBulkInviteModal({ companyId, userId, companyName, onClos
       try {
         const invitation: any = await createEmployeeInvitation({
           companyId, email: r.email, name: r.name || undefined,
-          role: "employee", invitedBy: userId,
+          role: "member", invitedBy: userId,   // 2026-09-11 역할 폐지
         });
         const { error: empErr } = await supabase.from("employees").insert({
           company_id: companyId,

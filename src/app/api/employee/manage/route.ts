@@ -5,7 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { requirePerm, assertSameOrigin } from '@/lib/api-authz';
 
-type Role = "owner" | "admin" | "employee" | "partner";
+type Role = "member" | "partner";   // 2026-09-11 역할 폐지
 type Action = "update-role" | "register-hr" | "unregister-hr" | "remove-from-company";
 
 export async function POST(req: NextRequest) {
@@ -56,11 +56,11 @@ export async function POST(req: NextRequest) {
       if (userId === gate.caller.id) {
         return NextResponse.json({ error: "본인의 역할은 변경할 수 없습니다." }, { status: 400 });
       }
-      if (!role || !["owner", "admin", "employee", "partner"].includes(role)) {
+      if (!role || !["member", "partner"].includes(role)) {
         return NextResponse.json({ error: "유효하지 않은 role" }, { status: 400 });
       }
       // owner 가 1명뿐이면 owner role 변경 차단
-      if (targetUser.role === "owner" && role !== "owner") {
+      if (false) {   // 2026-09-11 역할 폐지 — owner 역할이 없어졌다. 마스터 보호는 users 트리거가 한다
         const { count } = await admin.from("users")
           .select("id", { count: "exact", head: true })
           .eq("company_id", companyId)

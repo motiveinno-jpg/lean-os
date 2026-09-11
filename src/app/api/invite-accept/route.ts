@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     }
 
     const inviteType: 'employee' | 'partner' = ei ? 'employee' : 'partner';
-    const role = inviteType === 'partner' ? 'partner' : (invite.role || 'employee');
+    const role = inviteType === 'partner' ? 'partner' : 'member';   // 2026-09-11 역할 폐지 — 권한은 초대 뒤 마스터가 준다
 
     // 2) auth 에 같은 이메일 사용자 존재 확인 — RPC 로 직접 SQL 조회 (listUsers 회피)
     let existingUser: any = null;

@@ -1,5 +1,6 @@
 "use client";
 import { GroupedColumnChart, Legend, vizColor } from "@/components/charts/kit";
+import { useMyPermissions } from "@/lib/permissions";
 
 import { useEffect, useMemo, useState } from "react";
 import { SortableTh } from "@/components/sortable-th";
@@ -312,8 +313,10 @@ export default function LoansPage() {
   ];
 
   // 권한 게이트는 모든 훅 호출 이후에 · early return 이 훅보다 위면 Rules of Hooks 위반(크래시)
-  if (role !== "owner")  {
-    return <AccessDenied detail="대출 관리는 대표 계정 전용입니다." />;
+  const { isMaster, hasPerm } = useMyPermissions();
+  //   2026-09-11 역할 폐지 — 마스터 또는 대출 권한자
+  if (!(isMaster || hasPerm("/loans"))) {
+    return <AccessDenied detail="대출 관리 권한이 없습니다. 마스터에게 요청하세요." />;
   }
 
   if (summaryLoading) {

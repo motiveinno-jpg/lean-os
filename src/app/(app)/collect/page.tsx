@@ -9,6 +9,7 @@
 //   실행 경로는 lib/collect 가 기존 화면들의 호출을 그대로 재사용한다 — 여기서 새로 만들지 않는다.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useMyPermissions } from "@/lib/permissions";
 import { DateField } from "@/components/date-field";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@/components/user-context";
@@ -38,9 +39,10 @@ const fmtSec = (s: number | null) => {
 };
 
 export default function CollectPage() {
-  const { role } = useUser();
-  if (role !== "owner" && role !== "admin") {
-    return <AccessDenied detail="자료 수집은 대표·관리자 전용입니다." />;
+  //   2026-09-11 역할 폐지 — 마스터 또는 수집 권한자
+  const { isMaster, hasPerm } = useMyPermissions();
+  if (!(isMaster || hasPerm("/collect"))) {
+    return <AccessDenied detail="자료 수집 권한이 없습니다. 마스터에게 요청하세요." />;
   }
   return <CollectInner />;
 }

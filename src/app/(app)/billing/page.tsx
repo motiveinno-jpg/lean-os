@@ -60,8 +60,8 @@ export default function BillingPage()  {
 function BillingPageInner() {
   const { toast }  = useToast();
   // 스토리지 팩 추가·해지는 대표(소유자)만 · 서버 RPC(set_storage_packs)도 같은 기준. 화면에서 미리 알려준다.
-  const  { role: myRole }  = useUser();
-  const isOwner = myRole === "owner";
+  //   2026-09-11 역할 폐지 — 서버 RPC 와 같은 기준(마스터)
+  const isOwner = useMyPermissions().isMaster;
   // 결제수단 등록은 마스터만 · 서버(엣지 함수)에서도 동일하게 막는다.
   const  { isMaster: billingIsMaster } = useMyPermissions();
   const [tab, setTab] = useState<Tab>("plan");

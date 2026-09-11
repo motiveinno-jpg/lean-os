@@ -116,7 +116,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // 역할 선택 폐지 · 승인하면 멤버(role 은 API 호환용 고정값). 권한은 구성원 상세에서 마스터가 부여.
-        body: JSON.stringify({ requestId: id, action, role: "employee", reason: action === "reject" ? (joinReason[id] || null) : null }),
+        body: JSON.stringify({ requestId: id, action, role: "member", reason: action === "reject" ? (joinReason[id] || null) : null }),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j?.error || "처리 실패");
@@ -144,7 +144,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
           companyId,
           email: inviteEmail,
           name: inviteName || undefined,
-          role: "employee", // 역할 폐지 — 멤버 고정(API 호환값). 권한은 합류 후 마스터가 부여.
+          role: "member", // 역할 폐지 — 멤버 고정. 권한은 합류 후 마스터가 부여.
           invitedBy: user.id,
         });
       }
@@ -227,7 +227,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
   // (2026-08-03 역할 폐지 반영) 배지: 마스터 / 멤버 / 파트너 3종 · 관리자·직원 구분 표기 제거.
   const memberBadge = (m:  { role?: string | null; is_master?: boolean | null } | string) => {
     const isMaster = typeof m !== "string" && !!m.is_master;
-    const role = typeof m === "string" ? m : m.role || "employee";
+    const role = typeof m === "string" ? m : m.role || "member";
     const kind = isMaster ? "master" : role === "partner" ? "partner" : "member";
     const meta: Record<string, { label: string; cls: string }> = {
       master: { label: "마스터", cls: "bg-[#2563EB] text-white" },
