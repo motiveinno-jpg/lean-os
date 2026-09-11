@@ -405,11 +405,23 @@ function ProductPasteDialog({ products, onClose, onDone, save }: {
       if (/^sku$/i.test(p[0] || "") || p[0] === "품목코드") continue;   // 머리줄은 건너뛴다
       if (!p[0] || !p[1]) { bad.push(`${line.slice(0, 30)} → SKU 와 품목명이 있어야 합니다`); continue; }
       const cur = bySku.get(p[0].toUpperCase());
-      const track = p[7] == null || p[7] === "" ? true : !/^(아니오|아니요|n|no|false|0|x)$/i.test(p[7]);
-      ok.push({
-        id: cur?.id, _new: !cur, sku: p[0], name: p[1], spec: p[2] || null, unit: p[3] || "EA",
-        sale_price: num(p[4]), cost_price: num(p[5]), safety_stock: num(p[6]), track_stock: track,
-      });
+      //   ⚠️ 안 붙여넣은 칸은 아예 넘기지 않는다. 예전엔 없는 칸을 null·기본값으로 만들어
+      //   넘겨서, 안내대로 "SKU·품목명만" 붙여 이름을 고치면 규격·단가·안전재고가 지워졌다.
+      //   (넘기지 않으면 upsertProduct 가 그 칸을 건드리지 않는다.)
+      const has = (i: number) => p[i] != null && p[i] !== "";
+      const row: Record<string, unknown> = { id: cur?.id, _new: !cur, sku: p[0], name: p[1] };
+      if (has(2)) row.spec = p[2];
+      if (has(3)) row.unit = p[3];
+      if (has(4)) row.sale_price = num(p[4]);
+      if (has(5)) row.cost_price = num(p[5]);
+      if (has(6)) row.safety_stock = num(p[6]);
+      if (has(7)) row.track_stock = !/^(아니오|아니요|n|no|false|0|x)$/i.test(p[7]);
+      //   새 품목은 화면 기본값과 같게 채운다(고칠 때만 '안 건드림' 규칙이 적용된다)
+      if (!cur) {
+        if (row.unit === undefined) row.unit = "EA";
+        if (row.track_stock === undefined) row.track_stock = true;
+      }
+      ok.push(row as any);
     }
     return { ok, bad };
   }, [text, bySku]);

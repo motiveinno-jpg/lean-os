@@ -49,6 +49,8 @@ export default function OrdersPage() {
           note: built.head.note || null,
           custom: built.head.custom,
           lines: built.lines.map((l) => ({
+            //   id 를 같이 넘겨야 재고가 붙어 남겨 둔 줄을 알아보고 다시 넣지 않는다
+            id: (l as { id?: string | null }).id ?? null,
             product_id: l.product_id, qty: l.qty, unit_price: l.unit_price,
             supply_amount: l.supply_amount, vat_amount: l.vat_amount,
             note: l.note, custom: l.custom,

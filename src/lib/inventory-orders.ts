@@ -233,6 +233,8 @@ export type OrderInput = {
   warehouseId?: string | null; note?: string | null;
   custom?: Record<string, string>;
   lines: {
+    /** 이미 저장돼 있던 줄이면 그 id. 재고가 붙어 지우지 못하는 줄을 가려내는 데 쓴다. */
+    id?: string | null;
     product_id: string; qty: number; unit_price?: number | null;
     supply_amount?: number; vat_amount?: number; note?: string | null;
     custom?: Record<string, string>;
@@ -254,6 +256,8 @@ export async function saveOrder(
   };
 
   let id = orderId || null, orderNo = "";
+  //   재고가 붙어 남겨 둔 줄 — 아래 insert 에서 빼야 두 벌이 되지 않는다
+  let keptIds = new Set<string>();
   if (id) {
     const { error } = await supabase.from("orders").update(head).eq("id", id);
     if (error) throw error;
@@ -265,6 +269,20 @@ export async function saveOrder(
     if (used.length) del = del.not("id", "in", `(${used.map((u) => `"${u}"`).join(",")})`);
     const { error: dErr } = await del;
     if (dErr) throw dErr;
+
+    //   ⚠️ 남겨 둔 줄을 아래에서 또 넣으면 같은 품목이 두 줄이 된다. 열어서 [저장]만 눌러도
+    //   주문 수량이 두 배, 진행률(사용/주문)은 반토막이 되고 '납기 지난 잔량' 이 영구히 남았다.
+    //   남겨 둔 줄은 새로 넣지 말고 화면 값으로 고쳐 준다.
+    keptIds = new Set(used);
+    for (const l of lines) {
+      if (!l.id || !keptIds.has(l.id)) continue;
+      const { error: uErr } = await supabase.from("order_lines").update({
+        product_id: l.product_id, qty: Number(l.qty), unit_price: l.unit_price ?? null,
+        supply_amount: Number(l.supply_amount || 0), vat_amount: Number(l.vat_amount || 0),
+        note: l.note?.trim() || null, custom: l.custom || {}, sort_no: lines.indexOf(l),
+      }).eq("id", l.id).eq("order_id", id);
+      if (uErr) throw uErr;
+    }
   } else {
     const ymd = orderDate.replace(/-/g, "").slice(2);
     const { count } = await supabase.from("orders")
@@ -277,8 +295,10 @@ export async function saveOrder(
     id = (data as { id: string }).id;
   }
 
-  const { error: lErr } = await supabase.from("order_lines").insert(
-    lines.map((l, i) => ({
+  //   sort_no 는 화면에 보이는 순서 그대로 — 남겨 둔 줄과 번호가 겹치지 않게 원래 자리를 쓴다
+  const fresh = lines.map((l, i) => ({ l, i })).filter(({ l }) => !l.id || !keptIds.has(l.id));
+  const { error: lErr } = fresh.length === 0 ? { error: null } : await supabase.from("order_lines").insert(
+    fresh.map(({ l, i }) => ({
       company_id: companyId, order_id: id!, product_id: l.product_id,
       qty: Number(l.qty), unit_price: l.unit_price ?? null,
       supply_amount: Number(l.supply_amount || 0), vat_amount: Number(l.vat_amount || 0),

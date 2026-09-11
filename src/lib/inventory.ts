@@ -52,6 +52,20 @@ export type StockReason = (typeof STOCK_REASONS)[number]["value"];
 export const reasonOf = (v: string) => STOCK_REASONS.find((r) => r.value === v);
 export const reasonLabel = (v: string) => reasonOf(v)?.label ?? v;
 
+/**
+ *  저장된 줄(stock_moves.qty)을 **화면에서 고칠 수 있는 수량** 으로 되돌린다.
+ *
+ *  저장할 때 `입력값 × 사유부호` 로 부호를 붙이므로, 되읽을 때는 같은 부호로 나눠야
+ *  열었다 그대로 저장했을 때 값이 그대로다. 예전엔 Math.abs 로 되읽어서 반품 전표가
+ *  깨졌다 — 반품은 사유가 'sale' 인데 수량이 +50(재고 +50)으로 저장돼 있어,
+ *  abs 로 50이 되고 저장하면 50 × (−1) = −50 이 되어 재고가 100개 틀어졌다.
+ *  아무것도 안 고치고 [저장]만 눌러도 그랬다.
+ */
+export function editQtyOf(move: { qty: number | null | undefined }, reason: string): number {
+  const sign = reasonOf(reason)?.sign ?? 1;
+  return Number(move?.qty || 0) / sign;
+}
+
 // ── 품목 ─────────────────────────────────────────────────────────────────────
 export async function listProducts(companyId: string): Promise<Product[]> {
   if (!companyId) return [];
@@ -84,7 +98,16 @@ export async function upsertProduct(companyId: string, p: Partial<Product> & { i
     updated_at: new Date().toISOString(),
   };
   if (p.id) {
-    const { error } = await supabase.from("products").update(row as never).eq("id", p.id);
+    //   ⚠️ 고칠 때는 **넘어온 칸만** 바꾼다. 예전엔 위 row 를 통째로 덮어서, 빠진 칸이
+    //   기본값(바코드·분류·메모 null, 노무경비 0, 리드타임 7일, 자동추천 켬)으로 지워졌다.
+    //   품목 붙여넣기는 안내대로 "SKU·품목명만" 붙여도 되는데, 그러면 스캐너 바코드와
+    //   생산 노무·경비가 통째로 날아갔다. 이 함수는 Partial 을 받는다 — 그대로 다룬다.
+    const patch: Record<string, unknown> = { updated_at: row.updated_at };
+    const keep = (k: keyof typeof row) => { if (p[k as keyof typeof p] !== undefined) patch[k as string] = row[k]; };
+    (["sku", "name", "category", "spec", "unit", "barcode", "track_stock", "sale_price",
+      "cost_price", "overhead_per_unit", "lead_time_days", "auto_suggest", "safety_stock",
+      "is_active", "memo"] as (keyof typeof row)[]).forEach(keep);
+    const { error } = await supabase.from("products").update(patch as never).eq("id", p.id);
     if (error) throw error;
     return p.id;
   }

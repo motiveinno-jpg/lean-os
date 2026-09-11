@@ -178,8 +178,17 @@ export async function getProduceMaterials(prodDocId: string): Promise<MatInput[]
   const matId = await findMatDoc(prodDocId);
   if (!matId) return [];
   const { data } = await supabase.from("stock_moves").select("product_id, qty, std_qty, loss_reason, note").eq("doc_id", matId);
-  //   자재 줄에는 완제품이 안 적혀 있다 — 같은 자재를 여러 완제품이 쓰는 경우는 첫 완제품에 붙인다(Phase 1 한계, 팝업에서 다시 고칠 수 있다)
-  return ((data || []) as any[]).map((m) => ({ product_id: "", component_id: m.product_id, qty: Math.abs(Number(m.qty || 0)), std_qty: m.std_qty == null ? Math.abs(Number(m.qty || 0)) : Math.abs(Number(m.std_qty)), loss_reason: m.loss_reason || null }));
+
+  //   ⚠️ 자재 줄에는 어느 완제품에 들어간 것인지 안 적혀 있다. 예전엔 product_id 를 빈 문자열로
+  //   돌려줬는데, 저장할 때 matLinesOf 가 `완제품 목록에 있는 것만` 남기므로 빈 문자열은 전부
+  //   걸러졌다 — 수량 한 칸만 고쳐도 실투입·로스 기록이 BOM 표준으로 되돌아갔다.
+  //   그 문서의 완제품을 찾아 붙인다(여럿이면 첫 완제품 — 팝업에서 다시 고칠 수 있다).
+  const { data: prodMoves } = await supabase.from("stock_moves")
+    .select("product_id, qty").eq("doc_id", prodDocId).order("id", { ascending: true });
+  const firstProduct = ((prodMoves || []) as { product_id: string; qty: number }[])
+    .find((m) => Number(m.qty) > 0)?.product_id || "";
+
+  return ((data || []) as any[]).map((m) => ({ product_id: firstProduct, component_id: m.product_id, qty: Math.abs(Number(m.qty || 0)), std_qty: m.std_qty == null ? Math.abs(Number(m.qty || 0)) : Math.abs(Number(m.std_qty)), loss_reason: m.loss_reason ?? null, note: m.note ?? null }));
 }
 
 /**

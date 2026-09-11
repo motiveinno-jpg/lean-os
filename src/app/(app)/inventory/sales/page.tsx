@@ -8,6 +8,7 @@ import { DocScreen, type HistRow } from "../_components/doc-screen";
 import { PullOrderButton } from "../_components/pull-order";
 import {
   createStockDoc, updateStockDoc, getStockDoc, listStockDocs, listProducts, listWarehouses, returnStockDoc, cancelStockDoc, rememberPartnerPrices,
+  editQtyOf,
 } from "@/lib/inventory";
 import { listOrders } from "@/lib/inventory-orders";
 
@@ -82,10 +83,10 @@ export default function SalesPage() {
           },
           moves.map((m: any, i: number) => ({
             id: m.id, order_id: id, product_id: m.product_id,
-            qty: Math.abs(m.qty),                     // 나간 것을 양수로 되읽는다
+            qty: editQtyOf(m, doc.reason),            // 저장할 때 붙인 부호를 그대로 되돌린다(반품도 맞게)
             unit_price: m.unit_price,
-            supply_amount: Math.abs(Number(m.unit_price || 0) * m.qty),
-            vat_amount: Math.abs(Number(m.vat_amount || 0)),
+            supply_amount: editQtyOf(m, doc.reason) * Number(m.unit_price || 0),
+            vat_amount: Number(m.vat_amount || 0),
             note: m.note, custom: {}, sort_no: i,
           })),
         );
