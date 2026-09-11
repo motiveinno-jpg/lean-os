@@ -580,7 +580,14 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
 
                   // P3 — 회사 활성 견적 양식이 있으면 오버레이(실제 디자인 재현), 없으면 현행 generateQuotePDF 폴백(회귀 0).
                   const quoteTpl = companyId ? await getActiveTemplate(companyId, "quote").catch(() => null) : null;
-                  if (quoteTpl) {
+                  //   ⚠️ 텍스트 변환 양식은 아래 오버레이 경로로 보내면 안 된다. 그 양식은 채울 칸
+                  //   목록(fields)이 비어 있어서, 업로드한 원본 PDF 가 값 하나 없이 그대로 떨어졌다.
+                  //   프로젝트 쪽(quote-pdf)은 모드를 보고 본문에 값을 치환해 HTML→PDF 로 만든다.
+                  //   같은 부품에 맡겨 두 화면이 같은 종이를 내보내게 한다.
+                  if (quoteTpl && quoteTpl.template_mode === "text") {
+                    const { buildQuoteBlobFromDoc } = await import("@/lib/quote-pdf");
+                    pdfBlob = await buildQuoteBlobFromDoc(doc, companyId!, userId ?? null);
+                  } else if (quoteTpl) {
                     const bytes = await downloadTemplateFile(quoteTpl.file_path);
                     const filled = await fillFormTemplate(bytes, quoteTpl.fields, { values: buildQuoteValues({
                       myCompanyName: companyName,
@@ -637,6 +644,10 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   });
                   }
                 } else if ((cType === 'contract' && editContent.trim().startsWith('<!DOCTYPE')) || editContent.includes('<img')) {
+                  //   ⚠️ 아래 인쇄·PDF 경로는 editContent 원문을 쓴다. 보기 모드는 fillVars 로 값을
+                  //   채워 보여 주는데 여기만 안 채워서, 양식으로 만들고 한 번도 '수정하기→저장' 을
+                  //   안 한 문서를 내보내면 {{회사명}}·{{거래처명}} 이 글자 그대로 인쇄됐다.
+                  //   화면에는 정상으로 보이니 발견이 늦다 — 보기와 같은 값으로 채워서 내보낸다.
                   // 2026-05-22 이미지(PDF 페이지 삽입 등) 포함 문서는 브라우저 인쇄 PDF 로 변환 —
                   //   jspdf 경로는 <img> 를 제거하므로 그래프·표 이미지 보존을 위해 인쇄 경로 사용.
                   //   인쇄 창은 같은 출처(about:blank)라 여기 쓰는 HTML 은 앱 세션 권한으로 실행된다 —
@@ -644,7 +655,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   const printWindow = window.open('', '_blank');
                   if (printWindow) {
                     const escText = (s: string) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                    const safeBody = sanitizeDocumentHtml(editContent);
+                    const safeBody = sanitizeDocumentHtml(fillVars(editContent));
                     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escText(doc.name)}</title>` +
                         `<style>body{font-family:'Noto Sans KR',sans-serif;padding:40px;max-width:820px;margin:0 auto;line-height:1.7;color:#111}` +
                         `img{max-width:100%;height:auto;display:block;margin:12px auto}h1{font-size:22px}@media print{body{padding:0}}</style></head>` +
@@ -659,7 +670,8 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   return;
                 } else {
                   // HTML 태그가 섞인 내용이면 태그 제거 후 PDF 생성
-                  let pdfContent = editContent;
+                  //   보기 모드와 같은 값으로 채운다(위 주석 참조)
+                  let pdfContent = fillVars(editContent);
                   if (pdfContent.includes('<') && pdfContent.includes('>')) {
                     pdfContent = pdfContent
                       .replace(/<br\s*\/?>/gi, '\n')

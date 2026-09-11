@@ -7,6 +7,7 @@ import { logRead } from "@/lib/log-read";
 
 import { supabase } from "@/lib/supabase";
 import { generateQuotePDF, generateDocumentPDF } from "@/lib/document-generator";
+import { quoteTotals } from "@/lib/quote-total";
 import { getActiveTemplate, downloadTemplateFile, buildQuoteValues, fillTextTemplate, wrapTemplatePrintHtml } from "@/lib/form-templates";
 import { fillFormTemplate } from "@/lib/pdf-overlay";
 
@@ -25,8 +26,14 @@ export async function buildQuoteBlobFromDoc(doc: any, companyId: string, userId?
     unitPrice: Number(it.unitPrice) || 0,
     amount: Number(it.supplyAmount) || (Number(it.quantity || 1) * Number(it.unitPrice || 0)),
   }));
-  const supplyAmt = items.reduce((s, i) => s + i.amount, 0);
-  const taxAmt = Math.round(supplyAmt * 0.1);
+  //   합계는 quote-total 한 곳에서 — 문서함 PDF·화면과 같은 값을 쓴다.
+  //   예전엔 여기도 공급가액 합계에 일률적으로 10% 를 붙이고 할인을 몰라, 같은 견적서가
+  //   화면·문서함 PDF·프로젝트 PDF 에서 서로 다른 금액으로 나왔다.
+  const qt = quoteTotals(rawItems as any[], cj.header?.discount ?? cj.discount);
+  const supplyAmt = qt.supply;
+  const taxAmt = qt.tax;
+  const discountAmt = qt.discount;
+  const grandAmt = qt.total;
 
   const bankAcct = logRead('lib/quote-pdf:bankAcct', await db.from("bank_accounts").select("bank_name, account_number, alias").eq("company_id", companyId).eq("is_primary", true).limit(1).maybeSingle());
   const { data: currentUser } = userId ? await db.from("users").select("name, email").eq("id", userId).maybeSingle() : { data: null };
@@ -58,7 +65,8 @@ export async function buildQuoteBlobFromDoc(doc: any, companyId: string, userId?
       단가: items.map((i) => i.unitPrice.toLocaleString("ko-KR")).join(", "),
       공급가액: supplyAmt.toLocaleString("ko-KR"),
       세액: taxAmt.toLocaleString("ko-KR"),
-      합계금액: (supplyAmt + taxAmt).toLocaleString("ko-KR"),
+      할인: discountAmt.toLocaleString("ko-KR"),
+      합계금액: grandAmt.toLocaleString("ko-KR"),
     };
     const filledHtml = wrapTemplatePrintHtml(fillTextTemplate(quoteTpl.content_html, values));
     try {
@@ -80,8 +88,8 @@ export async function buildQuoteBlobFromDoc(doc: any, companyId: string, userId?
         validUntil: cj.header?.validUntil,
         supplyAmount: supplyAmt,
         taxAmount: taxAmt,
-        totalAmount: supplyAmt + taxAmt,
-        notes: cj.notes,
+        totalAmount: grandAmt,
+        notes: discountAmt > 0 ? `할인 -${discountAmt.toLocaleString("ko-KR")}원\n${cj.notes || ""}`.trim() : cj.notes,
       }),
       items: items.map((it) => ({ name: it.name, quantity: it.qty, unitPrice: it.unitPrice, amount: it.amount })),
     });
