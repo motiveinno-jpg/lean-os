@@ -149,7 +149,13 @@ serve(withSentry("complete-signing", async (req) => {
         let annualSalary = 0;
         try {
           const meta = typeof pkg.notes === "string" ? JSON.parse(pkg.notes) : pkg.notes;
-          if (meta?.salary) annualSalary = Number(meta.salary) || 0;
+          //   meta.salary 의 단위를 meta.salary_period 로 확인한다. 2026-09-11 이전 패키지는
+          //   '연봉' 칸에 월급이 들어가 있어(계약서 변수가 월급을 한 번 더 12로 나눴다) 그대로
+          //   12로 나누면 직원 월급이 12분의 1로 박힌다. 표시가 없으면 급여만 반영하지 않고
+          //   계약이력·연차 부여는 그대로 진행한다 — 추측으로 사람 월급을 고치지 않는다.
+          if (meta?.salary && meta?.salary_period === "annual") {
+            annualSalary = Number(meta.salary) || 0;
+          }
         } catch { /* notes 가 JSON 이 아니면 급여 반영은 생략 */ }
 
         if (annualSalary > 0 && pkg.employee_id) {

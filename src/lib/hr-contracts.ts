@@ -367,8 +367,14 @@ export async function buildContractVariables(
  *  서명본 치환(buildContractVariables)과 구성원 상세 '필수 입력 정보'의 자동 채움이 같은 값을
  *  쓰도록 DB 조회 없는 순수 계산만 분리했다(2026-07-31). 값 산식은 기존과 동일. */
 export function buildVariableMap(employee: any, company: any, rates?: InsuranceRates): Record<string, string> {
-  // Calculate payroll deductions
-  const monthlySalary = Math.round(Number(employee.salary || 0) / 12);
+  //   ⚠️ employees.salary 는 **월 급여** 다. 구성원 상세가 입력받은 연봉을 12로 나눠 저장하고
+  //   (EmployeeDetailPanel 의 '연봉 (월급여 × 12)'), 급여명세도 이 값을 월 기본급으로 그대로 쓴다.
+  //   여기서 한 번 더 12로 나누는 바람에 계약서의 연봉·월급여·기본급·4대보험 공제·실수령액이
+  //   전부 12분의 1이 됐다(월급 250만 → 계약서 '연봉 2,500,000원', 월급여 208,333원).
+  //   서명이 끝나면 complete-signing 이 이 '연봉'을 다시 12로 나눠 employees.salary 에 덮어쓰므로,
+  //   여기가 틀리면 직원 월급 자체가 12분의 1로 박힌다. 둘을 여기서 한 번만 정한다.
+  const monthlySalary = Math.round(Number(employee.salary || 0));
+  const annualSalary = monthlySalary * 12;
   //   회사가 설정에 넣은 4대보험 요율로 계산한다 (2026-09-11). 안 넘기면 법정 기본값으로 떨어져
   //   설정 화면의 "이 해의 급여 계산에 바로 적용" 이 계약서에서만 거짓이 됐다.
   const payroll = monthlySalary > 0
@@ -418,7 +424,7 @@ export function buildVariableMap(employee: any, company: any, rates?: InsuranceR
     company_address: company.address || '',
     start_date: employee.hire_date || today,
     end_date: nextYearStr,
-    salary_amount: `${fmt(Number(employee.salary || 0))}원`,
+    salary_amount: `${fmt(annualSalary)}원`,
     base_pay: fmt(basePay),
     overtime_pay: fmt(otPay),
 
@@ -444,7 +450,7 @@ export function buildVariableMap(employee: any, company: any, rates?: InsuranceR
     대표자명: company.representative || '',
     계약시작일: employee.hire_date || today,
     계약종료일: nextYearStr,
-    연봉: fmt(Number(employee.salary || 0)),
+    연봉: fmt(annualSalary),
     월급여: fmt(monthlySalary),
     기본급: fmt(basePay209),
     고정연장근로수당: fmt(otPay),
@@ -519,7 +525,13 @@ export async function createContractPackage(params: {
   const annualSalary = Number(variables.연봉?.replace(/,/g, '') || 0);
   const meta: Record<string, unknown> = {};
   if (notes) meta.text = notes;
-  if (annualSalary > 0) meta.salary = annualSalary;
+  //   단위를 같이 적어 둔다. 예전 패키지는 '연봉' 칸에 월급이 들어가 있었는데(12로 두 번
+  //   나누던 시절) 숫자만으로는 연봉인지 월급인지 구분할 수 없어, 서명 완료가 그걸 또 12로
+  //   나눠 직원 월급을 12분의 1로 덮어쓸 수 있었다. 표시가 없는 옛 패키지는 급여를 반영하지 않는다.
+  if (annualSalary > 0) {
+    meta.salary = annualSalary;
+    meta.salary_period = 'annual';
+  }
   // Step 3 필수 입력 정보 — 서명본 푸터에서 사용
   if (variableOverrides && Object.keys(variableOverrides).length > 0) {
     meta.contract_meta = variableOverrides;
