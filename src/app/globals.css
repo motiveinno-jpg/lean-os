@@ -10537,6 +10537,8 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
 .sample-banner-actions { @apply flex shrink-0 items-center gap-2; }
 .onb-sample-card { @apply mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-[var(--primary)]/40 bg-[var(--primary)]/5 px-4 py-3; }
 .onb-sample-text { @apply min-w-0 flex-1 text-xs leading-relaxed text-[var(--text-muted)]; }
+/*   통장 목록에서 직접 등록한 통장 표시 — 수집 버튼 자리에 대신 놓는다 */
+.bank-manual-mark { @apply inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-semibold text-[var(--text-dim)] bg-[var(--bg-surface)]; }
 .bank-sync-quota { @apply inline-flex items-center rounded-full border border-[var(--border)] px-2 py-0.5 text-[10.5px] font-semibold text-[var(--text-muted)]; }
 
 

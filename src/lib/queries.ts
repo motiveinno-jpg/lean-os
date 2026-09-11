@@ -1799,6 +1799,8 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
   isHidden?: boolean;
   memo?: string;
   syncEnabled?: boolean;
+  /**   'codef' = 연동으로 들어온 통장. 직접 등록한 통장은 수집 대상이 아니라 수집 켜기가 의미 없다 (2026-09-11) */
+  source?: string;
 }>> {
   const [txs, { data: accts }] = await Promise.all([
     //   계좌별 '거래 건수'를 정확히 세려면 통장 거래 전량이 필요하다 — 5000으로 막으면 거래가 많은
@@ -1815,7 +1817,7 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
       .order('id', { ascending: false }), 100000),
     supabase
       .from('bank_accounts')
-      .select('id, account_number, alias, bank_name, balance, is_hidden, memo, sync_enabled')
+      .select('id, account_number, alias, bank_name, balance, is_hidden, memo, sync_enabled, source')
       .eq('company_id', companyId),
   ]);
   // tx 별 count + 최신 잔액 계산.
@@ -1840,7 +1842,7 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
     }
   }
   // bank_accounts 정보 매핑 — 통장 list 의 source. 거래 0건이어도 표시하기 위해.
-  const acctInfo = new Map<string, { id?: string; alias?: string; bankName?: string; balance: number; isHidden?: boolean; memo?: string; syncEnabled?: boolean }>();
+  const acctInfo = new Map<string, { id?: string; alias?: string; bankName?: string; balance: number; isHidden?: boolean; memo?: string; source?: string; syncEnabled?: boolean }>();
   const allAccountNos = new Set<string>();
   for (const a of (accts || []) as any[]) {
     if (a.account_number) {
@@ -1852,6 +1854,7 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
         isHidden: !!a.is_hidden,
         memo: a.memo || undefined,
         syncEnabled: a.sync_enabled !== false,
+        source: a.source || undefined,
       });
       allAccountNos.add(a.account_number);
     }
@@ -1874,6 +1877,7 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
         id: info?.id,
         isHidden: info?.isHidden || false,
         syncEnabled: info?.syncEnabled ?? true,
+        source: info?.source,
         memo: info?.memo,
       };
     })

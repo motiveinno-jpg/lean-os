@@ -903,7 +903,13 @@ export default function BankPage() {
                   <td className="text-center" onClick={(e) => e.stopPropagation()}>
                     <span className="inline-flex gap-1.5">
                       <button type="button" onClick={() => setAcctEdit({ accountNo: accNo, alias: a.alias || "", memo: a.memo || "", bankName: a.bankName, balance: bal })} className="btn-secondary btn-sm">수정</button>
-                      <button type="button" onClick={() => toggleAcctSync({ accountNo: accNo, syncEnabled: a.syncEnabled, bankName: a.bankName, balance: bal })} className={a.syncEnabled === false ? "btn-secondary btn-sm text-[var(--warning)]" : "btn-secondary btn-sm"} title={a.syncEnabled === false ? "이 통장의 거래를 다시 가져옵니다." : "이 통장의 거래를 가져오지 않습니다."}>{a.syncEnabled === false ? "수집 켜기" : "수집 끄기"}</button>
+                      {/*   수집 켜기는 연동 통장에만 — 직접 등록한 통장은 은행에 붙어 있지 않아 가져올 곳이 없다.
+                            켜 두어도 아무 일도 없으면서 무료 요금제 한도만 먹던 칸이었다 (2026-09-11 사장님). */}
+                      {a.source && a.source !== "codef" ? (
+                        <span className="bank-manual-mark" title="직접 등록한 통장입니다. 은행에 연결돼 있지 않아 거래를 가져오지 않습니다.">직접 등록</span>
+                      ) : (
+                        <button type="button" onClick={() => toggleAcctSync({ accountNo: accNo, syncEnabled: a.syncEnabled, bankName: a.bankName, balance: bal })} className={a.syncEnabled === false ? "btn-secondary btn-sm text-[var(--warning)]" : "btn-secondary btn-sm"} title={a.syncEnabled === false ? "이 통장의 거래를 다시 가져옵니다." : "이 통장의 거래를 가져오지 않습니다."}>{a.syncEnabled === false ? "수집 켜기" : "수집 끄기"}</button>
+                      )}
                       <button type="button" onClick={() => toggleAcctHidden({ accountNo: accNo, isHidden: a.isHidden, bankName: a.bankName, balance: bal })} className="btn-secondary btn-sm">{a.isHidden ? "보이기" : "숨김"}</button>
                       <button type="button" onClick={() => removeAcct({ accountNo: accNo, alias: a.alias, bankName: a.bankName })} className="btn-secondary btn-sm text-[var(--danger)]">삭제</button>
                     </span>
