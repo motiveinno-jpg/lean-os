@@ -10550,6 +10550,30 @@ export type Database = {
           },
         ]
       }
+      national_holidays: {
+        Row: {
+          date: string
+          is_holiday: boolean
+          name: string
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          date: string
+          is_holiday?: boolean
+          name: string
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          date?: string
+          is_holiday?: boolean
+          name?: string
+          source?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notification_logs: {
         Row: {
           body: string | null
@@ -15215,9 +15239,12 @@ export type Database = {
           end_at: string | null
           id: string
           is_shared: boolean
+          occurrence_date: string | null
           position: number
           priority: number
           recurrence: Json | null
+          recurrence_exceptions: string[]
+          recurrence_parent_id: string | null
           reminded_at: string | null
           reminder: string | null
           reminders: Json | null
@@ -15243,9 +15270,12 @@ export type Database = {
           end_at?: string | null
           id?: string
           is_shared?: boolean
+          occurrence_date?: string | null
           position?: number
           priority?: number
           recurrence?: Json | null
+          recurrence_exceptions?: string[]
+          recurrence_parent_id?: string | null
           reminded_at?: string | null
           reminder?: string | null
           reminders?: Json | null
@@ -15271,9 +15301,12 @@ export type Database = {
           end_at?: string | null
           id?: string
           is_shared?: boolean
+          occurrence_date?: string | null
           position?: number
           priority?: number
           recurrence?: Json | null
+          recurrence_exceptions?: string[]
+          recurrence_parent_id?: string | null
           reminded_at?: string | null
           reminder?: string | null
           reminders?: Json | null
@@ -15335,6 +15368,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_project_margin"
             referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "schedule_events_recurrence_parent_id_fkey"
+            columns: ["recurrence_parent_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_events"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "schedule_events_user_id_fkey"
@@ -20257,7 +20297,51 @@ export type Database = {
         Args: { p_inputs: Json; p_token: string }
         Returns: Json
       }
+      schedule_detach_occurrence: {
+        Args: { p_date: string; p_parent: string; p_patch?: Json }
+        Returns: {
+          all_day: boolean
+          attachments: Json
+          color: string
+          company_id: string
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          deal_id: string | null
+          description: string | null
+          end_at: string | null
+          id: string
+          is_shared: boolean
+          occurrence_date: string | null
+          position: number
+          priority: number
+          recurrence: Json | null
+          recurrence_exceptions: string[]
+          recurrence_parent_id: string | null
+          reminded_at: string | null
+          reminder: string | null
+          reminders: Json | null
+          reminders_sent: Json
+          start_at: string | null
+          target_departments: string[]
+          target_user_ids: string[]
+          title: string
+          updated_at: string
+          user_id: string | null
+          visibility: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "schedule_events"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       schedule_reminders_tick: { Args: never; Returns: number }
+      schedule_skip_occurrence: {
+        Args: { p_date: string; p_parent: string }
+        Returns: undefined
+      }
       seed_korean_legal_holidays: { Args: { p_year?: number }; Returns: number }
       seed_legal_allowances: { Args: { p_company_id: string }; Returns: number }
       session_gate: {

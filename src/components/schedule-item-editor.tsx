@@ -50,17 +50,21 @@ export type ScheduleDraft = {
   /** 반복(결정 145) — "" = 안 함 */
   recurFreq: "" | "daily" | "weekly" | "monthly";
   recurWeekday: number;
+  /** 반복의 한 회차(가상 `id@날짜`)를 여는 중 — 저장하면 그 날짜만 바뀐다. 반복 규칙은 원본에서 */
+  occurrence?: boolean;
   /** 알림 목록 — 며칠 전 · 몇 시(KST). 반복 일정은 저장 시 비워진다(1차 미지원) (시간대·하루 전·일주일 전·여러 개) */
   reminders: ScheduleReminder[];
 };
 
 /** 저장된 일정 → 편집용 초안. 새로 만들 때는 날짜만 넣어 부르면 된다. */
 export function draftFromEvent(e?: Partial<ScheduleEvent> | null, fallback?: { from?: string; to?: string }): ScheduleDraft {
-  const source = e?.recurrence_source ?? e;
-  const from = (source?.start_at ? dateKeyOf(source.start_at) : "") || fallback?.from || "";
-  const to = (source?.end_at ? dateKeyOf(source.end_at) : "") || fallback?.to || from;
+  //   회차는 **그 회차의 날짜**로 연다(2026-09-14) — 예전엔 원본 시작일을 넣어 회차를 고치면 원본 전체가 밀렸다
+  const occurrence = !!e?.id && /@\d{4}-\d{2}-\d{2}$/.test(e.id);
+  const from = (e?.start_at ? dateKeyOf(e.start_at) : "") || fallback?.from || "";
+  const to = (e?.end_at ? dateKeyOf(e.end_at) : "") || fallback?.to || from;
   return {
     id: e?.id,
+    occurrence,
     title: e?.title || "",
     description: e?.description || "",
     from, to,
@@ -250,8 +254,10 @@ export function ScheduleItemEditor({
         </div>
         {!draft.from && <p className="sched-note">날짜를 비우면 달력에 안 뜨고 <b>목록에만</b> 남습니다.</p>}
 
-        {/* 반복(결정 145) — 한 건으로 저장되고 달력이 회차를 펼친다. 고치면 모든 회차 반영 */}
-        <div className="sched-field">
+        {/* 반복(결정 145) — 한 건으로 저장되고 달력이 회차를 펼친다.
+            회차 하나를 열었을 때는 규칙을 못 바꾼다(그 날짜만 저장) — 규칙은 원본(첫 회차)에서. (2026-09-14) */}
+        {draft.occurrence && <p className="sched-note">반복 중 <b>이 날짜 회차만</b> 바뀝니다. 반복 규칙·다른 회차는 첫 회차(원본)에서 고칩니다.</p>}
+        {!draft.occurrence && <div className="sched-field">
           <span>반복</span>
           <div className="sched-range">
             <select className="sched-in" value={draft.recurFreq} disabled={!draft.from} aria-label="반복"
@@ -268,8 +274,8 @@ export function ScheduleItemEditor({
               </select>
             )}
           </div>
-        </div>
-        {draft.recurFreq && <p className="sched-note" title="매월 반복은 그 날짜가 없는 달을 건너뜁니다."><b>고치거나 지우면 모든 회차</b>에 적용됩니다.</p>}
+        </div>}
+        {draft.recurFreq && !draft.occurrence && <p className="sched-note" title="매월 반복은 그 날짜가 없는 달을 건너뜁니다. 달력에서 회차 하나를 열어 고치면 그 날짜만 바뀝니다.">달력에 회차가 펼쳐집니다. 각 회차의 완료·수정·삭제는 <b>그 날짜만</b>, 여기서 고치면 <b>아직 손대지 않은 회차 전체</b>에 적용됩니다.</p>}
 
         {/* 알림 — 발송 게이트가 켜진 회사에만 보인다(안 켜진 회사에 보여주면 거짓말) */}
         {remindReady && (

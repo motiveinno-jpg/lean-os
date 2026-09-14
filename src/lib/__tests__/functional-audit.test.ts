@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ from: vi.fn(), reportError: vi.fn() }));
-vi.mock("@/lib/supabase", () => ({ supabase: { from: mocks.from } }));
+const mocks = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn(), reportError: vi.fn() }));
+vi.mock("@/lib/supabase", () => ({ supabase: { from: mocks.from, rpc: mocks.rpc } }));
 vi.mock("@/lib/friendly-error", () => ({ reportError: mocks.reportError }));
 
 import { fetchPaged } from "@/lib/fetch-paged";
@@ -43,9 +43,21 @@ describe("기능 감사: 일정 쓰기", () => {
     for (const method of ["update", "delete", "eq", "select"]) query[method] = vi.fn(() => query);
     query.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
     mocks.from.mockReturnValue(query);
-    const operation = kind === "완료" ? toggleEventCompleted("uuid@2026-09-10", true) : deleteEvent("uuid@2026-09-10");
+    const operation = kind === "완료" ? toggleEventCompleted("uuid", true) : deleteEvent("uuid");
     await expect(operation).rejects.toThrow("권한");
     expect(query.eq).toHaveBeenCalledWith("id", "uuid");
+  });
+  //   반복의 한 회차(`id@날짜`)는 원본이 아니라 **그 날짜만** — 떼어내기·건너뛰기 RPC 로 간다 (2026-09-14)
+  it.each(["완료", "삭제"])("반복 회차 %s는 그 날짜 회차만 처리한다", async (kind) => {
+    const rpc = mocks.rpc as any;
+    rpc.mockResolvedValue({ data: null, error: { message: "FORBIDDEN" } });
+    const operation = kind === "완료" ? toggleEventCompleted("uuid@2026-09-10", true) : deleteEvent("uuid@2026-09-10");
+    await expect(operation).rejects.toThrow("권한");
+    expect(rpc).toHaveBeenCalledWith(
+      kind === "완료" ? "schedule_detach_occurrence" : "schedule_skip_occurrence",
+      expect.objectContaining({ p_parent: "uuid", p_date: "2026-09-10" }),
+    );
+    expect(mocks.from).not.toHaveBeenCalled();
   });
   it("반복 회차에는 원본 날짜를 보존한다", async () => {
     const query: any = {};

@@ -31,8 +31,29 @@ export function remindersOf(e: { reminders?: ScheduleReminder[] | null; reminder
   return [];
 }
 
-/** 가상 회차 id(`{uuid}@{날짜}`) → 원본 id. 수정·삭제·완료는 전부 원본 한 건에 적용된다. */
-const realId = (id: string) => id.split("@")[0];
+/** 가상 회차 id(`{uuid}@{날짜}`). 완료·수정·삭제는 **그 날짜 회차만** — 손대는 순간 실제 행으로 떼어낸다
+ *  (schedule_detach_occurrence). 원본 한 건에 한꺼번에 적용하던 결정 145 의 동작은 2026-09-14 에 바꿨다
+ *  ("하나 완료하면 미래 회차가 다 완료되고, 하나 고치면 전체가 바뀐다"). */
+export function splitVirtualId(id: string): { parentId: string; date: string } | null {
+  const at = id.indexOf("@");
+  if (at < 0) return null;
+  const date = id.slice(at + 1);
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? { parentId: id.slice(0, at), date } : null;
+}
+export const isVirtualEventId = (id: string | undefined | null) => !!id && !!splitVirtualId(id);
+
+/** 가상 회차를 실제 행으로 떼어낸다 — 그 회차에만 적용할 값(patch)과 함께. 같은 회차를 두 번 떼도 행은 하나. */
+async function detachOccurrence(virtualId: string, patch: Record<string, unknown>): Promise<ScheduleEvent> {
+  const v = splitVirtualId(virtualId)!;
+  const { data, error } = await (db.rpc as any)("schedule_detach_occurrence", { p_parent: v.parentId, p_date: v.date, p_patch: patch });
+  if (error) {
+    const m = String(error.message || "");
+    throw new Error(m.includes("FORBIDDEN") ? "일정이 삭제되었거나 변경 권한이 없습니다."
+      : m.includes("NOT_RECURRING") ? "반복 일정이 아닙니다. 다시 열어 주세요."
+      : m.includes("NOT_FOUND") ? "일정이 삭제되었습니다." : m);
+  }
+  return data as ScheduleEvent;
+}
 
 /** 일정 한 건. **'할 일' 이라는 구분은 없다** — start_at 이 없으면 목록에만, 있으면 달력에도 뜬다. */
 export interface ScheduleEvent {
@@ -66,8 +87,12 @@ export interface ScheduleEvent {
   reminders: ScheduleReminder[] | null;
   created_at: string;
   updated_at: string;
-  /** 가상 회차를 편집해도 원본 시작일이 회차 날짜로 바뀌지 않도록 보존한다. */
+  /** 가상 회차가 어느 원본에서 펼쳐졌는지(원본 시작·종료). 화면 표시용 — 편집은 그 회차 날짜로 한다. */
   recurrence_source?: { start_at: string; end_at: string | null };
+  /** 떼어낸 회차(자식 행)이면 원본 id · 회차 날짜. 원본 행의 recurrence_exceptions 는 떼어냈거나 지운 날짜들 */
+  recurrence_parent_id?: string | null;
+  occurrence_date?: string | null;
+  recurrence_exceptions?: string[] | null;
 }
 
 export function canManageScheduleEvent(event: Pick<ScheduleEvent, "user_id">, userId: string | null): boolean {
@@ -75,10 +100,12 @@ export function canManageScheduleEvent(event: Pick<ScheduleEvent, "user_id">, us
 }
 
 export async function toggleEventCompleted(id: string, completed: boolean): Promise<void> {
+  //   가상 회차 → 그 날짜만 떼어내 완료. 원본·자식 행 → 그 행만
+  if (isVirtualEventId(id)) { await detachOccurrence(id, { completed }); return; }
   const { data, error } = await db
     .from("schedule_events")
     .update({ completed, completed_at: completed ? new Date().toISOString() : null })
-    .eq("id", realId(id)).select("id").maybeSingle();
+    .eq("id", id).select("id").maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("일정이 삭제되었거나 변경 권한이 없습니다.");
 }
@@ -152,6 +179,7 @@ function expandRecurrence(e: ScheduleEvent, monthStart: string, monthEnd: string
   const baseKey = dateKeyOf(asInstant(e.start_at));
   const baseWeekday = new Date(`${baseKey}T00:00:00Z`).getUTCDay();
   const baseTime = kstDateTimeLocal(base.toISOString()).slice(11, 16);
+  const skipped = new Set((e.recurrence_exceptions || []).map((d) => String(d).slice(0, 10)));
   const occ: ScheduleEvent[] = [];
   // 전월에 시작해 이번 달까지 걸친 반복 회차도 포함한다.
   const lookback = Math.min(366, Math.ceil(durMs / 86400000));
@@ -161,6 +189,8 @@ function expandRecurrence(e: ScheduleEvent, monthStart: string, monthEnd: string
       || (rec.freq === "weekly" && new Date(`${ymd}T00:00:00Z`).getUTCDay() === (rec.weekday ?? baseWeekday))
       || (rec.freq === "monthly" && ymd.slice(8, 10) === baseKey.slice(8, 10));
     if (!hit) continue;
+    //   떼어냈거나 지운 날짜는 그리지 않는다 — 떼어낸 회차는 자기 행이 따로 보인다
+    if (skipped.has(ymd)) continue;
     const s = new Date(`${ymd}T${baseTime}:00+09:00`);
     const endAt = durMs > 0 ? new Date(s.getTime() + durMs).toISOString() : null;
     if (dateKeyOf(endAt || s.toISOString()) < monthStart) continue;
@@ -170,6 +200,9 @@ function expandRecurrence(e: ScheduleEvent, monthStart: string, monthEnd: string
       recurrence_source: { start_at: e.start_at, end_at: e.end_at },
       start_at: s.toISOString(),
       end_at: endAt,
+      //   ★ 완료는 회차마다 따로다 — 원본을 완료해도 미래 회차는 미완료로 펼친다
+      completed: false,
+      completed_at: null,
     });
   }
   return occ;
@@ -224,8 +257,18 @@ export async function upsertEvent(input: {
     reminded_at: null,
     reminders_sent: [],
   };
+  if (input.id && isVirtualEventId(input.id)) {
+    //   가상 회차 편집 = 그 날짜 회차만. 떼어낸 행은 반복 규칙을 갖지 않는다(규칙은 원본 것).
+    return detachOccurrence(input.id, {
+      title: row.title, description: row.description ?? "", start_at: row.start_at, end_at: row.end_at ?? "",
+      all_day: row.all_day, color: row.color, visibility: row.visibility,
+      target_user_ids: row.target_user_ids, target_departments: row.target_departments,
+      ...(input.priority !== undefined ? { priority: row.priority } : {}),
+      attachments: row.attachments,
+    });
+  }
   if (input.id) {
-    const id = realId(input.id);
+    const id = input.id;
     const { data: previous, error: readError } = await db.from("schedule_events")
       .select("start_at, end_at, reminders, reminder")
       .eq("id", id).eq("company_id", input.companyId).eq("user_id", input.userId).maybeSingle();
@@ -251,7 +294,14 @@ export async function upsertEvent(input: {
 }
 
 export async function deleteEvent(id: string): Promise<void> {
-  const { data, error } = await db.from("schedule_events").delete().eq("id", realId(id)).select("id").maybeSingle();
+  //   가상 회차 → 그 날짜만 건너뛴다(원본 예외에 추가). 원본을 지우면 반복 전체가 사라지고 떼어낸 회차는 남는다.
+  const v = splitVirtualId(id);
+  if (v) {
+    const { error } = await (db.rpc as any)("schedule_skip_occurrence", { p_parent: v.parentId, p_date: v.date });
+    if (error) throw new Error(String(error.message || "").includes("FORBIDDEN") ? "일정이 삭제되었거나 삭제 권한이 없습니다." : error.message);
+    return;
+  }
+  const { data, error } = await db.from("schedule_events").delete().eq("id", id).select("id").maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("일정이 삭제되었거나 삭제 권한이 없습니다.");
 }

@@ -13,8 +13,9 @@ import { useModalKeys } from "@/hooks/use-modal-keys";
 import { getCompanyUsers } from "@/lib/queries";
 import { resolveSignedUrl } from "@/lib/file-storage";
 import { ScheduleItemEditor, draftFromEvent, type ScheduleDraft } from "@/components/schedule-item-editor";
+import { appConfirm } from "@/components/global-confirm";
 import {
-  upsertEvent, deleteEvent, toggleEventCompleted, formatEventRange, canManageScheduleEvent,
+  upsertEvent, deleteEvent, toggleEventCompleted, formatEventRange, canManageScheduleEvent, isVirtualEventId,
   VISIBILITY_LABEL, type EventColor, type ScheduleAttachment, type ScheduleEvent, remindersOf } from "@/lib/schedule";
 
 const DOT: Record<EventColor, string> = {
@@ -93,13 +94,22 @@ export function ScheduleItemDialog({
 
   const busy = save.isPending || remove.isPending || done.isPending;
 
+  //   반복 원본을 지우면 회차 전체가 사라진다 — 그때만 한 번 묻는다. 회차 하나·보통 일정은 바로.
+  const askDelete = async (id: string, recurring: boolean) => {
+    if (recurring && !isVirtualEventId(id)) {
+      const ok = await appConfirm("반복의 원본입니다. 지우면 아직 손대지 않은 회차가 전부 사라집니다.\n따로 완료·수정한 회차는 남습니다.", { danger: true, title: "반복 전체 삭제", confirmLabel: "전체 삭제" });
+      if (!ok) return;
+    }
+    remove.mutate(id);
+  };
+
   if (editing) {
     return (
       <ScheduleItemEditor
         companyId={companyId} userId={userId}
         draft={editing} onChange={setEditing}
         onSave={() => save.mutate()}
-        onDelete={editing.id ? () => remove.mutate(editing.id!) : undefined}
+        onDelete={editing.id ? () => void askDelete(editing.id!, !!editing.recurFreq) : undefined}
         onClose={onClose}
         saving={busy} />
     );
@@ -111,7 +121,7 @@ export function ScheduleItemDialog({
     event={e} companyId={companyId} busy={busy}
     onEdit={canManage ? () => setEditing(draftFromEvent(e)) : undefined}
     onToggleDone={canManage ? () => done.mutate({ id: e.id, completed: !e.completed }) : undefined}
-    onDelete={canManage ? () => remove.mutate(e.id) : undefined}
+    onDelete={canManage ? () => void askDelete(e.id, !!e.recurrence?.freq) : undefined}
     onClose={onClose} />;
 }
 
@@ -179,8 +189,11 @@ function ScheduleItemView({
         <p className="sched-view-when">
           {event.start_at ? formatEventRange(event) : "날짜 없음"}
           {event.recurrence?.freq && (
-            <span title="반복 일정은 수정과 삭제가 모든 회차에 적용됩니다."> · 🔁 {event.recurrence.freq === "daily" ? "매일" : event.recurrence.freq === "monthly" ? "매월" : `매주 ${["일", "월", "화", "수", "목", "금", "토"][event.recurrence.weekday ?? 0]}요일`}</span>
+            <span title={isVirtualEventId(event.id)
+              ? "반복 중 한 회차입니다. 완료·수정·삭제는 이 날짜에만 적용됩니다."
+              : "반복의 첫 회차(원본)입니다. 여기서 고치거나 지우면 아직 손대지 않은 회차 전체에 적용됩니다."}> · 🔁 {event.recurrence.freq === "daily" ? "매일" : event.recurrence.freq === "monthly" ? "매월" : `매주 ${["일", "월", "화", "수", "목", "금", "토"][event.recurrence.weekday ?? 0]}요일`}{isVirtualEventId(event.id) ? " · 이 회차만" : " · 원본"}</span>
           )}
+          {event.recurrence_parent_id && <span title="반복에서 따로 떼어낸 회차입니다. 이 날짜만 관리됩니다."> · 🔁 따로 관리</span>}
           {remindersOf(event).length > 0 && <span title={remindersOf(event).map((r) => `${r.days_before === 0 ? "당일" : `${r.days_before}일 전`} ${r.time}`).join(" · ")}> · 🔔 알림 {remindersOf(event).length}개</span>}
           {event.completed && <span className="sched-view-done">완료</span>}
         </p>
