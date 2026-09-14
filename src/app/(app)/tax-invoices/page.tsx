@@ -474,9 +474,10 @@ function TaxInvoicesPageInner() {
     items: ItemLine[];
   };
   // 품목 줄 · 화면에서는 문자열로 다루고 저장할 때 숫자로 바꾼다 (입력 중 0 이 튀지 않게)
-  type ItemLine =  { key: string; name: string; spec: string; qty: string; unitCost: string; remark: string };
+  //   월·일 = 홈택스 서식의 줄 거래일자. 비면 계산서 작성일자를 쓴다.
+  type ItemLine =  { key: string; month: string; day: string; name: string; spec: string; qty: string; unitCost: string; remark: string };
   const itemKeyRef = useRef(0);
-  const blankItem = (): ItemLine => ({ key: `i${itemKeyRef.current++}`, name: "", spec: "", qty: "1", unitCost: "", remark: "" });
+  const blankItem = (): ItemLine => ({ key: `i${itemKeyRef.current++}`, month: "", day: "", name: "", spec: "", qty: "1", unitCost: "", remark: "" });
   //   한 줄 공급가액 = 수량 × 단가. 수량이 비면 1 로 본다.
   const itemSupply = (it: ItemLine) => Math.round((Number(it.qty) || 1) * (Number(it.unitCost) || 0));
   //   한 줄 세액 — 과세일 때만 10%. 영세율·면세는 0(홈택스로 나가는 줄 세액과 같은 산식).
@@ -564,9 +565,11 @@ function TaxInvoicesPageInner() {
     const parsed: ItemLine[] = lines.map((l) => {
       //   비고까지 받는다 — 화면 칸 순서(품목명·규격·수량·단가·비고)와 같게.
       //   공급가액·세액·합계는 계산값이라 붙여넣기에서 받지 않는다.
-      const [name = "", spec = "", qty = "", unit = "", remark = ""] = l.split("\t");
+      const [month = "", day = "", name = "", spec = "", qty = "", unit = "", remark = ""] = l.split("\t");
       return {
         key: `i${itemKeyRef.current++}`,
+        month: month.replace(/[^0-9]/g, "").slice(0, 2),
+        day: day.replace(/[^0-9]/g, "").slice(0, 2),
         name: name.trim(),
         spec: spec.trim(),
         qty: qty.replace(/[^\d.]/g, "") || "1",
@@ -1012,6 +1015,9 @@ function TaxInvoicesPageInner() {
             supplyAmount: itemSupply(it),
             //   줄 비고 — 홈택스 detailList 의 remark 로 그대로 나간다
             remark: it.remark.trim(),
+            //   줄 거래일자 — 비면 발행 엣지가 계산서 작성일자를 쓴다
+            month: it.month.trim(),
+            day: it.day.trim(),
           }));
         const newInv = await createTaxInvoice({
           companyId: companyId!,
@@ -2209,9 +2215,11 @@ function TaxInvoicesPageInner() {
                   {/*   전체 비고 — 계산서 한 장에 붙는 비고(2026-09-14 사장님). 국세청 비고란으로 그대로 나간다.
                         품목 줄마다 붙는 비고는 아래 표의 '비고' 칸이다. */}
                   <div className="tax-form-field">
-                    <label>전체 비고</label>
-                    <input value={row.remark} onChange={(e) => patchRow(row.key, { remark: e.target.value })}
-                      placeholder="계산서 한 장 전체에 붙는 비고 (국세청 비고란)" className="field-input" />
+                    <label>비고</label>
+                    {/*   홈택스도 비고는 최대 3줄이다 — 같은 한도를 둔다 */}
+                    <textarea value={row.remark} rows={2}
+                      onChange={(e) => patchRow(row.key, { remark: e.target.value.split("\n").slice(0, 3).join("\n") })}
+                      placeholder="비고는 최대 3줄까지 입력 가능합니다." className="field-input tax-remark-input" />
                   </div>
 
                   {/* 품목 줄 */}
@@ -2220,8 +2228,10 @@ function TaxInvoicesPageInner() {
                     <div className="tax-items">
                       <div className="tax-items-scroll">
                         <div className="tax-items-grid">
+                          {/*   홈택스 '세금계산서 발행' 서식과 같은 칸 순서 (2026-09-14 사장님) */}
                           <div className="tax-item-row tax-item-head">
-                            <span />
+                            <span>No.</span>
+                            <span className="text-center">월</span><span className="text-center">일</span>
                             <span>품목명</span><span>규격</span>
                             <span className="text-right">수량</span><span className="text-right">단가</span><span className="text-right">공급가액</span>
                             <span className="text-right">세액</span><span className="text-right">합계</span><span>비고</span>
@@ -2230,6 +2240,13 @@ function TaxInvoicesPageInner() {
                           {row.items.map((it, i) => (
                             <div key={it.key} className="tax-item-row">
                               <span className="tax-item-no">{i + 1}</span>
+                              {/*   월·일 — 비우면 계산서 작성일자로 나간다(홈택스도 월·일만 받는다) */}
+                              <input value={it.month} onChange={(e) => patchItem(row.key, it.key, { month: e.target.value.replace(/[^0-9]/g, "").slice(0, 2) })}
+                                onKeyDown={(e) => onItemKeyDown(e, row.key, it.key)}
+                                inputMode="numeric" placeholder={row.issueDate.slice(5, 7) || "월"} className="tax-item-input text-center" />
+                              <input value={it.day} onChange={(e) => patchItem(row.key, it.key, { day: e.target.value.replace(/[^0-9]/g, "").slice(0, 2) })}
+                                onKeyDown={(e) => onItemKeyDown(e, row.key, it.key)}
+                                inputMode="numeric" placeholder={row.issueDate.slice(8, 10) || "일"} className="tax-item-input text-center" />
                               <input value={it.name} onChange={(e) => patchItem(row.key, it.key, { name: e.target.value })}
                                 onKeyDown={(e) => onItemKeyDown(e, row.key, it.key)}
                                 onPaste={(e) => onItemPaste(e, row.key, it.key)}

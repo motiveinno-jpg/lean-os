@@ -130,9 +130,16 @@ function buildDetailList(invoice: any, writeDate: string, supply: string, tax: s
     const taxable = Number(tax) !== 0;
     const lines = items.map((it: any, i: number) => {
       const lineSupply = Math.round(Number(it.supplyAmount ?? (Number(it.qty || 1) * Number(it.unitCost || 0))) || 0);
+      //   줄마다 거래일자를 따로 적을 수 있다(홈택스 서식의 '월/일' 칸). 안 적으면 작성일자를 쓴다.
+      //   연도는 작성일자를 따른다 — 홈택스도 월·일만 받는다.
+      const mm = String(it.month ?? "").replace(/[^0-9]/g, "").padStart(2, "0");
+      const dd = String(it.day ?? "").replace(/[^0-9]/g, "").padStart(2, "0");
+      const lineDate = (mm !== "00" && dd !== "00" && mm.length === 2 && dd.length === 2)
+        ? `${writeDate.slice(0, 4)}${mm}${dd}`
+        : writeDate;
       return {
         serialNum: String(i + 1),
-        purchaseDT: writeDate,
+        purchaseDT: lineDate,
         itemName: String(it.name || "").trim() || "용역",
         spec: String(it.spec || ""),
         qty: String(it.qty ?? 1),

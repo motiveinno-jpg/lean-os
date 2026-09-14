@@ -43,6 +43,10 @@ export interface TaxInvoiceItem {
   supplyAmount: number;
   /** 줄 비고 — 홈택스 detailList 의 remark 로 그대로 나간다. */
   remark?: string;
+  /** 줄 거래일자 — 홈택스 서식의 '월'. 비면 계산서 작성일자를 쓴다. */
+  month?: string;
+  /** 줄 거래일자 — 홈택스 서식의 '일'. 비면 계산서 작성일자를 쓴다. */
+  day?: string;
 }
 
 /** 목록에 쓰는 품목 요약 — "첫 품목 외 N건" */

@@ -1229,9 +1229,10 @@ thead th { white-space: nowrap; word-break: keep-all; }
 /* 품목 줄 표 */
 .tax-items { @apply rounded-xl border border-[var(--border)] overflow-hidden; }
 .tax-items-scroll { @apply overflow-x-auto; }
-/*   품목 칸 순서(2026-09-14 사장님): 번호 · 품목명 · 규격 · 수량 · 단가 · 공급가액 · 세액 · 합계 · 비고 · 삭제 */
-.tax-items-grid { @apply min-w-[980px]; }
-.tax-item-row { @apply grid items-center border-t border-[var(--border)]/60; grid-template-columns: 30px minmax(140px, 1.5fr) 90px 64px 110px 116px 100px 116px minmax(110px, 1fr) 30px; }
+/*   홈택스 '세금계산서 발행' 서식과 같은 칸 순서 (2026-09-14 사장님):
+     No. · 월 · 일 · 품목명 · 규격 · 수량 · 단가 · 공급가액 · 세액 · 합계 · 비고 · 삭제 */
+.tax-items-grid { @apply min-w-[1080px]; }
+.tax-item-row { @apply grid items-center border-t border-[var(--border)]/60; grid-template-columns: 38px 52px 52px minmax(130px, 1.5fr) 84px 60px 104px 110px 96px 110px minmax(100px, 1fr) 30px; }
 .tax-item-row:first-child { @apply border-t-0; }
 .tax-item-head { @apply bg-[var(--bg-surface)]; }
 .tax-item-head > span { @apply px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]; }
@@ -10590,4 +10591,12 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
 /*   구성원 권한 — 불러오기 실패 안내(빈 트리를 권한 없음으로 오해하지 않게) */
 .perm-load-failed {
   @apply flex flex-col items-start gap-2 py-4 text-xs text-amber-600;
+}
+
+/*   세금계산서 비고 — 홈택스 서식과 같이 최대 3줄. 두 줄 높이로 시작한다.
+     .field-input 이 height: var(--control-h) 를 박아 두므로 태그까지 붙여 이긴다. */
+textarea.tax-remark-input {
+  @apply py-1.5 leading-5 resize-none;
+  height: 50px;
+  min-height: 50px;
 }
