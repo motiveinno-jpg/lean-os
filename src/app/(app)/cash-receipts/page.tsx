@@ -147,7 +147,7 @@ export default function CashReceiptsPage() {
     if (id) localStorage.setItem(SYNC_STORAGE_KEY, id);
     else localStorage.removeItem(SYNC_STORAGE_KEY);
   };
-  // 직원 QA #7 — 멈춘(hang) 백그라운드 job 을 failed 로 마킹(서버 409 잠금 해제) + 로컬 해제 → 다시 시도 가능 (CODEF 미접촉)
+  // 멈춘(hang) 백그라운드 job 을 failed 로 마킹(서버 409 잠금 해제) + 로컬 해제 → 다시 시도 가능 (CODEF 미접촉)
   const forceClearStuckJob = async (jid: string, silent = false) => {
     const db = supabase;
     try {

@@ -98,7 +98,7 @@ export async function exportPartnerLedgersXlsx(
 ): Promise<void> {
   const wb = XLSX.utils.book_new();
   const used = new Set<string>();
-  // 직원 QA B-11 — 이미지처럼 보기좋은 서식(제목·회색 헤더·테두리·우측정렬·천단위·합계 강조)
+  // B-11 — 이미지처럼 보기좋은 서식(제목·회색 헤더·테두리·우측정렬·천단위·합계 강조)
   const B = { style: "thin", color: { rgb: "D5D9E5" } };
   const borders = { top: B, bottom: B, left: B, right: B };
   for (const t of targets) {

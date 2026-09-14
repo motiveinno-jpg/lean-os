@@ -2400,7 +2400,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                   );
                 })}
               </tbody>
-              {/* 직원 QA #13 — 3개 총계만이 아니라 컬럼별 합계 행 추가 */}
+              {/* 3개 총계만이 아니라 컬럼별 합계 행 추가 */}
               <tfoot>
                 {(() => {
                   const its = preview.items;

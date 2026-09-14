@@ -36,7 +36,7 @@ export function CellDetail({
   const items = isRecord ? (data ?? []) : (clientItems ?? []);
   const total = items.reduce((s, i) => s + (Number(i.amount) || 0), 0);
 
-  // 직원 QA #9 — 고정비 중복 정리: 등록 고정비(정기결제/고정비)는 삭제, 통장 고정비 체크는 해제
+  // 고정비 중복 정리: 등록 고정비(정기결제/고정비)는 삭제, 통장 고정비 체크는 해제
   const queryClient = useQueryClient();
   const [deleting, setDeleting] = useState<string | null>(null);
   const removeItem = async (it: BudgetDetailItem) => {

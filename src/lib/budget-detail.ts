@@ -16,7 +16,7 @@ export interface BudgetDetailItem {
   label: string;
   sub?: string;   // 날짜/부가정보
   amount: number;
-  // 직원 QA #9 — 산출 모달에서 직접 삭제/해제 가능하게 출처·id (고정비 행에만 채움)
+  // 산출 모달에서 직접 삭제/해제 가능하게 출처·id (고정비 행에만 채움)
   refType?: "recurring" | "fixed_cost" | "bank";
   refId?: string;
 }

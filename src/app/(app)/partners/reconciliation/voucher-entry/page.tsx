@@ -756,7 +756,7 @@ export default function VoucherEntryPage() {
         onFocus={(e) => setPicker({ kind: "acct", rowId, q: "", anchor: anchorOf(e.currentTarget) })}
         onBlur={() => setTimeout(() => setPicker((p) => (p?.rowId === rowId && p.kind === "acct" ? null : p)), 150)}
         onKeyDown={(e) => {
-          // 거래처 셀과 동일한 키보드 탐색 — ArrowUp/Down 이동 + Enter 선택 (직원 QA #1)
+          // 거래처 셀과 동일한 키보드 탐색 — ArrowUp/Down 이동 + Enter 선택 
           if (!(picker?.kind === "acct" && picker.rowId === rowId)) return;
           const list = acctMatches(picker.q);
           if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); setPicker((p) => p ? { ...p, idx: Math.min((p.idx ?? 0) + 1, Math.max(list.length - 1, 0)) } : p); }

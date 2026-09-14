@@ -375,7 +375,7 @@ function TaxInvoicesPageInner() {
       else localStorage.removeItem("hometax-active-job-id");
     }
   };
-  // 직원 QA #6 — 백그라운드 job 이 hang(CF-12200 등) 하면 completed/failed 로 안 바뀌어 버튼이 영구 잠김.
+  // 백그라운드 job 이 hang(CF-12200 등) 하면 completed/failed 로 안 바뀌어 버튼이 영구 잠김.
   // 멈춘 job 을 failed 로 마킹(서버 409 잠금까지 해제) + 로컬 해제 → 다시 시도 가능. (CODEF 수집 로직 미접촉)
   const forceClearStuckJob = async (jid: string, silent = false) => {
     const db = supabase;
@@ -773,7 +773,7 @@ function TaxInvoicesPageInner() {
     enabled: !!companyId, staleTime: 300_000,
   });
 
-  // 직원 QA 손익계산서 — 매입 세금계산서에 손익 계정과목(expense_category) 일괄 지정.
+  // 손익계산서 — 매입 세금계산서에 손익 계정과목(expense_category) 일괄 지정.
   // 지정하면 손익계산서에서 매출원가(COGS) 대신 그 판관비 항목으로 집계됨.
   const [bulkExpenseCat, setBulkExpenseCat] = useState("");
 
@@ -3171,7 +3171,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
   // 매출: 공급자=우리회사, 공급받는자=거래처. 매입: 반대.
   const isSales = inv.type === 'sales';
   const issuedToNts = !!inv.nts_confirm_no || inv.nts_issue_status === 'issued'; // 전송됨 — 승인번호는 다음 영업일에 붙는다
-  // 직원 QA 세금계산서2 — 사업자번호 XXX-XX-XXXXX 포맷 + 상호 "+"(공백 인코딩) → 공백 정규화
+  // 세금계산서2 — 사업자번호 XXX-XX-XXXXX 포맷 + 상호 "+"(공백 인코딩) → 공백 정규화
   const fmtBizNo = (b: string) => { const d = (b || '').replace(/[^0-9]/g, ''); return d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}` : (b || ''); };
   const cleanNm = (s: string) => (s || '').replace(/\+/g, ' ').trim();
   // 거래처 정보 보강: FK 조인(inv.partners)이 없으면(홈택스 동기화 건은 partner_id=null 다수)

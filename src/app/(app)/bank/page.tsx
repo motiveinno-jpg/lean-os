@@ -193,7 +193,7 @@ export default function BankPage() {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selectedTxIds, setSelectedTxIds] = useState<Set<string>>(new Set());
-  // 직원 QA — 서브탭에서 뒤로가기 하면 통장 탭으로 한 번 돌아간 뒤 페이지를 떠남.
+  // — 서브탭에서 뒤로가기 하면 통장 탭으로 한 번 돌아간 뒤 페이지를 떠남.
   //   2026-07-20 QA: 탭 전환마다 pushState 를 쌓아 뒤로가기가 탭 되감기에 갇히던 문제 —
   //   기본탭→서브탭 진입 때만 1회 push, 서브탭끼리는 replace 로 히스토리 오염을 1칸으로 제한.
   const goTab = (t: Tab) => {
@@ -378,7 +378,7 @@ export default function BankPage() {
         return q;
       }, 50000);
       const rows = (data || []) as any[];
-      // 직원 QA #통장거래내역2 — 같은 날짜 거래는 시간(raw_data.trTime, HHMMSS)까지 반영해 최신순 정렬.
+      // #통장거래내역2 — 같은 날짜 거래는 시간(raw_data.trTime, HHMMSS)까지 반영해 최신순 정렬.
       //   날짜만으로 정렬하면 같은 날 거래 순서가 뒤섞여 잔액·마지막 거래가 안 맞던 문제.
       return [...rows].sort((a, b) => {
         const ka = `${a.transaction_date || ""} ${String(a.raw_data?.trTime || "").padStart(6, "0")}`;
@@ -416,7 +416,7 @@ export default function BankPage() {
     queryClient.invalidateQueries({ queryKey: ["bank-page-flow-v2"] });
     queryClient.invalidateQueries({ queryKey: ["bank-page-changes"] });
   };
-  // 직원 QA 통장. 사용직원 선택용 재직 직원 목록
+  // 통장. 사용직원 선택용 재직 직원 목록
   const  { data: bankEmployees = [] } = useQuery({
     queryKey: ["bank-page-employees", companyId],
     queryFn: async () => {
@@ -427,7 +427,7 @@ export default function BankPage() {
   });
   const bankEmpById: Record<string, string> = {};
   for (const e of bankEmployees as any[]) bankEmpById[e.id] = e.name;
-  // 직원 QA — 거래내용은 '거래내용'만: 예금주명(=counterparty)·거래구분 토큰을 제외하고 표시.
+  // — 거래내용은 '거래내용'만: 예금주명(=counterparty)·거래구분 토큰을 제외하고 표시.
   //   raw_data.descs(원본 4칸)가 있으면 그걸로 계산(기존 재동기화분도 즉시 반영), 없으면 description 폴백.
   const TR_TYPES = ["타행이체", "당행이체", "인터넷", "자동이체", "대체", "펌뱅킹", "펌뱅크", "CD", "ATM", "체크카드", "급여", "이자", "스마트뱅킹", "폰뱅킹", "창구", "지로", "전자금융", "모바일뱅킹", "모바일", "송금", "이체", "출금", "입금", "카드", "공과금"];
   const displayMemo = (tx: any): string => {
@@ -805,7 +805,7 @@ export default function BankPage() {
                 return;
               }
               
-              // 직원 QA · 기간 미선택 등 동기화가 실제로 시작 안 되면 쿨타임을 걸지 않음
+              // 기간 미선택 등 동기화가 실제로 시작 안 되면 쿨타임을 걸지 않음
               //   (run 은 fn 실행 전에 쿨타임을 기록하므로, 사전 검증을 run 밖에서 먼저 한다)
               if (isSyncPaused)  { toast("연동이 일시정지 중입니다. 정지 해제 후 연동하세요.", "info"); return; }
               if (!bankTxFrom || !bankTxTo) { toast("통장 거래 기간(시작일·종료일)을 먼저 설정한 뒤 연동하세요", "error"); return; }

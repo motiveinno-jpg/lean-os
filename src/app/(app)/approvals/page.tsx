@@ -3106,7 +3106,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     });
     descEditorRef.current?.setContent(tplHtml);
     setDescriptionInited(form.requestType);
-    // 직원 QA #11 · 고정값(fixed) 필드는 양식 지정값으로 프리필해 제출에 포함
+    // #11 · 고정값(fixed) 필드는 양식 지정값으로 프리필해 제출에 포함
     const initFields: Record<string, string> = {};
     for (const fd of selectedForm.fields || []) if (fd.type === "fixed") initFields[fd.key] = fd.default_value || "";
     setCustomFieldValues(initFields);
@@ -3642,12 +3642,12 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                             onChange={(v) => setCustomFieldValues((s) => ({ ...s, [fd.key]: v }))}
                           />
                         ) : fd.type === "fixed" ? (
-                          /* 직원 QA #11 — 직접입력 고정값: 양식이 지정한 값 그대로(작성자 수정 불가) */
+                          /* 직접입력 고정값: 양식이 지정한 값 그대로(작성자 수정 불가) */
                           <input type="text" value={fd.default_value || ""} readOnly disabled
                             className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-muted)]" />
                         
                         ) : fd.type === "amount" ? (
-                          /* 직원 QA #11 · 금액: ₩ + 천단위 콤마 */
+                          /* #11 · 금액: ₩ + 천단위 콤마 */
 
                           <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)] text-sm">₩</span>

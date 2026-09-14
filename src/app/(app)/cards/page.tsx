@@ -51,7 +51,7 @@ import { NATURE_LABEL } from "@/lib/account-nature";
 const db = supabase;
 const fmtW = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
 
-// (대형 CARD HOLDER 히어로 제거로 카드사 그라데이션 매핑도 함께 제거 — 2026-07-10 직원 QA)
+// (대형 CARD HOLDER 히어로 제거로 카드사 그라데이션 매핑도 함께 제거)
 
 // 카드 종류 배지 색 — 카드 헤더의 종류 라벨을 더 눈에 띄게.
 function cardTypeBadgeClass(cardType?: string | null): string {
@@ -186,7 +186,7 @@ export default function CardsPage() {
   // 거래내역 탭 표 · 헤더 더블클릭 정렬 + 행 체크박스 다중선택 (UI 전용, DB 변경 없음)
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  // 직원 QA 카드 — 카드 선택 후 기간 거래(cardTx) 뷰의 검색·정렬
+  // 카드 — 카드 선택 후 기간 거래(cardTx) 뷰의 검색·정렬
   const [cardTxSearch, setCardTxSearch] = useState("");
   const [cardSortKey, setCardSortKey] = useState<string>("transaction_date");
   const [cardSortDir, setCardSortDir] = useState<"asc" | "desc">("desc");
@@ -261,7 +261,7 @@ export default function CardsPage() {
   const [postAccountId, setPostAccountId] = useState<string>("");
   const [postRemember, setPostRemember] = useState(true);
   const [postFixed, setPostFixed] = useState(false); // 고정비로 표시 (is_fixed_cost)
-  // 직원 QA 카드. 거래별 사유·태그·사용직원
+  // 카드. 거래별 사유·태그·사용직원
   const [postMemo, setPostMemo] = useState("");
   const [postTags, setPostTags] = useState("");
   const [postEmployee, setPostEmployee] = useState("");
@@ -403,7 +403,7 @@ export default function CardsPage() {
     },
     enabled: !!companyId, staleTime: 300_000,
   });
-  // 직원 QA 카드. 사용직원 선택용 재직 직원 목록
+  // 카드. 사용직원 선택용 재직 직원 목록
   const { data: cardEmployees = [] } = useQuery({
     queryKey: ["cards-page-employees", companyId],
     queryFn: async () => {
@@ -518,7 +518,7 @@ export default function CardsPage() {
       toast(m.includes("ALREADY_POSTED") ? "이미 전표처리된 거래입니다" : m.includes("NO_CASH_ACCOUNT") ? "보통예금(103) 계정과목이 없습니다" : m.includes("INVALID_ACCOUNT") ? "계정과목을 선택하세요" : m || "전표처리 실패", "error");
     } finally { setPosting(false); }
   };
-  // 직원 QA 카드 — 같은 가맹점 미처리 거래 전체에 같은 계정·사유·태그·사용직원 일괄 적용
+  // 카드 — 같은 가맹점 미처리 거래 전체에 같은 계정·사유·태그·사용직원 일괄 적용
   const doPostSameMerchant = async () => {
     if (!postCard || !postAccountId || posting) return;
     // 화면 목록(500건·조회기간)이 아니라 이 가맹점의 미처리 거래 전부를 DB 에서 센다 — 기간 밖 건이 남는데 다 끝난 줄 알던 것
@@ -636,7 +636,7 @@ export default function CardsPage() {
   const hasLimits = cards.some((c: any) => Number(c.monthly_limit || 0) > 0);
   const totalLimit = hasLimits ? cards.reduce((s: number, c: any) => s + Number(c.monthly_limit || 0), 0) : 0;
 
-  // 직원 QA 카드 — 사용직원 id→이름 + cardTx 검색·정렬 적용
+  // 카드 — 사용직원 id→이름 + cardTx 검색·정렬 적용
   const empNameById = useMemo(() => { const m: Record<string, string> = {}; for (const e of cardEmployees as any[]) m[e.id] = e.name; return m; }, [cardEmployees]);
   const shownCardTx = useMemo(() => {
     const q = cardTxSearch.trim().toLowerCase();
