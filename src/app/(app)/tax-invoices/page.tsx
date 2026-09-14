@@ -2109,16 +2109,6 @@ function TaxInvoicesPageInner() {
                         ))}
                       </div>
                     </div>
-                    <div className="tax-form-field">
-                      <label>작성일자 <i>*</i></label>
-                      <DateField value={row.issueDate} max="9999-12-31"
-                        onChange={(e) => {
-                          const parts = e.target.value.split("-");
-                          if (parts[0] && parts[0].length > 4) parts[0] = parts[0].slice(0, 4);
-                          patchRow(row.key, { issueDate: parts.join("-") });
-                        }}
-                        className="field-input w-full px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs" />
-                    </div>
                     <div className="tax-form-field relative">
                       <label>거래처 찾기 <i>*</i></label>
                       <input
@@ -2214,12 +2204,35 @@ function TaxInvoicesPageInner() {
 
                   {/*   전체 비고 — 계산서 한 장에 붙는 비고(2026-09-14 사장님). 국세청 비고란으로 그대로 나간다.
                         품목 줄마다 붙는 비고는 아래 표의 '비고' 칸이다. */}
+                  {/*   홈택스 서식과 같이 작성일자·공급가액·세액을 한 줄에 (2026-09-14 사장님).
+                        금액 둘은 품목 줄 합계의 계산값이다 — 손으로 고치지 않는다. */}
+                  <div className="tax-form-amounts">
+                    <div className="tax-form-amount-cell">
+                      <span className="tax-form-amount-label">작성일자 <i>*</i></span>
+                      <DateField value={row.issueDate} max="9999-12-31"
+                        onChange={(e) => {
+                          const parts = e.target.value.split("-");
+                          if (parts[0] && parts[0].length > 4) parts[0] = parts[0].slice(0, 4);
+                          patchRow(row.key, { issueDate: parts.join("-") });
+                        }}
+                        className="tax-form-amount-date" />
+                    </div>
+                    <div className="tax-form-amount-cell">
+                      <span className="tax-form-amount-label">공급가액</span>
+                      <b className="tax-form-amount-value">{fmt(supply)}</b>
+                    </div>
+                    <div className="tax-form-amount-cell">
+                      <span className="tax-form-amount-label">세액</span>
+                      <b className="tax-form-amount-value">{fmt(taxAmt)}</b>
+                    </div>
+                  </div>
+
                   <div className="tax-form-field">
                     <label>비고</label>
-                    {/*   홈택스도 비고는 최대 3줄이다 — 같은 한도를 둔다 */}
+                    {/*   홈택스와 같이 최대 3줄. 안내문은 두지 않는다(칸 안 글자가 거슬린다는 지적). */}
                     <textarea value={row.remark} rows={2}
                       onChange={(e) => patchRow(row.key, { remark: e.target.value.split("\n").slice(0, 3).join("\n") })}
-                      placeholder="비고는 최대 3줄까지 입력 가능합니다." className="field-input tax-remark-input" />
+                      className="field-input tax-remark-input" />
                   </div>
 
                   {/* 품목 줄 */}
@@ -2266,7 +2279,7 @@ function TaxInvoicesPageInner() {
                               <span className="tax-item-sum">{(itemSupply(it) + itemTax(it, row.taxKind)).toLocaleString("ko-KR")}</span>
                               <input value={it.remark} onChange={(e) => patchItem(row.key, it.key, { remark: e.target.value })}
                                 onKeyDown={(e) => onItemKeyDown(e, row.key, it.key)}
-                                placeholder="비고" className="tax-item-input" />
+                                className="tax-item-input" />
                               <button type="button" onClick={() => removeItem(row.key, it.key)} title="이 품목 줄 지우기"
                                 className="tax-item-del">✕</button>
                             </div>
@@ -2287,18 +2300,30 @@ function TaxInvoicesPageInner() {
                     </div>
                   </div>
 
-                  {/* 합계 — 품목 줄 수는 표에서 이미 보이므로 금액만 (2026-08-10 사장님) */}
-                  <div className="tax-form-totals">
-                    <div><small>공급가액</small><b>{fmt(supply)}</b></div>
-                    <div><small>세액 {row.taxKind === "taxable" ? "(10%)" : "(영세율·면세)"}</small><b>{fmt(taxAmt)}</b></div>
-                    <span className="tax-form-totals-sp" />
-                    <div className="tax-form-grand"><small>합계</small><b>{fmt(supply + taxAmt)}</b></div>
+                  {/*   홈택스 서식의 맨 아랫줄 — 합계와 '이 금액을 영수/청구' (2026-09-14 사장님).
+                        공급가액·세액은 위 한 줄로 올라갔다. 현금·수표·어음·외상미수금은 발행 규격에
+                        보내는 칸이 없어 두지 않는다(보이기만 하는 칸은 거짓말이다). */}
+                  <div className="tax-form-bottom">
+                    <div className="tax-form-amount-cell tax-form-bottom-total">
+                      <span className="tax-form-amount-label">합계</span>
+                      <b className="tax-form-amount-value">{fmt(supply + taxAmt)}</b>
+                    </div>
+                    <div className="tax-form-purpose">
+                      <span>이 금액을</span>
+                      {(["영수", "청구"] as const).map((v) => (
+                        <label key={v} className="tax-form-purpose-opt">
+                          <input type="radio" name={`purpose-${row.key}`} checked={row.purpose === v}
+                            onChange={() => patchRow(row.key, { purpose: v })} className="accent-[var(--primary)]" />
+                          {v}
+                        </label>
+                      ))}
+                    </div>
                   </div>
 
                   {/* 자세히 — 기본값으로 두어도 되는 것들 */}
                   <details className="tax-form-more">
                     <summary>
-                      <span><b>자세히</b> 과세유형 · 영수/청구 · 연결 프로젝트 · 비목</span>
+                      <span><b>자세히</b> 과세유형 · 연결 프로젝트 · 비목</span>
                       <span className="text-[var(--text-dim)]">
                         {row.taxKind === "taxable" ? "과세" : row.taxKind === "zero_rated" ? "영세율" : "면세"} · {row.purpose} · {row.dealId ? (dealsForLink.find((d: any) => d.id === row.dealId)?.name || "연결됨") : "미연결"}
                       </span>
@@ -2311,13 +2336,6 @@ function TaxInvoicesPageInner() {
                         <select value={row.taxKind} onChange={(e) => patchRow(row.key, { taxKind: e.target.value as FormRow["taxKind"] })}
                           className="field-input w-full px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs">
                           {taxKindOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                        </select>
-                      </div>
-                      <div className="tax-form-field">
-                        <label>영수/청구</label>
-                        <select value={row.purpose} onChange={(e) => patchRow(row.key, { purpose: e.target.value as "영수" | "청구" })}
-                          className="field-input w-full px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs">
-                          <option value="청구">청구</option><option value="영수">영수</option>
                         </select>
                       </div>
                       <div className="tax-form-field">

@@ -1193,7 +1193,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 
 /* ── 세금계산서 쓰기 — 한 장 폼 (2026-08-10 사장님 지시로 개편) ── */
 .tax-form-single { @apply flex flex-col gap-4; }
-.tax-form-head { @apply grid gap-3; grid-template-columns: 190px 150px minmax(0, 1fr); }
+.tax-form-head { @apply grid gap-3; grid-template-columns: 190px minmax(0, 1fr); }   /* 작성일자는 아래 금액 줄로 옮겼다(2026-09-14) */
 @media (max-width: 760px) { .tax-form-head { grid-template-columns: 1fr; } }
 .tax-form-field { @apply flex flex-col gap-1.5 min-w-0; }
 .tax-form-field > label { @apply text-[11px] font-bold tracking-wide text-[var(--text-dim)]; }
@@ -1243,11 +1243,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .tax-items-foot { @apply flex flex-wrap items-center gap-3 border-t border-dashed border-[var(--border)] px-2.5 py-2; }
 
 /* 합계 — 금액만 (품목 줄 수는 표에서 이미 보인다) */
-.tax-form-totals { @apply flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3; }
-.tax-form-totals > div { @apply flex flex-col; }
-.tax-form-totals small { @apply text-[10.5px] font-bold text-[var(--text-dim)]; }
-.tax-form-totals b { @apply text-[15px] font-bold tracking-tight text-[var(--text)]; font-variant-numeric: tabular-nums; }
-.tax-form-totals-sp { @apply flex-1; }
+/*   .tax-form-totals 는 2026-09-14 홈택스 서식 재배치로 사라졌다(위 tax-form-amounts·아래 tax-form-bottom 으로) */
 .tax-form-grand { @apply items-end; }
 .tax-form-grand b { @apply text-xl font-extrabold text-[var(--primary)]; }
 
@@ -10600,3 +10596,15 @@ textarea.tax-remark-input {
   height: 50px;
   min-height: 50px;
 }
+
+/*   세금계산서 한 장 — 홈택스 서식의 '작성일자 | 공급가액 | 세액' 한 줄과 맨 아랫줄 '합계 | 이 금액을 영수/청구' (2026-09-14 사장님) */
+.tax-form-amounts { @apply grid overflow-hidden rounded-xl border border-[var(--border)]; grid-template-columns: 220px 1fr 1fr; }
+.tax-form-amount-cell { @apply flex flex-col border-l border-[var(--border)] first:border-l-0; }
+.tax-form-amount-label { @apply bg-[var(--bg-surface)] px-3 py-1.5 text-[11px] font-bold text-[var(--text-muted)] border-b border-[var(--border)]; }
+.tax-form-amount-label i { @apply not-italic text-[var(--danger)]; }
+.tax-form-amount-value { @apply px-3 py-2 text-right text-[15px] font-bold tracking-tight text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.tax-form-amount-date { @apply mx-2 my-1.5 h-8 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2 text-xs; }
+.tax-form-bottom { @apply grid overflow-hidden rounded-xl border border-[var(--border)]; grid-template-columns: 1fr auto; }
+.tax-form-bottom-total .tax-form-amount-value { @apply text-[var(--primary)]; }
+.tax-form-purpose { @apply flex items-center gap-3 border-l border-[var(--border)] px-4 text-xs text-[var(--text-muted)]; }
+.tax-form-purpose-opt { @apply flex items-center gap-1.5 text-[var(--text)] cursor-pointer; }
