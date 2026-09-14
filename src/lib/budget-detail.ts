@@ -16,7 +16,7 @@ export interface BudgetDetailItem {
   label: string;
   sub?: string;   // 날짜/부가정보
   amount: number;
-  // 직원 QA #9 — 산출 모달에서 직접 삭제/해제 가능하게 출처·id (고정비 행에만 채움)
+  // #9 — 산출 모달에서 직접 삭제/해제 가능하게 출처·id (고정비 행에만 채움)
   refType?: "recurring" | "fixed_cost" | "bank";
   refId?: string;
 }
@@ -25,7 +25,7 @@ export interface BudgetDetailItem {
 export const RECORD_BACKED_KEYS = new Set(["salesRevenue", "ownerInjection", "fixedCosts", "variableCosts", "bankBalance"]);
 
 const pick = (row: any, keys: string[], fallback: string): string => {
-  for (const k of keys) { const v = row?.[k]; if (v != null && String(v).trim() !== "") return String(v); }
+  for (const k of keys) { const v = row?.[k]; if (v != null && String(v).trim !== "") return String(v); }
   return fallback;
 };
 
@@ -40,8 +40,7 @@ export async function getBudgetCellDetail(
   companyId: string,
   year: number,
   month: number, // 1~12
-  rowKey: string,
-): Promise<BudgetDetailItem[]> {
+  rowKey: string,): Promise<BudgetDetailItem[]> {
   const { start, next } = monthBounds(year, month);
 
   if (rowKey === "salesRevenue") {
@@ -79,7 +78,7 @@ export async function getBudgetCellDetail(
         .gte("transaction_date", start).lt("transaction_date", next)
         .order("transaction_date", { ascending: true }),
       getAccountMap(companyId),
-      getMonthlyTotalSalary(companyId).catch(() => 0),
+      getMonthlyTotalSalary(companyId).catch( => 0),
     ]);
     const items: BudgetDetailItem[] = (recRes.data ?? []).map((r: any) => ({
       label: pick(r, ["name", "memo", "description", "category"], "정기지출"),
@@ -88,12 +87,12 @@ export async function getBudgetCellDetail(
       refType: "recurring" as const, refId: r.id,
     }));
     const mm = String(month).padStart(2, "0");
-    const lastDay = new Date(year, month, 0).getDate();
-    const recNames = new Set((recRes.data ?? []).map((r: any) => String(r.name || "").toLowerCase().replace(/\s+/g, "")));
+    const lastDay = new Date(year, month, 0).getDate;
+    const recNames = new Set((recRes.data ?? []).map((r: any) => String(r.name || "").toLowerCase.replace(/\s+/g, "")));
     for (const fc of (fcRes.data ?? [])) {
       if (fc.start_date && fc.start_date > `${year}-${mm}-${String(lastDay).padStart(2, "0")}`) continue;
       if (fc.end_date && fc.end_date < `${year}-${mm}-01`) continue;
-      if (recNames.has(String(fc.name || "").toLowerCase().replace(/\s+/g, ""))) continue;   // 정기 지출과 겹치면 셀과 같이 한 번만
+      if (recNames.has(String(fc.name || "").toLowerCase.replace(/\s+/g, ""))) continue;   // 정기 지출과 겹치면 셀과 같이 한 번만
       items.push({ label: pick(fc, ["name", "memo", "description", "category"], "고정비"), sub: fc.category ?? undefined, amount: Number(fc.amount || 0), refType: "fixed_cost", refId: fc.id });
     }
     //   급여 — 셀 값에 들어가므로 내역에도 세운다 (2026-08-10, 예전엔 셀에도 내역에도 없었다)
@@ -120,7 +119,7 @@ export async function getBudgetCellDetail(
     const [pqRes, ctRes] = await Promise.all([
       db.from("payment_queue").select("*").eq("company_id", companyId)
         .gte("created_at", start).lt("created_at", next),
-      fetchPagedRes<any>("lib/budget-detail:cards", () => db.from("card_transactions").select("*").eq("company_id", companyId)
+      fetchPagedRes<any>("lib/budget-detail:cards",  => db.from("card_transactions").select("*").eq("company_id", companyId)
         .gte("transaction_date", start).lt("transaction_date", next)
         .order("transaction_date", { ascending: true }).order("id", { ascending: true }), 50000),
     ]);

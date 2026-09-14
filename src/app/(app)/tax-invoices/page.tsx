@@ -63,7 +63,7 @@ import { getThreeWayCandidates, confirmThreeWayMatch, unmatchInvoice } from "@/l
 
 // ── Print Styles ──
 const PRINT_STYLE_ID = "tax-invoice-print-style";
-function ensurePrintStyles() {
+function ensurePrintStyles {
   if (typeof document === "undefined") return;
   if (document.getElementById(PRINT_STYLE_ID)) return;
   const style = document.createElement("style");
@@ -109,7 +109,7 @@ interface DuplicateGroup {
 }
 
 function detectDuplicateInvoices(invoices: any[]): DuplicateGroup[] {
-  const groups = new Map<string, { invoices: any[]; count: number }>();
+  const groups = new Map<string, { invoices: any[]; count: number }>;
   for (const inv of invoices) {
     if (inv.status === "void") continue; // 무효 건은 중복의 근거가 아니다
     const key = `${inv.counterparty_name}|${Number(inv.total_amount)}|${inv.issue_date}`;
@@ -122,7 +122,7 @@ function detectDuplicateInvoices(invoices: any[]): DuplicateGroup[] {
     }
   }
   const duplicates: DuplicateGroup[] = [];
-  Array.from(groups.entries()).forEach(([key, group]) => {
+  Array.from(groups.entries).forEach(([key, group]) => {
     if (group.count > 1) {
       const first = group.invoices[0];
       duplicates.push({
@@ -154,7 +154,7 @@ function fmt(n: number) {
 // (영수/청구 구분은 홈택스 전자계산서 데이터에 없어 label 토큰으로 보관 · 상세에서 수동 지정 가능)
 function stripPurposeToken(label?: string | null) {
   if (!label) return "";
-  return label.replace(/^\s*(영수|청구)\s*(\|\s*)?/, "").trim();
+  return label.replace(/^\s*(영수|청구)\s*(\|\s*)?/, "").trim;
 }
 
 // ── 비목 (Expense Categories) ──
@@ -231,14 +231,13 @@ function GrossSplitCalc({ onApply, applyLabel = "첫 품목 단가로 넣기" }:
       <span className="text-[11px] text-[var(--text-dim)] whitespace-nowrap">
         공급가액 <b className="text-[var(--text)] mono-number">{won(supply)}</b> · 부가세 <b className="text-[var(--text)] mono-number">{won(vat)}</b>
       </span>
-      <button type="button" disabled={!g} onClick={() => onApply(supply)}
+      <button type="button" disabled={!g} onClick={ => onApply(supply)}
         className="btn-secondary btn-sm disabled:opacity-40 whitespace-nowrap">{applyLabel}</button>
-    </div>
-  );
+    </div>);
 }
 
-export default function TaxInvoicesPage() {
-  const { role } = useUser();
+export default function TaxInvoicesPage {
+  const { role } = useUser;
   const { allowed: tabAllowed, loading: tabLoading } = useCanAccessTab("/tax-invoices");
   void role;
   // 권한 게이트에서 early return 한 뒤에 나머지 훅들이 이어지면 tabLoading 이 풀리는 순간
@@ -250,22 +249,22 @@ export default function TaxInvoicesPage() {
   return <TaxInvoicesPageInner />;
 }
 
-function TaxInvoicesPageInner() {
-  const { toast } = useToast();
-  const { confirm: confirmDialog, confirmElement } = useConfirm();
-  const queryClient = useQueryClient();
+function TaxInvoicesPageInner {
+  const { toast } = useToast;
+  const { confirm: confirmDialog, confirmElement } = useConfirm;
+  const queryClient = useQueryClient;
   const [companyId, setCompanyId] = useState<string | null>(null);
   const hometaxCd = useSyncCooldown(companyId, "hometax");
   // 홈택스 연동 일시정지 — 통장 정지 버튼과 동일 UX
   const { data: hometaxPausedUntil } = useQuery({
     queryKey: ["hometax-sync-paused", companyId],
-    queryFn: () => getHometaxPausedUntil(companyId!),
+    queryFn:  => getHometaxPausedUntil(companyId!),
     enabled: !!companyId,
     refetchInterval: 30000,
   });
   const isHometaxPaused = !!hometaxPausedUntil;
   const hometaxPauseMut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async  => {
       if (isHometaxPaused) { await clearHometaxPause(companyId!); return false; }
       await setHometaxPause(companyId!, 30); return true;
     },
@@ -276,8 +275,8 @@ function TaxInvoicesPageInner() {
     onError: (e: any) => toast(friendlyError(e, "정지 처리 실패"), "error"),
   });
   // "matching" 탭 통째 제거. ?tab=matching 딥링크는 분석 허브로 리다이렉트(별건 · 우선 sales 폴백).
-  const searchParams = useSearchParams();
-  const { isMaster: taxTabMaster, hasPerm: taxTabPerm } = useMyPermissions();
+  const searchParams = useSearchParams;
+  const { isMaster: taxTabMaster, hasPerm: taxTabPerm } = useMyPermissions;
   /* 탭 권한 — 새 탭 이름으로 갈아탈 때 아무도 아무것도 못 보게 되는 걸 막는다 (2026-08-13).
    * 옛 키(sales·purchase·vat·summary·queue·sync)에 걸어 둔 권한은 새 탭과 안 맞아서,
    * 그대로 두면 **탭 줄이 통째로 비어 버린다**(실제로 그렇게 됐다).
@@ -322,21 +321,21 @@ function TaxInvoicesPageInner() {
     { key: "issue-status", label: "발행 현황" },
   ];
   const isTaxTab = (t: unknown): t is TaxTab => TAX_TABS.some((x) => x.key === t);
-  const router = useRouter();
-  const [tab, setTab] = useState<TaxTab>(() => {
+  const router = useRouter;
+  const [tab, setTab] = useState<TaxTab>( => {
     const t = searchParams?.get("tab");
     return isTaxTab(t) ? t : "wait";
   });
   // 옛 딥링크 정리 — 부가세·기간별 집계는 분석으로 갔다. 대시보드의 '부가세 납부' 링크가
   // 여기로 오면 빈 화면이 되므로 그리로 넘긴다(주소를 고치는 것보다 이쪽이 안전하다).
-  useEffect(() => {
+  useEffect( => {
     const t = searchParams?.get("tab");
     if (t === "vat" || t === "summary") { router.replace(`/reports/vat?tab=${t}`); return; }
     if (isTaxTab(t)) setTab(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
   // (P3) 미허용 탭 진입 시 첫 허용 탭으로
-  useEffect(() => {
+  useEffect( => {
     if (!taxTabAllowed(tab)) {
       const first = TAX_TABS.map((t) => t.key).find((k) => taxTabAllowed(k));
       if (first) setTab(first);
@@ -347,10 +346,10 @@ function TaxInvoicesPageInner() {
    * ★ 예전엔 월 단위였는데(일단위로도 조회되게, 2026-09-11) 달력을 날짜까지 고르게 바꿨다.
    * ★ 조회값 자동 기억 금지 — 나갔다 오면 기본값. 편의는 **내 조건**(★ 기본, DB)이 맡는다.
    */
-  const [viewFrom, setViewFrom] = useState(() => defaultRange().from);
-  const [viewTo, setViewTo] = useState(() => defaultRange().to);
+  const [viewFrom, setViewFrom] = useState( => defaultRange.from);
+  const [viewTo, setViewTo] = useState( => defaultRange.to);
   // 예전에 남겨 둔 기억값 청소 — 다음 배포에서는 이 두 줄도 지운다
-  useEffect(() => {
+  useEffect( => {
     if (typeof window === "undefined") return;
     localStorage.removeItem("tax-invoices-viewFrom");
     localStorage.removeItem("tax-invoices-viewTo");
@@ -364,7 +363,7 @@ function TaxInvoicesPageInner() {
   // 동기화 기간 = 상단 조회기간(viewFrom~viewTo) 공용 — 별도 월 피커 이원화 제거 (기준 통일)
   // 불러오기는 현금영수증 화면과 동일하게 백그라운드 job 하나로 통일 (2026-07-31 대표가 "방식 통일").
   // 백그라운드 진행 중인 job ID (Realtime 구독용) — localStorage 와 동기화하여 페이지 무관 chain.
-  const [activeJobId, setActiveJobIdRaw] = useState<string | null>(() => {
+  const [activeJobId, setActiveJobIdRaw] = useState<string | null>( => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem("hometax-active-job-id");
   });
@@ -375,12 +374,12 @@ function TaxInvoicesPageInner() {
       else localStorage.removeItem("hometax-active-job-id");
     }
   };
-  // 직원 QA #6 — 백그라운드 job 이 hang(CF-12200 등) 하면 completed/failed 로 안 바뀌어 버튼이 영구 잠김.
+  // #6 — 백그라운드 job 이 hang(CF-12200 등) 하면 completed/failed 로 안 바뀌어 버튼이 영구 잠김.
   // 멈춘 job 을 failed 로 마킹(서버 409 잠금까지 해제) + 로컬 해제 → 다시 시도 가능. (CODEF 수집 로직 미접촉)
   const forceClearStuckJob = async (jid: string, silent = false) => {
     const db = supabase;
     try {
-      await db.from("hometax_sync_jobs").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", jid).in("status", ["pending", "running"]);
+      await db.from("hometax_sync_jobs").update({ status: "failed", updated_at: new Date.toISOString }).eq("id", jid).in("status", ["pending", "running"]);
     } catch { /* best-effort */ }
     setActiveJobId(null);
     if (!silent) toast("멈춘 백그라운드 동기화를 해제했습니다. 다시 시도할 수 있습니다.", "info");
@@ -400,7 +399,7 @@ function TaxInvoicesPageInner() {
       return;
     }
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession;
       if (!session) throw new Error('로그인 필요');
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const res = await fetch(`${supabaseUrl}/functions/v1/codef-sync`, {
@@ -408,7 +407,7 @@ function TaxInvoicesPageInner() {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
         body: JSON.stringify({ companyId, action: 'hometax-sync-async', startDate, endDate }),
       });
-      const result = await res.json();
+      const result = await res.json;
       if (res.status === 409 && result.activeJobId) {
         setActiveJobId(result.activeJobId);
         toast(`이미 진행 중인 백그라운드 동기화가 있습니다 (${result.progress?.label || '진행 중'}). 완료 후 재시도.`, 'info');
@@ -434,8 +433,8 @@ function TaxInvoicesPageInner() {
   const [userId, setUserId] = useState<string | null>(null);
   // 점검 리포트는 접힌 채로 시작한다. 목록이 첫 화면에 올라오게 (2026-08-10)
   const [checkOpen, setCheckOpen] = useState(false);
-  const [dismissedDups, setDismissedDups] = useState<Set<string>>(new Set());
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [dismissedDups, setDismissedDups] = useState<Set<string>>(new Set);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set);
   const [batchIssuing, setBatchIssuing] = useState(false);
   // 전송 전 확인 창 — 여기 담긴 건들이 확인을 거쳐 국세청으로 나간다 (2026-08-13, 4단계)
   const [issueConfirm, setIssueConfirm] = useState<any[] | null>(null);
@@ -477,7 +476,7 @@ function TaxInvoicesPageInner() {
   // 월·일 = 홈택스 서식의 줄 거래일자. 비면 계산서 작성일자를 쓴다.
   type ItemLine = { key: string; month: string; day: string; name: string; spec: string; qty: string; unitCost: string; remark: string };
   const itemKeyRef = useRef(0);
-  const blankItem = (): ItemLine => ({ key: `i${itemKeyRef.current++}`, month: "", day: "", name: "", spec: "", qty: "1", unitCost: "", remark: "" });
+  const blankItem = : ItemLine => ({ key: `i${itemKeyRef.current++}`, month: "", day: "", name: "", spec: "", qty: "1", unitCost: "", remark: "" });
   // 한 줄 공급가액 = 수량 × 단가. 수량이 비면 1 로 본다.
   const itemSupply = (it: ItemLine) => Math.round((Number(it.qty) || 1) * (Number(it.unitCost) || 0));
   // 한 줄 세액 — 과세일 때만 10%. 영세율·면세는 0(홈택스로 나가는 줄 세액과 같은 산식).
@@ -485,7 +484,7 @@ function TaxInvoicesPageInner() {
   const itemTax = (it: ItemLine, kind: string) => (kind === "taxable" ? Math.round(itemSupply(it) * 0.1) : 0);
 
   const rowKeyRef = useRef(0);
-  const blankRow = (): FormRow => ({
+  const blankRow = : FormRow => ({
     key: `r${rowKeyRef.current++}`,
     remark: "",
     type: "sales",
@@ -508,9 +507,9 @@ function TaxInvoicesPageInner() {
     counterpartyRepresentative: "",
     counterpartyAddress: "",
     counterpartyEmail: "",
-    items: [blankItem()],
+    items: [blankItem],
   });
-  const [rows, setRows] = useState<FormRow[]>(() => [blankRow()]);
+  const [rows, setRows] = useState<FormRow[]>( => [blankRow]);
   const [dropdownRowKey, setDropdownRowKey] = useState<string | null>(null);
   // 거래처 후보 목록에서 키보드로 고르기 — ↑↓ 로 옮기고 Enter 로 넣는다
   const [dropIdx, setDropIdx] = useState(0);
@@ -518,7 +517,7 @@ function TaxInvoicesPageInner() {
   const multiGridRef = useRef<HTMLDivElement | null>(null);
   // 사용자가 직접 손댄 칸. 유형("매출")·수량("1")은 기본값이 있어 '비었는지' 로는
   // 윗줄 복사 여부를 가릴 수 없다 — 안 건드린 칸이면 Enter 에 윗줄 값을 내려받는다.
-  const [touchedCells, setTouchedCells] = useState<Set<string>>(new Set());
+  const [touchedCells, setTouchedCells] = useState<Set<string>>(new Set);
   const markTouched = (rowKey: string, cell: string) =>
     setTouchedCells((t) => (t.has(`${rowKey}:${cell}`) ? t : new Set(t).add(`${rowKey}:${cell}`)));
   const [calcRowKey, setCalcRowKey] = useState<string | null>(null); // 여러 장 — 🧮 계산기가 펼쳐진 줄 (2026-08-31)
@@ -532,7 +531,7 @@ function TaxInvoicesPageInner() {
   const switchMode = (next: "single" | "multi") => {
     if (next === formMode) return;
     modeRowsRef.current[formMode] = rows;
-    setRows(modeRowsRef.current[next] ?? [blankRow()]);
+    setRows(modeRowsRef.current[next] ?? [blankRow]);
     setDropdownRowKey(null); setCalcRowKey(null);
     setFormMode(next);
   };
@@ -540,23 +539,23 @@ function TaxInvoicesPageInner() {
   const patchRow = (key: string, patch: Partial<FormRow>) =>
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   const removeRow = (key: string) =>
-    setRows((rs) => (rs.length > 1 ? rs.filter((r) => r.key !== key) : [blankRow()]));
+    setRows((rs) => (rs.length > 1 ? rs.filter((r) => r.key !== key) : [blankRow]));
 
   // 계산서 공급가액 = 품목 줄 합계. 규칙이 하나뿐이라 '계산' 버튼이 필요 없어졌다.
   const rowSupply = (r: FormRow) => r.items.reduce((s, it) => s + itemSupply(it), 0);
   // 공급가액이 0만 아니면 된다 — 수정세금계산서·환입 등 **마이너스 계산서**를 발행할 수 있어야 한다.
   const isRowValid = (r: FormRow) =>
-    !!r.counterpartyName.trim() && !!r.issueDate && rowSupply(r) !== 0;
+    !!r.counterpartyName.trim && !!r.issueDate && rowSupply(r) !== 0;
 
   const patchItem = (rowKey: string, itemKey: string, patch: Partial<ItemLine>) =>
     setRows((rs) => rs.map((r) => (r.key === rowKey
       ? { ...r, items: r.items.map((it) => (it.key === itemKey ? { ...it, ...patch } : it)) }
       : r)));
   const addItem = (rowKey: string) =>
-    setRows((rs) => rs.map((r) => (r.key === rowKey ? { ...r, items: [...r.items, blankItem()] } : r)));
+    setRows((rs) => rs.map((r) => (r.key === rowKey ? { ...r, items: [...r.items, blankItem] } : r)));
   const removeItem = (rowKey: string, itemKey: string) =>
     setRows((rs) => rs.map((r) => (r.key === rowKey
-      ? { ...r, items: r.items.length > 1 ? r.items.filter((it) => it.key !== itemKey) : [blankItem()] }
+      ? { ...r, items: r.items.length > 1 ? r.items.filter((it) => it.key !== itemKey) : [blankItem] }
       : r)));
 
   // 마지막 줄 끝에서 Tab = 새 줄. 여러 줄을 연달아 칠 때 마우스로 손이 안 가게 (2026-08-10)
@@ -565,15 +564,15 @@ function TaxInvoicesPageInner() {
     const row = rows.find((r) => r.key === rowKey);
     if (!row || row.items[row.items.length - 1]?.key !== itemKey) return;
     const it = row.items[row.items.length - 1];
-    if (!it.name.trim()) return; // 빈 줄에서 Tab 은 그냥 넘어간다
+    if (!it.name.trim) return; // 빈 줄에서 Tab 은 그냥 넘어간다
     addItem(rowKey);
   };
   // 엑셀에서 여러 줄 붙여넣기 — 탭으로 나뉜 칸을 품목명·규격·수량·단가로 채운다
   const onItemPaste = (e: React.ClipboardEvent, rowKey: string, itemKey: string) => {
     const text = e.clipboardData.getData("text/plain");
     if (!/[\n\t]/.test(text)) return; // 한 칸 붙여넣기는 기본 동작 그대로
-    e.preventDefault();
-    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    e.preventDefault;
+    const lines = text.split(/\r?\n/).map((l) => l.trim).filter(Boolean);
     const parsed: ItemLine[] = lines.map((l) => {
       // 비고까지 받는다 — 화면 칸 순서(품목명·규격·수량·단가·비고)와 같게.
       // 공급가액·세액·합계는 계산값이라 붙여넣기에서 받지 않는다.
@@ -582,11 +581,11 @@ function TaxInvoicesPageInner() {
         key: `i${itemKeyRef.current++}`,
         month: month.replace(/[^0-9]/g, "").slice(0, 2),
         day: day.replace(/[^0-9]/g, "").slice(0, 2),
-        name: name.trim(),
-        spec: spec.trim(),
+        name: name.trim,
+        spec: spec.trim,
         qty: qty.replace(/[^\d.]/g, "") || "1",
-        unitCost: (unit.trim().startsWith("-") ? "-" : "") + unit.replace(/[^\d.]/g, ""),
-        remark: remark.trim(),
+        unitCost: (unit.trim.startsWith("-") ? "-" : "") + unit.replace(/[^\d.]/g, ""),
+        remark: remark.trim,
       };
     });
     if (parsed.length === 0) return;
@@ -632,7 +631,7 @@ function TaxInvoicesPageInner() {
     cells: MULTI_CELLS,
     gridRef: multiGridRef,
     rowCount: rows.length,
-    addRow: () => setRows((rs) => [...rs, blankRow()]),
+    addRow:  => setRows((rs) => [...rs, blankRow]),
     // Enter 로 윗줄에서 내려받을 칸 — 거래처·단가는 뺀다.
     // 줄마다 달라야 하는 값이라, 복사되면 엉뚱한 거래처로 계산서가 나가거나 금액이 틀어진다.
     // 단가에서 Enter 는 복사 없이 새 줄만 만든다.
@@ -663,11 +662,11 @@ function TaxInvoicesPageInner() {
     if (dropdownRowKey !== row.key) return false;
     const list = filterPartners(row.counterpartyName).slice(0, 10);
     if (list.length === 0) return false;
-    if (e.key === "ArrowDown") { e.preventDefault(); setDropIdx((n) => (n + 1) % list.length); return true; }
-    if (e.key === "ArrowUp") { e.preventDefault(); setDropIdx((n) => (n - 1 + list.length) % list.length); return true; }
-    if (e.key === "Escape") { e.preventDefault(); setDropdownRowKey(null); return true; }
+    if (e.key === "ArrowDown") { e.preventDefault; setDropIdx((n) => (n + 1) % list.length); return true; }
+    if (e.key === "ArrowUp") { e.preventDefault; setDropIdx((n) => (n - 1 + list.length) % list.length); return true; }
+    if (e.key === "Escape") { e.preventDefault; setDropdownRowKey(null); return true; }
     if (e.key === "Enter") {
-      e.preventDefault();
+      e.preventDefault;
       applyPartner(row.key, list[Math.min(dropIdx, list.length - 1)]);
       setDropdownRowKey(null);
       setDropIdx(0);
@@ -680,29 +679,29 @@ function TaxInvoicesPageInner() {
   // 발행에 필요한데 비어 있는 것 — 입력 단계에서 알려 준다(발행 때 빈칸으로 나가는 걸 막는다)
   const missingBuyerFields = (r: FormRow) => {
     const out: string[] = [];
-    if (!r.counterpartyBizno.trim()) out.push("등록번호");
-    if (!r.counterpartyRepresentative.trim()) out.push("대표자");
-    if (!r.counterpartyBusinessType.trim() && !r.counterpartyBusinessItem.trim()) out.push("업태/종목");
-    if (!r.counterpartyEmail.trim()) out.push("받을 이메일");
+    if (!r.counterpartyBizno.trim) out.push("등록번호");
+    if (!r.counterpartyRepresentative.trim) out.push("대표자");
+    if (!r.counterpartyBusinessType.trim && !r.counterpartyBusinessItem.trim) out.push("업태/종목");
+    if (!r.counterpartyEmail.trim) out.push("받을 이메일");
     return out;
   };
 
-  useEffect(() => {
-    getCurrentUser().then((u) => {
+  useEffect( => {
+    getCurrentUser.then((u) => {
       if (u) {
         setCompanyId(u.company_id);
         setUserId(u.id);
       }
     });
-    ensurePrintStyles();
+    ensurePrintStyles;
   }, []);
 
   // 중복 '중복아님' 처리 — 회사 단위 DB(tax_dup_dismissals) 저장 (2026-08-31).
   // 종전 localStorage 는 기기별이라 경리가 확인한 건이 대표 화면엔 계속 경고로 떴다.
   // 기존 기기에 남은 localStorage 값은 1회 DB 로 승격 후 지운다.
-  useEffect(() => {
+  useEffect( => {
     if (!companyId || typeof window === "undefined") return;
-    (async () => {
+    (async  => {
       try {
         const lsKey = `tax-dup-dismissed-${companyId}`;
         const raw = localStorage.getItem(lsKey);
@@ -719,7 +718,7 @@ function TaxInvoicesPageInner() {
           .select("dup_key").eq("company_id", companyId);
         setDismissedDups(new Set(((data || []) as { dup_key: string }[]).map((r) => r.dup_key)));
       } catch { /* 조회 실패 시 경고 전체 노출(안전한 쪽) */ }
-    })();
+    });
   }, [companyId]);
 
   // 보기 기간 · viewFrom ~ viewTo (일 단위). '오늘 하루만'이면 from=to.
@@ -727,14 +726,14 @@ function TaxInvoicesPageInner() {
   const endDate = viewTo;
 
   // 탭/보기기간 변경 시 선택 초기화
-  useEffect(() => { setSelectedIds(new Set()); }, [tab, startDate, endDate]);
+  useEffect( => { setSelectedIds(new Set); }, [tab, startDate, endDate]);
 
   // Fetch all invoices in view range
   const { data: invoices = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ["tax-invoices-full", companyId, startDate, endDate],
-    queryFn: async () => {
+    queryFn: async  => {
       // 조회기간을 넓게 잡으면 1000행(서버 max_rows) 초과 — 절단 방지 페이징 (prod 계산서 1351건)
-      return fetchPaged("taxInvoices.list", () => supabase
+      return fetchPaged("taxInvoices.list",  => supabase
         .from("tax_invoices")
         .select("*, deals(name), label, revenue_schedule_id, partners(business_type, business_item, representative, contact_email, address)")
         .eq("company_id", companyId!)
@@ -751,7 +750,7 @@ function TaxInvoicesPageInner() {
   // Partners for counterparty selection
   const { data: partners = [] } = useQuery({
     queryKey: ["partners-for-invoice", companyId],
-    queryFn: async () => {
+    queryFn: async  => {
       const data = logRead('tax-invoices/page:data', await supabase
         .from("partners")
         .select("id, name, business_number, contact_email, business_type, business_item, representative, address")
@@ -766,21 +765,21 @@ function TaxInvoicesPageInner() {
   // 전표처리용 계정과목 (일괄 전표 모달)
   const { data: coaAccounts = [] } = useQuery({
     queryKey: ["tax-invoice-coa-accounts", companyId],
-    queryFn: async () => {
+    queryFn: async  => {
       const data = logRead('tax-invoices/page:data', await (supabase).from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId!).order("code"));
       return (data || []) as any[];
     },
     enabled: !!companyId, staleTime: 300_000,
   });
 
-  // 직원 QA 손익계산서 — 매입 세금계산서에 손익 계정과목(expense_category) 일괄 지정.
+  // 손익계산서 — 매입 세금계산서에 손익 계정과목(expense_category) 일괄 지정.
   // 지정하면 손익계산서에서 매출원가(COGS) 대신 그 판관비 항목으로 집계됨.
   const [bulkExpenseCat, setBulkExpenseCat] = useState("");
 
   // Deals for linking
   const { data: dealsForLink = [] } = useQuery({
     queryKey: ["deals-for-invoice", companyId],
-    queryFn: async () => {
+    queryFn: async  => {
       const data = logRead('tax-invoices/page:data', await supabase
         .from("deals")
         .select("id, name, contract_total, partner_id")
@@ -794,9 +793,8 @@ function TaxInvoicesPageInner() {
 
   const filterPartners = (search: string) =>
     partners.filter((p: any) =>
-      !search || p.name.toLowerCase().includes(search.toLowerCase()) ||
-      (p.business_number || "").includes(search)
-    );
+      !search || p.name.toLowerCase.includes(search.toLowerCase) ||
+      (p.business_number || "").includes(search));
 
   // 3-way 매칭 fetch + matchFilter UI 는 새 페이지(/reports/three-way-match)로 이전됨 (2026-05-21).
   // matching 탭은 안내 메시지로 유지 (?tab=matching 옛 딥링크 호환).
@@ -811,10 +809,10 @@ function TaxInvoicesPageInner() {
    */
   const { data: waitOutside = 0 } = useQuery({
     queryKey: ["ti-wait-outside", companyId, viewFrom, viewTo],
-    queryFn: async () => {
+    queryFn: async  => {
       // 조회기간 [viewFrom, viewTo] 밖 = 시작일보다 앞이거나 종료일 다음날부터 (일 단위)
       const from = viewFrom;
-      const toExcl = new Date(Date.parse(`${viewTo}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
+      const toExcl = new Date(Date.parse(`${viewTo}T00:00:00Z`) + 86400000).toISOString.slice(0, 10);
       const { count } = await (supabase as any).from("tax_invoices")
         .select("id", { count: "exact", head: true })
         .eq("company_id", companyId!).eq("source", "manual").eq("type", "sales")
@@ -829,18 +827,18 @@ function TaxInvoicesPageInner() {
   // Company info for PDF/display
   const { data: companyInfo } = useQuery({
     queryKey: ["company-info", companyId],
-    queryFn: async () => {
+    queryFn: async  => {
       // 공급자 이메일 — companies 에 email 컬럼이 없어 상세 화면에서 항상 '-' 로 나오던 문제.
       // 실제 계산서에 찍히는 발행자 이메일과 같은 출처를 쓴다: automation_settings.invoicer_email → 없으면 대표 계정 이메일
       // (hometax-issue 엣지 함수의 발행자 이메일 결정 순서와 동일).
       // tax_settings 도 같이 — 과세유형(vat_type)이 여기 있고, 무엇을 발행할 수 있는지를 그 값이 정한다 (2026-08-13)
-      const data = logRead('tax-invoices/page:data', await (supabase).from('companies').select('name, business_number, representative, address, business_type, business_category, automation_settings, tax_settings').eq('id', companyId!).maybeSingle());
+      const data = logRead('tax-invoices/page:data', await (supabase).from('companies').select('name, business_number, representative, address, business_type, business_category, automation_settings, tax_settings').eq('id', companyId!).maybeSingle);
       if (!data) return data;
       let email = (data as any)?.automation_settings?.invoicer_email || '';
       if (!email) {
         const owner = logRead('tax-invoices/page:owner-email', await (supabase)
           .from('users').select('email').eq('company_id', companyId!).eq('is_master', true)
-          .order('created_at').limit(1).maybeSingle());
+          .order('created_at').limit(1).maybeSingle);
         email = (owner as any)?.email || '';
       }
       return { ...(data as any), email };
@@ -855,7 +853,7 @@ function TaxInvoicesPageInner() {
   const taxKindOptions = TAX_KIND_OPTIONS.filter((o) => canIssueTaxKind(vatBiz, o.value));
   // 빈 줄의 기본값 'taxable' 은 **면세사업자에게는 못 쓰는 값**이다. 회사 정보가 도착하면
   // 못 쓰는 값을 들고 있는 줄을 고를 수 있는 첫 값으로 옮긴다(면세사업자면 '면세').
-  useEffect(() => {
+  useEffect( => {
     if (!companyInfo) return;
     const fallback = taxKindOptions[0]?.value;
     if (!fallback) return;
@@ -868,7 +866,7 @@ function TaxInvoicesPageInner() {
   // 요금제별 세금계산서 국세청 발행 월간 한도 (프로=10건, 울트라=무제한)
   const { data: issuanceStatus } = useQuery({
     queryKey: ["tax-invoice-issuance-status", companyId],
-    queryFn: () => getTaxInvoiceIssuanceStatus(companyId!),
+    queryFn:  => getTaxInvoiceIssuanceStatus(companyId!),
     enabled: !!companyId,
     staleTime: 60_000,
   });
@@ -876,21 +874,21 @@ function TaxInvoicesPageInner() {
   // Invoice queue (자동발행 대기)
   const { data: queueItems = [], isLoading: queueLoading } = useQuery({
     queryKey: ["invoice-queue", companyId],
-    queryFn: () => getInvoiceQueue(companyId!),
+    queryFn:  => getInvoiceQueue(companyId!),
     enabled: false, // 자동발행 큐는 발행 대기의 '출처' 칸으로 녹였다 (2026-08-13)
   });
 
   // Sync logs
   const { data: syncLogs = [] } = useQuery({
     queryKey: ["hometax-sync-logs", companyId],
-    queryFn: () => getHomeTaxSyncLogs(companyId!),
+    queryFn:  => getHomeTaxSyncLogs(companyId!),
     enabled: false, // 동기화 로그 탭 없음 — 수집·전표가 담당 (2026-08-13)
   });
 
   // Last sync time (항상 조회)
   const { data: lastSyncData } = useQuery({
     queryKey: ["last-sync-time", companyId],
-    queryFn: async () => {
+    queryFn: async  => {
       const db = supabase;
       // hometax_sync_log 는 쓰기 코드가 사라진 죽은 테이블 — '마지막 업데이트'가 영원히 안 떴다.
       // 실제 수집 이력이 쌓이는 hometax_sync_jobs 로 교체 (2026-08-31 스윕).
@@ -910,40 +908,40 @@ function TaxInvoicesPageInner() {
   // Incremental sync 기준 시각 · company_settings.last_hometax_sync_at
 
   // 페이지 mount 시 — 진행 중인 background job 감지 (사용자가 페이지 떠났다 다시 와도 진행 표시).
-  useEffect(() => {
+  useEffect( => {
     if (!companyId || activeJobId) return;
-    (async () => {
+    (async  => {
       const db = supabase;
       const data = logRead('tax-invoices/page:data', await db
         .from('hometax_sync_jobs')
         .select('id, status, updated_at')
         .eq('company_id', companyId)
         .in('status', ['pending', 'running'])
-        .gt('updated_at', new Date(Date.now() - 30 * 60 * 1000).toISOString())
+        .gt('updated_at', new Date(Date.now - 30 * 60 * 1000).toISOString)
         .order('created_at', { ascending: false })
         .limit(1));
       if (data && data[0]) setActiveJobId(data[0].id);
-    })();
+    });
   }, [companyId, activeJobId]);
 
   // Background sync job · Realtime 구독해서 진행 상황 표시.
   const { data: activeJob } = useQuery({
     queryKey: ["hometax-sync-job", activeJobId],
-    queryFn: async () => {
+    queryFn: async  => {
       if (!activeJobId) return null;
       const db = supabase;
       const data = logRead('tax-invoices/page:data', await db
         .from('hometax_sync_jobs')
         .select('*')
         .eq('id', activeJobId)
-        .maybeSingle());
+        .maybeSingle);
       return data;
     },
     enabled: !!activeJobId,
     refetchInterval: activeJobId ? 2000 : false, // 2초 polling (Realtime 보조)
   });
 
-  useEffect(() => {
+  useEffect( => {
     if (!activeJobId || !companyId) return;
     const db = supabase;
     const ch = db.channel(`hometax_sync_jobs:${activeJobId}`)
@@ -961,16 +959,16 @@ function TaxInvoicesPageInner() {
           setActiveJobId(null);
         }
       })
-      .subscribe();
-    return () => { db.removeChannel(ch); };
+      .subscribe;
+    return  => { db.removeChannel(ch); };
   }, [activeJobId, companyId, queryClient]);
 
   // 멈춘 job 자동 감지 — 이미 끝났거나 30분+ 진척 없으면(=hang) 자동 해제해 버튼 잠금 풀기
-  useEffect(() => {
+  useEffect( => {
     if (!activeJobId || !activeJob) return;
     if (activeJob.status === "completed" || activeJob.status === "failed") { setActiveJobId(null); return; }
-    const upd = activeJob.updated_at ? new Date(activeJob.updated_at).getTime() : 0;
-    if (upd && Date.now() - upd > 30 * 60 * 1000) { void forceClearStuckJob(activeJobId); }
+    const upd = activeJob.updated_at ? new Date(activeJob.updated_at).getTime : 0;
+    if (upd && Date.now - upd > 30 * 60 * 1000) { void forceClearStuckJob(activeJobId); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeJob, activeJobId]);
 
@@ -979,14 +977,14 @@ function TaxInvoicesPageInner() {
   // 홈택스 연결 상태 — automation_credentials.hometax 존재 여부 (codef-sync edge function이 실제로 사용하는 자격증명)
   const { data: hometaxConnection } = useQuery({
     queryKey: ["hometax-connection", companyId],
-    queryFn: async () => {
+    queryFn: async  => {
       const db = supabase;
       const data = logRead('tax-invoices/page:data', await db
         .from('automation_credentials')
         .select('id, updated_at, credentials')
         .eq('company_id', companyId!)
         .eq('service', 'hometax')
-        .maybeSingle());
+        .maybeSingle);
       return data ? {
         connected: true,
         method: (data.credentials as any)?.login_method as 'certificate' | 'id_pw' | undefined,
@@ -1000,13 +998,13 @@ function TaxInvoicesPageInner() {
   // Excel import handler
   const [showBulkIssue, setShowBulkIssue] = useState(false);
 
-  const invalidate = () => {
+  const invalidate =  => {
     invalidateTaxInvoiceReaders(queryClient); // 원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
   };
 
   const createMut = useMutation({
     // 유효한 모든 행을 일괄 등록
-    mutationFn: async () => {
+    mutationFn: async  => {
       // '한 장 쓰기' 는 첫 행만, '여러 장' 은 유효한 행 전부
       const valid = (formMode === "single" ? rows.slice(0, 1) : rows).filter(isRowValid);
       // 등록하면 곧바로 홈택스에 전자발행한다 ("그냥 등록하면 바로 발행되게").
@@ -1018,18 +1016,18 @@ function TaxInvoicesPageInner() {
       for (const r of valid) {
         // 품목 줄 — 이름이 있는 줄만 저장한다. 계산서 공급가액은 줄 합계다.
         const items = r.items
-          .filter((it) => it.name.trim())
+          .filter((it) => it.name.trim)
           .map((it) => ({
-            name: it.name.trim(),
-            spec: it.spec.trim(),
+            name: it.name.trim,
+            spec: it.spec.trim,
             qty: Number(it.qty) || 1,
             unitCost: Math.round(Number(it.unitCost) || 0),
             supplyAmount: itemSupply(it),
             // 줄 비고 — 홈택스 detailList 의 remark 로 그대로 나간다
-            remark: it.remark.trim(),
+            remark: it.remark.trim,
             // 줄 거래일자 — 비면 발행 엣지가 계산서 작성일자를 쓴다
-            month: it.month.trim(),
-            day: it.day.trim(),
+            month: it.month.trim,
+            day: it.day.trim,
           }));
         const newInv = await createTaxInvoice({
           companyId: companyId!,
@@ -1061,11 +1059,11 @@ function TaxInvoicesPageInner() {
         // 거래처 정보에도 저장 · 다음 발행부터 자동으로 채워진다
         if (savePartnerInfo && r.partnerId) {
           const patch: Record<string, string> = {};
-          if (r.counterpartyRepresentative.trim()) patch.representative = r.counterpartyRepresentative.trim();
-          if (r.counterpartyAddress.trim()) patch.address = r.counterpartyAddress.trim();
-          if (r.counterpartyEmail.trim()) patch.contact_email = r.counterpartyEmail.trim();
-          if (r.counterpartyBusinessType.trim()) patch.business_type = r.counterpartyBusinessType.trim();
-          if (r.counterpartyBusinessItem.trim()) patch.business_item = r.counterpartyBusinessItem.trim();
+          if (r.counterpartyRepresentative.trim) patch.representative = r.counterpartyRepresentative.trim;
+          if (r.counterpartyAddress.trim) patch.address = r.counterpartyAddress.trim;
+          if (r.counterpartyEmail.trim) patch.contact_email = r.counterpartyEmail.trim;
+          if (r.counterpartyBusinessType.trim) patch.business_type = r.counterpartyBusinessType.trim;
+          if (r.counterpartyBusinessItem.trim) patch.business_item = r.counterpartyBusinessItem.trim;
           if (Object.keys(patch).length > 0) {
             // 거래처 갱신이 실패해도 계산서 등록은 살린다(권한 없는 멤버 등)
             await supabase.from("partners").update(patch as never).eq("id", r.partnerId);
@@ -1099,10 +1097,10 @@ function TaxInvoicesPageInner() {
         // 매입 등 발행 대상이 아닌 건 — 등록만
         toast(`세금계산서 ${created}장이 등록되었습니다.`, "success");
       }
-      invalidate();
+      invalidate;
       queryClient.invalidateQueries({ queryKey: ["tax-invoice-issuance-status"] });
       setShowForm(false);
-      setRows([blankRow()]);
+      setRows([blankRow]);
       modeRowsRef.current = { single: null, multi: null }; // 다른 탭에 보관된 입력도 비운다
       setDropdownRowKey(null);
     },
@@ -1116,10 +1114,10 @@ function TaxInvoicesPageInner() {
 
 
   // Duplicate detection
-  const duplicateInvoices = useMemo(() => detectDuplicateInvoices(invoices), [invoices]);
+  const duplicateInvoices = useMemo( => detectDuplicateInvoices(invoices), [invoices]);
   // '중복 아님' 처리한 그룹을 뺀 실제 알림 대상 — 결과 줄과 상세 패널이 같은 목록을 본다
   const liveDups = useMemo(
-    () => duplicateInvoices.filter((d) => !dismissedDups.has(d.key)),
+     => duplicateInvoices.filter((d) => !dismissedDups.has(d.key)),
     [duplicateInvoices, dismissedDups]);
 
   /* 목록 두 탭이 보는 것 — **오너뷰가 만든 것(source='manual')만**. (2026-08-13 재편)
@@ -1134,13 +1132,13 @@ function TaxInvoicesPageInner() {
   const isSent = (inv: any) => inv.nts_issue_status === "issued" || !!inv.nts_confirm_no;
   // 발행 대기 = 우리가 만든 매출 계산서 중 미전송 — 손으로 등록한 매입 계산서는 승인번호가 붙을 일이 없어 영원히 남았다
   const waitInvoices = useMemo(
-    () => invoices.filter((inv: any) => isOurs(inv) && inv.type === "sales" && !isSent(inv) && inv.status !== "void"), [invoices]);
+     => invoices.filter((inv: any) => isOurs(inv) && inv.type === "sales" && !isSent(inv) && inv.status !== "void"), [invoices]);
   const doneInvoices = useMemo(
-    () => invoices.filter((inv: any) => isOurs(inv) && isSent(inv)), [invoices]);
+     => invoices.filter((inv: any) => isOurs(inv) && isSent(inv)), [invoices]);
   // 짝 없는 발행 건 — 입금(status!=='matched') 또는 프로젝트(deal_id 없음)가 안 붙은 것.
   // AI 제안 배지가 이 수를 보여 준다. 확정은 줄에서 사람이 한다.
   const pairGaps = useMemo(
-    () => doneInvoices.filter((inv: any) => inv.status !== "matched" || !inv.deal_id).length,
+     => doneInvoices.filter((inv: any) => inv.status !== "matched" || !inv.deal_id).length,
     [doneInvoices]);
   // '미매칭만' 보기 — AI 제안에서 켠다. 메뉴 이동 없이 이 화면에서 거른다.
   const [gapOnly, setGapOnly] = useState(false);
@@ -1158,7 +1156,7 @@ function TaxInvoicesPageInner() {
     "4": "계약의 해제", "5": "내국신용장 사후개설", "6": "착오에 의한 이중발급",
   };
   // 발행 기한 = 공급시기가 속한 달의 **다음 달 10일**. 넘기면 지연발행 가산세다.
-  // (실제로 우리 실패 1건의 국세청 거절 사유가 '지연발행'이었다 — 2026-05-26)
+  // (실제로 우리 실패 1건의 국세청 거절 사유가 '지연발행'이었다)
   const issueDeadline = (issueDate: string): string => {
     const [y, m] = String(issueDate || "").split("-").map(Number);
     if (!y || !m) return "";
@@ -1166,7 +1164,7 @@ function TaxInvoicesPageInner() {
     return `${ny}-${String(nm).padStart(2, "0")}-10`;
   };
 
-  const issueSummary = useMemo(() => {
+  const issueSummary = useMemo( => {
     const sales = invoices.filter((i: any) => i.type === "sales" && i.status !== "void");
     const agg = (rows: any[]) => ({
       n: rows.length,
@@ -1234,8 +1232,7 @@ function TaxInvoicesPageInner() {
   const thResize = (k: string, colIndex: number) => ({ k, colIndex, widths: colW, onResize: setColW, tableRef: listTableRef });
   const invSortTh = (k: InvSortKey, label: string, colIndex: number) => (
     <SortableTh<InvSortKey> label={label} sortKey={k} sort={{ key: invSortKey, dir: invSortDir }} onSort={toggleInvSort}
-      filter={tiThFilter(k)} resize={thResize(k, colIndex)} />
-  );
+      filter={tiThFilter(k)} resize={thResize(k, colIndex)} />);
   // 품목 칸에 보이는 글자 — 정렬·깔때기 필터·칸이 전부 이 하나를 본다 (품목 정렬 안 됨).
   // ⚠️ '품목' 열의 정렬 키 이름이 "label" 인데, 예전 비교 함수는 그 이름 그대로 r.label 을 비교했다.
   // r.label 은 영수/청구 토글값이라 모든 행이 같아 정렬이 아무것도 안 움직였다.
@@ -1244,7 +1241,7 @@ function TaxInvoicesPageInner() {
     return itemsLabel(r.items, one) || "";
   };
   // 대량 목록 렌더 상한 — 넓은 기간 선택 시 최대 1만 건 일괄 DOM 렌더로 화면이 멈추던 것 방지 (합계·건수는 전체 기준 유지)
-  const displayList = useMemo(() => {
+  const displayList = useMemo( => {
     const arr = [...currentList];
     arr.sort((a: any, b: any) => {
       let c = 0;
@@ -1276,8 +1273,8 @@ function TaxInvoicesPageInner() {
   const setD = <K extends keyof TiCond>(k: K) => (v: TiCond[K]) => setDraft((c) => ({ ...c, [k]: v }));
 
   // 고를 수 있는 값들 — **이 기간에 실제로 나온 것만**(고르고도 0건이면 헷갈린다)
-  const tiPartnerOpts = useMemo(() => {
-    const m = new Map<string, string>();
+  const tiPartnerOpts = useMemo( => {
+    const m = new Map<string, string>;
     for (const r of currentList as any[]) {
       const n = r.counterparty_name || "";
       if (n && !m.has(n)) m.set(n, r.counterparty_bizno || "");
@@ -1320,26 +1317,26 @@ function TaxInvoicesPageInner() {
     const total = Number(r.total_amount || r.supply_amount || 0);
     if (!quickSearchHit(q, [r.counterparty_name, r.counterparty_bizno, r.item_name, r.nts_confirm_no], [total])) return false;
     if (c.partner.length && !c.partner.includes(r.counterparty_name || "")) return false;
-    if (c.item && !String(r.item_name || "").toLowerCase().includes(c.item.toLowerCase())) return false;
+    if (c.item && !String(r.item_name || "").toLowerCase.includes(c.item.toLowerCase)) return false;
     if (c.send !== "all" && sendStateOf(r) !== c.send) return false;
     if (!amountHit(total, c.min, c.max)) return false;
     return true;
   };
-  const tiFiltered = useMemo(() => (displayList as any[]).filter((r) =>
+  const tiFiltered = useMemo( => (displayList as any[]).filter((r) =>
     matchCond(r, live) && tiColHit(r)
     // '미매칭만' — 발행 내역에서만 뜻이 있다(발행 전 건은 아직 매칭 대상이 아니다)
     && !(gapOnly && tab === "done" && isPaid(r) && r.deal_id)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [displayList, q, live, colF, gapOnly, tab]);
   const tiPager = usePager(tiFiltered, live.size, `${tab}|${gapOnly}|${viewFrom}|${viewTo}|${q}|${JSON.stringify(live)}|${JSON.stringify(Object.fromEntries(Object.entries(colF).map(([k, v]) => [k, v ? [...v] : null])))}`);
-  const tiPreview = useMemo(() => (displayList as any[]).filter((r) => matchCond(r, draft)).length,
+  const tiPreview = useMemo( => (displayList as any[]).filter((r) => matchCond(r, draft)).length,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [displayList, q, draft]);
 
   // 내 조건 — ★ 하나가 이 화면의 기본값 (DB 라 PC 를 바꿔도 따라온다)
   const tiSaved = useSavedQueries(`tax-invoices:${tab}`, companyId);
   const tiParamsNow = { from: viewFrom, to: viewTo, q, cond: live };
-  const tiParamsBasic = { ...defaultRange(), q: "", cond: TI_EMPTY };
+  const tiParamsBasic = { ...defaultRange, q: "", cond: TI_EMPTY };
   const applyTiSaved = (p: Record<string, unknown>) => {
     if (typeof p.from === "string" && typeof p.to === "string") { setViewFrom(p.from); setViewTo(p.to); }
     if (typeof p.q === "string") setQ(p.q);
@@ -1347,13 +1344,13 @@ function TaxInvoicesPageInner() {
     setDraft(c); setLive(c);
   };
   const [tiDefDone, setTiDefDone] = useState(false);
-  useEffect(() => {
+  useEffect( => {
     if (tiDefDone || !tiSaved.isFetched) return;
     setTiDefDone(true);
     if (tiSaved.def) applyTiSaved(tiSaved.def.params || {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tiSaved.isFetched, tiSaved.def, tiDefDone]);
-  const tiSuggestName = () => {
+  const tiSuggestName =  => {
     const p: string[] = [];
     if (draft.partner.length) p.push(draft.partner[0] + (draft.partner.length > 1 ? ` 외 ${draft.partner.length - 1}` : ""));
     if (draft.item) p.push(draft.item);
@@ -1365,20 +1362,20 @@ function TaxInvoicesPageInner() {
   // 걸린 조건 · 열지 않고도 보이고, ✕ 로 하나씩 뺀다
   const tiDrop = (patch: Partial<TiCond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
   const tiChips: AppliedChip[] = [
-    ...(gapOnly && tab === "done" ? [{ group: "매칭", label: "미매칭만", onRemove: () => setGapOnly(false) }] : []),
+    ...(gapOnly && tab === "done" ? [{ group: "매칭", label: "미매칭만", onRemove:  => setGapOnly(false) }] : []),
     ...quickTerms(q).map((t, i) => ({
       group: "빠른검색", label: t,
-      onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")),
+      onRemove:  => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")),
     })),
-    ...live.partner.map((v) => ({ group: "거래처", label: v, onRemove: () => tiDrop({ partner: live.partner.filter((x) => x !== v) }) })),
-    ...(live.item ? [{ group: "품목", label: live.item, onRemove: () => tiDrop({ item: "" }) }] : []),
+    ...live.partner.map((v) => ({ group: "거래처", label: v, onRemove:  => tiDrop({ partner: live.partner.filter((x) => x !== v) }) })),
+    ...(live.item ? [{ group: "품목", label: live.item, onRemove:  => tiDrop({ item: "" }) }] : []),
     ...(live.send !== "all" ? [{
       group: "전송 상태", label: TI_SEND_CHIPS.find((s) => s.value === live.send)?.label || live.send,
-      onRemove: () => tiDrop({ send: "all" as const }),
+      onRemove:  => tiDrop({ send: "all" as const }),
     }] : []),
     ...((live.min || live.max) ? [{
       group: "금액", label: `${Number(live.min || 0).toLocaleString("ko")} ~ ${live.max ? Number(live.max).toLocaleString("ko") : "제한없음"}`,
-      onRemove: () => tiDrop({ min: "", max: "" }),
+      onRemove:  => tiDrop({ min: "", max: "" }),
     }] : []),
   ];
 
@@ -1398,19 +1395,19 @@ function TaxInvoicesPageInner() {
   const tiExcelItems: ExcelItem[] = [
     // 가져오기 메뉴를 없애며 엑셀 관련 두 가지를 여기로 옮겼다 (2026-08-13)
     { label: "엑셀 일괄발행 (양식 업로드)",
-      hint: "엑셀 양식으로 여러 건을 한 번에 발행합니다.", onClick: () => setShowBulkIssue(true) },
+      hint: "엑셀 양식으로 여러 건을 한 번에 발행합니다.", onClick:  => setShowBulkIssue(true) },
     { label: "더존 양식으로 내려받기", count: currentList.length,
       hint: "현재 목록을 더존 양식으로 내려받습니다.",
-      onClick: async () => {
+      onClick: async  => {
         const { exportTaxInvoicesDouzone } = await import("@/lib/export-douzone");
         exportTaxInvoicesDouzone(currentList as any, `${viewFrom}_${viewTo}`);
       } },
     { label: "조회 결과 전부 내려받기", count: tiFiltered.length,
       hint: "조회 결과 전체를 내려받습니다.",
-      onClick: () => exportSheet(tiXlsRows(tiFiltered), "세금계산서", `발행_${viewFrom}~${viewTo}`) },
+      onClick:  => exportSheet(tiXlsRows(tiFiltered), "세금계산서", `발행_${viewFrom}~${viewTo}`) },
     { label: "지금 쪽만 내려받기", count: tiPager.view.length,
       hint: `${tiPager.from}번째부터 ${tiPager.to}번째 줄까지 내려받습니다.`,
-      onClick: () => exportSheet(tiXlsRows(tiPager.view), "세금계산서", `발행_${viewFrom}~${viewTo}_${tiPager.page}쪽`) },
+      onClick:  => exportSheet(tiXlsRows(tiPager.view), "세금계산서", `발행_${viewFrom}~${viewTo}_${tiPager.page}쪽`) },
   ];
 
   const validRowCount = rows.filter(isRowValid).length;
@@ -1428,9 +1425,9 @@ function TaxInvoicesPageInner() {
   const selectedDeletable = selectedRows.filter((inv: any) => isUnissued(inv)); // 삭제 가능(미발행만)
   const selectedVoucherable = selectedRows.filter(isVoucherable); // 전표처리 가능
 
-  function toggleSelectAll() {
+  function toggleSelectAll {
     if (selectedRows.length === selectableInList.length && selectableInList.length > 0) {
-      setSelectedIds(new Set());
+      setSelectedIds(new Set);
     } else {
       setSelectedIds(new Set(selectableInList.map((inv: any) => inv.id)));
     }
@@ -1449,7 +1446,7 @@ function TaxInvoicesPageInner() {
   // 받는 쪽 정보(이메일·업태·종목)가 빠진 채 나가는 것을 전송 직전에 잡기 위해서다.
 
   // 선택 일괄 삭제 — 미발행(홈택스 승인번호 없음) 건만 대상. 파괴적이라 확인 후 진행.
-  async function handleBatchDelete() {
+  async function handleBatchDelete {
     if (selectedDeletable.length === 0) { toast("삭제 가능한 미발행 건이 없습니다", "error"); return; }
     const { ok: delOk } = await confirmDialog({ title: `선택 ${selectedDeletable.length}건 삭제`, desc: "홈택스 미발행 건만 삭제되며, 되돌릴 수 없습니다.", danger: true });
     if (!delOk) return;
@@ -1457,13 +1454,13 @@ function TaxInvoicesPageInner() {
     let ok = 0, fail = 0;
     for (const inv of selectedDeletable) {
       try {
-        const { error } = await supabase.from("tax_invoices").delete().eq("id", inv.id);
+        const { error } = await supabase.from("tax_invoices").delete.eq("id", inv.id);
         if (error) throw error;
         ok++;
       } catch { fail++; }
     }
     setBatchIssuing(false);
-    setSelectedIds(new Set());
+    setSelectedIds(new Set);
     invalidateTaxInvoiceReaders(queryClient); // 원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
     toast(fail === 0 ? `${ok}건 삭제 완료` : `${ok}건 삭제, ${fail}건 실패`, fail === 0 ? "success" : "error");
   }
@@ -1471,7 +1468,7 @@ function TaxInvoicesPageInner() {
   
 
   // 선택 일괄 전표처리 · post_invoice_voucher(매출/매입 방향 자동). 이미 전표 있는 건/무효 건은 건너뜀.
-  async function handleBulkVoucher() {
+  async function handleBulkVoucher {
     if (!bulkVoucherAccountId || bulkVoucherPosting) { if (!bulkVoucherAccountId) toast("계정과목을 선택하세요", "error"); return; }
     setBulkVoucherPosting(true);
     const db = supabase;
@@ -1483,7 +1480,7 @@ function TaxInvoicesPageInner() {
         if (error) fail++; else ok++;
       }
       toast(`${ok}건 전표처리 완료${fail > 0 ? ` · ${fail}건 실패` : ""}${skip > 0 ? ` · ${skip}건 건너뜀` : ""}`, fail > 0 ? "info" : "success");
-      setShowBulkVoucher(false); setBulkVoucherAccountId(""); setSelectedIds(new Set());
+      setShowBulkVoucher(false); setBulkVoucherAccountId(""); setSelectedIds(new Set);
       invalidateTaxInvoiceReaders(queryClient); // 원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
     } finally { setBulkVoucherPosting(false); }
   }
@@ -1513,12 +1510,11 @@ function TaxInvoicesPageInner() {
                 : t.key === "done" ? doneInvoices.length
                 : null;
               return (
-                <button key={t.key} type="button" onClick={() => setTab(t.key)}
+                <button key={t.key} type="button" onClick={ => setTab(t.key)}
                   className={tab === t.key ? "collect-tab collect-tab-on" : "collect-tab"}>
                   {t.label}
                   {count !== null && <span className="collect-tab-cnt">{count.toLocaleString("ko")}</span>}
-                </button>
-              );
+                </button>);
             })}
           </div>
 
@@ -1532,15 +1528,13 @@ function TaxInvoicesPageInner() {
                 {issuanceStatus.limit !== null
                   ? <>발행 <b className="mono-number">{issuanceStatus.remaining ?? 0}건</b> 남음</>
                   : <>이번 달 <b className="mono-number">{issuanceStatus.used}건</b></>}
-              </span>
-            )}
+              </span>)}
             <ExcelMenu items={tiExcelItems} />
             {isHometaxConnected && (
-              <button type="button" className="btn-secondary btn-sm" onClick={() => hometaxPauseMut.mutate()} disabled={hometaxPauseMut.isPending}
+              <button type="button" className="btn-secondary btn-sm" onClick={ => hometaxPauseMut.mutate} disabled={hometaxPauseMut.isPending}
                 title="홈택스에 직접 로그인할 때 연동을 30분 멈춥니다. 다른 화면의 '정지 해제' 안내가 가리키는 자리">
                 {isHometaxPaused ? `연동 정지 해제 (${new Date(hometaxPausedUntil!).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}까지)` : "홈택스 연동 정지"}
-              </button>
-            )}
+              </button>)}
             {/* AI 제안 — 보조 기능 모음(조회 표준 이름). 줄마다 출처를 적는다. */}
             {/* 메뉴 안에서는 AI 를 뺀다 — 그릇(AI 제안)에 이미 적혀 있다.
                   회계자료(3방향 대조표)로 넘어가던 링크는 없앴다 — 처리는 메뉴 이동 없이 여기서. */}
@@ -1549,10 +1543,10 @@ function TaxInvoicesPageInner() {
               source: "장부 대조",
               badge: pairGaps,
               hint: "입금이나 프로젝트가 연결되지 않은 발행 건만 봅니다.",
-              onClick: () => { setTab("done"); setGapOnly(true); },
+              onClick:  => { setTab("done"); setGapOnly(true); },
             }]} />
             {/* 주 실행 — 파란 채움은 조회 줄에 이거 하나. 확정(전송)은 아래 SelectionBar 가 맡는다 */}
-            <button onClick={() => setShowForm(true)} className="btn-primary btn-sm" title="세금계산서를 씁니다">
+            <button onClick={ => setShowForm(true)} className="btn-primary btn-sm" title="세금계산서를 씁니다">
               + 발행
             </button>
           </>}>
@@ -1566,15 +1560,15 @@ function TaxInvoicesPageInner() {
                   activeCount={tiCondCount(live)} anchorSel=".drf"
                   tabs={<SavedTabs list={tiSaved.list} current={tiParamsNow} basic={tiParamsBasic}
                     onApply={(s) => { applyTiSaved(s.params || {}); setPanelOpen(false); }}
-                    onBasic={() => {
-                      const b = defaultRange();
+                    onBasic={ => {
+                      const b = defaultRange;
                       setViewFrom(b.from); setViewTo(b.to);
                       setQ(""); setDraft(TI_EMPTY); setLive(TI_EMPTY);
                     }}
                     onRemove={tiSaved.remove} onSetDefault={tiSaved.setDefault} />}
                   foot={<>
                     <button type="button" className="btn-secondary btn-sm" disabled={tiCondCount(draft) === 0}
-                      onClick={() => setDraft({ ...TI_EMPTY, size: draft.size })}>조건 지우기</button>
+                      onClick={ => setDraft({ ...TI_EMPTY, size: draft.size })}>조건 지우기</button>
                     <ConditionSave suggest={tiSuggestName}
                       onSave={(name, asDefault) => {
                         tiSaved.save(name, { from: viewFrom, to: viewTo, q, cond: draft }, asDefault);
@@ -1583,7 +1577,7 @@ function TaxInvoicesPageInner() {
                     <span className="ml-auto text-[11px] text-[var(--text-dim)]">{tiPreview.toLocaleString("ko")}건</span>
                     <RowsPerPage value={draft.size} onChange={setD("size")} />
                     <button type="button" className="btn-primary btn-sm"
-                      onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
+                      onClick={ => { setLive(draft); setPanelOpen(false); }}>조회</button>
                   </>}>
                   <ConditionRow label="조회기간" hint="일 단위">
                     <span className="qk-range-txt">{viewFrom} ~ {viewTo}</span>
@@ -1591,13 +1585,12 @@ function TaxInvoicesPageInner() {
                       from={viewFrom} to={viewTo}
                       onChange={(f, t) => { setViewFrom(f); setViewTo(t); }} />
                     <span className="qk-quicks">
-                      {periodQuicks().map((pq) => (
+                      {periodQuicks.map((pq) => (
                         <button key={pq.key} type="button"
-                          onClick={() => { setViewFrom(pq.from); setViewTo(pq.to); }}
+                          onClick={ => { setViewFrom(pq.from); setViewTo(pq.to); }}
                           className={viewFrom === pq.from && viewTo === pq.to ? "qk-quick qk-quick-on" : "qk-quick"}>
                           {pq.label}
-                        </button>
-                      ))}
+                        </button>))}
                     </span>
                   </ConditionRow>
 
@@ -1626,8 +1619,7 @@ function TaxInvoicesPageInner() {
           </QueryBar>
 
           {isListTab && (
-            <AppliedChips chips={tiChips} onClearAll={() => { setQ(""); setLive(TI_EMPTY); setDraft(TI_EMPTY); }} />
-          )}
+            <AppliedChips chips={tiChips} onClearAll={ => { setQ(""); setLive(TI_EMPTY); setDraft(TI_EMPTY); }} />)}
 
           {/* 2줄 — 건수·합계. 목록을 바꾸지 않는 것만 둔다. */}
           {isListTab && (
@@ -1639,20 +1631,17 @@ function TaxInvoicesPageInner() {
               {tab === "wait" && tiFiltered.some((r: any) => sendStateOf(r) === "failed") && (
                 <span className="ti-strip-bad">
                   에러 <b>{tiFiltered.filter((r: any) => sendStateOf(r) === "failed").length}건</b> · 누르면 사유가 보입니다.
-                </span>
-              )}
+                </span>)}
               {/* 기간 밖에 남아 있는 미발행 — 조건을 몰래 바꾸지 않고 알려만 준다 */}
               {tab === "wait" && waitOutside > 0 && (
                 <span className="ti-strip-bad">
                   이 기간 밖에 미발행 <b>{waitOutside.toLocaleString("ko")}건</b>이 더 있습니다.
                   <button type="button" className="ti-strip-go"
-                    onClick={() => { setViewFrom(`${todayKst().slice(0, 4)}-01`); setViewTo(todayKst().slice(0, 7)); }}>
+                    onClick={ => { setViewFrom(`${todayKst.slice(0, 4)}-01`); setViewTo(todayKst.slice(0, 7)); }}>
                     올해 전체로 넓히기
                   </button>
-                </span>
-              )}
-            </ResultStrip>
-          )}
+                </span>)}
+            </ResultStrip>)}
 
           {/* 발행 현황의 결과 줄 — 표(요약)를 바꾸지 않는 알림만 둔다.
                 '처리할 것' 주황 바(doc-check-bar)를 이 줄로 녹였다.
@@ -1666,21 +1655,18 @@ function TaxInvoicesPageInner() {
                 <span className="ti-strip-bad">
                   이 기간 밖에 미발행 <b>{waitOutside.toLocaleString("ko")}건</b>이 더 있습니다.
                   <button type="button" className="ti-strip-go"
-                    onClick={() => { setViewFrom(`${todayKst().slice(0, 4)}-01`); setViewTo(todayKst().slice(0, 7)); }}>
+                    onClick={ => { setViewFrom(`${todayKst.slice(0, 4)}-01`); setViewTo(todayKst.slice(0, 7)); }}>
                     올해 전체로 넓히기
                   </button>
-                </span>
-              )}
+                </span>)}
               {liveDups.length > 0 && (
                 <span className="ti-strip-bad">
                   중복 의심 <b>{liveDups.length}건</b>
-                  <button type="button" className="ti-strip-go" onClick={() => setCheckOpen((v) => !v)}>
+                  <button type="button" className="ti-strip-go" onClick={ => setCheckOpen((v) => !v)}>
                     {checkOpen ? "접기" : "확인하기"}
                   </button>
-                </span>
-              )}
-            </ResultStrip>
-          )}
+                </span>)}
+            </ResultStrip>)}
         </QueryHead>
 
         <QueryBody>
@@ -1698,20 +1684,17 @@ function TaxInvoicesPageInner() {
         <SelectionBar
           count={selectedRows.length}
           summary={`합계 ${fmt(selectedRows.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0))}`}
-          onClear={() => setSelectedIds(new Set())}
+          onClear={ => setSelectedIds(new Set)}
         >
           {selectedDeletable.length > 0 && (
             <button onClick={handleBatchDelete} disabled={batchIssuing} className="btn-danger-solid btn-sm">
               선택 삭제 {selectedDeletable.length}
-            </button>
-          )}
+            </button>)}
           {selectedIssuable.length > 0 && (
-            <button onClick={() => setIssueConfirm(selectedIssuable)} disabled={batchIssuing} className="btn-primary btn-sm">
+            <button onClick={ => setIssueConfirm(selectedIssuable)} disabled={batchIssuing} className="btn-primary btn-sm">
               홈택스로 전송 ({selectedIssuable.length})
-            </button>
-          )}
-        </SelectionBar>
-      )}
+            </button>)}
+        </SelectionBar>)}
 
       {/* Sales / Purchase Table */}
       {isListTab && (
@@ -1719,8 +1702,7 @@ function TaxInvoicesPageInner() {
           {isLoading ? (
             <div className="p-16 text-center text-sm text-[var(--text-muted)]">
               불러오는 중...
-            </div>
-          ) : currentList.length === 0 ? (
+            </div>) : currentList.length === 0 ? (
             <div className="py-16 px-6 text-center">
               <div className="empty-state-icon mx-auto"><Ico e="🧾" /></div>
               <div className="text-base font-semibold text-[var(--text)]">
@@ -1730,13 +1712,12 @@ function TaxInvoicesPageInner() {
                 첫 세금계산서를 등록해 보세요.
               </div>
               <button
-                onClick={() => setShowForm(true)}
+                onClick={ => setShowForm(true)}
                 className="no-print mt-5 btn-primary"
               >
                 + 세금계산서 등록
               </button>
-            </div>
-          ) : (
+            </div>) : (
             <div>
               {/* 옛 홈택스식 요약 바는 뺐다 (2026-08-13) — 조회 표준 ResultStrip 이
                     같은 숫자를 이미 보여 준다. 같은 숫자 두 번은 어디를 믿을지 모르게 한다. */}
@@ -1748,8 +1729,7 @@ function TaxInvoicesPageInner() {
                       <th className="w-8">
                         {selectableInList.length > 0 && (
                           <input type="checkbox" checked={selectedRows.length === selectableInList.length && selectableInList.length > 0} onChange={toggleSelectAll}
-                            className="w-3.5 h-3.5 rounded accent-[var(--primary)] align-middle cursor-pointer" title="미발행 전체 선택" />
-                        )}
+                            className="w-3.5 h-3.5 rounded accent-[var(--primary)] align-middle cursor-pointer" title="미발행 전체 선택" />)}
                       </th>
                       {/* 승인번호·전송은 행을 눌러 여는 상세로 옮겼다 — 표는 찾고 고르는 곳이다 (2026-08-10).
                            국세청 미발행처럼 **눈에 띄어야 하는 것**은 상태 칸에 함께 세운다. */}
@@ -1773,15 +1753,13 @@ function TaxInvoicesPageInner() {
                       // 과세유형이 회사와 안 맞는 옛 초안 — 누르면 서버가 거절하므로 이유를 미리 적어 준다
                       const kindBlocked = taxKindBlockedReason(vatBiz, (inv.tax_kind || "taxable") as TaxKind);
                       return (
-                        <tr key={inv.id} onClick={() => setSelectedInvoice(inv)}
+                        <tr key={inv.id} onClick={ => setSelectedInvoice(inv)}
                           className="tax-invoice-row">
-                          <td className="px-2 py-2 text-center border-l border-[var(--border)]/40 first:border-l-0" onClick={(e) => e.stopPropagation()}>
+                          <td className="px-2 py-2 text-center border-l border-[var(--border)]/40 first:border-l-0" onClick={(e) => e.stopPropagation}>
                             {canSelect ? (
-                              <input type="checkbox" checked={selectedIds.has(inv.id)} onChange={() => toggleSelect(inv.id)}
-                                className="w-3.5 h-3.5 rounded accent-[var(--primary)] align-middle cursor-pointer" />
-                            ) : posted ? (
-                              <span className="text-[9px] text-emerald-500 font-semibold" title="전표처리됨">전표</span>
-                            ) : null}
+                              <input type="checkbox" checked={selectedIds.has(inv.id)} onChange={ => toggleSelect(inv.id)}
+                                className="w-3.5 h-3.5 rounded accent-[var(--primary)] align-middle cursor-pointer" />) : posted ? (
+                              <span className="text-[9px] text-emerald-500 font-semibold" title="전표처리됨">전표</span>) : null}
                           </td>
                           <td className="px-3 py-2 text-[var(--text-muted)] mono-number border-l border-[var(--border)]/40 whitespace-nowrap">{inv.issue_date}</td>
                           <td className="px-3 py-2 border-l border-[var(--border)]/40 max-w-[200px]">
@@ -1793,7 +1771,7 @@ function TaxInvoicesPageInner() {
                           </td>
                           {/* 품목: 줄이 여럿이면 '첫 품목 외 N건' — 국세청에 실제 발행되는 이름 기준 (2026-08-10).
                               줄이 없는 옛 건은 item_name → label → 딜 이름 순 폴백 (2026-08-05) */}
-                          {(() => {
+                          {( => {
                             const one = (inv.item_name ? String(inv.item_name).replace(/\+/g, " ") : "") || stripPurposeToken(inv.label) || (inv as any).deals?.name || "";
                             const label = itemsLabel(inv.items as any, one) || "—";
                             const full = ((inv.items as any[]) || []).map((it: any) => it?.name).filter(Boolean).join(" · ") || one;
@@ -1803,12 +1781,10 @@ function TaxInvoicesPageInner() {
                                       세금·증빙에서 전표처리를 없앤 지금, manual 초안에 전표가
                                       걸려 있다 = 매입매출전표에서 태어났다는 뜻이다. */}
                                 {tab === "wait" && inv.journal_entry_id && (
-                                  <span className="ti-src-pill">매입매출전표</span>
-                                )}
+                                  <span className="ti-src-pill">매입매출전표</span>)}
                                 {label}
-                              </td>
-                            );
-                          })()}
+                              </td>);
+                          })}
                           <td className="px-3 py-2 text-right mono-number text-[var(--text)] border-l border-[var(--border)]/40">{Number(inv.supply_amount).toLocaleString("ko")}</td>
                           <td className="px-3 py-2 text-right mono-number text-[var(--text-muted)] border-l border-[var(--border)]/40">{Number(inv.tax_amount).toLocaleString("ko")}</td>
                           <td className="px-3 py-2 text-right mono-number font-semibold text-[var(--text)] border-l border-[var(--border)]/40">{Number(inv.total_amount).toLocaleString("ko")}</td>
@@ -1817,24 +1793,22 @@ function TaxInvoicesPageInner() {
                                 줄 높이가 들쑥날쑥했다. 업무 상태(매칭완료 등)는 관리 칸의
                                 '✓ 연결됨'이 이미 말해 주고, 에러 사유는 **'에러'를 눌러야** 보인다. */}
                           <td className="px-3 py-2 text-center whitespace-nowrap border-l border-[var(--border)]/40">
-                            {(() => {
+                            {( => {
                               const st = inv.nts_issue_status || "draft";
                               if (isSent(inv)) return (
                                 <span className="ti-send ti-send-ok"
                                   title={inv.nts_issued_at ? `국세청 승인 ${String(inv.nts_issued_at).slice(0, 10)}${inv.nts_confirm_no ? ` · 승인번호 ${inv.nts_confirm_no}` : ""}` : "국세청 승인 완료"}>
                                   전송 완료
-                                </span>
-                              );
+                                </span>);
                               if (st === "pending") return (
                                 <span className="ti-send ti-send-wait"
                                   title="팝빌에 등록됐습니다. 국세청 전송은 다음 영업일에 이뤄지고, 승인번호는 그 뒤에 붙습니다.">
                                   전송 중
-                                </span>
-                              );
+                                </span>);
                               if (st === "failed") return (
                                 <button type="button" className="ti-send ti-send-bad" title="누르면 거절 사유가 보입니다"
                                   onClick={(e) => {
-                                    e.stopPropagation();
+                                    e.stopPropagation;
                                     confirmDialog({
                                       title: "국세청 거절 사유",
                                       desc: inv.nts_error_message || "사유가 기록되지 않았습니다.",
@@ -1842,10 +1816,9 @@ function TaxInvoicesPageInner() {
                                     });
                                   }}>
                                   에러 ▾
-                                </button>
-                              );
+                                </button>);
                               return <span className="ti-send ti-send-draft" title="아직 국세청에 보내지 않았습니다">미발행</span>;
-                            })()}
+                            })}
                           </td>
                           {/* 매칭 사슬 칩 — 입금·프로젝트가 붙었는지 한눈에 (2026-08-13 AI 매칭 기획 ①).
                                 입금은 '연결' 버튼과, 프로젝트는 '프로젝트' 버튼과 같은 사실을 본다. */}
@@ -1859,62 +1832,55 @@ function TaxInvoicesPageInner() {
                                   {inv.deal_id ? "프로젝트 ✓" : "프로젝트 —"}
                                 </i>
                               </span>
-                            </td>
-                          )}
-                          <td className="px-3 py-2 text-center border-l border-[var(--border)]/40" onClick={(e) => e.stopPropagation()}>
+                            </td>)}
+                          <td className="px-3 py-2 text-center border-l border-[var(--border)]/40" onClick={(e) => e.stopPropagation}>
                             <div className="flex flex-nowrap items-center justify-center gap-1 whitespace-nowrap">
                               {canIssue && (
                                 <button
-                                  onClick={() => kindBlocked ? toast(kindBlocked, "error") : setIssueConfirm([inv])}
+                                  onClick={ => kindBlocked ? toast(kindBlocked, "error") : setIssueConfirm([inv])}
                                   className={kindBlocked
                                     ? "px-2.5 py-1 rounded text-[11px] font-bold transition bg-[var(--bg-surface)] text-[var(--text-dim)]"
                                     : "px-2.5 py-1 rounded text-[11px] font-bold text-white transition hover:brightness-110 bg-[var(--primary)]"}
                                   title={kindBlocked || "홈택스 전자발행"}
                                 >
                                   발행
-                                </button>
-                              )}
+                                </button>)}
                               {/* 거래매칭 — 통장 입출금 거래에 바로 연결 */}
                               {isPaid(inv) ? (
                                 <button
-                                  onClick={() => setLinkInvoice(inv)}
+                                  onClick={ => setLinkInvoice(inv)}
                                   className="inline-flex items-center gap-0.5 px-2 py-1 rounded text-[11px] font-semibold bg-green-500/12 text-green-600 hover:bg-green-500/20 transition"
                                   title="통장 거래에 연결됨. 클릭해 확인/해제"
                                 >
                                   ✓ 연결됨
-                                </button>
-                              ) : (
+                                </button>) : (
                                 <button
-                                  onClick={() => setLinkInvoice(inv)}
+                                  onClick={ => setLinkInvoice(inv)}
                                   className="px-2 py-1 rounded text-[11px] font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/40 transition"
                                   title="통장 입출금 거래에 연결"
                                 >
                                   연결
-                                </button>
-                              )}
+                                </button>)}
                               {/* 프로젝트 짝 — 발행 완료 건에 어느 프로젝트 매출인지 붙인다.
                                     예전엔 상세 모달 깊숙한 셀렉트뿐이라 아무도 안 붙였다 — 줄에서 바로 제안한다. */}
                               {tab === "done" && (inv.deal_id ? (
                                 <button
-                                  onClick={() => setDealSuggest(inv)}
+                                  onClick={ => setDealSuggest(inv)}
                                   className="inline-flex items-center gap-0.5 px-2 py-1 rounded text-[11px] font-semibold bg-green-500/12 text-green-600 hover:bg-green-500/20 transition"
                                   title={`프로젝트 연결됨: ${(inv as any).deals?.name || ""} · 클릭해 확인/해제`}
                                 >
                                   ✓ 프로젝트
-                                </button>
-                              ) : (
+                                </button>) : (
                                 <button
-                                  onClick={() => setDealSuggest(inv)}
+                                  onClick={ => setDealSuggest(inv)}
                                   className="px-2 py-1 rounded text-[11px] font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/40 transition"
                                   title="어느 프로젝트 매출인지 제안을 보고 붙입니다"
                                 >
                                   프로젝트
-                                </button>
-                              ))}
+                                </button>))}
                             </div>
                           </td>
-                        </tr>
-                      );
+                        </tr>);
                     })}
                   </tbody>
                   {/* 홈택스식 합계 행 */}
@@ -1930,10 +1896,8 @@ function TaxInvoicesPageInner() {
                   </tfoot>
                 </table>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            </div>)}
+        </div>)}
 
       {/* ── 발행 현황 — 이카운트 「매출(세금)계산서요약」 형태 ──
              줄을 누르면 그 목록으로 간다. 수집·전표의 '수집 현황'과 같은 자리·같은 규칙. */}
@@ -1953,7 +1917,7 @@ function TaxInvoicesPageInner() {
                     {dup.counterpartyName} · {fmt(dup.amount)} · {dup.date}
                     <span className="ti-dup-n">{dup.count}건 동일</span>
                     <button type="button" className="ti-dup-ok"
-                      onClick={async () => {
+                      onClick={async  => {
                         setDismissedDups((prev) => new Set([...prev, dup.key]));
                         try {
                           await (supabase as any).from("tax_dup_dismissals").upsert(
@@ -1971,23 +1935,20 @@ function TaxInvoicesPageInner() {
                       <span className="ev-dim">{inv.issue_date}</span>
                       <span className="ev-dim">{invoiceStatusMeta(inv.status, inv.type).label}</span>
                       <span className="ti-dup-acts">
-                        <button type="button" className="btn-secondary btn-sm" onClick={() => setSelectedInvoice(inv)}>상세</button>
-                        <button type="button" className="btn-danger-solid btn-sm" onClick={async () => {
-                          const { ok: rowOk } = await confirmDialog({ title: "세금계산서 삭제", desc: `${inv.counterparty_name} / ₩${Number(inv.total_amount).toLocaleString()}`, danger: true });
+                        <button type="button" className="btn-secondary btn-sm" onClick={ => setSelectedInvoice(inv)}>상세</button>
+                        <button type="button" className="btn-danger-solid btn-sm" onClick={async  => {
+                          const { ok: rowOk } = await confirmDialog({ title: "세금계산서 삭제", desc: `${inv.counterparty_name} / ₩${Number(inv.total_amount).toLocaleString}`, danger: true });
                           if (!rowOk) return;
-                          const { error: delErr } = await supabase.from("tax_invoices").delete().eq("id", inv.id);
+                          const { error: delErr } = await supabase.from("tax_invoices").delete.eq("id", inv.id);
                           if (delErr) { toast(`삭제 실패: ${delErr.message}`, "error"); return; }
-                          invalidate();
+                          invalidate;
                           toast("세금계산서가 삭제되었습니다", "success");
                         }}>삭제</button>
                       </span>
-                    </div>
-                  ))}
-                </div>
-              );
+                    </div>))}
+                </div>);
             })}
-          </div>
-        )}
+          </div>)}
         <div className="ti-sum">
           <table className="ev-table ti-sum-table">
             <thead>
@@ -1998,12 +1959,12 @@ function TaxInvoicesPageInner() {
               </tr>
             </thead>
             <tbody>
-              {(() => {
+              {( => {
                 const S = issueSummary;
                 const money = (n: number) => n === 0 ? "—" : n.toLocaleString("ko");
                 const cnt = (n: number) => n === 0 ? "0" : n.toLocaleString("ko");
                 const row = (kind: string, label: string, a: { n: number; supply: number; tax: number },
-                             go?: { text: string; on: () => void }, danger?: boolean) => (
+                             go?: { text: string; on:  => void }, danger?: boolean) => (
                   <tr key={kind + label} className={a.n === 0 ? "ti-sum-nil" : go ? "ti-sum-go" : undefined}
                     onClick={a.n > 0 && go ? go.on : undefined}>
                     <td className="ti-sum-kind">{kind}</td>
@@ -2012,8 +1973,7 @@ function TaxInvoicesPageInner() {
                     <td className="tr mono-number">{money(a.supply)}</td>
                     <td className="tr mono-number">{money(a.tax)}</td>
                     <td className="tc">{a.n > 0 && go ? <span className="ti-sum-link">{go.text} →</span> : null}</td>
-                  </tr>
-                );
+                  </tr>);
                 const sub = (label: string, a: { n: number; supply: number; tax: number }) => (
                   <tr key={"sub" + label} className="ti-sum-sub">
                     <td colSpan={2}>{label}</td>
@@ -2021,9 +1981,8 @@ function TaxInvoicesPageInner() {
                     <td className="tr mono-number">{money(a.supply)}</td>
                     <td className="tr mono-number">{money(a.tax)}</td>
                     <td />
-                  </tr>
-                );
-                const toWait = { text: "보내기", on: () => setTab("wait") };
+                  </tr>);
+                const toWait = { text: "보내기", on:  => setTab("wait") };
                 return (
                   <>
                     {row("종이", "종이(세금)계산서", S.paper)}
@@ -2034,22 +1993,21 @@ function TaxInvoicesPageInner() {
                     {/* 전송중 — CODEF 즉시전송 버그로 sendToNtsYn="N" 이라 팝빌 등록 후
                           **다음 영업일**에 국세청으로 간다. 하루 넘게 머무는 실재하는 구간이다. */}
                     {row("", "전송중", S.unsent.awaiting, toWait)}
-                    {row("", "오류", S.unsent.failed, { text: "사유 보기", on: () => setTab("wait") }, true)}
+                    {row("", "오류", S.unsent.failed, { text: "사유 보기", on:  => setTab("wait") }, true)}
                     {sub("미전송 계", S.unsent.total)}
 
-                    {row("전송완료", "전자(세금)계산서", S.sent.plain, { text: "보기", on: () => setTab("done") })}
-                    {S.sent.byReason.map((r) => row("", r.label, r, { text: "보기", on: () => setTab("done") }))}
+                    {row("전송완료", "전자(세금)계산서", S.sent.plain, { text: "보기", on:  => setTab("done") })}
+                    {S.sent.byReason.map((r) => row("", r.label, r, { text: "보기", on:  => setTab("done") }))}
                     {sub("전송완료 계", S.sent.total)}
 
                     {row("타발행", "타발행 (홈택스에서 직접)", S.others,
-                      { text: "수집·전표", on: () => router.push("/collect?tab=tax_invoice") })}
+                      { text: "수집·전표", on:  => router.push("/collect?tab=tax_invoice") })}
                     {sub("타발행 계", S.others)}
 
-                    {row("기한후발행", "기한후발행", S.late, { text: "보기", on: () => setTab("done") }, true)}
+                    {row("기한후발행", "기한후발행", S.late, { text: "보기", on:  => setTab("done") }, true)}
                     {sub("기한후발행 계", S.late)}
-                  </>
-                );
-              })()}
+                  </>);
+              })}
             </tbody>
             <tfoot>
               <tr>
@@ -2073,14 +2031,12 @@ function TaxInvoicesPageInner() {
         {/* 기본 50줄 — 줄 수는 검색조건 안에서 고른다 (조회 화면 표준) */}
         {isListTab && (
           <Pager page={tiPager.page} pages={tiPager.pages} total={tiFiltered.length} size={live.size}
-            from={tiPager.from} to={tiPager.to} onPage={tiPager.setPage} />
-        )}
+            from={tiPager.from} to={tiPager.to} onPage={tiPager.setPage} />)}
       </QueryScreen>
 
       {/* Registration Form — 2026-06-12 인라인 카드 → 중앙 팝업(모달) 전환. 폼/등록 로직 무변경 */}
       {showBulkIssue && companyId && (
-        <TaxInvoiceBulkIssueModal companyId={companyId} onClose={() => setShowBulkIssue(false)} />
-      )}
+        <TaxInvoiceBulkIssueModal companyId={companyId} onClose={ => setShowBulkIssue(false)} />)}
       {/* 세금계산서 쓰기 — 2026-08-10 전면 개편.
           · 계산서 한 장 = 거래처 한 곳 + **품목 여러 줄**. 예전 [+ 항목 추가]는 계산서를 한 장 더
             만드는 버튼이라 품목 줄을 늘릴 방법이 아예 없었다.
@@ -2089,7 +2045,7 @@ function TaxInvoicesPageInner() {
           · 여러 장 모드는 표를 유지하되 사업자번호·대표자까지만 보여 준다(그 이상은 표가 감당 못 함). */}
       {showForm && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4">
-        <div className={`tax-invoice-registration-modal ${formMode === "multi" ? "is-multi" : ""}`} onClick={(e) => e.stopPropagation()}>
+        <div className={`tax-invoice-registration-modal ${formMode === "multi" ? "is-multi" : ""}`} onClick={(e) => e.stopPropagation}>
           <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-[var(--border)] shrink-0 flex-wrap">
             <div>
               <h3 className="text-base font-bold">세금계산서 쓰기</h3>
@@ -2101,15 +2057,15 @@ function TaxInvoicesPageInner() {
             </div>
             <div className="flex items-center gap-3">
               <div className="seg-bar">
-                <button type="button" onClick={() => switchMode("single")} className={`seg-item ${formMode === "single" ? "seg-item-active" : ""}`}>한 장 쓰기</button>
-                <button type="button" onClick={() => switchMode("multi")} className={`seg-item ${formMode === "multi" ? "seg-item-active" : ""}`}>여러 장 한꺼번에</button>
+                <button type="button" onClick={ => switchMode("single")} className={`seg-item ${formMode === "single" ? "seg-item-active" : ""}`}>한 장 쓰기</button>
+                <button type="button" onClick={ => switchMode("multi")} className={`seg-item ${formMode === "multi" ? "seg-item-active" : ""}`}>여러 장 한꺼번에</button>
               </div>
-              <button onClick={() => setShowForm(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none transition" aria-label="닫기">✕</button>
+              <button onClick={ => setShowForm(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none transition" aria-label="닫기">✕</button>
             </div>
           </div>
 
           <div className="flex-1 overflow-auto px-6 py-4">
-            {formMode === "single" ? (() => {
+            {formMode === "single" ? ( => {
               const row = rows[0];
               const supply = rowSupply(row);
               const taxAmt = row.taxKind === "taxable" ? Math.round(supply * 0.1) : 0;
@@ -2122,9 +2078,8 @@ function TaxInvoicesPageInner() {
                       <label>유형</label>
                       <div className="seg-bar w-fit">
                         {INVOICE_TYPES.map((t) => (
-                          <button key={t.value} type="button" onClick={() => patchRow(row.key, { type: t.value as "sales" | "purchase" })}
-                            className={`seg-item ${row.type === t.value ? "seg-item-active" : ""}`}>{t.label}</button>
-                        ))}
+                          <button key={t.value} type="button" onClick={ => patchRow(row.key, { type: t.value as "sales" | "purchase" })}
+                            className={`seg-item ${row.type === t.value ? "seg-item-active" : ""}`}>{t.label}</button>))}
                       </div>
                     </div>
                     <div className="tax-form-field relative">
@@ -2132,24 +2087,22 @@ function TaxInvoicesPageInner() {
                       <input
                         value={row.counterpartyName}
                         onChange={(e) => { patchRow(row.key, { counterpartyName: e.target.value, partnerId: "" }); setDropdownRowKey(row.key); }}
-                        onFocus={() => { if (row.counterpartyName) setDropdownRowKey(row.key); }}
-                        onBlur={() => setTimeout(() => setDropdownRowKey((k) => (k === row.key ? null : k)), 200)}
+                        onFocus={ => { if (row.counterpartyName) setDropdownRowKey(row.key); }}
+                        onBlur={ => setTimeout( => setDropdownRowKey((k) => (k === row.key ? null : k)), 200)}
                         placeholder="상호 · 사업자번호로 검색"
                         className="field-input w-full px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] transition" />
                       {dropdownRowKey === row.key && filterPartners(row.counterpartyName).length > 0 && (
                         <div className="tax-form-partner-drop">
                           {filterPartners(row.counterpartyName).slice(0, 10).map((p: any) => (
-                            <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => { applyPartner(row.key, p); setDropdownRowKey(null); }}
+                            <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault}
+                              onClick={ => { applyPartner(row.key, p); setDropdownRowKey(null); }}
                               className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-xs">
                               <div className="flex items-center justify-between gap-2">
                                 <span className="font-medium truncate">{p.name}</span>
                                 {p.business_number && <span className="caption shrink-0">{p.business_number}</span>}
                               </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                            </button>))}
+                        </div>)}
                     </div>
                   </div>
 
@@ -2176,12 +2129,12 @@ function TaxInvoicesPageInner() {
                         <input value={row.counterpartyName} onChange={(e) => patchRow(row.key, { counterpartyName: e.target.value })}
                           className="tax-party-input" />
                       </div>
-                      <div className={`tax-party-row ${!row.counterpartyRepresentative.trim() ? "tax-party-miss" : ""}`}>
+                      <div className={`tax-party-row ${!row.counterpartyRepresentative.trim ? "tax-party-miss" : ""}`}>
                         <span>대표자 <i>*</i></span>
                         <input value={row.counterpartyRepresentative} onChange={(e) => patchRow(row.key, { counterpartyRepresentative: e.target.value })}
                           placeholder="대표자명" className="tax-party-input" />
                       </div>
-                      <div className={`tax-party-row ${!row.counterpartyBusinessType.trim() && !row.counterpartyBusinessItem.trim() ? "tax-party-miss" : ""}`}>
+                      <div className={`tax-party-row ${!row.counterpartyBusinessType.trim && !row.counterpartyBusinessItem.trim ? "tax-party-miss" : ""}`}>
                         <span>업태 / 종목</span>
                         <div className="flex gap-1.5 min-w-0">
                           <input value={row.counterpartyBusinessType} onChange={(e) => patchRow(row.key, { counterpartyBusinessType: e.target.value })}
@@ -2195,7 +2148,7 @@ function TaxInvoicesPageInner() {
                         <input value={row.counterpartyAddress} onChange={(e) => patchRow(row.key, { counterpartyAddress: e.target.value })}
                           placeholder="사업장 주소" className="tax-party-input" />
                       </div>
-                      <div className={`tax-party-row ${!row.counterpartyEmail.trim() ? "tax-party-miss" : ""}`}>
+                      <div className={`tax-party-row ${!row.counterpartyEmail.trim ? "tax-party-miss" : ""}`}>
                         <span>받을 이메일 <i>*</i></span>
                         <input value={row.counterpartyEmail} onChange={(e) => patchRow(row.key, { counterpartyEmail: e.target.value })}
                           placeholder="이 주소로 계산서가 갑니다" className="tax-party-input" />
@@ -2217,8 +2170,7 @@ function TaxInvoicesPageInner() {
                         {missing.join(" · ")} 항목이 빈칸으로 발행됩니다.
                         {missing.includes("받을 이메일") && " 거래처는 계산서를 메일로 받지 못합니다."}
                       </span>
-                    </div>
-                  )}
+                    </div>)}
 
                   {/* 전체 비고 — 계산서 한 장에 붙는 비고. 국세청 비고란으로 그대로 나간다.
                         품목 줄마다 붙는 비고는 아래 표의 '비고' 칸이다. */}
@@ -2298,14 +2250,13 @@ function TaxInvoicesPageInner() {
                               <input value={it.remark} onChange={(e) => patchItem(row.key, it.key, { remark: e.target.value })}
                                 onKeyDown={(e) => onItemKeyDown(e, row.key, it.key)}
                                 className="tax-item-input" />
-                              <button type="button" onClick={() => removeItem(row.key, it.key)} title="이 품목 줄 지우기"
+                              <button type="button" onClick={ => removeItem(row.key, it.key)} title="이 품목 줄 지우기"
                                 className="tax-item-del">✕</button>
-                            </div>
-                          ))}
+                            </div>))}
                         </div>
                       </div>
                       <div className="tax-items-foot">
-                        <button type="button" onClick={() => addItem(row.key)} className="btn-secondary btn-sm">+ 품목 줄</button>
+                        <button type="button" onClick={ => addItem(row.key)} className="btn-secondary btn-sm">+ 품목 줄</button>
                         <span className="text-[11px] text-[var(--text-dim)]" title="마지막 칸에서 Tab을 누르면 새 줄이 생깁니다">
                           엑셀에서 여러 줄을 <b className="text-[var(--text-muted)]">그대로 붙여넣기</b> 할 수 있습니다.
                         </span>
@@ -2313,8 +2264,7 @@ function TaxInvoicesPageInner() {
                       {/* 공급대가(부가세 포함 합계)만 알 때 공급가액을 역산해 첫 품목 단가에 넣는다.
                             과세만 — 영세율·면세는 부가세가 없어 공급대가=공급가액이라 나눌 게 없다. */}
                       {row.taxKind === "taxable" && (
-                        <GrossSplitCalc onApply={(sup) => patchItem(row.key, row.items[0].key, { qty: "1", unitCost: String(sup) })} />
-                      )}
+                        <GrossSplitCalc onApply={(sup) => patchItem(row.key, row.items[0].key, { qty: "1", unitCost: String(sup) })} />)}
                     </div>
                   </div>
 
@@ -2331,10 +2281,9 @@ function TaxInvoicesPageInner() {
                       {(["영수", "청구"] as const).map((v) => (
                         <label key={v} className="tax-form-purpose-opt">
                           <input type="radio" name={`purpose-${row.key}`} checked={row.purpose === v}
-                            onChange={() => patchRow(row.key, { purpose: v })} className="accent-[var(--primary)]" />
+                            onChange={ => patchRow(row.key, { purpose: v })} className="accent-[var(--primary)]" />
                           {v}
-                        </label>
-                      ))}
+                        </label>))}
                     </div>
                   </div>
 
@@ -2374,9 +2323,8 @@ function TaxInvoicesPageInner() {
                       </div>
                     </div>
                   </details>
-                </div>
-              );
-            })() : (
+                </div>);
+            }) : (
               /* 여러 장 한꺼번에 · 사업자번호·대표자까지만 보여 준다 */
               
               <div className="min-w-[1250px]" ref={multiGridRef}>
@@ -2415,27 +2363,25 @@ function TaxInvoicesPageInner() {
                         <input value={row.counterpartyName}
                           data-cell={`counterpartyName-${i}`}
                           onChange={(e) => { markTouched(row.key, "counterpartyName"); patchRow(row.key, { counterpartyName: e.target.value, partnerId: "" }); setDropdownRowKey(row.key); setDropIdx(0); }}
-                          onFocus={() => { if (row.counterpartyName) { setDropdownRowKey(row.key); setDropIdx(0); } }}
-                          onBlur={() => setTimeout(() => setDropdownRowKey((k) => (k === row.key ? null : k)), 200)}
+                          onFocus={ => { if (row.counterpartyName) { setDropdownRowKey(row.key); setDropIdx(0); } }}
+                          onBlur={ => setTimeout( => setDropdownRowKey((k) => (k === row.key ? null : k)), 200)}
                           onKeyDown={(e) => { if (!partnerDropKey(e, row, i)) gridKeys.onCellKey(e, i, "counterpartyName"); }}
                           placeholder="거래처 검색" className="tax-item-input w-full" />
                         {dropdownRowKey === row.key && filterPartners(row.counterpartyName).length > 0 && (
                           <div className="tax-form-partner-drop">
                             {filterPartners(row.counterpartyName).slice(0, 10).map((p: any, pi: number) => (
-                              <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()}
+                              <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault}
                                 // 목록이 길면 화살표로 내려갈 때 가려진 항목이 따라 보이게 한다
                                 ref={pi === dropIdx ? (el) => el?.scrollIntoView({ block: "nearest" }) : undefined}
-                                onMouseEnter={() => setDropIdx(pi)}
-                                onClick={() => { applyPartner(row.key, p); setDropdownRowKey(null); setDropIdx(0); }}
+                                onMouseEnter={ => setDropIdx(pi)}
+                                onClick={ => { applyPartner(row.key, p); setDropdownRowKey(null); setDropIdx(0); }}
                                 className={`w-full text-left px-3 py-2 text-xs ${pi === dropIdx ? "tax-partner-opt-on" : "hover:bg-[var(--bg-surface)]"}`}>
                                 <div className="flex items-center justify-between gap-2">
                                   <span className="font-medium truncate">{p.name}</span>
                                   {p.business_number && <span className="caption shrink-0">{p.business_number}</span>}
                                 </div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                              </button>))}
+                          </div>)}
                       </div>
                       {/* 사업자번호·대표자는 거래처에서 따라오는 읽기 전용 표시 — 비면 붉게 알린다 */}
                       <span className={`tax-multi-ro ${!row.counterpartyBizno ? "tax-multi-ro-miss" : ""}`} title={row.counterpartyBizno || "비어 있음"}>
@@ -2463,7 +2409,7 @@ function TaxInvoicesPageInner() {
                           onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => gridKeys.onCellKey(e, i, "unitCost")}
                           allowNegative placeholder="0" className="tax-item-input tax-unitcost-input text-right w-full" />
                         <button type="button" title="공급대가(부가세 포함)로 단가 계산"
-                          onClick={() => setCalcRowKey((k) => (k === row.key ? null : row.key))}
+                          onClick={ => setCalcRowKey((k) => (k === row.key ? null : row.key))}
                           className={`absolute right-1 top-1/2 -translate-y-1/2 text-[11px] font-semibold leading-none text-[var(--primary)] ${calcRowKey === row.key ? "opacity-100" : "opacity-60 hover:opacity-100"}`}>계산</button>
                       </div>
                       {/* 공급가액·세액·합계는 계산값 — 한 장 쓰기와 같은 산식이다 */}
@@ -2474,38 +2420,33 @@ function TaxInvoicesPageInner() {
                         data-cell={`remark-${i}`}
                         onKeyDown={(e) => gridKeys.onCellKey(e, i, "remark")}
                         className="tax-item-input" />
-                      <button type="button" onClick={() => removeRow(row.key)} title="이 계산서 줄 지우기" className="tax-item-del">✕</button>
+                      <button type="button" onClick={ => removeRow(row.key)} title="이 계산서 줄 지우기" className="tax-item-del">✕</button>
                     </div>
                     {calcRowKey === row.key && (
                       <GrossSplitCalc applyLabel="이 줄 단가로 넣기"
-                        onApply={(sup) => { patchItem(row.key, row.items[0].key, { unitCost: String(sup), qty: row.items[0]?.qty || "1" }); setCalcRowKey(null); }} />
-                    )}
-                    </Fragment>
-                  );
+                        onApply={(sup) => { patchItem(row.key, row.items[0].key, { unitCost: String(sup), qty: row.items[0]?.qty || "1" }); setCalcRowKey(null); }} />)}
+                    </Fragment>);
                 })}
                 <div className="tax-items-foot">
-                  <button type="button" onClick={() => setRows((rs) => [...rs, blankRow()])} className="btn-secondary btn-sm">+ 계산서 줄</button>
+                  <button type="button" onClick={ => setRows((rs) => [...rs, blankRow])} className="btn-secondary btn-sm">+ 계산서 줄</button>
                   <span className="text-[11px] text-[var(--text-dim)]" title="고치려면 한 장 쓰기를 이용하세요">
                     업태·종목·주소·이메일은 <b className="text-[var(--text-muted)]">거래처 정보 그대로</b> 등록됩니다.
                   </span>
                 </div>
-              </div>
-            )}
+              </div>)}
           </div>
 
           <div className="flex items-center justify-between gap-3 px-6 py-3.5 border-t border-[var(--border)] shrink-0 flex-wrap">
             <div className="text-xs text-[var(--text-muted)]">
               {formMode === "single" ? (
-                <>품목 <b className="text-[var(--text)]">{rows[0].items.filter((it) => it.name.trim()).length}줄</b></>
-              ) : (
-                <>계산서 <b className="text-[var(--text)]">{validRowCount}장</b> · 합계 <b className="mono-number text-[var(--primary)]">{fmt(rows.filter(isRowValid).reduce((s, r) => { const sp = rowSupply(r); return s + sp + (r.taxKind === "taxable" ? Math.round(sp * 0.1) : 0); }, 0))}</b></>
-              )}
+                <>품목 <b className="text-[var(--text)]">{rows[0].items.filter((it) => it.name.trim).length}줄</b></>) : (
+                <>계산서 <b className="text-[var(--text)]">{validRowCount}장</b> · 합계 <b className="mono-number text-[var(--primary)]">{fmt(rows.filter(isRowValid).reduce((s, r) => { const sp = rowSupply(r); return s + sp + (r.taxKind === "taxable" ? Math.round(sp * 0.1) : 0); }, 0))}</b></>)}
             </div>
             <div className="flex items-center gap-2">
               {/* 매출은 등록과 동시에 홈택스로 발행된다 (2026-09-11) — 매입은 등록만 */}
               <span className="text-[11px] text-[var(--text-dim)]">매출은 <b className="text-[var(--text-muted)]">등록 즉시 홈택스 발행</b>됩니다.</span>
-              <button onClick={() => setShowForm(false)} className="btn-secondary text-xs">취소</button>
-              <button onClick={() => canSubmit && createMut.mutate()} disabled={!canSubmit || createMut.isPending}
+              <button onClick={ => setShowForm(false)} className="btn-secondary text-xs">취소</button>
+              <button onClick={ => canSubmit && createMut.mutate} disabled={!canSubmit || createMut.isPending}
                 className="btn-primary text-xs disabled:opacity-50 disabled:cursor-not-allowed">
                 {createMut.isPending
                   ? "발행 중..."
@@ -2516,8 +2457,7 @@ function TaxInvoicesPageInner() {
             </div>
           </div>
         </div>
-        </div>
-      )}
+        </div>)}
 
       {/* 가져오기(홈택스 수집·연동 정지)는 UI에서 내렸다 (2026-08-13 대표 — 우측은
             수집·전표처럼 엑셀·AI 제안·발행 3버튼). 수집은 수집·전표 소관이다.
@@ -2530,10 +2470,9 @@ function TaxInvoicesPageInner() {
                     {!isHometaxConnected ? (
                       <Link href="/settings?tab=bank" className="toolbar-pop-item" onClick={close}>
                         홈택스 연결 필요 (설정 &gt; 은행연동)
-                      </Link>
-                    ) : (
+                      </Link>) : (
                       <ToolbarPopoverItem
-                        onClick={() => { close(); hometaxCd.run(() => runHometaxSyncBackground(viewFrom, viewTo)); }}
+                        onClick={ => { close; hometaxCd.run( => runHometaxSyncBackground(viewFrom, viewTo)); }}
                         disabled={!!activeJobId || hometaxCd.disabled}
                         hint={hometaxCd.hint
                           ? hometaxCd.hint
@@ -2544,66 +2483,60 @@ function TaxInvoicesPageInner() {
                             : hometaxCd.disabled ? `홈택스에서 가져오기 (${hometaxCd.label})`
                             : "홈택스에서 가져오기"}
                         </span>
-                      </ToolbarPopoverItem>
-                    )}
-                    <ToolbarPopoverItem onClick={() => { close(); setShowBulkIssue(true); }}
+                      </ToolbarPopoverItem>)}
+                    <ToolbarPopoverItem onClick={ => { close; setShowBulkIssue(true); }}
                       hint="엑셀 양식으로 여러 건을 한 번에 국세청 전자발행합니다">
                       엑셀 일괄발행
                     </ToolbarPopoverItem>
                     {isListTab && currentList.length > 0 && (
                       <ToolbarPopoverItem
-                        onClick={async () => {
-                          close();
+                        onClick={async  => {
+                          close;
                           const { exportTaxInvoicesDouzone } = await import("@/lib/export-douzone");
                           exportTaxInvoicesDouzone(currentList as any, `${viewFrom}_${viewTo}`);
                         }}
                         hint="현재 목록을 엑셀로 내보내기">
                         엑셀 내보내기
-                      </ToolbarPopoverItem>
-                    )}
+                      </ToolbarPopoverItem>)}
                     <div className="toolbar-pop-sep" />
-                    <ToolbarPopoverItem onClick={() => { close(); hometaxPauseMut.mutate(); }} disabled={hometaxPauseMut.isPending}
+                    <ToolbarPopoverItem onClick={ => { close; hometaxPauseMut.mutate; }} disabled={hometaxPauseMut.isPending}
                       hint="홈택스에 직접 로그인할 때 연동을 30분 멈춥니다.">
                       {isHometaxPaused
                         ? `연동 정지 해제 (${new Date(hometaxPausedUntil!).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}까지)`
                         : "홈택스 연동 정지"}
                     </ToolbarPopoverItem>
                     {activeJobId && (
-                      <ToolbarPopoverItem danger onClick={() => { close(); forceClearStuckJob(activeJobId); }}
+                      <ToolbarPopoverItem danger onClick={ => { close; forceClearStuckJob(activeJobId); }}
                         hint="백그라운드 동기화가 멈췄을 때 눌러 초기화 · 다시 시도할 수 있습니다">
                         동기화 취소
-                      </ToolbarPopoverItem>
-                    )}
-                  </>
-                )}
+                      </ToolbarPopoverItem>)}
+                  </>)}
               </ToolbarPopover>
       </div>)}
 
       {/* 프로젝트 짝 제안 — 발행 완료 건 ↔ 딜 (2026-08-13). 제안은 자동, 확정은 사람 */}
       {dealSuggest && (
         <DealSuggestPopup invoice={dealSuggest} deals={dealsForLink as any[]}
-          onClose={() => setDealSuggest(null)}
-          onDone={() => {
+          onClose={ => setDealSuggest(null)}
+          onDone={ => {
             setDealSuggest(null);
             invalidateTaxInvoiceReaders(queryClient); // 원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
-          }} />
-      )}
+          }} />)}
 
       {/* 전송 전 확인 — 빠진 받는 쪽 정보를 채우고 보낸다 (2026-08-13, 4단계) */}
       {issueConfirm && (
         <IssueConfirmModal invoices={issueConfirm} partners={partners as any[]} vatBiz={vatBiz}
-          onClose={() => setIssueConfirm(null)}
-          onDone={() => {
+          onClose={ => setIssueConfirm(null)}
+          onDone={ => {
             setIssueConfirm(null);
-            setSelectedIds(new Set());
+            setSelectedIds(new Set);
             invalidateTaxInvoiceReaders(queryClient); // 원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
-          }} />
-      )}
+          }} />)}
 
       {/* 일괄 전표처리 모달 — 선택된 세금계산서를 계정 1개로 일괄 기장(매출/매입 방향 자동) */}
       {showBulkVoucher && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowBulkVoucher(false)}>
-          <div className="tax-invoice-bulk-voucher-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={ => setShowBulkVoucher(false)}>
+          <div className="tax-invoice-bulk-voucher-modal" onClick={(e) => e.stopPropagation}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">일괄 전표처리</div>
               <div className="text-[11px] text-[var(--text-dim)] mt-0.5" title="이미 처리된 건은 건너뜁니다">선택 {selectedVoucherable.length}건을 한 계정으로 전표 생성합니다.</div>
@@ -2615,8 +2548,7 @@ function TaxInvoicesPageInner() {
                   className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]">
                   <option value="">계정 선택</option>
                   {(coaAccounts as any[]).map((a) => (
-                    <option key={a.id} value={a.id}>{a.name} ({a.code})</option>
-                  ))}
+                    <option key={a.id} value={a.id}>{a.name} ({a.code})</option>))}
                 </select>
               </div>
               <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-[10px] text-amber-600 leading-relaxed" title="매입은 차변 비용과 부가세대급금, 대변 외상매입금으로, 매출은 차변 외상매출금, 대변 수익과 부가세예수금으로 자동 기장됩니다">
@@ -2624,45 +2556,42 @@ function TaxInvoicesPageInner() {
               </div>
             </div>
             <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
-              <button onClick={() => setShowBulkVoucher(false)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
+              <button onClick={ => setShowBulkVoucher(false)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
               <button onClick={handleBulkVoucher} disabled={bulkVoucherPosting || !bulkVoucherAccountId}
                 className="btn-primary btn-sm">
                 {bulkVoucherPosting ? "처리 중..." : `${selectedVoucherable.length}건 전표 생성`}
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </div>)}
 
       {/* Invoice Detail Modal */}
       {selectedInvoice && (
         // 목록에서 같은 id 의 최신 행을 우선 — 상세 보강(주소·이메일)이 끝나면 열려 있는 모달도 바로 갱신된다.
-        // (열 때의 스냅샷만 쓰면 보강 결과가 화면에 반영되지 않았다 — 2026-08-05)
+        // (열 때의 스냅샷만 쓰면 보강 결과가 화면에 반영되지 않았다)
         <InvoiceDetailModal
           invoice={(invoices as any[]).find((r: any) => r.id === selectedInvoice.id) || selectedInvoice}
           companyInfo={companyInfo}
           partners={partners}
           issuanceStatus={issuanceStatus}
           deals={dealsForLink}
-          onClose={() => setSelectedInvoice(null)}
+          onClose={ => setSelectedInvoice(null)}
           onModify={(inv: any) => {
             setSelectedInvoice(null);
             setModifyTarget(inv);
             setModifyReason("");
             setShowModifyModal(true);
           }}
-        />
-      )}
+        />)}
 
       {/* 거래매칭 — 통장 입출금 거래 인라인 연결 팝업 */}
       {linkInvoice && companyId && (
         <LinkTxPopup
           invoice={linkInvoice}
           companyId={companyId}
-          onClose={() => setLinkInvoice(null)}
-          onDone={() => { invalidate(); setLinkInvoice(null); }}
-        />
-      )}
+          onClose={ => setLinkInvoice(null)}
+          onDone={ => { invalidate; setLinkInvoice(null); }}
+        />)}
 
       {/* Modification Modal */}
       {showModifyModal && modifyTarget && (
@@ -2672,15 +2601,15 @@ function TaxInvoicesPageInner() {
           setReason={setModifyReason}
           modifyAmount={modifyAmount}
           setModifyAmount={setModifyAmount}
-          onClose={() => { setShowModifyModal(false); setModifyTarget(null); setModifyAmount(""); }}
-          onSubmit={async () => {
+          onClose={ => { setShowModifyModal(false); setModifyTarget(null); setModifyAmount(""); }}
+          onSubmit={async  => {
             try {
               await modifyTaxInvoice({
                 invoiceId: modifyTarget.id,
                 reason: modifyReason,
                 newSupplyAmount: modifyAmount ? Number(modifyAmount) : undefined,
               });
-              invalidate();
+              invalidate;
               setShowModifyModal(false);
               setModifyTarget(null);
               setModifyAmount("");
@@ -2690,8 +2619,7 @@ function TaxInvoicesPageInner() {
               toast(`오류: ${friendlyError(err, '수정세금계산서 생성 실패')}`, "error");
             }
           }}
-        />
-      )}
+        />)}
 
       {/* Queue Tab (자동발행 대기) */}
       {false && (
@@ -2704,14 +2632,12 @@ function TaxInvoicesPageInner() {
           </div>
 
           {queueLoading ? (
-            <div className="p-16 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
-          ) : queueItems.length === 0 ? (
+            <div className="p-16 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>) : queueItems.length === 0 ? (
             <div className="glass-card py-16 px-6 text-center">
               <div className="empty-state-icon mx-auto"><Ico e="⚡" /></div>
               <div className="text-base font-semibold mb-1.5">대기 중인 자동발행 없음</div>
               <div className="text-xs text-[var(--text-muted)]">프로젝트의 매출 스케줄이 확정되면 여기에 표시됩니다</div>
-            </div>
-          ) : (
+            </div>) : (
             <div className="glass-card overflow-hidden">
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
                 <thead>
@@ -2758,25 +2684,21 @@ function TaxInvoicesPageInner() {
                         <td className="px-5 py-3 text-center">
                           {q.status === 'needs_approval' && userId && (
                             <button
-                              onClick={async () => {
+                              onClick={async  => {
                                 await approveQueueItem(q.id, userId);
                                 queryClient.invalidateQueries({ queryKey: ["invoice-queue"] });
                               }}
                               className="px-3 py-1 bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-lg text-xs font-semibold transition"
                             >
                               승인
-                            </button>
-                          )}
+                            </button>)}
                         </td>
-                      </tr>
-                    );
+                      </tr>);
                   })}
                 </tbody>
               </table></div>
-            </div>
-          )}
-        </div>
-      )}
+            </div>)}
+        </div>)}
 
       {/* Sync Tab (홈택스 동기화) */}
       {false && (
@@ -2812,8 +2734,7 @@ function TaxInvoicesPageInner() {
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            </div>)}
 
           {/* 연결됨 + 첫 동기화 전 — 시작 안내 */}
           {isHometaxConnected && syncLogs.length === 0 && invoices.length === 0 && (
@@ -2832,8 +2753,7 @@ function TaxInvoicesPageInner() {
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            </div>)}
 
           <div className="glass-card p-5">
             <div className="flex items-center justify-between mb-4">
@@ -2841,10 +2761,8 @@ function TaxInvoicesPageInner() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold">홈택스 세금계산서 동기화</span>
                   {isHometaxConnected ? (
-                    <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-500 text-[10px] font-semibold border border-green-500/30">연결됨</span>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)] text-[10px] font-semibold border border-[var(--border)]">미연결</span>
-                  )}
+                    <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-500 text-[10px] font-semibold border border-green-500/30">연결됨</span>) : (
+                    <span className="px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)] text-[10px] font-semibold border border-[var(--border)]">미연결</span>)}
                 </div>
                 <div className="text-xs text-[var(--text-muted)] mt-1">
                   설정 &gt; 은행연동에 등록된 홈택스 인증정보로 매출/매입 세금계산서를 자동 조회합니다
@@ -2869,8 +2787,7 @@ function TaxInvoicesPageInner() {
                   <div className="text-xs font-bold">{step.title}</div>
                   <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{step.desc}</div>
                   {i < 3 && <div className="hidden sm:block absolute right-[-10px] top-1/2 -translate-y-1/2 text-[var(--text-dim)]">→</div>}
-                </div>
-              ))}
+                </div>))}
             </div>
           </div>
 
@@ -2884,8 +2801,7 @@ function TaxInvoicesPageInner() {
                 <div className="text-4xl mb-3"><Ico e="🔄" /></div>
                 <div className="text-sm font-semibold text-[var(--text)]">아직 동기화 이력이 없습니다</div>
                 <div className="text-xs text-[var(--text-muted)] mt-1">상단의 홈택스에서 가져오기 버튼으로 첫 동기화를 실행하세요</div>
-              </div>
-            ) : (
+              </div>) : (
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
                 <thead>
                   <tr className="table-head-row">
@@ -2916,22 +2832,19 @@ function TaxInvoicesPageInner() {
                       <td className="px-5 py-2 text-right font-bold text-green-400">{log.invoices_created || 0}</td>
                       <td className="px-5 py-2 text-[var(--text-dim)]">{log.completed_at ? new Date(log.completed_at).toLocaleString('ko') : '—'}</td>
                       <td className="px-5 py-2 text-red-400 truncate max-w-[150px]">{log.error_message || '—'}</td>
-                    </tr>
-                  ))}
+                    </tr>))}
                 </tbody>
-              </table></div>
-            )}
+              </table></div>)}
           </div>
-        </div>
-      )}
+        </div>)}
 
       {/* 계약 상세 팝업 모달 */}
       {matchDealPopup && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setMatchDealPopup(null)}>
-          <div className="tax-invoice-deal-match-popup glass-card" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={ => setMatchDealPopup(null)}>
+          <div className="tax-invoice-deal-match-popup glass-card" onClick={(e) => e.stopPropagation}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
               <h3 className="text-sm font-bold">계약 ↔ 세금계산서 매칭 상세</h3>
-              <button onClick={() => setMatchDealPopup(null)} className="text-[var(--text-muted)] hover:text-[var(--text)] text-lg">&times;</button>
+              <button onClick={ => setMatchDealPopup(null)} className="text-[var(--text-muted)] hover:text-[var(--text)] text-lg">&times;</button>
             </div>
             <div className="px-5 py-4 space-y-4">
               <div>
@@ -2974,15 +2887,13 @@ function TaxInvoicesPageInner() {
               <Link href="/projects" className="flex-1 px-3 py-2 bg-[var(--bg-surface)] text-[var(--text-muted)] rounded-lg text-xs text-center hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition">
                 프로젝트 페이지로 이동
               </Link>
-              <button onClick={() => setMatchDealPopup(null)} className="flex-1 btn-primary btn-sm">
+              <button onClick={ => setMatchDealPopup(null)} className="flex-1 btn-primary btn-sm">
                 닫기
               </button>
             </div>
           </div>
-        </div>
-      )}
-    </div>
-  );
+        </div>)}
+    </div>);
 }
 
 // ── 부가세 · 기간별 집계는 **분석(/reports/vat)** 으로 옮겼다.
@@ -2992,15 +2903,15 @@ function TaxInvoicesPageInner() {
 // ── 통장 거래 인라인 연결 팝업 (거래매칭) ──
 // 목록의 '연결' 버튼 → 금액(±10%)·거래처가 맞는 미연결 입출금 거래를 골라 즉시 연결.
 // bank_transactions.tax_invoice_id 로 매칭(three-way-match 재사용). 매출=입금, 매입=출금 대응.
-function LinkTxPopup({ invoice, companyId, onClose, onDone }: { invoice: any; companyId: string; onClose: () => void; onDone: () => void }) {
-  const { toast } = useToast();
+function LinkTxPopup({ invoice, companyId, onClose, onDone }: { invoice: any; companyId: string; onClose:  => void; onDone:  => void }) {
+  const { toast } = useToast;
   const isSales = invoice.type === "sales";
   const isMatched = invoice.status === "matched" || ["partial", "settled"].includes(String(invoice.settlement_status || ""));
   const [busy, setBusy] = useState(false);
 
   const { data: candidates = [], isLoading } = useQuery({
     queryKey: ["tx-link-candidates", invoice.id],
-    queryFn: () => getThreeWayCandidates(companyId, {
+    queryFn:  => getThreeWayCandidates(companyId, {
       id: invoice.id, type: invoice.type, counterparty_name: invoice.counterparty_name,
       total_amount: Number(invoice.total_amount || 0), supply_amount: Number(invoice.supply_amount || 0),
       issue_date: invoice.issue_date, status: invoice.status, partner_id: invoice.partner_id ?? null,
@@ -3011,11 +2922,11 @@ function LinkTxPopup({ invoice, companyId, onClose, onDone }: { invoice: any; co
   // 이미 연결된 경우 · 현재 연결 거래 조회(해제용)
   const { data: linkedTx } = useQuery({
     queryKey: ["tx-linked", invoice.id],
-    queryFn: async () => {
+    queryFn: async  => {
       const data = logRead('tax-invoices/page:data', await (supabase)
         .from("bank_transactions")
         .select("id, counterparty, amount, transaction_date, description, memo")
-        .eq("company_id", companyId).eq("tax_invoice_id", invoice.id).limit(1).maybeSingle());
+        .eq("company_id", companyId).eq("tax_invoice_id", invoice.id).limit(1).maybeSingle);
       return data;
     },
     enabled: isMatched,
@@ -3026,27 +2937,27 @@ function LinkTxPopup({ invoice, companyId, onClose, onDone }: { invoice: any; co
     try {
       await confirmThreeWayMatch(bankTxId, invoice.id);
       toast("통장 거래에 연결했습니다", "success");
-      onDone();
+      onDone;
     } catch (e: any) { toast(friendlyError(e, "연결 실패"), "error"); setBusy(false); }
   };
-  const doUnlink = async () => {
+  const doUnlink = async  => {
     if (!linkedTx) return;
     setBusy(true);
     try {
       await unmatchInvoice(linkedTx.id, invoice.id);
       toast("연결을 해제했습니다", "success");
-      onDone();
+      onDone;
     } catch (e: any) { toast(friendlyError(e, "해제 실패"), "error"); setBusy(false); }
   };
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="tax-invoice-link-tx-popup glass-card" onClick={(e) => e.stopPropagation()}>
+      <div className="tax-invoice-link-tx-popup glass-card" onClick={(e) => e.stopPropagation}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
           <div className="min-w-0">
             <div className="text-sm font-bold">통장 거래 연결</div>
             <div className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate">
-              {invoice.counterparty_name} · ₩{Number(invoice.total_amount || 0).toLocaleString()} · {invoice.issue_date} · {isSales ? "입금" : "출금"} 대응
+              {invoice.counterparty_name} · ₩{Number(invoice.total_amount || 0).toLocaleString} · {invoice.issue_date} · {isSales ? "입금" : "출금"} 대응
             </div>
           </div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl shrink-0">&times;</button>
@@ -3056,33 +2967,26 @@ function LinkTxPopup({ invoice, companyId, onClose, onDone }: { invoice: any; co
             linkedTx ? (
               <div className="rounded-xl border border-green-500/30 bg-green-500/8 p-3">
                 <div className="text-[11px] text-green-600 font-semibold mb-1">✓ 연결된 거래</div>
-                <div className="text-sm text-[var(--text)]">{linkedTx.counterparty || "(상대 미상)"} · ₩{Number(linkedTx.amount || 0).toLocaleString()}</div>
+                <div className="text-sm text-[var(--text)]">{linkedTx.counterparty || "(상대 미상)"} · ₩{Number(linkedTx.amount || 0).toLocaleString}</div>
                 <div className="text-[11px] text-[var(--text-muted)]">{linkedTx.transaction_date} · {linkedTx.description || linkedTx.memo || ""}</div>
                 <button onClick={doUnlink} disabled={busy} className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/10 text-red-500 hover:bg-red-500/20 disabled:opacity-50">연결 해제</button>
-              </div>
-            ) : (
-              <div className="text-xs text-[var(--text-muted)] py-6 text-center">연결된 거래를 찾을 수 없습니다.</div>
-            )
-          ) : isLoading ? (
-            <div className="text-xs text-[var(--text-muted)] py-8 text-center">후보 거래 조회 중...</div>
-          ) : candidates.length === 0 ? (
+              </div>) : (
+              <div className="text-xs text-[var(--text-muted)] py-6 text-center">연결된 거래를 찾을 수 없습니다.</div>)) : isLoading ? (
+            <div className="text-xs text-[var(--text-muted)] py-8 text-center">후보 거래 조회 중...</div>) : candidates.length === 0 ? (
             <div className="text-xs text-[var(--text-muted)] py-8 text-center leading-relaxed">
               아직 연결할 {isSales ? "입금" : "출금"} 거래가 없습니다.<br />통장 연동 후 다시 시도하세요.
-            </div>
-          ) : candidates.map((c: any) => (
+            </div>) : candidates.map((c: any) => (
             <div key={c.bankTxId} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] px-3 py-2.5 hover:border-[var(--primary)]/40 transition">
               <div className="min-w-0">
-                <div className="text-sm font-semibold text-[var(--text)] truncate">{c.bankCounterparty || "(상대 미상)"} · ₩{Number(c.bankAmount || 0).toLocaleString()}</div>
+                <div className="text-sm font-semibold text-[var(--text)] truncate">{c.bankCounterparty || "(상대 미상)"} · ₩{Number(c.bankAmount || 0).toLocaleString}</div>
                 <div className="text-[11px] text-[var(--text-muted)] truncate">{c.bankDate} · {c.reasons.join(" · ")}</div>
               </div>
-              <button onClick={() => doLink(c.bankTxId)} disabled={busy}
+              <button onClick={ => doLink(c.bankTxId)} disabled={busy}
                 className="shrink-0 btn-primary btn-sm">연결</button>
-            </div>
-          ))}
+            </div>))}
         </div>
       </div>
-    </div>
-  );
+    </div>);
 }
 
 
@@ -3093,10 +2997,10 @@ function LinkTxPopup({ invoice, companyId, onClose, onDone }: { invoice: any; co
 // 새로고침하면 초기화되므로 상품 승인 후엔 자동으로 다시 시도된다.
 const detailBlockedRef = { blocked: false, reason: "" };
 
-function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceStatus, onClose, onModify }: { invoice: any; companyInfo?: any; partners?: any[]; deals?: any[]; issuanceStatus?: { limit: number | null; used: number; remaining: number | null; planName: string | null }; onClose: () => void; onModify: (inv: any) => void }) {
+function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceStatus, onClose, onModify }: { invoice: any; companyInfo?: any; partners?: any[]; deals?: any[]; issuanceStatus?: { limit: number | null; used: number; remaining: number | null; planName: string | null }; onClose:  => void; onModify: (inv: any) => void }) {
   const issuanceLimitReached = !!issuanceStatus && issuanceStatus.limit !== null && (issuanceStatus.remaining ?? 0) <= 0;
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const { toast } = useToast;
+  const queryClient = useQueryClient;
   const inv = invoice;
   const supplyAmt = Number(inv.supply_amount || 0);
   const taxAmt = Number(inv.tax_amount || 0);
@@ -3110,7 +3014,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
   // detail_fetched_at 이 찍힌 건은 다시 부르지 않는다(건당 과금 + 기관 IP 차단 경고).
   const [detailLoading, setDetailLoading] = useState(false);
   const detailTriedRef = useRef<string | null>(null);
-  useEffect(() => {
+  useEffect( => {
     const id = invoice?.id;
     // 2026-08-05 재확인: 사업장 주소·이메일은 홈택스 **목록** 응답에 이미 들어 있고 동기화가 저장한다.
     // (종전엔 필드명을 잘못 읽어 비어 보였을 뿐) → 유료·미승인인 상세 API 를 자동 호출할 이유가 없다.
@@ -3124,17 +3028,17 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
     if (detailBlockedRef.blocked) return;
     detailTriedRef.current = id;
     let alive = true;
-    (async () => {
+    (async  => {
       setDetailLoading(true);
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession;
         if (!session) return;
         const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/codef-sync`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
           body: JSON.stringify({ companyId: invoice.company_id, action: 'hometax-invoice-detail', invoiceId: id }),
         });
-        const json = await res.json().catch(() => ({}));
+        const json = await res.json.catch( => ({}));
         if (alive && res.ok && json?.ok && json.invoice) {
           // 목록 캐시를 갱신하면 열려 있는 상세도 새 값으로 다시 그려진다
           // (키가 "tax-invoices" 가 아니라 "tax-invoices-full" 이라 종전엔 갱신이 안 됐다)
@@ -3151,8 +3055,8 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
         }
       } catch { /* 보강 실패는 조용히 — 기존 표시(명부 폴백) 유지 */ }
       finally { if (alive) setDetailLoading(false); }
-    })();
-    return () => { alive = false; };
+    });
+    return  => { alive = false; };
   }, [invoice?.id, invoice?.detail_fetched_at, invoice?.nts_confirm_no, invoice?.company_id, queryClient]);
   const [registerLoading, setRegisterLoading] = useState(false);
   const [emailTo, setEmailTo] = useState('');
@@ -3171,9 +3075,9 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
   // 매출: 공급자=우리회사, 공급받는자=거래처. 매입: 반대.
   const isSales = inv.type === 'sales';
   const issuedToNts = !!inv.nts_confirm_no || inv.nts_issue_status === 'issued'; // 전송됨 — 승인번호는 다음 영업일에 붙는다
-  // 직원 QA 세금계산서2 — 사업자번호 XXX-XX-XXXXX 포맷 + 상호 "+"(공백 인코딩) → 공백 정규화
+  // 세금계산서2 — 사업자번호 XXX-XX-XXXXX 포맷 + 상호 "+"(공백 인코딩) → 공백 정규화
   const fmtBizNo = (b: string) => { const d = (b || '').replace(/[^0-9]/g, ''); return d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}` : (b || ''); };
-  const cleanNm = (s: string) => (s || '').replace(/\+/g, ' ').trim();
+  const cleanNm = (s: string) => (s || '').replace(/\+/g, ' ').trim;
   // 거래처 정보 보강: FK 조인(inv.partners)이 없으면(홈택스 동기화 건은 partner_id=null 다수)
   // 사업자번호로 거래처 명부에서 찾아 대표자명·업태·종목·이메일·주소를 복원한다.
   const cpBizDigits = (inv.counterparty_bizno || '').replace(/[^0-9]/g, '');
@@ -3216,14 +3120,14 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
   const docTitle = issuedToNts ? baseTitle : `미전송 ${baseTitle}`;
   // 영수/청구 · 홈택스 전자계산서 데이터엔 없는 필드(종이계산서 잔재)라 자동으론 못 불러옴.
   // label 앞 토큰("영수 |"/"청구 |")으로 보관하고, 상세에서 사용자가 직접 지정(수정 저장).
-  const [billedState, setBilledState] = useState<boolean>(() => !inv.label?.includes('영수'));
+  const [billedState, setBilledState] = useState<boolean>( => !inv.label?.includes('영수'));
   const [savingReceipt, setSavingReceipt] = useState(false);
   const isBilled = billedState; // true=청구, false=영수
   const setReceipt = async (billed: boolean) => {
     if (savingReceipt || billed === billedState) return;
     setSavingReceipt(true);
     const token = billed ? '청구' : '영수';
-    const rest = stripPurposeToken(inv.label) || (inv.item_name ? String(inv.item_name).replace(/\+/g, ' ').trim() : '');
+    const rest = stripPurposeToken(inv.label) || (inv.item_name ? String(inv.item_name).replace(/\+/g, ' ').trim : '');
     const newLabel = rest ? `${token} | ${rest}` : token;
     try {
       const { error } = await (supabase).from('tax_invoices').update({ label: newLabel }).eq('id', inv.id);
@@ -3238,9 +3142,9 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
     setSavingReceipt(false);
   };
 
-  const buildPdfParams = (): TaxInvoicePdfParams => ({
-    invoiceNumber: `TI-${inv.issue_date?.replace(/-/g, '').slice(0, 6)}-${inv.id.slice(0, 4).toUpperCase()}`,
-    issueDate: inv.issue_date || todayKst(),
+  const buildPdfParams = : TaxInvoicePdfParams => ({
+    invoiceNumber: `TI-${inv.issue_date?.replace(/-/g, '').slice(0, 6)}-${inv.id.slice(0, 4).toUpperCase}`,
+    issueDate: inv.issue_date || todayKst,
     type: inv.type,
     supplier: {
       name: supplier.name,
@@ -3262,7 +3166,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
     taxAmount: taxAmt,
     totalAmount: totalAmt,
     items: [{
-      date: inv.issue_date || todayKst(),
+      date: inv.issue_date || todayKst,
       name: inv.item_name || inv.label || '용역',
       spec: inv.item_spec || '-',
       qty: inv.item_quantity || 1,
@@ -3272,15 +3176,15 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
     }],
   });
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadPdf = async  => {
     setPdfLoading(true);
     try {
-      const blob = await generateTaxInvoicePdf(buildPdfParams());
+      const blob = await generateTaxInvoicePdf(buildPdfParams);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `세금계산서_${inv.counterparty_name}_${inv.issue_date}.pdf`;
-      a.click();
+      a.click;
       URL.revokeObjectURL(url);
       toast('PDF 다운로드 완료', 'success');
     } catch (err: any) {
@@ -3289,19 +3193,19 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
     setPdfLoading(false);
   };
 
-  const handleSendEmail = async () => {
+  const handleSendEmail = async  => {
     if (!emailTo) { toast('이메일 주소를 입력하세요', 'error'); return; }
     setEmailLoading(true);
     try {
       // Generate PDF blob → base64
-      const blob = await generateTaxInvoicePdf(buildPdfParams());
-      const buffer = await blob.arrayBuffer();
+      const blob = await generateTaxInvoicePdf(buildPdfParams);
+      const buffer = await blob.arrayBuffer;
       const bytes = new Uint8Array(buffer);
       let binary = '';
       for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
       const pdfBase64 = btoa(binary);
 
-      const invoiceNumber = `TI-${inv.issue_date?.replace(/-/g, '').slice(0, 6)}-${inv.id.slice(0, 4).toUpperCase()}`;
+      const invoiceNumber = `TI-${inv.issue_date?.replace(/-/g, '').slice(0, 6)}-${inv.id.slice(0, 4).toUpperCase}`;
       const res = await supabase.functions.invoke('send-tax-invoice-email', {
         body: {
           recipientEmail: emailTo,
@@ -3326,7 +3230,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
     setEmailLoading(false);
   };
 
-  const handleIssue = async () => {
+  const handleIssue = async  => {
     // 이미 국세청 발행(승인번호 보유)된 건만 차단. draft·내부발행(issued+미발행) 모두 실제 발행 시도 허용.
     if (inv.nts_confirm_no) { toast('이미 국세청에 발행된 세금계산서입니다.', 'error'); return; }
     setIssueLoading(true);
@@ -3336,7 +3240,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
       queryClient.invalidateQueries({ queryKey: ['tax-invoices'] });
       invalidateTaxInvoiceReaders(queryClient);
       queryClient.invalidateQueries({ queryKey: ['tax-invoice-issuance-status'] }); // 한도 칩 갱신 (2026-08-19)
-      onClose();
+      onClose;
     } catch (err: any) {
       toast(`발행 실패: ${err.message}${err.hint ? ' — ' + err.hint : ''}`, 'error');
     }
@@ -3346,7 +3250,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
   // 발행 등록(최초 1회): CODEF 제휴사 회원가입 + 공동인증서 등록 URL → 새 창
   // 주의: certURL 은 응답 후(await 이후) window.open 하면 브라우저가 "사용자 제스처 아님"으로 판단해 팝업을 무음 차단함
   // (30초 유효 URL이라 재시도도 못 함) → 클릭 즉시(동기) 빈 창을 먼저 열고, 응답이 오면 그 창을 이동시킨다.
-  const handleRegisterIssuer = async () => {
+  const handleRegisterIssuer = async  => {
     setRegisterLoading(true);
     const popup = window.open('', '_blank');
     if (popup) popup.document.write('<p style="font-family:sans-serif;padding:24px;color:#555">인증서 등록 페이지를 불러오는 중입니다…</p>');
@@ -3356,7 +3260,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
       else window.open(certURL, '_blank');
       toast(message || '인증서 등록 페이지를 열었습니다. 등록 후 다시 발행하세요.', 'success');
     } catch (err: any) {
-      popup?.close();
+      popup?.close;
       toast(`발행 등록 실패: ${err.message}`, 'error');
     }
     setRegisterLoading(false);
@@ -3367,12 +3271,11 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
     <div className="flex border-b last:border-b-0" style={{ borderColor: "#e6e6e6" }}>
       <div className={`${wide ? "w-[64px]" : "w-[64px]"} shrink-0 px-2 py-[5px] text-[10px] font-semibold flex items-center`} style={{ background: "#f6f6f6", color: "#555", borderRight: "1px solid #e6e6e6" }}>{label}</div>
       <div className={`flex-1 px-2 py-[5px] text-[11px] leading-snug ${mono ? "font-mono" : ""}`} style={{ color: "#1a1a1a" }}>{value || "—"}</div>
-    </div>
-  );
+    </div>);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="tax-invoice-detail-modal glass-card" onClick={(e) => e.stopPropagation()}>
+      <div className="tax-invoice-detail-modal glass-card" onClick={(e) => e.stopPropagation}>
         {/* Header (모달 크롬) */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
           <div className="flex items-center gap-3 flex-wrap">
@@ -3380,10 +3283,8 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
             <span className={`text-xs px-2 py-0.5 rounded-full ${sc.bg} ${sc.text}`}>{sc.label}</span>
             {/* 국세청 전송 여부 — nts_confirm_no 유무로 판정(status='issued'는 앱 내부 상태). */}
             {issuedToNts ? (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/15 text-green-600 font-semibold" title={`국세청 승인번호 ${inv.nts_confirm_no}`}>홈택스 전송완료</span>
-            ) : (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 font-semibold">홈택스 미전송</span>
-            )}
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/15 text-green-600 font-semibold" title={`국세청 승인번호 ${inv.nts_confirm_no}`}>홈택스 전송완료</span>) : (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 font-semibold">홈택스 미전송</span>)}
           </div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl transition">&times;</button>
         </div>
@@ -3401,8 +3302,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
               {detailLoading && (
                 <div className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-semibold animate-pulse" style={{ color: formColor }}>
                   홈택스에서 사업장·이메일 불러오는 중…
-                </div>
-              )}
+                </div>)}
             </div>
 
             {/* 승인번호 */}
@@ -3445,11 +3345,11 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
               </div>
               <div style={{ borderRight: "1px solid #ddd" }}>
                 <div className="text-[9px] py-1" style={{ background: "#f6f6f6", color: "#555", borderBottom: "1px solid #ddd" }}>공급가액</div>
-                <div className="text-[12px] font-bold py-1.5 font-mono">₩{supplyAmt.toLocaleString()}</div>
+                <div className="text-[12px] font-bold py-1.5 font-mono">₩{supplyAmt.toLocaleString}</div>
               </div>
               <div>
                 <div className="text-[9px] py-1" style={{ background: "#f6f6f6", color: "#555", borderBottom: "1px solid #ddd" }}>세액</div>
-                <div className="text-[12px] font-bold py-1.5 font-mono">₩{taxAmt.toLocaleString()}</div>
+                <div className="text-[12px] font-bold py-1.5 font-mono">₩{taxAmt.toLocaleString}</div>
               </div>
             </div>
 
@@ -3479,31 +3379,28 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
                           {it.spec && <span className="ml-1.5 text-[10px]" style={{ color: "#888" }}>{it.spec}</span>}
                         </td>
                         <td className="py-2 px-1 text-center font-mono" style={{ borderRight: "1px solid #eee" }}>{it.qty || 1}</td>
-                        <td className="py-2 px-2 text-right font-mono" style={{ borderRight: "1px solid #eee" }}>₩{Number(it.unitCost || 0).toLocaleString()}</td>
-                        <td className="py-2 px-2 text-right font-mono" style={{ borderRight: "1px solid #eee" }}>₩{lineSupply.toLocaleString()}</td>
-                        <td className="py-2 px-2 text-right font-mono">₩{(taxAmt !== 0 ? Math.round(lineSupply * 0.1) : 0).toLocaleString()}</td>
-                      </tr>
-                    );
-                  })
-                ) : (
+                        <td className="py-2 px-2 text-right font-mono" style={{ borderRight: "1px solid #eee" }}>₩{Number(it.unitCost || 0).toLocaleString}</td>
+                        <td className="py-2 px-2 text-right font-mono" style={{ borderRight: "1px solid #eee" }}>₩{lineSupply.toLocaleString}</td>
+                        <td className="py-2 px-2 text-right font-mono">₩{(taxAmt !== 0 ? Math.round(lineSupply * 0.1) : 0).toLocaleString}</td>
+                      </tr>);
+                  })) : (
                   <tr className="text-[11px]" style={{ color: "#1a1a1a" }}>
                     <td className="py-2 px-1 text-center font-mono" style={{ borderRight: "1px solid #eee" }}>{inv.issue_date?.slice(5) || "—"}</td>
                     <td className="py-2 px-2" style={{ borderRight: "1px solid #eee" }}>
                       {stripPurposeToken(inv.label) || (inv.item_name ? String(inv.item_name).replace(/\+/g, " ") : "") || EXPENSE_CATEGORIES.find((c: any) => c.value === inv.expense_category)?.label || "—"}
                     </td>
                     <td className="py-2 px-1 text-center font-mono" style={{ borderRight: "1px solid #eee" }}>{inv.item_quantity || 1}</td>
-                    <td className="py-2 px-2 text-right font-mono" style={{ borderRight: "1px solid #eee" }}>₩{Number(inv.item_unit_price || supplyAmt).toLocaleString()}</td>
-                    <td className="py-2 px-2 text-right font-mono" style={{ borderRight: "1px solid #eee" }}>₩{supplyAmt.toLocaleString()}</td>
-                    <td className="py-2 px-2 text-right font-mono">₩{taxAmt.toLocaleString()}</td>
-                  </tr>
-                )}
+                    <td className="py-2 px-2 text-right font-mono" style={{ borderRight: "1px solid #eee" }}>₩{Number(inv.item_unit_price || supplyAmt).toLocaleString}</td>
+                    <td className="py-2 px-2 text-right font-mono" style={{ borderRight: "1px solid #eee" }}>₩{supplyAmt.toLocaleString}</td>
+                    <td className="py-2 px-2 text-right font-mono">₩{taxAmt.toLocaleString}</td>
+                  </tr>)}
               </tbody>
             </table>
 
             {/* 합계금액 · 영수/청구 */}
             <div className="flex items-stretch text-[11px]" style={{ borderTop: "2px solid " + formColor }}>
               <div className="px-3 py-2 font-semibold flex items-center" style={{ background: "#f6f6f6", color: "#555", borderRight: "1px solid #ddd", width: "88px" }}>합계금액</div>
-              <div className="px-3 py-2 flex-1 font-black font-mono text-[14px] flex items-center" style={{ color: formColor }}>₩{totalAmt.toLocaleString()}</div>
+              <div className="px-3 py-2 flex-1 font-black font-mono text-[14px] flex items-center" style={{ color: formColor }}>₩{totalAmt.toLocaleString}</div>
               <div className="px-4 py-2 flex items-center gap-1.5 font-semibold" style={{ borderLeft: "1px solid #ddd", color: "#333" }}>
                 이 금액을
                 {/* 영수/청구 — 클릭해서 지정(홈택스 동기화 건은 이 필드가 없어 기본 '청구', 여기서 실제값으로 수정) */}
@@ -3513,14 +3410,14 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
                   <button
                     type="button"
                     disabled={savingReceipt}
-                    onClick={() => setReceipt(false)}
+                    onClick={ => setReceipt(false)}
                     className="px-2 py-0.5 text-[10px] font-bold transition disabled:opacity-50"
                     style={!isBilled ? { background: formColor, color: "#fff" } : { background: "#fff", color: "#999" }}
                   >영수</button>
                   <button
                     type="button"
                     disabled={savingReceipt}
-                    onClick={() => setReceipt(true)}
+                    onClick={ => setReceipt(true)}
                     className="px-2 py-0.5 text-[10px] font-bold transition disabled:opacity-50"
                     style={isBilled ? { background: formColor, color: "#fff" } : { background: "#fff", color: "#999" }}
                   >청구</button>
@@ -3553,8 +3450,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
               >
                 <option value="">미지정</option>
                 {(deals || []).map((d: any) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
+                  <option key={d.id} value={d.id}>{d.name}</option>))}
               </select>
             </span>
             <span className="inline-flex items-center gap-1.5">계정과목:
@@ -3575,8 +3471,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
                 title="매입 계산서에 계정과목을 지정하면 손익계산서에서 매출원가 대신 그 판관비 항목으로 반영됩니다"
               >
                 {EXPENSE_CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>{c.value === "" ? (inv.type === "purchase" ? "미지정 (매출원가)" : "미지정") : c.label}</option>
-                ))}
+                  <option key={c.value} value={c.value}>{c.value === "" ? (inv.type === "purchase" ? "미지정 (매출원가)" : "미지정") : c.label}</option>))}
               </select>
             </span>
           </div>
@@ -3609,10 +3504,8 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
                 {issuanceLimitReached && (
                   <div className="mt-2 text-[10px] text-amber-500" title="설정의 요금제에서 울트라로 업그레이드하면 무제한으로 발행할 수 있습니다">
                     {issuanceStatus?.planName || '현재 요금제'}는 월 {issuanceStatus?.limit}건까지 발행할 수 있습니다.
-                  </div>
-                )}
-              </div>
-            )}
+                  </div>)}
+              </div>)}
             <div className="flex items-center gap-2 flex-wrap">
               {inv.status === 'draft' && inv.type === 'sales' && (
                 <button
@@ -3622,8 +3515,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
                   className="btn-primary"
                 >
                   {issueLoading ? '발행 중...' : issuanceLimitReached ? '이번 달 발행 한도 소진' : '발행 처리'}
-                </button>
-              )}
+                </button>)}
               <button
                 onClick={handleDownloadPdf}
                 disabled={pdfLoading}
@@ -3632,13 +3524,13 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
                 {pdfLoading ? 'PDF 생성 중...' : 'PDF 다운로드'}
               </button>
               <button
-                onClick={() => setShowEmailForm(!showEmailForm)}
+                onClick={ => setShowEmailForm(!showEmailForm)}
                 className="px-4 py-2 bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-lg text-sm font-semibold transition"
               >
                 이메일 발송
               </button>
               {inv.type === 'sales' && (<button
-                onClick={() => onModify(inv)}
+                onClick={ => onModify(inv)}
                 disabled={!MODIFY_ISSUE_AVAILABLE}
                 title={MODIFY_ISSUE_AVAILABLE ? "수정세금계산서 만들기 · 초안 생성 후 목록에서 발행" : "국세청 연동 기관 승인 대기 중입니다. 곧 지원 예정입니다."}
                 className={
@@ -3650,7 +3542,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
                 수정세금계산서{MODIFY_ISSUE_AVAILABLE ? "" : " (업데이트 예정)"}
               </button>)}
               <button
-                onClick={() => { ensurePrintStyles(); window.print(); }}
+                onClick={ => { ensurePrintStyles; window.print; }}
                 className="px-4 py-2 bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-lg text-sm border border-[var(--border)] transition"
               >
                 인쇄
@@ -3680,18 +3572,16 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
                 >
                   {emailLoading ? '발송 중...' : 'PDF 첨부 발송'}
                 </button>
-              </div>
-            )}
+              </div>)}
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>);
 }
 
 // ── Modification Modal (수정세금계산서) ──
 function ModificationModal({ invoice, reason, setReason, modifyAmount, setModifyAmount, onClose, onSubmit }: {
-  invoice: any; reason: string; setReason: (r: string) => void; modifyAmount: string; setModifyAmount: (v: string) => void; onClose: () => void; onSubmit: () => void;
+  invoice: any; reason: string; setReason: (r: string) => void; modifyAmount: string; setModifyAmount: (v: string) => void; onClose:  => void; onSubmit:  => void;
 }) {
   const [submitting, setSubmitting] = useState(false);
 
@@ -3699,7 +3589,7 @@ function ModificationModal({ invoice, reason, setReason, modifyAmount, setModify
   if (!MODIFY_ISSUE_AVAILABLE) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-        <div className="tax-invoice-modification-modal glass-card" onClick={(e) => e.stopPropagation()}>
+        <div className="tax-invoice-modification-modal glass-card" onClick={(e) => e.stopPropagation}>
           <div className="px-6 py-4 border-b border-[var(--border)]">
             <h3 className="text-sm font-bold">수정세금계산서<span className="ui-sub">업데이트 예정</span></h3>
           </div>
@@ -3715,17 +3605,16 @@ function ModificationModal({ invoice, reason, setReason, modifyAmount, setModify
             <button onClick={onClose} className="btn-primary btn-sm">확인</button>
           </div>
         </div>
-      </div>
-    );
+      </div>);
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="tax-invoice-modification-modal glass-card" onClick={(e) => e.stopPropagation()}>
+      <div className="tax-invoice-modification-modal glass-card" onClick={(e) => e.stopPropagation}>
         <div className="px-6 py-4 border-b border-[var(--border)]">
           <h3 className="text-sm font-bold">수정세금계산서 만들기</h3>
           <p className="text-xs text-[var(--text-muted)] mt-1">
-            원본: {invoice.counterparty_name} · ₩{Number(invoice.total_amount).toLocaleString()} · {invoice.issue_date}
+            원본: {invoice.counterparty_name} · ₩{Number(invoice.total_amount).toLocaleString} · {invoice.issue_date}
           </p>
         </div>
         <div className="p-6 space-y-4">
@@ -3762,15 +3651,14 @@ function ModificationModal({ invoice, reason, setReason, modifyAmount, setModify
                     name="modifyReason"
                     value={r.value}
                     checked={reason === r.value}
-                    onChange={() => setReason(r.value)}
+                    onChange={ => setReason(r.value)}
                     className="mt-0.5 accent-[var(--primary)]"
                   />
                   <div>
                     <div className="text-sm font-semibold">{r.label}</div>
                     <div className="text-xs text-[var(--text-muted)] mt-0.5">{r.desc}</div>
                   </div>
-                </label>
-              ))}
+                </label>))}
             </div>
           </div>
 
@@ -3783,17 +3671,16 @@ function ModificationModal({ invoice, reason, setReason, modifyAmount, setModify
               <CurrencyInput
                 value={modifyAmount}
                 onValueChange={(raw) => setModifyAmount(raw)}
-                placeholder={`현재: ${Number(invoice.supply_amount).toLocaleString()}`}
+                placeholder={`현재: ${Number(invoice.supply_amount).toLocaleString}`}
                 className="field-input"
               />
-            </div>
-          )}
+            </div>)}
 
           <div className="flex gap-2 pt-2">
             <button
-              onClick={async () => {
+              onClick={async  => {
                 setSubmitting(true);
-                try { await onSubmit(); } finally { setSubmitting(false); }
+                try { await onSubmit; } finally { setSubmitting(false); }
               }}
               disabled={!reason || submitting || (reason === "price_change" && !modifyAmount)}
               className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition"
@@ -3809,8 +3696,7 @@ function ModificationModal({ invoice, reason, setReason, modifyAmount, setModify
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>);
 }
 
 /**
@@ -3825,13 +3711,13 @@ function ModificationModal({ invoice, reason, setReason, modifyAmount, setModify
  * 후보가 없거나 틀리면 아래 검색으로 전체 목록에서 찾는다.
  */
 function DealSuggestPopup({ invoice, deals, onClose, onDone }: {
-  invoice: any; deals: any[]; onClose: () => void; onDone: () => void;
+  invoice: any; deals: any[]; onClose:  => void; onDone:  => void;
 }) {
-  const { toast } = useToast();
+  const { toast } = useToast;
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState("");
 
-  const name = String(invoice.counterparty_name || "").trim();
+  const name = String(invoice.counterparty_name || "").trim;
   const supply = Number(invoice.supply_amount || 0);
   const scored = deals.map((d) => {
     const why: string[] = [];
@@ -3843,8 +3729,8 @@ function DealSuggestPopup({ invoice, deals, onClose, onDone }: {
     return { d, score, why };
   });
   const suggested = scored.filter((x) => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 8);
-  const searched = q.trim()
-    ? deals.filter((d) => String(d.name || "").toLowerCase().includes(q.trim().toLowerCase())).slice(0, 20)
+  const searched = q.trim
+    ? deals.filter((d) => String(d.name || "").toLowerCase.includes(q.trim.toLowerCase)).slice(0, 20)
     : [];
   const current = invoice.deal_id ? deals.find((d) => d.id === invoice.deal_id) : null;
 
@@ -3855,7 +3741,7 @@ function DealSuggestPopup({ invoice, deals, onClose, onDone }: {
       const { error } = await (supabase).from("tax_invoices").update({ deal_id: dealId } as never).eq("id", invoice.id);
       if (error) throw error;
       toast(dealId ? "프로젝트에 연결했습니다" : "프로젝트 연결을 해제했습니다", "success");
-      onDone();
+      onDone;
     } catch (e: any) {
       toast(friendlyError(e, "연결 실패"), "error");
       setBusy(false);
@@ -3866,16 +3752,14 @@ function DealSuggestPopup({ invoice, deals, onClose, onDone }: {
     <div key={d.id} className="ti-deal-row">
       <span className="ti-deal-name">{d.name}</span>
       {Number(d.contract_total || 0) > 0 && (
-        <span className="mono-number ev-dim">계약 ₩{Number(d.contract_total).toLocaleString("ko")}</span>
-      )}
+        <span className="mono-number ev-dim">계약 ₩{Number(d.contract_total).toLocaleString("ko")}</span>)}
       {why.map((w) => <span key={w} className="ti-deal-why">{w}</span>)}
-      <button type="button" className="btn-primary btn-sm ml-auto" disabled={busy} onClick={() => link(d.id)}>연결</button>
-    </div>
-  );
+      <button type="button" className="btn-primary btn-sm ml-auto" disabled={busy} onClick={ => link(d.id)}>연결</button>
+    </div>);
 
   return (
     <div className="ti-cfm-overlay" onClick={onClose}>
-      <div className="ti-cfm ti-deal" onClick={(e) => e.stopPropagation()}>
+      <div className="ti-cfm ti-deal" onClick={(e) => e.stopPropagation}>
         <div className="ti-cfm-head">
           <b>프로젝트 짝 찾기 — {name || "거래처 없음"} · ₩{Number(invoice.total_amount || 0).toLocaleString("ko")}</b>
           <span>제안 중에서 연결할 프로젝트를 고릅니다.</span>
@@ -3884,32 +3768,28 @@ function DealSuggestPopup({ invoice, deals, onClose, onDone }: {
           {current && (
             <div className="ti-deal-current">
               지금 연결: <b>{current.name}</b>
-              <button type="button" className="btn-secondary btn-sm ml-auto" disabled={busy} onClick={() => link(null)}>해제</button>
-            </div>
-          )}
+              <button type="button" className="btn-secondary btn-sm ml-auto" disabled={busy} onClick={ => link(null)}>해제</button>
+            </div>)}
           {suggested.length > 0 ? (
             <>
               <div className="ti-deal-sect">제안 <i>장부 대조</i></div>
               {suggested.map((x) => row(x.d, x.why))}
-            </>
-          ) : (
+            </>) : (
             <div className="ti-deal-none">
               아직 제안할 프로젝트가 없습니다. 아래 검색으로 직접 찾아 연결하세요.
-            </div>
-          )}
+            </div>)}
           <div className="ti-deal-sect">직접 찾기</div>
           <input className="qk-input w-full" value={q} placeholder="프로젝트 이름 일부"
             onChange={(e) => setQ(e.target.value)} />
           {searched.map((d) => row(d, []))}
-          {q.trim() && searched.length === 0 && <div className="ti-deal-none">&quot;{q.trim()}&quot;이 들어간 프로젝트가 없습니다.</div>}
+          {q.trim && searched.length === 0 && <div className="ti-deal-none">&quot;{q.trim}&quot;이 들어간 프로젝트가 없습니다.</div>}
         </div>
         <div className="ti-cfm-foot">
           <span className="flex-1" />
           <button type="button" className="btn-secondary btn-sm" onClick={onClose}>닫기</button>
         </div>
       </div>
-    </div>
-  );
+    </div>);
 }
 
 /**
@@ -3925,9 +3805,9 @@ function DealSuggestPopup({ invoice, deals, onClose, onDone }: {
  */
 function IssueConfirmModal({ invoices, partners, vatBiz, onDone, onClose }: {
   invoices: any[]; partners: any[]; vatBiz: VatBusinessType;
-  onDone: () => void; onClose: () => void;
+  onDone:  => void; onClose:  => void;
 }) {
-  const { toast } = useToast();
+  const { toast } = useToast;
   const [sending, setSending] = useState(false);
   const [savePartner, setSavePartner] = useState(true);
   // 빠진 칸에 쳐 넣은 값 · { 계산서 id: { 칸: 값 } }
@@ -3950,13 +3830,13 @@ function IssueConfirmModal({ invoices, partners, vatBiz, onDone, onClose }: {
     const p = partners.find((x: any) => x.id === inv.partner_id);
     const eff: Record<string, string> = {};
     for (const f of FIELDS) eff[f.k] = edits[inv.id]?.[f.k] ?? (inv[f.invCol] || p?.[f.pCol] || "");
-    const missing = FIELDS.filter((f) => !String(eff[f.k]).trim());
+    const missing = FIELDS.filter((f) => !String(eff[f.k]).trim);
     const kindBlocked = taxKindBlockedReason(vatBiz, (inv.tax_kind || "taxable") as TaxKind);
-    return { inv, p, eff, missing, kindBlocked, canSend: !kindBlocked && !!String(eff.bizno).trim() };
+    return { inv, p, eff, missing, kindBlocked, canSend: !kindBlocked && !!String(eff.bizno).trim };
   });
   const sendable = rows.filter((r) => r.canSend);
 
-  const send = async () => {
+  const send = async  => {
     if (sending || sendable.length === 0) return;
     setSending(true);
     let ok = 0, fail = 0, firstHint = "";
@@ -3966,7 +3846,7 @@ function IssueConfirmModal({ invoices, partners, vatBiz, onDone, onClose }: {
         // ① 채워 넣은 칸을 계산서 행에 저장 — 발행 엣지가 이 값을 먼저 읽는다
         const patch: Record<string, string> = {};
         for (const f of FIELDS) {
-          const v = String(edits[r.inv.id]?.[f.k] ?? "").trim();
+          const v = String(edits[r.inv.id]?.[f.k] ?? "").trim;
           if (v && v !== String(r.inv[f.invCol] || "")) patch[f.invCol] = v;
         }
         if (Object.keys(patch).length > 0) {
@@ -3977,8 +3857,8 @@ function IssueConfirmModal({ invoices, partners, vatBiz, onDone, onClose }: {
         if (savePartner && r.inv.partner_id) {
           const pPatch: Record<string, string> = {};
           for (const f of FIELDS) {
-            const v = String(edits[r.inv.id]?.[f.k] ?? "").trim();
-            if (v && !String(r.p?.[f.pCol] || "").trim()) pPatch[f.pCol] = v;
+            const v = String(edits[r.inv.id]?.[f.k] ?? "").trim;
+            if (v && !String(r.p?.[f.pCol] || "").trim) pPatch[f.pCol] = v;
           }
           if (Object.keys(pPatch).length > 0) {
             await supabase.from("partners").update(pPatch as never).eq("id", r.inv.partner_id);
@@ -4000,15 +3880,14 @@ function IssueConfirmModal({ invoices, partners, vatBiz, onDone, onClose }: {
     toast(
       fail === 0 ? `${ok}건을 홈택스로 보냈습니다`
         : `${ok}건 전송, ${fail}건 실패${firstHint ? " — " + firstHint : ""}`,
-      fail === 0 ? "success" : "error",
-    );
-    onDone();
+      fail === 0 ? "success" : "error",);
+    onDone;
   };
 
   const fmtWon = (n: unknown) => `₩${Math.round(Number(n) || 0).toLocaleString("ko")}`;
   return (
     <div className="ti-cfm-overlay" onClick={onClose}>
-      <div className="ti-cfm" onClick={(e) => e.stopPropagation()}>
+      <div className="ti-cfm" onClick={(e) => e.stopPropagation}>
         <div className="ti-cfm-head">
           <b>홈택스로 전송<span className="ui-sub">보내기 전에 확인</span></b>
           <span>보낸 뒤에는 수정세금계산서로만 고칠 수 있습니다.</span>
@@ -4021,14 +3900,10 @@ function IssueConfirmModal({ invoices, partners, vatBiz, onDone, onClose }: {
                 <span className="mono-number">{fmtWon(r.inv.total_amount)}</span>
                 <span className="ev-dim">{r.inv.issue_date}</span>
                 {r.kindBlocked ? (
-                  <span className="ti-cfm-block">{r.kindBlocked}</span>
-                ) : r.missing.length === 0 ? (
-                  <span className="ti-cfm-ok">✓ 받는 쪽 정보 갖춰짐</span>
-                ) : !r.canSend ? (
-                  <span className="ti-cfm-block">등록번호를 채워야 보낼 수 있습니다.</span>
-                ) : (
-                  <span className="ti-cfm-warn">빠진 칸 {r.missing.length}개 · 비워도 전송됩니다.</span>
-                )}
+                  <span className="ti-cfm-block">{r.kindBlocked}</span>) : r.missing.length === 0 ? (
+                  <span className="ti-cfm-ok">✓ 받는 쪽 정보 갖춰짐</span>) : !r.canSend ? (
+                  <span className="ti-cfm-block">등록번호를 채워야 보낼 수 있습니다.</span>) : (
+                  <span className="ti-cfm-warn">빠진 칸 {r.missing.length}개 · 비워도 전송됩니다.</span>)}
               </div>
               {r.missing.length > 0 && !r.kindBlocked && (
                 <div className="ti-cfm-fields">
@@ -4041,12 +3916,9 @@ function IssueConfirmModal({ invoices, partners, vatBiz, onDone, onClose }: {
                         placeholder={f.why || f.label}
                         onChange={(e) => setEdit(r.inv.id, f.k, e.target.value)}
                       />
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+                    </label>))}
+                </div>)}
+            </div>))}
         </div>
         <div className="ti-cfm-foot">
           <label className="ti-cfm-save" title="다음 발행부터 자동으로 채워집니다">
@@ -4061,7 +3933,6 @@ function IssueConfirmModal({ invoices, partners, vatBiz, onDone, onClose }: {
           </button>
         </div>
       </div>
-    </div>
-  );
+    </div>);
 }
 

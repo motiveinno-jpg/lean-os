@@ -64,15 +64,15 @@ async function buildSheetRows(companyId: string, t: LedgerExportTarget, yStart: 
   let bal = opening;
   let curMonth = "";
   let md = 0, mc = 0;
-  const pushMonthTotal = () => { if (curMonth) rows.push([curMonth, "[월계]", Math.round(md), Math.round(mc), ""]); };
+  const pushMonthTotal =  => { if (curMonth) rows.push([curMonth, "[월계]", Math.round(md), Math.round(mc), ""]); };
   for (const e of within) {
     const m = e.date.slice(0, 7);
-    if (m !== curMonth) { pushMonthTotal(); curMonth = m; md = 0; mc = 0; }
+    if (m !== curMonth) { pushMonthTotal; curMonth = m; md = 0; mc = 0; }
     bal += dir(e);
     md += e.debit; mc += e.credit;
     rows.push([e.date, e.desc, e.debit ? Math.round(e.debit) : "", e.credit ? Math.round(e.credit) : "", Math.round(bal)]);
   }
-  pushMonthTotal();
+  pushMonthTotal;
   rows.push(["", "[합계]",
     Math.round(within.reduce((s, e) => s + e.debit, 0)),
     Math.round(within.reduce((s, e) => s + e.credit, 0)),
@@ -82,7 +82,7 @@ async function buildSheetRows(companyId: string, t: LedgerExportTarget, yStart: 
 
 // Excel 시트명: 31자 제한 + 금지문자 치환 + 중복 뒤 (2)…
 function sheetName(name: string, used: Set<string>): string {
-  const base = (name || "미지정").replace(/[\\/*?:[\]]/g, " ").trim().slice(0, 28) || "거래처";
+  const base = (name || "미지정").replace(/[\\/*?:[\]]/g, " ").trim.slice(0, 28) || "거래처";
   let n = base; let i = 2;
   while (used.has(n)) n = `${base}(${i++})`.slice(0, 31);
   used.add(n);
@@ -94,11 +94,10 @@ export async function exportPartnerLedgersXlsx(
   targets: LedgerExportTarget[],
   yStart: string,
   yEnd: string,
-  tabLabel: string,
-): Promise<void> {
-  const wb = XLSX.utils.book_new();
-  const used = new Set<string>();
-  // 직원 QA B-11 — 이미지처럼 보기좋은 서식(제목·회색 헤더·테두리·우측정렬·천단위·합계 강조)
+  tabLabel: string,): Promise<void> {
+  const wb = XLSX.utils.book_new;
+  const used = new Set<string>;
+  // B-11 — 이미지처럼 보기좋은 서식(제목·회색 헤더·테두리·우측정렬·천단위·합계 강조)
   const B = { style: "thin", color: { rgb: "D5D9E5" } };
   const borders = { top: B, bottom: B, left: B, right: B };
   for (const t of targets) {

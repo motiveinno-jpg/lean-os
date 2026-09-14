@@ -54,7 +54,7 @@ const INITIAL_FORM = {
   amount: "",
   counterpartyName: "",
   counterpartyBizno: "",
-  issueDate: todayKst(),
+  issueDate: todayKst,
   approvalNumber: "",
   identityNumber: "",
   identityType: "phone" as "phone" | "bizno" | "card",
@@ -62,10 +62,10 @@ const INITIAL_FORM = {
   memo: "",
 };
 
-export default function CashReceiptsPage() {
-  const { toast } = useToast();
-  const { confirm: confirmDialog, confirmElement } = useConfirm();
-  const queryClient = useQueryClient();
+export default function CashReceiptsPage {
+  const { toast } = useToast;
+  const { confirm: confirmDialog, confirmElement } = useConfirm;
+  const queryClient = useQueryClient;
   const [companyId, setCompanyId] = useState<string | null>(null);
   //   세금계산서 화면과 같이 매출부터 연다. 탭 순서도 매출·매입으로 맞췄다 (2026-08-10)
   const [tab, setTab] = useState<Tab>("income");
@@ -91,7 +91,7 @@ export default function CashReceiptsPage() {
   const [issuing, setIssuing] = useState(false);
   const [ntsBusyId, setNtsBusyId] = useState<string | null>(null); // 행별 조회/취소 진행 중
 
-  const handleNtsIssue = async () => {
+  const handleNtsIssue = async  => {
     if (issuing) return;
     const amount = Number(issueForm.amount);
     if (!amount || amount <= 0) { toast("금액을 입력하세요", "error"); return; }
@@ -137,7 +137,7 @@ export default function CashReceiptsPage() {
   // 동기화 기간 = 헤더 조회기간(startDate~endDate) 공용 · 별도 월 피커 이원화 제거 (기준 통일)
   const [syncStarting, setSyncStarting] = useState(false);
   const [purchaseSyncing, setPurchaseSyncing] = useState(false);
-  const [activeJobId, setActiveJobIdRaw] = useState<string | null>(() => {
+  const [activeJobId, setActiveJobIdRaw] = useState<string | null>( => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem(SYNC_STORAGE_KEY);
   });
@@ -147,19 +147,19 @@ export default function CashReceiptsPage() {
     if (id) localStorage.setItem(SYNC_STORAGE_KEY, id);
     else localStorage.removeItem(SYNC_STORAGE_KEY);
   };
-  // 직원 QA #7 — 멈춘(hang) 백그라운드 job 을 failed 로 마킹(서버 409 잠금 해제) + 로컬 해제 → 다시 시도 가능 (CODEF 미접촉)
+  // #7 — 멈춘(hang) 백그라운드 job 을 failed 로 마킹(서버 409 잠금 해제) + 로컬 해제 → 다시 시도 가능 (CODEF 미접촉)
   const forceClearStuckJob = async (jid: string, silent = false) => {
     const db = supabase;
     try {
-      await db.from("hometax_sync_jobs").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", jid).in("status", ["pending", "running"]);
+      await db.from("hometax_sync_jobs").update({ status: "failed", updated_at: new Date.toISOString }).eq("id", jid).in("status", ["pending", "running"]);
     } catch { /* best-effort */ }
     setActiveJobId(null);
     if (!silent) toast("멈춘 백그라운드 동기화를 해제했습니다. 다시 시도할 수 있습니다.", "info");
   };
 
   //   조회기간 — 기본 최근 1개월(조회 화면 표준). 이 기간이 곧 홈택스 수집 기간이기도 하다. ★ 조회값은 기억하지 않는다.
-  const [startDate, setStartDate] = useState(() => defaultRange().from);
-  const [endDate, setEndDate] = useState(() => defaultRange().to);
+  const [startDate, setStartDate] = useState( => defaultRange.from);
+  const [endDate, setEndDate] = useState( => defaultRange.to);
   //   ── 조회 화면 표준 — 수집·전표에서 확정한 뼈대 ──
   const [q, setQ] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);
@@ -167,8 +167,8 @@ export default function CashReceiptsPage() {
   const [live, setLive] = useState<Cond>(EMPTY_COND);
   const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
 
-  useEffect(() => {
-    getCurrentUser().then((u) => {
+  useEffect( => {
+    getCurrentUser.then((u) => {
       if (u?.company_id) setCompanyId(u.company_id);
     });
   }, []);
@@ -176,7 +176,7 @@ export default function CashReceiptsPage() {
   // Receipts list
   const { data: receipts = [], isLoading, error } = useQuery({
     queryKey: ["cash-receipts", companyId, tab, startDate, endDate],
-    queryFn: () =>
+    queryFn:  =>
       getCashReceipts(companyId!, {
         type: tab === "register" ? undefined : tab,
         startDate,
@@ -190,15 +190,14 @@ export default function CashReceiptsPage() {
   //   안 누르면 영영 빈 채로 남았다. 페이지 진입 시 어제 이전 발행분 중 승인번호 없는
   //   실발행 건(document_key 보유)을 자동 조회해 채운다 (최대 5건, 순차 — 과호출 방지).
   const autoRefreshDone = useRef(false);
-  useEffect(() => {
+  useEffect( => {
     if (autoRefreshDone.current || !receipts.length) return;
-    const today = todayKst();
+    const today = todayKst;
     const targets = (receipts as CashReceipt[]).filter(
-      (r) => r.document_key && !r.approval_number && r.status === "issued" && r.issue_date < today,
-    ).slice(0, 5);
+      (r) => r.document_key && !r.approval_number && r.status === "issued" && r.issue_date < today,).slice(0, 5);
     if (targets.length === 0) return;
     autoRefreshDone.current = true;
-    (async () => {
+    (async  => {
       let filled = 0;
       for (const r of targets) {
         try { await refreshCashReceiptNts(r.id); filled++; } catch { /* 개별 실패 무시 */ }
@@ -207,7 +206,7 @@ export default function CashReceiptsPage() {
         queryClient.invalidateQueries({ queryKey: ["cash-receipts"] });
         toast(`국세청 승인번호 ${filled}건을 자동으로 불러왔습니다`, "success");
       }
-    })();
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [receipts]);
 
@@ -218,8 +217,7 @@ export default function CashReceiptsPage() {
   const onSort = (k: CrSortKey) => setSort((c) => nextSort(c, k, k === "issue_date" ? "desc" : "asc"));
   const crSortTh = (k: CrSortKey, label: string) => (
     <SortableTh label={label} sortKey={k} sort={sort} onSort={onSort}
-      filter={k === "counterparty_name" || k === "purpose" || k === "status" ? cfSpec(k) : undefined} />
-  );
+      filter={k === "counterparty_name" || k === "purpose" || k === "status" ? cfSpec(k) : undefined} />);
   //   걸러서 정렬 — 빠른검색(거래처·승인번호·상대 번호·금액) + 검색조건(상태·용도·거래처·금액)
   const statusLabel = (r: any) => (STATUS_LABELS[r.status] || STATUS_LABELS.issued).label;
   const purposeLabel = (r: any) => PURPOSE_LABELS[r.purpose as keyof typeof PURPOSE_LABELS] || r.purpose || "";
@@ -231,15 +229,15 @@ export default function CashReceiptsPage() {
     return true;
   };
   //   머리단 ≡ 필터 — 거래처·용도·상태
-  const cf = useColFilters();
+  const cf = useColFilters;
   const colVal = (r: any) => ({ counterparty_name: r.counterparty_name || "", purpose: purposeLabel(r), status: statusLabel(r) });
   const cfSpec = (k: keyof ReturnType<typeof colVal>) => cf.spec(k, (receipts as any[]).filter((r) => rowHit(r, live)).map((r) => colVal(r)[k]));
-  const filteredReceipts = useMemo(() => (receipts as any[]).filter((r) => rowHit(r, live) && cf.hit(colVal(r)) &&
+  const filteredReceipts = useMemo( => (receipts as any[]).filter((r) => rowHit(r, live) && cf.hit(colVal(r)) &&
     quickSearchHit(q, [r.counterparty_name, r.approval_number, r.identity_number, r.counterparty_bizno, r.memo], [Number(r.amount || 0), Number(r.supply_amount || 0)])),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [receipts, live, q, cf.key]);
   const previewCount = (receipts as any[]).filter((r) => rowHit(r, draft)).length;
-  const displayReceipts = useMemo(() => {
+  const displayReceipts = useMemo( => {
     const val = (r: any) => {
       switch (sort.key) {
         case "counterparty_name": return r.counterparty_name || "";
@@ -260,13 +258,13 @@ export default function CashReceiptsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredReceipts, sort]);
   const pager = usePager(displayReceipts, live.rows, `${tab}|${startDate}|${endDate}|${q}|${JSON.stringify(live)}|${cf.key}`);
-  const statusOpts = useMemo(() => [...new Set((receipts as any[]).map(statusLabel))].map((v) => ({ value: v, label: v })), [receipts]);
-  const purposeOpts = useMemo(() => [...new Set((receipts as any[]).map(purposeLabel).filter(Boolean))].map((v) => ({ value: v, label: v })), [receipts]);
-  const partnerOpts = useMemo(() => [...new Set((receipts as any[]).map((r) => r.counterparty_name).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [receipts]);
+  const statusOpts = useMemo( => [...new Set((receipts as any[]).map(statusLabel))].map((v) => ({ value: v, label: v })), [receipts]);
+  const purposeOpts = useMemo( => [...new Set((receipts as any[]).map(purposeLabel).filter(Boolean))].map((v) => ({ value: v, label: v })), [receipts]);
+  const partnerOpts = useMemo( => [...new Set((receipts as any[]).map((r) => r.counterparty_name).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [receipts]);
   //   내 조건 · ★ 하나가 이 화면의 기본값
   const saved = useSavedQueries("cash-receipts", companyId);
   const paramsNow =  { tab, from: startDate, to: endDate, q, cond: live };
-  const paramsBasic = { tab: "income", ...defaultRange(), q: "", cond: EMPTY_COND };
+  const paramsBasic = { tab: "income", ...defaultRange, q: "", cond: EMPTY_COND };
   const applySaved = (p: Record<string, unknown>) => {
     if (p.tab === "income" || p.tab === "expense") setTab(p.tab);
     if (typeof p.from === "string" && typeof p.to === "string") { setStartDate(p.from); setEndDate(p.to); }
@@ -275,31 +273,31 @@ export default function CashReceiptsPage() {
     setDraft(c); setLive(c);
   };
   const [defDone, setDefDone] = useState(false);
-  useEffect(() => {
+  useEffect( => {
     if (defDone || !saved.isFetched) return;
     setDefDone(true);
     if (saved.def) applySaved(saved.def.params || {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved.isFetched, saved.def, defDone]);
-  const suggestName = () => [draft.partner[0], draft.status.join("·"), draft.purpose.join("·"), (draft.min || draft.max) ? "금액" : "", tab === "income" ? "매출" : "매입"].filter(Boolean).slice(0, 3).join(" · ") || "내 조건";
+  const suggestName =  => [draft.partner[0], draft.status.join("·"), draft.purpose.join("·"), (draft.min || draft.max) ? "금액" : "", tab === "income" ? "매출" : "매입"].filter(Boolean).slice(0, 3).join(" · ") || "내 조건";
   const dropCond = (patch: Partial<Cond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
   const chips: AppliedChip[] = [
-    ...quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) })),
-    ...live.status.map((v) => ({ group: "상태", label: v, onRemove: () => dropCond({ status: live.status.filter((x) => x !== v) }) })),
-    ...live.purpose.map((v) => ({ group: "용도", label: v, onRemove: () => dropCond({ purpose: live.purpose.filter((x) => x !== v) }) })),
-    ...live.partner.map((v) => ({ group: "거래처", label: v, onRemove: () => dropCond({ partner: live.partner.filter((x) => x !== v) }) })),
-    ...((live.min || live.max) ? [{ group: "금액", label: `${Number(live.min || 0).toLocaleString("ko")} ~ ${live.max ? Number(live.max).toLocaleString("ko") : "제한없음"}`, onRemove: () => dropCond({ min: "", max: "" }) }] : []),
+    ...quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove:  => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) })),
+    ...live.status.map((v) => ({ group: "상태", label: v, onRemove:  => dropCond({ status: live.status.filter((x) => x !== v) }) })),
+    ...live.purpose.map((v) => ({ group: "용도", label: v, onRemove:  => dropCond({ purpose: live.purpose.filter((x) => x !== v) }) })),
+    ...live.partner.map((v) => ({ group: "거래처", label: v, onRemove:  => dropCond({ partner: live.partner.filter((x) => x !== v) }) })),
+    ...((live.min || live.max) ? [{ group: "금액", label: `${Number(live.min || 0).toLocaleString("ko")} ~ ${live.max ? Number(live.max).toLocaleString("ko") : "제한없음"}`, onRemove:  => dropCond({ min: "", max: "" }) }] : []),
   ];
-  const clearAll = () => { setQ(""); setLive(EMPTY_COND); setDraft(EMPTY_COND); };
+  const clearAll =  => { setQ(""); setLive(EMPTY_COND); setDraft(EMPTY_COND); };
   const toggleIn = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
   // ─── 체크박스 다중선택 + 일괄 전표처리 (post_cash_voucher) ───
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set);
   const [showBulkPost, setShowBulkPost] = useState(false);
   const [bulkAccountId, setBulkAccountId] = useState("");
   const [bulkPosting, setBulkPosting] = useState(false);
   // 탭·기간 변경 시 선택 초기화
-  useEffect(() => { setSelectedIds(new Set()); }, [tab, startDate, endDate]);
+  useEffect( => { setSelectedIds(new Set); }, [tab, startDate, endDate]);
 
   //   고를 수 없는 건 = 이미 전표가 있거나, **없던 일이 된 건**(우리가 취소·무효 처리 → sign 0).
   //   홈택스 취소거래는 원본을 깎는 **마이너스 전표**가 필요하므로 고를 수 있다. (2026-08-12)
@@ -316,9 +314,9 @@ export default function CashReceiptsPage() {
       return next;
     });
   };
-  const toggleSelectAll = () => {
+  const toggleSelectAll =  => {
     setSelectedIds((prev) => {
-      if (selectableReceipts.every((r: any) => prev.has(r.id))) return new Set();
+      if (selectableReceipts.every((r: any) => prev.has(r.id))) return new Set;
       return new Set(selectableReceipts.map((r: any) => r.id));
     });
   };
@@ -326,7 +324,7 @@ export default function CashReceiptsPage() {
   // 전표처리용 계정과목
   const { data: coaAccounts = [] } = useQuery({
     queryKey: ["cash-receipt-coa-accounts", companyId],
-    queryFn: async () => {
+    queryFn: async  => {
       const db = supabase;
       const data = logRead('cash-receipts/page:data', await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId ?? "").order("code"));
       return (data || []) as any[];
@@ -334,7 +332,7 @@ export default function CashReceiptsPage() {
     enabled: !!companyId, staleTime: 300_000,
   });
 
-  const doBulkPost = async () => {
+  const doBulkPost = async  => {
     if (!bulkAccountId || bulkPosting) { if (!bulkAccountId) toast("계정과목을 선택하세요", "error"); return; }
     setBulkPosting(true);
     const db = supabase;
@@ -348,7 +346,7 @@ export default function CashReceiptsPage() {
         if (error) fail++; else ok++;
       }
       toast(`${ok}건 전표처리 완료${fail > 0 ? ` · ${fail}건 실패` : ""}${skip > 0 ? ` · ${skip}건 건너뜀` : ""}`, fail > 0 ? "info" : "success");
-      setShowBulkPost(false); setBulkAccountId(""); setSelectedIds(new Set());
+      setShowBulkPost(false); setBulkAccountId(""); setSelectedIds(new Set);
       queryClient.invalidateQueries({ queryKey: ["cash-receipts"] });
     } finally { setBulkPosting(false); }
   };
@@ -356,14 +354,14 @@ export default function CashReceiptsPage() {
   // Summary
   const { data: summary } = useQuery({
     queryKey: ["cash-receipt-summary", companyId, startDate, endDate],
-    queryFn: () => getCashReceiptSummary(companyId!, startDate, endDate),
+    queryFn:  => getCashReceiptSummary(companyId!, startDate, endDate),
     enabled: !!companyId,
   });
 
   // 요금제별 현금영수증 국세청 발행 월간 한도 (프로=10건, 울트라=무제한)
   const { data: issuanceStatus } = useQuery({
     queryKey: ["cashbill-issuance-status", companyId],
-    queryFn: () => getCashReceiptIssuanceStatus(companyId!),
+    queryFn:  => getCashReceiptIssuanceStatus(companyId!),
     enabled: !!companyId,
     staleTime: 60_000,
   });
@@ -371,7 +369,7 @@ export default function CashReceiptsPage() {
 
   const { data: partners = [] } = useQuery({
     queryKey: ["partners-for-cash", companyId],
-    queryFn: async () => {
+    queryFn: async  => {
       const data = logRead('cash-receipts/page:data', await supabase
         .from("partners")
         .select("id, name, business_number")
@@ -382,17 +380,16 @@ export default function CashReceiptsPage() {
     enabled: !!companyId,
   });
 
-  const filteredPartners = useMemo(() =>
+  const filteredPartners = useMemo( =>
     partners.filter((p: any) =>
-      !partnerSearch || p.name.toLowerCase().includes(partnerSearch.toLowerCase()) ||
-      (p.business_number || "").includes(partnerSearch)
-    ),
+      !partnerSearch || p.name.toLowerCase.includes(partnerSearch.toLowerCase) ||
+      (p.business_number || "").includes(partnerSearch)),
   [partners, partnerSearch]);
 
   // mount 시 진행 중 job 감지 — 사용자가 페이지 떠났다 와도 진행 표시.
-  useEffect(() => {
+  useEffect( => {
     if (!companyId || activeJobId) return;
-    (async () => {
+    (async  => {
       const db = supabase;
       const data = logRead('cash-receipts/page:data', await db
         .from("hometax_sync_jobs")
@@ -400,24 +397,24 @@ export default function CashReceiptsPage() {
         .eq("company_id", companyId ?? "")
         .eq("job_type", "cash_receipt")
         .in("status", ["pending", "running"])
-        .gt("updated_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
+        .gt("updated_at", new Date(Date.now - 30 * 60 * 1000).toISOString)
         .order("created_at", { ascending: false })
         .limit(1));
       if (data && data[0]) setActiveJobId(data[0].id);
-    })();
+    });
   }, [companyId, activeJobId]);
 
   // active job polling · Realtime 보조.
   const  { data: activeJob } = useQuery({
     queryKey: ["cashreceipt-sync-job", activeJobId],
-    queryFn: async () => {
+    queryFn: async  => {
       if (!activeJobId) return null;
       const db = supabase;
       const data = logRead('cash-receipts/page:data', await db
         .from("hometax_sync_jobs")
         .select("*")
         .eq("id", activeJobId)
-        .maybeSingle());
+        .maybeSingle);
       return data;
     },
     enabled: !!activeJobId,
@@ -425,7 +422,7 @@ export default function CashReceiptsPage() {
   });
 
   // Realtime 구독.
-  useEffect(() => {
+  useEffect( => {
     if (!activeJobId || !companyId) return;
     const db = supabase;
     const ch = db.channel(`cashreceipt_sync_jobs:${activeJobId}`)
@@ -450,12 +447,12 @@ export default function CashReceiptsPage() {
           }
         }
       })
-      .subscribe();
-    return () => { db.removeChannel(ch); };
+      .subscribe;
+    return  => { db.removeChannel(ch); };
   }, [activeJobId, companyId, queryClient, toast]);
 
   // 폴링 결과로 terminal 감지된 경우도 정리 (Realtime 누락 백업).
-  useEffect(() => {
+  useEffect( => {
     if (!activeJob || !activeJobId) return;
     if (TERMINAL.has(activeJob.status)) {
       setActiveJobId(null);
@@ -464,12 +461,12 @@ export default function CashReceiptsPage() {
       return;
     }
     // 30분+ 진척 없으면 hang(CF-12200 등) 으로 간주 → 자동 해제해 버튼 잠금 풀기
-    const upd = activeJob.updated_at ? new Date(activeJob.updated_at).getTime() : 0;
-    if (upd && Date.now() - upd > 30 * 60 * 1000) { void forceClearStuckJob(activeJobId, true); }
+    const upd = activeJob.updated_at ? new Date(activeJob.updated_at).getTime : 0;
+    if (upd && Date.now - upd > 30 * 60 * 1000) { void forceClearStuckJob(activeJobId, true); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeJob, activeJobId, queryClient]);
 
-  const startSync = async () => {
+  const startSync = async  => {
     if (!companyId || syncStarting || activeJobId) return;
     if (startDate > endDate) {
       toast("시작일이 종료일보다 이전이어야 합니다", "error");
@@ -486,7 +483,7 @@ export default function CashReceiptsPage() {
     }
     setSyncStarting(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession;
       if (!session) {
         toast("세션이 만료되었습니다. 다시 로그인하세요.", "error");
         return;
@@ -500,7 +497,7 @@ export default function CashReceiptsPage() {
           startDate, endDate, jobType: "cash_receipt",
         }),
       });
-      const result = await res.json();
+      const result = await res.json;
       if (res.status === 409 && result.activeJobId) {
         setActiveJobId(result.activeJobId);
         toast(`이미 진행 중인 동기화가 있습니다 (${result.progress?.label || "진행 중"})`, "info");
@@ -521,7 +518,7 @@ export default function CashReceiptsPage() {
 
   // 홈택스 매입 현금영수증 가져오기 — CODEF 매입내역 API(cashbill-purchase-sync 엣지, 동기 호출).
   //   매출 sync 와 달리 백그라운드 잡이 아니다 — 응답까지 대기 (기간이 길면 서버가 축소 재시도 안내).
-  const startPurchaseSync = async () => {
+  const startPurchaseSync = async  => {
     if (!companyId || purchaseSyncing) return;
     if (startDate > endDate) {
       toast("시작일이 종료일보다 이전이어야 합니다", "error");
@@ -541,7 +538,7 @@ export default function CashReceiptsPage() {
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async  => {
     if (!companyId || saving) return;
     const amount = Number(form.amount);
     if (!amount || amount <= 0) {
@@ -582,8 +579,8 @@ export default function CashReceiptsPage() {
     const { ok } = await confirmDialog({
       title: isNts ? "현금영수증 발행취소 (국세청)" : "현금영수증 취소",
       desc: isNts
-        ? `${receipt.counterparty_name || "현금영수증"} ₩${Number(receipt.amount).toLocaleString()} 을(를) 취소거래로 국세청에 신고합니다. 취소 후 되돌릴 수 없습니다.`
-        : `${receipt.counterparty_name || "현금영수증"} ₩${Number(receipt.amount).toLocaleString()} 을(를) 취소합니다.`,
+        ? `${receipt.counterparty_name || "현금영수증"} ₩${Number(receipt.amount).toLocaleString} 을(를) 취소거래로 국세청에 신고합니다. 취소 후 되돌릴 수 없습니다.`
+        : `${receipt.counterparty_name || "현금영수증"} ₩${Number(receipt.amount).toLocaleString} 을(를) 취소합니다.`,
       confirmLabel: "취소 확정", danger: true,
     });
     if (!ok) return;
@@ -612,7 +609,7 @@ export default function CashReceiptsPage() {
     if (!file || !companyId) return;
     setUploading(true);
     try {
-      const buffer = await file.arrayBuffer();
+      const buffer = await file.arrayBuffer;
       const wb = XLSX.read(buffer, { type: "array" });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws);
@@ -641,11 +638,10 @@ export default function CashReceiptsPage() {
         <QueryHead>
           <div className="collect-tabs no-print">
             {([["income", "매출 (발행)", summary?.incomeCount], ["expense", "매입 (수취)", summary?.expenseCount], ["register", "수동 등록", undefined]] as [Tab, string, number | undefined][]).map(([t, label, n]) => (
-              <button key={t} type="button" onClick={() => setTab(t)}
+              <button key={t} type="button" onClick={ => setTab(t)}
                 className={tab === t ? "collect-tab collect-tab-on" : "collect-tab"}>
-                {label}{n != null && <span className="collect-tab-cnt">{n.toLocaleString()}</span>}
-              </button>
-            ))}
+                {label}{n != null && <span className="collect-tab-cnt">{n.toLocaleString}</span>}
+              </button>))}
           </div>
 
           <QueryBar right={<>
@@ -653,7 +649,7 @@ export default function CashReceiptsPage() {
             {(close) => (
               <>
                 <ToolbarPopoverItem
-                  onClick={() => { close(); startSync(); }}
+                  onClick={ => { close; startSync; }}
                   disabled={syncStarting || !!activeJobId}
                   hint="조회기간의 매출 현금영수증을 홈택스에서 가져옵니다.">
                   <span aria-live="polite">
@@ -664,7 +660,7 @@ export default function CashReceiptsPage() {
                   </span>
                 </ToolbarPopoverItem>
                 <ToolbarPopoverItem
-                  onClick={() => { close(); startPurchaseSync(); }}
+                  onClick={ => { close; startPurchaseSync; }}
                   disabled={purchaseSyncing}
                   hint="조회기간의 매입 현금영수증을 홈택스에서 가져옵니다.">
                   {purchaseSyncing ? "매입 조회 중…" : "홈택스 매입 가져오기"}
@@ -672,23 +668,21 @@ export default function CashReceiptsPage() {
                 <label className="toolbar-pop-item cursor-pointer">
                   {uploading ? "업로드 중…" : "엑셀 업로드"}
                   <input type="file" accept=".xlsx,.xls,.csv" className="hidden"
-                    onChange={(e) => { close(); handleExcelUpload(e); }} disabled={uploading} />
+                    onChange={(e) => { close; handleExcelUpload(e); }} disabled={uploading} />
                 </label>
                 {activeJobId && (
                   <>
                     <div className="toolbar-pop-sep" />
-                    <ToolbarPopoverItem danger onClick={() => { close(); forceClearStuckJob(activeJobId); }}
+                    <ToolbarPopoverItem danger onClick={ => { close; forceClearStuckJob(activeJobId); }}
                       hint="멈춘 동기화를 초기화합니다.">
                       동기화 취소
                     </ToolbarPopoverItem>
-                  </>
-                )}
-              </>
-            )}
+                  </>)}
+              </>)}
           </ToolbarPopover>
           {tab === "income" && <button
             type="button"
-            onClick={() => { setIssueForm(INITIAL_ISSUE_FORM); setShowIssueModal(true); }}
+            onClick={ => { setIssueForm(INITIAL_ISSUE_FORM); setShowIssueModal(true); }}
             disabled={issuanceLimitReached}
             title={issuanceLimitReached ? `이번 달 발행 한도 ${issuanceStatus?.limit}건을 모두 사용했습니다.` : "현금영수증을 국세청에 발행합니다."}
             className="cashbill-issue-open btn-primary btn-sm"
@@ -702,42 +696,39 @@ export default function CashReceiptsPage() {
                 <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={condCount(live)} anchorSel=".drf"
                   tabs={<SavedTabs list={saved.list} current={paramsNow} basic={paramsBasic}
                     onApply={(sv) => { applySaved(sv.params || {}); setPanelOpen(false); }}
-                    onBasic={() => { const b = defaultRange(); setTab("income"); setStartDate(b.from); setEndDate(b.to); clearAll(); }}
+                    onBasic={ => { const b = defaultRange; setTab("income"); setStartDate(b.from); setEndDate(b.to); clearAll; }}
                     onRemove={saved.remove} onSetDefault={saved.setDefault} />}
                   foot={<>
-                    <button type="button" className="btn-secondary btn-sm" disabled={condCount(draft) === 0} onClick={() => setDraft({ ...EMPTY_COND, rows: draft.rows })}>조건 지우기</button>
+                    <button type="button" className="btn-secondary btn-sm" disabled={condCount(draft) === 0} onClick={ => setDraft({ ...EMPTY_COND, rows: draft.rows })}>조건 지우기</button>
                     <ConditionSave suggest={suggestName}
                       onSave={(name, asDefault) => { saved.save(name, { tab, from: startDate, to: endDate, q, cond: draft }, asDefault); setLive(draft); setPanelOpen(false); }} />
                     <span className="ml-auto text-[11px] text-[var(--text-dim)]">{previewCount.toLocaleString("ko")}건</span>
                     <RowsPerPage value={draft.rows} onChange={setD("rows")} />
-                    <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
+                    <button type="button" className="btn-primary btn-sm" onClick={ => { setLive(draft); setPanelOpen(false); }}>조회</button>
                   </>}>
                   <ConditionRow label="조회기간" hint="가져오기 기간과 같습니다.">
                     <span className="qk-range-txt">{startDate} ~ {endDate}</span>
                     <DateRangeField label={null} parts="calendar" confirm from={startDate} to={endDate}
                       onChange={(f, t) => { setStartDate(f); setEndDate(t); }} />
                     <span className="qk-quicks">
-                      {periodQuicks().map((pq) => (
-                        <button key={pq.key} type="button" onClick={() => { setStartDate(pq.from); setEndDate(pq.to); }}
-                          className={startDate === pq.from && endDate === pq.to ? "qk-quick qk-quick-on" : "qk-quick"}>{pq.label}</button>
-                      ))}
+                      {periodQuicks.map((pq) => (
+                        <button key={pq.key} type="button" onClick={ => { setStartDate(pq.from); setEndDate(pq.to); }}
+                          className={startDate === pq.from && endDate === pq.to ? "qk-quick qk-quick-on" : "qk-quick"}>{pq.label}</button>))}
                     </span>
                   </ConditionRow>
                   <ConditionRow label="상태">
                     <span className="qk-quicks">
                       {statusOpts.map((o) => (
-                        <button key={o.value} type="button" onClick={() => setD("status")(toggleIn(draft.status, o.value))}
-                          className={draft.status.includes(o.value) ? "qk-quick qk-quick-on" : "qk-quick"}>{o.label}</button>
-                      ))}
+                        <button key={o.value} type="button" onClick={ => setD("status")(toggleIn(draft.status, o.value))}
+                          className={draft.status.includes(o.value) ? "qk-quick qk-quick-on" : "qk-quick"}>{o.label}</button>))}
                       {statusOpts.length === 0 && <span className="text-[11px] text-[var(--text-dim)]">이 기간에 건이 없습니다.</span>}
                     </span>
                   </ConditionRow>
                   <ConditionRow label="용도">
                     <span className="qk-quicks">
                       {purposeOpts.map((o) => (
-                        <button key={o.value} type="button" onClick={() => setD("purpose")(toggleIn(draft.purpose, o.value))}
-                          className={draft.purpose.includes(o.value) ? "qk-quick qk-quick-on" : "qk-quick"}>{o.label}</button>
-                      ))}
+                        <button key={o.value} type="button" onClick={ => setD("purpose")(toggleIn(draft.purpose, o.value))}
+                          className={draft.purpose.includes(o.value) ? "qk-quick qk-quick-on" : "qk-quick"}>{o.label}</button>))}
                     </span>
                   </ConditionRow>
                   <ConditionRow label="거래처" hint="여러 곳">
@@ -766,14 +757,13 @@ export default function CashReceiptsPage() {
               {issuanceStatus.limit !== null
                 ? <>이번 달 발행 <b className="mono-number">{issuanceStatus.remaining ?? 0}건</b> 남음</>
                 : <>이번 달 발행 <b className="mono-number">{issuanceStatus.used}건</b></>}
-            </span>
-          ) : undefined}>
+            </span>) : undefined}>
             <Stat label="건수" value={`${displayReceipts.length.toLocaleString("ko")}건`} />
-            <Stat label="합계" value={`₩${displayReceipts.reduce((s0: number, r: any) => s0 + cashReceiptSign(r) * Number(r.amount || 0), 0).toLocaleString()}`} />
+            <Stat label="합계" value={`₩${displayReceipts.reduce((s0: number, r: any) => s0 + cashReceiptSign(r) * Number(r.amount || 0), 0).toLocaleString}`} />
             {summary && <>
-              <Stat label={`매출 발행 ${summary.incomeCount.toLocaleString()}건`} value={`₩${summary.incomeTotal.toLocaleString()}`} />
-              <Stat label={`매입 수취 ${summary.expenseCount.toLocaleString()}건`} value={`₩${summary.expenseTotal.toLocaleString()}`} />
-              <Stat label="매입세액 공제" value={`₩${summary.expenseDeductibleTax.toLocaleString()}`} title="지출증빙용 중 국세청 공제 구분이 '불공제'가 아닌 건의 세액. 소득공제용·불공제 건은 뺀다" />
+              <Stat label={`매출 발행 ${summary.incomeCount.toLocaleString}건`} value={`₩${summary.incomeTotal.toLocaleString}`} />
+              <Stat label={`매입 수취 ${summary.expenseCount.toLocaleString}건`} value={`₩${summary.expenseTotal.toLocaleString}`} />
+              <Stat label="매입세액 공제" value={`₩${summary.expenseDeductibleTax.toLocaleString}`} title="지출증빙용 중 국세청 공제 구분이 '불공제'가 아닌 건의 세액. 소득공제용·불공제 건은 뺀다" />
             </>}
           </ResultStrip>
         </QueryHead>
@@ -788,7 +778,7 @@ export default function CashReceiptsPage() {
               {(["expense", "income"] as const).map((t) => (
                 <button
                   key={t}
-                  onClick={() => setForm((f) => ({ ...f, type: t }))}
+                  onClick={ => setForm((f) => ({ ...f, type: t }))}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition ${
                     form.type === t
                       ? t === "income"
@@ -798,8 +788,7 @@ export default function CashReceiptsPage() {
                   }`}
                 >
                   {t === "income" ? "매출 (발행)" : "매입 (수취)"}
-                </button>
-              ))}
+                </button>))}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -831,15 +820,12 @@ export default function CashReceiptsPage() {
                   <div className="text-[10px] text-[var(--text-dim)] mt-1">
                     공급가액: ₩
                     {Math.round(
-                      Number(form.amount) / 1.1,
-                    ).toLocaleString()}{" "}
+                      Number(form.amount) / 1.1,).toLocaleString}{" "}
                     / 세액: ₩
                     {(
                       Number(form.amount) -
-                      Math.round(Number(form.amount) / 1.1)
-                    ).toLocaleString()}
-                  </div>
-                )}
+                      Math.round(Number(form.amount) / 1.1)).toLocaleString}
+                  </div>)}
               </div>
               <div className="relative">
                 <label className="block text-xs text-[var(--text-muted)] mb-1">
@@ -852,8 +838,8 @@ export default function CashReceiptsPage() {
                     setPartnerSearch(e.target.value);
                     setShowPartnerDropdown(e.target.value.length > 0);
                   }}
-                  onFocus={() => form.counterpartyName && setShowPartnerDropdown(true)}
-                  onBlur={() => setTimeout(() => setShowPartnerDropdown(false), 200)}
+                  onFocus={ => form.counterpartyName && setShowPartnerDropdown(true)}
+                  onBlur={ => setTimeout( => setShowPartnerDropdown(false), 200)}
                   placeholder="거래처명 검색"
                   className="field-input"
                 />
@@ -861,17 +847,15 @@ export default function CashReceiptsPage() {
                   <div className="absolute z-20 w-full mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-lg max-h-40 overflow-y-auto">
                     {filteredPartners.slice(0, 8).map((p: any) => (
                       <button key={p.id} type="button"
-                        onClick={() => {
+                        onClick={ => {
                           setForm((f) => ({ ...f, counterpartyName: p.name, counterpartyBizno: p.business_number || "" }));
                           setShowPartnerDropdown(false);
                         }}
                         className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-sm transition">
                         <span className="font-medium">{p.name}</span>
                         {p.business_number && <span className="text-xs text-[var(--text-dim)] ml-2">{p.business_number}</span>}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                      </button>))}
+                  </div>)}
               </div>
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">
@@ -966,22 +950,18 @@ export default function CashReceiptsPage() {
             >
               {saving ? "저장 중..." : "현금영수증 등록"}
             </button>
-          </div>
-        )}
+          </div>)}
 
 
         {tab !== "register" && (
           isLoading ? (
-            <div className="collect-empty">불러오는 중…</div>
-          ) : (receipts as any[]).length === 0 ? (
+            <div className="collect-empty">불러오는 중…</div>) : (receipts as any[]).length === 0 ? (
             <div className="collect-empty">
               {tab === "income"
                 ? "아직 매출 현금영수증이 없습니다. 홈택스 매출 가져오기로 불러오세요."
                 : "아직 매입 현금영수증이 없습니다. 홈택스 매입 가져오기로 불러오세요."}
-            </div>
-          ) : displayReceipts.length === 0 ? (
-            <div className="collect-empty">조건에 맞는 현금영수증이 없습니다. 조건을 넓혀 보세요.</div>
-          ) : (
+            </div>) : displayReceipts.length === 0 ? (
+            <div className="collect-empty">조건에 맞는 현금영수증이 없습니다. 조건을 넓혀 보세요.</div>) : (
             <div className="ev-scroll">
               <table className="ev-table ev-lined cr-table">
                 <thead>
@@ -1008,7 +988,7 @@ export default function CashReceiptsPage() {
                     //   아래 합계에서만 뺀다 — 상태 배지가 이미 '취소'/'무효'라고 말한다. (2026-08-12)
                     const neg = cashReceiptSign(r) === -1;
                     const amtCls = neg ? " text-[var(--danger)]" : "";
-                    const show = (v: unknown) => (neg ? -Number(v || 0) : Number(v || 0)).toLocaleString();
+                    const show = (v: unknown) => (neg ? -Number(v || 0) : Number(v || 0)).toLocaleString;
                     const posted = !!r.journal_entry_id;
                     const selectable = !isPosted(r);
                     const checked = selectedIds.has(r.id);
@@ -1019,9 +999,8 @@ export default function CashReceiptsPage() {
                       >
                         <td>
                           {selectable ? (
-                            <button type="button" onClick={() => toggleSelect(r.id)} aria-label="선택"
-                              className={checked ? "collect-chk collect-chk-on" : "collect-chk"}>{checked ? "✓" : ""}</button>
-                          ) : <span className="text-[9px] text-emerald-500 font-semibold" title="전표처리됐거나 취소된 건입니다.">{posted ? "전표" : "—"}</span>}
+                            <button type="button" onClick={ => toggleSelect(r.id)} aria-label="선택"
+                              className={checked ? "collect-chk collect-chk-on" : "collect-chk"}>{checked ? "✓" : ""}</button>) : <span className="text-[9px] text-emerald-500 font-semibold" title="전표처리됐거나 취소된 건입니다.">{posted ? "전표" : "—"}</span>}
                         </td>
                         <td className="px-5 py-3 text-xs text-[var(--text-dim)] mono-number whitespace-nowrap">
                           {r.issue_date}
@@ -1032,8 +1011,7 @@ export default function CashReceiptsPage() {
                           {r.approval_number && (
                             <span className="ml-2 text-[10px] text-[var(--text-dim)]">
                               #{r.approval_number}
-                            </span>
-                          )}
+                            </span>)}
                         </td>
                         <td className={`px-5 py-3 text-sm text-right font-semibold mono-number${amtCls}`}>
                           ₩{show(r.amount)}
@@ -1066,32 +1044,28 @@ export default function CashReceiptsPage() {
                               {r.nts_state_code === "304" ? "국세청 전송완료"
                                 : r.nts_state_code === "305" ? "국세청 전송실패"
                                 : "국세청 전송대기"}
-                            </div>
-                          )}
+                            </div>)}
                         </td>
                         <td className="px-5 py-3 text-center whitespace-nowrap">
                           {r.source === "codef" && r.status === "issued" && !r.approval_number && (
                             <button
-                              onClick={() => handleNtsRefresh(r)}
+                              onClick={ => handleNtsRefresh(r)}
                               disabled={ntsBusyId === r.id}
                               className="mr-1.5 text-[10px] font-semibold px-2 py-1 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 transition disabled:opacity-50"
                               title="승인번호는 당일 밤 국세청 전송 후 부여됩니다."
                             >
                               {ntsBusyId === r.id ? "조회 중..." : "승인번호 조회"}
-                            </button>
-                          )}
+                            </button>)}
                           {r.status === "issued" && r.source !== "hometax_sync" && (
                             <button
-                              onClick={() => handleCancel(r)}
+                              onClick={ => handleCancel(r)}
                               disabled={ntsBusyId === r.id}
                               className="text-[10px] font-semibold px-2 py-1 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition disabled:opacity-50"
                             >
                               {r.source === "codef" ? "발행취소" : "취소"}
-                            </button>
-                          )}
+                            </button>)}
                         </td>
-                      </tr>
-                    );
+                      </tr>);
                   })}
                 </tbody>
                 <tfoot className="sticky bottom-0 z-10 bg-[var(--bg-surface)] shadow-[0_-1px_0_0_var(--border)]">
@@ -1109,45 +1083,39 @@ export default function CashReceiptsPage() {
                       {displayReceipts
                         .reduce(
                           (s, r) => s + cashReceiptSign(r) * Number(r.amount || 0),
-                          0,
-                        )
-                        .toLocaleString()}
+                          0,)
+                        .toLocaleString}
                     </td>
                     <td className="px-5 py-3 text-xs text-right font-bold text-[var(--text-muted)] mono-number">
                       ₩
                       {displayReceipts
                         .reduce(
                           (s, r) => s + cashReceiptSign(r) * Number(r.supply_amount || 0),
-                          0,
-                        )
-                        .toLocaleString()}
+                          0,)
+                        .toLocaleString}
                     </td>
                     <td className="px-5 py-3 text-xs text-right font-bold text-[var(--text-muted)] mono-number">
                       ₩
                       {displayReceipts
                         .reduce(
                           (s, r) => s + cashReceiptSign(r) * Number(r.tax_amount || 0),
-                          0,
-                        )
-                        .toLocaleString()}
+                          0,)
+                        .toLocaleString}
                     </td>
                     <td colSpan={3} />
                   </tr>
                 </tfoot>
               </table>
-            </div>
-          )
-        )}
+            </div>))}
 
           {/* ── 3줄 · 고른 건으로 하는 일 — 파란(확정) 버튼은 여기 하나 ── */}
           {tab !== "register" && (
-            <SelectionBar count={selectedReceipts.length} onClear={() => setSelectedIds(new Set())}
-              summary={<>합계 <b className="mono-number">₩{selectedReceipts.reduce((s0: number, r: any) => s0 + cashReceiptSign(r) * Number(r.amount || 0), 0).toLocaleString()}</b></>}>
-              <button type="button" onClick={() => { setBulkAccountId(""); setShowBulkPost(true); }} className="btn-primary btn-sm">
+            <SelectionBar count={selectedReceipts.length} onClear={ => setSelectedIds(new Set)}
+              summary={<>합계 <b className="mono-number">₩{selectedReceipts.reduce((s0: number, r: any) => s0 + cashReceiptSign(r) * Number(r.amount || 0), 0).toLocaleString}</b></>}>
+              <button type="button" onClick={ => { setBulkAccountId(""); setShowBulkPost(true); }} className="btn-primary btn-sm">
                 전표처리 ({selectedReceipts.length})
               </button>
-            </SelectionBar>
-          )}
+            </SelectionBar>)}
         </QueryBody>
 
         <Pager page={pager.page} pages={pager.pages} total={displayReceipts.length} size={live.rows}
@@ -1157,7 +1125,7 @@ export default function CashReceiptsPage() {
       {/* 국세청 실발행 모달 — CODEF·팝빌 연동 즉시발행 */}
       {showIssueModal && (
         <div className="cash-receipt-issue-modal fixed inset-0 cashbill-issue-modal">
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">현금영수증 국세청 발행</div>
               <div className="text-[11px] text-[var(--text-dim)] mt-0.5" title="발행 즉시 효력이 생기고 당일 밤 국세청으로 전송됩니다. 설정의 회사 정보에 상호·대표자·주소·전화·업태·종목이 입력돼 있어야 합니다.">현금영수증을 국세청에 바로 발행합니다.</div>
@@ -1166,11 +1134,10 @@ export default function CashReceiptsPage() {
               <div className="flex gap-2">
                 {([["income_deduction", "소득공제 (개인)"], ["expenditure_proof", "지출증빙 (사업자)"]] as const).map(([v, label]) => (
                   <button key={v} type="button"
-                    onClick={() => setIssueForm((f) => ({ ...f, purpose: v, identityType: v === "income_deduction" ? "phone" : "bizno", identityNumber: "" }))}
+                    onClick={ => setIssueForm((f) => ({ ...f, purpose: v, identityType: v === "income_deduction" ? "phone" : "bizno", identityNumber: "" }))}
                     className={`flex-1 py-2 rounded-xl text-xs font-semibold transition ${issueForm.purpose === v ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]"}`}>
                     {label}
-                  </button>
-                ))}
+                  </button>))}
               </div>
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">합계금액 (VAT포함) *</label>
@@ -1182,9 +1149,8 @@ export default function CashReceiptsPage() {
                 />
                 {issueForm.amount && Number(issueForm.amount) > 0 && issueForm.taxationType === "과세" && (
                   <div className="text-[10px] text-[var(--text-dim)] mt-1">
-                    공급가액 ₩{Math.round(Number(issueForm.amount) / 1.1).toLocaleString()} / 부가세 ₩{(Number(issueForm.amount) - Math.round(Number(issueForm.amount) / 1.1)).toLocaleString()}
-                  </div>
-                )}
+                    공급가액 ₩{Math.round(Number(issueForm.amount) / 1.1).toLocaleString} / 부가세 ₩{(Number(issueForm.amount) - Math.round(Number(issueForm.amount) / 1.1)).toLocaleString}
+                  </div>)}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -1212,8 +1178,7 @@ export default function CashReceiptsPage() {
                   placeholder={issueForm.purpose === "income_deduction" ? "010-0000-0000" : "000-00-00000"}
                   className="field-input" />
                 {issueForm.purpose === "income_deduction" && (
-                  <div className="text-[10px] text-[var(--text-dim)] mt-1">자진발급은 010-000-1234를 입력합니다.</div>
-                )}
+                  <div className="text-[10px] text-[var(--text-dim)] mt-1">자진발급은 010-000-1234를 입력합니다.</div>)}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -1231,19 +1196,18 @@ export default function CashReceiptsPage() {
               </div>
             </div>
             <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
-              <button onClick={() => setShowIssueModal(false)} disabled={issuing} className="btn-ghost text-xs">닫기</button>
+              <button onClick={ => setShowIssueModal(false)} disabled={issuing} className="btn-ghost text-xs">닫기</button>
               <button onClick={handleNtsIssue} disabled={issuing} className="btn-primary text-xs">
                 {issuing ? "발행 중..." : "국세청 발행"}
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </div>)}
 
       {/* 일괄 전표처리 모달 — 선택된 미처리 현금영수증을 계정 1개로 일괄 생성 */}
       {showBulkPost && (
-        <div className="cash-receipt-bulk-post-modal fixed inset-0" onClick={() => setShowBulkPost(false)}>
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="cash-receipt-bulk-post-modal fixed inset-0" onClick={ => setShowBulkPost(false)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation}>
             <div className="px-5 py-4 border-b border-[var(--border)]">
               <div className="text-sm font-bold text-[var(--text)]">일괄 전표처리</div>
               <div className="text-[11px] text-[var(--text-dim)] mt-0.5">선택한 {selectedReceipts.length}건을 한 계정으로 전표 생성합니다.</div>
@@ -1255,8 +1219,7 @@ export default function CashReceiptsPage() {
                   className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]">
                   <option value="">계정 선택</option>
                   {(coaAccounts as any[]).map((a) => (
-                    <option key={a.id} value={a.id}>{a.name} ({a.code})</option>
-                  ))}
+                    <option key={a.id} value={a.id}>{a.name} ({a.code})</option>))}
                 </select>
               </div>
               <p className="text-[10px] text-[var(--text-dim)] leading-relaxed" title="차변 선택 계정과 대변 보통예금으로 건마다 전표가 생성됩니다.">현금영수증 내역은 그대로 남고 전표처리됨으로 표시됩니다.</p>
@@ -1264,20 +1227,17 @@ export default function CashReceiptsPage() {
               {selectedReceipts.some((r: any) => cashReceiptSign(r) === -1) && (
                 <p className="text-[10px] text-[var(--warning)] leading-relaxed">
                   취소거래 {selectedReceipts.filter((r: any) => cashReceiptSign(r) === -1).length}건은 <b>반대 분개</b>로 만들어집니다.
-                </p>
-              )}
+                </p>)}
             </div>
             <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
-              <button onClick={() => setShowBulkPost(false)} className="btn-ghost text-xs">취소</button>
+              <button onClick={ => setShowBulkPost(false)} className="btn-ghost text-xs">취소</button>
               <button onClick={doBulkPost} disabled={bulkPosting || !bulkAccountId}
                 className="btn-primary text-xs">
                 {bulkPosting ? "처리 중..." : `${selectedReceipts.length}건 전표 생성`}
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </div>)}
       {confirmElement}
-    </div>
-  );
+    </div>);
 }
