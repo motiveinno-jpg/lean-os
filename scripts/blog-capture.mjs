@@ -10,7 +10,8 @@ import { chromium } from "playwright";
 
 const BASE = process.env.BLOG_CAPTURE_BASE || "https://www.owner-view.com";
 const EMAIL = process.env.BLOG_CAPTURE_EMAIL || "qa-seed-owner@mo-tive.com";
-const PASSWORD = process.env.BLOG_CAPTURE_PASSWORD || "QaSeed!2026";   // scripts/qa-seed.mjs 와 같은 시드 계정
+const PASSWORD = process.env.BLOG_CAPTURE_PASSWORD || process.env.QA_SEED_PASSWORD;   // 시드 계정 비밀번호 — 저장소에 적지 않는다
+if (!PASSWORD) { console.error("BLOG_CAPTURE_PASSWORD 또는 QA_SEED_PASSWORD 환경변수가 필요합니다."); process.exit(1); }
 
 const [slug, spec] = process.argv.slice(2);
 if (!slug || !spec) { console.error("사용: node scripts/blog-capture.mjs <slug> '<JSON>' | --file shots.json"); process.exit(1); }

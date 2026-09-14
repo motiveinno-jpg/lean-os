@@ -32,7 +32,8 @@ const SUPABASE_URL = `https://${PROJECT_REF}.supabase.co`;
 
 const OWNER_EMAIL = "qa-seed-owner@mo-tive.com";
 const MEMBER_EMAIL = "qa-seed-member@mo-tive.com";
-const PASSWORD = "QaSeed!2026";
+const PASSWORD = process.env.QA_SEED_PASSWORD;   // 저장소에 적지 않는다 — 시드·해체 모두 이 값을 쓴다
+if (!PASSWORD) { console.error("QA_SEED_PASSWORD 환경변수가 필요합니다."); process.exit(1); }
 const COMPANY_NAME = "QA시드 주식회사";
 
 function readPat() {
