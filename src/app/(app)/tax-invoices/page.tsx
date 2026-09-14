@@ -1236,6 +1236,13 @@ function TaxInvoicesPageInner() {
     <SortableTh<InvSortKey> label={label} sortKey={k} sort={{ key: invSortKey, dir: invSortDir }} onSort={toggleInvSort}
       filter={tiThFilter(k)} resize={thResize(k, colIndex)} />
   );
+  //   품목 칸에 보이는 글자 — 정렬·깔때기 필터·칸이 전부 이 하나를 본다 (2026-09-14 사장님: 품목 정렬 안 됨).
+  //   ⚠️ '품목' 열의 정렬 키 이름이 "label" 인데, 예전 비교 함수는 그 이름 그대로 r.label 을 비교했다.
+  //   r.label 은 영수/청구 토글값이라 모든 행이 같아 정렬이 아무것도 안 움직였다.
+  const invItemText = (r: any): string => {
+    const one = (r.item_name ? String(r.item_name).replace(/\+/g, " ") : "") || stripPurposeToken(r.label) || r.deals?.name || "";
+    return itemsLabel(r.items, one) || "";
+  };
   // 대량 목록 렌더 상한 — 넓은 기간 선택 시 최대 1만 건 일괄 DOM 렌더로 화면이 멈추던 것 방지 (합계·건수는 전체 기준 유지)
   const displayList = useMemo(() => {
     const arr = [...currentList];
@@ -1243,7 +1250,7 @@ function TaxInvoicesPageInner() {
       let c = 0;
       switch (invSortKey) {
         case "counterparty_name": c = (a.counterparty_name || "").localeCompare(b.counterparty_name || "", "ko"); break;
-        case "label": c = (a.label || a.deals?.name || "").localeCompare(b.label || b.deals?.name || "", "ko"); break;
+        case "label": c = invItemText(a).localeCompare(invItemText(b), "ko"); break;   // 품목 열
         case "supply_amount": c = Number(a.supply_amount || 0) - Number(b.supply_amount || 0); break;
         case "tax_amount": c = Number(a.tax_amount || 0) - Number(b.tax_amount || 0); break;
         case "total_amount": c = Number(a.total_amount || 0) - Number(b.total_amount || 0); break;
@@ -1254,6 +1261,7 @@ function TaxInvoicesPageInner() {
       return invSortDir === "asc" ? c : -c;
     });
     return arr;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentList, invSortKey, invSortDir]);
 
   /*   ── 조회 화면 표준 (CLAUDE.md 「조회 화면 표준」) ─────────────────────────
@@ -1289,10 +1297,7 @@ function TaxInvoicesPageInner() {
     switch (k) {
       case "issue_date": return String(r.issue_date || "");
       case "counterparty_name": return r.counterparty_name || "";
-      case "label": {
-        const one = (r.item_name ? String(r.item_name).replace(/\+/g, " ") : "") || stripPurposeToken(r.label) || r.deals?.name || "";
-        return itemsLabel(r.items, one) || "";
-      }
+      case "label": return invItemText(r);
       case "supply_amount": return Number(r.supply_amount || 0).toLocaleString("ko");
       case "tax_amount": return Number(r.tax_amount || 0).toLocaleString("ko");
       case "total_amount": return Number(r.total_amount || 0).toLocaleString("ko");
