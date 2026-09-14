@@ -421,3 +421,100 @@ html[data-theme="dark"] .lp8{
   .lp8 .lp8-ct-fields{ grid-template-columns: minmax(0, 1fr) }
   .lp8 .lp8-ct-nav-cta .btn-line{ display: none }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   공용 머리·바닥 (2026-09-14, site-shell.tsx) — lp8-sh-
+   ══════════════════════════════════════════════════════════════ */
+.lp8 .nav-links a[aria-current="page"]{ color: var(--brand) }
+.lp8 .nav-links > .lp8-sh-dropwrap{ position: relative; padding: 0; background: none }
+.lp8 .nav-links > .lp8-sh-dropwrap:hover{ background: none }
+.lp8 .lp8-sh-dropwrap > button{ padding: 8px 10px; border-radius: 4px; color: var(--ink-3); cursor: pointer; background: none; border: 0; font: inherit }
+.lp8 .lp8-sh-dropwrap > button:hover{ color: var(--ink); background: var(--bg-200) }
+.lp8 .lp8-sh-dropwrap > button.open{ color: var(--brand); background: var(--brand-l) }
+.lp8 .lp8-sh-drop{ position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%); z-index: 90; width: 320px; padding: 8px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 24px 48px -28px rgba(17,24,39,.5) }
+.lp8 .lp8-sh-drop a{ display: grid; gap: 2px; padding: 10px 12px; border-radius: 4px }
+.lp8 .lp8-sh-drop a:hover{ background: var(--bg-100) }
+.lp8 .lp8-sh-drop b{ font-size: 14px; font-weight: 600; color: var(--ink) }
+.lp8 .lp8-sh-drop span{ font-size: 12.5px; color: var(--ink-3); line-height: 1.45 }
+.lp8 .lp8-sh-drop .lp8-sh-drop-all{ margin-top: 4px; border-top: 1px solid var(--line); border-radius: 0; font-size: 13px; font-weight: 600; color: var(--brand) }
+.lp8 .lp8-sh-burger{ display: none; place-items: center; width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--ink-2); cursor: pointer }
+.lp8 .lp8-sh-drawer{ position: absolute; left: 0; right: 0; top: 60px; background: var(--bg); border-bottom: 1px solid var(--line); box-shadow: 0 20px 40px -30px rgba(17,24,39,.5) }
+.lp8 .lp8-sh-drawer .container{ display: grid; padding: 8px 0 14px }
+.lp8 .lp8-sh-drawer a{ padding: 13px 4px; font-size: 16px; font-weight: 500; color: var(--ink-2); border-bottom: 1px solid var(--line) }
+.lp8 .lp8-sh-drawer a:last-child{ border-bottom: 0 }
+.lp8 .lp8-sh-footnav{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; padding-bottom: 28px; margin-bottom: 24px; border-bottom: 1px solid var(--line) }
+.lp8 .lp8-sh-footnav h6{ margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--ink-3) }
+.lp8 .lp8-sh-footnav a{ display: block; padding: 4px 0; font-size: 13.5px; color: var(--ink-3) }
+@media (max-width: 680px){
+  .lp8 .lp8-sh-burger{ display: grid }
+}
+@media (max-width: 480px){
+  .lp8 .lp8-sh-login{ display: none }
+  .lp8 .lp8-sh-footnav{ grid-template-columns: repeat(2, minmax(0, 1fr)) }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   무료 계산기 /tools · /tools/* (2026-09-14 v8 이관, 옛 lp4-freetool) — tl8-
+   ⚠️ 모양만 옮겼다. 계산 로직·주소·H1·구조화 데이터는 그대로다(결정 230).
+   ══════════════════════════════════════════════════════════════ */
+.lp8 .tl8-section{ padding: 64px 0 96px }
+.lp8 .tl8-bg-canvas{ background: var(--bg) }
+.lp8 .tl8-bg-tint{ background: var(--bg-100); padding: 80px 0 }
+.lp8 .tl8-narrow{ width: min(880px, 100% - var(--gut) * 2); margin-inline: auto }
+.lp8 .tl8-sec-head{ margin-bottom: 32px }
+.lp8 .tl8-sec-head-c{ text-align: center }
+.lp8 .tl8-eyebrow{ font-size: 13px; font-weight: 600; letter-spacing: .02em; color: var(--brand); margin-bottom: 12px }
+.lp8 .tl8-h2{ font-size: clamp(28px, 3.4vw, 44px) }
+.lp8 .tl8-sub{ margin: 16px auto 0; max-width: 720px; font-size: clamp(16px, 1.3vw, 18px); color: var(--ink-2); line-height: 1.65 }
+.lp8 .tl8-feat-cta{ display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 28px }
+
+.lp8 .tl8-card{ background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 32px; box-shadow: 0 30px 60px -48px rgba(17,24,39,.45) }
+.lp8 .tl8-fields{ display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px }
+@media (min-width: 640px){ .lp8 .tl8-fields{ grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+.lp8 .tl8-field{ display: flex; flex-direction: column; gap: 7px; min-width: 0 }
+.lp8 .tl8-label{ font-size: 13.5px; font-weight: 600; color: var(--ink) }
+.lp8 .tl8-input{ width: 100%; font-family: var(--f); font-size: 15px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 11px 13px; line-height: 1.5; transition: border-color .15s, box-shadow .15s }
+.lp8 .tl8-input:focus, .lp8 .tl8-input:focus-within{ outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-l) }
+.lp8 .tl8-empty{ margin-top: 22px; padding: 26px 16px; border-radius: 4px; background: var(--bg-100); text-align: center; font-size: 14.5px; color: var(--ink-3) }
+.lp8 .tl8-result{ margin-top: 22px; padding: 24px; border-radius: 6px; background: var(--brand-l); border: 1px solid color-mix(in srgb, var(--brand) 18%, transparent) }
+.lp8 .tl8-result-main{ display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap }
+.lp8 .tl8-result-num{ font-size: clamp(30px, 3.4vw, 40px); font-weight: 700; letter-spacing: -.03em; color: var(--brand); font-variant-numeric: tabular-nums }
+.lp8 .tl8-result-cap{ font-size: 14px; font-weight: 600; color: var(--ink-2) }
+.lp8 .tl8-result-rows{ margin-top: 12px; display: flex; flex-direction: column; gap: 6px }
+.lp8 .tl8-result-row{ font-size: 13.5px; color: var(--ink-2); line-height: 1.7 }
+.lp8 .tl8-result-row b{ color: var(--ink); font-weight: 600 }
+.lp8 .tl8-note{ margin-top: 14px; font-size: 13px; color: var(--ink-3); line-height: 1.7 }
+.lp8 .tl8-h3{ font-size: 22px; margin-bottom: 14px }
+.lp8 .tl8-tablewrap{ margin-top: 64px }
+.lp8 .tl8-table{ width: 100%; border-collapse: collapse; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; font-size: 14px; font-variant-numeric: tabular-nums }
+.lp8 .tl8-table th{ background: var(--bg-200); font-weight: 600; color: var(--ink-2); font-size: 12.5px }
+.lp8 .tl8-table th, .lp8 .tl8-table td{ padding: 10px 14px; border-bottom: 1px solid var(--line); text-align: left }
+.lp8 .tl8-table tr:last-child td{ border-bottom: 0 }
+.lp8 .tl8-table-tight{ margin-top: 16px; font-size: 13.5px }
+.lp8 .tl8-dim{ color: var(--ink-3); font-weight: 400; font-size: 12px }
+.lp8 .tl8-duo{ display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px }
+@media (min-width: 640px){ .lp8 .tl8-duo{ grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+.lp8 .tl8-duo-col{ padding: 14px 16px; border-radius: 4px; background: var(--bg); border: 1px solid color-mix(in srgb, var(--brand) 16%, transparent) }
+.lp8 .tl8-duo-cap{ font-size: 12.5px; font-weight: 600; color: var(--ink-2); margin-bottom: 6px }
+.lp8 .tl8-duo-sub{ font-size: 12.5px; color: var(--ink-3); margin-top: 4px }
+.lp8 .tl8-faqwrap{ margin-top: 64px }
+.lp8 .tl8-faq{ border-bottom: 1px solid var(--line) }
+.lp8 .tl8-faq-btn{ width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 4px; background: none; border: 0; text-align: left; cursor: pointer; font-family: var(--f); font-size: 16px; font-weight: 600; color: var(--ink) }
+.lp8 .tl8-faq-chev{ flex-shrink: 0; transition: transform .25s; color: var(--ink-3) }
+.lp8 .tl8-faq-open .tl8-faq-chev{ transform: rotate(180deg); color: var(--brand) }
+.lp8 .tl8-faq-panel{ max-height: 0; overflow: hidden; transition: max-height .3s ease }
+.lp8 .tl8-faq-open .tl8-faq-panel{ max-height: 600px }
+.lp8 .tl8-faq-a{ padding: 0 4px 20px; font-size: 15.5px; color: var(--ink-2); line-height: 1.75; max-width: 780px }
+.lp8 .tl8-crosslink{ color: var(--brand); font-weight: 600; text-decoration: underline; text-underline-offset: 3px }
+.lp8 .tl8-yearchip{ display: inline-block; vertical-align: middle; margin-left: 10px; padding: 4px 10px; border-radius: 999px; background: var(--brand-l); color: var(--brand); font-size: 13px; font-weight: 600; letter-spacing: 0 }
+.lp8 .tl8-hub{ display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin-top: 8px }
+@media (min-width: 640px){ .lp8 .tl8-hub{ grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+.lp8 .tl8-hubcard{ display: flex; flex-direction: column; gap: 8px; padding: 26px; transition: transform .15s, box-shadow .15s, border-color .15s }
+.lp8 .tl8-hubcard:hover{ transform: translateY(-2px); border-color: var(--brand); box-shadow: 0 24px 48px -30px rgba(79,70,229,.45) }
+.lp8 .tl8-hubcard .tl8-result-num{ font-size: 22px; color: var(--ink) }
+.lp8 .tl8-hubcard .tl8-result-cap{ font-size: 14px; line-height: 1.6 }
+.lp8 .tl8-hubcard .tl8-crosslink{ margin-top: auto; font-size: 13.5px; text-decoration: none }
+@media (max-width: 560px){
+  .lp8 .tl8-card{ padding: 22px 16px }
+  .lp8 .tl8-table th, .lp8 .tl8-table td{ padding: 9px 10px }
+}

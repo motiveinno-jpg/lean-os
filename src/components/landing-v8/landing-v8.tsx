@@ -13,7 +13,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import "@/app/landing-v8.css";
-import { CONSULT_HREF, COMPARE, FEATS, FIGURES, FOOTER, HERO, MEGA, MENUS, TOPICS } from "./content";
+import { CONSULT_HREF, COMPARE, FEATS, FIGURES, HERO, MENUS, TOPICS } from "./content";
+import { SiteFooter, SiteHeader } from "./site-shell";
 import { BOARD, CHANNELS, COLLECT, CUTS, SORTDEMO, VAT, ic } from "./mocks";
 
 /* 화면 모형은 값이 고정이라 한 번만 만든다 */
@@ -28,7 +29,6 @@ const stagger = (i: number, step: number) => ({ transitionDelay: `${Math.min(i *
 
 export default function LandingV8() {
   const root = useRef<HTMLDivElement>(null);
-  const [mega, setMega] = useState(false);
   const [cut, setCut] = useState(0);
   const [playing, setPlaying] = useState(true);
   const cutAt = useRef(0);
@@ -38,16 +38,6 @@ export default function LandingV8() {
     setCut(i);
     cutAt.current = performance.now();
   }, []);
-
-  /* ── 업종별 메뉴 — 바깥을 누르거나 Esc 로 닫는다 ── */
-  useEffect(() => {
-    if (!mega) return;
-    const off = () => setMega(false);
-    const key = (e: KeyboardEvent) => { if (e.key === "Escape") setMega(false); };
-    document.addEventListener("click", off);
-    window.addEventListener("keydown", key);
-    return () => { document.removeEventListener("click", off); window.removeEventListener("keydown", key); };
-  }, [mega]);
 
   /* ── 화면 모형 축소기 — 상자 너비에 맞춰 통째로 줄인다 ──
        칸을 좁히면 표가 넘치므로, 원래 너비(--dw)로 그린 뒤 배율만 준다. */
@@ -213,50 +203,8 @@ export default function LandingV8() {
       {/* eslint-disable-next-line react/no-danger */}
       <script dangerouslySetInnerHTML={html('document.documentElement.classList.add("js")')} />
 
-      {/* ══ 머리 + 업종별 메가메뉴 ══ */}
-      <header className="nav">
-        <div className="container nav-in">
-          <Link className="brand" href="/">
-            <i>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.8" strokeLinecap="round">
-                <circle cx="11" cy="11" r="6" /><path d="M20 20l-4.5-4.5" />
-              </svg>
-            </i>
-            오너뷰
-          </Link>
-          <nav className="nav-links">
-            <button
-              type="button"
-              className={mega ? "open" : undefined}
-              aria-expanded={mega}
-              onClick={(e) => { e.stopPropagation(); setMega((v) => !v); }}
-            >
-              업종별 ▾
-            </button>
-            <a href="#menus">메뉴</a>
-            <a href="#flow">일하는 방식</a>
-            <a href="#ai">AI 자동입력</a>
-            <a href="#figures">요금</a>
-          </nav>
-          <div className="nav-cta">
-            <Link className="btn btn-sm btn-line" href="/auth">로그인</Link>
-            <Link className="btn btn-sm btn-fill" href="/auth">무료 체험하기</Link>
-          </div>
-        </div>
-        <div className={`mega${mega ? " is-open" : ""}`} onClick={(e) => e.stopPropagation()}>
-          <div className="container">
-            <div className="mega-in">
-              {MEGA.map(([group, items]) => (
-                <div key={group}>
-                  <h6>{group}</h6>
-                  {items.map((t) => <Link key={t} href="/features">{t}</Link>)}
-                </div>
-              ))}
-            </div>
-            <div className="mega-foot">업종이 달라도 일하는 순서는 비슷합니다. 필요 없는 메뉴는 감출 수 있습니다.</div>
-          </div>
-        </div>
-      </header>
+      {/* ══ 머리 — 공개 페이지 공용(site-shell, 결정 227). 업종별 메가메뉴도 거기 있다 ══ */}
+      <SiteHeader />
 
       <main id="top">
         {/* ══ §0 히어로 ══ */}
@@ -532,17 +480,7 @@ export default function LandingV8() {
           </div>
         </section>
 
-        <footer className="foot">
-          <div className="container foot-row">
-            <div>
-              {FOOTER.company}<br />
-              {FOOTER.addr} · {FOOTER.email}
-            </div>
-            <div className="lp8-foot-links">
-              {FOOTER.links.map((l) => <Link key={l.href} href={l.href}>{l.label}</Link>)}
-            </div>
-          </div>
-        </footer>
+        <SiteFooter />
       </main>
     </div>
   );

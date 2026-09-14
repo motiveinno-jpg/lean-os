@@ -11,11 +11,14 @@ import { useState } from "react";
 import Link from "next/link";
 import "@/app/landing-v8.css";
 import { CONTACT, FOOTER } from "./content";
+import { SiteFooter } from "./site-shell";
+import { useLandingLightTheme } from "@/components/theme-context";
 
 type Fields = { companyName: string; contactName: string; email: string; phone: string; message: string };
 const EMPTY: Fields = { companyName: "", contactName: "", email: "", phone: "", message: "" };
 
 export default function ContactView() {
+  useLandingLightTheme(); // 공개 페이지는 늘 밝게 — 머리를 따로 쓰는 화면이라 여기서 부른다
   const [v, setV] = useState<Fields>(EMPTY);
   const [size, setSize] = useState("");
   const [interests, setInterests] = useState<string[]>([]);
@@ -200,17 +203,7 @@ export default function ContactView() {
         </div>
       </main>
 
-      <footer className="foot">
-        <div className="container foot-row">
-          <div>
-            {FOOTER.company}<br />
-            {FOOTER.addr} · {FOOTER.email}
-          </div>
-          <div className="lp8-foot-links">
-            {FOOTER.links.map((l) => <Link key={l.href} href={l.href}>{l.label}</Link>)}
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
