@@ -249,19 +249,23 @@ serve(withSentry("complete-signing", async (req) => {
       console.warn("audit trail update failed:", e);
     }
 
-    // 8) 모두 서명 완료 → 발송자(created_by) + 회사 owner/admin 에게 인앱 알림
+    // 8) 모두 서명 완료 → 이 계약을 보낸 사람(created_by)에게만 인앱 알림.
+    //    종전엔 마스터 전원에게도 갔다 — 남이 보낸 계약의 완료 알림이 모두에게 쌓였다.
+    //    보낸 사람이 없는 옛 패키지만 마스터에게(알림이 사라지지 않게).
     let notificationsSent = 0;
     if (allSigned) {
       try {
         const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         const recipientIds = new Set<string>();
         if (pkg.created_by && UUID_RE.test(pkg.created_by)) recipientIds.add(pkg.created_by);
-        const { data: admins } = await supabase
-          .from("users")
-          .select("id")
-          .eq("company_id", pkg.company_id)
-          .eq("is_master", true);
-        (admins || []).forEach((a: { id: string }) => recipientIds.add(a.id));
+        if (recipientIds.size === 0) {
+          const { data: admins } = await supabase
+            .from("users")
+            .select("id")
+            .eq("company_id", pkg.company_id)
+            .eq("is_master", true);
+          (admins || []).forEach((a: { id: string }) => recipientIds.add(a.id));
+        }
 
         // 직원 이름 (알림 message 용)
         const { data: emp } = await supabase
