@@ -466,6 +466,123 @@
   .s17 .contact{ color:var(--ink-4) } .s17 .contact b{ color:var(--ink-2) }
   .pl.pro{ background:var(--hero) !important; border:0 !important; box-shadow:0 50px 100px -40px rgba(79,70,229,.6) !important }
   .s8 .dc h5{ color:var(--ink) }
+  /* ═══ 4차 (2026-09-14 사장님): 3쪽 이야기 구성 · 5쪽 「오너뷰는 다릅니다」 · 9쪽 두 쪽 · 12·14·15쪽 카드 흰색 · 글자 키움 ═══ */
+  /* 3·4쪽 질문형 */
+  .s4 .head .q{ margin-top:22px; font-size:30px; color:var(--ink-3); letter-spacing:-.02em } .s4 .head .q b{ color:#e42939 }
+  .s4 .stage{ top:440px } .s4 .cons{ top:790px }
+  .p3 .cons{ grid-template-columns:repeat(4,1fr); gap:32px }
+  .p3 .pillbox{ width:700px }
+  /* 5쪽 */
+  .s5 .top{ top:84px } .s5 h2{ font-size:76px; letter-spacing:-.05em }
+  .s5 .sub5{ margin-top:14px; font-size:36px; font-weight:600; color:var(--ink-3); letter-spacing:-.03em }
+  .s5 .cards{ top:360px } .gc{ height:450px; padding:50px 46px } .s5 .caps{ top:840px }
+  /* 9쪽 카드 3장 */
+  .s9 .track{ left:120px; right:120px; top:350px; display:grid; grid-template-columns:repeat(3,1fr); gap:28px }
+  .s9 .cc{ width:auto }
+  .s9 .cc .vis{ height:450px }
+  .s9 .cc .vis .card{ width:400px; padding:26px 28px }
+  .s9 .cc .ct{ font-size:18px; color:var(--ink-4); font-weight:600 } .s9 .cc .ct2{ font-size:17px; color:var(--ink-3); margin-top:4px }
+  .s9 .cc .big{ margin-top:12px; font-size:36px; font-weight:800; color:var(--ink); letter-spacing:-.03em }
+  .s9 .cc .btn{ margin-top:20px; height:56px; border-radius:14px; background:linear-gradient(90deg,#4f46e5,#3b82f6); color:#fff; display:grid; place-items:center; font-size:19px; font-weight:700 }
+  .s9 .cc .cap span{ font-size:20px } .s9 .cc .cap b{ font-size:32px; margin-top:8px }
+  /* 12·14·15쪽 — 그라데이션 판 대신 흰 카드 + 인디고 강조(글자가 잘 보이게) */
+  .s12 .pn.before{ background:#f3f4f8 !important; border:0 !important; box-shadow:none !important }
+  .s12 .pn.after{ background:#fff !important; border:2px solid #4f46e5 !important; box-shadow:0 40px 90px -40px rgba(79,70,229,.45) !important; color:var(--ink-2) }
+  .s12 .pn.after .lab{ color:#4f46e5 } .s12 .pn.after .jb{ border-top-color:#e8ebf2 } .s12 .pn.after .jb .jn{ color:var(--ink) }
+  .s12 .pn.after .flow{ color:var(--ink-2) } .s12 .pn.after .flow i{ color:#a5b4fc } .s12 .pn.after .steps{ color:#4f46e5 }
+  .s12 .cta{ background:linear-gradient(90deg,#4f46e5,#3b82f6); color:#fff; height:56px; font-size:20px; padding:0 26px; border-radius:28px }
+  .s14 .board{ background:#fff !important; border:1px solid #e8ebf2; box-shadow:0 40px 90px -40px rgba(40,56,120,.3) !important; overflow:hidden }
+  .s14 .board::before{ content:""; position:absolute; top:0; bottom:0; right:0; width:47%; background:linear-gradient(180deg,#f3f5ff,#eef2ff) }
+  .s14 .cr{ position:relative; z-index:1; border-bottom-color:#eceef3 }
+  .s14 .cr.h{ color:var(--ink-4) } .s14 .cr.h span[style]{ color:#4f46e5 !important }
+  .s14 .cr .k{ color:var(--ink) } .s14 .cr .g{ color:var(--ink-4) } .s14 .cr .ar{ color:#a5b4fc } .s14 .cr .o{ color:var(--ink) } .s14 .cr .o em{ color:#4f46e5 }
+  .pl.pro{ background:#fff !important; border:2px solid #4f46e5 !important; box-shadow:0 50px 100px -40px rgba(79,70,229,.45) !important; color:var(--ink-3) }
+  .pl.pro .n{ color:var(--ink) } .pl .n .bd{ background:#4f46e5; color:#fff }
+  .pl.pro .p{ background:linear-gradient(90deg,#4f46e5,#3b82f6); -webkit-background-clip:text; background-clip:text; color:transparent }
+  .pl.pro .p small{ -webkit-text-fill-color:var(--ink-4); color:var(--ink-4) }
+  .pl.pro .d{ color:var(--ink-4) } .pl.pro ul{ border-top-color:#e8ebf2 } .pl.pro li{ color:var(--ink-2) } .pl.pro li::before{ background:#4f46e5 }
+
+  /* ── 글자 키움(사장님: 글자가 너무 작아 화면이 휑하다) ── */
+  .foot{ font-size:19px }
+  .eyebrow{ font-size:26px }
+  .s1 .kick{ font-size:28px } .s1 h1{ font-size:108px } .s1 .keys{ font-size:25px } .s1 .meta{ font-size:20px } .s1 .op{ font-size:19px }
+  .s2 h2{ font-size:74px } .s2 .big .n{ font-size:260px } .s2 .big .u b{ font-size:52px } .s2 .big .u span{ font-size:28px }
+  .s2 .areas{ top:700px } .s2 .ar b{ font-size:36px } .s2 .ar b small{ font-size:19px } .s2 .ar p{ font-size:22px }
+  .s4 h2{ font-size:66px } .s4 .w{ font-size:50px } .s4 .pillbox b{ font-size:52px } .s4 .pillbox span{ font-size:25px }
+  .s4 .cons b{ font-size:34px } .s4 .cons span{ font-size:24px }
+  .s5 .caps b{ font-size:33px } .s5 .caps span{ font-size:22px }
+  .gc .glass .k{ font-size:17px } .gc .glass .hh{ font-size:32px } .gc .glass .it{ font-size:20px; padding:16px 18px }
+  .s6 h2{ font-size:66px } .acc .ai b{ font-size:31px } .acc .ai b i{ font-size:19px } .acc .ai p{ font-size:23px; padding-left:40px } .s6 .note{ font-size:20px; height:50px; padding:0 22px }
+  .s6 .left{ width:720px; top:120px } .s6 .scene{ left:900px }
+  .s7 h2{ font-size:66px } .s7 .head{ width:540px } .s7 .four b{ font-size:29px } .s7 .four span{ font-size:21px }
+  .s8 h2{ font-size:64px } .s8 .dc h5{ font-size:27px } .s8 .dc .sub{ font-size:17px } .dc .rw{ font-size:19px; padding:15px 16px } .dc .ttl{ font-size:17px }
+  .s8 .cap b{ font-size:29px } .s8 .cap span{ font-size:21px } .s8 .dc{ height:460px }
+  .s9 h2{ font-size:66px }
+  .s10 h2{ font-size:68px } .s10 .sub{ font-size:26px }
+  .pc{ width:300px; padding:24px } .pc .nm{ font-size:22px } .pc .sku{ font-size:16px } .pc .kv{ font-size:17px } .pc .kv b{ font-size:20px }
+  .s10 .feats b{ font-size:27px } .s10 .feats span{ font-size:20px }
+  .s11 h2{ font-size:62px } .bt h5{ font-size:30px } .bt p{ font-size:20px }
+  .kb .ch{ font-size:17px } .kb .it{ font-size:18px; padding:14px } .kb .it small{ font-size:15px } .kb .it .tg{ font-size:13px }
+  .s12 h2{ font-size:66px } .s12 .co{ font-size:22px } .s12 .pn .lab{ font-size:22px } .s12 .jb .jn{ font-size:31px } .s12 .flow{ font-size:24px } .s12 .steps{ font-size:18px }
+  .s13 h2{ font-size:66px } .s13 .nm .v{ font-size:104px } .s13 .nm .v small{ font-size:30px } .s13 .nm b{ font-size:26px } .s13 .nm span{ font-size:19px } .s13 .src{ font-size:18px }
+  .s14 h2{ font-size:64px } .s14 .cr.h{ font-size:20px } .s14 .cr .k{ font-size:27px } .s14 .cr .g{ font-size:27px } .s14 .cr .o{ font-size:30px }
+  .s15 h2{ font-size:66px } .pl .n{ font-size:26px } .pl .p{ font-size:92px } .pl .p small{ font-size:25px } .pl .d{ font-size:21px } .pl li{ font-size:23px } .s15 .calc{ font-size:22px }
+  .s15 .plans{ left:200px; right:200px }
+  .s16 h2{ font-size:74px } .s16 .left p{ font-size:26px } .s16 .ef i{ font-size:20px } .s16 .ef b{ font-size:35px } .s16 .ef span{ font-size:23px } .s16 .ef em{ font-size:16px }
+  .s17 h2{ font-size:92px } .s17 .sub{ font-size:30px } .qc b{ font-size:38px } .qc p{ font-size:22px } .qc a{ font-size:21px } .s17 .contact{ font-size:21px }
+  .s17 .qrs{ left:240px; right:240px } .qc .qr{ width:220px; height:220px }
+  /* 목업 속 글자 */
+  .ln .t{ font-size:21px } .ln .s{ font-size:16px } .bd{ font-size:16px; height:32px; padding:0 13px }
+  .kp .l{ font-size:16px } .kp .v{ font-size:28px } .kp .m{ font-size:15px } .panel h4{ font-size:19px }
+  .app{ font-size:17px } .app .nv{ height:44px; font-size:17px } .app .alogo{ font-size:20px }
+  /* ═══ 빈 공간 채움 (2026-09-14 사장님 "카드나 이미지도 비어 있는 공간이 차도록 크기를 더 키워줘") ═══ */
+  /* 2 개요 */
+  .s2 .big{ top:330px } .s2 .areas{ top:690px } .s2 .ar{ padding-top:30px } .s2 .ar b{ font-size:40px } .s2 .ar p{ font-size:24px; line-height:1.75 }
+  /* 5 해결 — 카드 칸 키움 */
+  .s5 .cards{ top:350px } .gc{ height:480px } .gc .glass{ padding:34px 30px } .gc .glass .hh{ font-size:34px } .gc .glass .it{ font-size:22px; padding:18px 20px; margin-top:14px }
+  .s5 .caps{ top:870px }
+  /* 6 AI 자동화 — 기울인 창 키움 */
+  .s6 .scene{ left:860px; top:110px; width:1060px } .s6 .tilt{ left:10px; top:30px; width:1040px }
+  .s6 .tilt .ln .t{ font-size:23px } .s6 .tilt .ln .s{ font-size:17px } .s6 .tilt .ln{ padding:18px 0 }
+  /* 8 큐레이션 — 카드 속 줄 키움 */
+  .s8 .row{ top:330px } .s8 .dc{ height:520px; padding:34px } .s8 .dc h5{ font-size:30px } .s8 .dc .sub{ font-size:18px }
+  .s8 .dc .rw{ font-size:22px; padding:19px 18px; margin-top:14px } .s8 .dc b[style*="font-size:30px"]{ font-size:38px !important }
+  .s8 .cap{ margin-top:26px } .s8 .cap b{ font-size:30px }
+  /* 9·10 재무·세무 — 카드 속 목업 키움 */
+  .s9 .track{ top:330px } .s9 .cc .vis{ height:490px } .s9 .cc .vis .card{ width:460px; padding:32px 34px; border-radius:24px }
+  .s9 .cc .vis .ln .t{ font-size:25px } .s9 .cc .vis .ln{ padding:17px 0 } .s9 .cc .ct{ font-size:20px } .s9 .cc .ct2{ font-size:19px }
+  .s9 .cc .big{ font-size:44px } .s9 .cc .btn{ height:64px; font-size:22px } .s9 .cc .vis .bd{ font-size:17px; height:34px }
+  .s9 .cc .vis .dot{ width:42px; height:42px } .s9 .cc .vis .dot .li{ width:24px; height:24px }
+  .s9 .cc .cap b{ font-size:34px }
+  /* 11 재고 — 품목 카드 키움 */
+  .pc{ width:340px; padding:26px; border-radius:28px } .pc .img{ height:190px; border-radius:20px } .pc .img .li{ width:70px; height:70px }
+  .pc .nm{ font-size:24px } .pc .kv{ font-size:18px; margin-top:14px } .pc .kv b{ font-size:22px } .pc .bar{ height:10px }
+  .s10 .top{ top:84px }
+  /* 12 업무·인사 — 벤토 속 목업 키움 */
+  .bento{ top:300px; bottom:90px; gap:24px } .bt{ padding:32px 34px }
+  .kb{ margin-top:24px; gap:16px } .kb .col{ padding:16px } .kb .ch{ font-size:19px } .kb .it{ font-size:21px; padding:18px 16px; margin-top:12px } .kb .it small{ font-size:16px; margin-top:6px } .kb .it .tg{ font-size:14px; padding:4px 10px }
+  .bt .ln .t{ font-size:22px } .bt .ln .s{ font-size:17px } .bt .ln{ padding:16px 0 }
+  /* 13 도입 전·후 — 판 안을 채움 */
+  .s12 .two{ top:290px; bottom:90px } .s12 .pn{ padding:46px 52px } .s12 .jb{ margin-top:30px; padding-top:28px } .s12 .jb .jn{ font-size:36px } .s12 .flow{ font-size:27px; margin-top:14px } .s12 .steps{ font-size:20px; margin-top:10px }
+  /* 14 숫자 — 숫자 줄을 가운데로 크게 */
+  .s13 .nums{ top:320px } .s13 .nm{ padding:0 26px } .s13 .nm .v{ font-size:132px } .s13 .nm .v small{ font-size:36px } .s13 .nm b{ font-size:30px; margin-top:22px } .s13 .nm span{ font-size:21px }
+  .s13 .terrain{ height:500px; bottom:-40px }
+  /* 15 차별점 */
+  .s14 .board{ top:280px; left:140px; right:140px; padding:50px 70px } .s14 .cr{ padding:34px 0 } .s14 .cr .k{ font-size:29px } .s14 .cr .g{ font-size:28px } .s14 .cr .o{ font-size:32px }
+  .s14 .note{ bottom:56px }
+  /* 16 요금제 */
+  .s15 .plans{ top:290px; left:160px; right:160px; gap:34px } .pl{ padding:54px 60px } .pl .p{ font-size:100px } .pl li{ font-size:25px } .pl ul{ gap:18px; margin-top:34px; padding-top:30px }
+  /* 18 CTA — QR 카드 키움 */
+  .s17 .top{ top:130px } .s17 .qrs{ top:470px; left:160px; right:160px; gap:34px } .qc{ padding:44px 48px; gap:40px; border-radius:36px }
+  .qc .qr{ width:280px; height:280px; padding:18px } .qc b{ font-size:44px } .qc p{ font-size:25px; margin-top:14px } .qc a{ font-size:24px; margin-top:18px }
+  /* 빈 공간 채움 2차 */
+  .s4 .pillbox{ width:760px; height:300px; border-radius:56px } .p3 .pillbox{ width:820px } .s4 .pillbox b{ font-size:58px } .s4 .pillbox span{ font-size:27px; color:#e0e7ff !important }
+  .s4 .w{ font-size:54px } .s4 .stage{ top:420px; height:340px } .s4 .cons{ top:810px }
+  .s2 .big{ top:300px } .s2 .areas{ top:700px } .s2 .ar b{ font-size:44px } .s2 .ar p{ font-size:26px }
+  .s7 .float{ width:480px; padding:30px 32px } .s7 .float div:nth-child(2){ font-size:36px !important } .s7 .float div:nth-child(1),.s7 .float div:nth-child(3){ font-size:18px !important }
+  .bt .gx{ height:14px !important } .bt div[style*="grid-template-columns:60px"]{ grid-template-columns:80px 1fr 64px !important; font-size:19px !important; margin-top:6px }
+  .s10 .feats{ bottom:90px } .s10 .feats div b{ font-size:30px } .s10 .feats div span{ font-size:22px }
+  .s16 .ef{ padding:36px 0 40px }
 </style>
 </head>
 <body>
@@ -556,46 +673,26 @@
   <div class="foot"><span>OwnerView</span><span>02</span></div>
 </section>
 
-<!-- ═══════════ 3 문제 ① — 어두운 카드 줄 ═══════════ -->
-<section class="slide dark s3">
-  <div class="top"><p class="eyebrow a">Problem 01</p><h2 class="a d1">금융·세무 데이터를 여러 시스템에<br><span>중복 입력하고 있습니다</span></h2></div>
-  <div class="row">
-    <div class="a d2">
-      <div class="dc"><div class="ttl">인터넷뱅킹 · 은행 3곳</div>
-        <div class="rw">A은행 거래내역 <em>엑셀 내려받기</em></div><div class="rw">B은행 거래내역 <em>엑셀 내려받기</em></div><div class="rw">C은행 거래내역 <em>엑셀 내려받기</em></div>
-        <div class="skl" style="margin-top:22px;width:70%"></div><div class="skl" style="width:45%"></div></div>
-      <div class="cap"><b>은행·카드 거래내역을<br>매월 엑셀로 내려받아 정리</b><span>은행·카드사별 로그인 반복</span></div>
-    </div>
-    <div class="a d3">
-      <div class="dc"><div class="ttl">엑셀 · 수기 대사</div>
-        <div style="margin-top:16px;display:grid;grid-template-columns:repeat(5,1fr);gap:6px">
-          <div class="skl" style="background:#1f3b2c"></div><div class="skl"></div><div class="skl"></div><div class="skl"></div><div class="skl"></div>
-          <div class="skl"></div><div class="skl" style="background:#43242a"></div><div class="skl"></div><div class="skl"></div><div class="skl"></div>
-          <div class="skl"></div><div class="skl"></div><div class="skl" style="background:#43242a"></div><div class="skl"></div><div class="skl"></div>
-          <div class="skl"></div><div class="skl"></div><div class="skl"></div><div class="skl" style="background:#1f3b2c"></div><div class="skl"></div>
-          <div class="skl"></div><div class="skl" style="background:#473a1c"></div><div class="skl"></div><div class="skl"></div><div class="skl"></div>
-        </div>
-        <div class="rw" style="margin-top:22px">세금계산서 ↔ 입금 <em style="color:#ff7a85">불일치 3건</em></div></div>
-      <div class="cap"><b>세금계산서와 입금 내역을<br>수기로 대사</b><span>복사·붙여넣기 반복</span></div>
-    </div>
-    <div class="a d4">
-      <div class="dc"><div class="ttl">SaaS 4종 · 따로 로그인</div>
-        <div class="rw">근태 관리 <em>A 서비스</em></div><div class="rw">급여 계산 <em>B 서비스</em></div><div class="rw">전자계약 <em>C 서비스</em></div><div class="rw">전자결재 <em>D 서비스</em></div></div>
-      <div class="cap"><b>근태·급여·전자계약·결재를<br>각각 다른 SaaS로 운영</b><span>데이터가 서로 연결되지 않음</span></div>
-    </div>
-    <div class="a d5">
-      <div class="dc"><div class="ttl">메일 · 세무사 전달</div>
-        <div class="rw"><svg class="li" style="width:18px;height:18px"><use href="#i-mail"/></svg>9월 증빙자료 전달 <em>첨부 12</em></div><div class="rw"><svg class="li" style="width:18px;height:18px"><use href="#i-mail"/></svg>RE: 누락 증빙 요청 <em>첨부 3</em></div><div class="rw"><svg class="li" style="width:18px;height:18px"><use href="#i-mail"/></svg>RE: RE: 수정본 <em>첨부 5</em></div>
-        <div class="skl" style="margin-top:22px;width:60%"></div></div>
-      <div class="cap"><b>세무사에게 증빙·장부를<br>메일로 전달</b><span>누락·재요청이 반복</span></div>
-    </div>
+<!-- ═══════════ 3 문제 ① — 4쪽과 같은 글자 전환 구성(질문으로 연다) ═══════════ -->
+<section class="slide s4 p3">
+  <div class="head"><p class="eyebrow a" style="color:#e42939">Problem</p><h2 class="a d1">회사 운영의 어려움,<br>무엇이 문제일까요?</h2><p class="q a d2"><b>첫째,</b> 같은 데이터를 여러 시스템에 중복 입력하고 있습니다</p></div>
+  <div class="stage">
+    <span class="w a d3">은행 · 카드</span>
+    <div class="pillbox a d4"><b>같은 데이터를 여러 번 입력</b><span>은행 → 엑셀 → 회계 프로그램 → 메일</span></div>
+    <span class="w a d3">급여 · 계약 · 결재</span>
+  </div>
+  <div class="cons">
+    <div class="a d5"><b>매월 엑셀 정리</b><span>은행·카드 거래내역을<br>매월 내려받아 정리합니다.</span></div>
+    <div class="a d6"><b>수기 대사</b><span>세금계산서와 입금 내역을<br>하나씩 맞춰 봅니다.</span></div>
+    <div class="a d7"><b>SaaS 따로 운영</b><span>근태·급여·전자계약·결재가<br>서로 연결되지 않습니다.</span></div>
+    <div class="a d8"><b>메일로 전달</b><span>세무사에게 증빙·장부를<br>메일로 주고받습니다.</span></div>
   </div>
   <div class="foot"><span>OwnerView · 일반적인 중소기업 업무 흐름 예시</span><span>03</span></div>
 </section>
 
 <!-- ═══════════ 4 문제 ② — 글자 전환 ═══════════ -->
 <section class="slide gray s4">
-  <div class="head"><p class="eyebrow a" style="color:#e42939">Problem 02</p><h2 class="a d1">경영 현황 파악은 아직도<br>여러 시스템의 수기 취합입니다</h2></div>
+  <div class="head"><p class="eyebrow a" style="color:#e42939">Problem</p><h2 class="a d1">경영 현황 파악은 아직도<br>여러 시스템의 수기 취합입니다</h2><p class="q a d2"><b>둘째,</b> 판단에 필요한 숫자가 늘 늦게 모입니다</p></div>
   <div class="stage">
     <span class="w a d2">자금 · 채권</span>
     <div class="pillbox a d3"><b>엑셀 수기 취합</b><span>시스템별 조회 → 복사·붙여넣기 → 보고서</span></div>
@@ -611,7 +708,7 @@
 
 <!-- ═══════════ 5 해결 — 반투명 그라데이션 카드 3장 ═══════════ -->
 <section class="slide s5">
-  <div class="top"><p class="eyebrow a">Solution</p><h2 class="a d1">수집하고, 진단하고, 먼저 챙길 일을 추천합니다</h2></div>
+  <div class="top"><p class="eyebrow a">Solution</p><h2 class="a d1">오너뷰는 다릅니다</h2><p class="sub5 a d2">수집하고, 진단하고, 먼저 챙길 일을 추천합니다</p></div>
   <div class="cards">
     <div class="gc c1 f d2"><div class="glass">
       <div class="k">수집 완료 · 오늘 09:00</div><div class="hh">새 거래 31건</div>
@@ -768,44 +865,24 @@
   <div class="foot"><span>OwnerView</span><span>08</span></div>
 </section>
 
-<!-- ═══════════ 9 재무·세무 — 가로 흐름 카드 ═══════════ -->
+<!-- ═══════════ 9 재무·세무 ① — 카드 3장(PDF 에서 잘리지 않게 두 쪽으로) ═══════════ -->
 <section class="slide s9">
   <div class="head">
-    <div><p class="eyebrow a">Features 01 · 재무·세무</p><h2 class="a d1">거래 수집부터 세무 신고 자료까지</h2></div>
-    <div class="hint a d2"><i><svg class="li" style="width:22px;height:22px"><use href="#i-left"/></svg></i><i class="on"><svg class="li" style="width:22px;height:22px"><use href="#i-arrow"/></svg></i></div>
+    <div><p class="eyebrow a">Features 01 · 재무·세무</p><h2 class="a d1">거래 수집부터 전표까지</h2></div>
+    <div class="hint a d2"><i><svg class="li" style="width:24px;height:24px"><use href="#i-left"/></svg></i><i class="on"><svg class="li" style="width:24px;height:24px"><use href="#i-arrow"/></svg></i></div>
   </div>
-  <div class="track">
-    <div class="cc a d2"><div class="vis" style="background:linear-gradient(160deg,#eef3fb,#dde8f8)"><div class="card">
-      <div style="font-size:14px;color:#8b95a1;font-weight:600">수집 현황</div>
-      <div class="ln"><span class="dot db"><svg class="li"><use href="#i-bank"/></svg></span><div class="t">통장</div><span class="r t num">13건</span></div>
-      <div class="ln"><span class="dot"><svg class="li"><use href="#i-card"/></svg></span><div class="t">카드</div><span class="r t num">8건</span></div>
-      <div class="ln"><span class="dot dg"><svg class="li"><use href="#i-receipt"/></svg></span><div class="t">세금계산서</div><span class="r t num">10건</span></div>
-    </div></div><div class="cap"><span>수집·전표</span><b>은행·카드·홈택스 자료를<br>한 번에 수집합니다</b></div></div>
-    <div class="cc a d3"><div class="vis" style="background:linear-gradient(160deg,#f3f1fb,#e4e0f6)"><div class="card">
-      <div style="font-size:14px;color:#8b95a1;font-weight:600">세금계산서 발행</div>
-      <div style="margin-top:10px;font-size:26px;font-weight:800;color:#191f28" class="num">₩8,910,000</div>
-      <div style="font-size:14px;color:#6b7684;margin-top:2px">(주)미래테크 · 플랫폼 구축 3차</div>
-      <div style="margin-top:16px;height:46px;border-radius:12px;background:linear-gradient(90deg,#4f46e5,#3b82f6);color:#fff;display:grid;place-items:center;font-weight:700">발행하기</div>
-    </div></div><div class="cap"><span>세금·증빙</span><b>세금계산서·현금영수증<br>발행과 수정 발행</b></div></div>
-    <div class="cc a d4"><div class="vis" style="background:linear-gradient(160deg,#eef6f3,#dcede6)"><div class="card">
-      <div style="font-size:14px;color:#8b95a1;font-weight:600">일반전표</div>
-      <div class="ln"><div class="t">차변 · 보통예금</div><span class="r t num">127,000</span></div>
-      <div class="ln"><div class="t">대변 · 사무용품비</div><span class="r t num">127,000</span></div>
-      <div style="margin-top:10px"><span class="bd grn">차대일치</span> <span class="bd gry">9월 마감 전</span></div>
-    </div></div><div class="cap"><span>전표·월 마감</span><b>차·대변 자동 검증,<br>부가세 유형 10종·월 마감</b></div></div>
-    <div class="cc a d5"><div class="vis" style="background:linear-gradient(160deg,#fbf3ec,#f4e3d3)"><div class="card">
-      <div style="font-size:14px;color:#8b95a1;font-weight:600">부가세 신고 · 2기 예정</div>
-      <div class="ln"><div class="t">매출세액</div><span class="r t num">33,318,000</span></div>
-      <div class="ln"><div class="t">매입세액</div><span class="r t num">1,398,000</span></div>
-      <div class="ln"><div class="t">납부 예상</div><span class="r t num" style="color:#e42939">31,920,000</span></div>
-    </div></div><div class="cap"><span>세무 신고</span><b>원천세·부가세 신고서 준비<br>제출은 홈택스에서</b></div></div>
-    <div class="cc a d6"><div class="vis"><div class="card">
-      <div style="font-size:14px;color:#8b95a1;font-weight:600">손익계산서 · 9월</div>
-      <div class="ln"><div class="t">매출액</div><span class="r t num">40,880,000</span></div>
-      <div class="ln"><div class="t">영업이익</div><span class="r t num" style="color:#0e9f5e">30,620,000</span></div>
-    </div></div><div class="cap"><span>재무 리포트</span><b>손익계산서·재무상태표<br>거래처 원장</b></div></div>
-  </div>
+  <div class="track"><div class="cc a"><div class="vis" style="background:linear-gradient(160deg,#eef3fb,#dde8f8)"><div class="card"><div class="ct">수집 현황</div><div class="ln"><span class="dot db"><svg class="li"><use href="#i-bank"/></svg></span><div class="t">통장</div><span class="r t num">13건</span></div><div class="ln"><span class="dot"><svg class="li"><use href="#i-card"/></svg></span><div class="t">카드</div><span class="r t num">8건</span></div><div class="ln"><span class="dot dg"><svg class="li"><use href="#i-receipt"/></svg></span><div class="t">세금계산서</div><span class="r t num">10건</span></div></div></div><div class="cap"><span>수집·전표</span><b>은행·카드·홈택스 자료를<br>한 번에 수집합니다</b></div></div><div class="cc a"><div class="vis" style="background:linear-gradient(160deg,#f3f1fb,#e4e0f6)"><div class="card"><div class="ct">세금계산서 발행</div><div class="big num">₩8,910,000</div><div class="ct2">(주)미래테크 · 플랫폼 구축 3차</div><div class="btn">발행하기</div></div></div><div class="cap"><span>세금·증빙</span><b>세금계산서·현금영수증<br>발행과 수정 발행</b></div></div><div class="cc a"><div class="vis" style="background:linear-gradient(160deg,#eef6f3,#dcede6)"><div class="card"><div class="ct">일반전표</div><div class="ln"><div class="t">차변 · 보통예금</div><span class="r t num">127,000</span></div><div class="ln"><div class="t">대변 · 사무용품비</div><span class="r t num">127,000</span></div><div style="margin-top:12px"><span class="bd grn">차대일치</span> <span class="bd gry">9월 마감 전</span></div></div></div><div class="cap"><span>전표·월 마감</span><b>차·대변 자동 검증,<br>부가세 유형 10종·월 마감</b></div></div></div>
   <div class="foot"><span>OwnerView · 카드 속 숫자는 가상 회사 예시</span><span>09</span></div>
+</section>
+
+<!-- ═══════════ 9-2 재무·세무 ② ═══════════ -->
+<section class="slide s9">
+  <div class="head">
+    <div><p class="eyebrow a">Features 01 · 재무·세무</p><h2 class="a d1">세무 신고 준비와 재무 리포트까지</h2></div>
+    <div class="hint a d2"><i class="on"><svg class="li" style="width:24px;height:24px"><use href="#i-left"/></svg></i><i><svg class="li" style="width:24px;height:24px"><use href="#i-arrow"/></svg></i></div>
+  </div>
+  <div class="track"><div class="cc a"><div class="vis" style="background:linear-gradient(160deg,#fbf3ec,#f4e3d3)"><div class="card"><div class="ct">부가세 신고 · 2기 예정</div><div class="ln"><div class="t">매출세액</div><span class="r t num">33,318,000</span></div><div class="ln"><div class="t">매입세액</div><span class="r t num">1,398,000</span></div><div class="ln"><div class="t">납부 예상</div><span class="r t num" style="color:#e42939">31,920,000</span></div></div></div><div class="cap"><span>세무 신고</span><b>원천세·부가세 신고서 준비,<br>제출은 홈택스에서</b></div></div><div class="cc a"><div class="vis" style="background:linear-gradient(160deg,#eef1fb,#dfe5f7)"><div class="card"><div class="ct">손익계산서 · 9월</div><div class="ln"><div class="t">매출액</div><span class="r t num">40,880,000</span></div><div class="ln"><div class="t">매출원가·판관비</div><span class="r t num">10,260,000</span></div><div class="ln"><div class="t">영업이익</div><span class="r t num" style="color:#0e9f5e">30,620,000</span></div></div></div><div class="cap"><span>재무 리포트</span><b>손익계산서·재무상태표,<br>거래처 원장</b></div></div><div class="cc a"><div class="vis" style="background:linear-gradient(160deg,#f1f7fb,#dcebf4)"><div class="card"><div class="ct">정기 지출 · 다음 결제</div><div class="ln"><div class="t">클라우드 서버</div><span class="r t num">09-25</span></div><div class="ln"><div class="t">사무실 임대료</div><span class="r t num">09-30</span></div><div class="ln"><div class="t">감가상각 전표 초안</div><span class="r bd blu">9월 생성</span></div></div></div><div class="cap"><span>고정자산 · 정기 지출</span><b>월 감가상각 전표 초안,<br>반복 결제 감지·결제일 알림</b></div></div></div>
+  <div class="foot"><span>OwnerView · 카드 속 숫자는 가상 회사 예시</span><span>10</span></div>
 </section>
 
 <!-- ═══════════ 10 재고·이커머스 — 떠 있는 품목 카드 ═══════════ -->
@@ -824,7 +901,7 @@
     <div class="a d7"><b>이커머스</b><span>채널 주문 엑셀 업로드, 중복 주문 차단</span></div>
     <div class="a d7"><b>이익관리</b><span>FIFO·이동평균 원가, 품목·채널별 이익</span></div>
   </div>
-  <div class="foot"><span>OwnerView · 예시 화면(가상 회사)</span><span>10</span></div>
+  <div class="foot"><span>OwnerView · 예시 화면(가상 회사)</span><span>11</span></div>
 </section>
 
 <!-- ═══════════ 11 업무·인사 — 벤토 격자 ═══════════ -->
@@ -869,14 +946,14 @@
         <div class="ln"><div class="t">명세서 발송</div><span class="r bd blu">12명 대기</span></div>
       </div></div>
   </div>
-  <div class="foot"><span>OwnerView</span><span>11</span></div>
+  <div class="foot"><span>OwnerView</span><span>12</span></div>
 </section>
 
 <!-- ═══════════ 12 사용 장면 — 명암 대비 ═══════════ -->
 <section class="slide s12">
   <div class="head">
-    <div><p class="eyebrow a">Use Case</p><h2 class="a d1">가상 기업 A사, 도입 전과 후</h2></div>
-    <p class="co a d2">A사 · 제조·유통 · 구성원 12명<br>은행 계좌 3개 · 법인카드 2장 (가상 기업 예시)</p>
+    <div><p class="eyebrow a">Before &amp; After</p><h2 class="a d1">오너뷰 도입 전과 후</h2></div>
+    <p class="co a d2">중소기업의 일반적인 업무 흐름 기준</p>
   </div>
   <div class="two">
     <div class="pn before a d2">
@@ -893,7 +970,7 @@
       <div class="jb"><div class="jn">급여 지급</div><div class="flow">급여 배치 확인(자동 계산)<i>→</i>명세서 발송</div><div class="steps">담당자 작업 2단계 · 화면 1개</div></div>
     </div>
   </div>
-  <div class="foot"><span>OwnerView · 데이터 1회 입력, 전 메뉴 공유 · 실행은 담당자 승인 기반</span><span>12</span></div>
+  <div class="foot"><span>OwnerView · 데이터 1회 입력, 전 메뉴 공유 · 실행은 담당자 승인 기반</span><span>13</span></div>
 </section>
 
 <!-- ═══════════ 13 Key Numbers — 점 지형 ═══════════ -->
@@ -909,12 +986,12 @@
     <div class="nm a d7"><div class="v">0<small>원</small></div><b>무료 플랜</b><span>카드 등록 없이 시작</span></div>
   </div>
   <p class="src f d8">제품 사양 기준(2026년 9월) · 고객 수·사용량 등 실적 수치는 포함하지 않았습니다</p>
-  <div class="foot"><span>OwnerView</span><span>13</span></div>
+  <div class="foot"><span>OwnerView</span><span>14</span></div>
 </section>
 
 <!-- ═══════════ 14 차별점 — 검은 판 ═══════════ -->
 <section class="slide gray s14">
-  <div class="top"><p class="eyebrow a">Why OwnerView</p><h2 class="a d1">기존 ERP와 무엇이 다른가</h2></div>
+  <div class="top"><p class="eyebrow a">Why OwnerView</p><h2 class="a d1">기존 ERP와 무엇이 다른가요?</h2></div>
   <div class="board a d2">
     <div class="cr h"><span>항목</span><span>일반적인 ERP</span><span></span><span style="color:#a5b4fc">오너뷰</span></div>
     <div class="cr"><span class="k">요금 체계</span><span class="g">기능·모듈별 요금제 분리</span><span class="ar"><svg class="li" style="width:22px;height:22px"><use href="#i-arrow"/></svg></span><span class="o"><em>단일 유료 플랜</em>으로 전 기능</span></div>
@@ -924,7 +1001,7 @@
     <div class="cr"><span class="k">AI 활용</span><span class="g">부가 기능 또는 미제공</span><span class="ar"><svg class="li" style="width:22px;height:22px"><use href="#i-arrow"/></svg></span><span class="o">추천·브리핑·예측, <em>실행은 담당자 승인</em></span></div>
   </div>
   <p class="note f d4">특정 업체와의 비교가 아닌 일반적인 도입 형태 기준입니다</p>
-  <div class="foot" style="bottom:20px"><span>OwnerView</span><span>14</span></div>
+  <div class="foot" style="bottom:20px"><span>OwnerView</span><span>15</span></div>
 </section>
 
 <!-- ═══════════ 15 요금제 — 흑백 카드 ═══════════ -->
@@ -957,7 +1034,7 @@
     </div>
   </div>
   <p class="calc a d4">예) 구성원 10명 = ₩39,000 + 5명 × ₩5,000 = <b>월 ₩64,000</b> (VAT 별도)<a href="https://www.owner-view.com/pricing/">요금 상세 보기 →</a></p>
-  <div class="foot"><span>OwnerView</span><span>15</span></div>
+  <div class="foot"><span>OwnerView</span><span>16</span></div>
 </section>
 
 <!-- ═══════════ 16 기대 효과 — 번호 목록 ═══════════ -->
@@ -975,7 +1052,7 @@
     <div class="ef a d6"><i>05</i><b>정부지원금 기회 확보</b><span>회사·인사 데이터 기반으로 지원 가능한 제도를 매칭합니다.</span><em>큐레이션</em></div>
     <div class="ef a d7"><i>06</i><b>내부 통제 강화</b><span>메뉴별 권한, 다단계 결재선, 접속 허용 IP, 담당자 승인 기반 실행.</span><em>보안·권한</em></div>
   </div>
-  <div class="foot"><span>OwnerView</span><span>16</span></div>
+  <div class="foot"><span>OwnerView</span><span>17</span></div>
 </section>
 
 <!-- ═══════════ 17 CTA — 글로우 ═══════════ -->
