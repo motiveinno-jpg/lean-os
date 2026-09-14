@@ -602,9 +602,9 @@
   .s1 .glowbg,.s17 .glowbg{ display:none }
   .s1 .op{ left:auto; right:120px; bottom:40px; font-size:21px }
   /* 배경 단색 전체 적용(사장님 "배경색은 전체적으로") — 5쪽 카드 칸·9/10쪽 카드 칸의 그라데이션도 단색으로 */
-  .gc.c1,.gc.c2,.gc.c3{ background:#eef1f8 !important }
-  .gc.c2{ background:#e9edf7 !important }
-  .s9 .cc .vis{ background:#f1f3f8 !important }
+  /* 카드 칸 색 — 쪽 배경은 단색 유지, 카드 칸은 원래의 옅은 색조를 단색으로 되살림(2026-09-14 사장님 "원래 박스 배경색이 사라졌다") */
+  .gc.c1{ background:#dfe8f8 !important } .gc.c2{ background:#d7e3fb !important } .gc.c3{ background:#e3e2f7 !important }
+  .s9 .track .cc:nth-child(1) .vis{ background:#e6eefb !important } .s9 .track .cc:nth-child(2) .vis{ background:#ece9fa !important } .s9 .track .cc:nth-child(3) .vis{ background:#e3f2ec !important }
   .s5 .caps{ top:850px }
   .s1 .device{ width:1120px; margin-left:-560px }
   .s1 .app{ grid-template-columns:190px 1fr } .s1 .app .main{ padding:22px 24px } .s1 .kp{ padding:14px 16px } .s1 .kp .v{ font-size:21px } .s1 .kp .l{ font-size:14px }
@@ -612,6 +612,7 @@
   /* 3·4쪽 판 — 파스텔(분홍·하늘 번짐)이 빛바래 보여 짙은 인디고→블루로 (2026-09-14 사장님) · 그림자는 작고 옅게 */
   .s4 .pillbox{ background:linear-gradient(135deg,#3730a3 0%,#4f46e5 48%,#3b82f6 100%) !important; box-shadow:0 28px 56px -28px rgba(55,48,163,.55) !important }
   .s4 .pillbox span{ color:#dbe2ff !important }
+  .s9b .track .cc:nth-child(1) .vis{ background:#fbefe4 !important } .s9b .track .cc:nth-child(2) .vis{ background:#e7ebfa !important } .s9b .track .cc:nth-child(3) .vis{ background:#e3f0f7 !important }
 </style>
 </head>
 <body>
@@ -904,7 +905,7 @@
 </section>
 
 <!-- ═══════════ 9-2 재무·세무 ② ═══════════ -->
-<section class="slide s9">
+<section class="slide s9 s9b">
   <div class="head">
     <div><p class="eyebrow a">Features 01 · 재무·세무</p><h2 class="a d1">세무 신고 준비와 재무 리포트까지</h2></div>
     <div class="hint a d2"><i class="on"><svg class="li" style="width:24px;height:24px"><use href="#i-left"/></svg></i><i><svg class="li" style="width:24px;height:24px"><use href="#i-arrow"/></svg></i></div>

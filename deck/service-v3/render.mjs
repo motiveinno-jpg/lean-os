@@ -56,17 +56,23 @@ for (let i = 0; i < pages.length; i++) {
   await save(path.join(out, `slide-${String(i + 1).padStart(2, "0")}.png`), await p1.screenshot({ clip: { x: 0, y: 0, width: 1920, height: 1080 } }));
 }
 
-// ⚠️ PDF 는 쪽 이미지로 만든다 (2026-09-14 사장님 맥 미리보기에서 발견):
-//   HTML 을 그대로 page.pdf() 로 뽑으면 큰 흐림 그림자(box-shadow)·반투명 그라데이션·글자 그라데이션이 PDF 벡터로 옮겨지는데,
-//   macOS 미리보기는 이 그림자를 부드럽게 못 그리고 회색 네모 판으로 찍는다(윈도우·크롬에서는 안 보임).
-//   → 2배 해상도 JPEG 를 쪽마다 한 장씩 깔아 어느 PDF 뷰어에서나 화면과 똑같이 보이게 한다. 링크는 같은 자리에 투명 <a> 로 다시 얹는다.
-//   버린 안: 그림자만 print 에서 끄기 — 다른 효과(background-clip:text, filter)도 뷰어마다 다르게 그려질 수 있어 근본 해결이 아님.
-const html = `<!doctype html><html><head><style>@page{ size:1920px 1080px; margin:0 } *{ margin:0; padding:0 } .pg{ position:relative; width:1920px; height:1080px; page-break-after:always; overflow:hidden } .pg img{ display:block; width:1920px; height:1080px } .pg a{ position:absolute; display:block }</style></head><body>${
-  pages.map((p) => `<div class="pg"><img src="data:image/jpeg;base64,${p.jpg}">${p.links.map((l) => `<a href="${l.href}" style="left:${l.x}px;top:${l.y}px;width:${l.w}px;height:${l.h}px"></a>`).join("")}</div>`).join("")
-}</body></html>`;
-const pp = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
-await pp.setContent(html, { waitUntil: "load" });
-await save(path.join(out, "오너뷰_서비스소개서_v3.pdf"), await pp.pdf({ width: "1920px", height: "1080px", printBackground: true, margin: { top: 0, right: 0, bottom: 0, left: 0 } }));
+// ⚠️ PDF = 벡터 + 그림자만 이미지 (2026-09-14, 두 번의 사장님 피드백)
+//   ① 처음(page.pdf 벡터 그대로): 맥 미리보기에서 큰 흐림 box-shadow(소프트 마스크)가 회색 네모 판으로 찍혔다.
+//   ② 다음(쪽 전체를 2배 JPEG 로): 윈도우 뷰어에서 글자·색이 빛바랜 듯 흐려 보였다 — 픽셀 값은 같지만(ICC sRGB 확인)
+//      큰 이미지를 화면 크기로 줄여 그리면서 가는 글자가 옅어진다. 글자 선택도 안 된다.
+//   → 쪽 캡처 이미지를 각 쪽 "바탕"으로 깔고, 그 위의 실제 요소(글자·카드·선)는 벡터로 다시 그린다.
+//     단 벡터 쪽에서는 그림자·filter 를 끈다 — 그림자는 바탕 이미지에만 남아 맥에서도 판으로 안 찍히고, 글자·색은 벡터라 선명하다.
+const shots = pages.map((p) => p.jpg);
+await page.evaluate((imgs) => {
+  const st = document.createElement("style");
+  st.textContent = "*,*::before,*::after{ box-shadow:none !important; text-shadow:none !important; filter:none !important }";
+  document.head.appendChild(st);
+  document.querySelectorAll("section.slide").forEach((el, i) => {
+    el.style.setProperty("background", `url(data:image/jpeg;base64,${imgs[i]}) 0 0 / 1920px 1080px no-repeat`, "important");
+  });
+}, shots);
+await page.waitForTimeout(500);
+await save(path.join(out, "오너뷰_서비스소개서_v3.pdf"), await page.pdf({ width: "1920px", height: "1080px", printBackground: true, margin: { top: 0, right: 0, bottom: 0, left: 0 } }));
 await browser.close();
 
 // 움직이는 버전 — 브라우저로 여는 HTML 을 결과 폴더에 같이 둔다. 크롬으로 열고 F = 발표 모드 (3판부터 이미지 파일 없음 — HTML 한 장)
