@@ -44,9 +44,9 @@ export default function FeaturesView() {
   const [cat, setCat] = useState(() => pickMenu(sp.get("g"), sp.get("m"))[0]);
   const [menu, setMenu] = useState(() => pickMenu(sp.get("g"), sp.get("m"))[1]);
 
-  /* 주소가 바뀌면(그룹 탭·머리 메뉴) 따라간다. /ai 는 4단계에서 정리한다 */
+  /* 주소가 바뀌면(그룹 탭·머리 메뉴) 따라간다 */
   useEffect(() => {
-    if (sp.get("g") === "ai") { window.location.replace("/ai"); return; }
+    if (sp.get("g") === "ai") { window.location.replace("/#ai"); return; } // 옛 둘러보기 AI 탭 — /ai 는 메인으로 옮겼다(09-14)
     const [g, m] = pickMenu(sp.get("g"), sp.get("m"));
     setCat(g);
     setMenu(m);

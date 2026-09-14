@@ -1,19 +1,9 @@
-// AI 자동화 전용 페이지 (2026-07-27) — "AI 엔진"과 겹쳐 헷갈린다는 지적에 따라 한곳으로 합쳤다.
-import type { Metadata } from "next";
-import AiView from "@/components/landing/ai-view";
+// `/ai` — 2026-09-14 부터 **메인 AI 구간(`/#ai`)으로 영구(308) 넘긴다** (랜딩 v8 이관 4단계, 사장님 결정 233).
+//   옛 AI 자동화 페이지(07-27)의 7가지는 메인 §6 「AI와 자동 대조가 먼저 해 두는 일」로 옮겼다(landing-v8/content.ts AI_TASKS).
+//   「4개 엔진」 묶음은 옮기지 않았다 — 자동화를 묶은 이름일 뿐이고 옛 보험 요율·"CFO 대체" 문구가 남아 있었다.
+//   색인·공유된 링크가 있어 라우트는 남긴다 — 지우면 404 가 된다(/landing-v7 과 같은 방식). middleware PUBLIC_ROUTES 의 '/ai' 도 그래서 둔다.
+import { permanentRedirect } from "next/navigation";
 
-const SITE = "https://www.owner-view.com";
-const TITLE = "AI 자동화 | 오너뷰";
-// ⚠️ 개수·목록은 content.ts AI_AUTOMATION 과 일치시킬 것. 2026-08-25 "계약 갱신 알림"(미동작) 삭제로 8 → 7.
-const DESC = "AI 참모·거래 자동분류·아침 브리핑·3-Way 매칭·서식 인식·현금 소진 예측·휴면 감지. 사람이 매번 하던 일 7가지를 오너뷰가 대신 처리해요.";
-
-export const metadata: Metadata = {
-  title: TITLE,
-  description: DESC,
-  alternates: { canonical: `${SITE}/ai` },
-  openGraph: { type: "website", url: `${SITE}/ai`, siteName: "오너뷰", locale: "ko_KR", title: TITLE, description: DESC },
-};
-
-export default function Page() {
-  return <AiView />;
+export default function AiPage(): never {
+  permanentRedirect("/#ai");
 }

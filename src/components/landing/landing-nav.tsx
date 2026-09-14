@@ -112,13 +112,13 @@ export function LandingNav({ solid = false }: { solid?: boolean }) {
                         <p className="lp4-mega-lead">사람이 매번 하던 일을 AI가 대신 해요.</p>
                         <div className="lp4-mega-items">
                           {AI_AUTOMATION.map((a, j) => (
-                            <Link key={a.name} className="lp4-mega-m" href={`/ai?a=${j}`} onClick={() => setDrop(false)}>
+                            <Link key={a.name} className="lp4-mega-m" href="/#ai" onClick={() => setDrop(false)}>
                               <span className="lp4-mega-m-n">{a.name}</span>
                               <span className="lp4-mega-m-d">{a.tag}</span>
                             </Link>
                           ))}
                         </div>
-                        <Link className="lp4-mega-all" href="/ai" onClick={() => setDrop(false)}>AI 자동화 전체 보기 <Arrow /></Link>
+                        <Link className="lp4-mega-all" href="/#ai" onClick={() => setDrop(false)}>AI 자동화 전체 보기 <Arrow /></Link>
                       </div>
                     ) : (
                       <div className="lp4-mega-main" key={CATALOG[navG].key}>

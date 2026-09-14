@@ -13,7 +13,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import "@/app/landing-v8.css";
-import { CONSULT_HREF, COMPARE, FEATS, FIGURES, HERO, MENUS, TOPICS } from "./content";
+import { AI_TASKS, CONSULT_HREF, COMPARE, FEATS, FIGURES, HERO, MENUS, TOPICS } from "./content";
+import { CATALOG, menuHref } from "./catalog";
 import { SiteFooter, SiteHeader } from "./site-shell";
 import { BOARD, CHANNELS, COLLECT, CUTS, SORTDEMO, VAT, ic } from "./mocks";
 
@@ -400,6 +401,28 @@ export default function LandingV8() {
                   <p>{body}</p>
                 </div>
               ))}
+            </div>
+
+            {/* AI가 먼저 해 두는 일 — 옛 /ai 페이지를 여기로(2026-09-14). 위치를 누르면 그 메뉴 */}
+            <div className="ai7">
+              <h3 className="ai7-h rise">AI와 자동 대조가 <em className="hl">먼저 해 두는 일</em></h3>
+              <p className="ai7-sub rise">무엇을 근거로 판단했는지 함께 표시합니다. 확정과 발송은 사람이 합니다.</p>
+              <div className="ai7-grid">
+                {AI_TASKS.map(([icon, name, basis, desc, g, m], i) => (
+                  <div key={name} className="ai7-card rise" style={stagger(i, 50)}>
+                    <div className="ai7-top">
+                      {/* eslint-disable-next-line react/no-danger */}
+                      <span className="ai7-ic" dangerouslySetInnerHTML={html(ic(icon, 18))} />
+                      <b>{name}</b>
+                      <span className="ai7-basis">{basis}</span>
+                    </div>
+                    <p>{desc}</p>
+                    <Link className="ai7-where" href={menuHref(g, m)}>
+                      {CATALOG.find((x) => x.key === g)?.name} › {CATALOG.find((x) => x.key === g)?.menus.find((x) => x.key === m)?.name}
+                    </Link>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>

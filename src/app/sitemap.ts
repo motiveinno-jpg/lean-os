@@ -24,7 +24,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...["finance", "inventory", "analysis", "workspace", "hr"].map((g) => (
       { url: `${BASE}/features/?g=${g}`, changeFrequency: "monthly" as const, priority: 0.8, lastModified: "2026-09-14" }
     )),
-    { url: `${BASE}/ai`, changeFrequency: "monthly", priority: 0.8 },
+    // /ai 는 2026-09-14 메인(/#ai)으로 308 — 사이트맵에서 뺐다
     { url: `${BASE}/demo`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE}/contact`, changeFrequency: "yearly", priority: 0.7, lastModified: "2026-09-14" },
     { url: `${BASE}/guide`, changeFrequency: "monthly", priority: 0.6 },
