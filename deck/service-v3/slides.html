@@ -4,609 +4,770 @@
 <meta charset="utf-8" />
 <title>오너뷰 서비스 소개서 v3</title>
 <!--
-  오너뷰 서비스 소개서 v3 (2026-09-14 시작)
+  오너뷰 서비스 소개서 v3 — 디자인 2판 (2026-09-14)
   · 기준: 세일즈클루 「서비스 소개서 7가지 원칙」 · 구성안 docs/20260914_PLAN_service_deck_v3_structure.md
-  · 결정 238~240: 도입 검토 고객 · PDF · 15~20쪽 · 모티브 실데이터 없음(가상 회사 예시 + 제품 사실) ·
-    핵심 메시지 = AI 자동화 · 경영 현황 진단 · 큐레이션 · 표지에 운영사명 · 문의 QR+이메일
-  · 한 장 = 1920×1080. deck/service-v3/render.mjs 가 PNG·PDF 로 뽑는다(deliverables/service-deck-v3/, git 제외).
-  · 색·글꼴은 랜딩 v8 토큰(#4f46e5 · Inter/Pretendard) — src/app/landing-v8.css 와 같다.
-  · 17쪽(2026-09-14): 1 표지 · 2 개요 · 3~4 문제 · 5 해결 · 6~8 핵심 메시지 · 9~11 기능 상세 · 12 사용 장면 · 13 Key Numbers ·
-    14 차별점 · 15 요금제(DB subscription_plans 09-14 조회) · 16 기대 효과 · 17 CTA(QR 두 개 — jsQR 로 해독 확인). 사례 쪽은 동의 고객사가 없어 뺐다.
-  · 뺀 것: 「해지 후에도 엑셀 내려받기」(운영 정책 미확인) · 지원사업 공고 수(바뀌는 숫자, 수집이 09-06 에서 멈춰 있음) · 정량 효과(근거 없음).
-  · ⚠️ 화면 캡처는 QA 시드(가상 회사)만(결정 220). 08-20 판(f-*: 옛 메뉴명 「파이낸스」·화면 라벨 「돈 있나」)은 저녁 촬영에서 교체.
-    09-07 판(iv-*·pv-*·hv-*)은 머리 없이 찍혀 그대로 쓴다.
-  · ⛔ 문구는 회사·스타트업 실무 용어로(결정 241, 사장님 "명심 또 명심"). 구어체·풀어쓴 말 금지.
-    예) 돈이 있나 → 자금 현황 · 벌고 있나 → 손익 현황 · 받을 돈/낼 돈 → 채권·채무 · 이번 주 챙길 것 → 이번 주 To-do ·
-        골라 드립니다/확정만 하세요 → 추천합니다/검토·승인 · 해당/해당 없음 → 지원 가능/대상 아님
+  · 결정 238~241: 도입 검토 고객 · PDF · 17쪽 · 모티브 실데이터 없음(가상 회사 예시 + 제품 사실) · 실무 용어
+  · 디자인 2판(사장님 레퍼런스 14.PNG): 파스텔 메시 그라데이션 + 반투명 흰 카드 + 3D 이모지 + 벡터 목업(실제 캡처 대신).
+    목업 숫자는 가상 회사 예시 — 카드마다 「예시」 표기.
+  · 3D 이모지 = Microsoft Fluent Emoji (MIT) — assets/emoji/
+  · 움직임: 브라우저로 열면 쪽이 보일 때 등장·떠다님·차트 그리기가 재생된다. F = 발표 모드(←/→).
+    render.mjs 는 <html class="still"> 로 애니메이션을 끄고 끝 상태를 PDF·PNG 로 찍는다.
+  · 한 장 = 1920×1080.
 -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
 <style>
   :root{
-    --ink:#111827; --ink-2:#374151; --ink-3:#6b7280; --ink-4:#9ca3af;
-    --line:#e5e7eb; --bg:#ffffff; --bg-100:#f9fafb; --bg-200:#f3f4f6;
-    --brand:#4f46e5; --brand-d:#4338ca; --brand-l:#eef0ff; --ok:#0f9d58; --warn:#b45309; --bad:#dc2626;
-    --f:'Inter','Pretendard Variable',Pretendard,'Noto Sans KR',system-ui,sans-serif;
+    --ink:#191f28; --ink-2:#4e5968; --ink-3:#8b95a1; --ink-4:#b0b8c1;
+    --brand:#4f46e5; --brand-2:#6366f1; --blue:#3b82f6; --sky:#60a5fa; --violet:#8b5cf6;
+    --ok:#10b981; --ok-bg:#e7f8f0; --warn:#f59e0b; --warn-bg:#fff4dc; --bad:#f04452; --bad-bg:#ffecee;
+    --glass:rgba(255,255,255,.74); --glass-line:rgba(255,255,255,.95);
+    --shadow:0 40px 90px -36px rgba(40,56,120,.35), 0 2px 6px rgba(40,56,120,.05);
+    --f:'Pretendard Variable',Pretendard,'Noto Sans KR',system-ui,sans-serif;
   }
-  @page{ size: 1920px 1080px; margin: 0 }
-  *{ box-sizing: border-box }
-  html,body{ margin:0; background:#d9dbe3 }
-  body{ font-family: var(--f); color: var(--ink-2); -webkit-font-smoothing: antialiased; word-break: keep-all }
-  .slide{ position: relative; width:1920px; height:1080px; margin:0 auto 40px; background:var(--bg); overflow:hidden; page-break-after: always; break-after: page }
-  @media print{ html,body{ background:#fff } .slide{ margin:0 } }
+  @page{ size:1920px 1080px; margin:0 }
+  *{ box-sizing:border-box }
+  html,body{ margin:0; background:#cfd5e3 }
+  body{ font-family:var(--f); color:var(--ink-2); -webkit-font-smoothing:antialiased; word-break:keep-all }
   h1,h2,h3,p{ margin:0 }
-  h1,h2,h3{ color:var(--ink); font-weight:600; letter-spacing:-.025em; line-height:1.18 }
-  .hl{ font-style:normal; background:linear-gradient(var(--brand-l),var(--brand-l)) no-repeat 0 88%/100% 34%; padding:0 4px }
+  h1,h2,h3{ color:var(--ink); font-weight:750; letter-spacing:-.035em; line-height:1.16 }
+  img{ display:block }
 
-  /* 공통 틀 — 쪽 번호·머리 */
-  .foot{ position:absolute; left:96px; right:96px; bottom:44px; display:flex; justify-content:space-between; font-size:18px; color:var(--ink-4) }
-  .foot b{ color:var(--ink-3); font-weight:600 }
-  .eyebrow{ display:inline-flex; align-items:center; gap:12px; font-size:22px; font-weight:600; color:var(--brand) }
-  .eyebrow i{ display:grid; place-items:center; width:40px; height:40px; border-radius:10px; background:var(--brand); color:#fff; font-style:normal; font-size:18px; font-weight:700 }
-  .brand{ display:flex; align-items:center; gap:12px; font-size:30px; font-weight:700; color:var(--ink); letter-spacing:-.03em }
-  .brand span{ width:40px; height:40px; border-radius:10px; background:var(--brand); display:grid; place-items:center }
+  /* ── 쪽 틀 ── */
+  .slide{ position:relative; width:1920px; height:1080px; margin:0 auto 40px; overflow:hidden; background:#f4f6fb; page-break-after:always; break-after:page }
+  @media print{ html,body{ background:#fff } .slide{ margin:0 } }
+  .mesh{ position:absolute; inset:0; z-index:0 }
+  .mesh.a{ background:
+      radial-gradient(900px 700px at 8% 0%, #dfe8ff 0%, transparent 60%),
+      radial-gradient(800px 700px at 100% 10%, #e6ddff 0%, transparent 60%),
+      radial-gradient(900px 700px at 90% 100%, #d6e7ff 0%, transparent 62%),
+      radial-gradient(700px 600px at 0% 100%, #ffeadd 0%, transparent 60%), #f5f7fc }
+  .mesh.b{ background:
+      radial-gradient(900px 700px at 0% 0%, #ffe6dc 0%, transparent 60%),
+      radial-gradient(800px 700px at 100% 0%, #ffe0ec 0%, transparent 58%),
+      radial-gradient(900px 800px at 90% 100%, #e3e6ff 0%, transparent 62%), #faf6f6 }
+  .mesh.c{ background:
+      radial-gradient(900px 700px at 0% 0%, #d9f3ee 0%, transparent 60%),
+      radial-gradient(900px 700px at 100% 20%, #dbe8ff 0%, transparent 60%),
+      radial-gradient(700px 700px at 60% 110%, #ece3ff 0%, transparent 60%), #f4f8f9 }
+  .mesh.d{ background:
+      radial-gradient(900px 800px at 100% 0%, #c9d8ff 0%, transparent 60%),
+      radial-gradient(800px 700px at 0% 30%, #e9e1ff 0%, transparent 60%),
+      radial-gradient(800px 700px at 70% 100%, #ffe7d6 0%, transparent 60%), #f3f5fb }
+  .mesh.hero{ background:
+      radial-gradient(1000px 800px at 85% 20%, #7aa7ff 0%, transparent 60%),
+      radial-gradient(900px 800px at 10% 100%, #a78bfa 0%, transparent 60%),
+      radial-gradient(700px 600px at 60% 110%, #fbb6ce 0%, transparent 60%),
+      linear-gradient(135deg,#2e2a8f 0%,#4338ca 45%,#3b6ff0 100%) }
+  .orb{ position:absolute; border-radius:50%; background:radial-gradient(circle at 30% 30%, rgba(255,255,255,.9), rgba(255,255,255,0) 70%); pointer-events:none }
+  .z{ position:relative; z-index:1 }
+  .pad{ position:absolute; inset:0; padding:96px 120px 0; z-index:1 }
+  .foot{ position:absolute; left:120px; right:120px; bottom:44px; z-index:2; display:flex; justify-content:space-between; align-items:center; font-size:18px; color:var(--ink-3) }
+  .foot b{ color:var(--ink-2); font-weight:700 }
 
-  /* 화면 틀 — 브라우저 창 모양 + 캡션 */
-  .shot{ background:#fff; border:1px solid #dee2e6; border-radius:14px; box-shadow:0 50px 90px -50px rgba(17,24,39,.55), 0 4px 12px rgba(17,24,39,.06); overflow:hidden }
-  .shot .bar{ display:flex; gap:8px; align-items:center; height:36px; padding:0 16px; background:#f5f6fb; border-bottom:1px solid #e6e8f0 }
-  .shot .bar b{ width:11px; height:11px; border-radius:50%; background:#d6d8e2; display:block }
-  .shot .view{ position:relative; overflow:hidden }
-  .shot img{ display:block; width:100% }
-  .cap{ margin-top:14px; font-size:16px; color:var(--ink-4) }
+  /* ── 공통 부품 ── */
+  .pill{ display:inline-flex; align-items:center; gap:12px; height:52px; padding:0 22px 0 10px; border-radius:999px; background:rgba(255,255,255,.8); border:1.5px solid #fff; box-shadow:0 12px 30px -16px rgba(40,56,120,.35); font-size:22px; font-weight:700; color:var(--brand) }
+  .pill img{ width:36px; height:36px }
+  .h-l{ font-size:64px }
+  .gt{ background:linear-gradient(90deg,#4f46e5 0%,#3b82f6 60%,#06b6d4 100%); -webkit-background-clip:text; background-clip:text; color:transparent; -webkit-box-decoration-break:clone }
+  .lead{ margin-top:24px; font-size:27px; line-height:1.55; color:var(--ink-2) }
+  .glass{ background:var(--glass); border:1.5px solid var(--glass-line); border-radius:36px; box-shadow:var(--shadow) }
+  .card-w{ background:#fff; border-radius:28px; box-shadow:0 30px 60px -30px rgba(40,56,120,.35), 0 1px 3px rgba(40,56,120,.06) }
+  .row{ display:flex; align-items:center; gap:16px; background:rgba(255,255,255,.95); border-radius:20px; padding:18px 22px; box-shadow:0 10px 24px -16px rgba(40,56,120,.3) }
+  .row + .row{ margin-top:12px }
+  .row .t{ font-size:22px; font-weight:650; color:var(--ink) }
+  .row .s{ font-size:16px; color:var(--ink-3); margin-top:2px }
+  .row .r{ margin-left:auto; text-align:right }
+  .row .amt{ font-size:22px; font-weight:750; color:var(--ink); font-variant-numeric:tabular-nums }
+  .ic{ flex:none; display:grid; place-items:center; width:48px; height:48px; border-radius:14px; background:#eef2ff }
+  .ic img{ width:34px; height:34px }
+  .ic.blue{ background:#e8f1ff } .ic.mint{ background:#e3f7f1 } .ic.peach{ background:#fff0e6 } .ic.pink{ background:#ffeaf1 } .ic.violet{ background:#f0ebff } .ic.gray{ background:#f2f4f6 }
+  .badge{ display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 14px; border-radius:999px; font-size:16px; font-weight:700; white-space:nowrap }
+  .badge.ok{ background:var(--ok-bg); color:#059669 } .badge.warn{ background:var(--warn-bg); color:#b45309 } .badge.bad{ background:var(--bad-bg); color:#e11d48 }
+  .badge.ai{ background:linear-gradient(90deg,#eef2ff,#e0f2fe); color:var(--brand) } .badge.gray{ background:#f2f4f6; color:var(--ink-2) }
+  .muted{ color:var(--ink-3) } .num{ font-variant-numeric:tabular-nums }
+  .ex{ position:absolute; top:22px; right:26px; font-size:14px; font-weight:600; color:var(--ink-4) }
+  .spin{ width:30px; height:30px; flex:none }
+  .em{ position:absolute; filter:drop-shadow(0 24px 30px rgba(40,56,120,.28)) }
+  .em img{ width:100%; height:100% }
+  .btn-g{ display:inline-flex; align-items:center; gap:10px; height:56px; padding:0 28px; border-radius:16px; background:linear-gradient(90deg,#4f46e5,#3b82f6); color:#fff; font-size:22px; font-weight:700; box-shadow:0 18px 36px -16px rgba(79,70,229,.7); position:relative; overflow:hidden }
+  .btn-g::after{ content:""; position:absolute; top:0; bottom:0; width:60px; left:-80px; background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent); transform:skewX(-20deg) }
+  .dash{ stroke-dasharray:10 10 }
 
-  /* ── 1 표지 ── */
-  .cover{ background:linear-gradient(180deg,#fff 0%,#fff 55%,var(--bg-100) 100%) }
-  .cover .brand{ position:absolute; left:120px; top:92px }
-  .cover .text{ position:absolute; left:120px; top:300px; width:820px }
-  .cover .kicker{ font-size:26px; font-weight:500; color:var(--ink-3) }
-  .cover h1{ margin-top:28px; font-size:92px; line-height:1.12; letter-spacing:-.035em }
-  .cover .msgs{ margin-top:48px; display:flex; gap:12px; flex-wrap:wrap }
-  .cover .msgs span{ font-size:26px; font-weight:600; color:var(--brand-d); background:var(--brand-l); border-radius:999px; padding:12px 26px }
-  .cover .maker{ position:absolute; left:120px; bottom:92px; font-size:22px; color:var(--ink-3) }
-  .cover .maker b{ color:var(--ink); font-weight:600 }
-  .cover .visual{ position:absolute; right:-120px; top:170px; width:1000px; transform:perspective(2400px) rotateY(-9deg) rotateX(2deg); transform-origin:left center }
-  .cover .visual .view{ height:548px }   /* 캡처 비율(2288×1432)에 윗줄 10% 자른 높이 — 아래가 비지 않게 */
-  .cover .visual img{ margin-top:-10%; }   /* 캡처 맨 윗줄(날짜·가상 회사명)은 잘라 낸다 */
+  /* ── 움직임 (브라우저에서만 · still 이면 끈다) ── */
+  @keyframes up{ from{ opacity:0; transform:translateY(34px) } to{ opacity:1; transform:none } }
+  @keyframes pop{ from{ opacity:0; transform:scale(.86) } to{ opacity:1; transform:none } }
+  @keyframes float{ 0%,100%{ transform:translateY(0) rotate(0) } 50%{ transform:translateY(-16px) rotate(3deg) } }
+  @keyframes rot{ to{ transform:rotate(360deg) } }
+  @keyframes draw{ from{ stroke-dashoffset:1400 } to{ stroke-dashoffset:0 } }
+  @keyframes grow{ from{ transform:scaleY(0) } to{ transform:scaleY(1) } }
+  @keyframes growx{ from{ transform:scaleX(0) } to{ transform:scaleX(1) } }
+  @keyframes shine{ 0%,60%{ left:-80px } 100%{ left:120% } }
+  .slide.on .a{ animation:up .9s cubic-bezier(.2,.7,.2,1) both }
+  .slide.on .p{ animation:pop .8s cubic-bezier(.2,.8,.2,1.2) both }
+  .slide.on .d1{ animation-delay:.08s } .slide.on .d2{ animation-delay:.18s } .slide.on .d3{ animation-delay:.3s } .slide.on .d4{ animation-delay:.42s }
+  .slide.on .d5{ animation-delay:.55s } .slide.on .d6{ animation-delay:.7s } .slide.on .d7{ animation-delay:.85s } .slide.on .d8{ animation-delay:1s }
+  .em > img{ animation:float 6s ease-in-out infinite }
+  .em.f2 > img{ animation-duration:7.5s; animation-delay:-2s } .em.f3 > img{ animation-duration:5s; animation-delay:-1s }
+  .spin{ animation:rot 1.4s linear infinite }
+  .slide.on .draw{ stroke-dasharray:1400; animation:draw 2.2s .4s ease-out both }
+  .slide.on .bar-g{ transform-origin:bottom; animation:grow 1s cubic-bezier(.2,.7,.2,1) both }
+  .slide.on .bar-x{ transform-origin:left; animation:growx 1.1s cubic-bezier(.2,.7,.2,1) both }
+  .btn-g::after{ animation:shine 3.2s ease-in-out infinite }
+  .still *, .still *::before, .still *::after{ animation:none !important; transition:none !important }
+  .still .btn-g::after{ display:none }
 
-  /* ── 5 해결 흐름 ── */
-  .flow{ padding:104px 120px 0 }
-  .flow h2{ margin-top:26px; font-size:64px }
-  .flow .lane{ margin-top:72px; display:grid; grid-template-columns:1fr 64px 1fr 64px 1fr; align-items:stretch }
-  .flow .col{ border:1px solid var(--line); border-radius:20px; padding:40px 40px 36px; background:var(--bg) }
-  .flow .col.on{ border-color:var(--brand); box-shadow:0 30px 70px -48px rgba(79,70,229,.6) }
-  .flow .no{ font-size:20px; font-weight:700; color:var(--brand); letter-spacing:.06em }
-  .flow .col h3{ margin-top:12px; font-size:44px }
-  .flow .col p.lead{ margin-top:12px; font-size:22px; color:var(--ink-3); line-height:1.5 }
-  .flow ul{ list-style:none; margin:30px 0 0; padding:0; display:grid; gap:14px }
-  .flow li{ display:flex; gap:12px; align-items:flex-start; font-size:24px; color:var(--ink-2); line-height:1.4 }
-  .flow li::before{ content:""; flex:none; width:10px; height:10px; margin-top:12px; border-radius:50%; background:var(--brand) }
-  .flow .arrow{ display:grid; place-items:center; color:var(--brand) }
-  .flow .human{ margin-top:48px; display:flex; align-items:center; gap:18px; padding:26px 36px; border-radius:16px; background:var(--bg-200); font-size:26px; color:var(--ink) }
-  .flow .human b{ color:var(--brand); font-weight:700 }
+  /* ── 발표 모드 (F) ── */
+  body.present{ background:#0b0d12; overflow:hidden }
+  body.present .slide{ position:fixed; left:50%; top:50%; margin:0; transform-origin:center; display:none }
+  body.present .slide.cur{ display:block }
 
-  /* ── 6~8 메시지 쪽 — 왼쪽 글 / 오른쪽 화면 ── */
-  .msg{ display:grid; grid-template-columns:760px 1fr; gap:80px; padding:104px 0 0 120px; height:100% }
-  .msg h2{ margin-top:30px; font-size:62px }
-  .msg .sub{ margin-top:24px; font-size:26px; line-height:1.55; color:var(--ink-3) }
-  .steps{ margin-top:52px; display:grid; gap:26px }
-  .step{ display:grid; grid-template-columns:56px 1fr; gap:22px; align-items:start }
-  .step .n{ display:grid; place-items:center; width:56px; height:56px; border-radius:14px; background:var(--brand-l); color:var(--brand); font-size:24px; font-weight:700 }
-  .step b{ display:block; font-size:30px; font-weight:600; color:var(--ink); line-height:1.3 }
-  .step span{ display:block; margin-top:6px; font-size:22px; color:var(--ink-3); line-height:1.5 }
-  .note{ margin-top:40px; display:inline-flex; align-items:center; gap:12px; font-size:22px; color:var(--ink-2); background:var(--bg-200); border-radius:12px; padding:14px 22px }
-  .msg .right{ position:relative; padding-top:40px }
-  .msg .right .shot{ width:1040px }
-  .msg .right .view{ height:auto }
+  /* ════════ 1 표지 ════════ */
+  .cover .brand{ position:absolute; left:120px; top:88px; display:flex; align-items:center; gap:14px; font-size:32px; font-weight:800; color:#fff; letter-spacing:-.03em }
+  .cover .brand span{ display:grid; place-items:center; width:48px; height:48px; border-radius:14px; background:rgba(255,255,255,.2); border:1.5px solid rgba(255,255,255,.45) }
+  .cover .txt{ position:absolute; left:120px; top:290px; width:900px }
+  .cover .kick{ display:inline-flex; align-items:center; gap:10px; height:48px; padding:0 22px; border-radius:999px; background:rgba(255,255,255,.14); border:1.5px solid rgba(255,255,255,.35); color:#e0e7ff; font-size:22px; font-weight:600 }
+  .cover h1{ margin-top:34px; font-size:100px; line-height:1.1; color:#fff; letter-spacing:-.045em }
+  .cover h1 em{ font-style:normal; background:linear-gradient(90deg,#fff 0%,#c7d2fe 40%,#a5f3fc 100%); -webkit-background-clip:text; background-clip:text; color:transparent }
+  .cover .chips{ margin-top:48px; display:flex; gap:14px }
+  .cover .chips span{ display:inline-flex; align-items:center; gap:10px; height:60px; padding:0 26px 0 12px; border-radius:999px; background:rgba(255,255,255,.95); color:var(--brand); font-size:24px; font-weight:750; box-shadow:0 18px 40px -18px rgba(10,10,60,.6) }
+  .cover .chips img{ width:40px; height:40px }
+  .cover .maker{ position:absolute; left:120px; bottom:84px; font-size:22px; color:#c7d2fe }
+  .cover .maker b{ color:#fff; font-weight:700 }
+  .cover .stage{ position:absolute; right:90px; top:150px; width:820px; height:800px }
+  .cover .c1{ position:absolute; left:40px; top:40px; width:600px; padding:34px 34px 30px }
+  .cover .c2{ position:absolute; right:0; top:420px; width:380px; padding:28px 30px }
+  .cover .c3{ position:absolute; left:0; top:560px; width:400px; padding:24px 28px }
+  .cover .kpi{ font-size:44px; font-weight:800; color:var(--ink); letter-spacing:-.03em; margin-top:6px }
 
-  /* 6 — 옛 캡처 머리(메뉴 경로 「파이낸스 ›」) 잘라 냄 */
-  .msg .right .bankshot .view{ height:400px }
-  .bankshot img{ margin-top:-9.5% }
+  /* ════════ 2 개요 ════════ */
+  .ov-grid{ margin-top:40px; display:grid; grid-template-columns:repeat(4,1fr); gap:24px }
+  .ov-t{ position:relative; padding:24px 28px 22px; border-radius:30px }
+  .ov-t .top{ display:flex; justify-content:space-between; align-items:flex-start }
+  .ov-t img{ width:64px; height:64px; filter:drop-shadow(0 14px 16px rgba(40,56,120,.22)) }
+  .ov-t .cnt{ font-size:18px; font-weight:750; color:var(--brand); background:#eef2ff; border-radius:999px; padding:6px 14px }
+  .ov-t b{ display:block; margin-top:12px; font-size:34px; color:var(--ink); font-weight:750 }
+  .ov-t p{ margin-top:10px; font-size:19px; line-height:1.55; color:var(--ink-3) }
+  .band{ margin-top:24px; display:flex; align-items:center; gap:50px; padding:26px 44px; border-radius:28px; background:linear-gradient(90deg,#4f46e5,#3b82f6); color:#fff; box-shadow:0 30px 60px -30px rgba(79,70,229,.7) }
+  .band .big{ font-size:56px; font-weight:800; letter-spacing:-.03em } .band .big small{ font-size:24px; font-weight:600; margin-left:6px; opacity:.85 }
+  .band span{ font-size:26px; font-weight:600; opacity:.95 }
 
-  /* 7 — 화면 두 장 겹치기 */
-  .stack .s1{ position:absolute; left:0; top:40px; width:940px }
-  .stack .s1 .view{ height:500px }
-  .stack .s2{ position:absolute; left:120px; top:330px; width:840px }
-  .stack .s2 .view{ height:400px }
-  .stack .s2 img{ margin-top:-16% }
-  .stack .cap{ position:absolute; left:120px; top:790px }
+  /* ════════ 3·4 문제 ════════ */
+  .pain{ margin-top:46px; display:grid; gap:16px; width:760px }
+  .pain .row .t{ font-size:24px; font-weight:600 }
+  .x{ flex:none; display:grid; place-items:center; width:40px; height:40px; border-radius:12px; background:var(--bad-bg); color:var(--bad); font-weight:900; font-size:22px }
+  .chaos{ position:absolute; right:80px; top:120px; width:900px; height:860px }
+  .win{ position:absolute; width:320px; border-radius:24px; background:rgba(255,255,255,.9); box-shadow:var(--shadow); overflow:hidden }
+  .win .wb{ height:40px; display:flex; align-items:center; gap:7px; padding:0 16px; background:rgba(245,246,250,.95); border-bottom:1px solid #eceef3 }
+  .win .wb i{ width:10px; height:10px; border-radius:50%; background:#dfe3ea } .win .wb i:nth-child(1){ background:#ff8a8a } .win .wb i:nth-child(2){ background:#ffd36b } .win .wb i:nth-child(3){ background:#7ee3a3 }
+  .win .wb span{ margin-left:8px; font-size:15px; font-weight:700; color:var(--ink-2) }
+  .win .wc{ padding:18px 20px }
+  .skel{ height:12px; border-radius:6px; background:#eef0f4 } .skel + .skel{ margin-top:10px }
+  .p2-flow{ margin-top:70px; display:grid; grid-template-columns:600px 70px 460px 70px 1fr; align-items:center }
+  .srcs{ display:grid; grid-template-columns:1fr 1fr; gap:18px }
+  .src{ display:flex; align-items:center; gap:16px; padding:22px; border-radius:24px }
+  .src img{ width:58px; height:58px }
+  .src b{ display:block; font-size:28px; color:var(--ink) } .src span{ font-size:17px; color:var(--ink-3) }
+  .flowarrow{ display:grid; place-items:center; color:#9aa5b8 }
+  .excel{ position:relative; padding:34px; border-radius:30px; text-align:center }
+  .excel img{ width:96px; height:96px; margin:0 auto }
+  .excel b{ display:block; margin-top:12px; font-size:34px; color:var(--ink) } .excel span{ display:block; margin-top:8px; font-size:19px; color:var(--ink-3); line-height:1.5 }
+  .issues{ margin-top:64px; display:grid; grid-template-columns:repeat(3,1fr); gap:24px }
+  .issue{ display:flex; gap:20px; align-items:flex-start; padding:30px 32px; border-radius:28px }
+  .issue img{ width:64px; height:64px; flex:none }
+  .issue b{ display:block; font-size:28px; color:var(--ink) } .issue span{ display:block; margin-top:8px; font-size:20px; color:var(--ink-3); line-height:1.5 }
 
-  /* 8 — 브리핑 캡처 + 지원사업추천 화면(09-14 QA 시드 — 예시 판정 카드는 실제 화면으로 바꿨다) */
-  .cur .s1{ position:absolute; left:0; top:40px; width:940px }
-  .cur .s1 .view{ height:470px }
-  .cur .s1 img{ margin-top:-17% }
-  .cur .s2{ position:absolute; left:140px; top:360px; width:820px }
-  .cur .s2 .view{ height:400px }
-  .cur .cap{ position:absolute; left:140px; top:810px }
-  /* 공통 — 문제·기능 쪽 머리 */
-  .page{ padding:104px 120px 0 }
-  .page h2{ margin-top:26px; font-size:62px }
-  .page .sub{ margin-top:22px; font-size:26px; line-height:1.55; color:var(--ink-3) }
+  /* ════════ 5 해결 ════════ */
+  .sol{ margin-top:44px; display:grid; grid-template-columns:1fr 70px 1fr 70px 1fr; align-items:stretch }
+  .sol .col{ position:relative; padding:32px 36px 30px; border-radius:36px }
+  .sol .col img.hero{ width:92px; height:92px; filter:drop-shadow(0 20px 22px rgba(40,56,120,.3)) }
+  .sol .no{ position:absolute; top:40px; right:40px; font-size:60px; font-weight:800; line-height:1; color:transparent; -webkit-text-stroke:2px #c7d2fe }
+  .sol h3{ margin-top:16px; font-size:42px }
+  .sol .ld{ margin-top:10px; font-size:21px; color:var(--ink-3) }
+  .sol ul{ list-style:none; margin:26px 0 0; padding:0; display:grid; gap:12px }
+  .sol li{ display:flex; align-items:center; gap:12px; font-size:22px; font-weight:600; color:var(--ink); background:rgba(255,255,255,.9); border-radius:16px; padding:14px 18px }
+  .sol li::before{ content:"✓"; display:grid; place-items:center; width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg,#6366f1,#3b82f6); color:#fff; font-size:15px; font-weight:900; flex:none }
+  .approve{ margin-top:24px; display:flex; align-items:center; gap:18px; padding:22px 32px; border-radius:24px; font-size:26px; color:var(--ink) }
+  .approve img{ width:52px; height:52px } .approve b{ color:var(--brand) }
 
-  /* ── 2 개요 ── */
-  .ov .areas{ margin-top:64px; display:grid; grid-template-columns:repeat(4,1fr); gap:20px }
-  .ov .area{ border:1px solid var(--line); border-radius:18px; padding:38px 36px 36px; background:#fff }
-  .ov .area .hd{ display:flex; justify-content:space-between; align-items:baseline }
-  .ov .area b{ font-size:36px; color:var(--ink); font-weight:600 }
-  .ov .area .cnt{ font-size:18px; font-weight:700; color:var(--brand) }
-  .ov .area p{ margin-top:18px; font-size:22px; line-height:1.6; color:var(--ink-3) }
-  .ov .total{ margin-top:48px; display:flex; gap:56px; align-items:center; padding:30px 40px; border-radius:16px; background:var(--brand-l) }
-  .ov .total .big{ font-size:60px; font-weight:700; color:var(--brand-d); letter-spacing:-.03em }
-  .ov .total .big small{ font-size:24px; font-weight:600; margin-left:6px }
-  .ov .total span{ font-size:26px; color:var(--ink-2) }
+  /* ════════ 6~11 메시지·기능 (왼쪽 글 / 오른쪽 목업) ════════ */
+  .split .left{ position:absolute; left:120px; top:96px; width:720px; z-index:2 }
+  .split h2{ margin-top:30px; font-size:62px }
+  .steps{ margin-top:46px; display:grid; gap:18px }
+  .st{ display:flex; gap:20px; align-items:flex-start; padding:22px 26px; border-radius:26px }
+  .st .n{ flex:none; display:grid; place-items:center; width:54px; height:54px; border-radius:16px; background:#fff; box-shadow:0 10px 20px -12px rgba(40,56,120,.35) }
+  .st .n img{ width:38px; height:38px }
+  .st b{ display:block; font-size:27px; color:var(--ink); font-weight:720 }
+  .st span{ display:block; margin-top:6px; font-size:20px; color:var(--ink-3); line-height:1.5 }
+  .stage{ position:absolute; right:0; top:0; width:1060px; height:1080px; z-index:1 }
+  .note2{ margin-top:26px; display:inline-flex; align-items:center; gap:12px; padding:14px 22px; border-radius:16px; background:rgba(255,255,255,.85); font-size:20px; font-weight:600; color:var(--ink-2) }
+  .note2 img{ width:32px; height:32px }
+  .flist{ margin-top:40px; display:grid; grid-template-columns:1fr 1fr; gap:16px }
+  .fi{ padding:20px 22px; border-radius:24px }
+  .fi .hd{ display:flex; align-items:center; gap:12px }
+  .fi .hd img{ width:40px; height:40px }
+  .fi b{ font-size:23px; color:var(--ink); font-weight:720 }
+  .fi span{ display:block; margin-top:8px; font-size:17px; color:var(--ink-3); line-height:1.5 }
 
-  /* ── 3 문제 ① ── */
-  .prob{ display:grid; grid-template-columns:800px 1fr; gap:80px; padding:104px 120px 0 }
-  .prob h2{ margin-top:26px; font-size:58px }
-  .checks{ margin-top:56px; display:grid; gap:20px }
-  .checks div{ display:flex; gap:18px; align-items:flex-start; font-size:27px; color:var(--ink); line-height:1.45; padding:24px 28px; border:1px solid var(--line); border-radius:14px; background:#fff }
-  .checks div::before{ content:""; flex:none; width:24px; height:24px; margin-top:4px; border:2.5px solid var(--bad); border-radius:6px }
-  .tools{ position:relative; margin-top:40px; height:740px }
-  .tool{ position:absolute; width:250px; padding:22px 24px; border-radius:16px; background:#fff; border:1px solid var(--line); box-shadow:0 24px 50px -34px rgba(17,24,39,.45) }
-  .tool b{ display:block; font-size:24px; color:var(--ink) }
-  .tool span{ display:block; margin-top:6px; font-size:18px; color:var(--ink-3) }
-  .tools svg.lines{ position:absolute; left:0; top:0; width:100%; height:100% }
-  .t1{ left:0; top:30px } .t2{ left:560px; top:30px } .t3{ left:280px; top:250px }
-  .t4{ left:280px; top:450px } .t5{ left:0; top:620px } .t6{ left:560px; top:620px }
-  .prob-cap{ position:absolute; left:120px; bottom:96px; font-size:16px; color:var(--ink-4) }
+  /* 차트 */
+  .kpis{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px }
+  .kpi-t{ padding:20px 22px; border-radius:22px; background:#fff; box-shadow:0 12px 26px -18px rgba(40,56,120,.35) }
+  .kpi-t .l{ display:flex; justify-content:space-between; align-items:center; font-size:17px; font-weight:650; color:var(--ink-2) }
+  .kpi-t .v{ margin-top:10px; font-size:32px; font-weight:800; color:var(--ink); letter-spacing:-.03em }
+  .kpi-t .v.plus{ color:#059669 }
+  .kpi-t .m{ margin-top:6px; font-size:15px; color:var(--ink-3) }
+  .weeks{ display:grid; grid-template-columns:repeat(13,1fr); gap:8px; align-items:end; height:120px }
+  .weeks i{ display:block; border-radius:8px 8px 4px 4px; background:linear-gradient(180deg,#818cf8,#c7d2fe) }
+  .weeks i.low{ background:linear-gradient(180deg,#fb7185,#fecdd3) }
 
-  /* ── 4 문제 ② ── */
-  .p2 .row{ margin-top:90px; display:grid; grid-template-columns:1fr 90px 440px 90px 340px; align-items:center }
-  .p2 .srcs{ display:grid; grid-template-columns:1fr 1fr; gap:18px }
-  .p2 .src{ padding:32px 30px; border-radius:16px; border:1px solid var(--line); background:#fff }
-  .p2 .src b{ display:block; font-size:32px; color:var(--ink) }
-  .p2 .src span{ display:block; margin-top:8px; font-size:21px; color:var(--ink-3) }
-  .p2 .mid{ padding:34px 36px; border-radius:18px; background:var(--bg-200); text-align:center }
-  .p2 .mid b{ display:block; font-size:36px; color:var(--ink) }
-  .p2 .mid span{ display:block; margin-top:12px; font-size:22px; color:var(--ink-3); line-height:1.5 }
-  .p2 .end{ padding:34px 36px; border-radius:18px; border:1px dashed #cbd0da; text-align:center }
-  .p2 .end b{ display:block; font-size:34px; color:var(--ink) }
-  .p2 .end span{ display:block; margin-top:12px; font-size:22px; color:var(--ink-3) }
-  .p2 .arr{ display:grid; place-items:center; color:var(--ink-4) }
-  .p2 .issues{ margin-top:90px; display:grid; grid-template-columns:repeat(3,1fr); gap:20px }
-  .p2 .issue{ padding:34px 34px; border-left:4px solid var(--bad); background:#fff7f7; border-radius:0 14px 14px 0 }
-  .p2 .issue b{ display:block; font-size:30px; color:var(--ink) }
-  .p2 .issue span{ display:block; margin-top:10px; font-size:22px; color:var(--ink-3); line-height:1.5 }
+  /* 12 사용 장면 */
+  .ba{ margin-top:40px; display:grid; grid-template-columns:260px 1fr 1fr; gap:0 22px }
+  .ba .hd{ display:flex; align-items:center; gap:12px; padding:0 8px 14px; font-size:22px; font-weight:750 }
+  .ba .hd img{ width:40px; height:40px }
+  .ba .job{ display:flex; align-items:center; gap:14px; font-size:28px; font-weight:750; color:var(--ink); padding:0 8px; margin-bottom:16px }
+  .ba .job img{ width:48px; height:48px }
+  .ba .cell{ padding:22px 26px; border-radius:24px; margin-bottom:16px }
+  .ba .before{ background:rgba(255,255,255,.55); border:1.5px dashed #cfd5df }
+  .ba .after{ background:#fff; border:2px solid transparent; background-image:linear-gradient(#fff,#fff),linear-gradient(90deg,#6366f1,#3b82f6,#06b6d4); background-origin:border-box; background-clip:padding-box,border-box; box-shadow:0 24px 50px -28px rgba(79,70,229,.55) }
+  .chipflow{ display:flex; flex-wrap:wrap; align-items:center; gap:8px }
+  .chipflow span{ font-size:18px; font-weight:600; padding:8px 14px; border-radius:12px; background:#f1f3f7; color:var(--ink-2) }
+  .after .chipflow span{ background:#eef2ff; color:var(--brand) }
+  .chipflow i{ font-style:normal; color:var(--ink-4); font-weight:700 }
+  .ba .meta{ margin-top:12px; font-size:17px; font-weight:750; color:var(--ink-3) }
+  .ba .after .meta{ color:var(--brand) }
 
-  /* ── 9~11 기능 상세 ── */
-  .feat .flist{ margin-top:40px; display:grid; gap:18px }
-  .feat .fi{ padding-left:22px; border-left:3px solid var(--brand-l) }
-  .feat .fi b{ display:block; font-size:26px; color:var(--ink); font-weight:600 }
-  .feat .fi span{ display:block; margin-top:4px; font-size:20px; color:var(--ink-3); line-height:1.5 }
-  .f9 .s2 .view{ height:350px }
-  .f9 .s2 img{ margin-top:-12% }
-  .f10 .s1 .view{ height:auto }
-  .f10 .s2{ top:290px }
-  .f10 .s2 .view{ height:380px }
-  .f10 .s2 img, .f11 .s2 img{ margin-top:0 }
-  .f11 .s1 .view{ height:470px }
-  .f11 .s2{ top:330px }
-  .f11 .s2 .view{ height:390px }
+  /* 13 숫자 */
+  .nums{ margin-top:52px; display:grid; grid-template-columns:repeat(3,1fr); gap:26px }
+  .nm{ position:relative; padding:40px 42px 36px; border-radius:34px; overflow:hidden }
+  .nm img{ position:absolute; right:26px; top:26px; width:104px; height:104px; filter:drop-shadow(0 18px 20px rgba(40,56,120,.25)) }
+  .nm .v{ font-size:104px; font-weight:850; letter-spacing:-.05em; line-height:1 }
+  .nm .v small{ font-size:34px; font-weight:700; margin-left:6px; letter-spacing:0 }
+  .nm b{ display:block; margin-top:22px; font-size:30px; color:var(--ink); font-weight:750 }
+  .nm > span{ display:block; margin-top:8px; font-size:20px; color:var(--ink-3); line-height:1.5 }
 
-  /* ── 12 사용 장면 ── */
-  .case .who{ margin-top:18px; font-size:22px; color:var(--ink-3) }
-  .case table{ margin-top:36px; width:100%; border-collapse:separate; border-spacing:0 14px }
-  .case th{ font-size:20px; font-weight:600; color:var(--ink-3); text-align:left; padding:0 24px }
-  .case td{ vertical-align:top; padding:26px 28px; background:#fff; border-top:1px solid var(--line); border-bottom:1px solid var(--line) }
-  .case td:first-child{ border-left:1px solid var(--line); border-radius:16px 0 0 16px; width:240px }
-  .case td:last-child{ border-right:1px solid var(--line); border-radius:0 16px 16px 0 }
-  .case td.after{ background:var(--brand-l); border-color:#dcdffb }
-  .case .job{ font-size:30px; font-weight:600; color:var(--ink) }
-  .case .flowtxt{ font-size:23px; color:var(--ink-2); line-height:1.55 }
-  .case .meta{ margin-top:10px; font-size:18px; font-weight:700; color:var(--ink-3) }
-  .case td.after .meta{ color:var(--brand) }
-  .case .common{ margin-top:22px; display:flex; align-items:center; gap:18px; padding:26px 36px; border-radius:16px; background:var(--bg-200); font-size:26px; color:var(--ink) }
-  .case .common b{ color:var(--brand); font-weight:700 }
-  .case .common .common-cta{ margin-left:auto; font-size:24px; font-weight:600; color:var(--brand); text-decoration:none }
+  /* 14 비교 */
+  .cmp{ margin-top:48px; display:grid; grid-template-columns:250px 1fr 1.25fr; gap:0; border-radius:34px; overflow:hidden }
+  .cmp > div{ padding:28px 30px; font-size:23px; line-height:1.45; border-bottom:1px solid rgba(25,31,40,.06); display:flex; align-items:center; gap:14px }
+  .cmp .h{ font-size:21px; font-weight:750; color:var(--ink-3); padding-top:24px; padding-bottom:20px }
+  .cmp .k{ font-weight:750; color:var(--ink) }
+  .cmp .g{ color:var(--ink-3) }
+  .cmp .o{ background:linear-gradient(90deg,rgba(238,242,255,.95),rgba(224,242,254,.9)); color:var(--ink); font-weight:600 }
+  .cmp .o b{ color:var(--brand) }
+  .cmp .o .ck{ flex:none; display:grid; place-items:center; width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#6366f1,#3b82f6); color:#fff; font-weight:900; font-size:18px }
+  .cmp .g .dot{ flex:none; width:12px; height:12px; border-radius:50%; background:#cfd5df }
+  .cmp .h.o{ color:var(--brand); font-size:24px }
 
-  /* ── 13 Key Numbers ── */
-  .nums .grid{ margin-top:64px; display:grid; grid-template-columns:repeat(3,1fr); gap:28px }
-  .nums .n{ padding:44px 46px 40px; border:1px solid var(--line); border-radius:20px; background:#fff }
-  .nums .n .v{ font-size:90px; font-weight:700; color:var(--brand); letter-spacing:-.04em; line-height:1 }
-  .nums .n .v small{ font-size:32px; font-weight:600; margin-left:6px; color:var(--brand-d); letter-spacing:0 }
-  .nums .n b{ display:block; margin-top:26px; font-size:30px; color:var(--ink); font-weight:600 }
-  .nums .n span{ display:block; margin-top:10px; font-size:22px; color:var(--ink-3); line-height:1.5 }
-  .nums .src{ margin-top:28px; font-size:18px; color:var(--ink-4) }
+  /* 15 요금 */
+  .plans{ margin-top:50px; display:grid; grid-template-columns:1fr 1.08fr; gap:32px; align-items:stretch }
+  .plan{ position:relative; padding:44px 50px; border-radius:38px }
+  .plan.pro{ background:#fff; border:3px solid transparent; background-image:linear-gradient(#fff,#fff),linear-gradient(135deg,#6366f1,#3b82f6,#06b6d4); background-origin:border-box; background-clip:padding-box,border-box; box-shadow:0 50px 100px -40px rgba(79,70,229,.6) }
+  .plan .hdr{ display:flex; align-items:center; gap:16px }
+  .plan .hdr img{ width:64px; height:64px }
+  .plan .pn{ font-size:30px; font-weight:750; color:var(--ink) }
+  .plan .rec{ margin-left:auto; height:40px; padding:0 18px; display:inline-flex; align-items:center; gap:8px; border-radius:999px; background:linear-gradient(90deg,#4f46e5,#3b82f6); color:#fff; font-size:18px; font-weight:750 }
+  .plan .pp{ margin-top:22px; font-size:88px; font-weight:850; letter-spacing:-.05em; color:var(--ink); line-height:1 }
+  .plan .pp small{ font-size:24px; font-weight:600; color:var(--ink-3); margin-left:10px; letter-spacing:0 }
+  .plan .pd{ margin-top:14px; font-size:21px; color:var(--ink-2) }
+  .plan ul{ list-style:none; margin:28px 0 0; padding:26px 0 0; border-top:1.5px solid rgba(25,31,40,.07); display:grid; gap:15px }
+  .plan li{ display:flex; gap:14px; font-size:22px; color:var(--ink-2); line-height:1.4 }
+  .plan li::before{ content:"✓"; flex:none; display:grid; place-items:center; width:28px; height:28px; border-radius:50%; background:#eef2ff; color:var(--brand); font-weight:900; font-size:15px; margin-top:1px }
+  .plan.pro li::before{ background:linear-gradient(135deg,#6366f1,#3b82f6); color:#fff }
+  .pfoot{ margin-top:26px; display:flex; justify-content:space-between; align-items:center; font-size:21px; color:var(--ink-2) }
+  .pfoot a{ color:var(--brand); font-weight:700; text-decoration:none }
 
-  /* ── 14 차별점 ── */
-  .cmp table{ margin-top:60px; width:100%; border-collapse:collapse; font-size:27px }
-  .cmp th{ font-size:24px; font-weight:600; color:var(--ink-3); text-align:left; padding:18px 28px; border-bottom:2px solid var(--ink) }
-  .cmp th.ov{ color:var(--brand) }
-  .cmp td{ padding:34px 30px; border-bottom:1px solid var(--line); color:var(--ink-3); line-height:1.45; vertical-align:top }
-  .cmp td:first-child{ width:260px; font-weight:600; color:var(--ink) }
-  .cmp td.ov{ color:var(--ink); background:#fafaff }
-  .cmp td.ov b{ color:var(--brand-d) }
-  .cmp .cmp-note{ margin-top:22px; font-size:18px; color:var(--ink-4) }
+  /* 16 효과 */
+  .effs{ margin-top:52px; display:grid; grid-template-columns:repeat(3,1fr); gap:26px }
+  .ef{ position:relative; padding:36px 38px 34px; border-radius:32px }
+  .ef img{ width:88px; height:88px; filter:drop-shadow(0 16px 18px rgba(40,56,120,.25)) }
+  .ef b{ display:block; margin-top:18px; font-size:31px; color:var(--ink); font-weight:750 }
+  .ef span{ display:block; margin-top:10px; font-size:21px; color:var(--ink-3); line-height:1.55 }
+  .ef em{ position:absolute; top:34px; right:34px; font-style:normal; font-size:16px; font-weight:750; color:var(--brand); background:#eef2ff; border-radius:999px; padding:6px 14px }
 
-  /* ── 15 요금제 ── */
-  .price .plans{ margin-top:60px; display:grid; grid-template-columns:1fr 1fr; gap:28px }
-  .plan{ border:1px solid var(--line); border-radius:22px; padding:48px 50px; background:#fff }
-  .plan.pro{ border:2px solid var(--brand); box-shadow:0 40px 80px -56px rgba(79,70,229,.7) }
-  .plan .pn{ font-size:26px; font-weight:600; color:var(--ink) }
-  .plan .pp{ margin-top:14px; font-size:78px; font-weight:700; color:var(--ink); letter-spacing:-.04em; line-height:1 }
-  .plan .pp small{ font-size:24px; font-weight:500; color:var(--ink-3); margin-left:8px; letter-spacing:0 }
-  .plan .pd{ margin-top:14px; font-size:22px; color:var(--ink-3) }
-  .plan ul{ list-style:none; margin:32px 0 0; padding:30px 0 0; border-top:1px solid var(--line); display:grid; gap:18px }
-  .plan li{ display:flex; gap:12px; font-size:23px; color:var(--ink-2); line-height:1.4 }
-  .plan li::before{ content:"✓"; flex:none; color:var(--brand); font-weight:700 }
-  .price .foot-note{ margin-top:32px; display:flex; justify-content:space-between; font-size:22px; color:var(--ink-3) }
-  .price .foot-note b{ color:var(--ink) }
-  .price .foot-note a{ color:var(--brand); font-weight:600; text-decoration:none }
-
-  /* ── 16 기대 효과 ── */
-  .eff .grid{ margin-top:64px; display:grid; grid-template-columns:repeat(3,1fr); gap:28px }
-  .eff .e{ padding:44px 42px; border-radius:20px; background:var(--bg-100); border:1px solid var(--line) }
-  .eff .e .ic{ display:grid; place-items:center; width:56px; height:56px; border-radius:14px; background:var(--brand); color:#fff; font-size:22px; font-weight:700 }
-  .eff .e b{ display:block; margin-top:26px; font-size:32px; color:var(--ink); font-weight:600 }
-  .eff .e span{ display:block; margin-top:12px; font-size:23px; color:var(--ink-3); line-height:1.55 }
-  .eff .e em{ display:block; margin-top:14px; font-style:normal; font-size:17px; font-weight:600; color:var(--brand) }
-
-  /* ── 17 CTA ── */
-  .cta{ background:linear-gradient(180deg,#fff 0%,var(--bg-100) 100%) }
-  .cta .page h2{ font-size:72px }
-  .cta .cards{ margin-top:80px; display:grid; grid-template-columns:1fr 1fr; gap:32px }
-  .cta .card{ display:grid; grid-template-columns:1fr 280px; gap:40px; align-items:center; padding:60px 56px; border-radius:24px; background:#fff; border:1px solid var(--line) }
-  .cta .card.main{ border:2px solid var(--brand) }
-  .cta .card b{ display:block; font-size:46px; color:var(--ink); font-weight:600 }
-  .cta .card p{ margin-top:18px; font-size:24px; color:var(--ink-3); line-height:1.55 }
-  .cta .card a{ display:inline-block; margin-top:26px; font-size:24px; font-weight:600; color:var(--brand); text-decoration:none }
-  .cta .card ol{ margin:20px 0 0; padding-left:28px; font-size:24px; color:var(--ink-2); line-height:1.7 }
-  .qr{ width:280px; height:280px; padding:16px; border:1px solid var(--line); border-radius:14px; background:#fff }
+  /* 17 CTA */
+  .cta h2{ color:#fff; font-size:84px }
+  .cta .sub{ margin-top:22px; font-size:28px; color:#dbe4ff }
+  .ctas{ margin-top:64px; display:grid; grid-template-columns:1fr 1fr; gap:32px; width:100% }
+  .ctac{ display:grid; grid-template-columns:1fr 250px; gap:34px; align-items:center; padding:46px 48px; border-radius:38px; background:rgba(255,255,255,.95); box-shadow:0 50px 90px -40px rgba(10,10,60,.6) }
+  .ctac .hdr{ display:flex; align-items:center; gap:14px }
+  .ctac .hdr img{ width:60px; height:60px }
+  .ctac b{ font-size:42px; color:var(--ink); font-weight:800; letter-spacing:-.03em }
+  .ctac p{ margin-top:16px; font-size:23px; color:var(--ink-2); line-height:1.6 }
+  .ctac ol{ margin:16px 0 0; padding-left:26px; font-size:22px; color:var(--ink-2); line-height:1.75 }
+  .ctac a{ display:inline-block; margin-top:20px; font-size:22px; font-weight:750; color:var(--brand); text-decoration:none }
+  .qr{ width:250px; height:250px; padding:16px; border-radius:22px; background:#fff; border:1.5px solid #e8ebf2 }
   .qr svg{ display:block; width:100%; height:100% }
-  .cta .contact{ position:absolute; left:120px; right:120px; bottom:110px; display:flex; justify-content:space-between; align-items:center; padding-top:28px; border-top:1px solid var(--line); font-size:24px; color:var(--ink-3) }
-  .cta .contact b{ color:var(--ink); font-weight:600 }
+  .cta .contact{ position:absolute; left:120px; right:120px; bottom:100px; display:flex; justify-content:space-between; font-size:24px; color:#c7d2fe; z-index:2 }
+  .cta .contact b{ color:#fff; font-weight:700 }
+  .cta .foot{ color:#a5b4fc } .cta .foot b{ color:#fff }
 </style>
 </head>
 <body>
 
-<!-- ═══════════ 1. 표지 ═══════════ -->
+<!-- ═══════════ 1 표지 ═══════════ -->
 <section class="slide cover">
-  <div class="brand"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg></span>오너뷰</div>
-  <div class="text">
-    <p class="kicker">서비스 소개서 · 2026년 9월</p>
-    <h1>회사 운영의 모든 것,<br>올인원 AI ERP <em class="hl">오너뷰</em></h1>
-    <div class="msgs"><span>AI 자동화</span><span>경영 현황 진단</span><span>큐레이션</span></div>
+  <div class="mesh hero"></div>
+  <div class="orb" style="left:980px;top:-160px;width:520px;height:520px;opacity:.35"></div>
+  <div class="orb" style="left:-120px;top:620px;width:460px;height:460px;opacity:.25"></div>
+  <div class="brand z a"><span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg></span>오너뷰</div>
+  <div class="txt z">
+    <span class="kick a d1">✦ 서비스 소개서 · 2026년 9월</span>
+    <h1 class="a d2">회사 운영의 모든 것,<br>올인원 AI ERP <em>오너뷰</em></h1>
+    <div class="chips a d3">
+      <span><img src="assets/emoji/robot.png" alt="">AI 자동화</span>
+      <span><img src="assets/emoji/bar.png" alt="">경영 현황 진단</span>
+      <span><img src="assets/emoji/target.png" alt="">큐레이션</span>
+    </div>
   </div>
-  <p class="maker">운영사 <b>(주)모티브이노베이션</b></p>
-  <div class="visual">
-    <div class="shot"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="../../public/product/f-ai-brief-v4.png" alt=""></div></div>
+  <p class="maker z a d4">운영사 <b>(주)모티브이노베이션</b></p>
+
+  <div class="stage z">
+    <div class="glass c1 p d3">
+      <span class="ex">예시</span>
+      <div class="muted" style="font-size:17px;font-weight:600">AI 데일리 브리핑 · 오늘</div>
+      <div style="margin-top:6px;font-size:32px;font-weight:800;color:var(--ink);letter-spacing:-.03em">오늘의 우선순위 업무 <span class="badge ai" style="vertical-align:middle">✨ AI 제안</span></div>
+      <div style="margin-top:22px">
+        <div class="row"><span class="ic pink"><img src="assets/emoji/fire.png" alt=""></span><div><div class="t">정우엔지니어링 견적서 단가 확정</div><div class="s">마감 오늘 · 결재 대기</div></div><span class="r badge bad">긴급</span></div>
+        <div class="row"><span class="ic blue"><img src="assets/emoji/money.png" alt=""></span><div><div class="t">미수금 1,650만원 회수 연락</div><div class="s">33일 경과 · 거래처 원장</div></div><span class="r badge bad">긴급</span></div>
+        <div class="row"><span class="ic peach"><img src="assets/emoji/receipt.png" alt=""></span><div><div class="t">부가세 신고 자료 점검</div><div class="s">신고 기한 D-5</div></div><span class="r badge warn">중요</span></div>
+      </div>
+    </div>
+    <div class="card-w c2 p d5">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span class="muted" style="font-size:17px;font-weight:600">자금 현황 · 통장</span><span class="badge ok">● 안정</span></div>
+      <div class="kpi num">₩230,400,000</div>
+      <svg viewBox="0 0 320 70" width="100%" height="70" style="margin-top:8px"><defs><linearGradient id="cg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6366f1" stop-opacity=".35"/><stop offset="1" stop-color="#6366f1" stop-opacity="0"/></linearGradient></defs><path d="M0,52 C40,48 60,30 100,34 S170,18 210,24 S280,8 320,10 L320,70 L0,70Z" fill="url(#cg1)"/><path class="draw" d="M0,52 C40,48 60,30 100,34 S170,18 210,24 S280,8 320,10" fill="none" stroke="#4f46e5" stroke-width="4" stroke-linecap="round"/></svg>
+    </div>
+    <div class="card-w c3 p d6" style="display:flex;align-items:center;gap:18px">
+      <span class="ic mint" style="width:64px;height:64px;border-radius:18px"><img src="assets/emoji/gift.png" alt="" style="width:44px;height:44px"></span>
+      <div><div class="muted" style="font-size:16px;font-weight:600">정부지원사업 매칭</div><div style="font-size:26px;font-weight:800;color:var(--ink)">지원 검토 가능 3건</div></div>
+      <svg class="spin" viewBox="0 0 30 30" style="margin-left:auto"><g stroke="#4f46e5" stroke-width="3" stroke-linecap="round"><path d="M15 3v5"/><path d="M23.5 6.5l-3.5 3.5" opacity=".85"/><path d="M27 15h-5" opacity=".7"/><path d="M23.5 23.5L20 20" opacity=".55"/><path d="M15 27v-5" opacity=".4"/><path d="M6.5 23.5L10 20" opacity=".3"/><path d="M3 15h5" opacity=".2"/><path d="M6.5 6.5L10 10" opacity=".12"/></g></svg>
+    </div>
+    <div class="em" style="left:640px;top:0;width:150px;height:150px"><img src="assets/emoji/sparkles.png" alt=""></div>
+    <div class="em f2" style="left:600px;top:640px;width:130px;height:130px"><img src="assets/emoji/chart.png" alt=""></div>
+    <div class="em f3" style="left:230px;top:690px;width:120px;height:120px"><img src="assets/emoji/robot.png" alt=""></div>
   </div>
 </section>
 
-<!-- ═══════════ 2. 개요 ═══════════ -->
+<!-- ═══════════ 2 개요 ═══════════ -->
 <section class="slide">
-  <div class="page ov">
-    <span class="eyebrow">Overview</span>
-    <h2>재무·재고·인사·업무를 <em class="hl">하나의 ERP로 통합</em></h2>
-    <p class="sub">업종에 관계없이 중소기업 운영에 필요한 메뉴를 단일 데이터 기반으로 제공합니다.</p>
-    <div class="areas">
-      <div class="area"><div class="hd"><b>홈</b><span class="cnt">5개 메뉴</span></div><p>대시보드 · 알림 · 마이페이지<br>AI 참모 · 지원사업추천</p></div>
-      <div class="area"><div class="hd"><b>재무</b><span class="cnt">11개 메뉴</span></div><p>통장 · 카드 · 수집·전표 · 세금·증빙<br>전표 · 고정자산 · 세무 신고</p></div>
-      <div class="area"><div class="hd"><b>재고</b><span class="cnt">9개 메뉴</span></div><p>품목 · 창고 · 주문 · 판매 · 구매<br>생산 · 이커머스 · 이익관리</p></div>
-      <div class="area"><div class="hd"><b>분석</b><span class="cnt">6개 메뉴</span></div><p>경영 요약 · 손익 현황 · 자금 전망<br>회계 자료 · 거래처 원장 · 부가세</p></div>
-      <div class="area"><div class="hd"><b>업무</b><span class="cnt">8개 메뉴</span></div><p>일정·To-do · 프로젝트 · 결재 허브<br>전자계약 · 메신저 · 파일보관함</p></div>
-      <div class="area"><div class="hd"><b>인사</b><span class="cnt">3개 메뉴</span></div><p>구성원·급여 · 근태 관리<br>근로계약·서식</p></div>
-      <div class="area"><div class="hd"><b>설정</b><span class="cnt">6개 메뉴</span></div><p>회사 기초정보 · 구성원·초대<br>회계·세무 · 연동 · 보안 · 요금제</p></div>
-      <div class="area"><div class="hd"><b>도움말</b><span class="cnt">3개 메뉴</span></div><p>공지사항 · 사용 가이드<br>고객센터</p></div>
+  <div class="mesh a"></div>
+  <div class="pad">
+    <span class="pill a"><img src="assets/emoji/puzzle.png" alt="">Overview</span>
+    <h2 class="h-l a d1" style="margin-top:28px">재무·재고·인사·업무를 <span class="gt">하나의 ERP로 통합</span></h2>
+    <p class="lead a d2">업종에 관계없이 중소기업 운영에 필요한 메뉴를 단일 데이터 기반으로 제공합니다.</p>
+    <div class="ov-grid">
+      <div class="ov-t glass a d2"><div class="top"><img src="assets/emoji/office.png" alt=""><span class="cnt">5개 메뉴</span></div><b>홈</b><p>대시보드 · 알림 · 마이페이지 · AI 참모 · 지원사업추천</p></div>
+      <div class="ov-t glass a d3"><div class="top"><img src="assets/emoji/money.png" alt=""><span class="cnt">11개 메뉴</span></div><b>재무</b><p>통장 · 카드 · 수집·전표 · 세금·증빙 · 고정자산 · 세무 신고</p></div>
+      <div class="ov-t glass a d4"><div class="top"><img src="assets/emoji/package.png" alt=""><span class="cnt">9개 메뉴</span></div><b>재고</b><p>품목 · 창고 · 주문 · 판매 · 구매 · 생산 · 이커머스 · 이익관리</p></div>
+      <div class="ov-t glass a d5"><div class="top"><img src="assets/emoji/bar.png" alt=""><span class="cnt">6개 메뉴</span></div><b>분석</b><p>경영 요약 · 손익 현황 · 자금 전망 · 회계 자료 · 부가세</p></div>
+      <div class="ov-t glass a d3"><div class="top"><img src="assets/emoji/clipboard.png" alt=""><span class="cnt">8개 메뉴</span></div><b>업무</b><p>일정·To-do · 프로젝트 · 결재 허브 · 전자계약 · 메신저</p></div>
+      <div class="ov-t glass a d4"><div class="top"><img src="assets/emoji/worker.png" alt=""><span class="cnt">3개 메뉴</span></div><b>인사</b><p>구성원·급여 · 근태 관리 · 근로계약·서식</p></div>
+      <div class="ov-t glass a d5"><div class="top"><img src="assets/emoji/gear.png" alt=""><span class="cnt">6개 메뉴</span></div><b>설정</b><p>회사 기초정보 · 구성원·초대 · 회계·세무 · 연동 · 보안</p></div>
+      <div class="ov-t glass a d6"><div class="top"><img src="assets/emoji/chat.png" alt=""><span class="cnt">3개 메뉴</span></div><b>도움말</b><p>공지사항 · 사용 가이드 · 고객센터</p></div>
     </div>
-    <div class="total">
+    <div class="band a d7">
       <div class="big">8<small>개 영역</small></div>
       <div class="big">51<small>개 메뉴</small></div>
-      <span>한 번 입력한 데이터가 전 메뉴에서 공유됩니다.</span>
+      <span>한 번 입력한 데이터가 전 메뉴에서 공유됩니다</span>
     </div>
   </div>
-  <div class="foot"><span><b>오너뷰</b> 서비스 소개서</span><span>02</span></div>
+  <div class="foot"><span><b>OwnerView</b> 서비스 소개서</span><span>02</span></div>
 </section>
 
-<!-- ═══════════ 3. 문제 ① ═══════════ -->
+<!-- ═══════════ 3 문제 ① ═══════════ -->
 <section class="slide">
-  <div class="prob">
-    <div>
-      <span class="eyebrow">Problem 01</span>
-      <h2>금융·세무 데이터를<br>여러 시스템에<br><em class="hl">중복 입력하고 있습니다</em></h2>
-      <div class="checks">
-        <div>은행·카드 거래내역을 매월 엑셀로 내려받아 정리</div>
-        <div>세금계산서와 입금 내역을 수기로 대사</div>
-        <div>근태·급여·전자계약·결재를 각각 다른 SaaS로 운영</div>
-        <div>세무사에게 증빙·장부를 메일로 전달</div>
-      </div>
+  <div class="mesh b"></div>
+  <div class="pad">
+    <span class="pill a" style="color:#e11d48"><img src="assets/emoji/warning.png" alt="">Problem 01</span>
+    <h2 class="h-l a d1" style="margin-top:28px">금융·세무 데이터를<br>여러 시스템에<br><span style="color:#e11d48">중복 입력</span>하고 있습니다</h2>
+    <div class="pain">
+      <div class="row a d2"><span class="x">✕</span><div class="t">은행·카드 거래내역을 매월 엑셀로 내려받아 정리</div></div>
+      <div class="row a d3"><span class="x">✕</span><div class="t">세금계산서와 입금 내역을 수기로 대사</div></div>
+      <div class="row a d4"><span class="x">✕</span><div class="t">근태·급여·전자계약·결재를 각각 다른 SaaS로 운영</div></div>
+      <div class="row a d5"><span class="x">✕</span><div class="t">세무사에게 증빙·장부를 메일로 전달</div></div>
     </div>
-    <div class="tools">
-      <svg class="lines" viewBox="0 0 840 740" preserveAspectRatio="none" fill="none" stroke="#c7cbd6" stroke-width="2.5" stroke-dasharray="8 8">
-        <path d="M200 120 L330 250"/><path d="M660 120 L520 250"/><path d="M405 350 L405 450"/><path d="M330 550 L200 620"/><path d="M480 550 L660 620"/>
-      </svg>
-      <div class="tool t1"><b>인터넷뱅킹</b><span>은행별 로그인·내려받기</span></div>
-      <div class="tool t2"><b>카드사 사이트</b><span>카드별 승인내역 조회</span></div>
-      <div class="tool t3"><b>엑셀</b><span>수기 분류·대사</span></div>
-      <div class="tool t4"><b>회계 프로그램</b><span>전표 재입력</span></div>
-      <div class="tool t5"><b>세무사 메일</b><span>증빙·장부 전달</span></div>
-      <div class="tool t6"><b>근태·급여·계약 SaaS</b><span>시스템별 별도 관리</span></div>
-    </div>
+    <p class="muted a d6" style="margin-top:22px;font-size:17px">일반적인 중소기업 업무 흐름 예시</p>
   </div>
-  <p class="prob-cap">일반적인 중소기업 업무 흐름 예시</p>
-  <div class="foot"><span><b>오너뷰</b> 서비스 소개서</span><span>03</span></div>
+  <div class="chaos z">
+    <svg width="900" height="860" style="position:absolute;inset:0" fill="none" stroke="#f3a7b5" stroke-width="3" stroke-linecap="round"><path class="dash" d="M300 170 C380 230 420 260 470 330"/><path class="dash" d="M690 190 C640 250 600 290 560 340"/><path class="dash" d="M500 470 C480 540 440 580 360 620"/><path class="dash" d="M560 470 C620 540 660 580 700 610"/></svg>
+    <div class="win p d2" style="left:20px;top:60px;transform:rotate(-5deg)"><div class="wb"><i></i><i></i><i></i><span>인터넷뱅킹</span></div><div class="wc"><div style="display:flex;align-items:center;gap:12px"><img src="assets/emoji/bank.png" alt="" style="width:44px;height:44px"><div style="font-size:18px;font-weight:700;color:var(--ink)">은행별 로그인·내려받기</div></div><div class="skel" style="margin-top:14px;width:90%"></div><div class="skel" style="width:70%"></div></div></div>
+    <div class="win p d3" style="left:560px;top:40px;transform:rotate(4deg)"><div class="wb"><i></i><i></i><i></i><span>카드사 사이트</span></div><div class="wc"><div style="display:flex;align-items:center;gap:12px"><img src="assets/emoji/card.png" alt="" style="width:44px;height:44px"><div style="font-size:18px;font-weight:700;color:var(--ink)">카드별 승인내역 조회</div></div><div class="skel" style="margin-top:14px;width:80%"></div><div class="skel" style="width:60%"></div></div></div>
+    <div class="win p d4" style="left:330px;top:310px;width:360px;transform:rotate(-2deg)"><div class="wb"><i></i><i></i><i></i><span>엑셀 · 수기 분류</span></div><div class="wc"><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+      <div class="skel" style="background:#dcfce7"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel" style="background:#fee2e2"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel" style="background:#fef3c7"></div><div class="skel"></div></div>
+      <div style="margin-top:14px;display:flex;align-items:center;gap:10px"><img src="assets/emoji/abacus.png" alt="" style="width:40px;height:40px"><span style="font-size:17px;font-weight:700;color:#e11d48">복사·붙여넣기 반복</span></div></div></div>
+    <div class="win p d5" style="left:40px;top:600px;transform:rotate(3deg)"><div class="wb"><i></i><i></i><i></i><span>세무사 메일</span></div><div class="wc"><div style="display:flex;align-items:center;gap:12px"><img src="assets/emoji/envelope.png" alt="" style="width:44px;height:44px"><div style="font-size:18px;font-weight:700;color:var(--ink)">증빙·장부 첨부 전달</div></div><div class="skel" style="margin-top:14px;width:85%"></div></div></div>
+    <div class="win p d6" style="left:560px;top:590px;transform:rotate(-4deg)"><div class="wb"><i></i><i></i><i></i><span>근태·급여·계약 SaaS</span></div><div class="wc"><div style="display:flex;align-items:center;gap:12px"><img src="assets/emoji/folder.png" alt="" style="width:44px;height:44px"><div style="font-size:18px;font-weight:700;color:var(--ink)">시스템별 별도 관리</div></div><div class="skel" style="margin-top:14px;width:75%"></div></div></div>
+    <div class="em" style="left:760px;top:330px;width:120px;height:120px"><img src="assets/emoji/hourglass.png" alt=""></div>
+  </div>
+  <div class="foot"><span><b>OwnerView</b> 서비스 소개서</span><span>03</span></div>
 </section>
 
-<!-- ═══════════ 4. 문제 ② ═══════════ -->
+<!-- ═══════════ 4 문제 ② ═══════════ -->
 <section class="slide">
-  <div class="page p2">
-    <span class="eyebrow">Problem 02</span>
-    <h2>경영 현황 파악에 여러 시스템의 데이터를<br><em class="hl">수기로 취합합니다</em></h2>
-    <div class="row">
+  <div class="mesh b"></div>
+  <div class="pad">
+    <span class="pill a" style="color:#e11d48"><img src="assets/emoji/search.png" alt="">Problem 02</span>
+    <h2 class="h-l a d1" style="margin-top:28px">경영 현황 파악에 여러 시스템의 데이터를<br><span style="color:#e11d48">수기로 취합</span>합니다</h2>
+    <div class="p2-flow">
       <div class="srcs">
-        <div class="src"><b>자금</b><span>은행별 인터넷뱅킹</span></div>
-        <div class="src"><b>채권·채무</b><span>엑셀 거래처 관리</span></div>
-        <div class="src"><b>손익</b><span>회계 프로그램</span></div>
-        <div class="src"><b>세무 일정</b><span>세무사 안내 메일</span></div>
+        <div class="src glass a d2"><img src="assets/emoji/bank.png" alt=""><div><b>자금</b><span>은행별 인터넷뱅킹</span></div></div>
+        <div class="src glass a d3"><img src="assets/emoji/handshake.png" alt=""><div><b>채권·채무</b><span>엑셀 거래처 관리</span></div></div>
+        <div class="src glass a d4"><img src="assets/emoji/chart.png" alt=""><div><b>손익</b><span>회계 프로그램</span></div></div>
+        <div class="src glass a d5"><img src="assets/emoji/calendar.png" alt=""><div><b>세무 일정</b><span>세무사 안내 메일</span></div></div>
       </div>
-      <div class="arr"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20h26M24 12l8 8-8 8"/></svg></div>
-      <div class="mid"><b>엑셀 수기 취합</b><span>시스템별 조회 → 복사·붙여넣기<br>→ 보고서 양식 작성</span></div>
-      <div class="arr"><svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20h26M24 12l8 8-8 8"/></svg></div>
-      <div class="end"><b>대표 보고</b><span>월간·분기 보고서</span></div>
+      <div class="flowarrow a d5"><svg width="54" height="54" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20h26M24 12l8 8-8 8"/></svg></div>
+      <div class="excel glass p d6"><img src="assets/emoji/abacus.png" alt=""><b>엑셀 수기 취합</b><span>시스템별 조회 → 복사·붙여넣기<br>→ 보고서 양식 작성</span></div>
+      <div class="flowarrow a d6"><svg width="54" height="54" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20h26M24 12l8 8-8 8"/></svg></div>
+      <div class="excel glass p d7" style="border:2px dashed #f3a7b5;background:rgba(255,255,255,.5)"><img src="assets/emoji/memo.png" alt=""><b>대표 보고</b><span>월간·분기 보고서</span></div>
     </div>
     <div class="issues">
-      <div class="issue"><b>리포트 작성 리드타임</b><span>보고서 작성 기간만큼 의사결정이 지연됩니다.</span></div>
-      <div class="issue"><b>데이터 최신성 저하</b><span>취합 시점 이후의 입출금·미수금이 반영되지 않습니다.</span></div>
-      <div class="issue"><b>자금 리스크 사후 인지</b><span>자금 부족·장기 미수금을 발생 후에 확인합니다.</span></div>
+      <div class="issue glass a d6"><img src="assets/emoji/hourglass.png" alt=""><div><b>리포트 작성 리드타임</b><span>보고서 작성 기간만큼 의사결정이 지연됩니다.</span></div></div>
+      <div class="issue glass a d7"><img src="assets/emoji/warning.png" alt=""><div><b>데이터 최신성 저하</b><span>취합 시점 이후의 입출금·미수금이 반영되지 않습니다.</span></div></div>
+      <div class="issue glass a d8"><img src="assets/emoji/fire.png" alt=""><div><b>자금 리스크 사후 인지</b><span>자금 부족·장기 미수금을 발생 후에 확인합니다.</span></div></div>
     </div>
   </div>
-  <div class="foot"><span><b>오너뷰</b> 서비스 소개서</span><span>04</span></div>
+  <div class="foot"><span><b>OwnerView</b> 서비스 소개서</span><span>04</span></div>
 </section>
 
-<!-- ═══════════ 5. 해결 흐름 ═══════════ -->
+<!-- ═══════════ 5 해결 ═══════════ -->
 <section class="slide">
-  <div class="flow">
-    <span class="eyebrow">Solution</span>
-    <h2>데이터 수집 · 경영 진단 · 업무 큐레이션을<br><em class="hl">하나의 ERP에서</em></h2>
-    <div class="lane">
-      <div class="col on">
-        <div class="no">01</div>
-        <h3>AI 자동화</h3>
-        <p class="lead">금융·세무 데이터 수집부터 전표 초안까지</p>
-        <ul>
-          <li>은행·카드 거래내역 자동 수집</li>
-          <li>세금계산서·현금영수증 수집</li>
-          <li>AI 계정과목 추천 · 전표 초안 생성</li>
-        </ul>
-      </div>
-      <div class="arrow"><svg width="44" height="44" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20h26M24 12l8 8-8 8"/></svg></div>
-      <div class="col on">
-        <div class="no">02</div>
-        <h3>경영 현황 진단</h3>
-        <p class="lead">핵심 경영 지표 · 자금 전망</p>
-        <ul>
-          <li>자금 현황 · 손익 현황</li>
-          <li>채권·채무 현황</li>
-          <li>자금 수지 전망(13주)</li>
-        </ul>
-      </div>
-      <div class="arrow"><svg width="44" height="44" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20h26M24 12l8 8-8 8"/></svg></div>
-      <div class="col on">
-        <div class="no">03</div>
-        <h3>큐레이션</h3>
-        <p class="lead">대표·실무자별 우선순위 업무</p>
-        <ul>
-          <li>AI 데일리 브리핑</li>
-          <li>이번 주 To-do</li>
-          <li>정부지원사업 매칭</li>
-        </ul>
-      </div>
+  <div class="mesh a"></div>
+  <div class="pad">
+    <span class="pill a"><img src="assets/emoji/light.png" alt="">Solution</span>
+    <h2 class="h-l a d1" style="margin-top:28px">데이터 수집 · 경영 진단 · 업무 큐레이션을<br><span class="gt">하나의 ERP에서</span></h2>
+    <div class="sol">
+      <div class="col glass a d2"><span class="no">01</span><img class="hero" src="assets/emoji/robot.png" alt=""><h3>AI 자동화</h3><p class="ld">금융·세무 데이터 수집부터 전표 초안까지</p>
+        <ul><li>은행·카드 거래내역 자동 수집</li><li>세금계산서·현금영수증 수집</li><li>AI 계정과목 추천 · 전표 초안</li></ul></div>
+      <div class="flowarrow a d3" style="color:#818cf8"><svg width="54" height="54" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20h26M24 12l8 8-8 8"/></svg></div>
+      <div class="col glass a d4"><span class="no">02</span><img class="hero" src="assets/emoji/bar.png" alt=""><h3>경영 현황 진단</h3><p class="ld">핵심 경영 지표 · 자금 전망</p>
+        <ul><li>자금 현황 · 손익 현황</li><li>채권·채무 현황</li><li>자금 수지 전망(13주)</li></ul></div>
+      <div class="flowarrow a d5" style="color:#818cf8"><svg width="54" height="54" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20h26M24 12l8 8-8 8"/></svg></div>
+      <div class="col glass a d6"><span class="no">03</span><img class="hero" src="assets/emoji/target.png" alt=""><h3>큐레이션</h3><p class="ld">대표·실무자별 우선순위 업무</p>
+        <ul><li>AI 데일리 브리핑</li><li>이번 주 To-do</li><li>정부지원사업 매칭</li></ul></div>
     </div>
-    <div class="human">
-      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M8 12l3 3 5-6"/></svg>
-      <span>AI는 초안 작성·추천까지. <b>전표 확정·발송·이체는 담당자 승인</b> 후 실행됩니다.</span>
-    </div>
+    <div class="approve glass a d7"><img src="assets/emoji/shield.png" alt=""><span>AI는 초안 작성·추천까지. <b>전표 확정·발송·이체는 담당자 승인</b> 후 실행됩니다.</span></div>
   </div>
-  <div class="foot"><span><b>오너뷰</b> 서비스 소개서</span><span>05</span></div>
+  <div class="foot"><span><b>OwnerView</b> 서비스 소개서</span><span>05</span></div>
 </section>
 
-<!-- ═══════════ 6. 메시지 ① AI 자동화 ═══════════ -->
-<section class="slide">
-  <div class="msg">
-    <div>
-      <span class="eyebrow"><i>01</i>AI 자동화</span>
-      <h2>거래 수집부터<br>전표 초안까지 자동화,<br><em class="hl">담당자는 검토·승인만</em></h2>
-      <div class="steps">
-        <div class="step"><span class="n">1</span><div><b>은행·카드 계정 연동</b><span>최초 1회 연동 후 거래내역을 하루 2회 자동 수집합니다. 유료 플랜은 즉시 수집을 지원합니다.</span></div></div>
-        <div class="step"><span class="n">2</span><div><b>세금계산서·현금영수증 통합 관리</b><span>홈택스 매출·매입 세금계산서와 현금영수증을 수집해 은행·카드 내역과 함께 관리합니다.</span></div></div>
-        <div class="step"><span class="n">3</span><div><b>AI 계정과목 추천 · 전표 초안 생성</b><span>수정 내역은 분개 규칙으로 학습해 다음 거래부터 반영합니다.</span></div></div>
-      </div>
-      <p class="note">송금·발송은 자동 실행되지 않습니다 — 담당자 승인 필수</p>
+<!-- ═══════════ 6 AI 자동화 ═══════════ -->
+<section class="slide split">
+  <div class="mesh a"></div>
+  <div class="left">
+    <span class="pill a"><img src="assets/emoji/robot.png" alt="">01 · AI 자동화</span>
+    <h2 class="a d1">거래 수집부터<br>전표 초안까지 자동화,<br><span class="gt">담당자는 검토·승인만</span></h2>
+    <div class="steps">
+      <div class="st glass a d2"><span class="n"><img src="assets/emoji/bank.png" alt=""></span><div><b>은행·카드 계정 연동</b><span>최초 1회 연동 후 하루 2회 자동 수집. 유료 플랜은 즉시 수집 지원.</span></div></div>
+      <div class="st glass a d3"><span class="n"><img src="assets/emoji/receipt.png" alt=""></span><div><b>세금계산서·현금영수증 통합 관리</b><span>홈택스 매출·매입 자료를 은행·카드 내역과 함께 관리.</span></div></div>
+      <div class="st glass a d4"><span class="n"><img src="assets/emoji/brain.png" alt=""></span><div><b>AI 계정과목 추천 · 전표 초안 생성</b><span>수정 내역은 분개 규칙으로 학습해 다음 거래부터 반영.</span></div></div>
     </div>
-    <div class="right">
-      <div class="shot bankshot"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="../../public/product/f-bank-v4.png" alt=""></div></div>
-      <p class="cap">거래내역 수집·전표 — 예시 화면(가상 회사)</p>
-    </div>
+    <div class="note2 a d5"><img src="assets/emoji/lock.png" alt="">송금·발송은 자동 실행되지 않습니다 — 담당자 승인 필수</div>
   </div>
-  <div class="foot"><span><b>오너뷰</b> 서비스 소개서</span><span>06</span></div>
-</section>
-
-<!-- ═══════════ 7. 메시지 ② 경영 현황 진단 ═══════════ -->
-<section class="slide">
-  <div class="msg">
-    <div>
-      <span class="eyebrow"><i>02</i>경영 현황 진단</span>
-      <h2>핵심 경영 지표를<br>매일 자동으로<br><em class="hl">진단합니다</em></h2>
-      <div class="steps">
-        <div class="step"><span class="n">₩</span><div><b>자금 현황</b><span>계좌별 잔액, 월간 입금·출금 합계</span></div></div>
-        <div class="step"><span class="n">↗</span><div><b>손익 현황</b><span>확정 전표 기준 매출·비용·영업이익</span></div></div>
-        <div class="step"><span class="n">⇄</span><div><b>채권·채무 현황</b><span>거래처별 미수금, 30일 내 지급 예정 급여·세금</span></div></div>
-        <div class="step"><span class="n">◷</span><div><b>자금 수지 전망</b><span>입출금 예정 반영 잔액 추이, 자금 부족 예상 시점, 13주 자금 캘린더</span></div></div>
+  <div class="stage">
+    <div class="glass p d3" style="position:absolute;left:120px;top:150px;width:720px;padding:34px 34px 30px">
+      <span class="ex">예시 화면</span>
+      <div class="muted" style="font-size:17px;font-weight:600">수집 완료 · 오늘 09:00</div>
+      <div style="margin-top:6px;display:flex;align-items:center;gap:12px;font-size:34px;font-weight:800;color:var(--ink);letter-spacing:-.03em">새 거래 31건 <span class="badge ai">✨ 계정과목 추천 완료</span></div>
+      <div style="margin-top:22px">
+        <div class="row"><span class="ic blue"><img src="assets/emoji/bank.png" alt=""></span><div><div class="t">(주)미래테크 입금</div><div class="s">AI 추천 · 외상매출금 회수</div></div><div class="r"><div class="amt" style="color:#2563eb">+8,910,000</div></div></div>
+        <div class="row"><span class="ic violet"><img src="assets/emoji/card.png" alt=""></span><div><div class="t">클라우드 서버 이용료</div><div class="s">AI 추천 · 지급수수료</div></div><div class="r"><div class="amt">−1,240,000</div></div></div>
+        <div class="row"><span class="ic peach"><img src="assets/emoji/receipt.png" alt=""></span><div><div class="t">온샘디자인 세금계산서</div><div class="s">매칭 제안 · 통장 입금 4,235,000</div></div><div class="r"><span class="badge ok">매칭</span></div></div>
+        <div class="row" style="opacity:.75"><span class="ic gray"><img src="assets/emoji/coin.png" alt=""></span><div><div class="t">누리클라우드 거래내역</div><div class="s">분석 중…</div></div><svg class="spin" viewBox="0 0 30 30" style="margin-left:auto"><g stroke="#8b95a1" stroke-width="3" stroke-linecap="round"><path d="M15 3v5"/><path d="M23.5 6.5l-3.5 3.5" opacity=".85"/><path d="M27 15h-5" opacity=".7"/><path d="M23.5 23.5L20 20" opacity=".55"/><path d="M15 27v-5" opacity=".4"/><path d="M6.5 23.5L10 20" opacity=".3"/><path d="M3 15h5" opacity=".2"/><path d="M6.5 6.5L10 10" opacity=".12"/></g></svg></div>
       </div>
     </div>
-    <div class="right stack">
-      <div class="shot s1"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="shots/dk-summary.png" alt=""></div></div>
-      <div class="shot s2"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="shots/dk-outlook.png" alt=""></div></div>
-      <p class="cap">경영 요약 · 자금 전망 — 예시 화면(가상 회사)</p>
+    <div class="card-w p d6" style="position:absolute;left:520px;top:720px;width:440px;padding:28px 30px;display:flex;align-items:center;gap:18px">
+      <span class="ic" style="width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,#eef2ff,#e0f2fe)"><img src="assets/emoji/memo.png" alt="" style="width:44px;height:44px"></span>
+      <div><div class="muted" style="font-size:16px;font-weight:600">전표 초안</div><div style="font-size:26px;font-weight:800;color:var(--ink)">3건 생성 완료</div></div>
+      <span class="btn-g" style="margin-left:auto;height:50px;font-size:19px;padding:0 20px">승인</span>
     </div>
+    <div class="em" style="left:800px;top:70px;width:160px;height:160px"><img src="assets/emoji/sparkles.png" alt=""></div>
+    <div class="em f2" style="left:40px;top:690px;width:140px;height:140px"><img src="assets/emoji/robot.png" alt=""></div>
   </div>
-  <div class="foot"><span><b>오너뷰</b> 서비스 소개서</span><span>07</span></div>
+  <div class="foot"><span><b>OwnerView</b> 서비스 소개서</span><span>06</span></div>
 </section>
 
-<!-- ═══════════ 8. 메시지 ③ 큐레이션 ═══════════ -->
-<section class="slide">
-  <div class="msg">
-    <div>
-      <span class="eyebrow"><i>03</i>큐레이션</span>
-      <h2>오늘의 우선순위 업무와<br>정부지원사업을<br><em class="hl">추천합니다</em></h2>
-      <div class="steps">
-        <div class="step"><span class="n">1</span><div><b>AI 데일리 브리핑</b><span>미수금·결재 대기·매출·주요 지출을 분석해 오늘의 우선순위 업무를 제안합니다.</span></div></div>
-        <div class="step"><span class="n">2</span><div><b>이번 주 To-do</b><span>세무 신고 기한·급여일·장기 미수금 등 주간 마감 업무를 한눈에 관리합니다.</span></div></div>
-        <div class="step"><span class="n">3</span><div><b>정부지원사업 매칭</b><span>공고·상시 지원제도를 회사·인사 데이터와 대조해 지원 가능 여부와 예상 지원금을 제시합니다.</span></div></div>
+<!-- ═══════════ 7 경영 현황 진단 ═══════════ -->
+<section class="slide split">
+  <div class="mesh c"></div>
+  <div class="left">
+    <span class="pill a"><img src="assets/emoji/bar.png" alt="">02 · 경영 현황 진단</span>
+    <h2 class="a d1">핵심 경영 지표를<br>매일 자동으로<br><span class="gt">진단합니다</span></h2>
+    <div class="steps">
+      <div class="st glass a d2"><span class="n"><img src="assets/emoji/money.png" alt=""></span><div><b>자금 현황</b><span>계좌별 잔액, 월간 입금·출금 합계</span></div></div>
+      <div class="st glass a d3"><span class="n"><img src="assets/emoji/chart.png" alt=""></span><div><b>손익 현황</b><span>확정 전표 기준 매출·비용·영업이익</span></div></div>
+      <div class="st glass a d4"><span class="n"><img src="assets/emoji/handshake.png" alt=""></span><div><b>채권·채무 현황</b><span>거래처별 미수금, 30일 내 지급 예정 급여·세금</span></div></div>
+      <div class="st glass a d5"><span class="n"><img src="assets/emoji/crystal.png" alt=""></span><div><b>자금 수지 전망</b><span>잔액 추이 · 자금 부족 예상 시점 · 13주 자금 캘린더</span></div></div>
+    </div>
+  </div>
+  <div class="stage">
+    <div class="glass p d3" style="position:absolute;left:80px;top:130px;width:880px;padding:34px">
+      <span class="ex">예시 화면</span>
+      <div style="display:flex;align-items:center;gap:14px"><div style="font-size:30px;font-weight:800;color:var(--ink);letter-spacing:-.03em">경영 요약 · 9월</div><span class="badge ok">● 종합 상태 안정</span></div>
+      <div class="kpis" style="margin-top:20px">
+        <div class="kpi-t"><div class="l">자금 현황 <span class="badge ok" style="height:26px;font-size:14px">안정</span></div><div class="v num">₩2.3억</div><div class="m">운용 가능 4.6개월</div></div>
+        <div class="kpi-t"><div class="l">손익 현황 <span class="badge ok" style="height:26px;font-size:14px">안정</span></div><div class="v plus num">+₩3,062만</div><div class="m">매출 ▲1% · 확정 전표</div></div>
+        <div class="kpi-t"><div class="l">채권·채무 <span class="badge ok" style="height:26px;font-size:14px">안정</span></div><div class="v num">₩4,861만</div><div class="m">30일 내 지급 예정</div></div>
+      </div>
+      <div class="card-w" style="margin-top:16px;padding:22px 26px;border-radius:22px">
+        <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:20px;color:var(--ink)">잔액 추이 — 향후 90일</b><span class="badge gray">최저 12/12 ₩1.2억</span></div>
+        <svg viewBox="0 0 800 190" width="100%" height="190" style="margin-top:8px">
+          <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6366f1" stop-opacity=".32"/><stop offset="1" stop-color="#6366f1" stop-opacity="0"/></linearGradient></defs>
+          <g stroke="#eef0f4" stroke-width="2"><path d="M0 40H800M0 100H800M0 160H800"/></g>
+          <path d="M0,60 C40,58 70,48 110,52 S170,78 210,74 S270,46 330,44 S420,44 470,46 S500,96 540,98 S640,98 690,102 S740,122 800,124 L800,190 L0,190Z" fill="url(#ag)"/>
+          <path class="draw" d="M0,60 C40,58 70,48 110,52 S170,78 210,74 S270,46 330,44 S420,44 470,46 S500,96 540,98 S640,98 690,102 S740,122 800,124" fill="none" stroke="#4f46e5" stroke-width="5" stroke-linecap="round"/>
+          <path d="M0,62 L800,150" stroke="#b0b8c1" stroke-width="3" stroke-dasharray="10 10"/>
+          <circle cx="792" cy="124" r="9" fill="#fff" stroke="#4f46e5" stroke-width="5"/>
+        </svg>
       </div>
     </div>
-    <div class="right cur">
-      <div class="shot s1"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="../../public/product/f-ai-brief-v4.png" alt=""></div></div>
-      <div class="shot s2"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="shots/dk-support.png" alt=""></div></div>
-      <p class="cap">대시보드 · 지원사업추천 — 예시 화면(가상 회사)</p>
-    </div>
-  </div>
-  <div class="foot"><span><b>오너뷰</b> 서비스 소개서</span><span>08</span></div>
-</section>
-
-<!-- ═══════════ 9. 기능 상세 ① 재무·세무 ═══════════ -->
-<section class="slide">
-  <div class="msg feat f9">
-    <div>
-      <span class="eyebrow">Features 01 · 재무·세무</span>
-      <h2>거래 수집부터<br><em class="hl">세무 신고 자료까지</em></h2>
-      <div class="flist">
-        <div class="fi"><b>은행·카드 · 수집·전표</b><span>거래내역 자동 수집, 계정과목 추천, 세금계산서↔입금 매칭 제안</span></div>
-        <div class="fi"><b>세금계산서·현금영수증</b><span>발행·수정 발행, 매입·매출 자료 수집</span></div>
-        <div class="fi"><b>일반전표 · 매입매출전표</b><span>차·대변 자동 검증, 부가세 유형 10종, 월 마감(잠금), 중복 의심 감지</span></div>
-        <div class="fi"><b>세무 신고</b><span>원천세·부가세 신고서 준비, 지급명세서 — 제출은 홈택스에서 담당자가 진행</span></div>
-        <div class="fi"><b>고정자산 · 정기 지출</b><span>월 감가상각 전표 초안, 반복 결제 감지·결제일 알림</span></div>
-        <div class="fi"><b>재무 리포트</b><span>손익계산서·재무상태표, 거래처 원장, 부가세 예상 납부세액</span></div>
+    <div class="card-w p d6" style="position:absolute;left:470px;top:720px;width:520px;padding:26px 30px">
+      <div style="display:flex;align-items:center;gap:12px"><img src="assets/emoji/calendar.png" alt="" style="width:40px;height:40px"><b style="font-size:21px;color:var(--ink)">자금 캘린더 · 13주</b><span class="badge ok" style="margin-left:auto">자금 부족 없음</span></div>
+      <div class="weeks" style="margin-top:16px;height:100px">
+        <i class="bar-g d1" style="height:92%"></i><i class="bar-g d1" style="height:78%"></i><i class="bar-g d2" style="height:90%"></i><i class="bar-g d2" style="height:94%"></i><i class="bar-g d3" style="height:94%"></i><i class="bar-g d3" style="height:66%"></i><i class="bar-g d4" style="height:66%"></i><i class="bar-g d4" style="height:66%"></i><i class="bar-g d5" style="height:65%"></i><i class="bar-g d5" style="height:64%"></i><i class="bar-g d6 low" style="height:46%"></i><i class="bar-g d6 low" style="height:45%"></i><i class="bar-g d7 low" style="height:44%"></i>
       </div>
     </div>
-    <div class="right stack">
-      <div class="shot s1"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="shots/dk-taxinv.png" alt=""></div></div>
-      <div class="shot s2"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="shots/dk-taxfiling.png" alt=""></div></div>
-      <p class="cap">세금·증빙 · 세무 신고(부가세) — 예시 화면(가상 회사)</p>
-    </div>
+    <div class="em" style="left:30px;top:640px;width:150px;height:150px"><img src="assets/emoji/crystal.png" alt=""></div>
+    <div class="em f2" style="left:860px;top:40px;width:130px;height:130px"><img src="assets/emoji/chart.png" alt=""></div>
   </div>
-  <div class="foot"><span><b>오너뷰</b> 서비스 소개서</span><span>09</span></div>
+  <div class="foot"><span><b>OwnerView</b> 서비스 소개서</span><span>07</span></div>
 </section>
 
-<!-- ═══════════ 10. 기능 상세 ② 재고·이커머스 ═══════════ -->
-<section class="slide">
-  <div class="msg feat f10">
-    <div>
-      <span class="eyebrow">Features 02 · 재고·이커머스</span>
-      <h2>품목 등록부터<br><em class="hl">판매 이익까지</em></h2>
-      <div class="flist">
-        <div class="fi"><b>품목 · 창고관리</b><span>SKU·규격·안전재고, 창고별 현재고, 재고 실사 차이 조정</span></div>
-        <div class="fi"><b>주문 · 판매 · 구매</b><span>견적·주문서 불러오기, 부분 출고·미입고 잔량 관리, 저장 시 재고 반영</span></div>
-        <div class="fi"><b>생산</b><span>BOM 등록, 작업지시 처리 시 자재 자동 차감·완제품 자동 입고</span></div>
-        <div class="fi"><b>이커머스</b><span>판매채널 주문 엑셀 업로드, 중복 주문 자동 차단, 채널 상품코드↔SKU 매핑</span></div>
-        <div class="fi"><b>이익관리</b><span>FIFO·이동평균 출고 원가, 품목·거래처·채널별 이익, 폐기·감모 손실</span></div>
+<!-- ═══════════ 8 큐레이션 ═══════════ -->
+<section class="slide split">
+  <div class="mesh d"></div>
+  <div class="left">
+    <span class="pill a"><img src="assets/emoji/target.png" alt="">03 · 큐레이션</span>
+    <h2 class="a d1">오늘의 우선순위 업무와<br>정부지원사업을<br><span class="gt">추천합니다</span></h2>
+    <div class="steps">
+      <div class="st glass a d2"><span class="n"><img src="assets/emoji/sparkles.png" alt=""></span><div><b>AI 데일리 브리핑</b><span>미수금·결재 대기·매출·주요 지출을 분석해 우선순위 업무 제안</span></div></div>
+      <div class="st glass a d3"><span class="n"><img src="assets/emoji/check.png" alt=""></span><div><b>이번 주 To-do</b><span>세무 신고 기한·급여일·장기 미수금 등 주간 마감 업무 관리</span></div></div>
+      <div class="st glass a d4"><span class="n"><img src="assets/emoji/gift.png" alt=""></span><div><b>정부지원사업 매칭</b><span>공고·상시 지원제도를 회사·인사 데이터와 대조해 지원 가능 여부·예상 지원금 제시</span></div></div>
+    </div>
+  </div>
+  <div class="stage">
+    <div class="glass p d3" style="position:absolute;left:80px;top:120px;width:500px;padding:30px 28px">
+      <span class="ex">예시 화면</span>
+      <div class="muted" style="font-size:16px;font-weight:600">분석 완료 · 오늘 08:00</div>
+      <div style="margin-top:4px;font-size:30px;font-weight:800;color:var(--ink);letter-spacing:-.03em">AI 데일리 브리핑</div>
+      <div style="margin-top:18px">
+        <div class="row"><span class="ic pink"><img src="assets/emoji/fire.png" alt=""></span><div><div class="t">견적서 단가 확정</div><div class="s">마감 오늘</div></div><span class="r badge bad">긴급</span></div>
+        <div class="row"><span class="ic blue"><img src="assets/emoji/money.png" alt=""></span><div><div class="t">미수금 회수 연락</div><div class="s">1,650만원 · 33일</div></div><span class="r badge bad">긴급</span></div>
+        <div class="row"><span class="ic peach"><img src="assets/emoji/receipt.png" alt=""></span><div><div class="t">부가세 자료 점검</div><div class="s">D-5</div></div><span class="r badge warn">중요</span></div>
+        <div class="row"><span class="ic violet"><img src="assets/emoji/writing.png" alt=""></span><div><div class="t">결재 대기 2건 처리</div><div class="s">외주 디자인비 외</div></div><span class="r badge warn">중요</span></div>
       </div>
     </div>
-    <div class="right stack">
-      <div class="shot s1"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="../../public/product/iv-stock-v2.png" alt=""></div></div>
-      <div class="shot s2"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="../../public/product/iv-profit-v2.png" alt=""></div></div>
-      <p class="cap">창고관리 · 이익관리 — 예시 화면(가상 회사)</p>
+    <div class="glass p d5" style="position:absolute;left:520px;top:300px;width:480px;padding:30px 28px;background:rgba(255,255,255,.86)">
+      <span class="ex">예시 화면</span>
+      <div class="muted" style="font-size:16px;font-weight:600">조건 확인 중…</div>
+      <div style="margin-top:4px;font-size:30px;font-weight:800;color:var(--ink);letter-spacing:-.03em">정부지원사업 매칭</div>
+      <div style="margin-top:18px">
+        <div class="row"><span class="ic mint"><img src="assets/emoji/people.png" alt=""></span><div><div class="t">중소기업 취업자 소득세 감면</div><div class="s">국세청 · 연 최대 1,000만원</div></div><span class="r badge ok">검토 가능</span></div>
+        <div class="row"><span class="ic blue"><img src="assets/emoji/rocket.png" alt=""></span><div><div class="t">청년일자리도약장려금</div><div class="s">고용노동부 · 1인당 연 720만원</div></div><svg class="spin" viewBox="0 0 30 30" style="margin-left:auto"><g stroke="#4f46e5" stroke-width="3" stroke-linecap="round"><path d="M15 3v5"/><path d="M23.5 6.5l-3.5 3.5" opacity=".85"/><path d="M27 15h-5" opacity=".7"/><path d="M23.5 23.5L20 20" opacity=".55"/><path d="M15 27v-5" opacity=".4"/><path d="M6.5 23.5L10 20" opacity=".3"/><path d="M3 15h5" opacity=".2"/><path d="M6.5 6.5L10 10" opacity=".12"/></g></svg></div>
+        <div class="row"><span class="ic peach"><img src="assets/emoji/coin.png" alt=""></span><div><div class="t">통합고용세액공제</div><div class="s">국세청 · 최대 5,800만원 예상</div></div><svg class="spin" viewBox="0 0 30 30" style="margin-left:auto"><g stroke="#4f46e5" stroke-width="3" stroke-linecap="round"><path d="M15 3v5"/><path d="M23.5 6.5l-3.5 3.5" opacity=".85"/><path d="M27 15h-5" opacity=".7"/><path d="M23.5 23.5L20 20" opacity=".55"/><path d="M15 27v-5" opacity=".4"/><path d="M6.5 23.5L10 20" opacity=".3"/><path d="M3 15h5" opacity=".2"/><path d="M6.5 6.5L10 10" opacity=".12"/></g></svg></div>
+      </div>
+      <div style="margin-top:18px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:18px;color:var(--ink-2)">예상 수령 가능액</span><b class="num" style="font-size:30px;color:var(--brand)">₩68,000,000</b></div>
     </div>
+    <div class="em" style="left:860px;top:110px;width:150px;height:150px"><img src="assets/emoji/gift.png" alt=""></div>
+    <div class="em f2" style="left:170px;top:740px;width:140px;height:140px"><img src="assets/emoji/calendar.png" alt=""></div>
   </div>
-  <div class="foot"><span><b>오너뷰</b> 서비스 소개서</span><span>10</span></div>
+  <div class="foot"><span><b>OwnerView</b> 서비스 소개서</span><span>08</span></div>
 </section>
 
-<!-- ═══════════ 11. 기능 상세 ③ 업무·인사 ═══════════ -->
-<section class="slide">
-  <div class="msg feat f11">
-    <div>
-      <span class="eyebrow">Features 03 · 업무·인사</span>
-      <h2>프로젝트·결재·근태·급여를<br><em class="hl">하나의 워크스페이스에서</em></h2>
-      <div class="flist">
-        <div class="fi"><b>프로젝트</b><span>표·칸반·캘린더·간트 뷰, 진행 단계 커스텀, 견적부터 정산까지</span></div>
-        <div class="fi"><b>결재 허브</b><span>경비·지출·휴가·구매·연장근무, 다단계 결재선, 일괄 승인</span></div>
-        <div class="fi"><b>전자계약</b><span>서식·템플릿, 직인 자동 합성, 발송·열람·서명 추적</span></div>
-        <div class="fi"><b>근태 관리</b><span>출퇴근·연차·연장근무 자동 집계, 주 52시간 사용률</span></div>
-        <div class="fi"><b>구성원·급여</b><span>4대보험·원천세 자동 계산, 급여 배치·명세서 발송, 메뉴별 권한</span></div>
-        <div class="fi"><b>협업</b><span>일정·To-do, 게시판, 메신저(외부 파트너 초대), 파일보관함</span></div>
+<!-- ═══════════ 9 기능 ① 재무·세무 ═══════════ -->
+<section class="slide split">
+  <div class="mesh a"></div>
+  <div class="left" style="width:800px">
+    <span class="pill a"><img src="assets/emoji/money.png" alt="">Features 01 · 재무·세무</span>
+    <h2 class="a d1">거래 수집부터<br><span class="gt">세무 신고 자료까지</span></h2>
+    <div class="flist">
+      <div class="fi glass a d2"><div class="hd"><img src="assets/emoji/bank.png" alt=""><b>은행·카드 · 수집·전표</b></div><span>자동 수집, 계정과목 추천, 세금계산서↔입금 매칭 제안</span></div>
+      <div class="fi glass a d2"><div class="hd"><img src="assets/emoji/receipt.png" alt=""><b>세금계산서·현금영수증</b></div><span>발행·수정 발행, 매입·매출 자료 수집</span></div>
+      <div class="fi glass a d3"><div class="hd"><img src="assets/emoji/memo.png" alt=""><b>일반·매입매출전표</b></div><span>차·대변 자동 검증, 부가세 유형 10종, 월 마감, 중복 의심 감지</span></div>
+      <div class="fi glass a d3"><div class="hd"><img src="assets/emoji/clipboard.png" alt=""><b>세무 신고</b></div><span>원천세·부가세 신고서 준비, 지급명세서 (제출은 홈택스)</span></div>
+      <div class="fi glass a d4"><div class="hd"><img src="assets/emoji/alarm.png" alt=""><b>고정자산 · 정기 지출</b></div><span>월 감가상각 전표 초안, 반복 결제 감지·결제일 알림</span></div>
+      <div class="fi glass a d4"><div class="hd"><img src="assets/emoji/books.png" alt=""><b>재무 리포트</b></div><span>손익계산서·재무상태표, 거래처 원장, 부가세 예상 납부세액</span></div>
+    </div>
+  </div>
+  <div class="stage" style="width:1000px">
+    <div class="glass p d3" style="position:absolute;left:120px;top:160px;width:740px;padding:32px">
+      <span class="ex">예시 화면</span>
+      <div style="display:flex;align-items:center;gap:12px"><b style="font-size:28px;color:var(--ink);letter-spacing:-.03em">세금계산서 발행 대기</b><span class="badge ai">17건</span></div>
+      <div style="margin-top:18px">
+        <div class="row"><span class="ic blue"><img src="assets/emoji/office.png" alt=""></span><div><div class="t">(주)미래테크</div><div class="s">플랫폼 구축 3차 · 09-07</div></div><div class="r"><div class="amt">8,910,000</div></div></div>
+        <div class="row"><span class="ic mint"><img src="assets/emoji/office.png" alt=""></span><div><div class="t">정우엔지니어링</div><div class="s">교육·컨설팅 · 09-07</div></div><div class="r"><div class="amt">2,860,000</div></div></div>
+        <div class="row"><span class="ic violet"><img src="assets/emoji/office.png" alt=""></span><div><div class="t">온샘디자인</div><div class="s">데이터 이관 용역 · 09-07</div></div><div class="r"><div class="amt">4,235,000</div></div></div>
       </div>
     </div>
-    <div class="right stack">
-      <div class="shot s1"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="../../public/product/pv-kanban-v3.png" alt=""></div></div>
-      <div class="shot s2"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="../../public/product/hv-attstatus-v1.png" alt=""></div></div>
-      <p class="cap">프로젝트(칸반) · 근태 현황 — 예시 화면(가상 회사)</p>
+    <div class="card-w p d6" style="position:absolute;left:380px;top:640px;width:560px;padding:28px 32px">
+      <div style="display:flex;align-items:center;gap:12px"><img src="assets/emoji/abacus.png" alt="" style="width:42px;height:42px"><b style="font-size:22px;color:var(--ink)">부가세 신고 · 2기 예정</b><span class="badge warn" style="margin-left:auto">D-41</span></div>
+      <div style="margin-top:18px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="background:#f6f7fb;border-radius:16px;padding:14px 18px"><div class="muted" style="font-size:15px">매출세액</div><div class="num" style="font-size:24px;font-weight:800;color:var(--ink)">₩33,318,000</div></div>
+        <div style="background:#f6f7fb;border-radius:16px;padding:14px 18px"><div class="muted" style="font-size:15px">매입세액</div><div class="num" style="font-size:24px;font-weight:800;color:var(--ink)">₩1,398,000</div></div>
+      </div>
+      <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:18px;color:var(--ink-2)">납부 예상세액</span><b class="num" style="font-size:30px;color:#e11d48">₩31,920,000</b></div>
+    </div>
+    <div class="em" style="left:780px;top:70px;width:150px;height:150px"><img src="assets/emoji/receipt.png" alt=""></div>
+    <div class="em f2" style="left:150px;top:700px;width:140px;height:140px"><img src="assets/emoji/coin.png" alt=""></div>
+  </div>
+  <div class="foot"><span><b>OwnerView</b> 서비스 소개서</span><span>09</span></div>
+</section>
+
+<!-- ═══════════ 10 기능 ② 재고·이커머스 ═══════════ -->
+<section class="slide split">
+  <div class="mesh c"></div>
+  <div class="left" style="width:800px">
+    <span class="pill a"><img src="assets/emoji/package.png" alt="">Features 02 · 재고·이커머스</span>
+    <h2 class="a d1">품목 등록부터<br><span class="gt">판매 이익까지</span></h2>
+    <div class="flist">
+      <div class="fi glass a d2"><div class="hd"><img src="assets/emoji/package.png" alt=""><b>품목 · 창고관리</b></div><span>SKU·안전재고, 창고별 현재고, 재고 실사 차이 조정</span></div>
+      <div class="fi glass a d2"><div class="hd"><img src="assets/emoji/clipboard.png" alt=""><b>주문 · 판매 · 구매</b></div><span>주문서 불러오기, 부분 출고·미입고 잔량, 저장 시 재고 반영</span></div>
+      <div class="fi glass a d3"><div class="hd"><img src="assets/emoji/factory.png" alt=""><b>생산</b></div><span>BOM 등록, 작업지시 시 자재 자동 차감·완제품 자동 입고</span></div>
+      <div class="fi glass a d3"><div class="hd"><img src="assets/emoji/cart.png" alt=""><b>이커머스</b></div><span>채널 주문 엑셀 업로드, 중복 주문 자동 차단, 상품코드↔SKU 매핑</span></div>
+      <div class="fi glass a d4" style="grid-column:span 2"><div class="hd"><img src="assets/emoji/chart.png" alt=""><b>이익관리</b></div><span>FIFO·이동평균 출고 원가 · 품목·거래처·채널별 이익 · 폐기·감모 손실</span></div>
     </div>
   </div>
-  <div class="foot"><span><b>오너뷰</b> 서비스 소개서</span><span>11</span></div>
-</section>
-
-<!-- ═══════════ 12. 사용 장면 ═══════════ -->
-<section class="slide">
-  <div class="page case">
-    <span class="eyebrow">Use Case</span>
-    <h2>가상 기업 A사 <em class="hl">도입 전·후 비교</em></h2>
-    <p class="who">A사 — 제조·유통, 구성원 12명, 은행 계좌 3개·법인카드 2장 (가상 기업 예시)</p>
-    <table>
-      <tr><th>업무</th><th>도입 전</th><th>도입 후 (오너뷰)</th></tr>
-      <tr>
-        <td><div class="job">일일 자금 확인</div></td>
-        <td><div class="flowtxt">은행별 인터넷뱅킹 로그인 → 잔액·입출금 엑셀 정리 → 대표 보고</div><div class="meta">3단계 · 시스템 4개</div></td>
-        <td class="after"><div class="flowtxt">자동 수집된 계좌 잔액·입출금을 대시보드에서 확인</div><div class="meta">담당자 작업 1단계 · 화면 1개</div></td>
-      </tr>
-      <tr>
-        <td><div class="job">월 결산</div></td>
-        <td><div class="flowtxt">거래내역 내려받기 → 엑셀 계정 분류 → 회계 프로그램 전표 입력 → 세무사 메일 전달</div><div class="meta">4단계 · 시스템 3개 이상</div></td>
-        <td class="after"><div class="flowtxt">자동 수집 → AI 계정과목 추천 검토·승인 → 세무 파트너가 같은 화면에서 확인</div><div class="meta">담당자 작업 2단계 · 화면 1개</div></td>
-      </tr>
-      <tr>
-        <td><div class="job">급여 지급</div></td>
-        <td><div class="flowtxt">근태 엑셀 집계 → 급여·4대보험·원천세 계산 → 명세서 개별 발송</div><div class="meta">3단계 · 시스템 2개 이상</div></td>
-        <td class="after"><div class="flowtxt">근태 자동 집계 → 급여 배치(4대보험·원천세 자동 계산) 확인 → 명세서 발송</div><div class="meta">담당자 작업 2단계 · 화면 1개</div></td>
-      </tr>
-    </table>
-    <div class="common"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M8 12l3 3 5-6"/></svg><span>공통 변화 — <b>데이터 1회 입력</b>, 전 메뉴 공유 · 실행은 <b>담당자 승인</b> 기반</span><a class="common-cta" href="https://www.owner-view.com/auth/?mode=signup">무료로 시작하기 →</a></div>
-  </div>
-  <div class="foot"><span><b>오너뷰</b> 서비스 소개서</span><span>12</span></div>
-</section>
-
-<!-- ═══════════ 13. Key Numbers ═══════════ -->
-<section class="slide">
-  <div class="page nums">
-    <span class="eyebrow">Key Numbers</span>
-    <h2>숫자로 보는 <em class="hl">오너뷰 제품 사양</em></h2>
-    <div class="grid">
-      <div class="n"><div class="v">51<small>개</small></div><b>메뉴</b><span>8개 영역 · 단일 데이터 기반</span></div>
-      <div class="n"><div class="v">7<small>종</small></div><b>AI·자동 대조 기능</b><span>계정과목 추천 · 매칭 제안 · 중복 의심 감지 · 자금 부족 예측 등, 판단 근거 표시</span></div>
-      <div class="n"><div class="v">2<small>회/일</small></div><b>은행·카드 자동 수집</b><span>유료 플랜은 즉시 수집 추가 지원</span></div>
-      <div class="n"><div class="v">13<small>주</small></div><b>자금 캘린더</b><span>입출금 예정 반영 잔액 추이 · 자금 부족 예상 시점</span></div>
-      <div class="n"><div class="v">4<small>대 지표</small></div><b>경영 현황 진단</b><span>자금 · 손익 · 채권·채무 · 자금 수지 전망</span></div>
-      <div class="n"><div class="v">0<small>원</small></div><b>무료 플랜</b><span>카드 등록 없이 시작 · 구성원 5명</span></div>
+  <div class="stage" style="width:1000px">
+    <div class="glass p d3" style="position:absolute;left:120px;top:160px;width:700px;padding:32px">
+      <span class="ex">예시 화면</span>
+      <b style="font-size:28px;color:var(--ink);letter-spacing:-.03em">창고별 재고 현황</b>
+      <div style="margin-top:20px;display:grid;gap:16px">
+        <div><div style="display:flex;justify-content:space-between;font-size:19px;font-weight:650;color:var(--ink)"><span>데스크 매트</span><span class="num">142 / 안전 30</span></div><div style="margin-top:8px;height:14px;border-radius:7px;background:#eef0f4"><div class="bar-x d2" style="width:88%;height:100%;border-radius:7px;background:linear-gradient(90deg,#34d399,#10b981)"></div></div></div>
+        <div><div style="display:flex;justify-content:space-between;font-size:19px;font-weight:650;color:var(--ink)"><span>모니터 받침대</span><span class="num">115 / 안전 20</span></div><div style="margin-top:8px;height:14px;border-radius:7px;background:#eef0f4"><div class="bar-x d3" style="width:74%;height:100%;border-radius:7px;background:linear-gradient(90deg,#34d399,#10b981)"></div></div></div>
+        <div><div style="display:flex;justify-content:space-between;font-size:19px;font-weight:650;color:var(--ink)"><span>입사 웰컴키트</span><span class="num">65 / 안전 20</span></div><div style="margin-top:8px;height:14px;border-radius:7px;background:#eef0f4"><div class="bar-x d4" style="width:46%;height:100%;border-radius:7px;background:linear-gradient(90deg,#fbbf24,#f59e0b)"></div></div></div>
+        <div><div style="display:flex;justify-content:space-between;font-size:19px;font-weight:650;color:var(--ink)"><span>케이블 정리함 <span class="badge bad" style="height:26px;font-size:14px;margin-left:6px">안전재고 미달</span></span><span class="num" style="color:#e11d48">18 / 안전 50</span></div><div style="margin-top:8px;height:14px;border-radius:7px;background:#eef0f4"><div class="bar-x d5" style="width:16%;height:100%;border-radius:7px;background:linear-gradient(90deg,#fb7185,#f43f5e)"></div></div></div>
+      </div>
     </div>
-    <p class="src">제품 사양 기준(2026년 9월). 고객 수·사용량 등 실적 수치는 포함하지 않았습니다.</p>
+    <div class="card-w p d6" style="position:absolute;left:420px;top:620px;width:520px;padding:28px 32px;display:flex;align-items:center;gap:26px">
+      <svg width="150" height="150" viewBox="0 0 42 42"><circle cx="21" cy="21" r="15.9" fill="none" stroke="#eef0f4" stroke-width="6"/><circle cx="21" cy="21" r="15.9" fill="none" stroke="#6366f1" stroke-width="6" stroke-dasharray="46 54" stroke-dashoffset="25"/><circle cx="21" cy="21" r="15.9" fill="none" stroke="#38bdf8" stroke-width="6" stroke-dasharray="30 70" stroke-dashoffset="79"/><circle cx="21" cy="21" r="15.9" fill="none" stroke="#34d399" stroke-width="6" stroke-dasharray="24 76" stroke-dashoffset="49"/><text x="21" y="20" text-anchor="middle" font-size="3.4" fill="#8b95a1">이익률</text><text x="21" y="25.5" text-anchor="middle" font-size="6" font-weight="800" fill="#191f28">45.9%</text></svg>
+      <div><b style="font-size:22px;color:var(--ink)">채널별 이익 비중</b>
+        <div style="margin-top:12px;display:grid;gap:8px;font-size:18px;color:var(--ink-2)"><span><i style="display:inline-block;width:12px;height:12px;border-radius:4px;background:#6366f1;margin-right:8px"></i>자사몰 46%</span><span><i style="display:inline-block;width:12px;height:12px;border-radius:4px;background:#38bdf8;margin-right:8px"></i>오픈마켓 30%</span><span><i style="display:inline-block;width:12px;height:12px;border-radius:4px;background:#34d399;margin-right:8px"></i>도매 24%</span></div></div>
+    </div>
+    <div class="em" style="left:760px;top:70px;width:150px;height:150px"><img src="assets/emoji/package.png" alt=""></div>
+    <div class="em f2" style="left:160px;top:690px;width:140px;height:140px"><img src="assets/emoji/cart.png" alt=""></div>
   </div>
-  <div class="foot"><span><b>오너뷰</b> 서비스 소개서</span><span>13</span></div>
+  <div class="foot"><span><b>OwnerView</b> 서비스 소개서</span><span>10</span></div>
 </section>
 
-<!-- ═══════════ 14. 차별점 ═══════════ -->
-<section class="slide">
-  <div class="page cmp">
-    <span class="eyebrow">Why OwnerView</span>
-    <h2>기존 ERP 대비 <em class="hl">차별점</em></h2>
-    <table>
-      <tr><th>항목</th><th>일반적인 ERP</th><th class="ov">오너뷰</th></tr>
-      <tr><td>요금 체계</td><td>기능·모듈별 요금제 분리 판매가 많음</td><td class="ov"><b>단일 유료 플랜</b>으로 전 기능 제공</td></tr>
-      <tr><td>도입 방식</td><td>도입비·약정 계약이 붙는 경우가 많음</td><td class="ov"><b>카드 등록 없이 무료 시작</b>, 무료 플랜 기간 제한 없음</td></tr>
-      <tr><td>회계·세무</td><td>회계 프로그램 별도 구매·연동 필요</td><td class="ov">수집·전표·월 결산·<b>부가세·원천세 신고 자료</b>까지 통합</td></tr>
-      <tr><td>세무사 협업</td><td>원장·전표를 메일로 주고받음</td><td class="ov">세무 파트너가 <b>동일 화면</b>에서 확인</td></tr>
-      <tr><td>AI 활용</td><td>부가 기능 또는 미제공</td><td class="ov">계정과목 추천·데일리 브리핑·자금 부족 예측 — <b>판단 근거 표시, 실행은 담당자 승인</b></td></tr>
-    </table>
-    <p class="cmp-note">특정 업체와의 비교가 아닌 일반적인 도입 형태 기준입니다.</p>
+<!-- ═══════════ 11 기능 ③ 업무·인사 ═══════════ -->
+<section class="slide split">
+  <div class="mesh d"></div>
+  <div class="left" style="width:800px">
+    <span class="pill a"><img src="assets/emoji/worker.png" alt="">Features 03 · 업무·인사</span>
+    <h2 class="a d1">프로젝트·결재·근태·급여를<br><span class="gt">하나의 워크스페이스에서</span></h2>
+    <div class="flist">
+      <div class="fi glass a d2"><div class="hd"><img src="assets/emoji/clipboard.png" alt=""><b>프로젝트</b></div><span>표·칸반·캘린더·간트 뷰, 진행 단계 커스텀</span></div>
+      <div class="fi glass a d2"><div class="hd"><img src="assets/emoji/check.png" alt=""><b>결재 허브</b></div><span>경비·휴가·구매·연장근무, 다단계 결재선, 일괄 승인</span></div>
+      <div class="fi glass a d3"><div class="hd"><img src="assets/emoji/writing.png" alt=""><b>전자계약</b></div><span>서식·템플릿, 직인 자동 합성, 발송·열람·서명 추적</span></div>
+      <div class="fi glass a d3"><div class="hd"><img src="assets/emoji/alarm.png" alt=""><b>근태 관리</b></div><span>출퇴근·연차·연장근무 자동 집계, 주 52시간 사용률</span></div>
+      <div class="fi glass a d4"><div class="hd"><img src="assets/emoji/coin.png" alt=""><b>구성원·급여</b></div><span>4대보험·원천세 자동 계산, 급여 배치·명세서 발송</span></div>
+      <div class="fi glass a d4"><div class="hd"><img src="assets/emoji/chat.png" alt=""><b>협업</b></div><span>일정·To-do, 게시판, 메신저(외부 파트너 초대), 파일보관함</span></div>
+    </div>
   </div>
-  <div class="foot"><span><b>오너뷰</b> 서비스 소개서</span><span>14</span></div>
+  <div class="stage" style="width:1000px">
+    <div class="glass p d3" style="position:absolute;left:110px;top:150px;width:780px;padding:30px">
+      <span class="ex">예시 화면</span>
+      <b style="font-size:28px;color:var(--ink);letter-spacing:-.03em">웹 구축 프로젝트 · 칸반</b>
+      <div style="margin-top:18px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+        <div style="background:rgba(238,242,255,.8);border-radius:20px;padding:14px"><div style="font-size:17px;font-weight:750;color:var(--brand)">● 이번 주 · 2</div>
+          <div class="card-w" style="margin-top:10px;padding:14px;border-radius:14px;font-size:17px;font-weight:650;color:var(--ink)">메인 시안<div class="muted" style="font-size:14px;margin-top:4px">김대표 · 08-27</div></div>
+          <div class="card-w" style="margin-top:10px;padding:14px;border-radius:14px;font-size:17px;font-weight:650;color:var(--ink)">서브페이지 퍼블리싱<div class="muted" style="font-size:14px;margin-top:4px">문지훈 · 09-09</div></div></div>
+        <div style="background:rgba(255,244,220,.8);border-radius:20px;padding:14px"><div style="font-size:17px;font-weight:750;color:#b45309">● 다음 · 2</div>
+          <div class="card-w" style="margin-top:10px;padding:14px;border-radius:14px;font-size:17px;font-weight:650;color:var(--ink)">상세 템플릿<div class="muted" style="font-size:14px;margin-top:4px">임하늘 · 09-16</div></div>
+          <div class="card-w" style="margin-top:10px;padding:14px;border-radius:14px;font-size:17px;font-weight:650;color:var(--ink)">브로슈어 디자인<div class="muted" style="font-size:14px;margin-top:4px">오세림 · 09-18</div></div></div>
+        <div style="background:rgba(231,248,240,.85);border-radius:20px;padding:14px"><div style="font-size:17px;font-weight:750;color:#059669">● 완료 · 2</div>
+          <div class="card-w" style="margin-top:10px;padding:14px;border-radius:14px;font-size:17px;font-weight:650;color:var(--ink)">로고 가이드<div class="muted" style="font-size:14px;margin-top:4px">✓ 08-26</div></div>
+          <div class="card-w" style="margin-top:10px;padding:14px;border-radius:14px;font-size:17px;font-weight:650;color:var(--ink)">명함 인쇄<div class="muted" style="font-size:14px;margin-top:4px">✓ 08-28</div></div></div>
+      </div>
+    </div>
+    <div class="card-w p d6" style="position:absolute;left:400px;top:640px;width:540px;padding:26px 30px">
+      <div style="display:flex;align-items:center;gap:12px"><img src="assets/emoji/alarm.png" alt="" style="width:40px;height:40px"><b style="font-size:21px;color:var(--ink)">근태 현황 · 9월</b><span class="badge ok" style="margin-left:auto">주 52시간 준수</span></div>
+      <div style="margin-top:16px;display:grid;gap:12px">
+        <div style="display:grid;grid-template-columns:90px 1fr 70px;align-items:center;gap:12px;font-size:17px"><b style="color:var(--ink)">문지훈</b><div style="height:12px;border-radius:6px;background:#eef0f4"><div class="bar-x d2" style="width:80%;height:100%;border-radius:6px;background:linear-gradient(90deg,#818cf8,#4f46e5)"></div></div><span class="num muted">31.8h</span></div>
+        <div style="display:grid;grid-template-columns:90px 1fr 70px;align-items:center;gap:12px;font-size:17px"><b style="color:var(--ink)">이준호</b><div style="height:12px;border-radius:6px;background:#eef0f4"><div class="bar-x d3" style="width:79%;height:100%;border-radius:6px;background:linear-gradient(90deg,#818cf8,#4f46e5)"></div></div><span class="num muted">31.6h</span></div>
+        <div style="display:grid;grid-template-columns:90px 1fr 70px;align-items:center;gap:12px;font-size:17px"><b style="color:var(--ink)">배수정</b><div style="height:12px;border-radius:6px;background:#eef0f4"><div class="bar-x d4" style="width:86%;height:100%;border-radius:6px;background:linear-gradient(90deg,#818cf8,#4f46e5)"></div></div><span class="num muted">34.5h</span></div>
+      </div>
+    </div>
+    <div class="em" style="left:800px;top:60px;width:150px;height:150px"><img src="assets/emoji/rocket.png" alt=""></div>
+    <div class="em f2" style="left:170px;top:690px;width:140px;height:140px"><img src="assets/emoji/calendar.png" alt=""></div>
+  </div>
+  <div class="foot"><span><b>OwnerView</b> 서비스 소개서</span><span>11</span></div>
 </section>
 
-<!-- ═══════════ 15. 요금제 ═══════════ -->
+<!-- ═══════════ 12 사용 장면 ═══════════ -->
 <section class="slide">
-  <div class="page price">
-    <span class="eyebrow">Pricing</span>
-    <h2>무료 플랜으로 시작, <em class="hl">유료 플랜 월 39,000원</em></h2>
+  <div class="mesh d"></div>
+  <div class="pad">
+    <span class="pill a"><img src="assets/emoji/office.png" alt="">Use Case</span>
+    <h2 class="h-l a d1" style="margin-top:28px">가상 기업 A사 <span class="gt">도입 전·후 비교</span></h2>
+    <p class="lead a d2" style="font-size:23px;margin-top:16px">A사 — 제조·유통, 구성원 12명, 은행 계좌 3개·법인카드 2장 (가상 기업 예시)</p>
+    <div class="ba">
+      <div></div>
+      <div class="hd a d2" style="color:var(--ink-3)"><img src="assets/emoji/hourglass.png" alt="">도입 전</div>
+      <div class="hd a d2" style="color:var(--brand)"><img src="assets/emoji/rocket.png" alt="">도입 후 · 오너뷰</div>
+
+      <div class="job a d3"><img src="assets/emoji/money.png" alt="">일일 자금 확인</div>
+      <div class="cell before a d3"><div class="chipflow"><span>은행별 로그인</span><i>→</i><span>엑셀 정리</span><i>→</i><span>대표 보고</span></div><div class="meta">3단계 · 시스템 4개</div></div>
+      <div class="cell after p d4"><div class="chipflow"><span>✨ 대시보드에서 잔액·입출금 확인</span></div><div class="meta">담당자 작업 1단계 · 화면 1개</div></div>
+
+      <div class="job a d4"><img src="assets/emoji/books.png" alt="">월 결산</div>
+      <div class="cell before a d4"><div class="chipflow"><span>내역 내려받기</span><i>→</i><span>엑셀 계정 분류</span><i>→</i><span>전표 입력</span><i>→</i><span>세무사 메일</span></div><div class="meta">4단계 · 시스템 3개 이상</div></div>
+      <div class="cell after p d5"><div class="chipflow"><span>AI 추천 검토·승인</span><i>→</i><span>세무 파트너 동일 화면 확인</span></div><div class="meta">담당자 작업 2단계 · 화면 1개</div></div>
+
+      <div class="job a d5"><img src="assets/emoji/coin.png" alt="">급여 지급</div>
+      <div class="cell before a d5"><div class="chipflow"><span>근태 엑셀 집계</span><i>→</i><span>급여·4대보험 계산</span><i>→</i><span>명세서 개별 발송</span></div><div class="meta">3단계 · 시스템 2개 이상</div></div>
+      <div class="cell after p d6"><div class="chipflow"><span>급여 배치 확인(자동 계산)</span><i>→</i><span>명세서 발송</span></div><div class="meta">담당자 작업 2단계 · 화면 1개</div></div>
+    </div>
+    <div class="approve glass a d7" style="margin-top:6px;padding:16px 16px 16px 28px"><img src="assets/emoji/check.png" alt="" style="width:44px;height:44px"><span>공통 변화 — <b>데이터 1회 입력</b>, 전 메뉴 공유 · 실행은 <b>담당자 승인</b> 기반</span><a class="btn-g" href="https://www.owner-view.com/auth/?mode=signup" style="margin-left:auto;text-decoration:none;height:52px;font-size:20px">무료로 시작하기 →</a></div>
+  </div>
+  <div class="foot"><span><b>OwnerView</b> 서비스 소개서</span><span>12</span></div>
+</section>
+
+<!-- ═══════════ 13 Key Numbers ═══════════ -->
+<section class="slide">
+  <div class="mesh a"></div>
+  <div class="pad">
+    <span class="pill a"><img src="assets/emoji/star.png" alt="">Key Numbers</span>
+    <h2 class="h-l a d1" style="margin-top:28px">숫자로 보는 <span class="gt">오너뷰 제품 사양</span></h2>
+    <div class="nums">
+      <div class="nm glass p d2"><img src="assets/emoji/puzzle.png" alt=""><div class="v"><span class="gt">51</span><small class="gt">개</small></div><b>메뉴</b><span>8개 영역 · 단일 데이터 기반</span></div>
+      <div class="nm glass p d3"><img src="assets/emoji/robot.png" alt=""><div class="v"><span class="gt">7</span><small class="gt">종</small></div><b>AI·자동 대조 기능</b><span>계정과목 추천·매칭 제안·자금 부족 예측 등</span></div>
+      <div class="nm glass p d4"><img src="assets/emoji/bolt.png" alt=""><div class="v"><span class="gt">2</span><small class="gt">회/일</small></div><b>은행·카드 자동 수집</b><span>유료 플랜은 즉시 수집 추가 지원</span></div>
+      <div class="nm glass p d5"><img src="assets/emoji/calendar.png" alt=""><div class="v"><span class="gt">13</span><small class="gt">주</small></div><b>자금 캘린더</b><span>잔액 추이 · 자금 부족 예상 시점</span></div>
+      <div class="nm glass p d6"><img src="assets/emoji/bar.png" alt=""><div class="v"><span class="gt">4</span><small class="gt">대 지표</small></div><b>경영 현황 진단</b><span>자금 · 손익 · 채권·채무 · 자금 수지 전망</span></div>
+      <div class="nm glass p d7"><img src="assets/emoji/gift.png" alt=""><div class="v"><span class="gt">0</span><small class="gt">원</small></div><b>무료 플랜</b><span>카드 등록 없이 시작 · 구성원 5명</span></div>
+    </div>
+    <p class="muted a d8" style="margin-top:22px;font-size:17px">제품 사양 기준(2026년 9월). 고객 수·사용량 등 실적 수치는 포함하지 않았습니다.</p>
+  </div>
+  <div class="foot"><span><b>OwnerView</b> 서비스 소개서</span><span>13</span></div>
+</section>
+
+<!-- ═══════════ 14 차별점 ═══════════ -->
+<section class="slide">
+  <div class="mesh c"></div>
+  <div class="pad">
+    <span class="pill a"><img src="assets/emoji/trophy.png" alt="">Why OwnerView</span>
+    <h2 class="h-l a d1" style="margin-top:28px">기존 ERP 대비 <span class="gt">차별점</span></h2>
+    <div class="cmp glass a d2">
+      <div class="h">항목</div><div class="h">일반적인 ERP</div><div class="h o">✦ 오너뷰</div>
+      <div class="k"><img src="assets/emoji/card.png" alt="" style="width:32px;height:32px;flex:none">요금 체계</div><div class="g"><span class="dot"></span>기능·모듈별 요금제 분리 판매가 많음</div><div class="o"><span class="ck">✓</span><span><b>단일 유료 플랜</b>으로 전 기능 제공</span></div>
+      <div class="k"><img src="assets/emoji/rocket.png" alt="" style="width:32px;height:32px;flex:none">도입 방식</div><div class="g"><span class="dot"></span>도입비·약정 계약이 붙는 경우가 많음</div><div class="o"><span class="ck">✓</span><span><b>카드 등록 없이 무료 시작</b>, 기간 제한 없음</span></div>
+      <div class="k"><img src="assets/emoji/receipt.png" alt="" style="width:32px;height:32px;flex:none">회계·세무</div><div class="g"><span class="dot"></span>회계 프로그램 별도 구매·연동 필요</div><div class="o"><span class="ck">✓</span><span>수집·전표·월 결산·<b>부가세·원천세 신고 자료</b>까지 통합</span></div>
+      <div class="k"><img src="assets/emoji/handshake.png" alt="" style="width:32px;height:32px;flex:none">세무사 협업</div><div class="g"><span class="dot"></span>원장·전표를 메일로 주고받음</div><div class="o"><span class="ck">✓</span><span>세무 파트너가 <b>동일 화면</b>에서 확인</span></div>
+      <div class="k" style="border-bottom:0"><img src="assets/emoji/robot.png" alt="" style="width:32px;height:32px;flex:none">AI 활용</div><div class="g" style="border-bottom:0"><span class="dot"></span>부가 기능 또는 미제공</div><div class="o" style="border-bottom:0"><span class="ck">✓</span><span>추천·브리핑·예측 — <b>판단 근거 표시, 실행은 담당자 승인</b></span></div>
+    </div>
+    <p class="muted a d4" style="margin-top:20px;font-size:17px">특정 업체와의 비교가 아닌 일반적인 도입 형태 기준입니다.</p>
+  </div>
+  <div class="em" style="right:120px;top:60px;width:160px;height:160px;z-index:2"><img src="assets/emoji/trophy.png" alt=""></div>
+  <div class="foot"><span><b>OwnerView</b> 서비스 소개서</span><span>14</span></div>
+</section>
+
+<!-- ═══════════ 15 요금제 ═══════════ -->
+<section class="slide">
+  <div class="mesh d"></div>
+  <div class="pad">
+    <span class="pill a"><img src="assets/emoji/card.png" alt="">Pricing</span>
+    <h2 class="h-l a d1" style="margin-top:28px">무료 플랜으로 시작, <span class="gt">유료 플랜 월 39,000원</span></h2>
     <div class="plans">
-      <div class="plan">
-        <div class="pn">무료</div>
+      <div class="plan glass a d2">
+        <div class="hdr"><img src="assets/emoji/gift.png" alt=""><span class="pn">무료</span></div>
         <div class="pp">₩0<small>/ 월</small></div>
         <div class="pd">카드 등록 없이 시작 · 기간 제한 없음</div>
         <ul>
@@ -617,8 +778,8 @@
           <li>결재 허브·근태·급여·프로젝트·게시판·파일보관함 무제한</li>
         </ul>
       </div>
-      <div class="plan pro">
-        <div class="pn">오너뷰 (유료)</div>
+      <div class="plan pro p d3">
+        <div class="hdr"><img src="assets/emoji/rocket.png" alt=""><span class="pn">오너뷰 (유료)</span><span class="rec">✦ 추천</span></div>
         <div class="pp">₩39,000<small>/ 월 · VAT 별도</small></div>
         <div class="pd">기본 5명 포함 · 추가 1명당 ₩5,000/월 · 연간 결제 10% 할인</div>
         <ul>
@@ -626,49 +787,53 @@
           <li>홈택스 자동 수집 · 부가세 자료 정리</li>
           <li>세금계산서·현금영수증 발행 각 월 100건 · 전자계약 무제한</li>
           <li>AI 대표 참모 월 50만 토큰 · AI 데일리 브리핑</li>
-          <li>저장공간 500MB + 추가 1명당 10GB · 저장공간 팩(+10GB) ₩5,000/월</li>
+          <li>저장공간 500MB + 추가 1명당 10GB · 팩(+10GB) ₩5,000/월</li>
         </ul>
       </div>
     </div>
-    <div class="foot-note"><span>예) 구성원 10명 = ₩39,000 + 5명 × ₩5,000 = <b>월 ₩64,000</b> (VAT 별도)</span><span><a href="https://www.owner-view.com/pricing/">요금 상세 보기</a> · <a href="https://www.owner-view.com/contact/">도입 상담 신청</a></span></div>
+    <div class="pfoot a d5"><span style="display:inline-flex;align-items:center;gap:10px"><img src="assets/emoji/light.png" alt="" style="width:32px;height:32px;flex:none">예) 구성원 10명 = ₩39,000 + 5명 × ₩5,000 = <b>월 ₩64,000</b> (VAT 별도)</span><span><a href="https://www.owner-view.com/pricing/">요금 상세 보기 →</a> &nbsp; <a href="https://www.owner-view.com/contact/">도입 상담 신청 →</a></span></div>
   </div>
-  <div class="foot"><span><b>오너뷰</b> 서비스 소개서</span><span>15</span></div>
+  <div class="foot"><span><b>OwnerView</b> 서비스 소개서</span><span>15</span></div>
 </section>
 
-<!-- ═══════════ 16. 기대 효과 ═══════════ -->
+<!-- ═══════════ 16 기대 효과 ═══════════ -->
 <section class="slide">
-  <div class="page eff">
-    <span class="eyebrow">Benefits</span>
-    <h2>도입 <em class="hl">기대 효과</em></h2>
-    <div class="grid">
-      <div class="e"><div class="ic">01</div><b>수기 입력·취합 업무 감소</b><span>거래내역 자동 수집과 전표 초안 생성으로 반복 입력을 줄입니다.</span><em>AI 자동화</em></div>
-      <div class="e"><div class="ic">02</div><b>경영 가시성 확보</b><span>자금·손익·채권·채무 현황을 매일 업데이트된 기준으로 확인합니다.</span><em>경영 현황 진단</em></div>
-      <div class="e"><div class="ic">03</div><b>자금 리스크 사전 대응</b><span>13주 자금 캘린더로 자금 부족 예상 시점을 미리 파악합니다.</span><em>경영 현황 진단</em></div>
-      <div class="e"><div class="ic">04</div><b>업무 우선순위 명확화</b><span>AI 데일리 브리핑과 이번 주 To-do로 마감 업무 누락을 방지합니다.</span><em>큐레이션</em></div>
-      <div class="e"><div class="ic">05</div><b>정부지원금 기회 확보</b><span>회사·인사 데이터 기반으로 지원 가능한 제도를 매칭합니다.</span><em>큐레이션</em></div>
-      <div class="e"><div class="ic">06</div><b>내부 통제 강화</b><span>메뉴별 권한, 다단계 결재선, 접속 허용 IP, 담당자 승인 기반 실행.</span><em>보안·권한</em></div>
+  <div class="mesh a"></div>
+  <div class="pad">
+    <span class="pill a"><img src="assets/emoji/trophy.png" alt="">Benefits</span>
+    <h2 class="h-l a d1" style="margin-top:28px">도입 <span class="gt">기대 효과</span></h2>
+    <div class="effs">
+      <div class="ef glass a d2"><em>AI 자동화</em><img src="assets/emoji/bolt.png" alt=""><b>수기 입력·취합 업무 감소</b><span>자동 수집과 전표 초안 생성으로 반복 입력을 줄입니다.</span></div>
+      <div class="ef glass a d3"><em>경영 현황 진단</em><img src="assets/emoji/search.png" alt=""><b>경영 가시성 확보</b><span>자금·손익·채권·채무 현황을 매일 업데이트된 기준으로 확인합니다.</span></div>
+      <div class="ef glass a d4"><em>경영 현황 진단</em><img src="assets/emoji/shield.png" alt=""><b>자금 리스크 사전 대응</b><span>13주 자금 캘린더로 자금 부족 예상 시점을 미리 파악합니다.</span></div>
+      <div class="ef glass a d5"><em>큐레이션</em><img src="assets/emoji/target.png" alt=""><b>업무 우선순위 명확화</b><span>AI 데일리 브리핑과 이번 주 To-do로 마감 업무 누락을 방지합니다.</span></div>
+      <div class="ef glass a d6"><em>큐레이션</em><img src="assets/emoji/gift.png" alt=""><b>정부지원금 기회 확보</b><span>회사·인사 데이터 기반으로 지원 가능한 제도를 매칭합니다.</span></div>
+      <div class="ef glass a d7"><em>보안·권한</em><img src="assets/emoji/lock.png" alt=""><b>내부 통제 강화</b><span>메뉴별 권한, 다단계 결재선, 접속 허용 IP, 담당자 승인 기반 실행.</span></div>
     </div>
   </div>
-  <div class="foot"><span><b>오너뷰</b> 서비스 소개서</span><span>16</span></div>
+  <div class="foot"><span><b>OwnerView</b> 서비스 소개서</span><span>16</span></div>
 </section>
 
-<!-- ═══════════ 17. CTA ═══════════ -->
+<!-- ═══════════ 17 CTA ═══════════ -->
 <section class="slide cta">
-  <div class="page">
-    <span class="eyebrow">Get Started</span>
-    <h2>무료로 시작하기 · <em class="hl">도입 상담 신청</em></h2>
-    <div class="cards">
-      <div class="card main">
+  <div class="mesh hero"></div>
+  <div class="orb" style="left:1300px;top:-200px;width:600px;height:600px;opacity:.3"></div>
+  <div class="pad">
+    <span class="pill a" style="background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.4);color:#fff"><img src="assets/emoji/rocket.png" alt="">Get Started</span>
+    <h2 class="a d1" style="margin-top:28px">무료로 시작하기 · 도입 상담 신청</h2>
+    <p class="sub a d2">카드 등록 없이 오늘 바로 시작하거나, 회사에 맞는 구성을 상담받으세요.</p>
+    <div class="ctas">
+      <div class="ctac p d3">
         <div>
-          <b>무료로 시작하기</b>
-          <p>카드 등록 없이 회원가입 후 바로 사용합니다.<br>무료 플랜은 기간 제한이 없습니다.</p>
+          <div class="hdr"><img src="assets/emoji/rocket.png" alt=""><b>무료로 시작하기</b></div>
+          <p>회원가입 후 바로 사용합니다.<br>무료 플랜은 기간 제한이 없습니다.</p>
           <a href="https://www.owner-view.com/auth/?mode=signup">owner-view.com 회원가입 →</a>
         </div>
         <div class="qr" data-url="https://www.owner-view.com/auth/?mode=signup"></div>
       </div>
-      <div class="card">
+      <div class="ctac p d4">
         <div>
-          <b>도입 상담 신청</b>
+          <div class="hdr"><img src="assets/emoji/handshake.png" alt=""><b>도입 상담 신청</b></div>
           <ol><li>상담 신청서 제출</li><li>영업일 기준 1일 이내 연락</li><li>메뉴 구성·데이터 이전·요금 안내</li></ol>
           <a href="https://www.owner-view.com/contact/">owner-view.com/contact →</a>
         </div>
@@ -676,18 +841,48 @@
       </div>
     </div>
   </div>
-  <div class="contact"><span>이메일 <b>creative@mo-tive.com</b></span><span>운영사 <b>(주)모티브이노베이션</b></span></div>
-  <div class="foot"><span><b>오너뷰</b> 서비스 소개서</span><span>17</span></div>
+  <div class="em" style="right:120px;top:90px;width:180px;height:180px;z-index:2"><img src="assets/emoji/sparkles.png" alt=""></div>
+  <div class="contact"><span style="display:inline-flex;align-items:center;gap:10px"><img src="assets/emoji/envelope.png" alt="" style="width:32px;height:32px;flex:none">이메일 <b>creative@mo-tive.com</b></span><span>운영사 <b>(주)모티브이노베이션</b></span></div>
+  <div class="foot"><span><b>OwnerView</b> 서비스 소개서</span><span>17</span></div>
 </section>
 
-<!-- QR — qrcode-generator(jsDelivr). render.mjs 가 networkidle 을 기다린 뒤 찍는다 -->
+<!-- QR — qrcode-generator(jsDelivr) -->
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script>
   document.querySelectorAll(".qr").forEach(function (el) {
     var q = qrcode(0, "M"); q.addData(el.dataset.url); q.make();
     el.innerHTML = q.createSvgTag({ cellSize: 8, margin: 0, scalable: true });
   });
-</script>
 
+  // 움직임 — 쪽이 화면에 들어오면 .on 을 붙여 등장 효과를 다시 재생한다(still 이면 전부 켠 채로 둔다)
+  var slides = [].slice.call(document.querySelectorAll(".slide"));
+  if (document.documentElement.classList.contains("still")) {
+    slides.forEach(function (s) { s.classList.add("on"); });
+  } else if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting) e.target.classList.add("on"); else e.target.classList.remove("on"); });
+    }, { threshold: 0.35 });
+    slides.forEach(function (s) { io.observe(s); });
+  }
+
+  // 발표 모드 — F 로 켜고 끈다, ←/→/스페이스로 넘긴다
+  var cur = 0;
+  function fit() {
+    var k = Math.min(innerWidth / 1920, innerHeight / 1080);
+    slides.forEach(function (s) { s.style.transform = document.body.classList.contains("present") ? "translate(-50%,-50%) scale(" + k + ")" : ""; });
+  }
+  function show(i) {
+    cur = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach(function (s, j) { s.classList.toggle("cur", j === cur); s.classList.remove("on"); });
+    void slides[cur].offsetWidth; slides[cur].classList.add("on");
+  }
+  addEventListener("keydown", function (e) {
+    if (e.key === "f" || e.key === "F") { document.body.classList.toggle("present"); fit(); if (document.body.classList.contains("present")) show(cur); else slides.forEach(function (s) { s.classList.add("on"); }); }
+    if (!document.body.classList.contains("present")) return;
+    if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") show(cur + 1);
+    if (e.key === "ArrowLeft" || e.key === "PageUp") show(cur - 1);
+  });
+  addEventListener("resize", fit);
+</script>
 </body>
 </html>

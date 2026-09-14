@@ -1,6 +1,7 @@
 // 서비스 소개서 v3 — 제품 화면 캡처 (2026-09-14)
 //   사용: node deck/service-v3/capture.mjs            (Git Bash 면 MSYS_NO_PATHCONV=1 을 앞에 붙인다 — /dashboard 가 경로로 바뀐다)
-//   결과: deck/service-v3/shots/dk-*.png (2배 해상도)
+//   결과: deck/service-v3/shots/dk-*.png (2배 해상도, git 제외 아님 — 필요할 때만 찍는다)
+//   ⚠️ 2026-09-14 디자인 2판부터 slides.html 은 실제 캡처 대신 벡터 목업을 쓴다(사장님 레퍼런스 14.PNG). 이 스크립트는 실제 화면이 다시 필요할 때용.
 //
 //   ⛔ QA 시드 회사(가상)에서만 찍는다 (결정 220·239 — 소개서에 모티브 실데이터·회사 노출 없음).
 //      계정 = qa-seed-owner@mo-tive.com. 비밀번호는 저장소에 적지 않는다 — QA_SEED_PASSWORD 환경변수나 git 제외 파일 .env.qa.local.
