@@ -536,6 +536,14 @@ input, textarea, [contenteditable="true"] {
   outline: none;
   box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px color-mix(in srgb, var(--primary) 55%, transparent);
 }
+/*   입력칸은 링을 **안쪽**에 그린다 (2026-09-14 사장님 지적 "클릭하면 옆 박스랑 겹친다").
+     위 링은 칸 밖으로 4px 번지므로, 표·격자처럼 칸이 붙어 있는 곳에서는 클릭한 칸의 링이
+     옆 칸 위에 그려졌다. 안쪽 링은 칸 크기를 넘지 않아 어떤 배치에서도 이웃을 덮지 않는다.
+     버튼·링크는 붙어 있는 일이 드물고 안쪽 링이 잘 안 보여 바깥 링을 유지한다. */
+input:focus-visible, select:focus-visible, textarea:focus-visible, [contenteditable="true"]:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--primary) 55%, transparent);
+}
 
 /* 3) 표준 버튼 계열 — 기존 .btn-primary 와 짝. 화면별 재구현 수렴용. (순수 CSS — @apply 커스텀/color-mix 파싱 회피) */
 .btn-secondary, .btn-ghost, .btn-danger {
@@ -1232,12 +1240,16 @@ thead th { white-space: nowrap; word-break: keep-all; }
 /*   홈택스 '세금계산서 발행' 서식과 같은 칸 순서 (2026-09-14 사장님):
      No. · 월 · 일 · 품목명 · 규격 · 수량 · 단가 · 공급가액 · 세액 · 합계 · 비고 · 삭제 */
 .tax-items-grid { @apply min-w-[1080px]; }
-.tax-item-row { @apply grid items-center border-t border-[var(--border)]/60; grid-template-columns: 38px 52px 52px minmax(130px, 1.5fr) 84px 60px 104px 110px 96px 110px minmax(100px, 1fr) 30px; }
+.tax-item-row { @apply grid items-center gap-x-1.5 border-t border-[var(--border)]/60; grid-template-columns: 38px 52px 52px minmax(130px, 1.5fr) 84px 60px 104px 110px 96px 110px minmax(100px, 1fr) 30px; }
 .tax-item-row:first-child { @apply border-t-0; }
 .tax-item-head { @apply bg-[var(--bg-surface)]; }
 .tax-item-head > span { @apply px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]; }
 .tax-item-no { @apply px-0 text-center text-[11px] text-[var(--text-dim)]; }
-.tax-item-input { @apply h-8 w-full min-w-0 mx-1 my-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2 text-xs text-[var(--text)] transition focus:outline-none focus:border-[var(--primary)]; }
+/*   칸은 자기 칸 안에만 있고, 포커스 표시도 칸 안쪽에 그린다 (2026-09-14 사장님 지적: 클릭하면 옆 칸과 겹친다).
+     원인 둘 — ① w-full + mx-1 이라 칸이 트랙보다 8px 넓어 옆 칸과 붙거나 겹쳤고(단가·비고는 클릭 전에도 4~5px),
+     ② 전역 :focus-visible 링이 바깥으로 4px 번졌다. 틈은 격자 gap 이 맡고, 링은 inset 으로. */
+.tax-item-input { @apply h-8 w-full min-w-0 my-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2 text-xs text-[var(--text)] transition focus:outline-none focus:border-[var(--primary)]; }
+.tax-item-input:focus, .tax-item-input:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--primary); }
 .tax-item-sum { @apply px-2 text-right text-xs font-bold text-[var(--primary)]; font-variant-numeric: tabular-nums; }
 .tax-item-del { @apply text-center text-[var(--text-dim)] transition hover:text-[var(--danger)]; }
 .tax-items-foot { @apply flex flex-wrap items-center gap-3 border-t border-dashed border-[var(--border)] px-2.5 py-2; }
@@ -1256,7 +1268,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 /* 여러 장 한꺼번에 — 사업자번호·대표자까지만 */
 /*   여러 장 칸 순서(2026-09-14 사장님): 번호 · 유형 · 작성일자 · 거래처 · 사업자번호 · 대표자
      · 품목명 · 규격 · 수량 · 단가 · 공급가액 · 세액 · 합계 · 비고 · 삭제 */
-.tax-multi-row { @apply grid items-center border-t border-[var(--border)]/60; grid-template-columns: 28px 86px 116px minmax(108px, 1.1fr) 104px 76px minmax(104px, 1fr) 72px 54px 98px 100px 88px 100px minmax(92px, 0.85fr) 28px; }
+.tax-multi-row { @apply grid items-center gap-x-1.5 border-t border-[var(--border)]/60; grid-template-columns: 28px 86px 116px minmax(108px, 1.1fr) 104px 76px minmax(104px, 1fr) 72px 54px 98px 100px 88px 100px minmax(92px, 0.85fr) 28px; }
 .tax-multi-row:first-child { @apply border-t-0; }
 .tax-multi-head { @apply bg-[var(--bg-surface)]; }
 .tax-multi-head > span { @apply px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]; }

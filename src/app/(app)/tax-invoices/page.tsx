@@ -524,6 +524,18 @@ function TaxInvoicesPageInner() {
   const [calcRowKey, setCalcRowKey] = useState<string | null>(null);   //   여러 장 — 🧮 계산기가 펼쳐진 줄 (2026-08-31)
   //   한 장 쓰기(품목 여러 줄) / 여러 장 한꺼번에(한 줄 = 한 장) — 2026-08-10
   const [formMode, setFormMode] = useState<"single" | "multi">("single");
+  //   두 탭은 입력 상태를 나눠 갖는다 (2026-09-14 사장님 지적). 예전엔 같은 rows 를 썼는데,
+  //   한 장 쓰기에서 품목을 여러 줄 넣고 여러 장으로 넘어가면 그 줄들이 그대로 rows[0] 에 남아
+  //   — 여러 장 격자는 items[0] 만 보여 주면서 공급가액·세액·합계는 items 전부를 더해 — 안 보이는
+  //   줄의 금액이 합계에 붙었다. 탭을 옮길 때 지금 탭의 입력을 보관하고 저쪽 탭의 것을 꺼낸다.
+  const modeRowsRef = useRef<{ single: FormRow[] | null; multi: FormRow[] | null }>({ single: null, multi: null });
+  const switchMode = (next: "single" | "multi") => {
+    if (next === formMode) return;
+    modeRowsRef.current[formMode] = rows;
+    setRows(modeRowsRef.current[next] ?? [blankRow()]);
+    setDropdownRowKey(null); setCalcRowKey(null);
+    setFormMode(next);
+  };
   const [savePartnerInfo, setSavePartnerInfo] = useState(true);
   const patchRow = (key: string, patch: Partial<FormRow>) =>
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -1091,6 +1103,7 @@ function TaxInvoicesPageInner() {
       queryClient.invalidateQueries({ queryKey: ["tax-invoice-issuance-status"] });
       setShowForm(false);
       setRows([blankRow()]);
+      modeRowsRef.current = { single: null, multi: null };   // 다른 탭에 보관된 입력도 비운다
       setDropdownRowKey(null);
     },
     onError: (err: any) => toast("세금계산서 등록 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
@@ -2083,8 +2096,8 @@ function TaxInvoicesPageInner() {
             </div>
             <div className="flex items-center gap-3">
               <div className="seg-bar">
-                <button type="button" onClick={() => setFormMode("single")} className={`seg-item ${formMode === "single" ? "seg-item-active" : ""}`}>한 장 쓰기</button>
-                <button type="button" onClick={() => setFormMode("multi")} className={`seg-item ${formMode === "multi" ? "seg-item-active" : ""}`}>여러 장 한꺼번에</button>
+                <button type="button" onClick={() => switchMode("single")} className={`seg-item ${formMode === "single" ? "seg-item-active" : ""}`}>한 장 쓰기</button>
+                <button type="button" onClick={() => switchMode("multi")} className={`seg-item ${formMode === "multi" ? "seg-item-active" : ""}`}>여러 장 한꺼번에</button>
               </div>
               <button onClick={() => setShowForm(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none transition" aria-label="닫기">✕</button>
             </div>

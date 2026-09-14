@@ -221,6 +221,11 @@ export function TaxInvoiceBulkIssueModal({ companyId, onClose }: { companyId: st
           counterpartyBizno: r.counterpartyBizno,
           counterpartyBusinessType: r.businessType || undefined,
           counterpartyBusinessItem: r.businessItem || undefined,
+          //   ⚠️ 대표자·이메일은 엑셀에서 읽어 놓고(위 out.push) 여기 안 넘겨 계산서에 빈 채로
+          //   들어갔다 (2026-09-14 사장님 제보: 39건 중 38건 대표자 빔). 국세청 필수값이라
+          //   전송이 실패하고, 이메일이 비면 거래처가 계산서를 못 받는다.
+          counterpartyRepresentative: r.representative || undefined,
+          counterpartyEmail: r.email || undefined,
           supplyAmount: r.supplyAmount,
           //   엑셀에 적힌 세액을 그대로 쓴다 — 국세청에도 이 값이 나간다 (2026-09-11)
           taxAmount: r.taxAmount,
