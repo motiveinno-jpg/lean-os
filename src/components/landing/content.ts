@@ -326,18 +326,7 @@ export const ENGINES = [
   { num: "04", src: "/product/f-partners-v4.png", alt: "오너뷰 거래처", short: "거래처마다 프로젝트·계약·매출 기록이 자동으로 쌓여요.", name: "거래처 자산화", eng: "Client Asset Engine", headline: "담당자가 퇴사해도 고객 관계는 회사에 남아요.", desc: "거래처를 등록하면 프로젝트, 계약서, 매출 등 모든 상호작용이 자동으로 연결·축적됩니다. 휴면 거래처는 버튼 한 번으로 감지해 담당자에게 리마인더를 보낼 수 있습니다.", replaces: "CRM + 명함관리 구독", replacesCost: "연 200만원+", steps: ["거래처 등록 → 프로젝트·계약·매출 이력 자동 연결", "휴면 감지 → 미거래 거래처 표시", "관계 유지 → 리마인더 발송·파트너 포털"], features: ["거래 이력 자동 축적", "파트너 포털", "사업자 자동조회", "거래처 원장"] },
 ];
 
-// 개별 툴 비교/계산기 — 인원당 vs 정액 개념만 남긴다.
-//   ⚠️ 회사명(브랜드)은 넣지 않는다. 마스킹해도 특정 가능하면 비교광고 분쟁 소지가 있다 (2026-07-27 사장님 지시).
-//   가격은 각 카테고리의 공개 요금 기준 참고치이며, 특정 업체를 지목하지 않는다.
-export const COMPETITORS = [
-  { cat: "HR/급여", price: 70000, perSeat: true },
-  { cat: "프로젝트", price: 16000, perSeat: true },
-  { cat: "전자계약", price: 39900, perSeat: false },
-  { cat: "CRM", price: 4900, perSeat: true },
-  { cat: "채팅", price: 120000, perSeat: false },
-  { cat: "근태", price: 4000, perSeat: true },
-  { cat: "세무", price: 33000, perSeat: false },
-];
+// 개별 툴 비교(COMPETITORS)는 2026-09-14 /pricing v8 이관과 함께 landing-v8/content.ts 로 옮겼다.
 
 export const PLANS = [
   { name: "무료", slug: "free", regularPrice: null, price: "0", unit: "원", period: "카드 등록 없이 계속 무료", desc: "기능은 다 열려 있고, 횟수만 제한", hl: false, discount: null, features: ["구성원 5명", "저장공간 500MB", "결재 허브·근태·급여·프로젝트·게시판·파일보관함 무제한", "세금계산서 발행 월 5건 · 현금영수증 발행 월 5건", "전자계약 월 5건", "AI 대표 참모 월 10만 토큰", "통장·카드 3개까지 연결 · 하루 2회 자동 동기화", "AI 브리핑은 기본형(요약 규칙)"] },

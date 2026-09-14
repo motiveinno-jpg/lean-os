@@ -85,7 +85,7 @@
 | 단계 | 대상 | 규모(추정) | 검증 |
 |---|---|---|---|
 | **1** ✅ 2026-09-14 | 공용 머리·바닥 + `/tools` 허브 + 계산기 6 (+ `/` 를 같은 머리로) | 중 | 7개 주소 200 · H1/canonical/JSON-LD 전후 동일 · 계산 결과 전후 동일(입력 3세트) · 390 가로 스크롤 0 |
-| **2** | `/pricing` — PRICING 단일 출처, 플랜 비교표, CTA=/contact | 소 | DB subscription_plans 와 금액·좌석 대조 |
+| **2** ✅ 2026-09-14 | `/pricing` — ~~PRICING 단일 출처~~ **DB subscription_plans 직접 읽기(ISR 1시간)**, 플랜 비교표, CTA=/contact | 소 | DB subscription_plans 와 금액·좌석 대조 |
 | **3** | `/features` + `/demo` — catalog.ts(사이드바 기준), 메뉴 키 링크, 옛 숫자 링크 호환 | 대 | 사이드바 메뉴 ↔ catalog 1:1 자동 대조 · 캡처 없는 메뉴 목록 출력 |
 | 3b | 새 메뉴 캡처(QA 시드, 밤) | 중 | 결정 220 · 실데이터 0 |
 | **4** | `/ai` — Q2 결정대로 | 중 | — |

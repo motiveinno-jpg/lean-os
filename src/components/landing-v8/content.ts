@@ -122,12 +122,25 @@ export const PRICING = {
     features: [
       "통장·카드 무제한 연결 · 하루 2회 자동 수집 + 필요할 때 바로 수집",
       "홈택스 자동 수집 · 부가세·원천세 신고 자료",
-      "저장공간 500MB + 인원당 10GB · 팩(+10GB) 5,000원",
+      "저장공간 500MB + 추가 1명당 10GB · 팩(+10GB) 5,000원",  // 2026-09-14 「인원당」 정정 — 쿼터 = 기본 + (추가좌석+팩)×10GB
       "세금계산서 발행 월 100건 · 전자계약 무제한",
       "AI 브리핑 매일 · AI 대표 참모 월 50만 토큰",
     ],
   },
 };
+
+/* /pricing 「따로 구독할 때와 비교」 — 옛 landing/content.ts COMPETITORS 를 그대로 옮겼다(2026-09-14).
+   ⚠️ 회사명(브랜드)은 넣지 않는다. 마스킹해도 특정 가능하면 비교광고 분쟁 소지가 있다 (2026-07-27 사장님 지시).
+   가격은 각 분야의 공개 요금 기준 참고치이며, 특정 업체를 지목하지 않는다. */
+export const COMPETITORS: { cat: string; price: number; perSeat: boolean }[] = [
+  { cat: "HR/급여", price: 70000, perSeat: true },
+  { cat: "프로젝트", price: 16000, perSeat: true },
+  { cat: "전자계약", price: 39900, perSeat: false },
+  { cat: "CRM", price: 4900, perSeat: true },
+  { cat: "채팅", price: 120000, perSeat: false },
+  { cat: "근태", price: 4000, perSeat: true },
+  { cat: "세무", price: 33000, perSeat: false },
+];
 
 export const FOOTER = {
   company: "(주)모티브이노베이션 · 대표 채희웅 · 사업자등록번호 155-88-02209",
