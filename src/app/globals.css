@@ -1040,6 +1040,10 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .demo2-main { @apply flex-1 min-w-0 md:pl-4; }
 .demo2-shot { @apply rounded-[18px] overflow-hidden border border-[var(--border)]/70 bg-white shadow-[var(--shadow-lg)]; }
 .demo2-shot img { @apply block w-full h-auto; }
+/* 2026-09-14 캡처가 아직 없는 메뉴 — 깨진 그림 대신 이름과 안내만 (demo/page.tsx) */
+.demo2-noshot { @apply flex flex-col items-center justify-center gap-2 py-24 text-[var(--text-muted)]; }
+.demo2-noshot b { @apply text-base font-bold text-[var(--text)]; }
+.demo2-noshot span { @apply text-sm; }
 .demo2-cap { @apply mt-4 px-1; }
 .demo2-cap-t { @apply text-[13px] font-extrabold text-[var(--primary)]; }
 .demo2-cap p { @apply mt-1 text-sm leading-relaxed text-[var(--text-muted)]; }
@@ -1048,7 +1052,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
   bg-[var(--bg-surface)] text-[11.5px] font-semibold text-[var(--text-muted)]; }
 .demo2-foot { @apply flex flex-wrap items-center justify-center gap-3 pb-12 pt-2; }
 /* 모바일 메뉴 — 레일·패널이 숨는 폭에서 그룹·메뉴를 고르는 가로 칩 줄 */
-.demo2-mnav { @apply mb-3 flex flex-col gap-1.5; }
+/* 2026-09-14 md:hidden 추가 — 요소의 md:hidden 을 이 규칙의 flex 가 덮어 데스크톱에도 폰용 칩 두 줄이 떴다 */
+.demo2-mnav { @apply mb-3 flex md:hidden flex-col gap-1.5; }
 .demo2-mnav-row { @apply flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1; scrollbar-width: none; }
 .demo2-mnav-row::-webkit-scrollbar { display: none; }
 .demo2-mchip { @apply shrink-0 px-3 py-1.5 rounded-full border border-[var(--border)]/80

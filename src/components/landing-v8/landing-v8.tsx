@@ -223,17 +223,17 @@ export default function LandingV8() {
         <section id="menus" className="sec-200 pt64 pb64">
           <div className="container">
             <div className="wall">
-              {MENUS.map(([name, icon], i) => (
-                <button key={name + i} type="button" title={name} className="rise" style={stagger(i, 22)}>
+              {MENUS.map(({ name, href, icon }, i) => (
+                <Link key={href} href={href} title={name} className="rise" style={stagger(i, 22)}>
                   {/* eslint-disable-next-line react/no-danger */}
                   <span className="ic" dangerouslySetInnerHTML={html(ic(icon))} />
                   <span className="nm">{name}</span>
-                </button>
+                </Link>
               ))}
             </div>
             <div className="wall-note rise">
               <span>이 메뉴들이 모두 같은 자료를 씁니다!</span>
-              <a className="btn btn-sm btn-line" href="#feats">전체 메뉴 보기</a>
+              <Link className="btn btn-sm btn-line" href="/features">전체 메뉴 보기</Link>
             </div>
           </div>
         </section>

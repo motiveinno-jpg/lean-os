@@ -8,7 +8,7 @@
 //   대시보드는 런웨이/번레이트 시절 위젯을 보여주고 있었다.
 //   목업은 원리상 계속 어긋난다 → 사이드바만 진짜로 만들고, 본문은 **실제 앱 화면 캡처**를 띄운다.
 //
-// 구조: 아이콘 레일(그룹 7개) + 메뉴 패널 + 본문(그 메뉴의 실제 화면).
+// 구조: 아이콘 레일(그룹 8개) + 메뉴 패널 + 본문(그 메뉴의 실제 화면).
 //   ⚠️ 메뉴 목록·아이콘·화면 이미지는 전부 landing/content.ts 의 CATALOG 하나에서 온다.
 //      사이드바가 바뀌면 CATALOG 만 고치면 랜딩·둘러보기·데모가 함께 따라온다.
 //   ⚠️ 본문 캡처(f-*.png)는 "브레드크럼 헤더 + 본문" 구도라 왼쪽에 사이드바를 붙이면
@@ -18,21 +18,13 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { CATALOG } from "@/components/landing/content";
-import { MenuGlyph }  from "@/components/landing/features-view";
+// 2026-09-14 목록을 앱 사이드바 기준(landing-v8/catalog)으로 — 옛 CATALOG 는 08-20 이름(파이낸스·워크스페이스)이었다.
+import { CATALOG } from "@/components/landing-v8/catalog";
+import { MenuGlyph } from "@/components/landing-v8/menu-glyph";
 
 const DEMO_USER = "김대표";
 
-/** 레일에 쓰는 짧은 이름 · 실제 사이드바 NAV_GROUPS 의 short 와 같게. */
-const SHORT: Record<string, string> = {
-  "홈": "홈", "파이낸스": "파이낸스", "분석": "분석", "워크스페이스": "워크",
-  "인사관리": "인사", "회사 관리": "회사", "도움말": "도움말",
-};
-/** 그룹 아이콘 · 실제 사이드바 그룹 아이콘과 같은 모양을 CATALOG 아이콘 이름으로 고른다. */
-const GROUP_ICON: Record<string, string> = {
-  "홈": "chart", "파이낸스": "wallet", "분석": "trend", "워크스페이스": "briefcase",
-  "인사관리": "user", "회사 관리": "sheet", "도움말": "book",
-};
+//   레일 짧은 이름·그룹 아이콘은 catalog 의 short·icon 을 쓴다(2026-09-14 — 전엔 여기 표를 따로 뒀다).
 
 const Glyph = ({ d, w = 16 }: { d: string; w?: number }) => (
   <svg width={w} height={w} viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -65,15 +57,15 @@ export default function DemoPage() {
       </div>
 
       <div className="demo2-shell">
-        {/* ── 아이콘 레일 — 그룹 7개 ── */}
+        {/* ── 아이콘 레일 — 그룹 8개 ── */}
         <aside className="demo2-rail chrome-glass">
           <Mark />
           <div className="demo2-rail-list">
             {CATALOG.map((g, i) => (
               <button key={g.key} type="button" onClick={() => setRailIdx(i)}
                 className={`demo2-rail-item ${i === railIdx ? "is-on" : ""}`}>
-                <MenuGlyph n={GROUP_ICON[g.group] || "chart"} />
-                <span>{SHORT[g.group] || g.group}</span>
+                <MenuGlyph n={g.icon} />
+                <span>{g.short}</span>
               </button>
             ))}
           </div>
@@ -98,13 +90,13 @@ export default function DemoPage() {
             <span>검색</span><kbd>⌘K</kbd>
           </div>
           <div className="demo2-grp">
-            <span>{group.group}</span><small>{group.menus.length}</small>
+            <span>{group.name}</span><small>{group.menus.length}</small>
           </div>
           <nav className="demo2-menu">
             {group.menus.map((m, i) => {
               const on = pick.g === railIdx && pick.m === i;
               return (
-                <button key={m.name} type="button"
+                <button key={m.key} type="button"
                   onClick={() => { setPick({ g: railIdx, m: i }); window.scrollTo({ top: 0, behavior: "smooth" }); }}
                   className={`demo2-menu-item ${on ? "is-on" : ""}`}>
                   <MenuGlyph n={m.icon} />
@@ -122,12 +114,12 @@ export default function DemoPage() {
             <div className="demo2-mnav-row">
               {CATALOG.map((g, i) => (
                 <button key={g.key} type="button" onClick={() => setRailIdx(i)}
-                  className={`demo2-mchip ${i === railIdx ? "is-on" : ""}`}>{SHORT[g.group] || g.group}</button>
+                  className={`demo2-mchip ${i === railIdx ? "is-on" : ""}`}>{g.short}</button>
               ))}
             </div>
             <div className="demo2-mnav-row demo2-mnav-sub">
               {group.menus.map((m, i) => (
-                <button key={m.name} type="button"
+                <button key={m.key} type="button"
                   onClick={() => setPick({ g: railIdx, m: i })}
                   className={`demo2-mchip ${pick.g === railIdx && pick.m === i ? "is-on" : ""}`}>{m.name}</button>
               ))}
@@ -135,13 +127,22 @@ export default function DemoPage() {
           </div>
           <div className="demo2-shot">
             {/* 캡처마다 세로 길이가 달라 높이를 고정하지 않는다(잘리면 화면을 오해한다). */}
-            <Image key={shown.src} src={shown.src} alt={shown.alt} width={2288} height={1432}
-              sizes="(max-width: 1100px) 96vw, 1180px" priority />
+            {shown.src ? (
+              <Image key={shown.src} src={shown.src} alt={`오너뷰 ${shown.name} 화면`} width={2288} height={1432}
+                sizes="(max-width: 1100px) 96vw, 1180px" priority />
+            ) : (
+              /* 캡처가 아직 없는 메뉴(2026-09-14 사이드바 맞춤으로 새로 들어온 것) — 깨진 그림 대신 이름과 안내만 */
+              <div className="demo2-noshot">
+                <MenuGlyph n={shown.icon} />
+                <b>{shown.name}</b>
+                <span>화면 준비 중입니다</span>
+              </div>
+            )}
           </div>
           <div className="demo2-cap">
             {/* ⚠️ 레일에서 고른 그룹(group)이 아니라 '지금 보고 있는 화면'의 그룹을 적는다 —
                 그룹만 훑어볼 때 "파이낸스 › 대시보드" 처럼 어긋난다. */}
-            <div className="demo2-cap-t">{CATALOG[pick.g].group} › {shown.name}</div>
+            <div className="demo2-cap-t">{CATALOG[pick.g].name} › {shown.name}</div>
             <p>{shown.desc}</p>
             <div className="demo2-cap-items">
               {shown.items.map((it) => <span key={it}>{it}</span>)}

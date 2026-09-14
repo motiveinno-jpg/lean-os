@@ -7,6 +7,8 @@
 //      ultra 는 is_active=false 라 화면에 쓰지 않는다.
 //      ⛔ "인원당 과금이 아닙니다" 라고 쓰지 않는다 — 6명째부터 1명당 5,000원이 실제로 붙는다.
 
+import { CATALOG, menuHref } from "./catalog";
+
 export const HERO = {
   h1a: "회사 운영의 모든 것",
   h1b: "올인원 AI ERP, 오너뷰",
@@ -15,17 +17,24 @@ export const HERO = {
   ctaSecondary: "전문 상담 예약",
 };
 
-/* §1 메뉴 벽 — 32개(8×4). 실제 사이드바 메뉴와 같은 이름을 쓴다 */
-export const MENUS: [string, string][] = [
-  ["대시보드", "grid"], ["참모", "spark"], ["알림", "bell"], ["분석·리포트", "chart"],
-  ["통장", "swap"], ["카드", "card"], ["거래처", "users"], ["수집·전표", "down"],
-  ["세금·증빙", "receipt"], ["일반전표", "edit"], ["매입매출전표", "file"], ["세무 신고", "receipt"],
-  ["정기 지출", "clock"], ["품목", "box"], ["창고관리", "layers"], ["주문", "clip"],
-  ["판매", "cart"], ["구매", "down"], ["이커머스", "link"], ["이익관리", "trend"],
-  ["프로젝트", "brief"], ["일정 / 할 일", "cal"], ["결재 허브", "check"], ["메신저", "msg"],
-  ["게시판", "book"], ["전자계약", "sign"], ["파일보관함", "folder"], ["구성원", "users"],
-  ["근태 관리", "clock"], ["근로계약·서식", "file"], ["보안·감사", "shield"], ["회사 설정", "gear"],
+/* §1 메뉴 벽 — 32개(8×4). [그룹 key, 메뉴 key, 아이콘(mocks ic)] — 이름·주소는 catalog(앱 사이드바)에서 읽는다.
+   2026-09-14 전에는 이름을 직접 적어 사이드바에 없는 이름이 4개 있었다
+   (참모→AI 참모 · 분석·리포트→경영 요약 · 보안·감사→보안·시스템 · 회사 설정→회사 기초정보). 칸을 누르면 /features 그 메뉴로 간다. */
+const WALL: [string, string, string][] = [
+  ["home", "dashboard", "grid"], ["home", "copilot", "spark"], ["home", "notifications", "bell"], ["analysis", "summary", "chart"],
+  ["finance", "bank", "swap"], ["finance", "cards", "card"], ["finance", "partners", "users"], ["finance", "collect", "down"],
+  ["finance", "tax-invoices", "receipt"], ["finance", "voucher-entry", "edit"], ["finance", "sale-purchase", "file"], ["finance", "tax-filing", "receipt"],
+  ["finance", "payments", "clock"], ["inventory", "products", "box"], ["inventory", "stock", "layers"], ["inventory", "orders", "clip"],
+  ["inventory", "sales", "cart"], ["inventory", "purchase", "down"], ["inventory", "channels", "link"], ["inventory", "profit", "trend"],
+  ["workspace", "projecthub", "brief"], ["workspace", "schedule", "cal"], ["workspace", "approvals", "check"], ["workspace", "chat", "msg"],
+  ["workspace", "board", "book"], ["workspace", "signatures", "sign"], ["workspace", "documents", "folder"], ["hr", "employees", "users"],
+  ["hr", "attendance", "clock"], ["hr", "hr-templates", "file"], ["company", "system", "shield"], ["company", "company", "gear"],
 ];
+export const MENUS: { name: string; href: string; icon: string }[] = WALL.map(([g, m, icon]) => {
+  const menu = CATALOG.find((x) => x.key === g)?.menus.find((x) => x.key === m);
+  if (!menu) throw new Error(`landing-v8 MENUS: catalog 에 없는 메뉴 ${g}/${m}`); // 빌드에서 바로 드러나게
+  return { name: menu.name, href: menuHref(g, m), icon };
+});
 
 /* 업종별 메가메뉴 — 업종 하위 페이지가 아직 없어 전부 /features 로 보낸다 */
 export const MEGA: [string, string[]][] = [
@@ -39,8 +48,9 @@ export const MEGA: [string, string[]][] = [
 
 /* §7 대표 기능 아홉 — 도입 문의로 가장 많이 받은 것 */
 export const FEATS: [string, string, string, string][] = [
-  ["chart", "매출 대시보드 · 경영 현황판", "전표·판매채널·목표를 한 화면에. 배치는 사람마다 저장됩니다.", "분석 › KPI 현황판"],
-  ["cart", "스마트스토어·쿠팡 재고 연동", "회사 API 키로 주문을 직접 받아 출고까지 처리합니다.", "재고 › 이커머스"],
+  ["chart", "매출 대시보드 · 경영 현황판", "전표·판매채널·목표를 한 화면에. 배치는 사람마다 저장됩니다.", "재고 › 이익관리 › KPI 현황판"],  // 2026-09-14 「분석 › KPI 현황판」은 없는 자리였다
+  // 2026-09-14 「회사 API 키로 주문을 직접 받아」 → 실제 회사 키로 검증 전(lib/channel-api.ts)이라 되는 것만 적는다
+  ["cart", "스마트스토어·쿠팡 재고 연동", "채널 주문을 엑셀로 가져와 판매 출고와 재고까지 이어서 처리합니다.", "재고 › 이커머스"],
   ["brief", "프로젝트 관리 · 업무 협업툴", "표·칸반·캘린더·간트 네 가지 보기. 진행 단계는 직접 정합니다.", "업무 › 프로젝트"],
   ["cal", "회사 일정 관리 · 캘린더", "회사 전체 일정을 관리합니다. 반복 일정과 아침 알림을 지원합니다.", "업무 › 일정 / 할 일"],
   ["folder", "사내 문서보관함 · 파일 서버", "파일당 500MB, 이어올리기. 폴더 공개 범위 4단계와 버전 관리.", "업무 › 파일보관함"],
@@ -68,35 +78,34 @@ export const FIGURES: [string, string][] = [
 ];
 
 /* 관련 검색어 — [검색어, 그 일을 다루는 공개 페이지] (2026-09-14 링크 복구)
-   ▸ 계산기·요금·세무사·블로그 글이 있는 주제는 그 페이지로, 나머지는 /features 의 해당 메뉴(?g=그룹&m=메뉴 순번).
-   ▸ 옛 CATALOG(components/landing/content.ts)를 불러오지 않고 주소를 적었다 — 불러오면 `/` 번들에 옛 문구 전부가 실린다.
-     ⚠️ 그래서 CATALOG 의 그룹·메뉴 순서를 바꾸면 여기 m 도 같이 고친다(메뉴 이름을 옆 주석에 적어 두었다). */
+   ▸ 계산기·요금·세무사·블로그 글이 있는 주제는 그 페이지로, 나머지는 /features 의 해당 메뉴.
+   ▸ 메뉴 주소는 catalog 의 메뉴 key 로 만든다(같은 날 3단계 — 순번을 적던 것을 key 로. catalog 에 없는 key 면 첫 메뉴로 열린다). */
 export const TOPICS: [string, string][] = [
   ["중소기업 ERP", "/blog/smb-erp-guide"],
   ["올인원 ERP", "/features"],
   ["클라우드 ERP", "/features"],
   ["회계 프로그램", "/blog/accounting-program-vs-all-in-one-erp"],
-  ["부가세 신고", "/features?g=analysis&m=5"],          // 분석 › 부가세
-  ["전자세금계산서 발행", "/features?g=finance&m=4"],   // 파이낸스 › 세금·증빙
-  ["홈택스 연동", "/features?g=finance&m=3"],           // 파이낸스 › 수집·전표
-  ["은행 자동 연동", "/features?g=finance"],            // 파이낸스 › 통장
-  ["카드 내역 자동 수집", "/features?g=finance&m=1"],   // 파이낸스 › 카드
-  ["근태관리 프로그램", "/features?g=hr&m=1"],          // 인사관리 › 근태 관리
-  ["급여 프로그램", "/features?g=hr"],                  // 인사관리 › 구성원(급여 배치·명세서)
-  ["연차 관리", "/features?g=hr&m=1"],                  // 인사관리 › 근태 관리(연차 발생·사용 이력)
+  ["부가세 신고", menuHref("finance", "tax-filing")],
+  ["전자세금계산서 발행", menuHref("finance", "tax-invoices")],
+  ["홈택스 연동", menuHref("finance", "collect")],
+  ["은행 자동 연동", menuHref("finance", "bank")],
+  ["카드 내역 자동 수집", menuHref("finance", "cards")],
+  ["근태관리 프로그램", menuHref("hr", "attendance")],
+  ["급여 프로그램", menuHref("hr", "employees")],
+  ["연차 관리", menuHref("hr", "attendance")],
   ["퇴직금 계산기", "/tools/severance-calculator"],
   ["4대보험 계산기", "/tools/insurance-calculator"],
   ["실수령액 계산기", "/tools/salary-calculator"],
-  ["재고관리 프로그램", "/features?g=inventory&m=1"],   // 재고 › 재고
-  ["재고 원가 관리", "/features?g=inventory"],          // 재고 › 품목(판매가·원가)
-  ["스마트스토어 연동", "/features?g=inventory&m=6"],   // 재고 › 채널
-  ["쿠팡 연동", "/features?g=inventory&m=6"],           // 재고 › 채널
-  ["프로젝트 관리 툴", "/features?g=workspace&m=1"],    // 워크스페이스 › 프로젝트
-  ["전자결재", "/features?g=workspace&m=2"],            // 워크스페이스 › 결재 허브
-  ["사내 메신저", "/features?g=workspace&m=4"],         // 워크스페이스 › 메신저
-  ["그룹웨어", "/features?g=workspace"],                // 워크스페이스 › 일정 / 할 일
-  ["문서보관함", "/features?g=workspace&m=6"],          // 워크스페이스 › 파일보관함
-  ["전자계약", "/features?g=workspace&m=5"],            // 워크스페이스 › 전자계약
+  ["재고관리 프로그램", menuHref("inventory", "stock")],
+  ["재고 원가 관리", menuHref("inventory", "profit")],
+  ["스마트스토어 연동", menuHref("inventory", "channels")],
+  ["쿠팡 연동", menuHref("inventory", "channels")],
+  ["프로젝트 관리 툴", menuHref("workspace", "projecthub")],
+  ["전자결재", menuHref("workspace", "approvals")],
+  ["사내 메신저", menuHref("workspace", "chat")],
+  ["그룹웨어", menuHref("workspace", "schedule")],
+  ["문서보관함", menuHref("workspace", "documents")],
+  ["전자계약", menuHref("workspace", "signatures")],
   ["ERP 도입 비용", "/pricing"],
   ["세무사 제휴", "/tax-partners"],
 ];

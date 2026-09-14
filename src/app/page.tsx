@@ -56,7 +56,7 @@ function structuredData() {
     description: DESC,
     url: SITE,
     // 화면에 실제로 있는 것만 적는다 — 대표 기능 아홉 + 메뉴 서른둘
-    featureList: [...FEATS.map(([, title]) => title), ...MENUS.map(([name]) => name)],
+    featureList: [...FEATS.map(([, title]) => title), ...MENUS.map(({ name }) => name)],
     offers: [
       {
         "@type": "Offer", name: PRICING.free.name, price: "0", priceCurrency: "KRW",
