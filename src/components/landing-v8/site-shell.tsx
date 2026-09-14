@@ -4,8 +4,8 @@
 //
 //  ▸ 전에는 머리가 두 벌이었다: `/` 는 v8 머리(업종별·메뉴·일하는 방식…), 계산기·요금·기능 페이지는
 //    옛 LandingNav(OwnerView 로고·FAQ→/#faq 빈 링크). v8 머리에서는 요금·계산기·블로그로 가는 길이 없었다.
-//  ▸ 쓰는 곳: `/`(LandingV8) · /tools 허브·계산기 6. 나머지 옛 페이지는 이관 단계마다 옮긴다
-//    (docs/20260914_PLAN_landing_v8_old_pages_migration.md). /contact 는 일부러 덜어낸 머리를 따로 쓴다(결정 221).
+//  ▸ 쓰는 곳: `/` · /features · /pricing · /tools 허브·계산기 6 · /tax-partners · /blog (2026-09-14 이관 1~5단계 끝).
+//    /contact 는 일부러 덜어낸 머리를 따로 쓰고 바닥만 쓴다(결정 221). /demo 는 앱 모양이라 쓰지 않는다.
 //  ▸ 스타일은 landing-v8.css — 부모에 `.lp8` 이 있어야 한다.
 //  ▸ 랜딩 계열은 늘 밝게 — 옛 LandingNav 가 하던 useLandingLightTheme 를 여기서 이어받는다
 //    (다크 앱 사용자가 계산기에 오면 body 로 나간 달력이 검게 뜨던 문제, 2026-08-14).
@@ -109,14 +109,14 @@ export function SiteHeader() {
         </div>
       </div>
 
-      {/* 업종별 메가메뉴 — 업종 하위 페이지가 아직 없어 전부 /features 로 보낸다 */}
+      {/* 업종별 메가메뉴 — 업종마다 먼저 볼 메뉴로(content.ts MEGA) */}
       <div className={`mega${open === "mega" ? " is-open" : ""}`} onClick={(e) => e.stopPropagation()}>
         <div className="container">
           <div className="mega-in">
             {MEGA.map(([group, items]) => (
               <div key={group}>
                 <h6>{group}</h6>
-                {items.map((t) => <Link key={t} href="/features">{t}</Link>)}
+                {items.map(([t, href]) => <Link key={t} href={href}>{t}</Link>)}
               </div>
             ))}
           </div>

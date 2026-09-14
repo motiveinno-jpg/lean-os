@@ -7,7 +7,7 @@
 //      ultra 는 is_active=false 라 화면에 쓰지 않는다.
 //      ⛔ "인원당 과금이 아닙니다" 라고 쓰지 않는다 — 6명째부터 1명당 5,000원이 실제로 붙는다.
 
-import { CATALOG, menuHref } from "./catalog";
+import { CATALOG, MENU_COUNT, menuHref } from "./catalog";
 
 export const HERO = {
   h1a: "회사 운영의 모든 것",
@@ -36,14 +36,29 @@ export const MENUS: { name: string; href: string; icon: string }[] = WALL.map(([
   return { name: menu.name, href: menuHref(g, m), icon };
 });
 
-/* 업종별 메가메뉴 — 업종 하위 페이지가 아직 없어 전부 /features 로 보낸다 */
-export const MEGA: [string, string[]][] = [
-  ["유통 · 판매", ["온라인 판매(스마트스토어·쿠팡)", "도소매", "무역·수입", "매장 판매"]],
-  ["제조 · 생산", ["소규모 제조", "식품 제조", "의류·패션 생산", "금속·부품 가공"]],
-  ["용역 · 프로젝트", ["디자인 스튜디오", "개발·SI", "광고·마케팅 대행", "컨설팅"]],
-  ["건설 · 시공", ["종합건설", "인테리어 시공", "설비·전기", "조경"]],
-  ["전문 서비스", ["세무·회계 사무소", "노무·법무", "교육·학원", "병의원"]],
-  ["그 밖에", ["프랜차이즈 본부", "비영리·협회", "물류·창고", "렌탈·구독"]],
+/* 업종별 메가메뉴 — [업종, 그 업종이 먼저 볼 메뉴 주소] (2026-09-14)
+   전에는 24항목이 전부 /features 첫 화면(홈)으로 갔다. 업종 전용 페이지가 없으니, 그 업종의 일이 몰리는 메뉴로 보낸다.
+   딱 맞는 메뉴가 없는 업종(노무·법무·교육·병의원·프랜차이즈·비영리·렌탈)은 지어 붙이지 않고 /features 전체로. */
+const F = "/features";
+export const MEGA: [string, [string, string][]][] = [
+  ["유통 · 판매", [
+    ["온라인 판매(스마트스토어·쿠팡)", menuHref("inventory", "channels")], ["도소매", menuHref("inventory", "stock")],
+    ["무역·수입", menuHref("inventory", "purchase")], ["매장 판매", menuHref("inventory", "sales")],
+  ]],
+  ["제조 · 생산", [
+    ["소규모 제조", menuHref("inventory", "production")], ["식품 제조", menuHref("inventory", "production")],
+    ["의류·패션 생산", menuHref("inventory", "production")], ["금속·부품 가공", menuHref("inventory", "production")],
+  ]],
+  ["용역 · 프로젝트", [
+    ["디자인 스튜디오", menuHref("workspace", "projecthub")], ["개발·SI", menuHref("workspace", "projecthub")],
+    ["광고·마케팅 대행", menuHref("workspace", "projecthub")], ["컨설팅", menuHref("workspace", "projecthub")],
+  ]],
+  ["건설 · 시공", [
+    ["종합건설", menuHref("workspace", "projecthub")], ["인테리어 시공", menuHref("workspace", "projecthub")],
+    ["설비·전기", menuHref("workspace", "projecthub")], ["조경", menuHref("workspace", "projecthub")],
+  ]],
+  ["전문 서비스", [["세무·회계 사무소", "/tax-partners"], ["노무·법무", F], ["교육·학원", F], ["병의원", F]]],
+  ["그 밖에", [["프랜차이즈 본부", F], ["비영리·협회", F], ["물류·창고", menuHref("inventory", "stock")], ["렌탈·구독", F]]],
 ];
 
 /* §7 대표 기능 아홉 — 도입 문의로 가장 많이 받은 것 */
@@ -86,7 +101,7 @@ export const COMPARE: [string, string, string][] = [
 
 /* §9 숫자 */
 export const FIGURES: [string, string][] = [
-  ["32", "메뉴가 하나의 자료를 공유합니다"],
+  [String(MENU_COUNT), "메뉴가 하나의 자료를 공유합니다"],  // 2026-09-14 「32」 고정값 → catalog 에서 셈(사이드바 기준 51)
   ["39,000원", "기본 5명 포함 · 추가 1명당 5,000원"],
   ["0원", "무료 플랜은 카드 등록 없이 계속"],
   ["월 100건", "세금계산서·현금영수증 발행 (유료 플랜)"],

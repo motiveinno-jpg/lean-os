@@ -1,6 +1,10 @@
 // 블로그 본문 — posts.ts 레지스트리 기반 정적 생성 (2026-09-08)
+//   2026-09-14 공개 페이지 공용 머리·바닥(v8)으로(목록 page.tsx 머리주석). 글 끝 안내에 가입 버튼(signup:blog_post) 추가.
 import type { Metadata } from "next";
 import Link from "next/link";
+import "@/app/landing-v8.css";
+import { SiteFooter, SiteHeader } from "@/components/landing-v8/site-shell";
+import { SIGNUP_HREF } from "@/components/landing-v8/content";
 import { notFound } from "next/navigation";
 import { POSTS, getPost } from "../posts";
 
@@ -15,7 +19,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const post = getPost(slug);
   if (!post) return {};
   return {
-    title: `${post.title} · 오너뷰 블로그`,
+    // absolute — layout 의 " | 오너뷰" 가 또 붙어 「… · 오너뷰 블로그 | 오너뷰」가 됐다 (2026-09-14)
+    title: { absolute: `${post.title} · 오너뷰 블로그` },
     description: post.description,
     alternates: { canonical: `${BASE}/blog/${post.slug}` },
     openGraph: { title: post.title, description: post.description, url: `${BASE}/blog/${post.slug}`, type: "article" },
@@ -54,58 +59,36 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   }
 
   return (
-    <div className="legal-page">
+    <div className="lp8">
       {jsonLd.map((d, i) => (
         <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(d) }} />
       ))}
-      <nav className="legal-site-nav">
-        <div className="site-nav-inner">
-          <Link href="/" className="brand-logo-link">
-            <span className="text-lg font-bold text-white">OwnerView 오너뷰</span>
-          </Link>
-          <Link href="/blog" className="px-4 py-2 text-sm text-slate-300 hover:text-white border border-white/10 hover:border-white/20 rounded-lg transition">
-            가이드 목록
-          </Link>
-        </div>
-      </nav>
+      <SiteHeader />
 
-      <main className="legal-content">
-        <div className="legal-header">
-          <h1 className="text-3xl md:text-4xl font-bold mb-3">{post.title}</h1>
-          <p className="text-slate-400 text-sm">{post.date} · 오너뷰 팀</p>
-        </div>
+      <main className="bl8-main">
+        <article className="bl8-wrap bl8-article">
+          <Link href="/blog" className="bl8-back">블로그 목록</Link>
+          <h1>{post.title}</h1>
+          <p className="bl8-meta">{post.date} · 오너뷰 팀</p>
 
-        <div className="legal-sections">
           {post.sections.map((s, i) => (
-            <section key={i} className="legal-section">
-              {s.h && <h2 className="text-lg font-semibold text-white mb-3">{s.h}</h2>}
-              {s.p?.map((t, j) => (
-                <p key={j} className="text-slate-300 text-sm leading-7 mb-3">{t}</p>
-              ))}
+            <section key={i} className="bl8-sec">
+              {s.h && <h2>{s.h}</h2>}
+              {s.p?.map((t, j) => <p key={j}>{t}</p>)}
               {s.list && (
-                <ul className="list-disc pl-5 space-y-2">
-                  {s.list.map((t, j) => (
-                    <li key={j} className="text-slate-300 text-sm leading-7">{t}</li>
-                  ))}
+                <ul>
+                  {s.list.map((t, j) => <li key={j}>{t}</li>)}
                 </ul>
               )}
               {s.table && (
-                <div className="overflow-x-auto mt-2">
-                  <table className="w-full text-sm text-left border border-white/10">
+                <div className="bl8-table">
+                  <table>
                     <thead>
-                      <tr>
-                        {s.table.head.map((h, j) => (
-                          <th key={j} className="px-3 py-2 border border-white/10 text-white bg-white/5 font-semibold">{h}</th>
-                        ))}
-                      </tr>
+                      <tr>{s.table.head.map((h, j) => <th key={j}>{h}</th>)}</tr>
                     </thead>
                     <tbody>
                       {s.table.rows.map((row, j) => (
-                        <tr key={j}>
-                          {row.map((c, k) => (
-                            <td key={k} className="px-3 py-2 border border-white/10 text-slate-300">{c}</td>
-                          ))}
-                        </tr>
+                        <tr key={j}>{row.map((c, k) => <td key={k}>{c}</td>)}</tr>
                       ))}
                     </tbody>
                   </table>
@@ -115,26 +98,30 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           ))}
 
           {post.faq && post.faq.length > 0 && (
-            <section className="legal-section">
-              <h2 className="text-lg font-semibold text-white mb-3">자주 묻는 질문</h2>
+            <section className="bl8-sec bl8-faq">
+              <h2>자주 묻는 질문</h2>
               {post.faq.map((f, i) => (
-                <div key={i} className="mb-4">
-                  <p className="text-white text-sm font-semibold mb-1">Q. {f.q}</p>
-                  <p className="text-slate-300 text-sm leading-7">{f.a}</p>
+                <div key={i} className="bl8-faq-item">
+                  <b>Q. {f.q}</b>
+                  <p>{f.a}</p>
                 </div>
               ))}
             </section>
           )}
-        </div>
 
-        <div className="legal-intro-box">
-          <p>
-            오너뷰는 매출·회계·급여·프로젝트를 한 화면에서 관리하는 올인원 AI ERP입니다. 기본 기능은 계속 무료입니다.{" "}
-            <Link href="/demo" className="underline">가입 없이 데모 보기</Link> ·{" "}
-            <Link href="/tools" className="underline">무료 계산기 6종</Link>
-          </p>
-        </div>
+          <aside className="bl8-cta">
+            <b>회사 운영을 한 곳에서 관리하세요</b>
+            <p>오너뷰는 매출·회계·급여·프로젝트를 한 화면에서 관리하는 올인원 AI ERP입니다. 무료 플랜은 카드 등록 없이 계속 사용할 수 있습니다.</p>
+            <div className="bl8-cta-btns">
+              <Link className="btn btn-sm btn-fill" href={SIGNUP_HREF} data-cta="signup:blog_post">무료로 시작하기</Link>
+              <Link className="btn btn-sm btn-soft" href="/demo">가입 없이 데모 보기</Link>
+              <Link className="btn btn-sm btn-soft" href="/tools">무료 계산기 6종</Link>
+            </div>
+          </aside>
+        </article>
       </main>
+
+      <SiteFooter />
     </div>
   );
 }

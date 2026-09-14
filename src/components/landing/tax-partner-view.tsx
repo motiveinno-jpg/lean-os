@@ -1,7 +1,8 @@
 "use client";
 
 // 세무사 제휴 모집 랜딩 (2026-08-11, 08-12 확장 — 대표: "더 길게, 애니메이션 더")
-//   lp4 세계관 + 이 페이지만의 장면들. 전부 자체 구현(IO·rAF·CSS), 라이브러리 0, reduced-motion 존중.
+//   lp4 세계관 + 이 페이지만의 장면들. 2026-09-14 랜딩 v8 이관 5단계 — 머리·바닥·글꼴·색 토큰만 v8(.lp8 tpx-page),
+//   장면·문구·구성은 그대로(세무사가 읽는 페이지라 결정 231). 옛 lp4 공용 클래스는 tpx-sec·tpx-head·tpx-sub 로. 전부 자체 구현(IO·rAF·CSS), 라이브러리 0, reduced-motion 존중.
 //   ① 히어로: 자료 요청 채팅이 줄 그이며 사라지고 통장 카드가 떠올라 둥실거린다
 //   ② 비포/애프터: 기존 기장 하루의 할 일이 하나씩 그어진다
 //   ③ 3단계 진행선 드로잉
@@ -9,9 +10,9 @@
 //   ⑤ 지면 3종 카운트업 ⑥ 부가세 시즌 타임라인 점등 ⑦ 숫자 밴드 ⑧ 신뢰 ⑨ FAQ ⑩ CTA
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { LandingNav } from "@/components/landing/landing-nav";
-import { FOOTER }  from "@/components/landing/content";
-import "@/app/landing.css";
+import { SiteFooter, SiteHeader } from "@/components/landing-v8/site-shell";
+import { FOOTER } from "@/components/landing-v8/content";
+import "@/app/landing-v8.css";
 import "@/app/tax-partners.css";
 
 /** 화면에 들어오면 .tpx-in · 요소별 지연은 style={{ "--d": ".1s" }} 로 준다 */
@@ -80,12 +81,12 @@ function BeforeAfter() {
     return () => io.disconnect();
   }, []);
   return (
-    <section className="lp4-section lp4-bg-canvas" id="before-after">
-      <div className="lp4-container">
-        <div className="lp4-sec-head lp4-sec-head-c" data-tpx>
-          <div className="lp4-eyebrow">기장 하루의 변화</div>
-          <h2 className="lp4-h2">수합하는 날이, 검토하는 날로</h2>
-          <p className="lp4-sub">자료를 모으는 시간이 사라지면, 그 시간은 검토와 상담으로 돌아갑니다.</p>
+    <section className="tpx-sec" id="before-after">
+      <div className="container">
+        <div className="tpx-head" data-tpx>
+          <div className="tl8-eyebrow">기장 하루의 변화</div>
+          <h2>수합하는 날이, 검토하는 날로</h2>
+          <p className="tpx-sub">자료를 모으는 시간이 사라지면, 그 시간은 검토와 상담으로 돌아갑니다.</p>
         </div>
         <div className="tpx-ba-grid" ref={ref}>
           <div className="tpx-ba-col tpx-ba-old" data-tpx>
@@ -180,11 +181,11 @@ function StickyStory() {
   return (
     <section className="tpx-story" ref={wrapRef} id="story">
       <div className="tpx-story-sticky">
-        <div className="lp4-container">
+        <div className="container">
           <div className="tpx-story-grid">
             <div>
-              <div className="lp4-eyebrow">스크롤로 지면 넘기기</div>
-              <h2 className="lp4-h2" style={{ maxWidth: 420 }}>한 권의 장부처럼,<br />넘기면 다음 지면</h2>
+              <div className="tl8-eyebrow">스크롤로 지면 넘기기</div>
+              <h2 style={{ maxWidth: 420 }}>한 권의 장부처럼,<br />넘기면 다음 지면</h2>
               <div className="tpx-story-steps">
                 {STORY.map((st, i) => (
                   <div key={st.k} className={`tpx-story-step ${active === i ? "tpx-story-step-on" : ""}`}>
@@ -233,12 +234,12 @@ const VAT_MONTHS = [
 ];
 function VatSeason()  {
   return (
-    <section className="lp4-section lp4-bg-canvas" id="vat">
-      <div className="lp4-container">
-        <div className="lp4-sec-head lp4-sec-head-c" data-tpx>
-          <div className="lp4-eyebrow">신고 시즌</div>
-          <h2 className="lp4-h2">부가세 주간에도, 수합 0시간</h2>
-          <p className="lp4-sub">신고 달마다 반복되던 자료 독촉이 사라집니다. 분기 매출·매입세액이 이미 나뉘어 있으니까요.</p>
+    <section className="tpx-sec" id="vat">
+      <div className="container">
+        <div className="tpx-head" data-tpx>
+          <div className="tl8-eyebrow">신고 시즌</div>
+          <h2>부가세 주간에도, 수합 0시간</h2>
+          <p className="tpx-sub">신고 달마다 반복되던 자료 독촉이 사라집니다. 분기 매출·매입세액이 이미 나뉘어 있으니까요.</p>
         </div>
         <div className="tpx-vat" data-tpx>
           <div className="tpx-vat-line"><span className="tpx-vat-line-fill" /></div>
@@ -264,7 +265,7 @@ function VatSeason()  {
 function NumberBand() {
   return (
     <section className="tpx-band" data-tpx>
-      <div className="lp4-container">
+      <div className="container">
         <div className="tpx-band-grid">
           <div className="tpx-band-item">
             <div className="tpx-band-n"><CountUp to={3} suffix="분" /></div>
@@ -294,11 +295,11 @@ const FAQS = [
 function Faq() {
   const [open, setOpen] = useState<number | null>(0);
   return (
-    <section className="lp4-section" id="faq-tpx" style={{ background: "var(--canvas2)" }}>
-      <div className="lp4-narrow">
-        <div className="lp4-sec-head lp4-sec-head-c" data-tpx>
-          <div className="lp4-eyebrow">자주 묻는 질문</div>
-          <h2 className="lp4-h2">세무사님들이 먼저 물어본 것들</h2>
+    <section className="tpx-sec" id="faq-tpx" style={{ background: "var(--canvas2)" }}>
+      <div className="tpx-narrow">
+        <div className="tpx-head" data-tpx>
+          <div className="tl8-eyebrow">자주 묻는 질문</div>
+          <h2>세무사님들이 먼저 물어본 것들</h2>
         </div>
         <div className="tpx-faq" data-tpx style={{ "--d": ".12s" } as React.CSSProperties}>
           {FAQS.map(([q, a], i) => (
@@ -321,15 +322,15 @@ export default function TaxPartnerView() {
   useReveal(rootRef);
 
   return (
-    <div className="lp4-root" ref={rootRef}>
-      <LandingNav solid />
+    <div className="lp8 tpx-page" ref={rootRef}>
+      <SiteHeader />
 
       {/* ── ① 히어로: 자료 요청의 종말 ── */}
-      <section className="tpx-hero lp4-bg-canvas">
-        <div className="lp4-container">
+      <section className="tpx-hero">
+        <div className="container">
           <div className="tpx-hero-grid">
             <div>
-              <div className="lp4-eyebrow" data-tpx>OwnerView Partners · 세무사&#183;회계사 제휴</div>
+              <div className="tl8-eyebrow" data-tpx>OwnerView Partners · 세무사&#183;회계사 제휴</div>
               <h1 className="tpx-h1" data-tpx style={{ "--d": ".08s" } as React.CSSProperties}>
                 자료 요청 없이,<br /><em>기장이 끝나 있는</em> 아침
               </h1>
@@ -339,8 +340,8 @@ export default function TaxPartnerView() {
                 파일을 기다리는 시간이 사라집니다.
               </p>
               <div className="tpx-hero-ctas" data-tpx style={{ "--d": ".24s" } as React.CSSProperties}>
-                <Link href="/advisor" className="lp4-btn lp4-btn-onink">파트너 가입하기</Link>
-                <a href="#story" className="lp4-btn lp4-btn-line">어떤 화면인가요</a>
+                <Link href="/advisor" className="btn btn-fill">파트너 가입하기</Link>
+                <a href="#story" className="btn btn-soft">어떤 화면인가요</a>
               </div>
             </div>
 
@@ -376,12 +377,12 @@ export default function TaxPartnerView() {
       <BeforeAfter />
 
       {/* ── ③ 3단계 ── */}
-      <section className="lp4-section" id="how" style={{ background: "var(--canvas2)" }}>
-        <div className="lp4-container">
-          <div className="lp4-sec-head lp4-sec-head-c" data-tpx>
-            <div className="lp4-eyebrow">시작하기</div>
-            <h2 className="lp4-h2">연결은 회사가, 열람은 즉시</h2>
-            <p className="lp4-sub">설치도, 계정 세팅 대행도 없습니다. 가입 한 번이면 고객사가 세무사님을 선택해 연결합니다.</p>
+      <section className="tpx-sec" id="how" style={{ background: "var(--canvas2)" }}>
+        <div className="container">
+          <div className="tpx-head" data-tpx>
+            <div className="tl8-eyebrow">시작하기</div>
+            <h2>연결은 회사가, 열람은 즉시</h2>
+            <p className="tpx-sub">설치도, 계정 세팅 대행도 없습니다. 가입 한 번이면 고객사가 세무사님을 선택해 연결합니다.</p>
           </div>
           <div className="tpx-steps" data-tpx>
             <div className="tpx-steps-line" />
@@ -408,12 +409,12 @@ export default function TaxPartnerView() {
       <StickyStory />
 
       {/* ── ⑤ 지면 3종 (카운트업) ── */}
-      <section className="lp4-section" id="live" style={{ background: "var(--canvas2)" }}>
-        <div className="lp4-container">
-          <div className="lp4-sec-head lp4-sec-head-c" data-tpx>
-            <div className="lp4-eyebrow">파트너 포털</div>
-            <h2 className="lp4-h2">매일 아침, 이미 정리되어 있는 것들</h2>
-            <p className="lp4-sub">고객사가 오너뷰에 쌓는 순간 세무사님 화면에도 같은 숫자가 정리됩니다.</p>
+      <section className="tpx-sec" id="live" style={{ background: "var(--canvas2)" }}>
+        <div className="container">
+          <div className="tpx-head" data-tpx>
+            <div className="tl8-eyebrow">파트너 포털</div>
+            <h2>매일 아침, 이미 정리되어 있는 것들</h2>
+            <p className="tpx-sub">고객사가 오너뷰에 쌓는 순간 세무사님 화면에도 같은 숫자가 정리됩니다.</p>
           </div>
           <div className="tpx-live-grid">
             <div className="tpx-live" data-tpx>
@@ -449,11 +450,11 @@ export default function TaxPartnerView() {
       <NumberBand />
 
       {/* ── ⑧ 신뢰 ── */}
-      <section className="lp4-section lp4-bg-canvas" id="trust">
-        <div className="lp4-container">
-          <div className="lp4-sec-head lp4-sec-head-c" data-tpx>
-            <div className="lp4-eyebrow">신뢰 설계</div>
-            <h2 className="lp4-h2">고객사가 안심하고 여는 이유</h2>
+      <section className="tpx-sec" id="trust">
+        <div className="container">
+          <div className="tpx-head" data-tpx>
+            <div className="tl8-eyebrow">신뢰 설계</div>
+            <h2>고객사가 안심하고 여는 이유</h2>
           </div>
           <div className="tpx-trust-grid">
             {[
@@ -475,8 +476,8 @@ export default function TaxPartnerView() {
       <Faq />
 
       {/* ── ⑩ CTA ── */}
-      <section className="lp4-section lp4-bg-canvas">
-        <div className="lp4-container">
+      <section className="tpx-sec">
+        <div className="container">
           <div className="tpx-cta" data-tpx>
             <div className="tpx-cta-eyebrow">OWNERVIEW PARTNERS</div>
             <h2 className="tpx-cta-h">고객사 장부를,<br />펼쳐 두세요</h2>
@@ -487,17 +488,7 @@ export default function TaxPartnerView() {
         </div>
       </section>
 
-      <footer className="lp4-footer">
-        <div className="lp4-container">
-          <div className="lp4-footer-bottom">
-            <div className="lp4-finfo"><div>{FOOTER.company}</div><div>{FOOTER.reg}</div><div>{FOOTER.addr}</div></div>
-            <div className="lp4-flinks">
-              <Link href="/">홈</Link><Link href="/terms">이용약관</Link>
-              <Link href="/privacy">개인정보처리방침</Link><Link href="/refund">환불규정</Link>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

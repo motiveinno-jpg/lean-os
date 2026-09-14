@@ -3,14 +3,14 @@ import type { Metadata } from "next";
 import TaxPartnerView from "@/components/landing/tax-partner-view";
 
 const SITE = "https://www.owner-view.com";
-const TITLE = "세무사·회계사 제휴 | 오너뷰";
+const TITLE = "세무사·회계사 제휴"; // 뒤의 " | 오너뷰" 는 layout 의 title.template 이 붙인다 (전에는 두 번 붙었다)
 const DESC = "자료 요청 없이 기장이 끝나 있는 아침 · 고객사의 통장·세금계산서·인건비가 신고 기준으로 정리되어 세무사님 화면에 먼저 도착합니다.";
 
 export const metadata: Metadata = {
   title: TITLE,
   description: DESC,
   alternates: { canonical: `${SITE}/tax-partners` },
-  openGraph: { type: "website", url: `${SITE}/tax-partners`, siteName: "오너뷰", locale: "ko_KR", title: TITLE, description: DESC },
+  openGraph: { type: "website", url: `${SITE}/tax-partners`, siteName: "오너뷰", locale: "ko_KR", title: `${TITLE} | 오너뷰`, description: DESC },
 };
 
 export default function Page() {
