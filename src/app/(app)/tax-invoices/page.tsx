@@ -447,6 +447,8 @@ function TaxInvoicesPageInner() {
   // ── 멀티 등록(다행) 폼 — 한 줄(row)이 세금계산서 1건. [+ 항목 추가]로 행 누적, [등록]에서 일괄 전송 ──
   type FormRow = {
     key: string;
+    /** 계산서 한 장에 붙는 비고 — 홈택스 remark1 로 나간다(줄 비고는 items[].remark). */
+    remark: string;
     type: "sales" | "purchase";
     counterpartyName: string;
     counterpartyBizno: string;
@@ -472,15 +474,19 @@ function TaxInvoicesPageInner() {
     items: ItemLine[];
   };
   // 품목 줄 · 화면에서는 문자열로 다루고 저장할 때 숫자로 바꾼다 (입력 중 0 이 튀지 않게)
-  type ItemLine =  { key: string; name: string; spec: string; qty: string; unitCost: string };
+  type ItemLine =  { key: string; name: string; spec: string; qty: string; unitCost: string; remark: string };
   const itemKeyRef = useRef(0);
-  const blankItem = (): ItemLine => ({ key: `i${itemKeyRef.current++}`, name: "", spec: "", qty: "1", unitCost: "" });
+  const blankItem = (): ItemLine => ({ key: `i${itemKeyRef.current++}`, name: "", spec: "", qty: "1", unitCost: "", remark: "" });
   //   한 줄 공급가액 = 수량 × 단가. 수량이 비면 1 로 본다.
   const itemSupply = (it: ItemLine) => Math.round((Number(it.qty) || 1) * (Number(it.unitCost) || 0));
+  //   한 줄 세액 — 과세일 때만 10%. 영세율·면세는 0(홈택스로 나가는 줄 세액과 같은 산식).
+  //   장 합계의 반올림 맞춤은 발행 엣지가 마지막 줄에서 흡수하므로 여기선 줄 단위로만 본다.
+  const itemTax = (it: ItemLine, kind: string) => (kind === "taxable" ? Math.round(itemSupply(it) * 0.1) : 0);
 
   const rowKeyRef = useRef(0);
   const blankRow = (): FormRow => ({
     key: `r${rowKeyRef.current++}`,
+    remark: "",
     type: "sales",
     counterpartyName: "",
     counterpartyBizno: "",
@@ -556,13 +562,16 @@ function TaxInvoicesPageInner() {
     e.preventDefault();
     const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     const parsed: ItemLine[] = lines.map((l) => {
-      const [name = "", spec = "", qty = "", unit = ""] = l.split("\t");
+      //   비고까지 받는다 — 화면 칸 순서(품목명·규격·수량·단가·비고)와 같게.
+      //   공급가액·세액·합계는 계산값이라 붙여넣기에서 받지 않는다.
+      const [name = "", spec = "", qty = "", unit = "", remark = ""] = l.split("\t");
       return {
         key: `i${itemKeyRef.current++}`,
         name: name.trim(),
         spec: spec.trim(),
         qty: qty.replace(/[^\d.]/g, "") || "1",
         unitCost: (unit.trim().startsWith("-") ? "-" : "") + unit.replace(/[^\d.]/g, ""),
+        remark: remark.trim(),
       };
     });
     if (parsed.length === 0) return;
@@ -591,14 +600,17 @@ function TaxInvoicesPageInner() {
   //   규칙은 use-grid-keys 한 곳에 있다(재고 전표 편집기와 같은 규칙):
   //   Enter = 빈 칸이면 윗줄 값 내려받고 다음 칸 / 마지막 칸이면 새 줄,  ↑↓ = 같은 칸 위아래,
   //   ←→ = 글자 커서가 칸 끝일 때만 옆 칸. 유형(select)은 ↑↓ 가 값 고르기라 그대로 둔다.
-  const MULTI_CELLS = ["type", "issueDate", "counterpartyName", "itemName", "qty", "unitCost"];
+  //   화면에 보이는 순서 그대로 — 공급가액·세액·합계는 계산값이라 커서가 서지 않는다
+  const MULTI_CELLS = ["type", "issueDate", "counterpartyName", "itemName", "spec", "qty", "unitCost", "remark"];
   const multiCellValue = (r: FormRow, cell: string): string => {
     if (cell === "type") return r.type || "";
     if (cell === "issueDate") return r.issueDate || "";
     if (cell === "counterpartyName") return r.counterpartyName || "";
     if (cell === "itemName") return r.items[0]?.name || "";
+    if (cell === "spec") return r.items[0]?.spec || "";
     if (cell === "qty") return r.items[0]?.qty || "";
     if (cell === "unitCost") return r.items[0]?.unitCost || "";
+    if (cell === "remark") return r.items[0]?.remark || "";
     return "";
   };
   const gridKeys = useGridKeys({
@@ -609,7 +621,7 @@ function TaxInvoicesPageInner() {
     //   Enter 로 윗줄에서 내려받을 칸 — 거래처·단가는 뺀다(2026-09-11 사장님).
     //   줄마다 달라야 하는 값이라, 복사되면 엉뚱한 거래처로 계산서가 나가거나 금액이 틀어진다.
     //   단가에서 Enter 는 복사 없이 새 줄만 만든다.
-    copyCells: ["type", "issueDate", "itemName", "qty"],
+    copyCells: ["type", "issueDate", "itemName", "spec", "qty"],
     keepNativeUpDown: (cell) => cell === "type",
     //   후보 목록이 열려 있으면 ↑↓·Enter 는 목록이 먼저 쓴다
     skip: (i, cell) => cell === "counterpartyName" && dropdownRowKey === rows[i]?.key,
@@ -626,6 +638,7 @@ function TaxInvoicesPageInner() {
       if (cell === "type") patchRow(cur.key, { type: up.type });
       else if (cell === "issueDate") patchRow(cur.key, { issueDate: up.issueDate });
       else if (cell === "itemName") patchItem(cur.key, cur.items[0].key, { name: up.items[0]?.name || "" });
+      else if (cell === "spec") patchItem(cur.key, cur.items[0].key, { spec: up.items[0]?.spec || "" });
       else if (cell === "qty") patchItem(cur.key, cur.items[0].key, { qty: up.items[0]?.qty || "" });
     },
   });
@@ -997,6 +1010,8 @@ function TaxInvoicesPageInner() {
             qty: Number(it.qty) || 1,
             unitCost: Math.round(Number(it.unitCost) || 0),
             supplyAmount: itemSupply(it),
+            //   줄 비고 — 홈택스 detailList 의 remark 로 그대로 나간다
+            remark: it.remark.trim(),
           }));
         const newInv = await createTaxInvoice({
           companyId: companyId!,
@@ -1021,6 +1036,8 @@ function TaxInvoicesPageInner() {
           //   label 에는 영수/청구 토큰만 남긴다(발행 엣지가 purposeType 판정에 사용).
           itemName: items[0]?.name || undefined,
           label: r.purpose || undefined,
+          //   전체 비고 — 국세청 비고란(remark1)
+          remark: r.remark || undefined,
         });
 
         //   거래처 정보에도 저장 · 다음 발행부터 자동으로 채워진다 (2026-08-10 사장님)
@@ -2048,7 +2065,7 @@ function TaxInvoicesPageInner() {
           · 여러 장 모드는 표를 유지하되 사업자번호·대표자까지만 보여 준다(그 이상은 표가 감당 못 함). */}
       {showForm && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4">
-        <div className="tax-invoice-registration-modal" onClick={(e) => e.stopPropagation()}>
+        <div className={`tax-invoice-registration-modal ${formMode === "multi" ? "is-multi" : ""}`} onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-[var(--border)] shrink-0 flex-wrap">
             <div>
               <h3 className="text-base font-bold">세금계산서 쓰기</h3>
@@ -2189,6 +2206,14 @@ function TaxInvoicesPageInner() {
                     </div>
                   )}
 
+                  {/*   전체 비고 — 계산서 한 장에 붙는 비고(2026-09-14 사장님). 국세청 비고란으로 그대로 나간다.
+                        품목 줄마다 붙는 비고는 아래 표의 '비고' 칸이다. */}
+                  <div className="tax-form-field">
+                    <label>전체 비고</label>
+                    <input value={row.remark} onChange={(e) => patchRow(row.key, { remark: e.target.value })}
+                      placeholder="계산서 한 장 전체에 붙는 비고 (국세청 비고란)" className="field-input" />
+                  </div>
+
                   {/* 품목 줄 */}
                   <div className="tax-form-field">
                     <label>품목 <i>*</i></label>
@@ -2199,6 +2224,7 @@ function TaxInvoicesPageInner() {
                             <span />
                             <span>품목명</span><span>규격</span>
                             <span className="text-right">수량</span><span className="text-right">단가</span><span className="text-right">공급가액</span>
+                            <span className="text-right">세액</span><span className="text-right">합계</span><span>비고</span>
                             <span />
                           </div>
                           {row.items.map((it, i) => (
@@ -2217,6 +2243,13 @@ function TaxInvoicesPageInner() {
                               <CurrencyInput value={it.unitCost} onValueChange={(raw: string) => patchItem(row.key, it.key, { unitCost: raw })}
                                 allowNegative placeholder="0" className="tax-item-input text-right" />
                               <span className="tax-item-sum">{itemSupply(it).toLocaleString("ko-KR")}</span>
+                              {/*   줄 세액·합계는 계산값 — 과세 구분은 장 단위라 줄마다 고르지 않는다.
+                                    영세율·면세면 0 이고, 홈택스로 나가는 줄 세액도 같은 산식이다. */}
+                              <span className="tax-item-sum">{itemTax(it, row.taxKind).toLocaleString("ko-KR")}</span>
+                              <span className="tax-item-sum">{(itemSupply(it) + itemTax(it, row.taxKind)).toLocaleString("ko-KR")}</span>
+                              <input value={it.remark} onChange={(e) => patchItem(row.key, it.key, { remark: e.target.value })}
+                                onKeyDown={(e) => onItemKeyDown(e, row.key, it.key)}
+                                placeholder="비고" className="tax-item-input" />
                               <button type="button" onClick={() => removeItem(row.key, it.key)} title="이 품목 줄 지우기"
                                 className="tax-item-del">✕</button>
                             </div>
@@ -2293,11 +2326,12 @@ function TaxInvoicesPageInner() {
             })() : (
               /* 여러 장 한꺼번에 · 사업자번호·대표자까지만 보여 준다 (2026-08-10 사장님) */
               
-              <div className="min-w-[860px]" ref={multiGridRef}>
+              <div className="min-w-[1250px]" ref={multiGridRef}>
                 <div className="tax-multi-row tax-multi-head">
                   <span />
                   <span>유형</span><span>작성일자 *</span><span>거래처 *</span><span>사업자번호</span><span>대표자</span>
-                  <span>품목명</span><span className="text-right">수량</span><span className="text-right">단가</span><span className="text-right">합계</span>
+                  <span>품목명</span><span>규격</span><span className="text-right">수량</span><span className="text-right">단가</span>
+                  <span className="text-right">공급가액</span><span className="text-right">세액</span><span className="text-right">합계</span><span>비고</span>
                   <span />
                 </div>
                 {rows.map((row, i) => {
@@ -2361,6 +2395,10 @@ function TaxInvoicesPageInner() {
                         data-cell={`itemName-${i}`}
                         onKeyDown={(e) => gridKeys.onCellKey(e, i, "itemName")}
                         placeholder="품목명" className="tax-item-input" />
+                      <input value={row.items[0]?.spec || ""} onChange={(e) => { markTouched(row.key, "spec"); patchItem(row.key, row.items[0].key, { spec: e.target.value }); }}
+                        data-cell={`spec-${i}`}
+                        onKeyDown={(e) => gridKeys.onCellKey(e, i, "spec")}
+                        placeholder="규격" className="tax-item-input" />
                       <input value={row.items[0]?.qty || ""} onChange={(e) => { markTouched(row.key, "qty"); patchItem(row.key, row.items[0].key, { qty: e.target.value }); }}
                         data-cell={`qty-${i}`}
                         onKeyDown={(e) => gridKeys.onCellKey(e, i, "qty")}
@@ -2375,7 +2413,14 @@ function TaxInvoicesPageInner() {
                           onClick={() => setCalcRowKey((k) => (k === row.key ? null : row.key))}
                           className={`absolute right-1 top-1/2 -translate-y-1/2 text-[11px] font-semibold leading-none text-[var(--primary)] ${calcRowKey === row.key ? "opacity-100" : "opacity-60 hover:opacity-100"}`}>계산</button>
                       </div>
+                      {/*   공급가액·세액·합계는 계산값 — 한 장 쓰기와 같은 산식이다 */}
+                      <span className="tax-item-sum">{supply.toLocaleString("ko-KR")}</span>
+                      <span className="tax-item-sum">{taxAmt.toLocaleString("ko-KR")}</span>
                       <span className="tax-item-sum">{(supply + taxAmt).toLocaleString("ko-KR")}</span>
+                      <input value={row.items[0]?.remark || ""} onChange={(e) => { markTouched(row.key, "remark"); patchItem(row.key, row.items[0].key, { remark: e.target.value }); }}
+                        data-cell={`remark-${i}`}
+                        onKeyDown={(e) => gridKeys.onCellKey(e, i, "remark")}
+                        placeholder="비고" className="tax-item-input" />
                       <button type="button" onClick={() => removeRow(row.key)} title="이 계산서 줄 지우기" className="tax-item-del">✕</button>
                     </div>
                     {calcRowKey === row.key && (

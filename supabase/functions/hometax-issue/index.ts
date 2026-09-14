@@ -254,7 +254,9 @@ function buildIssuePayload(args: {
     //   item_name 미입력 건에서 품목명이 "청구"로 잘못 나가던 버그(purposeType 과 혼용).
     detailList: buildDetailList(invoice, writeDate, supply, tax),
 
-    remark1: invoice.label || "",
+    //   계산서 비고 — 사람이 적은 '전체 비고'. 예전엔 label(영수/청구 토글)이 들어가
+    //   국세청 비고란에 "청구" 가 찍혔다. remark 가 비면 비고 없이 보낸다.
+    remark1: String(invoice.remark || "").trim(),
   };
 }
 

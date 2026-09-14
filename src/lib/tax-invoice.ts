@@ -41,6 +41,8 @@ export interface TaxInvoiceItem {
   qty: number;
   unitCost: number;
   supplyAmount: number;
+  /** 줄 비고 — 홈택스 detailList 의 remark 로 그대로 나간다. */
+  remark?: string;
 }
 
 /** 목록에 쓰는 품목 요약 — "첫 품목 외 N건" */
@@ -82,6 +84,8 @@ export async function createTaxInvoice(params: {
   counterpartyEmail?: string;
   // 품목 줄 — 계산서 한 장에 여러 줄. 비면 itemName 한 줄로 취급한다.
   items?: TaxInvoiceItem[];
+  //   계산서 한 장에 붙는 비고 — 홈택스 remark1 로 나간다(줄별 비고는 items[].remark).
+  remark?: string;
 }): Promise<TaxInvoice | null> {
   const taxKind = params.taxKind || 'taxable';
   const taxAmount = params.taxAmount != null
@@ -118,6 +122,10 @@ export async function createTaxInvoice(params: {
       counterparty_email: params.counterpartyEmail || null,
       //   jsonb 칸이라 생성 타입은 Json — 줄 배열을 그대로 넣는다
       items: (params.items && params.items.length > 0 ? params.items : []) as unknown as never,
+      //   계산서 한 장에 붙는 비고 — 홈택스 remark1.
+      //   ⚠️ 캐스트는 src/types/database.ts 가 아직 이 칸을 모르기 때문이다(마이그 20260914100000).
+      //   생성 타입 전체 재생성은 지금 다른 변경 500여 줄이 같이 딸려와 따로 돌린다.
+      remark: (params.remark?.trim() || null) as unknown as never,
       tax_kind: taxKind,
       //   면세는 전자계산서 화면(/e-invoices)이 doc_kind 로 가른다 — 안 넣으면 기본 'tax' 라 세금계산서 목록에 섞였다
       doc_kind: taxKind === 'exempt' ? 'exempt' : 'tax',

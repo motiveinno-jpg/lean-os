@@ -1187,6 +1187,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 
  /* glass-card(기존)·no-print(기능)는 JSX 병기 */
 .tax-invoice-registration-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-[96vw] max-w-[1240px] max-h-[88vh] flex flex-col; }
+/*   여러 장 한꺼번에 — 칸이 15개라 넓게 쓴다(2026-09-14). 좁은 화면에서는 96vw 가 먼저 걸려 안 넘친다. */
+.tax-invoice-registration-modal.is-multi { @apply max-w-[1560px]; }
 /* .tax-invoice-form-row — pure marker, no utility ever attached (className="tax-invoice-form-row" only). No CSS rule needed. */
 
 /* ── 세금계산서 쓰기 — 한 장 폼 (2026-08-10 사장님 지시로 개편) ── */
@@ -1227,8 +1229,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 /* 품목 줄 표 */
 .tax-items { @apply rounded-xl border border-[var(--border)] overflow-hidden; }
 .tax-items-scroll { @apply overflow-x-auto; }
-.tax-items-grid { @apply min-w-[640px]; }
-.tax-item-row { @apply grid items-center border-t border-[var(--border)]/60; grid-template-columns: 30px minmax(150px, 1.6fr) 96px 72px 116px 124px 30px; }
+/*   품목 칸 순서(2026-09-14 사장님): 번호 · 품목명 · 규격 · 수량 · 단가 · 공급가액 · 세액 · 합계 · 비고 · 삭제 */
+.tax-items-grid { @apply min-w-[980px]; }
+.tax-item-row { @apply grid items-center border-t border-[var(--border)]/60; grid-template-columns: 30px minmax(140px, 1.5fr) 90px 64px 110px 116px 100px 116px minmax(110px, 1fr) 30px; }
 .tax-item-row:first-child { @apply border-t-0; }
 .tax-item-head { @apply bg-[var(--bg-surface)]; }
 .tax-item-head > span { @apply px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]; }
@@ -1254,7 +1257,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .tax-form-more-grid { @apply grid gap-3 border-t border-[var(--border)] px-4 py-3; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 
 /* 여러 장 한꺼번에 — 사업자번호·대표자까지만 */
-.tax-multi-row { @apply grid items-center border-t border-[var(--border)]/60; grid-template-columns: 30px 96px 128px minmax(130px, 1.2fr) 118px 90px minmax(120px, 1fr) 66px 110px 116px 30px; }
+/*   여러 장 칸 순서(2026-09-14 사장님): 번호 · 유형 · 작성일자 · 거래처 · 사업자번호 · 대표자
+     · 품목명 · 규격 · 수량 · 단가 · 공급가액 · 세액 · 합계 · 비고 · 삭제 */
+.tax-multi-row { @apply grid items-center border-t border-[var(--border)]/60; grid-template-columns: 28px 86px 116px minmax(108px, 1.1fr) 104px 76px minmax(104px, 1fr) 72px 54px 98px 100px 88px 100px minmax(92px, 0.85fr) 28px; }
 .tax-multi-row:first-child { @apply border-t-0; }
 .tax-multi-head { @apply bg-[var(--bg-surface)]; }
 .tax-multi-head > span { @apply px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]; }
