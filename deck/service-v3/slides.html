@@ -583,6 +583,19 @@
   .bt .gx{ height:14px !important } .bt div[style*="grid-template-columns:60px"]{ grid-template-columns:80px 1fr 64px !important; font-size:19px !important; margin-top:6px }
   .s10 .feats{ bottom:90px } .s10 .feats div b{ font-size:30px } .s10 .feats div span{ font-size:22px }
   .s16 .ef{ padding:36px 0 40px }
+  /* 15쪽 비교표 — 가운데 정렬 + 오너뷰 칸 강조 (2026-09-14 사장님) */
+  .s14 .board{ overflow:visible !important; left:140px; right:140px; padding:40px 70px 44px }
+  .s14 .board::before{ display:none }
+  .s14 .cr{ grid-template-columns:260px 550px 100px 590px !important; padding:30px 0 }
+  .s14 .cr .g,.s14 .cr .o,.s14 .cr.h span:nth-child(2){ text-align:center; justify-self:center }
+  .s14 .cr .k{ text-align:left }
+  .s14 .cr.h{ padding:14px 0 26px; font-size:22px }
+  .s14 .ovcol{ position:absolute; left:960px; width:630px; top:-34px; bottom:-34px; border-radius:36px; background:linear-gradient(180deg,#f5f6ff 0%,#eef1ff 100%); border:3px solid #4f46e5; box-shadow:0 40px 90px -30px rgba(79,70,229,.45) }
+  .s14 .ovh{ justify-self:center; position:relative }
+  .s14 .ovh b{ display:inline-flex; align-items:center; height:52px; padding:0 30px; border-radius:26px; background:linear-gradient(90deg,#4f46e5,#3b82f6); color:#fff; font-size:26px; font-weight:800; letter-spacing:-.02em; box-shadow:0 14px 30px -12px rgba(79,70,229,.6) }
+  .s14 .cr .o{ position:relative; font-size:31px; font-weight:750 }
+  .s14 .cr .g{ font-size:27px }
+  .s14 .cr .ar{ position:relative; z-index:1 }
 </style>
 </head>
 <body>
@@ -993,7 +1006,8 @@
 <section class="slide gray s14">
   <div class="top"><p class="eyebrow a">Why OwnerView</p><h2 class="a d1">기존 ERP와 무엇이 다른가요?</h2></div>
   <div class="board a d2">
-    <div class="cr h"><span>항목</span><span>일반적인 ERP</span><span></span><span style="color:#a5b4fc">오너뷰</span></div>
+    <div class="ovcol"></div>
+    <div class="cr h"><span>항목</span><span>일반적인 ERP</span><span></span><span class="ovh"><b>오너뷰</b></span></div>
     <div class="cr"><span class="k">요금 체계</span><span class="g">기능·모듈별 요금제 분리</span><span class="ar"><svg class="li" style="width:22px;height:22px"><use href="#i-arrow"/></svg></span><span class="o"><em>단일 유료 플랜</em>으로 전 기능</span></div>
     <div class="cr"><span class="k">도입 방식</span><span class="g">도입비·약정 계약</span><span class="ar"><svg class="li" style="width:22px;height:22px"><use href="#i-arrow"/></svg></span><span class="o"><em>카드 등록 없이</em> 무료 시작</span></div>
     <div class="cr"><span class="k">회계·세무</span><span class="g">회계 프로그램 별도 구매</span><span class="ar"><svg class="li" style="width:22px;height:22px"><use href="#i-arrow"/></svg></span><span class="o">수집부터 <em>부가세·원천세 신고 자료</em>까지</span></div>
