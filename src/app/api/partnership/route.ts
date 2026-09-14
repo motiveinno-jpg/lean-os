@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import * as Sentry from '@sentry/nextjs';
+import { CONTACT } from '@/components/landing-v8/content';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -31,12 +32,30 @@ export async function POST(req: NextRequest) {
     const contactName = clean(body.contactName, LIMITS.contact_name);
     const email = clean(body.email, LIMITS.email).toLowerCase();
     const phone = clean(body.phone, LIMITS.phone);
-    const message = clean(body.message, LIMITS.message);
+    let message = clean(body.message, LIMITS.message);
 
     if (!companyName) return NextResponse.json({ error: '회사명을 입력해주세요.' }, { status: 400 });
     if (!contactName) return NextResponse.json({ error: '담당자명을 입력해주세요.' }, { status: 400 });
     if (!isEmail(email)) return NextResponse.json({ error: '올바른 이메일 주소를 입력해주세요.' }, { status: 400 });
-    if (message.length < 5) return NextResponse.json({ error: '문의 내용을 5자 이상 입력해주세요.' }, { status: 400 });
+
+    // /contact 상담 신청 (2026-09-14) — 표 칸을 늘리지 않고 고른 값을 내용 앞 줄로 붙인다.
+    //   접수 0건인 표에 칸을 더하는 것보다, 운영자 문의함(줄바꿈 그대로 표시)에서 바로 읽히는 쪽을 골랐다.
+    //   고른 값은 화면과 같은 목록(CONTACT)으로 걸러 아무 글자나 들어오지 않게 한다.
+    if (body.source === 'contact') {
+      if (body.agree !== true) return NextResponse.json({ error: '개인정보 수집·이용에 동의해주세요.' }, { status: 400 });
+      const size = CONTACT.sizes.includes(String(body.size)) ? String(body.size) : '';
+      const interests = Array.isArray(body.interests)
+        ? CONTACT.interests.filter((v) => (body.interests as unknown[]).includes(v))
+        : [];
+      const head = [
+        '[상담 신청 · /contact]',
+        size && `인원: ${size}`,
+        interests.length > 0 && `관심 업무: ${interests.join(', ')}`,
+      ].filter(Boolean).join('\n');
+      message = message ? `${head}\n\n${message}` : head;
+    } else if (message.length < 5) {
+      return NextResponse.json({ error: '문의 내용을 5자 이상 입력해주세요.' }, { status: 400 });
+    }
 
     const admin = createSupabaseAdminClient();
     const since = new Date(Date.now() - RATE_WINDOW_MS).toISOString();

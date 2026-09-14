@@ -15,6 +15,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/features`, changeFrequency: "monthly", priority: 0.9 },
     { url: `${BASE}/ai`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE}/demo`, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${BASE}/contact`, changeFrequency: "yearly", priority: 0.7, lastModified: "2026-09-14" },
     { url: `${BASE}/guide`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE}/tax-partners`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE}/advisor`, changeFrequency: "monthly", priority: 0.6 },

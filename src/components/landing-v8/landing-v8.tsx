@@ -266,7 +266,7 @@ export default function LandingV8() {
             <p className="lead24">{HERO.lead}</p>
             <div className="hero-cta">
               <Link className="btn btn-fill" href="/auth">{HERO.ctaPrimary}</Link>
-              <a className="btn btn-soft" href={CONSULT_HREF}>{HERO.ctaSecondary}</a>
+              <Link className="btn btn-soft" href={CONSULT_HREF}>{HERO.ctaSecondary}</Link>
             </div>
           </div>
         </section>
@@ -516,7 +516,7 @@ export default function LandingV8() {
             <h3 className="cta-h rise" style={stagger(0, 80)}>흩어진 업무,<br />오늘부터 한 체계로 관리하세요!</h3>
             <div className="lp8-finale-cta rise" style={stagger(1, 80)}>
               <Link className="btn btn-fill" href="/auth">지금 무료로 시작하세요</Link>
-              <a className="btn btn-soft" href={CONSULT_HREF}>전문 상담 예약</a>
+              <Link className="btn btn-soft" href={CONSULT_HREF}>전문 상담 예약</Link>
             </div>
           </div>
         </section>

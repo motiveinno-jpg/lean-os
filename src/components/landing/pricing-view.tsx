@@ -202,7 +202,7 @@ export default function PricingView() {
           <h2 className="lp4-h2">가격이 궁금하면 물어보세요</h2>
           <p className="lp4-sub">회사 상황에 따라 무엇이 필요한지 같이 정리해 드려요. 무료 요금제로 먼저 써보셔도 돼요.</p>
           <div className="lp4-feat-cta">
-            <Link href="/#partner" className="lp4-btn lp4-btn-brand">도입 상담하기</Link>
+            <Link href="/contact" className="lp4-btn lp4-btn-brand">도입 상담하기</Link>
             <Link href="/auth" className="lp4-btn lp4-btn-line">무료로 시작하기</Link>
           </div>
         </div>
