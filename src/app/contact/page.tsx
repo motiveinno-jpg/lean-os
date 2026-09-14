@@ -5,7 +5,7 @@ import ContactView from "@/components/landing-v8/contact-view";
 
 const URL = "https://www.owner-view.com/contact";
 const TITLE = "도입 상담 신청"; // 뒤의 " | 오너뷰" 는 layout 의 title.template 이 붙인다
-const DESC = "회사 업무 순서를 알려 주시면 쓰실 메뉴, 옮길 자료, 요금을 정리해 영업일 기준 1일 이내에 연락드립니다.";
+const DESC = "회사 업무 순서를 알려 주시면 사용할 메뉴, 이전할 자료, 요금을 정리해 영업일 기준 1일 이내에 연락드립니다.";
 
 export const metadata: Metadata = {
   title: TITLE,

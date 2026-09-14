@@ -83,7 +83,7 @@ export default function ContactView() {
           {/* ── 왼쪽: 무엇을 하게 되는지 ── */}
           <section className="lp8-ct-intro">
             <h1 className="lp8-ct-h1">{CONTACT.h1}</h1>
-            <p className="p20 lp8-ct-lead">{CONTACT.lead}</p>
+            <p className="p20 lp8-ct-lead">{CONTACT.lead[0]}<br className="brk" />{CONTACT.lead[1]}</p>
             <ol className="lp8-ct-steps">
               {CONTACT.steps.map(([h, body], i) => (
                 <li key={h}>
@@ -96,8 +96,8 @@ export default function ContactView() {
               ))}
             </ol>
             <p className="lp8-ct-alt">
-              바로 써 보고 싶으시면 <Link href="/auth">무료로 시작</Link>하셔도 됩니다.
-              메일은 <a href={`mailto:${FOOTER.email}`}>{FOOTER.email}</a> 으로 보내 주세요.
+              바로 사용해 보시려면 <Link href="/auth">무료로 시작하세요</Link>.<br className="brk" />
+              메일 문의는 <a href={`mailto:${FOOTER.email}`}>{FOOTER.email}</a> 에서 받습니다.
             </p>
           </section>
 
@@ -108,7 +108,7 @@ export default function ContactView() {
                 <span className="lp8-ct-done-mark" aria-hidden="true">✓</span>
                 <h2 className="lp8-ct-done-h">상담 신청이 접수되었습니다</h2>
                 <p>영업일 기준 1일 이내에 <b>{v.email.trim()}</b> 으로 연락드립니다.</p>
-                <p>기다리시는 동안 무료 플랜으로 먼저 써 보셔도 됩니다.</p>
+                <p>기다리시는 동안 무료 플랜으로 먼저 사용해 보세요!</p>
                 <div className="lp8-ct-done-cta">
                   <Link className="btn btn-fill" href="/auth">무료로 시작하기</Link>
                   <Link className="btn btn-soft" href="/">처음 화면으로</Link>
@@ -152,7 +152,7 @@ export default function ContactView() {
                 </fieldset>
 
                 <fieldset className="lp8-ct-set">
-                  <legend>관심 있는 업무 <small>여러 개 고르셔도 됩니다</small></legend>
+                  <legend>관심 있는 업무 <small>복수 선택</small></legend>
                   <div className="lp8-ct-chips">
                     {CONTACT.interests.map((t) => (
                       <button key={t} type="button" aria-pressed={interests.includes(t)} onClick={() => toggleInterest(t)}>
@@ -163,12 +163,12 @@ export default function ContactView() {
                 </fieldset>
 
                 <label className="lp8-ct-field lp8-ct-field-full">
-                  <span>하시는 일과 궁금한 점</span>
+                  <span>업종과 문의 내용</span>
                   <textarea
                     rows={4}
                     value={v.message}
                     onChange={set("message")}
-                    placeholder="예) 스마트스토어 주문을 엑셀로 옮겨 장부를 쓰고 있습니다. 세무사 사무실과 자료를 주고받는 방법이 궁금합니다."
+                    placeholder="예) 스마트스토어 판매 업체입니다. 주문과 장부를 엑셀로 관리하고 있어, 세무사 사무실과 자료를 공유하는 방법이 궁금합니다."
                   />
                 </label>
 
@@ -182,7 +182,10 @@ export default function ContactView() {
                   <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
                   <span>
                     <b>개인정보 수집·이용에 동의합니다 <em>*</em></b>
-                    <small>{CONTACT.consent} 자세한 내용은 <Link href="/privacy">개인정보처리방침</Link>을 확인해 주세요.</small>
+                    <small>
+                      {CONTACT.consent.map(([k, val]) => <span key={k}>{k}: {val}</span>)}
+                      <span>자세한 내용은 <Link href="/privacy">개인정보처리방침</Link>에서 확인하실 수 있습니다.</span>
+                    </small>
                   </span>
                 </label>
 

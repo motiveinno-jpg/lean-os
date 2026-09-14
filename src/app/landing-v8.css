@@ -395,6 +395,7 @@ html[data-theme="dark"] .lp8{
 .lp8 .lp8-ct-agree input{ flex: none; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--brand) }
 .lp8 .lp8-ct-agree b{ display: block; font-size: 14px; font-weight: 600; color: var(--ink) }
 .lp8 .lp8-ct-agree small{ display: block; margin-top: 4px; font-size: 12.5px; line-height: 1.55; color: var(--ink-3) }
+.lp8 .lp8-ct-agree small span{ display: block }
 .lp8 .lp8-ct-agree small a{ color: var(--brand); text-decoration: underline }
 .lp8 .lp8-ct-error{ margin-top: 14px; font-size: 14px; color: var(--bad) }
 .lp8 .lp8-ct-submit{ width: 100%; margin-top: 20px }
