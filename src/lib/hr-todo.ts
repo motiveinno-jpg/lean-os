@@ -20,10 +20,9 @@ export async function fetchHrTodos(companyId: string, employees: { id: string; n
 
   // ── G4 기한 ──
   //   2026-08-31 스윕: 이미 처리한 일이 계속 뜨던 3건 보정 재료 — 발령(수습 전환 완료 판정)·연차 부여(1주년 완료 판정)
-  const [contracts, pkgs, holidays, appts, grants] = await Promise.all([
+  const [contracts, pkgs, appts, grants] = await Promise.all([
     logRead("hr-todo:contracts", await (supabase as any).from("employee_contracts").select("employee_id, end_date, probation_end_date, status").eq("company_id", companyId).eq("status", "active")),
     logRead("hr-todo:pkgs", await (supabase as any).from("hr_contract_packages").select("employee_id, status, sent_at").eq("company_id", companyId).eq("status", "sent")),
-    logRead("hr-todo:holidays", await (supabase as any).from("holidays").select("date").eq("company_id", companyId).eq("type", "legal")),
     logRead("hr-todo:appts", await (supabase as any).from("hr_appointments").select("employee_id, effective_date").eq("company_id", companyId)),
     logRead("hr-todo:grants", await (supabase as any).from("leave_grants").select("employee_id, grant_date").eq("company_id", companyId).eq("grant_type", "annual")),
   ]);
@@ -67,12 +66,9 @@ export async function fetchHrTodos(companyId: string, employees: { id: string; n
   const unsigned: HrTodoItem[] = [];
   for (const p of ((pkgs || []) as any[])) { if (!p.sent_at || !nameOf.has(p.employee_id)) continue; const n = -dday(String(p.sent_at).slice(0, 10), today); if (n >= 7) unsigned.push({ employee_id: p.employee_id, name: nameOf.get(p.employee_id)!, text: `계약서 미서명 ${n}일 · 재발송·독촉`, date: String(p.sent_at).slice(0, 10) }); }
   if (unsigned.length) groups.push({ key: "unsigned", label: "계약서 미서명 7일+", source: "규칙", hint: "근로계약·서식 › 계약 발송·현황에서 재발송", go: "contracts", items: unsigned });
-  const years = new Set(((holidays || []) as any[]).map((h) => String(h.date).slice(0, 4)));
+
   const thisY = today.slice(0, 4), nextY = String(Number(thisY) + 1);
-  const hol: HrTodoItem[] = [];
-  if (!years.has(thisY)) hol.push({ name: "회사", text: `${thisY}년 법정 공휴일이 없습니다. 근태 › 근무 기준에서 채우기` });
-  if (today.slice(5) >= "11-01" && !years.has(nextY)) hol.push({ name: "회사", text: `${nextY}년 법정 공휴일이 없습니다. 근태 › 근무 기준에서 채우기` });
-  if (hol.length) groups.push({ key: "holidays", label: "공휴일 미등록", source: "규칙", hint: "결근 자동 판정이 공휴일을 모르면 틀린다", items: hol });
+  void nextY;
 
   // ── H5 연차촉진 대상 ──
   try {

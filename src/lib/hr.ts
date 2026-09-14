@@ -10,6 +10,7 @@ import { supabase } from './supabase';
 import { fetchPaged } from './fetch-paged';
 import { getCurrentUser } from './queries';
 import { currentUserIsManager } from './company-managers';
+import { fetchHolidayDates } from './effective-holidays';
 import {
   calcDailyAttendance,
   calcLegacyWorkHours,
@@ -431,13 +432,13 @@ export async function calcLeaveDays(companyId: string, startYmd: string, endYmd:
   let holidaySet = new Set<string>();
   let mask = 31;
   try {
-    const [{ data: hol }, { data: cs }] = await Promise.all([
-      db.from('holidays').select('date').eq('company_id', companyId)
-        .gte('date', startYmd <= endYmd ? startYmd : endYmd)
-        .lte('date', startYmd <= endYmd ? endYmd : startYmd),
+    //   전국 공휴일(추석·설날·대체휴일 등) + 회사 지정 휴일을 합쳐 본다 — 회사 표만 보면
+    //   손으로 안 넣은 명절이 근무일로 잡혔다.
+    const [hset, { data: cs }] = await Promise.all([
+      fetchHolidayDates(db as never, companyId, startYmd, endYmd),
       db.from('company_settings').select('workdays_mask').eq('company_id', companyId).maybeSingle(),
     ]);
-    holidaySet = new Set(((hol as { date: string }[]) || []).map((h) => String(h.date).slice(0, 10)));
+    holidaySet = hset;
     const m = Number((cs as { workdays_mask?: number } | null)?.workdays_mask);
     if (Number.isFinite(m) && m > 0) mask = Math.trunc(m);
   } catch { /* 조회 실패 시 주말만 제외 */ }
@@ -518,11 +519,8 @@ export async function recomputeAttendance(params: {
   // 휴일 set
   const fromYear = Number(params.from.slice(0, 4));
   const toYear = Number(params.to.slice(0, 4));
-  const holidaySet = new Set<string>();
-  for (let y = fromYear; y <= toYear; y++) {
-    const hs = await listHolidays(params.companyId, y);
-    hs.forEach((h) => holidaySet.add(h.date));
-  }
+  //   전국 공휴일 + 회사 지정 휴일 — 급여의 근무일·휴일근로 판정도 같은 '쉬는 날' 을 본다
+  const holidaySet = await fetchHolidayDates(db as never, params.companyId, `${fromYear}-01-01`, `${toYear}-12-31`);
 
   //   ⚠️ 페이징 없이 부르면 PostgREST 상한(1000행)에서 조용히 잘린다 — 직원 33명 × 30일이면
   //   이미 상한이다. 나머지 직원의 지각·연장·야간·휴일 분이 옛 값으로 남고 급여 가산분이

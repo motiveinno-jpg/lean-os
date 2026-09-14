@@ -17,6 +17,7 @@ import { downloadCsv } from "@/lib/csv-export";
 import { DateRangeField } from "@/components/date-range-field";
 import { QueryBar, ConditionPanel, ConditionRow, TokenField, QuickSearch, quickSearchHit, AppliedChips, ResultStrip, Stat, ExcelMenu, type AppliedChip } from "@/components/query-kit";
 import { nextSort, type SortState } from "@/components/sortable-th";
+import { fetchHolidayDates } from "@/lib/effective-holidays";
 
 type Row = { employee_id: string; name: string; department: string; totalDays: number; lateDays: number; lateMinutesSum: number; overtimeMinutesSum: number; nightMinutesSum: number; holidayMinutesSum: number; absentDays: number; remoteDays: number; halfDays: number; totalHours: number; leaveDays: number; leaveFull: number; leaveHalf: number; leaveQuarter: number; alwTotal: number; ratio: number; months: Record<string, Row | undefined> };
 type Cond = { people: string[]; depts: string[]; has: string[]; ratioMax: string; hoursMin: string; hoursMax: string };
@@ -74,7 +75,8 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
   const isWorkDow = (dow: number) => isWorkdayDow(workMask, dow);
   const { data: holidays = [] } = useQuery({
     queryKey: ["att-status-holidays", companyId, rangeFrom, rangeTo],
-    queryFn: async () => (logRead("att-status:holidays", await supabase.from("holidays").select("date").eq("company_id", companyId).gte("date", rangeFrom).lte("date", rangeTo)) || []) as any[],
+        //   전국 공휴일 + 회사 지정 휴일 — 결근 파생·근무일이 명절을 빠뜨리지 않게 (달력과 같은 소스)
+    queryFn: async () => [...await fetchHolidayDates(supabase as never, companyId, rangeFrom, rangeTo)].map((date) => ({ date })),
     enabled: !!companyId,
   });
   const { data: leaves = [] } = useQuery({

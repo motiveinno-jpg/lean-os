@@ -735,11 +735,15 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   const  { data: monthHolidays = [] } = useQuery({
     queryKey: ["attendance-cal-holidays", companyId, selectedMonth],
     queryFn: async () => {
-      const data = logRead('employees/page:holidays', await (supabase).from("holidays")
-        .select("date, name")
-        .eq("company_id", companyId)
-        .gte("date", monthStart).lte("date", monthEnd));
-      return data || [];
+      //   전국 공휴일 + 회사 지정 휴일을 합친다 — 회사 표만 보면 추석 등이 빠졌다
+      const [nat, comp] = await Promise.all([
+        (supabase as any).from("national_holidays").select("date, name").gte("date", monthStart).lte("date", monthEnd),
+        (supabase).from("holidays").select("date, name").eq("company_id", companyId).gte("date", monthStart).lte("date", monthEnd),
+      ]);
+      const byDate = new Map<string, string>();
+      for (const r of ((nat.data || []) as { date: string; name: string }[])) byDate.set(String(r.date).slice(0, 10), r.name);
+      for (const r of ((comp.data || []) as { date: string; name: string }[])) byDate.set(String(r.date).slice(0, 10), r.name);   // 회사 지정이 이름을 이긴다
+      return [...byDate].map(([date, name]) => ({ date, name }));
     },
     enabled: !!companyId,
   });

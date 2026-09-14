@@ -132,9 +132,15 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
   const  { data: weekHolidays = [] } = useQuery<{ date: string; name: string | null }[]>({
     queryKey: ["flex-work-holidays", companyId, startStr],
     queryFn: async () => {
-      const data = logRead('components/flex-work-board:data', await db.from("holidays")
-        .select("date, name").eq("company_id", companyId).gte("date", startStr).lte("date", endStr));
-      return (data || []) as any[];
+      //   전국 공휴일 + 회사 지정 휴일 합침 (워크보드도 명절을 빠뜨리지 않게)
+      const [nat, comp] = await Promise.all([
+        (db as any).from("national_holidays").select("date, name").gte("date", startStr).lte("date", endStr),
+        db.from("holidays").select("date, name").eq("company_id", companyId).gte("date", startStr).lte("date", endStr),
+      ]);
+      const byDate = new Map<string, string>();
+      for (const r of ((nat.data || []) as { date: string; name: string }[])) byDate.set(String(r.date).slice(0, 10), r.name);
+      for (const r of ((comp.data || []) as { date: string; name: string }[])) byDate.set(String(r.date).slice(0, 10), r.name);
+      return [...byDate].map(([date, name]) => ({ date, name })) as any[];
     },
     enabled: !!companyId,
     staleTime: 60_000,

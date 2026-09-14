@@ -27,7 +27,6 @@ import {
   listHolidays,
   upsertHoliday,
   deleteHoliday,
-  seedKoreanLegalHolidays,
   recomputeAttendance,
   type AttendanceCompanySettings,
 } from "@/lib/hr";
@@ -122,15 +121,6 @@ function HrAttendanceSettingsPanel({ companyId, section }: { companyId: string; 
     enabled: !!companyId && section === "work",
   });
 
-  const seedMut = useMutation({
-    mutationFn: () => seedKoreanLegalHolidays(year),
-    onSuccess: (count) => {
-      queryClient.invalidateQueries({ queryKey: ["holidays", companyId, year] });
-      toast(`${year}년 법정공휴일 ${count}건 추가됨`, "success");
-    },
-    onError: (err: any) =>
-      toast(friendlyError(err, "법정공휴일 적용에 실패했습니다."), "error"),
-  });
 
   const [newHoliday, setNewHoliday] = useState({ date: "", name: "", type: "company" as "company" | "substitute" | "legal" });
   const addHolidayMut = useMutation({
@@ -342,24 +332,20 @@ function HrAttendanceSettingsPanel({ companyId, section }: { companyId: string; 
       {/* 휴일 캘린더 */}
       {section === "work" && (
         <div className="holiday-calendar-section glass-card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-bold">휴일 관리 ({year}년)</h2>
-            <div className="flex items-center gap-2">
-              <input
-                type="number" min={2020} max={2099}
-                value={year}
-                onChange={(e) => setYear(Number(e.target.value) || new Date().getFullYear())}
-                className="w-24 px-2 py-1 bg-[var(--bg)] border border-[var(--border)] rounded text-xs"
-              />
-              <button
-                onClick={() => seedMut.mutate()}
-                disabled={seedMut.isPending}
-                className="btn-primary btn-sm"
-              >
-                {seedMut.isPending ? "추가 중…" : `${year}년 법정공휴일 일괄 추가`}
-              </button>
-            </div>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-bold">회사 지정 휴일 ({year}년)</h2>
+            <input
+              type="number" min={2020} max={2099}
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value) || new Date().getFullYear())}
+              className="w-24 px-2 py-1 bg-[var(--bg)] border border-[var(--border)] rounded text-xs"
+            />
           </div>
+          {/*   법정공휴일 일괄 추가 버튼을 뺐다(2026-09-14) — 그 버튼은 양력 8개만 넣어 추석·설날
+                같은 명절과 대체휴일이 빠졌다. 이제 전국 공휴일은 공공데이터포털에서 자동으로
+                들어온다(national_holidays). 여기는 회사 창립기념일·단체 휴무 같은 '이 회사만' 쉬는
+                날만 넣는다. */}
+          <p className="holiday-auto-note">전국 공휴일(추석·설날·대체휴일 포함)은 자동으로 반영됩니다. 여기에는 창립기념일·단체 휴무처럼 <b>이 회사만 쉬는 날</b>을 넣어 주세요.</p>
 
           <div className="holiday-form-row">
             <DateField

@@ -12,6 +12,7 @@ import type { PresenceRow } from "@/lib/presence";
 import { deriveWorkStatus, type WorkStatus, type WorkTodayRow } from "@/lib/work-status";
 import { companyWorkCfgFromRow, kstNowMin } from "@/lib/attendance-schedule";
 import { todayKst } from "@/lib/kst";
+import { fetchHolidayDates } from "@/lib/effective-holidays";
 
 type PersonLike = { id?: string | null; user_id?: string | null; email?: string | null };
 
@@ -45,8 +46,9 @@ export function useWorkStatus(companyId: string | null | undefined, opts?: { wit
   const { data: holidayToday = false } = useQuery({
     queryKey: ["company-holiday-today", companyId, todayStr],
     queryFn: async () => {
-      const { data } = await supabase.from("holidays").select("date").eq("company_id", companyId!).eq("date", todayStr).limit(1);
-      return (data?.length ?? 0) > 0;
+      //   전국 공휴일 + 회사 지정 — 오늘이 쉬는 날인지
+      const set = await fetchHolidayDates(supabase as never, companyId!, todayStr, todayStr);
+      return set.has(todayStr);
     },
     enabled: !!companyId,
   });
