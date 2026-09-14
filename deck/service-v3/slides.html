@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8" />
-<title>오너뷰 서비스 소개서 v3 — 디자인 시안</title>
+<title>오너뷰 서비스 소개서 v3</title>
 <!--
   오너뷰 서비스 소개서 v3 (2026-09-14 시작)
   · 기준: 세일즈클루 「서비스 소개서 7가지 원칙」 · 구성안 docs/20260914_PLAN_service_deck_v3_structure.md
@@ -98,6 +98,10 @@
   .msg .right .shot{ width:1040px }
   .msg .right .view{ height:auto }
 
+  /* 6 — 옛 캡처 머리(메뉴 경로 「파이낸스 ›」) 잘라 냄 */
+  .msg .right .bankshot .view{ height:400px }
+  .bankshot img{ margin-top:-9.5% }
+
   /* 7 — 화면 두 장 겹치기 */
   .stack .s1{ position:absolute; left:0; top:40px; width:940px }
   .stack .s1 .view{ height:500px }
@@ -106,21 +110,13 @@
   .stack .s2 img{ margin-top:-16% }
   .stack .cap{ position:absolute; left:120px; top:790px }
 
-  /* 8 — 브리핑 캡처 + 지원사업 예시 카드 */
+  /* 8 — 브리핑 캡처 + 지원사업추천 화면(09-14 QA 시드 — 예시 판정 카드는 실제 화면으로 바꿨다) */
   .cur .s1{ position:absolute; left:0; top:40px; width:940px }
   .cur .s1 .view{ height:470px }
   .cur .s1 img{ margin-top:-17% }
-  .gov{ position:absolute; left:160px; top:400px; width:720px; background:#fff; border:1px solid var(--line); border-radius:18px; box-shadow:0 50px 90px -46px rgba(17,24,39,.5); padding:28px 32px }
-  .gov .gh{ display:flex; justify-content:space-between; align-items:baseline }
-  .gov .gh b{ font-size:26px; color:var(--ink) }
-  .gov .gh span{ font-size:16px; color:var(--ink-4) }
-  .gov .row{ display:grid; grid-template-columns:1fr auto; gap:16px; align-items:center; padding:16px 0; border-top:1px solid var(--bg-200) }
-  .gov .row:first-of-type{ margin-top:14px }
-  .gov .t{ font-size:22px; font-weight:600; color:var(--ink) }
-  .gov .m{ margin-top:4px; font-size:17px; color:var(--ink-3) }
-  .chip{ font-size:17px; font-weight:700; border-radius:999px; padding:6px 14px; white-space:nowrap }
-  .chip.ok{ background:#dcfce7; color:#166534 } .chip.q{ background:#fef3c7; color:#92400e } .chip.no{ background:#f3f4f6; color:#6b7280 }
-  .cur .cap{ position:absolute; left:160px; top:790px }
+  .cur .s2{ position:absolute; left:140px; top:360px; width:820px }
+  .cur .s2 .view{ height:400px }
+  .cur .cap{ position:absolute; left:140px; top:810px }
   /* 공통 — 문제·기능 쪽 머리 */
   .page{ padding:104px 120px 0 }
   .page h2{ margin-top:26px; font-size:62px }
@@ -176,7 +172,8 @@
   .feat .fi{ padding-left:22px; border-left:3px solid var(--brand-l) }
   .feat .fi b{ display:block; font-size:26px; color:var(--ink); font-weight:600 }
   .feat .fi span{ display:block; margin-top:4px; font-size:20px; color:var(--ink-3); line-height:1.5 }
-  .f9 .s2 img{ margin-top:-27% }
+  .f9 .s2 .view{ height:350px }
+  .f9 .s2 img{ margin-top:-12% }
   .f10 .s1 .view{ height:auto }
   .f10 .s2{ top:290px }
   .f10 .s2 .view{ height:380px }
@@ -416,7 +413,7 @@
       <p class="note">송금·발송은 자동 실행되지 않습니다 — 담당자 승인 필수</p>
     </div>
     <div class="right">
-      <div class="shot"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="../../public/product/f-bank-v4.png" alt=""></div></div>
+      <div class="shot bankshot"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="../../public/product/f-bank-v4.png" alt=""></div></div>
       <p class="cap">거래내역 수집·전표 — 예시 화면(가상 회사)</p>
     </div>
   </div>
@@ -437,8 +434,8 @@
       </div>
     </div>
     <div class="right stack">
-      <div class="shot s1"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="../../public/product/f-acct-v4.png" alt=""></div></div>
-      <div class="shot s2"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="../../public/product/f-flow-v4.png" alt=""></div></div>
+      <div class="shot s1"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="shots/dk-summary.png" alt=""></div></div>
+      <div class="shot s2"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="shots/dk-outlook.png" alt=""></div></div>
       <p class="cap">경영 요약 · 자금 전망 — 예시 화면(가상 회사)</p>
     </div>
   </div>
@@ -459,13 +456,8 @@
     </div>
     <div class="right cur">
       <div class="shot s1"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="../../public/product/f-ai-brief-v4.png" alt=""></div></div>
-      <div class="gov">
-        <div class="gh"><b>정부지원사업 매칭 결과</b><span>예시</span></div>
-        <div class="row"><div><div class="t">두루누리 사회보험료 지원</div><div class="m">근로복지공단 · 1인 월 최대 약 24만원</div></div><span class="chip ok">지원 가능</span></div>
-        <div class="row"><div><div class="t">청년일자리도약장려금</div><div class="m">고용노동부 · 1인당 연 최대 720만원</div></div><span class="chip q">검토 필요</span></div>
-        <div class="row"><div><div class="t">통합고용세액공제</div><div class="m">국세청 · 순증 1인당 최대 1,450만원(수도권)</div></div><span class="chip no">대상 아님</span></div>
-      </div>
-      <p class="cap">대시보드 · 지원사업추천 — 예시 화면(가상 회사, 판정 결과는 예시)</p>
+      <div class="shot s2"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="shots/dk-support.png" alt=""></div></div>
+      <p class="cap">대시보드 · 지원사업추천 — 예시 화면(가상 회사)</p>
     </div>
   </div>
   <div class="foot"><span><b>오너뷰</b> 서비스 소개서</span><span>08</span></div>
@@ -487,9 +479,9 @@
       </div>
     </div>
     <div class="right stack">
-      <div class="shot s1"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="../../public/product/f-tax-v4.png" alt=""></div></div>
-      <div class="shot s2"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="../../public/product/f-voucher-v4.png" alt=""></div></div>
-      <p class="cap">세금·증빙 · 일반전표 — 예시 화면(가상 회사)</p>
+      <div class="shot s1"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="shots/dk-taxinv.png" alt=""></div></div>
+      <div class="shot s2"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="shots/dk-taxfiling.png" alt=""></div></div>
+      <p class="cap">세금·증빙 · 세무 신고(부가세) — 예시 화면(가상 회사)</p>
     </div>
   </div>
   <div class="foot"><span><b>오너뷰</b> 서비스 소개서</span><span>09</span></div>

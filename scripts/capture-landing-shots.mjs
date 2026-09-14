@@ -31,10 +31,14 @@ const DEAL = process.env.DEAL || "dd000000-0000-4000-8000-000000000001";
 //   대표 세션도 쫓아내지 않는다. 계정 값은 여기에 또 적지 않고 blog-capture.mjs 한 곳에서 읽는다.
 let EMAIL = process.env.SHOT_EMAIL, PW = process.env.SHOT_PW;
 if (process.argv.includes("--qa")) {
+  //   2026-09-14 5f526bf8 에서 비밀번호가 코드에서 빠지고 교체됐다(공개 저장소 노출) — 이제 환경변수로만 받는다.
+  //   환경변수가 없으면 git 제외 파일 .env.qa.local 의 QA_SEED_PASSWORD= 줄을 읽는다(값은 출력하지 않는다).
   const src = fs.readFileSync(path.join(process.cwd(), "scripts", "blog-capture.mjs"), "utf8");
-  EMAIL = src.match(/BLOG_CAPTURE_EMAIL \|\| "([^"]+)"/)?.[1];
-  PW = src.match(/BLOG_CAPTURE_PASSWORD \|\| "([^"]+)"/)?.[1];
-  if (!EMAIL || !PW) throw new Error("blog-capture.mjs 에서 QA 시드 계정을 못 읽었습니다");
+  EMAIL = process.env.BLOG_CAPTURE_EMAIL || src.match(/BLOG_CAPTURE_EMAIL \|\| "([^"]+)"/)?.[1];
+  PW = process.env.BLOG_CAPTURE_PASSWORD || process.env.QA_SEED_PASSWORD;
+  const local = path.join(process.cwd(), ".env.qa.local");
+  if (!PW && fs.existsSync(local)) PW = fs.readFileSync(local, "utf8").match(/^QA_SEED_PASSWORD=(.+)$/m)?.[1]?.trim();
+  if (!EMAIL || !PW) throw new Error("QA 시드 계정 비밀번호가 없습니다 — QA_SEED_PASSWORD 환경변수나 .env.qa.local 에 넣어 주세요");
 }
 if (!EMAIL || !PW) {
   const CRED = path.join(process.env.HOME || process.env.USERPROFILE,
