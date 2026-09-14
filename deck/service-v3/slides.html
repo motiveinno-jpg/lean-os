@@ -11,6 +11,9 @@
   · 한 장 = 1920×1080. deck/service-v3/render.mjs 가 PNG·PDF 로 뽑는다(deliverables/service-deck-v3/, git 제외).
   · 색·글꼴은 랜딩 v8 토큰(#4f46e5 · Inter/Pretendard) — src/app/landing-v8.css 와 같다.
   · ⚠️ 화면 캡처는 QA 시드(가상 회사)만(결정 220). 지금 시안의 캡처는 08-20 판 — 3단계 촬영에서 교체.
+  · ⛔ 문구는 회사·스타트업 실무 용어로(결정 241, 사장님 "명심 또 명심"). 구어체·풀어쓴 말 금지.
+    예) 돈이 있나 → 자금 현황 · 벌고 있나 → 손익 현황 · 받을 돈/낼 돈 → 채권·채무 · 이번 주 챙길 것 → 이번 주 To-do ·
+        골라 드립니다/확정만 하세요 → 추천합니다/검토·승인 · 해당/해당 없음 → 지원 가능/대상 아님
 -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
@@ -135,45 +138,45 @@
 <!-- ═══════════ 5. 해결 흐름 ═══════════ -->
 <section class="slide">
   <div class="flow">
-    <span class="eyebrow">오너뷰가 하는 일</span>
-    <h2>자료는 AI가 정리하고, 오너뷰가 진단하고,<br><em class="hl">할 일을 골라 드립니다</em></h2>
+    <span class="eyebrow">Solution</span>
+    <h2>데이터 수집 · 경영 진단 · 업무 큐레이션을<br><em class="hl">하나의 ERP에서</em></h2>
     <div class="lane">
       <div class="col on">
         <div class="no">01</div>
         <h3>AI 자동화</h3>
-        <p class="lead">흩어진 자료를 모아 전표 초안까지</p>
+        <p class="lead">금융·세무 데이터 수집부터 전표 초안까지</p>
         <ul>
-          <li>통장·카드 거래 자동 수집</li>
+          <li>은행·카드 거래내역 자동 수집</li>
           <li>세금계산서·현금영수증 수집</li>
-          <li>AI 계정과목 추천 · 전표 초안</li>
+          <li>AI 계정과목 추천 · 전표 초안 생성</li>
         </ul>
       </div>
       <div class="arrow"><svg width="44" height="44" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20h26M24 12l8 8-8 8"/></svg></div>
       <div class="col on">
         <div class="no">02</div>
         <h3>경영 현황 진단</h3>
-        <p class="lead">지금 괜찮은지, 앞으로 괜찮을지</p>
+        <p class="lead">핵심 경영 지표 · 자금 전망</p>
         <ul>
-          <li>돈이 있나 · 벌고 있나</li>
-          <li>받을 돈과 낼 돈</li>
-          <li>앞으로 부족해지는 시점</li>
+          <li>자금 현황 · 손익 현황</li>
+          <li>채권·채무 현황</li>
+          <li>자금 수지 전망(13주)</li>
         </ul>
       </div>
       <div class="arrow"><svg width="44" height="44" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20h26M24 12l8 8-8 8"/></svg></div>
       <div class="col on">
         <div class="no">03</div>
         <h3>큐레이션</h3>
-        <p class="lead">대표가 먼저 볼 것만 골라서</p>
+        <p class="lead">대표·실무자별 우선순위 업무</p>
         <ul>
-          <li>오늘 챙길 일 · 우선순위</li>
-          <li>이번 주 챙길 것</li>
-          <li>받을 수 있는 지원사업</li>
+          <li>AI 데일리 브리핑</li>
+          <li>이번 주 To-do</li>
+          <li>정부지원사업 매칭</li>
         </ul>
       </div>
     </div>
     <div class="human">
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M8 12l3 3 5-6"/></svg>
-      <span>AI는 제안과 정리까지 합니다. <b>확정·발송·이체는 사람이 직접</b> 합니다.</span>
+      <span>AI는 초안 작성·추천까지. <b>전표 확정·발송·이체는 담당자 승인</b> 후 실행됩니다.</span>
     </div>
   </div>
   <div class="foot"><span><b>오너뷰</b> 서비스 소개서</span><span>05</span></div>
@@ -184,17 +187,17 @@
   <div class="msg">
     <div>
       <span class="eyebrow"><i>01</i>AI 자동화</span>
-      <h2>자동으로 들어오고,<br>AI가 분류합니다.<br><em class="hl">확정만 하세요</em></h2>
+      <h2>거래 수집부터<br>전표 초안까지 자동화,<br><em class="hl">담당자는 검토·승인만</em></h2>
       <div class="steps">
-        <div class="step"><span class="n">1</span><div><b>한 번 연결하면 거래가 들어옵니다</b><span>통장·카드 거래를 하루 2회 자동으로 받습니다. 유료 플랜은 필요할 때 바로 받을 수 있습니다.</span></div></div>
-        <div class="step"><span class="n">2</span><div><b>세금계산서도 함께 모입니다</b><span>홈택스의 세금계산서·현금영수증을 받아 통장·카드 거래와 한 화면에 둡니다.</span></div></div>
-        <div class="step"><span class="n">3</span><div><b>AI가 계정과목을 추천합니다</b><span>전표 초안까지 만들고, 고친 내용은 규칙으로 학습합니다.</span></div></div>
+        <div class="step"><span class="n">1</span><div><b>은행·카드 계정 연동</b><span>최초 1회 연동 후 거래내역을 하루 2회 자동 수집합니다. 유료 플랜은 즉시 수집을 지원합니다.</span></div></div>
+        <div class="step"><span class="n">2</span><div><b>세금계산서·현금영수증 통합 관리</b><span>홈택스 매출·매입 세금계산서와 현금영수증을 수집해 은행·카드 내역과 함께 관리합니다.</span></div></div>
+        <div class="step"><span class="n">3</span><div><b>AI 계정과목 추천 · 전표 초안 생성</b><span>수정 내역은 분개 규칙으로 학습해 다음 거래부터 반영합니다.</span></div></div>
       </div>
-      <p class="note">발송이나 이체는 저절로 실행되지 않습니다.</p>
+      <p class="note">송금·발송은 자동 실행되지 않습니다 — 담당자 승인 필수</p>
     </div>
     <div class="right">
       <div class="shot"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="../../public/product/f-bank-v4.png" alt=""></div></div>
-      <p class="cap">수집·전표 — 예시 화면(가상 회사)</p>
+      <p class="cap">거래내역 수집·전표 — 예시 화면(가상 회사)</p>
     </div>
   </div>
   <div class="foot"><span><b>오너뷰</b> 서비스 소개서</span><span>06</span></div>
@@ -205,12 +208,12 @@
   <div class="msg">
     <div>
       <span class="eyebrow"><i>02</i>경영 현황 진단</span>
-      <h2>지금 괜찮은지,<br>앞으로 괜찮을지<br><em class="hl">매일 진단합니다</em></h2>
+      <h2>핵심 경영 지표를<br>매일 자동으로<br><em class="hl">진단합니다</em></h2>
       <div class="steps">
-        <div class="step"><span class="n">₩</span><div><b>돈이 있나</b><span>통장 잔액과 이번 달 들어온 돈·나간 돈</span></div></div>
-        <div class="step"><span class="n">↗</span><div><b>벌고 있나</b><span>확정한 전표 기준의 매출·비용·영업이익</span></div></div>
-        <div class="step"><span class="n">⇄</span><div><b>받을 돈과 낼 돈</b><span>거래처별 미수금, 30일 안에 나갈 급여·세금</span></div></div>
-        <div class="step"><span class="n">◷</span><div><b>앞으로 부족해지는 시점</b><span>예정 입출금을 반영한 잔액 곡선과 13주 자금 달력</span></div></div>
+        <div class="step"><span class="n">₩</span><div><b>자금 현황</b><span>계좌별 잔액, 월간 입금·출금 합계</span></div></div>
+        <div class="step"><span class="n">↗</span><div><b>손익 현황</b><span>확정 전표 기준 매출·비용·영업이익</span></div></div>
+        <div class="step"><span class="n">⇄</span><div><b>채권·채무 현황</b><span>거래처별 미수금, 30일 내 지급 예정 급여·세금</span></div></div>
+        <div class="step"><span class="n">◷</span><div><b>자금 수지 전망</b><span>입출금 예정 반영 잔액 추이, 자금 부족 예상 시점, 13주 자금 캘린더</span></div></div>
       </div>
     </div>
     <div class="right stack">
@@ -227,20 +230,20 @@
   <div class="msg">
     <div>
       <span class="eyebrow"><i>03</i>큐레이션</span>
-      <h2>오늘 챙길 일과<br>받을 수 있는 지원사업을<br><em class="hl">골라 드립니다</em></h2>
+      <h2>오늘의 우선순위 업무와<br>정부지원사업을<br><em class="hl">추천합니다</em></h2>
       <div class="steps">
-        <div class="step"><span class="n">1</span><div><b>아침 브리핑</b><span>미수금·결재 대기·매출·큰 지출을 읽고 오늘 먼저 할 일을 순서대로 정리합니다.</span></div></div>
-        <div class="step"><span class="n">2</span><div><b>이번 주 챙길 것</b><span>세금 신고일, 급여일, 오래된 미수금을 놓치지 않게 모읍니다.</span></div></div>
-        <div class="step"><span class="n">3</span><div><b>지원사업 추천</b><span>공고와 상시 지원 제도를 회사·직원 자료와 대조해 해당 여부와 예상 금액을 보여 드립니다.</span></div></div>
+        <div class="step"><span class="n">1</span><div><b>AI 데일리 브리핑</b><span>미수금·결재 대기·매출·주요 지출을 분석해 오늘의 우선순위 업무를 제안합니다.</span></div></div>
+        <div class="step"><span class="n">2</span><div><b>이번 주 To-do</b><span>세무 신고 기한·급여일·장기 미수금 등 주간 마감 업무를 한눈에 관리합니다.</span></div></div>
+        <div class="step"><span class="n">3</span><div><b>정부지원사업 매칭</b><span>공고·상시 지원제도를 회사·인사 데이터와 대조해 지원 가능 여부와 예상 지원금을 제시합니다.</span></div></div>
       </div>
     </div>
     <div class="right cur">
       <div class="shot s1"><div class="bar"><b></b><b></b><b></b></div><div class="view"><img src="../../public/product/f-ai-brief-v4.png" alt=""></div></div>
       <div class="gov">
-        <div class="gh"><b>받을 수 있는 지원사업</b><span>예시</span></div>
-        <div class="row"><div><div class="t">두루누리 사회보험료 지원</div><div class="m">근로복지공단 · 1인 월 최대 약 24만원</div></div><span class="chip ok">해당</span></div>
-        <div class="row"><div><div class="t">청년일자리도약장려금</div><div class="m">고용노동부 · 1인당 연 최대 720만원</div></div><span class="chip q">확인 필요</span></div>
-        <div class="row"><div><div class="t">통합고용세액공제</div><div class="m">국세청 · 순증 1인당 최대 1,450만원(수도권)</div></div><span class="chip no">해당 없음</span></div>
+        <div class="gh"><b>정부지원사업 매칭 결과</b><span>예시</span></div>
+        <div class="row"><div><div class="t">두루누리 사회보험료 지원</div><div class="m">근로복지공단 · 1인 월 최대 약 24만원</div></div><span class="chip ok">지원 가능</span></div>
+        <div class="row"><div><div class="t">청년일자리도약장려금</div><div class="m">고용노동부 · 1인당 연 최대 720만원</div></div><span class="chip q">검토 필요</span></div>
+        <div class="row"><div><div class="t">통합고용세액공제</div><div class="m">국세청 · 순증 1인당 최대 1,450만원(수도권)</div></div><span class="chip no">대상 아님</span></div>
       </div>
       <p class="cap">대시보드 · 지원사업추천 — 예시 화면(가상 회사, 판정 결과는 예시)</p>
     </div>
