@@ -92,7 +92,8 @@ function StatusBadge({ status }: { status: string }) {
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold leading-none whitespace-nowrap ${config.bg} ${config.text}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${config.dot} ${config.pulse ? "animate-pulse" : ""}`} />
       {config.label}
-    </span>);
+    </span>
+  );
 }
 
 
@@ -139,7 +140,8 @@ function TypeChip({ type, label }: { type: string; label: string }) {
     <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold leading-none ${m.bg} ${m.text}`}>
       <TypeIcon name={m.icon} className="w-3 h-3" />
       {label}
-    </span>);
+    </span>
+  );
 }
 
 
@@ -161,12 +163,13 @@ function StageProgress({ current, total, status }: { current: number; total: num
       </div>
       {/*   라벨은 '끝난 단계 수' — 대기 중인 단계는 안 센다. 2단계 중 2번째가 대기면 1/2 (종전 2/2 라 완료처럼 보였다, 2026-09-02 전 화면 점검) */}
       <span className="text-[10px] font-bold text-[var(--text-dim)] mono-number shrink-0">{status === "approved" ? total : Math.max(0, Math.min(current, total) - 1)}/{total}</span>
-    </div>);
+    </div>
+  );
 }
 
 function formatAmount(amount: number) {
   if (!amount) return "-";
-  return `₩${amount.toLocaleString}`;
+  return `₩${amount.toLocaleString()}`;
 }
 
 // 파일명(한글 포함) → Storage key에 안전한 base64url. Supabase Storage key는 한글·공백은
@@ -187,7 +190,7 @@ function fromBase64Url(b64url: string): string {
 //   구버전(화이트리스트 치환) 파일은 base64 디코딩이 실패하므로 원문 그대로 폴백.
 function attachmentFileName(url: string): string {
   try {
-    const last = decodeURIComponent(url.split("/").pop || "");
+    const last = decodeURIComponent(url.split("/").pop() || "");
     const idx = last.indexOf("_");
     const raw = idx >= 0 ? last.slice(idx + 1) : last;
     try { return fromBase64Url(raw); } catch { return raw; }
@@ -201,10 +204,10 @@ function attachmentFileName(url: string): string {
  *  ⚠️ 여기서는 downloadName 을 주지 않는다 — 주면 '내려받기'로 바뀌어 그림이 안 보인다. */
 function AttachmentThumb({ url, name }: { url: string; name: string }) {
   const [src, setSrc] = useState<string | null>(null);
-  useEffect( => {
+  useEffect(() => {
     let alive = true;
     resolveSignedUrl(url).then((u) => { if (alive) setSrc(u); });
-    return  => { alive = false; };
+    return () => { alive = false; };
   }, [url]);
   if (!src) return <span className="approval-att-thumb-wait">불러오는 중…</span>;
   // eslint-disable-next-line @next/next/no-img-element
@@ -221,16 +224,18 @@ function AttachmentList({ attachments }: { attachments?: string[] }) {
           <button
             key={i}
             type="button"
-            onClick={(e) => { e.stopPropagation; downloadStoredFile(url, attachmentFileName(url)); }}
+            onClick={(e) => { e.stopPropagation(); downloadStoredFile(url, attachmentFileName(url)); }}
             className="inline-flex items-center gap-2 pl-2 pr-3 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[12px] font-medium text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/40 transition"
           >
             <span className="w-6 h-6 rounded-lg bg-[var(--success)]/12 text-[var(--success)] flex items-center justify-center shrink-0">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
             </span>
             <span className="truncate max-w-[180px]">{attachmentFileName(url)}</span>
-          </button>))}
+          </button>
+        ))}
       </div>
-    </div>);
+    </div>
+  );
 }
 
 
@@ -260,8 +265,10 @@ function FormFieldRows({ fields }: { fields: { label: string; type: string; valu
           </span>
           <span className="w-[120px] shrink-0 text-[13px] text-[var(--text-muted)]">{f.label}</span>
           <span className="text-sm font-semibold text-[var(--text)] truncate">{f.value}</span>
-        </div>))}
-    </div>);
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /**
@@ -313,7 +320,8 @@ function resolveFormFields(
   customFields: Record<string, unknown> | undefined,
   formsById: Map<string, ApprovalForm>,
   policies?: ApprovalPolicy[],
-  requestType?: string): { label: string; type: string; value: string }[] {
+  requestType?: string
+): { label: string; type: string; value: string }[] {
   // 휴가·초과근무는 구조화 데이터가 원본 — 필드 정의 유무와 무관하게 항상 폼 행으로 먼저 푼다.
   const leaveRows = [...leaveFieldRows(customFields), ...overtimeFieldRows(customFields)];
   const defs = formId
@@ -328,7 +336,7 @@ function resolveFormFields(
   return [
     ...leaveRows,
     ...defs.map((fd) => {
-      const raw = String(customFields?.[fd.key] ?? "").trim;
+      const raw = String(customFields?.[fd.key] ?? "").trim();
       return { label: fd.label, type: fd.type, value: raw || "-" };
     }),
   ];
@@ -343,7 +351,7 @@ type ApprovalPdfReq = {
 
 /** 결재 문서 PDF 파일명 · 단건 저장·일괄 zip 안 파일명이 같은 규칙을 쓴다 */
 function approvalPdfFileName(req: Pick<ApprovalPdfReq, "title" | "created_at">): string {
-  const title = (req.title || "무제").replace(/[\\/:*?"<>|]/g, " ").replace(/\s+/g, " ").trim || "무제";
+  const title = (req.title || "무제").replace(/[\\/:*?"<>|]/g, " ").replace(/\s+/g, " ").trim() || "무제";
   return `결재문서_${title}_${formatDate(req.created_at)}.pdf`;
 }
 
@@ -376,7 +384,7 @@ async function buildApprovalPdfBlob(args:  {
   const timeline = await getApprovalTimeline(req.id);
   // 상태는 목록 캐시가 아니라 DB 최신값으로 · 최종 승인 직후 목록이 갱신되기 전에 PDF 를
   //   받으면 완결된 결재가 '대기'로 찍혔다.
-  const  { data: freshReq } = await db.from("approval_requests").select("status").eq("id", req.id).maybeSingle;
+  const  { data: freshReq } = await db.from("approval_requests").select("status").eq("id", req.id).maybeSingle();
   const status = (freshReq as { status?: string } | null)?.status || req.status;
   const attachments = (await Promise.all(
     (req.attachments || []).map(async (url) => {
@@ -389,7 +397,8 @@ async function buildApprovalPdfBlob(args:  {
         ? `${window.location.origin}/api/files/download/${encodeURIComponent(name.replace(/[/\\]/g, '_'))}?u=${encodeURIComponent(signed)}`
         : signed;
       return { name, url: proxied };
-    }))).filter((a): a is { name: string; url: string } => !!a);
+    })
+  )).filter((a): a is { name: string; url: string } => !!a);
 
   const contentText = contentWithoutFieldLines(req.description || "", formFields);
   const draftDate = approvalDraftDate(formFields);
@@ -417,7 +426,7 @@ async function buildApprovalPdfBlob(args:  {
 }
 
 // ── 상세 내용 서식(HTML) 지원 (2026-07-16) — RichEditor 로 작성한 결재 내용(표·서식 포함) ──
-const isHtmlDesc = (s?: string | null) => !!s && /^\s*</.test(String(s).trim);
+const isHtmlDesc = (s?: string | null) => !!s && /^\s*</.test(String(s).trim());
 
 function escapeHtmlText(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -427,14 +436,14 @@ function escapeHtmlText(s: string): string {
 function plainToHtml(text: string): string {
   if (!text) return "";
   if (isHtmlDesc(text)) return text;
-  return text.split("\n").map((line) => (line.trim === "" ? "<p><br/></p>" : `<p>${escapeHtmlText(line)}</p>`)).join("");
+  return text.split("\n").map((line) => (line.trim() === "" ? "<p><br/></p>" : `<p>${escapeHtmlText(line)}</p>`)).join("");
 }
 
 /** RichEditor 빈 문서(<p></p>  등) 판별 · 텍스트·이미지·표 전부 없으면 빈 것으로 취급 */
 function isEmptyHtml(html: string): boolean  {
   if (!html) return true;
   if (/<(img|table)/i.test(html)) return false;
-  return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim === "";
+  return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim() === "";
 }
 
 
@@ -467,7 +476,7 @@ function contentWithoutFieldLines(description: string, formFields: { label: stri
         .replace(/<[^>]+>/g, "")
         .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<")
         .replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
-        .trim;
+        .trim();
       if (!startsWithField(text)) break;
       rest = rest.slice(m[0].length);
     }
@@ -481,17 +490,17 @@ function contentWithoutFieldLines(description: string, formFields: { label: stri
   if (formFields.some((f) => f.label === "휴가 종류")) {
     const STRIP = ["신청자", "휴가 유형", "휴가 종류", "휴가 단위", "휴가 기간", "휴가 일자", "시간"];
     const kept = description.split("\n").filter((line) => {
-      const t = line.trim;
+      const t = line.trim();
       if (t === "[휴가 신청서]") return false;
       const m = /^-\s*([^:]+):/.exec(t);
-      return !(m && STRIP.includes(m[1].trim));
+      return !(m && STRIP.includes(m[1].trim()));
     });
     return kept.join("\n").replace(/^\n+/, "").replace(/\n{3,}/g, "\n\n");
   }
 
   const lines = description.split("\n");
   let i = 0;
-  while (i < lines.length && startsWithField(lines[i].trim)) i++;
+  while (i < lines.length && startsWithField(lines[i].trim())) i++;
   return lines.slice(i).join("\n").replace(/^\n+/, "");
 }
 
@@ -527,28 +536,29 @@ function useListFilter(opts: { types: string[]; requesters?: string[]; withStatu
   };
   const drop = (patch: Partial<LCond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
   const chips: AppliedChip[] = [
-    ...(q ? [{ group: "빠른검색", label: q, onRemove:  => setQ("") }] : []),
-    ...live.types.map((t) => ({ group: "유형", label: typeLabelOf(t), onRemove:  => drop({ types: live.types.filter((x) => x !== t) }) })),
-    ...live.statuses.map((v) => ({ group: "상태", label: statusLabelOf(v), onRemove:  => drop({ statuses: live.statuses.filter((x) => x !== v) }) })),
-    ...((live.from || live.to) ? [{ group: "요청일", label: `${live.from || "…"} ~ ${live.to || "…"}`, onRemove:  => drop({ from: "", to: "" }) }] : []),
-    ...live.requester.map((v) => ({ group: "요청자", label: v, onRemove:  => drop({ requester: live.requester.filter((x) => x !== v) }) })),
-    ...((live.min || live.max) ? [{ group: "금액", label: `${Number(live.min || 0).toLocaleString("ko")} ~ ${live.max ? Number(live.max).toLocaleString("ko") : "제한없음"}`, onRemove:  => drop({ min: "", max: "" }) }] : []),
+    ...(q ? [{ group: "빠른검색", label: q, onRemove: () => setQ("") }] : []),
+    ...live.types.map((t) => ({ group: "유형", label: typeLabelOf(t), onRemove: () => drop({ types: live.types.filter((x) => x !== t) }) })),
+    ...live.statuses.map((v) => ({ group: "상태", label: statusLabelOf(v), onRemove: () => drop({ statuses: live.statuses.filter((x) => x !== v) }) })),
+    ...((live.from || live.to) ? [{ group: "요청일", label: `${live.from || "…"} ~ ${live.to || "…"}`, onRemove: () => drop({ from: "", to: "" }) }] : []),
+    ...live.requester.map((v) => ({ group: "요청자", label: v, onRemove: () => drop({ requester: live.requester.filter((x) => x !== v) }) })),
+    ...((live.min || live.max) ? [{ group: "금액", label: `${Number(live.min || 0).toLocaleString("ko")} ~ ${live.max ? Number(live.max).toLocaleString("ko") : "제한없음"}`, onRemove: () => drop({ min: "", max: "" }) }] : []),
   ];
-  const clearAll =  => { setQ(""); setLive({ ...LEMPTY, rows: live.rows }); setDraft({ ...LEMPTY, rows: live.rows }); };
+  const clearAll = () => { setQ(""); setLive({ ...LEMPTY, rows: live.rows }); setDraft({ ...LEMPTY, rows: live.rows }); };
   const panel = (
     <ConditionPanel open={open} onOpenChange={(v) => { if (v) setDraft(live); setOpen(v); }} activeCount={lCount(live)}
       foot={<>
-        <button type="button" className="btn-secondary btn-sm" disabled={lCount(draft) === 0} onClick={ => setDraft({ ...LEMPTY, rows: draft.rows })}>조건 지우기</button>
+        <button type="button" className="btn-secondary btn-sm" disabled={lCount(draft) === 0} onClick={() => setDraft({ ...LEMPTY, rows: draft.rows })}>조건 지우기</button>
         <span className="ml-auto" />
         <RowsPerPage value={draft.rows} onChange={(n) => setDraft((c) => ({ ...c, rows: n }))} />
-        <button type="button" className="btn-primary btn-sm" onClick={ => { setLive(draft); setOpen(false); }}>조회</button>
+        <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setOpen(false); }}>조회</button>
       </>}>
       <ConditionRow label="유형" hint="고르지 않으면 전체입니다.">
         <span className="qk-quicks">
           {typeOpts.map((o) => (
             <button key={o.value} type="button"
-              onClick={ => setDraft((c) => ({ ...c, types: c.types.includes(o.value) ? c.types.filter((x) => x !== o.value) : [...c.types, o.value] }))}
-              className={draft.types.includes(o.value) ? "qk-quick qk-quick-on" : "qk-quick"}>{o.label}</button>))}
+              onClick={() => setDraft((c) => ({ ...c, types: c.types.includes(o.value) ? c.types.filter((x) => x !== o.value) : [...c.types, o.value] }))}
+              className={draft.types.includes(o.value) ? "qk-quick qk-quick-on" : "qk-quick"}>{o.label}</button>
+          ))}
           {typeOpts.length === 0 && <span className="text-[11px] text-[var(--text-dim)]">아직 유형이 없습니다.</span>}
         </span>
       </ConditionRow>
@@ -557,21 +567,25 @@ function useListFilter(opts: { types: string[]; requesters?: string[]; withStatu
           <span className="qk-quicks">
             {L_STATUSES.map((o) => (
               <button key={o.value} type="button"
-                onClick={ => setDraft((c) => ({ ...c, statuses: c.statuses.includes(o.value) ? c.statuses.filter((x) => x !== o.value) : [...c.statuses, o.value] }))}
-                className={draft.statuses.includes(o.value) ? "qk-quick qk-quick-on" : "qk-quick"}>{o.label}</button>))}
+                onClick={() => setDraft((c) => ({ ...c, statuses: c.statuses.includes(o.value) ? c.statuses.filter((x) => x !== o.value) : [...c.statuses, o.value] }))}
+                className={draft.statuses.includes(o.value) ? "qk-quick qk-quick-on" : "qk-quick"}>{o.label}</button>
+            ))}
           </span>
-        </ConditionRow>)}
+        </ConditionRow>
+      )}
       <ConditionRow label="요청일" hint="비우면 전체 기간">
-        <DateRangeField label={null} from={draft.from} to={draft.to} onChange={(f, t) => setDraft((c) => ({ ...c, from: f, to: t }))} onClear={ => setDraft((c) => ({ ...c, from: "", to: "" }))} />
+        <DateRangeField label={null} from={draft.from} to={draft.to} onChange={(f, t) => setDraft((c) => ({ ...c, from: f, to: t }))} onClear={() => setDraft((c) => ({ ...c, from: "", to: "" }))} />
       </ConditionRow>
       {opts.requesters && (
         <ConditionRow label="요청자" hint="여러 명">
           <TokenField items={reqOpts} value={draft.requester} onChange={(v) => setDraft((c) => ({ ...c, requester: v }))} placeholder="이름 일부" />
-        </ConditionRow>)}
+        </ConditionRow>
+      )}
       <ConditionRow label="금액" hint="한쪽만 적어도 됩니다.">
         <AmountRange min={draft.min} max={draft.max} onMin={(v) => setDraft((c) => ({ ...c, min: v }))} onMax={(v) => setDraft((c) => ({ ...c, max: v }))} />
       </ConditionRow>
-    </ConditionPanel>);
+    </ConditionPanel>
+  );
   const quick = <QuickSearch value={q} onApply={setQ} placeholder={opts.requesters ? "제목 · 요청자 · 유형 · 쉼표로 여러 개, Enter" : "제목 · 유형 · 쉼표로 여러 개, Enter"} />;
   const applied = <AppliedChips chips={chips} onClearAll={clearAll} />;
   const key = `${q}|${JSON.stringify(live)}`;
@@ -593,39 +607,41 @@ function TypePicker({ value, options, placeholder, onChange, emptyText, favorite
   const [q, setQ] = useState("");
   const box = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-  useEffect( => {
+  useEffect(() => {
     if (!open) { setQ(""); return; }
     const away = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     document.addEventListener("mousedown", away); document.addEventListener("keydown", esc);
-    setTimeout( => searchRef.current?.focus, 0);
-    return  => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+    setTimeout(() => searchRef.current?.focus(), 0);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
   }, [open]);
   const cur = options.find((o) => o.value === value);
   const favSet = new Set(favorites || []);
   const canFav = !!onToggleFavorite;
   const searchable = options.length >= PICK_SEARCH_FROM;
-  const nq = q.trim.toLowerCase;
-  const hit = (o: PickOpt) => !nq || o.label.toLowerCase.includes(nq) || (o.sub || "").toLowerCase.includes(nq);
+  const nq = q.trim().toLowerCase();
+  const hit = (o: PickOpt) => !nq || o.label.toLowerCase().includes(nq) || (o.sub || "").toLowerCase().includes(nq);
   const favItems = canFav && !nq ? options.filter((o) => favSet.has(o.value)) : [];
   const rest = options.filter(hit);
   const row = (o: PickOpt, keyPrefix = "") => (
     <div key={keyPrefix + o.value} className="ap-pick-line">
       <button type="button" role="option" aria-selected={o.value === value}
         className={o.value === value ? "ap-pick-item ap-pick-item-on" : "ap-pick-item"}
-        onClick={ => { onChange(o.value); setOpen(false); }}>
+        onClick={() => { onChange(o.value); setOpen(false); }}>
         {o.icon}<span className="ap-pick-label">{o.label}</span>{o.sub && <span className="ap-pick-sub">{o.sub}</span>}
       </button>
       {canFav && (
         <button type="button" className={favSet.has(o.value) ? "ap-pick-star ap-pick-star-on" : "ap-pick-star"}
           title={favSet.has(o.value) ? "즐겨찾기에서 빼기" : "즐겨찾기에 넣기"} aria-label={favSet.has(o.value) ? "즐겨찾기에서 빼기" : "즐겨찾기에 넣기"} aria-pressed={favSet.has(o.value)}
-          onClick={(e) => { e.stopPropagation; onToggleFavorite?.(o.value); }}>
+          onClick={(e) => { e.stopPropagation(); onToggleFavorite?.(o.value); }}>
           {favSet.has(o.value) ? "★" : "☆"}
-        </button>)}
-    </div>);
+        </button>
+      )}
+    </div>
+  );
   return (
     <div className="ap-pick" ref={box}>
-      <button type="button" className={cur ? "ap-pick-btn ap-pick-btn-on" : "ap-pick-btn"} onClick={ => setOpen((v) => !v)} aria-expanded={open}>
+      <button type="button" className={cur ? "ap-pick-btn ap-pick-btn-on" : "ap-pick-btn"} onClick={() => setOpen((v) => !v)} aria-expanded={open}>
         {cur ? (<>{cur.icon}<span className="ap-pick-label">{cur.label}</span>{cur.sub && <span className="ap-pick-sub">{cur.sub}</span>}</>) : <span className="ap-pick-ph">{placeholder}</span>}
         <span className="qk-caret ml-auto">▾</span>
       </button>
@@ -634,20 +650,25 @@ function TypePicker({ value, options, placeholder, onChange, emptyText, favorite
           {searchable && (
             <input ref={searchRef} type="text" value={q} onChange={(e) => setQ(e.target.value)} placeholder="유형 이름으로 찾기"
               className="ap-pick-search" aria-label="요청 유형 검색"
-              onKeyDown={(e) => { if (e.key === "Enter" && rest.length === 1) { onChange(rest[0].value); setOpen(false); } }} />)}
+              onKeyDown={(e) => { if (e.key === "Enter" && rest.length === 1) { onChange(rest[0].value); setOpen(false); } }} />
+          )}
           {options.length === 0 && <div className="ap-pick-empty">{emptyText || "고를 항목이 없습니다."}</div>}
           {favItems.length > 0 && (
             <>
               <div className="ap-pick-group">즐겨찾기</div>
               {favItems.map((o) => row(o, "fav:"))}
               <div className="ap-pick-group">전체</div>
-            </>)}
+            </>
+          )}
           {canFav && favItems.length === 0 && !nq && options.length >= PICK_SEARCH_FROM && (
-            <div className="ap-pick-hint">☆를 누르면 맨 위에 고정됩니다.</div>)}
-          {rest.length === 0 && options.length > 0 && <div className="ap-pick-empty">"{q.trim}"에 맞는 유형이 없습니다.</div>}
+            <div className="ap-pick-hint">☆를 누르면 맨 위에 고정됩니다.</div>
+          )}
+          {rest.length === 0 && options.length > 0 && <div className="ap-pick-empty">"{q.trim()}"에 맞는 유형이 없습니다.</div>}
           {rest.map((o) => row(o))}
-        </div>)}
-    </div>);
+        </div>
+      )}
+    </div>
+  );
 }
 
 function formatDate(dateStr: string | null) {
@@ -670,9 +691,9 @@ async function saveBlobToUserChosenPath(blob: Blob, suggestedName: string, kind:
           ? [{ description: "ZIP 압축 파일", accept: { "application/zip": [".zip"] } }]
           : [{ description: "PDF 문서", accept: { "application/pdf": [".pdf"] } }],
       });
-      const writable = await handle.createWritable;
+      const writable = await handle.createWritable();
       await writable.write(blob);
-      await writable.close;
+      await writable.close();
       return true;
     } catch (err: any) {
       if (err?.name === "AbortError") return false; // 사용자가 저장 취소
@@ -683,7 +704,7 @@ async function saveBlobToUserChosenPath(blob: Blob, suggestedName: string, kind:
   const a = document.createElement("a");
   a.href = url;
   a.download = suggestedName;
-  a.click;
+  a.click();
   URL.revokeObjectURL(url);
   return true;
 }
@@ -697,8 +718,8 @@ function formatDateTime(dateStr: string | null) {
 // Main Page
 // ══════════════════════════════════════════════
 
-export default function ApprovalsPage {
-  const sp = useSearchParams;
+export default function ApprovalsPage() {
+  const sp = useSearchParams();
   const newType = sp?.get('new'); // expense / payment / general — 대시보드 quick action 에서 전달
   // 알림에서 ?tab=... 로 진입 (notification-routes.ts) — 참조 통보는 references(→ 2026-08-18 부터 내 결재함의 '나를 참조한 건' 보기),
   //   결재 승인·반려 결과는 my-requests + ?request=<id> (해당 건 상세 자동 열림)
@@ -712,7 +733,7 @@ export default function ApprovalsPage {
   const [tab, setTab] = useState<Tab>(newType ? "new-request" : deepLinkTab ?? "my-approvals");
   const [presetType, setPresetType] = useState<string | null>(newType);
   const [allTabStatusFilter, setAllTabStatusFilter] = useState<string>("");
-  const queryClient = useQueryClient;
+  const queryClient = useQueryClient();
 
   // KPI 카드 클릭 → "전체 현황" 탭으로 이동 + 해당 상태 필터 적용
   const goToAllWithStatus = (status: string) => {
@@ -721,7 +742,7 @@ export default function ApprovalsPage {
   };
 
   // URL ?new=... 가 바뀌면 탭 + 타입 동기화 (대시보드 → approvals 이동 시)
-  useEffect( => {
+  useEffect(() => {
     if (newType) {
       setTab("new-request");
       setPresetType(newType);
@@ -729,12 +750,12 @@ export default function ApprovalsPage {
   }, [newType]);
 
   // URL ?tab=... (알림 클릭) → 해당 탭 동기화. 이미 /approvals 에 머문 상태에서 알림을 눌러도 이동한다.
-  useEffect( => {
+  useEffect(() => {
     if (!newType && deepLinkTab) setTab(deepLinkTab);
   }, [deepLinkTab, newType]);
 
-  useEffect( => {
-    getCurrentUser.then((u) => {
+  useEffect(() => {
+    getCurrentUser().then((u) => {
       if (u) {
         setCompanyId(u.company_id);
         setUserId(u.id);
@@ -748,13 +769,13 @@ export default function ApprovalsPage {
 
   // 결재 페이지 진입 시 dismissed 시각 저장 → sidebar 배지 사라짐.
   // 그 이후 새로 생성된 결재만 다음 polling에서 다시 카운트됨.
-  useEffect( => {
+  useEffect(() => {
     if (typeof window === "undefined") return;
-    localStorage.setItem("approvals-dismissed-at", new Date.toISOString);
+    localStorage.setItem("approvals-dismissed-at", new Date().toISOString());
     window.dispatchEvent(new Event("sidebar-refresh-badges"));
   }, []);
 
-  const invalidate =  => {
+  const invalidate = () => {
     //   2026-08-31: 결재 처리 후 대시보드·마이페이지·프로젝트의 결재 캐시가 최대 1분 낡아
     //   "이미 처리한 결재가 계속 떠 있다"가 됐다 — 같은 테이블을 읽는 키 전부 + 사이드바 배지.
     ["my-pending-approvals", "my-processed-approvals", "my-requests", "my-requests-pending", "referenced-requests",
@@ -769,24 +790,24 @@ export default function ApprovalsPage {
   const statsCompanyScope = tab === "all" || tab === "forms" || tab === "policies";
   const  { data: stats } = useQuery({
     queryKey: ["approval-stats", companyId, statsCompanyScope ? "company" : userId],
-    queryFn:  => getApprovalStats(companyId!, statsCompanyScope ? undefined : userId!),
+    queryFn: () => getApprovalStats(companyId!, statsCompanyScope ? undefined : userId!),
     enabled: !!companyId && (statsCompanyScope || !!userId),
   });
 
   // ⚠️ 마이페이지와 **같은 캐시**를 쓴다. 종전엔 같은 키(my-pending-count)에 이 화면은 숫자를,
   //   마이페이지는 배열을 넣어, 결재허브를 먼저 본 뒤 마이페이지로 가면 캐시에 담긴 숫자에
-  //   .slice 를 호출해 화면이 통째로 깨졌다 (2026-08-20 정다정님 3회 발생).
+  //   .slice() 를 호출해 화면이 통째로 깨졌다 (2026-08-20 정다정님 3회 발생).
   //   이제 배열 하나만 캐싱하고 개수는 select 로 파생시킨다.
   const  { data: myPendingCount } = useQuery({
     queryKey: ["my-pending-approvals", userId, companyId],
-    queryFn:  => getMyPendingApprovals(userId!, companyId!),
+    queryFn: () => getMyPendingApprovals(userId!, companyId!),
     select: (items: unknown[]) => items.length,
     enabled: !!userId && !!companyId,
   });
 
   // (2026-07-30 개편 P3) 세부탭 권한 게이트 · 마스터=전체, 멤버=부여받은 탭만.
   //   perm key 는 카탈로그(/approvals:내부탭키)와 1:1. 구 isAdmin 분기 대체.
-  const  { isMaster, hasPerm } = useMyPermissions;
+  const  { isMaster, hasPerm } = useMyPermissions();
   const tabAllowed = (k: Tab) => isMaster || hasPerm(`/approvals:${k}`);
   const isAdmin = isMaster || hasPerm("/approvals:all"); // 전체 현황 권한 = 관리 조회 성격 분기 유지용
 
@@ -801,7 +822,7 @@ export default function ApprovalsPage {
     { key: "policies", label: "결재선 관리", icon: "route" },
   ] as { key: Tab; label: string; icon: string; count?: number }[]).filter((t) => tabAllowed(t.key));
   // 현재 탭이 미허용(권한 없음)이면 첫 허용 탭으로 — 딥링크/기본값 가드
-  useEffect( => {
+  useEffect(() => {
     if (TABS.length > 0 && !TABS.some((t) => t.key === tab)) setTab(TABS[0].key);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [TABS.map((t) => t.key).join(","), tab]);
@@ -826,11 +847,12 @@ export default function ApprovalsPage {
         <QueryHead>
           <div className="collect-tabs no-print">
             {TABS.map((t) => (
-              <button key={t.key} type="button" onClick={ => setTab(t.key)}
+              <button key={t.key} type="button" onClick={() => setTab(t.key)}
                 className={tab === t.key ? "collect-tab collect-tab-on" : "collect-tab"}>
                 <span className="inline-flex items-center gap-1.5">{tabIcon(t.icon)}{t.label}</span>
                 {t.count !== undefined && t.count > 0 && <span className="collect-tab-cnt ap-tab-alert">{t.count}</span>}
-              </button>))}
+              </button>
+            ))}
           </div>
           {/* 요청 현황 요약 — '요청 현황' 지표라 요청 탭(내 요청·전체 현황)에만. 누르면 그 상태로 좁혀 본다 */}
           {(tab === "my-requests" || tab === "all") && (
@@ -842,30 +864,39 @@ export default function ApprovalsPage {
                 [statsCompanyScope ? "전체 요청" : "내 요청 전체", stats?.total ?? 0, "", undefined],
               ] as const).map(([label, value, status, tone]) => (
                 <button key={label} type="button" className="ap-stat-btn"
-                  onClick={ => { if (statsCompanyScope) goToAllWithStatus(status); else setTab("my-requests"); }}>
+                  onClick={() => { if (statsCompanyScope) goToAllWithStatus(status); else setTab("my-requests"); }}>
                   <Stat label={label} value={`${value}건`} tone={tone as "plus" | "minus" | undefined} />
-                </button>))}
-            </ResultStrip>)}
+                </button>
+              ))}
+            </ResultStrip>
+          )}
         </QueryHead>
         <QueryBody>
          <div className="ap-scroll">
       {/* Tab content */}
       {tab === "my-approvals" && companyId && userId && (
-        <MyApprovalsTab companyId={companyId} userId={userId} invalidate={invalidate} onGoToMyRequests={ => setTab("my-requests")} initialView={initialInboxView} />)}
+        <MyApprovalsTab companyId={companyId} userId={userId} invalidate={invalidate} onGoToMyRequests={() => setTab("my-requests")} initialView={initialInboxView} />
+      )}
       {tab === "my-requests" && companyId && userId && (
-        <MyRequestsTab companyId={companyId} userId={userId} invalidate={invalidate} focusRequestId={focusRequestId} />)}
+        <MyRequestsTab companyId={companyId} userId={userId} invalidate={invalidate} focusRequestId={focusRequestId} />
+      )}
       {tab === "all" && companyId && (
-        <AllRequestsTab companyId={companyId} initialStatusFilter={allTabStatusFilter} userId={userId} userRole={userRole} invalidate={invalidate} />)}
+        <AllRequestsTab companyId={companyId} initialStatusFilter={allTabStatusFilter} userId={userId} userRole={userRole} invalidate={invalidate} />
+      )}
       {tab === "new-request" && companyId && userId && (
-        <div className="ap-pad"><NewRequestTab companyId={companyId} userId={userId} invalidate={invalidate} onComplete={ => setTab("my-requests")} presetType={presetType} /></div>)}
+        <div className="ap-pad"><NewRequestTab companyId={companyId} userId={userId} invalidate={invalidate} onComplete={() => setTab("my-requests")} presetType={presetType} /></div>
+      )}
       {tab === "forms" && companyId && (
-        <ApprovalFormsManager companyId={companyId} />)}
+        <ApprovalFormsManager companyId={companyId} />
+      )}
       {tab === "policies" && companyId && (
-        <PoliciesTab companyId={companyId} invalidate={invalidate} />)}
+        <PoliciesTab companyId={companyId} invalidate={invalidate} />
+      )}
          </div>
         </QueryBody>
       </QueryScreen>
-    </div>);
+    </div>
+  );
 }
 
 // ══════════════════════════════════════════════
@@ -874,13 +905,13 @@ export default function ApprovalsPage {
 
 function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initialView }: {
   initialView?: "pending" | "processed" | "referenced";
-  companyId: string; userId: string; invalidate:  => void; onGoToMyRequests?:  => void;
+  companyId: string; userId: string; invalidate: () => void; onGoToMyRequests?: () => void;
 }) {
-  const { toast } = useToast;
+  const { toast } = useToast();
   const [comment, setComment] = useState("");
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   //   일괄 승인·반려 · 줄을 골라 바닥 선택 바에서 (2026-08-19 조회 표준: 확정 버튼은 SelectionBar 하나)
-  const [pickedSteps, setPickedSteps] = useState<Set<string>>(new Set);
+  const [pickedSteps, setPickedSteps] = useState<Set<string>>(new Set());
   const [batchBusy, setBatchBusy] = useState(false);
   const [batchRejectOpen, setBatchRejectOpen] = useState(false);
   const [batchReason, setBatchReason] = useState("");
@@ -891,19 +922,19 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
 
   const { data: pendingApprovals = [], isLoading } = useQuery({
     queryKey: ["my-pending-approvals", userId, companyId],
-    queryFn:  => getMyPendingApprovals(userId, companyId),
+    queryFn: () => getMyPendingApprovals(userId, companyId),
     enabled: !!userId && !!companyId,
   });
 
   const { data: processedApprovals = [], isLoading: processedLoading } = useQuery({
     queryKey: ["my-processed-approvals", userId, companyId],
-    queryFn:  => getMyProcessedApprovals(userId, companyId),
+    queryFn: () => getMyProcessedApprovals(userId, companyId),
     enabled: !!userId && !!companyId && view === "processed",
   });
   //   나를 참조한 건 · 예전 '참조' 탭. 결재선에 없는 참조자는 여기서만 내용을 본다 (2026-07-27 → 2026-08-18 내 결재함으로 합침)
   const  { data: referencedRequests = [] } = useQuery({
     queryKey: ["referenced-requests", userId, companyId],
-    queryFn:  => getReferencedRequests(userId, companyId),
+    queryFn: () => getReferencedRequests(userId, companyId),
     enabled: !!userId && !!companyId,
   });
 
@@ -911,17 +942,17 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
   //   이미 기안된 문서를 보는 화면이므로 삭제(비활성)된 양식도 포함해야 라벨을 되찾는다.
   const  { data: customForms = [] } = useQuery({
     queryKey: ["approval-forms", companyId, "all"],
-    queryFn:  => listApprovalForms({ includeInactive: true }),
+    queryFn: () => listApprovalForms({ includeInactive: true }),
     enabled: !!companyId,
   });
   // 기본 유형(form_id 없는 휴가·출장·지출결의 등)의 필드 정의는 정책에 있다.
   const { data: fieldPolicies = [] } = useQuery({
     queryKey: ["approval-policies", companyId],
-    queryFn:  => getApprovalPolicies(companyId),
+    queryFn: () => getApprovalPolicies(companyId),
     enabled: !!companyId,
   });
-  const formsById = useMemo( => {
-    const map = new Map<string, ApprovalForm>;
+  const formsById = useMemo(() => {
+    const map = new Map<string, ApprovalForm>();
     (customForms as ApprovalForm[]).forEach((f) => map.set(f.id, f));
     return map;
   }, [customForms]);
@@ -929,8 +960,8 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
   const approveMut = useMutation({
     mutationFn: ({ stepId, comment }: { stepId: string; comment?: string }) =>
       approveStep(stepId, userId, comment),
-    onSuccess:  => {
-      invalidate;
+    onSuccess: () => {
+      invalidate();
       setComment("");
       toast("승인 처리했습니다", "success");
       window.dispatchEvent(new Event("sidebar-refresh-badges"));
@@ -941,8 +972,8 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
   const rejectMut = useMutation({
     mutationFn: ({ stepId, comment }: { stepId: string; comment: string }) =>
       rejectStep(stepId, userId, comment),
-    onSuccess:  => {
-      invalidate;
+    onSuccess: () => {
+      invalidate();
       setComment("");
       toast("반려 처리했습니다", "success");
       window.dispatchEvent(new Event("sidebar-refresh-badges"));
@@ -966,15 +997,15 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
       } catch { fail += 1; }
     }
     setBatchBusy(false);
-    setPickedSteps(new Set);
+    setPickedSteps(new Set());
     setBatchRejectOpen(false); setBatchReason("");
-    invalidate;
+    invalidate();
     window.dispatchEvent(new Event("sidebar-refresh-badges"));
     toast(`${kind === "approve" ? "승인" : "반려"} ${ok}건 처리${fail ? ` · 실패 ${fail}건` : ""}`, fail ? "error" : "success");
   };
 
   // 목록이 바뀌면(처리 완료 등으로 사라지면) 열려 있던 상세 팝업 닫기
-  useEffect( => {
+  useEffect(() => {
     if (selectedStepId && !pendingApprovals.some((p: any) => p.stepId === selectedStepId)) {
       setSelectedStepId(null);
     }
@@ -987,10 +1018,11 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
   //   반려는 사유 필수 확인이 이미 버튼 클릭 시 별도 검증되므로 Enter 단축키는 승인에만 연결.
   useModalKeys(
     !!selected,
-     => { setSelectedStepId(null); setComment(""); },
+    () => { setSelectedStepId(null); setComment(""); },
     selected && !approveMut.isPending
-      ?  => approveMut.mutate({ stepId: selected.stepId, comment: comment || undefined })
-      : undefined,);
+      ? () => approveMut.mutate({ stepId: selected.stepId, comment: comment || undefined })
+      : undefined,
+  );
 
   // 검색조건(유형·요청일·기안자·금액) + 빠른검색 · 전체 현황과 같은 패널 (유형 버튼 줄 제거)
   const lf = useListFilter({
@@ -1018,14 +1050,16 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
           ]} />
       </QueryBar>
       {lf.applied}
-    </>);
+    </>
+  );
 
   if (view === "referenced") {
     return (
       <div className="ap-list">
         {filterBar}
         <ReferencedRequestsTab companyId={companyId} userId={userId} embedded={{ hit: lf.hit, rows: lf.rows, key: lf.key }} />
-      </div>);
+      </div>
+    );
   }
 
   if (view === "processed") {
@@ -1036,15 +1070,18 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
           <div className="ap-empty">
             <div className="text-sm font-bold mb-1">검색 결과가 없습니다.</div>
             <div className="text-xs text-[var(--text-muted)]">검색어나 필터를 바꿔 보세요.</div>
-          </div>) : (
+          </div>
+        ) : (
           <ProcessedApprovalsList
             items={visibleProcessed}
             isLoading={processedLoading}
             formsById={formsById}
             policies={fieldPolicies as ApprovalPolicy[]}
             onGoToMyRequests={onGoToMyRequests}
-          />)}
-      </div>);
+          />
+        )}
+      </div>
+    );
   }
 
   if (isLoading) {
@@ -1064,7 +1101,8 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
             새 결재 요청이 오면 여기에 표시됩니다.
           </div>
         </div>
-      </div>);
+      </div>
+    );
   }
 
   const selectedFormFields = selected
@@ -1072,13 +1110,13 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
     : [];
   const selectedContent = selected ? contentWithoutFieldLines(selected.description || "", selectedFormFields) : "";
 
-  const handleApprove =  => {
+  const handleApprove = () => {
     if (!selected) return;
     approveMut.mutate({ stepId: selected.stepId, comment: comment || undefined });
   };
-  const handleReject =  => {
+  const handleReject = () => {
     if (!selected) return;
-    if (!comment.trim) { toast("반려 사유를 입력하세요", "error"); return; }
+    if (!comment.trim()) { toast("반려 사유를 입력하세요", "error"); return; }
     rejectMut.mutate({ stepId: selected.stepId, comment });
   };
 
@@ -1093,7 +1131,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
           <tr>
             <th className="w-10">
               <button type="button" aria-label="이 목록 전체 선택"
-                onClick={ => { const all = visiblePending.length > 0 && visiblePending.every((p: any) => pickedSteps.has(p.stepId)); const next = new Set(pickedSteps); if (all) visiblePending.forEach((p: any) => next.delete(p.stepId)); else visiblePending.forEach((p: any) => next.add(p.stepId)); setPickedSteps(next); }}
+                onClick={() => { const all = visiblePending.length > 0 && visiblePending.every((p: any) => pickedSteps.has(p.stepId)); const next = new Set(pickedSteps); if (all) visiblePending.forEach((p: any) => next.delete(p.stepId)); else visiblePending.forEach((p: any) => next.add(p.stepId)); setPickedSteps(next); }}
                 className={visiblePending.length > 0 && visiblePending.every((p: any) => pickedSteps.has(p.stepId)) ? "collect-chk collect-chk-on" : "collect-chk"}>
                 {visiblePending.length > 0 && visiblePending.every((p: any) => pickedSteps.has(p.stepId)) ? "✓" : ""}
               </button>
@@ -1113,17 +1151,18 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
                 <div className="text-sm font-bold mb-1">검색 결과가 없습니다.</div>
                 <div className="text-xs text-[var(--text-muted)]">검색어나 필터를 바꿔 보세요.</div>
               </td>
-            </tr>) : (
+            </tr>
+          ) : (
             visiblePending.map((item: any) => {
               const m = typeMeta(item.requestType);
               return (
                 <tr
                   key={item.stepId}
                   className={pickedSteps.has(item.stepId) ? "approval-table-row ap-row-open" : "approval-table-row"}
-                  onClick={ => { setSelectedStepId(item.stepId); setComment(""); }}
+                  onClick={() => { setSelectedStepId(item.stepId); setComment(""); }}
                 >
-                  <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation}>
-                    <button type="button" aria-label="선택" onClick={ => setPickedSteps((s) => { const n = new Set(s); if (n.has(item.stepId)) n.delete(item.stepId); else n.add(item.stepId); return n; })}
+                  <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                    <button type="button" aria-label="선택" onClick={() => setPickedSteps((s) => { const n = new Set(s); if (n.has(item.stepId)) n.delete(item.stepId); else n.add(item.stepId); return n; })}
                       className={pickedSteps.has(item.stepId) ? "collect-chk collect-chk-on" : "collect-chk"}>{pickedSteps.has(item.stepId) ? "✓" : ""}</button>
                   </td>
                   <td className="px-4 py-3.5 text-center">
@@ -1151,36 +1190,39 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
                     <StageProgress current={item.currentStage} total={item.totalStages} status="pending" />
                   </td>
                   <td className="px-4 py-3.5 text-xs text-[var(--text-muted)] whitespace-nowrap">{formatDate(item.createdAt)}</td>
-                </tr>);
-            }))}
+                </tr>
+              );
+            })
+          )}
         </tbody>
       </table>
     </div>
 
     {/* 일괄 승인·반려 — 고른 순간에만 뜨는 바닥 바. 파란(확정) 버튼은 여기 하나 */}
-    <SelectionBar count={pickedSteps.size} summary="승인 대기 결재" onClear={ => setPickedSteps(new Set)}>
-      <button type="button" className="btn-secondary btn-sm text-[var(--danger)]" disabled={batchBusy} onClick={ => setBatchRejectOpen(true)}>선택 반려</button>
-      <button type="button" className="btn-primary btn-sm" disabled={batchBusy} onClick={ => runBatch("approve")}>{batchBusy ? "처리 중…" : `선택 승인 (${pickedSteps.size})`}</button>
+    <SelectionBar count={pickedSteps.size} summary="승인 대기 결재" onClear={() => setPickedSteps(new Set())}>
+      <button type="button" className="btn-secondary btn-sm text-[var(--danger)]" disabled={batchBusy} onClick={() => setBatchRejectOpen(true)}>선택 반려</button>
+      <button type="button" className="btn-primary btn-sm" disabled={batchBusy} onClick={() => runBatch("approve")}>{batchBusy ? "처리 중…" : `선택 승인 (${pickedSteps.size})`}</button>
     </SelectionBar>
     {batchRejectOpen && (
-      <div className="approval-detail-modal" onClick={ => !batchBusy && setBatchRejectOpen(false)}>
-        <div className="approval-policy-form ap-pol-modal max-w-md" onClick={(e) => e.stopPropagation}>
+      <div className="approval-detail-modal" onClick={() => !batchBusy && setBatchRejectOpen(false)}>
+        <div className="approval-policy-form ap-pol-modal max-w-md" onClick={(e) => e.stopPropagation()}>
           <h3 className="section-title">선택 {pickedSteps.size}건 반려</h3>
           <p className="text-xs text-[var(--text-muted)] mb-2">반려 사유는 요청자에게 전달됩니다.</p>
           <textarea value={batchReason} onChange={(e) => setBatchReason(e.target.value)} rows={3} placeholder="반려 사유 (필수)" className="field-input w-full" />
           <div className="flex gap-2 mt-3">
-            <button type="button" className="btn-primary btn-sm" disabled={batchBusy || batchReason.trim.length < 2} onClick={ => runBatch("reject", batchReason.trim)}>{batchBusy ? "처리 중…" : "반려"}</button>
-            <button type="button" className="btn-secondary btn-sm" onClick={ => setBatchRejectOpen(false)}>취소</button>
+            <button type="button" className="btn-primary btn-sm" disabled={batchBusy || batchReason.trim().length < 2} onClick={() => runBatch("reject", batchReason.trim())}>{batchBusy ? "처리 중…" : "반려"}</button>
+            <button type="button" className="btn-secondary btn-sm" onClick={() => setBatchRejectOpen(false)}>취소</button>
           </div>
         </div>
-      </div>)}
+      </div>
+    )}
 
     {/* 결재 상세 팝업 — 전체 현황 상세와 동일 구성 + 승인/반려 처리 */}
-    {selected && ( => {
+    {selected && (() => {
       const m = typeMeta(selected.requestType);
       return (
-        <div className="approval-detail-modal fixed inset-0" onClick={ => setSelectedStepId(null)}>
-          <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation}>
+        <div className="approval-detail-modal fixed inset-0" onClick={() => setSelectedStepId(null)}>
+          <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3 mb-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
@@ -1188,7 +1230,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
                 </span>
                 <span className="approval-need-badge"><span className="approval-need-badge-dot" />승인 필요</span>
               </div>
-              <button onClick={ => setSelectedStepId(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-xl leading-none px-1">✕</button>
+              <button onClick={() => setSelectedStepId(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-xl leading-none px-1">✕</button>
             </div>
             <h3 className="text-[20px] font-extrabold leading-tight mt-2 mb-1.5">{selected.title}</h3>
             <div className="text-xs text-[var(--text-dim)] mb-1.5">
@@ -1201,14 +1243,17 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
             </div>
 
             {selected.amount > 0 && (
-              <div className="text-xl font-extrabold mono-number mb-4">{formatAmount(selected.amount)}</div>)}
+              <div className="text-xl font-extrabold mono-number mb-4">{formatAmount(selected.amount)}</div>
+            )}
 
             {selectedFormFields.length > 0 && (
               <div className="mb-4 pb-4 border-b border-[var(--border)]/60">
                 <FormFieldRows fields={selectedFormFields} />
-              </div>)}
+              </div>
+            )}
             {selectedContent && (
-              <DescriptionContent text={selectedContent} className="mb-2 text-sm text-[var(--text)] leading-8" />)}
+              <DescriptionContent text={selectedContent} className="mb-2 text-sm text-[var(--text)] leading-8" />
+            )}
             <AttachmentList attachments={selected.attachments} />
 
             {/* 결재 의견 + 승인/반려 */}
@@ -1254,9 +1299,11 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
               <ApprovalCommentThread requestId={selected.requestId} />
             </div>
           </div>
-        </div>);
-    })}
-    </div>);
+        </div>
+      );
+    })()}
+    </div>
+  );
 }
 
 
@@ -1271,10 +1318,10 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
   isLoading: boolean;
   formsById: Map<string, ApprovalForm>;
   policies: ApprovalPolicy[];
-  onGoToMyRequests?:  => void;
+  onGoToMyRequests?: () => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
-  const { toast } = useToast;
+  const { toast } = useToast();
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
 
   // 내가 결재한 건도 문서로 보관할 수 있어야 한다.
@@ -1315,14 +1362,17 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
       {onGoToMyRequests ? (
         <button onClick={onGoToMyRequests} className="text-[var(--primary)] font-semibold underline underline-offset-2">
           내 요청
-        </button>) : (
-        <b>내 요청</b>)}{" "}
+        </button>
+      ) : (
+        <b>내 요청</b>
+      )}{" "}
       탭에서 봅니다.
-    </div>);
+    </div>
+  );
 
   // 상세 팝업 — ESC로 닫기 (전체 현황 상세와 동일한 조작감)
   const selected = items.find((i) => i.stepId === openId) || null;
-  useModalKeys(!!selected,  => setOpenId(null));
+  useModalKeys(!!selected, () => setOpenId(null));
 
   if (isLoading) {
     return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
@@ -1337,7 +1387,8 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
             승인하거나 반려한 결재가 여기에 표시됩니다.
           </div>
         </div>
-      </div>);
+      </div>
+    );
   }
 
   // 내가 이 단계에서 내린 결정 pill (문서 최종 상태와 다를 수 있음)
@@ -1348,7 +1399,8 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
         : "bg-[var(--danger)]/10 text-[var(--danger)]"
     }`}>
       {item.myDecision === "approved" ? "승인" : "반려"}
-    </span>);
+    </span>
+  );
 
   return (
     <div className="ap-list">
@@ -1377,7 +1429,7 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
               <tr
                 key={item.stepId}
                 className="approval-table-row"
-                onClick={ => setOpenId(item.stepId)}
+                onClick={() => setOpenId(item.stepId)}
               >
                 <td className="px-4 py-3.5"><StatusBadge status={item.requestStatus} /></td>
                 <td className="px-4 py-3.5">{myDecisionPill(item)}</td>
@@ -1406,7 +1458,7 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
                 <td className="px-4 py-3.5 text-xs text-[var(--text-muted)] whitespace-nowrap">{item.decidedAt ? formatDate(item.decidedAt) : "-"}</td>
                 <td className="px-4 py-3.5">
                   <button
-                    onClick={(e) => { e.stopPropagation; handlePdf(item); }}
+                    onClick={(e) => { e.stopPropagation(); handlePdf(item); }}
                     disabled={pdfLoadingId === item.stepId}
                     title="결재 문서 PDF 다운로드"
                     className="approval-modal-pdf-btn"
@@ -1417,20 +1469,21 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
                     {pdfLoadingId === item.stepId ? "생성 중..." : "PDF"}
                   </button>
                 </td>
-              </tr>);
+              </tr>
+            );
           })}
         </tbody>
       </table>
     </div>
 
     {/* 상세 팝업 — 전체 현황 상세와 동일 구성 + 내 처리 정보 */}
-    {selected && ( => {
+    {selected && (() => {
       const m = typeMeta(selected.requestType);
       const fields = resolveFormFields(selected.formId, selected.customFields, formsById, policies, selected.requestType);
       const content = contentWithoutFieldLines(selected.description || "", fields);
       return (
-        <div className="approval-detail-modal fixed inset-0" onClick={ => setOpenId(null)}>
-          <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation}>
+        <div className="approval-detail-modal fixed inset-0" onClick={() => setOpenId(null)}>
+          <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3 mb-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
@@ -1441,7 +1494,7 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={ => handlePdf(selected)}
+                  onClick={() => handlePdf(selected)}
                   disabled={pdfLoadingId === selected.stepId}
                   title="결재 문서 PDF 저장"
                   className="approval-modal-pdf-btn"
@@ -1451,7 +1504,7 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
                   </svg>
                   {pdfLoadingId === selected.stepId ? "생성 중..." : "PDF 저장"}
                 </button>
-                <button onClick={ => setOpenId(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-xl leading-none px-1">✕</button>
+                <button onClick={() => setOpenId(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-xl leading-none px-1">✕</button>
               </div>
             </div>
             <h3 className="text-[20px] font-extrabold leading-tight mt-2 mb-1.5">{selected.title}</h3>
@@ -1464,14 +1517,17 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
             </div>
 
             {selected.amount > 0 && (
-              <div className="text-xl font-extrabold mono-number mb-4">{formatAmount(selected.amount)}</div>)}
+              <div className="text-xl font-extrabold mono-number mb-4">{formatAmount(selected.amount)}</div>
+            )}
 
             {fields.length > 0 && (
               <div className="mb-4 pb-4 border-b border-[var(--border)]/60">
                 <FormFieldRows fields={fields} />
-              </div>)}
+              </div>
+            )}
             {!isEmptyHtml(content) && (
-              <DescriptionContent text={content} className="mb-2 text-sm text-[var(--text)] leading-8" />)}
+              <DescriptionContent text={content} className="mb-2 text-sm text-[var(--text)] leading-8" />
+            )}
             <AttachmentList attachments={selected.attachments} />
 
             <div className="mt-6 pt-5 border-t border-[var(--border)]">
@@ -1483,9 +1539,11 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
               />
             </div>
           </div>
-        </div>);
-    })}
-    </div>);
+        </div>
+      );
+    })()}
+    </div>
+  );
 }
 
 // ══════════════════════════════════════════════
@@ -1493,23 +1551,23 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
 // ══════════════════════════════════════════════
 
 function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
-  companyId: string; userId: string; invalidate:  => void; focusRequestId?: string | null;
+  companyId: string; userId: string; invalidate: () => void; focusRequestId?: string | null;
 }) {
-  const { toast } = useToast;
-  const { confirm, confirmElement } = useConfirm;
+  const { toast } = useToast();
+  const { confirm, confirmElement } = useConfirm();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["my-requests", userId, companyId],
-    queryFn:  => getMyRequests(userId, companyId),
+    queryFn: () => getMyRequests(userId, companyId),
     enabled: !!userId && !!companyId,
   });
 
   // 승인·반려 알림에서 ?request=<id> 로 진입 → 그 건의 상세(결재선·결과)를 바로 연다.
   //   목록 로딩 후 1회만 열고, 사용자가 닫으면 다시 열지 않는다.
   const focusedRef = useRef<string | null>(null);
-  useEffect( => {
+  useEffect(() => {
     if (!focusRequestId || focusedRef.current === focusRequestId) return;
     if ((requests as any[]).some((r) => r.id === focusRequestId)) {
       focusedRef.current = focusRequestId;
@@ -1521,7 +1579,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
   //   이름 매핑용 회사 사용자 목록 조회.
   const { data: companyUsers = [] } = useQuery({
     queryKey: ["approval-company-users", companyId],
-    queryFn: async  => {
+    queryFn: async () => {
       const data = logRead('approvals/page:users', await (supabase).from("users").select("id, name, email").eq("company_id", companyId));
       return data || [];
     },
@@ -1534,11 +1592,11 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
 
   // ── 대기중 요청 본인 수정 ──
   //   양식/정책 필드 정의를 되찾아 생성 화면과 동일한 입력으로 편집.
-  const { data: editForms = [] } = useQuery({ queryKey: ["approval-forms", companyId, "all"], queryFn:  => listApprovalForms({ includeInactive: true }), enabled: !!companyId });
-  const { data: editPolicies = [] } = useQuery({ queryKey: ["approval-policies", companyId], queryFn:  => getApprovalPolicies(companyId), enabled: !!companyId });
+  const { data: editForms = [] } = useQuery({ queryKey: ["approval-forms", companyId, "all"], queryFn: () => listApprovalForms({ includeInactive: true }), enabled: !!companyId });
+  const { data: editPolicies = [] } = useQuery({ queryKey: ["approval-policies", companyId], queryFn: () => getApprovalPolicies(companyId), enabled: !!companyId });
   // 상세 팝업에서 필드표·본문을 그리기 위한 양식 정의 맵 (편집용으로 이미 불러온 것을 재사용)
-  const detailFormsById = useMemo( => {
-    const map = new Map<string, ApprovalForm>;
+  const detailFormsById = useMemo(() => {
+    const map = new Map<string, ApprovalForm>();
     (editForms as ApprovalForm[]).forEach((f) => map.set(f.id, f));
     return map;
   }, [editForms]);
@@ -1585,7 +1643,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
     setEditDragging(false);
     setEditReq(req);
   };
-  const saveEdit = async  => {
+  const saveEdit = async () => {
     if (!editReq || savingEdit) return;
     setSavingEdit(true);
     try {
@@ -1593,7 +1651,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
       const uploadedUrls: string[] = [];
       const failedUploads: string[] = [];
       for (const file of editNewFiles) {
-        const path = `approvals/${companyId}/${Date.now}_${toBase64Url(file.name)}`;
+        const path = `approvals/${companyId}/${Date.now()}_${toBase64Url(file.name)}`;
         const { error } = await supabase.storage.from("documents").upload(path, file);
         if (!error) {
           const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
@@ -1624,7 +1682,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
       await updateApprovalRequest({
         requestId: editReq.id,
         userId,
-        title: editForm.title.trim || editReq.title,
+        title: editForm.title.trim() || editReq.title,
         amount,
         description: finalDesc,
         // 구조화 데이터(휴가·초과근무)는 양식 필드 목록에 없으므로 여기서 살려 둬야 한다 —
@@ -1640,7 +1698,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
       });
       toast("요청을 수정했습니다", "success");
       setEditReq(null);
-      invalidate;
+      invalidate();
     } catch (e: any) {
       toast("수정 실패: " + friendlyError(e, "알 수 없는 오류"), "error");
     } finally {
@@ -1668,7 +1726,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
       await deleteApprovalRequest(req.id);
       if (expandedId === req.id) setExpandedId(null);
       toast("삭제했습니다", "success");
-      invalidate;
+      invalidate();
     } catch (err: any) {
       toast(`삭제 실패: ${friendlyError(err, "알 수 없는 오류")}`, "error");
     } finally {
@@ -1712,8 +1770,10 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
           </div>
           <div className="text-base font-bold mb-1.5">아직 제출한 결재 요청이 없습니다.</div>
           <div className="text-sm text-[var(--text-muted)]">새 요청 탭에서 결재를 올려 보세요.</div>
-        </div>) : visibleMine.length === 0 ? (
-        <div className="ap-empty"><div className="text-sm font-bold mb-1">조건에 맞는 요청이 없습니다.</div><div className="text-xs text-[var(--text-muted)]">검색조건을 풀어 보세요.</div></div>) : (
+        </div>
+      ) : visibleMine.length === 0 ? (
+        <div className="ap-empty"><div className="text-sm font-bold mb-1">조건에 맞는 요청이 없습니다.</div><div className="text-xs text-[var(--text-muted)]">검색조건을 풀어 보세요.</div></div>
+      ) : (
         <>
         {/* 표 — 전체 현황과 같은 뼈대. 줄을 누르면 상세 팝업 */}
         <div className="approval-table-wrap ev-scroll">
@@ -1733,7 +1793,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
               {(pager.view as any[]).map((req: any) => {
                 const m = typeMeta(req.request_type);
                 return (
-                  <tr key={req.id} className="approval-table-row" onClick={ => setExpandedId(req.id)}>
+                  <tr key={req.id} className="approval-table-row" onClick={() => setExpandedId(req.id)}>
                     <td className="px-4 py-3.5 text-center"><StatusBadge status={req.status} /></td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -1755,35 +1815,39 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1.5">
                         {req.status === "rejected" && (
-                          <button onClick={(e) => { e.stopPropagation; resubmitMut.mutate(req.id); }} disabled={resubmitMut.isPending} className="btn-primary btn-sm">재제출</button>)}
+                          <button onClick={(e) => { e.stopPropagation(); resubmitMut.mutate(req.id); }} disabled={resubmitMut.isPending} className="btn-primary btn-sm">재제출</button>
+                        )}
                         {req.status === "pending" && (
                           <>
-                            <button onClick={(e) => { e.stopPropagation; openEdit(req); }} className="btn-secondary btn-sm" title="대기중인 동안 요청 내용을 수정할 수 있습니다">수정</button>
-                            <button onClick={(e) => { e.stopPropagation; handleDeleteMine(req); }} disabled={deletingId === req.id} className="btn-secondary btn-sm text-[var(--danger)] disabled:opacity-50" title="대기중인 동안 요청을 삭제할 수 있습니다">
+                            <button onClick={(e) => { e.stopPropagation(); openEdit(req); }} className="btn-secondary btn-sm" title="대기중인 동안 요청 내용을 수정할 수 있습니다">수정</button>
+                            <button onClick={(e) => { e.stopPropagation(); handleDeleteMine(req); }} disabled={deletingId === req.id} className="btn-secondary btn-sm text-[var(--danger)] disabled:opacity-50" title="대기중인 동안 요청을 삭제할 수 있습니다">
                               {deletingId === req.id ? "삭제 중…" : "삭제"}
                             </button>
-                          </>)}
+                          </>
+                        )}
                       </div>
                     </td>
-                  </tr>);
+                  </tr>
+                );
               })}
             </tbody>
           </table>
         </div>
         <Pager page={pager.page} pages={pager.pages} total={visibleMine.length} size={lf.rows} from={pager.from} to={pager.to} onPage={pager.setPage} />
-        </>)}
+        </>
+      )}
 
       {/* 상세 팝업 — 올린 결재의 전체 내용(필드표·본문·첨부·결재선) 확인.
           눌러도 내용이 안 보였음(기존 펼침은 결재 진행단계만). */}
-      {expandedId && ( => {
+      {expandedId && (() => {
         const req = (requests as any[]).find((r) => r.id === expandedId);
         if (!req) return null;
         const m = typeMeta(req.request_type);
         const fields = resolveFormFields(req.form_id, req.custom_fields, detailFormsById, editPolicies as ApprovalPolicy[], req.request_type);
         const content = contentWithoutFieldLines(req.description || "", fields);
         return (
-          <div className="approval-detail-modal fixed inset-0" onClick={ => setExpandedId(null)}>
-            <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation}>
+          <div className="approval-detail-modal fixed inset-0" onClick={() => setExpandedId(null)}>
+            <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-start justify-between gap-3 mb-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
@@ -1793,7 +1857,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={ => handleDownloadApprovalPdf(req)}
+                    onClick={() => handleDownloadApprovalPdf(req)}
                     disabled={pdfLoadingId === req.id}
                     title="결재 문서 PDF 저장"
                     className="approval-modal-pdf-btn"
@@ -1803,7 +1867,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
                     </svg>
                     {pdfLoadingId === req.id ? "생성 중..." : "PDF 저장"}
                   </button>
-                  <button onClick={ => setExpandedId(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-xl leading-none px-1">✕</button>
+                  <button onClick={() => setExpandedId(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-xl leading-none px-1">✕</button>
                 </div>
               </div>
               <h3 className="text-[20px] font-extrabold leading-tight mt-2 mb-1.5">{req.title}</h3>
@@ -1813,17 +1877,21 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
               {Array.isArray(req.reference_user_ids) && req.reference_user_ids.length > 0 && (
                 <div className="approval-reference-line text-[11px] text-[var(--text-dim)] mb-5">
                   참조: {req.reference_user_ids.map((id: string) => userName(id)).join(", ")}
-                </div>)}
+                </div>
+              )}
 
               {req.amount > 0 && (
-                <div className="text-xl font-extrabold mono-number mb-4">{formatAmount(req.amount)}</div>)}
+                <div className="text-xl font-extrabold mono-number mb-4">{formatAmount(req.amount)}</div>
+              )}
 
               {fields.length > 0 && (
                 <div className="mb-4 pb-4 border-b border-[var(--border)]/60">
                   <FormFieldRows fields={fields} />
-                </div>)}
+                </div>
+              )}
               {!isEmptyHtml(content) && (
-                <DescriptionContent text={content} className="mb-2 text-sm text-[var(--text)] leading-8" />)}
+                <DescriptionContent text={content} className="mb-2 text-sm text-[var(--text)] leading-8" />
+              )}
               <AttachmentList attachments={req.attachments} />
 
               <div className="mt-6 pt-5 border-t border-[var(--border)]">
@@ -1840,17 +1908,18 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
                 <ApprovalCommentThread requestId={req.id} />
               </div>
             </div>
-          </div>);
-      })}
+          </div>
+        );
+      })()}
 
       {/* ── 대기중 요청 수정 모달 — 요청자 본인만, 생성 화면과 동일한 입력 구성 ── */}
-      {editReq && ( => {
+      {editReq && (() => {
         const fields = editFieldsFor(editReq);
         const isLeaveReq = editReq.request_type === "leave";
         const amountField = fields.find((fd) => fd.type === "amount");
         return (
-          <div className="approval-detail-modal fixed inset-0" onClick={ => setEditReq(null)}>
-            <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation}>
+          <div className="approval-detail-modal fixed inset-0" onClick={() => setEditReq(null)}>
+            <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <h3 className="text-sm font-bold mb-1">요청 수정</h3>
               <p className="text-[11px] text-[var(--text-dim)] mb-4">대기 중인 동안만 수정할 수 있습니다.</p>
               <div className="space-y-4">
@@ -1869,39 +1938,50 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
                       placeholder="0"
                       className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] text-right"
                     />
-                  </div>)}
+                  </div>
+                )}
                 {fields.map((fd) => (
                   <div key={fd.key}>
                     <label className="block text-xs text-[var(--text-muted)] mb-1">{fd.label}{fd.required ? " *" : ""}</label>
                     {fd.type === "textarea" ? (
-                      <textarea value={editFieldValues[fd.key] || ""} onChange={(e) => setEditFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} rows={2} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />) : fd.type === "select" ? (
+                      <textarea value={editFieldValues[fd.key] || ""} onChange={(e) => setEditFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} rows={2} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
+                    ) : fd.type === "select" ? (
                       <SelectWithEtc
                         value={editFieldValues[fd.key] || ""}
                         options={fd.options || []}
                         onChange={(v) => setEditFieldValues((s) => ({ ...s, [fd.key]: v }))}
-                      />) : fd.type === "fixed" ? (
+                      />
+                    ) : fd.type === "fixed" ? (
                       <input type="text" value={fd.default_value || ""} readOnly disabled
-                        className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-muted)]" />) : fd.type === "amount" && fd === amountField ? (
+                        className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-muted)]" />
+                    ) : fd.type === "amount" && fd === amountField ? (
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)] text-sm">₩</span>
                         <input inputMode="numeric" value={editFieldValues[fd.key] || ""}
                           onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, ""); setEditFieldValues((s) => ({ ...s, [fd.key]: raw ? Number(raw).toLocaleString("ko-KR") : "" })); }}
                           placeholder="0" className="w-full pl-7 pr-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm mono-number text-right" />
-                      </div>) : fd.type === "date" ? (
-                      <DateField value={editFieldValues[fd.key] || ""} onChange={(e) => setEditFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />) : fd.type === "period" ? (
-                      <PeriodFieldInput value={editFieldValues[fd.key] || ""} onChange={(v) => setEditFieldValues((s) => ({ ...s, [fd.key]: v }))} />) : (
-                      <input type={fd.type === "number" ? "number" : "text"} value={editFieldValues[fd.key] || ""} onChange={(e) => setEditFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />)}
-                  </div>))}
+                      </div>
+                    ) : fd.type === "date" ? (
+                      <DateField value={editFieldValues[fd.key] || ""} onChange={(e) => setEditFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
+                    ) : fd.type === "period" ? (
+                      <PeriodFieldInput value={editFieldValues[fd.key] || ""} onChange={(v) => setEditFieldValues((s) => ({ ...s, [fd.key]: v }))} />
+                    ) : (
+                      <input type={fd.type === "number" ? "number" : "text"} value={editFieldValues[fd.key] || ""} onChange={(e) => setEditFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
+                    )}
+                  </div>
+                ))}
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">상세 내용</label>
                   {isLeaveReq ? (
                     <textarea value={editForm.description} onChange={(e) => setEditForm((s) => ({ ...s, description: e.target.value }))} rows={6}
-                      className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none" />) : (
+                      className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none" />
+                  ) : (
                     <div className="approval-desc-editor">
                       <RichEditor key={editReq.id} content={editForm.description}
                         onChange={(html) => setEditForm((s) => ({ ...s, description: html }))}
                         maxHeight="280px" />
-                    </div>)}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">첨부파일</label>
@@ -1913,9 +1993,11 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
                           </span>
                           <span className="truncate flex-1 font-medium text-[var(--text)]">{attachmentFileName(url)}</span>
-                          <button type="button" onClick={ => setEditAttachments(prev => prev.filter((_, idx) => idx !== i))} className="text-[var(--text-dim)] hover:text-[var(--danger)] font-bold px-1 transition">✕</button>
-                        </div>))}
-                    </div>)}
+                          <button type="button" onClick={() => setEditAttachments(prev => prev.filter((_, idx) => idx !== i))} className="text-[var(--text-dim)] hover:text-[var(--danger)] font-bold px-1 transition">✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {editNewFiles.length > 0 && (
                     <div className="space-y-1.5 mb-2">
                       {editNewFiles.map((f, i) => (
@@ -1925,21 +2007,23 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
                           </span>
                           <span className="truncate flex-1 font-medium text-[var(--text)]">{f.name}</span>
                           <span className="text-[10px] text-[var(--text-dim)] mono-number shrink-0">{(f.size / 1024).toFixed(1)}KB</span>
-                          <button type="button" onClick={ => setEditNewFiles(prev => prev.filter((_, idx) => idx !== i))} className="text-[var(--text-dim)] hover:text-[var(--danger)] font-bold px-1 transition">✕</button>
-                        </div>))}
-                    </div>)}
+                          <button type="button" onClick={() => setEditNewFiles(prev => prev.filter((_, idx) => idx !== i))} className="text-[var(--text-dim)] hover:text-[var(--danger)] font-bold px-1 transition">✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <label
                     className={`flex flex-col items-center justify-center gap-1 px-4 py-4 rounded-xl border-2 border-dashed transition cursor-pointer ${
                       editDragging
                         ? "border-[var(--primary)] bg-[var(--primary)]/8"
                         : "border-[var(--border)] bg-[var(--bg)]/50 hover:border-[var(--primary)]/50 hover:bg-[var(--primary)]/4"
                     }`}
-                    onDragOver={(e) => { e.preventDefault; setEditDragging(true); }}
+                    onDragOver={(e) => { e.preventDefault(); setEditDragging(true); }}
                     onDragLeave={(e) => {
                       if (!e.currentTarget.contains(e.relatedTarget as Node)) setEditDragging(false);
                     }}
                     onDrop={(e) => {
-                      e.preventDefault;
+                      e.preventDefault();
                       setEditDragging(false);
                       const dropped = Array.from(e.dataTransfer.files || []);
                       if (dropped.length > 0) setEditNewFiles(prev => [...prev, ...dropped]);
@@ -1961,14 +2045,16 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
                 </div>
               </div>
               <div className="flex gap-2 mt-5">
-                <button onClick={ => setEditReq(null)} className="btn-secondary flex-1">취소</button>
+                <button onClick={() => setEditReq(null)} className="btn-secondary flex-1">취소</button>
                 <button onClick={saveEdit} disabled={savingEdit} className="btn-primary flex-1">{savingEdit ? "저장 중…" : "수정 저장"}</button>
               </div>
             </div>
-          </div>);
-      })}
+          </div>
+        );
+      })()}
       {confirmElement}
-    </div>);
+    </div>
+  );
 }
 
 // ══════════════════════════════════════════════
@@ -1987,23 +2073,23 @@ function ReferencedRequestsTab({ companyId, userId, embedded }: { companyId: str
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["referenced-requests", userId, companyId],
-    queryFn:  => getReferencedRequests(userId, companyId),
+    queryFn: () => getReferencedRequests(userId, companyId),
     enabled: !!userId && !!companyId,
   });
 
   // 양식 필드 정의 · custom_fields 값과 짝지어 구조화 항목으로 표시 (다른 탭과 동일 규칙)
   const  { data: customForms = [] } = useQuery({
     queryKey: ["approval-forms", companyId, "all"],
-    queryFn:  => listApprovalForms({ includeInactive: true }),
+    queryFn: () => listApprovalForms({ includeInactive: true }),
     enabled: !!companyId,
   });
   const { data: fieldPolicies = [] } = useQuery({
     queryKey: ["approval-policies", companyId],
-    queryFn:  => getApprovalPolicies(companyId),
+    queryFn: () => getApprovalPolicies(companyId),
     enabled: !!companyId,
   });
-  const formsById = useMemo( => {
-    const map = new Map<string, ApprovalForm>;
+  const formsById = useMemo(() => {
+    const map = new Map<string, ApprovalForm>();
     (customForms as ApprovalForm[]).forEach((f) => map.set(f.id, f));
     return map;
   }, [customForms]);
@@ -2041,8 +2127,10 @@ function ReferencedRequestsTab({ companyId, userId, embedded }: { companyId: str
           </div>
           <div className="text-base font-bold mb-1.5">아직 참조로 지정된 결재가 없습니다.</div>
           <div className="text-sm text-[var(--text-muted)]">나를 참조로 지정한 결재가 여기에 표시됩니다.</div>
-        </div>) : visibleRefs.length === 0 ? (
-        <div className="ap-empty"><div className="text-sm font-bold mb-1">조건에 맞는 요청이 없습니다.</div><div className="text-xs text-[var(--text-muted)]">검색조건을 풀어 보세요.</div></div>) : (
+        </div>
+      ) : visibleRefs.length === 0 ? (
+        <div className="ap-empty"><div className="text-sm font-bold mb-1">조건에 맞는 요청이 없습니다.</div><div className="text-xs text-[var(--text-muted)]">검색조건을 풀어 보세요.</div></div>
+      ) : (
         <>
         <div className="approval-table-wrap ev-scroll">
           <table className="ev-table ev-lined approval-table">
@@ -2066,7 +2154,7 @@ function ReferencedRequestsTab({ companyId, userId, embedded }: { companyId: str
                 const contentText = contentWithoutFieldLines(req.description || "", formFields);
                 return (
                   <Fragment key={req.id}>
-                    <tr className={open ? "approval-table-row ap-row-open" : "approval-table-row"} onClick={ => setExpandedId(open ? null : req.id)}>
+                    <tr className={open ? "approval-table-row ap-row-open" : "approval-table-row"} onClick={() => setExpandedId(open ? null : req.id)}>
                       <td className="px-4 py-3.5 text-center"><StatusBadge status={req.status} /></td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -2092,9 +2180,11 @@ function ReferencedRequestsTab({ companyId, userId, embedded }: { companyId: str
                             {formFields.length > 0 && (
                               <div className="mb-4 pb-4 border-b border-[var(--border)]/60">
                                 <FormFieldRows fields={formFields} />
-                              </div>)}
+                              </div>
+                            )}
                             {contentText && (
-                              <DescriptionContent text={contentText} className="mb-3 text-sm text-[var(--text)] leading-8" />)}
+                              <DescriptionContent text={contentText} className="mb-3 text-sm text-[var(--text)] leading-8" />
+                            )}
                             <AttachmentList attachments={req.attachments} />
                             {!isNativeLeave && (
                               <div className="mt-5 pt-4 border-t border-[var(--border)]">
@@ -2105,43 +2195,49 @@ function ReferencedRequestsTab({ companyId, userId, embedded }: { companyId: str
                                   requestStatus={req.status}
                                   currentUserId={userId}
                                 />
-                              </div>)}
+                              </div>
+                            )}
                             {/* 댓글 — 참조자에게만 안 보였다 ("참조인도 댓글 다 확인 가능하게").
                                 내 결재함·내 요청·전체 현황과 같은 공용 스레드 그대로 — 읽기·쓰기 모두 가능 */}
                             {!isNativeLeave && (
                               <div className="mt-5 pt-4 border-t border-[var(--border)]">
                                 <ApprovalCommentThread requestId={req.id} />
-                              </div>)}
+                              </div>
+                            )}
                           </div>
                         </td>
-                      </tr>)}
-                  </Fragment>);
+                      </tr>
+                    )}
+                  </Fragment>
+                );
               })}
             </tbody>
           </table>
         </div>
         <Pager page={pager.page} pages={pager.pages} total={visibleRefs.length} size={rowsN} from={pager.from} to={pager.to} onPage={pager.setPage} />
-        </>)}
-    </div>);
+        </>
+      )}
+    </div>
+  );
 }
 
 // ══════════════════════════════════════════════
 // Tab 4: 전체 현황 (Admin)
 // ══════════════════════════════════════════════
 
-function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, invalidate }: { invalidate:  => void; companyId: string; initialStatusFilter?: string; userId?: string | null; userRole?: string | null }) {
+function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, invalidate }: { invalidate: () => void; companyId: string; initialStatusFilter?: string; userId?: string | null; userRole?: string | null }) {
   // 직원 계정은 회사 전체가 아니라 본인이 신청한 요청만 조회 (관리자/대표는 전체)
   // (P3) 전체 현황 권한(:all)이 없으면 본인 신청분만 — 구 employee 분기 대체
-  const { isMaster: rMaster, hasPerm: rHasPerm } = useMyPermissions;
+  const { isMaster: rMaster, hasPerm: rHasPerm } = useMyPermissions();
   const restrictToOwn = !(rMaster || rHasPerm("/approvals:all"));
-  const { toast } = useToast;
-  const { confirm, confirmElement } = useConfirm;
-  const queryClient = useQueryClient;
+  const { toast } = useToast();
+  const { confirm, confirmElement } = useConfirm();
+  const queryClient = useQueryClient();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   // 체크박스 선택 → 여러 결재건 PDF 를 zip 하나로 일괄 다운로드
-  const [selectedIds, setSelectedIds] = useState<Set<string>>( => new Set);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [bulkPdf, setBulkPdf] = useState<{ running: boolean; done: number; total: number }>({ running: false, done: 0, total: 0 });
 
   // 확인(열람) 표시 — 클릭해 본 건은 목록에서 제목을 연하게 (광고비 지출결의서처럼
@@ -2149,14 +2245,14 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   //   같은 날 "계정별로 하자" 지시로 DB(approval_request_views, 본인 행 RLS)로 전환 — 기기 간 공유.
   const { data: viewedRows = [] } = useQuery({
     queryKey: ["approval-request-views", userId],
-    queryFn: async  => {
+    queryFn: async () => {
       const data = logRead('approvals/page:viewed', await (supabase as any)
         .from("approval_request_views").select("request_id").eq("user_id", userId!));
       return (data || []) as { request_id: string }[];
     },
     enabled: !!userId,
   });
-  const viewedIds = useMemo( => new Set(viewedRows.map((r) => r.request_id)), [viewedRows]);
+  const viewedIds = useMemo(() => new Set(viewedRows.map((r) => r.request_id)), [viewedRows]);
   const markViewed = (id: string) => {
     if (!userId || viewedIds.has(id)) return;
     // 낙관적 반영(연해지는 게 즉시 보여야 함) 후 DO NOTHING upsert — 재클릭·동시탭 충돌 무해.
@@ -2175,15 +2271,15 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   //   서버(approveStep/rejectStep)가 결재자 본인·pending 여부를 재검증하므로 표시는 편의일 뿐 권한 경계가 아니다.
   const { data: expandedTimeline = [] } = useQuery({
     queryKey: ["approval-timeline", expandedId],
-    queryFn:  => getApprovalTimeline(expandedId!),
+    queryFn: () => getApprovalTimeline(expandedId!),
     enabled: !!expandedId,
   });
   const [decisionComment, setDecisionComment] = useState("");
-  useEffect( => { setDecisionComment(""); }, [expandedId]);
+  useEffect(() => { setDecisionComment(""); }, [expandedId]);
   const decideApproveMut = useMutation({
     mutationFn: ({ stepId, comment }: { stepId: string; comment?: string }) => approveStep(stepId, userId!, comment),
-    onSuccess:  => {
-      invalidate;
+    onSuccess: () => {
+      invalidate();
       queryClient.invalidateQueries({ queryKey: ["approval-timeline", expandedId] });
       setDecisionComment("");
       toast("승인 처리했습니다", "success");
@@ -2193,8 +2289,8 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   });
   const decideRejectMut = useMutation({
     mutationFn: ({ stepId, comment }: { stepId: string; comment: string }) => rejectStep(stepId, userId!, comment),
-    onSuccess:  => {
-      invalidate;
+    onSuccess: () => {
+      invalidate();
       queryClient.invalidateQueries({ queryKey: ["approval-timeline", expandedId] });
       setDecisionComment("");
       toast("반려 처리했습니다", "success");
@@ -2206,7 +2302,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   //   유형·상태는 검색조건 패널에서 여러 개 고른다(클라이언트 필터). 서버는 전체를 한 번에 (상태 칩 줄도 검색조건으로)
   const  { data: allRequests = [], isLoading } = useQuery({
     queryKey: ["all-requests", companyId, restrictToOwn ? userId : null],
-    queryFn:  => getApprovalRequests(companyId, {
+    queryFn: () => getApprovalRequests(companyId, {
       requesterId: restrictToOwn ? userId || undefined : undefined,
     }),
     enabled: !!companyId && (!restrictToOwn || !!userId),
@@ -2215,16 +2311,16 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   // 커스텀 결재 양식 필드 정의 · custom_fields 값과 짝지어 펼침 패널에 구조화된 항목으로 표시
   const  { data: customForms = [] } = useQuery({
     queryKey: ["approval-forms", companyId, "all"],
-    queryFn:  => listApprovalForms({ includeInactive: true }),
+    queryFn: () => listApprovalForms({ includeInactive: true }),
     enabled: !!companyId,
   });
   const { data: fieldPolicies = [] } = useQuery({
     queryKey: ["approval-policies", companyId],
-    queryFn:  => getApprovalPolicies(companyId),
+    queryFn: () => getApprovalPolicies(companyId),
     enabled: !!companyId,
   });
-  const formsById = useMemo( => {
-    const map = new Map<string, ApprovalForm>;
+  const formsById = useMemo(() => {
+    const map = new Map<string, ApprovalForm>();
     (customForms as ApprovalForm[]).forEach((f) => map.set(f.id, f));
     return map;
   }, [customForms]);
@@ -2250,8 +2346,8 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   };
 
   // Enrich with requester names
-  const requesterNames = useMemo( => {
-    const map = new Map<string, string>;
+  const requesterNames = useMemo(() => {
+    const map = new Map<string, string>();
     allRequests.forEach((r: any) => {
       if (r.users) map.set(r.requester_id, r.users?.name || r.users?.email || "");
     });
@@ -2262,7 +2358,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   //   요청자 목록만으론 참조 전용 인원 이름을 못 찾아 회사 전체 사용자 목록을 별도 조회.
   const { data: companyUsers = [] } = useQuery({
     queryKey: ["approval-company-users", companyId],
-    queryFn: async  => {
+    queryFn: async () => {
       const data = logRead('approvals/page:users-avatar', await (supabase).from("users").select("id, name, email, avatar_url").eq("company_id", companyId));
       return data || [];
     },
@@ -2294,16 +2390,16 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
     if (next.has(id)) next.delete(id); else next.add(id);
     return next;
   });
-  const clearSelection =  => setSelectedIds(new Set);
-  const handleBulkPdf = async  => {
+  const clearSelection = () => setSelectedIds(new Set());
+  const handleBulkPdf = async () => {
     if (bulkPdf.running) return;
     const targets = (allRequests as any[]).filter((r) => selectedIds.has(r.id));
     if (targets.length === 0) { toast("다운로드할 결재건을 먼저 체크하세요", "error"); return; }
     setBulkPdf({ running: true, done: 0, total: targets.length });
     try {
       const JSZip = (await import("jszip")).default;
-      const zip = new JSZip;
-      const used = new Set<string>;
+      const zip = new JSZip();
+      const used = new Set<string>();
       const failed: string[] = [];
       let done = 0;
       for (const req of targets) {
@@ -2324,12 +2420,13 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
       }
       if (used.size === 0) throw new Error("PDF 를 한 건도 만들지 못했습니다");
       const zipBlob = await zip.generateAsync({ type: "blob" });
-      const saved = await saveBlobToUserChosenPath(zipBlob, `결재문서_일괄_${kstDateStr(new Date)}.zip`, "zip");
+      const saved = await saveBlobToUserChosenPath(zipBlob, `결재문서_일괄_${kstDateStr(new Date())}.zip`, "zip");
       if (saved) {
         toast(
           `PDF ${used.size}건 다운로드 완료${failed.length ? ` · ${failed.length}건 실패(${failed.slice(0, 3).join(", ")}${failed.length > 3 ? " 외" : ""})` : ""}`,
-          failed.length ? "error" : "success",);
-        if (!failed.length) clearSelection;
+          failed.length ? "error" : "success",
+        );
+        if (!failed.length) clearSelection();
       }
     } catch (err: any) {
       toast(`PDF 일괄 다운로드 실패: ${friendlyError(err, "알 수 없는 오류")}`, "error");
@@ -2338,14 +2435,14 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   };
 
   // 요청 상세 팝업(읽기 전용) — ESC로만 닫기, 별도 확인 액션 없음
-  useModalKeys(!!expandedId,  => setExpandedId(null));
+  useModalKeys(!!expandedId, () => setExpandedId(null));
   const lf = useListFilter({
     types: (allRequests as any[]).map((r) => r.request_type),
     requesters: (allRequests as any[]).map((r) => requesterNames.get(r.requester_id) || ""),
     withStatus: true,
   });
   // 요약 줄(대기 중·승인 완료·반려)의 상태 버튼 → 검색조건 '상태' 로 (이미 이 탭에 있어도 갱신)
-  useEffect( => {
+  useEffect(() => {
     if (initialStatusFilter !== undefined) lf.applyStatuses(initialStatusFilter ? [initialStatusFilter] : []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialStatusFilter]);
@@ -2370,7 +2467,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   // 머리 체크박스 = 지금 보이는 페이지 기준(다른 페이지 선택은 유지). 목록에서 사라진 id 는 건수에서 뺀다.
   const pageIds = (pager.view as any[]).map((r) => r.id as string);
   const allInPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
-  const toggleAllInPage =  => setSelectedIds((prev) => {
+  const toggleAllInPage = () => setSelectedIds((prev) => {
     const next = new Set(prev);
     if (allInPageSelected) pageIds.forEach((id) => next.delete(id)); else pageIds.forEach((id) => next.add(id));
     return next;
@@ -2427,7 +2524,8 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                   <div className="text-sm font-bold mb-1">결재 요청이 없습니다.</div>
                   <div className="text-xs text-[var(--text-muted)]">검색어나 필터를 바꿔 보세요.</div>
                 </td>
-              </tr>) : (
+              </tr>
+            ) : (
               (pager.view as any[]).map((req: any) => {
                 const m = typeMeta(req.request_type);
                 const isSelected = selectedIds.has(req.id);
@@ -2435,11 +2533,11 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                   <tr
                     key={req.id}
                     className={`approval-table-row${isSelected ? " bg-[var(--primary)]/5" : ""}`}
-                    onClick={ => { setExpandedId(req.id); markViewed(req.id); }}
+                    onClick={() => { setExpandedId(req.id); markViewed(req.id); }}
                   >
                     {/* 체크박스 칸 — 줄 클릭(상세 열기)과 분리 */}
-                    <td className="px-3 py-3.5" onClick={(e) => e.stopPropagation}>
-                      <input type="checkbox" checked={isSelected} onChange={ => toggleSelected(req.id)}
+                    <td className="px-3 py-3.5" onClick={(e) => e.stopPropagation()}>
+                      <input type="checkbox" checked={isSelected} onChange={() => toggleSelected(req.id)}
                         aria-label={`${req.title} 선택`}
                         className="w-4 h-4 rounded border-[var(--border)] accent-[var(--primary)] cursor-pointer" />
                     </td>
@@ -2473,7 +2571,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                       <div className="flex items-center gap-1.5">
                         {req.status === "approved" && (
                           <button
-                            onClick={(e) => { e.stopPropagation; handleDownloadApprovalPdf(req); }}
+                            onClick={(e) => { e.stopPropagation(); handleDownloadApprovalPdf(req); }}
                             disabled={pdfLoadingId === req.id}
                             title="결재 문서 PDF 다운로드"
                             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-light)] border border-[var(--border)] transition disabled:opacity-50"
@@ -2482,12 +2580,13 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                               <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
                             </svg>
                             {pdfLoadingId === req.id ? "생성 중..." : "PDF"}
-                          </button>)}
+                          </button>
+                        )}
                         {/* 승인·반려가 끝난 건은 삭제 버튼 자체를 감춘다
                             지우면 차감된 연차·지급 건이 근거 없이 남는다. 기록은 취소로 남긴다. */}
                         {["pending", "cancelled"].includes(String(req.status)) && (
                         <button
-                          onClick={(e) => { e.stopPropagation; handleDelete(req); }}
+                          onClick={(e) => { e.stopPropagation(); handleDelete(req); }}
                           disabled={deletingId === req.id}
                           title="결재 요청 삭제"
                           className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-[var(--text-dim)] hover:text-[var(--danger)] hover:bg-[var(--danger-dim)] border border-[var(--border)] transition disabled:opacity-50"
@@ -2495,26 +2594,29 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" />
                           </svg>
-                        </button>)}
+                        </button>
+                        )}
                       </div>
                     </td>
-                  </tr>);
-              }))}
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
       <Pager page={pager.page} pages={pager.pages} total={visibleRequests.length} size={lf.rows} from={pager.from} to={pager.to} onPage={pager.setPage} />
 
       {/* 요청 상세 팝업 — 클릭한 행의 내용·구조화 필드·첨부파일·결재 타임라인 */}
-      {expandedId && ( => {
+      {expandedId && (() => {
         const req = allRequests.find((r: any) => r.id === expandedId);
         if (!req) return null;
         const m = typeMeta(req.request_type);
         const reqFormFields = resolveFormFields(req.form_id, req.custom_fields, formsById, fieldPolicies as ApprovalPolicy[], req.request_type);
         const reqContentText = contentWithoutFieldLines(req.description || "", reqFormFields);
         return (
-          <div className="approval-detail-modal fixed inset-0" onClick={ => setExpandedId(null)}>
-            <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation}>
+          <div className="approval-detail-modal fixed inset-0" onClick={() => setExpandedId(null)}>
+            <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-start justify-between gap-3 mb-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
@@ -2524,7 +2626,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={ => handleDownloadApprovalPdf(req)}
+                    onClick={() => handleDownloadApprovalPdf(req)}
                     disabled={pdfLoadingId === req.id}
                     title="결재 문서 PDF 저장"
                     className="approval-modal-pdf-btn"
@@ -2534,7 +2636,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                     </svg>
                     {pdfLoadingId === req.id ? "생성 중..." : "PDF 저장"}
                   </button>
-                  <button onClick={ => setExpandedId(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-xl leading-none px-1">✕</button>
+                  <button onClick={() => setExpandedId(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-xl leading-none px-1">✕</button>
                 </div>
               </div>
               <h3 className="text-[20px] font-extrabold leading-tight mt-2 mb-1.5">{req.title}</h3>
@@ -2548,18 +2650,21 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
               </div>
 
               {req.amount > 0 && (
-                <div className="text-xl font-extrabold mono-number mb-4">{formatAmount(req.amount)}</div>)}
+                <div className="text-xl font-extrabold mono-number mb-4">{formatAmount(req.amount)}</div>
+              )}
 
               {reqFormFields.length > 0 && (
                 <div className="mb-4 pb-4 border-b border-[var(--border)]/60">
                   <FormFieldRows fields={reqFormFields} />
-                </div>)}
+                </div>
+              )}
               {reqContentText && (
-                <DescriptionContent text={reqContentText} className="mb-2 text-sm text-[var(--text)] leading-8" />)}
+                <DescriptionContent text={reqContentText} className="mb-2 text-sm text-[var(--text)] leading-8" />
+              )}
               <AttachmentList attachments={req.attachments} />
 
               {/* 내 차례인 대기 건이면 여기서 바로 승인/반려 — 내 결재함과 동일 처리 경로(approveStep/rejectStep) */}
-              {( => {
+              {(() => {
                 const myStep = req.status === "pending"
                   ? (expandedTimeline as any[]).find((st) => st.status === "pending" && st.approver_id === userId && st.stage === req.current_stage)
                   : null;
@@ -2576,8 +2681,8 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                     />
                     <div className="flex gap-2.5">
                       <button
-                        onClick={ => {
-                          if (!decisionComment.trim) { toast("반려 사유를 입력하세요", "error"); return; }
+                        onClick={() => {
+                          if (!decisionComment.trim()) { toast("반려 사유를 입력하세요", "error"); return; }
                           decideRejectMut.mutate({ stepId: myStep.id, comment: decisionComment });
                         }}
                         disabled={decideRejectMut.isPending || decideApproveMut.isPending}
@@ -2586,7 +2691,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                         {decideRejectMut.isPending ? "처리 중..." : "반려"}
                       </button>
                       <button
-                        onClick={ => decideApproveMut.mutate({ stepId: myStep.id, comment: decisionComment || undefined })}
+                        onClick={() => decideApproveMut.mutate({ stepId: myStep.id, comment: decisionComment || undefined })}
                         disabled={decideApproveMut.isPending || decideRejectMut.isPending}
                         className="flex-1 py-3.5 rounded-full text-sm font-bold text-white bg-[var(--success)] hover:opacity-90 disabled:opacity-50 transition inline-flex items-center justify-center gap-1.5"
                       >
@@ -2594,8 +2699,9 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                         {decideApproveMut.isPending ? "처리 중..." : "승인"}
                       </button>
                     </div>
-                  </div>);
-              })}
+                  </div>
+                );
+              })()}
 
               <div className="mt-6 pt-5 border-t border-[var(--border)]">
                 <ApprovalTimelineView
@@ -2612,10 +2718,12 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                 <ApprovalCommentThread requestId={req.id} />
               </div>
             </div>
-          </div>);
-      })}
+          </div>
+        );
+      })()}
       {confirmElement}
-    </div>);
+    </div>
+  );
 }
 
 // ── Description templates per request type ──
@@ -2654,13 +2762,14 @@ const LEAVE_UNIT_OPTIONS = [
 // 기간 필드 (2026-07-30 대표 — 결재 양식에서 기간 설정): 값은 "시작 ~ 종료" 한 문자열로
 //   customFieldValues 에 저장 — 상세/목록/PDF 등 기존 문자열 표시 경로가 그대로 통한다.
 function PeriodFieldInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [start = "", end = ""] = (value || "").split("~").map((x) => x.trim);
-  const emit = (ns: string, ne: string) => onChange(ns || ne ? `${ns} ~ ${ne}`.trim : "");
+  const [start = "", end = ""] = (value || "").split("~").map((x) => x.trim());
+  const emit = (ns: string, ne: string) => onChange(ns || ne ? `${ns} ~ ${ne}`.trim() : "");
   return (
     <div className="grid grid-cols-2 gap-2">
       <DateField value={start} onChange={(e) => emit(e.target.value, end)} className="field-input" />
       <DateField value={end} min={start || undefined} onChange={(e) => emit(start, e.target.value)} className="field-input" />
-    </div>);
+    </div>
+  );
 }
 
 // 입력 필드 블록 — 고정 순서 렌더.
@@ -2670,7 +2779,7 @@ function PeriodFieldInput({ value, onChange }: { value: string; onChange: (v: st
 //   양식 옵션에 '기타'(또는 그 외·직접입력)가 있으면, 그걸 고른 순간 옆에 내용 칸이 열린다.
 //   저장 형식은 "기타: 실제내용" 한 문자열 — 목록·상세·PDF 등 기존 표시 경로가 그대로 통한다.
 //   '기타'가 아닌 옵션은 예전과 완전히 같은 값으로 저장된다(호환 유지).
-const isEtcOption = (o: string) => /^(기타|그\s*외|직접\s*입력)/.test((o || "").trim);
+const isEtcOption = (o: string) => /^(기타|그\s*외|직접\s*입력)/.test((o || "").trim());
 
 function SelectWithEtc({ value, options, onChange, placeholder = "선택" }: {
   value: string; options: string[]; onChange: (v: string) => void; placeholder?: string;
@@ -2695,35 +2804,39 @@ function SelectWithEtc({ value, options, onChange, placeholder = "선택" }: {
         <input
           type="text"
           value={detail}
-          onChange={(e) => { const t = e.target.value; onChange(t.trim ? `${picked}: ${t}` : picked); }}
+          onChange={(e) => { const t = e.target.value; onChange(t.trim() ? `${picked}: ${t}` : picked); }}
           placeholder={`${picked} 내용을 직접 입력하세요`}
           className="field-input"
           autoFocus
-        />)}
-    </div>);
+        />
+      )}
+    </div>
+  );
 }
 
 function FieldBlocks({ blocks }: { blocks: { key: string; node: React.ReactNode }[] }) {
   return (
     <>
       {blocks.map((b) => (
-        <div key={b.key}>{b.node}</div>))}
-    </>);
+        <div key={b.key}>{b.node}</div>
+      ))}
+    </>
+  );
 }
 
 function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }: {
-  companyId: string; userId: string; invalidate:  => void; onComplete:  => void; presetType?: string | null;
+  companyId: string; userId: string; invalidate: () => void; onComplete: () => void; presetType?: string | null;
 }) {
   // 요청 유형 즐겨찾기 — 캐시로 즉시 그리고, 계정 저장값이 오면 덮는다
-  const [typeFavorites, setTypeFavorites] = useState<string[]>( => (typeof window !== "undefined" && companyId ? readCachedFavorites(companyId) : []));
+  const [typeFavorites, setTypeFavorites] = useState<string[]>(() => (typeof window !== "undefined" && companyId ? readCachedFavorites(companyId) : []));
   //   화면이 뜨자마자 ★ 를 누르면 그 뒤 도착한 계정 로드값(옛 상태)이 방금 누른 것을 덮어썼다.
   //   사용자가 한 번이라도 손대면 늦게 온 로드값은 버린다 — 저장은 토글 때마다 하니 계정값도 곧 같아진다.
   const typeFavTouched = useRef(false);
-  useEffect( => {
+  useEffect(() => {
     if (!companyId) return;
     let alive = true;
     loadApprovalTypeFavorites(companyId).then((favs) => { if (alive && favs && !typeFavTouched.current) setTypeFavorites(favs); });
-    return  => { alive = false; };
+    return () => { alive = false; };
   }, [companyId]);
   const toggleTypeFavorite = (v: string) => {
     typeFavTouched.current = true;
@@ -2735,20 +2848,20 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   };
   // 휴가 유형은 회사 설정을 따른다 — 구성원 > 휴가 탭에서 이름·일수를 고치면 여기도 같이 바뀐다.
   //   queryKey 는 휴가 탭과 동일해 캐시를 공유한다. (2026-08-06)
-  const { data: companyLeaveTypes = defaultCompanyLeaveTypes } = useQuery({
+  const { data: companyLeaveTypes = defaultCompanyLeaveTypes() } = useQuery({
     queryKey: ["company-leave-types", companyId],
-    queryFn:  => getCompanyLeaveTypes(companyId),
+    queryFn: () => getCompanyLeaveTypes(companyId),
     enabled: !!companyId,
   });
-  const { toast } = useToast;
+  const { toast } = useToast();
   // URL ?new=expense|payment|general 등 → presetType 으로 들어옴. 'leave' 도 지원.
   //   지정이 없으면 빈 값 — 유형을 고르기 전에는 유형 피커만 보인다 (
   //   경비 청구가 선택된 것처럼 보이면서 상세 내용은 안 뜨고, 다른 유형을 눌렀다 돌아와야
   //   나오던 문제. 처음부터 고르게 하면 그 혼란이 사라진다).
-  const initialType = ( => {
+  const initialType = (() => {
     if (presetType && presetType in REQUEST_TYPE_LABELS && presetType !== 'custom') return presetType as RequestType;   //   2026-08-19: 마이페이지에서 오는 certificate 등 모든 기본 유형
     return "" as const;
-  });
+  })();
   const [form, setForm] = useState<{ requestType: RequestType | ""; title: string; amount: string; description: string }>({
     requestType: initialType,
     title: "",
@@ -2757,7 +2870,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   });
   const typeChosen = !!form.requestType; // 유형을 고르기 전에는 아래 입력들을 감춘다
   // presetType 이 바뀌면 requestType 동기화 (대시보드에서 들어올 때)
-  useEffect( => {
+  useEffect(() => {
     if (presetType && ((presetType in REQUEST_TYPE_LABELS && presetType !== 'custom') || presetType === 'general')) {
       const t = presetType === 'general' ? 'expense' : presetType;
       setForm(f => ({ ...f, requestType: t as RequestType }));
@@ -2793,11 +2906,11 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   // 양식 선택으로 자동 채운 제목 · 사용자가 직접 고친 제목과 구분하려고 들고 있는다.
   //   이게 없으면 양식을 바꿔도 처음 양식 이름이 제목에 그대로 남는다.
   const autoTitleRef = useRef<string>("");
-  const { data: customForms = [] } = useQuery({ queryKey: ["approval-forms", companyId], queryFn:  => listApprovalForms, enabled: !!companyId });
+  const { data: customForms = [] } = useQuery({ queryKey: ["approval-forms", companyId], queryFn: () => listApprovalForms(), enabled: !!companyId });
   const selectedForm = (customForms as ApprovalForm[]).find((f) => `form:${f.id}` === form.requestType) || null;
   const [draftLoaded, setDraftLoaded] = useState(false);
 
-  useEffect( => {
+  useEffect(() => {
     if (draftLoaded || !companyId) return;
     // userId 포함: 회사 단위 키는 공용 브라우저에서 남의 임시저장(휴가 사유 등)이 보였다
   const draftKey = `ov-approval-draft-${companyId}-${userId || "anon"}`;
@@ -2826,15 +2939,15 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   // Fetch current user's employee record (이메일 매칭 → user_id 폴백)
   const { data: currentEmployee } = useQuery({
     queryKey: ["my-employee", companyId, userId],
-    queryFn: async  => {
-      const { data: user } = await db.from("users").select("email, name").eq("id", userId).maybeSingle;
+    queryFn: async () => {
+      const { data: user } = await db.from("users").select("email, name").eq("id", userId).maybeSingle();
       if (!user?.email) return null;
       // 이메일로 매칭
       //   work_end_time = 초과근무 종료시각 기본값(2026-08-20), position = 적용 대상 '직급' 매칭(2026-08-20)
-      let { data: emp } = await db.from("employees").select("id, name, email, department, work_end_time, position").eq("company_id", companyId).eq("email", user.email).maybeSingle;
+      let { data: emp } = await db.from("employees").select("id, name, email, department, work_end_time, position").eq("company_id", companyId).eq("email", user.email).maybeSingle();
       // 이메일 실패 시 user_id로 폴백
       if (!emp) {
-        const { data: empById } = await db.from("employees").select("id, name, email, department, work_end_time, position").eq("company_id", companyId).eq("user_id", userId).maybeSingle;
+        const { data: empById } = await db.from("employees").select("id, name, email, department, work_end_time, position").eq("company_id", companyId).eq("user_id", userId).maybeSingle();
         emp = empById;
       }
       return emp ? { ...emp, userName: user.name } : { id: null, name: user.name, userName: user.name };
@@ -2843,11 +2956,11 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   });
 
   // Fetch leave balance for current year
-  const currentYear = new Date.getFullYear;
+  const currentYear = new Date().getFullYear();
   const { data: leaveBalance } = useQuery({
     queryKey: ["my-leave-balance", currentEmployee?.id, currentYear],
-    queryFn: async  => {
-      const data = logRead('approvals/page:leave-balance', await db.from("leave_balances").select("total_days, used_days").eq("employee_id", currentEmployee!.id as string).eq("year", currentYear).maybeSingle);
+    queryFn: async () => {
+      const data = logRead('approvals/page:leave-balance', await db.from("leave_balances").select("total_days, used_days").eq("employee_id", currentEmployee!.id as string).eq("year", currentYear).maybeSingle());
       return data;
     },
     enabled: !!currentEmployee?.id,
@@ -2860,7 +2973,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const { data: leaveBizDays, isFetching: leaveDaysLoading } = useQuery({
     queryKey: ["leave-days", companyId, leaveForm.startDate, leaveForm.endDate],
     enabled: !!companyId && !!leaveForm.startDate && leaveForm.leaveUnit === "full_day",
-    queryFn:  => calcLeaveDays(companyId, leaveForm.startDate, leaveForm.endDate || leaveForm.startDate),
+    queryFn: () => calcLeaveDays(companyId, leaveForm.startDate, leaveForm.endDate || leaveForm.startDate),
   });
   const leaveDays = leaveForm.leaveUnit === "half_day" ? 0.5
     : leaveForm.leaveUnit === "two_hours" ? 0.25
@@ -2868,7 +2981,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     : (leaveBizDays ?? 0);
 
   // Auto-generate leave title
-  const leaveTitle = useMemo( => {
+  const leaveTitle = useMemo(() => {
     const typeLabel = companyLeaveTypes.find((t) => t.value === leaveForm.leaveType)?.label || "휴가";
     const unitLabel = LEAVE_UNIT_OPTIONS.find((u) => u.value === leaveForm.leaveUnit)?.label?.split(" ")[0] || "";
     const empName = currentEmployee?.name || "";
@@ -2884,7 +2997,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   }, [leaveForm, leaveDays, currentEmployee]);
 
   // Auto-generate leave description
-  const leaveDescription = useMemo( => {
+  const leaveDescription = useMemo(() => {
     const typeLabel = companyLeaveTypes.find((t) => t.value === leaveForm.leaveType)?.label || "";
     const unitLabel = LEAVE_UNIT_OPTIONS.find((u) => u.value === leaveForm.leaveUnit)?.label || "";
     const startStr = leaveForm.startDate ? leaveForm.startDate.replace(/-/g, ".") : "미선택";
@@ -2916,7 +3029,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   // Fetch company users for approver selection
   const  { data: companyUsers = [] } = useQuery({
     queryKey: ["company-users-approvers", companyId],
-    queryFn: async  => {
+    queryFn: async () => {
       const data = logRead('approvals/page:members', await db.from("users").select("id, name, email, role, avatar_url").eq("company_id", companyId).order("name"));
       return (data || []).filter((u: any) => u.id !== userId);
     },
@@ -2927,13 +3040,13 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   // Load policies for preview
   const { data: policies = [] } = useQuery({
     queryKey: ["approval-policies", companyId],
-    queryFn:  => getApprovalPolicies(companyId),
+    queryFn: () => getApprovalPolicies(companyId),
     enabled: !!companyId,
   });
 
   // Find matching policy for preview — 직원 지정(복수) > 팀(부서) > 회사 공통 (2026-08-11 확장).
   //   createApprovalRequest 서버 매칭(pickPolicyForRequester)과 동일 규칙.
-  const matchedPolicy = useMemo( => {
+  const matchedPolicy = useMemo(() => {
     const active = policies.filter((p: ApprovalPolicy) => p.is_active);
     const dept = (currentEmployee as any)?.department || null;
     const pick = (docType: string) =>
@@ -2945,7 +3058,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
 
   // 그 결재선 안에서 나에게 적용되는 규칙 — 미리보기 단계·참조 프리필의 기준.
   //   createApprovalRequest 서버 매칭(pickRuleForRequester)과 같은 규칙이어야 화면과 실제가 안 어긋난다. (2026-08-20)
-  const matchedRule = useMemo( => {
+  const matchedRule = useMemo(() => {
     if (!matchedPolicy) return null;
     const rules = policyRules(matchedPolicy);
     const emp = currentEmployee as { department?: string; position?: string } | null | undefined;
@@ -2957,7 +3070,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const canEditLine = matchedPolicy?.allow_line_edit !== false;
 
   // 요청 유형 변경 시 설명란 자동 입력 — 정책의 설명 템플릿 우선, 없으면 내장 템플릿.
-  useEffect( => {
+  useEffect(() => {
     if (isLeave || form.requestType.startsWith("form:") || form.requestType === descriptionInited) return;
     const tpl = plainToHtml(matchedPolicy?.description_template || DESCRIPTION_TEMPLATES[form.requestType as RequestType] || "");
     // 양식에서 일반 유형으로 옮겨 오면, 앞 양식이 자동으로 넣었던 제목은 지운다(직접 쓴 제목은 유지).
@@ -2974,7 +3087,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   }, [form.requestType, isLeave, descriptionInited, matchedPolicy]);
 
   // 커스텀 결재 양식 선택 시 — 제목·내용 템플릿 프리필 + 결재선을 승인자로 적용
-  useEffect( => {
+  useEffect(() => {
     if (!selectedForm || descriptionInited === form.requestType) return;
     const tplHtml = plainToHtml(selectedForm.content_template || "");
     // ⚠️ 갱신 함수 안에서 ref 를 읽으면 안 된다 — 그 함수는 렌더 때 실행돼, 그 시점엔 ref 가
@@ -2993,7 +3106,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     });
     descEditorRef.current?.setContent(tplHtml);
     setDescriptionInited(form.requestType);
-    // #11 · 고정값(fixed) 필드는 양식 지정값으로 프리필해 제출에 포함
+    // 직원 QA #11 · 고정값(fixed) 필드는 양식 지정값으로 프리필해 제출에 포함
     const initFields: Record<string, string> = {};
     for (const fd of selectedForm.fields || []) if (fd.type === "fixed") initFields[fd.key] = fd.default_value || "";
     setCustomFieldValues(initFields);
@@ -3015,7 +3128,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   // 참조자 프리필 — 양식(우선) 또는 기본 유형 정책에 지정된 참조 인원을 칩으로 미리 채운다.
   //   기존엔 제출 시점에만 조용히 붙어 요청자가 누가 참조로 들어가는지 볼 수 없었다(2026-07-20).
   //   유형이 바뀔 때만 재프리필 — 이후 요청자가 지우거나 추가한 내용은 유지.
-  useEffect( => {
+  useEffect(() => {
     // 구성원 목록 로딩 전에는 프리필하지 않는다 — 빈 배열로 확정돼 기본 참조자가 사라지는 것 방지.
     if (referencesInited === form.requestType || companyUsers.length === 0) return;
     // 2026-08-20: 결재선 참조는 '나에게 적용되는 규칙'의 참조를 쓴다(규칙 없는 옛 결재선은 종전과 동일).
@@ -3030,13 +3143,14 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       defaults
         .map((rid: string) => (companyUsers as any[]).find((u) => u.id === rid))
         .filter(Boolean)
-        .map((u: any) => ({ userId: u.id, name: u.name || u.email })),);
+        .map((u: any) => ({ userId: u.id, name: u.name || u.email })),
+    );
     setReferencesInited(form.requestType);
   }, [form.requestType, referencesInited, selectedForm, matchedPolicy, matchedRule, companyUsers]);
 
   // 2026-07-16: 기본 제공 유형에 정책 입력 필드가 있으면 — 유형 전환 시 고정값(fixed) 필드 프리필 +
   //   필드 없는 유형으로 바뀌면 이전 값 정리.
-  useEffect( => {
+  useEffect(() => {
     if (selectedForm) return; // 커스텀 양식은 위 effect 가 처리
     const fields = matchedPolicy?.fields || [];
     if (fields.length === 0) { setCustomFieldValues({}); return; }
@@ -3051,15 +3165,15 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const activeFields = !isLeave ? (selectedForm?.fields || matchedPolicy?.fields || []) : [];
   // 광고비 지출결의서만: 업체명 필드 값을 제목 뒤에 붙인다 (어느 업체 건인지
   //   제목만으로 구분되게. "다른 건 건들지 말고 광고비지출결의서만"). 이미 제목에 들어 있으면 중복 방지.
-  const vendorFieldVal = ( => {
+  const vendorFieldVal = (() => {
     if (!String(selectedForm?.name || "").replace(/\s/g, "").includes("광고비지출결의서")) return "";
     const fd = (activeFields as any[]).find((f) => /업체명/.test(String(f?.label || "")));
-    return fd ? String(customFieldValues[fd.key] || "").trim : "";
-  });
+    return fd ? String(customFieldValues[fd.key] || "").trim() : "";
+  })();
   const effectiveTitle = isLeave
     ? leaveTitle
-    : (vendorFieldVal && form.title.trim && !form.title.includes(vendorFieldVal)
-        ? `${form.title.trim} — ${vendorFieldVal}`
+    : (vendorFieldVal && form.title.trim() && !form.title.includes(vendorFieldVal)
+        ? `${form.title.trim()} — ${vendorFieldVal}`
         : form.title);
   // 커스텀 결재양식은 양식 자체 필드가 기준 — 일반 '금액' 입력은 숨기고(중복·혼란),
   //   양식(또는 기본 유형 정책)에 금액 타입 필드가 있으면 그 값을 결재 금액으로 사용, 없으면 금액 없는 결재(0).
@@ -3068,10 +3182,10 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   //  — 양식 필드 자동 프리필(수정 가능한 기본값):
   //   "부서-이름" 텍스트 필드 → 내 직원 정보의 부서 - 이름, 기안일·결제요청일 date 필드 → 오늘(KST).
   //   직원 정보 로딩이 끝난 뒤 1회만 실행, 이미 값이 있는 필드는 덮어쓰지 않는다.
-  useEffect( => {
+  useEffect(() => {
     if (isLeave || activeFields.length === 0 || autoFieldsInited === form.requestType) return;
     if (currentEmployee === undefined) return; // 직원 정보 로딩 중 — 완료 후 실행
-    const today = new Date.toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
     const dept = (currentEmployee as { department?: string } | null)?.department || "";
     const empName = currentEmployee?.name || "";
     const updates: Record<string, string> = {};
@@ -3099,7 +3213,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   //   양식의 필수(*) 칸 — 별표는 그려 놓고 검사는 어디에도 없어서, 빈 칸("-") 문서가
   //   그대로 결재자에게 갔다. 표시한 대로 막는다.
   const missingRequired = (activeFields as any[])
-    .filter((fd) => fd?.required && !String(customFieldValues[fd.key] ?? "").trim)
+    .filter((fd) => fd?.required && !String(customFieldValues[fd.key] ?? "").trim())
     .map((fd) => String(fd.label || fd.key));
 
   //   ⚠️ 일수가 0이면 올리지 않는다. 근무일 계산이 끝나기 전(종료일을 막 바꾼 직후)에 제출하면
@@ -3108,21 +3222,21 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const canSubmit = isLeave
     ? !!leaveForm.startDate && !!leaveForm.leaveType && !leaveDaysLoading && leaveDays > 0
     : isOvertime
-      ? !!form.title.trim && !!overtimeForm.date && !!overtimeForm.endTime
-      : !!form.title.trim && missingRequired.length === 0;
+      ? !!form.title.trim() && !!overtimeForm.date && !!overtimeForm.endTime
+      : !!form.title.trim() && missingRequired.length === 0;
 
   // 종료시각 기본값은 본인이 설정한 퇴근시각 — 없으면 비워 두고 직접 고르게 한다(임의 시각 금지).
-  const myWorkEnd = useMemo( => {
+  const myWorkEnd = useMemo(() => {
     const m = String((currentEmployee as { work_end_time?: string } | null)?.work_end_time || "").match(/^([0-2]?\d):([0-5]\d)/);
     return m ? `${m[1].padStart(2, "0")}:${m[2]}` : "";
   }, [currentEmployee]);
-  useEffect( => {
+  useEffect(() => {
     if (!isOvertime || overtimeForm.endTime || !myWorkEnd) return;
     setOvertimeForm((f) => ({ ...f, endTime: myWorkEnd }));
   }, [isOvertime, myWorkEnd, overtimeForm.endTime]);
 
   const createMut = useMutation({
-    mutationFn: async  => {
+    mutationFn: async () => {
       // Upload attachments if any
       let attachmentUrls: string[] = [];
       const failedUploads: string[] = [];
@@ -3130,7 +3244,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         for (const file of files) {
           // 화이트리스트 치환은 업로드는 되지만 한글 파일명이 언더스코어로
           //   뭉개져 표시됨 — base64url 인코딩으로 교체(Storage key 안전 + 원본 파일명 복원 가능)
-          const path = `approvals/${companyId}/${Date.now}_${toBase64Url(file.name)}`;
+          const path = `approvals/${companyId}/${Date.now()}_${toBase64Url(file.name)}`;
           const { error } = await supabase.storage.from("documents").upload(path, file);
           if (!error) {
             const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
@@ -3182,7 +3296,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         //   구조화 값(휴가·초과근무)은 양식 필드가 있어도 **함께** 넣는다 — 종전엔 필드를 하나라도
         //   추가하면 customFieldValues 로 통째로 덮여 일자·종료시각이 사라졌고, 근태 반영도 끊겼다
         //   . 입력칸은 필수로 막아 놓고 값은 안 저장하던 상태.
-        customFields: ( => {
+        customFields: (() => {
           const structured: Record<string, unknown> = {};
           if (isLeave) {
             structured.leave = { leave_type: leaveForm.leaveType, leave_unit: leaveForm.leaveUnit, start_date: leaveForm.startDate, end_date: leaveForm.endDate || leaveForm.startDate, days: leaveDays, ...leaveTimes };
@@ -3192,13 +3306,13 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
           }
           const merged = { ...(activeFields.length > 0 ? customFieldValues : {}), ...structured };
           return Object.keys(merged).length > 0 ? merged : undefined;
-        }),
+        })(),
         // 참조: 요청자가 화면에서 지정한 인원(양식·정책 기본값이 프리필돼 있고 가감 가능)
         referenceUserIds: selectedReferences.length > 0 ? selectedReferences.map((r) => r.userId) : undefined,
       });
     },
-    onSuccess:  => {
-      invalidate;
+    onSuccess: () => {
+      invalidate();
       setForm({ requestType: "", title: "", amount: "", description: "" }); // 제출 후에도 유형 선택 화면으로
       descEditorRef.current?.setContent("");
       setLeaveForm({ leaveType: "annual", leaveUnit: "full_day", halfDayPeriod: "am", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
@@ -3209,7 +3323,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       setDescriptionInited("");
       localStorage.removeItem(`ov-approval-draft-${companyId}-${userId || "anon"}`);
       localStorage.removeItem(`ov-approval-draft-${companyId}`);   // 구 키 정리 (2026-08-19 이전 저장분)
-      onComplete;
+      onComplete();
     },
     onError: (err: any) => toast("결재 요청 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
@@ -3223,7 +3337,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
 
           <div className="space-y-4">
             {/* Request Type — 한 줄 고르기(누르면 아래로 목록) — 2026-08-18 대표. 예전 아이콘 칩 격자는 버튼이 너무 많았다 */}
-            {( => {
+            {(() => {
               // 2026-07-16 QA: "정책 관리"에서 기본 유형(경비청구 등)에 지정한 "양식 표시 이름"이
               //   여기(새 요청 유형 피커)에 반영 안 되던 버그 — 매칭 정책의 label 을 우선 사용.
               const builtin: PickOpt[] = Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => {
@@ -3239,13 +3353,13 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               //   2026-09-01 대표: 같은 이름의 회사 양식이 있으면(예: '경조휴가' 결재선 + '경조휴가' 양식)
               //   목록에 두 개로 떠서 헷갈렸다 — 양식 제출은 requestType=양식 이름이라 그 결재선과 자동
               //   매칭되므로, 동명이면 **양식 항목 하나만** 보여 준다(입력 필드도 양식 쪽에 있다).
-              const formByName = new Map(activeForms.filter((f) => !f.base_type).map((f) => [f.name.trim, f]));
-              const mergedIntoForm = new Set<string>;
+              const formByName = new Map(activeForms.filter((f) => !f.base_type).map((f) => [f.name.trim(), f]));
+              const mergedIntoForm = new Set<string>();
               const custom: PickOpt[] = (policies as ApprovalPolicy[])
                 .filter((p) => p.is_active && p.document_type !== "default" && p.document_type !== "line" && !(p.document_type in REQUEST_TYPE_LABELS))
                 .map((p) => {
-                  const nm = (p.label || p.name).trim;
-                  const f = formByName.get(nm) || formByName.get(String(p.document_type).trim);
+                  const nm = (p.label || p.name).trim();
+                  const f = formByName.get(nm) || formByName.get(String(p.document_type).trim());
                   if (f) { mergedIntoForm.add(f.id); return { value: `form:${f.id}`, label: nm, sub: "회사 양식", icon: formIcon }; }
                   return { value: p.document_type, label: p.label || p.name, icon: <span className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${TYPE_FALLBACK.bg} ${TYPE_FALLBACK.text}`}><TypeIcon name="doc" className="w-3.5 h-3.5" /></span> };
                 });
@@ -3264,7 +3378,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                     onChange={(v) => setForm({ ...form, requestType: v as RequestType })}
                     favorites={typeFavorites} onToggleFavorite={toggleTypeFavorite} />
                   {/* 즐겨찾기 칩 — 목록을 열지 않고 한 번에 고른다. 지워진 양식 값은 목록에 없으므로 자연히 빠진다. */}
-                  {( => {
+                  {(() => {
                     const favs = typeFavorites.map((v) => merged.find((o) => o.value === v)).filter((o): o is PickOpt => !!o);
                     if (favs.length === 0) return null;
                     return (
@@ -3272,19 +3386,23 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                         <span className="ap-fav-cap">★ 즐겨찾기</span>
                         {favs.map((o) => (
                           <button key={o.value} type="button" className={String(form.requestType || "") === o.value ? "qk-quick qk-quick-on" : "qk-quick"}
-                            onClick={ => setForm({ ...form, requestType: o.value as RequestType })} title={o.sub ? `${o.label} · ${o.sub}` : o.label}>
+                            onClick={() => setForm({ ...form, requestType: o.value as RequestType })} title={o.sub ? `${o.label} · ${o.sub}` : o.label}>
                             {o.label}
-                          </button>))}
-                      </div>);
-                  })}
-                </div>);
-            })}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              );
+            })()}
 
             {/* 유형 선택 전 — 아래 입력을 감추고 안내만 */}
             {!typeChosen && (
               <div className="approval-type-empty-hint">
                 위에서 <b>요청 유형</b>을 먼저 선택하세요.
-              </div>)}
+              </div>
+            )}
 
             {/* ── Leave-specific fields ── */}
             {!typeChosen ? null : isLeave ? (
@@ -3300,9 +3418,11 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                       {leaveBalance && (
                         <div className="text-[11px] text-[var(--text-muted)]">
                           총 {leaveBalance.total_days ?? 0}일 중 {leaveBalance.used_days ?? 0}일 사용
-                        </div>)}
+                        </div>
+                      )}
                       {!leaveBalance && currentEmployee?.id && (
-                        <div className="text-[11px] text-[var(--text-dim)]">연차 정보가 없습니다.</div>)}
+                        <div className="text-[11px] text-[var(--text-dim)]">연차 정보가 없습니다.</div>
+                      )}
                     </div>
                     {remainingLeave !== null && leaveDays > 0 && (
                       <div className="ml-auto text-right">
@@ -3310,8 +3430,10 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                         <div className={`text-sm font-bold ${remainingLeave - leaveDays < 0 ? "text-red-500" : "text-green-500"}`}>
                           {Math.max(0, remainingLeave - leaveDays)}일
                         </div>
-                      </div>)}
-                  </div>)}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* 휴가 입력 블록 — 순서 고정 (요청자는 필드 이동 불가) */}
                 <FieldBlocks
@@ -3328,7 +3450,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                               className="field-input"
                             >
                               {companyLeaveTypes.map((t) => (
-                                <option key={t.value} value={t.value}>{t.label}</option>))}
+                                <option key={t.value} value={t.value}>{t.label}</option>
+                              ))}
                             </select>
                           </div>
                           <div>
@@ -3339,10 +3462,12 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                               className="field-input"
                             >
                               {LEAVE_UNIT_OPTIONS.map((u) => (
-                                <option key={u.value} value={u.value}>{u.label}</option>))}
+                                <option key={u.value} value={u.value}>{u.label}</option>
+                              ))}
                             </select>
                           </div>
-                        </div>),
+                        </div>
+                      ),
                     },
                     {
                       key: "leave-dates",
@@ -3368,7 +3493,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                                   onChange={(e) => setLeaveForm({ ...leaveForm, endDate: e.target.value })}
                                   className="field-input"
                                 />
-                              </div>)}
+                              </div>
+                            )}
                           </div>
                           {leaveForm.leaveUnit === "half_day" && (
                             <div>
@@ -3381,7 +3507,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                                   <button
                                     key={opt.v}
                                     type="button"
-                                    onClick={ => setLeaveForm({ ...leaveForm, halfDayPeriod: opt.v })}
+                                    onClick={() => setLeaveForm({ ...leaveForm, halfDayPeriod: opt.v })}
                                     className={`flex-1 px-2 py-2.5 rounded-xl text-xs font-semibold border transition ${
                                       leaveForm.halfDayPeriod === opt.v
                                         ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]"
@@ -3389,9 +3515,11 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                                     }`}
                                   >
                                     {opt.label}
-                                  </button>))}
+                                  </button>
+                                ))}
                               </div>
-                            </div>)}
+                            </div>
+                          )}
                           {leaveForm.leaveUnit === "two_hours" && (
                             <div className="grid grid-cols-2 gap-3">
                               <div>
@@ -3412,15 +3540,19 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                                   className="field-input"
                                 />
                               </div>
-                            </div>)}
+                            </div>
+                          )}
                           {leaveForm.startDate && (
                             <div className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-surface)] rounded-lg">
                               <span className="text-xs text-[var(--text-muted)]">사용 일수:</span>
                               <span className="text-sm font-bold text-[var(--primary)]">{leaveDays}일</span>
                               {remainingLeave !== null && leaveDays > remainingLeave && leaveForm.leaveType === "annual" && (
-                                <span className="text-xs text-red-500 font-semibold ml-2">잔여 연차 초과</span>)}
-                            </div>)}
-                        </div>),
+                                <span className="text-xs text-red-500 font-semibold ml-2">잔여 연차 초과</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ),
                     },
                     {
                       key: "leave-title",
@@ -3430,7 +3562,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                           <div className="px-3 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)]">
                             {leaveTitle || "날짜를 선택하면 자동으로 채워집니다."}
                           </div>
-                        </div>),
+                        </div>
+                      ),
                     },
                     {
                       key: "leave-reason",
@@ -3444,11 +3577,13 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                            
                             className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none"
                           />
-                        </div>),
+                        </div>
+                      ),
                     },
                   ]}
                 />
-              </>) : (
+              </>
+            ) : (
               /* ── Non-leave fields — 순서 고정 (요청자는 필드 이동 불가) ── */
               <>
               {isOvertime && (
@@ -3468,7 +3603,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                     승인되면 적은 날짜·시각 그대로 근태에 반영됩니다.
                     {myWorkEnd && <> 기본값은 내 퇴근시각 {myWorkEnd}입니다.</>}
                   </div>
-                </div>)}
+                </div>
+              )}
               <FieldBlocks
                 blocks={[
                   {
@@ -3476,8 +3612,9 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                     node: (
                       <div>
                         {/* 양식 관리에서 넣은 '설명'을 제목 위에 주석처럼 보여준다(작성자 안내). 종전엔 어디에도 안 나왔다. */}
-                        {selectedForm?.description?.trim && (
-                          <div className="ap-form-desc-note">{selectedForm.description}</div>)}
+                        {selectedForm?.description?.trim() && (
+                          <div className="ap-form-desc-note">{selectedForm.description}</div>
+                        )}
                         <label className="block text-xs text-[var(--text-muted)] mb-1">제목 *</label>
                         <input
                           value={form.title}
@@ -3485,7 +3622,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                          
                           className="field-input"
                         />
-                      </div>),
+                      </div>
+                    ),
                   },
                   // 금액 칸은 없앴다 — 금액 없는 결재에도 항상 떠 있어
                   //   0 으로 둬야 하는 게 불편했다. 금액이 필요한 결재는 양식의 '금액' 입력 필드로 받는다.
@@ -3496,27 +3634,36 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                       <div key={fd.key}>
                         <label className="block text-xs text-[var(--text-muted)] mb-1">{fd.label}{fd.required ? " *" : ""}</label>
                         {fd.type === "textarea" ? (
-                          <textarea value={customFieldValues[fd.key] || ""} onChange={(e) => setCustomFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} rows={2} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />) : fd.type === "select" ? (
+                          <textarea value={customFieldValues[fd.key] || ""} onChange={(e) => setCustomFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} rows={2} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
+                        ) : fd.type === "select" ? (
                           <SelectWithEtc
                             value={customFieldValues[fd.key] || ""}
                             options={fd.options || []}
                             onChange={(v) => setCustomFieldValues((s) => ({ ...s, [fd.key]: v }))}
-                          />) : fd.type === "fixed" ? (
-                          /* #11 — 직접입력 고정값: 양식이 지정한 값 그대로(작성자 수정 불가) */
+                          />
+                        ) : fd.type === "fixed" ? (
+                          /* 직원 QA #11 — 직접입력 고정값: 양식이 지정한 값 그대로(작성자 수정 불가) */
                           <input type="text" value={fd.default_value || ""} readOnly disabled
-                            className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-muted)]" />) : fd.type === "amount" ? (
-                          /* #11 · 금액: ₩ + 천단위 콤마 */
+                            className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-muted)]" />
+                        
+                        ) : fd.type === "amount" ? (
+                          /* 직원 QA #11 · 금액: ₩ + 천단위 콤마 */
 
                           <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)] text-sm">₩</span>
                             <input inputMode="numeric" value={customFieldValues[fd.key] || ""}
                               onChange={(e) => { const raw = e.target.value.replace(/[^0-9]/g, ""); setCustomFieldValues((s) => ({ ...s, [fd.key]: raw ? Number(raw).toLocaleString("ko-KR") : "" })); }}
                               placeholder="0" className="w-full pl-7 pr-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm mono-number text-right" />
-                          </div>) : fd.type === "date" ? (
-                          <DateField value={customFieldValues[fd.key] || ""} onChange={(e) => setCustomFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />) : fd.type === "period" ? (
-                          <PeriodFieldInput value={customFieldValues[fd.key] || ""} onChange={(v) => setCustomFieldValues((s) => ({ ...s, [fd.key]: v }))} />) : (
-                          <input type={fd.type === "number" ? "number" : "text"} value={customFieldValues[fd.key] || ""} onChange={(e) => setCustomFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />)}
-                      </div>),
+                          </div>
+                        ) : fd.type === "date" ? (
+                          <DateField value={customFieldValues[fd.key] || ""} onChange={(e) => setCustomFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
+                        ) : fd.type === "period" ? (
+                          <PeriodFieldInput value={customFieldValues[fd.key] || ""} onChange={(v) => setCustomFieldValues((s) => ({ ...s, [fd.key]: v }))} />
+                        ) : (
+                          <input type={fd.type === "number" ? "number" : "text"} value={customFieldValues[fd.key] || ""} onChange={(e) => setCustomFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
+                        )}
+                      </div>
+                    ),
                   })),
                   {
                     key: "description",
@@ -3534,11 +3681,13 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                             maxHeight="320px"
                           />
                         </div>
-                      </div>),
+                      </div>
+                    ),
                   },
                 ]}
               />
-              </>)}
+              </>
+            )}
 
             {typeChosen && (<>
             {/* File upload — 드롭존 스타일. 2026-07-21 대표 요청으로 승인자/참조자 위로 이동 */}
@@ -3550,13 +3699,13 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                     ? "border-[var(--primary)] bg-[var(--primary)]/8"
                     : "border-[var(--border)] bg-[var(--bg)]/50 hover:border-[var(--primary)]/50 hover:bg-[var(--primary)]/4"
                 }`}
-                onDragOver={(e) => { e.preventDefault; setIsDraggingFile(true); }}
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingFile(true); }}
                 onDragLeave={(e) => {
                   // 자식 요소(아이콘·텍스트)로 이동할 때 깜빡이지 않게 — 진짜 영역 밖으로 나갈 때만 해제
                   if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDraggingFile(false);
                 }}
                 onDrop={(e) => {
-                  e.preventDefault;
+                  e.preventDefault();
                   setIsDraggingFile(false);
                   const dropped = Array.from(e.dataTransfer.files || []);
                   if (dropped.length > 0) setFiles(prev => [...prev, ...dropped]);
@@ -3586,9 +3735,11 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                       </span>
                       <span className="truncate flex-1 font-medium text-[var(--text)]">{attachmentFileName(url)}</span>
                       <span className="text-[10px] text-[var(--text-dim)] shrink-0">임시저장됨</span>
-                      <button type="button" onClick={ => setDraftAttachmentUrls(prev => prev.filter((_, idx) => idx !== i))} className="text-[var(--text-dim)] hover:text-[var(--danger)] font-bold px-1 transition">✕</button>
-                    </div>))}
-                </div>)}
+                      <button type="button" onClick={() => setDraftAttachmentUrls(prev => prev.filter((_, idx) => idx !== i))} className="text-[var(--text-dim)] hover:text-[var(--danger)] font-bold px-1 transition">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
               {files.length > 0 && (
                 <div className="mt-2 space-y-1.5">
                   {files.map((f, i) => (
@@ -3598,9 +3749,11 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                       </span>
                       <span className="truncate flex-1 font-medium text-[var(--text)]">{f.name}</span>
                       <span className="text-[10px] text-[var(--text-dim)] mono-number shrink-0">{(f.size / 1024).toFixed(1)}KB</span>
-                      <button type="button" onClick={ => setFiles(prev => prev.filter((_, idx) => idx !== i))} className="text-[var(--text-dim)] hover:text-[var(--danger)] font-bold px-1 transition">✕</button>
-                    </div>))}
-                </div>)}
+                      <button type="button" onClick={() => setFiles(prev => prev.filter((_, idx) => idx !== i))} className="text-[var(--text-dim)] hover:text-[var(--danger)] font-bold px-1 transition">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Approver Selection — 정책이 승인라인 변경을 불허하면 잠금 안내 */}
@@ -3608,7 +3761,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             <div>
               <label className="field-label">승인자 지정</label>
               <p className="text-[11px] text-[var(--text-dim)] px-3 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">이 양식은 정해진 결재선을 사용합니다.</p>
-            </div>) : (
+            </div>
+            ) : (
             <div className="approval-approver-picker">
               <label className="field-label">승인자 지정 (선택)</label>
               <div className="space-y-2">
@@ -3621,7 +3775,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                           <span className="text-xs font-bold text-[var(--text)]">{a.name}</span>
                           <span className="text-[10px] font-bold text-[var(--primary)]">{idx + 1}차</span>
                           <button
-                            onClick={ => setSelectedApprovers(prev => prev.filter((_, i) => i !== idx))}
+                            onClick={() => setSelectedApprovers(prev => prev.filter((_, i) => i !== idx))}
                             className="w-4 h-4 rounded-full flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--danger)] hover:bg-[var(--danger-dim)] transition"
                             aria-label="승인자 삭제"
                           >
@@ -3629,9 +3783,12 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                           </button>
                         </div>
                         {idx < selectedApprovers.length - 1 && (
-                          <svg className="w-3.5 h-3.5 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7"/></svg>)}
-                      </div>))}
-                  </div>)}
+                          <svg className="w-3.5 h-3.5 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {selectedApprovers.length < 3 && companyUsers.length > 0 && (
                   <select
                     value=""
@@ -3645,12 +3802,16 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                   >
                     <option value="">+ {selectedApprovers.length === 0 ? "1차" : selectedApprovers.length === 1 ? "2차" : "최종"} 승인자 추가</option>
                     {companyUsers.filter((u: any) => !selectedApprovers.some(a => a.userId === u.id)).map((u: any) => (
-                      <option key={u.id} value={u.id}>{u.name || u.email} ({u.role})</option>))}
-                  </select>)}
+                      <option key={u.id} value={u.id}>{u.name || u.email} ({u.role})</option>
+                    ))}
+                  </select>
+                )}
                 {selectedApprovers.length === 0 && (
-                  <p className="text-[11px] text-[var(--text-dim)]">비워 두면 결재 정책에 따라 자동 배정됩니다.</p>)}
+                  <p className="text-[11px] text-[var(--text-dim)]">비워 두면 결재 정책에 따라 자동 배정됩니다.</p>
+                )}
               </div>
-            </div>)}
+            </div>
+            )}
 
             {/* Reference(CC) Selection — 결재선과 무관하게 결과를 통보받는 인원. 승인라인 잠금과 무관하게 항상 지정 가능 */}
             <div className="approval-reference-picker">
@@ -3664,14 +3825,16 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                         <span className="text-xs font-bold text-[var(--text)]">{r.name}</span>
                         <span className="text-[10px] font-bold text-[var(--text-dim)]">참조</span>
                         <button
-                          onClick={ => setSelectedReferences((prev) => prev.filter((_, i) => i !== idx))}
+                          onClick={() => setSelectedReferences((prev) => prev.filter((_, i) => i !== idx))}
                           className="w-4 h-4 rounded-full flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--danger)] hover:bg-[var(--danger-dim)] transition"
                           aria-label="참조자 삭제"
                         >
                           <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
                         </button>
-                      </div>))}
-                  </div>)}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {companyUsers.length > 0 && (
                   <select
                     value=""
@@ -3687,8 +3850,10 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                     {companyUsers
                       .filter((u: any) => !selectedReferences.some((r) => r.userId === u.id) && !selectedApprovers.some((a) => a.userId === u.id))
                       .map((u: any) => (
-                        <option key={u.id} value={u.id}>{u.name || u.email} ({u.role})</option>))}
-                  </select>)}
+                        <option key={u.id} value={u.id}>{u.name || u.email} ({u.role})</option>
+                      ))}
+                  </select>
+                )}
                 <p className="text-[11px] text-[var(--text-dim)]">
                   {selectedReferences.length === 0
                     ? "참조자는 알림만 받습니다."
@@ -3704,11 +3869,13 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
           <div className="flex gap-2 mt-6 items-center">
             {/*   왜 못 누르는지 적어 준다 — 안 그러면 버튼이 고장 난 것처럼 보인다 */}
             {!canSubmit && missingRequired.length > 0 && (
-              <span className="approval-missing-required">{missingRequired.join(" · ")} 을(를) 입력해 주세요</span>)}
+              <span className="approval-missing-required">{missingRequired.join(" · ")} 을(를) 입력해 주세요</span>
+            )}
             {!canSubmit && missingRequired.length === 0 && isLeave && !!leaveForm.startDate && leaveDays <= 0 && !leaveDaysLoading && (
-              <span className="approval-missing-required">휴가 일수가 0일입니다. 기간을 확인해 주세요</span>)}
+              <span className="approval-missing-required">휴가 일수가 0일입니다. 기간을 확인해 주세요</span>
+            )}
             <button
-              onClick={ => canSubmit && createMut.mutate}
+              onClick={() => canSubmit && createMut.mutate()}
               disabled={!canSubmit || createMut.isPending}
               className="btn-primary disabled:opacity-50"
             >
@@ -3716,7 +3883,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             </button>
             <button
               type="button"
-              onClick={async  => {
+              onClick={async () => {
                 // userId 포함: 회사 단위 키는 공용 브라우저에서 남의 임시저장(휴가 사유 등)이 보였다
                 const draftKey = `ov-approval-draft-${companyId}-${userId || "anon"}`;
                 // 첨부도 보존 (끌어놓은 첨부가 임시저장하면 사라졌다)
@@ -3724,7 +3891,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 const urls = [...draftAttachmentUrls];
                 const failed: string[] = [];
                 for (const file of files) {
-                  const path = `approvals/${companyId}/${Date.now}_${toBase64Url(file.name)}`;
+                  const path = `approvals/${companyId}/${Date.now()}_${toBase64Url(file.name)}`;
                   const { error } = await supabase.storage.from("documents").upload(path, file);
                   if (!error) urls.push(supabase.storage.from("documents").getPublicUrl(path).data.publicUrl);
                   else failed.push(file.name);
@@ -3742,7 +3909,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             </button>
             <button
               type="button"
-              onClick={ => {
+              onClick={() => {
                 // 초기화하면 유형 선택 전 상태로 되돌린다 (경비 청구로 되돌아가지 않음)
                 setForm({ requestType: "", title: "", amount: "", description: "" });
                 setDescriptionInited("");
@@ -3750,12 +3917,12 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 setFiles([]);
                 // 임시저장 때 이미 스토리지에 올린 첨부는 여기서 같이 지운다 — 안 지우면
                 //   아무 화면에서도 안 보이는 고아 파일로 남는다.
-                void (async  => {
+                void (async () => {
                   for (const url of draftAttachmentUrls) {
                     const m = url.match(/\/object\/(?:public|sign|authenticated)\/documents\/([^?]+)/);
-                    if (m) await supabase.storage.from("documents").remove([decodeURIComponent(m[1])]).catch( => {});
+                    if (m) await supabase.storage.from("documents").remove([decodeURIComponent(m[1])]).catch(() => {});
                   }
-                });
+                })();
                 setDraftAttachmentUrls([]);
                 setSelectedApprovers([]);
                 setSelectedReferences([]); setReferencesInited("");
@@ -3766,12 +3933,14 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             >
               초기화
             </button>
-          </div>)}
+          </div>
+          )}
 
           {createMut.isError && (
             <div className="mt-3 text-xs text-red-500">
               오류: {(createMut.error as Error)?.message || "요청 제출에 실패했습니다."}
-            </div>)}
+            </div>
+          )}
         </div>
       </div>
 
@@ -3781,7 +3950,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         {!typeChosen && (
           <div className="approval-policy-preview glass-card text-xs text-[var(--text-muted)]">
             요청 유형을 선택하면 <b>결재선</b>이 표시됩니다.
-          </div>)}
+          </div>
+        )}
         {/* Auto-generated document preview (leave) */}
         {typeChosen && isLeave && leaveForm.startDate && (
           <div className="approval-document-preview glass-card">
@@ -3794,7 +3964,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             <pre className="text-xs text-[var(--text)] whitespace-pre-wrap leading-relaxed bg-[var(--bg-surface)] rounded-xl p-3.5">
               {leaveDescription}
             </pre>
-          </div>)}
+          </div>
+        )}
 
         {/* Policy Preview — 결재선 스텝퍼 */}
         {typeChosen && (
@@ -3811,7 +3982,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-xs font-semibold text-[var(--text-muted)]">{matchedPolicy.name}</span>
                 {matchedPolicy.auto_approve_below > 0 && (
-                  <span className="badge badge-muted">{formatAmount(matchedPolicy.auto_approve_below)} 미만 자동승인</span>)}
+                  <span className="badge badge-muted">{formatAmount(matchedPolicy.auto_approve_below)} 미만 자동승인</span>
+                )}
               </div>
               <div className="space-y-0">
                 {/* 시작: 나 */}
@@ -3826,7 +3998,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 {matchedStages.map((stage, idx) => (
                   <div key={idx} className="relative pl-8 pb-4 last:pb-0">
                     {idx < matchedStages.length - 1 && (
-                      <div className="absolute left-[13px] top-6 bottom-0 w-px bg-[var(--border)]" />)}
+                      <div className="absolute left-[13px] top-6 bottom-0 w-px bg-[var(--border)]" />
+                    )}
                     <div className="absolute left-0 top-0 w-[26px] h-[26px] rounded-full border-2 border-[var(--primary)]/40 bg-[var(--primary)]/8 flex items-center justify-center text-[11px] font-extrabold text-[var(--primary)]">
                       {stage.stage}
                     </div>
@@ -3835,14 +4008,17 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                       {(stage as any).approver_name || stage.approver_role}
                       {(stage.required_count ?? 1) > 1 && ` · ${stage.required_count}명 승인 필요`}
                     </div>
-                  </div>))}
+                  </div>
+                ))}
               </div>
 
               {/* Auto-approve indicator */}
               {matchedPolicy.auto_approve_below > 0 && effectiveAmount > 0 && effectiveAmount < matchedPolicy.auto_approve_below && (
-                <div className="kpi-callout success mt-3">이 금액은 <b>자동 승인</b> 대상입니다.</div>)}
-            </div>) : selectedApprovers.length > 0 ? (
-            /* 양식 결재선이 지정돼 있으면 그걸 미리보기에 반영(대표/CEO 강제 표시 제거).
+                <div className="kpi-callout success mt-3">이 금액은 <b>자동 승인</b> 대상입니다.</div>
+              )}
+            </div>
+          ) : selectedApprovers.length > 0 ? (
+            /* 직원 QA #11 — 양식 결재선이 지정돼 있으면 그걸 미리보기에 반영(대표/CEO 강제 표시 제거).
                실제 라우팅은 이미 customApprovers(양식 결재선)로 처리됨 — 미리보기만 정합화. */
             <div className="text-xs text-[var(--text-muted)]">
               <div className="kpi-callout mb-4">이 양식의 <b>결재선</b>이 적용됩니다.</div>
@@ -3861,9 +4037,11 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                     <div className="absolute left-0 top-0 w-[26px] h-[26px] rounded-full border-2 border-[var(--primary)]/40 bg-[var(--primary)]/8 flex items-center justify-center text-[11px] font-extrabold text-[var(--primary)]">{idx + 1}</div>
                     <div className="text-xs font-bold pt-1">{idx + 1}차 승인</div>
                     <div className="text-[11px] text-[var(--text-dim)]">{a.name}</div>
-                  </div>))}
+                  </div>
+                ))}
               </div>
-            </div>) : (
+            </div>
+          ) : (
             <div className="text-xs text-[var(--text-muted)]">
               <div className="kpi-callout mb-4">맞는 정책이 없어 <b>기본 결재선</b>이 적용됩니다.</div>
               <div className="relative pl-8">
@@ -3873,7 +4051,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 <div className="text-xs font-bold pt-1 text-[var(--text)]">최종 승인</div>
                 <div className="text-[11px] text-[var(--text-dim)]">승인자: CEO</div>
               </div>
-            </div>)}
+            </div>
+          )}
 
           {/* 참조 — 결재선 아래에 통보 대상 요약(요청 상세 사이드바의 '참조' 블록과 동일 표기) */}
           {selectedReferences.length > 0 && (
@@ -3884,12 +4063,16 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                   <span key={r.userId} className="inline-flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] font-medium text-[var(--text-muted)]">
                     <Avatar name={r.name} src={approverAvatar(r.userId)} size={18} />
                     {r.name}
-                  </span>))}
+                  </span>
+                ))}
               </div>
-            </div>)}
-        </div>)}
+            </div>
+          )}
+        </div>
+        )}
       </div>
-    </div>);
+    </div>
+  );
 }
 
 
@@ -3950,10 +4133,10 @@ function draftsToRules(drafts: RuleDraft[]): ApprovalPolicyRule[] {
     id: d.key,
     target:
       d.mode === "users" ? { mode: "users" as const, userIds: d.userIds }
-      : d.mode === "department" ? { mode: "department" as const, department: d.department.trim }
-      : d.mode === "position" ? { mode: "position" as const, position: d.position.trim }
+      : d.mode === "department" ? { mode: "department" as const, department: d.department.trim() }
+      : d.mode === "position" ? { mode: "position" as const, position: d.position.trim() }
       : { mode: "all" as const },
-    stages: d.stages.map((st, si) => ({ ...st, stage: si + 1, name: (st.name || "").trim || `${si + 1}차 승인` })),
+    stages: d.stages.map((st, si) => ({ ...st, stage: si + 1, name: (st.name || "").trim() || `${si + 1}차 승인` })),
     reference_user_ids: d.referenceIds,
   }));
 }
@@ -3974,9 +4157,9 @@ function rulesToDrafts(rules: ApprovalPolicyRule[]): RuleDraft[] {
   return [...others, fallback];
 }
 
-function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:  => void }) {
+function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate: () => void }) {
   const [pq, setPq] = useState("");
-  const { toast } = useToast;
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<ApprovalPolicy | null>(null);
   const [form, setForm] = useState({
@@ -3996,14 +4179,14 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
 
   const { data: policies = [], isLoading } = useQuery({
     queryKey: ["approval-policies", companyId],
-    queryFn:  => getApprovalPolicies(companyId),
+    queryFn: () => getApprovalPolicies(companyId),
     enabled: !!companyId,
   });
 
   // 단계별 '특정 인물' 승인자 선택용 회사 구성원
   const { data: orgUsers = [] } = useQuery({
     queryKey: ["policy-org-users", companyId],
-    queryFn: async  => {
+    queryFn: async () => {
       const data = logRead('approvals/page:members-role', await db.from("users").select("id, name, email, role").eq("company_id", companyId).order("name"));
       return (data || []) as { id: string; name: string | null; email: string; role: string }[];
     },
@@ -4014,16 +4197,16 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
   //   커스텀 양식으로 올린 요청의 request_type 은 양식 이름이므로, document_type = 양식 이름이면 자동 매칭된다.
   const  { data: companyForms = [] } = useQuery({
     queryKey: ["approval-forms-for-policies", companyId],
-    queryFn:  => listApprovalForms,
+    queryFn: () => listApprovalForms(),
     enabled: !!companyId,
   });
 
   // 팀(부서) 단위 적용 대상 선택지 · employees.department 고유값 (2026-08-11)
   const  { data: departments = [] } = useQuery({
     queryKey: ["policy-departments", companyId],
-    queryFn: async  => {
+    queryFn: async () => {
       const data = logRead('approvals/page:departments', await db.from("employees").select("department").eq("company_id", companyId).not("department", "is", null));
-      return [...new Set((data || []).map((r: { department: string | null }) => String(r.department || "").trim).filter(Boolean))].sort as string[];
+      return [...new Set((data || []).map((r: { department: string | null }) => String(r.department || "").trim()).filter(Boolean))].sort() as string[];
     },
     enabled: !!companyId,
   });
@@ -4032,15 +4215,15 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
   //   ⚠️ users.role(마스터/멤버/파트너)이 아니라 인사기록의 직급이다 — 팀장·사원 같은 직책 개념은 여기에만 있다.
   const { data: positions = [] } = useQuery({
     queryKey: ["policy-positions", companyId],
-    queryFn: async  => {
+    queryFn: async () => {
       const data = logRead('approvals/page:positions', await db.from("employees").select("position").eq("company_id", companyId).not("position", "is", null));
-      return [...new Set((data || []).map((r: { position: string | null }) => String(r.position || "").trim).filter(Boolean))].sort as string[];
+      return [...new Set((data || []).map((r: { position: string | null }) => String(r.position || "").trim()).filter(Boolean))].sort() as string[];
     },
     enabled: !!companyId,
   });
 
   const upsertMut = useMutation({
-    mutationFn:  => {
+    mutationFn: () => {
       const rules = draftsToRules(form.rules);
       // 규칙을 쓰는 결재선은 정책 자체가 회사 전체에 걸리고(대상 칸 null), 누구에게 갈지는 규칙이 가른다.
       //   그래야 pickPolicyForRequester 가 이 결재선을 '회사 공통'으로 집어 규칙 매칭까지 도달한다. (2026-08-20)
@@ -4049,9 +4232,9 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
         id: editingPolicy?.id,
         company_id: companyId,
         name: form.name,
-        document_type: form.documentType === "__custom__" ? (form.customType.trim || "custom") : form.documentType,
-        label: form.label.trim || undefined,
-        description_template: form.descriptionTemplate.trim || undefined,
+        document_type: form.documentType === "__custom__" ? (form.customType.trim() || "custom") : form.documentType,
+        label: form.label.trim() || undefined,
+        description_template: form.descriptionTemplate.trim() || undefined,
         rules,
         // 아래 세 칸은 규칙을 못 읽는 옛 경로(요청 상세·PDF 등)를 위한 거울 — '회사 전체' 규칙을 복사해 둔다.
         stages: fallback.stages,
@@ -4064,9 +4247,9 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
         is_active: true,
       });
     },
-    onSuccess:  => {
-      invalidate;
-      resetForm;
+    onSuccess: () => {
+      invalidate();
+      resetForm();
     },
     onError: (err: any) => toast("정책 저장 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
@@ -4077,7 +4260,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
     onError: (err: any) => toast("정책 삭제 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
-  function resetForm {
+  function resetForm() {
     setShowForm(false);
     setEditingPolicy(null);
     setForm({
@@ -4103,7 +4286,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
       descriptionTemplate: policy.description_template || "",
       autoApproveBelow: policy.auto_approve_below ? String(policy.auto_approve_below) : "",
       allowLineEdit: policy.allow_line_edit !== false,
-      // 개편 전 결재선은 policyRules 가 기존 대상·단계·참조를 규칙 1개로 돌려준다 — 열면 그대로 보인다.
+      // 개편 전 결재선은 policyRules() 가 기존 대상·단계·참조를 규칙 1개로 돌려준다 — 열면 그대로 보인다.
       rules: rulesToDrafts(policyRules(policy)),
     });
     setShowForm(true);
@@ -4113,7 +4296,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
   function patchRule(idx: number, patch: Partial<RuleDraft>) {
     setForm((st) => ({ ...st, rules: st.rules.map((r, i) => (i === idx ? { ...r, ...patch } : r)) }));
   }
-  function addRule {
+  function addRule() {
     // 새 규칙은 '회사 전체'(맨 아래 기본 규칙) 바로 앞에 끼워 넣는다 — 기본 규칙은 항상 마지막.
     setForm((st) => ({ ...st, rules: [...st.rules.slice(0, -1), newRuleDraft("users"), st.rules[st.rules.length - 1]] }));
   }
@@ -4143,17 +4326,17 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
     patchRule(ruleIdx, { referenceIds: cur.includes(userId) ? cur.filter((id) => id !== userId) : [...cur, userId] });
   }
 
-  useModalKeys(showForm,  => { if (!upsertMut.isPending) resetForm; });
+  useModalKeys(showForm, () => { if (!upsertMut.isPending) resetForm(); });
 
   // 대상을 안 고른 규칙은 저장해도 아무에게도 안 걸린다 — 조용히 새지 않게 저장을 막고 이유를 적는다. (2026-08-20)
-  const ruleError = ( => {
+  const ruleError = (() => {
     for (const r of form.rules) {
       if (r.mode === "users" && r.userIds.length === 0) return "'특정 직원' 적용 대상에 직원을 한 명 이상 고르세요.";
-      if (r.mode === "department" && !r.department.trim) return "'팀 (부서)' 적용 대상에 부서를 고르세요.";
-      if (r.mode === "position" && !r.position.trim) return "'직급' 적용 대상에 직급을 고르세요.";
+      if (r.mode === "department" && !r.department.trim()) return "'팀 (부서)' 적용 대상에 부서를 고르세요.";
+      if (r.mode === "position" && !r.position.trim()) return "'직급' 적용 대상에 직급을 고르세요.";
     }
     return "";
-  });
+  })();
 
   const ROLE_OPTIONS = [
     { value: "manager", label: "팀장" },
@@ -4176,7 +4359,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
 
   return (
     <div className="ap-list">
-      <QueryBar right={<button onClick={ => { resetForm; setShowForm(true); }} className="btn-primary btn-sm whitespace-nowrap">+ 결재선 추가</button>}>
+      <QueryBar right={<button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary btn-sm whitespace-nowrap">+ 결재선 추가</button>}>
         <QuickSearch value={pq} onApply={setPq} placeholder="결재선 이름 · 쉼표로 여러 개, Enter" />
         <span className="text-[11px] text-[var(--text-dim)]">결재선을 만들어 양식에 붙여 씁니다.</span>
       </QueryBar>
@@ -4184,8 +4367,8 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
       {/* 결재선 폼 — 이름 · 단계 수 · 단계별 승인자 · 참조 · (선택) 적용 대상 (유형·자동승인·설명 템플릿 제거) */}
       {/* 결재선 폼은 팝업 — 목록 줄이 밀리지 않게 */}
       {showForm && (
-        <div className="approval-detail-modal" onClick={ => !upsertMut.isPending && resetForm}>
-        <div className="approval-policy-form ap-pol-modal" onClick={(e) => e.stopPropagation}>
+        <div className="approval-detail-modal" onClick={() => !upsertMut.isPending && resetForm()}>
+        <div className="approval-policy-form ap-pol-modal" onClick={(e) => e.stopPropagation()}>
           <div className="ap-pol-head">
             <h3 className="section-title">{editingPolicy ? "결재선 수정" : "새 결재선"}</h3>
           </div>
@@ -4208,13 +4391,15 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                 {(companyForms as ApprovalForm[]).length > 0 && (
                   <optgroup label="회사 양식">
                     {(companyForms as ApprovalForm[]).map((f) => <option key={f.id} value={f.name}>{f.name}</option>)}
-                  </optgroup>)}
+                  </optgroup>
+                )}
                 {form.documentType === "default" && <option value="default">기본(공통)</option>}
                 {/* 삭제(비활성)된 양식 이름으로 남은 정책 — 옵션이 없으면 셀렉트가 빈 값으로 보인다 */}
                 {form.documentType !== "line" && form.documentType !== "default"
                   && !(form.documentType in REQUEST_TYPE_LABELS)
                   && !(companyForms as ApprovalForm[]).some((f) => f.name === form.documentType) && (
-                  <option value={form.documentType}>{form.documentType} (삭제된 양식)</option>)}
+                  <option value={form.documentType}>{form.documentType} (삭제된 양식)</option>
+                )}
               </select>
             </div>
           </div>
@@ -4241,38 +4426,50 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
               <div key={rule.key} className={`ap-pol-rule ${rule.mode === "all" ? "ap-pol-rule-fallback" : ""}`}>
                 <div className="ap-pol-rule-head">
                   {rule.mode === "all" ? (
-                    <span className="ap-pol-rule-title">그 외 전체 (기본)</span>) : (
+                    <span className="ap-pol-rule-title">그 외 전체 (기본)</span>
+                  ) : (
                     <select value={rule.mode}
                       onChange={(e) => patchRule(ruleIdx, { mode: e.target.value as PolicyRuleTargetMode })}
                       className="field-input ap-pol-rule-mode">
                       {(["users", "department", "position"] as PolicyRuleTargetMode[]).map((m) => (
-                        <option key={m} value={m}>{RULE_MODE_LABELS[m]}</option>))}
-                    </select>)}
+                        <option key={m} value={m}>{RULE_MODE_LABELS[m]}</option>
+                      ))}
+                    </select>
+                  )}
                   {rule.mode !== "all" && (
-                    <button type="button" onClick={ => removeRule(ruleIdx)} className="ap-pol-rule-del" aria-label="이 적용 대상 삭제">&#10005;</button>)}
+                    <button type="button" onClick={() => removeRule(ruleIdx)} className="ap-pol-rule-del" aria-label="이 적용 대상 삭제">&#10005;</button>
+                  )}
                 </div>
 
                 {/* 대상 지정 — 모드별로 칸이 다르다 */}
                 {rule.mode === "users" && (
                   <div className="policy-target-people">
                     {orgUsers.map((u) => (
-                      <button key={u.id} type="button" onClick={ => toggleRuleUser(ruleIdx, u.id)}
-                        className={`policy-target-chip ${rule.userIds.includes(u.id) ? "policy-target-chip-on" : ""}`}>{u.name || u.email}</button>))}
-                  </div>)}
+                      <button key={u.id} type="button" onClick={() => toggleRuleUser(ruleIdx, u.id)}
+                        className={`policy-target-chip ${rule.userIds.includes(u.id) ? "policy-target-chip-on" : ""}`}>{u.name || u.email}</button>
+                    ))}
+                  </div>
+                )}
                 {rule.mode === "department" && (
                   departments.length > 0 ? (
                     <select value={rule.department} onChange={(e) => patchRule(ruleIdx, { department: e.target.value })} className="field-input ap-pol-rule-pick">
                       <option value="">부서 선택</option>
                       {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-                    </select>) : (
-                    <p className="ap-pol-rule-warn">아직 등록된 부서가 없습니다. 구성원에서 부서를 먼저 입력하세요.</p>))}
+                    </select>
+                  ) : (
+                    <p className="ap-pol-rule-warn">아직 등록된 부서가 없습니다. 구성원에서 부서를 먼저 입력하세요.</p>
+                  )
+                )}
                 {rule.mode === "position" && (
                   positions.length > 0 ? (
                     <select value={rule.position} onChange={(e) => patchRule(ruleIdx, { position: e.target.value })} className="field-input ap-pol-rule-pick">
                       <option value="">직급 선택</option>
                       {positions.map((p) => <option key={p} value={p}>{p}</option>)}
-                    </select>) : (
-                    <p className="ap-pol-rule-warn">아직 등록된 직급이 없습니다. 구성원에서 직급을 먼저 입력하세요.</p>))}
+                    </select>
+                  ) : (
+                    <p className="ap-pol-rule-warn">아직 등록된 직급이 없습니다. 구성원에서 직급을 먼저 입력하세요.</p>
+                  )
+                )}
 
                 {/* 이 대상의 결재 단계 — 한 줄에 [N차] 단계 이름 · 누구에게(역할 또는 구성원) */}
                 <div className="ap-pol-stages">
@@ -4305,7 +4502,8 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                           {orgUsers.map((u) => <option key={u.id} value={`u:${u.id}`}>{u.name || u.email}</option>)}
                         </optgroup>
                       </select>
-                    </div>))}
+                    </div>
+                  ))}
                 </div>
 
                 {/* 이 대상의 참조 — 결재선과 별개로 결과를 통보받는 사람 */}
@@ -4313,26 +4511,29 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                   <label className="field-label">참조 <span className="text-[var(--text-dim)] font-normal">(선택 · 여러 명)</span></label>
                   <div className="policy-target-people">
                     {orgUsers.map((u) => (
-                      <button key={u.id} type="button" onClick={ => toggleRuleReference(ruleIdx, u.id)}
-                        className={`policy-target-chip ${rule.referenceIds.includes(u.id) ? "policy-target-chip-on" : ""}`}>{u.name || u.email}</button>))}
+                      <button key={u.id} type="button" onClick={() => toggleRuleReference(ruleIdx, u.id)}
+                        className={`policy-target-chip ${rule.referenceIds.includes(u.id) ? "policy-target-chip-on" : ""}`}>{u.name || u.email}</button>
+                    ))}
                   </div>
                 </div>
-              </div>))}
+              </div>
+            ))}
             </div>
           </div>
 
           {ruleError && <p className="ap-pol-rule-warn mt-3">{ruleError}</p>}
           <div className="flex gap-2 mt-4">
             <button
-              onClick={ => (form.name || "").trim && !ruleError && upsertMut.mutate}
-              disabled={!(form.name || "").trim || !!ruleError || upsertMut.isPending}
+              onClick={() => (form.name || "").trim() && !ruleError && upsertMut.mutate()}
+              disabled={!(form.name || "").trim() || !!ruleError || upsertMut.isPending}
               className="btn-primary btn-sm disabled:opacity-50">
               {upsertMut.isPending ? "저장 중..." : editingPolicy ? "수정" : "저장"}
             </button>
             <button onClick={resetForm} className="btn-secondary btn-sm">취소</button>
           </div>
         </div>
-        </div>)}
+        </div>
+      )}
 
       {/* Policy List — 표 (2026-08-18) */}
       {policies.length === 0 && !showForm ? (
@@ -4342,7 +4543,8 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
           </div>
           <div className="text-base font-bold mb-1.5">아직 결재선이 없습니다.</div>
           <div className="text-sm text-[var(--text-muted)]"><b>+ 결재선 추가</b>로 첫 결재선을 만들어 보세요.</div>
-        </div>) : (
+        </div>
+      ) : (
         <div className="ev-scroll">
           <table className="ev-table ev-lined ap-policy-table">
             <thead><tr><th>결재선</th><th>단계 · 승인자</th><th>참조</th><th>적용 대상</th><th>상태</th><th>관리</th></tr></thead>
@@ -4363,14 +4565,16 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                             {rules.length > 1 && <span className="block text-[10px] text-[var(--text-dim)]">적용 대상 {rules.length}개</span>}
                           </span>
                         </span>
-                      </td>)}
+                      </td>
+                    )}
                     <td className="text-left">
                       <span className="inline-flex items-center gap-1 flex-wrap">
                         {rule.stages.map((stage, idx) => (
                           <span key={idx} className="inline-flex items-center gap-1">
                             <span className="ap-stage-pill" title={stage.name}><b>{stage.stage}</b>{approverLabel(stage)}</span>
                             {idx < rule.stages.length - 1 && <span className="text-[var(--text-dim)]">›</span>}
-                          </span>))}
+                          </span>
+                        ))}
                       </span>
                     </td>
                     <td className="text-center text-[var(--text-muted)]">
@@ -4384,21 +4588,26 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${policy.is_active ? "bg-[var(--success-dim)] text-[var(--success)]" : "bg-[var(--bg-surface)] text-[var(--text-dim)]"}`}>
                           {policy.is_active ? "활성" : "비활성"}
                         </span>
-                      </td>)}
+                      </td>
+                    )}
                     {ruleIdx === 0 && (
                       <td className="text-center" rowSpan={rules.length}>
                         <span className="inline-flex gap-1">
-                          <button onClick={ => startEdit(policy)} className="btn-secondary btn-sm">수정</button>
-                          <button onClick={async  => { if (await appConfirm("이 정책을 삭제하시겠습니까?", { danger: true })) deleteMut.mutate(policy.id); }} disabled={deleteMut.isPending} className="btn-secondary btn-sm text-[var(--danger)] disabled:opacity-50">삭제</button>
+                          <button onClick={() => startEdit(policy)} className="btn-secondary btn-sm">수정</button>
+                          <button onClick={async () => { if (await appConfirm("이 정책을 삭제하시겠습니까?", { danger: true })) deleteMut.mutate(policy.id); }} disabled={deleteMut.isPending} className="btn-secondary btn-sm text-[var(--danger)] disabled:opacity-50">삭제</button>
                         </span>
-                      </td>)}
-                  </tr>));
+                      </td>
+                    )}
+                  </tr>
+                ));
               })}
               {visiblePolicies.length === 0 && <tr><td colSpan={6} className="ap-empty text-xs text-[var(--text-muted)]">조건에 맞는 정책이 없습니다.</td></tr>}
             </tbody>
           </table>
-        </div>)}
-    </div>);
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ══════════════════════════════════════════════
@@ -4412,13 +4621,13 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
   requestStatus: string;
   currentUserId?: string | null;
 }) {
-  const qc = useQueryClient;
-  const { toast } = useToast;
+  const qc = useQueryClient();
+  const { toast } = useToast();
   const [editingStepId, setEditingStepId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const { data: timeline = [], isLoading } = useQuery({
     queryKey: ["approval-timeline", requestId],
-    queryFn:  => getApprovalTimeline(requestId),
+    queryFn: () => getApprovalTimeline(requestId),
     enabled: !!requestId,
   });
   const avatarMap = useAvatarMap(timeline.map((s: any) => s.approver_id));
@@ -4427,14 +4636,14 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
   //   마스터/전체 현황 권한자만, 대기(pending) 단계만. 서버(reassign_approval_step RPC)가
   //   회사·권한·상태·새 승인자(같은 회사, 파트너 제외)를 재검증한다.
   const [tlCompanyId, setTlCompanyId] = useState<string | null>(null);
-  useEffect( => { getCurrentUser.then((u) => u && setTlCompanyId(u.company_id)).catch( => {}); }, []);
-  const { isMaster: tlMaster, hasPerm: tlHasPerm } = useMyPermissions;
+  useEffect(() => { getCurrentUser().then((u) => u && setTlCompanyId(u.company_id)).catch(() => {}); }, []);
+  const { isMaster: tlMaster, hasPerm: tlHasPerm } = useMyPermissions();
   const canReassign = (tlMaster || tlHasPerm("/approvals:all")) && requestStatus === "pending";
   const [reassignStepId, setReassignStepId] = useState<string | null>(null);
   const [reassignTo, setReassignTo] = useState("");
   const { data: tlMembers = [] } = useQuery({
     queryKey: ["approval-members-for-reassign", tlCompanyId],
-    queryFn: async  => {
+    queryFn: async () => {
       const data = logRead('approvals/page:tl-members', await (supabase).from("users")
         .select("id, name, email, avatar_url, role").eq("company_id", tlCompanyId!));
       return data || [];
@@ -4451,7 +4660,7 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
       //   notifications INSERT 트리거가 웹푸시까지 자동 발송. 알림 실패는 변경 자체를 막지 않는다.
       try  {
         const reqRow = logRead('approvals/page:reassign-title', await (supabase)
-          .from("approval_requests").select("title, amount, request_type").eq("id", requestId).maybeSingle);
+          .from("approval_requests").select("title, amount, request_type").eq("id", requestId).maybeSingle());
         if (tlCompanyId) {
           await createNotification({
             companyId: tlCompanyId,
@@ -4474,7 +4683,7 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
         }
       } catch { /* 알림 실패는 표시만 못 할 뿐 — 변경은 이미 완료 */ }
     },
-    onSuccess:  => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["approval-timeline", requestId] });
       qc.invalidateQueries({ queryKey: ["activity-timeline", requestId] });
       qc.invalidateQueries({ queryKey: ["my-pending-approvals"] });
@@ -4490,7 +4699,7 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
 
   async function saveComment(stepId: string) {
     try {
-      await updateApprovalStepComment(stepId, editText.trim);
+      await updateApprovalStepComment(stepId, editText.trim());
       qc.invalidateQueries({ queryKey: ["approval-timeline", requestId] });
       setEditingStepId(null);
     } catch (e: any) {
@@ -4507,13 +4716,13 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
   }
 
   // Group by stage
-  const stageGroups = new Map<number, ApprovalStep[]>;
+  const stageGroups = new Map<number, ApprovalStep[]>();
   timeline.forEach((step) => {
     if (!stageGroups.has(step.stage)) stageGroups.set(step.stage, []);
     stageGroups.get(step.stage)!.push(step);
   });
 
-  const stages = Array.from(stageGroups.entries).sort((a, b) => a[0] - b[0]);
+  const stages = Array.from(stageGroups.entries()).sort((a, b) => a[0] - b[0]);
 
   return (
     <div className="approval-timeline-view">
@@ -4538,19 +4747,24 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
                   {allApproved ? (
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M5 13l4 4L19 7" />
-                    </svg>) : anyRejected ? (
+                    </svg>
+                  ) : anyRejected ? (
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M6 18L18 6M6 6l12 12" />
-                    </svg>) : (
-                    stageNum)}
+                    </svg>
+                  ) : (
+                    stageNum
+                  )}
                 </div>
                 <div className={`text-[10px] mt-1.5 font-bold whitespace-nowrap ${isCurrent ? "text-[var(--primary)]" : allApproved ? "text-[var(--success)]" : "text-[var(--text-muted)]"}`}>
                   {steps[0]?.stage_name || `${stageNum}단계`}
                 </div>
               </div>
               {idx < stages.length - 1 && (
-                <div className={`h-[3px] w-10 rounded-full -mt-5 ${allApproved ? "bg-[var(--success)]" : "bg-[var(--border)]"}`} />)}
-            </div>);
+                <div className={`h-[3px] w-10 rounded-full -mt-5 ${allApproved ? "bg-[var(--success)]" : "bg-[var(--border)]"}`} />
+              )}
+            </div>
+          );
         })}
       </div>
 
@@ -4570,18 +4784,20 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
                   <StatusBadge status={step.status} />
                   {canEdit && !isEditing && (
                     <button
-                      onClick={ => { setEditingStepId(step.id); setEditText(step.comment || ""); }}
+                      onClick={() => { setEditingStepId(step.id); setEditText(step.comment || ""); }}
                       className="text-[10px] font-semibold text-[var(--primary)] hover:underline"
                     >
                       코멘트 {step.comment ? "수정" : "추가"}
-                    </button>)}
+                    </button>
+                  )}
                   {canReassign && step.status === "pending" && !isReassigning && (
                     <button
-                      onClick={ => { setReassignStepId(step.id); setReassignTo(""); }}
+                      onClick={() => { setReassignStepId(step.id); setReassignTo(""); }}
                       className="text-[10px] font-semibold text-[var(--primary)] hover:underline"
                     >
                       승인자 변경
-                    </button>)}
+                    </button>
+                  )}
                 </div>
                 {isReassigning && (
                   <div className="mt-1.5 flex items-center gap-2 flex-wrap">
@@ -4595,22 +4811,24 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
                       {(tlMembers as any[])
                         .filter((m) => m.role !== "partner" && m.id !== step.approver_id)
                         .map((m) => (
-                          <option key={m.id} value={m.id}>{m.name || m.email}</option>))}
+                          <option key={m.id} value={m.id}>{m.name || m.email}</option>
+                        ))}
                     </select>
                     <button
-                      onClick={ => reassignTo && reassignMut.mutate({ stepId: step.id, newApproverId: reassignTo })}
+                      onClick={() => reassignTo && reassignMut.mutate({ stepId: step.id, newApproverId: reassignTo })}
                       disabled={!reassignTo || reassignMut.isPending}
                       className="px-2.5 py-1.5 text-[10px] font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-lg transition disabled:opacity-50"
                     >
                       {reassignMut.isPending ? "변경 중..." : "변경"}
                     </button>
                     <button
-                      onClick={ => { setReassignStepId(null); setReassignTo(""); }}
+                      onClick={() => { setReassignStepId(null); setReassignTo(""); }}
                       className="px-2 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] hover:text-[var(--text)] transition"
                     >
                       취소
                     </button>
-                  </div>)}
+                  </div>
+                )}
                 {isEditing ? (
                   <div className="mt-1.5">
                     <textarea
@@ -4621,19 +4839,23 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
                       className="w-full px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-[var(--primary)] resize-none"
                     />
                     <div className="flex gap-2 mt-1.5">
-                      <button onClick={ => setEditingStepId(null)} className="px-2.5 py-1 text-[10px] font-semibold text-[var(--text-dim)] hover:text-[var(--text)] transition">취소</button>
-                      <button onClick={ => saveComment(step.id)} className="px-2.5 py-1 text-[10px] font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-lg transition">저장</button>
+                      <button onClick={() => setEditingStepId(null)} className="px-2.5 py-1 text-[10px] font-semibold text-[var(--text-dim)] hover:text-[var(--text)] transition">취소</button>
+                      <button onClick={() => saveComment(step.id)} className="px-2.5 py-1 text-[10px] font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-lg transition">저장</button>
                     </div>
-                  </div>) : step.comment ? (
-                  <div className="mt-1.5 inline-block px-3 py-2 rounded-xl rounded-tl-sm bg-[var(--bg-surface)] text-[var(--text-muted)] whitespace-pre-wrap">{step.comment}</div>) : null}
+                  </div>
+                ) : step.comment ? (
+                  <div className="mt-1.5 inline-block px-3 py-2 rounded-xl rounded-tl-sm bg-[var(--bg-surface)] text-[var(--text-muted)] whitespace-pre-wrap">{step.comment}</div>
+                ) : null}
               </div>
               <div className="text-[var(--text-dim)] shrink-0 mono-number">
                 {step.decided_at ? formatDateTime(step.decided_at) : "대기 중"}
               </div>
-            </div>);
+            </div>
+          );
         })}
       </div>
-    </div>);
+    </div>
+  );
 }
 
 
@@ -4642,16 +4864,16 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
 //   2026-07-30 대표: 관리자 화면(전체 현황)에만 있어 직원은 댓글을 못 달았다 →
 //   '내 요청' 상세에도 부착(본인 요청 건 한정), 사진·파일 첨부 지원.
 function ApprovalCommentThread({ requestId }: { requestId: string }) {
-  const qc = useQueryClient;
-  const { toast } = useToast;
+  const qc = useQueryClient();
+  const { toast } = useToast();
   const [commentText, setCommentText] = useState("");
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [posting, setPosting] = useState(false);
   const [me, setMe] = useState<{ id: string; company_id: string } | null>(null);
-  useEffect( => { getCurrentUser.then((u) => u && setMe({ id: u.id, company_id: u.company_id })).catch( => {}); }, []);
+  useEffect(() => { getCurrentUser().then((u) => u && setMe({ id: u.id, company_id: u.company_id })).catch(() => {}); }, []);
   const { data: comments = [] } = useQuery({
     queryKey: ["approval-comments", requestId],
-    queryFn: async  => {
+    queryFn: async () => {
       const data = logRead('approvals/page:comments', await (supabase)
         .from("approval_comments")
         .select("id, user_id, body, attachments, created_at, users:user_id(name, email, avatar_url)")
@@ -4662,13 +4884,13 @@ function ApprovalCommentThread({ requestId }: { requestId: string }) {
     enabled: !!requestId,
   });
   const isImageUrl = (url: string) => /\.(png|jpe?g|gif|webp|heic|bmp)$/i.test(attachmentFileName(url));
-  const postComment = async  => {
-    if (!me || (!commentText.trim && pendingFiles.length === 0) || posting) return;
+  const postComment = async () => {
+    if (!me || (!commentText.trim() && pendingFiles.length === 0) || posting) return;
     setPosting(true);
     try {
       const urls: string[] = [];
       for (const file of pendingFiles) {
-        const path = `approvals/${me.company_id}/comments/${Date.now}_${toBase64Url(file.name)}`;
+        const path = `approvals/${me.company_id}/comments/${Date.now()}_${toBase64Url(file.name)}`;
         const { error } = await supabase.storage.from("documents").upload(path, file);
         if (error) { toast(`첨부 업로드 실패 · ${file.name}: ${error.message}`, "error"); return; }
         const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
@@ -4677,7 +4899,7 @@ function ApprovalCommentThread({ requestId }: { requestId: string }) {
       
       // attachments 컬럼은 2026-07-30 마이그레이션 추가분 · database.ts 타입 재생성 전까지 캐스팅
       const  { error } = await (supabase).from("approval_comments").insert({
-        company_id: me.company_id, request_id: requestId, user_id: me.id, body: commentText.trim, attachments: urls,
+        company_id: me.company_id, request_id: requestId, user_id: me.id, body: commentText.trim(), attachments: urls,
       } as any);
       if (error) { toast("댓글 등록 실패: " + error.message, "error"); return; }
       setCommentText(""); setPendingFiles([]);
@@ -4687,11 +4909,11 @@ function ApprovalCommentThread({ requestId }: { requestId: string }) {
   const deleteComment = async (id: string) => {
     // 첨부도 같이 지운다: 종전엔 행만 지워 파일이 스토리지에 영구히 남았다.
     const target = (comments as any[]).find((c) => c.id === id);
-    const { error } = await (supabase).from("approval_comments").delete.eq("id", id);
+    const { error } = await (supabase).from("approval_comments").delete().eq("id", id);
     if (error) { toast("댓글 삭제 실패: " + friendlyError(error, "알 수 없는 오류"), "error"); return; }
     for (const url of (target?.attachments || []) as string[]) {
       const m = String(url).match(/\/object\/(?:public|sign|authenticated)\/documents\/([^?]+)/);
-      if (m) await supabase.storage.from("documents").remove([decodeURIComponent(m[1])]).catch( => {});
+      if (m) await supabase.storage.from("documents").remove([decodeURIComponent(m[1])]).catch(() => {});
     }
     qc.invalidateQueries({ queryKey: ["approval-comments", requestId] });
   };
@@ -4708,33 +4930,42 @@ function ApprovalCommentThread({ requestId }: { requestId: string }) {
                   <span className="text-xs font-bold text-[var(--text)]">{c.users?.name || c.users?.email || "구성원"}</span>
                   <span className="text-[10px] text-[var(--text-dim)] mono-number">{formatDateTime(c.created_at)}</span>
                   {me?.id === c.user_id && (
-                    <button onClick={ => deleteComment(c.id)} className="text-[10px] text-[var(--text-dim)] hover:text-[var(--danger)]">삭제</button>)}
+                    <button onClick={() => deleteComment(c.id)} className="text-[10px] text-[var(--text-dim)] hover:text-[var(--danger)]">삭제</button>
+                  )}
                 </div>
                 {c.body && (
-                  <div className="mt-0.5 inline-block px-3 py-1.5 rounded-xl rounded-tl-sm bg-[var(--bg-surface)] text-xs text-[var(--text)] whitespace-pre-wrap">{c.body}</div>)}
+                  <div className="mt-0.5 inline-block px-3 py-1.5 rounded-xl rounded-tl-sm bg-[var(--bg-surface)] text-xs text-[var(--text)] whitespace-pre-wrap">{c.body}</div>
+                )}
                 {(c.attachments || []).length > 0 && (
                   <div className="mt-1.5 flex flex-wrap items-start gap-1.5">
                     {(c.attachments as string[]).map((url, i) => isImageUrl(url) ? (
-                      <button key={i} type="button" onClick={ => openStoredFile(url, attachmentFileName(url))} className="block" title={attachmentFileName(url)}>
+                      <button key={i} type="button" onClick={() => openStoredFile(url, attachmentFileName(url))} className="block" title={attachmentFileName(url)}>
                         <AttachmentThumb url={url} name={attachmentFileName(url)} />
-                      </button>) : (
-                      <button key={i} type="button" onClick={ => downloadStoredFile(url, attachmentFileName(url))}
+                      </button>
+                    ) : (
+                      <button key={i} type="button" onClick={() => downloadStoredFile(url, attachmentFileName(url))}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/40">
                         <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
                         <span className="truncate max-w-[160px]">{attachmentFileName(url)}</span>
-                      </button>))}
-                  </div>)}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>))}
-        </div>)}
+            </div>
+          ))}
+        </div>
+      )}
       {pendingFiles.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-2">
           {pendingFiles.map((f, i) => (
             <span key={i} className="inline-flex items-center gap-1 pl-2 pr-1 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text-muted)]">
               {f.name}
-              <button type="button" onClick={ => setPendingFiles((arr) => arr.filter((_, j) => j !== i))} className="px-1 text-[var(--text-dim)] hover:text-[var(--danger)]">✕</button>
-            </span>))}
-        </div>)}
+              <button type="button" onClick={() => setPendingFiles((arr) => arr.filter((_, j) => j !== i))} className="px-1 text-[var(--text-dim)] hover:text-[var(--danger)]">✕</button>
+            </span>
+          ))}
+        </div>
+      )}
       <div className="flex items-center gap-2">
         <label className="shrink-0 w-8 h-8 rounded-xl border border-[var(--border)] bg-[var(--bg)] flex items-center justify-center cursor-pointer text-[var(--text-dim)] hover:text-[var(--primary)] hover:border-[var(--primary)]/40" title="사진/파일 첨부">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
@@ -4743,12 +4974,13 @@ function ApprovalCommentThread({ requestId }: { requestId: string }) {
         <input
           value={commentText}
           onChange={(e) => setCommentText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) postComment; }}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) postComment(); }}
           placeholder="댓글을 입력하세요 (Enter로 등록)"
           className="flex-1 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-[var(--primary)]"
         />
-        <button onClick={postComment} disabled={posting || (!commentText.trim && pendingFiles.length === 0)}
+        <button onClick={postComment} disabled={posting || (!commentText.trim() && pendingFiles.length === 0)}
           className="px-3 py-2 rounded-xl text-xs font-semibold bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-40">{posting ? "등록 중..." : "등록"}</button>
       </div>
-    </div>);
+    </div>
+  );
 }

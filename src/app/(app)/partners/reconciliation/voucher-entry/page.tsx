@@ -47,12 +47,12 @@ import {
 } from "@/components/query-kit";
 
 const db = supabase;
-const won = (n: number) => `₩${Math.round(Number(n || 0)).toLocaleString}`;
+const won = (n: number) => `₩${Math.round(Number(n || 0)).toLocaleString()}`;
 
 // 음수 허용(맨 앞 '-'만) — 수정분개용. 저장 시 음수 차변→대변/음수 대변→차변 정규화(DB check debit·credit>=0).
 const num = (s: string | number) => { const n = Number(String(s).replace(/[^0-9-]/g, "").replace(/(?!^)-/g, "")); return Number.isFinite(n) ? n : 0; };
 const comma = (s: string) => {
-  const neg = String(s).trim.startsWith("-");
+  const neg = String(s).trim().startsWith("-");
   const n = Math.abs(num(s));
   if (!n) return neg ? "-" : ""; // '-'만 입력한 중간 상태 유지
   return (neg ? "-" : "") + n.toLocaleString("ko-KR");
@@ -100,11 +100,11 @@ const pad2 = (s: string) => String(Number(s) || 0).padStart(2, "0");
 const savedGubun = (vt: string | null, debit: number): Gubun =>
   vt === "cash_out" ? (debit > 0 ? "1" : "4") : vt === "cash_in" ? (debit > 0 ? "3" : "2") : debit > 0 ? "3" : "4";
 
-export default function VoucherEntryPage {
-  const { user, role } = useUser;
+export default function VoucherEntryPage() {
+  const { user, role } = useUser();
   const companyId = user?.company_id ?? null;
-  const qc = useQueryClient;
-  const { toast } = useToast;
+  const qc = useQueryClient();
+  const { toast } = useToast();
 
   // ① 칠 전표의 날짜 — 매입매출전표와 같은 년·월·일 3칸
   // 전표 일자는 줄마다 갖는다(PLine.date) — 상단 단일 일자 칸은 2026-09-02 대표 지시로 없앴다.
@@ -113,8 +113,8 @@ export default function VoucherEntryPage {
   const onSort = (k: VSortKey) => setSort((c) => nextSort(c, k));
 
   // ② 아래 목록이 보여 줄 기간 — 월 단위. 기본 **지난달~이번 달**(조회 화면 표준). ★ 조회값은 기억하지 않는다.
-  const [fromM, setFromM] = useState( => defaultRangeMonth.from);
-  const [toM, setToM] = useState( => defaultRangeMonth.to);
+  const [fromM, setFromM] = useState(() => defaultRangeMonth().from);
+  const [toM, setToM] = useState(() => defaultRangeMonth().to);
   // ── 조회 화면 표준 (목록부) — 빠른검색·검색조건·내 조건 ──
   const [q, setQ] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);
@@ -132,7 +132,7 @@ export default function VoucherEntryPage {
   const [importQ, setImportQ] = useState("");
   const [importDays, setImportDays] = useState(60);
   const [edits, setEdits] = useState<Record<string, { desc: string; lines: PLine[] }>>({}); // 하단 인라인 편집 버퍼
-  const [selected, setSelected] = useState<Set<string>>(new Set); // "s:entryId"
+  const [selected, setSelected] = useState<Set<string>>(new Set()); // "s:entryId"
   const [picker, setPicker] = useState<{ kind: "acct" | "pt" | "memo"; rowId: string; q: string; anchor: Anchor; idx?: number } | null>(null);
   const [ctx, setCtx] = useState<{ x: number; y: number; rowId: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -142,24 +142,24 @@ export default function VoucherEntryPage {
   // 분개 입력 칸 높이 — 아래 구분선을 끌어 조절 (기본은 CSS max-height 34vh)
   const split = useDragHeight("ve-split:voucher-entry", { min: 120 });
   const flashScrolled = useRef(false);
-  useEffect( => { try { setRecentMemos(JSON.parse(localStorage.getItem(MEMO_KEY) || "[]")); } catch { /* noop */ } }, []);
-  useEffect( => { const close =  => setCtx(null); window.addEventListener("click", close); return  => window.removeEventListener("click", close); }, []);
-  useEffect( => {
+  useEffect(() => { try { setRecentMemos(JSON.parse(localStorage.getItem(MEMO_KEY) || "[]")); } catch { /* noop */ } }, []);
+  useEffect(() => { const close = () => setCtx(null); window.addEventListener("click", close); return () => window.removeEventListener("click", close); }, []);
+  useEffect(() => {
     if (!flashId) return;
-    const t = setTimeout( => setFlashId(null), 2500);
-    return  => clearTimeout(t);
+    const t = setTimeout(() => setFlashId(null), 2500);
+    return () => clearTimeout(t);
   }, [flashId]);
 
   // 상단 행 초기화 — 구분에 맞는 기본 2행(대체: 차변+대변 / 출금: 차변 / 입금: 대변)
   const freshRows = (t: VType): PLine[] => {
-    const mk = (g: Gubun): PLine => ({ key: K++, date: todayKst, gubun: g, account: null, partner: null, memo: "", debit: "", credit: "" });
+    const mk = (g: Gubun): PLine => ({ key: K++, date: todayKst(), gubun: g, account: null, partner: null, memo: "", debit: "", credit: "" });
     return t === "cash_out" ? [mk("1"), mk("1")] : t === "cash_in" ? [mk("2"), mk("2")] : [mk("3"), mk("4")];
   };
   // 프로젝트 지출 항목 → 전표 초안 프리필 (2026-08-31 개편 3단계, A3 sessionStorage 패턴 —
   // 서버 초안 행을 만들지 않는다: 전표는 저장 즉시 장부라 초안 행이 곧 오염. 저장은 사람.)
   // 저장 성공 시 journal_entries.deal_id 를 태그해 프로젝트 확정 집계에 잡히게 한다.
   const [prefillDeal, setPrefillDeal] = useState<{ dealId: string; name: string } | null>(null);
-  useEffect( => {
+  useEffect(() => {
     setPend(freshRows("transfer"));
     if (typeof window === "undefined") return;
     if (new URLSearchParams(window.location.search).get("prefill") !== "project") return;
@@ -179,19 +179,19 @@ export default function VoucherEntryPage {
   // ── 참조 데이터 ──
   const { data: accounts = [], isFetched: acctFetched } = useQuery<Acct[]>({
     queryKey: ["voucher-accounts", companyId],
-    queryFn: async  => {
+    queryFn: async () => {
       const data = logRead('voucher-entry/page:data', await db.from("chart_of_accounts").select("id, code, name").eq("company_id", companyId ?? "").order("code"));
       return (data || []) as Acct[];
     },
     enabled: !!companyId, staleTime: 300_000,
   });
   // 보통예금은 표준 계정과목표에서 **103** 이다 (101 은 현금). 2026-08-12 표준 채택.
-  const cashAcct = useMemo( => accounts.find((a) => a.code === "103") || null, [accounts]);
+  const cashAcct = useMemo(() => accounts.find((a) => a.code === "103") || null, [accounts]);
   // 불러오기 후보 — 미전표 통장/카드 거래 (최근 N일)
   const { data: importRows = [], isLoading: importLoading } = useQuery<SrcTx[]>({
     queryKey: ["ve-import", companyId, importKind, importDays],
-    queryFn: async  => {
-      const from = new Date(Date.now + 9 * 3600 * 1000 - importDays * 86400000).toISOString.slice(0, 10);
+    queryFn: async () => {
+      const from = new Date(Date.now() + 9 * 3600 * 1000 - importDays * 86400000).toISOString().slice(0, 10);
       if (importKind === "bank") {
         const data = logRead("ve-import:bank", await db.from("bank_transactions").select("id, transaction_date, amount, type, counterparty, description, raw_data").eq("company_id", companyId ?? "").is("journal_entry_id", null).is("ledger_excluded_reason", null).gte("transaction_date", from).order("transaction_date", { ascending: false }).limit(500));
         return ((data || []) as any[]).map((r) => ({ kind: "bank" as const, id: r.id, date: r.transaction_date, amount: Math.abs(Number(r.amount || 0)), isIn: r.type === "income", who: r.counterparty || "", desc: r.description || "", account: r.raw_data?.accountNo ? String(r.raw_data.accountNo).slice(-4) : undefined }));
@@ -224,7 +224,7 @@ export default function VoucherEntryPage {
 
   const { data: partners = [] } = useQuery<Pt[]>({
     queryKey: ["voucher-partners", companyId],
-    queryFn: async  => {
+    queryFn: async () => {
       const data = logRead('voucher-entry/page:data', await db.from("partners").select("id, name, business_number").eq("company_id", companyId ?? "").order("name"));
       return (data || []) as Pt[];
     },
@@ -236,10 +236,10 @@ export default function VoucherEntryPage {
   // 세 군데에서 무효화한다. 이름을 바꾸면 그쪽이 조용히 안 먹는다(화면은 멀쩡해 보인다).
   const { data: entries = [] } = useQuery<SavedEntry[]>({
     queryKey: ["vouchers-of-day", companyId, fromM, toM],
-    queryFn: async  => {
+    queryFn: async () => {
       // ★ 페이징 필수 — 넓은 기간엔 일반전표가 1,000행(PostgREST 기본 상한)을 넘어
       // 상한에서 조용히 잘리면 날짜가 늦은 전표가 목록에서 사라진다 (2026-08-28).
-      const data = await fetchPaged("voucher-entry:vouchers-of-day",  => db.from("journal_entries")
+      const data = await fetchPaged("voucher-entry:vouchers-of-day", () => db.from("journal_entries")
         .select("id, entry_date, voucher_no, voucher_type, description, source, entry_kind, journal_lines(debit, credit, description, chart_of_accounts(id, code, name), partners(id, name, business_number))")
         .eq("company_id", companyId ?? "").eq("status", "confirmed")
         // ★ 매입매출전표는 뺀다 — 여기서 못 고치는 전표라(유형·공급가액이
@@ -266,7 +266,7 @@ export default function VoucherEntryPage {
   // 건수는 count 로 센다(행을 받아 세면 1,000행에서 잘린다).
   const { data: spCount = 0 } = useQuery<number>({
     queryKey: ["vouchers-of-day-sp", companyId, fromM, toM],
-    queryFn: async  => {
+    queryFn: async () => {
       const { count } = await db.from("journal_entries").select("id", { count: "exact", head: true })
         .eq("company_id", companyId ?? "").eq("status", "confirmed").eq("entry_kind", "sale_purchase")
         .gte("entry_date", `${fromM}-01`).lt("entry_date", monthAfter(toM));
@@ -281,7 +281,7 @@ export default function VoucherEntryPage {
     if (c.acct.length && !e.lines.some((l) => l.account && c.acct.includes(l.account.name))) return false;
     if (c.pt.length && !e.lines.some((l) => l.partner && c.pt.includes(l.partner.name))) return false;
     if (c.vtype.length && !c.vtype.includes(e.voucher_type || "transfer")) return false;
-    if (c.memo && !`${e.description} ${e.lines.map((l) => l.memo).join(" ")}`.toLowerCase.includes(c.memo.toLowerCase)) return false;
+    if (c.memo && !`${e.description} ${e.lines.map((l) => l.memo).join(" ")}`.toLowerCase().includes(c.memo.toLowerCase())) return false;
     // 출처 — 여기서 친 것(manual) / 수집·전표 등에서 자동으로 만든 것
     if (c.src === "manual" && e.source !== "manual") return false;
     if (c.src === "auto" && e.source === "manual") return false;
@@ -293,13 +293,13 @@ export default function VoucherEntryPage {
   const entryQuick = (e: SavedEntry) => quickSearchHit(q,
     [String(e.voucher_no ?? ""), e.description, ...e.lines.flatMap((l) => [l.account?.name, l.account?.code, l.partner?.name, l.memo])],
     e.lines.flatMap((l) => [l.debit, l.credit]).filter((n) => n > 0));
-  const filteredEntries = useMemo( => entries.filter((e) => entryHit(e, live) && entryQuick(e)),
+  const filteredEntries = useMemo(() => entries.filter((e) => entryHit(e, live) && entryQuick(e)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [entries, live, q]);
   const previewCount = entries.filter((e) => entryHit(e, draft)).length;
-  const acctOpts = useMemo( => [...new Set(entries.flatMap((e) => e.lines.map((l) => l.account?.name).filter(Boolean)))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [entries]);
-  const ptOpts = useMemo( => [...new Set(entries.flatMap((e) => e.lines.map((l) => l.partner?.name).filter(Boolean)))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [entries]);
-  const sortedEntries = useMemo( => {
+  const acctOpts = useMemo(() => [...new Set(entries.flatMap((e) => e.lines.map((l) => l.account?.name).filter(Boolean)))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [entries]);
+  const ptOpts = useMemo(() => [...new Set(entries.flatMap((e) => e.lines.map((l) => l.partner?.name).filter(Boolean)))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [entries]);
+  const sortedEntries = useMemo(() => {
     const val = (e: SavedEntry): string | number => {
       const first = e.lines[0];
       switch (sort.key) {
@@ -322,7 +322,7 @@ export default function VoucherEntryPage {
   // 내 조건 · ★ 하나가 이 화면(목록부)의 기본값
   const saved = useSavedQueries("voucher-entry", companyId);
   const paramsNow = { from: fromM, to: toM, q, cond: live };
-  const paramsBasic = { ...defaultRangeMonth, q: "", cond: EMPTY_COND };
+  const paramsBasic = { ...defaultRangeMonth(), q: "", cond: EMPTY_COND };
   const applySaved = (p: Record<string, unknown>) => {
     if (typeof p.from === "string" && typeof p.to === "string") { setFromM(p.from); setToM(p.to); }
     if (typeof p.q === "string") setQ(p.q);
@@ -330,7 +330,7 @@ export default function VoucherEntryPage {
     setDraft(c); setLive(c);
   };
   const [defDone, setDefDone] = useState(false);
-  useEffect( => {
+  useEffect(() => {
     if (defDone || !saved.isFetched) return;
     setDefDone(true);
     // 딥링크(?from=YYYY-MM&to=YYYY-MM&q=전표번호) — 손익 현황 원천 드릴다운에서 넘어올 때(2026-08-19). 있으면 내 조건 기본값보다 우선.
@@ -344,24 +344,24 @@ export default function VoucherEntryPage {
     if (saved.def) applySaved(saved.def.params || {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved.isFetched, saved.def, defDone]);
-  const suggestName =  => [draft.acct[0], draft.pt[0]].filter(Boolean).slice(0, 2).join(" · ") || "내 조건";
+  const suggestName = () => [draft.acct[0], draft.pt[0]].filter(Boolean).slice(0, 2).join(" · ") || "내 조건";
   const drop = (patch: Partial<Cond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
   const chips: AppliedChip[] = [
-    ...quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove:  => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) })),
-    ...live.acct.map((v) => ({ group: "계정과목", label: v, onRemove:  => drop({ acct: live.acct.filter((x) => x !== v) }) })),
-    ...live.pt.map((v) => ({ group: "거래처", label: v, onRemove:  => drop({ pt: live.pt.filter((x) => x !== v) }) })),
-    ...live.vtype.map((v) => ({ group: "구분", label: VTYPES.find((t) => t.id === v)?.label || v, onRemove:  => drop({ vtype: live.vtype.filter((x) => x !== v) }) })),
-    ...(live.memo ? [{ group: "적요", label: live.memo, onRemove:  => drop({ memo: "" }) }] : []),
-    ...(live.src ? [{ group: "출처", label: live.src === "manual" ? "직접 입력" : "자동 생성", onRemove:  => drop({ src: "" }) }] : []),
-    ...((live.min || live.max) ? [{ group: "전표 금액", label: `${Number(live.min || 0).toLocaleString("ko")} ~ ${live.max ? Number(live.max).toLocaleString("ko") : "제한없음"}`, onRemove:  => drop({ min: "", max: "" }) }] : []),
+    ...quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) })),
+    ...live.acct.map((v) => ({ group: "계정과목", label: v, onRemove: () => drop({ acct: live.acct.filter((x) => x !== v) }) })),
+    ...live.pt.map((v) => ({ group: "거래처", label: v, onRemove: () => drop({ pt: live.pt.filter((x) => x !== v) }) })),
+    ...live.vtype.map((v) => ({ group: "구분", label: VTYPES.find((t) => t.id === v)?.label || v, onRemove: () => drop({ vtype: live.vtype.filter((x) => x !== v) }) })),
+    ...(live.memo ? [{ group: "적요", label: live.memo, onRemove: () => drop({ memo: "" }) }] : []),
+    ...(live.src ? [{ group: "출처", label: live.src === "manual" ? "직접 입력" : "자동 생성", onRemove: () => drop({ src: "" }) }] : []),
+    ...((live.min || live.max) ? [{ group: "전표 금액", label: `${Number(live.min || 0).toLocaleString("ko")} ~ ${live.max ? Number(live.max).toLocaleString("ko") : "제한없음"}`, onRemove: () => drop({ min: "", max: "" }) }] : []),
   ];
-  const clearAll =  => { setQ(""); setLive(EMPTY_COND); setDraft(EMPTY_COND); };
+  const clearAll = () => { setQ(""); setLive(EMPTY_COND); setDraft(EMPTY_COND); };
   const sumD = filteredEntries.reduce((s0, e) => s0 + e.lines.reduce((x, l) => x + l.debit, 0), 0);
   const sumC = filteredEntries.reduce((s0, e) => s0 + e.lines.reduce((x, l) => x + l.credit, 0), 0);
 
 
   // 엑셀 — 통장·카드·매입매출전표와 같은 공통 함수를 쓴다(한글 깨짐·칸 밀림을 한 곳에서만 막는다)
-  const exportCsv =  => {
+  const exportCsv = () => {
     const rows: (string | number)[][] = [];
     for (const e of sortedEntries) {
       for (const l of e.lines) {
@@ -378,7 +378,8 @@ export default function VoucherEntryPage {
     downloadCsv(
       `일반전표_${fromM === toM ? fromM : `${fromM}~${toM}`}`,
       ["일자", "전표번호", "구분", "계정코드", "계정명", "거래처번호", "거래처명", "차변", "대변", "적요"],
-      rows,);
+      rows,
+    );
   };
 
   // ── 상단 입력 파생값 (출금/입금은 자동 현금 라인 포함해 균형 계산) ──
@@ -389,11 +390,11 @@ export default function VoucherEntryPage {
   // 날짜별 묶음 — 같은 날짜 줄이 한 장. 대체전표는 묶음마다 차·대가 맞아야 한다.
   const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
   const pendDatesOk = pendFilled.every((l) => DATE_RE.test(l.date));
-  const pendGroups = ( => {
-    const m = new Map<string, PLine[]>;
+  const pendGroups = (() => {
+    const m = new Map<string, PLine[]>();
     for (const l of pendFilled) { const arr = m.get(l.date) || []; arr.push(l); m.set(l.date, arr); }
-    return [...m.entries].sort(([a], [b]) => a.localeCompare(b));
-  });
+    return [...m.entries()].sort(([a], [b]) => a.localeCompare(b));
+  })();
   const pendGroupsOk = vtype !== "transfer" || pendGroups.every(([, ls]) => {
     const d = ls.reduce((s, l) => s + normDC(l).d, 0), c = ls.reduce((s, l) => s + normDC(l).c, 0);
     return d === c && ls.length >= 2;
@@ -418,9 +419,9 @@ export default function VoucherEntryPage {
   const canSave = dbReady && !busy && ((pendFilled.length > 0 && pendOk && pendDatesOk && pendGroupsOk) || editIds.length > 0) && editsOk && (pendFilled.length === 0 || (pendOk && pendDatesOk && pendGroupsOk));
 
   // ── 행 조작 ──
-  const rowGubun = : Gubun => (vtype === "cash_out" ? "1" : vtype === "cash_in" ? "2" : "3");
+  const rowGubun = (): Gubun => (vtype === "cash_out" ? "1" : vtype === "cash_in" ? "2" : "3");
   // 새 줄의 날짜는 바로 윗줄을 따른다 — 같은 전표를 이어 치는 게 보통이다
-  const newLine = (g?: Gubun): PLine => ({ key: K++, date: pend[pend.length - 1]?.date || todayKst, gubun: g ?? rowGubun, account: null, partner: null, memo: "", debit: "", credit: "" });
+  const newLine = (g?: Gubun): PLine => ({ key: K++, date: pend[pend.length - 1]?.date || todayKst(), gubun: g ?? rowGubun(), account: null, partner: null, memo: "", debit: "", credit: "" });
   const setPendLine = (key: number, patch: Partial<PLine>) => setPend((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   const setEditLine = (entryId: string, key: number, patch: Partial<PLine>) =>
     setEdits((es) => ({ ...es, [entryId]: { ...es[entryId], lines: es[entryId].lines.map((l) => (l.key === key ? { ...l, ...patch } : l)) } }));
@@ -437,7 +438,7 @@ export default function VoucherEntryPage {
       ...es,
       [e.id]: {
         desc: e.description,
-        lines: e.lines.map((l) => ({ key: K++, date: e.entry_date, gubun: savedGubun(e.voucher_type, l.debit), account: l.account, partner: l.partner, memo: l.memo, debit: l.debit ? l.debit.toLocaleString : "", credit: l.credit ? l.credit.toLocaleString : "" })),
+        lines: e.lines.map((l) => ({ key: K++, date: e.entry_date, gubun: savedGubun(e.voucher_type, l.debit), account: l.account, partner: l.partner, memo: l.memo, debit: l.debit ? l.debit.toLocaleString() : "", credit: l.credit ? l.credit.toLocaleString() : "" })),
       },
     }));
   };
@@ -453,9 +454,9 @@ export default function VoucherEntryPage {
       }));
     });
   };
-  const focusTop =  => {
+  const focusTop = () => {
     const el = topRef.current?.querySelector<HTMLElement>("input:not([readonly])");
-    el?.focus;
+    el?.focus();
     topRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
@@ -487,8 +488,8 @@ export default function VoucherEntryPage {
         ? {
           gubun: savedGubun(last.voucher_type, last.lines[0].debit),
           account: last.lines[0].account, partner: last.lines[0].partner, memo: last.lines[0].memo,
-          debit: last.lines[0].debit ? last.lines[0].debit.toLocaleString : "",
-          credit: last.lines[0].credit ? last.lines[0].credit.toLocaleString : "",
+          debit: last.lines[0].debit ? last.lines[0].debit.toLocaleString() : "",
+          credit: last.lines[0].credit ? last.lines[0].credit.toLocaleString() : "",
         }
         : null;
     if (!src) return;
@@ -509,7 +510,7 @@ export default function VoucherEntryPage {
     if (e.key !== "Enter") return;
     const t = e.target as HTMLElement;
     if (!/^(INPUT|SELECT)$/.test(t.tagName)) return;
-    e.preventDefault;
+    e.preventDefault();
     // data-vcell="필드-행번호" 가 붙은 칸만 내린다 (계정·거래처 자동완성 목록에서 고르는 중이면 그쪽이 먼저 먹는다)
     const mark = t.getAttribute("data-vcell");
     if (mark) {
@@ -518,8 +519,8 @@ export default function VoucherEntryPage {
     }
     const els = Array.from(topRef.current?.querySelectorAll<HTMLElement>("input:not([readonly]), select") || []);
     const i = els.indexOf(t);
-    if (i >= 0 && i < els.length - 1) els[i + 1].focus;
-    else setPend((ls) => [...ls, newLine]);
+    if (i >= 0 && i < els.length - 1) els[i + 1].focus();
+    else setPend((ls) => [...ls, newLine()]);
   };
 
   const rememberMemos = (memos: string[]) => {
@@ -543,7 +544,7 @@ export default function VoucherEntryPage {
 
   // ── 저장: 하단 편집 전표 커밋 + 상단 새 전표 저장 → §3-3-B 즉시 반영(리페치+하이라이트+스크롤+N번 토스트) ──
   // 실패 시 입력값 유지(성공해야만 초기화).
-  const save = async  => {
+  const save = async () => {
     if (!canSave) return;
     setBusy(true);
     try {
@@ -560,7 +561,7 @@ export default function VoucherEntryPage {
       
       let newId: string | null = null;
       const newIds: string[] = [];
-      const savedDates = new Set<string>;
+      const savedDates = new Set<string>();
       // 날짜별로 RPC 를 따로 부르므로 트랜잭션이 아니다 — 마감된 달이 섞여 있으면 시작하기 전에 전부 거른다
       // (둘째 장에서 막히면 첫 장은 저장됐는데 화면은 실패로 보여 다시 누르면 이중 전표가 됐다)
       if (pendGroups.length > 0 && companyId) {
@@ -583,9 +584,9 @@ export default function VoucherEntryPage {
               db.from("bank_transactions").select("id, amount, counterparty, journal_entry_id").eq("company_id", companyId ?? "").eq("transaction_date", gDate).not("journal_entry_id", "is", null).or(`amount.eq.${total},amount.eq.${-total}`),
               db.from("card_transactions").select("id, amount, merchant_name, journal_entry_id").eq("company_id", companyId ?? "").eq("transaction_date", gDate).not("journal_entry_id", "is", null).eq("amount", total),
             ]);
-            const dups = [...((bk.data || []) as any[]).map((r) => `통장 ${r.counterparty || ""} ${Number(r.amount).toLocaleString}`), ...((cd.data || []) as any[]).map((r) => `카드 ${r.merchant_name || ""} ${Number(r.amount).toLocaleString}`)];
+            const dups = [...((bk.data || []) as any[]).map((r) => `통장 ${r.counterparty || ""} ${Number(r.amount).toLocaleString()}`), ...((cd.data || []) as any[]).map((r) => `카드 ${r.merchant_name || ""} ${Number(r.amount).toLocaleString()}`)];
             if (dups.length > 0) {
-              const ok = await appConfirm(`중복 의심 · 같은 날(${gDate}) 같은 금액(${total.toLocaleString})의 거래가 이미 전표처리돼 있습니다:\n${dups.join("\n")}\n\n그래도 새 전표로 저장할까요? (같은 돈이 두 번 장부에 오를 수 있습니다. 통장·카드 거래를 전표로 치려면 '통장·카드 불러오기'를 쓰세요)`, { danger: true, title: "중복 의심", confirmLabel: "그래도 저장" });
+              const ok = await appConfirm(`중복 의심 · 같은 날(${gDate}) 같은 금액(${total.toLocaleString()})의 거래가 이미 전표처리돼 있습니다:\n${dups.join("\n")}\n\n그래도 새 전표로 저장할까요? (같은 돈이 두 번 장부에 오를 수 있습니다. 통장·카드 거래를 전표로 치려면 '통장·카드 불러오기'를 쓰세요)`, { danger: true, title: "중복 의심", confirmLabel: "그래도 저장" });
               if (!ok) { setBusy(false); return; }
             }
           }
@@ -648,7 +649,7 @@ export default function VoucherEntryPage {
         setPend(freshRows(vtype)); // 상단 = "새 전표" 상태로 초기화
         flashScrolled.current = false;
         setFlashId(newId);
-        const saved = logRead('voucher-entry/page:saved', await db.from("journal_entries").select("voucher_no").eq("id", newId).maybeSingle);
+        const saved = logRead('voucher-entry/page:saved', await db.from("journal_entries").select("voucher_no").eq("id", newId).maybeSingle());
         toast(newIds.length > 1 ? `전표 ${newIds.length}장 저장됨(날짜별). 하단 목록에 추가` : `전표 ${saved?.voucher_no ?? ""}번 저장됨. 하단 목록에 추가`, "success");
       } else {
         toast("전표 수정 저장 완료", "success");
@@ -660,7 +661,7 @@ export default function VoucherEntryPage {
   };
 
   // ── 선택 삭제(하단): 전표 단위 voucher_reject(행 보존 이력) ──
-  const deleteSelected = async  => {
+  const deleteSelected = async () => {
     const entryIds = [...new Set([...selected].map((s) => s.slice(2)))];
     if (entryIds.length === 0) { toast("삭제할 전표를 선택하세요", "info"); return; }
     if (!(await appConfirm(`저장된 전표 ${entryIds.length}건을 삭제할까요?\n(분개 균형 유지를 위해 전표 단위로 삭제되며, 이력은 보존됩니다)`, { danger: true }))) return;
@@ -671,7 +672,7 @@ export default function VoucherEntryPage {
         if (error) throw new Error(errMsg(String(error.message)));
         setEdits((es) => { const n = { ...es }; delete n[id]; return n; });
       }
-      setSelected(new Set);
+      setSelected(new Set());
       qc.invalidateQueries({ queryKey: ["vouchers-of-day"] });
       toast(`전표 ${entryIds.length}건 삭제(이력 보존)`, "info");
     } catch (e: any) {
@@ -706,12 +707,12 @@ export default function VoucherEntryPage {
       const e = entries.find((x) => x.id === entryId);
       const l = e?.lines[Number(lineIdx)];
       if (action === "copy" && l) {
-        setPend((ls) => [...ls, { key: K++, date: e?.entry_date || ls[ls.length - 1]?.date || todayKst, gubun: vtype === "transfer" ? (l.debit > 0 ? "3" : "4") : rowGubun, account: l.account, partner: l.partner, memo: l.memo, debit: vtype === "cash_in" ? "" : (l.debit ? l.debit.toLocaleString : ""), credit: vtype === "cash_out" ? "" : (l.credit ? l.credit.toLocaleString : "") }]);
-        focusTop;
+        setPend((ls) => [...ls, { key: K++, date: e?.entry_date || ls[ls.length - 1]?.date || todayKst(), gubun: vtype === "transfer" ? (l.debit > 0 ? "3" : "4") : rowGubun(), account: l.account, partner: l.partner, memo: l.memo, debit: vtype === "cash_in" ? "" : (l.debit ? l.debit.toLocaleString() : ""), credit: vtype === "cash_out" ? "" : (l.credit ? l.credit.toLocaleString() : "") }]);
+        focusTop();
       }
       if (action === "delete" && e) {
         setSelected(new Set([`s:${e.id}`]));
-        setTimeout( => { void deleteSelected; }, 0);
+        setTimeout(() => { void deleteSelected(); }, 0);
       }
       if (action === "insert" && e) enterEdit(e);
     }
@@ -722,19 +723,19 @@ export default function VoucherEntryPage {
   if (!companyId) return <div className="p-8 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>;
 
   const acctMatches = (q: string) => {
-    const t = q.trim.toLowerCase;
+    const t = q.trim().toLowerCase();
     // ⚠️ 자르지 않는다 — 12개로 잘라 두면 **그 12개 안에서만** 검색된다(매입매출전표에서 같은 버그를
     // 잡았다: '여비교통비'가 안 나왔다). 목록은 스크롤되므로 다 넘겨도 된다 (2026-08-12).
-    return t ? accounts.filter((a) => a.code.includes(t) || a.name.toLowerCase.includes(t)) : accounts;
+    return t ? accounts.filter((a) => a.code.includes(t) || a.name.toLowerCase().includes(t)) : accounts;
   };
   const ptMatches = (q: string) => {
-    const raw = q.trim.toLowerCase;
+    const raw = q.trim().toLowerCase();
     if (!raw) return partners; // 빈 검색 = 회사 거래처 전체 노출(세로 스크롤로 탐색)
     const tn = raw.replace(/[-\s]/g, ""); // 공백·하이픈 제거(사업자번호/연속매칭용)
     const tokens = raw.split(/\s+/).filter(Boolean); // 토큰별(공백 구분) 매칭
     // 매칭을 넓게 — 공백 무시 부분일치 OR 모든 토큰 포함 OR 사업자번호 포함
     return partners.filter((p) => {
-      const name = (p.name || "").toLowerCase;
+      const name = (p.name || "").toLowerCase();
       const nameNS = name.replace(/\s/g, "");
       const bn = (p.business_number || "").replace(/-/g, "");
       return nameNS.includes(tn) || tokens.every((tk) => name.includes(tk)) || (bn && bn.includes(tn));
@@ -753,20 +754,20 @@ export default function VoucherEntryPage {
       <input value={picker?.kind === "acct" && picker.rowId === rowId ? picker.q : (withName ? (l.account?.code || "") : (l.account ? `${l.account.name} (${l.account.code})` : ""))}
         onChange={(e) => setPicker({ kind: "acct", rowId, q: e.target.value, anchor: anchorOf(e.currentTarget) })}
         onFocus={(e) => setPicker({ kind: "acct", rowId, q: "", anchor: anchorOf(e.currentTarget) })}
-        onBlur={ => setTimeout( => setPicker((p) => (p?.rowId === rowId && p.kind === "acct" ? null : p)), 150)}
+        onBlur={() => setTimeout(() => setPicker((p) => (p?.rowId === rowId && p.kind === "acct" ? null : p)), 150)}
         onKeyDown={(e) => {
-          // 거래처 셀과 동일한 키보드 탐색 — ArrowUp/Down 이동 + Enter 선택 
+          // 거래처 셀과 동일한 키보드 탐색 — ArrowUp/Down 이동 + Enter 선택 (직원 QA #1)
           if (!(picker?.kind === "acct" && picker.rowId === rowId)) return;
           const list = acctMatches(picker.q);
-          if (e.key === "ArrowDown") { e.preventDefault; e.stopPropagation; setPicker((p) => p ? { ...p, idx: Math.min((p.idx ?? 0) + 1, Math.max(list.length - 1, 0)) } : p); }
-          else if (e.key === "ArrowUp") { e.preventDefault; e.stopPropagation; setPicker((p) => p ? { ...p, idx: Math.max((p.idx ?? 0) - 1, 0) } : p); }
+          if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); setPicker((p) => p ? { ...p, idx: Math.min((p.idx ?? 0) + 1, Math.max(list.length - 1, 0)) } : p); }
+          else if (e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); setPicker((p) => p ? { ...p, idx: Math.max((p.idx ?? 0) - 1, 0) } : p); }
           // 아무것도 안 친 상태의 Enter 는 목록 첫 줄을 고르는 게 아니라 **윗값 내리기**로 보낸다
           // (뭘 골랐는지 모르는 채 엉뚱한 계정이 박히는 것보다 낫다)
           else if (e.key === "Enter") {
-            if (vrow != null && !picker.q.trim) return;
-            const sel = list[picker.idx ?? 0]; if (sel) { e.preventDefault; e.stopPropagation; update({ account: sel }); setPicker(null); }
+            if (vrow != null && !picker.q.trim()) return;
+            const sel = list[picker.idx ?? 0]; if (sel) { e.preventDefault(); e.stopPropagation(); update({ account: sel }); setPicker(null); }
           }
-          else if (e.key === "Escape") { e.preventDefault; e.stopPropagation; setPicker(null); }
+          else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setPicker(null); }
         }}
         data-vcell={vrow != null ? `account-${vrow}` : undefined}
         placeholder={withName ? "코드" : "103 / 보통예금..."} className={`${IN} ${withName ? "mono-number" : ""}`} />
@@ -775,15 +776,18 @@ export default function VoucherEntryPage {
           {acctMatches(picker.q).map((a, i) => {
             const active = i === (picker.idx ?? 0);
             return (
-            <button key={a.id} onMouseDown={(e) => { e.preventDefault; update({ account: a }); setPicker(null); }}
+            <button key={a.id} onMouseDown={(e) => { e.preventDefault(); update({ account: a }); setPicker(null); }}
               className={`w-full flex justify-between px-2 py-1 rounded text-[11px] text-[var(--text)] ${active ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>
               <span>{a.name}{active && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}</span><span className="text-[var(--text-dim)] mono-number">{a.code}</span>
-            </button>);
+            </button>
+            );
           })}
           {acctMatches(picker.q).length === 0 && <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">{dbReady ? "검색 결과가 없습니다." : "아직 계정과목이 없습니다."}</div>}
-        </CellDropdown>)}
+        </CellDropdown>
+      )}
       </div>
-    </td>);
+    </td>
+  );
 
   // 거래처 자동완성 셀
   const ptCell = (l: PLine, rowId: string, update: (p: Partial<PLine>) => void, vrow?: number) => {
@@ -797,17 +801,17 @@ export default function VoucherEntryPage {
           <input value={picker?.kind === "pt" && picker.rowId === rowId ? picker.q : (l.partner?.name || "")}
             onChange={(e) => setPicker({ kind: "pt", rowId, q: e.target.value, anchor: anchorOf(e.currentTarget) })}
             onFocus={(e) => setPicker({ kind: "pt", rowId, q: "", anchor: anchorOf(e.currentTarget) })}
-            onBlur={ => setTimeout( => setPicker((p) => (p?.rowId === rowId && p.kind === "pt" ? null : p)), 150)}
+            onBlur={() => setTimeout(() => setPicker((p) => (p?.rowId === rowId && p.kind === "pt" ? null : p)), 150)}
             onKeyDown={(e) => {
               if (!(picker?.kind === "pt" && picker.rowId === rowId)) return;
               const list = ptMatches(picker.q);
-              if (e.key === "ArrowDown") { e.preventDefault; e.stopPropagation; setPicker((p) => p ? { ...p, idx: Math.min((p.idx ?? 0) + 1, Math.max(list.length - 1, 0)) } : p); }
-              else if (e.key === "ArrowUp") { e.preventDefault; e.stopPropagation; setPicker((p) => p ? { ...p, idx: Math.max((p.idx ?? 0) - 1, 0) } : p); }
+              if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); setPicker((p) => p ? { ...p, idx: Math.min((p.idx ?? 0) + 1, Math.max(list.length - 1, 0)) } : p); }
+              else if (e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); setPicker((p) => p ? { ...p, idx: Math.max((p.idx ?? 0) - 1, 0) } : p); }
               else if (e.key === "Enter") {
-                if (vrow != null && !picker.q.trim) return; // 계정과목 칸과 같은 규칙
-                const sel = list[picker.idx ?? 0]; if (sel) { e.preventDefault; e.stopPropagation; update({ partner: sel }); setPicker(null); }
+                if (vrow != null && !picker.q.trim()) return; // 계정과목 칸과 같은 규칙
+                const sel = list[picker.idx ?? 0]; if (sel) { e.preventDefault(); e.stopPropagation(); update({ partner: sel }); setPicker(null); }
               }
-              else if (e.key === "Escape") { e.preventDefault; e.stopPropagation; setPicker(null); }
+              else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setPicker(null); }
             }}
             data-vcell={vrow != null ? `partner-${vrow}` : undefined}
             placeholder="—" className={IN} />
@@ -820,18 +824,22 @@ export default function VoucherEntryPage {
               return (
               <button key={p.id}
                 ref={active ? (el) => { el?.scrollIntoView({ block: "nearest" }); } : undefined}
-                onMouseEnter={ => setPicker((pp) => (pp ? { ...pp, idx: i } : pp))}
-                onMouseDown={(e) => { e.preventDefault; update({ partner: p }); setPicker(null); }}
+                onMouseEnter={() => setPicker((pp) => (pp ? { ...pp, idx: i } : pp))}
+                onMouseDown={(e) => { e.preventDefault(); update({ partner: p }); setPicker(null); }}
                 className={`w-full px-2 py-1 rounded text-[11px] text-left text-[var(--text)] truncate ${active ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"}`}>
                 {p.name}{p.business_number ? <span className="text-[var(--text-dim)] mono-number"> · {p.business_number}</span> : null}{active && <span className="ml-1 text-[9px] text-[var(--primary)]">↵</span>}
-              </button>);
+              </button>
+              );
             })}
             {ptMatches(picker.q).length === 0 && (
-              <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">{partners.length === 0 ? "아직 등록된 거래처가 없습니다." : "검색 결과가 없습니다."}</div>)}
-            {l.partner && <button onMouseDown={(e) => { e.preventDefault; update({ partner: null }); setPicker(null); }} className="w-full px-2 py-1 rounded text-[11px] text-[var(--text-dim)] text-left hover:bg-[var(--bg-surface)]">지우기</button>}
-          </CellDropdown>)}
+              <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">{partners.length === 0 ? "아직 등록된 거래처가 없습니다." : "검색 결과가 없습니다."}</div>
+            )}
+            {l.partner && <button onMouseDown={(e) => { e.preventDefault(); update({ partner: null }); setPicker(null); }} className="w-full px-2 py-1 rounded text-[11px] text-[var(--text-dim)] text-left hover:bg-[var(--bg-surface)]">지우기</button>}
+          </CellDropdown>
+        )}
         </div>
-      </td>);
+      </td>
+    );
   };
 
   // 적요 셀(+자주 쓰는 적요)
@@ -843,18 +851,22 @@ export default function VoucherEntryPage {
           data-vcell={vrow != null ? `memo-${vrow}` : undefined} className={IN} />
         {recentMemos.length > 0 && (
           <button onClick={(e) => setPicker({ kind: "memo", rowId, q: "", anchor: anchorOf(e.currentTarget) })} tabIndex={-1}
-            className="pr-1 text-[10px] text-[var(--text-dim)] hover:text-[var(--primary)] shrink-0" title="자주 쓰는 적요">▾</button>)}
+            className="pr-1 text-[10px] text-[var(--text-dim)] hover:text-[var(--primary)] shrink-0" title="자주 쓰는 적요">▾</button>
+        )}
       </div>
       {picker?.kind === "memo" && picker.rowId === rowId && (
         <CellDropdown anchor={picker.anchor} width={208} maxHeight={180} align="right">
           {recentMemos.map((m, i) => (
-            <button key={i} onMouseDown={(e) => { e.preventDefault; update({ memo: m }); setPicker(null); }}
+            <button key={i} onMouseDown={(e) => { e.preventDefault(); update({ memo: m }); setPicker(null); }}
               className="w-full px-2 py-1 rounded text-[11px] text-left text-[var(--text)] hover:bg-[var(--bg-surface)] truncate">
               <span className="text-[var(--text-dim)] mono-number">{i + 1}.</span> {m}
-            </button>))}
-        </CellDropdown>)}
+            </button>
+          ))}
+        </CellDropdown>
+      )}
       </div>
-    </td>);
+    </td>
+  );
 
   // 차/대 금액 셀
   const amtCells = (l: PLine, update: (p: Partial<PLine>) => void, vrow?: number) => {
@@ -872,7 +884,8 @@ export default function VoucherEntryPage {
             onChange={(e) => update(amountPatch(l, "credit", e.target.value))}
             placeholder={creditOff ? "" : "0"} className={`${IN} text-right mono-number ${creditOff ? "opacity-30 cursor-default" : ""}`} />
         </td>
-      </>);
+      </>
+    );
   };
 
   let listNo = 0;
@@ -881,7 +894,7 @@ export default function VoucherEntryPage {
   // 엑셀 그릇 · 지금 조회 결과(걸린 조건 그대로, 분개 줄 단위)
   const excelItems: ExcelItem[] = [
     
-    { label: "지금 조회 결과 내려받기", count: sortedEntries.length, hint: "걸린 조건 그대로 · 분개 줄 단위", disabled: sortedEntries.length === 0, onClick:  => exportCsv },
+    { label: "지금 조회 결과 내려받기", count: sortedEntries.length, hint: "걸린 조건 그대로 · 분개 줄 단위", disabled: sortedEntries.length === 0, onClick: () => exportCsv() },
   ];
 
   return (
@@ -890,7 +903,8 @@ export default function VoucherEntryPage {
         <div className="px-4 py-3 rounded-xl bg-amber-500/8 border border-amber-500/25 text-xs text-amber-600 font-semibold shadow-sm">
           <Ico e="⚠" /> 아직 계정과목이 준비되지 않았습니다.
 
-        </div>)}
+        </div>
+      )}
 
       {/* ══ 상단: 입력 영역 (§3-3) ══ */}
       {/* ── 한 상자: [구분 탭] → 분개 입력 → (선) → 전표목록 조회 줄·표·쪽 넘김·안내 (상자 하나, 섹션은 선으로) ── */}
@@ -899,14 +913,15 @@ export default function VoucherEntryPage {
         {/* 구분 탭 — 수집·전표처럼 상자 **안** 맨 위, 파란 밑줄. 오른쪽은 새 전표·저장 */}
         <div className="collect-tabs ve-kind-tabs no-print">
           {VTYPES.map((t) => (
-            <button key={t.id} type="button" onClick={ => changeVtype(t.id)} title={t.desc}
+            <button key={t.id} type="button" onClick={() => changeVtype(t.id)} title={t.desc}
               className={vtype === t.id ? "collect-tab collect-tab-on" : "collect-tab"}>
               {t.label}
-            </button>))}
+            </button>
+          ))}
           <span className="ve-kind-actions">
-            {linkedSrc && <span className="ol-sure ol-sure-est" title="저장하면 이 거래에 전표가 걸립니다">{linkedSrc.kind === "bank" ? "통장" : "카드"} {linkedSrc.date.slice(5).replace("-", "/")} {linkedSrc.amount.toLocaleString} 불러옴 <button type="button" className="ml-1 underline" onClick={ => setLinkedSrc(null)}>해제</button></span>}
-            <button type="button" onClick={ => setImportOpen(true)} disabled={busy} className="btn-secondary btn-sm">통장·카드 불러오기</button>
-            <button onClick={ => { setPend(freshRows(vtype)); setEdits({}); setLinkedSrc(null); }} disabled={busy}
+            {linkedSrc && <span className="ol-sure ol-sure-est" title="저장하면 이 거래에 전표가 걸립니다">{linkedSrc.kind === "bank" ? "통장" : "카드"} {linkedSrc.date.slice(5).replace("-", "/")} {linkedSrc.amount.toLocaleString()} 불러옴 <button type="button" className="ml-1 underline" onClick={() => setLinkedSrc(null)}>해제</button></span>}
+            <button type="button" onClick={() => setImportOpen(true)} disabled={busy} className="btn-secondary btn-sm">통장·카드 불러오기</button>
+            <button onClick={() => { setPend(freshRows(vtype)); setEdits({}); setLinkedSrc(null); }} disabled={busy}
               className="btn-secondary btn-sm">새 전표</button>
             <button onClick={save} disabled={!canSave}
               className="btn-primary btn-sm disabled:opacity-40">
@@ -917,29 +932,30 @@ export default function VoucherEntryPage {
         <div className="ve-querybar-row">
             <QueryBar right={<ExcelMenu items={excelItems} />}>
               <DateRangeField unit="month" label={null} parts="segments" from={fromM} to={toM}
-                onChange={(f, t) => { setFromM(f); setToM(t); setEdits({}); setSelected(new Set); }}
+                onChange={(f, t) => { setFromM(f); setToM(t); setEdits({}); setSelected(new Set()); }}
                 trailing={
                   <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={condCount(live)} anchorSel=".drf"
                     tabs={<SavedTabs list={saved.list} current={paramsNow} basic={paramsBasic}
                       onApply={(sv) => { applySaved(sv.params || {}); setPanelOpen(false); }}
-                      onBasic={ => { const b = defaultRangeMonth; setFromM(b.from); setToM(b.to); clearAll; }}
+                      onBasic={() => { const b = defaultRangeMonth(); setFromM(b.from); setToM(b.to); clearAll(); }}
                       onRemove={saved.remove} onSetDefault={saved.setDefault} />}
                     foot={<>
-                      <button type="button" className="btn-secondary btn-sm" disabled={condCount(draft) === 0} onClick={ => setDraft({ ...EMPTY_COND, rows: draft.rows })}>조건 지우기</button>
+                      <button type="button" className="btn-secondary btn-sm" disabled={condCount(draft) === 0} onClick={() => setDraft({ ...EMPTY_COND, rows: draft.rows })}>조건 지우기</button>
                       <ConditionSave suggest={suggestName}
                         onSave={(name, asDefault) => { saved.save(name, { from: fromM, to: toM, q, cond: draft }, asDefault); setLive(draft); setPanelOpen(false); }} />
                       <span className="ml-auto text-[11px] text-[var(--text-dim)]">{previewCount.toLocaleString("ko")}장</span>
                       <RowsPerPage value={draft.rows} onChange={setD("rows")} />
-                      <button type="button" className="btn-primary btn-sm" onClick={ => { setLive(draft); setPanelOpen(false); }}>조회</button>
+                      <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
                     </>}>
                     <ConditionRow label="조회기간" hint="월 단위로 조회합니다.">
                       <span className="qk-range-txt">{fromM} ~ {toM}</span>
                       <DateRangeField unit="month" label={null} parts="calendar" confirm from={fromM} to={toM}
-                        onChange={(f, t) => { setFromM(f); setToM(t); setEdits({}); setSelected(new Set); }} />
+                        onChange={(f, t) => { setFromM(f); setToM(t); setEdits({}); setSelected(new Set()); }} />
                       <span className="qk-quicks">
-                        {periodQuicksMonth.map((pq) => (
-                          <button key={pq.key} type="button" onClick={ => { setFromM(pq.from); setToM(pq.to); }}
-                            className={fromM === pq.from && toM === pq.to ? "qk-quick qk-quick-on" : "qk-quick"}>{pq.label}</button>))}
+                        {periodQuicksMonth().map((pq) => (
+                          <button key={pq.key} type="button" onClick={() => { setFromM(pq.from); setToM(pq.to); }}
+                            className={fromM === pq.from && toM === pq.to ? "qk-quick qk-quick-on" : "qk-quick"}>{pq.label}</button>
+                        ))}
                       </span>
                     </ConditionRow>
                     <ConditionRow label="계정과목" hint="그 계정이 든 전표를 찾습니다.">
@@ -951,8 +967,9 @@ export default function VoucherEntryPage {
                     <ConditionRow label="구분" hint="여러 개를 고를 수 있습니다.">
                       <span className="qk-quicks">
                         {VTYPES.map((t) => (
-                          <button key={t.id} type="button" onClick={ => setD("vtype")(draft.vtype.includes(t.id) ? draft.vtype.filter((x) => x !== t.id) : [...draft.vtype, t.id])}
-                            className={draft.vtype.includes(t.id) ? "qk-quick qk-quick-on" : "qk-quick"}>{t.label}</button>))}
+                          <button key={t.id} type="button" onClick={() => setD("vtype")(draft.vtype.includes(t.id) ? draft.vtype.filter((x) => x !== t.id) : [...draft.vtype, t.id])}
+                            className={draft.vtype.includes(t.id) ? "qk-quick qk-quick-on" : "qk-quick"}>{t.label}</button>
+                        ))}
                       </span>
                     </ConditionRow>
                     <ConditionRow label="적요" hint="전표 적요와 줄 적요를 찾습니다.">
@@ -961,7 +978,8 @@ export default function VoucherEntryPage {
                     <ConditionRow label="출처" hint="직접 입력과 자동 생성을 가릅니다.">
                       <span className="qk-quicks">
                         {[["", "전체"], ["manual", "직접 입력"], ["auto", "자동 생성"]].map(([v, l]) => (
-                          <button key={v} type="button" onClick={ => setD("src")(v)} className={draft.src === v ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>))}
+                          <button key={v} type="button" onClick={() => setD("src")(v)} className={draft.src === v ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>
+                        ))}
                       </span>
                     </ConditionRow>
                     <ConditionRow label="전표 금액" hint="한쪽만 적어도 됩니다.">
@@ -993,7 +1011,7 @@ export default function VoucherEntryPage {
             <tbody>
               {pend.map((l, i) => (
                 <tr key={l.key} className="border-b border-[var(--border)]/40 transition-colors focus-within:bg-[var(--primary)]/[0.04]"
-                  onContextMenu={(e) => { e.preventDefault; setCtx({ x: e.clientX, y: e.clientY, rowId: `p:${l.key}` }); }}>
+                  onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, rowId: `p:${l.key}` }); }}>
                   <td className={`${TD} w-[156px]`}>
                     {/* 줄마다 날짜 — 같은 날짜 줄이 한 장. 우리 달력(DateField)으로 통일 (옛 기본 달력 삭제) */}
                     <DateField value={l.date} onChange={(e) => setPendLine(l.key, { date: e.target.value })}
@@ -1007,18 +1025,21 @@ export default function VoucherEntryPage {
                           <option value="3">차변</option><option value="4">대변</option>
                         </select>
                         <span className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-dim)]">▾</span>
-                      </div>) : (
-                      <span className="text-[11px] font-semibold text-[var(--text-muted)]">{GUBUN_SHORT[l.gubun]}</span>)}
+                      </div>
+                    ) : (
+                      <span className="text-[11px] font-semibold text-[var(--text-muted)]">{GUBUN_SHORT[l.gubun]}</span>
+                    )}
                   </td>
                   {acctCell(l, `p:${l.key}`, (p) => setPendLine(l.key, p), false, i)}
                   {ptCell(l, `p:${l.key}`, (p) => setPendLine(l.key, p), i)}
                   {memoCell(l, `p:${l.key}`, (p) => setPendLine(l.key, p), i)}
                   {amtCells(l, (p) => setPendLine(l.key, p), i)}
                   <td className="text-center px-1">
-                    <button onClick={ => setPend((ls) => (ls.length <= 1 ? [newLine(vtype === "transfer" ? "3" : (vtype === "cash_out" ? "1" : "2"))] : ls.filter((x) => x.key !== l.key)))}
+                    <button onClick={() => setPend((ls) => (ls.length <= 1 ? [newLine(vtype === "transfer" ? "3" : (vtype === "cash_out" ? "1" : "2"))] : ls.filter((x) => x.key !== l.key)))}
                       className="w-6 h-6 rounded-md flex items-center justify-center text-red-400 hover:text-white hover:bg-red-500 transition text-xs mx-auto" title="이 행 삭제" tabIndex={-1}>✕</button>
                   </td>
-                </tr>))}
+                </tr>
+              ))}
               {/* 출금/입금 자동 현금 라인 */}
               {vtype !== "transfer" && (
                 <tr className="border-b border-[var(--border)]/40 bg-[var(--bg-surface)]/60">
@@ -1027,13 +1048,14 @@ export default function VoucherEntryPage {
                   <td className={`${TD} text-[var(--text-muted)] font-semibold`}>{cashAcct ? `${cashAcct.name} (${cashAcct.code})` : "보통예금 · 마스터 미적용"}</td>
                   <td className={TD} />
                   <td className={`${TD} text-[var(--text-dim)] text-[10px]`}>{vtype === "cash_out" ? "출금 상대계정 (자동)" : "입금 상대계정 (자동)"}</td>
-                  <td className={`${TD} text-right mono-number font-semibold`}>{vtype === "cash_in" && autoAmt ? autoAmt.toLocaleString : ""}</td>
-                  <td className={`${TD} text-right mono-number font-semibold`}>{vtype === "cash_out" && autoAmt ? autoAmt.toLocaleString : ""}</td>
+                  <td className={`${TD} text-right mono-number font-semibold`}>{vtype === "cash_in" && autoAmt ? autoAmt.toLocaleString() : ""}</td>
+                  <td className={`${TD} text-right mono-number font-semibold`}>{vtype === "cash_out" && autoAmt ? autoAmt.toLocaleString() : ""}</td>
                   <td />
-                </tr>)}
+                </tr>
+              )}
               <tr>
                 <td colSpan={8} className="px-3 py-1.5">
-                  <button onClick={ => setPend((ls) => [...ls, newLine])}
+                  <button onClick={() => setPend((ls) => [...ls, newLine()])}
                     className="text-[12px] text-[var(--text-dim)] hover:text-[var(--primary)] font-semibold">+ 행 추가 <span className="text-[10px] opacity-60">(마지막 칸 Enter)</span></button>
                 </td>
               </tr>
@@ -1044,19 +1066,22 @@ export default function VoucherEntryPage {
         <div className="voucher-entry-summary-bar sticky bottom-0 z-10 px-5 py-3 border-t-2 border-[var(--border)] rounded-b-[18px] bg-[var(--bg-card)] flex flex-wrap items-center gap-x-6 gap-y-2">
           <div className="flex items-baseline gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-dim)]">차변합</span>
-            <span className="text-lg sm:text-2xl font-black mono-number tracking-tight text-[var(--text)]">{pendTotalD.toLocaleString}</span>
+            <span className="text-lg sm:text-2xl font-black mono-number tracking-tight text-[var(--text)]">{pendTotalD.toLocaleString()}</span>
           </div>
           <span aria-hidden className="hidden sm:block w-px h-6 bg-[var(--border)]" />
           <div className="flex items-baseline gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-dim)]">대변합</span>
-            <span className="text-lg sm:text-2xl font-black mono-number tracking-tight text-[var(--text)]">{pendTotalC.toLocaleString}</span>
+            <span className="text-lg sm:text-2xl font-black mono-number tracking-tight text-[var(--text)]">{pendTotalC.toLocaleString()}</span>
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {pendMissing && <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-500 text-[11px] font-bold">· 계정과목 미지정 행 있음</span>}
             {pendTotalD + pendTotalC === 0 ? (
-              <span className="px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] font-semibold text-[var(--text-dim)]">금액을 입력하세요</span>) : pendBalanced ? (
-              <span className="px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[11px] font-bold">차대일치 · 저장 가능</span>) : (
-              <span className="px-3 py-1.5 rounded-full bg-red-500/10 text-red-500 text-[11px] font-bold"><Ico e="⚠" tone="mono" /> 차액 {won(Math.abs(pendDiff))} ({pendDiff > 0 ? "대변 부족" : "차변 부족"}). 저장 불가</span>)}
+              <span className="px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] font-semibold text-[var(--text-dim)]">금액을 입력하세요</span>
+            ) : pendBalanced ? (
+              <span className="px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[11px] font-bold">차대일치 · 저장 가능</span>
+            ) : (
+              <span className="px-3 py-1.5 rounded-full bg-red-500/10 text-red-500 text-[11px] font-bold"><Ico e="⚠" tone="mono" /> 차액 {won(Math.abs(pendDiff))} ({pendDiff > 0 ? "대변 부족" : "차변 부족"}). 저장 불가</span>
+            )}
           </div>
         </div>
       </div>
@@ -1064,14 +1089,14 @@ export default function VoucherEntryPage {
       <SplitHandle onMouseDown={split.onMouseDown} onReset={split.reset} />
       {/* 통장·카드 불러오기 팝업 — 미전표 거래 목록에서 하나 골라 입력칸에 채운다 (2026-08-19) */}
       {importOpen && (
-        <div className="approval-detail-modal" onClick={ => setImportOpen(false)}>
-          <div className="pnl-drill ve-import-modal" onClick={(e) => e.stopPropagation}>
+        <div className="approval-detail-modal" onClick={() => setImportOpen(false)}>
+          <div className="pnl-drill ve-import-modal" onClick={(e) => e.stopPropagation()}>
             <div className="pnl-drill-head">
               <h3 className="text-sm font-bold">통장·카드 불러오기 <small className="ml-2 font-normal text-[var(--text-dim)]">전표가 없는 거래를 골라 입력칸에 채웁니다.</small></h3>
-              <button type="button" className="btn-secondary btn-sm" onClick={ => setImportOpen(false)}>닫기</button>
+              <button type="button" className="btn-secondary btn-sm" onClick={() => setImportOpen(false)}>닫기</button>
             </div>
             <div className="ve-import-bar">
-              <span className="qk-chips">{(["bank", "card"] as const).map((k) => <button key={k} type="button" onClick={ => setImportKind(k)} className={importKind === k ? "qk-chip qk-chip-on" : "qk-chip"}>{k === "bank" ? "통장" : "카드"}</button>)}</span>
+              <span className="qk-chips">{(["bank", "card"] as const).map((k) => <button key={k} type="button" onClick={() => setImportKind(k)} className={importKind === k ? "qk-chip qk-chip-on" : "qk-chip"}>{k === "bank" ? "통장" : "카드"}</button>)}</span>
               <select value={importDays} onChange={(e) => setImportDays(Number(e.target.value))} className="qk-input h-8 px-2 text-xs">{[30, 60, 90, 180].map((d) => <option key={d} value={d}>최근 {d}일</option>)}</select>
               <input className="qk-input h-8 flex-1 px-2.5 text-xs" placeholder="거래처 · 적요 · 금액 · 쉼표로 여러 개" value={importQ} onChange={(e) => setImportQ(e.target.value)} />
               <span className="text-[11px] text-[var(--text-dim)]">{importShown.length}건{importRows.length > 200 ? " (앞 200건만)" : ""}</span>
@@ -1081,18 +1106,21 @@ export default function VoucherEntryPage {
                 <table className="ev-table ev-lined ve-import-table">
                   <thead><tr><th>날짜</th><th>구분</th><th className="text-left">{importKind === "bank" ? "예금주 · 적요" : "가맹점 · 카드"}</th><th>{importKind === "bank" ? "계좌" : "분류"}</th><th>금액</th><th></th></tr></thead>
                   <tbody>{importShown.map((r) => (
-                    <tr key={r.id} className="pnl-row-acct" onClick={ => applyImport(r)}>
+                    <tr key={r.id} className="pnl-row-acct" onClick={() => applyImport(r)}>
                       <td className="text-center mono-number">{r.date}</td>
                       <td className="text-center"><span className={`ol-sure ${r.isIn ? "ol-sure-ok" : ""}`}>{r.kind === "bank" ? (r.isIn ? "입금" : "출금") : (r.isIn ? "취소" : "사용")}</span></td>
                       <td className="text-left"><b>{r.who || "—"}</b>{r.desc && <small className="ml-1 text-[var(--text-dim)]">{r.desc}</small>}</td>
                       <td className="text-center text-[var(--text-muted)]">{r.account ? (r.kind === "bank" ? `···${r.account}` : r.account) : "—"}</td>
-                      <td className={`text-right mono-number font-bold ${r.isIn ? "text-[var(--success)]" : ""}`}>{r.isIn ? "+" : "−"}{r.amount.toLocaleString}</td>
+                      <td className={`text-right mono-number font-bold ${r.isIn ? "text-[var(--success)]" : ""}`}>{r.isIn ? "+" : "−"}{r.amount.toLocaleString()}</td>
                       <td className="text-center"><button type="button" className="btn-secondary btn-sm">불러오기</button></td>
-                    </tr>))}</tbody>
-                </table>)}
+                    </tr>
+                  ))}</tbody>
+                </table>
+              )}
             </div>
           </div>
-        </div>)}
+        </div>
+      )}
 
       {/* ══ 하단: 전표목록 — 조회 화면 표준(B형: 목록부만) (2026-08-18 Wave 1). 셀 클릭 = 인라인 수정 · 행 우클릭 = 삽입/복사/삭제 ══ */}
         <QueryHead>
@@ -1100,7 +1128,8 @@ export default function VoucherEntryPage {
           <AppliedChips chips={chips} onClearAll={clearAll} />
 
           <ResultStrip right={spCount > 0 ? (
-            <Link href="/partners/reconciliation/sale-purchase" className="ve-sp-note">매입매출전표 {spCount}건은 <b>매입매출전표</b> 메뉴에서 봅니다.</Link>) : undefined}>
+            <Link href="/partners/reconciliation/sale-purchase" className="ve-sp-note">매입매출전표 {spCount}건은 <b>매입매출전표</b> 메뉴에서 봅니다.</Link>
+          ) : undefined}>
             <Stat label="전표" value={`${filteredEntries.length.toLocaleString("ko")}장`} />
             <Stat label="차변 합계" value={won(sumD)} />
             <Stat label="대변 합계" value={won(sumC)} />
@@ -1116,7 +1145,7 @@ export default function VoucherEntryPage {
               <tr>
                 <th className="w-8">
                   <button type="button" aria-label="이 쪽 전체 선택"
-                    onClick={ => setSelected(pager.view.length > 0 && pager.view.every((x) => selected.has(`s:${x.id}`)) ? new Set : new Set(pager.view.map((x) => `s:${x.id}`)))}
+                    onClick={() => setSelected(pager.view.length > 0 && pager.view.every((x) => selected.has(`s:${x.id}`)) ? new Set() : new Set(pager.view.map((x) => `s:${x.id}`)))}
                     className={pager.view.length > 0 && pager.view.every((x) => selected.has(`s:${x.id}`)) ? "collect-chk collect-chk-on" : "collect-chk"}>
                     {pager.view.length > 0 && pager.view.every((x) => selected.has(`s:${x.id}`)) ? "✓" : ""}
                   </button>
@@ -1147,19 +1176,21 @@ export default function VoucherEntryPage {
                         const rowId = `e:${e.id}:${l.key}`;
                         return (
                           <tr key={rowId} className={`border-b border-[var(--border)]/40 bg-[var(--primary)]/[0.03] ${i === 0 ? "border-t-2 border-t-[var(--primary)]/30" : ""}`}
-                            onContextMenu={(ev) => { ev.preventDefault; setCtx({ x: ev.clientX, y: ev.clientY, rowId }); }}>
+                            onContextMenu={(ev) => { ev.preventDefault(); setCtx({ x: ev.clientX, y: ev.clientY, rowId }); }}>
                             <td className="px-2 py-1" />
                             <td className="px-2 py-1 text-center text-[var(--text-dim)] mono-number">{listNo}</td>
                             <td className={`${TD} mono-number text-[var(--text-dim)]`}>{i === 0 ? e.entry_date : ""}</td>
                             <td className={`${TD} w-[64px]`}>
                               {l.gubun === "1" || l.gubun === "2" ? (
-                                <span className="text-[11px] font-semibold text-[var(--text-muted)]">{GUBUN_LABEL[l.gubun]}</span>) : (
+                                <span className="text-[11px] font-semibold text-[var(--text-muted)]">{GUBUN_LABEL[l.gubun]}</span>
+                              ) : (
                                 <div className="relative">
                                   <select value={l.gubun} onChange={(ev) => setEditLine(e.id, l.key, { gubun: ev.target.value as Gubun })} className={`${IN} cursor-pointer appearance-none pl-1.5 pr-4 py-1`}>
                                     <option value="3">3.차변</option><option value="4">4.대변</option>
                                   </select>
                                   <span className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-dim)]">▾</span>
-                                </div>)}
+                                </div>
+                              )}
                             </td>
                             {acctCell(l, rowId, (p) => setEditLine(e.id, l.key, p), true)}
                             <td className={`${TD} text-[var(--text)] cursor-pointer`} onClick={(e) => setPicker({ kind: "acct", rowId, q: "", anchor: anchorOf(e.currentTarget) })}>
@@ -1170,17 +1201,19 @@ export default function VoucherEntryPage {
                             {amtCells(l, (p) => setEditLine(e.id, l.key, p))}
                             <td className={`${TD} text-center text-[var(--text-dim)]`}>—</td>
                             {memoCell(l, rowId, (p) => setEditLine(e.id, l.key, p))}
-                          </tr>);
+                          </tr>
+                        );
                       })}
                       <tr className="bg-amber-500/5">
                         <td colSpan={12} className="px-3 py-1 text-[10px] font-semibold">
                           <span className={st.ok ? "text-emerald-500" : "text-amber-500"}>
                             {st.ok ? `✅ 전표 #${e.voucher_no ?? "—"} 수정 중 · 차대일치` : `⚠️ 전표 #${e.voucher_no ?? "—"} 수정 중 · ${st.d !== st.c ? `차액 ${won(Math.abs(st.d - st.c))}` : "계정 미지정"}`}
                           </span>
-                          <button onClick={ => setEdits((es) => { const n = { ...es }; delete n[e.id]; return n; })} className="ml-2 underline text-[var(--text-dim)] hover:text-[var(--text)]">수정 취소</button>
+                          <button onClick={() => setEdits((es) => { const n = { ...es }; delete n[e.id]; return n; })} className="ml-2 underline text-[var(--text-dim)] hover:text-[var(--text)]">수정 취소</button>
                         </td>
                       </tr>
-                    </Fragment>);
+                    </Fragment>
+                  );
                 }
                 const isFlash = e.id === flashId; // §3-3-B 방금 저장 하이라이트
                 return e.lines.map((l, i) => {
@@ -1190,7 +1223,7 @@ export default function VoucherEntryPage {
                     <tr key={rowId}
                       ref={isFlash && i === 0 ? (el) => { if (el && !flashScrolled.current) { flashScrolled.current = true; el.scrollIntoView({ behavior: "smooth", block: "center" }); } } : undefined}
                       className={`border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/60 transition-colors duration-700 ${isFlash ? "bg-emerald-500/15" : ""} ${i === 0 ? "border-t-2 border-t-[var(--border)]" : ""}`}
-                      onContextMenu={(ev) => { ev.preventDefault; setCtx({ x: ev.clientX, y: ev.clientY, rowId }); }}
+                      onContextMenu={(ev) => { ev.preventDefault(); setCtx({ x: ev.clientX, y: ev.clientY, rowId }); }}
                       title={`전표 #${e.voucher_no ?? "—"}${e.description ? ` · ${e.description}` : ""} · 셀 클릭으로 인라인 수정`}>
                       <td className="px-2 py-1 text-center">
                         <input type="checkbox" checked={selected.has(`s:${e.id}`)}
@@ -1198,17 +1231,18 @@ export default function VoucherEntryPage {
                           title="전표 단위 선택 (분개 균형 유지를 위해 전표째 삭제)" />
                       </td>
                       <td className="px-2 py-1 text-center text-[var(--text-dim)] mono-number">{listNo}</td>
-                      <td className={`${TD} mono-number text-[var(--text-dim)] cursor-text`} onClick={ => enterEdit(e)}>{i === 0 ? e.entry_date : ""}</td>
-                      <td className={`${TD} text-[11px] font-semibold text-[var(--text-muted)] cursor-text`} onClick={ => enterEdit(e)}>{GUBUN_LABEL[savedGubun(e.voucher_type, l.debit)]}{i === 0 && sourceBadge(e.source)}</td>
-                      <td className={`${TD} mono-number text-[var(--text-muted)] cursor-text`} onClick={ => enterEdit(e)}>{l.account?.code || "—"}</td>
-                      <td className={`${TD} text-[var(--text)] cursor-text`} onClick={ => enterEdit(e)}>{l.account?.name || "?"}</td>
-                      <td className={`${TD} mono-number text-[var(--text-dim)] cursor-text`} onClick={ => enterEdit(e)}>{l.partner?.business_number || "—"}</td>
-                      <td className={`${TD} text-[var(--text)] cursor-text`} onClick={ => enterEdit(e)}>{l.partner?.name || ""}</td>
-                      <td className={`${TD} text-right mono-number cursor-text ${l.debit ? "text-[var(--text)]" : ""}`} onClick={ => enterEdit(e)}>{l.debit ? l.debit.toLocaleString : ""}</td>
-                      <td className={`${TD} text-right mono-number cursor-text ${l.credit ? "text-[var(--text)]" : ""}`} onClick={ => enterEdit(e)}>{l.credit ? l.credit.toLocaleString : ""}</td>
+                      <td className={`${TD} mono-number text-[var(--text-dim)] cursor-text`} onClick={() => enterEdit(e)}>{i === 0 ? e.entry_date : ""}</td>
+                      <td className={`${TD} text-[11px] font-semibold text-[var(--text-muted)] cursor-text`} onClick={() => enterEdit(e)}>{GUBUN_LABEL[savedGubun(e.voucher_type, l.debit)]}{i === 0 && sourceBadge(e.source)}</td>
+                      <td className={`${TD} mono-number text-[var(--text-muted)] cursor-text`} onClick={() => enterEdit(e)}>{l.account?.code || "—"}</td>
+                      <td className={`${TD} text-[var(--text)] cursor-text`} onClick={() => enterEdit(e)}>{l.account?.name || "?"}</td>
+                      <td className={`${TD} mono-number text-[var(--text-dim)] cursor-text`} onClick={() => enterEdit(e)}>{l.partner?.business_number || "—"}</td>
+                      <td className={`${TD} text-[var(--text)] cursor-text`} onClick={() => enterEdit(e)}>{l.partner?.name || ""}</td>
+                      <td className={`${TD} text-right mono-number cursor-text ${l.debit ? "text-[var(--text)]" : ""}`} onClick={() => enterEdit(e)}>{l.debit ? l.debit.toLocaleString() : ""}</td>
+                      <td className={`${TD} text-right mono-number cursor-text ${l.credit ? "text-[var(--text)]" : ""}`} onClick={() => enterEdit(e)}>{l.credit ? l.credit.toLocaleString() : ""}</td>
                       <td className={`${TD} text-center text-[var(--text-dim)]`}>—</td>
-                      <td className={`${TD} text-[var(--text-muted)] cursor-text max-w-[180px] overflow-hidden text-ellipsis`} onClick={ => enterEdit(e)}>{l.memo || e.description}</td>
-                    </tr>);
+                      <td className={`${TD} text-[var(--text-muted)] cursor-text max-w-[180px] overflow-hidden text-ellipsis`} onClick={() => enterEdit(e)}>{l.memo || e.description}</td>
+                    </tr>
+                  );
                 });
               })}
               {/* 빈 행 — 클릭하면 상단 입력 영역으로 (§3-3-A 마지막 빈 행) */}
@@ -1225,19 +1259,20 @@ export default function VoucherEntryPage {
               <tfoot>
                 <tr className="border-t-2 border-[var(--border)] bg-[var(--bg-surface)]/70 font-bold">
                   <td colSpan={7} className="px-3 py-2.5 text-right text-[10px] uppercase tracking-wide text-[var(--text-dim)]">합계</td>
-                  <td className="px-2 py-2.5 text-right mono-number text-sm text-[var(--text)]">{sumD.toLocaleString}</td>
-                  <td className="px-2 py-2.5 text-right mono-number text-sm text-[var(--text)]">{sumC.toLocaleString}</td>
+                  <td className="px-2 py-2.5 text-right mono-number text-sm text-[var(--text)]">{sumD.toLocaleString()}</td>
+                  <td className="px-2 py-2.5 text-right mono-number text-sm text-[var(--text)]">{sumC.toLocaleString()}</td>
                   <td colSpan={2} className="px-2 py-2.5">
                     {sumD === sumC
                       ? <span className="inline-flex px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-[11px] font-bold">차대일치</span>
-                      : <span className="inline-flex px-2.5 py-1 rounded-full bg-red-500/10 text-red-500 text-[11px] font-bold">차액 {Math.abs(sumD - sumC).toLocaleString}</span>}
+                      : <span className="inline-flex px-2.5 py-1 rounded-full bg-red-500/10 text-red-500 text-[11px] font-bold">차액 {Math.abs(sumD - sumC).toLocaleString()}</span>}
                   </td>
                 </tr>
-              </tfoot>)}
+              </tfoot>
+            )}
           </table>
         </div>
           {/* ── 3줄 · 고른 전표로 하는 일 — 삭제는 되돌릴 수 없어 확인창을 거친다 ── */}
-          <SelectionBar count={selected.size} onClear={ => setSelected(new Set)}>
+          <SelectionBar count={selected.size} onClear={() => setSelected(new Set())}>
             <button type="button" className="btn-secondary btn-sm text-[var(--danger)]" disabled={busy} onClick={deleteSelected}>
               선택 삭제 ({selected.size})
             </button>
@@ -1255,20 +1290,24 @@ export default function VoucherEntryPage {
       {/* 우클릭 메뉴 (§3-3-A: 행 삽입/복사/삭제) */}
       {ctx && (
         <div className="voucher-entry-context-menu fixed z-[80] rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-2xl p-1.5 text-xs"
-          style={{ left: ctx.x, top: ctx.y }} onClick={(e) => e.stopPropagation}>
+          style={{ left: ctx.x, top: ctx.y }} onClick={(e) => e.stopPropagation()}>
           {ctx.rowId.startsWith("s:") ? (
             <>
-              <button onClick={ => ctxAction("insert")} className="block w-full px-3 py-1.5 text-left rounded hover:bg-[var(--bg-surface)] text-[var(--text)]">전표 수정 (인라인)</button>
-              <button onClick={ => ctxAction("copy")} className="block w-full px-3 py-1.5 text-left rounded hover:bg-[var(--bg-surface)] text-[var(--text)]">행 복사 (상단 입력으로)</button>
-              <button onClick={ => ctxAction("delete")} className="block w-full px-3 py-1.5 text-left rounded hover:bg-[var(--bg-surface)] text-red-400">전표 삭제</button>
-            </>) : (
+              <button onClick={() => ctxAction("insert")} className="block w-full px-3 py-1.5 text-left rounded hover:bg-[var(--bg-surface)] text-[var(--text)]">전표 수정 (인라인)</button>
+              <button onClick={() => ctxAction("copy")} className="block w-full px-3 py-1.5 text-left rounded hover:bg-[var(--bg-surface)] text-[var(--text)]">행 복사 (상단 입력으로)</button>
+              <button onClick={() => ctxAction("delete")} className="block w-full px-3 py-1.5 text-left rounded hover:bg-[var(--bg-surface)] text-red-400">전표 삭제</button>
+            </>
+          ) : (
             <>
-              <button onClick={ => ctxAction("insert")} className="block w-full px-3 py-1.5 text-left rounded hover:bg-[var(--bg-surface)] text-[var(--text)]">행 삽입</button>
-              <button onClick={ => ctxAction("copy")} className="block w-full px-3 py-1.5 text-left rounded hover:bg-[var(--bg-surface)] text-[var(--text)]">행 복사</button>
-              <button onClick={ => ctxAction("delete")} className="block w-full px-3 py-1.5 text-left rounded hover:bg-[var(--bg-surface)] text-red-400">행 삭제</button>
-            </>)}
-        </div>)}
+              <button onClick={() => ctxAction("insert")} className="block w-full px-3 py-1.5 text-left rounded hover:bg-[var(--bg-surface)] text-[var(--text)]">행 삽입</button>
+              <button onClick={() => ctxAction("copy")} className="block w-full px-3 py-1.5 text-left rounded hover:bg-[var(--bg-surface)] text-[var(--text)]">행 복사</button>
+              <button onClick={() => ctxAction("delete")} className="block w-full px-3 py-1.5 text-left rounded hover:bg-[var(--bg-surface)] text-red-400">행 삭제</button>
+            </>
+          )}
+        </div>
+      )}
 
 
-    </div>);
+    </div>
+  );
 }
