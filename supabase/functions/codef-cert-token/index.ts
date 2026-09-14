@@ -32,16 +32,31 @@ function parseAccessToken(raw: string): string | null {
 }
 
 async function fetchToken(url: string, basicAuth: string): Promise<string | null> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Basic ${basicAuth}`,
-    },
-    body: "grant_type=client_credentials&scope=read",
-  });
-  if (!res.ok) return null;
-  return parseAccessToken(await res.text());
+  //   CODEF 게이트웨이가 순간 502 를 내는 일이 있다. 재시도가 없으면 그 한 번에 인증 화면이
+  //   "토큰 발급 실패" 로 끝났다(자동수집 codef-sync 는 재시도로 견딘다 — 여기만 없었다).
+  //   30초 상한으로 무기한 대기도 막는다.
+  let lastStatus = 0;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${basicAuth}`,
+        },
+        body: "grant_type=client_credentials&scope=read",
+        signal: AbortSignal.timeout(30000),
+      });
+      lastStatus = res.status;
+      if (res.ok) {
+        const token = parseAccessToken(await res.text());
+        if (token) return token;
+      }
+    } catch (_e) { /* 타임아웃·네트워크 — 아래에서 재시도 */ }
+    if (attempt < 2) await new Promise((r) => setTimeout(r, 700 * (attempt + 1)));
+  }
+  console.warn(`[codef-cert-token] 토큰 발급 실패 (${url}) 마지막 상태 ${lastStatus}`);
+  return null;
 }
 
 serve(withSentry("codef-cert-token", async (req) => {
