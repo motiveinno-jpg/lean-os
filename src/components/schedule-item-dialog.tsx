@@ -15,7 +15,8 @@ import { resolveSignedUrl } from "@/lib/file-storage";
 import { ScheduleItemEditor, draftFromEvent, type ScheduleDraft } from "@/components/schedule-item-editor";
 import { appConfirm } from "@/components/global-confirm";
 import {
-  upsertEvent, deleteEvent, toggleEventCompleted, formatEventRange, canManageScheduleEvent, isVirtualEventId,
+  upsertEvent, deleteEvent, deleteSeries, skipFirstOccurrence, seriesIdOf, dateKeyOf,
+  toggleEventCompleted, formatEventRange, canManageScheduleEvent, isVirtualEventId,
   VISIBILITY_LABEL, type EventColor, type ScheduleAttachment, type ScheduleEvent, remindersOf } from "@/lib/schedule";
 
 const DOT: Record<EventColor, string> = {
@@ -92,16 +93,42 @@ export function ScheduleItemDialog({
     onError: (e: any) => toast(e?.message || "완료 처리 실패", "error"),
   });
 
-  const busy = save.isPending || remove.isPending || done.isPending;
-
-  //   반복 원본을 지우면 회차 전체가 사라진다 — 그때만 한 번 묻는다. 회차 하나·보통 일정은 바로.
-  const askDelete = async (id: string, recurring: boolean) => {
-    if (recurring && !isVirtualEventId(id)) {
-      const ok = await appConfirm("반복의 원본입니다. 지우면 아직 손대지 않은 회차가 전부 사라집니다.\n따로 완료·수정한 회차는 남습니다.", { danger: true, title: "반복 전체 삭제", confirmLabel: "전체 삭제" });
-      if (!ok) return;
+  //   반복 전체 삭제 — 어느 회차에서 눌러도 원본과 떼어낸 회차까지 전부. 한 번 묻는다.
+  const removeAll = useMutation({
+    mutationFn: async (id: string) => {
+      const ok = await appConfirm("이 반복 일정을 전부 지웁니다. 따로 완료·수정한 회차도 함께 사라집니다.", { danger: true, title: "반복 전체 삭제", confirmLabel: "전체 삭제" });
+      if (!ok) throw new Error("__cancel");
+      await deleteSeries(id);
+    },
+    onSuccess: () => { refresh(); onClose(); toast("반복 일정을 전부 지웠습니다.", "success"); },
+    onError: (e: any) => { if (e?.message !== "__cancel") toast(e?.message || "삭제 실패", "error"); },
+  });
+  //   이 날짜만 삭제 — 회차는 예외 날짜로, 원본(첫 회차)도 마찬가지(규칙은 남는다)
+  const removeOne = useMutation({
+    mutationFn: async (e: ScheduleEvent) => {
+      if (isVirtualEventId(e.id)) return deleteEvent(e.id);
+      if (e.recurrence?.freq && e.start_at) return skipFirstOccurrence(e.id, dateKeyOf(e.start_at));
+      return deleteEvent(e.id);
+    },
+    onSuccess: () => { refresh(); onClose(); toast("지웠습니다.", "success"); },
+    onError: (e: any) => toast(e?.message || "삭제 실패", "error"),
+  });
+  /** 반복 전체 고치기 — 어느 회차에서 열어도 원본(첫 회차·규칙)을 편집한다 */
+  const editAll = (e: ScheduleEvent) => setEditing(draftFromEvent({
+    ...e, id: seriesIdOf(e.id),
+    start_at: e.recurrence_source?.start_at ?? e.start_at,
+    end_at: e.recurrence_source?.end_at ?? e.end_at,
+  }));
+  /** 이 날짜만 고치기 — 원본(첫 회차)도 회차처럼 다룬다(가상 id 로 열어 떼어낸다) */
+  const editOne = (e: ScheduleEvent) => {
+    if (!isVirtualEventId(e.id) && e.recurrence?.freq && e.start_at) {
+      setEditing(draftFromEvent({ ...e, id: `${e.id}@${dateKeyOf(e.start_at)}` }));
+      return;
     }
-    remove.mutate(id);
+    setEditing(draftFromEvent(e));
   };
+
+  const busy = save.isPending || remove.isPending || done.isPending || removeAll.isPending || removeOne.isPending;
 
   if (editing) {
     return (
@@ -109,7 +136,7 @@ export function ScheduleItemDialog({
         companyId={companyId} userId={userId}
         draft={editing} onChange={setEditing}
         onSave={() => save.mutate()}
-        onDelete={editing.id ? () => void askDelete(editing.id!, !!editing.recurFreq) : undefined}
+        onDelete={editing.id ? () => { if (editing.recurFreq) removeAll.mutate(editing.id!); else remove.mutate(editing.id!); } : undefined}
         onClose={onClose}
         saving={busy} />
     );
@@ -117,11 +144,14 @@ export function ScheduleItemDialog({
 
   const e = (target as { mode: "view"; event: ScheduleEvent }).event;
   const canManage = canManageScheduleEvent(e, userId);
+  const recurring = !!e.recurrence?.freq;
   return <ScheduleItemView
     event={e} companyId={companyId} busy={busy}
-    onEdit={canManage ? () => setEditing(draftFromEvent(e)) : undefined}
+    onEdit={canManage ? () => (recurring ? editOne(e) : setEditing(draftFromEvent(e))) : undefined}
     onToggleDone={canManage ? () => done.mutate({ id: e.id, completed: !e.completed }) : undefined}
-    onDelete={canManage ? () => void askDelete(e.id, !!e.recurrence?.freq) : undefined}
+    onDelete={canManage ? () => (recurring ? removeOne.mutate(e) : remove.mutate(e.id)) : undefined}
+    //   반복이면 수정·삭제를 누를 때 "이 날짜만 / 반복 전체" 를 고르게 한다
+    series={canManage && recurring ? { onEditAll: () => editAll(e), onDeleteAll: () => removeAll.mutate(e.id) } : undefined}
     onClose={onClose} />;
 }
 
@@ -129,7 +159,7 @@ export function ScheduleItemDialog({
 
 /** 보기 · 일정 내용이 본체다. 수정·완료·삭제는 아래에 작게 둔다. */
 function ScheduleItemView({
-  event, companyId, busy, onEdit, onToggleDone, onDelete, onClose,
+  event, companyId, busy, onEdit, onToggleDone, onDelete, series, onClose,
 }: {
   event: ScheduleEvent;
   companyId: string | null;
@@ -137,9 +167,13 @@ function ScheduleItemView({
   onEdit?: () => void;
   onToggleDone?: () => void;
   onDelete?: () => void;
+  /** 반복 일정이면 "이 날짜만"(onEdit·onDelete) 과 "반복 전체" 를 고르게 한다 */
+  series?: { onEditAll: () => void; onDeleteAll: () => void };
   onClose: () => void;
 }) {
-  useModalKeys(true, onClose, onEdit);
+  //   반복에서 수정·삭제를 누르면 바로 하지 않고 어느 범위인지 먼저 고른다
+  const [ask, setAsk] = useState<"edit" | "delete" | null>(null);
+  useModalKeys(true, onClose, series ? () => setAsk("edit") : onEdit);
 
   //   documents 버킷은 비공개 — 누를 때마다 잠깐 쓰는 주소를 새로 받는다
   const openFile = async (f: ScheduleAttachment) => {
@@ -215,15 +249,33 @@ function ScheduleItemView({
           <div><dt>공유 범위</dt><dd>{who || VISIBILITY_LABEL[event.visibility]}</dd></div>
         </dl>
 
-        <footer>
-          {onDelete && <button type="button" className="sched-view-del" disabled={busy} onClick={onDelete}>삭제</button>}
-          <span className="sched-spacer" />
-          {onToggleDone && <button type="button" className="sched-view-act" disabled={busy} onClick={onToggleDone}>
-            {event.completed ? "완료 취소" : "완료 처리"}
-          </button>}
-          {onEdit && <button type="button" className="sched-view-act" disabled={busy} onClick={onEdit}>수정</button>}
-          {!onEdit && <span className="text-xs text-[var(--text-muted)]">공유받은 일정 · 읽기 전용</span>}
-        </footer>
+        {series && ask ? (
+          //   반복: 어느 범위인지 고른다. '이 날짜만' 은 이 회차, '반복 전체' 는 원본과 모든 회차.
+          <footer className="sched-view-ask">
+            <span className="text-xs text-[var(--text-muted)]">{ask === "edit" ? "무엇을 고칠까요?" : "무엇을 지울까요?"}</span>
+            <span className="sched-spacer" />
+            <button type="button" className="sched-view-act" disabled={busy} onClick={() => setAsk(null)}>돌아가기</button>
+            <button type="button" className={ask === "delete" ? "sched-view-del" : "sched-view-act"} disabled={busy}
+              onClick={() => { setAsk(null); (ask === "edit" ? onEdit : onDelete)?.(); }}>
+              이 날짜만
+            </button>
+            <button type="button" className={ask === "delete" ? "sched-view-del" : "sched-view-act"} disabled={busy}
+              title={ask === "edit" ? "원본(첫 회차)을 열어 고칩니다. 따로 손대지 않은 회차 전체에 적용됩니다." : "원본과 모든 회차를 지웁니다."}
+              onClick={() => { setAsk(null); (ask === "edit" ? series.onEditAll : series.onDeleteAll)(); }}>
+              반복 전체
+            </button>
+          </footer>
+        ) : (
+          <footer>
+            {onDelete && <button type="button" className="sched-view-del" disabled={busy} onClick={() => (series ? setAsk("delete") : onDelete())}>삭제</button>}
+            <span className="sched-spacer" />
+            {onToggleDone && <button type="button" className="sched-view-act" disabled={busy} onClick={onToggleDone}>
+              {event.completed ? "완료 취소" : "완료 처리"}
+            </button>}
+            {onEdit && <button type="button" className="sched-view-act" disabled={busy} onClick={() => (series ? setAsk("edit") : onEdit())}>수정</button>}
+            {!onEdit && <span className="text-xs text-[var(--text-muted)]">공유받은 일정 · 읽기 전용</span>}
+          </footer>
+        )}
       </div>
     </div>
   );

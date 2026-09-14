@@ -41,6 +41,24 @@ export function splitVirtualId(id: string): { parentId: string; date: string } |
   return /^\d{4}-\d{2}-\d{2}$/.test(date) ? { parentId: id.slice(0, at), date } : null;
 }
 export const isVirtualEventId = (id: string | undefined | null) => !!id && !!splitVirtualId(id);
+/** 회차든 원본이든 → 반복 원본(시리즈) id */
+export const seriesIdOf = (id: string) => splitVirtualId(id)?.parentId ?? id;
+
+/** 반복 전체 삭제 — 원본과, 따로 떼어낸 회차까지 전부. 어느 회차에서 눌러도 같다. */
+export async function deleteSeries(id: string): Promise<void> {
+  const pid = seriesIdOf(id);
+  const { error: e1 } = await db.from("schedule_events").delete().eq("recurrence_parent_id", pid);
+  if (e1) throw e1;
+  const { data, error } = await db.from("schedule_events").delete().eq("id", pid).select("id").maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("일정이 삭제되었거나 삭제 권한이 없습니다.");
+}
+
+/** 원본 행의 **첫 회차만** 지운다 — 규칙은 남기고 그 날짜를 예외로. 달력은 예외 날짜의 원본 행을 그리지 않는다. */
+export async function skipFirstOccurrence(parentId: string, date: string): Promise<void> {
+  const { error } = await (db.rpc as any)("schedule_skip_occurrence", { p_parent: parentId, p_date: date });
+  if (error) throw new Error(String(error.message || "").includes("FORBIDDEN") ? "일정이 삭제되었거나 삭제 권한이 없습니다." : error.message);
+}
 
 /** 가상 회차를 실제 행으로 떼어낸다 — 그 회차에만 적용할 값(patch)과 함께. 같은 회차를 두 번 떼도 행은 하나. */
 async function detachOccurrence(virtualId: string, patch: Record<string, unknown>): Promise<ScheduleEvent> {
@@ -161,7 +179,9 @@ export async function getMonthEvents(
     }
     //   반복(결정 145) — 원본 회차는 원본 행이, 이후 회차는 여기서 펼친 가상 행이 담당.
     //   가상 행의 id 는 `{원본id}@{날짜}` — 수정·삭제·완료는 realId() 로 원본에 간다(회차 전체 반영).
-    if (inMonth) out.push(e);
+    //   원본의 첫 회차만 지웠거나 따로 떼어냈으면(예외에 자기 날짜) 원본 행은 그리지 않는다 — 규칙은 살아 있다
+    const ownSkipped = !!e.start_at && (e.recurrence_exceptions || []).map((d) => String(d).slice(0, 10)).includes(dateKeyOf(e.start_at));
+    if (inMonth && !ownSkipped) out.push(e);
     out.push(...expandRecurrence(e, monthKey(0), monthKey(1)));
   }
   return out.sort((a, b) => String(a.start_at).localeCompare(String(b.start_at)));
