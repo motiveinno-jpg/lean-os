@@ -596,6 +596,18 @@
   .s14 .cr .o{ position:relative; font-size:31px; font-weight:750 }
   .s14 .cr .g{ font-size:27px }
   .s14 .cr .ar{ position:relative; z-index:1 }
+  /* 배경 단색 · 거의 흰색 (2026-09-14 사장님 "그라데이션 말고 단색, 있는 듯 없는 듯") · 표지 운영사 = 18쪽과 같은 오른쪽 아래 끝 */
+  :root{ --bg-solid:#fafbfd }
+  .slide,.slide.gray,.slide.dark,.slide.s1,.slide.s2,.slide.s3,.slide.s4,.slide.s5,.slide.s6,.slide.s7,.slide.s8,.slide.s9,.slide.s10,.slide.s11,.slide.s12,.slide.s13,.slide.s14,.slide.s15,.slide.s16,.slide.s17{ background:var(--bg-solid) !important }
+  .s1 .glowbg,.s17 .glowbg{ display:none }
+  .s1 .op{ left:auto; right:120px; bottom:40px; font-size:21px }
+  /* 배경 단색 전체 적용(사장님 "배경색은 전체적으로") — 5쪽 카드 칸·9/10쪽 카드 칸의 그라데이션도 단색으로 */
+  .gc.c1,.gc.c2,.gc.c3{ background:#eef1f8 !important }
+  .gc.c2{ background:#e9edf7 !important }
+  .s9 .cc .vis{ background:#f1f3f8 !important }
+  .s5 .caps{ top:850px }
+  .s1 .device{ width:1120px; margin-left:-560px }
+  .s1 .app{ grid-template-columns:190px 1fr } .s1 .app .main{ padding:22px 24px } .s1 .kp{ padding:14px 16px } .s1 .kp .v{ font-size:21px } .s1 .kp .l{ font-size:14px }
 </style>
 </head>
 <body>
