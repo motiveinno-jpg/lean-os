@@ -63,13 +63,16 @@ Deno.serve(withSentry("holidays-sync", async (req: Request) => {
   const thisYear = new Date(Date.now() + 9 * 3600 * 1000).getFullYear();
   const years = [thisYear - 1, thisYear, thisYear + 1, thisYear + 2];
 
-  const rows: { date: string; name: string; is_holiday: boolean; source: string }[] = [];
+  //   날짜별로 하나만 — 특일정보는 월별 조회라 한 대체휴일이 인접 달에서 두 번 올 수 있다.
+  //   같은 배치에 중복 날짜가 있으면 upsert 가 "affect row a second time" 으로 막힌다.
+  const byDate = new Map<string, string>();
   const perYear: Record<number, number> = {};
   for (const y of years) {
     const got = await fetchYear(key, y);
     perYear[y] = got.length;
-    for (const g of got) rows.push({ date: g.date, name: g.name, is_holiday: true, source: "api" });
+    for (const g of got) if (!byDate.has(g.date)) byDate.set(g.date, g.name);
   }
+  const rows = [...byDate].map(([date, name]) => ({ date, name, is_holiday: true, source: "api" }));
 
   if (rows.length > 0) {
     const { error } = await admin.from("national_holidays").upsert(rows, { onConflict: "date" });
