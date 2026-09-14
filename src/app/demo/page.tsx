@@ -13,7 +13,7 @@
 //      사이드바가 바뀌면 CATALOG 만 고치면 랜딩·둘러보기·데모가 함께 따라온다.
 //   ⚠️ 본문 캡처(f-*.png)는 "브레드크럼 헤더 + 본문" 구도라 왼쪽에 사이드바를 붙이면
 //      실제 앱 화면이 그대로 이어진다. 그래서 데모는 자체 헤더를 그리지 않는다.
-//      다시 찍는 법: deliverables/landing-capture/README.md
+//      다시 찍는 법: 캡처 하네스는 저장소 밖(motive-lean-os-qa) 에 있다
 
 import Link from "next/link";
 import Image from "next/image";

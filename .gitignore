@@ -87,3 +87,29 @@ qa/
 # 테스트 아티팩트 — 커밋 금지 (2026-08-25 대청소에서 877개 잔재 삭제)
 /test-results/
 scratch/
+
+# ── 2026-09-14 정리: 저장소에 들어오면 안 되는 것들 ──
+# AI 에이전트 스킬 캐시 (npx skills add 가 만든다 — 필요하면 다시 설치)
+.agents/
+skills-lock.json
+# 로컬 스크립트 상태 커서
+.qa-last-comment-id
+# 홍보 덱·캡처·자동화 export 같은 산출물 — 코드 저장소가 아니라 별도 보관
+deliverables/
+n8n/
+# 편집기·OS 잡파일
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+Thumbs.db
+# 로그·백업·임시
+*.log
+*.bak
+*.orig
+*.tmp
+.tmp/
+# iCloud 가 만드는 중복본 ("index 2", "main 2" 같은 이름)
+* 2
+* 2.*
