@@ -612,7 +612,7 @@ export default function TaxFilingPage() {
                       </div>
                     </div>
                     <div className="pnl-panel">
-                      <h3>신고 일정 · 챙길 것</h3><p>12월 결산 법인 기준 일정입니다.</p>
+                      <h3>신고 일정 · To-do</h3><p>12월 결산 법인 기준 일정입니다.</p>
                       <div className="stg-table-wrap vr-scroll">
                       <table className="ev-table ev-lined table-inv-status-sm">
                         <thead><tr><th>무엇</th><th>기한</th><th>비고</th></tr></thead>

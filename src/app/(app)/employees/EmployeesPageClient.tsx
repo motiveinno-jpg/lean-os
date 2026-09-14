@@ -221,7 +221,7 @@ export default function EmployeesPage()  {
     <Stat label="재직 인원" value={`${activeCount}명`} />
     {pendingInviteCount > 0 && <button type="button" className="qk-stat-link" title="초대 대기 목록 열기" onClick={() => setInviteFormOpen(true)}><Stat label="초대 대기" value={`${pendingInviteCount}명`} tone="minus" /></button>}
     {/*   G4·H4·H5 (2026-08-27) — 기한·근태 이상·연차촉진을 규칙으로 모은 '처리할 것'. 누르면 내역 팝업 */}
-    <button type="button" className="qk-stat-link" title="챙길 일을 모아 봅니다." onClick={() => setTodoOpen(true)}>
+    <button type="button" className="qk-stat-link" title="처리할 인사 업무(To-do)를 모아 봅니다." onClick={() => setTodoOpen(true)}>
       <Stat label="처리할 것" value={hrTodos ? `${hrTodos.reduce((n, g) => n + g.items.length, 0)}건` : "…"} tone={hrTodos && hrTodos.some((g) => g.items.length) ? "minus" : undefined} />
     </button>
     {/* 인건비·퇴직충당금은 급여 권한자만 — 급여 탭 KPI(tabAllowed) 와 일관.

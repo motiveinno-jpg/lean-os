@@ -83,7 +83,7 @@ export const FEATS: [string, string, string, string][] = [
 export const AI_TASKS: [string, string, string, string, string, string][] = [
   ["spark", "AI 참모", "AI 답변", "회사 실데이터를 근거로 지금 무엇을 먼저 할지 결론과 할 일로 답합니다.", "home", "copilot"],
   ["edit", "계정과목 추천", "AI 추천 · 배운 규칙", "통장·카드·세금계산서를 읽고 계정과목을 추천합니다. 고친 내용은 규칙으로 학습합니다.", "finance", "collect"],
-  ["bell", "AI 브리핑", "AI 요약", "아침마다 잔고·미수금·마감을 읽고 오늘 챙길 일을 순서대로 정리합니다.", "home", "dashboard"],
+  ["bell", "AI 브리핑", "AI 요약", "매일 아침 잔액·미수금·마감 일정을 분석해 오늘의 우선순위 업무를 정리합니다.", "home", "dashboard"],
   ["swap", "매칭 제안", "장부 대조", "세금계산서와 통장 입금을 거래처·금액으로 맞춰 후보를 제안합니다. 확정하면 전표와 미수금이 함께 갱신됩니다.", "finance", "collect"],
   ["check", "중복 의심 감지", "장부 대조", "같은 거래가 두 번 기표된 것 같으면 표시합니다. 확인한 뒤 지우면 됩니다.", "finance", "voucher-entry"],
   ["trend", "자금 부족 예측", "예정 입출금 계산", "날짜가 정해진 예정 입출금으로 잔액 곡선을 그리고, 가장 낮아지는 날을 미리 알려 드립니다.", "analysis", "outlook"],

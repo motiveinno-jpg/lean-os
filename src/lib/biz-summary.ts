@@ -98,19 +98,19 @@ export async function fetchBizSummary(companyId: string, month: string, userId?:
 
   // ── 이번 주 챙길 것 (규칙 — 찾아만 놓는다, 확인은 사람이) ──
   const todos: Todo[] = [];
-  if (arap0.over30 > 0) todos.push({ key: "ar30", kind: "미수", tone: "r", text: `30일 넘은 미수금 ${arap0.over30Partners}곳`, sub: "세금계산서 발행일 기준 · 잔액 = 총액 − 입금", amount: arap0.over30, href: "/partners/ledger" });
-  if (unposted.taxInvoice > 0) todos.push({ key: "unposted-ti", kind: "전표", tone: "y", text: `세금계산서 ${unposted.taxInvoice}건 미처리 · 손익이 실제와 다르게 보입니다`, amount: unpostedSalesAmt > 0 ? unpostedSalesAmt : undefined, href: "/collect" });
+  if (arap0.over30 > 0) todos.push({ key: "ar30", kind: "미수", tone: "r", text: `30일 초과 미수금 ${arap0.over30Partners}곳`, sub: "세금계산서 발행일 기준 · 잔액 = 총액 − 입금", amount: arap0.over30, href: "/partners/ledger" });
+  if (unposted.taxInvoice > 0) todos.push({ key: "unposted-ti", kind: "전표", tone: "y", text: `세금계산서 ${unposted.taxInvoice}건 미처리 · 손익 미반영`, amount: unpostedSalesAmt > 0 ? unpostedSalesAmt : undefined, href: "/collect" });
   if (unposted.card + unposted.bank > 0) todos.push({ key: "unposted-etc", kind: "전표", tone: "y", text: `카드 ${unposted.card}건 · 통장 ${unposted.bank}건 미처리`, href: "/collect" });
   if (vatNext && vatNextRaw!.netVAT > 0) todos.push({ key: "vat", kind: "세금", tone: vatNext.dday <= 14 ? "r" : "y", text: `부가세 납부 D-${vatNext.dday}`, sub: `${vatNext.due} · 예상`, amount: vatNext.amount, href: "/reports/vat" });
-  if (balance < due30) todos.push({ key: "short", kind: "자금", tone: "r", text: "30일 안에 낼 돈이 통장 잔액보다 많습니다", sub: `낼 돈 ${Math.round(due30).toLocaleString()} > 잔액 ${Math.round(balance).toLocaleString()}`, href: "/reports/outlook" });
+  if (balance < due30) todos.push({ key: "short", kind: "자금", tone: "r", text: "30일 내 지급 예정액이 통장 잔액 초과", sub: `지급 예정 ${Math.round(due30).toLocaleString()} > 잔액 ${Math.round(balance).toLocaleString()}`, href: "/reports/outlook" });
   const bullet = loans.filter((l) => l.repaymentType === "bullet" && l.maturityDate >= today && daysUntil(l.maturityDate, today) <= 60);
   for (const l of bullet) todos.push({ key: `bullet:${l.name}`, kind: "대출", tone: "r", text: `${l.name} 만기 일시상환 D-${daysUntil(l.maturityDate, today)}`, sub: l.maturityDate, amount: l.remainingAmount, href: "/loans" });
   try {
     const fixed = await fetchFixedCostCompare(companyId, { fromYm: prevMonth, toYm: prevMonth }, prevLines);
     for (const f of fixed.filter((x) => x.basis !== "없음" && x.expected > 0 && Math.abs(x.actual - x.expected) / x.expected > 0.1).slice(0, 3))
-      todos.push({ key: `fixed:${f.key}`, kind: "고정비", tone: "y", text: `${f.name} 지난달 실제가 등록값과 ${f.actual > f.expected ? "+" : "−"}${Math.round(Math.abs(f.actual - f.expected)).toLocaleString()} 다릅니다`, sub: `등록 ${Math.round(f.expected).toLocaleString()} · 실제 ${Math.round(f.actual).toLocaleString()}`, href: "/reports/expense" });
+      todos.push({ key: `fixed:${f.key}`, kind: "고정비", tone: "y", text: `${f.name} 전월 실제 지출 등록액 대비 ${f.actual > f.expected ? "+" : "−"}${Math.round(Math.abs(f.actual - f.expected)).toLocaleString()}`, sub: `등록 ${Math.round(f.expected).toLocaleString()} · 실제 ${Math.round(f.actual).toLocaleString()}`, href: "/reports/expense" });
   } catch { /* 고정비 대조는 부가 정보 — 실패해도 요약은 뜬다 */ }
-  if (!hasBank) todos.push({ key: "nobank", kind: "설정", tone: "y", text: "통장이 연결돼 있지 않아 현금 신호가 비어 있습니다", href: "/bank" });
+  if (!hasBank) todos.push({ key: "nobank", kind: "설정", tone: "y", text: "연결된 통장이 없어 자금 현황이 비어 있습니다", href: "/bank" });
 
   // ── 지난달과 달라진 것 — 계정별 금액 차이 큰 순 + 통장 순 현금 흐름 ──
   const gCur = groupByAccount(curLines.filter((l) => l.section === "revenue" || l.section === "cogs" || l.section === "opex"));
@@ -122,7 +122,7 @@ export async function fetchBizSummary(companyId: string, month: string, userId?:
     const label = (c || p)!.label; const sec = secOf.get(k);
     return { key: k, label, prev: p?.amount || 0, cur: c?.amount || 0, invert: sec !== "revenue", href: sec === "revenue" ? "/reports/revenue" : "/reports/expense" };
   }).filter((r) => r.cur !== r.prev).sort((a, b) => Math.abs(b.cur - b.prev) - Math.abs(a.cur - a.prev)).slice(0, 6);
-  changes.push({ key: "bank-net", label: "통장 순 현금 흐름", prev: prevNet, cur: inflow - outflow, invert: false, href: "/bank" });
+  changes.push({ key: "bank-net", label: "통장 순현금흐름", prev: prevNet, cur: inflow - outflow, invert: false, href: "/bank" });
 
   const tones = [cashTone, pnlTone, arapTone];
   const nR = tones.filter((t) => t === "r").length, nY = tones.filter((t) => t === "y").length;

@@ -27,7 +27,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       // 대시보드 자체는 전원 기본 제공 — 금액 위젯·AI 브리핑은 세부 권한
       { route: "/dashboard", label: "대시보드", always: true, tabs: [
         { key: "finance", label: "재무·경영 위젯", desc: "신호 6칸·통장·카드·미수·매출 등 금액 위젯", money: true },
-        { key: "briefing", label: "AI 브리핑", desc: "오늘 챙길 것(AI 제안)" },
+        { key: "briefing", label: "AI 브리핑", desc: "오늘의 우선순위 업무(AI 제안)" },
       ] },
       { route: "/notifications", label: "알림", always: true },
       { route: "/mypage", label: "마이페이지", always: true },

@@ -75,7 +75,7 @@ export default function DesignSystemPage() {
       <Section title="글자" desc="한 화면에서 크기를 4단계 넘게 쓰지 않는다.">
         <div className="ds-type">
           <p className="ds-type-row"><span>페이지 제목</span><b className="ds-t1">이번 달 경영 요약</b><code>18~20px / 800</code></p>
-          <p className="ds-type-row"><span>구획 제목</span><b className="ds-t2">지금 챙길 것</b><code>14px / 700</code></p>
+          <p className="ds-type-row"><span>구획 제목</span><b className="ds-t2">이번 주 To-do</b><code>14px / 700</code></p>
           <p className="ds-type-row"><span>본문</span><b className="ds-t3">거래처에 보낸 견적서가 아직 회신되지 않았습니다.</b><code>13px / 400</code></p>
           <p className="ds-type-row"><span>보조·캡션</span><b className="ds-t4">2026-08-05 · 최송이</b><code>11~12px / dim</code></p>
           <p className="ds-type-row"><span>숫자</span><b className="ds-t5">1,234,567원</b><code>tabular-nums · 우측정렬</code></p>

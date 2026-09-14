@@ -49,8 +49,8 @@ export const fmt = (n: number) => Math.round(Number(n || 0)).toLocaleString(); /
 
 // ── 매출/매입 확정 팔레트 (§4-2 — 빨강은 연체 전용으로 예약) ──
 export const AR_AP = {
-  sales: { main: "var(--info)", tintBg: "bg-blue-500/10", tintText: "text-blue-600", label: "매출처", money: "받을 돈", acct: "외상매출금", arrow: "↘" },
-  purchase: { main: "var(--warning)", tintBg: "bg-orange-500/10", tintText: "text-orange-600", label: "매입처", money: "줄 돈", acct: "외상매입금", arrow: "↗" },
+  sales: { main: "var(--info)", tintBg: "bg-blue-500/10", tintText: "text-blue-600", label: "매출처", money: "채권", acct: "외상매출금", arrow: "↘" },
+  purchase: { main: "var(--warning)", tintBg: "bg-orange-500/10", tintText: "text-orange-600", label: "매입처", money: "채무", acct: "외상매입금", arrow: "↗" },
 } as const;
 export const palette = (type: string) => (type === "sales" ? AR_AP.sales : AR_AP.purchase);
 

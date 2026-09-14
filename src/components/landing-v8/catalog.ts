@@ -37,12 +37,12 @@ const shot = (f: string) => `/product/${f}.png`;
 export const CATALOG: Group[] = [
   {
     key: "home", name: "홈", short: "홈", icon: "chart",
-    lead: "로그인하면 오늘 챙길 일부터 보여 드립니다.",
+    lead: "로그인하면 오늘의 우선순위 업무부터 보여 드립니다.",
     legacy: ["dashboard", "notifications", "mypage", "copilot"],
     menus: [
       { key: "dashboard", name: "대시보드", href: "/dashboard", icon: "chart", src: shot("f-ai-brief-v4"),
         desc: "잔액·손익·미수금·세금 일정을 신호로 보고, 오늘 할 일을 AI가 순서대로 정리합니다.",
-        items: ["통장·손익·미수금 신호", "AI 오늘 챙길 것", "위젯 골라 담기·크기 조절", "보기 설정 저장"] },
+        items: ["통장·손익·미수금 신호", "AI 오늘의 우선순위 업무", "위젯 골라 담기·크기 조절", "보기 설정 저장"] },
       { key: "notifications", name: "알림", href: "/notifications", icon: "mail", src: shot("f-notifications-v1"),
         desc: "결재·입금·계약·세금 일정이 알림으로 모입니다.",
         items: ["결재·서명 요청", "입금·미수금 알림", "세금 일정 사전 안내", "안 읽은 알림만 보기"] },
@@ -181,12 +181,12 @@ export const CATALOG: Group[] = [
   },
   {
     key: "analysis", name: "분석", short: "분석", icon: "trend",
-    lead: "지금 괜찮은지, 앞으로 괜찮을지를 숫자로 확인합니다.",
+    lead: "현재 경영 현황과 향후 자금 흐름을 숫자로 확인합니다.",
     legacy: ["summary", "profit-report", "outlook", "statements", "ledger", "vat"],
     menus: [
       { key: "summary", name: "경영 요약", href: "/reports/summary", icon: "chart", src: shot("f-acct-v4"),
-        desc: "보유 현금·손익·받을 돈·낼 돈 네 신호와 이번 주 챙길 일을 한 장에 모읍니다.",
-        items: ["통장·손익·원장 세 기준", "이번 주 챙길 것", "전표 미처리 건수 표시", "엑셀·인쇄"] },
+        desc: "자금·손익·채권·채무 현황과 이번 주 To-do를 한 장에 모읍니다.",
+        items: ["통장·손익·원장 세 기준", "이번 주 To-do", "전표 미처리 건수 표시", "엑셀·인쇄"] },
       { key: "profit-report", name: "손익 현황", href: "/reports/profit", icon: "trend", src: shot("f-profit-v1"),
         desc: "확정 전표 기준으로 손익계산서와 같은 숫자를 봅니다.",
         items: ["매출·원가·판관비 구조", "전월·전년 자동 비교", "셀 클릭 → 원천 전표", "월별 표·엑셀"] },
@@ -197,7 +197,7 @@ export const CATALOG: Group[] = [
         desc: "손익계산서·재무상태표 같은 정식 재무제표를 뽑습니다.",
         items: ["손익계산서", "재무상태표", "비용 분석", "전기 비교·CSV·인쇄"] },
       { key: "ledger", name: "거래처 원장", href: "/partners/ledger", icon: "book", src: shot("f-ledger-v1"),
-        desc: "거래처마다 받을 돈과 줄 돈을 한 장부로 봅니다.",
+        desc: "거래처별 채권·채무 잔액을 한 장부로 봅니다.",
         items: ["거래처별 잔액", "미수 경과 구간 분석", "월계·누계·차액 마감", "엑셀 내보내기"] },
       { key: "vat", name: "부가세", href: "/reports/vat", icon: "won", src: shot("f-vat-v1"),
         desc: "매출·매입 세액을 모아 신고 기간별 예상 납부세액을 미리 봅니다.",

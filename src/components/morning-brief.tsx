@@ -457,13 +457,13 @@ export function MorningBrief({
     : null;
 
   //   아침 보고서 체크리스트 자리인데 아직 플랜이 없으면 한 줄만
-  if (variant === "checklist" && !briefPlan) return <p className="rep-none">아직 오늘 챙길 것이 없습니다. 다시 생성을 누르면 채워집니다.</p>;
+  if (variant === "checklist" && !briefPlan) return <p className="rep-none">오늘의 우선순위 업무가 아직 없습니다. 다시 생성을 누르면 채워집니다.</p>;
 
   return (
     <section className={variant === "full" ? "morning-brief-card glass-card brief-compact" : `morning-brief-card rep-brief rep-brief-${variant}`}>
       {/* 머리 한 줄 — 이름 · 출처(AI 제안) · 생성 · 다시 생성 (checklist 변형은 머리 없음 — 절 제목이 대신) */}
       {variant !== "checklist" && <div className="brief-head">
-        {variant === "full" && <span className="text-[13px] font-bold text-[var(--text)]">오늘 챙길 것</span>}
+        {variant === "full" && <span className="text-[13px] font-bold text-[var(--text)]">오늘의 우선순위 업무</span>}
         {aiBrief ? <span className="brief-src">AI 제안</span> : <span className="brief-src">규칙 요약</span>}
         {genLabel && <span className="text-[11px] text-[var(--text-dim)]" title="이 시각 기준이며 다시 생성을 누르면 갱신됩니다.">{genLabel}</span>}
         <span className="flex-1" />

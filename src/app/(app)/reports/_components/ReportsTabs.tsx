@@ -27,7 +27,7 @@ const GROUPS: Group[] = [
   {
     href: "/reports/summary",
     label: "경영 요약",
-    desc: "돈은 있는지, 벌고 있는지, 받을 돈과 낼 돈은 얼마인지 한눈에 봅니다.",
+    desc: "자금·손익·채권·채무 현황과 이번 주 To-do를 한눈에 봅니다.",
   },
   {
     href: "/reports/profit",
