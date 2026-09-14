@@ -15,7 +15,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLandingLightTheme } from "@/components/theme-context";
 import { TOOLS } from "@/app/tools/_seo";
-import { CONSULT_HREF, FOOTER, MEGA } from "./content";
+import { CONSULT_HREF, FOOTER, MEGA, SIGNUP_HREF } from "./content";
 
 type Open = null | "mega" | "tools" | "drawer";
 
@@ -94,7 +94,7 @@ export function SiteHeader() {
         </nav>
         <div className="nav-cta">
           <Link className="btn btn-sm btn-line lp8-sh-login" href="/auth">로그인</Link>
-          <Link className="btn btn-sm btn-fill" href="/auth">무료 체험하기</Link>
+          <Link className="btn btn-sm btn-fill" href={SIGNUP_HREF} data-cta="signup:nav">무료 체험하기</Link>
           <button
             type="button"
             className="lp8-sh-burger"
@@ -130,7 +130,7 @@ export function SiteHeader() {
           <div className="container">
             {LINKS.map((l) => <Link key={l.href} href={l.href}>{l.label}</Link>)}
             <Link href="/tools">무료 계산기</Link>
-            <Link href={CONSULT_HREF}>도입 상담</Link>
+            <Link href={CONSULT_HREF} data-cta="consult:nav_drawer">도입 상담</Link>
             <Link href="/auth">로그인</Link>
           </div>
         </div>
@@ -148,7 +148,7 @@ export function SiteFooter() {
             <h6>제품</h6>
             <Link href="/features">기능</Link>
             <Link href="/pricing">요금</Link>
-            <Link href={CONSULT_HREF}>도입 상담</Link>
+            <Link href={CONSULT_HREF} data-cta="consult:footer">도입 상담</Link>
             <Link href="/tax-partners">세무사 제휴</Link>
           </div>
           <div>

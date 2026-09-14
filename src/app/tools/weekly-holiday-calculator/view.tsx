@@ -141,7 +141,7 @@ export default function WeeklyHolidayCalculatorView() {
           <h2 className="tl8-h2">주휴수당까지 반영한 급여, 매달 자동으로</h2>
           <p className="tl8-sub">오너뷰는 근태 기록을 바탕으로 주휴수당·4대보험·소득세를 자동 계산해 급여명세서를 만들어 발송합니다. 알바·직원 근무시간만 넣으면 매달 손 안 대도 됩니다. 카드 등록 없이 무료로 시작하세요.</p>
           <div className="tl8-feat-cta">
-            <Link href="/auth" className="btn btn-fill">무료로 시작하기</Link>
+            <Link href="/auth?mode=signup" className="btn btn-fill" data-cta="signup:tool_weekly-holiday">무료로 시작하기</Link>
             <Link href="/features" className="btn btn-soft">기능 둘러보기</Link>
           </div>
         </div>

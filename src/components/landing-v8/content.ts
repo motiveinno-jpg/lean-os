@@ -183,6 +183,9 @@ export const FOOTER = {
    그전에는 mailto 라 신청이 회사에 남지 않았고, 메일 앱이 없는 PC 에서는 버튼이 아무 일도 안 했다. */
 export const CONSULT_HREF = "/contact";
 
+/* 가입 버튼 — /auth 는 로그인 탭이 먼저라, 가입 버튼은 회원가입 탭으로 연다 (2026-09-14). 로그인 버튼은 그냥 /auth */
+export const SIGNUP_HREF = "/auth?mode=signup";
+
 /* /contact 상담 신청 — 고르는 값은 서버(api/partnership)가 같은 목록으로 한 번 더 거른다 */
 export const CONTACT = {
   h1: "도입 상담 신청",

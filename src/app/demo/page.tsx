@@ -53,7 +53,7 @@ export default function DemoPage() {
     <div className="demo-root">
       <div className="demo-banner">
         데모 모드입니다. 실제 화면을 그대로 보여드려요 — 내 회사 데이터로 쓰시려면{" "}
-        <Link href="/auth" className="underline font-bold">무료로 시작하기</Link> 를 눌러주세요.
+        <Link href="/auth?mode=signup" className="underline font-bold" data-cta="signup:demo_banner">무료로 시작하기</Link> 를 눌러주세요.
       </div>
 
       <div className="demo2-shell">
@@ -155,7 +155,7 @@ export default function DemoPage() {
           /demo 에서는 로드되지 않아 스타일이 안 먹는다(2026-08-20 실측). */}
       <div className="demo2-foot">
         <Link href="/" className="btn-secondary no-underline">랜딩 페이지로 돌아가기</Link>
-        <Link href="/auth" className="btn-primary no-underline">무료로 시작하기</Link>
+        <Link href="/auth?mode=signup" className="btn-primary no-underline" data-cta="signup:demo_foot">무료로 시작하기</Link>
       </div>
     </div>
   );

@@ -66,6 +66,12 @@ export default function AuthPage() {
   //   지금까지는 아무 안내 없이 로그인 화면만 떠서 사용자가 영문을 몰랐다(2026-07-29).
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
+    // 공개 페이지의 「무료로 시작」 버튼은 ?mode=signup 으로 온다 (2026-09-14) — 전에는 로그인 탭이 먼저 떠
+    //   처음 온 사람이 회원가입 탭을 다시 찾아 눌러야 했다. 다른 안내(중복 로그인·소셜 실패)가 있으면 그쪽이 우선이라 아래에서 return 한다.
+    if (sp.get("mode") === "signup") {
+      setMode("signup");
+      track("signup_view", { via: "link" });
+    }
     // 네이버는 Supabase 내장 제공자가 아니라 자체 라우트(/api/auth/naver/*)를 쓰므로 실패 사유가 더 구체적이다.
     const NAVER_ERRORS: Record<string, string> = {
       naver_not_configured: "네이버 로그인이 아직 준비 중입니다. 다른 방법으로 로그인해주세요.",
@@ -502,7 +508,7 @@ export default function AuthPage() {
             {(["login", "signup"] as const).map((m) => (
               <button
                 key={m}
-                onClick={() => { setMode(m); setError(""); }}
+                onClick={() => { if (m === "signup" && mode !== "signup") track("signup_view", { via: "tab" }); setMode(m); setError(""); }}
                 className={`seg-item flex-1 ${mode === m ? "seg-item-active" : ""}`}
               >
                 {m === "login" ? "로그인" : "회원가입"}

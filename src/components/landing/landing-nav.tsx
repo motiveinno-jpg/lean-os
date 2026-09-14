@@ -178,8 +178,8 @@ export function LandingNav({ solid = false }: { solid?: boolean }) {
           {/* ⚠️ 도입 상담 경로가 맨 아래 제휴 폼에만 있어 엔터프라이즈 리드가 거기까지 안 내려간다.
               준비도별로 셋(바로 시작 / 먼저 보기 / 물어보기)을 나눠 받는다 (2026-07-29). */}
           {/* 2026-09-14 `/` 가 v8 이 되며 #partner 폼이 사라져 빈 곳으로 갔다 → 상담 신청 화면으로 */}
-          <Link href="/contact" className="lp5-nav-ask">도입 상담</Link>
-          <Link href="/auth" className="lp4-pill">무료로 시작하기</Link>
+          <Link href="/contact" className="lp5-nav-ask" data-cta="consult:old_nav">도입 상담</Link>
+          <Link href="/auth?mode=signup" className="lp4-pill" data-cta="signup:old_nav">무료로 시작하기</Link>
           <button
             type="button"
             className="lp4-burger"

@@ -229,7 +229,7 @@ export default function SeveranceCalculatorView() {
           <h2 className="tl8-h2">직원 급여·퇴직금 관리, 아직 엑셀로 하고 계신가요?</h2>
           <p className="tl8-sub">오너뷰는 급여명세서 발송부터 연차·근태·4대보험까지 사장님이 챙길 인사 업무를 한 곳에서 끝냅니다. 카드 등록 없이 무료로 시작하세요.</p>
           <div className="tl8-feat-cta">
-            <Link href="/auth" className="btn btn-fill">무료로 시작하기</Link>
+            <Link href="/auth?mode=signup" className="btn btn-fill" data-cta="signup:tool_severance">무료로 시작하기</Link>
             <Link href="/features" className="btn btn-soft">기능 둘러보기</Link>
           </div>
         </div>

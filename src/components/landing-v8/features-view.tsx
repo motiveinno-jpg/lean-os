@@ -17,7 +17,7 @@ import { useSearchParams } from "next/navigation";
 import "@/app/landing-v8.css";
 import { SiteFooter, SiteHeader } from "./site-shell";
 import { CATALOG, menuHref, pickMenu, type Menu } from "./catalog";
-import { CONSULT_HREF } from "./content";
+import { CONSULT_HREF, SIGNUP_HREF } from "./content";
 import { MenuGlyph } from "./menu-glyph";
 
 const Check = () => (
@@ -145,8 +145,8 @@ export default function FeaturesView() {
             <h3 className="cta-h">메뉴 {CATALOG.reduce((n, g) => n + g.menus.length, 0)}개가<br />같은 자료를 씁니다</h3>
             <p className="pr8-finale-sub">한 번 입력한 자료가 재고·재무·업무·인사·분석 메뉴로 이어집니다. 카드 등록 없이 무료로 시작하세요.</p>
             <div className="lp8-finale-cta">
-              <Link className="btn btn-fill" href="/auth">무료로 시작하기</Link>
-              <Link className="btn btn-soft" href={CONSULT_HREF}>도입 상담 신청</Link>
+              <Link className="btn btn-fill" href={SIGNUP_HREF} data-cta="signup:features_finale">무료로 시작하기</Link>
+              <Link className="btn btn-soft" href={CONSULT_HREF} data-cta="consult:features_finale">도입 상담 신청</Link>
             </div>
           </div>
         </section>

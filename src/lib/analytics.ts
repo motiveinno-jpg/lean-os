@@ -6,8 +6,14 @@
 //   sign_up         { method } 회원가입 완료
 //   bank_connect    {}         계좌 첫 연결 (북극성 지표)
 //   checkout_start  { plan }   결제 시작
+//   ── 2026-09-14 랜딩 전환 계측 (공개 페이지 → 가입·상담) ──
+//   signup_click    { cta }    공개 페이지의 가입 버튼 클릭 — 버튼에 data-cta="signup:이름" (components/analytics.tsx 가 받는다)
+//   consult_click   { cta }    상담 버튼 클릭 — data-cta="consult:이름"
+//   signup_view     { via }    가입 탭이 열림 — via=link(?mode=signup 로 들어옴) / tab(로그인에서 탭을 바꿈)
+//   contact_submit  { size, interests } /contact 상담 신청 접수 성공
 // page_view 자체 기록은 마케팅 공개 페이지만 — 앱 내부 이동까지 쌓으면 표만 커진다 (GA4는 전부 받음)
-const MARKETING_PATHS = /^\/($|pricing|features|ai|demo|guide|tools\/|tax-partners|advisor)/;
+//   2026-09-14 contact·blog 추가 — 상담 신청·블로그 방문이 한 건도 안 세어졌다
+const MARKETING_PATHS = /^\/($|pricing|features|ai|demo|guide|tools\/|tax-partners|advisor|contact|blog)/;
 
 export function track(event: string, params?: Record<string, string | number | boolean>) {
   if (typeof window === "undefined") return;

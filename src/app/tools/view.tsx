@@ -45,7 +45,7 @@ export default function ToolsHubView() {
             <p className="tl8-sub">연차·급여·4대보험·세무를 매번 계산기로 두드리지 말고, 회사 상황판 하나로 자동 관리하세요.</p>
           </div>
           <div className="tl8-feat-cta">
-            <Link href="/auth" className="btn btn-fill">무료로 시작하기</Link>
+            <Link href="/auth?mode=signup" className="btn btn-fill" data-cta="signup:tools_hub">무료로 시작하기</Link>
             <Link href="/features" className="btn btn-soft">기능 둘러보기</Link>
           </div>
         </div>

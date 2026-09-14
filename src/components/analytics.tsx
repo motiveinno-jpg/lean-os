@@ -23,6 +23,19 @@ export function Analytics() {
     track("page_view", { page_path: pathname });
   }, [pathname]);
 
+  // 공개 페이지 버튼 클릭 (2026-09-14) — 버튼마다 onClick 을 달지 않고 data-cta="signup:hero" 표시만 한다.
+  //   종류는 signup·consult 두 가지만 받는다(api/track 화이트리스트와 같다). 이동을 막지 않는다(sendBeacon).
+  useEffect(() => {
+    const onClick = (ev: MouseEvent) => {
+      const el = (ev.target as Element | null)?.closest?.("[data-cta]");
+      const raw = el?.getAttribute("data-cta") || "";
+      const [kind, name] = raw.split(":");
+      if ((kind === "signup" || kind === "consult") && name) track(`${kind}_click`, { cta: name });
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, []);
+
   if (!GA_ID) return null;
   return (
     <>

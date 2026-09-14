@@ -17,6 +17,9 @@ type Ev = { event: string; params: any; path: string | null; referrer: string | 
 const FUNNEL: { key: string; label: string; hint: string }[] = [
   { key: "page_view", label: "방문", hint: "공개 페이지 조회" },
   { key: "tool_calculate", label: "계산기 사용", hint: "무료 도구에서 결과 봄" },
+  // 2026-09-14 랜딩 전환 계측 — 가입 버튼을 누르고, 가입 탭이 열리고, 접수까지
+  { key: "signup_click", label: "가입 버튼", hint: "공개 페이지 「무료로 시작」 클릭" },
+  { key: "signup_view", label: "가입 화면", hint: "회원가입 탭이 열림" },
   { key: "sign_up", label: "가입", hint: "회원가입 접수" },
   { key: "bank_connect", label: "계좌 연결", hint: "첫 데이터 연동 (북극성)" },
   { key: "checkout_start", label: "결제 시작", hint: "업그레이드 결제 진입" },
@@ -78,6 +81,13 @@ export default function PlatformMarketingPage() {
       byRef[h] = (byRef[h] || 0) + 1;
     }
 
+    // 버튼별 클릭 (2026-09-14) — data-cta 이름. 가입·상담 두 갈래
+    const byCta: Record<string, number> = {};
+    for (const e of inRange) if (e.event === "signup_click" || e.event === "consult_click") {
+      const k = `${e.event === "signup_click" ? "가입" : "상담"} · ${String(e.params?.cta || "기타")}`;
+      byCta[k] = (byCta[k] || 0) + 1;
+    }
+
     // 인기 페이지
     const byPath: Record<string, number> = {};
     for (const e of inRange) if (e.event === "page_view" && e.path) byPath[e.path] = (byPath[e.path] || 0) + 1;
@@ -88,6 +98,7 @@ export default function PlatformMarketingPage() {
       tools: Object.entries(byTool).sort((a, b) => b[1] - a[1]),
       refs: Object.entries(byRef).sort((a, b) => b[1] - a[1]).slice(0, 8),
       paths: Object.entries(byPath).sort((a, b) => b[1] - a[1]).slice(0, 8),
+      ctas: Object.entries(byCta).sort((a, b) => b[1] - a[1]).slice(0, 10),
     };
   }, [events, days]);
 
@@ -96,6 +107,7 @@ export default function PlatformMarketingPage() {
   const toolBars = view.tools.map(([tool, n]) => ({ name: TOOL_KO[tool] || tool, 사용: n }));
   const refBars = view.refs.map(([host, n]) => ({ name: host, 방문: n }));
   const pathBars = view.paths.map(([path, n]) => ({ name: path, 조회: n }));
+  const ctaBars = view.ctas.map(([name, n]) => ({ name, 클릭: n }));
   const funnelStages = FUNNEL.map((s) => ({ label: s.label, value: view.counts[s.key] || 0 }));
   const funnelHasData = funnelStages.some((s) => s.value > 0);
 
@@ -174,6 +186,19 @@ export default function PlatformMarketingPage() {
               </PfCardBody>
             </PfCard>
           </div>
+
+          {/* 버튼별 클릭 · 상담 신청 (2026-09-14) */}
+          <PfCard i={10}>
+            <PfCardHead
+              title="어느 버튼이 눌리나"
+              sub={`공개 페이지 가입·상담 버튼 클릭 상위 10개 · 상담 신청 접수 ${view.counts.contact_submit || 0}건 (상담 버튼 ${view.counts.consult_click || 0}회)`}
+            />
+            <PfCardBody>
+              {ctaBars.length === 0 ? <PfEmpty>아직 기록이 없습니다 (2026-09-14 부터 수집)</PfEmpty> : (
+                <PfBars data={ctaBars} horizontal height={Math.max(160, ctaBars.length * 36)} series={[{ key: "클릭", label: "클릭" }]} revealKey={String(days)} />
+              )}
+            </PfCardBody>
+          </PfCard>
 
           {/* 인기 페이지 */}
           <PfCard i={10}>

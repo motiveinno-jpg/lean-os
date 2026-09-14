@@ -208,7 +208,7 @@ export default function InsuranceCalculatorView() {
           <h2 className="tl8-h2">직원을 뽑을 때마다 하는 이 계산, 오너뷰가 자동으로 처리합니다</h2>
           <p className="tl8-sub">오너뷰는 급여명세서의 4대보험·세금 공제를 자동 계산하고, 근태·연차·계약서까지 사장님의 인사 업무를 한 곳에서 끝냅니다. 카드 등록 없이 무료로 시작하세요.</p>
           <div className="tl8-feat-cta">
-            <Link href="/auth" className="btn btn-fill">무료로 시작하기</Link>
+            <Link href="/auth?mode=signup" className="btn btn-fill" data-cta="signup:tool_insurance">무료로 시작하기</Link>
             <Link href="/features" className="btn btn-soft">기능 둘러보기</Link>
           </div>
         </div>

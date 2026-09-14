@@ -197,7 +197,7 @@ export default function SalaryCalculatorView() {
           <h2 className="tl8-h2">급여명세서, 매달 이 계산 자동으로 해드립니다</h2>
           <p className="tl8-sub">오너뷰는 직원별 4대보험·소득세 공제를 자동 계산해 급여명세서를 만들어 발송하고, 근태·연차까지 한 곳에서 끝냅니다. 카드 등록 없이 무료로 시작하세요.</p>
           <div className="tl8-feat-cta">
-            <Link href="/auth" className="btn btn-fill">무료로 시작하기</Link>
+            <Link href="/auth?mode=signup" className="btn btn-fill" data-cta="signup:tool_salary">무료로 시작하기</Link>
             <Link href="/features" className="btn btn-soft">기능 둘러보기</Link>
           </div>
         </div>

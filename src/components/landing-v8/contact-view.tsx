@@ -10,7 +10,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import "@/app/landing-v8.css";
-import { CONTACT, FOOTER } from "./content";
+import { CONTACT, FOOTER, SIGNUP_HREF } from "./content";
+import { track } from "@/lib/analytics";
 import { SiteFooter } from "./site-shell";
 import { useLandingLightTheme } from "@/components/theme-context";
 
@@ -54,6 +55,8 @@ export default function ContactView() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error || "접수에 실패했습니다. 잠시 후 다시 시도해주세요.");
       setSent(true);
+      // 계측 — 상담 신청 접수(개인정보는 보내지 않는다: 인원 구간·관심 업무 개수만)
+      if (!honeypot) track("contact_submit", { size: size || "none", interests: interests.length }); // 허니팟이 찬 봇 제출은 세지 않는다
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "접수에 실패했습니다. 잠시 후 다시 시도해주세요.");
@@ -76,7 +79,7 @@ export default function ContactView() {
           </Link>
           <div className="nav-cta lp8-ct-nav-cta">
             <Link className="btn btn-sm btn-line" href="/auth">로그인</Link>
-            <Link className="btn btn-sm btn-fill" href="/auth">무료 체험하기</Link>
+            <Link className="btn btn-sm btn-fill" href={SIGNUP_HREF} data-cta="signup:contact_nav">무료 체험하기</Link>
           </div>
         </div>
       </header>
@@ -99,7 +102,7 @@ export default function ContactView() {
               ))}
             </ol>
             <p className="lp8-ct-alt">
-              바로 사용해 보시려면 <Link href="/auth">무료로 시작하세요</Link>.<br className="brk" />
+              바로 사용해 보시려면 <Link href={SIGNUP_HREF} data-cta="signup:contact_intro">무료로 시작하세요</Link>.<br className="brk" />
               메일 문의는 <a href={`mailto:${FOOTER.email}`}>{FOOTER.email}</a> 에서 받습니다.
             </p>
           </section>
@@ -113,7 +116,7 @@ export default function ContactView() {
                 <p>영업일 기준 1일 이내에 <b>{v.email.trim()}</b> 으로 연락드립니다.</p>
                 <p>기다리시는 동안 무료 플랜으로 먼저 사용해 보세요!</p>
                 <div className="lp8-ct-done-cta">
-                  <Link className="btn btn-fill" href="/auth">무료로 시작하기</Link>
+                  <Link className="btn btn-fill" href={SIGNUP_HREF} data-cta="signup:contact_done">무료로 시작하기</Link>
                   <Link className="btn btn-soft" href="/">처음 화면으로</Link>
                 </div>
               </div>

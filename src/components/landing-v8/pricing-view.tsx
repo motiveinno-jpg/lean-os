@@ -13,7 +13,7 @@ import { useState } from "react";
 import Link from "next/link";
 import "@/app/landing-v8.css";
 import { SiteFooter, SiteHeader } from "./site-shell";
-import { COMPETITORS, CONSULT_HREF } from "./content";
+import { COMPETITORS, CONSULT_HREF, SIGNUP_HREF } from "./content";
 import { bytes, discountPct, perMonth, tokens, won, type PlanRow } from "./pricing-data";
 
 const Check = () => (
@@ -139,7 +139,7 @@ export default function PricingView({ plans, source }: { plans: PlanRow[]; sourc
                       연간 결제 시 {d}% 할인 · 월 {won(p.base_price * (1 - d / 100))} 상당
                     </p>
                   )}
-                  <Link className={`btn ${hl ? "btn-fill" : "btn-soft"} pr8-cta`} href="/auth">{cta}</Link>
+                  <Link className={`btn ${hl ? "btn-fill" : "btn-soft"} pr8-cta`} href={SIGNUP_HREF} data-cta={`signup:pricing_${p.slug}`}>{cta}</Link>
                   <ul className="pr8-feats">
                     {p.features.map((f) => <li key={f}><Check />{f}</li>)}
                   </ul>
@@ -234,8 +234,8 @@ export default function PricingView({ plans, source }: { plans: PlanRow[]; sourc
             <h3 className="cta-h">요금이 궁금하시면<br />먼저 물어보세요!</h3>
             <p className="pr8-finale-sub">회사 상황에 맞는 메뉴 구성과 요금을 함께 정리해 드립니다. 무료 플랜으로 먼저 사용해 보셔도 됩니다.</p>
             <div className="lp8-finale-cta">
-              <Link className="btn btn-fill" href={CONSULT_HREF}>도입 상담 신청</Link>
-              <Link className="btn btn-soft" href="/auth">무료로 시작하기</Link>
+              <Link className="btn btn-fill" href={CONSULT_HREF} data-cta="consult:pricing_finale">도입 상담 신청</Link>
+              <Link className="btn btn-soft" href={SIGNUP_HREF} data-cta="signup:pricing_finale">무료로 시작하기</Link>
             </div>
           </div>
         </section>

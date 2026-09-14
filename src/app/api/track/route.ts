@@ -14,7 +14,8 @@ function clientIp(r: { headers: { get(name: string): string | null } }): string 
   return parts.length ? parts[parts.length - 1] : 'unknown';
 }
 
-const ALLOWED = new Set(["page_view", "tool_calculate", "sign_up", "bank_connect", "checkout_start"]);
+// 2026-09-14 랜딩 전환: signup_click · consult_click · signup_view · contact_submit (lib/analytics.ts 머리주석)
+const ALLOWED = new Set(["page_view", "tool_calculate", "sign_up", "bank_connect", "checkout_start", "signup_click", "consult_click", "signup_view", "contact_submit"]);
 
 // 인스턴스별 in-memory 레이트리밋 (미들웨어 auth 패턴과 동일한 한계 — 완벽 보장은 아님)
 const WINDOW_MS = 60_000;
