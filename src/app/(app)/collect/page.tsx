@@ -13,6 +13,7 @@ import { useMyPermissions } from "@/lib/permissions";
 import { DateField } from "@/components/date-field";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@/components/user-context";
+import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { AccessDenied } from "@/components/access-denied";
 import { useSyncCooldown } from "@/lib/sync-cooldown";
@@ -24,6 +25,7 @@ import {
 import { useCollectRun, startCollect, restoreCollectRun } from "@/lib/collect-run";
 import { EvidenceTab } from "./_components/EvidenceTab";
 import { BankTab } from "./_components/BankTab";
+import { ExpenseClaimTab } from "./_components/ExpenseClaimTab";
 import { RulesDialog } from "./_components/RulesDialog";
 import { DateRangeField } from "@/components/date-range-field";
 import { QueryScreen, QueryHead, QueryBar, ResultStrip, HelperMenu, defaultRange, type HelperItem } from "@/components/query-kit";
@@ -59,12 +61,27 @@ function CollectInner() {
   const  { from, to } = range;
   //   탭 — 'status' 는 현황판, 나머지는 그 자료의 목록 (2단계)
   //   ?tab=bank 같은 주소로 바로 그 탭을 연다 — 다른 화면들이 "여기서 처리하세요"로 보낼 때 쓴다
-  const [tab, setTab] = useState<"status" | SourceKey>(() => {
+  //   'expense' = 결재 경비 — 결재 허브에서 승인된 지출결의서(경비 양식)를 전표로 만드는 탭 (2026-09-14)
+  const [tab, setTab] = useState<"status" | "expense" | SourceKey>(() => {
     if (typeof window === "undefined") return "status";
     const t = new URLSearchParams(window.location.search).get("tab");
-    return (t && (t === "status" || SOURCES.some((s) => s.key === t)) ? t : "status") as "status" | SourceKey;
+    return (t && (t === "status" || t === "expense" || SOURCES.some((s) => s.key === t)) ? t : "status") as "status" | "expense" | SourceKey;
   });
   const [rulesOpen, setRulesOpen] = useState(false);
+  //   결재 경비 탭 배지 — 조회기간 안에서 승인됐고(경비 양식·개인 돈) 아직 전표가 없는 건. 다른 탭 배지와 같은 기간 기준.
+  const { data: expensePending } = useQuery({
+    queryKey: ["expense-claims-pending", companyId, from, to],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const toExcl = new Date(Date.parse(`${to}T00:00:00+09:00`) + 86400000).toISOString();
+      const { count } = await (supabase as any).from("approval_requests")
+        .select("id, approval_forms!inner(is_expense)", { count: "exact", head: true })
+        .eq("company_id", companyId).eq("status", "approved").eq("paid_by", "personal")
+        .is("journal_entry_id", null).eq("approval_forms.is_expense", true)
+        .gte("updated_at", `${from}T00:00:00+09:00`).lt("updated_at", toExcl);
+      return count || 0;
+    },
+  });
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState<SourceKey[]>(SOURCES.map((s) => s.key));
   const [mode, setMode] = useState<"new" | "range">("new");
@@ -223,6 +240,12 @@ function CollectInner() {
           <span className="collect-tab-cnt">{won(status?.[s.key]?.pending ?? 0)}</span>
         </button>
       ))}
+      {/*   결재 경비 — 수집 자료가 아니라 결재 허브에서 승인된 지출결의서. 전표 대기 건수를 센다 */}
+      <button type="button" onClick={() => setTab("expense")}
+        className={tab === "expense" ? "collect-tab collect-tab-on" : "collect-tab"}>
+        결재 경비
+        <span className="collect-tab-cnt">{won(expensePending ?? 0)}</span>
+      </button>
     </div>
   );
 
@@ -233,8 +256,10 @@ function CollectInner() {
         tab === "bank"
           ? <BankTab companyId={companyId} from={from} to={to} tabsNode={tabsNode}
               onRange={applyRange} syncButton={syncButton} rulesHelper={rulesHelper} />
-          : <EvidenceTab companyId={companyId} from={from} to={to} kind={tab} tabsNode={tabsNode}
-              onRange={applyRange} syncButton={syncButton} rulesHelper={rulesHelper} />
+          : tab === "expense"
+            ? <ExpenseClaimTab companyId={companyId} from={from} to={to} tabsNode={tabsNode} onRange={applyRange} />
+            : <EvidenceTab companyId={companyId} from={from} to={to} kind={tab} tabsNode={tabsNode}
+                onRange={applyRange} syncButton={syncButton} rulesHelper={rulesHelper} />
       )}
 
       {/* ── 현황판 — 탭·조회 줄·자료 표·수집 이력을 **한 상자**에 (2026-08-13 대표 C안 승인).

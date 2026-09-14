@@ -921,6 +921,54 @@ export type Database = {
           },
         ]
       }
+      ai_copilot_history: {
+        Row: {
+          answer: Json | null
+          as_of: string | null
+          company_id: string
+          created_at: string | null
+          id: string
+          model: string | null
+          query: string
+          user_id: string | null
+        }
+        Insert: {
+          answer?: Json | null
+          as_of?: string | null
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          model?: string | null
+          query: string
+          user_id?: string | null
+        }
+        Update: {
+          answer?: Json | null
+          as_of?: string | null
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          model?: string | null
+          query?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_copilot_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_copilot_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_copilot_notes: {
         Row: {
           active: boolean
@@ -966,50 +1014,9 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      ai_copilot_history: {
-        Row: {
-          answer: Json | null
-          as_of: string | null
-          company_id: string
-          created_at: string | null
-          id: string
-          model: string | null
-          query: string
-          user_id: string | null
-        }
-        Insert: {
-          answer?: Json | null
-          as_of?: string | null
-          company_id?: string
-          created_at?: string | null
-          id?: string
-          model?: string | null
-          query: string
-          user_id?: string | null
-        }
-        Update: {
-          answer?: Json | null
-          as_of?: string | null
-          company_id?: string
-          created_at?: string | null
-          id?: string
-          model?: string | null
-          query?: string
-          user_id?: string | null
-        }
-        Relationships: [
           {
-            foreignKeyName: "ai_copilot_history_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ai_copilot_history_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "ai_copilot_notes_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -1542,6 +1549,7 @@ export type Database = {
           fields: Json
           id: string
           is_active: boolean
+          is_expense: boolean
           name: string
           reference_user_ids: string[]
           stages: Json
@@ -1560,6 +1568,7 @@ export type Database = {
           fields?: Json
           id?: string
           is_active?: boolean
+          is_expense?: boolean
           name: string
           reference_user_ids?: string[]
           stages?: Json
@@ -1578,6 +1587,7 @@ export type Database = {
           fields?: Json
           id?: string
           is_active?: boolean
+          is_expense?: boolean
           name?: string
           reference_user_ids?: string[]
           stages?: Json
@@ -1727,8 +1737,11 @@ export type Database = {
           custom_fields: Json
           deal_id: string | null
           description: string | null
+          expense_account_id: string | null
           form_id: string | null
           id: string
+          journal_entry_id: string | null
+          paid_by: string | null
           policy_id: string | null
           reference_user_ids: string[]
           request_id: string | null
@@ -1748,8 +1761,11 @@ export type Database = {
           custom_fields?: Json
           deal_id?: string | null
           description?: string | null
+          expense_account_id?: string | null
           form_id?: string | null
           id?: string
+          journal_entry_id?: string | null
+          paid_by?: string | null
           policy_id?: string | null
           reference_user_ids?: string[]
           request_id?: string | null
@@ -1769,8 +1785,11 @@ export type Database = {
           custom_fields?: Json
           deal_id?: string | null
           description?: string | null
+          expense_account_id?: string | null
           form_id?: string | null
           id?: string
+          journal_entry_id?: string | null
+          paid_by?: string | null
           policy_id?: string | null
           reference_user_ids?: string[]
           request_id?: string | null
@@ -1832,10 +1851,24 @@ export type Database = {
             referencedColumns: ["deal_id"]
           },
           {
+            foreignKeyName: "approval_requests_expense_account_id_fkey"
+            columns: ["expense_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "approval_requests_form_id_fkey"
             columns: ["form_id"]
             isOneToOne: false
             referencedRelation: "approval_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_requests_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
             referencedColumns: ["id"]
           },
           {
@@ -2339,10 +2372,13 @@ export type Database = {
         Row: {
           company_id: string
           created_at: string | null
+          day_of_month: number | null
           estimated_monthly_cost: number | null
           id: string
           name: string
           pattern_description: string | null
+          pattern_key: string | null
+          source: string | null
           source_transaction_ids: string[] | null
           status: string | null
           suggested_type: string
@@ -2351,10 +2387,13 @@ export type Database = {
         Insert: {
           company_id: string
           created_at?: string | null
+          day_of_month?: number | null
           estimated_monthly_cost?: number | null
           id?: string
           name: string
           pattern_description?: string | null
+          pattern_key?: string | null
+          source?: string | null
           source_transaction_ids?: string[] | null
           status?: string | null
           suggested_type: string
@@ -2363,10 +2402,13 @@ export type Database = {
         Update: {
           company_id?: string
           created_at?: string | null
+          day_of_month?: number | null
           estimated_monthly_cost?: number | null
           id?: string
           name?: string
           pattern_description?: string | null
+          pattern_key?: string | null
+          source?: string | null
           source_transaction_ids?: string[] | null
           status?: string | null
           suggested_type?: string
@@ -3496,9 +3538,9 @@ export type Database = {
         Row: {
           attachments: Json
           author_email: string | null
-          category: string | null
           author_id: string | null
           author_name: string | null
+          category: string | null
           company_id: string
           content: string
           created_at: string
@@ -3516,9 +3558,9 @@ export type Database = {
         Insert: {
           attachments?: Json
           author_email?: string | null
-          category?: string | null
           author_id?: string | null
           author_name?: string | null
+          category?: string | null
           company_id: string
           content: string
           created_at?: string
@@ -3536,9 +3578,9 @@ export type Database = {
         Update: {
           attachments?: Json
           author_email?: string | null
-          category?: string | null
           author_id?: string | null
           author_name?: string | null
+          category?: string | null
           company_id?: string
           content?: string
           created_at?: string
@@ -3563,6 +3605,38 @@ export type Database = {
           },
           {
             foreignKeyName: "board_posts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      briefing_checks: {
+        Row: {
+          company_id: string
+          created_at: string
+          day: string
+          item_key: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          day: string
+          item_key: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          day?: string
+          item_key?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "briefing_checks_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
@@ -3903,6 +3977,7 @@ export type Database = {
           id: string
           identity_number: string | null
           identity_type: string | null
+          is_deductible: boolean | null
           issue_date: string
           issue_response: Json | null
           journal_entry_id: string | null
@@ -3929,6 +4004,7 @@ export type Database = {
           id?: string
           identity_number?: string | null
           identity_type?: string | null
+          is_deductible?: boolean | null
           issue_date: string
           issue_response?: Json | null
           journal_entry_id?: string | null
@@ -3955,6 +4031,7 @@ export type Database = {
           id?: string
           identity_number?: string | null
           identity_type?: string | null
+          is_deductible?: boolean | null
           issue_date?: string
           issue_response?: Json | null
           journal_entry_id?: string | null
@@ -4322,6 +4399,7 @@ export type Database = {
           created_by: string | null
           deal_id: string | null
           description: string | null
+          dm_user_ids: string[] | null
           id: string
           invite_token: string | null
           is_archived: boolean | null
@@ -4339,6 +4417,7 @@ export type Database = {
           created_by?: string | null
           deal_id?: string | null
           description?: string | null
+          dm_user_ids?: string[] | null
           id?: string
           invite_token?: string | null
           is_archived?: boolean | null
@@ -4356,6 +4435,7 @@ export type Database = {
           created_by?: string | null
           deal_id?: string | null
           description?: string | null
+          dm_user_ids?: string[] | null
           id?: string
           invite_token?: string | null
           is_archived?: boolean | null
@@ -5183,6 +5263,44 @@ export type Database = {
           },
         ]
       }
+      company_ingest_keys: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          key_hash: string
+          key_hint: string
+          revoked_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash: string
+          key_hint: string
+          revoked_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash?: string
+          key_hint?: string
+          revoked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_ingest_keys_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_insurance_rates: {
         Row: {
           company_id: string
@@ -5539,6 +5657,27 @@ export type Database = {
           },
         ]
       }
+      company_storage_usage: {
+        Row: {
+          company_id: string
+          object_count: number
+          updated_at: string
+          used_bytes: number
+        }
+        Insert: {
+          company_id: string
+          object_count?: number
+          updated_at?: string
+          used_bytes?: number
+        }
+        Update: {
+          company_id?: string
+          object_count?: number
+          updated_at?: string
+          used_bytes?: number
+        }
+        Relationships: []
+      }
       contract_archives: {
         Row: {
           amount: number | null
@@ -5623,6 +5762,7 @@ export type Database = {
           file_url: string | null
           id: string
           is_active: boolean
+          is_personal: boolean
           is_system: boolean
           name: string
           sort_order: number
@@ -5640,6 +5780,7 @@ export type Database = {
           file_url?: string | null
           id?: string
           is_active?: boolean
+          is_personal?: boolean
           is_system?: boolean
           name: string
           sort_order?: number
@@ -5657,6 +5798,7 @@ export type Database = {
           file_url?: string | null
           id?: string
           is_active?: boolean
+          is_personal?: boolean
           is_system?: boolean
           name?: string
           sort_order?: number
@@ -5695,6 +5837,8 @@ export type Database = {
           memo: string | null
           monthly_limit: number | null
           payment_day: number | null
+          sort_order: number | null
+          sync_enabled: boolean
         }
         Insert: {
           billing_day?: number | null
@@ -5710,6 +5854,8 @@ export type Database = {
           memo?: string | null
           monthly_limit?: number | null
           payment_day?: number | null
+          sort_order?: number | null
+          sync_enabled?: boolean
         }
         Update: {
           billing_day?: number | null
@@ -5725,6 +5871,8 @@ export type Database = {
           memo?: string | null
           monthly_limit?: number | null
           payment_day?: number | null
+          sort_order?: number | null
+          sync_enabled?: boolean
         }
         Relationships: [
           {
@@ -5805,6 +5953,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "credit_purchases_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_report_snapshots: {
+        Row: {
+          company_id: string
+          created_at: string
+          day: string
+          payload: Json
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          day: string
+          payload: Json
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          day?: string
+          payload?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_report_snapshots_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
@@ -7834,6 +8014,7 @@ export type Database = {
           contract_type: string | null
           created_at: string | null
           department: string | null
+          dependents: number
           email: string | null
           emergency_contact: string | null
           emergency_phone: string | null
@@ -7849,6 +8030,7 @@ export type Database = {
           meal_allowance_included: boolean | null
           name: string
           non_taxable_amount: number | null
+          offboarding: Json | null
           onboarding_completed_at: string | null
           onboarding_docs: Json | null
           phone: string | null
@@ -7877,6 +8059,7 @@ export type Database = {
           contract_type?: string | null
           created_at?: string | null
           department?: string | null
+          dependents?: number
           email?: string | null
           emergency_contact?: string | null
           emergency_phone?: string | null
@@ -7892,6 +8075,7 @@ export type Database = {
           meal_allowance_included?: boolean | null
           name: string
           non_taxable_amount?: number | null
+          offboarding?: Json | null
           onboarding_completed_at?: string | null
           onboarding_docs?: Json | null
           phone?: string | null
@@ -7920,6 +8104,7 @@ export type Database = {
           contract_type?: string | null
           created_at?: string | null
           department?: string | null
+          dependents?: number
           email?: string | null
           emergency_contact?: string | null
           emergency_phone?: string | null
@@ -7935,6 +8120,7 @@ export type Database = {
           meal_allowance_included?: boolean | null
           name?: string
           non_taxable_amount?: number | null
+          offboarding?: Json | null
           onboarding_completed_at?: string | null
           onboarding_docs?: Json | null
           phone?: string | null
@@ -8723,18 +8909,18 @@ export type Database = {
       }
       gov_programs: {
         Row: {
-          detail_text: string | null
-          detail_fetched_at: string | null
-          eligibility_ai: Json | null
-          eligibility_ai_at: string | null
-          eligibility_ai_model: string | null
           amount_max: number | null
           amount_text: string | null
           apply_end: string | null
           apply_start: string | null
           created_at: string
+          detail_fetched_at: string | null
+          detail_text: string | null
           detail_url: string | null
           eligibility: Json
+          eligibility_ai: Json | null
+          eligibility_ai_at: string | null
+          eligibility_ai_model: string | null
           external_id: string | null
           field: string | null
           id: string
@@ -8751,18 +8937,18 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          detail_text?: string | null
-          detail_fetched_at?: string | null
-          eligibility_ai?: Json | null
-          eligibility_ai_at?: string | null
-          eligibility_ai_model?: string | null
           amount_max?: number | null
           amount_text?: string | null
           apply_end?: string | null
           apply_start?: string | null
           created_at?: string
+          detail_fetched_at?: string | null
+          detail_text?: string | null
           detail_url?: string | null
           eligibility?: Json
+          eligibility_ai?: Json | null
+          eligibility_ai_at?: string | null
+          eligibility_ai_model?: string | null
           external_id?: string | null
           field?: string | null
           id?: string
@@ -8779,18 +8965,18 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          detail_text?: string | null
-          detail_fetched_at?: string | null
-          eligibility_ai?: Json | null
-          eligibility_ai_at?: string | null
-          eligibility_ai_model?: string | null
           amount_max?: number | null
           amount_text?: string | null
           apply_end?: string | null
           apply_start?: string | null
           created_at?: string
+          detail_fetched_at?: string | null
+          detail_text?: string | null
           detail_url?: string | null
           eligibility?: Json
+          eligibility_ai?: Json | null
+          eligibility_ai_at?: string | null
+          eligibility_ai_model?: string | null
           external_id?: string | null
           field?: string | null
           id?: string
@@ -9191,6 +9377,7 @@ export type Database = {
           employee_id: string
           expires_at: string | null
           id: string
+          last_mail_sent_at: string | null
           notes: string | null
           sent_at: string | null
           sign_token: string | null
@@ -9207,6 +9394,7 @@ export type Database = {
           employee_id: string
           expires_at?: string | null
           id?: string
+          last_mail_sent_at?: string | null
           notes?: string | null
           sent_at?: string | null
           sign_token?: string | null
@@ -9223,6 +9411,7 @@ export type Database = {
           employee_id?: string
           expires_at?: string | null
           id?: string
+          last_mail_sent_at?: string | null
           notes?: string | null
           sent_at?: string | null
           sign_token?: string | null
@@ -9771,6 +9960,7 @@ export type Database = {
       }
       leave_balances: {
         Row: {
+          adjust_days: number
           company_id: string
           employee_id: string
           id: string
@@ -9780,6 +9970,7 @@ export type Database = {
           year: number
         }
         Insert: {
+          adjust_days?: number
           company_id: string
           employee_id: string
           id?: string
@@ -9789,6 +9980,7 @@ export type Database = {
           year: number
         }
         Update: {
+          adjust_days?: number
           company_id?: string
           employee_id?: string
           id?: string
@@ -13614,6 +13806,99 @@ export type Database = {
           },
         ]
       }
+      project_status_reports: {
+        Row: {
+          comment: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          deal_id: string
+          id: string
+          signal: string
+          snapshot: Json
+          title: string
+        }
+        Insert: {
+          comment?: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          deal_id: string
+          id?: string
+          signal: string
+          snapshot?: Json
+          title?: string
+        }
+        Update: {
+          comment?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string
+          id?: string
+          signal?: string
+          snapshot?: Json
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_status_reports_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_status_reports_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_status_reports_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_status_reports_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_goal_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_status_reports_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_kpi_auto"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_status_reports_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_pnl"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_status_reports_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_revenue_actual"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "project_status_reports_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_project_margin"
+            referencedColumns: ["deal_id"]
+          },
+        ]
+      }
       project_subitems: {
         Row: {
           column_values: Json
@@ -14817,6 +15102,61 @@ export type Database = {
           },
         ]
       }
+      sample_company_source: {
+        Row: {
+          company_id: string
+          id: number
+          note: string | null
+        }
+        Insert: {
+          company_id: string
+          id?: number
+          note?: string | null
+        }
+        Update: {
+          company_id?: string
+          id?: number
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sample_company_source_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sample_data_rows: {
+        Row: {
+          company_id: string
+          created_at: string
+          row_id: string
+          table_name: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          row_id: string
+          table_name: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          row_id?: string
+          table_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sample_data_rows_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_queries: {
         Row: {
           auth_id: string
@@ -14878,8 +15218,10 @@ export type Database = {
           position: number
           priority: number
           recurrence: Json | null
-          reminder: string | null
           reminded_at: string | null
+          reminder: string | null
+          reminders: Json | null
+          reminders_sent: Json
           start_at: string | null
           target_departments: string[]
           target_user_ids: string[]
@@ -14904,8 +15246,10 @@ export type Database = {
           position?: number
           priority?: number
           recurrence?: Json | null
-          reminder?: string | null
           reminded_at?: string | null
+          reminder?: string | null
+          reminders?: Json | null
+          reminders_sent?: Json
           start_at?: string | null
           target_departments?: string[]
           target_user_ids?: string[]
@@ -14930,8 +15274,10 @@ export type Database = {
           position?: number
           priority?: number
           recurrence?: Json | null
-          reminder?: string | null
           reminded_at?: string | null
+          reminder?: string | null
+          reminders?: Json | null
+          reminders_sent?: Json
           start_at?: string | null
           target_departments?: string[]
           target_user_ids?: string[]
@@ -15134,10 +15480,13 @@ export type Database = {
           signed_at: string | null
           signed_contract_html: string | null
           signed_contract_url: string | null
+          signed_sha256: string | null
+          signed_user_agent: string | null
           signer_email: string
           signer_inputs: Json | null
           signer_name: string
           signer_phone: string | null
+          snapshot_sha256: string | null
           status: string | null
           template_snapshot_html: string | null
           title: string
@@ -15172,10 +15521,13 @@ export type Database = {
           signed_at?: string | null
           signed_contract_html?: string | null
           signed_contract_url?: string | null
+          signed_sha256?: string | null
+          signed_user_agent?: string | null
           signer_email: string
           signer_inputs?: Json | null
           signer_name: string
           signer_phone?: string | null
+          snapshot_sha256?: string | null
           status?: string | null
           template_snapshot_html?: string | null
           title: string
@@ -15210,10 +15562,13 @@ export type Database = {
           signed_at?: string | null
           signed_contract_html?: string | null
           signed_contract_url?: string | null
+          signed_sha256?: string | null
+          signed_user_agent?: string | null
           signer_email?: string
           signer_inputs?: Json | null
           signer_name?: string
           signer_phone?: string | null
+          snapshot_sha256?: string | null
           status?: string | null
           template_snapshot_html?: string | null
           title?: string
@@ -16109,6 +16464,7 @@ export type Database = {
           features: Json | null
           id: string
           included_seats: number | null
+          included_storage_bytes: number
           is_active: boolean | null
           list_price: number | null
           max_seats: number | null
@@ -16123,6 +16479,7 @@ export type Database = {
           per_seat_price: number
           slug: string
           sort_order: number | null
+          storage_per_unit_bytes: number
           stripe_price_annual: string | null
           stripe_price_monthly: string | null
           stripe_product_id: string | null
@@ -16136,6 +16493,7 @@ export type Database = {
           features?: Json | null
           id?: string
           included_seats?: number | null
+          included_storage_bytes?: number
           is_active?: boolean | null
           list_price?: number | null
           max_seats?: number | null
@@ -16150,6 +16508,7 @@ export type Database = {
           per_seat_price?: number
           slug: string
           sort_order?: number | null
+          storage_per_unit_bytes?: number
           stripe_price_annual?: string | null
           stripe_price_monthly?: string | null
           stripe_product_id?: string | null
@@ -16163,6 +16522,7 @@ export type Database = {
           features?: Json | null
           id?: string
           included_seats?: number | null
+          included_storage_bytes?: number
           is_active?: boolean | null
           list_price?: number | null
           max_seats?: number | null
@@ -16177,6 +16537,7 @@ export type Database = {
           per_seat_price?: number
           slug?: string
           sort_order?: number | null
+          storage_per_unit_bytes?: number
           stripe_price_annual?: string | null
           stripe_price_monthly?: string | null
           stripe_product_id?: string | null
@@ -16287,6 +16648,7 @@ export type Database = {
           plan_slug: string | null
           seat_count: number
           status: string
+          storage_pack_count: number
           stripe_customer_id: string | null
           stripe_price_id: string | null
           stripe_subscription_id: string | null
@@ -16314,6 +16676,7 @@ export type Database = {
           plan_slug?: string | null
           seat_count?: number
           status?: string
+          storage_pack_count?: number
           stripe_customer_id?: string | null
           stripe_price_id?: string | null
           stripe_subscription_id?: string | null
@@ -16341,6 +16704,7 @@ export type Database = {
           plan_slug?: string | null
           seat_count?: number
           status?: string
+          storage_pack_count?: number
           stripe_customer_id?: string | null
           stripe_price_id?: string | null
           stripe_subscription_id?: string | null
@@ -16941,6 +17305,7 @@ export type Database = {
           original_invoice_id: string | null
           partner_id: string | null
           preferred_date: string | null
+          remark: string | null
           revenue_schedule_id: string | null
           settled_amount: number
           settlement_status: string
@@ -16987,6 +17352,7 @@ export type Database = {
           original_invoice_id?: string | null
           partner_id?: string | null
           preferred_date?: string | null
+          remark?: string | null
           revenue_schedule_id?: string | null
           settled_amount?: number
           settlement_status?: string
@@ -17033,6 +17399,7 @@ export type Database = {
           original_invoice_id?: string | null
           partner_id?: string | null
           preferred_date?: string | null
+          remark?: string | null
           revenue_schedule_id?: string | null
           settled_amount?: number
           settlement_status?: string
@@ -17467,6 +17834,7 @@ export type Database = {
         Row: {
           app_tour_done_at: string | null
           app_tour_hidden_steps: Json
+          approval_type_favorites: Json
           company_id: string
           created_at: string | null
           dashboard_grid: Json | null
@@ -17483,6 +17851,7 @@ export type Database = {
         Insert: {
           app_tour_done_at?: string | null
           app_tour_hidden_steps?: Json
+          approval_type_favorites?: Json
           company_id: string
           created_at?: string | null
           dashboard_grid?: Json | null
@@ -17499,6 +17868,7 @@ export type Database = {
         Update: {
           app_tour_done_at?: string | null
           app_tour_hidden_steps?: Json
+          approval_type_favorites?: Json
           company_id?: string
           created_at?: string | null
           dashboard_grid?: Json | null
@@ -17556,46 +17926,46 @@ export type Database = {
         Row: {
           auth_id: string | null
           avatar_url: string | null
-          presence_note: string | null
-          presence_set_at: string | null
-          presence_status: string
-          presence_until: string | null
           company_id: string | null
           created_at: string | null
           email: string
           id: string
           is_master: boolean
           name: string | null
+          presence_note: string | null
+          presence_set_at: string | null
+          presence_status: string
+          presence_until: string | null
           role: string | null
         }
         Insert: {
           auth_id?: string | null
           avatar_url?: string | null
-          presence_note?: string | null
-          presence_set_at?: string | null
-          presence_status?: string
-          presence_until?: string | null
           company_id?: string | null
           created_at?: string | null
           email: string
           id?: string
           is_master?: boolean
           name?: string | null
+          presence_note?: string | null
+          presence_set_at?: string | null
+          presence_status?: string
+          presence_until?: string | null
           role?: string | null
         }
         Update: {
           auth_id?: string | null
           avatar_url?: string | null
-          presence_note?: string | null
-          presence_set_at?: string | null
-          presence_status?: string
-          presence_until?: string | null
           company_id?: string | null
           created_at?: string | null
           email?: string
           id?: string
           is_master?: boolean
           name?: string | null
+          presence_note?: string | null
+          presence_set_at?: string | null
+          presence_status?: string
+          presence_until?: string | null
           role?: string | null
         }
         Relationships: [
@@ -18697,11 +19067,16 @@ export type Database = {
         Returns: string
       }
       _advisor_gate: { Args: { p_company_id: string }; Returns: string }
+      _bank_tx_is_in: {
+        Args: { p_amount: number; p_type: string }
+        Returns: boolean
+      }
       _can_write_profit: { Args: never; Returns: boolean }
       _fa_accumulated: {
         Args: { p_asset: string; p_before_month: string }
         Returns: number
       }
+      _fa_declining_rate: { Args: { p_useful_months: number }; Returns: number }
       _fa_default_codes: {
         Args: { p_category: string }
         Returns: {
@@ -18709,6 +19084,10 @@ export type Database = {
           asset_code: string
           expense_code: string
         }[]
+      }
+      _next_voucher_no: {
+        Args: { p_company: string; p_date: string }
+        Returns: number
       }
       _notify_signed_voucher: {
         Args: {
@@ -18742,6 +19121,27 @@ export type Database = {
           product_id: string
           value: number
         }[]
+      }
+      _voucher_assert_open: {
+        Args: { p_company: string; p_date: string }
+        Returns: undefined
+      }
+      _voucher_audit: {
+        Args: {
+          p_action: string
+          p_actor: string
+          p_company: string
+          p_entry_id: string
+        }
+        Returns: undefined
+      }
+      _voucher_check_lines: {
+        Args: { p_company: string; p_lines: Json }
+        Returns: Record<string, unknown>
+      }
+      _voucher_unlink_all: {
+        Args: { p_company: string; p_entry_id: string }
+        Returns: string
       }
       ad_account_has_secret: { Args: { p_id: string }; Returns: boolean }
       ad_account_save: {
@@ -18896,7 +19296,26 @@ export type Database = {
         Args: { p_purchase_id: string }
         Returns: boolean
       }
+      apply_toss_payment_void: {
+        Args: { p_order_id: string; p_payment_key: string; p_status: string }
+        Returns: Json
+      }
       approve_overtime: { Args: { p_request_id: string }; Returns: undefined }
+      attendance_judge: {
+        Args: {
+          p_check_in: string
+          p_company_id: string
+          p_date: string
+          p_employee_id: string
+          p_status: string
+        }
+        Returns: {
+          is_holiday: boolean
+          is_late: boolean
+          late_minutes: number
+          status: string
+        }[]
+      }
       auto_clock_out_at_work_end: { Args: never; Returns: number }
       auto_voucher_for_signed_quote: {
         Args: { p_approval: string }
@@ -18906,7 +19325,15 @@ export type Database = {
         Args: { p_company_id: string }
         Returns: number
       }
+      can_read_invoices: { Args: never; Returns: boolean }
+      can_read_ledger: { Args: never; Returns: boolean }
+      can_write_ledger: { Args: never; Returns: boolean }
       cancel_cost_revaluation: { Args: { p_id: string }; Returns: undefined }
+      card_merchant_key: { Args: { t: string }; Returns: string }
+      card_tx_bizno_from_same_merchant: {
+        Args: { p_company: string; p_name: string }
+        Returns: string
+      }
       check_can_clock_in_after_hours: {
         Args: { p_employee_id: string }
         Returns: {
@@ -18923,6 +19350,7 @@ export type Database = {
         Args: { p_amount?: number; p_invoice_id: string; p_reason: string }
         Returns: string
       }
+      collect_infra_errors: { Args: never; Returns: number }
       company_advisor_access_logs: {
         Args: { p_limit?: number }
         Returns: {
@@ -18960,6 +19388,11 @@ export type Database = {
           specialty: string
         }[]
       }
+      company_notify_users: {
+        Args: { p_company: string; p_patterns: string[] }
+        Returns: string[]
+      }
+      company_storage_quota: { Args: { p_company: string }; Returns: number }
       company_unlink_advisor: {
         Args: { p_link_id: string }
         Returns: undefined
@@ -18974,6 +19407,7 @@ export type Database = {
         Args: { p_company_id: string }
         Returns: Json
       }
+      critical_error_count_24h: { Args: never; Returns: number }
       current_app_employee_id: { Args: never; Returns: string }
       current_app_user_email: { Args: never; Returns: string }
       current_app_user_id: { Args: never; Returns: string }
@@ -19030,6 +19464,7 @@ export type Database = {
         Returns: string
       }
       fn_process_invoice_queue: { Args: never; Returns: number }
+      free_sync_quota: { Args: { p_company: string }; Returns: Json }
       generate_annual_leave_grants: {
         Args: { p_company_id?: string }
         Returns: number
@@ -19063,22 +19498,7 @@ export type Database = {
           phone: string
           position: string
           status: string
-        }[]
-      }
-      get_company_work_today: {
-        Args: never
-        Returns: {
-          employee_id: string
-          work_start_time: string | null
-          work_end_time: string | null
-          hire_date: string | null
-          check_in: string | null
-          check_out: string | null
-          att_status: string | null
-          attendance_type: string | null
-          leave_unit: string | null
-          leave_start_time: string | null
-          leave_days: number | null
+          user_id: string
         }[]
       }
       get_company_entitlement: {
@@ -19093,6 +19513,34 @@ export type Database = {
       }
       get_company_overview: { Args: { p_company_id: string }; Returns: Json }
       get_company_plan_slug: { Args: never; Returns: string }
+      get_company_storage: {
+        Args: { p_company?: string }
+        Returns: {
+          effective_paid: boolean
+          extra_seats: number
+          included_bytes: number
+          per_unit_bytes: number
+          quota_bytes: number
+          storage_packs: number
+          used_bytes: number
+        }[]
+      }
+      get_company_work_today: {
+        Args: never
+        Returns: {
+          att_status: string
+          attendance_type: string
+          check_in: string
+          check_out: string
+          employee_id: string
+          hire_date: string
+          leave_days: number
+          leave_start_time: string
+          leave_unit: string
+          work_end_time: string
+          work_start_time: string
+        }[]
+      }
       get_contract_package_by_token: {
         Args: { p_token: string }
         Returns: Json
@@ -19138,6 +19586,18 @@ export type Database = {
           open_over90: number
           partner_id: string
           settled_n: number
+        }[]
+      }
+      get_partner_ledger_by_period: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          invoice_count: number
+          partner_id: string
+          period_billed: number
+          period_outstanding: number
+          period_settled: number
+          prior_outstanding: number
+          type: string
         }[]
       }
       get_partner_ledger_by_year: {
@@ -19216,6 +19676,8 @@ export type Database = {
           registered_at: string
         }[]
       }
+      has_any_finance_perm: { Args: never; Returns: boolean }
+      has_any_settings_perm: { Args: never; Returns: boolean }
       has_menu_perm: { Args: { p_route: string }; Returns: boolean }
       has_min_plan: { Args: { min_plan: string }; Returns: boolean }
       has_perm: { Args: { p_key: string }; Returns: boolean }
@@ -19223,17 +19685,20 @@ export type Database = {
         Args: { share_id_param: string }
         Returns: undefined
       }
+      ingest_company_for_key: { Args: { p_key: string }; Returns: string }
       is_advisor_session: { Args: never; Returns: boolean }
       is_channel_member: {
         Args: { p_channel_id: string; p_user_id: string }
         Returns: boolean
       }
       is_company_admin: { Args: never; Returns: boolean }
+      is_company_manager: { Args: never; Returns: boolean }
       is_company_master: { Args: never; Returns: boolean }
       is_company_owner: { Args: never; Returns: boolean }
       is_manual_sync_allowed: { Args: { p_company: string }; Returns: boolean }
       is_partner_user: { Args: never; Returns: boolean }
       is_platform_operator: { Args: never; Returns: boolean }
+      is_service_request: { Args: never; Returns: boolean }
       is_user_assigned_to_deal: {
         Args: { p_deal_id: string }
         Returns: boolean
@@ -19259,15 +19724,26 @@ export type Database = {
         Args: never
         Returns: {
           days: number
+          employee_email: string
+          employee_id: string
           employee_name: string
           end_date: string
           leave_type: string
           leave_unit: string
           start_date: string
           start_time: string
+          user_id: string
         }[]
       }
+      leave_used_from_requests: {
+        Args: { p_employee: string; p_year: number }
+        Returns: number
+      }
       link_invoice_partners: { Args: never; Returns: Json }
+      link_transaction_to_entry: {
+        Args: { p_entry_id: string; p_kind: string; p_tx_id: string }
+        Returns: boolean
+      }
       list_rrn_registered: { Args: never; Returns: string[] }
       list_send_failures_by_code: {
         Args: { p_days?: number; p_error_code: string }
@@ -19384,6 +19860,7 @@ export type Database = {
         Args: { p_token: string }
         Returns: undefined
       }
+      mask_number_tail: { Args: { t: string }; Returns: string }
       master_delete_company: { Args: { p_confirm_name: string }; Returns: Json }
       normalize_party_name: { Args: { t: string }; Returns: string }
       operator_advisor_links: {
@@ -19575,6 +20052,8 @@ export type Database = {
         }
         Returns: Json
       }
+      party_name_variants: { Args: { t: string }; Returns: string[] }
+      pgrst_session_gate: { Args: never; Returns: undefined }
       plan_rank: { Args: { slug: string }; Returns: number }
       platform_activity_feed: {
         Args: { p_hours?: number; p_limit?: number }
@@ -19606,24 +20085,15 @@ export type Database = {
         }
         Returns: string
       }
-      post_bank_voucher:
-        | {
-            Args: {
-              p_account_id: string
-              p_bank_tx_id: string
-              p_remember?: boolean
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_account_id: string
-              p_bank_tx_id: string
-              p_memo?: string
-              p_remember?: boolean
-            }
-            Returns: string
-          }
+      post_bank_voucher: {
+        Args: {
+          p_account_id: string
+          p_bank_tx_id: string
+          p_memo?: string
+          p_remember?: boolean
+        }
+        Returns: string
+      }
       post_card_voucher: {
         Args: {
           p_account_id: string
@@ -19663,36 +20133,39 @@ export type Database = {
           updated_count: number
         }[]
       }
+      recompute_bank_balances: { Args: { p_company: string }; Returns: number }
+      recompute_monthly_financials: {
+        Args: { p_company_id: string; p_from?: string; p_to?: string }
+        Returns: Json
+      }
+      reconcile_derived_values: { Args: never; Returns: Json }
+      record_sync_duration: {
+        Args: { p_seconds: number; p_sync_type: string }
+        Returns: undefined
+      }
+      record_sync_run: { Args: { p_sync_type: string }; Returns: string }
+      redeem_sales_code: { Args: { p_code: string }; Returns: boolean }
+      redeem_seat_coupon: { Args: { p_coupon_id: string }; Returns: Json }
       register_admin_leave: {
         Args: {
           p_company_id: string
           p_days: number
           p_employee_id: string
           p_end_date: string
-          p_end_time?: string | null
+          p_end_time?: string
           p_leave_type: string
           p_leave_unit?: string
-          p_reason?: string | null
+          p_reason?: string
           p_start_date: string
-          p_start_time?: string | null
+          p_start_time?: string
         }
         Returns: string
       }
-      recompute_bank_balances: { Args: { p_company: string }; Returns: number }
-      recompute_monthly_financials: {
-        Args: { p_company_id: string; p_from?: string; p_to?: string }
-        Returns: Json
-      }
-      record_sync_duration: {
-        Args: { p_seconds: number; p_sync_type: string }
-        Returns: undefined
-      }
-      record_sync_run: { Args: { p_sync_type: string }; Returns: string }
-      redeem_seat_coupon: { Args: { p_coupon_id: string }; Returns: Json }
       reject_overtime: {
         Args: { p_reason: string; p_request_id: string }
         Returns: undefined
       }
+      reorder_corporate_cards: { Args: { p_ids: string[] }; Returns: undefined }
       request_overtime:
         | {
             Args: {
@@ -19715,6 +20188,10 @@ export type Database = {
         Args: { p_payload?: Json; p_prev_id: string }
         Returns: string
       }
+      resolve_bank_tx_partner: {
+        Args: { p_company: string; p_counterparty: string }
+        Returns: string
+      }
       resolve_card_partner: { Args: { p_card_name: string }; Returns: string }
       resolve_company_join_request: {
         Args: {
@@ -19734,6 +20211,7 @@ export type Database = {
         Args: { p_invoice_id: string }
         Returns: string
       }
+      rotate_ingest_key: { Args: never; Returns: string }
       run_biz_alerts: { Args: never; Returns: number }
       run_biz_alerts_for: {
         Args: { p_company: string; p_today: string }
@@ -19743,11 +20221,20 @@ export type Database = {
       run_production_voucher_cycles: { Args: never; Returns: number }
       run_stock_cost_rebuild_all: { Args: never; Returns: number }
       sales_code_bonus_days: { Args: { p_code: string }; Returns: number }
+      sample_company_clear: { Args: { p_company: string }; Returns: Json }
+      sample_company_clear_internal: {
+        Args: { p_company: string }
+        Returns: Json
+      }
+      sample_company_seed: { Args: { p_company: string }; Returns: Json }
+      sample_company_status: { Args: { p_company: string }; Returns: Json }
       save_manual_voucher: {
         Args: {
           p_description: string
           p_entry_date: string
           p_lines: Json
+          p_reference_id?: string
+          p_reference_type?: string
           p_voucher_type: string
         }
         Returns: string
@@ -19770,8 +20257,13 @@ export type Database = {
         Args: { p_inputs: Json; p_token: string }
         Returns: Json
       }
+      schedule_reminders_tick: { Args: never; Returns: number }
       seed_korean_legal_holidays: { Args: { p_year?: number }; Returns: number }
       seed_legal_allowances: { Args: { p_company_id: string }; Returns: number }
+      session_gate: {
+        Args: { p_ip: string; p_register?: boolean }
+        Returns: Json
+      }
       set_advisor_permissions: {
         Args: { p_link_id: string; p_perm_keys: string[] }
         Returns: undefined
@@ -19793,9 +20285,17 @@ export type Database = {
         Args: { p_employee: string; p_rrn: string }
         Returns: Json
       }
+      set_ledger_excluded: {
+        Args: { p_ids: string[]; p_kind: string; p_reason?: string }
+        Returns: number
+      }
       set_member_permissions: {
         Args: { p_perm_keys: string[]; p_user_id: string }
         Returns: Json
+      }
+      set_storage_packs: {
+        Args: { p_company: string; p_count: number }
+        Returns: number
       }
       set_voucher_deal: {
         Args: { p_deal_id: string; p_entry_id: string; p_sub_deal_id?: string }
@@ -19815,6 +20315,20 @@ export type Database = {
       statutory_annual_leave_days: {
         Args: { p_years: number }
         Returns: number
+      }
+      storage_object_company: {
+        Args: { p_bucket: string; p_name: string }
+        Returns: string
+      }
+      storage_quota_params: {
+        Args: { p_company: string }
+        Returns: {
+          effective_paid: boolean
+          extra_seats: number
+          included_bytes: number
+          per_unit_bytes: number
+          storage_packs: number
+        }[]
       }
       submit_our_signature: {
         Args: {
@@ -19869,7 +20383,9 @@ export type Database = {
           p_signature_data_url?: string
           p_signature_method?: string
           p_signed_contract_html?: string
+          p_snapshot_sha256?: string
           p_token: string
+          p_user_agent?: string
         }
         Returns: Json
       }
@@ -19914,6 +20430,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      validate_invite_token: { Args: { p_token: string }; Returns: Json }
       voucher_confirm: { Args: { p_entry_id: string }; Returns: undefined }
       voucher_reject: { Args: { p_entry_id: string }; Returns: undefined }
       voucher_unconfirm: { Args: { p_entry_id: string }; Returns: undefined }
@@ -19935,12 +20452,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -19964,11 +20481,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -19989,11 +20506,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -20014,11 +20531,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -20031,11 +20548,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

@@ -8,6 +8,8 @@ import { appConfirm } from "@/components/global-confirm";
 import { useMyPermissions } from "@/lib/permissions";
 import { useEffect, useState, useMemo, useRef, Fragment } from "react";
 import { DateField } from "@/components/date-field";
+import Link from "next/link";
+import { PickList } from "@/components/pick-list";
 import { friendlyError } from "@/lib/friendly-error";
 import { readCachedFavorites, loadApprovalTypeFavorites, saveApprovalTypeFavorites } from "@/lib/approval-type-favorites";
 import { useSearchParams } from "next/navigation";
@@ -903,6 +905,33 @@ export default function ApprovalsPage() {
 // Tab 1: 내 결재함
 // ══════════════════════════════════════════════
 
+/** 결재 경비의 전표 번호 — 승인된 건 중 전표가 걸린 것만 읽는다 (전체 현황·내 요청 배지) */
+function useVoucherNos(ids: string[]) {
+  const key = [...new Set(ids)].sort().join(",");
+  const { data } = useQuery({
+    queryKey: ["approval-voucher-nos", key],
+    enabled: ids.length > 0,
+    queryFn: async () => {
+      const { data } = await supabase.from("journal_entries").select("id, voucher_no").in("id", [...new Set(ids)]);
+      const m: Record<string, number | null> = {};
+      for (const e of (data || []) as { id: string; voucher_no: number | null }[]) m[e.id] = e.voucher_no;
+      return m;
+    },
+  });
+  return data || {};
+}
+
+/** 결재 경비 배지 — 경비 양식의 승인 건에만. 전표가 있으면 번호, 없으면 '전표 대기'(눌러서 수집·전표로) */
+function ExpenseVoucherBadge({ req, form, voucherNo }: { req: any; form?: ApprovalForm | null; voucherNo?: number | null }) {
+  if (!form?.is_expense || req.status !== "approved") return null;
+  if (req.journal_entry_id) return <span className="ev-st ev-st-done ap-voucher-badge" title="수집·전표에서 만든 전표">전표 #{voucherNo ?? "—"}</span>;
+  if (req.paid_by === "corporate_card") return <span className="ev-st ev-st-todo ap-voucher-badge" title="법인카드 경비는 카드 수집 거래에서 전표합니다 (수집·전표 > 카드)">카드 탭에서 전표</span>;
+  return (
+    <Link href="/collect?tab=expense" className="ev-st ev-st-todo ap-voucher-badge" onClick={(e) => e.stopPropagation()}
+      title="수집·전표 > 결재 경비에서 전표를 만듭니다">전표 대기</Link>
+  );
+}
+
 function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initialView }: {
   initialView?: "pending" | "processed" | "referenced";
   companyId: string; userId: string; invalidate: () => void; onGoToMyRequests?: () => void;
@@ -1563,6 +1592,8 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
     queryFn: () => getMyRequests(userId, companyId),
     enabled: !!userId && !!companyId,
   });
+  //   결재 경비 배지용 전표 번호
+  const voucherNos = useVoucherNos((requests as any[]).filter((r) => r.journal_entry_id).map((r) => r.journal_entry_id as string));
 
   // 승인·반려 알림에서 ?request=<id> 로 진입 → 그 건의 상세(결재선·결과)를 바로 연다.
   //   목록 로딩 후 1회만 열고, 사용자가 닫으면 다시 열지 않는다.
@@ -1802,7 +1833,10 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
                         </span>
                         <div className="min-w-0">
                           <div className="text-sm font-semibold truncate max-w-[280px]">{req.title}</div>
-                          <div className="text-[10px] text-[var(--text-dim)]">{REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type}</div>
+                          <div className="text-[10px] text-[var(--text-dim)]">
+                            {REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type}
+                            <ExpenseVoucherBadge req={req} form={req.form_id ? detailFormsById.get(req.form_id) : null} voucherNo={req.journal_entry_id ? voucherNos[req.journal_entry_id] : null} />
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -2307,6 +2341,8 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
     }),
     enabled: !!companyId && (!restrictToOwn || !!userId),
   });
+  //   결재 경비 배지용 전표 번호
+  const voucherNos = useVoucherNos((allRequests as any[]).filter((r) => r.journal_entry_id).map((r) => r.journal_entry_id as string));
 
   // 커스텀 결재 양식 필드 정의 · custom_fields 값과 짝지어 펼침 패널에 구조화된 항목으로 표시
   const  { data: customForms = [] } = useQuery({
@@ -2550,7 +2586,10 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                         <div className="min-w-0">
                           {/* 확인한 건은 연하게 — 같은 제목이 반복될 때 진행 위치 구분용 */}
                           <div className={`text-sm truncate max-w-[240px] ${viewedIds.has(req.id) ? "font-normal text-[var(--text-dim)]" : "font-semibold"}`}>{req.title}</div>
-                          <div className="text-[10px] text-[var(--text-dim)]">{REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type}</div>
+                          <div className="text-[10px] text-[var(--text-dim)]">
+                            {REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type}
+                            <ExpenseVoucherBadge req={req} form={req.form_id ? formsById.get(req.form_id) : null} voucherNo={req.journal_entry_id ? voucherNos[req.journal_entry_id] : null} />
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -2898,6 +2937,10 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const [selectedReferences, setSelectedReferences] = useState<{ userId: string; name: string }[]>([]);
   const [referencesInited, setReferencesInited] = useState<string>("");
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
+  // 결재 경비(경비 양식) — 어떻게 냈나 · 비용 계정. 양식에 '경비 양식'이 켜져 있을 때만 화면에 나온다.
+  //   여기서 전표를 만들지 않는다 — 승인 뒤 수집·전표 > 결재 경비에서 사람이 만든다.
+  const [expense, setExpense] = useState<{ paidBy: "" | "personal" | "corporate_card"; accountId: string; accountLabel: string }>({ paidBy: "", accountId: "", accountLabel: "" });
+  const [expenseAcctOpen, setExpenseAcctOpen] = useState(false);
   // 부서-이름·기안일·결제요청일 자동 프리필 완료 표시 · 유형(양식) 전환 시 재실행
   const [autoFieldsInited, setAutoFieldsInited] = useState<string>("");
   // 상세 내용 서식 편집기(표 등). tiptap 은 마운트 후 content prop 변경을 반영하지 않아
@@ -3163,6 +3206,18 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   // 2026-07-16: 기본 제공 유형(경비청구 등)도 정책(matchedPolicy)에 입력 필드를 정의해두면
   //   커스텀 양식과 동일하게 필드를 보여준다. 휴가는 전용 구조화 입력(leaveForm)이 있어 제외.
   const activeFields = !isLeave ? (selectedForm?.fields || matchedPolicy?.fields || []) : [];
+  //   경비 양식 — 비용 계정 목록은 이 양식을 골랐을 때만 읽는다
+  const isExpenseForm = !!selectedForm?.is_expense;
+  const { data: expenseAccounts = [] } = useQuery({
+    queryKey: ["approval-expense-accounts", companyId],
+    queryFn: async () => {
+      const { data } = await supabase.from("chart_of_accounts").select("id, code, name")
+        .eq("company_id", companyId).eq("account_type", "expense").order("code");
+      return (data || []) as { id: string; code: string; name: string }[];
+    },
+    enabled: !!companyId && isExpenseForm,
+    staleTime: 300_000,
+  });
   // 광고비 지출결의서만: 업체명 필드 값을 제목 뒤에 붙인다 (어느 업체 건인지
   //   제목만으로 구분되게. "다른 건 건들지 말고 광고비지출결의서만"). 이미 제목에 들어 있으면 중복 방지.
   const vendorFieldVal = (() => {
@@ -3223,7 +3278,9 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     ? !!leaveForm.startDate && !!leaveForm.leaveType && !leaveDaysLoading && leaveDays > 0
     : isOvertime
       ? !!form.title.trim() && !!overtimeForm.date && !!overtimeForm.endTime
-      : !!form.title.trim() && missingRequired.length === 0;
+      : !!form.title.trim() && missingRequired.length === 0
+        //   경비 양식은 '어떻게 냈나'와 금액이 있어야 한다 — 없으면 전표를 만들 수 없는 결재가 된다
+        && (!isExpenseForm || (!!expense.paidBy && effectiveAmount > 0));
 
   // 종료시각 기본값은 본인이 설정한 퇴근시각 — 없으면 비워 두고 직접 고르게 한다(임의 시각 금지).
   const myWorkEnd = useMemo(() => {
@@ -3291,6 +3348,9 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         attachments: draftAttachmentUrls.length + attachmentUrls.length > 0 ? [...draftAttachmentUrls, ...attachmentUrls] : undefined,
         customApprovers: (canEditLine && selectedApprovers.length > 0) ? selectedApprovers : undefined,
         formId: selectedForm?.id,
+        // 결재 경비 — 경비 양식일 때만 넘긴다(저장만, 전표는 수집·전표 > 결재 경비에서 사람이)
+        paidBy: isExpenseForm && expense.paidBy ? expense.paidBy : undefined,
+        expenseAccountId: isExpenseForm ? (expense.accountId || null) : undefined,
         // 휴가는 승인 시 연차 차감에 쓰이는 구조화 데이터를 저장(description 텍스트 파싱 의존 제거).
         //   기본 유형 정책 필드는 activeFields 로 커스텀 폼과 동일하게 customFieldValues 사용.
         //   구조화 값(휴가·초과근무)은 양식 필드가 있어도 **함께** 넣는다 — 종전엔 필드를 하나라도
@@ -3319,6 +3379,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       setFiles([]);
       setDraftAttachmentUrls([]);
       setSelectedApprovers([]); setCustomFieldValues({});
+      setExpense({ paidBy: "", accountId: "", accountLabel: "" }); setExpenseAcctOpen(false);
       setSelectedReferences([]); setReferencesInited("");
       setDescriptionInited("");
       localStorage.removeItem(`ov-approval-draft-${companyId}-${userId || "anon"}`);
@@ -3665,6 +3726,44 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                       </div>
                     ),
                   })),
+                  //   경비 정보 — 경비 양식일 때만. 승인되면 수집·전표 > 결재 경비에 올라가고 전표는 그곳에서 사람이 만든다.
+                  ...(isExpenseForm ? [{
+                    key: "expense",
+                    node: (
+                      <div className="ap-expense-block">
+                        <div className="ap-expense-title">경비 정보</div>
+                        <div className="ap-expense-grid">
+                          <div>
+                            <label className="block text-xs text-[var(--text-muted)] mb-1">어떻게 냈나 *</label>
+                            <div className="seg-bar w-fit">
+                              <button type="button" onClick={() => setExpense((s) => ({ ...s, paidBy: "personal" }))}
+                                className={`seg-item ${expense.paidBy === "personal" ? "seg-item-active" : ""}`}>내 돈으로 냈음</button>
+                              <button type="button" onClick={() => setExpense((s) => ({ ...s, paidBy: "corporate_card" }))}
+                                className={`seg-item ${expense.paidBy === "corporate_card" ? "seg-item-active" : ""}`}>법인카드</button>
+                            </div>
+                          </div>
+                          <div className="relative">
+                            <label className="block text-xs text-[var(--text-muted)] mb-1">계정과목 <span className="ui-sub">비워도 됩니다</span></label>
+                            <button type="button" onClick={() => setExpenseAcctOpen((v) => !v)} className="field-input ap-expense-acct-btn">
+                              {expense.accountLabel || <span className="text-[var(--text-dim)]">예: 접대비 · 소모품비 · 여비교통비</span>}
+                            </button>
+                            {expenseAcctOpen && (
+                              <PickList items={expenseAccounts} placeholder="계정과목 검색 (이름·코드)"
+                                onPick={(a) => { setExpense((s) => ({ ...s, accountId: a.id, accountLabel: `${a.code} ${a.name}` })); setExpenseAcctOpen(false); }}
+                                onClose={() => setExpenseAcctOpen(false)} />
+                            )}
+                          </div>
+                        </div>
+                        <div className="ap-expense-hint">
+                          {expense.paidBy === "personal"
+                            ? "회사가 갚을 돈(미지급금)으로 잡힙니다. 승인 뒤 수집·전표 > 결재 경비에서 전표를 만듭니다."
+                            : expense.paidBy === "corporate_card"
+                              ? "카드 수집으로 이미 들어온 거래에서 전표합니다. 이 결재로는 전표를 만들지 않습니다."
+                              : "돈을 어떻게 냈는지 골라 주세요. 금액은 위 금액 칸에 적습니다."}
+                        </div>
+                      </div>
+                    ),
+                  }] : []),
                   {
                     key: "description",
                     node: (
@@ -3873,6 +3972,9 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             )}
             {!canSubmit && missingRequired.length === 0 && isLeave && !!leaveForm.startDate && leaveDays <= 0 && !leaveDaysLoading && (
               <span className="approval-missing-required">휴가 일수가 0일입니다. 기간을 확인해 주세요</span>
+            )}
+            {!canSubmit && missingRequired.length === 0 && isExpenseForm && !!form.title.trim() && (
+              <span className="approval-missing-required">{!expense.paidBy ? "어떻게 냈는지 골라 주세요" : "금액을 적어 주세요"}</span>
             )}
             <button
               onClick={() => canSubmit && createMut.mutate()}

@@ -101,6 +101,10 @@ export interface ApprovalRequest {
   reference_user_ids?: string[];
   form_id?: string | null;
   custom_fields?: Record<string, unknown>;
+  // 결재 경비 (경비 양식일 때만 채워진다) — 어떻게 냈나 · 비용 계정 · 만들어진 전표
+  paid_by?: 'personal' | 'corporate_card' | null;
+  expense_account_id?: string | null;
+  journal_entry_id?: string | null;
   created_at: string;
   updated_at?: string;
 }
@@ -370,6 +374,9 @@ export async function createApprovalRequest(params: {
   customFields?: Record<string, unknown>;    // 양식 커스텀 필드 값(+휴가 구조화 데이터 등 jsonb)
   referenceUserIds?: string[];              // 참조(CC) — 결재선과 별개, 통보만 받는 인원
   dealId?: string;                          // 프로젝트 연결 (2026-08-31 개편 2단계 — 프로젝트발 상신)
+  // 결재 경비(경비 양식) — 어떻게 냈나 · 비용 계정. 값이 있을 때만 저장한다
+  paidBy?: 'personal' | 'corporate_card';
+  expenseAccountId?: string | null;
 }): Promise<ApprovalRequest> {
   const amount = params.amount ?? 0;
 
@@ -466,6 +473,8 @@ export async function createApprovalRequest(params: {
       reference_user_ids: params.referenceUserIds ?? matchedRule?.reference_user_ids ?? [],
       // 프로젝트 연결 — 값이 있을 때만 넣는다 (2026-08-31 개편 2단계, approval_requests.deal_id)
       ...(params.dealId ? { deal_id: params.dealId } : {}),
+      // 결재 경비 — 경비 양식일 때만 값이 온다. 전표는 여기서 만들지 않는다(수집·전표 > 결재 경비에서 사람이).
+      ...(params.paidBy ? { paid_by: params.paidBy, expense_account_id: params.expenseAccountId || null } : {}),
     })
     .select()
     .single();

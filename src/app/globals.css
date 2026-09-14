@@ -10632,3 +10632,14 @@ textarea.tax-remark-input {
 .schedule-holiday-chip { @apply mb-0.5 inline-block max-w-full truncate rounded px-1 text-[10px] leading-4 font-semibold; color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
 .dashboard-calendar-sel-holiday { @apply rounded px-1.5 py-0.5 text-[10.5px] font-bold; color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
 .dashboard-calendar-item-bar.is-holiday { background: var(--danger); }
+
+/*   결재 경비 — 결재 허브 새 요청의 '경비 정보' 칸과 목록 배지, 수집·전표 > 결재 경비 탭 (2026-09-14) */
+.ap-expense-block { @apply mb-4 rounded-xl bg-[var(--bg-surface)] p-3 space-y-3; }
+.ap-expense-title { @apply text-xs font-bold text-[var(--text-muted)]; }
+.ap-expense-grid { @apply grid grid-cols-1 gap-3 sm:grid-cols-2; }
+.ap-expense-acct-btn { @apply w-full text-left truncate; }
+.ap-expense-hint { @apply text-[11px] leading-relaxed text-[var(--text-dim)]; }
+.ap-voucher-badge { @apply ml-1.5 align-middle; }
+.xc-req-title { @apply block max-w-[260px] truncate; }
+.xc-req-sub { @apply block text-[10px] text-[var(--text-dim)]; }
+.xc-acct-btn { @apply w-full text-left truncate; }

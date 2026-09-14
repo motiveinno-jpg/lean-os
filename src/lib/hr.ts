@@ -1464,10 +1464,11 @@ export async function registerAdminLeave(params: {
     p_start_date: params.startDate,
     p_end_date: params.endDate,
     p_days: days,
-    p_reason: params.reason?.trim() || null,
+    //   생성 타입이 null 대신 생략(undefined)을 받는다 — 값은 같다(RPC 기본값 null)
+    p_reason: params.reason?.trim() || undefined,
     p_leave_unit: unit,
-    p_start_time: startTime,
-    p_end_time: endTime,
+    p_start_time: startTime ?? undefined,
+    p_end_time: endTime ?? undefined,
   });
   if (error) throw error;
   return data;

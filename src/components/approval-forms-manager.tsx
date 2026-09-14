@@ -96,7 +96,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
     return next;
   };
 
-  const openNew = () => setEditing({ name: "", category: "", description: "", fields: [], content_template: "", stages: [emptyStage(1)], reference_user_ids: [], allow_requester_edit: true, use_attachment: true });
+  const openNew = () => setEditing({ name: "", category: "", description: "", fields: [], content_template: "", stages: [emptyStage(1)], reference_user_ids: [], allow_requester_edit: true, use_attachment: true, is_expense: false });
   const openEdit = (f: ApprovalForm) => setEditing({ ...f });
 
   // ── 기본 제공 유형(경비청구 등). 저장 방식(request_type 값)은 그대로 두고, 표시 이름·결재선만
@@ -185,6 +185,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
         referenceUserIds: editing.reference_user_ids || [],
         allowRequesterEdit: editing.allow_requester_edit ?? true,
         useAttachment: editing.use_attachment ?? true,
+        isExpense: editing.is_expense ?? false,
       });
       toast(editing.id ? "양식을 수정했습니다" : "양식을 추가했습니다", "success");
       setEditing(null); refresh();
@@ -444,6 +445,11 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
               </label>
               <label className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] cursor-pointer">
                 <input type="checkbox" checked={editing.use_attachment ?? true} onChange={(e) => patch({ use_attachment: e.target.checked })} className="accent-[var(--primary)]" /> 첨부파일 사용
+              </label>
+              {/*   경비 양식 — 승인되면 수집·전표 > 결재 경비에 올라온다. 전표는 거기서 사람이 만든다(승인만으로 장부가 바뀌지 않는다). */}
+              <label className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] cursor-pointer"
+                title="켜면 작성 화면에 '어떻게 냈나·계정과목' 칸이 생기고, 승인된 건이 수집·전표 > 결재 경비에 올라옵니다. 전표는 그곳에서 직접 만듭니다.">
+                <input type="checkbox" checked={editing.is_expense ?? false} onChange={(e) => patch({ is_expense: e.target.checked })} className="accent-[var(--primary)]" /> 경비 양식
               </label>
             </div>
 

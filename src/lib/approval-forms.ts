@@ -43,6 +43,8 @@ export interface ApprovalForm {
   reference_user_ids: string[]; // 참조(CC) — 결재선과 별개로 결과를 통보받는 인원, 양식에서 미리 지정
   allow_requester_edit: boolean;
   use_attachment: boolean;
+  /** 경비 양식 — 승인되면 수집·전표 > 결재 경비에 줄로 올라와 경리가 전표를 만든다. 켜기 전엔 아무 일도 없다. */
+  is_expense: boolean;
   is_active: boolean;
   created_by: string | null;
   created_at: string;
@@ -77,6 +79,7 @@ export interface SaveApprovalFormInput {
   referenceUserIds?: string[];
   allowRequesterEdit?: boolean;
   useAttachment?: boolean;
+  isExpense?: boolean;
   createdBy?: string | null;
 }
 
@@ -93,6 +96,7 @@ export async function saveApprovalForm(input: SaveApprovalFormInput): Promise<st
     reference_user_ids: input.referenceUserIds ?? [],
     allow_requester_edit: input.allowRequesterEdit ?? true,
     use_attachment: input.useAttachment ?? true,
+    is_expense: input.isExpense ?? false,
     updated_at: new Date().toISOString(),
   };
   if (input.id) {
