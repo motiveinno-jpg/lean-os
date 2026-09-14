@@ -3,9 +3,9 @@
 // 예쁜 커스텀 날짜 선택 — 네이티브 <input type="date"> 드롭인 대체.
 //   onChange 는 input 호환({ target: { value } })이라 기존 핸들러(e.target.value) 그대로 동작.
 //   value/onChange/min/max/className/disabled/placeholder/id/name 지원. body 포털로 어디서든 안 잘림.
-//   2026-08-19 사장님: ① 칸에서 숫자를 키보드로 바로 입력 가능(20260821 · 2026-8-21 · 0821 · 8-21,
+//   2026-08-19 대표: ① 칸에서 숫자를 키보드로 바로 입력 가능(20260821 · 2026-8-21 · 0821 · 8-21,
 //   Enter 로 반영) ② 머리의 "YYYY년 M월"을 누르면 연·월 선택 모드로 바뀌어 연 단위 이동.
-//   2026-08-25 사장님: ③ 머리 클릭 → 연도 그리드 선택 → 연도 고르면 월 선택 → 일 선택(3단 드릴다운).
+//   2026-08-25 대표: ③ 머리 클릭 → 연도 그리드 선택 → 연도 고르면 월 선택 → 일 선택(3단 드릴다운).
 //   ④ 완성된 날짜를 키보드로 치면 Enter 없이 바로 반영, 유효한 날짜를 쳐두고 포커스가 빠져도 되돌리지 않는다.
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
@@ -156,7 +156,7 @@ export function DateField({
     const left = Math.max(8, Math.min(r.left, window.innerWidth - W - 8));
     const spaceBelow = window.innerHeight - r.bottom;
     const spaceAbove = r.top;
-    // 입력칸을 절대 가리지 않게 (2026-08-25 사장님): 아래가 넉넉하거나 위보다 넓으면 아래(top=입력칸 밑),
+    // 입력칸을 절대 가리지 않게: 아래가 넉넉하거나 위보다 넓으면 아래(top=입력칸 밑),
     //   아니면 위에 두되 bottom 앵커로 입력칸 위에 딱 붙인다 — 높이 추정 오차와 무관하게 겹치지 않는다.
     if (spaceBelow >= H + gap || spaceBelow >= spaceAbove) {
       setPos({ top: r.bottom + gap, left });
@@ -194,7 +194,7 @@ export function DateField({
     prevTypedLen.current = raw.length;
     setEditing(true);
     setDraft(raw);
-    // 치는 도중에도 달력이 실시간으로 따라간다 — 연도만 쳐도(예: "2025") 그 해로 이동 (2026-08-25 사장님)
+    // 치는 도중에도 달력이 실시간으로 따라간다 — 연도만 쳐도(예: "2025") 그 해로 이동
     const pv = partialView(raw, view.y);
     if (pv) setView((v) => ({ y: pv.y, m: pv.m ?? v.m }));
     // 연도까지 완성된 날짜면 Enter 없이 바로 반영
@@ -221,7 +221,7 @@ export function DateField({
       if (committedRef.current) { committedRef.current = false; return; }
       const pop = document.getElementById("datefield-pop");
       if (pop && pop.contains(document.activeElement)) return;
-      // 유효한 날짜를 쳐두고 포커스가 빠지면 되돌리지 말고 반영 (2026-08-25 사장님)
+      // 유효한 날짜를 쳐두고 포커스가 빠지면 되돌리지 말고 반영
       const t = draft.trim();
       if (t !== "" && t !== (value || "")) {
         const p = parseLoose(t, view.y);
@@ -292,9 +292,9 @@ export function DateField({
           placeholder={placeholder}
           onChange={(e) => handleType(e.target.value)}
           
-          // 포커스 시 기존값 전체 선택 → 키보드로 치면 기존값에 덧붙지 않고 대체된다 (2026-08-25 사장님).
+          // 포커스 시 기존값 전체 선택 → 키보드로 치면 기존값에 덧붙지 않고 대체된다.
           //   달력만 클릭할 땐 타이핑이 없으므로 값은 그대로 보존된다.
-          //   ★ 포커스만으로는 달력을 열지 않는다(2026-08-26 사장님 · "달력은 클릭했을 때만, 평소엔 입력만").
+          //   ★ 포커스만으로는 달력을 열지 않는다(2026-08-26 대표 · "달력은 클릭했을 때만, 평소엔 입력만").
           //     Tab 으로 지나가거나 화면이 커서를 줄 때 달력이 아랫줄을 덮던 것을 막는다. 열기는 칸·아이콘 클릭(onClick).
           onFocus={() => { focusedAt.current = Date.now(); setTimeout(() => inputRef.current?.select(), 0); }}
           onMouseUp={(e) => { if (Date.now() - focusedAt.current < 300) e.preventDefault(); }}
@@ -318,7 +318,7 @@ export function DateField({
               <button type="button" onClick={navPrevOuter} title={outerPrevTitle} className={`${navBtnCls} text-xs font-bold`}>«</button>
               <button type="button" onClick={navPrevInner} title={innerPrevTitle} className={navBtnCls}>‹</button>
             </div>
-            {/* 머리 클릭 → 연도 그리드 → 월 그리드 → 일 (2026-08-25 사장님) */}
+            {/* 머리 클릭 → 연도 그리드 → 월 그리드 → 일 */}
             <button type="button" onClick={headerClick} title={headerTitle}
               className="text-sm font-bold text-[var(--text)] tabular-nums px-2 py-0.5 rounded-lg hover:bg-[var(--bg-surface)] transition">
               {headerLabel}<span className="ml-1 text-[9px] text-[var(--text-dim)]">▾</span>

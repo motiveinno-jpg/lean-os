@@ -130,7 +130,7 @@ export const PRICING = {
 };
 
 /* /pricing 「따로 구독할 때와 비교」 — 옛 landing/content.ts COMPETITORS 를 그대로 옮겼다(2026-09-14).
-   ⚠️ 회사명(브랜드)은 넣지 않는다. 마스킹해도 특정 가능하면 비교광고 분쟁 소지가 있다 (2026-07-27 사장님 지시).
+   ⚠️ 회사명(브랜드)은 넣지 않는다. 마스킹해도 특정 가능하면 비교광고 분쟁 소지가 있다.
    가격은 각 분야의 공개 요금 기준 참고치이며, 특정 업체를 지목하지 않는다. */
 export const COMPETITORS: { cat: string; price: number; perSeat: boolean }[] = [
   { cat: "HR/급여", price: 70000, perSeat: true },

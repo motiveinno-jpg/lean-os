@@ -49,7 +49,7 @@ export default function RevenuePage() {
     refetchInterval: 60_000,
   });
 
-  // MRR = 실제 돈이 들어오는 구독만 (2026-07-29 사장님: "수익 0인데 왜 금액이 찍혀있어").
+  // MRR = 실제 돈이 들어오는 구독만 ("수익 0인데 왜 금액이 찍혀있어").
   //   stripe_subscription_id 없는 구독은 내부 부여(자사·수동)라 과금이 없고,
   //   trialing 은 아직 결제 전 — 둘 다 제외해야 실매출과 일치한다.
   const mrr = subscriptions

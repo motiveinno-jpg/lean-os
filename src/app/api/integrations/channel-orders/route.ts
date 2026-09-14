@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { CHANNEL_FETCHERS } from "@/lib/channel-api";
 
-// 채널 주문 가져오기 (2026-08-26 사장님 지시 — "채널별로 API 연결해서 끌고 오면 자동으로 채워지게")
+// 채널 주문 가져오기 ("채널별로 API 연결해서 끌고 오면 자동으로 채워지게")
 //
 //   test-key 와 같은 원칙 — 사용자 세션 그대로(RLS 가 자기 회사 키만 내준다), 평문 키는 응답에 담지 않는다.
 //   주문을 **재고에 넣지 않는다.** 격자에 채워만 주고 출고 등록은 사람이 누른다(제안은 자동, 확정은 사람).

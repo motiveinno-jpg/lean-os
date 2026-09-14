@@ -100,7 +100,7 @@ export async function getBudgetCellDetail(
     if (salaryMonthly > 0) {
       items.push({ label: "급여 (재직 직원 합계)", sub: "인사관리 등록 급여", amount: Number(salaryMonthly) });
     }
-    // 통장 거래 중 '고정비' 체크(전표처리/매핑) — 당월 실적. 매핑한 분류(계정과목)를 함께 표시(직원 QA)
+    // 통장 거래 중 '고정비' 체크(전표처리/매핑) — 당월 실적. 매핑한 분류(계정과목)를 함께 표시
     for (const t of (btRes.data ?? [])) {
       const cat = t.category || t.classification || "";
       //   대출 상환·미지급금 상환처럼 비용이 아닌 계정은 셀 값에서도 빠지므로 내역에서도 뺀다 (2026-08-10)

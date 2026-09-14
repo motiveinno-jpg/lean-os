@@ -1,6 +1,6 @@
 "use client";
 
-// 표 머리단 정렬 — 모든 표가 **같은 모양**으로 정렬되게 (2026-08-12 사장님 지시)
+// 표 머리단 정렬 — 모든 표가 **같은 모양**으로 정렬되게
 //
 //   지시: "제목에 정렬기준 넣어주고 항상 제목(머리)단은 가운데 위치하게. 다른메뉴 다 동일"
 //
@@ -8,7 +8,7 @@
 //   같은 일을 두 벌로 두면 한쪽만 고쳐진다. 여기 하나로 모으고 화면들이 이걸 쓴다.
 //
 //   ★ **머리단은 언제나 가운데**, 몸통 칸은 제 정렬을 지킨다(금액은 오른쪽, 이름은 왼쪽).
-//     머리를 값에 맞춰 좌우로 흩으면 훑을 때 눈이 걸린다 — 사장님이 짚은 부분이다.
+//     머리를 값에 맞춰 좌우로 흩으면 훑을 때 눈이 걸린다 — 대표 짚은 부분이다.
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -62,7 +62,7 @@ export type ThResize =  {
 };
 
 /**
- * 엑셀식 머리단 필터 — 값 목록에서 골라 거른다 (2026-08-13 사장님: "엑셀과 아예 동일하게").
+ * 엑셀식 머리단 필터 — 값 목록에서 골라 거른다 ("엑셀과 아예 동일하게").
  *   values   이 칸에 실제로 있는 값들(표시 문자열 그대로)
  *   selected 걸린 필터. **null = 전체(필터 없음)** — 전부 고르면 null 로 돌린다
  */
@@ -96,7 +96,7 @@ export function ThFilter({ spec }: { spec: ThFilterSpec }) {
   const [draft, setDraft] = useState<Set<string>>(new Set());
   const btnRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
-  //   up: 아래 공간이 모자라면 버튼 위로 연다. top 대신 bottom 을 잡아 화면 밖으로 안 나가게 (2026-08-26 사장님)
+  //   up: 아래 공간이 모자라면 버튼 위로 연다. top 대신 bottom 을 잡아 화면 밖으로 안 나가게
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number; maxH?: number }>({ top: 0, left: 0 });
 
   const uniq = useMemo(() => [...new Set(spec.values)], [spec.values]);
@@ -111,7 +111,7 @@ export function ThFilter({ spec }: { spec: ThFilterSpec }) {
     const r = btnRef.current!.getBoundingClientRect();
     //   팝업은 body 로 포털(앱 zoom 밖)하므로 rect 의 시각 좌표를 그대로 fixed 에 쓴다.
     //   좌우는 팝업 폭(232px), 아래는 최대 높이(340px) 기준으로 화면 안에 가두고,
-    //   아래 공간이 모자라면 버튼 위로 연다 (2026-08-26 사장님: "가려져서 안 보인다").
+    //   아래 공간이 모자라면 버튼 위로 연다 ("가려져서 안 보인다").
     const W = 232, H = 340, vw = window.innerWidth, vh = window.innerHeight;
     const left = Math.max(8, Math.min(r.left, vw - W - 12));
     const spaceBelow = vh - r.bottom;
@@ -145,14 +145,14 @@ export function ThFilter({ spec }: { spec: ThFilterSpec }) {
       <button type="button" ref={btnRef} onClick={openPop}
         className={active ? "th-filter th-filter-on" : "th-filter"}
         title={active ? `필터 · ${spec.selected!.size}개 선택` : "필터"}>
-        {/*   석삼(≡) — 엑셀식 값 필터. 깔때기였다가 사장님 지시로 가로 세 줄 (2026-08-18) */}
-        {/*   세로 크기 = 머리단 글자(10.5px 한글 ≈ 10px)와 같게 — 위아래가 다르면 같은 줄인데 어긋나 보인다 (2026-08-18 사장님) */}
+        {/*   석삼(≡) — 엑셀식 값 필터. 깔때기였다가 대표 지시로 가로 세 줄 (2026-08-18) */}
+        {/*   세로 크기 = 머리단 글자(10.5px 한글 ≈ 10px)와 같게 — 위아래가 다르면 같은 줄인데 어긋나 보인다 */}
         <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden>
           <rect x="0" y="0" width="10" height="1.6" rx="0.8" /><rect x="0" y="4.2" width="10" height="1.6" rx="0.8" /><rect x="0" y="8.4" width="10" height="1.6" rx="0.8" />
         </svg>
       </button>
       {/*   body 로 포털 — 앱 전체 zoom(.app-zoom) 안에서 fixed 좌표가 zoom 배로 밀려 가려지던 것 해결.
-            body 는 zoom 밖이라 getBoundingClientRect 시각 좌표가 그대로 맞는다 (2026-08-26 사장님). */}
+            body 는 zoom 밖이라 getBoundingClientRect 시각 좌표가 그대로 맞는다. */}
       {open && createPortal(
         <div ref={popRef} className="thf-pop" style={{ top: pos.top, bottom: pos.bottom, left: pos.left, maxHeight: pos.maxH }}
           onClick={(e) => e.stopPropagation()}>
@@ -211,7 +211,7 @@ export function SortableTh<K extends string>({
 }) {
   const on = !!sortKey && sort?.key === sortKey;
   //   ★ 예전엔 여기서 inline `position: relative` 를 줬다 — 그게 `.ev-scroll thead th { position: sticky }` 를 덮어
-  //     너비 조절 켜진 표는 스크롤하면 머리단이 따라 올라갔다 (2026-08-18 사장님). 손잡이의 기준은 .th-c(relative)와
+  //     너비 조절 켜진 표는 스크롤하면 머리단이 따라 올라갔다. 손잡이의 기준은.th-c(relative)와
   //     sticky 자체가 잡아 주므로 인라인으로 줄 필요가 없다.
   const width = resize ? { width: resize.widths[resize.k] } : undefined;
   const handle = resize ? (
@@ -243,7 +243,7 @@ export function SortableTh<K extends string>({
     />
   ) : null;
 
-  //   글자는 칸 **정가운데**, 필터(≡)는 칸 **오른끝**에 붙는다 (2026-08-18 사장님: "삼각형이 중앙에 있고 글자가
+  //   글자는 칸 **정가운데**, 필터(≡)는 칸 **오른끝**에 붙는다 ("삼각형이 중앙에 있고 글자가
   //   왼쪽으로 밀렸다"). 삼각형 폭만큼 왼쪽에 빈 칸(.th-mark-pad)을 두어 글자 자체가 가운데 오게 맞춘다.
   const thCls = filter ? " th-hasf" : "";
   if (!sortKey || !onSort) {
@@ -255,7 +255,7 @@ export function SortableTh<K extends string>({
         <i className="th-mark-pad" aria-hidden />
         {label}
         {/*   정렬 표시 — 깔때기와 같은 크기(16px 상자·9px 도형)의 아래삼각형. 오름차순이면 뒤집는다.
-              글자(▲▼↕)로 두면 깔때기 svg 와 기준선·크기가 안 맞아 머리단이 삐뚤어 보였다 (2026-08-18 사장님) */}
+              글자(▲▼↕)로 두면 깔때기 svg 와 기준선·크기가 안 맞아 머리단이 삐뚤어 보였다 */}
         <em className={on ? "th-mark th-mark-on" : "th-mark"} title={on ? (sort!.dir === "asc" ? "오름차순" : "내림차순") : "정렬"}>
           <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor" aria-hidden
             style={on && sort!.dir === "asc" ? { transform: "rotate(180deg)" } : undefined}>

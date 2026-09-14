@@ -1,7 +1,7 @@
 -- 계약 회차 도래 → 발행 대기(초안) 자동 생성 (2026-08-27 ERP 3순위 ③)
 --   결정 81 — 계약서(documents.content_json.paymentSchedule[i].dueDate) 예정일이 오늘 이하이고 아직 계산서가 없는 회차 → tax_invoices 초안(status draft).
 --             금액은 회차 비율로 품목 공급가 합을 나누고(마지막 회차가 나머지), 세액은 계약 거래유형(taxable 10%, 그 외 0).
---   결정 82 — 만든 계산서 id 를 회차에 적는다(invoiceId) — 화면의 '만듦' 판정·중복 방지. 계약서 status 가 draft 여도 만든다(사장님 흐름: 계약 → 발행).
+--   결정 82 — 만든 계산서 id 를 회차에 적는다(invoiceId) — 화면의 '만듦' 판정·중복 방지. 계약서 status 가 draft 여도 만든다(대표 흐름: 계약 → 발행).
 --   결정 83 — 발행은 사람(세금·증빙 › 미발행 › 발행). 대표·관리자에게 "회차 도래 — 발행 대기 N건" 알림. 매일 07:30 KST.
 create or replace function public.make_contract_invoice_drafts_for(p_company uuid, p_today date)
 returns int language plpgsql security definer set search_path = public as $$

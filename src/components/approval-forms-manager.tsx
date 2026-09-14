@@ -10,7 +10,7 @@ import { logRead }  from "@/lib/log-read";
 import  { useState } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
-// 기본 내용(템플릿)에도 표·서식 지원 (2026-07-29 사장님) — 저장은 HTML, 상세 화면이 sanitize 렌더.
+// 기본 내용(템플릿)에도 표·서식 지원 — 저장은 HTML, 상세 화면이 sanitize 렌더.
 const RichEditor = dynamic(() => import("@/components/rich-editor").then((m) => ({ default: m.RichEditor })), {
   ssr: false,
   loading: () => <div className="h-32 bg-[var(--bg-surface)] rounded-xl animate-pulse" />,
@@ -63,7 +63,7 @@ const emptyPolicyStage = (n: number): ApprovalStageConfig => ({ stage: n, name: 
 export function ApprovalFormsManager({ companyId }: { companyId: string }) {
   const { toast } = useToast();
   const qc = useQueryClient();
-  // 기본 제공 유형/회사 양식을 탭으로 분리 (2026-08-06 사장님 — 계약 양식 관리와 동일한 방식).
+  // 기본 제공 유형/회사 양식을 탭으로 분리 (2026-08-06 대표 — 계약 양식 관리와 동일한 방식).
   //   기본은 '회사 결재 양식' — 기본 유형 카드 11개에 밀려 아래로 내려가던 쪽.
   const [listTab, setListTab] = useState<"company" | "default">("company");
   const [q, setQ] = useState("");
@@ -86,7 +86,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
   const refresh = () => qc.invalidateQueries({ queryKey: ["approval-forms", companyId] });
   const userName = (id: string) => { const u = (users as any[]).find((x) => x.id === id); return u?.name || u?.email || "구성원"; };
 
-  // 필드 순서 이동 (2026-07-30 사장님 · 입력 필드 배치를 양식에서 자유롭게)
+  // 필드 순서 이동 (2026-07-30 대표 · 입력 필드 배치를 양식에서 자유롭게)
   const [dragField, setDragField] = useState<{ list: "custom" | "default"; i: number } | null>(null);
   const moveArr = <T,>(arr: T[], from: number, to: number): T[] => {
     if (to < 0 || to >= arr.length) return arr;
@@ -107,7 +107,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
     enabled: !!companyId,
   });
   const [editingDefaultKey, setEditingDefaultKey] = useState<string | null>(null);
-  //   결재선 관리에서 만든 결재선(document_type = "line") — 양식에 골라 붙인다 (2026-08-18 사장님: "양식에서 생성된 결재선을 선택")
+  //   결재선 관리에서 만든 결재선(document_type = "line") — 양식에 골라 붙인다 ("양식에서 생성된 결재선을 선택")
   const lineOptions = (policies as ApprovalPolicy[]).filter((p) => p.is_active && (p.document_type === "line" || p.document_type === "default"));
   const lineToFormStages = (p: ApprovalPolicy): ApprovalFormStage[] => (p.stages as ApprovalStageConfig[]).map((st, i) => ({
     stage: i + 1, name: st.name || `${i + 1}차 승인`,
@@ -298,7 +298,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                   className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
               </div>
             </div>
-            {/* 기본 유형 연결 (2026-08-18 사장님) — 고르면 새 요청에서 그 유형(예: 경비 청구)을 선택할 때 이 양식이 나온다 */}
+            {/* 기본 유형 연결 — 고르면 새 요청에서 그 유형(예: 경비 청구)을 선택할 때 이 양식이 나온다 */}
             <div className="mb-3">
               <label className="block text-[11px] text-[var(--text-muted)] mb-1">기본 요청 유형에 연결 <span className="text-[var(--text-dim)]">(선택)</span></label>
               <select value={editing.base_type || ""} onChange={(e) => patch({ base_type: e.target.value || null })}
@@ -356,7 +356,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                             className="h-7 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs w-[110px]"
                             onKeyDown={(e) => {
                               // 조합 중일 때 return 이어야 한다 — 종전엔 조건이 뒤집혀(!isComposing)
-                              //   한글 조합이 끝난 뒤 누른 Enter 가 통째로 무시됐다 (2026-08-20 사장님 제보:
+                              //   한글 조합이 끝난 뒤 누른 Enter 가 통째로 무시됐다 (
                               //   "내 PC 에서는 되는데 다른 곳에서는 엔터 자체가 안 눌린다").
                               if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
                               e.preventDefault();
@@ -393,7 +393,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                 maxHeight="260px" />
             </div>
 
-            {/* 결재선 — 단계 편집은 결재허브 > 결재선 관리에서. 여기선 만든 결재선을 골라 붙이기만 (2026-08-19 사장님) */}
+            {/* 결재선 — 단계 편집은 결재허브 > 결재선 관리에서. 여기선 만든 결재선을 골라 붙이기만 */}
             <div className="approval-stages-section">
               <div className="flex items-center justify-between mb-1.5 gap-2 flex-wrap">
                 <label className="text-[11px] font-semibold text-[var(--text-muted)]">결재선 (승인 단계)</label>
@@ -470,7 +470,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
               </div>
             </div>
 
-            {/* 자동승인 기준 금액 칸은 없앴다 (2026-08-20 사장님 지시) — 금액은 입력 필드로 받는다.
+            {/* 자동승인 기준 금액 칸은 없앴다 — 금액은 입력 필드로 받는다.
                 프로덕션에 기준값이 설정된 정책은 하나도 없었다(제거 전 확인). */}
             <div className="mb-3">
               <label className="block text-[11px] text-[var(--text-muted)] mb-1">표시 이름 (비우면 기본값)</label>
@@ -518,7 +518,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                             className="h-7 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs w-[110px]"
                             onKeyDown={(e) => {
                               // 조합 중일 때 return 이어야 한다 — 종전엔 조건이 뒤집혀(!isComposing)
-                              //   한글 조합이 끝난 뒤 누른 Enter 가 통째로 무시됐다 (2026-08-20 사장님 제보:
+                              //   한글 조합이 끝난 뒤 누른 Enter 가 통째로 무시됐다 (
                               //   "내 PC 에서는 되는데 다른 곳에서는 엔터 자체가 안 눌린다").
                               if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
                               e.preventDefault();
@@ -556,7 +556,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
             </div>
 
             {/* 결재선 — 기본양식에서는 아예 고르지 않는다. 결재선 관리에서 만든 결재선이 자동 적용
-                (2026-08-19 사장님: "여기는 아무것도 선택 못하고 그냥 결재선 가져오기로").
+                ("여기는 아무것도 선택 못하고 그냥 결재선 가져오기로").
                 저장 시 stages 는 열 때 불러온 값이 그대로 통과 — 기존 결재선 데이터를 건드리지 않는다. */}
             <div className="approval-stages-section">
               <label className="text-[11px] font-semibold text-[var(--text-muted)]">결재선</label>

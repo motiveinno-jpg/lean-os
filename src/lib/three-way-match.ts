@@ -1,10 +1,10 @@
 import { logRead } from "@/lib/log-read";
 // 3-Way 매칭 v2 — 세금계산서 ↔ 거래처 ↔ 입출금 후보 추천
-//   사장님 요청 (2026-05-21):
+//    (2026-05-21):
 //     (A) 거래처명 == 입금자명 정확 일치
 //     (B) 대표자명 == 입금자명 정확 일치
 //     (C) 발행금액 ≈ 입출금금액 (부가세 고려 ±10%)
-//   정확 일치는 trim + lowercase 정규화만 (퍼지 매칭 금지 — 사장님 명시).
+//   정확 일치는 trim + lowercase 정규화만 (퍼지 매칭 금지 — 대표 명시).
 //
 // 기존 src/lib/tax-invoice.ts 의 threeWayMatch (계약↔세금계산서↔입금) 와 별개.
 //   호출 lib: src/app/(app)/reports/three-way-match/page.tsx
@@ -101,7 +101,7 @@ export async function getThreeWayCandidates(
 
   const total = Number(invoice.total_amount || 0);
   const supply = Number(invoice.supply_amount || 0);
-  const tol = 0.10; // 사장님 명시 ±10%
+  const tol = 0.10; // 대표 명시 ±10%
 
   const candidates: ThreeWayCandidate[] = [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -140,7 +140,7 @@ export async function getThreeWayCandidates(
       });
     }
   }
-  // 2026-05-21 사장님 요청: 금액 가까운 순 정렬 (amountDiff 작은 순). 동률이면 사유 많은 순.
+  // 금액 가까운 순 정렬 (amountDiff 작은 순). 동률이면 사유 많은 순.
   return candidates.sort((a, b) => {
     if (a.amountDiff !== b.amountDiff) return a.amountDiff - b.amountDiff;
     return b.score - a.score;

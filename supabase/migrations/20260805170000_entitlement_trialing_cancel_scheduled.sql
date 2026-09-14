@@ -1,4 +1,4 @@
--- 체험(trialing) 중 해지 예약이 display_status 에 반영되지 않던 버그 (2026-08-05 사장님 제보)
+-- 체험(trialing) 중 해지 예약이 display_status 에 반영되지 않던 버그
 --   기존: trialing 분기가 'trialing' 고정 → 해지해도 화면이 해지 예약 상태를 못 보여줌.
 --   수정: active 분기와 동일하게 cancel_at_period_end 면 'cancel_scheduled'.
 --   (그 외 로직은 기존 정의 그대로 — 재정의 전 현재 정의 확인함)

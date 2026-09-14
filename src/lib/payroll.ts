@@ -92,7 +92,7 @@ export async function previewPayroll(
   let totalDeductions = 0;
   let totalNet = 0;
 
-  //   표 순서 = 사번 순 → 가나다 → ABC (2026-08-27 사장님, 디렉토리와 같은 규칙)
+  //   표 순서 = 사번 순 → 가나다 → ABC (디렉토리와 같은 규칙)
   for (const emp of [...(employees as any[])].sort(comparePeople)) {
     const ov = overrideMap[emp.id];
     // 월별 override 가 있으면 그 값 사용, 없으면 employees.salary(연봉 ÷ 12 = 월급) 사용
@@ -130,7 +130,7 @@ export async function previewPayroll(
     const item = calculatePayroll(salary, emp.name, emp.id, {
       rates, insured: !isBiz && emp.is_4_insurance !== false,
       nonTaxableAmount: nonTaxable,
-      //   부양가족 수(본인 포함) — 종전엔 1 고정이라 부양가족 있는 직원 소득세가 과다했다 (2026-09-09 사장님).
+      //   부양가족 수(본인 포함) — 종전엔 1 고정이라 부양가족 있는 직원 소득세가 과다했다.
       dependents: Math.max(1, Number((emp as any).dependents) || 1),
       taxableAllowance: allowance, // 과세 수당 → 소득세·국민연금·건강·고용보험 자동 가산
       businessIncome: isBiz,

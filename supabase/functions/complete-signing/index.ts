@@ -93,7 +93,7 @@ serve(withSentry("complete-signing", async (req) => {
     }
 
     // 3) 아이템 서명 저장
-    //   ⚠️ error 를 봐야 한다 (2026-08-21 감사): 저장이 실패해도 아래로 그대로 진행해
+    //   ⚠️ error 를 봐야 한다: 저장이 실패해도 아래로 그대로 진행해
     //   직원 화면엔 "서명이 완료되었습니다" 가 뜨는데 **서명 데이터는 저장되지 않은** 상태가 됐다.
     const signedAt = new Date().toISOString();
     const { error: signErr } = await supabase
@@ -140,7 +140,7 @@ serve(withSentry("complete-signing", async (req) => {
         .update({ status: "completed", completed_at: signedAt })
         .eq("id", pkg.id);
 
-      // ★ 계약 완료 → 구성원 반영 (2026-08-21 감사)
+      // ★ 계약 완료 → 구성원 반영
       //   종전엔 이 처리가 hr-contracts.ts 의 onAllContractsSigned 에만 있었는데 그 호출부
       //   (signContractItem)가 저장소 어디에도 없는 **죽은 코드**였다. 실제 서명은 이 함수가
       //   처리하므로, 계약이 완료돼도 연봉·계약이력·재직상태가 하나도 안 바뀌었다:

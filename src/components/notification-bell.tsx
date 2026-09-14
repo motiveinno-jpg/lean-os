@@ -39,7 +39,7 @@ export function NotificationBell() {
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
-  // 백그라운드 푸시 자동 구독 (2026-07-30 사장님 — "권한 승인했으면 모든 알림이 백그라운드로"):
+  // 백그라운드 푸시 자동 구독 ("권한 승인했으면 모든 알림이 백그라운드로"):
   //   푸시 구독은 브라우저별인데 설정>알림 토글을 누른 브라우저에만 생겨, 같은 사람이
   //   엣지에선 받고 크롬에선 못 받는 편차가 났다. 알림 권한이 이미 허용된 브라우저면
   //   접속 시 조용히 구독(멱등·프롬프트 없음)하고, 만료로 끊긴 구독도 재생성한다.

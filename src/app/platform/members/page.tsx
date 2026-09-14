@@ -46,7 +46,7 @@ export default function PlatformMembersPage() {
     return new URLSearchParams(window.location.search).get("q") || "";
   });
   const [roleFilter, setRoleFilter] = useState("all");
-  // 회사별 보기 (2026-07-28 사장님 요청)
+  // 회사별 보기
   const [companyFilter, setCompanyFilter] = useState("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 

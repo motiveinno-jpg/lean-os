@@ -1,4 +1,4 @@
--- 2026-08-19 통장·카드 동작 확장(사장님): 수정(이름·메모)·숨김·삭제
+-- 2026-08-19 통장·카드 동작 확장: 수정(이름·메모)·숨김·삭제
 --   통장: is_hidden(목록에서 숨김, 합계·연동은 그대로) + memo. 카드: memo (숨김은 기존 is_active).
 alter table public.bank_accounts add column if not exists is_hidden boolean not null default false;
 alter table public.bank_accounts add column if not exists memo text;

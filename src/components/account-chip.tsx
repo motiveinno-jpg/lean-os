@@ -2,7 +2,7 @@
 
 // 헤더 우측 프로필 칩 — 클릭 시 현재 페이지를 유지한 채 내 계정 상태를 팝오버로 간소하게 보여줌
 //   (기존엔 /mypage 로 즉시 이동해버려 지금 보던 화면을 잃었음). "마이페이지로 이동" 버튼으로 이동.
-//   2026-09-04 사장님: "내 이름을 눌렀을 때 현재 상태(회의중·자리비움 등)를 설정, 메신저에도 표시" —
+//   2026-09-04 대표: "내 이름을 눌렀을 때 현재 상태(회의중·자리비움 등)를 설정, 메신저에도 표시"
 //   팝오버 안 '내 상태' 절: 상태 6개 중 하나 + 언제까지 + 한 줄 메모. users 행에 저장(lib/presence.ts), 메신저는 같은 값을 읽는다.
 
 import { useEffect, useRef, useState } from "react";
@@ -29,7 +29,7 @@ export function AccountChip() {
   // (2026-08-03 역할 폐지 반영) 표시는 마스터/멤버/파트너 3종 — 관리자·직원 구분 표기 제거.
   const roleLabel = (user as any)?.is_master ? "마스터" : role === "partner" ? "파트너" : "멤버";
 
-  //   이름 아래·팝오버에 적는 것 = **부서 · 직책** (2026-09-10 사장님) — '멤버'는 누구에게나 같은 말이라
+  //   이름 아래·팝오버에 적는 것 = **부서 · 직책** — '멤버'는 누구에게나 같은 말이라
   //   내 자리를 알려 주지 못한다. 인사기록(employees)의 부서·직책을 쓰고, 인사기록이 없거나
   //   부서·직책이 비어 있으면 종전대로 역할을 적는다.
   const { data: myEmp } = useQuery({
@@ -72,7 +72,7 @@ export function AccountChip() {
 
   useModalKeys(open, () => setOpen(false), () => { setOpen(false); router.push("/mypage"); });
 
-  //   로그아웃 — 사이드바와 같은 경로(세션 종료 후 통째로 새로 뜬다). 팝오버에도 둔다 (2026-09-10 사장님).
+  //   로그아웃 — 사이드바와 같은 경로(세션 종료 후 통째로 새로 뜬다). 팝오버에도 둔다.
   const handleLogout = async () => {
     await supabase.auth.signOut();
     window.location.href = "/auth";
@@ -109,7 +109,7 @@ export function AccountChip() {
           <PresenceDot row={user as any} className="account-chip-dot" />
         </span>
         {/*   폭 고정 — 상태를 바꾸면 아랫줄 글자 길이가 달라지는데, 폭이 글자를 따라가면
-              칩이 늘었다 줄었다 하면서 머리 줄(알림·도움말)까지 밀렸다 (2026-09-10 사장님). */}
+              칩이 늘었다 줄었다 하면서 머리 줄(알림·도움말)까지 밀렸다. */}
         <span className="account-chip-who">
           <span className="account-chip-who-name">{user?.name || user?.email?.split("@")[0] || ""}</span>
           <span className="account-chip-who-sub">{presence.status === "available" ? whoLabel : presenceText(presence)}</span>

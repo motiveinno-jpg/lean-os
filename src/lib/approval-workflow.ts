@@ -73,7 +73,7 @@ export interface ApprovalPolicyRuleTarget {
   position?: string;     // mode='position'   — employees.position(직급) 과 문자열 일치
 }
 
-/** 결재선 하나 안의 '적용 대상 → 그 대상 전용 결재단계 · 참조' 묶음. (2026-08-20 사장님:
+/** 결재선 하나 안의 '적용 대상 → 그 대상 전용 결재단계 · 참조' 묶음. (
  *  "적용대상을 여러개 생성하고 그 대상마다 각각의 누구한테결재받나·참조를 하나의 결재선에서")
  *  종전엔 정책 1개 = 대상 1묶음 + 단계 1세트 + 참조 1세트라, 사람마다 결재선이 다르면
  *  결재선을 사람 수만큼 따로 만들어야 했다. */
@@ -539,7 +539,7 @@ export async function createApprovalRequest(params: {
       // 결재선의 '팀장·이사·대표·재무' 는 계정 권한(users.role = admin|employee|owner|partner)이
       //   아니라 **직책**이다. 종전엔 users.role 로만 찾아 늘 0명이 나왔고, 아래 폴백이 조용히
       //   관리자·소유자에게 배정했다 — 모티브 정책 11단계(팀장 8·대표 3)가 전부 그랬다.
-      //   (2026-08-20 감사) 이제 구성원 직책으로 찾아 의도대로 배정한다.
+      //    이제 구성원 직책으로 찾아 의도대로 배정한다.
       if (approverList.length === 0 && ROLE_POSITION_NAMES[approverRole]) {
         const byPosition = logRead('lib/approval-workflow:approversByPosition', await db
           .from('employees')
@@ -621,7 +621,7 @@ export async function createApprovalRequest(params: {
     //   2026-07-27: entity_type 을 'approval_reference' 로 분리 — 참조자는 결재함이 비어 있으므로
     //   알림을 눌렀을 때 '참조' 탭(내용 열람)으로 바로 가야 한다(notification-routes.ts).
     //   2026-08-26: type 도 'approval_reference' 로 분리 — 푸시 트리거가 type 을 그대로 태그로 넘기므로
-    //   'approval_request' 면 설정>알림의 '결재 요청' 토글에 걸리고 '결재 참조' 토글이 무효였다(사장님 제보).
+    //   'approval_request' 면 설정>알림의 '결재 요청' 토글에 걸리고 '결재 참조' 토글이 무효였다.
     const referenceIds = [...new Set(params.referenceUserIds || [])].filter((id) => !approverIds.includes(id));
     for (const refId of referenceIds) {
       await createNotification({
@@ -635,7 +635,7 @@ export async function createApprovalRequest(params: {
       });
     }
 
-    // 메일 통보 (2026-08-06 사장님 요청) — 인앱 알림과 함께 발송.
+    // 메일 통보 — 인앱 알림과 함께 발송.
     //   설정 > 알림에서 끈 사람은 sendApprovalMails 안에서 걸러진다. 실패해도 흐름을 막지 않는다.
     await sendApprovalMails({
       userIds: approverIds as string[],
@@ -668,7 +668,7 @@ export async function createApprovalRequest(params: {
  * Approve a single step.
  * If all steps in current stage are approved, advance to next stage or mark request approved.
  */
-/** 결재 단계 생성 — 실패를 삼키지 않는다 (2026-08-21 감사).
+/** 결재 단계 생성 — 실패를 삼키지 않는다.
  *  종전엔 insert 결과를 안 봐서, RLS·제약으로 막히면 **결재선이 0단계인 요청**이 만들어져
  *  아무 승인자에게도 안 가고 영원히 대기로 남았다. 실패 시 방금 만든 요청을 지우고 던진다
  *  — 그래야 사용자가 다시 올릴 때 유령 요청이 쌓이지 않는다. */
@@ -679,7 +679,7 @@ async function insertApprovalStep(row: Record<string, unknown>, requestId: strin
   throw new Error('결재선을 만들지 못했습니다. 결재선 설정을 확인하거나 관리자에게 문의해 주세요.');
 }
 
-/** 승인 후속 반영(휴가·초과근무) — **승인자 권한과 무관하게** 서버 함수로 처리한다 (2026-08-21 감사).
+/** 승인 후속 반영(휴가·초과근무) — **승인자 권한과 무관하게** 서버 함수로 처리한다.
  *  종전엔 승인자의 세션으로 직접 INSERT 해서, 근태·구성원 권한이 없는 승인자(팀장 등)가 승인하면
  *  RLS 에 막혀 **결재는 승인, 근태·연차는 미반영**이 조용히 됐다. 재실행해도 중복되지 않는다. */
 async function applyApprovalSideEffects(request: { id: string; request_type?: string; title?: string }): Promise<void> {
@@ -808,7 +808,7 @@ export async function approveStep(
       }
     } else {
       // All stages complete - mark request approved
-      // error 를 봐야 한다 (2026-08-21 감사): 여기서 실패하면 단계는 승인인데 요청은 계속 대기로
+      // error 를 봐야 한다: 여기서 실패하면 단계는 승인인데 요청은 계속 대기로
       //   남아, 목록에 안 사라지고 재승인도 "이미 처리된 단계" 로 막힌다.
       const { error: doneErr } = await db
         .from('approval_requests')
@@ -942,7 +942,7 @@ export async function rejectStep(
 
   const now = new Date().toISOString();
 
-  // Mark step as rejected — error 확인 (2026-08-21 감사): 실패해도 "반려 처리했습니다" 가 떴다.
+  // Mark step as rejected — error 확인: 실패해도 "반려 처리했습니다" 가 떴다.
   const { error: rejStepErr } = await db
     .from('approval_steps')
     .update({
@@ -1066,7 +1066,7 @@ export async function getMyPendingApprovals(
 }
 
 /**
- * 내가 이미 처리(승인·반려)한 결재 — 2026-07-27 사장님 요청.
+ * 내가 이미 처리(승인·반려)한 결재
  *   기존엔 getMyPendingApprovals(대기중)만 있어, 승인하고 나면 그 건이 '내 결재함'에서
  *   사라지고 다시 볼 화면이 없었다('내 요청'은 내가 올린 것만, '전체 현황'은 admin 전용).
  *   결재선에 이름이 올랐던 건은 처리 후에도 본인이 다시 확인할 수 있어야 한다.
@@ -1126,7 +1126,7 @@ export async function getMyProcessedApprovals(
 /**
  * Get approval timeline for a request (all steps ordered by stage + created_at).
  */
-/** 결재선 단계의 '역할'을 구성원 직책으로 푼다 (2026-08-20 감사).
+/** 결재선 단계의 '역할'을 구성원 직책으로 푼다.
  *  users.role 은 admin|employee|owner|partner 뿐이라 팀장·이사·대표·재무는 여기서만 찾을 수 있다.
  *  회사마다 직책 표기가 달라 흔한 표기를 함께 본다. 못 찾으면 종전 폴백(관리자·소유자)으로 간다. */
 const ROLE_POSITION_NAMES: Record<string, string[]> = {
@@ -1220,7 +1220,7 @@ export async function getReferencedRequests(
     .limit(100);
   if (error) throw error;
 
-  // 네이티브 휴가(leave_requests)에 참조로 걸린 건도 병합 (2026-07-30 사장님):
+  // 네이티브 휴가(leave_requests)에 참조로 걸린 건도 병합:
   //   휴가 탭(관리자 수동 등록·구버전 신청) 경로의 참조 통보를 눌렀을 때 전자결재 건처럼
   //   참조함에서 내용이 보여야 한다. 직원은 휴가 관리 화면 접근이 없어 여기가 유일한 열람처.
   const { data: leaveCc } = await db
@@ -1291,7 +1291,7 @@ export async function getMyRequests(
  * Resubmit a rejected request — resets status to pending and recreates steps.
  */
 /**
- * 대기중(pending) 결재 요청을 요청자 본인이 수정 (2026-07-16 사장님 요청).
+ * 대기중(pending) 결재 요청을 요청자 본인이 수정.
  *   승인선/단계는 건드리지 않고 내용(제목·금액·상세·필드값)만 갱신한다.
  *   권한 검증은 앱 레벨(요청자 본인 + pending) — RLS 는 회사 스코프 UPDATE 허용.
  */
@@ -1400,7 +1400,7 @@ export async function resubmitRequest(
   for (const stageConfig of stages) {
     const requiredCount = stageConfig.required_count ?? 1;
 
-    // 특정 인물 지정 결재선은 그 사람 그대로 (2026-08-21 감사): 최초 상신에는 있던 이 분기가
+    // 특정 인물 지정 결재선은 그 사람 그대로: 최초 상신에는 있던 이 분기가
     //   재상신 경로에만 없어서, 반려 후 재제출 한 번에 지정했던 팀장·이사가 사라지고
     //   폴백(대표·관리자)으로 결재가 넘어갔다 — 같은 문서인데 결재선이 달라졌다.
     if (stageConfig.approver_id) {
@@ -1471,7 +1471,7 @@ export async function resubmitRequest(
 }
 
 /**
- * 결재 요청 완전 삭제 — **대기·취소 건만** 지울 수 있다 (2026-08-21 감사).
+ * 결재 요청 완전 삭제 — **대기·취소 건만** 지울 수 있다.
  *   종전엔 상태 무관 삭제라, 승인 완료된 휴가를 지우면 차감된 연차와 leave_requests 승인 행은
  *   그대로 남아 **근거 결재 없이 연차만 깎인 상태**가 됐다. 지급 큐의 approval_request_id 도
  *   ON DELETE SET NULL 이라 승인 근거 없는 지급 건이 남고 중복 방지 키까지 사라진다.

@@ -8,14 +8,14 @@ import { createMeterStore, runWithMeter, meterPush, flushCodefUsage } from "../_
 //   refresh — /v1/kr/public/a/cash-bill/regist-issue-info → ntsconfirmNum(국세청 승인번호)·상태코드 갱신
 //             (승인번호는 발행 당일 밤 24시 국세청 일괄 전송 시점에 부여 — 발행 직후엔 비어있는 게 정상)
 //   cancel  — /v1/kr/public/a/cash-bill/regist-cancel-issue (전용 엔드포인트, 공식 가이드 2026-02-02.
-//             2026-08-03 사장님 제공 가이드로 재교정 — 입력은 corpNum·orgConfirmNum·orgTradeDate·memo 4개뿐).
+//             2026-08-03 대표 제공 가이드로 재교정 — 입력은 corpNum·orgConfirmNum·orgTradeDate·memo 4개뿐).
 //             국세청 전송 이전 "발행완료" 상태만 취소 가능 — 발행분은 당일 밤 24시에 국세청 일괄 전송되므로
 //             사실상 발행 당일에만 취소된다. 전송 후에는 이 API 로 취소 불가.
 //
 // 전제: CODEF "현금영수증 발행" 상품 승인 + 팝빌 제휴사 회원가입(발행 전 join-member 자동 시도, 멱등).
 //       공동인증서는 불필요. 정식버전은 api.codef.io (CODEF_ENV=production), 가이드 Timeout 200초.
 //
-// 2026-07-21: 사장님 결정으로 CODEF 단독 경로 유지 (팝빌 직접 연동 v7은 롤백).
+// 2026-07-21: 대표 결정으로 CODEF 단독 경로 유지 (팝빌 직접 연동 v7은 롤백).
 //   CF-05001 인시던트(오류 응답인데 실발행) 재발 방지용 재시도 차단 가드 포함 (v8→v9).
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
@@ -229,7 +229,7 @@ serve(withSentry("cashbill-issue", async (req) => {
       }
 
       // 발급사업자(제휴사) 회원가입 — 최초 1회 필요, 멱등(기가입이면 그대로 진행).
-      //   2026-07-30 사장님: 자동 가입 실패가 조용히 삼켜져 발행 실패의 원인을 알 수 없었고
+      //   2026-07-30 대표: 자동 가입 실패가 조용히 삼켜져 발행 실패의 원인을 알 수 없었고
       //   수동 등록으로 우회해야 했다 → 실패 사유를 기억해 발행 실패 시 안내에 병기한다.
       let joinFailMsg = "";
       try {
@@ -357,7 +357,7 @@ serve(withSentry("cashbill-issue", async (req) => {
     //   · 전송 전(발행완료): 전용 regist-cancel-issue — 국세청 전송 대상에서 제외 (공식 가이드 2026-02-02)
     //   · 전송 완료(304): 발행 API tradeType "취소거래" — 취소 현금영수증을 새로 발행해 국세청에 취소 신고
     //     (발행 문서 입력부: 취소거래 시 원본 승인번호·거래일자 필수. 종전엔 304를 무조건 차단해
-    //      전송 완료 건은 앱에서 영영 취소 불가였다 — 사장님 7/24 건으로 실증). ══
+    //      전송 완료 건은 앱에서 영영 취소 불가였다 — 대표 7/24 건으로 실증). ══
     if (action === "cancel") {
       // 원본 승인번호 — 발행 응답의 confirmNum 우선, 없으면 저장된 승인번호, 그래도 없으면 발행정보 재조회
       let target = receipt;

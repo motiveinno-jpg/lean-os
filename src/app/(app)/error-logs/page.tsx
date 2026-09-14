@@ -266,7 +266,7 @@ export default function ErrorLogsPage() {
                       </span>
                     </div>
                     <div className="text-xs text-[var(--text-muted)] truncate">
-                      {/* 24시간 내 같은 에러는 DB 트리거가 접어 반복 횟수만 센다 (2026-08-19 사장님: 중복으로 안 쌓이게) */}
+                      {/* 24시간 내 같은 에러는 DB 트리거가 접어 반복 횟수만 센다 (중복으로 안 쌓이게) */}
                       {(r as any).dup_count > 1 && <span className="mr-1.5 inline-block rounded-full bg-[var(--warning)]/15 px-1.5 py-0.5 text-[10px] font-bold text-[var(--warning)]">×{(r as any).dup_count}</span>}
                       {r.message}
                     </div>

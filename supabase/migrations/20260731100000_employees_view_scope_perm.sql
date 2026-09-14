@@ -1,5 +1,5 @@
 -- Migration: employees_view_scope_perm
--- 구성원 열람 범위를 별도 권한(/employees:all)으로 분리 (2026-07-31 사장님:
+-- 구성원 열람 범위를 별도 권한(/employees:all)으로 분리 (
 --   "구성원 탭 권한을 주면 전 직원 내용이 보인다 — 몇몇만 전 직원, 대부분은 본인 것만 보이게").
 --
 --   기존: /employees(또는 그 하위 탭) 권한이 하나라도 있으면 has_menu_perm('/employees') 가 참이 되어

@@ -1,4 +1,4 @@
--- 공지 읽음 기록 — 사이드바 "공지사항" 배지용 (2026-08-06 사장님 지시).
+-- 공지 읽음 기록 — 사이드바 "공지사항" 배지용.
 --   기기별 localStorage 가 아니라 계정별 DB 저장(결재 확인 표시를 계정별로 바꾼 것과 동일 기조).
 create table if not exists public.announcement_reads (
   announcement_id uuid not null references public.announcements(id) on delete cascade,

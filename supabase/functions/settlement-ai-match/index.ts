@@ -207,7 +207,7 @@ serve(withSentry("settlement-ai-match", async (req) => {
 
     // 처리한 입금(매칭 여부 무관) AI 시도 표시 → 다음 호출에서 재처리 안 함(끝까지 1회 처리, 무한루프 방지).
     //   단 Claude 호출 자체가 실패(429/5xx/파싱 실패 → ai=null)한 건은 "시도"가 아니다 —
-    //   종전엔 그 건까지 마킹해 일시 API 장애 한 번에 그날 처리분이 영구 제외됐다 (2026-08-19 감사).
+    //   종전엔 그 건까지 마킹해 일시 API 장애 한 번에 그날 처리분이 영구 제외됐다.
     const attemptedIds = aiResults.filter((r) => r.ai !== null).map((r) => r.tx.id);
     if (attemptedIds.length > 0) {
       await admin.from("bank_transactions").update({ ai_attempted_at: new Date().toISOString() }).in("id", attemptedIds);

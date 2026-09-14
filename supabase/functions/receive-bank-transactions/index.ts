@@ -144,7 +144,7 @@ Deno.serve(withSentry("receive-bank-transactions", async (req: Request) => {
         is_fixed_cost: isFixedCost,
         mapping_status: mappingStatus,
         source,
-        // 결정적 dedup 키 (2026-08-19 감사): 종전 onConflict:"id" 는 rows 에 id 가 없어
+        // 결정적 dedup 키: 종전 onConflict:"id" 는 rows 에 id 가 없어
         //   충돌이 영영 안 나 매 호출이 전량 신규 insert 였다 — n8n 타임아웃 재시도/배치
         //   재전송이 통장 거래를 그대로 2배로 쌓았다. codef_bank 경로와 같은 방식으로
         //   내용 기반 키를 만들어 external_id UNIQUE 로 수렴시킨다.

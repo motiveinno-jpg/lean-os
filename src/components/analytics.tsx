@@ -1,6 +1,6 @@
 "use client";
 
-// GA4 계측 (2026-08-13 사장님: 마케팅 자동화 1단계 — 측정부터).
+// GA4 계측 (마케팅 자동화 1단계 — 측정부터).
 //   NEXT_PUBLIC_GA_ID(G-XXXXXXXXXX)가 있을 때만 로드 — 없으면 아무것도 안 한다(로컬·프리뷰 무해).
 //   SPA 라우팅은 gtag 기본 page_view 가 못 잡아서 pathname 변화마다 수동 전송.
 //   커스텀 이벤트는 lib/analytics.ts 의 track() 사용.

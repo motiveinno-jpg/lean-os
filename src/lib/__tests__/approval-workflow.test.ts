@@ -216,7 +216,7 @@ describe("pickPolicyForRequester — 대상 매칭 우선순위", () => {
   });
 });
 
-// 한 결재선 안의 적용 대상별 결재선·참조 (2026-08-20 사장님 요청).
+// 한 결재선 안의 적용 대상별 결재선·참조.
 //   우선순위: 특정 직원 > 팀(부서) > 직급 > 회사 전체. rules 가 없는 옛 정책은 규칙 1개로 읽힌다.
 describe("policyRules / pickRuleForRequester — 적용 대상별 규칙", () => {
   const st = (name: string) => [{ stage: 1, name, approver_role: "manager" }];

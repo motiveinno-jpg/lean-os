@@ -107,10 +107,10 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
   const [draft, setDraft] = useState<Cond>(DEFAULT_COND);
   const [live, setLive] = useState<Cond>(DEFAULT_COND);
   const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
-  const [view, setView] = useState<"card" | "list">("list");   //   2026-08-19 사장님: 규칙대로 리스트가 기본
+  const [view, setView] = useState<"card" | "list">("list");   //   2026-08-19 대표: 규칙대로 리스트가 기본
   const [sel, setSel] = useState<Emp | null>(null);
-  //   2026-08-19 사장님: 구성원(인력관리)에서 이름을 누르면 약식 패널 없이 **바로 상세보기** — 대부분 상세로 들어가므로 한 단계 덜 누른다.
-  //   약식 프로필 패널(ProfilePanel)은 디렉토리(/team, 관리자 아님)에서만 쓴다. 근태 기록·급여명세 링크는 사람별 화면이 아니라 빼도 겹친다(사장님: 중복이면 안 넣음).
+  //   2026-08-19 대표: 구성원(인력관리)에서 이름을 누르면 약식 패널 없이 **바로 상세보기** — 대부분 상세로 들어가므로 한 단계 덜 누른다.
+  //   약식 프로필 패널(ProfilePanel)은 디렉토리(/team, 관리자 아님)에서만 쓴다. 근태 기록·급여명세 링크는 사람별 화면이 아니라 빼도 겹친다(중복이면 안 넣음).
   const openEmp = (e: Emp) => { if (isManager) setContractsEmpId(e.id); else setSel(e); };
   const [contractsEmpId, setContractsEmpId] = useState<string | null>(null);
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "name", dir: "asc" });
@@ -181,11 +181,11 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
         default: return e.name;
       }
     };
-    //   사번 정렬 = 사번 순 → 가나다 → ABC. 이름 정렬 = **이름 가나다 → ABC**(사번 무시) (2026-08-31 사장님:
+    //   사번 정렬 = 사번 순 → 가나다 → ABC. 이름 정렬 = **이름 가나다 → ABC**(사번 무시) (
     //   "이름으로 정렬해도 사번으로 정렬된다" 수정). 다른 칸은 그 칸 값 뒤 사번규칙으로 안정 정렬.
     if (sort.key === "employee_number") return base.filter((e) => cf.hit(colVal(e))).sort((a, b) => comparePeople(a, b) * dir);
     if (sort.key === "name") return base.filter((e) => cf.hit(colVal(e))).sort((a, b) => compareByName(a, b) * dir);
-    //   직책 정렬 = 직책급 순 (2026-09-10 사장님: "가나다가 아니라 직책급 순") — 오름차순이 대표 → 사원.
+    //   직책 정렬 = 직책급 순 ("가나다가 아니라 직책급 순") — 오름차순이 대표 → 사원.
     //   기준은 표준 직책 사다리, 회사가 만든 직책은 회사 설정 목록의 차례. lib/position-rank.ts 한 곳에 있다.
     if (sort.key === "position") return base.filter((e) => cf.hit(colVal(e)))
       .sort((a, b) => comparePosition(a.job_title || a.position, b.job_title || b.position, positionOptions) * dir || comparePeople(a, b));
@@ -300,7 +300,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
               <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed emp-table">
                 <thead>
                   <tr>
-                    {/*   사번 열 — 맨 왼쪽 (2026-08-27 사장님 "좌측에 사번"). 정렬은 이름과 같은 규칙(사번 순 → 가나다 → ABC) */}
+                    {/*   사번 열 — 맨 왼쪽 (2026-08-27 대표가 "좌측에 사번"). 정렬은 이름과 같은 규칙(사번 순 → 가나다 → ABC) */}
                     <SortableTh label="사번" sortKey="employee_number" sort={sort} onSort={onSort} resize={thResize("employee_number", 1)} />
                     <SortableTh label="이름" sortKey="name" sort={sort} onSort={onSort} resize={thResize("name", 2)} />
                     <SortableTh label="부서" sortKey="department" sort={sort} onSort={onSort} filter={cfSpec("department")} resize={thResize("department", 3)} />
@@ -398,7 +398,7 @@ function ProfilePanel({ companyId, emp, avatarUrl, isManager, onClose, onOpenCon
   const { data: weekMin = 0 } = useQuery<number>({
     queryKey: ["flex-profile-week", emp.id],
     queryFn: async () => {
-      // KST 오늘·월요일을 UTC 앵커로 계산 (2026-08-19 감사: -9h/+9h 이중 보정이 상쇄돼
+      // KST 오늘·월요일을 UTC 앵커로 계산 (9h/+9h 이중 보정이 상쇄돼
       //   KST 브라우저에서 범위가 하루 밀려 "오늘 근무"가 빠졌다)
       const now = new Date(Date.now() + 9 * 3600 * 1000);
       const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
@@ -471,7 +471,7 @@ function ProfilePanel({ companyId, emp, avatarUrl, isManager, onClose, onOpenCon
 
         {/* 바로가기 */}
         <div className="flex-people-profile-shortcuts">
-          {/* 2026-07-30 사장님: 계약서→상세보기(정보 탭 연결)로 명칭·링크 변경 + 근태 기록 보기와 위치 맞교환 */}
+          {/* 2026-07-30 대표: 계약서→상세보기(정보 탭 연결)로 명칭·링크 변경 + 근태 기록 보기와 위치 맞교환 */}
           {isManager ? (
             <>
               <button onClick={() => onOpenContracts(emp.id)} className="btn-primary w-full">

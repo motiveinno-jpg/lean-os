@@ -58,7 +58,7 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
       if (error) throw error;
       toast("계정과목을 추가했습니다", "success"); setNewAcct(null); refresh();
     // 코드 판정을 message 보다 먼저 — Postgres 오류엔 message 가 항상 있어 친절 문구가 영영 안 나왔다.
-    //   사장님이 본 건 "duplicate key value violates unique constraint …" 영문 원문이었다(2026-08-20 에러점검).
+    //   대표 본 건 "duplicate key value violates unique constraint …" 영문 원문이었다(2026-08-20 에러점검).
     } catch (e: any) {
       const dup = e?.code === "23505" || /duplicate key|already exists/i.test(String(e?.message || ""));
       toast("추가 실패: " + (dup ? "이미 있는 코드입니다" : e?.message || "알 수 없는 오류"), "error");

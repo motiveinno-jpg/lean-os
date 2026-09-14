@@ -1,6 +1,6 @@
 "use client";
 
-// 세금계산서 엑셀 일괄발행 (2026-07-30 사장님)
+// 세금계산서 엑셀 일괄발행
 //   흐름: ① 표준 양식(xlsx) 다운로드 → ② 채워서 업로드 → ③ 행별 검증 미리보기
 //   (오류 행 사유 표시·정상 건만 집계) → ④ 일괄 등록+국세청 전자발행(진행률) → ⑤ 결과 요약.
 //   발행 한도(요금제별 월 한도)를 사전 표시하고 초과분은 발행하지 않는다.
@@ -35,7 +35,7 @@ type ParsedRow = {
 
 type IssueResult = { row: ParsedRow; ok: boolean; error?: string; ntsNo?: string };
 
-//   공급가액·세액·공급대가를 모두 적을 수 있다 (2026-09-11 사장님). 셋 중 둘만 적어도 나머지 하나는
+//   공급가액·세액·공급대가를 모두 적을 수 있다. 셋 중 둘만 적어도 나머지 하나는
 //   자동으로 채운다. 셋 다 적었는데 합이 안 맞으면 그 행만 오류로 표시하고 넘어간다.
 const HEADERS = [
   "작성일자*", "공급받는자 상호*", "사업자등록번호*", "대표자", "업태", "종목",
@@ -84,7 +84,7 @@ export function parseMoney(v: unknown): number | null {
 }
 
 /**
- *  공급가액·세액·공급대가를 맞춘다 (2026-09-11 사장님: 엑셀에 셋 다 쓸 수 있게).
+ *  공급가액·세액·공급대가를 맞춘다 (엑셀에 셋 다 쓸 수 있게).
  *  셋 중 둘만 적어도 나머지 하나를 채우고, 셋 다 적혔으면 합이 맞는지 본다(1원 반올림 차이는 통과).
  *  공급대가만 적었으면 과세는 1.1 로 갈라 넣고, 영세율·면세는 세액이 0이다.
  */
@@ -222,7 +222,7 @@ export function TaxInvoiceBulkIssueModal({ companyId, onClose }: { companyId: st
           counterpartyBusinessType: r.businessType || undefined,
           counterpartyBusinessItem: r.businessItem || undefined,
           //   ⚠️ 대표자·이메일은 엑셀에서 읽어 놓고(위 out.push) 여기 안 넘겨 계산서에 빈 채로
-          //   들어갔다 (2026-09-14 사장님 제보: 39건 중 38건 대표자 빔). 국세청 필수값이라
+          //   들어갔다 (39건 중 38건 대표자 빔). 국세청 필수값이라
           //   전송이 실패하고, 이메일이 비면 거래처가 계산서를 못 받는다.
           counterpartyRepresentative: r.representative || undefined,
           counterpartyEmail: r.email || undefined,
@@ -231,7 +231,7 @@ export function TaxInvoiceBulkIssueModal({ companyId, onClose }: { companyId: st
           taxAmount: r.taxAmount,
           issueDate: r.issueDate,
           taxKind: r.taxKind,
-          // 품목은 item_name 으로 — label 에 넣으면 홈택스 품목이 "용역"으로 나간다(2026-08-05 교정).
+          // 품목은 item_name 으로 — label 에 넣으면 홈택스 품목이 "용역"으로 나간다.
           //   label(비고)은 발행 엣지의 remark1(비고란)로 전달된다.
           itemName: r.itemName || undefined,
           label: r.memo || undefined,

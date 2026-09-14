@@ -101,7 +101,7 @@ function renderSignerBody(
   signerInputs: Record<string, string>,
   setSignerInputs: React.Dispatch<React.SetStateAction<Record<string, string>>>,
 ): React.ReactNode {
-  //   2026-08-14 사장님: 서명 화면이 근로계약·서식탭 미리보기와 "아예 똑같이" 보여야 한다.
+  //   2026-08-14 대표: 서명 화면이 근로계약·서식탭 미리보기와 "아예 똑같이" 보여야 한다.
   //   표 폭을 강제로 바꾸던 injectContractInlineStyles 를 화면 경로에서 제거 — 원본(에디터가 저장한
   //   colgroup/width)을 그대로 두고 .doc-preview-page 가 서식탭과 동일하게 그린다. (PDF 경로는 별개)
   const styled = rawHtml;
@@ -556,7 +556,7 @@ function SignContent() {
                   "을_대표자": String(partner.representative || ""),
                 }
               : null,
-            // QA 2026-07-13: signature_data/signed_at 누락으로 완료화면 ContractSignatureFooter 의
+            // signature_data/signed_at 누락으로 완료화면 ContractSignatureFooter 의
             //   {sig && signedAt && ...} 조건이 항상 false → 을(거래처) 서명/도장이 아예 안 그려지던 버그.
             items: filledDocuments ? [{ id: sigReq.id, title: filledDocuments.name || sigReq.title, status: sigReq.status === 'signed' ? 'signed' : 'pending', documents: filledDocuments, sort_order: 0, signature_data: sigReq.signature_data ?? null, signed_at: sigReq.signed_at ?? null }] : [],
             _isGeneralDoc: true,
@@ -578,7 +578,7 @@ function SignContent() {
       
 
       // Check expiration · 서명 "대기" 건에만 적용. 완료된 계약은 만료일이 지나도
-      //   열람 가능해야 한다(2026-07-31 사장님: 완료 계약 클릭 시 만료 화면이 떠 계약서가 안 보이던 버그).
+      //   열람 가능해야 한다(완료 계약 클릭 시 만료 화면이 떠 계약서가 안 보이던 버그).
       const expired = p.status !== "completed" && (p.expires_at ? new Date(p.expires_at)  < new Date() : false);
 
       // Items 는 RPC 가 sort_order 정렬로 함께 반환
@@ -1264,7 +1264,7 @@ function SignContent() {
         ) : (
           <>
             {/* Document body — HTML 서식(근로계약서 등)은 근로계약·서식탭 미리보기와
-                동일한 문서 페이지(.doc-preview-page)로 그린다 (2026-08-14 사장님: "아예 똑같이").
+                동일한 문서 페이지(.doc-preview-page)로 그린다 ("아예 똑같이").
                 섹션형·일반 텍스트 문서는 기존 카드 렌더 유지. */}
             {(!Array.isArray(content?.sections) || content.sections.length === 0) && content?.body && /^\s*</.test(String(content.body)) ? (
               <div className="sign-doc-page-wrap">

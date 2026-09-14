@@ -206,7 +206,7 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
   const allMonths = [...prevMonthsList, ...months];
   const startDate = `${allMonths[0]}-01`;
 
-  //   ★ 2026-08-11 사장님 지시 — 손익계산서는 **전표로 처리된 것만** 반영한다.
+  //   ★ — 손익계산서는 **전표로 처리된 것만** 반영한다.
   //     예전엔 통장·세금계산서·카드·직원급여 원본을 직접 집계했다. 그러면 '아직 장부에 안 올린 것'과
   //     '올린 것'이 섞여 재무제표가 장부와 따로 논다. 이제 확정 전표(일반전표·매입매출전표)만 읽는다.
   //     그래서 전표를 안 만든 자료는 여기 안 나온다 — 화면이 '미기장 N건'을 배너로 알려 준다.
@@ -670,7 +670,7 @@ function PnlPageInner() {
         </>}
       />
 
-      {/*   ★ 전표만 반영한다 — 비어 보이는 이유를 화면이 스스로 말한다 (2026-08-11 사장님 지시).
+      {/*   ★ 전표만 반영한다 — 비어 보이는 이유를 화면이 스스로 말한다.
             "손익계산서와 재무상태표에는 전표로 처리된 내역만 반영되게. 불러오기만 한 건 반영되지 않게." */}
       {data.unposted.total > 0 && (
         <div className="pnl-unposted-banner kpi-callout warning">
@@ -705,7 +705,7 @@ function PnlPageInner() {
         </div>
       )}
 
-      {/* 비용이 아닌 계정으로 분류된 출금 — 손익에서 빼되 어디로 갔는지 밝힌다 (2026-08-10 사장님 지적:
+      {/* 비용이 아닌 계정으로 분류된 출금 — 손익에서 빼되 어디로 갔는지 밝힌다 (
           "판매비와관리비에 미지급금이 나온다"). 이건 오류가 아니라 자리를 옮긴 것이므로 경고가 아닌 안내 톤. */}
       {data.nonPnlOut.length > 0 && (
         <div className="pnl-nonpnl-note kpi-callout">
@@ -846,7 +846,7 @@ function PnlPageInner() {
       </div>
 
       {/* 손익 구조 — 무엇이 얼마를 깎아 이익이 남는지. 막대 여럿으로는 이 관계가 안 보여
-          폭포수로 그린다 (2026-08-07 사장님: "자료에 최적인 그래프를 판단해서") */}
+          폭포수로 그린다 ("자료에 최적인 그래프를 판단해서") */}
       <div className="pnl-chart-section">
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-3">
           <div className="mb-3">
@@ -927,7 +927,7 @@ function PnlPageInner() {
 
 
 
-/** 원장 한 줄 · 위하고 '원장조회'와 같은 칸 구성 (2026-08-12 사장님이 그 화면을 기준으로 주셨다) */
+/** 원장 한 줄 · 위하고 '원장조회'와 같은 칸 구성 (2026-08-12 대표 그 화면을 기준으로 주셨다) */
 type DrillRow =  {
   date: string; memo: string; partner: string | null;
   debit: number; credit: number; voucherNo: number | null;
@@ -935,7 +935,7 @@ type DrillRow =  {
 
 /**
  * 손익 항목 드릴다운 — 그 계정의 **원장**을 보여 준다.
- *   ★ 2026-08-12 사장님 지시: "비용계정 눌렀을 때 **그날의 전표로 보여주고 월계 나눠주세요**".
+ *   ★ "비용계정 눌렀을 때 **그날의 전표로 보여주고 월계 나눠주세요**".
  *     참고로 준 위하고 원장조회를 그대로 따른다 — 일자·적요·거래처·차변·대변·잔액·전표번호,
  *     달이 바뀌는 자리에 **[월 계]** 와 **[누 계]**.
  *   ★ 그전엔 일자·거래처·금액 세 칸이었는데 '거래처' 칸에 **계정 이름**이 들어가 있었다
@@ -959,7 +959,7 @@ function PnlDrillModal({ companyId, source, category, label, start, end, breakdo
 
   useEffect(() => {
     if (source === "computed") return;
-    //   ★ 2026-08-12 — **전표에서 읽는다** (사장님 제보).
+    //   ★ 2026-08-12 — **전표에서 읽는다**.
     //     표는 2026-08-11 부터 확정 전표만 집계하는데 이 상세 창은 세금계산서·통장 **원본**을 읽고 있었다.
     //     그래서 표는 1,024원인데 열어 보면 703,612,329원 — 한 화면에 서로 다른 두 값이 있었다.
     //     판관비는 옛 '비목(category)' 으로 찾아 아무것도 안 나왔다(표는 계정 **이름**으로 묶는다).

@@ -4,7 +4,7 @@ import Stripe from 'stripe';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { assertSameOrigin } from '@/lib/api-authz';
 
-// 등록 카드 조회·삭제 (2026-08-05 사장님: "등록된 카드 삭제도 가능하게")
+// 등록 카드 조회·삭제 ("등록된 카드 삭제도 가능하게")
 //   GET  — 고객의 카드 목록(브랜드·끝4자리·만료·기본 여부)
 //   POST { action: 'detach', paymentMethodId } — 카드 삭제(detach)
 //   안전장치: 해지 예약이 없는 살아있는 구독의 마지막 카드는 삭제 차단

@@ -3,7 +3,7 @@ import { Ico } from "@/components/ui-icon";
 import { kstDateTime } from "@/lib/kst";
 import { logRead }  from "@/lib/log-read";
 
-// 사용자 화면 · **열람 전용** (2026-08-06 사장님 지시).
+// 사용자 화면 · **열람 전용**.
 //   공지 작성·수정·삭제는 운영자 페이지(/platform/announcements)에서만 한다.
 //   DB 도 announcements_*_operator 정책으로 쓰기를 is_platform_operator() 로 막아 두었다.
 
@@ -56,7 +56,7 @@ export default function AnnouncementsPage() {
   const markedRef = useRef(false);
 
   //   전역(null) + 내 회사 공지만 — RLS 만 믿으면 운영자 계정(creative@)은 전 회사(QA 시드 포함)
-  //   공지가 다 보인다 (2026-08-28 사장님 제보). 배지 RPC(unread_announcement_count)도 같은 조건으로 맞춤.
+  //   공지가 다 보인다. 배지 RPC(unread_announcement_count)도 같은 조건으로 맞춤.
   const myCompanyId = (user as any)?.company_id as string | undefined;
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["announcements", myCompanyId],
@@ -109,7 +109,7 @@ export default function AnnouncementsPage() {
   const onSort = (k: SortKey) => setSort((c) => nextSort(c, k));
   const cf = useColFilters();
   const tableRef = useRef<HTMLTableElement | null>(null);
-  // v3 (2026-08-25 사장님): 제목을 더 넓게, 나머지는 더 좁게 — 키를 올려 기존 저장 너비에도 적용
+  // v3: 제목을 더 넓게, 나머지는 더 좁게 — 키를 올려 기존 저장 너비에도 적용
   const [colW, setColW] = useColWidths("announcements-colw-v4", { pin: 40, category: 60, title: 710, author: 120, created: 165 });
   const thResize = (k: string, colIndex: number) => ({ k, colIndex, widths: colW, onResize: setColW, tableRef });
   const catLabel = (c: string) => (CATEGORY_META[c] || CATEGORY_META.notice).label;
@@ -216,7 +216,7 @@ export default function AnnouncementsPage() {
                           <td className="text-center mono-number whitespace-nowrap">{kstDateTime(a.created_at)}{a.updated_at !== a.created_at && <span className="text-[10px] text-[var(--text-dim)]"> (수정됨)</span>}</td>
                         </tr>
                         {expanded && (
-                          // 본문은 제목 칸 폭 안에서만 — 양 옆(고정·분류 / 작성자·등록)은 여백 (2026-08-25 사장님)
+                          // 본문은 제목 칸 폭 안에서만 — 양 옆(고정·분류 / 작성자·등록)은 여백
                           <tr className="annc-detail-row">
                             <td colSpan={2} />
                             <td>

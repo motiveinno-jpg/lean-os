@@ -6,7 +6,7 @@ import { logRead } from "@/lib/log-read";
 // 구독 관리 패널 — 2026-07-08 "정기 지출" 흡수. /subscriptions 페이지에서 추출(동작 무변경).
 //   정기 지출 > 구독 탭에서 마운트. SaaS 계정·비밀번호는 vault_accounts(자산)에 그대로 보존.
 
-// 2026-05-22 구독 통합 화면 (사장님 방향) — 회사가 쓰는 모든 외부 프로그램/AI 구독을 한 곳에.
+// 2026-05-22 구독 통합 화면 (대표 방향) — 회사가 쓰는 모든 외부 프로그램/AI 구독을 한 곳에.
 //   외부 구독 = vault_accounts 재사용 (Claude·ChatGPT·Adobe·AWS·Notion 등)
 //   OwnerView 구독 = subscriptions + subscription_plans 에서 1행 자동 포함 (관리 → /billing 딥링크)
 //   요약: 월 총 구독비 / 연 환산 / 카테고리 분포. 등록·수정은 owner/admin.

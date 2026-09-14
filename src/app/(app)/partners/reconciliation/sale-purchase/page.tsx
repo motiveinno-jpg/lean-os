@@ -1,11 +1,11 @@
 "use client";
 
-// 매입매출전표입력 — 회계 프로그램 그대로의 격자 입력 (2026-08-11 사장님 지시, WEHAGO 화면 기준).
+// 매입매출전표입력 — 회계 프로그램 그대로의 격자 입력 (WEHAGO 화면 기준).
 //
 //   위 격자에 한 줄 = 전표 한 장. 년·월·일·거래처·유형·품명·공급가액·부가세를 옆으로 친다.
 //   아래 격자는 그 줄의 **분개** — 유형이 만들고 사람이 계정만 고친다.
 //
-//   ★ Enter = **그 칸만** 윗줄에서 내리고 다음 칸으로 넘어간다 (2026-08-11 사장님 지시).
+//   ★ Enter = **그 칸만** 윗줄에서 내리고 다음 칸으로 넘어간다.
 //     처음엔 한 줄이 통째로 내려왔는데, 한 칸만 다른 건을 칠 때 내려온 값을 도로 지워야 했다.
 //     칸 단위로 내리면 같은 값은 Enter 로 한 번, 다른 값은 그냥 치면 된다 — 지우는 일이 없다.
 //
@@ -52,7 +52,7 @@ const settleOfCode = (code?: string | null): SettleType =>
 type SortKey = "date" | "code" | "partner" | "biz" | "type" | "item" | "supply" | "tax" | "total";
 /** 검색조건 (조회 화면 표준, 2026-08-18 Wave 1 — B형: 입력 격자는 그대로, 저장분 조회만) */
 /**
- * 검색조건 — 이 화면에서 걸 수 있는 조건 전부 (2026-08-18 사장님: "전자, 분개, 금액 등 조건을 다양하게").
+ * 검색조건 — 이 화면에서 걸 수 있는 조건 전부 ("전자, 분개, 금액 등 조건을 다양하게").
  *   거래처(다중) · 유형(다중, 갈래 안) · 품명(글자) · 전자입력 여부 · 분개(외상/현금/카드…) · 합계 금액 범위 · 구분(갈래 '전체'일 때만)
  */
 type Cond = { pt: string[]; side: string[]; vat: string[]; item: string; elec: string; settle: string[]; min: string; max: string; rows: number };
@@ -69,7 +69,7 @@ type Row = {
   y: string; m: string; d: string;
   partner: Pt | null;
   partnerText: string;          // 검색 중 글자
-  //   상대계정(미지급금) 줄의 거래처 — 카드 전표는 **카드사**. 비용·부가세 줄엔 실제 사용처(가맹점)가 간다 (2026-09-02 사장님)
+  //   상대계정(미지급금) 줄의 거래처 — 카드 전표는 **카드사**. 비용·부가세 줄엔 실제 사용처(가맹점)가 간다
   counterPartner?: Pt | null;
   vatCode: string;
   item: string;
@@ -220,7 +220,7 @@ function SalePurchaseInner() {
     },
     enabled: !!companyId, staleTime: 300_000,
   });
-  // 거래처 간편 등록 팝업 · 어느 줄에서 열었는지·미리 채울 이름·매출/매입 갈래 (2026-09-02 사장님)
+  // 거래처 간편 등록 팝업 · 어느 줄에서 열었는지·미리 채울 이름·매출/매입 갈래
   const [quickCreate, setQuickCreate] = useState<{ row: number; name: string; vatCode: string } | null>(null);
   const { data: partners = [] } = useQuery({
     queryKey: ["sp-partners", companyId],
@@ -238,7 +238,7 @@ function SalePurchaseInner() {
   }, [accounts]);
 
   // ── 그 달에 저장된 전표를 격자 위쪽에 그대로 올린다 (회계 프로그램처럼) ──
-  //   ★ **확정 전표만** 그린다 (2026-08-24 사장님 지적: "수집·전표에서는 미처리인데 매입매출전표에는 반영돼 있다").
+  //   ★ **확정 전표만** 그린다 ("수집·전표에서는 미처리인데 매입매출전표에는 반영돼 있다").
   //     전표 취소(unpost_evidence_voucher)는 전표를 지우지 않고 `status='rejected'` 로 남기고
   //     원자료의 journal_entry_id 를 비운다. 그래서 수집은 '미처리'로 돌아온다.
   //     이 목록만 status 를 안 걸러서 **취소한 전표가 계속 보였다.** 옆 화면(일반전표)·장부·원장은
@@ -249,7 +249,7 @@ function SalePurchaseInner() {
       const to = monthAfter(toM);
       //   ★ 페이징 필수 — 넓은 기간엔 매입매출전표가 1,000행(PostgREST 기본 상한)을 넘는다.
       //     예전엔 상한에 조용히 잘려, 날짜가 늦은 전표(예: 6·7월 수도료 매입면세)가 목록에서
-      //     통째로 사라졌다 (2026-08-28 사장님 신고: "매입면세 전표가 5월부터 하나도 안 보인다").
+      //     통째로 사라졌다 (2026-08-28 대표 신고: "매입면세 전표가 5월부터 하나도 안 보인다").
       const data = await fetchPaged("sale-purchase:saved", () => (supabase as any)
         .from("journal_entries")
         .select("id, voucher_no, entry_date, vat_type, supply_amount, vat_amount, description, reference_type, is_electronic, journal_lines(debit, credit, description, chart_of_accounts(id, code, name, account_type), partners(id, code, name, business_number))")
@@ -293,7 +293,7 @@ function SalePurchaseInner() {
   const savedRows: Row[] = saved.map((e: any) => {
     const [y, m, d] = String(e.entry_date || "").split("-");
     const info = savedInfo.get(e.id);
-    //   머리 줄 거래처 = 비용/매출 줄의 거래처(가맹점). 카드사는 상대계정 줄에만 (2026-09-02 사장님: "BC카드는 밑에 하나만")
+    //   머리 줄 거래처 = 비용/매출 줄의 거래처(가맹점). 카드사는 상대계정 줄에만 ("BC카드는 밑에 하나만")
     const p: Pt | null = info?.mainPartner ?? ((e.journal_lines || []).map((l: any) => l.partners).find(Boolean) || null);
     return {
       key: -1, y, m: String(Number(m || 0)), d: String(Number(d || 0)),
@@ -322,7 +322,7 @@ function SalePurchaseInner() {
     return true;
   };
   //   열 너비 — 표 머리단 표준처럼 드래그로 조절·더블클릭 초기화. 격자(grid)라 SortableTh 를 못 쓰고 같은 손잡이(th-grip)만 붙인다.
-  //   ⚠️ 2026-08-18 사장님 지적: 코드 칸이 좁아 정렬 버튼이 ≡ 에 가려 안 눌렸다 — 칸을 넓히고 손잡이를 달았다.
+  //   ⚠️ 코드 칸이 좁아 정렬 버튼이 ≡ 에 가려 안 눌렸다 — 칸을 넓히고 손잡이를 달았다.
   const SPV_COLS = ["y", "m", "d", "code", "partner", "biz", "type", "item", "supply", "vat", "total", "elec", "je", "x"] as const;
   const [colW, setColW] = useColWidths("sale-purchase-colw-v1", {
     y: 56, m: 40, d: 40, code: 96, partner: 190, biz: 130, type: 116, item: 220, supply: 108, vat: 96, total: 108, elec: 52, je: 84, x: 30,
@@ -380,7 +380,7 @@ function SalePurchaseInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved, group, sort, q, cLive, cf.key]);
   //   쪽 넘김 — 저장분만 쪽을 나눈다(기본 50줄, 줄 수는 검색조건 안). 입력 줄은 늘 맨 아래에 그대로 있다.
-  //   ⚠️ 2026-08-18 사장님: "줄 수가 없는데 맞는지? 조회 건 많으면 페이지로 제공되는지?" — 표준인데 빠져 있었다.
+  //   ⚠️ 2026-08-18 대표: "줄 수가 없는데 맞는지? 조회 건 많으면 페이지로 제공되는지?" — 표준인데 빠져 있었다.
   const pager = usePager(sortedSaved, cLive.rows, `${group}|${fromM}|${toM}|${q}|${JSON.stringify(cLive)}|${cf.key}`);
   //   내 조건 · ★ 하나가 이 화면(조회부)의 기본값
   const saved2 = useSavedQueries("sale-purchase", companyId);
@@ -434,7 +434,7 @@ function SalePurchaseInner() {
           .select("id, type, issue_date, counterparty_name, supply_amount, tax_amount, amount, status, source, journal_entry_id")
           .eq("company_id", companyId!).is("journal_entry_id", null)
           .gte("issue_date", from).lt("issue_date", to).order("issue_date").limit(200),
-        //   ★ 재고 메뉴의 판매·구매 전표 — 세금계산서·카드와 같은 자리에 뜬다 (2026-08-25 사장님 지시).
+        //   ★ 재고 메뉴의 판매·구매 전표 — 세금계산서·카드와 같은 자리에 뜬다.
         //     전표를 자동으로 만들지 않고 여기서 사람이 불러와 저장한다(제안은 자동, 확정은 사람).
         supabase.from("stock_docs")
           .select("id, doc_no, reason, doc_date, partner_id, note, journal_entry_id, partners(name), stock_moves(qty, unit_price, vat_amount)")
@@ -525,7 +525,7 @@ function SalePurchaseInner() {
     const [yy, mm, dd] = String(r.date || "").split("-");
     let p = partners.find((x) => (r.partnerId ? x.id === r.partnerId : x.name === r.who)) || null;
     let cp: Pt | null = null;
-    //   카드: 비용 줄 거래처 = 가맹점(없으면 자동 등록), 미지급금 줄 = 카드사 (2026-09-02 사장님 — 종전엔 BC카드가 전 줄에)
+    //   카드: 비용 줄 거래처 = 가맹점(없으면 자동 등록), 미지급금 줄 = 카드사 (2026-09-02 대표 — 종전엔 BC카드가 전 줄에)
     if (r.kind === "card") {
       const [mp, cardP] = await Promise.all([
         resolvePartner("resolve_merchant_partner", { p_name: r.who, p_bizno: r.bizno || null }),
@@ -662,7 +662,7 @@ function SalePurchaseInner() {
       : i > 0 ? rows[i - 1]
         : (sortedSaved.length > 0 ? sortedSaved[sortedSaved.length - 1] : null);
 
-  /** ★ Enter — **그 칸 하나만** 윗줄에서 내린다 (2026-08-11 사장님 지시).
+  /** ★ Enter — **그 칸 하나만** 윗줄에서 내린다.
    *  '빈 칸일 때만 내린다'로 하면 유형·분개처럼 늘 값이 있는 칸은 영영 못 내린다 — 눌러도
    *  아무 일이 안 나 고장난 것처럼 보인다. 그래서 **누른 칸은 항상 내린다**(사람이 그 칸을 골라 눌렀다). */
   const pullCell = (i: number, key: CellKey) => {
@@ -839,7 +839,7 @@ function SalePurchaseInner() {
             onFocus={() => { if (!isEdit) setCur(i); setDrop({ row: i, q: r.partnerText }); }}
             onKeyDown={(e) => onCellKey(e, i, "partner")} placeholder="거래처" />
           {drop?.row === i && (
-            //   거래처도 계정과 **같은 방식**으로 고른다 — ↑↓ 이동, Enter 고르기 (2026-08-12 사장님 지시)
+            //   거래처도 계정과 **같은 방식**으로 고른다 — ↑↓ 이동, Enter 고르기
             <PickList
               items={partners.map((pt) => ({ id: pt.id, code: pt.code != null ? String(pt.code) : "", name: pt.name }))}
               placeholder="거래처 검색 (이름·코드·사업자번호)"
@@ -849,7 +849,7 @@ function SalePurchaseInner() {
                 setDrop(null);
               }}
               
-              //   없는 거래처는 여기서 바로 등록 (2026-09-02 사장님). 검색어가 이름 칸에 미리 들어간다
+              //   없는 거래처는 여기서 바로 등록. 검색어가 이름 칸에 미리 들어간다
               onCreate={(q) => { setQuickCreate({ row: i, name: q || r.partnerText, vatCode: r.vatCode }); setDrop(null); }}
               createLabel={(q) => (q ? `"${q}" 새 거래처로 등록` : "새 거래처 등록")}
               onClose={() => setDrop(null)} />
@@ -938,7 +938,7 @@ function SalePurchaseInner() {
 
   return (
     <div className="qk-shell spv-page">
-      {/* ── 한 상자 안에: 갈래 탭(파란 밑줄) · 조회 줄 · 걸린 조건 · 결과 요약 · 격자 — 수집·전표와 같은 뼈대 (2026-08-18 사장님) ── */}
+      {/* ── 한 상자 안에: 갈래 탭(파란 밑줄) · 조회 줄 · 걸린 조건 · 결과 요약 · 격자 — 수집·전표와 같은 뼈대 ── */}
       <QueryScreen>
        <QueryHead>
       {/* 갈래 탭 — 공용(collect-tabs) */}
@@ -995,7 +995,7 @@ function SalePurchaseInner() {
                   ))}
                 </span>
               </ConditionRow>
-              {/*   구분(매출/매입)은 갈래가 '전체'일 때만 뜻이 있다 — 매출세금 탭에서 매입을 고르게 두면 조건이 거짓말한다 (2026-08-18 사장님) */}
+              {/*   구분(매출/매입)은 갈래가 '전체'일 때만 뜻이 있다 — 매출세금 탭에서 매입을 고르게 두면 조건이 거짓말한다 */}
               {group === "all" && <ConditionRow label="구분">
                 <span className="qk-quicks">
                   {[{ v: "sale", l: "매출" }, { v: "purchase", l: "매입" }].map((o) => (
@@ -1084,7 +1084,7 @@ function SalePurchaseInner() {
           <div className="spv-grid" style={{ ["--spv-cols" as string]: gridTemplate }}>
             {/* 제목줄 — 누르면 저장분이 그 칸 기준으로 정렬된다(한 번 더 누르면 거꾸로, 세 번째는 해제).
                 입력 줄은 정렬을 안 탄다 — 치던 자리가 움직이면 안 되기 때문이다 (2026-08-11) */}
-            {/*   머리단은 표 머리단 표준과 같은 모양(색·가운데·세로선·▼·≡)이고 스크롤해도 붙어 있는다 (2026-08-18 사장님) */}
+            {/*   머리단은 표 머리단 표준과 같은 모양(색·가운데·세로선·▼·≡)이고 스크롤해도 붙어 있는다 */}
             <div className="spv-row spv-head">
               <span><button type="button" className="spv-sort" onClick={() => toggleSort("date")}>년{sortMark("date")}</button>{grip("y")}</span>
               <span><button type="button" className="spv-sort" onClick={() => toggleSort("date")}>월</button>{grip("m")}</span>
@@ -1100,7 +1100,7 @@ function SalePurchaseInner() {
               <span>전자{grip("elec")}</span><span>분개{grip("je")}</span><span />
             </div>
 
-            {/* 저장된 전표 — 누르면 그 자리에서 고친다 (2026-08-11 사장님 지시).
+            {/* 저장된 전표 — 누르면 그 자리에서 고친다.
                 예전엔 읽기 전용이라 한 번 저장하면 화면에서 고칠 길이 없었다. */}
             {pager.view.map((r) => (
               edit?.savedId === r.savedId ? (
@@ -1136,7 +1136,7 @@ function SalePurchaseInner() {
         </div>
       </div>
 
-      {/* ── 아래 격자: 분개 — 위 구분선을 끌어 높이 조절 (2026-08-19 사장님: 분개를 더 넓게 보고 싶을 때 스스로) ── */}
+      {/* ── 아래 격자: 분개 — 위 구분선을 끌어 높이 조절 (분개를 더 넓게 보고 싶을 때 스스로) ── */}
       <SplitHandle onMouseDown={split.onMouseDown} onReset={split.reset} />
       <div ref={split.ref} style={split.height != null ? { maxHeight: split.height, height: split.height } : undefined} className={phoneGrid ? "spv-je glass-card spv-grid-forced" : "spv-je glass-card"}>
         <div className="spv-je-head">

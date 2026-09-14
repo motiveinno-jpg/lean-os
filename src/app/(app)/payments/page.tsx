@@ -105,7 +105,7 @@ function PaymentsPageInner() {
     enabled: !!companyId, staleTime: 60_000,
   });
   //   치운 후보(회사 공통)도 빼야 띠 숫자와 자동 추천 목록 건수가 같아진다.
-  //   ★ 2026-08-24 사장님 지적 전에는 이 띠가 치운 것을 안 뺐다. "처리할 것 5건"인데 열면 2건이었다.
+  //   ★ 전에는 이 띠가 치운 것을 안 뺐다. "처리할 것 5건"인데 열면 2건이었다.
   const  { data: dismissedKeys } = useQuery({
     queryKey: ["recurring-dismissals", companyId],
     queryFn: () => listRecurringDismissals(companyId!),
@@ -129,7 +129,7 @@ function PaymentsPageInner() {
     <div className="qk-shell pay-page">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* 조회 화면 표준 상자 (2026-08-19 자금 메뉴 확산) — 갈래 탭은 상자 안 맨 위 파란 밑줄, 갈래마다 조회 줄·결과 요약은 SlotHead 로 #pay-head-slot 에,
-          본문만 스크롤. 예전엔 탭 상자 따로 + 제목·버튼이 상자 밖 + 큰 빈 카드 (사장님 2026-08-19 점검) */}
+          본문만 스크롤. 예전엔 탭 상자 따로 + 제목·버튼이 상자 밖 + 큰 빈 카드 (대표 2026-08-19 점검) */}
       <QueryScreen>
       <QueryHead>
         <div className="collect-tabs no-print">
@@ -247,7 +247,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
       }).eq('id', refundItem.id);
       if (error) throw error;
 
-      // 실행 시 깎았던 통장 잔액과 프로젝트 원가 상태를 되돌린다 (2026-08-21 감사) —
+      // 실행 시 깎았던 통장 잔액과 프로젝트 원가 상태를 되돌린다
       //   종전엔 상태만 'refunded' 로 바꿔서, 통장 총 잔고는 환불액만큼 계속 적게 나오고
       //   프로젝트 원가에는 지급 완료로 계속 잡혔다.
       const wasExecuted = ['completed', 'paid', 'executed'].includes(String(refundItem.status));
@@ -340,7 +340,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
     setBulkRunning(true);
     setBulkProgress({ done: 0, total: candidates.length, failed: 0 });
     let failed = 0;
-    // 실패 사유 보존 (2026-08-19 감사): 종전엔 catch 로 삼켜 "실패 8건"만 보이고
+    // 실패 사유 보존: 종전엔 catch 로 삼켜 "실패 8건"만 보이고
     //   어느 건이 왜 실패했는지(잔액 부족 등) 알 수 없었다.
     const failReasons: string[] = [];
     for (let i = 0; i < candidates.length; i++) {
@@ -369,7 +369,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
     pending: { label: "승인대기", bg: "bg-[var(--warning-dim)]", text: "text-[var(--warning)]" },
     approved: { label: "승인완료", bg: "bg-[var(--info-dim)]", text: "text-[var(--info)]" },
     //   오너뷰는 이체를 하지 않는다(은행에서 이체). 그래서 앱이 '실행'한 것처럼 보이던 '실행완료/실행실패'
-    //   표기를 '완료/미완료'로 바꾼다. executed/completed 는 과거 흐름의 잔여 상태다(2026-09-09 사장님).
+    //   표기를 '완료/미완료'로 바꾼다. executed/completed 는 과거 흐름의 잔여 상태다.
     executed: { label: "완료", bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]" },
     completed: { label: "완료", bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]" },
     rejected: { label: "거부", bg: "bg-[var(--danger-dim)]", text: "text-[var(--danger)]" },
@@ -703,7 +703,7 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
 
 
 // ── 고정비 배치 상세 모달 (read-only) ──
-// 계좌번호 마스킹 · 뒤 4자리만 (2026-08-19 감사: 급여 배치 상세에 직원 계좌 전체가 노출)
+// 계좌번호 마스킹 · 뒤 4자리만 (급여 배치 상세에 직원 계좌 전체가 노출)
 function maskAccount(acc?: string | null): string  {
   const s = String(acc || "").trim();
   if (!s) return "";
@@ -712,7 +712,7 @@ function maskAccount(acc?: string | null): string  {
 }
 
 function BatchDetailModal({ batchId, onClose }: { batchId: string; onClose: () => void }) {
-  // 급여 배치의 직원별 실수령액·계좌는 급여 권한자만 (2026-08-19 감사)
+  // 급여 배치의 직원별 실수령액·계좌는 급여 권한자만
   const { hasPerm: batchHasPerm, isMaster: batchIsMaster } = useMyPermissions();
   const canSeeSalary = batchIsMaster || batchHasPerm("/employees:salary");
   const { data, isLoading } = useQuery({
@@ -1071,7 +1071,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
       {/* 통장에서 잡힌 반복 지출 — 한 줄 안내 + 전체 자동등록 (검토는 자동 추천 탭에서) */}
       {newDetected.length > 0 && (
         <div className="pay-note">
-          {/*   ★ 건수만 알려 주지 않는다 — 누르면 27건이 무엇인지 팝업으로(2026-08-27 사장님) */}
+          {/*   ★ 건수만 알려 주지 않는다 — 누르면 27건이 무엇인지 팝업으로 */}
           <button type="button" className="pay-note-link" onClick={() => setShowDetected(true)} title="누르면 잡힌 반복 지출 전체 내역">
             <b>통장에서 반복 지출 {newDetected.length}건이 잡혔습니다</b>
             <span>{newDetected.slice(0, 3).map((d: DetectedRecurring) => `${d.counterparty} ₩${d.amount.toLocaleString()}`).join(" · ")}{newDetected.length > 3 && ` … 외 ${newDetected.length - 3}건`} <em className="pay-note-more">내역 보기 →</em></span>
@@ -1290,8 +1290,8 @@ function SmartSetupBanner({ companyId, userId, invalidate, onRegistered }: { com
   });
 
   // 감지 후보 개별 등록/미등록 · 반복 이체라고 전부 정기결제는 아니므로 건별 판단.
-  //   ★ 미등록 판단은 **회사 공통**이다 (2026-08-24 사장님 지적: "직원마다 다르게 뜸").
-  //     예전엔 브라우저 localStorage 에만 남겨서 ①사장님이 치운 후보가 직원 화면엔 그대로 뜨고
+  //   ★ 미등록 판단은 **회사 공통**이다 ("직원마다 다르게 뜸").
+  //     예전엔 브라우저 localStorage 에만 남겨서 ①대표 치운 후보가 직원 화면엔 그대로 뜨고
   //     ②같은 사람도 PC 를 바꾸면 다시 봤다. 이제 recurring_dismissals 테이블에 남긴다.
   const  { data: dismissed } = useQuery({
     queryKey: ["recurring-dismissals", companyId],

@@ -9,7 +9,7 @@ import { checkIn as hrCheckIn, checkOut as hrCheckOut, cancelCheckOut as hrCance
 import { useToast } from "@/components/toast";
 import { useUser } from "@/components/user-context";
 
-// 사이드바 로고 옆 원클릭 출퇴근 버튼 (2026-08-10 사장님 요청)
+// 사이드바 로고 옆 원클릭 출퇴근 버튼
 //   - 미출근 → "출근" / 근무 중 → "퇴근" / 퇴근 완료 → "퇴근취소" / 직원 미연결 → 미표시
 //   - 출퇴근 로직·쿼리 키는 MyAttendanceCard(위젯)와 동일 소스 공유 → 어느 쪽에서 찍어도 즉시 동기화
 export function SidebarAttendanceButton() {
@@ -64,7 +64,7 @@ export function SidebarAttendanceButton() {
 
   const handleClick = async () => {
     if (!companyId || !employeeId || busy) return;
-    // 퇴근취소만 되돌리기 확인 — 위젯(MyAttendanceCard)과 동일 (2026-08-10 사장님:
+    // 퇴근취소만 되돌리기 확인 — 위젯(MyAttendanceCard)과 동일 (
     //   "퇴근하면 퇴근취소 버튼이 다시 안 생겨" → 퇴근 완료 후에도 버튼 유지)
     if (isCheckedOut && !(await appConfirm("퇴근 기록을 취소하시겠습니까?"))) return;
     setBusy(true);

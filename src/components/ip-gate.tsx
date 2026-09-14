@@ -1,6 +1,6 @@
 "use client";
 
-// 회사별 접속 허용 IP 제한 — 옵션 기능 (2026-08-11 사장님: "쓰는 회사들에게만 적용").
+// 회사별 접속 허용 IP 제한 — 옵션 기능 ("쓰는 회사들에게만 적용").
 //   회사 설정(company_settings.settings.ip_restriction = { enabled, ips: [] })을 켠 회사만,
 //   허용 목록에 없는 IP 로 접속하면 전체 화면 차단.
 //   · IP 는 /api/my-ip(서버가 본 x-forwarded-for)로 판정 — 클라이언트가 위조할 수 없다.

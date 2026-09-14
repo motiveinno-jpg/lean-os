@@ -2,9 +2,9 @@
 -- 선행: 20260831150000_employee_rrn_encrypted.sql
 --
 -- P1 (파기 경로) — 검수 지적은 reset_company_data 의 삭제 목록에 employee_rrn 이 없다는 것이었으나,
---   그 함수는 2026-08-10 사장님 지시("데이터 초기화는 없애자, 회사 삭제만 놔둬")로
+--   그 함수는("데이터 초기화는 없애자, 회사 삭제만 놔둬")로
 --   20260810170000_drop_reset_company_data.sql 에서 이미 삭제됐고 prod 에도 존재하지 않는다(pg_proc 확인).
---   되살리면 사장님이 없애라고 한 파괴적 RPC 를 부활시키는 것이므로 재생성하지 않는다.
+--   되살리면 대표 없애라고 한 파괴적 RPC 를 부활시키는 것이므로 재생성하지 않는다.
 --   현재 파기는 master_delete_company 가 맡고, 그 함수는 information_schema 에서
 --   company_id 컬럼을 가진 public BASE TABLE 을 매번 동적으로 훑는다 →
 --   employee_rrn·employee_rrn_access_log 는 둘 다 company_id 가 있어 자동 포함된다(별도 등록 불필요).

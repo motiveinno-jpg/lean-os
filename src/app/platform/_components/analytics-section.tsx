@@ -31,7 +31,7 @@ const GRANS: { key: Gran; label: string; buckets: number }[] = [
   { key: "year", label: "연간", buckets: 3 },
 ];
 
-// 집계 범위 (2026-08-25 사장님 지적으로 신설 — "이 25명 다 우리가 테스트한 것 아니냐").
+// 집계 범위 (2026-08-25 대표 지적으로 신설 — "이 25명 다 우리가 테스트한 것 아니냐").
 //   visitor_key 가 localStorage 난수라 우리 팀이 시크릿 창을 열 때마다 새 방문자가 됐다.
 //   '검색 유입' 은 검색엔진 리퍼러가 찍힌 방문자 — 우리가 만들어낼 수 없는 기록이라
 //   신뢰할 수 있는 하한선으로 쓴다.
@@ -56,7 +56,7 @@ const METRICS: { key: MetricKey; label: string; unit: string }[] = [
 
 const fmt = (n: number) => n.toLocaleString("ko-KR");
 
-// ── 경로 → 한국어 페이지명 (2026-08-04 사장님: 현황판에서 주소 대신 이름으로) ──
+// ── 경로 → 한국어 페이지명 (현황판에서 주소 대신 이름으로) ──
 const PATH_LABELS: Record<string, string> = {
   "": "랜딩페이지",
   dashboard: "대시보드",
@@ -173,10 +173,10 @@ export function AnalyticsSection({ usage, traffic, companies, companyActivity, t
   testData?: Analytics;
 }) {
   // 사이드 카드(활동 사용자·이용 형태·많이 본 페이지·유입) 기간 창 — 상단 일간/월간/연간 토글과
-  // 같은 범위를 본다 (2026-08-20 사장님: 토글 눌렀을 때 사이드도 맞게 적용).
+  // 같은 범위를 본다 (토글 눌렀을 때 사이드도 맞게 적용).
   const SIDE_WINDOW_DAYS: Record<Gran, number> = { day: 30, month: 365, year: 1095 };
   const SIDE_WINDOW_LABEL: Record<Gran, string> = { day: "최근 30일", month: "최근 12개월", year: "최근 3년" };
-  // 많이 본 페이지·유입 경로는 말 그대로 일간=오늘 / 월간=한 달 / 연간=1년 (2026-08-20 사장님 정정)
+  // 많이 본 페이지·유입 경로는 말 그대로 일간=오늘 / 월간=한 달 / 연간=1년
   const TRAFFIC_WINDOW_DAYS: Record<Gran, number> = { day: 1, month: 30, year: 365 };
   const TRAFFIC_WINDOW_LABEL: Record<Gran, string> = { day: "오늘", month: "최근 30일", year: "최근 1년" };
   const [gran, setGran] = useState<Gran>("day");

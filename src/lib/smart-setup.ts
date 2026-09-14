@@ -17,7 +17,7 @@ export const recurringRoundAmount = (n: unknown) => Math.round(Number(n || 0) / 
 export const recurringMatchKey = (counterparty: unknown, amount: unknown) =>
   `${String(counterparty ?? '').trim()}|${recurringRoundAmount(amount)}`;
 
-/** '정기결제 아님'으로 치운 후보 — 회사 공통(2026-08-24 사장님: "직원마다 다르게 뜸").
+/** '정기결제 아님'으로 치운 후보 — 회사 공통("직원마다 다르게 뜸").
  *  예전엔 브라우저 localStorage 라 사람마다·PC마다 달랐다. */
 export async function listRecurringDismissals(companyId: string): Promise<Set<string>> {
   if (!companyId) return new Set();
@@ -136,7 +136,7 @@ export async function detectRecurringFromBankTx(companyId: string): Promise<Dete
     .eq('company_id', companyId)
     .eq('is_active', true));
 
-  //   ★ 2026-08-24 사장님 지적: "등록한 건이 계속 남아있음". 원인은 **비교 대상이 어긋난 것**이었다 —
+  //   ★ "등록한 건이 계속 남아있음". 원인은 **비교 대상이 어긋난 것**이었다
   //     등록할 때 name 에 `거래처 (분류)` 를 넣는데(아래 registerDetectedRecurring),
   //     판정은 후보의 `거래처|금액` 을 **name** 과 맞춰 봤다. 그래서 등록하는 순간 이름이 달라져
   //     `alreadyRegistered` 가 영원히 false — 후보가 사라지지 않고, 또 누르면 같은 것이 두 줄 생긴다.

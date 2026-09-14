@@ -1,4 +1,4 @@
-// 재무제표의 단일 원천 — **전표(journal_entries/journal_lines)** (2026-08-11 사장님 지시)
+// 재무제표의 단일 원천 — **전표(journal_entries/journal_lines)**
 //
 //   "손익계산서와 재무상태표에는 전표로 처리된 내역만 반영되게 해줘.
 //    그냥 불러오기만 한 내용은 반영되지 않게."
@@ -24,7 +24,7 @@ export type JournalLine = {
   section: PnlSection;    // revenue | cogs | opex | nonop_income | nonop_expense | tax | null
   debit: number;
   credit: number;
-  //   ── 원장(드릴다운)이 쓰는 것 — 2026-08-12 사장님 지시로 추가 ──
+  //   ── 원장(드릴다운)이 쓰는 것 — 2026-08-12 대표 지시로 추가 ──
   //   그전엔 계정 정보만 실어 와서, 상세 창의 '거래처' 칸에 **계정 이름**이 들어가 있었다
   //   (지급수수료 13줄이 전부 "지급수수료"). 어느 전표인지도 알 수 없었다.
   entryId: string;

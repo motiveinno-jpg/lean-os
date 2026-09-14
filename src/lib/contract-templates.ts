@@ -115,7 +115,7 @@ export async function updateContractTemplate(id: string, patch: Partial<{
 
   // maybeSingle: 권한이 없으면 update 가 0행이라 .single() 이 406 이 나고, 화면엔 엉뚱하게
   //   "데이터를 찾을 수 없습니다. 새로고침 후 다시 시도해 주세요" 가 떴다 — 새로고침해도 소용없다.
-  //   (2026-08-20 감사: 07-31 에 쓰기 권한이 마스터·/hr-templates 로 좁혀졌다)
+  //   (07-31 에 쓰기 권한이 마스터·/hr-templates 로 좁혀졌다)
   const { data, error } = await db
     .from("contract_templates")
     .update(update as never)
@@ -137,7 +137,7 @@ export async function deleteContractTemplate(id: string): Promise<void> {
 // ──────────────────────────────────────────────────────────
 //   표준 양식은 전 회사가 공유하는 행이라 삭제하면 남의 회사 것까지 사라진다.
 //   그래서 "우리 회사 목록에서만 감추는" 방식으로 company_settings.settings 에 id 목록을 둔다.
-//   (2026-08-03 사장님: 양식관리에서 지운 계약서가 발송하기에 계속 나오면 안 된다)
+//   (양식관리에서 지운 계약서가 발송하기에 계속 나오면 안 된다)
 const HIDDEN_KEY = "hidden_contract_template_ids";
 
 export async function getHiddenContractTemplateIds(companyId: string): Promise<string[]> {
@@ -157,7 +157,7 @@ export async function setContractTemplateHidden(companyId: string, templateId: s
 }
 
 // ──────────────────────────────────────────────────────────
-// 양식 순서 — 회사 단위 (2026-08-03 사장님: "순서도 내가 변경할 수 있게")
+// 양식 순서 — 회사 단위 ("순서도 내가 변경할 수 있게")
 // ──────────────────────────────────────────────────────────
 //   표준 양식 행은 전 회사 공유라 sort_order 를 직접 못 바꾼다(RLS) — 숨김과 같은 방식으로
 //   company_settings.settings 에 id 순서 배열을 두고, 화면(양식관리·발송 목록)이 이 순서로 정렬한다.
@@ -178,7 +178,7 @@ export async function setContractTemplateOrder(companyId: string, ids: string[])
 }
 
 // ──────────────────────────────────────────────────────────
-// 개인 양식 순서 — 계정 단위 (2026-09-08 사장님: "개인 양식도 순서 변경")
+// 개인 양식 순서 — 계정 단위 ("개인 양식도 순서 변경")
 // ──────────────────────────────────────────────────────────
 //   회사 공용 순서(company_settings)는 회사 전체가 공유하므로 개인 양식엔 맞지 않다.
 //   개인 순서는 그 사람만의 것 → user_preferences.signature_list_prefs.personal_template_order 에 id 배열로.
@@ -232,7 +232,7 @@ export function sortTemplatesByOrder<T extends { id: string }>(templates: T[], o
 // 변수 처리
 // ──────────────────────────────────────────────────────────
 
-// 변수 토큰 규약 — `{{변수명}}` 이중 중괄호로 통일 (2026-08-05 사장님 지시).
+// 변수 토큰 규약 — `{{변수명}}` 이중 중괄호로 통일.
 //   전자계약 발송 경로(signatures.normalizeVariableTokens·OrgBulkWizard)가 원래 이중이었는데
 //   계약 양식 쪽만 단일이라, 편집기에서 넣은 변수가 발송 때 치환되지 않았다.
 //   레거시 단일 중괄호 `{변수명}` 본문(과거 저장분)도 계속 인식·치환한다 — 이중을 먼저 매칭.

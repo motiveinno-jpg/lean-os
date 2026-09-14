@@ -251,7 +251,7 @@ export function CardBillingSummary({ companyId, onSelectCard }: Props) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['corp-cards'] }),
   });
 
-  // 2026-05-22 최근 동기화(카드 거래 최신 일자) — 사장님이 데이터 시점 인지 가능하게.
+  // 2026-05-22 최근 동기화(카드 거래 최신 일자) — 대표 데이터 시점 인지 가능하게.
   //   ⚠️ 훅은 반드시 early return 앞에 위치 (billings 0건일 때 훅 스킵 → React #310 방지).
   const lastSyncDate = useMemo(() => {
     let max = '';

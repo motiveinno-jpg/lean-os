@@ -2,7 +2,7 @@
 import { koFallback } from "@/lib/ko-label";
 import { appConfirm } from "@/components/global-confirm";
 
-// ── 재고 › 이익관리 (결정 40, 2026-08-26 사장님 지시) ─────────────────────────────────────
+// ── 재고 › 이익관리 (결정 40,) ─────────────────────────────────────
 //   구매·생산·판매를 통해 남는 돈을 **원가가 반영된** 숫자로. 원가는 DB 가 확정한 출고 원가(stock_move_costs, FIFO/이동평균)만 읽는다.
 //   · 판매 이익 = 매출(반품 차감) − 매출원가(출고 원가). 손실 = 폐기·감모·샘플·증정 출고 원가. 순이익 = 판매 이익 − 손실.
 //   · 층이 없어 원가를 못 정한 출고는 '원가 미확정'으로 센다 — 0 으로 잡지 않는다.
@@ -48,7 +48,7 @@ export default function InventoryProfitPage() {
   const { isMaster, hasPerm, loading: permLoading } = useMyPermissions();
   const [companyId, setCompanyId] = useState<string | null>(null);
   useEffect(() => { getCurrentUser().then((u) => setCompanyId(u?.company_id ?? null)); }, []);
-  //   매출 KPI 현황판(결정 144). 2026-09-02 사장님 지시로 매출 리포트에서 이사(쓰는 회사가
+  //   매출 KPI 현황판(결정 144). 2026-09-02 대표 지시로 매출 리포트에서 이사(쓰는 회사가
   //   판매·이커머스 쪽). 열릴 때만 마운트해 닫혀 있으면 전표를 안 불러온다.
   const [kpiOpen, setKpiOpen] = useState(false);
   const  { toast } = useToast();

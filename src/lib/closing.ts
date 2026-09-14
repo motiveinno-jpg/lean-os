@@ -253,7 +253,7 @@ export async function autoVerifyChecklist(
       reason = passed ? '미매핑 0건' : `미매핑 ${unmapped}건 (은행 ${bankUn || 0} + 카드 ${cardUn || 0})`;
     }
     else if (title.includes('세금계산서')) {
-      // QA 2026-07-10: type 값은 'sales'(영문), matched_transaction_id 컬럼 부재 → status 기준으로 교정
+      // type 값은 'sales'(영문), matched_transaction_id 컬럼 부재 → status 기준으로 교정
       const { count: unmatchedSales } = await db.from('tax_invoices')
         .select('id', { count: 'exact', head: true })
         .eq('company_id', companyId).eq('type', 'sales')

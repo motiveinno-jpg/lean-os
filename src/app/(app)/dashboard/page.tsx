@@ -51,7 +51,7 @@ import  { BankRecentCard, ApprovalsPendingCard, EmployeesCard, PartnersCard, Ann
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import { fetchTaxDeadlineChecks, setTaxDeadlineChecked } from "@/lib/tax-deadline-checks";
 import { useCompanyBizNo } from "@/lib/use-company-bizno"; // 사업자번호 미등록 유도 배너 판정
-import { MorningBrief } from "@/components/morning-brief"; // AI 브리핑 — 격자 위 맨 윗줄(2026-09-09 사장님 지시)
+import { MorningBrief } from "@/components/morning-brief"; // AI 브리핑 — 격자 위 맨 윗줄
 
 // ── Formatters ──
 function fmtW(n: number): string {
@@ -80,7 +80,7 @@ const RISK_LABELS: Record<RiskLabel, { title: string; icon: string; color: strin
   OUTSOURCE_OVER_MARGIN:  { title: '외주비 마진잠식', icon: '🔥', color: '#ff6b35' },
 };
 
-// 대시보드 위젯 기본 배치(사장님 확정 배치 2026-07-15) — 저장된 개인 레이아웃이 없거나 '기본값' 리셋 시 이 배치로.
+// 대시보드 위젯 기본 배치( 배치 2026-07-15) — 저장된 개인 레이아웃이 없거나 '기본값' 리셋 시 이 배치로.
 //   오너/직원 공용. 직원 화면엔 재무·attendance·tax 위젯이 없어 해당 항목은 자동으로 미적용(그리드가 무시).
 //   목록에 없는 위젯(work-appr/proj/sign/ment 등 조건부 카드)은 표시될 때 그리드가 자동 배치.
 // 2026-08-10 숫자 스트립 문법 도입으로 카드 콘텐츠가 커짐 — 기본 높이를 실측 기준으로 상향
@@ -152,7 +152,7 @@ export default function DashboardPage() {
         const dc = count ?? 0;
         setDealCount(dc);
         //   옛 7단계 온보딩 마법사(통장 잔고 수기입력·직원등록·첫 프로젝트)는 폐기 —
-        //   신규 안내는 /onboarding 리디자인 + 아래 GettingStartedChecklist 가 대신한다 (2026-09-09 사장님).
+        //   신규 안내는 /onboarding 리디자인 + 아래 GettingStartedChecklist 가 대신한다.
       } else if (retries < 2) {
         // 회원가입 직후 user 레코드 생성 지연 가능 — 재시도
         retries++;
@@ -360,7 +360,7 @@ export default function DashboardPage() {
       queryClient.invalidateQueries({ queryKey: ["dash-bank-today"] });   // 오늘 입금·출금·건수 요약도 방금 받아온 거래로 다시 센다
       queryClient.invalidateQueries({ queryKey: ["dash-cards"] });
 
-      // partial(일부 실패)은 성공 스타일로 가리지 않는다 (2026-08-19 감사). 첫 오류를 그대로 노출.
+      // partial(일부 실패)은 성공 스타일로 가리지 않는다. 첫 오류를 그대로 노출.
       const firstErr = ((codefResult as any).errors || [])[0] as  { message?: string; hint?: string } | undefined;
       if (codefResult.success && firstErr) {
         setSyncResult({
@@ -395,13 +395,13 @@ export default function DashboardPage() {
 
   const sp = dashboard.sixPack;
 
-  // (2026-07-30 사장님) 대외비(금액) 위젯 게이트 · 기본 대시보드는 전원(필수 위젯만),
+  //  대외비(금액) 위젯 게이트 · 기본 대시보드는 전원(필수 위젯만),
   //   재무·경영 위젯은 /dashboard:finance 권한 보유자(또는 마스터)만 추가·표시 가능.
   const  { isMaster: dashMaster, hasPerm: dashPerm, loading: permLoading } = useMyPermissions();
   const canFinance = dashMaster || dashPerm("/dashboard:finance");
-  // AI 브리핑은 별도 세부 권한(2026-08-10 사장님) — 부여자에게만 보이고, 없으면 카드 자체가 안 뜬다
+  // AI 브리핑은 별도 세부 권한 — 부여자에게만 보이고, 없으면 카드 자체가 안 뜬다
   const canBriefing = dashMaster || dashPerm("/dashboard:briefing");
-  //   통장·카드 위젯 머리에 쓰는 자료 상태 (2026-08-19 재편 — 사장님: "위젯 안으로, 통장은 통장 카드는 카드")
+  //   통장·카드 위젯 머리에 쓰는 자료 상태 (2026-08-19 재편 — 대표: "위젯 안으로, 통장은 통장 카드는 카드")
   const syncStatus = useSyncStatus(canFinance ? companyId : null);
   const unclassified = useUnclassifiedCounts(canFinance ? companyId : null);
 
@@ -417,7 +417,7 @@ export default function DashboardPage() {
 
   
 
-  // 2026-05-28 사장님 요청 · 관리자 대시보드를 대표 화면과 동일하게 통합.
+  //  · 관리자 대시보드를 대표 화면과 동일하게 통합.
   // 단, 출퇴근+결재(mb-5 grid grid-cols-1 lg:grid-cols-2 gap-4) 블록은 유지하고,
   // 경영(manage) 탭은 관리자에게 숨김. (아래 owner UI 안에서 role 분기 처리)
 
@@ -494,7 +494,7 @@ export default function DashboardPage() {
       <MasterPermissionNotice />
 
       {/* ═══ [배너] 체크리스트 — 접힌 상태 기본 ═══ */}
-      {/* 투어 중에는 비켜선다 (2026-08-20 사장님): 신규 가입 첫 화면에서 배너·체크리스트·12단계
+      {/* 투어 중에는 비켜선다: 신규 가입 첫 화면에서 배너·체크리스트·12단계
           투어가 한꺼번에 뜨고, 투어 말풍선이 체크리스트 첫 줄을 덮어 글자가 잘려 보였다.
           투어가 끝나면(sessionStorage 스텝 소멸) 다음 진입에서 정상 노출된다. */}
       {/* 샘플 회사 체험 중이면 늘 맨 위에 — 지금 보는 숫자가 샘플임을 잊지 않게 */}
@@ -512,10 +512,10 @@ export default function DashboardPage() {
           {/* ── 2026-08-19 대시보드 재편 (docs/20260819_PLAN_dashboard_redesign.md) — 세 층:
                층 1 신호 6칸(회사가 안전한가, 경영 요약과 같은 함수) → 층 2 오늘 챙길 것(AI 제안 표) → 층 3 위젯 격자(같은 키).
                예전 '동기화 줄 + 노란 미분류 배너 + 위젯 편집'은 없앴다 — 동기화·미분류는 통장/카드 위젯 머리에. ── */}
-          {/* 층 1(신호)·층 2(챙길 것)는 2026-08-20 위젯이 됐고, 2026-09-04 사장님 지시로 카탈로그에서 뺐다(부록 격자만 메인).
+          {/* 층 1(신호)·층 2(챙길 것)는 2026-08-20 위젯이 됐고, 2026-09-04 대표 지시로 카탈로그에서 뺐다(부록 격자만 메인).
               날짜·회사 이름과 '보기 설정'은 격자 머리 한 줄(headLeft)로 올라가 최상단 오른쪽에 보기 설정이 온다. */}
 
-          {/* ── AI 브리핑 — 격자 **위** 맨 윗줄 (2026-09-09 사장님 "대시보드에 AI브리핑 맨위에 넣어줘").
+          {/* ── AI 브리핑 — 격자 **위** 맨 윗줄 (2026-09-09 대표가 "대시보드에 AI브리핑 맨위에 넣어줘").
                위젯으로 넣지 않은 이유: 카탈로그 위젯은 사람마다 자리를 옮기고 지울 수 있어 '맨 위'가 지켜지지 않는다.
                ⚠️ 권한 /dashboard:briefing 보유자에게만 보인다 (2026-08-10 규칙 — 부여자 외에는 카드 자체가 안 뜬다).
                ⚠️ AI 호출이 실패하면(요금·한도) 오류를 띄우지 않고 **규칙으로 만든 브리핑**으로 내려간다 —
@@ -559,7 +559,7 @@ export default function DashboardPage() {
           <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleExcelUpload} />
 
           {/* 대시보드 통합 위젯 그리드 — 카탈로그 기반: 개인별 위젯 추가/삭제 자유(2026-07-15).
-              기본 활성 위젯 = 사장님 확정 배치(DEFAULT_WIDGET_POS), 그 외는 편집 모드 '위젯 추가'로. */}
+              기본 활성 위젯 = 배치(DEFAULT_WIDGET_POS), 그 외는 편집 모드 '위젯 추가'로. */}
           {(() => {
             const taxItems = getUpcomingTaxDeadlines(60);
             const uid = userId || "";
@@ -568,7 +568,7 @@ export default function DashboardPage() {
             const bankHead = <ChannelHead status={syncStatus.bank} unclassified={unclassified.bank} unclassifiedHref="/collect?tab=bank" onSync={() => handleDataSync('bank')} syncing={syncing} />;
             const cardHead = <ChannelHead status={syncStatus.card} unclassified={unclassified.card} unclassifiedHref="/collect?tab=card" onSync={() => handleDataSync('card')} syncing={syncing} />;
             const catalog: CatalogWidget[] = [
-              //   2026-09-04 사장님 "부록 위젯 격자로 되어 있는 것만 메인 대시보드에서 사용" — 신호 띠·챙길 것·오늘 한눈 위젯은 뺐다
+              //   2026-09-04 대표가 "부록 위젯 격자로 되어 있는 것만 메인 대시보드에서 사용" — 신호 띠·챙길 것·오늘 한눈 위젯은 뺐다
               //   (v3 부록 격자와 같은 카탈로그 16개). AI 챙길 것은 morning-brief.tsx 에 남아 있어 위젯으로 다시 넣을 수 있다.
               { id: "receivables", name: "미수금", icon: "💸", desc: "미수금 합계와 오래된 거래처", category: "경영", render: () => <ReceivablesPreview companyId={companyId} companyName={companyName} /> },
               { id: "revenue", name: "이번 달 매출", icon: "💰", desc: "매출 합계·최근 내역", category: "경영", render: () => <RecentRevenue companyId={companyId} /> },
@@ -577,7 +577,7 @@ export default function DashboardPage() {
               { id: "cards", name: "카드 사용", icon: "💳", desc: "이번 달 카드별 사용액", category: "자금", render: () => <CardsSummaryCard companyId={companyId} headExtra={cardHead} /> },
               { id: "approvals", name: "결재 대기", icon: "🗂️", desc: "회사 결재 대기 목록", category: "업무", render: () => <ApprovalsPendingCard companyId={companyId} /> },
               { id: "projects", name: "최근 프로젝트", icon: "💼", desc: "진행 프로젝트 단계·계약액", category: "업무", render: () => <RecentProjects companyId={companyId} /> },
-              //   게시판 = 회사가 직원에게 알리는 글, 오너뷰 공지 = 운영팀 서비스 공지 · 둘은 다른 것 (2026-09-07 사장님)
+              //   게시판 = 회사가 직원에게 알리는 글, 오너뷰 공지 = 운영팀 서비스 공지 · 둘은 다른 것
               
               { id: "board", name: "게시판", icon: "📌", desc: "회사 게시판의 최근 글", category: "업무", render: () => <BoardCard companyId={companyId} /> },
               { id: "announcements", name: "공지사항", icon: "📢", desc: "오너뷰 운영팀의 서비스 공지·업데이트", category: "업무", render: () => <AnnouncementsCard /> },
@@ -586,17 +586,17 @@ export default function DashboardPage() {
               { id: "assets", name: "계좌별 잔액", icon: "🏦", desc: "계좌별 잔액·합계", category: "자금", render: () => <AssetsSummaryCard companyId={companyId} /> },
               { id: "work-tasks", name: "내 담당 업무", icon: "✅", desc: "나에게 배정된 프로젝트 태스크", category: "개인", render: () => <MyTasksCard companyId={companyId} userId={uid} /> },
               // 달력은 6주가 들어가야 해서 기본 h(4=212px)로는 달이 반쯤 잘렸다(2026-08-21 제보).
-              //   2026-09-10 사장님 "크기 고정, 지금보다 크게": 한 열(w4) × h11(604px)로 못박는다(fixed).
+              //   2026-09-10 대표가 "크기 고정, 지금보다 크게": 한 열(w4) × h11(604px)로 못박는다(fixed).
               //   6주 격자·고른 날 목록이 이 높이에 맞춰 설계돼 있어, 사람이 줄이면 다시 답답해진다.
               //   fixed 는 저장된 크기도 무시하므로 쓰던 분들도 이 크기로 바뀐다(자리는 그대로).
-              //   자리도 기본은 맨 위 왼쪽 (2026-09-10 사장님) — 달력은 매일 먼저 보는 것이라 스크롤 아래에 있으면 안 된다.
+              //   자리도 기본은 맨 위 왼쪽 — 달력은 매일 먼저 보는 것이라 스크롤 아래에 있으면 안 된다.
               { id: "calendar", name: "달력", icon: "📅", desc: "이번 달 일정·휴가 달력", category: "개인", x: 0, y: 0, w: 4, h: 11, fixed: true,
                 render: () => <DashboardCalendar userId={uid} companyId={companyId} /> },
               { id: "employees", name: "구성원", icon: "👥", desc: "재직 인원", category: "업무", render: () => <EmployeesCard companyId={companyId} /> },
               { id: "partners", name: "거래처", icon: "🤝", desc: "등록 거래처", category: "업무", render: () => <PartnersCard companyId={companyId} /> },
               { id: "inventory", name: "재고 부족", icon: "📦", desc: "안전재고 아래로 내려간 품목", category: "업무", render: () => <InventoryShortageCard companyId={companyId} /> },
             ];
-            // 위젯 노출 = 권한 (2026-08-19 사장님: "권한 설정에 맞게 노출되는지, 보기 설정에서 내가 권한 있는 메뉴만 체크 가능한지")
+            // 위젯 노출 = 권한 ("권한 설정에 맞게 노출되는지, 보기 설정에서 내가 권한 있는 메뉴만 체크 가능한지")
             //   · 금액 위젯: /dashboard:finance(재무·경영 위젯) **그리고** 그 위젯이 여는 메뉴 권한 둘 다 있어야 한다 (2026-07-30 규칙 + 메뉴 권한)
             //   · 메뉴 위젯: 그 메뉴 권한. 전원 기본(always) 메뉴 위젯(공지·일정·내 담당 업무·달력)은 항상.
             //   보기 설정 판도 이 목록(visibleCatalog)만 보이므로, 권한 없는 위젯은 켤 수도 없다.
@@ -666,8 +666,8 @@ export default function DashboardPage() {
 
       {/* ═══ 경영 종합 — CEO 커맨드 센터(액션·펄스·목표·리스크). owner 전용, 상시 노출. ═══ */}
       {/* ═══ 경영 종합(CEO 커맨드 센터·프로젝트 경영 종합·월결산)은 마스터 전용 화면(/master)으로
-           이동 (2026-08-10 사장님: "대시보드에는 owner-command-center 위에 것들만"). ═══ */}
-      {/* 데이터 없음 CTA 도 마스터 화면으로 이동 (2026-08-10 사장님 2차 지시) */}
+           이동 ("대시보드에는 owner-command-center 위에 것들만"). ═══ */}
+      {/* 데이터 없음 CTA 도 마스터 화면으로 이동 (2026-08-10 대표 2차 지시) */}
       {/* 동기화·업로드 버튼과 결과 토스트는 위젯 그리드 위 유틸리티 행으로 이동 (2026-08-10 리파인) */}
     </div>
   );
@@ -2508,7 +2508,7 @@ function EmployeeProjectsWidget() {
 }
 // (2026-07-30 개편 P2) EmployeeDashboard 삭제 — 화면 한 벌: 모든 구성원이 동일 대시보드(권한 게이트는 RouteGuard).
 
-// 사업자번호 미등록 유도 (2026-08-20 사장님) — 가입 관문에서 번호를 빼면서 함께 넣은 장치.
+// 사업자번호 미등록 유도 — 가입 관문에서 번호를 빼면서 함께 넣은 장치.
 //   "나중에 하면 영영 안 한다"에 대한 답 중 하나: **닫아도 세션마다 다시 뜬다**(localStorage 아님).
 //   막지는 않는다 — 막는 건 번호가 실제로 필요한 자리(통장 연결·세금계산서)에서만 한다.
 function BizNoNotice() {
@@ -2548,7 +2548,7 @@ function MasterPermissionNotice()  {
     if (!(user as any)?.is_master) return;
     try { setDismissed(localStorage.getItem("ov:master-perm-notice") === "1"); } catch { setDismissed(false); }
   }, [user]);
-  // 혼자인 회사엔 뜨지 않는다 (2026-08-20 사장님): 방금 가입한 1인 회사가 첫 화면에서
+  // 혼자인 회사엔 뜨지 않는다: 방금 가입한 1인 회사가 첫 화면에서
   //   "권한 체계가 **개편**되었습니다. **구성원** 권한을 부여해 주세요" 를 봤다.
   //   개편을 겪은 적도 없고 권한 줄 사람도 없다. 기존 고객용 공지가 신규에게까지 나가던 것.
   const companyId = (user as any)?.company_id as string | undefined;
@@ -2612,7 +2612,7 @@ function PartnerDashboard({ companyId, userId }: {
         .select("id", { count: "exact", head: true })
         .eq("company_id", companyId!)
         // 'pending_signature' 라는 상태는 없다 — 실제 값은 sent/viewed/signed/expired/rejected/pending.
-        //   그래서 이 카드는 늘 0 이었다 (2026-08-20 감사). 보냈지만 아직 서명 안 된 건을 센다.
+        //   그래서 이 카드는 늘 0 이었다. 보냈지만 아직 서명 안 된 건을 센다.
         .in("status", ["sent", "viewed", "pending"]);
       return count ?? 0;
     },
@@ -2658,7 +2658,7 @@ function PartnerDashboard({ companyId, userId }: {
 
       
 
-      // 최근 문서 변경 · QA 2026-07-10: doc_templates 에 title/updated_at/status 없음(400) → name/created_at 기준
+      // 최근 문서 변경 · doc_templates 에 title/updated_at/status 없음(400) → name/created_at 기준
       const docs = logRead('dashboard/page:docs', await db
         .from("doc_templates")
         .select("name, created_at")

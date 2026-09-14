@@ -1,4 +1,4 @@
--- 택배사 송장 양식 (2026-08-26 사장님 지시 — "택배사가 다양하니 모든 택배사 양식을 고를 수 있게")
+-- 택배사 송장 양식 ("택배사가 다양하니 모든 택배사 양식을 고를 수 있게")
 --   ① 표준 양식은 코드(CARRIER_SHEETS)에, ② 회사가 만든 '내 양식'은 여기에. 열 = [{key, label}] 순서대로.
 alter table public.channel_order_imports add column if not exists recipient_zip text;
 

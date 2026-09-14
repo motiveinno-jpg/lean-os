@@ -1,8 +1,8 @@
 "use client";
 
-// ── 재고 — 전표 화면 껍데기 (2026-08-25 사장님 지시) ───────────────────────────
+// ── 재고 — 전표 화면 껍데기 ───────────────────────────
 //   주문서·판매·구매·생산이 이것 하나를 같이 쓴다. 다른 것은 **저장하면 무엇이 되는가**뿐이다.
-//   ★ 들어가면 **입력이 먼저** 뜬다(사장님 지시) — 치려고 들어오는 일이 훨씬 많다. 커서도 첫 칸에 간다.
+//   ★ 들어가면 **입력이 먼저** 뜬다 — 치려고 들어오는 일이 훨씬 많다. 커서도 첫 칸에 간다.
 //   ★ 이력에서 줄을 누르면 **치던 그 화면이 그대로** 팝업으로 뜬다.
 //     수정 전용 화면을 따로 만들지 않는다 — 만들면 칸·규칙이 둘로 갈라져 곧 어긋난다.
 
@@ -84,7 +84,7 @@ export function DocScreen({
   /** 주문서에서 줄을 불러오는 버튼을 둘지 */
   pull?: (ctl: DocCtl) => React.ReactNode;
   headNote?: React.ReactNode;
-  /** 보조 동작 묶음 — 주면 '도구 ▾' 하나로 접히고 '입력 항목'도 그 안으로 (2026-08-27 사장님: 조회 줄 버튼 정리) */
+  /** 보조 동작 묶음 — 주면 '도구 ▾' 하나로 접히고 '입력 항목'도 그 안으로 (조회 줄 버튼 정리) */
   tools?: (ctl: DocCtl) => HelperItem[];
   /** 엑셀 일괄 올리기 — 묶은 문서들을 저장하고 결과 글을 돌려준다. 주면 조회 줄 '엑셀 ▾'에 양식·올리기가 붙는다 */
   onImport?: (a: { docs: ImportDoc[]; ctl: DocCtl }) => Promise<string>;
@@ -147,7 +147,7 @@ export function DocScreen({
   const onSort = (k: string) => setSort((s) => nextSort(s, k as HistKey));
   const pager = usePager(sorted, 50, `${q}|${from}|${to}|${sort.key}${sort.dir}`);
 
-  //   들어오면 첫 칸에 커서 — 손이 바로 키보드에 있게(사장님 지시)
+  //   들어오면 첫 칸에 커서 — 손이 바로 키보드에 있게
   useEffect(() => {
     if (tab === "edit" && !popup) setTimeout(() => ctl.focusDate(), 250);
   }, [tab, popup]);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -211,12 +211,12 @@ export function DocScreen({
     </>
   );
 
-  //   ★ 엑셀 — 양식 내려받기·올리기·이력 내려받기를 한 버튼 안에(2026-08-27 사장님: 재고 입력은 전부 엑셀로)
+  //   ★ 엑셀 — 양식 내려받기·올리기·이력 내려받기를 한 버튼 안에(재고 입력은 전부 엑셀로)
   const xcols = importColumns(formKey);
   const label = FORM_LABEL[formKey];
   const excelMenu = (
     <ExcelMenu items={[
-      //   2026-08-27 사장님: 양식·올리기가 같은 팝업이면 메뉴도 하나 — 팝업 안에서 양식을 내려받고 채운 파일을 올린다
+      //   2026-08-27 대표: 양식·올리기가 같은 팝업이면 메뉴도 하나 — 팝업 안에서 양식을 내려받고 채운 파일을 올린다
       ...(onImport && canWrite ? [{ label: "양식 내려받기 · 올리기", hint: "양식을 받아 채운 파일을 올립니다.", onClick: () => setXlsOpen(true) }]
         : [{ label: "양식 내려받기", hint: `${label} 일괄 올리기 양식을 받습니다.`, onClick: () => downloadTemplate(`${label}_양식`, label, xcols, formKey === "make" ? ["자재는 자재구성에 따라 저절로 나갑니다(양품+불량 기준). 실투입·로스는 올린 뒤 화면에서 고칩니다."] : []) }]),
       ...(tab === "list" ? [{ label: "이력 내려받기", count: shown.length, disabled: !shown.length, onClick: () => exportToExcel(sorted.map((h) => ({
@@ -312,7 +312,7 @@ export function DocScreen({
 
         <QueryBody>
           <div className="inv-scroll">
-            {/*   ★ 입력 화면은 상자 끝까지 차지한다(2026-08-26 사장님: 5줄에서 칸이 끝나 가독성이 떨어짐). + 줄은 맨 아래 고정. */}
+            {/*   ★ 입력 화면은 상자 끝까지 차지한다(5줄에서 칸이 끝나 가독성이 떨어짐). + 줄은 맨 아래 고정. */}
             {tab === "edit" ? <div className="doc-editor">{editor}</div> : (
               shown.length === 0 ? (
                 <div className="collect-empty">

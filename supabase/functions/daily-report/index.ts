@@ -150,7 +150,7 @@ serve(withSentry("daily-report", async (req) => {
         }
       }
       const date = reportDate || (() => {
-        // KST 어제 (2026-08-19 감사): UTC 기준이면 KST 아침에 "그제" 리포트가 나갔다. tick 과 동일 계산.
+        // KST 어제: UTC 기준이면 KST 아침에 "그제" 리포트가 나갔다. tick 과 동일 계산.
         const d = new Date(Date.now() + 9 * 3600 * 1000);
         d.setUTCDate(d.getUTCDate() - 1);
         return d.toISOString().slice(0, 10);
@@ -185,7 +185,7 @@ serve(withSentry("daily-report", async (req) => {
         .eq("daily_report_enabled", true)
         .eq("daily_report_send_hour", kstHour);
 
-      // 같은 날(KST) 재발송 방지 (2026-08-19 감사): pg_cron 재시도·수동 재호출이 같은
+      // 같은 날(KST) 재발송 방지: pg_cron 재시도·수동 재호출이 같은
       //   시간대에 겹치면 전 수신자에게 자금일보 알림톡이 중복 발송됐다.
       const todayKst = new Date(nowUtc.getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10);
       const alreadySentToday = (c: { last_sent_at?: string | null }) => {

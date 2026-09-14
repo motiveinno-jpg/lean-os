@@ -78,7 +78,7 @@ function BillingPageInner() {
   //   유효성은 서버(/api/stripe/checkout)가 판정한다 — 클라에서 코드 목록을 조회할 수 없다.
   const [salesCode, setSalesCode] = useState("");
   // 연간 결제 "중도해지 시 환불 불가" 동의 — 약관규제법상 고객에게 불리한 중요 조항은
-  //   약관 게시만으로 부족하고 결제 시점에 명확히 고지·확인받아야 한다(2026-07-27 사장님 요청).
+  //   약관 게시만으로 부족하고 결제 시점에 명확히 고지·확인받아야 한다.
   const [annualRefundAck, setAnnualRefundAck] = useState(false);
   const qc = useQueryClient();
 
@@ -212,7 +212,7 @@ function BillingPageInner() {
   });
 
   // 발행 사용량(세금계산서·현금영수증 각각, 2026-08-11 분리). 각 화면 칩과 같은 산식(getIssuanceStatus).
-  //   요금제 화면에서도 발행 한도를 한눈에 (2026-08-11 사장님).
+  //   요금제 화면에서도 발행 한도를 한눈에.
   const  { data: issuance } = useQuery({
     queryKey: ["issuance-status-billing", companyId],
     queryFn: () => getIssuanceStatus(companyId!),
@@ -221,7 +221,7 @@ function BillingPageInner() {
   });
 
   // 요금제 목록
-  // 연간 결제 혜택 쿠폰 · 추가인원 12명 무료 등록 (2026-07-30 사장님)
+  // 연간 결제 혜택 쿠폰 · 추가인원 12명 무료 등록
   const  { data: seatCoupons = [] } = useQuery({
     queryKey: ["seat-coupons", companyId],
     queryFn: async () => {
@@ -346,7 +346,7 @@ function BillingPageInner() {
   const cancelScheduled = entitlement?.display_status === "cancel_scheduled";
   const  { confirm: confirmDialog, confirmElement }  = useConfirm();
 
-  // 등록 카드 목록 (2026-08-05 사장님: 카드 삭제 가능하게). 결제 수단 탭에서만 조회
+  // 등록 카드 목록 (카드 삭제 가능하게). 결제 수단 탭에서만 조회
   const  { data: pmData, isLoading: pmLoading } = useQuery({
     queryKey: ["payment-methods", companyId],
     queryFn: async () => {
@@ -537,7 +537,7 @@ function BillingPageInner() {
       window.location.href = result.data.url;
     } catch (err: any) {
       setIsPaymentLoading(false);
-      // 포털 실패 폴백(2026-08-05 사장님 제보 — Stripe 키의 포털 권한 부족으로 포털이 안 열림):
+      // 포털 실패 폴백(Stripe 키의 포털 권한 부족으로 포털이 안 열림):
       //   해지 목적이면 자체 해지 모달로 이어간다. /api/stripe/cancel 은 포털이 아니라
       //   구독 API 권한을 쓰므로 포털이 막혀도 해지는 진행 가능하다.
       if (!cancelScheduled) {
@@ -675,7 +675,7 @@ function BillingPageInner() {
           </div>
           <button
             onClick={() => {
-              // 이 배너는 요금제 탭에서도 보이므로 setTab 만으론 무반응 (2026-07-28 사장님 제보)
+              // 이 배너는 요금제 탭에서도 보이므로 setTab 만으론 무반응
               //   → 탭 전환 + 플랜 카드로 스크롤
               setTab("plan");
               setTimeout(() => document.getElementById("billing-plan-cards")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
@@ -827,7 +827,7 @@ function BillingPageInner() {
             );
           })()}
 
-          {/* 저장공간 — 사용량 + 스토리지 팩(좌석과 분리, 동일 단가) (2026-09-02 사장님) */}
+          {/* 저장공간 — 사용량 + 스토리지 팩(좌석과 분리, 동일 단가) */}
           {storage && (() => {
             const used = Number(storage.used_bytes) || 0;
             const quota = Number(storage.quota_bytes) || 0;
@@ -943,7 +943,7 @@ function BillingPageInner() {
             );
           })()}
 
-          {/* 연간 결제 혜택 쿠폰 — 발급/사용 (2026-07-30 사장님) */}
+          {/* 연간 결제 혜택 쿠폰 — 발급/사용 */}
           {(seatCoupons as any[]).length > 0 && (
             <div className="billing-sec">
               <div className="billing-sec-head"><span className="billing-sec-title">내 쿠폰</span></div>
@@ -990,7 +990,7 @@ function BillingPageInner() {
               const isLegacy = !isStd && !isFree;
               //   파란(확정) 버튼은 화면에 하나 — 추천(오너뷰)을 안 쓰고 있으면 오너뷰 변경, 쓰고 있으면 울트라 도입 문의
               const primaryCol: "standard" | "ultra" = isStd ? "ultra" : "standard";
-              //   행 자료 — 무료/오너뷰는 lib/billing 요금제 행(features)이 아니라 기능 단위로 적는다(비교가 목적). 울트라는 사장님 기획(2026-08-19).
+              //   행 자료 — 무료/오너뷰는 lib/billing 요금제 행(features)이 아니라 기능 단위로 적는다(비교가 목적). 울트라는 대표 기획(2026-08-19).
               const rows: { f: string; free: string; std: string; ultra: string }[] = [
                 { f: "구성원", free: "5명", std: `기본 5명 + 1명 ₩${stdSeat.toLocaleString()}/월`, ultra: "무제한" },
                 { f: "저장공간", free: "500 MB", std: `500 MB + 추가 1명당 10 GB · 팩(+10 GB) ₩${stdSeat.toLocaleString()}/월`, ultra: "협의(전용 용량)" },
@@ -1027,7 +1027,7 @@ function BillingPageInner() {
                           : std ? <button type="button" onClick={() => setShowUpgradeModal("standard")} className={primaryCol === "standard" ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>이 요금제로 변경</button> : null}
                       </th>
                       <th className={isLegacy ? "billing-col-cur" : ""}>
-                        {/* 울트라는 항상 '비용 협의' — 옛 울트라 구독 계정이라도 금액을 여기 안 적는다(내는 금액은 위 요약 줄, 2026-08-20 사장님) */}
+                        {/* 울트라는 항상 '비용 협의' — 옛 울트라 구독 계정이라도 금액을 여기 안 적는다(내는 금액은 위 요약 줄, 2026-08-20 대표) */}
                         <div className="billing-col-name">{isLegacy ? (currentPlan?.name || "울트라") : "울트라"}</div>
                         <div className="billing-col-price">비용 협의</div>
                         <div className="billing-col-sub">회사 시스템에 맞춘 별도 UX 구축 · 도입 범위에 따라 견적{isLegacy ? ` · 지금 쓰는 요금제(${subscription?.seat_count || 1}명)` : ""}</div>
@@ -1062,7 +1062,7 @@ function BillingPageInner() {
             )}
 
             <p className="billing-note"><b>울트라</b>는 도입 범위를 정한 뒤 견적을 드립니다. 오너뷰 기능은 전부 포함됩니다.</p>
-            {/* 결제 가능 카드 안내 (2026-07-31 사장님) — 배너 대신 각주로 */}
+            {/* 결제 가능 카드 안내 — 배너 대신 각주로 */}
             <p className="billing-note">국내카드는 토스페이먼츠, 해외카드는 Stripe 로 결제됩니다. 해외 결제를 차단해 둔 카드(법인카드 포함)는 Stripe 승인이 거절될 수 있으니 국내카드를 쓰거나 카드사에 확인하세요 · 요금은 원화, VAT 10% 별도 · 월간은 매월 같은 날 자동 결제.</p>
 
             {entitlement?.entitled && currentSlug !== "free" && (
@@ -1198,7 +1198,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                 ? "Free 플랜으로 다운그레이드하시겠습니까? 현재 결제 기간이 끝나면 기능이 제한됩니다."
                 : `${(plans || []).find((pl: any) => pl.slug === showUpgradeModal)?.name || showUpgradeModal} 플랜으로 업그레이드합니다.`}
             </p>
-            {/* 금액 내역 — 기본요금 + 인원 추가를 항목으로 풀어서 (2026-08-11 사장님:
+            {/* 금액 내역 — 기본요금 + 인원 추가를 항목으로 풀어서 (
                 "39,000원 눌렀는데 74,000원이라고 나오면 오해한다"). 좌석 기준은 실제 결제와
                 동일한 활성 직원 수(구독행 seat_count 레거시 값 금지 — 514,000원 오표시 사고). */}
             <div className="bg-[var(--bg-surface)] rounded-xl p-4 mb-4">
@@ -1272,7 +1272,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                 </button>
               </div>
             )}
-            {/* 무료체험 폐지 (2026-08-11 사장님) — 즉시 청구를 명시 */}
+            {/* 무료체험 폐지 — 즉시 청구를 명시 */}
             {showUpgradeModal !== "free" && !(hasStripeSubscription && !hasTossSubscription && currentSlug !== "free") && (
               <p className="text-[11px] text-[var(--text-dim)] mb-4">
                 결제 완료 <b>즉시 위 금액이 청구</b>되고 오너뷰 기능이 열립니다. {cycle === "annual" ? "연간은 1년치가 한 번에 청구됩니다." : "이후 매월 같은 날 자동 결제됩니다."}

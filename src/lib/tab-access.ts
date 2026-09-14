@@ -43,7 +43,7 @@ export const EMPLOYEE_BASE_ROUTES = new Set<string>([
 export function useCanAccessTab(route: string): { allowed: boolean; loading: boolean } {
   // (2026-07-31) 새 권한 체계(member_permissions)로 연결 — 구 user_tab_access 판정 폐기.
   //   프로젝트/정기지출/세금계산서 페이지가 이 훅으로 자체 게이트를 걸고 있어, 템플릿으로
-  //   새 권한을 받아도 구 시스템 기준으로 차단되던 버그(사장님 제보: 프로젝트 안 들어가짐).
+  //   새 권한을 받아도 구 시스템 기준으로 차단되던 버그(프로젝트 안 들어가짐).
   const { isMaster, hasPerm, loading } = useMyPermissions();
   return { allowed: isMaster || hasPerm(route), loading };
 }

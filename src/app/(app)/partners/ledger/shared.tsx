@@ -139,7 +139,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
       debit: isSales ? Number(inv.total_amount || 0) : 0,
       credit: isSales ? 0 : Number(inv.total_amount || 0),
       // 전표처리된 계산서면 그 전표(#번호)로 바로 — 매출·매입 동일. 전표처리 전표도 source='manual'
-      //   (post_invoice_voucher·save_sale_purchase_voucher)라 수동 전표와 같은 수정 모달을 쓴다 (2026-08-26 사장님)
+      //   (post_invoice_voucher·save_sale_purchase_voucher)라 수동 전표와 같은 수정 모달을 쓴다
       isVoucher: !!inv.journal_entry_id,
       vid: inv.journal_entry_id || undefined,
       no: inv.journal_entries?.voucher_no ?? null,

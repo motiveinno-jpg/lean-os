@@ -1,4 +1,4 @@
--- ── ERP 공백 ② — 재고자산 맞추기 · 급여 전표 자동 초안 (2026-08-27 사장님 "추천 순서대로")
+-- ── ERP 공백 ② — 재고자산 맞추기 · 급여 전표 자동 초안 (2026-08-27 대표가 "추천 순서대로")
 --   docs/20260827_PLAN_erp_gaps.md ②. 생산·매출원가 초안(production_voucher_drafts)과 같은 틀:
 --   초안(ai_suggested)까지 자동, 확정은 사람(재무 › 전표 현황 › 처리할 것). 확정하면 _trg_production_draft_status 가 초안 행을 confirmed 로.
 --

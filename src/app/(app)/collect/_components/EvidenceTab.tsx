@@ -61,7 +61,7 @@ type Row = {
   posted: boolean;
   excluded?: string | null;   // 장부 제외 사유 (2026-08-19, 카드 탭만) — 전표 없이 끝낸 줄
   voucherNo: number | null;
-  /** 실제 만들어진 전표의 종류 — 'general'(일반전표)이면 부가세 유형이 없다. 화면은 이걸로 "일반전표"라고 정직하게 적는다 (2026-09-02 사장님 신고: 카과 4건 중 1건만 매입매출전표에) */
+  /** 실제 만들어진 전표의 종류 — 'general'(일반전표)이면 부가세 유형이 없다. 화면은 이걸로 "일반전표"라고 정직하게 적는다 (2026-09-02 대표 신고: 카과 4건 중 1건만 매입매출전표에) */
   entryKind?: string | null;
   entryVat?: string | null;
   /** 이 줄이 만든 전표 — 취소(되돌리기)할 때 쓴다 */
@@ -107,7 +107,7 @@ type Cond = {
   card: string[];      // 카드 이름 (카드 탭만)
   kind: string;        // 구분 — 법인·일반·간이·면세 (카드 탭만)
   dir: "all" | "sale" | "purchase";
-  todo: "todo" | "all" | "excluded"; // 전표 미처리만 볼지 (excluded=장부 제외한 줄만, 2026-08-19) — 검색조건 안으로 옮겼다(2026-08-13 사장님 지시)
+  todo: "todo" | "all" | "excluded"; // 전표 미처리만 볼지 (excluded=장부 제외한 줄만, 2026-08-19) — 검색조건 안으로 옮겼다
   item: string;        // 품명
   min: string; max: string;   // 합계 금액 범위
   size: number;        // 한 쪽에 몇 줄 — 조건의 하나라 '내 조건'에 같이 저장된다
@@ -156,16 +156,16 @@ export function EvidenceTab({
   const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [override, setOverride] = useState<Record<string, { vatCode?: string; acct?: Acct }>>({});
-  //   줄별 계정·부가세 선택을 새로고침해도 유지 · 복원값보다 지금 화면에서 고른 값이 우선 (2026-08-26 사장님 제보)
+  //   줄별 계정·부가세 선택을 새로고침해도 유지 · 복원값보다 지금 화면에서 고른 값이 우선
   usePersistedPicks(companyId ? `ov:collect-ev-picks:${companyId}` : null, override,
     (saved) => setOverride((o) => ({ ...saved, ...o })));
   const [pick, setPick] = useState<{ id: string; q: string } | null>(null);
-  //   고른 줄 전부의 계정과목을 한 번에 바꾸는 목록이 열려 있는지 (2026-08-24 사장님 지시)
+  //   고른 줄 전부의 계정과목을 한 번에 바꾸는 목록이 열려 있는지
   const [bulkOpen, setBulkOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   //   머리단 정렬 — 기본은 일자 오름차순(장부는 날짜 순으로 본다) (2026-08-12)
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "date", dir: "asc" });
-  /*   ── 엑셀식 머리단 필터 + 열 너비 (2026-08-13 사장님: "엑셀과 아예 동일하게") ──
+  /*   ── 엑셀식 머리단 필터 + 열 너비 ("엑셀과 아예 동일하게") ──
    *   colVal 이 칸의 표시값을 뽑는 단 하나의 기준 · 필터 목록과 거르기가 같은 값을 본다. */
   const [colF, setColF] = useState<Record<string, Set<string> | null>>({});
   const tableRef = useRef<HTMLTableElement | null>(null);
@@ -255,7 +255,7 @@ export function EvidenceTab({
     staleTime: 300_000,
   });
 
-  //   ★ 카드 검색조건 목록은 **회사 전체 카드**를 쓴다 (통장 계좌 목록과 같은 이유, 2026-08-31 사장님).
+  //   ★ 카드 검색조건 목록은 **회사 전체 카드**를 쓴다 (통장 계좌 목록과 같은 이유, 2026-08-31 대표).
   //     예전엔 조회된 거래(rows)에서만 card_name 을 뽑아, 그 기간에 안 걸린 카드는 목록에서 사라져
   //     통장코드처럼 직접 쳐야 했다. 필터가 매칭하는 값이 거래의 card_name 이라 그 distinct 를 정본으로.
   const { data: allCardNames = [] } = useQuery<string[]>({
@@ -270,7 +270,7 @@ export function EvidenceTab({
     enabled: kind === "card",
     staleTime: 300_000,
   });
-  //   원천 카드명(거래의 card_name) → 카드 탭에서 지은 이름 (2026-09-01 사장님: "카드탭에 저장된
+  //   원천 카드명(거래의 card_name) → 카드 탭에서 지은 이름 ("카드탭에 저장된
   //   카드별 이름으로"). 거래의 card_id 로 corporate_cards 를 찾되, 한 원천명이 여러 카드에 걸리면
   //   ('BC카드' 같은 무말단 이름) 어느 카드인지 못 정하므로 원천명 그대로 둔다.
   const { data: cardLabelMap = {} } = useQuery<Record<string, string>>({
@@ -319,7 +319,7 @@ export function EvidenceTab({
     if (hit?.account) return { acct: hit.account as Acct, via: ruleTag(hit.hit_count) };
     //   카드는 회사설정의 '비목 → 계정' 표도 본다 (학습보다 뒤 — 사람이 고른 게 우선).
     //   ★ 꼬리표는 '비목' 이다. 예전엔 '규칙' 이라 적어 **배운 규칙과 헷갈렸다** — 배운 규칙이
-    //     0개인데 화면엔 '규칙'이 붙어 있었다(2026-08-12 사장님 제보).
+    //     0개인데 화면엔 '규칙'이 붙어 있었다.
     //   ★ '미분류'(UNCLASSIFIED_CATEGORY)는 **자동 분류에 실패했다는 뜻**이다. 그걸 계정으로
     //     확정해 버리면 "모른다"가 "복리후생비"로 둔갑한다 — 카드 2,771건 중 2,290건이 그랬다.
     //     사람이 고르게 비워 둔다.
@@ -336,7 +336,7 @@ export function EvidenceTab({
 
   /**
    * 부가세 유형 — 사람이 고른 게 있으면 그것, 없으면 자동.
-   *   ★ 카드는 **간이·면세 가맹점이면 매입세액을 공제받지 못한다**(2026-08-12 사장님 지시).
+   *   ★ 카드는 **간이·면세 가맹점이면 매입세액을 공제받지 못한다**.
    *     기본 제안을 '58. 카면'(불공제)으로 내린다. 확정은 사람이 한다 — 화면에 이유를 적어 둔다.
    *     예외: 간이과세자 중 '세금계산서 발급사업자'는 공제 대상이라 그대로 둔다.
    */
@@ -403,7 +403,7 @@ export function EvidenceTab({
     return arr;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownUnsorted, sort, override, merchantKinds, rules, cardMap, live, q]);
-  //   페이지 · 기본 50줄. 조건이 바뀌면 1쪽으로 돌아간다 (2026-08-13 사장님 지시)
+  //   페이지 · 기본 50줄. 조건이 바뀌면 1쪽으로 돌아간다
   const pager = usePager(shown, live.size, `${from}|${to}|${kind}|${q}|${JSON.stringify(live)}|${JSON.stringify(Object.fromEntries(Object.entries(colF).map(([k, v]) => [k, v ? [...v] : null])))}`);
   //   선택은 **쪽을 넘겨도 남는다** — 2쪽까지 골라 한 번에 전표로 만들 수 있어야 한다
   const selRows = shown.filter((r) => sel.has(r.id));
@@ -434,7 +434,7 @@ export function EvidenceTab({
   //   계정이 안 정해진 줄은 전표를 못 만든다 — 몇 건인지 먼저 알려 준다
   const notReady = selRows.filter((r) => linesFor(r).some((l) => !l.code || !acctByCode.get(l.code)));
 
-  //   ── 계정과목 일괄변경 (2026-08-24 사장님 지시) ─────────────────────────────
+  //   ── 계정과목 일괄변경 ─────────────────────────────
   //   왜: 같은 성격의 줄이 수십 개씩 딸려 온다(스크린샷의 '소상공인 광고비 위임' 49건).
   //     줄마다 눌러 고르면 49번을 눌러야 하고, 한 줄이라도 빠지면 전표가 엉뚱한 계정으로 나간다.
   //   저장 방식은 줄 하나를 고를 때와 **똑같다**(override[id].acct) — 새 경로를 만들지 않았다.
@@ -457,12 +457,12 @@ export function EvidenceTab({
   };
 
   /**
-   * 카드 미지급금에 걸 **카드사 거래처** — 카드 이름 하나당 한 번만 물어본다. (2026-08-12 사장님 지시)
+   * 카드 미지급금에 걸 **카드사 거래처** — 카드 이름 하나당 한 번만 물어본다.
    *   "같은 카드끼리 카드대금이 빠져나가는지 거래처원장에서 확인해야 한다."
    *   카드 화면(post_card_voucher)은 이미 이렇게 하고 있었는데 수집·전표만 빠져 있었다.
    */
   /**
-   * 가맹점 거래처 — **차변(비용) 줄에 걸 거래처** (2026-08-13 사장님 제보).
+   * 가맹점 거래처 — **차변(비용) 줄에 걸 거래처**.
    *   예전엔 차변 거래처를 비워 뒀고, 화면이 대변의 카드사(BC카드)를 대신 보여 줘
    *   "차변이 BC카드로 분개된다"로 읽혔다. 실제로 들어가야 할 것은 **가맹점**이다.
    *   가맹점은 수백 곳이라 미리 다 만들지 않는다 — 전표를 만드는 순간에만 등록한다.
@@ -528,15 +528,15 @@ export function EvidenceTab({
         fails.push(`${r.partnerName}: 계정을 먼저 고르세요`);
         continue;
       }
-      //   중복 의심 팝업은 뺐다 (2026-08-26 사장님: "전표 할 때마다 나와서 걸리적거린다") —
+      //   중복 의심 팝업은 뺐다 ("전표 할 때마다 나와서 걸리적거린다")
       //   같은 원자료 이중 전표는 서버(ALREADY_POSTED)가 막고, 날짜·금액 우연 일치까지 여기서 묻지 않는다.
       const norm = normalizeSides(lines.map((l) => ({ side: l.side, amount: l.amount })));
       //   ★ 카드는 **차변(비용)은 가맹점, 대변(미지급금)은 카드사** — 상대가 서로 다르다.
       //     상대계정 줄은 매출이면 첫 줄, 매입이면 마지막 줄이다(buildVoucherLines 가 그렇게 만든다).
       const cardPid = kind === "card" ? await cardPartnerOf(r.cardName) : null;
-      //   ★ 카드는 **비용 줄 = 가맹점**, 미지급금 줄 = 카드사. 둘이 다르다 (2026-08-13 사장님 제보).
+      //   ★ 카드는 **비용 줄 = 가맹점**, 미지급금 줄 = 카드사. 둘이 다르다.
       //     예전엔 비용 줄 거래처가 비어 있었다(카드 원자료엔 partner_id 가 없다).
-      //   ★ 현금영수증도 원자료에 partner_id 가 없어 전표 거래처가 비어 있었다 (2026-08-28 사장님 제보).
+      //   ★ 현금영수증도 원자료에 partner_id 가 없어 전표 거래처가 비어 있었다.
       //     상호·사업자번호로 거래처를 걸어 준다. 단 **매입(지출)만** — 매출 현금영수증은 counterparty 가
       //     발행자(자기 회사)라 걸면 원장 매출처에 자기 회사가 뜬다.
       const resolvePartner = kind === "card"
@@ -608,7 +608,7 @@ export function EvidenceTab({
   };
 
   /**
-   * 전표 취소 — 만든 전표를 되돌려 이 목록으로 가져온다. (2026-08-12 사장님 지시)
+   * 전표 취소 — 만든 전표를 되돌려 이 목록으로 가져온다.
    *   전표는 **지우지 않고 반려**한다. 재무제표는 확정 전표만 읽으니 합계에서 빠지고,
    *   "만들었다 취소했다"는 사실은 남는다. 마감된 달은 서버가 막는다(PERIOD_LOCKED).
    */
@@ -635,7 +635,7 @@ export function EvidenceTab({
     } finally { setSaving(false); }
   };
 
-  //   ── 줄 고르기 · Shift+클릭이면 사이 줄까지 (2026-08-24 사장님 지시) ──
+  //   ── 줄 고르기 · Shift+클릭이면 사이 줄까지 ──
   //   "시작 칸 체크 후 Shift+마지막 칸 체크하면 그 사이 값 모두 선택되게"
   //   · 범위는 **지금 보고 있는 순서**(정렬·검색조건이 걸린 shown) 기준이다. 화면에 보이는 것과
   //     다른 순서로 잡히면 엉뚱한 줄이 딸려 온다.
@@ -676,13 +676,13 @@ export function EvidenceTab({
   const acctsOf = (side: "sale" | "purchase") =>
     accounts.filter((a) => a.account_type === (side === "sale" ? "revenue" : "expense"));
 
-  //   자료 종류에 맞는 유형만 고르게 한다 (2026-08-12 사장님 지시).
+  //   자료 종류에 맞는 유형만 고르게 한다.
   //     카드 매입에 '11. 과세매출'·'51. 과세매입'(세금계산서용)이 섞여 나와, 열 개 중 아홉이 쓸 일 없는 것이었다.
   //     카드는 **57 카과 · 58 카면 · 59 카영** 셋이면 되고, 부가세와 무관한 일반경비는
   //     매입매출전표가 아니라 **일반전표**로 보내야 한다(아래 '3. 일반').
   const typeOptions = useMemo(() => {
     if (kind === "card") return [
-      //   ★ '3. 일반' 은 부가세 유형이 아니라 **보낼 곳**이다 (2026-08-12 사장님 지시).
+      //   ★ '3. 일반' 은 부가세 유형이 아니라 **보낼 곳**이다.
       //     부가세 신고와 무관한 카드 사용(불공제도 아니고 매입세액도 없는 일반경비)은
       //     매입매출전표가 아니라 **일반전표**로 가야 한다 — 매입매출전표에 넣으면 신고 집계에 섞인다.
       { code: GENERAL_CODE, label: "3. 일반 (일반전표로)" } as (typeof VAT_TYPES)[number],
@@ -736,7 +736,7 @@ export function EvidenceTab({
       a.account_type === (side === "sale" ? "revenue" : "expense")
       && (!q || a.name.toLowerCase().includes(q.toLowerCase()) || String(a.code).includes(q))).slice(0, 40);
 
-  //   'AI 제안' — 조회 조건도 아니고 확정도 아닌 것들 (2026-08-13 사장님 확정).
+  //   'AI 제안' — 조회 조건도 아니고 확정도 아닌 것들.
   //   ★ 줄마다 **출처를 적는다** — 전부 AI 라고 하면 틀렸을 때 원인을 엉뚱한 데서 찾는다.
   const helpers: HelperItem[] = [
     rulesHelper,
@@ -824,7 +824,7 @@ export function EvidenceTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, draft, q, override, rules, cardMap, merchantKinds]);
 
-  //   엑셀 — 지금 조건 그대로, 표에 보이는 칸 그대로 내려받는다 (2026-08-13 사장님 지시).
+  //   엑셀 — 지금 조건 그대로, 표에 보이는 칸 그대로 내려받는다.
   //   ★ **되는 것만 넣는다.** 눌러도 아무 일 없는 메뉴가 하나라도 있으면 그 뒤로 메뉴를 안 믿는다.
   const xlsRows = (list: Row[]) => list.map((r) => {
     const a = acctOf(r).acct;
@@ -853,7 +853,7 @@ export function EvidenceTab({
   const download = (list: Row[], tag: string) =>
     exportToExcel(xlsRows(list), KIND_LABEL[kind] ?? "수집자료",
       `${KIND_LABEL[kind] ?? "수집자료"}_${from}~${to}${tag}`);
-  //   계정 일괄 지정 — 계정이 아직 없는 줄만 내려받아 엑셀에서 채우고 되올린다 (2026-08-13 사장님 승인).
+  //   계정 일괄 지정 — 계정이 아직 없는 줄만 내려받아 엑셀에서 채우고 되올린다.
   //   ★ 되올려도 **전표는 안 생긴다** — 화면 계정 칸이 채워질 뿐이고 확정은 '전표 만들기'다.
   const needAcct = shown.filter((r) => !r.posted && !r.excluded && !acctOf(r).acct);
   const fillRef = useRef<HTMLInputElement>(null);
@@ -926,7 +926,7 @@ export function EvidenceTab({
       {/*   엑셀 '채운 파일 올리기' 가 누르는 숨은 입력 — 같은 파일을 다시 골라도 열리도록 value 를 비운다 */}
       <input ref={fillRef} type="file" accept=".xlsx,.xls" className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void onFillFile(f); }} />
-      {/*   ★ 탭·조회 줄·걸린 조건·결과 요약·표·쪽 넘김을 **통째로 한 상자**에 (2026-08-13 사장님 지시) */}
+      {/*   ★ 탭·조회 줄·걸린 조건·결과 요약·표·쪽 넘김을 **통째로 한 상자**에 */}
       <QueryScreen>
       <QueryHead>
       {tabsNode}
@@ -936,7 +936,7 @@ export function EvidenceTab({
         {syncButton}
       </>}>
         {/*   ★ 기간을 **치는 칸은 화면에 하나뿐**이다. 달력은 검색조건 안에 있다.
-              오른쪽 끝에 '검색조건'이 붙어 한 덩어리로 보인다 (2026-08-13 사장님 지시). */}
+              오른쪽 끝에 '검색조건'이 붙어 한 덩어리로 보인다. */}
         <DateRangeField from={from} to={to} onChange={onRange} label={null} parts="segments"
           trailing={
             <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={nLive} anchorSel=".drf"
@@ -947,7 +947,7 @@ export function EvidenceTab({
               foot={<>
                 <button type="button" className="btn-secondary btn-sm" disabled={nDraft === 0}
                   onClick={() => setDraft({ ...EMPTY, size: draft.size })}>조건 지우기</button>
-                {/*   ★ 저장은 **여기** — 조건을 다 고른 뒤에 이름을 붙인다 (2026-08-13 사장님 지적) */}
+                {/*   ★ 저장은 **여기** — 조건을 다 고른 뒤에 이름을 붙인다 */}
                 <ConditionSave suggest={suggestName}
                   onSave={(name, asDefault) => {
                     //   ★ 저장하면 **그 조건으로 바로 본다** — 저장만 되고 화면이 그대로면
@@ -971,7 +971,7 @@ export function EvidenceTab({
                 </span>
               </ConditionRow>
 
-              {/*   줄 순서: 조회기간 → 매출·매입 → 구분 → 거래처 → 나머지 (2026-08-13 사장님 지시) */}
+              {/*   줄 순서: 조회기간 → 매출·매입 → 구분 → 거래처 → 나머지 */}
               <ConditionRow label="매출·매입">
                 <ChipGroup value={draft.dir} onChange={setD("dir")} options={DIR_CHIPS} />
               </ConditionRow>
@@ -995,9 +995,9 @@ export function EvidenceTab({
 
               {kind === "card" && (
                 <ConditionRow label="카드">
-                  {/*   연결해 둔 카드를 목록으로 펼쳐 클릭 선택 (2026-08-31 사장님: "이름을 직접 입력해야 했다").
+                  {/*   연결해 둔 카드를 목록으로 펼쳐 클릭 선택 ("이름을 직접 입력해야 했다").
                         카드가 20장을 넘는 회사만 종전 검색 입력으로. */}
-                  {/* 칩 나열은 카드가 많아 지저분 (2026-09-01 사장님) — 누르면 전체 목록이 열리는 담기 칸으로 */}
+                  {/* 칩 나열은 카드가 많아 지저분 — 누르면 전체 목록이 열리는 담기 칸으로 */}
                   <TokenField items={cardOpts} value={draft.card} onChange={setD("card")}
                     openOnClick placeholder="" />
                 </ConditionRow>
@@ -1033,7 +1033,7 @@ export function EvidenceTab({
         <Stat label="부가세" value={won(sumVat)} />
         {/*   ★ 잘렸으면 반드시 말한다 — 조용히 500건만 보여 주면 '이게 전부'로 읽힌다 */}
         {capped && <b className="ev-cut">앞 20,000건만 받아왔습니다.<span className="ui-sub">기간을 좁혀 주세요.</span></b>}
-        {/*   감춘 것은 말한다 — 여기는 '홈택스에 있는 자료'만 다룬다(2026-08-24 사장님 지적) */}
+        {/*   감춘 것은 말한다 — 여기는 '홈택스에 있는 자료'만 다룬다 */}
         {hiddenDrafts > 0 && (
           <span className="ev-draft-note" title="국세청에 아직 없는 건이라 전표로 만들 수 없습니다. 세금·증빙에서 발행하면 여기에 나타납니다."><Link href="/e-invoices" className="bz-link" title="누르면 초안 목록(세금·증빙)">발행 전 초안 {won(hiddenDrafts)}건</Link>은 제외했습니다.</span>
         )}
@@ -1106,7 +1106,7 @@ export function EvidenceTab({
                     <td className="tc">
                       {(() => {
                         //   해외 결제는 '해외'로 (국세청 구분이 없다). 국내는 과세유형(법인·일반·간이·면세) 그대로만
-                        //   표시한다 — '불공제'는 굳이 붙이지 않는다 (2026-08-31 사장님).
+                        //   표시한다 — '불공제'는 굳이 붙이지 않는다.
                         if (r.foreign) return <em className="ev-kind" title="해외 결제">해외</em>;
                         const mi = merchantOf(r);
                         if (!mi?.kind) return <span className="ev-dim">—</span>;
@@ -1116,7 +1116,7 @@ export function EvidenceTab({
                     <td>
                       {r.posted || r.excluded ? (
                         //   전표가 된 줄은 **실제 전표의 유형**을 적는다 — 제안값을 그대로 두면 일반전표로 만든 건도
-                        //   '카과'로 보여 매입매출전표에서 찾다가 없다고 한다 (2026-09-02 사장님 신고).
+                        //   '카과'로 보여 매입매출전표에서 찾다가 없다고 한다 (2026-09-02 대표 신고).
                         r.posted && r.entryKind === "general" ? (
                           <em className="spv-type spv-type-g" title="일반전표로 만들어진 건 · 부가세 유형 없음. 매입매출전표가 아니라 일반전표 화면에 있습니다">일반전표</em>
                         ) : (() => {
@@ -1140,7 +1140,7 @@ export function EvidenceTab({
                     <td className="tr mono-number">{won(amt.vat)}</td>
                     <td className="tr mono-number ev-total">{won(amt.supply + amt.vat)}</td>
                     {/*   ★ 칩·라벨 칸은 본문도 가운데 — 제목만 가운데면 왼쪽에 붙은 내용보다
-                          오른쪽으로 떠 보인다 (2026-08-12 사장님 제보).
+                          오른쪽으로 떠 보인다.
                           숫자 칸은 자릿수 비교 때문에 오른쪽을 지킨다(회계 표 관행). */}
                     <td className="tc">
                       {t.side === "purchase" && !r.posted && !r.excluded ? (
@@ -1175,7 +1175,7 @@ export function EvidenceTab({
                           )}
                         </span>
                       ) : (
-                        //   ★ 어느 카드로 긁었는지 여기서 보여 준다 (2026-08-13 사장님 지시, 통장 탭과 같은 모양).
+                        //   ★ 어느 카드로 긁었는지 여기서 보여 준다 (통장 탭과 같은 모양).
                         //     미지급금은 **카드사별로** 갚으므로 카드가 안 보이면 거래처원장 대조를 못 한다.
                         <span className="ev-side">
                           <span className="ev-dim">{counter?.code ? `${counter.code} ${counter.name}` : "—"}</span>
@@ -1187,7 +1187,7 @@ export function EvidenceTab({
                       {r.posted ? (
                         <span className="ev-st-cell">
                           <span className="ev-st ev-st-done">#{r.voucherNo ?? "—"} 확정</span>
-                          {/*   만든 전표를 여기서 바로 되돌린다 (2026-08-12 사장님 지시) */}
+                          {/*   만든 전표를 여기서 바로 되돌린다 */}
                           {r.entryId && (
                             <button type="button" className="ev-undo" disabled={saving}
                               onClick={() => unpost(r)}>취소</button>
@@ -1312,7 +1312,7 @@ async function fetchRows(companyId: string, from: string, to: string, kind: Sour
       .gte("issue_date", from).lte("issue_date", to)
       .order("issue_date").range(a, b));
     //   ★ 취소거래는 **마이너스 한 줄**로 남긴다 — 빼 버리면 원본 발행 건만 남아 매출이 부풀어 오른다.
-    //     유형(현과)·계정은 그대로 두고 부호만 뒤집는다(위하고와 같은 모양, 사장님 기준). (2026-08-12)
+    //     유형(현과)·계정은 그대로 두고 부호만 뒤집는다(위하고와 같은 모양, 대표 기준). (2026-08-12)
     //     우리가 취소한 원본(manual·codef)은 없던 일이라 아예 안 보여 준다 — cashReceiptSign 참조.
     const src = got.rows.filter((r) => cashReceiptSign(r) !== 0);
     const built = src.map((r) => {
@@ -1332,7 +1332,7 @@ async function fetchRows(companyId: string, from: string, to: string, kind: Sour
   }
 
   //   세금계산서 / 전자계산서 — 같은 표(tax_invoices)에 tax_kind 로 갈린다
-  //   ★ **국세청에 실제로 있는 것만** 가져온다 (2026-08-24 사장님 지적).
+  //   ★ **국세청에 실제로 있는 것만** 가져온다.
   //     수집 화면은 '홈택스에서 받아온 자료'를 다루는 곳인데, 앱에서 만들고 아직 발행하지 않은
   //     초안(source='manual' · 승인번호 없음)까지 섞여 나왔다. 그걸로 전표를 만들면 **없는 매출이 장부에 선다.**
   //     기준은 세금·증빙 화면이 쓰는 판정(isSent)과 같은 것이다 — lib/collect.ts ISSUED_AT_NTS.

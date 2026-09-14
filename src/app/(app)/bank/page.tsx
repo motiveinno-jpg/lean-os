@@ -56,12 +56,12 @@ type Tab = "overview" | "accounts" | "transactions";
 //   상태 칩 — 2026-08-27: 분류(카테고리) 매핑을 없앴다. 줄의 상태는 증빙 연결·일반전표·장부 제외 셋으로만 본다
 //   (bank-line-dialog 의 bankLineState). '연결 대기'는 정산 초안(invoice_settlements suggested)이 있는 줄.
 
-/*  ── 조회 화면 표준 (2026-08-13 확정) — 수집·전표와 같은 검색조건/줄수/내 조건 구성 ──
+/*  ── 조회 화면 표준 — 수집·전표와 같은 검색조건/줄수/내 조건 구성 ──
     ★ 여기 있는 것은 **'조회'를 눌러야** 반영된다. 기간·빠른검색은 조회 줄에 있어 즉시다. */
 const TX_IO_CHIPS = [
   { value: "all", label: "전체" }, { value: "in", label: "입금" }, { value: "out", label: "출금" },
 ] as const;
-//   기본은 '미전표'(전표 안 된 것만). 전표처리된 건은 목록에서 사라진다 (2026-08-19 사장님). 전체·전표됨은 골라 본다.
+//   기본은 '미전표'(전표 안 된 것만). 전표처리된 건은 목록에서 사라진다. 전체·전표됨은 골라 본다.
 const TX_STATE_CHIPS = [
   
   { value: "unposted", label: "미처리" }, { value: "all", label: "전체" }, { value: "pending", label: "연결 대기" },
@@ -139,7 +139,7 @@ export default function BankPage() {
   const [bankTxFrom, setBankTxFrom] = useState<string>(() => defaultRange().from);
   //   통장 탭 보기 — 표가 기본, 카드는 보기 옵션 (2026-08-19 조회 표준: 목록은 표)
   const [accountsView, setAccountsView] = useState<"list" | "card">("list");
-  //   통장 동작 확장 (2026-08-19 사장님: 이름 변경만으론 단편적) — 수정(이름·메모)·숨김·삭제. 숨긴 통장은 목록에서만 빠진다(합계·연동 그대로)
+  //   통장 동작 확장 (이름 변경만으론 단편적) — 수정(이름·메모)·숨김·삭제. 숨긴 통장은 목록에서만 빠진다(합계·연동 그대로)
   const [showHiddenAccts, setShowHiddenAccts] = useState(false);
   const [acctEdit, setAcctEdit] = useState<{ accountNo: string; alias: string; memo: string; bankName?: string; balance: number } | null>(null);
   const [acctSaving, setAcctSaving] = useState(false);
@@ -313,7 +313,7 @@ export default function BankPage() {
   };
 
   // 기간 — 이번 달 KST · 전월 동일(증감 계산용).
-  //   QA 2026-06-12: +9h 후 로컬 getFullYear/getMonth 를 읽으면 KST 브라우저에선 이중 가산
+  //   +9h 후 로컬 getFullYear/getMonth 를 읽으면 KST 브라우저에선 이중 가산
   //   (월말 저녁에 다음 달로 넘어감) → UTC 게터로 교정.
   const ranges = useMemo(() => {
     const kst = new Date(Date.now() + 9 * 3600 * 1000);
@@ -416,7 +416,7 @@ export default function BankPage() {
     queryClient.invalidateQueries({ queryKey: ["bank-page-flow-v2"] });
     queryClient.invalidateQueries({ queryKey: ["bank-page-changes"] });
   };
-  // 직원 QA 통장(그랜터). 사용직원 선택용 재직 직원 목록
+  // 직원 QA 통장. 사용직원 선택용 재직 직원 목록
   const  { data: bankEmployees = [] } = useQuery({
     queryKey: ["bank-page-employees", companyId],
     queryFn: async () => {
@@ -760,7 +760,7 @@ export default function BankPage() {
 
   // (2026-07-30 개편 P3) 세부탭 권한 게이트 · 마스터=전체, 멤버=부여(/bank:탭키)만
   const tabs:  { key: Tab; label: string }[] = ([
-    //   카드 화면과 같은 순서·이름 · 목록 · 거래내역 · 개요 (2026-09-07 사장님: "같은 기능이면 이름이랑 순서 맞춰")
+    //   카드 화면과 같은 순서·이름 · 목록 · 거래내역 · 개요 ("같은 기능이면 이름이랑 순서 맞춰")
     
     { key: "accounts", label: "통장" },
     { key: "transactions", label: "거래내역" },
@@ -864,7 +864,7 @@ export default function BankPage() {
 
       {/* 개요 — 계좌별 잔액·자동이체 예정·자동이체 내역·이번달 큰 지출 */}
       {tab === "overview" && (<>
-        {/* 이번 달 입출금 추이·출금 상위 거래처·계좌별 표 — 재무 › 현황에서 옮겨 옴 (2026-08-26 사장님: "통장 부분은 통장 쪽으로") */}
+        {/* 이번 달 입출금 추이·출금 상위 거래처·계좌별 표 — 재무 › 현황에서 옮겨 옴 ("통장 부분은 통장 쪽으로") */}
         <BankStatusPanels companyId={companyId} from={todayKst().slice(0, 7) + "-01"} to={todayKst()} hideAccountsTable />
         <div className="bank-overview-panel">
           {/*  돈이 어느 통장에 몰려 있나 — 총자산 카드는 합계만 말한다.
@@ -896,7 +896,7 @@ export default function BankPage() {
               return (
                 <tr key={a.accountNo} className={`pnl-row-acct ${a.isHidden ? "opacity-60" : ""}`} onClick={() => { seedAccountCond(accNo); goTab("transactions"); }} title="누르면 거래내역으로 이동합니다.">
                   <td className="text-left"><span className="inline-flex items-center gap-2"><BankLogo name={a.bankName || name} size={20} /><b>{name}</b>{a.syncEnabled === false && <span className="ol-sure ml-1.5" title="거래를 가져오지 않는 통장입니다.">수집 꺼짐</span>}{a.alias && a.bankName && <small className="text-[var(--text-dim)]">{a.bankName}</small>}{a.isHidden && <span className="ol-sure">숨김</span>}</span></td>
-                  {/* 계좌번호는 전체를 보인다 (2026-08-19 사장님: "통장에서 계좌번호를 다 보이게") */}
+                  {/* 계좌번호는 전체를 보인다 ("통장에서 계좌번호를 다 보이게") */}
                   <td className="text-center mono-number text-[var(--text-muted)]">{accNo || "—"}</td>
                   <td className="text-left text-[var(--text-muted)]">{a.memo ? <span className="truncate inline-block max-w-[220px]" title={a.memo}>{a.memo}</span> : <span className="text-[var(--text-dim)]">—</span>}</td>
                   <td className="text-right mono-number font-bold">{fmtW(bal)}</td>
@@ -905,7 +905,7 @@ export default function BankPage() {
                     <span className="inline-flex gap-1.5">
                       <button type="button" onClick={() => setAcctEdit({ accountNo: accNo, alias: a.alias || "", memo: a.memo || "", bankName: a.bankName, balance: bal })} className="btn-secondary btn-sm">수정</button>
                       {/*   수집 켜기는 연동 통장에만 — 직접 등록한 통장은 은행에 붙어 있지 않아 가져올 곳이 없다.
-                            켜 두어도 아무 일도 없으면서 무료 요금제 한도만 먹던 칸이었다 (2026-09-11 사장님). */}
+                            켜 두어도 아무 일도 없으면서 무료 요금제 한도만 먹던 칸이었다. */}
                       {a.source && a.source !== "codef" ? (
                         <span className="bank-manual-mark" title="직접 등록한 통장입니다. 은행에 연결돼 있지 않아 거래를 가져오지 않습니다.">직접 등록</span>
                       ) : (
@@ -953,7 +953,7 @@ export default function BankPage() {
               >
                 <div className="flex items-start justify-between mb-2 gap-2">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    {/* 은행 브랜드 로고 (2026-08-13 사장님: 실제 은행 로고) */}
+                    {/* 은행 브랜드 로고 (실제 은행 로고) */}
                     <BankLogo name={a.bankName || name} size={26} />
                     <h3 className="text-sm font-semibold text-[var(--text)] truncate min-w-0">{name}</h3>
                   </div>
@@ -995,7 +995,7 @@ export default function BankPage() {
         </div>
       )}
 
-      {/* 거래내역 — 조회 화면 표준 (2026-08-14 사장님: "수집·전표탭의 디자인처럼").
+      {/* 거래내역 — 조회 화면 표준 ("수집·전표탭의 디자인처럼").
           탭 줄 아래에 조회 줄·걸린 조건·결과 요약·표·쪽 넘김을 **한 상자**에.
           예전의 기간 줄+계좌 배너+정렬 툴바+선택 액션바 낱장 구성을 버렸다 —
           계좌 필터는 검색조건의 '계좌' 칩으로, 정렬은 머리단으로, 선택은 바닥 SelectionBar 로. */}
@@ -1086,7 +1086,7 @@ export default function BankPage() {
         <QueryBody>
         <div className="ev-scroll">
             {/* 공용 표준 — 메뉴마다 다르던 표 밀도를 하나로 (2026-08-12).
-                깔때기·너비 손잡이·머리단 세로선(.ev-lined)은 수집·전표 표와 같은 부품 (2026-08-14 사장님) */}
+                깔때기·너비 손잡이·머리단 세로선(.ev-lined)은 수집·전표 표와 같은 부품 */}
             <table ref={tableRef} className="data-table w-full ev-lined">
               <thead className="sticky-bar">
                 <tr className="table-head-row">

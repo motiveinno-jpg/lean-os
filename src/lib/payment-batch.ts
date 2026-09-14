@@ -199,7 +199,7 @@ export function calculatePayroll(
     };
   }
 
-  // 2026-05-22 (사장님 확정) 기본급 모델: baseSalary = 과세 기본급, nonTaxableAmount = 별도 비과세(식대).
+  // 2026-05-22 기본급 모델: baseSalary = 과세 기본급, nonTaxableAmount = 별도 비과세(식대).
   //   지급총액 = baseSalary + nonTaxableAmount (예: 기본급 230 + 식대 20 = 250).
   //   과세소득 = 과세 기본급 + 과세 수당 (비과세는 차감 대상이 아니라 애초에 과세에 미포함).
   const taxableIncome = Math.max(0, baseSalary + taxableAllowance);
@@ -274,7 +274,7 @@ export function calculateRetirementPay(params: {
 }): { retirementPay: number; totalDays: number; dailyAvgWage: number; eligible: boolean } {
   const start = new Date(params.startDate);
   const end = new Date(params.endDate);
-  // +1 — 재직일수는 입사일·퇴사일 양 끝 포함 (2026-08-19 감사: 만 1년(365일) 근무자가
+  // +1 — 재직일수는 입사일·퇴사일 양 끝 포함 (만 1년(365일) 근무자가
   //   364일로 계산돼 퇴직금 0원으로 표시됐다. tools 퇴직금 계산기와도 어긋났음)
   const totalDays = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
   const eligible = totalDays >= 365; // 1년 이상 근무
@@ -516,7 +516,7 @@ export async function sendPayslipEmails(
       failed++;
       errors.push(`${item.employeeName}: PDF 생성 실패 ${e.message || ''}`);
       // PDF 없이 계속 진행하면 첨부 없는 빈 메일이 나가고 발급 기록까지 'issued'로 박제된다
-      //   (2026-08-19 감사). 이 직원은 발송을 건너뛰고 실패로 남긴다 — 재시도 시 다시 시도됨.
+      //   . 이 직원은 발송을 건너뛰고 실패로 남긴다 — 재시도 시 다시 시도됨.
       continue;
     }
 

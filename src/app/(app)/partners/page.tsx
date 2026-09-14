@@ -1752,7 +1752,7 @@ export default function PartnersPage() {
               <h2 className="text-lg font-bold">{editingId ? "거래처 수정" : "새 거래처 등록"}</h2>
               <button onClick={closeModal} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl transition">✕</button>
             </div>
-            {/* 사업자등록증 올리면 AI 가 읽어 칸을 채운다 — 저장은 사람이 확인 후 (2026-09-03 사장님) */}
+            {/* 사업자등록증 올리면 AI 가 읽어 칸을 채운다 — 저장은 사람이 확인 후 */}
             <BizCertUpload onExtracted={(f) => setForm((prev) => ({
               ...prev,
               name: f.name || prev.name,

@@ -71,7 +71,7 @@ export type AiEligibility = {
   revenue_max_krw: number | null;
   required_certs: string[];
   exclusions: string[];
-  /** 수출 실적·수출기업 요건 (2026-09-03 사장님) — true 면 수출 실적이 있어야 신청 가능 */
+  /** 수출 실적·수출기업 요건 — true 면 수출 실적이 있어야 신청 가능 */
   requires_export?: boolean | null;
   evidence: { region: string; industry: string; company_type: string; years: string; export?: string };
   summary: string; confidence: number;
@@ -572,7 +572,7 @@ const RULES: Record<string, Rule> = {
       fit += 5;
     }
 
-    //   회사 카드 ⑦ 관심 분야 — 사장님이 보겠다고 고른 갈래를 위로 올린다.
+    //   회사 카드 ⑦ 관심 분야 — 대표 보겠다고 고른 갈래를 위로 올린다.
     //   이게 수천 건을 실제로 가르는 유일한 축이다(지역·업력이 안 갈리는 공고가 대부분이라).
     const field = String(program.field ?? "");
     const wanted = p.interests.flatMap((i) => INTEREST_FIELDS[i] ?? []);
@@ -619,7 +619,7 @@ export function judge(program: GovProgram, profile: CompanyProfile): Judgement {
       reasons: [{ mark: "no", text: `접수가 끝났습니다 (마감 ${program.apply_end?.slice(0, 10)})`, src: "제도 요건" }],
     };
   }
-  //   AI 조건표가 있으면 그것으로 엄격 대조 (2026-09-03 사장님: "터무니없는 것도 가능성 높음" — 원문 요건으로 걸러낸다)
+  //   AI 조건표가 있으면 그것으로 엄격 대조 ("터무니없는 것도 가능성 높음" — 원문 요건으로 걸러낸다)
   if (program.eligibility_ai && typeof program.eligibility_ai === "object") {
     try { return judgeAi(program.eligibility_ai, profile); } catch { /* 아래 규칙으로 */ }
   }
@@ -733,7 +733,7 @@ export function judgeAi(ai: AiEligibility, p: CompanyProfile): Judgement {
 // ── 적합도 ────────────────────────────────────────────────────────────────
 
 /**
- * 적합도 — **우선순위를 정하는 점수** (2026-08-21 사장님 지시:
+ * 적합도 — **우선순위를 정하는 점수** (
  *   "가장 적합하거나 바로 신청할 수 있는 것이 상단으로, 적합도를 평가해주는 것")
  *
  * ★ 점수만 내놓지 않는다. 세 갈래로 나누고 무엇 때문에 깎였는지 줄로 적는다 —
@@ -850,7 +850,7 @@ export async function lastSyncAt(): Promise<string | null> {
 
 /**
  * 이 회사가 인증키를 넣어 둔 공고 원천 — 넣지 않았으면 공고는 보이지 않는다
- *   (2026-08-21 사장님 지시: "회사가 자기 키를 넣었을 때만 쓸 수 있게").
+ *   ("회사가 자기 키를 넣었을 때만 쓸 수 있게").
  *   상시 제도(source='always')는 API 가 필요 없으므로 키와 무관하게 늘 보인다.
  */
 export async function connectedSources(companyId: string): Promise<string[]> {

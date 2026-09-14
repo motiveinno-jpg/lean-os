@@ -89,7 +89,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
 }) {
   const isEmployee = role !== "manager";   // 호출부가 넘기는 화면 모드 — 관리 권한자면 "manager" (2026-09-11 역할 폐지)
   const [weekStart, setWeekStart] = useState<Date>(() => mondayOf(kstToday()));
-  //   구성원 정렬 (2026-08-25 사장님) — 가나다순(기본)·근무시간순·팀별
+  //   구성원 정렬 — 가나다순(기본)·근무시간순·팀별
   const [sortMode, setSortMode] = useState<"hours" | "name" | "team">("name");
   const weekEnd = addDays(weekStart, 6);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -114,7 +114,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
     staleTime: 30_000,
   });
 
-  // 승인 휴가 (주간과 겹치는 건). 반차 오전/오후 판정을 위해 단위·시각까지 읽는다 (2026-08-11 사장님)
+  // 승인 휴가 (주간과 겹치는 건). 반차 오전/오후 판정을 위해 단위·시각까지 읽는다
   const  { data: leaves = [] } = useQuery<{ employee_id: string; start_date: string; end_date: string; leave_type: string; leave_unit: string | null; start_time: string | null; end_time: string | null; days: number | null }[]>({
     queryKey: ["flex-work-leaves", companyId, startStr],
     queryFn: async () => {
@@ -128,7 +128,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
     staleTime: 60_000,
   });
 
-  // 회사 공휴일 (2026-08-19 사장님: 대체휴일이 전 직원 결근으로 표시). 결근 판정에서 제외.
+  // 회사 공휴일 (대체휴일이 전 직원 결근으로 표시). 결근 판정에서 제외.
   const  { data: weekHolidays = [] } = useQuery<{ date: string; name: string | null }[]>({
     queryKey: ["flex-work-holidays", companyId, startStr],
     queryFn: async () => {
@@ -146,7 +146,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
     return m;
   }, [weekHolidays]);
 
-  //   회사 근무시간 · 셀 게이지의 '하루 근무량' 기준 (2026-08-25 사장님: 근무 진행률로 채움).
+  //   회사 근무시간 · 셀 게이지의 '하루 근무량' 기준 (근무 진행률로 채움).
   const  { data: workCfg } = useQuery<CompanyWorkCfg>({
     queryKey: ["flex-work-cfg", companyId],
     queryFn: async () => {
@@ -178,7 +178,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
     return m;
   }, [atts]);
   // 날짜별 휴가 정보 — 종일이면 "휴가", 반차·시간차는 오전(am)/오후(pm)로 갈라 게이지 반쪽만 채운다.
-  //   오전/오후 판정은 캘린더와 동일 기준: 시작 시각이 12:00 이전이면 오전 (2026-08-11 사장님).
+  //   오전/오후 판정은 캘린더와 동일 기준: 시작 시각이 12:00 이전이면 오전.
   //   시각이 없는 구 데이터 반차는 방향 미상(half) — 채움 없이 라벨만.
   //   같은 날 오전+오후 반차가 겹치면 사실상 종일이므로 full 로 승격.
   const leaveByEmpDate = useMemo(() => {
@@ -220,13 +220,13 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
         overtime += Number(a.overtime_minutes || 0);
         //   오전반차·종일·방향미상 휴가는 아침 지각을 면제한다(오후반차만 아침 출근 의무가 남는다).
         //   classifyLeaveForLate 와 같은 규칙 — 저장된 is_late 가 반차 승인 전 아침 기준으로 잘못
-        //   박히는 경우가 있어 표시단에서도 면제해 오전반차가 지각으로 뜨는 것을 막는다 (2026-08-25 사장님).
+        //   박히는 경우가 있어 표시단에서도 면제해 오전반차가 지각으로 뜨는 것을 막는다.
         const lv = leaveByEmpDate.get(key);
         if (a.is_late && (!lv || lv.kind === "pm")) lateDays += 1;
       }
       return { emp: e, total, overtime, lateDays };
     }).sort((a, b) => {
-      if (sortMode === "name") return compareByName(a.emp as any, b.emp as any);   // 가나다순(이름) — 사번 무시 (2026-08-31 사장님)
+      if (sortMode === "name") return compareByName(a.emp as any, b.emp as any);   // 가나다순(이름) — 사번 무시
       if (sortMode === "team") {
         const t = String(a.emp.department || "힣").localeCompare(String(b.emp.department || "힣"), "ko");
         return t !== 0 ? t : comparePeople(a.emp as any, b.emp as any);
@@ -237,7 +237,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
   }, [targets, attByEmpDate, leaveByEmpDate, startStr, sortMode]);
 
   // 이번주 결근 집계 — 셀의 결근 배지와 동일 규칙(지난 평일 + 무기록 + 휴가 아님 + 입사 이후).
-  //   요약 칩 클릭 시 명단 펼침 (2026-07-30 사장님: 결근자 이름을 클릭으로 확인).
+  //   요약 칩 클릭 시 명단 펼침 (결근자 이름을 클릭으로 확인).
   const [showAbsent, setShowAbsent] = useState(false);
   const absentList = useMemo(() => {
     const m = new Map<string, { name: string; dates: string[] }>();
@@ -264,7 +264,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
   const absentDayCount = absentList.reduce((s, x) => s + x.dates.length, 0);
   //   오늘 미출근 — 근무 시작(+유예)이 지났는데 출근 기록이 없는 사람. 하루가 끝나기 전이라 결근으로 못 박지 않고
   //   '몇 분 지각 중'으로 알리고, 퇴근 시각이 지나면 결근으로 본다. 다음 날부터는 위의 결근 규칙이 잡는다.
-  //   (2026-09-07 사장님: 6명이 안 찍었는데 지각도 결근도 아무 표시가 없고 명단에도 안 나온다)
+  //   (6명이 안 찍었는데 지각도 결근도 아무 표시가 없고 명단에도 안 나온다)
   const todayIdx = days.findIndex((d) => ymd(d) === todayStr);
   const todayMissing = useMemo(() => {
     if (!workCfg || todayIdx < 0 || !isWorkdayIdx(todayIdx) || holidaySet.has(todayStr)) return [] as { name: string; lateMin: number; afterEnd: boolean }[];
@@ -292,7 +292,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
 
   const gaugeColor = (min: number) => (min > LIMIT_MIN ? FLEX.red : min > STD_MIN ? FLEX.amber : FLEX.violet);
 
-  //   셀 게이지 — 하루 근무 진행률(0~1)로 왼→오 채운다 (2026-08-25 사장님).
+  //   셀 게이지 — 하루 근무 진행률(0~1)로 왼→오 채운다.
   //     · 퇴근함(정상 출근·퇴근): 실제 근무분/기대근무분 → 보통 꽉 참
   //     · 근무중(오늘·미퇴근): (지금−출근) 기준으로 1분마다 실시간으로 차오른다(점심 지나면 점심 제외)
   //     · 지난 날: 저장된 근무분 기준
@@ -329,7 +329,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
             <button type="button" onClick={() => setWeekStart(addDays(weekStart, 7))} className="qk-quick" aria-label="다음 주">▶</button>
           </span>
           <b className="text-sm text-[var(--text)]">{weekStart.getFullYear()}년 {weekLabel}</b>
-          {/* 구성원 정렬 (2026-08-25 사장님) */}
+          {/* 구성원 정렬 */}
           <label className="flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
             정렬
             <select value={sortMode} onChange={(e) => setSortMode(e.target.value as "hours" | "name" | "team")}
@@ -360,7 +360,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
 
       <QueryBody>
       <div className="ev-scroll">
-      {/* 결근자 명단 — 결근 칩 클릭 시 (2026-07-30 사장님) */}
+      {/* 결근자 명단 — 결근 칩 클릭 시 */}
       {!isEmployee && showAbsent && (
         <div className="fw-absent-panel">
           <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">이번주 결근 — {absentList.length}명 · {absentDayCount}건</div>
@@ -442,7 +442,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                     const a = attByEmpDate.get(key);
                     const lv = leaveByEmpDate.get(key);
                     const weekend = !isWorkdayIdx(i);
-                    //   셀 공통 박스 · 테두리로 배경과 구분되게, 글자는 진하게(2줄), 게이지는 바닥 얇은 바 (2026-08-25 사장님).
+                    //   셀 공통 박스 · 테두리로 배경과 구분되게, 글자는 진하게(2줄), 게이지는 바닥 얇은 바.
                     if (lv)  {
                       const lci = a ? timeOf(a.check_in) : null;
                       const lco = a ? timeOf(a.check_out) : null;
@@ -459,7 +459,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                             </div>
                           ) : (
                             <div className="fw-cell fw-cell-box">
-                              {/* 반차도 바닥 3px 진행선 — 반쪽 채움의 앞선 라인이 칸 한가운데(=글자)를 가로질렀다(2026-09-03 사장님) */}
+                              {/* 반차도 바닥 3px 진행선 — 반쪽 채움의 앞선 라인이 칸 한가운데(=글자)를 가로질렀다 */}
                               {halfFrac > 0 && (
                                 <div className="fw-cell-fill-live" style={{ left: lv.kind === "am" ? "50%" : 0, width: `${halfFrac * 50}%`, background: workColor }} />
                               )}
@@ -473,7 +473,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                       );
                     }
                     if (!a || (!a.check_in && !minutesOf(a))) {
-                      // 결근/공휴일/빈칸 — 지난 평일인데 기록·휴가가 없으면 '결근' (2026-07-30 사장님).
+                      // 결근/공휴일/빈칸 — 지난 평일인데 기록·휴가가 없으면 '결근'.
                       const dstr = ymd(d);
                       if (holidaySet.has(dstr)) {
                         return (
@@ -488,7 +488,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                       }
                       const absent = !weekend && dstr < todayStr && (!emp.hire_date || dstr >= emp.hire_date);
                       //   오늘 — 근무 시작(+유예)을 지났는데 기록이 없으면 '미출근 · n분 지각 중', 퇴근 시각도 지났으면 '결근'.
-                      //   위 오늘 미출근 명단과 같은 규칙 (2026-09-07 사장님).
+                      //   위 오늘 미출근 명단과 같은 규칙.
                       const missing = !weekend && dstr === todayStr && !!workCfg && nowMin >= empStart(emp) + workCfg.grace && (!emp.hire_date || dstr >= emp.hire_date);
                       const missingAbsent = missing && nowMin >= empEnd(emp);
                       return (
@@ -509,11 +509,11 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                     }
                     
                     //   근무 진행률 게이지 · 바닥 바가 왼→오로 채워진다. 퇴근했으면 근무분/기대분(대개 꽉 참),
-                    //     근무중(오늘)이면 지금 시각 기준으로 1분마다 실시간으로 차오른다 (2026-08-25 사장님).
+                    //     근무중(오늘)이면 지금 시각 기준으로 1분마다 실시간으로 차오른다.
                     const  { frac, inProgress } = cellFill(a, ymd(d));
                     const ci = timeOf(a.check_in), co = timeOf(a.check_out);
                     const barColor = a.is_late ? FLEX.amber : FLEX.violet;
-                    //   근무 형태(외근·출장·당직·재택)를 칸 모서리에 작은 태그로 — 종전엔 시각만 보여 어디 근무인지 몰랐다 (2026-09-09 사장님)
+                    //   근무 형태(외근·출장·당직·재택)를 칸 모서리에 작은 태그로 — 종전엔 시각만 보여 어디 근무인지 몰랐다
                     const atype = String(a.attendance_type || "");
                     const atLabel = atype === "business_trip" ? "출장" : atype === "field_work" ? "외근" : atype === "on_duty" ? "당직"
                       : (atype === "remote" || a.status === "remote") ? "재택" : null;
@@ -522,7 +522,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                     return (
                       <td key={i} className={`px-1 py-2 align-middle ${weekend ? "bg-[var(--bg-surface)]/30" : ""}`} title={tip}>
                         <div className="fw-cell fw-cell-box">
-                          {/* 진행 게이지 = 바닥 3px 선 하나 (2026-09-03 사장님 "촌스럽다": 그라데이션 채움+앞선 라인+알약 칩 걷어냄) —
+                          {/* 진행 게이지 = 바닥 3px 선 하나 (2026-09-03 대표가 "촌스럽다": 그라데이션 채움+앞선 라인+알약 칩 걷어냄)
                               근무중(오늘)은 1분마다 차오르고, 퇴근 칸은 근무분/기대분. 색은 정상 보라·지각 주황. */}
                           {ci && frac > 0 && (
                             <div className="fw-cell-fill-live" style={{ width: `${Math.max(frac * 100, 5)}%`, background: barColor }} />

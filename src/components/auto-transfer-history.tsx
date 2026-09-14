@@ -16,7 +16,7 @@ interface Props {
   companyId: string;
   maxItems?: number;
   /** 통장 화면 안에서 쓸 때 — 같은 화면의 거래내역 탭으로 바로 바꾼다.
-   *  (링크로 /bank?tab=transactions 를 열면 이미 통장 화면이라 탭이 안 바뀐다 — 2026-09-07 사장님: "눌러도 아무 반응 없음") */
+   *  (링크로 /bank?tab=transactions 를 열면 이미 통장 화면이라 탭이 안 바뀐다 — 2026-09-07 대표: "눌러도 아무 반응 없음") */
   onOpenTransactions?: () => void;
   /** 통장 화면(bank) · 카드 화면(card) — 제목과 '직접 표시' 안내만 다르고 판정·자료는 같다(통장 출금 + 카드 결제 둘 다 본다) */
   variant?: "bank" | "card";
@@ -40,14 +40,14 @@ const md = (ds: string | null | undefined) => {
 
 // 정기 지출 출금 확인 — 재무 › 정기 지출에 등록한 것(월세·보험·구독)이 이번 달 통장에서 실제로 나갔는지 한 줄씩.
 //   예전 카드는 "나간 것"만 세어서 정기 지출이 3건인데 1건만 보이면 나머지가 어디 갔는지 알 수 없었다
-//   (2026-09-07 사장님). 이제 등록된 정기 지출 전부를 나감 · 예정 · 확인 필요(날짜가 지났는데 출금이 안 보임)로 그린다.
+//   . 이제 등록된 정기 지출 전부를 나감 · 예정 · 확인 필요(날짜가 지났는데 출금이 안 보임)로 그린다.
 //   짝 맞추기는 lib/recurring-match — 거래내역 탭의 '자동이체' 태그와 같은 규칙.
 export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransactions, variant = "bank" }: Props) {
   const now = new Date();
   const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const dateTo = endOfMonth(now);
   //   최근 3개월을 읽는다. 정기 지출에는 '결제 수단' 항목이 없어서, 실제로 통장에서 나갔는지 카드로 결제됐는지를
-  //   출금 이력이 말하게 한다(2026-09-07 사장님: "안형영 1,595,000 은 계좌이체인데 왜 카드 화면에"). 이번 달 대조는 그 안에서 거른다.
+  //   출금 이력이 말하게 한다("안형영 1,595,000 은 계좌이체인데 왜 카드 화면에"). 이번 달 대조는 그 안에서 거른다.
   const dateFrom = startOfMonth(new Date(now.getFullYear(), now.getMonth() - 2, 1));
   const today = todayKst();
 
@@ -57,7 +57,7 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
     enabled: !!companyId,
     staleTime: 30_000,
   });
-  //   정기 지출은 통장에서 빠지기도, 카드로 결제되기도 한다(구독·SaaS). 카드 결제도 같이 대조한다 (2026-09-07 사장님: "카드에는 정기결제가 없어?")
+  //   정기 지출은 통장에서 빠지기도, 카드로 결제되기도 한다(구독·SaaS). 카드 결제도 같이 대조한다 ("카드에는 정기결제가 없어?")
   const  { data: cardRows = [] } = useQuery({
     queryKey: ["auto-transfer-history-card", companyId, ym],
     queryFn: async () => {
@@ -76,7 +76,7 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
     enabled: !!companyId,
     staleTime: 60_000,
   });
-  //   반복 결제 추천 · 최근 6개월에서 매달 비슷한 날 비슷한 금액이 나가는데 정기 지출에 없는 것 (2026-09-07 사장님 요청)
+  //   반복 결제 추천 · 최근 6개월에서 매달 비슷한 날 비슷한 금액이 나가는데 정기 지출에 없는 것
   const qc = useQueryClient();
   const  { toast } = useToast();
   const { data: suggestions = [] } = useQuery({

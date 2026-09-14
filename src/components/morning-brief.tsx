@@ -20,7 +20,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase }  from "@/lib/supabase";
 //   getTodos(schedule_todos) → getScheduleItems(schedule_events) (2026-08-31): schedule_todos 는
 //   2026-08-10 일정 통합 이후 쓰기 코드가 없는 죽은 테이블 · 완료 불가능한 옛 할 일이
-//   매일 브리핑에 "기한 지남"으로 공급돼 거짓 항목을 만들었다(사장님 제보).
+//   매일 브리핑에 "기한 지남"으로 공급돼 거짓 항목을 만들었다.
 import  { getScheduleItems } from "@/lib/schedule";
 import { useUser } from "@/components/user-context";
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
@@ -53,7 +53,7 @@ interface AiBriefPlan  {
   risks: string[];
   wins: string[];
 }
-// ⚠️ AI 가 만든 JSON 을 그대로 믿지 않는다 (2026-08-20 실사고).
+// ⚠️ AI 가 만든 JSON 을 그대로 믿지 않는다.
 //   종전엔 headline·actions 만 검사하고 risks·wins 는 무검증으로 통과시켰다. 모델이 그 두 칸을
 //   배열이 아닌 값(객체·문자열)으로 내거나 빼먹은 날, 대시보드 첫 화면이
 //   "eT.slice is not a function" 으로 통째로 죽었다 — 아침 브리핑은 하루 한 번 생성돼
@@ -241,7 +241,7 @@ export function MorningBrief({
       try {
         let { data, error } = await supabase.functions.invoke("ai-briefing", { body: payload });
         if (error || !data?.content) return null;
-        //   생성 시각 · "오늘 생성"으로 뭉뚱그리면 아침 스냅샷을 저녁까지 최신으로 오독한다 (2026-08-31 사장님 제보).
+        //   생성 시각 · "오늘 생성"으로 뭉뚱그리면 아침 스냅샷을 저녁까지 최신으로 오독한다.
         //   company_id 명시: 운영자 계정은 RLS 예외로 타사 행이 잡힐 수 있다.
         let generatedAt: string | null = null;
         try  {

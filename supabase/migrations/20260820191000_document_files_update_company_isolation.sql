@@ -9,7 +9,7 @@
 --
 -- 경로 규칙은 DELETE 와 동일: {companyId}/... (buildStoragePath, 운영 객체 전건 확인).
 -- 소유자 조건까지 넣지 않는 이유: 덮어쓰기는 같은 회사 안에서 버전 갱신으로 쓰이는 정상 동작이고,
---   사장님 요청은 "다른 회사가 건드리는 것"을 막는 것이었다. 회사 격리까지만 맞춘다.
+--   대표 요청은 "다른 회사가 건드리는 것"을 막는 것이었다. 회사 격리까지만 맞춘다.
 
 drop policy if exists document_files_update on storage.objects;
 

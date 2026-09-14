@@ -27,7 +27,7 @@ type AiAnalysis = {
   severity?: "high" | "medium" | "low";
   suggested_reply?: string;
   needs_dev?: boolean;
-  // 운영자 분류용 신호 — 자동 처리 없음(2026-08-04 사장님: 전건 사람 승인)
+  // 운영자 분류용 신호 — 자동 처리 없음(전건 사람 승인)
   resolution?: "simple" | "operator" | "dev";
   analyzed_at?: string;
 };
@@ -150,7 +150,7 @@ export default function PlatformSupportPage() {
     refetchInterval: 60_000,
   });
 
-  // '처리중' 전환 · 고객 화면의 진행 단계(대기→처리중→완료)와 연동 (2026-08-04 사장님)
+  // '처리중' 전환 · 고객 화면의 진행 단계(대기→처리중→완료)와 연동
   const startProgressMut = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await db.from("support_tickets").update({ status: "in_progress" }).eq("id", id).eq("status", "open");

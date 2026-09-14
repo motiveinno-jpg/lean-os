@@ -30,7 +30,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/guide`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE}/tax-partners`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE}/advisor`, changeFrequency: "monthly", priority: 0.6 },
-    // 무료 도구 — 검색 유입용 공개 계산기 (2026-08-13 사장님 지시, 2026-08-31 허브·신선도 정비)
+    // 무료 도구 — 검색 유입용 공개 계산기 (2026-08-31 허브·신선도 정비)
     { url: `${BASE}/tools`, changeFrequency: "monthly", priority: 0.9, lastModified: TOOLS_LASTMOD },
     { url: `${BASE}/tools/leave-calculator`, changeFrequency: "monthly", priority: 0.9, lastModified: TOOLS_LASTMOD },
     { url: `${BASE}/tools/severance-calculator`, changeFrequency: "monthly", priority: 0.9, lastModified: TOOLS_LASTMOD },

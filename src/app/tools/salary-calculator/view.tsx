@@ -131,7 +131,7 @@ export default function SalaryCalculatorView() {
                   <span className="tl8-result-num">{won(r.net)}원</span>
                   <span className="tl8-result-cap">예상 월 실수령액 — 공제 합계 −{won(r.total)}원</span>
                 </div>
-                {/*   세전 → 과세대상 → 공제 → 실수령액까지 **한 사다리**로 (2026-08-14 사장님).
+                {/*   세전 → 과세대상 → 공제 → 실수령액까지 **한 사다리**로.
                       금액만 있으면 무엇에 요율을 곱했는지 알 수 없고, 표 어디에도 실수령액이 안 나와
                       위 큰 숫자와 이어지지 않았다. 마지막 줄에서 고리를 닫는다.
                       ⚠️ 국민연금 비고는 월급과 무관하게 늘 "(상한 적용)"이라고 적혀 있었다 —

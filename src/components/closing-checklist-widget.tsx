@@ -11,12 +11,12 @@ import { generateMonthlyPLReport } from "@/lib/pdf-report";
 import { getOrCreateChecklist, toggleChecklistItem, completeClosingChecklist, lockClosingMonth, unlockClosingMonth, autoVerifyChecklist, autoCloseMonth, attachReportUrl } from "@/lib/closing";
 import { useToast }  from "@/components/toast";
 
-// 월 마감 체크리스트 · 대시보드 하단에 있던 것을 마스터 화면으로 이동하며 분리 (2026-08-10 사장님).
+// 월 마감 체크리스트 · 대시보드 하단에 있던 것을 마스터 화면으로 이동하며 분리.
 //   로직·마크업은 dashboard/page.tsx 의 ClosingChecklistWidget 그대로.
 
 import Link from "next/link";
 
-// 항목별 처리 화면 바로가기 (2026-08-11 사장님: "어디서 체크하는지 바로 연동") —
+// 항목별 처리 화면 바로가기 ("어디서 체크하는지 바로 연동")
 //   closing.ts DEFAULT_ITEMS 의 제목 키워드로 매칭(제목이 바뀌어도 부분일치로 살아남게).
 const ITEM_LINKS:  { match: RegExp; href: string; label: string }[] = [
   { match: /은행 거래내역/, href: "/bank", label: "통장 보기" },

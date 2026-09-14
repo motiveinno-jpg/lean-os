@@ -1,4 +1,4 @@
-// 반복 결제 후보 — 통장·카드 개요의 "정기 지출로 등록할까요?" 추천 규칙 (2026-09-07 사장님 요청).
+// 반복 결제 후보 — 통장·카드 개요의 "정기 지출로 등록할까요?" 추천 규칙.
 import { describe, it, expect } from "vitest";
 import { detectRecurringCandidates } from "../recurring-suggest";
 import { cardTxToLite } from "../recurring-match";

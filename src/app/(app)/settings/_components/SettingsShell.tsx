@@ -36,7 +36,7 @@ import { loadLinkedIntegrations, listApiKeys } from "@/lib/api-keys";
 import { TAB_COMPAT, settingsGroup, type SettingsGroupKey, type SettingsLeafKey } from "@/lib/settings-nav";
 // 계정·알림(개인)은 마이페이지로 이관됨(2026-07-08) — 여기선 import/렌더 제거.
 
-// ── 회사 설정 화면 껍데기 (2026-08-24 사장님 지시: "좌측 사이드바로 메뉴화") ──
+// ── 회사 설정 화면 껍데기 ("좌측 사이드바로 메뉴화") ──
 //   항목 13개를 **앱 사이드바에 그룹 5개**로 폈다 — IA 원본은 lib/settings-nav.ts 하나다.
 //   그래서 이 파일은 이제 "한 그룹"만 그리는 껍데기다. 그룹 안 leaf 만 상자 안 파란 밑줄 탭으로
 //   세우므로 탭이 2~4개 — 13개가 한 줄에 눌려 뒤쪽이 가로로 밀리던 문제가 사라진다.
@@ -147,8 +147,8 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
   });
 
   //   ── 연동 그룹 탭 줄 = 연결 현황판 (2026-08-24) ──
-  //   8-21 사장님 요구는 "무엇이 연결됐나를 한 곳에서 본다"였고, 그래서 'API 키' 탭 목록에
-  //   은행·홈택스·광고 줄까지 모아 뒀다. 그런데 같은 것이 두 탭에 나와 헷갈렸다(8-24 사장님).
+  //   8-21 대표 요구는 "무엇이 연결됐나를 한 곳에서 본다"였고, 그래서 'API 키' 탭 목록에
+  //   은행·홈택스·광고 줄까지 모아 뒀다. 그런데 같은 것이 두 탭에 나와 헷갈렸다(8-24 대표).
   //   → 목록에서는 빼고 **탭 줄 배지**로 옮긴다. 조망은 남고 중복만 사라진다.
   //   ★ 연동 그룹을 볼 때만 부른다. 다른 설정 화면에서 헛돌게 하지 않는다.
   const  { data: linkedNow = [] } = useQuery({
@@ -247,13 +247,13 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
   }
 
   //   연동/직접 등록 판정과 이름은 lib/bank-accounts.ts 한 곳 — 화면마다 source 를 직접 비교하다
-  //   은행연동 탭이 갈래를 안 나눈 전체 목록을 쓰는 일이 있었다 (2026-09-11 사장님 제보)
+  //   은행연동 탭이 갈래를 안 나눈 전체 목록을 쓰는 일이 있었다
   const { auto: linkedAccounts, manual: manualAccounts } = splitBankAccounts(bankAccounts as BankAccount[]);
   const linkedBalance = sumBankBalance(linkedAccounts);
   const manualBalance = sumBankBalance(manualAccounts);
   const totalBankBalance = linkedBalance + manualBalance;
   const totalCash = totalBankBalance + (Number(balance) || 0);
-  // 생존 개월수 분모 = 반복결제 + 재직자 급여 + 추가 고정비 (2026-08-19 감사):
+  // 생존 개월수 분모 = 반복결제 + 재직자 급여 + 추가 고정비:
   //   종전엔 "추가 월 고정비" 입력값만 나눠 실제 고정비 5천만/입력 5백만 회사가 "20개월"로 보였다.
   //   아래 도움말이 약속한 산식과 동일하게 맞춘다.
   const { data: burnParts } = useQuery({
@@ -695,7 +695,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
               )}
             </section>
 
-            {/*   장부 매칭 허용오차 — 2026-09-11 회계마감 탭에서 옮겨 왔다 (사장님: "너무 난잡해 보인다").
+            {/*   장부 매칭 허용오차 — 2026-09-11 회계마감 탭에서 옮겨 왔다 ("너무 난잡해 보인다").
                   마감은 '언제 이전 자료를 안 볼지'를 정하는 곳이고 이것은 계약·계산서·입금을 맞추는
                   규칙이라 서로 남이었다. 한 탭에 파란 저장 버튼이 둘이던 것도 이걸로 없어진다.
                   입금을 장부와 맞추는 일이라 자금·통장 쪽이 제자리다. */}
@@ -709,7 +709,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
         {/* 세무 파트너 · 접속 보안 — 회사정보에서 떼어 낸 것들 (2026-08-21) */}
         {tab === "tax-partner" && <TaxAdvisorSection />}
         {tab === "insurance" && companyId && <InsuranceRatesTab companyId={companyId} userId={userId} />}
-        {/*   '결재 상신 알림(총괄 수신)'은 2026-08-24 삭제했다 — 사장님:
+        {/*   '결재 상신 알림(총괄 수신)'은 2026-08-24 삭제했다 — 대표:
               "결재는 참조·결재자한테만 알람이 가면 되는 건데, 직원 100명이면 100명이 올리는 상신
                알람을 다 받을 것인가? 쓸데없는 메뉴·기능이다."
               맞는 말이다. 결재 알림은 그 건의 결재자·참조자에게만 간다(그 경로는 그대로 둔다). */}
@@ -750,7 +750,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
         {tab === "api-keys" && companyId && <ApiKeysTab companyId={companyId} userId={userId} />}
         {tab === "bank" && <BankIntegrationTab companyId={companyId} bankAccounts={bankAccounts} />}
 
-        {/* 근태·가산수당 탭은 인사관리로 이관(2026-08-24 사장님 지시) —
+        {/* 근태·가산수당 탭은 인사관리로 이관
             근무시간·휴일 → 근태 관리 › 근무 기준 / 가산수당·수당 카탈로그 → 구성원 › 급여.
             옛 주소는 lib/settings-nav.ts 의 TAB_MOVED 가 받는다. */}
 

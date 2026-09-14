@@ -1,4 +1,4 @@
--- 무료 요금제 통장·카드 합산 3개 제한 (2026-08-11 사장님 확정)
+-- 무료 요금제 통장·카드 합산 3개 제한
 -- 신규 INSERT 만 차단 — 기존 초과 연결은 유지(grandfather).
 create or replace function public.enforce_free_account_limit()
  returns trigger

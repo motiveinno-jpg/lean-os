@@ -18,9 +18,9 @@ import { CopyButton } from "@/components/copy-text";
 // 직원용 구성원 디렉토리 — 읽기 전용. 누가 어느 부서/직책에 있는지만 보여준다.
 //   2026-08-19 조회 화면 표준(인사 메뉴 점검): 상자 + [검색조건(부서) · 빠른검색 · 보기 칩(리스트/카드) ‖ 인원] + 표(정렬) + 쪽. 카드는 보기 옵션.
 //   예전엔 상자 없이 부서별 유리 카드 격자만 있었다.
-// 조직도 정렬용 직책 서열 (2026-08-19 사장님: 본부장→팀장→과장→사원 순으로 먼저). 목록에 없는 직책은 뒤로.
+// 조직도 정렬용 직책 서열 (본부장→팀장→과장→사원 순으로 먼저). 목록에 없는 직책은 뒤로.
 const POSITION_RANK = ["대표", "이사", "본부장", "부장", "팀장", "차장", "과장", "대리", "주임", "사원"];
-// 대표(CEO)는 부서 상자에서 빼서 조직도 맨 위 가운데 뿌리로 올린다 (2026-08-19 사장님)
+// 대표(CEO)는 부서 상자에서 빼서 조직도 맨 위 가운데 뿌리로 올린다
 const isCeoPosition = (p?: string | null) => /^(대표(이사)?|CEO)$/i.test(String(p || "").trim());
 
 export default function TeamPage() {
@@ -49,10 +49,10 @@ export default function TeamPage() {
   const { statusOf } = useWorkStatus(companyId);
   const allDepts = useMemo(() => [...new Set(employees.map((e) => e.department || "미배정"))].sort(), [employees]);
 
-  // 조직도 (2026-08-19 사장님: 디렉토리에서 조직도도 보이게) — 회사 루트 → 부서 상자 → 직책 서열순 구성원.
+  // 조직도 (디렉토리에서 조직도도 보이게) — 회사 루트 → 부서 상자 → 직책 서열순 구성원.
   //   검색·부서 필터가 조직도에도 그대로 적용된다. '미배정'은 맨 뒤.
   const { data: companyName = "" } = useQuery({
-    queryKey: ["team-org-company-name", companyId], // ⚠️ "company-name" 키는 구성원 페이지가 객체를 캐시함 — 문자열 반환인 이 쿼리와 키를 공유하면 조직도에 객체가 렌더돼 React #31 (2026-08-19 실사고)
+    queryKey: ["team-org-company-name", companyId], // ⚠️ "company-name" 키는 구성원 페이지가 객체를 캐시함 — 문자열 반환인 이 쿼리와 키를 공유하면 조직도에 객체가 렌더돼 React #31
     enabled: !!companyId && view === "org",
     staleTime: 300_000,
     queryFn: async () => {
@@ -67,7 +67,7 @@ export default function TeamPage() {
     return [...rows].sort((a, b) => (cmp((a as any)[k] || "", (b as any)[k] || "") * (sort.dir === "asc" ? 1 : -1)) || (a.name || "").localeCompare(b.name || ""));
   }, [employees, search, depts, sort]);
   const pager = usePager(filtered, 50, `${search}|${depts.join()}|${sort.key}${sort.dir}`);
-  // 카드 보기 팀별 묶음 (2026-08-20 사장님 지시) — 현재 쪽에 보이는 인원을 부서로 묶고,
+  // 카드 보기 팀별 묶음 — 현재 쪽에 보이는 인원을 부서로 묶고,
   //   팀 안은 조직도와 같은 직책 서열로 정렬한다. 부서 미지정은 맨 뒤.
   const cardGroups = useMemo(() => {
     const rank = (p?: string | null) => { const i = POSITION_RANK.indexOf(p || ""); return i === -1 ? POSITION_RANK.length : i; };
@@ -91,7 +91,7 @@ export default function TeamPage() {
   }, [filtered]);
 
 
-  // 조직도 이미지(PNG) 내보내기 · 화면에 보이는 조직도를 **그대로** 캡처 (2026-08-19 사장님:
+  // 조직도 이미지(PNG) 내보내기 · 화면에 보이는 조직도를 **그대로** 캡처 (
   //   수동 캔버스 드로잉은 너무 촘촘하게 나왔다 → html-to-image 로 DOM 캡처, 간격·테마 화면과 동일).
   const orgChartRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
@@ -235,7 +235,7 @@ export default function TeamPage() {
                 </div>
               </div>
             ) : (
-              /* 카드 보기는 팀(부서)별로 묶어서 보여준다 (2026-08-20 사장님 지시).
+              /* 카드 보기는 팀(부서)별로 묶어서 보여준다.
                  팀 안에서는 직책 서열(대표→이사→본부장→…→사원) 순, 부서 미지정은 맨 뒤. */
               <div className="space-y-5">
                 {cardGroups.map((g) => (

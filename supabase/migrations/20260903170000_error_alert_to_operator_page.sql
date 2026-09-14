@@ -1,4 +1,4 @@
--- 오류 감지 알림을 개인 벨 알림에서 뺀다 (2026-09-03 사장님: "운영자 페이지에 나와야 하는 것 아닌가")
+-- 오류 감지 알림을 개인 벨 알림에서 뺀다 ("운영자 페이지에 나와야 하는 것 아닌가")
 --   오류 수집(error_logs·크론/HTTP 실패 수집)은 그대로. 알림 대신 운영 › 에러 모니터링 메뉴 배지(미해결 심각 오류 수)로 보인다.
 drop trigger if exists trg_error_logs_alert_operator on public.error_logs;
 drop function if exists public.error_logs_alert_operator();

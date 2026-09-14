@@ -1,4 +1,4 @@
--- 요금제 개편 (2026-08-11 사장님): 오너뷰 39,000원(VAT 별도) + 발행 한도 종류별 분리
+-- 요금제 개편: 오너뷰 39,000원(VAT 별도) + 발행 한도 종류별 분리
 -- ① 플랜 데이터 — 합산 한도(monthly_issue_limit)는 폐기(null), 종류별 한도로 전환
 update public.subscription_plans
    set base_price = 39000,

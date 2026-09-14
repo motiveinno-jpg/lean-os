@@ -35,7 +35,7 @@ import { QuietCheckins } from "./_components/QuietCheckins";
 import { rollupProject, listStatusOf, listReasons, type ProjectRollup, type ListStatus } from "@/lib/project-list-summary";
 import { BOARD_TEMPLATES }  from "@/lib/project-boards";
 // 워크플로우 보드 · 회사 전체 프로젝트를 커스텀 컬럼으로 보는 도구. 실행형 프로젝트 상세 탭에
-//   숨어 있던 것을 목록의 '보드' 보기로 끌어올렸다(2026-07-30 사장님 승인).
+//   숨어 있던 것을 목록의 '보드' 보기로 끌어올렸다.
 import  { MondayBoard } from "@/components/monday-board";
 import { ProjectTimeline, PortfolioCharts, ProjectCalendar } from "./_components/ListViews";
 import { useModalKeys } from "@/hooks/use-modal-keys";
@@ -115,7 +115,7 @@ export default function ProjectHubPage() {
     return d?.internal_manager_id ? [d.internal_manager_id] : [];
   }, [membersByDeal]);
   //   내 담당 항목이 있는 프로젝트 — 참여자 표에 없어도 항목 담당자로 지정됐으면 그 프로젝트는
-  //   보여야 한다 (2026-09-01 사장님: "참여자로 지정된 것들 많은데 하나도 안 보여" — 항목 담당만
+  //   보여야 한다 ("참여자로 지정된 것들 많은데 하나도 안 보여" — 항목 담당만
   //   지정되고 참여자 표는 비어 있어 직원 목록에서 통째로 빠졌다).
   const { data: myItemDealIds = [] } = useQuery({
     queryKey: ["ph-my-item-deals", companyId, user?.id],
@@ -352,14 +352,14 @@ export default function ProjectHubPage() {
   const searchParams = useSearchParams();
   const initialQ = searchParams?.get("q") ?? "";
   const [search, setSearch] = useState(initialQ);   // 빠른검색 — 프로젝트·거래처·참여자 (쉼표 = 또는, Enter 로 반영)
-  const [mineOnly, setMineOnly] = useState(false); // 기본 = 전체 (2026-09-01 사장님: "처음 들어가면 범위 기본값을 전체로") — '내 담당'으로 좁힐 수 있다
+  const [mineOnly, setMineOnly] = useState(false); // 기본 = 전체 ("처음 들어가면 범위 기본값을 전체로") — '내 담당'으로 좁힐 수 있다
   //   ── 조회 화면 표준 — 검색조건(담당·거래처·템플릿)·내 조건 ──
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState<Cond>(EMPTY_COND);
   const [live, setLive] = useState<Cond>(EMPTY_COND);
   const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
   //   담당 범위(내 담당/전체)·상태(전체/기한 지남/이번 주/입력 전)도 검색조건 안에서 고르고 '조회'로 반영한다
-  //   (2026-08-18 사장님: "검색조건 안에 담당, 전체, 기한지남 등 박스 안으로 들어가게 해야 통일성"). 초안 → 조회 시 확정.
+  //   ("검색조건 안에 담당, 전체, 기한지남 등 박스 안으로 들어가게 해야 통일성"). 초안 → 조회 시 확정.
   const [dMine, setDMine] = useState(false);
   const [dLens, setDLens] = useState<ProjectStatusKey | null>(null);
   const userId = user?.id ?? null;
@@ -518,7 +518,7 @@ export default function ProjectHubPage() {
   }, [topDeals, pbBoards, pbCols, pbGroups, pbItems, todayStr]);
   const listStatusOfDeal = (d: any): ListStatus => listStatusOf(rollupByDeal[d.id] || { boardCount: 0, boardNames: [], itemCount: 0, quietDays: null, lateCount: 0, soonCount: 0, doneRate: null });
 
-  // ── 목록 '요약'(규칙 기반 — 토큰 0, 2026-09-01 사장님 A안) ──
+  // ── 목록 '요약'(규칙 기반 — 토큰 0, 2026-09-01 대표 A안) ──
   //   '입력·확인 사항·마지막 입력' 열이 옛 보드(project_board_items)를 읽어 v3 표와 끊겨 있었다.
   //   v3 project_items 를 집계해 요약 문장과 '마지막 업데이트'를 만든다 — AI 호출 없이 숫자를 문장 틀에 끼운다.
   const { data: v3Items = [] } = useQuery({
@@ -554,7 +554,7 @@ export default function ProjectHubPage() {
     for (const k in m) m[k].overdue.sort((a, b) => b.days - a.days);
     return m;
   }, [v3Items, topDeals, todayStr]);
-  //   가로 단계 병목(2026-09-01 사장님 추천 2 승인). select 컬럼을 순서대로 놓고,
+  //   가로 단계 병목(2026-09-01 대표 추천 2 승인). select 컬럼을 순서대로 놓고,
   //   앞 단계는 끝(마지막 선택지)에 도달했는데 뒷 단계는 못 간 건수 차가 가장 큰 곳을 문장으로.
   const  { data: v3Cols = [] } = useQuery({
     queryKey: ["ph-v3cols", companyId],
@@ -897,7 +897,7 @@ export default function ProjectHubPage() {
       {/* ── 조회 화면 표준 — 보기 탭 · 조회 줄 · 걸린 조건 · 결과 요약 · 표 · 쪽 넘김 (2026-08-18 Wave 3) ── */}
       <QueryScreen>
         <QueryHead>
-          {/* 보기 탭·성과 대시보드는 뺐다 (2026-08-31 사장님: "성과 대시보드 필요 없을 것 같아, 담당별도") — 목록 하나만 */}
+          {/* 보기 탭·성과 대시보드는 뺐다 ("성과 대시보드 필요 없을 것 같아, 담당별도") — 목록 하나만 */}
           <QueryBar right={<>
             <button type="button" onClick={() => setDashOpen(true)} className="btn-secondary btn-sm"
               title="회사의 모든 프로젝트를 한 화면으로 봅니다.">현황판</button>
@@ -1197,7 +1197,7 @@ export default function ProjectHubPage() {
           </div>
         ) : (
           /* 빈 화면 = 새 구조 설명서. 옛 문구(매출·비용/업무/목표·실적)는 지금 화면에 없는 것을
-             설명하고 있었다(2026-08-03 사장님 지적). 지금 실제로 하게 되는 세 걸음만 적는다.
+             설명하고 있었다. 지금 실제로 하게 되는 세 걸음만 적는다.
              표 이름은 BOARD_TEMPLATES 에서 직접 읽어 템플릿이 바뀌어도 문구가 어긋나지 않게 한다. */
           <div className="ph-onboard">
             <div className="ph-onboard-head">
@@ -1239,7 +1239,7 @@ export default function ProjectHubPage() {
           onOpen={(id) => router.push(`/projecthub/${id}`)} />
       ) : (
         /* 한 리스트로 본다 — 같은 프로젝트를 위(카드)와 아래(표)로 나누니 헷갈렸다
-           (2026-08-03 사장님 지적). 대신 행마다 상태 줄무늬와 '확인 사항' 코멘트를 붙여
+. 대신 행마다 상태 줄무늬와 '확인 사항' 코멘트를 붙여
            지연·미수를 그 자리에서 읽게 한다. */
         <div className="ph-table-wrap">
           <table className="ev-table ev-lined ph-table">
@@ -1247,7 +1247,7 @@ export default function ProjectHubPage() {
               <tr>
                 {/* '상태(지연/주의/정상)' 열을 뺐다 — 옆 '확인 사항'이 같은 내용을 근거와 함께 적고,
                     행 왼쪽 줄무늬가 색을 이미 맡는다. 판정 단어가 셋이면 셋 다 안 읽힌다. */}
-                {/* 4열 재구성(2026-09-01 사장님): 템플릿(정체 아님)·입력(안 읽힘)·확인 사항(장문 칩) 삭제,
+                {/* 4열 재구성: 템플릿(정체 아님)·입력(안 읽힘)·확인 사항(장문 칩) 삭제,
                     요약(규칙 기반)이 현재 상태·특이사항을 말한다 */}
                 <SortableTh label="프로젝트" sortKey="name" sort={sort} onSort={onSort} filter={cfSpec("name")} />
                 <SortableTh label="참여자" sortKey="manager" sort={sort} onSort={onSort} filter={cfSpec("manager")} />
@@ -1339,7 +1339,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
   // 생성은 이름 하나로 끝난다 — 나머지는 접어 둔다(실측: 분류는 9/9 기본값 그대로,
   //   계약금액은 6/9 가 0원. 늘 보이면 "금액 없는 프로젝트는 어떻게 하지?" 로 막힌다).
   //   수정은 값을 고치러 들어온 것이므로 처음부터 펼친다.
-  //   생성에서는 이름만 받는다 — 접어둔 칸도 없앴다(2026-08-03 사장님: "프로젝트명 밑에
+  //   생성에서는 이름만 받는다 — 접어둔 칸도 없앴다("프로젝트명 밑에
   //   거래처·담당 등 내용이 있어, 이것도 없어져야 할 것 같다"). 거래처·담당·기간·금액은
   //   '수정'에서만 보인다(값을 고치러 들어온 화면이니 거기서는 처음부터 펼쳐 둔다).
   const [ptSearch, setPtSearch] = useState(() => (editDeal?.partner_id ? ((partners as any[]).find((p) => p.id === editDeal.partner_id)?.name || "") : ""));
@@ -1466,7 +1466,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
                       </select>
                     </div>
                     {/* 화면에는 VAT 포함으로 표기되므로, 입력값이 얼마로 잡히는지 바로 보여준다
-                        (2026-08-03 사장님: "입력은 공급가로도 되게, 최종은 VAT 합산 표기") */}
+                        ("입력은 공급가로도 되게, 최종은 VAT 합산 표기") */}
                     {(() => {
                       const raw = Number(String(form.contract_total).replace(/[^0-9]/g, ""));
                       if (!raw) return null;

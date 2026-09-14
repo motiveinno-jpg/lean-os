@@ -15,7 +15,7 @@ import { QueryBar, ConditionPanel, ConditionRow, AppliedChips, ResultStrip, Stat
 // 내 출퇴근 기록 — 인사관리>근태관리가 "전 직원"이라면 여기는 "나"만.
 //   월 단위로 내 attendance_records 를 조회해 요약(근무일·총 근무시간·지각·연장) + 일별 목록을 보여준다.
 //   출퇴근 찍기는 상단 MyAttendanceCard(오늘 카드) 담당.
-//   2026-08-05 사장님: 출근시간이 잘못 찍힌 날은 여기서 바로 "정정 요청" — 관리자 승인 후 반영
+//   2026-08-05 대표: 출근시간이 잘못 찍힌 날은 여기서 바로 "정정 요청" — 관리자 승인 후 반영
 //   (AI 참모의 request_attendance_edit 과 동일 인프라: attendance_edit_requests + KST ISO 변환).
 
 // "HH:MM" — check_in/out 은 timestamptz 또는 'HH:MM' 형 모두 방어 (flex-work-board 와 동일 규칙)

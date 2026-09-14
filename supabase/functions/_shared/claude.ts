@@ -10,7 +10,7 @@ import { callGemini, geminiKey } from "./gemini.ts";
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 
-// task → 모델. 2026-08-20 사장님: "AI 참모를 나(Claude Code)처럼 정확하게" — 분석 계열을
+// task → 모델. 2026-08-20 대표: "AI 참모를 나(Claude Code)처럼 정확하게" — 분석 계열을
 //   구세대 Sonnet 4.6/Opus 4.8 → 최신 Claude Opus 5 로 상향(가격은 Opus 4.8 과 동일 $5/$25).
 //   extract/classify 는 속도가 관건인 기계적 작업이라 Haiku 유지.
 //   ⚠️ Opus 5 는 thinking 이 기본 켜짐 + temperature/top_p 미지원 + 강제 tool_choice 와
@@ -65,7 +65,7 @@ export interface ClaudeCallOpts {
   // 2026-09-03 월 호출 횟수 상한을 '질문 수' 기준으로: 참모의 후속 턴(툴 결과 되먹임)·자동 기억 추출처럼
   //   한 질문에 딸린 부수 호출은 false 로 넘겨 상한 검사와 집계에서 뺀다(비용·토큰 집계에는 그대로 포함).
   countsTowardCallCap?: boolean;
-  // 2026-09-03 사장님: Gemini 대체는 사업자등록증 판독에만 — 호출측이 명시적으로 켠 기능만 넘어간다(참모 등은 Claude 전용).
+  // 2026-09-03 대표: Gemini 대체는 사업자등록증 판독에만 — 호출측이 명시적으로 켠 기능만 넘어간다(참모 등은 Claude 전용).
   allowGeminiFallback?: boolean;
   promptVersion?: string;
   // 로깅 컨텍스트 (서버가 결정한 값만 — 클라 신뢰 금지)
@@ -266,7 +266,7 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
       if (attempt < maxRetries) { await sleep(400 * (attempt + 1)); continue; }
     }
   }
-  // Anthropic 잔액 소진 → Gemini 대체 경로 (2026-09-03 사장님). 다른 오류(요청 형식 등)는 그대로 돌려준다.
+  // Anthropic 잔액 소진 → Gemini 대체 경로. 다른 오류(요청 형식 등)는 그대로 돌려준다.
   if (lastCode === "PROVIDER_BILLING" && opts.allowGeminiFallback && geminiKey()) {
     await logUsage(opts, { model, requestId, inTok: 0, outTok: 0, latencyMs: Date.now() - t0, status: "fallback", errorCode: lastCode });
     return await viaGemini(opts, requestId, t0, lastCode);

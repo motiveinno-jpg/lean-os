@@ -99,7 +99,7 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
     rejectMut.mutate({ a, reason: reason.trim() });
   };
 
-  // 데이터가 하나도 없는 신규 가입사는 점수가 기본 조합(50)으로 나와 오도 → "—" 처리 (2026-07-28 사장님)
+  // 데이터가 하나도 없는 신규 가입사는 점수가 기본 조합(50)으로 나와 오도 → "—" 처리
   const pulseReady = !!cashPulse && cashPulse.hasData !== false;
   const score = cashPulse?.pulseScore ?? 0;
   const scoreColor = !pulseReady ? "var(--text-dim)" : score >= 60 ? "var(--success)" : score >= 40 ? "var(--warning)" : "var(--danger)";

@@ -30,7 +30,7 @@ type NavGroup =  { label: string; short: string; icon: string; items: NavItem[] 
 // ── 사이드바 구조 (2026-06-04 갱신) — 홈 → 파이낸스 → 워크스페이스 → 인사관리 → 자산관리 → 설정.
 //   파이낸스(구 회계관리) 홈 바로 아래. 워크스페이스(구 그룹웨어): 게시판·채팅·승인·일정·프로젝트·전자계약.
 //   인사관리: 구성원·근태·서류. 자산관리: 통장·카드·정기결제 등. (2026-07-30 P2: 화면 한 벌 — 권한 기반 노출)
-//   ★ 2026-08-26 사장님: 그룹 순서 = **실무에서 제일 많이 쓸 기능 순** — 홈 → 재고 → 재무 → 업무 → 인사 → 분석 → 설정 → 도움말.
+//   ★ 2026-08-26 대표: 그룹 순서 = **실무에서 제일 많이 쓸 기능 순** — 홈 → 재고 → 재무 → 업무 → 인사 → 분석 → 설정 → 도움말.
 //     권한 카탈로그(lib/permissions.ts)도 같은 순서. 바꿀 때 둘을 같이 옮긴다.
 const NAV_GROUPS: NavGroup[] = [
   {
@@ -41,39 +41,39 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/notifications", label: "알림", icon: "bell", badgeKey: "notifications" },
       { href: "/mypage", label: "마이페이지", icon: "user" },
       { href: "/copilot", label: "AI 참모", icon: "sparkles" },
-      //   지원사업 · 정부 지원정책 큐레이션 (2026-08-21 사장님 지시). 회사 자료로 걸러 주는 곳.
+      //   지원사업 · 정부 지원정책 큐레이션. 회사 자료로 걸러 주는 곳.
       //   매일 여는 순서 원칙에서 주 1회쯤 여는 성격이라 AI 참모 아래. 직원 인사 정보로 자격을 판정해 대표·관리자 전용.
       
       { href: "/support-programs", label: "지원사업추천", icon: "gift" },
-      // 마스터 전용 · 대시보드 하단 경영 종합 3종(커맨드 센터·프로젝트 경영·월결산) 이동 (2026-08-10 사장님)
+      // 마스터 전용 · 대시보드 하단 경영 종합 3종(커맨드 센터·프로젝트 경영·월결산) 이동
       
       { href: "/master", label: "마스터", icon: "shield", masterOnly: true },
     ],
   },
   {
-    //   재고 — 2026-08-25 사장님 지시로 신설. 기획 https://claude.ai/code/artifact/afc625ae-c5b5-4b7b-9b51-fdcf3e93165a
+    //   재고 — 2026-08-25 대표 지시로 신설. 기획 https://claude.ai/code/artifact/afc625ae-c5b5-4b7b-9b51-fdcf3e93165a
     //   ★ 파이낸스가 **돈의 흐름**이라면 재고는 **물건의 흐름**이다. 같은 서랍에 넣으면 파이낸스가 12줄이 된다.
     //     사이드바는 레일+패널이라 새 그룹은 다른 메뉴를 한 줄도 밀지 않는다.
     //   ★ 가르는 기준은 기능 이름이 아니라 **물건의 상태**다 —
     //     무엇을 파는가(품목) · 지금 몇 개인가(재고) · 나가는 길(판매) · 밖에서 사 오는 길(구매) · 안에서 만드는 길(생산).
-    //   ★ 다섯은 사장님이 정한 "5개까지만 편다"의 **정확한 상한**이다. 앞으로 더할 것은 메뉴가 아니라 화면 안 갈래 탭으로.
+    //   ★ 다섯은 대표 정한 "5개까지만 편다"의 **정확한 상한**이다. 앞으로 더할 것은 메뉴가 아니라 화면 안 갈래 탭으로.
     label: "재고", short: "재고", icon: "package",
     items: [
       { href: "/inventory/products", label: "품목", icon: "package", layer: "기초" },
-      //   ★ 그룹 이름이 재고라 안쪽은 '창고관리' · "재고 › 재고" 중복·'현재고'는 상태어라 어색(2026-08-26 사장님)
+      //   ★ 그룹 이름이 재고라 안쪽은 '창고관리' · "재고 › 재고" 중복·'현재고'는 상태어라 어색
       
       { href: "/inventory/stock", label: "창고관리", icon: "layers" },
-      //   ★ 차례는 주문 · 판매 · 구매 · 생산 (2026-08-25 사장님 지시).
+      //   ★ 차례는 주문 · 판매 · 구매 · 생산.
       //     주문서는 약속이라 재고를 안 건드리고, 나머지 셋이 그것을 불러와 재고를 움직인다.
       { href: "/inventory/orders", label: "주문", icon: "clipboard", layer: "거래" },
       { href: "/inventory/sales", label: "판매", icon: "arrow-right-left" },
       { href: "/inventory/purchase", label: "구매", icon: "download" },
       { href: "/inventory/production", label: "생산", icon: "kanban" },
       { href: "/inventory/channels", label: "이커머스", icon: "link", layer: "연동" },
-      //   ★ 현황 · 주문·판매·구매·생산을 한 화면에 집계·그래프로. 맨 아래(2026-08-26 사장님: "현황이 제일 아래쪽으로").
+      //   ★ 현황 · 주문·판매·구매·생산을 한 화면에 집계·그래프로. 맨 아래("현황이 제일 아래쪽으로").
       
       { href: "/inventory/status", label: "현황", icon: "bar-chart", layer: "현황" },
-      //   ★ 이익관리 (결정 40, 2026-08-26 사장님). 원가(FIFO) 반영 이익. 4글자는 사장님 확정 예외.
+      //   ★ 이익관리 (결정 40, 2026-08-26 대표). 원가(FIFO) 반영 이익. 4글자는 예외.
       
       { href: "/inventory/profit", label: "이익관리", icon: "trending-up" },
     ],
@@ -84,23 +84,23 @@ const NAV_GROUPS: NavGroup[] = [
     //   라우트·페이지는 그대로. match 로 허브 활성 범위를 지정(예: 거래 장부는 /partners/reconciliation 포함).
     label: "재무", short: "재무", icon: "wallet",
     items: [
-      //   2026-08-19 사장님 확정(A안) — 층으로 쌓는다: 기초(통장·카드·거래처) → 자료(수집·전표·세금·증빙) → 기장(일반·매입매출전표) → 예정(정기 지출).
+      //   (A안) — 층으로 쌓는다: 기초(통장·카드·거래처) → 자료(수집·전표·세금·증빙) → 기장(일반·매입매출전표) → 예정(정기 지출).
       //   "위에 있는 것이 아래를 먹여 살린다" — 새 회사는 위에서부터 차례로 채우면 된다. (예전: 매일 여는 수집·전표가 첫 자리)
-      //   통장·카드·정기 지출은 옛 '자금' 그룹에서 왔다(2026-08-19 사장님: 자금 그룹 폐지).
+      //   통장·카드·정기 지출은 옛 '자금' 그룹에서 왔다(자금 그룹 폐지).
       { href: "/bank", label: "통장", icon: "arrow-right-left", layer: "기초" },
       { href: "/cards", label: "카드", icon: "wallet" },
       { href: "/partners", label: "거래처", icon: "users", match: ["/partners"] },
       //   흩어져 있던 다섯 화면의 수집을 모은 입구 (2026-08-11). 자료를 받아 전표까지 여기서 끝낸다.
       { href: "/collect", label: "수집·전표", icon: "download", match: ["/collect"], layer: "자료" },
       { href: "/tax-invoices", label: "세금·증빙", icon: "receipt", match: ["/tax-invoices", "/cash-receipts", "/e-invoices"] },
-      //   2026-08-11 — '자동 분류'를 메뉴에서 내렸다(사장님 지시).
+      //   2026-08-11 — '자동 분류'를 메뉴에서 내렸다.
       //     · 통장 줄 처리(수금 매칭·전표·계좌이동·카드 다대일·되돌리기·추천)는 전부 수집·전표 통장 탭으로 갔고,
       //     · 마지막 남았던 **비목**도 이제 전표를 만들 때 함께 붙는다(post_bank_voucher 가 category 를 채운다).
       //     · 그래서 이 화면에는 새로 할 일이 남지 않았다.
       //   ★ **라우트는 살려 둔다** — /transactions 와 /partners/reconciliation 은 주소로 들어가면 그대로 열린다.
       //     즐겨찾기·옛 링크가 막히지 않게, 되돌릴 땐 이 줄만 다시 넣으면 된다.
       //   { href: "/transactions", label: "자동 분류", icon: "book", match: ["/transactions", "/partners/reconciliation"] },
-      // 전표는 두 갈래로 나눠 각각 메뉴로 둔다 (2026-08-11 사장님 지시 · 탭 말고 메뉴).
+      // 전표는 두 갈래로 나눠 각각 메뉴로 둔다 (탭 말고 메뉴).
       //   일반전표 = 통장·대체·결산 / 매입매출전표 = 세금계산서·카드·현금영수증(부가세 유형이 붙는 거래).
       //   경로가 /partners/reconciliation 하위지만 match로 자기 경로만 지정 → 최장매치로 각각 단독 활성.
       
@@ -112,13 +112,13 @@ const NAV_GROUPS: NavGroup[] = [
       //   세무 신고 · 원천세·부가세 신고서 완성까지, 제출은 홈택스에서 사람 (2026-08-31 세무 1차, 결정 107)
       
       { href: "/finance/tax-filing", label: "세무 신고", icon: "receipt", layer: "신고" },
-      //   정기 지출은 실적이 아니라 '예정' · 성격이 달라 맨 아래. (분석 '자금 전망' 옆으로 옮길지는 사장님 결정 대기)
+      //   정기 지출은 실적이 아니라 '예정' · 성격이 달라 맨 아래. (분석 '자금 전망' 옆으로 옮길지는 대기)
       
       { href: "/payments", label: "정기 지출", icon: "clock", layer: "예정" },
-      //   ★ 현황 · 작성된 전표의 현황·지표. 통장·카드는 각자 화면의 개요/분석, 손익은 분석이 맡는다 (2026-08-26 사장님, 같은 날 재편).
+      //   ★ 현황 · 작성된 전표의 현황·지표. 통장·카드는 각자 화면의 개요/분석, 손익은 분석이 맡는다 (같은 날 재편).
       
       { href: "/finance/status", label: "현황", icon: "bar-chart", layer: "현황" },
-      // 2026-07-28 대출·자산은 실제로 쓰지 않는 기능이라 사이드바에서 내렸다(사장님 확인). 라우트(/loans, /vault)는 그대로.
+      // 2026-07-28 대출·자산은 실제로 쓰지 않는 기능이라 사이드바에서 내렸다(대표 확인). 라우트(/loans, /vault)는 그대로.
     ],
   },
   {
@@ -132,10 +132,10 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/board", label: "게시판", icon: "message-square" },
       { href: "/chat", label: "메신저", icon: "message-circle", badgeKey: "chat" },
       { href: "/signatures", label: "전자계약", icon: "edit-3" },
-      //   파일보관함. 인사관리 → 워크스페이스 (2026-08-20 사장님: 문서는 인사만의 것이 아니다)
+      //   파일보관함. 인사관리 → 워크스페이스 (문서는 인사만의 것이 아니다)
       
       { href: "/documents", label: "파일보관함", icon: "folder" },
-      //   ★ 구성원 디렉토리는 연락처라 업무로 (2026-08-26 사장님: 직원에게 인사 그룹이 보이면 안 된다. 연봉 등 예민). 인사에 always 메뉴가 없어야 그룹이 숨는다.
+      //   ★ 구성원 디렉토리는 연락처라 업무로 (직원에게 인사 그룹이 보이면 안 된다. 연봉 등 예민). 인사에 always 메뉴가 없어야 그룹이 숨는다.
       
       { href: "/team", label: "구성원 디렉토리", icon: "users" },
       //   내 서명 요청 — 2026-08-19 마이페이지 › 급여·계약·증명 갈래로 흡수(라우트는 전체 목록용으로 남김, 메뉴만 뺌)
@@ -150,7 +150,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    //   분석 — 화면 안 4갈래 탭을 사이드바로 폈다 (2026-08-11 사장님 지시).
+    //   분석 — 화면 안 4갈래 탭을 사이드바로 폈다.
     //   ★ 5개까지만 편다. 하위(매출·비용·월별표 / 예정지출·운영시나리오)는 화면 안 세그먼트로 남긴다
     //     — 8개를 다 펴면 사이드바가 길어져 오히려 못 찾는다.
     //   거래처 원장도 여기로 옮겼다 — 판단용 장부라 '보는 곳'이 맞다(거래처 화면의 링크는 그대로 둔다).
@@ -160,7 +160,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/reports/profit", permKey: "/reports", label: "손익 현황", icon: "trending-up", match: ["/reports/profit", "/reports/revenue", "/reports/expense", "/reports/monthly"] },
       { href: "/reports/outlook", permKey: "/reports", label: "자금 전망", icon: "clock", match: ["/reports/upcoming", "/reports/outlook", "/reports/flow"] },
       { href: "/reports/statements", permKey: "/reports", label: "회계 자료", icon: "file-text", match: ["/reports/statements", "/reports/pnl", "/reports/bs", "/reports/costs", "/reports/by-person", "/reports/three-way-match"] },
-      //   부가세 · 세금계산서 화면의 탭이었는데 분석으로 옮겼다 (2026-08-13 사장님 지시).
+      //   부가세 · 세금계산서 화면의 탭이었는데 분석으로 옮겼다.
       //   세금·증빙이 '발행하는 곳'이 되면서, 매입 자료로 계산하는 신고용 화면은 성격이 안 맞아졌다.
       //   순서 (2026-08-20 전수 점검): 요약 → 현재(손익) → 미래(전망) → 자료(회계 자료·거래처 원장) → 신고(부가세, 신고철에만 여는 행사성이라 맨 아래)
       
@@ -171,12 +171,12 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    //   2026-08-19 사장님: '설정·도움말'은 오너뷰가 주는 기능(가이드·고객센터)과 회사가 다루는 것(회사 설정)이 섞여
+    //   2026-08-19 대표: '설정·도움말'은 오너뷰가 주는 기능(가이드·고객센터)과 회사가 다루는 것(회사 설정)이 섞여
     //   통일감이 없다 → 둘로 가른다. 회사 관리 = 회사가 정하는 것(설정·공지·요금제) / 도움말 = 오너뷰가 주는 것.
     label: "설정", short: "설정", icon: "settings",
     items: [
-      //   회사 설정 — 항목 13개를 **그룹 5개**로 폈다 (2026-08-24 사장님 지시: "좌측 사이드바로 메뉴화").
-      //     ★ 13개를 다 펴지 않는 이유: 분석 그룹에서 사장님이 정한 "5개까지만 편다 — 8개를 다 펴면
+      //   회사 설정 — 항목 13개를 **그룹 5개**로 폈다 ("좌측 사이드바로 메뉴화").
+      //     ★ 13개를 다 펴지 않는 이유: 분석 그룹에서 대표 정한 "5개까지만 편다 — 8개를 다 펴면
       //       사이드바가 길어져 오히려 못 찾는다"를 그대로 따른다. leaf 는 각 화면 안 탭(2~4개)으로 남는다.
       //     ★ 2026-08-13 에 기각된 '좌측 네비'와 다르다 — 그때 사유는 '왼쪽'이 아니라 '왼쪽이 두 개'
       //       (설정 화면 안에 또 패널을 뒀다). 이번엔 화면 안에 패널을 만들지 않는다.
@@ -194,7 +194,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "도움말", short: "도움말", icon: "help-circle",
     items: [
-      //   공지사항 = 오너뷰가 올리는 공지·업데이트 내역(회사 기능 아님, 2026-08-19 사장님) → 도움말 그룹
+      //   공지사항 = 오너뷰가 올리는 공지·업데이트 내역(회사 기능 아님, 2026-08-19 대표) → 도움말 그룹
       { href: "/announcements", label: "공지사항", icon: "megaphone", badgeKey: "announcements" },
       { href: "/guide", label: "사용 가이드", icon: "help-circle" },
       { href: "/support", label: "고객센터", icon: "headphones" },
@@ -241,7 +241,7 @@ function filterNavUnified(role: UserRole, isMaster: boolean, hasMenu: (route: st
 /* ------------------------------------------------------------------ */
 /*  NavIcon                                                            */
 /* ------------------------------------------------------------------ */
-// 메뉴 아이콘 색 — 그룹별 색 계열로 통일 (2026-08-03 사장님: "너무 다채로워 난잡 · 같은 그룹은 비슷한 계열로").
+// 메뉴 아이콘 색 — 그룹별 색 계열로 통일 ("너무 다채로워 난잡 · 같은 그룹은 비슷한 계열로").
 //   홈=블루 · 파이낸스=그린(통장·카드·정기 지출은 시안 계열 유지) · 워크스페이스=바이올렛 · 인사관리=오렌지 · 회사 관리·도움말=슬레이트.
 //   같은 아이콘이 여러 그룹에 쓰여서(calendar=일정+근태 등) 아이콘 이름이 아니라 메뉴 경로(href) 기준.
 //   활성 메뉴(색 배경 + text-white)는 흰색 유지 — 아래 NavIcon 에서 text-white 면 색을 안 입힌다.
@@ -361,7 +361,7 @@ export function Sidebar() {
   const [approvalsPending, setApprovalsPending] = useState(0);
   const [notificationsUnread, setNotificationsUnread] = useState(0);
   const [announcementsUnread, setAnnouncementsUnread] = useState(0);
-  //   오류 배지는 오너뷰 화면에 두지 않는다. 시스템 오류 신호는 운영자 페이지(/platform)에서만 본다 (2026-09-03 사장님:
+  //   오류 배지는 오너뷰 화면에 두지 않는다. 시스템 오류 신호는 운영자 페이지(/platform)에서만 본다 (
   //   "모든 직원에게 다 뜨잖아, 무조건 운영자 페이지에만"). 종전 @mo-tive.com 전원에게 '오류 N' 빨간 배지가 떴다.
   const [collapsedParents, setCollapsedParents] = useState<Set<string>>(new Set());
   const toggleParent = (href: string) => setCollapsedParents((prev) => { const n = new Set(prev); if (n.has(href)) n.delete(href); else n.add(href); return n; });
@@ -379,10 +379,10 @@ export function Sidebar() {
   const { isMaster, hasMenu }  = useMyPermissions();
   const filteredNav = filterNavUnified(role, isMaster, hasMenu, isOperator);
 
-  // ── 레일 + 패널 (2026-08-19 사장님 확정, docs/20260819_PLAN_sidebar_rail_panel.md) ──
+  // ── 레일 + 패널 (docs/20260819_PLAN_sidebar_rail_panel.md) ──
   //   왼쪽 레일에 그룹 7개, 오른쪽 패널엔 고른 그룹의 항목만. 지금 그룹은 **주소가 정한다**(화면이 바뀌면 그 화면의 그룹으로).
   //   레일에 마우스를 올리면 미리 보고(preview), 누르면 고정(view). **고정한 뒤에는 다른 아이콘에 올려도 안 바뀐다**
-  //   (2026-08-19 사장님: "한번 클릭하면 그 메뉴가 고정되게"). 다른 아이콘을 누르면 그쪽으로 고정이 옮겨 간다.
+  //   ("한번 클릭하면 그 메뉴가 고정되게"). 다른 아이콘을 누르면 그쪽으로 고정이 옮겨 간다.
   //   화면이 바뀌면 고정이 풀리고 그 화면의 그룹으로. 마지막에 본 그룹은 기억하지 않는다.
   //   접기 = 레일만 남고, 레일 아이콘에 올리면 그 그룹 패널이 떠서(flyout) 보인다.
   const [viewGroup, setViewGroup] = useState<string | null>(null);
@@ -654,7 +654,7 @@ export function Sidebar() {
 
   const sidebarContent = (
     <aside className={`sidebar-panel chrome-glass sb-shell ${sidebarWidth}`}>
-      {/* ── 레일: 로고 · 그룹 7개 · (아래) 다크 모드 · 접기 · 로그아웃 — 다크 모드는 아이콘으로 접기 위에 (2026-08-19 사장님) ── */}
+      {/* ── 레일: 로고 · 그룹 7개 · (아래) 다크 모드 · 접기 · 로그아웃 — 다크 모드는 아이콘으로 접기 위에 ── */}
       <div className="sb-rail">
         <Link href="/dashboard" className="sb-rail-logo" aria-label="대시보드로 이동" title="대시보드"><OwnerViewIcon size={30} /></Link>
         <div className="sb-rail-groups">

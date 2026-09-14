@@ -3,7 +3,7 @@ import { withSentry } from "../_shared/sentry.ts";
 import { sendAlimtalk, resolvePhone, companyName } from "../_shared/alimtalk.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-// 2026-07-06 보안감사 P0: 하드코딩 Resend 키 제거 — env 로만. (노출된 키는 사장님이 Resend 대시보드에서 로테이션 필요)
+// 2026-07-06 보안감사 P0: 하드코딩 Resend 키 제거 — env 로만. (노출된 키는 대표 Resend 대시보드에서 로테이션 필요)
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "오너뷰 <noreply@owner-view.com>";
 
@@ -193,7 +193,7 @@ const KIND_HEADLINE: Record<string, string> = {
   stage_advanced: '결재하실 차례입니다',
   reassigned: '승인자로 지정되었습니다',
   reference: '참조로 공유된 결재 건입니다',
-  // 총괄 통보 (2026-08-13 사장님) — 수신자가 결재자가 아니므로 '결재하러' 가 아니라 확인 안내
+  // 총괄 통보 — 수신자가 결재자가 아니므로 '결재하러' 가 아니라 확인 안내
   chief_notice: '회사에 새 결재가 상신되어 알려드립니다',
 };
 

@@ -1,7 +1,7 @@
--- 기능 롤아웃 게이트 (2026-08-27 사장님: "모티브 오너뷰는 메인(테스트 병행). 다른 회사 데이터는 건드리지 말고, 메인에 먼저 배포 → 문제 없으면 전체.
+-- 기능 롤아웃 게이트 ("모티브 오너뷰는 메인(테스트 병행). 다른 회사 데이터는 건드리지 말고, 메인에 먼저 배포 → 문제 없으면 전체.
 --   시연용 데이터 마이그레이션도 모티브에만.")
 --   결정 86 — 회사 데이터를 만드는 자동화(크론·백필·시드)는 feature_on(feature, company) 을 통과해야 돈다. company_id null 행 = 전체 배포.
---   전체 배포 = 사장님 확인 뒤 `insert into feature_rollout (feature) values ('…')` 한 줄. UI 코드는 전 회사가 같이 받지만 데이터는 만들지 않는다.
+--   전체 배포 = 대표 확인 뒤 `insert into feature_rollout (feature) values ('…')` 한 줄. UI 코드는 전 회사가 같이 받지만 데이터는 만들지 않는다.
 create table if not exists public.feature_rollout (
   feature text not null,
   company_id uuid references public.companies(id) on delete cascade,

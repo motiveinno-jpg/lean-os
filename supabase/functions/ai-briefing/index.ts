@@ -115,7 +115,7 @@ async function collectSnapshot(admin: ReturnType<typeof createClient>, companyId
         .map((r) => `- ${r.counterparty || r.description || "미상"}: ${won(Math.abs(Number(r.amount || 0)))} (${r.transaction_date})`).join("\n"));
     }
   } catch { /* skip */ }
-  // 5) 데이터 건강 점검 (2026-08-10 사장님: "브리핑에 넣으면 돼") — AI 참모의 get_data_health 와
+  // 5) 데이터 건강 점검 ("브리핑에 넣으면 돼") — AI 참모의 get_data_health 와
   //    같은 공용 모듈. 급여 미입력·연차 초과·비정상 지각·서명 방치 같은 문제를 아침에 먼저 알린다.
   try {
     const health = await collectDataHealth(admin as unknown as Parameters<typeof collectDataHealth>[0], companyId);
@@ -125,7 +125,7 @@ async function collectSnapshot(admin: ReturnType<typeof createClient>, companyId
         health.findings.map((f) => `- [${sev[f.severity]}] ${f.title} — ${f.detail}`).join("\n"));
     }
   } catch { /* skip */ }
-  // 6) 재고 (2026-08-26 사장님 "알림") — 부족·품절, 납기 지난 주문, 출고 안 한 채널 주문, 전표 없는 판매
+  // 6) 재고 (2026-08-26 대표가 "알림") — 부족·품절, 납기 지난 주문, 출고 안 한 채널 주문, 전표 없는 판매
   try {
     const inv = await collectInventory(admin, companyId, today);
     if (inv.lines.length) out.push("재고·주문 점검(자동 점검):\n" + inv.lines.map((l) => `- ${l}`).join("\n"));

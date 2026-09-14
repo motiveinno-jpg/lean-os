@@ -53,7 +53,7 @@ export default function SystemPage() {
   });
 
   // 이번 달 AI 비용 · 참모·브리핑 등 모든 AI 호출의 실측 합계(ai_usage_log 기반 RPC).
-  //   회사별 상한($10/월 ≈ 14,000원)은 공용 호출기(claude.ts)가 강제한다 (2026-07-30 사장님).
+  //   회사별 상한($10/월 ≈ 14,000원)은 공용 호출기(claude.ts)가 강제한다.
   type AiCosts =  {
     month: string; total_usd: number; total_calls: number; cap_usd: number;
     companies: { company: string | null; company_id: string; usd: number; calls: number; tokens: number; by_feature: Record<string, number> }[];

@@ -1,9 +1,9 @@
 "use client";
 
-// ── 재고 › 생산 (2026-08-25 사장님 지시로 격자 입력으로 바꿈) ──────────────────
+// ── 재고 › 생산 (2026-08-25 대표 지시로 격자 입력으로 바꿈) ──────────────────
 //   ★ 격자에 치는 것은 **만들 완제품**뿐이다. 자재는 자재구성(BOM)이 정하므로 사람이 칠 것이 없다.
 //   ★ 저장하면 **자재가 빠지고 완제품이 는다** — 두 문서가 같이 선다(결정 14).
-//   ★ 작업지시를 따로 두지 않는다 — **주문서가 그 자리**다(사장님 지시대로 주문서를 불러와 바로 저장).
+//   ★ 작업지시를 따로 두지 않는다 — **주문서가 그 자리**다(대표 지시대로 주문서를 불러와 바로 저장).
 
 import { useState } from "react";
 import { appConfirm } from "@/components/global-confirm";
@@ -42,7 +42,7 @@ export default function ProductionPage() {
         pull={(ctl) => (
           <>
             <PullOrderButton ctl={ctl} />
-            {/*   ★ 자재가 모자라면 치는 동안 바로 보인다(2026-08-26 사장님: "부족하면 알려주는 장치") — 누르면 소요 팝업 */}
+            {/*   ★ 자재가 모자라면 치는 동안 바로 보인다("부족하면 알려주는 장치") — 누르면 소요 팝업 */}
             <MaterialShortBadge ctl={ctl} onOpen={() => setNeed({ ctl })} />
             {/*   ★ 결정 35 — 스캔 모드: 바코드가 양품/불량 어느 칸에 +1 될지. 제어 바코드 *GOOD* / *DEFECT* 로도 바뀐다 */}
             <span className={ctl.scanMode === "defect" ? "prod-scan-mode prod-scan-defect" : "prod-scan-mode"} title="바코드를 찍으면 이 칸에 +1 됩니다. 제어 바코드 *GOOD* / *DEFECT* 를 찍어도 바뀝니다">
@@ -52,7 +52,7 @@ export default function ProductionPage() {
           </>
         )}
         
-        //   ★ 2026-08-27 사장님 "버튼이 많아진다" · 보조 동작은 '도구 ▾' 하나로. 조회 줄엔 주문서 불러오기 · 스캔 칩 · 부족 배지 · 도구 · 완성 기록만.
+        //   ★ 2026-08-27 대표가 "버튼이 많아진다" · 보조 동작은 '도구 ▾' 하나로. 조회 줄엔 주문서 불러오기 · 스캔 칩 · 부족 배지 · 도구 · 완성 기록만.
         tools={(ctl) => [
           { label: "자재 소요", source: "입력", hint: "입력한 완제품의 자재 소요를 봅니다.", onClick: () => setNeed({ ctl }) },
           { label: "불량 처분", source: "재고", hint: "불량 보류 재고를 폐기하거나 양품으로 옮깁니다.", onClick: () => setDispose({ ctl }) },

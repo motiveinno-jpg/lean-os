@@ -90,7 +90,7 @@ export interface InvoiceRecord {
 }
 
 // ── 연간 결제 할인율 ──
-// 연간 결제 할인율 — 10% (2026-08-07 사장님 확정).
+// 연간 결제 할인율 — 10%.
 //   화면(요금제 토글·환불규정)은 이미 10% 로 안내하고 있었는데 계산만 20% 였다.
 //   ⚠️ 실제 청구액은 Stripe 에 등록된 연간 price 다. 그 값도 10% 로 맞춰야 표시와 청구가 일치한다.
 //      (Stripe 의 연간 price 를 바꾸면 이 값도 같이 맞춘다)
@@ -419,7 +419,7 @@ export async function getCashReceiptIssuanceStatus(companyId: string): Promise<I
 /** 은행·카드 연동 접근 권한.
  *  · allowed        — 연동 자체(자동 동기화 포함). 2026-08-07 부터 무료도 허용(하루 2회).
  *  · manualAllowed  — '즉시 동기화' 버튼. 누를 때마다 CODEF 비용이 나가므로 유료 구독자만.
- *    무료는 하루 2회 자동 동기화까지만 쓴다(사장님 결정 2026-08-07). */
+ *    무료는 하루 2회 자동 동기화까지만 쓴다( 2026-08-07). */
 export async function getBankSyncAccess(
   companyId: string,
 ): Promise<{ allowed: boolean; manualAllowed: boolean; planName: string | null }> {

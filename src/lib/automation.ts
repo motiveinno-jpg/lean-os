@@ -171,7 +171,7 @@ export async function autoMatchTransactions(companyId: string) {
     .select('id, counterparty, amount, transaction_date, type')
     .eq('company_id', companyId)
     .eq('mapping_status', 'unmapped')
-    // QA 2026-07-10: type 실값은 'income'(입금) — 'deposit' 은 존재하지 않는 값이라 자동매칭이 항상 0건이었음
+    // type 실값은 'income'(입금) — 'deposit' 은 존재하지 않는 값이라 자동매칭이 항상 0건이었음
     .eq('type', 'income'));
 
   // Get unmatched invoices
@@ -231,7 +231,7 @@ export async function autoMatchTransactions(companyId: string) {
       //   RLS 검사(transactions 에 있는가)에 항상 걸려 403 이었고(2026-09-09 대시보드), 읽는 화면도 없다.
       //   맞춘 결과는 아래 bank_transactions.tax_invoice_id · mapping_status 가 기록이다.
       // Update bank transaction — mapped_by 는 uuid 컬럼이라 'system' 문자열 금지(22P02).
-      //   ★ 어떤 계산서와 맞췄는지도 남긴다 (2026-08-21 감사): 종전엔 상대(bestInvoice)를 어느
+      //   ★ 어떤 계산서와 맞췄는지도 남긴다: 종전엔 상대(bestInvoice)를 어느
       //   컬럼에도 안 넣어서, "거래 자동매칭 N건" 이라고 보고해 놓고 3-Way 매칭 화면의 '매칭됨'
       //   에는 0건이었다 — 거래가 미분류 인박스에서만 사라지고 무엇과 맞춰졌는지 알 수 없었다.
       const { error: upErr } = await db.from('bank_transactions').update({
@@ -832,7 +832,7 @@ export async function autoCancelTaxInvoiceOnRefund(companyId: string) {
   const taxSettings = company?.tax_settings as any;
   if (!taxSettings?.autoCancelOnRefund) return { cancelled: 0, reason: '환불 자동취소 비활성' };
 
-  // 환불된 지급만 대상 (2026-08-21 감사): 종전엔 'rejected','cancelled' 를 봤는데 환불이 쓰는
+  // 환불된 지급만 대상: 종전엔 'rejected','cancelled' 를 봤는데 환불이 쓰는
   //   값은 'refunded' 라 **환불 건은 한 건도 안 잡혔고**, 반대로 한 번도 실행 안 된 'rejected'
   //   결제에 반응해 **멀쩡한 세금계산서를 void** 로 만들었다. ('cancelled' 를 쓰는 코드는 없다)
   const cancelled = logRead('lib/automation:cancelled', await db

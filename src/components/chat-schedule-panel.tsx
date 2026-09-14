@@ -1,6 +1,6 @@
 "use client";
 
-// 메신저 안의 '일정' 목록 (2026-08-10 사장님 지시로 통합).
+// 메신저 안의 '일정' 목록 (2026-08-10 대표 지시로 통합).
 //
 //   '할 일' 이라는 구분은 없앴다 — 날짜를 안 넣은 일정일 뿐이다. 그래서 이 패널은
 //   **다가오는 일정**과 **날짜 없는 것**을 한 자리에서 보여 준다.
@@ -38,7 +38,7 @@ export function ChatSchedulePanel({ companyId, userId }: { companyId: string | n
   const undated = list.filter((e) => !e.start_at);
 
   const row = (e: ScheduleEvent) => (
-    //   목록에 체크박스를 두지 않는다 (2026-08-10 사장님 지시) — 지나가다 잘못 눌러 완료되는 일이
+    //   목록에 체크박스를 두지 않는다 — 지나가다 잘못 눌러 완료되는 일이
     //   실제로 있었다. 완료는 일정을 **열어서** 처리한다.
     <div key={e.id} className="chat-sched-row">
       <i className={`chat-sched-dot ${DOT[e.color] || DOT.gray}`} />
@@ -57,10 +57,10 @@ export function ChatSchedulePanel({ companyId, userId }: { companyId: string | n
   return (
     <div className="chat-sched">
       {/*  넣는 방법 안내는 **달력 위에만** 둔다 — 여기에도 적어 두면 같은 말이 두 번이다
-           (2026-08-10 사장님 지시). '새로 만들기' 단추도 같은 이유로 뺐다. */}
+. '새로 만들기' 단추도 같은 이유로 뺐다. */}
       <div className="chat-sched-list">
         {upcoming.length === 0 && undated.length === 0 && <p className="chat-sched-empty">일정이 없습니다.</p>}
-        {/*  무슨 목록인지 머리에 적어 준다 (2026-08-10 사장님 지시) */}
+        {/*  무슨 목록인지 머리에 적어 준다 */}
         {upcoming.length > 0 && <p className="chat-sched-sub chat-sched-sub-top">다가오는 일정 {upcoming.length}</p>}
         {upcoming.map(row)}
         {undated.length > 0 && (

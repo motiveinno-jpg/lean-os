@@ -851,7 +851,7 @@ export async function clearSyncPause(companyId: string): Promise<void> {
   await writeSyncSetting(companyId, {}, ['sync_paused_until']);
 }
 
-// ── 홈택스 연동 일시정지 (2026-07-30 사장님 — 통장 정지 버튼과 동일 UX) ──
+// ── 홈택스 연동 일시정지 (2026-07-30 대표 — 통장 정지 버튼과 동일 UX) ──
 //   사용자가 홈택스에 직접 로그인하는 동안 우리 앱의 홈택스 스크래핑 로그인이 겹치지
 //   않게 막는다. company_settings.settings.hometax_sync_paused_until (ISO).
 

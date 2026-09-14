@@ -145,7 +145,7 @@ export default function PartnerLedgerPage() {
       const m: Record<string, { sales?: boolean; purchase?: boolean; salesAdj?: number; purchaseAdj?: number }> = {};
       for (const e of (data || []) as any[]) {
         //   세금계산서로 자동 생성된 매입매출전표(reference_type='tax_invoice')는 위 RPC 가 이미 계산서로 세므로
-        //   여기서 또 더하면 잔액이 두 배가 된다(우측 시트도 이 조건으로 뺀다, 2026-09-09 사장님 원장 잔액 오류).
+        //   여기서 또 더하면 잔액이 두 배가 된다(우측 시트도 이 조건으로 뺀다, 2026-09-09 대표 원장 잔액 오류).
         //   계산서가 가리키는 전표는 계산서 줄로 이미 센다 — reference_type 으로 가르면 초안 계산서를 나중에 발행했을 때 두 번 잡혔다
         if (linked.has(e.id)) continue;
         for (const l of (e.journal_lines || [])) {
@@ -173,7 +173,7 @@ export default function PartnerLedgerPage() {
       const inv = await fetchPaged<any>('ledger/page:inv', () => db.from("tax_invoices")
         .select("total_amount, supply_amount, settled_amount, issue_date, status, partner_id")
         .eq("company_id", companyId ?? "").eq("type", "sales").neq("status", "void")
-        // 전표처리된 건만 — 원장 집계와 동일 기준 (2026-08-26 사장님)
+        // 전표처리된 건만 — 원장 집계와 동일 기준
         .not("journal_entry_id", "is", null)
         .gte("issue_date", kstDateStr(since)).order("issue_date"), 50000);
       const buckets = [
@@ -411,7 +411,7 @@ export default function PartnerLedgerPage() {
         </QueryHead>
 
         <QueryBody>
-         {/* ── 좌 목록 300px · 우 원장 나머지 전부, 상자 끝선까지. 각자 스크롤 (2026-08-19 사장님: "원장 칸이 작아 보기 어렵다") ── */}
+         {/* ── 좌 목록 300px · 우 원장 나머지 전부, 상자 끝선까지. 각자 스크롤 ("원장 칸이 작아 보기 어렵다") ── */}
          {view === "aging" && companyId ? (
           <AgingView type={ledgerType} rows={agingRows} loading={agingLoading} q={q} partnerMap={partnerMap} partnerCodeMap={partnerCodeMap} companyId={companyId}
             onOpen={(pid) => setDetail({ partnerId: pid, type: ledgerType, focus: "all" })} />

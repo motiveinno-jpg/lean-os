@@ -215,7 +215,7 @@ export function explainError(rawMessage: string, context?: Record<string, unknow
     };
   }
 
-  // ── 서버 기능(엣지)·AI 공급사·예약 작업 — 2026-09-03 사장님: "클로드 API 충전 오류인데 왜 미분류로 뜨나" ──
+  // ── 서버 기능(엣지)·AI 공급사·예약 작업 — 2026-09-03 대표: "클로드 API 충전 오류인데 왜 미분류로 뜨나" ──
   //   유형 필터 셀렉트는 error_type 문자열("edge" 등)만 넘기므로 그 이름도 여기서 받아 제목을 돌려준다.
   if (/credit balance is too low|provider_billing|AI 서비스 이용 잔액이 부족/.test(hay)) {
     return {
@@ -492,7 +492,7 @@ export async function logError(params: {
     if (/Navigator LockManager/i.test(message)) return;
     if (/ResizeObserver loop/i.test(message)) return;
     // 개발 서버(localhost)에서 난 에러는 운영 신호가 아니다 — 로컬 dev 가 운영 DB를 보고 있으면
-    //   작업 중인 코드의 에러까지 운영자 대시보드에 쌓인다 (2026-08-20 사장님: 이미 처리된 게 계속 뜬다).
+    //   작업 중인 코드의 에러까지 운영자 대시보드에 쌓인다 (이미 처리된 게 계속 뜬다).
     if (typeof window !== "undefined" && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname)) return;
 
     const sig = `${params.source}|${message.slice(0, 120)}`;

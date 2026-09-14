@@ -47,13 +47,13 @@ export default function ChannelsPage() {
   const [userId, setUserId] = useState<string | null>(null);
   useEffect(() => { getCurrentUser().then((u) => { setCompanyId(u?.company_id ?? null); setUserId(u?.id ?? null); }); }, []);
 
-  //   첫 갈래 = 현황(결정 148, 2026-09-02 사장님 승인). 들어오면 수집·판매·배송이 먼저 보인다
+  //   첫 갈래 = 현황(결정 148,). 들어오면 수집·판매·배송이 먼저 보인다
   const [tab, setTab] = useState<Tab>("status");
   const { data: products = [] } = useQuery({ queryKey: ["inv-products", companyId], queryFn: () => listProducts(companyId!), enabled: !!companyId });
   const ctl = useDocEditor(companyId, userId, "channel", products);
   //   상품 연결·이력 갈래가 보는 채널(칩). 주문 가져오기 격자는 줄마다 채널 칸이 따로 있다.
   const [channel, setChannel] = useState<ChannelValue>("smartstore");   // 새 연결·붙여넣기 팝업의 기본 채널
-  //   목록의 채널 필터는 검색조건(다중, 비우면 전체). 조회 줄에 채널 칩을 늘어놓지 않는다 (2026-08-27 사장님 지적)
+  //   목록의 채널 필터는 검색조건(다중, 비우면 전체). 조회 줄에 채널 칩을 늘어놓지 않는다
   const [cond, setCond] = useState<CondLive>({});
   const [q, setQ] = useState("");
   const [addOpen, setAddOpen] = useState(false);
@@ -349,7 +349,7 @@ export default function ChannelsPage() {
                   {stData.sync.map((s) => (
                     <div key={s.ch} className="ch-st-sync">
                       <b className="w-24">{s.label}</b>
-                      {/*   자동 수집(스케줄러)이 없으므로 오래됐다고 빨간 '끊김'으로 겁주지 않는다 — 마지막 수집 시각만 담담히 (2026-09-09 사장님) */}
+                      {/*   자동 수집(스케줄러)이 없으므로 오래됐다고 빨간 '끊김'으로 겁주지 않는다 — 마지막 수집 시각만 담담히 */}
                       <span className="text-[11px] text-[var(--text-dim)]">
                         마지막 등록 {s.at.slice(5, 16).replace("T", " ")}{s.ageDays >= 3 ? ` · ${s.ageDays}일 전` : ""}{s.api ? " · API 연동 가능 채널" : ""}
                       </span>
@@ -480,7 +480,7 @@ export default function ChannelsPage() {
   );
 }
 
-// ── 주문 가져오기 — 판매와 같은 격자 입력 (2026-08-26 사장님 지시) ──────────────
+// ── 주문 가져오기 — 판매와 같은 격자 입력 ──────────────
 //   "여기도 입력화면 형식으로 하고, 채널별로 API 연결해서 끌고 오면 자동으로 채워지게."
 //   "각각 불러오는 것보다 한번에 가져와서 채널별로 정렬해서 보여주면. 좌측에 채널을 기입해서."
 //   ★ 채널은 머리가 아니라 **줄 맨 왼쪽 칸**이다 — 여러 채널 주문이 한 격자에 섞여 서고, 채널순으로 정렬된다.
@@ -851,7 +851,7 @@ function FetchDialog({ tabs, pick, openForm, onClose, onRows }: { tabs?: React.R
   );
 }
 
-// ── 출고 처리 · 송장 (2026-08-26 사장님 지시 ②) ─────────────────────────────────
+// ── 출고 처리 · 송장 ( ②) ─────────────────────────────────
 //   "이커머스는 출고 처리를 해야 한다. 배송 요청사항·주문자 정보(연락처·주소)를 가져와야 의미가 있다."
 //   ★ 기준 — 출고 등록(재고 차감)과 **발송(송장)** 은 다른 일이다. 재고는 등록 순간 빠지고, 여기서는 '실제로 보냈나'만 다룬다.
 //     상태는 출고 대기 → 발송(송장 있음) → 배송 완료. 되돌리기는 발송 취소(송장 지움·대기로).
@@ -1221,7 +1221,7 @@ function PasteTrackingDialog({ imports, onClose, onSave }: {
   );
 }
 
-// ── 상품 연결 대량 등록 — 엑셀 두세 열 붙여넣기 (2026-08-26 사장님 지시 ④) ──────
+// ── 상품 연결 대량 등록 — 엑셀 두세 열 붙여넣기 ( ④) ──────
 //   열: 채널 상품코드 · SKU · 채널 상품명(선택). SKU 는 품목 마스터와 대소문자 없이 맞춘다. 못 찾은 SKU 는 넣지 않고 적어 준다.
 //   같은 코드가 이미 연결돼 있으면 **덮어쓴다**(upsert) — 바뀐 연결을 다시 붙여 넣는 것이 흔한 일이다.
 function BulkCodeDialog({ companyId, channel: init, products, existing, onClose, onSaved }: {

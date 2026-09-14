@@ -13,7 +13,7 @@ function safeReturnUrl(candidate: unknown, origin: string, fallback: string): st
   return fallback;
 }
 
-// 충전(크레딧) 결제 — 구독과 달리 '지금 바로 결제'하는 일회성 결제 (2026-08-07 사장님 결정).
+// 충전(크레딧) 결제 — 구독과 달리 '지금 바로 결제'하는 일회성 결제.
 //   구독 체크아웃(/api/stripe/checkout)과 달리 Stripe 대시보드에 price 를 미리 만들지 않는다.
 //   충전은 수량이 자유라 price_data 로 금액을 그때그때 만든다 — env 등록 없이 바로 열린다.
 //
@@ -25,10 +25,10 @@ function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-02-24.acacia' });
 }
 
-// 단가 (VAT 별도) — 사장님 결정 2026-08-07
+// 단가 (VAT 별도) — 2026-08-07
 export const CREDIT_PRICING = {
   issue:     { unitKrw: 300,   step: 10,        label: '세금계산서·현금영수증 발행', unitLabel: '건' },
-  // 50만 토큰 10,000원 (2026-08-07 사장님 확정) — 실측 원가 기준으로 잡은 값이다.
+  // 50만 토큰 10,000원 — 실측 원가 기준으로 잡은 값이다.
   //   백만토큰당 원가: Sonnet $5.73 / Opus $10.81. 50만이면 최악(전부 Opus) $5.41 인데
   //   판매가 10,000원(≈$7.4) 이라 어떤 사용 성향에서도 마진이 남는다.
   //   ⚠️ 모델 단가가 바뀌면 이 묶음 크기를 다시 계산할 것.
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: { code: 'NO_COMPANY', message: '회사 정보를 찾을 수 없습니다' } }, { status: 400 });
     }
 
-    // 구독자만 충전 가능 — 무료는 기본 제공량까지만(사장님 결정).
+    // 구독자만 충전 가능 — 무료는 기본 제공량까지만.
     const { data: ent } = await (supabase as unknown as {
       rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }>;
     }).rpc('get_company_entitlement', { p_company_id: companyId });

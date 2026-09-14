@@ -3,7 +3,7 @@
 --   미적용: 배포 승인 후 supabase functions/CLI 흐름과 별도로 apply.
 
 -- 1) 티어별 월 AI 토큰 상한 (실사용 input+output 토큰 기준). NULL=허용 안 함(=대표 참모 비활성).
---    MVP: Ultra/Enterprise 만 허용. 값은 조정 가능(사장님 확정 전 잠정치).
+--    MVP: Ultra/Enterprise 만 허용. 값은 조정 가능( 전 잠정치).
 alter table public.subscription_plans add column if not exists monthly_ai_token_limit bigint;
 update public.subscription_plans set monthly_ai_token_limit = 2000000  where slug = 'ultra';
 update public.subscription_plans set monthly_ai_token_limit = 10000000 where slug = 'enterprise';

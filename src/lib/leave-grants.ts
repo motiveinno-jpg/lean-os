@@ -35,10 +35,10 @@ export const GRANT_TYPE_LABELS: Record<LeaveGrantType, string> = {
 //   실제 발생은 DB 함수 generate_leave_accruals() 를 pg_cron('leave-accrual') 이 매일 KST 00:10 에 실행:
 //     · 1년 미만 — 입사 응당일마다 1일 (최대 11일)
 //     · 1주년부터 — 근속연수별 법정 연차 (1~2년 15일, 3년 이상 2년마다 +1일, 상한 25일)
-//   총부여는 입사일 기준 자동 계산분이 정답이다(2026-07-30 사장님). 관리자가 '남은 연차'를 직접
+//   총부여는 입사일 기준 자동 계산분이 정답이다. 관리자가 '남은 연차'를 직접
 //   고치면 그 차액이 base 발생으로 기록돼 자동분과 합산된다.
 //   ⚠️ 기본값은 '켬' — settings 에 'false' 로 명시한 회사만 자동 발생에서 빠진다(DB 함수와 동일 규칙).
-//      과거엔 'true' 를 켠 회사만 대상이라 실제로는 어느 회사도 자동 발생이 안 됐다(2026-07-30 교정).
+//      과거엔 'true' 를 켠 회사만 대상이라 실제로는 어느 회사도 자동 발생이 안 됐다.
 
 export type MonthlyAccrualBasis = 'hire' | 'fiscal';
 export type MonthlyAccrualSettings = { enabled: boolean; basis: MonthlyAccrualBasis };
@@ -141,7 +141,7 @@ export async function deleteLeaveGrant(grant: Pick<LeaveGrant, 'id' | 'company_i
 }
 
 // ── 남은 연차로 직접 입력 (관리자 화면의 기본 진입점) ──
-//   사장님 지시(2026-07-30): "총 부여" 말고 "지금 남은 연차"를 입력하게 한다.
+//   (2026-07-30): "총 부여" 말고 "지금 남은 연차"를 입력하게 한다.
 //   총부여 = 남은 + 사용 이고, 총부여의 단일 출처는 grants 합계이므로
 //   base = (남은 + 사용) − 자동 발생분(월 발생·1주년·이월·조정) 으로 역산해 저장한다.
 //   ⚠️ leave_balances.total_days 를 직접 쓰면 안 된다 — 자동 발생 cron 이 매일 자정
@@ -199,7 +199,7 @@ export async function setBaseLeaveGrant(params: {
   await syncLeaveBalanceTotal(companyId, employeeId, year);
 }
 
-// ── 회사별 휴가 유형·기본 일수 (2026-08-06 사장님 요청) ──
+// ── 회사별 휴가 유형·기본 일수 ──
 //   "유형과 일수 회사별로 수정 가능하게" — 회사마다 병가·경조사 일수가 다르고,
 //   쓰지 않는 유형도 있다. 스키마 변경 없이 company_settings.settings.leave_types 에 저장한다
 //   (monthly_leave_accrual_* 과 동일 패턴).
@@ -248,7 +248,7 @@ export async function setCompanyLeaveTypes(companyId: string, types: CompanyLeav
   if (error) throw error;
 }
 
-// ── 반차 시간 회사 설정 (2026-08-11 사장님) — company_settings.settings.half_day_slots ──
+// ── 반차 시간 회사 설정 — company_settings.settings.half_day_slots ──
 //   설정이 있으면 반차 신청 시각(computeHalfDaySlot)이 이 값을 쓰고, 없으면 근무시간 절반 자동 산정.
 export type HalfDaySlots = { am?: { start: string; end: string }; pm?: { start: string; end: string } };
 

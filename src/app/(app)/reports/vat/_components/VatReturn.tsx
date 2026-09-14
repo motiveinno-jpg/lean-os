@@ -6,7 +6,7 @@
 //   신고서 칸에 맞춰 옮겨 적기, 거래처별 합계표 뽑기, 세무사에게 보내기 — 는 밖에서 손으로 했다.
 //
 //   결정 60 — 기준: **확정 매입매출전표**(journal_entries entry_kind=sale_purchase, status=confirmed)의 부가세 유형. 원본(홈택스 자료)이 아니다 —
-//             장부에 올린 것만 신고서에 간다(2026-08-11 사장님 "전표로 처리된 것만"). 전표 없는 자료는 재무 › 전표 현황이 센다.
+//             장부에 올린 것만 신고서에 간다(2026-08-11 대표가 "전표로 처리된 것만"). 전표 없는 자료는 재무 › 전표 현황이 센다.
 //   결정 61 — 신고기간 = 1기 예정(1–3월) / 1기 확정(4–6월) / 2기 예정(7–9월) / 2기 확정(10–12월). 확정 신고는 예정분을 뺀 3개월만 — 예정 신고를 안 했으면 '반기' 칩으로 6개월.
 //   결정 62 — 항목 대응: 매출 ①세금계산서 발급분[11] ②카드·현금영수증 발행분[17,22] ③영세율[12] ⑤면세매출[13, 참고] /
 //             매입 ⑩세금계산서 수취분[51] ⑭기타공제(카드·현금영수증)[57,61] ⑯불공제[54, 차감] 면세매입[53,58,59 참고]. 납부(환급)세액 = 매출세액 − 공제매입세액.
@@ -54,7 +54,7 @@ export function vatFilingNow(today = todayKst()):  { year: number; key: VatPerio
 const won = (n: number) => `₩${Math.round(n || 0).toLocaleString("ko-KR")}`;
 const num = (n: number) => Math.round(n || 0);
 
-//   2026-09-03 사장님: 신고기간은 칩 줄이 아니라 연도 옆 셀렉트로 — 조회 줄에 값 칩을 늘어놓지 않는다. 상태는 페이지(세무 신고)가 들고 내려준다.
+//   2026-09-03 대표: 신고기간은 칩 줄이 아니라 연도 옆 셀렉트로 — 조회 줄에 값 칩을 늘어놓지 않는다. 상태는 페이지(세무 신고)가 들고 내려준다.
 //   엑셀 내보내기는 집계(rows·R)가 이 안에 있어 exportRef 로 페이지 조회 줄 버튼에 넘긴다 — 다른 탭처럼 실행 버튼은 조회 줄 오른쪽.
 export function VatReturn({ companyId, year, period, exportRef }: { companyId: string | null; year: number; period: VatPeriodKey; exportRef?: MutableRefObject<(() => void) | null> }) {
   const { toast } = useToast();

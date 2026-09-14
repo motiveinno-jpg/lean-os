@@ -91,7 +91,7 @@ function formatKrw(value: number): string {
 /* ------------------------------------------------------------------ */
 /* Fetch B/S data for a specific cutoff date (or current if not provided) */
 async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsData> {
-  //   ★ 2026-08-11 사장님 지시 — 재무상태표도 **전표로 처리된 것만** 반영한다.
+  //   ★ — 재무상태표도 **전표로 처리된 것만** 반영한다.
   //     예전엔 통장 잔액·세금계산서 미수미지급·대출·자산 원본을 직접 모았다. 그러면 장부와 따로 논다.
   //     이제 확정 전표의 자산·부채·자본 계정 잔액을 그대로 쓴다(회계연도 1/1 ~ 기준일 누적).
   //     ⚠️ 통장 잔액과 장부(103 보통예금) 잔액이 다를 수 있는데, 그 차이가 곧 **아직 안 친 전표**다.
@@ -142,7 +142,7 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
   const codeNum = (c: string | null) => parseInt(String(c || "").replace(/\D/g, ""), 10);
   const detail = (b: Bal) => ({ name: `${b.code ? b.code + " " : ""}${b.name}`, amount: Math.round(b.amount) });
 
-  //   ★ 부호가 뒤집힌 계정 — 왜 마이너스인지 화면이 말할 근거 (2026-08-12 사장님 문의)
+  //   ★ 부호가 뒤집힌 계정 — 왜 마이너스인지 화면이 말할 근거 (2026-08-12 대표 문의)
   //     자산인데 음수 = 그 자산이 **줄어드는 전표만** 쌓였다는 뜻이다.
   //     예: 매출 전표(차변 외상매출금) 없이 **수금 전표(대변 외상매출금)만** 만들면 외상매출금이 음수가 된다.
   //     숫자가 틀린 것이 아니라 **장부가 반쪽**이라는 신호다 — 그 사실을 그대로 적어 준다.
@@ -553,7 +553,7 @@ function BalanceSheetPageInner() {
       />
 
       {/* Balance Sheet — T자 레이아웃 (좌: 자산 / 우: 부채 + 자본).
-          2026-08-19 사장님: "재무상태표 자세하게, T자표 진행" — 공용 머리단(계정과목·금액·전월 대비) 표 두 장,
+          2026-08-19 대표: "재무상태표 자세하게, T자표 진행" — 공용 머리단(계정과목·금액·전월 대비) 표 두 장,
           계정을 누르면 그 자리에서 세부(통장별·거래처별·자산별)가 펼쳐진다. 소계·총계 줄은 굵게. */}
       <div className="bs-balance-sheet-grid">
         <BsSide title="자산 (Assets)" isCompareMode={isCompareMode}
@@ -755,7 +755,7 @@ function BalanceSheetPageInner() {
         </div>
       )}
 
-      {/*   ★ 마이너스가 왜 났는지 — 숫자는 맞는데 장부가 반쪽일 때 (2026-08-12 사장님 문의) */}
+      {/*   ★ 마이너스가 왜 났는지 — 숫자는 맞는데 장부가 반쪽일 때 (2026-08-12 대표 문의) */}
       {data.flipped.length > 0 && (
         <div className="bs-flipped-note kpi-callout warning">
           <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M4.93 19h14.14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.2 16a2 2 0 001.73 3z" /></svg>
@@ -769,7 +769,7 @@ function BalanceSheetPageInner() {
         </div>
       )}
 
-      {/*   ★ 전표만 반영한다 — 비어 보이는 이유를 화면이 스스로 말한다 (2026-08-11 사장님 지시) */}
+      {/*   ★ 전표만 반영한다 — 비어 보이는 이유를 화면이 스스로 말한다 */}
       {data.unposted.total > 0 && (
         <div className="bs-unposted-banner kpi-callout warning">
           <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M4.93 19h14.14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.2 16a2 2 0 001.73 3z" /></svg>
@@ -828,7 +828,7 @@ function BalanceSheetPageInner() {
               <h3 className="m-0 text-sm font-bold text-[var(--text)]">월별 추이 (최근 6개월)</h3>
             </div>
             {/* 차트 키트의 묶음 막대 — 눈금·격자·손대면 뜨는 값·범례가 다른 화면과 같은 규칙이 된다
-                (2026-08-07 사장님: "색뿐 아니라 디자인도"). 예전엔 브라우저 기본 말풍선이라
+                ("색뿐 아니라 디자인도"). 예전엔 브라우저 기본 말풍선이라
                 1초쯤 기다려야 값이 보였고 세 계열을 한 번에 비교할 수 없었다. */}
             <GroupedColumnChart
               height={200} unit="원"

@@ -6,7 +6,7 @@ import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 import { fetchPaged } from "@/lib/fetch-paged";
 
-// 2026-06-11 프로젝트 Monday.com 클론 보드 (사장님: "진짜 아예 똑같다 싶을 정도로").
+// 2026-06-11 프로젝트 Monday.com 클론 보드 ("진짜 아예 똑같다 싶을 정도로").
 //   데이터 로직은 Phase 1·2 그대로(행=deals, 컬럼=board_columns, 셀=deals.column_values, 그룹=board_groups).
 //   이번 라운드는 비주얼·UX를 보드형 툴 시그니처로 재현:
 //   · 보드형 툴 정확 팔레트(#00C875 done / #FDAB3D working / #E2445C stuck / #0073EA primary)

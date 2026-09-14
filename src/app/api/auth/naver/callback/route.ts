@@ -12,7 +12,7 @@ import { NAVER_STATE_COOKIE, NAVER_NEXT_COOKIE } from '../start/route';
 //
 //   ⚠️ 이 경로는 "이메일만 알면 세션이 나오는" 구조라 순서가 곧 보안이다.
 //      state 검증 → 네이버 토큰 교환 성공 → 프로필 resultcode '00' → 그 다음에만 세션 발급.
-//   계정 규칙(2026-07-31 사장님): 이메일이 같으면 기존 계정에 연결(같은 계정으로 로그인).
+//   계정 규칙: 이메일이 같으면 기존 계정에 연결(같은 계정으로 로그인).
 
 const NAVER_TOKEN_URL = 'https://nid.naver.com/oauth2.0/token';
 const NAVER_PROFILE_URL = 'https://openapi.naver.com/v1/nid/me';

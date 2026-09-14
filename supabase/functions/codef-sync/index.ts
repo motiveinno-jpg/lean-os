@@ -45,7 +45,7 @@ const CARD_COMPANY_SHORT: Record<string, string> = {
 };
 
 // 마스킹된 카드번호("3792********923", "9430-12**-****-5979") → 보이는 꼬리(최대 4자리).
-//   2026-09-03 사장님: 롯데(아멕스 15자리)는 뒤 3자리만 보이는데 종전 규칙(숫자만 남기고 오른쪽 4자리)이
+//   2026-09-03 대표: 롯데(아멕스 15자리)는 뒤 3자리만 보이는데 종전 규칙(숫자만 남기고 오른쪽 4자리)이
 //   앞자리 '2'를 끌어와 "2923"이라는 없는 번호를 만들었다(실제 7923). 마지막 '*' 뒤의 숫자만 쓰고,
 //   4자리 미만이면 등록된 카드번호의 끝부분과 맞춘다(cardMatches). DB 트리거 trg_link_card_tx 와 같은 규칙.
 
@@ -76,7 +76,7 @@ function cardMatches(registered: unknown, tail: string): boolean {
   return reg === tail || reg.endsWith(tail) || tail.endsWith(reg);
 }
 
-// 거래에 적는 카드 이름 — "롯데카드 2923" 처럼 카드사 + 끝자리. (2026-09-03 사장님: 새로 발급받은 롯데카드가 안 보임)
+// 거래에 적는 카드 이름 — "롯데카드 2923" 처럼 카드사 + 끝자리. (새로 발급받은 롯데카드가 안 보임)
 //   5/4 개편 뒤로 법인카드는 resCardName 이 비어 "롯데카드" 한 묶음으로만 저장돼, 같은 카드사의 두 번째
 //   카드가 화면에서 구분되지 않았다. 번호가 있으면 반드시 붙인다.
 function cardDisplayName(org: string, masked: unknown, resCardName?: unknown): string | null {
@@ -333,7 +333,7 @@ async function filterBillableCompanies(supabase: any, companyIds: string[]): Pro
 }
 
 /** 수동('즉시 동기화') 차단 — 자동(하루 2회)은 무료도 받지만, 버튼은 누를 때마다
- *  CODEF 비용이 나가므로 유료 구독자만 쓴다 (2026-08-07 사장님 결정).
+ *  CODEF 비용이 나가므로 유료 구독자만 쓴다.
  *  화면에서도 막지만 서버가 최종 판정 — 화면만 막으면 우회된다. */
 async function assertBankSyncAllowed(supabase: any, companyId: string): Promise<string | null> {
   const allowed = await filterBillableCompanies(supabase, [companyId]);
@@ -430,7 +430,7 @@ async function codefRequest(token: string, path: string, body: Record<string, an
   const text = await res.text();
   // CODEF 응답은 application/x-www-form-urlencoded 라 공백이 '+' 로 옴.
   //   decodeURIComponent 는 '+' 를 공백으로 안 바꿔줘서(%XX 만 디코딩) 거래처명이
-  //   "주식회사+카카오" 처럼 오염돼 저장되던 버그 (2026-08-04 사장님 제보) —
+  //   "주식회사+카카오" 처럼 오염돼 저장되던 버그
   //   hometax-issue 의 7/16 수정과 동일하게 '+' → 공백 치환을 먼저 해준다.
   let parsed: any;
   try {
@@ -748,12 +748,12 @@ async function syncBankTransactions(
         // 잔액/금액 모두 0인 의미 없는 row (예: 신규 개설 표시) 는 skip
         if (inAmt === 0 && outAmt === 0) { acctSkipNoDate++; continue; }
         // CODEF descriptions: resAccountDesc1~4 — 은행별 배치가 달라(예금주명/거래구분/거래내용 등).
-        //   descs 예: [예금주명, 거래구분(타행이체·인터넷 등), 거래내용]. 사용자는 '거래내용'만 원함(직원 QA).
+        //   descs 예: [예금주명, 거래구분(타행이체·인터넷 등), 거래내용]. 사용자는 '거래내용'만 원함.
         //   → counterparty(예금주명)와 거래구분 토큰을 제외한 나머지만 description 으로. raw_data 에 원본 보존.
         const TR_TYPES = ["타행이체", "당행이체", "인터넷", "자동이체", "대체", "펌뱅킹", "펌뱅크", "CD", "ATM", "체크카드", "급여", "이자", "스마트뱅킹", "폰뱅킹", "창구", "지로", "전자금융", "모바일뱅킹", "모바일", "송금", "이체", "출금", "입금", "카드", "공과금"];
         // 예금주명은 desc1 에만 온다 — desc1 이 비었으면(채널·적요만 온 거래) 예금주 없음.
         //   기존 `desc1 || desc3` 폴백이 적요를 예금주 칸에 밀어넣고 거래내용을 비웠다
-        //   (2026-07-29 사장님: "예금주명에 거래내용이 불러와지고 거래내용은 공백").
+        //   ("예금주명에 거래내용이 불러와지고 거래내용은 공백").
         const _d1 = tx.resAccountDesc1 == null ? "" : String(tx.resAccountDesc1).trim();
         const counterparty = _d1 && !TR_TYPES.includes(_d1) ? _d1 : "";
         const _descs = [tx.resAccountDesc1, tx.resAccountDesc2, tx.resAccountDesc3, tx.resAccountDesc4]
@@ -870,7 +870,7 @@ function merchantBizno(v: unknown): string | null {
 
 //   biznoOnly: 청구내역을 받아 **사업자번호만 얹고 행은 만들지도 고치지도 않는다** (2026-08-12).
 //     과거분 번호를 채우려고 그냥 재수집하면 upsert 가 mapping_status 를 unmapped 로 되돌려
-//     사람이 해 둔 분류가 날아간다. 사장님 분류를 지키면서 번호만 채우려는 용도.
+//     사람이 해 둔 분류가 날아간다. 대표 분류를 지키면서 번호만 채우려는 용도.
 async function syncCardBilling(
   supabase: any, token: string, companyId: string, connectedId: string,
   startDate: string, endDate: string, opts?: { biznoOnly?: boolean }
@@ -1068,7 +1068,7 @@ const merchantKey = (name: string): string => {
                 .eq("id", dupRow.id);
             }
           } else {
-          //   ignoreDuplicates (2026-08-19 감사): 없으면 같은 external_id 재수집(크론 35일 윈도우)이
+          //   ignoreDuplicates: 없으면 같은 external_id 재수집(크론 35일 윈도우)이
           //   기존 행을 UPDATE 해 mapping_status 가 unmapped 로 되돌아가고 사용자 분류·비고가
           //   카드사 응답으로 덮어써졌다. 승인내역 경로와 동일하게 기존 행은 절대 건드리지 않는다.
           //   (금액 정정은 위 dupRow 분기가 미사용 행에 한해 별도로 수행)
@@ -1470,7 +1470,7 @@ async function registerAccount(
 
   const businessType = accountType === "card" ? "CD" : accountType === "hometax" ? "PB" : "BK";
 
-  // 재등록 지원 (2026-08-04 사장님): 같은 기관이 이미 connectedId 에 등록돼 있으면
+  // 재등록 지원: 같은 기관이 이미 connectedId 에 등록돼 있으면
   //   add 는 중복 오류가 나므로 update 로 인증서/비밀번호를 갈아끼운다.
   //   오류 코드 추측 대신 계정 목록을 먼저 조회해 결정적으로 분기.
   //   /v1/account/* 는 무과금 관리 API — 상품 신청·과금과 무관.
@@ -1523,7 +1523,7 @@ async function registerAccount(
 
   let result = await codefRequest(token, path, body);
 
-  // update 폴백 (2026-08-04 사장님 실기기 CF-04010 재현): 기관·기존 등록 방식에 따라 update 를
+  // update 폴백 (2026-08-04 대표 실기기 CF-04010 재현): 기관·기존 등록 방식에 따라 update 를
   //   거부하는 계정이 있어 "기존 계정 삭제 → 새 자격증명으로 add" 로 전환한다.
   //   delete/add 모두 무과금 관리 API. 우리 DB(거래내역·bank_accounts)는 CODEF 계정과 별개라 손실 없음.
   //   delete 매칭 파라미터는 새 요청값이 아니라 "기존 등록 계정"의 값으로 보낸다 (loginType 불일치 방지).
@@ -1702,7 +1702,7 @@ async function loadHometaxCert(
   }
 }
 
-// ── 전자세금계산서 상세 조회 (2026-08-05 사장님: "홈택스엔 공급받는자 주소·이메일이 다 있는데") ──
+// ── 전자세금계산서 상세 조회 ("홈택스엔 공급받는자 주소·이메일이 다 있는데") ──
 //   통합 목록 API 는 사업장 주소·이메일을 주지 않는다. 상세 API 에는 둘 다 있다:
 //     resSupplierBusinessPlace/resContractorBusinessPlace(사업장), resEmail(공급자)/resEmail1(공급받는자), 대표자명
 //   ⚠️ 건당 과금 + CODEF 문서 경고("과도한 호출 시 대상기관 IP 차단") → 한 건당 한 번만, 결과는 DB 에 캐시.
@@ -1761,7 +1761,7 @@ async function syncHometaxInvoices(
   directions: ("매출" | "매입")[] = ["매출", "매입"],
   // 이어받기 — 앞 step 이 시간 예산 때문에 못 끝낸 페이지부터 시작한다.
   startPage = 1,
-  // 문서 종류 (2026-08-10 사장님 — "전자계산서도 불러와줘") —
+  // 문서 종류 ("전자계산서도 불러와줘")
   //   tax = 전자세금계산서(searchType 01, 기존), exempt = 전자계산서(면세, searchType 02).
   //   같은 통합 API·같은 인증서로 조회하며 tax_invoices.doc_kind 로 구분 저장.
   //   searchType 값이 예상과 달라 같은 세금계산서가 다시 와도, 승인번호(nts_confirm_no)가
@@ -1920,7 +1920,7 @@ async function syncHometaxInvoices(
     totalResponseCount += invoices.length;
     debug.push(`${direction} invoices.length=${invoices.length}`);
 
-    // 진단(2026-08-05 사장님: "홈택스엔 공급받는자 주소·이메일이 다 있는데 왜 안 불러오냐") —
+    // 진단("홈택스엔 공급받는자 주소·이메일이 다 있는데 왜 안 불러오냐")
     //   CODEF 가 실제로 어떤 필드를 주는지 확인용. **필드명만** 남긴다(값은 개인정보라 금지).
     //   주소·이메일 필드가 응답에 있으면 그걸 읽어 저장하도록 매핑을 넓히면 된다.
     if (invoices.length > 0) {
@@ -1990,7 +1990,7 @@ async function syncHometaxInvoices(
       const counterpartyRep = isSales
         ? (inv.resContractorName || "")
         : (inv.resSupplierName || "");
-      // 이메일 — ⚠️ 2026-08-05 사장님 지적으로 발견한 오매핑:
+      // 이메일 — ⚠️ 2026-08-05 대표 지적으로 발견한 오매핑:
       //   종전엔 resContractorEmail / resSupplierEmail 을 읽었는데 **응답에 없는 이름**이라
       //   1,826건 전부 빈 값이었다. 통합 목록 API 실제 필드는
       //     resEmail(공급자) / resEmail1·resEmail2(공급받는자).
@@ -2126,7 +2126,7 @@ async function syncHometaxInvoices(
     }
   }
 
-  // ── 신규 건 상세 보강 (2026-08-05 사장님 지시 2번) ───────────────────────────
+  // ── 신규 건 상세 보강 ( 2번) ───────────────────────────
   //   통합 목록에 없는 사업장 주소·이메일을 상세 API 로 채운다. 새로 들어온 건만, 그리고
   //   한 번에 DETAIL_MAX 건까지만 — CODEF 문서가 "과도한 호출 시 기관 IP 차단" 을 경고하고
   //   건당 과금이라 배치처럼 몰아치지 않는다. 남은 건은 상세 화면을 열 때 1건씩 채워진다.
@@ -2520,7 +2520,7 @@ serve(withSentry("codef-sync", async (req) => {
     const token = await getCodefToken(clientId, clientSecret);
 
     // --- Action: card-list-probe (운영자 확인용, 읽기 전용) ---
-    //   카드사 "보유카드 조회"가 끝 4자리를 온전히 주는지 본다 (2026-09-03 사장님: 롯데 거래자료는 뒤 3자리만 보임).
+    //   카드사 "보유카드 조회"가 끝 4자리를 온전히 주는지 본다 (롯데 거래자료는 뒤 3자리만 보임).
     if (action === "card-list-probe") {
       if (!cid) return new Response(JSON.stringify({ error: "no connectedId" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const accounts = await getAccountList(token, cid);
@@ -2656,7 +2656,7 @@ serve(withSentry("codef-sync", async (req) => {
     }
 
     // --- Action: card-bizno-backfill (과거 청구내역에서 가맹점 사업자번호만 채우기, 1회성) ---
-    //   2026-08-12 사장님 승인. 그냥 재수집하면 upsert 가 mapping_status 를 unmapped 로 되돌려
+    //   . 그냥 재수집하면 upsert 가 mapping_status 를 unmapped 로 되돌려
     //   사람이 해 둔 분류가 날아간다. 그래서 biznoOnly — 행은 만들지도 고치지도 않고 번호만 얹는다.
     //   한 번에 **한 청구월**만 (호출자가 달을 돌린다) — 엣지 150초 안에 끝나게.
     if (action === "card-bizno-backfill") {
@@ -3051,7 +3051,7 @@ serve(withSentry("codef-sync", async (req) => {
     }
 
 
-    // --- Action: hometax-invoice-detail (상세 화면에서 그 건만 보강 — 2026-08-05 사장님 지시 1번) ---
+    // --- Action: hometax-invoice-detail (상세 화면에서 그 건만 보강 — 1번) ---
     //   통합 목록에 없는 사업장 주소·이메일·대표자명을 CODEF 상세 API 로 1건만 조회해 채운다.
     //   건당 과금 + 기관 IP 차단 경고가 있어 **이미 보강된 건(detail_fetched_at)은 다시 부르지 않는다**.
     if (action === "hometax-invoice-detail") {
@@ -3314,7 +3314,7 @@ serve(withSentry("codef-sync", async (req) => {
         //   수집이 전부 끊긴다(2026-08-05 BC카드 9일 무음 중단과 같은 부류의 사고).
         if (cid && result.connectedId !== cid) {
           //   죽은 cid(CF-04019)는 getAccountList 가 throw 없이 [] 를 돌려준다. throw 는 CODEF
-          //   일시 장애/타임아웃이라 "살았는지 모름" — 모르면 덮어쓰지 않는다(2026-08-19 감사:
+          //   일시 장애/타임아웃이라 "살았는지 모름" — 모르면 덮어쓰지 않는다(
           //   종전엔 throw 를 죽은 cid 로 오판해 가드가 예외 경로에서 무력화됐다).
           let oldAccounts: any[] | null = null;
           try { oldAccounts = await getAccountList(token, cid); } catch (_) { oldAccounts = null; }
@@ -3335,7 +3335,7 @@ serve(withSentry("codef-sync", async (req) => {
         }, { onConflict: "company_id" });
       }
 
-      // 등록 직후 1회 실제 조회로 확인 (2026-08-20 사장님) — "등록은 됐는데 수집이 안 되는"
+      // 등록 직후 1회 실제 조회로 확인 — "등록은 됐는데 수집이 안 되는"
       //   무음 실패를 없앤다. 드림세무회계 건(농협을 개인으로 등록 → CF-04015 로 3주간 조용히
       //   실패, 아무 화면에도 안 뜸)이 정확히 이 자리에서 막혔어야 했다.
       //   조회 자체가 목적이 아니라 **연결이 실제로 쓸 수 있는 상태인지** 지금 알려주는 게 목적이다.
@@ -3371,7 +3371,7 @@ serve(withSentry("codef-sync", async (req) => {
       }
       const sandboxConnectedId = "sandbox_connectedId_01";
 
-      // 덮어쓰기 가드 (2026-08-19 감사): register 와 동일 — 실계정이 붙어 있는 connectedId 를
+      // 덮어쓰기 가드: register 와 동일 — 실계정이 붙어 있는 connectedId 를
       //   샌드박스 ID 로 덮어쓰면 그 회사의 은행·카드 수집이 통째로 고아가 된다 (2026-08-05
       //   BC카드 사고와 같은 결과). 기존 연결이 살아 있으면 거부한다.
       if (cid && cid !== sandboxConnectedId) {
@@ -3433,7 +3433,7 @@ serve(withSentry("codef-sync", async (req) => {
     }
 
     // --- Action: bank-card-sync-async (2026-08-27 결정 87) — 통장·카드 수집을 서버 job 으로.
-    //   화면이 엣지 응답을 기다리던 구조라 탭을 닫으면 끊겼다(사장님: "백그라운드 수집이 안 됨"). 홈택스처럼 job 행을 만들고
+    //   화면이 엣지 응답을 기다리던 구조라 탭을 닫으면 끊겼다("백그라운드 수집이 안 됨"). 홈택스처럼 job 행을 만들고
     //   응답은 바로 202, 실제 수집은 EdgeRuntime.waitUntil 로 끝까지 돈다(한 회사 통장 ~24s·카드 ~28s). 화면은 jobId 로 기다린다.
     if (action === "bank-card-sync-async") {
       const jobType = syncType === "card" ? "card" : "bank";

@@ -17,7 +17,7 @@ import { OwnerCommandCenter } from "@/components/owner-command-center";
 import { OwnerDashboardSection } from "@/components/owner-dashboard-section";
 import { ClosingChecklistWidget }  from "@/components/closing-checklist-widget";
 
-// 마스터 전용 화면 (2026-08-10 사장님). 대시보드 하단 경영 종합 3종을 그대로 이동:
+// 마스터 전용 화면. 대시보드 하단 경영 종합 3종을 그대로 이동:
 //   ① CEO 커맨드 센터(액션·펄스·목표·리스크) ② 프로젝트 경영 종합 ③ 월 마감 체크리스트.
 //   대시보드에는 위젯 그리드까지만 남는다. 쿼리 키는 대시보드와 동일해 캐시를 공유한다.
 export default function MasterPage()  {
@@ -26,7 +26,7 @@ export default function MasterPage()  {
   const { isMaster, loading: permLoading } = useMyPermissions();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  // 데이터 없음 CTA (대시보드에서 이동, 2026-08-10 사장님 2차). 업로드/샘플 핸들러도 함께
+  // 데이터 없음 CTA (대시보드에서 이동, 2026-08-10 대표 2차). 업로드/샘플 핸들러도 함께
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -84,7 +84,7 @@ export default function MasterPage()  {
   const cashPulse: CashPulseResult | null = pulseRaw ? buildCashPulse(pulseRaw) : null;
 
   //   밀린 미수금 — 마스터 엔진 자체 계산이 원장·대시보드와 다른 숫자를 냈다 (2026-09-01 전수점검 ①)
-  //   → 받을 돈·30일+ 는 공용 기준(lib/invoice-arap, 세금계산서 잔액 — 2026-09-03 사장님 결정)으로 덮어쓴다.
+  //   → 받을 돈·30일+ 는 공용 기준(lib/invoice-arap, 세금계산서 잔액 —)으로 덮어쓴다.
   const { data: arapU } = useQuery({
     queryKey: ["invoice-arap", companyId],
     queryFn: () => fetchInvoiceArAp(companyId!),

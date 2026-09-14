@@ -69,14 +69,14 @@ export async function createTaxInvoice(params: {
   issueDate: string;
   label?: string;
   // 품목명 — 홈택스 발행 엣지가 invoice.item_name 을 품목으로 쓴다(없으면 "용역" 기본값).
-  //   label 에 품목을 섞어 넣으면 국세청에는 반영되지 않는다(2026-08-05 사장님 제보로 교정).
+  //   label 에 품목을 섞어 넣으면 국세청에는 반영되지 않는다(2026-08-05 대표 제보로 교정).
   itemName?: string;
   revenueScheduleId?: string | null;
   status?: string;
   preferredDate?: string;
   expenseCategory?: string;
   partnerId?: string;
-  // 과세유형(직원 QA 그랜터) — taxable(과세)/zero_rated(영세율)/exempt(면세). 영세율·면세는 세액 0.
+  // 과세유형 — taxable(과세)/zero_rated(영세율)/exempt(면세). 영세율·면세는 세액 0.
   taxKind?: 'taxable' | 'zero_rated' | 'exempt';
   //   세액을 직접 주는 경우(엑셀 일괄발행처럼 공급가액·세액·공급대가를 사람이 적어 오는 길).
   //   안 주면 종전대로 과세유형으로 계산한다. 국세청에는 이 값이 그대로 나간다.
@@ -506,7 +506,7 @@ export async function getVATPreview(companyId: string, year: number): Promise<VA
     .eq('company_id', companyId));
 
   // 현금영수증 매출 세액 — 세금계산서 미발행 매출의 부가세도 납부 대상 (cash-receipts 화면 동일 테이블)
-  //   부호는 cashReceiptSign 기준 (2026-08-19 감사): 홈택스 취소거래는 status='cancelled'인
+  //   부호는 cashReceiptSign 기준: 홈택스 취소거래는 status='cancelled'인
   //   별개의 마이너스 매출 행이라, issued 만 집계하면 취소분이 안 빠져 매출세액이 과다했다.
   //   매입 현금영수증 공제는 증빙 요건 판단이 필요해 미반영(보수적).
   const { cashReceiptSign } = await import('./cash-receipts');

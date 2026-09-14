@@ -1,5 +1,5 @@
--- 상단바 메모(note) — 사용자 개인 메모, 두 PC 어디서든 같은 것 (2026-08-27 사장님: "상단바 알림 왼쪽에 계산기·화면캡쳐·메모 아이콘")
---   localStorage 가 아니라 표인 이유: 사장님이 PC 2대를 쓴다 — 기기에 갇힌 메모는 메모가 아니다.
+-- 상단바 메모(note) — 사용자 개인 메모, 두 PC 어디서든 같은 것 ("상단바 알림 왼쪽에 계산기·화면캡쳐·메모 아이콘")
+--   localStorage 가 아니라 표인 이유: 대표 PC 2대를 쓴다 — 기기에 갇힌 메모는 메모가 아니다.
 create table if not exists public.quick_notes (
   id uuid primary key default gen_random_uuid(),
   company_id uuid not null references public.companies(id) on delete cascade,

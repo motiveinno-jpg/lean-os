@@ -1,7 +1,7 @@
 "use client";
 
 // granter 스타일 카드 개요 (2026-05-27): 상단 전체 지출 + 카드사별 그룹 + 3열 카드 그리드.
-//   - 우측 담당자/인물 이미지 없음 (사장님 명시 제외)
+//   - 우측 담당자/인물 이미지 없음 (대표 명시 제외)
 //   - 사용액 = card_transactions 기간 합산(getCardSpendByCompany)
 //   - 카드 클릭 → onSelectCard(cardId | `codef:cardName`) 로 부모의 기존 상세 흐름 연결
 
@@ -92,7 +92,7 @@ function addMonths(d: Date, delta: number): Date {
 
 // 기본: 이번 달(1일~말일)
 function defaultRange(): { from: Date; to: Date } {
-  // 최근 1개월 — 다른 조회 화면 기본값과 통일 (2026-09-03 사장님). '이번 달'은 매달 초 며칠치만 보여 "변화 없음"으로 읽혔다.
+  // 최근 1개월 — 다른 조회 화면 기본값과 통일. '이번 달'은 매달 초 며칠치만 보여 "변화 없음"으로 읽혔다.
   const now = new Date();
   const from = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
   return { from, to: now };

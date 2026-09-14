@@ -24,7 +24,7 @@ export default function RevenuePage() {
   const { role } = useUser();
   const s = usePnlStatus();
   const [drill, setDrill] = useState<Drill | null>(null);
-  //   KPI 현황판은 재고 › 이익관리로 이사(2026-09-02 사장님 · 쓰는 회사가 판매·이커머스 쪽)
+  //   KPI 현황판은 재고 › 이익관리로 이사(2026-09-02 대표 · 쓰는 회사가 판매·이커머스 쪽)
   const [q, setQ] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState<Cond>(EMPTY);

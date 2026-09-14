@@ -41,7 +41,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   return p;
 }
 
-//   ⚠ companies 임베드는 FK 이름을 박아 둔다 (2026-09-03 실사고): users↔companies 사이에 관계가 하나 더 생기면(조인 표 등)
+//   ⚠ companies 임베드는 FK 이름을 박아 둔다: users↔companies 사이에 관계가 하나 더 생기면(조인 표 등)
 //   PostgREST 가 "more than one relationship" 300 을 내고 → 회사 없음 → /company-setup 루프가 전 회사에 난다.
 //   힌트가 있으면 관계가 몇 개든 users.company_id 경로로만 간다.
 async function _fetchCurrentUser(): Promise<CurrentUser | null> {
@@ -858,7 +858,7 @@ export async function setBankAccountAlias(
   if (error) throw error;
 }
 
-/** 통장 이름·메모·숨김 한 번에 (2026-08-19 사장님: 이름 변경만으론 단편적 — 수정·숨김·삭제). bank_accounts 행이 없으면 만든다 */
+/** 통장 이름·메모·숨김 한 번에 (이름 변경만으론 단편적 — 수정·숨김·삭제). bank_accounts 행이 없으면 만든다 */
 export async function updateBankAccountMeta(
   companyId: string,
   accountNumber: string,
@@ -1418,7 +1418,7 @@ export async function getCompanyUsers(companyId: string) {
 
 // ── Unread count per channel ──
 export async function getUnreadCounts(companyId: string, userId: string) {
-  // 사용자 id 가 아직 없을 때(로그인 직후·캐시 비움) "null" 문자열이 uuid 칸에 들어가 400 이 나던 것 차단 (2026-08-31 실사고)
+  // 사용자 id 가 아직 없을 때(로그인 직후·캐시 비움) "null" 문자열이 uuid 칸에 들어가 400 이 나던 것 차단
   if (!companyId || !userId || !/^[0-9a-f-]{36}$/i.test(String(userId))) return new Map<string, number>();
   const participants = logRead('getUnreadCounts', await supabase
     .from('chat_participants')
@@ -2425,7 +2425,7 @@ export async function getCashPulseData(companyId: string, userId?: string) {
   const receivedCount = (revenue.data || []).filter((r: any) => r.status === 'received').length;
   const matchedRate = totalRevItems > 0 ? receivedCount / totalRevItems : 0;
 
-  // Pending approvals count — 내 결재 차례(approval_steps)만 센다 (2026-08-31 정정).
+  // Pending approvals count — 내 결재 차례(approval_steps)만 센다.
   //   payment_queue 는 "결재가 끝난 건이 유령처럼 남는" 소스라 2026-08-19에 결재 대기 위젯에서
   //   이미 제거됐는데 여기엔 남아 '오늘 챙길 것' 규칙 브리핑의 대기 건수를 부풀렸다.
   //   documents(status='review') 도 결재 허브와 무관한 별개 상태라 함께 뺀다.
@@ -2514,7 +2514,7 @@ export async function getProjectDetail(dealId: string, companyId: string) {
       .order('created_at', { ascending: false })
       .limit(10),
     // 파일 섹션 통합 (2026-05-21 v5): stage 별 모든 상태 표시 (저장만 한 draft 포함)
-    //   사장님 요청: "진척보고서가 저장이되면 옆에 활동탭에 파일에 쌓여야돼" / "계약서랑 견적서 여전히 저장안되고"
+    //   "진척보고서가 저장이되면 옆에 활동탭에 파일에 쌓여야돼" / "계약서랑 견적서 여전히 저장안되고"
     //   → draft/sent/viewed/approved/fully_signed 모두 표시. status 별 라벨로 사용자 구분
     db.from('quote_approvals')
       .select('id, stage, status, recipient_name, recipient_email, sent_at, decided_at, our_signed_at, updated_at')

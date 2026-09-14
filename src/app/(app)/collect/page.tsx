@@ -1,6 +1,6 @@
 "use client";
 
-// 수집·전표 — 1단계: 수집 현황판 (2026-08-11 사장님 지시)
+// 수집·전표 — 1단계: 수집 현황판
 //
 //   그동안 수집 버튼이 다섯 화면에 흩어져 있어 "지금 어디까지 받아 놨나"를 한눈에 못 봤다.
 //   이 화면은 그 질문 하나만 답한다. 자료 카드를 누르면 그 자료의 목록으로,
@@ -53,7 +53,7 @@ function CollectInner() {
   const qc = useQueryClient();
   const companyId = user?.company_id ?? null;
 
-  //   조회기간 · 기본은 **최근 1개월** (2026-08-13 사장님 확정).
+  //   조회기간 · 기본은 **최근 1개월**.
   //   이번 달 1일 기준이면 매달 1~2일에 열었을 때 하루이틀치만 보여 '자료 없음'으로 읽힌다.
   const [range, setRange] = useState(defaultRange);
   const  { from, to } = range;
@@ -68,10 +68,10 @@ function CollectInner() {
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState<SourceKey[]>(SOURCES.map((s) => s.key));
   const [mode, setMode] = useState<"new" | "range">("new");
-  const [rangeFrom, setRangeFrom] = useState(() => defaultRange().from);   // 최근 1개월 — 다른 조회 화면과 통일 (2026-09-03 사장님)
+  const [rangeFrom, setRangeFrom] = useState(() => defaultRange().from);   // 최근 1개월 — 다른 조회 화면과 통일
   const [rangeTo, setRangeTo] = useState(todayKst());
   //   ★ 진행 상태는 화면 밖(collect-run 싱글턴)에 있다 — 다른 메뉴로 갔다 와도 그대로 보이고, 통장·카드 수집도 끊기지 않는다
-  //     (2026-08-27 사장님: "전표 수집 시 백그라운드 수집이 안 됨"). 새로고침 뒤에는 스냅샷을 되살려 홈택스 job 을 이어 기다린다.
+  //     ("전표 수집 시 백그라운드 수집이 안 됨"). 새로고침 뒤에는 스냅샷을 되살려 홈택스 job 을 이어 기다린다.
   const run = useCollectRun();
   const running = run.running;
   const state = run.state;
@@ -111,7 +111,7 @@ function CollectInner() {
     staleTime: 30_000,
   });
 
-  //   ★ 조회기간은 **기억하지 않는다** (2026-08-13 사장님 지시).
+  //   ★ 조회기간은 **기억하지 않는다**.
   //     예전엔 localStorage 에 마지막 기간을 남겨 다녀와도 그대로 떴다. 두 가지가 나빴다 —
   //     ① 지금 보고 있는 게 무슨 조건인지 모른 채 목록만 본다  ② PC 를 바꾸면 안 따라온다.
   //     화면 안에 머무는 동안만 유지하고(그냥 상태다), 자주 쓰는 조건은 '내 조건'에 이름을 붙인다.
@@ -188,7 +188,7 @@ function CollectInner() {
   //     목록 탭은 숫자 칸만 두고 달력을 검색조건 안으로 넣는다 (탭이 직접 그린다).
   const rangeField = <DateRangeField from={from} to={to} onChange={applyRange} />;
   //   ★ 도는 중에도 **누를 수 있다** · 창을 닫았다가 진행 상황을 다시 열어 보는 길이다
-  //     (2026-08-13 사장님 지시: "닫기 눌렀을 때 창 닫히고 백그라운드에서 돌고").
+  //     ("닫기 눌렀을 때 창 닫히고 백그라운드에서 돌고").
   //     막아 두면 닫는 순간 진행 상황을 볼 방법이 사라진다.
   const syncButton = (
 
@@ -209,7 +209,7 @@ function CollectInner() {
   };
 
   //   ── 갈래 탭 — 현황판 + 자료별 목록.
-  //   ★ 탭도 **조회 상자 안에** 들어간다 (2026-08-13 사장님 지시) — 탭·조회 줄·결과 요약이
+  //   ★ 탭도 **조회 상자 안에** 들어간다 — 탭·조회 줄·결과 요약이
   //     낱장으로 흩어져 있으면 어디까지가 '조회하는 곳'인지 눈으로 안 갈린다.
   //     그래서 탭을 여기서 만들어 목록 탭에도 내려보낸다(조회 줄은 탭이 완성하므로).
   const tabsNode = (
@@ -237,7 +237,7 @@ function CollectInner() {
               onRange={applyRange} syncButton={syncButton} rulesHelper={rulesHelper} />
       )}
 
-      {/* ── 현황판 — 탭·조회 줄·자료 표·수집 이력을 **한 상자**에 (2026-08-13 사장님 C안 승인).
+      {/* ── 현황판 — 탭·조회 줄·자료 표·수집 이력을 **한 상자**에 (2026-08-13 대표 C안 승인).
              카드 격자였는데, 상자에 높이를 주자 격자가 남는 높이를 행에 나눠 줘 카드가
              351px 로 늘어나고 아래가 텅 비었다. 그리고 이 화면이 하는 일은 다섯 자료를
              **비교**하는 것이라 세로로 줄 세우는 표가 맞다(다른 탭도 전부 표다). ── */}

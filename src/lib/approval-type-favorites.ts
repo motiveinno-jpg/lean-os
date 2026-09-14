@@ -1,4 +1,4 @@
-// 결재허브 새 요청 — 요청 유형 즐겨찾기 (2026-09-02 사장님 "요청건들이 많으면 즐겨찾기")
+// 결재허브 새 요청 — 요청 유형 즐겨찾기 (2026-09-02 대표가 "요청건들이 많으면 즐겨찾기")
 //   저장: user_preferences.approval_type_favorites (계정별 — PC 를 바꿔도 따라온다) + localStorage(즉시 표시용 캐시).
 //   ⚠️ user_preferences.user_id 는 auth.users(id) — users.id 가 아니다(사이드바 고정핀에서 겪은 함정).
 //   회사 조회는 users.auth_id 로. 값 = 유형 value(내장 키 또는 'form:<양식id>') 배열.

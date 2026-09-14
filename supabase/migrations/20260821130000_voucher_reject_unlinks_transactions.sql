@@ -1,4 +1,4 @@
--- 전표 반려가 원거래 연결을 풀지 않아 '어디에서도 안 잡히는 거래' 가 되던 것 (2026-08-21 감사)
+-- 전표 반려가 원거래 연결을 풀지 않아 '어디에서도 안 잡히는 거래' 가 되던 것
 --
 -- 증상: 전표를 반려(선택 삭제)하면 journal_entries.status 만 'rejected' 가 되고
 --   card_transactions.journal_entry_id / bank_transactions.journal_entry_id 는 그대로 남았다.

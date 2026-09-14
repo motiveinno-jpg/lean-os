@@ -65,7 +65,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
   const [autoKeyB64, setAutoKeyB64] = useState("");
   const [certFileName, setCertFileName] = useState("");
   // Hometax 전용 — 대표자 주민번호 앞 7자리 (선택)
-  // 발행 알림 메일 (선택, 2026-08-13 사장님) — companies.tax_settings.invoice_notify_email.
+  // 발행 알림 메일 (선택, 2026-08-13 대표) — companies.tax_settings.invoice_notify_email.
   //   세금계산서 발행 성공 시 hometax-issue 가 이 주소로 알림을 보낸다. 비우면 발송 안 함.
   const [notifyEmail, setNotifyEmail] = useState("");
   const [notifySaved, setNotifySaved] = useState(false);
@@ -99,7 +99,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const resultRef = useRef<HTMLDivElement | null>(null);
 
-  // 실패가 성공처럼 보이던 문제(2026-08-05 사장님): 결과가 바뀌면 메시지 위치로 스크롤하고,
+  // 실패가 성공처럼 보이던 문제: 결과가 바뀌면 메시지 위치로 스크롤하고,
   // 실패는 빨간 토스트로 즉시 알린다 — 화면 어디에 있든 실패를 놓치지 않게.
   useEffect(() => {
     if (!result) return;
@@ -190,7 +190,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
             }
             // 검증 통과 → PFX 저장 + 비밀번호 병합 저장 (기존 cert_password 등 다른 키는 보존)
             const pfxBytes = Uint8Array.from(atob(autoPfxB64), (c) => c.charCodeAt(0));
-            // 저장 실패를 확인한다 (2026-08-19 감사): 종전엔 결과를 안 봐서 업로드/자격증명
+            // 저장 실패를 확인한다: 종전엔 결과를 안 봐서 업로드/자격증명
             //   저장이 실패해도 "연결 완료"가 떴고, 이후 동기화가 인증서 없음으로 계속 실패했다.
             const { error: upPfxErr } = await supabase.storage.from("certificates").upload(
               `${companyId}/hometax.pfx`, new Blob([pfxBytes]), { upsert: true },
@@ -458,7 +458,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
             "이건 진짜"라고 따로 말할 이유가 없어졌다. 구분선만 남긴다. */}
       <div className="border-t border-[var(--border)] pt-4 mb-3">
 
-        {/*   무엇을 · 누구 명의로 · 어떻게 — 예전엔 **버튼 격자 세 층**이었다(2026-08-24 사장님: "예전 UI 형태").
+        {/*   무엇을 · 누구 명의로 · 어떻게 — 예전엔 **버튼 격자 세 층**이었다("예전 UI 형태").
               조회 화면 표준: 여러 값 중 하나 고르기는 **한 줄 셀렉트**, 버튼 격자 금지.
               고르는 값과 동작은 그대로다 — 생김새만 바꿨다. */}
         <div className="bank-connect-row">
@@ -522,7 +522,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
                     그 함수는 identity 를 읽지 않는다 — 개인정보를 받아서 버리고 있었다. 실제 인증에 쓰이는
                     자리에는 사업자번호가 자동으로 들어간다(codef-sync 가 companies.business_number 를 쓴다). */}
 
-              {/* 발행 알림 메일 (선택) — 세금계산서 발행 성공 시 이 주소로 알림 (2026-08-13 사장님) */}
+              {/* 발행 알림 메일 (선택) — 세금계산서 발행 성공 시 이 주소로 알림 */}
               <div className="mt-4">
                 <label className="field-label">발행 알림 메일 <span className="caption">(선택)</span></label>
                 <div className="flex gap-2">
@@ -723,7 +723,7 @@ function CodefErrorCard({ item, onRetry, retrying }: { item: any; onRetry: () =>
 export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: string | null; bankAccounts: BankAccount[] }) {
   //   ★ 받은 목록은 회사 통장 **전부**다. 여기서 갈래를 나눠 쓴다 — 예전엔 부모가 갈라 주기를
   //   기대하고 그대로 썼는데, 부모가 전체를 넘기는 바람에 아래 '직접 등록한 통장' 칸이 연동 통장
-  //   8개를 세고 있었다(2026-09-11 사장님 제보). 안에서 나누면 넘기는 쪽이 틀릴 수가 없다.
+  //   8개를 세고 있었다. 안에서 나누면 넘기는 쪽이 틀릴 수가 없다.
   const manualAccounts = splitBankAccounts(bankAccounts).manual;
   const db2 = supabase;
   const { toast }  = useToast();
@@ -781,7 +781,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
       });
     }).finally(() => setLoadingAccounts(false));
     // hasCodefConnection 을 의존성에 — 홈택스만 먼저 연결된 회사(isConnected 이미 true)가
-    // 은행을 새로 등록해도 목록이 갱신되지 않던 버그 (2026-08-19 감사).
+    // 은행을 새로 등록해도 목록이 갱신되지 않던 버그.
   }, [companyId, isConnected, hasCodefConnection]);
 
   // 최근 CODEF 동기화 이력 로드 (오류 모니터링)
@@ -895,7 +895,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
   }
 
   const [rangeProgress, setRangeProgress] = useState<string>('');
-  //   직접 등록한 통장 — **기본은 접어 둔다** (2026-08-24 사장님: "표가 너무 커서 정리가 필요하다").
+  //   직접 등록한 통장 — **기본은 접어 둔다** ("표가 너무 커서 정리가 필요하다").
   //   여기서 고칠 수 있는 것이 없다(추가·수정은 회계·세무 › 자금·통장). 이 탭에서 알아야 할 것은
   //   "연동 밖 계좌가 몇 개고 잔고가 얼마나 합산되나" 한 줄이라 그것만 펴 둔다.
   const [showManual, setShowManual] = useState(false);
@@ -1070,7 +1070,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
 
         {isConnected ? (
           <div className="space-y-3">
-            {/*   세 줄짜리 상자였다 — 같은 말을 한 줄로 줄인다(2026-08-24 사장님: 영역이 쓸데없이 크다) */}
+            {/*   세 줄짜리 상자였다 — 같은 말을 한 줄로 줄인다(영역이 쓸데없이 크다) */}
             <div className="bank-connected-note">
               <p className="text-xs text-green-600 font-semibold">
                 {hasCodefConnection && hasHometaxConnection
@@ -1097,7 +1097,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
             ) : (
               <>
                 {/*   연결된 것 — 예전엔 하나마다 아바타 + 두 줄짜리 큰 카드라 세 개만 되어도 250px 을 먹었다
-                      (2026-08-24 사장님: "영역이 쓸데없이 크다 · 아이콘 및 크기 조절").
+                      ("영역이 쓸데없이 크다 · 아이콘 및 크기 조절").
                       여기서 할 일은 **무엇이 붙어 있나 확인**뿐이다 — 이름·뒷번호를 칩 한 줄로 편다. */}
                 {(codefAccounts.bank.length > 0 || codefAccounts.card.length > 0) && (
                   <div className="bank-linked-chips">
@@ -1211,7 +1211,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
                 </span>
               )}
             </h2>
-            {/*   위 '자동 수집 연결'과 무엇이 다른지 여기서 말한다 (2026-08-24 사장님 지적) */}
+            {/*   위 '자동 수집 연결'과 무엇이 다른지 여기서 말한다 */}
             <p className="stg-sec-desc">
               은행에 연결하지 않고 손으로 등록한 통장입니다. 거래내역은 들어오지 않고 <b>잔고만</b> 합계에 더해집니다.
               추가·수정은 회계·세무 › 자금·통장에서 합니다.

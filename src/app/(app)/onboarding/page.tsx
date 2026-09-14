@@ -12,7 +12,7 @@ import { CodefAccountRegister } from "@/app/(app)/settings/_components/BankInteg
 import { useSampleStatus, sampleErrorText }  from "@/components/sample-data-banner";
 
 // ── Constants ──
-// 2026-08-10 개편(사장님): 첫 직원·첫 프로젝트·완료 단계 제거 · 회사 정보(+사업자등록증 첨부) →
+// 2026-08-10 개편: 첫 직원·첫 프로젝트·완료 단계 제거 · 회사 정보(+사업자등록증 첨부) →
 //   인증서 등록(통장·카드·홈택스 자동 수집) 2단계로 압축. 등록을 마치면 대시보드로 이동해
 //   첫 가입자에게 탭 투어(AppTour)를 보여준다.
 
@@ -20,7 +20,7 @@ const STEPS = [
   
   { num: 1, label: "회사 정보", icon: "building" },
   { num: 2, label: "금융 연결", icon: "bank" },
-  // 3단계는 별도 입력 없이 탭 투어(AppTour)로 이어주는 안내 화면 · 진행바가 2개뿐이라 어색하던 것 보완 (2026-08-10 사장님)
+  // 3단계는 별도 입력 없이 탭 투어(AppTour)로 이어주는 안내 화면 · 진행바가 2개뿐이라 어색하던 것 보완
   
   { num: 3, label: "화면 둘러보기", icon: "compass" },
 ] as const;
@@ -638,7 +638,7 @@ function Step1Company({
           placeholder="서울특별시 강남구 테헤란로 123"
         />
 
-        {/* 사업자등록증 첨부 (2026-08-10 사장님) — 설정 > 회사 정보의 회사 문서와 같은 저장 경로를 쓴다.
+        {/* 사업자등록증 첨부 — 설정 > 회사 정보의 회사 문서와 같은 저장 경로를 쓴다.
             여기서 올리면 설정 화면에도 그대로 보이고, 계약서 발송·증명서 발급이 같은 파일을 참조한다. */}
         <BizRegUpload companyId={companyId} />
       </div>

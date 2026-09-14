@@ -86,7 +86,7 @@ function SignaturesDashboardInner() {
   //   ── 조회 화면 표준 (2026-08-18 Wave 3) — 쪽은 usePager(기본 50). 검색조건은 '조회'를 눌러야 반영 ──
   const [rowsPer, setRowsPer] = useState(50);
   const [panelOpen, setPanelOpen] = useState(false);
-  // 표 정렬·기간 설정 (2026-08-05 사장님 시안) — 마지막 값은 계정별로 서버에 기억한다.
+  // 표 정렬·기간 설정 (2026-08-05 대표 시안) — 마지막 값은 계정별로 서버에 기억한다.
   type SortKey = "docNo" | "status" | "batch" | "title" | "signer" | "manager" | "created" | "signed";
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "created", dir: "desc" });
   const [reqFrom, setReqFrom] = useState("");   // 요청일 시작 (YYYY-MM-DD) — 조회 줄, 즉시. 빈 값 = 전체 기간
@@ -96,7 +96,7 @@ function SignaturesDashboardInner() {
   //   검색조건 초안(draft) — 서명완료일·그룹·담당자는 '조회'를 눌러야 반영된다
   const [dExpFrom, setDExpFrom] = useState(""); const [dExpTo, setDExpTo] = useState("");
   const [dBatch, setDBatch] = useState<string[]>([]); const [dManager, setDManager] = useState<string[]>([]);
-  // 그룹(묶음)·담당자 필터 — 그 값만 골라 보기 (2026-08-05 사장님 요청)
+  // 그룹(묶음)·담당자 필터 — 그 값만 골라 보기
   const [batchFilter, setBatchFilter] = useState("");   // "" 전체 / "none" 묶음 없음 / batch_id  (표 안 묶음 칩으로도 건다)
   const [managerFilter, setManagerFilter] = useState(""); // "" 전체 / created_by(uuid)   (표 안 담당자 이름으로도 건다)
   // PR-3: signed 행 서명본 보기 모달 (signature_data jsonb 이미지)
@@ -120,12 +120,12 @@ function SignaturesDashboardInner() {
       if (u) {
         setUserId(u.id);
         setCompanyId(u.company_id);
-        // 만료일이 지난 요청을 실제 'expired' 로 정리한다 (2026-08-21 감사) — 이 함수를
+        // 만료일이 지난 요청을 실제 'expired' 로 정리한다 — 이 함수를
         //   부르는 곳이 어디에도 없어 215건이 '발송' 으로 남아 통계의 만료 건수는 늘 0 이었고
         //   죽은 링크로 리마인더가 계속 나갔다. 화면을 열 때 그 회사 것만 훑는다.
         expireOverdueSignatures(u.company_id).catch(() => { /* 정리 실패가 목록을 막지 않는다 */ });
         // 외부 서명자가 메일 링크로 끝낸 계약은 익명 세션이라 문서 승인·잠금이 안 돈다 —
-        //   권한 있는 이 세션에서 밀린 것을 마무리한다 (2026-08-21 감사).
+        //   권한 있는 이 세션에서 밀린 것을 마무리한다.
         finalizeFullySignedDocuments(u.company_id).catch(() => { /* 무시 */ });
       }
     });
@@ -153,7 +153,7 @@ function SignaturesDashboardInner() {
     enabled: !!companyId,
   });
 
-  // 인사(근로계약·서식) 문서는 이 화면의 발송 목록에서 제외한다 — 2026-08-03 사장님:
+  // 인사(근로계약·서식) 문서는 이 화면의 발송 목록에서 제외한다 — 2026-08-03 대표:
   //   "일괄발송·새 계약 요청에 근로계약·서식 계약서까지 다 나온다".
   //   그 문서들은 구성원 상세 > 근로계약 탭에서 직원별로 보내는 경로가 따로 있다.
   //   판별 두 갈래: ① 서식 카테고리(회사가 만든 인사 서식) ② 인사 계약 패키지가 만든 문서
@@ -183,12 +183,12 @@ function SignaturesDashboardInner() {
       (d) =>
         !HR_TEMPLATE_CATEGORIES.has(d.doc_templates?.category || "") &&
         !hrIds.has(d.id) &&
-        // 프로젝트에서 만든 견적·계약(deal_id 보유)도 제외 — 2026-08-03 사장님:
+        // 프로젝트에서 만든 견적·계약(deal_id 보유)도 제외 — 2026-08-03 대표:
         //   "프로젝트에서 생성된 계약서는 프로젝트에서 따로 모아 보게".
         //   프로젝트 상세 > 견적서/전자계약 탭이 deal_id 로 같은 문서를 이미 모아 보여준다.
         !d.deal_id &&
         // 양식 실체화 사본(source_template_id)도 제외 — 양식 자체가 목록에 있으므로
-        //   사본까지 보이면 같은 계약서가 2개씩 나온다(2026-08-03 사장님).
+        //   사본까지 보이면 같은 계약서가 2개씩 나온다.
         !(d.content_json as any)?.source_template_id,
     );
     return sortTemplatesByOrder(list, templateOrder);
@@ -200,7 +200,7 @@ function SignaturesDashboardInner() {
     queryFn: () => listContractTemplates(companyId!),
     enabled: !!companyId,
   });
-  // 양식관리에서 숨긴 표준 양식은 발송 목록에서도 뺀다. 2026-08-03 사장님:
+  // 양식관리에서 숨긴 표준 양식은 발송 목록에서도 뺀다. 2026-08-03 대표:
   //   "양식관리에서 삭제하면 발송하기에 안 나타나야 한다". 회사 양식은 실제 삭제라 목록에서 바로 빠진다.
   const  { data: hiddenTemplateIds = [] } = useQuery({
     queryKey: ["hidden-contract-templates", companyId],
@@ -396,7 +396,7 @@ function SignaturesDashboardInner() {
   // 단체일괄 "우리 서명 일괄 적용" UI 는 2026-05-21 사용자 요청으로 제거됨 (동작 미완료).
   //   백엔드 RPC submit_our_signature_bulk 는 보존 (마이그·DB 미터치, 향후 재사용 가능).
 
-  // 상태별 건수도 목록과 같은 필터 기준 (2026-08-19 감사: 옆의 "건수"는 필터 반영,
+  // 상태별 건수도 목록과 같은 필터 기준 (옆의 "건수"는 필터 반영,
   //   상태 건수는 전체 기준이라 "건수 3 · 서명완료 47"이 한 줄에 나란히 떴다).
   //   상태 필터 자체는 제외 — 상태 칩을 눌러도 다른 상태 건수가 0이 되지 않게.
   const counts = useMemo(() => {
@@ -518,7 +518,7 @@ function SignaturesDashboardInner() {
     onError: (err: any) => toast("삭제 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
-  // 체크한 건 일괄 삭제 (2026-08-05 사장님 시안). 한 건이라도 실패하면 건수로 알린다.
+  // 체크한 건 일괄 삭제 (2026-08-05 대표 시안). 한 건이라도 실패하면 건수로 알린다.
   const bulkDeleteMut = useMutation({
     mutationFn: async (ids: string[]) => {
       let ok = 0;
@@ -570,7 +570,7 @@ function SignaturesDashboardInner() {
 
           {subTab === "requests" && (<>
           <QueryBar right={<>
-            {/* 2026-08-05 사장님: '새 계약 요청'을 단체 일괄 발송 마법사로 통합 — 한 곳에서 1건이든 여러 거래처든 같은 흐름 */}
+            {/* 2026-08-05 대표: '새 계약 요청'을 단체 일괄 발송 마법사로 통합 — 한 곳에서 1건이든 여러 거래처든 같은 흐름 */}
             <button type="button" onClick={() => setShowOrgBulkWizard(true)} disabled={contractLimitReached}
               className="btn-primary btn-sm"
               title={contractLimitReached ? `${contractStatus?.planName || "현재 요금제"}의 이번 달 전자계약 발송 한도(${contractStatus?.limit}건)를 모두 사용했습니다. 오너뷰 요금제로 올리면 무제한으로 보낼 수 있습니다.` : "계약서를 골라 거래처에 발송합니다."}>
@@ -605,7 +605,7 @@ function SignaturesDashboardInner() {
                       <button type="button" onClick={() => { setReqFrom(""); setReqTo(""); }} className={!reqFrom && !reqTo ? "qk-quick qk-quick-on" : "qk-quick"}>전체 기간</button>
                     </span>
                   </ConditionRow>
-                  {/* 상태 — 조회 줄의 칩 줄을 검색조건 안으로 (2026-08-18 사장님: 값 필터는 검색조건). 대기·거부는 실제로 도달 불가능한 상태라 뺐다 (2026-08-10) */}
+                  {/* 상태 — 조회 줄의 칩 줄을 검색조건 안으로 (값 필터는 검색조건). 대기·거부는 실제로 도달 불가능한 상태라 뺐다 (2026-08-10) */}
                   <ConditionRow label="상태" hint="값 하나 · 바로 반영">
                     <span className="qk-quicks">
                       <button type="button" onClick={() => setStatusFilter("all")} className={statusFilter === "all" ? "qk-quick qk-quick-on" : "qk-quick"}>전체 {counts.all || 0}</button>
@@ -704,7 +704,7 @@ function SignaturesDashboardInner() {
                   <tbody>
                     {(pager.view as any[]).map((r: any) => {
                       const info = getSignatureStatusInfo(r.status);
-                      // 만료일이 지났으면 상태가 아직 '발송' 이어도 리마인드 금지 (2026-08-21 감사):
+                      // 만료일이 지났으면 상태가 아직 '발송' 이어도 리마인드 금지:
                       //   만료 처리 함수를 부르는 곳이 없어 215건이 'sent/viewed' 로 남아 있었고,
                       //   죽은 링크로 리마인더가 계속 나가 받는 사람은 "만료되었습니다" 만 봤다.
                       const isOverdue = !!r.expires_at && new Date(r.expires_at) < new Date();
@@ -766,13 +766,13 @@ function SignaturesDashboardInner() {
                             ) : "—"}
                           </td>
                           <td className="signature-table-date">{r.created_at ? kstDateStr(new Date(r.created_at)) : "—"}</td>
-                          {/* 서명완료일 — 아직 서명 전이면 공백 (2026-08-06 사장님) */}
+                          {/* 서명완료일 — 아직 서명 전이면 공백 */}
                           <td className="signature-table-date">
                             {r.signed_at ? kstDateStr(new Date(r.signed_at)) : ""}
                           </td>
                           <td className="signature-table-actions">
                             <div className="signature-request-actions">
-                              {/* 실수 발송 방지 — 확인을 눌렀을 때만 보낸다 (2026-08-06 사장님) */}
+                              {/* 실수 발송 방지 — 확인을 눌렀을 때만 보낸다 */}
                               {canRemind && (
                                 <button onClick={async () => { if (await appConfirm(`${r.signer_name}님에게 리마인더를 발송하시겠습니까?`, { confirmLabel: "발송" })) reminderMut.mutate(r.id); }} disabled={reminderMut.isPending} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition disabled:opacity-50" aria-label="리마인더 발송" title="리마인더 발송"><Ico e="🔔" /></button>
                               )}
@@ -913,7 +913,7 @@ function SignaturesDashboardInner() {
               )}
             </div>
             <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
-              {/* QA 2026-06-12: sign_token 없는 행(HR 패키지 등)은 빈 토큰 링크가 되던 버그 → 토큰 있을 때만 노출 */}
+              {/* sign_token 없는 행(HR 패키지 등)은 빈 토큰 링크가 되던 버그 → 토큰 있을 때만 노출 */}
               {(() => {
                 const token = (filtered.find((x) => x.id === viewSignedRow.id) as { sign_token?: string } | undefined)?.sign_token;
                 return token ? (

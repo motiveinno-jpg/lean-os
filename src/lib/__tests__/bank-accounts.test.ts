@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { isAutoBankAccount, splitBankAccounts, sumBankBalance, BANK_GROUP_LABEL, AUTO_BANK_SOURCE } from "@/lib/bank-accounts";
 
-//   2026-09-11 사장님 제보: 모티브 통장 8개가 전부 자동 수집인데 은행연동 탭의 '직접 등록한 통장'
+//   모티브 통장 8개가 전부 자동 수집인데 은행연동 탭의 '직접 등록한 통장'
 //   칸이 8개·합계 3,379만원으로 세고 있었다. 원인은 갈래를 나누지 않은 전체 목록을 그 칸이 쓴 것.
 //   판정과 합계를 이 한 벌로 모았으니, 여기서 갈래가 어긋나면 두 탭이 같이 틀린다.
 const acc = (source: string, balance: number) => ({ source, balance }) as any;

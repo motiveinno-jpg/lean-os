@@ -1,11 +1,11 @@
 "use client";
 
-// 첫 가입 탭 투어 (2026-08-10 사장님 — 온보딩 개편).
+// 첫 가입 탭 투어 (2026-08-10 대표 — 온보딩 개편).
 //   온보딩을 마치고 대시보드에 처음 도착하면(?tour=1) 사이드바의 각 탭을 하나씩
 //   하이라이트하며 사용 방법을 설명한다. 완료·건너뛰기는 계정별(user_preferences)에 기록.
 //
 //   투어는 앱 셸(AppTourHost)에 상주한다 — 투어 중 사이드바로 다른 화면에 가도 유지되고,
-//   진행 스텝은 sessionStorage 에 남겨 새로고침해도 그 자리에서 이어간다. (2026-08-10 사장님 제보:
+//   진행 스텝은 sessionStorage 에 남겨 새로고침해도 그 자리에서 이어간다. (
 //   대시보드 안에만 마운트돼 있어 다른 탭을 누르면 사라지고 다시 안 나타나던 것 수정)
 //   ?tour=1 은 명시적 요청이므로 완료 기록과 무관하게 항상 시작한다 — 기기 localStorage 게이트는
 //   같은 브라우저의 다른 계정(QA 등)까지 막아서 제거했다.
@@ -29,7 +29,7 @@ type TourStep = {
   href: string | null;
   title: string;
   desc: string;
-  /** 인증·등록이 필요한 탭 — 어떻게 등록하는지 단계별 안내 (2026-08-10 사장님 요청) */
+  /** 인증·등록이 필요한 탭 — 어떻게 등록하는지 단계별 안내 */
   howTo?: { label: string; steps: string[]; link?: { label: string; href: string } };
 };
 
@@ -141,14 +141,14 @@ export function isTourActive(): boolean  {
 
 
 /** 앱 셸 상주 호스트 · ?tour=1(시작) 또는 진행 중 스텝(새로고침 재개)을 감지해 투어를 띄운다.
- *  2026-08-11 사장님: 신기능이니 **기존 사용자 포함 전원**에게 로그인 후 1회 자동 표시 —
+ *  2026-08-11 대표: 신기능이니 **기존 사용자 포함 전원**에게 로그인 후 1회 자동 표시
  *  user_preferences.app_tour_done_at 이 없는 계정은 자동 시작(완료·건너뛰기 시 기록돼 다시 안 뜸). */
 export function AppTourHost({ companyId }: { companyId: string | null }) {
   const pathname = usePathname();
   const { role } = useUser();
   const [show, setShow] = useState(false);
   const autoCheckedRef = useRef(false);
-  // 세무사 열람 세션은 투어 제외 (2026-08-11 사장님: 무한 반복 제보) — users 행이 없어
+  // 세무사 열람 세션은 투어 제외 (무한 반복 제보) — users 행이 없어
   //   user_preferences 완료 기록이 저장되지 않고(쓰기 전면 차단) 매번 다시 떴다.
   //   세무사는 회사 온보딩 대상이 아니므로 표시하지 않는 게 맞다.
   const isAdvisor = role === "advisor";
@@ -188,11 +188,11 @@ export function AppTourHost({ companyId }: { companyId: string | null }) {
 }
 
 export function AppTour({ companyId, onClose }: { companyId: string | null; onClose: () => void }) {
-  // 권한별 스텝 필터 (2026-08-11 사장님) — 일반 직원은 부여받은 메뉴의 스텝만 본다.
+  // 권한별 스텝 필터 — 일반 직원은 부여받은 메뉴의 스텝만 본다.
   //   마스터는 전체, 멤버는 hasMenu(기본 제공 포함) 기준. 마지막 안내(href null)는 항상 표시.
   const { isMaster, hasMenu, loading: permLoading }  = useMyPermissions();
 
-  // 스텝별 '다시 보지 않기' (2026-08-11 사장님 · "건마다 누르면 그 건만 안 나오게") —
+  // 스텝별 '다시 보지 않기' (2026-08-11 대표 · "건마다 누르면 그 건만 안 나오게")
   //   숨긴 스텝 href 를 user_preferences.app_tour_hidden_steps(jsonb 배열)에 계정별로 기록.
   const [hiddenSteps, setHiddenSteps] = useState<string[] | null>(null); // null = 로딩 중
   useEffect(() => {
@@ -240,7 +240,7 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
     } catch { return 0; }
   });
   const [rect, setRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
-  // '다시 보지 않기' 체크박스 (2026-08-11 사장님) — 체크한 상태로 닫으면(건너뛰기·시작하기 모두) 영구 미노출
+  // '다시 보지 않기' 체크박스 — 체크한 상태로 닫으면(건너뛰기·시작하기 모두) 영구 미노출
   const [neverShow, setNeverShow] = useState(false);
   const closedRef = useRef(false);
 
@@ -290,7 +290,7 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
   }, [idx, measure]);
 
   // 종료 — persist=true('다시 보지 않기' 체크)일 때만 계정(user_preferences)에 기록해 영구 미노출.
-  //   체크 없이 닫으면(건너뛰기·시작하기 모두) 다음 로그인에 다시 뜬다 (2026-08-11 사장님).
+  //   체크 없이 닫으면(건너뛰기·시작하기 모두) 다음 로그인에 다시 뜬다.
   const finish = useCallback(async (persist = true) => {
     if (closedRef.current) return;
     closedRef.current = true;
@@ -350,7 +350,7 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
       )}
 
       <div className="app-tour-tip glass-card" style={tipStyle}>
-        {/* 모바일 전용 닫기 (2026-08-12 사장님) — 모바일에선 '다음'만 11번 눌러야 끝나던 것.
+        {/* 모바일 전용 닫기 — 모바일에선 '다음'만 11번 눌러야 끝나던 것.
             체크 없이 닫는 것과 동일(persist=false) — 다음 로그인에 다시 뜬다. 데스크톱은
             건너뛰기 제거(2026-08-11 지시) 유지라 sm 이상에선 숨김. */}
         <button
@@ -382,7 +382,7 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
         )}
         <div className="app-tour-tip-actions">
           {/* 스텝마다: '이 안내 다시 보지 않기' → 그 스텝만 다음부터 제외.
-              마지막(완료) 옆 체크박스 → 투어 전체 영구 미노출. 건너뛰기 버튼은 제거 (2026-08-11 사장님). */}
+              마지막(완료) 옆 체크박스 → 투어 전체 영구 미노출. 건너뛰기 버튼은 제거. */}
           <div className="flex items-center gap-2.5 min-w-0">
             {!isLast && step.href && (
               <button

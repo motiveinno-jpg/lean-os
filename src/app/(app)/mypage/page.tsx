@@ -51,7 +51,7 @@ export default function MyPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [tab, setTab] = useState<MyPageTab>(() => { if (typeof window === "undefined") return "home"; const t = new URLSearchParams(window.location.search).get("tab") || ""; return TAB_FROM_QUERY[t] || "home"; });
-  // 연봉 기본 가림 (2026-08-19 사장님: 급여가 화면에 바로 보이면 안 됨). 눌러야 표시.
+  // 연봉 기본 가림 (급여가 화면에 바로 보이면 안 됨). 눌러야 표시.
   const [showSalary, setShowSalary] = useState(false);
   const  { role, user: ctxUser, refresh } = useUser();
   // 휴가 유형 이름은 회사 설정을 따른다 — 구성원 > 휴가 탭에서 바꾸면 직원 화면도 같이 바뀐다.
@@ -139,7 +139,7 @@ export default function MyPage() {
         await supabase.storage.from("company-assets").remove([path]).catch(() => {});   // 고아 방지
         throw new Error(updErr.message);
       }
-      // 예전 사진 정리 (2026-08-20 감사): 경로에 Date.now() 가 들어가 바꿀 때마다 한 장씩
+      // 예전 사진 정리: 경로에 Date.now 가 들어가 바꿀 때마다 한 장씩
       //   영구히 쌓였다. 교체가 확정된 다음에 지운다.
       if (prevAvatarPath && prevAvatarPath !== path) {
         await supabase.storage.from("company-assets").remove([prevAvatarPath]).catch(() => {});
@@ -280,7 +280,7 @@ export default function MyPage() {
         })
         .filter((l: any) => l.start_date?.startsWith(String(ledgerYear)));
       //   ★ 결재로 올린 휴가는 승인되면 휴가 기록(leave_requests)도 같이 생긴다 — 같은 건이 두 번 보이던 것
-      //     (2026-09-03 사장님: "연차 사용하면 2번씩 나온다"). 휴가 기록에 같은 날·같은 일수가 있으면 결재 건은 뺀다.
+      //     ("연차 사용하면 2번씩 나온다"). 휴가 기록에 같은 날·같은 일수가 있으면 결재 건은 뺀다.
       const nativeKeys = new Set((native || []).map((l: any) => `${l.start_date}|${l.end_date || l.start_date}|${Number(l.days) || 0}`));
       const approvalsOnly = fromApprovals.filter((l: any) => !nativeKeys.has(`${l.start_date}|${l.end_date || l.start_date}|${Number(l.days) || 0}`));
       // 발생 → 사용 순으로 읽도록 날짜 오름차순.
@@ -303,7 +303,7 @@ export default function MyPage() {
     : ledgerBalance
       ? [{ id: "grant-legacy", kind: "grant" as const, date: `${ledgerYear}-01-01`, label: "연차 부여", days: ledgerGranted, memo: null }]
       : [];
-  //   0.5일(반차)은 이름에 '반차' 를 붙여 한눈에 (2026-09-03 사장님)
+  //   0.5일(반차)은 이름에 '반차' 를 붙여 한눈에
   const leaveLabelWithUnit = (l: any) => {
     const base = leaveTypeLabel(l.leave_type);
     const half = l.leave_unit === "half_day" || Number(l.days) === 0.5;
@@ -346,7 +346,7 @@ export default function MyPage() {
           created_at: a.created_at,
         };
       });
-      //   승인된 결재 휴가는 휴가 기록에도 같은 건이 있다 — 기록이 있으면 결재 쪽은 뺀다(두 번 보이던 것, 2026-09-03 사장님)
+      //   승인된 결재 휴가는 휴가 기록에도 같은 건이 있다 — 기록이 있으면 결재 쪽은 뺀다(두 번 보이던 것, 2026-09-03 대표)
       const nativeKeys = new Set((native || []).map((l: any) => `${l.start_date}|${l.end_date || l.start_date}`));
       const approvalsOnly = mappedApprovals.filter((a: any) => !(a.status === "approved" && nativeKeys.has(`${a.start_date}|${a.end_date || a.start_date}`)));
       return [...(native || []), ...approvalsOnly]
@@ -616,7 +616,7 @@ export default function MyPage() {
                 <thead><tr><th className="text-left">신청</th><th>신청일</th><th>상태</th><th>발급본</th></tr></thead>
                 <tbody>{certReqs.map((r: any) => (
                   <tr key={r.id}><td className="text-left font-semibold">{r.title}{r.description && <small className="ml-1 text-[var(--text-dim)]">{String(r.description).slice(0, 40)}</small>}</td><td className="text-center mono-number">{String(r.created_at || "").slice(0, 10)}</td>
-                    {/* 승인 = 발급이 아니다 (2026-08-21 감사): 결재 승인만으로는 증명서가
+                    {/* 승인 = 발급이 아니다: 결재 승인만으로는 증명서가
                         만들어지지 않는데 '발급 완료' 로 찍혀, 직원은 받을 파일이 없는데
                         다 됐다고 알고 있었다. 발급본(첨부)이 붙어야 완료로 본다. */}
                     <td className="text-center">{(() => {

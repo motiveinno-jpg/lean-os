@@ -1,4 +1,4 @@
--- 연차 사용일수(leave_balances.used_days)를 승인된 휴가 기록에서 항상 다시 계산한다 (2026-09-03 사장님 신고: 양정훈 잔여 2일 ≠ 실제 1.5일)
+-- 연차 사용일수(leave_balances.used_days)를 승인된 휴가 기록에서 항상 다시 계산한다 (2026-09-03 대표 신고: 양정훈 잔여 2일 ≠ 실제 1.5일)
 --
 --   History: used_days 는 세 곳이 제각각 '+days / -days / 덮어쓰기' 로 만졌다 —
 --     ① apply_approval_side_effects(결재 승인): 잔액 행이 **있을 때만** used_days + days

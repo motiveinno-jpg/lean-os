@@ -1,4 +1,4 @@
--- 광고 성과 연동 1차 — 네이버 검색광고 (2026-08-06 사장님 지시). prod 적용 완료(MCP apply_migration).
+-- 광고 성과 연동 1차 — 네이버 검색광고. prod 적용 완료(MCP apply_migration).
 --   설계: 키는 '회사 금고'(ad_accounts)에 한 번만 넣고, 프로젝트는 연결만 한다(deal_ad_accounts).
 --   ⚠️ 키는 ad_account_secrets 에 암호화해 넣고 화면에서는 읽을 수 없다 — RLS 를 켜고 정책을 두지
 --      않아 service_role(엣지 함수)만 본다. decrypt_credential 이 authenticated 에게 열려 있어

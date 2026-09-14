@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { parseMoney, reconcileAmounts } from "@/components/tax-invoice-bulk-issue";
 
-//   세금계산서 엑셀 일괄발행 — 공급가액·세액·공급대가 (2026-09-11 사장님).
+//   세금계산서 엑셀 일괄발행 — 공급가액·세액·공급대가.
 //   셋 중 둘만 적어도 나머지를 채우고, 셋 다 적혔으면 합을 검산한다. 국세청에 그대로 나가는 값이라
 //   반올림과 영세율·면세를 특히 조심한다.
 

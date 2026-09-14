@@ -1,6 +1,6 @@
 "use client";
 
-// 일정 입력 창 — **워크스페이스(일정 메뉴)와 메신저가 같은 것을 쓴다** (2026-08-10 사장님 지시:
+// 일정 입력 창 — **워크스페이스(일정 메뉴)와 메신저가 같은 것을 쓴다** (
 //   "앞으로 동일한 메뉴로 본다"). 한쪽만 바뀌는 일이 없게 여기 하나로 모았다.
 //
 //   · '할 일' 이라는 구분이 없다 — 날짜를 비우면 목록에만 남고, 넣으면 달력에도 뜬다.
@@ -50,7 +50,7 @@ export type ScheduleDraft = {
   /** 반복(결정 145) — "" = 안 함 */
   recurFreq: "" | "daily" | "weekly" | "monthly";
   recurWeekday: number;
-  /** 알림 목록 — 며칠 전 · 몇 시(KST). 반복 일정은 저장 시 비워진다(1차 미지원) (2026-09-03 사장님: 시간대·하루 전·일주일 전·여러 개) */
+  /** 알림 목록 — 며칠 전 · 몇 시(KST). 반복 일정은 저장 시 비워진다(1차 미지원) (시간대·하루 전·일주일 전·여러 개) */
   reminders: ScheduleReminder[];
 };
 
@@ -189,7 +189,7 @@ export function ScheduleItemEditor({
             onChange={(e) => set({ title: e.target.value })} className="sched-in" />
         </label>
 
-        {/*  설명은 늘 펼쳐 둔다 (2026-08-10 사장님 지시) — 한 번 더 누르게 하지 않는다 */}
+        {/*  설명은 늘 펼쳐 둔다 — 한 번 더 누르게 하지 않는다 */}
         <div className="sched-field sched-field-top">
           <span>설명</span>
           <div className="sched-desc-wrap">
@@ -382,7 +382,7 @@ export function ScheduleItemEditor({
 
 
 /** 태그로 고르기 · 구성원·부서가 많아지면 체크박스 목록은 다 훑어야 해서 못 쓴다
- *  (2026-08-10 사장님 지시). 고른 것은 위에 태그로 남고, 아래에서 찾아 눌러 넣는다. */
+ *  . 고른 것은 위에 태그로 남고, 아래에서 찾아 눌러 넣는다. */
 function TagPicker({ placeholder, empty, options, selected, onToggle, hideFromSuggest = [] }: {
   placeholder: string;
   empty: string;

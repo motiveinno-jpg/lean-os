@@ -1,6 +1,6 @@
 "use client";
 
-// 조회기간 — 타이핑 + 두 달 달력 (2026-08-11 사장님 지시)
+// 조회기간 — 타이핑 + 두 달 달력
 //
 //   · 평소엔 칩 하나. 달력은 아이콘을 눌렀을 때만 열린다(툴바가 넓어지지 않는다).
 //   · 년4·월2·일2 **고정 칸**에 숫자를 치면 다 채워질 때 다음 칸으로 저절로 넘어간다.
@@ -94,7 +94,7 @@ export function DateRangeField({
   /** parts="calendar" 일 때 버튼 글자 */
   calLabel?: string;
   /**
-   * 날짜를 찍어도 **바로 반영하지 않고 '확인'을 눌러야** 적용한다 (2026-08-13 사장님 지시).
+   * 날짜를 찍어도 **바로 반영하지 않고 '확인'을 눌러야** 적용한다.
    *   검색조건 패널의 달력이 그렇다 — 다른 조건을 갖추는 중인데 날짜를 찍는 순간 목록이 바뀌면
    *   "지금 뭐가 걸린 거지"가 된다. 찍어 놓고 보다가 확인을 누른다. 닫기는 버리고 나간다.
    */
@@ -158,7 +158,7 @@ export function DateRangeField({
   const normalize = (s: Seg, raw: string): number => {
     const now = parse(today);
     const n = Number(raw);
-    //   ★ 올해보다 큰 연도는 **무조건 올해로** (2026-08-13 사장님 지시).
+    //   ★ 올해보다 큰 연도는 **무조건 올해로**.
     //     조회기간은 전부 '이미 있는 자료를 본다'는 뜻이라 내년·후년을 칠 이유가 없다 —
     //     2222 를 치면 조용히 남아 0건이 뜨고, 사람은 자료가 없는 줄 안다.
     if (s === "fy" || s === "ty") return Math.min(now.y, Math.max(1900, n || now.y));
@@ -194,7 +194,7 @@ export function DateRangeField({
     if (digits.length === (s.endsWith("y") ? 4 : 2))  {
       const i = order.indexOf(s);
       const nx = order[i + 1];
-      //   ★ 다음 칸으로 넘어가더라도 **그 자리에서 바로 확정**한다 (2026-08-12 사장님 지적).
+      //   ★ 다음 칸으로 넘어가더라도 **그 자리에서 바로 확정**한다.
       //     예전엔 마지막 칸에서만 확정해서, 년에 9999 를 치고 탭으로 넘어가면 9999 가 그대로 남았다가
       //     한참 뒤 다른 곳을 눌러야(blur) 2026 으로 바뀌었다 — 잘못 친 줄 알게 된다.
       commit(next);
@@ -203,7 +203,7 @@ export function DateRangeField({
   };
 
   /**
-   * 달력을 옮기는 길 — **달마다 양옆에 화살표, 가운데에 년·월 직접 입력** (2026-08-13 사장님 지시).
+   * 달력을 옮기는 길 — **달마다 양옆에 화살표, 가운데에 년·월 직접 입력**.
    *   화살표만 두면 2024년으로 가려고 스무 번을 눌러야 한다. 두 달을 나란히 보여 주므로
    *   **각 달이 제 머리에서 바로 옮겨지는 게** 맞다 — 오른쪽 달을 보다 왼쪽 머리로 손이 가지 않게.
    *   왼쪽 칸(side=0)은 view 그대로, 오른쪽 칸(side=1)은 view+1 이라 고른 달의 **한 달 전**을 view 로 둔다.
@@ -290,7 +290,7 @@ export function DateRangeField({
 
   /** 다 골랐으면 확정하고 닫는다 — 화면마다 열린 채로 남거나 닫히거나 하면 헷갈린다.
    *  값이 정해진 뒤엔 칩에 그대로 보이므로 굳이 열어 둘 이유가 없다.
-   *  ★ confirm 모드는 여기서 올리지 않고 **'확인'을 기다린다** (2026-08-13 사장님 지시). */
+   *  ★ confirm 모드는 여기서 올리지 않고 **'확인'을 기다린다**. */
   const settle = (a: string, b: string) => {
     setHalf(null);
     if (confirm) { setPending({ from: a, to: b }); return; }
@@ -313,7 +313,7 @@ export function DateRangeField({
     settle(a, b);
   };
 
-  //   자주 쓰는 기간 · 사장님이 당일·1주일을 제일 많이 쓴다 하여 맨 앞에 둔다 (2026-08-11).
+  //   자주 쓰는 기간 · 대표 당일·1주일을 제일 많이 쓴다 하여 맨 앞에 둔다 (2026-08-11).
   //   당일은 하루, 1주일은 **오늘 포함 최근 7일**. 나머지는 '그 달 전 같은 날부터 오늘'.
   const QUICKS:  { label: string; start: () => string }[] = isM
     //   월 단위 빠른 선택은 **신고 주기**에 맞춘다. 이번 달·지난 달·분기·반기·올해
@@ -350,7 +350,7 @@ export function DateRangeField({
   const cellClass = (c: { date: string; out: boolean; dow: number }) => {
     //   ★ shownFrom/shownTo — confirm 모드에서 **아직 안 올린** 기간까지 칠해 준다
     const lo = half ?? shownFrom, hi = half ?? shownTo;
-    //   ★ 한 날을 찍으면 **그 하루만** 칠한다 (2026-08-13 사장님 지적).
+    //   ★ 한 날을 찍으면 **그 하루만** 칠한다.
     //     예전엔 찍은 날부터 **옛 종료일까지** 칠해서, 옛 시작일보다 앞선 날을 찍으면
     //     범위가 엉뚱하게 튀어 "선택이 풀린다"로 보였다.
     //     하루만 남겨 두면 다음 한 번으로 앞뒤 아무 쪽이나 고를 수 있다(종료일을 먼저 찍어도 된다).
@@ -516,7 +516,7 @@ export function DateRangeField({
                 className="btn-secondary btn-sm">기간 해제</button>
             )}
             <button type="button" onClick={() => { setOpen(false); setHalf(null); }} className="btn-secondary btn-sm">닫기</button>
-            {/*   ★ confirm 모드 — 찍어 둔 기간은 **확인을 눌러야** 올라간다 (2026-08-13 사장님 지시).
+            {/*   ★ confirm 모드 — 찍어 둔 기간은 **확인을 눌러야** 올라간다.
                   닫기로 나가면 버려진다(pending 은 달력이 닫힐 때 지워진다). */}
             {confirm && (
               <button type="button" disabled={!pending} className="btn-primary btn-sm disabled:opacity-40"

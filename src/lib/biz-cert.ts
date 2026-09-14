@@ -1,4 +1,4 @@
-// 사업자등록증 자동 판독 — 거래처 등록 입력칸 채우기 (2026-09-03 사장님)
+// 사업자등록증 자동 판독 — 거래처 등록 입력칸 채우기
 //   파일을 base64 로 엣지 함수(biz-cert-extract)에 보내고, 돌아온 값으로 폼을 채운다. 저장은 사람이 한다.
 import { supabase } from "@/lib/supabase";
 
@@ -20,7 +20,7 @@ function toBase64(file: File): Promise<string> {
   });
 }
 
-/** 브라우저·OS 마다 파일 형식 표기가 제각각(빈값·application/x-pdf·image/jpg·대문자 확장자) — 확장자와 함께 표준 형식으로 맞춘다 (2026-09-03 사장님: PDF 가 거절됨) */
+/** 브라우저·OS 마다 파일 형식 표기가 제각각(빈값·application/x-pdf·image/jpg·대문자 확장자) — 확장자와 함께 표준 형식으로 맞춘다 (PDF 가 거절됨) */
 export function normalizeBizCertMime(file: File): string {
   const t = (file.type || "").toLowerCase().trim();
   const ext = (file.name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] || "");

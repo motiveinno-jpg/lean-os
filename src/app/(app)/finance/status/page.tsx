@@ -2,8 +2,8 @@
 import { koFallback } from "@/lib/ko-label";
 import { MonthSelect } from "@/components/month-select";
 
-// ── 재무 › 현황 — **전표 현황** (2026-08-26 사장님 지시) ──────────────────────────────────
-//   149차엔 통장·카드·미수·증빙을 한데 모은 운영 콕핏이었다. 사장님: "통장·카드는 통장·카드의 분석 쪽으로,
+// ── 재무 › 현황 — **전표 현황** ──────────────────────────────────
+//   149차엔 통장·카드·미수·증빙을 한데 모은 운영 콕핏이었다. 대표: "통장·카드는 통장·카드의 분석 쪽으로,
 //   경영 요약·손익은 분석 메뉴가 따로 있으니 재무 현황은 **작성된 전표들의 현황·지표**가 적합하다."
 //   → 통장·카드 판은 finance-status-panels.tsx 로 빼서 통장 › 개요, 카드 › 분석에 붙였고, 여기는 전표만 본다.
 //
@@ -231,7 +231,7 @@ export default function FinanceStatusPage() {
   const natureMap = new Map<string, number>(); for (const r of S.acctRows) { const k = NATURE_LABEL[r.nature as keyof typeof NATURE_LABEL] || "기타"; natureMap.set(k, (natureMap.get(k) || 0) + r.total); }
   const natureData = topN(natureMap);
   const kindData = [...S.kind.entries()].sort((a, b) => b[1].amt - a[1].amt).map(([label, v], i) => ({ label, value: v.amt, color: vizColor(i) }));
-  //   ★ 각 탭 아래 전표 목록 — 재고 현황처럼 위는 그래프, 아래는 그 탭의 목록 (2026-08-26 사장님). 최신순, 300줄까지(넘으면 적는다).
+  //   ★ 각 탭 아래 전표 목록 — 재고 현황처럼 위는 그래프, 아래는 그 탭의 목록. 최신순, 300줄까지(넘으면 적는다).
   const partnerOf = (e: Entry) => e.journal_lines.find((l) => l.partners?.name)?.partners?.name || "";
   const kindLabel = (e: Entry) => e.entry_kind === "sale_purchase" ? (vatType(e.vat_type)?.side === "sale" || Number(e.vat_type) < 50 ? "매출" : "매입") : (VT[e.voucher_type || "transfer"] || "대체");
   const EntryList = ({ rows, title, sub, sp }: { rows: Entry[]; title: string; sub: string; sp?: boolean }) => {

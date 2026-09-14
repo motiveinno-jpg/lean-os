@@ -1,4 +1,4 @@
-// Gemini 대체 경로 (2026-09-03 사장님: "클로드 토큰 없으면 제미나이 무료라도 사용해")
+// Gemini 대체 경로 ("클로드 토큰 없으면 제미나이 무료라도 사용해")
 //   Anthropic 잔액 소진(PROVIDER_BILLING)·키 없음일 때 callClaude 가 여기로 넘긴다.
 //   Anthropic Messages 형식(시스템·메시지·툴·스키마)을 Gemini generateContent 형식으로 바꾸고,
 //   응답은 다시 Anthropic 블록 모양(text / tool_use)으로 돌려줘 호출부(참모 루프 등)가 그대로 돌게 한다.
@@ -107,7 +107,7 @@ export async function callGemini(input: GeminiCallInput): Promise<GeminiCallOutp
     contents: toContents(input.messages),
     generationConfig: {
       // Gemini 2.5 는 '생각' 토큰도 maxOutputTokens 에 포함된다 — Anthropic 기준으로 잡은 작은 값(800)이면 JSON 이 잘려
-      //   "문서를 읽지 못했습니다"가 났다(2026-09-03 사장님 제보). 넉넉히 잡고, 구조화 추출은 생각을 끈다(flash 만 지원).
+      //   "문서를 읽지 못했습니다"가 났다. 넉넉히 잡고, 구조화 추출은 생각을 끈다(flash 만 지원).
       maxOutputTokens: Math.max(4096, Math.min((input.maxTokens ?? 2000) * 4, 65536)),
       ...(input.schema && model.includes("2.5-flash") ? { thinkingConfig: { thinkingBudget: 0 } } : {}),   // thinkingBudget 는 2.5 계열 표기 — 3.x 는 기본값 사용
       ...(typeof input.temperature === "number" ? { temperature: input.temperature } : {}),

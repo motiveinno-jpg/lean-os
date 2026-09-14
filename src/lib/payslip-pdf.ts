@@ -13,7 +13,7 @@ export interface PayslipParams {
   item: PayrollItem;
   companyName: string;
   representative?: string;
-  /** 표준 발급 서식 하단 블록용 (2026-07-29 사장님 — 증명서와 동일 서식) */
+  /** 표준 발급 서식 하단 블록용 (2026-07-29 대표 — 증명서와 동일 서식) */
   businessNumber?: string;
   companyAddress?: string;
   sealUrl?: string;
@@ -188,7 +188,7 @@ export async function generatePayslipPDF(params: PayslipParams): Promise<jsPDF> 
   y = (doc as any).lastAutoTable.finalY + 4;
 
   // ── 5) 지급내역 / 공제내역 표 (6칸 그리드) ──
-  // 2026-05-22 (사장님 확정) 기본급 = 과세 기본급(item.baseSalary), 식대 = 별도 비과세.
+  // 2026-05-22 기본급 = 과세 기본급(item.baseSalary), 식대 = 별도 비과세.
   //   지급내역: 기본급(230) + 식대(20) = 지급총액 250. (둘을 별도 라인으로 표시)
   //   ※ 화면에 없는 근태기반 자동수당(allowance_entries)은 표시하지 않는다(합계 1원 일치).
   const taxableBase = item.baseSalary; // 과세 기본급

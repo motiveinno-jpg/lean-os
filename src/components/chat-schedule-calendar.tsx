@@ -1,6 +1,6 @@
 "use client";
 
-// 메신저 오른쪽의 달력 (2026-08-10 사장님 지시 + Teams 화면 캡처).
+// 메신저 오른쪽의 달력 ( + Teams 화면 캡처).
 //
 //   왼쪽 레일에서 '일정' 을 고르면 대화창 자리에 이 달력이 선다. 예전엔 '무슨 일정인가요' 라는
 //   입력칸에 제목부터 쳐야 했는데, 일정은 **날짜를 먼저 고르는 일**이다 —
@@ -56,7 +56,7 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
     enabled: !!companyId,
   });
 
-  //   승인 휴가 — 일정 달력과 같은 소스로 이 달력에도 표시(2026-09-09 사장님)
+  //   승인 휴가 — 일정 달력과 같은 소스로 이 달력에도 표시
   const { data: leaves = [] } = useQuery({
     queryKey: ["chat-cal-leaves", companyId],
     queryFn: fetchLeaveCalendar,
@@ -138,7 +138,7 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
                   onClick={(ev) => { ev.stopPropagation(); setOpen({ mode: "view", event: e }); }}>{e.title}</span>
               ))}
               {list.length > 3 && <span className="chat-cal-more">+{list.length - 3}</span>}
-              {/* 직원 휴가 — 일정 아래에 초록 칩 (2026-09-09 사장님) */}
+              {/* 직원 휴가 — 일정 아래에 초록 칩 */}
               {(leaveByDay[c.key] || []).map((lv, li) => (
                 <span key={`lv${li}`} className="chat-cal-leave" title={`${lv.name} ${lv.label}`}
                   onMouseDown={(ev) => ev.stopPropagation()}>{lv.name} {lv.label}</span>

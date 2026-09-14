@@ -5,7 +5,7 @@
 //     ① 다른 화면으로 이관된 옛 키(계정·알림·결재정책) → 그 화면으로
 //     ② 옛 딥링크 /settings?tab=X → 그 leaf 를 담은 그룹 주소로 (앱 안 28곳 + 알림·즐겨찾기)
 //     ③ 그 밖 → 권한이 있는 첫 그룹으로
-//   ★ 이 표는 지우지 않는다. 사장님 즐겨찾기와 이미 나간 알림 주소가 여기에 산다.
+//   ★ 이 표는 지우지 않는다. 대표 즐겨찾기와 이미 나간 알림 주소가 여기에 산다.
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMyPermissions } from "@/lib/permissions";

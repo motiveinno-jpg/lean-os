@@ -50,7 +50,7 @@ type Mode = "manager" | "employee";
 
 // AI 참모가 안내해도 되는 화면 경로 — 사이드바에 실제로 있는 것만 (2026-08-07).
 //   종전엔 프롬프트가 예시 몇 개만 주고 나머지는 모델이 지어내게 뒀다. 그래서
-//   /hr/attendance/leave 처럼 존재하지 않는 주소를 안내하는 일이 있었다(사장님 제보).
+//   /hr/attendance/leave 처럼 존재하지 않는 주소를 안내하는 일이 있었다.
 //   화면을 새로 만들면 여기에도 추가해야 안내에 등장한다.
 const ALLOWED_HREFS = [
   "/dashboard", "/copilot", "/mypage", "/notifications",
@@ -67,7 +67,7 @@ const ALLOWED_HREFS = [
 //   ① 우리 화면 경로는 화이트리스트에 있는 것만.
 //   ② 외부 링크는 '이번 요청의 웹검색이 실제로 돌려준 주소' 와 같은 도메인일 때만 통과시킨다.
 //      모델이 기억으로 지어낸 URL 은 연결되지 않거나 엉뚱한 곳으로 가므로 통째로 막는다.
-//      (사장님 제보: 정부지원사업을 물었더니 바로가기가 /settings 로 갔다 — 외부 주소를 못 쓰니
+//      (정부지원사업을 물었더니 바로가기가 /settings 로 갔다 — 외부 주소를 못 쓰니
 //       화이트리스트에서 아무거나 골라 붙인 것이었다.)
 function hostOf(u: string): string | null {
   try {
@@ -233,7 +233,7 @@ ${COMMON_RULES}
 - 본인 근태를 물으면 get_my_attendance 를 부르세요.
 - 답할 수 있으면 툴을 부르지 말고 곧바로 respond 로 마무리합니다.`;
 
-// ── 자동 기억(2026-09-03 사장님: "내가 말한 걸 자동으로 학습하면서 적용") ──
+// ── 자동 기억("내가 말한 걸 자동으로 학습하면서 적용") ──
 //   답변이 끝난 뒤 Haiku 한 번으로 "사용자가 방금 말한 것 중 회사 기준으로 남을 것"만 추려 저장한다.
 //   · 사용자의 말만 근거(참모 답변·조회 수치는 저장 금지) · 매번 바뀌는 숫자·일회성 요청·질문은 제외
 //   · 기존 메모와 겹치면 제외 · 확신 0.8 이상만 · 한 번에 최대 3개 · 화면에 "기억했어요"로 보여 주고 취소 가능
@@ -328,7 +328,7 @@ const ANSWER_SCHEMA = {
   properties: {
     headline: { type: "string" },
     summary: { type: "string" },
-    // 질문에 맞는 자유 구성 (2026-08-07 사장님 요청 — "지금 해야 할 일/위험 신호/근거 데이터"가
+    // 질문에 맞는 자유 구성 ("지금 해야 할 일/위험 신호/근거 데이터"가
     //   질문과 무관하게 늘 붙는 게 어색하다). 제목과 묶음 수를 모델이 정하고, style 로 표시 형태만 고른다.
     sections: {
       type: "array",
@@ -674,7 +674,7 @@ const MANAGER_READ_TOOLS = [
   },
 ];
 
-// ── 회사 메모(기억) 툴 — 2026-09-03 사장님 "참모를 학습시켜 쓸만하게" ──
+// ── 회사 메모(기억) 툴 — 2026-09-03 대표가 "참모를 학습시켜 쓸만하게" ──
 //   모델 재훈련 대신 회사별 메모를 쌓아 매 답변에 읽힌다. 매니저 모드(대표·관리자)만 쓸 수 있고
 //   저장 즉시 반영된다(확인 카드 없음 — 되돌리기는 forget_note 또는 화면의 삭제).
 const MEMORY_TOOLS = [
@@ -903,7 +903,7 @@ async function executeReadTool(
   userClient?: { from: (t: string) => any } | null,
 ): Promise<unknown> {
   if (name === "query_table") {
-    // 범용 원장 조회 (2026-08-13 사장님: 전용 툴 없어도 '확인 불가' 대신 스스로 추론) —
+    // 범용 원장 조회 (전용 툴 없어도 '확인 불가' 대신 스스로 추론)
     //   ① 테이블 화이트리스트 ② 회사 스코프 서버 강제 ③ 사용자 JWT(RLS) 실행 ④ 읽기 전용.
     const ALLOWED = new Set(["partners","tax_invoices","cash_receipts","bank_transactions","card_transactions","bank_accounts","employees","attendance","deals","approval_requests","schedule_events","journal_entries","chart_of_accounts","payment_queue"]);
     const table = String(input.table ?? "");
@@ -1699,7 +1699,7 @@ async function executeReadTool(
   }
 
   if (name === "get_tax_advisors") {
-    // 연결된 세무 파트너 (2026-08-12 사장님: 참모가 "그런 정보 없다"고 답함 — 툴 부재였다)
+    // 연결된 세무 파트너 (참모가 "그런 정보 없다"고 답함 — 툴 부재였다)
     const { data: links } = await admin
       .from("advisor_company_links")
       .select("status, created_at, revoked_at, tax_advisors(name, office_name, email, phone, specialty, status)")
@@ -1784,7 +1784,7 @@ async function executeReadTool(
   }
 
   if (name === "list_receivables") {
-    // 기본 기간 = 당해 연도 (2026-08-13 사장님: 이미 결산·신고 끝난 작년 건은 기본에서 제외).
+    // 기본 기간 = 당해 연도 (이미 결산·신고 끝난 작년 건은 기본에서 제외).
     //   과년도가 필요하면 모델이 from 을 명시해 넓힌다.
     const kstYear = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 4);
     const from = /^\d{4}-\d{2}-\d{2}$/.test(String(input.from ?? "")) ? String(input.from) : `${kstYear}-01-01`;
@@ -2103,7 +2103,7 @@ serve(withSentry("owner-copilot", async (req) => {
     // 이번 달 사용량 — 아래 남은 토큰 계산에서 쓴다.
     //   ⚠️ 종전에 ai_tokens_used_this_month 로 만들던 `used` 를 판정 교체 때 함께 지워버려
     //      마지막 응답 조립에서 ReferenceError → 500('요청 처리 중 오류가 발생했습니다')이 났다.
-    //      (2026-08-07 사장님 제보로 확인) 여기서 반드시 다시 만든다.
+    //      (2026-08-07 대표 제보로 확인) 여기서 반드시 다시 만든다.
     const used = Number(allow.used ?? 0);
     if (!allow.unlimited && allow.allowed === false) {
       return json({
@@ -2132,7 +2132,7 @@ serve(withSentry("owner-copilot", async (req) => {
       context = await buildEmployeeContext(admin, companyId, myEmployeeId, todayKst);
     }
 
-    // 최근 대화 맥락 (2026-08-10 사장님 승인) — 종전엔 매 질문이 독립이라
+    // 최근 대화 맥락 — 종전엔 매 질문이 독립이라
     //   "그럼 걔 이번 달은?" 같은 후속 질문에서 '걔'를 해석하지 못했다.
     //   본인(user_id)의 최근 턴만, headline·summary 로 압축해 전달한다(토큰 절약).
     //   첨부 모드는 단일 턴 계약서 재구성이라 맥락이 필요 없어 뺀다.
@@ -2236,7 +2236,7 @@ serve(withSentry("owner-copilot", async (req) => {
     );
     // 첨부 분석은 문서 원문 자체가 충분한 컨텍스트다. 계약서 생성은 전용 액션을
     // 첫 턴에 강제하고 서버가 확인 안내를 합성해 한 번의 AI 호출로 끝낸다.
-    // 질문 성격에 따라 모델을 고른다 (2026-08-07 사장님 결정 — "질문 종류에 따라 자동").
+    // 질문 성격에 따라 모델을 고른다 ("질문 종류에 따라 자동").
     //   단순 조회(잔액·건수·언제)는 지금 모델로 충분하고, 추천·분석·비교·전략처럼
     //   여러 데이터를 엮어 판단해야 하는 질문만 최상위 모델로 올린다.
     //   판정은 사용자 문장 + 첨부 유무만 본다(모델 호출 없이 즉시).
@@ -2283,7 +2283,7 @@ serve(withSentry("owner-copilot", async (req) => {
 
       const result = await callClaude<never>({
         // 첨부→계약서 재구성은 원문 옮겨쓰기 성격 + 8,000토큰 생성이라 속도가 관건 —
-        //   Sonnet 실측 137s(게이트웨이 150s 초과) → Haiku ~50s (2026-08-03 사장님 승인).
+        //   Sonnet 실측 137s(게이트웨이 150s 초과) → Haiku ~50s.
         //   일반 질의·분석은 기존대로 Sonnet.
         task: attachmentContractMode ? "extract" : (isHeavy ? "deep_analysis" : "analysis"),
         // 첫 턴만 'owner_copilot'(월 호출 횟수에 1회로 집계), 툴 결과를 되먹이는 후속 턴은 'owner_copilot_turn'
@@ -2294,7 +2294,7 @@ serve(withSentry("owner-copilot", async (req) => {
         messages,
         // Opus 5 는 thinking 이 max_tokens 를 함께 쓴다 — 여유 확보 (2026-08-20 모델 상향)
         maxTokens: attachments.length > 0 ? 8000 : 16000,
-        // 2026-09-03 사장님("참모가 못 쓸 정도"): 그동안 강제 tool_choice(any) 때문에 Opus 5 의
+        // 2026-09-03 대표("참모가 못 쓸 정도"): 그동안 강제 tool_choice(any) 때문에 Opus 5 의
         //   생각하기(thinking)가 실질적으로 꺼진 채 effort medium 으로 즉답하고 있었다.
         //   → adaptive thinking + effort high 로 통일(첨부 계약서 모드는 Haiku 단일 호출이라 제외).
         //   thinking 은 강제 tool_choice 와 병용 불가 → 아래 toolChoice 를 auto 로 바꾸고,
@@ -2304,7 +2304,7 @@ serve(withSentry("owner-copilot", async (req) => {
         cacheControl: !attachmentContractMode,
         tools: TOOLS,
         // 회사 데이터로 답할 수 없는 질문에서 지어내는 대신 찾아보게 한다 (2026-08-07).
-        //   2026-08-10 확대(사장님: "날씨·점심 같은 일반 질문도 다 답해야 한다") —
+        //   2026-08-10 확대("날씨·점심 같은 일반 질문도 다 답해야 한다")
         //   "오늘 날씨" 는 HEAVY_HINTS 에 안 걸려 검색이 꺼진 채 확인 불가로 답하고 있었다.
         //   첨부 모드만 빼고 항상 켠다. 검색은 모델이 필요할 때만 실제로 쓰므로
         //   잔고·건수 같은 사내 조회 질문에서는 비용이 늘지 않는다. 상한만 질문 무게로 차등.

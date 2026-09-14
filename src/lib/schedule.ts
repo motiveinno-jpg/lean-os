@@ -9,7 +9,7 @@ const db = supabase;
 export type EventColor = "blue" | "green" | "red" | "amber" | "violet" | "gray";
 
 /** 공개 범위 — 기본은 '나만'. 숨김은 화면이 아니라 RLS 가 한다(못 볼 것은 아예 안 내려온다).
- *  (2026-08-10 사장님 결정: 일정·할 일 통합 + 공개 범위 태그) */
+ *  (일정·할 일 통합 + 공개 범위 태그) */
 export type Visibility = "private" | "members" | "departments" | "company";
 export const VISIBILITY_LABEL: Record<Visibility, string> = {
   private: "나만", members: "구성원", departments: "부서", company: "전체",
@@ -306,7 +306,7 @@ export const PRIORITY_LABEL: Record<0 | 1 | 2, { label: string; color: string }>
 
 /** ISO/타임스탬프 문자열에서 로컬과 무관하게 'YYYY-MM-DD' 추출 */
 export function dateKeyOf(ts: string): string {
-  // KST 보정 (2026-08-19 감사): 종일 일정이 KST 자정(=전날 15:00Z)으로 저장된 행이 실재해
+  // KST 보정: 종일 일정이 KST 자정(=전날 15:00Z)으로 저장된 행이 실재해
   //   UTC slice 만 하면 /schedule 달력·채팅 달력이 대시보드 달력과 다른 날에 표시했다.
   //   dashboard-calendar.tsx 의 kstDay 픽스(2026-08-07)와 동일 규칙.
   if (!/(?:Z|[+-]\d{2}:?\d{2})$/i.test(ts)) return ts.slice(0, 10);
@@ -392,7 +392,7 @@ export async function getScheduleItems(
   });
 }
 
-/** 부서 목록 — 인사기록(employees.department)에 적힌 것을 쓴다(사장님 결정 2026-08-10).
+/** 부서 목록 — 인사기록(employees.department)에 적힌 것을 쓴다( 2026-08-10).
  *  RLS 의 get_my_department() 와 같은 출처라 여기서 고른 부서가 그대로 열람 권한이 된다. */
 export async function getDepartments(companyId: string): Promise<{ name: string; count: number }[]> {
   const { data, error } = await db

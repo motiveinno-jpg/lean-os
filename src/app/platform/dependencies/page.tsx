@@ -38,7 +38,7 @@ export default function PlatformDependenciesPage() {
     refetchInterval: 60000,
   });
 
-  // 상태 판정 (2026-07-28 정정): 헬스체크 "호출 실패"는 서비스 장애가 아니다 —
+  // 상태 판정: 헬스체크 "호출 실패"는 서비스 장애가 아니다
   //   권한 거부·네트워크 문제를 전 서비스 '장애'로 표시해 큰 혼란을 줬던 문제.
   //   호출 실패 시엔 판정을 보류(loading 배지)하고 아래 배너로 실패 원인을 설명한다.
   const checkFailed = !!error;

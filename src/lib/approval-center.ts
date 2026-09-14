@@ -13,7 +13,7 @@ import { approveLeaveRequest, rejectLeaveRequest } from './hr';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
 
-/** 사용자 표시용 문자열에서 내부 추적 태그 제거 — [승인#a1b2c3d4]·[결재#…]·[#…] 류 (2026-08-11 사장님 제보).
+/** 사용자 표시용 문자열에서 내부 추적 태그 제거 — [승인#a1b2c3d4]·[결재#…]·[#…] 류.
  *  레거시 결재 연동이 description 에 박아 넣던 ID 조각이라 화면에 그대로 노출되면 지저분하다. */
 export const stripInternalTag = (s?: string | null) =>
   (s || '').replace(/\[(?:승인|결재)?#[0-9a-fA-F]{6,10}\]\s*/g, '').trim();
@@ -112,7 +112,7 @@ export async function getCEOPendingActions(companyId: string, userId?: string): 
   const cleanTitle = stripInternalTag;
   // Map payments
   (payments.data || []).forEach((p: any) => {
-    // 급여 항목 익명화 (2026-08-19 감사): "8월 급여 - 홍길동 ₩3,120,450" 이 대시보드
+    // 급여 항목 익명화: "8월 급여 - 홍길동 ₩3,120,450" 이 대시보드
     //   결재 위젯(공용 모니터에 자주 띄움)에 그대로 노출됐다 — 직원명을 제거해
     //   "2026년 8월 급여 지급" 으로만 표시. 실제 승인은 /payments 에서 급여 권한으로.
     const raw = cleanTitle(p.description) || '결제 승인 요청';

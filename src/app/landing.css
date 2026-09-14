@@ -130,7 +130,7 @@
 .lp4-navdrop-open .lp4-mega, .lp4-navdrop:focus-within .lp4-mega {
   opacity:1; visibility:visible; pointer-events:auto; transform: translateX(-50%) translateY(0); }
 /* ⚠️ 유리 처리를 공통 규칙에서 받으면 뒤 배경이 비쳐 글씨가 안 읽힌다 —
-   드롭다운은 읽는 면이므로 불투명하게 둔다 (2026-07-28 사장님 지적) */
+   드롭다운은 읽는 면이므로 불투명하게 둔다 */
 .lp4-mega-inner { display:grid; grid-template-columns: 200px 1fr; gap:24px;
   background:#fff !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important;
   border:1px solid var(--line); border-radius:22px; padding:18px;
@@ -528,7 +528,7 @@
 
 /* ══════════════════════════════════════════════════════════════
    리퀴드 글래스 · 입체감 (2026-07-28)
-   사장님: "페이지 전체의 리퀴드 글래스 효과 강화, 입체감 강화. 고도의 기술이 들어간
+   대표: "페이지 전체의 리퀴드 글래스 효과 강화, 입체감 강화. 고도의 기술이 들어간
    IT 솔루션이라는 점이 잘 보이게."
    원칙 — 색으로 화려하게 만들지 않는다. 재질(반투명 유리)과 깊이(다층 그림자)로만 만든다.
      · 표면  : 반투명 흰색 + backdrop blur

@@ -2,7 +2,7 @@
  * Widget Registry — 위젯 정의 + 역할 프리셋 + 상황별 뷰
  * 대시보드(대표 뷰) 위젯 ID, 기본 설정, 프리셋 뷰 4개, 역할 프리셋 4개
  *
- * 2026-05-26 토글↔렌더 정합 (사장님 요청 "체크해도 안 나오는 거 없애줘"):
+ * 2026-05-26 토글↔렌더 정합 ( "체크해도 안 나오는 거 없애줘"):
  *   대표 대시보드(owner 뷰)에 실제 렌더 분기가 있는 위젯만 등록 → 설정 체크박스 = 화면 1:1.
  *   제거: cash_pulse·approval_center·today_actions·risk_zone·closing_checklist·my_attendance·
  *         my_approvals (owner 뷰 렌더 분기 0 — 일부는 admin 뷰 고정 영역에만 존재) + scenario_simulator.

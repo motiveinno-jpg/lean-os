@@ -1,6 +1,6 @@
 "use client";
 
-// 2026-05-21 대표 대시보드 재설계 — 프로젝트 중심 종합 뷰 (사장님 요청 자율 설계).
+// 2026-05-21 대표 대시보드 재설계 — 프로젝트 중심 종합 뷰 ( 자율 설계).
 //
 // 단일 RPC get_owner_dashboard_summary 1회 호출로 6 섹션 데이터 fetch:
 //   1) 이번 분기 KPI (5개)
@@ -109,7 +109,7 @@ export function OwnerDashboardSection() {
     <div className="owner-dashboard-section">
       <KpiSection data={data} />
       <StageDistributionSection data={data.stage_distribution} />
-      {/* 2026-05-22 사장님 요청 — 프로젝트 추이·진행 중 프로젝트 섹션 제거 */}
+      {/*  — 프로젝트 추이·진행 중 프로젝트 섹션 제거 */}
       <CompletedReportsSection data={data.completed_reports} />
     </div>
   );
@@ -191,7 +191,7 @@ function StageDistributionSection({ data }: { data: StageDist[] }) {
 
 
 // ─────────── 3. TOP 거래처·담당자 ───────────
-// TopActorsSection (🏢 누구랑 했나 TOP 5). 2026-05-21 사장님 요청으로 통째 제거.
+// TopActorsSection (🏢 누구랑 했나 TOP 5). 2026-05-21 대표 요청으로 통째 제거.
 
 // ─────────── 4. 프로젝트 추이 (월/분기/년 토글) ───────────
 type TrendPeriod = "month" | "quarter" | "year";

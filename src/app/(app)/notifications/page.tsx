@@ -18,7 +18,7 @@ import { DateRangeField } from "@/components/date-range-field";
 type NotifData = { rows: NotificationRow[]; quoteMap: Record<string, { deal_id: string; stage: string }> };
 
 //   알림 종류 라벨 — type 값이 화면 글자로 보이게. 모르는 값도 영어 원문 대신 '기타'
-//   (2026-09-02 사장님: "종류에 영어로 나타나는 게 있다" — payment_due·leave_request 등 누락분 보강)
+//   ("종류에 영어로 나타나는 게 있다" — payment_due·leave_request 등 누락분 보강)
 const TYPE_LABEL: Record<string, string> = {
   approval_request: "결재 요청", approval_approved: "결재 승인", approval_rejected: "결재 반려", approval_result: "결재 결과", approval_reference: "결재 참조", approval: "결재",
   signature_request: "전자계약", contract_signed: "계약 서명", signature: "전자계약", quote_approval: "견적 승인", document: "문서",
@@ -105,7 +105,7 @@ export default function NotificationsPage() {
 
   // ── 조회 표준 ──
   const [q, setQ] = useState("");
-  //   들어오면 안읽음부터 (2026-08-19 사장님: 전체가 기본이라 읽은 것까지 한꺼번에 나옴). 안읽음이 0건이면 한 번만 전체로.
+  //   들어오면 안읽음부터 (전체가 기본이라 읽은 것까지 한꺼번에 나옴). 안읽음이 0건이면 한 번만 전체로.
   const [view, setView] = useState<"all" | "unread">("unread");
   const autoSwitched = useRef(false);
   const [panelOpen, setPanelOpen] = useState(false);

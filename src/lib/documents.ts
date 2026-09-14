@@ -56,7 +56,7 @@ export async function nextQuoteNumber(companyId: string): Promise<string> {
 }
 
 // ── 프로젝트 템플릿 행 → 견적서 ──
-//   '매출 · 청구' 템플릿의 한 줄에서 바로 견적서를 만든다(2026-08-03 사장님: "입력은 무조건
+//   '매출 · 청구' 템플릿의 한 줄에서 바로 견적서를 만든다("입력은 무조건
 //   템플릿으로"). 문서 자체는 기존 편집기가 그대로 맡고, 여기서는 껍데기만 만들어 연결한다.
 const QUOTE_SKELETON = {
   title: "견적서",
@@ -67,7 +67,7 @@ const QUOTE_SKELETON = {
   ],
 };
 
-/** 견적서 초안 내용 — 아직 저장하지 않는다(2026-08-07 사장님: "저장 버튼을 눌렀을 때 저장").
+/** 견적서 초안 내용 — 아직 저장하지 않는다("저장 버튼을 눌렀을 때 저장").
  *  '만들기' 를 누르면 이 내용으로 편집기가 열리고, 저장을 눌러야 문서가 생긴다. */
 export function buildQuoteContent(): any {
   return { ...QUOTE_SKELETON };
@@ -210,7 +210,7 @@ export async function createBlankDocument(params: {
 
 // AI 참모 첨부문서 기반 계약서 — 외부 발송 없이 전자계약 > 양식 관리(contract_templates)에
 // 회사 양식으로 저장한다. 문서함(documents)은 파일 보관함 전용으로 단순화돼 documents 에
-// 넣으면 확인할 화면이 없다(2026-08-03 사장님 제보). 원본 파일/추출 텍스트는 저장하지 않고,
+// 넣으면 확인할 화면이 없다. 원본 파일/추출 텍스트는 저장하지 않고,
 // 사용자가 확인한 정제 HTML과 출처 파일명(감사로그)만 보존한다.
 export async function createAiContractDraft(params: {
   companyId: string;
@@ -222,7 +222,7 @@ export async function createAiContractDraft(params: {
 }) {
   const body = sanitizeAiContractHtml(params.bodyHtml).trim();
   if (!body) throw new Error('계약서 본문이 비어 있습니다.');
-  // 변수 토큰은 {{변수}} 이중 중괄호로 통일 (2026-08-05 사장님 지시) — AI 출력 형식 그대로 저장한다.
+  // 변수 토큰은 {{변수}} 이중 중괄호로 통일 — AI 출력 형식 그대로 저장한다.
   //   종전엔 계약 양식 렌더러가 단일 중괄호만 처리해 여기서 {{x}}→{x} 로 낮춰 저장했는데,
   //   그 값이 전자계약 발송(이중 중괄호 치환)에서는 안 잡혀 토큰이 그대로 나가던 원인이었다.
   const sourceFiles = (params.sourceFiles || [])
@@ -334,7 +334,7 @@ export async function materializeContractTemplate(
 ) {
   const body = tpl.body_html || tpl.body_markdown || "";
   // 기존 실체화 문서는 양식 id(content_json.source_template_id)로 찾는다 — 이름 매칭만으로는
-  //   양식관리에서 이름을 바꾸는 순간 연결이 끊겨 사본이 중복 생성되고 옛 이름이 남았다(2026-08-03 사장님).
+  //   양식관리에서 이름을 바꾸는 순간 연결이 끊겨 사본이 중복 생성되고 옛 이름이 남았다.
   let existing: any = null;
   if (tpl.id) {
     const rows = logRead('lib/documents:existing-ct', await supabase

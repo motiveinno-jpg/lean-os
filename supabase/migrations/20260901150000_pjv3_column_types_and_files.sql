@@ -1,13 +1,13 @@
--- 프로젝트 v3 컬럼 타입 확장(사장님 확정 1·2차) + 첨부파일 버킷 (2026-09-01)
+-- 프로젝트 v3 컬럼 타입 확장( 1·2차) + 첨부파일 버킷 (2026-09-01)
 --
 -- History — 20260831180000_project_item_columns.sql 이 커스텀 컬럼 정의 표를 만들 때
 --   타입을 v2.6 옛 칼럼 표에서 옮겨올 수 있는 6종(text·number·date·select·person·partner)으로만
 --   제한했다. 표 UI 가 먼저 필요했고, 옛 데이터에 없는 타입을 미리 열어둘 이유가 없었기 때문.
---   이제 사장님이 1·2차로 확정한 컬럼 타입 8종을 추가한다.
+--   이제 대표 1·2차로 확정한 컬럼 타입 8종을 추가한다.
 --
 -- 결정 1 — type 체크 제약을 16종으로 재생성
 --   규칙: project_item_columns.type ∈ 기존 6종 + formula·check·url·tel·longtext·auto·files·ovlink
---         + rating·place (2026-09-01 사장님 3차 추가 승인)
+--         + rating·place (2026-09-01 대표 3차 추가 승인)
 --     formula  수식        settings 에 식 정의. 값은 계산이라 fields 에 저장하지 않을 수 있다(화면 몫).
 --     check    체크        fields[key] = true/false
 --     url      웹 링크
@@ -27,7 +27,7 @@
 --       (20260820210000 insert · 20260820220000 select · 20260820190000 delete 와 동일 패턴).
 --   update 정책은 만들지 않는다 — 업로드는 항상 새 uuid 경로라 덮어쓰기(upsert)가 없다.
 --     RLS 기본 deny 이므로 정책이 없으면 이 버킷의 UPDATE 는 아무도 못 한다(의도).
---   크기 20MB · MIME 제한 없음(사장님 지시). 엣지/서버 배치는 service_role 이라 영향 없음.
+--   크기 20MB · MIME 제한 없음. 엣지/서버 배치는 service_role 이라 영향 없음.
 --
 -- 누락 점검: 권한/RLS(아래 명시) · 역할(세무대리인 세션은 상위 표 project_item_columns 의
 --   RESTRICTIVE 3종이 이미 막는다) · 기존 데이터(없음) · 되돌리기(제약은 좁히면 되나 기존 값이

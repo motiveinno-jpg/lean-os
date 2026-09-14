@@ -1,6 +1,6 @@
 "use client";
-// 전자계산서(면세) — 세금·증빙 하위 탭 (2026-08-10 사장님).
-//   2026-08-11 사장님: "디자인을 세금계산서 탭과 아예 똑같게" — 세금계산서 화면의 디자인 언어를
+// 전자계산서(면세) — 세금·증빙 하위 탭.
+//   2026-08-11 대표: "디자인을 세금계산서 탭과 아예 똑같게" — 세금계산서 화면의 디자인 언어를
 //   그대로 사용: seg-bar 매출/매입 탭 + 오른쪽 [조회기간 팝오버][가져오기 팝오버] 한 줄 머리,
 //   doc-summary-strip 요약, 홈택스식 결과 요약 바 + tax-invoice-list-table 격자 그리드.
 //   발행·매칭·전표는 세금계산서 전용 기능이라 없음(계산서는 조회·수집 전용).
@@ -57,7 +57,7 @@ const condCount = (c: Cond) => c.partner.length + (c.item ? 1 : 0) + ((c.min || 
 /** 전자세금계산서 목록 정렬 열쇠 — 칸 하나에 하나씩 (2026-08-12) */
 type EiSortKey = "issue_date" | "counterparty_name" | "item_name" | "supply_amount" | "tax_amount" | "total" | "status";
 
-//   상태 배지 — 실제 status 를 반영한다. 종전엔 모든 행이 '발행'으로 하드코딩돼 수정·취소분도 발행으로 보였다(2026-09-09 사장님).
+//   상태 배지 — 실제 status 를 반영한다. 종전엔 모든 행이 '발행'으로 하드코딩돼 수정·취소분도 발행으로 보였다.
 const EI_STATUS_PILL: Record<string, { label: string; cls: string }> = {
   issued: { label: "발행", cls: "collect-pill-done" },
   modified: { label: "수정발행", cls: "collect-pill-todo" },
@@ -116,7 +116,7 @@ export default function EInvoicesPage() {
   const salesInvoices = useMemo(() => (invoices as any[]).filter((i) => i.type === "sales"), [invoices]);
   const purchaseInvoices = useMemo(() => (invoices as any[]).filter((i) => i.type === "purchase"), [invoices]);
   const listBase = tab === "sales" ? salesInvoices : purchaseInvoices;
-  //   머리단 정렬 — 앱 전 메뉴 같은 규칙 (2026-08-12 사장님 지시). 기본은 작성일자 내림차순.
+  //   머리단 정렬 — 앱 전 메뉴 같은 규칙. 기본은 작성일자 내림차순.
   const [sort, setSort] = useState<SortState<EiSortKey>>({ key: "issue_date", dir: "desc" });
   const onSort = (k: EiSortKey) => setSort((c) => nextSort(c, k, k === "issue_date" ? "desc" : "asc"));
   const currentList = useMemo(() => {
@@ -347,7 +347,7 @@ export default function EInvoicesPage() {
       const result = await res.json();
       if (res.status === 409 && result.activeJobId) {
         // 같은 종류(전자계산서) 잡만 진행표시를 넘겨받는다 — 세금계산서 잡을 넘겨받으면
-        //   이 탭이 남의 진행률을 "전자계산서 동기화 중"처럼 보여줘 혼동 (2026-08-11 사장님).
+        //   이 탭이 남의 진행률을 "전자계산서 동기화 중"처럼 보여줘 혼동.
         if (result.activeJobType === "exempt_invoice") setActiveJobId(result.activeJobId);
         toast(result.error || `이미 진행 중인 홈택스 동기화가 있습니다 (${result.progress?.label || "진행 중"})`, "info");
         return;

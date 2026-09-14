@@ -55,7 +55,7 @@ export const STATUS_LABELS: Record<string, { label: string; bg: string; text: st
  *        (이 건도 홈택스를 수집하면 ①의 취소거래 행이 따로 들어와 상계된다)
  *   `void`(무효)는 애초에 없던 것이라 언제나 0.
  *
- *   위하고도 취소거래를 같은 유형(현과)의 **마이너스 전표**로 보여 준다 — 사장님이 준 기준.
+ *   위하고도 취소거래를 같은 유형(현과)의 **마이너스 전표**로 보여 준다 — 대표 준 기준.
  */
 export function cashReceiptSign(r: { status?: string | null; source?: string | null }): 1 | -1 | 0 {
   const status = String(r.status || 'issued');

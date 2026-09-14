@@ -17,7 +17,7 @@ export type PermMenu = { route: string; label: string; tabs?: PermTab[]; always?
   defaultGrant?: boolean };
 export type PermGroup = { group: string; menus: PermMenu[] };
 
-// 전 메뉴·세부탭 카탈로그 — **사이드바(NAV_GROUPS)와 같은 순서·이름** (2026-08-19 사장님: 바뀐 메뉴 위치대로 정리).
+// 전 메뉴·세부탭 카탈로그 — **사이드바(NAV_GROUPS)와 같은 순서·이름** (바뀐 메뉴 위치대로 정리).
 //   키(route·tab key)는 절대 바꾸지 않는다 — member_permissions.perm_key 와 화면 게이트가 이 키로 돈다.
 //   always: 모든 구성원 기본 제공(부여 대상 아님 — 마이페이지·알림 등 개인 영역). always 메뉴의 세부탭은 부여 대상.
 export const PERMISSION_CATALOG: PermGroup[] = [
@@ -38,7 +38,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
   },
   {
     //   재고 (2026-08-25 신설) — 단가·원가가 보이므로 품목·구매는 money.
-    //   ★ 직원 기본 제공(defaultGrant, 2026-08-26 사장님): 재고 보기 7개는 합류 때 자동 부여(회수 가능). 현황·:write·adjust 는 부여해야.
+    //   ★ 직원 기본 제공(defaultGrant, 2026-08-26 대표): 재고 보기 7개는 합류 때 자동 부여(회수 가능). 현황·:write·adjust 는 부여해야.
     //     재무·인사는 기본 비노출 — 연봉 등 예민. 목록은 DB `_seed_member_default_perms` 와 같이 고친다.
     //   ★ 새 키는 member_permissions 에 행이 없어 **백필 전까지 마스터 외 아무도 못 본다** — 배포와 함께 백필한다.
     group: "재고",
@@ -47,7 +47,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       { route: "/inventory/stock", defaultGrant: true, label: "창고관리", tabs: [
         { key: "adjust", label: "입·출고와 조정", desc: "미부여 시 수량 보기만 · 재고를 움직일 수 없다" },
       ] },
-      //   ★ 보기와 입력을 가른다 (2026-08-26 사장님 "권한 세분화") — 메뉴만 주면 이력·현황 보기, :write 를 줘야 저장·수정·취소
+      //   ★ 보기와 입력을 가른다 (2026-08-26 대표가 "권한 세분화") — 메뉴만 주면 이력·현황 보기, :write 를 줘야 저장·수정·취소
       { route: "/inventory/orders", defaultGrant: true, label: "주문", money: true, desc: "주문서·견적 · 재고는 안 움직인다", tabs: [
         { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 · 주문서를 만들거나 고칠 수 없다" },
       ] },
@@ -83,7 +83,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       { route: "/cards", label: "카드", money: true },
       { route: "/partners", label: "거래처" },
       { route: "/collect", label: "수집·전표", money: true, desc: "통장·카드·계산서 자료를 받아 전표로" },
-      //   세금·증빙 = 오너뷰가 **발행하는** 곳으로 재편 (2026-08-13 사장님 지시).
+      //   세금·증빙 = 오너뷰가 **발행하는** 곳으로 재편.
       //   옛 탭(sales·purchase·vat·summary·queue·sync)은 사라졌다 — 목록은 수집·전표, 부가세·요약은 분석(/reports/vat)으로 갔다.
       { route: "/tax-invoices", label: "세금·증빙", money: true, desc: "세금계산서 발행", tabs: [
         { key: "wait", label: "발행 대기" },
@@ -114,7 +114,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     group: "업무",
     menus: [
       { route: "/schedule", label: "일정 / 할 일", always: true },
-      // 열람 범위 — 구성원(/employees:all)과 같은 방식. '전체'가 없으면 자기가 담당자인 프로젝트만 보인다 (2026-07-31 사장님).
+      // 열람 범위 — 구성원(/employees:all)과 같은 방식. '전체'가 없으면 자기가 담당자인 프로젝트만 보인다.
       { route: "/projecthub", label: "프로젝트", tabs: [
         { key: "mine", label: "내 담당만", desc: "담당자로 지정된 프로젝트만" },
         { key: "all", label: "전체 열람", desc: "미부여 시 내 담당만 보임" },
@@ -128,14 +128,14 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "forms", label: "양식 관리" },
         { key: "policies", label: "결재 정책" },
       ] },
-      // 게시판 자체는 전원 기본, 상단 고정만 부여 대상 (2026-08-05 사장님: 아무나 고정·해제하던 문제)
+      // 게시판 자체는 전원 기본, 상단 고정만 부여 대상 (아무나 고정·해제하던 문제)
       { route: "/board", label: "게시판", always: true, tabs: [
         { key: "pin", label: "상단 고정", desc: "게시글 상단 고정·해제 (미부여 시 마스터만)" },
       ] },
       { route: "/my-contracts", label: "내 서명 요청", always: true },
-      // 파일보관함 — 인사관리 → 워크스페이스 (2026-08-20 사장님). 키 불변
+      // 파일보관함 — 인사관리 → 워크스페이스. 키 불변
       //   삭제는 기본이 '본인이 올린 파일만'. 남의 파일까지 지우려면 아래 세부권한이 있어야 한다
-      //   (2026-08-20 사장님: "모든 사람이 삭제가 가능해" — 회사 구성원 누구나 남의 파일을 지우던 문제)
+      //   ("모든 사람이 삭제가 가능해" — 회사 구성원 누구나 남의 파일을 지우던 문제)
       { route: "/documents", label: "파일보관함", tabs: [
         { key: "delete", label: "남의 파일 삭제", desc: "다른 사람이 올린 파일도 삭제 (미부여 시 본인이 올린 것만)" },
       ] },
@@ -149,7 +149,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     menus: [
       { route: "/employees", label: "구성원", tabs: [
         { key: "employees", label: "인력관리" },
-        // 열람 범위 — 이 키가 없으면 구성원 화면에서 '본인 정보'만 보인다(RLS 가 행 단위로 차단). 2026-07-31 사장님.
+        // 열람 범위 — 이 키가 없으면 구성원 화면에서 '본인 정보'만 보인다(RLS 가 행 단위로 차단).
         { key: "all", label: "전 직원 열람", desc: "미부여 시 본인 정보만 보임" },
         { key: "salary", label: "급여", money: true },
         { key: "leave", label: "휴가 관리" },
@@ -253,7 +253,7 @@ export function useMyPermissions(): {
   const { user, loading: userLoading } = useUser();
   const isMaster = !!(user as any)?.is_master;
   // 세무사 열람 세션 (2026-08-11): 회사가 부여한 권한만 — 일반 구성원과 동일 모델
-  //   (사장님: "회사에서 파트너 권한을 주고, 없으면 직원처럼 안 보이게"). 연결 시 세무 기본
+  //   ("회사에서 파트너 권한을 주고, 없으면 직원처럼 안 보이게"). 연결 시 세무 기본
   //   패키지가 자동 부여되고, 회사설정 > 세무 파트너 > 권한 설정에서 가감한다.
   //   쓰기는 DB RESTRICTIVE 정책(advisor_ro_*)이 전면 차단 — 화면 권한은 열람 범위만 결정.
   const isAdvisor = (user as any)?.role === "advisor";
@@ -272,7 +272,7 @@ export function useMyPermissions(): {
     },
     enabled: !!user?.id && !isMaster,
     // 마스터가 권한을 부여하면 직원 화면이 새로고침 없이 따라오도록 주기 갱신
-    //   (2026-07-31 사장님: 템플릿 부여 직후 '권한 없음'으로 보이던 캐시 문제)
+    //   (템플릿 부여 직후 '권한 없음'으로 보이던 캐시 문제)
     staleTime: 20_000,
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,

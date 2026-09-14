@@ -40,7 +40,7 @@ export const ENTITY_HREF: Record<string, (id: string) => string> = {
   attendance_edit_request: () => `/attendance?view=records`,
   expense_request: () => `/approvals`,
   quote_approval: () => `/projects`,
-  // 2026-08-04 사장님 제보: 고객센터 답변 알림이 매핑에 없어 /dashboard 로 떨어졌다
+  // 고객센터 답변 알림이 매핑에 없어 /dashboard 로 떨어졌다
   //   — 고객센터 내 문의 내역에서 해당 문의를 바로 펼친다.
   support_ticket: (id) => `/support?id=${encodeURIComponent(id)}`,
 };
@@ -77,12 +77,12 @@ export function resolveNotificationHref(
     return `/projects/${encodeURIComponent(deal_id)}?action=${stageToAction(stage)}`;
   }
   // 네이티브 휴가 참조 통보([참조] 접두) — 직원 계정이 /approvals 로만 가면 기본 탭(새 요청)에
-  //   떨어져 내용을 못 본다(2026-07-30 사장님 제보: 연준호 건). 참조함으로 직행.
+  //   떨어져 내용을 못 본다(연준호 건). 참조함으로 직행.
   if (n.entity_type === "leave_request" && (n.title || "").startsWith("[참조]")) {
     return "/approvals?tab=references";
   }
   // 결재 결과 알림(승인·반려)은 요청자 본인에게 가는 것이다. entity_type 매핑만 타면 /approvals 기본 탭
-  //   = '내 결재함'(남이 올린 결재 대기함)으로 떨어져 정작 내 요청 결과가 안 보인다(2026-07-31 사장님 제보).
+  //   = '내 결재함'(남이 올린 결재 대기함)으로 떨어져 정작 내 요청 결과가 안 보인다.
   //   → '내 요청' 탭 + 해당 건 상세를 바로 연다. 참조자 통보는 entity_type=approval_reference 라 여기 안 걸림.
   if ((n.type === "approval_approved" || n.type === "approval_rejected")
       && n.entity_type === "approval_request" && n.entity_id) {

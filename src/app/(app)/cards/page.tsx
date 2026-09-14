@@ -5,15 +5,15 @@ import { DonutChart, Legend, vizColor } from "@/components/charts/kit";
 import { downloadCsv, rangeSuffix } from "@/lib/csv-export";
 import { logRead } from "@/lib/log-read";
 import { fetchPaged } from "@/lib/fetch-paged";
-import { Ico }  from "@/components/ui-icon";
+import { Ico } from "@/components/ui-icon";
 
 // /cards · 카드 자립 페이지(시안 적용). 시안 3탭: 카드 / 거래내역 / 분석.
-//   기존 컴포넌트(CardBillingSummary·TopCardExpensesThisMonth·CardAutoTransferHistory·CardMonthlyUsage)를
-//   분석 탭에 녹여서 재사용. transactions/page.tsx 본문 0줄 변경(미 import).
-//   기능 보존: 큰 카드 디스플레이 + 사용현황 + 미니그리드 + 거래내역 검색/필터 + 분석 stat·차트.
-//   가짜 데이터 금지: 카드번호 끝4 only, credit_limit/리워드 없으면 영역 hide, 실 카테고리.
+// 기존 컴포넌트(CardBillingSummary·TopCardExpensesThisMonth·CardAutoTransferHistory·CardMonthlyUsage)를
+// 분석 탭에 녹여서 재사용. transactions/page.tsx 본문 0줄 변경(미 import).
+// 기능 보존: 큰 카드 디스플레이 + 사용현황 + 미니그리드 + 거래내역 검색/필터 + 분석 stat·차트.
+// 가짜 데이터 금지: 카드번호 끝4 only, credit_limit/리워드 없으면 영역 hide, 실 카테고리.
 
-import  { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DateField } from "@/components/date-field";
 import { DateRangeField } from "@/components/date-range-field";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -62,11 +62,11 @@ function cardTypeBadgeClass(cardType?: string | null): string {
 
 // 흰 배경 카드(MiniCard) 위 종류 칩 — 라이트/다크 양쪽 잘 보이는 톤.
 /** 카드번호 표시 — 저장된 값 전체를 4자리씩 끊어 보여준다. 카드사(CODEF)는 마스킹된 번호만 줘서
- *  기본은 끝 4자리다 — 전체를 보려면 '수정'에서 카드번호를 직접 채운다 (2026-08-20 사장님) */
+ * 기본은 끝 4자리다 — 전체를 보려면 '수정'에서 카드번호를 직접 채운다 */
 function cardNoDisplay(no: string | null | undefined): string {
   const v = String(no || "").replace(/[^0-9*]/g, "");
   if (!v) return "----";
-  // 롯데(아멕스 등)는 카드사가 뒤 3자리만 알려준다 — 없는 숫자를 붙이지 않고 가려진 한 자리를 점으로 표시 (2026-09-03 사장님)
+  // 롯데(아멕스 등)는 카드사가 뒤 3자리만 알려준다 — 없는 숫자를 붙이지 않고 가려진 한 자리를 점으로 표시
   if (v.length < 4) return `•••• ${"•".repeat(4 - v.length)}${v}`;
   if (v.length === 4) return `•••• ${v}`;
   return v.replace(/(.{4})(?=.)/g, "$1-");
@@ -92,7 +92,7 @@ const CATEGORY_EMOJI: Array<[RegExp, string]> = [
   [/세금|공과/i, "🧾"],
   [/급여|월급|인건/i, "💰"],
 ];
-//   계정 성격 라벨 — account_type 은 자유 문자열이라 안전하게 되짚는다 (2026-08-10)
+// 계정 성격 라벨 — account_type 은 자유 문자열이라 안전하게 되짚는다 (2026-08-10)
 const cardNatureLabel = (t: string) => (NATURE_LABEL as Record<string, string>)[t] || t;
 
 function categoryEmoji(category: string | null | undefined): string {
@@ -128,27 +128,27 @@ const cardTypeLabel = (t?: string | null) => t === "credit" ? "신용" : t === "
 
 type Tab = "cards" | "transactions" | "analysis";
 
-/*  ── 조회 화면 표준 (2026-08-13 확정) — 수집·전표·통장과 같은 검색조건/줄수/내 조건 구성 ──
+/* ── 조회 화면 표준 — 수집·전표·통장과 같은 검색조건/줄수/내 조건 구성 ──
     ★ 여기 있는 것은 **'조회'를 눌러야** 반영된다. 기간·빠른검색은 조회 줄에 있어 즉시다. */
-//   기본은 '미처리' — 전표처리된 건은 목록에서 사라진다 (2026-08-19 사장님). 전체·전표됨은 골라 본다.
+// 기본은 '미처리' — 전표처리된 건은 목록에서 사라진다. 전체·전표됨은 골라 본다.
 const CARD_STATE_CHIPS = [
   { value: "todo", label: "미처리" }, { value: "all", label: "전체" }, { value: "posted", label: "전표됨" }, { value: "excluded", label: "장부 제외" },
 ] as const;
 type CardCond = {
-  cards: string[];  // 카드 (id, id 없는 옛 데이터는 카드명)
-  merch: string[];  // 가맹점
-  cls: string[];    // 분류(계정과목 이름)
+  cards: string[]; // 카드 (id, id 없는 옛 데이터는 카드명)
+  merch: string[]; // 가맹점
+  cls: string[]; // 분류(계정과목 이름)
   state: (typeof CARD_STATE_CHIPS)[number]["value"];
   min: string; max: string;
-  size: number;     // 한 쪽에 몇 줄 — 조건의 하나라 '내 조건'에 같이 저장된다
+  size: number; // 한 쪽에 몇 줄 — 조건의 하나라 '내 조건'에 같이 저장된다
 };
 const CARD_EMPTY: CardCond = { cards: [], merch: [], cls: [], state: "todo", min: "", max: "", size: 50 };
 /** 배지에 셀 것 — 줄 수는 '좁히는 조건'이 아니라 보기 방식이라 안 센다 */
 const cardCondCount = (c: CardCond) =>
   c.cards.length + c.merch.length + c.cls.length + (c.state !== "all" ? 1 : 0) + ((c.min || c.max) ? 1 : 0);
 
-//   해외 결제 (2026-08-27 ERP 2순위 '다중 통화') — CODEF 원본에 통화·외화 금액이 있다(monday.com USD 240 → ₩336,480).
-//   금액 칸은 원화 그대로(전표도 원화), 옆에 'USD 240 · 환율 1,402' 를 붙인다. 원본에 없으면 아무것도 안 붙는다.
+// 해외 결제 (2026-08-27 ERP 2순위 '다중 통화') — CODEF 원본에 통화·외화 금액이 있다(monday.com USD 240 → ₩336,480).
+// 금액 칸은 원화 그대로(전표도 원화), 옆에 'USD 240 · 환율 1,402' 를 붙인다. 원본에 없으면 아무것도 안 붙는다.
 const foreignOf = (tx: any): { cur: string; amt: number; rate: number } | null => {
   const a = tx?.raw_data?.approval; if (!a) return null;
   const cur = String(a.resAccountCurrency || "").toUpperCase(); const used = Number(a.resUsedAmount || 0); const krw = Number(a.resKRWAmt || tx.amount || 0);
@@ -160,14 +160,14 @@ const ForeignBadge = ({ tx }: { tx: any }) => { const f = foreignOf(tx); return 
 export default function CardsPage() {
   const { user, role } = useUser();
   const { isMaster, hasPerm } = useMyPermissions();
-  //   카드 순서 변경은 관리자만(마스터·대표·관리자). 일반 직원은 순서를 못 바꾼다 (2026-09-08 사장님).
-  const canReorder = isMaster || hasPerm("/cards");   // 2026-09-11 역할 폐지
-  const { toast }  = useToast();
+  // 카드 순서 변경은 관리자만(마스터·대표·관리자). 일반 직원은 순서를 못 바꾼다.
+  const canReorder = isMaster || hasPerm("/cards"); // 2026-09-11 역할 폐지
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const companyId = user?.company_id ?? null;
   const cardCd = useSyncCooldown(companyId, "card");
   // 즉시 동기화 권한 · 무료는 자동(하루 2회)만, 즉시 버튼은 유료 전용 (2026-08-07)
-  const  { data: cardSync } = useQuery({
+  const { data: cardSync } = useQuery({
     queryKey: ["bank-sync-access", companyId],
     queryFn: () => getBankSyncAccess(companyId!),
     enabled: !!companyId,
@@ -176,8 +176,8 @@ export default function CardsPage() {
   const [tab, setTab] = useState<Tab>("cards");
   const [selectedCardIdx, setSelectedCardIdx] = useState(0);
   const [showBalance, setShowBalance] = useState(true);
-  //   조회 줄 · 빠른검색(즉시) + 검색조건 패널(조회를 눌러야). 수집·전표·통장과 같은 draft/live 구도.
-  //   예전의 검색 input + 카드 select 낱장은 이 표준으로 흡수했다.
+  // 조회 줄 · 빠른검색(즉시) + 검색조건 패널(조회를 눌러야). 수집·전표·통장과 같은 draft/live 구도.
+  // 예전의 검색 input + 카드 select 낱장은 이 표준으로 흡수했다.
   const [txQ, setTxQ] = useState("");
   const [txPanelOpen, setTxPanelOpen] = useState(false);
   const [txDraft, setTxDraft] = useState<CardCond>(CARD_EMPTY);
@@ -186,14 +186,14 @@ export default function CardsPage() {
   // 거래내역 탭 표 · 헤더 더블클릭 정렬 + 행 체크박스 다중선택 (UI 전용, DB 변경 없음)
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  // 직원 QA 카드(그랜터) — 카드 선택 후 기간 거래(cardTx) 뷰의 검색·정렬
+  // 직원 QA 카드 — 카드 선택 후 기간 거래(cardTx) 뷰의 검색·정렬
   const [cardTxSearch, setCardTxSearch] = useState("");
   const [cardSortKey, setCardSortKey] = useState<string>("transaction_date");
   const [cardSortDir, setCardSortDir] = useState<"asc" | "desc">("desc");
   const [selectedTxIds, setSelectedTxIds] = useState<Set<string>>(new Set());
-  //   ⚠️ setSortKey 의 갱신 함수 안에서 setSortDir 를 부르면 안 된다. React 는 갱신 함수를
-  //   두 번 실행할 수 있어(StrictMode) 방향이 두 번 뒤집혀 제자리로 왔다 — 첫 클릭은 정렬되는데
-  //   두 번째 클릭이 오름/내림을 못 바꾸던 원인(2026-09-14 전 화면 정렬 점검). 현재 값으로 바로 정한다.
+  // ⚠️ setSortKey 의 갱신 함수 안에서 setSortDir 를 부르면 안 된다. React 는 갱신 함수를
+  // 두 번 실행할 수 있어(StrictMode) 방향이 두 번 뒤집혀 제자리로 왔다 — 첫 클릭은 정렬되는데
+  // 두 번째 클릭이 오름/내림을 못 바꾸던 원인(2026-09-14 전 화면 정렬 점검). 현재 값으로 바로 정한다.
   const onSortTx = (key: string) => {
     if (sortKey === key) {
       setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -205,15 +205,15 @@ export default function CardsPage() {
   // CODEF 카드 동기화
   const [syncing, setSyncing] = useState(false);
   // 카드 클릭 → 그 카드의 거래내역 영역(카드 탭 하단 #card-tx-detail) 필터
-  //   등록 카드: corporate_cards.id 로 필터 / CODEF 미식별 묶음: card_name 으로 필터
+  // 등록 카드: corporate_cards.id 로 필터 / CODEF 미식별 묶음: card_name 으로 필터
   const [selectedCardId, setSelectedCardId] = useState<string>("");
   const [selectedCardName, setSelectedCardName] = useState<string>("");
   // 선택 카드 거래내역 기간 필터 + 거래내역 탭 조회기간 + CODEF 연동 범위 (공통)
-  //   ★ 기본값은 최근 1개월 (조회 화면 표준). 예전 '미설정=최근 N건' 방식을 버렸다.
+  // ★ 기본값은 최근 1개월 (조회 화면 표준). 예전 '미설정=최근 N건' 방식을 버렸다.
   const [cardTxFrom, setCardTxFrom] = useState<string>(() => defaultRange().from);
-  //   카드 탭 보기 — 표가 기본, 카드는 보기 옵션 (2026-08-19 조회 표준: 목록은 표)
+  // 카드 탭 보기 — 표가 기본, 카드는 보기 옵션 (2026-08-19 조회 표준: 목록은 표)
   const [cardsView, setCardsView] = useState<"list" | "card">("list");
-  //   카드 동작 확장 (2026-08-19 사장님) — 수정(이름·메모)·숨김(is_active=false)·삭제(거래 있으면 막음)
+  // 카드 동작 확장 — 수정(이름·메모)·숨김(is_active=false)·삭제(거래 있으면 막음)
   const { confirm: confirmDlg, confirmElement: cardConfirmEl } = useConfirm();
   const [showHiddenCards, setShowHiddenCards] = useState(false);
   const [cardEdit, setCardEdit] = useState<{ id: string; name: string; memo: string; number: string } | null>(null);
@@ -226,8 +226,8 @@ export default function CardsPage() {
     try { const { error } = await db.from("corporate_cards").update({ card_name: name, memo: cardEdit.memo.trim() || null, card_number: cardEdit.number.replace(/[^0-9]/g, "") || null } as never).eq("id", cardEdit.id); if (error) throw error; refreshCards(); toast("카드 정보를 저장했습니다", "success"); setCardEdit(null); }
     catch (e) { toast(friendlyError(e, "저장 실패"), "error"); } finally { setCardSaving(false); }
   };
-  //   수집 켜기/끄기 · 무료 요금제는 통장·카드 합쳐 3개까지만 수집(DB 트리거가 4번째를 막는다). 끈 카드는 목록에 남고 거래만 안 가져온다.
-  const  { data: syncQuota } = useQuery({
+  // 수집 켜기/끄기 · 무료 요금제는 통장·카드 합쳐 3개까지만 수집(DB 트리거가 4번째를 막는다). 끈 카드는 목록에 남고 거래만 안 가져온다.
+  const { data: syncQuota } = useQuery({
     queryKey: ["free-sync-quota", companyId],
     queryFn: async () => { const { error, data } = await (db as any).rpc("free_sync_quota", { p_company: companyId }); if (error) return null; return data as { free: boolean; limit: number | null; used: number } | null; },
     enabled: !!companyId, staleTime: 30_000,
@@ -261,7 +261,7 @@ export default function CardsPage() {
   const [postAccountId, setPostAccountId] = useState<string>("");
   const [postRemember, setPostRemember] = useState(true);
   const [postFixed, setPostFixed] = useState(false); // 고정비로 표시 (is_fixed_cost)
-  // 직원 QA 카드(그랜터). 거래별 사유·태그·사용직원
+  // 직원 QA 카드. 거래별 사유·태그·사용직원
   const [postMemo, setPostMemo] = useState("");
   const [postTags, setPostTags] = useState("");
   const [postEmployee, setPostEmployee] = useState("");
@@ -271,7 +271,7 @@ export default function CardsPage() {
   const [editingName, setEditingName] = useState("");
 
   // 이번 달 KST 범위
-  //   QA 2026-06-12: +9h 후 로컬 게터는 KST 브라우저에서 이중 가산(월말 저녁에 다음 달) → UTC 게터로 교정.
+  // +9h 후 로컬 게터는 KST 브라우저에서 이중 가산(월말 저녁에 다음 달) → UTC 게터로 교정.
   const monthRange = useMemo(() => {
     const kst = new Date(Date.now() + 9 * 3600 * 1000);
     const y = kst.getUTCFullYear(), m = kst.getUTCMonth();
@@ -288,7 +288,7 @@ export default function CardsPage() {
       const data = logRead('cards/page:data', await db.from("corporate_cards")
         .select("*")
         .eq("company_id", companyId ?? "")
-        //   사용자가 정한 순서(sort_order). 백필 전 옛 회사·동률은 등록일순 (2026-09-08)
+        // 사용자가 정한 순서(sort_order). 백필 전 옛 회사·동률은 등록일순 (2026-09-08)
         .order("sort_order", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: true }));
       return (data || []) as any[];
@@ -296,11 +296,11 @@ export default function CardsPage() {
     enabled: !!companyId,
   });
 
-  //   카드 순서 바꾸기 (2026-09-08 사장님) — ▲▼ 버튼 + 드래그 둘 다. 관리자만. 줄이 실제로 미끄러지듯 움직이게 FLIP 애니메이션.
+  // 카드 순서 바꾸기 — ▲▼ 버튼 + 드래그 둘 다. 관리자만. 줄이 실제로 미끄러지듯 움직이게 FLIP 애니메이션.
   const [movingId, setMovingId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
-  //   FLIP: 순서가 바뀌기 직전 각 줄의 화면 위치를 기억했다가, 바뀐 뒤 그 차이만큼 되돌렸다 0 으로 미끄러뜨린다
+  // FLIP: 순서가 바뀌기 직전 각 줄의 화면 위치를 기억했다가, 바뀐 뒤 그 차이만큼 되돌렸다 0 으로 미끄러뜨린다
   const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
   const prevRects = useRef<Map<string, number>>(new Map());
   const cardOrderKey = (cards as any[]).map((c) => c.id).join(",");
@@ -318,14 +318,14 @@ export default function CardsPage() {
         });
       }
     });
-    //   다음 변경을 위해 현재 위치 저장
+    // 다음 변경을 위해 현재 위치 저장
     const nextRects = new Map<string, number>();
     rowRefs.current.forEach((el, id) => nextRects.set(id, el.getBoundingClientRect().top));
     prevRects.current = nextRects;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardOrderKey]);
 
-  //   전체 순서(id 배열)를 저장 — 낙관적 반영 후 RPC. 화면 반영은 setQueryData 로 즉시.
+  // 전체 순서(id 배열)를 저장 — 낙관적 반영 후 RPC. 화면 반영은 setQueryData 로 즉시.
   const commitOrder = async (nextIds: string[], highlightId: string) => {
     const all = cards as any[];
     const byId = new Map(all.map((c) => [c.id, c]));
@@ -337,7 +337,7 @@ export default function CardsPage() {
     finally { setTimeout(() => setMovingId(null), 600); }
     queryClient.invalidateQueries({ queryKey: ["corporate-cards"] });
   };
-  //   ▲▼ 한 칸 — 보이는 목록 기준 이웃과 자리 교환
+  // ▲▼ 한 칸 — 보이는 목록 기준 이웃과 자리 교환
   const moveCardStep = async (cardId: string, dir: -1 | 1) => {
     if (!canReorder || movingId) return;
     const all = cards as any[];
@@ -350,7 +350,7 @@ export default function CardsPage() {
     [ids[ia], ids[ib]] = [ids[ib], ids[ia]];
     await commitOrder(ids, cardId);
   };
-  //   드래그 — dragId 를 targetId 자리로 옮긴다(전체 순서 배열에서 이동)
+  // 드래그 — dragId 를 targetId 자리로 옮긴다(전체 순서 배열에서 이동)
   const moveCardTo = async (fromId: string, toId: string) => {
     if (!canReorder || fromId === toId) return;
     const ids = (cards as any[]).map((c) => c.id);
@@ -376,7 +376,7 @@ export default function CardsPage() {
   });
 
   // 카드 탭 · 선택된 카드의 거래내역(#card-tx-detail). 선택돼 있을 때만 fetch.
-  const  { data: cardTx = [] } = useQuery({
+  const { data: cardTx = [] } = useQuery({
     queryKey: ["cards-page-card-tx", companyId, selectedCardId, selectedCardName, cardTxFrom, cardTxTo],
     queryFn: async () => {
       let q = db.from("card_transactions")
@@ -395,7 +395,7 @@ export default function CardsPage() {
   });
 
   // 전표처리용 · 계정과목 + 회사별 카드 category→계정 매핑
-  const  { data: accounts = [] } = useQuery({
+  const { data: accounts = [] } = useQuery({
     queryKey: ["cards-page-accounts", companyId],
     queryFn: async () => {
       const data = logRead('cards/page:data', await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId ?? "").order("code"));
@@ -403,8 +403,8 @@ export default function CardsPage() {
     },
     enabled: !!companyId, staleTime: 300_000,
   });
-  // 직원 QA 카드(그랜터). 사용직원 선택용 재직 직원 목록
-  const  { data: cardEmployees = [] } = useQuery({
+  // 직원 QA 카드. 사용직원 선택용 재직 직원 목록
+  const { data: cardEmployees = [] } = useQuery({
     queryKey: ["cards-page-employees", companyId],
     queryFn: async () => {
       const data = logRead('cards/page:data', await db.from("employees").select("id, name").eq("company_id", companyId ?? "").eq("status", "active").order("name"));
@@ -433,13 +433,13 @@ export default function CardsPage() {
     setPostFixed(!!tx.is_fixed_cost); // 이전에 고정비로 체크했던 거래는 체크된 상태로 열림
     setPostMemo(tx.memo || ""); setPostTags((tx.tags || []).join(", ")); setPostEmployee(tx.used_by_employee_id || "");
   };
-  //   중복 의심 팝업 (2026-08-19). 같은 날 같은 금액 전표가 이미 있으면 새 전표/기존 전표에 연결/취소
-  const  { askDup, dupPromptElement }  = useDupVoucherPrompt();
-  //   장부 제외 (2026-08-19). 선택한 미처리 카드 거래를 사유와 함께 전표 없이 끝낸다 / 해제
-  const  { askExclude, excludePromptElement }  = useLedgerExcludePrompt();
-  //   정기결제 · 정기 지출(재무 › 정기 지출)과 짝이 맞는 결제는 자동으로, 안 잡히는 줄은 사람이 표시한다(is_fixed_cost).
-  //   개요의 '정기 지출 결제 확인' 이 같은 규칙(lib/recurring-match)으로 모은다 (2026-09-07).
-  const  { data: recurringList = [] } = useQuery({
+  // 중복 의심 팝업 (2026-08-19). 같은 날 같은 금액 전표가 이미 있으면 새 전표/기존 전표에 연결/취소
+  const { askDup, dupPromptElement } = useDupVoucherPrompt();
+  // 장부 제외 (2026-08-19). 선택한 미처리 카드 거래를 사유와 함께 전표 없이 끝낸다 / 해제
+  const { askExclude, excludePromptElement } = useLedgerExcludePrompt();
+  // 정기결제 · 정기 지출(재무 › 정기 지출)과 짝이 맞는 결제는 자동으로, 안 잡히는 줄은 사람이 표시한다(is_fixed_cost).
+  // 개요의 '정기 지출 결제 확인' 이 같은 규칙(lib/recurring-match)으로 모은다 (2026-09-07).
+  const { data: recurringList = [] } = useQuery({
     queryKey: ["recurring-payments", companyId],
     queryFn: () => getRecurringPayments(companyId ?? ""),
     enabled: !!companyId && tab === "transactions", staleTime: 60_000,
@@ -499,8 +499,8 @@ export default function CardsPage() {
       }
       const { error } = await db.rpc("post_card_voucher", { p_card_tx_id: postCard.id, p_account_id: postAccountId, p_remember: postRemember });
       if (error) throw new Error(error.message);
-      // 고정비·사유·태그·사용직원 저장 (직원 QA 카드 그랜터 · 실패해도 전표는 유지)
-      try  {
+      // 고정비·사유·태그·사용직원 저장 (실패해도 전표는 유지)
+      try {
         await db.from("card_transactions").update({
           is_fixed_cost: postFixed,
           memo: postMemo || null,
@@ -518,10 +518,10 @@ export default function CardsPage() {
       toast(m.includes("ALREADY_POSTED") ? "이미 전표처리된 거래입니다" : m.includes("NO_CASH_ACCOUNT") ? "보통예금(103) 계정과목이 없습니다" : m.includes("INVALID_ACCOUNT") ? "계정과목을 선택하세요" : m || "전표처리 실패", "error");
     } finally { setPosting(false); }
   };
-  // 직원 QA 카드(그랜터) — 같은 가맹점 미처리 거래 전체에 같은 계정·사유·태그·사용직원 일괄 적용
+  // 직원 QA 카드 — 같은 가맹점 미처리 거래 전체에 같은 계정·사유·태그·사용직원 일괄 적용
   const doPostSameMerchant = async () => {
     if (!postCard || !postAccountId || posting) return;
-    //   화면 목록(500건·조회기간)이 아니라 이 가맹점의 미처리 거래 전부를 DB 에서 센다 — 기간 밖 건이 남는데 다 끝난 줄 알던 것
+    // 화면 목록(500건·조회기간)이 아니라 이 가맹점의 미처리 거래 전부를 DB 에서 센다 — 기간 밖 건이 남는데 다 끝난 줄 알던 것
     const { fetchPaged } = await import("@/lib/fetch-paged");
     const targets = await fetchPaged<any>("cards:sameMerchant", () => db.from("card_transactions").select("id")
       .eq("company_id", companyId ?? "").eq("merchant_name", postCard.merchant_name || "")
@@ -573,7 +573,7 @@ export default function CardsPage() {
   useModalKeys(showBulkPost, () => setShowBulkPost(false), bulkPosting || !bulkAccountId ? undefined : doBulkPost);
 
   // 거래내역 탭 — 조회기간(기본 최근 1개월) 전체, 상한 2000. 탭 진입 시에만 fetch.
-  //   카드 필터는 client-side (검색조건의 '카드' 칩 — id 없는 옛 데이터는 카드명으로 거른다).
+  // 카드 필터는 client-side (검색조건의 '카드' 칩 — id 없는 옛 데이터는 카드명으로 거른다).
   const { data: recentTx = [] } = useQuery({
     queryKey: ["cards-page-recent-tx", companyId, cardTxFrom, cardTxTo],
     queryFn: async () => {
@@ -599,7 +599,7 @@ export default function CardsPage() {
     for (const tx of monthTx) {
       const k = (tx.card_id as string) || (tx.card_name as string) || "?";
       counts[k] = (counts[k] || 0) + 1;
-      // 음수 = 취소/환불 — 사용액에서 상계 (2026-08-19 감사: 절댓값 합산은 취소를 사용으로 더했다)
+      // 음수 = 취소/환불 — 사용액에서 상계 (절댓값 합산은 취소를 사용으로 더했다)
       sums[k] = (sums[k] || 0) + Number(tx.amount || 0);
     }
     return { counts, sums };
@@ -608,9 +608,9 @@ export default function CardsPage() {
   // 카테고리별 지출 상위 5
   const categoryStats = useMemo(() => {
     const m: Record<string, number> = {};
-    let totalSpendAll = 0;   // 상위 5 가 아닌 전체 지출 · % 분모용 (2026-08-19)
-    for (const tx of monthTx)  {
-      const amt = Number(tx.amount || 0);   // 음수(취소)는 해당 카테고리에서 상계
+    let totalSpendAll = 0; // 상위 5 가 아닌 전체 지출 · % 분모용 (2026-08-19)
+    for (const tx of monthTx) {
+      const amt = Number(tx.amount || 0); // 음수(취소)는 해당 카테고리에서 상계
       if (amt === 0) continue;
       totalSpendAll += Math.max(0, amt);
       const cat = classificationLabel(tx.classification) || tx.category || "미분류";
@@ -629,14 +629,14 @@ export default function CardsPage() {
   const currentTxCount = perCard.counts[currentCardKey] || 0;
   const currentSpend = perCard.sums[currentCardKey] || 0;
 
-  // 순 사용액 = 사용 − 취소 (2026-08-19 감사: 절댓값 합산은 100만원 결제+전액취소를 200만원 사용으로 표시)
+  // 순 사용액 = 사용 − 취소 (절댓값 합산은 100만원 결제+전액취소를 200만원 사용으로 표시)
   const totalUsage = monthTx.reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
   // corporate_cards 실제 컬럼은 is_active / monthly_limit (credit_limit·status 는 없음 — 2026-07-06 QA)
   const activeCards = cards.filter((c: any) => c.is_active !== false).length;
   const hasLimits = cards.some((c: any) => Number(c.monthly_limit || 0) > 0);
   const totalLimit = hasLimits ? cards.reduce((s: number, c: any) => s + Number(c.monthly_limit || 0), 0) : 0;
 
-  // 직원 QA 카드(그랜터) — 사용직원 id→이름 + cardTx 검색·정렬 적용
+  // 직원 QA 카드 — 사용직원 id→이름 + cardTx 검색·정렬 적용
   const empNameById = useMemo(() => { const m: Record<string, string> = {}; for (const e of cardEmployees as any[]) m[e.id] = e.name; return m; }, [cardEmployees]);
   const shownCardTx = useMemo(() => {
     const q = cardTxSearch.trim().toLowerCase();
@@ -654,7 +654,7 @@ export default function CardsPage() {
     return list;
   }, [cardTx, cardTxSearch, cardSortKey, cardSortDir, empNameById]);
 
-  //   엑셀 — 통장과 같은 함수를 쓴다(한글 깨짐·쉼표 밀림을 한 곳에서만 막는다)
+  // 엑셀 — 통장과 같은 함수를 쓴다(한글 깨짐·쉼표 밀림을 한 곳에서만 막는다)
   const exportCardCsv = (list: any[], tag = "") => {
     downloadCsv(
       `카드거래내역_${rangeSuffix(cardTxFrom, cardTxTo)}${tag}`,
@@ -696,7 +696,7 @@ export default function CardsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recentTx, sortKey, sortDir]);
 
-  /*  ── 엑셀식 머리단 필터 + 열 너비 · 수집·전표 표와 같은 방식 (sortable-th 공용 부품) ── */
+  /* ── 엑셀식 머리단 필터 + 열 너비 · 수집·전표 표와 같은 방식 (sortable-th 공용 부품) ── */
   const [colF, setColF] = useState<Record<string, Set<string> | null>>({});
   const tableRef = useRef<HTMLTableElement | null>(null);
   const [colW, setColW] = useColWidths("cards-tx-colw", {
@@ -714,7 +714,7 @@ export default function CardsPage() {
   };
   const colHit = (tx: any): boolean =>
     Object.entries(colF).every(([k, set]) => !set || set.has(colVal(tx, k)));
-  //   값 목록은 **다른 칸 필터를 거친 뒤** 기준 — 엑셀의 좁혀 들어가기와 동일
+  // 값 목록은 **다른 칸 필터를 거친 뒤** 기준 — 엑셀의 좁혀 들어가기와 동일
   const thFilter = (k: string): ThFilterSpec => ({
     values: (sortedTx as any[])
       .filter((tx) => Object.entries(colF).every(([kk, set]) => kk === k || !set || set.has(colVal(tx, kk))))
@@ -724,7 +724,7 @@ export default function CardsPage() {
   });
   const thResize = (k: string, colIndex: number) =>
     ({ k, colIndex, widths: colW, onResize: setColW, tableRef });
-  /*  ── 검색조건·빠른검색 맞춤 — 빈 칸은 안 건 것과 같다. 여러 개 고른 것은 하나라도 맞으면 통과. ── */
+  /* ── 검색조건·빠른검색 맞춤 — 빈 칸은 안 건 것과 같다. 여러 개 고른 것은 하나라도 맞으면 통과. ── */
   const txCondHit = (tx: any, c: CardCond, qq: string): boolean => {
     const cls = classificationLabel(tx.classification) || tx.category || "미분류";
     if (!quickSearchHit(qq, [tx.merchant_name, tx.card_name, cls, tx.memo, (tx.tags || []).join(" ")], [tx.amount])) return false;
@@ -737,17 +737,17 @@ export default function CardsPage() {
     if (!amountHit(Number(tx.amount || 0), c.min, c.max)) return false;
     return true;
   };
-  //   화면·엑셀·전체선택·쪽 넘김이 모두 이 목록을 본다 — 보이는 것과 파일·선택이 달라지면 안 된다
+  // 화면·엑셀·전체선택·쪽 넘김이 모두 이 목록을 본다 — 보이는 것과 파일·선택이 달라지면 안 된다
   const shownTx = (sortedTx as any[]).filter((tx) => txCondHit(tx, txLive, txQ) && colHit(tx));
-  //   '조회'를 누르기 전에 몇 건 나올지만 미리 알려 준다 (표는 안 흔든다)
+  // '조회'를 누르기 전에 몇 건 나올지만 미리 알려 준다 (표는 안 흔든다)
   const previewCount = (sortedTx as any[]).filter((tx) => txCondHit(tx, txDraft, txQ)).length;
-  //   쪽 넘김 — 기본 50줄. 조건·머리단 필터가 바뀌면 1쪽으로 (거른 목록 밖 쪽 번호가 남지 않게)
+  // 쪽 넘김 — 기본 50줄. 조건·머리단 필터가 바뀌면 1쪽으로 (거른 목록 밖 쪽 번호가 남지 않게)
   const pager = usePager(shownTx, txLive.size,
     `${cardTxFrom}|${cardTxTo}|${txQ}|${JSON.stringify(txLive)}|${JSON.stringify(Object.fromEntries(Object.entries(colF).map(([k, v]) => [k, v ? [...v] : null])))}`);
 
-  //   내 조건 · ★ 하나가 이 화면의 기본값이 된다 (DB 라 PC 를 바꿔도 따라온다)
+  // 내 조건 · ★ 하나가 이 화면의 기본값이 된다 (DB 라 PC 를 바꿔도 따라온다)
   const savedTx = useSavedQueries("cards-tx", companyId);
-  const txParamsNow =  { from: cardTxFrom, to: cardTxTo, q: txQ, cond: txLive };
+  const txParamsNow = { from: cardTxFrom, to: cardTxTo, q: txQ, cond: txLive };
   const txParamsBasic = { ...defaultRange(), q: "", cond: CARD_EMPTY };
   const applySavedTx = (p: Record<string, unknown>) => {
     if (typeof p.from === "string" && typeof p.to === "string") { setCardTxFrom(p.from); setCardTxTo(p.to); }
@@ -789,10 +789,10 @@ export default function CardsPage() {
     if (!companyId || syncing) return;
     setSyncing(true);
     try {
-      const { syncCodefData }  = await import("@/lib/data-sync");
+      const { syncCodefData } = await import("@/lib/data-sync");
       // CODEF 는 YYYYMMDD 형식만 받음. 대시 포함(YYYY-MM-DD) 그대로 보내면 서버의 slice(0,6) 청구월 계산이 깨짐.
       const result = await syncCodefData(companyId, "card", cardTxFrom ? cardTxFrom.replace(/-/g, "") : undefined, cardTxTo ? cardTxTo.replace(/-/g, "") : undefined);
-      if (!result.success && result.status !== "partial")  {
+      if (!result.success && result.status !== "partial") {
         toast(result.error || "카드 연동 실패", "error");
         return;
       }
@@ -810,14 +810,14 @@ export default function CardsPage() {
       queryClient.invalidateQueries({ queryKey: ["corporate-cards"] });
       try { window.dispatchEvent(new CustomEvent("ownerview:codef-synced")); } catch { /* ignore */ }
       // partial(일부 카드사 실패)의 errors 를 버리지 않는다 (2026-08-19): 종전엔 카드 2장이
-      //   인증 오류로 실패해도 "새 거래 없음"으로 보여 수집 중단을 알 수 없었다.
+      // 인증 오류로 실패해도 "새 거래 없음"으로 보여 수집 중단을 알 수 없었다.
       const cardErr = ((result.errors || [])[0] || ((approvalRes as any)?.errors || [])[0]) as { message?: string; hint?: string } | undefined;
       if (cardErr) toast(`카드 동기화 오류 · ${cardErr.message}${cardErr.hint ? ` · ${cardErr.hint}` : ""}`, "error");
       else if (synced > 0) toast(`카드 거래 ${synced}건 불러옴`, "success");
       else toast("카드 연동 완료 · 새 거래 없음", "info");
 
       // 동기화 후 카드 자동분류(비차단). 학습규칙(learned_from_count≥1)만. UI 비차단, 매칭분 있을 때만 토스트+갱신.
-      //   분류는 되돌림 가능(대외·비가역 아님) → '확정은 사람' 원칙 위배 없음. 반복 실행 시 대상 수렴.
+      // 분류는 되돌림 가능(대외·비가역 아님) → '확정은 사람' 원칙 위배 없음. 반복 실행 시 대상 수렴.
       import("@/lib/automation")
         .then(({ applyCardTransactionRules }) => applyCardTransactionRules(companyId))
         .then((r) => {
@@ -875,8 +875,8 @@ export default function CardsPage() {
     ? (cards.find((c: any) => c.id === selectedCardId)?.card_name || "선택 카드")
     : selectedCardName || "";
 
-  /*  ── 조회 화면 표준 — 조회 줄에 쓰는 값들 (2026-08-14) ── */
-  //   카드는 회사 전체 목록(등록 카드 + 거래에만 있는 이름). 가맹점·분류는 이 기간에 실제로 나온 것만.
+  /* ── 조회 화면 표준 — 조회 줄에 쓰는 값들 (2026-08-14) ── */
+  // 카드는 회사 전체 목록(등록 카드 + 거래에만 있는 이름). 가맹점·분류는 이 기간에 실제로 나온 것만.
   const cardOptMap = new Map<string, string>();
   for (const c of cards as any[]) cardOptMap.set(String(c.id || c.card_name), String(c.card_name || "카드"));
   for (const t of recentTx as any[]) if (!t.card_id && t.card_name && !cardOptMap.has(t.card_name)) cardOptMap.set(t.card_name, t.card_name);
@@ -886,7 +886,7 @@ export default function CardsPage() {
     .sort((a, b) => String(a).localeCompare(String(b), "ko")).map((m) => ({ value: String(m), label: String(m) }));
   const clsOpts = [...new Set((recentTx as any[]).map((t) => classificationLabel(t.classification) || t.category || "미분류"))]
     .sort((a, b) => String(a).localeCompare(String(b), "ko")).map((c) => ({ value: String(c), label: String(c) }));
-  //   걸린 조건 칩 · 패널을 열지 않고도 알고, ✕ 로 하나씩 뺀다
+  // 걸린 조건 칩 · 패널을 열지 않고도 알고, ✕ 로 하나씩 뺀다
   const dropTx = (patch: Partial<CardCond>) => { const c = { ...txLive, ...patch }; setTxLive(c); setTxDraft(c); };
   const txChips: AppliedChip[] = [
     ...quickTerms(txQ).map((t, i) => ({
@@ -906,7 +906,7 @@ export default function CardsPage() {
       onRemove: () => dropTx({ min: "", max: "" }),
     }] : []),
   ];
-  //   카드는 음수 = 취소/환불 — 사용과 취소를 섞어 합치면 숫자가 거짓말을 한다. 갈라 센다.
+  // 카드는 음수 = 취소/환불 — 사용과 취소를 섞어 합치면 숫자가 거짓말을 한다. 갈라 센다.
   const sumUse = shownTx.filter((t) => Number(t.amount || 0) >= 0).reduce((s, t) => s + Number(t.amount || 0), 0);
   const sumRefund = shownTx.filter((t) => Number(t.amount || 0) < 0).reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
   const selSumTx = shownTx.filter((t) => selectedTxIds.has(t.id)).reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
@@ -927,11 +927,11 @@ export default function CardsPage() {
       hint: `${pager.from}–${pager.to}번째 줄만`, onClick: () => exportCardCsv(pager.view, `_${pager.page}쪽`) },
   ];
 
-  //   갈래 탭은 상자 안 파란 밑줄 · 실행 버튼은 조회 줄 오른쪽 (2026-08-18 조회 표준 확산)
+  // 갈래 탭은 상자 안 파란 밑줄 · 실행 버튼은 조회 줄 오른쪽 (2026-08-18 조회 표준 확산)
   const tabsEl = (
     <div className="collect-tabs no-print">
       {([
-        //   통장 화면과 같은 순서·이름 — 목록 · 거래내역 · 개요. '분석'은 사이드바의 분석 메뉴와 이름이 겹쳤다 (2026-09-07)
+        // 통장 화면과 같은 순서·이름 — 목록 · 거래내역 · 개요. '분석'은 사이드바의 분석 메뉴와 이름이 겹쳤다 (2026-09-07)
         { k: "cards", l: "카드" },
         { k: "transactions", l: "거래내역" },
         { k: "analysis", l: "개요" },
@@ -964,7 +964,7 @@ export default function CardsPage() {
         </button>
     </>
   );
-  //   조회 줄 오른쪽 = [금액 숨김 · 카드 연동] 한 줄 — 통장([연동 정지 · 통장 연동])과 같은 배치 (2026-08-20 사장님: 위아래로 쌓여 통일감 없음)
+  // 조회 줄 오른쪽 = [금액 숨김 · 카드 연동] 한 줄 — 통장([연동 정지 · 통장 연동])과 같은 배치 (위아래로 쌓여 통일감 없음)
   const actionsRow = (
     <>
       {tab === "cards" && (
@@ -975,7 +975,7 @@ export default function CardsPage() {
   );
 
   return (
-    /*  거래내역(조회 화면) 탭은 qk-shell 세로 기둥 — qk-body 가 남는 높이를 받아 표가 그 안에서
+    /* 거래내역(조회 화면) 탭은 qk-shell 세로 기둥 — qk-body 가 남는 높이를 받아 표가 그 안에서
         스크롤된다 (세금·증빙·통장과 같은 방식). 다른 탭은 예전처럼 문서 흐름 그대로. */
     <div className="qk-shell">
       {/* 컴팩트 툴바 — 탭(좌) + 카드 연동(우). 타이틀은 상단 고정 헤더바가 담당 */}
@@ -1152,12 +1152,12 @@ export default function CardsPage() {
         )
       )}
 
-      {/* ========== 거래내역 탭 — 조회 화면 표준 (2026-08-14 사장님: "수집·전표탭의 디자인처럼").
+      {/* ========== 거래내역 탭 — 조회 화면 표준 ("수집·전표탭의 디자인처럼").
           조회 줄·걸린 조건·결과 요약·표·쪽 넘김을 **한 상자**에. 예전의 검색 input + 카드 select +
           정렬 툴바 + 선택 액션바 낱장 구성을 버렸다 — 카드 필터는 검색조건의 '카드' 칩으로,
           정렬은 머리단으로, 선택은 바닥 SelectionBar 로. ========== */}
       {/* ========== 분석 탭 ========== */}
-      {/* 이번 달 일별 승인·카드별 비중·가맹점 상위 — 재무 › 현황에서 옮겨 옴 (2026-08-26 사장님: "카드 부분은 카드의 분석 쪽으로") */}
+      {/* 이번 달 일별 승인·카드별 비중·가맹점 상위 — 재무 › 현황에서 옮겨 옴 ("카드 부분은 카드의 분석 쪽으로") */}
       {tab === "analysis" && <CardStatusPanels companyId={companyId} from={monthRange.from} to={monthRange.to} />}
       {tab === "analysis" && (
         <div className="card-analysis-tab-panel">
@@ -1218,7 +1218,7 @@ export default function CardsPage() {
         {tabsEl}
         {/* ── 1줄 · 조회 조건 — 기간·빠른검색은 즉시, 검색조건은 '조회'를 눌러 ── */}
         <QueryBar right={<><ExcelMenu items={txExcelItems} />{actionsEl}</>}>
-          {/*   ★ 기간을 치는 칸은 화면에 하나뿐이다. 달력은 검색조건 안에 있다. */}
+          {/* ★ 기간을 치는 칸은 화면에 하나뿐이다. 달력은 검색조건 안에 있다. */}
           <DateRangeField from={cardTxFrom} to={cardTxTo} label={null} parts="segments"
             onChange={(f, t) => { setCardTxFrom(f); setCardTxTo(t); }}
             trailing={
@@ -1290,7 +1290,7 @@ export default function CardsPage() {
         <QueryBody>
         <div className="ev-scroll">
               {/* 공용 표준 — 메뉴마다 다르던 표 밀도를 하나로 (2026-08-12).
-                  깔때기·너비 손잡이·머리단 세로선(.ev-lined)은 수집·전표 표와 같은 부품 (2026-08-14 사장님) */}
+                  깔때기·너비 손잡이·머리단 세로선(.ev-lined)은 수집·전표 표와 같은 부품 */}
               <table ref={tableRef} className="data-table w-full ev-lined">
                 <thead className="sticky-bar">
                   <tr className="table-head-row">
@@ -1399,12 +1399,12 @@ export default function CardsPage() {
             <div className="p-5 space-y-3">
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">계정과목 *{postCard.category ? ` (분류: ${postCard.category})` : ""}</label>
-                {/*   검색(이름·코드)해서 고른다 — 계정 90개를 스크롤로 찾지 않는다 (2026-08-27 사장님).
+                {/* 검색(이름·코드)해서 고른다 — 계정 90개를 스크롤로 찾지 않는다.
                       전표입력과 동일하게 전체 계정과목 사용. 비용이 아닌 계정은 이름 뒤에 성격을 적는다 (2026-08-10) */}
                 <AccountPicker accounts={accounts as any[]} value={postAccountId} onChange={(id) => setPostAccountId(id)} natureLabel={cardNatureLabel} />
                 {mappingByCategory[postCard.category] && <p className="text-[10px] text-[var(--text-dim)] mt-1">이 분류의 기본 계정이 적용되었습니다.</p>}
                 {(() => {
-                  //   여기서 고른 계정이 곧 손익계산서에서 이 카드 지출이 앉을 자리다 — 성격이 비용이 아니면 알린다
+                  // 여기서 고른 계정이 곧 손익계산서에서 이 카드 지출이 앉을 자리다 — 성격이 비용이 아니면 알린다
                   const picked = (accounts as any[]).find((a) => a.id === postAccountId);
                   if (!picked || picked.account_type === "expense") return null;
                   return (
@@ -1445,7 +1445,7 @@ export default function CardsPage() {
             </div>
             <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2 flex-wrap">
               <button onClick={() => setPostCard(null)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
-              {/*   전표를 만들지 않을 줄(개인·이체·중복)은 여기서 바로 장부 제외 — 목록에서 고르지 않아도 된다 (2026-08-27 사장님) */}
+              {/* 전표를 만들지 않을 줄(개인·이체·중복)은 여기서 바로 장부 제외 — 목록에서 고르지 않아도 된다 */}
               <button type="button" onClick={excludePostCard} disabled={posting} className="btn-secondary btn-sm card-post-exclude" title="전표 없이 끝낸다. 사유를 남기고 장부에서 뺀다. 검색조건 '장부 제외'에서 해제">장부 제외</button>
               <span className="doc-sums-sp" />
               {(() => {
@@ -1555,7 +1555,7 @@ function MiniCard({
             onChange={(e) => onEditChange(e.target.value)}
             onBlur={onSaveEdit}
             onKeyDown={(e) => {
-              if ((e.nativeEvent as KeyboardEvent).isComposing) return;   // 한글 조합 중 Enter 는 확정 아님
+              if ((e.nativeEvent as KeyboardEvent).isComposing) return; // 한글 조합 중 Enter 는 확정 아님
               if (e.key === "Enter") { e.preventDefault(); onSaveEdit(); }
               if (e.key === "Escape") { e.preventDefault(); onCancelEdit(); }
             }}
@@ -1565,7 +1565,7 @@ function MiniCard({
           />
         ) : (
           <div className="flex items-center gap-1.5 flex-1 min-w-0">
-            {/* 카드사 브랜드 로고 (2026-08-13 사장님: 실제 카드사 로고) — 발급사(card_company) 우선, 없으면 카드명으로 추정 */}
+            {/* 카드사 브랜드 로고 (실제 카드사 로고) — 발급사(card_company) 우선, 없으면 카드명으로 추정 */}
             <BankLogo name={card.card_company || card.card_name} size={24} />
             <p className="text-sm font-semibold text-[var(--text)] truncate">{card.card_name}</p>
             {canEditName && (

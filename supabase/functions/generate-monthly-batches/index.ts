@@ -90,7 +90,7 @@ Deno.serve(withSentry("generate-monthly-batches", async (req: Request) => {
 
     const body = await req.json().catch(() => ({}));
     const source = body.source || "manual";
-    // KST 월 (2026-08-19 감사): Deno=UTC 라 매월 1일 KST 00~08시에 돌면 전월 라벨이 생성돼
+    // KST 월: Deno=UTC 라 매월 1일 KST 00~08시에 돌면 전월 라벨이 생성돼
     //   중복 가드("이미 존재")에 걸려 이번 달 배치가 통째로 skip 될 수 있었다.
     const now = new Date(Date.now() + 9 * 3600 * 1000);
     const monthLabel = body.monthLabel || `${now.getUTCFullYear()}년 ${now.getUTCMonth() + 1}월`;
@@ -118,7 +118,7 @@ Deno.serve(withSentry("generate-monthly-batches", async (req: Request) => {
       errors: [],
     };
 
-    // 중복 실행 가드 (2026-08-19 감사): 같은 달 배치가 이미 있으면 다시 만들지 않는다.
+    // 중복 실행 가드: 같은 달 배치가 이미 있으면 다시 만들지 않는다.
     //   종전엔 n8n 재시도·버튼 이중 클릭이 "{월} 급여" 배치와 직원별 지급 큐를 2벌 만들었고,
     //   승인 화면에서 그대로 승인하면 급여가 두 번 나가는 구조였다.
     const batchExists = async (batchType: string, name: string): Promise<boolean> => {

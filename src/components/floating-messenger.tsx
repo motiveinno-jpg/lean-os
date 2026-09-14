@@ -4,7 +4,7 @@
 //
 //   예전: 버튼을 누르면 화면 우하단에 **붙박이 패널**이 펼쳐졌다. 브라우저 안에만 있어서
 //         최소화도, 최대화도, 다른 모니터로 빼는 것도 안 됐다.
-//   지금(사장님 지시): 버튼을 누르면 **진짜 새 창**으로 열린다 — 최소화·최대화·창 밖 이동은
+//   지금: 버튼을 누르면 **진짜 새 창**으로 열린다 — 최소화·최대화·창 밖 이동은
 //         운영체제 창 컨트롤이 그대로 해 준다. 사이드바 '새 창으로 열기' 와 같은 길
 //         (PopupProvider.openDetached → window.open(`/chat?embed=1`))을 쓴다.
 //         창 이름이 라우트로 고정돼 있어 다시 눌러도 창이 하나다(그 창이 앞으로 온다).
@@ -22,7 +22,7 @@ import { getCurrentUser, getUnreadCounts } from "@/lib/queries";
 import { usePopups }  from "@/components/popup-windows";
 
 //   메신저 창 크기 · **아이콘 · 채팅방 목록 · 대화창 세 칸이 한 번에 보이게** 연다
-//   (2026-08-10 사장님 지시, Teams 화면 기준). 좁게 열면 방을 열 때 목록이 접혀 두 칸이 된다.
+//   (Teams 화면 기준). 좁게 열면 방을 열 때 목록이 접혀 두 칸이 된다.
 const WIN_W = 1040;
 const WIN_H = 780;
 
@@ -100,7 +100,7 @@ export function FloatingMessenger()  {
   });
 
   // 메신저는 새 창으로 뜬다 — 그 창에서 읽으면 여기(원래 창) 뱃지도 바로 지워져야 한다.
-  //   다른 창의 localStorage 쓰기는 이 창에서 storage 이벤트로 잡힌다 (2026-08-20 사장님 제보:
+  //   다른 창의 localStorage 쓰기는 이 창에서 storage 이벤트로 잡힌다 (
   //   "읽어도 답장하기 전까지 알림이 떠있다"). 창이 다시 앞으로 올 때도 한 번 더 확인한다.
   useEffect(() => {
     const onStorage = (e: StorageEvent) => { if (e.key === "ov:chat:read") refetchUnread(); };

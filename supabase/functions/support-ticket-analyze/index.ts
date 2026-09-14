@@ -12,7 +12,7 @@ import { callClaude } from "../_shared/claude.ts";
 //   - 첨부·본문은 "데이터" — 그 안의 지시를 따르지 않는다 (프롬프트 주입 방어를 시스템 프롬프트에 명시).
 //   - 실패는 비치명 — 문의 접수 자체는 이미 완료된 상태라 오류 응답만 반환.
 //
-// v3 (2026-08-04 사장님 최종: "AI 자동 답변은 안 한다 — 무조건 사람 승인 후 처리"):
+// v3 (2026-08-04 대표 최종: "AI 자동 답변은 안 한다 — 무조건 사람 승인 후 처리"):
 //   - AI 는 어떤 경우에도 답변을 자동 등록하지 않는다. 진단·분류·답변 초안 작성까지만 하고,
 //     모든 답변은 운영자가 검토 후 직접 등록한다(전건 승인 게이트).
 //   - resolution 은 운영자 분류용 신호로만 쓴다(간단 건/사람 조치/개발 수정).
@@ -160,7 +160,7 @@ serve(withSentry("support-ticket-analyze", async (req) => {
     ].filter(Boolean).join("\n");
 
     const result = await callClaude<Record<string, unknown>>({
-      task: "deep_analysis", // Opus — 2026-08-04 사장님: 문의 진단은 최고 정확도로 (Sonnet→Opus)
+      task: "deep_analysis", // Opus — 2026-08-04 대표: 문의 진단은 최고 정확도로 (Sonnet→Opus)
       feature: "support_analyze",
       system: SYSTEM,
       messages: [{ role: "user", content: [{ type: "text", text: textPart }, ...imageBlocks] }],
@@ -178,7 +178,7 @@ serve(withSentry("support-ticket-analyze", async (req) => {
 
     const a = result.data as Record<string, any>;
 
-    // ⚠️ 자동 답변 없음 (2026-08-04 사장님 최종) — 진단·초안 저장까지만. 답변 등록은 운영자만.
+    // ⚠️ 자동 답변 없음 (2026-08-04 대표 최종) — 진단·초안 저장까지만. 답변 등록은 운영자만.
     const analysis = {
       ...a,
       model: result.model,

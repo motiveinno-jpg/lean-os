@@ -52,7 +52,7 @@ export async function buildQuoteBlobFromDoc(doc: any, companyId: string, userId?
   if (cpId) partnerRow = (await db.from("partners").select(pcols).eq("id", cpId).maybeSingle()).data;
   else if (cpName) partnerRow = (await db.from("partners").select(pcols).eq("company_id", companyId).eq("name", cpName).limit(1).maybeSingle()).data;
 
-  // 활성 견적 양식 — 텍스트변환 양식이면 content_html 에 값 치환 → HTML→PDF (직원 QA)
+  // 활성 견적 양식 — 텍스트변환 양식이면 content_html 에 값 치환 → HTML→PDF
   const quoteTpl = await getActiveTemplate(companyId, "quote").catch(() => null);
   if (quoteTpl && quoteTpl.template_mode === "text" && quoteTpl.content_html) {
     const values: Record<string, string> = {

@@ -82,7 +82,7 @@ function CalendarTab({ companyId, userId, myEmail, toast, tabs }: { companyId: s
   //   달력에서 여는 창 · 일정을 누르면 **내용부터**, 날짜를 누르면 새로 만들기(2026-08-10)
   const [dialog, setDialog] = useState<ScheduleDialogTarget | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  //   달력 셀 '+N개 더' 를 누르면 **그 칸이 아래로 늘어나** 전부 보인다 (2026-09-03 사장님: 팝업은 날짜와 멀리 떨어져 보여 별로).
+  //   달력 셀 '+N개 더' 를 누르면 **그 칸이 아래로 늘어나** 전부 보인다 (팝업은 날짜와 멀리 떨어져 보여 별로).
   //   달을 옮기면 접힌 상태로 돌아간다.
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   useEffect(() => { setExpandedDays(new Set()); }, [view.year, view.monthIdx0]);
@@ -94,7 +94,7 @@ function CalendarTab({ companyId, userId, myEmail, toast, tabs }: { companyId: s
   });
 
   // 승인 휴가 — 대시보드 달력과 같은 소스(leave_calendar RPC). 종전엔 이 달력에만 안 떠서
-  //   위젯에서 '전체보기'로 오면 휴가가 사라졌다(2026-09-09 사장님).
+  //   위젯에서 '전체보기'로 오면 휴가가 사라졌다.
   const { data: leaves = [] } = useQuery({
     queryKey: ["schedule-leaves", companyId],
     queryFn: fetchLeaveCalendar,
@@ -160,14 +160,14 @@ function CalendarTab({ companyId, userId, myEmail, toast, tabs }: { companyId: s
     return { year, monthIdx0: monthIdx0 + 1 };
   });
   const goToday = () => setView({ year: today.getFullYear(), monthIdx0: today.getMonth() });
-  // 머리('YYYY년 M월') 클릭 → 연 단위 이동 버튼 노출 (2026-08-19 사장님: 모든 달력 공통)
+  // 머리('YYYY년 M월') 클릭 → 연 단위 이동 버튼 노출 (모든 달력 공통)
   const [yearNav, setYearNav] = useState(false);
   const prevYear = () => setView(({ year, monthIdx0 }) => ({ year: year - 1, monthIdx0 }));
   const nextYear = () => setView(({ year, monthIdx0 }) => ({ year: year + 1, monthIdx0 }));
 
   const openAdd = (dateStr: string) => {
     setSelectedDate(dateStr);
-    //   공개 범위는 기본이 '나만' — 넓히는 것은 사람이 고른다(2026-08-10 사장님 결정)
+    //   공개 범위는 기본이 '나만' — 넓히는 것은 사람이 고른다
     setDialog({ mode: "new", from: dateStr, to: dateStr });
   };
 
@@ -225,7 +225,7 @@ function CalendarTab({ companyId, userId, myEmail, toast, tabs }: { companyId: s
           {grid.map((cell, i) => {
             const dateStr = toLocalDateStr(cell.date);
             const cellEvents = eventsByDate.get(dateStr) || [];
-            // 펼침은 '주(줄)' 단위 — 한 칸을 펼치면 같은 줄의 다른 날도 함께 펼쳐진다 (2026-09-03 사장님)
+            // 펼침은 '주(줄)' 단위 — 한 칸을 펼치면 같은 줄의 다른 날도 함께 펼쳐진다
             const weekKey = `w${Math.floor(i / 7)}`;
             const isToday = dateStr === toLocalDateStr(today);
             const dow = cell.date.getDay();
@@ -311,13 +311,13 @@ function CalendarTab({ companyId, userId, myEmail, toast, tabs }: { companyId: s
                         ev.stopPropagation();
                         const cellEl = (ev.currentTarget as HTMLElement).closest(".schedule-day-cell") as HTMLElement | null;
                         setExpandedDays((prev) => { const n = new Set(prev); if (n.has(weekKey)) n.delete(weekKey); else n.add(weekKey); return n; });
-                        //   펼친 칸이 화면 밖으로 밀리지 않게 그 칸을 따라간다 (2026-09-03 사장님: "포커스가 위로 간다")
+                        //   펼친 칸이 화면 밖으로 밀리지 않게 그 칸을 따라간다 ("포커스가 위로 간다")
                         requestAnimationFrame(() => cellEl?.scrollIntoView({ block: "nearest" }));
                       }}>
                       {expandedDays.has(weekKey) ? "접기 ▴" : `+${cellEvents.length - 3}개 더`}
                     </button>
                   )}
-                  {/* 직원 휴가 — 일정 아래에 초록 칩으로 (승인 휴가, 2026-09-09 사장님) */}
+                  {/* 직원 휴가 — 일정 아래에 초록 칩으로 (승인 휴가, 2026-09-09 대표) */}
                   {/*   여러 날 휴가는 일정 막대처럼 시작·중간·끝 칸을 이어 붙인다. 이름은 시작 칸과 주가 바뀐 첫 칸(일요일)에만 */}
                   {(leaveByDate[dateStr] || []).map((lv) => {
                     const showLabel = lv.role === "single" || lv.role === "start" || dow === 0;

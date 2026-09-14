@@ -1,4 +1,4 @@
--- 안읽음 공지 배지를 전역(null)+내 회사 공지로 한정 (2026-08-28 사장님 제보).
+-- 안읽음 공지 배지를 전역(null)+내 회사 공지로 한정.
 --   security invoker 라 RLS 를 타는데, 운영자 계정(creative@)은 RLS 예외로 전 회사(QA 시드 포함)
 --   공지가 전부 잡혀 배지·목록이 남의 회사 공지로 부풀었다. 일반 사용자는 RLS 가 이미 같은 범위라 무영향.
 create or replace function public.unread_announcement_count()

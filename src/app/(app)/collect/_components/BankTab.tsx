@@ -1,6 +1,6 @@
 "use client";
 
-// 수집·전표 3단계 — 통장 줄을 **일반전표 한 장**으로 (2026-08-12 사장님 지시로 다시 짬)
+// 수집·전표 3단계 — 통장 줄을 **일반전표 한 장**으로 (2026-08-12 대표 지시로 다시 짬)
 //
 //   지시: "처리는 필요없고 전체 일반전표로 전송되게 / 건별로 차·대변 계정과목 설정가능하도록 /
 //         차·대변 거래처 다르게 설정(보통예금부분은 자동) / 적요칸 만들어서 직접 입력"
@@ -11,7 +11,7 @@
 //   사람이 채우는 건 **상대 계정 · 상대 거래처 · 적요** 셋뿐이다.
 //
 //   ★ 2026-08-11 에 있던 '처리' 칸(①증빙 수금 매칭 ②일반전표 ③계좌 이동 ④카드대금 묶기)과
-//     그 짝인 '붙는 곳' 칸은 **없앴다**(사장님: "처리는 필요없고", "붙는곳은 필요없는 기능").
+//     그 짝인 '붙는 곳' 칸은 **없앴다**("처리는 필요없고", "붙는곳은 필요없는 기능").
 //     ①③④ 가 하던 일은 **거래 매칭 화면(/partners/reconciliation)에 그대로 있다** — 지운 게 아니라
 //     이 화면에서 뺀 것이다. 세금계산서 수금은 여기서 계정을 '외상매출금'으로 골라도 같은 결과다.
 
@@ -115,7 +115,7 @@ type Cond = {
   bank: string[];   // 계좌
   acct: string[];   // 붙은 계정과목 코드
   io: "all" | "in" | "out";
-  todo: "todo" | "all" | "excluded"; // 미처리만 볼지 (excluded=장부 제외한 줄만, 2026-08-19) — 검색조건 안으로 옮겼다(2026-08-13 사장님 지시)
+  todo: "todo" | "all" | "excluded"; // 미처리만 볼지 (excluded=장부 제외한 줄만, 2026-08-19) — 검색조건 안으로 옮겼다
   desc: string;     // 통장 적요
   min: string; max: string;
   size: number;     // 한 쪽에 몇 줄 — 조건의 하나라 '내 조건'에 같이 저장된다
@@ -147,14 +147,14 @@ export function BankTab({
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [acct, setAcct] = useState<Record<string, Acct>>({});
   const [pick, setPick] = useState<{ id: string; q: string } | null>(null);
-  //   고른 줄 전부의 계정과목을 한 번에 바꾸는 목록이 열려 있는지 (2026-08-24 사장님 지시)
+  //   고른 줄 전부의 계정과목을 한 번에 바꾸는 목록이 열려 있는지
   const [bulkOpen, setBulkOpen] = useState(false);
   //   상대 거래처 — 보통예금 쪽은 서버가 붙이므로 여기서 고르는 건 **반대편 하나**뿐이다
   const [pt, setPt] = useState<Record<string, Pt>>({});
   const [ptPick, setPtPick] = useState<{ id: string; q: string } | null>(null);
   //   적요 — 회사 내부 확인용으로 사람이 직접 쓴다. 비우면 서버가 통장 적요를 넣는다.
   const [memo, setMemo] = useState<Record<string, string>>({});
-  //   줄별 계정·거래처·적요 선택을 새로고침해도 유지 · 복원값보다 지금 화면에서 고른 값이 우선 (2026-08-26 사장님 제보)
+  //   줄별 계정·거래처·적요 선택을 새로고침해도 유지 · 복원값보다 지금 화면에서 고른 값이 우선
   usePersistedPicks(companyId ? `ov:collect-bk-acct:${companyId}` : null, acct,
     (saved) => setAcct((o) => ({ ...saved, ...o })));
   usePersistedPicks(companyId ? `ov:collect-bk-pt:${companyId}` : null, pt,
@@ -164,7 +164,7 @@ export function BankTab({
   const [busy, setBusy] = useState(false);
   //   머리단 정렬 · 기본은 일자 오름차순(통장은 날짜 순으로 본다)
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "date", dir: "asc" });
-  /*   ── 엑셀식 머리단 필터 + 열 너비 (2026-08-13 사장님). 증빙 탭과 같은 방식 ── */
+  /*   ── 엑셀식 머리단 필터 + 열 너비. 증빙 탭과 같은 방식 ── */
   const [colF, setColF] = useState<Record<string, Set<string> | null>>({});
   const tableRef = useRef<HTMLTableElement | null>(null);
   const [colW, setColW] = useColWidths("collect-bk-colw-v2", {
@@ -219,7 +219,7 @@ export function BankTab({
         //   ★ 500 이면 잘린다 — 모티브 prod 만 미매칭 매출 1,366장(2026-08-18). 잘리면 취소 짝 맞추기·직접 찾기가 구멍 난다
         .order("issue_date", { ascending: false }).order("id"), 50000);
       const rows = (data || []) as any[];
-      //   ★ 취소된 원본을 걸러낸다 (2026-08-18 사장님 화면 검증에서 발견).
+      //   ★ 취소된 원본을 걸러낸다 (2026-08-18 대표 화면 검증에서 발견).
       //     홈택스 수정세금계산서(취소)는 원본은 그대로 두고 **같은 거래처·마이너스 금액** 한 장이 더 온다
       //     (예: 야키니쿠 하 3,025,000 / -3,025,000). 원본 status 는 issued 그대로라 후보로 올라와
       //     받을 일 없는 돈을 제안하게 된다. 마이너스 장과 짝이 맞는 원본은 뺀다.
@@ -254,7 +254,7 @@ export function BankTab({
       if (diff > 0.1) continue;                       // 금액이 문턱 — 엉뚱한 후보로 어지럽히지 않는다
       const nm = coreName(inv.counterparty_name);
       const nameHit = nm.length >= 2 && names.includes(nm.slice(0, Math.min(nm.length, 4)));
-      //   ★ '금액 근접'만으로는 제안하지 않는다 (2026-08-18 사장님 화면 검증):
+      //   ★ '금액 근접'만으로는 제안하지 않는다 (2026-08-18 대표 화면 검증):
       //     카드 취소 환입 132,000 에 스마트케어 143,902 가, 자기 회사 계좌이동 60,300 에 옛한우 63,452 가
       //     붙었다. 근접은 거래처가 겹칠 때만 근거가 된다. 그 밖의 계산서는 [다른 계산서 찾기]로 사람이 고른다.
       if (diff !== 0 && !nameHit) continue;
@@ -347,7 +347,7 @@ export function BankTab({
         id: a.id,
         label: [a.alias || a.bank_name, a.account_number ? String(a.account_number).slice(-4) : ""]
           .filter(Boolean).join(" ···"),
-        //   검색조건 계좌 목록용 — 뒷 4자리만으론 같은 은행 계좌가 안 갈려서(4017 이 여럿) 전체 표기 (2026-09-01 사장님)
+        //   검색조건 계좌 목록용 — 뒷 4자리만으론 같은 은행 계좌가 안 갈려서(4017 이 여럿) 전체 표기
         full: [a.alias, a.bank_name, a.account_number ? String(a.account_number) : ""]
           .filter(Boolean).join(" · "),
       }));
@@ -358,7 +358,7 @@ export function BankTab({
   const { data: fetched, isLoading, error: rowsError } = useQuery({
     queryKey: ["bank-rows", companyId, from, to],
     queryFn: async () => {
-      //   ★ 자르지 않고 전부 받는다 (2026-08-13 사장님 지시) — 1개월이 852건인데 400건에서
+      //   ★ 자르지 않고 전부 받는다 — 1개월이 852건인데 400건에서
       //     잘려 기간을 넓히는 의미가 없었다. 읽기 실패는 fetchAllPages 가 던진다
       //     ('처리할 거래가 없습니다'로 보여 다 끝낸 줄 알면 안 된다 — PGRST201 로 실제로 그랬다).
       const got = await fetchAllPages<any>((a, b) => supabase.from("bank_transactions")
@@ -473,7 +473,7 @@ export function BankTab({
     () => shown.filter((r) => r.isIn && !doneOf(r) && !r.taxLinked && matchCandsOf(r).length > 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [shown, openInvoices]);
-  //   페이지 — 기본 50줄. 조건이 바뀌면 1쪽으로 (2026-08-13 사장님 지시)
+  //   페이지 — 기본 50줄. 조건이 바뀌면 1쪽으로
   const pager = usePager(shown, live.size, `${from}|${to}|${q}|${JSON.stringify(live)}|${JSON.stringify(Object.fromEntries(Object.entries(colF).map(([k, v]) => [k, v ? [...v] : null])))}`);
   //   선택은 쪽을 넘겨도 남는다
   const selRows = shown.filter((r) => sel.has(r.id));
@@ -482,7 +482,7 @@ export function BankTab({
   const ready = (r: Row) => !!acctOf(r).a;
   const notReady = selRows.filter((r) => !ready(r));
 
-  //   ── 계정과목 일괄변경 (2026-08-24 사장님 지시) ─────────────────────────────
+  //   ── 계정과목 일괄변경 ─────────────────────────────
   //   전자세금계산서 탭과 같은 규칙이다(EvidenceTab 주석 참고). 줄 하나를 고를 때와 **같은 경로**로
   //   저장하고(setAcct), 전표는 여전히 '일반전표 만들기'를 눌러야 만들어진다.
   //   ★ 여기서 가르는 기준은 매출·매입이 아니라 **입금·출금** — 고를 수 있는 목록이 수익 vs 비용으로 다르다.
@@ -524,7 +524,7 @@ export function BankTab({
       try {
         const acc = acctOf(r).a;
         if (!acc) throw new Error("계정을 먼저 고르세요");
-        //   중복 의심 팝업은 뺐다 (2026-08-26 사장님) — 같은 통장 줄 이중 전표는 서버(ALREADY_POSTED)가 막는다.
+        //   중복 의심 팝업은 뺐다 — 같은 통장 줄 이중 전표는 서버(ALREADY_POSTED)가 막는다.
         //   ★ 보통예금 쪽(계정·통장 거래처·계좌 연결)과 차·대 방향은 **서버가 붙인다**.
         //     화면은 상대 계정·상대 거래처·적요만 보낸다 — "자동 입력"을 화면 신뢰에 맡기지 않는다.
         const { error } = await (supabase.rpc as any)("post_bank_manual_voucher", {
@@ -634,7 +634,7 @@ export function BankTab({
     } finally { setAiAcctBusy(false); }
   };
 
-  //   ── 줄 고르기 · Shift+클릭이면 사이 줄까지 (2026-08-24 사장님 지시) ──
+  //   ── 줄 고르기 · Shift+클릭이면 사이 줄까지 ──
   //   "시작 칸 체크 후 Shift+마지막 칸 체크하면 그 사이 값 모두 선택되게"
   //   · 범위는 **지금 보고 있는 순서**(정렬·검색조건이 걸린 shown) 기준이다. 화면에 보이는 것과
   //     다른 순서로 잡히면 엉뚱한 줄이 딸려 온다.
@@ -684,14 +684,14 @@ export function BankTab({
 
   const selTotal = selRows.reduce((n, r) => n + Math.abs(r.amount), 0);
 
-  //   'AI 제안' — 조회 조건도 아니고 확정도 아닌 것들 (2026-08-13 사장님 확정).
+  //   'AI 제안' — 조회 조건도 아니고 확정도 아닌 것들.
   //   ★ 추천 두 가지는 하는 일이 다르므로 이름을 갈라 둔다 (2026-08-11):
   //     계정 추천 = 무슨 비용인가(비목·계정) · 수금 매칭 추천 = 어느 계산서의 입금인가
   //   ★ 줄마다 **출처를 적는다** — 배운 규칙은 AI 가 아니라 사람이 고른 것을 기억해 둔 것이다.
   const suggestable = shown.filter((r) => !doneOf(r) && !r.isIn && !acctOf(r).a && r.mappingStatus === "unmapped").length;   // 엣지(classify-transactions)와 같은 대상 — 배지 20인데 추천 0건이 오던 것
   const helpers: HelperItem[] = [
     {
-      //   그릇(AI 제안)에 AI 가 이미 적혀 있으니 안에서는 뺀다 — '매칭 제안' (2026-08-13 사장님 확정)
+      //   그릇(AI 제안)에 AI 가 이미 적혀 있으니 안에서는 뺀다 — '매칭 제안'
       label: matchMode ? "매칭 제안 끄기" : "매칭 제안 켜기",
       source: "장부 대조",
       badge: matchTargets.length,
@@ -774,7 +774,7 @@ export function BankTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, draft, q, acct, aiAcct, rules, pt, bankAccounts]);
 
-  //   엑셀 — 지금 조건 그대로, 표에 보이는 칸 그대로 내려받는다 (2026-08-13 사장님 지시)
+  //   엑셀 — 지금 조건 그대로, 표에 보이는 칸 그대로 내려받는다
   const xlsRows = (list: Row[]) => list.map((r) => {
     const a = acctOf(r).a;
     const other = a ? `${a.code} ${a.name}` : "";
@@ -794,7 +794,7 @@ export function BankTab({
   });
   const download = (list: Row[], tag: string) =>
     exportToExcel(xlsRows(list), "통장", `통장_${from}~${to}${tag}`);
-  //   계정 일괄 지정 — 계정이 아직 없는 줄만 내려받아 엑셀에서 채우고 되올린다 (2026-08-13 사장님 승인).
+  //   계정 일괄 지정 — 계정이 아직 없는 줄만 내려받아 엑셀에서 채우고 되올린다.
   //   ★ 되올려도 **전표는 안 생긴다** — 화면 계정 칸이 채워질 뿐이고 확정은 '일반전표 만들기'다.
   const needAcct = shown.filter((r) => !doneOf(r) && !acctOf(r).a);
   const fillRef = useRef<HTMLInputElement>(null);
@@ -872,7 +872,7 @@ export function BankTab({
       {/*   엑셀 '채운 파일 올리기' 가 누르는 숨은 입력 — 같은 파일을 다시 골라도 열리도록 value 를 비운다 */}
       <input ref={fillRef} type="file" accept=".xlsx,.xls" className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void onFillFile(f); }} />
-      {/*   ★ 탭·조회 줄·걸린 조건·결과 요약·표·쪽 넘김을 **통째로 한 상자**에 (2026-08-13 사장님 지시) */}
+      {/*   ★ 탭·조회 줄·걸린 조건·결과 요약·표·쪽 넘김을 **통째로 한 상자**에 */}
       <QueryScreen>
       <QueryHead>
       {tabsNode}
@@ -892,7 +892,7 @@ export function BankTab({
               foot={<>
                 <button type="button" className="btn-secondary btn-sm" disabled={nDraft === 0}
                   onClick={() => setDraft({ ...EMPTY, size: draft.size })}>조건 지우기</button>
-                {/*   ★ 저장은 **여기** — 조건을 다 고른 뒤에 이름을 붙인다 (2026-08-13 사장님 지적) */}
+                {/*   ★ 저장은 **여기** — 조건을 다 고른 뒤에 이름을 붙인다 */}
                 <ConditionSave suggest={suggestName}
                   onSave={(name, asDefault) => {
                     //   ★ 저장하면 **그 조건으로 바로 본다** — 저장만 되고 화면이 그대로면
@@ -916,7 +916,7 @@ export function BankTab({
                 </span>
               </ConditionRow>
 
-              {/*   줄 순서: 조회기간 → 입/출 → 거래처 → 나머지 (2026-08-13 사장님 지시와 같은 규칙) */}
+              {/*   줄 순서: 조회기간 → 입/출 → 거래처 → 나머지 (2026-08-13 대표 지시와 같은 규칙) */}
               <ConditionRow label="입/출">
                 <ChipGroup value={draft.io} onChange={setD("io")} options={IO_CHIPS} />
               </ConditionRow>
@@ -927,7 +927,7 @@ export function BankTab({
               </ConditionRow>
 
               <ConditionRow label="계좌">
-                {/*   칩 나열(8/31)은 계좌가 많으면 지저분 (2026-09-01 사장님: "목록식으로") —
+                {/*   칩 나열(8/31)은 계좌가 많으면 지저분 ("목록식으로")
                       누르면 전체 목록이 열리는 담기 칸으로. 골라 담으면 칩으로 쌓인다. */}
                 <TokenField items={bankOpts} value={draft.bank} onChange={setD("bank")}
                   openOnClick placeholder="" />
@@ -1079,7 +1079,7 @@ export function BankTab({
                       );
                       //   보통예금 쪽은 서버가 붙인다. 화면은 무엇이 설지 미리 보여만 준다.
                       //   ★ 거래처 자리에 그냥 '통장' 이라고만 찍혀 **어느 통장인지 알 수 없었다**
-                      //     (2026-08-13 사장님 지적). 계좌 별명·뒷자리를 그대로 보여 준다.
+                      //     . 계좌 별명·뒷자리를 그대로 보여 준다.
                       //     계좌를 모르는 줄(bank_account_id 없음)만 '통장' 으로 남는다.
                       const bankSide = (
                         

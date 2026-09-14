@@ -1,4 +1,4 @@
--- 운영자 권한을 creative@mo-tive.com 단일 계정으로 제한 (2026-07-28 사장님 지시)
+-- 운영자 권한을 creative@mo-tive.com 단일 계정으로 제한
 --
 -- 기존: auth.jwt()->>'email' ~* '@mo-tive\.com$'  — 도메인 전체
 --   → 2026-07-28 기준 11개 계정이 운영자였다. 그중 6명이 일반 직원(employee)이고

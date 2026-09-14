@@ -1,4 +1,4 @@
--- 거래처 원장 잔액이 실제와 안 맞던 근본 원인 수정 (2026-09-09 사장님).
+-- 거래처 원장 잔액이 실제와 안 맞던 근본 원인 수정.
 --
 -- 증상: 좌측 목록 잔액이 우측 일자별 원장(차변/대변/잔액) 시트와 안 맞고, 전반적으로 과대.
 -- 원인: get_partner_ledger_by_year 가 세금계산서 한 건마다 greatest(총액-정산, 0) 로 '음수 클램프'를 걸어,
@@ -31,6 +31,6 @@ AS $function$
     and ti.issue_date <= (select d1 from y)
     and ti.nts_confirm_no is not null   -- 실제 홈택스 발행분만(국세청 승인번호 보유)
     and ti.status <> 'void'             -- 무효 제외
-    and ti.journal_entry_id is not null -- 전표처리된 건만 (2026-08-26 사장님 지시)
+    and ti.journal_entry_id is not null -- 전표처리된 건만
   group by ti.partner_id, ti.type
 $function$;

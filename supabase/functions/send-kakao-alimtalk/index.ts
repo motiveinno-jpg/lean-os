@@ -4,7 +4,7 @@ import { ALIMTALK_TEMPLATES, isAlimtalkConfigured, sendAlimtalk, type AlimtalkTe
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 // 외부 자동화(n8n 등)에서 알림톡 한 통을 보내는 입구. 발송 자체는 _shared/alimtalk.ts 가 한다(앱 안의 결재·급여·계약도 같은 것을 쓴다).
-//   공유 시크릿 게이트(2026-08-19 감사): 종전엔 인증이 전혀 없어 URL 만 알면 임의 번호로 회사명이 박힌 알림톡을 무제한 발송할 수 있었다.
+//   공유 시크릿 게이트: 종전엔 인증이 전혀 없어 URL 만 알면 임의 번호로 회사명이 박힌 알림톡을 무제한 발송할 수 있었다.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,7 +35,7 @@ Deno.serve(withSentry("send-kakao-alimtalk", async (req: Request) => {
       variables: payload.variables || {},
       skipPrefCheck: true,   // 외부 호출은 번호를 직접 주므로 계정 설정을 볼 수 없다
     });
-    // 발송 실패를 success:true 로 돌려주면 호출자가 성공으로 오인해 무음 전멸한다 (2026-08-19 감사).
+    // 발송 실패를 success:true 로 돌려주면 호출자가 성공으로 오인해 무음 전멸한다.
     //   API 미설정(skipped)은 의도된 상태라 200, 실제 발송 실패는 502 + success:false.
     const failed = r.status === "failed";
     return json({

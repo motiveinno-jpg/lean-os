@@ -33,7 +33,7 @@ export function nameOf(name) {
  * 따라서 파일↔공식ledger 매칭은 name(접미사)이 1차. version(타임스탬프) 매칭은 CLI 적용분 보조.
  */
 export function reconcile(files, schemaVersions, appliedVersions, bootstrap, strict = false, schemaNames = new Set()) {
-  // 접미사 매칭은 접미사가 파일들 사이에서 유일할 때만 증거로 인정한다 (2026-08-19 감사):
+  // 접미사 매칭은 접미사가 파일들 사이에서 유일할 때만 증거로 인정한다:
   //   같은 접미사 파일이 2개면(standard_chart_of_accounts 실사례) ledger 의 name 한 줄이
   //   "어느 쪽이 적용됐는지"를 증명하지 못한다 — 미적용 파일이 초록불로 통과해
   //   회계 계정 매핑이 조용히 어긋나는 조합이 실제 리포에 존재했다.

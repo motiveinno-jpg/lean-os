@@ -40,7 +40,7 @@ function elapsedSince(ts?: string | null): string {
 export function MyAttendanceCard({ companyId, userId, compact = false }: { companyId: string; userId: string; compact?: boolean }) {
   const { toast } = useToast();
   const qc = useQueryClient();
-  // QA 2026-06-12: UTC 날짜였음 → KST 00:00~08:59 에 "어제"로 기록되던 버그. KST 보정.
+  // UTC 날짜였음 → KST 00:00~08:59 에 "어제"로 기록되던 버그. KST 보정.
   const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
   const [attendanceStatus, setAttendanceStatus] = useState("present");
   const [busy, setBusy] = useState(false);
@@ -81,7 +81,7 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
 
   const refresh = () => {
     // 같은 출퇴근 데이터를 보는 다른 화면들도 함께 갱신 — 위젯에서 출근해도
-    // '오늘 할 일' 카드·근태 화면이 새로고침 없이 바로 반영되게(2026-07-29 사장님).
+    // '오늘 할 일' 카드·근태 화면이 새로고침 없이 바로 반영되게.
     qc.invalidateQueries({ queryKey: ["my-att-today"] });
     qc.invalidateQueries({ queryKey: ["emp-attendance-today"] });
     qc.invalidateQueries({ queryKey: ["emp-month-summary"] });
@@ -119,7 +119,7 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
     }
     setBusy(false);
   };
-  // 근무 중 유형 변경 (2026-07-31 사장님) — 사무실 정상출근 후 외근을 나가는 경우 등.
+  // 근무 중 유형 변경 — 사무실 정상출근 후 외근을 나가는 경우 등.
   //   상태(status)·지각 판정은 건드리지 않고 attendance_type 만 바꾼다 (분 계산에도 무영향).
   const doChangeType = async (type: string) => {
     if (!employeeId || busy) return;
@@ -243,7 +243,7 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
 
       {!isCheckedIn && (
         <div className="attendance-status-picker">
-          {/* 외근/출장(2026-07-31 사장님) — attendance_type 으로 기록, 지각 판정은 동일 적용 */}
+          {/* 외근/출장 — attendance_type 으로 기록, 지각 판정은 동일 적용 */}
           {[
             { value: "present", label: "출근" },
             { value: "remote", label: "재택" },
@@ -264,7 +264,7 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
         </div>
       )}
 
-      {/* 근무 중 유형 전환 — 정상출근 후 외근/출장을 나갈 때 본인이 바로 변경 (2026-07-31 사장님) */}
+      {/* 근무 중 유형 전환 — 정상출근 후 외근/출장을 나갈 때 본인이 바로 변경 */}
       {isCheckedIn && !isCheckedOut && (
         <div className="attendance-worktype-row">
           <span className="attendance-worktype-label">근무 유형</span>

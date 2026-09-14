@@ -3,7 +3,7 @@ import { fetchPaged } from "@/lib/fetch-paged";
 import { downloadCsv, rangeSuffix } from "@/lib/csv-export";
 
 // granter 계좌 화면 스타일 통장 개요 (2026-05-27): 전체 잔액 + 기간 증감 + 은행별 그룹 + 3열 그리드.
-//   - 담당자/인물 이미지 없음 (사장님 명시 제외) · 카드(/cards) 재설계와 디자인 통일
+//   - 담당자/인물 이미지 없음 (대표 명시 제외) · 카드(/cards) 재설계와 디자인 통일
 //   - 잔액 = getDistinctBankAccountNos (bank_accounts 정합분) · 증감 = getBankAccountChanges(기간 입금−출금)
 //   - 잔액 계산(syncBankBalances) 무변경, 표시만.
 
@@ -73,7 +73,7 @@ function addMonths(d: Date, delta: number): Date {
   return new Date(t.getFullYear(), t.getMonth(), Math.min(d.getDate(), dim));
 }
 function defaultRange(): { from: Date; to: Date } {
-  // 최근 1개월 — 다른 조회 화면 기본값과 통일 (2026-09-03 사장님)
+  // 최근 1개월 — 다른 조회 화면 기본값과 통일
   const now = new Date();
   return { from: new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()), to: now };
 }

@@ -1,4 +1,4 @@
-// Supabase Edge Function: biz-cert-extract (2026-09-03 사장님)
+// Supabase Edge Function: biz-cert-extract
 //   사업자등록증(PDF·이미지)을 Claude 가 읽어 거래처 등록 입력칸에 채울 값을 돌려준다.
 //   · 바로 저장하지 않는다 — 화면이 칸을 채우고 사람이 확인·수정 후 저장한다.
 //   · 로그인 사용자만, 회사 스코프로 사용량 기록(feature=biz_cert_extract, Haiku).
@@ -57,7 +57,7 @@ Deno.serve(withSentry("biz-cert-extract", async (req) => {
   try { body = await req.json(); } catch { return json({ error: "잘못된 요청입니다." }, 400); }
   let mime = String(body.mime || "").toLowerCase().trim();
   const data = String(body.data || "");
-  // 형식 표기가 제각각이라 확장자·파일 머리(매직 바이트)로도 판별한다 (2026-09-03 사장님: PDF 거절 제보)
+  // 형식 표기가 제각각이라 확장자·파일 머리(매직 바이트)로도 판별한다 (PDF 거절 제보)
   const ext = String(body.name || "").toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] || "";
   const head = data.slice(0, 12);
   if (head.startsWith("JVBERi")) mime = "application/pdf";            // %PDF
@@ -81,7 +81,7 @@ Deno.serve(withSentry("biz-cert-extract", async (req) => {
     schema: SCHEMA, maxTokens: 1500,
     companyId: profile.company_id, userId: profile.id, admin,
     promptVersion: "biz-cert-v1", maxRetries: 1, timeoutMs: 60_000,
-    allowGeminiFallback: true,   // 사장님 2026-09-03: Gemini 대체는 이 기능에만
+    allowGeminiFallback: true,   // 대표 2026-09-03: Gemini 대체는 이 기능에만
   });
   //   AI 공급사 잔액 소진은 503(진짜 장애), 월 한도는 429(사용자 안내), 그 외 502 — owner-copilot 과 같은 규칙 (2026-09-03)
   if (!result.ok) {

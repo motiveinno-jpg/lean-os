@@ -63,7 +63,7 @@ export function deriveWorkStatus(args: {
   if (leave === "full") return { id: "leave", label: "휴가", tone: "grey", detail: "오늘 휴가" };
 
   //   근무 형태(외근·출장·당직·재택)는 attendance_type 에 저장되는데 종전엔 재택만 알아봐서
-  //   외근·출장·당직이 종합 화면에서 그냥 '근무중'으로 뭉개졌다(2026-09-09 사장님). 여기서 라벨을 살린다.
+  //   외근·출장·당직이 종합 화면에서 그냥 '근무중'으로 뭉개졌다. 여기서 라벨을 살린다.
   const at = String(today.attendance_type || "");
   const typeLabel = at === "business_trip" ? "출장" : at === "field_work" ? "외근" : at === "on_duty" ? "당직"
     : (at === "remote" || today.att_status === "remote") ? "원격 근무" : null;

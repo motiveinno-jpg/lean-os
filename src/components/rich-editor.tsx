@@ -57,7 +57,7 @@ const FlowImage = Image.extend({
   },
 });
 
-// 흐름형 PDF 문단의 들여쓰기·문단 앞 간격 보존 (2026-08-25 사장님: "PDF와 간격·위치 동일하게").
+// 흐름형 PDF 문단의 들여쓰기·문단 앞 간격 보존 ("PDF와 간격·위치 동일하게").
 //   pdf-flow 가 <p data-flow-indent data-flow-gap style="margin-…"> 로 내보낸 값을
 //   에디터가 버리지 않고 저장 HTML 에 다시 실어야 발급 PDF·미리보기에서도 유지된다.
 //   FlowImage 의 data-* 보존 패턴과 동일.
@@ -104,7 +104,7 @@ interface RichEditorProps {
   //   미지정 시 dataURL 인라인 (간단·소용량). 대용량 PDF 는 업로더 주입 권장.
   onUploadImage?: (file: File) => Promise<string>;
   // 2026-07-15 QA: 호출부가 RichEditor 전체(툴바 포함)를 max-h+overflow-auto 로 감싸면
-  //   스크롤 시 툴바(표·서식 버튼)가 같이 밀려 올라가 안 보이는 문제(사장님 리포트).
+  //   스크롤 시 툴바(표·서식 버튼)가 같이 밀려 올라가 안 보이는 문제(대표 리포트).
   //   지정 시 본문 영역만 내부 스크롤하고 툴바는 항상 상단 고정.
   maxHeight?: string;
   // 2026-07-23 지정 시 부모 높이를 꽉 채움(flex-col h-full). 큰 팝업 편집기에서 본문 영역을 넓게.
@@ -123,7 +123,7 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
-// ── PDF 페이지 노드 (2026-07-29 사장님: "이미지로 정확하게 불러오되 수정 가능하게") ──
+// ── PDF 페이지 노드 ("이미지로 정확하게 불러오되 수정 가능하게") ──
 //   페이지 이미지(글자 지운 배경)를 깔고, 그 위에 PDF 원좌표대로 글자 span 을 얹는다.
 //   보기는 원본과 동일, span 은 contentEditable 이라 클릭해서 글자 수정 가능.
 //   좌표계: 페이지 폭 794px(A4@96dpi) 기준 px. 저장 HTML 도 동일 구조라
@@ -192,7 +192,7 @@ const PdfPage = Node.create({
       const dom = document.createElement("div");
       dom.setAttribute("data-pdf-page", "1");
       // 편집 모드는 페이지를 원래 크기(794px)로 고정 — max-width:100% 로 좁은 패널에
-      //   맞춰 축소하면 글자가 읽기 힘들 만큼 작아진다(2026-07-29 사장님). 좁으면
+      //   맞춰 축소하면 글자가 읽기 힘들 만큼 작아진다. 좁으면
       //   본문 영역이 가로 스크롤. 저장 HTML(renderHTML)은 max-width:100% 유지라
       //   서명·미리보기 화면은 기존처럼 반응형.
       dom.style.cssText = `position:relative;width:${cur.attrs.w}px;${editor.isEditable ? "" : "max-width:100%;"}margin:12px auto;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.12);container-type:inline-size;`;
@@ -227,7 +227,7 @@ const PdfPage = Node.create({
           sp.style.boxShadow = "none";
           sp.style.cursor = "text";
           // 겹침 방지 — 조각은 절대좌표라 글자를 추가해도 옆 조각이 밀려나지 않고
-          //   겹쳤다(2026-07-29 사장님). 편집 시작 시 폭과 같은 줄 오른쪽 조각들의
+          //   겹쳤다. 편집 시작 시 폭과 같은 줄 오른쪽 조각들의
           //   원래 x 를 기억해 두고, 폭 변화량만큼 그 조각들을 함께 밀어준다
           //   (간격 유지). 커밋 시 새 x 가 저장돼 다음 편집의 기준이 된다.
           let editBase: { w: number; h: number; peers: { j: number; x0: number }[]; below: { j: number; y0: number }[] } | null = null;
@@ -242,7 +242,7 @@ const PdfPage = Node.create({
                   j !== i && t2.x > texts[i].x && Math.abs(t2.y - texts[i].y) < lineTol(j))
                 .map(({ j }) => ({ j, x0: texts[j].x })),
               // 행간 유지 — 아래 줄 전체(같은 줄 제외). 높이가 변하면(크기 확대·줄 추가)
-              //   변화량만큼 같이 내려가/올라와 겹치지 않는다 (2026-07-29 사장님).
+              //   변화량만큼 같이 내려가/올라와 겹치지 않는다.
               below: texts
                 .map((t2, j) => ({ t2, j }))
                 .filter(({ t2, j }) => j !== i && t2.y - texts[i].y >= lineTol(j))
@@ -283,7 +283,7 @@ const PdfPage = Node.create({
             commit();
           });
           // 마지막으로 포커스한 글자 조각을 editor.storage 에 등록 — 툴바 글자크기·
-          //   변수 삽입 버튼이 PM 본문이 아니라 이 조각에 적용되게 (2026-07-29 사장님:
+          //   변수 삽입 버튼이 PM 본문이 아니라 이 조각에 적용되게 (
           //   "크기 변경이 안 되고 변수가 새 페이지에 생긴다").
           const saveSelection = () => {
             const sel = document.getSelection();
@@ -379,7 +379,7 @@ const PdfPage = Node.create({
 
 // 글자 색상 팔레트
 const COLORS = ["#000000", "#374151", "#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6", "#ec4899", "#ffffff"];
-// 2026-07-28 사장님 요청: 작게/보통/크게 프리셋 대신 한글 프로그램처럼 숫자 px 로 직접 선택
+// 작게/보통/크게 프리셋 대신 한글 프로그램처럼 숫자 px 로 직접 선택
 const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 26, 28, 32, 36, 40, 48].map(
   (n) => ({ label: `${n}px`, value: `${n}px` })
 );
@@ -389,7 +389,7 @@ const FONT_FAMILIES = [
   { label: "고딕", value: "'Noto Sans KR', sans-serif" },
 ];
 
-// 표 행 높이 (2026-08-10 사장님 요청 · "행 높이도 조절 가능하게") —
+// 표 행 높이 ("행 높이도 조절 가능하게")
 //   prosemirror-tables 는 열 너비만 지원해서 행은 직접 구현한다.
 //   ① tr 에 rowheight 속성을 저장(HTML 로는 style height 로 나가 미리보기·PDF 에서도 유지)
 //   ② 드래그 상호작용은 RichEditor 의 DOM 핸들러(아래 useEffect)가 담당
@@ -418,7 +418,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const imgInputRef = useRef<HTMLInputElement>(null);
   const [pdfProgress, setPdfProgress] = useState<string | null>(null);
-  // PDF 삽입 모드 (2026-07-29 사장님: "아예 pdf를 그대로 똑같이 불러와야돼")
+  // PDF 삽입 모드 ("아예 pdf를 그대로 똑같이 불러와야돼")
   //   exact = 페이지를 고해상도 이미지로 — 표·서식·줄바꿈 원본과 100% 동일 (기본값)
   //   text  = 글자를 편집 가능한 텍스트로 추출 — 모양은 달라질 수 있음
   const pdfModeRef = useRef<"exact" | "text">("exact");
@@ -444,7 +444,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
     editable,
     immediatelyRender: false,
     // tiptap v3 는 선택(커서) 변경만으로는 리렌더하지 않는 게 기본값 · 표 안을 클릭해도
-    //   툴바의 표 버튼(+열·병합 등)과 활성 상태가 안 나타나던 원인 (2026-08-10 사장님:
+    //   툴바의 표 버튼(+열·병합 등)과 활성 상태가 안 나타나던 원인 (
     //   "셀 클릭이 가능하게 해줘"). v2 처럼 트랜잭션마다 리렌더해 툴바가 커서를 따라온다.
     shouldRerenderOnTransaction: true,
     onUpdate: ({ editor }) => {
@@ -476,7 +476,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
   //   열 경계(오른쪽 8px)와 겹치면 열 조절(columnResizing)에 양보한다.
   //   드래그 중에는 DOM style 로 미리 보여 주고, 놓는 순간 rowheight 속성 트랜잭션으로 확정
   //   (DOM 만 바꾸면 PM 재렌더에 지워진다).
-  // ── 표 전체 크기 드래그 (2026-08-10 사장님 — "표 전체 크기도 변경가능하게") —
+  // ── 표 전체 크기 드래그 ("표 전체 크기도 변경가능하게")
   //   표 우하단 모서리 10px 안을 잡아 끌면 표 전체가 커지고 작아진다.
   //   확정 시 가로는 모든 열 너비(colwidth)를 비율대로, 세로는 모든 행 높이(rowheight)를
   //   비율대로 한 트랜잭션에 저장 — colwidth 는 tiptap 이 colgroup 으로 HTML 에 내보내
@@ -835,7 +835,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
               <button type="button" onClick={() => editor.chain().focus().deleteColumn().run()} className={btnCls(false)} title="열 삭제">-열</button>
               <button type="button" onClick={() => editor.chain().focus().addRowAfter().run()} className={btnCls(false)} title="행 추가">+행</button>
               <button type="button" onClick={() => editor.chain().focus().deleteRow().run()} className={btnCls(false)} title="행 삭제">-행</button>
-              {/* 셀 병합/나누기 (2026-08-10 사장님 — "모든 표에서 되게") — 병합은 셀을 끌어 여러 개 선택한 뒤 */}
+              {/* 셀 병합/나누기 ("모든 표에서 되게") — 병합은 셀을 끌어 여러 개 선택한 뒤 */}
               <button type="button" onClick={() => editor.chain().focus().mergeCells().run()} className={btnCls(false)} title="끌어서 선택한 셀을 병합합니다.">병합</button>
               <button type="button" onClick={() => editor.chain().focus().splitCell().run()} className={btnCls(false)} title="병합된 셀 나누기">나누기</button>
               <button type="button" onClick={() => editor.chain().focus().toggleHeaderRow().run()} className={btnCls(false)} title="머리행 토글">머리</button>

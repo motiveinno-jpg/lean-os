@@ -46,7 +46,7 @@ function monthRange(year: number): string[] {
 }
 
 /* 카드명 → 사람 라벨 해석.
-   1순위: corporate_cards.holder_name (사장님이 직접 입력한 소유자)
+   1순위: corporate_cards.holder_name (대표 직접 입력한 소유자)
    2순위: card_aliases.alias (카드에 붙인 별명)
    3순위: 원본 card_name */
 async function loadByPerson(companyId: string, year: number): Promise<PersonRow[]> {
@@ -131,7 +131,7 @@ async function loadByPerson(companyId: string, year: number): Promise<PersonRow[
 
 export default function ByPersonPage() {
   const { role }  = useUser();
-  // 급여 명단·개인별 월급 매트릭스가 있는 화면 · 급여 권한자만 (2026-08-19 감사).
+  // 급여 명단·개인별 월급 매트릭스가 있는 화면 · 급여 권한자만.
   //   종전 게이트(role==='partner')는 employee/advisor 를 못 막아 /reports 권한만으로
   //   전 직원 급여 랭킹이 노출됐다.
   const  { hasPerm, isMaster } = useMyPermissions();

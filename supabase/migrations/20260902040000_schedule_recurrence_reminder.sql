@@ -22,7 +22,7 @@
 --      약속을 놓치는' 기능이라, 규칙 전개를 한 곳(앱)으로 모으기 전까지는 보내지 않는다.
 --      → where recurrence is null. 반복 + 리마인더는 회차 전개가 서버로 내려오는 다음 판에.
 --   ③ 왜 feature_rollout 게이트인가 — 이 크론은 회사 데이터(notifications 행)를 만드는
---      자동화다. CLAUDE.md 규칙대로 모티브(c361afb9…)에만 먼저 켜고, 사장님이 "문제 없다"
+--      자동화다. CLAUDE.md 규칙대로 모티브(c361afb9…)에만 먼저 켜고, 대표가 "문제 없다"
 --      한 뒤 insert into feature_rollout (feature) values ('schedule_reminders') 로 전체에 연다.
 --      아래 시드는 모티브 한정 행 하나뿐이다(다른 회사 데이터는 만들지 않는다).
 --   ④ 자동으로 못 푸는 것 — 소유자(user_id)가 비어 있는 일정(회사 공용 줄)은 알림을 받을

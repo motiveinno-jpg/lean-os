@@ -1,5 +1,5 @@
 begin;
---   경영 알림을 받는 사람 = 마스터 + 돈을 보는 권한자 (2026-09-11 사장님: 이 제품은 마스터와 멤버뿐이고 나머지는 권한).
+--   경영 알림을 받는 사람 = 마스터 + 돈을 보는 권한자 (이 제품은 마스터와 멤버뿐이고 나머지는 권한).
 --   종전엔 users.role in (owner, admin) 이라, 권한을 다 받은 사람이 역할이 직원이면 못 받고
 --   권한이 없는 사람이 역할이 admin 이면 받았다. 본문은 그대로 두고 받는 사람 고르는 줄만 바꿨다.
 CREATE OR REPLACE FUNCTION public.run_biz_alerts_for(p_company uuid, p_today date)

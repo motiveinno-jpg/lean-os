@@ -114,7 +114,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     }
     const { data, error } = await db.rpc('apply_credit_purchase', { p_purchase_id: purchaseId });
     //   실패를 삼키면 **결제는 됐는데 크레딧이 안 들어가고** 웹훅 재전송도 없어 영구 손실이었다
-    //   (2026-08-21 감사). 던져서 500 → Stripe 가 재시도하게 한다. 적립은 status='paid' 로
+    //   . 던져서 500 → Stripe 가 재시도하게 한다. 적립은 status='paid' 로
     //   멱등하므로 재시도해도 두 번 적립되지 않는다.
     if (error) throw new Error(`크레딧 적립 실패(${purchaseId}): ${error.message}`);
     if (data === false) console.warn('credit already applied (duplicate webhook)', purchaseId);
@@ -172,7 +172,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     .limit(1)
     .maybeSingle());
 
-  //   error 를 봐야 한다 (2026-08-21 감사): supabase-js 는 throw 하지 않아 위 try/catch 도
+  //   error 를 봐야 한다: supabase-js 는 throw 하지 않아 위 try/catch 도
   //   못 잡고 Stripe 엔 200 이 나가, **결제는 됐는데 구독이 무료 상태로 남고** 재전송도 없었다.
   //   이 경로는 '있으면 갱신, 없으면 생성' 이라 재시도해도 중복이 생기지 않는다.
   const subErr = existing
@@ -180,7 +180,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     : (await db.from('subscriptions').insert({ company_id: companyId, ...patch })).error;
   if (subErr) throw new Error(`구독 반영 실패(${companyId}): ${subErr.message}`);
 
-  // 연간 결제 혜택 — 추가인원 12명 무료 등록 쿠폰 발급 (2026-07-30 사장님).
+  // 연간 결제 혜택 — 추가인원 12명 무료 등록 쿠폰 발급.
   //   구독당 1장(stripe_subscription_id 유니크로 멱등 — 웹훅 재전송에도 중복 발급 없음).
   //   사용은 요금제 화면의 쿠폰 섹션에서 관리자/대표가 직접(redeem_seat_coupon RPC).
   if (billingCycle === 'annual') {

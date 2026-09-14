@@ -58,7 +58,7 @@ export type SourceStatus = {
 /** 조회 기간 안의 자료별 현황. 화면 하나가 다섯 자료를 한 번에 읽는다.
  *  2026-08-11 — 조회 단위가 '월'에서 **기간(시작일~종료일)** 으로 바뀌었다.
  *  끝날은 그 날까지 포함해야 하므로 lte 로 건다(예전엔 다음 달 1일 미만이었다). */
-//   ★ '실제로 국세청에 있는 계산서'의 기준 (2026-08-24 사장님 지적: "수집은 실제 홈택스에서 발행된 건을
+//   ★ '실제로 국세청에 있는 계산서'의 기준 ("수집은 실제 홈택스에서 발행된 건을
 //     불러오는 건데 저 부분은 실제로 존재하지 않는 전표입니다")
 //   국세청 승인번호(nts_confirm_no)가 있거나, 우리가 발행해 전송이 끝난(nts_issue_status='issued') 것.
 //   발행 전 초안·전송 실패 건은 홈택스에 없다 — 그걸로 전표를 만들면 **없는 매출이 장부에 선다.**
@@ -92,7 +92,7 @@ export async function fetchCollectStatus(companyId: string, from: string, to: st
       case "cash_receipt":
         //   목록(EvidenceTab)과 같은 기준으로 센다 — 무효(void)와 우리가 발행했다 취소한 원본(manual·codef 의
         //   cancelled)은 목록에 안 보이므로 배지에서도 뺀다. 홈택스가 준 취소거래(hometax_sync·cancelled)는
-        //   마이너스 줄로 보이니 센다. (2026-09-02 사장님: "조회하면 아무것도 없는데 1 이라고 떠")
+        //   마이너스 줄로 보이니 센다. ("조회하면 아무것도 없는데 1 이라고 떠")
         return supabase.from("cash_receipts").select(sel, opts as any)
           .eq("company_id", companyId)
           .neq("status", "void")
@@ -171,7 +171,7 @@ export async function fetchCollectStatus(companyId: string, from: string, to: st
     const j = jobLast.get(key);
     if (!j) return null;
     //   수집(홈택스 로그인·조회)은 완료됐는데 최근 여러 번 새로 가져온 게 0건이고 보유 자료도 없는 상태.
-    //   운영자용 진단 문구('저장 단계 확인')를 사장님 화면에 그대로 보여줘 어려웠다 → 사실만 쉬운 말로 (2026-09-09 사장님).
+    //   운영자용 진단 문구('저장 단계 확인')를 대표 화면에 그대로 보여줘 어려웠다 → 사실만 쉬운 말로.
     //   해당 기간에 발행·수취 내역이 없으면 정상이므로 '오류'가 아니라 담담한 안내로 톤을 낮춘다.
     if (j.zeroRuns >= 3 && total === 0) return `수집은 됐는데 새로 들어온 내역이 없어요`;
     return null;
@@ -357,7 +357,7 @@ export async function runCollect(opts: CollectOptions): Promise<void> {
 
 // ── 최근 수집 이력 ─────────────────────────────────────────────────────────
 //
-//   왜 보여 주나 (2026-08-13 사장님 C안 승인): 지금은 "받았는데 0건"인지 "못 받은" 것인지
+//   왜 보여 주나 (2026-08-13 대표 C안 승인): 지금은 "받았는데 0건"인지 "못 받은" 것인지
 //   화면에서 알 수가 없다. sync_logs 에 **언제·누가·무엇·결과**가 이미 쌓이고 있는데
 //   보여 주지 않았을 뿐이다. 실패도 기록으로 남아야 원인을 그 자리에서 짚는다.
 

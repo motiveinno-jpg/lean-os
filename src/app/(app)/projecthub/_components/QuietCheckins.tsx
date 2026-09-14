@@ -36,7 +36,7 @@ export function QuietCheckins({ companyId, userId, deals, tasks, outstandingOf, 
   outstandingOf: (dealId: string) => number;
   won: (n: number | null | undefined) => string;
   toast: (msg: string, kind?: any) => void;
-  /** 접힘/펼침 — 목록 위가 길어지지 않게 기본은 접힌 상태다(2026-08-03 사장님 지적) */
+  /** 접힘/펼침 — 목록 위가 길어지지 않게 기본은 접힌 상태다 */
   open: boolean;
   /** 접혀 있어도 개수는 위쪽 한 줄에 보여야 하므로 부모에게 알린다 */
   onCount: (n: number) => void;

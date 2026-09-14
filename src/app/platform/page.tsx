@@ -95,7 +95,7 @@ export type  { PlanKind } from "./_components/plan-kind";
 
 export default function PlatformOverview() {
   const qc = useQueryClient();
-  // 문의 카드에서 바로 '처리중' 전환 (2026-08-04 사장님) — support_tickets UPDATE 는
+  // 문의 카드에서 바로 '처리중' 전환 — support_tickets UPDATE 는
   //   RLS 가 운영자 전사 허용. open 조건을 걸어 이미 처리된 건의 이중 전환을 막는다.
   const markTicketInProgress = async (id: string) => {
     const { error } = await db.from("support_tickets").update({ status: "in_progress" }).eq("id", id).eq("status", "open");
@@ -191,8 +191,8 @@ export default function PlatformOverview() {
     queryKey: ["p-errors-24h"],
     queryFn: async () => {
       const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-      // 처리(resolved)된 오류는 제외 — 시스템상태 신호등과 같은 기준(2026-07-29 사장님)
-      // 로컬 개발 서버(localhost) 에러도 제외 — 운영 신호가 아니다 (2026-08-20 사장님)
+      // 처리(resolved)된 오류는 제외 — 시스템상태 신호등과 같은 기준
+      // 로컬 개발 서버(localhost) 에러도 제외 — 운영 신호가 아니다
       const data = logRead('platform/page:data', await db.from("error_logs")
         .select("id, error_type, message, source, created_at, dup_count")
         .eq("resolved", false).gte("created_at", since)
@@ -275,7 +275,7 @@ export default function PlatformOverview() {
     retry: 1,
   });
 
-  // KPI 카드 클릭 → 아래 "가입사" 목록을 해당 그룹으로 필터 (2026-07-28 사장님 요청).
+  // KPI 카드 클릭 → 아래 "가입사" 목록을 해당 그룹으로 필터.
   //   숫자만 보고 "그게 어떤 회사인지" 알 방법이 없던 문제.
   const [kpiFilter, setKpiFilter] = useState<"all" | "paid" | "trial" | "free" | "new" | "expired">("all");
 
@@ -375,7 +375,7 @@ export default function PlatformOverview() {
     { label: "체험 만료", value: kindCounts.expired, color: "var(--danger)" },
     { label: "미구독", value: kindCounts.free, color: "var(--chart-5)" },
   ];
-  // CODEF API별 사용률 — 사장님(2026-08-05): API(상품)당 월 10만원까지 포함, 초과분부터 과금.
+  // CODEF API별 사용률 — API(상품)당 월 10만원까지 포함, 초과분부터 과금.
   //   10만원 = 100% 로 두고 각 API 사용액을 링으로 보여준다.
   const CODEF_PRODUCT_LIMIT = codefUsage?.product_limit ?? 100_000;
   const codefApiBars = (codefUsage?.products ?? [])
@@ -459,8 +459,8 @@ export default function PlatformOverview() {
           <PfCardBody><PfDonut slices={planSlices} size={150} centerLabel="총 가입사" formatCenter={(t) => `${t}곳`} /></PfCardBody>
         </PfCard>
 
-        {/* CODEF 사용량 — API별 가로 진행 막대: 월 10만원(포함분) = 100%, 초과분부터 과금 (2026-08-05 사장님).
-            2026-09-03 사장님 "링 그래프가 이상하고 안 이쁘다" → 항목마다 한도 대비 사용률 막대 + 금액. */}
+        {/* CODEF 사용량 — API별 가로 진행 막대: 월 10만원(포함분) = 100%, 초과분부터 과금.
+            2026-09-03 대표가 "링 그래프가 이상하고 안 이쁘다" → 항목마다 한도 대비 사용률 막대 + 금액. */}
         <PfCard i={9}>
           <PfCardHead title="CODEF 사용량" sub={`이번 달 · API당 ₩${CODEF_PRODUCT_LIMIT.toLocaleString()}까지 포함, 넘는 만큼 과금`} href="/platform/codef-usage" />
           <PfCardBody>
@@ -526,7 +526,7 @@ export default function PlatformOverview() {
           )}
         </PfCard>
 
-        {/* 시스템 에러 — 24시간 미해결 (사람 말로: 2026-09-03 사장님) */}
+        {/* 시스템 에러 — 24시간 미해결 (사람 말로: 2026-09-03 대표) */}
         <PfCard i={11}>
           <PfCardHead title="시스템 에러" sub="24시간 · 미해결" href="/platform/errors" action="전체 →" />
           {recentErrors.length === 0 ? (
@@ -666,7 +666,7 @@ export default function PlatformOverview() {
 
 
 
-// 운영자 목록 공용 미니 페이저 · N개씩 끊고 옆으로 넘긴다 (2026-08-20 사장님)
+// 운영자 목록 공용 미니 페이저 · N개씩 끊고 옆으로 넘긴다
 function MiniPager({ page, pages, onPage }: { page: number; pages: number; onPage: (p: number) => void }) {
   if (pages <= 1) return null;
   return (
@@ -705,11 +705,11 @@ function SignupFunnelCard({ funnel, i }: { funnel: FunnelStats | null; i: number
 function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
   const t = funnel?.today;
   const pending = funnel?.pending ?? [];
-  // 10명씩 페이지 (2026-08-20 사장님)
+  // 10명씩 페이지
   const [peoplePage, setPeoplePage] = useState(0);
   const [pendingPage, setPendingPage] = useState(0);
   const detail = funnel?.today_detail;
-  // 단계 클릭 → 그 단계에 해당하는 오늘의 명단 (2026-07-28 사장님 요청)
+  // 단계 클릭 → 그 단계에 해당하는 오늘의 명단
   const [openStep, setOpenStep] = useState<number | null>(null);
 
   const steps = [
@@ -859,7 +859,7 @@ function RecentCompanies({ companies, filter, onFilter, activityById, nowMs }: {
 }) {
   // 행 어디를 눌러도 상세로 — 기존엔 회사명 글자만 링크라 "눌러도 아무것도 안 나온다"는 제보 (2026-07-28)
   const router = useRouter();
-  // 명칭 정리(2026-07-28 사장님): "무료 vs 체험" 구분이 안 됨 → 미구독(카드 미등록) /
+  // 명칭 정리: "무료 vs 체험" 구분이 안 됨 → 미구독(카드 미등록) /
   //   체험 D-n(카드 등록, 남은 일수) / 플랜명. kind 는 필터 매칭용(라벨 문자열 비교 제거).
   const fmtKst = (iso?: string) =>
     iso ? new Date(iso).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
@@ -883,7 +883,7 @@ function RecentCompanies({ companies, filter, onFilter, activityById, nowMs }: {
     .filter(matches)
     .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
 
-  // 5곳씩 페이지 (2026-08-20 사장님: 운영자 가입사 표 5개씩 + 옆으로 넘기기)
+  // 5곳씩 페이지 (운영자 가입사 표 5개씩 + 옆으로 넘기기)
   const [page, setPage] = useState(0);
   const pageCount = Math.max(1, Math.ceil(rows.length / 5));
   const safePage = Math.min(page, pageCount - 1);

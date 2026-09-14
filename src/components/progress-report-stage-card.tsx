@@ -91,7 +91,7 @@ export function ProgressReportStageCard({
     return () => { cancelled = true; };
   }, [approval?.id, dealId]);
 
-  // v6 사장님 요청: 자동 디바운스 저장 제거 · 명시 "저장하기" 누를 때만 quote_approvals 행 생성.
+  // v6 자동 디바운스 저장 제거 · 명시 "저장하기" 누를 때만 quote_approvals 행 생성.
   //   기존 deals.custom_scope.progress_report 단일 객체 패턴은 누적 스택 모델로 폐기.
 
   const [mode, setMode] = useState<"edit" | "preview">(approval ? "preview" : "edit");
@@ -99,12 +99,12 @@ export function ProgressReportStageCard({
   const [sending, setSending] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
 
-  // 2026-05-21 누적 스택 상세 모달 (사장님 요청 · 클릭 시 본문 전문 확인).
+  // 2026-05-21 누적 스택 상세 모달 (클릭 시 본문 전문 확인).
   const [detailOpen, setDetailOpen] = useState<StackItem | null>(null);
 
   const canSend = reportText.trim().length > 0;
 
-  // 2026-05-21 v6: 진척보고서 누적 스택 (사장님 요청).
+  // 2026-05-21 v6: 진척보고서 누적 스택.
   //   "저장하기" 누를 때마다 새 quote_approvals draft 행 추가 → 시간 역순 리스트.
   //   각 행: 진척% + 보고 요약 + 시각 + 발송 버튼 (draft 만).
   type StackItem = {
@@ -450,7 +450,7 @@ export function ProgressReportStageCard({
         </div>
       )}
 
-      {/* 누적 스택 — 저장된 진척보고서 시간 역순 (사장님 요청: "쭉쭉 쌓이게") */}
+      {/* 누적 스택 — 저장된 진척보고서 시간 역순 ("쭉쭉 쌓이게") */}
       {stack.length > 0 && (
         <div className="progress-report-stack">
           <div className="text-[10px] text-[var(--text-dim)] font-medium mb-2">

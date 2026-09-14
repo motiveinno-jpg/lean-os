@@ -1,10 +1,10 @@
 "use client";
 
 // 텍스트변환 양식 공용 편집 모달 (2026-07-10) — 견적서·계약서·인사 양식 공용.
-//   사장님 QA: "편집화면이 어렵고 표나 글자서식 설정도 없어" → 평문 textarea 를 버리고
+//   대표 QA: "편집화면이 어렵고 표나 글자서식 설정도 없어" → 평문 textarea 를 버리고
 //   기존 RichEditor(TipTap: 표·굵기·정렬·색·크기·이미지)를 재사용. {{변수}}는 버튼으로 커서에 삽입.
 //   content_html 을 직접 편집·저장하므로 굵기/표가 발급 PDF(wrapTemplatePrintHtml)에 그대로 반영.
-// 2026-07-31 사장님: 옆 미리보기 때문에 편집칸이 좁아 PDF 원본이 가로 스크롤로 잘렸다
+// 2026-07-31 대표: 옆 미리보기 때문에 편집칸이 좁아 PDF 원본이 가로 스크롤로 잘렸다
 //   → 상시 미리보기 제거, 편집기가 전체 폭·높이 사용.
 //   (2차) 미리보기는 별도 버튼으로 · '미리보기'를 누르면 미리보기 화면, '양식 저장'은 바로 저장.
 
@@ -71,7 +71,7 @@ export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, o
             </div>
             {/* 편집기 단독 전체 폭·높이 — step 왕복 시 최신 html 로 재마운트(content 는 초기값 전용) */}
             {/* contract-tpl-editor: 표 편집 UX 스코프(고정 레이아웃·열 조절 핸들·셀 선택 하이라이트) —
-                전자계약 양식 편집기와 동일. 기존 서식의 표도 열/행/전체 크기 조절·셀 정렬 가능 (2026-08-10 사장님) */}
+                전자계약 양식 편집기와 동일. 기존 서식의 표도 열/행/전체 크기 조절·셀 정렬 가능 */}
             <div className="tpl-editor-single contract-tpl-editor">
               <RichEditor ref={editorRef} content={html} onChange={setHtml} fillHeight />
             </div>

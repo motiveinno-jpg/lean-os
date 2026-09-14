@@ -14,7 +14,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTabParam } from "@/lib/use-tab-param";
 
-// 2026-05-22 문서 본문에 글자 서식 + PDF 페이지 이미지 삽입 (사장님 요청).
+// 2026-05-22 문서 본문에 글자 서식 + PDF 페이지 이미지 삽입.
 const RichEditor = dynamic(() => import("@/components/rich-editor").then((m) => ({ default: m.RichEditor })), {
   ssr: false,
   loading: () => <div className="min-h-[400px] bg-[var(--bg-surface)] rounded-xl animate-pulse" />,
@@ -2774,7 +2774,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
   const { toast }  = useToast();
   const queryClient = useQueryClient();
   //   삭제는 본인이 올린 파일만 · 남의 파일까지는 마스터 또는 '/documents:delete' 위임자만
-  //   (2026-08-20 사장님: "모든 사람이 삭제가 가능해"). 진짜 차단은 RLS, 여기선 버튼을 감춘다.
+  //   ("모든 사람이 삭제가 가능해"). 진짜 차단은 RLS, 여기선 버튼을 감춘다.
   const  { isMaster, hasPerm } = useMyPermissions();
   const canDeleteOthers = isMaster || hasPerm("/documents:delete");
   const canDeleteFile = (f: { uploaded_by?: string | null }) => canDeleteOthers || f.uploaded_by === userId;
@@ -2994,7 +2994,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
   const handleFilesSelected = async (allSelected: File[]) => {
     const selectedFiles = allSelected.filter((f) => !uploadedFilesRef.current.has(f));
     if (selectedFiles.length === 0) return;
-    // 실패를 사용자에게 알린다 (2026-08-20 감사): 종전엔 console 로만 흘려, 10개를 끌어넣어
+    // 실패를 사용자에게 알린다: 종전엔 console 로만 흘려, 10개를 끌어넣어
     //   10개 다 실패해도 화면이 조용히 그대로였다.
     const failed: string[] = [];
     for (const file of selectedFiles) {

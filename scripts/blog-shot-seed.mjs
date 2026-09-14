@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // 블로그 캡처용 자료 — QA 시드 회사(스크린샷 전용, 개인정보 없음)의 근태 기록을 채운다.
-//   글에 "연차·반차·지각이 쌓인다" 고 써 놓고 화면이 전부 0 이면 글과 그림이 어긋난다(2026-09-04 사장님 지적).
+//   글에 "연차·반차·지각이 쌓인다" 고 써 놓고 화면이 전부 0 이면 글과 그림이 어긋난다.
 //   다른 회사는 절대 건드리지 않는다 — company_id 를 이름으로 한 번 더 확인하고 그 회사만 지우고 다시 넣는다.
 //   실행: node scripts/blog-shot-seed.mjs        (토큰은 ~/motive-lean-os-qa/.env.supabase.local)
 import fs from "node:fs";

@@ -1,7 +1,7 @@
 "use client";
 
 // CODEF API 사용량 — 운영자 페이지 정식 메뉴 (2026-08-04)
-//   원래 /operator-users 의 탭이었으나 사장님 지시로 /platform 하위로 이동.
+//   원래 /operator-users 의 탭이었으나 대표 지시로 /platform 하위로 이동.
 //   데이터: operator-user-admin EF mode=codef-usage (운영자 게이트 내장) —
 //   codef_usage 원장은 RLS 가 자기 회사 한정이라 클라 직조회 불가.
 //   2026-09-03 v2 디자인 — pf 부품 + Bklit 차트(링·게이지·막대). 조회 로직은 그대로.

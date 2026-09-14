@@ -132,7 +132,7 @@ Deno.serve(withSentry("classify-transactions", async (req: Request) => {
       });
     }
 
-    // 신원 대조는 users.auth_id 로만 (2026-08-19 감사) — id 로 맞추면 레거시 불일치 계정
+    // 신원 대조는 users.auth_id 로만 — id 로 맞추면 레거시 불일치 계정
     //   (prod 실측 2명)이 "No company found" 로 무음 실패한다. toss-charge 와 동일 규칙.
     const { data: userData } = await supabase
       .from("users")
@@ -164,7 +164,7 @@ Deno.serve(withSentry("classify-transactions", async (req: Request) => {
         .from("bank_transactions")
         .select("id, type, amount, counterparty, description, memo, transaction_date")
         .eq("company_id", userData.company_id)
-        // 지정 모드도 미분류만 (2026-08-19 감사): 필터가 빠져 있어 사람이 확정해 둔
+        // 지정 모드도 미분류만: 필터가 빠져 있어 사람이 확정해 둔
         //   계정과목을 AI 추정이 덮어썼다. 재분류가 필요하면 화면에서 먼저 분류 해제.
         .eq("mapping_status", "unmapped")
         .in("id", txIds.slice(0, BATCH_SIZE));

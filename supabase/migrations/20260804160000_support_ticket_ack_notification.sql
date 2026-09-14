@@ -1,4 +1,4 @@
--- 문의 접수 즉시 확인 알림 (2026-08-04 사장님: "문의하면 영업일 하루 이내 처리 후 답변주겠다는 알림이 가게")
+-- 문의 접수 즉시 확인 알림 ("문의하면 영업일 하루 이내 처리 후 답변주겠다는 알림이 가게")
 -- 답변 알림 트리거(support_tickets_touch)와 동일 규약 — 서버(트리거)가 보장해 클라이언트 우회 불가.
 create or replace function public.support_tickets_ack()
 returns trigger

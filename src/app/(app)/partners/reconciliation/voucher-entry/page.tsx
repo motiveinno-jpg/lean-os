@@ -7,24 +7,24 @@ import { logRead } from "@/lib/log-read";
 import { fetchPaged } from "@/lib/fetch-paged";
 
 // 전표입력 — 2단 구조 (2026-06-12 핸드오프 v2 확정본 §3-3).
-//   [상단] 입력 영역: 일자 + 구분(대체/출금/입금 — 헤더 단위) + 분개 행(No/구분/계정과목/거래처/적요/차변/대변)
-//     출금 = 대변 보통예금(103) 자동행 / 입금 = 차변 자동 / 대체 = 양쪽 직접. 차대일치 상시 표시 + 저장 차단.
-//   [하단] 전표목록 그리드(§3-3-A 사용자 지정 스펙, 순서 고정):
-//     ☑ | No | 구분(1.출금/2.입금/3.차변/4.대변) | 계정코드 | 계정명 | 거래처코드 | 거래처명 | 차변 | 대변 | 적요코드 | 적요
-//     셀 클릭 = 인라인 수정(전표 단위 버퍼, 차대 재검증) · 행 우클릭 = 삽입/복사/삭제 · 체크박스 = 선택 삭제
-//     마지막에 빈 행 1개 — 클릭하면 상단 입력 영역으로 포커스.
-//   [§3-3-B] 저장 → 새로고침 없이 하단 목록 즉시 반영(invalidateQueries) + 새 행 하이라이트·자동 스크롤 +
-//     "전표 N번 저장됨" 토스트. 실패 시 입력값 유지. 일자는 입력·목록이 같은 일자를 공유해 불일치 없음.
-//   차대일치는 DB(save/update_manual_voucher RPC)에서도 재검증(이중). 수정은 journal_entry_audits 이력 보존.
-//   삭제 = voucher_reject(행 보존). 마감(잠금) 월은 서버가 저장·수정·삭제 차단.
+// [상단] 입력 영역: 일자 + 구분(대체/출금/입금 — 헤더 단위) + 분개 행(No/구분/계정과목/거래처/적요/차변/대변)
+// 출금 = 대변 보통예금(103) 자동행 / 입금 = 차변 자동 / 대체 = 양쪽 직접. 차대일치 상시 표시 + 저장 차단.
+// [하단] 전표목록 그리드(§3-3-A 사용자 지정 스펙, 순서 고정):
+// ☑ | No | 구분(1.출금/2.입금/3.차변/4.대변) | 계정코드 | 계정명 | 거래처코드 | 거래처명 | 차변 | 대변 | 적요코드 | 적요
+// 셀 클릭 = 인라인 수정(전표 단위 버퍼, 차대 재검증) · 행 우클릭 = 삽입/복사/삭제 · 체크박스 = 선택 삭제
+// 마지막에 빈 행 1개 — 클릭하면 상단 입력 영역으로 포커스.
+// [§3-3-B] 저장 → 새로고침 없이 하단 목록 즉시 반영(invalidateQueries) + 새 행 하이라이트·자동 스크롤 +
+// "전표 N번 저장됨" 토스트. 실패 시 입력값 유지. 일자는 입력·목록이 같은 일자를 공유해 불일치 없음.
+// 차대일치는 DB(save/update_manual_voucher RPC)에서도 재검증(이중). 수정은 journal_entry_audits 이력 보존.
+// 삭제 = voucher_reject(행 보존). 마감(잠금) 월은 서버가 저장·수정·삭제 차단.
 //
-//   ★ 2026-08-11 (사장님 지시, 매입매출전표와 같은 손놀림으로) — 한 칸이 겸하던 일을 둘로 갈랐다.
-//     · 예전: 일자 한 칸이 ①입력할 전표의 날짜 ②아래 목록 필터를 **동시에** 맡았다(그래서 하루치만 보였다).
-//     · 지금: 위 **일자 = 년·월·일 3칸**(칠 전표의 날짜) / 아래 목록은 **조회기간**(월 단위 달력).
-//     ⚠️ 이렇게 가르면 목록에 **여러 날짜**가 섞인다 — 그래서 ①목록에 일자 칸을 넣고
-//       ②인라인 수정 저장은 반드시 **그 전표 자기 날짜**를 넘긴다. 입력칸 날짜를 넘기면
-//       다른 날 전표를 고칠 때 날짜가 오늘로 끌려온다(예전엔 하루치만 보여 그럴 일이 없었다).
-//     ★ Enter = **누른 칸 하나만** 윗줄에서 내리고 다음 칸으로 (매입매출전표와 같은 규칙).
+// ★ 2026-08-11 (매입매출전표와 같은 손놀림으로) — 한 칸이 겸하던 일을 둘로 갈랐다.
+// · 예전: 일자 한 칸이 ①입력할 전표의 날짜 ②아래 목록 필터를 **동시에** 맡았다(그래서 하루치만 보였다).
+// · 지금: 위 **일자 = 년·월·일 3칸**(칠 전표의 날짜) / 아래 목록은 **조회기간**(월 단위 달력).
+// ⚠️ 이렇게 가르면 목록에 **여러 날짜**가 섞인다 — 그래서 ①목록에 일자 칸을 넣고
+// ②인라인 수정 저장은 반드시 **그 전표 자기 날짜**를 넘긴다. 입력칸 날짜를 넘기면
+// 다른 날 전표를 고칠 때 날짜가 오늘로 끌려온다(예전엔 하루치만 보여 그럴 일이 없었다).
+// ★ Enter = **누른 칸 하나만** 윗줄에서 내리고 다음 칸으로 (매입매출전표와 같은 규칙).
 
 import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { DateRangeField } from "@/components/date-range-field";
@@ -58,7 +58,7 @@ const comma = (s: string) => {
   return (neg ? "-" : "") + n.toLocaleString("ko-KR");
 };
 // 정규화 · 음수 차변은 대변으로, 음수 대변은 차변으로 (합계·저장 공통)
-const normDC = (l:  { debit: string; credit: string }) => { let d = num(l.debit), c = num(l.credit); if (d < 0) { c += -d; d = 0; } if (c < 0) { d += -c; c = 0; } return { d, c }; };
+const normDC = (l: { debit: string; credit: string }) => { let d = num(l.debit), c = num(l.credit); if (d < 0) { c += -d; d = 0; } if (c < 0) { d += -c; c = 0; } return { d, c }; };
 
 type Acct = { id: string; code: string; name: string };
 type Pt = { id: string; name: string; business_number: string | null };
@@ -72,18 +72,18 @@ const VTYPES: { id: VType; label: string; desc: string }[] = [
   { id: "cash_in", label: "입금", desc: "돈이 들어옴 · 차변 보통예금 자동" },
 ];
 type PLine = { key: number; date: string; gubun: Gubun; account: Acct | null; partner: Pt | null; memo: string; debit: string; credit: string };
-//   date = 그 줄의 전표 일자(YYYY-MM-DD). 같은 날짜 줄끼리 한 장의 전표가 된다 (2026-09-02 사장님: "줄마다 날짜 선택").
+// date = 그 줄의 전표 일자(YYYY-MM-DD). 같은 날짜 줄끼리 한 장의 전표가 된다 ("줄마다 날짜 선택").
 type SavedLine = { account: Acct | null; partner: Pt | null; memo: string; debit: number; credit: number };
-//   entry_date 는 반드시 들고 다닌다. 목록이 여러 날이라 수정 저장에 그 전표 자기 날짜가 필요하다
-type SavedEntry =  { id: string; entry_date: string; voucher_no: number | null; voucher_type: string | null; description: string; source: string; entry_kind: string | null; lines: SavedLine[] };
+// entry_date 는 반드시 들고 다닌다. 목록이 여러 날이라 수정 저장에 그 전표 자기 날짜가 필요하다
+type SavedEntry = { id: string; entry_date: string; voucher_no: number | null; voucher_type: string | null; description: string; source: string; entry_kind: string | null; lines: SavedLine[] };
 
 let K = 1;
 const AR_AP_CODES = new Set(["108", "251"]);
 const MEMO_KEY = "voucher-recent-memos";
 
-//   Enter 가 훑는 입력칸 — 화면 왼→오 순서. 일자 3칸이 앞, 그 뒤가 분개 행의 칸들이다.
+// Enter 가 훑는 입력칸 — 화면 왼→오 순서. 일자 3칸이 앞, 그 뒤가 분개 행의 칸들이다.
 type VCell = "date" | "gubun" | "account" | "partner" | "memo" | "debit" | "credit";
-//   전표목록 제목줄 정렬 기준 (매입매출전표와 같은 목록)
+// 전표목록 제목줄 정렬 기준 (매입매출전표와 같은 목록)
 type VSortKey = "date" | "no" | "account" | "partner" | "debit" | "credit" | "memo";
 /** 목록 검색조건 (조회 화면 표준, 2026-08-18 Wave 1 — B형: 입력부는 그대로, 목록부만) */
 type Cond = { acct: string[]; pt: string[]; vtype: string[]; memo: string; src: string; min: string; max: string; rows: number };
@@ -106,25 +106,25 @@ export default function VoucherEntryPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
 
-  //   ① 칠 전표의 날짜 — 매입매출전표와 같은 년·월·일 3칸
-  //   전표 일자는 줄마다 갖는다(PLine.date) — 상단 단일 일자 칸은 2026-09-02 사장님 지시로 없앴다.
-  //   제목줄 정렬 — 공용 부품(SortableTh). 기본은 일자·전표번호 순(자료 순서 그대로).
+  // ① 칠 전표의 날짜 — 매입매출전표와 같은 년·월·일 3칸
+  // 전표 일자는 줄마다 갖는다(PLine.date) — 상단 단일 일자 칸은 2026-09-02 대표 지시로 없앴다.
+  // 제목줄 정렬 — 공용 부품(SortableTh). 기본은 일자·전표번호 순(자료 순서 그대로).
   const [sort, setSort] = useState<SortState<VSortKey>>({ key: "date", dir: "asc" });
   const onSort = (k: VSortKey) => setSort((c) => nextSort(c, k));
 
-  //   ② 아래 목록이 보여 줄 기간 — 월 단위. 기본 **지난달~이번 달**(조회 화면 표준). ★ 조회값은 기억하지 않는다.
+  // ② 아래 목록이 보여 줄 기간 — 월 단위. 기본 **지난달~이번 달**(조회 화면 표준). ★ 조회값은 기억하지 않는다.
   const [fromM, setFromM] = useState(() => defaultRangeMonth().from);
   const [toM, setToM] = useState(() => defaultRangeMonth().to);
-  //   ── 조회 화면 표준 (목록부) — 빠른검색·검색조건·내 조건 ──
+  // ── 조회 화면 표준 (목록부) — 빠른검색·검색조건·내 조건 ──
   const [q, setQ] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState<Cond>(EMPTY_COND);
   const [live, setLive] = useState<Cond>(EMPTY_COND);
   const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
   const [vtype, setVtype] = useState<VType>("transfer");
-  const [pend, setPend] = useState<PLine[]>([]);               // 상단 입력 영역 행
-  //   통장·카드 불러오기 (2026-08-19 사장님): 미전표 거래를 골라 입력칸에 채우고, 저장되면 그 거래에 journal_entry_id 를 걸어
-  //   수집·전표/통장/카드 어디서든 '전표됨'으로 보이게 — 같은 돈을 두 번 치는 것을 막는다.
+  const [pend, setPend] = useState<PLine[]>([]); // 상단 입력 영역 행
+  // 통장·카드 불러오기: 미전표 거래를 골라 입력칸에 채우고, 저장되면 그 거래에 journal_entry_id 를 걸어
+  // 수집·전표/통장/카드 어디서든 '전표됨'으로 보이게 — 같은 돈을 두 번 치는 것을 막는다.
   type SrcTx = { kind: "bank" | "card"; id: string; date: string; amount: number; isIn: boolean; who: string; desc: string; account?: string };
   const [linkedSrc, setLinkedSrc] = useState<SrcTx | null>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -139,7 +139,7 @@ export default function VoucherEntryPage() {
   const [flashId, setFlashId] = useState<string | null>(null); // §3-3-B 방금 저장한 전표 하이라이트
   const [recentMemos, setRecentMemos] = useState<string[]>([]);
   const topRef = useRef<HTMLDivElement | null>(null);
-  //   분개 입력 칸 높이 — 아래 구분선을 끌어 조절 (기본은 CSS max-height 34vh)
+  // 분개 입력 칸 높이 — 아래 구분선을 끌어 조절 (기본은 CSS max-height 34vh)
   const split = useDragHeight("ve-split:voucher-entry", { min: 120 });
   const flashScrolled = useRef(false);
   useEffect(() => { try { setRecentMemos(JSON.parse(localStorage.getItem(MEMO_KEY) || "[]")); } catch { /* noop */ } }, []);
@@ -156,8 +156,8 @@ export default function VoucherEntryPage() {
     return t === "cash_out" ? [mk("1"), mk("1")] : t === "cash_in" ? [mk("2"), mk("2")] : [mk("3"), mk("4")];
   };
   // 프로젝트 지출 항목 → 전표 초안 프리필 (2026-08-31 개편 3단계, A3 sessionStorage 패턴 —
-  //   서버 초안 행을 만들지 않는다: 전표는 저장 즉시 장부라 초안 행이 곧 오염. 저장은 사람.)
-  //   저장 성공 시 journal_entries.deal_id 를 태그해 프로젝트 확정 집계에 잡히게 한다.
+  // 서버 초안 행을 만들지 않는다: 전표는 저장 즉시 장부라 초안 행이 곧 오염. 저장은 사람.)
+  // 저장 성공 시 journal_entries.deal_id 를 태그해 프로젝트 확정 집계에 잡히게 한다.
   const [prefillDeal, setPrefillDeal] = useState<{ dealId: string; name: string } | null>(null);
   useEffect(() => {
     setPend(freshRows("transfer"));
@@ -185,9 +185,9 @@ export default function VoucherEntryPage() {
     },
     enabled: !!companyId, staleTime: 300_000,
   });
-  //   보통예금은 표준 계정과목표에서 **103** 이다 (101 은 현금). 2026-08-12 표준 채택.
+  // 보통예금은 표준 계정과목표에서 **103** 이다 (101 은 현금). 2026-08-12 표준 채택.
   const cashAcct = useMemo(() => accounts.find((a) => a.code === "103") || null, [accounts]);
-  //   불러오기 후보 — 미전표 통장/카드 거래 (최근 N일)
+  // 불러오기 후보 — 미전표 통장/카드 거래 (최근 N일)
   const { data: importRows = [], isLoading: importLoading } = useQuery<SrcTx[]>({
     queryKey: ["ve-import", companyId, importKind, importDays],
     queryFn: async () => {
@@ -203,17 +203,17 @@ export default function VoucherEntryPage() {
   });
   const importShown = importRows.filter((r) => quickSearchHit(importQ, [r.who, r.desc, r.account, r.date], [r.amount])).slice(0, 200);
   const applyImport = (r: SrcTx) => {
-    //   날짜·유형·첫 줄(금액·적요)을 채운다. 계정과목은 사람이 고른다(자동으로 정하면 틀렸을 때 못 찾는다)
+    // 날짜·유형·첫 줄(금액·적요)을 채운다. 계정과목은 사람이 고른다(자동으로 정하면 틀렸을 때 못 찾는다)
     const t: VType = r.kind === "bank" ? (r.isIn ? "cash_in" : "cash_out") : "transfer";
     setVtype(t);
     const rows = freshRows(t);
-    rows.forEach((x) => { x.date = r.date; });   // 불러온 거래의 날짜를 줄 날짜로
+    rows.forEach((x) => { x.date = r.date; }); // 불러온 거래의 날짜를 줄 날짜로
     const memo = [r.who, r.desc].filter(Boolean).join(" · ").slice(0, 60);
     if (r.kind === "bank") {
-      //   입금 = 대변(수익) 금액, 출금 = 차변(비용) 금액. 반대편 보통예금은 저장 때 자동으로 붙는다
+      // 입금 = 대변(수익) 금액, 출금 = 차변(비용) 금액. 반대편 보통예금은 저장 때 자동으로 붙는다
       rows[0] = { ...rows[0], memo, debit: r.isIn ? "" : String(r.amount), credit: r.isIn ? String(r.amount) : "" };
     } else {
-      //   카드 = 대체: 차변(비용) 금액 / 대변(미지급금 등) 금액 — 계정은 사람이
+      // 카드 = 대체: 차변(비용) 금액 / 대변(미지급금 등) 금액 — 계정은 사람이
       rows[0] = { ...rows[0], memo, debit: String(r.amount), credit: "" };
       rows[1] = { ...rows[1], memo, debit: "", credit: String(r.amount) };
     }
@@ -232,19 +232,19 @@ export default function VoucherEntryPage() {
   });
 
   // ── 하단 목록: 조회기간 안의 확정 전표 ──
-  //   ⚠️ queryKey 앞머리는 "vouchers-of-day" 그대로 둔다. 거래처원장(ledger/shared.tsx)이 이 이름으로
-  //     세 군데에서 무효화한다. 이름을 바꾸면 그쪽이 조용히 안 먹는다(화면은 멀쩡해 보인다).
-  const  { data: entries = [] } = useQuery<SavedEntry[]>({
+  // ⚠️ queryKey 앞머리는 "vouchers-of-day" 그대로 둔다. 거래처원장(ledger/shared.tsx)이 이 이름으로
+  // 세 군데에서 무효화한다. 이름을 바꾸면 그쪽이 조용히 안 먹는다(화면은 멀쩡해 보인다).
+  const { data: entries = [] } = useQuery<SavedEntry[]>({
     queryKey: ["vouchers-of-day", companyId, fromM, toM],
     queryFn: async () => {
-      //   ★ 페이징 필수 — 넓은 기간엔 일반전표가 1,000행(PostgREST 기본 상한)을 넘어
-      //     상한에서 조용히 잘리면 날짜가 늦은 전표가 목록에서 사라진다 (2026-08-28).
+      // ★ 페이징 필수 — 넓은 기간엔 일반전표가 1,000행(PostgREST 기본 상한)을 넘어
+      // 상한에서 조용히 잘리면 날짜가 늦은 전표가 목록에서 사라진다 (2026-08-28).
       const data = await fetchPaged("voucher-entry:vouchers-of-day", () => db.from("journal_entries")
         .select("id, entry_date, voucher_no, voucher_type, description, source, entry_kind, journal_lines(debit, credit, description, chart_of_accounts(id, code, name), partners(id, name, business_number))")
         .eq("company_id", companyId ?? "").eq("status", "confirmed")
-        //   ★ 매입매출전표는 뺀다 (2026-08-11 사장님 지적) — 여기서 못 고치는 전표라(유형·공급가액이
-        //     날아가서) 눌러 봐야 "저쪽 메뉴에서 고치세요"만 뜨는 **막다른 골목**이었다.
-        //     ⚠️ neq 만 쓰면 entry_kind 가 NULL 인 옛 전표까지 빠진다 — is.null 을 함께 건다.
+        // ★ 매입매출전표는 뺀다 — 여기서 못 고치는 전표라(유형·공급가액이
+        // 날아가서) 눌러 봐야 "저쪽 메뉴에서 고치세요"만 뜨는 **막다른 골목**이었다.
+        // ⚠️ neq 만 쓰면 entry_kind 가 NULL 인 옛 전표까지 빠진다 — is.null 을 함께 건다.
         .or("entry_kind.is.null,entry_kind.neq.sale_purchase")
         .gte("entry_date", `${fromM}-01`).lt("entry_date", monthAfter(toM))
         .order("entry_date", { ascending: true }).order("voucher_no", { ascending: true }), 20000);
@@ -262,9 +262,9 @@ export default function VoucherEntryPage() {
     enabled: !!companyId && dbReady,
   });
 
-  //   목록에서 뺀 매입매출전표가 몇 건인지 · 안 보이면 "내 전표 어디 갔지?" 가 되므로 화면이 말해 준다.
-  //   건수는 count 로 센다(행을 받아 세면 1,000행에서 잘린다).
-  const  { data: spCount = 0 } = useQuery<number>({
+  // 목록에서 뺀 매입매출전표가 몇 건인지 · 안 보이면 "내 전표 어디 갔지?" 가 되므로 화면이 말해 준다.
+  // 건수는 count 로 센다(행을 받아 세면 1,000행에서 잘린다).
+  const { data: spCount = 0 } = useQuery<number>({
     queryKey: ["vouchers-of-day-sp", companyId, fromM, toM],
     queryFn: async () => {
       const { count } = await db.from("journal_entries").select("id", { count: "exact", head: true })
@@ -275,21 +275,21 @@ export default function VoucherEntryPage() {
     enabled: !!companyId && dbReady,
   });
 
-  //   제목줄 정렬 — 안 고르면 예전 그대로(일자·전표번호 순). 전표는 **줄이 아니라 장 단위**로 옮긴다
-  //   (한 전표의 분개 줄들이 흩어지면 차·대가 안 읽힌다 — 매입매출전표와 다른 점이다).
+  // 제목줄 정렬 — 안 고르면 예전 그대로(일자·전표번호 순). 전표는 **줄이 아니라 장 단위**로 옮긴다
+  // (한 전표의 분개 줄들이 흩어지면 차·대가 안 읽힌다 — 매입매출전표와 다른 점이다).
   const entryHit = (e: SavedEntry, c: Cond) => {
     if (c.acct.length && !e.lines.some((l) => l.account && c.acct.includes(l.account.name))) return false;
     if (c.pt.length && !e.lines.some((l) => l.partner && c.pt.includes(l.partner.name))) return false;
     if (c.vtype.length && !c.vtype.includes(e.voucher_type || "transfer")) return false;
     if (c.memo && !`${e.description} ${e.lines.map((l) => l.memo).join(" ")}`.toLowerCase().includes(c.memo.toLowerCase())) return false;
-    //   출처 — 여기서 친 것(manual) / 수집·전표 등에서 자동으로 만든 것
+    // 출처 — 여기서 친 것(manual) / 수집·전표 등에서 자동으로 만든 것
     if (c.src === "manual" && e.source !== "manual") return false;
     if (c.src === "auto" && e.source === "manual") return false;
-    //   금액 — 전표 한 장의 차변 합계(= 대변 합계)
+    // 금액 — 전표 한 장의 차변 합계(= 대변 합계)
     if (!amountHit(e.lines.reduce((n, l) => n + Number(l.debit || 0), 0), c.min, c.max)) return false;
     return true;
   };
-  //   빠른검색 — 계정·거래처·적요·전표번호·금액을 한꺼번에 (쉼표 = 또는, Enter 로 반영). 전표는 장 단위로 걸린다.
+  // 빠른검색 — 계정·거래처·적요·전표번호·금액을 한꺼번에 (쉼표 = 또는, Enter 로 반영). 전표는 장 단위로 걸린다.
   const entryQuick = (e: SavedEntry) => quickSearchHit(q,
     [String(e.voucher_no ?? ""), e.description, ...e.lines.flatMap((l) => [l.account?.name, l.account?.code, l.partner?.name, l.memo])],
     e.lines.flatMap((l) => [l.debit, l.credit]).filter((n) => n > 0));
@@ -319,9 +319,9 @@ export default function VoucherEntryPage() {
     });
   }, [filteredEntries, sort]);
   const pager = usePager(sortedEntries, live.rows, `${fromM}|${toM}|${q}|${JSON.stringify(live)}`);
-  //   내 조건 · ★ 하나가 이 화면(목록부)의 기본값
+  // 내 조건 · ★ 하나가 이 화면(목록부)의 기본값
   const saved = useSavedQueries("voucher-entry", companyId);
-  const paramsNow =  { from: fromM, to: toM, q, cond: live };
+  const paramsNow = { from: fromM, to: toM, q, cond: live };
   const paramsBasic = { ...defaultRangeMonth(), q: "", cond: EMPTY_COND };
   const applySaved = (p: Record<string, unknown>) => {
     if (typeof p.from === "string" && typeof p.to === "string") { setFromM(p.from); setToM(p.to); }
@@ -333,7 +333,7 @@ export default function VoucherEntryPage() {
   useEffect(() => {
     if (defDone || !saved.isFetched) return;
     setDefDone(true);
-    //   딥링크(?from=YYYY-MM&to=YYYY-MM&q=전표번호) — 손익 현황 원천 드릴다운에서 넘어올 때(2026-08-19). 있으면 내 조건 기본값보다 우선.
+    // 딥링크(?from=YYYY-MM&to=YYYY-MM&q=전표번호) — 손익 현황 원천 드릴다운에서 넘어올 때(2026-08-19). 있으면 내 조건 기본값보다 우선.
     if (typeof window !== "undefined") {
       const sp = new URLSearchParams(window.location.search);
       if (sp.get("q") || sp.get("from")) {
@@ -360,7 +360,7 @@ export default function VoucherEntryPage() {
   const sumC = filteredEntries.reduce((s0, e) => s0 + e.lines.reduce((x, l) => x + l.credit, 0), 0);
 
 
-  //   엑셀 — 통장·카드·매입매출전표와 같은 공통 함수를 쓴다(한글 깨짐·칸 밀림을 한 곳에서만 막는다)
+  // 엑셀 — 통장·카드·매입매출전표와 같은 공통 함수를 쓴다(한글 깨짐·칸 밀림을 한 곳에서만 막는다)
   const exportCsv = () => {
     const rows: (string | number)[][] = [];
     for (const e of sortedEntries) {
@@ -387,7 +387,7 @@ export default function VoucherEntryPage() {
   const pendDebit = pendFilled.reduce((s, l) => s + normDC(l).d, 0);
   const pendCredit = pendFilled.reduce((s, l) => s + normDC(l).c, 0);
   const autoAmt = vtype === "cash_out" ? pendDebit : vtype === "cash_in" ? pendCredit : 0;
-  //   날짜별 묶음 — 같은 날짜 줄이 한 장. 대체전표는 묶음마다 차·대가 맞아야 한다.
+  // 날짜별 묶음 — 같은 날짜 줄이 한 장. 대체전표는 묶음마다 차·대가 맞아야 한다.
   const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
   const pendDatesOk = pendFilled.every((l) => DATE_RE.test(l.date));
   const pendGroups = (() => {
@@ -414,22 +414,22 @@ export default function VoucherEntryPage() {
   };
   const editIds = Object.keys(edits);
   const editsOk = editIds.every((id) => editStat(edits[id]).ok);
-  //   일자를 3칸으로 나누면서 '월을 지운 중간 상태'가 생긴다 — 그대로 저장하면 2026-00-00 이 날아간다.
-  //   새 전표를 칠 때만 막는다(수정만 저장하는 경우는 그 전표 자기 날짜를 쓴다)
+  // 일자를 3칸으로 나누면서 '월을 지운 중간 상태'가 생긴다 — 그대로 저장하면 2026-00-00 이 날아간다.
+  // 새 전표를 칠 때만 막는다(수정만 저장하는 경우는 그 전표 자기 날짜를 쓴다)
   const canSave = dbReady && !busy && ((pendFilled.length > 0 && pendOk && pendDatesOk && pendGroupsOk) || editIds.length > 0) && editsOk && (pendFilled.length === 0 || (pendOk && pendDatesOk && pendGroupsOk));
 
   // ── 행 조작 ──
   const rowGubun = (): Gubun => (vtype === "cash_out" ? "1" : vtype === "cash_in" ? "2" : "3");
-  //   새 줄의 날짜는 바로 윗줄을 따른다 — 같은 전표를 이어 치는 게 보통이다
+  // 새 줄의 날짜는 바로 윗줄을 따른다 — 같은 전표를 이어 치는 게 보통이다
   const newLine = (g?: Gubun): PLine => ({ key: K++, date: pend[pend.length - 1]?.date || todayKst(), gubun: g ?? rowGubun(), account: null, partner: null, memo: "", debit: "", credit: "" });
   const setPendLine = (key: number, patch: Partial<PLine>) => setPend((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   const setEditLine = (entryId: string, key: number, patch: Partial<PLine>) =>
     setEdits((es) => ({ ...es, [entryId]: { ...es[entryId], lines: es[entryId].lines.map((l) => (l.key === key ? { ...l, ...patch } : l)) } }));
   const enterEdit = (e: SavedEntry) => {
     if (edits[e.id]) return;
-    //   매입매출전표는 유형·공급가액·부가세를 함께 들고 있다 — 일반전표 편집으로 저장하면 그게 지워진다
-    //   목록에서 이미 걸러지므로 여기까진 오지 않는다 — 나중에 목록 조건이 바뀌어도
-    //   유형·공급가액이 조용히 날아가지 않게 남겨 두는 그물이다
+    // 매입매출전표는 유형·공급가액·부가세를 함께 들고 있다 — 일반전표 편집으로 저장하면 그게 지워진다
+    // 목록에서 이미 걸러지므로 여기까진 오지 않는다 — 나중에 목록 조건이 바뀌어도
+    // 유형·공급가액이 조용히 날아가지 않게 남겨 두는 그물이다
     if (e.entry_kind === "sale_purchase") {
       toast("매입매출전표는 '매입매출전표 입력' 메뉴에서 고쳐 주세요.", "info");
       return;
@@ -449,7 +449,7 @@ export default function VoucherEntryPage() {
       return ls.length === 0 ? freshRows(t) : ls.map((l) => ({
         ...l,
         gubun: t === "transfer" ? (num(l.credit) > 0 ? "4" : "3") : g,
-        debit: t === "cash_in" ? "" : l.debit,    // 입금 = 차변 잠금(자동)
+        debit: t === "cash_in" ? "" : l.debit, // 입금 = 차변 잠금(자동)
         credit: t === "cash_out" ? "" : l.credit, // 출금 = 대변 잠금(자동)
       }));
     });
@@ -471,17 +471,17 @@ export default function VoucherEntryPage() {
   };
 
   /** ★ Enter — **누른 칸 하나만** 윗줄에서 내린다 (2026-08-11, 매입매출전표와 같은 규칙).
-   *  첫 행의 '위'는 아래 목록의 **마지막 전표**다(그 전표 날짜 · 첫 분개 줄) — 방금 친 것을 이어 치는 흐름.
-   *  '빈 칸일 때만' 으로 하지 않는다: 구분처럼 늘 값이 있는 칸은 영영 못 내려 고장난 것처럼 보인다. */
+   * 첫 행의 '위'는 아래 목록의 **마지막 전표**다(그 전표 날짜 · 첫 분개 줄) — 방금 친 것을 이어 치는 흐름.
+   * '빈 칸일 때만' 으로 하지 않는다: 구분처럼 늘 값이 있는 칸은 영영 못 내려 고장난 것처럼 보인다. */
   const pullCell = (cell: VCell, rowIdx: number) => {
     const last = entries.length > 0 ? entries[entries.length - 1] : null;
-    //   날짜 칸은 Enter 로 윗값을 내리지 않는다 — 항상 채워져 있는 칸이라 사람이 고른 날짜를 덮어 버린다
-    //   (새 줄은 만들 때 윗줄 날짜를 이미 잇는다). Enter 는 다음 칸으로만 간다.
+    // 날짜 칸은 Enter 로 윗값을 내리지 않는다 — 항상 채워져 있는 칸이라 사람이 고른 날짜를 덮어 버린다
+    // (새 줄은 만들 때 윗줄 날짜를 이미 잇는다). Enter 는 다음 칸으로만 간다.
     if (cell === "date") return;
     const cur = pend[rowIdx];
     if (!cur) return;
     const up = rowIdx > 0 ? pend[rowIdx - 1] : null;
-    //   윗 행이 없으면 마지막 저장 전표의 첫 줄에서 내린다 (금액은 그 줄의 숫자를 글자로)
+    // 윗 행이 없으면 마지막 저장 전표의 첫 줄에서 내린다 (금액은 그 줄의 숫자를 글자로)
     const src: Partial<PLine> | null = up
       ? up
       : last?.lines[0]
@@ -494,12 +494,12 @@ export default function VoucherEntryPage() {
         : null;
     if (!src) return;
     switch (cell) {
-      //   구분은 대체 전표에서만 사람이 고른다 — 출금·입금은 전표 종류가 정하므로 내리지 않는다
+      // 구분은 대체 전표에서만 사람이 고른다 — 출금·입금은 전표 종류가 정하므로 내리지 않는다
       case "gubun": if (vtype === "transfer" && src.gubun) setPendLine(cur.key, { gubun: src.gubun }); break;
       case "account": setPendLine(cur.key, { account: src.account ?? null }); break;
       case "partner": setPendLine(cur.key, { partner: src.partner ?? null }); break;
       case "memo": setPendLine(cur.key, { memo: src.memo ?? "" }); break;
-      //   금액은 한 행 한쪽만 — amountPatch 가 반대쪽을 비우고 구분까지 맞춰 준다
+      // 금액은 한 행 한쪽만 — amountPatch 가 반대쪽을 비우고 구분까지 맞춰 준다
       case "debit": if (vtype !== "cash_in") setPendLine(cur.key, amountPatch(cur, "debit", src.debit ?? "")); break;
       case "credit": if (vtype !== "cash_out") setPendLine(cur.key, amountPatch(cur, "credit", src.credit ?? "")); break;
     }
@@ -511,7 +511,7 @@ export default function VoucherEntryPage() {
     const t = e.target as HTMLElement;
     if (!/^(INPUT|SELECT)$/.test(t.tagName)) return;
     e.preventDefault();
-    //   data-vcell="필드-행번호" 가 붙은 칸만 내린다 (계정·거래처 자동완성 목록에서 고르는 중이면 그쪽이 먼저 먹는다)
+    // data-vcell="필드-행번호" 가 붙은 칸만 내린다 (계정·거래처 자동완성 목록에서 고르는 중이면 그쪽이 먼저 먹는다)
     const mark = t.getAttribute("data-vcell");
     if (mark) {
       const at = mark.lastIndexOf("-");
@@ -543,7 +543,7 @@ export default function VoucherEntryPage() {
       : m.includes("does not exist") ? "전표 수정 기능이 아직 준비되지 않았습니다" : m;
 
   // ── 저장: 하단 편집 전표 커밋 + 상단 새 전표 저장 → §3-3-B 즉시 반영(리페치+하이라이트+스크롤+N번 토스트) ──
-  //   실패 시 입력값 유지(성공해야만 초기화).
+  // 실패 시 입력값 유지(성공해야만 초기화).
   const save = async () => {
     if (!canSave) return;
     setBusy(true);
@@ -551,8 +551,8 @@ export default function VoucherEntryPage() {
       for (const id of editIds) {
         const b = edits[id];
         // p_entry_date 는 기본값 없는 필수 인자 — 누락 시 PGRST202(함수 못찾음)로 수정 저장이 항상 실패했음.
-        //   ★ 반드시 **그 전표 자기 날짜**를 넘긴다. 목록이 기간이 되면서 여러 날이 섞이므로,
-        //     예전처럼 입력칸 날짜(entryDate)를 넘기면 다른 날 전표를 고칠 때 날짜가 끌려온다.
+        // ★ 반드시 **그 전표 자기 날짜**를 넘긴다. 목록이 기간이 되면서 여러 날이 섞이므로,
+        // 예전처럼 입력칸 날짜(entryDate)를 넘기면 다른 날 전표를 고칠 때 날짜가 끌려온다.
         const own = entries.find((x) => x.id === id)?.entry_date;
         if (!own) throw new Error("수정할 전표를 목록에서 찾지 못했습니다. 새로고침 후 다시 시도해 주세요");
         const { error } = await db.rpc("update_manual_voucher", { p_entry_id: id, p_entry_date: own, p_description: b.desc, p_lines: linePayload(b.lines) });
@@ -562,8 +562,8 @@ export default function VoucherEntryPage() {
       let newId: string | null = null;
       const newIds: string[] = [];
       const savedDates = new Set<string>();
-      //   날짜별로 RPC 를 따로 부르므로 트랜잭션이 아니다 — 마감된 달이 섞여 있으면 시작하기 전에 전부 거른다
-      //   (둘째 장에서 막히면 첫 장은 저장됐는데 화면은 실패로 보여 다시 누르면 이중 전표가 됐다)
+      // 날짜별로 RPC 를 따로 부르므로 트랜잭션이 아니다 — 마감된 달이 섞여 있으면 시작하기 전에 전부 거른다
+      // (둘째 장에서 막히면 첫 장은 저장됐는데 화면은 실패로 보여 다시 누르면 이중 전표가 됐다)
       if (pendGroups.length > 0 && companyId) {
         const months = [...new Set(pendGroups.map(([d]) => String(d).slice(0, 7)))];
         const { data: locked } = await db.from("closing_checklists").select("month").eq("company_id", companyId).eq("status", "locked").in("month", months);
@@ -571,12 +571,12 @@ export default function VoucherEntryPage() {
           throw new Error(`${locked.map((l: any) => l.month).join(", ")} 은 회계마감으로 잠겨 있어 저장할 수 없습니다. 그 날짜 줄을 빼거나 마감을 풀어 주세요`);
         }
       }
-      //   ★ 같은 날짜 줄끼리 한 장 · 날짜가 여러 개면 전표도 여러 장 (2026-09-02 사장님: 줄마다 날짜)
-      for (const [gDate, gLines] of pendGroups)  {
+      // ★ 같은 날짜 줄끼리 한 장 · 날짜가 여러 개면 전표도 여러 장 (줄마다 날짜)
+      for (const [gDate, gLines] of pendGroups) {
         const gDebit = gLines.reduce((s, l) => s + normDC(l).d, 0);
         const gCredit = gLines.reduce((s, l) => s + normDC(l).c, 0);
         const gAuto = vtype === "cash_out" ? gDebit : vtype === "cash_in" ? gCredit : 0;
-        //   중복 의심 경고 (2026-08-19 사장님): 불러온 거래가 아닌데 같은 날·같은 금액의 통장/카드 거래가 이미 전표돼 있으면 확인을 받는다
+        // 중복 의심 경고: 불러온 거래가 아닌데 같은 날·같은 금액의 통장/카드 거래가 이미 전표돼 있으면 확인을 받는다
         if (!linkedSrc) {
           const total = vtype === "cash_in" ? gCredit : vtype === "cash_out" ? gDebit : Math.max(gDebit, gCredit);
           if (total > 0) {
@@ -599,7 +599,7 @@ export default function VoucherEntryPage() {
           p_entry_date: gDate, p_voucher_type: vtype, p_description: gLines[0]?.memo || "", p_lines: payload,
         });
         if (error) {
-          //   앞 날짜는 이미 저장됐다 — 그 줄은 입력칸에서 빼고 실패한 날짜만 남긴다(다시 누르면 이중 전표가 되지 않게)
+          // 앞 날짜는 이미 저장됐다 — 그 줄은 입력칸에서 빼고 실패한 날짜만 남긴다(다시 누르면 이중 전표가 되지 않게)
           if (savedDates.size > 0) {
             setPend((ls) => ls.filter((l) => !savedDates.has(l.date)));
             await qc.invalidateQueries({ queryKey: ["vouchers-of-day"] });
@@ -611,7 +611,7 @@ export default function VoucherEntryPage() {
         savedDates.add(gDate);
       }
       if (newIds.length > 0) {
-        //   불러온 통장/카드 거래에 전표를 건다 → 수집·전표/통장/카드에서 '전표됨', 다시 전표 못 침(ALREADY_POSTED). 여러 장이면 첫 장에 건다.
+        // 불러온 통장/카드 거래에 전표를 건다 → 수집·전표/통장/카드에서 '전표됨', 다시 전표 못 침(ALREADY_POSTED). 여러 장이면 첫 장에 건다.
         if (linkedSrc) {
           try {
             const { linkTransactionToEntry } = await import("@/lib/dup-voucher");
@@ -623,9 +623,9 @@ export default function VoucherEntryPage() {
           setLinkedSrc(null);
           qc.invalidateQueries({ queryKey: ["ve-import"] });
         }
-        //   프로젝트에서 넘어온 초안이면 전표를 그 프로젝트로 태그 — 확정 비용 집계에 잡힌다.
-        //   직접 update 가 아니라 기존 하드닝 RPC(set_voucher_deal: 관리자 게이트 + deal 회사 일치)를 탄다
-        //   (2026-08-31 security-reviewer W-1 — 직접 update 는 두 검증을 모두 우회한다).
+        // 프로젝트에서 넘어온 초안이면 전표를 그 프로젝트로 태그 — 확정 비용 집계에 잡힌다.
+        // 직접 update 가 아니라 기존 하드닝 RPC(set_voucher_deal: 관리자 게이트 + deal 회사 일치)를 탄다
+        // (2026-08-31 security-reviewer W-1 — 직접 update 는 두 검증을 모두 우회한다).
         if (prefillDeal) {
           for (const id of newIds) {
             const { error: dealErr } = await db.rpc("set_voucher_deal", { p_entry_id: id, p_deal_id: prefillDeal.dealId });
@@ -724,14 +724,14 @@ export default function VoucherEntryPage() {
 
   const acctMatches = (q: string) => {
     const t = q.trim().toLowerCase();
-    //   ⚠️ 자르지 않는다 — 12개로 잘라 두면 **그 12개 안에서만** 검색된다(매입매출전표에서 같은 버그를
-    //     잡았다: '여비교통비'가 안 나왔다). 목록은 스크롤되므로 다 넘겨도 된다 (2026-08-12).
+    // ⚠️ 자르지 않는다 — 12개로 잘라 두면 **그 12개 안에서만** 검색된다(매입매출전표에서 같은 버그를
+    // 잡았다: '여비교통비'가 안 나왔다). 목록은 스크롤되므로 다 넘겨도 된다 (2026-08-12).
     return t ? accounts.filter((a) => a.code.includes(t) || a.name.toLowerCase().includes(t)) : accounts;
   };
   const ptMatches = (q: string) => {
     const raw = q.trim().toLowerCase();
     if (!raw) return partners; // 빈 검색 = 회사 거래처 전체 노출(세로 스크롤로 탐색)
-    const tn = raw.replace(/[-\s]/g, "");          // 공백·하이픈 제거(사업자번호/연속매칭용)
+    const tn = raw.replace(/[-\s]/g, ""); // 공백·하이픈 제거(사업자번호/연속매칭용)
     const tokens = raw.split(/\s+/).filter(Boolean); // 토큰별(공백 구분) 매칭
     // 매칭을 넓게 — 공백 무시 부분일치 OR 모든 토큰 포함 OR 사업자번호 포함
     return partners.filter((p) => {
@@ -739,14 +739,14 @@ export default function VoucherEntryPage() {
       const nameNS = name.replace(/\s/g, "");
       const bn = (p.business_number || "").replace(/-/g, "");
       return nameNS.includes(tn) || tokens.every((tk) => name.includes(tk)) || (bn && bn.includes(tn));
-    });   //   거래처도 자르지 않는다 — 200개 뒤의 거래처가 검색에서 빠졌다 (2026-08-12)
+    }); // 거래처도 자르지 않는다 — 200개 뒤의 거래처가 검색에서 빠졌다 (2026-08-12)
   };
 
   const TD = "px-2 py-1 whitespace-nowrap";
   const IN = "w-full bg-transparent text-xs text-[var(--text)] focus:outline-none focus:bg-[var(--primary)]/5 px-1 py-1";
 
-  //   vrow = 상단 입력 영역의 행 번호. 있으면 Enter 가 '윗값 내리기'(onTopKey)로 넘어갈 수 있다.
-  //   하단 편집 버퍼는 vrow 를 주지 않아 예전 그대로 동작한다.
+  // vrow = 상단 입력 영역의 행 번호. 있으면 Enter 가 '윗값 내리기'(onTopKey)로 넘어갈 수 있다.
+  // 하단 편집 버퍼는 vrow 를 주지 않아 예전 그대로 동작한다.
   // 계정과목 자동완성 셀 (상단·하단 편집 공용)
   const acctCell = (l: PLine, rowId: string, update: (p: Partial<PLine>) => void, withName: boolean, vrow?: number) => (
     <td className={`${TD} p-0 ${withName ? "w-[72px]" : ""}`}>
@@ -761,8 +761,8 @@ export default function VoucherEntryPage() {
           const list = acctMatches(picker.q);
           if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); setPicker((p) => p ? { ...p, idx: Math.min((p.idx ?? 0) + 1, Math.max(list.length - 1, 0)) } : p); }
           else if (e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); setPicker((p) => p ? { ...p, idx: Math.max((p.idx ?? 0) - 1, 0) } : p); }
-          //   아무것도 안 친 상태의 Enter 는 목록 첫 줄을 고르는 게 아니라 **윗값 내리기**로 보낸다
-          //   (뭘 골랐는지 모르는 채 엉뚱한 계정이 박히는 것보다 낫다)
+          // 아무것도 안 친 상태의 Enter 는 목록 첫 줄을 고르는 게 아니라 **윗값 내리기**로 보낸다
+          // (뭘 골랐는지 모르는 채 엉뚱한 계정이 박히는 것보다 낫다)
           else if (e.key === "Enter") {
             if (vrow != null && !picker.q.trim()) return;
             const sel = list[picker.idx ?? 0]; if (sel) { e.preventDefault(); e.stopPropagation(); update({ account: sel }); setPicker(null); }
@@ -808,7 +808,7 @@ export default function VoucherEntryPage() {
               if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); setPicker((p) => p ? { ...p, idx: Math.min((p.idx ?? 0) + 1, Math.max(list.length - 1, 0)) } : p); }
               else if (e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); setPicker((p) => p ? { ...p, idx: Math.max((p.idx ?? 0) - 1, 0) } : p); }
               else if (e.key === "Enter") {
-                if (vrow != null && !picker.q.trim()) return;   // 계정과목 칸과 같은 규칙
+                if (vrow != null && !picker.q.trim()) return; // 계정과목 칸과 같은 규칙
                 const sel = list[picker.idx ?? 0]; if (sel) { e.preventDefault(); e.stopPropagation(); update({ partner: sel }); setPicker(null); }
               }
               else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setPicker(null); }
@@ -889,9 +889,9 @@ export default function VoucherEntryPage() {
   };
 
   let listNo = 0;
-  const sourceBadge = (s: string) => (s !== "manual" ? <span className="ml-1 text-[9px] px-1 py-0.5 rounded bg-purple-500/10 text-purple-500 font-semibold align-middle">AI</span>  : null);
+  const sourceBadge = (s: string) => (s !== "manual" ? <span className="ml-1 text-[9px] px-1 py-0.5 rounded bg-purple-500/10 text-purple-500 font-semibold align-middle">AI</span> : null);
 
-  //   엑셀 그릇 · 지금 조회 결과(걸린 조건 그대로, 분개 줄 단위)
+  // 엑셀 그릇 · 지금 조회 결과(걸린 조건 그대로, 분개 줄 단위)
   const excelItems: ExcelItem[] = [
     
     { label: "지금 조회 결과 내려받기", count: sortedEntries.length, hint: "걸린 조건 그대로 · 분개 줄 단위", disabled: sortedEntries.length === 0, onClick: () => exportCsv() },
@@ -901,16 +901,16 @@ export default function VoucherEntryPage() {
     <div className="qk-shell">
       {acctFetched && !dbReady && (
         <div className="px-4 py-3 rounded-xl bg-amber-500/8 border border-amber-500/25 text-xs text-amber-600 font-semibold shadow-sm">
-          <Ico e="⚠" />  아직 계정과목이 준비되지 않았습니다.
+          <Ico e="⚠" /> 아직 계정과목이 준비되지 않았습니다.
 
         </div>
       )}
 
       {/* ══ 상단: 입력 영역 (§3-3) ══ */}
-      {/* ── 한 상자: [구분 탭] → 분개 입력 → (선) → 전표목록 조회 줄·표·쪽 넘김·안내 (2026-08-18 사장님: 상자 하나, 섹션은 선으로) ── */}
+      {/* ── 한 상자: [구분 탭] → 분개 입력 → (선) → 전표목록 조회 줄·표·쪽 넘김·안내 (상자 하나, 섹션은 선으로) ── */}
       <QueryScreen>
       <div ref={topRef} onKeyDown={onTopKey} className="qk-head ve-input-section overflow-visible">
-        {/* 구분 탭 — 수집·전표처럼 상자 **안** 맨 위, 파란 밑줄 (2026-08-18 사장님). 오른쪽은 새 전표·저장 */}
+        {/* 구분 탭 — 수집·전표처럼 상자 **안** 맨 위, 파란 밑줄. 오른쪽은 새 전표·저장 */}
         <div className="collect-tabs ve-kind-tabs no-print">
           {VTYPES.map((t) => (
             <button key={t.id} type="button" onClick={() => changeVtype(t.id)} title={t.desc}
@@ -928,7 +928,7 @@ export default function VoucherEntryPage() {
               {busy ? "저장 중..." : "저장"}</button>
           </span>
         </div>
-        {/* 조회 줄 — 원래 하단 목록 위에 있던 것을 여기(입력 칸 위)로 올렸다. 상단 일자 칸은 없애고 줄마다 날짜를 갖는다 (2026-09-02 사장님) */}
+        {/* 조회 줄 — 원래 하단 목록 위에 있던 것을 여기(입력 칸 위)로 올렸다. 상단 일자 칸은 없애고 줄마다 날짜를 갖는다 */}
         <div className="ve-querybar-row">
             <QueryBar right={<ExcelMenu items={excelItems} />}>
               <DateRangeField unit="month" label={null} parts="segments" from={fromM} to={toM}
@@ -990,8 +990,8 @@ export default function VoucherEntryPage() {
               <QuickSearch value={q} onApply={setQ} placeholder="계정 · 거래처 · 적요 · 전표번호 · 금액 · 쉼표로 여러 개, Enter" />
             </QueryBar>
         </div>
-        {/* 데스크톱: 가로 스크롤 없이 폭에 맞춤. 모바일: min-width + 가로 스크롤 (사장님 QA 2026-07-10 IMG_0577).
-            ★ 행이 많아지면 이 칸만 스크롤한다 — 입력 줄이 늘수록 아래 목록이 밀려 상자가 깨졌다 (2026-08-18 사장님 캡처 1z).
+        {/* 데스크톱: 가로 스크롤 없이 폭에 맞춤. 모바일: min-width + 가로 스크롤.
+            ★ 행이 많아지면 이 칸만 스크롤한다 — 입력 줄이 늘수록 아래 목록이 밀려 상자가 깨졌다 (2026-08-18 대표 캡처 1z).
               드롭다운(CellDropdown)은 body 포털·fixed 라 이 칸이 스크롤 상자여도 안 잘린다. */}
         <div ref={split.ref} style={split.height != null ? { height: split.height, maxHeight: split.height } : undefined} className="ve-input-rows overflow-x-auto sm:overflow-x-visible">
           <table className="w-full min-w-[620px] sm:min-w-0 text-xs border-collapse table-fixed">
@@ -1013,7 +1013,7 @@ export default function VoucherEntryPage() {
                 <tr key={l.key} className="border-b border-[var(--border)]/40 transition-colors focus-within:bg-[var(--primary)]/[0.04]"
                   onContextMenu={(e) => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, rowId: `p:${l.key}` }); }}>
                   <td className={`${TD} w-[156px]`}>
-                    {/* 줄마다 날짜 — 같은 날짜 줄이 한 장. 우리 달력(DateField)으로 통일 (2026-09-02 사장님: 옛 기본 달력 삭제) */}
+                    {/* 줄마다 날짜 — 같은 날짜 줄이 한 장. 우리 달력(DateField)으로 통일 (옛 기본 달력 삭제) */}
                     <DateField value={l.date} onChange={(e) => setPendLine(l.key, { date: e.target.value })}
                       title="전표 일자" className={`${IN} ve-row-date`} />
                   </td>
@@ -1085,7 +1085,7 @@ export default function VoucherEntryPage() {
           </div>
         </div>
       </div>
-      {/* 구분선 = 잡아끄는 손잡이 — 분개 입력 칸 높이를 사용자가 정한다 (2026-08-19 사장님) */}
+      {/* 구분선 = 잡아끄는 손잡이 — 분개 입력 칸 높이를 사용자가 정한다 */}
       <SplitHandle onMouseDown={split.onMouseDown} onReset={split.reset} />
       {/* 통장·카드 불러오기 팝업 — 미전표 거래 목록에서 하나 골라 입력칸에 채운다 (2026-08-19) */}
       {importOpen && (
@@ -1280,7 +1280,7 @@ export default function VoucherEntryPage() {
         </QueryBody>
         <Pager page={pager.page} pages={pager.pages} total={sortedEntries.length} size={live.rows}
           from={pager.from} to={pager.to} onPage={pager.setPage} />
-        {/*   안내는 상자 **안** 마지막 줄에 — 밖에 두면 상자 끝선이 사이드바 끝선과 어긋난다 (2026-08-18 사장님) */}
+        {/* 안내는 상자 **안** 마지막 줄에 — 밖에 두면 상자 끝선이 사이드바 끝선과 어긋난다 */}
         <p className="collect-note" title="수정하면 변경 전 값이 이력으로 남고, 마감된 월은 저장·수정·삭제가 막힙니다.">
           
           계산서와 입금의 대사는 <Link href="/partners/reconciliation" className="text-[var(--primary)] hover:underline">거래 대사</Link>에서 처리합니다.

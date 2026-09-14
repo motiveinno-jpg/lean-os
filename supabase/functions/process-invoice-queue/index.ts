@@ -12,7 +12,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// 공유 시크릿 게이트 (2026-08-19 감사): 종전엔 인증이 전혀 없어 URL 만 알면 전사 발행 큐를
+// 공유 시크릿 게이트: 종전엔 인증이 전혀 없어 URL 만 알면 전사 발행 큐를
 //   임의로 돌리고 tax_invoices 상태를 바꿀 수 있었다. 형제 함수(receive-bank-transactions,
 //   generate-monthly-batches)와 동일한 n8n 게이트(fail-closed). 현재 호출 트래픽 0건 실측.
 

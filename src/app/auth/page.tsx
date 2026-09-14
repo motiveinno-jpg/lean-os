@@ -43,7 +43,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [bizNo, setBizNo] = useState(""); // 사업자번호 — 1사업자=1회사 원칙의 키
-  // 2026-08-05 관문 단순화(사장님 — 가입 이탈 50% 대응): 대표자성명·개업일자 진위확인을 개설
+  // 2026-08-05 관문 단순화(대표 — 가입 이탈 50% 대응): 대표자성명·개업일자 진위확인을 개설
   //   관문에서 제거. 번호 상태 확인(폐업·휴업·미등록 차단)만 유지 — 진위확인 함수는 사후 인증용으로 보존.
   const [phone, setPhone] = useState(""); // 휴대전화 — 알림톡 발송 대상(2026-07-29)
   // 사업자번호가 이미 등록된 회사와 일치할 때 — 합류 요청 전환 안내 (마스킹된 회사명)
@@ -523,7 +523,7 @@ export default function AuthPage() {
               onClick={async () => {
                 setError("");
                 // 소셜 가입도 약관 동의 필수 — 기존엔 이 경로가 동의를 건너뛰어
-                //   약관 미동의 상태로 계정이 만들어질 수 있었다(2026-07-27 사장님 지적).
+                //   약관 미동의 상태로 계정이 만들어질 수 있었다.
                 if (mode === "signup" && !agreed) {
                   return setError("이용약관·개인정보처리방침·환불규정에 동의해야 가입할 수 있습니다.");
                 }

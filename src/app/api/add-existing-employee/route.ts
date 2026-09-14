@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     // 7) employees — 기존(초대 등) 있으면 join 처리, 없으면 신규
     if (existingEmp?.id) {
-      // error 확인 (2026-08-21 감사): 실패해도 성공 응답이 나가 명단이 '초대중' 으로 남았다.
+      // error 확인: 실패해도 성공 응답이 나가 명단이 '초대중' 으로 남았다.
       const { error: updEmpErr } = await admin.from('employees').update({
         user_id: targetUserId, status: 'joined', name: targetName, email,
         department, position, salary: salaryMonthly, hire_date: hireDate,

@@ -601,7 +601,7 @@ async function upsertTaxInvoices(
     synced_at: new Date().toISOString(),
   }));
 
-  //   ignoreDuplicates: true (2026-08-19 감사) — 이 함수의 공공데이터 폴백 파서는 direction
+  //   ignoreDuplicates: true — 이 함수의 공공데이터 폴백 파서는 direction
   //   필드가 응답에 없어 전건 매출(issued)로 고정되는 등 품질이 낮다. 기존 행(codef-sync 가
   //   정상 수집한 매입 계산서 포함)을 UPDATE 로 뒤집던 것을 차단 — 신규만 적재한다.
   const { data, error } = await supabase

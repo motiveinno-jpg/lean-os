@@ -53,7 +53,7 @@ export function BankRecentCard({ companyId, headExtra }: { companyId: string; he
     queryFn: async () => {
       const data = logRead('components/dashboard-menu-widgets:data', await db.from("bank_transactions")
         .select("id, transaction_date, type, amount, counterparty, description")
-        .eq("company_id", companyId).order("transaction_date", { ascending: false }).limit(15));   // 위젯을 키우면 더 보이게 (2026-08-20 사장님)
+        .eq("company_id", companyId).order("transaction_date", { ascending: false }).limit(15));   // 위젯을 키우면 더 보이게
       return (data || []) as any[];
     },
   });
@@ -101,7 +101,7 @@ export function BankRecentCard({ companyId, headExtra }: { companyId: string; he
 // ── 결재 · 회사 결재 대기 목록 ──
 const DOC_KIND: Record<string, string> = { quote: "견적서", contract: "계약서", invoice: "계산서", report: "보고서" };
 export function ApprovalsPendingCard({ companyId }: { companyId: string }) {
-  // 권한 분기 (2026-08-19 사장님: 직원 계정에 회사 전체 대기가 다 보였다) —
+  // 권한 분기 (직원 계정에 회사 전체 대기가 다 보였다)
   //   결재허브 '전체 현황' 게이트(isMaster ‖ /approvals:all)와 같은 규칙.
   //   그 외 계정은 '내가 결재할 차례인 건'(내 결재함 규칙)만 본다.
   const { user } = useUser();
@@ -117,7 +117,7 @@ export function ApprovalsPendingCard({ companyId }: { companyId: string }) {
         return { docs: [] as any[], reqs, total: reqs.length };
       }
       // 결재허브 대기(approval_requests)만 — 진짜 '결재 대기'.
-      //   (2026-08-19 사장님: payment_queue 는 지급 대기라 결재가 끝난 건이 유령처럼 남아 제거.
+      //   (payment_queue 는 지급 대기라 결재가 끝난 건이 유령처럼 남아 제거.
       //    2026-08-31: doc_approvals 도 제거 — pending→approved 전이 코드가 없고 /approvals 화면이
       //    읽지도 않아, 잡히면 영원히 못 없애는 유령이 된다. 같은 구조의 재발 방지.)
       const reqRes = await db.from("approval_requests").select("id, title, request_type, amount, created_at")
@@ -214,7 +214,7 @@ export function PartnersCard({ companyId }: { companyId: string }) {
 // ── 공지사항 · 최근 공지(핀 우선) ──
 export function AnnouncementsCard()  {
   //   전역(null) + 내 회사 공지만 — RLS 만 믿으면 운영자 계정(creative@)은 전 회사(QA 시드 포함)
-  //   공지가 다 보인다 (2026-08-28 사장님 제보 "김대표가 올린 것들 다 뭐야")
+  //   공지가 다 보인다 ( "김대표가 올린 것들 다 뭐야")
   const { user } = useUser();
   const companyId = (user as any)?.company_id as string | undefined;
   const { data = [] } = useQuery({
@@ -228,7 +228,7 @@ export function AnnouncementsCard()  {
     },
   });
   //   공지사항 = 오너뷰 운영팀이 쓰는 서비스 공지(DB 도 운영자만 쓸 수 있다). 회사가 직원에게 알리는 글은 게시판이다.
-  //   빈 화면은 '없다' 고만 한다. 게시판으로 보내지 않는다(게시판 위젯이 따로 있다) (2026-09-07 사장님).
+  //   빈 화면은 '없다' 고만 한다. 게시판으로 보내지 않는다(게시판 위젯이 따로 있다).
   return (
     
     <ActivityCard title="공지사항" href="/announcements" empty={data.length === 0}
@@ -282,7 +282,7 @@ export function MyTasksCard({ companyId, userId }: { companyId: string; userId: 
 
 
 
-// ── 재고 부족 · 안전재고 아래로 내려간 품목 (2026-08-25 사장님 지시, 재고 2순위) ──
+// ── 재고 부족 · 안전재고 아래로 내려간 품목 (재고 2순위) ──
 //   재고 화면에 들어가지 않아도 대시보드에서 먼저 보이게. 안전재고를 정한 품목만 셀 수 있다.
 export function InventoryShortageCard({ companyId }: { companyId: string }) {
   const { data } = useQuery({
@@ -321,7 +321,7 @@ export function InventoryShortageCard({ companyId }: { companyId: string }) {
 
 
 
-// ── 게시판 · 회사가 직원에게 알리는 글(고정 우선). 오너뷰 공지(운영팀)와 다른 것 (2026-09-07 사장님) ──
+// ── 게시판 · 회사가 직원에게 알리는 글(고정 우선). 오너뷰 공지(운영팀)와 다른 것 ──
 export function BoardCard({ companyId }: { companyId: string }) {
   const { data = [] } = useQuery({
     queryKey: ["dash-board-posts", companyId],

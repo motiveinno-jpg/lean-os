@@ -173,7 +173,7 @@ export default function ReconciliationPage() {
     mutationFn: async () => {
       //   매칭 엔진은 화면 기간(기본 1개월)과 무관하게 최근 2년치 입금을 훑는다 — 서버가 호출당 186일만 처리하므로
       //   180일 창으로 나눠 반복(504 방지). 오래된 입금도 제안이 생기게 하고, 확정은 사람이 검토 화면에서
-      //   한다(2026-09-09 사장님: 제안만 개선, 자동확정 없음). 제안 생성은 장부를 바꾸지 않는다.
+      //   한다(제안만 개선, 자동확정 없음). 제안 생성은 장부를 바꾸지 않는다.
       const DAY = 86400000, WIN = 180 * DAY, LOOKBACK = 730 * DAY;
       const dstr = (ms: number) => new Date(ms).toISOString().slice(0, 10);
       const endMs = Date.parse(engEnd + "T00:00:00Z");

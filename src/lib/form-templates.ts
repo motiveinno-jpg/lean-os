@@ -26,7 +26,7 @@ export interface PdfFormTemplate {
   is_active: boolean;
   created_at: string;
   updated_at: string;
-  // 텍스트변환 양식(직원 QA) — template_mode='text' 이면 content_html(변수 {{키}} 포함)을 렌더
+  // 텍스트변환 양식 — template_mode='text' 이면 content_html(변수 {{키}} 포함)을 렌더
   content_html?: string | null;
   template_mode?: "overlay" | "text";
 }

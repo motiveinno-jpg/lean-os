@@ -100,7 +100,7 @@ export function extractTemplateVariables(template: any): string[] {
   return out;
 }
 
-/** 선택한 서식들이 쓰는 변수 전체 → '필수 입력 정보' 입력 폼(2026-07-31 사장님: 서식에 맞춰 자동으로).
+/** 선택한 서식들이 쓰는 변수 전체 → '필수 입력 정보' 입력 폼(서식에 맞춰 자동으로).
  *  값은 직원·회사 정보에서 자동으로 채우고, 비워 두면 발송 시 같은 자동값이 그대로 치환된다. */
 export function buildContractFieldsForTemplates(
   templates: any[],
@@ -143,7 +143,7 @@ export interface BuiltInTemplate {
 }
 
 export function getBuiltInHRTemplates(): BuiltInTemplate[] {
-  // 2026-07-28 사장님 QA: 변수 전부 한글화({{직원명}} 등 — Step 3 입력 필드 key 와 동일),
+  // 2026-07-28 대표 QA: 변수 전부 한글화({{직원명}} 등 — Step 3 입력 필드 key 와 동일),
   //   본문을 HTML 로 전환해 표(근무시간·연봉구성·당사자)를 실제 <table> 로 표시,
   //   "(주)모티브이노베이션"/"채희웅" 하드코딩 제거 → {{회사명}}/{{대표자명}}.
   //   서명(인) 블록은 본문에서 제거 — 서명 화면이 갑/을 서명 푸터를 자동 렌더한다.
@@ -756,7 +756,7 @@ export async function sendContractPackage(
     // ⚠️ notes 는 JSON 이다 (salary·contract_meta·audit_trail·seal_url·document_hash 를 담는다).
     //   종전엔 그 뒤에 평문 "발송 실패: …" 를 이어 붙여 **구조를 통째로 깨뜨렸다** —
     //   재발송에 성공해도 서명 화면·서명본의 계약일·생년월일·을(乙) 정보가 사라지고
-    //   연봉 메타·직인·감사추적·무결성 해시가 전부 유실됐다 (2026-08-21 감사).
+    //   연봉 메타·직인·감사추적·무결성 해시가 전부 유실됐다.
     //   JSON 안의 필드로 남긴다.
     try {
       let meta: Record<string, unknown> = {};
@@ -773,7 +773,7 @@ export async function sendContractPackage(
     return { success: false, error: emailError || '인앱·이메일 발송 경로 모두 실패' };
   }
 
-  // 적어도 하나의 경로로 전달됐으면 sent 상태로 갱신 — error 확인 (2026-08-21 감사):
+  // 적어도 하나의 경로로 전달됐으면 sent 상태로 갱신 — error 확인:
   //   실패해도 "서명 요청 발송 완료" 가 떴고, 패키지는 draft·만료일 미설정으로 남아
   //   발송취소·재발송 흐름이 어긋났다.
   const { error: sentErr } = await db.from('hr_contract_packages').update({
@@ -800,7 +800,7 @@ export async function sendContractPackage(
   return { success: true, emailSent, inAppDelivered };
 }
 
-// ── Cancel Sent Package (발송 취소) — 상대가 열람·서명하기 전에만 (2026-08-19 사장님) ──
+// ── Cancel Sent Package (발송 취소) — 상대가 열람·서명하기 전에만 ──
 //   sign_token 을 비워 /sign 조회 RPC 와 complete-signing 엣지 함수 경로를 모두 끊는다 —
 //   상대가 이미 페이지를 띄워 둔 상태라도 이후 서명이 불가능하다.
 export async function cancelSentContractPackage(packageId: string): Promise<{ success: boolean; error?: string }> {
@@ -993,7 +993,7 @@ export async function getContractTemplates(companyId: string) {
     .order('name'));
 
   // 근로계약·서식 탭에서 PDF 로 만든 텍스트 양식(pdf_form_templates, {{변수}} 포함 HTML)도
-  // 발송 서식으로 쓴다 (2026-08-25 사장님: "방금 만든 pdf 양식이 여기 나타나야 되는데 안 나타나").
+  // 발송 서식으로 쓴다 ("방금 만든 pdf 양식이 여기 나타나야 되는데 안 나타나").
   //   content_json.body 에 HTML 을 실으면 변수 치환(fillVariables)·서명 화면(뷰어의
   //   sanitize+HTML 렌더)·발급 PDF 까지 기존 경로를 그대로 탄다.
   const pdfForms = logRead('lib/hr-contracts:pdfForms', await db

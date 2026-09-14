@@ -10,7 +10,7 @@ import Link from "next/link";
 import { GlobalConfirmHost } from "@/components/global-confirm";
 
 // 게이트: 검증된 Auth 로그인 이메일이 허용 목록에 정확히 일치 (서버 is_platform_operator() 와 동일 기준).
-//   2026-07-28 사장님 지시로 도메인 전체(@mo-tive.com)에서 단일 계정으로 축소.
+//   2026-07-28 대표 지시로 도메인 전체(@mo-tive.com)에서 단일 계정으로 축소.
 //   그 전에는 직원 계정 11개가 운영자로 통과했다.
 //   ⚠️ 운영자를 늘릴 때는 여기와 DB is_platform_operator() 를 반드시 함께 바꿀 것.
 const OPERATOR_EMAILS = ["creative@mo-tive.com"];

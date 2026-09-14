@@ -245,7 +245,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
 
   const companyId = user?.company_id ?? null;
   // 2026-06-10 CODEF 과금 통제 — app-shell 자동 동기화(앱 열때·30분 주기) 전면 제거.
-  //   탭·기기·새로고침마다 곱해지는 변동비라, 비용을 예측가능하게 cron+수동으로 일원화(사장님 결정).
+  //   탭·기기·새로고침마다 곱해지는 변동비라, 비용을 예측가능하게 cron+수동으로 일원화.
   //   · 정기 자동 갱신: 서버 cron — 은행 bank-sync-tick(하루 2회 0 1,13) + 카드 card-sync-tick(하루 2회 0 4,16)
   //   · 최신 필요 시: 각 페이지(통장/카드/대시보드/설정) '동기화' 버튼 = 수동, 누를 때만 과금
   //   → 앱을 켜두거나 새로고침해도 자동 CODEF 호출 0.
@@ -419,7 +419,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
           </svg>
         </button>
 
-        {/* 상단바 도구 — 계산기 · 화면 캡처 · 메모 (2026-08-27 사장님 지시: 알림 왼쪽에 아이콘으로) */}
+        {/* 상단바 도구 — 계산기 · 화면 캡처 · 메모 (알림 왼쪽에 아이콘으로) */}
         <HeaderTools />
 
         {/* 알림 벨 — 클릭 시 현재 페이지 유지, 최근 알림 팝오버 (전체보기 → /notifications) */}
@@ -438,7 +438,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
           collapsed ? "md:ml-[88px]" : "md:ml-[280px]"
         } ml-0 ${guideOpen ? "md:mr-[412px]" : ""} ${isLimitedRole ? "p-4 pb-20 md:p-6 md:pl-3 md:pr-[128px] md:pb-0" : "p-6 pb-20 md:pb-0 md:pr-[128px] md:pl-3"}`}
       >
-        {/* 2026-07-14 콘텐츠 좌측 정렬 + 우측 여백 + 전체 축소(사장님 요청, 오너뷰사이즈.PNG).
+        {/* 2026-07-14 콘텐츠 좌측 정렬 + 우측 여백 + 전체 축소(오너뷰사이즈.PNG).
             max-width 로 좌측 정렬(오른쪽 여백) + zoom 으로 스퀘어·글씨를 전체적으로 살짝 작게.
             폼·문서 등 자체 --content-max 페이지는 그 안에서 추가 제한되므로 영향 없음. */}
         <div className="app-content-scale w-full">
@@ -560,7 +560,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <BoardProvider>
           <PopupProvider>
             <GuideProvider>
-              {/*   ★ 앱 전체 글자 키우기 (2026-08-26 사장님: "전체 글자가 너무 작다는 평 · 2px 정도") — 값 하나(.app-zoom)로 사이드바·머리·본문이 같이 커진다.
+              {/*   ★ 앱 전체 글자 키우기 ("전체 글자가 너무 작다는 평 · 2px 정도") — 값 하나(.app-zoom)로 사이드바·머리·본문이 같이 커진다.
                     랜딩·온보딩은 이 껍데기 밖이라 그대로. */}
               <div className="app-zoom"><AppContent>{children}</AppContent></div>
             </GuideProvider>

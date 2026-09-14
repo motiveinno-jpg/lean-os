@@ -1,4 +1,4 @@
-// 매입매출전표 — 부가세 유형이 분개를 정한다 (2026-08-11 사장님 지시로 신설).
+// 매입매출전표 — 부가세 유형이 분개를 정한다 (2026-08-11 대표 지시로 신설).
 //
 //   회사가 실제로 치는 전표의 대부분은 세금계산서·카드·현금영수증에서 시작하고,
 //   그건 유형(과세/영세/면세/불공제)에 따라 **분개도 부가세 신고서도 이미 정해져 있다**.
@@ -40,7 +40,7 @@ export const VAT_TYPES: VatType[] = [
   { code: "53", label: "53. 면세매입", side: "purchase", taxed: false, deductible: false, hint: "계산서(면세) 수취", defaultSettle: "credit" },
   { code: "54", label: "54. 불공제매입", side: "purchase", taxed: true, deductible: false, hint: "접대비·비영업용 차량 등", defaultSettle: "credit" },
   { code: "57", label: "57. 카드과세매입", side: "purchase", taxed: true, deductible: true, hint: "카드 과세매입 · 법인카드 사용", defaultSettle: "card" },
-  //   카드 매입은 과세만 있는 게 아니다 — 면세(도서·농축수산물 등)·영세(수출) 가맹점도 있다 (2026-08-12 사장님 지시)
+  //   카드 매입은 과세만 있는 게 아니다 — 면세(도서·농축수산물 등)·영세(수출) 가맹점도 있다
   { code: "58", label: "58. 카드면세매입", side: "purchase", taxed: false, deductible: false, hint: "카드 면세매입 · 면세 가맹점", defaultSettle: "card" },
   { code: "59", label: "59. 카드영세매입", side: "purchase", taxed: false, deductible: false, hint: "카드 영세매입 · 영세율 가맹점", defaultSettle: "card" },
   { code: "61", label: "61. 현금과세매입", side: "purchase", taxed: true, deductible: true, hint: "현금영수증 수취", defaultSettle: "cash" },
@@ -64,7 +64,7 @@ export function vatOf(code: string, supply: number): number {
 /*  표준 계정 코드 — 회사 계정과목표에서 코드로 찾는다                    */
 /* ------------------------------------------------------------------ */
 export const STD = {
-  //   ⚠️ 표준 계정과목표에서 **101 은 현금, 보통예금은 103** 이다 (2026-08-12 사장님 엑셀 기준).
+  //   ⚠️ 표준 계정과목표에서 **101 은 현금, 보통예금은 103** 이다 (2026-08-12 대표 엑셀 기준).
   //     예전엔 101 을 보통예금으로 쓰고 있었다 — 표준으로 옮기면서 여기도 같이 바꿨다.
   //     DB 쪽 post_bank/card/cash/settlement_voucher · generate_voucher_drafts 도 함께 103 이다.
   bank: "103",        // 보통예금

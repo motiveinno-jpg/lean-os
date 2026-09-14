@@ -62,7 +62,7 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // 사이드바 "팝업으로 열기" · 인앱 플로팅 창을 거치지 않고 바로 OS 새 창으로 (2026-07-28 사장님:
+  // 사이드바 "팝업으로 열기" · 인앱 플로팅 창을 거치지 않고 바로 OS 새 창으로 (
   //   "두번 안누르고 바로 새창으로"). 팝업 차단 시에만 기존 인앱 플로팅 창으로 폴백.
   const openDetached = useCallback((href: string, title: string, size?:  { w: number; h: number }) => {
     const vw = window.innerWidth, vh = window.innerHeight;

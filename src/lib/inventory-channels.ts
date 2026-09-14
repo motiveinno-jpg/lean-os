@@ -1,6 +1,6 @@
 "use client";
 
-// ── 재고 5단계 — 채널(온라인 판매처) 연동 (2026-08-25 사장님 지시) ─────────────
+// ── 재고 5단계 — 채널(온라인 판매처) 연동 ─────────────
 //   ★ 결정 17 — 이 단계에서 가장 무서운 것은 API 가 없는 것이 아니라 **같은 주문을 두 번 넣는 것**이다.
 //     두 번 넣으면 재고가 두 번 빠지고 아무도 모른다. 그래서 뼈대는 '무엇을 이미 가져왔는가' 표 하나다.
 //   ★ 결정 18 — **키가 없어도 오늘 쓸 수 있어야 한다.** 스마트스토어·쿠팡 모두 주문 엑셀을 내려받는다.
@@ -14,7 +14,7 @@ import { fetchPaged } from "@/lib/fetch-paged";
 import { todayKst } from "@/lib/kst";
 import { createStockDoc } from "@/lib/inventory";
 
-//   채널 — 이름은 사장님이 부르는 대로. 없는 곳은 '기타'로 적고 나중에 늘린다.
+//   채널 — 이름은 대표 부르는 대로. 없는 곳은 '기타'로 적고 나중에 늘린다.
 export const CHANNELS = [
   { value: "smartstore", label: "스마트스토어" },
   { value: "coupang", label: "쿠팡" },
@@ -197,7 +197,7 @@ export async function importChannelOrders(
 }
 
 
-// ── 격자 입력에서 바로 출고 등록 (2026-08-26 사장님 지시 — 입력 화면 형식) ─────────
+// ── 격자 입력에서 바로 출고 등록 (입력 화면 형식) ─────────
 //   붙여넣기·API 가 격자를 **채우기만** 하고, 출고는 사람이 [출고 등록]을 누른다.
 
 /** 이미 등록된 채널 주문번호 — 물어본 것만 확인한다(전부 읽지 않는다). */
@@ -285,7 +285,7 @@ export async function fetchChannelOrders(channel: string, from: string, to: stri
 export const CHANNEL_HAS_API = new Set(["smartstore", "coupang"]);
 
 
-// ── 출고 처리 · 송장 (2026-08-26 사장님 지시 ②) ────────────────────────────────
+// ── 출고 처리 · 송장 ( ②) ────────────────────────────────
 /** 발송·완료·되돌리기 — 상태와 함께 시각·사람을 남긴다 */
 export async function updateShipping(
   ids: string[], patch: { ship_status: ShipStatus; carrier?: string | null; tracking_no?: string | null }, userId?: string | null,
@@ -327,7 +327,7 @@ export async function listImportItems(
 }
 
 
-// ── 택배 송장 양식 (2026-08-26 사장님 지시 — "택배사가 다양하니 모든 택배사 양식을 고를 수 있게") ─────
+// ── 택배 송장 양식 ("택배사가 다양하니 모든 택배사 양식을 고를 수 있게") ─────
 //   ① 표준 양식: 주요 택배사 일괄등록 엑셀의 열 순서를 시작점으로 둔다. ⚠ 택배사가 양식을 바꾸기도 하므로
 //      처음 한 번 택배사 프로그램에 올려 보고, 안 맞으면 '내 양식'으로 복사해 열을 고친다.
 //   ② 내 양식: 회사가 열을 고르고 순서·머리글을 정해 저장(shipping_sheet_layouts). 어느 택배사든 대응.

@@ -1,6 +1,6 @@
 "use client";
 
-// ── 자재구성 — 품목 등록에서 편집, 생산 입력에서 소요 확인 (2026-08-26 사장님 지시) ──────
+// ── 자재구성 — 품목 등록에서 편집, 생산 입력에서 소요 확인 ──────
 //   "자재구성은 입력(생산)보다 품목 등록에 있는 게 맞다. 체크박스로 체크하면 팝업. 지금 입력 화면은 너무 불편하다.
 //    생산의 자재구성 버튼은 입력한 품목이 어떤 자재로 구성돼 있는지 보여 주는 기능으로."
 //
@@ -32,7 +32,7 @@ export function BomEditorDialog({ companyId, product, products, onClose }: {
   const { data: boms = [], isLoading } = useQuery({ queryKey: ["inv-boms", companyId], queryFn: () => listBoms(companyId), enabled: !!companyId });
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const [rows, setRows] = useState<Row[]>([]);
-  //   ★ 기준 수량 — "완제품 N개당" 소요량. 1개당으로 안 떨어지는 자재(10개당 3장)를 억지로 0.3 으로 적지 않게(2026-08-26 사장님).
+  //   ★ 기준 수량 — "완제품 N개당" 소요량. 1개당으로 안 떨어지는 자재(10개당 3장)를 억지로 0.3 으로 적지 않게.
   const [base, setBase] = useState("1");
   const [seeded, setSeeded] = useState(false);
   const [pick, setPick] = useState<number | null>(null);
@@ -164,7 +164,7 @@ export function BomEditorDialog({ companyId, product, products, onClose }: {
 
 
 
-/** 자재 소요. 완제품 목록에서 하나를 누르면 그 품목의 자재만 아래에(2026-08-26 사장님: "혼재되어 보기 불편"). 과부족은 격자 전체 소요 기준. */
+/** 자재 소요. 완제품 목록에서 하나를 누르면 그 품목의 자재만 아래에("혼재되어 보기 불편"). 과부족은 격자 전체 소요 기준. */
 export function BomNeedDialog({ companyId, warehouseId, items, products, onClose, onEdit, materials, onApply }: {
   companyId: string; warehouseId: string | null;
   /** qty = 양품+불량(투입 기준). defect 는 표시용 */

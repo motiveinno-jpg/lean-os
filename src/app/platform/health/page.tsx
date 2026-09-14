@@ -130,10 +130,10 @@ export default function PlatformHealthPage() {
   const depsTone: LightTone = !deps ? "loading" :
     (deps.supabase.errors_1h > 50 || deps.stripe.failed_invoices_24h > 5) ? "warn" : "ok";
 
-  // 회사별 필터 (2026-07-28 사장님 요청) — 전 회사 활동이 한데 섞여 회사가 늘면 못 쓰게 되는 문제.
+  // 회사별 필터 — 전 회사 활동이 한데 섞여 회사가 늘면 못 쓰게 되는 문제.
   //   피드에 등장한 회사명으로 드롭다운을 만들고, 선택 시 그 회사 관련 항목만 표시.
   const [companyFilter, setCompanyFilter] = useState("all");
-  // 오류 행 클릭 → 무슨 오류/왜/조치 상세 펼침 (2026-07-29 사장님)
+  // 오류 행 클릭 → 무슨 오류/왜/조치 상세 펼침
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const feedCompanies = useMemo(() => {
     const set = new Set<string>();

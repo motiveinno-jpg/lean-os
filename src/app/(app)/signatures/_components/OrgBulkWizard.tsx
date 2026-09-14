@@ -107,24 +107,24 @@ export function OrgBulkWizard({
 
   // 계약 양식(contract_templates)을 발송 목록에 노출 — 선택 시 실제 documents 행으로 실체화.
   const bizTemplates = useMemo(() => contractTemplates, [contractTemplates]);
-  // 2026-08-03 사장님: 우리 회사 양식은 '문서' 그룹에, 표준(기본) 양식은 '양식 관리' 그룹에.
+  // 2026-08-03 대표: 우리 회사 양식은 '문서' 그룹에, 표준(기본) 양식은 '양식 관리' 그룹에.
   const companyTpls = useMemo(() => (contractTemplates as any[]).filter((t: any) => !t.is_system), [contractTemplates]);
   const standardTpls = useMemo(() => (contractTemplates as any[]).filter((t: any) => t.is_system), [contractTemplates]);
 
-  // ── 목록 순서: 드래그로 변경, 회사 전체 공통 적용 (2026-08-03 사장님) ──
+  // ── 목록 순서: 드래그로 변경, 회사 전체 공통 적용 ──
   //   저장은 company_settings.settings.contract_template_order — 양식관리 ▲▼ 와 같은 배열을 공유하고
   //   문서 id 도 함께 담아 '문서' 구역의 순서까지 기억한다. 드래그 즉시 로컬 반영 후 서버 저장.
   const qc = useQueryClient();
   const [localOrder, setLocalOrder] = useState<string[] | null>(null);
   const effectiveOrder = localOrder ?? templateOrder;
   type PickItem = { kind: "tpl"; id: string; tpl: any };
-  // 2026-08-10 사장님: 발송 목록에는 양식관리의 계약서 양식만 — documents 원본(프로젝트에서
+  // 2026-08-10 대표: 발송 목록에는 양식관리의 계약서 양식만 — documents 원본(프로젝트에서
   //   생성된 계약서 등)은 목록에서 제외. documents 는 실체화 사본 재사용(중복 방지)에만 쓴다.
   const docSection: PickItem[] = useMemo(() => sortTemplatesByOrder(
     companyTpls.map((t: any) => ({ kind: "tpl" as const, id: t.id as string, tpl: t })),
     effectiveOrder), [companyTpls, effectiveOrder]);
   const stdSection = useMemo(() => sortTemplatesByOrder(standardTpls as any[], effectiveOrder), [standardTpls, effectiveOrder]);
-  // 양식 검색 (2026-08-10 사장님 요청) — 이름으로 문서·양식을 거른다.
+  // 양식 검색 — 이름으로 문서·양식을 거른다.
   //   드래그 순서 저장(handleDrop)은 원본 docSection/stdSection 기준 그대로 두고 표시만 거른다.
   //   검색 중에는 일부만 보여 순서를 바꾸면 헷갈리므로 드래그를 잠근다.
   const [docSearch, setDocSearch] = useState("");
@@ -252,14 +252,14 @@ export function OrgBulkWizard({
     });
   };
 
-  // 아직 등록 안 된 거래처를 이 화면에서 바로 추가 (2026-08-05 사장님 요청)
+  // 아직 등록 안 된 거래처를 이 화면에서 바로 추가
   // · 거래처 관리로 나갔다 오면 작성 중이던 마법사 입력이 날아가므로 여기서 끝낸다.
   const [showAddPartner, setShowAddPartner] = useState(false);
   const [savingPartner, setSavingPartner] = useState(false);
   const emptyNewPartner =  { name: "", representative: "", contact_name: "", contact_email: "", contact_phone: "", business_number: "", address: "" };
   const [newPartner, setNewPartner] = useState(emptyNewPartner);
 
-  // 숫자만 쳐도 서식이 잡히게 (2026-08-06 사장님) — 사업자번호 000-00-00000 / 휴대·유선 하이픈.
+  // 숫자만 쳐도 서식이 잡히게 — 사업자번호 000-00-00000 / 휴대·유선 하이픈.
   const formatBizNoInput = (v: string) => {
     const d = v.replace(/[^0-9]/g, "").slice(0, 10);
     if (d.length <= 3) return d;
@@ -541,7 +541,7 @@ export function OrgBulkWizard({
         {/* 헤더 + 단계 인디케이터 */}
         <div className="bulk-wizard-header">
           <div>
-            {/* 2026-08-05 사장님: 진입점이 '새 계약 요청' 하나로 통합돼 제목도 버튼과 같게 맞춤
+            {/* 2026-08-05 대표: 진입점이 '새 계약 요청' 하나로 통합돼 제목도 버튼과 같게 맞춤
                 (기존 '단체 일괄 서명 발송'). 여러 곳 동시 발송은 부제로 안내. */}
             <h2 className="text-lg font-bold text-[var(--text)]">새 계약 요청</h2>
             <p className="text-xs text-[var(--text-muted)]">

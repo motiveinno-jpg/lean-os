@@ -93,7 +93,7 @@ export function RecentProjects({ companyId }: { companyId: string }) {
       // deals 엔 updated_at 컬럼이 없음(42703 400) — 최근활동/생성 시각으로 정렬 (2026-07-16 QA)
       const data = logRead('components/dashboard-activity:data', await db.from("deals").select("id, name, stage, contract_total, last_activity_at, created_at")
         .eq("company_id", companyId).is("archived_at", null).is("parent_deal_id", null)
-        .order("last_activity_at", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(15));   // 위젯을 키우면 더 보이게 (2026-08-20 사장님: 크기를 키워도 5줄뿐)
+        .order("last_activity_at", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(15));   // 위젯을 키우면 더 보이게 (크기를 키워도 5줄뿐)
       return (data || []) as any[];
     },
   });
@@ -124,7 +124,7 @@ export function RecentRevenue({ companyId }: { companyId: string }) {
     queryFn: async () => {
       const now = new Date();
       const mStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-      // limit(30) 이 합계·건수까지 잘랐다 (2026-08-19 감사: 월 45건 회사가 영원히 "30건").
+      // limit(30) 이 합계·건수까지 잘랐다 (월 45건 회사가 영원히 "30건").
       //   합계는 월 전체(상한 2000, 대시보드 위젯 부하 고려), 목록만 4건.
       const data = await fetchPaged<any>('components/dashboard-activity:data', () => db.from("tax_invoices").select("id, counterparty_name, supply_amount, issue_date")
         .eq("company_id", companyId).eq("type", "sales").neq("status", "void")

@@ -1,6 +1,6 @@
 "use client";
 
-// 보안 안내 — 회사 돈줄(통장·카드·홈택스)을 맡기기 전에 사장님이 가장 먼저 묻는 것들에 답한다.
+// 보안 안내 — 회사 돈줄(통장·카드·홈택스)을 맡기기 전에 대표 가장 먼저 묻는 것들에 답한다.
 //   여기 적힌 것은 전부 코드와 DB 설정으로 확인한 사실만이다. 과장·추정은 적지 않는다.
 import Link from "next/link";
 import { RollingBrandText } from "@/components/brand-logo";

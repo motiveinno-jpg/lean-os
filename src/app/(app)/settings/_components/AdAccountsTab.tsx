@@ -2,7 +2,7 @@
 import { koFallback }  from "@/lib/ko-label";
 
 // 광고 계정 연동 · 회사가 쓰는 광고 계정을 여기 한 번만 등록하고, 프로젝트에서는 골라 쓴다
-//   (2026-08-06 사장님 지시: "대행사면 클라이언트마다 광고계정을 등록할 수도 있다").
+//   ("대행사면 클라이언트마다 광고계정을 등록할 수도 있다").
 //
 // ⚠️ 키는 저장하는 순간 DB 안에서 암호화되고, **다시는 화면으로 내려오지 않는다**.
 //    (등록돼 있는지 여부만 보여 준다. 바꾸려면 새로 넣는다.)
@@ -154,7 +154,7 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
       {open && (
         //   ⚠️ 배경을 '눌렀을 때'가 아니라 '누른 자리가 배경일 때'만 닫는다 — 입력칸 안에서 글자를
         //   끌어 고르다 바깥에서 손을 떼면 브라우저가 그 클릭을 배경 것으로 쳐서 창이 닫혔다
-        //   (2026-08-06 사장님 제보).
+        //   .
         <div className="ad-acc-modal"
           onMouseDown={(e) => { veilDown.current = e.target === e.currentTarget; }}
           onClick={(e) => { if (veilDown.current && e.target === e.currentTarget) setOpen(false); }}>
@@ -171,7 +171,7 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
               </select>
             </label>
             {/* ⚠️ type="password" 로 두면 브라우저가 '로그인 양식'으로 보고 저장해 둔 아이디·비밀번호를
-                자동으로 채워 넣는다(2026-08-06 사장님 제보: 커스터머ID·API 가 저절로 차 있었다).
+                자동으로 채워 넣는다(커스터머ID·API 가 저절로 차 있었다).
                 API 키가 브라우저 비밀번호 관리자에 저장되는 것 자체가 바람직하지 않아,
                 일반 입력칸으로 두고 글자만 가린다(보기 단추로 확인 가능). */}
             <label className="ad-acc-field">

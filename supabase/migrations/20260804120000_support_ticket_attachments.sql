@@ -1,4 +1,4 @@
--- 고객센터 문의 사진 첨부 (2026-08-04 사장님: 전화 CS 폐지·문의함 일원화, 스크린샷 첨부 → 추후 AI 자동 분석)
+-- 고객센터 문의 사진 첨부 (전화 CS 폐지·문의함 일원화, 스크린샷 첨부 → 추후 AI 자동 분석)
 -- 형식: attachments = [{ path, name, size }] (path = support-attachments 버킷 내 경로)
 alter table public.support_tickets add column if not exists attachments jsonb;
 

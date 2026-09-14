@@ -21,7 +21,7 @@ export default function AdvisorDashboardPage() {
   const router = useRouter();
   const [advisorName, setAdvisorName] = useState<string>("");
   // 세무사 확인이 끝나야만 RPC 발화 — 비세무사 URL 접속 시 not_advisor 거절 로그가
-  //   운영자 오류 목록에 쌓이던 것 (2026-08-12 사장님: 게이트 넣어 안 쌓이게)
+  //   운영자 오류 목록에 쌓이던 것 (게이트 넣어 안 쌓이게)
   const [advisorReady, setAdvisorReady] = useState(false);
 
   useEffect(() => {
@@ -109,7 +109,7 @@ export default function AdvisorDashboardPage() {
                     </dl>
                     <div className="adv-mini-bar-track"><div className="adv-mini-bar-out" style={{ width: `${(Number(c.month_purchase) / maxAmt) * 100}%` }} /></div>
                     <dl className="adv-client-row"><dt>재직 인원</dt><dd>{c.employee_count}명</dd></dl>
-                    {/* 오너뷰 본앱 진입 (2026-08-11 사장님): 회사 선택 등록 후 실제 앱으로 — 읽기 전용 세션 */}
+                    {/* 오너뷰 본앱 진입: 회사 선택 등록 후 실제 앱으로 — 읽기 전용 세션 */}
                     <button
                       className="adv-enter-app-btn"
                       onClick={async (e) => {

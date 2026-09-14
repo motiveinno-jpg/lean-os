@@ -278,7 +278,7 @@ function FormFieldRows({ fields }: { fields: { label: string; type: string; valu
  * 기존엔 앞쪽만 봐서 기본 유형은 필드가 항상 빈 배열이었고(→ 화면·PDF 에서 표 대신 평문),
  * 삭제된 양식도 못 찾아 같은 증상이 났다. 편집 경로(getEditFieldDefs)와 동일 규칙으로 통일.
  */
-/** 휴가 구조화 데이터(custom_fields.leave) → 필드 행 (2026-08-12 사장님: 승인자 화면에
+/** 휴가 구조화 데이터(custom_fields.leave) → 필드 행 (승인자 화면에
  *  평문이 아니라 신청 필드폼처럼 보이게). 종류·단위·기간·시간·일수를 라벨+값으로 푼다. */
 function leaveFieldRows(customFields?: Record<string, unknown>): { label: string; type: string; value: string }[] {
   const lv = customFields?.leave as Record<string, unknown> | undefined;
@@ -301,7 +301,7 @@ function leaveFieldRows(customFields?: Record<string, unknown>): { label: string
 
 
 
-/** 초과근무 구조화 데이터(custom_fields.overtime) → 필드 행 (2026-08-20 사장님 제보:
+/** 초과근무 구조화 데이터(custom_fields.overtime) → 필드 행 (
  *  "몇 시까지 할 건지 입력해도 시간이 안 나타난다"). 신청서에 적은 일자·종료시각이
  *  상세·목록·PDF 어디에도 표시되는 경로가 없었다. 휴가(leaveFieldRows)와 같은 방식으로 푼다. */
 function overtimeFieldRows(customFields?: Record<string, unknown>): { label: string; type: string; value: string }[] {
@@ -330,8 +330,8 @@ function resolveFormFields(
   if (!defs || defs.length === 0) return leaveRows;
   // 값이 빈 필드도 포함한다 — 양식에 있는 항목이면 표에 있어야 하고, 빼버리면 본문에
   // 병합돼 있던 "라벨: " 줄이 제거되지 않아 표 밖으로 새어 나온다
-  // (2026-07-27 사장님 제보: 관련프로젝트가 표 밖에 찍힘).
-  // 빈 값은 "-" 로 표시해 빈 칸이 비어 보이지 않게 한다(사장님 요청). 본문 병합줄
+  // (관련프로젝트가 표 밖에 찍힘).
+  // 빈 값은 "-" 로 표시해 빈 칸이 비어 보이지 않게 한다. 본문 병합줄
   // 제거는 라벨로만 매칭하므로 이 치환에 영향받지 않는다.
   return [
     ...leaveRows,
@@ -383,7 +383,7 @@ async function buildApprovalPdfBlob(args:  {
   const { req, requesterName, formFields }  = args;
   const timeline = await getApprovalTimeline(req.id);
   // 상태는 목록 캐시가 아니라 DB 최신값으로 · 최종 승인 직후 목록이 갱신되기 전에 PDF 를
-  //   받으면 완결된 결재가 '대기'로 찍혔다 (2026-08-20 사장님 제보).
+  //   받으면 완결된 결재가 '대기'로 찍혔다.
   const  { data: freshReq } = await db.from("approval_requests").select("status").eq("id", req.id).maybeSingle();
   const status = (freshReq as { status?: string } | null)?.status || req.status;
   const attachments = (await Promise.all(
@@ -483,7 +483,7 @@ function contentWithoutFieldLines(description: string, formFields: { label: stri
     return rest;
   }
 
-  // 휴가 신청 (2026-08-12 사장님: 승인자 화면에 평문이 아니라 필드폼처럼) — 구조화 행으로
+  // 휴가 신청 (승인자 화면에 평문이 아니라 필드폼처럼) — 구조화 행으로
   //   옮겨진 자동 생성 줄들("[휴가 신청서]"·"- 라벨: 값")을 본문에서 걷어내고 사유만 남긴다.
   //   잔여 연차처럼 행에 없는 정보 줄은 그대로 둔다. 레거시(구조화 데이터 없는 옛 요청)는
   //   leave 행이 없으므로 이 분기를 타지 않는다.
@@ -504,7 +504,7 @@ function contentWithoutFieldLines(description: string, formFields: { label: stri
   return lines.slice(i).join("\n").replace(/^\n+/, "");
 }
 
-// ── 목록 탭 공용 검색조건 (2026-08-18 사장님) ──
+// ── 목록 탭 공용 검색조건 ──
 //   "전체 유형·경비 청구·결제 요청 … 버튼이 너무 많다. 유형은 검색조건에서 고르고, 기본은 전체를 한 번에."
 //   내 결재함·내 요청·참조·전체 현황이 같은 패널을 쓴다: 유형(다중) · 요청일 · 요청자(다중, 있을 때만) · 금액 · 줄 수.
 type LCond = { types: string[]; statuses: string[]; from: string; to: string; requester: string[]; min: string; max: string; rows: number };
@@ -595,7 +595,7 @@ function useListFilter(opts: { types: string[]; requesters?: string[]; withStatu
 }
 
 type PickOpt = { value: string; label: string; sub?: string; icon: React.ReactNode };
-// 요청 유형 피커 · 즐겨찾기(★)·검색 (2026-09-02 사장님 "요청건들이 많으면 즐겨찾기").
+// 요청 유형 피커 · 즐겨찾기(★)·검색 (2026-09-02 대표가 "요청건들이 많으면 즐겨찾기").
 //   favorites 를 주면 목록 위에 '즐겨찾기' 묶음이 먼저 오고 각 줄 오른쪽 ★ 로 넣고 뺀다.
 //   항목이 SEARCH_FROM 개 이상이면 목록 맨 위에 검색칸이 열린다(이름·부제로 거른다).
 const PICK_SEARCH_FROM = 8;
@@ -815,7 +815,7 @@ export default function ApprovalsPage() {
   const TABS:  { key: Tab; label: string; icon: string; count?: number }[] = ([
     { key: "my-approvals", label: "내 결재함", icon: "inbox", count: myPendingCount },
     { key: "my-requests", label: "내 요청", icon: "send" },
-    // 참조 탭은 2026-08-18 사장님 지시로 내 결재함 안 '나를 참조한 건' 보기로 합쳤다 (별도 탭 불필요)
+    // 참조 탭은 2026-08-18 대표 지시로 내 결재함 안 '나를 참조한 건' 보기로 합쳤다 (별도 탭 불필요)
     { key: "new-request", label: "새 요청", icon: "plus" },
     { key: "all", label: "전체 현황", icon: "chart" },
     { key: "forms", label: "양식 관리", icon: "layout" },
@@ -917,7 +917,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
   const [batchReason, setBatchReason] = useState("");
 
   // 대기중 / 처리완료 전환 — 승인하고 나면 목록에서 사라져 다시 볼 수 없던 문제
-  //   (2026-07-27 사장님 제보). 결재선에 올랐던 건은 처리 후에도 확인 가능해야 한다.
+  //   . 결재선에 올랐던 건은 처리 후에도 확인 가능해야 한다.
   const [view, setView] = useState<"pending" | "processed" | "referenced">(initialView || "pending");
 
   const { data: pendingApprovals = [], isLoading } = useQuery({
@@ -1024,7 +1024,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
       : undefined,
   );
 
-  // 검색조건(유형·요청일·기안자·금액) + 빠른검색 · 전체 현황과 같은 패널 (2026-08-18 사장님: 유형 버튼 줄 제거)
+  // 검색조건(유형·요청일·기안자·금액) + 빠른검색 · 전체 현황과 같은 패널 (유형 버튼 줄 제거)
   const lf = useListFilter({
     types: [...(pendingApprovals as any[]), ...(processedApprovals as any[])].map((i) => i.requestType).concat((referencedRequests as any[]).map((r) => r.request_type)),
     requesters: [...(pendingApprovals as any[]), ...(processedApprovals as any[])].map((i) => i.requesterName).concat((referencedRequests as any[]).map((r) => r.users?.name || r.users?.email || "")),
@@ -1124,7 +1124,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
     <div className="ap-list">
     {filterBar}
 
-    {/* Table — 전체 현황과 동일 디자인 (2026-08-04 사장님: 내 결재함도 똑같이) */}
+    {/* Table — 전체 현황과 동일 디자인 (내 결재함도 똑같이) */}
     <div className="approval-table-wrap ev-scroll">
       <table className="ev-table ev-lined approval-table">
         <thead>
@@ -1324,7 +1324,7 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
   const { toast } = useToast();
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
 
-  // 내가 결재한 건도 문서로 보관할 수 있어야 한다(2026-07-27 사장님 요청).
+  // 내가 결재한 건도 문서로 보관할 수 있어야 한다.
   //   목록 항목은 step 기준이라 PDF 생성이 기대하는 request 모양으로 맞춰 넘긴다.
   const handlePdf = async (item: any) => {
     setPdfLoadingId(item.stepId);
@@ -1354,7 +1354,7 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
   };
 
   // 이 화면은 "내가 결재자로서 승인·반려한 건"이다. 내가 올린 결재와 헷갈리기 쉬워
-  //   (2026-07-27 사장님 제보: 올린 8건이 안 보인다 → 실제로는 '내 요청' 탭에 있었음)
+  //   (올린 8건이 안 보인다 → 실제로는 '내 요청' 탭에 있었음)
   //   어디로 가야 하는지 항상 안내한다.
   const hint = (
     <div className="text-xs text-[var(--text-muted)] mb-3">
@@ -1406,7 +1406,7 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
     <div className="ap-list">
     {hint}
 
-    {/* Table — 전체 현황과 동일 디자인 (2026-08-04 사장님: 내가 결재한 건도 똑같이) */}
+    {/* Table — 전체 현황과 동일 디자인 (내가 결재한 건도 똑같이) */}
     <div className="approval-table-wrap ev-scroll">
       <table className="ev-table ev-lined approval-table">
         <thead>
@@ -1590,7 +1590,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
     return u?.name || u?.email || "구성원";
   };
 
-  // ── 대기중 요청 본인 수정 (2026-07-16 사장님 요청) ──
+  // ── 대기중 요청 본인 수정 ──
   //   양식/정책 필드 정의를 되찾아 생성 화면과 동일한 입력으로 편집.
   const { data: editForms = [] } = useQuery({ queryKey: ["approval-forms", companyId, "all"], queryFn: () => listApprovalForms({ includeInactive: true }), enabled: !!companyId });
   const { data: editPolicies = [] } = useQuery({ queryKey: ["approval-policies", companyId], queryFn: () => getApprovalPolicies(companyId), enabled: !!companyId });
@@ -1602,7 +1602,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
   }, [editForms]);
 
   // 상세 팝업에서 결재 문서 PDF 저장 · '전체 현황' 탭과 동일한 생성 경로를 쓴다
-  //   (2026-07-27 사장님 요청: 직원이 본인이 올린 결재를 PDF 로 보관할 수 있게).
+  //   (직원이 본인이 올린 결재를 PDF 로 보관할 수 있게).
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
   const handleDownloadApprovalPdf = async (req: any) => {
     setPdfLoadingId(req.id);
@@ -1619,7 +1619,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
   const [editForm, setEditForm] = useState({ title: "", amount: "", description: "" });
   const [editFieldValues, setEditFieldValues] = useState<Record<string, string>>({});
   const [savingEdit, setSavingEdit] = useState(false);
-  // 첨부파일 편집 · 유지할 기존 첨부 URL + 새로 추가할 파일 (2026-07-20 사장님 요청)
+  // 첨부파일 편집 · 유지할 기존 첨부 URL + 새로 추가할 파일
   const [editAttachments, setEditAttachments] = useState<string[]>([]);
   const [editNewFiles, setEditNewFiles] = useState<File[]>([]);
   const [editDragging, setEditDragging] = useState(false);
@@ -1712,7 +1712,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
     onError: (err: any) => toast("재제출 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
-  // 대기중 요청 본인 삭제 (2026-07-20 사장님 요청) — 승인 진행 전에만 노출
+  // 대기중 요청 본인 삭제 — 승인 진행 전에만 노출
   const handleDeleteMine = async (req: any) => {
     const { ok } = await confirm({
       title: "결재 요청 삭제",
@@ -1734,7 +1734,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
     }
   };
 
-  //   상태는 검색조건 안(다중), 정렬은 머리단 (2026-08-18 사장님: "우측 상태 탭은 검색조건에 넣고 목록에 상태 정렬")
+  //   상태는 검색조건 안(다중), 정렬은 머리단 ("우측 상태 탭은 검색조건에 넣고 목록에 상태 정렬")
   const lf = useListFilter({ types: (requests as any[]).map((r) => r.request_type), withStatus: true });
   type MySort = "status" | "title" | "amount" | "created";
   const [mySort, setMySort] = useState<SortState<MySort>>({ key: "created", dir: "desc" });
@@ -1838,7 +1838,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
       )}
 
       {/* 상세 팝업 — 올린 결재의 전체 내용(필드표·본문·첨부·결재선) 확인.
-          2026-07-27 사장님 요청: 눌러도 내용이 안 보였음(기존 펼침은 결재 진행단계만). */}
+          눌러도 내용이 안 보였음(기존 펼침은 결재 진행단계만). */}
       {expandedId && (() => {
         const req = (requests as any[]).find((r) => r.id === expandedId);
         if (!req) return null;
@@ -1903,7 +1903,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
                   currentUserId={userId}
                 />
               </div>
-              {/* 본인 요청 건 댓글 — 진행중/완료 무관, 사진·파일 첨부 가능 (2026-07-30 사장님) */}
+              {/* 본인 요청 건 댓글 — 진행중/완료 무관, 사진·파일 첨부 가능 */}
               <div className="mt-5 pt-4 border-t border-[var(--border)]/60">
                 <ApprovalCommentThread requestId={req.id} />
               </div>
@@ -1927,7 +1927,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
                   <label className="block text-xs text-[var(--text-muted)] mb-1">제목</label>
                   <input value={editForm.title} onChange={(e) => setEditForm((s) => ({ ...s, title: e.target.value }))} className="field-input" />
                 </div>
-                {/* 금액 칸은 새 요청에서 없앴다(2026-08-20 사장님) — 여기서는 이미 금액이 들어간
+                {/* 금액 칸은 새 요청에서 없앴다 — 여기서는 이미 금액이 들어간
                     예전 결재를 고칠 때만 보인다. 앞으로 금액은 양식의 '금액' 입력 필드로 받는다. */}
                 {!isLeaveReq && fields.length === 0 && Number(editReq?.amount || 0) > 0 && (
                   <div>
@@ -2060,7 +2060,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
 // ══════════════════════════════════════════════
 // Tab 3: 참조 (나를 참조로 지정한 결재건)
 // ══════════════════════════════════════════════
-// 2026-07-27 QA(사장님): 참조자는 결재선에도 요청자에도 없어 '내 결재함'·'내 요청'에 안 잡히고
+// 2026-07-27 QA: 참조자는 결재선에도 요청자에도 없어 '내 결재함'·'내 요청'에 안 잡히고
 //   '전체 현황'은 관리자 전용 → 참조로 걸린 결재의 내용을 볼 수 있는 화면이 아예 없었다.
 //   여기서 문서 본문·양식 필드·첨부·결재 진행을 읽기 전용으로 제공한다(승인/반려 액션 없음).
 
@@ -2197,7 +2197,7 @@ function ReferencedRequestsTab({ companyId, userId, embedded }: { companyId: str
                                 />
                               </div>
                             )}
-                            {/* 댓글 — 참조자에게만 안 보였다 (2026-09-01 사장님: "참조인도 댓글 다 확인 가능하게").
+                            {/* 댓글 — 참조자에게만 안 보였다 ("참조인도 댓글 다 확인 가능하게").
                                 내 결재함·내 요청·전체 현황과 같은 공용 스레드 그대로 — 읽기·쓰기 모두 가능 */}
                             {!isNativeLeave && (
                               <div className="mt-5 pt-4 border-t border-[var(--border)]">
@@ -2240,7 +2240,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [bulkPdf, setBulkPdf] = useState<{ running: boolean; done: number; total: number }>({ running: false, done: 0, total: 0 });
 
-  // 확인(열람) 표시 — 클릭해 본 건은 목록에서 제목을 연하게 (2026-08-04 사장님: 광고비 지출결의서처럼
+  // 확인(열람) 표시 — 클릭해 본 건은 목록에서 제목을 연하게 (광고비 지출결의서처럼
   //   제목이 똑같으면 어디까지 확인했는지 구분이 안 됨). 처음엔 localStorage(기기별)였는데
   //   같은 날 "계정별로 하자" 지시로 DB(approval_request_views, 본인 행 RLS)로 전환 — 기기 간 공유.
   const { data: viewedRows = [] } = useQuery({
@@ -2265,7 +2265,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
       });
   };
 
-  // 전체 현황에서도 결재 처리 (2026-08-04 사장님: 내 결재함까지 안 가고 여기서 바로 승인/반려).
+  // 전체 현황에서도 결재 처리 (내 결재함까지 안 가고 여기서 바로 승인/반려).
   //   팝업이 이미 쓰는 타임라인 쿼리(ApprovalTimelineView 와 같은 키 → 캐시 공유)로
   //   "지금 내 차례인 단계"를 찾고, 있을 때만 승인/반려 UI 를 노출한다.
   //   서버(approveStep/rejectStep)가 결재자 본인·pending 여부를 재검증하므로 표시는 편의일 뿐 권한 경계가 아니다.
@@ -2299,7 +2299,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
     onError: (err: any) => toast("반려 처리 실패: " + friendlyError(err, "알 수 없는 오류"), "error"),
   });
 
-  //   유형·상태는 검색조건 패널에서 여러 개 고른다(클라이언트 필터). 서버는 전체를 한 번에 (2026-08-18 사장님: 상태 칩 줄도 검색조건으로)
+  //   유형·상태는 검색조건 패널에서 여러 개 고른다(클라이언트 필터). 서버는 전체를 한 번에 (상태 칩 줄도 검색조건으로)
   const  { data: allRequests = [], isLoading } = useQuery({
     queryKey: ["all-requests", companyId, restrictToOwn ? userId : null],
     queryFn: () => getApprovalRequests(companyId, {
@@ -2582,7 +2582,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                             {pdfLoadingId === req.id ? "생성 중..." : "PDF"}
                           </button>
                         )}
-                        {/* 승인·반려가 끝난 건은 삭제 버튼 자체를 감춘다 (2026-08-21 감사) —
+                        {/* 승인·반려가 끝난 건은 삭제 버튼 자체를 감춘다
                             지우면 차감된 연차·지급 건이 근거 없이 남는다. 기록은 취소로 남긴다. */}
                         {["pending", "cancelled"].includes(String(req.status)) && (
                         <button
@@ -2712,7 +2712,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                   currentUserId={userId}
                 />
               </div>
-              {/* 댓글 — 전체 현황 상세에는 스레드가 없어 참조 건 대화를 못 봤다 (2026-09-01 사장님:
+              {/* 댓글 — 전체 현황 상세에는 스레드가 없어 참조 건 대화를 못 봤다 (
                   "전체현황에서도 참조건에 댓글 보이도록"). 다른 탭과 같은 공용 스레드 그대로 */}
               <div className="mt-6 pt-5 border-t border-[var(--border)]">
                 <ApprovalCommentThread requestId={req.id} />
@@ -2759,7 +2759,7 @@ const LEAVE_UNIT_OPTIONS = [
 // Tab 5: 새 요청
 // ══════════════════════════════════════════════
 
-// 기간 필드 (2026-07-30 사장님 — 결재 양식에서 기간 설정): 값은 "시작 ~ 종료" 한 문자열로
+// 기간 필드 (2026-07-30 대표 — 결재 양식에서 기간 설정): 값은 "시작 ~ 종료" 한 문자열로
 //   customFieldValues 에 저장 — 상세/목록/PDF 등 기존 문자열 표시 경로가 그대로 통한다.
 function PeriodFieldInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [start = "", end = ""] = (value || "").split("~").map((x) => x.trim());
@@ -2773,9 +2773,9 @@ function PeriodFieldInput({ value, onChange }: { value: string; onChange: (v: st
 }
 
 // 입력 필드 블록 — 고정 순서 렌더.
-//   2026-07-30 재배치 기능(드래그·↑↓·localStorage 순서 저장)은 2026-08-20 사장님 지시로 제거:
+//   2026-07-30 재배치 기능(드래그·↑↓·localStorage 순서 저장)은 2026-08-20 대표 지시로 제거:
 //   "요청을 하는 사람은 입력필드의 위치를 변경하거나 옮기는게 안되게 해야돼".
-// ── 드롭다운 '기타' 선택 시 내용 입력칸 (2026-08-20 사장님 요청) ────────────────────
+// ── 드롭다운 '기타' 선택 시 내용 입력칸 ────────────────────
 //   양식 옵션에 '기타'(또는 그 외·직접입력)가 있으면, 그걸 고른 순간 옆에 내용 칸이 열린다.
 //   저장 형식은 "기타: 실제내용" 한 문자열 — 목록·상세·PDF 등 기존 표시 경로가 그대로 통한다.
 //   '기타'가 아닌 옵션은 예전과 완전히 같은 값으로 저장된다(호환 유지).
@@ -2788,7 +2788,7 @@ function SelectWithEtc({ value, options, onChange, placeholder = "선택" }: {
   const picked = options.find((o) => raw === o) || options.find((o) => isEtcOption(o) && raw.startsWith(o)) || "";
   const etc = !!picked && isEtcOption(picked);
   const detail = etc ? raw.slice(picked.length).replace(/^\s*[:：—-]\s*/, "") : "";
-  //   '기타'를 고르면 **아래에 전체폭 입력칸**을 연다 (2026-09-01 사장님: 옆에 붙이면 field-input 의
+  //   '기타'를 고르면 **아래에 전체폭 입력칸**을 연다 (옆에 붙이면 field-input 의
   //   w-full 때문에 실낱같이 찌부러져 글씨가 안 써 보였다). 세로 스택이라 크기·위치 문제도 사라진다.
   return (
     <div className={etc ? "space-y-2" : ""}>
@@ -2827,9 +2827,9 @@ function FieldBlocks({ blocks }: { blocks: { key: string; node: React.ReactNode 
 function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }: {
   companyId: string; userId: string; invalidate: () => void; onComplete: () => void; presetType?: string | null;
 }) {
-  // 요청 유형 즐겨찾기 — 캐시로 즉시 그리고, 계정 저장값이 오면 덮는다 (2026-09-02 사장님)
+  // 요청 유형 즐겨찾기 — 캐시로 즉시 그리고, 계정 저장값이 오면 덮는다
   const [typeFavorites, setTypeFavorites] = useState<string[]>(() => (typeof window !== "undefined" && companyId ? readCachedFavorites(companyId) : []));
-  //   화면이 뜨자마자 ★ 를 누르면 그 뒤 도착한 계정 로드값(옛 상태)이 방금 누른 것을 덮어썼다(2026-09-02 QA 실측).
+  //   화면이 뜨자마자 ★ 를 누르면 그 뒤 도착한 계정 로드값(옛 상태)이 방금 누른 것을 덮어썼다.
   //   사용자가 한 번이라도 손대면 늦게 온 로드값은 버린다 — 저장은 토글 때마다 하니 계정값도 곧 같아진다.
   const typeFavTouched = useRef(false);
   useEffect(() => {
@@ -2855,7 +2855,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   });
   const { toast } = useToast();
   // URL ?new=expense|payment|general 등 → presetType 으로 들어옴. 'leave' 도 지원.
-  //   지정이 없으면 빈 값 — 유형을 고르기 전에는 유형 피커만 보인다 (2026-08-05 사장님:
+  //   지정이 없으면 빈 값 — 유형을 고르기 전에는 유형 피커만 보인다 (
   //   경비 청구가 선택된 것처럼 보이면서 상세 내용은 안 뜨고, 다른 유형을 눌렀다 돌아와야
   //   나오던 문제. 처음부터 고르게 하면 그 혼란이 사라진다).
   const initialType = (() => {
@@ -2888,7 +2888,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     reason: "",
   });
   const [files, setFiles] = useState<File[]>([]);
-  // 임시저장된 첨부 — File 은 localStorage 에 못 담아 임시저장 때 사라졌다(2026-08-20 사장님 제보).
+  // 임시저장된 첨부 — File 은 localStorage 에 못 담아 임시저장 때 사라졌다.
   //   임시저장 시 스토리지에 올려 URL 로 보존하고, 제출 때 함께 붙인다.
   const [draftAttachmentUrls, setDraftAttachmentUrls] = useState<string[]>([]);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
@@ -2898,13 +2898,13 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const [selectedReferences, setSelectedReferences] = useState<{ userId: string; name: string }[]>([]);
   const [referencesInited, setReferencesInited] = useState<string>("");
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
-  // 부서-이름·기안일·결제요청일 자동 프리필 완료 표시 · 유형(양식) 전환 시 재실행 (2026-07-21 사장님 요청)
+  // 부서-이름·기안일·결제요청일 자동 프리필 완료 표시 · 유형(양식) 전환 시 재실행
   const [autoFieldsInited, setAutoFieldsInited] = useState<string>("");
   // 상세 내용 서식 편집기(표 등). tiptap 은 마운트 후 content prop 변경을 반영하지 않아
   //   템플릿 프리필/임시저장 복원/제출 초기화 때 ref 로 직접 setContent 한다.
   const descEditorRef = useRef<RichEditorRef>(null);
   // 양식 선택으로 자동 채운 제목 · 사용자가 직접 고친 제목과 구분하려고 들고 있는다.
-  //   이게 없으면 양식을 바꿔도 처음 양식 이름이 제목에 그대로 남는다(2026-08-06 사장님 제보).
+  //   이게 없으면 양식을 바꿔도 처음 양식 이름이 제목에 그대로 남는다.
   const autoTitleRef = useRef<string>("");
   const { data: customForms = [] } = useQuery({ queryKey: ["approval-forms", companyId], queryFn: () => listApprovalForms(), enabled: !!companyId });
   const selectedForm = (customForms as ApprovalForm[]).find((f) => `form:${f.id}` === form.requestType) || null;
@@ -2912,7 +2912,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
 
   useEffect(() => {
     if (draftLoaded || !companyId) return;
-    // userId 포함 (2026-08-19 감사): 회사 단위 키는 공용 브라우저에서 남의 임시저장(휴가 사유 등)이 보였다
+    // userId 포함: 회사 단위 키는 공용 브라우저에서 남의 임시저장(휴가 사유 등)이 보였다
   const draftKey = `ov-approval-draft-${companyId}-${userId || "anon"}`;
     const saved = localStorage.getItem(draftKey);
     if (saved) {
@@ -2932,7 +2932,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
 
   const isLeave = form.requestType === "leave";
   // 초과근무는 승인되면 근태(퇴근시간 이후 출근 허용)로 이어지므로 날짜·종료시각을 구조화해서 받는다.
-  //   (2026-08-20 사장님: 연장근무 탭을 없애고 결재로 일원화 · "승인되면 근태에 정확히 반영")
+  //   (연장근무 탭을 없애고 결재로 일원화 · "승인되면 근태에 정확히 반영")
   const isOvertime = form.requestType === "overtime";
   const [overtimeForm, setOvertimeForm] = useState({ date: "", endTime: "" });
 
@@ -2969,7 +2969,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const remainingLeave = leaveBalance ? Number(leaveBalance.total_days || 0) - Number(leaveBalance.used_days || 0) : null;
 
   // Calculate leave days
-  // 근무일 기준 (2026-08-19 감사): 달력 일수는 금~월 휴가를 4일로 차감했다(실제 1일).
+  // 근무일 기준: 달력 일수는 금~월 휴가를 4일로 차감했다(실제 1일).
   const { data: leaveBizDays, isFetching: leaveDaysLoading } = useQuery({
     queryKey: ["leave-days", companyId, leaveForm.startDate, leaveForm.endDate],
     enabled: !!companyId && !!leaveForm.startDate && leaveForm.leaveUnit === "full_day",
@@ -3163,7 +3163,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   // 2026-07-16: 기본 제공 유형(경비청구 등)도 정책(matchedPolicy)에 입력 필드를 정의해두면
   //   커스텀 양식과 동일하게 필드를 보여준다. 휴가는 전용 구조화 입력(leaveForm)이 있어 제외.
   const activeFields = !isLeave ? (selectedForm?.fields || matchedPolicy?.fields || []) : [];
-  // 광고비 지출결의서만: 업체명 필드 값을 제목 뒤에 붙인다 (2026-08-19 사장님: 어느 업체 건인지
+  // 광고비 지출결의서만: 업체명 필드 값을 제목 뒤에 붙인다 (어느 업체 건인지
   //   제목만으로 구분되게. "다른 건 건들지 말고 광고비지출결의서만"). 이미 제목에 들어 있으면 중복 방지.
   const vendorFieldVal = (() => {
     if (!String(selectedForm?.name || "").replace(/\s/g, "").includes("광고비지출결의서")) return "";
@@ -3179,7 +3179,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   //   양식(또는 기본 유형 정책)에 금액 타입 필드가 있으면 그 값을 결재 금액으로 사용, 없으면 금액 없는 결재(0).
   const formAmountField = activeFields.find((fd: any) => fd.type === "amount") || null;
 
-  // 2026-07-21 사장님 요청 — 양식 필드 자동 프리필(수정 가능한 기본값):
+  //  — 양식 필드 자동 프리필(수정 가능한 기본값):
   //   "부서-이름" 텍스트 필드 → 내 직원 정보의 부서 - 이름, 기안일·결제요청일 date 필드 → 오늘(KST).
   //   직원 정보 로딩이 끝난 뒤 1회만 실행, 이미 값이 있는 필드는 덮어쓰지 않는다.
   useEffect(() => {
@@ -3203,13 +3203,13 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     }
     setAutoFieldsInited(form.requestType);
   }, [isLeave, activeFields, autoFieldsInited, form.requestType, currentEmployee]);
-  // 금액은 양식의 '금액' 입력 필드에서만 온다 — 기본 금액 칸은 제거했다 (2026-08-20 사장님 지시).
+  // 금액은 양식의 '금액' 입력 필드에서만 온다 — 기본 금액 칸은 제거했다.
   const effectiveAmount = isLeave ? 0
     : (activeFields.length > 0 && formAmountField)
       ? (Number(String(customFieldValues[formAmountField.key] ?? "").replace(/[^0-9.-]/g, "")) || 0)
       : 0;
 
-  // 초과근무는 일자·종료시각이 그대로 근태로 넘어간다 — 둘 다 있어야 제출 (2026-08-20 사장님).
+  // 초과근무는 일자·종료시각이 그대로 근태로 넘어간다 — 둘 다 있어야 제출.
   //   양식의 필수(*) 칸 — 별표는 그려 놓고 검사는 어디에도 없어서, 빈 칸("-") 문서가
   //   그대로 결재자에게 갔다. 표시한 대로 막는다.
   const missingRequired = (activeFields as any[])
@@ -3242,7 +3242,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       const failedUploads: string[] = [];
       if (files.length > 0) {
         for (const file of files) {
-          // QA 2026-07-14: 화이트리스트 치환은 업로드는 되지만 한글 파일명이 언더스코어로
+          // 화이트리스트 치환은 업로드는 되지만 한글 파일명이 언더스코어로
           //   뭉개져 표시됨 — base64url 인코딩으로 교체(Storage key 안전 + 원본 파일명 복원 가능)
           const path = `approvals/${companyId}/${Date.now()}_${toBase64Url(file.name)}`;
           const { error } = await supabase.storage.from("documents").upload(path, file);
@@ -3250,7 +3250,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
             attachmentUrls.push(urlData.publicUrl);
           } else {
-            // QA 2026-07-14: 업로드 실패가 조용히 무시돼 첨부파일이 항상 빠지던 문제 진단용 — 원인 노출
+            // 업로드 실패가 조용히 무시돼 첨부파일이 항상 빠지던 문제 진단용 — 원인 노출
             failedUploads.push(`${file.name}: ${error.message}`);
           }
         }
@@ -3295,7 +3295,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         //   기본 유형 정책 필드는 activeFields 로 커스텀 폼과 동일하게 customFieldValues 사용.
         //   구조화 값(휴가·초과근무)은 양식 필드가 있어도 **함께** 넣는다 — 종전엔 필드를 하나라도
         //   추가하면 customFieldValues 로 통째로 덮여 일자·종료시각이 사라졌고, 근태 반영도 끊겼다
-        //   (2026-08-21 감사). 입력칸은 필수로 막아 놓고 값은 안 저장하던 상태.
+        //   . 입력칸은 필수로 막아 놓고 값은 안 저장하던 상태.
         customFields: (() => {
           const structured: Record<string, unknown> = {};
           if (isLeave) {
@@ -3336,7 +3336,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
           <h3 className="text-sm font-bold mb-5">새 결재 요청</h3>
 
           <div className="space-y-4">
-            {/* Request Type — 한 줄 고르기(누르면 아래로 목록) — 2026-08-18 사장님. 예전 아이콘 칩 격자는 버튼이 너무 많았다 */}
+            {/* Request Type — 한 줄 고르기(누르면 아래로 목록) — 2026-08-18 대표. 예전 아이콘 칩 격자는 버튼이 너무 많았다 */}
             {(() => {
               // 2026-07-16 QA: "정책 관리"에서 기본 유형(경비청구 등)에 지정한 "양식 표시 이름"이
               //   여기(새 요청 유형 피커)에 반영 안 되던 버그 — 매칭 정책의 label 을 우선 사용.
@@ -3345,12 +3345,12 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 const matchedPolicy = (policies as ApprovalPolicy[]).find((p) => p.is_active && p.document_type === k && isCompanyWidePolicy(p)) || (policies as ApprovalPolicy[]).find((p) => p.is_active && p.document_type === k);
                 return { value: k, label: matchedPolicy?.label || v, icon: <span className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}><TypeIcon name={m.icon} className="w-3.5 h-3.5" /></span> };
               });
-              //   회사 결재 양식은 요청 유형 목록에 합친다 (2026-08-18 사장님). 기본 유형에 연결된 양식(base_type)은
+              //   회사 결재 양식은 요청 유형 목록에 합친다. 기본 유형에 연결된 양식(base_type)은
               //   그 유형 자리에 대신 들어가고(경비 청구를 고르면 회사 양식이 나온다), 연결 없는 양식은 뒤에 '회사 양식'으로.
               const activeForms = (customForms as ApprovalForm[]);
               const formIcon = <span className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 bg-[var(--primary)]/12 text-[var(--primary)]"><TypeIcon name="layout" className="w-3.5 h-3.5" /></span>;
               // 관리자가 만든 커스텀 정책 유형 — 내장 유형/기본 제외.
-              //   2026-09-01 사장님: 같은 이름의 회사 양식이 있으면(예: '경조휴가' 결재선 + '경조휴가' 양식)
+              //   2026-09-01 대표: 같은 이름의 회사 양식이 있으면(예: '경조휴가' 결재선 + '경조휴가' 양식)
               //   목록에 두 개로 떠서 헷갈렸다 — 양식 제출은 requestType=양식 이름이라 그 결재선과 자동
               //   매칭되므로, 동명이면 **양식 항목 하나만** 보여 준다(입력 필드도 양식 쪽에 있다).
               const formByName = new Map(activeForms.filter((f) => !f.base_type).map((f) => [f.name.trim(), f]));
@@ -3397,7 +3397,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               );
             })()}
 
-            {/* 유형 선택 전 — 아래 입력을 감추고 안내만 (2026-08-05 사장님) */}
+            {/* 유형 선택 전 — 아래 입력을 감추고 안내만 */}
             {!typeChosen && (
               <div className="approval-type-empty-hint">
                 위에서 <b>요청 유형</b>을 먼저 선택하세요.
@@ -3435,7 +3435,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                   </div>
                 )}
 
-                {/* 휴가 입력 블록 — 순서 고정 (2026-08-20 사장님: 요청자는 필드 이동 불가) */}
+                {/* 휴가 입력 블록 — 순서 고정 (요청자는 필드 이동 불가) */}
                 <FieldBlocks
                   blocks={[
                     {
@@ -3584,7 +3584,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 />
               </>
             ) : (
-              /* ── Non-leave fields — 순서 고정 (2026-08-20 사장님: 요청자는 필드 이동 불가) ── */
+              /* ── Non-leave fields — 순서 고정 (요청자는 필드 이동 불가) ── */
               <>
               {isOvertime && (
                 <div className="mb-4 p-3 rounded-xl bg-[var(--bg-surface)] space-y-3">
@@ -3611,7 +3611,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                     key: "title",
                     node: (
                       <div>
-                        {/* 양식 관리에서 넣은 '설명'을 제목 위에 주석처럼 보여준다(작성자 안내). 종전엔 어디에도 안 나왔다(2026-09-11 사장님). */}
+                        {/* 양식 관리에서 넣은 '설명'을 제목 위에 주석처럼 보여준다(작성자 안내). 종전엔 어디에도 안 나왔다. */}
                         {selectedForm?.description?.trim() && (
                           <div className="ap-form-desc-note">{selectedForm.description}</div>
                         )}
@@ -3625,7 +3625,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                       </div>
                     ),
                   },
-                  // 금액 칸은 없앴다 (2026-08-20 사장님 지시) — 금액 없는 결재에도 항상 떠 있어
+                  // 금액 칸은 없앴다 — 금액 없는 결재에도 항상 떠 있어
                   //   0 으로 둬야 하는 게 불편했다. 금액이 필요한 결재는 양식의 '금액' 입력 필드로 받는다.
                   //   (effectiveAmount 는 그 필드값에서 뽑는다 — 아래 activeFields 참조)
                   ...activeFields.map((fd) => ({
@@ -3668,7 +3668,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                   {
                     key: "description",
                     node: (
-                      // Description with template — 2026-07-16: 표·서식 지원 리치에디터 (사장님 요청)
+                      // Description with template — 2026-07-16: 표·서식 지원 리치에디터
                       <div>
                         <label className="block text-xs text-[var(--text-muted)] mb-1">상세 내용</label>
                         {/* 표는 한글(HWP) 문서 서식 그대로 — .approval-desc-editor 스코프에서 globals.css 가 적용 (2026-07-27) */}
@@ -3690,7 +3690,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             )}
 
             {typeChosen && (<>
-            {/* File upload — 드롭존 스타일. 2026-07-21 사장님 요청으로 승인자/참조자 위로 이동 */}
+            {/* File upload — 드롭존 스타일. 2026-07-21 대표 요청으로 승인자/참조자 위로 이동 */}
             <div className="approval-file-upload">
               <label className="field-label">첨부파일</label>
               <label
@@ -3884,9 +3884,9 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             <button
               type="button"
               onClick={async () => {
-                // userId 포함 (2026-08-19 감사): 회사 단위 키는 공용 브라우저에서 남의 임시저장(휴가 사유 등)이 보였다
+                // userId 포함: 회사 단위 키는 공용 브라우저에서 남의 임시저장(휴가 사유 등)이 보였다
                 const draftKey = `ov-approval-draft-${companyId}-${userId || "anon"}`;
-                // 첨부도 보존 (2026-08-20 사장님: 끌어놓은 첨부가 임시저장하면 사라졌다) —
+                // 첨부도 보존 (끌어놓은 첨부가 임시저장하면 사라졌다)
                 //   File 은 localStorage 에 못 담으므로 지금 업로드해 URL 로 남긴다.
                 const urls = [...draftAttachmentUrls];
                 const failed: string[] = [];
@@ -3916,7 +3916,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 setLeaveForm({ leaveType: "annual", leaveUnit: "full_day", halfDayPeriod: "am", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
                 setFiles([]);
                 // 임시저장 때 이미 스토리지에 올린 첨부는 여기서 같이 지운다 — 안 지우면
-                //   아무 화면에서도 안 보이는 고아 파일로 남는다 (2026-08-20 감사).
+                //   아무 화면에서도 안 보이는 고아 파일로 남는다.
                 void (async () => {
                   for (const url of draftAttachmentUrls) {
                     const m = url.match(/\/object\/(?:public|sign|authenticated)\/documents\/([^?]+)/);
@@ -4170,7 +4170,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
     descriptionTemplate: "",
     autoApproveBelow: "",
     allowLineEdit: true,
-    // 적용 대상별 규칙 (2026-08-20 사장님: "적용대상을 여러개 생성하고 그 대상마다 각각의
+    // 적용 대상별 규칙 ("적용대상을 여러개 생성하고 그 대상마다 각각의
     //   누구한테결재받나·참조를 하나의 결재선에서 관리") — 한 결재선 안에 [대상 → 단계 → 참조] N개.
     //   종전엔 대상 1묶음 + 단계 1세트 + 참조 1세트라 사람마다 결재선을 따로 만들어야 했다.
     //   맨 아래 '회사 전체' 규칙은 항상 있고 지울 수 없다(어느 규칙에도 안 걸리는 요청자의 몫).
@@ -4193,7 +4193,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
     enabled: !!companyId,
   });
 
-  // 회사가 만든 양식 · '적용 양식' 선택지 (2026-08-19 사장님: 우리가 만든 양식도 결재선에 나오게).
+  // 회사가 만든 양식 · '적용 양식' 선택지 (우리가 만든 양식도 결재선에 나오게).
   //   커스텀 양식으로 올린 요청의 request_type 은 양식 이름이므로, document_type = 양식 이름이면 자동 매칭된다.
   const  { data: companyForms = [] } = useQuery({
     queryKey: ["approval-forms-for-policies", companyId],
@@ -4305,7 +4305,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
   }
 
   // ── 규칙 안의 결재 단계 조작 ─────────────────────────────────
-  //   단계 수를 고르면 그 수에 맞춰 늘리고 줄인다 (2026-08-18 사장님: "몇 단계인지 설정하고 누구한테")
+  //   단계 수를 고르면 그 수에 맞춰 늘리고 줄인다 ("몇 단계인지 설정하고 누구한테")
   function setStageCount(ruleIdx: number, n: number) {
     const cur = form.rules[ruleIdx].stages;
     const next = Array.from({ length: n }, (_, i) => cur[i] || { stage: i + 1, name: `${i + 1}차 승인`, approver_role: "manager" } as ApprovalStageConfig).map((st, i) => ({ ...st, stage: i + 1 }));
@@ -4364,8 +4364,8 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
         <span className="text-[11px] text-[var(--text-dim)]">결재선을 만들어 양식에 붙여 씁니다.</span>
       </QueryBar>
 
-      {/* 결재선 폼 — 이름 · 단계 수 · 단계별 승인자 · 참조 · (선택) 적용 대상 (2026-08-18 사장님: 유형·자동승인·설명 템플릿 제거) */}
-      {/* 결재선 폼은 팝업 — 목록 줄이 밀리지 않게 (2026-08-18 사장님) */}
+      {/* 결재선 폼 — 이름 · 단계 수 · 단계별 승인자 · 참조 · (선택) 적용 대상 (유형·자동승인·설명 템플릿 제거) */}
+      {/* 결재선 폼은 팝업 — 목록 줄이 밀리지 않게 */}
       {showForm && (
         <div className="approval-detail-modal" onClick={() => !upsertMut.isPending && resetForm()}>
         <div className="approval-policy-form ap-pol-modal" onClick={(e) => e.stopPropagation()}>
@@ -4378,7 +4378,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
               <label className="field-label">결재선 이름 *</label>
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="예: 팀장 → 대표 2단계" className="field-input" />
             </div>
-            {/* 적용 양식 (2026-08-19 사장님) — 유형을 고르면 그 유형의 새 요청에 자동 적용된다.
+            {/* 적용 양식 — 유형을 고르면 그 유형의 새 요청에 자동 적용된다.
                 종전엔 이 칸이 없어 새 결재선이 전부 '공용'으로 만들어졌고, 부서 대상 결재선이
                 휴가신청에 자동 적용되지 않는 사고(전략운영팀 휴가)가 났다. */}
             <div>
@@ -4409,7 +4409,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
               : "선택한 양식의 새 요청에 자동 적용됩니다."}
           </p>
 
-          {/* 적용 대상별 규칙 — [대상 → 누구에게 결재받나 → 참조] 묶음을 필요한 만큼 (2026-08-20 사장님) */}
+          {/* 적용 대상별 규칙 — [대상 → 누구에게 결재받나 → 참조] 묶음을 필요한 만큼 */}
           <div className="ap-pol-rules">
             <div className="ap-pol-rules-head">
               <label className="field-label">적용 대상별 결재선</label>
@@ -4632,7 +4632,7 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
   });
   const avatarMap = useAvatarMap(timeline.map((s: any) => s.approver_id));
 
-  // 승인자 변경 (2026-08-04 사장님: 결재 올린 뒤에도 승인자를 바꿀 수 있게) —
+  // 승인자 변경 (결재 올린 뒤에도 승인자를 바꿀 수 있게)
   //   마스터/전체 현황 권한자만, 대기(pending) 단계만. 서버(reassign_approval_step RPC)가
   //   회사·권한·상태·새 승인자(같은 회사, 파트너 제외)를 재검증한다.
   const [tlCompanyId, setTlCompanyId] = useState<string | null>(null);
@@ -4861,7 +4861,7 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
 
 
 // ── 결재 댓글 스레드 (공용). 승인/반려 후에도 대화 (approval_comments, 2026-07-10)
-//   2026-07-30 사장님: 관리자 화면(전체 현황)에만 있어 직원은 댓글을 못 달았다 →
+//   2026-07-30 대표: 관리자 화면(전체 현황)에만 있어 직원은 댓글을 못 달았다 →
 //   '내 요청' 상세에도 부착(본인 요청 건 한정), 사진·파일 첨부 지원.
 function ApprovalCommentThread({ requestId }: { requestId: string }) {
   const qc = useQueryClient();
@@ -4907,7 +4907,7 @@ function ApprovalCommentThread({ requestId }: { requestId: string }) {
     } finally { setPosting(false); }
   };
   const deleteComment = async (id: string) => {
-    // 첨부도 같이 지운다 (2026-08-20 감사): 종전엔 행만 지워 파일이 스토리지에 영구히 남았다.
+    // 첨부도 같이 지운다: 종전엔 행만 지워 파일이 스토리지에 영구히 남았다.
     const target = (comments as any[]).find((c) => c.id === id);
     const { error } = await (supabase).from("approval_comments").delete().eq("id", id);
     if (error) { toast("댓글 삭제 실패: " + friendlyError(error, "알 수 없는 오류"), "error"); return; }

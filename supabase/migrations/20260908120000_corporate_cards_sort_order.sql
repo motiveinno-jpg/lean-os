@@ -1,4 +1,4 @@
--- 카드 순서 바꾸기 (2026-09-08 사장님) — 지금은 등록일 역순 고정이라 사용자가 못 바꾼다.
+-- 카드 순서 바꾸기 — 지금은 등록일 역순 고정이라 사용자가 못 바꾼다.
 --   sort_order(작을수록 위) 를 추가하고, 기존 카드는 현재 보이는 순서(created_at desc)를 그대로 번호로 굳힌다.
 alter table public.corporate_cards add column if not exists sort_order integer;
 

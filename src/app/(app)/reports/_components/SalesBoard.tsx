@@ -37,7 +37,7 @@ export function SalesBoard({ open, onClose, companyId }: {
   companyId: string | null;
 }) {
   const { toast } = useToast();
-  //   독립형(2026-09-02 사장님 "재고 쪽으로 옮기자") — 매출 리포트의 조회 기간을 빌리지 않고
+  //   독립형(2026-09-02 대표가 "재고 쪽으로 옮기자") — 매출 리포트의 조회 기간을 빌리지 않고
   //   전표 데이터를 스스로 불러온다(usePnlStatus — 기본 이번 달·전월 비교). 부모는 열릴 때만
   //   마운트해서(열기 전엔 안 불러옴) 낭비가 없다.
   const s = usePnlStatus();

@@ -7,9 +7,9 @@ import { logRead } from "@/lib/log-read";
 import { SortableTh, type ThFilterSpec } from "@/components/sortable-th";
 import {
   vatBusinessTypeOf, canIssueTaxKind, taxKindBlockedReason, type TaxKind, type VatBusinessType,
-}  from "@/lib/vat-business-type";
-//   조회 화면 표준 공용 부품 · 새 툴바를 만들지 말고 반드시 이걸 쓴다 (CLAUDE.md)
-import  {
+} from "@/lib/vat-business-type";
+// 조회 화면 표준 공용 부품 · 새 툴바를 만들지 말고 반드시 이걸 쓴다 (CLAUDE.md)
+import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ExcelMenu, HelperMenu,
   SavedTabs, ConditionSave, ConditionPanel, ConditionRow, TokenField, AmountRange, ChipGroup,
   AppliedChips, QuickSearch, quickSearchHit, quickTerms, amountHit, RowsPerPage,
@@ -111,7 +111,7 @@ interface DuplicateGroup {
 function detectDuplicateInvoices(invoices: any[]): DuplicateGroup[] {
   const groups = new Map<string, { invoices: any[]; count: number }>();
   for (const inv of invoices) {
-    if (inv.status === "void") continue;   // 무효 건은 중복의 근거가 아니다
+    if (inv.status === "void") continue; // 무효 건은 중복의 근거가 아니다
     const key = `${inv.counterparty_name}|${Number(inv.total_amount)}|${inv.issue_date}`;
     const existing = groups.get(key);
     if (existing) {
@@ -151,8 +151,8 @@ function fmt(n: number) {
 
 
 // label 앞에 붙은 영수/청구 토큰 제거 → 적요/품목엔 순수 내용만 표시.
-//   (영수/청구 구분은 홈택스 전자계산서 데이터에 없어 label 토큰으로 보관 · 상세에서 수동 지정 가능)
-function stripPurposeToken(label?: string | null)  {
+// (영수/청구 구분은 홈택스 전자계산서 데이터에 없어 label 토큰으로 보관 · 상세에서 수동 지정 가능)
+function stripPurposeToken(label?: string | null) {
   if (!label) return "";
   return label.replace(/^\s*(영수|청구)\s*(\|\s*)?/, "").trim();
 }
@@ -178,9 +178,9 @@ const EXPENSE_CATEGORIES = [
 
 /**
  * 검색조건 · 갖춰서 찾는 값들 (2026-08-13 조회 화면 표준).
- *   ★ 여기 있는 것은 '조회'를 눌러야 반영된다. 기간·빠른검색은 조회 줄에 있어 즉시다.
+ * ★ 여기 있는 것은 '조회'를 눌러야 반영된다. 기간·빠른검색은 조회 줄에 있어 즉시다.
  */
-type TiCond =  {
+type TiCond = {
   partner: string[]; item: string; send: "all" | "draft" | "pending" | "failed" | "issued";
   min: string; max: string; size: number;
 };
@@ -194,16 +194,16 @@ const TI_SEND_CHIPS = [
 ] as const;
 
 /** 과세형태 · 회사 과세유형에 따라 고를 수 있는 것만 남는다 (2026-08-13) */
-const TAX_KIND_OPTIONS:  { value: TaxKind; label: string }[] = [
+const TAX_KIND_OPTIONS: { value: TaxKind; label: string }[] = [
   { value: "taxable", label: "과세" },
   { value: "zero_rated", label: "영세율" },
   { value: "exempt", label: "면세 (전자계산서)" },
 ];
 
 // ── 수정세금계산서 준비 상태 ──
-//   CODEF 수정발행은 정발행과 상품이 분리돼 있어 별도 신청이 필요하다
-//   (regist-revise-invoicer-trustee). 2026-08-03 사장님이 상품 구독 완료 →
-//   수정발행 분기가 담긴 hometax-issue(v37)·modify-tax-invoice(v27) 배포 후 해제.
+// CODEF 수정발행은 정발행과 상품이 분리돼 있어 별도 신청이 필요하다
+// (regist-revise-invoicer-trustee). 2026-08-03 대표 상품 구독 완료 →
+// 수정발행 분기가 담긴 hometax-issue(v37)·modify-tax-invoice(v27) 배포 후 해제.
 const MODIFY_ISSUE_AVAILABLE = true;
 
 // ── 수정세금계산서 사유 ──
@@ -216,12 +216,12 @@ const MODIFICATION_REASONS = [
   { value: "duplicate", label: "착오에 의한 이중발급", desc: "동일 거래에 대해 이중으로 발급된 경우" },
 ];
 
-//   공급대가(부가세 포함 합계)를 넣으면 공급가액·부가세로 나눠 주는 역산 계산기 (2026-08-31 사장님).
-//     '공급가액 × 1.1' 의 반대 · 총액만 알 때 공급가액을 못 구하던 것을 돕는다. 마이너스도 지원.
+// 공급대가(부가세 포함 합계)를 넣으면 공급가액·부가세로 나눠 주는 역산 계산기.
+// '공급가액 × 1.1' 의 반대 · 총액만 알 때 공급가액을 못 구하던 것을 돕는다. 마이너스도 지원.
 function GrossSplitCalc({ onApply, applyLabel = "첫 품목 단가로 넣기" }: { onApply: (supply: number) => void; applyLabel?: string }) {
   const [gross, setGross] = useState("");
   const g = Number(gross) || 0;
-  const supply = Math.round(g / 1.1);   // 원 단위 반올림 — 부가세는 나머지로 맞춰 합계가 항상 딱 떨어지게
+  const supply = Math.round(g / 1.1); // 원 단위 반올림 — 부가세는 나머지로 맞춰 합계가 항상 딱 떨어지게
   const vat = g - supply;
   const won = (n: number) => n.toLocaleString("ko-KR");
   return (
@@ -239,12 +239,12 @@ function GrossSplitCalc({ onApply, applyLabel = "첫 품목 단가로 넣기" }:
 
 export default function TaxInvoicesPage() {
   const { role } = useUser();
-  const { allowed: tabAllowed, loading: tabLoading }  = useCanAccessTab("/tax-invoices");
+  const { allowed: tabAllowed, loading: tabLoading } = useCanAccessTab("/tax-invoices");
   void role;
   // 권한 게이트에서 early return 한 뒤에 나머지 훅들이 이어지면 tabLoading 이 풀리는 순간
   // 렌더당 훅 개수가 달라져 React #310 크래시 · 본문을 별도 컴포넌트로 분리 (2026-08-03).
   if (tabLoading) return null;
-  if (!tabAllowed)  {
+  if (!tabAllowed) {
     return <AccessDenied detail="세금계산서 접근 권한이 없습니다. 마스터에게 권한을 요청하세요." />;
   }
   return <TaxInvoicesPageInner />;
@@ -256,7 +256,7 @@ function TaxInvoicesPageInner() {
   const queryClient = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const hometaxCd = useSyncCooldown(companyId, "hometax");
-  // 홈택스 연동 일시정지 — 통장 정지 버튼과 동일 UX (2026-07-30 사장님)
+  // 홈택스 연동 일시정지 — 통장 정지 버튼과 동일 UX
   const { data: hometaxPausedUntil } = useQuery({
     queryKey: ["hometax-sync-paused", companyId],
     queryFn: () => getHometaxPausedUntil(companyId!),
@@ -275,46 +275,46 @@ function TaxInvoicesPageInner() {
     },
     onError: (e: any) => toast(friendlyError(e, "정지 처리 실패"), "error"),
   });
-  // 2026-05-21 사장님 요청: "matching" 탭 통째 제거. ?tab=matching 딥링크는 분석 허브로 리다이렉트(별건 · 우선 sales 폴백).
+  // "matching" 탭 통째 제거. ?tab=matching 딥링크는 분석 허브로 리다이렉트(별건 · 우선 sales 폴백).
   const searchParams = useSearchParams();
-  const  { isMaster: taxTabMaster, hasPerm: taxTabPerm } = useMyPermissions();
-  /*   탭 권한 — 새 탭 이름으로 갈아탈 때 아무도 아무것도 못 보게 되는 걸 막는다 (2026-08-13).
-   *   옛 키(sales·purchase·vat·summary·queue·sync)에 걸어 둔 권한은 새 탭과 안 맞아서,
-   *   그대로 두면 **탭 줄이 통째로 비어 버린다**(실제로 그렇게 됐다).
-   *   규칙: 네 탭 중 **하나도 따로 정해 두지 않았으면 전부 보인다.**
-   *   화면 진입 자체는 위쪽 `useCanAccessTab("/tax-invoices")` 가 이미 막고 있으므로,
-   *   탭 권한은 '더 좁히는' 용도다 — 안 정했으면 좁힐 이유가 없다.
+  const { isMaster: taxTabMaster, hasPerm: taxTabPerm } = useMyPermissions();
+  /* 탭 권한 — 새 탭 이름으로 갈아탈 때 아무도 아무것도 못 보게 되는 걸 막는다 (2026-08-13).
+   * 옛 키(sales·purchase·vat·summary·queue·sync)에 걸어 둔 권한은 새 탭과 안 맞아서,
+   * 그대로 두면 **탭 줄이 통째로 비어 버린다**(실제로 그렇게 됐다).
+   * 규칙: 네 탭 중 **하나도 따로 정해 두지 않았으면 전부 보인다.**
+   * 화면 진입 자체는 위쪽 `useCanAccessTab("/tax-invoices")` 가 이미 막고 있으므로,
+   * 탭 권한은 '더 좁히는' 용도다 — 안 정했으면 좁힐 이유가 없다.
    */
   const taxTabKeys = ["wait", "done", "issue-status"] as const;
   const anyTaxTabGranted = taxTabKeys.some((k) => taxTabPerm(`/tax-invoices:${k}`));
   const taxTabAllowed = (k: string) =>
     taxTabMaster || !anyTaxTabGranted || taxTabPerm(`/tax-invoices:${k}`);
-  /*  ── 세금·증빙 = 오너뷰가 **발행하는** 곳 (2026-08-13 사장님 지시로 재편) ──────────────
+  /* ── 세금·증빙 = 오너뷰가 **발행하는** 곳 (2026-08-13 대표 지시로 재편) ──────────────
    *
-   *    "수집전표는 받아오는 통합메뉴로 쓰고, 세금증빙은 오너뷰에서 발행하는 것들에 대한
-   *     통합관리 메뉴로. 발행된 목록 확인 · 홈택스 전송 진행상황 · 수정세금계산서."
+   * "수집전표는 받아오는 통합메뉴로 쓰고, 세금증빙은 오너뷰에서 발행하는 것들에 대한
+   * 통합관리 메뉴로. 발행된 목록 확인 · 홈택스 전송 진행상황 · 수정세금계산서."
    *
-   *    ★ 가르는 기준은 새로 만들지 않았다 — `tax_invoices.source` 가 이미 들고 있다.
-   *        codef_hometax = 받아온 것(2,535건) → 수집·전표
-   *        manual        = 오너뷰가 만든 것(14건) → 여기
-   *      받아온 것도 **발행 현황의 「타발행」 줄에는 나온다** (합계가 맞아야 매출 대조가 된다).
+   * ★ 가르는 기준은 새로 만들지 않았다 — `tax_invoices.source` 가 이미 들고 있다.
+   * codef_hometax = 받아온 것(2,535건) → 수집·전표
+   * manual = 오너뷰가 만든 것(14건) → 여기
+   * 받아온 것도 **발행 현황의 「타발행」 줄에는 나온다** (합계가 맞아야 매출 대조가 된다).
    *
-   *    탭이 왜 넷인가 — 성격이 다른 것만 가른다(조회 화면 표준):
-   *      issue-status  발행 현황  · 이카운트 「매출(세금)계산서요약」 형태. 수집·전표의 '수집 현황'과 대칭
-   *      wait          발행 대기  · 국세청에 **아직 안 간 것**(미발행·전송중·에러). 파란 버튼은 여기 하나
-   *      done          발행 내역  · 승인 끝난 것. 손댈 게 없는 확정 장부 + 수정세금계산서
-   *      partner-info  거래처 발행정보 · 이메일·업태·종목이 빠져 전송이 죽는 걸 미리 막는다
+   * 탭이 왜 넷인가 — 성격이 다른 것만 가른다(조회 화면 표준):
+   * issue-status 발행 현황 · 이카운트 「매출(세금)계산서요약」 형태. 수집·전표의 '수집 현황'과 대칭
+   * wait 발행 대기 · 국세청에 **아직 안 간 것**(미발행·전송중·에러). 파란 버튼은 여기 하나
+   * done 발행 내역 · 승인 끝난 것. 손댈 게 없는 확정 장부 + 수정세금계산서
+   * partner-info 거래처 발행정보 · 이메일·업태·종목이 빠져 전송이 죽는 걸 미리 막는다
    *
-   *    버린 안 ① 종류별 3탭(세금계산서/전자계산서/현금영수증) — 셋 다 목록이 똑같이 생겼고,
-   *      궁금한 건 종류가 아니라 "보냈나 안 보냈나"다. 종류는 검색조건 칩으로 충분하다.
-   *    버린 안 ② 상태별 4탭 — 상태는 움직이는 값이라 같은 건이 탭을 옮겨 다닌다("아까 여기 있었는데").
+   * 버린 안 ① 종류별 3탭(세금계산서/전자계산서/현금영수증) — 셋 다 목록이 똑같이 생겼고,
+   * 궁금한 건 종류가 아니라 "보냈나 안 보냈나"다. 종류는 검색조건 칩으로 충분하다.
+   * 버린 안 ② 상태별 4탭 — 상태는 움직이는 값이라 같은 건이 탭을 옮겨 다닌다("아까 여기 있었는데").
    *
-   *    `vat`·`summary` 는 **분석으로 옮겼다**(/reports/vat) — 매입 자료가 있어야 계산되는
-   *    신고용이지 발행용이 아니다. 옛 딥링크(?tab=vat)는 그리로 넘긴다.
-   *    `sales`·`purchase`·`queue` 는 탭 줄에서 내렸다 — 목록은 수집·전표, 자동발행은 '출처' 칸으로 녹였다.
+   * `vat`·`summary` 는 **분석으로 옮겼다**(/reports/vat) — 매입 자료가 있어야 계산되는
+   * 신고용이지 발행용이 아니다. 옛 딥링크(?tab=vat)는 그리로 넘긴다.
+   * `sales`·`purchase`·`queue` 는 탭 줄에서 내렸다 — 목록은 수집·전표, 자동발행은 '출처' 칸으로 녹였다.
    */
-  //   순서: 발행 대기(할 일) → 발행 내역 → 발행 현황 (2026-08-13 사장님 — 할 일이 맨앞).
-  //   '거래처 발행정보' 탭은 뺐다 — 빠진 정보는 전송 전 확인 창이 그 자리에서 채우게 한다.
+  // 순서: 발행 대기(할 일) → 발행 내역 → 발행 현황 (2026-08-13 대표 — 할 일이 맨앞).
+  // '거래처 발행정보' 탭은 뺐다 — 빠진 정보는 전송 전 확인 창이 그 자리에서 채우게 한다.
   type TaxTab = "wait" | "done" | "issue-status";
   const TAX_TABS: { key: TaxTab; label: string }[] = [
     { key: "wait", label: "발행 대기" },
@@ -327,8 +327,8 @@ function TaxInvoicesPageInner() {
     const t = searchParams?.get("tab");
     return isTaxTab(t) ? t : "wait";
   });
-  //   옛 딥링크 정리 — 부가세·기간별 집계는 분석으로 갔다. 대시보드의 '부가세 납부' 링크가
-  //   여기로 오면 빈 화면이 되므로 그리로 넘긴다(주소를 고치는 것보다 이쪽이 안전하다).
+  // 옛 딥링크 정리 — 부가세·기간별 집계는 분석으로 갔다. 대시보드의 '부가세 납부' 링크가
+  // 여기로 오면 빈 화면이 되므로 그리로 넘긴다(주소를 고치는 것보다 이쪽이 안전하다).
   useEffect(() => {
     const t = searchParams?.get("tab");
     if (t === "vat" || t === "summary") { router.replace(`/reports/vat?tab=${t}`); return; }
@@ -343,13 +343,13 @@ function TaxInvoicesPageInner() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, taxTabMaster]);
-  /*   조회기간 — 일 단위(YYYY-MM-DD). 기본은 **최근 1개월** (조회 화면 표준). '오늘 하루만'도 from=to 로 본다.
-   *   ★ 예전엔 월 단위였는데(사장님: 일단위로도 조회되게, 2026-09-11) 달력을 날짜까지 고르게 바꿨다.
-   *   ★ 조회값 자동 기억 금지 — 나갔다 오면 기본값. 편의는 **내 조건**(★ 기본, DB)이 맡는다.
+  /* 조회기간 — 일 단위(YYYY-MM-DD). 기본은 **최근 1개월** (조회 화면 표준). '오늘 하루만'도 from=to 로 본다.
+   * ★ 예전엔 월 단위였는데(일단위로도 조회되게, 2026-09-11) 달력을 날짜까지 고르게 바꿨다.
+   * ★ 조회값 자동 기억 금지 — 나갔다 오면 기본값. 편의는 **내 조건**(★ 기본, DB)이 맡는다.
    */
   const [viewFrom, setViewFrom] = useState(() => defaultRange().from);
   const [viewTo, setViewTo] = useState(() => defaultRange().to);
-  //   예전에 남겨 둔 기억값 청소 — 다음 배포에서는 이 두 줄도 지운다
+  // 예전에 남겨 둔 기억값 청소 — 다음 배포에서는 이 두 줄도 지운다
   useEffect(() => {
     if (typeof window === "undefined") return;
     localStorage.removeItem("tax-invoices-viewFrom");
@@ -362,7 +362,7 @@ function TaxInvoicesPageInner() {
   const [modifyReason, setModifyReason] = useState("");
   const [modifyAmount, setModifyAmount] = useState("");
   // 동기화 기간 = 상단 조회기간(viewFrom~viewTo) 공용 — 별도 월 피커 이원화 제거 (기준 통일)
-  // 불러오기는 현금영수증 화면과 동일하게 백그라운드 job 하나로 통일 (2026-07-31 사장님 "방식 통일").
+  // 불러오기는 현금영수증 화면과 동일하게 백그라운드 job 하나로 통일 (2026-07-31 대표가 "방식 통일").
   // 백그라운드 진행 중인 job ID (Realtime 구독용) — localStorage 와 동기화하여 페이지 무관 chain.
   const [activeJobId, setActiveJobIdRaw] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
@@ -376,7 +376,7 @@ function TaxInvoicesPageInner() {
     }
   };
   // 직원 QA #6 — 백그라운드 job 이 hang(CF-12200 등) 하면 completed/failed 로 안 바뀌어 버튼이 영구 잠김.
-  //   멈춘 job 을 failed 로 마킹(서버 409 잠금까지 해제) + 로컬 해제 → 다시 시도 가능. (CODEF 수집 로직 미접촉)
+  // 멈춘 job 을 failed 로 마킹(서버 409 잠금까지 해제) + 로컬 해제 → 다시 시도 가능. (CODEF 수집 로직 미접촉)
   const forceClearStuckJob = async (jid: string, silent = false) => {
     const db = supabase;
     try {
@@ -386,15 +386,15 @@ function TaxInvoicesPageInner() {
     if (!silent) toast("멈춘 백그라운드 동기화를 해제했습니다. 다시 시도할 수 있습니다.", "info");
   };
   // Background sync 시작 · 즉시 응답 받고 사용자는 페이지 떠나도 됨.
-  async function runHometaxSyncBackground(from: string, to: string)  {
+  async function runHometaxSyncBackground(from: string, to: string) {
     if (!companyId) { toast('회사 정보를 불러올 수 없습니다', 'error'); return; }
     if (!isHometaxConnected) { toast('먼저 설정 > 은행연동에서 홈택스를 연결하세요', 'error'); return; }
     if (from > to) { toast('시작일이 종료일보다 늦을 수 없습니다', 'error'); return; }
-    //   조회기간이 일 단위가 되면서(2026-09-11) 그대로 넘긴다 — codef-sync 는 원래 startDate/endDate(일)를 받는다(수집 로직 무변경).
+    // 조회기간이 일 단위가 되면서(2026-09-11) 그대로 넘긴다 — codef-sync 는 원래 startDate/endDate(일)를 받는다(수집 로직 무변경).
     const startDate = from;
     const endDate = to;
     // 홈택스 연동 일시정지 중이면 시작하지 않음. 현금영수증 화면과 동일한 가드(2026-07-31 통일)
-    if (isHometaxPaused)  {
+    if (isHometaxPaused) {
       const t = new Date(hometaxPausedUntil!).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
       toast(`홈택스 연동 일시정지 중 (${t}까지). 정지를 해제한 뒤 다시 시도하세요.`, 'info');
       return;
@@ -427,17 +427,17 @@ function TaxInvoicesPageInner() {
 
   // matchFilter state 는 3-way 매칭 페이지(/reports/three-way-match)로 이전됨 (2026-05-21).
   const [matchDealPopup, setMatchDealPopup] = useState<any>(null);
-  //   프로젝트(딜) 제안 팝업 · 발행 완료 건에 어느 프로젝트 매출인지 붙인다 (2026-08-13 사장님)
+  // 프로젝트(딜) 제안 팝업 · 발행 완료 건에 어느 프로젝트 매출인지 붙인다
   const [dealSuggest, setDealSuggest] = useState<any>(null);
   // 거래매칭 · 목록에서 통장 입출금 거래를 바로 연결 (인라인 팝업)
   const [linkInvoice, setLinkInvoice] = useState<any>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  //   점검 리포트는 접힌 채로 시작한다. 목록이 첫 화면에 올라오게 (2026-08-10)
+  // 점검 리포트는 접힌 채로 시작한다. 목록이 첫 화면에 올라오게 (2026-08-10)
   const [checkOpen, setCheckOpen] = useState(false);
   const [dismissedDups, setDismissedDups] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchIssuing, setBatchIssuing] = useState(false);
-  //   전송 전 확인 창 — 여기 담긴 건들이 확인을 거쳐 국세청으로 나간다 (2026-08-13, 4단계)
+  // 전송 전 확인 창 — 여기 담긴 건들이 확인을 거쳐 국세청으로 나간다 (2026-08-13, 4단계)
   const [issueConfirm, setIssueConfirm] = useState<any[] | null>(null);
   // 일괄 전표처리 (post_invoice_voucher) — 매출/매입 방향은 RPC 가 자동 분기.
   const [showBulkVoucher, setShowBulkVoucher] = useState(false);
@@ -474,14 +474,14 @@ function TaxInvoicesPageInner() {
     items: ItemLine[];
   };
   // 품목 줄 · 화면에서는 문자열로 다루고 저장할 때 숫자로 바꾼다 (입력 중 0 이 튀지 않게)
-  //   월·일 = 홈택스 서식의 줄 거래일자. 비면 계산서 작성일자를 쓴다.
-  type ItemLine =  { key: string; month: string; day: string; name: string; spec: string; qty: string; unitCost: string; remark: string };
+  // 월·일 = 홈택스 서식의 줄 거래일자. 비면 계산서 작성일자를 쓴다.
+  type ItemLine = { key: string; month: string; day: string; name: string; spec: string; qty: string; unitCost: string; remark: string };
   const itemKeyRef = useRef(0);
   const blankItem = (): ItemLine => ({ key: `i${itemKeyRef.current++}`, month: "", day: "", name: "", spec: "", qty: "1", unitCost: "", remark: "" });
-  //   한 줄 공급가액 = 수량 × 단가. 수량이 비면 1 로 본다.
+  // 한 줄 공급가액 = 수량 × 단가. 수량이 비면 1 로 본다.
   const itemSupply = (it: ItemLine) => Math.round((Number(it.qty) || 1) * (Number(it.unitCost) || 0));
-  //   한 줄 세액 — 과세일 때만 10%. 영세율·면세는 0(홈택스로 나가는 줄 세액과 같은 산식).
-  //   장 합계의 반올림 맞춤은 발행 엣지가 마지막 줄에서 흡수하므로 여기선 줄 단위로만 본다.
+  // 한 줄 세액 — 과세일 때만 10%. 영세율·면세는 0(홈택스로 나가는 줄 세액과 같은 산식).
+  // 장 합계의 반올림 맞춤은 발행 엣지가 마지막 줄에서 흡수하므로 여기선 줄 단위로만 본다.
   const itemTax = (it: ItemLine, kind: string) => (kind === "taxable" ? Math.round(itemSupply(it) * 0.1) : 0);
 
   const rowKeyRef = useRef(0);
@@ -512,22 +512,22 @@ function TaxInvoicesPageInner() {
   });
   const [rows, setRows] = useState<FormRow[]>(() => [blankRow()]);
   const [dropdownRowKey, setDropdownRowKey] = useState<string | null>(null);
-  //   거래처 후보 목록에서 키보드로 고르기 — ↑↓ 로 옮기고 Enter 로 넣는다(2026-09-11 사장님)
+  // 거래처 후보 목록에서 키보드로 고르기 — ↑↓ 로 옮기고 Enter 로 넣는다
   const [dropIdx, setDropIdx] = useState(0);
-  //   '여러 장 한꺼번에' 격자 — 칸을 data-cell 로 찾는다
+  // '여러 장 한꺼번에' 격자 — 칸을 data-cell 로 찾는다
   const multiGridRef = useRef<HTMLDivElement | null>(null);
-  //   사용자가 직접 손댄 칸. 유형("매출")·수량("1")은 기본값이 있어 '비었는지' 로는
-  //   윗줄 복사 여부를 가릴 수 없다 — 안 건드린 칸이면 Enter 에 윗줄 값을 내려받는다.
+  // 사용자가 직접 손댄 칸. 유형("매출")·수량("1")은 기본값이 있어 '비었는지' 로는
+  // 윗줄 복사 여부를 가릴 수 없다 — 안 건드린 칸이면 Enter 에 윗줄 값을 내려받는다.
   const [touchedCells, setTouchedCells] = useState<Set<string>>(new Set());
   const markTouched = (rowKey: string, cell: string) =>
     setTouchedCells((t) => (t.has(`${rowKey}:${cell}`) ? t : new Set(t).add(`${rowKey}:${cell}`)));
-  const [calcRowKey, setCalcRowKey] = useState<string | null>(null);   //   여러 장 — 🧮 계산기가 펼쳐진 줄 (2026-08-31)
-  //   한 장 쓰기(품목 여러 줄) / 여러 장 한꺼번에(한 줄 = 한 장) — 2026-08-10
+  const [calcRowKey, setCalcRowKey] = useState<string | null>(null); // 여러 장 — 🧮 계산기가 펼쳐진 줄 (2026-08-31)
+  // 한 장 쓰기(품목 여러 줄) / 여러 장 한꺼번에(한 줄 = 한 장) — 2026-08-10
   const [formMode, setFormMode] = useState<"single" | "multi">("single");
-  //   두 탭은 입력 상태를 나눠 갖는다 (2026-09-14 사장님 지적). 예전엔 같은 rows 를 썼는데,
-  //   한 장 쓰기에서 품목을 여러 줄 넣고 여러 장으로 넘어가면 그 줄들이 그대로 rows[0] 에 남아
-  //   — 여러 장 격자는 items[0] 만 보여 주면서 공급가액·세액·합계는 items 전부를 더해 — 안 보이는
-  //   줄의 금액이 합계에 붙었다. 탭을 옮길 때 지금 탭의 입력을 보관하고 저쪽 탭의 것을 꺼낸다.
+  // 두 탭은 입력 상태를 나눠 갖는다. 예전엔 같은 rows 를 썼는데,
+  // 한 장 쓰기에서 품목을 여러 줄 넣고 여러 장으로 넘어가면 그 줄들이 그대로 rows[0] 에 남아
+  // — 여러 장 격자는 items[0] 만 보여 주면서 공급가액·세액·합계는 items 전부를 더해 — 안 보이는
+  // 줄의 금액이 합계에 붙었다. 탭을 옮길 때 지금 탭의 입력을 보관하고 저쪽 탭의 것을 꺼낸다.
   const modeRowsRef = useRef<{ single: FormRow[] | null; multi: FormRow[] | null }>({ single: null, multi: null });
   const switchMode = (next: "single" | "multi") => {
     if (next === formMode) return;
@@ -542,9 +542,9 @@ function TaxInvoicesPageInner() {
   const removeRow = (key: string) =>
     setRows((rs) => (rs.length > 1 ? rs.filter((r) => r.key !== key) : [blankRow()]));
 
-  //   계산서 공급가액 = 품목 줄 합계. 규칙이 하나뿐이라 '계산' 버튼이 필요 없어졌다.
+  // 계산서 공급가액 = 품목 줄 합계. 규칙이 하나뿐이라 '계산' 버튼이 필요 없어졌다.
   const rowSupply = (r: FormRow) => r.items.reduce((s, it) => s + itemSupply(it), 0);
-  //   공급가액이 0만 아니면 된다 — 수정세금계산서·환입 등 **마이너스 계산서**를 발행할 수 있어야 한다 (2026-08-31 사장님).
+  // 공급가액이 0만 아니면 된다 — 수정세금계산서·환입 등 **마이너스 계산서**를 발행할 수 있어야 한다.
   const isRowValid = (r: FormRow) =>
     !!r.counterpartyName.trim() && !!r.issueDate && rowSupply(r) !== 0;
 
@@ -559,24 +559,24 @@ function TaxInvoicesPageInner() {
       ? { ...r, items: r.items.length > 1 ? r.items.filter((it) => it.key !== itemKey) : [blankItem()] }
       : r)));
 
-  //   마지막 줄 끝에서 Tab = 새 줄. 여러 줄을 연달아 칠 때 마우스로 손이 안 가게 (2026-08-10)
+  // 마지막 줄 끝에서 Tab = 새 줄. 여러 줄을 연달아 칠 때 마우스로 손이 안 가게 (2026-08-10)
   const onItemKeyDown = (e: React.KeyboardEvent, rowKey: string, itemKey: string) => {
     if (e.key !== "Tab" || e.shiftKey) return;
     const row = rows.find((r) => r.key === rowKey);
     if (!row || row.items[row.items.length - 1]?.key !== itemKey) return;
     const it = row.items[row.items.length - 1];
-    if (!it.name.trim()) return;             // 빈 줄에서 Tab 은 그냥 넘어간다
+    if (!it.name.trim()) return; // 빈 줄에서 Tab 은 그냥 넘어간다
     addItem(rowKey);
   };
-  //   엑셀에서 여러 줄 붙여넣기 — 탭으로 나뉜 칸을 품목명·규격·수량·단가로 채운다
+  // 엑셀에서 여러 줄 붙여넣기 — 탭으로 나뉜 칸을 품목명·규격·수량·단가로 채운다
   const onItemPaste = (e: React.ClipboardEvent, rowKey: string, itemKey: string) => {
     const text = e.clipboardData.getData("text/plain");
-    if (!/[\n\t]/.test(text)) return;                          // 한 칸 붙여넣기는 기본 동작 그대로
+    if (!/[\n\t]/.test(text)) return; // 한 칸 붙여넣기는 기본 동작 그대로
     e.preventDefault();
     const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     const parsed: ItemLine[] = lines.map((l) => {
-      //   비고까지 받는다 — 화면 칸 순서(품목명·규격·수량·단가·비고)와 같게.
-      //   공급가액·세액·합계는 계산값이라 붙여넣기에서 받지 않는다.
+      // 비고까지 받는다 — 화면 칸 순서(품목명·규격·수량·단가·비고)와 같게.
+      // 공급가액·세액·합계는 계산값이라 붙여넣기에서 받지 않는다.
       const [month = "", day = "", name = "", spec = "", qty = "", unit = "", remark = ""] = l.split("\t");
       return {
         key: `i${itemKeyRef.current++}`,
@@ -594,12 +594,12 @@ function TaxInvoicesPageInner() {
       if (r.key !== rowKey) return r;
       const at = r.items.findIndex((it) => it.key === itemKey);
       const next = [...r.items];
-      next.splice(at, 1, ...parsed);          // 붙여넣기 시작 줄을 첫 줄로 대체
+      next.splice(at, 1, ...parsed); // 붙여넣기 시작 줄을 첫 줄로 대체
       return { ...r, items: next };
     }));
   };
 
-  //   거래처를 고르면 계산서에 찍힐 값들을 한꺼번에 채운다
+  // 거래처를 고르면 계산서에 찍힐 값들을 한꺼번에 채운다
   const applyPartner = (rowKey: string, p: any) => patchRow(rowKey, {
     counterpartyName: p.name,
     counterpartyBizno: p.business_number || "",
@@ -611,11 +611,11 @@ function TaxInvoicesPageInner() {
     partnerId: p.id,
   });
 
-  // ── '여러 장 한꺼번에' 키보드 격자 (2026-09-11 사장님) ──────────────────────
-  //   규칙은 use-grid-keys 한 곳에 있다(재고 전표 편집기와 같은 규칙):
-  //   Enter = 빈 칸이면 윗줄 값 내려받고 다음 칸 / 마지막 칸이면 새 줄,  ↑↓ = 같은 칸 위아래,
-  //   ←→ = 글자 커서가 칸 끝일 때만 옆 칸. 유형(select)은 ↑↓ 가 값 고르기라 그대로 둔다.
-  //   화면에 보이는 순서 그대로 — 공급가액·세액·합계는 계산값이라 커서가 서지 않는다
+  // ── '여러 장 한꺼번에' 키보드 격자 ──────────────────────
+  // 규칙은 use-grid-keys 한 곳에 있다(재고 전표 편집기와 같은 규칙):
+  // Enter = 빈 칸이면 윗줄 값 내려받고 다음 칸 / 마지막 칸이면 새 줄, ↑↓ = 같은 칸 위아래,
+  // ←→ = 글자 커서가 칸 끝일 때만 옆 칸. 유형(select)은 ↑↓ 가 값 고르기라 그대로 둔다.
+  // 화면에 보이는 순서 그대로 — 공급가액·세액·합계는 계산값이라 커서가 서지 않는다
   const MULTI_CELLS = ["type", "issueDate", "counterpartyName", "itemName", "spec", "qty", "unitCost", "remark"];
   const multiCellValue = (r: FormRow, cell: string): string => {
     if (cell === "type") return r.type || "";
@@ -633,18 +633,18 @@ function TaxInvoicesPageInner() {
     gridRef: multiGridRef,
     rowCount: rows.length,
     addRow: () => setRows((rs) => [...rs, blankRow()]),
-    //   Enter 로 윗줄에서 내려받을 칸 — 거래처·단가는 뺀다(2026-09-11 사장님).
-    //   줄마다 달라야 하는 값이라, 복사되면 엉뚱한 거래처로 계산서가 나가거나 금액이 틀어진다.
-    //   단가에서 Enter 는 복사 없이 새 줄만 만든다.
+    // Enter 로 윗줄에서 내려받을 칸 — 거래처·단가는 뺀다.
+    // 줄마다 달라야 하는 값이라, 복사되면 엉뚱한 거래처로 계산서가 나가거나 금액이 틀어진다.
+    // 단가에서 Enter 는 복사 없이 새 줄만 만든다.
     copyCells: ["type", "issueDate", "itemName", "spec", "qty"],
     keepNativeUpDown: (cell) => cell === "type",
-    //   후보 목록이 열려 있으면 ↑↓·Enter 는 목록이 먼저 쓴다
+    // 후보 목록이 열려 있으면 ↑↓·Enter 는 목록이 먼저 쓴다
     skip: (i, cell) => cell === "counterpartyName" && dropdownRowKey === rows[i]?.key,
     isEmpty: (i, cell) => {
       const r = rows[i];
       if (!r) return false;
-      if (touchedCells.has(`${r.key}:${cell}`)) return false;      // 직접 고친 값은 덮지 않는다
-      return true;                                                 // 안 건드린 칸 = 윗줄에서 내려받는다
+      if (touchedCells.has(`${r.key}:${cell}`)) return false; // 직접 고친 값은 덮지 않는다
+      return true; // 안 건드린 칸 = 윗줄에서 내려받는다
     },
     copyDown: (i, cell) => {
       const up = rows[i - 1];
@@ -671,13 +671,13 @@ function TaxInvoicesPageInner() {
       applyPartner(row.key, list[Math.min(dropIdx, list.length - 1)]);
       setDropdownRowKey(null);
       setDropIdx(0);
-      gridKeys.focusCell(rowIndex, "itemName");   // 고른 뒤 다음 칸으로
+      gridKeys.focusCell(rowIndex, "itemName"); // 고른 뒤 다음 칸으로
       return true;
     }
     return false;
   };
 
-  //   발행에 필요한데 비어 있는 것 — 입력 단계에서 알려 준다(발행 때 빈칸으로 나가는 걸 막는다)
+  // 발행에 필요한데 비어 있는 것 — 입력 단계에서 알려 준다(발행 때 빈칸으로 나가는 걸 막는다)
   const missingBuyerFields = (r: FormRow) => {
     const out: string[] = [];
     if (!r.counterpartyBizno.trim()) out.push("등록번호");
@@ -698,8 +698,8 @@ function TaxInvoicesPageInner() {
   }, []);
 
   // 중복 '중복아님' 처리 — 회사 단위 DB(tax_dup_dismissals) 저장 (2026-08-31).
-  //   종전 localStorage 는 기기별이라 경리가 확인한 건이 대표 화면엔 계속 경고로 떴다.
-  //   기존 기기에 남은 localStorage 값은 1회 DB 로 승격 후 지운다.
+  // 종전 localStorage 는 기기별이라 경리가 확인한 건이 대표 화면엔 계속 경고로 떴다.
+  // 기존 기기에 남은 localStorage 값은 1회 DB 로 승격 후 지운다.
   useEffect(() => {
     if (!companyId || typeof window === "undefined") return;
     (async () => {
@@ -774,7 +774,7 @@ function TaxInvoicesPageInner() {
   });
 
   // 직원 QA 손익계산서 — 매입 세금계산서에 손익 계정과목(expense_category) 일괄 지정.
-  //   지정하면 손익계산서에서 매출원가(COGS) 대신 그 판관비 항목으로 집계됨.
+  // 지정하면 손익계산서에서 매출원가(COGS) 대신 그 판관비 항목으로 집계됨.
   const [bulkExpenseCat, setBulkExpenseCat] = useState("");
 
   // Deals for linking
@@ -799,20 +799,20 @@ function TaxInvoicesPageInner() {
     );
 
   // 3-way 매칭 fetch + matchFilter UI 는 새 페이지(/reports/three-way-match)로 이전됨 (2026-05-21).
-  //   matching 탭은 안내 메시지로 유지 (?tab=matching 옛 딥링크 호환).
+  // matching 탭은 안내 메시지로 유지 (?tab=matching 옛 딥링크 호환).
 
-  //   부가세 미리보기 · 기간별 집계 · 카드공제 세 조회는 **분석(/reports/vat)** 으로 갔다 (2026-08-13).
-  //   여기 남겨 두면 발행 화면을 열 때마다 안 쓰는 세 번의 조회가 돈다.
+  // 부가세 미리보기 · 기간별 집계 · 카드공제 세 조회는 **분석(/reports/vat)** 으로 갔다 (2026-08-13).
+  // 여기 남겨 두면 발행 화면을 열 때마다 안 쓰는 세 번의 조회가 돈다.
 
-  /*   기간 밖의 미발행 — **할 일을 기간으로 숨기면 안 된다** (2026-08-13).
-   *   조회기간 기본값이 최근 1개월이 되면서, 몇 달 전에 만들어 둔 미발행 초안이 화면에서
-   *   사라진다. 발행 대기는 '아직 안 보낸 것' 목록이라 그게 제일 위험하다.
-   *   그래서 기간을 넓히라고 **알려만 준다** — 조건을 몰래 바꾸지는 않는다.
+  /* 기간 밖의 미발행 — **할 일을 기간으로 숨기면 안 된다** (2026-08-13).
+   * 조회기간 기본값이 최근 1개월이 되면서, 몇 달 전에 만들어 둔 미발행 초안이 화면에서
+   * 사라진다. 발행 대기는 '아직 안 보낸 것' 목록이라 그게 제일 위험하다.
+   * 그래서 기간을 넓히라고 **알려만 준다** — 조건을 몰래 바꾸지는 않는다.
    */
   const { data: waitOutside = 0 } = useQuery({
     queryKey: ["ti-wait-outside", companyId, viewFrom, viewTo],
     queryFn: async () => {
-      //   조회기간 [viewFrom, viewTo] 밖 = 시작일보다 앞이거나 종료일 다음날부터 (일 단위)
+      // 조회기간 [viewFrom, viewTo] 밖 = 시작일보다 앞이거나 종료일 다음날부터 (일 단위)
       const from = viewFrom;
       const toExcl = new Date(Date.parse(`${viewTo}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
       const { count } = await (supabase as any).from("tax_invoices")
@@ -830,10 +830,10 @@ function TaxInvoicesPageInner() {
   const { data: companyInfo } = useQuery({
     queryKey: ["company-info", companyId],
     queryFn: async () => {
-      // 공급자 이메일 — companies 에 email 컬럼이 없어 상세 화면에서 항상 '-' 로 나오던 문제(2026-08-05 사장님 제보).
-      //   실제 계산서에 찍히는 발행자 이메일과 같은 출처를 쓴다: automation_settings.invoicer_email → 없으면 대표 계정 이메일
-      //   (hometax-issue 엣지 함수의 발행자 이메일 결정 순서와 동일).
-      //   tax_settings 도 같이 — 과세유형(vat_type)이 여기 있고, 무엇을 발행할 수 있는지를 그 값이 정한다 (2026-08-13)
+      // 공급자 이메일 — companies 에 email 컬럼이 없어 상세 화면에서 항상 '-' 로 나오던 문제.
+      // 실제 계산서에 찍히는 발행자 이메일과 같은 출처를 쓴다: automation_settings.invoicer_email → 없으면 대표 계정 이메일
+      // (hometax-issue 엣지 함수의 발행자 이메일 결정 순서와 동일).
+      // tax_settings 도 같이 — 과세유형(vat_type)이 여기 있고, 무엇을 발행할 수 있는지를 그 값이 정한다 (2026-08-13)
       const data = logRead('tax-invoices/page:data', await (supabase).from('companies').select('name, business_number, representative, address, business_type, business_category, automation_settings, tax_settings').eq('id', companyId!).maybeSingle());
       if (!data) return data;
       let email = (data as any)?.automation_settings?.invoicer_email || '';
@@ -848,13 +848,13 @@ function TaxInvoicesPageInner() {
     enabled: !!companyId,
   });
 
-  //   회사 과세유형 — 고를 수 있는 과세형태를 이 값이 정한다 (2026-08-13 사장님 지시).
-  //   ★ 과세사업자는 계산서(면세)를 낼 수 없다. 예전엔 칸이 늘 셋이라 광고대행 회사에서도
-  //     '면세'를 골라 전자계산서를 만들 수 있었다 — 발행하면 안 되는 문서다.
+  // 회사 과세유형 — 고를 수 있는 과세형태를 이 값이 정한다.
+  // ★ 과세사업자는 계산서(면세)를 낼 수 없다. 예전엔 칸이 늘 셋이라 광고대행 회사에서도
+  // '면세'를 골라 전자계산서를 만들 수 있었다 — 발행하면 안 되는 문서다.
   const vatBiz = vatBusinessTypeOf((companyInfo as any)?.tax_settings);
   const taxKindOptions = TAX_KIND_OPTIONS.filter((o) => canIssueTaxKind(vatBiz, o.value));
-  //   빈 줄의 기본값 'taxable' 은 **면세사업자에게는 못 쓰는 값**이다. 회사 정보가 도착하면
-  //   못 쓰는 값을 들고 있는 줄을 고를 수 있는 첫 값으로 옮긴다(면세사업자면 '면세').
+  // 빈 줄의 기본값 'taxable' 은 **면세사업자에게는 못 쓰는 값**이다. 회사 정보가 도착하면
+  // 못 쓰는 값을 들고 있는 줄을 고를 수 있는 첫 값으로 옮긴다(면세사업자면 '면세').
   useEffect(() => {
     if (!companyInfo) return;
     const fallback = taxKindOptions[0]?.value;
@@ -877,14 +877,14 @@ function TaxInvoicesPageInner() {
   const { data: queueItems = [], isLoading: queueLoading } = useQuery({
     queryKey: ["invoice-queue", companyId],
     queryFn: () => getInvoiceQueue(companyId!),
-    enabled: false,   // 자동발행 큐는 발행 대기의 '출처' 칸으로 녹였다 (2026-08-13)
+    enabled: false, // 자동발행 큐는 발행 대기의 '출처' 칸으로 녹였다 (2026-08-13)
   });
 
   // Sync logs
   const { data: syncLogs = [] } = useQuery({
     queryKey: ["hometax-sync-logs", companyId],
     queryFn: () => getHomeTaxSyncLogs(companyId!),
-    enabled: false,   // 동기화 로그 탭 없음 — 수집·전표가 담당 (2026-08-13)
+    enabled: false, // 동기화 로그 탭 없음 — 수집·전표가 담당 (2026-08-13)
   });
 
   // Last sync time (항상 조회)
@@ -892,8 +892,8 @@ function TaxInvoicesPageInner() {
     queryKey: ["last-sync-time", companyId],
     queryFn: async () => {
       const db = supabase;
-      //   hometax_sync_log 는 쓰기 코드가 사라진 죽은 테이블 — '마지막 업데이트'가 영원히 안 떴다.
-      //   실제 수집 이력이 쌓이는 hometax_sync_jobs 로 교체 (2026-08-31 스윕).
+      // hometax_sync_log 는 쓰기 코드가 사라진 죽은 테이블 — '마지막 업데이트'가 영원히 안 떴다.
+      // 실제 수집 이력이 쌓이는 hometax_sync_jobs 로 교체 (2026-08-31 스윕).
       const data = logRead('tax-invoices/page:data', await db
         .from('hometax_sync_jobs')
         .select('completed_at')
@@ -927,7 +927,7 @@ function TaxInvoicesPageInner() {
   }, [companyId, activeJobId]);
 
   // Background sync job · Realtime 구독해서 진행 상황 표시.
-  const  { data: activeJob } = useQuery({
+  const { data: activeJob } = useQuery({
     queryKey: ["hometax-sync-job", activeJobId],
     queryFn: async () => {
       if (!activeJobId) return null;
@@ -940,7 +940,7 @@ function TaxInvoicesPageInner() {
       return data;
     },
     enabled: !!activeJobId,
-    refetchInterval: activeJobId ? 2000 : false,  // 2초 polling (Realtime 보조)
+    refetchInterval: activeJobId ? 2000 : false, // 2초 polling (Realtime 보조)
   });
 
   useEffect(() => {
@@ -951,7 +951,7 @@ function TaxInvoicesPageInner() {
         queryClient.setQueryData(["hometax-sync-job", activeJobId], payload.new);
         if (payload.new.status === 'completed' || payload.new.status === 'failed') {
           // 완료 시 invalidate
-          invalidateTaxInvoiceReaders(queryClient);   //   원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
+          invalidateTaxInvoiceReaders(queryClient); // 원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
           queryClient.invalidateQueries({ queryKey: ["last-hometax-sync-at"] });
           if (payload.new.status === 'completed') {
             toast(`백그라운드 동기화 완료: ${payload.new.total_synced}건`, 'success');
@@ -1001,22 +1001,22 @@ function TaxInvoicesPageInner() {
   const [showBulkIssue, setShowBulkIssue] = useState(false);
 
   const invalidate = () => {
-    invalidateTaxInvoiceReaders(queryClient);   //   원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
+    invalidateTaxInvoiceReaders(queryClient); // 원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
   };
 
   const createMut = useMutation({
     // 유효한 모든 행을 일괄 등록
     mutationFn: async () => {
-      //   '한 장 쓰기' 는 첫 행만, '여러 장' 은 유효한 행 전부
+      // '한 장 쓰기' 는 첫 행만, '여러 장' 은 유효한 행 전부
       const valid = (formMode === "single" ? rows.slice(0, 1) : rows).filter(isRowValid);
-      //   등록하면 곧바로 홈택스에 전자발행한다 (2026-09-11 사장님: "그냥 등록하면 바로 발행되게").
-      //   단 이번 달 남은 발행 한도만큼만 — 한도 초과분·발행 실패분(인증서 미등록 등)은 만들어만 두고
-      //   '발행 대기' 에 남겨 손으로 발행할 수 있게 한다. 매입 계산서는 우리가 발행하지 않는다.
+      // 등록하면 곧바로 홈택스에 전자발행한다 ("그냥 등록하면 바로 발행되게").
+      // 단 이번 달 남은 발행 한도만큼만 — 한도 초과분·발행 실패분(인증서 미등록 등)은 만들어만 두고
+      // '발행 대기' 에 남겨 손으로 발행할 수 있게 한다. 매입 계산서는 우리가 발행하지 않는다.
       let remaining = issuanceStatus?.limit == null ? Infinity : (issuanceStatus.remaining ?? 0);
       let created = 0, issued = 0, failed = 0, skipped = 0;
       let firstError = "";
       for (const r of valid) {
-        //   품목 줄 — 이름이 있는 줄만 저장한다. 계산서 공급가액은 줄 합계다.
+        // 품목 줄 — 이름이 있는 줄만 저장한다. 계산서 공급가액은 줄 합계다.
         const items = r.items
           .filter((it) => it.name.trim())
           .map((it) => ({
@@ -1025,9 +1025,9 @@ function TaxInvoicesPageInner() {
             qty: Number(it.qty) || 1,
             unitCost: Math.round(Number(it.unitCost) || 0),
             supplyAmount: itemSupply(it),
-            //   줄 비고 — 홈택스 detailList 의 remark 로 그대로 나간다
+            // 줄 비고 — 홈택스 detailList 의 remark 로 그대로 나간다
             remark: it.remark.trim(),
-            //   줄 거래일자 — 비면 발행 엣지가 계산서 작성일자를 쓴다
+            // 줄 거래일자 — 비면 발행 엣지가 계산서 작성일자를 쓴다
             month: it.month.trim(),
             day: it.day.trim(),
           }));
@@ -1049,17 +1049,17 @@ function TaxInvoicesPageInner() {
           partnerId: r.partnerId || undefined,
           taxKind: r.taxKind,
           items,
-          // 품목은 item_name 으로 — label 에 섞으면 홈택스 품목이 "용역"으로 발행된다(2026-08-05 교정).
-          //   여러 줄이면 첫 줄 이름을 넣어 목록·옛 폴백과 호환을 유지한다.
-          //   label 에는 영수/청구 토큰만 남긴다(발행 엣지가 purposeType 판정에 사용).
+          // 품목은 item_name 으로 — label 에 섞으면 홈택스 품목이 "용역"으로 발행된다.
+          // 여러 줄이면 첫 줄 이름을 넣어 목록·옛 폴백과 호환을 유지한다.
+          // label 에는 영수/청구 토큰만 남긴다(발행 엣지가 purposeType 판정에 사용).
           itemName: items[0]?.name || undefined,
           label: r.purpose || undefined,
-          //   전체 비고 — 국세청 비고란(remark1)
+          // 전체 비고 — 국세청 비고란(remark1)
           remark: r.remark || undefined,
         });
 
-        //   거래처 정보에도 저장 · 다음 발행부터 자동으로 채워진다 (2026-08-10 사장님)
-        if (savePartnerInfo && r.partnerId)  {
+        // 거래처 정보에도 저장 · 다음 발행부터 자동으로 채워진다
+        if (savePartnerInfo && r.partnerId) {
           const patch: Record<string, string> = {};
           if (r.counterpartyRepresentative.trim()) patch.representative = r.counterpartyRepresentative.trim();
           if (r.counterpartyAddress.trim()) patch.address = r.counterpartyAddress.trim();
@@ -1067,13 +1067,13 @@ function TaxInvoicesPageInner() {
           if (r.counterpartyBusinessType.trim()) patch.business_type = r.counterpartyBusinessType.trim();
           if (r.counterpartyBusinessItem.trim()) patch.business_item = r.counterpartyBusinessItem.trim();
           if (Object.keys(patch).length > 0) {
-            //   거래처 갱신이 실패해도 계산서 등록은 살린다(권한 없는 멤버 등)
+            // 거래처 갱신이 실패해도 계산서 등록은 살린다(권한 없는 멤버 등)
             await supabase.from("partners").update(patch as never).eq("id", r.partnerId);
           }
         }
 
         created++;
-        //   등록 즉시 홈택스 발행 — 매출만, 남은 한도 안에서. 실패해도 계산서는 살리고 '발행 대기' 에 남긴다.
+        // 등록 즉시 홈택스 발행 — 매출만, 남은 한도 안에서. 실패해도 계산서는 살리고 '발행 대기' 에 남긴다.
         if (newInv && r.type === "sales" && !(newInv as any).nts_confirm_no) {
           if (remaining <= 0) { skipped++; continue; }
           try {
@@ -1088,7 +1088,7 @@ function TaxInvoicesPageInner() {
       return { created, issued, failed, skipped, firstError };
     },
     onSuccess: ({ created, issued, failed, skipped, firstError }) => {
-      //   대부분은 매출 1장 → 발행 완료. 실패·한도초과분은 '발행 대기' 로 안내한다.
+      // 대부분은 매출 1장 → 발행 완료. 실패·한도초과분은 '발행 대기' 로 안내한다.
       if (failed > 0) {
         toast(`계산서 ${created}장 등록. ${issued > 0 ? `${issued}장 홈택스 발행 완료, ` : ""}${failed}장은 발행 실패해 '발행 대기' 에 남겼습니다 (${firstError}). 대기 목록에서 다시 발행하세요.`, "error");
       } else if (skipped > 0) {
@@ -1096,14 +1096,14 @@ function TaxInvoicesPageInner() {
       } else if (issued > 0) {
         toast(issued === 1 ? "세금계산서를 홈택스에 발행했습니다." : `세금계산서 ${issued}장을 홈택스에 발행했습니다.`, "success");
       } else {
-        //   매입 등 발행 대상이 아닌 건 — 등록만
+        // 매입 등 발행 대상이 아닌 건 — 등록만
         toast(`세금계산서 ${created}장이 등록되었습니다.`, "success");
       }
       invalidate();
       queryClient.invalidateQueries({ queryKey: ["tax-invoice-issuance-status"] });
       setShowForm(false);
       setRows([blankRow()]);
-      modeRowsRef.current = { single: null, multi: null };   // 다른 탭에 보관된 입력도 비운다
+      modeRowsRef.current = { single: null, multi: null }; // 다른 탭에 보관된 입력도 비운다
       setDropdownRowKey(null);
     },
     onError: (err: any) => toast("세금계산서 등록 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
@@ -1117,48 +1117,48 @@ function TaxInvoicesPageInner() {
 
   // Duplicate detection
   const duplicateInvoices = useMemo(() => detectDuplicateInvoices(invoices), [invoices]);
-  //   '중복 아님' 처리한 그룹을 뺀 실제 알림 대상 — 결과 줄과 상세 패널이 같은 목록을 본다
+  // '중복 아님' 처리한 그룹을 뺀 실제 알림 대상 — 결과 줄과 상세 패널이 같은 목록을 본다
   const liveDups = useMemo(
     () => duplicateInvoices.filter((d) => !dismissedDups.has(d.key)),
     [duplicateInvoices, dismissedDups]);
 
-  /*   목록 두 탭이 보는 것 — **오너뷰가 만든 것(source='manual')만**. (2026-08-13 재편)
-   *     발행 대기 = 국세청에 아직 안 간 것(미발행·전송중·에러). 에러를 여기 두는 이유는
-   *                 **아직 안 갔기 때문**이다 — 이카운트도 '에러'를 미전송 묶음에 넣는다.
-   *     발행 내역 = 승인이 끝난 것. 손댈 게 없는 확정 장부다.
-   *   받아온 것(codef_hometax)은 수집·전표가 본다. 여기서 섞으면 "내가 낸 것"이 2,535건에 파묻힌다.
+  /* 목록 두 탭이 보는 것 — **오너뷰가 만든 것(source='manual')만**. (2026-08-13 재편)
+   * 발행 대기 = 국세청에 아직 안 간 것(미발행·전송중·에러). 에러를 여기 두는 이유는
+   * **아직 안 갔기 때문**이다 — 이카운트도 '에러'를 미전송 묶음에 넣는다.
+   * 발행 내역 = 승인이 끝난 것. 손댈 게 없는 확정 장부다.
+   * 받아온 것(codef_hometax)은 수집·전표가 본다. 여기서 섞으면 "내가 낸 것"이 2,535건에 파묻힌다.
    */
   const isOurs = (inv: any) => (inv.source || "manual") === "manual";
-  //   입금 여부는 정산(settlement_status)이 원천 — 옛 경로가 남긴 status='matched' 도 함께 본다
+  // 입금 여부는 정산(settlement_status)이 원천 — 옛 경로가 남긴 status='matched' 도 함께 본다
   const isPaid = (inv: any) => inv.status === "matched" || ["partial", "settled"].includes(String(inv.settlement_status || ""));
   const isSent = (inv: any) => inv.nts_issue_status === "issued" || !!inv.nts_confirm_no;
-  //   발행 대기 = 우리가 만든 매출 계산서 중 미전송 — 손으로 등록한 매입 계산서는 승인번호가 붙을 일이 없어 영원히 남았다
+  // 발행 대기 = 우리가 만든 매출 계산서 중 미전송 — 손으로 등록한 매입 계산서는 승인번호가 붙을 일이 없어 영원히 남았다
   const waitInvoices = useMemo(
     () => invoices.filter((inv: any) => isOurs(inv) && inv.type === "sales" && !isSent(inv) && inv.status !== "void"), [invoices]);
   const doneInvoices = useMemo(
     () => invoices.filter((inv: any) => isOurs(inv) && isSent(inv)), [invoices]);
-  //   짝 없는 발행 건 — 입금(status!=='matched') 또는 프로젝트(deal_id 없음)가 안 붙은 것.
-  //   AI 제안 배지가 이 수를 보여 준다. 확정은 줄에서 사람이 한다.
+  // 짝 없는 발행 건 — 입금(status!=='matched') 또는 프로젝트(deal_id 없음)가 안 붙은 것.
+  // AI 제안 배지가 이 수를 보여 준다. 확정은 줄에서 사람이 한다.
   const pairGaps = useMemo(
     () => doneInvoices.filter((inv: any) => inv.status !== "matched" || !inv.deal_id).length,
     [doneInvoices]);
-  //   '미매칭만' 보기 — AI 제안에서 켠다. 메뉴 이동 없이 이 화면에서 거른다 (2026-08-13 사장님).
+  // '미매칭만' 보기 — AI 제안에서 켠다. 메뉴 이동 없이 이 화면에서 거른다.
   const [gapOnly, setGapOnly] = useState(false);
   const isListTab = tab === "wait" || tab === "done";
   const currentList = tab === "wait" ? waitInvoices : tab === "done" ? doneInvoices : [];
 
-  /*   ── 발행 현황 요약 — 이카운트 「매출(세금)계산서요약」 형태 (2026-08-13 사장님 지시) ──
-   *   묶음: 종이 / 미전송(미발행·전송대기·전송중·에러) / 전송완료(정발행 + 수정사유 6종) /
-   *         타발행(홈택스에서 직접 낸 것) / 기한후발행.
-   *   ★ 수정사유는 국세청 코드와 우리 MODIFICATION_REASONS 가 1:1 이라 그대로 쓴다.
-   *     발행한 건의 사유는 요청 payload 의 modifyCode 에 남아 있다(전송 시점의 사실이라 이쪽이 정확하다).
+  /* ── 발행 현황 요약 — 이카운트 「매출(세금)계산서요약」 형태 ──
+   * 묶음: 종이 / 미전송(미발행·전송대기·전송중·에러) / 전송완료(정발행 + 수정사유 6종) /
+   * 타발행(홈택스에서 직접 낸 것) / 기한후발행.
+   * ★ 수정사유는 국세청 코드와 우리 MODIFICATION_REASONS 가 1:1 이라 그대로 쓴다.
+   * 발행한 건의 사유는 요청 payload 의 modifyCode 에 남아 있다(전송 시점의 사실이라 이쪽이 정확하다).
    */
   const NTS_MODIFY_LABELS: Record<string, string> = {
     "1": "기재사항 착오정정", "2": "공급가액 변동", "3": "환입",
     "4": "계약의 해제", "5": "내국신용장 사후개설", "6": "착오에 의한 이중발급",
   };
-  //   발행 기한 = 공급시기가 속한 달의 **다음 달 10일**. 넘기면 지연발행 가산세다.
-  //   (실제로 우리 실패 1건의 국세청 거절 사유가 '지연발행'이었다 — 2026-05-26)
+  // 발행 기한 = 공급시기가 속한 달의 **다음 달 10일**. 넘기면 지연발행 가산세다.
+  // (실제로 우리 실패 1건의 국세청 거절 사유가 '지연발행'이었다 — 2026-05-26)
   const issueDeadline = (issueDate: string): string => {
     const [y, m] = String(issueDate || "").split("-").map(Number);
     if (!y || !m) return "";
@@ -1179,11 +1179,11 @@ function TaxInvoicesPageInner() {
     const sent = ours.filter(isSent);
     const modifyCodeOf = (r: any) => String(r.nts_request_payload?.modifyCode || "");
     return {
-      paper: agg([]),                                                    // 종이 계산서는 아직 안 다룬다
+      paper: agg([]), // 종이 계산서는 아직 안 다룬다
       unsent: {
         draft: agg(ours.filter((r: any) => !isSent(r) && st(r) === "draft")),
         pending: agg(ours.filter((r: any) => !isSent(r) && st(r) === "pending")),
-        //   전송은 됐는데 승인번호를 기다리는 건(다음 영업일 전송) — '전송대기' 와 같은 숫자를 두 번 찍던 자리
+        // 전송은 됐는데 승인번호를 기다리는 건(다음 영업일 전송) — '전송대기' 와 같은 숫자를 두 번 찍던 자리
         awaiting: agg(ours.filter((r: any) => r.nts_issue_status === "issued" && !r.nts_confirm_no)),
         failed: agg(ours.filter((r: any) => !isSent(r) && st(r) === "failed")),
         total: agg(ours.filter((r: any) => !isSent(r))),
@@ -1197,7 +1197,7 @@ function TaxInvoicesPageInner() {
         total: agg(sent),
       },
       others: agg(others),
-      //   기한후발행 = 승인된 날이 기한(다음 달 10일)을 넘은 것
+      // 기한후발행 = 승인된 날이 기한(다음 달 10일)을 넘은 것
       late: agg(sent.filter((r: any) => {
         const dl = issueDeadline(r.issue_date);
         const at = r.nts_issued_at ? String(r.nts_issued_at).slice(0, 10) : "";
@@ -1208,8 +1208,8 @@ function TaxInvoicesPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoices]);
 
-  //   '거래처 발행정보' 탭은 뺐다 (2026-08-13 사장님) — 빠진 받는 쪽 정보는
-  //   전송 전 확인 창(IssueConfirmModal)이 건별로 잡아서 그 자리에서 채우게 한다.
+  // '거래처 발행정보' 탭은 뺐다 — 빠진 받는 쪽 정보는
+  // 전송 전 확인 창(IssueConfirmModal)이 건별로 잡아서 그 자리에서 채우게 한다.
 
 
   // 헤더 클릭 정렬 (표시용) — 합계/선택/내보내기는 currentList(원본) 사용, 렌더만 정렬
@@ -1223,22 +1223,22 @@ function TaxInvoicesPageInner() {
   // 목록 표 컬럼 리사이즈 · 경계선 드래그로 너비 조절 · 더블클릭 내용 자동맞춤 · localStorage 기억 (2026-07-14)
   const listTableRef = useRef<HTMLTableElement | null>(null);
   const [colW, setColW] = useColWidths("tax-invoice-list-colw-v4", {
-    //   승인번호(nts)·전송(send)은 상세로 옮겨 컬럼이 없어졌다 (2026-08-10).
-    //   기억해 둔 너비가 옛 컬럼 순서로 되살아나지 않게 저장 키도 v3 으로 올린다.
-    //   v4 (2026-08-18): 머리단에 ≡ 자리(양쪽 22px)가 생겨 좁은 칸에서 글자가 ≡ 와 겹쳤다 — 기본 너비를 넓힌다.
+    // 승인번호(nts)·전송(send)은 상세로 옮겨 컬럼이 없어졌다 (2026-08-10).
+    // 기억해 둔 너비가 옛 컬럼 순서로 되살아나지 않게 저장 키도 v3 으로 올린다.
+    // v4 (2026-08-18): 머리단에 ≡ 자리(양쪽 22px)가 생겨 좁은 칸에서 글자가 ≡ 와 겹쳤다 — 기본 너비를 넓힌다.
     issue_date: 128, counterparty_name: 200, label: 170,
     supply_amount: 132, tax_amount: 116, total_amount: 136, status: 116, act: 132,
   });
-  //   머리단은 수집·전표와 같은 부품(SortableTh) — 정렬 표시·깔때기·너비 손잡이가 한 벌이다 (2026-08-18 사장님:
-  //   "둘이 디자인이 다르다"). 예전엔 이 화면만 ▲▼↕ 글자·자체 손잡이(ColHandle)를 따로 갖고 있었다.
+  // 머리단은 수집·전표와 같은 부품(SortableTh) — 정렬 표시·깔때기·너비 손잡이가 한 벌이다 (
+  // "둘이 디자인이 다르다"). 예전엔 이 화면만 ▲▼↕ 글자·자체 손잡이(ColHandle)를 따로 갖고 있었다.
   const thResize = (k: string, colIndex: number) => ({ k, colIndex, widths: colW, onResize: setColW, tableRef: listTableRef });
   const invSortTh = (k: InvSortKey, label: string, colIndex: number) => (
     <SortableTh<InvSortKey> label={label} sortKey={k} sort={{ key: invSortKey, dir: invSortDir }} onSort={toggleInvSort}
       filter={tiThFilter(k)} resize={thResize(k, colIndex)} />
   );
-  //   품목 칸에 보이는 글자 — 정렬·깔때기 필터·칸이 전부 이 하나를 본다 (2026-09-14 사장님: 품목 정렬 안 됨).
-  //   ⚠️ '품목' 열의 정렬 키 이름이 "label" 인데, 예전 비교 함수는 그 이름 그대로 r.label 을 비교했다.
-  //   r.label 은 영수/청구 토글값이라 모든 행이 같아 정렬이 아무것도 안 움직였다.
+  // 품목 칸에 보이는 글자 — 정렬·깔때기 필터·칸이 전부 이 하나를 본다 (품목 정렬 안 됨).
+  // ⚠️ '품목' 열의 정렬 키 이름이 "label" 인데, 예전 비교 함수는 그 이름 그대로 r.label 을 비교했다.
+  // r.label 은 영수/청구 토글값이라 모든 행이 같아 정렬이 아무것도 안 움직였다.
   const invItemText = (r: any): string => {
     const one = (r.item_name ? String(r.item_name).replace(/\+/g, " ") : "") || stripPurposeToken(r.label) || r.deals?.name || "";
     return itemsLabel(r.items, one) || "";
@@ -1250,7 +1250,7 @@ function TaxInvoicesPageInner() {
       let c = 0;
       switch (invSortKey) {
         case "counterparty_name": c = (a.counterparty_name || "").localeCompare(b.counterparty_name || "", "ko"); break;
-        case "label": c = invItemText(a).localeCompare(invItemText(b), "ko"); break;   // 품목 열
+        case "label": c = invItemText(a).localeCompare(invItemText(b), "ko"); break; // 품목 열
         case "supply_amount": c = Number(a.supply_amount || 0) - Number(b.supply_amount || 0); break;
         case "tax_amount": c = Number(a.tax_amount || 0) - Number(b.tax_amount || 0); break;
         case "total_amount": c = Number(a.total_amount || 0) - Number(b.total_amount || 0); break;
@@ -1264,10 +1264,10 @@ function TaxInvoicesPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentList, invSortKey, invSortDir]);
 
-  /*   ── 조회 화면 표준 (CLAUDE.md 「조회 화면 표준」) ─────────────────────────
-   *   수집·전표에서 확정한 뼈대를 **그대로** 쓴다. 새 툴바를 만들지 않는다.
-   *   1줄 QueryBar[기간|검색조건 · 빠른검색 ‖ 실행] / 걸린 조건 칩 / 2줄 ResultStrip /
-   *   표 + Pager(기본 50줄) / 고른 순간에만 뜨는 SelectionBar(파란 버튼은 여기 하나).
+  /* ── 조회 화면 표준 (CLAUDE.md 「조회 화면 표준」) ─────────────────────────
+   * 수집·전표에서 확정한 뼈대를 **그대로** 쓴다. 새 툴바를 만들지 않는다.
+   * 1줄 QueryBar[기간|검색조건 · 빠른검색 ‖ 실행] / 걸린 조건 칩 / 2줄 ResultStrip /
+   * 표 + Pager(기본 50줄) / 고른 순간에만 뜨는 SelectionBar(파란 버튼은 여기 하나).
    */
   const [q, setQ] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);
@@ -1275,7 +1275,7 @@ function TaxInvoicesPageInner() {
   const [live, setLive] = useState<TiCond>(TI_EMPTY);
   const setD = <K extends keyof TiCond>(k: K) => (v: TiCond[K]) => setDraft((c) => ({ ...c, [k]: v }));
 
-  //   고를 수 있는 값들 — **이 기간에 실제로 나온 것만**(고르고도 0건이면 헷갈린다)
+  // 고를 수 있는 값들 — **이 기간에 실제로 나온 것만**(고르고도 0건이면 헷갈린다)
   const tiPartnerOpts = useMemo(() => {
     const m = new Map<string, string>();
     for (const r of currentList as any[]) {
@@ -1290,8 +1290,8 @@ function TaxInvoicesPageInner() {
     isSent(r) ? "issued" : r.nts_issue_status === "pending" ? "pending"
       : r.nts_issue_status === "failed" ? "failed" : "draft";
 
-  /*   ── 엑셀식 머리단 필터 (2026-08-13 사장님: "엑셀과 아예 동일하게") ──
-   *   colVal 이 칸의 표시값을 뽑는 단 하나의 기준 — 필터 목록과 거르기가 같은 값을 본다. */
+  /* ── 엑셀식 머리단 필터 ("엑셀과 아예 동일하게") ──
+   * colVal 이 칸의 표시값을 뽑는 단 하나의 기준 — 필터 목록과 거르기가 같은 값을 본다. */
   const [colF, setColF] = useState<Record<string, Set<string> | null>>({});
   const tiColVal = (r: any, k: string): string => {
     switch (k) {
@@ -1327,7 +1327,7 @@ function TaxInvoicesPageInner() {
   };
   const tiFiltered = useMemo(() => (displayList as any[]).filter((r) =>
     matchCond(r, live) && tiColHit(r)
-    //   '미매칭만' — 발행 내역에서만 뜻이 있다(발행 전 건은 아직 매칭 대상이 아니다)
+    // '미매칭만' — 발행 내역에서만 뜻이 있다(발행 전 건은 아직 매칭 대상이 아니다)
     && !(gapOnly && tab === "done" && isPaid(r) && r.deal_id)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [displayList, q, live, colF, gapOnly, tab]);
@@ -1336,7 +1336,7 @@ function TaxInvoicesPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [displayList, q, draft]);
 
-  //   내 조건 — ★ 하나가 이 화면의 기본값 (DB 라 PC 를 바꿔도 따라온다)
+  // 내 조건 — ★ 하나가 이 화면의 기본값 (DB 라 PC 를 바꿔도 따라온다)
   const tiSaved = useSavedQueries(`tax-invoices:${tab}`, companyId);
   const tiParamsNow = { from: viewFrom, to: viewTo, q, cond: live };
   const tiParamsBasic = { ...defaultRange(), q: "", cond: TI_EMPTY };
@@ -1362,7 +1362,7 @@ function TaxInvoicesPageInner() {
     return p.filter(Boolean).slice(0, 3).join(" · ") || "내 조건";
   };
 
-  //   걸린 조건 · 열지 않고도 보이고, ✕ 로 하나씩 뺀다
+  // 걸린 조건 · 열지 않고도 보이고, ✕ 로 하나씩 뺀다
   const tiDrop = (patch: Partial<TiCond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
   const tiChips: AppliedChip[] = [
     ...(gapOnly && tab === "done" ? [{ group: "매칭", label: "미매칭만", onRemove: () => setGapOnly(false) }] : []),
@@ -1382,7 +1382,7 @@ function TaxInvoicesPageInner() {
     }] : []),
   ];
 
-  //   엑셀 — 지금 조건 그대로, 표에 보이는 칸 그대로
+  // 엑셀 — 지금 조건 그대로, 표에 보이는 칸 그대로
   const tiXlsRows = (list: any[]) => list.map((r) => ({
     "작성일자": r.issue_date,
     "상호(거래처)": r.counterparty_name || "",
@@ -1396,7 +1396,7 @@ function TaxInvoicesPageInner() {
     "거절 사유": r.nts_error_message || "",
   }));
   const tiExcelItems: ExcelItem[] = [
-    //   가져오기 메뉴를 없애며 엑셀 관련 두 가지를 여기로 옮겼다 (2026-08-13)
+    // 가져오기 메뉴를 없애며 엑셀 관련 두 가지를 여기로 옮겼다 (2026-08-13)
     { label: "엑셀 일괄발행 (양식 업로드)",
       hint: "엑셀 양식으로 여러 건을 한 번에 발행합니다.", onClick: () => setShowBulkIssue(true) },
     { label: "더존 양식으로 내려받기", count: currentList.length,
@@ -1421,7 +1421,7 @@ function TaxInvoicesPageInner() {
   // 전표처리 대상: 무효 아님 + 아직 전표 미생성. 발행 여부와 무관(발행완료 건도 기장 필요).
   const isVoucherable = (inv: any) => inv.status !== 'void' && !inv.journal_entry_id;
   // 체크박스 선택 가능 = 일괄 발행/삭제 또는 전표처리 중 하나라도 가능한 행
-  //   전표는 수집·전표 소관 — 여기서 고를 수 있는 건 발행·삭제 대상(미발행)뿐. 발행된 건을 고르면 버튼 없는 바만 떴다
+  // 전표는 수집·전표 소관 — 여기서 고를 수 있는 건 발행·삭제 대상(미발행)뿐. 발행된 건을 고르면 버튼 없는 바만 떴다
   const selectableInList = currentList.filter((inv: any) => isUnissued(inv));
   const selectedRows = selectableInList.filter((inv: any) => selectedIds.has(inv.id));
   const selectedIssuable = selectedRows.filter((inv: any) => inv.type === 'sales' && isUnissued(inv)); // 발행 가능(매출 미발행)
@@ -1445,8 +1445,8 @@ function TaxInvoicesPageInner() {
     });
   }
 
-  //   전송은 이제 확인 창(IssueConfirmModal)을 거친다 — 바로 쏘는 길을 없앴다 (2026-08-13, 4단계).
-  //   받는 쪽 정보(이메일·업태·종목)가 빠진 채 나가는 것을 전송 직전에 잡기 위해서다.
+  // 전송은 이제 확인 창(IssueConfirmModal)을 거친다 — 바로 쏘는 길을 없앴다 (2026-08-13, 4단계).
+  // 받는 쪽 정보(이메일·업태·종목)가 빠진 채 나가는 것을 전송 직전에 잡기 위해서다.
 
   // 선택 일괄 삭제 — 미발행(홈택스 승인번호 없음) 건만 대상. 파괴적이라 확인 후 진행.
   async function handleBatchDelete() {
@@ -1464,14 +1464,14 @@ function TaxInvoicesPageInner() {
     }
     setBatchIssuing(false);
     setSelectedIds(new Set());
-    invalidateTaxInvoiceReaders(queryClient);   //   원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
+    invalidateTaxInvoiceReaders(queryClient); // 원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
     toast(fail === 0 ? `${ok}건 삭제 완료` : `${ok}건 삭제, ${fail}건 실패`, fail === 0 ? "success" : "error");
   }
 
   
 
   // 선택 일괄 전표처리 · post_invoice_voucher(매출/매입 방향 자동). 이미 전표 있는 건/무효 건은 건너뜀.
-  async function handleBulkVoucher()  {
+  async function handleBulkVoucher() {
     if (!bulkVoucherAccountId || bulkVoucherPosting) { if (!bulkVoucherAccountId) toast("계정과목을 선택하세요", "error"); return; }
     setBulkVoucherPosting(true);
     const db = supabase;
@@ -1484,7 +1484,7 @@ function TaxInvoicesPageInner() {
       }
       toast(`${ok}건 전표처리 완료${fail > 0 ? ` · ${fail}건 실패` : ""}${skip > 0 ? ` · ${skip}건 건너뜀` : ""}`, fail > 0 ? "info" : "success");
       setShowBulkVoucher(false); setBulkVoucherAccountId(""); setSelectedIds(new Set());
-      invalidateTaxInvoiceReaders(queryClient);   //   원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
+      invalidateTaxInvoiceReaders(queryClient); // 원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
     } finally { setBulkVoucherPosting(false); }
   }
 
@@ -1502,12 +1502,12 @@ function TaxInvoicesPageInner() {
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
 
       {/* ── 조회 화면 표준 — 탭·조회 줄·걸린 조건·결과 요약·표·쪽 넘김을 **한 상자**에.
-             수집·전표와 같은 껍데기다 (2026-08-13 사장님: "UI구조는 수집전표를 따라야 함").
+             수집·전표와 같은 껍데기다 ("UI구조는 수집전표를 따라야 함").
              예전엔 탭 줄·요약 스트립·표 카드가 낱장으로 흩어져 어디까지가 '조회하는 곳'인지 안 갈렸다. ── */}
       <QueryScreen>
         <QueryHead>
           <div className="collect-tabs no-print">
-            {/*   건수는 **할 일 수** — 수집·전표의 탭 배지와 같은 규칙 */}
+            {/* 건수는 **할 일 수** — 수집·전표의 탭 배지와 같은 규칙 */}
             {TAX_TABS.filter((t) => taxTabAllowed(t.key)).map((t) => {
               const count = t.key === "wait" ? waitInvoices.length
                 : t.key === "done" ? doneInvoices.length
@@ -1523,7 +1523,7 @@ function TaxInvoicesPageInner() {
           </div>
 
           <QueryBar right={<>
-            {/*   무제한 플랜도 사용량은 보이게 — 한도 없으면 '이번 달 발행 N건' (2026-08-11 사장님) */}
+            {/* 무제한 플랜도 사용량은 보이게 — 한도 없으면 '이번 달 발행 N건' */}
             {issuanceStatus && (
               <span className={issuanceStatus.remaining === 0 ? "ti-quota ti-quota-out" : "ti-quota"}
                 title={issuanceStatus.limit !== null
@@ -1541,8 +1541,8 @@ function TaxInvoicesPageInner() {
                 {isHometaxPaused ? `연동 정지 해제 (${new Date(hometaxPausedUntil!).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}까지)` : "홈택스 연동 정지"}
               </button>
             )}
-            {/*   AI 제안 — 보조 기능 모음(조회 표준 이름). 줄마다 출처를 적는다. */}
-            {/*   메뉴 안에서는 AI 를 뺀다 — 그릇(AI 제안)에 이미 적혀 있다 (2026-08-13 사장님 확정).
+            {/* AI 제안 — 보조 기능 모음(조회 표준 이름). 줄마다 출처를 적는다. */}
+            {/* 메뉴 안에서는 AI 를 뺀다 — 그릇(AI 제안)에 이미 적혀 있다.
                   회계자료(3방향 대조표)로 넘어가던 링크는 없앴다 — 처리는 메뉴 이동 없이 여기서. */}
             <HelperMenu items={[{
               label: "미매칭 발행 건 보기",
@@ -1551,12 +1551,12 @@ function TaxInvoicesPageInner() {
               hint: "입금이나 프로젝트가 연결되지 않은 발행 건만 봅니다.",
               onClick: () => { setTab("done"); setGapOnly(true); },
             }]} />
-            {/*   주 실행 — 파란 채움은 조회 줄에 이거 하나. 확정(전송)은 아래 SelectionBar 가 맡는다 */}
+            {/* 주 실행 — 파란 채움은 조회 줄에 이거 하나. 확정(전송)은 아래 SelectionBar 가 맡는다 */}
             <button onClick={() => setShowForm(true)} className="btn-primary btn-sm" title="세금계산서를 씁니다">
               + 발행
             </button>
           </>}>
-            {/*   기간을 치는 칸은 화면에 하나뿐. 달력은 검색조건 안에 있고,
+            {/* 기간을 치는 칸은 화면에 하나뿐. 달력은 검색조건 안에 있고,
                   오른쪽 끝에 '검색조건'이 붙어 한 덩어리로 보인다. */}
             <DateRangeField unit="day" label={null} parts="segments"
               from={viewFrom} to={viewTo}
@@ -1629,7 +1629,7 @@ function TaxInvoicesPageInner() {
             <AppliedChips chips={tiChips} onClearAll={() => { setQ(""); setLive(TI_EMPTY); setDraft(TI_EMPTY); }} />
           )}
 
-          {/*   2줄 — 건수·합계. 목록을 바꾸지 않는 것만 둔다. */}
+          {/* 2줄 — 건수·합계. 목록을 바꾸지 않는 것만 둔다. */}
           {isListTab && (
             <ResultStrip>
               <Stat label="건수" value={`${tiFiltered.length.toLocaleString("ko")}건`} />
@@ -1641,7 +1641,7 @@ function TaxInvoicesPageInner() {
                   에러 <b>{tiFiltered.filter((r: any) => sendStateOf(r) === "failed").length}건</b> · 누르면 사유가 보입니다.
                 </span>
               )}
-              {/*   기간 밖에 남아 있는 미발행 — 조건을 몰래 바꾸지 않고 알려만 준다 */}
+              {/* 기간 밖에 남아 있는 미발행 — 조건을 몰래 바꾸지 않고 알려만 준다 */}
               {tab === "wait" && waitOutside > 0 && (
                 <span className="ti-strip-bad">
                   이 기간 밖에 미발행 <b>{waitOutside.toLocaleString("ko")}건</b>이 더 있습니다.
@@ -1654,8 +1654,8 @@ function TaxInvoicesPageInner() {
             </ResultStrip>
           )}
 
-          {/*   발행 현황의 결과 줄 — 표(요약)를 바꾸지 않는 알림만 둔다.
-                '처리할 것' 주황 바(doc-check-bar)를 이 줄로 녹였다 (2026-08-13 사장님 지적).
+          {/* 발행 현황의 결과 줄 — 표(요약)를 바꾸지 않는 알림만 둔다.
+                '처리할 것' 주황 바(doc-check-bar)를 이 줄로 녹였다.
                 옛 바의 작성 중·홈택스 미발행은 이제 **발행 대기 탭과 요약표의 미전송 줄**이 그
                 자리다 — 같은 숫자를 세 군데 두면 어디를 믿어야 할지 모른다. 남는 건 **중복 의심**뿐. */}
           {tab === "issue-status" && (
@@ -1687,12 +1687,12 @@ function TaxInvoicesPageInner() {
 
       {/* 매출·매입 목록의 요약·경고 — 이 두 탭에서만 노출 (집계·자동발행 탭엔 중복이라 숨김) */}
 
-      {/* 엑셀 내보내기·등록은 상단 액션 영역으로 이동(2026-07-14 UI 정리). 엑셀 업로드는 제거(2026-07-31 사장님). */}
+      {/* 엑셀 내보내기·등록은 상단 액션 영역으로 이동(2026-07-14 UI 정리). 엑셀 업로드는 제거. */}
       {/* 정렬 — 별도 버튼 툴바 제거(2026-07-13). 표 헤더(작성일자·거래처·품목·공급가액…)를 클릭하면 정렬됩니다. */}
 
-      {/*   3줄 SelectionBar — 고른 순간에만 뜨는 바닥 고정 바.
+      {/* 3줄 SelectionBar — 고른 순간에만 뜨는 바닥 고정 바.
              ★ **파란(확정) 버튼은 화면을 통틀어 여기 하나**다 (조회 화면 표준).
-             전표처리는 뺐다 (2026-08-13 사장님) — 전표를 만드는 입구는 수집·전표 하나여야 한다.
+             전표처리는 뺐다 — 전표를 만드는 입구는 수집·전표 하나여야 한다.
              같은 줄을 두 화면에서 각각 전표로 만들 수 있으면 "처리했는데 미처리로 남는" 사고가 난다. */}
       {isListTab && selectedRows.length > 0 && (
         <SelectionBar
@@ -1738,7 +1738,7 @@ function TaxInvoicesPageInner() {
             </div>
           ) : (
             <div>
-              {/*   옛 홈택스식 요약 바는 뺐다 (2026-08-13) — 조회 표준 ResultStrip 이
+              {/* 옛 홈택스식 요약 바는 뺐다 (2026-08-13) — 조회 표준 ResultStrip 이
                     같은 숫자를 이미 보여 준다. 같은 숫자 두 번은 어디를 믿을지 모르게 한다. */}
               {/* 홈택스식 격자 그리드 */}
               <div className="overflow-auto max-h-[600px]">
@@ -1751,7 +1751,7 @@ function TaxInvoicesPageInner() {
                             className="w-3.5 h-3.5 rounded accent-[var(--primary)] align-middle cursor-pointer" title="미발행 전체 선택" />
                         )}
                       </th>
-                      {/*  승인번호·전송은 행을 눌러 여는 상세로 옮겼다 — 표는 찾고 고르는 곳이다 (2026-08-10).
+                      {/* 승인번호·전송은 행을 눌러 여는 상세로 옮겼다 — 표는 찾고 고르는 곳이다 (2026-08-10).
                            국세청 미발행처럼 **눈에 띄어야 하는 것**은 상태 칸에 함께 세운다. */}
                       {invSortTh("issue_date", "작성일자", 1)}
                       {invSortTh("counterparty_name", "상호(거래처)", 2)}
@@ -1760,7 +1760,7 @@ function TaxInvoicesPageInner() {
                       {invSortTh("tax_amount", "세액", 5)}
                       {invSortTh("total_amount", "합계금액", 6)}
                       {invSortTh("status", "상태", 7)}
-                      {/*   매칭 사슬 — 발행 내역에서만. 발행 전 건은 아직 매칭 대상이 아니다 (2026-08-13) */}
+                      {/* 매칭 사슬 — 발행 내역에서만. 발행 전 건은 아직 매칭 대상이 아니다 (2026-08-13) */}
                       {tab === "done" && <SortableTh label="매칭" />}
                       <SortableTh label="관리" resize={thResize("act", tab === "done" ? 9 : 8)} />
                     </tr>
@@ -1770,7 +1770,7 @@ function TaxInvoicesPageInner() {
                       const posted = !!inv.journal_entry_id;
                       const canSelect = isUnissued(inv);
                       const canIssue = inv.type === 'sales' && isUnissued(inv);
-                      //   과세유형이 회사와 안 맞는 옛 초안 — 누르면 서버가 거절하므로 이유를 미리 적어 준다
+                      // 과세유형이 회사와 안 맞는 옛 초안 — 누르면 서버가 거절하므로 이유를 미리 적어 준다
                       const kindBlocked = taxKindBlockedReason(vatBiz, (inv.tax_kind || "taxable") as TaxKind);
                       return (
                         <tr key={inv.id} onClick={() => setSelectedInvoice(inv)}
@@ -1799,7 +1799,7 @@ function TaxInvoicesPageInner() {
                             const full = ((inv.items as any[]) || []).map((it: any) => it?.name).filter(Boolean).join(" · ") || one;
                             return (
                               <td className="px-3 py-2 text-[var(--text-muted)] border-l border-[var(--border)]/40 whitespace-nowrap overflow-hidden text-ellipsis max-w-[180px]" title={full}>
-                                {/*   출처 — 매입매출전표가 만든 초안은 표시해 준다 (2026-08-13).
+                                {/* 출처 — 매입매출전표가 만든 초안은 표시해 준다 (2026-08-13).
                                       세금·증빙에서 전표처리를 없앤 지금, manual 초안에 전표가
                                       걸려 있다 = 매입매출전표에서 태어났다는 뜻이다. */}
                                 {tab === "wait" && inv.journal_entry_id && (
@@ -1812,7 +1812,7 @@ function TaxInvoicesPageInner() {
                           <td className="px-3 py-2 text-right mono-number text-[var(--text)] border-l border-[var(--border)]/40">{Number(inv.supply_amount).toLocaleString("ko")}</td>
                           <td className="px-3 py-2 text-right mono-number text-[var(--text-muted)] border-l border-[var(--border)]/40">{Number(inv.tax_amount).toLocaleString("ko")}</td>
                           <td className="px-3 py-2 text-right mono-number font-semibold text-[var(--text)] border-l border-[var(--border)]/40">{Number(inv.total_amount).toLocaleString("ko")}</td>
-                          {/*   상태 = **홈택스 전송 진행상황** 필 하나 (2026-08-13 사장님 — 줄 간격 정리).
+                          {/* 상태 = **홈택스 전송 진행상황** 필 하나 (2026-08-13 대표 — 줄 간격 정리).
                                 예전엔 전송 필 + 업무 상태 필 + 에러 사유 문장이 한 칸에 쌓여
                                 줄 높이가 들쑥날쑥했다. 업무 상태(매칭완료 등)는 관리 칸의
                                 '✓ 연결됨'이 이미 말해 주고, 에러 사유는 **'에러'를 눌러야** 보인다. */}
@@ -1847,7 +1847,7 @@ function TaxInvoicesPageInner() {
                               return <span className="ti-send ti-send-draft" title="아직 국세청에 보내지 않았습니다">미발행</span>;
                             })()}
                           </td>
-                          {/*   매칭 사슬 칩 — 입금·프로젝트가 붙었는지 한눈에 (2026-08-13 AI 매칭 기획 ①).
+                          {/* 매칭 사슬 칩 — 입금·프로젝트가 붙었는지 한눈에 (2026-08-13 AI 매칭 기획 ①).
                                 입금은 '연결' 버튼과, 프로젝트는 '프로젝트' 버튼과 같은 사실을 본다. */}
                           {tab === "done" && (
                             <td className="px-3 py-2 text-center whitespace-nowrap border-l border-[var(--border)]/40">
@@ -1892,7 +1892,7 @@ function TaxInvoicesPageInner() {
                                   연결
                                 </button>
                               )}
-                              {/*   프로젝트 짝 — 발행 완료 건에 어느 프로젝트 매출인지 붙인다 (2026-08-13 사장님).
+                              {/* 프로젝트 짝 — 발행 완료 건에 어느 프로젝트 매출인지 붙인다.
                                     예전엔 상세 모달 깊숙한 셀렉트뿐이라 아무도 안 붙였다 — 줄에서 바로 제안한다. */}
                               {tab === "done" && (inv.deal_id ? (
                                 <button
@@ -1935,13 +1935,13 @@ function TaxInvoicesPageInner() {
         </div>
       )}
 
-      {/* ── 발행 현황 — 이카운트 「매출(세금)계산서요약」 형태 (2026-08-13 사장님 지시) ──
+      {/* ── 발행 현황 — 이카운트 「매출(세금)계산서요약」 형태 ──
              줄을 누르면 그 목록으로 간다. 수집·전표의 '수집 현황'과 같은 자리·같은 규칙. */}
       {tab === "issue-status" && (<>
         <div className="ev-scroll">
-        {/*   중복 의심 상세 — 결과 줄의 '확인하기'로 연다. 같은 거래처·금액·일자를 두 번 끊는
+        {/* 중복 의심 상세 — 결과 줄의 '확인하기'로 연다. 같은 거래처·금액·일자를 두 번 끊는
               사고는 발행 화면에서 봐야 의미가 있어 여기 둔다. 옛 '처리할 것' 주황 바는
-              결과 줄로 녹였다(2026-08-13 사장님 지적 — 낡은 구조가 상자 위에 떠 있었다).
+              결과 줄로 녹였다(낡은 구조가 상자 위에 떠 있었다).
               작성 중·홈택스 미발행 항목은 뺐다: 발행 대기 탭과 아래 미전송 줄이 그 자리다. */}
         {checkOpen && liveDups.length > 0 && (
           <div className="ti-dups no-print">
@@ -2031,7 +2031,7 @@ function TaxInvoicesPageInner() {
 
                     {row("미전송", "미발행", S.unsent.draft, toWait)}
                     {row("", "전송대기", S.unsent.pending, toWait)}
-                    {/*   전송중 — CODEF 즉시전송 버그로 sendToNtsYn="N" 이라 팝빌 등록 후
+                    {/* 전송중 — CODEF 즉시전송 버그로 sendToNtsYn="N" 이라 팝빌 등록 후
                           **다음 영업일**에 국세청으로 간다. 하루 넘게 머무는 실재하는 구간이다. */}
                     {row("", "전송중", S.unsent.awaiting, toWait)}
                     {row("", "오류", S.unsent.failed, { text: "사유 보기", on: () => setTab("wait") }, true)}
@@ -2070,7 +2070,7 @@ function TaxInvoicesPageInner() {
 
         </QueryBody>
 
-        {/*   기본 50줄 — 줄 수는 검색조건 안에서 고른다 (조회 화면 표준) */}
+        {/* 기본 50줄 — 줄 수는 검색조건 안에서 고른다 (조회 화면 표준) */}
         {isListTab && (
           <Pager page={tiPager.page} pages={tiPager.pages} total={tiFiltered.length} size={live.size}
             from={tiPager.from} to={tiPager.to} onPage={tiPager.setPage} />
@@ -2081,7 +2081,7 @@ function TaxInvoicesPageInner() {
       {showBulkIssue && companyId && (
         <TaxInvoiceBulkIssueModal companyId={companyId} onClose={() => setShowBulkIssue(false)} />
       )}
-      {/* 세금계산서 쓰기 — 2026-08-10 전면 개편 (사장님 지시).
+      {/* 세금계산서 쓰기 — 2026-08-10 전면 개편.
           · 계산서 한 장 = 거래처 한 곳 + **품목 여러 줄**. 예전 [+ 항목 추가]는 계산서를 한 장 더
             만드는 버튼이라 품목 줄을 늘릴 방법이 아예 없었다.
           · 거래처 정보(대표자·업태/종목·주소·받을 이메일)를 국세청 서식대로 **좌 공급자 / 우 공급받는자**
@@ -2212,7 +2212,7 @@ function TaxInvoicesPageInner() {
                   {missing.length > 0 && (
                     <div className="tax-form-ready">
                       <b>발행에 필요한 항목 {missing.length}개가 비었습니다</b>
-                      {/*  빠진 항목에 맞는 말만 한다 — 이메일이 있는데 "메일을 못 받습니다" 라고 하면 거짓말이 된다 */}
+                      {/* 빠진 항목에 맞는 말만 한다 — 이메일이 있는데 "메일을 못 받습니다" 라고 하면 거짓말이 된다 */}
                       <span>
                         {missing.join(" · ")} 항목이 빈칸으로 발행됩니다.
                         {missing.includes("받을 이메일") && " 거래처는 계산서를 메일로 받지 못합니다."}
@@ -2220,9 +2220,9 @@ function TaxInvoicesPageInner() {
                     </div>
                   )}
 
-                  {/*   전체 비고 — 계산서 한 장에 붙는 비고(2026-09-14 사장님). 국세청 비고란으로 그대로 나간다.
+                  {/* 전체 비고 — 계산서 한 장에 붙는 비고. 국세청 비고란으로 그대로 나간다.
                         품목 줄마다 붙는 비고는 아래 표의 '비고' 칸이다. */}
-                  {/*   홈택스 서식과 같이 작성일자·공급가액·세액을 한 줄에 (2026-09-14 사장님).
+                  {/* 홈택스 서식과 같이 작성일자·공급가액·세액을 한 줄에.
                         금액 둘은 품목 줄 합계의 계산값이다 — 손으로 고치지 않는다. */}
                   <div className="tax-form-amounts">
                     <div className="tax-form-amount-cell">
@@ -2247,7 +2247,7 @@ function TaxInvoicesPageInner() {
 
                   <div className="tax-form-field">
                     <label>비고</label>
-                    {/*   홈택스와 같이 최대 3줄. 안내문은 두지 않는다(칸 안 글자가 거슬린다는 지적). */}
+                    {/* 홈택스와 같이 최대 3줄. 안내문은 두지 않는다(칸 안 글자가 거슬린다는 지적). */}
                     <textarea value={row.remark} rows={2}
                       onChange={(e) => patchRow(row.key, { remark: e.target.value.split("\n").slice(0, 3).join("\n") })}
                       className="field-input tax-remark-input" />
@@ -2259,7 +2259,7 @@ function TaxInvoicesPageInner() {
                     <div className="tax-items">
                       <div className="tax-items-scroll">
                         <div className="tax-items-grid">
-                          {/*   홈택스 '세금계산서 발행' 서식과 같은 칸 순서 (2026-09-14 사장님) */}
+                          {/* 홈택스 '세금계산서 발행' 서식과 같은 칸 순서 */}
                           <div className="tax-item-row tax-item-head">
                             <span>No.</span>
                             <span className="text-center">월</span><span className="text-center">일</span>
@@ -2271,7 +2271,7 @@ function TaxInvoicesPageInner() {
                           {row.items.map((it, i) => (
                             <div key={it.key} className="tax-item-row">
                               <span className="tax-item-no">{i + 1}</span>
-                              {/*   월·일 — 비우면 계산서 작성일자로 나간다(홈택스도 월·일만 받는다) */}
+                              {/* 월·일 — 비우면 계산서 작성일자로 나간다(홈택스도 월·일만 받는다) */}
                               <input value={it.month} onChange={(e) => patchItem(row.key, it.key, { month: e.target.value.replace(/[^0-9]/g, "").slice(0, 2) })}
                                 onKeyDown={(e) => onItemKeyDown(e, row.key, it.key)}
                                 inputMode="numeric" placeholder={row.issueDate.slice(5, 7) || "월"} className="tax-item-input text-center" />
@@ -2291,7 +2291,7 @@ function TaxInvoicesPageInner() {
                               <CurrencyInput value={it.unitCost} onValueChange={(raw: string) => patchItem(row.key, it.key, { unitCost: raw })}
                                 allowNegative placeholder="0" className="tax-item-input text-right" />
                               <span className="tax-item-sum">{itemSupply(it).toLocaleString("ko-KR")}</span>
-                              {/*   줄 세액·합계는 계산값 — 과세 구분은 장 단위라 줄마다 고르지 않는다.
+                              {/* 줄 세액·합계는 계산값 — 과세 구분은 장 단위라 줄마다 고르지 않는다.
                                     영세율·면세면 0 이고, 홈택스로 나가는 줄 세액도 같은 산식이다. */}
                               <span className="tax-item-sum">{itemTax(it, row.taxKind).toLocaleString("ko-KR")}</span>
                               <span className="tax-item-sum">{(itemSupply(it) + itemTax(it, row.taxKind)).toLocaleString("ko-KR")}</span>
@@ -2310,7 +2310,7 @@ function TaxInvoicesPageInner() {
                           엑셀에서 여러 줄을 <b className="text-[var(--text-muted)]">그대로 붙여넣기</b> 할 수 있습니다.
                         </span>
                       </div>
-                      {/*   공급대가(부가세 포함 합계)만 알 때 공급가액을 역산해 첫 품목 단가에 넣는다 (2026-08-31 사장님).
+                      {/* 공급대가(부가세 포함 합계)만 알 때 공급가액을 역산해 첫 품목 단가에 넣는다.
                             과세만 — 영세율·면세는 부가세가 없어 공급대가=공급가액이라 나눌 게 없다. */}
                       {row.taxKind === "taxable" && (
                         <GrossSplitCalc onApply={(sup) => patchItem(row.key, row.items[0].key, { qty: "1", unitCost: String(sup) })} />
@@ -2318,7 +2318,7 @@ function TaxInvoicesPageInner() {
                     </div>
                   </div>
 
-                  {/*   홈택스 서식의 맨 아랫줄 — 합계와 '이 금액을 영수/청구' (2026-09-14 사장님).
+                  {/* 홈택스 서식의 맨 아랫줄 — 합계와 '이 금액을 영수/청구'.
                         공급가액·세액은 위 한 줄로 올라갔다. 현금·수표·어음·외상미수금은 발행 규격에
                         보내는 칸이 없어 두지 않는다(보이기만 하는 칸은 거짓말이다). */}
                   <div className="tax-form-bottom">
@@ -2349,7 +2349,7 @@ function TaxInvoicesPageInner() {
                     <div className="tax-form-more-grid">
                       <div className="tax-form-field">
                         <label>과세유형</label>
-                        {/*   고를 수 있는 것만 남긴다 — 과세사업자에게 '면세'를 보여 주면
+                        {/* 고를 수 있는 것만 남긴다 — 과세사업자에게 '면세'를 보여 주면
                               누를 수 있다는 뜻이 되고, 실제로 발행하면 안 되는 문서가 만들어진다 */}
                         <select value={row.taxKind} onChange={(e) => patchRow(row.key, { taxKind: e.target.value as FormRow["taxKind"] })}
                           className="field-input w-full px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs">
@@ -2377,7 +2377,7 @@ function TaxInvoicesPageInner() {
                 </div>
               );
             })() : (
-              /* 여러 장 한꺼번에 · 사업자번호·대표자까지만 보여 준다 (2026-08-10 사장님) */
+              /* 여러 장 한꺼번에 · 사업자번호·대표자까지만 보여 준다 */
               
               <div className="min-w-[1250px]" ref={multiGridRef}>
                 <div className="tax-multi-row tax-multi-head">
@@ -2423,7 +2423,7 @@ function TaxInvoicesPageInner() {
                           <div className="tax-form-partner-drop">
                             {filterPartners(row.counterpartyName).slice(0, 10).map((p: any, pi: number) => (
                               <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()}
-                                //   목록이 길면 화살표로 내려갈 때 가려진 항목이 따라 보이게 한다
+                                // 목록이 길면 화살표로 내려갈 때 가려진 항목이 따라 보이게 한다
                                 ref={pi === dropIdx ? (el) => el?.scrollIntoView({ block: "nearest" }) : undefined}
                                 onMouseEnter={() => setDropIdx(pi)}
                                 onClick={() => { applyPartner(row.key, p); setDropdownRowKey(null); setDropIdx(0); }}
@@ -2437,7 +2437,7 @@ function TaxInvoicesPageInner() {
                           </div>
                         )}
                       </div>
-                      {/*  사업자번호·대표자는 거래처에서 따라오는 읽기 전용 표시 — 비면 붉게 알린다 */}
+                      {/* 사업자번호·대표자는 거래처에서 따라오는 읽기 전용 표시 — 비면 붉게 알린다 */}
                       <span className={`tax-multi-ro ${!row.counterpartyBizno ? "tax-multi-ro-miss" : ""}`} title={row.counterpartyBizno || "비어 있음"}>
                         {row.counterpartyBizno || "비어 있음"}
                       </span>
@@ -2456,7 +2456,7 @@ function TaxInvoicesPageInner() {
                         data-cell={`qty-${i}`}
                         onKeyDown={(e) => gridKeys.onCellKey(e, i, "qty")}
                         inputMode="decimal" placeholder="1" className="tax-item-input text-right" />
-                      {/*   allowNegative (2026-08-31 사장님) — 수정세금계산서·환입 등 마이너스 계산서를 여러 장에서도.
+                      {/* allowNegative — 수정세금계산서·환입 등 마이너스 계산서를 여러 장에서도.
                             🧮 = 공급대가(부가세 포함)로 이 줄 단가 역산 — 한 장 쓰기의 계산기와 동일 부품 */}
                       <div className="relative" data-cell={`unitCost-${i}`}>
                         <CurrencyInput value={row.items[0]?.unitCost || ""} onValueChange={(raw: string) => { markTouched(row.key, "unitCost"); patchItem(row.key, row.items[0].key, { unitCost: raw }); }}
@@ -2466,7 +2466,7 @@ function TaxInvoicesPageInner() {
                           onClick={() => setCalcRowKey((k) => (k === row.key ? null : row.key))}
                           className={`absolute right-1 top-1/2 -translate-y-1/2 text-[11px] font-semibold leading-none text-[var(--primary)] ${calcRowKey === row.key ? "opacity-100" : "opacity-60 hover:opacity-100"}`}>계산</button>
                       </div>
-                      {/*   공급가액·세액·합계는 계산값 — 한 장 쓰기와 같은 산식이다 */}
+                      {/* 공급가액·세액·합계는 계산값 — 한 장 쓰기와 같은 산식이다 */}
                       <span className="tax-item-sum">{supply.toLocaleString("ko-KR")}</span>
                       <span className="tax-item-sum">{taxAmt.toLocaleString("ko-KR")}</span>
                       <span className="tax-item-sum">{(supply + taxAmt).toLocaleString("ko-KR")}</span>
@@ -2502,7 +2502,7 @@ function TaxInvoicesPageInner() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              {/*   매출은 등록과 동시에 홈택스로 발행된다 (2026-09-11) — 매입은 등록만 */}
+              {/* 매출은 등록과 동시에 홈택스로 발행된다 (2026-09-11) — 매입은 등록만 */}
               <span className="text-[11px] text-[var(--text-dim)]">매출은 <b className="text-[var(--text-muted)]">등록 즉시 홈택스 발행</b>됩니다.</span>
               <button onClick={() => setShowForm(false)} className="btn-secondary text-xs">취소</button>
               <button onClick={() => canSubmit && createMut.mutate()} disabled={!canSubmit || createMut.isPending}
@@ -2519,7 +2519,7 @@ function TaxInvoicesPageInner() {
         </div>
       )}
 
-      {/*   가져오기(홈택스 수집·연동 정지)는 UI에서 내렸다 (2026-08-13 사장님 — 우측은
+      {/* 가져오기(홈택스 수집·연동 정지)는 UI에서 내렸다 (2026-08-13 대표 — 우측은
             수집·전표처럼 엑셀·AI 제안·발행 3버튼). 수집은 수집·전표 소관이다.
             코드는 되돌릴 수 있게 보존 — 다시 켜려면 이 블록을 조회 줄로 옮기면 된다. */}
       {false && (<div>
@@ -2585,7 +2585,7 @@ function TaxInvoicesPageInner() {
           onClose={() => setDealSuggest(null)}
           onDone={() => {
             setDealSuggest(null);
-            invalidateTaxInvoiceReaders(queryClient);   //   원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
+            invalidateTaxInvoiceReaders(queryClient); // 원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
           }} />
       )}
 
@@ -2596,7 +2596,7 @@ function TaxInvoicesPageInner() {
           onDone={() => {
             setIssueConfirm(null);
             setSelectedIds(new Set());
-            invalidateTaxInvoiceReaders(queryClient);   //   원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
+            invalidateTaxInvoiceReaders(queryClient); // 원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
           }} />
       )}
 
@@ -2637,7 +2637,7 @@ function TaxInvoicesPageInner() {
       {/* Invoice Detail Modal */}
       {selectedInvoice && (
         // 목록에서 같은 id 의 최신 행을 우선 — 상세 보강(주소·이메일)이 끝나면 열려 있는 모달도 바로 갱신된다.
-        //   (열 때의 스냅샷만 쓰면 보강 결과가 화면에 반영되지 않았다 — 2026-08-05)
+        // (열 때의 스냅샷만 쓰면 보강 결과가 화면에 반영되지 않았다 — 2026-08-05)
         <InvoiceDetailModal
           invoice={(invoices as any[]).find((r: any) => r.id === selectedInvoice.id) || selectedInvoice}
           companyInfo={companyInfo}
@@ -2985,13 +2985,13 @@ function TaxInvoicesPageInner() {
   );
 }
 
-// ── 부가세 · 기간별 집계는 **분석(/reports/vat)** 으로 옮겼다 (2026-08-13 사장님 지시).
-//   세금·증빙이 '발행하는 곳'이 되면서, 매입 자료로 계산하는 신고용 화면은 성격이 안 맞는다.
-//   컴포넌트 본체는 src/app/(app)/reports/vat/_components/VatReport.tsx 로 그대로 이사했다.
+// ── 부가세 · 기간별 집계는 **분석(/reports/vat)** 으로 옮겼다.
+// 세금·증빙이 '발행하는 곳'이 되면서, 매입 자료로 계산하는 신고용 화면은 성격이 안 맞는다.
+// 컴포넌트 본체는 src/app/(app)/reports/vat/_components/VatReport.tsx 로 그대로 이사했다.
 
 // ── 통장 거래 인라인 연결 팝업 (거래매칭) ──
-//   목록의 '연결' 버튼 → 금액(±10%)·거래처가 맞는 미연결 입출금 거래를 골라 즉시 연결.
-//   bank_transactions.tax_invoice_id 로 매칭(three-way-match 재사용). 매출=입금, 매입=출금 대응.
+// 목록의 '연결' 버튼 → 금액(±10%)·거래처가 맞는 미연결 입출금 거래를 골라 즉시 연결.
+// bank_transactions.tax_invoice_id 로 매칭(three-way-match 재사용). 매출=입금, 매입=출금 대응.
 function LinkTxPopup({ invoice, companyId, onClose, onDone }: { invoice: any; companyId: string; onClose: () => void; onDone: () => void }) {
   const { toast } = useToast();
   const isSales = invoice.type === "sales";
@@ -3009,7 +3009,7 @@ function LinkTxPopup({ invoice, companyId, onClose, onDone }: { invoice: any; co
   });
 
   // 이미 연결된 경우 · 현재 연결 거래 조회(해제용)
-  const  { data: linkedTx } = useQuery({
+  const { data: linkedTx } = useQuery({
     queryKey: ["tx-linked", invoice.id],
     queryFn: async () => {
       const data = logRead('tax-invoices/page:data', await (supabase)
@@ -3089,9 +3089,9 @@ function LinkTxPopup({ invoice, companyId, onClose, onDone }: { invoice: any; co
 
 // ── Invoice Detail Modal (세금계산서 상세) ──
 // 거래처 상세 보강이 회사 단위로 막힌 상태(CODEF 상품 미승인 등)를 기억한다.
-//   모달마다 state 를 두면 계산서를 열 때마다 같은 실패를 다시 호출한다. 모듈 스코프로 1회만.
-//   새로고침하면 초기화되므로 상품 승인 후엔 자동으로 다시 시도된다.
-const detailBlockedRef =  { blocked: false, reason: "" };
+// 모달마다 state 를 두면 계산서를 열 때마다 같은 실패를 다시 호출한다. 모듈 스코프로 1회만.
+// 새로고침하면 초기화되므로 상품 승인 후엔 자동으로 다시 시도된다.
+const detailBlockedRef = { blocked: false, reason: "" };
 
 function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceStatus, onClose, onModify }: { invoice: any; companyInfo?: any; partners?: any[]; deals?: any[]; issuanceStatus?: { limit: number | null; used: number; remaining: number | null; planName: string | null }; onClose: () => void; onModify: (inv: any) => void }) {
   const issuanceLimitReached = !!issuanceStatus && issuanceStatus.limit !== null && (issuanceStatus.remaining ?? 0) <= 0;
@@ -3105,22 +3105,22 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
   const [pdfLoading, setPdfLoading] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [issueLoading, setIssueLoading] = useState(false);
-  // 거래처 사업장 주소·이메일 자동 보강 (2026-08-05 사장님: "홈택스엔 다 있는데 왜 안 불러오냐").
-  //   통합 목록 API 엔 주소·이메일이 없어 상세 API 로 이 건만 1회 조회한다.
-  //   detail_fetched_at 이 찍힌 건은 다시 부르지 않는다(건당 과금 + 기관 IP 차단 경고).
+  // 거래처 사업장 주소·이메일 자동 보강 ("홈택스엔 다 있는데 왜 안 불러오냐").
+  // 통합 목록 API 엔 주소·이메일이 없어 상세 API 로 이 건만 1회 조회한다.
+  // detail_fetched_at 이 찍힌 건은 다시 부르지 않는다(건당 과금 + 기관 IP 차단 경고).
   const [detailLoading, setDetailLoading] = useState(false);
   const detailTriedRef = useRef<string | null>(null);
   useEffect(() => {
     const id = invoice?.id;
     // 2026-08-05 재확인: 사업장 주소·이메일은 홈택스 **목록** 응답에 이미 들어 있고 동기화가 저장한다.
-    //   (종전엔 필드명을 잘못 읽어 비어 보였을 뿐) → 유료·미승인인 상세 API 를 자동 호출할 이유가 없다.
-    //   과거 건은 그 기간을 다시 동기화하면 채워진다. 상세 API 는 품목·원문 PDF 가 필요해질 때 되살린다.
+    // (종전엔 필드명을 잘못 읽어 비어 보였을 뿐) → 유료·미승인인 상세 API 를 자동 호출할 이유가 없다.
+    // 과거 건은 그 기간을 다시 동기화하면 채워진다. 상세 API 는 품목·원문 PDF 가 필요해질 때 되살린다.
     const AUTO_DETAIL_FETCH = false;
     if (!AUTO_DETAIL_FETCH) return;
     if (!id || invoice.detail_fetched_at || !invoice.nts_confirm_no) return;
-    if (detailTriedRef.current === id) return;   // 한 번 시도한 건은 재시도 안 함(모달 재렌더 방지)
+    if (detailTriedRef.current === id) return; // 한 번 시도한 건은 재시도 안 함(모달 재렌더 방지)
     // 상품 미승인(CF-00401/CF-00003)처럼 회사 단위로 영구 실패인 경우, 계산서를 열 때마다
-    //   같은 실패를 반복 호출하지 않는다 — 2026-08-05 실측으로 헛호출이 쌓이던 것을 확인.
+    // 같은 실패를 반복 호출하지 않는다 — 2026-08-05 실측으로 헛호출이 쌓이던 것을 확인.
     if (detailBlockedRef.blocked) return;
     detailTriedRef.current = id;
     let alive = true;
@@ -3137,10 +3137,10 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
         const json = await res.json().catch(() => ({}));
         if (alive && res.ok && json?.ok && json.invoice) {
           // 목록 캐시를 갱신하면 열려 있는 상세도 새 값으로 다시 그려진다
-          //   (키가 "tax-invoices" 가 아니라 "tax-invoices-full" 이라 종전엔 갱신이 안 됐다)
-          invalidateTaxInvoiceReaders(queryClient);   //   원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
+          // (키가 "tax-invoices" 가 아니라 "tax-invoices-full" 이라 종전엔 갱신이 안 됐다)
+          invalidateTaxInvoiceReaders(queryClient); // 원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
         } else if (alive && !res.ok) {
-          // 조용히 삼키면 왜 안 채워지는지 알 수 없다 — 사유를 눈에 보이게(2026-08-05 사장님 제보)
+          // 조용히 삼키면 왜 안 채워지는지 알 수 없다 — 사유를 눈에 보이게
           const code = json?.code || "";
           if (code === "CF-00401" || code === "CF-00003") {
             // 회사 단위 영구 실패 — 이후 다른 계산서를 열어도 자동 호출하지 않는다(헛호출 방지)
@@ -3159,7 +3159,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
   const [showEmailForm, setShowEmailForm] = useState(false);
   // 계정과목(비목). 상세에서 직접 지정, 손익계산서 매출원가/판관비 분류 기준
   const [expenseCat, setExpenseCat] = useState<string>(inv.expense_category || "");
-  // 프로젝트(딜) 연결 · 상세에서 직접 선택 (사장님 요청 2026-07-14)
+  // 프로젝트(딜) 연결 · 상세에서 직접 선택 ( 2026-07-14)
   const [dealId, setDealId] = useState<string>(inv.deal_id || "");
   const myCompany = companyInfo?.name || '(주)우리회사';
   const myBizNo = companyInfo?.business_number || '';
@@ -3168,14 +3168,14 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
   const myBizCat = companyInfo?.business_category || '';
 
   // ── 홈택스 전자세금계산서 양식용 공급자/공급받는자 정리 ──
-  //   매출: 공급자=우리회사, 공급받는자=거래처. 매입: 반대.
+  // 매출: 공급자=우리회사, 공급받는자=거래처. 매입: 반대.
   const isSales = inv.type === 'sales';
   const issuedToNts = !!inv.nts_confirm_no || inv.nts_issue_status === 'issued'; // 전송됨 — 승인번호는 다음 영업일에 붙는다
   // 직원 QA 세금계산서2 — 사업자번호 XXX-XX-XXXXX 포맷 + 상호 "+"(공백 인코딩) → 공백 정규화
   const fmtBizNo = (b: string) => { const d = (b || '').replace(/[^0-9]/g, ''); return d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}` : (b || ''); };
   const cleanNm = (s: string) => (s || '').replace(/\+/g, ' ').trim();
   // 거래처 정보 보강: FK 조인(inv.partners)이 없으면(홈택스 동기화 건은 partner_id=null 다수)
-  //   사업자번호로 거래처 명부에서 찾아 대표자명·업태·종목·이메일·주소를 복원한다.
+  // 사업자번호로 거래처 명부에서 찾아 대표자명·업태·종목·이메일·주소를 복원한다.
   const cpBizDigits = (inv.counterparty_bizno || '').replace(/[^0-9]/g, '');
   const cpPartner = inv.partners
     || (cpBizDigits.length === 10
@@ -3209,13 +3209,13 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
   // 실제 세금계산서 관행: 매출(공급자 보관용)=적색, 매입=청색. 은은한 톤으로 공식 느낌만.
   const formColor = isSales ? '#C0392B' : '#1D6AA8';
   const formTint = isSales ? '#FBEEEC' : '#EAF2FA';
-  // 과세유형별 문서 제목 · 영세율=영세율전자세금계산서, 면세=전자계산서 (직원 QA 그랜터)
+  // 과세유형별 문서 제목 · 영세율=영세율전자세금계산서, 면세=전자계산서
   const baseTitle = inv.tax_kind === 'zero_rated' ? '영세율전자세금계산서'
     : inv.tax_kind === 'exempt' ? '전자계산서'
     : '전자세금계산서';
   const docTitle = issuedToNts ? baseTitle : `미전송 ${baseTitle}`;
   // 영수/청구 · 홈택스 전자계산서 데이터엔 없는 필드(종이계산서 잔재)라 자동으론 못 불러옴.
-  //   label 앞 토큰("영수 |"/"청구 |")으로 보관하고, 상세에서 사용자가 직접 지정(수정 저장).
+  // label 앞 토큰("영수 |"/"청구 |")으로 보관하고, 상세에서 사용자가 직접 지정(수정 저장).
   const [billedState, setBilledState] = useState<boolean>(() => !inv.label?.includes('영수'));
   const [savingReceipt, setSavingReceipt] = useState(false);
   const isBilled = billedState; // true=청구, false=영수
@@ -3335,7 +3335,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
       toast(r?.nts_confirm_no ? `홈택스 발행 완료 (승인번호 ${r.nts_confirm_no})` : '세금계산서가 발행되었습니다', 'success');
       queryClient.invalidateQueries({ queryKey: ['tax-invoices'] });
       invalidateTaxInvoiceReaders(queryClient);
-      queryClient.invalidateQueries({ queryKey: ['tax-invoice-issuance-status'] });   // 한도 칩 갱신 (2026-08-19)
+      queryClient.invalidateQueries({ queryKey: ['tax-invoice-issuance-status'] }); // 한도 칩 갱신 (2026-08-19)
       onClose();
     } catch (err: any) {
       toast(`발행 실패: ${err.message}${err.hint ? ' — ' + err.hint : ''}`, 'error');
@@ -3466,7 +3466,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
                 </tr>
               </thead>
               <tbody>
-                {/*  품목 줄이 있으면 줄마다 한 행 — 국세청 서식과 같은 모양 (2026-08-10).
+                {/* 품목 줄이 있으면 줄마다 한 행 — 국세청 서식과 같은 모양 (2026-08-10).
                      옛 계산서(줄 없음)는 예전처럼 한 행으로 그린다. */}
                 {((inv.items as any[]) || []).length > 0 ? (
                   ((inv.items as any[]) || []).map((it: any, i: number) => {
@@ -3531,7 +3531,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
           </div>
 
           {/* 내부 참고 정보(양식 밖) — 프로젝트/비목. 비목(계정과목)은 여기서 직접 지정 가능:
-              매입 계산서에 지정하면 손익계산서에서 매출원가 대신 그 판관비 항목으로 반영 (사장님 QA 2026-07-10) */}
+              매입 계산서에 지정하면 손익계산서에서 매출원가 대신 그 판관비 항목으로 반영 */}
           <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[11px] text-[var(--text-muted)]">
             <span className="inline-flex items-center gap-1.5">프로젝트:
               <select
@@ -3545,7 +3545,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
                   const picked = (deals || []).find((d: any) => d.id === v);
                   inv.deal_id = v || null;
                   inv.deals = v ? { name: picked?.name } : null;
-                  invalidateTaxInvoiceReaders(queryClient);   //   원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
+                  invalidateTaxInvoiceReaders(queryClient); // 원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
                   toast(v ? `'${picked?.name || "프로젝트"}'에 연결되었습니다` : "프로젝트 연결 해제", "success");
                 }}
                 className="px-2 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text)]"
@@ -3566,7 +3566,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
                   const { error } = await (supabase).from("tax_invoices").update({ expense_category: v || null }).eq("id", inv.id);
                   if (error) { toast("계정과목 저장 실패: " + error.message, "error"); return; }
                   inv.expense_category = v || null;
-                  invalidateTaxInvoiceReaders(queryClient);   //   원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
+                  invalidateTaxInvoiceReaders(queryClient); // 원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
                   toast(v
                     ? `'${EXPENSE_CATEGORIES.find((c) => c.value === v)?.label || v}' 지정 · 손익계산서에서 매출원가 대신 판관비로 반영됩니다`
                     : "계정과목 해제 · 매입 계산서는 매출원가로 집계됩니다", "success");
@@ -3730,7 +3730,7 @@ function ModificationModal({ invoice, reason, setReason, modifyAmount, setModify
         </div>
         <div className="p-6 space-y-4">
           {/* 2단계 안내 — 이 모달은 초안만 만든다. 국세청 전송은 목록에서 '발행'을 눌러야 일어난다.
-              라벨이 '발행'이라 여기서 끝난 줄 알고 미전송으로 남던 문제(2026-08-03 사장님). */}
+              라벨이 '발행'이라 여기서 끝난 줄 알고 미전송으로 남던 문제. */}
           <div className="tax-invoice-modify-step-notice">
             <b className="text-[var(--text)]">여기서는 초안만 만들어지며</b> 국세청 전송은 목록에서 <b>발행</b>을 눌러야 합니다.
           </div>
@@ -3814,15 +3814,15 @@ function ModificationModal({ invoice, reason, setReason, modifyAmount, setModify
 }
 
 /**
- * 프로젝트(딜) 짝 제안 — 발행 완료된 계산서에 어느 프로젝트 매출인지 붙인다 (2026-08-13 사장님).
+ * 프로젝트(딜) 짝 제안 — 발행 완료된 계산서에 어느 프로젝트 매출인지 붙인다.
  *
- *   왜: 발행만 하고 끝나면 "이 매출이 어느 프로젝트 것인지"가 안 붙는다. 예전엔 상세 모달
- *   깊숙한 셀렉트뿐이라 아무도 안 붙였다(딜 미연결이 전체 건수와 맞먹었다).
+ * 왜: 발행만 하고 끝나면 "이 매출이 어느 프로젝트 것인지"가 안 붙는다. 예전엔 상세 모달
+ * 깊숙한 셀렉트뿐이라 아무도 안 붙였다(딜 미연결이 전체 건수와 맞먹었다).
  *
- *   제안 점수 — 근거를 줄마다 적는다(뭉뚱그리면 틀렸을 때 원인을 못 찾는다):
- *     같은 거래처(partner_id 일치) +3 · 딜 이름에 거래처명 +2 · 계약금액 ±10% +1.
- *   ★ 자동 확정은 안 한다 — 같은 거래처에 딜이 여럿(월 구독 등)이면 엉뚱한 딜에 붙는다.
- *     후보가 없거나 틀리면 아래 검색으로 전체 목록에서 찾는다.
+ * 제안 점수 — 근거를 줄마다 적는다(뭉뚱그리면 틀렸을 때 원인을 못 찾는다):
+ * 같은 거래처(partner_id 일치) +3 · 딜 이름에 거래처명 +2 · 계약금액 ±10% +1.
+ * ★ 자동 확정은 안 한다 — 같은 거래처에 딜이 여럿(월 구독 등)이면 엉뚱한 딜에 붙는다.
+ * 후보가 없거나 틀리면 아래 검색으로 전체 목록에서 찾는다.
  */
 function DealSuggestPopup({ invoice, deals, onClose, onDone }: {
   invoice: any; deals: any[]; onClose: () => void; onDone: () => void;
@@ -3915,27 +3915,27 @@ function DealSuggestPopup({ invoice, deals, onClose, onDone }: {
 /**
  * 전송 전 확인 — 받는 쪽 정보가 빠진 채 국세청으로 나가는 것을 여기서 막는다 (2026-08-13, 4단계).
  *
- *   왜 필요한가: 거래처 727곳 중 이메일 466(64%) · 업태·종목 8곳(1%). 사업자번호만 있으면
- *   전송 자체는 되지만 **이메일이 없으면 상대가 계산서를 못 받는다.** 그래서 전송 버튼이
- *   바로 쏘지 않고 이 창을 거친다 — 빠진 칸은 그 자리에서 채우고 보낸다.
+ * 왜 필요한가: 거래처 727곳 중 이메일 466(64%) · 업태·종목 8곳(1%). 사업자번호만 있으면
+ * 전송 자체는 되지만 **이메일이 없으면 상대가 계산서를 못 받는다.** 그래서 전송 버튼이
+ * 바로 쏘지 않고 이 창을 거친다 — 빠진 칸은 그 자리에서 채우고 보낸다.
  *
- *   칸의 출처는 발행 엣지와 같은 규칙(계산서 값 우선 → 거래처 폴백)으로 판정한다.
- *   여기서 채운 값은 계산서 행(counterparty_*)에 저장되고, 체크를 켜 두면 거래처에도
- *   저장돼 다음 발행부터 자동으로 채워진다 — 발행 폼의 savePartnerInfo 와 같은 패턴.
+ * 칸의 출처는 발행 엣지와 같은 규칙(계산서 값 우선 → 거래처 폴백)으로 판정한다.
+ * 여기서 채운 값은 계산서 행(counterparty_*)에 저장되고, 체크를 켜 두면 거래처에도
+ * 저장돼 다음 발행부터 자동으로 채워진다 — 발행 폼의 savePartnerInfo 와 같은 패턴.
  */
 function IssueConfirmModal({ invoices, partners, vatBiz, onDone, onClose }: {
   invoices: any[]; partners: any[]; vatBiz: VatBusinessType;
   onDone: () => void; onClose: () => void;
 }) {
-  const { toast }  = useToast();
+  const { toast } = useToast();
   const [sending, setSending] = useState(false);
   const [savePartner, setSavePartner] = useState(true);
-  //   빠진 칸에 쳐 넣은 값 · { 계산서 id: { 칸: 값 } }
+  // 빠진 칸에 쳐 넣은 값 · { 계산서 id: { 칸: 값 } }
   const [edits, setEdits] = useState<Record<string, Record<string, string>>>({});
   const setEdit = (id: string, k: string, v: string) =>
     setEdits((e) => ({ ...e, [id]: { ...e[id], [k]: v } }));
 
-  //   칸 정의 · 계산서 컬럼 / 거래처 컬럼 / 없을 때 무슨 일이 나는지
+  // 칸 정의 · 계산서 컬럼 / 거래처 컬럼 / 없을 때 무슨 일이 나는지
   const FIELDS = [
     
     { k: "bizno", label: "등록번호", invCol: "counterparty_bizno", pCol: "business_number", why: "없으면 전송할 수 없습니다", must: true },
@@ -3963,7 +3963,7 @@ function IssueConfirmModal({ invoices, partners, vatBiz, onDone, onClose }: {
     try {
       for (const r of rows) {
         if (!r.canSend) continue;
-        //   ① 채워 넣은 칸을 계산서 행에 저장 — 발행 엣지가 이 값을 먼저 읽는다
+        // ① 채워 넣은 칸을 계산서 행에 저장 — 발행 엣지가 이 값을 먼저 읽는다
         const patch: Record<string, string> = {};
         for (const f of FIELDS) {
           const v = String(edits[r.inv.id]?.[f.k] ?? "").trim();
@@ -3973,8 +3973,8 @@ function IssueConfirmModal({ invoices, partners, vatBiz, onDone, onClose }: {
           await supabase.from("tax_invoices").update(patch as never).eq("id", r.inv.id);
         }
         
-        //   ② 거래처에도 저장(선택). 다음 발행부터 자동으로 채워진다
-        if (savePartner && r.inv.partner_id)  {
+        // ② 거래처에도 저장(선택). 다음 발행부터 자동으로 채워진다
+        if (savePartner && r.inv.partner_id) {
           const pPatch: Record<string, string> = {};
           for (const f of FIELDS) {
             const v = String(edits[r.inv.id]?.[f.k] ?? "").trim();
@@ -3985,8 +3985,8 @@ function IssueConfirmModal({ invoices, partners, vatBiz, onDone, onClose }: {
           }
         }
         
-        //   ③ 전송 · 한 건 실패해도 나머지는 계속 보낸다
-        try  {
+        // ③ 전송 · 한 건 실패해도 나머지는 계속 보낸다
+        try {
           await issueTaxInvoice(r.inv.id);
           ok++;
         } catch (err: any) {

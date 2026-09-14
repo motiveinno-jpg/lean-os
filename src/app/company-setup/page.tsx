@@ -20,7 +20,7 @@ export default function CompanySetupPage() {
   const [authUser, setAuthUser] = useState<{ id: string; email?: string; user_metadata?: Record<string, string> } | null>(null);
   const [companyName, setCompanyName] = useState("");
   const [bizNo, setBizNo] = useState("");
-  // 2026-08-05 관문 단순화(사장님 — 소셜 가입자 절반이 이 화면에서 1~2초 만에 이탈):
+  // 2026-08-05 관문 단순화(대표 — 소셜 가입자 절반이 이 화면에서 1~2초 만에 이탈):
   //   대표자성명·개업일자 진위확인 제거(번호 상태 확인만 유지), 휴대전화는 선택으로.
   const [phone, setPhone] = useState(""); // 휴대전화(선택) — 알림톡 대상(2026-07-29). 소셜 가입자는 메타에 없어 여기서 받는다.
   const [joinPrompt, setJoinPrompt] = useState<string | null>(null);
@@ -76,7 +76,7 @@ export default function CompanySetupPage() {
     e.preventDefault();
     if (!authUser) return;
     if (!companyName.trim()) return setError("회사명을 입력해주세요.");
-    // 2026-08-20 사장님 지시 — 사업자번호는 **선택**. 가입 2초 시점엔 등록증을 손에 든 사람이 거의 없어
+    //  — 사업자번호는 **선택**. 가입 2초 시점엔 등록증을 손에 든 사람이 거의 없어
     //   소셜 가입자의 80%가 이 칸 하나에서 사라졌다(운영 실측). 번호가 실제로 필요한 건
     //   통장·카드 수집 / 세금계산서 / 결제 뿐이라, 그 기능에 들어갈 때 그 자리에서 받는다.
     const hasBiz = bizNoDigits(bizNo).length === 10;

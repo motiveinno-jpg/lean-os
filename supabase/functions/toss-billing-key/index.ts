@@ -157,7 +157,7 @@ serve(withSentry("toss-billing-key", async (req: Request) => {
     if (upErr) return json({ error: upErr.message }, 500);
 
     // 이 회사의 결제 공급자를 토스로 표시하되, Stripe 구독이 걸려 있는 행은 건드리지 않는다
-    //   (2026-08-19 감사): 카드 "등록"만으로 provider 를 무조건 toss 로 바꾸면, Stripe 가
+    //   : 카드 "등록"만으로 provider 를 무조건 toss 로 바꾸면, Stripe 가
     //   살아있는 회사가 국내카드를 등록해 두기만 해도 toss-charge cron(due 모드,
     //   payment_provider='toss' 만 조회)이 청구를 시작해 Stripe 와 이중 결제가 된다.
     //   Stripe → 토스 전환은 Stripe 실취소를 수행하는 /api/billing/switch-to-toss 전용.

@@ -12,7 +12,7 @@ import { supabase } from "@/lib/supabase";
 const won = (n: number | null | undefined) => `${Math.round(Number(n) || 0).toLocaleString("ko-KR")}원`;
 const d10 = (s: string | null | undefined) => String(s || "").slice(0, 10);
 
-// CSV 다운로드 (2026-08-11 사장님: 세무사가 세무 프로그램에 넣을 자료) — UTF-8 BOM 으로 엑셀 한글 안전.
+// CSV 다운로드 (세무사가 세무 프로그램에 넣을 자료) — UTF-8 BOM 으로 엑셀 한글 안전.
 function downloadCsv(filename: string, rows: Record<string, string | number | null | undefined>[]) {
   if (rows.length === 0) return;
   const headers = Object.keys(rows[0]);
@@ -116,7 +116,7 @@ export default function AdvisorCompanyPage({ params }: { params: Promise<{ compa
                 {ov.company.business_type ? ` · ${ov.company.business_type}` : ""}
                 {ov.company.business_category ? `/${ov.company.business_category}` : ""}
               </span>
-              {/* 오너뷰 본앱 진입 (2026-08-11 사장님) — 읽기 전용 세션으로 이 회사의 실제 오너뷰를 연다 */}
+              {/* 오너뷰 본앱 진입 — 읽기 전용 세션으로 이 회사의 실제 오너뷰를 연다 */}
               <button
                 className="adv-enter-app-btn adv-enter-app-btn-head"
                 onClick={async () => {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logServerError } from '@/lib/server-error-log';
 
-// 첨부파일 다운로드 프록시 (2026-08-05 사장님 제보)
+// 첨부파일 다운로드 프록시
 //   결재 문서 PDF 안의 첨부 링크를 PDF 뷰어(Edge/Chrome 내장)에서 클릭해 받으면
 //   Supabase 가 보내는 Content-Disposition: filename=%EB%84%A4...(퍼센트 인코딩값)을
 //   디코드하지 않고 그대로 저장해 파일명이 %EB%84%A4 범벅이 되는 문제.

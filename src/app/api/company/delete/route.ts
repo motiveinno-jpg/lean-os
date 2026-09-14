@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { assertSameOrigin } from '@/lib/api-authz';
 
-// 회사 완전 삭제 (2026-08-10 사장님 요청) — 마스터 전용.
+// 회사 완전 삭제 — 마스터 전용.
 //   순서가 중요하다: ① Stripe 구독 해지 → ② master_delete_company RPC.
 //   RPC 가 먼저 돌면 subscriptions 행이 사라져 구독 id 를 잃고, 회사는 없는데
 //   결제만 계속 나가는 최악의 상태가 된다. 그래서 해지 실패 시 삭제를 중단한다.

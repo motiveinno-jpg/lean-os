@@ -175,9 +175,9 @@ serve(withSentry("operator-user-admin", async (req) => {
         .limit(10000);
       if (uErr) return json({ error: `사용량 조회 실패: ${uErr.message}` }, 500);
 
-      // ── API 상품 카탈로그 (사장님 제공 CODEF 요금표 2026-08-04 순서 그대로) ──
+      // ── API 상품 카탈로그 (대표 제공 CODEF 요금표 2026-08-04 순서 그대로) ──
       //   상품(API)당 월 100,000원 어치가 기본료에 포함되고 초과분은 성공 건당 과금.
-      //   구독 중인 전 상품을 사용량 0이어도 항상 표시한다(2026-08-04 사장님 지시 "다 나타나게").
+      //   구독 중인 전 상품을 사용량 0이어도 항상 표시한다( "다 나타나게").
       //   paths 가 빈 상품(계정등록전용 등)은 우리 앱이 호출하는 엔드포인트가 없어 0으로만 나온다.
       const PRODUCT_MONTHLY_LIMIT = 100_000;
       const CATALOG: { name: string; price: number; paths: string[] }[] = [
@@ -334,7 +334,7 @@ serve(withSentry("operator-user-admin", async (req) => {
         .maybeSingle();
       if (upErr) return json({ error: `수정 실패: ${upErr.message}` }, 500);
 
-      // 이메일 변경 시 auth.users 도 동기화 — 실패하면 users.email 을 되돌린다 (2026-08-19 감사):
+      // 이메일 변경 시 auth.users 도 동기화 — 실패하면 users.email 을 되돌린다:
       //   종전엔 console.warn 만 하고 넘어가 public.users 와 auth.users 이메일이 영구히
       //   어긋났고(중복 이메일 거부 등), 그 계정은 로그인 후 프로필 매칭이 깨졌다.
       if (patch.email && before.auth_id) {

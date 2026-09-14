@@ -1,6 +1,6 @@
 "use client";
 
-// PC 공동인증서 자동 선택 (CodefCert 로컬 엔진) — 2026-08-04 사장님 지시
+// PC 공동인증서 자동 선택 (CodefCert 로컬 엔진)
 //   은행 사이트처럼 PC에 저장된 인증서를 자동으로 찾아 목록에서 고르게 한다.
 //   온보딩 3단계(StepCertRegistration)에서 검증된 흐름을 설정 화면에서도 쓰도록 분리한 컴포넌트.
 //   브라우저 단독으로는 NPKI 폴더 접근이 불가능하므로, 엔진(CodefCert) 미설치면
@@ -149,7 +149,7 @@ export function CertAutoPicker({ onExtracted, purpose = "register" }: {
 
   // SDK 경합 주의: initialization 성공 콜백은 WebSocket 연결·라이선스 확인이 "끝나기 전"에 불린다
   //   (getPort 성공 직후 callback). 그 시점의 engineGetCertification 은 {SUCCESS:false} · 빈 목록으로
-  //   오인됐던 원인(2026-08-04 사장님 재현). 배열이 올 때까지 0.5초 간격 재시도.
+  //   오인됐던 원인(2026-08-04 대표 재현). 배열이 올 때까지 0.5초 간격 재시도.
   function fetchCertList(attempt = 0)  {
     codefcert.engineGetCertification("", (certs: AutoCertItem[] | { SUCCESS: boolean; ERROR_CODE?: string }) => {
       if (Array.isArray(certs)) {

@@ -1,4 +1,4 @@
--- 연간 결제 혜택: 추가인원 12명 무료 등록 쿠폰 (2026-07-30 사장님)
+-- 연간 결제 혜택: 추가인원 12명 무료 등록 쿠폰
 --   발급: 연간 결제 완료 웹훅(구독당 1장, 멱등). 사용: redeem_seat_coupon RPC(관리자/대표).
 --   효과: 사용된 쿠폰의 free_seats 만큼 추가좌석 과금에서 제외(체크아웃 서버 계산).
 create table if not exists billing_seat_coupons (

@@ -1,4 +1,4 @@
--- 알림 title 한글화 + 거래처명 명시 (사장님 요청).
+-- 알림 title 한글화 + 거래처명 명시.
 -- 기존 RPC submit_quote_decision 의 notifications INSERT 부분만 교체.
 -- 다른 분기(상태전환·deal stage 자동진입·audit_logs·서명 patch 등) 그대로 보존.
 --

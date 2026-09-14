@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 4) public.users 동기화
-    //   ⚠️ onConflict:'id' 만 보면 안 된다 (2026-08-21 감사): 이미 오너뷰 계정이 있는 사람을
+    //   ⚠️ onConflict:'id' 만 보면 안 된다: 이미 오너뷰 계정이 있는 사람을
     //   초대하는 경우 users.id 와 auth_id 가 다른 레거시 행이 있어(현재 21명 중 2명),
     //   id 충돌이 아니라 INSERT 로 가서 auth_id/email 유니크에 걸려 합류 자체가 막혔다.
     //   기존 행을 auth_id 로 먼저 찾아 그 행을 갱신한다.
@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
 
       if (emp?.id) {
         // user_id 는 users(id) 를 가리키는 외래키 — auth uid 를 넣으면 id≠auth_id 계정에서 23503.
-        //   그리고 error 를 안 봐서 실패해도 "가입 완료" 만 뜨고 명단은 '초대중' 으로 남았다 (2026-08-21 감사).
+        //   그리고 error 를 안 봐서 실패해도 "가입 완료" 만 뜨고 명단은 '초대중' 으로 남았다.
         const { error: empErr } = await admin.from('employees').update({
           user_id: appUserId,
           status: 'joined',

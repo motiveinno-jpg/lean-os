@@ -9,7 +9,7 @@ import { supabase } from "./supabase";
 import { verifyBusinessNumber, validateBusinessOwnership } from "./business-verification";
 import { logError } from "./error-logger";
 
-// 간편가입 관문 실패는 화면 토스트로만 사라져 "이탈인지 오류인지" 구분이 불가했다(2026-07-29 사장님).
+// 간편가입 관문 실패는 화면 토스트로만 사라져 "이탈인지 오류인지" 구분이 불가했다.
 //   실패 지점마다 운영자 오류 로그를 남긴다 — 사업자번호는 앞 3자리만(개인정보 최소화).
 const bizMask = (digits: string) => (digits ? `${digits.slice(0, 3)}-**-*****` : "(없음)");
 function logSignupIssue(step: string, message: string, extra?: Record<string, unknown>) {
@@ -27,7 +27,7 @@ export const formatBizNo = (digits: string) =>
 export const isValidBizNo = (input: string) => bizNoDigits(input).length === 10;
 
 // 사업자번호 중복(기등록 회사) 확인 — 서버 API(service role) 경유 (RLS로 클라 직접 조회 불가)
-//   유효성 선검사 추가 (2026-08-10 사장님 제보): "123456789…" 같은 가짜 번호도
+//   유효성 선검사 추가: "123456789…" 같은 가짜 번호도
 //   '사용 가능한 사업자번호' 로 통과했다. 유효성은 최종 제출에서만 검사하고 있었기 때문 —
 //   중복 확인 단계에서 checksum + 국세청 상태(assertBizNoActive)를 먼저 거른다.
 //   auth 가입 폼·/company-setup 양쪽이 이 함수를 쓰므로 여기 한 곳으로 둘 다 잡힌다.
@@ -50,7 +50,7 @@ export async function checkBusinessNumberRegistered(bizNo: string): Promise<{ re
   return res.json();
 }
 
-// 국세청 상태 기준 가입 가능 판정 — 정상(계속사업자)만 회사 개설 허용 (2026-07-03 사장님 지시).
+// 국세청 상태 기준 가입 가능 판정 — 정상(계속사업자)만 회사 개설 허용.
 //   차단: 미등록(국세청에 없는 번호) · 폐업자 · 휴업자 · checksum 불일치.
 //   통과: 계속사업자, 그리고 '확인불가'(국세청 API 장애) — 장애로 가입 자체를 막지 않기 위함.
 //   auth 가입 폼과 /company-setup(소셜) 양쪽에서 동일하게 사용 — 중복 구현 금지.

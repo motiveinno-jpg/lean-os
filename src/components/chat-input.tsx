@@ -53,7 +53,7 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
     if (!disabled) inputRef.current?.focus();
   }, [disabled]);
 
-  //   쓰는 만큼 늘어난다 — 타이핑·멘션 삽입·전송 후 비우기까지 한 곳에서 처리(2026-08-10 사장님 지시)
+  //   쓰는 만큼 늘어난다 — 타이핑·멘션 삽입·전송 후 비우기까지 한 곳에서 처리
   useEffect(() => { growTextarea(inputRef.current, MAX_H); }, [text]);
 
   //   커서 자리에 끼워 넣기 — 이모지·오너뷰 링크가 같이 쓴다. 끝이 아니라 **쓰던 자리**에 들어간다.
@@ -95,7 +95,7 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
 
   function handleKeyDown(e: React.KeyboardEvent) {
     // 한글 입력 중(IME 조합 중)의 Enter 는 무시한다 — 조합을 끝내라는 뜻이지 전송이 아니다.
-    //   (2026-08-20 사장님 제보: "메시지를 보내면 뒤에 말이 한번씩 더 반복돼")
+    //   ("메시지를 보내면 뒤에 말이 한번씩 더 반복돼")
     //   조합 중 Enter 로 전송하면 본문이 나간 뒤 브라우저가 조합 중이던 글자를 빈 입력창에
     //   되돌려 넣고, 같은 Enter 의 두 번째 keydown 이 그 한 글자를 또 보냈다.
     //   실제 기록: "그렇네"→"네", "왜 두개씩 나가"→"가" 처럼 끝 글자가 1~9ms 뒤 재전송됐다.
@@ -177,7 +177,7 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
         </div>
       )}
 
-      {/* 작성 상자 — 글 영역이 위, 단추는 상자 **안** 오른쪽 아래 (2026-08-10 사장님 지시: Teams 형태) */}
+      {/* 작성 상자 — 글 영역이 위, 단추는 상자 **안** 오른쪽 아래 (Teams 형태) */}
       <div className="chat-input-body">
         <div className="chat-input-row">
           {/* Mention dropdown */}

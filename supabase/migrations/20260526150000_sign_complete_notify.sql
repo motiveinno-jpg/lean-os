@@ -1,4 +1,4 @@
--- 계약서 서명 완료 시 발송자(+회사 owner/admin)에게 알림 (2026-05-26 사장님 요청).
+-- 계약서 서명 완료 시 발송자(+회사 owner/admin)에게 알림.
 --   submit_signature_by_token(외부 anon 서명) UPDATE 후 notifications INSERT 추가.
 --   best-effort: 알림 INSERT 실패해도 서명 자체는 성공 유지. 반환 타입(jsonb) 불변 → CREATE OR REPLACE.
 --   type='signature_request'(CHECK 허용값), link=/signatures. company_id 격리.

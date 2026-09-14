@@ -1,6 +1,6 @@
 // 프로젝트 돈 집계 — 표(템플릿)를 가로질러 한 장으로 (2026-08-05 기획).
 //
-// 사장님 질문: "전표는 입력했는데 계산서까지 발행 안 된 경우, 지출로 잡았으나 실제 출금이
+// 대표 질문: "전표는 입력했는데 계산서까지 발행 안 된 경우, 지출로 잡았으나 실제 출금이
 //   안 된 경우… 예상과 실금액을 각기 나눠 보여주면 지표가 너무 많아져 혼동이 온다."
 //
 // 답: **금액을 여러 개 나열하지 않고, 하나의 금액이 단계를 지나가게 한다.**
@@ -148,7 +148,7 @@ export function rollupMoney(
       //   합치기 전 표(매출·청구 / 수주·매출)도 같은 규칙으로 읽는다 — 확률 칸이 없으면 액면 그대로.
       const amt = amountColumnOf(bCols, /금액|청구/, /./);
       //   부분 입금 — 계약금만 들어온 건은 그만큼만 '입금', 잔금은 아직 그 단계에 있다.
-      //   (2026-08-07 사장님: 계약금이 들어오면 잔금이 얼마인지 보여야 한다)
+      //   (계약금이 들어오면 잔금이 얼마인지 보여야 한다)
       const paidCol = bCols.filter(isWon).find((c) => c.id !== amt?.id && /입금|수금|받은/.test(c.name));
       const pct = bCols.find((c) => c.type === "number" && (c.settings?.unit || "") === "%");
       if (!amt) continue;
@@ -296,7 +296,7 @@ export function weeklyCashflow(
 
 /** 이 프로젝트에 '돈 흐름'으로 보여줄 값이 있나 — 정리 화면이 리포트 껍데기를 그릴지 정할 때 쓴다.
  *  값이 없으면 ProjectMoneyReport 가 아무것도 안 그리는데, 껍데기만 먼저 그리면
- *  제목만 있고 속이 빈 리포트가 남는다(2026-08-07 사장님 지적 화면). */
+ *  제목만 있고 속이 빈 리포트가 남는다( 화면). */
 export function hasMoneyData(boards: MoneyBoard[], cols: BoardColumn[], items: BoardItem[], today: string): boolean {
   const r = rollupMoney(boards, cols, items, { basis: "accrual", today });
   return r.income.total > 0 || r.spend.total > 0 || !!r.budget;

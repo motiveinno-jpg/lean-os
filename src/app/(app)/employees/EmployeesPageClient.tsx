@@ -169,7 +169,7 @@ export default function EmployeesPage()  {
   const pendingInviteCount = (invitationsForBadge as any[]).filter((i) => i.status === "pending").length;
   const certStats = useCertificateStats(tab === "certificates" ? companyId : null);
   const pay = payrollStats(employees);
-  // 재직자만 합산 (2026-08-19 감사): 퇴사자 급여가 섞여 급여 탭 합계와 다른 인건비가 표시됐다.
+  // 재직자만 합산: 퇴사자 급여가 섞여 급여 탭 합계와 다른 인건비가 표시됐다.
   const activeForPay = employees.filter((e: any) => ["active", "joined"].includes(e.status));
   const totalSalary = activeForPay.reduce((s: number, e: any) => s + Number(e.salary || 0), 0);
   const totalRetirement = activeForPay.reduce((s: number, e: any) => s + Number(e.retirement_accrual || 0), 0);
@@ -216,7 +216,7 @@ export default function EmployeesPage()  {
   
   );
   //   요약 · Employee 역할에게는 급여/인원/퇴직충당금 숨김.
-  //   휴가 탭은 시안대로 표가 주인공이라 상단 KPI 를 감춘다 (2026-08-06 사장님).
+  //   휴가 탭은 시안대로 표가 주인공이라 상단 KPI 를 감춘다.
   const peopleStats = !isEmployee ? (<>
     <Stat label="재직 인원" value={`${activeCount}명`} />
     {pendingInviteCount > 0 && <button type="button" className="qk-stat-link" title="초대 대기 목록 열기" onClick={() => setInviteFormOpen(true)}><Stat label="초대 대기" value={`${pendingInviteCount}명`} tone="minus" /></button>}
@@ -224,7 +224,7 @@ export default function EmployeesPage()  {
     <button type="button" className="qk-stat-link" title="챙길 일을 모아 봅니다." onClick={() => setTodoOpen(true)}>
       <Stat label="처리할 것" value={hrTodos ? `${hrTodos.reduce((n, g) => n + g.items.length, 0)}건` : "…"} tone={hrTodos && hrTodos.some((g) => g.items.length) ? "minus" : undefined} />
     </button>
-    {/* 인건비·퇴직충당금은 급여 권한자만 (2026-08-19 감사) — 급여 탭 KPI(tabAllowed) 와 일관.
+    {/* 인건비·퇴직충당금은 급여 권한자만 — 급여 탭 KPI(tabAllowed) 와 일관.
         소규모 팀에선 총액만으로 개인 급여가 역산된다. */}
     {tabAllowed("salary") && (<>
       <Stat label="연 인건비" value={<>₩{(totalSalary * 12).toLocaleString()} <small className="font-normal text-[var(--text-dim)]">월 ₩{totalSalary.toLocaleString()}</small></>} />
@@ -244,7 +244,7 @@ export default function EmployeesPage()  {
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
 
       {/* Tab Content — S-1: effectiveTab 으로 직원 비허용 탭 컴포넌트 미마운트 */}
-      {/* (2026-07-30 사장님) '관리·추가/수정' 화면 삭제 — 디렉토리 단일 화면 + 초대 섹션만 이동.
+      {/*  '관리·추가/수정' 화면 삭제 — 디렉토리 단일 화면 + 초대 섹션만 이동.
           직원 정보 수정은 디렉토리 카드 → 상세보기에서. */}
       {effectiveTab === "employees" && (
         <FlexPeopleDirectory companyId={companyId} employees={employees} isManager={!isEmployee}
@@ -328,14 +328,14 @@ export default function EmployeesPage()  {
 
 
 
-// ── 구성원 초대 섹션 (2026-07-30 사장님). 구 '관리·추가/수정' 화면에서 초대만 발췌해 디렉토리로 이동.
+// ── 구성원 초대 섹션. 구 '관리·추가/수정' 화면에서 초대만 발췌해 디렉토리로 이동.
 //   목록 테이블·조직도·역할 관리 등 관리 화면은 삭제(수정은 디렉토리 상세보기에서).
 function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setShowForm, showBulkInvite, setShowBulkInvite }: any) {
   const { toast } = useToast();
   const [form, setForm] = useState({ email: "", name: "", role: "member" as const, department: "", position: "", salary: "", hireDate: "", employeeNumber: "" });
   const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; msg: string } | null>(null);
   const [addExisting, setAddExisting] = useState(false);
-  // 엑셀 대량 초대 (2026-07-31 사장님) — 단건 초대와 동일 경로를 행 단위로 반복 (열림 상태는 부모 조회 줄 버튼이 쥔다)
+  // 엑셀 대량 초대 — 단건 초대와 동일 경로를 행 단위로 반복 (열림 상태는 부모 조회 줄 버튼이 쥔다)
 
   const { data: invitations = [] } = useQuery({
     queryKey: ["employee-invitations", companyId],
@@ -362,7 +362,7 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
         companyId, email: form.email, name: form.name || undefined,
         role: form.role, invitedBy: userId,
       });
-      // error 를 봐야 한다 (2026-08-20 감사): 권한 부족(RLS)으로 이 insert 가 막혀도 조용히 넘어가
+      // error 를 봐야 한다: 권한 부족(RLS)으로 이 insert 가 막혀도 조용히 넘어가
       //   초대 메일만 나가고 구성원 행은 안 생겼다. 받은 사람은 초대장을 보는데 명단엔 없는 상태.
       const  { error: empErr } = await supabase.from("employees").insert({
         company_id: companyId,
@@ -370,7 +370,7 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
         email: form.email,
         department: form.department || null,
         position: form.position || null,
-        employee_number: form.employeeNumber.trim() || null,   // 사번 (2026-08-27 사장님)
+        employee_number: form.employeeNumber.trim() || null,   // 사번
         salary: Math.round((Number(form.salary) || 0) / 12),
         hire_date: form.hireDate || todayKst(),
         status: "invited",
@@ -513,7 +513,7 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            {/* 목록 선택 + 직접 추가 (2026-08-19 사장님) */}
+            {/* 목록 선택 + 직접 추가 */}
             <DepartmentField companyId={companyId} value={form.department} onChange={(v: string) => setForm({ ...form, department: v })} />
             <PositionField companyId={companyId} label="직위" value={form.position} onChange={(v: string) => setForm({ ...form, position: v })} />
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">사번</label><input type="text" value={form.employeeNumber} onChange={e => setForm({ ...form, employeeNumber: e.target.value })} placeholder="예: 2026-014" className="field-input" /><p className="text-[10px] text-[var(--text-dim)] mt-0.5">명단은 사번 순으로 정렬됩니다.</p></div>
@@ -578,7 +578,7 @@ function attAvatarColor(id: string): string {
   return palette[Math.abs(h) % palette.length];
 }
 const attInitials = (name: string) => (/[가-힣]/.test(name || "") ? (name || "").slice(-2) : (name || "").slice(0, 2).toUpperCase());
-// 16~20px 작은 원에는 한 글자만 — 두 글자(8px×2 = 원 폭)를 넣으면 뚫고 나가 깨져 보인다 (2026-08-19 사장님 제보)
+// 16~20px 작은 원에는 한 글자만 — 두 글자(8px×2 = 원 폭)를 넣으면 뚫고 나가 깨져 보인다
 const attInitial1 = (name: string) => (/[가-힣]/.test(name || "") ? (name || "").slice(-1) : (name || "").slice(0, 1).toUpperCase());
 
 // ── Attendance Tab ──
@@ -589,7 +589,7 @@ function shiftMonth(ym: string, delta: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-//   mode (2026-08-19 사장님): "records" = 달력·그 날 현황(기록 상세 갈래), "summary" = 부서→직원 월간 요약만(월간 요약 갈래, 예전 연장근무 갈래 자리)
+//   mode: "records" = 달력·그 날 현황(기록 상세 갈래), "summary" = 부서→직원 월간 요약만(월간 요약 갈래, 예전 연장근무 갈래 자리)
 export function AttendanceTab({ employees, companyId, userId, userEmail, queryClient, role, mode = "records" }: any) {
   //   2026-09-11 역할 폐지 — 관리 여부는 권한으로 본다(role prop 은 호출부 호환으로 남겨 둔다)
   const { isMaster, hasPerm } = useMyPermissions();
@@ -610,7 +610,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   const [sumSort, setSumSort] = useState<SortState<string>>({ key: "name", dir: "asc" });
   const [sumQ, setSumQ] = useState("");
   const [sumOpen, setSumOpen] = useState<Map<string, boolean>>(new Map());
-  //   월간 요약 검색조건 (2026-08-19 사장님: "연차 걸면 이 달 연차 쓴 사람만" 처럼 지표로 사람을 거른다)
+  //   월간 요약 검색조건 ("연차 걸면 이 달 연차 쓴 사람만" 처럼 지표로 사람을 거른다)
   type SumCond = { depts: string[]; has: string[]; ratioMax: string; hoursMin: string; hoursMax: string };
   const SUM_COND0: SumCond = { depts: [], has: [], ratioMax: "", hoursMin: "", hoursMax: "" };
   const [sumCond, setSumCond] = useState<SumCond>(SUM_COND0);
@@ -730,7 +730,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   const [leaveDetailKey, setLeaveDetailKey] = useState<string | null>(null);
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
-  // 결근 파생용 · 회사 공휴일 (2026-08-19 사장님: 공휴일에 출근 안 한 날이 결근으로 표시됨).
+  // 결근 파생용 · 회사 공휴일 (공휴일에 출근 안 한 날이 결근으로 표시됨).
   //   지각 판정(attendance-checkin 엣지)은 이미 holidays 를 보는데 결근 파생만 주말 제외였다.
   const  { data: monthHolidays = [] } = useQuery({
     queryKey: ["attendance-cal-holidays", companyId, selectedMonth],
@@ -821,7 +821,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   const startEditing = (record: any) => {
     setEditingRecordId(record.id);
     // ⚠️ slice(0,16) 금지 — timestamptz 는 UTC 문자열이라 KST 18:30 이 09:30 으로 들어가고,
-    //    그대로 저장하면 기록이 매번 9시간씩 밀렸다(2026-07-27 사장님 제보).
+    //    그대로 저장하면 기록이 매번 9시간씩 밀렸다.
     setEditForm({
       check_in: kstDateTimeLocal(record.check_in),
       check_out: kstDateTimeLocal(record.check_out),
@@ -888,7 +888,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   // active + joined 모두 포함 (초대 수락 후 아직 active 아닌 직원도 체크인 가능)
   const arVal = (r: any) => ({ emp: r.employees?.name || "—", status: statusLabel(effectiveStatus(r)) });
   const arSpec = (k: keyof ReturnType<typeof arVal>) => arCf.spec(k, (records as any[]).map((r) => arVal(r)[k]));
-  //   직원 순서 = 사번 순 → 가나다 → ABC (lib/people-sort, 2026-08-27 사장님 — 인사 전 화면 공통)
+  //   직원 순서 = 사번 순 → 가나다 → ABC (lib/people-sort, 2026-08-27 대표 — 인사 전 화면 공통)
   const empById = useMemo(() => new Map((employees as any[]).map((e: any) => [e.id, e])), [employees]);
   const shownRecords = useMemo(() => {
     const dir = arSort.dir === "asc" ? 1 : -1;
@@ -970,7 +970,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     enabled: !!companyId && !isEmployeeRole,
     staleTime: 60_000,
   });
-  // 오늘 통계 카드 클릭 → 명단 펼침 (2026-07-30 사장님: 숫자만으론 누구인지 모름)
+  // 오늘 통계 카드 클릭 → 명단 펼침 (숫자만으론 누구인지 모름)
   const [todayStatOpen, setTodayStatOpen] = useState<string | null>(null);
   const todayStatNames = useMemo(() => {
     const nameOf = (id: string) => (employees as any[]).find((e: any) => e.id === id)?.name || "구성원";
@@ -979,7 +979,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     const leave = (todayStatus?.leaveIds || []).map(nameOf);
     const counted = new Set([...(todayStatus?.presentIds || []), ...(todayStatus?.lateIds || []), ...(todayStatus?.leaveIds || [])]);
     //   결근으로 '기록된' 사람은 기록이 있어도 결근이다 — counted 에 넣지 않아 아래에서 잡힌다
-    // 공휴일·주말엔 결근 명단도 비운다 + 입사 전 직원 제외 (2026-08-19 감사: 카드는 0인데
+    // 공휴일·주말엔 결근 명단도 비운다 + 입사 전 직원 제외 (카드는 0인데
     // 클릭하면 전 직원 명단이 나오던 모순).
     const todayIsOff = holidayDaySet.has(todayStr) || [0, 6].includes(today.getDay());
     const absent = todayIsOff ? [] : activeEmployees
@@ -1032,7 +1032,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
       {/* Controls: 타이틀 + 월 표시 + 캘린더/데이터 토글 + CSV Export (2026-07-15 리디자인 — 시안과 동일하게 단순화) */}
       <div className="attendance-toolbar">
         <div className="flex items-center gap-2.5">
-          {/* 달력 넘기기 — 화살표로 전달/다음달 이동 (2026-08-07 사장님 제보: 월 선택기만으로는 불편) */}
+          {/* 달력 넘기기 — 화살표로 전달/다음달 이동 (월 선택기만으로는 불편) */}
           <div className="attendance-month-nav">
             <button
               onClick={() => setSelectedMonth(shiftMonth(selectedMonth, -1))}
@@ -1139,7 +1139,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                 //   전 직원 결근으로 표시됐다. 지각 판정(엣지)과 동일하게 holidays 를 반영.
                 const isPastWeekday = dateStr  < todayStr && !isWeekend && !holidayDaySet.has(dateStr);
                 const dayStatusCounts = new Map<string, number>();
-                //   휴가는 결근 파생을 막기만 했지 칸에 안 보였다(빈 칸) → 휴가 인원도 세어 초록 칩으로 보인다 (2026-09-09 사장님)
+                //   휴가는 결근 파생을 막기만 했지 칸에 안 보였다(빈 칸) → 휴가 인원도 세어 초록 칩으로 보인다
                 let leaveCount = 0;
                 const leaveNames: string[] = [];
                 activeEmployees.forEach((emp: any) => {
@@ -1168,12 +1168,12 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                       isToday ? "text-[var(--primary)] font-bold" : (dayOfWeek === 0 || holidayDaySet.has(dateStr)) ? "text-[var(--danger)]" : dayOfWeek === 6 ? "text-[var(--info)]" : "text-[var(--text-muted)]"
                     }`}>
                       {isSelected ? <span className="w-5 h-5 rounded-full bg-[var(--primary)] text-white text-[11px] flex items-center justify-center font-bold">{day}</span> : day}
-                      {/* 공휴일 이름 표시 (2026-08-19 사장님: "—"만 보이면 왜 쉬는 날인지 모름) */}
+                      {/* 공휴일 이름 표시 ("—"만 보이면 왜 쉬는 날인지 모름) */}
                       {holidayDaySet.has(dateStr) && (
                         <span className="text-[10px] font-semibold text-[var(--danger)] truncate">{holidayNameByDate.get(dateStr)}</span>
                       )}
                     </div>
-                    {/*   2026-08-27 사장님 — 워크보드 셀과 같은 톤: 상태별 작은 상자(테두리·바닥 채움·오른쪽 색띠·칩+인원). 채움 폭 = 그 상태 인원 ÷ 재직 인원 */}
+                    {/*   2026-08-27 대표 — 워크보드 셀과 같은 톤: 상태별 작은 상자(테두리·바닥 채움·오른쪽 색띠·칩+인원). 채움 폭 = 그 상태 인원 ÷ 재직 인원 */}
                     <div className="att-cal-rows">
                       {leaveCount > 0 && (
                         <span className="att-cal-row" title={`휴가 ${leaveCount}명 · ${leaveNames.join(", ")}`}>
@@ -1188,7 +1188,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                         const n = dayStatusCounts.get(s.value) || 0; const c = statusCssColor(s.value);
                         return (
                           <span key={s.value} className="att-cal-row" title={`${s.label} ${n}명`}>
-                            {/*   게이지는 라벨 칩 오른쪽의 전용 트랙 안에서만 — 행 전체에 깔면 채움이 라벨 글씨를 덮는다 (2026-08-31 사장님 제보) */}
+                            {/*   게이지는 라벨 칩 오른쪽의 전용 트랙 안에서만 — 행 전체에 깔면 채움이 라벨 글씨를 덮는다 */}
                             <span className="att-cal-chip" style={{ background: `color-mix(in srgb, ${c} 14%, transparent)`, color: c }}>{s.label}</span>
                             <span className="att-cal-track">
                               <span className="att-cal-fill" style={{ width: `${Math.max(12, Math.round((n / Math.max(1, activeEmployees.length)) * 100))}%`, background: `linear-gradient(90deg, color-mix(in srgb, ${c} 20%, transparent), color-mix(in srgb, ${c} 6%, transparent))` }}><span className="att-cal-edge" style={{ background: c }} /></span>
@@ -1207,7 +1207,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
           {/* 우 — 오늘 통계 2x2 + 선택일 상세 (관리자 전용). 캘린더와 높이 맞춤(flex-1로 하단까지 채움). */}
           {!isEmployeeRole && (
             <div className="attendance-today-panel">
-              {/* 카드 클릭 → 하단에 해당 인원 명단 (2026-07-30 사장님) */}
+              {/* 카드 클릭 → 하단에 해당 인원 명단 */}
               <div className="grid grid-cols-2 gap-3">
                 {([
                   { key: "present", label: "오늘 출근", count: todayStatus?.present ?? 0, cls: "text-[var(--text)]" },
@@ -1275,7 +1275,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                             </div>
                           </div>
                         )}
-                        {/* 상태 → 부서 → 이름 (2026-08-19 사장님: 직원이 많으면 이름 칩이 넘친다 → 부서 줄을 열어 본다) */}
+                        {/* 상태 → 부서 → 이름 (직원이 많으면 이름 칩이 넘친다 → 부서 줄을 열어 본다) */}
                         {groups.map((s) => {
                           const list = dayDetail![s.value];
                           const depts = [...new Set(list.map((e) => e.department))].sort();
@@ -1488,7 +1488,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
           const ds = `${selectedMonth}-${String(d).padStart(2, '0')}`;
           if (dow !== 0 && dow !== 6 && !holidayDaySet.has(ds)) workdaysSoFar++;   // 공휴일 제외 (2026-08-19)
         }
-        //   표 정렬·빠른검색 (2026-08-19 사장님: 직원이 많아지면 카드 격자로는 못 본다 → 표 + 정렬 + 검색)
+        //   표 정렬·빠른검색 (직원이 많아지면 카드 격자로는 못 본다 → 표 + 정렬 + 검색)
         //   연차 = 이 달 승인 **연차성** 휴가일 수 — 공가·경조 등 별도 휴가는 빼고 센다 (2026-09-01)
         const leaveCount = (empId: string) => annualUsage.get(empId)?.days || 0;
         const rowsAll = (summary as any[]).map((s) => ({ ...s, employee_number: empById.get(s.employee_id)?.employee_number || null, ratio: workdaysSoFar > 0 ? Math.min(1, s.totalDays / workdaysSoFar) : 0, alwTotal: allowanceByEmployee.get(s.employee_id)?.total ?? 0, leaveDays: leaveCount(s.employee_id), leaveFull: annualUsage.get(s.employee_id)?.full || 0, leaveHalf: annualUsage.get(s.employee_id)?.half || 0, leaveQuarter: annualUsage.get(s.employee_id)?.quarter || 0 }));
@@ -1499,7 +1499,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             && (!sumCond.hoursMin || r.totalHours >= Number(sumCond.hoursMin))
             && (!sumCond.hoursMax || r.totalHours <= Number(sumCond.hoursMax)))
           .sort((a, b) => { const k = sumSort.key as string; if (k === "name") return compareByName(a, b) * (sumSort.dir === "asc" ? 1 : -1); const av = (a as any)[k], bv = (b as any)[k]; const c = typeof av === "number" && typeof bv === "number" ? av - bv : cmp(av, bv); return c * (sumSort.dir === "asc" ? 1 : -1) || comparePeople(a, b); });
-        //   부서 묶음 (2026-08-19 사장님: 부서별로 정렬하고 토글을 열면 그 부서 직원). 부서 줄은 합계·평균, 직원 줄은 열어야 보인다
+        //   부서 묶음 (부서별로 정렬하고 토글을 열면 그 부서 직원). 부서 줄은 합계·평균, 직원 줄은 열어야 보인다
         const deptMap = new Map<string, any[]>();
         for (const r of rows) { const d = r.department || "미배정"; if (!deptMap.has(d)) deptMap.set(d, []); deptMap.get(d)!.push(r); }
         for (const list of deptMap.values()) list.sort(comparePeople);   // 부서 안 직원 순서도 같은 규칙
@@ -2107,11 +2107,11 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
       }
       // 생년월일 누락 안내
       if (result.skippedNoBirth && result.skippedNoBirth.length > 0) {
-        // 실명 나열 제거 (2026-08-19 감사) — 토스트는 공용 화면·화면공유에서 가장 잘 보이는 위치.
+        // 실명 나열 제거 — 토스트는 공용 화면·화면공유에서 가장 잘 보이는 위치.
         toast(`⚠ 생년월일 미등록 ${result.skippedNoBirth.length}명 · 해당 직원 명세서는 PDF 비밀번호 보호가 안 됩니다. 인력관리에서 생년월일을 등록하세요.`, 'error');
       }
     } catch (e: unknown) {
-      // 무음 실패 금지 (2026-08-19 감사): 종전엔 실패를 삼켜 직전 달 미리보기가 새 달 라벨을
+      // 무음 실패 금지: 종전엔 실패를 삼켜 직전 달 미리보기가 새 달 라벨을
       //   달고 남았고, 그 상태로 저장·발송하면 지난달 금액이 새 달 명세서로 나갔다.
       setPreview(null);
       setEditValues({});
@@ -2547,14 +2547,14 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
       } else if (unit === "two_hours") {
         days = 0.25;
       } else {
-        // full_day: 근무일 기준 — 주말·공휴일 미차감 (2026-08-19 감사: 달력 일수 계산은
+        // full_day: 근무일 기준 — 주말·공휴일 미차감 (달력 일수 계산은
         //   금~월 휴가를 4일로 차감했다. 실제 사용일 1일)
         days = await calcLeaveDays(companyId!, form.startDate, form.endDate || form.startDate);
       }
 
       const approvers = form.approverSteps.filter(Boolean);
       //   승인자를 지정했으면 결재 요청(승인 대기)으로, 지정 안 했으면 관리자 직접 등록(즉시 승인)으로.
-      //   종전엔 승인자 없이도 pending 으로 저장돼 어느 화면에도 안 나타났다(2026-09-09 사장님).
+      //   종전엔 승인자 없이도 pending 으로 저장돼 어느 화면에도 안 나타났다.
       if (approvers.length === 0) {
         return registerAdminLeave({
           companyId: companyId!,
@@ -2595,7 +2595,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     onError: (err: any) => toast(friendlyError(err, "처리에 실패했습니다. 잠시 후 다시 시도해 주세요."), "error"),
   });
 
-  // 팝업(이름 클릭)에서 바로 등록 · 아래 전체 폼으로 내려보내면 화면이 멀어 안 보였다(2026-08-07 사장님).
+  // 팝업(이름 클릭)에서 바로 등록 · 아래 전체 폼으로 내려보내면 화면이 멀어 안 보였다.
   const [quickOpen, setQuickOpen] = useState(false);
   const [quick, setQuick] = useState({ leaveType: "annual", leaveUnit: "full_day", halfDayPeriod: "am" as "am" | "pm", startDate: "", endDate: "", reason: "" });
   const resetQuick = () => setQuick({ leaveType: "annual", leaveUnit: "full_day", halfDayPeriod: "am", startDate: "", endDate: "", reason: "" });
@@ -2610,7 +2610,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     : !quick.startDate ? 0
     : (quickBizDays ?? 0);
   //   관리자가 이름 클릭 → 바로 등록하는 팝업은 '결재 없이 확정'이 취지다. 종전엔 createLeaveRequest 로
-  //   pending 저장돼 승인자도 없이 떠서, 워크보드·근태·달력·연차잔액 어디에도 안 나타났다(2026-09-09 사장님).
+  //   pending 저장돼 승인자도 없이 떠서, 워크보드·근태·달력·연차잔액 어디에도 안 나타났다.
   //   구성원 상세 등록과 동일하게 registerAdminLeave(승인 상태로 확정)로 통일한다.
   const createQuickLeave = useMutation({
     mutationFn: () => registerAdminLeave({
@@ -2664,7 +2664,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
   });
 
   // Cancel mutation · 승인된 휴가 취소 시 잔여 복구.
-  //   2026-08-11 사장님: 승인된 건도 사유 입력 후 취소 가능(관리자는 시작된 휴가도),
+  //   2026-08-11 대표: 승인된 건도 사유 입력 후 취소 가능(관리자는 시작된 휴가도),
   //   사유·취소자·시각 보존 + 신청 때와 동일 대상(승인자·참조자·신청자)에게 알림.
   const cancelMut = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
@@ -2682,7 +2682,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
   const [cancelTarget, setCancelTarget] = useState<any | null>(null);
   const [cancelReason, setCancelReason] = useState("");
 
-  // 남은 연차 직접 입력 (사장님 지시 2026-07-30) — 입력값은 '지금 남은 연차'다.
+  // 남은 연차 직접 입력 ( 2026-07-30) — 입력값은 '지금 남은 연차'다.
   //   내부적으로 총부여 = 남은 + 사용 을 'base' 발생으로 기록한다. leave_balances 를 직접 쓰면
   //   자동 발생 cron 이 매일 자정 grants 합계로 되돌려 손으로 넣은 값이 사라진다.
   const setRemaining = useMutation({
@@ -2709,7 +2709,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     enabled: !!companyId,
   });
 
-  // 부여 방식 + 발생 기준 통합 저장 (2026-08-19 사장님 시안). 자동부여 = 자동 발생 켬(선택 기준),
+  // 부여 방식 + 발생 기준 통합 저장 (2026-08-19 대표 시안). 자동부여 = 자동 발생 켬(선택 기준),
   //   직접입력 = 자동 발생 끔. 별도 '연차 자동 발생' 패널을 없애고 여기서 한 번에 저장한다.
   const saveGrantCfgMut = useMutation({
     mutationFn: async (next: { method: LeaveGrantMethod; basis: MonthlyAccrualBasis }) => {
@@ -2769,7 +2769,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
 
   const activeEmployees = employees.filter((e: any) => e.status === "active" || e.status === "joined");
 
-  // 휴가 탭 서브뷰 — '직원별 연차' / '설정' (2026-08-06 사장님 시안)
+  // 휴가 탭 서브뷰 — '직원별 연차' / '설정' (2026-08-06 대표 시안)
   const [calendarOpen, setCalendarOpen] = useState(false);
   // 이름 클릭 → 그 구성원의 전체 연차 신청 내역, 월 셀 클릭 → 그 달 사용 내역
   const [rosterEmp, setRosterEmp] = useState<{ id: string; name: string } | null>(null);
@@ -2799,7 +2799,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     for (const req of (yearRequests as any[])) {
       if (req.status !== "approved" || !req.start_date) continue;
       //   연차 표는 연차(차감 유형)만 센다 — 공가(예비군)·경조 등 법정 별도 휴가가 연차 일수로
-      //   합산되던 것 (2026-09-01 사장님: "예비군인데 계속 연차 2일이라고 나와"). 차감 규칙과 같은 기준.
+      //   합산되던 것 ("예비군인데 계속 연차 2일이라고 나와"). 차감 규칙과 같은 기준.
       if (isNonDeductLeave(String(req.leave_type))) continue;
       const d = String(req.start_date);
       if (!d.startsWith(String(currentYear))) continue;
@@ -2812,7 +2812,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     const targets = isEmployee
       ? (myEmployee ? [myEmployee] : [])
       : activeEmployees;
-    //   순서 = 사번 순 → 가나다 → ABC (lib/people-sort, 2026-08-27 사장님 — 디렉토리·급여표와 같은 순서)
+    //   순서 = 사번 순 → 가나다 → ABC (lib/people-sort, 2026-08-27 대표 — 디렉토리·급여표와 같은 순서)
     return [...(targets as any[])].sort(comparePeople).map((e: any) => {
       const r = byEmp.get(e.id) || { total: 0, months: Array(12).fill(0), used: 0 };
       // 총 사용일수는 월별 칸의 합 — 표 안에서 눈으로 더한 값과 어긋나지 않게(시안 규약).
@@ -2990,7 +2990,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
 
   return (
     <div>
-      {/* ── 휴가 탭 서브뷰 (2026-08-06 사장님 시안) ──
+      {/* ── 휴가 탭 서브뷰 (2026-08-06 대표 시안) ──
           상단 KPI 카드는 이 탭에서 감추고, '직원별 연차'(표) / '설정'(부여 방식·휴가 유형) 로 나눈다. */}
       <div className="collect-tabs leave-subtabs">
         {([["roster", "직원별 연차"], ["requests", "신청"], ...(!isEmployee ? [["promotion", "촉진"]] : []), ["settings", "설정"]] as const).map(([k, l]) => (
@@ -3414,7 +3414,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                     </td>
                     <td className="px-5 py-3 text-center">
                       <div className="flex gap-1 justify-center">
-                        {/* 전자결재로 올라온 휴가는 여기서 처리할 수 없다 (2026-08-21 감사):
+                        {/* 전자결재로 올라온 휴가는 여기서 처리할 수 없다:
                             목록에 병합될 때 id 가 'approval-<uuid>' 라 휴가 API 를 부르면 무조건
                             실패하고 "휴가 승인 실패" 토스트만 떴다. 처리는 결재 허브에서 한다. */}
                         {r._source === "approval" ? (
@@ -3456,7 +3456,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                           );
                         })()}
                         {/* 취소 — 대기/1차승인/승인 상태. v4 H2: 본인 직원도 취소 가능(시작 전만).
-                            2026-08-11 사장님: 관리자는 승인된 건·이미 시작된 건도 사유 입력 후 취소 가능. */}
+                            2026-08-11 대표: 관리자는 승인된 건·이미 시작된 건도 사유 입력 후 취소 가능. */}
                         {(r.status === "pending" || r.status === "first_approved" || r.status === "approved") && (() => {
                           const todayKst = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
                           const isFuture = r.start_date > todayKst;
@@ -3490,7 +3490,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
       </div>
       </>)}
 
-      {/* 휴가 취소 사유 모달 (2026-08-11 사장님) — 승인 건은 사유 필수, 내역 보존 + 신청과 동일 알림 */}
+      {/* 휴가 취소 사유 모달 — 승인 건은 사유 필수, 내역 보존 + 신청과 동일 알림 */}
       {cancelTarget && (
         <div className="leave-cancel-overlay" onClick={() => !cancelMut.isPending && setCancelTarget(null)}>
           <div className="leave-cancel-panel" onClick={(e) => e.stopPropagation()}>
@@ -3533,7 +3533,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
       )}
 
       {leaveView === "settings" && (<>
-        {/* 휴가 유형 — 작은 칩으로 한 줄 (2026-08-06 사장님: 공간 차지 줄이기).
+        {/* 휴가 유형 — 작은 칩으로 한 줄 (공간 차지 줄이기).
             유형·기본 일수는 회사별로 편집 가능 — company_settings.settings.leave_types */}
         <div className="leave-type-overview">
           <div className="leave-type-head">
@@ -3627,7 +3627,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
           )}
         </div>
 
-        {/* 연차 부여 방식 — 2026-08-19 사장님 시안: 자동부여를 고르면 그 아래에서 기준(입사일/회계연도)을
+        {/* 연차 부여 방식 — 2026-08-19 대표 시안: 자동부여를 고르면 그 아래에서 기준(입사일/회계연도)을
             바로 고른다. 직접입력이면 자동 발생(매일 자정 pg_cron)도 끈다. 저장 후엔 작은 요약으로 접힘. */}
         {!isEmployee && (
           <div className="leave-grant-method-panel glass-card">
@@ -3735,7 +3735,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
           </div>
         )}
 
-        {/* 반차 시간 — 회사별 설정 (2026-08-11 사장님). 비워두면 근무시간 절반으로 자동 산정 */}
+        {/* 반차 시간 — 회사별 설정. 비워두면 근무시간 절반으로 자동 산정 */}
         {!isEmployee && companyId && <HalfDaySlotSettings companyId={companyId} />}
 
       </>)}
@@ -4105,7 +4105,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
   const [purpose, setPurpose] = useState("");
   const [submitTo, setSubmitTo] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  //   회사 도장 출력 여부 (2026-08-26 사장님: 실물 출력해 직접 날인할 땐 도장 없이 발급). 기본 켬.
+  //   회사 도장 출력 여부 (실물 출력해 직접 날인할 땐 도장 없이 발급). 기본 켬.
   const [includeSeal, setIncludeSeal] = useState(true);
 
   const db = supabase;
@@ -4251,7 +4251,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
           </div>
           <CertChoiceField label="용도" options={CERT_PURPOSE_OPTIONS} value={purpose} onChange={setPurpose} />
           <CertChoiceField label="제출처" options={CERT_SUBMIT_TO_OPTIONS} value={submitTo} onChange={setSubmitTo} />
-          {/* 회사 도장 출력 선택 (2026-08-26 사장님: 실물 출력해 직접 날인할 땐 도장 없이) */}
+          {/* 회사 도장 출력 선택 (실물 출력해 직접 날인할 땐 도장 없이) */}
           <div className="flex items-end">
             <label className="flex items-center gap-2 py-2 text-xs text-[var(--text-muted)] cursor-pointer select-none">
               <input type="checkbox" checked={includeSeal} onChange={(e) => setIncludeSeal(e.target.checked)} className="w-4 h-4 accent-[var(--primary)]" />
@@ -4505,7 +4505,7 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
   );
 }
 
-// ── 반차 시간 회사 설정 (2026-08-11 사장님 — 구성원 > 휴가 > 설정) ──
+// ── 반차 시간 회사 설정 (2026-08-11 대표 — 구성원 > 휴가 > 설정) ──
 //   오전/오후 반차의 시간 구간을 회사 규정대로 지정. 비워두면 기존처럼 근무시간 절반 자동 산정.
 //   저장처: company_settings.settings.half_day_slots — 이후 반차 "신청"부터 적용(기존 신청 시간 불변).
 function HalfDaySlotSettings({ companyId }: { companyId: string }) {

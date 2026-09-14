@@ -31,7 +31,7 @@ import {
 import { todayKst } from "@/lib/kst";
 
 /**
- * 지원사업 — 회사 자료로 걸러 주는 정부 지원정책 (2026-08-21 사장님 지시)
+ * 지원사업 — 회사 자료로 걸러 주는 정부 지원정책
  *
  * 기획: docs/20260821_PLAN_support_programs.md
  *
@@ -85,7 +85,7 @@ function SupportProgramsInner() {
   const [detail, setDetail] = useState<string | null>(null);   // 상세를 연 program id
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [view, setView] = useState<"list" | "card">("list");
-  //   기본은 적합도 높은 순 — 사장님 지시: "가장 적합하거나 바로 신청할 수 있는 것이 상단으로"
+  //   기본은 적합도 높은 순 — "가장 적합하거나 바로 신청할 수 있는 것이 상단으로"
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "fit", dir: "desc" });
 
   // ── 조건 · 패널 안은 초안이고, [조회] 를 눌러야 나간다 (기간 하나짜리가 아니라 여러 칸이라) ──
@@ -369,7 +369,7 @@ function SupportProgramsInner() {
               ? <span className="sp-synced">공고 갱신 {new Date(syncedAt).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
               : <span className="sp-synced">상시 제도만 · 공고는 아직 받지 않았습니다</span>
           }>
-            {/*   네 항목 모두 **누르면 그 조건으로 좁혀진다** (2026-08-21 사장님 지시).
+            {/*   네 항목 모두 **누르면 그 조건으로 좁혀진다**.
                   켜진 것은 눌러서 다시 끄고, 걸린 조건 칩에도 남는다 — 조회 화면 표준 그대로. */}
             <button type="button" aria-pressed={applied.ready}
               className={applied.ready ? "sp-stat-btn sp-stat-on" : "sp-stat-btn"}
@@ -574,7 +574,7 @@ function ProgramDetail({ row, onClose, onSave, onDrop, onStatus, onOpenCard }: {
 }) {
   useModalKeys(true, onClose);
   const { program: p, judgement: j } = row;
-  //   '일정에 적기' — 종전엔 /schedule 로 이동만 하고 마감일·사업명을 안 넘겨 아무것도 안 적혔다(2026-09-09 사장님).
+  //   '일정에 적기' — 종전엔 /schedule 로 이동만 하고 마감일·사업명을 안 넘겨 아무것도 안 적혔다.
   //   여기서 바로 일정을 만든다: 마감일(없으면 오늘)에 종일 일정 '[지원사업] 사업명 접수마감'.
   const { user } = useUser();
   const { toast: spToast } = useToast();

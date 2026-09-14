@@ -1,4 +1,4 @@
--- 거래처 원장: 전표처리(journal_entry_id 보유)된 세금계산서만 집계 (2026-08-26 사장님 지시).
+-- 거래처 원장: 전표처리(journal_entry_id 보유)된 세금계산서만 집계.
 --   "거래처원장에 데이터들 싹다 밀고 전표처리 한 것들만 들어와지게" — 원장은 tax_invoices 파생
 --   집계라 행 삭제 없이 조건만 추가한다. 전표처리를 하면 그 건이 다시 원장에 들어온다(가역).
 --   클라이언트 3개 조회(원장 시트·거래처 상세·에이징)도 같은 조건으로 맞춘다(같은 커밋).
@@ -27,6 +27,6 @@ AS $function$
     and ti.issue_date <= (select d1 from y)
     and ti.nts_confirm_no is not null   -- 실제 홈택스 발행분만(국세청 승인번호 보유)
     and ti.status <> 'void'             -- 무효 제외
-    and ti.journal_entry_id is not null -- 전표처리된 건만 (2026-08-26 사장님 지시)
+    and ti.journal_entry_id is not null -- 전표처리된 건만
   group by ti.partner_id, ti.type
 $function$;

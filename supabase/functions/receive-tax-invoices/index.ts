@@ -98,7 +98,7 @@ Deno.serve(withSentry("receive-tax-invoices", async (req: Request) => {
 
     runId = run?.id || null;
 
-    // Dedup 키 통일 (2026-08-19 감사): 종전엔 승인번호를 label 에 저장·대조했는데,
+    // Dedup 키 통일: 종전엔 승인번호를 label 에 저장·대조했는데,
     //   CODEF 수집 경로는 같은 승인번호를 nts_confirm_no 에 넣는다 — 서로를 중복으로
     //   인식하지 못해 같은 계산서가 두 줄로 쌓였고(부가세 이중계상), label 은 원래
     //   deal_number 용 컬럼이라 우연히 같으면 정상 건이 스킵됐다. codef-sync 와 동일하게

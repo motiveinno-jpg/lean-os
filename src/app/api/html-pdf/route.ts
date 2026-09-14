@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
       // SSRF·데이터 유출 차단: data: URI 와 자사 Supabase Storage 만 허용, 그 외 모든 네트워크 abort.
       //   예외: Pretendard 폰트 CDN(고정 프리픽스) — 서버리스 Chrome 엔 한글 폰트가 없어
-      //   이걸 막으면 발급 PDF 의 한글이 통째로 빠진다(2026-08-25 실사고: 영문·숫자만 남은 PDF).
+      //   이걸 막으면 발급 PDF 의 한글이 통째로 빠진다(영문·숫자만 남은 PDF).
       //   wrapTemplatePrintHtml 이 로드하는 정확한 경로만 연다.
       const FONT_CDN = "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@";
       await page.setRequestInterception(true);

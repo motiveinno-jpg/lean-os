@@ -69,7 +69,7 @@ export async function getPartners(companyId: string, filters?: PartnerFilters) {
 
 // ── Create or update partner ──
 
-// 사업자등록번호 표준 표기 000-00-00000 — 10자리 숫자면 하이픈 포맷으로 저장(사장님 QA 2026-07-10).
+// 사업자등록번호 표준 표기 000-00-00000 — 10자리 숫자면 하이픈 포맷으로 저장.
 export function normalizeBizNo(b?: string | null): string | null {
   if (b === undefined || b === null) return b ?? null;
   const d = String(b).replace(/[^0-9]/g, '');

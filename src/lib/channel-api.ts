@@ -1,4 +1,4 @@
-// ── 채널(스마트스토어·쿠팡) 주문 API — 서버 전용 (2026-08-26 사장님 지시) ─────────
+// ── 채널(스마트스토어·쿠팡) 주문 API — 서버 전용 ─────────
 //   브라우저에서 부르지 않는다: 두 채널 모두 CORS 가 막고, 키 평문은 서버 밖으로 나가지 않는다.
 //
 //   ★ 키는 회사가 직접 발급받아 설정 › 연동·API 키에 넣는다(2026-08-21 규칙). 한 칸에 넣도록
@@ -20,7 +20,7 @@ export type ChannelOrderRow = {
   unit_price: number | null;
   order_date: string | null;   // YYYY-MM-DD
   buyer_name: string | null;
-  //   배송 정보 — 출고(송장)에 필요하다(2026-08-26 사장님). 없으면 null.
+  //   배송 정보 — 출고(송장)에 필요하다. 없으면 null.
   recipient_name: string | null;
   recipient_phone: string | null;
   address: string | null;

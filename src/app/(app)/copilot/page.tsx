@@ -486,7 +486,7 @@ export default function CopilotPage() {
       });
       setConnErr(false);
       setConnOk(true);
-      // 위험 낮은 액션(본인 출퇴근)은 확인 없이 바로 실행 — 사장님 요청("출근 찍어줘" 한 번에).
+      // 위험 낮은 액션(본인 출퇴근)은 확인 없이 바로 실행 —("출근 찍어줘" 한 번에).
       if (act && act.tier === "immediate" && aiIndex >= 0) void runAction(aiIndex, act);
       // DB에 대화 기록 저장 (company_id는 서버 트리거가 자동 채움)
       const insertPayload = {
@@ -517,7 +517,7 @@ export default function CopilotPage() {
   const pct = usage?.usage_percent ?? 0;
   const overLimit = limitExceeded || (usage != null && usage.monthly_limit != null && usage.remaining_tokens <= 0);
   // copilot2- 프리픽스 — CSS 정의와 불일치(copilot-gauge-*)로 링에 stroke 색이 안 입혀져
-  //   게이지가 항상 빈 채로 보이던 버그 (2026-08-10 사장님 제보 "사용량 게이지로 차도록")
+  //   게이지가 항상 빈 채로 보이던 버그 ( "사용량 게이지로 차도록")
   const gaugeTone = pct >= 90 ? "copilot2-gauge-danger" : pct >= 70 ? "copilot2-gauge-warn" : "copilot2-gauge-ok";
   const estQuestions = usage?.remaining_tokens != null ? Math.max(0, Math.floor(usage.remaining_tokens / AVG_Q_TOKENS)) : 0;
 
@@ -658,7 +658,7 @@ export default function CopilotPage() {
           {/* 우: 토큰 사용량 */}
           <aside className="copilot2-side">
             <TokenCard usage={usage} pct={pct} gaugeTone={gaugeTone} estQuestions={estQuestions} />
-            {/*   물어본 질문 목차 (2026-08-24 사장님 지시) — 대화가 길어지면 한참 올려야 찾던 것을
+            {/*   물어본 질문 목차 — 대화가 길어지면 한참 올려야 찾던 것을
                   여기서 눌러 바로 간다. 질문이 없으면 그리지 않는다(빈 상자 금지). */}
             <QuestionIndex messages={messages} onJump={jumpTo} />
           </aside>
@@ -1087,7 +1087,7 @@ function TokenCard({ usage, pct, gaugeTone, estQuestions }: { usage: Usage | nul
 
       <div className="copilot2-token-rows">
         <div className="copilot2-token-row"><span>예상 질문 가능</span><b>약 {fmt(estQuestions)}회</b></div>
-        {/* '현재 모델' 행 — 2026-08-10 사장님 지시로 미표기 */}
+        {/* '현재 모델' 행 — 2026-08-10 대표 지시로 미표기 */}
         <div className="copilot2-token-row"><span>초기화</span><b>{kstDay(usage?.reset_at)}</b></div>
         <div className="copilot2-token-row"><span>마지막 갱신</span><b>{usage?.as_of ? new Date(usage.as_of).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" }) : "—"}</b></div>
       </div>

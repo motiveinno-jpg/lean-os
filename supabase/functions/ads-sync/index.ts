@@ -2,10 +2,10 @@ import { withSentry } from "../_shared/sentry.ts";
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// 광고 성과 수집 — 1차: 네이버 검색광고 (2026-08-06 사장님 지시)
+// 광고 성과 수집 — 1차: 네이버 검색광고
 //
 //   · 키는 ad_account_secrets 에 암호화돼 있고 **여기(서비스 역할)에서만** 푼다.
-//   · 광고비는 당일치가 나중에 바뀐다 — 그래서 **최근 3일을 매번 다시 덮어쓴다**(사장님 확정).
+//   · 광고비는 당일치가 나중에 바뀐다 — 그래서 **최근 3일을 매번 다시 덮어쓴다**.
 //   · 캠페인×날짜 한 줄이 단위. 같은 줄은 unique 로 묶여 있어 여러 번 돌려도 쌓이지 않는다.
 //
 //   네이버 검색광고 API 인증(공식 문서 기준):
@@ -82,7 +82,7 @@ async function naverCampaigns(sec: Secret, customerId: string): Promise<Record<s
 }
 
 /** 캠페인×날짜 성과 — /stats 를 하루씩 부른다(id 를 한 번에 여러 개 넣을 수 있다) */
-//   대시보드에서 무엇을 볼지는 사장님이 고른다 — 그래서 **매체가 주는 만큼 넓게 받아** raw 에 담아 둔다
+//   대시보드에서 무엇을 볼지는 대표 고른다 — 그래서 **매체가 주는 만큼 넓게 받아** raw 에 담아 둔다
 //   (2026-08-06: "네이버 API 에서 제공하는 모든 데이터를 대시보드에 추가할 수 있어야").
 //   넓은 목록이 거절당하면(계정 유형에 따라 없는 필드가 있다) 기본 목록으로 한 번 더 시도한다.
 //   무엇을 주는지는 **문서가 아니라 계정이 답한다** — 하나라도 없는 이름이 끼면 요청 전체가
@@ -247,7 +247,7 @@ serve(withSentry("ads-sync", async (req: Request) => {
           r = await syncNaverSA(acc, sec, days);
         } catch (e) {
           //   인증이 막히면 **키와 비밀키를 바꿔** 한 번 더 해 본다 — 둘 다 0100000000… 로 시작해
-          //   서로 바꿔 넣는 일이 잦다(2026-08-06 사장님 첫 등록에서 발생). 되면 무엇이 문제인지 알려 준다.
+          //   서로 바꿔 넣는 일이 잦다(2026-08-06 대표 첫 등록에서 발생). 되면 무엇이 문제인지 알려 준다.
           const auth = (e as { authFailed?: boolean })?.authFailed;
           if (!auth) throw e;
           let swapWorks = false;
@@ -267,7 +267,7 @@ serve(withSentry("ads-sync", async (req: Request) => {
         const msg = e instanceof Error ? e.message : String(e);
         await admin.from("ad_accounts").update({ status: "error", sync_error: msg.slice(0, 500) }).eq("id", acc.id);
         results.push({ id: acc.id, label: acc.label, ok: false, error: msg.slice(0, 300) });
-        // 무음 실패 방지 (2026-08-19 감사): 실패가 ad_accounts.sync_error 컬럼에만 남아
+        // 무음 실패 방지: 실패가 ad_accounts.sync_error 컬럼에만 남아
         //   광고 성과가 몇 주간 0으로 보여도 아무도 몰랐다 — 은행·카드 감시와 동일하게
         //   마스터 인앱 알림(24시간 dedup).
         try {

@@ -6,7 +6,7 @@ import { logRead } from "@/lib/log-read";
 // 고객센터 — 사용자가 문의를 등록하고, 내가 보낸 문의·운영자 답변을 확인하는 화면.
 //   문의 저장: support_tickets (company 스코프 RLS). 답변은 운영자(/platform/support)가 작성.
 //   답변이 등록되면 트리거가 status='answered' + 알림 발송 → 사용자는 여기서 답변 확인.
-//   2026-08-04 개편(사장님): 전화 CS 폐지 — 모든 문의를 이 문의함으로 일원화.
+//   2026-08-04 개편: 전화 CS 폐지 — 모든 문의를 이 문의함으로 일원화.
 //     화면을 크게·세련되게 + 스크린샷 첨부(support-attachments 프라이빗 버킷, 회사 폴더 스코프).
 //     첨부는 추후 AI 자동 분석(에러 진단)의 입력이 된다.
 
@@ -53,7 +53,7 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
   closed: { label: "종료", color: "var(--text-dim)" },
 };
 
-// 진행 단계 표시 (2026-08-04 사장님: "사용자에게 대기→처리중→완료 단계별로 나타나게")
+// 진행 단계 표시 ("사용자에게 대기→처리중→완료 단계별로 나타나게")
 const STEPS = ["대기", "처리중", "완료"] as const;
 const stepIndex = (status: string) => (status === "open" ? 0 : status === "in_progress" ? 1 : 2);
 
@@ -126,7 +126,7 @@ export default function SupportPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // 답변 알림 딥링크(?id=티켓) — 해당 문의를 펼치고 내역으로 스크롤 (2026-08-04 사장님 제보:
+  // 답변 알림 딥링크(?id=티켓) — 해당 문의를 펼치고 내역으로 스크롤 (
   //   답변 알림을 눌러도 대시보드로 갔다 → notification-routes 에 /support?id= 매핑 추가와 세트)
   useEffect(() => {
     try {
@@ -188,7 +188,7 @@ export default function SupportPage() {
         uploaded.push({ path, name: f.name.slice(0, 120), size: f.size });
       }
       if (uploaded.length > 0) {
-        // error 를 봐야 한다 (2026-08-20 감사): 실패하면 "사진 N장 첨부" 라고 알리면서 티켓엔
+        // error 를 봐야 한다: 실패하면 "사진 N장 첨부" 라고 알리면서 티켓엔
         //   첨부가 없고, 올린 스크린샷만 스토리지에 남았다.
         const { error: attErr } = await (db as any).from("support_tickets").update({ attachments: uploaded }).eq("id", inserted.id);
         if (attErr) {

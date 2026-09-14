@@ -1,6 +1,6 @@
 "use client";
 
-// 프로젝트 생성 v3 — 이름만 (2026-08-31 사장님: "생성할 때 템플릿 선택 없애자.
+// 프로젝트 생성 v3 — 이름만 ("생성할 때 템플릿 선택 없애자.
 //   그냥 기본 먼데이 형식(워크플로우)으로 나와서 내가 쓰고 싶은 대로 쓰게")
 //   꾸러미(시작 양식) 고르기는 생성 후 표 화면의 '템플릿' 버튼으로 옮겼다 —
 //   monday 템플릿 센터 벤치마킹(카드·미리보기·사용 버튼). TableV3 의 TplPop 참조.
@@ -26,11 +26,11 @@ export function CreateProjectV3({ companyId, userId, onClose }: {
     if (!nm) { toast("프로젝트 이름을 입력해 주세요"); return; }
     setSaving(true);
     try {
-      //   그룹 하나로 시작 (2026-08-31 사장님: "처음에 한 섹션만, 이름 자유자재로 변경,
+      //   그룹 하나로 시작 ("처음에 한 섹션만, 이름 자유자재로 변경,
       //   더 필요하면 하단 ＋새 그룹") — monday 새 보드와 같은 흐름. 3단계 기본은 폐기.
       const { data: deal, error } = await db.from("deals").insert({
         company_id: companyId, name: nm, stage: "estimate",
-        //   만든 사람이 곧 담당자 (2026-08-31 사장님: "내가 생성하면 나는 담당자로 들어가야")
+        //   만든 사람이 곧 담당자 ("내가 생성하면 나는 담당자로 들어가야")
         internal_manager_id: userId ?? null,
         item_stages: [{ id: `g_${Date.now().toString(36)}`, label: "새 그룹", color: "indigo" }],
       }).select("id").single();

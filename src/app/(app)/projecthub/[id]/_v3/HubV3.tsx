@@ -797,7 +797,7 @@ function ItemModal({ item, users, userName, stages, childItems, onClose, onPatch
   const [body, setBody] = useState(item.body || "");
   const [tags, setTags] = useState((item.tags || []).join(", "));
   const [child, setChild] = useState("");
-  //   거래처 검색 + 금액 콤마 (2026-09-01 사장님: "거래처 검색 안 됨, 금액 확인 어려움")
+  //   거래처 검색 + 금액 콤마 ("거래처 검색 안 됨, 금액 확인 어려움")
   const { user: modalUser } = useUser();
   const modalCompanyId = (modalUser as any)?.company_id as string | undefined;
   const [partnerQ, setPartnerQ] = useState(item.partner_name || "");

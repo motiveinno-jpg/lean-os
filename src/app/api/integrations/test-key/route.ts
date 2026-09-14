@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { testChannelKey } from "@/lib/channel-api";
 
-// 외부 API 인증키 연결 확인 (2026-08-21 사장님 지시 — 회사별 키)
+// 외부 API 인증키 연결 확인 (회사별 키)
 //
 // 왜 서버를 거치나
 //   ① 브라우저에서 apis.data.go.kr · bizinfo.go.kr 를 직접 부르면 **CORS 로 막힌다.**

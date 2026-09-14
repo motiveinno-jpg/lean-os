@@ -1,6 +1,6 @@
 "use client";
 
-// 3-Way 매칭 페이지 — 사장님 요청 (2026-05-21)
+// 3-Way 매칭 페이지 — (2026-05-21)
 //   세금계산서(좌) ↔ 매칭 후보 입출금(우) 추천 리스트.
 //   추천 규칙: 거래처명 / 대표자명 / 금액±10% — 하나라도 충족 시 노출.
 //   기존 /tax-invoices·/matching 의 3-way 매칭 UI 는 본 페이지로 일원화.
@@ -41,7 +41,7 @@ function Inner() {
   const [typeFilter, setTypeFilter] = useState<'all' | 'sales' | 'purchase'>("all");
   const [selectedInvoice, setSelectedInvoice] = useState<ThreeWayInvoice | null>(null);
 
-  // 회사 id — QA 2026-06-12: useState 초기화자에서 side effect(렌더 중 fetch, strict mode 2회) → useEffect 로 교정
+  // 회사 id — useState 초기화자에서 side effect(렌더 중 fetch, strict mode 2회) → useEffect 로 교정
   useEffect(() => {
     getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); });
   }, []);

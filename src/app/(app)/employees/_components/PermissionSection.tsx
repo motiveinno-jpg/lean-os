@@ -2,7 +2,7 @@
 
 // ── 마스터 권한 부여 (2026-07-30 개편 P1 → 2026-08-19 재편) ──
 //   마스터가 구성원에게 메뉴·세부 기능 권한을 부여. 저장은 set_member_permissions RPC(전체 교체).
-//   2026-08-19 재편(docs/20260819_PLAN_permission_tab_redesign.md, 사장님 "아주 좋아 진행"):
+//   2026-08-19 재편(docs/20260819_PLAN_permission_tab_redesign.md, 대표가 "아주 좋아 진행"):
 //     · 표 위 템플릿 칩(누르면 체크 교체, 저장 전) + 요약 줄(메뉴 n/N · 세부 n/N · 템플릿과의 차이 · ₩ 금액 · 바뀜 +a −b · 되돌리기)
 //     · 표 한 장(PermissionTree) + 오른쪽 '이 사람이 보게 될 메뉴' 미리보기
 //     · 저장 = 바뀐 것 확인 팝업(추가/해제 목록, 금액은 ₩) → RPC. 바뀐 게 없으면 저장 비활성.
@@ -21,7 +21,7 @@ function SidebarPreview({ checked, empName }: { checked: Set<string>; empName: s
   const moneyOn = PERMISSION_CATALOG.some((g) => g.menus.some((m) => m.money && !m.hidden && checked.has(m.route))) || checked.has("/dashboard:finance");
   return (
     <div className="perm-preview">
-      {/* 이름 — '이 사람' 대신 실제 이름으로 (2026-08-19 사장님: "이 사람이라는 명칭이 별로") */}
+      {/* 이름 — '이 사람' 대신 실제 이름으로 ("이 사람이라는 명칭이 별로") */}
       <div className="perm-preview-title">{empName}님이 사용하게 될 메뉴</div>
       {moneyOn && <div className="perm-preview-money">₩ 금액 정보 포함</div>}
       {PERMISSION_CATALOG.map((g) => {
@@ -71,7 +71,7 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
   });
   useEffect(() => { if (saved && !dirty) setChecked(new Set(saved)); }, [saved, dirty]);
 
-  // 권한 템플릿 (2026-07-30 사장님). 팀별 세트. 만들기·수정·삭제는 별도 팝업(PermissionTemplateModal).
+  // 권한 템플릿. 팀별 세트. 만들기·수정·삭제는 별도 팝업(PermissionTemplateModal).
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const  { data: templates = [] } = useQuery({
     queryKey: ["permission-templates"],
@@ -82,14 +82,14 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
     },
   });
 
-  // 템플릿 칩 = 체크 상태만 교체(미리보기). **저장을 눌러야** 실제 적용 (2026-08-19 사장님: 즉시 적용되던 것 수정)
+  // 템플릿 칩 = 체크 상태만 교체(미리보기). **저장을 눌러야** 실제 적용 (즉시 적용되던 것 수정)
   const [tplId, setTplId] = useState<string>("");
   const stageTemplate = (tpl: { id: string; name: string; perm_keys: string[] }) => {
     setChecked(new Set(tpl.perm_keys || []));
     setTplId(tpl.id);
     setDirty(true);
   };
-  //   현재 체크와 정확히 일치하는 템플릿이 있으면 그 칩이 켜진다 — "무엇이 적용돼 있는지" 보인다 (2026-08-19 사장님)
+  //   현재 체크와 정확히 일치하는 템플릿이 있으면 그 칩이 켜진다 — "무엇이 적용돼 있는지" 보인다
   const matchedTplId = useMemo(() => {
     const hit = (templates as any[]).find((t) => {
       const keys: string[] = t.perm_keys || [];

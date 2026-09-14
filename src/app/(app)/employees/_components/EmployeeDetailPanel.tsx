@@ -49,7 +49,7 @@ const TAB_MERGE: Partial<Record<DetailTab, DetailTab>> = { docs: "contracts", no
 
 export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab }: { employeeId: string; companyId: string; onClose: () => void; initialTab?: DetailTab }) {
   const { hasPerm: _panelHasPerm, isMaster: _panelIsMaster } = useMyPermissions();
-  // 급여·계좌·퇴직금은 급여 권한자만 (2026-08-19 감사): 종전엔 인력관리 권한만으로
+  // 급여·계좌·퇴직금은 급여 권한자만: 종전엔 인력관리 권한만으로
   //   전 직원 연봉·계좌번호가 보여 급여 탭의 권한 분리가 여기서 무력화됐다.
   const canSeeSalary = _panelIsMaster || _panelHasPerm("/employees:salary");
   const canRegisterLeave = _panelIsMaster || _panelHasPerm("/employees:leave");
@@ -76,7 +76,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   async function confirmTermination() {
     setTerminating(true);
     try {
-      //   상실사유·체크리스트를 실제로 저장한다(종전엔 고르기만 하고 버려졌다, 2026-09-09 사장님).
+      //   상실사유·체크리스트를 실제로 저장한다(종전엔 고르기만 하고 버려졌다, 2026-09-09 대표).
       const offboarding = {
         loss_reason: termLossReason,
         loss_reason_label: LOSS_REASONS.find((r) => r.code === termLossReason)?.label || null,
@@ -187,7 +187,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const [showCreateContract, setShowCreateContract] = useState(false);
   const [contractTitle, setContractTitle] = useState("");
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
-  // 입력 필드는 고정 목록이 아니라 '선택한 서식이 실제로 쓰는 {{변수}}' 에서 만든다(2026-07-31 사장님:
+  // 입력 필드는 고정 목록이 아니라 '선택한 서식이 실제로 쓰는 {{변수}}' 에서 만든다(
   //   근로계약·서식에서 만든 양식의 변수 입력칸이 여기 없고 금액도 안 채워지던 문제).
   const [contractFields, setContractFields] = useState<ContractField[]>([]);
 
@@ -222,7 +222,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
 
   
 
-  // 발송 취소 (2026-08-19 사장님). 상대가 열람·서명하기 전에만. 서명 링크까지 무효화된다.
+  // 발송 취소. 상대가 열람·서명하기 전에만. 서명 링크까지 무효화된다.
   const cancelPkgMut = useMutation({
     mutationFn: (pkgId: string) => cancelSentContractPackage(pkgId),
     onSuccess: (r) => {
@@ -490,7 +490,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                 {isEditing ? (<>
                   <EditField label="이름" value={editData.name} onChange={(v) => setEditData({ ...editData, name: v })} />
                   <EditField label="사번" value={editData.employee_number} onChange={(v) => setEditData({ ...editData, employee_number: v })} />
-                  {/* 목록에서 선택 + 직접 추가 (2026-08-19 사장님) — 부서는 settings 부서 관리와 공용 */}
+                  {/* 목록에서 선택 + 직접 추가 — 부서는 settings 부서 관리와 공용 */}
                   <DepartmentField companyId={companyId} value={editData.department} onChange={(v) => setEditData({ ...editData, department: v })} />
                   <PositionField companyId={companyId} value={editData.position} onChange={(v) => setEditData({ ...editData, position: v })} />
                   <EditField label="직급" value={editData.job_grade} onChange={(v) => setEditData({ ...editData, job_grade: v })} />
@@ -913,7 +913,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
         {/* Certificates Tab — 증명서 발급/이력 */}
         {detailTab === "certificates" && (
           <div className="employee-certificates-tab">
-            {/* Quick issue buttons — 용도·제출처 선택 후 발급 (2026-07-30 사장님: 이 경로에만 빠져 있었음) */}
+            {/* Quick issue buttons — 용도·제출처 선택 후 발급 (이 경로에만 빠져 있었음) */}
             <div className="flex flex-wrap gap-2 items-start">
               <CertQuickIssue type="employment" label="재직증명서" emp={emp} companyId={companyId} queryClient={queryClient} />
               <CertQuickIssue type="career" label="경력증명서" emp={emp} companyId={companyId} queryClient={queryClient} />
@@ -1094,7 +1094,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                   </div>
                 )}
                 <div className="employee-leave-grant-form">
-                  {/* 2026-08-25 사장님: 네이티브 date 입력은 연도칸이 6자리까지 먹어 월로 안 넘어갔다.
+                  {/* 2026-08-25 대표: 네이티브 date 입력은 연도칸이 6자리까지 먹어 월로 안 넘어갔다.
                       이 파일의 다른 날짜칸과 동일하게 앱 표준 DateField 로 교체 —
                       키보드로 20200310 · 2020-3-10 치면 바로 반영되고 연·월 달력도 붙는다. */}
                   <DateField value={grantForm.date} onChange={(e) => setGrantForm((p) => ({ ...p, date: e.target.value }))} style={{ width: 150 }} />
@@ -1131,7 +1131,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                 {companyLeaveTypes.slice(0, 6).map((lt) => {
                   const used = empLeaveRequests.filter((r: any) => r.leave_type === lt.value && r.status === "approved")
                     .reduce((s: number, r: any) => s + Number(r.days || 0), 0);
-                  //   '기준'은 회사 안내 일수일 뿐, 연차 외 유형은 잔여를 자동 차감·제한하지 않는다(2026-09-09 사장님).
+                  //   '기준'은 회사 안내 일수일 뿐, 연차 외 유형은 잔여를 자동 차감·제한하지 않는다.
                   //   종전 '사용 / 기준' 표기는 '몇 중 몇 남음'처럼 보여 한도인 것으로 오해됐다.
                   return <span key={lt.value} title={lt.value === "annual" ? "연차 잔여는 자동 관리됩니다" : "기준 일수는 회사 안내값 — 잔여를 자동 차감하지 않습니다"}>{lt.label} <b className="mono-number">{used > 0 ? `${used}일` : "—"}</b>{lt.defaultDays > 0 && <small className="text-[var(--text-dim)]"> · 기준 {lt.defaultDays}일</small>}</span>;
                 })}
@@ -1308,7 +1308,7 @@ interface OnboardingDocItem {
 }
 
 // 여기에 항목을 더하면 employee_files.category 체크 제약도 같이 넓혀야 한다 —
-//   안 그러면 그 줄만 업로드가 400 으로 조용히 막힌다 (2026-08-20 실사고: 5줄이 막혀 있었다).
+//   안 그러면 그 줄만 업로드가 400 으로 조용히 막힌다 (5줄이 막혀 있었다).
 const ONBOARDING_DOC_DEFAULTS: Omit<OnboardingDocItem, "completed" | "fileUrl" | "fileName" | "uploadedAt">[] = [
   { key: "resident_reg", label: "주민등록등본" },
   { key: "bank_copy", label: "통장사본" },
@@ -1357,7 +1357,7 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
   async function saveDocState(key: string, update: Partial<OnboardingDocItem>) {
     const current = { ...saved };
     current[key] = { ...current[key], ...update } as any;
-    // error 를 봐야 한다 (2026-08-20 감사): 종전엔 이 update 가 실패해도 위에서 "업로드되었습니다"
+    // error 를 봐야 한다: 종전엔 이 update 가 실패해도 위에서 "업로드되었습니다"
     //   토스트가 떠서, 직원은 냈다고 믿고 인사담당자는 안 왔다고 보는 상태가 조용히 생겼다.
     const { error } = await (supabase).from("employees").update({ onboarding_docs: current }).eq("id", employeeId);
     if (error) throw error;
@@ -1366,7 +1366,7 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
 
   
 
-  // 올린 서류 삭제 (2026-08-20 사장님 요청). 파일·원장·체크리스트 표시를 함께 지운다.
+  // 올린 서류 삭제. 파일·원장·체크리스트 표시를 함께 지운다.
   async function handleFileDelete(item: OnboardingDocItem)  {
     if (!confirm(`'${item.label}'에 올린 파일${item.fileName ? ` (${item.fileName})` : ""}을 삭제할까요?`)) return;
     setUploading(item.key);
@@ -1677,7 +1677,7 @@ function EditField({ label, value, onChange, type, inputMode }: { label: string;
 }
 
 // ── Certificate Quick Issue Button ──
-//   2026-07-30 사장님: 용도·제출처 선택이 증명서 발급 탭/마이페이지엔 있는데 이 빠른 발급엔 빠져
+//   2026-07-30 대표: 용도·제출처 선택이 증명서 발급 탭/마이페이지엔 있는데 이 빠른 발급엔 빠져
 //   있었다 → 클릭 시 선택 패널을 펼치고, 선택값을 PDF(용도/제출처 행)와 발급 이력에 반영.
 function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "employment" | "career"; label: string; emp: any; companyId: string; queryClient: any }) {
   const { toast } = useToast();

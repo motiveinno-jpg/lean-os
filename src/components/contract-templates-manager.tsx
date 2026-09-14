@@ -55,12 +55,12 @@ export default function ContractTemplatesManager({ companyId }: Props) {
     enabled: !!companyId,
   });
 
-  // 표준/회사 양식을 탭으로 분리 (2026-08-06 사장님: "회사 양식 찾으려면 너무 밑으로 내려가야 해").
+  // 표준/회사 양식을 탭으로 분리 ("회사 양식 찾으려면 너무 밑으로 내려가야 해").
   //   기본은 '우리 회사 양식' · 실제로 매일 쓰는 쪽이 먼저 보이게.
   const [listTab, setListTab] = useState<"company" | "personal" | "system">("company");
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<ContractTemplate | null>(null);
-  // 표준 양식 '복제해서 수정' 원본 · 신규 폼에 본문을 실어 연다 (2026-08-05 사장님 제보: 빈 페이지가 뜨던 문제)
+  // 표준 양식 '복제해서 수정' 원본 · 신규 폼에 본문을 실어 연다 (빈 페이지가 뜨던 문제)
   const [duplicateFrom, setDuplicateFrom] = useState<ContractTemplate | null>(null);
   // '양식 추가' → 먼저 방식 선택(근로계약과 동일): PDF 업로드 / 직접 작성 → 그 모드로 편집기 오픈.
   const [chooserOpen, setChooserOpen] = useState(false);
@@ -69,7 +69,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
   const [addPersonal, setAddPersonal] = useState(false);
   const startAdd = (mode: "html" | "pdf") => { setInitialMode(mode); setEditing(null); setDuplicateFrom(null); setAddPersonal(listTab === "personal"); setShowAdd(true); setChooserOpen(false); };
 
-  // 회사가 정한 노출 순서 · 양식관리·발송 목록이 같은 배열을 본다(2026-08-03 사장님: "순서도 내가 변경할 수 있게").
+  // 회사가 정한 노출 순서 · 양식관리·발송 목록이 같은 배열을 본다("순서도 내가 변경할 수 있게").
   const  { data: templateOrder = [] } = useQuery({
     queryKey: ["contract-template-order", companyId],
     queryFn: () => getContractTemplateOrder(companyId),
@@ -125,7 +125,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
     orderMut.mutate(combined);
   };
 
-  // 드래그로 순서 변경 (2026-08-06 사장님 요청). ▲▼ 는 그대로 두고 손잡이 드래그를 추가.
+  // 드래그로 순서 변경. ▲▼ 는 그대로 두고 손잡이 드래그를 추가.
   //   결재 '새 요청' 화면의 블록 정렬과 같은 HTML5 드래그 규약.
   //   저장 배열은 moveTemplate 과 동일하게 두 섹션의 현재 표시 순서를 합쳐 만든다.
   const [dragId, setDragId] = useState<string | null>(null);
@@ -228,7 +228,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
         </div>
       </div>
 
-      {/* 두 목록을 탭으로 분리 — 표준 양식이 길어 회사 양식이 화면 아래로 밀리던 문제(2026-08-06 사장님) */}
+      {/* 두 목록을 탭으로 분리 — 표준 양식이 길어 회사 양식이 화면 아래로 밀리던 문제 */}
       <div className="template-section-tabs seg-bar">
         <button
           onClick={() => setListTab("company")}
@@ -251,7 +251,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
         </button>
       </div>
 
-      {/* 표준(시스템) 양식 — 2026-08-03 사장님: 발송하기엔 나오는데 양식관리엔 안 보여 관리가 안 됐다.
+      {/* 표준(시스템) 양식 — 2026-08-03 대표: 발송하기엔 나오는데 양식관리엔 안 보여 관리가 안 됐다.
           전 회사 공유 행이라 삭제는 불가 → 우리 회사 목록에서만 숨긴다(숨기면 발송 목록에서도 빠짐). */}
       {listTab === "system" && (
         <div className="mb-4">
@@ -447,7 +447,7 @@ function TemplateEditorModal({
   const { toast }  = useToast();
   const readonly = editing?.is_system === true;
 
-  // 표준 양식 '복제해서 수정' · 원본 내용을 그대로 싣고 이름만 사본으로 (2026-08-05 사장님:
+  // 표준 양식 '복제해서 수정' · 원본 내용을 그대로 싣고 이름만 사본으로 (
   //   "복제해서 수정하면 빈 여백 페이지가 나온다"). 종전엔 모드만 넘기고 본문을 안 실어 빈 편집기가 떴다.
   const [name, setName] = useState(editing?.name || (duplicateFrom ? `${duplicateFrom.name} 사본` : ""));
   const [bodyHtml, setBodyHtml] = useState(editing?.body_html || duplicateFrom?.body_html || "");
@@ -457,7 +457,7 @@ function TemplateEditorModal({
   const [uploading, setUploading] = useState(false);
   const [starterId, setStarterId] = useState(duplicateFrom?.id || "");
   const [newVar, setNewVar] = useState("");
-  // '변수 추가'로 쌓아 둔 목록 (2026-08-07 사장님 시안) — 종전엔 입력하면 곧바로 본문에 꽂혀
+  // '변수 추가'로 쌓아 둔 목록 (2026-08-07 대표 시안) — 종전엔 입력하면 곧바로 본문에 꽂혀
   //   "변수를 만든다"와 "본문에 넣는다"가 한 동작이라 헷갈렸다. 이제 추가는 목록에만 쌓고,
   //   본문 작성 중 그 변수를 눌러 원하는 자리에 넣는다. 수정/복제 진입 시 기존 변수로 시작.
   const [addedVars, setAddedVars] = useState<string[]>(
@@ -469,7 +469,7 @@ function TemplateEditorModal({
     setAddedVars((prev) => (prev.includes(v) ? prev : [...prev, v]));
     setNewVar("");
   };
-  // 변수 삭제 (2026-08-10 사장님 요청) — 본문에 이미 넣은 변수면 본문 토큰까지 함께 지운다.
+  // 변수 삭제 — 본문에 이미 넣은 변수면 본문 토큰까지 함께 지운다.
   const removeVar = async (v: string) => {
     const token = `{{${v}}}`;
     const body = fileType === "markdown" ? bodyMarkdown : bodyHtml;

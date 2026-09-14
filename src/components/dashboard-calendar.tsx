@@ -2,8 +2,8 @@
 
 // 대시보드 달력 — 이번 달 일정(파랑)·직원 휴가(초록)를 달력으로 한눈에.
 //   날짜 클릭 시 그날 항목을 아래에 간략 표시, 클릭하면 /schedule 로 이동. 데이터는 MyTodosWidget 과 동일 캐시 공유.
-//   휴가 추가 (2026-08-07 사장님): 일정 아래에 "누구누구 연차" 로 이어서 보이게.
-//   2026-09-10 사장님 "크기 고정하고 지금보다 크게, 이쁘게":
+//   휴가 추가: 일정 아래에 "누구누구 연차" 로 이어서 보이게.
+//   2026-09-10 대표가 "크기 고정하고 지금보다 크게, 이쁘게":
 //     · 타일 크기를 카탈로그가 고정(dashboard/page.tsx 의 fixed) — 어떤 폭에서도 6주가 같은 모양으로 들어간다.
 //     · 앞뒤 달 날짜를 흐리게 채워 첫 줄·끝 줄이 이가 빠지지 않게 한다.
 //     · 달 이동(‹ ›)을 붙였다. 휴가는 leave_calendar 가 전 기간을 주고 일정은 달 단위로 다시 읽는다.
@@ -92,7 +92,7 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
     companyLeaveTypes.find((x) => x.value === v)?.label
     || LEAVE_TYPES.find((t) => t.value === v)?.label
     || v;
-  // 단위 우선 표기 (2026-08-11 사장님: 반차가 '연차'로 나옴) — 반차·시간차는 leave_type(annual 등)이
+  // 단위 우선 표기 (반차가 '연차'로 나옴) — 반차·시간차는 leave_type(annual 등)이
   //   아니라 leave_unit 으로 저장되므로, 단위가 있으면 그걸로 표기한다. 오전/오후는 시작시각 기준.
   const displayLabel = (l: any) => {
     if (l.leave_unit === "half_day") {
@@ -167,7 +167,7 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
   const selCount = selEvents.length + selLeaves.length;
   const selWd = WD[new Date(Number(selected.slice(0, 4)), Number(selected.slice(5, 7)) - 1, Number(selected.slice(8, 10))).getDay()];
 
-  //   고른 날이 비었으면 그 자리에 '다가오는 일정' (2026-09-10 사장님) — 빈 칸에 "없습니다" 한 줄만 두면
+  //   고른 날이 비었으면 그 자리에 '다가오는 일정' — 빈 칸에 "없습니다" 한 줄만 두면
   //   달력 아래가 그냥 빈 카드였다. 기준일은 오늘, 미래의 빈 날을 고른 경우엔 그 날.
   const anchor = selected > todayStr ? selected : todayStr;
   const upcoming = useMemo(() => {
@@ -283,7 +283,7 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
             {selEvents.length > 6 && (
               <Link href="/schedule" className="dashboard-calendar-item-more">일정 외 {selEvents.length - 6}건 →</Link>
             )}
-            {/* 휴가는 일정 아래에 이어서 — "누구누구 연차" (2026-08-07 사장님) */}
+            {/* 휴가는 일정 아래에 이어서 — "누구누구 연차" */}
             {selLeaves.slice(0, 6).map((l, i) => (
               <Link key={`l${i}`} href="/employees?tab=leave" className="dashboard-calendar-item">
                 <span className="dashboard-calendar-item-bar is-leave" />

@@ -88,7 +88,7 @@ function isImage(type: string) {
   return type.startsWith("image/");
 }
 
-// ── 서식 본문 (2026-07-31 사장님: 글 작성에 서식 추가) ──
+// ── 서식 본문 (글 작성에 서식 추가) ──
 //   새 글은 RichEditor HTML 로 저장, 기존 글은 평문 그대로 — 렌더 시 둘을 구분한다
 //   (approvals 의 description 처리와 동일 규칙).
 const isHtmlContent = (s?: string | null) => !!s && /^\s*</.test(String(s).trim());
@@ -124,7 +124,7 @@ export default function BoardPage() {
   const qc = useQueryClient();
   const companyId = user?.company_id ?? null;
   // 상단 고정·해제는 마스터(또는 '/board:pin' 위임자)만 · 아무나 남의 글까지 고정·해제하던 문제
-  //   (2026-08-05 사장님). 화면 게이트와 별개로 DB 트리거에서도 강제한다.
+  //   . 화면 게이트와 별개로 DB 트리거에서도 강제한다.
   const  { isMaster, hasPerm } = useMyPermissions();
   const canPin = role !== "partner" && (isMaster || hasPerm("/board:pin"));
 
@@ -236,7 +236,7 @@ export default function BoardPage() {
     queryFn: async () => {
       const counts: Record<number, number> = {};
       // 실명 폴이면 RPC 가 옵션별 voter_user_ids 를 함께 준다. 이걸 버리면
-      //   실명으로 만들어도 화면상 익명처럼 보인다 (2026-08-05 사장님 제보).
+      //   실명으로 만들어도 화면상 익명처럼 보인다.
       const voterIds: Record<number, string[]> = {};
       try {
         const { data, error } = await db.rpc("get_poll_results", { p_post_id: openId as string });
@@ -290,7 +290,7 @@ export default function BoardPage() {
     return map;
   }, [companyMembers, voterIdList]);
 
-  // 투표 현황 팝업 (2026-08-06 사장님 시안). 본문에는 투표자를 노출하지 않고 여기서만 본다.
+  // 투표 현황 팝업 (2026-08-06 대표 시안). 본문에는 투표자를 노출하지 않고 여기서만 본다.
   const [pollStatusPost, setPollStatusPost] = useState<Post | null>(null);
 
   // 내 표 — 본인 행만 조회(익명이어도 본인 선택 표시는 가능, RLS 본인범위).
@@ -369,7 +369,7 @@ export default function BoardPage() {
     mutationFn: async () => {
       if (!form.title.trim() || isEmptyHtml(form.content))
         throw new Error("제목과 내용을 입력하세요.");
-      // 수정은 작성자 본인만 (2026-07-31 사장님) — 버튼 노출 조건과 이중 방어
+      // 수정은 작성자 본인만 — 버튼 노출 조건과 이중 방어
       if (editing && editing.author_id !== user?.id)
         throw new Error("작성자 본인만 수정할 수 있습니다.");
 
@@ -430,7 +430,7 @@ export default function BoardPage() {
         }).select("id").single();
         if (error) throw error;
 
-        // 새 글 알림 · 회사 전원에게 (2026-08-06 사장님 요청: "누가 무슨 제목의 글을
+        // 새 글 알림 · 회사 전원에게 ("누가 무슨 제목의 글을
         //   게시판에 등록했다는 알림"). 오너뷰 안의 알림만, 메일은 보내지 않는다.
         //   entity_type=board_post 라 알림을 누르면 그 글로 바로 열린다(notification-routes).
         //   작성자 본인은 제외. 실패해도 글 등록은 이미 끝났으므로 막지 않는다.
@@ -465,10 +465,10 @@ export default function BoardPage() {
 
   const delPost = useMutation({
     mutationFn: async (id: string) => {
-      // 삭제는 작성자 본인만 (2026-07-31 사장님) — 버튼 노출 조건과 이중 방어
+      // 삭제는 작성자 본인만 — 버튼 노출 조건과 이중 방어
       if (!user?.id) throw new Error("작성자 본인만 삭제할 수 있습니다.");
       // 첨부 경로를 먼저 확보 (행이 사라지면 못 찾는다). 삭제가 성공한 뒤에 파일을 지운다.
-      //   종전엔 행만 지워 사진·문서가 board-files 에 영구히 남았다 (2026-08-20 감사).
+      //   종전엔 행만 지워 사진·문서가 board-files 에 영구히 남았다.
       const doomed = (posts as Post[]).find((p) => p.id === id);
       const { error } = await db
         .from("board_posts")
@@ -642,7 +642,7 @@ export default function BoardPage() {
   });
 
   // 투표 · 옵션 클릭은 '선택'까지만, 확인 버튼을 눌러야 서버에 반영한다
-  //   (2026-08-05 사장님 제보: 누르는 즉시 투표돼 오투표가 났다).
+  //   (누르는 즉시 투표돼 오투표가 났다).
   //   pendingVote: 아직 제출 안 한 선택. null 이면 내 기존 표(myVotes)를 그대로 표시.
   const [pendingVote, setPendingVote] = useState<{ postId: string; options: number[] } | null>(null);
   const pickOption = (postId: string, optionIndex: number, multi: boolean) => {
@@ -916,7 +916,7 @@ export default function BoardPage() {
               {POST_CATS.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          {/* 본문 — 서식 편집기 (2026-07-31 사장님: 작성칸 확대 + 서식). 기존 평문 글은 plainToHtml 로 초기화 */}
+          {/* 본문 — 서식 편집기 (작성칸 확대 + 서식). 기존 평문 글은 plainToHtml 로 초기화 */}
           <div className="board-content-editor">
             <RichEditor
               content={form.content}
@@ -1013,7 +1013,7 @@ export default function BoardPage() {
             )}
           </div>
 
-          {/* ③④ 사진·파일 첨부 — 컴팩트 2열 (2026-07-31 사장님: 첨부 영역 축소, 작성칸 확대) */}
+          {/* ③④ 사진·파일 첨부 — 컴팩트 2열 (첨부 영역 축소, 작성칸 확대) */}
           <div className="board-attach-grid">
             <div className="board-attach-block">
               <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">
@@ -1198,7 +1198,7 @@ export default function BoardPage() {
                             </span>
                           )}
                         </div>
-                        {/* 투표 전에는 결과를 감춘다 — 남의 표에 끌려가지 않게 (2026-08-06 사장님 시안).
+                        {/* 투표 전에는 결과를 감춘다 — 남의 표에 끌려가지 않게 (2026-08-06 대표 시안).
                             마감됐거나 이미 투표한 사람에게만 막대·표수를 보여준다. */}
                         {(() => {
                           const showResults = myVotes.length > 0 || expired;
@@ -1360,7 +1360,7 @@ export default function BoardPage() {
                           {p.pinned ? "고정 해제" : "상단 고정"}
                         </button>
                       )}
-                      {/* 수정·삭제 모두 작성자 본인만 (2026-07-31 사장님) */}
+                      {/* 수정·삭제 모두 작성자 본인만 */}
                       {isMine && (
                           <button
                             onClick={() => {
@@ -1661,7 +1661,7 @@ export default function BoardPage() {
   );
 }
 
-/** 투표 현황 — 항목별 투표자와 미참여 멤버 (2026-08-06 사장님 시안).
+/** 투표 현황 — 항목별 투표자와 미참여 멤버 (2026-08-06 대표 시안).
  *  본문에는 투표자를 노출하지 않고 이 팝업에서만 본다.
  *  익명 투표는 서버(get_poll_results)가 신원을 아예 주지 않으므로 인원 수만 보여준다.
  *  — 미참여 명단도 감춘다. 참여자를 역산할 수 있기 때문. */

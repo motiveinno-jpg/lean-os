@@ -297,7 +297,7 @@ function ChannelRow({ ch, active, unread, onClick, avatar }: { ch: any; active: 
       className={`chat-channel-row ${isDM ? "chat-channel-row-dm" : "chat-channel-row-team"} ${
         active ? "chat-channel-row-on bg-[var(--primary)] text-white" : "hover:bg-[var(--bg-surface)] text-[var(--text-muted)]"
       }`}>
-      {/* 1:1 은 상대 프로필 사진(users.avatar_url), 없으면 이름 첫 글자 (2026-09-07 사장님: 사진이 있는데 메신저엔 안 보인다) */}
+      {/* 1:1 은 상대 프로필 사진(users.avatar_url), 없으면 이름 첫 글자 (사진이 있는데 메신저엔 안 보인다) */}
       <span className={`chat-row-icon ${isDM ? "chat-row-icon-dm" : "chat-row-icon-team"}`}>
         {isDM ? (avatar ? <img src={avatar} alt="" className="chat-face-img" /> : (label || "?").slice(0, 1)) : "#"}
       </span>
@@ -316,7 +316,7 @@ function ChannelRow({ ch, active, unread, onClick, avatar }: { ch: any; active: 
 type Rail = "people" | "rooms" | "schedule";
 const RAILS: Rail[] = ["people", "rooms", "schedule"];
 
-// ── 구성원 한 줄 — 누르면 그 사람과의 1:1 대화가 오른쪽에 열린다 (2026-08-10 사장님 지시) ──
+// ── 구성원 한 줄 — 누르면 그 사람과의 1:1 대화가 오른쪽에 열린다 ──
 //   앱 계정이 없는 인사기록(userId 없음)은 대화를 걸 수 없으므로 흐리게 두고 이유를 적는다.
 function PersonRow({ p, active, unread, busy, isMe, onClick }: {
   p: { name: string; position: string; userId: string | null; presence?: PresenceRow | null; avatar?: string | null; status?: WorkStatus | null };
@@ -369,11 +369,11 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
   //   새 창(?embed=1)으로 열리면 셸 헤더가 없다 — 104px 을 빼면 아래가 비어 보인다.
   //   창 높이를 다 쓰도록 임베드 여백(위아래 각 20px)만 뺀다 (2026-08-10 메신저 새 창).
   const [isEmbed] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("embed") === "1");
-  //   왼쪽 아이콘 레일 — 사람(부서 → 구성원) / 채팅방 / 일정·할 일. 고른 것은 기억한다(2026-08-10 사장님 지시)
+  //   왼쪽 아이콘 레일 — 사람(부서 → 구성원) / 채팅방 / 일정·할 일. 고른 것은 기억한다
   const [rail, setRail] = useState<Rail>(selectedChannel ? "rooms" : "people");
   useEffect(() => {
     if (selectedChannel) return;                 // 채널로 들어왔으면 그 화면을 그대로 둔다
-    //   ★ '일정' 은 기억하지 않는다 (2026-08-27 사장님: "메신저 메뉴에 달력이 나오는데 이게 맞는 건지") —
+    //   ★ '일정' 은 기억하지 않는다 ("메신저 메뉴에 달력이 나오는데 이게 맞는 건지")
     //     메신저를 열면 대화부터 보여야 한다. 사람/채팅방 선택만 기억한다.
     try { const v = localStorage.getItem("chat:rail"); if (RAILS.includes(v as Rail) && v !== "schedule") setRail(v as Rail); } catch { /* 무시 */ }
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -514,7 +514,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
   const createDMMut = useMutation({
     mutationFn: () => {
       if (!userId || !companyId) throw new Error("Not authenticated");
-      //   기존 1:1 방이 있으면 재사용 — 종전엔 createDMChannel 로 매번 새 방을 만들어 대화가 쪼개졌다(2026-09-09 사장님).
+      //   기존 1:1 방이 있으면 재사용 — 종전엔 createDMChannel 로 매번 새 방을 만들어 대화가 쪼개졌다.
       return getOrCreateDMChannel({ companyId, meId: userId, otherId: dmUserId });
     },
     onSuccess: (ch: any) => {
@@ -545,11 +545,11 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
     { key: "dm", title: "1:1 대화", list: dmChannels, empty: "1:1 대화 없음" },
   ];
 
-  //   높이는 CSS 로 · zoom 안에서는 100vh 를 ÷ --app-zoom 해야 사이드바 끝선과 맞는다 (2026-08-27 사장님: "칸 크기가 좌측 사이드바랑 안 맞음")
+  //   높이는 CSS 로 · zoom 안에서는 100vh 를 ÷ --app-zoom 해야 사이드바 끝선과 맞는다 ("칸 크기가 좌측 사이드바랑 안 맞음")
   return (
     
     <div className={isEmbed ? "chat-workspace chat-workspace-embed glass-card" : "chat-workspace glass-card"}>
-      {/* ── 좌측 아이콘 레일 — 사람(부서 → 구성원) / 채팅방 (2026-08-10 사장님 지시) ── */}
+      {/* ── 좌측 아이콘 레일 — 사람(부서 → 구성원) / 채팅방 ── */}
       <nav className="chat-rail" aria-label="메신저 보기 전환">
         <button type="button" onClick={() => pickRail("people")} aria-pressed={rail === "people"}
           className={`chat-rail-btn ${rail === "people" ? "chat-rail-btn-on" : ""}`} title="구성원과 1:1 대화를 시작합니다.">

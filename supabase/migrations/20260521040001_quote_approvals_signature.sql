@@ -5,8 +5,8 @@
 --   signature_data_url   — 서명 이미지 base64 또는 storage URL
 --   signed_contract_url  — 최종 서명본 PDF storage URL (이번 라운드 NULL — 별건 후속)
 --   signed_contract_html — 서명 합성된 HTML (회사 패널에서 새 탭 렌더 → print-to-pdf)
---   signer_ip            — 외부 서명자 IP (감사)
---   signer_user_agent    — 외부 서명자 UA (감사)
+--   signer_ip — 외부 서명자 IP
+--   signer_user_agent — 외부 서명자 UA
 --   signed_at_external   — 외부 서명 완료 시각 (decided_at 와 별개 — 감사용)
 --
 -- submit_quote_decision RPC 확장 (옵션 파라미터):

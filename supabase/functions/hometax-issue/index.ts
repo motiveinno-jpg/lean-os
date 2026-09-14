@@ -102,7 +102,7 @@ function normalizeNtsConfirmNum(v: string | null | undefined): string {
 
 // 안전 변환: yyyy-mm-dd → yyyymmdd
 function toYmd(d: string | null): string {
-  // KST 오늘 (2026-08-19 감사): UTC 면 KST 새벽 발행의 작성일자가 전날(월경계면 전월)로 전송됐다.
+  // KST 오늘: UTC 면 KST 새벽 발행의 작성일자가 전날(월경계면 전월)로 전송됐다.
   if (!d) return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replaceAll("-", "");
   return d.replaceAll("-", "").slice(0, 8);
 }
@@ -189,7 +189,7 @@ function buildIssuePayload(args: {
   // 거래처 정보: invoice 컬럼 우선 → partners fallback
   const buyerCorpNum = invoice.counterparty_bizno || partner?.business_number || "";
   const buyerCorpName = invoice.counterparty_name || partner?.company_name || partner?.name || "";
-  // 2026-08-10 사장님 지적으로 발견 — 대표자·주소·이메일만 **등록된 거래처에서만** 읽고 있었다.
+  // 2026-08-10 대표 지적으로 발견 — 대표자·주소·이메일만 **등록된 거래처에서만** 읽고 있었다.
   //   계산서 행에 적어 넣어도(발행 화면에서 채워도) 국세청에는 빈칸으로 나갔다.
   //   업태·종목과 같은 규칙(계산서 값 우선 → 거래처 보조)으로 통일한다.
   const buyerCEO = invoice.counterparty_representative || partner?.representative || "";
@@ -207,7 +207,7 @@ function buildIssuePayload(args: {
   const invoiceeType = buyerNumDigits.length === 13 ? "개인" : "사업자";
 
   const myCorpNum = (company.business_number || "").replace(/\D/g, "");
-  void connectedId; // QA 2026-07-13: connectedId 는 발행 API 공식 명세에 없는 필드 — payload 에 넣으면 CF-05001(API 처리 오류) 유발 확인. 제거.
+  void connectedId; // connectedId 는 발행 API 공식 명세에 없는 필드 — payload 에 넣으면 CF-05001(API 처리 오류) 유발 확인. 제거.
   return {
     corpNum: myCorpNum,         // 회원가입 완료 사업자번호 (CODEF 필수) = 발행 주체
     issueType: "정발행",        // 수정발행에서도 "정발행"/"위수탁" 중 택1 (명세 2026-04-22)
@@ -315,7 +315,7 @@ serve(withSentry("hometax-issue", async (req) => {
       if (!comp?.business_number) {
         return new Response(JSON.stringify({ error: "회사 사업자등록번호가 없습니다. 설정 → 회사 정보에서 입력하세요." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      // QA 2026-07-13: 팝빌 join-member 는 상호/대표자/주소/업태/종목/전화번호를 전부 필수로 요구.
+      // 팝빌 join-member 는 상호/대표자/주소/업태/종목/전화번호를 전부 필수로 요구.
       //   회사 전화번호(phone) 미입력 시 빈 문자열 전송 → CF-00001(필수 파라미터 누락) → 인증서URL도 연쇄 실패.
       const missingFields = [
         !comp.name && "상호", !comp.representative && "대표자", !comp.address && "주소",
@@ -541,7 +541,7 @@ serve(withSentry("hometax-issue", async (req) => {
         error: "회사 사업자등록번호가 등록되어 있지 않습니다. 설정 → 회사 정보에서 입력하세요.",
       }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    //   과세유형 게이트 — **화면만 막으면 안 된다** (2026-08-13 사장님 지시).
+    //   과세유형 게이트 — **화면만 막으면 안 된다**.
     //   화면의 과세유형 칸은 회사 설정에 따라 줄어들지만, 예전에 '면세'로 만들어 둔 초안이
     //   그대로 남아 있을 수 있고 API 는 직접도 부를 수 있다. 실제로 국세청에 나가기 직전인
     //   여기서 한 번 더 본다. (같은 판정을 src/lib/vat-business-type.ts 가 화면에서 쓴다)
@@ -665,7 +665,7 @@ serve(withSentry("hometax-issue", async (req) => {
         console.error("[credit] consume_issue_credit failed:", (e as Error)?.message);
       }
 
-      // 발행 알림 메일 (2026-08-13 사장님) — 설정 > 은행연동 > 홈택스의 알림 주소(선택)가
+      // 발행 알림 메일 — 설정 > 은행연동 > 홈택스의 알림 주소(선택)가
       //   있을 때만. best-effort: 실패해도 발행 결과에는 영향 없음.
       try {
         const notifyEmail = String((company.tax_settings as any)?.invoice_notify_email || "").trim();
@@ -725,7 +725,7 @@ serve(withSentry("hometax-issue", async (req) => {
       error: `발행 실패 (${resultCode}): ${errorMsg}`,
       code: resultCode,
       hint,
-      // QA 2026-07-14: DB 기록 확인이 안 돼 update 에러 자체를 응답에 포함해 진단.
+      // DB 기록 확인이 안 돼 update 에러 자체를 응답에 포함해 진단.
       dbUpdateError: updErr ? { message: updErr.message, code: (updErr as any).code, details: (updErr as any).details } : null,
       debugInvoiceId: invoice_id,
       debugPayloadSent: payload,

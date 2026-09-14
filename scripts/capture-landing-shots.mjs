@@ -24,11 +24,11 @@ const BASE = process.env.BASE || "https://www.owner-view.com";
 //   2026-09-07 이전에는 모티브 [시연] 프로젝트를 썼는데, 담당자 칸에 실제 직원 실명이 들어갔다.
 const DEAL = process.env.DEAL || "dd000000-0000-4000-8000-000000000001";
 //   계정 — 기본은 모티브 계정(로컬 메모리 파일). SHOT_EMAIL/SHOT_PW 로 갈아 끼울 수 있다.
-//   ⚠️ 오너뷰는 **계정당 세션 1개**다(single-session-guard). 사장님이 쓰는 중에 이 스크립트가
-//      같은 계정으로 로그인하면 사장님 화면이 "중복 로그인"으로 튕긴다. 낮에는 QA 시드 계정을 쓰거나
-//      사장님이 안 쓰는 시간에 돌린다.
+//   ⚠️ 오너뷰는 **계정당 세션 1개**다(single-session-guard). 대표 쓰는 중에 이 스크립트가
+//      같은 계정으로 로그인하면 대표 화면이 "중복 로그인"으로 튕긴다. 낮에는 QA 시드 계정을 쓰거나
+//      대표 안 쓰는 시간에 돌린다.
 //   --qa 를 주면 QA 시드 계정으로 든다. 그 회사는 **가상 인물·샘플 자료**뿐이라 개인정보가 없고,
-//   사장님 세션도 쫓아내지 않는다. 계정 값은 여기에 또 적지 않고 blog-capture.mjs 한 곳에서 읽는다.
+//   대표 세션도 쫓아내지 않는다. 계정 값은 여기에 또 적지 않고 blog-capture.mjs 한 곳에서 읽는다.
 let EMAIL = process.env.SHOT_EMAIL, PW = process.env.SHOT_PW;
 if (process.argv.includes("--qa")) {
   const src = fs.readFileSync(path.join(process.cwd(), "scripts", "blog-capture.mjs"), "utf8");
@@ -152,7 +152,7 @@ const SETS = {
 
   // ③ 인사 — 사람이 일하고 정산되는 길.
   //    ⚠️ **가상 인물뿐인 QA 시드 회사**에서 찍는다 (`--qa`). 실제 직원 이름·급여를 공개 페이지에 올리지 않는다.
-  //       (2026-09-07 사장님 "인사 부분 가상 데이터로")
+  //       (2026-09-07 대표가 "인사 부분 가상 데이터로")
   hr: {
     qaOnly: true,
     tabSel: '.collect-tabs button:has-text("%s")',

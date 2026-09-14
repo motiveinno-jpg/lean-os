@@ -756,7 +756,7 @@ export async function generateTaxInvoicePdf(params: TaxInvoicePdfParams): Promis
 //   형광펜/글자색/글자크기/글꼴/제목/표/이미지)이 넓고, 글꼴(명조·고딕)은 jsPDF 에
 //   나눔고딕뿐이라 원리적으로 못 맞춘다.
 //   → 화면과 "같은 CSS(.approval-desc-html)"로 오프스크린 렌더 후 캔버스로 떠서 넣는다.
-//     구조상 화면 == PDF 가 보장된다(2026-07-27 사장님 요청: "아예 똑같이").
+//     구조상 화면 == PDF 가 보장된다("아예 똑같이").
 //     트레이드오프: 본문은 이미지라 PDF 내 텍스트 검색·복사 불가.
 //     (머리말 기본정보표·필드표·결재라인은 기존대로 선택 가능한 텍스트로 유지)
 
@@ -792,7 +792,7 @@ async function loadImageForPdf(src: string): Promise<{ dataUrl: string; w: numbe
 
 // ── 결재 본문(RichEditor HTML) → PDF (텍스트 유지) ─────────────────────────
 //   본문을 이미지로 떠 넣으면 화면과 100% 같지만 PDF 안에서 검색·복사가 안 된다.
-//   사장님 선택(2026-07-27): 검색 가능한 텍스트 유지. 대신 서식을 최대한 재현한다.
+//   (2026-07-27): 검색 가능한 텍스트 유지. 대신 서식을 최대한 재현한다.
 //     재현: 정렬(좌·중·우) · 굵게 · 밑줄 · 취소선 · 글자색 · 글자크기 · 형광펜 · 표 · 이미지
 //     미재현: 기울임(나눔고딕에 이탤릭 페이스 없음), 글꼴 명조/고딕(등록 폰트가 나눔고딕뿐)
 type Align = 'left' | 'center' | 'right';
@@ -939,7 +939,7 @@ function tableBlockOf(el: Element): DocBlock {
     const cells = Array.from(tr.children).map((td) => ({
       text: (td.textContent || '').replace(/\u00a0/g, ' ').trim(),
       // 정렬·굵기는 셀(td)이 아니라 셀 안 문단에 붙는다 — td 만 보면 가운데 정렬이
-      //   항상 무시됐다(2026-07-27 사장님 제보).
+      //   항상 무시됐다.
       align: alignOf(td) || innerAlign(td) || (td.tagName.toLowerCase() === 'th' ? 'center' : 'left'),
       bold: td.tagName.toLowerCase() === 'th' || innerBold(td),
     }));
@@ -1219,7 +1219,7 @@ export async function generateApprovalPdf(params: ApprovalPdfParams): Promise<Bl
 
   if (params.descriptionHtml || params.description) {
     // '내용' 라벨은 찍지 않는다 — 기안 화면에 없는 문구라 PDF 에만 생겨 보기 어색했다
-    //   (2026-07-27 사장님 요청). 위 필드 표와의 간격만 둔다.
+    //   . 위 필드 표와의 간격만 둔다.
     ensureSpace(10);
     y += 1;
     const lineHeight = 6; // mm — 기본보다 넓은 줄간격

@@ -4,14 +4,14 @@ import { koFallback } from "@/lib/ko-label";
 
 // 프로젝트 v3 — 먼데이식 표 입력 (2026-08-31 결정 130·124·132, docs/20260831_PLAN_projecthub_v3_impl.md 1단계)
 //
-//   사장님 확정: "입력은 기본적인 형태로 먼데이 형태로 · 처음 들어갔을 때부터. 간트·칸반은 보는 형태일 뿐."
+//   "입력은 기본적인 형태로 먼데이 형태로 · 처음 들어갔을 때부터. 간트·칸반은 보는 형태일 뿐."
 //   프로젝트에 들어오면 이 표가 먼저다. 표가 곧 입력이다:
 //   · 그룹 = 상태(단계) 색 띠 — 결정 132: 상태=단계=색 라벨 한 축 (deals.item_stages)
 //   · 그룹마다 인라인 ＋줄(치고 Enter), 셀 클릭 즉시 편집, 상태 셀은 색 팔레트
 //   · 커스텀 컬럼(project_item_columns) — 오른쪽 ＋로 추가, 값은 project_items.fields[key]
 //   · 숫자 컬럼은 아래 합계 줄
 //   데이터 모델은 v2.6(project_items)을 그대로 승계 — 이 파일은 화면만 바꾼다(결정 131·133).
-//   feature_on('projecthub_v3') 게이트 뒤에서만 렌더. 칸반 보기는 ＋보기로 켠다(2026-08-31 사장님
+//   feature_on('projecthub_v3') 게이트 뒤에서만 렌더. 칸반 보기는 ＋보기로 켠다(
 //   "목업대로 안 보인다" — 2단계 예정을 앞당김). 서랍·기록·기능 토글·간트는 2~3단계.
 
 import { useMemo, useRef, useState, useEffect } from "react";
@@ -131,7 +131,7 @@ export function TableV3() {
     enabled: !!companyId,
     queryFn: () => getCompanyUsers(companyId!) as Promise<UserRow[]>,
   });
-  //   거래처 칸 검색 피커 (2026-09-01 사장님: "거래처 검색 안 됨" · 2단계 예정이던 스텁을 앞당김)
+  //   거래처 칸 검색 피커 ("거래처 검색 안 됨" · 2단계 예정이던 스텁을 앞당김)
   const  { data: partners = [] } = useQuery({
     queryKey: ["pjv3-partners", companyId],
     enabled: !!companyId,
@@ -140,16 +140,16 @@ export function TableV3() {
       .select("id, name").eq("company_id", companyId!).eq("is_active", true).order("name").limit(500)) || []) as { id: string; name: string }[],
   });
   const [partnerQ, setPartnerQ] = useState("");
-  //   담당·팔로워 팝도 거래처처럼 검색해 고른다(2026-09-01 사장님 "사원 수 많으면 스크롤로 못 찾는다")
+  //   담당·팔로워 팝도 거래처처럼 검색해 고른다(2026-09-01 대표가 "사원 수 많으면 스크롤로 못 찾는다")
   const [personQ, setPersonQ] = useState("");
 
   const stages = useMemo(() => stagesOf(deal?.item_stages), [deal?.item_stages]);
   const userName = (id: string | null) => users.find((u) => u.id === id)?.name || "";
 
   // ── 검색 — 구분(kind) 칩 줄은 뺐다: v2.6 탭과 똑같이 생겨 "옛 화면 아니냐" 혼란을 줬다
-  //   (2026-08-31 사장님 지적). 돈·메모 구분은 2단계 서랍·보기에서 다룬다.
+  //   . 돈·메모 구분은 2단계 서랍·보기에서 다룬다.
   const [q, setQ] = useState("");
-  // ── 하위 작업(2026-09-01 사장님) — parent_id(v2.6 모델)로. 표·칸반·합계는 최상위 기준,
+  // ── 하위 작업 — parent_id(v2.6 모델)로. 표·칸반·합계는 최상위 기준,
   //   하위는 ▸ 펼침으로 부모 아래 들여서. 금액·숫자는 부모 셀에 '총(자기+하위 합)' ──
   const childrenOf = useMemo(() => {
     const m = new Map<string, ItemRow[]>();
@@ -191,7 +191,7 @@ export function TableV3() {
   };
   const addSubItem = async (parent: ItemRow, name: string) => {
     const kids = childrenOf.get(parent.id) || [];
-    //   만들 때는 부모 값을 복사(사장님: "복사는 하되 자유자재로 수정") — 이후엔 완전 독립.
+    //   만들 때는 부모 값을 복사("복사는 하되 자유자재로 수정") — 이후엔 완전 독립.
     //   금액·숫자·날짜류는 비운다: 부모 금액을 복사하면 총액이 이중으로 부풀고, 날짜는 하위마다 다르다.
     const copyFields: Record<string, unknown> = {};
     for (const c of cols) {
@@ -219,7 +219,7 @@ export function TableV3() {
   // ── ＋ 기능(2026-09-01 오두 갭 1차) — 반복·앞뒤 순서는 켠 프로젝트에서만. 팀 공유(deals.v3_features) ──
   const features: string[] = Array.isArray(deal?.v3_features) ? deal.v3_features : [];
   const featOn = (k: "recur" | "deps" | "billing" | "survey") => features.includes(k);
-  //   토글 결과와 '어디에 생겼는지'를 바로 말해준다 — 안 그러면 눌러도 달라진 게 없어 보인다(2026-09-01 사장님)
+  //   토글 결과와 '어디에 생겼는지'를 바로 말해준다 — 안 그러면 눌러도 달라진 게 없어 보인다
   const FEAT_ON_MSG: Record<string, string> = {
     recur: "'반복 작업'을 켰습니다. 줄 '열기' 서랍에 반복 설정이 생겼습니다",
     deps: "'앞뒤 순서'를 켰습니다. 줄 '열기' 서랍에 '앞 작업' 설정이 생겼습니다",
@@ -305,7 +305,7 @@ export function TableV3() {
   const saveField = (it: ItemRow, key: string, value: unknown) =>
     saveItem(it.id, { fields: { ...(it.fields || {}), [key]: value === "" ? null : value } });
 
-  //   다중 담당(2026-09-01 사장님 "담당자가 여러 명일 수도") — assignee_ids 가 전체,
+  //   다중 담당(2026-09-01 대표가 "담당자가 여러 명일 수도") — assignee_ids 가 전체,
   //   assignee_id 는 대표(배열 첫 명) 규약. 목록·내 작업·엑셀은 대표를 계속 읽어 파급이 없다.
   const assigneesOf = (it: ItemRow): string[] => {
     const a = ((it as any).assignee_ids || []) as string[];
@@ -441,8 +441,8 @@ export function TableV3() {
     await saveItem(id, { status: stageId });
   };
 
-  // ── 템플릿 팝업 · monday 템플릿 센터 벤치마킹(2026-08-31 사장님: 생성 때 고르지 않고 버튼→팝업).
-  //   템플릿은 **가로형**(사장님: "한 태스크당 업무처리를 하려면 가로로 보는 게 편함") —
+  // ── 템플릿 팝업 · monday 템플릿 센터 벤치마킹(생성 때 고르지 않고 버튼→팝업).
+  //   템플릿은 **가로형**("한 태스크당 업무처리를 하려면 가로로 보는 게 편함")
   //   항목을 세로로 시드하지 않고 **컬럼 정의**를 시드한다. 그룹은 안 건드린다(_v3/templates.ts) ──
   const [tplOpen, setTplOpen] = useState(false);
   const [tplCat, setTplCat] = useState<string>(TPL_CATEGORIES[0]);
@@ -540,7 +540,7 @@ export function TableV3() {
     }
   };
 
-  // ── 그룹(단계). 처음엔 한 그룹, 이름은 눌러서 바꾸고 ＋ 새 그룹으로 늘린다(2026-08-31 사장님) ──
+  // ── 그룹(단계). 처음엔 한 그룹, 이름은 눌러서 바꾸고 ＋ 새 그룹으로 늘린다 ──
   const [stageEdit, setStageEdit] = useState<string | null>(null);
   const stageEditRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => { stageEditRef.current?.focus(); stageEditRef.current?.select(); }, [stageEdit]);
@@ -565,7 +565,7 @@ export function TableV3() {
   };
 
   // ── 지우기 · 만들 수 있는 것(줄·그룹·컬럼)은 지울 수도 있어야 한다
-  //   (2026-09-01 사장님: "그룹을 추가하면 삭제 버튼이 없음. 기능 추가할 때는 사용자 편의를 무조건 고려").
+  //   ("그룹을 추가하면 삭제 버튼이 없음. 기능 추가할 때는 사용자 편의를 무조건 고려").
   //   전부 ✕ 두 번 클릭 확정(회사 양식 지우기와 같은 패턴), 3초 지나면 해제 ──
   const [delArm, setDelArm] = useState<string | null>(null); // "stage:…" | "item:…" | "col:…"
   useEffect(() => {
@@ -602,7 +602,7 @@ export function TableV3() {
     toast("줄을 지웠습니다", "success");
   };
   // ── 줄 끌어 옮기기 · ⋮⋮ 핸들로 다른 줄 앞·그룹 끝에 놓는다. 그룹이 바뀌면 상태도 같이
-  //   (2026-09-01 사장님 승인 추천 2). 순서는 그룹 안 0..n 재부여(그룹 항목 수가 작아 일괄로 충분) ──
+  //   ( 추천 2). 순서는 그룹 안 0..n 재부여(그룹 항목 수가 작아 일괄로 충분) ──
   const rowDragRef = useRef<string | null>(null);
   const [rowDropAt, setRowDropAt] = useState<string | null>(null); // "before:<itemId>" | "end:<stageId>"
   const moveRow = async (target: string) => {
@@ -649,7 +649,7 @@ export function TableV3() {
   const [colDropAt, setColDropAt] = useState<string | null>(null);
 
   // ── 내장 열(담당·상태·마감·금액)도 커스텀과 똑같이 — 숨기기·이름·이동을 deals.v3_builtin 에 저장
-  //   (2026-09-01 사장님: "템플릿 기본값도 삭제·수정·열 이동 되게, 다른 항목들도 다"). '이름' 열만
+  //   ("템플릿 기본값도 삭제·수정·열 이동 되게, 다른 항목들도 다"). '이름' 열만
   //   항목의 정체라 고정. 숨긴 열은 오른쪽 ＋에서 되살린다 ──
   type BuiltinId = "assignee" | "status" | "due" | "amount";
   type BuiltinCfg = { hidden?: string[]; labels?: Record<string, string>; order?: string[] };
@@ -757,7 +757,7 @@ export function TableV3() {
     },
   });
 
-  // ── 돈(줄에서 바로 청구, 2026-09-01 사장님 승인). 기존 견적·계약 팝업(BoardDocModal)을
+  // ── 돈(줄에서 바로 청구,). 기존 견적·계약 팝업(BoardDocModal)을
   //   v3 줄에 그대로 연결. 연결 저장 = fields.__quote / __contract  {id,no}(예약 키 · 컬럼 정의가
   //   없으니 표에는 안 보인다). ＋기능 'billing' 을 켠 프로젝트에서만 서랍에 '돈' 구역 ──
   const QUOTE_KEY = "__quote";
@@ -923,7 +923,7 @@ export function TableV3() {
     return `${rows.length}줄을 표에 넣었습니다`;
   };
 
-  // ── 설문 발송(2026-09-01 사장님 승인). 컬럼=질문, 응답 1건=줄 1개. 설정은 project_surveys,
+  // ── 설문 발송. 컬럼=질문, 응답 1건=줄 1개. 설정은 project_surveys,
   //   외부 페이지 /survey/{token} 은 project-survey 엣지 함수가 담당(anon DB 접근 0) ──
   const SV_ANSWERABLE = ["text", "longtext", "number", "date", "select", "check", "rating", "url", "tel", "place"];
   const [svOpen, setSvOpen] = useState(false);
@@ -1167,7 +1167,7 @@ export function TableV3() {
   };
 
   // ── 선택지(select 옵션) 편집 · 템플릿은 기초일 뿐, 이름·색·순서·추가·삭제 전부 사용자 것
-  //   (2026-09-01 사장님: "템플릿에서 제공하는 항목도 삭제·수정 가능하게, 위치도 자유자재로") ──
+  //   ("템플릿에서 제공하는 항목도 삭제·수정 가능하게, 위치도 자유자재로") ──
   const OPTION_COLORS = ["#9aa0b5", "#FDAB3D", "#00C875", "#E2445C", "#5559DF", "#66CCFF"];
   const [optEdit, setOptEdit] = useState(false);
   const saveOptions = async (col: ColumnDef, options: NonNullable<NonNullable<ColumnDef["settings"]>["options"]>) => {
@@ -1375,7 +1375,7 @@ export function TableV3() {
   const at = (e: React.MouseEvent) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     //   앱 전체가 zoom(--app-zoom) 안이라 fixed 좌표가 zoom 배로 다시 늘어난다 — 나눠서 보정
-    //   (2026-09-01 사장님: 오른쪽 ＋ 팝이 화면 밖으로 잘리고 클릭 안 됨). 우측·하단 여유도 확보.
+    //   (오른쪽 ＋ 팝이 화면 밖으로 잘리고 클릭 안 됨). 우측·하단 여유도 확보.
     const zEl = document.querySelector(".app-zoom");
     const zoom = zEl ? parseFloat(getComputedStyle(zEl as HTMLElement).zoom as string) || 1 : 1;
     //   화면 아래쪽 버튼(SelectionBar 등)에서 열면 팝이 잘린다 — 하단 340px 안이면 시작점을 위로 당긴다
@@ -1384,7 +1384,7 @@ export function TableV3() {
       y: Math.min(r.bottom + 4, window.innerHeight - 340) / zoom,
     };
   };
-  //   바닥 바(일괄 처리)의 팝은 버튼 '위'에 붙인다 — 하단 클램프로 화면 중간에 동떨어져 뜨던 것(2026-09-01 사장님)
+  //   바닥 바(일괄 처리)의 팝은 버튼 '위'에 붙인다 — 하단 클램프로 화면 중간에 동떨어져 뜨던 것
   const atUp = (e: React.MouseEvent) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const zEl = document.querySelector(".app-zoom");
@@ -1394,7 +1394,7 @@ export function TableV3() {
   useEffect(() => { if (!pop || pop.kind !== "select") setOptEdit(false); }, [pop]);
   useEffect(() => { if (!pop || (pop.kind !== "person" && pop.kind !== "follower")) setPersonQ(""); }, [pop]);
   useEffect(() => { setOvOpen(pop?.kind === "ovlink"); }, [pop]);
-  //   상태(그룹) 팔레트도 고정이 아니다 — 이름·색·순서·추가·삭제 (2026-09-01 사장님)
+  //   상태(그룹) 팔레트도 고정이 아니다 — 이름·색·순서·추가·삭제
   const [stEdit, setStEdit] = useState(false);
   useEffect(() => { if (!pop || pop.kind !== "status") setStEdit(false); }, [pop]);
   useEffect(() => {
@@ -1519,7 +1519,7 @@ export function TableV3() {
             return <span className="pjv3-rowbadge dim" title={`앞 작업 '${af.name}' 이(가) 끝난 뒤`}>⛓</span>;
           })()}
           <span className="min-w-0 flex-1"><EditCell it={it} colKey="name" value={it.name} align="left" /></span>
-          {/* ₩ — 견적·청구를 켠 프로젝트의 들어가는 문(2026-09-01 사장님 "달라지는 게 없다" — 효과가 서랍에만 숨어 있었다).
+          {/* ₩ — 견적·청구를 켠 프로젝트의 들어가는 문(2026-09-01 대표가 "달라지는 게 없다" — 효과가 서랍에만 숨어 있었다).
               문서가 붙은 줄은 항상 보이고(견적=파랑·계약=초록), 나머지는 호버에만. 누르면 서랍(돈 구역이 맨 위) */}
           {featOn("billing") && depth === 0 && (() => {
             const hasC = !!(it.fields as Record<string, unknown>)?.[CONTRACT_KEY];
@@ -1565,7 +1565,7 @@ export function TableV3() {
         const c = ac.col!;
         const raw = (it.fields || {})[c.key];
         const val = raw == null ? "" : String(raw);
-        //   자유도 타입들(2026-09-01 사장님 1·2차+평점·위치 전부 승인)
+        //   자유도 타입들(2026-09-01 대표 1·2차+평점·위치 전부 승인)
         if (c.type === "check") {
           const on = raw === true || raw === "true";
           return <td key={ac.key} className="pjv3-checkcell">
@@ -1692,7 +1692,7 @@ export function TableV3() {
 
   return (
     <div className="pjv3-wrap">
-      {/* 한 상자 — 제목·보기·검색·표 전부 이 안(2026-08-31 사장님: 다른 메뉴처럼 한 박스로) */}
+      {/* 한 상자 — 제목·보기·검색·표 전부 이 안(다른 메뉴처럼 한 박스로) */}
       <div className="pjv3-box">
       <div className="pjv3-head">
         <h1>{deal.name}</h1>

@@ -27,9 +27,9 @@ export type CatalogWidget = {
   desc?: string;
   category?: string;
   x?: number; y?: number; w?: number; h?: number;
-  //   크기 조절 하한 (2026-08-20 사장님: 위젯 크기 자유 조절 복원) — 신호 줄처럼 좁으면 깨지는 위젯이 정한다
+  //   크기 조절 하한 (위젯 크기 자유 조절 복원) — 신호 줄처럼 좁으면 깨지는 위젯이 정한다
   minW?: number; minH?: number;
-  //   크기 고정 (2026-09-10 사장님, 달력) — 사람이 줄이거나 늘릴 수 없고 저장된 크기도 무시한다.
+  //   크기 고정 (달력) — 사람이 줄이거나 늘릴 수 없고 저장된 크기도 무시한다.
   //   내용이 그 크기에 맞춰 설계된 위젯용. 자리 옮기기(드래그)는 그대로 된다.
   fixed?: boolean;
   render: () => React.ReactNode;
@@ -37,7 +37,7 @@ export type CatalogWidget = {
 
 function buildDefault(cat: CatalogWidget[]): Layout[] {
   // 좌표 미지정 위젯은 세 열 중 가장 낮은 열에 순서대로 — 예전 (i%3)*4·y=1000 방식은
-  //   지정 위젯이 왼쪽 열에 몰린 계정(권한 필터로 위젯이 줄어든 직원)에서 배치가 기울었다 (2026-08-11 사장님).
+  //   지정 위젯이 왼쪽 열에 몰린 계정(권한 필터로 위젯이 줄어든 직원)에서 배치가 기울었다.
   const colH = [0, 0, 0];
   // 지정 좌표 위젯이 이미 차지한 높이를 열별로 반영
   for (const w of cat) {
@@ -97,7 +97,7 @@ export function DashboardGrid({
   title?: string;
   recommended?: string[];
   sidebarCollapsed?: boolean;
-  //   머리 줄 왼쪽에 끼울 것(대시보드의 날짜·회사 이름) — '보기 설정'이 화면 최상단 오른쪽에 온다 (2026-08-20 사장님)
+  //   머리 줄 왼쪽에 끼울 것(대시보드의 날짜·회사 이름) — '보기 설정'이 화면 최상단 오른쪽에 온다
   headLeft?: React.ReactNode;
   //   관점 프리셋(대표/회계/직원) — '보기 설정' 판에서 고르면 그 위젯 묶음이 켜진다. 이후 사람이 켜고 끈 것이 이긴다.
   presets?: WidgetPreset[];
@@ -142,7 +142,7 @@ export function DashboardGrid({
 
   const activeKey = `${storageKey}::active`;
 
-  // ── 계정 단위 동기화 (2026-08-04 사장님: "다른 컴퓨터에서 로그인해도 위젯 편집 적용되게") ──
+  // ── 계정 단위 동기화 ("다른 컴퓨터에서 로그인해도 위젯 편집 적용되게") ──
   //   localStorage 는 즉시 반영용 캐시로 유지하고, 원본은 user_preferences.dashboard_grid
   //   ({ [storageKey]: { layout, active, ... } }). 마운트 시 서버 값이 로컬을 덮는다.
   const stateRef = useRef({ layout, activeIds });
@@ -278,13 +278,13 @@ export function DashboardGrid({
   const effective = useMemo(() => {
     const saved = Object.fromEntries(layout.map((l) => [l.i, l]));
     const def = Object.fromEntries(buildDefault(active).map((l) => [l.i, l]));
-    //   2026-09-03 v2 결정 149 는 크기 조절을 없앴으나 2026-09-04 사장님 "위젯 크기 설정 가능하게 세로·가로" → 편집 모드에서 다시 조절.
+    //   2026-09-03 v2 결정 149 는 크기 조절을 없앴으나 2026-09-04 대표가 "위젯 크기 설정 가능하게 세로·가로" → 편집 모드에서 다시 조절.
     //   저장본에 w·h 가 있으면 그 크기, 없으면 카탈로그 선언 크기. 빈 위젯은 한 줄로 접히고 조절 불가(결정 153 유지).
     return active.map((w) => {
       const l = saved[w.id] || def[w.id];
       //   fixed 위젯은 저장본 크기를 안 본다 — 카탈로그가 정한 크기가 곧 디자인이다(달력의 6주 격자)
       const size = w.fixed ? { w: w.w || 4, h: w.h || 5 } : { w: l.w || w.w || 4, h: l.h || w.h || 5 };
-      //   빈 위젯은 한 줄로 접되 자리는 사람이 둔 곳 그대로(2026-09-04 사장님: "오늘 일정·내 담당 업무를 사이에 넣으면 원래 자리로 돌아간다" —
+      //   빈 위젯은 한 줄로 접되 자리는 사람이 둔 곳 그대로("오늘 일정·내 담당 업무를 사이에 넣으면 원래 자리로 돌아간다"
       //   예전엔 y+100000 으로 바닥에 밀고 자리도 저장하지 않아 드래그가 무효였다)
       if (emptyIds.has(w.id)) return { i: w.id, x: l.x, y: l.y, w: size.w, h: 1, minW: 3, minH: 1, isResizable: false };
       if (w.fixed) return { i: w.id, x: l.x, y: l.y, ...size, minW: size.w, maxW: size.w, minH: size.h, maxH: size.h, isResizable: false };

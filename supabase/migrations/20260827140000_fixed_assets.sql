@@ -1,4 +1,4 @@
--- ── ERP 공백 ⑤ 고정자산 — 자산 등록 → 월 감가상각 전표 초안 (2026-08-27 사장님 "추천 순서대로") docs/20260827_PLAN_erp_gaps.md ⑤
+-- ── ERP 공백 ⑤ 고정자산 — 자산 등록 → 월 감가상각 전표 초안 (2026-08-27 대표가 "추천 순서대로") docs/20260827_PLAN_erp_gaps.md ⑤
 --   결정 65 — 새 표 fixed_assets / fixed_asset_depreciations. 옛 vault_assets(0건, 계정 연결 없음, 사이드바에서 내림)는 손대지 않는다.
 --   결정 66 — 상각: 정액(기본) = (취득가 − 잔존가) ÷ 내용월수, 정률 = 장부가 × 2 ÷ 내용월수(이중체감). 누계는 취득가 − 잔존가를 넘지 않는다.
 --   결정 67 — 월 감가상각은 한 달에 전표 하나(자산별 줄) — 초안(ai_suggested) → 사람이 확정(재무 › 전표 현황). 초안 틀은 production_voucher_drafts kind 'depreciation'.

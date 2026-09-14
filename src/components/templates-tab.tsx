@@ -153,7 +153,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
 
   const saveMut = useMutation({
     mutationFn: async () => {
-      // QA 2026-07-13: doc_templates 에 updated_at 컬럼이 없음 — 포함 시 PGRST204 400 (등록/수정 항상 실패).
+      // doc_templates 에 updated_at 컬럼이 없음 — 포함 시 PGRST204 400 (등록/수정 항상 실패).
       //   인사(리치)는 HTML을 content_json.body 에 저장 — ContractAdminPanel/구성원 발송 경로와 동일 규약.
       const payload = isRich
         ? { name: form.name, type: form.type, content_json: { body: html }, variables: form.variables }
@@ -305,7 +305,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
                 </div>
               </aside>
               {/* 우 — 문서 편집기. contract-tpl-editor: 표 편집 UX 스코프(고정 레이아웃·열/행/전체 크기
-                  드래그·셀 선택 하이라이트) — 기존 서식 안의 표도 셀 선택·크기 조절 가능 (2026-08-10 사장님) */}
+                  드래그·셀 선택 하이라이트) — 기존 서식 안의 표도 셀 선택·크기 조절 가능 */}
               <main className="flex-1 min-w-0 flex flex-col p-4">
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5 shrink-0">본문 <span className="text-[var(--text-dim)] font-normal">표와 서식, 이미지를 지원합니다.</span></label>
                 <div className="flex-1 min-h-0 contract-tpl-editor">

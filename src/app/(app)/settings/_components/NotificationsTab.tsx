@@ -130,7 +130,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
       setIosNeedsA2HS(true);
     }
 
-    //   서버(notification_prefs)가 원본, localStorage 는 폴백 (2026-08-26 사장님 제보).
+    //   서버(notification_prefs)가 원본, localStorage 는 폴백.
     //   종전엔 localStorage 만 읽어서 — 다른 기기·브라우저에서 열면 기본값(전부 ON)이 뜨고,
     //   아무 토글이나 건드리면 0.6초 자동저장이 서버에 남아 있던 OFF 를 ON 으로 되돌려 버렸다.
     (async () => {
@@ -204,7 +204,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
               prefs: prefs as never,
               updated_at: new Date().toISOString(),
             }, { onConflict: "user_id" });
-          // 서버 저장 실패를 성공으로 알리지 않는다 (2026-08-19 감사): 종전엔 console.error 후
+          // 서버 저장 실패를 성공으로 알리지 않는다: 종전엔 console.error 후
           //   성공 토스트 · localStorage 에만 남아 다른 기기·서버 발송 판정에 반영되지 않았다.
           if (error)  {
             toast(`알림 설정 서버 저장 실패: ${error.message} · 이 기기에만 임시 저장됐습니다`, "error");
@@ -414,7 +414,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
       </ChannelSection>
 
       {/* 경영 알림 조건 — 조건형 (2026-08-27 ERP 3순위).
-          알림을 받는 사람(대표·관리자)만 조건을 정한다 (2026-09-11 사장님: 일반 멤버에게도 보였다).
+          알림을 받는 사람(대표·관리자)만 조건을 정한다 (일반 멤버에게도 보였다).
           회사 자금 기준이 걸려 있는 판이라 숨기는 것으로 끝내지 않고 DB 정책도 같은 기준으로 막았다
           (마이그레이션 20260911100000). 위·아래 칸은 개인 알림 설정이라 전원에게 그대로 보인다. */}
       {canBizAlerts && <BizAlertRules companyId={companyId} />}
@@ -458,7 +458,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
       {/* 자금일보 카카오 알림톡 — 매일 KST 09:00 자동 발송. 카카오 키·심사가 끝나기 전엔 보이지 않는다(켜도 아무것도 안 온다). */}
       {KAKAO_CHANNEL_VISIBLE && <DailyReportCard companyId={companyId} />}
 
-      {/* 저장 띠(기본값으로·저장)는 2026-08-19 사장님 지시로 뺐다 — 바꾸면 자동 저장(아래 useEffect). */}
+      {/* 저장 띠(기본값으로·저장)는 2026-08-19 대표 지시로 뺐다 — 바꾸면 자동 저장(아래 useEffect). */}
     </div>
   );
 }

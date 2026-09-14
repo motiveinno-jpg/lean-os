@@ -607,7 +607,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
   // 읽음 처리 — 방을 열었을 때, 새 메시지가 도착했을 때, 그리고 창이 다시 앞으로 왔을 때.
   //   ⚠️ 메신저는 **새 창**으로 뜬다(플로팅 단추 → 팝업 창). 읽음은 이 창에서 일어나는데
   //   안읽음 뱃지는 원래 창(사이드바·플로팅 단추)에 있어서, 종전엔 원래 창이 스스로 다시
-  //   조회할 때까지 뱃지가 그대로 남았다 — 사장님이 "읽어도 답장하기 전까지 알림이 떠있다"고
+  //   조회할 때까지 뱃지가 그대로 남았다 — 대표가 "읽어도 답장하기 전까지 알림이 떠있다"고
   //   하신 것이 이것이다. localStorage 신호는 **다른 창**에서 storage 이벤트로 잡히므로
   //   이걸로 즉시 알린다 (2026-08-20).
   const markRead = useCallback(() => {
@@ -776,7 +776,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
     return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
   };
 
-  // ── 참가자를 누르면 그 사람과의 1:1 대화 (2026-08-10 사장님: "구성원을 눌러도 반응이 없다") ──
+  // ── 참가자를 누르면 그 사람과의 1:1 대화 ("구성원을 눌러도 반응이 없다") ──
   //   이미 있으면 그 방, 없을 때만 새로 — 판단은 getOrCreateDMChannel 이 그 순간 DB 를 보고 한다.
   const openDmWith = async (p: any) => {
     const targetId = p?.user_id;

@@ -243,7 +243,7 @@ serve(withSentry("cashbill-purchase-sync", async (req) => {
     // ── 중복 방지 — 기존 매입 건과 대조 ──
     //   승인번호 있는 건: 승인번호+일자. 승인번호 없는 건(국세청이 안 주는 케이스):
     //   내용 키(일자|금액|사업자번호|상호) — 종전엔 dedup 을 그냥 통과해 같은 기간을
-    //   두 번 조회하면 매입이 중복 적재돼 부가세 매입세액이 부풀었다 (2026-08-19 감사).
+    //   두 번 조회하면 매입이 중복 적재돼 부가세 매입세액이 부풀었다.
     const { data: existing } = await admin
       .from("cash_receipts")
       .select("approval_number, issue_date, amount, counterparty_bizno, counterparty_name")

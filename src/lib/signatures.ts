@@ -410,7 +410,7 @@ export async function saveSignature(
       ip_address: ipAddress || null,
     })
     .eq('id', id)
-    // 'pending' 포함 (2026-08-21 감사): 문서함 '자체 서명' 은 요청을 만든 직후(=pending) 바로
+    // 'pending' 포함: 문서함 '자체 서명' 은 요청을 만든 직후(=pending) 바로
     //   서명하는데 이 조건에 없어 **항상 실패**했고, 남은 pending 유령 행이 그 문서의 완료
     //   판정(every signed)을 영원히 false 로 만들어 다시는 자동 승인·잠금되지 않았다.
     .in('status', ['pending', 'sent', 'viewed'])
@@ -635,7 +635,7 @@ export function injectContractInlineStyles(html: string): string {
       const noColwidth = String(attrs).replace(/\scolwidth\s*=\s*(["'])[^"']*\1/gi, '');
       const noWidths = stripStyleAttrWidths(noColwidth);
       // padding 8px → 6px·10px (세로 6 가로 10) 로 살짝 콤팩트 — 짧은 텍스트 셀 비대 느낌 완화.
-      //   2026-08-28 사장님 제보: 서식이 셀에 vertical-align 을 지정해도 여기서 top 을 **뒤에** 이어붙여
+      //   서식이 셀에 vertical-align 을 지정해도 여기서 top 을 **뒤에** 이어붙여
       //   무조건 덮어썼다(rowspan 큰 납부일자·대표자 셀이 위붙음). 서식 지정이 있으면 존중한다.
       const base = /vertical-align\s*:/i.test(noWidths)
         ? "border:1px solid #cbd5e1;padding:6px 10px;word-break:keep-all"
@@ -971,7 +971,7 @@ export async function sendSignatureReminder(signatureRequestId: string): Promise
   try {
     await db.from('signature_requests').update({
       reminder_count: ((req as any).reminder_count || 0) + 1,
-      // 리마인드를 보내면 요청일(created_at)을 그 날로 갱신 (2026-08-13 사장님) —
+      // 리마인드를 보내면 요청일(created_at)을 그 날로 갱신
       //   목록의 '요청일'이 마지막으로 요청(리마인드 포함)한 시점을 보여준다. 실발송 성공 시에만.
       ...(r.success ? { created_at: new Date().toISOString() } : {}),
     }).eq('id', signatureRequestId);
@@ -1033,7 +1033,7 @@ export async function cancelSignature(id: string) {
 
   if (error) throw error;
 
-  // 서명 취소 후 문서를 draft 로 되돌린다 — 단, **남은 서명 요청이 없을 때만** (2026-08-21 감사).
+  // 서명 취소 후 문서를 draft 로 되돌린다 — 단, **남은 서명 요청이 없을 때만**.
   //   종전엔 무조건 draft 로 바꿔서, 이미 서명이 끝나 잠긴 계약서에 추가 서명자를 한 명 더
   //   요청했다가 그 요청만 취소하면 **잠금이 풀려 서명된 계약 본문을 사후에 고칠 수 있었다.**
   if (data?.document_id) {
@@ -1111,7 +1111,7 @@ export async function applyCompanySeal(params: {
 }
 
 // ── Expire Overdue Signatures ──
-/** 서명이 전부 끝났는데 문서가 아직 초안인 건을 찾아 승인·잠금까지 마무리한다 (2026-08-21 감사).
+/** 서명이 전부 끝났는데 문서가 아직 초안인 건을 찾아 승인·잠금까지 마무리한다.
  *
  *  왜 필요한가: 외부 서명자가 메일 링크(/sign?token=…)로 서명하면 익명 세션이라 문서를 만질 권한이
  *  없어, saveSignature 의 토큰 분기가 서명만 저장하고 바로 반환한다. 그래서 목록은 '서명완료' 인데

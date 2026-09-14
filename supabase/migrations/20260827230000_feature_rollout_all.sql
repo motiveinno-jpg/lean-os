@@ -1,4 +1,4 @@
--- 오늘 기능 전체 배포 (2026-08-27 사장님 승인: "오늘 것 전체 오너뷰 기능으로 배포, 고정자산 권한 백필도")
+-- 오늘 기능 전체 배포 ("오늘 것 전체 오너뷰 기능으로 배포, 고정자산 권한 백필도")
 --   feature_rollout company_id null = 전체. 게이트 코드는 그대로(다음 기능도 같은 길: 모티브 먼저 → 승인 → 여기 한 줄).
 insert into public.feature_rollout (feature, company_id, note) values
   ('closing_drafts', null, '전체 배포 2026-08-27 사장님 승인'),

@@ -66,8 +66,8 @@ export async function generateEmploymentCertificate(params: {
   employee: CertificateEmployee;
   company: CertificateCompany;
   purpose?: string;
-  submitTo?: string; // 제출처 (2026-07-29 사장님: 용도·제출처 입력 지원)
-  includeSeal?: boolean; // 회사 도장 출력 여부 — 실물로 직접 날인할 땐 끈다 (2026-08-26 사장님). 기본 true
+  submitTo?: string; // 제출처 (용도·제출처 입력 지원)
+  includeSeal?: boolean; // 회사 도장 출력 여부 — 실물로 직접 날인할 땐 끈다. 기본 true
 }): Promise<CertificateResult> {
   const { employee, company } = params;
   const purpose = params.purpose || '제출용';
@@ -112,7 +112,7 @@ export async function generateEmploymentCertificate(params: {
   if (employee.employee_number) {
     personalInfo.push(['사원번호', employee.employee_number]);
   }
-  // 2026-07-29 사장님: 입사일 행 대신 재직기간 = 입사일 ~ 발급일 자동 표기 (근속 병기)
+  // 2026-07-29 대표: 입사일 행 대신 재직기간 = 입사일 ~ 발급일 자동 표기 (근속 병기)
   personalInfo.push(
     ['소    속', employee.department || '-'],
     ['직    위', employee.position || '-'],
@@ -149,7 +149,7 @@ export async function generateEmploymentCertificate(params: {
   });
   y = (doc as any).lastAutoTable.finalY + 25;
 
-  // ── 증명 문구 — 표준 발급 서식 참고 (2026-07-29 사장님) ──
+  // ── 증명 문구 — 표준 발급 서식 참고 ──
   doc.setFontSize(13);
   doc.setTextColor(30, 30, 30);
   doc.text('상기인은 현재 재직 중에 있음을 증명합니다.', 20, y);
@@ -265,9 +265,9 @@ export async function generateCareerCertificate(params: {
   employee: CertificateEmployee;
   company: CertificateCompany;
   duties?: string[];
-  purpose?: string;  // 용도 (2026-07-30 사장님: 재직증명서와 동일하게 용도·제출처 지원)
+  purpose?: string;  // 용도 (재직증명서와 동일하게 용도·제출처 지원)
   submitTo?: string; // 제출처
-  includeSeal?: boolean; // 회사 도장 출력 여부 (2026-08-26 사장님). 기본 true
+  includeSeal?: boolean; // 회사 도장 출력 여부. 기본 true
   /** 2026-08-27 H10 — 발령 이력(hr_appointments)에서 자동으로: 소속·직위 변천을 표로 */
   history?: { date: string; text: string }[];
 }): Promise<CertificateResult> {
@@ -315,7 +315,7 @@ export async function generateCareerCertificate(params: {
   if (employee.employee_number) {
     personalInfo.push(['사원번호', employee.employee_number]);
   }
-  // 2026-07-29 사장님: 재직증명서와 동일 서식 — 기간을 한 행으로 (입사일 ~ 퇴사일/재직중, 근속 병기)
+  // 2026-07-29 대표: 재직증명서와 동일 서식 — 기간을 한 행으로 (입사일 ~ 퇴사일/재직중, 근속 병기)
   personalInfo.push(
     ['소    속', employee.department || '-'],
     ['직    위', employee.position || '-'],
@@ -406,7 +406,7 @@ export async function generateCareerCertificate(params: {
     y += 15;
   }
 
-  // ── 증명 문구 — 재직증명서와 동일 서식 (2026-07-29 사장님) ──
+  // ── 증명 문구 — 재직증명서와 동일 서식 ──
   doc.setFontSize(13);
   doc.setTextColor(30, 30, 30);
   doc.text(

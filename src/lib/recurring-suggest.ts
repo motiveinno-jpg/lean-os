@@ -82,6 +82,6 @@ export function detectRecurringCandidates(
       txIds: near.map((t) => String(t.id)).filter(Boolean),
     });
   }
-  //   금액 큰 순 — 사장님이 먼저 볼 것
+  //   금액 큰 순 — 대표 먼저 볼 것
   return out.sort((a, b) => b.amount - a.amount);
 }

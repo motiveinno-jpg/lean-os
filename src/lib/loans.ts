@@ -235,7 +235,7 @@ export async function autoMatchLoanPayments(companyId: string): Promise<LoanMatc
     .from('bank_transactions')
     .select('*')
     .eq('company_id', companyId)
-    // QA 2026-07-10: type 값은 'expense'(출금), 컬럼은 transaction_date — 'outgoing'/'date' 는 0건+400 이었음
+    // type 값은 'expense'(출금), 컬럼은 transaction_date — 'outgoing'/'date' 는 0건+400 이었음
     .eq('type', 'expense')
     .or('mapping_status.is.null,mapping_status.neq.matched')
     .order('transaction_date', { ascending: false })
@@ -369,7 +369,7 @@ export async function acceptLoanMatch(candidate: LoanMatchCandidate): Promise<vo
   // updated_at 은 bank_transactions 에 없는 컬럼 — 넣으면 update 전체가 400 (매칭 표시 무음 실패)
   //   mapping_status 는 unmapped|auto_mapped|manual_mapped|ignored 만 허용 — 'matched' 는 400 이었고
   //   error 를 안 봐서 "상환 매칭이 반영되었습니다" 토스트가 뜬 채 거래는 unmapped 로 남아
-  //   같은 후보가 계속 다시 떴다 (2026-08-20 감사).
+  //   같은 후보가 계속 다시 떴다.
   const { error: mapErr } = await db.from('bank_transactions').update({
     mapping_status: 'manual_mapped',
     deal_id: null,

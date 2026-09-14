@@ -41,7 +41,7 @@ function annualDays(years: number): number  {
 }
 
 /**
- * 입사일부터 기준일까지 **법으로 생긴** 연차를 시점별로 모은다 (2026-08-14 사장님: "누적도 확인").
+ * 입사일부터 기준일까지 **법으로 생긴** 연차를 시점별로 모은다 ("누적도 확인").
  *
  *   ★ 여기서 세는 것은 **생긴 연차(발생)** 다. 쓴 날·소멸분·수당으로 정산한 분은 빼지 않는다 —
  *     그건 회사의 사용 기록이 있어야 알 수 있고, 계산기는 그 기록을 모른다.
@@ -149,7 +149,7 @@ export default function LeaveCalculatorView() {
             <div className="tl8-fields">
               {/*   달력은 오너뷰 안에서 쓰는 것과 같은 부품(DateField) — 브라우저·OS 마다 다르게
                     생기는 <input type="date"> 대신, 열리는 달력까지 우리 디자인으로 통일한다
-                    (2026-08-14 사장님). onChange 가 input 호환이라 계산 로직은 그대로다. */}
+. onChange 가 input 호환이라 계산 로직은 그대로다. */}
               <label className="tl8-field">
                 <span className="tl8-label">입사일</span>
                 <DateField className="tl8-input" value={hire} max={base} onChange={(e) => setHire(e.target.value)} />
@@ -165,7 +165,7 @@ export default function LeaveCalculatorView() {
                 <div className="tl8-result-main">
                   <span className="tl8-result-num">{result.days}일</span>
                   {/*   큰 숫자가 무엇인지 분명히 적는다 — 그냥 '현재 발생 연차'라고만 하면
-                        "지금까지 쌓인 전부"로 읽힌다(2026-08-14 사장님이 실제로 그렇게 읽으셨다).
+                        "지금까지 쌓인 전부"로 읽힌다(2026-08-14 대표 실제로 그렇게 읽으셨다).
                         연차는 1년 단위로 부여되므로 이 숫자는 **이번 1년치**다. */}
                   <span className="tl8-result-cap">
                     근속 {result.years >= 1 ? `만 ${result.years}년 ${result.months}개월` : `${result.months}개월`}
@@ -185,7 +185,7 @@ export default function LeaveCalculatorView() {
                       : <>{fmtDate(result.nextDate)}에 <b>{result.nextLabel}</b></>}
                   </div>
 
-                  {/*   누적 — 입사일부터 지금까지 **생긴** 연차의 합계와 그 내역 (2026-08-14 사장님).
+                  {/*   누적 — 입사일부터 지금까지 **생긴** 연차의 합계와 그 내역.
                         합계만 두면 "지금 쓸 수 있는 날"로 읽히므로, 내역을 같이 펼쳐 어떻게 그
                         숫자가 되는지 보이게 하고 · 쓴 날은 빼지 않았다는 걸 바로 아래 적는다.
                         1년 미만은 위 큰 숫자가 이미 누적과 같은 값이라 이 칸을 만들지 않는다. */}

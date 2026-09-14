@@ -134,7 +134,7 @@ function VaultPageInner() {
     enabled: !!companyId,
   });
 
-  // 접근 로그의 사용자 ID → 이름 표시용 (2026-08-11 사장님 제보: ID 조각 노출 정리)
+  // 접근 로그의 사용자 ID → 이름 표시용 (ID 조각 노출 정리)
   const { data: memberNames = {} } = useQuery<Record<string, string>>({
     queryKey: ["vault-member-names", companyId],
     queryFn: async () => {

@@ -119,7 +119,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
   };
 
-  // 사업자번호 국세청 자동확인 (2026-08-10 사장님 제보: 없는 번호로도 수정되던 것). 거래처 추가와 동일 패턴.
+  // 사업자번호 국세청 자동확인 (없는 번호로도 수정되던 것). 거래처 추가와 동일 패턴.
   //   10자리 입력 시 즉시 조회해 상태 표시, 저장 시 미등록·체크섬 오류는 차단(휴폐업은 확인 후 진행).
   const [bizStatus, setBizStatus] = useState<{ status: string; loading: boolean } | null>(null);
   const onBizNoChange = (val: string) => {
@@ -151,7 +151,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
         const ok = await appConfirm(`국세청 기준 ${r.status} 상태의 번호입니다. 이 번호로 저장할까요?`, { title: "사업자 상태 확인", confirmLabel: "저장" });
         if (!ok) return;
       }
-      // 확인불가(API 장애)는 저장 허용 — 장애로 사장님 발이 묶이지 않게 (fail-open)
+      // 확인불가(API 장애)는 저장 허용 — 장애로 대표 발이 묶이지 않게 (fail-open)
     }
     saveMut.mutate();
   };
@@ -429,7 +429,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
             />
           </div>
         </div>
-        {/* 과세유형 — 무엇을 발행할 수 있는지가 여기서 갈린다 (2026-08-13 사장님 지시).
+        {/* 과세유형 — 무엇을 발행할 수 있는지가 여기서 갈린다.
             예전엔 발행 폼에만 과세/영세율/면세 칸이 있고 회사가 무슨 사업자인지는 아무도 안 봐서,
             광고대행(전부 과세)인 회사에서도 '면세'를 골라 전자계산서를 낼 수 있었다. */}
         <div className="stg-frow">
@@ -639,7 +639,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
       {/* 회사 문서 (법인 서류) — 계약 발송·현황에서 이관(2026-07-23). 업로드 상태·보기·교체·삭제 지원 */}
       <CompanyDocsSection companyId={companyId} />
 
-      {/*   2026-08-21 사장님 지시로 여기서 세 가지를 뺐다 — 회사정보가 잡화점이었다.
+      {/*   2026-08-21 대표 지시로 여기서 세 가지를 뺐다 — 회사정보가 잡화점이었다.
               · 세무 파트너   → 회계·세무 그룹의 '세무 파트너' 탭
               · 접속 허용 IP  → 시스템 그룹의 '보안·알림' 탭
               · 결재 총괄 알림 → 같은 '보안·알림' 탭 (결재 허브로 옮기는 것이 더 맞다 — 후속)
@@ -680,7 +680,7 @@ export function TaxAdvisorSection()  {
     },
   });
   // 마스터 전용 RPC · 비마스터는 호출 자체를 안 한다 (forbidden 거절이 운영자
-  //   오류 목록에 쌓이던 것, 2026-08-12 사장님: 게이트 넣어 안 쌓이게)
+  //   오류 목록에 쌓이던 것, 2026-08-12 대표: 게이트 넣어 안 쌓이게)
   const  { isMaster } = useMyPermissions();
   const { data: catalog = [], error: catalogError } = useQuery({
     queryKey: ["company-advisor-catalog"],

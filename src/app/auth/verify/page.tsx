@@ -27,7 +27,7 @@ export default function VerifyEmailPage() {
       if (completed) return;
       completed = true;
       // 간편로그인(카카오/구글)은 로그인 때마다 이 페이지를 거친다. 기존 회원 재로그인에도
-      //   "가입이 완료되었습니다 · 3초 후 이동" 축하 화면이 매번 떠서(2026-08-10 사장님 제보)
+      //   "가입이 완료되었습니다 · 3초 후 이동" 축하 화면이 매번 떠서
       //   계정을 방금 만든 경우(10분 이내)에만 축하 화면을 보여 주고, 그 외에는 바로 이동한다.
       const createdAt = user?.created_at ? Date.parse(user.created_at) : NaN;
       const isNewSignup = Number.isFinite(createdAt) && Date.now() - createdAt < 10 * 60 * 1000;

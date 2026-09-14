@@ -6,7 +6,7 @@
 //    요금 카드 2장 → 플랜별 기능 표 → 따로 구독할 때와 비교 → 상담·시작.
 //  ▸ 숫자는 전부 props.plans(DB subscription_plans)에서 만든다. 여기 숫자를 직접 적지 않는다.
 //    예외 = 추가 구매 단가(billing/page.tsx 의 묶음 표와 같은 값)·개별 도구 참고가(COMPETITORS) — 표 옆 주석 참조.
-//  ▸ 옛 화면에서 사장님이 걷어낸 「요금 FAQ」는 다시 넣지 않는다(가격은 상담으로 잇는다, 2026-07-27).
+//  ▸ 옛 화면에서 대표 걷어낸 「요금 FAQ」는 다시 넣지 않는다(가격은 상담으로 잇는다, 2026-07-27).
 //  ▸ 스타일은 landing-v8.css `.lp8 .pr8-*`.
 // ══════════════════════════════════════════════════════════════
 import { useState } from "react";
@@ -24,7 +24,7 @@ const Check = () => (
 
 type Row = { name: string; free: string; paid: string };
 
-/* 플랜별 기능 표 — 숫자 칸은 DB, 나머지는 기능 유무(2026-08-11 사장님 확정 표 그대로).
+/* 플랜별 기능 표 — 숫자 칸은 DB, 나머지는 기능 유무( 표 그대로).
    ⚠️ 유무 칸을 바꾸려면 실제 기능 게이트(entitlement·sync-cooldown 등)를 먼저 확인할 것. */
 function matrix(free: PlanRow, paid: PlanRow): { group: string; rows: Row[] }[] {
   const seats = (p: PlanRow) =>

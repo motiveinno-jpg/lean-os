@@ -1,10 +1,10 @@
 "use client";
 
-// ── 재고 — 전표 입력기 (2026-08-25 사장님 지시) ────────────────────────────────
+// ── 재고 — 전표 입력기 ────────────────────────────────
 //   주문서·판매·구매·생산이 **이것 하나**를 같이 쓴다. 수정 화면도 이것이다(팝업에 그대로 담는다).
 //   따로 만들면 칸·규칙이 둘로 갈라지고 한쪽에 칸을 더할 때 다른 쪽엔 없어진다.
 //
-//   ★ Enter = **그 칸 하나만** 윗줄에서 내리고 다음 칸으로 (2026-08-11 사장님이 매입매출전표에서 정한 규칙).
+//   ★ Enter = **그 칸 하나만** 윗줄에서 내리고 다음 칸으로 (2026-08-11 대표 매입매출전표에서 정한 규칙).
 //     한 줄이 통째로 내려오면 한 칸만 다른 건을 칠 때 내려온 값을 도로 지워야 한다.
 //   ★ 새 줄은 백지다 — 내리는 건 Enter 로 사람이 고른다.
 //   ★ 합계는 칠 수 없다(공급가액+부가세라 셀 수 있는 값이다). Enter 차례에서도 건너뛴다.
@@ -59,19 +59,19 @@ export const blankRow = (): DocRow => ({
 export function useDocEditor(companyId: string | null, userId: string | null, formKey: FormKey, products: Product[]) {
   const { toast }  = useToast();
   const qc = useQueryClient();
-  //   ★ 들어오면 **오늘 날짜**가 이미 들어가 있다(사장님 지시). 매번 치게 하지 않는다.
+  //   ★ 들어오면 **오늘 날짜**가 이미 들어가 있다. 매번 치게 하지 않는다.
   const [head, setHead] = useState<Record<string, string>>(() => ({ date: todayKst() }));
   const [rows, setRows] = useState<DocRow[]>(() => Array.from({ length: 5 }, blankRow));
   const [editing, setEditing] = useState<Order | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  //   ★ 결정 35 (2026-08-26 사장님: "바코드를 찍으면 무조건 양품 1건?"). 스캔이 들어갈 칸. 생산 양식만 불량을 쓴다.
+  //   ★ 결정 35 ("바코드를 찍으면 무조건 양품 1건?"). 스캔이 들어갈 칸. 생산 양식만 불량을 쓴다.
   //     제어 바코드 *GOOD* / *DEFECT* 를 찍어도 바뀐다(손을 안 대고). 마지막 스캔은 조회 줄에 잠깐 보여 준다.
   const [scanMode, setScanMode] = useState<"qty" | "defect">("qty");
   const [lastScan, setLastScan] = useState<{ name: string; qty: number; defect: number; col: "qty" | "defect" } | null>(null);
   const [draft, setDraft] = useState<Layout | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const headRef = useRef<HTMLDivElement>(null);
-  /** ★ 들어오면 커서는 **일자의 '일' 자리**(2026-08-26 사장님) — 날짜만 고치고 Tab 으로 거래처·창고·담당자·납기일 순서로 간다. */
+  /** ★ 들어오면 커서는 **일자의 '일' 자리** — 날짜만 고치고 Tab 으로 거래처·창고·담당자·납기일 순서로 간다. */
   const focusDate = useCallback(() => {
     const el = headRef.current?.querySelector<HTMLInputElement>("input");
     if (!el) return;
@@ -197,7 +197,7 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
 
   /** ★ Enter — 그 칸 하나만 윗줄에서 내리고 다음 칸으로. 끝 칸이면 아래 줄 첫 칸(없으면 새 줄). */
   const onCellKey = useCallback((e: React.KeyboardEvent, i: number, key: string) => {
-    //   ★ ↓/↑ — 같은 칸으로 아랫줄/윗줄. 마지막 줄에서 ↓ 면 새 줄(2026-08-26 사장님: 마지막 줄에서 엔터·아래로 줄이 생기게)
+    //   ★ ↓/↑ — 같은 칸으로 아랫줄/윗줄. 마지막 줄에서 ↓ 면 새 줄(마지막 줄에서 엔터·아래로 줄이 생기게)
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setRows((s) => (i === s.length - 1 ? [...s, blankRow()] : s));
@@ -370,7 +370,7 @@ export function DocHead({ ctl, warehouses, partners, staff }: {
         <label key={f.field_id} className="doc-fld">
           <span className="field-label">{f.name}{f.lock ? <b> *</b> : null}</span>
           <div className="doc-fld-in">
-            {/*   ★ 날짜는 한 칸에 다 친다(사장님 지시) — 20260825 · 0825 · 8-25 다 알아듣고,
+            {/*   ★ 날짜는 한 칸에 다 친다 — 20260825 · 0825 · 8-25 다 알아듣고,
                   오른쪽 달력으로 골라도 된다. 일반전표·매입매출전표가 쓰는 그 칸이다. */}
             {f.field_id === "date" ? (
               <DateField value={head.date || ""} onChange={(e) => set("date", e.target.value)} className="field-input" />
@@ -387,7 +387,7 @@ export function DocHead({ ctl, warehouses, partners, staff }: {
                     setDrop(f.field_id);
                   }}
                   
-                  //   ★ 커서만 왔다고 목록을 펼치지 않는다. 남의 칸을 덮는다(2026-08-18 사장님 규칙).
+                  //   ★ 커서만 왔다고 목록을 펼치지 않는다. 남의 칸을 덮는다(2026-08-18 대표 규칙).
                   //     글자를 치면 열리고, 빈 칸에서 목록을 보고 싶으면 ↓ 를 누른다.
                   onKeyDown={(e) => { if (e.key === "ArrowDown" && drop !== f.field_id) { e.preventDefault(); setDrop(f.field_id); } }} />
                 {drop === f.field_id && (
@@ -430,7 +430,7 @@ const W: Record<string, string> = {
 };
 const NUMS = new Set(["qty", "defect", "price", "supply", "vat"]);
 const LEFTS = new Set(["sku", "spec", "lnote", "ono", "ccode", "buyer", "rcv", "tel", "zip", "addr", "memo"]);
-//   ★ 채널에서 가져온 줄(ch 있음)은 채널이 준 값을 **고칠 수 없다**(2026-08-26 사장님 · 데이터가 틀려지는 것을 막는다).
+//   ★ 채널에서 가져온 줄(ch 있음)은 채널이 준 값을 **고칠 수 없다**(2026-08-26 대표 · 데이터가 틀려지는 것을 막는다).
 //     사람이 손대는 칸은 품목(연결이 없을 때 고르기)·규격·비고·직접 추가한 항목뿐이다.
 const IMPORTED_RO = new Set(["ono", "ccode", "buyer", "rcv", "tel", "zip", "addr", "memo", "qty", "price", "supply", "vat"]);
 
@@ -448,7 +448,7 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
   };
   const anySrc = rows.some((r) => r.src);
 
-  //   ★ 바코드 스캔(2026-08-26 사장님) — 스캐너는 키보드다: 코드를 치고 Enter 를 보낸다.
+  //   ★ 바코드 스캔 — 스캐너는 키보드다: 코드를 치고 Enter 를 보낸다.
   //     친 글자가 어느 품목의 바코드와 **정확히** 같으면 고르개를 거치지 않고 그 품목을 잡고 수량 1을 넣는다.
   //     같은 바코드를 또 찍으면 새 줄을 만들지 않고 **그 줄 수량을 +1** 한다. 커서는 다음 빈 줄 품목 칸으로 — 연속 스캔.
   const choose = (i: number, p: Product, scanned = false) => {
@@ -530,7 +530,7 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
                   const raw = id.startsWith("f_") ? (r.custom[id] || "") : String((r as any)[id] ?? "");
                   const shown = NUMS.has(id) && raw !== "" ? won(num(raw)) : raw;
                   //   ★ 채널 칸은 **읽기 전용** — 붙여넣기·가져오기가 정한 채널이 그대로 남는다. 비었으면 '—'.
-                  //     사람이 바꾸면 불러온 내용과 달라진다(2026-08-26 사장님). 손으로 친 줄은 채널이 없어 저장이 막힌다.
+                  //     사람이 바꾸면 불러온 내용과 달라진다. 손으로 친 줄은 채널이 없어 저장이 막힌다.
                   if (id === "ch") {
                     return (
                       <td key={id} className="cell tc doc-cell-ch">

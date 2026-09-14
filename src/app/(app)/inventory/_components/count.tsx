@@ -1,6 +1,6 @@
 "use client";
 
-// ── 재고 › 창고관리 › 실사 (2026-08-25 사장님 지시) ────────────────────────────────
+// ── 재고 › 창고관리 › 실사 ────────────────────────────────
 //   ★ 결정 9 — 숫자를 덮어쓰지 않는다. 차이만 '실사 조정' 한 건으로 남긴다.
 //   ★ 결정 10 — **안 센 줄은 건드리지 않는다.** 빈 칸과 0 은 다르다. 칸을 비워 두면 조정에서 빠진다.
 //   ★ 결정 11 — 차이는 **반영하는 순간의 장부**와 견준다. 세는 동안 움직인 줄은 화면이 따로 표시한다.
@@ -44,7 +44,7 @@ export function useStockCount(companyId: string | null, userId: string | null, c
 
   const head = useMemo(() => (counts.data || []).find((c) => c.id === openId) || null, [counts.data, openId]);
 
-  //   ★ 바코드·SKU 찍기 (2026-08-26 사장님 "실사 입력이 불편") — 찍을 때마다 그 품목의 센 수량 +1. 줄을 찾아 표시한다.
+  //   ★ 바코드·SKU 찍기 (2026-08-26 대표가 "실사 입력이 불편") — 찍을 때마다 그 품목의 센 수량 +1. 줄을 찾아 표시한다.
   const [lastScan, setLastScan] = useState<string | null>(null);
   const scanCode = async (raw: string): Promise<string> => {
     const code = raw.trim();
@@ -303,7 +303,7 @@ export function CountBody({ ctl, warehouses, onhand, productById }: {
                       <input className="field-input inv-count-input" inputMode="numeric" placeholder="—" value={raw} data-count-row={idx}
                         onChange={(e) => ctl.setDraft((s) => ({ ...s, [l.id]: e.target.value }))}
                         
-                        //   ★ Enter/↓ 다음 줄, ↑ 이전 줄 · 마우스 없이 위에서 아래로 죽 친다(2026-08-26 사장님). 저장은 칸을 떠날 때.
+                        //   ★ Enter/↓ 다음 줄, ↑ 이전 줄 · 마우스 없이 위에서 아래로 죽 친다. 저장은 칸을 떠날 때.
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === "ArrowDown") { e.preventDefault(); ctl.focusRow(idx + 1); }
                           else if (e.key === "ArrowUp") { e.preventDefault(); ctl.focusRow(idx - 1); }

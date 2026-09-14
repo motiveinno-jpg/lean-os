@@ -22,7 +22,7 @@ const db = supabase;
 // ═══════════════════════════════════════════════════════════════════════
 
 export interface MonthlyBudget {
-  month: string;          // '2026-01'
+  month: string; // '2026-01'
   incomeTotal: number;
   bankBalance: number;
   salesRevenue: number;
@@ -32,14 +32,14 @@ export interface MonthlyBudget {
   expenseTotal: number;
   fixedCosts: number;
   variableCosts: number;
-  netProfit: number;      // cumulative
+  netProfit: number; // cumulative
 }
 
 export interface FixedCostItem {
   id: string;
   name: string;
   amount: number;
-  paymentDay: number;     // day of month
+  paymentDay: number; // day of month
   category: 'office' | 'insurance' | 'loan' | 'salary' | 'subscription' | 'tax' | 'other';
   isRecurring: boolean;
   startDate?: string;
@@ -48,9 +48,9 @@ export interface FixedCostItem {
 }
 
 export interface DailyCashProjection {
-  date: string;           // 'YYYY-MM-DD'
+  date: string; // 'YYYY-MM-DD'
   description: string;
-  amount: number;         // negative for outflow
+  amount: number; // negative for outflow
   runningBalance: number;
   category: string;
 }
@@ -207,7 +207,7 @@ export async function getLoanStatuses(companyId: string): Promise<LoanStatus[]> 
     repaymentType: mapRepaymentType(row.loan_type),
     monthlyPayment: estimateMonthlyPayment(row),
     interestRate: Number(row.interest_rate || 0),
-    //   대출 화면에서 받는 상환일·이자일 — 자금 전망이 매월 5일로 고정하지 않고 이것을 쓴다
+    // 대출 화면에서 받는 상환일·이자일 — 자금 전망이 매월 5일로 고정하지 않고 이것을 쓴다
     paymentDay: row.payment_day ? Number(row.payment_day) : null,
     interestDay: row.interest_day ? Number(row.interest_day) : null,
     note: row.notes,
@@ -258,9 +258,9 @@ export function estimateMonthlyPayment(row: any): number {
 // Monthly Budget Overview (12-month)
 // ═══════════════════════════════════════════════════════════════════════
 
-// 정기결제(recurring_payments) ↔ 통장 '고정비' 체크 거래 중복 제거 매처 (2026-07-10 사장님 QA).
-//   이름(정규화 부분일치) + 금액(±10%, 정기결제 금액 있을 때) 이 모두 맞으면 같은 지출로 간주 →
-//   통장 체크 거래를 고정비 합산에서 제외(정기결제 월액이 이미 대표). 이름 2자 미만은 오탐 방지 위해 미매칭.
+// 정기결제(recurring_payments) ↔ 통장 '고정비' 체크 거래 중복 제거 매처 (2026-07-10 대표 QA).
+// 이름(정규화 부분일치) + 금액(±10%, 정기결제 금액 있을 때) 이 모두 맞으면 같은 지출로 간주 →
+// 통장 체크 거래를 고정비 합산에서 제외(정기결제 월액이 이미 대표). 이름 2자 미만은 오탐 방지 위해 미매칭.
 function buildRecurringTxMatcher(
   recs: Array<{ name?: string | null; amount?: number | null }>,
 ): (counterparty?: string | null, description?: string | null, amount?: number | null) => boolean {
@@ -307,8 +307,8 @@ export async function getMonthlyBudgetOverview(
 
     // Recurring payments (for fixed cost estimates) — name 은 통장 고정비 체크 거래와의 중복 제거 매칭용
     db.from('recurring_payments')
-      //   created_at 은 아래 '등록한 달부터' 필터가 쓴다 — 빼면 필터가 항상 통과해
-      //   지난달 등록한 정기 지출이 올해 1월부터 매달 잡힌다(월 245만원 × 지난 달 수).
+      // created_at 은 아래 '등록한 달부터' 필터가 쓴다 — 빼면 필터가 항상 통과해
+      // 지난달 등록한 정기 지출이 올해 1월부터 매달 잡힌다(월 245만원 × 지난 달 수).
       .select('name, amount, category, is_active, day_of_month, created_at')
       .eq('company_id', companyId)
       .eq('is_active', true),
@@ -323,7 +323,7 @@ export async function getMonthlyBudgetOverview(
     fetchPagedRes('cashBudget.taxInvoices', () => db.from('tax_invoices')
       .select('supply_amount, tax_amount, issue_date, type')
       .eq('company_id', companyId)
-      .neq('status', 'void').neq('status', 'draft')   // 무효·미발행 초안은 매출이 아니다(같은 화면의 다른 표와 같은 기준)
+      .neq('status', 'void').neq('status', 'draft') // 무효·미발행 초안은 매출이 아니다(같은 화면의 다른 표와 같은 기준)
       .gte('issue_date', startDate)
       .lte('issue_date', endDate)
       .order('id', { ascending: true })),
@@ -352,8 +352,8 @@ export async function getMonthlyBudgetOverview(
   ]);
 
   // 통장 거래 중 '고정비' 체크(is_fixed_cost — 전표처리/매핑에서 체크)된 지출 — 고정비 실적으로 합산.
-  //   2026-07-10: 같은 지출이 정기결제(recurring_payments)로도 등록돼 있으면(이름+금액 매칭) 그 거래는
-  //   자동 제외해 중복 집계를 차단 — "통장 고정비 체크 + 예전 등록 항목이 중복으로 나온다" (사장님 QA).
+  // 2026-07-10: 같은 지출이 정기결제(recurring_payments)로도 등록돼 있으면(이름+금액 매칭) 그 거래는
+  // 자동 제외해 중복 집계를 차단 — "통장 고정비 체크 + 예전 등록 항목이 중복으로 나온다" (대표 QA).
   const [bankFixedRes, accountMap, salaryMonthly] = await Promise.all([
     db.from('bank_transactions')
       .select('amount, transaction_date, counterparty, description, category')
@@ -363,7 +363,7 @@ export async function getMonthlyBudgetOverview(
       .gte('transaction_date', startDate)
       .lte('transaction_date', endDate),
     getAccountMap(companyId),
-    //   급여 — 예전엔 월별표에만 빠져 있어서 위 카드(총비용)와 아래 세부내역이 서로 달랐다 (2026-08-10)
+    // 급여 — 예전엔 월별표에만 빠져 있어서 위 카드(총비용)와 아래 세부내역이 서로 달랐다 (2026-08-10)
     getMonthlyTotalSalary(companyId).catch(() => 0),
   ]);
 
@@ -411,13 +411,13 @@ export async function getMonthlyBudgetOverview(
 
     // ── Fixed Costs ──
     // Combine recurring_payments + fixed_costs tables
-    //   정기 지출은 등록한 달부터 — 지난달 등록한 것이 1월부터 매달 잡히던 것
+    // 정기 지출은 등록한 달부터 — 지난달 등록한 것이 1월부터 매달 잡히던 것
     const recurringInMonth = recurring.filter((rp: any) => !rp.created_at || String(rp.created_at).slice(0, 7) <= monthPrefix);
     const recurringTotal = recurringInMonth.reduce(
       (sum: number, rp: any) => sum + Number(rp.amount || 0),
       0,
     );
-    //   정기 지출과 이름이 같은 고정비는 한 번만(자금 전망·일 단위 예측과 같은 규칙 — 월별표만 두 번 더했다)
+    // 정기 지출과 이름이 같은 고정비는 한 번만(자금 전망·일 단위 예측과 같은 규칙 — 월별표만 두 번 더했다)
     const recNames = new Set(recurringInMonth.map((rp: any) => String(rp.name || '').toLowerCase().replace(/\s+/g, '')));
     const fixedCostTotal = fixedCosts
       .filter((fc: any) => {
@@ -438,7 +438,7 @@ export async function getMonthlyBudgetOverview(
     const totalFixed = recurringTotal + fixedCostTotal + bankFixedMonth + salaryMonthly;
 
     // ── Variable Costs ──
-    //   취소(cancelled)된 지출까지 비용으로 세던 것을 뺐다 (2026-08-10)
+    // 취소(cancelled)된 지출까지 비용으로 세던 것을 뺐다 (2026-08-10)
     const monthPayments = payments.filter(
       (p: any) => p.created_at?.startsWith(monthPrefix) && !p.is_recurring && p.status !== 'cancelled',
     );
@@ -486,19 +486,19 @@ export async function getMonthlyBudgetOverview(
 
 // ═══════════════════════════════════════════════════════════════════════
 // Fixed/Variable Cost Breakdown by Category (연간)
-//   2026-05-22 사장님 요청 — 고정비/변동비 category별 세부내역.
-//   소스 (prod 스키마 검증 반영):
-//     · 고정비 = recurring_payments(is_active) category별 + 급여(employees)
-//       - fixed_costs 테이블은 prod 미존재 → 제외 (getMonthlyBudgetOverview 와 동일하게 사실상 미반영)
-//     · 변동비 = card_transactions category별 (연 범위)
-//       - payment_queue 는 due_date 컬럼 부재 → 제외 (월별표 변동비와 정합 유지: card 만 집계됨)
+// — 고정비/변동비 category별 세부내역.
+// 소스 (prod 스키마 검증 반영):
+// · 고정비 = recurring_payments(is_active) category별 + 급여(employees)
+// - fixed_costs 테이블은 prod 미존재 → 제외 (getMonthlyBudgetOverview 와 동일하게 사실상 미반영)
+// · 변동비 = card_transactions category별 (연 범위)
+// - payment_queue 는 due_date 컬럼 부재 → 제외 (월별표 변동비와 정합 유지: card 만 집계됨)
 // ═══════════════════════════════════════════════════════════════════════
 
 export interface CostCategoryRow {
   category: string;
   label: string;
-  amount: number;   // 연간 합계
-  monthly: number;  // 월 환산
+  amount: number; // 연간 합계
+  monthly: number; // 월 환산
 }
 
 export interface CostBreakdown {
@@ -558,15 +558,15 @@ export async function getCostBreakdown(
       .eq('is_fixed_cost', true)
       .gte('transaction_date', startDate)
       .lte('transaction_date', endDate),
-    //   계정 성격 판정용 — 대출 상환·미지급금 상환처럼 매달 나가지만 비용이 아닌 것을 걸러낸다 (2026-08-10)
+    // 계정 성격 판정용 — 대출 상환·미지급금 상환처럼 매달 나가지만 비용이 아닌 것을 걸러낸다 (2026-08-10)
     getAccountMap(companyId),
-    //   변동비의 나머지 한 축 — 월별표에는 들어가는데 세부내역에는 없어서 위아래 합계가 어긋났다 (2026-08-10)
+    // 변동비의 나머지 한 축 — 월별표에는 들어가는데 세부내역에는 없어서 위아래 합계가 어긋났다 (2026-08-10)
     db.from('payment_queue')
       .select('amount, category, status, created_at, is_recurring')
       .eq('company_id', companyId)
-      .gte('created_at', `${startDate}T00:00:00+09:00`)   // created_at 은 시각 — 한국 시간 경계로 자른다
+      .gte('created_at', `${startDate}T00:00:00+09:00`) // created_at 은 시각 — 한국 시간 경계로 자른다
       .lte('created_at', `${endDate}T23:59:59+09:00`),
-    //   고정비(fixed_costs) — "prod 미존재" 주석은 옛말이다(정기 지출 › 고정비 탭이 쓴다). 월별표와 같은 원천을 읽어야 위아래 합이 맞는다
+    // 고정비(fixed_costs) — "prod 미존재" 주석은 옛말이다(정기 지출 › 고정비 탭이 쓴다). 월별표와 같은 원천을 읽어야 위아래 합이 맞는다
     db.from('fixed_costs').select('name, amount, category, start_date, end_date').eq('company_id', companyId).eq('is_recurring', true).limit(1000),
   ]);
 
@@ -578,7 +578,7 @@ export async function getCostBreakdown(
     const k = mapRecurringCategory(rp.category);
     fixedMonthly[k] = (fixedMonthly[k] || 0) + Number(rp.amount || 0);
   }
-  //   고정비 표 — 정기 지출과 이름이 겹치면 한 번만, 올해에 걸친 것만
+  // 고정비 표 — 정기 지출과 이름이 겹치면 한 번만, 올해에 걸친 것만
   for (const fc of ((fixedCostsRes as any)?.data || []) as any[]) {
     if (recNamesAll.has(String(fc.name || '').toLowerCase().replace(/\s+/g, ''))) continue;
     if (fc.start_date && String(fc.start_date) > endDate) continue;
@@ -587,7 +587,7 @@ export async function getCostBreakdown(
     fixedMonthly[k] = (fixedMonthly[k] || 0) + Number(fc.amount || 0);
   }
   // 급여(employees) — recurring_payments 에 급여를 따로 등록하지 않는 한 중복 없음.
-  //   fixed_costs 테이블 부재로 중복 위험 0 (prod 검증).
+  // fixed_costs 테이블 부재로 중복 위험 0 (prod 검증).
   if (salaryTotal > 0) {
     fixedMonthly['salary'] = (fixedMonthly['salary'] || 0) + Number(salaryTotal);
   }
@@ -600,8 +600,8 @@ export async function getCostBreakdown(
   }
 
   // 2026-06-10 기준 통일 — 고정비를 ×12(연환산)가 아니라 ×경과월(YTD 실제 발생액)로.
-  //   변동비(card)는 이미 해당 연도 실적 누계 → 둘 다 'YTD 실적'으로 맞춰 시간기준 불일치 제거
-  //   (과거: 고정 12개월 추정 vs 변동 ~5.5개월 실적 → 고정비가 부풀려 보이던 문제).
+  // 변동비(card)는 이미 해당 연도 실적 누계 → 둘 다 'YTD 실적'으로 맞춰 시간기준 불일치 제거
+  // (과거: 고정 12개월 추정 vs 변동 ~5.5개월 실적 → 고정비가 부풀려 보이던 문제).
   const _now = new Date();
   const monthsElapsed = year < _now.getFullYear() ? 12 : year > _now.getFullYear() ? 0 : _now.getMonth() + 1;
   const fixed: CostCategoryRow[] = FIXED_COST_CATEGORIES
@@ -620,7 +620,7 @@ export async function getCostBreakdown(
   const variable: CostCategoryRow[] = VARIABLE_COST_CATEGORIES
     .map((v) => ({ category: v.value, label: v.label, amount: variableYear[v.value] || 0, monthly: Math.round((variableYear[v.value] || 0) / 12) }))
     .filter((r) => r.amount > 0);
-  //   결제 대기(일회성 지출) — 취소된 건은 뺀다. 월별표와 같은 규칙이라야 위아래 합계가 맞는다.
+  // 결제 대기(일회성 지출) — 취소된 건은 뺀다. 월별표와 같은 규칙이라야 위아래 합계가 맞는다.
   const pqTotal = (pqRes.data || [])
     .filter((p: any) => !p.is_recurring && p.status !== 'cancelled')
     .reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
@@ -640,7 +640,7 @@ export async function getCostBreakdown(
 
 // ═══════════════════════════════════════════════════════════════════════
 // Cost Category Detail — 고정비/변동비 세부내역 카테고리 행 클릭 시 산출 내역
-//   getCostBreakdown 과 동일한 소스·매핑으로 개별 레코드를 나열해 표 값과 정합 유지.
+// getCostBreakdown 과 동일한 소스·매핑으로 개별 레코드를 나열해 표 값과 정합 유지.
 // ═══════════════════════════════════════════════════════════════════════
 
 export interface CostDetailItem {
@@ -693,7 +693,7 @@ export async function getCostCategoryDetail(
 
   if (category === 'bank_fixed') {
     // 통장 '고정비' 체크 거래 — YTD 개별 내역. 합산과 동일하게 정기결제 매칭 건 제외 +
-    //   통장매핑에서 분류한 계정(category)·메모를 함께 표시 (사장님 QA 2026-07-10).
+    // 통장매핑에서 분류한 계정(category)·메모를 함께 표시.
     const [{ data }, { data: recs }] = await Promise.all([
       fetchPagedRes('lib/cash-budget:bank_fixed', () => db.from('bank_transactions')
         .select('counterparty, description, transaction_date, amount, category, memo')

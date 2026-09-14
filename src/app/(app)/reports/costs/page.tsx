@@ -14,10 +14,10 @@ import { CellDetail } from "../flow/_components/CellDetail";
 import { StackedAreaChart, Legend, vizColor } from "@/components/charts/kit";
 
 /* ------------------------------------------------------------------ */
-/*  회계 › 고정비 · 변동비                                              */
-/*  cash-budget.getMonthlyBudgetOverview(companyId, year) 재사용.       */
-/*  매월 고정으로 나가는 돈(고정비) vs 그때그때 바뀌는 돈(변동비)을      */
-/*  월별로 분리해 보여준다. (재구현 없이 기존 집계 함수 그대로 사용)     */
+/* 회계 › 고정비 · 변동비 */
+/* cash-budget.getMonthlyBudgetOverview(companyId, year) 재사용. */
+/* 매월 고정으로 나가는 돈(고정비) vs 그때그때 바뀌는 돈(변동비)을 */
+/* 월별로 분리해 보여준다. (재구현 없이 기존 집계 함수 그대로 사용) */
 /* ------------------------------------------------------------------ */
 
 function fmtKrw(value: number): string {
@@ -38,7 +38,7 @@ const FIXED_NOTE = "고정비 = 급여(재직 직원) + 정기결제(활성) + �
 const VARIABLE_NOTE = "변동비 = 법인카드 사용액 + 일회성 지출(결제 대기, 취소 건 제외)의 합입니다.";
 
 // 세부내역(카테고리) 행 클릭 → 산출 내역 팝업. getCostCategoryDetail 로 개별 레코드 조회 후 CellDetail 재사용.
-//   정기결제 항목(recurringId 보유)은 여기서 바로 '제거'(비활성화) 가능 — 예전 등록 건 정리 (사장님 QA 2026-07-10).
+// 정기결제 항목(recurringId 보유)은 여기서 바로 '제거'(비활성화) 가능 — 예전 등록 건 정리.
 function CategoryDetailModal({ companyId, year, kind, category, label, onClose, onChanged }: {
   companyId: string; year: number; kind: "fixed" | "variable"; category: string; label: string; onClose: () => void; onChanged?: () => void;
 }) {
@@ -51,7 +51,7 @@ function CategoryDetailModal({ companyId, year, kind, category, label, onClose, 
   const [removing, setRemoving] = useState<string | null>(null);
 
   // 읽기 전용 산출 내역 팝업(정기결제 제거 가능 분기) — ESC로만 닫기.
-  //   CellDetail 재사용 분기(!hasRemovable)는 CellDetail 자체 ESC 처리가 있어 비활성.
+  // CellDetail 재사용 분기(!hasRemovable)는 CellDetail 자체 ESC 처리가 있어 비활성.
   useModalKeys(hasRemovable, onClose);
 
   const removeRecurring = async (id: string) => {
@@ -161,9 +161,9 @@ export default function CostsPage() {
       .finally(() => setIsLoading(false));
   }, [companyId, year, blocked, refreshKey]);
 
-  //   이 화면은 **지나간 달의 실적**을 본다 — 아직 오지 않은 달의 고정비 전망까지 더하면
-  //   아래 세부내역(경과월 기준)과 합계가 어긋난다 (2026-08-10 사장님 지적으로 드러남).
-  //   앞날 전망은 경영흐름이 맡는다.
+  // 이 화면은 **지나간 달의 실적**을 본다 — 아직 오지 않은 달의 고정비 전망까지 더하면
+  // 아래 세부내역(경과월 기준)과 합계가 어긋난다 (2026-08-10 대표 지적으로 드러남).
+  // 앞날 전망은 경영흐름이 맡는다.
   const shownRows = useMemo(() => {
     if (!rows) return null;
     const now = new Date();
@@ -217,7 +217,7 @@ export default function CostsPage() {
 
       {!isLoading && !error && shownRows && (
         <>
-          {/*  연중 비용이 어떻게 흘렀고 그 안에서 고정·변동 비중이 어떻게 변했나 — 누적 영역.
+          {/* 연중 비용이 어떻게 흘렀고 그 안에서 고정·변동 비중이 어떻게 변했나 — 누적 영역.
                달마다의 정확한 값은 바로 아래 표가 담당하므로, 이 자리의 일은 흐름을 보여 주는 것이다.
                (2026-08-07: 자체 SVG 누적 막대 → 차트 키트. 손을 올리면 그 달의 고정·변동·합계가 함께 뜬다.
                 색도 계열색으로 바꿨다 — 고정비·변동비는 경고/정보 같은 '상태'가 아니라 분류다.) */}
@@ -401,7 +401,7 @@ export default function CostsPage() {
             - <strong style={{ color: "var(--text-muted)" }}>계정 성격이 비용이 아닌 거래는 제외</strong>합니다. 대출 원금 상환·미지급금 상환·보증금·이체는 돈이 나가도 비용이 아니라 재무상태표 항목입니다.
             
             <br />
-            - 이 화면은 <strong style={{ color: "var(--text-muted)" }}>지나간 달의 실적</strong>만 봅니다(앞날 전망은 경영흐름). 손익계산서와는 기준이 다릅니다. 여기는  <strong style={{ color: "var(--text-muted)" }}>돈이 나간 시점</strong>, 손익계산서는 세금계산서 발행 시점(발생주의)입니다.
+            - 이 화면은 <strong style={{ color: "var(--text-muted)" }}>지나간 달의 실적</strong>만 봅니다(앞날 전망은 경영흐름). 손익계산서와는 기준이 다릅니다. 여기는 <strong style={{ color: "var(--text-muted)" }}>돈이 나간 시점</strong>, 손익계산서는 세금계산서 발행 시점(발생주의)입니다.
             <br />
             - 금액을 클릭하면 어떤 내역으로 산출됐는지 팝업으로 확인할 수 있습니다.
             <br />

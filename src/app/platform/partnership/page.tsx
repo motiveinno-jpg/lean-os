@@ -33,7 +33,7 @@ const STATUS: Record<string, { tone: "warn" | "info" | "ok"; label: string; colo
 };
 
 //   전역 copy-protection(body user-select:none) 아래서도 확실히 복사되게 · clipboard API 우선,
-//   막히면(권한/비보안 컨텍스트) textarea+execCommand 폴백. (2026-09-01 사장님: 문의 복사 안 됨)
+//   막히면(권한/비보안 컨텍스트) textarea+execCommand 폴백. (문의 복사 안 됨)
 function copyText(text: string)  {
   try { navigator.clipboard?.writeText(text).catch(() => {}); } catch { /* ignore */ }
   try {
@@ -177,7 +177,7 @@ export default function PlatformPartnershipPage() {
                         <span className="font-bold text-[14px] text-[var(--text)]">{it.company_name}</span>
                         <span className="text-[11px] text-[var(--text-dim)] mono-number">{kstDateStr(new Date(it.created_at))}</span>
                       </div>
-                      {/*   문의 본문은 드래그 선택·복사 허용 (전역 copy-protection 예외, 2026-09-01 사장님) */}
+                      {/*   문의 본문은 드래그 선택·복사 허용 (전역 copy-protection 예외, 2026-09-01 대표) */}
                       <div className="text-[13px] text-[var(--text-muted)] mt-1 leading-relaxed whitespace-pre-wrap select-text cursor-text">{it.message}</div>
                       <div className="text-[11px] text-[var(--text-dim)] mt-2">
                         {it.contact_name} ·{" "}

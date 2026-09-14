@@ -571,7 +571,7 @@ serve(withSentry("toss-charge", async (req: Request) => {
         billing_period_end: periodEnd.toISOString(),
         currency: "krw",
       });
-      //   error 를 봐야 한다 (2026-08-21 감사): 돈은 빠졌는데 구독이 active 로 안 넘어가면
+      //   error 를 봐야 한다: 돈은 빠졌는데 구독이 active 로 안 넘어가면
       //   사용자는 결제 완료 화면을 보고도 무료 상태로 남는다. 결과에 실어 운영이 알게 한다.
       const { error: subUpdErr } = await supabase.from("subscriptions").update({
         status: "active",

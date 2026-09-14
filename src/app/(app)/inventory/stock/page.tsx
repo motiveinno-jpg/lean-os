@@ -66,7 +66,7 @@ export default function StockPage() {
 
   const [tab, setTab] = useState<Tab>("onhand");
   const [q, setQ] = useState("");
-  //   값 필터는 검색조건 패널에서(조회 화면 표준). 조회 줄엔 칩을 늘어놓지 않는다 (2026-08-27 사장님 지적)
+  //   값 필터는 검색조건 패널에서(조회 화면 표준). 조회 줄엔 칩을 늘어놓지 않는다
   const [cond, setCond] = useState<CondLive>({});
   const [sort, setSort] = useState<SortState<StockKey>>({ key: "state", dir: "asc" });
   const [mSort, setMSort] = useState<SortState<MoveKey>>({ key: "date", dir: "desc" });
@@ -435,7 +435,7 @@ export default function StockPage() {
                       {warehouses.map((w) => {
                         const mine = onhand.filter((r) => r.warehouse_id === w.id);
                         return (
-                          //   ★ 창고를 누르면 그 안에 무엇이 몇 개 있는지 팝업으로 (2026-08-26 사장님: "창고에 어떤 상품이 몇 개인지 한눈에")
+                          //   ★ 창고를 누르면 그 안에 무엇이 몇 개 있는지 팝업으로 ("창고에 어떤 상품이 몇 개인지 한눈에")
                           <tr key={w.id} className="inv-row-click" onClick={() => setWhOpen(w)} title="누르면 이 창고의 품목·수량 목록이 열립니다">
                             <td className="text-left"><b className="inv-wh-link">{w.name}</b></td>
                             <td className="tc ev-dim">{w.code || "—"}</td>
@@ -515,7 +515,7 @@ function WarehouseAdd({ companyId, onDone }: { companyId: string | null; onDone:
 
 
 
-/** 창고 하나의 품목·수량 · 창고 갈래에서 창고를 누르면 뜬다 (2026-08-26 사장님 지시) */
+/** 창고 하나의 품목·수량 · 창고 갈래에서 창고를 누르면 뜬다 */
 function WarehouseDialog({ wh, onhand, products, avgCost, onClose }: {
   wh: Warehouse; onhand: OnHand[]; products: Product[]; avgCost: Map<string, number>; onClose: () => void;
 }) {

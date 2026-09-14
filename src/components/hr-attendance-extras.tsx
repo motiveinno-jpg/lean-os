@@ -78,7 +78,7 @@ export function AttendanceEditRequestDialog({
     return isNaN(d.getTime()) ? "기록 없음" : d.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
   };
 
-  // '근무중' 선택(2026-07-31 사장님). 퇴근 전 상태를 유지한 채 출근 시각만 정정.
+  // '근무중' 선택. 퇴근 전 상태를 유지한 채 출근 시각만 정정.
   //   status 로 보내지 않고(DB status 에 '근무중' 없음) 퇴근 필드를 잠가 check_in 만 요청한다.
   const isWorkingOnly = form.status === "working";
   const mut = useMutation({
@@ -154,7 +154,7 @@ export function AttendanceEditRequestDialog({
               className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
             >
               <option value="">변경 안 함</option>
-              {/* 근무중 — 아직 퇴근 전. 출근 시각만 정정하고 상태는 그대로 둔다 (2026-07-31 사장님) */}
+              {/* 근무중 — 아직 퇴근 전. 출근 시각만 정정하고 상태는 그대로 둔다 */}
               <option value="working">근무중 (출근 시각만 변경)</option>
               <option value="present">정상 출근</option>
               <option value="late">지각</option>
@@ -197,7 +197,7 @@ export function AttendanceEditRequestDialog({
 
 
 // ── 관리자 대행 출퇴근 기록 (2026-07-27) ──
-//   "직원이 실수로 출근하기를 안 눌렀을 때 대신 눌러줄 수 있게" · 사장님 요청.
+//   "직원이 실수로 출근하기를 안 눌렀을 때 대신 눌러줄 수 있게" ·.
 //   기록이 아예 없는 날짜도 만들 수 있고, 이미 있으면 그 날 기록을 덮어쓴다.
 
 export function ManualAttendanceDialog({
@@ -216,10 +216,10 @@ export function ManualAttendanceDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   // 재직 판정은 AttendanceTab 의 activeEmployees 와 동일 규칙 — 실데이터는 대부분 'joined'(초대 수락)
-  //   이라 'active' 만 통과시키면 목록이 통째로 비어 보인다(2026-07-28 사장님 제보).
+  //   이라 'active' 만 통과시키면 목록이 통째로 비어 보인다.
   const activeEmployees = (employees || []).filter((e) => e.status === "active" || e.status === "joined");
   // 날짜는 위 '날짜' 칸 하나로만 고른다 — 출퇴근까지 날짜 픽커를 두면 같은 날짜를
-  //   세 번 고르게 되고 서로 어긋날 수도 있었다(2026-07-28 사장님 제보). 시각만 입력.
+  //   세 번 고르게 되고 서로 어긋날 수도 있었다. 시각만 입력.
   const [form, setForm] = useState({
     employeeId: "",
     date: defaultDate,
@@ -233,7 +233,7 @@ export function ManualAttendanceDialog({
   // 시각을 손으로 고친 뒤에는 기본값이 다시 덮어쓰지 않도록.
   const [timesTouched, setTimesTouched] = useState(false);
 
-  // 회사 근무시간 · 출퇴근 시각 기본값 (2026-07-28 사장님 요청).
+  // 회사 근무시간 · 출퇴근 시각 기본값.
   const  { data: companySettings } = useQuery({
     queryKey: ["attendance-company-settings", companyId],
     queryFn: () => getAttendanceCompanySettings(companyId),
@@ -373,7 +373,7 @@ export function ManualAttendanceDialog({
             </div>
           </div>
           <div>
-            {/* 근무 중(퇴근 전) — 회사 근무시간이 자동으로 채워져 매번 지워야 했다 (2026-08-06 사장님) */}
+            {/* 근무 중(퇴근 전) — 회사 근무시간이 자동으로 채워져 매번 지워야 했다 */}
             <label className="manual-attendance-nextday">
               <input
                 type="checkbox"
@@ -421,7 +421,7 @@ export function ManualAttendanceDialog({
               <option value="present">정상 출근</option>
               <option value="late">지각</option>
               <option value="remote">재택</option>
-              {/* 외근/출장 — attendance_type 으로 기록, 지각 판정은 출근 시각으로 자동 (2026-07-31 사장님) */}
+              {/* 외근/출장 — attendance_type 으로 기록, 지각 판정은 출근 시각으로 자동 */}
               <option value="type:field_work">외근</option>
               <option value="type:business_trip">출장</option>
               <option value="half_day">반차</option>

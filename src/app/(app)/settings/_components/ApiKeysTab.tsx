@@ -1,6 +1,6 @@
 "use client";
 
-// 연동 · API 키 — 회사가 직접 발급받은 인증키를 여기 한 번 등록한다 (2026-08-21 사장님 지시)
+// 연동 · API 키 — 회사가 직접 발급받은 인증키를 여기 한 번 등록한다
 //
 // ★ 화면의 주인공은 입력칸이 아니라 **연결 상태**다.
 //   사람이 여기 오는 이유는 키를 넣으려고가 아니라 "왜 안 되지?" 를 보려고다.
@@ -94,7 +94,7 @@ export function ApiKeysTab({ companyId, userId }: { companyId: string; userId: s
   });
 
   //   다른 탭에서 붙이는 연동(은행·카드·홈택스·광고)의 상태 — 손보러는 그 탭으로 보낸다.
-  //   "무엇이 연결됐나" 는 한 곳에서 봐야 한다 (2026-08-21 사장님 지적).
+  //   "무엇이 연결됐나" 는 한 곳에서 봐야 한다.
 
   const byProvider = new Map(keys.map((k) => [k.provider, k]));
   const invalidate = () => qc.invalidateQueries({ queryKey: ["company-api-keys", companyId] });
@@ -138,7 +138,7 @@ export function ApiKeysTab({ companyId, userId }: { companyId: string; userId: s
         <div className="collect-empty">불러오는 중…</div>
       ) : (
         <div className="apik-list">
-          {/*   ★ 2026-08-24 사장님 지시로 **은행·홈택스·광고 줄을 여기서 뺐다.**
+          {/*   ★ 2026-08-24 대표 지시로 **은행·홈택스·광고 줄을 여기서 뺐다.**
                 8-21 에는 "연결 현황을 한 목록으로 모으라"였는데, 막상 쓰니 같은 것이 두 탭에 나와
                 "여기서 하는 건가, 저기서 하는 건가"로 헷갈렸다("사용자가 헷갈려").
                 → **탭은 자기 것만 한다**: 이 탭은 인증키를 여기서 받는 것만(등록 + 목록).
@@ -203,7 +203,7 @@ export function ApiKeysTab({ companyId, userId }: { companyId: string; userId: s
         </div>
       )}
 
-      {/*   광고 계정 — 2026-08-24 별도 탭에서 여기로 합쳤다(사장님: "광고 계정도 API인데 앞에 API 탭이랑
+      {/*   광고 계정 — 2026-08-24 별도 탭에서 여기로 합쳤다("광고 계정도 API인데 앞에 API 탭이랑
             다른 것도 사용자가 혼동될 수가 있음"). 매체에서 받은 키를 넣는 일이라 성격이 같다.
             다만 **계정마다 여러 개**(대행이면 클라이언트별)라 목록·등록은 자기 부품이 그대로 그린다. */}
       <div className="apik-section">

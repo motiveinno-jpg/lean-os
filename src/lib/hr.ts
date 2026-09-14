@@ -406,7 +406,7 @@ export type Holiday = {
   type: 'legal' | 'company' | 'substitute';
 };
 
-/** 근무일 기준 일수 (2026-08-19 감사) — 주말(workdays_mask)·회사 공휴일 제외.
+/** 근무일 기준 일수 — 주말(workdays_mask)·회사 공휴일 제외.
  *  종전엔 연차 사용일수를 달력 일수로 계산해 금~월 휴가가 4일 차감됐다(실제 1일).
  *  mask 비트: 월=1,화=2,수=4,목=8,금=16,토=32,일=64 (attendance-checkin 엣지와 동일). */
 export function countBusinessDaysStr(startYmd: string, endYmd: string, holidaySet: Set<string>, workdaysMask = 31): number {
@@ -779,7 +779,7 @@ export async function reviewAttendanceEditRequest(params: {
       .eq('id', req.attendance_record_id);
     if (uErr) throw uErr;
 
-    // ★ 그 날짜를 다시 계산한다 (2026-08-21 감사): 종전엔 출퇴근 시각만 바꾸고
+    // ★ 그 날짜를 다시 계산한다: 종전엔 출퇴근 시각만 바꾸고
     //   연장·야간·휴일 분과 총 근무시간은 예전 값 그대로 남아, 워크보드의 '연장' 도
     //   수당(allowance_entries)도 급여 가산분도 전부 틀린 값으로 굳었다.
     //   관리자가 따로 '근태 재계산' 을 누르기 전까지 급여가 어긋난 상태였다.
@@ -837,14 +837,14 @@ export function isLate(currentKstMin: number, policy: AttendancePolicy): boolean
   return currentKstMin > start + policy.lateThresholdMinutes;
 }
 
-/** 승인된 휴가를 반영한 지각 판정 (2026-08-11 사장님: 오전 반차 후 출근이 지각으로 찍힘).
+/** 승인된 휴가를 반영한 지각 판정 (오전 반차 후 출근이 지각으로 찍힘).
  *  관리자 수기 경로(수정요청 승인·직접 수정·직접 생성) 공용 —
  *  종일 휴가면 지각 없음, 오전 반차·시간차면 휴가 종료시각부터 지각 계산.
  *  휴가 조회 실패 시 기존(휴가 미반영) 판정으로 폴백. */
 // ── Attendance: Check In ──
 // 시그니처 불변: (companyId, employeeId, status?) — attendanceType 은 뒤에 옵션으로만 추가.
 // status === "auto" (기본) → 서버(엣지)가 실제 출근시각·회사 유예로 지각을 판정
-// attendanceType(2026-07-31 사장님): 출근 시 본인이 고른 유형(field_work 외근/business_trip 출장 등).
+// attendanceType: 출근 시 본인이 고른 유형(field_work 외근/business_trip 출장 등).
 //   엣지함수는 유형을 받지 않으므로 성공 직후 본인 레코드에 attendance_type 을 채운다.
 //
 // 지각 판정 제거 (2026-08-07): 종전엔 status="auto" 일 때 여기서 지각을 계산해 'late'/'present'
@@ -993,7 +993,7 @@ export async function correctAttendanceRecord(recordId: string, updates: {
 }
 
 /**
- * 관리자 대행 출퇴근 기록 (2026-07-27 사장님 요청).
+ * 관리자 대행 출퇴근 기록.
  *   "직원이 실수로 출근하기를 안 눌렀을 때 대신 눌러줄 수 있게" —
  *   기록이 아예 없는 날도 관리자가 건별로 만들 수 있어야 한다.
  *
@@ -1008,7 +1008,7 @@ export async function upsertAttendanceRecordAsAdmin(params: {
   checkIn?: string | null;  // ISO
   checkOut?: string | null; // ISO
   status?: string;
-  // 근무 유형(외근 field_work/출장 business_trip 등) — 미지정 시 기존 값 유지 (2026-07-31 사장님)
+  // 근무 유형(외근 field_work/출장 business_trip 등) — 미지정 시 기존 값 유지
   attendanceType?: string;
   note?: string | null;
   editedBy?: string | null;
@@ -1245,7 +1245,7 @@ export async function computeHalfDaySlot(
   const DEFAULT = period === 'am'
     ? { start: '09:00', end: '13:00' }
     : { start: '14:00', end: '18:00' };
-  // 회사가 반차 시간을 직접 설정했으면 그 값을 최우선으로 (2026-08-11 사장님 — 구성원>휴가>설정)
+  // 회사가 반차 시간을 직접 설정했으면 그 값을 최우선으로 (2026-08-11 대표 — 구성원>휴가>설정)
   try {
     const { getHalfDaySlots } = await import('./leave-grants');
     const slots = await getHalfDaySlots(companyId);
@@ -1473,9 +1473,9 @@ export async function registerAdminLeave(params: {
   return data;
 }
 
-//   연차 잔여(leave_balances)에서 차감하지 않는 유형 (2026-09-01 사장님: "공가(예비군)도 연차에 반영된다").
+//   연차 잔여(leave_balances)에서 차감하지 않는 유형 ("공가(예비군)도 연차에 반영된다").
 //   공가·병가·경조·출산 등 법정 별도 휴가는 연차와 무관한데, 종전엔 유형 무관 전부 차감됐다.
-//   ⚠️ 연차에서 깎이는 유형은 **annual 하나뿐**이다 (2026-09-11 정정).
+//   ⚠️ 연차에서 깎이는 유형은 **annual 하나뿐**이다.
 //   종전 정의는 내장 목록에서만 뽑아 만든 집합이라, 회사가 직접 만든 유형(custom_…)이
 //   어디에도 안 들어가 '차감 대상' 으로 분류됐다. 그런데 실제 사용일수를 정하는 DB 트리거
 //   (leave_used_from_requests)는 leave_type='annual' 만 합산한다 — 앱은 깎인다고 보고
@@ -1503,7 +1503,7 @@ async function deductLeaveBalance(request: any) {
     .eq('employee_id', request.employee_id)
     .eq('year', year)
     .maybeSingle());
-  // error 를 봐야 한다 (2026-08-21 감사): 실패해도 승인 완료로 보여, 연차가 안 깎인 채
+  // error 를 봐야 한다: 실패해도 승인 완료로 보여, 연차가 안 깎인 채
   //   직원이 계속 쓸 수 있었다. 잔여 행이 아예 없는 경우(신규 입사자)도 조용히 넘기지 않는다.
   if (balance) {
     const newUsed = Number(balance.used_days) + Number(request.days);
@@ -1727,7 +1727,7 @@ export async function rejectLeaveRequest(id: string, approverId: string) {
 // ── Leave: Cancel (취소) ──
 // 승인된(used_days 반영된) 휴가를 취소하면 잔여일을 되돌린다.
 export async function cancelLeaveRequest(id: string, opts?: {
-  reason?: string;               // 취소 사유 — 승인된 건은 UI 에서 필수 입력 (2026-08-11 사장님)
+  reason?: string;               // 취소 사유 — 승인된 건은 UI 에서 필수 입력
   cancelledBy?: string | null;   // 취소한 사용자 users.id — 내역 보존용
   allowStarted?: boolean;        // 관리자: 이미 시작된(과거) 휴가도 취소 허용
 }) {
@@ -1740,7 +1740,7 @@ export async function cancelLeaveRequest(id: string, opts?: {
   if (request.status === 'cancelled') return;
 
   // v4 H2: 이미 시작된 휴가(start_date <= today) 는 취소 불가 — 직원 본인 취소 경로.
-  //   관리자(allowStarted)는 승인 실수 정정 등을 위해 과거 건도 취소 가능 (2026-08-11 사장님).
+  //   관리자(allowStarted)는 승인 실수 정정 등을 위해 과거 건도 취소 가능.
   const todayKst = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date()); // 'YYYY-MM-DD'
   if (!opts?.allowStarted && request.start_date <= todayKst) {
     throw new Error('이미 시작된(또는 오늘) 휴가는 취소할 수 없습니다. 시작 전 휴가만 취소 가능합니다.');
@@ -1771,13 +1771,13 @@ export async function cancelLeaveRequest(id: string, opts?: {
       .maybeSingle());
     if (balance) {
       const restored = Math.max(0, Number(balance.used_days) - Number(request.days));
-      // error 확인 (2026-08-21 감사): 실패해도 "잔여가 복구되었습니다" 라고 알려 왔다.
+      // error 확인: 실패해도 "잔여가 복구되었습니다" 라고 알려 왔다.
       const { error: restErr } = await db.from('leave_balances').update({ used_days: restored }).eq('id', balance.id);
       if (restErr) throw restErr;
     }
   }
 
-  // 취소 알림 — 신청할 때와 동일한 대상에게 (2026-08-11 사장님: "신청할때와 똑같이 알림이 가게").
+  // 취소 알림 — 신청할 때와 동일한 대상에게 ("신청할때와 똑같이 알림이 가게").
   //   대상: 신청자 + 승인 체인의 모든 승인자(체인 없으면 (구)1·2차 지정자, 그것도 없으면 owner/admin 전원)
   //         + 참조자(cc) 전원. 취소를 실행한 본인은 제외.
   try {
@@ -1943,7 +1943,7 @@ export async function getLeaveBalances(companyId: string, year: number) {
     .eq('company_id', companyId)
     .eq('year', year));
   // 이름순 고정 정렬 — 정렬을 안 주면 Postgres 가 heap 순서로 돌려줘서, 한 명의 연차를 수정(UPDATE)할
-  //   때마다 그 행이 뒤로 밀려 화면의 직원 카드 순서가 계속 바뀌었다(2026-07-30 사장님 제보).
+  //   때마다 그 행이 뒤로 밀려 화면의 직원 카드 순서가 계속 바뀌었다.
   return (data || []).slice().sort((a: any, b: any) => {
     const an = a.employees?.name || '';
     const bn = b.employees?.name || '';
@@ -1973,7 +1973,7 @@ export function calculateAnnualLeave(hireDate: string, referenceDate?: string): 
   const diffMs = ref.getTime() - hire.getTime();
   if (diffMs < 0) return { totalDays: 0, yearsWorked: 0, monthsWorked: 0, formula: '입사 전' };
 
-  // 일(day) 보정 (2026-08-19 감사): 미보정 시 3/31 입사자가 4/1 에 "1개월 개근"으로 잡혀
+  // 일(day) 보정: 미보정 시 3/31 입사자가 4/1 에 "1개월 개근"으로 잡혀
   //   연차가 하루 만에 발생했다. tools/leave-calculator 의 fullMonthsBetween 과 동일 규칙.
   let totalMonths = (ref.getFullYear() - hire.getFullYear()) * 12 + (ref.getMonth() - hire.getMonth());
   if (ref.getDate() < hire.getDate()) totalMonths -= 1;

@@ -59,7 +59,7 @@ export default function AdvisorLandingPage() {
         });
         if (err) throw new Error(err.message.includes("already") ? "이미 가입된 이메일입니다. 로그인해 주세요." : err.message);
         // 이미 존재하는 이메일이면 Supabase 가 (계정 존재 노출 방지로) 메일 없이 성공한 척한다 —
-        //   identities 빈 배열이 그 신호. "메일 보냈다"고 안내하면 영영 기다리게 된다 (2026-08-11 사장님 제보).
+        //   identities 빈 배열이 그 신호. "메일 보냈다"고 안내하면 영영 기다리게 된다.
         if (data.session) { await resolvePhase(); }
         else if (data.user && (data.user.identities || []).length === 0) {
           setMode("login");

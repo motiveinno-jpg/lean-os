@@ -1,4 +1,4 @@
-// Supabase Edge Function: gov-programs-enrich (2026-09-03 사장님: 지원사업 적합도를 제대로 구별)
+// Supabase Edge Function: gov-programs-enrich (지원사업 적합도를 제대로 구별)
 //   ① 접수 중인 공고의 기업마당 상세 본문을 받아 gov_programs.detail_text 에 저장
 //   ② 본문이 있고 조건표가 없는 공고를 Gemini(무료 등급)로 읽어 자격 조건표(eligibility_ai)를 만든다
 //   5분 크론이 조금씩 처리한다(무료 등급 분당 한도). 호출 인증: x-cron-secret(금고) 또는 로그인한 운영자(@mo-tive.com).

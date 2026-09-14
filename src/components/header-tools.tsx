@@ -1,6 +1,6 @@
 "use client";
 
-// ── 상단바 도구 — 계산기 · 화면 캡처 · 메모 (2026-08-27 사장님: "상단바 알림 왼쪽으로 계산기, 화면캡쳐, 메모 아이콘") ──
+// ── 상단바 도구 — 계산기 · 화면 캡처 · 메모 ("상단바 알림 왼쪽으로 계산기, 화면캡쳐, 메모 아이콘") ──
 //   2차(같은 날): "상단 기능들 팝업으로. 메모는 스티커 메모 형식 · 목록도 주고, 여러 개 클릭해서 열 수 있게."
 //   · 아이콘을 누르면 아래로 뜨는 판이 아니라 **떠 있는 창**(FloatingWindow) — 끌어서 옮기고, 다른 곳을 눌러도 안 닫힌다.
 //   · 메모: '메모 목록' 창(제목·색·핀·검색·새 메모) + 목록에서 누르는 만큼 **스티커 창이 따로** 뜬다. 스티커는 쓰다 멈추면 저장(0.8초).
@@ -84,7 +84,7 @@ function Calculator() {
 }
 
 /** 화면 공유 API 로 한 프레임을 캔버스에 담는다
- *  2026-08-27 사장님 지적 세 가지:
+ *   세 가지:
  *  · "이 탭을 보도록 허용" 이 매번 떴다 → 스트림을 끊지 않고 **살려 둔다**(brower 가 "공유 중지"를 누르거나 탭을 닫을 때까지). 두 번째부터는 안 묻는다.
  *  · 화면이 위로 밀린 채·흐리게 찍혔다 → 공유가 시작되면 Chrome 이 위에 "공유 중" 띠를 넣어 화면을 다시 그리는데, 그 도중 프레임을 잡았다.
  *    영상 크기가 **두 번 연속 같을 때까지** 기다린 뒤 잡는다. 해상도는 화면 픽셀(devicePixelRatio 포함)을 요청한다.
@@ -155,7 +155,7 @@ async function saveCanvas(canvas: HTMLCanvasElement, suffix: string): Promise<{ 
 
 
 
-/** 영역 선택 · 찍은 프레임을 화면에 깔고 사각형을 끌어 고른다. Enter/버튼 = 저장, Esc = 취소 (2026-08-27 사장님) */
+/** 영역 선택 · 찍은 프레임을 화면에 깔고 사각형을 끌어 고른다. Enter/버튼 = 저장, Esc = 취소 */
 function RegionPicker({ frame, onPick, onCancel }: { frame: HTMLCanvasElement; onPick: (c: HTMLCanvasElement) => void; onCancel: () => void }) {
   const [sel, setSel] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const dragging = useRef(false);

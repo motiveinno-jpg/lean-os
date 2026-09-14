@@ -1,4 +1,4 @@
--- 승인된 '휴가성 커스텀 결재 양식'도 leave_requests 를 생성하게 (2026-08-28 사장님)
+-- 승인된 '휴가성 커스텀 결재 양식'도 leave_requests 를 생성하게
 --   문제: 병역의무 이행 휴가·경조휴가 등은 표준 request_type='leave' 가 아니라 커스텀 양식으로 올라가
 --     leave_requests 가 안 만들어졌고, 근태(워크보드·현황)는 leave_requests 만 읽어 '결근' 으로 떴다.
 --   해결: apply_approval_side_effects 에 '양식에 period(날짜범위) 필드가 있으면 휴가로 보고 승인
@@ -145,7 +145,7 @@ begin
     end if;
   end if;
 
-  -- ── 커스텀 휴가 양식(양식 기반, period 필드 보유) → leave_requests 생성 (2026-08-28 사장님) ──
+  -- ── 커스텀 휴가 양식(양식 기반, period 필드 보유) → leave_requests 생성 ──
   --   표준 request_type='leave' 가 아닌 결재 양식(병역의무 이행 휴가·경조휴가 등)은 근태가 leave_requests
   --   만 읽어 반영을 못 해 '결근' 으로 떴다. 양식에 period(날짜범위) 필드가 있으면 휴가 양식으로 보고,
   --   그 값으로 승인 leave_request 를 만든다. ⚠ 연차 차감은 하지 않는다 — 공가·경조 등 유형별 차감

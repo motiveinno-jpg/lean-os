@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useMyPermissions, matchCatalogRoute } from '@/lib/permissions';
 import { QueryScreen, QueryHead, QueryBody, QueryBar } from "@/components/query-kit";
 
-// 접근 판정 — 앱 게이트와 같은 기준 (2026-08-12 사장님: 직원은 권한에 맞게).
+// 접근 판정 — 앱 게이트와 같은 기준 (직원은 권한에 맞게).
 //   쿼리를 떼고 카탈로그 최장 접두 매치; 카탈로그 밖 경로(/onboarding·/mypage 등)는 게이트 비대상 → 통과.
 const canReach = (route: string, hasMenu: (r: string) => boolean) => {
   const key = matchCatalogRoute(route.split('?')[0]);
@@ -395,7 +395,7 @@ const CATEGORY_TAB_ICONS: Record<CategoryTab, string> = {
 };
 
 
-// ── 기능 카드 (2026-08-12 리디자인 · 사장님: "조잡하고 레이아웃 안 맞음") ──
+// ── 기능 카드 (2026-08-12 리디자인 · 대표: "조잡하고 레이아웃 안 맞음") ──
 //   인라인 스타일 → gd- 시맨틱 클래스, 세로 나열 → 2열 그리드, 펼침은 grid-rows 트랜지션.
 //   확장 시 카드가 그리드 전체 폭으로 커지며 핵심 기능이 2열로 배치된다.
 function FeatureCard({
@@ -574,7 +574,7 @@ function WorkflowGuides()  {
                   <span className="gd-card-desc gd-clamp2">{wf.description}</span>
                 </span>
                 {/* "총 N단계" — 'N단계'만 쓰면 순번(1단계, 2단계…)으로 읽혀 "1~3단계는 어디 갔냐"는
-                    오해가 생겼다 (2026-08-12 사장님). 구성 개수임을 명시. */}
+                    오해가 생겼다. 구성 개수임을 명시. */}
                 <span className="gd-wf-count">총 {wf.steps.length}단계</span>
                 <svg className={`gd-caret ${isOpen ? "gd-caret-open" : ""}`} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
               </button>
@@ -629,7 +629,7 @@ export default function GuidePage() {
     setExpandedIds(new Set());
   }, []);
 
-  // 권한 필터 (2026-08-12 사장님). 마스터는 전체, 멤버·세무사는 부여된 메뉴의 가이드만.
+  // 권한 필터. 마스터는 전체, 멤버·세무사는 부여된 메뉴의 가이드만.
   //   사이드바와 같은 기준(hasMenu: 기본 제공 + 부여 키). 로딩 중엔 잠깐 비워 깜빡임 방지.
   const  { isMaster, hasMenu, loading: permsLoading } = useMyPermissions();
   const visibleFeatures = useMemo(() => {

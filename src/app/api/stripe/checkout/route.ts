@@ -20,7 +20,7 @@ function getStripe() {
   });
 }
 
-// 무료체험 폐지 (2026-08-11 사장님: "무료는 무료요금제뿐, 오너뷰는 즉시 결제") —
+// 무료체험 폐지 ("무료는 무료요금제뿐, 오너뷰는 즉시 결제")
 //   결제 완료 즉시 청구·이용 개시. 영업코드는 추적용으로만 기록(체험 연장 혜택 소멸).
 
 type BillingCycle = 'monthly' | 'annual';
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
 
     // 좌석 수는 서버에서 재계산 — 클라 값 그대로 신뢰하지 않음. 추가좌석 = max(0, 좌석 - 기본좌석 - 무료쿠폰좌석).
     //   무료쿠폰좌석: 연간 결제 혜택 쿠폰(추가인원 12명 무료)을 사용(redeemed)한 회사는 그만큼 과금 제외
-    //   (2026-07-30 사장님 — "쿠폰으로 등록된 인원은 추가인원 비용으로 빠져나가지 않게").
+    //   ("쿠폰으로 등록된 인원은 추가인원 비용으로 빠져나가지 않게").
     const requestedSeats = Math.max(1, Math.min(Number(seatCount) || 1, 500));
     let freeCouponSeats = 0;
     try {

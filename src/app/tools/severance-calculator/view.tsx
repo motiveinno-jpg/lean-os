@@ -65,7 +65,7 @@ export default function SeveranceCalculatorView() {
       months: Math.floor((serviceDays % 365) / 30),
       hireDate: h,
       periodFrom: from, periodTo: l, periodDays,
-      //   계산 내역용 조각 — 합계만 보여 주면 "왜 이 금액인지" 확인할 방법이 없다 (2026-08-14 사장님)
+      //   계산 내역용 조각 — 합계만 보여 주면 "왜 이 금액인지" 확인할 방법이 없다
       pay, yearBonus, yearLeavePay,
       payX3: pay * 3,
       bonusPart: (yearBonus * 3) / 12,
@@ -96,7 +96,7 @@ export default function SeveranceCalculatorView() {
           <div className="tl8-card">
             <div className="tl8-fields">
               {/*   달력은 오너뷰 안에서 쓰는 것과 같은 부품(DateField) — 연차 계산기와 같은 이유
-                    (2026-08-14 사장님). onChange 가 input 호환이라 계산 로직은 그대로다. */}
+. onChange 가 input 호환이라 계산 로직은 그대로다. */}
               <label className="tl8-field">
                 <span className="tl8-label">입사일</span>
                 <DateField className="tl8-input" value={hire} max={leave || undefined} onChange={(e) => setHire(e.target.value)} />
@@ -131,7 +131,7 @@ export default function SeveranceCalculatorView() {
                     <span className="tl8-result-cap">근속 {result.years}년 {result.months}개월 · 예상 퇴직금 (세전)</span>
                   </div>
                   <div className="tl8-result-rows">
-                    {/*   이 금액이 어떻게 나왔는지 — 단계별로 적는다 (2026-08-14 사장님, 연차 계산기와 같은 방식).
+                    {/*   이 금액이 어떻게 나왔는지 — 단계별로 적는다 (연차 계산기와 같은 방식).
                           예전에는 같은 내용을 두 줄의 글로 적어 뒀는데, 글로 이어 붙이면 어느 숫자가
                           어디서 왔는지 눈으로 따라가기 어렵고 검산이 안 된다. 표로 세워 한 줄씩 짚는다.
                           (그래서 그 두 줄은 이 표로 흡수했다 — 같은 말을 두 곳에 두지 않는다) */}

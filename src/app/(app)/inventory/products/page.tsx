@@ -3,7 +3,7 @@
 // ── 재고 › 품목 (2026-08-25 재고 1단계) ─────────────────────────────────────────
 //   무엇을 파는가 — SKU 사전. 모든 갈래의 뿌리라 1단계에 들어간다.
 //   ★ 결정 6-④ — '수량을 관리하는 품목인가' 체크가 여기 있다. 끄면 재고에 안 잡힌다(서비스·용역).
-//     이 체크 하나가 음수 재고의 절반을 없앤다(사장님 2026-08-24).
+//     이 체크 하나가 음수 재고의 절반을 없앤다(대표 2026-08-24).
 
 import { SimpleCond, SimpleApplied, condHit, type CondLive } from "../_components/simple-cond";
 import { todayKst } from "@/lib/kst";
@@ -53,12 +53,12 @@ export default function ProductsPage() {
   useEffect(() => { getCurrentUser().then((u) => { setCompanyId(u?.company_id ?? null); setUserId(u?.id ?? null); }); }, []);
 
   const [q, setQ] = useState("");
-  //   값 필터는 검색조건에서 · 기본은 판매중만(조회 화면 표준, 2026-08-27 사장님 지적)
+  //   값 필터는 검색조건에서 · 기본은 판매중만(조회 화면 표준,)
   const [cond, setCond] = useState<CondLive>({ state: ["active"] });
   type SortKey = "sku" | "name" | "category" | "sale" | "cost" | "qty";
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "sku", dir: "asc" });
   const [editing, setEditing] = useState<Partial<Product> | null>(null);
-  //   자재구성 팝업 — 품목 등록 체크박스에서 연다(2026-08-26 사장님: 생산이 아니라 품목에 있어야)
+  //   자재구성 팝업 — 품목 등록 체크박스에서 연다(생산이 아니라 품목에 있어야)
   const [bomFor, setBomFor] = useState<Product | null>(null);
   const { data: boms = [] } = useQuery({ queryKey: ["inv-boms", companyId], queryFn: () => listBoms(companyId!), enabled: !!companyId });
   const bomOf = useMemo(() => { const m = new Map<string, number>(); for (const b of boms) m.set(b.product_id, (m.get(b.product_id) || 0) + 1); return m; }, [boms]);
@@ -119,7 +119,7 @@ export default function ProductsPage() {
         <QueryHead>
           <div className="collect-tabs no-print"><button type="button" className="collect-tab collect-tab-on">품목</button></div>
           <QueryBar right={<>
-            {/*   ★ 엑셀 — 양식·올리기·붙여넣기·내려받기를 한 버튼 안에(2026-08-27 사장님) */}
+            {/*   ★ 엑셀 — 양식·올리기·붙여넣기·내려받기를 한 버튼 안에 */}
             <ExcelMenu items={[
               { label: "양식 내려받기 · 올리기", hint: "양식을 받아 채운 파일을 올립니다.", onClick: () => setXlsOpen(true) },
               { label: "붙여넣기", hint: "엑셀에서 복사한 줄을 붙여넣습니다.", onClick: () => setPasteOpen(true) },
@@ -250,7 +250,7 @@ export default function ProductsPage() {
 }
 
 /** 품목 등록·수정 — 폼은 팝업(목록 줄이 밀리지 않게, 조회 화면 표준) */
-/** 품목 분류 — 체크(중복 가능). 2026-08-27 사장님: 원재료·부재료·서비스·완제품 등. 상품(사서 그대로 파는 것)은 유통업에 필요해 넣었다. */
+/** 품목 분류 — 체크(중복 가능). 2026-08-27 대표: 원재료·부재료·서비스·완제품 등. 상품(사서 그대로 파는 것)은 유통업에 필요해 넣었다. */
 const PRODUCT_CATS = [
   { key: "원재료", hint: "만드는 데 들어가는 주 자재" },
   { key: "부재료", hint: "포장·라벨 같은 보조 자재" },
@@ -269,7 +269,7 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
   onSave: (v: Partial<Product> & { id?: string }, openBom: boolean) => void;
 }) {
   const [v, setV] = useState<Partial<Product>>({ unit: "EA", track_stock: true, is_active: true, ...initial });
-  //   2026-08-27 사장님 — 분류는 글자 대신 **체크(중복 가능)**. 저장은 기존 category 칸에 쉼표로(DB 변경 없음, 옛 자유 글자 값은 '기타'로 보인다).
+  //   2026-08-27 대표 — 분류는 글자 대신 **체크(중복 가능)**. 저장은 기존 category 칸에 쉼표로(DB 변경 없음, 옛 자유 글자 값은 '기타'로 보인다).
   //     '자재로 만드는 품목입니다' 체크는 없앴다 — **완제품**에 체크한 것이 그 뜻이라 둘을 따로 묻는 게 중복이었다.
   const cats = useMemo(() => new Set((v.category || "").split(",").map((x) => x.trim()).filter(Boolean)), [v.category]);
   const legacy = [...cats].filter((c) => !PRODUCT_CATS.some((k) => k.key === c));
@@ -303,7 +303,7 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
           <label className="inv-field"><span>단위</span>
             <input className="field-input" value={v.unit || ""} onChange={(e) => set("unit", e.target.value)} placeholder="EA · BOX · kg" /></label>
           <label className="inv-field"><span>바코드{dupBarcode ? <em className="inv-field-warn"> — 이미 '{dupBarcode.name}'({dupBarcode.sku})에 쓰인 번호</em> : null}</span>
-            {/*   ★ 스캐너로 찍는 칸 — 스캐너는 숫자 뒤에 Enter 를 보낸다. Enter 는 저장이 아니라 다음 칸으로(2026-08-26 사장님 확인). */}
+            {/*   ★ 스캐너로 찍는 칸 — 스캐너는 숫자 뒤에 Enter 를 보낸다. Enter 는 저장이 아니라 다음 칸으로(2026-08-26 대표 확인). */}
             <input className={dupBarcode ? "field-input inv-input-warn" : "field-input"} inputMode="numeric" value={v.barcode || ""}
               placeholder="커서를 두고 바코드를 찍으면 번호가 들어갑니다"
               onChange={(e) => set("barcode", e.target.value.trim())}
@@ -333,7 +333,7 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
             <em>끄면 재고를 세지 않습니다. 셀 물건이 없는 품목에 씁니다.</em>
           </span>
         </label>
-        {/*   ★ 자재구성 — 품목 등록에서(2026-08-26 사장님). 2026-08-27: 별도 체크 대신 분류 '완제품'이면 이 줄이 뜬다. */}
+        {/*   ★ 자재구성 — 품목 등록에서. 2026-08-27: 별도 체크 대신 분류 '완제품'이면 이 줄이 뜬다. */}
         {wantBom && (
           <div className="inv-track inv-track-bom">
             <span>
@@ -349,7 +349,7 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
             <input className="field-input" inputMode="numeric" value={v.sale_price ?? ""} onChange={(e) => set("sale_price", num(e.target.value))} /></label>
           <label className="inv-field"><span>매입가</span>
             <input className="field-input" inputMode="numeric" value={v.cost_price ?? ""} onChange={(e) => set("cost_price", num(e.target.value))} /></label>
-          {/*   ★ 결정 38 (2026-08-26 사장님) — 생산 원가에 얹는 1개당 노무·경비. 급여대장에서 끌어오지 않는다(권한 누수). 바꾸면 그 뒤 완성 기록부터 */}
+          {/*   ★ 결정 38 — 생산 원가에 얹는 1개당 노무·경비. 급여대장에서 끌어오지 않는다(권한 누수). 바꾸면 그 뒤 완성 기록부터 */}
           <label className="inv-field"><span>단위당 노무·경비 <em className="inv-hint">1개당 생산 원가에 더합니다.</em></span>
             <input className="field-input" inputMode="numeric" value={v.overhead_per_unit ?? ""} onChange={(e) => set("overhead_per_unit", num(e.target.value))} /></label>
           <label className="inv-field"><span>안전재고 <em className="inv-hint">이 아래로 내려가면 부족으로 표시합니다.</em></span>
@@ -383,7 +383,7 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
 
 
 
-/** 품목 엑셀 붙여넣기 · 처음 시작할 때 수백 개를 하나씩 못 친다 (2026-08-25 사장님 지시, 1순위 ④)
+/** 품목 엑셀 붙여넣기 · 처음 시작할 때 수백 개를 하나씩 못 친다 (1순위 ④)
  *  칸 차례: SKU · 품목명 · 규격 · 단위 · 판매가 · 매입가 · 안전재고 · 수량관리(예/아니오)
  *  같은 SKU 가 이미 있으면 **고친다**(두 번 올려도 두 개가 되지 않는다). */
 function ProductPasteDialog({ products, onClose, onDone, save }: {

@@ -196,7 +196,7 @@ export async function openStoredFile(stored?: string | null, downloadName?: stri
   if (url) window.open(url, "_blank", "noopener");
 }
 
-/** 첨부파일을 **원본 파일명 그대로** 내려받는다 (2026-08-06 사장님 제보).
+/** 첨부파일을 **원본 파일명 그대로** 내려받는다.
  *  Supabase 서명 URL 의 `?download=` 는 Content-Disposition 에 퍼센트 인코딩된 이름을 실어,
  *  브라우저가 그대로 저장해 `302.%EB%84%A4%EC%9D%B4...xlsx` 처럼 깨진다.
  *  파일명 헤더를 우리가 3중으로 제어하는 프록시(/api/files/download/[filename])를 거치게 한다.
@@ -471,7 +471,7 @@ export async function uploadFile(params: UploadParams): Promise<UploadResult> {
     .single();
   if (insertError) {
     // 원장 기록이 실패하면 방금 올린 파일은 앱에서 영영 안 보이는 고아가 된다 — 되돌린다.
-    //   (2026-08-20 감사: 이 함수 하나에 문서함·금고·HR 양식 등 9개 화면이 매달려 있다)
+    //   (이 함수 하나에 문서함·금고·HR 양식 등 9개 화면이 매달려 있다)
     await supabase.storage.from(bucket).remove([storagePath]).catch(() => {});
     throw insertError;
   }
@@ -547,7 +547,7 @@ export async function deleteFile(
   companyId: string,
   // 남의 파일까지 지울 수 있는 권한(마스터 또는 '/documents:delete' 위임자). 화면이 판정해 넘긴다.
   //   진짜 방어선은 RLS(document_files_delete_owner_or_perm) — 이 인자는 사람이 읽을 수 있는
-  //   실패 메시지를 주기 위한 것이지, 이것만으로 막는 게 아니다. (2026-08-20 사장님)
+  //   실패 메시지를 주기 위한 것이지, 이것만으로 막는 게 아니다.
   opts?: { canDeleteOthers?: boolean }
 ): Promise<void> {
   // Fetch file record
@@ -892,7 +892,7 @@ export async function uploadEmployeeFile(params: {
   return { id: record.id, file_url: urlData.publicUrl, storage_path: storagePath };
 }
 
-/** 입사서류 체크리스트에서 올린 파일 삭제 (2026-08-20 사장님 요청) — 체크리스트는 파일 id 가
+/** 입사서류 체크리스트에서 올린 파일 삭제 — 체크리스트는 파일 id 가
  *  아니라 storage_path 로 파일을 들고 있어서(employees.onboarding_docs JSONB) 경로로 지운다.
  *  스토리지 → 원장 순서로 지우되 스토리지 실패는 무시한다: 이미 없는 파일 때문에 목록에서
  *  영영 못 지우는 상태가 되면 안 된다. */

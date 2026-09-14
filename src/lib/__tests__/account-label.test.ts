@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { accountCostGroup, isContraAccount, buildAccountQualifiers } from "@/lib/account-label";
 
-//   2026-09-11 사장님: "같은 게 여러 번 보인다". 표준 계정체계가 같은 비용을 원가 단계마다 따로 두기 때문인데,
+//   2026-09-11 대표: "같은 게 여러 번 보인다". 표준 계정체계가 같은 비용을 원가 단계마다 따로 두기 때문인데,
 //   화면이 코드만 보여 줘서 무엇이 다른지 알 수 없었다. 겹치는 이름에만 꼬리표를 붙인다.
 const A = (code: string, name: string) => ({ code, name });
 

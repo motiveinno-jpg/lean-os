@@ -1,7 +1,7 @@
 // OwnerView 랜딩 진입점 — 서버 컴포넌트.
 //   2026-09-07: v7 을 정식 랜딩으로 올렸다(그전에는 `/landing-v7` 시안, `/` 는 v6).
 //   2026-09-09: **v8 로 바꿨다** — 오두 홈 뼈대를 실측해 만든 목업(landing-v11)을 그대로 옮긴 판.
-//               사장님 "아까 만들었던 랜딩페이지 목업 메인 랜딩페이지에 배포해줘".
+//               대표가 "아까 만들었던 랜딩페이지 목업 메인 랜딩페이지에 배포해줘".
 //   ▸ metadata / 구조화 데이터(JSON-LD) 는 여기서, 화면은 LandingV8 이 그린다.
 //   ▸ `/landing-v7` 은 여기로 영구(308) 넘긴다 — 같은 화면이 두 주소로 뜨면 중복 문서가 된다.
 //   ⚠️ 되돌리려면 아래 import 두 줄과 <LandingV8 /> 을 landing-v7 로 되돌리면 된다.
@@ -14,7 +14,7 @@ import { FEATS, FOOTER, MENUS, PRICING } from "@/components/landing-v8/content";
 
 const SITE = "https://www.owner-view.com";
 
-// SEO · 2026-09-07 사장님 확정값(목업 머리주석)을 그대로 옮겼다.
+// SEO · 2026-09-07 대표 확정값(목업 머리주석)을 그대로 옮겼다.
 const TITLE = "오너뷰 | 회사 운영의 모든 것, 올인원 AI ERP";
 const DESC = "통장·카드 자동 수집부터 전표·부가세 신고, 근태·급여, 재고·이커머스까지 한 곳에서.";
 const OG_IMAGE = { url: "/og-image.png", width: 1200, height: 630, alt: "오너뷰 · 회사 운영의 모든 것, 올인원 AI ERP" };

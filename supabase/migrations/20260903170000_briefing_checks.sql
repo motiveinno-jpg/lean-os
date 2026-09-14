@@ -32,7 +32,7 @@
 
 create table if not exists public.briefing_checks (
   company_id uuid not null references public.companies(id) on delete cascade,
-  -- ⚠ users(id) FK 를 걸면 안 된다 (2026-09-03 실사고, 적용 직후 prod 에서 제거): company_id·user_id 두 FK 가 같이 있으면
+  -- ⚠ users(id) FK 를 걸면 안 된다 (적용 직후 prod 에서 제거): company_id·user_id 두 FK 가 같이 있으면
   --   PostgREST 가 이 표를 users↔companies 조인 표로 보고 관계를 하나 더 만든다 → users 에서 companies 를 임베드하는
   --   getCurrentUser 가 "more than one relationship" 으로 실패 → 회사 없음 → /company-setup 루프(전 회사 영향).
   --   user_id 는 FK 없이 둔다(퇴사자 행은 30일 청소 후보). 다른 회사·본인 표(tax_deadline_checks 등)와 같은 처리.

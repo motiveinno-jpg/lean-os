@@ -1,6 +1,6 @@
 "use client";
 
-// 공용 조회 부품 — 모든 메뉴의 조회 줄을 **같은 모양**으로 (2026-08-13 사장님 확정)
+// 공용 조회 부품 — 모든 메뉴의 조회 줄을 **같은 모양**으로
 //
 //   지시: "지금의 UI 정리방법을 핵심으로 기억하고 앞으로 UI정리는 이런형식으로 간다."
 //   전문은 CLAUDE.md 「조회 화면 표준」. 여기가 그 유일한 구현이다 — 새 툴바를 만들지 말 것.
@@ -45,7 +45,7 @@ function minusMonths(s: string, n: number) {
 
 
 /**
- * 기본 조회기간 · **최근 1개월** (2026-08-13 사장님 확정).
+ * 기본 조회기간 · **최근 1개월**.
  *   '이번 달 1일~오늘'이 아닌 이유: 매달 1~2일에 열면 하루이틀치만 보여
  *   "받아온 자료가 없다"로 읽힌다. 최근 1개월은 언제 열어도 한 달치가 보인다.
  */
@@ -103,7 +103,7 @@ export function periodQuicksMonth():  { key: string; label: string; from: string
 
 /**
  * 조회 화면 상자 — **탭 · 조회 줄 · 걸린 조건 · 결과 요약 · 표 · 쪽 넘김을 통째로 한 상자**에.
- *   (2026-08-13 사장님 지시 — 목업 그대로. 처음엔 조회부와 표를 따로 뒀는데 그게 틀렸다.)
+ *   (목업 그대로. 처음엔 조회부와 표를 따로 뒀는데 그게 틀렸다.)
  *   낱장으로 흩어져 있으면 "이 표가 저 조건의 결과"라는 게 눈으로 안 이어진다.
  *   ⚠️ 안에서 검색조건 패널·달력이 떠오르므로 **overflow 를 자르면 안 된다.**
  */
@@ -121,7 +121,7 @@ export function QueryHead({ children }: { children: ReactNode }) {
 
 
 /**
- * 표가 들어가는 자리 · **선택 바가 여기 위로 떠오른다** (2026-08-13 사장님 지시).
+ * 표가 들어가는 자리 · **선택 바가 여기 위로 떠오른다**.
  *   예전엔 선택 바가 흐름에 끼어 있어, 줄을 고르는 순간 표가 그만큼 줄어들었다.
  *   고를 때마다 표가 들썩이면 고르던 자리를 놓친다. 표 크기는 그대로 두고 위에 띄운다.
  */
@@ -216,7 +216,7 @@ export function quickSearchHit(q: string, fields: (string | null | undefined)[],
 
 /**
  * 검색조건 · **표를 밀지 않고 떠서** 열린다.
- *   ★ 열 때 어떤 칸에도 커서를 두지 않는다 (2026-08-13 사장님 지적). 커서를 주면 그 칸 후보가
+ *   ★ 열 때 어떤 칸에도 커서를 두지 않는다. 커서를 주면 그 칸 후보가
  *     펼쳐져 **찾지도 않은 목록**이 화면을 덮는다. 어느 칸을 쓸지는 사람이 정한다.
  */
 export function ConditionPanel({
@@ -286,10 +286,10 @@ export function ConditionRow({ label, hint, children }: { label: string; hint?: 
   );
 }
 
-export type TokenItem = { value: string; label: string; sub?: string; /** 묶음 이름 — 주면 검색어가 없을 때 묶음별 칸으로 나눠 보여 준다(매출/매입 등, 2026-09-02 사장님) */ group?: string };
+export type TokenItem = { value: string; label: string; sub?: string; /** 묶음 이름 — 주면 검색어가 없을 때 묶음별 칸으로 나눠 보여 준다(매출/매입 등, 2026-09-02 대표) */ group?: string };
 
 /**
- * 다중 선택 — 이름 일부를 쳐서 고르고 **칩으로 쌓는다** (2026-08-13 사장님 지시, 이카운트 계좌 칸 참고).
+ * 다중 선택 — 이름 일부를 쳐서 고르고 **칩으로 쌓는다** (이카운트 계좌 칸 참고).
  *   "거래처명이 정확하지 않을때, 모티를 치면 모티가 들어간 회사들이 나와서 선택하고, 또 다른 거래처를 지정"
  *   ★ 거래처는 실제로 2,000곳이다 — 아무것도 안 쳤을 때 전부 뿌리면 스크롤 벽이 된다.
  *     앞 20개만 보여 주고 **잘렸다는 사실을 적는다**(조용히 자르면 '이게 전부'로 읽힌다).
@@ -303,13 +303,13 @@ export function TokenField({
   onChange: (v: string[]) => void;
   placeholder?: string;
   /** 칸을 누르면 전체 목록을 바로 펼친다 — 카드·통장처럼 목록에서 골라 담는 칸 전용 opt-in
-   *  (2026-09-01 사장님: "클릭하면 보이는 목록식으로"). 기본값은 종전 그대로(글자를 쳐야 열림). */
+   *  ("클릭하면 보이는 목록식으로"). 기본값은 종전 그대로(글자를 쳐야 열림). */
   openOnClick?: boolean;
 }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [cur, setCur] = useState(-1);
-  //   목록이 화면 아래로 잘리면 위로 펼친다 (2026-09-01 사장님: "많으면 밑에 짤릴 것 같다") —
+  //   목록이 화면 아래로 잘리면 위로 펼친다 ("많으면 밑에 짤릴 것 같다")
   //   칸이 패널 아래쪽에 있을 때 아래 남은 공간이 목록 최대 높이보다 작고 위가 더 넓으면 위로.
   const [dropUp, setDropUp] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -334,7 +334,7 @@ export function TokenField({
   const list = all.slice(0, TOKEN_CAP);
   const cut = all.length - list.length;
 
-  //   ★ 담고 나면 글자를 지우므로 목록이 **저절로 닫힌다** (2026-08-13 사장님 지적).
+  //   ★ 담고 나면 글자를 지우므로 목록이 **저절로 닫힌다**.
   //     예전엔 담은 뒤에도 목록이 남아 다음 칸을 덮었고, 다른 데를 한 번 눌러야 넘어갔다.
   const add = (it?: TokenItem) => {
     if (!it) return;
@@ -352,7 +352,7 @@ export function TokenField({
               onClick={(e) => { e.stopPropagation(); onChange(value.filter((x) => x !== v)); }}>✕</button>
           </span>
         ))}
-        {/*   ★ 커서만 갔다고 목록을 열지 않는다 (2026-08-13 사장님 지적) —
+        {/*   ★ 커서만 갔다고 목록을 열지 않는다
               열려 있으면 아래 칸을 덮어, 다음 조건으로 가려면 딴 데를 한 번 눌러야 했다.
               **글자를 쳐야** 후보가 뜬다. 다 보고 싶으면 ↓ 를 누른다. */}
         <input ref={input} value={q} placeholder={value.length ? "" : placeholder}
@@ -423,7 +423,7 @@ export function TokenField({
 /** 금액 범위 · 한쪽만 채워도 된다. 숫자만 남기고 쉼표로 보여 준다. */
 export function AmountRange({ min, max, onMin, onMax, placeholders }: {
   min: string; max: string; onMin: (v: string) => void; onMax: (v: string) => void;
-  /** 칸 안 문구 — 수집·전표처럼 placeholder 를 안 쓰는 화면은 ["", ""] (2026-09-01 사장님). 기본은 종전 그대로 */
+  /** 칸 안 문구 — 수집·전표처럼 placeholder 를 안 쓰는 화면은 ["", ""]. 기본은 종전 그대로 */
   placeholders?: [string, string];
 }) {
   const [phMin, phMax] = placeholders ?? ["최소", "최대"];
@@ -451,13 +451,13 @@ export function amountHit(n: number, min: string, max: string): boolean  {
   return true;
 }
 
-/** 한 쪽에 몇 줄 — **조건의 하나**라 '내 조건'에 같이 저장된다 (2026-08-13 사장님 지시) */
+/** 한 쪽에 몇 줄 — **조건의 하나**라 '내 조건'에 같이 저장된다 */
 export const PAGE_SIZES = [50, 100, 200, 500] as const;
 //   '전체' = 사실상 무한대인 유한 수 — Infinity 는 JSON(내 조건 저장·쿼리키)에서 null 이 되므로 못 쓴다 (2026-08-26)
 export const ALL_ROWS = 1_000_000_000;
 const sizeLabel = (n: number) => (n >= ALL_ROWS ? "전체" : `${n}줄`);
 export function RowsPerPage({ value, onChange, withAll }: { value: number; onChange: (n: number) => void; withAll?: boolean }) {
-  //   withAll: '전체' 옵션 노출 (수집·전표 — 2026-08-26 사장님). 현재 값이 목록에 없으면(주소로 온 값 등) 맨 앞에 끼워 빈 셀렉트를 막는다.
+  //   withAll: '전체' 옵션 노출 (수집·전표 — 2026-08-26 대표). 현재 값이 목록에 없으면(주소로 온 값 등) 맨 앞에 끼워 빈 셀렉트를 막는다.
   const list: number[] = [...PAGE_SIZES, ...(withAll ? [ALL_ROWS] : [])];
   if (!list.includes(value)) list.unshift(value);
   return (
@@ -522,14 +522,14 @@ export type HelperItem = {
 };
 
 /**
- * AI 제안 — 보조 기능 모음 (2026-08-13 사장님 확정).
+ * AI 제안 — 보조 기능 모음.
  *   ★ **'제안'** 인 이유: 여기 있는 것들은 **채워만 주고 확정은 사람이 한다**
  *     (이 저장소의 원칙 '제안은 자동, 확정은 사람'). '처리'·'자동'이라 이름 붙이면
  *     "누르면 알아서 끝난다"로 읽혀 이름이 거짓말을 한다.
  *   ★ 줄마다 **출처를 적는다.** 배운 규칙은 사람이 고른 것이고 구분 채우기는 국세청 조회다.
  *     전부 AI 라고 뭉뚱그리면 틀렸을 때 원인을 엉뚱한 데서 찾는다.
  */
-//   ★ 2026-08-27 사장님 "버튼이 많아진다" — AI 가 아닌 보조 동작(자재 소요·전표·처분·설정)도 한 묶음으로 접는다.
+//   ★ 2026-08-27 대표가 "버튼이 많아진다" — AI 가 아닌 보조 동작(자재 소요·전표·처분·설정)도 한 묶음으로 접는다.
 //     그때는 label 을 '도구'로 준다. AI 제안이라 부르면 이름이 거짓말한다. 줄마다 출처(source)는 그대로 적는다.
 export function HelperMenu({ items, label = "AI 제안" }: { items: HelperItem[]; label?: string }) {
   const [open, setOpen] = useState(false);
@@ -579,7 +579,7 @@ export type ExcelItem = {
 };
 
 /**
- * 엑셀 — 내려받기·올리기를 한 버튼 안에 (2026-08-13 사장님 지시).
+ * 엑셀 — 내려받기·올리기를 한 버튼 안에.
  *   ★ **되는 것만 넣는다.** 되는 척하는 메뉴는 없느니만 못하다 — 눌러 보고 아무 일도 안 일어나면
  *     그 다음부터 메뉴 전체를 안 믿는다.
  */
@@ -652,7 +652,7 @@ export function usePager<T>(rows: T[], size: number, resetKey?: unknown) {
 export function Pager({
   page, pages, total, from, to, size, onPage, onSize,
 }: { page: number; pages: number; total: number; from: number; to: number; size: number; onPage: (p: number) => void;
-  //   onSize 를 주면 '한 쪽 N줄'이 셀렉트(+'전체')가 된다 — 쪽 이동하는 자리에서 바로 줄 수를 바꾼다 (2026-08-26 사장님, 수집·전표)
+  //   onSize 를 주면 '한 쪽 N줄'이 셀렉트(+'전체')가 된다 — 쪽 이동하는 자리에서 바로 줄 수를 바꾼다 (수집·전표)
   onSize?: (n: number) => void }) {
   if (total === 0) return null;
   const nums: number[] = [];
@@ -701,7 +701,7 @@ export type SavedQuery = { id: string; name: string; params: Record<string, unkn
 /**
  * 내 조건 — 자주 쓰는 조회 조건에 이름을 붙여 둔다. **★ 하나가 화면의 기본값**이 된다.
  *   자동 기억(localStorage)을 없앤 자리를 이것이 대신한다. 저장소는 DB 라 **PC 를 바꿔도 따라온다**
- *   (사장님은 PC 두 대로 일한다 — localStorage 였다면 반쪽이다).
+ *   (대표은 PC 두 대로 일한다 — localStorage 였다면 반쪽이다).
  */
 export function useSavedQueries(screen: string, companyId: string | null) {
   const { toast } = useToast();
@@ -764,7 +764,7 @@ export function useSavedQueries(screen: string, companyId: string | null) {
 }
 
 /**
- * 패널 머리의 '내 조건' 목록 — **불러오기 전용** (2026-08-13 사장님 지적).
+ * 패널 머리의 '내 조건' 목록 — **불러오기 전용**.
  *   예전엔 여기 '＋ 내 조건' 이 있어 이름만 치면 바로 저장됐다. 사람은 위→아래로 읽으니
  *   **아래 조건을 고르기도 전에** 저장해 버린다. 저장은 발(ConditionSave)로 내렸다.
  *   맨 앞의 **기본** 은 처음 상태 — ★ 조건을 정해 둬도 한 번 눌러 돌아온다.

@@ -1,6 +1,6 @@
 "use client";
 
-// ── 재고 › 현황 — 종합판 (2026-08-26 사장님 지시) ───────────────────────────────
+// ── 재고 › 현황 — 종합판 ───────────────────────────────
 //   "거래에서 입력하고 이력에서 확인하는 것까지는 되는데, 주문·판매·구매·생산 현황을 한 번에 보는 종합판이 필요하다.
 //    집계와 그래프로 지표를 제공."
 //
@@ -77,7 +77,7 @@ export default function InventoryStatusPage() {
   const [from, setFrom] = useState(monthStart);
   const [to, setTo] = useState(todayKst);
   const [saleView, setSaleView] = useState<"product" | "partner" | "channel">("product");
-  //   ★ 숫자는 눌러서 내역이 보여야 한다(2026-08-27 사장님) — 요약 줄·처리할 것의 건수마다 팝업 목록 + 그 화면으로 가는 링크
+  //   ★ 숫자는 눌러서 내역이 보여야 한다 — 요약 줄·처리할 것의 건수마다 팝업 목록 + 그 화면으로 가는 링크
   const [detail, setDetail] = useState<{ title: string; desc?: string; head: string[]; rows: React.ReactNode[][]; go?: { href: string; label: string } } | null>(null);
   const [buyView, setBuyView] = useState<"product" | "partner">("partner");
   const today = todayKst();

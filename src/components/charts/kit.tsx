@@ -1,6 +1,6 @@
 "use client";
 
-// 차트 키트 — 오너뷰의 그래프를 한 규칙으로 그린다 (2026-08-06 사장님: "다양한 차트를 세련되게").
+// 차트 키트 — 오너뷰의 그래프를 한 규칙으로 그린다 ("다양한 차트를 세련되게").
 //
 //   저장소 기조 그대로 **차트 라이브러리 없이 SVG 로 직접** 그린다(간트·정리탭과 같은 철학).
 //
@@ -235,7 +235,7 @@ export function WaterfallChart({ steps, unit = "원", height = 220 }: {
     return { ...s, lo: Math.min(start, end), hi: Math.max(start, end) };
   });
   //   ★ 눈금은 최저(음수 가능)~최고를 다 덮는다 — 비용이 매출보다 커서 누적이 0 아래로 내려가면
-  //     예전 셈(0~최고)에선 막대 bottom 이 -100만% 가 돼 화면이 200만px 로 늘어났다 (2026-08-19 사장님: "그래프가 아래로 내려온다").
+  //     예전 셈(0~최고)에선 막대 bottom 이 -100만% 가 돼 화면이 200만px 로 늘어났다 ("그래프가 아래로 내려온다").
   const max = niceMax(Math.max(1, ...bars.map((b) => b.hi)));
   const min = Math.min(0, ...bars.map((b) => b.lo));
   const minNice = min < 0 ? -niceMax(Math.abs(min)) : 0;

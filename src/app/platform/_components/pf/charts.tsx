@@ -31,7 +31,7 @@ import { PieCenter }  from "@/components/charts/pie-center";
 
 export const PF_SERIES = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"] as const;
 
-// 1분마다 재조회되는 쿼리는 같은 값이라도 새 배열을 준다. 그때마다 차트가 다시 애니메이션하면 무겁다(2026-09-03 사장님 "너무 느려").
+// 1분마다 재조회되는 쿼리는 같은 값이라도 새 배열을 준다. 그때마다 차트가 다시 애니메이션하면 무겁다(2026-09-03 대표가 "너무 느려").
 //   내용이 같으면 같은 참조를 돌려줘 차트가 가만히 있게 한다.
 function useStableData<T>(data: T[]): T[] {
   const key = JSON.stringify(data);
