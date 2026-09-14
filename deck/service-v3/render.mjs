@@ -43,9 +43,9 @@ for (let i = 0; i < slides.length; i++) {
 await save(path.join(out, "오너뷰_서비스소개서_v3.pdf"), await page.pdf({ width: "1920px", height: "1080px", printBackground: true, margin: { top: 0, right: 0, bottom: 0, left: 0 } }));
 await browser.close();
 
-// 움직이는 버전 — 브라우저로 여는 HTML 을 결과 폴더에 같이 둔다(slides.html + 이모지). 크롬으로 열고 F = 발표 모드
+// 움직이는 버전 — 브라우저로 여는 HTML 을 결과 폴더에 같이 둔다. 크롬으로 열고 F = 발표 모드 (3판부터 이미지 파일 없음 — HTML 한 장)
 const web = path.join(out, "웹_애니메이션판");
-fs.mkdirSync(path.join(web, "assets", "emoji"), { recursive: true });
+fs.rmSync(web, { recursive: true, force: true });
+fs.mkdirSync(web, { recursive: true });
 fs.copyFileSync(path.join(here, "slides.html"), path.join(web, "오너뷰_서비스소개서_v3.html"));
-for (const f of fs.readdirSync(path.join(here, "assets", "emoji"))) fs.copyFileSync(path.join(here, "assets", "emoji", f), path.join(web, "assets", "emoji", f));
 console.log(`✓ ${slides.length}쪽 → ${out}`);
