@@ -136,7 +136,16 @@ export function ScheduleItemDialog({
         companyId={companyId} userId={userId}
         draft={editing} onChange={setEditing}
         onSave={() => save.mutate()}
-        onDelete={editing.id ? () => { if (editing.recurFreq) removeAll.mutate(editing.id!); else remove.mutate(editing.id!); } : undefined}
+        //   수정 창의 삭제 — 회차를 열었으면 그 날짜만, 반복 원본이면 전체(한 번 묻는다), 보통 일정은 바로.
+        //   버튼 글자에 무엇을 지우는지 적는다(2026-09-14 사장님: "삭제 누르면 반복 전체가 다 삭제된다").
+        onDelete={editing.id
+          ? () => {
+              if (editing.occurrence) remove.mutate(editing.id!);            // 가상 id → 그 날짜만 건너뛰기
+              else if (editing.recurFreq) removeAll.mutate(editing.id!);     // 원본 → 반복 전체(확인)
+              else remove.mutate(editing.id!);
+            }
+          : undefined}
+        deleteLabel={editing.id ? (editing.occurrence ? "이 날짜만 지우기" : editing.recurFreq ? "반복 전체 지우기" : "삭제") : undefined}
         onClose={onClose}
         saving={busy} />
     );

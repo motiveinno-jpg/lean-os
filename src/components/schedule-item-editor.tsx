@@ -80,7 +80,7 @@ export function draftFromEvent(e?: Partial<ScheduleEvent> | null, fallback?: { f
 }
 
 export function ScheduleItemEditor({
-  companyId, userId, draft, onChange, onSave, onDelete, onClose, saving,
+  companyId, userId, draft, onChange, onSave, onDelete, deleteLabel, onClose, saving,
 }: {
   companyId: string | null;
   userId: string | null;
@@ -88,6 +88,8 @@ export function ScheduleItemEditor({
   onChange: (d: ScheduleDraft) => void;
   onSave: () => void;
   onDelete?: () => void;
+  /** 삭제 버튼 글자 — 반복이면 "이 날짜만 지우기"/"반복 전체 지우기"처럼 무엇을 지우는지 적는다 */
+  deleteLabel?: string;
   onClose: () => void;
   saving?: boolean;
 }) {
@@ -373,7 +375,7 @@ export function ScheduleItemEditor({
         </div>
 
         <footer>
-          {onDelete && <button type="button" className="sched-del" onClick={onDelete}>삭제</button>}
+          {onDelete && <button type="button" className="sched-del" onClick={onDelete}>{deleteLabel ?? "삭제"}</button>}
           <span className="sched-spacer" />
           <button type="button" className="sched-cancel" onClick={onClose}>취소</button>
           <button type="button" className="sched-save" disabled={!canSave} onClick={onSave}>
