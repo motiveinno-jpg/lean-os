@@ -527,7 +527,7 @@ export default function LandingV8() {
             <h4 className="lp8-topics-h">오너뷰로 대신할 수 있는 것</h4>
             <p className="lp8-topics-p">오너뷰 한 곳에서 처리하는 일들입니다.</p>
             <div className="topics">
-              {TOPICS.map((t, i) => <span key={t + i} className="rise" style={stagger(i, 12)}>{t}</span>)}
+              {TOPICS.map(([t, href], i) => <Link key={t} href={href} className="rise" style={stagger(i, 12)}>{t}</Link>)}
             </div>
           </div>
         </section>

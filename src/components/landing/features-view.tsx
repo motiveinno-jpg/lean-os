@@ -64,9 +64,20 @@ export function MenuGlyph({ n }: { n: string }) {
   }
 }
 
+// ?g=&m= → [그룹 index, 메뉴 index]. 없거나 범위를 벗어나면 0 (2026-09-14 첫 렌더에도 쓰려고 밖으로 뺐다)
+function pick(g: string | null, m: string | null): [number, number] {
+  const c = CATALOG.findIndex((x) => x.key === g);
+  if (c < 0) return [0, 0];
+  const n = Number(m);
+  return [c, Number.isInteger(n) && n >= 0 && n < CATALOG[c].menus.length ? n : 0];
+}
+
 export default function FeaturesView() {
-  const [cat, setCat] = useState(0);   // 0~3 = 메뉴 그룹, AI_TAB = AI 자동화
-  const [menu, setMenu] = useState(0);
+  // 첫 렌더부터 주소의 그룹을 쓴다 — 전에는 0(홈)으로 그린 뒤 effect 에서 바꿔,
+  // 서버 HTML 에는 늘 홈 그룹만 담겼다 (2026-09-14)
+  const sp = useSearchParams();
+  const [cat, setCat] = useState(() => pick(sp.get("g"), sp.get("m"))[0]);   // 0~3 = 메뉴 그룹, AI_TAB = AI 자동화
+  const [menu, setMenu] = useState(() => pick(sp.get("g"), sp.get("m"))[1]);
   const narrow = useNarrow();
 
   // 토글을 고르면 그 영역만 보여주고 주소도 같이 바꾼다 — 메뉴마다 하나의 화면이 되게
@@ -81,14 +92,12 @@ export default function FeaturesView() {
   //   컴포넌트는 다시 마운트되지 않는다 — 첫 마운트에만 읽던 탓에 화면이 안 넘어갔다(2026-08-15 사장님 제보).
   //   useSearchParams 로 주소 변화를 계속 반영한다. m 이 없거나 범위를 벗어나면 0(전체/첫 메뉴)으로 —
   //   그룹만 바꿀 때 이전 그룹의 메뉴 번호가 남아 범위를 벗어나는 것도 함께 막는다.
-  const sp = useSearchParams();
   useEffect(() => {
     if (sp.get("g") === "ai") { window.location.replace("/ai"); return; }
-    const g = CATALOG.findIndex((c) => c.key === sp.get("g"));
-    if (g >= 0) {
+    if (CATALOG.some((c) => c.key === sp.get("g"))) {
+      const [g, m] = pick(sp.get("g"), sp.get("m"));
       setCat(g);
-      const m = Number(sp.get("m"));
-      setMenu(Number.isInteger(m) && m >= 0 && m < CATALOG[g].menus.length ? m : 0);
+      setMenu(m);
     }
   }, [sp]);
 

@@ -243,6 +243,9 @@ html[data-theme="dark"] .lp8{
 .lp8 .finale p{ margin-top: 16px; font-size: 15px; color: var(--ink-3) }
 .lp8 .topics{ display: flex; flex-wrap: wrap; gap: 8px }
 .lp8 .topics span{ display: inline-block; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); font-size: 13.5px; color: var(--ink-3) }
+/* 2026-09-14 검색어에 링크를 걸었다 — 같은 모양 + 누를 수 있다는 표시 */
+.lp8 .topics a{ display: inline-block; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); font-size: 13.5px; color: var(--ink-3); transition: border-color .15s, color .15s, background .15s }
+.lp8 .topics a:hover{ border-color: var(--brand); color: var(--brand); background: var(--brand-l) }
 .lp8 .foot{ padding: 40px 0 60px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-4) }
 .lp8 .foot-row{ display: flex; gap: 20px; flex-wrap: wrap; justify-content: space-between }
 .lp8 .foot a:hover{ color: var(--brand) }

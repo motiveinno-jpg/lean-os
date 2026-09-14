@@ -13,6 +13,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // 랜딩에서 분리된 공개 페이지들 — 사이트맵 누락으로 색인이 안 되고 있었다 (2026-08-13 SEO 정비)
     { url: `${BASE}/pricing`, changeFrequency: "monthly", priority: 0.9 },
     { url: `${BASE}/features`, changeFrequency: "monthly", priority: 0.9 },
+    // 2026-09-14 그룹마다 서버에서 그리고 canonical 을 따로 준다 — 각자 색인될 문서
+    ...["finance", "inventory", "analysis", "workspace", "hr"].map((g) => (
+      { url: `${BASE}/features/?g=${g}`, changeFrequency: "monthly" as const, priority: 0.8, lastModified: "2026-09-14" }
+    )),
     { url: `${BASE}/ai`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE}/demo`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE}/contact`, changeFrequency: "yearly", priority: 0.7, lastModified: "2026-09-14" },

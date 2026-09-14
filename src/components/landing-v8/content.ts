@@ -67,14 +67,38 @@ export const FIGURES: [string, string][] = [
   ["월 100건", "세금계산서·현금영수증 발행 (유료 플랜)"],
 ];
 
-/* 관련 검색어 — 하위 페이지 앵커가 아직 없어 링크를 걸지 않는다 (2026-09-09) */
-export const TOPICS = [
-  "중소기업 ERP", "올인원 ERP", "클라우드 ERP", "회계 프로그램", "부가세 신고",
-  "전자세금계산서 발행", "홈택스 연동", "은행 자동 연동", "카드 내역 자동 수집",
-  "근태관리 프로그램", "급여 프로그램", "연차 관리", "퇴직금 계산기",
-  "4대보험 계산기", "실수령액 계산기", "재고관리 프로그램", "재고 원가 관리",
-  "스마트스토어 연동", "쿠팡 연동", "프로젝트 관리 툴", "전자결재",
-  "사내 메신저", "그룹웨어", "문서보관함", "전자계약", "ERP 도입 비용", "세무사 제휴",
+/* 관련 검색어 — [검색어, 그 일을 다루는 공개 페이지] (2026-09-14 링크 복구)
+   ▸ 계산기·요금·세무사·블로그 글이 있는 주제는 그 페이지로, 나머지는 /features 의 해당 메뉴(?g=그룹&m=메뉴 순번).
+   ▸ 옛 CATALOG(components/landing/content.ts)를 불러오지 않고 주소를 적었다 — 불러오면 `/` 번들에 옛 문구 전부가 실린다.
+     ⚠️ 그래서 CATALOG 의 그룹·메뉴 순서를 바꾸면 여기 m 도 같이 고친다(메뉴 이름을 옆 주석에 적어 두었다). */
+export const TOPICS: [string, string][] = [
+  ["중소기업 ERP", "/blog/smb-erp-guide"],
+  ["올인원 ERP", "/features"],
+  ["클라우드 ERP", "/features"],
+  ["회계 프로그램", "/blog/accounting-program-vs-all-in-one-erp"],
+  ["부가세 신고", "/features?g=analysis&m=5"],          // 분석 › 부가세
+  ["전자세금계산서 발행", "/features?g=finance&m=4"],   // 파이낸스 › 세금·증빙
+  ["홈택스 연동", "/features?g=finance&m=3"],           // 파이낸스 › 수집·전표
+  ["은행 자동 연동", "/features?g=finance"],            // 파이낸스 › 통장
+  ["카드 내역 자동 수집", "/features?g=finance&m=1"],   // 파이낸스 › 카드
+  ["근태관리 프로그램", "/features?g=hr&m=1"],          // 인사관리 › 근태 관리
+  ["급여 프로그램", "/features?g=hr"],                  // 인사관리 › 구성원(급여 배치·명세서)
+  ["연차 관리", "/features?g=hr&m=1"],                  // 인사관리 › 근태 관리(연차 발생·사용 이력)
+  ["퇴직금 계산기", "/tools/severance-calculator"],
+  ["4대보험 계산기", "/tools/insurance-calculator"],
+  ["실수령액 계산기", "/tools/salary-calculator"],
+  ["재고관리 프로그램", "/features?g=inventory&m=1"],   // 재고 › 재고
+  ["재고 원가 관리", "/features?g=inventory"],          // 재고 › 품목(판매가·원가)
+  ["스마트스토어 연동", "/features?g=inventory&m=6"],   // 재고 › 채널
+  ["쿠팡 연동", "/features?g=inventory&m=6"],           // 재고 › 채널
+  ["프로젝트 관리 툴", "/features?g=workspace&m=1"],    // 워크스페이스 › 프로젝트
+  ["전자결재", "/features?g=workspace&m=2"],            // 워크스페이스 › 결재 허브
+  ["사내 메신저", "/features?g=workspace&m=4"],         // 워크스페이스 › 메신저
+  ["그룹웨어", "/features?g=workspace"],                // 워크스페이스 › 일정 / 할 일
+  ["문서보관함", "/features?g=workspace&m=6"],          // 워크스페이스 › 파일보관함
+  ["전자계약", "/features?g=workspace&m=5"],            // 워크스페이스 › 전자계약
+  ["ERP 도입 비용", "/pricing"],
+  ["세무사 제휴", "/tax-partners"],
 ];
 
 export const PRICING = {
