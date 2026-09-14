@@ -59,10 +59,10 @@ export default function OutlookPage() {
     <span className="qk-quicks">{opts.map(([v, l]) => <button key={String(v)} type="button" onClick={() => set(v)} className={cur === v ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>)}</span>
   );
   const runwayNow = data ? calcRunwayMonths(data.balance, 0, 0, data.burn) : 0;
-  const rw = (m: number) => (m >= 999 ? "무기한" : `${m.toFixed(1)}개월`);
+  const rw = (m: number) => (m >= 999 ? "제한 없음" : `${m.toFixed(1)}개월`);
   const excel = base ? [{
     label: `잔액 곡선 ${days}일 (날짜별)`, count: base.points.length,
-    onClick: () => downloadCsv(`자금전망_${days}일`, ["날짜", "예정 잔액", ...(scen ? ["시나리오 잔액"] : []), "지금 속도 직선", "그날 항목"],
+    onClick: () => downloadCsv(`자금전망_${days}일`, ["날짜", "예정 잔액", ...(scen ? ["시나리오 잔액"] : []), "현재 지출 추세", "당일 항목"],
       base.points.map((p, i) => [p.date, p.balance, ...(scen ? [scen.points[i]?.balance ?? ""] : []), linearBalance(data!.balance, data!.burn, p.day), p.items.map((it) => `${it.label} ${Math.round(it.amount)}`).join(" / ")])),
   }] : [];
 
@@ -74,11 +74,11 @@ export default function OutlookPage() {
       <LineChart height={220} yFmt={(n) => `${man(n)}`}
         series={[
           { name: "예정 반영", points: base.points.map((p) => ({ label: p.day === 0 ? "오늘" : md(p.date), value: p.balance })) },
-          { name: "지금 속도", points: base.points.map((p) => ({ label: p.day === 0 ? "오늘" : md(p.date), value: linearBalance(data.balance, data.burn, p.day) })) },
+          { name: "현재 지출 추세", points: base.points.map((p) => ({ label: p.day === 0 ? "오늘" : md(p.date), value: linearBalance(data.balance, data.burn, p.day) })) },
           ...(scen ? [{ name: "시나리오", points: scen.points.map((p) => ({ label: p.day === 0 ? "오늘" : md(p.date), value: p.balance })) }] : []),
         ]}
         styles={["solid", "dashed", "dotted"]} colors={["var(--primary)", "var(--text-dim)", "var(--warning)"]} />
-      <Legend items={[{ name: "예정 반영 (실선)", color: "var(--primary)" }, { name: "지금 속도 직선 (점선)", color: "var(--text-dim)" }, ...(scen ? [{ name: "시나리오", color: "var(--warning)" }] : [])]} />
+      <Legend items={[{ name: "예정 반영 (실선)", color: "var(--primary)" }, { name: "현재 지출 추세 (점선)", color: "var(--text-dim)" }, ...(scen ? [{ name: "시나리오", color: "var(--warning)" }] : [])]} />
       <div className="ol-marks">
         <button type="button" className="ol-mark-chip ol-mark-min" onClick={() => setPick({ title: `${base.min.date} 최저점`, items: base.min.items })}>최저 {md(base.min.date)} <b className="mono-number">{man(base.min.balance)}</b></button>
         {big.filter(({ p }) => p.day !== base.min.day).map(({ p, sum }) => (
@@ -107,7 +107,7 @@ export default function OutlookPage() {
               <span className="ol-range"><input type="range" min={-30} max={30} step={5} value={draft.spendPct} onChange={(e) => setDraft((d) => ({ ...d, spendPct: Number(e.target.value) }))} /><b className="mono-number">{draft.spendPct > 0 ? "+" : ""}{draft.spendPct}%</b></span>
             </ConditionRow>
             <ConditionRow label="입금 지연" hint="매출 입금·계약 회차">{quick(draft.delayDays, [[0, "없음"], [15, "15일"], [30, "30일"], [60, "60일"]], (v) => setDraft((d) => ({ ...d, delayDays: v })))}</ConditionRow>
-            <ConditionRow label="미수 회수율" hint={data && data.arOver30 > 0 ? `30일 넘은 미수 ${won(data.arOver30)} 중 · 오늘+30일에 한 번` : "30일 넘은 미수금이 없습니다"}>
+            <ConditionRow label="미수 회수율" hint={data && data.arOver30 > 0 ? `30일 초과 미수금 ${won(data.arOver30)} 중 · 30일 후 1회 반영` : "30일 초과 미수금이 없습니다"}>
               <span className="ol-range"><input type="range" min={0} max={100} step={10} value={draft.recoveryPct} disabled={!data || data.arOver30 <= 0} onChange={(e) => setDraft((d) => ({ ...d, recoveryPct: Number(e.target.value) }))} /><b className="mono-number">{draft.recoveryPct}%</b></span>
             </ConditionRow>
             <ConditionRow label="추가 자금" hint="대표 가수금·대출 실행 등 한 건">
@@ -126,18 +126,18 @@ export default function OutlookPage() {
                 {draft.extraOut && <button type="button" className="btn-secondary btn-sm" onClick={() => setDraft((d) => ({ ...d, extraOut: null }))}>지움</button>}
               </span>
             </ConditionRow>
-            <p className="ol-panel-note">시나리오는 곡선을 하나 더 그릴 뿐 실제 숫자는 바뀌지 않습니다.</p>
+            <p className="ol-panel-note">시나리오는 비교 곡선만 추가하며 실제 데이터는 변경되지 않습니다.</p>
           </ConditionPanel>
-          <span className="text-[11px] text-[var(--text-dim)]">실선은 예정 반영, 점선은 지금 속도, 주황은 시나리오입니다.</span>
+          <span className="text-[11px] text-[var(--text-dim)]">실선: 예정 반영 · 점선: 현재 지출 추세 · 주황: 시나리오</span>
         </>}
         right={<><ExcelMenu items={excel} /><button type="button" onClick={() => window.print()} className="btn-secondary btn-sm">인쇄</button></>}
         stats={data && base ? <>
-          <Stat label="오늘" value={won(data.balance)} />
-          <Stat label={`${days}일 뒤`} value={won(base.end)} tone={base.end >= 0 ? undefined : "minus"} />
+          <Stat label="현재 잔액" value={won(data.balance)} />
+          <Stat label={`${days}일 후 잔액`} value={won(base.end)} tone={base.end >= 0 ? undefined : "minus"} />
           <Stat label="최저점" value={<>{won(base.min.balance)} <small className="font-normal text-[var(--text-dim)]">{md(base.min.date)}</small></>} tone={base.min.balance < 0 ? "minus" : undefined} />
-          <Stat label="부족 시점" value={base.shortfall ? md(base.shortfall.date) : "없음"} tone={base.shortfall ? "minus" : "plus"} />
+          <Stat label="자금 부족 예상 시점" value={base.shortfall ? md(base.shortfall.date) : "없음"} tone={base.shortfall ? "minus" : "plus"} />
           {scen && <Stat label="시나리오 최저" value={<>{won(scen.min.balance)} <small className="font-normal text-[var(--text-dim)]">{md(scen.min.date)}</small></>} tone={scen.min.balance < 0 ? "minus" : undefined} />}
-          <Stat label="운영 가능" value={rw(runwayFromCurve(base, days))} />
+          <Stat label="자금 운용 가능 기간" value={rw(runwayFromCurve(base, days))} />
         </> : <span className="text-[11px] text-[var(--text-dim)]">불러오는 중…</span>}
       />
       <AppliedChips chips={chips} onClearAll={() => apply(SCENARIO_DEFAULT)} />
@@ -146,26 +146,26 @@ export default function OutlookPage() {
         <div className="bz-body">
           <div className="pnl-basis-note">
             <b>오늘 통장 잔액 + 날짜 있는 예정 항목 {data.items.length}건</b> · 세금계산서(발행+30일)·급여·대출·정기 지출·부가세·계약 회차·결재 대기. 확정  {data.items.filter((i) => i.sure === "확정").length}건 · 추정 {data.items.filter((i) => i.sure === "추정").length}건.
-            {data.gaps.length > 0 && <> 틀릴 수 있는 곳 <b className="text-[var(--warning)]">{data.gaps.length}</b>가지는 아래에.</>}
+            {data.gaps.length > 0 && <> 전망 오차 요인 <b className="text-[var(--warning)]">{data.gaps.length}</b>건은 하단 참고.</>}
           </div>
           <div className="pnl-headline">
             <b>
               {base.shortfall
-                ? `${md(base.shortfall.date)}에 통장이 마이너스가 됩니다. 그날까지 ${man(Math.abs(base.min.balance))} 모자랍니다.`
-                : `${days}일 안에는 통장이 마이너스가 되지 않습니다. 가장 낮을 때는 ${md(base.min.date)} ${man(base.min.balance)}.`}
-              {scen && (scen.shortfall ? ` 시나리오대로면 ${md(scen.shortfall.date)}에 모자랍니다.` : ` 시나리오대로도 ${days}일 안에는 버팁니다.`)}
+                ? `${md(base.shortfall.date)} 통장 잔액 마이너스 전환 예상. 최대 부족액 ${man(Math.abs(base.min.balance))}.`
+                : `향후 ${days}일 내 자금 부족 없음. 최저 잔액 ${md(base.min.date)} ${man(base.min.balance)}.`}
+              {scen && (scen.shortfall ? ` 시나리오 적용 시 ${md(scen.shortfall.date)} 자금 부족 예상.` : ` 시나리오 적용 시에도 ${days}일 내 자금 부족 없음.`)}
             </b>
-            <div className="pnl-headline-sub">오늘 {man(data.balance)} → {days}일 뒤 {man(base.end)} · 지금 속도(월 {man(data.burn)}원)로는 {rw(runwayNow)} · 예정 반영 {rw(runwayFromCurve(base, days))}</div>
+            <div className="pnl-headline-sub">현재 잔액 {man(data.balance)} → {days}일 후 {man(base.end)} · 현재 지출 추세(월 {man(data.burn)}원) 기준 {rw(runwayNow)} · 예정 반영 {rw(runwayFromCurve(base, days))}</div>
           </div>
           <section className="pnl-panel">
-            <h3>잔액 곡선 — 오늘부터 {days}일</h3>
-            <p>{!data.hasBank ? "통장이 연결돼 있지 않아 오늘 잔액이 0 입니다. " : ""}선 위에 손을 올리면 그날 잔액. 아래 칩은 큰 예정 건·최저점 · 누르면 그날 항목. 예정 항목  {data.items.length}건 반영.</p>
+            <h3>잔액 추이 — 향후 {days}일</h3>
+            <p>{!data.hasBank ? "연결된 통장이 없어 현재 잔액이 0입니다. " : ""}마우스를 올리면 일자별 잔액 표시. 하단 칩: 주요 예정 건·최저점(클릭 시 상세). 예정 항목  {data.items.length}건 반영.</p>
             {chart}
           </section>
 
           <section className="pnl-panel">
-            <h3>자금 달력 — 주 단위 {weeks.length}주</h3>
-            <p>주 단위 입출금과 잔액입니다. 칸을 누르면 그 주 항목이 보입니다.</p>
+            <h3>자금 캘린더 — 주 단위 {weeks.length}주</h3>
+            <p>주 단위 입출금·잔액입니다. 칸 클릭 시 해당 주 항목을 표시합니다.</p>
             <div className="ol-cal">
               {weeks.map((w, i) => (
                 <button type="button" key={w.start} className={`ol-wk ${w.low ? "ol-wk-low" : ""} ${i === 0 ? "ol-wk-now" : ""}`} onClick={() => setPick({ title: `${w.start} 주 예정`, items: w.items })}>
@@ -180,22 +180,22 @@ export default function OutlookPage() {
 
           <div className="bz-grid2">
             <section className="pnl-panel">
-              <h3>이 전망이 틀릴 수 있는 곳</h3>
-              <p>직접 확인할 항목입니다.</p>
-              {data.gaps.length === 0 ? <div className="collect-empty">지금은 없습니다</div> : (
-                <ul className="ol-gaps">{data.gaps.map((g) => <li key={g.key}><span>{g.text}</span><Link href={g.href} className="bz-link">고치기 →</Link></li>)}</ul>
+              <h3>전망 오차 요인</h3>
+              <p>담당자 확인이 필요한 항목입니다.</p>
+              {data.gaps.length === 0 ? <div className="collect-empty">확인할 항목이 없습니다</div> : (
+                <ul className="ol-gaps">{data.gaps.map((g) => <li key={g.key}><span>{g.text}</span><Link href={g.href} className="bz-link">수정 →</Link></li>)}</ul>
               )}
             </section>
             <section className="pnl-panel">
-              <h3>운영 가능 기간</h3>
-              <p>지금 속도 · 예정 반영 · 시나리오별. 부족이 예상되면 빨갛게.</p>
+              <h3>자금 운용 가능 기간</h3>
+              <p>현재 지출 추세 · 예정 반영 · 시나리오별 비교. 자금 부족 예상 시 빨간색으로 표시합니다.</p>
               <dl className="bz-kv">
-                <div><dt>지금 속도 (월 지출 {man(data.burn)}원 직선)</dt><dd className="mono-number">{rw(runwayNow)}</dd></div>
-                <div><dt>예정 항목 반영 (부가세·급여·대출 날짜대로)</dt><dd className={`mono-number ${base.shortfall ? "bz-minus" : ""}`}>{rw(runwayFromCurve(base, days))}</dd></div>
+                <div><dt>현재 지출 추세 (월 지출 {man(data.burn)}원 기준)</dt><dd className="mono-number">{rw(runwayNow)}</dd></div>
+                <div><dt>예정 항목 반영 (부가세·급여·대출 일정 기준)</dt><dd className={`mono-number ${base.shortfall ? "bz-minus" : ""}`}>{rw(runwayFromCurve(base, days))}</dd></div>
                 {scen && <div><dt>시나리오 ({chips.map((c) => `${c.group} ${c.label}`).join(" · ")})</dt><dd className={`mono-number ${scen.shortfall ? "bz-minus" : "bz-tone-y"}`}>{rw(runwayFromCurve(scen, days))}</dd></div>}
-                {data.arOver30 > 0 && <div><dt>30일 넘은 미수 전부 회수되면</dt><dd className="mono-number bz-plus">{rw(runwayFromCurve(buildCurve(data, days, { ...SCENARIO_DEFAULT, recoveryPct: 100 }), days))}</dd></div>}
+                {data.arOver30 > 0 && <div><dt>30일 초과 미수금 전액 회수 시</dt><dd className="mono-number bz-plus">{rw(runwayFromCurve(buildCurve(data, days, { ...SCENARIO_DEFAULT, recoveryPct: 100 }), days))}</dd></div>}
               </dl>
-              <p className="bz-why">'예정 항목 반영'은 {days}일 안에 부족이 없으면 그 기간 평균 소진 속도로 늘려 본 값입니다. 항목은 <Link href="/reports/upcoming" className="bz-link">예정 항목 →</Link></p>
+              <p className="bz-why">'예정 항목 반영'은 {days}일 내 자금 부족이 없을 경우 해당 기간 평균 소진 속도로 연장한 추정값입니다. 항목 상세: <Link href="/reports/upcoming" className="bz-link">예정 항목 →</Link></p>
             </section>
           </div>
         </div>
@@ -205,7 +205,7 @@ export default function OutlookPage() {
         <div className="approval-detail-modal" onClick={() => setPick(null)}>
           <div className="pnl-drill ol-pick" onClick={(e) => e.stopPropagation()}>
             <div className="pnl-drill-head"><h3 className="text-sm font-bold">{pick.title}</h3><button type="button" className="btn-secondary btn-sm" onClick={() => setPick(null)}>닫기</button></div>
-            {pick.items.length === 0 ? <div className="collect-empty">이 날엔 예정 항목이 없습니다</div> : (
+            {pick.items.length === 0 ? <div className="collect-empty">해당 일자에 예정 항목이 없습니다</div> : (
               <div className="pnl-drill-body"><table className="ev-table ev-lined pnl-mini-table">
                 <thead><tr><th>날짜</th><th className="text-left">항목</th><th>구분</th><th>금액</th><th>근거</th><th>확실도</th></tr></thead>
                 <tbody>{pick.items.map((it) => (

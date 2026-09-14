@@ -124,7 +124,7 @@ export default function ManagementSummaryPage() {
           {/* 손익 현황과 같은 머리 — 기준 한 줄 + 한 문장 결론 (규칙 기반, LLM 아님) */}
           <div className="pnl-basis-note">
             <b>손익 = 확정 전표 · 자금 = 통장 · 채권·채무 = 거래처 원장</b>
-            {s.pnl.unposted.total > 0 ? <> — 전표로 만들지 않은 자료 <b className="text-[var(--warning)]">{s.pnl.unposted.total.toLocaleString()}건</b>은 손익에 빠져 있습니다 · <Link href="/collect" className="font-semibold text-[var(--primary)]">수집·전표 →</Link></> : <> — 이 달 자료는 모두 전표로 반영됐습니다.</>}
+            {s.pnl.unposted.total > 0 ? <> — 전표 미생성 자료 <b className="text-[var(--warning)]">{s.pnl.unposted.total.toLocaleString()}건</b>은 손익 미반영 · <Link href="/collect" className="font-semibold text-[var(--primary)]">수집·전표 →</Link></> : <> — 당월 자료는 모두 전표에 반영되었습니다.</>}
           </div>
           <div className="pnl-headline">
             <b>
