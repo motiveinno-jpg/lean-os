@@ -230,6 +230,7 @@ export const config = {
     // robots.txt·sitemap.xml 은 검색로봇용 공개 파일 — auth 미들웨어 제외 (네이버가 robots.txt 307 리다이렉트 받던 문제, 2026-07-02)
     // exe·pkg 는 public/downloads 의 CodefCert 인스톨러 — 로그인 없이 받게 정적 서빙(미들웨어 제외, 2026-07-23)
     // webm·mp4 는 랜딩 히어로 시연 영상 — 비로그인 방문자가 /auth 로 튕겨 영상이 안 나왔다 (2026-09-04 실측 307)
-    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|llms.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|html|exe|pkg|webm|mp4)$).*)',
+    // manifest.json 은 브라우저가 모든 페이지에서 받는 앱 정보 — 비로그인 방문자가 /auth 로 307 받아 콘솔 오류·PWA 정보 누락 (2026-09-14 실측)
+    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.json|llms.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|html|exe|pkg|webm|mp4)$).*)',
   ],
 };
