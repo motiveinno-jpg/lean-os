@@ -54,7 +54,7 @@ const HOLIDAYS_BY_YEAR: Record<number, Record<string, string>> = {
     "05-24": "부처님오신날", "05-25": "대체공휴일",
     "06-06": "현충일",
     "08-15": "광복절", "08-17": "대체공휴일",
-    "09-24": "추석 연휴", "09-25": "추석", "09-26": "추석 연휴",
+    "09-24": "추석 연휴", "09-25": "추석", "09-26": "추석 연휴",   // 9/26 토요일 — 설·추석은 일요일과 겹칠 때만 대체(토요일은 해당 없음)
     "10-03": "개천절", "10-05": "대체공휴일",
     "10-09": "한글날",
     "12-25": "크리스마스",
@@ -84,4 +84,12 @@ export function getHoliday(ymd?: string | null): string | null {
   const table = HOLIDAYS_BY_YEAR[year];
   if (table) return table[md] ?? null;
   return FIXED[md] ?? null; // 표 밖 연도: 양력 고정 공휴일만
+}
+
+/** 한 해의 전국 공휴일 전부 — "YYYY-MM-DD" → 이름. 회사 공휴일 표가 비어 있을 때 달력이 이걸로 대체한다. */
+export function holidaysOfYear(year: number): Record<string, string> {
+  const table = HOLIDAYS_BY_YEAR[year] ?? FIXED;
+  const out: Record<string, string> = {};
+  for (const [md, name] of Object.entries(table)) out[`${year}-${md}`] = name;
+  return out;
 }

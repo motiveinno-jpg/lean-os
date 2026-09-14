@@ -11,6 +11,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useCompanyHolidays } from "@/hooks/use-company-holidays";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getMonthEvents } from "@/lib/schedule";
 import { LEAVE_TYPES } from "@/lib/hr";
@@ -69,6 +70,8 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
     queryFn: () => getMonthEvents(companyId, nextY, nextM, { scope: "all", userId }),
     enabled: !!companyId && !!userId, staleTime: 60_000,
   });
+  //   공휴일 — 근태와 같은 회사 공휴일 표(비어 있으면 전국 표). 예전엔 달력이 공휴일을 아예 안 그렸다.
+  const holidays = useCompanyHolidays(companyId, [year, nextY]);
 
   // 승인된 휴가 · leave_calendar RPC(SECURITY DEFINER) 사용 (2026-08-11).
   //   왜: 이름은 employees 조인인데 급여 등 민감 컬럼 때문에 일반 직원 RLS 로 막혀
@@ -172,8 +175,13 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
   const anchor = selected > todayStr ? selected : todayStr;
   const upcoming = useMemo(() => {
     if (selCount > 0) return [];
-    type Up = { key: string; date: string; title: string; kind: "event" | "leave"; tag?: string };
+    type Up = { key: string; date: string; title: string; kind: "event" | "leave" | "holiday"; tag?: string };
     const rows: Up[] = [];
+    //   공휴일도 다가오는 일정에 — 추석처럼 며칠 뒤 쉬는 날을 달력을 넘기지 않고도 보게
+    for (const [d, name] of Object.entries(holidays)) {
+      if (d < anchor) continue;
+      rows.push({ key: `h${d}`, date: d, title: name, kind: "holiday", tag: "공휴일" });
+    }
     const seenEvent = new Set<string>();
     for (const e of [...(events as any[]), ...(nextEvents as any[])]) {
       if (e.completed || seenEvent.has(e.id)) continue;
@@ -195,7 +203,7 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
       if (seenLeave.has(k)) return false;
       seenLeave.add(k); return true;
     }).slice(0, 5);
-  }, [events, nextEvents, leaveByDate, anchor, selCount]);
+  }, [events, nextEvents, leaveByDate, holidays, anchor, selCount]);
 
   return (
     <div className="dashboard-calendar glass-card">
@@ -236,7 +244,8 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
           for (let k = 0; k < Math.min(marks?.leave || 0, 2); k++) dots.push("is-leave");
           return (
             <button key={c.key} type="button" onClick={() => setSelected(c.key)}
-              className={`dashboard-calendar-cell${c.out ? " is-out" : ""}${isToday ? " is-today" : ""}${isSel ? " is-sel" : ""}${wd === 0 ? " is-sun" : wd === 6 ? " is-sat" : ""}`}>
+              title={holidays[c.key] || undefined}
+              className={`dashboard-calendar-cell${holidays[c.key] ? " is-holiday" : ""}${c.out ? " is-out" : ""}${isToday ? " is-today" : ""}${isSel ? " is-sel" : ""}${wd === 0 ? " is-sun" : wd === 6 ? " is-sat" : ""}`}>
               <span className="dashboard-calendar-num">{c.day}</span>
               <span className="dashboard-calendar-dots">
                 {dots.slice(0, 3).map((k, di) => <span key={di} className={`dashboard-calendar-dot ${k}`} />)}
@@ -252,6 +261,7 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
             {Number(selected.slice(5, 7))}월 {Number(selected.slice(8, 10))}일 ({selWd})
           </span>
           {selected === todayStr && <span className="dashboard-calendar-sel-today">오늘</span>}
+          {holidays[selected] && <span className="dashboard-calendar-sel-holiday">{holidays[selected]}</span>}
           {selCount > 0
             ? <span className="dashboard-calendar-sel-count">{selCount}건</span>
             : <span className="dashboard-calendar-sel-none">일정 없음</span>}
@@ -261,8 +271,8 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
             <div className="dashboard-calendar-items">
               <div className="dashboard-calendar-upcoming-head">다가오는 일정</div>
               {upcoming.map((u) => (
-                <Link key={u.key} href={u.kind === "event" ? "/schedule" : "/employees?tab=leave"} className="dashboard-calendar-item">
-                  <span className={`dashboard-calendar-item-bar ${u.kind === "event" ? "is-event" : "is-leave"}`} />
+                <Link key={u.key} href={u.kind === "leave" ? "/employees?tab=leave" : "/schedule"} className="dashboard-calendar-item">
+                  <span className={`dashboard-calendar-item-bar ${u.kind === "event" ? "is-event" : u.kind === "holiday" ? "is-holiday" : "is-leave"}`} />
                   <span className="dashboard-calendar-item-date">{Number(u.date.slice(5, 7))}/{Number(u.date.slice(8, 10))}</span>
                   <span className="dashboard-calendar-item-title">{u.title}</span>
                   {u.tag && <span className="dashboard-calendar-item-tag">{u.tag}</span>}

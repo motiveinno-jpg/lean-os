@@ -10625,3 +10625,10 @@ textarea.tax-remark-input {
 .tax-form-bottom-total .tax-form-amount-value { @apply text-[var(--primary)]; }
 .tax-form-purpose { @apply flex items-center gap-3 border-l border-[var(--border)] px-4 text-xs text-[var(--text-muted)]; }
 .tax-form-purpose-opt { @apply flex items-center gap-1.5 text-[var(--text)] cursor-pointer; }
+
+/*   공휴일 — 대시보드 달력 칸과 일정 화면 칸 (2026-09-14). 일요일과 같은 빨강, 이름은 툴팁·칩으로. */
+.dashboard-calendar-cell.is-holiday .dashboard-calendar-num { color: var(--danger); font-weight: 700; }
+.dashboard-calendar-cell.is-sel.is-holiday .dashboard-calendar-num { @apply text-white; }
+.schedule-holiday-chip { @apply mb-0.5 inline-block max-w-full truncate rounded px-1 text-[10px] leading-4 font-semibold; color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.dashboard-calendar-sel-holiday { @apply rounded px-1.5 py-0.5 text-[10.5px] font-bold; color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.dashboard-calendar-item-bar.is-holiday { background: var(--danger); }

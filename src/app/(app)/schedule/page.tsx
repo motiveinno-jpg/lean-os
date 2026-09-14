@@ -23,6 +23,7 @@ import {
 } from "@/lib/schedule";
 import { ScheduleItemDialog, type ScheduleDialogTarget } from "@/components/schedule-item-dialog";
 import { fetchLeaveCalendar, buildLeaveByDate, isMyLeave, type LeaveCalRow } from "@/lib/leave-calendar";
+import { useCompanyHolidays } from "@/hooks/use-company-holidays";
 import { useToast } from "@/components/toast";
 import Link from "next/link";
 import {
@@ -129,6 +130,8 @@ function CalendarTab({ companyId, userId, myEmail, toast, tabs }: { companyId: s
   );
 
   const grid = useMemo(() => buildMonthGrid(view.year, view.monthIdx0), [view.year, view.monthIdx0]);
+  //   공휴일 — 근태와 같은 회사 공휴일 표(비어 있으면 전국 표). 예전엔 달력이 공휴일을 안 그렸다.
+  const holidays = useCompanyHolidays(companyId, [view.year, view.year + 1]);
 
   const eventsByDate = useMemo(() => {
     // 기간 일정은 시작~종료 사이 모든 날짜 칸에 노출 (단일 일정은 시작일 1칸).
@@ -247,12 +250,13 @@ function CalendarTab({ companyId, userId, myEmail, toast, tabs }: { companyId: s
               >
                 <div className={`text-[11px] font-semibold ${
                   isToday ? "text-[var(--primary)]" :
-                  dow === 0 ? "text-red-400" :
+                  holidays[dateStr] || dow === 0 ? "text-red-400" :
                   dow === 6 ? "text-blue-400" :
                   "text-[var(--text)]"
                 }`}>
                   {cell.date.getDate()}
                 </div>
+                {holidays[dateStr] && <div className="schedule-holiday-chip" title={holidays[dateStr]}>{holidays[dateStr]}</div>}
                 <div className="mt-1 space-y-0.5">
                   {(expandedDays.has(weekKey) ? cellEvents : cellEvents.slice(0, 3)).map((e) => {
                     const role = segmentRole(e, dateStr);
