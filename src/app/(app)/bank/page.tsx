@@ -214,15 +214,16 @@ export default function BankPage() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
   // 같은 key 재더블클릭 시 방향 토글, 다른 key 면 key 설정 + 기본 방향(날짜·금액=desc, 그 외=asc).
+  //   ⚠️ setSortKey 의 갱신 함수 안에서 setSortDir 를 부르면 안 된다. React 는 갱신 함수를
+  //   두 번 실행할 수 있어(StrictMode) 방향이 두 번 뒤집혀 제자리로 왔다 — 첫 클릭은 정렬되는데
+  //   두 번째 클릭이 오름/내림을 못 바꾸던 원인(2026-09-14 전 화면 정렬 점검). 현재 값으로 바로 정한다.
   const onSortTx = (key: string) => {
-    setSortKey((prev) => {
-      if (prev === key) {
-        setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-        return prev;
-      }
+    if (sortKey === key) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
       setSortDir(key === "transaction_date" || key === "amount" ? "desc" : "asc");
-      return key;
-    });
+    }
   };
 
   // 통장 이름 편집은 2026-08-19 '수정' 팝업(이름·메모)으로 — setAcctEdit

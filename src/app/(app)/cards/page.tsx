@@ -191,15 +191,16 @@ export default function CardsPage() {
   const [cardSortKey, setCardSortKey] = useState<string>("transaction_date");
   const [cardSortDir, setCardSortDir] = useState<"asc" | "desc">("desc");
   const [selectedTxIds, setSelectedTxIds] = useState<Set<string>>(new Set());
+  //   ⚠️ setSortKey 의 갱신 함수 안에서 setSortDir 를 부르면 안 된다. React 는 갱신 함수를
+  //   두 번 실행할 수 있어(StrictMode) 방향이 두 번 뒤집혀 제자리로 왔다 — 첫 클릭은 정렬되는데
+  //   두 번째 클릭이 오름/내림을 못 바꾸던 원인(2026-09-14 전 화면 정렬 점검). 현재 값으로 바로 정한다.
   const onSortTx = (key: string) => {
-    setSortKey((prev) => {
-      if (prev === key) {
-        setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-        return prev;
-      }
+    if (sortKey === key) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
       setSortDir(key === "transaction_date" || key === "amount" ? "desc" : "asc");
-      return key;
-    });
+    }
   };
   // CODEF 카드 동기화
   const [syncing, setSyncing] = useState(false);
