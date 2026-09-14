@@ -4018,7 +4018,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               )}
             </div>
           ) : selectedApprovers.length > 0 ? (
-            /* 직원 QA #11 — 양식 결재선이 지정돼 있으면 그걸 미리보기에 반영(대표/CEO 강제 표시 제거).
+            /* 양식 결재선이 지정돼 있으면 그걸 미리보기에 반영(대표/CEO 강제 표시 제거).
                실제 라우팅은 이미 customApprovers(양식 결재선)로 처리됨 — 미리보기만 정합화. */
             <div className="text-xs text-[var(--text-muted)]">
               <div className="kpi-callout mb-4">이 양식의 <b>결재선</b>이 적용됩니다.</div>
