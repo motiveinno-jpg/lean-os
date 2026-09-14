@@ -73,7 +73,7 @@ export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, o
             {/* contract-tpl-editor: 표 편집 UX 스코프(고정 레이아웃·열 조절 핸들·셀 선택 하이라이트) —
                 전자계약 양식 편집기와 동일. 기존 서식의 표도 열/행/전체 크기 조절·셀 정렬 가능 (2026-08-10 사장님) */}
             <div className="tpl-editor-single contract-tpl-editor">
-              <RichEditor ref={editorRef} content={html} onChange={setHtml} placeholder="양식 내용을 입력하세요..." fillHeight />
+              <RichEditor ref={editorRef} content={html} onChange={setHtml} fillHeight />
             </div>
           </>
         ) : (

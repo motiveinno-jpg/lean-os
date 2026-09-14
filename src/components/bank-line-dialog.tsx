@@ -387,7 +387,7 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
                       {ptOpen && <PickList items={partners} placeholder="거래처 검색" onPick={(p) => { setPt(p); setPtOpen(false); }} onClose={() => setPtOpen(false)} />}
                     </span>
                   </label>
-                  <label>적요 <input value={vMemo} onChange={(e) => setVMemo(e.target.value)} className="inv-input" placeholder="적요" /></label>
+                  <label>적요 <input value={vMemo} onChange={(e) => setVMemo(e.target.value)} className="inv-input" /></label>
                 </div>
                 <p className="inv-hint">{isIn ? "차) 보통예금 / 대) 고른 계정" : "차) 고른 계정 / 대) 보통예금"} · 같은 거래가 다시 오면 이 계정이 미리 채워집니다.</p>
               </div>

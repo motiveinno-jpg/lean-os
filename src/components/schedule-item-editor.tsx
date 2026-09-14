@@ -193,7 +193,7 @@ export function ScheduleItemEditor({
         <div className="sched-field sched-field-top">
           <span>설명</span>
           <div className="sched-desc-wrap">
-            <textarea ref={descRef} value={draft.description} rows={3} placeholder="어떤 일정인지 적어 주세요."
+            <textarea ref={descRef} value={draft.description} rows={3}
               onChange={(e) => set({ description: e.target.value })} className="sched-in sched-area" />
             <div className="sched-desc-tools">
               {/*  이모지는 **쓰던 자리**에 꽂는다 — 끝에 붙이지 않는다(메신저 작성 상자와 같은 규칙) */}

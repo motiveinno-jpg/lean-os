@@ -310,7 +310,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5 shrink-0">본문 <span className="text-[var(--text-dim)] font-normal">표와 서식, 이미지를 지원합니다.</span></label>
                 <div className="flex-1 min-h-0 contract-tpl-editor">
                   <RichEditor ref={editorRef} content={html} onChange={setHtml} fillHeight
-                    placeholder="근로계약서 내용을 입력하세요." />
+                    />
                 </div>
               </main>
             </div>
@@ -369,7 +369,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
                     placeholder="섹션 제목 (예: 제1조 목적)"
                     className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm mb-2 focus:outline-none focus:border-[var(--primary)]" />
                   <textarea value={sec.content} onChange={(e) => updateSection(idx, "content", e.target.value)}
-                    placeholder="섹션 내용을 입력하세요."
+                   
                     rows={4}
                     className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)] resize-y font-mono" />
                 </div>

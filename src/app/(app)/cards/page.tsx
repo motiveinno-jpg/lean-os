@@ -1424,7 +1424,7 @@ export default function CardsPage() {
               </label>
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">사유 / 메모</label>
-                <input value={postMemo} onChange={(e) => setPostMemo(e.target.value)} placeholder="사유 / 메모"
+                <input value={postMemo} onChange={(e) => setPostMemo(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs focus:outline-none focus:border-[var(--primary)]" />
               </div>
               <div>

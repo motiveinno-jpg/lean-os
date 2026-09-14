@@ -2156,7 +2156,7 @@ function TaxInvoicesPageInner() {
                       <div className="tax-party-row">
                         <span>상호 <i>*</i></span>
                         <input value={row.counterpartyName} onChange={(e) => patchRow(row.key, { counterpartyName: e.target.value })}
-                          placeholder="상호" className="tax-party-input" />
+                          className="tax-party-input" />
                       </div>
                       <div className={`tax-party-row ${!row.counterpartyRepresentative.trim() ? "tax-party-miss" : ""}`}>
                         <span>대표자 <i>*</i></span>
@@ -2263,10 +2263,10 @@ function TaxInvoicesPageInner() {
                               <input value={it.name} onChange={(e) => patchItem(row.key, it.key, { name: e.target.value })}
                                 onKeyDown={(e) => onItemKeyDown(e, row.key, it.key)}
                                 onPaste={(e) => onItemPaste(e, row.key, it.key)}
-                                placeholder="품목명" className="tax-item-input" />
+                                className="tax-item-input" />
                               <input value={it.spec} onChange={(e) => patchItem(row.key, it.key, { spec: e.target.value })}
                                 onKeyDown={(e) => onItemKeyDown(e, row.key, it.key)}
-                                placeholder="규격" className="tax-item-input" />
+                                className="tax-item-input" />
                               <input value={it.qty} onChange={(e) => patchItem(row.key, it.key, { qty: e.target.value })}
                                 onKeyDown={(e) => onItemKeyDown(e, row.key, it.key)}
                                 inputMode="decimal" placeholder="1" className="tax-item-input text-right" />
@@ -2429,11 +2429,11 @@ function TaxInvoicesPageInner() {
                       <input value={row.items[0]?.name || ""} onChange={(e) => { markTouched(row.key, "itemName"); patchItem(row.key, row.items[0].key, { name: e.target.value }); }}
                         data-cell={`itemName-${i}`}
                         onKeyDown={(e) => gridKeys.onCellKey(e, i, "itemName")}
-                        placeholder="품목명" className="tax-item-input" />
+                        className="tax-item-input" />
                       <input value={row.items[0]?.spec || ""} onChange={(e) => { markTouched(row.key, "spec"); patchItem(row.key, row.items[0].key, { spec: e.target.value }); }}
                         data-cell={`spec-${i}`}
                         onKeyDown={(e) => gridKeys.onCellKey(e, i, "spec")}
-                        placeholder="규격" className="tax-item-input" />
+                        className="tax-item-input" />
                       <input value={row.items[0]?.qty || ""} onChange={(e) => { markTouched(row.key, "qty"); patchItem(row.key, row.items[0].key, { qty: e.target.value }); }}
                         data-cell={`qty-${i}`}
                         onKeyDown={(e) => gridKeys.onCellKey(e, i, "qty")}

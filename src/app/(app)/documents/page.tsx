@@ -1398,7 +1398,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 <RichEditor
                   content={editContent}
                   onChange={setEditContent}
-                  placeholder="문서 내용을 작성하세요... 📎 PDF 버튼으로 PDF 페이지를 그대로 삽입할 수 있습니다."
+                 
                   onUploadImage={async (file) => {
                     if (!companyId || !userId) throw new Error("회사 정보를 불러오는 중입니다");
                     // 문서 첨부는 원장에 남긴다(문서 삭제·정리 때 같이 지우려고) — document_id 가 있어 파일보관함 목록엔 안 보인다

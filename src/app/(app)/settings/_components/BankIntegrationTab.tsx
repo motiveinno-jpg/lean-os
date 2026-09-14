@@ -592,7 +592,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
               <div className="certificate-password-field">
                 <label className="field-label">인증서 비밀번호</label>
                 <div className="relative">
-                  <input type={showCertPw ? "text" : "password"} value={certPassword} onChange={(e) => setCertPassword(e.target.value)} placeholder="인증서 비밀번호" className="field-input pr-16" />
+                  <input type={showCertPw ? "text" : "password"} value={certPassword} onChange={(e) => setCertPassword(e.target.value)} className="field-input pr-16" />
                   <button type="button" onClick={() => setShowCertPw(!showCertPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text)]">{showCertPw ? "숨기기" : "보기"}</button>
                 </div>
                 <p className="text-[10px] text-[var(--text-dim)] mt-1">인증서와 비밀번호는 회사 전용 영역에 암호화해 보관하며, 자료를 가져올 때만 서버가 꺼내 씁니다.</p>
@@ -610,7 +610,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
               <div>
                 <label className="field-label">비밀번호</label>
                 <div className="relative">
-                  <input type={showPw ? "text" : "password"} value={loginPw} onChange={(e) => setLoginPw(e.target.value)} placeholder="비밀번호" className="field-input pr-16" />
+                  <input type={showPw ? "text" : "password"} value={loginPw} onChange={(e) => setLoginPw(e.target.value)} className="field-input pr-16" />
                   <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-muted)] hover:text-[var(--text)]">{showPw ? "숨기기" : "보기"}</button>
                 </div>
                 <p className="text-[10px] text-[var(--text-dim)] mt-1">비밀번호는 회사 전용 영역에 암호화해 보관하며, 자료를 가져올 때만 서버가 꺼내 씁니다.</p>

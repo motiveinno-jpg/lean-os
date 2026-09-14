@@ -381,7 +381,7 @@ export function ProgressReportStageCard({
             <textarea
               value={reportText}
               onChange={(e) => setReportText(e.target.value)}
-              placeholder="진행 상황을 작성하세요."
+             
               rows={8}
               className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded text-[11px] focus:outline-none focus:border-[var(--primary)] resize-y"
             />

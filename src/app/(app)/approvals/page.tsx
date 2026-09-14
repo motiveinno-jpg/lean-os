@@ -1263,7 +1263,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows={2}
-                placeholder="의견을 입력하세요..."
+               
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none mb-4"
               />
               <div className="flex gap-2.5">
@@ -1979,7 +1979,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
                     <div className="approval-desc-editor">
                       <RichEditor key={editReq.id} content={editForm.description}
                         onChange={(html) => setEditForm((s) => ({ ...s, description: html }))}
-                        placeholder="결재 요청에 대한 상세 설명을 입력하세요..." maxHeight="280px" />
+                        maxHeight="280px" />
                     </div>
                   )}
                 </div>
@@ -2676,7 +2676,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                       value={decisionComment}
                       onChange={(e) => setDecisionComment(e.target.value)}
                       rows={2}
-                      placeholder="의견을 입력하세요..."
+                     
                       className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none mb-4"
                     />
                     <div className="flex gap-2.5">
@@ -3574,7 +3574,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                             value={leaveForm.reason}
                             onChange={(e) => setLeaveForm({ ...leaveForm, reason: e.target.value })}
                             rows={2}
-                            placeholder="휴가 사유를 입력하세요..."
+                           
                             className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none"
                           />
                         </div>
@@ -3619,7 +3619,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                         <input
                           value={form.title}
                           onChange={(e) => setForm({ ...form, title: e.target.value })}
-                          placeholder="결재 요청 제목을 입력하세요"
+                         
                           className="field-input"
                         />
                       </div>
@@ -3677,7 +3677,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                             ref={descEditorRef}
                             content={form.description}
                             onChange={(html) => setForm((prev) => ({ ...prev, description: html }))}
-                            placeholder="결재 요청에 대한 상세 설명을 입력하세요..."
+                           
                             maxHeight="320px"
                           />
                         </div>

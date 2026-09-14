@@ -10593,8 +10593,8 @@ a.pf-row:hover, button.pf-row:hover { background: color-mix(in oklab, var(--prim
      .field-input 이 height: var(--control-h) 를 박아 두므로 태그까지 붙여 이긴다. */
 textarea.tax-remark-input {
   @apply py-1.5 leading-5 resize-none;
-  height: 50px;
-  min-height: 50px;
+  height: 44px;
+  min-height: 44px;
 }
 
 /*   세금계산서 한 장 — 홈택스 서식의 '작성일자 | 공급가액 | 세액' 한 줄과 맨 아랫줄 '합계 | 이 금액을 영수/청구' (2026-09-14 사장님) */

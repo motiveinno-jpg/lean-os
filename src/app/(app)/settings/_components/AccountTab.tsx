@@ -115,7 +115,7 @@ export function AccountTab() {
               type="password"
               value={currentPw}
               onChange={(e) => setCurrentPw(e.target.value)}
-              placeholder="현재 비밀번호를 입력하세요"
+             
               className="field-input"
               required
             />
@@ -148,7 +148,7 @@ export function AccountTab() {
               type="password"
               value={confirmPw}
               onChange={(e) => setConfirmPw(e.target.value)}
-              placeholder="새 비밀번호를 다시 입력하세요"
+             
               className="field-input"
               required
             />

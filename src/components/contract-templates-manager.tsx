@@ -711,7 +711,7 @@ function TemplateEditorModal({
                   <label className="block text-xs text-[var(--text-muted)] mb-1.5 shrink-0">본문 <span className="text-[var(--text-dim)] font-normal">변수는 {"{변수명}"} 형식으로 넣습니다.</span></label>
                   <div className="flex-1 min-h-0 contract-tpl-editor">
                     <RichEditor ref={editorRef} content={bodyHtml} onChange={setBodyHtml} fillHeight
-                      placeholder="계약서 내용을 입력하세요." />
+                      />
                   </div>
                 </>
               )

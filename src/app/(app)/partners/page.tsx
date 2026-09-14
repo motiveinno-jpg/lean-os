@@ -1826,11 +1826,11 @@ export default function PartnersPage() {
               </div>
               <div>
                 <label className={labelCls}>은행명</label>
-                <input value={form.bankName} onChange={(e) => setField("bankName", e.target.value)} placeholder="은행명" className={inputCls} />
+                <input value={form.bankName} onChange={(e) => setField("bankName", e.target.value)} className={inputCls} />
               </div>
               <div>
                 <label className={labelCls}>계좌번호</label>
-                <input value={form.accountNumber} onChange={(e) => setField("accountNumber", e.target.value)} placeholder="계좌번호" className={inputCls} />
+                <input value={form.accountNumber} onChange={(e) => setField("accountNumber", e.target.value)} className={inputCls} />
               </div>
               <div className="col-span-2">
                 <label className={labelCls}>태그 (쉼표 구분)</label>
