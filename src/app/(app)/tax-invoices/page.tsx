@@ -2455,7 +2455,7 @@ function TaxInvoicesPageInner() {
                       <input value={row.items[0]?.remark || ""} onChange={(e) => { markTouched(row.key, "remark"); patchItem(row.key, row.items[0].key, { remark: e.target.value }); }}
                         data-cell={`remark-${i}`}
                         onKeyDown={(e) => gridKeys.onCellKey(e, i, "remark")}
-                        placeholder="비고" className="tax-item-input" />
+                        className="tax-item-input" />
                       <button type="button" onClick={() => removeRow(row.key)} title="이 계산서 줄 지우기" className="tax-item-del">✕</button>
                     </div>
                     {calcRowKey === row.key && (
