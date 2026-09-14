@@ -145,7 +145,7 @@ export default function OutlookPage() {
       {isLoading || !data || !base ? <div className="collect-empty">불러오는 중…</div> : (
         <div className="bz-body">
           <div className="pnl-basis-note">
-            <b>오늘 통장 잔액 + 날짜 있는 예정 항목 {data.items.length}건</b> · 세금계산서(발행+30일)·급여·대출·정기 지출·부가세·계약 회차·결재 대기. 확정  {data.items.filter((i) => i.sure === "확정").length}건 · 추정 {data.items.filter((i) => i.sure === "추정").length}건.
+            <b>현재 통장 잔액 + 일자 지정 예정 항목 {data.items.length}건</b> · 세금계산서(발행+30일)·급여·대출·정기 지출·부가세·계약 회차·결재 대기. 확정  {data.items.filter((i) => i.sure === "확정").length}건 · 추정 {data.items.filter((i) => i.sure === "추정").length}건.
             {data.gaps.length > 0 && <> 전망 오차 요인 <b className="text-[var(--warning)]">{data.gaps.length}</b>건은 하단 참고.</>}
           </div>
           <div className="pnl-headline">
