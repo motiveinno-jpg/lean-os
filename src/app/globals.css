@@ -10672,3 +10672,6 @@ textarea.tax-remark-input {
 .xc-req-title { @apply block max-w-[260px] truncate; }
 .xc-req-sub { @apply block text-[10px] text-[var(--text-dim)]; }
 .xc-acct-btn { @apply w-full text-left truncate; }
+
+/*   거래처 상세 — 휴면 배지 옆 '해제' (2026-09-15) */
+.partner-dormant-clear { @apply ml-1.5 rounded px-1.5 py-px text-[10px] font-semibold underline underline-offset-2 hover:opacity-80; color: inherit; }

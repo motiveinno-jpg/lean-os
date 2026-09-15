@@ -1188,6 +1188,17 @@ export default function PartnersPage() {
                     {detailPartner.is_dormant && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-500/15 text-amber-500" title={detailPartner.dormancy_detected_at ? `${String(detailPartner.dormancy_detected_at).slice(0,10)} 휴면 감지` : "6개월 이상 거래·연락 없음"}>
                         <Ico e="💤" /> 휴면
+                        {/*   손으로 푼다 — 감지는 '휴면 거래처 찾기'를 눌렀을 때의 스냅샷이라 그 뒤 거래가 생겨도 스스로 안 풀린다 */}
+                        <button type="button" className="partner-dormant-clear"
+                          title="휴면 표시를 지웁니다. 다음 '휴면 거래처 찾기'에서 6개월간 거래·연락이 없으면 다시 표시됩니다."
+                          onClick={async (ev) => {
+                            ev.stopPropagation();
+                            const { error } = await supabase.from("partners").update({ is_dormant: false, dormancy_detected_at: null } as never).eq("id", detailPartner.id);
+                            if (error) { toast("휴면 해제 실패: " + error.message, "error"); return; }
+                            setDetailPartner({ ...detailPartner, is_dormant: false, dormancy_detected_at: null });
+                            qc.invalidateQueries({ queryKey: ["partners"] });
+                            toast("휴면을 해제했습니다.", "success");
+                          }}>해제</button>
                       </span>
                     )}
                     {detailPartner.business_number && (

@@ -310,16 +310,19 @@ export async function detectDormantPartners(companyId: string) {
     .order('id', { ascending: true }));
   if (!partners?.length) return { detected: 0, reactivated: 0 };
 
-  // 최근 6개월 활동 있는 partner_id 수집 (거래/세금계산서/소통)
-  const [dealsRes, invRes, commRes] = await Promise.all([
+  // 최근 6개월 활동 있는 partner_id 수집 (프로젝트/세금계산서/소통/통장 입출금)
+  //   통장 거래를 안 세면 돈이 오가는 거래처가 '휴면'으로 찍힌다 — 배지 문구가 "거래·연락 없음"이라 거짓이 된다 (2026-09-15)
+  const [dealsRes, invRes, commRes, bankRes] = await Promise.all([
     fetchPagedRes('dormant.deals', () => db.from('deals').select('partner_id').eq('company_id', companyId).gte('created_at', sixMonthsAgoIso).not('partner_id', 'is', null).order('id', { ascending: true })),
     fetchPagedRes('dormant.taxInvoices', () => db.from('tax_invoices').select('partner_id').eq('company_id', companyId).gte('issue_date', sixMonthsAgoDate).not('partner_id', 'is', null).order('id', { ascending: true })),
     fetchPagedRes('dormant.comms', () => db.from('partner_communications').select('partner_id').eq('company_id', companyId).gte('comm_date', sixMonthsAgoDate).order('id', { ascending: true })),
+    fetchPagedRes('dormant.bank', () => db.from('bank_transactions').select('partner_id').eq('company_id', companyId).gte('transaction_date', sixMonthsAgoDate).not('partner_id', 'is', null).order('id', { ascending: true })),
   ]);
   const activeSet = new Set<string>();
   for (const r of (dealsRes.data || []) as any[]) if (r.partner_id) activeSet.add(r.partner_id);
   for (const r of (invRes.data || []) as any[]) if (r.partner_id) activeSet.add(r.partner_id);
   for (const r of (commRes.data || []) as any[]) if (r.partner_id) activeSet.add(r.partner_id);
+  for (const r of (bankRes.data || []) as any[]) if (r.partner_id) activeSet.add(r.partner_id);
 
   // 신규 휴면: is_dormant=false 인데 최근 활동 없음
   const newDormant = (partners as any[]).filter((p) => !p.is_dormant && !activeSet.has(p.id));
