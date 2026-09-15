@@ -235,14 +235,25 @@ serve(withSentry("gov-programs-sync", async (req: Request) => {
   for (const provider of Object.keys(FETCHERS)) {
     if (wantProvider && provider !== wantProvider) continue;
 
+    //   'error' 키도 다시 시도한다 (2026-09-15). 전에는 'ok' 만 골라서, 한 번 실패한 키는
+    //   원인이 고쳐져도 영영 다시 불리지 않았다 — 09-07 보안 강화 때 복호화 함수가 잠깐 깨져
+    //   두 키가 'error' 로 박혔고, 09-11 에 함수가 고쳐진 뒤에도 수집이 9일간 조용히 멈췄다.
+    //   정말 잘못된 키라면 하루 한 번 다시 'error' 로 남을 뿐이다(원천 호출 1회).
     let q = db.from("company_api_keys")
       .select("id, company_id, key_encrypted")
-      .eq("provider", provider).eq("status", "ok").limit(MAX_COMPANIES);
+      .eq("provider", provider).in("status", ["ok", "error"]).limit(MAX_COMPANIES);
     if (wantCompany) q = q.eq("company_id", wantCompany);
     const { data: keys } = await q;
 
     if (!keys || keys.length === 0) {
       summary.push({ provider, skipped: "등록된 인증키가 없습니다" });
+      //   크론이 아무것도 못 받은 날도 기록에 남긴다 — 건너뛰기만 하면 멈춘 줄 모른다
+      if (isCron) {
+        await db.from("gov_sync_log").insert({
+          source: provider, ok: false, finished_at: new Date().toISOString(),
+          fetched: 0, upserted: 0, closed: 0, message: "쓸 수 있는 인증키가 없습니다",
+        });
+      }
       continue;
     }
 
