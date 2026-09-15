@@ -4404,7 +4404,7 @@ table.coa-table { min-width: 640px; }
    옆 칸을 눌러 버린다. 2칸 격자 3종 자식은 min-w-0 — 표는 자기 패널 안에서 가로 스크롤(stg-table-wrap). 전수 실측(15화면·탭) 현재 넘침 0. */
 .pnl-grid2 > *, .bz-grid2 > *, .ds-grid2 > * { @apply min-w-0; }
 .pnl-panel { @apply mb-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3.5; }
-.pnl-panel > h3 { @apply text-[13px] font-bold text-[var(--text)]; }
+.pnl-panel > h3 { @apply text-sm font-extrabold text-[var(--text)]; } /* 카드 제목 = 홈 대시보드 .activity-card-title 와 같은 14px·800 로 통일 */
 .pnl-panel > p { @apply mb-2 text-[11px] text-[var(--text-dim)]; }
 .pnl-tbl-wrap { @apply overflow-x-auto; }
 table.pnl-diff-table, table.pnl-mini-table { min-width: 0; }

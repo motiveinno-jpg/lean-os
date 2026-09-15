@@ -473,7 +473,7 @@ function PnlPageInner() {
     const toneBg = options?.profit
       ? "color-mix(in srgb, var(--success) 9%, var(--bg-card))"
       : "var(--bg-card)";
-    const fontSize = options?.big ? 14.5 : 13;
+    const fontSize = options?.big ? 13 : 12;   // 앱 표준표(ev-table 12px)에 맞춤 — 총계 줄만 살짝 큰 13
     const delta = options?.prevTotal !== undefined ? total - options.prevTotal : undefined;
 
     return (
@@ -487,7 +487,7 @@ function PnlPageInner() {
       >
         <td
           style={{
-            padding: options?.big ? "12px 16px" : "10px 16px",
+            padding: options?.big ? "9px 14px" : "6px 14px",
             fontSize,
             fontWeight: options?.isBold || isHighlight ? 700 : 400,
             color: isHighlight ? "var(--text)" : "var(--text-muted)",
@@ -513,7 +513,7 @@ function PnlPageInner() {
         </td>
         <td
           style={{
-            padding: options?.big ? "12px 16px" : "10px 16px",
+            padding: options?.big ? "9px 14px" : "6px 14px",
             fontSize,
             fontWeight: isHighlight ? 700 : 600,
             textAlign: "right",
