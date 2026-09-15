@@ -13,7 +13,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { SiteFooter, SiteHeader } from "@/components/landing-v8/site-shell";
 import { FAQS } from "./faqs";
 import { track }  from "@/lib/analytics";
-import TABLE from "./ganyi-2026.json";
+import { simplifiedIncomeTax } from "@/lib/income-tax";
 
 // ── 2026년 4대보험 요율 (원본: tools/insurance-calculator RATES · 개정 시 함께 수정) ──
 const RATES =  {
@@ -25,32 +25,6 @@ const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
 /** 요율을 화면 글자로 — 0.0475 → "4.75%". 손으로 또 적으면 RATES 만 고쳤을 때 어긋난다. */
 const pct = (f: number) => `${+(f * 100).toFixed(4)}%`;
 const comma = (s: string) => (s ? Number(s.replace(/[^0-9]/g, "")).toLocaleString("ko-KR") : "");
-
-/** 간이세액표 조회 — 과세대상 월급여(원), 공제대상 가족수(본인 포함), 8~20세 자녀수 */
-function incomeTax(taxablePay: number, family: number, children: number): number {
-  const k = taxablePay / 1000; // 천원
-  const famAt = (rowVals: number[], n: number) => {
-    if (n <= 11) return rowVals[Math.min(11, Math.max(1, n)) - 1];
-    // 주4: 11명 초과 — t11 − (t10 − t11) × 초과 가족수
-    return Math.max(0, rowVals[10] - (rowVals[9] - rowVals[10]) * (n - 11));
-  };
-  let tax = 0;
-  if (k < (TABLE.rows[0][0] as number)) tax = 0;
-  else if (k < 10000) {
-    const row = TABLE.rows.find((r) => k >= (r[0] as number) && k < (r[1] as number));
-    tax = row ? famAt((row as number[]).slice(2), family) : 0;
-  } else {
-    const anchor = famAt(TABLE.anchor10000 as number[], family);
-    if (k === 10000) tax = anchor;
-    else {
-      const band = (TABLE.high as any[]).find((b) => b.upto === null || k <= b.upto)!;
-      tax = anchor + band.base + Math.floor((k - band.over) * 1000 * band.mul * band.rate) + band.plus;
-    }
-  }
-  // 주3: 8~20세 자녀 세액공제 (월정액)
-  const cc = children <= 0 ? 0 : children === 1 ? 20830 : children === 2 ? 45830 : 45830 + (children - 2) * 33330;
-  return Math.max(0, tax - cc);
-}
 
 export default function SalaryCalculatorView() {
   const [salary, setSalary] = useState("");
@@ -70,7 +44,7 @@ export default function SalaryCalculatorView() {
     const health = (base * RATES.healthRate) / 2;
     const care = (base * RATES.careRate) / 2;
     const emp = (base * RATES.empRate) / 2;
-    const tax = incomeTax(base, family, children);
+    const tax = simplifiedIncomeTax(base, family, children);
     const localTax = Math.floor(tax * 0.1);
     const total = pension + health + care + emp + tax + localTax;
     return {

@@ -17,10 +17,15 @@ export type InsuranceRates = {
   note?: string | null;
 };
 
-/** 법정 기본값 — 연도별. 모르는 연도는 가장 가까운 아는 연도. (2026 값은 종전 코드 상수와 같다) */
+/** 법정 기본값 — 연도별. 모르는 연도는 가장 가까운 아는 연도.
+ *  2026 요율 출처: 보건복지부 고시·국민연금공단·건강보험공단 (공개 4대보험 계산기 RATES 와 동일 기준).
+ *    · 국민연금 9.5%(연금개혁 인상, 4.75/4.75) · 기준소득월액 하한 41만·상한 659만(2026.7~)
+ *    · 건강보험 7.19%(3.595/3.595) · 장기요양 13.14%(건강보험료 대비, 보수월액 대비 0.9448%)
+ *    · 고용보험 실업급여 1.8%(0.9/0.9) + 회사 고용안정·직능개발 0.25%(150인 미만) → 회사 1.15%
+ *    · 산재 0.7%(업종별 상이, 기본값) */
 const LEGAL: Record<number, Omit<InsuranceRates, "year" | "isDefault">> = {
-  2026: { np_emp: 0.045, np_er: 0.045, hi_emp: 0.03545, hi_er: 0.03545, ltc_pct: 0.1295, ei_emp: 0.009, ei_er: 0.0135, ia_rate: 0.007,
-          np_floor: 390_000, np_ceiling: 5_900_000, hi_floor: 279266, hi_ceiling: 119625307 },
+  2026: { np_emp: 0.0475, np_er: 0.0475, hi_emp: 0.03595, hi_er: 0.03595, ltc_pct: 0.1314, ei_emp: 0.009, ei_er: 0.0115, ia_rate: 0.007,
+          np_floor: 410_000, np_ceiling: 6_590_000, hi_floor: 279266, hi_ceiling: 119625307 },
 };
 export function legalInsuranceRates(year: number): InsuranceRates {
   const ys = Object.keys(LEGAL).map(Number).sort((a, b) => Math.abs(a - year) - Math.abs(b - year));
