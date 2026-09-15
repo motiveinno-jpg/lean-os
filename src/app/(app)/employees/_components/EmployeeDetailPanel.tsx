@@ -66,10 +66,22 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const [termDate, setTermDate] = useState(todayKst());
   const [termChecklist, setTermChecklist] = useState({ equipment: false, systemAccess: false, handover: false, insurance: false });
   const [terminating, setTerminating] = useState(false);
-  const [termLossReason, setTermLossReason] = useState("11");
-  //   상실사유 — 고용보험 상실신고 구분코드(고용노동부 공식, 2014-02-01 시행). 전 회사 공통이라 코드 그대로 쓴다.
+  const [termLossReason, setTermLossReason] = useState("11");   // 대분류 코드
+  //   구체적 사유(세부코드) — 첫 진입은 대분류 11의 첫 세부코드로. 세부코드 없는 코드를 고르면 빈 값이 된다.
+  const [termLossSub, setTermLossSub] = useState<string>(() => DEFAULT_LOSS_REASONS.find((r) => r.code === "11")?.subs?.[0]?.code || "");
+  //   상실사유 — 고용보험 상실신고 구분코드(고용노동부 공식). 일부 코드는 구체적 사유(세부코드)를 이어서 고른다(위하고식 2단계).
   const lossReasons = DEFAULT_LOSS_REASONS;
   const lossGroups = [...new Set(lossReasons.map((r) => r.group))];
+  const selectedLoss = lossReasons.find((r) => r.code === termLossReason);
+  const lossSubs = selectedLoss?.subs || [];
+  //   대분류를 바꾸면 그 코드의 첫 세부코드로 맞춘다(세부코드 없는 코드는 빈 값).
+  const pickMainLoss = (code: string) => {
+    setTermLossReason(code);
+    setTermLossSub(lossReasons.find((r) => r.code === code)?.subs?.[0]?.code || "");
+  };
+  //   신고에 들어가는 값 = 세부코드가 있으면 세부코드, 없으면 대분류 코드.
+  const effectiveLossCode = termLossSub || termLossReason;
+  const effectiveLossLabel = lossSubs.find((s) => s.code === termLossSub)?.label || selectedLoss?.label || null;
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<Record<string, string>>({});
   // 연봉 raw 입력 보존 · ÷12 → ×12 반올림으로 input 이 깨지지 않게.
@@ -81,8 +93,8 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
     try {
       //   상실사유·체크리스트를 실제로 저장한다(종전엔 고르기만 하고 버려졌다, 2026-09-09 대표).
       const offboarding = {
-        loss_reason: termLossReason,
-        loss_reason_label: lossReasons.find((r) => r.code === termLossReason)?.label || null,
+        loss_reason: effectiveLossCode,
+        loss_reason_label: effectiveLossLabel,
         checklist: { ...termChecklist },
         completed_by: viewer?.id || null,
         completed_at: new Date().toISOString(),
@@ -1222,10 +1234,10 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                 </div>
               )}
 
-              {/* 상실사유 — 고용보험 상실신고 구분코드 */}
+              {/* 상실사유 — 고용보험 상실신고 구분코드. 세부코드가 있는 코드는 아래 '구체적 사유'로 이어 고른다 */}
               <label className="inv-field">
                 <span>상실사유</span>
-                <select className="field-input" value={termLossReason} onChange={(e) => setTermLossReason(e.target.value)}>
+                <select className="field-input" value={termLossReason} onChange={(e) => pickMainLoss(e.target.value)}>
                   {lossGroups.map((g) => (
                     <optgroup key={g} label={g}>
                       {lossReasons.filter((r) => r.group === g).map((r) => (
@@ -1235,6 +1247,18 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                   ))}
                 </select>
               </label>
+
+              {/* 구체적 사유(세부코드) — 위 코드에 세부코드가 있을 때만 이어서 고른다 (예: 26 → 26-1·26-2·26-3) */}
+              {lossSubs.length > 0 && (
+                <label className="inv-field">
+                  <span>구체적 사유</span>
+                  <select className="field-input" value={termLossSub} onChange={(e) => setTermLossSub(e.target.value)}>
+                    {lossSubs.map((s) => (
+                      <option key={s.code} value={s.code}>{s.code} · {s.label}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
 
               {/* H7 (2026-08-27) — 정산 초안: 퇴직금·미사용 연차 수당·마지막 달 일할. 확정·지급은 사람 */}
               {canSeeSalary && companyId && termDate && <RetirementSettlementBox companyId={companyId} employeeId={employeeId} monthlySalary={Number(emp.salary || 0)} endDate={termDate} />}
