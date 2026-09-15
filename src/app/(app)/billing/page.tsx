@@ -1023,7 +1023,10 @@ function BillingPageInner() {
                         <div className="billing-col-name">오너뷰 <span className="billing-col-tag">추천</span></div>
                         {/*   정상가(list_price) 취소선 — 청구는 base_price. 연간 할인 보기에서도 정상가는 월 기준 그대로 */}
                         {std?.list_price > std?.base_price && (
-                          <div className="text-xs text-[var(--text-dim)] mono-number"><s>₩{Number(std.list_price).toLocaleString()}</s> <small>정상가</small></div>
+                          <div className="text-xs text-[var(--text-dim)] mono-number">
+                            <s>₩{Number(std.list_price).toLocaleString()}</s> <small>정상가</small>
+                            <span className="ml-1.5 rounded-full bg-[var(--primary)]/10 px-2 py-0.5 text-[11px] font-bold text-[var(--primary)]">{Math.round((1 - std.base_price / std.list_price) * 100)}% 할인 중</span>
+                          </div>
                         )}
                         <div className="billing-col-price mono-number">₩{stdMonthly.toLocaleString()} <small>/월</small></div>
                         <div className="billing-col-sub">{cycle === "annual" ? `연 ₩${(stdMonthly * 12).toLocaleString()} 일시 청구 · ` : ""}추가 1명 ₩{stdSeat.toLocaleString()}/월{isStd ? " · 지금 쓰는 요금제" : ""}</div>

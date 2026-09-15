@@ -132,7 +132,11 @@ export default function PricingView({ plans, source }: { plans: PlanRow[]; sourc
                   <p className="pr8-desc">{desc}</p>
                   {/*   정상가(list_price)가 있으면 취소선으로 — 실제 청구는 base_price */}
                   {p.list_price != null && p.list_price > p.base_price && (
-                    <div className="pr8-list"><s>{won(p.list_price)}</s><em>정상가</em></div>
+                    <div className="pr8-list">
+                      <s>{won(p.list_price)}</s><em>정상가</em>
+                      {/*   할인율은 두 값에서 계산 — 정상가를 바꾸면 따라 바뀐다 */}
+                      <b className="pr8-off">{Math.round((1 - p.base_price / p.list_price) * 100)}% 할인 중</b>
+                    </div>
                   )}
                   <div className="pr8-amt">
                     {won(p.base_price)}<span>{p.base_price > 0 ? " /월" : ""}</span>
