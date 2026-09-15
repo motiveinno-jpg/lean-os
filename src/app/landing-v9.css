@@ -1289,3 +1289,5 @@
 .lp9m .s12{ height:100vh; height:100svh }
 .lp9m .s12 .full{ width:100%; height:100%; border-radius:0 }
 .lp9m .s12 .full .cta{ opacity:1 }
+/* 「도입 첫날부터」 아래 그래픽을 점 구체 → 실크 물결로, 마지막 화면은 그래픽 없이 (2026-09-15 사장님: 그래픽 반복) */
+.lp9m .s11 #silk{ width:100%; max-width:none; height:clamp(240px,30vw,440px); margin-top:0 }

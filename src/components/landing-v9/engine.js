@@ -178,16 +178,8 @@ export function startLanding() {
   setTab(0);
   function tabs(){ if (innerWidth < 960) return; setTab(Math.min(2, Math.floor(prog($("#s10")) * 3))); }
 
-  /* ⑪ 점 구체 */
-  const gc = $("#globe"), g = gc.getContext("2d");
-  function globe(t){ const W = gc.width, H = gc.height; g.clearRect(0,0,W,H); const cx = W/2, cy = H + 230, R = 640;
-    for (let la = 0; la <= 90; la += 3.4) { const phi = la*Math.PI/180, rr = R*Math.cos(phi), yy = cy - R*Math.sin(phi), n = Math.max(6, Math.round(rr/8));
-      for (let k = 0; k < n; k++) { const th = k/n*Math.PI*2 + t*.12, x = cx + rr*Math.cos(th), z = Math.sin(th), y = yy + rr*.26*z; if (y > H + 4) continue;
-        const hl = Math.abs(la-30) < 4 && Math.cos(th - t*.4) > .92;
-        g.fillStyle = hl ? "rgba(103,232,249,.95)" : `rgba(165,180,252,${(.25+.6*((z+1)/2))*.8})`; g.beginPath(); g.arc(x, y, hl ? 4.4 : 1.3 + 1.6*((z+1)/2), 0, 7); g.fill(); } } }
-
-  /* ⑫ 마지막 화면 + 실크 — 판은 처음부터 펼쳐 두고 글도 바로 보인다(2026-09-15 사장님: 마지막이라 바로 보이게).
-     예전엔 스크롤로 70% 판이 꽉 차게 커지고 끝에 글이 떠올랐다(fin) — 그 계산은 뺐다 */
+  /* ⑪ 실크 물결 — 「도입 첫날부터」 숫자 아래 (2026-09-15 사장님: 점 구체 → 실크).
+     예전엔 여기 점 구체, 마지막 화면에 실크가 이어 나와 그래픽이 반복돼 보였다 — 마지막 화면은 그래픽 없이 둔다 */
   const sc = $("#silk"), s = sc.getContext("2d");
   function silk(t){
     // 캔버스 크기는 바뀔 때만 다시 잡는다 — 매 프레임 width 를 대입하면 버퍼를 새로 만든다
@@ -401,8 +393,7 @@ export function startLanding() {
     if (near.s5) acc();
     if (near.s6) terms();
     if (near.s10) tabs();
-    if (near.s12) silk(reduce ? 0 : t);
-    if (near.s11) globe(reduce ? 0 : t);
+    if (near.s11) silk(reduce ? 0 : t);
     cashcal(); stockScene(); mobile(); collage(); projectScene(); tplTick(ms);
     if (!reduce) rafId = requestAnimationFrame(frame);
   }
