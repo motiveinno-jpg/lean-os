@@ -1451,7 +1451,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .employee-certificates-tab { @apply space-y-4; }
 .employee-leave-tab { @apply space-y-4; }
 
-.employee-termination-modal { @apply fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4; }
 .employee-docs-checklist { @apply space-y-4; }
 .employee-notes-section { @apply space-y-3; }
 .employee-history-section { @apply space-y-3; }
@@ -4529,6 +4528,17 @@ table.pnl-drill-table { min-width: 760px; }
 .edit-request-diff { @apply mt-0.5 text-[11.5px] text-[var(--text-muted)]; }
 .edit-request-reason { @apply mt-0.5 text-[11.5px] text-[var(--text-dim)]; }
 .edit-request-actions { @apply flex shrink-0 gap-1.5; }
+
+/* 퇴사 처리 창 — 표준 모달(inv-modal) 안 퇴직금 계산 박스·체크리스트. 얇은 판/선, 앱 필드·버튼과 같은 결 */
+.ret-calc-box { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3; }
+.ret-calc-title { @apply mb-2 text-[11px] font-semibold text-[var(--text-muted)]; }
+.ret-calc-grid { @apply grid grid-cols-2 gap-x-3 gap-y-1.5 text-[12px]; }
+.ret-calc-grid > div { @apply flex items-center gap-1; }
+.ret-calc-k { @apply text-[var(--text-dim)]; }
+.ret-calc-v { @apply font-medium text-[var(--text)]; }
+.term-check-list { @apply flex flex-col gap-1.5; }
+.term-check-row { @apply flex cursor-pointer items-center gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[12px] transition hover:border-[var(--primary)]; }
+.term-check-row > input { @apply h-3.5 w-3.5 rounded; }
 .messenger-fab { @apply fixed z-50 w-14 h-14 rounded-full text-white flex items-center justify-center hover:opacity-90 transition active:scale-95 border border-white/15 touch-none cursor-grab active:cursor-grabbing; }
 .messenger-fab-badge { @apply absolute -top-0.5 -right-0.5 min-w-[20px] h-5 flex items-center justify-center text-[10px] font-bold rounded-full px-1 bg-red-500 text-white border-2 border-[var(--bg-card)]; }
 .owner-dashboard-section { @apply space-y-6 mb-8; }

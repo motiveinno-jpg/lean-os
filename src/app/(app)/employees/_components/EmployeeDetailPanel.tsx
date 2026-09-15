@@ -1184,105 +1184,93 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
         const allChecked = termAllChecked;
 
         return createPortal(
-          <div className="employee-termination-modal fixed inset-0">
-            <div className="w-full max-w-md max-h-[88vh] flex flex-col rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-              {/* 헤더 — 흰 카드 + 레드 포인트 아이콘 (라운드6: 그라데이션 제거) */}
-              <div className="relative px-5 py-4 border-b border-[var(--border)] shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="kpi-icon danger shrink-0"><Ico e="🗂" /></div>
+          <div className="inv-modal" style={{ zIndex: 90 }} onClick={() => setShowTermModal(false)}>{/* 구성원 상세 패널(z-80) 위로 */}
+            <div className="inv-modal-box max-w-md" onClick={(e) => e.stopPropagation()}>
+              {/* 머리 — 아이콘 + 대상 직원 */}
+              <div className="inv-modal-head">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span className="kpi-icon danger shrink-0"><Ico e="🗂" /></span>
                   <div className="min-w-0">
                     <div className="text-sm font-extrabold text-[var(--text)]">퇴사 처리</div>
-                    <div className="text-[11px] text-[var(--text-muted)] truncate">{emp.name} · {emp.department || ""} {emp.position || ""}</div>
+                    <div className="truncate text-[11px] text-[var(--text-muted)]">{emp.name} · {emp.department || ""} {emp.position || ""}</div>
                   </div>
-                  <button onClick={() => setShowTermModal(false)} className="ml-auto p-2 hover:bg-[var(--bg-surface)] rounded-lg text-[var(--text-dim)] hover:text-[var(--text)] transition">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" /></svg>
-                  </button>
+                </div>
+                <button type="button" className="inv-modal-x" onClick={() => setShowTermModal(false)} aria-label="닫기">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              {/* 퇴사일 */}
+              <label className="inv-field">
+                <span>퇴사일</span>
+                <DateField value={termDate} onChange={(e) => setTermDate(e.target.value)} className="field-input" />
+              </label>
+
+              {/* 퇴직금 계산 (예상) */}
+              {retCalc && (
+                <div className="ret-calc-box">
+                  <div className="ret-calc-title">퇴직금 계산 (예상)</div>
+                  <div className="ret-calc-grid">
+                    <div><span className="ret-calc-k">재직일수</span><span className="ret-calc-v">{retCalc.totalDays}일</span></div>
+                    <div><span className="ret-calc-k">1일 평균임금</span><span className="ret-calc-v">₩{retCalc.dailyAvgWage.toLocaleString("ko-KR", { maximumFractionDigits: 0 })}</span></div>
+                    <div><span className="ret-calc-k">수급 자격</span><span className={retCalc.eligible ? "ret-calc-v text-[var(--success)]" : "ret-calc-v text-[var(--danger)]"}>{retCalc.eligible ? "해당" : "미해당 (1년 미만)"}</span></div>
+                    <div><span className="ret-calc-k">예상 퇴직금</span><span className="ret-calc-v font-bold">₩{retCalc.retirementPay.toLocaleString("ko-KR")}</span></div>
+                  </div>
+                </div>
+              )}
+
+              {/* 상실사유 — 고용보험 상실신고 구분코드 */}
+              <label className="inv-field">
+                <span>상실사유</span>
+                <select className="field-input" value={termLossReason} onChange={(e) => setTermLossReason(e.target.value)}>
+                  {[...new Set(LOSS_REASONS.map((r) => r.group))].map((g) => (
+                    <optgroup key={g} label={g}>
+                      {LOSS_REASONS.filter((r) => r.group === g).map((r) => (
+                        <option key={r.code} value={r.code}>{r.code} · {r.label}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </label>
+
+              {/* H7 (2026-08-27) — 정산 초안: 퇴직금·미사용 연차 수당·마지막 달 일할. 확정·지급은 사람 */}
+              {canSeeSalary && companyId && termDate && <RetirementSettlementBox companyId={companyId} employeeId={employeeId} monthlySalary={Number(emp.salary || 0)} endDate={termDate} />}
+
+              {/* 체크리스트 */}
+              <div className="inv-field">
+                <span>퇴사 체크리스트</span>
+                <div className="term-check-list">
+                  {([
+                    { key: "equipment" as const, label: "장비 반납 완료" },
+                    { key: "systemAccess" as const, label: "사내 시스템 접근 해제" },
+                    { key: "handover" as const, label: "인수인계 완료" },
+                    { key: "insurance" as const, label: "4대보험 상실 신고" },
+                  ]).map((item) => (
+                    <label key={item.key} className="term-check-row">
+                      <input
+                        type="checkbox"
+                        checked={termChecklist[item.key]}
+                        onChange={(e) => setTermChecklist((prev) => ({ ...prev, [item.key]: e.target.checked }))}
+                        className="accent-[var(--primary)]"
+                      />
+                      <span className={termChecklist[item.key] ? "text-[var(--text)]" : "text-[var(--text-dim)]"}>{item.label}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
-              {/* 본문 — 스크롤 */}
-              <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                {/* 퇴사일 */}
-                <div>
-                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">퇴사일</label>
-                  <DateField
-                    value={termDate}
-                    onChange={(e) => setTermDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
-                  />
-                </div>
 
-                {/* 퇴직금 계산 */}
-                {retCalc && (
-                  <div className="bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] p-3">
-                    <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">퇴직금 계산 (예상)</div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div><span className="text-[var(--text-dim)]">재직일수:</span> <span className="font-medium">{retCalc.totalDays}일</span></div>
-                      <div><span className="text-[var(--text-dim)]">1일 평균임금:</span> <span className="font-medium">₩{retCalc.dailyAvgWage.toLocaleString("ko-KR", { maximumFractionDigits: 0 })}</span></div>
-                      <div><span className="text-[var(--text-dim)]">수급 자격:</span> <span className={`font-medium ${retCalc.eligible ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{retCalc.eligible ? "해당" : "미해당 (1년 미만)"}</span></div>
-                      <div><span className="text-[var(--text-dim)]">예상 퇴직금:</span> <span className="font-bold">₩{retCalc.retirementPay.toLocaleString("ko-KR")}</span></div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 상실사유 */}
-                <div>
-                  <label className="text-xs font-semibold text-[var(--text-muted)] block mb-1.5">상실사유</label>
-                  <select
-                    value={termLossReason}
-                    onChange={(e) => setTermLossReason(e.target.value)}
-                    className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
-                  >
-                    {LOSS_REASONS.map((r) => (
-                      <option key={r.code} value={r.code}>{r.code} - {r.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* H7 (2026-08-27) — 정산 초안: 퇴직금·미사용 연차 수당·마지막 달 일할. 확정·지급은 사람 */}
-                {canSeeSalary && companyId && termDate && <RetirementSettlementBox companyId={companyId} employeeId={employeeId} monthlySalary={Number(emp.salary || 0)} endDate={termDate} />}
-
-                {/* 체크리스트 */}
-                <div>
-                  <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">퇴사 체크리스트</div>
-                  <div className="space-y-2">
-                    {([
-                      { key: "equipment" as const, label: "장비 반납 완료" },
-                      { key: "systemAccess" as const, label: "사내 시스템 접근 해제" },
-                      { key: "handover" as const, label: "인수인계 완료" },
-                      { key: "insurance" as const, label: "4대보험 상실 신고" },
-                    ]).map((item) => (
-                      <label key={item.key} className="flex items-center gap-2.5 px-3 py-2 bg-[var(--bg-surface)] rounded-lg border border-[var(--border)] cursor-pointer hover:border-[var(--primary)] transition">
-                        <input
-                          type="checkbox"
-                          checked={termChecklist[item.key]}
-                          onChange={(e) => setTermChecklist((prev) => ({ ...prev, [item.key]: e.target.checked }))}
-                          className="w-3.5 h-3.5 rounded accent-[var(--primary)]"
-                        />
-                        <span className={`text-xs ${termChecklist[item.key] ? "text-[var(--text)]" : "text-[var(--text-dim)]"}`}>{item.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-
-              </div>
-              {/* 푸터 — 확정 */}
-              <div className="px-5 py-3 border-t border-[var(--border)] bg-[var(--bg-card)] shrink-0">
-                {!allChecked && (
-                  <div className="text-[10px] text-center text-[var(--text-dim)] mb-2">체크리스트를 모두 완료하면 퇴사를 확정할 수 있습니다.</div>
-                )}
-                <div className="flex gap-2">
-                  <button onClick={() => setShowTermModal(false)} className="px-4 py-2.5 rounded-xl text-xs font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition shrink-0">
-                    취소
-                  </button>
-                  <button
-                    onClick={confirmTermination}
-                    disabled={!allChecked || terminating}
-                    className="flex-1 py-2.5 bg-[var(--danger)] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition"
-                  >
-                    {terminating ? "처리 중..." : "퇴사 확정"}
-                  </button>
-                </div>
+              {/* 확정 */}
+              <div className="inv-modal-actions">
+                {!allChecked && <span className="inv-hint mr-auto">체크리스트를 모두 완료하면 확정할 수 있습니다.</span>}
+                <button type="button" className="btn-secondary" onClick={() => setShowTermModal(false)}>취소</button>
+                <button
+                  type="button"
+                  className="btn-danger-solid"
+                  disabled={!allChecked || terminating}
+                  onClick={confirmTermination}
+                >
+                  {terminating ? "처리 중…" : "퇴사 확정"}
+                </button>
               </div>
             </div>
           </div>,

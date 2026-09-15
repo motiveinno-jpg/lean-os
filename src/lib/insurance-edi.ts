@@ -53,14 +53,16 @@ export const REPORT_TYPE_LABELS: Record<ReportType, string> = {
   loss: '상실신고',
 };
 
-// Loss reason codes (상실사유)
-export const LOSS_REASONS = [
-  { code: '11', label: '자진퇴사' },
-  { code: '12', label: '권고사직' },
-  { code: '22', label: '해고' },
-  { code: '23', label: '정년퇴직' },
-  { code: '26', label: '계약기간 만료' },
-  { code: '31', label: '사업장 이전' },
-  { code: '32', label: '사업장 폐업' },
-  { code: '41', label: '건강악화/부상' },
+// 상실사유 — 고용보험 상실신고·이직확인서 구분코드(근로복지공단). 4개 묶음 아래 세부 코드.
+//   묶음(group)은 화면에서 optgroup 으로 나눠 고르기 쉽게 한다.
+export const LOSS_REASONS: { code: string; label: string; group: string }[] = [
+  { group: '자진 퇴사',            code: '11', label: '개인 사정으로 인한 자진 퇴사' },
+  { group: '자진 퇴사',            code: '12', label: '사업장 이전·근로조건 변동·임금체불 등으로 인한 자진 퇴사' },
+  { group: '회사 사정·근로자 귀책', code: '22', label: '폐업·도산·공사 중단' },
+  { group: '회사 사정·근로자 귀책', code: '23', label: '경영상 필요·회사 불황으로 인원 감축 (해고·권고사직·명예퇴직 포함)' },
+  { group: '회사 사정·근로자 귀책', code: '26', label: '근로자 귀책 사유에 의한 징계해고·권고사직' },
+  { group: '정년·계약 만료',        code: '31', label: '정년' },
+  { group: '정년·계약 만료',        code: '32', label: '계약기간 만료·공사 종료' },
+  { group: '기타',                 code: '41', label: '고용보험 비적용' },
+  { group: '기타',                 code: '42', label: '이중 고용' },
 ];
