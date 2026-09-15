@@ -4517,8 +4517,18 @@ table.pnl-drill-table { min-width: 760px; }
 .attendance-edit-form { @apply space-y-3; }
 .manual-attendance-times { @apply grid grid-cols-2 gap-3; }
 .manual-attendance-nextday { @apply flex items-center gap-2 text-xs text-[var(--text-muted)] cursor-pointer select-none; }
-.edit-request-inbox { @apply p-4 mb-4; } /* glass-card (existing custom class) kept literal in JSX */
-.edit-request-row { @apply px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]; }
+/* 근태 수정 요청 인박스 — 조회 표준: 얇은 판 하나, 행은 선으로만 구분(상자 안 상자 금지), 버튼은 btn-* */
+.edit-request-inbox { @apply mb-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3.5; }
+.edit-request-head { @apply mb-1.5 flex items-center gap-2; }
+.edit-request-head > h3 { @apply text-[13px] font-bold text-[var(--text)]; }
+.edit-request-count { @apply rounded-full bg-[var(--primary)]/10 px-2 py-0.5 text-[11px] font-bold text-[var(--primary)]; }
+.edit-request-list { @apply m-0 list-none p-0; }
+.edit-request-row { @apply flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b border-[var(--border)]/60 py-2.5 last:border-b-0; }
+.edit-request-main { @apply min-w-0 flex-1; }
+.edit-request-who { @apply text-[12.5px] font-semibold text-[var(--text)]; }
+.edit-request-diff { @apply mt-0.5 text-[11.5px] text-[var(--text-muted)]; }
+.edit-request-reason { @apply mt-0.5 text-[11.5px] text-[var(--text-dim)]; }
+.edit-request-actions { @apply flex shrink-0 gap-1.5; }
 .messenger-fab { @apply fixed z-50 w-14 h-14 rounded-full text-white flex items-center justify-center hover:opacity-90 transition active:scale-95 border border-white/15 touch-none cursor-grab active:cursor-grabbing; }
 .messenger-fab-badge { @apply absolute -top-0.5 -right-0.5 min-w-[20px] h-5 flex items-center justify-center text-[10px] font-bold rounded-full px-1 bg-red-500 text-white border-2 border-[var(--bg-card)]; }
 .owner-dashboard-section { @apply space-y-6 mb-8; }

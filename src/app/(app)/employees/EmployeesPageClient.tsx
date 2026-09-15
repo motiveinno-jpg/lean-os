@@ -1024,12 +1024,20 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     if (!effectiveSelectedDay) return [] as { id: string; name: string; department: string; type: string }[];
     const m = leaveByDay.get(effectiveSelectedDay);
     if (!m) return [];
+    //   반차는 그날 근무 기록(status=half_day)이 남아 위 상태 그룹에 '반차'로 이미 나온다.
+    //   여기 휴가 명단에도 또 넣으면 한 사람이 반차·휴가 두 번 보인다(대표 지적). 반차자는 뺀다 —
+    //   종일 휴가(연차 등)는 그날 기록이 없어 상태 그룹에 안 잡히므로 휴가 명단에만 남는다.
+    const halfDayIds = new Set(
+      (records as any[])
+        .filter((r) => r.date === effectiveSelectedDay && effectiveStatus(r) === "half_day")
+        .map((r) => r.employee_id),
+    );
     return (activeEmployees as any[])
-      .filter((emp) => m.has(emp.id))
+      .filter((emp) => m.has(emp.id) && !halfDayIds.has(emp.id))
       .map((emp) => ({ id: emp.id, name: emp.name, department: emp.department || "미배정", type: calLeaveTypeLabel(m.get(emp.id) || "") }))
       .sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveSelectedDay, activeEmployees, leaveByDay, calLeaveTypes]);
+  }, [effectiveSelectedDay, activeEmployees, leaveByDay, calLeaveTypes, records]);
 
   return (
     <div>

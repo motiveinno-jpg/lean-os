@@ -490,52 +490,55 @@ export function EditRequestInbox({ companyId, reviewerId }: { companyId: string;
   if (requests.length === 0) return null;
 
   return (
-    <div className="edit-request-inbox glass-card">
-      <h3 className="text-sm font-bold mb-3">근태 수정 요청 ({requests.length}건)</h3>
-      <div className="space-y-2">
+    <div className="edit-request-inbox">
+      <div className="edit-request-head">
+        <h3>근태 수정 요청</h3>
+        <span className="edit-request-count">{requests.length}건</span>
+      </div>
+      <ul className="edit-request-list">
         {requests.map((r: any) => {
           const rec = r.attendance_records;
           const changes = r.requested_changes || {};
           return (
-            <div key={r.id} className="edit-request-row">
-              <div className="flex items-center justify-between mb-1">
-                <div className="text-xs font-semibold">
+            <li key={r.id} className="edit-request-row">
+              <div className="edit-request-main">
+                <div className="edit-request-who">
                   {rec?.employees?.name || "직원"} · {rec?.date}
                 </div>
-                <div className="flex gap-1.5">
-                  <button
-                    onClick={() => reviewMut.mutate({ requestId: r.id, decision: "approved", applyChanges: true })}
-                    disabled={reviewMut.isPending}
-                    className="px-2.5 py-1 bg-[var(--success)] hover:brightness-110 text-white rounded text-[10px] font-semibold disabled:opacity-40"
-                  >
-                    승인+적용
-                  </button>
-                  <button
-                    onClick={() => reviewMut.mutate({ requestId: r.id, decision: "rejected", applyChanges: false })}
-                    disabled={reviewMut.isPending}
-                    className="px-2.5 py-1 bg-[var(--danger)] hover:brightness-110 text-white rounded text-[10px] font-semibold disabled:opacity-40"
-                  >
-                    반려
-                  </button>
+                <div className="edit-request-diff">
+                  기존 {rec?.check_in ? new Date(rec.check_in).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                  {" / "}
+                  {rec?.check_out ? new Date(rec.check_out).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                  {" → 요청 "}
+                  {changes.check_in ? new Date(changes.check_in as string).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                  {" / "}
+                  {changes.check_out ? new Date(changes.check_out as string).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                  {/* 상태·출근유형 변경 요청도 표시 — 시각만 보이면 외근/재택 요청이 안 보였다 */}
+                  {changes.status ? ` · 상태→${STATUS_KO[String(changes.status)] || changes.status}` : ""}
+                  {changes.attendance_type ? ` · 유형→${TYPE_KO[String(changes.attendance_type)] || changes.attendance_type}` : ""}
                 </div>
+                {r.reason && <div className="edit-request-reason">&ldquo;{r.reason}&rdquo;</div>}
               </div>
-              <div className="text-[10px] text-[var(--text-muted)]">
-                기존: {rec?.check_in ? new Date(rec.check_in).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : "—"}
-                {" / "}
-                {rec?.check_out ? new Date(rec.check_out).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : "—"}
-                {" → 요청: "}
-                {changes.check_in ? new Date(changes.check_in as string).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : "—"}
-                {" / "}
-                {changes.check_out ? new Date(changes.check_out as string).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : "—"}
-                {/* 상태·출근유형 변경 요청도 표시 — 시각만 보이면 외근/재택 요청이 안 보였다 */}
-                {changes.status ? ` · 상태→${STATUS_KO[String(changes.status)] || changes.status}` : ""}
-                {changes.attendance_type ? ` · 유형→${TYPE_KO[String(changes.attendance_type)] || changes.attendance_type}` : ""}
+              <div className="edit-request-actions">
+                <button
+                  onClick={() => reviewMut.mutate({ requestId: r.id, decision: "approved", applyChanges: true })}
+                  disabled={reviewMut.isPending}
+                  className="btn-primary btn-sm"
+                >
+                  승인·적용
+                </button>
+                <button
+                  onClick={() => reviewMut.mutate({ requestId: r.id, decision: "rejected", applyChanges: false })}
+                  disabled={reviewMut.isPending}
+                  className="btn-secondary btn-sm"
+                >
+                  반려
+                </button>
               </div>
-              {r.reason && <div className="text-[10px] text-[var(--text-dim)] mt-1">"{r.reason}"</div>}
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </div>
   );
 }
