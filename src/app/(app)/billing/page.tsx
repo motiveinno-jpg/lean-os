@@ -1021,6 +1021,10 @@ function BillingPageInner() {
                       </th>
                       <th className={`billing-col-rec ${isStd ? "billing-col-cur" : ""}`}>
                         <div className="billing-col-name">오너뷰 <span className="billing-col-tag">추천</span></div>
+                        {/*   정상가(list_price) 취소선 — 청구는 base_price. 연간 할인 보기에서도 정상가는 월 기준 그대로 */}
+                        {std?.list_price > std?.base_price && (
+                          <div className="text-xs text-[var(--text-dim)] mono-number"><s>₩{Number(std.list_price).toLocaleString()}</s> <small>정상가</small></div>
+                        )}
                         <div className="billing-col-price mono-number">₩{stdMonthly.toLocaleString()} <small>/월</small></div>
                         <div className="billing-col-sub">{cycle === "annual" ? `연 ₩${(stdMonthly * 12).toLocaleString()} 일시 청구 · ` : ""}추가 1명 ₩{stdSeat.toLocaleString()}/월{isStd ? " · 지금 쓰는 요금제" : ""}</div>
                         {isStd ? <span className="billing-col-btn-cur">사용 중</span>
@@ -1218,7 +1222,10 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                     <div className="space-y-1 text-sm text-[var(--text-muted)]">
                       <div className="flex justify-between">
                         <span>기본 요금제 (구성원 {included}명 포함)</span>
-                        <b className="text-[var(--text)] mono-number">₩{Number(p.base_price).toLocaleString()}</b>
+                        <b className="text-[var(--text)] mono-number">
+                          {(p.list_price ?? 0) > p.base_price && <s className="mr-1.5 text-xs font-normal text-[var(--text-dim)]">₩{Number(p.list_price).toLocaleString()}</s>}
+                          ₩{Number(p.base_price).toLocaleString()}
+                        </b>
                       </div>
                       {extra > 0 && (
                         <div className="flex justify-between">

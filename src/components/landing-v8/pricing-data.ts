@@ -11,6 +11,8 @@ export type PlanRow = {
   slug: string;
   name: string;
   base_price: number;
+  /** 정상가(취소선) — 실제 청구는 base_price. null 이면 취소선 없음 */
+  list_price: number | null;
   per_seat_price: number;
   included_seats: number;
   max_seats: number | null;
@@ -26,11 +28,11 @@ export type PlanRow = {
 };
 
 export const PLAN_COLUMNS =
-  "slug, name, base_price, per_seat_price, included_seats, max_seats, features, monthly_tax_invoice_limit, monthly_cashbill_limit, monthly_contract_limit, monthly_ai_token_limit, included_storage_bytes, storage_per_unit_bytes, annual_discount, sort_order";
+  "slug, name, base_price, list_price, per_seat_price, included_seats, max_seats, features, monthly_tax_invoice_limit, monthly_cashbill_limit, monthly_contract_limit, monthly_ai_token_limit, included_storage_bytes, storage_per_unit_bytes, annual_discount, sort_order";
 
 export const PLAN_FALLBACK: PlanRow[] = [
   {
-    slug: "free", name: "무료", base_price: 0, per_seat_price: 0, included_seats: 5, max_seats: 5,
+    slug: "free", name: "무료", base_price: 0, list_price: null, per_seat_price: 0, included_seats: 5, max_seats: 5,
     features: [
       "구성원 5명", "저장공간 500MB", "결재 허브·근태·급여·프로젝트·게시판·파일보관함 무제한",
       "세금계산서 발행 월 5건 · 현금영수증 발행 월 5건", "전자계약 월 5건", "AI 대표 참모 월 10만 토큰",
@@ -40,7 +42,7 @@ export const PLAN_FALLBACK: PlanRow[] = [
     included_storage_bytes: 524288000, storage_per_unit_bytes: 10737418240, annual_discount: "0.10", sort_order: 0,
   },
   {
-    slug: "standard", name: "오너뷰", base_price: 39000, per_seat_price: 5000, included_seats: 5, max_seats: null,
+    slug: "standard", name: "오너뷰", base_price: 39000, list_price: 80000, per_seat_price: 5000, included_seats: 5, max_seats: null,
     features: [
       "기본 5명 포함 · 추가 1명당 ₩5,000/월", "저장공간 500MB + 추가 1명당 10GB · 저장공간 팩(+10GB) ₩5,000/월",
       "세금계산서 발행 월 100건 · 현금영수증 발행 월 100건", "전자계약(서명) 무제한",

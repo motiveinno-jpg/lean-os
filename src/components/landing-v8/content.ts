@@ -102,7 +102,7 @@ export const COMPARE: [string, string, string][] = [
 /* §9 숫자 */
 export const FIGURES: [string, string][] = [
   [String(MENU_COUNT), "메뉴가 하나의 자료를 공유합니다"],  // 2026-09-14 「32」 고정값 → catalog 에서 셈(사이드바 기준 51)
-  ["39,000원", "기본 5명 포함 · 추가 1명당 5,000원"],
+  ["39,000원", "정상가 80,000원 · 기본 5명 포함 · 추가 1명당 5,000원"],
   ["0원", "무료 플랜은 카드 등록 없이 계속"],
   ["월 100건", "세금계산서·현금영수증 발행 (유료 플랜)"],
 ];
@@ -142,6 +142,8 @@ export const TOPICS: [string, string][] = [
 
 export const PRICING = {
   amount: 39000,
+  listAmount: 80000,   // 정상가(취소선). 청구는 amount
+
   seatsIncluded: 5,
   perSeat: 5000,
   note: "VAT 별도 · 기본 5명 포함 · 추가 1명당 5,000원",

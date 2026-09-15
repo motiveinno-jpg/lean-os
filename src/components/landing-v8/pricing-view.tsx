@@ -130,6 +130,10 @@ export default function PricingView({ plans, source }: { plans: PlanRow[]; sourc
                     {hl && <span className="pr8-badge">추천</span>}
                   </div>
                   <p className="pr8-desc">{desc}</p>
+                  {/*   정상가(list_price)가 있으면 취소선으로 — 실제 청구는 base_price */}
+                  {p.list_price != null && p.list_price > p.base_price && (
+                    <div className="pr8-list"><s>{won(p.list_price)}</s><em>정상가</em></div>
+                  )}
                   <div className="pr8-amt">
                     {won(p.base_price)}<span>{p.base_price > 0 ? " /월" : ""}</span>
                   </div>

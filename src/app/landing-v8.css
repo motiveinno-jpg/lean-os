@@ -538,6 +538,11 @@ html[data-theme="dark"] .lp8{
 .lp8 .pr8-desc{ margin-top: 6px; font-size: 14.5px; color: var(--ink-3) }
 .lp8 .pr8-amt{ margin-top: 22px; font-size: clamp(36px, 4vw, 48px); font-weight: 600; letter-spacing: -.03em; color: var(--ink); line-height: 1.1; font-variant-numeric: tabular-nums }
 .lp8 .pr8-amt span{ font-size: 16px; font-weight: 500; color: var(--ink-3); letter-spacing: 0 }
+/* 정상가 취소선 — 금액 위에 작게. 실제 청구는 아래 금액 (2026-09-15) */
+.lp8 .pr8-list{ margin-top: 22px; display: flex; align-items: baseline; gap: 8px; font-variant-numeric: tabular-nums }
+.lp8 .pr8-list + .pr8-amt{ margin-top: 2px }
+.lp8 .pr8-list s{ font-size: 18px; font-weight: 500; color: var(--ink-3); text-decoration-thickness: 1.5px }
+.lp8 .pr8-list em{ font-style: normal; font-size: 12px; color: var(--ink-3) }
 .lp8 .pr8-period{ margin-top: 8px; font-size: 13.5px; color: var(--ink-3) }
 .lp8 .pr8-annual{ margin-top: 10px; display: inline-block; align-self: flex-start; font-size: 13px; font-weight: 600; color: var(--brand); background: var(--brand-l); border-radius: 4px; padding: 4px 10px }
 .lp8 .pr8-cta{ margin-top: 22px; width: 100% }
