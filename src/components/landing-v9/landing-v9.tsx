@@ -44,7 +44,6 @@ export default function LandingV9() {
         {/* 2026-09-15 사장님: "남기되 잘 안 보일 정도로 작게, 지금 디자인은 깨지 않게" — 숨기지는 않는다(검색엔진이 읽어야 함) */}
         <section className="lp9-topics" id="topics">
           <div className="container">
-            <h4 className="lp8-topics-h">오너뷰로 대신할 수 있는 것</h4>
             <div className="topics">
               {TOPICS.map(([t, href]) => <Link key={t} href={href}>{t}</Link>)}
             </div>
