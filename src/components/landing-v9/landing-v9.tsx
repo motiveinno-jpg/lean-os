@@ -9,9 +9,11 @@
 //  ▸ 화면 속 숫자·거래처는 전부 가상 예시(결정 220).
 // ══════════════════════════════════════════════════════════════
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import "@/app/landing-v8.css";
 import "@/app/landing-v9.css";
 import { SiteFooter, SiteHeader } from "@/components/landing-v8/site-shell";
+import { TOPICS } from "@/components/landing-v8/content";
 import { LANDING_V9_HTML } from "./sections";
 import { startLanding } from "./engine";
 
@@ -36,7 +38,20 @@ export default function LandingV9() {
       </div>
       {/* eslint-disable-next-line react/no-danger */}
       <main id="top" className="lp9m" ref={main} dangerouslySetInnerHTML={{ __html: LANDING_V9_HTML }} />
-      <div className="lp8"><SiteFooter /></div>
+      <div className="lp8">
+        {/* 관련 검색어 — v8 홈에 있던 내부 링크 27개(결정 224~226). v9 로 바꾸며 빠졌던 것을 되살림(2026-09-15).
+            문구·주소는 content.ts TOPICS 단일 출처, 모양은 landing-v8.css 의 .topics 그대로 */}
+        <section className="sec-100 pt96 pb96" id="topics">
+          <div className="container">
+            <h4 className="lp8-topics-h">오너뷰로 대신할 수 있는 것</h4>
+            <p className="lp8-topics-p">오너뷰 한 곳에서 처리하는 일들입니다.</p>
+            <div className="topics">
+              {TOPICS.map(([t, href]) => <Link key={t} href={href}>{t}</Link>)}
+            </div>
+          </div>
+        </section>
+        <SiteFooter />
+      </div>
     </div>
   );
 }

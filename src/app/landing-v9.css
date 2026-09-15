@@ -1276,3 +1276,5 @@
   .lp9m .kp .v{ font-size:13px }
   .lp9m .kp .l{ font-size:10px }
 }
+/* /ai(308 → /#ai) · 기능 페이지 옛 AI 탭이 가리키는 앵커 — 붙박이 머리(60px)에 가리지 않게 */
+.lp9m .lp9-anchor{ display:block; position:relative; top:-60px; height:0 }
