@@ -4,6 +4,7 @@
       .container · .btn · .card · .sticky 같은 흔한 이름이 globals.css · landing-v8.css 에도 있어서다.
    ⚠️ 이 파일은 목업에서 옮긴 것 — 장면을 고칠 때는 sections.ts · engine.js 와 짝을 맞춘다.
    ⚠️ 키프레임 이름은 전부 lp9- 접두사(앱 전역 키프레임과 겹치지 않게).
+   ▸ 남색 장면 톤 = 로고 톤 딥 인디고 #262a6b → #383b9b → #4a47c9 (2026-09-15 사장님 C안 · 물빠진 #3a4068 은 아이콘이 커질 때 끊겨 보였다)
    ══════════════════════════════════════════════════════════════ */
 .lp9{ background:#fafbfd; overflow-x:clip }
 .lp9-head{ position:sticky; top:0; z-index:80 }
@@ -18,7 +19,7 @@
 .lp9m{
     --bg:#fafbfd; --bg-2:#f1f3f8; --card:#fff; --line:#e8ebf2;
     --ink:#191f28; --ink-2:#4e5968; --ink-3:#8b95a1; --ink-4:#b0b8c1;
-    --ind:#4f46e5; --ind-2:#6366f1; --ind-soft:#eef0ff; --deep:#3a4068; --blue:#3b82f6; --cyan:#06b6d4;
+    --ind:#4f46e5; --ind-2:#6366f1; --ind-soft:#eef0ff; --deep:#262a6b; --blue:#3b82f6; --cyan:#06b6d4;
     --ok:#0e9f5e; --ok-bg:#e6f7ee; --warn:#e07b00; --warn-bg:#fff3e0; --bad:#e42939; --bad-bg:#ffeeee;
     --grad:linear-gradient(90deg,#4f46e5 0%,#3b82f6 60%,#06b6d4 100%);
     --sh:0 1px 2px rgba(30,40,80,.04), 0 30px 70px -36px rgba(40,56,120,.28);
@@ -91,7 +92,7 @@
 .lp9m .s1 .row{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:clamp(12px,2.4vw,34px) }
 .lp9m .s1 .w{ font-size:clamp(28px,5.2vw,68px); font-weight:900; color:var(--ink); letter-spacing:-.05em; white-space:nowrap; will-change:opacity,filter }
 .lp9m .pillx{ position:relative; flex:none; width:var(--w,120px); height:var(--h,230px); border-radius:var(--r,60px); background:
-      radial-gradient(900px 500px at 80% 0%, rgba(140,150,210,.55), transparent 60%), radial-gradient(700px 500px at 0% 100%, rgba(6,182,212,.28), transparent 60%), linear-gradient(135deg,#3a4068,#4a5180 55%,#535b8e);
+      radial-gradient(900px 500px at 80% 0%, rgba(99,102,241,.55), transparent 60%), radial-gradient(700px 500px at 0% 100%, rgba(6,182,212,.28), transparent 60%), linear-gradient(135deg,#262a6b,#383b9b 55%,#4a47c9);
       overflow:hidden; display:grid; place-items:center; color:#fff }
 .lp9m .pillx .mark{ width:56px; height:56px; border-radius:16px; background:var(--grad); display:grid; place-items:center; opacity:var(--o0,1) }
 .lp9m .pillx .mark svg{ width:30px; height:30px }
@@ -209,7 +210,7 @@
 @media (max-width:900px){
 .lp9m .darks{ grid-template-columns:1fr; margin-top:40px }
 }
-.lp9m .dk{ min-height:360px; border-radius:26px; padding:24px; color:#e0e7ff; background:radial-gradient(500px 300px at 90% 0%, rgba(140,150,210,.45), transparent 60%), linear-gradient(160deg,#3a4068,#4a5180); box-shadow:0 40px 80px -40px rgba(30,27,75,.6); position:relative; overflow:hidden }
+.lp9m .dk{ min-height:360px; border-radius:26px; padding:24px; color:#e0e7ff; background:radial-gradient(500px 300px at 90% 0%, rgba(99,102,241,.45), transparent 60%), linear-gradient(160deg,#262a6b,#383b9b); box-shadow:0 40px 80px -40px rgba(30,27,75,.6); position:relative; overflow:hidden }
 .lp9m .dk h4{ color:#fff; font-size:19px }
 .lp9m .dk p{ margin-top:6px; font-size:13px; color:#a5b4fc }
 .lp9m .bub{ margin-top:14px; padding:12px 14px; border-radius:14px; font-size:14px; line-height:1.55 }
@@ -311,7 +312,7 @@
 /* ⑫ 꽉 찬 판으로 마무리 */
 .lp9m .s12{ height:230vh }
 .lp9m .s12 .sticky{ display:grid; place-items:center }
-.lp9m .full{ position:relative; width:var(--w,70vw); height:var(--h,60vh); border-radius:var(--r,36px); overflow:hidden; background:linear-gradient(135deg,#3a4068,#4a5180 55%,#535b8e) }
+.lp9m .full{ position:relative; width:var(--w,70vw); height:var(--h,60vh); border-radius:var(--r,36px); overflow:hidden; background:linear-gradient(135deg,#262a6b,#383b9b 55%,#4a47c9) }
 .lp9m .full canvas{ position:absolute; inset:0; width:100%; height:100% }
 .lp9m .full .three{ position:absolute; left:4%; right:4%; bottom:9%; display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap }
 .lp9m .full .three span{ color:#fff; font-size:clamp(26px,4.4vw,64px); font-weight:900; letter-spacing:-.05em; opacity:var(--o,0); transform:translateY(var(--y,30px)); transition:none }
@@ -321,7 +322,7 @@
 /* ═══ 목업 3 수정 (2026-09-15 사장님 피드백) ═══ */
 /* ① 오너뷰 아이콘에서 시작 */
 .lp9m .pillx{ background:linear-gradient(135deg,#4f46e5 0%,#3b82f6 60%,#06b6d4 100%); box-shadow:0 30px 60px -24px rgba(79,70,229,.6) }
-.lp9m .pillx .deep{ position:absolute; inset:0; opacity:var(--od,0); background:radial-gradient(900px 500px at 80% 0%, rgba(140,150,210,.55), transparent 60%), radial-gradient(700px 500px at 0% 100%, rgba(6,182,212,.25), transparent 60%), linear-gradient(135deg,#3a4068,#4a5180 55%,#535b8e) }
+.lp9m .pillx .deep{ position:absolute; inset:0; opacity:var(--od,0); background:radial-gradient(900px 500px at 80% 0%, rgba(99,102,241,.55), transparent 60%), radial-gradient(700px 500px at 0% 100%, rgba(6,182,212,.25), transparent 60%), linear-gradient(135deg,#262a6b,#383b9b 55%,#4a47c9) }
 .lp9m .pillx .mark{ position:relative; width:auto; height:auto; background:none; border-radius:0 }
 .lp9m .pillx .mark svg{ width:62px; height:62px }
 .lp9m .pillx .inner{ padding-top:86px }
@@ -532,7 +533,7 @@
 .lp9m .bcards{ grid-template-columns:1fr }
 }
 .lp9m .bc{ border-radius:28px; background:#14161f; border:1px solid rgba(255,255,255,.07); overflow:hidden }
-.lp9m .bvis{ position:relative; height:350px; overflow:hidden; background:radial-gradient(420px 260px at 70% 0%, rgba(140,150,210,.28), transparent 70%) }
+.lp9m .bvis{ position:relative; height:350px; overflow:hidden; background:radial-gradient(420px 260px at 70% 0%, rgba(99,102,241,.28), transparent 70%) }
 .lp9m .bcap{ padding:22px 24px 26px }
 .lp9m .bcap small{ font-size:12px; font-weight:800; color:#a5b4fc }
 .lp9m .bcap b{ display:block; margin-top:6px; font-size:20px; line-height:1.35; color:#fff; letter-spacing:-.03em }
@@ -564,7 +565,7 @@
 .lp9m .vsum div{ padding:9px 10px; border-radius:12px; background:rgba(255,255,255,.06) }
 .lp9m .vsum small{ display:block; font-size:11px; color:#8b93a7 }
 .lp9m .vsum b{ font-size:12px; color:#fff }
-.lp9m .vsum .hl{ background:rgba(140,150,210,.28) }
+.lp9m .vsum .hl{ background:rgba(99,102,241,.28) }
 .lp9m .vsum .hl b{ color:#c7d2fe }
 .lp9m .ring{ position:absolute; left:50%; top:22px; width:160px; height:160px; margin-left:-80px }
 .lp9m .rp{ transition:stroke-dashoffset 1.8s cubic-bezier(.16,.8,.24,1) }
@@ -606,8 +607,8 @@
 .lp9m .sk{ position:relative; display:flex; gap:14px; padding:14px; border-radius:22px; background:#fff; border:1px solid var(--line); box-shadow:var(--sh); transform-origin:center }
 .lp9m .sk.hero{ z-index:5 }
 .lp9m .skv{ position:relative; flex:none; width:96px; border-radius:16px; overflow:hidden; display:grid; place-items:center }
-.lp9m .skv svg{ width:58px; height:58px; fill:none; stroke:#535b8e; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round }
-.lp9m .beam{ position:absolute; left:6px; right:6px; top:0; height:3px; border-radius:2px; background:#6366f1; box-shadow:0 0 16px 5px rgba(140,150,210,.5); opacity:0 }
+.lp9m .skv svg{ width:58px; height:58px; fill:none; stroke:#4a47c9; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round }
+.lp9m .beam{ position:absolute; left:6px; right:6px; top:0; height:3px; border-radius:2px; background:#6366f1; box-shadow:0 0 16px 5px rgba(99,102,241,.5); opacity:0 }
 .lp9m .skb{ flex:1; min-width:0; display:flex; flex-direction:column }
 .lp9m .skn b{ display:block; font-size:15px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
 .lp9m .skn span{ font-size:12px; color:var(--ink-3) }
@@ -631,7 +632,7 @@
 }
 /* ⓓ 판 → 휴대폰 */
 .lp9m .c13{ height:320vh; background:var(--bg) }
-.lp9m .mpanel{ position:absolute; left:0; top:0; width:100vw; height:100vh; overflow:hidden; background:radial-gradient(800px 500px at 85% 10%, rgba(140,150,210,.5), transparent 60%), radial-gradient(600px 400px at 0% 100%, rgba(6,182,212,.22), transparent 60%), linear-gradient(135deg,#3a4068,#4a5180 60%,#535b8e) }
+.lp9m .mpanel{ position:absolute; left:0; top:0; width:100vw; height:100vh; overflow:hidden; background:radial-gradient(800px 500px at 85% 10%, rgba(99,102,241,.5), transparent 60%), radial-gradient(600px 400px at 0% 100%, rgba(6,182,212,.22), transparent 60%), linear-gradient(135deg,#262a6b,#383b9b 60%,#4a47c9) }
 .lp9m .mgrid{ position:absolute; inset:0; background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px); background-size:64px 64px }
 .lp9m .mtext{ position:absolute; left:7%; top:50%; transform:translateY(-50%); width:min(480px,46%); color:#c7d2fe }
 .lp9m .mtext .eyebrow{ color:#a5f3fc }
@@ -647,7 +648,7 @@
 .lp9m .pscr::before{ content:""; position:absolute; top:10px; left:50%; width:88px; height:26px; margin-left:-44px; border-radius:14px; background:#0e0f13; z-index:5 }
 .lp9m .ps{ position:absolute; inset:0; opacity:0; transition:opacity .45s }
 .lp9m .ps.on{ opacity:1 }
-.lp9m .pa{ background:linear-gradient(165deg,#4a5180,#4f46e5 55%,#0891b2); color:#fff; padding:64px 14px 0; text-align:center }
+.lp9m .pa{ background:linear-gradient(165deg,#383b9b,#4f46e5 55%,#0891b2); color:#fff; padding:64px 14px 0; text-align:center }
 .lp9m .ptime{ font-size:58px; font-weight:800; letter-spacing:-.03em; line-height:1 }
 .lp9m .pdate{ font-size:14px; opacity:.85; margin-top:6px }
 .lp9m .noti{ margin-top:30px; text-align:left; padding:12px 14px; border-radius:18px; background:rgba(255,255,255,.2); transform:translateY(-14px); opacity:0; transition:transform .5s cubic-bezier(.16,.8,.24,1), opacity .5s }
@@ -704,15 +705,15 @@
 .lp9m .tile.p1{ background:#eef2ff }
 .lp9m .tile.p2{ background:#ecfeff }
 .lp9m .tile.p3{ background:#f5f3ff }
-.lp9m .tile.key{ background:#3a4068; border-color:#3a4068 }
+.lp9m .tile.key{ background:#262a6b; border-color:#262a6b }
 .lp9m .tile.key > *{ opacity:var(--ko,1) }
 .lp9m .tile.key b{ color:#fff }
 .lp9m .tile.key small{ color:#a5f3fc }
 .lp9m .tile.key i{ background:rgba(255,255,255,.12); color:#a5f3fc }
-.lp9m .czfull{ position:absolute; inset:0; background:#3a4068; display:grid; place-items:center; text-align:center; padding-inline:24px; opacity:0; pointer-events:none; z-index:3 }
+.lp9m .czfull{ position:absolute; inset:0; background:#262a6b; display:grid; place-items:center; text-align:center; padding-inline:24px; opacity:0; pointer-events:none; z-index:3 }
 .lp9m .czfull h2{ color:#fff; font-size:clamp(32px,5vw,64px); font-weight:900 }
 /* ⑪ ⑫ 남색 장면으로 이어짐 */
-.lp9m .s11, .lp9m .s12{ background:#3a4068 }
+.lp9m .s11, .lp9m .s12{ background:#262a6b }
 .lp9m .s11 .h2{ color:#fff }
 .lp9m .s11 .eyebrow{ color:#a5b4fc }
 .lp9m .s11 .nm b{ color:#fff }
@@ -724,20 +725,20 @@
 }
 /* ═══ 목업 4 수정 2 (2026-09-15 사장님 피드백) ═══ */
 /* 검정 대신 오너뷰 인디고 계열 */
-.lp9m .c5{ background:radial-gradient(1000px 520px at 85% 0%, rgba(140,150,210,.42), transparent 60%), radial-gradient(800px 480px at 0% 100%, rgba(6,182,212,.16), transparent 60%), linear-gradient(180deg,#3a4068,#434a76); color:#c7d2fe }
+.lp9m .c5{ background:radial-gradient(1000px 520px at 85% 0%, rgba(99,102,241,.42), transparent 60%), radial-gradient(800px 480px at 0% 100%, rgba(6,182,212,.16), transparent 60%), linear-gradient(180deg,#262a6b,#2f3383); color:#c7d2fe }
 .lp9m .bc{ background:rgba(255,255,255,.07); border-color:rgba(255,255,255,.14) }
 .lp9m .bvis{ background:radial-gradient(420px 260px at 70% 0%, rgba(165,180,252,.22), transparent 70%) }
 .lp9m .inv.i3{ background:#4b4596 }
 .lp9m .inv.i2{ background:#6c66b8 }
 .lp9m .bcap p, .lp9m .vleg, .lp9m .vsum small, .lp9m .chk .w{ color:#b8bfe8 }
-.lp9m .c5 .more i{ color:#3a4068 }
+.lp9m .c5 .more i{ color:#262a6b }
 .lp9m .chk .w i{ border-color:#8e8ad0 }
 .lp9m .s6, .lp9m .darkwrap{ background:#eef0fb }
 .lp9m .s6 .ttl h2{ color:var(--ink) }
 .lp9m .s6 .eyebrow{ color:var(--ind) }
 .lp9m .s6 .term{ color:var(--ink-3) }
-.lp9m .s11, .lp9m .s12, .lp9m .czfull{ background:#3a4068 }
-.lp9m .tile.key{ background:#3a4068; border-color:#3a4068 }
+.lp9m .s11, .lp9m .s12, .lp9m .czfull{ background:#262a6b }
+.lp9m .tile.key{ background:#262a6b; border-color:#262a6b }
 /* 첫 화면 대시보드 잔액 그래프 */
 .lp9m .pn.bal{ display:flex; flex-direction:column }
 .lp9m .pn.bal .ph{ gap:10px }
@@ -929,7 +930,7 @@
 .lp9m .rs-nm small{ display:block; font-size:11px; color:#a5b4fc; margin-top:1px }
 .lp9m .rs-n{ margin-left:auto; font-size:17px; font-weight:900; color:#fff }
 .lp9m .rs-r em{ font-style:normal; font-size:12px; color:#a5b4fc }
-.lp9m .rs-chip{ position:absolute; left:0; top:0; height:26px; padding:0 10px; border-radius:13px; background:#a5f3fc; color:#3a4068; font-size:11px; font-weight:900; display:flex; align-items:center; white-space:nowrap; opacity:0; z-index:9; box-shadow:0 6px 16px -6px rgba(0,0,0,.4) }
+.lp9m .rs-chip{ position:absolute; left:0; top:0; height:26px; padding:0 10px; border-radius:13px; background:#a5f3fc; color:#262a6b; font-size:11px; font-weight:900; display:flex; align-items:center; white-space:nowrap; opacity:0; z-index:9; box-shadow:0 6px 16px -6px rgba(0,0,0,.4) }
 .lp9m .rs-rp{ position:absolute; left:560px; top:160px; width:470px; padding:22px 24px 14px; border-radius:8px; background:#fff; color:var(--ink-2); box-shadow:0 40px 80px -30px rgba(0,0,0,.6); font-size:12px; z-index:5 }
 .lp9m .rs-rp h6{ margin:13px 0 0; padding-bottom:5px; border-bottom:1.5px solid var(--ink); font-size:13px; color:var(--ink); font-weight:900 }
 .lp9m .rs-rt{ width:100%; border-collapse:collapse; margin-top:4px }
@@ -1130,7 +1131,7 @@
 .lp9m .pc-av.b{ background:#dcfce7; color:#15803d }
 .lp9m .pc-av.c{ background:#ffedd5; color:#c2410c }
 .lp9m .pc-av.d{ background:#fce7f3; color:#be185d }
-.lp9m .pc-av.x{ background:#4a5080; color:#fff }
+.lp9m .pc-av.x{ background:#383b9b; color:#fff }
 .lp9m .pc-avs{ display:inline-flex }
 .lp9m .pc-avs .pc-av{ margin-left:-6px }
 .lp9m .pc-avs .pc-av:first-child{ margin-left:0 }
