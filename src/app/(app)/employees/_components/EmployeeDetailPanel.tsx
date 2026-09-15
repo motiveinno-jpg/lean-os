@@ -6,7 +6,7 @@ import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 import { formatPhone } from "@/lib/phone";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DateField } from "@/components/date-field";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -25,7 +25,7 @@ import { AppointmentsSection } from "./appointments-section";
 import { RetirementSettlementBox } from "@/components/retirement-dialog";
 import { useMyPermissions } from "@/lib/permissions";
 import { DepartmentField, PositionField } from "@/components/org-option-fields";
-import { LOSS_REASONS } from "@/lib/insurance-edi";
+import { fetchLossReasons, enabledLossReasons, lossReasonLabel } from "@/lib/loss-reasons";
 import { calculateRetirementPay } from "@/lib/payment-batch";
 import { useUser } from "@/components/user-context";
 import { useModalKeys } from "@/hooks/use-modal-keys";
@@ -67,6 +67,20 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const [termChecklist, setTermChecklist] = useState({ equipment: false, systemAccess: false, handover: false, insurance: false });
   const [terminating, setTerminating] = useState(false);
   const [termLossReason, setTermLossReason] = useState("11");
+  //   상실사유는 회사별(회사 설정 › 상실사유). 저장이 없으면 표준을 쓴다.
+  const { data: lossReasonsData } = useQuery({
+    queryKey: ["loss-reasons", companyId],
+    queryFn: () => fetchLossReasons(companyId),
+    enabled: !!companyId,
+  });
+  const lossReasons = enabledLossReasons(lossReasonsData?.reasons || []);
+  const lossGroups = [...new Set(lossReasons.map((r) => r.group))];
+  //   회사가 기본값(11)을 끄거나 지웠으면 고른 값이 목록에 없다 — 첫 항목으로 맞춘다.
+  useEffect(() => {
+    if (lossReasons.length && !lossReasons.some((r) => r.code === termLossReason)) {
+      setTermLossReason(lossReasons[0].code);
+    }
+  }, [lossReasons, termLossReason]);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<Record<string, string>>({});
   // 연봉 raw 입력 보존 · ÷12 → ×12 반올림으로 input 이 깨지지 않게.
@@ -79,7 +93,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
       //   상실사유·체크리스트를 실제로 저장한다(종전엔 고르기만 하고 버려졌다, 2026-09-09 대표).
       const offboarding = {
         loss_reason: termLossReason,
-        loss_reason_label: LOSS_REASONS.find((r) => r.code === termLossReason)?.label || null,
+        loss_reason_label: lossReasonLabel(lossReasons, termLossReason) || null,
         checklist: { ...termChecklist },
         completed_by: viewer?.id || null,
         completed_at: new Date().toISOString(),
@@ -1223,9 +1237,9 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
               <label className="inv-field">
                 <span>상실사유</span>
                 <select className="field-input" value={termLossReason} onChange={(e) => setTermLossReason(e.target.value)}>
-                  {[...new Set(LOSS_REASONS.map((r) => r.group))].map((g) => (
+                  {lossGroups.map((g) => (
                     <optgroup key={g} label={g}>
-                      {LOSS_REASONS.filter((r) => r.group === g).map((r) => (
+                      {lossReasons.filter((r) => r.group === g).map((r) => (
                         <option key={r.code} value={r.code}>{r.code} · {r.label}</option>
                       ))}
                     </optgroup>

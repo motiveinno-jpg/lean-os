@@ -9547,6 +9547,15 @@ body.cap-shooting, body.cap-shooting * { cursor: none !important; }
 .ins-rates-head .inv-field { @apply w-32; }
 .ins-rates .table-ins-rates input { @apply w-32; }
 table.table-ins-rates { min-width: 640px; }
+
+/* 상실사유 편집기(회사 설정 › 상실사유) — 4대보험 요율 표와 같은 결 */
+table.table-loss-reasons { min-width: 620px; }
+.table-loss-reasons .lr-check { @apply h-4 w-4 rounded accent-[var(--primary)]; }
+.table-loss-reasons .lr-code { @apply w-20; }
+.table-loss-reasons .lr-group { @apply w-44; }
+.lr-custom { @apply ml-1.5 rounded-full bg-[var(--warning)]/12 px-1.5 py-0.5 text-[10px] font-bold text-[var(--warning)]; }
+.lr-del { @apply rounded-lg px-1.5 py-1 text-[var(--text-dim)] transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]; }
+.lr-addrow { @apply flex; }
 table.table-ins-notice { min-width: 560px; }
 .table-ins-notice input { @apply w-36; }
 

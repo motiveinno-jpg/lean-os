@@ -13,7 +13,7 @@
 export type SettingsLeafKey =
   | "company-info" | "forms"
   | "team"
-  | "cash" | "chart" | "closing" | "tax-partner" | "insurance"
+  | "cash" | "chart" | "closing" | "tax-partner" | "insurance" | "loss-reasons"
   | "api-keys" | "bank"
   | "security" | "delete-company";
 
@@ -88,6 +88,10 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
       { key: "insurance", label: "4대보험 요율", perms: ["insurance", "closing"],
         title: "4대보험 요율", desc: "4대보험 요율과 상·하한을 연도별로 둡니다.",
         icon: "M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z" },
+      //   상실사유 — 퇴사 처리(구성원 상세)에서 고르는 4대보험 상실신고 사유. 회사별 문구·표시여부.
+      { key: "loss-reasons", label: "상실사유", perms: ["insurance", "closing"],
+        title: "상실사유", desc: "퇴사 처리에서 고르는 4대보험 상실신고 사유를 회사에 맞게 둡니다.",
+        icon: "M9 12h6m2 8H7a2 2 0 01-2-2V6a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V18a2 2 0 01-2 2z" },
     ],
   },
   {

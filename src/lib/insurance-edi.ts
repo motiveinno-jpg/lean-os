@@ -53,9 +53,12 @@ export const REPORT_TYPE_LABELS: Record<ReportType, string> = {
   loss: '상실신고',
 };
 
-// 상실사유 — 고용보험 상실신고·이직확인서 구분코드(근로복지공단). 4개 묶음 아래 세부 코드.
-//   묶음(group)은 화면에서 optgroup 으로 나눠 고르기 쉽게 한다.
-export const LOSS_REASONS: { code: string; label: string; group: string }[] = [
+export type LossReason = { code: string; label: string; group: string; enabled?: boolean };
+
+// 상실사유 기본값 — 고용보험 상실신고·이직확인서 구분코드(근로복지공단). 4개 묶음 아래 세부 코드.
+//   회사가 설정(회사 설정 › 상실사유)에서 문구·표시여부를 바꾸거나 항목을 더하지 않으면 이 표준을 쓴다.
+//   묶음(group)은 화면에서 optgroup 으로 나눠 고르기 쉽게 한다. 저장처: company_settings.settings.loss_reasons.
+export const DEFAULT_LOSS_REASONS: LossReason[] = [
   { group: '자진 퇴사',            code: '11', label: '개인 사정으로 인한 자진 퇴사' },
   { group: '자진 퇴사',            code: '12', label: '사업장 이전·근로조건 변동·임금체불 등으로 인한 자진 퇴사' },
   { group: '회사 사정·근로자 귀책', code: '22', label: '폐업·도산·공사 중단' },
