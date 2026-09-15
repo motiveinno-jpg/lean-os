@@ -1260,3 +1260,18 @@
   .lp9m .pc-bar > .pc-avs{ display:none }
   .lp9m .pc-views span{ padding:0 7px; font-size:11px }
 }
+/* 실기기 흉내 점검(2026-09-15 · iPhone 15 WebKit · Galaxy S24) 보정 */
+/* iOS 사파리는 주소창이 보일 때 100vh 가 화면보다 커서 고정 장면 아래가 잘린다 → 작은 뷰포트 기준 */
+.lp9m .sticky{ height:100vh; height:100svh }
+/* 360 폭에서 전표 합계 세 칸 글자가 넘친다 → 한 줄씩 */
+@media (max-width:600px){
+  .lp9m .lsum{ grid-template-columns:1fr; gap:6px }
+  .lp9m .lsum div{ display:flex; justify-content:space-between; align-items:center; padding:8px 12px }
+  .lp9m .lsum b{ margin-top:0 }
+}
+/* 360 폭(갤럭시)에서 첫 화면 대시보드 금액이 칸 밖으로 잘린다 */
+@media (max-width:420px){
+  .lp9m .kp{ padding:10px }
+  .lp9m .kp .v{ font-size:13px }
+  .lp9m .kp .l{ font-size:10px }
+}

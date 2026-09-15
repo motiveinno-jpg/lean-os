@@ -37,6 +37,7 @@ export function startLanding() {
   const secs = [...document.querySelectorAll("[data-rail]")];
   $("#rail").innerHTML = secs.map(() => "<i></i>").join("");
   const railI = [...document.querySelectorAll("#rail i")];
+  let railLast = -1;
 
   /* ① 아이콘 확장 */
   const s1 = $("#s1"), pill = $("#s1p");
@@ -192,7 +193,10 @@ export function startLanding() {
     full.style.setProperty("--w", lerp(innerWidth * .62, innerWidth, e) + "px"); full.style.setProperty("--h", lerp(innerHeight * .56, innerHeight, e) + "px"); full.style.setProperty("--r", lerp(36, 0, e) + "px");
     $("#fcta").style.setProperty("--oc", String(clamp((p - .78) / .15)));
   }
-  function silk(t){ const W = sc.width = sc.clientWidth, H = sc.height = sc.clientHeight; s.clearRect(0,0,W,H);
+  function silk(t){
+    // 캔버스 크기는 바뀔 때만 다시 잡는다 — 매 프레임 width 를 대입하면 버퍼를 새로 만든다
+    if (sc.width !== sc.clientWidth) sc.width = sc.clientWidth; if (sc.height !== sc.clientHeight) sc.height = sc.clientHeight;
+    const W = sc.width, H = sc.height; s.clearRect(0,0,W,H);
     for (let i = 0; i < 60; i++) { const q = i/59; s.beginPath();
       for (let x = -20; x <= W+20; x += 14) { const u = x/W; const y = H*.55 + Math.sin(u*2.6 + t*.35 + q*1.4)*H*.14 + Math.sin(u*5.2 - t*.45 + q*2.6)*H*.04 + (q-.5)*H*.5*(.25+.75*Math.sin(u*Math.PI)**2)*Math.cos(u*1.9 + t*.2); x === -20 ? s.moveTo(x,y) : s.lineTo(x,y); }
       const gr = s.createLinearGradient(0,0,W,0); gr.addColorStop(0,"rgba(165,180,252,0)"); gr.addColorStop(.3,`rgba(165,180,252,${.08+.2*q})`); gr.addColorStop(.7,`rgba(165,243,252,${.08+.2*(1-q)})`); gr.addColorStop(1,"rgba(165,243,252,0)"); s.strokeStyle = gr; s.lineWidth = 1.2; s.stroke(); } }
@@ -390,10 +394,20 @@ export function startLanding() {
 
   function frame(ms){
     if (!live()) return;
-    const t = ms / 1000;
-    hero(); belt(); papers(); acc(); terms(); tabs(); fin(); cashcal(); stockScene(); mobile(); collage(); projectScene(); tplTick(ms);
-    const mid = innerHeight / 2; let ri = 0; secs.forEach((el, i) => { if (el.getBoundingClientRect().top < mid) ri = i; }); railI.forEach((x, i) => x.classList.toggle("on", i === ri));
-    globe(reduce ? 0 : t); silk(reduce ? 0 : t);
+    const t = ms / 1000, vh = innerHeight, mid = vh / 2;
+    // 화면에 걸친 장면만 계산한다 — 화면 밖 장면·캔버스까지 매 프레임 돌리면 중저가폰에서 끊긴다
+    // (2026-09-15 갤럭시 S24 흉내 + CPU 4배 느리게: 평균 28fps · 50ms 넘는 프레임 39번)
+    const near = {}; let ri = 0;
+    secs.forEach((el, i) => { const rc = el.getBoundingClientRect(); if (rc.top < mid) ri = i; near[el.id] = rc.bottom > -80 && rc.top < vh + 80; });
+    if (ri !== railLast) { railLast = ri; railI.forEach((x, i) => x.classList.toggle("on", i === ri)); }
+    if (near.s1) hero();
+    if (near.s3) papers();
+    if (near.s5) acc();
+    if (near.s6) terms();
+    if (near.s10) tabs();
+    if (near.s12) { fin(); silk(reduce ? 0 : t); }
+    if (near.s11) globe(reduce ? 0 : t);
+    cashcal(); stockScene(); mobile(); collage(); projectScene(); tplTick(ms);
     if (!reduce) rafId = requestAnimationFrame(frame);
   }
   rafId = requestAnimationFrame(frame);
