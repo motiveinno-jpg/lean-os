@@ -658,6 +658,11 @@
   /* 14쪽 설명 문구 — 제목 아래 부제 크기로 (2026-09-15 사장님: 사양 기준 문구 삭제, 핵심 사양 설명) */
   .s13 .src{ top:250px !important; font-size:28px !important; color:var(--ink-3) !important; font-weight:500 }
   .s13 .nums{ top:360px !important }
+  /* 로고 칸에 오너뷰 로고(랜딩 site-shell 과 같은 돋보기) · 1쪽 「서비스 소개서」 삭제 후 제목 위로 (2026-09-15 사장님) */
+  .s1 .logo i,.app .alogo i{ display:grid; place-items:center }
+  .s1 .logo i svg{ width:22px; height:22px } .app .alogo i svg{ width:12px; height:12px }
+  .s1 .hero{ top:120px !important }
+  .s1 .device{ top:580px !important }
 </style>
 </head>
 <body>
@@ -685,10 +690,9 @@
 <!-- ═══════════ 1 표지 — 어두운 바탕 + 떠오르는 노트북 ═══════════ -->
 <section class="slide dark s1">
   <div class="glowbg"></div>
-  <div class="logo f"><i></i>OwnerView</div>
+  <div class="logo f"><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg></i>OwnerView</div>
   <div class="meta f">Service Introduction · 2026.09</div>
   <div class="hero">
-    <p class="kick a d1">서비스 소개서</p>
     <h1 class="a d2">회사 운영의 모든 것,<br>올인원 AI ERP <em>오너뷰</em></h1>
     <div class="keys a d3"><span>AI 자동화</span><span>경영 현황 진단</span><span>큐레이션</span></div>
   </div>
@@ -696,7 +700,7 @@
     <div class="lid"><div class="scr">
       <div class="app">
         <div class="side">
-          <div class="alogo"><i></i>오너뷰</div>
+          <div class="alogo"><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg></i>오너뷰</div>
           <div class="nv on"><svg class="li"><use href="#i-home"/></svg>대시보드</div>
           <div class="nv"><svg class="li"><use href="#i-bank"/></svg>재무</div>
           <div class="nv"><svg class="li"><use href="#i-box"/></svg>재고</div>
@@ -861,7 +865,7 @@
     <div class="bar"><i></i><i></i><i></i><span class="url">owner-view.com/reports/summary</span></div>
     <div class="app" style="height:calc(100% - 46px)">
       <div class="side">
-        <div class="alogo"><i></i>오너뷰</div>
+        <div class="alogo"><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg></i>오너뷰</div>
         <div class="nvg">분석</div>
         <div class="nv on"><svg class="li"><use href="#i-chart"/></svg>경영 요약</div>
         <div class="nv"><svg class="li"><use href="#i-sheet"/></svg>손익 현황</div>

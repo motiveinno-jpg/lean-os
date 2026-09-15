@@ -65,7 +65,8 @@ for (let i = 0; i < pages.length; i++) {
 const shots = pages.map((p) => p.jpg);
 await page.evaluate((imgs) => {
   const st = document.createElement("style");
-  st.textContent = "*,*::before,*::after{ box-shadow:none !important; text-shadow:none !important; filter:none !important }";
+  // 1쪽 노트북 화면: 쪽 아래로 넘쳐 잘리는 요소라 크롬 PDF 가 그 안 SVG 차트를 빠뜨린다(2026-09-15 발견) → 벡터 층에서 숨기고 바탕 이미지로 보이게
+  st.textContent = "*,*::before,*::after{ box-shadow:none !important; text-shadow:none !important; filter:none !important } .s1 .device{ visibility:hidden !important }";
   document.head.appendChild(st);
   // 그라데이션 글자(background-clip:text)는 PDF 벡터로 옮기면 글자 상자 테두리를 따라 가는 선(ㄱ자·세로 작대기)이 남는다
   //   (2026-09-14 사장님: 1쪽 「오너뷰」 위 ㄱ자 선, 2쪽 51 옆 작대기) → 벡터 쪽에서는 숨기고 바탕 이미지(2배)의 글자를 그대로 쓴다
