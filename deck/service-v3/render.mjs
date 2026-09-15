@@ -67,6 +67,14 @@ await page.evaluate((imgs) => {
   const st = document.createElement("style");
   st.textContent = "*,*::before,*::after{ box-shadow:none !important; text-shadow:none !important; filter:none !important }";
   document.head.appendChild(st);
+  // 그라데이션 글자(background-clip:text)는 PDF 벡터로 옮기면 글자 상자 테두리를 따라 가는 선(ㄱ자·세로 작대기)이 남는다
+  //   (2026-09-14 사장님: 1쪽 「오너뷰」 위 ㄱ자 선, 2쪽 51 옆 작대기) → 벡터 쪽에서는 숨기고 바탕 이미지(2배)의 글자를 그대로 쓴다
+  document.querySelectorAll("section.slide *").forEach((el) => {
+    const cs = getComputedStyle(el);
+    if (cs.webkitBackgroundClip === "text" || cs.backgroundClip === "text") {
+      [el, ...el.querySelectorAll("*")].forEach((n) => { n.style.setProperty("background", "none", "important"); n.style.setProperty("-webkit-text-fill-color", "transparent", "important"); n.style.setProperty("color", "transparent", "important"); });
+    }
+  });
   document.querySelectorAll("section.slide").forEach((el, i) => {
     el.style.setProperty("background", `url(data:image/jpeg;base64,${imgs[i]}) 0 0 / 1920px 1080px no-repeat`, "important");
   });
