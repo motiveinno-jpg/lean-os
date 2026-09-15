@@ -73,15 +73,43 @@ await page.evaluate((imgs) => {
   document.querySelectorAll("section.slide *").forEach((el) => {
     const cs = getComputedStyle(el);
     if (cs.webkitBackgroundClip === "text" || cs.backgroundClip === "text") {
-      [el, ...el.querySelectorAll("*")].forEach((n) => { n.style.setProperty("background", "none", "important"); n.style.setProperty("-webkit-text-fill-color", "transparent", "important"); n.style.setProperty("color", "transparent", "important"); });
+      // 쪽 바탕 위 글자는 투명(바탕 이미지의 그라데이션 글자가 보임). 흰 카드 안 글자는 카드가 바탕 이미지를 가리므로 인디고 단색으로(16쪽 유료 요금이 사라졌던 문제)
+      let onCard = false;
+      for (let a = el.parentElement; a && !a.classList.contains("slide"); a = a.parentElement) { const bg = getComputedStyle(a).backgroundColor; if (bg && bg !== "rgba(0, 0, 0, 0)" && bg !== "transparent") { onCard = true; break; } }
+      const fill = onCard ? "#4f46e5" : "transparent";
+      [el, ...el.querySelectorAll("*")].forEach((n) => { n.style.setProperty("background", "none", "important"); n.style.setProperty("-webkit-text-fill-color", fill, "important"); n.style.setProperty("color", fill, "important"); });
     }
+  });
+  // 슬라이드 CSS 에 !important 가 붙은 그림자(.s4 .pillbox 등)는 위 * 규칙보다 우선이라 살아남아
+  //   맥·iOS PDF 뷰어에서 보라색 네모 판으로 찍혔다(2026-09-15 사장님 iOS 캡처). → 요소마다 인라인 !important 로 확실히 끈다.
+  document.querySelectorAll("section.slide, section.slide *").forEach((n) => {
+    const cs = getComputedStyle(n);
+    if (cs.boxShadow !== "none") n.style.setProperty("box-shadow", "none", "important");
+    if (cs.textShadow !== "none") n.style.setProperty("text-shadow", "none", "important");
+    if (cs.filter !== "none") n.style.setProperty("filter", "none", "important");
+    if (cs.backdropFilter && cs.backdropFilter !== "none") n.style.setProperty("backdrop-filter", "none", "important");
+  });
+  // 투명도 그라데이션도 소프트 마스크가 된다 — 쪽 바탕 위에 바로 놓인 장식은 벡터 층에서 숨기고(바탕 이미지로 보임),
+  //   흰 카드 안 차트의 반투명 채움은 흰색과 섞은 불투명 색으로 바꾼다(모양·색은 같고 투명도만 없앰)
+  document.querySelectorAll(".s6 .shadow, .s13 .gfx14").forEach((n) => n.style.setProperty("visibility", "hidden", "important"));
+  document.querySelectorAll("section.slide stop").forEach((st) => {
+    const cs = getComputedStyle(st); const a = parseFloat(cs.stopOpacity);
+    if (!(a < 1)) return;
+    const m = cs.stopColor.match(/\d+(\.\d+)?/g).map(Number); const al = a * (m.length > 3 ? m[3] : 1);
+    const mix = (c) => Math.round(c * al + 255 * (1 - al));
+    st.style.setProperty("stop-color", `rgb(${mix(m[0])},${mix(m[1])},${mix(m[2])})`, "important");
+    st.style.setProperty("stop-opacity", "1", "important");
   });
   document.querySelectorAll("section.slide").forEach((el, i) => {
     el.style.setProperty("background", `url(data:image/jpeg;base64,${imgs[i]}) 0 0 / 1920px 1080px no-repeat`, "important");
   });
 }, shots);
 await page.waitForTimeout(500);
-await save(path.join(out, "오너뷰_서비스소개서_v3.pdf"), await page.pdf({ width: "1920px", height: "1080px", printBackground: true, margin: { top: 0, right: 0, bottom: 0, left: 0 } }));
+const pdfBuf = await page.pdf({ width: "1920px", height: "1080px", printBackground: true, margin: { top: 0, right: 0, bottom: 0, left: 0 } });
+// 검문: 소프트 마스크(/SMask)가 남으면 맥·iOS 에서 회색·보라 네모가 생긴다 — 개수를 찍어 0 이 아니면 알린다
+const smask = (pdfBuf.toString("latin1").match(/\/SMask/g) || []).length;
+console.log(`PDF 소프트 마스크 ${smask}개${smask ? " ⚠️ 맥·iOS 에서 네모가 보일 수 있음" : " (정상)"}`);
+await save(path.join(out, "오너뷰_서비스소개서_v3.pdf"), pdfBuf);
 await browser.close();
 
 // 움직이는 버전 — 브라우저로 여는 HTML 을 결과 폴더에 같이 둔다. 크롬으로 열고 F = 발표 모드 (3판부터 이미지 파일 없음 — HTML 한 장)
