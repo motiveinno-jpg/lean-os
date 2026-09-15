@@ -936,61 +936,8 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     return m;
   }, [monthlyAllowanceEntries]);
 
-  // 2026-05-22 오늘 출퇴근 현황 — KST 오늘 기준 출근/지각/휴가 집계 (records 의존 X, 별도 fetch).
-  const kstToday = useMemo(() => todayKst(), []);
-  const { data: todayStatus } = useQuery({
-    queryKey: ["today-attendance-status", companyId, kstToday],
-    queryFn: async () => {
-      const [attRes, leaveRes] = await Promise.all([
-        (supabase).from("attendance_records").select("employee_id, status, is_late").eq("company_id", companyId).eq("date", kstToday),
-        (supabase).from("leave_requests").select("employee_id").eq("company_id", companyId).eq("status", "approved").lte("start_date", kstToday).gte("end_date", kstToday),
-      ]);
-      //   ⚠️ 조회가 실패하면 출근·지각·휴가가 모두 0이 되고 결근 카드가 전원으로 찍힌다.
-      //   숫자를 지어내지 말고 실패를 알린다.
-      if (attRes.error) throw attRes.error;
-      if (leaveRes.error) throw leaveRes.error;
-
-      const present = new Set<string>();
-      const late = new Set<string>();
-      const absentRecorded = new Set<string>();
-      for (const r of (attRes.data || []) as any[]) {
-        //   ⚠️ status 를 봐야 한다. 예전엔 is_late 만 보고 나머지를 전부 '출근' 으로 넣어,
-        //   관리자가 결근으로 기록한 사람이 출근으로 집계되고 결근 카드가 그만큼 줄었다.
-        const st = String(r.status || "");
-        if (st === "absent") { absentRecorded.add(r.employee_id); continue; }
-        if (r.is_late) late.add(r.employee_id);   // 지각 판정은 is_late 단일 소스 (2026-08-07)
-        else present.add(r.employee_id);
-      }
-      const leaveSet = new Set<string>(((leaveRes.data || []) as any[]).map((r) => r.employee_id));
-      // 휴가자는 출근/지각 집계에서 제외(중복 방지)
-      for (const id of leaveSet) { present.delete(id); late.delete(id); }
-      for (const id of leaveSet) absentRecorded.delete(id);
-      return {
-        present: present.size, late: late.size, leave: leaveSet.size,
-        presentIds: [...present], lateIds: [...late], leaveIds: [...leaveSet],
-        absentRecordedIds: [...absentRecorded],
-      };
-    },
-    enabled: !!companyId && !isEmployeeRole,
-    staleTime: 60_000,
-  });
   // 오늘 통계 카드 클릭 → 명단 펼침 (숫자만으론 누구인지 모름)
   const [todayStatOpen, setTodayStatOpen] = useState<string | null>(null);
-  const todayStatNames = useMemo(() => {
-    const nameOf = (id: string) => (employees as any[]).find((e: any) => e.id === id)?.name || "구성원";
-    const present = (todayStatus?.presentIds || []).map(nameOf);
-    const late = (todayStatus?.lateIds || []).map(nameOf);
-    const leave = (todayStatus?.leaveIds || []).map(nameOf);
-    const counted = new Set([...(todayStatus?.presentIds || []), ...(todayStatus?.lateIds || []), ...(todayStatus?.leaveIds || [])]);
-    //   결근으로 '기록된' 사람은 기록이 있어도 결근이다 — counted 에 넣지 않아 아래에서 잡힌다
-    // 공휴일·주말엔 결근 명단도 비운다 + 입사 전 직원 제외 (카드는 0인데
-    // 클릭하면 전 직원 명단이 나오던 모순).
-    const todayIsOff = holidayDaySet.has(todayStr) || [0, 6].includes(today.getDay());
-    const absent = todayIsOff ? [] : activeEmployees
-      .filter((e: any) => !counted.has(e.id) && (!e.hire_date || todayStr >= String(e.hire_date).slice(0, 10)))
-      .map((e: any) => e.name || "구성원");
-    return { present, late, absent, leave } as Record<string, string[]>;
-  }, [todayStatus, employees, activeEmployees, holidayDaySet, todayStr]);
 
   // 캘린더에서 선택한 날짜 · 없으면 조회 중인 달이 이번 달일 때만 오늘을 기본 선택(시안처럼 진입 시 바로 상세 노출).
   const effectiveSelectedDay = selectedDay || (
@@ -1038,6 +985,17 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
       .sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveSelectedDay, activeEmployees, leaveByDay, calLeaveTypes, records]);
+
+  //   우측 4칸(출근·지각·결근·휴가)·펼친 명단 — 캘린더에서 고른 날짜 기준. 아래 상세 패널(dayDetail·dayLeaveList)과 같은 값.
+  const dayStatNames = useMemo(() => {
+    const namesOf = (list?: { name: string }[]) => (list || []).map((e) => e.name || "구성원");
+    return {
+      present: namesOf(dayDetail?.["present"]),
+      late: namesOf(dayDetail?.["late"]),
+      absent: namesOf(dayDetail?.["absent"]),
+      leave: dayLeaveList.map((e) => e.name || "구성원"),
+    } as Record<string, string[]>;
+  }, [dayDetail, dayLeaveList]);
 
   return (
     <div>
@@ -1222,12 +1180,11 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
               {/* 카드 클릭 → 하단에 해당 인원 명단 */}
               <div className="grid grid-cols-2 gap-3">
                 {([
-                  { key: "present", label: "오늘 출근", count: todayStatus?.present ?? 0, cls: "text-[var(--text)]" },
-                  { key: "late", label: "지각", count: todayStatus?.late ?? 0, cls: "text-yellow-500" },
-                  // 공휴일·주말엔 오늘 결근 0 (2026-08-19). 쉬는 날 전 직원이 결근으로 집계되지 않게.
-                  
-                  { key: "absent", label: "결근", count: (holidayDaySet.has(todayStr) || [0, 6].includes(today.getDay())) ? 0 : Math.max(0, activeEmployees.length - (todayStatus?.present ?? 0) - (todayStatus?.late ?? 0) - (todayStatus?.leave ?? 0)), cls: "text-[var(--danger)]" },
-                  { key: "leave", label: "자리비움", count: todayStatus?.leave ?? 0, cls: "text-[var(--info)]" },
+                  { key: "present", label: "출근", count: dayStatNames.present.length, cls: "text-[var(--text)]" },
+                  { key: "late", label: "지각", count: dayStatNames.late.length, cls: "text-yellow-500" },
+                  //   결근·휴가도 고른 날짜 기준(아래 상세 패널과 같은 값). 공휴일·주말·미래 날짜는 dayDetail 이 결근을 만들지 않는다.
+                  { key: "absent", label: "결근", count: dayStatNames.absent.length, cls: "text-[var(--danger)]" },
+                  { key: "leave", label: "휴가", count: dayStatNames.leave.length, cls: "text-[var(--info)]" },
                 ] as const).map((c) => (
                   <button
                     key={c.key}
@@ -1244,13 +1201,13 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
               {todayStatOpen && (
                 <div className="glass-card p-4">
                   <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">
-                    오늘 {{ present: "출근", late: "지각", absent: "결근", leave: "자리비움" }[todayStatOpen]} · {todayStatNames[todayStatOpen]?.length ?? 0}명
+                    {{ present: "출근", late: "지각", absent: "결근", leave: "휴가" }[todayStatOpen]} · {dayStatNames[todayStatOpen]?.length ?? 0}명
                   </div>
-                  {(todayStatNames[todayStatOpen] || []).length === 0 ? (
+                  {(dayStatNames[todayStatOpen] || []).length === 0 ? (
                     <div className="text-xs text-[var(--text-dim)]">해당 인원이 없습니다.</div>
                   ) : (
                     <div className="flex flex-wrap gap-1.5">
-                      {todayStatNames[todayStatOpen].map((name, i) => (
+                      {dayStatNames[todayStatOpen].map((name, i) => (
                         <span key={i} className="inline-flex items-center px-2.5 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)]">{name}</span>
                       ))}
                     </div>
