@@ -195,6 +195,20 @@ export function OrgBulkWizard({
 
   // Step 2: 거래처
   const [partners, setPartners] = useState<OrgPartner[]>([]);
+  //   2단계 표에서 단체명을 바로 고친다 — 거래처 화면까지 갔다 오지 않게 (2026-09-15)
+  const [nameEdit, setNameEdit] = useState<{ id: string; value: string; saving?: boolean } | null>(null);
+  const saveName = async () => {
+    if (!nameEdit || nameEdit.saving) return;
+    const value = nameEdit.value.trim();
+    const cur = partners.find((p) => p.id === nameEdit.id);
+    if (!value || !cur || value === cur.name) { setNameEdit(null); return; }
+    setNameEdit({ ...nameEdit, saving: true });
+    const { error } = await supabase.from("partners").update({ name: value } as never).eq("id", nameEdit.id);
+    if (error) { toast("거래처명 저장 실패: " + error.message, "error"); setNameEdit({ ...nameEdit, saving: false }); return; }
+    setPartners((list) => list.map((p) => (p.id === nameEdit.id ? { ...p, name: value } : p)));
+    setNameEdit(null);
+    toast("거래처명을 바꿨습니다. 거래처 화면에도 같이 반영됩니다.", "success");
+  };
   const [loadingPartners, setLoadingPartners] = useState(false);
   const [pSearch, setPSearch] = useState("");
   const [pType, setPType] = useState("");
@@ -821,7 +835,28 @@ export function OrgBulkWizard({
                               onClick={(e) => e.stopPropagation()}
                             />
                           </td>
-                          <td className="p-2 text-[var(--text)]">{p.name}</td>
+                          <td className="p-2 text-[var(--text)]" onClick={(e) => { if (nameEdit?.id === p.id) e.stopPropagation(); }}>
+                            {nameEdit?.id === p.id ? (
+                              <input
+                                autoFocus
+                                value={nameEdit.value}
+                                disabled={nameEdit.saving}
+                                onChange={(e) => setNameEdit({ id: p.id, value: e.target.value })}
+                                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void saveName(); } if (e.key === "Escape") setNameEdit(null); }}
+                                onBlur={() => void saveName()}
+                                className="w-full min-w-[140px] px-2 py-1 rounded-md bg-[var(--bg)] border border-[var(--primary)] text-sm text-[var(--text)]"
+                                aria-label="단체명 수정"
+                              />
+                            ) : (
+                              <span className="inline-flex items-center gap-1 group/name">
+                                <span>{p.name}</span>
+                                {/*   연필 — 줄 클릭(선택)과 겹치지 않게 전파를 끊는다 */}
+                                <button type="button" aria-label="단체명 수정" title="단체명 수정"
+                                  onClick={(e) => { e.stopPropagation(); setNameEdit({ id: p.id, value: p.name }); }}
+                                  className="opacity-40 hover:opacity-100 group-hover/name:opacity-80 text-xs px-1 rounded transition">✎</button>
+                              </span>
+                            )}
+                          </td>
                           <td className="p-2 text-[var(--text-muted)]">{p.representative || "—"}</td>
                           <td className="p-2 text-[var(--text-muted)]">{p.contact_name || "—"}</td>
                           <td className="p-2 text-[var(--text-muted)] text-xs">
