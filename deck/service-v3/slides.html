@@ -663,6 +663,13 @@
   .s1 .logo i svg{ width:22px; height:22px } .app .alogo i svg{ width:12px; height:12px }
   .s1 .hero{ top:120px !important }
   .s1 .device{ top:580px !important }
+  /* 16쪽 요금 — 정상가 취소선 + 50% 할인 표시 (2026-09-15 사장님: 정상가 80,000원, 할인가 39,000원) */
+  .pl .was{ margin-top:22px; height:44px; display:flex; align-items:center; gap:14px }
+  .pl .was s{ font-size:30px; font-weight:700; color:#8b95a1; text-decoration:line-through; text-decoration-thickness:3px; text-decoration-color:#8b95a1 }
+  .pl .was .off{ height:44px; padding:0 18px; border-radius:22px; background:#ffeeee; color:#e42939; font-size:24px; font-weight:800; display:inline-flex; align-items:center }
+  .pl .was.ghost{ visibility:hidden }
+  .pl .was + .p{ margin-top:10px }
+  .pl ul{ margin-top:28px !important; padding-top:26px !important }
 </style>
 </head>
 <body>
@@ -1098,6 +1105,7 @@
   <div class="plans">
     <div class="pl a d2">
       <div class="n">무료</div>
+      <div class="was ghost" aria-hidden="true"><s>₩0</s></div>
       <div class="p">₩0<small>/ 월</small></div>
       <div class="d">카드 등록 없이 시작 · 기간 제한 없음</div>
       <ul>
@@ -1110,6 +1118,7 @@
     </div>
     <div class="pl pro a d3">
       <div class="n">오너뷰 <span class="bd">추천</span></div>
+      <div class="was"><s>정상가 ₩80,000</s><span class="off">50% 할인</span></div>
       <div class="p">₩39,000<small>/ 월 · VAT 별도</small></div>
       <div class="d">기본 5명 포함 · 추가 1명당 ₩5,000 · 연간 결제 10% 할인</div>
       <ul>
