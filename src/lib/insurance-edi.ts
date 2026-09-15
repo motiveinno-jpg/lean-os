@@ -59,13 +59,13 @@ export type LossReason = { code: string; label: string; group: string; enabled?:
 //   회사가 설정(회사 설정 › 상실사유)에서 문구·표시여부를 바꾸거나 항목을 더하지 않으면 이 표준을 쓴다.
 //   묶음(group)은 화면에서 optgroup 으로 나눠 고르기 쉽게 한다. 저장처: company_settings.settings.loss_reasons.
 export const DEFAULT_LOSS_REASONS: LossReason[] = [
-  { group: '자진 퇴사',            code: '11', label: '개인 사정으로 인한 자진 퇴사' },
-  { group: '자진 퇴사',            code: '12', label: '사업장 이전·근로조건 변동·임금체불 등으로 인한 자진 퇴사' },
-  { group: '회사 사정·근로자 귀책', code: '22', label: '폐업·도산·공사 중단' },
-  { group: '회사 사정·근로자 귀책', code: '23', label: '경영상 필요·회사 불황으로 인원 감축 (해고·권고사직·명예퇴직 포함)' },
-  { group: '회사 사정·근로자 귀책', code: '26', label: '근로자 귀책 사유에 의한 징계해고·권고사직' },
-  { group: '정년·계약 만료',        code: '31', label: '정년' },
-  { group: '정년·계약 만료',        code: '32', label: '계약기간 만료·공사 종료' },
-  { group: '기타',                 code: '41', label: '고용보험 비적용' },
-  { group: '기타',                 code: '42', label: '이중 고용' },
+  { group: '자진퇴사',                     code: '11', label: '개인사정으로 인한 자진퇴사' },
+  { group: '자진퇴사',                     code: '12', label: '사업장 이전, 근로조건 변동, 임금체불 등으로 자진퇴사' },
+  { group: '회사사정과 근로자 귀책사유',    code: '22', label: '폐업·도산' },
+  { group: '회사사정과 근로자 귀책사유',    code: '23', label: '경영상 필요 및 회사불황으로 인원감축 등에 의한 퇴사(해고·권고사직·명예퇴직 포함)' },
+  { group: '회사사정과 근로자 귀책사유',    code: '26', label: '근로자의 귀책사유에 의한 징계해고·권고사직' },
+  { group: '정년 등 기간만료',             code: '31', label: '정년' },
+  { group: '정년 등 기간만료',             code: '32', label: '계약만료·공사종료' },
+  { group: '기타',                         code: '41', label: '고용보험 비적용' },
+  { group: '기타',                         code: '42', label: '이중고용' },
 ];

@@ -10,7 +10,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { Ico } from "@/components/ui-icon";
 import { fetchLossReasons, saveLossReasons, resetLossReasons, DEFAULT_LOSS_REASONS, type LossReason } from "@/lib/loss-reasons";
 
-const GROUPS = ["자진 퇴사", "회사 사정·근로자 귀책", "정년·계약 만료", "기타"];
+const GROUPS = ["자진퇴사", "회사사정과 근로자 귀책사유", "정년 등 기간만료", "기타"];
 
 export function LossReasonsTab({ companyId }: { companyId: string; userId?: string | null }) {
   const { toast } = useToast();
