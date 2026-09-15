@@ -195,19 +195,38 @@ export function OrgBulkWizard({
 
   // Step 2: 거래처
   const [partners, setPartners] = useState<OrgPartner[]>([]);
-  //   2단계 표에서 단체명을 바로 고친다 — 거래처 화면까지 갔다 오지 않게 (2026-09-15)
-  const [nameEdit, setNameEdit] = useState<{ id: string; value: string; saving?: boolean } | null>(null);
-  const saveName = async () => {
-    if (!nameEdit || nameEdit.saving) return;
-    const value = nameEdit.value.trim();
-    const cur = partners.find((p) => p.id === nameEdit.id);
-    if (!value || !cur || value === cur.name) { setNameEdit(null); return; }
-    setNameEdit({ ...nameEdit, saving: true });
-    const { error } = await supabase.from("partners").update({ name: value } as never).eq("id", nameEdit.id);
-    if (error) { toast("거래처명 저장 실패: " + error.message, "error"); setNameEdit({ ...nameEdit, saving: false }); return; }
-    setPartners((list) => list.map((p) => (p.id === nameEdit.id ? { ...p, name: value } : p)));
-    setNameEdit(null);
-    toast("거래처명을 바꿨습니다. 거래처 화면에도 같이 반영됩니다.", "success");
+  //   2단계 표에서 거래처 내용을 바로 고친다 — 단체명뿐 아니라 대표자·담당자·이메일·사업자번호까지.
+  //   거래처 화면까지 갔다 오지 않게 (이름만: 2026-09-15 → 전체 필드: 2026-09-15)
+  type RowDraft = Pick<OrgPartner, "name" | "representative" | "contact_name" | "contact_email" | "business_number">;
+  const [rowEdit, setRowEdit] = useState<{ id: string; draft: RowDraft; saving?: boolean } | null>(null);
+  const startRowEdit = (p: OrgPartner) => setRowEdit({
+    id: p.id,
+    draft: {
+      name: p.name || "", representative: p.representative || "", contact_name: p.contact_name || "",
+      contact_email: p.contact_email || "", business_number: p.business_number || "",
+    },
+  });
+  const setDraft = (k: keyof RowDraft, v: string) => setRowEdit((r) => (r ? { ...r, draft: { ...r.draft, [k]: v } } : r));
+  const saveRow = async () => {
+    if (!rowEdit || rowEdit.saving) return;
+    const d = rowEdit.draft;
+    const name = (d.name || "").trim();
+    if (!name) { toast("단체명을 입력하세요", "error"); return; }
+    const email = (d.contact_email || "").trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast("이메일 형식이 올바르지 않습니다", "error"); return; }
+    setRowEdit({ ...rowEdit, saving: true });
+    const patch = {
+      name,
+      representative: (d.representative || "").trim() || null,
+      contact_name: (d.contact_name || "").trim() || null,
+      contact_email: email || null,
+      business_number: (d.business_number || "").trim() || null,
+    };
+    const { error } = await supabase.from("partners").update(patch as never).eq("id", rowEdit.id);
+    if (error) { toast("거래처 저장 실패: " + error.message, "error"); setRowEdit({ ...rowEdit, saving: false }); return; }
+    setPartners((list) => list.map((p) => (p.id === rowEdit.id ? { ...p, ...patch } : p)));
+    setRowEdit(null);
+    toast("거래처 내용을 바꿨습니다. 거래처 화면에도 같이 반영됩니다.", "success");
   };
   const [loadingPartners, setLoadingPartners] = useState(false);
   const [pSearch, setPSearch] = useState("");
@@ -818,62 +837,77 @@ export function OrgBulkWizard({
                   <tbody>
                     {filteredPartners.map((p) => {
                       const noEmail = !p.contact_email;
+                      const isEditing = rowEdit?.id === p.id;
+                      //   편집 중인 칸 입력 — 한 곳에서 만든다(칸마다 반복 줄이기). 줄 클릭(선택)과 겹치지 않게 전파를 끊는다.
+                      const cellInput = (field: keyof RowDraft, ph: string, minW = "min-w-[100px]") => (
+                        <input
+                          value={rowEdit?.draft[field] ?? ""}
+                          disabled={rowEdit?.saving}
+                          onChange={(e) => setDraft(field, e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void saveRow(); } if (e.key === "Escape") setRowEdit(null); }}
+                          placeholder={ph}
+                          className={`w-full ${minW} px-2 py-1 rounded-md bg-[var(--bg)] border border-[var(--primary)] text-sm text-[var(--text)]`}
+                        />
+                      );
                       return (
                         <tr
                           key={p.id}
                           className={`border-t border-[var(--border)] ${
-                            noEmail ? "opacity-60" : "hover:bg-[var(--bg-surface)]/40 cursor-pointer"
+                            noEmail && !isEditing ? "opacity-60" : "hover:bg-[var(--bg-surface)]/40 cursor-pointer"
                           }`}
-                          onClick={() => !noEmail && togglePartner(p.id, p)}
+                          onClick={() => { if (isEditing) return; if (!noEmail) togglePartner(p.id, p); }}
                         >
                           <td className="p-2">
-                            <input
-                              type="checkbox"
-                              disabled={noEmail}
-                              checked={selectedPartnerIds.has(p.id)}
-                              onChange={() => togglePartner(p.id, p)}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </td>
-                          <td className="p-2 text-[var(--text)]" onClick={(e) => { if (nameEdit?.id === p.id) e.stopPropagation(); }}>
-                            {nameEdit?.id === p.id ? (
-                              <input
-                                autoFocus
-                                value={nameEdit.value}
-                                disabled={nameEdit.saving}
-                                onChange={(e) => setNameEdit({ id: p.id, value: e.target.value })}
-                                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void saveName(); } if (e.key === "Escape") setNameEdit(null); }}
-                                onBlur={() => void saveName()}
-                                className="w-full min-w-[140px] px-2 py-1 rounded-md bg-[var(--bg)] border border-[var(--primary)] text-sm text-[var(--text)]"
-                                aria-label="단체명 수정"
-                              />
+                            {isEditing ? (
+                              <div className="flex items-center gap-1">
+                                <button type="button" title="저장" aria-label="저장" disabled={rowEdit?.saving}
+                                  onClick={(e) => { e.stopPropagation(); void saveRow(); }}
+                                  className="text-[var(--success)] hover:opacity-80 text-sm px-1">✓</button>
+                                <button type="button" title="취소" aria-label="취소"
+                                  onClick={(e) => { e.stopPropagation(); setRowEdit(null); }}
+                                  className="text-[var(--text-dim)] hover:opacity-80 text-sm px-1">✕</button>
+                              </div>
                             ) : (
+                              <input
+                                type="checkbox"
+                                disabled={noEmail}
+                                checked={selectedPartnerIds.has(p.id)}
+                                onChange={() => togglePartner(p.id, p)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            )}
+                          </td>
+                          <td className="p-2 text-[var(--text)]">
+                            {isEditing ? cellInput("name", "단체명", "min-w-[140px]") : (
                               <span className="inline-flex items-center gap-1 group/name">
                                 <span>{p.name}</span>
                                 {/*   연필 — 줄 클릭(선택)과 겹치지 않게 전파를 끊는다 */}
-                                <button type="button" aria-label="단체명 수정" title="단체명 수정"
-                                  onClick={(e) => { e.stopPropagation(); setNameEdit({ id: p.id, value: p.name }); }}
+                                <button type="button" aria-label="거래처 수정" title="거래처 수정"
+                                  onClick={(e) => { e.stopPropagation(); startRowEdit(p); }}
                                   className="opacity-40 hover:opacity-100 group-hover/name:opacity-80 text-xs px-1 rounded transition">✎</button>
                               </span>
                             )}
                           </td>
-                          <td className="p-2 text-[var(--text-muted)]">{p.representative || "—"}</td>
-                          <td className="p-2 text-[var(--text-muted)]">{p.contact_name || "—"}</td>
+                          <td className="p-2 text-[var(--text-muted)]">{isEditing ? cellInput("representative", "대표자") : (p.representative || "—")}</td>
+                          <td className="p-2 text-[var(--text-muted)]">{isEditing ? cellInput("contact_name", "담당자") : (p.contact_name || "—")}</td>
                           <td className="p-2 text-[var(--text-muted)] text-xs">
-                            {p.contact_email ? (
-                              p.contact_email
-                            ) : (
-                              <Link
-                                href={`/partners?edit=${p.id}`}
-                                onClick={(e) => e.stopPropagation()}
-                                className="text-yellow-500 hover:underline"
-                                title="이메일을 먼저 등록하세요"
-                              >
-                                <Ico e="⚠" /> 이메일 등록 필요
-                              </Link>
+                            {isEditing ? cellInput("contact_email", "contact@example.com", "min-w-[160px]") : (
+                              p.contact_email ? (
+                                p.contact_email
+                              ) : (
+                                <Link
+                                  href={`/partners?edit=${p.id}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-yellow-500 hover:underline"
+                                  title="이메일을 먼저 등록하세요"
+                                >
+                                  <Ico e="⚠" /> 이메일 등록 필요
+                                </Link>
+                              )
                             )}
                           </td>
-                          <td className="p-2 text-[var(--text-muted)] text-xs">{p.business_number || "—"}</td>
+                          <td className="p-2 text-[var(--text-muted)] text-xs">{isEditing ? cellInput("business_number", "000-00-00000") : (p.business_number || "—")}</td>
                         </tr>
                       );
                     })}
