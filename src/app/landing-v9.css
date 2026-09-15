@@ -1278,3 +1278,10 @@
 }
 /* /ai(308 → /#ai) · 기능 페이지 옛 AI 탭이 가리키는 앵커 — 붙박이 머리(60px)에 가리지 않게 */
 .lp9m .lp9-anchor{ display:block; position:relative; top:-60px; height:0 }
+/* 관련 검색어 링크 — 검색 노출용으로 남기되 화면에서는 거의 안 보이게(2026-09-15 사장님).
+   display:none 이나 글자색=배경색으로 감추면 검색엔진이 숨긴 글로 본다 → 작고 옅게만 */
+.lp9 .lp9-topics{ padding:14px 0 10px; background:#fafbfd; border-top:1px solid #f0f2f6 }
+.lp9 .lp9-topics .lp8-topics-h{ margin:0 0 4px; font-size:11px; font-weight:600; color:#b0b8c1 }
+.lp9 .lp9-topics .topics{ gap:0 12px }
+.lp9 .lp9-topics .topics a{ padding:0; border:0; border-radius:0; background:none; font-size:11px; line-height:1.9; color:#b0b8c1 }
+.lp9 .lp9-topics .topics a:hover{ color:#6b7280; background:none; border:0 }

@@ -41,10 +41,10 @@ export default function LandingV9() {
       <div className="lp8">
         {/* 관련 검색어 — v8 홈에 있던 내부 링크 27개(결정 224~226). v9 로 바꾸며 빠졌던 것을 되살림(2026-09-15).
             문구·주소는 content.ts TOPICS 단일 출처, 모양은 landing-v8.css 의 .topics 그대로 */}
-        <section className="sec-100 pt96 pb96" id="topics">
+        {/* 2026-09-15 사장님: "남기되 잘 안 보일 정도로 작게, 지금 디자인은 깨지 않게" — 숨기지는 않는다(검색엔진이 읽어야 함) */}
+        <section className="lp9-topics" id="topics">
           <div className="container">
             <h4 className="lp8-topics-h">오너뷰로 대신할 수 있는 것</h4>
-            <p className="lp8-topics-p">오너뷰 한 곳에서 처리하는 일들입니다.</p>
             <div className="topics">
               {TOPICS.map(([t, href]) => <Link key={t} href={href}>{t}</Link>)}
             </div>
