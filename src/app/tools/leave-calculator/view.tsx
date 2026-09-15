@@ -9,6 +9,8 @@
 
 import "@/app/landing-v8.css";
 import Link from "next/link";
+import { ResultCta } from "../_result-cta";
+import { menuHref } from "@/components/landing-v8/catalog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SiteFooter, SiteHeader } from "@/components/landing-v8/site-shell";
 import { DateField } from "@/components/date-field";
@@ -230,6 +232,11 @@ export default function LeaveCalculatorView() {
                   : !base ? "기준일을 선택하면 바로 계산됩니다"
                   : "기준일은 입사일보다 뒤여야 합니다"}
               </div>
+            )}
+            {(result) && (
+              <ResultCta tool="leave" menuHref={menuHref("hr", "attendance")} menuLabel="근태 관리 기능 보기">
+                직원이 늘면 연차를 입사일마다 따로 계산해야 합니다. <b>오너뷰는 구성원별 연차 발생·사용·잔여를 자동으로 집계</b>하고, 휴가 신청이 결재되면 바로 차감합니다.
+              </ResultCta>
             )}
           </div>
 

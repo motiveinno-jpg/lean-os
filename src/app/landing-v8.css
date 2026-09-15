@@ -701,3 +701,11 @@ html[data-theme="dark"] .lp8{
 .lp8 .bl8-cta b{ font-size: 18px; font-weight: 600; color: var(--ink) }
 .lp8 .bl8-cta p{ margin-top: 8px; font-size: 15px; line-height: 1.7; color: var(--ink-2) }
 .lp8 .bl8-cta-btns{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px }
+
+/* 계산기 결과 바로 아래 맥락 가입 유도 — tools/_result-cta.tsx (2026-09-15) */
+.lp8 .tl8-rcta{ margin-top: 14px; display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap; padding: 14px 16px; border-radius: 6px; border: 1px dashed color-mix(in srgb, var(--brand) 35%, transparent); background: var(--bg) }
+.lp8 .tl8-rcta-t{ flex: 1 1 300px; margin: 0; font-size: 14px; line-height: 1.65; color: var(--ink-2) }
+.lp8 .tl8-rcta-t b{ color: var(--ink); font-weight: 600 }
+.lp8 .tl8-rcta-b{ display: flex; align-items: center; gap: 14px; flex-wrap: wrap }
+.lp8 .tl8-rcta-l{ font-size: 13.5px; font-weight: 600; color: var(--brand) }
+.lp8 .tl8-rcta-l:hover{ text-decoration: underline }

@@ -8,6 +8,8 @@
 
 import "@/app/landing-v8.css";
 import Link from "next/link";
+import { ResultCta } from "../_result-cta";
+import { menuHref } from "@/components/landing-v8/catalog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SiteFooter, SiteHeader } from "@/components/landing-v8/site-shell";
 import { FAQS } from "./faqs";
@@ -89,6 +91,11 @@ export default function VatCalculatorView() {
               </div>
             ) : (
               <div className="tl8-empty">금액을 넣으면 바로 계산됩니다</div>
+            )}
+            {(r) && (
+              <ResultCta tool="vat" menuHref={menuHref("finance", "tax-filing")} menuLabel="세무 신고 기능 보기">
+                부가세는 매출·매입 세금계산서가 모두 모여야 계산됩니다. <b>오너뷰는 확정 전표와 세금계산서로 부가세 신고 자료를 정리</b>합니다.
+              </ResultCta>
             )}
           </div>
 

@@ -11,6 +11,8 @@
 
 import "@/app/landing-v8.css";
 import Link from "next/link";
+import { ResultCta } from "../_result-cta";
+import { menuHref } from "@/components/landing-v8/catalog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SiteFooter, SiteHeader } from "@/components/landing-v8/site-shell";
 import { FAQS } from "./faqs";
@@ -157,6 +159,11 @@ export default function InsuranceCalculatorView() {
               </div>
             ) : (
               <div className="tl8-empty">월급을 넣으면 바로 계산됩니다</div>
+            )}
+            {(r) && (
+              <ResultCta tool="insurance" menuHref={menuHref("hr", "employees")} menuLabel="구성원 기능 보기">
+                4대보험 요율은 해마다 바뀝니다. <b>오너뷰는 올해 요율표로 구성원별 공제액을 계산해 급여에 반영</b>합니다.
+              </ResultCta>
             )}
           </div>
 

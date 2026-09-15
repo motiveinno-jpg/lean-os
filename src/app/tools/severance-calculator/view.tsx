@@ -9,6 +9,8 @@
 
 import "@/app/landing-v8.css";
 import Link from "next/link";
+import { ResultCta } from "../_result-cta";
+import { menuHref } from "@/components/landing-v8/catalog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SiteFooter, SiteHeader } from "@/components/landing-v8/site-shell";
 import { DateField } from "@/components/date-field";
@@ -196,6 +198,11 @@ export default function SeveranceCalculatorView() {
               )
             ) : (
               <div className="tl8-empty">입사일 · 퇴직일 · 월급을 넣으면 바로 계산됩니다</div>
+            )}
+            {(result && !result.under1) && (
+              <ResultCta tool="severance" menuHref={menuHref("hr", "employees")} menuLabel="구성원 기능 보기">
+                퇴직금은 최근 3개월 급여 기록이 있어야 정확합니다. <b>오너뷰는 급여 기록으로 구성원별 예상 퇴직금을 바로 보여 주고</b>, 자금 전망에도 반영합니다.
+              </ResultCta>
             )}
           </div>
 

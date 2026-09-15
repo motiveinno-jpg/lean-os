@@ -9,6 +9,8 @@
 
 import "@/app/landing-v8.css";
 import Link from "next/link";
+import { ResultCta } from "../_result-cta";
+import { menuHref } from "@/components/landing-v8/catalog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SiteFooter, SiteHeader } from "@/components/landing-v8/site-shell";
 import { FAQS } from "./faqs";
@@ -138,6 +140,11 @@ export default function SalaryCalculatorView() {
               </div>
             ) : (
               <div className="tl8-empty">세전 월급을 넣으면 바로 계산됩니다</div>
+            )}
+            {(r) && (
+              <ResultCta tool="salary" menuHref={menuHref("hr", "employees")} menuLabel="구성원 기능 보기">
+                직원마다 실수령액을 매달 따로 계산하고 계신가요? <b>오너뷰는 급여 한 번 계산으로 전 직원의 공제·실지급액과 명세서까지</b> 만듭니다.
+              </ResultCta>
             )}
           </div>
 

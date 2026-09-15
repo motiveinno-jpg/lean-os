@@ -9,6 +9,8 @@
 
 import "@/app/landing-v8.css";
 import Link from "next/link";
+import { ResultCta } from "../_result-cta";
+import { menuHref } from "@/components/landing-v8/catalog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SiteFooter, SiteHeader } from "@/components/landing-v8/site-shell";
 import { FAQS } from "./faqs";
@@ -108,6 +110,11 @@ export default function WeeklyHolidayCalculatorView() {
               )
             ) : (
               <div className="tl8-empty">시급과 근무시간을 넣으면 바로 계산됩니다</div>
+            )}
+            {(r) && (
+              <ResultCta tool="weekly-holiday" menuHref={menuHref("hr", "attendance")} menuLabel="근태 관리 기능 보기">
+                주휴수당은 주별 근무시간에 따라 달라집니다. <b>오너뷰는 출퇴근 기록으로 구성원별 근무시간을 자동으로 모아</b> 주 단위로 확인할 수 있습니다.
+              </ResultCta>
             )}
           </div>
 
