@@ -1291,3 +1291,16 @@
 .lp9m .s12 .full .cta{ opacity:1 }
 /* 「도입 첫날부터」 아래 그래픽을 점 구체 → 실크 물결로, 마지막 화면은 그래픽 없이 (2026-09-15 사장님: 그래픽 반복) */
 .lp9m .s11 #silk{ width:100%; max-width:none; height:clamp(240px,30vw,440px); margin-top:0 }
+/* 왼쪽 진행 표시 — 막대 → 동그라미, 누르면 이동 (2026-09-15 사장님: 토스와 차이). 버튼 판은 22px 로 넉넉히 눌리게 */
+.lp9m .rail{ left:14px; gap:0 }
+.lp9m .rail button{ position:relative; display:grid; place-items:center; width:22px; height:18px; padding:0; border:0; background:none; cursor:pointer }
+.lp9m .rail button::before{ content:""; width:7px; height:7px; border-radius:50%; background:#c9cfda; transition:width .25s, height .25s, background .25s, box-shadow .25s }
+.lp9m .rail button:hover::before{ background:#8b95a1 }
+.lp9m .rail button.on::before{ width:10px; height:10px; background:var(--ind); box-shadow:0 0 0 4px rgba(74,71,201,.18) }
+.lp9m .rail button::after{ content:attr(data-name); position:absolute; left:28px; top:50%; transform:translate(-4px,-50%); white-space:nowrap; padding:4px 9px; border-radius:7px; background:#262a6b; border:1px solid rgba(255,255,255,.22); color:#fff; font-size:12px; font-weight:600; opacity:0; pointer-events:none; transition:opacity .15s, transform .15s }
+.lp9m .rail button:hover::after, .lp9m .rail button:focus-visible::after{ opacity:1; transform:translate(0,-50%) }
+.lp9m .rail button:focus-visible{ outline:2px solid var(--ind); outline-offset:1px; border-radius:6px }
+/* 남색 판(기본 사양·마지막 화면) 위에서는 켜진 동그라미를 밝게 */
+.lp9m .rail.dark button::before{ background:rgba(255,255,255,.35) }
+.lp9m .rail.dark button:hover::before{ background:rgba(255,255,255,.7) }
+.lp9m .rail.dark button.on::before{ background:#fff; box-shadow:0 0 0 4px rgba(255,255,255,.22) }

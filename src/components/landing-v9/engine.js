@@ -33,10 +33,17 @@ export function startLanding() {
     rvs.forEach((el) => io.observe(el));
   }
 
-  /* 왼쪽 진행 표시 */
+  /* 왼쪽 진행 표시 — 동그라미, 누르면 그 섹션 처음으로 (2026-09-15 사장님: 토스와 같은 막대 대신 동그라미 + 클릭 이동).
+     이름은 제목 대신 짧은 기능명 — 제목은 줄바꿈이 붙어 읽기 어렵고 길다 */
+  const RAIL_NAME = { s1:"오너뷰", s2:"통장 정리", s3:"증빙·전표", s4:"전표 초안", c5:"세무 신고", s7:"경영 지표", s5:"경영 현황 진단",
+    c8:"자금 전망", s6:"AI 참모", c10:"재고", s8:"업종별 활용", c17:"프로젝트 템플릿", c16:"프로젝트", s10:"근태·급여", c13:"모바일 결재",
+    s9:"알림·할 일", c15:"경영 보고서", s11:"기본 사양", s12:"시작하기" };
   const secs = [...document.querySelectorAll("[data-rail]")];
-  $("#rail").innerHTML = secs.map(() => "<i></i>").join("");
-  const railI = [...document.querySelectorAll("#rail i")];
+  $("#rail").innerHTML = secs.map((el) => { const n = RAIL_NAME[el.id] || ""; return `<button type="button" aria-label="${n}" data-name="${n}"></button>`; }).join("");
+  const railI = [...document.querySelectorAll("#rail button")];
+  railI.forEach((b, i) => b.addEventListener("click", () => {
+    scrollTo({ top: secs[i].getBoundingClientRect().top + scrollY, behavior: reduce ? "auto" : "smooth" });
+  }));
   let railLast = -1;
 
   /* ① 아이콘 확장 */
@@ -387,7 +394,7 @@ export function startLanding() {
     // (2026-09-15 갤럭시 S24 흉내 + CPU 4배 느리게: 평균 28fps · 50ms 넘는 프레임 39번)
     const near = {}; let ri = 0;
     secs.forEach((el, i) => { const rc = el.getBoundingClientRect(); if (rc.top < mid) ri = i; near[el.id] = rc.bottom > -80 && rc.top < vh + 80; });
-    if (ri !== railLast) { railLast = ri; railI.forEach((x, i) => x.classList.toggle("on", i === ri)); }
+    if (ri !== railLast) { railLast = ri; railI.forEach((x, i) => x.classList.toggle("on", i === ri)); $("#rail").classList.toggle("dark", secs[ri].id === "s11" || secs[ri].id === "s12"); }
     if (near.s1) hero();
     if (near.s3) papers();
     if (near.s5) acc();
