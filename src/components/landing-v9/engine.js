@@ -23,12 +23,21 @@ export function startLanding() {
   const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
   const ease = (t) => t * t * (3 - 2 * t);
   const lerp = (a, b, t) => a + (b - a) * t;
-  const prog = (el) => { const r = el.getBoundingClientRect(); const total = el.offsetHeight - innerHeight; return total <= 0 ? 0 : clamp(-r.top / total); };
+  // 장면 계산에 쓰는 화면 높이 — 휴대폰은 스크롤 중 주소창이 숨었다 나타나며 innerHeight 가 매번 바뀐다.
+  //   그 값으로 진행률·위치·배율을 매 프레임 다시 잡으면 장면이 들썩인다(2026-09-15 사장님: 모바일 스크롤 떨림).
+  //   고정 판(.sticky)은 100svh(주소창이 보일 때 높이)라 그 높이를 한 번 재서 폭이 바뀔 때(회전)만 다시 잰다. 마우스 기기는 그대로 innerHeight.
+  const touch = matchMedia("(pointer: coarse)").matches;
+  const vhProbe = document.createElement("div");
+  vhProbe.style.cssText = "position:fixed;left:0;top:0;width:0;height:100vh;height:100svh;visibility:hidden;pointer-events:none";
+  document.querySelector(".lp9m").appendChild(vhProbe);
+  let vhW = -1, vhV = 0;
+  const VH = () => { if (!touch) return innerHeight; if (innerWidth !== vhW) { vhW = innerWidth; vhV = vhProbe.getBoundingClientRect().height || innerHeight; } return vhV; };
+  const prog = (el) => { const r = el.getBoundingClientRect(); const total = el.offsetHeight - VH(); return total <= 0 ? 0 : clamp(-r.top / total); };
 
   /* 등장 */
   if ("IntersectionObserver" in window && !reduce) {
     const rvs = [...document.querySelectorAll(".rv")];
-    rvs.forEach((el) => { if (el.getBoundingClientRect().top > innerHeight) el.classList.add("wait"); });
+    rvs.forEach((el) => { if (el.getBoundingClientRect().top > VH()) el.classList.add("wait"); });
     const io = new IO((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.remove("wait"); io.unobserve(e.target); } }), { threshold:.12 });
     rvs.forEach((el) => io.observe(el));
   }
@@ -46,11 +55,26 @@ export function startLanding() {
   }));
   let railLast = -1;
 
+  /* 휴대폰 카드 줄 — 세로로 길게 쌓이던 카드 묶음을 가로로 넘기게(CSS .swipe), 아래 점으로 몇 번째인지 (2026-09-15 사장님) */
+  document.querySelectorAll(".lp9m .bcards, .lp9m .darks, .lp9m .inds, .lp9m .glasses").forEach((row) => {
+    const cards = [...row.children]; if (cards.length < 2) return;
+    row.classList.add("swipe");
+    const dots = document.createElement("div"); dots.className = "swipe-dots"; dots.setAttribute("aria-hidden", "true");
+    dots.innerHTML = cards.map(() => "<i></i>").join(""); row.after(dots);
+    const ds = [...dots.children]; let cur = -1;
+    // 유리 카드 아래 설명 줄은 휴대폰에서 지금 보이는 카드 것만 보인다(CSS)
+    const caps = row.id === "glasses" ? [...document.querySelectorAll(".lp9m .glasscaps > div")] : [];
+    const mark = () => { const step = cards[1].offsetLeft - cards[0].offsetLeft || 1, max = row.scrollWidth - row.clientWidth;
+      const k = row.scrollLeft >= max - 4 ? cards.length - 1 : Math.round(row.scrollLeft / step);
+      if (k !== cur) { cur = k; ds.forEach((d, n) => d.classList.toggle("on", n === k)); caps.forEach((c, n) => c.classList.toggle("cur", n === k)); } };
+    row.addEventListener("scroll", mark, { passive:true }); mark();
+  });
+
   /* ① 아이콘 확장 */
   const s1 = $("#s1"), pill = $("#s1p");
   function hero(){
     const p = prog(s1), e = ease(clamp(p / .7));
-    const vw = innerWidth, vh = innerHeight, i0 = Math.min(132, vw * .26);
+    const vw = innerWidth, vh = VH(), i0 = Math.min(132, vw * .26);
     pill.style.setProperty("--w", lerp(i0, vw, e) + "px"); pill.style.setProperty("--h", lerp(i0, vh, e) + "px");
     pill.style.setProperty("--r", lerp(i0 * .26, 0, clamp((e - .7) / .3)) + "px");
     pill.style.setProperty("--od", String(clamp(e * 2)));
@@ -137,7 +161,7 @@ export function startLanding() {
   function terms(){
     const p = prog($("#s6")), e = ease(clamp((p - .1) / .55));
     termEls.forEach((el, i) => { const [x, y] = TPOS[i]; const w = el.offsetWidth;
-      el.style.transform = `translate(${x * innerWidth * (1 - e) - w / 2}px, ${y * innerHeight * (1 - e) - innerHeight * .08 * e}px) scale(${1 - .5 * e})`;
+      el.style.transform = `translate(${x * innerWidth * (1 - e) - w / 2}px, ${y * VH() * (1 - e) - VH() * .08 * e}px) scale(${1 - .5 * e})`;
       el.style.opacity = String(clamp(p / .1) * (1 - clamp((e - .7) / .3))); el.style.filter = `blur(${e * 3}px)`; });
     $("#s6t").style.opacity = String(clamp((p - .5) / .2)); $("#s6t").style.transform = `translateY(${(1 - clamp((p - .5) / .25)) * 30}px)`;
   }
@@ -207,7 +231,7 @@ export function startLanding() {
     return `<div class="cc${cls}${ev ? " has" : ""}" style="--h:${(v / 4).toFixed(3)}"><div class="cbar"><em class="cv">₩${v.toFixed(1)}억</em>${ev ? `<span class="cev ${ev[0]}" style="--off:${ev[3]}px">${ev[1]}<small>${ev[2]}</small></span>` : ""}${i === 11 ? '<span class="cev flag">최저 잔액<small>운영자금선 위</small></span>' : ""}</div><b class="cx">${i === 0 ? "이번 주" : WEEKS[i]}</b></div>`; }).join("");
   const ccEls = [...document.querySelectorAll("#ccols .cc")];
   function cashcal(){
-    const sec = $("#c8"), rc = sec.getBoundingClientRect(); if (rc.bottom < 0 || rc.top > innerHeight) return;
+    const sec = $("#c8"), rc = sec.getBoundingClientRect(); if (rc.bottom < 0 || rc.top > VH()) return;
     const p = prog(sec);
     ccEls.forEach((el, i) => { const g = ease(clamp((p - .06 - i * .038) / .09)); el.style.setProperty("--g", g.toFixed(3)); el.classList.toggle("shown", g > .92); });
     $("#csafe").style.opacity = String(clamp((p - .02) / .06));
@@ -227,7 +251,7 @@ export function startLanding() {
   const FLY = [[0,0],[760,-300],[-760,-160],[800,200],[-780,300],[0,620]];
   let skLast = "";
   function stockScene(){
-    const sec = $("#c10"), rc = sec.getBoundingClientRect(); if (rc.bottom < 0 || rc.top > innerHeight) return;
+    const sec = $("#c10"), rc = sec.getBoundingClientRect(); if (rc.bottom < 0 || rc.top > VH()) return;
     const p = prog(sec), narrow = innerWidth < 760;
     const hb = clamp(p / .12); $("#c10h").style.filter = `blur(${(1 - hb) * 12}px)`; $("#c10h").style.opacity = String(.15 + .85 * hb);
     const box = $("#stock"), hero = skEls[0];
@@ -248,8 +272,8 @@ export function startLanding() {
   /* ⓓ 판이 줄고 휴대폰이 올라옴 */
   const mpan = $("#mpanel"), phoneEl = $("#phone"), pss = [...document.querySelectorAll("#phone .ps")];
   function mobile(){
-    const sec = $("#c13"), rc = sec.getBoundingClientRect(); if (rc.bottom < 0 || rc.top > innerHeight) return;
-    const p = prog(sec), vw = innerWidth, vh = innerHeight, narrow = vw < 760;
+    const sec = $("#c13"), rc = sec.getBoundingClientRect(); if (rc.bottom < 0 || rc.top > VH()) return;
+    const p = prog(sec), vw = innerWidth, vh = VH(), narrow = vw < 760;
     const e = ease(clamp(p / .36)), fw = Math.min(1200, vw * .92), fh = vh * (narrow ? .8 : .72);
     const w = lerp(vw, fw, e), h = lerp(vh, fh, e), cy = lerp(vh / 2, vh * .54, e);
     mpan.style.width = w + "px"; mpan.style.height = h + "px"; mpan.style.left = (vw - w) / 2 + "px"; mpan.style.top = (cy - h / 2) + "px"; mpan.style.borderRadius = lerp(0, 40, e) + "px";
@@ -270,8 +294,8 @@ export function startLanding() {
   $("#cz").innerHTML = TILES.map(([ic, n, m, c]) => `<div class="tile ${c}"><i><svg><use href="#${ic}"/></svg></i><div><b>${n}</b><small>${m}</small></div></div>`).join("");
   const czEl = $("#cz"), keyT = czEl.querySelector(".key"), tileEls = [...czEl.children];
   function collage(){
-    const sec = $("#c15"), rc = sec.getBoundingClientRect(); if (rc.bottom < 0 || rc.top > innerHeight) return;
-    const p = prog(sec), vw = innerWidth, vh = innerHeight;
+    const sec = $("#c15"), rc = sec.getBoundingClientRect(); if (rc.bottom < 0 || rc.top > VH()) return;
+    const p = prog(sec), vw = innerWidth, vh = VH();
     const base = Math.min(1, (vw - 32) / 960);
     const tcx = keyT.offsetLeft + keyT.offsetWidth / 2, tcy = keyT.offsetTop + keyT.offsetHeight / 2;
     const e = ease(clamp((p - .12) / .36)), S = Math.max(vw / 150, vh / 120) * 1.4;
@@ -322,7 +346,7 @@ export function startLanding() {
     // 좁은 화면: 왼쪽 수집 목록·날아가는 칩을 감추고 보고서만 가운데 크게(1100 폭 그대로 줄이면 글자가 안 읽힌다)
     const narrow = innerWidth < 760;
     RS.classList.toggle("narrow", narrow);
-    RS.style.setProperty("--k", String(narrow ? Math.min(innerWidth * .94 / 520, (innerHeight - 76) / 900) : Math.min(innerWidth * .96 / 1100, (innerHeight - 76) / 900)));
+    RS.style.setProperty("--k", String(narrow ? Math.min(innerWidth * .94 / 520, (VH() - 76) / 900) : Math.min(innerWidth * .96 / 1100, (VH() - 76) / 900)));
     const cq = ease(clamp(t / 3.6)); rsNums.forEach((el) => { const v = Math.round(+el.dataset.n * cq).toLocaleString("ko-KR"); if (el.textContent !== v) el.textContent = v; });
     rsTargets.forEach((el, i) => { const st = .5 + i * .36, q = clamp((t - st) / .7), e = ease(q), ch = rsChips[i];
       const [sx, sy] = rsPos(rsRows[rsChipRow[i]]), [tx, ty] = rsPos(el);
@@ -377,7 +401,7 @@ export function startLanding() {
   const pcLys = [$("#pcBoard"), $("#pcCal"), $("#pcGantt")];
   let pcPhase = -1;
   function projectScene(){
-    const sec = $("#c16"), rc = sec.getBoundingClientRect(); if (rc.bottom < 0 || rc.top > innerHeight) return;
+    const sec = $("#c16"), rc = sec.getBoundingClientRect(); if (rc.bottom < 0 || rc.top > VH()) return;
     const p = prog(sec), ph = p < .26 ? 0 : p < .52 ? 1 : p < .76 ? 2 : 3;
     if (ph !== pcPhase) { pcPhase = ph; pcItems.forEach((el, j) => el.classList.toggle("on", j === ph));
       pcViews.forEach((b, j) => b.classList.toggle("on", j === [1, 1, 2, 3][ph]));
@@ -389,7 +413,7 @@ export function startLanding() {
 
   function frame(ms){
     if (!live()) return;
-    const t = ms / 1000, vh = innerHeight, mid = vh / 2;
+    const t = ms / 1000, vh = VH(), mid = vh / 2;
     // 화면에 걸친 장면만 계산한다 — 화면 밖 장면·캔버스까지 매 프레임 돌리면 중저가폰에서 끊긴다
     // (2026-09-15 갤럭시 S24 흉내 + CPU 4배 느리게: 평균 28fps · 50ms 넘는 프레임 39번)
     const near = {}; let ri = 0;

@@ -1304,3 +1304,27 @@
 .lp9m .rail.dark button::before{ background:rgba(255,255,255,.35) }
 .lp9m .rail.dark button:hover::before{ background:rgba(255,255,255,.7) }
 .lp9m .rail.dark button.on::before{ background:#fff; box-shadow:0 0 0 4px rgba(255,255,255,.22) }
+/* 휴대폰 카드 줄 — 세로로 쌓지 않고 가로로 넘긴다 (2026-09-15 사장님: 카드가 아래로 길어져 읽기 어려움)
+   다음 카드가 오른쪽에 살짝 보여 넘길 수 있다는 걸 알린다. 넓은 화면은 예전 격자 그대로 */
+.lp9m .swipe-dots{ display:none }
+@media (max-width:760px){
+.lp9m .swipe{ display:flex; gap:12px; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x mandatory; margin-inline:-24px; padding-inline:24px; scroll-padding-inline:24px; overscroll-behavior-x:contain; scrollbar-width:none; -webkit-overflow-scrolling:touch }
+.lp9m .swipe::-webkit-scrollbar{ display:none }
+.lp9m .swipe > *{ flex:0 0 86%; width:auto; min-width:0; scroll-snap-align:start }
+.lp9m .swipe > .rv.wait{ opacity:1; transform:none }
+.lp9m .bcards.swipe{ padding-bottom:6px }
+.lp9m .darks.swipe, .lp9m .inds.swipe{ padding-bottom:28px }
+.lp9m .indc:hover{ transform:none }
+.lp9m .glasses.swipe{ border-radius:0 }
+.lp9m .glasses.swipe > .gc{ border-radius:24px; min-height:0 }
+.lp9m .swipe-dots{ display:flex; justify-content:center; gap:7px; margin-top:14px; position:relative; z-index:2 }
+.lp9m .swipe-dots i{ width:6px; height:6px; border-radius:50%; background:#c9cfda; transition:width .25s, background .25s }
+.lp9m .swipe-dots i.on{ width:18px; border-radius:3px; background:var(--ind) }
+.lp9m .darks + .swipe-dots, .lp9m .inds + .swipe-dots{ margin-top:-8px; padding-bottom:clamp(90px,12vw,150px) }
+.lp9m #c5 .swipe-dots i{ background:rgba(255,255,255,.3) }
+.lp9m #c5 .swipe-dots i.on{ background:#fff }
+}
+@media (max-width:760px){
+.lp9m .glasses.swipe ~ .glasscaps > div{ display:none }
+.lp9m .glasses.swipe ~ .glasscaps > div.cur{ display:block; opacity:1; transform:none }
+}
