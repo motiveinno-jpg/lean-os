@@ -613,6 +613,37 @@
   .s4 .pillbox{ background:linear-gradient(135deg,#3730a3 0%,#4f46e5 48%,#3b82f6 100%) !important; box-shadow:0 28px 56px -28px rgba(55,48,163,.55) !important }
   .s4 .pillbox span{ color:#dbe2ff !important }
   .s9b .track .cc:nth-child(1) .vis{ background:#fbefe4 !important } .s9b .track .cc:nth-child(2) .vis{ background:#e7ebfa !important } .s9b .track .cc:nth-child(3) .vis{ background:#e3f0f7 !important }
+  /* ═══ 11쪽 A안 흐름 연결형 ═══ */
+  .s10a .top{ position:absolute; left:0; right:0; top:84px; text-align:center }
+  .s10a .eb{ font-size:26px; font-weight:700; color:#4f46e5 }
+  .s10a h3{ margin:14px 0 0; font-size:68px; font-weight:800; letter-spacing:-.05em; color:#191f28 }
+  .s10a .sub{ margin-top:14px; font-size:26px; color:#8b95a1 }
+  .s10a .w{ background:#fff; border:1px solid #e8ebf2; border-radius:22px; box-shadow:0 1px 2px rgba(30,40,80,.04), 0 24px 50px -30px rgba(40,56,120,.25) }
+  .s10a .r{ display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid #f1f3f6; font-size:17px; color:#191f28; font-weight:600 } .s10a .r:last-child{ border-bottom:0 }
+  .s10a .r em{ margin-left:auto; font-style:normal; font-variant-numeric:tabular-nums; color:#4e5968; font-weight:700 }
+  .s10a .bd{ height:26px; padding:0 10px; border-radius:7px; font-size:14px }
+  .s10a .grn{ background:#e6f7ee; color:#0e9f5e } .s10a .red{ background:#ffeeee; color:#e42939 } .s10a .amb{ background:#fff3e0; color:#e07b00 } .s10a .gry{ background:#f1f3f8; color:#6b7684 }
+  .s10a .bar{ height:9px; border-radius:5px; background:#eef0f4; overflow:hidden } .s10a .bar i{ display:block; height:100% }
+
+  .s10a .flow{ position:absolute; left:110px; right:110px; top:330px; display:grid; grid-template-columns:repeat(5,1fr); gap:44px }
+  .s10a .node{ position:relative }
+  .s10a .node .w{ height:300px; padding:22px 22px }
+  .s10a .node .k{ font-size:14px; color:#8b95a1; font-weight:600 } .s10a .node .h{ margin-top:4px; font-size:22px; font-weight:800; color:#191f28 }
+  .s10a .node:not(:last-child)::after{ content:""; position:absolute; right:-40px; top:140px; width:36px; height:36px; border-radius:50%; background:#4f46e5 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12h14M13 6l6 6-6 6'/></svg>") center/20px no-repeat; box-shadow:0 8px 18px -6px rgba(79,70,229,.6); z-index:2 }
+  .s10a .rail{ position:absolute; left:110px; right:110px; top:655px; height:64px; border-radius:32px; background:linear-gradient(90deg,#eef0ff,#e6effd); display:flex; align-items:center; justify-content:center; gap:14px; font-size:22px; font-weight:700; color:#4338ca }
+  .s10a .rail i{ font-style:normal; background:#fff; border-radius:999px; padding:6px 16px; font-size:18px; color:#4f46e5; box-shadow:0 4px 12px -6px rgba(79,70,229,.4) }
+  .s10a .caps{ position:absolute; left:110px; right:110px; top:770px; display:grid; grid-template-columns:repeat(5,1fr); gap:44px }
+  .s10a .caps b{ display:block; font-size:28px; color:#191f28; letter-spacing:-.03em } .s10a .caps span{ display:block; margin-top:8px; font-size:20px; color:#8b95a1; line-height:1.5 }
+
+  /* 11쪽 A안 — 빈 곳 채움·글자 키움 */
+  .s10a .flow{ top:320px; gap:48px } .s10a .node .w{ height:390px; padding:28px 26px }
+  .s10a .node .k{ font-size:18px } .s10a .node .h{ font-size:28px; margin-top:6px }
+  .s10a .r{ font-size:21px; padding:14px 0 } .s10a .bd{ height:30px; font-size:16px; padding:0 12px }
+  .s10a .node:not(:last-child)::after{ right:-45px; top:170px; width:42px; height:42px; background-size:22px }
+  .s10a .node div[style*="font-size:40px"]{ font-size:54px !important; margin-top:16px !important }
+  .s10a .bar{ height:12px }
+  .s10a .rail{ top:748px; height:80px; border-radius:40px; font-size:26px } .s10a .rail i{ font-size:22px; padding:8px 20px }
+  .s10a .caps{ top:868px; gap:48px } .s10a .caps b{ font-size:30px } .s10a .caps span{ font-size:21px }
 </style>
 </head>
 <body>
@@ -914,23 +945,31 @@
   <div class="foot"><span>OwnerView · 카드 속 숫자는 가상 회사 예시</span><span>10</span></div>
 </section>
 
-<!-- ═══════════ 10 재고·이커머스 — 떠 있는 품목 카드 ═══════════ -->
-<section class="slide s10">
-  <div class="grid"></div>
-  <div class="top"><p class="eyebrow a">Features 02 · 재고·이커머스</p><h2 class="a d1">품목 등록부터 판매 이익까지</h2><p class="sub a d2">주문·판매·구매·생산이 같은 품목을 쓰고, 저장하는 순간 재고와 원가가 반영됩니다</p></div>
-  <div class="pc a d2 hv" style="left:170px;top:430px"><div class="img" style="background:linear-gradient(160deg,#eef6f1,#d9ecdf);color:#3aa56c"><svg class="li"><use href="#i-sheet"/></svg></div><div class="nm">데스크 매트</div><div class="sku">QA-A100 · 본사창고</div><div class="kv">현재고 <b class="num">142</b></div><div class="bar"><i class="gx d3" style="width:88%;background:#15b36b"></i></div></div>
-  <div class="pc a d3 hv2" style="left:500px;top:360px"><div class="img" style="background:linear-gradient(160deg,#f1f2f6,#dfe2ea);color:#6b7684"><svg class="li"><use href="#i-monitor"/></svg></div><div class="nm">모니터 받침대</div><div class="sku">QA-A101 · 본사창고</div><div class="kv">현재고 <b class="num">115</b></div><div class="bar"><i class="gx d4" style="width:74%;background:#15b36b"></i></div></div>
-  <div class="pc a d4 hv" style="left:830px;top:450px"><div class="img" style="background:linear-gradient(160deg,#fbf4ea,#f3e3cc);color:#d08a2c"><svg class="li"><use href="#i-bag"/></svg></div><div class="nm">입사 웰컴키트</div><div class="sku">QA-B201 · 물류센터</div><div class="kv">현재고 <b class="num">65</b></div><div class="bar"><i class="gx d5" style="width:46%;background:#ff9f1a"></i></div></div>
-  <div class="pc a d5 hv2" style="left:1160px;top:370px"><div class="img" style="background:linear-gradient(160deg,#fbeff0,#f3d9dc);color:#e0525f"><svg class="li"><use href="#i-plug"/></svg></div><div class="nm">케이블 정리함 <span class="bd red" style="height:22px;font-size:12px;vertical-align:2px">안전재고 미달</span></div><div class="sku">QA-C400 · 본사창고</div><div class="kv">현재고 <b class="num" style="color:#e42939">18</b></div><div class="bar"><i class="gx d6" style="width:16%;background:#f04452"></i></div></div>
-  <div class="pc a d6 hv" style="left:1490px;top:440px;width:260px"><div class="img" style="background:linear-gradient(160deg,#eef3fb,#dbe7fb);color:#4f46e5"><svg class="li"><use href="#i-chart"/></svg></div><div class="nm">이익률 45.9%</div><div class="sku">9월 · 출고 원가(FIFO) 반영</div><div class="kv">자사몰 <b class="num">46%</b></div><div class="kv" style="margin-top:6px">오픈마켓 <b class="num">30%</b></div></div>
-  <div class="feats">
-    <div class="a d5"><b>품목 · 창고관리</b><span>SKU·안전재고, 창고별 현재고, 실사 조정</span></div>
-    <div class="a d6"><b>주문 · 판매 · 구매</b><span>부분 출고·미입고 잔량, 저장 시 재고 반영</span></div>
-    <div class="a d6"><b>생산</b><span>BOM, 작업지시 시 자재 차감·완제품 입고</span></div>
-    <div class="a d7"><b>이커머스</b><span>채널 주문 엑셀 업로드, 중복 주문 차단</span></div>
-    <div class="a d7"><b>이익관리</b><span>FIFO·이동평균 원가, 품목·채널별 이익</span></div>
-  </div>
-  <div class="foot"><span>OwnerView · 예시 화면(가상 회사)</span><span>11</span></div>
+<!-- ═══════════ 11 재고·이커머스 — 흐름 연결형 (2026-09-15 사장님 A안: 품목 나열 대신 한 품목이 기능 5개를 따라 흐르는 미니 화면) ═══════════ -->
+<section class="slide s10 s10a">
+      <div class="top"><div class="eb">Features 02 · 재고·이커머스</div><h3>품목 등록부터 판매 이익까지</h3><div class="sub">한 번 등록한 품목이 주문·판매·생산·이익까지 그대로 이어집니다</div></div>
+      <div class="flow">
+        <div class="node"><div class="w"><div class="k">품목·창고관리</div><div class="h">데스크 매트</div>
+          <div class="r" style="margin-top:10px">본사창고<em>142</em></div><div class="r">물류센터<em>38</em></div><div class="r">안전재고<em>30</em></div></div></div>
+        <div class="node"><div class="w"><div class="k">주문 → 판매·구매</div><div class="h">주문 #1042</div>
+          <div class="r" style="margin-top:10px">주문 수량<em>50</em></div><div class="r">출고 완료<em>30</em></div><div style="margin-top:10px"><div class="bar"><i style="width:60%;background:#4f46e5"></i></div><div style="margin-top:8px"><span class="bd amb">미출고 20</span></div></div></div></div>
+        <div class="node"><div class="w"><div class="k">생산</div><div class="h">작업지시 #208</div>
+          <div class="r" style="margin-top:10px">원단 2m<em>−100</em></div><div class="r">고무 패드<em>−50</em></div><div class="r" style="color:#0e9f5e">완제품 입고<em style="color:#0e9f5e">+50</em></div></div></div>
+        <div class="node"><div class="w"><div class="k">이커머스</div><div class="h">채널 주문 업로드</div>
+          <div class="r" style="margin-top:10px">새 주문<em>128</em></div><div class="r">중복 주문<span class="bd red" style="margin-left:auto">차단 6</span></div><div class="r">SKU 연결<span class="bd grn" style="margin-left:auto">완료</span></div></div></div>
+        <div class="node"><div class="w"><div class="k">이익관리</div><div class="h">9월 판매 이익</div>
+          <div style="margin-top:12px;font-size:40px;font-weight:900;color:#4f46e5;letter-spacing:-.03em">45.9%</div><div class="r">출고 원가<span class="bd gry" style="margin-left:auto">FIFO</span></div><div class="r">자사몰<em>46%</em></div></div></div>
+      </div>
+      <div class="rail">같은 품목 코드 <i>QA-A100</i> 로 모두 연결 · 저장하는 순간 재고·원가 반영</div>
+      <div class="caps">
+        <div><b>품목·창고관리</b><span>SKU·안전재고, 창고별 현재고</span></div>
+        <div><b>주문·판매·구매</b><span>부분 출고·미입고 잔량 관리</span></div>
+        <div><b>생산</b><span>작업지시 시 자재 차감·완제품 입고</span></div>
+        <div><b>이커머스</b><span>엑셀 업로드, 중복 주문 차단</span></div>
+        <div><b>이익관리</b><span>FIFO·이동평균 원가, 채널별 이익</span></div>
+      </div>
+      <div class="foot"><span>OwnerView · 예시 화면(가상 회사)</span><span>11</span></div>
+    
 </section>
 
 <!-- ═══════════ 11 업무·인사 — 벤토 격자 ═══════════ -->
