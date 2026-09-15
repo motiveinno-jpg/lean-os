@@ -1285,3 +1285,7 @@
 .lp9 .lp9-topics .topics{ gap:0 12px }
 .lp9 .lp9-topics .topics a{ padding:0; border:0; border-radius:0; background:none; font-size:11px; line-height:1.9; color:#b0b8c1 }
 .lp9 .lp9-topics .topics a:hover{ color:#6b7280; background:none; border:0 }
+/* 마지막 화면은 처음부터 펼쳐 두고 글도 바로 보인다 (2026-09-15 사장님) — 스크롤로 커지던 판·늦게 뜨던 글 제거, 고정 스크롤 구간도 한 화면으로 */
+.lp9m .s12{ height:100vh; height:100svh }
+.lp9m .s12 .full{ width:100%; height:100%; border-radius:0 }
+.lp9m .s12 .full .cta{ opacity:1 }

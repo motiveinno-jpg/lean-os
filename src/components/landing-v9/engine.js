@@ -186,13 +186,9 @@ export function startLanding() {
         const hl = Math.abs(la-30) < 4 && Math.cos(th - t*.4) > .92;
         g.fillStyle = hl ? "rgba(103,232,249,.95)" : `rgba(165,180,252,${(.25+.6*((z+1)/2))*.8})`; g.beginPath(); g.arc(x, y, hl ? 4.4 : 1.3 + 1.6*((z+1)/2), 0, 7); g.fill(); } } }
 
-  /* ⑫ 꽉 찬 판 + 실크 */
-  const full = $("#full"), sc = $("#silk"), s = sc.getContext("2d");
-  function fin(){
-    const p = prog($("#s12")), e = ease(clamp(p / .6));
-    full.style.setProperty("--w", lerp(innerWidth * .62, innerWidth, e) + "px"); full.style.setProperty("--h", lerp(innerHeight * .56, innerHeight, e) + "px"); full.style.setProperty("--r", lerp(36, 0, e) + "px");
-    $("#fcta").style.setProperty("--oc", String(clamp((p - .78) / .15)));
-  }
+  /* ⑫ 마지막 화면 + 실크 — 판은 처음부터 펼쳐 두고 글도 바로 보인다(2026-09-15 사장님: 마지막이라 바로 보이게).
+     예전엔 스크롤로 70% 판이 꽉 차게 커지고 끝에 글이 떠올랐다(fin) — 그 계산은 뺐다 */
+  const sc = $("#silk"), s = sc.getContext("2d");
   function silk(t){
     // 캔버스 크기는 바뀔 때만 다시 잡는다 — 매 프레임 width 를 대입하면 버퍼를 새로 만든다
     if (sc.width !== sc.clientWidth) sc.width = sc.clientWidth; if (sc.height !== sc.clientHeight) sc.height = sc.clientHeight;
@@ -405,7 +401,7 @@ export function startLanding() {
     if (near.s5) acc();
     if (near.s6) terms();
     if (near.s10) tabs();
-    if (near.s12) { fin(); silk(reduce ? 0 : t); }
+    if (near.s12) silk(reduce ? 0 : t);
     if (near.s11) globe(reduce ? 0 : t);
     cashcal(); stockScene(); mobile(); collage(); projectScene(); tplTick(ms);
     if (!reduce) rafId = requestAnimationFrame(frame);
