@@ -313,7 +313,10 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
 
     // 같은 href 가 여러 개다(예: 상단 로고도 /dashboard). 메뉴 라벨 텍스트가 있는 쪽을 고르고,
     // 없으면 마지막 매치(사이드바 메뉴가 로고보다 뒤에 렌더된다). 첫 매치를 쓰면 로고가 잡힌다(2026-08-10 prod 확인).
-    const els = Array.from(document.querySelectorAll(`a[href="${step.href}"], a[href="${step.href}/"]`)) as HTMLElement[];
+    // 사이드바 안에서만 찾는다 — 본문·위젯에도 같은 href(예: 대시보드의 재고 위젯 → /inventory/products)가
+    //   있어, 전체 문서에서 고르면 엉뚱한 본문 링크가 잡힌다. 데스크톱 래퍼는 패널+플라이아웃을 감싸고 본문·모바일은 뺀다.
+    const scope: ParentNode = document.querySelector(".sidebar-desktop-wrapper") ?? document;
+    const els = Array.from(scope.querySelectorAll(`a[href="${step.href}"], a[href="${step.href}/"]`)) as HTMLElement[];
     const label = step.title.split(" ")[0];
     // 같은 href 가 데스크톱 패널·모바일 내비에 중복 존재한다. 숨은(크기 0) 복제본을 걸러
     //   보이는 요소만 후보로 둔다 — 안 그러면 0×0 인 모바일 링크가 잡혀 하이라이트가 좌상단 구석에 찍힌다.
