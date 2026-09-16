@@ -26,6 +26,7 @@ const ALLOWED_ATTR = [
   "colspan", "rowspan", "align", "valign", "style", "class",
   "colwidth", // TipTap 표 열 너비 — 편집기 재파싱 시 조절한 너비 유지(표시용 width 는 저장 시 style 로 함께 굽는다)
   "data-field", "data-placeholder", // 서명/양식 필드 자리표시자 보존
+  "start", "type", "value", // 순서 목록 번호 — <ol start> 가 지워지면 표·문단으로 쪼개진 목록이 전부 1 로 리셋돼 "1.1.1.1" 로 보인다
 ];
 
 /** 브라우저에서만 정제할 수 있다(DOM 이 필요). 서버 렌더 때는 아무것도 내보내지 않는다 —

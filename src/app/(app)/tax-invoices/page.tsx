@@ -475,14 +475,19 @@ function TaxInvoicesPageInner() {
   };
   // 품목 줄 · 화면에서는 문자열로 다루고 저장할 때 숫자로 바꾼다 (입력 중 0 이 튀지 않게)
   // 월·일 = 홈택스 서식의 줄 거래일자. 비면 계산서 작성일자를 쓴다.
-  type ItemLine = { key: string; month: string; day: string; name: string; spec: string; qty: string; unitCost: string; remark: string };
+  //   supplyAmount·taxAmount 는 직접 수정한 값(override). 비어 있으면 수량×단가 / 10% 자동값을 쓴다.
+  type ItemLine = { key: string; month: string; day: string; name: string; spec: string; qty: string; unitCost: string; remark: string; supplyAmount?: string; taxAmount?: string };
   const itemKeyRef = useRef(0);
   const blankItem = (): ItemLine => ({ key: `i${itemKeyRef.current++}`, month: "", day: "", name: "", spec: "", qty: "1", unitCost: "", remark: "" });
-  // 한 줄 공급가액 = 수량 × 단가. 수량이 비면 1 로 본다.
-  const itemSupply = (it: ItemLine) => Math.round((Number(it.qty) || 1) * (Number(it.unitCost) || 0));
-  // 한 줄 세액 — 과세일 때만 10%. 영세율·면세는 0(홈택스로 나가는 줄 세액과 같은 산식).
+  // 한 줄 공급가액 = 직접 수정값이 있으면 그 값, 없으면 수량 × 단가. 수량이 비면 1 로 본다.
+  const itemSupply = (it: ItemLine) => (it.supplyAmount != null && it.supplyAmount !== ""
+    ? Math.round(Number(it.supplyAmount) || 0)
+    : Math.round((Number(it.qty) || 1) * (Number(it.unitCost) || 0)));
+  // 한 줄 세액 — 직접 수정값이 있으면 그 값, 없으면 과세일 때만 10%(영세율·면세는 0).
   // 장 합계의 반올림 맞춤은 발행 엣지가 마지막 줄에서 흡수하므로 여기선 줄 단위로만 본다.
-  const itemTax = (it: ItemLine, kind: string) => (kind === "taxable" ? Math.round(itemSupply(it) * 0.1) : 0);
+  const itemTax = (it: ItemLine, kind: string) => (it.taxAmount != null && it.taxAmount !== ""
+    ? Math.round(Number(it.taxAmount) || 0)
+    : (kind === "taxable" ? Math.round(itemSupply(it) * 0.1) : 0));
 
   const rowKeyRef = useRef(0);
   const blankRow = (): FormRow => ({
@@ -544,6 +549,10 @@ function TaxInvoicesPageInner() {
 
   // 계산서 공급가액 = 품목 줄 합계. 규칙이 하나뿐이라 '계산' 버튼이 필요 없어졌다.
   const rowSupply = (r: FormRow) => r.items.reduce((s, it) => s + itemSupply(it), 0);
+  // 계산서 세액 = 품목 줄 세액 합계(직접 수정한 줄이 있으면 그 값 반영).
+  const rowTax = (r: FormRow) => r.items.reduce((s, it) => s + itemTax(it, r.taxKind), 0);
+  // 세액을 사람이 직접 고친 줄이 하나라도 있나 — 있으면 발행 때 자동 10% 대신 이 값을 넘긴다.
+  const rowHasTaxOverride = (r: FormRow) => r.items.some((it) => it.taxAmount != null && it.taxAmount !== "");
   // 공급가액이 0만 아니면 된다 — 수정세금계산서·환입 등 **마이너스 계산서**를 발행할 수 있어야 한다.
   const isRowValid = (r: FormRow) =>
     !!r.counterpartyName.trim() && !!r.issueDate && rowSupply(r) !== 0;
@@ -1042,6 +1051,8 @@ function TaxInvoicesPageInner() {
           counterpartyAddress: r.counterpartyAddress || undefined,
           counterpartyEmail: r.counterpartyEmail || undefined,
           supplyAmount: rowSupply(r),
+          //   세액을 직접 고친 줄이 있으면 그 값을 넘긴다(없으면 발행 쪽이 공급가액×10% 자동). 공급가액은 rowSupply 가 이미 수정값 반영.
+          taxAmount: rowHasTaxOverride(r) ? rowTax(r) : undefined,
           issueDate: r.issueDate,
           preferredDate: r.preferredDate || undefined,
           expenseCategory: r.expenseCategory || undefined,
@@ -2290,11 +2301,20 @@ function TaxInvoicesPageInner() {
                                 inputMode="decimal" placeholder="1" className="tax-item-input text-right" />
                               <CurrencyInput value={it.unitCost} onValueChange={(raw: string) => patchItem(row.key, it.key, { unitCost: raw })}
                                 allowNegative placeholder="0" className="tax-item-input text-right" />
-                              <span className="tax-item-sum">{itemSupply(it).toLocaleString("ko-KR")}</span>
-                              {/* 줄 세액·합계는 계산값 — 과세 구분은 장 단위라 줄마다 고르지 않는다.
-                                    영세율·면세면 0 이고, 홈택스로 나가는 줄 세액도 같은 산식이다. */}
-                              <span className="tax-item-sum">{itemTax(it, row.taxKind).toLocaleString("ko-KR")}</span>
-                              <span className="tax-item-sum">{(itemSupply(it) + itemTax(it, row.taxKind)).toLocaleString("ko-KR")}</span>
+                              {/* 공급가액·세액 직접 수정 가능 — 비우면 수량×단가 / 10% 자동값으로 돌아간다. 합계는 계산값. */}
+                              {(() => {
+                                const autoSupply = Math.round((Number(it.qty) || 1) * (Number(it.unitCost) || 0));
+                                const supplyVal = (it.supplyAmount != null && it.supplyAmount !== "") ? it.supplyAmount : (autoSupply ? String(autoSupply) : "");
+                                const autoTax = row.taxKind === "taxable" ? Math.round(itemSupply(it) * 0.1) : 0;
+                                const taxVal = (it.taxAmount != null && it.taxAmount !== "") ? it.taxAmount : (autoTax ? String(autoTax) : "");
+                                return (<>
+                                  <CurrencyInput value={supplyVal} onValueChange={(raw: string) => patchItem(row.key, it.key, { supplyAmount: raw })}
+                                    allowNegative placeholder="0" className="tax-item-input text-right" />
+                                  <CurrencyInput value={taxVal} onValueChange={(raw: string) => patchItem(row.key, it.key, { taxAmount: raw })}
+                                    allowNegative placeholder="0" className="tax-item-input text-right" />
+                                  <span className="tax-item-sum">{(itemSupply(it) + itemTax(it, row.taxKind)).toLocaleString("ko-KR")}</span>
+                                </>);
+                              })()}
                               <input value={it.remark} onChange={(e) => patchItem(row.key, it.key, { remark: e.target.value })}
                                 onKeyDown={(e) => onItemKeyDown(e, row.key, it.key)}
                                 className="tax-item-input" />
@@ -2466,10 +2486,19 @@ function TaxInvoicesPageInner() {
                           onClick={() => setCalcRowKey((k) => (k === row.key ? null : row.key))}
                           className={`absolute right-1 top-1/2 -translate-y-1/2 text-[11px] font-semibold leading-none text-[var(--primary)] ${calcRowKey === row.key ? "opacity-100" : "opacity-60 hover:opacity-100"}`}>계산</button>
                       </div>
-                      {/* 공급가액·세액·합계는 계산값 — 한 장 쓰기와 같은 산식이다 */}
-                      <span className="tax-item-sum">{supply.toLocaleString("ko-KR")}</span>
-                      <span className="tax-item-sum">{taxAmt.toLocaleString("ko-KR")}</span>
-                      <span className="tax-item-sum">{(supply + taxAmt).toLocaleString("ko-KR")}</span>
+                      {/* 공급가액·세액 직접 수정 가능 — 비우면 수량×단가 / 10% 자동값. 합계는 계산값. */}
+                      {(() => {
+                        const it0 = row.items[0];
+                        const supplyVal = (it0?.supplyAmount != null && it0.supplyAmount !== "") ? it0.supplyAmount : (supply ? String(supply) : "");
+                        const taxVal = (it0?.taxAmount != null && it0.taxAmount !== "") ? it0.taxAmount : (taxAmt ? String(taxAmt) : "");
+                        return (<>
+                          <CurrencyInput value={supplyVal} onValueChange={(raw: string) => { markTouched(row.key, "supply"); patchItem(row.key, it0.key, { supplyAmount: raw }); }}
+                            allowNegative placeholder="0" className="tax-item-input text-right" />
+                          <CurrencyInput value={taxVal} onValueChange={(raw: string) => { markTouched(row.key, "tax"); patchItem(row.key, it0.key, { taxAmount: raw }); }}
+                            allowNegative placeholder="0" className="tax-item-input text-right" />
+                          <span className="tax-item-sum">{(supply + itemTax(it0, row.taxKind)).toLocaleString("ko-KR")}</span>
+                        </>);
+                      })()}
                       <input value={row.items[0]?.remark || ""} onChange={(e) => { markTouched(row.key, "remark"); patchItem(row.key, row.items[0].key, { remark: e.target.value }); }}
                         data-cell={`remark-${i}`}
                         onKeyDown={(e) => gridKeys.onCellKey(e, i, "remark")}
