@@ -36,9 +36,31 @@ function limited(ip: string): boolean {
 
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
+// 메일 헤더(List-Unsubscribe)의 주소를 사람이 그냥 열면 여기로 온다 → 수신거부 화면으로 보낸다 (2026-09-16)
+export async function GET(req: NextRequest) {
+  const email = req.nextUrl.searchParams.get('email') || '';
+  const url = req.nextUrl.clone();
+  url.pathname = '/unsubscribe/';
+  url.search = email ? `?email=${encodeURIComponent(email)}` : '';
+  return NextResponse.redirect(url, 302);
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}));
+    //   두 갈래로 들어온다 (2026-09-16):
+    //     ① /unsubscribe 화면 — JSON { email, website(허니팟) }
+    //     ② 메일 앱의 원클릭 수신거부(List-Unsubscribe-Post) — 메일 헤더의 주소(?email=…)로
+    //        `List-Unsubscribe=One-Click` 폼을 POST 한다. 주소는 쿼리에서 읽는다.
+    const ctype = req.headers.get('content-type') || '';
+    let body: Record<string, unknown> = {};
+    let oneClick = false;
+    if (ctype.includes('application/json')) {
+      body = await req.json().catch(() => ({}));
+    } else {
+      const form = await req.text().catch(() => '');
+      oneClick = /List-Unsubscribe=One-Click/i.test(form);
+      body = { email: req.nextUrl.searchParams.get('email') || '' };
+    }
 
     // 허니팟 — 사람에겐 보이지 않는 칸. 채워져 있으면 봇이므로 조용히 성공 응답.
     if (String(body.website ?? '').trim()) return NextResponse.json({ ok: true });
@@ -48,6 +70,7 @@ export async function POST(req: NextRequest) {
     }
 
     const email = String(body.email ?? '').trim().slice(0, 160).toLowerCase();
+    void oneClick;
     if (!isEmail(email)) {
       return NextResponse.json({ error: '올바른 이메일 주소를 입력해주세요.' }, { status: 400 });
     }

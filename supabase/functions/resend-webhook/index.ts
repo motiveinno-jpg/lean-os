@@ -55,6 +55,31 @@ Deno.serve(withSentry("resend-webhook", async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
+  const detailOf = (): string =>
+    d?.bounce?.message || d?.bounce?.subType || d?.reason ||
+    (status === "complained" ? "스팸 신고" : status === "delayed" ? "전달 지연" : "") || "";
+
+  // ── 광고 캠페인 메일(email-campaign-send) — Resend 메일 id 로 수신자 행을 찾는다 (2026-09-16) ──
+  //   반송·스팸신고는 수신거부 목록(email_optouts)에 넣어 다음 발송에서 자동으로 빠지게 한다.
+  const emailId: string | undefined = d?.email_id;
+  if (emailId) {
+    const { data: rcpt } = await admin.from("email_campaign_recipients")
+      .select("id, campaign_id, email").eq("resend_id", emailId).maybeSingle();
+    if (rcpt) {
+      const now = new Date().toISOString();
+      await admin.from("email_campaign_recipients")
+        .update({ status, error: status === "bounced" || status === "complained" ? (detailOf() || event.type).slice(0, 300) : null, updated_at: now })
+        .eq("id", rcpt.id);
+      if (status === "bounced" || status === "complained") {
+        await admin.from("email_optouts").upsert(
+          { email: String(rcpt.email).toLowerCase(), source: status === "bounced" ? "bounce" : "complaint", note: (detailOf() || event.type).slice(0, 200) },
+          { onConflict: "email", ignoreDuplicates: true },
+        );
+      }
+      return new Response("ok");   // 캠페인 메일은 서명 요청과 무관 — 여기서 끝
+    }
+  }
+
   // 수신 이메일 기준 가장 최근 서명 요청 매칭
   const { data: reqs } = await admin
     .from("signature_requests")
