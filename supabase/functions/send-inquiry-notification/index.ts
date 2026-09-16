@@ -64,7 +64,11 @@ serve(async (req) => {
       || "creative@mo-tive.com";
 
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    if (!RESEND_API_KEY) return j({ ok: false, skipped: "RESEND_API_KEY missing" });
+    if (!RESEND_API_KEY) {
+      //   조용히 꺼지면 안 되는 경로다 — 키가 빠진 채로 몇 달을 흘려보내는 일이 없게 남긴다.
+      console.error("[inquiry-notify] RESEND_API_KEY 없음 — 알림을 보내지 못했다");
+      return j({ ok: false, skipped: "RESEND_API_KEY missing" });
+    }
 
     const rows: [string, string][] = [
       ["회사", companyName],
@@ -120,6 +124,7 @@ serve(async (req) => {
     }
 
     const out = await res.json().catch(() => ({}));
+    console.log("[inquiry-notify] 발송 완료:", out?.id ?? "(id 없음)", "→", recipient);
     return j({ ok: true, id: out?.id ?? null });
   } catch (e) {
     console.error("[inquiry-notify] 오류:", e instanceof Error ? e.message : String(e));
