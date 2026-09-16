@@ -71,7 +71,7 @@ export function GlobalModalGuard() {
         <div className="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">입력한 내용이 저장되지 않고 닫힙니다.</div>
         <div className="modal-guard-actions">
           <button type="button" onClick={keepEditing} className="px-3 py-1.5 text-xs rounded-lg text-[var(--text-muted)] hover:text-[var(--text)]">계속 작성</button>
-          <button type="button" onClick={closeAnyway} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[var(--danger)] text-white hover:opacity-90">취소하고 닫기</button>
+          <button type="button" onClick={closeAnyway} className="btn-danger-solid btn-sm">취소하고 닫기</button>
         </div>
       </div>
     </div>

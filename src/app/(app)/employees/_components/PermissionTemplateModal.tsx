@@ -192,7 +192,7 @@ export function PermissionTemplateModal({ open, onClose, viewerIsMaster = true, 
                     deleteMut.mutate(t);
                   }}
                   disabled={deleteMut.isPending}
-                  className="btn-sm px-2.5 rounded-lg bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 font-semibold disabled:opacity-40"
+                  className="btn-danger btn-sm px-2.5"
                 >
                   삭제
                 </button>

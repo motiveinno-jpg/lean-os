@@ -2326,7 +2326,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                             className="text-[10px] px-2 py-0.5 rounded bg-[var(--info)]/10 text-[var(--info)] hover:bg-[var(--info)]/20">+ 수당</button>
                           <button type="button"
                             onClick={() => setEditValues(prev => ({ ...prev, [item.employeeId]: { ...ev, extras: [...(ev.extras || []), { type: 'deduction', name: '', amount: 0 }] } }))}
-                            className="text-[10px] px-2 py-0.5 rounded bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20">+ 공제</button>
+                            className="btn-danger-sm text-[10px] px-2 py-0.5">+ 공제</button>
                         </div>
                         {(ev.extras || []).length > 0 && (
                           <div className="space-y-1">

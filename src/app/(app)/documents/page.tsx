@@ -972,7 +972,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
               </div>
               <div className="flex gap-2">
                 {pendingCount > 0 && (
-                  <button onClick={sendAllReminders} className="text-[10px] px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded-md font-semibold transition border border-amber-500/30">
+                  <button onClick={sendAllReminders} className="btn-warn-sm text-[10px]">
                     <Ico e="🔔" /> 전체 리마인더 ({pendingCount})
                   </button>
                 )}

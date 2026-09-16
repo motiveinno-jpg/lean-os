@@ -301,7 +301,7 @@ export function HrFormManager({ companyId, collapseUpload, openUploadSignal, hid
               <button onClick={() => startEdit(t)} disabled={busy} className="text-xs px-2 py-1 rounded text-[var(--text)] font-medium hover:bg-[var(--bg-card)] disabled:opacity-50">편집</button>
               <button onClick={() => setFilling({ tpl: t, values: {} })} className="text-xs px-2 py-1 rounded text-[var(--primary)] hover:bg-[var(--primary)]/10">채우기·출력</button>
               <button onClick={() => downloadBlank(t)} className="text-xs px-2 py-1 rounded text-[var(--text-muted)] hover:bg-[var(--bg-card)]">빈 양식</button>
-              <button onClick={() => remove(t)} className="text-xs px-2 py-1 rounded text-[var(--danger)] hover:bg-[var(--danger)]/10">삭제</button>
+              <button onClick={() => remove(t)} className="btn-danger-sm">삭제</button>
             </div>
           ))}
         </div>

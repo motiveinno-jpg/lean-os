@@ -148,7 +148,7 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
                 <>
                   <span className="flex-1 text-sm text-[var(--text)] font-medium">{d.name}</span>
                   <button onClick={() => { setEditId(d.id); setEditName(d.name); }} className="text-xs px-2 py-1 rounded text-[var(--text-muted)] hover:bg-[var(--bg-elevated)]">이름변경</button>
-                  <button onClick={() => archiveMut.mutate({ id: d.id, archive: true })} className="text-xs px-2 py-1 rounded text-[var(--danger)] hover:bg-[var(--danger)]/10">보관</button>
+                  <button onClick={() => archiveMut.mutate({ id: d.id, archive: true })} className="btn-danger-sm">보관</button>
                 </>
               )}
             </div>

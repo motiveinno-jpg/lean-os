@@ -441,7 +441,7 @@ export default function LoansPage() {
                         <div className="flex gap-1 ml-3">
                           <button onClick={() => setEditingLoan(loan)} className="text-[10px] px-2 py-1 rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]">수정</button>
                           <button onClick={async () => { const { ok } = await confirm({ title: "대출 삭제", desc: "이 대출을 삭제하시겠습니까?", danger: true }); if (ok) deleteMut.mutate(loan.id); }}
-                            className="text-[10px] px-2 py-1 rounded-lg border border-red-500/20 text-red-400 hover:bg-red-500/10">삭제</button>
+                            className="btn-danger-sm text-[10px] border border-[color:color-mix(in_srgb,var(--danger)_20%,transparent)]">삭제</button>
                         </div>
                       </div>
                     )}

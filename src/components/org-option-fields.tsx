@@ -95,7 +95,7 @@ function SelectWithAdd({ label, value, options, onChange, onAdd, onRemove, addPl
               <span className="text-xs truncate">{o}</span>
               <button type="button" onClick={() => removeOne(o)} disabled={saving}
                 title="목록에서만 삭제합니다."
-                className="text-[11px] text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded px-1.5 py-0.5 shrink-0">✕</button>
+                className="btn-danger-sm text-[11px] px-1.5 py-0.5 shrink-0">✕</button>
             </div>
           ))}
           <div className="flex justify-end pt-0.5">

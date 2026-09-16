@@ -197,7 +197,7 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
                         : <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)]">자체</span>}
                     </td>
                     <td className="text-center">
-                      {!a.is_system && <button onClick={() => remove(a)} className="text-xs px-2 py-0.5 rounded text-[var(--danger)] hover:bg-[var(--danger)]/10">삭제</button>}
+                      {!a.is_system && <button onClick={() => remove(a)} className="btn-danger-sm py-0.5">삭제</button>}
                     </td>
                   </tr>
                 ))}

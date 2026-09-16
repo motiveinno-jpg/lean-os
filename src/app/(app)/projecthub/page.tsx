@@ -1566,7 +1566,7 @@ function DeleteProjectModal({ deal, companyId, onClose, onDeleted }: {
         </div>
         <div className="delete-project-modal-footer">
           <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
-          <button onClick={del} disabled={!canDelete || busy} className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-red-500 text-white hover:opacity-90 disabled:opacity-40">
+          <button onClick={del} disabled={!canDelete || busy} className="btn-danger-solid btn-sm disabled:opacity-40">
             {busy ? "삭제 중..." : "삭제"}
           </button>
         </div>

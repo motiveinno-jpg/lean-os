@@ -575,10 +575,10 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
                 </button>
                 {refundStep === 1 ? (
                   <button disabled={!refundReason.trim()} onClick={() => setRefundStep(2)}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 transition disabled:opacity-50">다음</button>
+                    className="btn-primary flex-1">다음</button>
                 ) : (
                   <button disabled={refundSubmitting} onClick={submitRefund}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition disabled:opacity-50">
+                    className="btn-danger-solid flex-1">
                     {refundSubmitting ? '처리 중...' : '환불 확정'}
                   </button>
                 )}

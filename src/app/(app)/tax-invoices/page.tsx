@@ -3097,7 +3097,7 @@ function LinkTxPopup({ invoice, companyId, onClose, onDone }: { invoice: any; co
                 <div className="text-[11px] text-green-600 font-semibold mb-1">✓ 연결된 거래</div>
                 <div className="text-sm text-[var(--text)]">{linkedTx.counterparty || "(상대 미상)"} · ₩{Number(linkedTx.amount || 0).toLocaleString()}</div>
                 <div className="text-[11px] text-[var(--text-muted)]">{linkedTx.transaction_date} · {linkedTx.description || linkedTx.memo || ""}</div>
-                <button onClick={doUnlink} disabled={busy} className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/10 text-red-500 hover:bg-red-500/20 disabled:opacity-50">연결 해제</button>
+                <button onClick={doUnlink} disabled={busy} className="btn-danger-sm mt-2 px-3 py-1.5 disabled:opacity-50">연결 해제</button>
               </div>
             ) : (
               <div className="text-xs text-[var(--text-muted)] py-6 text-center">연결된 거래를 찾을 수 없습니다.</div>

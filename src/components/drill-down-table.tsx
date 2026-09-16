@@ -61,7 +61,7 @@ export function DrillDownTable({ items, month, onExport, onClose }: DrillDownTab
       <div className="drill-down-header">
         <h3 className="text-sm font-bold">{month} 상세 내역</h3>
         <div className="drill-down-actions">
-          <button onClick={onExport} className="text-[10px] px-2 py-1 rounded bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20 transition">
+          <button onClick={onExport} className="btn-secondary btn-sm text-[10px] px-2">
             Excel 다운로드
           </button>
           <button onClick={onClose} className="text-[10px] px-2 py-1 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] hover:bg-[var(--border)] transition">

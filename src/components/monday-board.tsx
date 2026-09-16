@@ -646,7 +646,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
               className="px-4 py-2.5 self-stretch text-[13px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition border-l border-[var(--border)]">수정</button>
           )}
           <button onClick={deleteSelected}
-            className="px-4 py-2.5 self-stretch text-[13px] font-semibold text-[var(--danger)] hover:bg-[var(--danger)]/10 transition border-l border-[var(--border)]">삭제</button>
+            className="btn-danger-sm px-4 py-2.5 self-stretch text-[13px] rounded-none border-l border-[var(--border)]">삭제</button>
           <button onClick={() => setSelected(new Set())} className="px-3 self-stretch text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition border-l border-[var(--border)]" aria-label="선택 해제">✕</button>
         </div>
       )}

@@ -790,7 +790,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
                 {missingAcct && <span className="text-amber-500 ml-2">· 계정과목 미지정</span>}
               </span>
               <div className="flex items-center gap-2">
-                {!isNew && !locked && <button onClick={del} disabled={busy} className="px-3 py-2 text-xs font-semibold text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-lg disabled:opacity-50">삭제</button>}
+                {!isNew && !locked && <button onClick={del} disabled={busy} className="btn-danger-sm px-3 py-2 rounded-lg disabled:opacity-50">삭제</button>}
                 <button onClick={onClose} className="px-3 py-2 text-xs text-[var(--text-muted)]">취소</button>
                 <button onClick={save} disabled={!canSave} className="btn-primary">{busy ? "저장 중..." : isNew ? "전표 저장" : "수정 저장"}</button>
               </div>

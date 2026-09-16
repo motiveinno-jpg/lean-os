@@ -209,7 +209,7 @@ export function FormTemplateManager({ companyId, only }: { companyId: string | n
                         <button onClick={() => deactivate(t)} className="text-xs px-2 py-1 rounded text-[var(--text-muted)] hover:bg-[var(--bg-surface)]" title="기본 디자인으로 되돌립니다">해제</button>
                       </span>
                     : <button onClick={() => activate(t)} className="text-xs px-2 py-1 rounded text-[var(--primary)] hover:bg-[var(--primary)]/10">활성화</button>}
-                  <button onClick={() => remove(t)} className="text-xs px-2 py-1 rounded text-[var(--danger)] hover:bg-[var(--danger)]/10">삭제</button>
+                  <button onClick={() => remove(t)} className="btn-danger-sm">삭제</button>
                 </div>
               ))}
             </div>

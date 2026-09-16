@@ -184,7 +184,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
             className="w-24 h-8 px-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs text-right ml-auto" />
           <input type="text" inputMode="numeric" value={fmtNum(pt.credit)} onChange={(e) => patchParty(key, pt.id, { credit: parseNum(e.target.value) })} placeholder="대변"
             className="w-24 h-8 px-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs text-right" />
-          <button onClick={() => removeParty(key, pt.id)} className="w-5 h-8 flex items-center justify-center text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded text-xs" aria-label="거래처 삭제">×</button>
+          <button onClick={() => removeParty(key, pt.id)} className="btn-icon-danger w-5 h-8 text-xs" aria-label="거래처 삭제">×</button>
         </div>
       ))}
       <button onClick={() => addParty(key)} className="text-[11px] text-[var(--primary)] hover:text-[var(--text)] font-semibold">+ 거래처 추가</button>
@@ -348,7 +348,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
                       <input type="text" inputMode="numeric" value={fmtNum(l.credit)} onChange={(e) => setLine(l.id, (x) => ({ ...x, credit: parseNum(e.target.value) }))} placeholder="대변" className="w-24 h-8 px-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-sm text-right" />
                     </>
                   )}
-                  <button onClick={() => removeKey(l.id)} className="w-5 h-8 flex items-center justify-center text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded text-xs" aria-label="계정 삭제">×</button>
+                  <button onClick={() => removeKey(l.id)} className="btn-icon-danger w-5 h-8 text-xs" aria-label="계정 삭제">×</button>
                 </div>
                 {l.mode === "party" && renderParties(l.id, l)}
               </div>

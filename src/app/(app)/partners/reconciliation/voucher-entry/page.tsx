@@ -1036,7 +1036,7 @@ export default function VoucherEntryPage() {
                   {amtCells(l, (p) => setPendLine(l.key, p), i)}
                   <td className="text-center px-1">
                     <button onClick={() => setPend((ls) => (ls.length <= 1 ? [newLine(vtype === "transfer" ? "3" : (vtype === "cash_out" ? "1" : "2"))] : ls.filter((x) => x.key !== l.key)))}
-                      className="w-6 h-6 rounded-md flex items-center justify-center text-red-400 hover:text-white hover:bg-red-500 transition text-xs mx-auto" title="이 행 삭제" tabIndex={-1}>✕</button>
+                      className="btn-icon-danger w-6 h-6 text-xs mx-auto" title="이 행 삭제" tabIndex={-1}>✕</button>
                   </td>
                 </tr>
               ))}

@@ -123,7 +123,7 @@ export default function FormTemplateEditor({ docType, pageImages, pageSizes, ini
               {i + 1}p
             </button>
           ))}
-          <button onClick={addField} className="ml-auto rounded bg-emerald-600 px-3 py-1 text-sm text-white">+ 필드 추가</button>
+          <button onClick={addField} className="btn-primary btn-sm ml-auto">+ 필드 추가</button>
         </div>
         <div
           ref={pageRef}
