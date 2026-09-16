@@ -7734,6 +7734,33 @@ export type Database = {
           },
         ]
       }
+      email_optouts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          email: string
+          id: string
+          note: string | null
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          email: string
+          id?: string
+          note?: string | null
+          source?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          id?: string
+          note?: string | null
+          source?: string
+        }
+        Relationships: []
+      }
       employee_contracts: {
         Row: {
           company_id: string
@@ -19903,6 +19930,10 @@ export type Database = {
       mask_number_tail: { Args: { t: string }; Returns: string }
       master_delete_company: { Args: { p_confirm_name: string }; Returns: Json }
       normalize_party_name: { Args: { t: string }; Returns: string }
+      operator_add_email_optout: {
+        Args: { p_email: string; p_note?: string; p_source?: string }
+        Returns: boolean
+      }
       operator_advisor_links: {
         Args: { p_advisor_id: string }
         Returns: {
@@ -19989,6 +20020,16 @@ export type Database = {
           status: string
         }[]
       }
+      operator_list_email_optouts: {
+        Args: { p_limit?: number; p_search?: string }
+        Returns: {
+          created_at: string
+          email: string
+          id: string
+          note: string
+          source: string
+        }[]
+      }
       operator_list_partnership_inquiries: {
         Args: { p_limit?: number; p_status?: string }
         Returns: {
@@ -20028,6 +20069,10 @@ export type Database = {
           user_email: string
           user_name: string
         }[]
+      }
+      operator_remove_email_optout: {
+        Args: { p_email: string }
+        Returns: boolean
       }
       operator_resolve_error: {
         Args: { p_id: string; p_resolved?: boolean }

@@ -414,6 +414,18 @@ html[data-theme="dark"] .lp8{
 .lp8 .lp8-ct-done p b{ color: var(--ink); font-weight: 600 }
 .lp8 .lp8-ct-done-cta{ display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 28px }
 
+/* ── /unsubscribe 광고 메일 수신거부 (2026-09-16) — 상자는 상담 신청(lp8-ct-card)과 공용, 폭만 좁힌다 ── */
+.lp8 .lp8-un-wrap{ max-width: 520px }
+.lp8 .lp8-un-h1{ font-size: 26px; letter-spacing: -.6px }
+.lp8 .lp8-un-lead{ margin: 12px 0 26px; font-size: 15px; line-height: 1.7; color: var(--ink-3) }
+.lp8 .lp8-un-submit{ width: 100%; margin-top: 20px }
+.lp8 .lp8-un-submit:disabled{ opacity: .6; cursor: default; transform: none }
+.lp8 .lp8-un-note{ margin-top: 18px; font-size: 13px; line-height: 1.75; color: var(--ink-4) }
+.lp8 .lp8-un-note b{ color: var(--ink-3); font-weight: 600 }
+.lp8 .lp8-un-note a{ color: var(--brand); text-decoration: underline }
+.lp8 .lp8-ct-done .lp8-un-stamp{ margin-top: 14px; font-size: 13px; color: var(--ink-4) }
+.lp8 .lp8-ct-done .lp8-un-note{ text-align: left; margin-top: 24px }
+
 @media (max-width: 960px){
   .lp8 .lp8-ct-grid{ grid-template-columns: minmax(0, 1fr); gap: 36px }
   .lp8 .lp8-ct-intro{ position: static }
