@@ -31,6 +31,27 @@ async function sealToDataUrl(admin: ReturnType<typeof createSupabaseAdminClient>
   }
   return fetchAssetAsDataUrl(url);
 }
+
+//   본문 <img> 중 자사 스토리지(비공개 버킷 포함) 주소를 data URL 로 치환한다.
+//   헤드리스 렌더는 익명이라 비공개 버킷 이미지를 못 불러온다(개별 인쇄는 사용자 세션이라 떴다).
+//   이걸 안 하면 일괄 PDF 에서 로고·첨부·서명 이미지가 깨져 나온다.
+async function inlineBodyImages(admin: ReturnType<typeof createSupabaseAdminClient>, html: string): Promise<string> {
+  let host = "";
+  try { host = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || "").host; } catch { host = ""; }
+  if (!host || !html.includes("/storage/v1/object/")) return html;
+  const re = /\bsrc\s*=\s*["']([^"']+)["']/gi;
+  const targets = new Set<string>();
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    const u = m[1];
+    if (!u.startsWith("data:") && u.includes(host) && u.includes("/storage/v1/object/")) targets.add(u);
+  }
+  if (!targets.size) return html;
+  const map = new Map<string, string>();
+  for (const u of targets) { const d = await sealToDataUrl(admin, u); if (d && d.startsWith("data:")) map.set(u, d); }
+  if (!map.size) return html;
+  return html.replace(/(\bsrc\s*=\s*["'])([^"']+)(["'])/gi, (full, pre, u, post) => map.has(u) ? `${pre}${map.get(u)}${post}` : full);
+}
 let purifySrc: string | null = null;
 function loadPurify(): string {
   if (!purifySrc) purifySrc = readFileSync(join(process.cwd(), "node_modules/dompurify/dist/purify.min.js"), "utf8");
@@ -126,14 +147,14 @@ export async function POST(req: NextRequest) {
           r.signed_contract_html || r.template_snapshot_html || "", PDF_SANITIZE_CONFIG, PDF_SANITIZE_URI_REGEXP_SOURCE,
         );
         const html = buildSignedContractPrintHtml({
-          bodyHtml: cleanBody,
+          bodyHtml: await inlineBodyImages(admin, cleanBody),
           company: r.companies ? { ...r.companies, seal_url: r.companies.seal_url ? await sealToDataUrl(admin, r.companies.seal_url) : null } : null,
           partner: partner
             ? { name: partner.name, business_number: partner.business_number, representative: partner.representative }
             : { name: r.signer_name },
           ourSignatureDataUrl: null, // signature_requests 는 갑 서명 컬럼 없음 → seal_url 사용
           ourSignedAt: null,
-          signerSignatureDataUrl: r.signature_data_url,
+          signerSignatureDataUrl: r.signature_data_url ? await sealToDataUrl(admin, r.signature_data_url) : null,
           signedAtExternal: r.signed_at,
           recipientName: r.signer_name,
         });
