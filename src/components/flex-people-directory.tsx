@@ -116,7 +116,8 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
   //   약식 프로필 패널(ProfilePanel)은 디렉토리(/team, 관리자 아님)에서만 쓴다. 근태 기록·급여명세 링크는 사람별 화면이 아니라 빼도 겹친다(중복이면 안 넣음).
   const openEmp = (e: Emp) => { if (isManager) setContractsEmpId(e.id); else setSel(e); };
   const [contractsEmpId, setContractsEmpId] = useState<string | null>(null);
-  const [sort, setSort] = useState<SortState<SortKey>>({ key: "name", dir: "asc" });
+  //   기본 정렬 = 직급순(직책급 서열: 대표→사원) — 대표 요청(2026-09-16). 이름순은 정렬 칩/이름 열로 고른다.
+  const [sort, setSort] = useState<SortState<SortKey>>({ key: "position", dir: "asc" });
   const onSort = (k: SortKey) => setSort((c) => nextSort(c, k));
   const cf = useColFilters();
   const tableRef = useRef<HTMLTableElement | null>(null);
