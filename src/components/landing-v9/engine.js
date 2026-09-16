@@ -208,6 +208,8 @@ export function startLanding() {
   function setTab(i){ if (i === tabI) return; tabI = i; $("#tab").innerHTML = TABS[i]; document.querySelectorAll("#stp > div").forEach((d, j) => d.classList.toggle("on", j === i)); }
   setTab(0);
   function tabs(){ if (innerWidth < 960) return; setTab(Math.min(2, Math.floor(prog($("#s10")) * 3))); }
+  // 좁은 화면에서는 스크롤로 바뀌지 않으니 눌러서 본다(경영 현황 진단의 목록과 같은 방식)
+  document.querySelectorAll("#stp > div").forEach((el, i) => el.addEventListener("click", () => { if (innerWidth < 960) setTab(i); }));
 
   /* ⑪ 실크 물결 — 「도입 첫날부터」 숫자 아래 (2026-09-15 사장님: 점 구체 → 실크).
      예전엔 여기 점 구체, 마지막 화면에 실크가 이어 나와 그래픽이 반복돼 보였다 — 마지막 화면은 그래픽 없이 둔다 */
@@ -411,14 +413,58 @@ export function startLanding() {
     pcCis.forEach((c, k) => c.classList.toggle("in", p > .31 + k * .055));
   }
 
+  /* ═══ 휴대폰 배치 (2026-09-16 사장님: A안 한 장 카드) ═══
+     왜: 손가락 스크롤은 브라우저 그래픽 쪽이 먼저 처리하고 자바스크립트가 뒤따라온다. 스크롤에 맞춰 장면을
+         매 순간 다시 그리면 그림이 한 박자 늦어 흔들려 보인다. 그래서 휴대폰에서는 그 연출을 아예 끄고,
+         각 장면의 마지막 모습(정보가 가장 많은 상태)을 제목·설명 바로 아래 붙여 세워 둔다. 배치는 CSS 가 한다.
+     여기서는 ① 스크롤 연출이 남긴 인라인 값 지우기 ② 시간으로만 도는 연출(휴대폰 화면 3장·보고서) 세우기만 한다. */
+  let narrow = innerWidth < 760;
+  const INLINE = "#s1p, #s1l, #s1r, #s1kick, #s1hint, #s3a, #s3b, #ledger, #lsum, .lp9m .lrow, .lp9m .term, #csafe, #tfoot, #c10h, #skcap, #mpanel, #phone, #knob, #sfill, #cz, #czt, #czfull, #rscene";
+  let mobileTimer = 0;
+  function mobileLayout(){
+    document.querySelectorAll(INLINE).forEach((el) => el.removeAttribute("style"));
+    document.querySelectorAll(".lp9m .paper, .lp9m .sk, .lp9m .tile").forEach((el) => { el.style.transform = ""; el.style.opacity = ""; el.style.filter = ""; });
+    reportScene(9);                                   // 보고서는 다 채워진 마지막 모습으로
+    pss.forEach((x, i) => x.classList.toggle("on", i === 0)); pss[0].classList.add("show");
+    if (!mobileTimer) mobileTimer = every(() => {      // 휴대폰 화면 3장은 시간으로 돌린다(스크롤과 무관)
+      if (!narrow) return; const i = pss.findIndex((x) => x.classList.contains("on"));
+      pss.forEach((x, k) => x.classList.toggle("on", k === (i + 1) % pss.length));
+    }, 3600);
+    if (pcPhase < 0) pcSet(0);
+  }
+  function pcSet(ph){
+    pcPhase = ph;
+    pcItems.forEach((el, j) => el.classList.toggle("on", j === ph));
+    pcViews.forEach((b, j) => b.classList.toggle("on", j === [1, 1, 2, 3][ph]));
+    pcLys[0].classList.toggle("on", ph <= 1); pcLys[1].classList.toggle("on", ph === 2); pcLys[2].classList.toggle("on", ph === 3);
+    pcStage.classList.toggle("open", ph === 1); pcStage.classList.add("assigned");
+    pcCis.forEach((c) => c.classList.add("in"));
+  }
+  // 휴대폰에서는 프로젝트 네 단계를 눌러서 본다(스크롤로 바뀌던 것)
+  pcItems.forEach((el, i) => el.addEventListener("click", () => { if (narrow) pcSet(i); }));
+  if (narrow) mobileLayout();
+  on("resize", () => {
+    const n = innerWidth < 760; if (n === narrow) return; narrow = n;
+    if (narrow) mobileLayout(); else { pcPhase = -1; reportScene(0); }
+  });
+
   function frame(ms){
     if (!live()) return;
     const t = ms / 1000, vh = VH(), mid = vh / 2;
     // 화면에 걸친 장면만 계산한다 — 화면 밖 장면·캔버스까지 매 프레임 돌리면 중저가폰에서 끊긴다
     // (2026-09-15 갤럭시 S24 흉내 + CPU 4배 느리게: 평균 28fps · 50ms 넘는 프레임 39번)
+    if (narrow) {
+      // 휴대폰: 장면은 세워 둔 그대로다. 매 프레임 할 일은 실크 물결과 템플릿 넘김뿐
+      const r11 = $("#s11").getBoundingClientRect();
+      if (r11.bottom > -80 && r11.top < vh + 80) silk(reduce ? 0 : t);
+      tplTick(ms);
+      if (!reduce) rafId = requestAnimationFrame(frame);
+      return;
+    }
     const near = {}; let ri = 0;
     secs.forEach((el, i) => { const rc = el.getBoundingClientRect(); if (rc.top < mid) ri = i; near[el.id] = rc.bottom > -80 && rc.top < vh + 80; });
     if (ri !== railLast) { railLast = ri; railI.forEach((x, i) => x.classList.toggle("on", i === ri)); $("#rail").classList.toggle("dark", secs[ri].id === "s11" || secs[ri].id === "s12"); }
+    // 휴대폰에서는 여기까지 오지 않는다 — 스크롤에 맞춰 움직이는 장면 대신 mobileLayout() 이 세워 둔 마지막 모습을 쓴다
     if (near.s1) hero();
     if (near.s3) papers();
     if (near.s5) acc();

@@ -1328,3 +1328,110 @@
 .lp9m .glasses.swipe ~ .glasscaps > div{ display:none }
 .lp9m .glasses.swipe ~ .glasscaps > div.cur{ display:block; opacity:1; transform:none }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   휴대폰 배치 — 한 장 카드 (2026-09-16 사장님 A안)
+   스크롤을 멈춰 세우고 그림을 옮기던 장면 8곳을, 제목 → 설명 → 그림이 한 묶음으로 붙는 평범한 흐름으로 바꾼다.
+   ▸ 떨림(스크롤과 그림이 한 박자 어긋나 흔들리는 것)의 원인이 없어진다 — 엔진도 휴대폰에서는 그 계산을 건너뛴다.
+   ▸ 큰 화면은 하나도 바뀌지 않는다. 경영 현황 진단(s5)·근태(s10)는 이미 960px 이하에서 이렇게 펼쳐져 있었다.
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width:760px){
+/* 공통 — 고정 화면 해제 */
+.lp9m .s1, .lp9m .s3, .lp9m .s6, .lp9m .c8, .lp9m .c10, .lp9m .c13, .lp9m .c15, .lp9m .c16{ height:auto }
+.lp9m .s1 > .sticky, .lp9m .s3 > .sticky, .lp9m .s6 > .sticky, .lp9m .c8 > .sticky,
+.lp9m .c10 > .sticky, .lp9m .c13 > .sticky, .lp9m .c15 > .sticky, .lp9m .c16 > .sticky{
+  position:relative; height:auto; min-height:0; overflow:visible; display:block; padding-block:62px 46px }
+.lp9m .h2, .lp9m .s3 .t h2, .lp9m .s6 .ttl h2{ font-size:26px; line-height:1.28 }
+.lp9m .lead, .lp9m .tt .lead{ font-size:14px }
+
+/* ① 히어로 — 아이콘이 커지는 연출 대신 처음부터 펼친 판 */
+.lp9m .s1 > .sticky{ padding:14px 0 0 }
+.lp9m .s1 .kick{ position:static; margin:0 0 12px; text-align:center }
+.lp9m .s1 .row{ position:static; display:block }
+.lp9m .s1 .w, .lp9m .s1 .scrollhint, .lp9m .s1 .pillx .mark{ display:none }
+.lp9m .s1 .pillx{ width:auto; height:auto; min-height:0; border-radius:0; display:block }
+.lp9m .s1 .pillx .deep{ opacity:1 }
+.lp9m .s1 .pillx .inner{ position:relative; opacity:1; padding:34px 20px 0 }
+.lp9m .s1 .pillx .shot{ transform:none; opacity:1; width:100%; margin-top:24px }
+.lp9m .s1 .app{ height:auto; min-height:0 }
+.lp9m .s1 .amain{ padding:14px }
+
+/* ③ 증빙 → 전표 목록 (흩어진 종이가 날아드는 연출은 빼고 결과만) */
+.lp9m .s3 .t{ position:static; padding-inline:24px }
+.lp9m .s3 .t h2 + h2{ position:static; margin-top:4px }
+.lp9m .papers{ display:none }
+.lp9m .s3 .ledger{ position:static; transform:none; width:auto; margin:20px 16px 0; --lo:1; padding:16px 16px 18px }
+.lp9m .s3 .lrow{ --ro:1; height:auto; padding:11px 0 }
+.lp9m .s3 .lsum{ --so:1; grid-template-columns:1fr }
+
+/* ⑥ AI 참모 — 용어가 모이는 연출은 빼고 제목 + 카드 */
+.lp9m .s6 > .sticky{ padding-bottom:0 }
+.lp9m .s6 .term{ display:none }
+.lp9m .s6 .ttl{ position:static; padding-inline:24px }
+.lp9m .darks{ margin-top:22px }
+
+/* ⓑ 13주 자금 캘린더 — 막대는 처음부터 세워 둔다 */
+.lp9m .c8 .tt{ position:static; padding-inline:24px }
+.lp9m .c8 .ccal{ position:relative; left:auto; top:auto; bottom:auto; transform:none; width:auto; height:300px; margin:34px 14px 0 }
+.lp9m .c8 .cc{ --g:1 }
+.lp9m .c8 .cc .cv, .lp9m .c8 .cc .cev{ opacity:1; transform:translate(-50%,0) }
+.lp9m .c8 .cc .cv{ transform:translateX(-50%) }
+.lp9m .c8 .tfoot{ position:static; opacity:1; margin-top:42px; padding-inline:16px }
+
+/* ⓒ 재고 — 카드가 날아오는 연출 대신 목록 */
+.lp9m .c10 .tt{ position:static; padding-inline:24px }
+.lp9m .c10 .stock{ position:relative; left:auto; top:auto; transform:none; width:auto; margin:20px 16px 0;
+  grid-template-columns:1fr; grid-auto-rows:auto; gap:10px }
+.lp9m .c10 .sk{ opacity:1; transform:none }
+.lp9m .c10 .beam{ display:none }
+
+/* ⓓ 모바일 결재 — 판이 줄고 휴대폰이 올라오는 연출 대신 글 + 기기 */
+.lp9m .c13 > .sticky{ padding:0 }
+.lp9m .c13 .mpanel{ position:relative; left:auto; top:auto; width:auto; height:auto; border-radius:0; padding:58px 0 44px }
+.lp9m .c13 .mtext{ position:static; transform:none; width:auto; padding-inline:24px }
+.lp9m .c13 .mtext > p{ display:block; font-size:14px }
+.lp9m .c13 .mtext .more{ display:inline-flex }
+.lp9m .c13 .phone{ position:relative; left:auto; top:auto; transform:none; margin:26px auto 0 }
+.lp9m .c13 .mlist{ display:grid }
+
+/* ⓔ 메뉴 모음 → 경영 보고서 (한 칸이 화면 가득 커지는 연출 대신 작은 격자 + 보고서) */
+.lp9m .c15 > .sticky{ padding-bottom:0 }
+.lp9m .c15 .czt{ position:static; padding-inline:24px }
+.lp9m .c15 .cz{ position:static; width:auto; margin:20px 14px 0; transform:none;
+  grid-template-columns:repeat(3,minmax(0,1fr)); grid-auto-rows:auto; gap:8px }
+.lp9m .c15 .tile{ opacity:1; padding:10px; border-radius:14px; gap:8px }
+.lp9m .c15 .tile i{ width:26px; height:26px; border-radius:8px }
+.lp9m .c15 .tile i svg{ width:15px; height:15px }
+.lp9m .c15 .tile b{ font-size:11.5px; line-height:1.25 }
+.lp9m .c15 .tile small{ display:none }
+.lp9m .c15 .czfull{ position:relative; inset:auto; opacity:1; display:block; margin-top:34px; padding:40px 0 30px }
+.lp9m .c15 .rs-wrap{ position:relative; inset:auto; width:100%; height:620px; padding-top:0; display:block }
+
+/* ⑤⑩ 경영 현황 진단·근태 — 이미 펼쳐져 있던 두 곳도 목록을 좁혀 글과 기기가 한 화면에 들어오게 하고, 눌러서 화면을 바꾼다 */
+.lp9m .s5 > .sticky, .lp9m .s10 > .sticky{ padding-block:56px 46px }
+.lp9m .s5 .acc{ margin-top:20px }
+.lp9m .s5 .acc button{ padding:13px 0; cursor:pointer }
+.lp9m .s5 .acc b{ font-size:17px }
+.lp9m .s5 .acc button.on span{ max-height:62px; font-size:13.5px }
+.lp9m .s5 .tilt .scr{ height:352px }
+.lp9m .s10 .stp{ margin-top:18px; gap:6px }
+.lp9m .s10 .stp > div{ padding:12px 14px; cursor:pointer }
+.lp9m .s10 .stp b{ font-size:17px }
+.lp9m .s10 .stp span{ font-size:13px; margin-top:3px }
+.lp9m .s10 .tablet{ transform:none; width:min(330px,100%) }
+
+/* ⓕ 프로젝트 — 네 단계를 눌러서 본다. 보드·캘린더·간트는 옆으로 밀어 본다 */
+.lp9m .c16 .pc-stage{ overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:none }
+.lp9m .c16 .pc-stage::-webkit-scrollbar{ display:none }
+.lp9m .c16 .pc-cols{ width:620px; grid-template-columns:repeat(4,150px) }
+.lp9m .c16 .pc-gn{ width:600px }
+.lp9m .c16 .pc-in{ height:auto; display:block; padding-top:0 }
+.lp9m .c16 .pc-wrap{ display:block }
+.lp9m .c16 .pc-app{ margin-top:18px }
+.lp9m .c16 .pc-list{ margin-top:16px; gap:8px }
+.lp9m .c16 .pc-list .pc-it{ display:block; cursor:pointer; border:1px solid var(--line); background:var(--card) }
+.lp9m .c16 .pc-list .pc-it b{ color:var(--ink); font-size:16px }
+.lp9m .c16 .pc-list .pc-it span{ display:none }
+.lp9m .c16 .pc-list .pc-it.on{ border-color:var(--ind) }
+.lp9m .c16 .pc-list .pc-it.on span{ display:block; font-size:13.5px }
+}
