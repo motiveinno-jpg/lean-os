@@ -1407,13 +1407,34 @@
 .lp9m .c15 .czfull{ position:relative; inset:auto; opacity:1; display:block; margin-top:34px; padding:40px 0 30px }
 .lp9m .c15 .rs-wrap{ position:relative; inset:auto; width:100%; height:620px; padding-top:0; display:block }
 
-/* ⑤⑩ 경영 현황 진단·근태 — 이미 펼쳐져 있던 두 곳도 목록을 좁혀 글과 기기가 한 화면에 들어오게 하고, 눌러서 화면을 바꾼다 */
+/* ⑤⑩ 경영 현황 진단·근태 — 화면이 여러 장이라 기기 화면을 옆으로 넘겨 본다(B안). 차례: 제목 → 기기 → 설명
+   display:contents 로 제목 묶음을 풀어 기기를 제목 바로 아래로 올린다 */
+.lp9m .s5 .sticky .in, .lp9m .s10 .sticky .in{ display:flex; flex-direction:column; align-items:stretch; gap:0 }
+.lp9m .s5 .sticky .in > div:first-child, .lp9m .s10 .sticky .in > div:last-child{ display:contents }
+.lp9m .s5 .eyebrow, .lp9m .s10 .eyebrow{ order:1 }
+.lp9m .s5 .h2, .lp9m .s10 .h2{ order:2 }
+.lp9m .s5 .device, .lp9m .s10 .tablet{ order:3; margin-top:20px; align-self:center; width:100% }
+.lp9m .s10 .tablet{ width:min(330px,100%) }
+.lp9m .s5 .swipe-dots, .lp9m .s10 .swipe-dots{ order:4; margin-top:12px }
+.lp9m .s5 .acc, .lp9m .s10 .stp{ order:5 }
+.lp9m .s5 .tilt .scr, .lp9m .s10 .tablet .scr{ overflow:hidden }
+.lp9m .pswipe{ position:absolute; inset:0; display:flex; overflow-x:auto; overflow-y:hidden;
+  scroll-snap-type:x mandatory; overscroll-behavior-x:contain; scrollbar-width:none }
+.lp9m .pswipe::-webkit-scrollbar{ display:none }
+.lp9m .s5 .pswipe{ top:52px }
+.lp9m .s5 .pswipe > .pane{ position:relative; inset:auto; top:0; flex:0 0 100%; opacity:1; transform:none;
+  scroll-snap-align:start; overflow-y:auto }
+.lp9m .s10 .pswipe > .tpane{ position:relative; flex:0 0 100%; scroll-snap-align:start; overflow-y:auto }
+.lp9m .s10 .pswipe .tscr{ position:relative; inset:auto; animation:none }
+
+/* ⑤⑩ 목록은 좁혀서 글과 기기가 한 화면에 들어오게 하고, 눌러서 화면을 바꾼다 */
 .lp9m .s5 > .sticky, .lp9m .s10 > .sticky{ padding-block:56px 46px }
 .lp9m .s5 .acc{ margin-top:20px }
 .lp9m .s5 .acc button{ padding:13px 0; cursor:pointer }
 .lp9m .s5 .acc b{ font-size:17px }
 .lp9m .s5 .acc button.on span{ max-height:62px; font-size:13.5px }
-.lp9m .s5 .tilt .scr{ height:352px }
+.lp9m .s5 .tilt .scr{ height:430px }
+.lp9m .s10 .tablet .scr{ aspect-ratio:auto; height:470px }
 .lp9m .s10 .stp{ margin-top:18px; gap:6px }
 .lp9m .s10 .stp > div{ padding:12px 14px; cursor:pointer }
 .lp9m .s10 .stp b{ font-size:17px }

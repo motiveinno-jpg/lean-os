@@ -19,6 +19,7 @@ export function startLanding() {
   const every = (fn, ms) => { const id = window.setInterval(() => { if (live()) fn(); }, ms); intervals.push(id); return id; };
   const on = (type, fn, opt) => { window.addEventListener(type, fn, opt); listeners.push([type, fn, opt]); };
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let narrow = innerWidth < 760;   // 휴대폰 폭 — 스크롤 연동 장면을 쓰지 않는 기준
   const $ = (s) => document.querySelector(s);
   const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
   const ease = (t) => t * t * (3 - 2 * t);
@@ -205,7 +206,7 @@ export function startLanding() {
       <div class="sumc"><div><small>열람</small><b>8명</b></div><div><small>미열람</small><b>4명</b></div><div><small>실지급 합계</small><b style="font-size:14px">₩39,407,600</b></div></div>
       <div class="sendl">${[["문지훈","열람","grn"],["이준호","열람","grn"],["배수정","열람","grn"],["임하늘","발송됨","gry"],["오세림","열람","grn"],["김대표","발송됨","gry"]].map(([n,st,c]) => `<div class="ln"><span class="ic i"><svg><use href="#i-users"/></svg></span><div class="t">${n}</div><span class="r bd ${c}">${st}</span></div>`).join("")}</div></div>`];
   let tabI = -1;
-  function setTab(i){ if (i === tabI) return; tabI = i; $("#tab").innerHTML = TABS[i]; document.querySelectorAll("#stp > div").forEach((d, j) => d.classList.toggle("on", j === i)); }
+  function setTab(i){ if (i === tabI) return; tabI = i; if (!narrow) $("#tab").innerHTML = TABS[i]; document.querySelectorAll("#stp > div").forEach((d, j) => d.classList.toggle("on", j === i)); }
   setTab(0);
   function tabs(){ if (innerWidth < 960) return; setTab(Math.min(2, Math.floor(prog($("#s10")) * 3))); }
   // 좁은 화면에서는 스크롤로 바뀌지 않으니 눌러서 본다(경영 현황 진단의 목록과 같은 방식)
@@ -418,7 +419,6 @@ export function startLanding() {
          매 순간 다시 그리면 그림이 한 박자 늦어 흔들려 보인다. 그래서 휴대폰에서는 그 연출을 아예 끄고,
          각 장면의 마지막 모습(정보가 가장 많은 상태)을 제목·설명 바로 아래 붙여 세워 둔다. 배치는 CSS 가 한다.
      여기서는 ① 스크롤 연출이 남긴 인라인 값 지우기 ② 시간으로만 도는 연출(휴대폰 화면 3장·보고서) 세우기만 한다. */
-  let narrow = innerWidth < 760;
   const INLINE = "#s1p, #s1l, #s1r, #s1kick, #s1hint, #s3a, #s3b, #ledger, #lsum, .lp9m .lrow, .lp9m .term, #csafe, #tfoot, #c10h, #skcap, #mpanel, #phone, #knob, #sfill, #cz, #czt, #czfull, #rscene";
   let mobileTimer = 0;
   function mobileLayout(){
@@ -431,6 +431,31 @@ export function startLanding() {
       pss.forEach((x, k) => x.classList.toggle("on", k === (i + 1) % pss.length));
     }, 3600);
     if (pcPhase < 0) pcSet(0);
+    deviceSwipe();
+  }
+  /* 화면이 여러 장인 두 곳(경영 현황 진단 4장·근태 3장)은 기기 화면을 옆으로 넘겨 본다 (2026-09-16 사장님, 목업 B안)
+     ▸ 넘기면 아래 설명이 그 화면 것으로 바뀌고, 설명을 누르면 그 화면으로 넘어간다.
+     ▸ 넘김은 브라우저가 직접 처리하는 가로 스크롤이라 자바스크립트가 따라가며 그리지 않는다(떨림 없음). */
+  let swiped = false;
+  function deviceSwipe(){
+    if (swiped) return; swiped = true;
+    const scr5 = document.querySelector(".lp9m .s5 .tilt .scr");
+    if (scr5) { const row = document.createElement("div"); row.className = "pswipe";
+      panes.forEach((x) => row.appendChild(x)); scr5.appendChild(row); swipeSync(row, panes, accB, setAcc); }
+    const scr10 = $("#tab");
+    if (scr10) { const row = document.createElement("div"); row.className = "pswipe";
+      row.innerHTML = TABS.map((h) => `<div class="tpane">${h}</div>`).join(""); scr10.innerHTML = ""; scr10.appendChild(row);
+      swipeSync(row, [...row.children], [...document.querySelectorAll("#stp > div")], setTab); }
+  }
+  function swipeSync(row, items, btns, pick){
+    const dots = document.createElement("div"); dots.className = "swipe-dots"; dots.setAttribute("aria-hidden", "true");
+    dots.innerHTML = items.map(() => "<i></i>").join("");
+    (row.closest(".device") || row.closest(".tablet")).after(dots);
+    const ds = [...dots.children]; let cur = -1;
+    const mark = () => { const w = row.clientWidth || 1, k = Math.min(items.length - 1, Math.round(row.scrollLeft / w));
+      if (k === cur) return; cur = k; ds.forEach((d, n) => d.classList.toggle("on", n === k)); pick(k); };
+    row.addEventListener("scroll", mark, { passive:true }); mark();
+    btns.forEach((b, i) => b.addEventListener("click", () => { if (narrow) row.scrollTo({ left: i * row.clientWidth, behavior: reduce ? "auto" : "smooth" }); }));
   }
   function pcSet(ph){
     pcPhase = ph;
