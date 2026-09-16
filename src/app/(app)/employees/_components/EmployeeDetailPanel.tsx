@@ -107,10 +107,10 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
       if (error) throw error;
       const verify = logRead('_components/EmployeeDetailPanel:verify', await (supabase).from("employees").select("id,status").eq("id", employeeId).maybeSingle());
       if (!verify || verify.status !== "inactive") throw new Error("상태 업데이트 실패 · 권한을 확인해주세요");
-      //   접근 회수 — status 만 바꾸면 퇴사자가 로그인해 회사 데이터를 계속 볼 수 있다(users.company_id 기준 RLS).
-      //   서버 함수가 대상 구성원의 회사 소속을 끊는다(마스터/권한관리자만, 마스터 계정은 보호).
-      const { error: revErr } = await (supabase as any).rpc("revoke_member_access", { p_employee_id: employeeId });
-      if (revErr) throw new Error("접근 권한 회수 실패 · " + (revErr.message || "권한을 확인해주세요"));
+      //   퇴사 = 접근 회수 + 로그인 계정 삭제. status 만 바꾸면 퇴사자가 로그인해 회사 데이터를 계속 본다(users.company_id 기준 RLS).
+      //   서버 함수가 회사 소속을 끊고 auth 계정을 삭제한다 — 로그인 차단 + 같은 이메일로 다른 회사 재가입 가능(마스터/권한관리자만, 마스터 보호).
+      const { error: offErr } = await (supabase as any).rpc("offboard_member", { p_employee_id: employeeId });
+      if (offErr) throw new Error("퇴사 계정 처리 실패 · " + (offErr.message || "권한을 확인해주세요"));
       queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
       queryClient.invalidateQueries({ queryKey: ["employees", companyId] });
       setShowTermModal(false);
