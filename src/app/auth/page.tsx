@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { track } from "@/lib/analytics";
 import { logError } from "@/lib/error-logger";
@@ -48,6 +48,16 @@ export default function AuthPage() {
   const [phone, setPhone] = useState(""); // 휴대전화 — 알림톡 발송 대상(2026-07-29)
   // 사업자번호가 이미 등록된 회사와 일치할 때 — 합류 요청 전환 안내 (마스킹된 회사명)
   const [joinPrompt, setJoinPrompt] = useState<string | null>(null);
+  //   약관 동의 칸으로 데려가기 (2026-09-16) — 소셜 버튼은 동의 전 `disabled` 였는데, 그 이유가
+  //   마우스를 올려야 나오는 title 툴팁뿐이라 휴대폰에서는 아예 알 수 없었다. 회원가입 탭 맨 위에서
+  //   카카오를 누르려던 사람이 왜 안 눌리는지 모른 채 떠난다. 이제 눌리게 두고, 누르면 이유를 띄우고
+  //   폼 맨 아래 동의 칸으로 데려간다(세 버튼의 onClick 에 이미 있던 안내가 그제야 실행된다).
+  const agreeRef = useRef<HTMLInputElement>(null);
+  function focusAgree() {
+    agreeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    agreeRef.current?.focus();
+  }
+
   // 명시적 중복 확인 상태 · 확인 완료(available) 전에는 회사 개설 제출 불가.
   const [bizCheck, setBizCheck] = useState<"unchecked" | "checking" | "available" | "registered" | "error">("unchecked");
   const [bizCheckedDigits, setBizCheckedDigits] = useState("");
@@ -531,7 +541,8 @@ export default function AuthPage() {
                 // 소셜 가입도 약관 동의 필수 — 기존엔 이 경로가 동의를 건너뛰어
                 //   약관 미동의 상태로 계정이 만들어질 수 있었다.
                 if (mode === "signup" && !agreed) {
-                  return setError("이용약관·개인정보처리방침·환불규정에 동의해야 가입할 수 있습니다.");
+                  setError("이용약관·개인정보처리방침·환불규정에 동의해야 가입할 수 있습니다.");
+                  return focusAgree();
                 }
                 if (mode === "signup") markConsentPending(); // 콜백 후 세션 생기면 기록
                 const { error } = await supabase.auth.signInWithOAuth({
@@ -542,9 +553,7 @@ export default function AuthPage() {
                 });
                 if (error) setError(translateAuthError(error.message));
               }}
-              disabled={mode === "signup" && !agreed}
-              title={mode === "signup" && !agreed ? "약관에 동의해야 가입할 수 있습니다" : undefined}
-              className={`oauth-kakao-btn ${mode === "signup" && !agreed ? "opacity-50 cursor-not-allowed" : ""}`}
+              className="oauth-kakao-btn"
             >
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <path d="M9 1C4.58 1 1 3.79 1 7.21c0 2.17 1.45 4.08 3.63 5.17l-.93 3.42c-.08.29.25.52.5.35l4.09-2.72c.24.02.47.03.71.03 4.42 0 8-2.79 8-6.25S13.42 1 9 1z" fill="#191919"/>
@@ -556,7 +565,8 @@ export default function AuthPage() {
               onClick={async () => {
                 setError("");
                 if (mode === "signup" && !agreed) {
-                  return setError("이용약관·개인정보처리방침·환불규정에 동의해야 가입할 수 있습니다.");
+                  setError("이용약관·개인정보처리방침·환불규정에 동의해야 가입할 수 있습니다.");
+                  return focusAgree();
                 }
                 if (mode === "signup") markConsentPending(); // 콜백 후 세션 생기면 기록
                 const { error } = await supabase.auth.signInWithOAuth({
@@ -567,9 +577,7 @@ export default function AuthPage() {
                 });
                 if (error) setError(translateAuthError(error.message));
               }}
-              disabled={mode === "signup" && !agreed}
-              title={mode === "signup" && !agreed ? "약관에 동의해야 가입할 수 있습니다" : undefined}
-              className={`oauth-google-btn ${mode === "signup" && !agreed ? "opacity-50 cursor-not-allowed" : ""}`}
+              className="oauth-google-btn"
             >
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
@@ -588,14 +596,13 @@ export default function AuthPage() {
                 onClick={() => {
                   setError("");
                   if (mode === "signup" && !agreed) {
-                    return setError("이용약관·개인정보처리방침·환불규정에 동의해야 가입할 수 있습니다.");
+                    setError("이용약관·개인정보처리방침·환불규정에 동의해야 가입할 수 있습니다.");
+                    return focusAgree();
                   }
                   if (mode === "signup") markConsentPending(); // 콜백 후 세션 생기면 기록
                   window.location.href = "/api/auth/naver/start?next=/auth/verify";
                 }}
-                disabled={mode === "signup" && !agreed}
-                title={mode === "signup" && !agreed ? "약관에 동의해야 가입할 수 있습니다" : undefined}
-                className={`oauth-naver-btn ${mode === "signup" && !agreed ? "opacity-50 cursor-not-allowed" : ""}`}
+                className="oauth-naver-btn"
               >
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                   <path d="M11.44 9.6L6.32 2H2v14h4.56V8.4L11.68 16H16V2h-4.56v7.6z" fill="#fff"/>
@@ -755,6 +762,7 @@ export default function AuthPage() {
               <div className="terms-agree-field">
                 <label className="flex items-start gap-2 cursor-pointer">
                   <input
+                    ref={agreeRef}
                     type="checkbox"
                     checked={agreed}
                     onChange={(e) => setAgreed(e.target.checked)}
