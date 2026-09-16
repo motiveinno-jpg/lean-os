@@ -15,6 +15,7 @@ import { friendlyError, reportError }  from "@/lib/friendly-error";
 import  { SignatureCapture, type SignatureMethod } from "@/components/signature-capture";
 import { useToast } from "@/components/toast";
 import { usePrintIsolation } from "@/lib/use-print-isolation";
+import { resolveSealUrl } from "@/lib/signatures";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -119,6 +120,16 @@ interface SignedRow {
 export function ContractViewer({ id, backHref }: { id: string; backHref?: string }) {
   usePrintIsolation();
   const [row, setRow] = useState<SignedRow | null>(null);
+  // 갑(우리) 직인은 비공개 버킷(company-private) 주소라 원본 URL 로는 못 띄운다 —
+  //   서명 URL 로 바꿔 표시한다(2026-09-09 버킷 비공개 전환 뒤 직인이 안 보이던 회귀 수정).
+  const [ourSealUrl, setOurSealUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const raw = row?.companies?.seal_url;
+    if (!raw) { setOurSealUrl(null); return; }
+    let alive = true;
+    resolveSealUrl(raw).then((u) => { if (alive) setOurSealUrl(u || raw); }).catch(() => { if (alive) setOurSealUrl(raw); });
+    return () => { alive = false; };
+  }, [row?.companies?.seal_url]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   // 갑(우리) 서명·도장 추가 모달
@@ -371,7 +382,7 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
                 <div>사업자등록번호: {row.companies?.business_number || "—"}</div>
                 <div className="flex items-center gap-3 mt-1">
                   <span>대표자: {row.companies?.representative || "—"} (인)</span>
-                  <SignatureBox dataUrl={row.our_signature_data_url || row.companies?.seal_url || null} />
+                  <SignatureBox dataUrl={row.our_signature_data_url || ourSealUrl || null} />
                 </div>
                 {row.our_signed_at && (
                   <div className="text-[10px] text-gray-500 mt-1">
