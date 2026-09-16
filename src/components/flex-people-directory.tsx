@@ -85,6 +85,9 @@ const ETYPE_LABEL: Record<string, string> = { regular: "정규직", full_time: "
 const etypeLabel = (t?: string | null) => (t ? ETYPE_LABEL[t] || t : "");
 type SortKey = "employee_number" | "name" | "department" | "position" | "etype" | "hire_date" | "phone" | "status";
 const VIEW_OPTS = [{ value: "list", label: "리스트" }, { value: "card", label: "카드" }] as const;
+//   정렬 칩 — 리스트는 열 머리로도 정렬되지만 카드 보기엔 정렬 진입점이 없었다(이름순 고정).
+//   두 보기 공통으로 이름순 / 직급순(직책급 서열: 대표→사원)을 고른다. lib/position-rank 서열을 쓴다.
+const SORT_OPTS = [{ value: "name", label: "이름순" }, { value: "grade", label: "직급순" }] as const;
 
 /**
  * 구성원 디렉토리 · 조회 화면 표준(2026-08-18 Wave 4).
@@ -281,6 +284,9 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
               </ConditionRow>
             </ConditionPanel>
             <QuickSearch value={q} onApply={setQ} placeholder="이름 · 부서 · 직책 · 사번" />
+            <ChipGroup value={sort.key === "position" ? "grade" : "name"}
+              onChange={(v) => setSort({ key: v === "grade" ? "position" : "name", dir: "asc" })}
+              options={SORT_OPTS} />
             <ChipGroup value={view} onChange={setView} options={VIEW_OPTS} />
           </QueryBar>
           <AppliedChips chips={chips} onClearAll={clearAll} />
