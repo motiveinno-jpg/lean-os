@@ -81,7 +81,8 @@ const TOUR_STEPS: TourStep[] = [
       link: { label: "양식 관리 바로 가기", href: "/approvals?tab=forms" },
     },
   },
-  { href: "/board", title: "게시판 · 메신저", desc: "공지와 소통을 게시판·메신저에서 합니다. 직원을 초대하면 바로 함께 씁니다." },
+  { href: "/board", title: "게시판", desc: "공지·자유게시판으로 사내 소통을 합니다. 바로 아래 메신저에서는 팀원과 실시간으로 대화합니다." },
+  { href: "/signatures", title: "전자계약", desc: "계약서를 온라인으로 보내 서명을 받습니다. 직인 자동 날인과 진행 상황 추적까지 한곳에서 됩니다." },
   {
     href: "/employees", title: "구성원",
     desc: "직원 초대부터 근로계약·급여명세서·연차까지 관리합니다. 권한도 여기서 정합니다.",
@@ -95,9 +96,10 @@ const TOUR_STEPS: TourStep[] = [
       link: { label: "구성원 바로 가기", href: "/employees" },
     },
   },
+  { href: "/attendance", title: "근태 관리", desc: "직원 출퇴근·지각·연차·반차를 한 화면에서 봅니다. 직원이 올린 근태 수정 요청도 여기서 확인해 처리합니다." },
   {
-    href: "/bank", title: "통장 · 카드",
-    desc: "연결된 계좌 잔액과 거래내역, 법인카드 승인내역을 실시간으로 확인합니다.",
+    href: "/bank", title: "통장",
+    desc: "연결된 계좌 잔액과 거래내역을 실시간으로 봅니다. 법인카드 승인내역은 옆 카드 메뉴에서 봅니다.",
     howTo: {
       label: "계좌·카드 연결 방법",
       steps: [
@@ -106,6 +108,19 @@ const TOUR_STEPS: TourStep[] = [
         "지금 동기화를 누르면 즉시 갱신됩니다.",
       ],
       link: { label: "설정 > 연동·인증 바로 가기", href: "/settings/integration?tab=bank" },
+    },
+  },
+  {
+    href: "/inventory/products", title: "재고",
+    desc: "품목·창고 재고부터 주문·판매·구매·생산까지 물건의 흐름을 관리하고, 원가 기준 이익까지 봅니다.",
+    howTo: {
+      label: "재고 시작하는 방법",
+      steps: [
+        "품목에서 파는 물건과 원가·판매가를 등록합니다.",
+        "창고관리에서 현재 수량을 맞추고, 구매·생산으로 채웁니다.",
+        "판매가 일어나면 수량이 자동으로 빠지고, 현황·이익관리에서 집계됩니다.",
+      ],
+      link: { label: "품목 바로 가기", href: "/inventory/products" },
     },
   },
   {
