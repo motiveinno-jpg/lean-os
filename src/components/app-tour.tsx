@@ -205,8 +205,10 @@ export function AppTourHost({ companyId }: { companyId: string | null }) {
     // 온보딩 완료가 router.replace("/dashboard?tour=1") 로 보내면 pathname 변경으로 여기 걸린다
     const sp = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
     if (shouldStartTour(sp)) {
-      // 명시 요청(?tour=1)도 닫은 직후 10분간은 부활로 간주해 무시 — 그 뒤엔 수동 재실행 허용
-      if (Date.now() - dismissedAt > 10 * 60 * 1000) { setShow(true); return; }
+      // 명시 요청(?tour=1)은 원칙적으로 항상 시작한다. 닫을 때 finish()가 ?tour=1 을 동기(replaceState)로
+      //   즉시 떼므로 재시작 레이스는 이미 막혀 있다. 만약을 위한 짧은 유예(2초)만 둔다 — 예전 10분은
+      //   사용자가 투어를 닫고 다시 ?tour=1 을 눌러도 10분간 안 뜨게 만들어(대표 제보) 재실행을 막았다.
+      if (Date.now() - dismissedAt > 2000) { setShow(true); return; }
     } else if (isTourActive()) { setShow(true); return; }
 
     // 자동 1회 노출 — 신규 가입 온보딩(/onboarding)과 겹치지 않게 그 화면에서는 시작하지 않는다.
