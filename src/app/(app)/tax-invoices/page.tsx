@@ -1023,6 +1023,9 @@ function TaxInvoicesPageInner() {
       // '발행 대기' 에 남겨 손으로 발행할 수 있게 한다. 매입 계산서는 우리가 발행하지 않는다.
       let remaining = issuanceStatus?.limit == null ? Infinity : (issuanceStatus.remaining ?? 0);
       let created = 0, issued = 0, failed = 0, skipped = 0;
+      //   대량발행(발행 대상 2건 이상)이면 건별 발행 알림 메일을 끄고, 마지막에 요약 1건만 보낸다.
+      const isBulkIssue = valid.filter((r) => r.type === "sales").length > 1;
+      let issuedSupply = 0, issuedTax = 0;
       let firstError = "";
       for (const r of valid) {
         // 품목 줄 — 이름이 있는 줄만 저장한다. 계산서 공급가액은 줄 합계다.
@@ -1088,13 +1091,20 @@ function TaxInvoicesPageInner() {
         if (newInv && r.type === "sales" && !(newInv as any).nts_confirm_no) {
           if (remaining <= 0) { skipped++; continue; }
           try {
-            await issueTaxInvoice((newInv as any).id);
+            await issueTaxInvoice((newInv as any).id, { suppressNotify: isBulkIssue });
             issued++; remaining--;
+            issuedSupply += rowSupply(r); issuedTax += rowTax(r);
           } catch (e: any) {
             failed++;
             if (!firstError) firstError = e?.message ? `${e.message}${e.hint ? " — " + e.hint : ""}` : "발행 실패";
           }
         }
+      }
+      //   대량발행 요약 알림 — 건별 알림을 끈 대신 여기서 1건. best-effort(실패해도 발행 결과엔 영향 없음).
+      if (isBulkIssue && issued > 0) {
+        try {
+          await supabase.functions.invoke("send-invoice-batch-notify", { body: { issued, failed, supply: issuedSupply, tax: issuedTax } });
+        } catch { /* 알림 실패는 무시 */ }
       }
       return { created, issued, failed, skipped, firstError };
     },

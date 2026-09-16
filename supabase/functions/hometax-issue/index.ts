@@ -296,7 +296,7 @@ serve(withSentry("hometax-issue", async (req) => {
     }
 
     const body = await req.json();
-    const { invoice_id, action } = body;
+    const { invoice_id, action, suppress_notify } = body;
     if (action) meterStore.action = `hometax-${action}`;
 
     // ── 발행 등록(최초 1회): 팝빌 제휴사 회원가입 + 인증서 등록 URL 발급 ──
@@ -670,7 +670,7 @@ serve(withSentry("hometax-issue", async (req) => {
       try {
         const notifyEmail = String((company.tax_settings as any)?.invoice_notify_email || "").trim();
         const resendKey = Deno.env.get("RESEND_API_KEY");
-        if (notifyEmail && resendKey) {
+        if (notifyEmail && resendKey && !suppress_notify) {
           const won = (n: unknown) => `${Math.round(Number(n) || 0).toLocaleString("ko-KR")}원`;
           const issueDate = invoice.issue_date || new Date().toISOString().split("T")[0];
           await fetch("https://api.resend.com/emails", {

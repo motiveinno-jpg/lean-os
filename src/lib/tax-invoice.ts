@@ -323,7 +323,8 @@ export async function markInvoiceMatched(invoiceId: string) {
 // - 실패 시 throw — 호출자가 catch 해서 사용자에게 toast 로 명확한 에러 + hint 표시 권장.
 export async function issueTaxInvoice(
   invoiceId: string,
-  opts: { dbOnly?: boolean } = {},
+  //   suppressNotify: 발행 완료 알림 메일을 이 건에서는 보내지 않는다(대량발행은 요약 1건으로 따로 보낸다).
+  opts: { dbOnly?: boolean; suppressNotify?: boolean } = {},
 ) {
   if (opts.dbOnly) {
     const { data, error } = await supabase
@@ -349,7 +350,7 @@ export async function issueTaxInvoice(
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({ invoice_id: invoiceId }),
+    body: JSON.stringify({ invoice_id: invoiceId, suppress_notify: opts.suppressNotify }),
   });
   const result = await res.json().catch(() => ({}));
   if (!res.ok) {
