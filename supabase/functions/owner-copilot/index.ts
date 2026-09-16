@@ -2027,7 +2027,7 @@ serve(withSentry("owner-copilot", async (req) => {
 
     // company_id·role 은 서버가 결정 (클라 입력 신뢰 안 함)
     const { data: profile } = await admin
-      .from("users").select("id, company_id, role").eq("auth_id", user.id).maybeSingle();
+      .from("users").select("id, company_id, role, is_master").eq("auth_id", user.id).maybeSingle();
     if (!profile?.company_id) return json({ error: "회사 정보를 찾을 수 없습니다" }, 403);
     const companyId: string = profile.company_id;
 
@@ -2035,7 +2035,7 @@ serve(withSentry("owner-copilot", async (req) => {
     //   1단계에선 employee 를 아예 403 으로 막았으나, "출근 찍어줘" 같은 본인 업무는
     //   직원이 쓰는 게 원래 의도라 제한 모드로 개방한다. 회사 재무 스냅샷은 여전히 미제공.
     const role = String(profile.role ?? "");
-    const mode: Mode = ["owner", "admin"].includes(role) ? "manager" : "employee";
+    const mode: Mode = (profile.is_master === true) || ["owner", "admin"].includes(role) ? "manager" : "employee";   // 역할 폐지(2026-09) — 마스터는 is_master 로 판정(role 은 전부 member)
 
     const body = await req.json().catch(() => ({}));
     const question: string = (typeof body?.question === "string" ? body.question : "").slice(0, 2000);
