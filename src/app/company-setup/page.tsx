@@ -41,7 +41,11 @@ export default function CompanySetupPage() {
       const existing = logRead('company-setup/page:existing', await supabase.from("users").select("id, company_id").eq("auth_id", user.id).maybeSingle());
       if (existing?.company_id)  { router.push("/dashboard"); return; }
       setAuthUser(user as any);
-      setCompanyName(user.user_metadata?.company_name || "");
+      //   회사명을 비워 두면 시작 버튼이 잠긴 채 보이고(placeholder 를 값으로 오해), 소셜 가입자 상당수가 여기서 나갔다.
+      //   이름을 알면 "○○님의 회사"로 채워 두고 한 번에 들어가게 한다 — 회사명은 설정에서 언제든 바꿀 수 있다. (2026-09-16)
+      const meta = (user.user_metadata || {}) as Record<string, string | undefined>;
+      const who = (meta.display_name || meta.name || meta.full_name || meta.nickname || "").trim();
+      setCompanyName(meta.company_name || (who ? `${who}님의 회사` : ""));
       setReady(true);
     })();
   }, [router]);
@@ -159,9 +163,9 @@ export default function CompanySetupPage() {
             {/* 2026-08-20: 회사명이 먼저 온다. 종전엔 사업자번호 칸 하나만 보였고 그걸 통과해야
                 회사명이 나타나, 등록증이 없는 사람은 아무것도 못 하고 나갔다. */}
             <div className="mb-4">
-              <label htmlFor="setup-company-name" className="field-label">회사명</label>
+              <label htmlFor="setup-company-name" className="field-label">회사명 <span className="text-[var(--text-dim)] font-normal">(나중에 설정에서 바꿀 수 있습니다)</span></label>
               <input id="setup-company-name" type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="(주)모티브이노베이션" maxLength={50} autoComplete="organization"
+                placeholder="회사 이름을 적어 주세요" maxLength={50} autoComplete="organization"
                 className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition" required />
             </div>
 

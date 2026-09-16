@@ -536,7 +536,9 @@ export default function AuthPage() {
                 if (mode === "signup") markConsentPending(); // 콜백 후 세션 생기면 기록
                 const { error } = await supabase.auth.signInWithOAuth({
                   provider: "kakao",
-                  options: { redirectTo: "https://www.owner-view.com/api/auth/callback?next=/auth/verify" },
+                  //   콜백은 **지금 열려 있는 주소와 같은 도메인**으로 — www 없는 owner-view.com 에서 시작했는데
+                  //   www 로 고정해 돌아오면 PKCE 검증 쿠키가 다른 도메인에 남아 콜백이 실패했다(2026-09-16 실측: 90일 소셜 33건 중 16건 미완료).
+                  options: { redirectTo: `${window.location.origin}/api/auth/callback?next=/auth/verify` },
                 });
                 if (error) setError(translateAuthError(error.message));
               }}
@@ -559,7 +561,9 @@ export default function AuthPage() {
                 if (mode === "signup") markConsentPending(); // 콜백 후 세션 생기면 기록
                 const { error } = await supabase.auth.signInWithOAuth({
                   provider: "google",
-                  options: { redirectTo: "https://www.owner-view.com/api/auth/callback?next=/auth/verify" },
+                  //   콜백은 **지금 열려 있는 주소와 같은 도메인**으로 — www 없는 owner-view.com 에서 시작했는데
+                  //   www 로 고정해 돌아오면 PKCE 검증 쿠키가 다른 도메인에 남아 콜백이 실패했다(2026-09-16 실측: 90일 소셜 33건 중 16건 미완료).
+                  options: { redirectTo: `${window.location.origin}/api/auth/callback?next=/auth/verify` },
                 });
                 if (error) setError(translateAuthError(error.message));
               }}

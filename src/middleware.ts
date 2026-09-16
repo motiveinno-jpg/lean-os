@@ -94,6 +94,16 @@ function isPublicRoute(pathname: string): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  //   www 없는 주소는 www 로 — 로그인·소셜 콜백 쿠키가 도메인별로 따로 놀아 가입이 중간에 끊겼다.
+  //   (2026-09-16 실측: owner-view.com 에서 카카오/구글을 누르면 검증 쿠키는 apex 에, 콜백은 www 로 와서 실패)
+  const host = (request.headers.get('host') || '').toLowerCase();
+  if (host === 'owner-view.com') {
+    const url = request.nextUrl.clone();
+    url.protocol = 'https:';
+    url.host = 'www.owner-view.com';
+    return NextResponse.redirect(url, 308);
+  }
+
   // Rate limit auth endpoints (brute force protection)
   if (pathname.startsWith('/auth') || pathname.startsWith('/api/auth')) {
     const ip = clientIp(request);
