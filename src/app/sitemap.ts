@@ -1,6 +1,7 @@
 // sitemap.xml — 검색엔진 수집용 (2026-07-03)
 //   공개 페이지만 노출: 랜딩·데모·약관·개인정보·환불·상태. 로그인 필요 앱 내부는 robots.txt 에서 이미 제외.
 import type { MetadataRoute } from "next";
+import { INDUSTRIES } from "@/components/industries/data";
 import { POSTS } from "./blog/posts";
 
 const BASE = "https://www.owner-view.com";
@@ -23,6 +24,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // 2026-09-14 그룹마다 서버에서 그리고 canonical 을 따로 준다 — 각자 색인될 문서
     ...["finance", "inventory", "analysis", "workspace", "hr"].map((g) => (
       { url: `${BASE}/features/?g=${g}`, changeFrequency: "monthly" as const, priority: 0.8, lastModified: "2026-09-14" }
+    )),
+    // 2026-09-16 업종별 페이지 — 세부 업종을 7개 문서로 모았다(머리 메가메뉴가 여기로 간다)
+    { url: `${BASE}/industries`, changeFrequency: "monthly", priority: 0.8, lastModified: "2026-09-16" },
+    ...INDUSTRIES.map((i) => (
+      { url: `${BASE}/industries/${i.slug}`, changeFrequency: "monthly" as const, priority: 0.8, lastModified: "2026-09-16" }
     )),
     // /ai 는 2026-09-14 메인(/#ai)으로 308 — 사이트맵에서 뺐다
     { url: `${BASE}/demo`, changeFrequency: "monthly", priority: 0.8 },

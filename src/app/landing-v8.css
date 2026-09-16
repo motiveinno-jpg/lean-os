@@ -709,3 +709,5 @@ html[data-theme="dark"] .lp8{
 .lp8 .tl8-rcta-b{ display: flex; align-items: center; gap: 14px; flex-wrap: wrap }
 .lp8 .tl8-rcta-l{ font-size: 13.5px; font-weight: 600; color: var(--brand) }
 .lp8 .tl8-rcta-l:hover{ text-decoration: underline }
+/* 업종별 메가메뉴 바닥 — 업종 목록으로 가는 링크 (2026-09-16) */
+.lp8 .mega-foot a{ color: var(--ind); font-weight: 700 }

@@ -1,0 +1,174 @@
+/* ══════════════════════════════════════════════════════════════
+   업종별 페이지 (2026-09-16) — 목업 6f6574b2 그대로
+   ▸ 모든 규칙은 .ipg 안에 갇힌다. globals.css·landing-v9.css 와 이름이 겹쳐도 서로 침범하지 않게
+     클래스 앞에 ipg- 를 붙였다(랜딩 v9 에서 .card·.row 이름이 겹쳐 고생한 적이 있다).
+   ▸ 색·글꼴·그림자는 랜딩 v9 와 같은 값(딥 인디고 #4a47c9 · #262a6b).
+   ▸ 움직임 없음 — 스크롤 연출은 넣지 않는다(대표 지시).
+   ══════════════════════════════════════════════════════════════ */
+.ipg{
+  --bg:#fafbfd; --bg2:#f1f3f8; --card:#fff; --line:#e8ebf2;
+  --ink:#191f28; --ink2:#4e5968; --ink3:#8b95a1; --ink4:#b0b8c1;
+  --ind:#4a47c9; --ind2:#6366f1; --soft:#eef0ff; --deep:#262a6b;
+  --ok:#0e9f5e; --ok-bg:#e6f7ee; --warn:#e07b00; --warn-bg:#fff3e0; --bad:#e42939; --bad-bg:#ffeeee;
+  --sh:0 1px 2px rgba(30,40,80,.04), 0 24px 56px -32px rgba(40,56,120,.3);
+  --f:'Pretendard Variable',Pretendard,'Noto Sans KR','Apple SD Gothic Neo',system-ui,sans-serif;
+  background:var(--bg); color:var(--ink2); font-family:var(--f); word-break:keep-all; overflow-x:clip;
+}
+.ipg, .ipg *{ box-sizing:border-box }
+.ipg h1, .ipg h2, .ipg h3, .ipg h4, .ipg p{ margin:0 }
+.ipg a{ text-decoration:none }
+.ipg-wrap{ max-width:1120px; margin:0 auto; padding-inline:20px }
+.ipg-eyebrow{ font-size:13px; font-weight:800; color:var(--ind); letter-spacing:.02em }
+.ipg-h2{ margin-top:8px; font-size:clamp(24px,3.4vw,38px); font-weight:900; color:var(--ink); letter-spacing:-.04em; line-height:1.28; text-wrap:balance }
+.ipg-lead{ margin-top:10px; font-size:clamp(14px,1.5vw,17px); color:var(--ink2); line-height:1.6 }
+.ipg-sec{ padding-block:clamp(48px,7vw,86px) }
+.ipg-sec.alt{ background:var(--bg2); border-block:1px solid var(--line) }
+
+/* 히어로 — 실제 화면 위에 카드 세 장 */
+.ipg-hero{ position:relative; overflow:hidden; background:#1b1f5c; color:#c7d2fe; padding-block:clamp(48px,7vw,86px) }
+.ipg-shot{ position:absolute; inset:0; background-repeat:no-repeat; background-position:right -40px top -20px; background-size:auto 118%; opacity:.26; filter:saturate(.85) }
+.ipg-veil{ position:absolute; inset:0; background:linear-gradient(100deg,#1b1f5c 4%, rgba(27,31,92,.95) 40%, rgba(27,31,92,.72) 68%, rgba(31,38,110,.58) 100%) }
+.ipg-heroin{ position:relative; z-index:2; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.02fr); gap:44px; align-items:center }
+.ipg-hero .ipg-eyebrow{ color:#a5b4fc }
+.ipg-hero h1{ margin-top:12px; font-size:clamp(28px,4.4vw,50px); font-weight:900; color:#fff; letter-spacing:-.05em; line-height:1.22; text-wrap:balance }
+.ipg-hlead{ margin-top:14px; font-size:clamp(14px,1.6vw,17px); color:#c7d2fe; line-height:1.6 }
+.ipg-why{ margin-top:22px; display:grid; gap:10px }
+.ipg-why > div{ display:flex; gap:10px; align-items:flex-start }
+.ipg-why i{ flex:none; display:grid; place-items:center; width:22px; height:22px; margin-top:2px; border-radius:7px;
+  background:rgba(255,255,255,.14); color:#fff; font-style:normal; font-size:11px; font-weight:900 }
+.ipg-why b{ display:block; color:#fff; font-size:15px; font-weight:800 }
+.ipg-why span span{ display:block; font-size:13.5px; color:#b6c0f5; line-height:1.55 }
+.ipg-hnote{ margin-top:18px; font-size:12.5px; color:#9aa5e0 }
+
+.ipg-btns{ margin-top:26px; display:flex; gap:10px; flex-wrap:wrap }
+.ipg-btn{ height:48px; padding:0 20px; border-radius:11px; display:inline-flex; align-items:center; gap:7px;
+  font-size:15px; font-weight:800; border:1px solid transparent }
+.ipg-btn.p{ background:#fff; color:var(--deep) }
+.ipg-btn.w{ background:#fff; color:var(--deep) }
+.ipg-btn.s{ background:rgba(255,255,255,.12); color:#fff; border-color:rgba(255,255,255,.3) }
+
+/* 히어로 카드 세 장 */
+.ipg-vis{ position:relative; min-height:400px }
+.ipg-vis .main{ position:absolute; left:0; top:52px; width:min(100%,318px); z-index:2 }
+.ipg-vis .card-a, .ipg-vis .card-b{ position:absolute; right:0; width:198px; z-index:3 }
+.ipg-vis .card-a{ top:0 }
+.ipg-vis .card-b{ bottom:0 }
+.ipg-vis .cap{ position:absolute; left:0; bottom:6px; width:min(100%,318px); font-size:12.5px; color:#9aa5e0 }
+.ipg-vis .ipg-ui{ box-shadow:0 30px 60px -24px rgba(8,10,40,.75) }
+.ipg-vis .card-a .ipg-row, .ipg-vis .card-b .ipg-row{ padding:8px 12px }
+.ipg-vis .card-a .ipg-uih, .ipg-vis .card-b .ipg-uih{ font-size:12.5px }
+.ipg-vis .card-a .ipg-row .t, .ipg-vis .card-b .ipg-row .t{ font-size:12px }
+.ipg-vis .card-b .ipg-bars{ height:60px; padding:10px 12px }
+
+/* 흐름 띠 */
+.ipg-flow{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin-top:26px }
+.ipg-fl{ position:relative; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 13px; box-shadow:var(--sh) }
+.ipg-fl small{ font-size:11px; font-weight:800; color:var(--ind) }
+.ipg-fl b{ display:block; margin-top:4px; font-size:14.5px; color:var(--ink) }
+.ipg-fl span{ display:block; margin-top:6px; font-size:12px; color:var(--ink3) }
+.ipg-fl::after{ content:"→"; position:absolute; right:-11px; top:50%; transform:translateY(-50%); color:var(--ink4); font-size:13px; font-weight:900 }
+.ipg-fl:last-child::after{ content:none }
+
+/* 특징별 사용법 — 카드를 세로로 쌓고 좌우 번갈아 */
+.ipg-use{ display:grid; gap:18px; margin-top:34px }
+.ipg-uc{ background:var(--card); border:1px solid var(--line); border-radius:22px; box-shadow:var(--sh); overflow:hidden;
+  display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.05fr) }
+.ipg-uc:nth-child(even){ direction:rtl }
+.ipg-uc:nth-child(even) > *{ direction:ltr }
+.ipg-uc .tx{ padding:clamp(22px,3vw,34px) }
+.ipg-uc .no{ display:inline-flex; align-items:center; font-size:12px; font-weight:800; color:var(--ind); background:var(--soft); padding:4px 10px; border-radius:999px }
+.ipg-uc h3{ margin-top:12px; font-size:clamp(19px,2.2vw,25px); font-weight:900; color:var(--ink); letter-spacing:-.03em; line-height:1.32 }
+.ipg-uc .steps{ margin-top:14px; display:grid; gap:9px }
+.ipg-uc .steps > div{ display:flex; gap:9px; font-size:14.5px; line-height:1.6 }
+.ipg-uc .steps em{ flex:none; width:20px; height:20px; margin-top:2px; border-radius:6px; background:var(--bg2); color:var(--ink2);
+  font-style:normal; font-size:11px; font-weight:800; display:grid; place-items:center }
+.ipg-uc .steps b{ color:var(--ink); font-weight:800 }
+.ipg-uc .vis{ background:var(--bg2); padding:clamp(18px,2.4vw,28px); display:grid; place-items:center; border-left:1px solid var(--line) }
+.ipg-chips{ margin-top:16px; display:flex; gap:6px; flex-wrap:wrap }
+.ipg-chips span{ font-size:12px; font-weight:700; color:var(--ind); background:var(--soft); padding:5px 10px; border-radius:8px }
+
+/* 화면 흉내 */
+.ipg-ui{ width:100%; background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:var(--sh); overflow:hidden; font-size:12.5px }
+.ipg-uih{ padding:10px 14px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px; font-weight:800; color:var(--ink); font-size:13px }
+.ipg-uih .ipg-bd{ margin-left:auto }
+.ipg-bd{ font-size:11px; font-weight:800; padding:3px 8px; border-radius:6px; background:var(--bg2); color:var(--ink2); white-space:nowrap }
+.ipg-bd.ok{ background:var(--ok-bg); color:var(--ok) }
+.ipg-bd.ind{ background:var(--soft); color:var(--ind) }
+.ipg-bd.warn{ background:var(--warn-bg); color:var(--warn) }
+.ipg-bd.bad{ background:var(--bad-bg); color:var(--bad) }
+.ipg-bd.gray{ background:var(--bg2); color:var(--ink3) }
+.ipg-row{ display:flex; align-items:center; gap:10px; padding:9px 14px; border-bottom:1px solid var(--line) }
+.ipg-row:last-child{ border-bottom:0 }
+.ipg-row .t{ color:var(--ink); font-weight:600 }
+.ipg-row .s{ color:var(--ink3); font-size:11.5px }
+.ipg-row .r{ margin-left:auto; font-variant-numeric:tabular-nums; color:var(--ink); font-weight:700; white-space:nowrap }
+.ipg-row .r.ok{ color:var(--ok) } .ipg-row .r.bad{ color:var(--bad) } .ipg-row .r.warn{ color:var(--warn) } .ipg-row .r.ind{ color:var(--ind) }
+.ipg-kv{ display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:12px 14px }
+.ipg-kv div{ background:var(--bg2); border-radius:10px; padding:9px 11px }
+.ipg-kv small{ display:block; font-size:11px; color:var(--ink3); font-weight:700 }
+.ipg-kv b{ display:block; margin-top:2px; font-size:15px; color:var(--ink); font-variant-numeric:tabular-nums }
+.ipg-bars{ display:flex; align-items:flex-end; gap:6px; height:78px; padding:14px }
+.ipg-bars i{ flex:1; border-radius:5px 5px 2px 2px; background:linear-gradient(180deg,var(--ind2),color-mix(in srgb,var(--ind2) 30%,transparent)) }
+.ipg-foot{ padding:10px 14px; background:var(--bg2); font-size:11.5px; color:var(--ink3) }
+
+/* 자주 겪는 문제 */
+.ipg-probs{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-top:30px }
+.ipg-pb{ background:var(--card); border:1px solid var(--line); border-radius:18px; padding:20px; box-shadow:var(--sh) }
+.ipg-pb .q{ font-size:14px; font-weight:800; color:var(--ink3) }
+.ipg-pb .a{ margin-top:8px; font-size:16px; font-weight:800; color:var(--ink); line-height:1.4 }
+.ipg-pb p:last-child{ margin-top:8px; font-size:13.5px; color:var(--ink2); line-height:1.6 }
+
+/* 도입 첫 주 */
+.ipg-start{ background:var(--deep); color:#dfe3ff; border-radius:26px; padding:clamp(24px,3.4vw,40px); margin-top:30px }
+.ipg-start h3{ color:#fff; font-size:clamp(19px,2.2vw,26px); font-weight:900; letter-spacing:-.03em }
+.ipg-start .cols{ margin-top:22px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px }
+.ipg-start .col{ background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14); border-radius:16px; padding:18px }
+.ipg-start .col small{ font-size:12px; font-weight:800; color:#a5b4fc }
+.ipg-start .col b{ display:block; margin-top:6px; font-size:16px; color:#fff }
+.ipg-start .col ul{ margin:10px 0 0; padding-left:0; list-style:none; display:grid; gap:6px }
+.ipg-start .col li{ font-size:13.5px; color:#c7d2fe; display:flex; gap:7px; line-height:1.5 }
+.ipg-start .col li::before{ content:"·"; color:#a5b4fc; font-weight:900 }
+
+/* 쓰는 메뉴 · 다른 업종 */
+.ipg-menus{ margin-top:26px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px }
+.ipg-menus .mg{ background:var(--card); border:1px solid var(--line); border-radius:18px; padding:20px; box-shadow:var(--sh) }
+.ipg-menus h4{ font-size:15px; font-weight:900; color:var(--ink) }
+.ipg-menus .list{ margin-top:12px; display:grid; gap:8px }
+.ipg-menus .list div{ display:flex; gap:10px; align-items:baseline; font-size:13.5px }
+.ipg-menus .list b{ flex:none; width:118px; color:var(--ink); font-weight:800 }
+.ipg-menus .list span{ color:var(--ink2) }
+.ipg-others{ margin-top:26px; display:flex; gap:8px; flex-wrap:wrap }
+.ipg-others a{ font-size:13.5px; font-weight:700; color:var(--ink2); background:var(--card); border:1px solid var(--line); border-radius:999px; padding:8px 14px }
+.ipg-others a.on{ background:var(--ind); border-color:var(--ind); color:#fff }
+
+/* 마무리 */
+.ipg-fin{ background:var(--deep); color:#c7d2fe; text-align:center; padding-block:clamp(52px,7vw,84px) }
+.ipg-fin h2{ color:#fff; font-size:clamp(25px,3.6vw,42px); font-weight:900; letter-spacing:-.04em }
+.ipg-fin p{ margin-top:12px; font-size:15px }
+.ipg-fin .ipg-btns{ justify-content:center }
+.ipg-note{ margin:0; padding:18px 20px 26px; text-align:center; font-size:12px; color:var(--ink3); background:var(--bg) }
+
+/* 목록 페이지 */
+.ipg-cards{ margin-top:28px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px }
+.ipg-cards a{ display:block; background:var(--card); border:1px solid var(--line); border-radius:18px; padding:22px; box-shadow:var(--sh) }
+.ipg-cards small{ font-size:12px; font-weight:800; color:var(--ind) }
+.ipg-cards b{ display:block; margin-top:8px; font-size:19px; font-weight:900; color:var(--ink); letter-spacing:-.03em; line-height:1.35 }
+.ipg-cards p{ margin-top:8px; font-size:13.5px; color:var(--ink2); line-height:1.6 }
+
+@media (max-width:1040px){
+  .ipg-heroin{ grid-template-columns:1fr; gap:26px }
+  .ipg-shot{ background-position:right -80px top -10px; opacity:.2 }
+  .ipg-vis{ min-height:0; display:grid; gap:10px }
+  .ipg-vis .main, .ipg-vis .card-a, .ipg-vis .card-b, .ipg-vis .cap{ position:static; width:100% }
+}
+@media (max-width:900px){
+  .ipg-flow{ grid-template-columns:1fr 1fr }
+  .ipg-fl::after{ content:none }
+  .ipg-uc, .ipg-uc:nth-child(even){ grid-template-columns:1fr; direction:ltr }
+  .ipg-uc .vis{ border-left:0; border-top:1px solid var(--line) }
+  .ipg-probs, .ipg-start .cols, .ipg-menus, .ipg-cards{ grid-template-columns:1fr }
+}
+@media (max-width:520px){
+  .ipg-flow{ grid-template-columns:1fr }
+  .ipg-menus .list b{ width:104px }
+}

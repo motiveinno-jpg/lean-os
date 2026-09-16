@@ -109,7 +109,7 @@ export function SiteHeader() {
         </div>
       </div>
 
-      {/* 업종별 메가메뉴 — 업종마다 먼저 볼 메뉴로(content.ts MEGA) */}
+      {/* 업종별 메가메뉴 — 세부 업종마다 업종 활용 페이지로(content.ts MEGA, 2026-09-16) */}
       <div className={`mega${open === "mega" ? " is-open" : ""}`} onClick={(e) => e.stopPropagation()}>
         <div className="container">
           <div className="mega-in">
@@ -120,7 +120,7 @@ export function SiteHeader() {
               </div>
             ))}
           </div>
-          <div className="mega-foot">업종이 달라도 일하는 순서는 비슷합니다. 필요 없는 메뉴는 감출 수 있습니다.</div>
+          <div className="mega-foot">업종이 달라도 일하는 순서는 비슷합니다. 필요 없는 메뉴는 감출 수 있습니다. <Link href="/industries">업종별 활용법 전체 보기 →</Link></div>
         </div>
       </div>
 
