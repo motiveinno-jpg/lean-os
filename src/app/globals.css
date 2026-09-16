@@ -10233,6 +10233,8 @@ table.ch-st-table { min-width: 520px; } /* table. — .ev-table(뒤에 정의) �
 .sched-rem-unit { @apply text-[12px] text-[var(--text-dim)]; }
 .sched-rem-hh, .sched-rem-mm { @apply w-[76px] shrink-0; }
 .sched-rem-x { @apply h-7 w-7 shrink-0 rounded-lg text-[12px] text-[var(--text-dim)] hover:bg-[var(--bg-surface)] hover:text-[var(--danger)]; }
+.sched-rem-mail { @apply inline-flex shrink-0 cursor-pointer items-center gap-1 text-[12px] text-[var(--text-muted)] select-none; }
+.sched-rem-mail > input { @apply h-3.5 w-3.5 accent-[var(--primary)]; }
 .sched-rem-add { @apply self-start text-[12px] font-semibold text-[var(--primary)] hover:underline disabled:opacity-40 disabled:no-underline; }
 
 /* 달력 셀 '+N개 더' — 누르면 그 칸이 아래로 늘어난다 */

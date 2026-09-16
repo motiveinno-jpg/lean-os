@@ -22,7 +22,8 @@ export type ScheduleAttachment = { url: string; name: string; size?: number };
  *  프로젝트 v3 항목의 recurrence 와 같은 문법. */
 export type ScheduleRecurrence = { freq: "daily" | "weekly" | "monthly"; weekday?: number } | null;
 /** 알림 하나 — 시작 날짜 기준 며칠 전, 몇 시(KST). days_before 0 = 당일 */
-export type ScheduleReminder = { days_before: number; time: string };
+//   email: 이 알림을 메일로도 받는다(일정을 만든 사람에게). 기본은 앱 알림만.
+export type ScheduleReminder = { days_before: number; time: string; email?: boolean };
 /** 옛 한 칸(reminder) → 목록. 'morning' = 당일 08:30. */
 export function remindersOf(e: { reminders?: ScheduleReminder[] | null; reminder?: string | null } | null | undefined): ScheduleReminder[] {
   if (!e) return [];

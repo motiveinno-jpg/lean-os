@@ -315,6 +315,11 @@ export function ScheduleItemEditor({
                       onChange={(e) => upd({ time: `${hh || "08"}:${e.target.value}` })}>
                       {["00", "10", "20", "30", "40", "50"].map((m) => <option key={m} value={m}>{m}분</option>)}
                     </select>
+                    <label className="sched-rem-mail" title="이 알림을 메일로도 받습니다 (일정을 만든 사람에게)">
+                      <input type="checkbox" checked={!!r.email} disabled={!draft.from || !!draft.recurFreq}
+                        onChange={(e) => upd({ email: e.target.checked })} />
+                      <span>메일</span>
+                    </label>
                     <button type="button" className="sched-rem-x" aria-label="이 알림 빼기" onClick={() => set({ reminders: draft.reminders.filter((_, k) => k !== i) })}>✕</button>
                   </div>
                 );
