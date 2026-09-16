@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import { QueryScreen, QueryHead, QueryBody, QueryBar, QuickSearch, quickSearchHit, ChipGroup, ConditionPanel, ConditionRow, AppliedChips, ResultStrip, Stat, Pager, usePager, type AppliedChip } from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
+import { comparePosition } from "@/lib/position-rank";
 import { Ico } from "@/components/ui-icon";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -64,7 +65,13 @@ export default function TeamPage() {
   const filtered = useMemo(() => {
     const rows = employees.filter((e) => quickSearchHit(search, [e.name, e.department, e.position, e.email, e.phone]) && (depts.length === 0 || depts.includes(e.department || "미배정")));
     const k = sort.key;
-    return [...rows].sort((a, b) => (cmp((a as any)[k] || "", (b as any)[k] || "") * (sort.dir === "asc" ? 1 : -1)) || (a.name || "").localeCompare(b.name || ""));
+    const dir = sort.dir === "asc" ? 1 : -1;
+    //   직책 열은 가나다가 아니라 직책급 서열(대표→사원)로 정렬한다 — 조직도와 같은 기준(lib/position-rank).
+    //   그동안 리스트는 cmp(문자열)이라 직책을 누르면 과장·대리·대표… 가나다로 섰다.
+    if (k === "position") {
+      return [...rows].sort((a, b) => (comparePosition(a.position, b.position) * dir) || (a.name || "").localeCompare(b.name || "", "ko"));
+    }
+    return [...rows].sort((a, b) => (cmp((a as any)[k] || "", (b as any)[k] || "") * dir) || (a.name || "").localeCompare(b.name || ""));
   }, [employees, search, depts, sort]);
   const pager = usePager(filtered, 50, `${search}|${depts.join()}|${sort.key}${sort.dir}`);
   // 카드 보기 팀별 묶음 — 현재 쪽에 보이는 인원을 부서로 묶고,
