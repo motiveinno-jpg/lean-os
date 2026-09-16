@@ -1456,3 +1456,87 @@
 .lp9m .c16 .pc-list .pc-it.on{ border-color:var(--ind) }
 .lp9m .c16 .pc-list .pc-it.on span{ display:block; font-size:13.5px }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   화면 흉내 상자를 화면 폭에 맞춘다 (2026-09-16 사장님: 카드·상자 크기가 큰 화면 그대로라 읽기 어려움)
+   안쪽이 큰 화면 기준(고정 폭 표·4칸 격자·부채꼴 카드)으로 짜여 상자 밖으로 삐져나오던 곳을
+   폭·여백·글씨를 화면에 맞춰 줄여 담는다. 표처럼 줄일 수 없는 것만 그 상자 안에서 옆으로 민다.
+   ※ 통째로 축소(zoom)는 쓰지 않는다 — 상자와 글씨가 같이 작아져 읽기는 더 나빠진다.
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width:760px){
+/* ④ 수집·전표 시연 창 */
+.lp9m .demo .main{ padding:12px }
+.lp9m .demo .list{ padding:2px 12px; min-height:0 }
+.lp9m .demo .row{ gap:8px; padding:10px 0 }
+.lp9m .demo .row .ai{ min-width:0; font-size:11.5px }
+.lp9m .demo .hd b{ font-size:15px }
+.lp9m .demo .collect{ height:34px; padding:0 12px; font-size:12px }
+/* ⓐ 검은 카드 — 부채꼴로 겹친 계산서를 카드 폭 안에 */
+.lp9m .bvis{ height:300px }
+.lp9m .inv{ width:min(250px,84%); margin-left:min(-125px,-42%); top:28px; height:212px }
+.lp9m #bcards.in .inv.i3{ transform:translate(-20px,18px) rotate(-8deg) }
+.lp9m #bcards.in .inv.i2{ transform:translate(18px,10px) rotate(6deg) }
+.lp9m .vsum{ grid-template-columns:1fr 1fr; gap:6px }
+.lp9m .bcap{ padding:18px 18px 22px }
+/* ⓑ 13주 캘린더 — 눈금 자리와 막대 사이 여백을 줄여 상자 안에 */
+.lp9m .c8 .ccal{ margin-inline:8px }
+.lp9m .c8 .cylab{ width:22px }
+.lp9m .c8 .cplot{ left:26px }
+.lp9m .ccols{ gap:3px; padding-inline:0 }
+/* ⑩ 급여 표 — 칸을 좁히고 글씨를 줄여 네 칸을 담는다 */
+.lp9m .tscr{ padding:16px 14px }
+.lp9m .ptab{ padding:4px 8px }
+.lp9m .ptab .pr{ grid-template-columns:44px 1fr 1fr 1fr; gap:4px; font-size:11px; padding:7px 0 }
+.lp9m .ptab .pr.h{ font-size:9.5px }
+.lp9m .sumc{ gap:6px }
+.lp9m .sumc div{ padding:8px }
+.lp9m .sumc b{ font-size:16px }
+/* ⓖ 템플릿 보드 — 칸 사이와 카드 여백을 줄인다 */
+.lp9m .tpl-board{ padding:12px }
+.lp9m .tpl-cols{ gap:6px }
+.lp9m .tpl-k{ padding:9px 10px }
+.lp9m .tpl-k .mt{ gap:4px }
+/* ⓕ 프로젝트 — 보드·간트는 줄일 수 없으니 그 상자 안에서 옆으로 민다 */
+.lp9m .c16 .pc-stage{ overflow:hidden }
+.lp9m .c16 .pc-ly{ overflow-x:auto; overflow-y:hidden; overscroll-behavior-x:contain; scrollbar-width:none }
+.lp9m .c16 .pc-ly::-webkit-scrollbar{ display:none }
+/* ⑨ 유리 카드 속 줄 */
+.lp9m .gc{ padding:24px 18px }
+.lp9m .glass{ padding:16px }
+.lp9m .glass .it{ padding:10px; gap:8px; font-size:13px }
+/* ③ 전표 목록 */
+.lp9m .s3 .ledger{ padding:14px 12px }
+.lp9m .s3 .lcols, .lp9m .s3 .lrow{ grid-template-columns:66px minmax(0,1fr) 84px 22px; gap:6px }
+.lp9m .s3 .lrow{ font-size:13px }
+/* ⑧ 업종 카드 속 줄 */
+.lp9m .indc .vis{ padding:14px }
+.lp9m .indc .vis .card{ padding:10px 12px }
+.lp9m .indc .vis .card .ln{ gap:6px; font-size:12px }
+.lp9m .indc .vis .card .ln .ic{ width:24px; height:24px }
+/* 너무 작아 읽기 어려운 라벨은 바닥을 올린다 */
+.lp9m .cx{ font-size:11px }
+.lp9m .cc:nth-child(even) .cx{ visibility:visible }
+}
+@media (max-width:400px){
+.lp9m .c8 .ccal{ margin-inline:6px }
+.lp9m .tpl-k .mt{ flex-wrap:wrap; row-gap:4px }
+.lp9m .indc .vis .card{ padding:8px 10px; font-size:12px }
+.lp9m .indc .vis .card .ln{ gap:6px }
+.lp9m .ccols{ gap:2px }
+.lp9m .cx{ font-size:10px }
+.lp9m .cc:nth-child(even) .cx{ visibility:hidden }
+.lp9m .ptab .pr{ grid-template-columns:40px 1fr 1fr 1fr; font-size:10.5px }
+.lp9m .tpl-cols{ grid-template-columns:1fr 1fr }
+.lp9m .glass .it{ font-size:12.5px; padding:9px }
+}
+@media (max-width:344px){
+.lp9m .c8 .cylab{ display:none }
+.lp9m .c8 .cplot{ left:0 }
+.lp9m .indc .vis .card .ln{ font-size:11px; gap:5px }
+.lp9m .indc .vis .card .ln .r{ font-size:10.5px }
+.lp9m .ptab .pr{ grid-template-columns:34px 1fr 1fr 1fr; gap:3px; font-size:9.5px }
+.lp9m .vsum{ grid-template-columns:1fr }
+.lp9m .tscr{ padding:14px 10px }
+.lp9m .tpl-board{ padding:9px }
+.lp9m .tpl-k{ padding:8px }
+}
