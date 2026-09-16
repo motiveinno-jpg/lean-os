@@ -4,6 +4,7 @@ import { Ico } from "@/components/ui-icon";
 import { CopyButton } from "@/components/copy-text";
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
+import { sealAsDataUrl } from "@/lib/signatures";
 import { formatPhone } from "@/lib/phone";
 
 import { useState } from "react";
@@ -1710,7 +1711,8 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
       const company = logRead('_components/EmployeeDetailPanel:company', await supabase.from("companies").select("name, representative, address, business_number, seal_url").eq("id", companyId).maybeSingle());
       if (!company) { toast("회사 정보를 불러올 수 없습니다", "error"); return; }
       const empData = { name: emp.name, department: emp.department || "", position: emp.position || "", hire_date: emp.hire_date, employee_number: emp.employee_number, birth_date: emp.birth_date };
-      const companyData = { name: company.name, representative: company.representative || "", address: company.address || "", business_number: company.business_number || "", seal_url: company.seal_url || "" };
+      // 직인은 비공개 버킷 주소라 원본 URL 로는 증명서 PDF 에 안 실린다 — data URL 로 심는다.
+      const companyData = { name: company.name, representative: company.representative || "", address: company.address || "", business_number: company.business_number || "", seal_url: company.seal_url ? ((await sealAsDataUrl(company.seal_url)) || "") : "" };
 
       let result: { pdf: Blob; certificateNumber: string };
       const finalPurpose = purpose.trim() || "제출용";

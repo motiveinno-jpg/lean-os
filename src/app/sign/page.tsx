@@ -547,7 +547,8 @@ function SignContent() {
             companies: company || { name: "" },
             employees: { name: sigReq.signer_name, email: sigReq.signer_email, department: "", position: "" },
             // 갑 직인 — ctx.company.seal_url (거래처 서명 완료 화면 갑 박스 직인 표시)
-            seal_url: company?.seal_url || null,
+            // 직인은 비공개 버킷이라 익명 서명자는 원본 URL 로 못 본다 — 토큰으로만 여는 서버 라우트로 받는다.
+            seal_url: company?.seal_url ? (String(company.seal_url).startsWith("data:") ? company.seal_url : `/api/contract-seal?token=${encodeURIComponent(token)}`) : null,
             // 을(거래처) 회사정보 — partner 있으면 footer 가 회사 구조(회사명/사업자번호/대표자)로 분기
             contract_meta: partner
               ? {
@@ -620,7 +621,9 @@ function SignContent() {
           }
         } catch { /* 비차단 */ }
       }
-      setPkg({ ...p, expired, items: items || [], seal_url: sealUrl, seal_applied_at: sealAppliedAt, seal_company_name: sealCompanyName, contract_meta: contractMeta } as any);
+      // 직인은 비공개 버킷이라 익명 서명자는 원본 URL 로 못 본다 — 토큰으로만 여는 서버 라우트로 받는다.
+      const sealSrc = sealUrl ? (sealUrl.startsWith("data:") ? sealUrl : `/api/contract-seal?token=${encodeURIComponent(token)}`) : null;
+      setPkg({ ...p, expired, items: items || [], seal_url: sealSrc, seal_applied_at: sealAppliedAt, seal_company_name: sealCompanyName, contract_meta: contractMeta } as any);
 
       // Saved signature 도 RPC 가 employees.saved_signature 로 함께 반환
       if (p.employees?.saved_signature) {

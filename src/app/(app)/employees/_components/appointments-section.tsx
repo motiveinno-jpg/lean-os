@@ -10,6 +10,7 @@ import { DepartmentField, PositionField } from "@/components/org-option-fields";
 import { CurrencyInput } from "@/components/currency-input";
 import { listAppointments, addAppointment, deleteAppointment, importLegacyAppointments, appointmentLines, APPOINTMENT_KINDS, kindLabel, type AppointmentKind } from "@/lib/hr-appointments";
 import { generatePersonnelRecordCard } from "@/lib/certificates";
+import { sealAsDataUrl } from "@/lib/signatures";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 
@@ -54,7 +55,8 @@ export function AppointmentsSection({ employeeId, companyId, emp, userId }: { em
       const blob = await generatePersonnelRecordCard({
         employee: { name: emp?.name || "", department: emp?.department || undefined, position: emp?.position || undefined, hire_date: emp?.hire_date || todayKst(), employee_number: emp?.employee_number || undefined, birth_date: emp?.birth_date || undefined,
           employment_type: ({ full_time: "정규직", part_time: "파트타임", contract: "계약직", intern: "인턴", freelancer: "프리랜서", temporary: "임시직" } as Record<string, string>)[emp?.employment_type] || emp?.employment_type || undefined, email: emp?.email || undefined, phone: emp?.phone || undefined, end_date: emp?.resignation_date || undefined },
-        company: { name: co?.name || "", representative: co?.representative || undefined, address: co?.address || undefined, business_number: co?.business_number || undefined, seal_url: co?.seal_url || undefined },
+        // 직인은 비공개 버킷 주소라 원본 URL 로는 PDF 에 안 실린다 — data URL 로 심는다.
+        company: { name: co?.name || "", representative: co?.representative || undefined, address: co?.address || undefined, business_number: co?.business_number || undefined, seal_url: co?.seal_url ? ((await sealAsDataUrl(co.seal_url)) || undefined) : undefined },
         history: appointmentLines(list),
       });
       const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `인사기록카드_${emp?.name || ""}_${todayKst()}.pdf`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000);
