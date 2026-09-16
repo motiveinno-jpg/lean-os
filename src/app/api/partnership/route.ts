@@ -19,6 +19,35 @@ const LIMITS = { company_name: 120, contact_name: 60, email: 160, phone: 40, mes
 const clean = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max);
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
+//   접수 알림 (2026-09-16) — 종전에는 DB 에 쌓이기만 해 운영자 화면을 직접 열어야 문의가 온 걸 알았다.
+//   ⚠️ 알림이 실패해도 접수는 성공이다. 문의를 잃는 것보다 알림을 놓치는 편이 낫다 — 그래서 await 하되 throw 하지 않는다.
+//   인증은 service_role 키(엣지가 JWT 의 role 을 확인) — 공유 비밀값을 새로 두면 env 가 빠졌을 때 조용히 꺼진다.
+async function notifyInquiry(p: {
+  companyName: string; contactName: string; email: string; phone: string; message: string;
+}) {
+  try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) return;
+
+    const res = await fetch(`${url}/functions/v1/send-inquiry-notification`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: key, Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        company_name: p.companyName,
+        contact_name: p.contactName,
+        email: p.email,
+        phone: p.phone,
+        message: p.message,
+        created_at: new Date().toISOString(),
+      }),
+    });
+    if (!res.ok) console.error('[partnership] 접수 알림 실패:', res.status);
+  } catch (e) {
+    Sentry.captureException(e); // 접수는 이미 저장됐다 — 알림 실패만 남긴다
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -86,6 +115,8 @@ export async function POST(req: NextRequest) {
       status: 'new',
     });
     if (error) throw error;
+
+    await notifyInquiry({ companyName, contactName, email, phone, message });
 
     return NextResponse.json({ ok: true });
   } catch (e) {
