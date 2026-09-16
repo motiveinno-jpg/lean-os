@@ -118,10 +118,15 @@ export async function POST(req: NextRequest) {
       }
       // employees 도 같이 제거 (있으면)
       await admin.from("employees").delete().eq("company_id", companyId).eq("user_id", userId);
-      // user 의 회사 소속만 NULL (chat 등 FK 보존)
-      const { error } = await admin.from("users").update({ company_id: null }).eq("id", userId);
+      // 회사 소속 끊기 + 이메일 해제 — 퇴사 처리(offboard_member)와 같은 기준. 회사 데이터 귀속 때문에 users 행은
+      //   남기고 비운다(company_id·auth 링크 제거, 이메일은 전역 유일 NOT NULL 이라 유일 토큰으로 치환 → 재가입 가능).
+      const { error } = await admin.from("users")
+        .update({ company_id: null, auth_id: null, email: `former+${userId}@removed.invalid` })
+        .eq("id", userId);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ ok: true, message: "회사에서 제외되었습니다." });
+      // 로그인 계정 삭제 — 로그인 차단 + 원래 이메일을 다른 회사 재가입에 다시 쓸 수 있게. 실패해도 접근·재가입은 위에서 이미 처리됨.
+      try { await admin.auth.admin.deleteUser(userId); } catch { /* best-effort */ }
+      return NextResponse.json({ ok: true, message: "회사에서 제외하고 로그인 계정을 삭제했습니다." });
     }
 
     return NextResponse.json({ error: "unknown action" }, { status: 400 });
