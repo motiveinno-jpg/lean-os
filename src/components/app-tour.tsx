@@ -53,7 +53,7 @@ const TOUR_STEPS: TourStep[] = [
     },
   },
   {
-    href: "/collect?tab=bank", title: "수집·전표",
+    href: "/collect", title: "수집·전표",
     desc: "은행·카드 거래를 자동으로 모으고 계정과목까지 분류합니다.",
     howTo: {
       label: "은행·카드 자동 수집 등록 방법",
@@ -140,6 +140,26 @@ const TOUR_STEPS: TourStep[] = [
   },
   { href: null, title: "준비 끝!", desc: "자세한 사용법은 사이드바의 사용 가이드에서 볼 수 있습니다. 이제 시작해 보세요." },
 ];
+
+// 레일+패널 사이드바 — 각 스텝 항목이 속한 그룹(레일 버튼 aria-label).
+//   홈 이외 그룹의 항목은 그 그룹 패널을 열기 전엔 DOM 에 없다. 스텝 진입 시 이 그룹 레일 버튼을
+//   먼저 눌러 패널을 연 뒤 항목을 측정한다(안 그러면 하이라이트가 빈 곳/구석에 찍힌다).
+const STEP_GROUP: Record<string, string> = {
+  "/dashboard": "홈",
+  "/copilot": "홈",
+  "/tax-invoices": "재무",
+  "/collect": "재무",
+  "/schedule": "업무",
+  "/projecthub": "업무",
+  "/approvals": "업무",
+  "/board": "업무",
+  "/signatures": "업무",
+  "/employees": "인사",
+  "/attendance": "인사",
+  "/bank": "재무",
+  "/inventory/products": "재고",
+  "/settings/company": "설정",
+};
 
 export function shouldStartTour(searchParams: URLSearchParams | null): boolean {
   return !!searchParams && searchParams.get("tour") === "1";
@@ -281,12 +301,25 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
   // 현재 스텝의 사이드바 항목 위치 계산 — scrollIntoView 는 스텝 진입 때 한 번만(scroll=true)
   const measure = useCallback((scroll = false) => {
     if (!step?.href) { setRect(null); return; }
-    
+
+    // 레일+패널 사이드바 — 대상 항목이 든 그룹 패널을 먼저 연다(다른 그룹 항목은 패널 DOM 에 없다).
+    //   이미 열려 있으면(aria-pressed) 다시 누르지 않는다(스크롤·리사이즈 재측정 때 깜빡임 방지).
+    //   클릭 후 패널은 다음 렌더에 나오므로, 이 호출은 비어도 스텝 진입 이펙트의 지연 재측정이 잡는다.
+    const grp = STEP_GROUP[step.href];
+    if (grp) {
+      const rb = document.querySelector(`.sb-rail-btn[aria-label="${grp}"]`) as HTMLElement | null;
+      if (rb && rb.getAttribute("aria-pressed") !== "true") rb.click();
+    }
+
     // 같은 href 가 여러 개다(예: 상단 로고도 /dashboard). 메뉴 라벨 텍스트가 있는 쪽을 고르고,
     // 없으면 마지막 매치(사이드바 메뉴가 로고보다 뒤에 렌더된다). 첫 매치를 쓰면 로고가 잡힌다(2026-08-10 prod 확인).
     const els = Array.from(document.querySelectorAll(`a[href="${step.href}"], a[href="${step.href}/"]`)) as HTMLElement[];
     const label = step.title.split(" ")[0];
-    const el = els.find((e) => e.textContent?.includes(label)) || els[els.length - 1] || null;
+    // 같은 href 가 데스크톱 패널·모바일 내비에 중복 존재한다. 숨은(크기 0) 복제본을 걸러
+    //   보이는 요소만 후보로 둔다 — 안 그러면 0×0 인 모바일 링크가 잡혀 하이라이트가 좌상단 구석에 찍힌다.
+    const shown = els.filter((e) => { const b = e.getBoundingClientRect(); return b.width > 0 && b.height > 0; });
+    const pool = shown.length ? shown : els;
+    const el = pool.find((e) => e.textContent?.includes(label)) || pool[pool.length - 1] || null;
     if (!el) { setRect(null); return; }
     if (scroll) el.scrollIntoView({ block: "center", behavior: "smooth" });
     const r = el.getBoundingClientRect();
@@ -295,13 +328,14 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
 
   useEffect(() => {
     measure(true);
-    // smooth 스크롤이 끝난 뒤 자리 확정 + 스크롤(사이드바 내부 포함, 캡처) 동안 하이라이트가 따라간다
+    // 그룹 패널을 여는 클릭은 다음 렌더에 반영되므로, 패널이 나온 뒤 측정+스크롤하도록 두 번 더 잰다.
     //   — 스텝 표시 때 사이드바가 부드럽게 움직이는 중에 한 번만 측정하면 어긋난 자리에 그려진다(2026-08-10 prod 확인)
-    const t = setTimeout(() => measure(), 400);
+    const t1 = setTimeout(() => measure(true), 260);
+    const t2 = setTimeout(() => measure(), 700);
     const onMove = () => measure();
     window.addEventListener("resize", onMove);
     window.addEventListener("scroll", onMove, true);
-    return () => { clearTimeout(t); window.removeEventListener("resize", onMove); window.removeEventListener("scroll", onMove, true); };
+    return () => { clearTimeout(t1); clearTimeout(t2); window.removeEventListener("resize", onMove); window.removeEventListener("scroll", onMove, true); };
   }, [idx, measure]);
 
   // 종료 — persist=true('다시 보지 않기' 체크)일 때만 계정(user_preferences)에 기록해 영구 미노출.
