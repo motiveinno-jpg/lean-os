@@ -80,6 +80,12 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
                   {s.list.map((t, j) => <li key={j}>{t}</li>)}
                 </ul>
               )}
+              {s.link && (
+                <Link href={s.link.href} className="bl8-sec-link">
+                  <b>{s.link.label}</b>
+                  {s.link.note && <span>{s.link.note}</span>}
+                </Link>
+              )}
               {s.table && (
                 <div className="bl8-table">
                   <table>
