@@ -47,19 +47,6 @@
 .ipg-btn.w{ background:#fff; color:var(--deep) }
 .ipg-btn.s{ background:rgba(255,255,255,.12); color:#fff; border-color:rgba(255,255,255,.3) }
 
-/* 히어로 카드 세 장 */
-.ipg-vis{ position:relative; min-height:400px }
-.ipg-vis .main{ position:absolute; left:0; top:52px; width:min(100%,318px); z-index:2 }
-.ipg-vis .card-a, .ipg-vis .card-b{ position:absolute; right:0; width:198px; z-index:3 }
-.ipg-vis .card-a{ top:0 }
-.ipg-vis .card-b{ bottom:0 }
-.ipg-vis .cap{ position:absolute; left:0; bottom:6px; width:min(100%,318px); font-size:12.5px; color:#9aa5e0 }
-.ipg-vis .ipg-ui{ box-shadow:0 30px 60px -24px rgba(8,10,40,.75) }
-.ipg-vis .card-a .ipg-row, .ipg-vis .card-b .ipg-row{ padding:8px 12px }
-.ipg-vis .card-a .ipg-uih, .ipg-vis .card-b .ipg-uih{ font-size:12.5px }
-.ipg-vis .card-a .ipg-row .t, .ipg-vis .card-b .ipg-row .t{ font-size:12px }
-.ipg-vis .card-b .ipg-bars{ height:60px; padding:10px 12px }
-
 /* 흐름 띠 */
 .ipg-flow{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin-top:26px }
 .ipg-fl{ position:relative; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 13px; box-shadow:var(--sh) }
@@ -171,4 +158,315 @@
 @media (max-width:520px){
   .ipg-flow{ grid-template-columns:1fr }
   .ipg-menus .list b{ width:104px }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   2차 (2026-09-16) — 업종군마다 다른 히어로 그림 7종과 본문 섹션
+   ▸ 움직임은 히어로 그림 안에서만. 「움직임 줄이기」를 켜면 멈춘다.
+   ══════════════════════════════════════════════════════════════ */
+.ipg-hero.short{ padding-block:clamp(44px,6vw,72px) }
+.ipg-hero.short h1{ margin-top:10px; font-size:clamp(28px,4vw,46px); font-weight:900; color:#fff; letter-spacing:-.05em }
+.ipg-kpis{ margin-top:24px; display:flex; gap:22px; flex-wrap:wrap }
+.ipg-kpis div{ font-size:12.5px; color:#b6c0f5 }
+.ipg-kpis b{ display:block; font-size:21px; font-weight:900; color:#fff; letter-spacing:-.03em; font-variant-numeric:tabular-nums }
+.ipg-art{ position:relative }
+
+/* 업종군 색 — 히어로 배경과 강조색만 바꾼다 */
+.ipg-manufacturing .ipg-hero{ background:linear-gradient(115deg,#191d52 0%,#242a76 46%,#2f3aa0 100%) }
+.ipg-manufacturing .ipg-hero .ipg-eyebrow{ color:#8fe3ff }
+.ipg-wholesale .ipg-hero{ background:linear-gradient(118deg,#1a1f5a 0%,#282f86 50%,#3742ab 100%) }
+.ipg-wholesale .ipg-hero .ipg-eyebrow{ color:#b5c0ff }
+.ipg-ecommerce .ipg-hero{ background:linear-gradient(118deg,#101a44 0%,#16307a 54%,#1b47a0 100%) }
+.ipg-ecommerce .ipg-hero .ipg-eyebrow{ color:#9ec8ff }
+.ipg-agency .ipg-hero{ background:linear-gradient(118deg,#221a4e 0%,#33246e 50%,#4a2f93 100%) }
+.ipg-agency .ipg-hero .ipg-eyebrow{ color:#d9c2ff }
+.ipg-construction .ipg-hero{ background:linear-gradient(120deg,#2a1e12 0%,#3b2a17 45%,#6b4a1f 100%) }
+.ipg-construction .ipg-hero .ipg-eyebrow{ color:#fcd9a3 }
+.ipg-logistics .ipg-hero{ background:linear-gradient(118deg,#141a22 0%,#1f2b38 48%,#2b3f52 100%) }
+.ipg-logistics .ipg-hero .ipg-eyebrow{ color:#a8d5e8 }
+.ipg-professional .ipg-hero{ background:linear-gradient(118deg,#331a2c 0%,#4a2340 46%,#6b2f52 100%) }
+.ipg-professional .ipg-hero .ipg-eyebrow{ color:#ffc2dd }
+.ipg-shot{ background-size:cover; background-position:right center;
+  -webkit-mask-image:linear-gradient(100deg, transparent 10%, #000 46%); mask-image:linear-gradient(100deg, transparent 10%, #000 46%) }
+.ipg-veil{ background:linear-gradient(100deg, rgba(10,12,40,.92) 6%, rgba(12,14,44,.78) 44%, rgba(12,14,44,.42) 100%) }
+
+/* ① 흐름 파이프라인 */
+.ipg-pipe .node{ display:flex; align-items:center; gap:12px; padding:13px 15px; border-radius:16px;
+  background:rgba(255,255,255,.09); border:1px solid rgba(255,255,255,.16) }
+.ipg-pipe .node > i{ flex:none; width:34px; height:34px; border-radius:11px; display:grid; place-items:center;
+  background:rgba(255,255,255,.14); color:#8fe3ff; font-style:normal; font-size:14px; font-weight:900 }
+.ipg-pipe .node b{ display:block; color:#fff; font-size:15px; font-weight:800 }
+.ipg-pipe .node span{ display:block; font-size:12.5px; color:#a9b2ea }
+.ipg-pipe .node em{ margin-left:auto; font-style:normal; font-size:14px; font-weight:900; color:#fff; font-variant-numeric:tabular-nums }
+.ipg-pipe .node.hot{ background:rgba(103,232,249,.14); border-color:rgba(103,232,249,.4) }
+.ipg-pipe .link{ position:relative; height:16px; margin-left:32px }
+.ipg-pipe .link::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:2px; background:rgba(255,255,255,.25) }
+.ipg-pipe .link i{ position:absolute; left:-3px; width:8px; height:8px; border-radius:50%; background:#67e8f9;
+  box-shadow:0 0 12px rgba(103,232,249,.9); animation:ipg-drop 2.6s cubic-bezier(.5,0,.5,1) infinite }
+.ipg-pipe > div:nth-child(2) .link i{ animation-delay:.6s }
+.ipg-pipe > div:nth-child(3) .link i{ animation-delay:1.2s }
+@keyframes ipg-drop{ 0%{ top:-6px; opacity:0 } 15%{ opacity:1 } 85%{ opacity:1 } 100%{ top:14px; opacity:0 } }
+
+/* ② 채널 인박스 */
+.ipg-inbox{ display:grid; gap:12px }
+.ipg-inbox .tiles{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px }
+.ipg-inbox .tiles div{ border-radius:14px; padding:11px 12px; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18) }
+.ipg-inbox .tiles small{ display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:800; color:#b9cdf2 }
+.ipg-inbox .tiles small i{ width:7px; height:7px; border-radius:50%; background:#7dd3fc }
+.ipg-inbox .tiles small i.d1{ background:#fbbf24 }
+.ipg-inbox .tiles small i.d2{ background:#a5b4fc }
+.ipg-inbox .tiles b{ display:block; margin-top:5px; font-size:19px; font-weight:900; color:#fff; font-variant-numeric:tabular-nums }
+.ipg-inbox .ordbox{ border-radius:18px; background:#fff; color:#191f28; overflow:hidden; box-shadow:0 30px 60px -24px rgba(3,10,45,.85) }
+.ipg-inbox .ordbox .h{ display:flex; align-items:center; gap:8px; padding:11px 14px; border-bottom:1px solid #e8ebf2; font-size:13px; font-weight:800 }
+.ipg-inbox .ordbox .h span{ margin-left:auto; font-size:11px; font-weight:800; color:#0e9f5e; background:#e6f7ee; padding:3px 8px; border-radius:6px }
+.ipg-inbox .ordbox .o{ display:flex; align-items:center; gap:9px; padding:9px 14px; border-bottom:1px solid #eef0f4; font-size:12.5px;
+  animation:ipg-slot 6s ease-in-out infinite }
+.ipg-inbox .ordbox .o i{ width:7px; height:7px; border-radius:50%; flex:none; background:#0e9f5e }
+.ipg-inbox .ordbox .o i.warn{ background:#e07b00 }
+.ipg-inbox .ordbox .o i.ind{ background:#6366f1 }
+.ipg-inbox .ordbox .o i.bad{ background:#e42939 }
+.ipg-inbox .ordbox .o b{ margin-left:auto; font-variant-numeric:tabular-nums }
+@keyframes ipg-slot{ 0%{ opacity:0; transform:translateY(-6px) } 8%,92%{ opacity:1; transform:none } 100%{ opacity:1 } }
+.ipg-inbox .ordbox .foot{ display:flex; gap:12px; flex-wrap:wrap; padding:11px 14px; background:#f4f6fa; font-size:11.5px; color:#8b95a1 }
+.ipg-inbox .ordbox .foot b{ color:#191f28; font-variant-numeric:tabular-nums }
+.ipg-inbox .gauges{ display:grid; grid-template-columns:1fr 1fr; gap:8px }
+.ipg-inbox .gauges div{ border-radius:13px; padding:10px 12px; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18) }
+.ipg-inbox .gauges small{ font-size:11px; color:#b9cdf2; font-weight:700 }
+.ipg-inbox .gauges b{ display:block; margin-top:3px; font-size:15px; color:#fff; font-variant-numeric:tabular-nums }
+.ipg-inbox .gauges .bar{ margin-top:7px; height:5px; border-radius:3px; background:rgba(255,255,255,.18); overflow:hidden }
+.ipg-inbox .gauges .bar i{ display:block; height:100%; border-radius:3px; background:#7dd3fc }
+.ipg-inbox .gauges div:last-child .bar i{ background:#fca5a5 }
+
+/* ③ 보드 + 간트 */
+.ipg-board{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px }
+.ipg-board .col{ border-radius:16px; padding:11px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16) }
+.ipg-board .col h5{ margin:0 0 9px; font-size:12px; font-weight:800; color:#e7dcff; display:flex; align-items:center; gap:6px }
+.ipg-board .col h5 i{ width:7px; height:7px; border-radius:50% }
+.ipg-board .k{ background:#fff; color:#191f28; border-radius:11px; padding:9px 11px; margin-bottom:8px; box-shadow:0 12px 26px -16px rgba(10,6,40,.9) }
+.ipg-board .k b{ display:block; font-size:12.5px; font-weight:800 }
+.ipg-board .k span{ display:block; margin-top:3px; font-size:11px; color:#8b95a1 }
+.ipg-board .k.move{ animation:ipg-lift 3.4s ease-in-out infinite }
+@keyframes ipg-lift{ 0%,72%{ transform:translate(0,0) rotate(0) } 82%{ transform:translate(6px,-8px) rotate(1.2deg) } 100%{ transform:translate(0,0) } }
+.ipg-gantt{ margin-top:12px; border-radius:16px; padding:13px 14px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16) }
+.ipg-gantt .g{ display:grid; grid-template-columns:78px 1fr; align-items:center; gap:10px; font-size:11.5px; color:#d6ccf6; padding:5px 0 }
+.ipg-gantt .track{ position:relative; height:10px; border-radius:6px; background:rgba(255,255,255,.12); overflow:hidden }
+.ipg-gantt .track i{ position:absolute; top:0; bottom:0; border-radius:6px; background:linear-gradient(90deg,#a78bfa,#818cf8);
+  transform-origin:left; animation:ipg-grow 3.2s cubic-bezier(.3,0,.2,1) infinite }
+.ipg-gantt .g:nth-child(2) .track i{ animation-delay:.3s }
+.ipg-gantt .g:nth-child(3) .track i{ animation-delay:.6s }
+@keyframes ipg-grow{ 0%{ transform:scaleX(.15) } 55%,100%{ transform:scaleX(1) } }
+
+/* ④ 현장 공정 · 기성 */
+.ipg-site{ border-radius:20px; padding:16px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16) }
+.ipg-site h5{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:800; color:#fff }
+.ipg-site h5 span{ margin-left:auto; font-size:11.5px; font-weight:800; color:#ffd8a8; background:rgba(255,216,168,.16); padding:3px 9px; border-radius:999px }
+.ipg-site .gr{ display:grid; grid-template-columns:96px 1fr; align-items:center; gap:10px; margin-top:14px; font-size:12px; color:#f0e0c8 }
+.ipg-site .tr{ position:relative; height:14px; border-radius:7px; background:rgba(255,255,255,.12) }
+.ipg-site .tr i{ position:absolute; top:0; bottom:0; border-radius:7px; background:linear-gradient(90deg,#f6b26b,#e08a2e);
+  transform-origin:left; animation:ipg-grow 4s cubic-bezier(.3,0,.2,1) infinite }
+.ipg-site .gr:nth-of-type(3) .tr i{ animation-delay:.4s }
+.ipg-site .gr:nth-of-type(4) .tr i{ animation-delay:.8s }
+.ipg-site .pin{ position:absolute; top:-6px; width:2px; height:26px; background:#fff; opacity:.75 }
+.ipg-site .pin::after{ content:"기성"; position:absolute; top:-15px; left:50%; transform:translateX(-50%); font-size:9.5px; font-weight:800; color:#fff; white-space:nowrap }
+.ipg-site .money{ margin-top:18px; display:grid; grid-template-columns:repeat(3,1fr); gap:8px }
+.ipg-site .money div{ border-radius:12px; padding:10px; background:rgba(0,0,0,.22) }
+.ipg-site .money small{ display:block; font-size:11px; color:#e9d5b4 }
+.ipg-site .money b{ display:block; margin-top:3px; font-size:15px; color:#fff; font-variant-numeric:tabular-nums }
+
+/* ⑤ 창고 격자 */
+.ipg-whgrid .cells{ display:grid; grid-template-columns:repeat(3,1fr); gap:9px }
+.ipg-whgrid .cell{ border-radius:14px; padding:13px 14px; background:rgba(255,255,255,.09); border:1px solid rgba(255,255,255,.18); border-left-width:3px }
+.ipg-whgrid .cell.ok{ border-left-color:#34d399 }
+.ipg-whgrid .cell.warn{ border-left-color:#fbbf24 }
+.ipg-whgrid .cell.bad{ border-left-color:#fb7185 }
+.ipg-whgrid .cell.ind{ border-left-color:#a5b4fc }
+.ipg-whgrid .cell.gray{ border-left-color:rgba(255,255,255,.3) }
+.ipg-whgrid .cell small{ display:block; font-size:11.5px; color:#b9c2f0; font-weight:700 }
+.ipg-whgrid .cell b{ display:block; margin-top:4px; font-size:17px; color:#fff; font-weight:900; font-variant-numeric:tabular-nums }
+.ipg-whgrid .note{ margin-top:10px; display:grid; grid-template-columns:repeat(3,1fr); gap:9px }
+.ipg-whgrid .note div{ border-radius:13px; padding:11px 12px; background:rgba(0,0,0,.2) }
+.ipg-whgrid .note small{ display:block; font-size:11px; color:#b9c2f0 }
+.ipg-whgrid .note b{ display:block; margin-top:3px; font-size:14px; color:#fff; font-variant-numeric:tabular-nums }
+
+/* ⑥ 시간대 처리 로그 */
+.ipg-loghero{ border-radius:20px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.16); overflow:hidden }
+.ipg-loghero .h{ display:flex; padding:12px 15px; font-size:13px; font-weight:800; color:#fff; border-bottom:1px solid rgba(255,255,255,.14) }
+.ipg-loghero .h span{ margin-left:auto; font-size:11.5px; font-weight:700; color:#a8d5e8 }
+.ipg-loghero .lr{ display:flex; align-items:center; gap:10px; padding:10px 15px; font-size:12.5px; color:#cfe0ea;
+  border-bottom:1px solid rgba(255,255,255,.08); animation:ipg-slot 7s ease-in-out infinite }
+.ipg-loghero .lr time{ font-variant-numeric:tabular-nums; color:#8fb6cc; font-size:11.5px }
+.ipg-loghero .lr b{ color:#fff; font-weight:800 }
+.ipg-loghero .lr span{ color:#a8bcc9 }
+.ipg-loghero .lr i{ margin-left:auto; width:8px; height:8px; border-radius:50%; background:#34d399 }
+.ipg-loghero .lr i.ind{ background:#7dd3fc }
+.ipg-loghero .lr i.warn{ background:#fbbf24 }
+.ipg-loghero .lr i.bad{ background:#fb7185 }
+.ipg-loghero .kv{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:12px 15px; background:rgba(0,0,0,.2) }
+.ipg-loghero .kv small{ display:block; font-size:11px; color:#9fb6c4 }
+.ipg-loghero .kv b{ display:block; margin-top:3px; font-size:15px; color:#fff; font-variant-numeric:tabular-nums }
+
+/* ⑦ 월 달력(히어로) */
+.ipg-monthhero .cal{ display:grid; grid-template-columns:repeat(6,1fr); gap:6px }
+.ipg-monthhero .d{ position:relative; min-height:46px; border-radius:10px; padding:6px 7px; background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.12); font-size:11px; color:#e7c9dd }
+.ipg-monthhero .d span{ font-variant-numeric:tabular-nums; color:#f6d9e8; font-weight:700 }
+.ipg-monthhero .d em{ display:block; margin-top:3px; font-style:normal; font-size:10px; font-weight:800; color:#fff; line-height:1.3 }
+.ipg-monthhero .d.on{ background:rgba(255,255,255,.16) }
+.ipg-monthhero .d.on.bad{ border-color:rgba(251,113,133,.7) }
+.ipg-monthhero .d.on.warn{ border-color:rgba(251,191,36,.7) }
+.ipg-monthhero .d.on.ind{ border-color:rgba(165,180,252,.7) }
+.ipg-monthhero .d.on.ok{ border-color:rgba(52,211,153,.7) }
+.ipg-monthhero .side{ margin-top:10px; display:grid; grid-template-columns:repeat(3,1fr); gap:8px }
+.ipg-monthhero .side div{ border-radius:12px; padding:10px 12px; background:rgba(0,0,0,.22) }
+.ipg-monthhero .side small{ display:block; font-size:11px; color:#e7c9dd }
+.ipg-monthhero .side b{ display:block; margin-top:3px; font-size:15px; color:#fff; font-variant-numeric:tabular-nums }
+
+/* 본문 — 하루 시간표 */
+.ipg-clock{ margin-top:28px; display:grid; grid-template-columns:repeat(4,1fr); border:1px solid var(--line); border-radius:20px; overflow:hidden; background:var(--card) }
+.ipg-clock > div{ padding:22px 20px; border-right:1px solid var(--line) }
+.ipg-clock > div:last-child{ border-right:0 }
+.ipg-clock time{ font-size:12px; font-weight:900; color:var(--ind); letter-spacing:.04em }
+.ipg-clock b{ display:block; margin-top:8px; font-size:17px; font-weight:900; color:var(--ink); letter-spacing:-.02em }
+.ipg-clock p{ margin-top:6px; font-size:13px; color:var(--ink2) }
+.ipg-clock .mini{ margin-top:12px; border-radius:11px; background:var(--bg2); padding:9px 11px; font-size:11.5px; color:var(--ink2); display:grid; gap:5px }
+.ipg-clock .mini span{ display:flex }
+.ipg-clock .mini b{ margin:0 0 0 auto; font-size:11.5px; font-variant-numeric:tabular-nums }
+
+/* 본문 — 남는 돈 계산 */
+.ipg-calc{ margin-top:26px; display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:18px; align-items:center }
+.ipg-calc .stack{ border-radius:20px; border:1px solid var(--line); background:var(--card); padding:22px; box-shadow:var(--sh) }
+.ipg-calc .row{ display:flex; align-items:center; gap:12px; padding:9px 0 }
+.ipg-calc .row .lab{ width:96px; font-size:13px; font-weight:800; color:var(--ink) }
+.ipg-calc .row .bar{ flex:1; height:16px; border-radius:8px; background:var(--bg2); overflow:hidden }
+.ipg-calc .row .bar i{ display:block; height:100% }
+.ipg-calc .row .val{ width:118px; text-align:right; font-size:13px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums }
+.ipg-calc .row.sum{ margin-top:6px; border-top:1px dashed var(--line); padding-top:14px }
+.ipg-calc .row.sum .val{ color:var(--ok) }
+.ipg-calc .cmp{ display:grid; gap:10px }
+.ipg-calc .cmp > div{ border-radius:16px; border:1px solid var(--line); background:var(--card); padding:14px 16px; display:flex; align-items:center; gap:10px; box-shadow:var(--sh) }
+.ipg-calc .cmp small{ font-size:12px; font-weight:800; color:var(--ink3) }
+.ipg-calc .cmp b{ font-size:14px; font-weight:800; color:var(--ink) }
+.ipg-calc .cmp em{ margin-left:auto; font-style:normal; font-size:17px; font-weight:900; font-variant-numeric:tabular-nums }
+.ipg-calc .cmp em.ok{ color:var(--ok) }
+.ipg-calc .cmp em.warn{ color:var(--warn) }
+.ipg-calc .cmp em.bad{ color:var(--bad) }
+.ipg-calc .cmp .note{ background:var(--soft); border-color:transparent; display:block }
+.ipg-calc .cmp .note small{ color:var(--ind) }
+.ipg-calc .cmp .note b{ display:block; margin-top:4px; color:var(--ind); font-size:13.5px; line-height:1.55 }
+
+/* 본문 — 점검 목록 */
+.ipg-checks{ margin-top:26px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px }
+.ipg-checks > div{ display:flex; gap:12px; align-items:flex-start; border:1px solid var(--line); border-radius:16px; padding:16px 18px; background:var(--card) }
+.ipg-checks i{ flex:none; width:22px; height:22px; border-radius:7px; background:var(--soft); color:var(--ind); font-style:normal; font-size:12px; font-weight:900; display:grid; place-items:center }
+.ipg-checks b{ display:block; font-size:14.5px; font-weight:800; color:var(--ink) }
+.ipg-checks span{ display:block; margin-top:3px; font-size:13px; color:var(--ink2); line-height:1.6 }
+
+/* 본문 — 신호등 */
+.ipg-signal{ margin-top:26px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px }
+.ipg-signal .sg{ border:1px solid var(--line); border-radius:18px; background:var(--card); padding:18px 20px; box-shadow:var(--sh) }
+.ipg-signal h4{ display:flex; align-items:center; gap:8px; font-size:15px; font-weight:900; color:var(--ink) }
+.ipg-signal h4 i{ width:9px; height:9px; border-radius:50%; background:var(--ink4) }
+.ipg-signal h4 span{ margin-left:auto; font-size:12px; font-weight:800; color:var(--ink3) }
+.ipg-signal .sg.bad h4 i{ background:var(--bad) }
+.ipg-signal .sg.warn h4 i{ background:var(--warn) }
+.ipg-signal .sg.ok h4 i{ background:var(--ok) }
+.ipg-signal .si{ display:flex; gap:10px; align-items:baseline; margin-top:10px; font-size:13px }
+.ipg-signal .si b{ color:var(--ink); font-weight:800 }
+.ipg-signal .si span{ margin-left:auto; color:var(--ink3); font-size:12.5px; text-align:right }
+
+/* 본문 — 표 */
+.ipg-tablewrap{ margin-top:24px; border:1px solid var(--line); border-radius:18px; overflow-x:auto; background:var(--card); box-shadow:var(--sh) }
+.ipg-table{ width:100%; border-collapse:collapse; font-size:13.5px; min-width:600px }
+.ipg-table th{ text-align:left; padding:13px 16px; background:var(--bg2); color:var(--ink2); font-size:12.5px; font-weight:800; white-space:nowrap }
+.ipg-table td{ padding:13px 16px; border-top:1px solid var(--line); color:var(--ink2); font-variant-numeric:tabular-nums; white-space:nowrap }
+.ipg-table td.first{ color:var(--ink); font-weight:800 }
+.ipg-table tbody tr:last-child td{ background:var(--bg2); color:var(--ink); font-weight:700 }
+.ipg-foot-note{ margin-top:10px; font-size:12.5px; color:var(--ink3) }
+
+/* 본문 — 현장 비교 */
+.ipg-sites{ margin-top:26px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px }
+.ipg-sites .sc{ border:1px solid var(--line); border-radius:20px; background:var(--card); padding:20px; box-shadow:var(--sh) }
+.ipg-sites h4{ font-size:16px; font-weight:900; color:var(--ink); letter-spacing:-.02em }
+.ipg-sites .amt{ margin-top:4px; font-size:12.5px; color:var(--ink3) }
+.ipg-sites .ring{ margin:16px auto 10px; width:118px; height:118px; border-radius:50%; display:grid; place-items:center;
+  background:conic-gradient(var(--c) calc(var(--p) * 1%), var(--bg2) 0) }
+.ipg-sites .ring div{ width:88px; height:88px; border-radius:50%; background:var(--card); display:grid; place-items:center; text-align:center }
+.ipg-sites .ring b{ font-size:21px; font-weight:900; color:var(--ink); font-variant-numeric:tabular-nums }
+.ipg-sites .ring small{ display:block; font-size:11px; color:var(--ink3) }
+.ipg-sites ul{ margin:12px 0 0; padding:0; list-style:none; display:grid; gap:6px; font-size:12.5px }
+.ipg-sites li{ display:flex; gap:8px; color:var(--ink2) }
+.ipg-sites li b{ margin-left:auto; color:var(--ink); font-variant-numeric:tabular-nums }
+
+/* 본문 — 여정 */
+.ipg-journey{ margin-top:26px; position:relative }
+.ipg-journey::before{ content:""; position:absolute; left:19px; top:18px; bottom:18px; width:2px; background:var(--line) }
+.ipg-journey .jr{ position:relative; display:grid; grid-template-columns:52px minmax(0,1fr) minmax(0,1fr); gap:16px; align-items:center; padding:14px 0 }
+.ipg-journey .jr > i{ position:relative; z-index:2; width:40px; height:40px; border-radius:13px; display:grid; place-items:center;
+  background:var(--soft); color:var(--ind); font-style:normal; font-weight:900; font-size:13px }
+.ipg-journey .jr b{ display:block; font-size:16px; font-weight:900; color:var(--ink); letter-spacing:-.02em }
+.ipg-journey .jr p{ margin-top:4px; font-size:13.5px; color:var(--ink2); line-height:1.6 }
+.ipg-journey .out{ border:1px solid var(--line); border-radius:14px; background:var(--card); padding:12px 14px; font-size:12.5px; display:grid; gap:6px }
+.ipg-journey .out span{ display:flex; gap:8px; color:var(--ink2); align-items:center }
+.ipg-journey .out span b{ margin-left:auto; font-size:12.5px; color:var(--ink); font-variant-numeric:tabular-nums; font-weight:800 }
+
+/* 본문 — 이력 로그 */
+.ipg-logs{ margin-top:24px; border:1px solid var(--line); border-radius:18px; background:var(--card); overflow:hidden; box-shadow:var(--sh) }
+.ipg-logs .lg{ display:flex; align-items:center; gap:12px; padding:13px 18px; border-bottom:1px solid var(--line); font-size:13.5px }
+.ipg-logs .lg time{ font-size:12.5px; color:var(--ink3); font-variant-numeric:tabular-nums; white-space:nowrap }
+.ipg-logs .lg b{ color:var(--ink); font-weight:700 }
+.ipg-logs .lgfoot{ padding:12px 18px; background:var(--bg2); font-size:12.5px; color:var(--ink3) }
+
+/* 본문 — 월 달력 */
+.ipg-month{ margin-top:26px; display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:18px; align-items:start }
+.ipg-month .cal{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; background:var(--card); border:1px solid var(--line);
+  border-radius:20px; padding:16px; box-shadow:var(--sh) }
+.ipg-month .wd{ text-align:center; font-size:11.5px; font-weight:800; color:var(--ink3); padding-bottom:4px }
+.ipg-month .d{ min-height:62px; border-radius:11px; padding:7px 8px; background:var(--bg2); font-size:11.5px }
+.ipg-month .d span{ font-weight:800; color:var(--ink3); font-variant-numeric:tabular-nums }
+.ipg-month .d em{ display:block; margin-top:4px; font-style:normal; font-size:11px; font-weight:800; line-height:1.35; color:var(--ink) }
+.ipg-month .d.on{ background:var(--card); border:1px solid var(--line) }
+.ipg-month .d.on.bad{ border-color:var(--bad); background:var(--bad-bg) }
+.ipg-month .d.on.bad em{ color:var(--bad) }
+.ipg-month .d.on.warn{ border-color:var(--warn); background:var(--warn-bg) }
+.ipg-month .d.on.warn em{ color:var(--warn) }
+.ipg-month .d.on.ind{ border-color:var(--ind); background:var(--soft) }
+.ipg-month .d.on.ind em{ color:var(--ind) }
+.ipg-month .d.on.ok{ border-color:var(--ok); background:var(--ok-bg) }
+.ipg-month .d.on.ok em{ color:var(--ok) }
+.ipg-month .notes{ display:grid; gap:10px }
+.ipg-month .notes div{ border:1px solid var(--line); border-radius:16px; background:var(--card); padding:16px 18px }
+.ipg-month .notes b{ display:block; font-size:14.5px; font-weight:800; color:var(--ink) }
+.ipg-month .notes span{ display:block; margin-top:4px; font-size:13px; color:var(--ink2); line-height:1.6 }
+
+/* 목록·업종군 */
+.ipg-group{ margin-top:36px }
+.ipg-group h3{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; font-size:18px; font-weight:900; color:var(--ink) }
+.ipg-group h3 a{ color:var(--ink) }
+.ipg-group h3 span{ font-size:13.5px; font-weight:500; color:var(--ink3) }
+.ipg-cards .go{ display:inline-block; margin-top:12px; font-size:13px; font-weight:800; color:var(--ind) }
+.ipg-parentlink{ margin-top:18px; font-size:13.5px }
+.ipg-parentlink a{ color:#c7d2fe; font-weight:700 }
+
+@media (prefers-reduced-motion: reduce){
+  .ipg-pipe .link i, .ipg-inbox .ordbox .o, .ipg-board .k.move, .ipg-gantt .track i, .ipg-site .tr i, .ipg-loghero .lr{ animation:none; opacity:1; transform:none }
+}
+@media (max-width:1040px){
+  .ipg-art{ margin-top:6px }
+  .ipg-whgrid .cells{ grid-template-columns:repeat(2,1fr) }
+  .ipg-monthhero .cal{ grid-template-columns:repeat(5,1fr) }
+}
+@media (max-width:900px){
+  .ipg-clock{ grid-template-columns:1fr }
+  .ipg-clock > div{ border-right:0; border-bottom:1px solid var(--line) }
+  .ipg-calc, .ipg-signal, .ipg-sites, .ipg-checks, .ipg-month{ grid-template-columns:1fr }
+  .ipg-journey .jr{ grid-template-columns:44px minmax(0,1fr) }
+  .ipg-journey .out{ grid-column:2 }
+  .ipg-board{ grid-template-columns:1fr }
+  .ipg-inbox .tiles, .ipg-inbox .gauges, .ipg-loghero .kv, .ipg-monthhero .side, .ipg-whgrid .note, .ipg-site .money{ grid-template-columns:1fr 1fr }
+}
+@media (max-width:520px){
+  .ipg-whgrid .cells, .ipg-monthhero .cal{ grid-template-columns:1fr 1fr }
+  .ipg-month .cal{ padding:10px; gap:4px }
+  .ipg-month .d{ min-height:52px; padding:5px 6px }
+  .ipg-calc .row .val{ width:96px }
 }

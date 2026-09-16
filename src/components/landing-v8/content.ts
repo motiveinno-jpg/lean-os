@@ -36,32 +36,32 @@ export const MENUS: { name: string; href: string; icon: string }[] = WALL.map(([
   return { name: menu.name, href: menuHref(g, m), icon };
 });
 
-/* 업종별 메가메뉴 — [세부 업종, 그 업종의 활용 페이지] (2026-09-16 개편)
-   2026-09-14 에는 24항목이 전부 기능 화면(/features)으로 갔다. 업종이 달라도 같은 메뉴만 보여 주니
-   「우리 업종은 이걸 이렇게 쓴다」가 없었다 → 업종 페이지 7개(/industries/…)를 만들고 세부 업종을 그리로 보낸다.
+/* 업종별 메가메뉴 — [세부 업종, 그 업종의 활용 페이지] (2026-09-16 2차)
+   9/16 1차에서는 24항목이 업종군 7개 페이지로 모였다. 대표: 업종마다 각각 만들어라 →
+   세부 업종 23곳이 각자 페이지를 갖고(내용·히어로 그림·본문 구성이 다르다) 여기서 바로 간다.
    세무·회계 사무소만 따로 만든 제휴 페이지(/tax-partners)가 있어 그대로 둔다. */
 const I = (slug: string) => `/industries/${slug}`;
 export const MEGA: [string, [string, string][]][] = [
   ["유통 · 판매", [
-    ["온라인 판매(스마트스토어·쿠팡)", I("ecommerce")], ["도소매", I("wholesale")],
-    ["무역·수입", I("wholesale")], ["매장 판매", I("wholesale")],
+    ["온라인 판매(스마트스토어·쿠팡)", I("online-sales")], ["도소매", I("wholesale-retail")],
+    ["무역·수입", I("import-trade")], ["매장 판매", I("store-retail")],
   ]],
   ["제조 · 생산", [
-    ["소규모 제조", I("manufacturing")], ["식품 제조", I("manufacturing")],
-    ["의류·패션 생산", I("manufacturing")], ["금속·부품 가공", I("manufacturing")],
+    ["소규모 제조", I("small-manufacturing")], ["식품 제조", I("food-manufacturing")],
+    ["의류·패션 생산", I("apparel-manufacturing")], ["금속·부품 가공", I("metal-manufacturing")],
   ]],
   ["용역 · 프로젝트", [
-    ["디자인 스튜디오", I("agency")], ["개발·SI", I("agency")],
-    ["광고·마케팅 대행", I("agency")], ["컨설팅", I("agency")],
+    ["디자인 스튜디오", I("design-studio")], ["개발·SI", I("software-dev")],
+    ["광고·마케팅 대행", I("marketing-agency")], ["컨설팅", I("consulting")],
   ]],
   ["건설 · 시공", [
-    ["종합건설", I("construction")], ["인테리어 시공", I("construction")],
-    ["설비·전기", I("construction")], ["조경", I("construction")],
+    ["종합건설", I("general-construction")], ["인테리어 시공", I("interior-construction")],
+    ["설비·전기", I("mep-construction")], ["조경", I("landscape-construction")],
   ]],
-  ["전문 서비스", [["세무·회계 사무소", "/tax-partners"], ["노무·법무", I("professional")],
-    ["교육·학원", I("professional")], ["병의원", I("professional")]]],
-  ["그 밖에", [["프랜차이즈 본부", I("wholesale")], ["비영리·협회", I("professional")],
-    ["물류·창고", I("logistics")], ["렌탈·구독", I("professional")]]],
+  ["전문 서비스", [["세무·회계 사무소", "/tax-partners"], ["노무·법무", I("hr-law-firm")],
+    ["교육·학원", I("academy")], ["병의원", I("clinic")]]],
+  ["그 밖에", [["프랜차이즈 본부", I("franchise")], ["비영리·협회", I("nonprofit")],
+    ["물류·창고", I("warehouse-logistics")], ["렌탈·구독", I("rental-subscription")]]],
 ];
 
 /* §7 대표 기능 아홉 — 도입 문의로 가장 많이 받은 것 */
