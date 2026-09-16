@@ -161,6 +161,15 @@ const STEP_GROUP: Record<string, string> = {
   "/settings/company": "설정",
 };
 
+// 앱 전체가 .app-zoom(zoom: var(--app-zoom)) 안에서 렌더된다(globals.css). 투어 오버레이도 그 안이라,
+//   getBoundingClientRect(줌 곱해진 시각 좌표)를 그대로 CSS 위치로 주면 다시 줌이 곱해져 이중 적용된다
+//   — 항목이 아래로 갈수록 하이라이트가 점점 더 내려가 어긋난다(2026-09 대표 지적). 좌표를 줌으로 나눠 상쇄한다.
+function appZoom(): number {
+  if (typeof window === "undefined") return 1;
+  const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--app-zoom"));
+  return v > 0 ? v : 1;
+}
+
 export function shouldStartTour(searchParams: URLSearchParams | null): boolean {
   return !!searchParams && searchParams.get("tour") === "1";
 }
@@ -326,7 +335,9 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
     if (!el) { setRect(null); return; }
     if (scroll) el.scrollIntoView({ block: "center", behavior: "smooth" });
     const r = el.getBoundingClientRect();
-    setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+    // 오버레이가 .app-zoom 안이라 줌으로 나눠야 화면에서 항목과 정확히 겹친다(안 그러면 줌 배수만큼 아래로 밀림).
+    const z = appZoom();
+    setRect({ top: r.top / z, left: r.left / z, width: r.width / z, height: r.height / z });
   }, [step]);
 
   useEffect(() => {
@@ -379,11 +390,12 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
 
   const isLast = safeIdx === steps.length - 1;
   // 말풍선 위치 · 하이라이트 오른쪽(사이드바 옆). 못 찾으면 화면 가운데.
+  const zt = appZoom(); // rect 는 줌 로컬 좌표라 뷰포트 경계도 같은 좌표계(치수 ÷ 줌)로 맞춘다
   const tipStyle: React.CSSProperties = rect
     ?  {
         position: "fixed",
-        left: Math.min(rect.left + rect.width + 16, window.innerWidth - 340),
-        top: Math.max(16, Math.min(rect.top - 8, window.innerHeight - 240)),
+        left: Math.min(rect.left + rect.width + 16, window.innerWidth / zt - 340),
+        top: Math.max(16, Math.min(rect.top - 8, window.innerHeight / zt - 240)),
       }
     : { position: "fixed", left: "50%", top: "50%", transform: "translate(-50%, -50%)" };
 
