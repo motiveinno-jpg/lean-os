@@ -48,6 +48,49 @@ Deno.serve(withSentry("resend-webhook", async (req) => {
   let event: any;
   try { event = JSON.parse(body); } catch { return new Response("ok"); }
 
+  // ── 받은 메일(email.received) — 광고 메일 회신 등 owner-view.com 으로 온 메일을 받은 메일함에 넣는다 (2026-09-16) ──
+  //   웹훅에는 본문이 없어 Receiving API 로 한 번 더 받는다. 읽기 권한이 있는 키(RESEND_READ_KEY)가 필요하다.
+  if (event?.type === "email.received") {
+    const rd = event.data || {};
+    const emailId = String(rd.email_id || "");
+    if (!emailId) return new Response("ok");
+    const admin0 = createClient(SUPABASE_URL, SERVICE_KEY);
+    const readKey = Deno.env.get("RESEND_READ_KEY") || Deno.env.get("RESEND_API_KEY") || "";
+    let full: any = null;
+    try {
+      const r = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, { headers: { Authorization: `Bearer ${readKey}` } });
+      if (r.ok) full = await r.json();
+      else console.warn("[resend-webhook] receiving fetch failed", r.status);
+    } catch (e) { console.warn("[resend-webhook] receiving fetch error", e); }
+    //   본문을 못 받아도 제목·발신자는 웹훅에 있으니 일단 남긴다 — 운영자가 Resend 에서 원문을 볼 수 있다
+    const fromRaw = String(full?.from || rd.from || "");
+    const m = fromRaw.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
+    const fromEmail = (m ? m[2] : fromRaw).trim().toLowerCase();
+    const fromName = m ? m[1].trim() : null;
+    const toList: string[] = (Array.isArray(full?.to) ? full.to : Array.isArray(rd.to) ? rd.to : []).map((t: string) => String(t).toLowerCase());
+    //   이 주소로 보낸 가장 최근 캠페인에 묶어 둔다(회신인지 보기 위해)
+    let campaignId: string | null = null;
+    if (fromEmail) {
+      const { data: rcpt } = await admin0.from("email_campaign_recipients").select("campaign_id")
+        .eq("email", fromEmail).not("sent_at", "is", null).order("sent_at", { ascending: false }).limit(1).maybeSingle();
+      campaignId = rcpt?.campaign_id || null;
+    }
+    await admin0.from("email_inbox").upsert({
+      resend_id: emailId,
+      message_id: full?.message_id || rd.message_id || null,
+      from_email: fromEmail || "(알 수 없음)",
+      from_name: fromName,
+      to_emails: toList,
+      subject: full?.subject ?? rd.subject ?? null,
+      text_body: full?.text ?? null,
+      html_body: full?.html ?? null,
+      attachments: Array.isArray(full?.attachments) ? full.attachments : (Array.isArray(rd.attachments) ? rd.attachments : []),
+      received_at: full?.created_at || rd.created_at || new Date().toISOString(),
+      campaign_id: campaignId,
+    }, { onConflict: "resend_id" });
+    return new Response("ok");
+  }
+
   const status = STATUS_MAP[event?.type];
   const d = event?.data || {};
   const to: string | undefined = Array.isArray(d.to) ? d.to[0] : d.to;

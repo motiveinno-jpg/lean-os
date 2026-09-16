@@ -39,6 +39,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/platform/marketing", label: "마케팅 지표", icon: "trending", hint: "방문·가입 퍼널" }, // GA4 병행 자체 퍼널 (2026-08-13)
       { href: "/platform/sales-codes", label: "영업코드", icon: "link", hint: "코드별 전환" },
       { href: "/platform/email-campaigns", label: "메일 보내기", icon: "inbox", hint: "소개·광고 메일 발송" }, // news.mo-tive.com 직접 발송 (2026-09-16)
+      { href: "/platform/email-inbox", label: "받은 메일", icon: "inbox", hint: "hello@owner-view.com 회신" }, // Resend 수신 → 웹훅 (2026-09-16)
       { href: "/platform/email-optouts", label: "메일 수신거부", icon: "inbox", hint: "보내기 전 거를 주소" }, // 광고 메일 발송 전 대조 (2026-09-16)
     ],
   },
