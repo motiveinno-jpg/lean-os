@@ -46,7 +46,7 @@ if (!EMAIL || !PW) throw new Error("QA 시드 계정이 없습니다 — .env.qa
 const SHOTS = [
   { key: "notifications", route: "/notifications",  name: "f-notifications-v2" },
   { key: "mypage",        route: "/mypage",         name: "f-mypage-v2" },
-  { key: "copilot",       route: "/copilot",        name: "f-ai-copilot-v6" },
+  { key: "copilot",       route: "/copilot",        name: "f-ai-copilot-v7" },
   { key: "bank",          route: "/bank",           name: "f-bank2-v5",   ready: "table" },
   { key: "cards",         route: "/cards",          name: "f-cards-v5",   ready: "table" },
   { key: "partners",      route: "/partners",       name: "f-partners-v5", ready: "table" },
@@ -64,7 +64,7 @@ const SHOTS = [
   { key: "documents",     route: "/documents",      name: "f-documents-v5" },
   { key: "team",          route: "/team",           name: "f-team-v2" },
   { key: "employees",     route: "/employees",      name: "f-members-v5" },
-  { key: "attendance",    route: "/attendance",     name: "f-hr-v6" },
+  { key: "attendance",    route: "/attendance",     name: "f-hr-v7" },
   { key: "hr-templates",  route: "/hr-templates",   name: "f-templates-v5" },
   { key: "summary",       route: "/reports/summary", name: "f-acct-v5" },
   { key: "profit",        route: "/reports/profit", name: "f-profit-v2" },
@@ -90,6 +90,47 @@ const wanted = picked.length ? SHOTS.filter((s) => picked.includes(s.key)) : SHO
 // 캡처에 끼어드는 것만 감춘다 (제품에는 그대로 있다)
 const HIDE = `.messenger-fab, .toast-container, [data-tour], .global-search-overlay { display: none !important; }`;
 
+/*   이메일 가리개 — 공개 이미지에 주소가 나가면 안 된다(결정 200·210).
+     2026-09-16 실측: 옛 f-mypage-v1 에도 qa-seed-owner@mo-tive.com 이 그대로 있었다(운영 노출 중이었음).
+     example.com 은 문서용으로 예약된 도메인이라 실제 주소와 헷갈리지 않는다(IP 를 203.0.113.* 로 바꾼 것과 같은 이유).
+     ⚠️ TreeWalker 로 돌면서 nodeValue 를 바꾸면 순회가 깨진다 — 노드를 먼저 모은 뒤 치환한다. */
+const MASK_EMAIL = `() => {
+  const RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}/g;
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (w.nextNode()) nodes.push(w.currentNode);
+  let n = 0;
+  for (const node of nodes) {
+    RE.lastIndex = 0;
+    if (!RE.test(node.nodeValue || "")) continue;
+    RE.lastIndex = 0;
+    node.nodeValue = node.nodeValue.replace(RE, "daepyo@example.com");
+    n++;
+  }
+  for (const i of document.querySelectorAll("input")) {
+    RE.lastIndex = 0;
+    if (i.value && RE.test(i.value)) { RE.lastIndex = 0; i.value = i.value.replace(RE, "daepyo@example.com"); n++; }
+  }
+  return n;
+}`;
+
+/*   내용 끝을 재는 자 — 상자는 규칙상 화면 끝까지 늘어난다(사이드바 끝선 맞춤). 그래서 자료가 적은
+     화면을 900 으로 찍으면 상자 안 아래가 허옇게 남는다. 상자를 잘라내면 잘린 상자가 되므로,
+     대신 **뷰포트를 줄여 다시 찍어** 상자가 내용에 맞게 짧아지도록 한다.
+     글자를 담은 작은 잎 요소만 본다 — 큰 껍데기는 늘 화면 끝까지라 기준이 되지 못한다. */
+const CONTENT_BOTTOM = `() => {
+  const root = document.querySelector('.app-content-scale');
+  if (!root) return null;
+  let max = 0;
+  for (const el of root.querySelectorAll('*')) {
+    const b = el.getBoundingClientRect();
+    if (b.width < 4 || b.height < 4 || b.height > 320) continue;     // 껍데기 제외
+    if (!(el.textContent || '').trim() && !el.matches('img,svg,canvas')) continue;
+    if (b.bottom > max && b.bottom < 4000) max = b.bottom;
+  }
+  return Math.round(max);
+}`;
+
 const browser = await chromium.launch();
 const ctx = await browser.newContext({
   viewport: VIEW, deviceScaleFactor: 2, locale: "ko-KR", timezoneId: "Asia/Seoul",
@@ -108,19 +149,39 @@ console.log("   ok");
 fs.mkdirSync(OUT, { recursive: true });
 const done = [], failed = [];
 
+const MIN_H = 560, PAD_B = 56;
+
+async function settle(s) {
+  await page.goto(BASE + s.route, { waitUntil: "domcontentloaded" });
+  if (s.ready) await page.waitForSelector(s.ready, { timeout: 30000 }).catch(() => {});
+  await page.waitForTimeout(4500);   // 표·차트가 다 그려진 뒤에 찍는다
+  await page.addStyleTag({ content: HIDE }).catch(() => {});
+  const masked = await page.evaluate(`(${MASK_EMAIL})()`).catch(() => 0);
+  if (masked) console.log(`     (이메일 ${masked}곳 가림)`);
+}
+
 for (const s of wanted) {
   try {
-    await page.goto(BASE + s.route, { waitUntil: "domcontentloaded" });
-    if (s.ready) await page.waitForSelector(s.ready, { timeout: 30000 }).catch(() => {});
-    await page.waitForTimeout(4500);   // 표·차트가 다 그려진 뒤에 찍는다
-    await page.addStyleTag({ content: HIDE }).catch(() => {});
-
-    //   사이드바 오른쪽 끝부터 화면 끝까지. 헤더(브레드크럼)를 포함하려고 y 는 0 에서 시작한다.
-    const clip = { x: SIDEBAR, y: 0, width: VIEW.width - SIDEBAR, height: VIEW.height };
     const file = path.join(OUT, `${s.name}.png`);
     if (fs.existsSync(file)) { console.log(`   ! ${s.name}.png 이미 있음 — 건너뜀(번호를 올리세요)`); continue; }
+
+    await page.setViewportSize(VIEW);
+    await settle(s);
+
+    //   자료가 적어 아래가 비면 뷰포트를 줄여 다시 찍는다 (상자가 짧아져 내용에 맞는다)
+    let h = VIEW.height;
+    const bottom = await page.evaluate(`(${CONTENT_BOTTOM})()`).catch(() => null);
+    if (bottom && bottom + PAD_B < VIEW.height) {
+      h = Math.max(MIN_H, Math.round(bottom + PAD_B));
+      await page.setViewportSize({ width: VIEW.width, height: h });
+      await settle(s);   // 높이를 바꾸면 다시 그려야 상자가 새 높이에 맞는다
+      console.log(`     (내용 끝 ${bottom} → 높이 ${h} 로 다시)`);
+    }
+
+    //   사이드바 오른쪽 끝부터 화면 끝까지. 헤더(브레드크럼)를 포함하려고 y 는 0 에서 시작한다.
+    const clip = { x: SIDEBAR, y: 0, width: VIEW.width - SIDEBAR, height: h };
     await page.screenshot({ path: file, clip });
-    console.log(`   ${s.name}.png  ${clip.width}x${clip.height} (css)  ← ${s.route}`);
+    console.log(`   ${s.name}.png  ${clip.width}x${h} (css)  ← ${s.route}`);
     done.push(s.name);
   } catch (e) {
     console.log(`   ✗ ${s.key} 실패: ${e.message.slice(0, 120)}`);

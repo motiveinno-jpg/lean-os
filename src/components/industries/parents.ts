@@ -10,7 +10,7 @@ export const PARENTS: Parent[] = [
     lead: "채널 주문을 한곳에 모아 출고·재고·전표·정산까지 한 줄로 처리합니다." },
   { key: "agency", name: "용역 · 프로젝트", accent: "violet", shot: "/product/f-projects-v6.png",
     lead: "견적·계약·진행·회차 청구를 프로젝트 하나에 담고 건별로 남는 돈을 봅니다." },
-  { key: "construction", name: "건설 · 시공", accent: "amber", shot: "/product/f-contract-v4.png",
+  { key: "construction", name: "건설 · 시공", accent: "amber", shot: "/product/f-contract-v5.png",
     lead: "현장마다 계약·자재·외주·인건비를 달아 두고 공정 중에 원가율을 확인합니다." },
   { key: "logistics", name: "물류 · 창고", accent: "slate", shot: "/product/f-inv-orders-v2.png",
     lead: "입고·이동·출고를 이력으로 남기고 납기 지난 주문을 먼저 띄웁니다." },
