@@ -3382,7 +3382,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
               <button type="button" className="btn-secondary btn-sm text-[var(--danger)]"
                 onClick={async () => {
                   const ids = [...selectedIds];
-                  if (!window.confirm(`선택한 파일 ${ids.length}개를 삭제할까요? 삭제하면 복구할 수 없습니다.`)) return;
+                  if (!(await appConfirm(`선택한 파일 ${ids.length}개를 삭제할까요? 삭제하면 복구할 수 없습니다.`, { danger: true }))) return;
                   for (const id of ids) await handleDeleteFile(id);
                   setSelectedIds(new Set());
                 }}>삭제 ({selectedIds.size})</button>

@@ -19,6 +19,7 @@ import {
   getDepartments, uploadScheduleFile, VISIBILITY_LABEL, dateKeyOf,
   type EventColor, type ScheduleAttachment, type ScheduleEvent, type Visibility, type ScheduleReminder, remindersOf } from "@/lib/schedule";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/components/toast";
 
 const COLORS: [EventColor, string][] = [
   ["blue", "파랑"], ["green", "초록"], ["red", "빨강"], ["amber", "노랑"], ["violet", "보라"], ["gray", "회색"],
@@ -93,6 +94,7 @@ export function ScheduleItemEditor({
   onClose: () => void;
   saving?: boolean;
 }) {
+  const { toast } = useToast();
   const set = (patch: Partial<ScheduleDraft>) => onChange({ ...draft, ...patch });
   const descRef = useRef<HTMLTextAreaElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -117,7 +119,7 @@ export function ScheduleItemEditor({
       const att = await uploadScheduleFile(companyId, file);
       set({ attachments: [...draft.attachments, att] });
     } catch (e: any) {
-      alert(e?.message || "파일을 올리지 못했습니다");
+      toast(e?.message || "파일을 올리지 못했습니다", "error");
     } finally { setUploading(false); }
   };
 

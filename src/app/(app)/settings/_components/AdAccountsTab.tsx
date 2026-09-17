@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { useToast }  from "@/components/toast";
+import { appConfirm } from "@/components/global-confirm";
 
 const db = supabase as any;
 
@@ -102,7 +103,7 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
   };
 
   const remove = async (acc: AdAccount) => {
-    if (!window.confirm(`'${acc.label}' 연결을 지울까요? 이미 가져온 성과 기록도 함께 지워집니다.`)) return;
+    if (!(await appConfirm(`'${acc.label}' 연결을 지울까요? 이미 가져온 성과 기록도 함께 지워집니다.`, { danger: true, confirmLabel: "연결 지우기" }))) return;
     const { error } = await db.from("ad_accounts").delete().eq("id", acc.id);
     if (error) { toast(error.message, "error"); return; }
     qc.invalidateQueries({ queryKey: ["ad-accounts", companyId] });

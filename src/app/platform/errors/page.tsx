@@ -16,6 +16,7 @@ import {
 } from "@/lib/operator-error-explain";
 import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSkeleton, PfEmpty, PfSeg } from "../_components/pf/ui";
 import { PfDonut, PfTrend } from "../_components/pf/charts";
+import { appConfirm } from "@/components/global-confirm";
 
 const db = supabase;
 
@@ -178,9 +179,9 @@ export default function PlatformErrorsPage() {
             />
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
                 if (unresolvedIds.length === 0) return;
-                if (!confirm(`미해결 ${unresolvedIds.length}건을 모두 해결로 표시할까요?\n(다시 발생하면 새 건으로 올라옵니다)`)) return;
+                if (!(await appConfirm(`미해결 ${unresolvedIds.length}건을 모두 해결로 표시할까요?\n(다시 발생하면 새 건으로 올라옵니다)`, { confirmLabel: "모두 해결" }))) return;
                 resolveMany.mutate({ ids: unresolvedIds, resolved: true });
               }}
               disabled={unresolvedIds.length === 0 || resolveMany.isPending}

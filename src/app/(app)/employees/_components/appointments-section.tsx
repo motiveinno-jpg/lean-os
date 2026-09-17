@@ -13,6 +13,7 @@ import { generatePersonnelRecordCard } from "@/lib/certificates";
 import { sealAsDataUrl } from "@/lib/signatures";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
+import { appConfirm } from "@/components/global-confirm";
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
 
@@ -39,7 +40,7 @@ export function AppointmentsSection({ employeeId, companyId, emp, userId }: { em
     finally { setBusy(false); }
   };
   const remove = async (id: string) => {
-    if (!window.confirm("이 발령 기록을 지울까요? 현재 부서·직책은 바뀌지 않습니다.")) return;
+    if (!(await appConfirm("이 발령 기록을 지울까요? 현재 부서·직책은 바뀌지 않습니다.", { danger: true, confirmLabel: "지우기" }))) return;
     try { await deleteAppointment(id); refresh(); } catch (e) { toast(friendlyError(e, "지우지 못했습니다"), "error"); }
   };
   const importLegacy = async () => {

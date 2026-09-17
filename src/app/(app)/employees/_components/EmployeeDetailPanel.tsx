@@ -880,9 +880,9 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                             {p.status === "sent" && !p.viewed_at && signedCount === 0 && (
                               <button
                                 type="button"
-                                onClick={(e) => {
+                                onClick={async (e) => {
                                   e.stopPropagation();
-                                  if (window.confirm("발송을 취소할까요?\n상대에게 보낸 서명 링크가 무효화됩니다.")) cancelPkgMut.mutate(p.id);
+                                  if (await appConfirm("발송을 취소할까요?\n상대에게 보낸 서명 링크가 무효화됩니다.", { danger: true, confirmLabel: "발송 취소" })) cancelPkgMut.mutate(p.id);
                                 }}
                                 disabled={cancelPkgMut.isPending}
                                 title="상대가 열람하기 전에만 취소할 수 있습니다"
@@ -1388,7 +1388,7 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
 
   // 올린 서류 삭제. 파일·원장·체크리스트 표시를 함께 지운다.
   async function handleFileDelete(item: OnboardingDocItem)  {
-    if (!confirm(`'${item.label}'에 올린 파일${item.fileName ? ` (${item.fileName})` : ""}을 삭제할까요?`)) return;
+    if (!(await appConfirm(`'${item.label}'에 올린 파일${item.fileName ? ` (${item.fileName})` : ""}을 삭제할까요?`, { danger: true }))) return;
     setUploading(item.key);
     try {
       let path = item.storagePath;

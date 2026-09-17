@@ -13,6 +13,7 @@ import { OpsSearch, OpsCompanySelect, OpsExportButton, exportCsv } from "../_com
 import { getCurrentUser } from "@/lib/queries";
 import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSeg, PfEmpty, PfSkeleton } from "@/app/platform/_components/pf/ui";
 import { PfDonut, PfBars } from "@/app/platform/_components/pf/charts";
+import { useToast } from "@/components/toast";
 
 const db = supabase;
 
@@ -113,6 +114,7 @@ const FILTERS: { value: string; label: string }[] = [
 
 export default function PlatformSupportPage() {
   const qc = useQueryClient();
+  const { toast } = useToast();
   const [filter, setFilter] = useState("all");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
@@ -130,7 +132,7 @@ export default function PlatformSupportPage() {
         body: JSON.stringify({ ticket_id: ticketId }),
       });
       const result = await res.json().catch(() => ({}));
-      if (!res.ok) alert(result.error || "AI 분석에 실패했습니다.");
+      if (!res.ok) toast(result.error || "AI 분석에 실패했습니다.", "error");
       qc.invalidateQueries({ queryKey: ["p-support-all"] });
     } finally {
       setAnalyzingId(null);

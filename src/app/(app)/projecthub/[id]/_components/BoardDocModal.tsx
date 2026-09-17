@@ -46,6 +46,7 @@ import { createSignatureRequest, sendSignatureEmail } from "@/lib/signatures";
 import { createDocumentShare } from "@/lib/document-sharing";
 import { payTermsOf } from "@/lib/project-boards";
 import { buildQuoteBlobFromDoc, buildContractBlobFromDoc } from "@/lib/quote-pdf";
+import { appConfirm } from "@/components/global-confirm";
 
 const db = supabase as any;
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
@@ -370,7 +371,7 @@ export function BoardDocModal({
     //   ② 아직 안 보낸 견적이면 같이 맞출지 묻는다. 보낸 견적은 여기서 절대 안 건드린다.
     if (!silent && diff && quoteDoc?.id && quoteSent === false) {
       const no = quoteDoc.document_number ? `견적 ${quoteDoc.document_number}` : "견적서";
-      if (window.confirm(`${no} 도 이 계약 내용으로 맞출까요?\n아직 거래처에 보내지 않은 견적입니다.`)) {
+      if (await appConfirm(`${no} 도 이 계약 내용으로 맞출까요?\n아직 거래처에 보내지 않은 견적입니다.`, { confirmLabel: "맞추기" })) {
         await syncQuote(schedule);
       }
     }
@@ -535,11 +536,11 @@ export function BoardDocModal({
 
   // ── 견적서 → 계약서로 내용 당겨오기 ──
   //   만들 때 자동으로 물려받지만, 견적을 나중에 고친 경우가 있어 언제든 다시 부를 수 있게 한다.
-  const loadFromQuote = () => {
+  const loadFromQuote = async () => {
     const qi = quoteItems.filter(isFilled);
     if (qi.length === 0) { toast("견적서에 품목이 없습니다. 견적서를 먼저 작성하세요.", "error"); return; }
     const hasRows = items.some(isFilled);
-    if (hasRows && !window.confirm("지금 계약 내역을 견적서 품목으로 바꿉니다. 계속할까요?")) return;
+    if (hasRows && !(await appConfirm("지금 계약 내역을 견적서 품목으로 바꿉니다. 계속할까요?", { confirmLabel: "바꾸기" }))) return;
     const qh = (quoteCj.header as any) || {};
     const tt: TaxType = qh.taxType === "exempt" || qh.taxType === "zero" ? qh.taxType : "taxable";
     setTaxType(tt);
