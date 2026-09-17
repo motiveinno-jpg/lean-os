@@ -411,11 +411,17 @@ export function Sidebar() {
   //   같은 경로에 탭이 다른 메뉴가 나란히 있으면(구성원 ↔ 급여) 경로만으로는 둘 다 켜진다.
   //   탭을 단 메뉴는 그 탭일 때만, 탭이 없는 형제는 '탭 메뉴가 잡지 않은 경우' 에만 켠다. (2026-09-17)
   const curTab = searchParams?.get("tab") || "";
+  //   ⚠️ 이 앱은 trailingSlash 다 — 운영 경로는 `/employees/` 로 들어온다.
+  //      키를 `/employees` 로 만들면 조회가 빗나가 형제 판정이 통째로 안 먹는다(2026-09-17 운영 실측).
+  const basePath = (s: string) => {
+    const p = s.split("?")[0];
+    return p.length > 1 && p.endsWith("/") ? p.slice(0, -1) : p;
+  };
   const tabPeers = useMemo(() => {
     const m = new Map<string, string[]>();
     for (const it of allNavItems) {
       if (!it.tab) continue;
-      const base = it.href.split("?")[0];
+      const base = basePath(it.href);
       m.set(base, [...(m.get(base) || []), it.tab]);
     }
     return m;
@@ -424,7 +430,7 @@ export function Sidebar() {
     const l = itemMatchLen(item, pathname);
     if (l < 0 || l !== bestMatchLen) return false;
     if (item.tab != null) return curTab === item.tab;
-    const peers = tabPeers.get(pathname);
+    const peers = tabPeers.get(basePath(pathname));
     if (peers) return !peers.includes(curTab);
     return true;
   };
