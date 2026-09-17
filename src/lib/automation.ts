@@ -279,7 +279,9 @@ export async function detectDormantDeals(companyId: string) {
   const notifications = candidates.flatMap((d: any) => admins.map((uid) => ({
     company_id: companyId,
     user_id: uid,
-    type: 'system',
+    //   2026-09-17: 'system' 우회를 끝냈다 — 제약에 dormant_deal 이 없어 임시로 쓰던 값이라
+    //   알림 화면에서 종류가 전부 '시스템' 으로 뭉쳤다(마이그레이션 20260917100000).
+    type: 'dormant_deal',
     title: `휴면 프로젝트 감지: ${d.name}`,
     message: `30일 이상 활동이 없습니다. 확인이 필요합니다.`,
     entity_type: 'deal',
@@ -337,7 +339,7 @@ export async function detectDormantPartners(companyId: string) {
     const notifications = newDormant.flatMap((p) => admins.map((uid) => ({
       company_id: companyId,
       user_id: uid,
-      type: 'system',
+      type: 'dormant_partner',
       title: `휴면 거래처 감지: ${p.name}`,
       message: `6개월 이상 거래·연락이 없습니다. 리마인더 연락을 권장합니다.`,
       entity_type: 'partner',

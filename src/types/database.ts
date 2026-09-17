@@ -5558,7 +5558,6 @@ export type Database = {
           codef_connected_id: string | null
           company_id: string
           created_at: string | null
-          hometax_password: string | null
           hometax_user_id: string | null
           id: string
           is_inclusive_wage: boolean | null
@@ -5590,7 +5589,6 @@ export type Database = {
           codef_connected_id?: string | null
           company_id: string
           created_at?: string | null
-          hometax_password?: string | null
           hometax_user_id?: string | null
           id?: string
           is_inclusive_wage?: boolean | null
@@ -5622,7 +5620,6 @@ export type Database = {
           codef_connected_id?: string | null
           company_id?: string
           created_at?: string | null
-          hometax_password?: string | null
           hometax_user_id?: string | null
           id?: string
           is_inclusive_wage?: boolean | null
