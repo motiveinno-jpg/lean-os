@@ -1,5 +1,5 @@
 "use client";
-import { resolveSealUrl } from "@/lib/signatures";
+import { resolveSealUrl, sealAsDataUrl } from "@/lib/signatures";
 import { koFallback } from "@/lib/ko-label";
 import { appConfirm } from "@/components/global-confirm";
 import { downloadCsv } from "@/lib/csv-export";
@@ -4130,7 +4130,8 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
         representative: companyInfo?.representative ?? undefined,
         address: companyInfo?.address ?? undefined,
         business_number: companyInfo?.business_number ?? undefined,
-        seal_url: companyInfo?.seal_url ?? undefined,
+        // 직인은 비공개 버킷 주소라 증명서 PDF 에 data URL 로 심는다(원본 URL 은 안 실린다).
+        seal_url: companyInfo?.seal_url ? ((await sealAsDataUrl(companyInfo.seal_url)) ?? undefined) : undefined,
       };
 
       let result;
