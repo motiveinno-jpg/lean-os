@@ -10,24 +10,24 @@ describe("calculatePayroll — 4대보험·소득세 (2026 요율)", () => {
   it("월 300만(과세) + 식대 20만 — 표준 케이스 전체 검산", () => {
     const r = calculatePayroll(3_000_000, "김직원", "emp-1", { nonTaxableAmount: 200_000 });
     expect(r.taxableIncome).toBe(3_000_000);
-    expect(r.nationalPension).toBe(135_000);        // 4.5%
-    expect(r.healthInsurance).toBe(106_350);        // 3.545%
-    expect(r.longTermCareInsurance).toBe(13_772);   // 건보의 12.95%
+    expect(r.nationalPension).toBe(142_500);        // 4.75% (2026 연금개혁)
+    expect(r.healthInsurance).toBe(107_850);        // 3.595%
+    expect(r.longTermCareInsurance).toBe(14_171);   // 건보의 13.14%
     expect(r.employmentInsurance).toBe(27_000);     // 0.9%
-    expect(r.incomeTax).toBe(39_000);               // 간이세액표 300만 구간
-    expect(r.localIncomeTax).toBe(3_900);           // 소득세의 10%
-    expect(r.deductionsTotal).toBe(325_022);
-    expect(r.netPay).toBe(3_200_000 - 325_022);     // 지급총액(기본급+식대) − 공제
+    expect(r.incomeTax).toBe(74_350);               // 간이세액표(2026-02-27) 300만 구간·가족 1
+    expect(r.localIncomeTax).toBe(7_435);           // 소득세의 10%
+    expect(r.deductionsTotal).toBe(373_306);
+    expect(r.netPay).toBe(3_200_000 - 373_306);     // 지급총액(기본급+식대) − 공제
   });
 
-  it("국민연금 상한 — 과세소득이 상한(590만) 초과 시 상한 기준", () => {
+  it("국민연금 상한 — 과세소득이 상한(659만) 초과 시 상한 기준", () => {
     const r = calculatePayroll(10_000_000, "고소득", "emp-2");
-    expect(r.nationalPension).toBe(Math.round(5_900_000 * 0.045)); // 265,500
+    expect(r.nationalPension).toBe(Math.round(6_590_000 * 0.0475)); // 313,025
   });
 
-  it("국민연금 하한 — 과세소득이 하한(39만) 미만이어도 하한 기준", () => {
+  it("국민연금 하한 — 과세소득이 하한(41만) 미만이어도 하한 기준", () => {
     const r = calculatePayroll(300_000, "저소득", "emp-3");
-    expect(r.nationalPension).toBe(Math.round(390_000 * 0.045)); // 17,550
+    expect(r.nationalPension).toBe(Math.round(410_000 * 0.0475)); // 19,475
   });
 
   it("간이세액표 면세 구간(106만 이하) → 소득세·지방세 0", () => {
@@ -36,10 +36,11 @@ describe("calculatePayroll — 4대보험·소득세 (2026 요율)", () => {
     expect(r.localIncomeTax).toBe(0);
   });
 
-  it("부양가족 감면 — 추가 1인당 12,500원 (본인 제외)", () => {
+  it("부양가족 감면 — 간이세액표 가족수 열을 그대로 (300만 구간: 1인 74,350 → 3인 31,940)", () => {
     const solo = calculatePayroll(3_000_000, "a", "e1", { dependents: 1 });
     const family = calculatePayroll(3_000_000, "b", "e2", { dependents: 3 });
-    expect(solo.incomeTax - family.incomeTax).toBe(25_000);
+    expect(solo.incomeTax).toBe(74_350);
+    expect(family.incomeTax).toBe(31_940);
   });
 
   it("과세 수당(taxableAllowance)은 과세소득에 가산돼 보험·세금 재계산", () => {
@@ -50,14 +51,14 @@ describe("calculatePayroll — 4대보험·소득세 (2026 요율)", () => {
     expect(withAllowance.incomeTax).toBe(plain.incomeTax);
   });
 
-  it("사업주 부담분 — 연금 동액 + 건보(장기요양 포함) 동액 + 고용 1.35% + 산재 0.7%", () => {
+  it("사업주 부담분 — 연금 동액 + 건보(장기요양 포함) 동액 + 고용 1.15%(실업 0.9+고용안정 0.25) + 산재 0.7%", () => {
     const r = calculatePayroll(3_000_000, "a", "e1");
     const ec = r.employerCosts;
-    expect(ec.nationalPension).toBe(135_000);
-    expect(ec.healthInsurance + (ec.longTermCareInsurance ?? 0)).toBe(106_350 + 13_772);
-    expect(ec.employmentInsurance).toBe(Math.round(3_000_000 * 0.0135)); // 40,500
+    expect(ec.nationalPension).toBe(142_500);
+    expect(ec.healthInsurance + (ec.longTermCareInsurance ?? 0)).toBe(107_850 + 14_171);
+    expect(ec.employmentInsurance).toBe(Math.round(3_000_000 * 0.0115)); // 34,500
     expect(ec.industrialAccident).toBe(Math.round(3_000_000 * 0.007));   // 21,000
-    expect(ec.total).toBe(135_000 + 120_122 + 40_500 + 21_000);
+    expect(ec.total).toBe(142_500 + 122_021 + 34_500 + 21_000);
   });
 });
 

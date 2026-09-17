@@ -51,7 +51,11 @@ describe("일정 상세 실제 컴포넌트", () => {
   it("한국 자정 일정 편집은 전날로 밀리지 않는다", () => {
     expect(draftFromEvent(event).from).toBe("2026-09-10");
   });
-  it("반복 회차 편집은 원본 날짜를 사용한다", () => {
-    expect(draftFromEvent({ ...event, id: "event@2026-09-10", recurrence_source: { start_at: "2026-08-02T15:00:00Z", end_at: null } }).from).toBe("2026-08-03");
+  //   2026-09-14 설계 변경: 회차는 **그 회차의 날짜**로 연다('이 날짜만'). 원본 날짜로 여는 것은
+  //   '반복 전체 고치기' 경로(dialog 가 recurrence_source 로 치환)가 담당한다 — 옛 기대값(원본 날짜)은 낡은 설계.
+  it("반복 회차 편집은 그 회차의 날짜로 연다(이 날짜만)", () => {
+    const d = draftFromEvent({ ...event, id: "event@2026-09-10", recurrence_source: { start_at: "2026-08-02T15:00:00Z", end_at: null } });
+    expect(d.from).toBe("2026-09-10");
+    expect(d.occurrence).toBe(true);
   });
 });
