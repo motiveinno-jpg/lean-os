@@ -1476,17 +1476,28 @@ function TaxInvoicesPageInner() {
     if (!delOk) return;
     setBatchIssuing(true);
     let ok = 0, fail = 0;
+    //   실패 사유를 삼키면 "왜 안 지워졌지" 로 끝난다 — 첫 사유를 그대로 올린다.
+    //   전표가 참조하는 건은 DB 가드(trg_block_delete_journaled)가 사람 말로 막는다 (2026-09-17).
+    let firstReason = "";
     for (const inv of selectedDeletable) {
       try {
         const { error } = await supabase.from("tax_invoices").delete().eq("id", inv.id);
         if (error) throw error;
         ok++;
-      } catch { fail++; }
+      } catch (e: any) {
+        fail++;
+        if (!firstReason) firstReason = String(e?.message || "").trim();
+      }
     }
     setBatchIssuing(false);
     setSelectedIds(new Set());
     invalidateTaxInvoiceReaders(queryClient); // 원장·미수·요약 등 파생 화면 일괄 (2026-08-31)
-    toast(fail === 0 ? `${ok}건 삭제 완료` : `${ok}건 삭제, ${fail}건 실패`, fail === 0 ? "success" : "error");
+    toast(
+      fail === 0
+        ? `${ok}건 삭제 완료`
+        : `${ok}건 삭제, ${fail}건 실패${firstReason ? ` — ${firstReason}` : ""}`,
+      fail === 0 ? "success" : "error",
+    );
   }
 
   
