@@ -709,8 +709,8 @@ function SignaturesDashboardInner() {
                       //   죽은 링크로 리마인더가 계속 나가 받는 사람은 "만료되었습니다" 만 봤다.
                       const isOverdue = !!r.expires_at && new Date(r.expires_at) < new Date();
                       const canRemind = r.status !== "signed" && r.status !== "expired" && r.status !== "rejected" && !isOverdue;
+                      // 전달 배지는 문제 상황(반송·스팸·지연)만 — '전달 완료'는 발송/열람 상태와 겹쳐 군더더기라 뺀다.
                       const delivery = ({
-                        delivered: { t: "전달 완료", c: "bg-emerald-500/10 text-emerald-600", dot: "bg-emerald-500" },
                         bounced: { t: "반송", c: "bg-rose-500/10 text-rose-600", dot: "bg-rose-500" },
                         complained: { t: "스팸 신고", c: "bg-rose-500/10 text-rose-600", dot: "bg-rose-500" },
                         delayed: { t: "전달 지연", c: "bg-amber-500/10 text-amber-600", dot: "bg-amber-500" },
