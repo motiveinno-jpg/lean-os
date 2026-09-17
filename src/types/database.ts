@@ -5552,6 +5552,7 @@ export type Database = {
       }
       company_settings: {
         Row: {
+          payroll_day: number | null
           codef_client_id: string | null
           codef_client_secret: string | null
           codef_connected_at: string | null
@@ -5583,6 +5584,7 @@ export type Database = {
           workdays_mask: number | null
         }
         Insert: {
+          payroll_day?: number | null
           codef_client_id?: string | null
           codef_client_secret?: string | null
           codef_connected_at?: string | null
@@ -5614,6 +5616,7 @@ export type Database = {
           workdays_mask?: number | null
         }
         Update: {
+          payroll_day?: number | null
           codef_client_id?: string | null
           codef_client_secret?: string | null
           codef_connected_at?: string | null
@@ -11489,6 +11492,7 @@ export type Database = {
       }
       partners: {
         Row: {
+          payment_terms_days: number | null
           account_number: string | null
           address: string | null
           bank_name: string | null
@@ -11519,6 +11523,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          payment_terms_days?: number | null
           account_number?: string | null
           address?: string | null
           bank_name?: string | null
@@ -11549,6 +11554,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          payment_terms_days?: number | null
           account_number?: string | null
           address?: string | null
           bank_name?: string | null

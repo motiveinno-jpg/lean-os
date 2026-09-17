@@ -60,9 +60,9 @@ export async function fetchOutlook(companyId: string, days: number, userId?: str
   const today = todayKst();
   const end = addDays(today, days);
   const year = Number(today.slice(0, 4));
-  const [pulseRaw, ti, fixed, recur, vat, loans, revSched, costSched, pq, recv] = await Promise.all([
+  const [pulseRaw, ti, fixed, recur, vat, loans, revSched, costSched, pq, recv, cs, ptTerms] = await Promise.all([
     getCashPulseData(companyId, userId),
-    fetchPagedRes<any>("cash-outlook:ti", () => supabase.from("tax_invoices").select("id, type, counterparty_name, total_amount, settled_amount, issue_date, status").eq("company_id", companyId).neq("status", "void").gte("issue_date", addDays(today, -180)).order("id"), 50000),
+    fetchPagedRes<any>("cash-outlook:ti", () => supabase.from("tax_invoices").select("id, type, partner_id, counterparty_name, total_amount, settled_amount, issue_date, status").eq("company_id", companyId).neq("status", "void").gte("issue_date", addDays(today, -180)).order("id"), 50000),
     supabase.from("fixed_costs").select("id, name, amount, payment_day, is_recurring, end_date").eq("company_id", companyId),
     supabase.from("recurring_payments").select("id, name, amount, day_of_month, is_active").eq("company_id", companyId).eq("is_active", true),
     Promise.all([getVATPreview(companyId, year - 1), getVATPreview(companyId, year)]).then(([a, b]) => [...a, ...b]),
@@ -71,6 +71,9 @@ export async function fetchOutlook(companyId: string, days: number, userId?: str
     supabase.from("deal_cost_schedule").select("id, amount, due_date, status, deal_nodes!inner(deal_id, name, deals!inner(company_id))").eq("deal_nodes.deals.company_id", companyId),
     supabase.from("payment_queue").select("id, amount, status, description").eq("company_id", companyId).in("status", ["pending", "approved"]),
     fetchReceivables(companyId),
+    //   회사 급여일 · 거래처 결제조건 — 둘 다 비어 있으면 종전 가정(25일 · +30일)으로 돈다
+    supabase.from("company_settings").select("payroll_day").eq("company_id", companyId).maybeSingle(),
+    supabase.from("partners").select("id, payment_terms_days").eq("company_id", companyId).not("payment_terms_days", "is", null),
   ]);
   const pulse = pulseRaw ? buildCashPulse(pulseRaw) : null;
   const balance = pulse?.currentBalance ?? 0;
@@ -80,10 +83,20 @@ export async function fetchOutlook(companyId: string, days: number, userId?: str
   const gaps: OutlookData["gaps"] = [];
   const within = (d: string) => d >= today && d <= end;
 
-  // 급여 — 등록 급여 합, 매월 25일 (급여일 설정이 없다 — 있으면 그걸 쓴다)
+  // 급여 — 등록 급여 합. 지급일은 회사설정(자금·통장 › 급여 지급일)을 쓰고, 비어 있으면 25일로 가정한다.
+  //   monthlyDates 가 달 길이에 맞춰 줄여 주므로 31 을 넣으면 그 달의 말일이 된다.
   const salary = pulseRaw?.employeeSalaryTotal ?? 0;
-  if (salary > 0) for (const d of monthlyDates(today, days, 25)) items.push({ id: `sal:${d}`, date: d, label: `급여 (${Number(d.slice(5, 7))}월)`, kind: "급여", amount: -salary, basis: "직원 등록 급여 합 · 25일", sure: "확정", href: "/employees" });
-  if (salary > 0) gaps.push({ key: "salary", text: "급여는 등록 급여 합계를 매월 25일 지급으로 반영합니다 (실지급액·급여일이 다르면 오차 발생)", href: "/employees" });
+  const payrollDay = Number((cs as any)?.data?.payroll_day) || 0;
+  const payDay = payrollDay >= 1 && payrollDay <= 31 ? payrollDay : 25;
+  const payDayLabel = payrollDay ? `${payDay}일` : "25일(미설정)";
+  if (salary > 0) for (const d of monthlyDates(today, days, payDay)) items.push({ id: `sal:${d}`, date: d, label: `급여 (${Number(d.slice(5, 7))}월)`, kind: "급여", amount: -salary, basis: `직원 등록 급여 합 · ${payDayLabel}`, sure: "확정", href: "/employees" });
+  if (salary > 0) gaps.push({
+    key: "salary",
+    text: payrollDay
+      ? `급여는 등록 급여 합계를 매월 ${payDay}일 지급으로 반영합니다 (실지급액이 다르면 오차 발생)`
+      : "급여 지급일이 설정되지 않아 매월 25일로 가정했습니다. 회사설정 › 자금·통장에서 실제 지급일을 넣어 주세요",
+    href: payrollDay ? "/employees" : "/settings/finance?tab=cash",
+  });
 
   // 정기 지출 + 고정비 (이름 겹치면 정기 지출만)
   const recNames = new Set<string>();
@@ -110,23 +123,40 @@ export async function fetchOutlook(companyId: string, days: number, userId?: str
   for (const v of vat) if (within(v.dueDate) && Math.abs(v.netVAT) > 0) items.push({ id: `vat:${v.dueDate}`, date: v.dueDate, label: `부가세 ${v.quarter} ${v.netVAT > 0 ? "납부" : "환급"}`, kind: "세금", amount: -Math.round(v.netVAT), basis: "매입매출전표 예상", sure: "추정", href: "/reports/vat" });
   if (vat.some((v) => within(v.dueDate) && Math.abs(v.netVAT) > 0)) gaps.push({ key: "vat", text: "부가세는 전표 기준 예상액입니다. 신고 확정 금액과 차이가 날 수 있습니다", href: "/reports/vat" });
 
-  // 세금계산서 — 미정산 잔액. 만기 칸이 없어 발행일 + 30일 (추정). 이미 지난 것은 오늘로 당김(30일 넘은 미수는 회수율 시나리오 몫이라 뺀다)
-  let noDue = 0, apOverdue = 0, apOverdueAmt = 0;
+  // 세금계산서 — 미정산 잔액. 만기는 **거래처 결제조건**(발행 후 며칠)을 쓰고, 없으면 30일로 가정한다.
+  //   건건이 만기를 받지 않는 이유: 실무에서 만기는 거래처와 맺은 조건이지 계산서마다 정하는 값이 아니다.
+  //   지난 것은 곡선에 안 넣는다 — 언제 오갈지 모르는 돈을 그리면 곡선이 거짓말을 한다(미수는 회수율 시나리오 몫).
+  const termsById = new Map<string, number>();
+  for (const p of (((ptTerms as any)?.data || []) as any[])) {
+    const d = Number(p.payment_terms_days);
+    if (Number.isFinite(d) && d >= 0) termsById.set(p.id, d);
+  }
+  let noDue = 0, withTerms = 0, apOverdue = 0, apOverdueAmt = 0;
   for (const r of ((ti.data || []) as any[])) {
     const outstanding = Number(r.total_amount || 0) - Number(r.settled_amount || 0);
     if (outstanding <= 0) continue;
-    const due = addDays(r.issue_date, 30);
+    const terms = r.partner_id ? termsById.get(r.partner_id) : undefined;
+    const hasTerms = terms !== undefined;
+    const due = addDays(r.issue_date, hasTerms ? (terms as number) : 30);
     const isSales = r.type === "sales";
-    if (due < today) {                                  // 이미 30일 지난 것 — 언제 오갈지 모른다. 곡선에 안 넣고 '틀릴 수 있는 곳'에 적는다
+    if (due < today) {                                  // 만기가 이미 지난 것
       if (!isSales) { apOverdue++; apOverdueAmt += outstanding; }   // 미수는 arOver30(시나리오 회수율) 몫
       continue;
     }
-    const date = due;
-    if (!within(date)) continue;
-    noDue++;
-    items.push({ id: `ti:${r.id}`, date, label: `${r.counterparty_name || "거래처"} · 세금계산서`, kind: isSales ? "매출 입금" : "매입 지급", amount: isSales ? outstanding : -outstanding, basis: `세금계산서 ${r.issue_date} 발행 · +30일`, sure: "추정", flag: "만기 미입력", href: "/tax-invoices" });
+    if (!within(due)) continue;
+    if (hasTerms) withTerms++; else noDue++;
+    items.push({
+      id: `ti:${r.id}`, date: due,
+      label: `${r.counterparty_name || "거래처"} · 세금계산서`,
+      kind: isSales ? "매출 입금" : "매입 지급",
+      amount: isSales ? outstanding : -outstanding,
+      basis: `세금계산서 ${r.issue_date} 발행 · +${hasTerms ? terms : 30}일${hasTerms ? " (거래처 결제조건)" : ""}`,
+      sure: hasTerms ? "확정" : "추정",
+      ...(hasTerms ? {} : { flag: "결제조건 미입력" }),
+      href: "/tax-invoices",
+    });
   }
-  if (noDue > 0) gaps.push({ key: "ti-due", text: `세금계산서 ${noDue}건은 만기일이 없어 발행일 + 30일로 반영했습니다`, href: "/tax-invoices", count: noDue });
+  if (noDue > 0) gaps.push({ key: "ti-due", text: `세금계산서 ${noDue}건은 거래처 결제조건이 없어 발행일 + 30일로 반영했습니다. 거래처에 결제조건을 넣으면 정확해집니다`, href: "/partners", count: noDue });
   if (apOverdue > 0) gaps.push({ key: "ap-overdue", text: `발행 30일 지난 미지급 세금계산서 ${apOverdue}건 ${Math.round(apOverdueAmt / 10000).toLocaleString()}만원은 지급일 미확정으로 잔액 추이에서 제외했습니다. 시나리오 '큰 지출'로 넣어 봅니다`, href: "/tax-invoices", count: apOverdue });
 
   // 프로젝트 계약 회차 (수익 / 지출) — 날짜 있는 미완료

@@ -93,6 +93,8 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [balance, setBalance] = useState("");
+  //   급여 지급일 — 자금 전망(cash-outlook)이 읽는다. 비워 두면 25일로 가정한다 (2026-09-17)
+  const [payrollDay, setPayrollDay] = useState("");
   const [fixedCost, setFixedCost] = useState("");
   const [saved, setSaved] = useState(false);
   const [showBankForm, setShowBankForm] = useState(false);
@@ -116,6 +118,9 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
         setBalance(String(data.current_balance || 0));
         setFixedCost(String(data.monthly_fixed_cost || 0));
       }
+      const cs = logRead('settings/page:payrollDay', await supabase
+        .from("company_settings").select("payroll_day").eq("company_id", u.company_id).maybeSingle());
+      if (cs?.payroll_day) setPayrollDay(String(cs.payroll_day));
       setPageLoading(false);
     }).catch(() => setPageLoading(false));
   }, []);
@@ -234,7 +239,16 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
       toast(`저장 실패: ${error.message}`, "error");
       return;
     }
-    
+
+    //   급여 지급일 — 빈 칸은 '미설정'(null) 으로 되돌린다. 자금 전망이 그때 25일 가정으로 돌아간다.
+    const pd = payrollDay.trim() === "" ? null : Math.min(31, Math.max(1, Number(payrollDay) || 0));
+    const { error: csErr } = await supabase.from("company_settings")
+      .upsert({ company_id: companyId, payroll_day: pd }, { onConflict: "company_id" });
+    if (csErr) {
+      toast(`급여 지급일 저장 실패: ${csErr.message}`, "error");
+      return;
+    }
+
     setSaved(true);
     toast("현금 현황이 저장되었습니다. 대시보드에 즉시 반영됩니다.", "success");
     // 대시보드 즉시 갱신 · refetchQueries 로 캐시 무관 강제 fetch
@@ -435,6 +449,18 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
                     className="field-input"
                   />
                   <p className="stg-field-help" title="월 고정비 = 반복결제 합 + 직원급여 합 + 이 값">반복결제와 급여에 잡히지 않는 고정비만 입력합니다.</p>
+                </div>
+                <div>
+                  <label className="field-label">급여 지급일<span className="ui-sub">매월 며칠 (1~31)</span></label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={payrollDay}
+                    onChange={(e) => setPayrollDay(e.target.value.replace(/[^0-9]/g, "").slice(0, 2))}
+                    placeholder="예: 25"
+                    className="field-input"
+                  />
+                  <p className="stg-field-help">자금 전망이 급여가 언제 나가는지 이 날짜로 계산합니다. 비워 두면 25일로 가정합니다. 말일 지급이면 31을 넣으세요.</p>
                 </div>
               </div>
               <div className="mt-4">

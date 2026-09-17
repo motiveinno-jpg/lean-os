@@ -55,7 +55,7 @@ const EMPTY_FORM = {
   name: "", type: "client", classification: "", businessNumber: "",
   representative: "", contactName: "", contactEmail: "", contactPhone: "",
   address: "", addressDetail: "", bankName: "", accountNumber: "", tags: "", notes: "",
-  businessType: "", businessItem: "",
+  businessType: "", businessItem: "", paymentTermsDays: "",
 };
 
 const inputCls = "w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]";
@@ -637,6 +637,8 @@ export default function PartnersPage() {
       notes: form.notes || undefined,
       businessType: form.businessType || undefined,
       businessItem: form.businessItem || undefined,
+      //   빈 칸이면 null 로 — 미설정으로 되돌려 자금 전망이 30일 가정으로 돌아간다
+      paymentTermsDays: form.paymentTermsDays.trim() === "" ? null : Math.min(180, Math.max(0, Number(form.paymentTermsDays) || 0)),
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["partners"] }); closeModal(); toast(editingId ? "거래처가 수정되었습니다" : "거래처가 등록되었습니다", "success"); },
     onError: (err: Error) => { toast("저장 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"); },
@@ -682,6 +684,7 @@ export default function PartnersPage() {
       bankName: p.bank_name || "", accountNumber: p.account_number || "",
       tags: (p.tags || []).join(", "), notes: p.notes || "",
       businessType: p.business_type || "", businessItem: p.business_item || "",
+      paymentTermsDays: p.payment_terms_days != null ? String(p.payment_terms_days) : "",
     });
     setShowModal(true);
   }, []);
@@ -1850,6 +1853,13 @@ export default function PartnersPage() {
               <div className="col-span-2">
                 <label className={labelCls}>메모</label>
                 <textarea value={form.notes} onChange={(e) => setField("notes", e.target.value)} rows={3} placeholder="특이사항, 메모..." className={inputCls + " resize-none"} />
+              </div>
+              <div>
+                <label className={labelCls}>결제조건 <span className="text-[var(--text-dim)]">발행 후 며칠 (선택)</span></label>
+                <input value={form.paymentTermsDays}
+                  onChange={(e) => setField("paymentTermsDays", e.target.value.replace(/[^0-9]/g, "").slice(0, 3))}
+                  placeholder="예: 30" inputMode="numeric" className={inputCls} />
+                <p className="mt-1 text-[11px] text-[var(--text-dim)]">자금 전망이 이 거래처 세금계산서의 입금·지급 시점을 이 일수로 잡습니다. 비워 두면 30일로 가정합니다.</p>
               </div>
             </div>
             <div className="flex items-center justify-between pt-4 border-t border-[var(--border)]">

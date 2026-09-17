@@ -35,6 +35,8 @@ export interface UpsertPartnerParams {
   sourceDealId?: string;
   businessType?: string;
   businessItem?: string;
+  /** 결제조건 — 세금계산서 발행 후 며칠(0~180). null 이면 미설정으로 되돌린다 (2026-09-17) */
+  paymentTermsDays?: number | null;
 }
 
 // ── List partners ──
@@ -98,6 +100,8 @@ export async function upsertPartner(params: UpsertPartnerParams) {
   if (params.sourceDealId !== undefined) row.source_deal_id = params.sourceDealId;
   if (params.businessType !== undefined) row.business_type = params.businessType;
   if (params.businessItem !== undefined) row.business_item = params.businessItem;
+  //   결제조건 — 자금 전망이 세금계산서 만기를 이 값으로 잡는다(빈 값이면 30일 가정)
+  if (params.paymentTermsDays !== undefined) row.payment_terms_days = params.paymentTermsDays;
 
   // Use insert for new records, update for existing — avoids upsert
   // conflict-resolution issues with PostgREST when id is not in payload
