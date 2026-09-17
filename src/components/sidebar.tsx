@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { getCurrentUser, getUnreadCounts } from "@/lib/queries";
 import { openGlobalSearch } from "@/components/global-search";
@@ -23,7 +23,9 @@ import { SETTINGS_GROUPS, groupPermKeys } from "@/lib/settings-nav";
 //     새 권한 키를 만들지 않으려고 둔 장치다 — 새 키는 member_permissions 에 행이 없어
 //     백필 전까지 마스터 외 아무에게도 안 보인다(2026-08-21에 실제로 밟은 함정).
 //   layer — 이 항목부터 새 '층'이 시작된다는 소제목 (긴 그룹을 패널 안에서 읽히게, 2026-08-19 파이낸스 A안: 기초/자료/기장/예정)
-type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean; masterOnly?: boolean; match?: string[]; permKey?: string; anyPerm?: string[]; children?: NavItem[]; layer?: string };
+type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean; masterOnly?: boolean; match?: string[]; permKey?: string;
+  /** 같은 경로를 탭으로 나눠 다는 메뉴(구성원 vs 급여) — 이 탭일 때만 활성 (2026-09-17) */
+  tab?: string; anyPerm?: string[]; children?: NavItem[]; layer?: string };
 //   short/icon · 레일(왼쪽 60px 세로 줄)에 그리는 두세 글자 이름과 아이콘 (2026-08-19 레일+패널 사이드바)
 type NavGroup =  { label: string; short: string; icon: string; items: NavItem[] };
 
@@ -146,6 +148,11 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/employees", label: "구성원", icon: "user-check" },
       { href: "/attendance", label: "근태 관리", icon: "calendar" },
+      //   급여 — 화면은 구성원 안 탭이지만 사이드바에서 한 번에 가게 편다 (2026-09-17, docs/20260917_PLAN_menu_gap_audit.md 결정 1).
+      //   랜딩·요금제·소개 메일이 '급여'를 앞세우는데 사이드바에 없어 가입한 사람이 못 찾았다.
+      //   ★ 새 권한 키를 만들지 않는다 — 이미 있는 `/employees:salary`(금액) 를 permKey 로 쓴다.
+      //     새 키는 member_permissions 에 행이 없어 백필 전까지 마스터 외 아무에게도 안 보인다.
+      { href: "/employees?tab=salary", tab: "salary", permKey: "/employees:salary", label: "급여", icon: "dollar-sign" },
       { href: "/hr-templates", label: "근로계약·서식", icon: "file-text" },
     ],
   },
@@ -208,7 +215,8 @@ const NAV_GROUPS: NavGroup[] = [
 //   여러 아이템 중 이 길이가 최댓값인 아이템만 활성 → 접두어가 겹쳐도(예: /partners vs /partners/reconciliation)
 //   가장 구체적인 허브가 이긴다. (2026-06-12 원장/매칭 오점등 버그 대응 + 2026-07-23 파이낸스 허브 match 지원)
 function itemMatchLen(item: NavItem, pathname: string): number {
-  const paths = item.match || [item.href];
+  //   href 에 ?tab= 이 붙은 메뉴가 있어 경로만 떼어 비교한다 (2026-09-17)
+  const paths = (item.match || [item.href]).map((p) => p.split("?")[0]);
   let m = -1;
   for (const p of paths) if (pathname === p || pathname.startsWith(p + "/")) m = Math.max(m, p.length);
   return m;
@@ -352,6 +360,7 @@ function Tooltip({ label, show, children }: { label: string; show: boolean; chil
 /* ------------------------------------------------------------------ */
 export function Sidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const { collapsed, toggleSidebar, mobileOpen, setMobileOpen, pinnedPages, togglePin, isPinned } = useSidebar();
   const { theme, toggleTheme } = useTheme();
@@ -399,7 +408,26 @@ export function Sidebar() {
 
   // 현재 경로에 대해 가장 구체적으로 매치되는 아이템만 활성(최장 매치 우선).
   const bestMatchLen = Math.max(-1, ...allNavItems.map((i) => itemMatchLen(i, pathname)));
-  const isItemActive = (item: NavItem) => { const l = itemMatchLen(item, pathname); return l >= 0 && l === bestMatchLen; };
+  //   같은 경로에 탭이 다른 메뉴가 나란히 있으면(구성원 ↔ 급여) 경로만으로는 둘 다 켜진다.
+  //   탭을 단 메뉴는 그 탭일 때만, 탭이 없는 형제는 '탭 메뉴가 잡지 않은 경우' 에만 켠다. (2026-09-17)
+  const curTab = searchParams?.get("tab") || "";
+  const tabPeers = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const it of allNavItems) {
+      if (!it.tab) continue;
+      const base = it.href.split("?")[0];
+      m.set(base, [...(m.get(base) || []), it.tab]);
+    }
+    return m;
+  }, [allNavItems]);
+  const isItemActive = (item: NavItem) => {
+    const l = itemMatchLen(item, pathname);
+    if (l < 0 || l !== bestMatchLen) return false;
+    if (item.tab != null) return curTab === item.tab;
+    const peers = tabPeers.get(pathname);
+    if (peers) return !peers.includes(curTab);
+    return true;
+  };
 
   // 2026-07-20 QA: 스크롤 경계에서 메뉴 글자가 반쯤 잘려("거래 자동화"→"거래 자동하") 깨져 보이던 문제 —
   //   아래 내용이 더 있을 때만 하단 페이드 마스크를 걸어 잘림을 자연스럽게 처리. 맨 아래 도달 시 페이드 해제.
