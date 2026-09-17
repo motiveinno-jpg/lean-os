@@ -1590,8 +1590,8 @@ table.sched-table { min-width: 900px; }
 .signature-table tbody tr:hover { background: var(--bg-surface); }
 .signature-table-check { @apply w-9 text-center; }
 .signature-table-no { @apply w-20 text-center text-[var(--text-muted)]; }
-.signature-table-status { @apply w-24; }
-.signature-table-group { @apply w-20; }
+.signature-table-status { @apply w-24 text-center; }
+.signature-table-group { @apply w-20 text-center; }
 .signature-table-batch { @apply inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[var(--primary)]/10 text-[var(--primary)] whitespace-nowrap transition; }
 /* 값을 눌러 그 그룹·담당자만 보기 — 켜져 있으면 채운 색으로 (2026-08-05) */
 .signature-table-batch:hover { background: color-mix(in srgb, var(--primary) 22%, transparent); }
@@ -1601,8 +1601,8 @@ table.sched-table { min-width: 900px; }
 .signature-table-title { @apply min-w-[220px] max-w-[420px]; }
 .signature-table-title-link { @apply text-left font-semibold text-[var(--text)] hover:text-[var(--primary)] hover:underline truncate max-w-full inline-block align-bottom; }
 .signature-table-signer { @apply w-52 truncate text-[var(--text-muted)]; }
-.signature-table-manager { @apply w-24 truncate text-[var(--text-muted)]; }
-.signature-table-date { @apply w-24 whitespace-nowrap text-[var(--text-muted)]; }
+.signature-table-manager { @apply w-24 truncate text-center text-[var(--text-muted)]; }
+.signature-table-date { @apply w-24 whitespace-nowrap text-center text-[var(--text-muted)]; }
 
 .signature-table-actions { @apply w-[190px]; }
 .signature-table-actions .signature-request-actions { @apply justify-end; }

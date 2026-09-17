@@ -710,10 +710,10 @@ function SignaturesDashboardInner() {
                       const isOverdue = !!r.expires_at && new Date(r.expires_at) < new Date();
                       const canRemind = r.status !== "signed" && r.status !== "expired" && r.status !== "rejected" && !isOverdue;
                       const delivery = ({
-                        delivered: { t: "전달됨", c: "bg-green-500/10 text-green-500" },
-                        bounced: { t: "반송됨", c: "bg-red-500/10 text-red-500" },
-                        complained: { t: "스팸신고", c: "bg-red-500/10 text-red-500" },
-                        delayed: { t: "전달지연", c: "bg-amber-500/10 text-amber-500" },
+                        delivered: { t: "전달 완료", c: "bg-emerald-500/10 text-emerald-600", dot: "bg-emerald-500" },
+                        bounced: { t: "반송", c: "bg-rose-500/10 text-rose-600", dot: "bg-rose-500" },
+                        complained: { t: "스팸 신고", c: "bg-rose-500/10 text-rose-600", dot: "bg-rose-500" },
+                        delayed: { t: "전달 지연", c: "bg-amber-500/10 text-amber-600", dot: "bg-amber-500" },
                       } as any)[r.delivery_status];
                       return (
                         <tr key={r.id} className={selectedIds.has(r.id) ? "ev-on" : undefined}>
@@ -744,8 +744,8 @@ function SignaturesDashboardInner() {
                             {/* 제목 클릭 → 상태 무관 항상 계약서 팝업(읽기 전용) */}
                             <button onClick={() => openDocViewer({ type: 'contract', id: r.id })} className="signature-table-title-link" title={r.title}>{r.title}</button>
                             {delivery && (
-                              <span className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap ${delivery.c}`} title={r.delivery_detail || (r.delivery_at ? new Date(r.delivery_at).toLocaleString("ko-KR") : "")}>
-                                <Ico e="✉" /> {delivery.t}
+                              <span className={`ml-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${delivery.c}`} title={`메일 ${delivery.t}${r.delivery_detail ? ` · ${r.delivery_detail}` : r.delivery_at ? ` · ${new Date(r.delivery_at).toLocaleString("ko-KR")}` : ""}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${delivery.dot}`} />{delivery.t}
                               </span>
                             )}
                           </td>
