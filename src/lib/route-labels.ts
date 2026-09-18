@@ -56,6 +56,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/board": { group: "업무", title: "게시판", desc: "사내 게시판입니다." },
   "/chat": { group: "업무", title: "메신저" },
   "/signatures": { group: "업무", title: "전자계약", desc: "거래처·고객 등 외부 대상 전자계약을 발송하고 서명을 관리합니다." },
+  "/contracts": { group: "업무", title: "계약 대장", desc: "계약 기간·금액을 한 표로 — 만료 임박과 기간 미입력을 챙깁니다." },
   "/contracts/signed": { group: "업무", title: "서명 완료 계약서" },
   "/my-contracts": { group: "홈", title: "내 서명 요청", desc: "나에게 온 서명 요청 전체 목록 (마이페이지 › 급여·계약·증명에서 옵니다)." },
 

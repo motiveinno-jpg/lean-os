@@ -134,6 +134,9 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/board", label: "게시판", icon: "message-square" },
       { href: "/chat", label: "메신저", icon: "message-circle", badgeKey: "chat" },
       { href: "/signatures", label: "전자계약", icon: "edit-3" },
+      //   계약 대장 — 계약 기간·금액·만료 임박 (2026-09-18, docs/20260917_PLAN_menu_gap_audit.md 결정 2-2단계).
+      //   전자계약(서명 흐름)과 다른 화면: 체결된 계약의 기간을 보는 장부. 새 권한 키 → 백필 마이그레이션 필수.
+      { href: "/contracts", label: "계약 대장", icon: "book" },
       //   파일보관함. 인사관리 → 워크스페이스 (문서는 인사만의 것이 아니다)
       
       { href: "/documents", label: "파일보관함", icon: "folder" },
@@ -262,7 +265,7 @@ const NAV_ITEM_COLOR: Record<string, string> = {
   "/partners/reconciliation/voucher-entry": "#34d399", "/partners/reconciliation/sale-purchase": "#38bdf8", "/reports": "#22c55e",
   // 워크스페이스 — 바이올렛
   "/schedule": "#8b5cf6", "/projecthub": "#7c3aed", "/approvals": "#a855f7",
-  "/board": "#a78bfa", "/chat": "#c084fc", "/signatures": "#9333ea", "/my-contracts": "#c4b5fd", "/documents": "#8b5cf6",
+  "/board": "#a78bfa", "/chat": "#c084fc", "/signatures": "#9333ea", "/contracts": "#7c3aed", "/my-contracts": "#c4b5fd", "/documents": "#8b5cf6",
   // 인사관리 — 오렌지
   "/employees": "#f97316", "/attendance": "#fb923c", "/hr-templates": "#f59e0b",
   "/team": "#ea580c",

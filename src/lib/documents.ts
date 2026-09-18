@@ -74,6 +74,23 @@ export function buildQuoteContent(): any {
 }
 
 /** 문서 한 건을 실제로 만든다 — 편집기의 '저장' 이 부른다 */
+/** 계약 문서의 대장 칼럼 동기화 — content_json 에 든 계약 기간·품목 합계·거래처를
+ *  documents.contract_start_date/contract_end_date/contract_amount/partner_id 컬럼에 같이 쓴다.
+ *  (2026-09-17 메뉴 공백 감사 결정 2-1단계: 편집기가 content_json 에만 넣어
+ *   계약 문서 전건이 기간 조회 불가였다 — 컬럼이 채워져야 계약 대장이 산다) */
+export function contractColumnsOf(contentJson: any): Record<string, unknown> {
+  const cj = contentJson || {};
+  const day = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+  const items = Array.isArray(cj.items) ? cj.items : [];
+  const supply = items.reduce((s: number, i: any) => s + (Number(i?.supplyAmount) || 0), 0);
+  return {
+    contract_start_date: day(cj.contractStart),
+    contract_end_date: day(cj.contractEnd),
+    ...(supply > 0 ? { contract_amount: supply } : {}),
+    ...(cj.header?.partnerId ? { partner_id: cj.header.partnerId } : {}),
+  };
+}
+
 export async function insertDocument(params: {
   companyId: string; dealId: string; userId: string;
   name: string; contentType: "invoice" | "contract"; contentJson: any;
@@ -91,6 +108,7 @@ export async function insertDocument(params: {
     source_document_id: params.sourceDocumentId || null,
     version: 1,
     created_by: params.userId,
+    ...(params.contentType === "contract" ? contractColumnsOf(params.contentJson) : {}),
   }).select("id, document_number").single();
   if (error) throw new Error(error.message);
   return data as any;
@@ -397,11 +415,13 @@ export async function saveRevision(params: {
   // Get current version
   const doc = logRead('lib/documents:doc', await supabase
     .from('documents')
-    .select('version')
+    .select('version, content_type, auto_classified_type')
     .eq('id', params.documentId)
     .maybeSingle());
 
   const newVersion = (doc?.version || 0) + 1;
+  //   계약이면 기간·금액·거래처 컬럼도 함께 — 문서함 편집기·프로젝트 모달·계약 대장 인라인 입력이 전부 이 길을 지난다
+  const isContract = (doc?.content_type || (doc as any)?.auto_classified_type) === 'contract';
 
   // Save revision
   await supabase.from('doc_revisions').insert({
@@ -416,6 +436,7 @@ export async function saveRevision(params: {
   await supabase.from('documents').update({
     content_json: params.contentJson,
     version: newVersion,
+    ...(isContract ? contractColumnsOf(params.contentJson) : {}),
   }).eq('id', params.documentId);
 }
 

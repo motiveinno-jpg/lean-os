@@ -10699,3 +10699,12 @@ textarea.tax-remark-input {
 
 /*   거래처 상세 — 휴면 배지 옆 '해제' (2026-09-15) */
 .partner-dormant-clear { @apply ml-1.5 rounded px-1.5 py-px text-[10px] font-semibold underline underline-offset-2 hover:opacity-80; color: inherit; }
+
+/*   계약 대장 (2026-09-18 결정 2-2단계) — 상태 칩·표 최소폭. clg- 접두는 이 화면 전용 */
+.clg-chip { @apply inline-block rounded-full border border-[var(--border)] px-2 py-0.5 text-[11px] font-semibold text-[var(--text-dim)]; }
+.clg-chip-warn { @apply border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300; }
+.clg-chip-end { @apply bg-[var(--surface-2)] text-[var(--text-dim)] opacity-70; }
+.clg-chip-open { @apply border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-950 dark:text-sky-300; }
+.clg-deal-link { @apply text-[var(--primary)] hover:underline; }
+table.table-clg { min-width: 860px; }
+.clg-scroll { @apply overflow-auto; }

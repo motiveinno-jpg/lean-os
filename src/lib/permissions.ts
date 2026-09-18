@@ -142,6 +142,12 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       { route: "/team", label: "구성원 디렉토리", always: true },   // 2026-08-26 인사 → 업무 (연락처. 인사 그룹은 직원 기본 비노출)
       { route: "/chat", label: "메신저", always: true },
       { route: "/signatures", label: "전자계약" },
+      //   계약 대장 (2026-09-18 결정 2-2단계) — 계약금액이 보이므로 money. 직원 기본 비노출(2026-08-26 방침).
+      //   백필: 기존 /signatures 보유자에게 부여 (20260918 마이그레이션).
+      { route: "/contracts", label: "계약 대장", money: true, desc: "계약 기간·만료 임박·계약금액이 보인다" },
+      //   서명 완료 뷰(/contracts/signed/[id])는 대장 이전부터 파일보관함·내 서명 흐름이 쓰던 화면 —
+      //   /contracts 가 카탈로그에 생기면서 최장 접두 매치에 걸려 막히지 않게 always 로 통과시킨다(표에는 안 그림).
+      { route: "/contracts/signed", label: "서명 완료 계약서", always: true, hidden: true },
     ],
   },
   {
