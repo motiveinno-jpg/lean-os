@@ -10792,3 +10792,5 @@ table.acct-ledger-sheet { min-width: 820px; }
 .acct-ledger-total td { @apply sticky bottom-0 z-10 bg-[var(--bg-surface)] border-t-2 border-[var(--border)] font-bold; }
 .acct-ledger-empty { @apply py-8 text-center text-sm text-[var(--text-muted)]; }
 .acct-ledger-foot { @apply mt-3 text-[10.5px] text-[var(--text-dim)]; }
+/*   머리단 고정 · 표 몸통만 스크롤(조회 화면 표준) — 상자 본문(.qk-body)이 스크롤 컨테이너라 thead 를 위에 붙인다 */
+.acct-ledger-tb thead th, .acct-ledger-sheet thead th { @apply sticky top-0 z-10; }
