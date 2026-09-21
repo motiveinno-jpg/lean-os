@@ -15,10 +15,11 @@ import { koFallback } from "@/lib/ko-label";
 //   "목업대로 안 보인다" — 2단계 예정을 앞당김). 서랍·기록·기능 토글·간트는 2~3단계.
 
 import { useMemo, useRef, useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
+import { useMyPermissions } from "@/lib/permissions";
 import { useToast } from "@/components/toast";
 import { logRead } from "@/lib/log-read";
 import { friendlyError } from "@/lib/friendly-error";
@@ -1198,6 +1199,31 @@ export function TableV3() {
   const [pvRow, setPvRow] = useState("group");
   const [pvCol, setPvCol] = useState("assignee");
   const [pvVal, setPvVal] = useState<"count" | "amount">("count");
+  //   투입 인력(2026-09-21 현장별 근태) — 출근 카드에서 이 프로젝트를 현장으로 고른 근태 행(attendance_records.deal_id).
+  //   인건비는 급여 권한자에게만, 월급 ÷ 209 × 시간(연장·야간·휴일 1.5배)의 추정. 표 화면(TableV3)이 프로젝트 상세의 실제 화면이라 여기 둔다
+  //   (HubV3 는 게이트를 끈 회사만 본다).
+  const laborRouter = useRouter();
+  const { isMaster: laborIsMaster, hasMenu: laborHasMenu } = useMyPermissions();
+  const canSalary = laborIsMaster || laborHasMenu("/employees:salary");
+  const { data: labor } = useQuery({
+    queryKey: ["pjv3-labor", dealId, canSalary],
+    enabled: !!dealId,
+    queryFn: async () => {
+      const { data } = await db.from("attendance_records").select("employee_id, regular_minutes, overtime_minutes, night_minutes, holiday_minutes").eq("deal_id", dealId).not("check_in", "is", null);
+      const rows = (data || []) as any[];
+      const people = new Set<string>(rows.map((r) => r.employee_id));
+      let reg = 0, extra = 0;
+      for (const r of rows) { reg += Number(r.regular_minutes || 0); extra += Number(r.overtime_minutes || 0) + Number(r.night_minutes || 0) + Number(r.holiday_minutes || 0); }
+      let cost: number | null = null;
+      if (canSalary && people.size) {
+        const { data: emps } = await db.from("employees").select("id, salary").in("id", [...people]);
+        const sal = new Map<string, number>((emps || []).map((e: any) => [e.id, Number(e.salary || 0)]));
+        cost = 0;
+        for (const r of rows) { const s = sal.get(r.employee_id) || 0; if (s > 0) cost += (Number(r.regular_minutes || 0) / 60) * (s / 209) + ((Number(r.overtime_minutes || 0) + Number(r.night_minutes || 0) + Number(r.holiday_minutes || 0)) / 60) * (s / 209) * 1.5; }
+      }
+      return { people: people.size, days: rows.length, hours: (reg + extra) / 60, cost };
+    },
+  });
   const localYmd = (t: Date) => `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
   const statusData = useMemo(() => {
     const parents = items.filter((it) => !(it as any).parent_id);
@@ -1332,13 +1358,14 @@ export function TableV3() {
     repDraft.late.length ? `밀린 것: ${repDraft.late.map((l) => `${l.name}(${l.due} 마감, ${l.who || "담당 없음"})`).join(" · ")}` : "밀린 것: 없음",
     repDraft.nextDue.length ? `다음 마감: ${repDraft.nextDue.map((n) => `${n.due} ${n.name}`).join(" · ")}` : "",
     featOn("billing") ? `돈: 견적 ${repDraft.quoteN}건 · 계약 ${repDraft.contractN}건 · 금액 합 ${repDraft.amount.toLocaleString("ko-KR")}원` : "",
+    labor?.people ? `투입 인력: ${labor.people}명 · ${labor.hours.toFixed(1)}시간 · 출근 ${labor.days}일${labor.cost != null ? ` · 인건비 추정 ${Math.round(labor.cost).toLocaleString("ko-KR")}원` : ""}` : "",
     repForm.comment.trim() ? `코멘트: ${repForm.comment.trim()}` : "",
   ].filter(Boolean).join("\n");
   const saveReport = async (shareToBoard: boolean) => {
     const { error } = await db.from("project_status_reports").insert({
       company_id: companyId, deal_id: dealId, title: repForm.title.trim() || repDraft.title,
       signal: repForm.signal, comment: repForm.comment.trim(),
-      snapshot: { total: repDraft.total, done: repDraft.done, pct: repDraft.pct, late: repDraft.late, nextDue: repDraft.nextDue, weekDone: repDraft.weekDone, quoteN: repDraft.quoteN, contractN: repDraft.contractN, amount: repDraft.amount },
+      snapshot: { total: repDraft.total, done: repDraft.done, pct: repDraft.pct, late: repDraft.late, nextDue: repDraft.nextDue, weekDone: repDraft.weekDone, quoteN: repDraft.quoteN, contractN: repDraft.contractN, amount: repDraft.amount, labor: labor ?? null },
       created_by: user?.id ?? null,
     });
     if (error) { toast(friendlyError(error), "error"); return; }
@@ -1751,6 +1778,9 @@ export function TableV3() {
               <span className="k">7일 안 마감</span><b className="v num">{statusData.week.length}</b></button>
             <button type="button" className="pjv3-stcard" onClick={() => openFiltered("금액 있는 줄", (it) => rowAmount(it) > 0)}>
               <span className="k">금액 합</span><b className="v num">{statusData.amount.toLocaleString("ko-KR")}</b></button>
+            <button type="button" className="pjv3-stcard" onClick={() => laborRouter.push("/attendance")}
+              title={labor?.people ? `출근 ${labor.days}일${labor?.cost != null ? ` · 인건비 추정 ${Math.round(labor.cost).toLocaleString("ko-KR")}원 (월급 ÷ 209 × 시간, 연장·야간·휴일 1.5배)` : ""} · 근태 관리 › 현장별 보기로` : "출근 카드에서 현장으로 이 프로젝트를 고르면 집계됩니다"}>
+              <span className="k">투입 인력</span><b className="v num">{labor?.people ? `${labor.people}명 · ${labor.hours.toFixed(1)}h` : "—"}{labor?.people && labor.cost != null ? <small> {Math.round(labor.cost / 10000).toLocaleString("ko-KR")}만</small> : null}</b></button>
           </div>
           {statTab === "charts" ? (
             statusData.parents.length < 3 ? (
