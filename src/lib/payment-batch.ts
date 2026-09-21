@@ -507,6 +507,8 @@ export async function sendPayslipEmails(
             bank_name: emp.bank_name || null,
             status: 'issued',
             issued_at: new Date().toISOString(),
+            //   새 발급본은 아직 안 본 것 — 재발송이면 열람 기록을 비운다 (2026-09-21 열람 기록)
+            viewed_at: null,
           }, { onConflict: 'employee_id,period_month' })
             .then(({ error }) => { if (error) errors.push(`${item.employeeName}: 발급기록 저장 실패 ${error.message}`); });
         }

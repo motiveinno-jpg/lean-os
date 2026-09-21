@@ -9576,6 +9576,10 @@ body.cap-shooting, body.cap-shooting * { cursor: none !important; }
 
 /* 급여 줄 출처 태그 — 근태 집계에서 자동으로 얹힌 수당 (2026-08-27 인사 H1) */
 .hr-src-tag { @apply ml-1.5 inline-block rounded-full bg-[var(--info)]/10 px-1.5 py-0.5 align-middle text-[10px] font-semibold text-[var(--info)]; }
+/* 급여 탭 발송 칸 — 발송·열람 상태 한 줄 (2026-09-21) */
+.payslip-send-status { @apply mt-1 whitespace-nowrap text-[10px] text-[var(--text-dim)]; }
+.payslip-send-status-viewed { @apply text-[var(--success)]; }
+.payslip-send-status-unviewed { @apply text-[var(--warning)]; }
 
 /* 회사설정 › 4대보험 요율 · 고지서 대조 (2026-08-27 인사 2차) */
 .ins-rates { @apply flex flex-col gap-3; }

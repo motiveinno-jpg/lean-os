@@ -1953,6 +1953,20 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
     return `${y}년 ${parseInt(m, 10)}월`;
   })();
 
+  //   발송·열람 상태(2026-09-21) — payroll_items 스냅샷의 issued_at(발송) · viewed_at(직원이 마이페이지에서 펼친 첫 시각).
+  //   메일 PDF 열람은 알 수 없다 — 칸 제목에 '앱에서 확인' 기준을 적는다.
+  const qcPayroll = useQueryClient();
+  const { data: issuedMap = {} } = useQuery({
+    queryKey: ["payroll-issued", companyId, periodMonth],
+    enabled: !!companyId && !!periodMonth,
+    queryFn: async () => {
+      const data = logRead('employees/page:payrollIssued', await (supabase as any).from("payroll_items")
+        .select("employee_id, issued_at, viewed_at").eq("company_id", companyId!).eq("period_month", periodMonth));
+      const m: Record<string, { issued_at: string | null; viewed_at: string | null }> = {};
+      for (const r of (data || []) as any[]) m[r.employee_id] = { issued_at: r.issued_at, viewed_at: r.viewed_at };
+      return m;
+    },
+  });
   const { data: companyMeta } = useQuery({
     queryKey: ["company-meta-payroll", companyId],
     queryFn: async () => {
@@ -2133,6 +2147,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
       const result = await sendPayslipEmails("preview", companyId, label, { employeeIds });
       const target = employeeIds && employeeIds.length === 1 ? '개인' : `${result.sent + result.failed}명`;
       toast(`급여명세서 ${target} 발송: ${result.sent}건 성공, ${result.failed}건 실패`, result.failed > 0 ? "error" : "success");
+      qcPayroll.invalidateQueries({ queryKey: ["payroll-issued", companyId, periodMonth] });
       if (result.errors?.length) toast(result.errors.join("\n"), "error");
       if (result.errors && result.errors.length > 0) {
         console.warn('payslip send errors:', result.errors);
@@ -2238,7 +2253,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                 <th>공제합계</th>
                 <th>실수령</th>
                 <th title="국민연금·건강(장기요양)·고용·산재 회사 몫 · 회사설정 › 4대보험 요율 기준">회사부담</th>
-                <th>발송</th>
+                <th title="발송 = 메일 발송 시각 · 열람 = 직원이 마이페이지에서 펼쳐 본 시각(앱에서 확인 기준, 메일 PDF 열람은 셀 수 없음)">발송 · 열람</th>
               </tr></thead>
               <tbody>
                 {preview.items.map((item) => {
@@ -2313,6 +2328,18 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                           <Ico e="✉" tone="mono" /> 발송
                         </button>
                       </div>
+                      {(() => {
+                        const st = issuedMap[item.employeeId];
+                        if (!st?.issued_at) return null;
+                        return (
+                          <div className="payslip-send-status">
+                            발송 {kstDateStr(new Date(st.issued_at)).slice(5)}
+                            {st.viewed_at
+                              ? <span className="payslip-send-status-viewed"> · 열람 {kstDateStr(new Date(st.viewed_at)).slice(5)}</span>
+                              : <span className="payslip-send-status-unviewed"> · 미열람</span>}
+                          </div>
+                        );
+                      })()}
                     </td>
                   </tr>
                   {/* v4 H1: 편집 모드일 때 row 아래 수당/공제 라인 편집 */}

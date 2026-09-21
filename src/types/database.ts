@@ -11915,6 +11915,7 @@ export type Database = {
           id: string
           income_tax: number | null
           issued_at: string | null
+          viewed_at: string | null
           local_income_tax: number | null
           long_term_care_insurance: number | null
           national_pension: number | null
@@ -11938,6 +11939,7 @@ export type Database = {
           id?: string
           income_tax?: number | null
           issued_at?: string | null
+          viewed_at?: string | null
           local_income_tax?: number | null
           long_term_care_insurance?: number | null
           national_pension?: number | null
@@ -11961,6 +11963,7 @@ export type Database = {
           id?: string
           income_tax?: number | null
           issued_at?: string | null
+          viewed_at?: string | null
           local_income_tax?: number | null
           long_term_care_insurance?: number | null
           national_pension?: number | null

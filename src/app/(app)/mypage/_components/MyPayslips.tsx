@@ -4,7 +4,7 @@ import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
 // 내 급여명세 — payroll_items 는 RLS(payroll_items_select_role_or_self)로 본인 행만 조회됨.
@@ -22,6 +22,16 @@ function monthLabel(periodMonth?: string | null): string {
 
 export function MyPayslips({ employeeId }: { employeeId: string | null }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const qc = useQueryClient();
+  //   열람 기록(2026-09-21) — 펼쳐 보는 순간을 '확인'으로 남긴다(첫 번째만, 본인 행만 — RPC 가 좁힌다).
+  //   급여 탭의 '발송 · 열람' 이 이 값을 읽는다. 메일 PDF 를 연 것은 알 수 없어 세지 않는다.
+  const markViewed = async (p: any) => {
+    if (p.viewed_at) return;
+    try {
+      const { error } = await (supabase as any).rpc("mark_payslip_viewed", { p_item: p.id });
+      if (!error) qc.invalidateQueries({ queryKey: ["mypage-payslips", employeeId] });
+    } catch { /* 기록 실패는 열람을 막지 않는다 */ }
+  };
 
   const { data: payslips = [], isLoading } = useQuery({
     queryKey: ["mypage-payslips", employeeId],
@@ -32,7 +42,7 @@ export function MyPayslips({ employeeId }: { employeeId: string | null }) {
       const data = logRead('_components/MyPayslips:data', await db
         .from("payroll_items")
         .select(
-          "id, period_month, base_salary, non_taxable_amount, national_pension, health_insurance, long_term_care_insurance, employment_insurance, income_tax, local_income_tax, deductions_total, net_pay, extras, issued_at, created_at",
+          "id, period_month, base_salary, non_taxable_amount, national_pension, health_insurance, long_term_care_insurance, employment_insurance, income_tax, local_income_tax, deductions_total, net_pay, extras, issued_at, viewed_at, created_at",
         )
         .eq("employee_id", employeeId!)
         .not("period_month", "is", null)
@@ -60,7 +70,7 @@ export function MyPayslips({ employeeId }: { employeeId: string | null }) {
         <div className="mypage-payslips-list mypage-record-body space-y-2.5">
           {payslips.map((p: any) => {
             const issuedAt = p.issued_at || p.created_at;
-            const dateStr = issuedAt ? `${kstDateStr(new Date(issuedAt))} 발급` : "";
+            const dateStr = [issuedAt ? `${kstDateStr(new Date(issuedAt))} 발급` : "", p.viewed_at ? `${kstDateStr(new Date(p.viewed_at))} 확인` : ""].filter(Boolean).join(" · ");
             const extras = (Array.isArray(p.extras) ? p.extras : []) as { type: string; name: string; amount: number }[];
             const deductions = [
               { label: "국민연금", v: p.national_pension },
@@ -77,7 +87,7 @@ export function MyPayslips({ employeeId }: { employeeId: string | null }) {
             return (
               <div key={p.id} className="mypage-payslip-row bg-[var(--bg-surface)] rounded-xl border border-[var(--border)] overflow-hidden">
                 <button
-                  onClick={() => setOpenId(open ? null : p.id)}
+                  onClick={() => { setOpenId(open ? null : p.id); if (!open) void markViewed(p); }}
                   className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[var(--bg-hover)] transition"
                 >
                   <div className="min-w-0">
