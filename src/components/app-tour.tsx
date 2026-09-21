@@ -42,7 +42,7 @@ const TOUR_STEPS: TourStep[] = [
     href: "/tax-invoices", title: "세금·증빙",
     desc: "세금계산서를 발행하고 홈택스 자료를 자동으로 모읍니다.",
     howTo: {
-      label: "홈택스 자동 수집 등록 방법",
+      label: "홈택스 수집 등록 방법",
       steps: [
         "설정 > 연동·인증에서 홈택스를 선택합니다.",
         "PC 인증서 자동 선택을 눌러 공동인증서 목록을 엽니다.",

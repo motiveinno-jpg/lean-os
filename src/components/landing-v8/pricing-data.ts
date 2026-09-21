@@ -46,7 +46,7 @@ export const PLAN_FALLBACK: PlanRow[] = [
     features: [
       "기본 5명 포함 · 추가 1명당 ₩5,000/월", "저장공간 500MB + 추가 1명당 10GB · 저장공간 팩(+10GB) ₩5,000/월",
       "세금계산서 발행 월 100건 · 현금영수증 발행 월 100건", "전자계약(서명) 무제한",
-      "통장·카드 무제한 연결 · 하루 2회 자동 + 필요할 때 즉시 동기화", "홈택스 자동 수집 · 부가세 자료 정리",
+      "통장·카드 무제한 연결 · 하루 2회 자동 + 필요할 때 즉시 동기화", "홈택스 수집(무제한) · 부가세 자료 정리",
       "AI 대표 참모 월 50만 토큰", "AI 브리핑(매일 자동 분석)", "결재 허브·근태·급여·프로젝트 전 기능 무제한",
     ],
     monthly_tax_invoice_limit: 100, monthly_cashbill_limit: 100, monthly_contract_limit: null, monthly_ai_token_limit: 500000,

@@ -68,7 +68,7 @@ function matrix(free: PlanRow, paid: PlanRow): { group: string; rows: Row[] }[] 
         { name: "AI 거래 분류", free: "✓", paid: "✓" },
         { name: "세금계산서 발행", free: perMonth(free.monthly_tax_invoice_limit, "건"), paid: perMonth(paid.monthly_tax_invoice_limit, "건") },
         { name: "현금영수증 발행", free: perMonth(free.monthly_cashbill_limit, "건"), paid: perMonth(paid.monthly_cashbill_limit, "건") },
-        { name: "홈택스 자동 수집", free: "—", paid: "✓" },
+        { name: "홈택스 수집(무제한)", free: "—", paid: "✓" },
         // 추가 구매 단가 = billing/page.tsx 묶음 표(10건 3,000원 · 50만 토큰 10,000원). 무료는 구매 불가(api/stripe/credits).
         { name: "월 제공량을 다 썼을 때", free: "다음 달까지 대기", paid: "추가 구매 가능 (발행 10건 3,000원 · 토큰 50만 개 10,000원)" },
       ],
