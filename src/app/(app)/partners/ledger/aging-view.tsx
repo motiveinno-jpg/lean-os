@@ -58,7 +58,7 @@ export function useAging(companyId: string | null, type: "sales" | "purchase")  
           .select("created_at, id, tax_invoices!inner(partner_id, type), bank_transactions(transaction_date)")
           .eq("company_id", companyId ?? "").eq("status", "confirmed").eq("tax_invoices.type", type)
           .order("created_at", { ascending: false }).order("id"), 50000),
-        fetchPaged<any>("aging:notes", () => supabase.from("partners").select("id, notes, contact_email, email").eq("company_id", companyId ?? "").order("id"), 50000),
+        fetchPaged<any>("aging:notes", () => supabase.from("partners").select("id, notes, contact_email").eq("company_id", companyId ?? "").order("id"), 50000),
       ]);
       const today = todayKst();
       const todayMs = new Date(today).getTime();
@@ -86,7 +86,7 @@ export function useAging(companyId: string | null, type: "sales" | "purchase")  
       }
       for (const p of (notes || []) as any[]) {
         const row = map.get(p.id); if (!row) continue;
-        row.email = (p.contact_email || p.email || null) as string | null;
+        row.email = (p.contact_email || null) as string | null;   // partners 에 email 칸은 없다 — contact_email 하나
         const lines = String(p.notes || "").split("\n").filter((l) => /^\[\d{4}-\d{2}-\d{2} 독촉\]/.test(l));
         if (lines.length) row.lastNote = lines[lines.length - 1];
       }

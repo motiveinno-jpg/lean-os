@@ -37,9 +37,9 @@ serve(async (req) => {
     if (!partnerId || !(total > 0)) return json({ error: "partnerId·total 이 필요합니다." }, 400);
 
     //   받는 사람 = 그 회사의 거래처 이메일. 요청이 준 주소는 쓰지 않는다.
-    const { data: partner } = await admin.from("partners").select("id, name, contact_email, email, contact_name").eq("id", partnerId).eq("company_id", me.company_id).maybeSingle();
+    const { data: partner } = await admin.from("partners").select("id, name, contact_email, contact_name").eq("id", partnerId).eq("company_id", me.company_id).maybeSingle();
     if (!partner) return json({ error: "우리 회사 거래처가 아닙니다." }, 403);
-    const to = String(partner.contact_email || partner.email || "").trim().toLowerCase();
+    const to = String(partner.contact_email || "").trim().toLowerCase();
     if (!to || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) return json({ error: "거래처에 이메일이 없습니다. 거래처 정보에 담당자 이메일을 넣어 주세요." }, 400);
     const { data: company } = await admin.from("companies").select("name").eq("id", me.company_id).maybeSingle();
     const companyName = String(company?.name || "오너뷰");
