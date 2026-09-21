@@ -89,6 +89,7 @@ export default function ProductionPage() {
               lines: built.lines.map((l) => ({
                 product_id: l.product_id, qty: l.qty, defect_qty: l.defect, unit_price: l.unit_price,
                 vat_amount: l.vat_amount, note: l.note, order_line_id: l.srcLineId,
+                lot_no: l.lot_no, expiry_date: l.expiry_date,
               })),
               materials: mats,
             }, boms0, ctl.userId);
@@ -110,6 +111,7 @@ export default function ProductionPage() {
             lines: built.lines.map((l) => ({
               product_id: l.product_id, qty: l.qty, defect_qty: l.defect, unit_price: l.unit_price,
               vat_amount: l.vat_amount, note: l.note, order_line_id: l.srcLineId,
+              lot_no: l.lot_no, expiry_date: l.expiry_date,
             })),
             materials: mats,
           }, boms, ctl.userId);
@@ -143,7 +145,7 @@ export default function ProductionPage() {
           for (const m of moves as any[]) {
             const isDefect = !!defectWh && m.warehouse_id === defectWh;
             let row = merged.find((r) => r.product_id === m.product_id);
-            if (!row) { row = { id: m.id, product_id: m.product_id, qty: 0, defect: 0, unit_price: m.unit_price, vat_amount: 0, note: null }; merged.push(row); }
+            if (!row) { row = { id: m.id, product_id: m.product_id, qty: 0, defect: 0, unit_price: m.unit_price, vat_amount: 0, note: null, lot_no: m.lot_no || null, expiry_date: m.expiry_date || null }; merged.push(row); }
             if (isDefect) row.defect += Math.abs(m.qty); else { row.qty += Math.abs(m.qty); row.note = m.note; row.id = m.id; }
             row.vat_amount += Math.abs(Number(m.vat_amount || 0));
           }
@@ -159,7 +161,7 @@ export default function ProductionPage() {
               unit_price: m.unit_price,
               supply_amount: Math.abs(Number(m.unit_price || 0) * (m.qty + m.defect)),
               vat_amount: m.vat_amount,
-              note: m.note, custom: (m.defect ? { defect: String(m.defect) } : {}) as Record<string, string>, sort_no: i,
+              note: m.note, custom: { ...(m.defect ? { defect: String(m.defect) } : {}), ...(m.lot_no ? { lot: m.lot_no } : {}), ...(m.expiry_date ? { expiry: m.expiry_date } : {}) } as Record<string, string>, sort_no: i,
             })),
           );
         }}

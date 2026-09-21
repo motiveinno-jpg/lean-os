@@ -45,6 +45,8 @@ export type MatInput = { product_id: string; component_id: string; qty: number; 
 export type ProduceLine = {
   product_id: string; qty: number; defect_qty?: number | null; unit_price?: number | null; vat_amount?: number | null;
   note?: string | null; order_line_id?: string | null;
+  /** 완제품 줄의 로트·유통기한(2026-09-21) — 양품·불량 줄에 같이 남는다 */
+  lot_no?: string | null; expiry_date?: string | null;
 };
 const totalQty = (l: { qty: number; defect_qty?: number | null }) => Number(l.qty) + Number(l.defect_qty || 0);
 /** 표준 자재 소요 — 완제품 줄(양품+불량) × 자재구성. 실투입 입력(materials)이 있으면 그것이 이긴다. */
@@ -166,7 +168,7 @@ async function prodLinesOf(companyId: string, lines: ProduceLine[]): Promise<Mov
   const overhead = new Map(((ph || []) as any[]).map((p) => [p.id as string, Number(p.overhead_per_unit || 0)]));
   const out: MoveLine[] = [];
   for (const l of lines) {
-    const base = { product_id: l.product_id, unit_price: l.unit_price ?? null, vat_amount: l.vat_amount ?? null, order_line_id: l.order_line_id ?? null, overhead_unit: overhead.get(l.product_id) || 0 };
+    const base = { product_id: l.product_id, unit_price: l.unit_price ?? null, vat_amount: l.vat_amount ?? null, order_line_id: l.order_line_id ?? null, overhead_unit: overhead.get(l.product_id) || 0, lot_no: l.lot_no ?? null, expiry_date: l.expiry_date ?? null };
     if (Number(l.qty) !== 0) out.push({ ...base, qty: Number(l.qty), note: l.note ?? null });
     if (Number(l.defect_qty || 0) !== 0) out.push({ ...base, qty: Number(l.defect_qty), warehouseId: defectWh, note: `불량${l.note ? ` · ${l.note}` : ""}` });
   }
