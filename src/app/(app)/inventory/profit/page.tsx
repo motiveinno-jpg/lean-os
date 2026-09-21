@@ -24,7 +24,8 @@ import { DateRangeField } from "@/components/date-range-field";
 import { exportToExcel } from "@/lib/excel-export";
 import { LineChart, BarChart, DonutChart, Legend, vizColor } from "@/components/charts/kit";
 import { listMoves, listProducts, listAvgCost, type MoveRow, type Product } from "@/lib/inventory";
-import { listImports, channelLabel } from "@/lib/inventory-channels";
+import { listImports, channelLabel, CHANNELS } from "@/lib/inventory-channels";
+import { loadChannelFees, saveChannelFees, type ChannelFees } from "@/lib/inventory-settings";
 import { listMoveCosts, listLayers, getCostState, rebuildMyCosts, loadCostingMethod, saveCostingMethod, COSTING_METHODS, listRevaluations, addRevaluation, cancelRevaluation, REVAL_REASONS, revalReasonLabel, type CostingMethod, type MoveCost, type CostLayer } from "@/lib/inventory-cost";
 import { SalesBoard } from "../../reports/_components/SalesBoard";
 import { DateField } from "@/components/date-field";
@@ -72,6 +73,13 @@ export default function InventoryProfitPage() {
   const { data: state } = q("inv-cost-state", () => getCostState(companyId!));
   const { data: method = "fifo" as CostingMethod } = q("inv-cost-method", () => loadCostingMethod(companyId!));
   const { data: imports = [] } = q("ch-imports", () => listImports(companyId!, 2000));
+  //   채널 수수료·배송비(2026-09-21) — 회사가 정한 비율·건당 금액. 없는 채널은 0.
+  const { data: fees = {} as ChannelFees } = q("inv-channel-fees", () => loadChannelFees(companyId!));
+  const [feeOpen, setFeeOpen] = useState(false);
+  const [feeDraft, setFeeDraft] = useState<Record<string, { rate: string; ship: string }>>({});
+  const feeRate = (ch: string) => fees[ch]?.fee_rate ?? 0;
+  const shipPer = (ch: string) => fees[ch]?.ship_per_order ?? 0;
+  const feesConfigured = Object.values(fees).some((f) => f.fee_rate > 0 || f.ship_per_order > 0);
   const { data: revals = [] } = q("inv-cost-revals", () => listRevaluations(companyId!));
   const { data: partners = [] } = q("inv-partners", async () => {
     const data = await fetchPaged<any>("inv-partners", () => supabase.from("partners").select("id, name").eq("company_id", companyId!).order("name"), 50000);
@@ -166,9 +174,37 @@ export default function InventoryProfitPage() {
     catch (e) { toast(friendlyError(e), "error"); setBusy(false); }
   };
 
-  const productRows = [...S.perProduct.entries()].map(([id, r]) => ({ id, p: productById.get(id), ...r, gp: r.rev - r.cost, rate: r.rev > 0 ? (r.rev - r.cost) / r.rev : null })).sort((a, b) => b.gp - a.gp);
+  //   채널별 주문 건수(기간 안 채널 주문 기록, 같은 주문번호는 1건) — 배송비는 주문당이라 건수가 필요하다. 채널 기록이 없는 판매(직접)는 배송비를 셀 주문이 없다.
+  const ordersByChannel = useMemo(() => {
+    const seen = new Set<string>(); const m = new Map<string, number>();
+    for (const i of imports) { if (!i.order_date || i.order_date < from || i.order_date > to) continue; const k = `${i.channel}|${i.channel_order_no}`; if (seen.has(k)) continue; seen.add(k); m.set(i.channel, (m.get(i.channel) || 0) + 1); }
+    return m;
+  }, [imports, from, to]);
+  //   품목별 수수료 — 그 판매가 어느 채널 주문이었는지로 비율을 곱한다(배송비는 주문 단위라 품목에 나누지 않는다)
+  const productFee = useMemo(() => { const m = new Map<string, number>(); for (const r of S.saleRows) { const ch = (r.m.doc && docChannel.get(r.m.doc.id)) || "direct"; const f = r.rev * feeRate(ch); if (f) m.set(r.m.product_id, (m.get(r.m.product_id) || 0) + f); } return m; }, [S.saleRows, docChannel, fees]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const productRows = [...S.perProduct.entries()].map(([id, r]) => ({ id, p: productById.get(id), ...r, gp: r.rev - r.cost, rate: r.rev > 0 ? (r.rev - r.cost) / r.rev : null, fee: productFee.get(id) || 0 })).sort((a, b) => b.gp - a.gp);
   const partnerRows = [...S.perPartner.entries()].map(([id, r]) => ({ id, name: id === "-" ? "(거래처 없음)" : partnerName.get(id) || "(미상)", ...r, gp: r.rev - r.cost, rate: r.rev > 0 ? (r.rev - r.cost) / r.rev : null })).sort((a, b) => b.gp - a.gp);
-  const channelRows = [...S.perChannel.entries()].map(([id, r]) => ({ id, name: id === "direct" ? "직접" : channelLabel(id), ...r, gp: r.rev - r.cost, rate: r.rev > 0 ? (r.rev - r.cost) / r.rev : null })).sort((a, b) => b.gp - a.gp);
+  const channelRows = [...S.perChannel.entries()].map(([id, r]) => {
+    const gp = r.rev - r.cost, orders = ordersByChannel.get(id) || 0, fee = r.rev * feeRate(id), ship = orders * shipPer(id), net = gp - fee - ship;
+    return { id, name: id === "direct" ? "직접" : channelLabel(id), ...r, gp, rate: r.rev > 0 ? gp / r.rev : null, orders, fee, ship, net, netRate: r.rev > 0 ? net / r.rev : null };
+  }).sort((a, b) => b.net - a.net);
+  const netTotal = channelRows.reduce((n, r) => n + r.net, 0);
+  const openFees = () => {
+    const d: Record<string, { rate: string; ship: string }> = {};
+    for (const c of [...CHANNELS.map((c) => c.value), "direct"]) d[c] = { rate: fees[c] ? String(+(fees[c].fee_rate * 100).toFixed(2)) : "", ship: fees[c] ? String(fees[c].ship_per_order || "") : "" };
+    setFeeDraft(d); setFeeOpen(true);
+  };
+  const saveFees = async () => {
+    if (!companyId) return;
+    const next: ChannelFees = {};
+    for (const [k, v] of Object.entries(feeDraft)) {
+      const rate = Number(String(v.rate).replace(/[^0-9.]/g, "")) / 100, ship = Number(String(v.ship).replace(/[^0-9]/g, ""));
+      if (rate > 0 || ship > 0) next[k] = { fee_rate: rate >= 1 ? 0 : rate, ship_per_order: ship };
+    }
+    setBusy(true);
+    try { await saveChannelFees(companyId, next); qc.invalidateQueries({ queryKey: ["inv-channel-fees"] }); setFeeOpen(false); toast("채널 수수료·배송비를 저장했습니다. 순이익이 다시 계산됩니다", "success"); }
+    catch (e) { toast(friendlyError(e), "error"); } finally { setBusy(false); }
+  };
   const lossLabel: Record<string, string> = { disposal: "폐기", sample: "샘플", gift: "증정", count: "실사 감모", fix: "정정", reval: "재고 평가손실" };
   const submitReval = async () => {
     if (!histProduct) { toast("품목을 먼저 고르세요", "error"); return; }
@@ -202,7 +238,7 @@ export default function InventoryProfitPage() {
       <Stat label="원가 미확정 출고" value={<button type="button" className="inv-stat-btn" onClick={() => setUncOpen(true)}>{won(S.uncosted)}개</button>} tone={S.uncosted ? "minus" : undefined} />
     </>),
     product: (<><Stat label="품목" value={`${S.perProduct.size}종`} /><Stat label="판매 수량" value={won(S.soldQty)} /><Stat label="매출총이익" value={`₩${won(S.gp)}`} /><Stat label="이익률" value={pct(S.rate)} /></>),
-    partner: (<><Stat label="거래처" value={`${S.perPartner.size}곳`} /><Stat label="채널" value={`${S.perChannel.size}개`} /><Stat label="매출총이익" value={`₩${won(S.gp)}`} /></>),
+    partner: (<><Stat label="거래처" value={`${S.perPartner.size}곳`} /><Stat label="채널" value={`${S.perChannel.size}개`} /><Stat label="매출총이익" value={`₩${won(S.gp)}`} />{feesConfigured && <Stat label="수수료·배송비 뺀 순이익" title="회사가 정한 채널별 수수료율·주문당 배송비로 계산한 추정" value={`₩${won(netTotal)}`} tone={netTotal < 0 ? "minus" : undefined} />}</>),
     buymake: (<><Stat label="매입 품목" value={`${BM.buy.size}종`} /><Stat label="기간 매입" value={`₩${won([...BM.buy.values()].reduce((n, b) => n + b.amt, 0))}`} /><Stat label="생산 품목" value={`${BM.make.size}종`} /><Stat label="생산 원가" value={`₩${won([...BM.make.values()].reduce((n, b) => n + b.amt, 0))}`} /><Stat label="손실" value={`₩${won(S.loss)}`} tone={S.loss ? "minus" : undefined} /></>),
     history: (<><Stat label="원가 방법" value={method === "avg" ? "이동평균" : "선입선출"} /><Stat label="마지막 계산" value={state ? state.computed_at.slice(0, 16).replace("T", " ") : "—"} /><Stat label="층" value={`${state?.layers ?? 0}`} /><Stat label="미확정 출고" value={`${state?.uncosted_moves ?? 0}건`} tone={state?.uncosted_moves ? "minus" : undefined} /></>),
   };
@@ -221,7 +257,7 @@ export default function InventoryProfitPage() {
               const name = TABS.find(([k]) => k === tab)?.[1] || "이익";
               const rows: Record<string, unknown>[] =
                 tab === "product" ? productRows.map((r) => ({ "SKU": r.p?.sku || "", "품목": r.p?.name || "", "판매 수량": r.qty, "매출": r.rev, "매출원가": r.cost, "이익": r.gp, "이익률": pct(r.rate), "미확정": r.unc, "현재 층 단가": lastLayerCost(r.id) ?? "", "현재고 원가": onhandCost(r.id) }))
-                : tab === "partner" ? [...partnerRows.map((r) => ({ "구분": "거래처", "이름": r.name, "매출": r.rev, "원가": r.cost, "이익": r.gp, "이익률": pct(r.rate) })), ...channelRows.map((r) => ({ "구분": "채널", "이름": r.name, "매출": r.rev, "원가": r.cost, "이익": r.gp, "이익률": pct(r.rate) }))]
+                : tab === "partner" ? [...partnerRows.map((r) => ({ "구분": "거래처", "이름": r.name, "매출": r.rev, "원가": r.cost, "이익": r.gp, "이익률": pct(r.rate) })), ...channelRows.map((r) => ({ "구분": "채널", "이름": r.name, "매출": r.rev, "원가": r.cost, "이익": r.gp, "이익률": pct(r.rate), "주문 건수": r.orders, "수수료(추정)": Math.round(r.fee), "배송비(추정)": Math.round(r.ship), "순이익(추정)": Math.round(r.net), "순이익률": pct(r.netRate) }))]
                 : tab === "buymake" ? [...[...BM.buy.entries()].map(([id, b]) => ({ "구분": "매입", "품목": productById.get(id)?.name || "", "수량": b.qty, "평균 단가": b.qty ? b.amt / b.qty : "", "최저": b.min, "최고": b.max, "판매가": productById.get(id)?.sale_price ?? "" })), ...[...BM.make.entries()].map(([id, k]) => ({ "구분": "생산", "품목": productById.get(id)?.name || "", "수량": k.qty, "평균 단가": k.qty ? k.amt / k.qty : "", "노무·경비": k.overhead, "판매가": productById.get(id)?.sale_price ?? "" }))]
                 : tab === "history" ? histLayers.map((l) => ({ "품목": productById.get(l.product_id)?.name || "", "일자": l.layer_date, "원천": SOURCE_LABEL[l.source] || koFallback(l.source), "입고": l.qty_in, "남음": l.qty_left, "단가": l.unit_cost ?? "" }))
                 : [{ "매출": S.revenue, "매출원가": S.cogs, "매출총이익": S.gp, "이익률": pct(S.rate), "손실": S.loss, "순이익": S.net, "원가 미확정": S.uncosted }];
@@ -286,10 +322,10 @@ export default function InventoryProfitPage() {
                   <div className="pnl-panel">
                     <h3>품목별</h3><p title="매출·원가·이익은 조회 기간, 층 단가와 현재고 원가는 지금 기준입니다">품목을 누르면 원가 이력이 열립니다.</p>
                     <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status">
-                      <thead><tr><th>SKU</th><th>품목</th><th>판매 수량</th><th>매출</th><th>매출원가</th><th>이익</th><th>이익률</th><th>판매가</th><th>현재 층 단가</th><th>현재고 원가</th></tr></thead>
+                      <thead><tr><th>SKU</th><th>품목</th><th>판매 수량</th><th>매출</th><th>매출원가</th><th>이익</th><th>이익률</th>{feesConfigured && <th title="이익에서 채널 수수료(회사가 정한 비율)를 뺀 값 · 배송비는 주문 단위라 품목에 나누지 않습니다">수수료 뺀 이익</th>}<th>판매가</th><th>현재 층 단가</th><th>현재고 원가</th></tr></thead>
                       <tbody>{productRows.map((r) => (
                         <tr key={r.id} className={r.unc ? "inv-row-fix" : undefined}><td className="mono-number text-left">{r.p?.sku}</td><td className="text-left"><button type="button" className="bz-link" onClick={() => { setHistProduct(r.id); setTab("history"); }}><b>{r.p?.name || "?"}</b></button>{r.unc ? <span className="ev-dim"> · 미확정 {won(r.unc)}</span> : null}</td>
-                          <td className="tr mono-number">{won(r.qty)}</td><td className="tr mono-number">₩{won(r.rev)}</td><td className="tr mono-number">₩{won(r.cost)}</td><td className={`tr mono-number${r.gp < 0 ? " inv-diff-minus" : ""}`}>₩{won(r.gp)}</td><td className="tr mono-number">{pct(r.rate)}</td>
+                          <td className="tr mono-number">{won(r.qty)}</td><td className="tr mono-number">₩{won(r.rev)}</td><td className="tr mono-number">₩{won(r.cost)}</td><td className={`tr mono-number${r.gp < 0 ? " inv-diff-minus" : ""}`}>₩{won(r.gp)}</td><td className="tr mono-number">{pct(r.rate)}</td>{feesConfigured && <td className={`tr mono-number${r.gp - r.fee < 0 ? " inv-diff-minus" : ""}`}>{r.fee ? `₩${won(r.gp - r.fee)}` : "—"}</td>}
                           <td className="tr mono-number">{r.p?.sale_price != null ? `₩${won(r.p.sale_price)}` : "—"}</td><td className="tr mono-number">{lastLayerCost(r.id) != null ? `₩${won(lastLayerCost(r.id)!)}` : "—"}</td><td className="tr mono-number">₩{won(onhandCost(r.id))}</td></tr>
                       ))}{productRows.length === 0 && <tr><td colSpan={10} className="tc ev-dim">이 기간에 판매가 없습니다.</td></tr>}</tbody>
                     </table></div>
@@ -307,8 +343,16 @@ export default function InventoryProfitPage() {
                       </table></div>
                     </div>
                     <div className="pnl-panel">
-                      <h3>채널별</h3><p title="채널 주문 기록이 없는 판매는 직접으로 봅니다">채널별 이익입니다.</p>
-                      {channelRows.length ? <><DonutChart unit="원" total={`₩${won(S.gp)}`} data={channelRows.filter((r) => r.gp > 0).map((r, i) => ({ label: r.name, value: r.gp, color: vizColor(i) }))} /><Legend items={channelRows.map((r, i) => ({ name: `${r.name} ₩${wonShort(r.gp)} (${pct(r.rate)})`, color: vizColor(i) }))} /></> : <div className="inv-status-empty">판매가 없습니다.</div>}
+                      <h3>채널별<span className="ui-sub">수수료·배송비를 뺀 순이익</span></h3>
+                      <p title="채널 주문 기록이 없는 판매는 직접으로 봅니다 · 수수료·배송비는 회사가 정한 채널별 비율·건당 금액으로 계산한 추정입니다">채널별 이익과, 수수료·배송비를 뺀 순이익입니다.</p>
+                      <div className="inv-fee-actions"><button type="button" className="btn-secondary btn-sm" onClick={openFees}>수수료·배송비 설정</button>{!feesConfigured && <span className="inv-hint">아직 정하지 않아 수수료·배송비가 0으로 계산됩니다.</span>}</div>
+                      {channelRows.length ? <>
+                        <DonutChart unit="원" total={`₩${won(netTotal)}`} data={channelRows.filter((r) => r.net > 0).map((r, i) => ({ label: r.name, value: r.net, color: vizColor(i) }))} /><Legend items={channelRows.map((r, i) => ({ name: `${r.name} ₩${wonShort(r.net)} (${pct(r.netRate)})`, color: vizColor(i) }))} />
+                        <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status-sm">
+                          <thead><tr><th>채널</th><th>매출</th><th>이익</th><th title="매출 × 채널 수수료율">수수료</th><th title="주문 건수 × 주문당 배송비">배송비</th><th>순이익</th><th>순이익률</th></tr></thead>
+                          <tbody>{channelRows.map((r) => <tr key={r.id}><td className="text-left"><b>{r.name}</b>{r.orders ? <small className="ev-dim"> · {r.orders}건</small> : null}</td><td className="tr mono-number">₩{won(r.rev)}</td><td className={`tr mono-number${r.gp < 0 ? " inv-diff-minus" : ""}`}>₩{won(r.gp)}</td><td className="tr mono-number ev-dim">{r.fee ? `−₩${won(r.fee)}` : "—"}</td><td className="tr mono-number ev-dim">{r.ship ? `−₩${won(r.ship)}` : "—"}</td><td className={`tr mono-number${r.net < 0 ? " inv-diff-minus" : ""}`}><b>₩{won(r.net)}</b></td><td className="tr mono-number">{pct(r.netRate)}</td></tr>)}</tbody>
+                        </table></div>
+                      </> : <div className="inv-status-empty">판매가 없습니다.</div>}
                     </div>
                   </div>
                 )}
@@ -408,6 +452,39 @@ export default function InventoryProfitPage() {
             )}
           </div>
         </QueryBody>
+      {/* 채널 수수료·배송비 설정 — 회사가 정한 비율·건당 금액. 팝업(목록 줄이 밀리지 않게) */}
+      {feeOpen && (
+        <div className="inv-fee-modal" onClick={() => setFeeOpen(false)}>
+          <div className="modal-backdrop" />
+          <div className="inv-fee-panel modal-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="inv-fee-head">
+              <div>
+                <h3 className="text-sm font-bold text-[var(--text)]">채널 수수료·배송비</h3>
+                <p className="text-[11px] text-[var(--text-dim)] mt-0.5">매출 × 수수료율, 주문 건수 × 주문당 배송비를 이익에서 뺍니다. 채널 정산 내역이 아니라 회사가 정한 값으로 계산한 추정입니다.</p>
+              </div>
+              <button type="button" className="btn-secondary btn-sm" onClick={() => setFeeOpen(false)}>닫기</button>
+            </div>
+            <div className="inv-fee-body">
+              <table className="ev-table ev-lined table-inv-status-sm">
+                <thead><tr><th className="text-left">채널</th><th>수수료율 (%)</th><th>주문당 배송비 (원)</th></tr></thead>
+                <tbody>
+                  {[...CHANNELS.map((c) => ({ value: c.value as string, label: c.label as string })), { value: "direct", label: "직접 (채널 기록 없는 판매)" }].map((c) => (
+                    <tr key={c.value}>
+                      <td className="text-left"><b>{c.label}</b></td>
+                      <td className="tc"><input className="qk-input h-8 w-24 px-2 text-right text-xs" inputMode="decimal" placeholder="예: 5.8" value={feeDraft[c.value]?.rate ?? ""} onChange={(e) => setFeeDraft((d) => ({ ...d, [c.value]: { rate: e.target.value, ship: d[c.value]?.ship ?? "" } }))} /></td>
+                      <td className="tc"><input className="qk-input h-8 w-28 px-2 text-right text-xs" inputMode="numeric" placeholder="예: 3000" value={feeDraft[c.value]?.ship ?? ""} onChange={(e) => setFeeDraft((d) => ({ ...d, [c.value]: { rate: d[c.value]?.rate ?? "", ship: e.target.value } }))} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="inv-fee-foot">
+              <span className="text-[11px] text-[var(--text-dim)]">비워 두면 0 · 직접 판매의 배송비는 채널 주문 기록이 없어 세지 않습니다.</span>
+              <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={saveFees}>{busy ? "저장 중..." : "저장"}</button>
+            </div>
+          </div>
+        </div>
+      )}
       </QueryScreen>
       {uncOpen && (
         <div className="inv-modal" onClick={() => setUncOpen(false)}>

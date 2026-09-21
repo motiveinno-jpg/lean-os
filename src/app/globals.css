@@ -1810,6 +1810,13 @@ table.approval-table { min-width: 860px; } /* table. — .ev-table 의 min-width
 .perm-template-editor-actions { @apply flex flex-wrap gap-1.5; }
 .perm-template-tree { @apply flex-1 overflow-y-auto p-4; }
 .perm-template-foot { @apply flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-t border-[var(--border)] shrink-0 bg-[var(--bg-card)]; }
+/* 이익관리 › 채널 수수료·배송비 설정 팝업 (2026-09-21) */
+.inv-fee-modal { @apply fixed inset-0 z-50 flex items-center justify-center p-4; }
+.inv-fee-panel { @apply max-w-xl; }
+.inv-fee-head { @apply flex items-start justify-between gap-4 px-5 py-4 border-b border-[var(--border)] shrink-0; }
+.inv-fee-body { @apply px-5 py-3 overflow-y-auto; }
+.inv-fee-foot { @apply flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-t border-[var(--border)] shrink-0 bg-[var(--bg-card)]; }
+.inv-fee-actions { @apply mb-2 flex flex-wrap items-center gap-2; }
 /* ★ 회사 기본 템플릿 (2026-09-21) — 목록의 별표 · 편집 바닥의 자동 부여 토글 */
 .perm-template-default-star { @apply text-[var(--warning)]; }
 .perm-template-default-toggle { @apply mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-[var(--text)] cursor-pointer; }
