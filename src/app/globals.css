@@ -10761,3 +10761,34 @@ textarea.tax-remark-input {
 .clg-deal-link { @apply text-[var(--primary)] hover:underline; }
 table.table-clg { min-width: 860px; }
 .clg-scroll { @apply overflow-auto; }
+
+/* ── 분석 › 회계 자료 › 계정별 원장 · 합계잔액시산표 (2026-09-21 ERP 공백 2차 ①) ── */
+.acct-ledger-view { @apply inline-flex items-center rounded-lg border border-[var(--border)] bg-[var(--bg-card)] p-0.5 gap-0.5; }
+.acct-ledger-view-btn { @apply h-7 px-2.5 rounded-md text-[11.5px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] transition; }
+.acct-ledger-view-on { @apply bg-[var(--primary)] text-white hover:text-white; }
+.acct-ledger-pick { @apply inline-flex items-center gap-1; }
+.acct-ledger-loading { @apply p-10 text-center text-sm text-[var(--text-muted)]; }
+.acct-ledger-unposted { @apply mb-3; }
+.acct-ledger-note { @apply mb-3; }
+.acct-ledger-link { @apply font-semibold text-[var(--primary)] no-underline hover:underline; }
+.acct-ledger-tb { @apply w-full; }
+.acct-ledger-sheet { @apply w-full; }
+table.acct-ledger-tb { min-width: 720px; }
+table.acct-ledger-sheet { min-width: 820px; }
+.acct-ledger-th-num { width: 130px; }
+.acct-ledger-th-code { width: 64px; }
+.acct-ledger-th-name { @apply text-left; }
+.acct-ledger-th-date { width: 100px; }
+.acct-ledger-th-vno { width: 84px; }
+.acct-ledger-th-memo { @apply text-left; }
+.acct-ledger-th-partner { @apply text-left; width: 160px; }
+.acct-ledger-num { @apply text-right tabular-nums; }
+.acct-ledger-sec td { @apply bg-[var(--bg-surface)] text-[11px] font-bold text-[var(--text-dim)] text-left; }
+.acct-ledger-row { @apply cursor-pointer transition-colors hover:bg-[var(--bg-surface)]; }
+.acct-ledger-name { @apply font-medium; }
+.acct-ledger-flip { @apply ml-2 inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-600; }
+.acct-ledger-carry td { @apply text-[var(--text-muted)]; }
+.acct-ledger-month td { @apply bg-[var(--bg-surface)]/60 text-[var(--text-muted)] font-semibold; }
+.acct-ledger-total td { @apply sticky bottom-0 z-10 bg-[var(--bg-surface)] border-t-2 border-[var(--border)] font-bold; }
+.acct-ledger-empty { @apply py-8 text-center text-sm text-[var(--text-muted)]; }
+.acct-ledger-foot { @apply mt-3 text-[10.5px] text-[var(--text-dim)]; }
