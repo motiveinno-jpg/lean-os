@@ -19,6 +19,7 @@ import { supabase } from "@/lib/supabase";
 import { fetchPaged } from "@/lib/fetch-paged";
 import { kstDateStr, todayKst } from "@/lib/kst";
 import { useToast } from "@/components/toast";
+import { appConfirm } from "@/components/global-confirm";
 import { friendlyError } from "@/lib/friendly-error";
 import { SortableTh, nextSort, type SortState } from "@/components/sortable-th";
 import { quickSearchHit } from "@/components/query-kit";
@@ -33,6 +34,8 @@ export type AgingRow = {
   partnerId: string | null; name: string; code: number | null;
   buckets: number[]; total: number; count: number; oldestDays: number; oldestDate: string | null;
   lastSettle: string | null; lastNote: string | null;
+  /** 거래처 담당자 이메일 — 안내 메일(2026-09-21)의 받는 사람. 없으면 버튼이 이유를 말한다 */
+  email: string | null;
 };
 type SortKey = "name" | "b0" | "b1" | "b2" | "b3" | "total" | "oldest" | "last";
 
@@ -55,7 +58,7 @@ export function useAging(companyId: string | null, type: "sales" | "purchase")  
           .select("created_at, id, tax_invoices!inner(partner_id, type), bank_transactions(transaction_date)")
           .eq("company_id", companyId ?? "").eq("status", "confirmed").eq("tax_invoices.type", type)
           .order("created_at", { ascending: false }).order("id"), 50000),
-        fetchPaged<any>("aging:notes", () => supabase.from("partners").select("id, notes").eq("company_id", companyId ?? "").not("notes", "is", null).order("id"), 50000),
+        fetchPaged<any>("aging:notes", () => supabase.from("partners").select("id, notes, contact_email, email").eq("company_id", companyId ?? "").order("id"), 50000),
       ]);
       const today = todayKst();
       const todayMs = new Date(today).getTime();
@@ -70,7 +73,7 @@ export function useAging(companyId: string | null, type: "sales" | "purchase")  
         let row = map.get(pk);
         if (!row) {
           row = { partnerId: r.partner_id || null, name: "", code: null,
-            buckets: [0, 0, 0, 0], total: 0, count: 0, oldestDays: -1, oldestDate: null, lastSettle: null, lastNote: null };
+            buckets: [0, 0, 0, 0], total: 0, count: 0, oldestDays: -1, oldestDate: null, lastSettle: null, lastNote: null, email: null };
           map.set(pk, row);
         }
         row.buckets[bi] += bal; row.total += bal; row.count += 1;
@@ -83,6 +86,7 @@ export function useAging(companyId: string | null, type: "sales" | "purchase")  
       }
       for (const p of (notes || []) as any[]) {
         const row = map.get(p.id); if (!row) continue;
+        row.email = (p.contact_email || p.email || null) as string | null;
         const lines = String(p.notes || "").split("\n").filter((l) => /^\[\d{4}-\d{2}-\d{2} 독촉\]/.test(l));
         if (lines.length) row.lastNote = lines[lines.length - 1];
       }
@@ -121,6 +125,27 @@ export function AgingView({ type, rows: rawRows, loading, q, onOpen, partnerMap,
   const copyDunning = async (r: AgingRow) => {
     try { await navigator.clipboard.writeText(dunningText(r)); toast("문구를 복사했습니다. 카톡·문자·메일에 붙여 보내세요", "success"); }
     catch { toast("복사하지 못했습니다", "error"); }
+  };
+  //   안내 메일(2026-09-21) — 받는 사람은 서버가 그 회사 거래처 이메일로 확정한다(요청 주소는 안 쓴다).
+  //   보내면 독촉 기록에 한 줄 남긴다. 발송은 사람이 확인창에서 누른다 — 자동 발송 없음.
+  const sendMail = async (r: AgingRow) => {
+    if (!r.partnerId || busy) return;
+    if (!r.email) { toast("거래처에 담당자 이메일이 없습니다. 거래처 정보에서 넣어 주세요", "error"); return; }
+    if (!(await appConfirm(`${r.name}(${r.email})에게 ${isAR ? "미수금" : "미지급금"} ${won(r.total)} 안내 메일을 보냅니다.\n\n${dunningText(r)}`, { confirmLabel: "보내기" }))) return;
+    setBusy(true);
+    try {
+      const { data, error } = await (supabase as any).functions.invoke("send-dunning-email", { body: { partnerId: r.partnerId, side: isAR ? "AR" : "AP", total: r.total, count: r.count, oldestDate: r.oldestDate } });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "발송하지 못했습니다");
+      const line = `[${todayKst()} 독촉] 안내 메일 발송 → ${r.email}`;
+      const { data: cur } = await supabase.from("partners").select("notes").eq("id", r.partnerId).maybeSingle();
+      const prev = String((cur as any)?.notes || "").trim();
+      await supabase.from("partners").update({ notes: prev ? `${prev}\n${line}` : line } as never).eq("id", r.partnerId);
+      toast(`${r.email} 로 안내 메일을 보냈습니다. 독촉 기록에 남겼습니다`, "success");
+      qc.invalidateQueries({ queryKey: ["ledger-aging-rows", companyId] });
+    } catch (e: any) {
+      toast(friendlyError(e, "안내 메일을 보내지 못했습니다"), "error");
+    } finally { setBusy(false); }
   };
   const saveNote = async () => {
     if (!noteFor?.partnerId || !noteText.trim() || busy) return;
@@ -168,7 +193,9 @@ export function AgingView({ type, rows: rawRows, loading, q, onOpen, partnerMap,
                 <td className="text-left aging-note" title={r.lastNote || undefined}>{r.lastNote ? r.lastNote.replace(/^\[(\d{4}-\d{2}-\d{2}) 독촉\]\s*/, "$1 · ") : <span className="ev-dim">—</span>}</td>
                 <td className="tc" onClick={(e) => e.stopPropagation()}>
                   <span className="bl-row-acts">
-                    <button type="button" className="btn-secondary btn-sm" onClick={() => copyDunning(r)} title="독촉 문구 복사 · 발송은 직접">문구</button>
+                    <button type="button" className="btn-secondary btn-sm" onClick={() => copyDunning(r)} title="독촉 문구 복사 · 카톡·문자로 보낼 때">문구</button>
+                    <button type="button" className="btn-secondary btn-sm" disabled={!r.partnerId || busy} onClick={() => sendMail(r)}
+                      title={r.email ? `거래처 이메일(${r.email})로 안내 메일을 보냅니다 · 독촉 기록에 남습니다` : "거래처에 담당자 이메일이 없습니다"}>안내 메일</button>
                     <button type="button" className="btn-secondary btn-sm" disabled={!r.partnerId} onClick={() => { setNoteFor(r); setNoteText(""); }} title={r.partnerId ? "언제 무엇을 했는지 남긴다" : "미지정 거래처는 기록할 수 없습니다"}>기록</button>
                   </span>
                 </td>

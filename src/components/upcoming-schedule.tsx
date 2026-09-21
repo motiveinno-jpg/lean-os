@@ -11,7 +11,7 @@ interface UpcomingScheduleCardProps {
   windowDays?: number;
 }
 
-type ScheduleType = "loan" | "tax" | "contract" | "subscription";
+type ScheduleType = "loan" | "tax" | "contract" | "subscription" | "billing";
 
 interface ScheduleItem {
   id: string;
@@ -28,6 +28,8 @@ const TYPE_META: Record<ScheduleType, { label: string; color: string; bg: string
   tax:          { label: "세금마감",   color: "var(--warning)",  bg: "rgba(245,158,11,0.10)",  icon: "🧾" },
   contract:     { label: "계약만료",   color: "var(--primary)",  bg: "rgba(99,102,241,0.10)",  icon: "📄" },
   subscription: { label: "구독갱신",   color: "var(--success)",  bg: "rgba(34,197,94,0.10)",   icon: "🔄" },
+  //   정기 청구(2026-09-21) — 계약 대장에 적은 매월 청구일. 그날 청구를 잊지 않게 할 일로 올린다
+  billing:      { label: "정기 청구",   color: "var(--info)",     bg: "rgba(59,130,246,0.10)",  icon: "🧾" },
 };
 
 function fmtKR(n: number): string {
@@ -168,7 +170,7 @@ export function UpcomingScheduleCard({ companyId, windowDays = 30 }: UpcomingSch
       //   2026-08-31 낡은정보 스윕: 상환 끝난 대출·해지한 구독이 만기/갱신 D-day 로 계속 뜨던 것 —
       //   상태 필터 추가. 세금 마감은 '납부 완료' 체크(tax_deadline_checks)를 읽어 걸러낸다
       //   (신호 6칸·브리핑은 이미 거르는데 정작 이 카드만 안 걸렀다).
-      const [loans, docs, vault, taxChecked] = await Promise.all([
+      const [loans, docs, vault, taxChecked, billing] = await Promise.all([
         db.from("loans")
           .select("id, name, lender, maturity_date, remaining_balance, status")
           .eq("company_id", companyId)
@@ -187,9 +189,30 @@ export function UpcomingScheduleCard({ companyId, windowDays = 30 }: UpcomingSch
           .not("renewal_date", "is", null)
           .lte("renewal_date", windowEndIso),
         fetchTaxDeadlineChecks(companyId).catch(() => new Set<string>()),
+        //   정기 청구 — 계약 기간 안(종료일 지남 제외)의 매월 청구일. 다음 청구일 하나만 올린다
+        db.from("documents")
+          .select("id, name, billing_day, billing_amount, contract_start_date, contract_end_date, partners(name)")
+          .eq("company_id", companyId)
+          .not("billing_day", "is", null),
       ]);
 
       const merged: ScheduleItem[] = [];
+      const todayKey = fmtDateKey(today);
+      ((billing as any).data || []).forEach((b: any) => {
+        if (b.contract_end_date && b.contract_end_date < todayKey) return;
+        const day = Math.min(Number(b.billing_day) || 0, new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate());
+        if (day < 1) return;
+        let dt = nextOccurrence(today, day);
+        if (b.contract_start_date && fmtDateKey(dt) < b.contract_start_date) dt = new Date(b.contract_start_date + "T00:00:00");
+        const dl = daysBetween(today, dt);
+        if (dl < 0 || dt > windowEnd) return;
+        if (b.contract_end_date && fmtDateKey(dt) > b.contract_end_date) return;
+        merged.push({
+          id: `bill-${b.id}`, type: "billing",
+          title: `${b.partners?.name ? `${b.partners.name} · ` : ""}${b.name} 청구`,
+          date: fmtDateKey(dt), daysLeft: dl, amount: Number(b.billing_amount) || undefined, href: "/contracts",
+        });
+      });
 
       (loans.data || []).forEach((l: any) => {
         const d = new Date(l.maturity_date);

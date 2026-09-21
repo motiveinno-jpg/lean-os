@@ -31,10 +31,12 @@ type Row = {
   id: string; name: string; deal_id: string | null; partner_id: string | null;
   contract_start_date: string | null; contract_end_date: string | null; contract_amount: number | null;
   amount: number | null; status: string | null; created_at: string; content_json: any;
+  /** 정기 청구(2026-09-21) — 매월 며칠(31=말일)·월 청구액. 대시보드 다가오는 일정·자금 전망이 읽는다 */
+  billing_day: number | null; billing_amount: number | null;
   partners: { name: string } | null; deals: { name: string } | null;
 };
 type Tab = "all" | "active" | "expiring" | "ended" | "none";
-type SortKey = "name" | "partner" | "deal" | "amount" | "start" | "end";
+type SortKey = "name" | "partner" | "deal" | "amount" | "start" | "end" | "billing";
 
 //   상태 분류 — 경계값: 종료일 과거(만료)와 종료일 없음(무기한·미입력)을 가른다
 function bucketOf(r: Row, today: string): Exclude<Tab, "all"> {
@@ -61,6 +63,27 @@ export default function ContractLedgerPage() {
   //   기간 미입력 줄의 인라인 입력값 — 문서 id 별로 따로 든다
   const [draft, setDraft] = useState<Record<string, { start: string; end: string }>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
+  //   정기 청구 조건 팝업 — 줄이 밀리지 않게 팝업(조회 화면 표준). 31 = 말일
+  const [billFor, setBillFor] = useState<Row | null>(null);
+  const [billDraft, setBillDraft] = useState<{ day: string; amount: string }>({ day: "", amount: "" });
+  const openBilling = (r: Row) => { setBillFor(r); setBillDraft({ day: r.billing_day ? String(r.billing_day) : "", amount: r.billing_amount ? String(r.billing_amount) : "" }); };
+  const saveBilling = async () => {
+    if (!billFor) return;
+    const day = billDraft.day ? Number(billDraft.day) : null;
+    const amount = billDraft.amount ? Number(String(billDraft.amount).replace(/[^0-9]/g, "")) : null;
+    if ((day && !amount) || (!day && amount)) { toast("청구일과 금액을 함께 넣어 주세요. 둘 다 비우면 정기 청구를 지웁니다.", "error"); return; }
+    setSavingId(billFor.id);
+    try {
+      const { error } = await supabase.from("documents").update({ billing_day: day, billing_amount: amount } as never).eq("id", billFor.id);
+      if (error) throw error;
+      toast(day ? `매월 ${day === 31 ? "말일" : `${day}일`} ${won(amount!)} 청구로 저장했습니다. 다가오는 일정과 자금 전망에 반영됩니다.` : "정기 청구를 지웠습니다.", "success");
+      setBillFor(null);
+      qc.invalidateQueries({ queryKey: ["contract-ledger", companyId] });
+      qc.invalidateQueries({ queryKey: ["upcoming-schedule"] });
+    } catch (e: any) {
+      toast(friendlyError(e, "저장하지 못했습니다."), "error");
+    } finally { setSavingId(null); }
+  };
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["contract-ledger", companyId],
@@ -68,7 +91,7 @@ export default function ContractLedgerPage() {
     queryFn: async () => {
       const data = logRead("contracts:ledger", await supabase
         .from("documents")
-        .select("id, name, deal_id, partner_id, contract_start_date, contract_end_date, contract_amount, amount, status, created_at, content_json, partners(name), deals(name)")
+        .select("id, name, deal_id, partner_id, contract_start_date, contract_end_date, contract_amount, amount, status, created_at, content_json, billing_day, billing_amount, partners(name), deals(name)")
         .eq("company_id", companyId!)
         .or("content_type.eq.contract,auto_classified_type.eq.contract")
         .order("created_at", { ascending: false })
@@ -95,13 +118,17 @@ export default function ContractLedgerPage() {
       : sort.key === "deal" ? r.deals?.name
       : sort.key === "amount" ? amountOf(r)
       : sort.key === "start" ? r.contract_start_date
+      : sort.key === "billing" ? (r.billing_day ? r.billing_amount || 0 : -1)
       : r.contract_end_date;
     return [...list].sort((a, b) => cmp(key(a), key(b)) * dir);
   }, [rows, tab, q, sort, today]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sums = useMemo(() => ({
     amount: filtered.reduce((s, r) => s + (amountOf(r) || 0), 0),
-  }), [filtered]); // eslint-disable-line react-hooks/exhaustive-deps
+    //   정기 청구 월 합계 — 종료된 계약은 뺀다(대시보드·자금 전망과 같은 기준)
+    billing: filtered.reduce((s, r) => s + (r.billing_day && bucketOf(r, today) !== "ended" ? (r.billing_amount || 0) : 0), 0),
+    billingN: filtered.filter((r) => r.billing_day && bucketOf(r, today) !== "ended").length,
+  }), [filtered, today]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pager = usePager(filtered, 50, `${tab}|${q}`);
   const onSort = (k: SortKey) => setSort((cur) => nextSort(cur, k));
@@ -152,6 +179,7 @@ export default function ContractLedgerPage() {
             <Stat label="표시" value={`${filtered.length}건`} />
             <Stat label="계약금액 합계" value={won(sums.amount)} />
             <Stat label="만료 임박" value={`${counts.expiring}건`} />
+            <Stat label="정기 청구" title="청구 조건이 있는 진행 중 계약 · 월 합계" value={sums.billingN ? `${sums.billingN}건 · 월 ${won(sums.billing)}` : "—"} />
             <Stat label="기간 미입력" value={`${counts.none}건`} />
           </ResultStrip>
         </QueryHead>
@@ -172,6 +200,7 @@ export default function ContractLedgerPage() {
                   <SortableTh label="계약금액" sortKey="amount" sort={sort} onSort={onSort} />
                   <SortableTh label="시작일" sortKey="start" sort={sort} onSort={onSort} />
                   <SortableTh label="종료일" sortKey="end" sort={sort} onSort={onSort} />
+                  <SortableTh label="정기 청구" sortKey="billing" sort={sort} onSort={onSort} title="매월 청구일·금액 · 적어 두면 그날 대시보드 다가오는 일정에 오르고 자금 전망에 매출 입금으로 반영됩니다" />
                   <th>상태</th>
                 </tr></thead>
                 <tbody>{pager.view.map((r) => {
@@ -188,6 +217,7 @@ export default function ContractLedgerPage() {
                         <>
                           <td className="tc"><DateField value={d.start} onChange={(e) => setDraft((p) => ({ ...p, [r.id]: { ...d, start: e.target.value } }))} /></td>
                           <td className="tc"><DateField value={d.end} onChange={(e) => setDraft((p) => ({ ...p, [r.id]: { ...d, end: e.target.value } }))} /></td>
+                          <td className="tc"><span className="ev-dim">기간부터</span></td>
                           <td className="tc">
                             <button type="button" className="btn-secondary btn-sm" disabled={savingId === r.id || (!draft[r.id]?.start && !draft[r.id]?.end)} onClick={() => savePeriod(r)}>
                               {savingId === r.id ? "저장 중…" : "기간 저장"}
@@ -198,6 +228,12 @@ export default function ContractLedgerPage() {
                         <>
                           <td className="tc mono-number">{r.contract_start_date || <span className="ev-dim">—</span>}</td>
                           <td className="tc mono-number">{r.contract_end_date || <span className="ev-dim">무기한</span>}</td>
+                          <td className="tc">
+                            {bucket === "ended" ? (r.billing_day ? <span className="ev-dim">매월 {r.billing_day === 31 ? "말일" : `${r.billing_day}일`} · 종료</span> : <span className="ev-dim">—</span>)
+                              : <button type="button" className="clg-billing-btn" onClick={() => openBilling(r)} title="청구일·금액 정하기">
+                                  {r.billing_day ? <>매월 {r.billing_day === 31 ? "말일" : `${r.billing_day}일`} · <span className="mono-number">{won(r.billing_amount || 0)}</span></> : <span className="ev-dim">＋ 청구 조건</span>}
+                                </button>}
+                          </td>
                           <td className="tc">
                             {bucket === "ended" && <span className="clg-chip clg-chip-end">종료</span>}
                             {bucket === "expiring" && <span className="clg-chip clg-chip-warn">D-{dDay(r.contract_end_date!, today)}</span>}
@@ -215,6 +251,35 @@ export default function ContractLedgerPage() {
           </div>
           <Pager page={pager.page} pages={pager.pages} total={filtered.length} from={pager.from} to={pager.to} size={50} onPage={pager.setPage} />
         </QueryBody>
+        {/* 정기 청구 조건 팝업 */}
+        {billFor && (
+          <div className="clg-bill-modal" onClick={() => setBillFor(null)}>
+            <div className="modal-backdrop" />
+            <div className="clg-bill-panel modal-panel" onClick={(e) => e.stopPropagation()}>
+              <div className="clg-bill-head">
+                <div>
+                  <h3 className="text-sm font-bold text-[var(--text)]">정기 청구 — {billFor.name}</h3>
+                  <p className="text-[11px] text-[var(--text-dim)] mt-0.5">매월 같은 날 청구하는 계약이면 적어 두세요. 그날 대시보드 다가오는 일정에 오르고, 자금 전망에 매출 입금(확정)으로 잡힙니다. 세금계산서는 자동으로 발행하지 않습니다.</p>
+                </div>
+                <button type="button" className="btn-secondary btn-sm" onClick={() => setBillFor(null)}>닫기</button>
+              </div>
+              <div className="clg-bill-body">
+                <label className="inv-field"><span>청구일 (매월)</span>
+                  <select className="field-input" value={billDraft.day} onChange={(e) => setBillDraft((d) => ({ ...d, day: e.target.value }))}>
+                    <option value="">없음</option>
+                    {Array.from({ length: 30 }, (_, i) => i + 1).map((d) => <option key={d} value={String(d)}>{d}일</option>)}
+                    <option value="31">말일</option>
+                  </select></label>
+                <label className="inv-field"><span>월 청구액 (원)</span>
+                  <input className="field-input" inputMode="numeric" placeholder="예: 1200000" value={billDraft.amount} onChange={(e) => setBillDraft((d) => ({ ...d, amount: e.target.value.replace(/[^0-9]/g, "") }))} /></label>
+              </div>
+              <div className="clg-bill-foot">
+                <span className="text-[11px] text-[var(--text-dim)]">계약 기간({billFor.contract_start_date || "시작 미입력"} ~ {billFor.contract_end_date || "무기한"}) 안에서만 돕니다.</span>
+                <button type="button" className="btn-primary btn-sm" disabled={savingId === billFor.id} onClick={saveBilling}>{savingId === billFor.id ? "저장 중…" : "저장"}</button>
+              </div>
+            </div>
+          </div>
+        )}
       </QueryScreen>
     </div>
   );

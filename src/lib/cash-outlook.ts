@@ -60,7 +60,7 @@ export async function fetchOutlook(companyId: string, days: number, userId?: str
   const today = todayKst();
   const end = addDays(today, days);
   const year = Number(today.slice(0, 4));
-  const [pulseRaw, ti, fixed, recur, vat, loans, revSched, costSched, pq, recv, cs, ptTerms] = await Promise.all([
+  const [pulseRaw, ti, fixed, recur, vat, loans, revSched, costSched, pq, recv, cs, ptTerms, billing] = await Promise.all([
     getCashPulseData(companyId, userId),
     fetchPagedRes<any>("cash-outlook:ti", () => supabase.from("tax_invoices").select("id, type, partner_id, counterparty_name, total_amount, settled_amount, issue_date, status").eq("company_id", companyId).neq("status", "void").gte("issue_date", addDays(today, -180)).order("id"), 50000),
     supabase.from("fixed_costs").select("id, name, amount, payment_day, is_recurring, end_date").eq("company_id", companyId),
@@ -74,6 +74,8 @@ export async function fetchOutlook(companyId: string, days: number, userId?: str
     //   회사 급여일 · 거래처 결제조건 — 둘 다 비어 있으면 종전 가정(25일 · +30일)으로 돈다
     supabase.from("company_settings").select("payroll_day").eq("company_id", companyId).maybeSingle(),
     supabase.from("partners").select("id, payment_terms_days").eq("company_id", companyId).not("payment_terms_days", "is", null),
+    //   계약 정기 청구(2026-09-21) — 계약 대장에 적은 매월 청구일·금액. 기간 안에서만
+    supabase.from("documents").select("id, name, billing_day, billing_amount, contract_start_date, contract_end_date, partners(name)").eq("company_id", companyId).not("billing_day", "is", null),
   ]);
   const pulse = pulseRaw ? buildCashPulse(pulseRaw) : null;
   const balance = pulse?.currentBalance ?? 0;
@@ -158,6 +160,17 @@ export async function fetchOutlook(companyId: string, days: number, userId?: str
   }
   if (noDue > 0) gaps.push({ key: "ti-due", text: `세금계산서 ${noDue}건은 거래처 결제조건이 없어 발행일 + 30일로 반영했습니다. 거래처에 결제조건을 넣으면 정확해집니다`, href: "/partners", count: noDue });
   if (apOverdue > 0) gaps.push({ key: "ap-overdue", text: `발행 30일 지난 미지급 세금계산서 ${apOverdue}건 ${Math.round(apOverdueAmt / 10000).toLocaleString()}만원은 지급일 미확정으로 잔액 추이에서 제외했습니다. 시나리오 '큰 지출'로 넣어 봅니다`, href: "/tax-invoices", count: apOverdue });
+
+  // 계약 정기 청구 — 매월 청구일에 청구액이 들어온다고 본다(확정 · 계약에 적은 값). 세금계산서가 발행되면 그건 별도 항목이라 겹칠 수 있다 → 계약 대장 링크로 안내
+  for (const b of ((billing as any)?.data || []) as any[]) {
+    const amt = Number(b.billing_amount || 0), day = Number(b.billing_day || 0);
+    if (!(amt > 0) || day < 1) continue;
+    for (const d of monthlyDates(today, days, day)) {
+      if (b.contract_start_date && d < b.contract_start_date) continue;
+      if (b.contract_end_date && d > b.contract_end_date) continue;
+      items.push({ id: `bill:${b.id}:${d}`, date: d, label: `${b.partners?.name || "거래처"} · ${b.name} 정기 청구`, kind: "매출 입금", amount: amt, basis: `계약 정기 청구 매월 ${day === 31 ? "말일" : `${day}일`} (계약 대장)`, sure: "확정", href: "/contracts" });
+    }
+  }
 
   // 프로젝트 계약 회차 (수익 / 지출) — 날짜 있는 미완료
   for (const r of ((revSched.data || []) as any[])) if (r.due_date && within(r.due_date) && r.status !== "paid" && r.status !== "received" && r.status !== "cancelled") items.push({ id: `rs:${r.id}`, date: r.due_date, label: `${r.deals?.name || "프로젝트"} · ${r.label || "회차"}`, kind: "계약 회차", amount: Number(r.amount || 0), basis: "프로젝트 수익 회차", sure: "확정", href: "/projecthub" });
