@@ -25,6 +25,7 @@ import { MyPayslips } from "./_components/MyPayslips";
 import { MyAttendance } from "./_components/MyAttendance";
 import { MyAttendanceCard } from "@/components/my-attendance-card";
 import { listLeaveGrants, GRANT_TYPE_LABELS } from "@/lib/leave-grants";
+import { useMyPermissions } from "@/lib/permissions";
 
 const EMP_STATUS: Record<string, { label: string; color: string }> = {
   invited: { label: "초대중", color: "text-[var(--warning)]" },
@@ -54,6 +55,10 @@ export default function MyPage() {
   // 연봉 기본 가림 (급여가 화면에 바로 보이면 안 됨). 눌러야 표시.
   const [showSalary, setShowSalary] = useState(false);
   const  { role, user: ctxUser, refresh } = useUser();
+  //   휴가 신청은 결재 허브(/approvals)로 가는데, 직원 기본 권한엔 결재가 없다(2026-08-26 방침 · 운영 21명 중 10명 미부여).
+  //   권한이 없으면 버튼 옆에 왜 안 되는지 적는다 — 누르면 권한 없음 화면이 설명하지만, 누르기 전에 알 수 있어야 한다.
+  const { hasPerm: hasMenuPerm } = useMyPermissions();
+  const canRequestLeave = hasMenuPerm("/approvals");
   // 휴가 유형 이름은 회사 설정을 따른다 — 구성원 > 휴가 탭에서 바꾸면 직원 화면도 같이 바뀐다.
   //   queryKey 는 휴가 탭과 동일해 캐시를 공유한다. (2026-08-06)
   const { data: companyLeaveTypes = defaultCompanyLeaveTypes() } = useQuery({
@@ -476,7 +481,7 @@ export default function MyPage() {
                 <div><dt>최근 신청</dt><dd>{recentLeaves[0] ? `${recentLeaves[0].start_date} ${leaveTypeLabel(recentLeaves[0].leave_type)} · ${recentLeaves[0].status === "approved" ? "승인" : recentLeaves[0].status === "rejected" ? "반려" : "대기"}` : "없음"}</dd></div>
                 <div><dt>대기 중</dt><dd>{recentLeaves.filter((l: any) => l.status === "pending").length}건</dd></div>
               </dl>
-              <p className="bz-why"><Link href="/approvals?tab=new-request&new=leave" className="bz-link">휴가 신청 → 결재 허브</Link> · <button type="button" onClick={() => setTab("leave")} className="bz-link">내역 →</button></p>
+              <p className="bz-why"><Link href="/approvals?tab=new-request&new=leave" className="bz-link">휴가 신청 → 결재 허브</Link>{!canRequestLeave && <span className="mypage-leave-perm-note">결재 허브 권한이 필요합니다 · 마스터에게 요청하세요</span>} · <button type="button" onClick={() => setTab("leave")} className="bz-link">내역 →</button></p>
             </section>
           </div>
           <div className="bz-grid2">
@@ -532,7 +537,7 @@ export default function MyPage() {
               ) : <span className="text-xs font-semibold text-[var(--text-muted)]">{ledgerYear}년</span>}
               <span className="text-[11px] text-[var(--text-dim)]">승인된 휴가를 차감한 내역입니다.</span>
             </div>
-            <div className="qk-bar-right"><Link href="/approvals?tab=new-request&new=leave" className="btn-primary btn-sm">휴가 신청</Link></div>
+            <div className="qk-bar-right">{!canRequestLeave && <span className="mypage-leave-perm-note">결재 허브 권한이 필요합니다 · 마스터에게 요청하세요</span>}<Link href="/approvals?tab=new-request&new=leave" className="btn-primary btn-sm">휴가 신청</Link></div>
           </div>
           <ResultStrip>
             <Stat label="발생" value={`${ledgerBalance ? ledgerGranted : (leaveBalance?.total_days ?? 0)}일`} />

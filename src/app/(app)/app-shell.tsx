@@ -140,11 +140,14 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
       return;
     }
     if (isMaster) return; // 마스터 전체 접근
+    //   권한 없는 화면은 되돌리지 않고 아래 AccessDenied 를 그대로 보여준다 (2026-09-21).
+    //   2026-07-30 개편 때 "대시보드로 되돌리기"와 "권한 없음 화면"이 같이 들어왔는데 되돌리기가 먼저 실행돼
+    //   안내 화면을 한 번도 볼 수 없었다 — 직원이 마이페이지 '휴가 신청'이나 대시보드 '내 담당 업무'를 누르면
+    //   설명 없이 대시보드로 튕겨 "눌러도 아무 일도 안 일어난다"로 보였다(QA 시드 직원 계정 운영 실측).
+    //   AccessDenied 는 10초마다 권한을 재확인해 마스터가 부여하면 그 자리에서 열린다 — 튕기면 그것도 무효였다.
+    //   대시보드 자체를 못 보는 계정(세무사 등)만 마이페이지로 보낸다(리다이렉트 루프 방지).
     const route = matchCatalogRoute(pathname);
-    if (route && !hasPerm(route)) {
-      // 대시보드 권한이 없으면 마이페이지로 (리다이렉트 루프 방지)
-      router.replace(hasPerm("/dashboard") ? "/dashboard" : "/mypage");
-    }
+    if (route === "/dashboard" && !hasPerm(route)) router.replace("/mypage");
   }, [role, pathname, loading, permsLoading, isMaster, hasPerm, router]);
 
   // 로딩 중이면 렌더링 차단 (비허용 페이지 깜빡임 방지)
