@@ -890,6 +890,31 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
     staleTime: 60_000,
   });
 
+  //   계약 정기 청구(2026-09-21) — 계약 대장에 적은 매월 청구일. "그날 할 일로 올라온다" 가 이 위젯의 몫이다(30일 안 다음 청구일 하나).
+  const { data: billings = [] } = useQuery({
+    queryKey: ["dash-billing-todos", companyId],
+    enabled: !!companyId,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("documents").select("id, name, billing_day, billing_amount, contract_start_date, contract_end_date, partners(name)").eq("company_id", companyId!).not("billing_day", "is", null);
+      const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+      const key = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const todayKey = key(t0);
+      const out: { id: string; title: string; date: string; day: number; amount: number | null }[] = [];
+      for (const b of (data || []) as any[]) {
+        if (b.contract_end_date && b.contract_end_date < todayKey) continue;
+        const day = Number(b.billing_day) || 0; if (day < 1) continue;
+        const mk = (y: number, m: number) => new Date(y, m, Math.min(day, new Date(y, m + 1, 0).getDate()));
+        let dt = mk(t0.getFullYear(), t0.getMonth()); if (dt < t0) dt = mk(t0.getFullYear(), t0.getMonth() + 1);
+        if (b.contract_start_date && key(dt) < b.contract_start_date) dt = new Date(b.contract_start_date + "T00:00:00");
+        if (b.contract_end_date && key(dt) > b.contract_end_date) continue;
+        if ((dt.getTime() - t0.getTime()) / 86400000 > 30) continue;
+        out.push({ id: b.id, title: `${b.partners?.name ? `${b.partners.name} · ` : ""}${b.name} 청구`, date: key(dt), day, amount: b.billing_amount == null ? null : Number(b.billing_amount) });
+      }
+      return out;
+    },
+  });
+
   // 캘린더 일정(이번 달, 공유+개인). 다가오는 일정도 할일 위젯에 표시
   const now = new Date();
   const  { data: events = [] } = useQuery({
@@ -919,8 +944,9 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
   // 다가오는 일정(완료 제외, 오늘 이후) — 캘린더 내용도 위젯에 통합
   const upcomingEvents = (events as any[]).filter((e) => !e.completed && (e.end_at ?? e.start_at) >= startOfTodayIso);
   // 할일 + 프로젝트 업무 + 일정 통합 목록(날짜순)
-  const items: { kind: "todo" | "event" | "task"; id: string; title: string; date: string | null; raw: any }[] = [
+  const items: { kind: "todo" | "event" | "task" | "billing"; id: string; title: string; date: string | null; raw: any }[] = [
     ...todos.map((t) => ({ kind: "todo" as const, id: t.id, title: t.title, date: null, raw: t })),
+    ...billings.map((b) => ({ kind: "billing" as const, id: b.id, title: b.title, date: `${b.date}T09:00:00`, raw: b })),
     ...(myTasks as any[]).map((t) => ({ kind: "task" as const, id: t.id, title: t.title, date: t.due_date, raw: t })),
     ...upcomingEvents.map((e) => ({ kind: "event" as const, id: e.id, title: e.title, date: e.start_at, raw: e })),
   ].sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
@@ -958,6 +984,18 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
               <span className="min-w-0 flex-1">
                 <span className="dash-mytask-title">{it.title}</span>
                 <span className="dash-mytask-deal">업무 · {it.raw.dealName}</span>
+              </span>
+              {due && <span className="dash-mytask-due" style={{ color: due.color }}>{due.text}</span>}
+            </Link>
+          );
+        }
+        if (it.kind === "billing") {
+          const due = dueLabel(d);
+          return (
+            <Link key={`bl-${it.id}`} href="/contracts" className="dash-mytask-row" title={`${it.title} · 계약 대장의 정기 청구 조건`}>
+              <span className="min-w-0 flex-1">
+                <span className="dash-mytask-title">{it.title}</span>
+                <span className="dash-mytask-deal">정기 청구 · 매월 {it.raw.day === 31 ? "말일" : `${it.raw.day}일`}{it.raw.amount ? ` · ₩${Math.round(it.raw.amount).toLocaleString("ko-KR")}` : ""}</span>
               </span>
               {due && <span className="dash-mytask-due" style={{ color: due.color }}>{due.text}</span>}
             </Link>
