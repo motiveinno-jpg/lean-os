@@ -16316,6 +16316,8 @@ export type Database = {
           loss_reason: string | null
           moved_at: string
           note: string | null
+          lot_no: string | null
+          expiry_date: string | null
           order_line_id: string | null
           overhead_unit: number | null
           product_id: string
@@ -16334,6 +16336,8 @@ export type Database = {
           loss_reason?: string | null
           moved_at: string
           note?: string | null
+          lot_no?: string | null
+          expiry_date?: string | null
           order_line_id?: string | null
           overhead_unit?: number | null
           product_id: string
@@ -16352,6 +16356,8 @@ export type Database = {
           loss_reason?: string | null
           moved_at?: string
           note?: string | null
+          lot_no?: string | null
+          expiry_date?: string | null
           order_line_id?: string | null
           overhead_unit?: number | null
           product_id?: string

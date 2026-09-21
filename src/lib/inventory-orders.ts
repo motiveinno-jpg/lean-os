@@ -50,6 +50,9 @@ function baseLine(): Field[] {
     { field_id: "supply", name: "공급가액", on: true,  custom: false, lock: true, why: "세금 전 금액" },
     { field_id: "vat",    name: "부가세",   on: true,  custom: false, why: "공급가액의 10% 자동 계산" },
     { field_id: "lnote",  name: "품목 비고", on: false, custom: false, why: "해당 품목에 대한 메모" },
+    //   구매(입고) 양식에만 — 로트·유통기한(2026-09-21). 켜면 창고관리 현재고에 가장 이른 유통기한과 D-n 이 뜬다
+    { field_id: "lot",    name: "로트",     on: false, custom: false, why: "입고 묶음 번호 · 유통기한과 함께 남습니다" },
+    { field_id: "expiry", name: "유통기한", on: false, custom: false, why: "이 입고분의 유통기한(YYYY-MM-DD) · 창고관리에 가장 이른 기한이 뜹니다" },
     //   채널 주문 양식에만 쓰는 칸 — 다른 양식에서는 defaultLayout 이 빼 버린다
     { field_id: "ch",     name: "채널",         on: true,  custom: false, lock: true, why: "붙여넣기·가져오기가 정합니다. 바꿀 수 없습니다" },
     { field_id: "ono",    name: "주문번호",     on: true,  custom: false, lock: true, why: "채널 주문번호 · 같은 번호는 두 번 등록되지 않습니다" },
@@ -68,6 +71,8 @@ function baseLine(): Field[] {
 export const CH_ONLY = ["ch", "ono", "ccode", "buyer", "rcv", "tel", "zip", "addr", "memo"];
 /** 생산 양식에만 있는 줄 칸 */
 export const MAKE_ONLY = ["defect"];
+/** 구매(입고) 양식에만 있는 줄 칸 — 로트·유통기한 (2026-09-21) */
+export const BUY_ONLY = ["lot", "expiry"];
 
 export function defaultLayout(form: FormKey): { head: Field[]; line: Field[] } {
   const head = baseHead(), line = baseLine();
@@ -89,11 +94,11 @@ export function defaultLayout(form: FormKey): { head: Field[]; line: Field[] } {
   if (form === "channel") {
     head[1].on = false; head[5].on = true;
     const pick = (id: string) => line.find((f) => f.field_id === id)!;
-    const rest = line.filter((f) => !CH_ONLY.includes(f.field_id) && !MAKE_ONLY.includes(f.field_id));
+    const rest = line.filter((f) => !CH_ONLY.includes(f.field_id) && !MAKE_ONLY.includes(f.field_id) && !BUY_ONLY.includes(f.field_id));
     rest.find((f) => f.field_id === "price")!.on = true;
     return { head, line: [pick("ch"), pick("ono"), pick("ccode"), ...rest, pick("buyer"), pick("rcv"), pick("tel"), pick("zip"), pick("addr"), pick("memo")] };
   }
-  return { head, line: line.filter((f) => !CH_ONLY.includes(f.field_id) && (form === "make" || !MAKE_ONLY.includes(f.field_id))) };
+  return { head, line: line.filter((f) => !CH_ONLY.includes(f.field_id) && (form === "make" || !MAKE_ONLY.includes(f.field_id)) && (form === "buy" || !BUY_ONLY.includes(f.field_id))) };
 }
 
 export type Layout = { head: Field[]; line: Field[] };

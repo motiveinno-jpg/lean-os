@@ -37,7 +37,9 @@ import {
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
 type Tab = "onhand" | "moves" | "count" | "warehouse" | "summary";
 type Signal = "all" | "low" | "zero" | "fix";
-type StockKey = "sku" | "name" | "spec" | "wh" | "qty" | "avg" | "safety" | "state";
+type StockKey = "sku" | "name" | "spec" | "wh" | "qty" | "avg" | "safety" | "state" | "expiry";
+//   유통기한 D-n — 오늘(KST) 기준. 지난 것은 음수
+const daysLeft = (d: string) => Math.floor((new Date(d + "T00:00:00").getTime() - new Date(todayKst() + "T00:00:00").getTime()) / 86400000);
 type SumView = "product" | "partner" | "month";
 type MoveKey = "date" | "doc" | "reason" | "sku" | "name" | "wh" | "qty" | "price" | "amount";
 //   상태 정렬은 처리할 것이 위 (CLAUDE.md: 대기→승인→반려→취소와 같은 원칙)
@@ -84,6 +86,24 @@ export default function StockPage() {
   const { data: products = [] } = useQuery({ queryKey: ["inv-products", companyId], queryFn: () => listProducts(companyId!), enabled: !!companyId });
   const { data: warehouses = [] } = useQuery({ queryKey: ["inv-warehouses", companyId], queryFn: () => listWarehouses(companyId!), enabled: !!companyId });
   const { data: onhand = [] } = useQuery({ queryKey: ["inv-onhand", companyId], queryFn: () => listOnHand(companyId!), enabled: !!companyId });
+  //   유통기한(2026-09-21) — 남아 있는 입고분(층, qty_left>0) 중 가장 이른 날. 층이 입고 줄(stock_moves.expiry_date)을 가리킨다.
+  //   적은 회사가 없으면 열 자체가 없다(유통기한 없는 업종은 화면 그대로).
+  const { data: expiryByProduct = new Map<string, { date: string; lot: string | null }>() } = useQuery({
+    queryKey: ["inv-expiry", companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("stock_cost_layers").select("product_id, qty_left, stock_moves!inner(lot_no, expiry_date)")
+        .eq("company_id", companyId).gt("qty_left", 0).not("stock_moves.expiry_date", "is", null);
+      const m = new Map<string, { date: string; lot: string | null }>();
+      for (const r of (data || []) as any[]) {
+        const d = String(r.stock_moves?.expiry_date || ""); if (!d) continue;
+        const cur = m.get(r.product_id);
+        if (!cur || d < cur.date) m.set(r.product_id, { date: d, lot: r.stock_moves?.lot_no || null });
+      }
+      return m;
+    },
+  });
+  const hasExpiry = expiryByProduct.size > 0;
   const { data: moves = [] } = useQuery({
     queryKey: ["inv-moves", companyId, from, to],
     queryFn: () => listMoves(companyId!, from, to),
@@ -115,9 +135,9 @@ export default function StockPage() {
       const safety = r.product!.safety_stock;
       const state: Signal = r.qty < 0 ? "fix" : r.qty === 0 ? "zero"
         : (safety != null && r.qty <= Number(safety)) ? "low" : "all";
-      return { ...r, state };
+      return { ...r, state, expiry: expiryByProduct.get(r.product_id) || null };
     });
-  }, [onhand, productById, whById]);
+  }, [onhand, productById, whById, expiryByProduct]);
 
   const shown = useMemo(() => rows.filter((r) =>
     condHit(cond, "state", r.state) &&
@@ -135,6 +155,7 @@ export default function StockPage() {
         case "qty": return r.qty;
         case "avg": return avgCost.get(r.product_id) ?? Number(r.product?.cost_price || 0);
         case "safety": return r.product?.safety_stock == null ? -Infinity : Number(r.product.safety_stock);
+        case "expiry": return r.expiry?.date || "9999-12-31";
         default: return STATE_RANK[r.state];
       }
     };
@@ -146,6 +167,7 @@ export default function StockPage() {
     low: rows.filter((r) => r.state === "low").length,
     zero: rows.filter((r) => r.state === "zero").length,
     fix: rows.filter((r) => r.state === "fix").length,
+    expiring: rows.filter((r) => r.expiry && daysLeft(r.expiry.date) <= 30).length,
     value: rows.reduce((n, r) => n + r.qty * (avgCost.get(r.product_id) ?? Number(r.product?.cost_price || 0)), 0),
   }), [rows, avgCost]);
 
@@ -223,7 +245,7 @@ export default function StockPage() {
                   {/*   2026-08-27 기획 §4 — 기초 재고 올리기는 양식·올리기와 같은 성격이라 엑셀▾ 안으로. 조회 줄은 파란 1 + 엑셀 1. */}
                   <ExcelMenu items={[
                     { label: "기초 재고 올리기", hint: "지금 있는 수량을 기초 재고로 넣습니다.", onClick: () => setOpeningOpen(true) },
-                    { label: "현재고 내려받기", count: shown.length, disabled: !shown.length, onClick: () => exportToExcel(sorted.map((r) => ({ "SKU": r.product!.sku, "품목명": r.product!.name, "규격": r.product!.spec || "", "창고": r.wh?.name || "", "수량": Number(r.qty), "안전재고": r.product!.safety_stock ?? "", "상태": r.state === "fix" ? "맞춰야 함" : r.state === "zero" ? "품절" : r.state === "low" ? "부족" : "" })), "현재고", `현재고_${todayKst()}`) },
+                    { label: "현재고 내려받기", count: shown.length, disabled: !shown.length, onClick: () => exportToExcel(sorted.map((r) => ({ "SKU": r.product!.sku, "품목명": r.product!.name, "규격": r.product!.spec || "", "창고": r.wh?.name || "", "수량": Number(r.qty), "안전재고": r.product!.safety_stock ?? "", "유통기한": r.expiry?.date || "", "로트": r.expiry?.lot || "", "상태": r.state === "fix" ? "맞춰야 함" : r.state === "zero" ? "품절" : r.state === "low" ? "부족" : "" })), "현재고", `현재고_${todayKst()}`) },
                   ]} />
                   <button type="button" className="btn-primary btn-sm" onClick={() => setDocOpen(true)}>+ 입·출고</button>
                 </>
@@ -237,6 +259,7 @@ export default function StockPage() {
                 <Stat label="부족" value={`${won(counts.low)}개`} tone={counts.low > 0 ? "minus" : undefined} />
                 <Stat label="품절" value={`${won(counts.zero)}개`} tone={counts.zero > 0 ? "minus" : undefined} />
                 <Stat label="재고금액" value={`₩${won(counts.value)}`} />
+                {hasExpiry && <Stat label="기한 임박" title="유통기한이 30일 안이거나 지난 줄 · 남아 있는 입고분 기준" value={`${won(counts.expiring)}개`} tone={counts.expiring > 0 ? "minus" : undefined} />}
               </ResultStrip>
             </>
           )}
@@ -312,6 +335,7 @@ export default function StockPage() {
                         <SortableTh label="현재고" sortKey="qty" sort={sort} onSort={onSort} />
                         <SortableTh label="평균단가" sortKey="avg" sort={sort} onSort={onSort} title="이동평균 · 매입·기초 입고의 (수량×단가)합 ÷ 수량합. 없으면 품목 매입가" />
                         <SortableTh label="안전재고" sortKey="safety" sort={sort} onSort={onSort} />
+                        {hasExpiry && <SortableTh label="유통기한" sortKey="expiry" sort={sort} onSort={onSort} title="남아 있는 입고분 중 가장 이른 유통기한 · 구매 양식에서 로트·유통기한 칸을 켜면 적힙니다" />}
                         <SortableTh label="상태" sortKey="state" sort={sort} onSort={onSort} />
                       </tr></thead>
                       <tbody>
@@ -324,6 +348,11 @@ export default function StockPage() {
                             <td className="tr mono-number"><b className={r.qty < 0 ? "text-[var(--danger)]" : undefined}>{won(r.qty)}</b></td>
                             <td className="tr mono-number ev-dim">{avgCost.has(r.product_id) ? won(avgCost.get(r.product_id)!) : r.product?.cost_price != null ? <span title="아직 매입 기록이 없어 품목 매입가">{won(Number(r.product.cost_price))}</span> : "—"}</td>
                             <td className="tr mono-number ev-dim">{r.product?.safety_stock != null ? won(Number(r.product.safety_stock)) : "—"}</td>
+                            {hasExpiry && <td className="tc">{r.expiry ? (() => { const n = daysLeft(r.expiry!.date); return (
+                              <span title={r.expiry!.lot ? `로트 ${r.expiry!.lot}` : undefined}>
+                                <span className="mono-number">{r.expiry!.date}</span>
+                                <span className={`inv-pill ${n < 0 ? "inv-pill-danger" : n <= 30 ? "inv-pill-warn" : "inv-pill-ghost"} ml-1`}>{n < 0 ? "기한 지남" : n === 0 ? "오늘" : `D-${n}`}</span>
+                              </span>); })() : <span className="ev-dim">—</span>}</td>}
                             <td className="tc">
                               {r.state === "fix" ? <span className="inv-pill inv-pill-danger">맞춰야 함</span>
                                 : r.state === "zero" ? <span className="inv-pill inv-pill-danger">품절</span>
@@ -386,7 +415,7 @@ export default function StockPage() {
                             <td className="tr mono-number"><b className={m.qty < 0 ? "text-[var(--flow-out,inherit)]" : undefined}>{m.qty > 0 ? `+${won(m.qty)}` : won(m.qty)}</b></td>
                             <td className="tr mono-number ev-dim">{m.unit_price != null ? won(m.unit_price) : "—"}</td>
                             <td className="tr mono-number">{m.amount != null ? won(m.amount) : "—"}</td>
-                            <td className="text-left ev-dim">{m.note || m.doc?.note || "—"}</td>
+                            <td className="text-left ev-dim">{[m.note || m.doc?.note, m.lot_no ? `로트 ${m.lot_no}` : "", m.expiry_date ? `기한 ${m.expiry_date}` : ""].filter(Boolean).join(" · ") || "—"}</td>
                           </tr>
                         );
                       })}

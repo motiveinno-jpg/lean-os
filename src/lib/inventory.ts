@@ -185,6 +185,9 @@ export type MoveLine = {
   order_line_id?: string | null;
   //   주문서에서 불러온 줄이면 그 줄을 가리킨다(하나로 모았다 — 판매·구매·생산이 같은 표를 쓴다)
   vat_amount?: number | null;
+  /** 입고 줄의 로트·유통기한(2026-09-21) — 구매 양식에서 칸을 켠 회사만 적는다 */
+  lot_no?: string | null;
+  expiry_date?: string | null;
 };
 
 export type StockDocInput = {
@@ -277,6 +280,7 @@ export async function createStockDoc(
       unit_price: l.unit_price ?? null,
       amount: l.unit_price != null ? Number(l.unit_price) * signed : null,
       moved_at: docDate, note: l.note?.trim() || null,
+      lot_no: l.lot_no?.trim() || null, expiry_date: l.expiry_date || null,
     });
     //   창고 이동 — 받는 창고에 반대 부호로 한 줄 더. 한 문서 안에서 합이 0 이다.
     if (def.kind === "move" && input.toWarehouseId) {
@@ -306,6 +310,7 @@ export type MoveRow = {
   product_id: string; warehouse_id: string;
   /** 자재 투입 줄의 표준(결정 29) — null 이면 로스 기록 없음 */
   std_qty?: number | null; loss_reason?: string | null; overhead_unit?: number | null;
+  lot_no?: string | null; expiry_date?: string | null;
   doc: { id: string; doc_no: string; kind: string; reason: string; note: string | null; partner_id: string | null } | null;
 };
 
@@ -315,7 +320,7 @@ export async function listMoves(companyId: string, from: string, to: string): Pr
   const data = await fetchPaged<any>("inventory:moves", () => supabase
     .from("stock_moves")
     //   ★ 취소 전표의 줄은 이력에서도 뺀다 — 현재고와 같은 눈으로 본다(결정 25)
-    .select("id, moved_at, qty, unit_price, amount, note, product_id, warehouse_id, std_qty, loss_reason, overhead_unit, stock_docs!inner(id, doc_no, kind, reason, note, partner_id, status)")
+    .select("id, moved_at, qty, unit_price, amount, note, product_id, warehouse_id, std_qty, loss_reason, overhead_unit, lot_no, expiry_date, stock_docs!inner(id, doc_no, kind, reason, note, partner_id, status)")
     .eq("company_id", companyId).eq("stock_docs.status", "active")
     .gte("moved_at", from).lte("moved_at", to)
     .order("moved_at", { ascending: false }), 50000);
@@ -506,6 +511,7 @@ export async function updateStockDoc(
       unit_price: l.unit_price ?? null,
       amount: l.unit_price != null ? Number(l.unit_price) * signed : null,
       moved_at: docDate, note: l.note?.trim() || null,
+      lot_no: l.lot_no?.trim() || null, expiry_date: l.expiry_date || null,
     };
   });
   const { error: mErr } = await supabase.from("stock_moves").insert(rows);
@@ -519,7 +525,7 @@ export async function getStockDoc(docId: string) {
     .select("id, doc_no, kind, reason, doc_date, partner_id, warehouse_id, order_id, note")
     .eq("id", docId).single();
   const data = logRead("inventory:doc-moves", await supabase
-    .from("stock_moves").select("id, product_id, qty, unit_price, vat_amount, note, order_line_id, warehouse_id, std_qty, loss_reason")
+    .from("stock_moves").select("id, product_id, qty, unit_price, vat_amount, note, order_line_id, warehouse_id, std_qty, loss_reason, lot_no, expiry_date")
     .eq("doc_id", docId).order("created_at"));
   return {
     doc: doc as any,

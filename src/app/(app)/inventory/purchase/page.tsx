@@ -42,6 +42,7 @@ export default function PurchasePage() {
           lines: built.lines.map((l) => ({
             product_id: l.product_id, qty: l.qty, unit_price: l.unit_price,
             vat_amount: l.vat_amount, note: l.note, order_line_id: l.srcLineId,
+            lot_no: l.lot_no, expiry_date: l.expiry_date,
           })),
         };
         if (editingId) {
@@ -87,7 +88,7 @@ export default function PurchasePage() {
             unit_price: m.unit_price,
             supply_amount: editQtyOf(m, doc.reason) * Number(m.unit_price || 0),
             vat_amount: Number(m.vat_amount || 0),
-            note: m.note, custom: {}, sort_no: i,
+            note: m.note, custom: { ...(m.lot_no ? { lot: m.lot_no } : {}), ...(m.expiry_date ? { expiry: m.expiry_date } : {}) }, sort_no: i,
           })),
         );
       }}

@@ -41,6 +41,8 @@ export type DocRow = {
   srcLineId?: string | null;
   product_id?: string | null;
   sku: string; spec: string; qty: string; price: string; supply: string; vat: string; lnote: string;
+  /** 구매(입고) 양식 — 로트·유통기한(2026-09-21). 다른 양식에서는 비어 있다 */
+  lot: string; expiry: string;
   /** 생산 양식 — 불량 수량(결정 28). 다른 양식에서는 비어 있다 */
   defect: string;
   //   채널 주문 양식의 칸 — 다른 양식에서는 비어 있다
@@ -53,8 +55,16 @@ export type DocRow = {
 
 let K = 1;
 export const blankRow = (): DocRow => ({
-  key: K++, sku: "", spec: "", qty: "", price: "", supply: "", vat: "", lnote: "", defect: "", ch: "", ono: "", ccode: "", buyer: "", rcv: "", tel: "", zip: "", addr: "", memo: "", flag: null, custom: {},
+  key: K++, sku: "", spec: "", qty: "", price: "", supply: "", vat: "", lnote: "", lot: "", expiry: "", defect: "", ch: "", ono: "", ccode: "", buyer: "", rcv: "", tel: "", zip: "", addr: "", memo: "", flag: null, custom: {},
 });
+
+/** 유통기한 칸 — 2026-12-31 · 2026.12.31 · 20261231 을 YYYY-MM-DD 로. 못 읽으면 null(빈 칸과 같다) */
+export const normExpiry = (s: string): string | null => {
+  const t = (s || "").trim().replace(/[./]/g, "-");
+  const m8 = t.match(/^(\d{4})(\d{2})(\d{2})$/);
+  const v = m8 ? `${m8[1]}-${m8[2]}-${m8[3]}` : t;
+  return /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(new Date(v + "T00:00:00").getTime()) ? v : null;
+};
 
 export function useDocEditor(companyId: string | null, userId: string | null, formKey: FormKey, products: Product[]) {
   const { toast }  = useToast();
@@ -259,9 +269,10 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
           qty: String(l.qty), price: l.unit_price == null ? "" : String(l.unit_price),
           supply: String(l.supply_amount), vat: String(l.vat_amount),
           lnote: l.note || "", defect: l.custom?.defect || "",
+          lot: l.custom?.lot || "", expiry: l.custom?.expiry || "",
           ch: l.custom?.ch || "", ono: l.custom?.ono || "", ccode: l.custom?.ccode || "", buyer: l.custom?.buyer || "",
           rcv: l.custom?.rcv || "", tel: l.custom?.tel || "", zip: l.custom?.zip || "", addr: l.custom?.addr || "", memo: l.custom?.memo || "",
-          custom: Object.fromEntries(Object.entries(l.custom || {}).filter(([k]) => !CH_ONLY.includes(k) && k !== "defect")),
+          custom: Object.fromEntries(Object.entries(l.custom || {}).filter(([k]) => !CH_ONLY.includes(k) && k !== "defect" && k !== "lot" && k !== "expiry")),
         } as DocRow;
       }),
       blankRow(),
@@ -318,12 +329,14 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
         supply_amount: num(r.supply), vat_amount: num(r.vat),
         defect: num(r.defect),
         note: r.lnote || null, custom: customLine,
+        lot_no: r.lot.trim() || null, expiry_date: normExpiry(r.expiry),
         ch: r.ch, ono: r.ono.trim(), ccode: r.ccode.trim(), buyer: r.buyer.trim(),
         rcv: r.rcv.trim(), tel: r.tel.trim(), zip: r.zip.trim(), addr: r.addr.trim(), memo: r.memo.trim(), flag: r.flag || null,
       };
     });
     return {
-      ok: valid && lines.length > 0 && lines.every((l) => l.product_id && (l.qty > 0 || (formKey === "make" && l.defect > 0))),
+      ok: valid && lines.length > 0 && lines.every((l) => l.product_id && (l.qty > 0 || (formKey === "make" && l.defect > 0)))
+        && live.every((r) => !r.expiry.trim() || !!normExpiry(r.expiry)),   // 유통기한을 적었는데 날짜가 아니면 저장하지 않는다
       date,
       head: { ...head, custom: customHead } as Record<string, string> & { custom: Record<string, string> },
       lines, sums,
@@ -425,11 +438,11 @@ export function DocHead({ ctl, warehouses, partners, staff }: {
 
 // ── 격자 ──────────────────────────────────────────────────────────────────────
 const W: Record<string, string> = {
-  sku: "220px", spec: "150px", qty: "64px", defect: "64px", price: "104px", supply: "116px", vat: "104px", lnote: "170px",
+  sku: "220px", spec: "150px", qty: "64px", defect: "64px", price: "104px", supply: "116px", vat: "104px", lnote: "170px", lot: "110px", expiry: "120px",
   ch: "138px", ono: "150px", ccode: "130px", buyer: "90px", rcv: "90px", tel: "120px", zip: "80px", addr: "240px", memo: "170px",
 };
 const NUMS = new Set(["qty", "defect", "price", "supply", "vat"]);
-const LEFTS = new Set(["sku", "spec", "lnote", "ono", "ccode", "buyer", "rcv", "tel", "zip", "addr", "memo"]);
+const LEFTS = new Set(["sku", "spec", "lnote", "lot", "ono", "ccode", "buyer", "rcv", "tel", "zip", "addr", "memo"]);
 //   ★ 채널에서 가져온 줄(ch 있음)은 채널이 준 값을 **고칠 수 없다**(2026-08-26 대표 · 데이터가 틀려지는 것을 막는다).
 //     사람이 손대는 칸은 품목(연결이 없을 때 고르기)·규격·비고·직접 추가한 항목뿐이다.
 const IMPORTED_RO = new Set(["ono", "ccode", "buyer", "rcv", "tel", "zip", "addr", "memo", "qty", "price", "supply", "vat"]);
@@ -554,7 +567,7 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
                     <td key={id} className={`cell ${NUMS.has(id) ? "num" : LEFTS.has(id) ? "text-left" : "tc"}`}>
                       <input className={warn ? "doc-in doc-in-warn" : "doc-in"} data-cell={`${id}-${i}`} title={warn || undefined}
                         inputMode={NUMS.has(id) ? "numeric" : undefined}
-                        placeholder={id === "sku" ? "품목명 · SKU · 바코드" : f.name}
+                        placeholder={id === "sku" ? "품목명 · SKU · 바코드" : id === "expiry" ? "YYYY-MM-DD" : f.name}
                         value={shown}
                         onChange={(e) => { setCell(i, id, e.target.value); if (id === "sku") openPickLater(i, e.target.value); }}
                         onKeyDown={(e) => {
