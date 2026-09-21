@@ -9,11 +9,24 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { createEmployeeInvitation, createPartnerInvitation, getEmployeeInvitations, getPartnerInvitations, getInviteUrl, cancelEmployeeInvitation, cancelPartnerInvitation, sendInviteEmail } from "@/lib/invitations";
 import { useUser } from "@/components/user-context";
+import { useFeature } from "@/lib/use-feature";
 import { useToast } from "@/components/toast";
 
 export function TeamManagement({ companyId }: { companyId: string | null }) {
   const { toast } = useToast();
   const { user } = useUser();
+  //   초대 안내 — 합류하면 무엇이 자동 부여되는지 그대로 적는다 (2026-09-21 회사 기본 템플릿).
+  //   게이트가 닫힌 회사는 종전 문구.
+  const { data: defaultGateOn = false } = useFeature("member_default_template", companyId);
+  const { data: defaultTemplate } = useQuery({
+    queryKey: ["permission-default-template", companyId],
+    enabled: !!companyId && defaultGateOn,
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("permission_templates")
+        .select("name, perm_keys").eq("company_id", companyId).eq("is_default", true).maybeSingle();
+      return (data as { name: string; perm_keys: string[] } | null) ?? null;
+    },
+  });
   // 알림 클릭(/settings?tab=team&request=<id>) 시 해당 합류 요청 카드 강조
   const highlightRequestId = useSearchParams().get("request");
   const [tab, setTab] = useState<"members" | "employees" | "partners">("members");
@@ -337,7 +350,14 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
         <div className="team-invite-form">
           <div className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-400 flex items-start gap-2">
             <svg className="w-3.5 h-3.5 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-            <span>부서와 직위까지 함께 정하려면 <strong>구성원</strong> 페이지에서 초대하세요. 권한은 합류 후 <strong>탭 권한</strong>에서 부여합니다.</span>
+            <span>
+              부서와 직위까지 함께 정하려면 <strong>구성원</strong> 페이지에서 초대하세요.{" "}
+              {!defaultGateOn
+                ? <>권한은 합류 후 <strong>탭 권한</strong>에서 부여합니다.</>
+                : defaultTemplate
+                  ? <>합류하면 재고 보기와 기본 템플릿 <strong>★ {defaultTemplate.name}</strong>({(defaultTemplate.perm_keys || []).length}개) 권한이 자동 부여됩니다. 나머지는 합류 후 <strong>탭 권한</strong>에서.</>
+                  : <>합류하면 재고 보기만 자동 부여됩니다. 기본 템플릿(★)을 정하면 그 권한도 함께 — <strong>구성원 › 권한 › 템플릿 관리</strong>.</>}
+            </span>
           </div>
           {inviteError && (
             <div className="p-2 rounded-lg bg-[var(--danger-dim)] text-[var(--danger)] text-xs">{inviteError}</div>

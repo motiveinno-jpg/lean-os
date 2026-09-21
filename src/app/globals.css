@@ -1810,6 +1810,9 @@ table.approval-table { min-width: 860px; } /* table. — .ev-table 의 min-width
 .perm-template-editor-actions { @apply flex flex-wrap gap-1.5; }
 .perm-template-tree { @apply flex-1 overflow-y-auto p-4; }
 .perm-template-foot { @apply flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-t border-[var(--border)] shrink-0 bg-[var(--bg-card)]; }
+/* ★ 회사 기본 템플릿 (2026-09-21) — 목록의 별표 · 편집 바닥의 자동 부여 토글 */
+.perm-template-default-star { @apply text-[var(--warning)]; }
+.perm-template-default-toggle { @apply mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-[var(--text)] cursor-pointer; }
 
 .billing-coupon-list { @apply space-y-2; }
 /* ⚠️ glass-card·mono-number 같은 커스텀 클래스는 @apply 로 못 쓴다(Tailwind v4 —

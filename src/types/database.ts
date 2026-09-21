@@ -12266,6 +12266,7 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
+          is_default: boolean
           perm_keys: string[]
           updated_at: string
         }
@@ -12275,6 +12276,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name: string
+          is_default?: boolean
           perm_keys?: string[]
           updated_at?: string
         }
@@ -12284,6 +12286,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name?: string
+          is_default?: boolean
           perm_keys?: string[]
           updated_at?: string
         }

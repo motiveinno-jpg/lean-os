@@ -11,8 +11,10 @@ import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm-dialog";
 import { friendlyError } from "@/lib/friendly-error";
 import { PermissionTree, useAllPermissionKeys } from "./PermissionTree";
+import { useUser } from "@/components/user-context";
+import { useFeature } from "@/lib/use-feature";
 
-type Template = { id: string; name: string; perm_keys: string[] };
+type Template = { id: string; name: string; perm_keys: string[]; is_default: boolean };
 type Draft = { id: string | null; name: string; keys: Set<string> };
 
 export function PermissionTemplateModal({ open, onClose, viewerIsMaster = true, currentChecked, currentEmpName }: {
@@ -28,12 +30,18 @@ export function PermissionTemplateModal({ open, onClose, viewerIsMaster = true, 
   const qc = useQueryClient();
   const allKeys = useAllPermissionKeys();
   const [draft, setDraft] = useState<Draft | null>(null);
+  //   ★ 회사 기본 템플릿 (2026-09-21 사장님 결정) — 합류 트리거(_seed_member_default_perms)가 재고 7개 위에 이 템플릿 키를 얹는다.
+  //   회사당 하나. feature_rollout 'member_default_template' 게이트(모티브 먼저) — 게이트가 닫힌 회사엔 토글을 그리지 않는다
+  //   (그려 놓고 동작 안 하면 "정해 뒀는데 왜 안 주나"가 된다).
+  const { user } = useUser();
+  const companyId = user?.company_id ?? null;
+  const { data: defaultGateOn = false } = useFeature("member_default_template", companyId);
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ["permission-templates"],
     queryFn: async () => {
       const { data } = await (supabase as any)
-        .from("permission_templates").select("id, name, perm_keys").order("name");
+        .from("permission_templates").select("id, name, perm_keys, is_default").order("name");
       return (data || []) as Template[];
     },
     enabled: open,
@@ -69,6 +77,27 @@ export function PermissionTemplateModal({ open, onClose, viewerIsMaster = true, 
       if (e?.code === "23505") { toast("같은 이름의 템플릿이 이미 있습니다. 다른 이름을 쓰세요", "error"); return; }
       toast(friendlyError(e, "템플릿 저장 실패"), "error");
     },
+  });
+
+  const defaultMut = useMutation({
+    mutationFn: async ({ t, on }: { t: Template; on: boolean }) => {
+      if (on) {
+        //   회사당 하나 — 켜기 전에 다른 템플릿의 ★ 를 내린다(부분 유일 인덱스가 둘을 막는다)
+        const { error: e1 } = await (supabase as any).from("permission_templates")
+          .update({ is_default: false }).eq("company_id", companyId).eq("is_default", true);
+        if (e1) throw e1;
+      }
+      const { error } = await (supabase as any).from("permission_templates")
+        .update({ is_default: on, updated_at: new Date().toISOString() }).eq("id", t.id);
+      if (error) throw error;
+      return { name: t.name, on };
+    },
+    onSuccess: ({ name, on }) => {
+      toast(on ? `"${name}"이(가) 회사 기본 템플릿입니다. 새로 합류하는 구성원에게 자동 부여됩니다` : `"${name}" 자동 부여를 껐습니다. 새로 합류하는 구성원은 재고 보기만 받습니다`, "success");
+      qc.invalidateQueries({ queryKey: ["permission-templates"] });
+      qc.invalidateQueries({ queryKey: ["permission-default-template"] });
+    },
+    onError: (e: any) => toast(friendlyError(e, "기본 템플릿 설정 실패"), "error"),
   });
 
   const deleteMut = useMutation({
@@ -130,7 +159,7 @@ export function PermissionTemplateModal({ open, onClose, viewerIsMaster = true, 
                   onClick={() => setDraft({ id: t.id, name: t.name, keys: new Set(t.perm_keys || []) })}
                   className={`perm-template-item ${draft?.id === t.id ? "perm-template-item-active" : ""}`}
                 >
-                  <span className="truncate">{t.name}</span>
+                  <span className="truncate">{defaultGateOn && t.is_default && <span className="perm-template-default-star" title="회사 기본 — 합류 시 자동 부여">★ </span>}{t.name}</span>
                   <span className="text-[10px] text-[var(--text-dim)] shrink-0">{(t.perm_keys || []).length}개</span>
                 </button>
               ))
@@ -181,6 +210,17 @@ export function PermissionTemplateModal({ open, onClose, viewerIsMaster = true, 
             <div className="text-[11px] text-[var(--text-muted)]">
               선택된 권한 <b>{draft.keys.size}</b>개
               {draft.id && <span className="text-[var(--text-dim)]"> · 수정해도 이미 적용된 구성원은 바뀌지 않습니다.</span>}
+              {draft.id && defaultGateOn && (() => {
+                const t = templates.find((x) => x.id === draft.id);
+                if (!t) return null;
+                return (
+                  <label className="perm-template-default-toggle" title="켜면 새로 합류하는 구성원에게 재고 보기와 함께 이 템플릿 권한이 자동 부여됩니다. 회사당 하나.">
+                    <input type="checkbox" checked={!!t.is_default} disabled={defaultMut.isPending}
+                      onChange={(e) => defaultMut.mutate({ t, on: e.target.checked })} />
+                    <span>★ 회사 기본 — 합류하는 구성원에게 자동 부여</span>
+                  </label>
+                );
+              })()}
             </div>
             <div className="flex gap-2">
               {draft.id && (

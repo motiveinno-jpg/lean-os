@@ -14,6 +14,7 @@ import { useUser } from "@/components/user-context";
 export type PermTab = { key: string; label: string; desc?: string; money?: boolean; masterOnly?: boolean };
 export type PermMenu = { route: string; label: string; tabs?: PermTab[]; always?: boolean; desc?: string; money?: boolean; sub?: boolean; hidden?: boolean;
   /** 합류 시 자동 부여(회수 가능) — always 와 다르다. DB 트리거 `_seed_member_default_perms` 의 목록과 같아야 한다 (2026-08-26). */
+  //   같은 트리거가 회사 ★ 기본 템플릿(permission_templates.is_default)의 키도 얹는다(2026-09-21, feature member_default_template 게이트).
   defaultGrant?: boolean };
 export type PermGroup = { group: string; menus: PermMenu[] };
 
