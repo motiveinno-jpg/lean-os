@@ -365,7 +365,7 @@ export default function CardsPage() {
     queryKey: ["cards-page-month-tx", companyId, monthRange.from, monthRange.to],
     queryFn: async () => {
       const data = await fetchPaged<any>("cards/page:month-tx", () => db.from("card_transactions")
-        .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name, raw_data")
+        .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name, raw_data, used_by_employee_id")
         .eq("company_id", companyId ?? "")
         .gte("transaction_date", monthRange.from)
         .lte("transaction_date", monthRange.to)
@@ -619,6 +619,22 @@ export default function CardsPage() {
     const entries = Object.entries(m).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 5);
     return entries.map(([name, amount]) => ({ name, amount, pct: totalSpendAll > 0 ? Math.round((amount / totalSpendAll) * 100) : 0 }));
   }, [monthTx]);
+
+  //   사용자별 집계(2026-09-21) — 거래에 붙인 '사용 직원'(used_by_employee_id) 기준. 안 붙인 거래는 '미지정'으로 따로 센다(숨기면 합이 안 맞는다).
+  //   랜딩 카드 메뉴 문구 "사용자별 집계" 의 실제 자리. 직원 이름은 재직 목록(cardEmployees)에서, 퇴직자는 id 로만 남아 '(퇴직·미상)'.
+  const employeeStats = useMemo(() => {
+    const m = new Map<string, { name: string; amount: number; count: number }>();
+    let total = 0;
+    const nameOf = new Map((cardEmployees as any[]).map((e) => [e.id, e.name]));
+    for (const tx of monthTx) {
+      const amt = Number(tx.amount || 0); if (amt === 0) continue;
+      total += Math.max(0, amt);
+      const key = tx.used_by_employee_id || "";
+      const cur = m.get(key) || { name: key ? (nameOf.get(key) || "(퇴직·미상)") : "미지정", amount: 0, count: 0 };
+      cur.amount += amt; cur.count += 1; m.set(key, cur);
+    }
+    return { total, rows: [...m.entries()].map(([id, v]) => ({ id, ...v, pct: total > 0 ? Math.round((Math.max(0, v.amount) / total) * 100) : 0 })).sort((a, b) => (a.id === "" ? 1 : b.id === "" ? -1 : b.amount - a.amount)) };
+  }, [monthTx, cardEmployees]);
 
   if (!companyId) {
     return <div className="p-8 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>;
@@ -1193,6 +1209,28 @@ export default function CardsPage() {
                 ))}
               </div>
             </>)}
+          </div>
+
+          {/* 사용자별 지출 — 거래에 붙인 사용 직원 기준 (2026-09-21) */}
+          <div className="card-user-spending-panel pnl-panel">
+            <h3>사용자별 지출</h3>
+            <p>거래에 붙인 사용 직원 기준입니다. 직원을 안 붙인 거래는 '미지정'으로 따로 셉니다 — 거래내역에서 줄을 열어 직원을 붙이면 옮겨집니다.</p>
+            {employeeStats.rows.length === 0 ? (
+              <p className="text-sm text-[var(--text-muted)] text-center py-4">아직 이번 달 카드 지출이 없습니다.</p>
+            ) : (
+              <div className="stg-table-wrap"><table className="ev-table ev-lined table-card-users">
+                <thead><tr><th className="text-left">사용자</th><th>건수</th><th>금액</th><th>비중</th></tr></thead>
+                <tbody>{employeeStats.rows.map((r) => (
+                  <tr key={r.id || "none"} className={r.id ? "" : "text-[var(--text-dim)]"}>
+                    <td className="text-left"><b>{r.name}</b></td>
+                    <td className="tc mono-number">{r.count}건</td>
+                    <td className="tr mono-number">{fmtW(r.amount)}</td>
+                    <td className="tr mono-number">{r.pct}%</td>
+                  </tr>
+                ))}</tbody>
+                <tfoot><tr><td className="text-left">합계</td><td className="tc mono-number">{monthTx.filter((t: any) => Number(t.amount || 0) !== 0).length}건</td><td className="tr mono-number">{fmtW(employeeStats.total)}</td><td className="tr mono-number">100%</td></tr></tfoot>
+              </table></div>
+            )}
           </div>
 
           {/* 기존 컴포넌트 재사용 — 시안 분석 탭에 자연스럽게 녹임 */}

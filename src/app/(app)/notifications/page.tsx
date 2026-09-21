@@ -25,7 +25,7 @@ const TYPE_LABEL: Record<string, string> = {
   leave: "휴가", leave_request: "휴가 신청", leave_approved: "휴가 승인", leave_rejected: "휴가 반려",
   attendance: "근태", attendance_edit_request: "근태 정정 요청", overtime_request: "연장근무 신청", overtime_approved: "연장근무 승인", overtime_auto_clockout: "자동 퇴근",
   project_checkin_due: "프로젝트 점검", deal_update: "프로젝트", payroll: "급여", expense: "경비",
-  payment_due: "결제 예정", inventory: "재고", board: "게시판", board_post: "게시판 글", chat: "메신저", schedule: "일정",
+  payment_due: "결제 예정", tax_due: "세금 마감", inventory: "재고", board: "게시판", board_post: "게시판 글", chat: "메신저", schedule: "일정",
   company_join_request: "합류 요청", announcement: "공지", system: "시스템",
   dormant_deal: "휴면 프로젝트", dormant_partner: "휴면 거래처",   // 2026-09-17 — 없으면 '기타' 로 뜬다
 };

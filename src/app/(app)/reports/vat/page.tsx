@@ -17,7 +17,7 @@ import { getCurrentUser } from "@/lib/queries";
 import { getVATPreview, getTaxInvoiceSummary, type PeriodType } from "@/lib/tax-invoice";
 import { getCardDeductionSummary } from "@/lib/card-transactions";
 import { todayKst } from "@/lib/kst";
-import { SummaryTab, VatByVoucherType, VATPreviewTab } from "./_components/VatReport";
+import { SummaryTab, VatByVoucherType, VATPreviewTab, VatEvidenceCheck } from "./_components/VatReport";
 
 export default function VatReportPage() {
   const searchParams = useSearchParams();
@@ -82,6 +82,7 @@ export default function VatReportPage() {
 
       {tab === "vat" && (
         <>
+          <VatEvidenceCheck companyId={companyId} year={year} />
           <VatByVoucherType companyId={companyId} year={year} />
           <VATPreviewTab vatPreview={vatPreview} cardDeductions={cardDeductions} />
         </>

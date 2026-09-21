@@ -193,6 +193,24 @@ export default function BoardPage() {
     enabled: !!companyId,
   });
 
+  //   읽음 현황(2026-09-21) — 글을 펼치면 내 읽음 행을 한 번 남기고(board_post_reads), 글마다 누가 읽었는지 센다.
+  //   기준 = 펼쳐 본 사람(목록에 제목만 보인 건 안 셈). 분모는 회사 구성원(companyUsers). 글쓴이 본인도 한 명으로 센다.
+  const { data: postReads = [] } = useQuery({
+    queryKey: ["board-post-reads", companyId],
+    enabled: !!companyId,
+    staleTime: 30_000,
+    queryFn: async () => (logRead("board:reads", await (db as any).from("board_post_reads").select("post_id, user_id, read_at").eq("company_id", companyId!)) || []) as { post_id: string; user_id: string; read_at: string }[],
+  });
+  const readsByPost = useMemo(() => { const m = new Map<string, { user_id: string; read_at: string }[]>(); for (const r of postReads) { const a = m.get(r.post_id) || []; a.push(r); m.set(r.post_id, a); } return m; }, [postReads]);
+  const [readListFor, setReadListFor] = useState<string | null>(null);
+  useEffect(() => {
+    if (!openId || !companyId || !user?.id) return;
+    if ((readsByPost.get(openId) || []).some((r) => r.user_id === user.id)) return;
+    (db as any).from("board_post_reads").upsert({ post_id: openId, user_id: user.id, company_id: companyId }, { onConflict: "post_id,user_id", ignoreDuplicates: true })
+      .then(() => qc.invalidateQueries({ queryKey: ["board-post-reads", companyId] }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId, companyId, user?.id]);
+
   // v4 B1: 알림 라우팅용 — URL ?id= 가 있으면 자동 펼침
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1168,6 +1186,26 @@ export default function BoardPage() {
                         {p.content}
                       </div>
                     )}
+
+                    {/* 읽음 현황 — 펼쳐 본 사람 수 / 구성원 수. 누르면 누가 읽었는지 */}
+                    {(() => {
+                      const rs = readsByPost.get(p.id) || [];
+                      const nameOf = new Map((companyUsers as any[]).map((u) => [u.id, u.name || u.email]));
+                      const listOpen = readListFor === p.id;
+                      return (
+                        <div className="board-read-status">
+                          <button type="button" className="board-read-btn" onClick={() => setReadListFor(listOpen ? null : p.id)} title="펼쳐 본 사람 기준 · 목록에서 제목만 본 것은 세지 않습니다">
+                            읽음 {rs.length}/{companyUsers.length}명 {listOpen ? "▴" : "▾"}
+                          </button>
+                          {listOpen && (
+                            <span className="board-read-list">
+                              {rs.length === 0 ? <em>아직 펼쳐 본 사람이 없습니다.</em> : rs.map((r) => <span key={r.user_id} className="board-read-chip" title={kstDateTime(r.read_at)}>{nameOf.get(r.user_id) || "(이름 없음)"}</span>)}
+                              {companyUsers.filter((u: any) => !rs.some((r) => r.user_id === u.id)).length > 0 && <em className="board-read-unread">안 읽음 {companyUsers.filter((u: any) => !rs.some((r) => r.user_id === u.id)).map((u: any) => u.name || u.email).join(" · ")}</em>}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* 일정 표시 */}
                     {p.event_date && (

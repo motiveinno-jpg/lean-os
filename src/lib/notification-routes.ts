@@ -51,6 +51,7 @@ export const TYPE_HREF: Record<string, (id: string | null) => string> = {
   signature_request: (id) => id ? `/contracts/signed/${id}` : `/signatures`,
   deal_update: (id) => id ? `/projects/${id}` : `/projects`,
   payment_due: () => `/payments`,
+  tax_due: () => `/finance/tax-filing`,
   expense_request: () => `/approvals`,
   contract_expiry: (id) => id ? `/documents?id=${id}` : `/documents`,
   approval: () => `/approvals`,

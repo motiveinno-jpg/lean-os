@@ -347,7 +347,11 @@ function BalanceSheetPageInner() {
   const [trend, setTrend] = useState<TrendPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isCompareMode, setIsCompareMode] = useState(false);
+  //   비교 기준(2026-09-21) — 전월만 있던 것을 전기 말(전년 12/31)·전년 동월까지. 랜딩 회계 자료 문구 "전기 비교" 의 실제 자리
+  type CompareBase = "off" | "prev_month" | "prev_year_end" | "prev_year_same";
+  const [compareBase, setCompareBase] = useState<CompareBase>("off");
+  const isCompareMode = compareBase !== "off";
+  const compareLabel = compareBase === "prev_year_end" ? "전기 말" : compareBase === "prev_year_same" ? "전년 동월" : "전월";
   // 기준일 · 빈 값이면 오늘, 사용자가 지정하면 그 시점 BS 조회
   const [cutoffInput, setCutoffInput] = useState<string>('');
   // 2026-06-10 매출채권/미지급금 집계 기간(개월). 최근 N개월 송장만 outstanding 으로 간주
@@ -371,7 +375,11 @@ function BalanceSheetPageInner() {
     const baseDate = cutoffInput || todayKst();
     const baseObj = new Date(baseDate);
     const prevMonth = new Date(baseObj.getFullYear(), baseObj.getMonth() - 1, 1);
-    const prevCutoff = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}-${String(new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
+    const lastDay = (y: number, m0: number) => `${y}-${String(m0 + 1).padStart(2, '0')}-${String(new Date(y, m0 + 1, 0).getDate()).padStart(2, '0')}`;
+    //   비교 기준일 — 전월 말 / 전기 말(전년 12/31) / 전년 동월 말
+    const prevCutoff = compareBase === "prev_year_end" ? `${baseObj.getFullYear() - 1}-12-31`
+      : compareBase === "prev_year_same" ? lastDay(baseObj.getFullYear() - 1, baseObj.getMonth())
+      : lastDay(prevMonth.getFullYear(), prevMonth.getMonth());
 
     Promise.all([
       fetchBsData(companyId, cutoffInput || undefined),
@@ -385,7 +393,7 @@ function BalanceSheetPageInner() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setIsLoading(false));
-  }, [companyId, cutoffInput]);
+  }, [companyId, cutoffInput, compareBase]);
 
   /* ---------------------------------------------------------------- */
   /*  CSV Export                                                       */
@@ -524,7 +532,10 @@ function BalanceSheetPageInner() {
         right={<>
           {/*   마감 확정본 — 잠근 달의 재무상태표, 지금과 다르면 ⚠ (2026-08-27 ERP ③) */}
           <ClosingSnapshotButton companyId={companyId} kind="bs" year={(cutoffInput || today).slice(0, 4)} />
-          <button onClick={() => setIsCompareMode((v) => !v)} aria-label="전월 비교" className={isCompareMode ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>
+          <select value={compareBase} onChange={(e) => setCompareBase(e.target.value as CompareBase)} className="qk-input h-8 px-2 text-xs" aria-label="비교 기준" title="전월 말 · 전기 말(전년 12/31) · 전년 동월 말과 견줍니다">
+            <option value="off">비교 안 함</option><option value="prev_month">전월 비교</option><option value="prev_year_end">전기 말 비교</option><option value="prev_year_same">전년 동월 비교</option>
+          </select>
+          <button hidden aria-hidden onClick={() => setCompareBase((v) => (v === "off" ? "prev_month" : "off"))} aria-label="전월 비교" className={isCompareMode ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4" /></svg>
             전월 비교
           </button>
@@ -556,7 +567,7 @@ function BalanceSheetPageInner() {
           2026-08-19 대표: "재무상태표 자세하게, T자표 진행" — 공용 머리단(계정과목·금액·전월 대비) 표 두 장,
           계정을 누르면 그 자리에서 세부(통장별·거래처별·자산별)가 펼쳐진다. 소계·총계 줄은 굵게. */}
       <div className="bs-balance-sheet-grid">
-        <BsSide title="자산 (Assets)" isCompareMode={isCompareMode}
+        <BsSide title="자산 (Assets)" isCompareMode={isCompareMode} compareLabel={compareLabel}
           sections={[
             { label: "유동자산 (Current Assets)", subtotalLabel: "유동자산 소계", subtotal: data.currentAssets, prevSubtotal: isCompareMode && prevData ? prevData.currentAssets : undefined,
               rows: [
@@ -573,7 +584,7 @@ function BalanceSheetPageInner() {
           ]}
           total={{ label: "자산 총계", amount: data.totalAssets, prev: isCompareMode && prevData ? prevData.totalAssets : undefined }} />
 
-        <BsSide title="부채 + 자본 (Liabilities + Equity)" isCompareMode={isCompareMode}
+        <BsSide title="부채 + 자본 (Liabilities + Equity)" isCompareMode={isCompareMode} compareLabel={compareLabel}
           sections={[
             { label: "부채 (Liabilities)", subtotalLabel: "부채 합계", subtotal: data.totalLiabilities, prevSubtotal: isCompareMode && prevData ? prevData.totalLiabilities : undefined,
               rows: [
@@ -886,8 +897,8 @@ function BalanceSheetPageInner() {
 type BsDetail =  { name: string; amount: number; date?: string | null };
 type BsRow = { key: string; label: string; amount: number; prev?: number; details?: BsDetail[]; note?: string };
 type BsSection = { label: string; rows: BsRow[]; subtotalLabel: string; subtotal: number; prevSubtotal?: number };
-function BsSide({ title, sections, total, isCompareMode }: {
-  title: string; sections: BsSection[]; total: { label: string; amount: number; prev?: number }; isCompareMode: boolean;
+function BsSide({ title, sections, total, isCompareMode, compareLabel = "전월" }: {
+  title: string; sections: BsSection[]; total: { label: string; amount: number; prev?: number }; isCompareMode: boolean; compareLabel?: string;
 }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [showAll, setShowAll] = useState<Set<string>>(new Set());
@@ -914,7 +925,7 @@ function BsSide({ title, sections, total, isCompareMode }: {
           <tr>
             <th className="text-left">계정과목</th>
             <th>금액 (원)</th>
-            {isCompareMode && <th>전월 대비</th>}
+            {isCompareMode && <th>{compareLabel} 대비</th>}
           </tr>
         </thead>
         <tbody>

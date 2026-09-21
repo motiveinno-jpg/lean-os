@@ -315,3 +315,51 @@ export function VATPreviewTab({ vatPreview, cardDeductions }: any) {
     </div>
   );
 }
+
+// ── 증빙 누락 점검 (2026-09-21) — 랜딩 부가세 메뉴 문구 "증빙 누락 점검" 의 실제 자리 ──
+//   신고 전에 빠지기 쉬운 네 가지를 건수로 센다: 전표 없는 세금계산서·카드·통장(재무 현황과 같은 기준) + 부가세 유형이 비어 있는 확정 매입매출전표.
+//   숫자를 누르면 처리하는 화면으로 간다(제안은 자동, 확정은 사람). 건수만 head 로 세어 가볍다.
+export function VatEvidenceCheck({ companyId, year }: { companyId: string | null; year: number }) {
+  const from = `${year}-01-01`, to = `${year}-12-31`;
+  const { data } = useQuery({
+    queryKey: ["vat-evidence-check", companyId, year],
+    enabled: !!companyId,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const db = supabase as any;
+      const cnt = async (q: any) => { const { count } = await q; return Number(count || 0); };
+      const [ti, card, bank, noVat] = await Promise.all([
+        cnt(db.from("tax_invoices").select("id", { count: "exact", head: true }).eq("company_id", companyId!).is("journal_entry_id", null).neq("status", "void").gte("issue_date", from).lte("issue_date", to)),
+        cnt(db.from("card_transactions").select("id", { count: "exact", head: true }).eq("company_id", companyId!).is("journal_entry_id", null).is("ledger_excluded_reason", null).gte("transaction_date", from).lte("transaction_date", to)),
+        cnt(db.from("bank_transactions").select("id", { count: "exact", head: true }).eq("company_id", companyId!).is("journal_entry_id", null).is("ledger_excluded_reason", null).gte("transaction_date", from).lte("transaction_date", to)),
+        cnt(db.from("journal_entries").select("id", { count: "exact", head: true }).eq("company_id", companyId!).eq("entry_kind", "sale_purchase").eq("status", "confirmed").is("vat_type", null).gte("entry_date", from).lte("entry_date", to)),
+      ]);
+      return { ti, card, bank, noVat, total: ti + card + bank + noVat };
+    },
+  });
+  const items: { label: string; n: number | undefined; href: string; why: string }[] = [
+    { label: "전표 없는 세금계산서", n: data?.ti, href: "/collect?tab=evidence", why: "수집·전표에서 전표로 만들면 매출·매입 세액에 잡힙니다." },
+    { label: "전표 없는 카드 거래", n: data?.card, href: "/collect?tab=card", why: "카드 매입세액공제는 전표가 있어야 셉니다." },
+    { label: "전표 없는 통장 거래", n: data?.bank, href: "/collect?tab=bank", why: "증빙 없는 지출은 공제에서 빠집니다." },
+    { label: "부가세 유형 없는 매입매출전표", n: data?.noVat, href: "/partners/reconciliation/sale-purchase", why: "유형이 없으면 신고서 줄에 못 들어갑니다." },
+  ];
+  return (
+    <div className="vat-voucher-card glass-card">
+      <div className="vat-voucher-head">
+        <div>
+          <b>증빙 누락 점검</b>
+          <span>{year}년 · 신고 전에 빠진 것{data ? ` ${data.total.toLocaleString("ko-KR")}건` : ""}</span>
+        </div>
+        <Link href="/collect" className="btn-secondary btn-sm">수집·전표 →</Link>
+      </div>
+      <div className="vat-check-grid">
+        {items.map((it) => (
+          <Link key={it.label} href={it.href} className={`vat-check-item${(it.n || 0) > 0 ? " vat-check-item-warn" : ""}`} title={it.why}>
+            <span className="vat-check-label">{it.label}</span>
+            <b className="vat-check-n mono-number">{it.n == null ? "…" : `${it.n.toLocaleString("ko-KR")}건`}</b>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}

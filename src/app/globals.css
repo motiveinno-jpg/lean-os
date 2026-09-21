@@ -1414,6 +1414,22 @@ thead th { white-space: nowrap; word-break: keep-all; }
 
 .card-category-spending-panel { @apply p-6; }
 .card-category-row { @apply flex items-center gap-4; }
+/* 카드 › 분석 › 사용자별 지출 (2026-09-21) */
+.card-user-spending-panel { @apply p-6; }
+/* 분석 › 부가세 › 증빙 누락 점검 (2026-09-21) */
+.vat-check-grid { @apply grid grid-cols-2 gap-2 px-4 pb-4 md:grid-cols-4; }
+.vat-check-item { @apply flex flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2.5 no-underline; }
+.vat-check-item-warn { @apply border-[var(--warning)]/40; }
+.vat-check-label { @apply text-[11px] text-[var(--text-muted)]; }
+.vat-check-n { @apply text-sm font-bold text-[var(--text)]; }
+.vat-check-item-warn .vat-check-n { @apply text-[var(--warning)]; }
+/* 게시판 읽음 현황 (2026-09-21) */
+.board-read-status { @apply mt-3 flex flex-wrap items-center gap-2 text-xs; }
+.board-read-btn { @apply rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-0.5 text-[11px] font-semibold text-[var(--text-muted)]; }
+.board-read-list { @apply flex flex-wrap items-center gap-1.5; }
+.board-read-chip { @apply rounded-full bg-[var(--primary)]/10 px-2 py-0.5 text-[11px] text-[var(--primary)]; }
+.board-read-unread { @apply text-[11px] not-italic text-[var(--text-dim)]; }
+.table-card-users tfoot td { @apply border-t border-[var(--border)] px-3 py-1.5 text-xs font-semibold; }
 .card-post-voucher-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
 .card-bulk-post-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
 .card-mini-card { @apply p-5 transition-all; }
