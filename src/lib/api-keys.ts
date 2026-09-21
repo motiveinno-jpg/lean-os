@@ -188,9 +188,10 @@ export async function retestApiKey(provider: string): Promise<{ ok: boolean; mes
  *   은행·카드·홈택스·광고는 각자 전용 화면에서 붙이지만, "무엇이 연결됐나" 는 한 곳에서 봐야 한다.
  *   그래서 상태만 여기로 모아 보여주고, 손보는 것은 [관리] 로 그 탭에 보낸다.
  *
- * ⚠️ 알림(Slack·카카오)은 **일부러 뺐다.** company_settings.slack_webhook_url 컬럼은 있지만
- *   값이 0건이고 읽는 코드도 없다(2026-08-21 grep·실측). 동작하지 않는 줄을 그려 두면
+ * ⚠️ 알림(Slack·카카오)은 **일부러 뺐다.** 동작하지 않는 줄을 그려 두면
  *   "연결하면 되겠지" 라고 믿게 만든다 — 기능이 실제로 생기면 그때 넣는다.
+ *   company_settings.slack_webhook_url 등 Slack 칸 5개는 값 0건·읽는 코드 0으로 2026-09-21 삭제했다
+ *   (20260921100000_drop_slack_columns.sql). Slack 이 필요해지면 company_api_keys(암호화)로 새로 받는다.
  */
 export type LinkedIntegration = {
   key: string;

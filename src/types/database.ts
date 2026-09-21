@@ -5572,11 +5572,6 @@ export type Database = {
           night_start_time: string | null
           on_duty_pay_per_shift: number | null
           settings: Json | null
-          slack_large_tx_threshold: number
-          slack_notify_approval: boolean
-          slack_notify_large_tx: boolean
-          slack_notify_payment: boolean
-          slack_webhook_url: string | null
           updated_at: string | null
           weekly_work_hours: number | null
           work_end_time: string | null
@@ -5604,11 +5599,6 @@ export type Database = {
           night_start_time?: string | null
           on_duty_pay_per_shift?: number | null
           settings?: Json | null
-          slack_large_tx_threshold?: number
-          slack_notify_approval?: boolean
-          slack_notify_large_tx?: boolean
-          slack_notify_payment?: boolean
-          slack_webhook_url?: string | null
           updated_at?: string | null
           weekly_work_hours?: number | null
           work_end_time?: string | null
@@ -5636,11 +5626,6 @@ export type Database = {
           night_start_time?: string | null
           on_duty_pay_per_shift?: number | null
           settings?: Json | null
-          slack_large_tx_threshold?: number
-          slack_notify_approval?: boolean
-          slack_notify_large_tx?: boolean
-          slack_notify_payment?: boolean
-          slack_webhook_url?: string | null
           updated_at?: string | null
           weekly_work_hours?: number | null
           work_end_time?: string | null
