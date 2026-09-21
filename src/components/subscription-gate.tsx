@@ -59,12 +59,19 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
             : " 회사 관리자(대표님)에게 구독 갱신을 요청해 주세요."}
         </p>
         {isManager ? (
-          <Link
-            href="/billing"
-            className="subscription-paywall-cta"
-          >
-            요금제 보기 →
-          </Link>
+          <>
+            <Link
+              href="/billing"
+              className="subscription-paywall-cta"
+            >
+              요금제 보기 →
+            </Link>
+            {/* 해지 후에도 자료는 내 것 — 거래·거래처·전표를 엑셀로 (2026-09-21, 랜딩 문구를 참으로) */}
+            <p className="subscription-paywall-export">
+              거래·거래처·전표는 구독이 끝나도 엑셀로 내려받을 수 있습니다.{" "}
+              <Link href="/billing?tab=export">내 자료 내려받기 →</Link>
+            </p>
+          </>
         ) : (
           <Link
             href="/mypage"

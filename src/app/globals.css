@@ -4777,6 +4777,15 @@ table.pnl-drill-table { min-width: 760px; }
 .subscription-paywall { @apply max-w-[560px] my-16 mx-auto px-8 py-10 text-center; } /* glass-card(기존)는 JSX 병기 */
 .subscription-paywall-icon { @apply w-14 h-14 rounded-2xl mx-auto mb-5 flex items-center justify-center bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] text-[var(--primary)]; }
 .subscription-paywall-cta { @apply inline-flex items-center gap-2 py-3 px-7 rounded-xl bg-[var(--primary)] text-white text-sm font-bold no-underline; }
+.subscription-paywall-export { @apply mt-5 text-[12px] text-[var(--text-muted)]; }
+.subscription-paywall-export a { @apply font-semibold text-[var(--primary)] no-underline; }
+/* 요금제 › 자료 내려받기 (2026-09-21) */
+.data-export { @apply flex flex-col gap-3 p-4; }
+.data-export-head { @apply flex flex-wrap items-start justify-between gap-3; }
+.data-export-title { @apply text-sm font-bold text-[var(--text)]; }
+.data-export-sub { @apply mt-0.5 text-[12px] text-[var(--text-muted)]; }
+.data-export-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 text-xs; }
+.data-export-foot { @apply text-[11px] text-[var(--text-dim)]; }
 .subscription-trial-banner { @apply flex items-center justify-between gap-3 py-2.5 px-4 rounded-xl mb-4 no-underline bg-[color-mix(in_srgb,var(--primary)_8%,transparent)] border border-[color-mix(in_srgb,var(--primary)_25%,transparent)]; }
 .subscription-pastdue-banner { @apply flex items-center justify-between gap-3 py-2.5 px-4 rounded-xl mb-4 no-underline bg-[color-mix(in_srgb,#ef4444_8%,transparent)] border border-[color-mix(in_srgb,#ef4444_30%,transparent)]; }
 .subscription-blocked-banner { @apply py-2.5 px-4 rounded-xl mb-4 bg-[color-mix(in_srgb,#f59e0b_8%,transparent)] border border-[color-mix(in_srgb,#f59e0b_30%,transparent)] text-[12.5px] text-[#d97706] font-semibold; }

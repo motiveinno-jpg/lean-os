@@ -23,11 +23,12 @@ import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import { TossCardSection } from "./_components/TossCardSection";
 import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
 import { fmtBytes }  from "@/lib/storage-quota";
+import { DataExportPanel } from "@/components/data-export-panel";
 
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
 const db = supabase;
 
-type Tab = "plan" | "credits" | "payment" | "invoices";
+type Tab = "plan" | "credits" | "payment" | "invoices" | "export";
 type BillingCycle = "monthly" | "annual";
 
 // 요금제는 무료(영구)와 오너뷰(39,000원·VAT 별도) 둘. 울트라는 자사 전용이라 판매 목록에 나오지 않는다.
@@ -64,7 +65,8 @@ function BillingPageInner() {
   const isOwner = useMyPermissions().isMaster;
   // 결제수단 등록은 마스터만 · 서버(엣지 함수)에서도 동일하게 막는다.
   const  { isMaster: billingIsMaster } = useMyPermissions();
-  const [tab, setTab] = useState<Tab>("plan");
+  //   ?tab=export — 페이월(구독 종료)에서 '내 자료 내려받기' 로 바로 온다(2026-09-21)
+  const [tab, setTab] = useState<Tab>(() => (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("tab") === "export" ? "export" : "plan"));
   const [cycle, setCycle] = useState<BillingCycle>("monthly"); // 2026-07-22 연간 토글 복원 (연간 10% 할인)
   // 결제수단 · 국내카드(토스) 기본, 해외카드(Stripe) 선택 (2026-08-14)
   const [payMethod, setPayMethod] = useState<"toss" | "stripe">("toss");
@@ -554,6 +556,8 @@ function BillingPageInner() {
     { key: "plan", label: "요금제", icon: "💳" },
     { key: "credits", label: "충전", icon: "🔋" },
     { key: "payment", label: "결제", icon: "🏦" },
+    //   자료 내려받기(2026-09-21) — 해지 후에도 열리는 화면(/billing)에 둔다. 랜딩 「해지 후에도 엑셀로 내려받습니다」 의 실제 통로
+    { key: "export", label: "자료 내려받기", icon: "📥" },
   ];
   const tabOn = (k: Tab) => (k === "payment" ? tab === "payment" || tab === "invoices" : tab === k);
 
@@ -1084,6 +1088,8 @@ function BillingPageInner() {
           </div>
         </div>
       )}
+
+      {tab === "export" && <DataExportPanel companyId={companyId ?? null} />}
 
       {/* 결제 탭 — 결제 수단 한 줄 + 국내카드(토스) + 각주 + 청구서 표 (2026-08-19 재편: 결제 수단·청구서 합침) */}
       {(tab === "payment" || tab === "invoices") && (
