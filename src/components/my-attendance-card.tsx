@@ -44,6 +44,9 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
   const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
   const [attendanceStatus, setAttendanceStatus] = useState("present");
   const [busy, setBusy] = useState(false);
+  //   현장(프로젝트) — 2026-09-21 현장별 근태. 회사에 진행 중 프로젝트가 있을 때만 고르는 줄이 뜬다.
+  //   하루 한 행이라 '그날의 주된 현장' 하나. 사이드바 압축 카드(compact)는 한 번 누르기를 지키려고 안 묻는다 — 마이페이지 카드에서 바꾼다.
+  const [siteId, setSiteId] = useState("");
 
   // 본인 employees 레코드
   const { data: emp, isLoading: empLoading } = useQuery({
@@ -60,6 +63,15 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
     enabled: !!companyId && !!userId,
   });
   const employeeId = emp?.id ?? null;
+  const { data: sites = [] } = useQuery({
+    queryKey: ["att-sites", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("deals").select("id, name").eq("company_id", companyId).is("archived_at", null).eq("status", "active").order("name");
+      return (data || []) as { id: string; name: string }[];
+    },
+    enabled: !!companyId,
+    staleTime: 300_000,
+  });
 
   const { data: todayAtt } = useQuery({
     queryKey: ["my-att-today", employeeId, today],
@@ -99,6 +111,7 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
         employeeId,
         isType || attendanceStatus === "present" ? "auto" : attendanceStatus,
         isType ? attendanceStatus : undefined,
+        siteId || null,
       );
       toast("출근 처리 완료", "success");
       refresh();
@@ -141,6 +154,27 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
     setBusy(false);
   };
 
+  // 근무 중 현장 변경 — 다른 현장으로 이동한 날. 시각·분 계산엔 영향 없음.
+  const doChangeSite = async (dealId: string) => {
+    if (!employeeId || busy) return;
+    setBusy(true);
+    try {
+      const { error } = await db
+        .from("attendance_records")
+        .update({ deal_id: dealId || null })
+        .eq("company_id", companyId)
+        .eq("employee_id", employeeId)
+        .eq("date", today);
+      if (error) throw error;
+      const name = sites.find((s) => s.id === dealId)?.name;
+      toast(name ? `현장을 '${name}'(으)로 기록했습니다` : "현장 기록을 비웠습니다", "success");
+      refresh();
+    } catch (e: any) {
+      toast(`현장 변경 실패: ${e.message || ""}`, "error");
+    }
+    setBusy(false);
+  };
+
   const doCancelCheckOut = async () => {
     if (!employeeId || !(await appConfirm("퇴근 기록을 취소하시겠습니까?"))) return;
     setBusy(true);
@@ -167,6 +201,15 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
               ? `근무 완료 · ${fmtTime(todayAtt?.check_in)} ~ ${fmtTime(todayAtt?.check_out)}`
               : `${fmtTime(todayAtt?.check_in)} 출근 · ${elapsedSince(todayAtt?.check_in)}`}
         </span>
+        {/* 현장(프로젝트) — 압축 카드가 마이페이지 '오늘 출퇴근'의 유일한 출근 자리라 여기서도 고른다(2026-09-21). 진행 중 프로젝트가 없으면 안 그린다 */}
+        {!isCheckedOut && sites.length > 0 && (
+          <select className="attendance-card-compact-site qk-input h-8 px-2 text-xs" aria-label="현장 · 프로젝트" disabled={busy}
+            value={isCheckedIn ? (todayAtt?.deal_id || "") : siteId}
+            onChange={(e) => (isCheckedIn ? doChangeSite(e.target.value) : setSiteId(e.target.value))}>
+            <option value="">{isCheckedIn ? "현장 없음" : "현장 선택"}</option>
+            {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        )}
         {!isCheckedIn ? (
           <button onClick={doCheckIn} disabled={busy} className="btn-primary btn-sm shrink-0">{busy ? "..." : "출근"}</button>
         ) : !isCheckedOut ? (
@@ -264,6 +307,17 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
         </div>
       )}
 
+      {/* 현장(프로젝트) — 출근 전에 고른다. 회사에 진행 중 프로젝트가 없으면 줄 자체가 없다 */}
+      {!isCheckedIn && sites.length > 0 && (
+        <div className="attendance-site-row">
+          <label className="attendance-site-label" htmlFor="att-site-pick">현장 · 프로젝트</label>
+          <select id="att-site-pick" className="qk-input h-8 px-2 text-xs" value={siteId} onChange={(e) => setSiteId(e.target.value)}>
+            <option value="">선택 안 함</option>
+            {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+      )}
+
       {/* 근무 중 유형 전환 — 정상출근 후 외근/출장을 나갈 때 본인이 바로 변경 */}
       {isCheckedIn && !isCheckedOut && (
         <div className="attendance-worktype-row">
@@ -286,6 +340,17 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
               </button>
             );
           })}
+        </div>
+      )}
+
+      {/* 근무 중 현장 변경 */}
+      {isCheckedIn && !isCheckedOut && sites.length > 0 && (
+        <div className="attendance-site-row">
+          <label className="attendance-site-label" htmlFor="att-site-change">현장</label>
+          <select id="att-site-change" className="qk-input h-8 px-2 text-xs" value={todayAtt?.deal_id || ""} disabled={busy} onChange={(e) => doChangeSite(e.target.value)}>
+            <option value="">기록 없음</option>
+            {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
         </div>
       )}
 

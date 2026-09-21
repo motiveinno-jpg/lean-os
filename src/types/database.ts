@@ -2135,6 +2135,7 @@ export type Database = {
           company_id: string
           created_at: string | null
           date: string
+          deal_id: string | null
           edited_at: string | null
           edited_by: string | null
           employee_id: string
@@ -2160,6 +2161,7 @@ export type Database = {
           company_id: string
           created_at?: string | null
           date: string
+          deal_id: string | null
           edited_at?: string | null
           edited_by?: string | null
           employee_id: string
@@ -2185,6 +2187,7 @@ export type Database = {
           company_id?: string
           created_at?: string | null
           date?: string
+          deal_id?: string | null
           edited_at?: string | null
           edited_by?: string | null
           employee_id?: string

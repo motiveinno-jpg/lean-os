@@ -15,7 +15,7 @@ import { getMonthlyAttendanceSummary, isNonDeductLeave, LEAVE_TYPES, LEAVE_UNITS
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { downloadCsv } from "@/lib/csv-export";
 import { DateRangeField } from "@/components/date-range-field";
-import { QueryBar, ConditionPanel, ConditionRow, TokenField, QuickSearch, quickSearchHit, AppliedChips, ResultStrip, Stat, ExcelMenu, type AppliedChip } from "@/components/query-kit";
+import { QueryBar, ConditionPanel, ConditionRow, TokenField, QuickSearch, quickSearchHit, AppliedChips, ResultStrip, Stat, ExcelMenu, ChipGroup, type AppliedChip } from "@/components/query-kit";
 import { nextSort, type SortState } from "@/components/sortable-th";
 import { fetchHolidayDates } from "@/lib/effective-holidays";
 
@@ -56,6 +56,9 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
   const [panel, setPanel] = useState(false);
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<SortState<string>>({ key: "name", dir: "asc" });
+  //   보기 — 직원별(기존) / 현장별(2026-09-21). 현장 = 출근 카드에서 고른 프로젝트(attendance_records.deal_id).
+  //   '어느 현장에 사람이 얼마나 들어갔나' 는 관점이 다른 표라 값 필터가 아니라 보기 칩이다.
+  const [view, setView] = useState<"people" | "site">("people");
   const [openDept, setOpenDept] = useState<Map<string, boolean>>(new Map());
   const [openEmp, setOpenEmp] = useState<Set<string>>(new Set());
 
@@ -89,7 +92,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
   //   숫자 칸 팝업(지각·결근·재택·반차의 날짜·내용)도 같은 행을 쓰므로 상태·시각·메모까지 가져온다.
   const  { data: recordDays = [] } = useQuery({
     queryKey: ["att-status-record-days", companyId, rangeFrom, rangeTo],
-    queryFn: async () => (await fetchPaged("att-status:record-days", () => supabase.from("attendance_records").select("employee_id, date, status, is_late, late_minutes, check_in, check_out, work_hours, note").eq("company_id", companyId).gte("date", rangeFrom).lte("date", rangeTo).order("date"), 50000)) as any[],
+    queryFn: async () => (await fetchPaged("att-status:record-days", () => supabase.from("attendance_records").select("employee_id, date, status, is_late, late_minutes, check_in, check_out, work_hours, note, deal_id, regular_minutes, overtime_minutes, night_minutes, holiday_minutes").eq("company_id", companyId).gte("date", rangeFrom).lte("date", rangeTo).order("date"), 50000)) as any[],
     enabled: !!companyId,
   });
   const { data: allowances = [] } = useQuery({
@@ -322,6 +325,31 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
       {isAdmin && <td className="text-right mono-number font-bold text-[var(--success)]">{r.alwTotal > 0 ? fmtKRW(r.alwTotal) : "—"}</td>}
     </>
   );
+  // ── 현장별 집계 — 조회된 사람(rows)의 기록만, 현장(deal_id)으로 묶는다 ──
+  //   추정 인건비 = 월급 ÷ 209 × 시간(연장·야간·휴일은 1.5배). 급여 확정값이 아니라 '추정' 이고, 월급이 없는 사람은 뺀다(표에 적는다).
+  const { data: siteNames = {} } = useQuery({
+    queryKey: ["att-status-sites", companyId],
+    queryFn: async () => { const { data } = await supabase.from("deals").select("id, name").eq("company_id", companyId); const m: Record<string, string> = {}; for (const d of (data || []) as any[]) m[d.id] = d.name; return m; },
+    enabled: !!companyId && view === "site", staleTime: 300_000,
+  });
+  const siteRows = useMemo(() => {
+    const allow = new Set(rows.map((r) => r.employee_id));
+    const salaryOf = new Map<string, number>(employees.map((e: any) => [e.id, Number(e.salary || 0)]));
+    const acc = new Map<string, { key: string; name: string; people: Set<string>; days: number; regMin: number; extraMin: number; cost: number; noSalary: Set<string> }>();
+    for (const r of recordDays as any[]) {
+      if (!allow.has(r.employee_id) || !r.check_in) continue;
+      const key = r.deal_id || "";
+      const g = acc.get(key) || { key, name: key ? (siteNames[key] || "(삭제된 프로젝트)") : "현장 미지정", people: new Set<string>(), days: 0, regMin: 0, extraMin: 0, cost: 0, noSalary: new Set<string>() };
+      const reg = Number(r.regular_minutes || 0), extra = Number(r.overtime_minutes || 0) + Number(r.night_minutes || 0) + Number(r.holiday_minutes || 0);
+      g.people.add(r.employee_id); g.days += 1; g.regMin += reg; g.extraMin += extra;
+      const sal = salaryOf.get(r.employee_id) || 0;
+      if (sal > 0) g.cost += (reg / 60) * (sal / 209) + (extra / 60) * (sal / 209) * 1.5; else g.noSalary.add(r.employee_id);
+      acc.set(key, g);
+    }
+    return [...acc.values()].sort((a, b) => (b.regMin + b.extraMin) - (a.regMin + a.extraMin));
+  }, [recordDays, rows, employees, siteNames]);
+  const siteTotalH = siteRows.reduce((s, g) => s + g.regMin + g.extraMin, 0) / 60;
+
   const excel = [{
     label: `근태 현황 ${rangeLabel} (${rows.length}명)`, count: rows.length,
     onClick: () => downloadCsv(`근태현황_${months[0]}_${months[months.length - 1]}`, ["부서", "직원", "출근일", "출근율(%)", "지각", "결근", "재택", "연차(일)", "연차(종일)", "반차(회)", "2시간(회)", "연장(분)", "야간(분)", "휴일(분)", "총근무(h)", ...(isAdmin ? ["수당"] : [])],
@@ -349,6 +377,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
           <ConditionRow label="총 근무" hint="시간 범위"><span className="inline-flex items-center gap-1.5"><input className="qk-input h-8 w-24 px-2 text-xs" inputMode="numeric" placeholder="이상" value={draft.hoursMin} onChange={(e) => setDraft((c) => ({ ...c, hoursMin: e.target.value.replace(/[^0-9.]/g, "") }))} /><span className="text-[var(--text-dim)]">~</span><input className="qk-input h-8 w-24 px-2 text-xs" inputMode="numeric" placeholder="이하" value={draft.hoursMax} onChange={(e) => setDraft((c) => ({ ...c, hoursMax: e.target.value.replace(/[^0-9.]/g, "") }))} /><span className="text-[11px] text-[var(--text-dim)]">h</span></span></ConditionRow>
         </ConditionPanel>
         <QuickSearch value={q} onApply={setQ} placeholder="이름 · 부서 · 쉼표로 여러 개, Enter" />
+        <ChipGroup value={view} onChange={setView} options={[{ value: "people", label: "직원별" }, { value: "site", label: "현장별", title: "출근 카드에서 고른 현장(프로젝트)별 인원·시간" }]} />
       </QueryBar>
       <AppliedChips chips={chips} onClearAll={() => { setCond(COND0); setQ(""); }} />
       <ResultStrip>
@@ -364,7 +393,27 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
       </ResultStrip>
 
       <div className="ev-scroll att-summary-scroll att-status-scroll">
-        {isLoading ? <div className="collect-empty">불러오는 중…</div> : (
+        {isLoading ? <div className="collect-empty">불러오는 중…</div> : view === "site" ? (
+          siteRows.length === 0 ? <div className="collect-empty">이 기간에 출근 기록이 없습니다. 현장은 출근 카드에서 고릅니다.</div> : (
+            <table className="ev-table ev-lined att-summary-table att-site-table">
+              <thead><tr><th className="text-left">현장 · 프로젝트</th><th>인원</th><th>출근일</th><th>정규(h)</th><th>연장·야간·휴일(h)</th><th>총 근무</th>{isAdmin && <th title="월급 ÷ 209 × 시간 · 연장·야간·휴일 1.5배 · 급여 확정값이 아닌 추정">추정 인건비</th>}</tr></thead>
+              <tbody>
+                {siteRows.map((g) => (
+                  <tr key={g.key || "none"} className={g.key ? "" : "text-[var(--text-dim)]"}>
+                    <td className="text-left"><b>{g.name}</b></td>
+                    <td className="text-center mono-number">{g.people.size}명</td>
+                    <td className="text-center mono-number">{g.days}일</td>
+                    <td className="text-right mono-number">{(g.regMin / 60).toFixed(1)}</td>
+                    <td className="text-right mono-number text-[var(--text-muted)]">{g.extraMin > 0 ? (g.extraMin / 60).toFixed(1) : "—"}</td>
+                    <td className="text-right mono-number font-bold">{((g.regMin + g.extraMin) / 60).toFixed(1)}h</td>
+                    {isAdmin && <td className="text-right mono-number font-bold text-[var(--success)]" title={g.noSalary.size ? `월급 미등록 ${g.noSalary.size}명은 뺀 값` : undefined}>{g.cost > 0 ? `${fmtKRW(g.cost)}${g.noSalary.size ? "*" : ""}` : "—"}</td>}
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot><tr><td className="text-left" colSpan={5}>합계 · {siteRows.length}곳{isAdmin ? " · 추정 인건비 = 월급 ÷ 209 × 시간, 연장·야간·휴일 1.5배 · * 월급 미등록 인원 제외" : ""}</td><td className="text-right mono-number font-bold">{siteTotalH.toFixed(1)}h</td>{isAdmin && <td className="text-right mono-number font-bold text-[var(--success)]">{fmtKRW(siteRows.reduce((s, g) => s + g.cost, 0))}</td>}</tr></tfoot>
+            </table>
+          )
+        ) : (
           <table className="ev-table ev-lined att-summary-table">
             <thead><tr>{th("부서 · 직원", "name", true)}{th("출근일", "totalDays")}<th>출근율</th>{th("지각", "lateDays")}{th("결근", "absentDays")}{th("재택", "remoteDays")}{th("연차", "leaveDays")}{th("연장(분)", "overtimeMinutesSum")}{th("야간(분)", "nightMinutesSum")}{th("휴일(분)", "holidayMinutesSum")}{th("총 근무", "totalHours")}{isAdmin && th("수당", "alwTotal")}</tr></thead>
             <tbody>

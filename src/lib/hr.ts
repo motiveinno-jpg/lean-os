@@ -850,7 +850,8 @@ export function isLate(currentKstMin: number, policy: AttendancePolicy): boolean
 //   (09:00 + 유예 30분)으로 떨어져, 실제 기준이 09:30 + 유예 5분인 회사에서 09:32 출근이
 //   'late' 로 올라갔다. 이제 엣지가 실제 설정으로 직접 판정한다.
 //   status 는 재택·반차·결근처럼 본인이 고른 근무 형태를 전달할 때만 쓰인다("auto" 면 서버 판정).
-export async function checkIn(companyId: string, employeeId: string, status: string = "auto", attendanceType?: string) {
+//   dealId(2026-09-21 현장별 근태) — 그날 출근한 현장(프로젝트). attendance_type 과 같은 경로로 출근 뒤 한 번에 저장한다.
+export async function checkIn(companyId: string, employeeId: string, status: string = "auto", attendanceType?: string, dealId?: string | null) {
   // 연장근무 게이트 — work_end_time 이후 출근은 승인된 연장근무 신청이 있어야 가능.
   //   정규 시간/회사 work_end_time 미설정/승인된 연장 시간 안 이면 통과 (allowed=true).
   //   차단 시 친화 메시지로 throw → 호출자 toast(friendlyError).
@@ -887,11 +888,14 @@ export async function checkIn(companyId: string, employeeId: string, status: str
   const result = await invokeAttendance("checkin", { companyId, employeeId, status, overtimeRequestId });
   // 출근 유형 저장 — RLS 는 본인 행 update 허용(attendance_records_update_admin_or_self).
   //   실패해도 체크인 자체는 성공 처리 (아래 지각 판정 chain 과 동일 원칙).
-  if (attendanceType && attendanceType !== "normal") {
+  const extra: { attendance_type?: string; deal_id?: string } = {};
+  if (attendanceType && attendanceType !== "normal") extra.attendance_type = attendanceType;
+  if (dealId) extra.deal_id = dealId;
+  if (Object.keys(extra).length) {
     try {
       const { error: typeErr } = await db
         .from("attendance_records")
-        .update({ attendance_type: attendanceType })
+        .update(extra)
         .eq("company_id", companyId)
         .eq("employee_id", employeeId)
         .eq("date", todayKst());

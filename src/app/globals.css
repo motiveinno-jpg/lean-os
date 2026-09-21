@@ -4178,6 +4178,11 @@ table.leave-req-table { min-width: 960px; } /* table. — .ev-table(뒤에 정�
 .attendance-status-picker { @apply flex gap-2 mb-3 flex-wrap; }
 /* 근무 중 유형 전환 줄 (2026-07-31) — 정상출근 후 외근/출장 전환 */
 .attendance-worktype-row { @apply flex items-center gap-1.5 mb-3 flex-wrap; }
+/* 출근 카드 현장(프로젝트) 고르기 줄 (2026-09-21 현장별 근태) */
+.attendance-site-row { @apply flex items-center gap-2 mb-3; }
+.attendance-site-label { @apply shrink-0 text-[11px] font-semibold text-[var(--text-muted)]; }
+.attendance-card-compact-site { @apply max-w-[9rem] shrink-0; }
+.att-site-table tfoot td { @apply border-t border-[var(--border)] px-3 py-1.5 text-[11px] text-[var(--text-dim)]; }
 .attendance-worktype-label { @apply text-[11px] font-semibold text-[var(--text-dim)] mr-1; }
 .attendance-worktype-btn { @apply px-2.5 py-1 rounded-lg text-[11px] font-semibold transition border disabled:opacity-50; }
 .attendance-action-row { @apply flex gap-3; }

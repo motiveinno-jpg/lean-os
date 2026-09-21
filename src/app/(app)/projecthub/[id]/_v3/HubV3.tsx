@@ -65,6 +65,28 @@ export function HubV3() {
   const canTaxInv = isMaster || hasMenu("/tax-invoices");
   const canVoucher = isMaster || hasMenu("/collect");
   const canAnyFinance = canBank || canCards || canTaxInv;
+  //   투입 인력(2026-09-21 현장별 근태) — 출근 카드에서 이 프로젝트를 현장으로 고른 근태 행. 인건비 추정은 급여 권한자만
+  //   (월급 ÷ 209 × 시간, 연장·야간·휴일 1.5배 · 확정값 아님).
+  const canSalary = isMaster || hasMenu("/employees:salary");
+  const { data: labor } = useQuery({
+    queryKey: ["phv3-labor", dealId, canSalary],
+    enabled: !!dealId,
+    queryFn: async () => {
+      const { data } = await supabase.from("attendance_records").select("employee_id, regular_minutes, overtime_minutes, night_minutes, holiday_minutes").eq("deal_id", dealId).not("check_in", "is", null);
+      const rows = (data || []) as any[];
+      const people = new Set(rows.map((r) => r.employee_id));
+      let reg = 0, extra = 0;
+      for (const r of rows) { reg += Number(r.regular_minutes || 0); extra += Number(r.overtime_minutes || 0) + Number(r.night_minutes || 0) + Number(r.holiday_minutes || 0); }
+      let cost: number | null = null;
+      if (canSalary && people.size) {
+        const { data: emps } = await supabase.from("employees").select("id, salary").in("id", [...people]);
+        const sal = new Map((emps || []).map((e: any) => [e.id, Number(e.salary || 0)]));
+        cost = 0;
+        for (const r of rows) { const s = sal.get(r.employee_id) || 0; if (s > 0) cost += (Number(r.regular_minutes || 0) / 60) * (s / 209) + ((Number(r.overtime_minutes || 0) + Number(r.night_minutes || 0) + Number(r.holiday_minutes || 0)) / 60) * (s / 209) * 1.5; }
+      }
+      return { people: people.size, days: rows.length, hours: (reg + extra) / 60, cost };
+    },
+  });
 
   // ── 데이터 ──────────────────────────────────────────────
   const { data: deal, isLoading: dealLoading } = useQuery({
@@ -476,6 +498,11 @@ export function HubV3() {
             <div className="phv3-sb-k">돈</div>
             <div className="phv3-sb-v phv3-num">계약 {man(contract)} · 확정 {man(confirmedCost)}</div>
             <div className="phv3-sb-s phv3-num">지출 예정 {man(planSpend || null)}</div>
+          </button>
+          <button type="button" className="phv3-sb" onClick={() => router.push("/attendance")} title="근태 관리 › 근태 현황 · 현장별 보기로">
+            <div className="phv3-sb-k">투입 인력</div>
+            <div className="phv3-sb-v phv3-num">{labor?.people ? `${labor.people}명 · ${labor.hours.toFixed(1)}h` : "—"}</div>
+            <div className="phv3-sb-s phv3-num">{labor?.people ? (labor.cost != null ? `인건비 추정 ${man(labor.cost)} · 출근 ${labor.days}일` : `출근 ${labor.days}일`) : "출근 카드에서 현장을 고르면 집계"}</div>
           </button>
           <button type="button" className="phv3-sb" onClick={() => setTab("docs")} title="증빙·문서 탭으로">
             <div className="phv3-sb-k">성과 · 마진율</div>
