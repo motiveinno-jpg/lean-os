@@ -24,6 +24,7 @@ import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable
 import { listProducts, listOnHand, upsertProduct, type Product } from "@/lib/inventory";
 import { listBoms } from "@/lib/inventory-production";
 import { BomEditorDialog } from "../_components/bom-editor";
+import { LabelPrintDialog } from "../_components/label-print";   // 바코드 라벨 PDF (2026-09-22 재고 점검 F)
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
 
@@ -60,6 +61,7 @@ export default function ProductsPage() {
   const [editing, setEditing] = useState<Partial<Product> | null>(null);
   //   자재구성 팝업 — 품목 등록 체크박스에서 연다(생산이 아니라 품목에 있어야)
   const [bomFor, setBomFor] = useState<Product | null>(null);
+  const [labelOpen, setLabelOpen] = useState(false);
   const { data: boms = [] } = useQuery({ queryKey: ["inv-boms", companyId], queryFn: () => listBoms(companyId!), enabled: !!companyId });
   const bomOf = useMemo(() => { const m = new Map<string, number>(); for (const b of boms) m.set(b.product_id, (m.get(b.product_id) || 0) + 1); return m; }, [boms]);
   const [pasteOpen, setPasteOpen] = useState(false);
@@ -125,6 +127,7 @@ export default function ProductsPage() {
               { label: "붙여넣기", hint: "엑셀에서 복사한 줄을 붙여넣습니다.", onClick: () => setPasteOpen(true) },
               { label: "조회 결과 내려받기", count: shown.length, disabled: !shown.length, onClick: () => exportToExcel(shown.map((p) => ({ "SKU": p.sku, "품목명": p.name, "분류": p.category || "", "규격": p.spec || "", "단위": p.unit || "", "바코드": p.barcode || "", "판매가": p.sale_price ?? "", "매입가": p.cost_price ?? "", "단위당 노무·경비": p.overhead_per_unit || 0, "안전재고": p.safety_stock ?? "", "수량관리": p.track_stock ? "예" : "아니오", "현재고": qtyOf.get(p.id) ?? 0, "상태": p.is_active ? "판매중" : "단종", "메모": p.memo || "" })), "품목", `품목_${todayKst()}`) },
             ]} />
+            <button type="button" className="btn-secondary btn-sm" disabled={!shown.length} onClick={() => setLabelOpen(true)} title="조회된 품목의 바코드 라벨 PDF">라벨 인쇄</button>
             <button type="button" className="btn-primary btn-sm" onClick={() => setEditing({ track_stock: true, unit: "EA", is_active: true })}>+ 품목 등록</button>
           </>}>
             <SimpleCond groups={PRODUCT_CONDS} live={cond} onApply={setCond} />
@@ -242,6 +245,7 @@ export default function ProductsPage() {
           }}
         />
       )}
+      {labelOpen && <LabelPrintDialog products={shown} onClose={() => setLabelOpen(false)} />}
       {bomFor && companyId && (
         <BomEditorDialog companyId={companyId} product={bomFor} products={products} onClose={() => setBomFor(null)} />
       )}
