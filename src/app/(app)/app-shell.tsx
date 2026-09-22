@@ -26,6 +26,7 @@ import { AppTourHost } from "@/components/app-tour";
 import { MaintenanceNoticeHost } from "@/components/maintenance-notice";
 import { SingleSessionGuard } from "@/components/single-session-guard";
 import { IpGate } from "@/components/ip-gate";
+import { MfaGate } from "@/components/mfa-gate";
 import { PopupProvider, PopupWindowsHost } from "@/components/popup-windows";
 import { SubscriptionGate } from "@/components/subscription-gate";
 import { AccessDenied } from "@/components/access-denied";
@@ -473,6 +474,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
       <SingleSessionGuard />
       {/* 회사별 접속 허용 IP 제한 — 설정을 켠 회사만 (2026-08-11) */}
       <IpGate />
+      {/* 2단계 인증 관문 — 켜진 계정의 6자리 확인 · 회사 필수 대상의 등록 (2026-09-22) */}
+      <MfaGate />
       {/* 세션 만료 배너 — 다시 로그인으로 유도 */}
       {sessionExpired && (
         <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 px-4 py-2.5 rounded-xl bg-[var(--bg-card)] border border-[var(--warning)] text-xs shadow-lg max-w-md animate-[slide-in_0.3s_ease]">

@@ -14,6 +14,7 @@ import {
 } from "@/lib/vat-business-type";
 import { PermissionTree } from "../../employees/_components/PermissionTree";
 import { useMyPermissions } from "@/lib/permissions";
+import { loadMfaPolicy, saveMfaPolicy, MFA_POLICY_LABEL, type MfaPolicy } from "@/lib/mfa";
 import { SignedImg } from "@/components/signed-media";
 
 export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
@@ -943,6 +944,49 @@ export function IpRestrictionSection({ companyId }: { companyId: string | null }
 }
 
 
+
+/* ── 2단계 인증 정책 — 회사가 누구에게 필수로 할지 (2026-09-22 ERP 공백 2차 ②).
+   값은 company_settings.settings.mfa_policy.required_for (none|masters|all). 판정은 MfaGate 가 앱 진입 때.
+   켜는 사람(마스터)도 대상이라 저장 직후 본인이 안 켰으면 다음 화면 이동 때 등록 화면부터 본다 — 저장 전에 그 사실을 적는다. */
+export function MfaPolicySection({ companyId }: { companyId: string | null }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data: policy } = useQuery({ queryKey: ["mfa-policy"], queryFn: loadMfaPolicy, enabled: !!companyId });
+  const [val, setVal] = useState<MfaPolicy["required_for"] | null>(null);
+  const cur = val ?? policy?.required_for ?? "none";
+  const saveMut = useMutation({
+    mutationFn: (required_for: MfaPolicy["required_for"]) => saveMfaPolicy(companyId!, { required_for }),
+    onSuccess: () => { toast("2단계 인증 정책을 저장했습니다.", "success"); qc.invalidateQueries({ queryKey: ["mfa-policy"] }); },
+    onError: (e: any) => toast(`저장 실패: ${friendlyError(e, "알 수 없는 오류")}`, "error"),
+  });
+  return (
+    <div className="company-mfa-policy-panel stg-sec">
+      <div className="stg-sec-head">
+        <div>
+          <h2 className="stg-sec-title">보안<span className="ui-sub">2단계 인증</span></h2>
+          <p className="stg-sec-desc">로그인할 때 비밀번호에 더해 휴대폰 인증 앱의 6자리를 묻습니다. 각자 마이페이지에서 켜고, 여기서는 누구에게 필수로 할지 정합니다.</p>
+        </div>
+      </div>
+      <div className="stg-frow stg-frow-wide">
+        <div className="stg-frow-label"><b>필수 대상</b><small>대상인데 아직 안 켠 사람은 다음 로그인 때 등록 화면부터 봅니다</small></div>
+        <div className="stg-frow-body">
+          <select value={cur} onChange={(e) => setVal(e.target.value as MfaPolicy["required_for"])} className="qk-input h-8 px-2 text-xs" aria-label="2단계 인증 필수 대상">
+            {(Object.keys(MFA_POLICY_LABEL) as MfaPolicy["required_for"][]).map((k) => <option key={k} value={k}>{MFA_POLICY_LABEL[k]}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="stg-sec-actions">
+        <button type="button" className="btn-primary btn-sm" disabled={saveMut.isPending || !companyId || cur === (policy?.required_for ?? "none")}
+          onClick={async () => {
+            if (cur !== "none" && !(await appConfirm(`'${MFA_POLICY_LABEL[cur]}'로 정하면 대상자는 2단계 인증을 켜야 앱을 쓸 수 있습니다.\n마스터인 본인도 대상이라, 아직 안 켰다면 다음 화면 이동 때 등록 화면이 먼저 뜹니다(인증 앱 준비).`, { title: "2단계 인증 필수", confirmLabel: "저장" }))) return;
+            saveMut.mutate(cur);
+          }}>
+          {saveMut.isPending ? "저장 중..." : "정책 저장"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 /* ── 회사 문서 섹션 · storage: documents/company-docs/{companyId}/{key}_{ts}.{ext} ──
    업로드 여부 표시 + 보기(서명 URL)·교체(기존 삭제 후 업로드)·삭제. 계약 발송·증명서 발급이 같은 경로 참조. */

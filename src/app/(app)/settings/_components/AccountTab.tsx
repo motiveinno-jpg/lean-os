@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
+import { MfaCard } from "@/components/mfa-card";
 
 export function AccountTab() {
   const { toast } = useToast();
@@ -165,6 +166,9 @@ export function AccountTab() {
           </button>
         </form>
       </div>
+
+      {/* 2단계 인증 — 인증 앱 6자리 (2026-09-22 ERP 공백 2차 ②) */}
+      <MfaCard />
     </div>
   );
 }

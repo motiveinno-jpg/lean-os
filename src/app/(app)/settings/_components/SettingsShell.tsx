@@ -28,7 +28,7 @@ import { FormTemplateManager } from "@/components/form-template-manager";
 import { DealClassificationManager } from "./DealClassificationManager";
 import { ProjectSalesAccountCard } from "./ProjectSalesAccountCard";
 import { CompanyDeleteTab } from "./CompanyDeleteTab";
-import { CompanyInfoTab, TaxAdvisorSection, IpRestrictionSection } from "./CompanyInfoTab";
+import { CompanyInfoTab, TaxAdvisorSection, IpRestrictionSection, MfaPolicySection } from "./CompanyInfoTab";
 import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
 import { AccountingClosingTab } from "./AccountingClosingTab";
 import { InsuranceRatesTab } from "./InsuranceRatesTab";
@@ -742,6 +742,8 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
         {tab === "security" && (
           <div className="space-y-5">
             <IpRestrictionSection companyId={companyId} />
+            {/*   2단계 인증 필수 대상 (2026-09-22) */}
+            <MfaPolicySection companyId={companyId} />
             {/*   변경 이력 — 누가 언제 무엇을 바꿨나 (2026-08-27 ERP 3순위 ④) */}
             <AuditTrailPanel companyId={companyId} />
           </div>
