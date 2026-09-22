@@ -35,3 +35,8 @@ begin
 end $$;
 revoke all on function public.get_rrns_for_insurance(uuid[]) from public, anon;
 grant execute on function public.get_rrns_for_insurance(uuid[]) to authenticated;
+
+-- 열람 기록 action 허용값에 'get_insurance' 추가 — 운영 검증에서 check 제약(set·delete·get_statement)에 막혀 400 이 났다
+alter table public.employee_rrn_access_log drop constraint if exists employee_rrn_access_log_action_check;
+alter table public.employee_rrn_access_log add constraint employee_rrn_access_log_action_check
+  check (action = any (array['set'::text, 'delete'::text, 'get_statement'::text, 'get_insurance'::text]));

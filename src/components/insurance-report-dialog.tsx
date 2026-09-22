@@ -91,6 +91,8 @@ export function InsuranceReportDialog({ companyId, employees, mode, onClose }: P
   //   후보가 바뀌면 줄 기본값을 채운다(이미 고친 줄은 그대로)
   useEffect(() => {
     if (!ctx) return;
+    //   상실은 급여 명세가 도착한 뒤에 채운다 — 먼저 채우면 보수총액이 0 으로 굳고(이미 채운 줄은 안 건드림) 명세가 와도 안 바뀐다
+    if (!isAcq && lossIds.length > 0 && payroll === undefined) return;
     if (isAcq) {
       setAcq((prev) => {
         const next = { ...prev };
@@ -118,7 +120,8 @@ export function InsuranceReportDialog({ companyId, employees, mode, onClose }: P
           const months = payroll?.get(e.id) || new Map<string, number>();
           const sum = (y: string) => [...months.entries()].filter(([m]) => m.startsWith(y) && m <= lossDate.slice(0, 7)).reduce((s, [, v]) => s + v, 0);
           const cnt = (y: string) => [...months.keys()].filter((m) => m.startsWith(y) && m <= lossDate.slice(0, 7)).length;
-          const hiredPrev = !!e.hire_date && String(e.hire_date) < `${yr}-01-01`;
+          //   전년도 정산구분 2 는 전년에도 근무했고 **전년 급여 명세가 있을 때만** — 명세가 없으면 0 원짜리 정산이 되어 틀린 신고가 된다(운영 검증에서 발견)
+          const hiredPrev = !!e.hire_date && String(e.hire_date) < `${yr}-01-01` && cnt(prevYr) > 0;
           const code = String(e.offboarding?.loss_reason || "").split("-")[0];
           next[e.id] = {
             employeeId: e.id, name: e.name, phone: e.phone || "", agencies: "YYYY", lossDate,
@@ -130,7 +133,7 @@ export function InsuranceReportDialog({ companyId, employees, mode, onClose }: P
         return next;
       });
     }
-  }, [candidates, ctx, isAcq, payroll]);
+  }, [candidates, ctx, isAcq, payroll, lossIds.length]);
 
   useEffect(() => { setChecked(new Set(candidates.map((e: any) => e.id))); }, [candidates]);
 
