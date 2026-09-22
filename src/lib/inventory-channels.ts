@@ -26,10 +26,19 @@ export const CHANNELS = [
 export type ChannelValue = (typeof CHANNELS)[number]["value"];
 export const channelLabel = (v: string) => CHANNELS.find((c) => c.value === v)?.label ?? v;
 
+/** 세트 구성 한 줄 — 채널 상품 1개당 이 품목 qty 개가 나간다 (2026-09-22 재고 점검 E) */
+export type SetComponent = { product_id: string; qty: number };
 export type ChannelCode = {
   id: string; product_id: string; channel: string;
   channel_product_id: string; channel_sku: string | null;
   channel_product_name: string | null; is_active: boolean;
+  /** 세트 구성 — 있으면 주문 저장 때 대표 품목 대신 이 구성품으로 출고 */
+  components: SetComponent[] | null;
+};
+export const normComponents = (v: unknown): SetComponent[] | null => {
+  if (!Array.isArray(v)) return null;
+  const out = v.map((c: any) => ({ product_id: String(c?.product_id || ""), qty: Number(c?.qty || 0) })).filter((c) => c.product_id && c.qty > 0);
+  return out.length ? out : null;
 };
 export type OrderImport = {
   id: string; channel: string; channel_order_no: string; order_date: string | null;
@@ -50,26 +59,29 @@ export async function listChannelCodes(companyId: string): Promise<ChannelCode[]
   if (!companyId) return [];
   const data = await fetchPaged<any>("inventory:channel-codes", () => supabase
     .from("product_channel_codes")
-    .select("id, product_id, channel, channel_product_id, channel_sku, channel_product_name, is_active")
+    .select("id, product_id, channel, channel_product_id, channel_sku, channel_product_name, is_active, components")
     .eq("company_id", companyId).order("id"), 50000);
-  return (data || []) as ChannelCode[];
+  return ((data || []) as any[]).map((r) => ({ ...r, components: normComponents(r.components) })) as ChannelCode[];
 }
 
 export async function upsertChannelCode(companyId: string, c: {
   id?: string; product_id: string; channel: string;
   channel_product_id: string; channel_product_name?: string | null; channel_sku?: string | null;
+  /** 세트 구성 · undefined 면 안 건드림, null 이면 지움 */
+  components?: SetComponent[] | null;
 }) {
   const code = c.channel_product_id.trim();
   if (!code) throw new Error("채널 상품코드를 입력하세요");
-  const row = {
+  const row: Record<string, unknown> = {
     company_id: companyId, product_id: c.product_id, channel: c.channel,
     channel_product_id: code, channel_sku: c.channel_sku?.trim() || null,
     channel_product_name: c.channel_product_name?.trim() || null,
     updated_at: new Date().toISOString(),
   };
+  if (c.components !== undefined) row.components = normComponents(c.components);
   const { error } = c.id
-    ? await supabase.from("product_channel_codes").update(row).eq("id", c.id)
-    : await supabase.from("product_channel_codes").upsert(row, { onConflict: "company_id,channel,channel_product_id" });
+    ? await supabase.from("product_channel_codes").update(row as never).eq("id", c.id)
+    : await supabase.from("product_channel_codes").upsert(row as never, { onConflict: "company_id,channel,channel_product_id" });
   if (error) throw error;
 }
 
@@ -120,8 +132,9 @@ export async function resolveRows(
 ): Promise<ResolvedRow[]> {
   const codes = (await listChannelCodes(companyId)).filter((c) => c.channel === channel && c.is_active);
   const byCode = new Map(codes.map((c) => [c.channel_product_id.trim().toUpperCase(), c.product_id]));
+  const setOf = new Map(codes.filter((c) => c.components?.length).map((c) => [c.channel_product_id.trim().toUpperCase(), c.components!]));
 
-  const ids = [...new Set(codes.map((c) => c.product_id))];
+  const ids = [...new Set([...codes.map((c) => c.product_id), ...codes.flatMap((c) => (c.components || []).map((x) => x.product_id))])];
   const tracked = new Set<string>();
   if (ids.length) {
     const data = logRead("inventory:channel-track", await supabase
@@ -141,11 +154,15 @@ export async function resolveRows(
   }
 
   return rows.map((r) => {
-    const pid = byCode.get(r.channel_product_id.trim().toUpperCase()) ?? null;
+    const key = r.channel_product_id.trim().toUpperCase();
+    const pid = byCode.get(key) ?? null;
+    const set = setOf.get(key);
+    //   세트면 대표 품목 대신 구성품이 전부 수량 관리인지 본다
+    const trackedOk = set ? set.every((x) => tracked.has(x.product_id)) : (!!pid && tracked.has(pid));
     const reason: ResolvedRow["reason"] =
       seen.has(r.channel_order_no) ? "already"
       : !pid ? "no-code"
-      : !tracked.has(pid) ? "no-track"
+      : !trackedOk ? "no-track"
       : "ok";
     return { ...r, product_id: pid, reason };
   });
@@ -233,15 +250,45 @@ export async function importChannelDoc(
   const skipped = lines.length - use.length;
   if (!use.length) throw new Error(skipped ? "모두 이미 등록된 주문번호입니다" : "등록할 줄이 없습니다");
 
+  //   세트 펼치기(2026-09-22 재고 점검 E) — 상품 연결에 구성이 있으면 대표 품목 대신 구성품 줄로 나간다.
+  //   금액은 주문 줄의 (단가×수량)을 구성품 판매가 비율로 나눈다(판매가가 없으면 균등). 합계는 주문 줄과 같다.
+  const codes = (await listChannelCodes(companyId)).filter((c) => c.channel === channel && c.is_active && c.components?.length);
+  const setOf = new Map(codes.map((c) => [c.channel_product_id.trim().toUpperCase(), c.components!]));
+  const compIds = [...new Set(codes.flatMap((c) => c.components!.map((x) => x.product_id)))];
+  const salePrice = new Map<string, number>();
+  if (compIds.length) {
+    const data = logRead("inventory:channel-set-price", await supabase.from("products").select("id, sale_price").in("id", compIds));
+    for (const p of ((data || []) as any[])) salePrice.set(p.id, Number(p.sale_price || 0));
+  }
+  type DocLine = { product_id: string; qty: number; unit_price: number | null; vat_amount: number | null; note: string };
+  const docLines: DocLine[] = [];
+  let setLines = 0;
+  for (const r of use) {
+    const set = setOf.get(r.channel_product_id.trim().toUpperCase());
+    const noteBase = `${channelLabel(channel)} ${r.channel_order_no.trim()}`;
+    if (!set) { docLines.push({ product_id: r.product_id, qty: Number(r.qty), unit_price: r.unit_price ?? null, vat_amount: r.vat_amount ?? null, note: noteBase }); continue; }
+    setLines += 1;
+    const orderAmt = r.unit_price != null ? Number(r.unit_price) * Number(r.qty) : null;
+    const orderVat = r.vat_amount != null ? Number(r.vat_amount) : null;
+    const weights = set.map((x) => (salePrice.get(x.product_id) || 0) * x.qty);
+    const wsum = weights.reduce((s, w) => s + w, 0);
+    let amtLeft = orderAmt ?? 0, vatLeft = orderVat ?? 0;
+    set.forEach((x, i) => {
+      const qty = x.qty * Number(r.qty);
+      const share = wsum > 0 ? weights[i] / wsum : 1 / set.length;
+      const last = i === set.length - 1;
+      const amt = orderAmt == null ? null : (last ? amtLeft : Math.round(orderAmt * share));
+      const vat = orderVat == null ? null : (last ? vatLeft : Math.round(orderVat * share));
+      if (amt != null) amtLeft -= amt; if (vat != null) vatLeft -= vat;
+      docLines.push({ product_id: x.product_id, qty, unit_price: amt == null || !qty ? null : amt / qty, vat_amount: vat, note: `${noteBase} · 세트 ${r.channel_product_id.trim()} 구성` });
+    });
+  }
+
   const orderNos = new Set(use.map((r) => r.channel_order_no.trim()));
   const doc = await createStockDoc(companyId, {
     reason: "sale", docDate, warehouseId,
-    note: [note, `${channelLabel(channel)} 주문 ${orderNos.size}건`].filter(Boolean).join(" · "),
-    lines: use.map((r) => ({
-      product_id: r.product_id, qty: Number(r.qty),
-      unit_price: r.unit_price ?? null, vat_amount: r.vat_amount ?? null,
-      note: `${channelLabel(channel)} ${r.channel_order_no.trim()}`,
-    })),
+    note: [note, `${channelLabel(channel)} 주문 ${orderNos.size}건${setLines ? ` · 세트 ${setLines}줄 펼침` : ""}`].filter(Boolean).join(" · "),
+    lines: docLines,
   }, userId);
 
   const first = new Map<string, ChannelDocLine>();

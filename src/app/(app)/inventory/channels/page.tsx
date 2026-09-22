@@ -393,7 +393,7 @@ export default function ChannelsPage() {
                             <td className="mono-number text-left"><b>{c.channel_product_id}</b></td>
                             <td className="text-left ev-dim">{c.channel_product_name || "—"}</td>
                             <td className="mono-number text-left">{p?.sku || "—"}</td>
-                            <td className="text-left"><b>{p?.name || "삭제된 품목"}</b></td>
+                            <td className="text-left"><b>{p?.name || "삭제된 품목"}</b>{c.components?.length ? <span className="inv-pill inv-pill-ghost ml-1" title={c.components.map((x) => `${productById.get(x.product_id)?.name || "?"} × ${x.qty}`).join(" · ")}>세트 {c.components.length}품</span> : null}</td>
                             <td className="tc ev-dim">{p?.spec || "—"}</td>
                             <td className="tc">
                               {canWrite && (
@@ -1290,13 +1290,17 @@ function CodeDialog({ companyId, channel, products, onClose, onSaved }: {
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  //   세트 구성(2026-09-22 재고 점검 E) — 채널 상품 1개 = 구성품 여러 개. 켜면 주문 저장 때 대표 품목 대신 구성품이 나간다
+  const [isSet, setIsSet] = useState(false);
+  const [comps, setComps] = useState<{ product_id: string; qty: string }[]>([{ product_id: "", qty: "1" }]);
+  const compOk = !isSet || (comps.filter((c) => c.product_id && Number(c.qty) > 0).length > 0 && comps.every((c) => !c.product_id || Number(c.qty) > 0));
 
   return (
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">{channelLabel(channel)} 상품 연결</h3>
         <p className="inv-modal-desc">
-          채널 상품코드와 품목을 <b>한 번</b> 연결하면 주문 가져오기에서 자동으로 맞춥니다.
+          채널 상품코드와 품목을 <b>한 번</b> 연결하면 주문 가져오기에서 자동으로 맞춥니다. 세트·묶음 상품이면 아래에서 구성품을 적으세요.
         </p>
         <label className="inv-field"><span>채널 상품코드 *</span>
           <input className="field-input" value={code} onChange={(e) => setCode(e.target.value)}
@@ -1311,13 +1315,32 @@ function CodeDialog({ companyId, channel, products, onClose, onSaved }: {
               <option key={p.id} value={p.id}>{p.sku} · {p.name}{p.spec ? ` (${p.spec})` : ""}</option>
             ))}
           </select></label>
+        <label className="ch-set-toggle"><input type="checkbox" checked={isSet} onChange={(e) => setIsSet(e.target.checked)} /> 세트·묶음 상품 — 주문 1개에 여러 품목이 나간다</label>
+        {isSet && (
+          <div className="ch-set-box">
+            <div className="ch-set-hint">위 '품목'은 대표(세트) 품목이며 재고에서 빠지지 않습니다. 아래 구성품이 주문 수량 × 개수만큼 출고됩니다. 금액은 구성품 판매가 비율로 나눕니다.</div>
+            {comps.map((c, i) => (
+              <div key={i} className="ch-set-row">
+                <select className="field-input ch-set-sel" value={c.product_id} onChange={(e) => setComps((cs) => cs.map((x, j) => (j === i ? { ...x, product_id: e.target.value } : x)))}>
+                  <option value="">구성품 선택</option>
+                  {products.filter((p) => p.is_active).map((p) => <option key={p.id} value={p.id}>{p.sku} · {p.name}</option>)}
+                </select>
+                <input className="field-input ch-set-qty" inputMode="numeric" value={c.qty} onChange={(e) => setComps((cs) => cs.map((x, j) => (j === i ? { ...x, qty: e.target.value.replace(/[^\d.]/g, "") } : x)))} aria-label="개수" />
+                <span className="ev-dim">개</span>
+                <button type="button" className="inv-line-x" aria-label="줄 삭제" onClick={() => setComps((cs) => (cs.length > 1 ? cs.filter((_, j) => j !== i) : [{ product_id: "", qty: "1" }]))}>✕</button>
+              </div>
+            ))}
+            <button type="button" className="btn-secondary btn-sm" onClick={() => setComps((cs) => [...cs, { product_id: "", qty: "1" }])}>+ 구성품</button>
+          </div>
+        )}
         <div className="inv-modal-actions">
           <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
-          <button type="button" className="btn-primary btn-sm" disabled={!productId || !code.trim() || busy}
+          <button type="button" className="btn-primary btn-sm" disabled={!productId || !code.trim() || busy || !compOk}
             onClick={async () => {
               setBusy(true);
               try {
-                await upsertChannelCode(companyId, { product_id: productId, channel, channel_product_id: code, channel_product_name: name });
+                const components = isSet ? comps.filter((c) => c.product_id && Number(c.qty) > 0).map((c) => ({ product_id: c.product_id, qty: Number(c.qty) })) : null;
+                await upsertChannelCode(companyId, { product_id: productId, channel, channel_product_id: code, channel_product_name: name, components });
                 onSaved();
               } catch (e) { toast(friendlyError(e, "연결하지 못했습니다"), "error"); }
               finally { setBusy(false); }

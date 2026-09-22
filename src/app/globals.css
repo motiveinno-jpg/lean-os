@@ -10872,3 +10872,11 @@ table.table-inv-valuation { min-width: 820px; }
 
 /* ── 재고 › 창고관리 › 현재고 › 체류·회전 보기 (2026-09-22 재고 점검 D) ── */
 table.table-inv-aging { min-width: 960px; }
+
+/* ── 이커머스 › 상품 연결 › 세트 구성 (2026-09-22 재고 점검 E) ── */
+.ch-set-toggle { @apply mt-2 inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)]; }
+.ch-set-box { @apply mt-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]/50 p-3 flex flex-col gap-2; }
+.ch-set-hint { @apply text-[11px] leading-relaxed text-[var(--text-dim)]; }
+.ch-set-row { @apply flex items-center gap-1.5; }
+.ch-set-sel { @apply flex-1 min-w-0; }
+.ch-set-qty { @apply w-[72px] text-right; }

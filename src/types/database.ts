@@ -12376,6 +12376,7 @@ export type Database = {
           channel: string
           channel_product_id: string
           channel_product_name: string | null
+          components: Json | null
           channel_sku: string | null
           company_id: string
           created_at: string
@@ -12388,6 +12389,7 @@ export type Database = {
           channel: string
           channel_product_id: string
           channel_product_name?: string | null
+          components?: Json | null
           channel_sku?: string | null
           company_id: string
           created_at?: string
@@ -12400,6 +12402,7 @@ export type Database = {
           channel?: string
           channel_product_id?: string
           channel_product_name?: string | null
+          components?: Json | null
           channel_sku?: string | null
           company_id?: string
           created_at?: string
