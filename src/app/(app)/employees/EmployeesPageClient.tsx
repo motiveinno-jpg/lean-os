@@ -54,6 +54,7 @@ import { CertificatePdfButton } from "@/components/certificate-pdf-button";
 import { listAppointments, appointmentLines } from "@/lib/hr-appointments";
 import { fetchRetirementEstimates } from "@/lib/retirement";
 import { RetirementDialog } from "@/components/retirement-dialog";
+import { InsuranceReportDialog } from "@/components/insurance-report-dialog";   // 4대보험 취득·상실 신고 파일 (2026-09-22)
 import { fetchHrTodos } from "@/lib/hr-todo";
 import { comparePeople, compareByName } from "@/lib/people-sort";
 import { HrTodoDialog } from "@/components/hr-todo-dialog";
@@ -174,6 +175,7 @@ export default function EmployeesPage()  {
   const totalSalary = activeForPay.reduce((s: number, e: any) => s + Number(e.salary || 0), 0);
   const totalRetirement = activeForPay.reduce((s: number, e: any) => s + Number(e.retirement_accrual || 0), 0);
   const [retireOpen, setRetireOpen] = useState(false);
+  const [insReport, setInsReport] = useState<"acquisition" | "loss" | null>(null);   // 4대보험 신고 파일 팝업
   const [todoOpen, setTodoOpen] = useState(false);
   const { data: hrTodos, isLoading: todoLoading } = useQuery({ queryKey: ["hr-todos", companyId, todayKst(), employees.length], queryFn: () => fetchHrTodos(companyId!, employees), enabled: !!companyId && !isEmployee && employees.length > 0, staleTime: 120_000 });
   const { data: retireRows } = useQuery({ queryKey: ["retirement-est", companyId, todayKst()], queryFn: () => fetchRetirementEstimates(companyId!, todayKst()), enabled: !!companyId, staleTime: 300_000 });
@@ -238,6 +240,7 @@ export default function EmployeesPage()  {
 
   return (<>
       {retireOpen && companyId && <RetirementDialog companyId={companyId} onClose={() => setRetireOpen(false)} />}
+      {insReport && companyId && <InsuranceReportDialog companyId={companyId} employees={employees as any[]} mode={insReport} onClose={() => setInsReport(null)} />}
       {todoOpen && <HrTodoDialog groups={hrTodos || []} loading={todoLoading} onClose={() => setTodoOpen(false)} />}
       
     <div className="print-area qk-shell" id="employees-print-area">
@@ -255,6 +258,9 @@ export default function EmployeesPage()  {
             <ExcelMenu items={[
               { label: "엑셀로 대량 초대", hint: "이름·이메일·부서 열을 붙여넣어 한 번에 초대", onClick: () => setBulkInviteOpen(true) },
               { label: "명단 내려받기", count: activeCount, disabled: !activeCount, onClick: () => exportToExcel(employees.filter((e: any) => ["active", "joined"].includes(e.status)).map((e: any) => ({ "이름": e.name, "부서": e.department || "", "직책": e.position || "", "고용형태": e.employment_type || "", "입사일": e.hire_date || "", "이메일": e.email || "", "연락처": e.phone || "" })), "구성원", `구성원_${todayKst()}`) },
+              //   4대보험 신고 파일 — 건강보험 EDI 파일신고 규격 xlsx (2026-09-22 ERP 공백 2차 ⑤)
+              { label: "4대보험 취득 신고 파일", hint: "입사자를 골라 EDI 파일신고용 xlsx 로", onClick: () => setInsReport("acquisition") },
+              { label: "4대보험 상실 신고 파일", hint: "퇴사자를 골라 EDI 파일신고용 xlsx 로", onClick: () => setInsReport("loss") },
             ]} />
             <button type="button" onClick={() => setInviteFormOpen((v) => !v)} className="btn-primary btn-sm whitespace-nowrap">+ 직원 초대</button>
           </>) : undefined}

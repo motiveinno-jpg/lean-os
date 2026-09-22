@@ -10835,3 +10835,21 @@ table.cfs-table { min-width: 640px; }
 .cfs-table thead th { @apply sticky top-0 z-10; }
 .cfs-detail-scroll { @apply max-h-[60vh] overflow-auto; }
 table.cfs-detail-table { min-width: 720px; }
+
+/* ── 인사 › 구성원 › 4대보험 취득·상실 신고 파일 팝업 (2026-09-22 ERP 공백 2차 ⑤) ── */
+.ins-edi-box { @apply max-w-[1180px]; }
+.ins-edi-bar { @apply flex flex-wrap items-center gap-2 text-xs; }
+.ins-edi-bar-lbl { @apply text-[11px] font-semibold text-[var(--text-dim)]; }
+.ins-edi-check { @apply inline-flex items-center gap-1 text-xs text-[var(--text-muted)]; }
+.ins-edi-jobdef { @apply inline-flex items-center gap-1.5 ml-2; }
+.ins-edi-scroll { @apply max-h-[55vh] overflow-auto; }
+table.ins-edi-table { min-width: 1100px; }
+.ins-edi-table td { @apply py-1; }
+.ins-edi-sel { @apply h-7 px-1.5 text-[11px] max-w-[150px]; }
+.ins-edi-sel-wide { @apply max-w-[220px] w-[220px]; }
+.ins-edi-inp { @apply h-7 px-1.5 text-[11px] w-[88px]; }
+.ins-edi-inp-wide { @apply w-[160px]; }
+.ins-edi-num { @apply text-right tabular-nums w-[96px]; }
+.ins-edi-date { @apply h-7 px-1.5 text-[11px] w-[120px]; }
+.ins-edi-off td { @apply opacity-50; }
+.ins-edi-foot { @apply text-[10.5px] text-[var(--text-dim)]; }
