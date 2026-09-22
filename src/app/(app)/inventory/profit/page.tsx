@@ -24,6 +24,7 @@ import { DateRangeField } from "@/components/date-range-field";
 import { exportToExcel } from "@/lib/excel-export";
 import { LineChart, BarChart, DonutChart, Legend, vizColor } from "@/components/charts/kit";
 import { listMoves, listProducts, listAvgCost, type MoveRow, type Product } from "@/lib/inventory";
+import { listBoms } from "@/lib/inventory-production";
 import { listImports, channelLabel, CHANNELS } from "@/lib/inventory-channels";
 import { loadChannelFees, saveChannelFees, type ChannelFees } from "@/lib/inventory-settings";
 import { listMoveCosts, listLayers, getCostState, rebuildMyCosts, loadCostingMethod, saveCostingMethod, COSTING_METHODS, listRevaluations, addRevaluation, cancelRevaluation, REVAL_REASONS, revalReasonLabel, type CostingMethod, type MoveCost, type CostLayer } from "@/lib/inventory-cost";
@@ -39,8 +40,12 @@ const wonShort = (n: number) => {
   return `${s}${Math.round(a).toLocaleString("ko-KR")}`;
 };
 const pct = (n: number | null) => (n == null ? "—" : `${(n * 100).toFixed(1)}%`);
-type Tab = "all" | "product" | "partner" | "buymake" | "history";
-const TABS: [Tab, string][] = [["all", "종합"], ["product", "품목별"], ["partner", "거래처·채널별"], ["buymake", "구매·생산"], ["history", "원가 이력"]];
+type Tab = "all" | "product" | "partner" | "buymake" | "valuation" | "history";
+//   재고자산 명세(2026-09-22 재고 점검 B) — 기준일 품목별 수량 × 층 원가 = 금액. 결산 초안(make_inventory_voucher_draft → _stock_value_asof)과
+//   같은 식이다: 값 = Σ 층(layer_date ≤ 기준일) 입고수량×단가 − Σ 출고 원가(moved_at ≤ 기준일). 구분도 초안과 같다(생산 층 있으면 제품, BOM 자재면 원재료, 나머지 상품).
+type ValKind = "제품" | "상품" | "원재료";
+type ValRow = { product_id: string; sku: string; name: string; unit: string; kind: ValKind; qty: number; value: number; uncosted: number; avg: number | null };
+const TABS: [Tab, string][] = [["all", "종합"], ["product", "품목별"], ["partner", "거래처·채널별"], ["buymake", "구매·생산"], ["valuation", "재고자산 명세"], ["history", "원가 이력"]];
 const monthStart = () => todayKst().slice(0, 7) + "-01";
 const LOSS_REASONS = new Set(["disposal", "sample", "gift", "count", "fix"]);
 const SOURCE_LABEL: Record<string, string> = { purchase: "매입", opening: "기초", produce: "생산", return_in: "반품 입고", count: "실사 조정", fix: "정정", sale: "판매 취소", return_out: "매입 반품 취소", consume: "자재 되돌림", disposal: "폐기 취소" };
@@ -58,6 +63,7 @@ export default function InventoryProfitPage() {
   const [from, setFrom] = useState(monthStart);
   const [to, setTo] = useState(todayKst);
   const [histProduct, setHistProduct] = useState<string>("");
+  const [asof, setAsof] = useState(todayKst);   // 재고자산 명세 기준일
   const [busy, setBusy] = useState(false);
   const [uncOpen, setUncOpen] = useState(false);   // 미확정 출고 — 숫자를 누르면 어떤 줄인지(2026-08-27)
   //   결정 39 — 재평가 폼(품목·일자·단가·사유·비고). 기초 원가 입력도 같은 폼.
@@ -81,12 +87,34 @@ export default function InventoryProfitPage() {
   const shipPer = (ch: string) => fees[ch]?.ship_per_order ?? 0;
   const feesConfigured = Object.values(fees).some((f) => f.fee_rate > 0 || f.ship_per_order > 0);
   const { data: revals = [] } = q("inv-cost-revals", () => listRevaluations(companyId!));
+  //   재고자산 명세 재료 — 기준일까지의 움직임(수량)·출고 원가(값). 층은 위 layers(전체)를 기준일로 거른다
+  const { data: valMoves = [], isLoading: valLoading } = useQuery({ queryKey: ["inv-val-moves", companyId, asof], queryFn: () => listMoves(companyId!, "2000-01-01", asof), enabled: !!companyId && tab === "valuation" });
+  const { data: valCosts = [] } = useQuery({ queryKey: ["inv-val-costs", companyId, asof], queryFn: () => listMoveCosts(companyId!, "2000-01-01", asof), enabled: !!companyId && tab === "valuation" });
+  const { data: boms = [] } = useQuery({ queryKey: ["inv-boms", companyId], queryFn: () => listBoms(companyId!), enabled: !!companyId && tab === "valuation" });
   const { data: partners = [] } = q("inv-partners", async () => {
     const data = await fetchPaged<any>("inv-partners", () => supabase.from("partners").select("id, name").eq("company_id", companyId!).order("name"), 50000);
     return ((data || []) as { id: string; name: string }[]);
   });
 
   const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
+  const valuation = useMemo(() => {
+    const made = new Set(layers.filter((l) => l.source === "produce").map((l) => l.product_id));
+    const comp = new Set(boms.map((b) => b.component_id));
+    const qtyOf = new Map<string, number>(); for (const m of valMoves) qtyOf.set(m.product_id, (qtyOf.get(m.product_id) || 0) + Number(m.qty || 0));
+    const inOf = new Map<string, number>(); for (const l of layers) if (l.layer_date <= asof) inOf.set(l.product_id, (inOf.get(l.product_id) || 0) + l.qty_in * (l.unit_cost || 0));
+    const outOf = new Map<string, number>(); const uncOf = new Map<string, number>();
+    for (const c of valCosts) { outOf.set(c.product_id, (outOf.get(c.product_id) || 0) + c.cost_amount); uncOf.set(c.product_id, (uncOf.get(c.product_id) || 0) + c.qty_uncosted); }
+    const ids = new Set<string>([...qtyOf.keys(), ...inOf.keys()]);
+    const rows: ValRow[] = [];
+    for (const id of ids) {
+      const p = productById.get(id); const qty = qtyOf.get(id) || 0; const value = (inOf.get(id) || 0) - (outOf.get(id) || 0); const uncosted = uncOf.get(id) || 0;
+      if (Math.abs(qty) < 1e-9 && Math.abs(value) < 0.5 && !uncosted) continue;
+      rows.push({ product_id: id, sku: p?.sku || "", name: p?.name || "?", unit: p?.unit || "", kind: made.has(id) ? "제품" : comp.has(id) ? "원재료" : "상품", qty, value, uncosted, avg: qty > 0 ? value / qty : null });
+    }
+    rows.sort((a, b) => a.kind.localeCompare(b.kind, "ko") || a.sku.localeCompare(b.sku, "ko"));
+    const byKind = (k: ValKind) => rows.filter((r) => r.kind === k).reduce((s, r) => ({ qty: s.qty + r.qty, value: s.value + r.value }), { qty: 0, value: 0 });
+    return { rows, total: rows.reduce((s, r) => s + r.value, 0), qty: rows.reduce((s, r) => s + r.qty, 0), uncosted: rows.reduce((s, r) => s + r.uncosted, 0), kinds: { 제품: byKind("제품"), 상품: byKind("상품"), 원재료: byKind("원재료") } };
+  }, [layers, boms, valMoves, valCosts, asof, productById]);
   const partnerName = useMemo(() => new Map(partners.map((p) => [p.id, p.name])), [partners]);
   const costByMove = useMemo(() => new Map(costs.map((c) => [c.move_id, c])), [costs]);
   const layerByMove = useMemo(() => new Map(layers.map((l) => [l.move_id, l])), [layers]);
@@ -240,6 +268,7 @@ export default function InventoryProfitPage() {
     product: (<><Stat label="품목" value={`${S.perProduct.size}종`} /><Stat label="판매 수량" value={won(S.soldQty)} /><Stat label="매출총이익" value={`₩${won(S.gp)}`} /><Stat label="이익률" value={pct(S.rate)} /></>),
     partner: (<><Stat label="거래처" value={`${S.perPartner.size}곳`} /><Stat label="채널" value={`${S.perChannel.size}개`} /><Stat label="매출총이익" value={`₩${won(S.gp)}`} />{feesConfigured && <Stat label="수수료·배송비 뺀 순이익" title="회사가 정한 채널별 수수료율·주문당 배송비로 계산한 추정" value={`₩${won(netTotal)}`} tone={netTotal < 0 ? "minus" : undefined} />}</>),
     buymake: (<><Stat label="매입 품목" value={`${BM.buy.size}종`} /><Stat label="기간 매입" value={`₩${won([...BM.buy.values()].reduce((n, b) => n + b.amt, 0))}`} /><Stat label="생산 품목" value={`${BM.make.size}종`} /><Stat label="생산 원가" value={`₩${won([...BM.make.values()].reduce((n, b) => n + b.amt, 0))}`} /><Stat label="손실" value={`₩${won(S.loss)}`} tone={S.loss ? "minus" : undefined} /></>),
+    valuation: (<><Stat label="기준일" value={asof} /><Stat label="품목" value={`${valuation.rows.length}종`} /><Stat label="재고 수량" value={won(valuation.qty)} /><Stat label="재고자산 금액" value={`₩${won(valuation.total)}`} /><Stat label="제품 / 상품 / 원재료" value={`₩${won(valuation.kinds.제품.value)} / ₩${won(valuation.kinds.상품.value)} / ₩${won(valuation.kinds.원재료.value)}`} />{valuation.uncosted > 0 && <Stat label="원가 미확정 수량" value={won(valuation.uncosted)} tone="minus" />}</>),
     history: (<><Stat label="원가 방법" value={method === "avg" ? "이동평균" : "선입선출"} /><Stat label="마지막 계산" value={state ? state.computed_at.slice(0, 16).replace("T", " ") : "—"} /><Stat label="층" value={`${state?.layers ?? 0}`} /><Stat label="미확정 출고" value={`${state?.uncosted_moves ?? 0}건`} tone={state?.uncosted_moves ? "minus" : undefined} /></>),
   };
 
@@ -259,13 +288,20 @@ export default function InventoryProfitPage() {
                 tab === "product" ? productRows.map((r) => ({ "SKU": r.p?.sku || "", "품목": r.p?.name || "", "판매 수량": r.qty, "매출": r.rev, "매출원가": r.cost, "이익": r.gp, "이익률": pct(r.rate), "미확정": r.unc, "현재 층 단가": lastLayerCost(r.id) ?? "", "현재고 원가": onhandCost(r.id) }))
                 : tab === "partner" ? [...partnerRows.map((r) => ({ "구분": "거래처", "이름": r.name, "매출": r.rev, "원가": r.cost, "이익": r.gp, "이익률": pct(r.rate) })), ...channelRows.map((r) => ({ "구분": "채널", "이름": r.name, "매출": r.rev, "원가": r.cost, "이익": r.gp, "이익률": pct(r.rate), "주문 건수": r.orders, "수수료(추정)": Math.round(r.fee), "배송비(추정)": Math.round(r.ship), "순이익(추정)": Math.round(r.net), "순이익률": pct(r.netRate) }))]
                 : tab === "buymake" ? [...[...BM.buy.entries()].map(([id, b]) => ({ "구분": "매입", "품목": productById.get(id)?.name || "", "수량": b.qty, "평균 단가": b.qty ? b.amt / b.qty : "", "최저": b.min, "최고": b.max, "판매가": productById.get(id)?.sale_price ?? "" })), ...[...BM.make.entries()].map(([id, k]) => ({ "구분": "생산", "품목": productById.get(id)?.name || "", "수량": k.qty, "평균 단가": k.qty ? k.amt / k.qty : "", "노무·경비": k.overhead, "판매가": productById.get(id)?.sale_price ?? "" }))]
+                : tab === "valuation" ? valuation.rows.map((r) => ({ "구분": r.kind, "SKU": r.sku, "품목": r.name, "단위": r.unit, "수량": r.qty, "평균 단가": r.avg == null ? "" : Math.round(r.avg), "재고자산 금액": Math.round(r.value), "원가 미확정 수량": r.uncosted || "" }))
                 : tab === "history" ? histLayers.map((l) => ({ "품목": productById.get(l.product_id)?.name || "", "일자": l.layer_date, "원천": SOURCE_LABEL[l.source] || koFallback(l.source), "입고": l.qty_in, "남음": l.qty_left, "단가": l.unit_cost ?? "" }))
                 : [{ "매출": S.revenue, "매출원가": S.cogs, "매출총이익": S.gp, "이익률": pct(S.rate), "손실": S.loss, "순이익": S.net, "원가 미확정": S.uncosted }];
-              exportToExcel(rows, name, `이익관리_${name}_${from}_${to}`);
+              exportToExcel(rows, name, tab === "valuation" ? `재고자산명세_${asof}` : `이익관리_${name}_${from}_${to}`);
             }}>엑셀</button>
           </>}>
+            {tab === "valuation" ? (<>
+              <span className="field-label">기준일</span>
+              <DateField value={asof} max={todayKst()} onChange={(e) => setAsof(typeof e === "string" ? e : (e as { target: { value: string } }).target.value)} className="qk-input h-8 px-2 text-xs" />
+              <span className="inv-hint" title="값 = 기준일까지 들어온 층(수량×단가) − 기준일까지 출고 원가. 재무 › 전표 현황의 재고자산 결산 초안과 같은 식입니다">기준일(보통 월말)의 품목별 수량 × 원가. 재고자산 결산 초안의 근거 표입니다.</span>
+            </>) : (<>
             <DateRangeField from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
             <span className="inv-hint" title="반품은 매출과 원가에서 뺍니다. 미확정 출고는 기초 원가나 매입 단가를 넣고 다시 계산하면 확정됩니다">원가는 <b>{method === "avg" ? "이동평균" : "선입선출"}</b> 기준입니다.{S.uncosted ? <> <b className="inv-diff-minus">원가 미확정 {won(S.uncosted)}개</b></> : null}</span>
+            </>)}
           </QueryBar>
           <ResultStrip>{stats[tab]}</ResultStrip>
         </QueryHead>
@@ -381,6 +417,35 @@ export default function InventoryProfitPage() {
                   </div>
                 )}
 
+                {tab === "valuation" && (
+                  valLoading ? <div className="collect-empty">기준일 재고를 세는 중…</div>
+                  : valuation.rows.length === 0 ? <div className="collect-empty">{asof} 기준 재고가 없습니다. 입고 층이 없으면(기초 원가 미입력) 원가 이력에서 기초 원가를 넣고 다시 계산하세요.</div>
+                  : (
+                    <div className="pnl-panel">
+                      <h3>재고자산 명세 · {asof}</h3><p>구분은 결산 초안과 같습니다 — 생산 층이 있는 품목은 제품, 자재구성에 쓰이는 품목은 원재료, 나머지는 상품. 평균 단가 = 금액 ÷ 수량.</p>
+                      <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-valuation">
+                        <thead><tr><th>구분</th><th className="text-left">품목</th><th>단위</th><th>수량</th><th>평균 단가</th><th>재고자산 금액</th><th>원가 미확정</th></tr></thead>
+                        <tbody>
+                          {(["제품", "상품", "원재료"] as ValKind[]).map((k) => { const rs = valuation.rows.filter((r) => r.kind === k); if (!rs.length) return null; return [
+                            ...rs.map((r) => (
+                              <tr key={r.product_id}>
+                                <td className="tc ev-dim">{r.kind}</td>
+                                <td className="text-left"><b>{r.name}</b>{r.sku ? <span className="ev-dim"> {r.sku}</span> : null}</td>
+                                <td className="tc ev-dim">{r.unit}</td>
+                                <td className="tr mono-number">{won(r.qty)}</td>
+                                <td className="tr mono-number">{r.avg == null ? <span className="ev-dim">—</span> : `₩${won(r.avg)}`}</td>
+                                <td className="tr mono-number"><b className={r.value < 0 ? "inv-diff-minus" : undefined}>₩{won(r.value)}</b></td>
+                                <td className="tr mono-number">{r.uncosted ? <span className="inv-diff-minus">{won(r.uncosted)}</span> : ""}</td>
+                              </tr>
+                            )),
+                            <tr key={`sub-${k}`} className="inv-val-subtotal"><td className="tc">{k} 소계</td><td /><td /><td className="tr mono-number">{won(valuation.kinds[k].qty)}</td><td /><td className="tr mono-number">₩{won(valuation.kinds[k].value)}</td><td /></tr>,
+                          ]; })}
+                        </tbody>
+                        <tfoot><tr className="inv-ledger-total"><td className="tc" colSpan={3}>합계</td><td className="tr mono-number">{won(valuation.qty)}</td><td /><td className="tr mono-number">₩{won(valuation.total)}</td><td className="tr mono-number">{valuation.uncosted ? won(valuation.uncosted) : ""}</td></tr></tfoot>
+                      </table></div>
+                    </div>
+                  )
+                )}
                 {tab === "history" && (<>
                   <div className="pnl-panel">
                     <h3>원가 방법 · 다시 계산</h3><p title="문서를 저장할 때마다 자동으로 계산하고 매일 새벽에 한 번 더 맞춥니다">방법을 바꾸면 전체를 다시 계산합니다.</p>

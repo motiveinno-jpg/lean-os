@@ -10860,3 +10860,7 @@ table.table-inv-ledger-detail { min-width: 860px; }
 .inv-ledger-total td { @apply sticky bottom-0 z-10 bg-[var(--bg-surface)] border-t-2 border-[var(--border)] font-bold; }
 .inv-ledger-carry td { @apply text-[var(--text-muted)]; }
 .inv-ledger-detail { @apply max-h-[60vh] overflow-auto; }
+
+/* ── 재고 › 이익관리 › 재고자산 명세 (2026-09-22 재고 점검 B) ── */
+table.table-inv-valuation { min-width: 820px; }
+.inv-val-subtotal td { @apply bg-[var(--bg-surface)]/60 font-semibold text-[var(--text-muted)]; }
