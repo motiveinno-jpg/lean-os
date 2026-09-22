@@ -78,8 +78,9 @@ export const CATALOG: Group[] = [
         desc: "발주한 수량과 실제 입고 수량을 맞춰 보고, 모자란 품목을 찾아 채웁니다.",
         items: ["발주 등록·입고 진행률", "미입고 수량 집계", "모자란 품목 자동 채우기", "저장 시 재고 자동 반영"] },
       { key: "production", name: "생산", href: "/inventory/production", icon: "factory", src: shot("f-inv-production-v2"),
-        desc: "자재구성(BOM)을 정해 두면 작업지시 한 번으로 자재가 빠지고 완제품이 입고됩니다.",
-        items: ["자재구성(BOM) 등록", "작업지시·완성 처리", "자재 자동 차감", "완제품 자동 입고"] },
+        //   2026-09-22 정직화 — 작업지시 화면은 없다. 주문서를 불러와 완성 수량을 저장하면 자재가 빠지고 완제품이 든다(production 머리 주석).
+        desc: "자재구성(BOM)을 정해 두면 주문서를 불러와 완성 수량만 저장해도 자재가 빠지고 완제품이 입고됩니다.",
+        items: ["자재구성(BOM) 등록", "주문서 불러와 완성 처리", "자재 자동 차감", "완제품 자동 입고"] },
       // 이커머스: 엑셀 붙여넣기가 기본(결정 18). 채널 API 가져오기는 코드가 있으나 실제 회사 키로 검증 전(lib/channel-api.ts 머리주석).
       { key: "channels", name: "이커머스", href: "/inventory/channels", icon: "link", src: shot("f-inv-channels-v2"),
         desc: "판매채널 주문을 엑셀로 붙여넣어 가져옵니다. 같은 주문은 두 번 들어가지 않습니다.",
