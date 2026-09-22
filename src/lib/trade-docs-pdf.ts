@@ -77,11 +77,15 @@ function linesTable(doc: jsPDF, y: number, M: number, usableW: number, lines: Tr
     startY: y, margin: { left: M, right: M }, theme: "grid", styles: { ...styles, halign: "center" },
     head: [["No", "품목", "규격", "수량", "단위", "단가", "공급가액", "세액", opts.noteHead]],
     body,
+    //   총액은 따로 한 줄 — 비고 칸(좁음)에 넣으면 두 줄로 꺾인다(운영 검증에서 발견)
     foot: [[
       { content: "합계", colSpan: 6, styles: { fillColor: GRAY, fontStyle: "bold", halign: "center" } },
       { content: won(supply), styles: { fillColor: GRAY, fontStyle: "bold", halign: "right" } },
       { content: won(vat), styles: { fillColor: GRAY, fontStyle: "bold", halign: "right" } },
-      { content: `총액 ${won(supply + vat)}`, styles: { fillColor: GRAY, fontStyle: "bold", halign: "right" } },
+      { content: "", styles: { fillColor: GRAY } },
+    ], [
+      { content: "총액 (공급가액 + 세액)", colSpan: 6, styles: { fillColor: GRAY, fontStyle: "bold", halign: "center" } },
+      { content: `${won(supply + vat)} 원`, colSpan: 3, styles: { fillColor: GRAY, fontStyle: "bold", halign: "right" } },
     ]],
     headStyles: { fillColor: GRAY, textColor: DARK, fontStyle: "bold", halign: "center", font: "NanumGothic" },
     columnStyles: { 0: { cellWidth: 9 }, 1: { halign: "left", cellWidth: 44 }, 2: { halign: "left", cellWidth: 24 }, 3: { cellWidth: 16, halign: "right" }, 4: { cellWidth: 11 }, 5: { cellWidth: 22, halign: "right" }, 6: { cellWidth: 25, halign: "right" }, 7: { cellWidth: 20, halign: "right" }, 8: { halign: "left" } },
