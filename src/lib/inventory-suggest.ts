@@ -110,3 +110,19 @@ export async function fetchBuyPriceStats(companyId: string): Promise<Map<string,
   for (const [pid, arr] of acc) m.set(pid, { avg: arr.reduce((x, y) => x + y, 0) / arr.length, n: arr.length });
   return m;
 }
+
+/** 품목별 **마지막 출고일(전 기간)** — 체류일 계산용 (2026-09-22 재고 점검 D). fetchOutflowStats 는 90일 안만 보므로 따로 센다.
+ *  판매·자재 투입·샘플·증정·폐기처럼 '밖으로 나간' 줄(qty<0, 이동·조정 제외)의 가장 늦은 날. */
+export async function fetchLastOutAll(companyId: string): Promise<Map<string, string>> {
+  const data = await fetchPaged<any>("inv-suggest:lastout", () => (supabase as any).from("stock_moves")
+    .select("product_id, moved_at, stock_docs!inner(reason, status)")
+    .eq("company_id", companyId).lt("qty", 0)
+    .in("stock_docs.reason", ["sale", "consume", "sample", "gift", "disposal"]).eq("stock_docs.status", "active")
+    .order("moved_at", { ascending: false }).order("id"), 50000);
+  const m = new Map<string, string>();
+  for (const r of ((data || []) as any[])) {
+    const d = String(r.moved_at).slice(0, 10);
+    if (!m.has(r.product_id)) m.set(r.product_id, d);   // 내림차순이라 처음 만난 날이 마지막 출고
+  }
+  return m;
+}

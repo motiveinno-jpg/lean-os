@@ -26,6 +26,7 @@ import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup,
   Pager, usePager, QuickSearch, quickSearchHit, ExcelMenu, defaultRange } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
+import { fetchOutflowStats, fetchLastOutAll } from "@/lib/inventory-suggest";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { useStockCount, CountBar, CountBody, NewCountDialog, CountPasteDialog } from "../_components/count";
 import {
@@ -42,6 +43,10 @@ type StockKey = "sku" | "name" | "spec" | "wh" | "qty" | "avg" | "safety" | "sta
 const daysLeft = (d: string) => Math.floor((new Date(d + "T00:00:00").getTime() - new Date(todayKst() + "T00:00:00").getTime()) / 86400000);
 //   수불부(2026-09-22 재고 점검 A) — 기간 기초·매입·판매·생산·투입·조정·이동·기말. '집계'(판매·매입 합계)가 있던 자리를 이어받는다.
 type SumView = "ledger" | "partner" | "month";
+//   현재고 보기 칩(2026-09-22 재고 점검 D) — 수량(창고별 줄) / 체류·회전(품목별: 마지막 출고·체류일·일평균 출고·회전일수·재고 금액)
+type StockView = "qty" | "aging";
+type AgingKey = "sku" | "name" | "qty" | "lastOut" | "stay" | "perDay" | "turn" | "value";
+type AgingRow = { product_id: string; sku: string; name: string; qty: number; lastOut: string | null; stay: number | null; perDay: number; turn: number | null; value: number; locked: boolean };
 type LedgerRow = {
   product_id: string; sku: string; name: string; unit: string;
   opening: number; buy: number; sale: number; produce: number; consume: number; adjust: number; move: number; closing: number;
@@ -86,6 +91,8 @@ export default function StockPage() {
   //   값 필터는 검색조건 패널에서(조회 화면 표준). 조회 줄엔 칩을 늘어놓지 않는다
   const [cond, setCond] = useState<CondLive>({});
   const [sort, setSort] = useState<SortState<StockKey>>({ key: "state", dir: "asc" });
+  const [stockView, setStockView] = useState<StockView>("qty");
+  const [agingSort, setAgingSort] = useState<SortState<AgingKey>>({ key: "stay", dir: "desc" });
   const [mSort, setMSort] = useState<SortState<MoveKey>>({ key: "date", dir: "desc" });
   const [sumView, setSumView] = useState<SumView>("ledger");
   const [ledgerWh, setLedgerWh] = useState("");            // 수불부 창고(빈 값 = 전체)
@@ -103,6 +110,9 @@ export default function StockPage() {
   const { data: products = [] } = useQuery({ queryKey: ["inv-products", companyId], queryFn: () => listProducts(companyId!), enabled: !!companyId });
   const { data: warehouses = [] } = useQuery({ queryKey: ["inv-warehouses", companyId], queryFn: () => listWarehouses(companyId!), enabled: !!companyId });
   const { data: onhand = [] } = useQuery({ queryKey: ["inv-onhand", companyId], queryFn: () => listOnHand(companyId!), enabled: !!companyId });
+  //   체류·회전 재료 — 90일 출고 통계(일평균)와 전 기간 마지막 출고일. 보기 칩을 켤 때만 읽는다
+  const { data: outflow } = useQuery({ queryKey: ["inv-outflow", companyId], queryFn: () => fetchOutflowStats(companyId!), enabled: !!companyId && tab === "onhand" && stockView === "aging", staleTime: 60_000 });
+  const { data: lastOutAll, isLoading: agingLoading } = useQuery({ queryKey: ["inv-lastout", companyId], queryFn: () => fetchLastOutAll(companyId!), enabled: !!companyId && tab === "onhand" && stockView === "aging", staleTime: 60_000 });
   //   유통기한(2026-09-21) — 남아 있는 입고분(층, qty_left>0) 중 가장 이른 날. 층이 입고 줄(stock_moves.expiry_date)을 가리킨다.
   //   적은 회사가 없으면 열 자체가 없다(유통기한 없는 업종은 화면 그대로).
   const { data: expiryByProduct = new Map<string, { date: string; lot: string | null }>() } = useQuery({
@@ -186,6 +196,36 @@ export default function StockPage() {
   }, [shown, sort, avgCost]);
   const onSort = (k: string) => setSort((s) => nextSort(s, k as StockKey));
   const pager = usePager(sorted, 50, `${q}|${JSON.stringify(cond)}|${sort.key}${sort.dir}`);
+  //   체류·회전 줄 — 품목 하나에 한 줄(창고 합). 체류일 = 오늘 − 마지막 출고일(출고가 한 번도 없으면 null → '출고 없음'),
+  //   회전일수 = 현재고 ÷ 최근 30일 일평균 출고(0 이면 null). 잠김 = 재고가 있는데 90일 넘게 안 나감(현황 '90일 무출고'와 같은 기준).
+  const agingRows = useMemo((): AgingRow[] => {
+    const today = todayKst();
+    const byProduct = new Map<string, number>();
+    for (const r of rows) byProduct.set(r.product_id, (byProduct.get(r.product_id) || 0) + r.qty);
+    const out: AgingRow[] = [];
+    for (const [pid, qty] of byProduct) {
+      const p = productById.get(pid); if (!p) continue;
+      if (!quickSearchHit(q, [p.sku, p.name, p.spec])) continue;
+      const lastOut = lastOutAll?.get(pid) ?? null;
+      const stay = lastOut ? Math.max(0, Math.floor((new Date(today + "T00:00:00").getTime() - new Date(lastOut + "T00:00:00").getTime()) / 86400000)) : null;
+      const perDay = outflow?.get(pid)?.perDay ?? 0;
+      const cost = avgCost.get(pid) ?? Number(p.cost_price || 0);
+      out.push({ product_id: pid, sku: p.sku, name: p.name, qty, lastOut, stay, perDay, turn: perDay > 0 ? qty / perDay : null, value: qty > 0 ? qty * cost : 0, locked: qty > 0 && (stay == null || stay >= 90) });
+    }
+    const d = agingSort.dir === "asc" ? 1 : -1;
+    const val = (r: AgingRow) => {
+      switch (agingSort.key) {
+        case "sku": return r.sku; case "name": return r.name; case "qty": return r.qty;
+        case "lastOut": return r.lastOut || "0000-00-00"; case "stay": return r.stay == null ? 99999 : r.stay;
+        case "perDay": return r.perDay; case "turn": return r.turn == null ? 99999 : r.turn; default: return r.value;
+      }
+    };
+    return out.sort((a, b) => cmp(val(a), val(b)) * d);
+  }, [rows, productById, q, lastOutAll, outflow, avgCost, agingSort]);
+  const agingPager = usePager(agingRows, 50, `${q}|${agingSort.key}${agingSort.dir}`);
+  const agingTotals = useMemo(() => ({ locked: agingRows.filter((r) => r.locked).length, lockedValue: agingRows.filter((r) => r.locked).reduce((s, r) => s + r.value, 0), value: agingRows.reduce((s, r) => s + r.value, 0) }), [agingRows]);
+  const onAgingSort = (k: string) => setAgingSort((s) => nextSort(s, k as AgingKey));
+
   const counts = useMemo(() => ({
     low: rows.filter((r) => r.state === "low").length,
     zero: rows.filter((r) => r.state === "zero").length,
@@ -308,10 +348,19 @@ export default function StockPage() {
                   <button type="button" className="btn-primary btn-sm" onClick={() => setDocOpen(true)}>+ 입·출고</button>
                 </>
               ) : undefined}>
-                <SimpleCond groups={STOCK_CONDS(counts)} live={cond} onApply={setCond} />
+                {stockView === "qty" && <SimpleCond groups={STOCK_CONDS(counts)} live={cond} onApply={setCond} />}
                 <QuickSearch value={q} onApply={setQ} placeholder="품목명 · SKU · 규격 · 창고 · 쉼표로 여러 개, Enter" />
+                <ChipGroup value={stockView} onChange={setStockView} options={[{ value: "qty", label: "수량" }, { value: "aging", label: "체류·회전" }]} />
+                {stockView === "aging" && <ExcelMenu items={[{ label: "체류·회전 내려받기", count: agingRows.length, disabled: !agingRows.length, onClick: () => exportToExcel(agingRows.map((r) => ({ "SKU": r.sku, "품목": r.name, "현재고": r.qty, "마지막 출고일": r.lastOut || "", "체류일": r.stay ?? "", "일평균 출고(30일)": Number(r.perDay.toFixed(2)), "회전일수": r.turn == null ? "" : Math.round(r.turn), "재고 금액": Math.round(r.value), "90일+ 무출고": r.locked ? "예" : "" })), "체류·회전", `재고_체류회전_${todayKst()}`) }]} />}
               </QueryBar>
-              <SimpleApplied groups={STOCK_CONDS(counts)} live={cond} onApply={setCond} />
+              {stockView === "qty" && <SimpleApplied groups={STOCK_CONDS(counts)} live={cond} onApply={setCond} />}
+              {stockView === "aging" ? (
+                <ResultStrip>
+                  <Stat label="품목" value={`${won(agingRows.length)}종`} />
+                  <Stat label="재고 금액" value={`₩${won(agingTotals.value)}`} />
+                  <Stat label="90일+ 무출고" value={`${won(agingTotals.locked)}종 · ₩${won(agingTotals.lockedValue)}`} tone={agingTotals.locked ? "minus" : undefined} title="재고가 있는데 90일 넘게 판매·투입·폐기가 없는 품목 — 잠긴 돈" />
+                </ResultStrip>
+              ) : (
               <ResultStrip>
                 <Stat label="줄" value={`${won(shown.length)}개`} />
                 <Stat label="부족" value={`${won(counts.low)}개`} tone={counts.low > 0 ? "minus" : undefined} />
@@ -319,6 +368,7 @@ export default function StockPage() {
                 <Stat label="재고금액" value={`₩${won(counts.value)}`} />
                 {hasExpiry && <Stat label="기한 임박" title="유통기한이 30일 안이거나 지난 줄 · 남아 있는 입고분 기준" value={`${won(counts.expiring)}개`} tone={counts.expiring > 0 ? "minus" : undefined} />}
               </ResultStrip>
+              )}
             </>
           )}
 
@@ -396,7 +446,43 @@ export default function StockPage() {
 
         <QueryBody>
           <div className="inv-scroll">
-            {tab === "onhand" && (
+            {tab === "onhand" && stockView === "aging" && (
+              agingLoading ? <div className="collect-empty">출고 이력을 세는 중…</div>
+              : agingRows.length === 0 ? <div className="collect-empty">재고가 있는 품목이 없습니다.</div>
+              : (
+                <div className="stg-table-wrap">
+                  <table className="ev-table ev-lined table-inv-aging">
+                    <thead><tr>
+                      <SortableTh label="SKU" sortKey="sku" sort={agingSort} onSort={onAgingSort} />
+                      <SortableTh label="품목명" sortKey="name" sort={agingSort} onSort={onAgingSort} />
+                      <SortableTh label="현재고" sortKey="qty" sort={agingSort} onSort={onAgingSort} />
+                      <SortableTh label="마지막 출고일" sortKey="lastOut" sort={agingSort} onSort={onAgingSort} title="판매·자재 투입·샘플·증정·폐기 중 가장 늦은 날(전 기간)" />
+                      <SortableTh label="체류일" sortKey="stay" sort={agingSort} onSort={onAgingSort} title="오늘 − 마지막 출고일" />
+                      <SortableTh label="일평균 출고" sortKey="perDay" sort={agingSort} onSort={onAgingSort} title="최근 30일 판매·투입 수량 ÷ 30" />
+                      <SortableTh label="회전일수" sortKey="turn" sort={agingSort} onSort={onAgingSort} title="현재고 ÷ 일평균 출고 — 지금 속도면 며칠 치인가" />
+                      <SortableTh label="재고 금액" sortKey="value" sort={agingSort} onSort={onAgingSort} title="현재고 × 평균단가(없으면 품목 매입가)" />
+                      <th>신호</th>
+                    </tr></thead>
+                    <tbody>
+                      {agingPager.view.map((r) => (
+                        <tr key={r.product_id}>
+                          <td className="mono-number text-left">{r.sku}</td>
+                          <td className="text-left"><b>{r.name}</b></td>
+                          <td className="tr mono-number"><b className={r.qty < 0 ? "text-[var(--danger)]" : undefined}>{won(r.qty)}</b></td>
+                          <td className="tc mono-number">{r.lastOut || <span className="ev-dim">출고 없음</span>}</td>
+                          <td className="tr mono-number">{r.stay == null ? <span className="ev-dim">—</span> : `${won(r.stay)}일`}</td>
+                          <td className="tr mono-number">{r.perDay ? r.perDay.toFixed(1) : <span className="ev-dim">0</span>}</td>
+                          <td className="tr mono-number">{r.turn == null ? <span className="ev-dim">—</span> : `${won(Math.round(r.turn))}일`}</td>
+                          <td className="tr mono-number">₩{won(r.value)}</td>
+                          <td className="tc">{r.locked ? <span className="inv-pill inv-pill-warn" title="재고가 있는데 90일 넘게 안 나갔습니다">90일+ 무출고</span> : r.turn != null && r.turn > 180 ? <span className="inv-pill inv-pill-ghost" title="지금 속도로 반년 넘게 팔 양">과다</span> : <span className="inv-pill inv-pill-ok">정상</span>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+            {tab === "onhand" && stockView === "qty" && (
               rows.length === 0 ? (
                 <div className="collect-empty">
                   아직 움직인 기록이 없습니다. <b>기초 재고 올리기</b>로 지금 있는 수량을 넣으세요.
@@ -606,7 +692,8 @@ export default function StockPage() {
           </div>
         </QueryBody>
 
-        {tab === "onhand" && <Pager page={pager.page} pages={pager.pages} total={shown.length} size={50} from={pager.from} to={pager.to} onPage={pager.setPage} />}
+        {tab === "onhand" && stockView === "qty" && <Pager page={pager.page} pages={pager.pages} total={shown.length} size={50} from={pager.from} to={pager.to} onPage={pager.setPage} />}
+        {tab === "onhand" && stockView === "aging" && <Pager page={agingPager.page} pages={agingPager.pages} total={agingRows.length} size={50} from={agingPager.from} to={agingPager.to} onPage={agingPager.setPage} />}
         {tab === "count" && !count.openId && count.counts.data && count.counts.data.length > 0 && (
           <Pager page={count.listPager.page} pages={count.listPager.pages} total={count.counts.data.length} size={50}
             from={count.listPager.from} to={count.listPager.to} onPage={count.listPager.setPage} />
