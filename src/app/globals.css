@@ -10853,3 +10853,10 @@ table.ins-edi-table { min-width: 1100px; }
 .ins-edi-date { @apply h-7 px-1.5 text-[11px] w-[120px]; }
 .ins-edi-off td { @apply opacity-50; }
 .ins-edi-foot { @apply text-[10.5px] text-[var(--text-dim)]; }
+
+/* ── 재고 › 창고관리 › 수불부 (2026-09-22 재고 점검 A) ── */
+table.table-inv-ledger { min-width: 1120px; }
+table.table-inv-ledger-detail { min-width: 860px; }
+.inv-ledger-total td { @apply sticky bottom-0 z-10 bg-[var(--bg-surface)] border-t-2 border-[var(--border)] font-bold; }
+.inv-ledger-carry td { @apply text-[var(--text-muted)]; }
+.inv-ledger-detail { @apply max-h-[60vh] overflow-auto; }

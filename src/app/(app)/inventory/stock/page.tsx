@@ -40,7 +40,22 @@ type Signal = "all" | "low" | "zero" | "fix";
 type StockKey = "sku" | "name" | "spec" | "wh" | "qty" | "avg" | "safety" | "state" | "expiry";
 //   유통기한 D-n — 오늘(KST) 기준. 지난 것은 음수
 const daysLeft = (d: string) => Math.floor((new Date(d + "T00:00:00").getTime() - new Date(todayKst() + "T00:00:00").getTime()) / 86400000);
-type SumView = "product" | "partner" | "month";
+//   수불부(2026-09-22 재고 점검 A) — 기간 기초·매입·판매·생산·투입·조정·이동·기말. '집계'(판매·매입 합계)가 있던 자리를 이어받는다.
+type SumView = "ledger" | "partner" | "month";
+type LedgerRow = {
+  product_id: string; sku: string; name: string; unit: string;
+  opening: number; buy: number; sale: number; produce: number; consume: number; adjust: number; move: number; closing: number;
+  buyAmt: number; saleAmt: number;
+};
+//   움직임 한 줄이 수불부 어느 칸인가 — 부호는 저장된 그대로(판매 −, 매입 +, 반품은 반대)
+const ledgerCol = (reason: string): keyof Pick<LedgerRow, "buy" | "sale" | "produce" | "consume" | "adjust" | "move"> => {
+  if (reason === "purchase" || reason === "return_out") return "buy";
+  if (reason === "sale" || reason === "return_in") return "sale";
+  if (reason === "produce") return "produce";
+  if (reason === "consume") return "consume";
+  if (reason === "move") return "move";
+  return "adjust";   // opening · count · fix · sample · gift · disposal
+};
 type MoveKey = "date" | "doc" | "reason" | "sku" | "name" | "wh" | "qty" | "price" | "amount";
 //   상태 정렬은 처리할 것이 위 (CLAUDE.md: 대기→승인→반려→취소와 같은 원칙)
 const STATE_RANK: Record<Signal, number> = { fix: 0, zero: 1, low: 2, all: 3 };
@@ -72,7 +87,9 @@ export default function StockPage() {
   const [cond, setCond] = useState<CondLive>({});
   const [sort, setSort] = useState<SortState<StockKey>>({ key: "state", dir: "asc" });
   const [mSort, setMSort] = useState<SortState<MoveKey>>({ key: "date", dir: "desc" });
-  const [sumView, setSumView] = useState<SumView>("product");
+  const [sumView, setSumView] = useState<SumView>("ledger");
+  const [ledgerWh, setLedgerWh] = useState("");            // 수불부 창고(빈 값 = 전체)
+  const [ledgerOpen, setLedgerOpen] = useState<LedgerRow | null>(null);   // 줄 클릭 → 그 품목의 기간 움직임
   const [from, setFrom] = useState(() => defaultRange().from);   // 최근 1개월(KST 기준) — 공용 기본값 (2026-09-03)
   const [to, setTo] = useState(todayKst);
   const [docOpen, setDocOpen] = useState(false);
@@ -108,6 +125,12 @@ export default function StockPage() {
     queryKey: ["inv-moves", companyId, from, to],
     queryFn: () => listMoves(companyId!, from, to),
     enabled: !!companyId && (tab === "moves" || tab === "summary"),
+  });
+  //   수불부 — 기초가 필요해 기간 시작 전 것까지 읽는다(취소 전표 제외는 listMoves 가 한다)
+  const { data: ledgerMoves = [], isLoading: ledgerLoading } = useQuery({
+    queryKey: ["inv-ledger-moves", companyId, to],
+    queryFn: () => listMoves(companyId!, "2000-01-01", to),
+    enabled: !!companyId && tab === "summary" && sumView === "ledger",
   });
   //   이동평균 원가(결정 27). 재고금액은 이것으로, 없으면 품목 매입가로
   const  { data: avgCost = new Map<string, number>() } = useQuery({ queryKey: ["inv-avgcost", companyId], queryFn: () => listAvgCost(companyId!), enabled: !!companyId });
@@ -191,18 +214,53 @@ export default function StockPage() {
   }, [moves, mSort, productById, whById]);
   const onMSort = (k: string) => setMSort((s) => nextSort(s, k as MoveKey));
   const movePager = usePager(sortedMoves, 50, `${from}|${to}|${mSort.key}${mSort.dir}`);
+  //   수불부 줄 — 품목마다 기초(기간 전 누계) + 기간 안 칸별 합 = 기말. 창고를 고르면 그 창고 줄만(이동은 창고별로 ±가 남고, 전체면 0).
+  const ledger = useMemo(() => {
+    const acc = new Map<string, LedgerRow>();
+    const rowOf = (pid: string) => {
+      let r = acc.get(pid);
+      if (!r) { const p = productById.get(pid); r = { product_id: pid, sku: p?.sku || "", name: p?.name || "?", unit: p?.unit || "", opening: 0, buy: 0, sale: 0, produce: 0, consume: 0, adjust: 0, move: 0, closing: 0, buyAmt: 0, saleAmt: 0 }; acc.set(pid, r); }
+      return r;
+    };
+    for (const m of ledgerMoves) {
+      if (ledgerWh && m.warehouse_id !== ledgerWh) continue;
+      const r = rowOf(m.product_id);
+      const q = Number(m.qty || 0);
+      if (m.moved_at.slice(0, 10) < from) { r.opening += q; continue; }
+      const col = ledgerCol(m.doc?.reason || "");
+      r[col] += q;
+      if (col === "buy") r.buyAmt += Math.abs(Number(m.amount || 0)) * (q >= 0 ? 1 : -1);
+      if (col === "sale") r.saleAmt += Math.abs(Number(m.amount || 0)) * (q <= 0 ? 1 : -1);
+    }
+    const rows = [...acc.values()].map((r) => ({ ...r, closing: r.opening + r.buy + r.sale + r.produce + r.consume + r.adjust + r.move }))
+      .filter((r) => r.opening || r.buy || r.sale || r.produce || r.consume || r.adjust || r.move)
+      .sort((a, b) => a.sku.localeCompare(b.sku, "ko") || a.name.localeCompare(b.name, "ko"));
+    const sum = (k: keyof LedgerRow) => rows.reduce((s, r) => s + Number(r[k] || 0), 0);
+    return { rows, saleAmt: sum("saleAmt"), buyAmt: sum("buyAmt"), opening: sum("opening"), closing: sum("closing") };
+  }, [ledgerMoves, ledgerWh, from, productById]);
+  const ledgerDetail = useMemo(() => {
+    if (!ledgerOpen) return [];
+    let bal = ledgerOpen.opening;
+    return ledgerMoves.filter((m) => m.product_id === ledgerOpen.product_id && (!ledgerWh || m.warehouse_id === ledgerWh) && m.moved_at.slice(0, 10) >= from)
+      .sort((a, b) => a.moved_at.localeCompare(b.moved_at) || a.id.localeCompare(b.id))
+      .map((m) => { bal += Number(m.qty || 0); return { ...m, bal }; });
+  }, [ledgerOpen, ledgerMoves, ledgerWh, from]);
+  const exportLedger = () => exportToExcel(ledger.rows.map((r) => ({
+    "SKU": r.sku, "품목": r.name, "단위": r.unit, "기초": r.opening, "매입": r.buy, "판매": -r.sale, "생산 완성": r.produce, "자재 투입": -r.consume, "조정·기타": r.adjust, "창고 이동": r.move, "기말": r.closing, "매입 금액": Math.round(r.buyAmt), "판매 금액": Math.round(r.saleAmt),
+  })), "수불부", `수불부_${ledgerWh ? (whById.get(ledgerWh)?.name || "창고") + "_" : ""}${from}_${to}`);
+
   //   집계 — 판매·매입 전표만. 판매는 음수로 쌓여 있어 절대값으로 센다.
   const summary = useMemo(() => {
     const partnerName = new Map(partners.map((p) => [p.id, p.name]));
     const acc = new Map<string, { key: string; label: string; sub?: string; saleQty: number; saleAmt: number; buyQty: number; buyAmt: number }>();
     let saleTotal = 0, buyTotal = 0;
     for (const m of moves) {
+      if (sumView === "ledger") break;
       const reason = m.doc?.reason;
       if (reason !== "sale" && reason !== "purchase") continue;
-      const p = productById.get(m.product_id);
-      const key = sumView === "product" ? m.product_id : sumView === "partner" ? (m.doc?.partner_id || "-") : m.moved_at.slice(0, 7);
-      const label = sumView === "product" ? (p?.name || "?") : sumView === "partner" ? (partnerName.get(m.doc?.partner_id || "") || "거래처 없음") : m.moved_at.slice(0, 7);
-      const sub = sumView === "product" ? p?.sku : undefined;
+      const key = sumView === "partner" ? (m.doc?.partner_id || "-") : m.moved_at.slice(0, 7);
+      const label = sumView === "partner" ? (partnerName.get(m.doc?.partner_id || "") || "거래처 없음") : m.moved_at.slice(0, 7);
+      const sub: string | undefined = undefined;
       const cur = acc.get(key) || { key, label, sub, saleQty: 0, saleAmt: 0, buyQty: 0, buyAmt: 0 };
       const qty = Math.abs(m.qty) * (reason === "sale" ? (m.qty < 0 ? 1 : -1) : (m.qty > 0 ? 1 : -1));   // 반품은 빼기
       const amt = Math.abs(Number(m.amount || 0)) * (qty < 0 ? -1 : 1);
@@ -229,7 +287,7 @@ export default function StockPage() {
       <QueryScreen>
         <QueryHead>
           <div className="collect-tabs no-print">
-            {([["onhand", "현재고"], ["moves", "움직인 이력"], ["summary", "집계"], ["count", "실사"], ["warehouse", "창고"]] as const).map(([k, l]) => (
+            {([["onhand", "현재고"], ["moves", "움직인 이력"], ["summary", "수불부"], ["count", "실사"], ["warehouse", "창고"]] as const).map(([k, l]) => (
               <button key={k} type="button" onClick={() => setTab(k as Tab)}
                 className={tab === k ? "collect-tab collect-tab-on" : "collect-tab"}>
                 {l}
@@ -283,14 +341,34 @@ export default function StockPage() {
               <QueryBar>
                 <DateRangeField from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
                 <ChipGroup value={sumView} onChange={setSumView} options={[
-                  { value: "product", label: "품목별" }, { value: "partner", label: "거래처별" }, { value: "month", label: "월별" },
+                  { value: "ledger", label: "품목별 수불부" }, { value: "partner", label: "거래처별" }, { value: "month", label: "월별" },
                 ]} />
-                <span className="inv-hint" title="취소 전표는 빠집니다">판매·매입 전표를 모아 봅니다.</span>
+                {sumView === "ledger" ? (
+                  <>
+                    <select value={ledgerWh} onChange={(e) => setLedgerWh(e.target.value)} className="qk-input h-8 px-2 text-xs" aria-label="창고" title="창고를 고르면 그 창고의 수불만 · 전체면 창고 이동은 0">
+                      <option value="">전체 창고</option>
+                      {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                    </select>
+                    <span className="inv-hint" title="기초 = 기간 시작 전 누계 · 기말 = 기초 + 매입 − 판매 + 생산 − 투입 ± 조정 ± 이동 · 취소 전표 제외">기초부터 기말까지, 품목마다 한 줄. 줄을 누르면 그 기간 움직임이 열립니다.</span>
+                    <span className="doc-sums-sp" />
+                    <ExcelMenu items={[{ label: "수불부 내려받기", count: ledger.rows.length, disabled: !ledger.rows.length, onClick: exportLedger }]} />
+                  </>
+                ) : (
+                  <span className="inv-hint" title="취소 전표는 빠집니다">판매·매입 전표를 모아 봅니다.</span>
+                )}
               </QueryBar>
               <ResultStrip>
-                <Stat label="판매" value={`₩${won(summary.saleTotal)}`} />
-                <Stat label="매입" value={`₩${won(summary.buyTotal)}`} />
-                <Stat label="차익" value={`₩${won(summary.saleTotal - summary.buyTotal)}`} tone={summary.saleTotal - summary.buyTotal < 0 ? "minus" : "plus"} />
+                {sumView === "ledger" ? (<>
+                  <Stat label="품목" value={`${ledger.rows.length}개`} />
+                  <Stat label="기초 수량" value={won(ledger.opening)} />
+                  <Stat label="기말 수량" value={won(ledger.closing)} />
+                  <Stat label="판매 금액" value={`₩${won(ledger.saleAmt)}`} />
+                  <Stat label="매입 금액" value={`₩${won(ledger.buyAmt)}`} />
+                </>) : (<>
+                  <Stat label="판매" value={`₩${won(summary.saleTotal)}`} />
+                  <Stat label="매입" value={`₩${won(summary.buyTotal)}`} />
+                  <Stat label="차익" value={`₩${won(summary.saleTotal - summary.buyTotal)}`} tone={summary.saleTotal - summary.buyTotal < 0 ? "minus" : "plus"} />
+                </>)}
               </ResultStrip>
             </>
           )}
@@ -425,14 +503,60 @@ export default function StockPage() {
               )
             )}
 
-            {tab === "summary" && (
+            {tab === "summary" && sumView === "ledger" && (
+              ledgerLoading ? (
+                <div className="collect-empty">수불부를 세는 중…</div>
+              ) : ledger.rows.length === 0 ? (
+                <div className="collect-empty">{to < from ? "기간이 거꾸로입니다." : "이 기간(과 그 전)에 움직인 품목이 없습니다."}</div>
+              ) : (
+                <div className="stg-table-wrap">
+                  <table className="ev-table ev-lined table-inv-ledger">
+                    <thead><tr>
+                      <th className="text-left">품목</th><th>단위</th><th>기초</th><th>매입</th><th>판매</th><th>생산 완성</th><th>자재 투입</th><th>조정·기타</th><th>창고 이동</th><th>기말</th><th>매입 금액</th><th>판매 금액</th>
+                    </tr></thead>
+                    <tbody>
+                      {ledger.rows.map((r) => (
+                        <tr key={r.product_id} className="inv-row-click" onClick={() => setLedgerOpen(r)} title="누르면 이 품목의 기간 움직임이 열립니다">
+                          <td className="text-left"><b>{r.name}</b>{r.sku ? <span className="ev-dim"> {r.sku}</span> : null}</td>
+                          <td className="tc ev-dim">{r.unit}</td>
+                          <td className="tr mono-number">{won(r.opening)}</td>
+                          <td className="tr mono-number">{r.buy ? won(r.buy) : ""}</td>
+                          <td className="tr mono-number">{r.sale ? won(-r.sale) : ""}</td>
+                          <td className="tr mono-number">{r.produce ? won(r.produce) : ""}</td>
+                          <td className="tr mono-number">{r.consume ? won(-r.consume) : ""}</td>
+                          <td className="tr mono-number">{r.adjust ? won(r.adjust) : ""}</td>
+                          <td className="tr mono-number">{r.move ? won(r.move) : ""}</td>
+                          <td className="tr mono-number"><b className={r.closing < 0 ? "inv-diff-minus" : undefined}>{won(r.closing)}</b></td>
+                          <td className="tr mono-number">{r.buyAmt ? `₩${won(r.buyAmt)}` : ""}</td>
+                          <td className="tr mono-number">{r.saleAmt ? `₩${won(r.saleAmt)}` : ""}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot><tr className="inv-ledger-total">
+                      <td className="text-left" colSpan={2}>합계</td>
+                      <td className="tr mono-number">{won(ledger.opening)}</td>
+                      <td className="tr mono-number">{won(ledger.rows.reduce((s, r) => s + r.buy, 0))}</td>
+                      <td className="tr mono-number">{won(-ledger.rows.reduce((s, r) => s + r.sale, 0))}</td>
+                      <td className="tr mono-number">{won(ledger.rows.reduce((s, r) => s + r.produce, 0))}</td>
+                      <td className="tr mono-number">{won(-ledger.rows.reduce((s, r) => s + r.consume, 0))}</td>
+                      <td className="tr mono-number">{won(ledger.rows.reduce((s, r) => s + r.adjust, 0))}</td>
+                      <td className="tr mono-number">{won(ledger.rows.reduce((s, r) => s + r.move, 0))}</td>
+                      <td className="tr mono-number">{won(ledger.closing)}</td>
+                      <td className="tr mono-number">₩{won(ledger.buyAmt)}</td>
+                      <td className="tr mono-number">₩{won(ledger.saleAmt)}</td>
+                    </tr></tfoot>
+                  </table>
+                </div>
+              )
+            )}
+            {tab === "summary" && sumView !== "ledger" && (
               summary.rows.length === 0 ? (
                 <div className="collect-empty">이 기간에 판매·매입 전표가 없습니다.</div>
               ) : (
                 <div className="stg-table-wrap">
                   <table className="ev-table ev-lined table-inv-summary">
                     <thead><tr>
-                      <th>{sumView === "product" ? "품목" : sumView === "partner" ? "거래처" : "월"}</th>
+                      <th>{sumView === "partner" ? "거래처" : "월"}</th>
                       <th>판매 수량</th><th>판매 금액</th><th>매입 수량</th><th>매입 금액</th><th>차익</th>
                     </tr></thead>
                     <tbody>
@@ -494,6 +618,37 @@ export default function StockPage() {
         {tab === "moves" && <Pager page={movePager.page} pages={movePager.pages} total={moves.length} size={50} from={movePager.from} to={movePager.to} onPage={movePager.setPage} />}
       </QueryScreen>
 
+      {ledgerOpen && (
+        <div className="inv-modal" onClick={() => setLedgerOpen(null)}>
+          <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
+            <h3 className="inv-modal-title">{ledgerOpen.name}{ledgerOpen.sku ? <span className="ev-dim"> · {ledgerOpen.sku}</span> : null}</h3>
+            <p className="inv-modal-desc">{from} ~ {to}{ledgerWh ? ` · ${whById.get(ledgerWh)?.name || ""}` : " · 전체 창고"} · 기초 {won(ledgerOpen.opening)} → 기말 {won(ledgerOpen.closing)}. 취소 전표는 빠집니다.</p>
+            <div className="stg-table-wrap inv-ledger-detail">
+              <table className="ev-table ev-lined table-inv-ledger-detail">
+                <thead><tr><th>일자</th><th>사유</th><th>문서</th><th className="text-left">창고</th><th className="text-left">비고</th><th>수량</th><th>단가</th><th>금액</th><th>잔량</th></tr></thead>
+                <tbody>
+                  <tr className="inv-ledger-carry"><td className="tc mono-number">{from}</td><td className="tc">기초</td><td /><td /><td /><td /><td /><td /><td className="tr mono-number">{won(ledgerOpen.opening)}</td></tr>
+                  {ledgerDetail.map((m) => (
+                    <tr key={m.id}>
+                      <td className="tc mono-number">{m.moved_at.slice(0, 10)}</td>
+                      <td className="tc">{reasonLabel(m.doc?.reason || "")}</td>
+                      <td className="tc mono-number">{m.doc?.doc_no || ""}</td>
+                      <td className="text-left ev-dim">{whById.get(m.warehouse_id)?.name || ""}</td>
+                      <td className="text-left ev-dim ev-ell" title={m.note || m.doc?.note || ""}>{m.note || m.doc?.note || ""}</td>
+                      <td className="tr mono-number">{Number(m.qty) > 0 ? "+" : ""}{won(Number(m.qty))}</td>
+                      <td className="tr mono-number">{m.unit_price != null ? won(Number(m.unit_price)) : ""}</td>
+                      <td className="tr mono-number">{m.amount != null ? won(Math.abs(Number(m.amount))) : ""}</td>
+                      <td className="tr mono-number"><b className={m.bal < 0 ? "inv-diff-minus" : undefined}>{won(m.bal)}</b></td>
+                    </tr>
+                  ))}
+                  {ledgerDetail.length === 0 && <tr><td colSpan={9} className="collect-empty">이 기간에 움직임이 없습니다.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            <div className="inv-modal-actions"><span className="doc-sums-sp" /><button type="button" className="btn-secondary btn-sm" onClick={() => setLedgerOpen(null)}>닫기</button></div>
+          </div>
+        </div>
+      )}
       {whOpen && (
         <WarehouseDialog wh={whOpen} onhand={onhand.filter((r) => r.warehouse_id === whOpen.id)} products={products} avgCost={avgCost}
           onClose={() => setWhOpen(null)} />
