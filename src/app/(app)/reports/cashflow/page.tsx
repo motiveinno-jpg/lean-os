@@ -138,8 +138,8 @@ function CashFlowInner() {
               {ACTS.map((act) => {
                 const lines = CF_LINES.filter((l) => l.activity === act && agg.byKey.get(l.key)!.count > 0);
                 return [
-                  <tr key={`h-${act}`} className="acct-ledger-sec"><td colSpan={cols + (view === "monthly" ? 0 : 1)}>{ACTIVITY_LABEL[act]}</td></tr>,
-                  ...(lines.length === 0 ? [<tr key={`e-${act}`}><td className="text-left ev-dim" colSpan={cols + (view === "monthly" ? 0 : 1)}>해당 거래 없음</td></tr>] : []),
+                  <tr key={`h-${act}`} className="acct-ledger-sec"><td colSpan={cols + 1}>{ACTIVITY_LABEL[act]}</td></tr>,
+                  ...(lines.length === 0 ? [<tr key={`e-${act}`}><td className="text-left ev-dim" colSpan={cols + 1}>해당 거래 없음</td></tr>] : []),
                   ...lines.map((l) => { const a = agg.byKey.get(l.key)!; const sgn = l.dir === "in" ? 1 : -1; return (
                     <tr key={l.key} className="acct-ledger-row" onClick={() => openLine(l.key, l.label)} title="누르면 이 줄의 통장 거래를 봅니다">
                       <td className="text-left cfs-line-name">{l.dir === "in" ? "＋" : "－"} {l.label}</td>
