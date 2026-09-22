@@ -20,7 +20,7 @@ export default function SalesPage() {
       perm="/inventory/sales"
       pull={(ctl) => <PullOrderButton ctl={ctl} />}
       saveActions={[{ key: "save", label: "판매 저장", primary: true, hint: "재고가 즉시 차감됩니다" }]}
-      headNote={<span className="inv-hint doc-note-move">저장하면 <b>재고가 즉시 차감됩니다</b>.</span>}
+      headNote={<span className="inv-hint doc-note-move">저장하면 <b>재고가 즉시 차감됩니다</b>. 회계 전표는 <a className="acct-ledger-link" href="/partners/reconciliation/sale-purchase?pull=1&only=stock_doc">매입매출전표 › 증빙에서 불러오기</a>로 얹어 저장합니다.</span>}
       onImport={async ({ docs, ctl }) => {
         //   엑셀 일괄 — 화면 저장과 같은 규칙(createStockDoc). 묶음마다 문서 하나. 거래처 단가 기억도 같이.
         const nos: string[] = [];

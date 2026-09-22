@@ -24,6 +24,7 @@ import {
   type ExcelItem, type AppliedChip,
 } from "@/components/query-kit";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { fetchPaged } from "@/lib/fetch-paged";
@@ -192,6 +193,17 @@ function SalePurchaseInner() {
   const [acctPick, setAcctPick] = useState<{ line: number; q: string } | null>(null);
   const [cardPtPick, setCardPtPick] = useState<number | null>(null);   // 분개표 상대계정 줄의 카드사 고르기
   const [pullOpen, setPullOpen] = useState(false);
+  //   증빙 종류 칩(2026-09-22 재고 점검 C) — 재고 › 현황·판매·구매에서 "전표 없는 문서 N건" 을 눌러 오면 재고 문서만 보이게 연다
+  const [pullKind, setPullKind] = useState<"" | EvidenceRow["kind"]>("");
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const pull = searchParams?.get("pull"); if (!pull) return;
+    const f = searchParams?.get("from"), t = searchParams?.get("to"), only = searchParams?.get("only");
+    if (f && /^\d{4}-\d{2}$/.test(f)) setFromM(f);
+    if (t && /^\d{4}-\d{2}$/.test(t)) setToM(t);
+    if (only === "tax_invoice" || only === "card" || only === "cash_receipt" || only === "stock_doc") setPullKind(only);
+    setPulled(0); setPullOpen(true);
+  }, [searchParams]);   // eslint-disable-line react-hooks/exhaustive-deps
   //   좁은 화면 기본값은 '읽기' — 14칸 격자를 폰에서 치는 일은 없다. 그래도 쳐야 하면 이 토글로 편다.
   const [phoneGrid, setPhoneGrid] = useState(false);
   const [pulled, setPulled] = useState(0);
@@ -503,7 +515,8 @@ function SalePurchaseInner() {
       return out.filter((r) => r.supply !== 0).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
     },
     enabled: !!companyId && pullOpen,
-  });
+  });  const pendingShown = useMemo(() => (pullKind ? pending.filter((r) => r.kind === pullKind) : pending), [pending, pullKind]);
+
 
   //   불러오면 격자 줄로 얹힌다. 여러 건을 이어 눌러 한 번에 쌓을 수 있다
   /** RPC 로 거래처를 찾거나 만들고(가맹점·카드사) Pt 로 돌려준다. 목록 캐시에도 끼워 다음 줄에서 바로 검색되게. */
@@ -1240,8 +1253,21 @@ function SalePurchaseInner() {
                 <button type="button" onClick={() => setPullOpen(false)} aria-label="닫기">✕</button>
               </div>
             </div>
-            {pending.length === 0 ? (
-              <div className="spv-je-empty">아직 이 기간에 전표할 증빙이 없습니다.</div>
+            <div className="spv-pull-kinds">
+              {([["", "전체"], ["tax_invoice", "세금계산서"], ["card", "카드"], ["cash_receipt", "현금영수증"], ["stock_doc", "재고 문서"]] as const).map(([k, l]) => {
+                const n = k ? pending.filter((r) => r.kind === k).length : pending.length;
+                return <button key={k} type="button" className={pullKind === k ? "spv-pull-kind spv-pull-kind-on" : "spv-pull-kind"} onClick={() => setPullKind(k)}>{l}{n ? ` ${n}` : ""}</button>;
+              })}
+              <span className="doc-sums-sp" />
+              {/*   전부 얹기 — 격자에만 올린다. 저장은 사람이 누른다(제안은 자동, 확정은 사람) */}
+              {pendingShown.length > 1 && (
+                <button type="button" className="btn-secondary btn-sm" onClick={async () => { for (const r of pendingShown) await pullOne(r); setPullOpen(false); toast(`${pendingShown.length}건을 격자에 얹었습니다. 유형·계정을 확인하고 저장하세요`, "success"); }}>
+                  전부 얹기 ({pendingShown.length})
+                </button>
+              )}
+            </div>
+            {pendingShown.length === 0 ? (
+              <div className="spv-je-empty">{pending.length ? "이 종류의 증빙은 이 기간에 없습니다." : "아직 이 기간에 전표할 증빙이 없습니다."}</div>
             ) : (
               <div className="spv-pull-scroll">
                 <table className="spv-pull-table">
@@ -1249,7 +1275,7 @@ function SalePurchaseInner() {
                     <tr><th>일자</th><th>증빙</th><th>거래처</th><th>품명</th><th className="tr">공급가액</th><th>추천 유형</th><th /></tr>
                   </thead>
                   <tbody>
-                    {pending.map((r) => (
+                    {pendingShown.map((r) => (
                       <tr key={r.key}>
                         <td className="mono-number">{r.date}</td>
                         <td>{EVIDENCE_LABEL[r.kind]}</td>

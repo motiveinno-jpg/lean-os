@@ -21,7 +21,7 @@ export default function PurchasePage() {
       perm="/inventory/purchase"
       pull={(ctl) => <><PullOrderButton ctl={ctl} /><FillShortageButton ctl={ctl} /><PrefillFromStorage ctl={ctl} /></>}
       saveActions={[{ key: "save", label: "매입 저장", primary: true, hint: "재고가 즉시 증가합니다" }]}
-      headNote={<span className="inv-hint doc-note-move">저장하면 <b>재고가 즉시 증가합니다</b>.</span>}
+      headNote={<span className="inv-hint doc-note-move">저장하면 <b>재고가 즉시 증가합니다</b>. 회계 전표는 <a className="acct-ledger-link" href="/partners/reconciliation/sale-purchase?pull=1&only=stock_doc">매입매출전표 › 증빙에서 불러오기</a>로 얹어 저장합니다.</span>}
       onImport={async ({ docs, ctl }) => {
         const nos: string[] = [];
         for (const d of docs) {

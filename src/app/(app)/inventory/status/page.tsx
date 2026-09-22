@@ -175,8 +175,15 @@ export default function InventoryStatusPage() {
       const pp = perProduct.get(m.product_id) || { qty: 0, amt: 0 }; pp.qty += n.qty; pp.amt += n.amt; perProduct.set(m.product_id, pp);
       const pk = m.doc?.partner_id || "-"; perPartner.set(pk, (perPartner.get(pk) || 0) + n.amt);
     }
-    return { amt, qty, ret, docs: docs.filter((d) => d.reason === "purchase" && d.status === "active").length, perDay, perProduct, perPartner };
+    const buyDocs = docs.filter((d) => d.reason === "purchase" && d.status === "active");
+    return { amt, qty, ret, docs: buyDocs.length, noVoucher: buyDocs.filter((d) => !d.journal_entry_id).length, noVoucherDocs: buyDocs.filter((d) => !d.journal_entry_id), perDay, perProduct, perPartner };
   }, [moves, docs]);
+  //   전표 없는 문서 → 매입매출전표 › 증빙에서 불러오기(재고 문서만, 그 문서들이 걸린 달)로 바로. 전표를 대신 만들지 않는다 — 얹고 저장하는 건 사람(2026-09-22 재고 점검 C)
+  const pullHref = (list: { doc_date: string }[]) => {
+    const ds = list.map((d) => String(d.doc_date).slice(0, 7)).sort();
+    const f = ds[0] || from.slice(0, 7), t = ds[ds.length - 1] || to.slice(0, 7);
+    return `/partners/reconciliation/sale-purchase?pull=1&only=stock_doc&from=${f}&to=${t}`;
+  };
 
   //   ★ 결정 32 (2026-08-26) — 양품률 = 양품 ÷ (양품+불량), 자재 로스율 = Σ(실투입−표준) ÷ Σ표준. 불량 = 불량 보류 창고 줄.
   //     불량·std_qty 기록이 없는 기간은 100%/0% 가 아니라 "기록 없음"으로 적는다(거짓 100% 방지).
@@ -284,8 +291,10 @@ export default function InventoryStatusPage() {
     rows: defectOld.map((d) => [<b key="n">{nm(d.product_id)}</b>, won(d.qty), d.since, `${d.days}일`]), go: { href: "/inventory/production", label: "생산 › 도구 › 불량 처분 →" } });
   const openOut = () => setDetail({ title: `품절 ${stock.out}개`, desc: "현재고가 0 이하인 품목입니다.", head: ["품목", "현재고", "안전재고"],
     rows: stock.outList.map(({ p, qty }) => [<b key="n">{p.name}</b>, won(qty), p.safety_stock != null ? won(p.safety_stock) : "—"]), go: { href: "/inventory/purchase?fill=1", label: "구매 입력에서 부족분 채우기 →" } });
-  const openNoVoucher = () => setDetail({ title: `전표 없는 판매 ${sale.noVoucher}건`, desc: "아직 회계 전표가 없는 판매 문서입니다.", head: ["일자", "문서", "거래처", "합계"],
-    rows: sale.noVoucherDocs.map((d) => [d.doc_date, <b key="n">{d.doc_no}</b>, d.partner_id ? partnerName.get(d.partner_id) || "—" : "—", `₩${won(d.supply + d.vat)}`]), go: { href: "/partners/reconciliation/sale-purchase", label: "매입매출전표 › 증빙에서 불러오기 →" } });
+  const openNoVoucherBuy = () => setDetail({ title: `전표 없는 매입 ${buy.noVoucher}건`, desc: "아직 회계 전표가 없는 매입 문서입니다. 매입매출전표에서 '증빙에서 불러오기'로 한 번에 얹고 저장합니다.", head: ["일자", "문서", "거래처", "합계"],
+    rows: buy.noVoucherDocs.map((d) => [d.doc_date, <b key="n">{d.doc_no}</b>, d.partner_id ? partnerName.get(d.partner_id) || "—" : "—", `₩${won(d.supply + d.vat)}`]), go: { href: pullHref(buy.noVoucherDocs), label: "매입매출전표에서 전부 얹기 →" } });
+  const openNoVoucher = () => setDetail({ title: `전표 없는 판매 ${sale.noVoucher}건`, desc: "아직 회계 전표가 없는 판매 문서입니다. 매입매출전표에서 '증빙에서 불러오기'로 한 번에 얹고 저장합니다.", head: ["일자", "문서", "거래처", "합계"],
+    rows: sale.noVoucherDocs.map((d) => [d.doc_date, <b key="n">{d.doc_no}</b>, d.partner_id ? partnerName.get(d.partner_id) || "—" : "—", `₩${won(d.supply + d.vat)}`]), go: { href: pullHref(sale.noVoucherDocs), label: "매입매출전표에서 전부 얹기 →" } });
   const openLate = () => setDetail({ title: `납기 지난 주문 ${order.late.length}건`, desc: "납기가 지났는데 잔량이 남은 주문입니다.", head: ["번호", "거래처", "납기", "지난 날", "잔량"],
     rows: order.late.map((r) => [<b key="n">{r.o.order_no}</b>, r.o.partner_name || partnerName.get(r.o.partner_id || "") || "—", r.o.due_date || "—", r.dday == null ? "—" : `D+${-r.dday}`, won(r.remain)]), go: { href: "/inventory/orders", label: "주문으로 →" } });
   const openOpen = () => setDetail({ title: `열린 주문 잔량 ${order.open.length}건`, desc: "아직 다 채우지 못한 주문입니다.", head: ["번호", "거래처", "납기", "주문", "가져간", "잔량"],
@@ -303,6 +312,7 @@ export default function InventoryStatusPage() {
       <Stat label="기간 매입" value={`₩${won(buy.amt)}`} />
       <Stat label="마진(매출−원가)" value={sale.margin == null ? "—" : `₩${won(sale.margin)}`} tone={sale.margin != null && sale.margin < 0 ? "minus" : undefined} />
       <Stat label="전표 없는 판매" value={<button type="button" className="inv-stat-btn" onClick={openNoVoucher}>{sale.noVoucher}건</button>} tone={sale.noVoucher ? "minus" : undefined} />
+      <Stat label="전표 없는 매입" value={<button type="button" className="inv-stat-btn" onClick={openNoVoucherBuy}>{buy.noVoucher}건</button>} tone={buy.noVoucher ? "minus" : undefined} />
       <Stat label="납기 지난 주문" value={<button type="button" className="inv-stat-btn" onClick={openLate}>{order.late.length}건</button>} tone={order.late.length ? "minus" : undefined} />
     </>),
     order: (<>
@@ -327,6 +337,7 @@ export default function InventoryStatusPage() {
       <Stat label="수량" value={won(buy.qty)} />
       <Stat label="반품" value={`₩${won(buy.ret)}`} tone={buy.ret ? "minus" : undefined} />
       <Stat label="거래처" value={`${buy.perPartner.size}곳`} />
+      <Stat label="전표 없음" value={<button type="button" className="inv-stat-btn" onClick={openNoVoucherBuy}>{buy.noVoucher}건</button>} tone={buy.noVoucher ? "minus" : undefined} />
     </>),
     make: (<>
       <Stat label="양품" value={won(make.doneQty)} />
