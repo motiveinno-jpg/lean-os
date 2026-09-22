@@ -29,6 +29,7 @@ import { DealClassificationManager } from "./DealClassificationManager";
 import { ProjectSalesAccountCard } from "./ProjectSalesAccountCard";
 import { CompanyDeleteTab } from "./CompanyDeleteTab";
 import { CompanyInfoTab, TaxAdvisorSection, IpRestrictionSection, MfaPolicySection } from "./CompanyInfoTab";
+import { InventorySettingsTab } from "./InventorySettingsTab";   // 재고 기준 (2026-09-22)
 import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
 import { AccountingClosingTab } from "./AccountingClosingTab";
 import { InsuranceRatesTab } from "./InsuranceRatesTab";
@@ -735,6 +736,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
         {/* 세무 파트너 · 접속 보안 — 회사정보에서 떼어 낸 것들 (2026-08-21) */}
         {tab === "tax-partner" && <TaxAdvisorSection />}
         {tab === "insurance" && companyId && <InsuranceRatesTab companyId={companyId} userId={userId} />}
+        {tab === "inventory" && companyId && <InventorySettingsTab companyId={companyId} />}
         {/*   '결재 상신 알림(총괄 수신)'은 2026-08-24 삭제했다 — 대표:
               "결재는 참조·결재자한테만 알람이 가면 되는 건데, 직원 100명이면 100명이 올리는 상신
                알람을 다 받을 것인가? 쓸데없는 메뉴·기능이다."

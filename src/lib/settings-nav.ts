@@ -13,7 +13,7 @@
 export type SettingsLeafKey =
   | "company-info" | "forms"
   | "team"
-  | "cash" | "chart" | "closing" | "tax-partner" | "insurance"
+  | "cash" | "chart" | "closing" | "tax-partner" | "insurance" | "inventory"
   | "api-keys" | "bank"
   | "security" | "delete-company";
 
@@ -88,6 +88,10 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
       { key: "insurance", label: "4대보험 요율", perms: ["insurance", "closing"],
         title: "4대보험 요율", desc: "4대보험 요율과 상·하한을 연도별로 둡니다.",
         icon: "M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z" },
+      //   재고 기준 (2026-09-22 재고 점검 G) — 원가 방법·수율 임계값·채널 수수료·기본 창고. 회계마감 권한자도 본다(원가 = 결산 숫자).
+      { key: "inventory", label: "재고 기준", perms: ["inventory", "closing"],
+        title: "재고 기준", desc: "원가 방법, 수율 임계값, 채널 수수료·배송비, 기본 창고를 정합니다.",
+        icon: "M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8" },
     ],
   },
   {
