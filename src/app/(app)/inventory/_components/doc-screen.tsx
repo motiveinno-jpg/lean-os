@@ -80,7 +80,7 @@ export function DocScreen({
   /** 반품 — 원본을 가리키는 반대 전표를 만든다. 판매·구매만 넘긴다 */
   onReturn?: (a: { id: string; ctl: DocCtl }) => Promise<string>;
   /** 팝업 바닥에 더 둘 동작(주문서 PDF 등) */
-  popupExtra?: (a: { ctl: DocCtl; products: Product[] }) => React.ReactNode;
+  popupExtra?: (a: { ctl: DocCtl; products: Product[]; warehouses: Warehouse[] }) => React.ReactNode;
   /** 주문서에서 줄을 불러오는 버튼을 둘지 */
   pull?: (ctl: DocCtl) => React.ReactNode;
   headNote?: React.ReactNode;
@@ -410,7 +410,7 @@ export function DocScreen({
                     finally { setBusy(false); }
                   }}>반품</button>
               )}
-              {popupExtra?.({ ctl, products })}
+              {popupExtra?.({ ctl, products, warehouses })}
               <span className="doc-sums-sp" />
               <button type="button" className="btn-secondary btn-sm" onClick={closePopup}>닫기</button>
             </div>

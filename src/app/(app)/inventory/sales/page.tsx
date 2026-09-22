@@ -6,6 +6,7 @@
 
 import { DocScreen, type HistRow } from "../_components/doc-screen";
 import { PullOrderButton } from "../_components/pull-order";
+import { TradeDocButton } from "../_components/trade-doc-button";
 import {
   createStockDoc, updateStockDoc, getStockDoc, listStockDocs, listProducts, listWarehouses, returnStockDoc, cancelStockDoc, rememberPartnerPrices,
   editQtyOf,
@@ -93,6 +94,8 @@ export default function SalesPage() {
       }}
       onCancel={async ({ id, ctl, reason }) => { await cancelStockDoc(id, reason, ctl.userId); }}
       onReturn={async ({ id, ctl }) => { const r = await returnStockDoc(ctl.companyId!, id, ctl.userId); return `${r.docNo} 로 반품 처리했습니다. 재고가 되돌아갔습니다`; }}
+      //   거래처에 건넬 종이 — 거래명세서 (2026-09-22 ERP 공백 2차 ③). 주문서의 PDF 와 같은 자리
+      popupExtra={({ ctl, products, warehouses }) => <TradeDocButton ctl={ctl} products={products} warehouses={warehouses} kind="statement" />}
     />
   );
 }
