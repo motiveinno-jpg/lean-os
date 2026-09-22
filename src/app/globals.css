@@ -10820,3 +10820,18 @@ table.acct-ledger-sheet { min-width: 820px; }
 .mfa-disable-row { @apply flex flex-wrap items-center gap-2 mt-1.5; }
 .mfa-gate-card { @apply max-w-md; }
 .mfa-gate-input { @apply mt-3 w-full; }
+
+/* ── 분석 › 회계 자료 › 현금흐름표 (2026-09-22 ERP 공백 2차 ④) — 시산표(.acct-ledger-*) 부품을 같이 쓴다 ── */
+.cfs-basis-note { @apply mb-3; }
+.cfs-link-btn { @apply bg-transparent border-0 p-0 cursor-pointer; }
+.cfs-table { @apply w-full; }
+table.cfs-table { min-width: 640px; }
+.cfs-th-name { @apply text-left; }
+.cfs-th-num { width: 120px; }
+.cfs-num { @apply text-right tabular-nums; }
+.cfs-line-name { @apply pl-4; }
+.cfs-subtotal td { @apply bg-[var(--bg-surface)]/60 font-semibold; }
+.cfs-balance td { @apply font-semibold text-[var(--text-muted)]; }
+.cfs-table thead th { @apply sticky top-0 z-10; }
+.cfs-detail-scroll { @apply max-h-[60vh] overflow-auto; }
+table.cfs-detail-table { min-width: 720px; }

@@ -18,7 +18,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 // 회계 자료 그룹은 정식 재무제표 페이지들에서도 활성으로 보이도록 매칭 경로를 함께 지정.
-const STATEMENT_ROUTES = ["/reports/statements", "/reports/pnl", "/reports/bs", "/reports/ledger", "/reports/costs", "/reports/by-person", "/reports/three-way-match"];
+const STATEMENT_ROUTES = ["/reports/statements", "/reports/pnl", "/reports/bs", "/reports/ledger", "/reports/cashflow", "/reports/costs", "/reports/by-person", "/reports/three-way-match"];
 
 type Leaf = { href: string; label: string; desc: string; match?: string[] };
 type Group = { href: string; label: string; desc?: string; match?: string[]; subs?: Leaf[] };
@@ -64,6 +64,7 @@ const GROUPS: Group[] = [
       { href: "/reports/bs", label: "재무상태표", desc: "기준일의 자산·부채·자본입니다." },
       //   2026-09-21 ERP 공백 2차 ① — 세무사가 제일 먼저 달라는 자료. 확정 전표를 계정별로 날짜순 차변·대변·잔액으로
       { href: "/reports/ledger", label: "계정별 원장 · 시산표", desc: "계정과목별 차변·대변·잔액과 합계잔액시산표입니다." },
+      { href: "/reports/cashflow", label: "현금흐름표", desc: "통장 거래를 영업·투자·재무 활동으로 나눈 직접법 현금흐름표입니다." },
       { href: "/reports/costs", label: "비용 분석", desc: "고정비와 변동비의 구성과 추이를 봅니다." },
       { href: "/reports/by-person", label: "인원별 급여", desc: "직원별 급여를 사람·월 기준으로 봅니다." },
       { href: "/reports/three-way-match", label: "3-Way 매칭", desc: "계약, 세금계산서, 입금을 맞춰 봅니다." },

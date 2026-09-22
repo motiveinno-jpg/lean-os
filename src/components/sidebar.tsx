@@ -169,7 +169,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/reports/summary", permKey: "/reports", label: "경영 요약", icon: "bar-chart", match: ["/reports", "/reports/summary"] },
       { href: "/reports/profit", permKey: "/reports", label: "손익 현황", icon: "trending-up", match: ["/reports/profit", "/reports/revenue", "/reports/expense", "/reports/monthly"] },
       { href: "/reports/outlook", permKey: "/reports", label: "자금 전망", icon: "clock", match: ["/reports/upcoming", "/reports/outlook", "/reports/flow"] },
-      { href: "/reports/statements", permKey: "/reports", label: "회계 자료", icon: "file-text", match: ["/reports/statements", "/reports/pnl", "/reports/bs", "/reports/ledger", "/reports/costs", "/reports/by-person", "/reports/three-way-match"] },
+      { href: "/reports/statements", permKey: "/reports", label: "회계 자료", icon: "file-text", match: ["/reports/statements", "/reports/pnl", "/reports/bs", "/reports/ledger", "/reports/cashflow", "/reports/costs", "/reports/by-person", "/reports/three-way-match"] },
       //   부가세 · 세금계산서 화면의 탭이었는데 분석으로 옮겼다.
       //   세금·증빙이 '발행하는 곳'이 되면서, 매입 자료로 계산하는 신고용 화면은 성격이 안 맞아졌다.
       //   순서 (2026-08-20 전수 점검): 요약 → 현재(손익) → 미래(전망) → 자료(회계 자료·거래처 원장) → 신고(부가세, 신고철에만 여는 행사성이라 맨 아래)

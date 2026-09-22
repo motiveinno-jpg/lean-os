@@ -33,6 +33,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/reports/pnl": { group: "분석", title: "회계 자료" },
   "/reports/bs": { group: "분석", title: "회계 자료" },
   "/reports/ledger": { group: "분석", title: "회계 자료" },
+  "/reports/cashflow": { group: "분석", title: "회계 자료" },
   "/reports/costs": { group: "분석", title: "회계 자료" },
   "/reports/by-person": { group: "분석", title: "회계 자료" },
   "/reports/three-way-match": { group: "분석", title: "회계 자료" },
