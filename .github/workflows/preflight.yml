@@ -57,6 +57,10 @@ jobs:
       - name: check migrations applied
         run: node scripts/check-migrations.mjs
 
+      # 코드가 보내는 문자열 값이 DB CHECK 제약 밖이면 실패 (직원 초대 role 사고 재발 방지)
+      - name: DB enum literal check
+        run: node scripts/check-db-enum-literals.mjs
+
       - name: RLS regression smoke
         run: node scripts/rls-smoke.mjs
 

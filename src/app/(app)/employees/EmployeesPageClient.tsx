@@ -406,7 +406,8 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
       if (msg.includes("duplicate") || msg.includes("unique") || msg.includes("23505")) {
         setInviteMsg({ ok: false, msg: "이미 초대된 이메일입니다" });
       } else {
-        setInviteMsg({ ok: false, msg: msg || "초대 실패" });
+        // DB 원문("violates check constraint …")을 그대로 보이지 않는다 — 사람 말로 바꾼다.
+        setInviteMsg({ ok: false, msg: friendlyError(err, "초대에 실패했습니다. 잠시 후 다시 시도해 주세요.") });
       }
       setTimeout(() => setInviteMsg(null), 4000);
     },

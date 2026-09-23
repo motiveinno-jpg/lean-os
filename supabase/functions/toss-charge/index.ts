@@ -176,7 +176,7 @@ serve(withSentry("toss-charge", async (req: Request) => {
       toss_payment_key: paySp.paymentKey, toss_order_id: orderIdSp, paid_at: paySp.approvedAt || new Date().toISOString(),
       description: orderNameSp, billing_period_start: new Date().toISOString(), billing_period_end: new Date().toISOString(), currency: "krw",
     });
-    await supabase.from("billing_events").insert({ company_id: spCompany, event_type: "payment_succeeded", metadata: { reason: "storage_pack", orderId: orderIdSp, amount: totalSp, packsAdded } });
+    await supabase.from("billing_events").insert({ company_id: spCompany, event_type: "payment_success", metadata: { reason: "storage_pack", orderId: orderIdSp, amount: totalSp, packsAdded } });
     return json({ ok: true, amount: totalSp, orderId: orderIdSp });
   }
 

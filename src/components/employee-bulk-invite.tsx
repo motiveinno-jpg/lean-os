@@ -16,6 +16,7 @@ import { useToast } from "@/components/toast";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { createEmployeeInvitation, getEmployeeInvitations, sendInviteEmail } from "@/lib/invitations";
 import { todayKst } from "@/lib/kst";
+import { friendlyError } from "@/lib/friendly-error";
 
 type ParsedRow = {
   rowNo: number;        // 엑셀 행 번호(안내용)
@@ -216,7 +217,7 @@ export function EmployeeBulkInviteModal({ companyId, userId, companyName, onClos
       } catch (err: any) {
         const msg = String(err?.message || err || "");
         const dup = msg.includes("duplicate") || msg.includes("unique") || msg.includes("23505");
-        out.push({ row: r, ok: false, error: dup ? "이미 초대된 이메일" : (msg || "초대 실패") });
+        out.push({ row: r, ok: false, error: dup ? "이미 초대된 이메일" : friendlyError(err, "초대 실패") });
       }
     }
     setResults(out);

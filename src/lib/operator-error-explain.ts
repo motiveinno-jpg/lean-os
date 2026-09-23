@@ -34,16 +34,16 @@ const POSTGRES_CODES: Record<string, Omit<ErrorExplanation, "code">> = {
   },
   "23502": {
     what: "필수 컬럼이 비어 있어요. (NOT NULL)",
-    why: "회사 가입 시 사업자번호처럼 반드시 채워야 하는 값을 안 넣었습니다.",
-    fix: "프론트에서 입력 검증 추가하거나 컬럼 default 지정.",
-    severity: "medium",
+    why: "화면이 그 칸을 안 보내거나, 컬럼이 NOT NULL 로 바뀌었는데 코드가 옛날 그대로입니다. 사용자가 고칠 수 있는 게 아닙니다.",
+    fix: "코드가 그 컬럼을 채우게 하거나 컬럼 default 지정. 같은 화면을 쓰는 모든 사용자에게 같은 실패가 납니다.",
+    severity: "high",
     category: "db",
   },
   "23514": {
-    what: "값이 허용 범위를 벗어났어요. (CHECK 제약)",
-    why: "예: status 컬럼이 'draft/sent/paid' 중 하나만 허용인데 'foo' 같은 값이 들어옴.",
-    fix: "허용된 값 목록 확인 후 코드에서 enum 강제. 마이그레이션의 CHECK 제약 확인.",
-    severity: "medium",
+    what: "코드가 보내는 값과 DB 허용값이 어긋났어요. (CHECK 제약)",
+    why: "코드는 새 값(예: 'member')을 보내는데 DB 제약은 옛 목록('employee','admin')인 상태. 그 기능은 모든 사용자에게 100% 실패합니다 — 직원 초대가 이렇게 막혔던 적이 있습니다.",
+    fix: "메시지의 제약 이름으로 표·컬럼을 찾아 CHECK 를 넓히는 마이그레이션을 내거나 코드 값을 고칩니다. `npm run check:db-enums` 가 코드 전체를 대조합니다.",
+    severity: "critical",
     category: "db",
   },
   "42501": {
@@ -55,23 +55,23 @@ const POSTGRES_CODES: Record<string, Omit<ErrorExplanation, "code">> = {
   },
   "42P01": {
     what: "그런 테이블이 없어요.",
-    why: "마이그레이션 누락 또는 search_path 가 'public' 이 아닌 함수.",
+    why: "마이그레이션 누락 또는 search_path 가 'public' 이 아닌 함수. 그 기능은 모든 사용자에게 실패합니다.",
     fix: "list_migrations 로 적용 상태 확인. SET search_path TO 'public' 함수 확인.",
-    severity: "high",
+    severity: "critical",
     category: "db",
   },
   "42883": {
     what: "그런 함수가 없거나 인자가 안 맞아요.",
-    why: "RPC 이름 오타, 인자 개수/타입 불일치, schema cache 미갱신.",
+    why: "RPC 이름 오타, 인자 개수/타입 불일치, schema cache 미갱신. 코드와 DB 가 어긋난 것이라 모든 사용자에게 같이 실패합니다.",
     fix: "함수 시그니처 확인 후 NOTIFY pgrst, 'reload schema'.",
-    severity: "medium",
+    severity: "critical",
     category: "db",
   },
   "42703": {
     what: "그런 컬럼이 없어요.",
-    why: "DB 컬럼은 있는데 클라이언트 select() 에 오타. 또는 컬럼이 drop 됐는데 코드만 옛날 버전.",
+    why: "DB 컬럼은 있는데 클라이언트 select() 에 오타. 또는 컬럼이 drop 됐는데 코드만 옛날 버전. 모든 사용자에게 같이 실패합니다.",
     fix: "정확한 컬럼명 grep, 클라이언트 타입(database.ts) 재생성.",
-    severity: "medium",
+    severity: "critical",
     category: "db",
   },
   "P0001": {
@@ -573,6 +573,58 @@ const EDGE_FN_LABEL: Record<string, string> = {
   "support-ticket-analyze": "고객문의 자동 분석(AI)",
 };
 
+/**
+ * 코드 ↔ DB 스키마 불일치. 사용자 입력과 무관하게 그 기능을 쓰는 모든 사람에게 같은 실패가 난다.
+ *   check 제약 위반 · 없는 컬럼 · 없는 표 · 없는 함수 · 필수값 누락(NOT NULL).
+ */
+function schemaMismatch(msg: string, table: string): ErrorExplanation | null {
+  const where = table ? `(${table})` : "";
+  const check = msg.match(/violates check constraint "([^"]+)"/i);
+  if (check) {
+    return {
+      what: `화면이 보내는 값과 DB 가 허용하는 값이 어긋나서 저장이 막혔어요${where}. 이 기능은 지금 모든 고객에게 실패하고 있어요.`,
+      why: `코드는 새 값을 보내는데 DB 제약(${check[1]})은 옛 목록 그대로예요. 값 어휘를 바꿀 때 제약을 같이 안 바꾼 프로그램 결함이에요.`,
+      fix: "개발팀에 즉시 전달하세요. 제약 이름으로 표·컬럼을 찾아 CHECK 제약을 넓히는 마이그레이션을 내거나 코드 값을 고치면 돼요. `npm run check:db-enums` 로 나머지 어긋남도 한 번에 찾을 수 있어요.",
+      severity: "critical", category: "db", code: "db:check_mismatch",
+    };
+  }
+  const col = msg.match(/column "?([\w.]+)"? (?:of relation "([\w]+)" )?does not exist/i);
+  if (col) {
+    return {
+      what: `화면이 DB 에 없는 칸(${col[1]})을 읽거나 쓰려 했어요${where}. 이 화면은 지금 모든 고객에게 실패하고 있어요.`,
+      why: "컬럼이 지워졌거나 이름이 바뀌었는데 코드는 옛 이름을 쓰는 프로그램 결함이에요.",
+      fix: "개발팀에 즉시 전달하세요. 코드의 컬럼 이름을 고치거나 마이그레이션이 빠졌는지 확인하면 돼요.",
+      severity: "critical", category: "db", code: "db:column_missing",
+    };
+  }
+  if (/relation "[\w.]+" does not exist/i.test(msg)) {
+    return {
+      what: `화면이 DB 에 없는 표를 찾았어요${where}. 이 기능은 지금 모든 고객에게 실패하고 있어요.`,
+      why: "마이그레이션이 운영에 적용되지 않았거나 표 이름이 바뀐 프로그램 결함이에요.",
+      fix: "개발팀에 즉시 전달하세요. 적용 안 된 마이그레이션이 있는지 `npm run check:migrations` 로 확인하면 돼요.",
+      severity: "critical", category: "db", code: "db:table_missing",
+    };
+  }
+  if (/function [\w.]+\(.*\) does not exist|Could not find the function/i.test(msg)) {
+    return {
+      what: `화면이 DB 에 없는 함수를 불렀어요${where}. 이 기능은 지금 모든 고객에게 실패하고 있어요.`,
+      why: "함수 이름이나 인자가 코드와 DB 에서 서로 다른 프로그램 결함이에요.",
+      fix: "개발팀에 즉시 전달하세요. 함수 이름·인자를 맞추고 마이그레이션 적용 여부를 확인하면 돼요.",
+      severity: "critical", category: "db", code: "db:function_missing",
+    };
+  }
+  const nn = msg.match(/null value in column "([\w]+)".*?violates not-null constraint/i);
+  if (nn) {
+    return {
+      what: `화면이 필수 칸(${nn[1]})을 비운 채 저장하려 했어요${where}. 같은 화면을 쓰는 모든 고객에게 같은 실패가 나요.`,
+      why: "코드가 그 칸을 안 채우거나, 칸이 필수로 바뀌었는데 코드는 옛날 그대로인 프로그램 결함이에요.",
+      fix: "개발팀에 전달하세요. 코드가 그 칸을 채우게 하거나 DB 기본값을 두면 돼요.",
+      severity: "high", category: "db", code: "db:not_null",
+    };
+  }
+  return null;
+}
+
 function explainPlatformFirst(joined: string, msg: string, ctxStr = ""): ErrorExplanation | null {
   // AI 공급사(Anthropic) — 잔액 소진은 전 고객 AI 기능 중단이라 가장 먼저.
   //   사유가 context(provider_reason)에만 있는 행도 있어 본문+context 를 같이 본다.
@@ -646,6 +698,10 @@ function explainPlatformFirst(joined: string, msg: string, ctxStr = ""): ErrorEx
     const status = Number(db[1]);
     const path = db[3];
     const table = (path.match(/\/rest\/v1\/(?:rpc\/)?([a-z0-9_]+)/i) || [])[1] || "";
+    // 코드와 DB 가 어긋난 오류 — 사용자가 뭘 해도 100% 실패하는 프로그램 결함이라 가장 심각.
+    //   2026-09-21~22 직원 초대가 이 꼴로 이틀간 25번 막혔는데 '보통' 등급이라 아무도 못 봤다.
+    const mismatch = schemaMismatch(msg, table);
+    if (mismatch) return mismatch;
     if (status === 409 || /duplicate key/i.test(msg)) {
       return {
         what: `이미 있는 이름·번호를 또 저장하려 해서 막혔어요(${table || "데이터"}). 화면에는 '이미 같은 항목이 있습니다' 안내가 나갔어요.`,
