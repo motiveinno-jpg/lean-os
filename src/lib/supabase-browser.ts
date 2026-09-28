@@ -57,6 +57,9 @@ function interceptedFetch(input: RequestInfo | URL, init?: RequestInit): Promise
               return;
             }
             if (isWriteFailure(path, method, res.status)) notifyWriteFailure(res.status, body.slice(0, 400) || detail);
+            // 우리 트리거가 한글 안내로 막은 것(P0001 · "이미 등록된 사업자번호" 등)은 규칙대로 거절된 입력이지 고장이 아니다 —
+            //   사용자는 위 배너로 안내받고, 운영자 오류함엔 쌓지 않는다.
+            if (/"code"\s*:\s*"P0001"/.test(body) && /[가-힣]/.test(detail)) return;
             import('./error-logger').then(({ logError }) => {
               logError({
                 source: 'manual',
