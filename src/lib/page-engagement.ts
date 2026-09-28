@@ -33,7 +33,11 @@ function elapsed(c: Current): number {
   return c.accMs + (c.visibleSince != null ? Date.now() - c.visibleSince : 0);
 }
 
+// 점검용 — 브라우저에 localStorage ov_debug_pe=1 일 때만 콘솔에 남긴다(평소엔 아무것도 안 함)
+function dbg(...a: unknown[]) { try { if (localStorage.getItem("ov_debug_pe") === "1") console.log("[PE]", ...a); } catch { /* 무시 */ } }
+
 function send(c: Current, exitKind: "navigate" | "leave", nextPath: string | null) {
+  dbg("send", exitKind, nextPath, Math.round(elapsed(c)), c.maxScroll, c.path, document.visibilityState);
   try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -52,6 +56,7 @@ function send(c: Current, exitKind: "navigate" | "leave", nextPath: string | nul
 }
 
 function onVisibility() {
+  dbg("visibility", document.visibilityState, cur?.path ?? null);
   if (!cur) return;
   if (document.visibilityState === "hidden") {
     if (cur.visibleSince != null) { cur.accMs += Date.now() - cur.visibleSince; cur.visibleSince = null; }
@@ -73,6 +78,7 @@ function wire() {
  *  같은 화면이면 아무것도 안 한다 — 비콘 효과가 한 화면에서 두 번 돌면서, 막 시작한 방문을
  *  '같은 화면으로 이동'으로 곧바로 마감해 체류가 0.1초·스크롤 0%로 남았다(2026-09-28 실측). */
 export function endEngagement(nextPath: string) {
+  dbg("end-call", nextPath, cur?.path ?? null);
   if (!cur || cur.path === nextPath) return;
   send(cur, "navigate", nextPath);
   cur = null;
@@ -80,6 +86,7 @@ export function endEngagement(nextPath: string) {
 
 /** 방금 적은 방문 한 건의 체류를 재기 시작한다. */
 export function startEngagement(viewKey: string, visitorKey: string, path: string) {
+  dbg("start", path, document.visibilityState);
   wire();
   cur = {
     viewKey, visitorKey, path, accMs: 0,
