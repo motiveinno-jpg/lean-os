@@ -111,6 +111,11 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // 옛 랜딩 시안 주소 — 2026-09-07 v7 이 `/` 가 되며 라우트 파일에서 308 로 넘기다가,
+  //   2026-09-28 v7 파일을 지우면서(결정 232) 라우트 파일 없이 여기서 넘긴다. 시안 기간에 공유된 링크가 404 가 되지 않게.
+  async redirects() {
+    return [{ source: "/landing-v7", destination: "/", permanent: true }];
+  },
 };
 
 const sentryConfig = withSentryConfig(nextConfig, {

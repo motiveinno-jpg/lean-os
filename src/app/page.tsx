@@ -6,11 +6,10 @@
 //               v8 파일(`src/components/landing-v8/**`, landing-v8.css)은 그대로 둔다 — 머리·바닥(site-shell)과
 //               /features · /pricing · /contact 가 여전히 쓰고, 되돌릴 때 import 두 줄만 바꾸면 된다.
 //   ▸ metadata / 구조화 데이터(JSON-LD) 는 여기서, 화면은 LandingV9 가 그린다.
-//   ▸ `/landing-v7` 은 여기로 영구(308) 넘긴다 — 같은 화면이 두 주소로 뜨면 중복 문서가 된다.
-//   ⚠️ 되돌리려면 아래 import 두 줄과 <LandingV8 /> 을 landing-v7 로 되돌리면 된다.
-//      v7 파일(`src/components/landing-v7/**`, `src/app/landing-v7.css`)은 그대로 남겨 두었다.
-//   ⚠️ v6 랜딩 파일(`src/components/landing/**`)도 지우지 않았다.
-//      `/demo` `/features` `/ai` `/pricing` `/tools` 가 아직 그 content.ts 를 쓴다.
+//   ▸ `/landing-v7` 은 next.config redirects 가 여기로 영구(308) 넘긴다 — 같은 화면이 두 주소로 뜨면 중복 문서가 된다.
+//   2026-09-28: v6·v7 랜딩 파일(`components/landing/**` 의 랜딩 본문, `components/landing-v7/**`, landing.css·v5·v6·v7)을
+//               지웠다(결정 232, 사용처 0 grep 확인). 되돌리려면 git 이력(218c48eb 이전)에서 꺼낸다.
+//               `components/landing/tax-partner-view.tsx` 만 /tax-partners 가 써서 남겼다.
 import type { Metadata } from "next";
 import LandingV9 from "@/components/landing-v9/landing-v9";
 import { FEATS, FOOTER, MENUS, PRICING } from "@/components/landing-v8/content";

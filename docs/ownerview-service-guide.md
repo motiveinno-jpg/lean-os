@@ -335,7 +335,7 @@
 
 ## 가격 정책
 
-2026-09-08 기준. 공개 요금은 `/pricing` 과 `src/components/landing/content.ts` 의 PLANS 가 원본이다.
+2026-09-08 기준. 공개 요금은 `/pricing` 이 원본이다(값은 DB subscription_plans 표, 읽기 실패 시 `src/components/landing-v8/pricing-data.ts` PLAN_FALLBACK — 옛 `landing/content.ts` PLANS 는 2026-09-28 삭제).
 
 | 플랜 | 월 요금 | 인원 | 주요 조건 |
 |------|--------|------|----------|
