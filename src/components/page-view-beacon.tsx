@@ -152,7 +152,7 @@ export function PageViewBeacon() {
 
     //   이 방문의 체류(머문 시간·스크롤·떠난 방식)를 나중에 이 키로 채운다 — page_view_end
     const viewKey = crypto.randomUUID?.() ?? null;
-    if (viewKey) startEngagement(viewKey, visitorKey);
+    if (viewKey) startEngagement(viewKey, visitorKey, path);
 
     let cancelled = false;
     (async () => {

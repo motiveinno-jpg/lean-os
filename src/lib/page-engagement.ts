@@ -6,7 +6,7 @@
 //     숨겼다 돌아오면 이어서 세고 다시 보낸다 — 서버(page_view_end)가 큰 값·마지막 방식을 남긴다.
 //   전송은 fetch keepalive(페이지가 닫히는 중에도 나간다). 실패는 조용히 버린다.
 
-type Current = { viewKey: string; visitorKey: string; accMs: number; visibleSince: number | null; maxScroll: number };
+type Current = { viewKey: string; visitorKey: string; path: string; accMs: number; visibleSince: number | null; maxScroll: number };
 let cur: Current | null = null;
 let wired = false;
 
@@ -69,18 +69,20 @@ function wire() {
   window.addEventListener("pagehide", () => { if (cur) { onVisibility(); send(cur, "leave", null); } });
 }
 
-/** 직전 화면을 '다른 화면으로 이동'으로 마감한다. 새 화면 경로를 넘긴다. */
+/** 직전 화면을 '다른 화면으로 이동'으로 마감한다. 새 화면 경로를 넘긴다.
+ *  같은 화면이면 아무것도 안 한다 — 비콘 효과가 한 화면에서 두 번 돌면서, 막 시작한 방문을
+ *  '같은 화면으로 이동'으로 곧바로 마감해 체류가 0.1초·스크롤 0%로 남았다(2026-09-28 실측). */
 export function endEngagement(nextPath: string) {
-  if (!cur) return;
+  if (!cur || cur.path === nextPath) return;
   send(cur, "navigate", nextPath);
   cur = null;
 }
 
 /** 방금 적은 방문 한 건의 체류를 재기 시작한다. */
-export function startEngagement(viewKey: string, visitorKey: string) {
+export function startEngagement(viewKey: string, visitorKey: string, path: string) {
   wire();
   cur = {
-    viewKey, visitorKey, accMs: 0,
+    viewKey, visitorKey, path, accMs: 0,
     visibleSince: document.visibilityState === "visible" ? Date.now() : null,
     maxScroll: scrollPctOf(null) === 100 ? 100 : 0,
   };
