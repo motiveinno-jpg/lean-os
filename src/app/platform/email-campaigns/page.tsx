@@ -32,9 +32,22 @@ const STATUS: Record<string, { tone: "ok" | "info" | "warn" | "muted"; label: st
 
 /** 이력 표에서 눌러 주소를 볼 수 있는 결과 */
 const DETAIL_LABEL: Record<string, string> = {
-  bounced: "반송", complained: "스팸 신고", skipped_duplicate: "중복 제외", skipped_optout: "수신거부 제외", failed: "실패",
+  sent: "발송", bounced: "반송", complained: "스팸 신고", skipped_duplicate: "중복 제외", skipped_optout: "수신거부 제외", failed: "실패",
 };
-type Recipient = { email: string; status: string; error: string | null; sent_at: string | null; updated_at: string | null };
+//   '발송' 은 실제로 Resend 에 넘어간 모든 상태 — 캠페인 sent_count 와 같은 범위
+const KIND_STATUSES: Record<string, string[]> = {
+  sent: ["sent", "delivered", "delayed", "bounced", "complained"],
+};
+const STATUS_LABEL: Record<string, string> = {
+  sent: "전달 중", delivered: "도착", delayed: "전달 지연", bounced: "반송", complained: "스팸 신고",
+  skipped_duplicate: "중복 제외", skipped_optout: "수신거부 제외", failed: "실패", queued: "대기",
+};
+const PAGE = 1000;
+type Recipient = {
+  email: string; status: string; error: string | null; sent_at: string | null; updated_at: string | null;
+  campaign_id: string; campaign_subject: string; campaign_sent_at: string; total: number;
+};
+type DetailScope = { campaign: Campaign | null; kind: string };
 
 /** Resend 가 주는 영어 사유를 한 줄 우리말로 — 원문은 title 로 남긴다 */
 function reasonOf(r: Recipient): string {
@@ -70,8 +83,8 @@ export default function PlatformEmailCampaignsPage() {
   const [bodyText, setBodyText] = useState("");
   const [listText, setListText] = useState("");
   const [dedupeDays, setDedupeDays] = useState(30);
-  const [detail, setDetail] = useState<{ campaign: Campaign; status: string } | null>(null);
-  const [copied, setCopied] = useState(false);
+  //   campaign 이 null 이면 상단 합계(모든 발송)에서 연 목록
+  const [detail, setDetail] = useState<DetailScope | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState<"preview" | "send" | null>(null);
   const [msg, setMsg] = useState<{ tone: "ok" | "warn"; text: string } | null>(null);
@@ -89,24 +102,11 @@ export default function PlatformEmailCampaignsPage() {
     refetchInterval: 30_000,
   });
 
-  const { data: detailRows = [], isLoading: detailLoading } = useQuery<Recipient[]>({
-    queryKey: ["op-email-campaign-recipients", detail?.campaign.id, detail?.status],
-    enabled: !!detail,
-    queryFn: async () => {
-      const { data, error } = await (db.rpc as any)("operator_list_campaign_recipients",
-        { p_campaign: detail!.campaign.id, p_status: detail!.status, p_limit: 1000 });
-      if (error) throw error;
-      return (data || []) as Recipient[];
-    },
-  });
-
-  const openDetail = (campaign: Campaign, status: string) => {
-    setCopied(false);
-    setDetail((d) => (d && d.campaign.id === campaign.id && d.status === status ? null : { campaign, status }));
+  const openDetail = (campaign: Campaign | null, kind: string) => {
+    setDetail((d) => (d && (d.campaign?.id ?? null) === (campaign?.id ?? null) && d.kind === kind ? null : { campaign, kind }));
   };
-  const copyEmails = () => {
-    try { navigator.clipboard?.writeText(detailRows.map((r) => r.email).join("\n")).then(() => setCopied(true)).catch(() => {}); } catch { /* ignore */ }
-  };
+  const isOpen = (campaign: Campaign | null, kind: string) =>
+    !!detail && (detail.campaign?.id ?? null) === (campaign?.id ?? null) && detail.kind === kind;
 
   const call = async (dryRun: boolean) => {
     const { data, error } = await db.functions.invoke("email-campaign-send", {
@@ -161,10 +161,22 @@ export default function PlatformEmailCampaignsPage() {
       />
 
       <div className="pf-kpi-grid">
-        <PfCard i={1} className="pf-kpi-tile"><PfKpi label="지금까지 발송" value={totals.sent} unit="통" /></PfCard>
-        <PfCard i={2} className="pf-kpi-tile"><PfKpi label="반송" value={totals.bounced} unit="통" /></PfCard>
-        <PfCard i={3} className="pf-kpi-tile"><PfKpi label="스팸 신고" value={totals.complained} unit="통" live={totals.complained > 0} /></PfCard>
+        {([
+          { kind: "sent", label: "지금까지 발송", value: totals.sent },
+          { kind: "bounced", label: "반송", value: totals.bounced },
+          { kind: "complained", label: "스팸 신고", value: totals.complained, live: totals.complained > 0 },
+        ] as const).map((t, i) => (
+          <PfCard key={t.kind} i={i + 1} className={`pf-kpi-tile ${isOpen(null, t.kind) ? "ring-2 ring-[var(--primary)]" : ""}`}>
+            <button type="button" className="block w-full text-left disabled:cursor-default" disabled={t.value === 0}
+              onClick={() => openDetail(null, t.kind)} title={t.value > 0 ? "눌러서 주소 보기" : undefined}>
+              <PfKpi label={t.label} value={t.value} unit="통" live={"live" in t ? t.live : false} />
+              {t.value > 0 && <span className="text-[11px] text-[var(--text-dim)]">{isOpen(null, t.kind) ? "닫기 ▲" : "눌러서 주소 보기 ▼"}</span>}
+            </button>
+          </PfCard>
+        ))}
       </div>
+
+      {detail && !detail.campaign && <RecipientPanel key={`all:${detail.kind}`} scope={detail} onClose={() => setDetail(null)} />}
 
       <PfCard i={4} hover={false}>
         <PfCardHead title="새 메일" sub="제목·본문·받는 주소를 넣고 '미리 계산'으로 몇 명에게 나가는지 먼저 확인하세요" />
@@ -247,12 +259,12 @@ export default function PlatformEmailCampaignsPage() {
                         <td><PfBadge tone={st.tone}>{st.label}</PfBadge></td>
                         <td className="text-right mono-number">{c.total.toLocaleString()}</td>
                         <td className="text-right mono-number">{c.sent_count.toLocaleString()}</td>
-                        <td className="text-right mono-number"><CountCell n={c.skipped_optout} active={detail?.campaign.id === c.id && detail.status === "skipped_optout"} onClick={() => openDetail(c, "skipped_optout")} /></td>
-                        <td className="text-right mono-number"><CountCell n={(c.skipped_duplicate ?? 0)} active={detail?.campaign.id === c.id && detail.status === "skipped_duplicate"} onClick={() => openDetail(c, "skipped_duplicate")} /></td>
-                        <td className="text-right mono-number"><CountCell n={c.failed_count} active={detail?.campaign.id === c.id && detail.status === "failed"} onClick={() => openDetail(c, "failed")} /></td>
+                        <td className="text-right mono-number"><CountCell n={c.skipped_optout} active={isOpen(c, "skipped_optout")} onClick={() => openDetail(c, "skipped_optout")} /></td>
+                        <td className="text-right mono-number"><CountCell n={(c.skipped_duplicate ?? 0)} active={isOpen(c, "skipped_duplicate")} onClick={() => openDetail(c, "skipped_duplicate")} /></td>
+                        <td className="text-right mono-number"><CountCell n={c.failed_count} active={isOpen(c, "failed")} onClick={() => openDetail(c, "failed")} /></td>
                         <td className="text-right mono-number">{Number(c.delivered).toLocaleString()}</td>
-                        <td className="text-right mono-number"><CountCell n={Number(c.bounced)} active={detail?.campaign.id === c.id && detail.status === "bounced"} onClick={() => openDetail(c, "bounced")} /></td>
-                        <td className="text-right mono-number"><CountCell n={Number(c.complained)} active={detail?.campaign.id === c.id && detail.status === "complained"} onClick={() => openDetail(c, "complained")} /></td>
+                        <td className="text-right mono-number"><CountCell n={Number(c.bounced)} active={isOpen(c, "bounced")} onClick={() => openDetail(c, "bounced")} /></td>
+                        <td className="text-right mono-number"><CountCell n={Number(c.complained)} active={isOpen(c, "complained")} onClick={() => openDetail(c, "complained")} /></td>
                       </tr>
                     );
                   })}
@@ -260,38 +272,7 @@ export default function PlatformEmailCampaignsPage() {
               </table>
             </div>
           )}
-          {detail && (
-            <div className="mt-4 rounded-md border border-[var(--border)] p-3">
-              <div className="flex items-center gap-2 flex-wrap mb-2">
-                <b className="text-sm">{DETAIL_LABEL[detail.status]} 주소 {detailLoading ? "" : `${detailRows.length.toLocaleString()}개`}</b>
-                <span className="text-xs text-[var(--text-dim)] truncate max-w-[420px]">{kstDateTime(detail.campaign.sent_at || detail.campaign.created_at)} · {detail.campaign.subject}</span>
-                <span className="ml-auto" />
-                {detailRows.length > 0 && (
-                  <button type="button" className="btn-secondary btn-sm" onClick={copyEmails}>{copied ? "복사했습니다" : "주소 복사"}</button>
-                )}
-                <button type="button" className="btn-secondary btn-sm" onClick={() => setDetail(null)}>닫기</button>
-              </div>
-              {(detail.status === "bounced" || detail.status === "complained") && (
-                <p className="text-xs text-[var(--text-dim)] mb-2">이 주소들은 수신거부 목록에 들어가 다음 발송부터 자동으로 빠집니다.</p>
-              )}
-              {detailLoading ? <PfSkeleton rows={3} /> : detailRows.length === 0 ? <PfEmpty>해당 주소가 없습니다.</PfEmpty> : (
-                <div className="overflow-auto max-h-[360px]">
-                  <table className="pf-table">
-                    <thead><tr><th>주소</th><th>사유</th><th>시각</th></tr></thead>
-                    <tbody>
-                      {detailRows.map((r) => (
-                        <tr key={r.email}>
-                          <td className="font-mono text-[12px]">{r.email}</td>
-                          <td className="text-[var(--text-muted)]" title={r.error || undefined}>{reasonOf(r)}</td>
-                          <td className="whitespace-nowrap text-[var(--text-muted)]">{kstDateTime(r.updated_at)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
+          {detail?.campaign && <RecipientPanel key={`${detail.campaign.id}:${detail.kind}`} scope={detail} onClose={() => setDetail(null)} />}
         </PfCardBody>
       </PfCard>
     </PfPage>
@@ -307,5 +288,86 @@ function CountCell({ n, active, onClick }: { n: number; active: boolean; onClick
       className={`underline decoration-dotted underline-offset-2 hover:text-[var(--primary)] ${active ? "text-[var(--primary)] font-semibold" : ""}`}>
       {v.toLocaleString()}
     </button>
+  );
+}
+
+/** 누른 건수의 주소 목록 — 1,000개씩 넘겨 보고, 복사는 전체를 모아서 */
+function RecipientPanel({ scope, onClose }: { scope: DetailScope; onClose: () => void }) {
+  const [page, setPage] = useState(0);
+  const [copyState, setCopyState] = useState<"" | "busy" | "done">("");
+  const statuses = KIND_STATUSES[scope.kind] || [scope.kind];
+  const fetchPage = async (n: number) => {
+    const { data, error } = await (db.rpc as any)("operator_list_email_recipients",
+      { p_statuses: statuses, p_campaign: scope.campaign?.id ?? null, p_limit: PAGE, p_offset: n * PAGE });
+    if (error) throw error;
+    return (data || []) as Recipient[];
+  };
+  const { data: rows = [], isLoading } = useQuery<Recipient[]>({
+    queryKey: ["op-email-recipients", scope.campaign?.id ?? "all", scope.kind, page],
+    queryFn: () => fetchPage(page),
+  });
+  const total = rows[0] ? Number(rows[0].total) : 0;
+  const pages = Math.max(1, Math.ceil(total / PAGE));
+  const showStatus = statuses.length > 1;
+  const showCampaign = !scope.campaign;
+
+  const copyAll = async () => {
+    setCopyState("busy");
+    try {
+      const all: string[] = [];
+      for (let n = 0; n < pages; n++) all.push(...(n === page ? rows : await fetchPage(n)).map((r) => r.email));
+      await navigator.clipboard.writeText([...new Set(all)].join("\n"));
+      setCopyState("done");
+    } catch { setCopyState(""); }
+  };
+
+  return (
+    <div className="mt-4 rounded-md border border-[var(--border)] p-3">
+      <div className="flex items-center gap-2 flex-wrap mb-2">
+        <b className="text-sm">{DETAIL_LABEL[scope.kind]} 주소 {isLoading ? "" : `${total.toLocaleString()}개`}</b>
+        <span className="text-xs text-[var(--text-dim)] truncate max-w-[420px]">
+          {scope.campaign ? `${kstDateTime(scope.campaign.sent_at || scope.campaign.created_at)} · ${scope.campaign.subject}` : "지금까지 보낸 메일 전체"}
+        </span>
+        <span className="ml-auto" />
+        {total > 0 && (
+          <button type="button" className="btn-secondary btn-sm" disabled={copyState === "busy"} onClick={copyAll}>
+            {copyState === "busy" ? "모으는 중…" : copyState === "done" ? "복사했습니다" : `주소 ${total.toLocaleString()}개 복사`}
+          </button>
+        )}
+        <button type="button" className="btn-secondary btn-sm" onClick={onClose}>닫기</button>
+      </div>
+      {(scope.kind === "bounced" || scope.kind === "complained") && (
+        <p className="text-xs text-[var(--text-dim)] mb-2">이 주소들은 수신거부 목록에 들어가 다음 발송부터 자동으로 빠집니다.</p>
+      )}
+      {isLoading ? <PfSkeleton rows={3} /> : rows.length === 0 ? <PfEmpty>해당 주소가 없습니다.</PfEmpty> : (
+        <div className="overflow-auto max-h-[420px]">
+          <table className="pf-table">
+            <thead>
+              <tr>
+                <th>주소</th>{showStatus && <th>상태</th>}<th>{showStatus ? "비고" : "사유"}</th>{showCampaign && <th>보낸 메일</th>}<th>시각</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={`${r.campaign_id}:${r.email}`}>
+                  <td className="font-mono text-[12px]">{r.email}</td>
+                  {showStatus && <td className="whitespace-nowrap">{STATUS_LABEL[r.status] || r.status}</td>}
+                  <td className="text-[var(--text-muted)]" title={r.error || undefined}>{r.status === "delivered" || r.status === "sent" ? "" : reasonOf(r)}</td>
+                  {showCampaign && <td className="max-w-[260px] truncate text-[var(--text-muted)]" title={r.campaign_subject}>{kstDateTime(r.campaign_sent_at)} · {r.campaign_subject}</td>}
+                  <td className="whitespace-nowrap text-[var(--text-muted)]">{kstDateTime(r.updated_at || r.sent_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {pages > 1 && (
+        <div className="flex items-center gap-2 mt-2 text-xs text-[var(--text-muted)]">
+          <button type="button" className="btn-secondary btn-sm" disabled={page === 0} onClick={() => setPage((n) => n - 1)}>이전</button>
+          <span className="mono-number">{(page * PAGE + 1).toLocaleString()}–{Math.min(total, (page + 1) * PAGE).toLocaleString()} / {total.toLocaleString()}</span>
+          <button type="button" className="btn-secondary btn-sm" disabled={page >= pages - 1} onClick={() => setPage((n) => n + 1)}>다음</button>
+        </div>
+      )}
+    </div>
   );
 }
