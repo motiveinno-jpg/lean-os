@@ -33,6 +33,28 @@ type TourStep = {
   howTo?: { label: string; steps: string[]; link?: { label: string; href: string } };
 };
 
+/** 재고 스텝의 '시작하는 방법' — 권한에 맞게 가른다 (2026-09-28, 백로그 「가입 첫 주」).
+ *  전에는 보기만 되는 직원에게도 "창고관리에서 수량을 맞추고 구매·생산으로 채웁니다"가 떠서
+ *  눌러 보면 버튼이 없었다. 품목(/inventory/products)은 :write 갈래가 없어 메뉴가 있으면 등록할 수 있다. */
+function inventoryHowTo(can: (key: string) => boolean): NonNullable<TourStep["howTo"]> {
+  const adjust = can("/inventory/stock:adjust");
+  const fill = can("/inventory/purchase:write") || can("/inventory/production:write");
+  const status = can("/inventory/status");
+  const profit = can("/inventory/profit");
+  const stockStep = adjust && fill ? "창고관리에서 현재 수량을 맞추고, 구매·생산으로 채웁니다."
+    : adjust ? "창고관리에서 현재 수량을 맞춥니다. 구매·생산 입력은 권한이 있는 분이 합니다."
+    : fill ? "창고 수량은 구매·생산 기록으로 채웁니다. 직접 조정은 입·출고 권한이 있는 분이 합니다."
+    : "창고관리에서 현재 수량과 입·출고 이력을 봅니다. 수량 조정·구매·생산 입력은 권한이 있는 분이 합니다.";
+  const sumStep = profit ? "판매가 일어나면 수량이 자동으로 빠지고, 현황·이익관리에서 집계됩니다."
+    : status ? "판매가 일어나면 수량이 자동으로 빠지고, 현황에서 집계됩니다."
+    : "판매가 일어나면 수량이 자동으로 빠집니다.";
+  return {
+    label: adjust || fill ? "재고 시작하는 방법" : "재고 보는 방법",
+    steps: ["품목에서 파는 물건과 원가·판매가를 등록합니다.", stockStep, sumStep],
+    link: { label: "품목 바로 가기", href: "/inventory/products" },
+  };
+}
+
 // 사이드바 메뉴 기준 핵심 탭 · 메뉴가 바뀌면 여기도 갱신 (href 는 sidebar.tsx NAV_GROUPS 와 동일해야 하이라이트된다)
 const TOUR_STEPS: TourStep[] = [
   
@@ -113,15 +135,8 @@ const TOUR_STEPS: TourStep[] = [
   {
     href: "/inventory/products", title: "재고",
     desc: "품목·창고 재고부터 주문·판매·구매·생산까지 물건의 흐름을 관리하고, 원가 기준 이익까지 봅니다.",
-    howTo: {
-      label: "재고 시작하는 방법",
-      steps: [
-        "품목에서 파는 물건과 원가·판매가를 등록합니다.",
-        "창고관리에서 현재 수량을 맞추고, 구매·생산으로 채웁니다.",
-        "판매가 일어나면 수량이 자동으로 빠지고, 현황·이익관리에서 집계됩니다.",
-      ],
-      link: { label: "품목 바로 가기", href: "/inventory/products" },
-    },
+    //   howTo 는 렌더 때 inventoryHowTo(권한) 로 채운다 — 마스터 기준 전문(全文)을 기본값으로 둔다
+    howTo: inventoryHowTo(() => true),
   },
   {
     //   2026-08-24 설정 IA 재편 — href 는 사이드바 항목과 같아야 하이라이트된다.
@@ -236,7 +251,7 @@ export function AppTourHost({ companyId }: { companyId: string | null }) {
 export function AppTour({ companyId, onClose }: { companyId: string | null; onClose: () => void }) {
   // 권한별 스텝 필터 — 일반 직원은 부여받은 메뉴의 스텝만 본다.
   //   마스터는 전체, 멤버는 hasMenu(기본 제공 포함) 기준. 마지막 안내(href null)는 항상 표시.
-  const { isMaster, hasMenu, loading: permLoading }  = useMyPermissions();
+  const { isMaster, hasMenu, hasPerm, loading: permLoading }  = useMyPermissions();
 
   // 스텝별 '다시 보지 않기' (2026-08-11 대표 · "건마다 누르면 그 건만 안 나오게")
   //   숨긴 스텝 href 를 user_preferences.app_tour_hidden_steps(jsonb 배열)에 계정별로 기록.
@@ -293,6 +308,8 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
   // 필터로 스텝 수가 줄었을 때 저장된 진행 위치가 범위를 넘지 않게
   const safeIdx = Math.min(idx, steps.length - 1);
   const step = steps[safeIdx];
+  //   재고 스텝은 이 사람의 권한으로 문구를 다시 만든다 — 보기만 되는 직원에게 '수량을 맞춘다'고 안내하지 않게
+  const howTo = step?.href === "/inventory/products" ? inventoryHowTo((k) => isMaster || hasPerm(k)) : step?.howTo;
   const loadingPrefs = permLoading || hiddenSteps === null;
   // 안내할 스텝이 하나도 안 남았으면(전부 개별 숨김) 자동 노출을 조용히 접는다
   const noContent = !loadingPrefs && steps.every((st) => !st.href);
@@ -430,18 +447,18 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
         <div className="app-tour-tip-step">{safeIdx + 1} / {steps.length}</div>
         <div className="app-tour-tip-title">{step.title}</div>
         <p className="app-tour-tip-desc">{step.desc}</p>
-        {step.howTo && (
+        {howTo && (
           <div className="app-tour-howto">
-            <div className="app-tour-howto-label">{step.howTo.label}</div>
+            <div className="app-tour-howto-label">{howTo.label}</div>
             <ol className="app-tour-howto-list">
-              {step.howTo.steps.map((t, i) => (
+              {howTo.steps.map((t, i) => (
                 <li key={i}>{t}</li>
               ))}
             </ol>
-            {step.howTo.link && (
+            {howTo.link && (
               // 새 탭으로 연다 — 현재 탭에서 이동하면 투어가 끊긴다
-              <a href={step.howTo.link.href} target="_blank" rel="noopener noreferrer" className="app-tour-howto-link">
-                {step.howTo.link.label} ↗
+              <a href={howTo.link.href} target="_blank" rel="noopener noreferrer" className="app-tour-howto-link">
+                {howTo.link.label} ↗
               </a>
             )}
           </div>

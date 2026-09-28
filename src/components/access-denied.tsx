@@ -8,15 +8,20 @@ import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Ico } from "@/components/ui-icon";
 import { useUser, type UserRole } from "@/components/user-context";
+import { useMyPermissions } from "@/lib/permissions";
 
 type RecMenu = { href: string; label: string; emoji: string };
 
+//   후보 목록 — 실제로는 **가진 메뉴만** 골라 앞 3개를 보인다(2026-09-28, 백로그 「가입 첫 주」).
+//   전에는 결재함을 권한과 무관하게 추천해 첫날 직원이 '권한 없음' 화면에서 또 '권한 없음' 화면으로 갔다.
 const RECOMMEND_BY_ROLE: Record<UserRole, RecMenu[]> = {
   //   2026-09-11 역할 폐지 — 대표·관리자·직원별 추천을 없애고 계정 종류로만 나눈다.
   member: [
     { href: "/dashboard", label: "대시보드", emoji: "🏠" },
     { href: "/approvals", label: "결재함", emoji: "📋" },
     { href: "/schedule", label: "일정", emoji: "📅" },
+    { href: "/chat", label: "메신저", emoji: "💬" },
+    { href: "/mypage", label: "마이페이지", emoji: "👤" },
   ],
   partner: [
     { href: "/dashboard", label: "대시보드", emoji: "🏠" },
@@ -43,7 +48,11 @@ export function AccessDenied({
 }) {
   const { role, user } = useUser();
   const qc = useQueryClient();
-  const recs = RECOMMEND_BY_ROLE[role] || RECOMMEND_BY_ROLE.member;
+  const { isMaster, hasMenu } = useMyPermissions();
+  //   대시보드는 누구나 — 권한을 아직 못 읽은 순간에도 갈 곳이 하나는 남게
+  const recs = (RECOMMEND_BY_ROLE[role] || RECOMMEND_BY_ROLE.member)
+    .filter((m) => m.href === "/dashboard" || isMaster || hasMenu(m.href))
+    .slice(0, 3);
   const roleLabel = (user as any)?.is_master ? "마스터" : ROLE_LABEL[role] || "사용자";
   // 이 화면이 떠 있는 동안 10초마다 권한 재확인 — 마스터가 방금 부여하면 자동으로 풀린다
   //   (2026-07-31: 템플릿 부여 직후 캐시로 '권한 없음'이 유지되던 문제)
