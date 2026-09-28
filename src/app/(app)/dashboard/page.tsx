@@ -49,7 +49,7 @@ import { ActivityCard, RecentProjects, RecentRevenue, RecentInvoices } from "@/c
 import { DashboardGrid, type CatalogWidget, type WidgetPreset }  from "@/components/dashboard-grid"; // 위젯 격자 · 같은 키·순서 드래그·보기 설정
 import  { BankRecentCard, ApprovalsPendingCard, EmployeesCard, PartnersCard, AnnouncementsCard, BoardCard, MyTasksCard, InventoryShortageCard } from "@/components/dashboard-menu-widgets"; // 카탈로그용 메뉴 위젯
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
-import { fetchTaxDeadlineChecks, setTaxDeadlineChecked } from "@/lib/tax-deadline-checks";
+import { fetchTaxDeadlineChecks, setTaxDeadlineChecked, taxCheckTitle, type TaxCheckInfo } from "@/lib/tax-deadline-checks";
 import { useCompanyBizNo } from "@/lib/use-company-bizno"; // 사업자번호 미등록 유도 배너 판정
 import { MorningBrief } from "@/components/morning-brief"; // AI 브리핑 — 격자 위 맨 윗줄
 
@@ -684,7 +684,7 @@ function TaxScheduleWidget({ items, companyId, userId }: { items: ReturnType<typ
   //     체크하면 흐리게 완료 표시(신호 6칸·AI 브리핑에서도 빠진다), 실수면 다시 눌러 해제.
   const qc = useQueryClient();
   const { toast } = useToast();
-  const { data: checked = new Set<string>() } = useQuery({
+  const { data: checked = new Map<string, TaxCheckInfo>() } = useQuery({
     queryKey: ["tax-deadline-checks", companyId],
     enabled: !!companyId,
     staleTime: 60_000,
@@ -707,7 +707,7 @@ function TaxScheduleWidget({ items, companyId, userId }: { items: ReturnType<typ
         return (
           <span key={t.id} className={done ? "dash-tax-row dash-tax-row-done" : "dash-tax-row"}>
             <button type="button" aria-label={done ? "납부 완료 해제" : "납부 완료로 표시"}
-              title={done ? "완료 표시 해제" : "납부를 마쳤으면 체크하세요."}
+              title={done ? `${taxCheckTitle(checked.get(t.id))} · 누르면 해제` : "납부를 마쳤으면 체크하세요."}
               onClick={() => toggle(t.id, !done)}
               className={done ? "dash-tax-chk dash-tax-chk-on" : "dash-tax-chk"}>{done ? "✓" : ""}</button>
             <Link href={t.href} className={`min-w-0 flex-1 text-[13px] truncate ${done ? "line-through text-[var(--text-dim)]" : "text-[var(--text)]"}`}>{t.title}</Link>

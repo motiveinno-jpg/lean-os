@@ -125,15 +125,17 @@ function buildTaxSchedules(today: Date, windowEnd: Date): ScheduleItem[] {
   }
   
   //   4대보험(국민연금·건강·고용·산재) 고지분 · 매월 10일. 급여 초안엔 회사 부담분이 없으니 여기서 잊지 않게.
+  //   2026-09-28: 전표 현황 › 처리할 것 › 결산 초안(그 전달)으로 바로 — 전에는 전표 현황 첫 탭에 떨어져 어디를 봐야 하는지 몰랐다.
   const ins = nextOccurrence(today, 10);
   if (ins  <= windowEnd) {
+    const insM = new Date(ins.getFullYear(), ins.getMonth() - 1, 1);
     items.push({
       id: `ins-${fmtDateKey(ins)}`,
       type: "tax",
       title: "4대보험 납부 (회사 부담분 전표 확인)",
       date: fmtDateKey(ins),
       daysLeft: daysBetween(today, ins),
-      href: "/finance/status",
+      href: `/finance/status?tab=todo&month=${insM.getFullYear()}-${String(insM.getMonth() + 1).padStart(2, "0")}`,
     });
   }
 

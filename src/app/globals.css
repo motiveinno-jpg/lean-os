@@ -10898,3 +10898,6 @@ table.table-lbl { min-width: 640px; }
 .ol-sg-note { @apply mb-2 text-[11px] leading-relaxed text-[var(--text-dim)]; }
 .ol-sg-foot { @apply mt-3 flex items-center justify-between gap-3 border-t border-[var(--border)] pt-3 text-[12px] text-[var(--text-muted)]; }
 .ol-sg-table th, .ol-sg-table td { @apply text-[12px]; }
+
+/* 부가세 신고서 준비 — 직전 기수 대비 한 줄 (2026-09-28) */
+.vr-prev td { @apply text-[11.5px] text-[var(--text-muted)]; }

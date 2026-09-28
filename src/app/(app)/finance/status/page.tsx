@@ -18,6 +18,7 @@ import { MonthSelect } from "@/components/month-select";
 import { makeRetirementVoucherDraft } from "@/lib/retirement";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
@@ -71,7 +72,13 @@ export default function FinanceStatusPage() {
     catch (e) { toast(friendlyError(e), "error"); }
   };
   //   ★ ERP 공백 ② — 결산 초안(재고자산 맞추기·급여)을 여기서 바로 만든다. 월 1일 새벽엔 자동. 확정은 아래 목록에서.
-  const [closeMonth, setCloseMonth] = useState(() => { const t = todayKst(); const y = Number(t.slice(0, 4)), m = Number(t.slice(5, 7)); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`; });
+  //   딥링크 ?tab=todo&month=YYYY-MM (2026-09-28) — 홈·세무 신고의 「4대보험 납부 (회사 부담분 전표 확인)」이 그 달 결산 초안 자리로 바로 온다
+  const searchParams = useSearchParams();
+  const [closeMonth, setCloseMonth] = useState(() => {
+    const q = searchParams?.get("month");
+    if (q && /^\d{4}-\d{2}$/.test(q)) return q;
+    const t = todayKst(); const y = Number(t.slice(0, 4)), m = Number(t.slice(5, 7)); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
+  });
   const [closeBusy, setCloseBusy] = useState<"inventory" | "payroll" | "depreciation" | "retirement" | null>(null);
   const makeCloseDraft = async (kind: "inventory" | "payroll" | "depreciation" | "retirement") => {
     if (closeBusy) return;
@@ -88,7 +95,7 @@ export default function FinanceStatusPage() {
     } catch (e) { toast(friendlyError(e), "error"); }
     finally { setCloseBusy(null); }
   };
-  const [tab, setTab] = useState<Tab>("all");
+  const [tab, setTab] = useState<Tab>(() => { const q = searchParams?.get("tab"); return TABS.some(([k]) => k === q) ? (q as Tab) : "all"; });
   const [from, setFrom] = useState(() => defaultRange().from);   // 최근 1개월 — 이번 달 1일 기본값은 매달 초 이틀치만 보여 전부 0으로 읽혔다 (2026-09-03)
   const [to, setTo] = useState(todayKst);
 
@@ -430,7 +437,7 @@ export default function FinanceStatusPage() {
                       <div className="fin-close-row">
                         <MonthSelect className="inv-input fin-close-month" value={closeMonth} onChange={setCloseMonth} ariaLabel="마감 월" />
                         <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("inventory")} title="기말 재고(층 원가)와 재고자산 계정 잔액의 차액을 전표 초안으로 · 제품·상품·원재료">{closeBusy === "inventory" ? "만드는 중…" : "재고자산 맞추기"}</button>
-                        <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("payroll")} title="그 달 발급된 급여명세 합계 · 차) 직원급여 / 대) 예수금·미지급금. 개인별 금액은 전표에 싣지 않습니다">{closeBusy === "payroll" ? "만드는 중…" : "급여 전표"}</button>
+                        <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("payroll")} title="그 달 발급된 급여명세 합계 · 차) 직원급여 / 대) 예수금·미지급금. 개인별 금액은 전표에 싣지 않습니다. 회사 부담 4대보험은 고지서 금액으로 일반전표에 따로 올립니다">{closeBusy === "payroll" ? "만드는 중…" : "급여 전표"}</button>
                         <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("depreciation")} title="등록된 고정자산의 그 달 감가상각 · 차) 감가상각비 / 대) 감가상각누계액, 자산별 줄">{closeBusy === "depreciation" ? "만드는 중…" : "감가상각"}</button>
                         <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("retirement")} title="재직자 퇴직금 추계와 퇴직급여충당부채 잔액의 차액을 전표 초안으로 만듭니다">{closeBusy === "retirement" ? "만드는 중…" : "퇴직급여충당"}</button>
                       </div>

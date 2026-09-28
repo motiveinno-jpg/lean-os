@@ -54,6 +54,45 @@ export function vatFilingNow(today = todayKst()):  { year: number; key: VatPerio
 const won = (n: number) => `₩${Math.round(n || 0).toLocaleString("ko-KR")}`;
 const num = (n: number) => Math.round(n || 0);
 
+/** 직전 기수 — 같은 종류끼리 잇는다(예정→직전 확정, 확정→같은 해 예정, 반기→직전 반기). 2026-09-28 증감 한 줄용 */
+export function prevVatPeriod(year: number, key: VatPeriodKey): { year: number; key: VatPeriodKey } {
+  switch (key) {
+    case "1p": return { year: year - 1, key: "2c" };
+    case "1c": return { year, key: "1p" };
+    case "1h": return { year: year - 1, key: "2h" };
+    case "2p": return { year, key: "1c" };
+    case "2c": return { year, key: "2p" };
+    default: return { year, key: "1h" };     // 2h
+  }
+}
+
+/** 확정 매입매출전표 — 신고기간 안. 이번 기수와 직전 기수가 같은 함수를 쓴다 */
+async function fetchVatRows(companyId: string, from: string, to: string): Promise<Row[]> {
+  const out: Row[] = []; const PAGE = 1000;
+  for (let page = 0; ; page++) {
+    const data = logRead("vat-return:rows", await (supabase as any).from("journal_entries")
+      .select("id, entry_date, vat_type, supply_amount, vat_amount, description, tax_invoices:linked_invoice_id(counterparty_name, counterparty_bizno), journal_lines(partner_id, partners(name, business_number))")
+      .eq("company_id", companyId).eq("entry_kind", "sale_purchase").eq("status", "confirmed")
+      .gte("entry_date", from).lte("entry_date", to).order("entry_date").range(page * PAGE, page * PAGE + PAGE - 1));
+    const list = (data || []) as any[];
+    for (const e of list) {
+      const pl = (e.journal_lines || []).find((l: any) => l.partners?.name);
+      const name = pl?.partners?.name || e.tax_invoices?.counterparty_name || null;
+      const bizno = pl?.partners?.business_number || e.tax_invoices?.counterparty_bizno || null;
+      out.push({ id: e.id, entry_date: e.entry_date, vat_type: e.vat_type, supply_amount: Number(e.supply_amount || 0), vat_amount: Number(e.vat_amount || 0), description: e.description,
+        partnerName: name, partnerBizno: bizno, partnerKey: bizno || name || "(거래처 없음)" });
+    }
+    if (list.length < PAGE) break;
+  }
+  return out;
+}
+
+/** 납부(환급)세액만 — 직전 기수 비교용. 본 집계(R)와 같은 유형 코드로 센다 */
+function payableOf(rows: Row[]): number {
+  const vat = (codes: string[]) => rows.filter((x) => codes.includes(String(x.vat_type || ""))).reduce((s, x) => s + x.vat_amount, 0);
+  return vat(["11"]) + vat(["17", "22"]) + vat(["12"]) - (vat(["51"]) + vat(["57", "61"]));
+}
+
 //   2026-09-03 대표: 신고기간은 칩 줄이 아니라 연도 옆 셀렉트로 — 조회 줄에 값 칩을 늘어놓지 않는다. 상태는 페이지(세무 신고)가 들고 내려준다.
 //   엑셀 내보내기는 집계(rows·R)가 이 안에 있어 exportRef 로 페이지 조회 줄 버튼에 넘긴다 — 다른 탭처럼 실행 버튼은 조회 줄 오른쪽.
 export function VatReturn({ companyId, year, period, exportRef }: { companyId: string | null; year: number; period: VatPeriodKey; exportRef?: MutableRefObject<(() => void) | null> }) {
@@ -64,25 +103,16 @@ export function VatReturn({ companyId, year, period, exportRef }: { companyId: s
   const { data: rows = [], isLoading } = useQuery<Row[]>({
     queryKey: ["vat-return-rows", companyId, from, to],
     enabled: !!companyId,
-    queryFn: async () => {
-      const out: Row[] = []; const PAGE = 1000;
-      for (let page = 0; ; page++) {
-        const data = logRead("vat-return:rows", await (supabase as any).from("journal_entries")
-          .select("id, entry_date, vat_type, supply_amount, vat_amount, description, tax_invoices:linked_invoice_id(counterparty_name, counterparty_bizno), journal_lines(partner_id, partners(name, business_number))")
-          .eq("company_id", companyId!).eq("entry_kind", "sale_purchase").eq("status", "confirmed")
-          .gte("entry_date", from).lte("entry_date", to).order("entry_date").range(page * PAGE, page * PAGE + PAGE - 1));
-        const list = (data || []) as any[];
-        for (const e of list) {
-          const pl = (e.journal_lines || []).find((l: any) => l.partners?.name);
-          const name = pl?.partners?.name || e.tax_invoices?.counterparty_name || null;
-          const bizno = pl?.partners?.business_number || e.tax_invoices?.counterparty_bizno || null;
-          out.push({ id: e.id, entry_date: e.entry_date, vat_type: e.vat_type, supply_amount: Number(e.supply_amount || 0), vat_amount: Number(e.vat_amount || 0), description: e.description,
-            partnerName: name, partnerBizno: bizno, partnerKey: bizno || name || "(거래처 없음)" });
-        }
-        if (list.length < PAGE) break;
-      }
-      return out;
-    },
+    queryFn: () => fetchVatRows(companyId!, from, to),
+  });
+  //   직전 기수 납부세액 — 증감 한 줄(2026-09-28). 같은 쿼리 키라 그 기수를 열어 봤으면 캐시를 그대로 쓴다
+  const prev = prevVatPeriod(year, period);
+  const PP = VAT_PERIODS.find((p) => p.key === prev.key)!;
+  const prevFrom = `${prev.year}-${PP.from}`, prevTo = `${prev.year}-${PP.to}`;
+  const { data: prevRows } = useQuery<Row[]>({
+    queryKey: ["vat-return-rows", companyId, prevFrom, prevTo],
+    enabled: !!companyId,
+    queryFn: () => fetchVatRows(companyId!, prevFrom, prevTo),
   });
 
   const R = useMemo(() => {
@@ -194,6 +224,17 @@ export function VatReturn({ companyId, year, period, exportRef }: { companyId: s
                   <Line label="(참고) 면세매입 (53·58·59)" b={R.p53} vatZero />
                   <Sum label="공제 매입세액 합계" n={R.p51.n + R.p57.n} supply={R.p51.supply + R.p57.supply} vat={R.deductible} />
                   <tr className="vr-total"><td className="text-left"><b>{R.payable >= 0 ? "납부세액" : "환급세액"}</b> = 매출세액 − 공제매입세액</td><td></td><td></td><td className="tr mono-number"><b>{won(Math.abs(R.payable))}</b></td></tr>
+                  {/* 직전 기수 대비 — 같은 종류(예정↔확정·반기)끼리. 전표가 없는 기수는 비교하지 않는다 */}
+                  <tr className="vr-prev"><td colSpan={4} className="text-left">
+                    {(() => {
+                      if (!prevRows) return <span className="ev-dim">직전 기수 읽는 중…</span>;
+                      const label = `${prev.year}년 ${PP.label.replace(/\s\(.*\)$/, "")}`;
+                      if (prevRows.length === 0) return <span className="ev-dim">직전 기수({label})는 확정 전표가 없어 비교하지 않습니다</span>;
+                      const p = payableOf(prevRows), d = R.payable - p;
+                      const pct = p !== 0 ? Math.round((d / Math.abs(p)) * 100) : null;
+                      return <>직전 기수({label}) {p >= 0 ? "납부" : "환급"} <b className="mono-number">{won(Math.abs(p))}</b> 대비 <b className={`mono-number ${d > 0 ? "vr-warn" : ""}`}>{d > 0 ? "▲" : d < 0 ? "▼" : "="} {won(Math.abs(d))}{pct !== null ? ` (${d > 0 ? "+" : d < 0 ? "−" : ""}${Math.abs(pct)}%)` : ""}</b></>;
+                    })()}
+                  </td></tr>
                 </tbody>
               </table>
             </div>

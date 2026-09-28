@@ -211,7 +211,7 @@ export function MorningBrief({
     };
     const todayStr = todayKst();
     //   납부 완료로 체크한 마감은 브리핑에 안 넣는다 (2026-08-31). 이미 낸 세금을 '긴급'으로 말하던 것
-    let taxChecked = new Set<string>();
+    let taxChecked: { has: (id: string) => boolean } = new Set<string>();
     if (myCompanyId) { try { taxChecked = await fetchTaxDeadlineChecks(myCompanyId); } catch { /* 조회 실패 시 전체 노출(안전한 쪽) */ } }
     const taxDeadlines = getUpcomingTaxDeadlines(30).filter((t) => !taxChecked.has(t.id)).slice(0, 4).map((t) => ({ title: t.title, daysLeft: t.daysLeft }));
     let todos: Array<{ title: string; priority: number; dueDate: string | null; overdue: boolean }> = [];
