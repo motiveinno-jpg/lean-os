@@ -956,6 +956,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .email-sent-steps { @apply bg-[var(--bg-surface)] rounded-xl p-4 mb-6 text-left; }
 .spam-notice { @apply bg-[var(--warning-dim)] border border-[var(--warning)]/25 rounded-xl p-3 mb-6 text-left; }
 .auth-error-banner { @apply mb-4 p-3 rounded-lg bg-[var(--danger-dim)] border border-[var(--danger)]/20 text-[var(--danger)] text-sm; }
+.auth-notice-banner { @apply mb-4 p-3 rounded-lg bg-[var(--info-dim)] border border-[var(--info)]/20 text-[var(--info)] text-sm; }
 .resend-email-btn { @apply w-full py-3 bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text)] rounded-xl font-semibold text-sm transition border border-[var(--border)] disabled:opacity-50 mb-3; }
 .change-email-btn { @apply w-full py-3 text-[var(--text-muted)] hover:text-[var(--text)] text-sm font-medium transition; }
 .auth-page { @apply min-h-screen flex items-center justify-center px-4; }

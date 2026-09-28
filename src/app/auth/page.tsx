@@ -63,6 +63,8 @@ export default function AuthPage() {
   const [bizCheck, setBizCheck] = useState<"unchecked" | "checking" | "available" | "registered" | "error">("unchecked");
   const [bizCheckedDigits, setBizCheckedDigits] = useState("");
   const [error, setError] = useState("");
+  // 오류가 아닌 안내(메일 링크 처리 결과 등) — /api/auth/callback 이 ?notice= 로 넘긴다
+  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -111,6 +113,16 @@ export default function AuthPage() {
       const qs = sp.toString();
       window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
       return;
+    }
+    const NOTICES: Record<string, string> = {
+      email_change_pending: "이 주소의 확인이 끝났습니다. 다른 주소로 간 메일의 버튼도 눌러야 이메일 변경이 완료됩니다.",
+    };
+    const noticeText = NOTICES[sp.get("notice") || ""];
+    if (noticeText) {
+      setNotice(noticeText);
+      sp.delete("notice");
+      const qsN = sp.toString();
+      window.history.replaceState(null, "", window.location.pathname + (qsN ? `?${qsN}` : ""));
     }
     if (sp.get("error") === "auth_callback_error") {
       setError("소셜 로그인이 완료되지 않았습니다. 동의를 거부했거나 링크가 만료됐을 수 있습니다. 다시 시도해 주세요.");
@@ -534,6 +546,11 @@ export default function AuthPage() {
           {error && (
             <div role="alert" className="auth-error-banner">
               {error}
+            </div>
+          )}
+          {notice && !error && (
+            <div role="status" className="auth-notice-banner">
+              {notice}
             </div>
           )}
 

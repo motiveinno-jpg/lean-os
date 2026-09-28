@@ -46,7 +46,12 @@ export async function GET(request: NextRequest) {
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (!error) return NextResponse.redirect(`${origin}${next}`);
     } else {
-      const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash!, type: otpType! });
+      const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash!, type: otpType! });
+      //   이메일 변경은 옛 주소·새 주소 두 통을 다 눌러야 끝난다. 먼저 누른 쪽은 세션 없이 성공만 돌아오므로
+      //   그대로 next 로 보내면 설명 없이 로그인 화면이 뜬다 — 나머지 한 통을 누르라고 알린다.
+      if (!error && otpType === 'email_change' && !data.session) {
+        return NextResponse.redirect(`${origin}/auth?notice=email_change_pending`);
+      }
       if (!error) return NextResponse.redirect(`${origin}${next}`);
       //   만료·이미 사용된 링크 — 가입 확인은 대개 이미 끝난 상태라 로그인하면 된다
       return NextResponse.redirect(`${origin}/auth?error=${otpType === 'recovery' ? 'recovery_link_invalid' : 'email_link_invalid'}`);
