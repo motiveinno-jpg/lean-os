@@ -320,7 +320,7 @@ export default function OutlookPage() {
                   <div className="pnl-drill-body"><table className="ev-table ev-lined pnl-mini-table ol-sg-table">
                     <thead><tr><th>월</th><th>지급일</th><th>급여 출금 합</th></tr></thead>
                     <tbody>{payrollQ.data.sample.map((s) => (
-                      <tr key={s.month}><td className="text-center mono-number">{s.month}</td><td className="text-center mono-number">{s.date}</td><td className="text-right mono-number">{won(-s.amount)}</td></tr>
+                      <tr key={s.month}><td className="text-center mono-number">{s.month}</td><td className="text-center mono-number">{s.date}</td><td className="text-right mono-number">{won(s.amount)}</td></tr>
                     ))}</tbody>
                   </table></div>
                   <div className="ol-sg-foot">
