@@ -24,7 +24,8 @@ export default function FindEmailPage() {
       //   2026-08-28: users 직접 조회 → SECURITY DEFINER RPC 로 이전.
       //   직접 조회는 익명에겐 RLS 로 항상 0건(기능이 죽어 있었음)이고, 운영자 계정으로 열면
       //   전 고객사 명단이 검색되는 누수였다. RPC 는 이름 정확 일치·서버 마스킹·최대 5건만 반환.
-      const { data, error: dbError } = await (supabase.rpc as any)("find_masked_emails_by_name", { p_name: name.trim() });
+      //   전화번호를 넣으면 구성원 정보의 전화번호가 같은 사람만 — 동명이인을 걸러 낸다
+      const { data, error: dbError } = await (supabase.rpc as any)("find_masked_emails_by_name", { p_name: name.trim(), p_phone: phone.trim() || null });
 
       if (dbError) {
         setLoading(false);
@@ -134,7 +135,7 @@ export default function FindEmailPage() {
                   className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
                 />
                 <p className="text-xs text-[var(--text-dim)] mt-1">
-                  전화번호가 등록되어 있는 경우 더 정확한 결과를 제공합니다.
+                  구성원 정보에 등록한 전화번호와 같은 계정만 찾습니다.
                 </p>
               </div>
               <button

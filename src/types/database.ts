@@ -19525,7 +19525,7 @@ export type Database = {
         }[]
       }
       find_masked_emails_by_name: {
-        Args: { p_name: string }
+        Args: { p_name: string; p_phone?: string }
         Returns: string[]
       }
       find_or_create_bank_partner: {
