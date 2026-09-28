@@ -408,6 +408,9 @@ async function handleInvoicePaid(invoice: Stripe.Invoice, eventId?: string) {
   if (dup) {
     // 인보이스는 이미 기록됨. 결제 알림 메일은 자체 멱등(billing_email_deliveries)이라 재시도 안전.
     await notifyBillingPaid(invoice, sub, amountWon, eventId);
+    await emailCustomerStripe({ kind: 'paid', company_id: sub.company_id, dedupe_key: `stripe:${invoice.id}:paid`,
+      amount_krw: amountWon, description: invoice.lines?.data?.[0]?.description || '오너뷰 구독 이용료',
+      next_billing_at: invoiceLineEnd(invoice), receipt_url: invoice.hosted_invoice_url || null });
     return;
   }
 
@@ -440,6 +443,8 @@ async function handleInvoicePaid(invoice: Stripe.Invoice, eventId?: string) {
     status: 'paid',
     description: invoice.lines?.data?.[0]?.description || '구독 결제',
     stripe_invoice_id: invoice.id,
+    //   고객이 영수증을 다시 볼 수 있게 — 청구서 표의 '영수증' 버튼이 연다
+    stripe_invoice_url: invoice.hosted_invoice_url || null,
     paid_at: now.toISOString(),
   });
 
@@ -456,6 +461,31 @@ async function handleInvoicePaid(invoice: Stripe.Invoice, eventId?: string) {
 
   // 결제 성공 내부 알림 메일 (실결제만). 인보이스 기록 후 트리거 — 메일 실패는 웹훅에 영향 없음.
   await notifyBillingPaid(invoice, sub, amountWon, eventId);
+  if (amountWon > 0) await emailCustomerStripe({ kind: 'paid', company_id: sub.company_id, dedupe_key: `stripe:${invoice.id}:paid`,
+    amount_krw: amountWon, description: invoice.lines?.data?.[0]?.description || '오너뷰 구독 이용료',
+    next_billing_at: invoiceLineEnd(invoice), receipt_url: invoice.hosted_invoice_url || null });
+}
+
+// 이번 청구서가 덮는 기간의 끝 = 다음 결제일 (구독 행은 웹훅 순서에 따라 아직 옛 값일 수 있다)
+function invoiceLineEnd(invoice: Stripe.Invoice): string | null {
+  const end = invoice.lines?.data?.[0]?.period?.end;
+  return end ? new Date(end * 1000).toISOString() : null;
+}
+
+// 고객(회사 마스터)에게 결제 결과 메일 — 토스와 같은 엣지(send-billing-customer-email). 실패는 삼킨다.
+async function emailCustomerStripe(payload: Record<string, unknown>) {
+  try {
+    const hookSecret = process.env.BILLING_HOOK_SECRET;
+    if (!hookSecret) return;
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-billing-customer-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-internal-secret': hookSecret, apikey: anon, Authorization: `Bearer ${anon}` },
+      body: JSON.stringify({ provider: 'stripe', ...payload }),
+    });
+  } catch (e) {
+    Sentry.captureException(e instanceof Error ? e : new Error('billing customer email error'), { tags: { scope: 'billing-customer-email' } });
+  }
 }
 
 // creative@mo-tive.com 결제 알림 발송(엣지 위임). amount>0(실결제)만, 0원 트라이얼 invoice 제외.
@@ -565,6 +595,12 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice, eventId?: str
 
   // 운영자(creative@mo-tive.com) 내부 실패 알림 메일 — 실패는 event_id 로 멱등(성공 메일 invoice_id 키와 분리).
   await notifyBillingFailed(invoice, sub, amountDue, eventId);
+  //   고객에게도 — 전에는 앱 안 알림뿐이었다. 재시도는 Stripe 가 하므로 다음 재시도일은 Stripe 값을 쓴다.
+  const nextAttempt = (invoice as any).next_payment_attempt as number | null | undefined;
+  await emailCustomerStripe({ kind: 'failed', company_id: sub.company_id,
+    dedupe_key: `stripe:${invoice.id}:failed:${(invoice as any).attempt_count ?? eventId ?? ''}`,
+    amount_krw: amountDue, fail_reason: (invoice as any).last_finalization_error?.message || '카드 결제 거절',
+    exhausted: !nextAttempt, next_retry_at: nextAttempt ? new Date(nextAttempt * 1000).toISOString() : null });
 
   await db.from('billing_events').insert({
     company_id: sub.company_id,

@@ -1136,7 +1136,7 @@ function BillingPageInner() {
           {/* 국내카드(토스) 자동결제 — 해외카드 Stripe 와 별도 등록 (2026-08-06) */}
           <TossCardSection companyId={companyId} isMaster={billingIsMaster} />
 
-          <p className="billing-note">국내카드는 토스페이먼츠, 해외카드는 Stripe 로 안전하게 결제(PCI DSS Level 1) · 결제 즉시 기능이 열립니다(무료체험 없음) · VAT 10% 별도 · 결제 실패 시 3일 뒤 재시도, 3회 실패하면 무료로 전환.</p>
+          <p className="billing-note">국내카드는 토스페이먼츠, 해외카드는 Stripe 로 안전하게 결제(PCI DSS Level 1) · 결제 즉시 기능이 열립니다(무료체험 없음) · VAT 10% 별도 · 결제 실패 시 다음 날부터 두 번 더 재시도(카드를 바꾸면 그 카드로), 세 번 모두 실패하면 결제일 3일 뒤 무료로 전환.</p>
 
           {/* 청구서 표 */}
           <div className="billing-sec">
@@ -1160,6 +1160,12 @@ function BillingPageInner() {
                         <td className="tr mono-number font-semibold">₩{(inv.total_amount || 0).toLocaleString()}</td>
                         <td className="tc"><span className={cls}>{statusLabel}</span></td>
                         <td className="tr">
+                          {/* 카드 매출전표(토스)·영수증(Stripe) — 부가세 매입 증빙 */}
+                          {(inv.receipt_url || inv.stripe_invoice_url) && (
+                            <a href={inv.receipt_url || inv.stripe_invoice_url} target="_blank" rel="noopener noreferrer" className="btn-secondary btn-sm mr-1">
+                              {inv.receipt_url ? "카드전표" : "영수증"}
+                            </a>
+                          )}
                           {inv.status === "failed" && hasStripeSubscription && (
                             <button onClick={handleOpenPortal} disabled={isPaymentLoading} className="btn-secondary btn-sm text-[var(--danger)] mr-1">재시도</button>
                           )}

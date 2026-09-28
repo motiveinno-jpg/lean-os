@@ -28,8 +28,10 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const MAX_RETRIES = 3;      // 3회 실패하면 미납(past_due)
-const RETRY_AFTER_DAYS = 3; // 화면 안내와 동일: "결제 실패 시 3일 후 재시도"
+const MAX_RETRIES = 3;      // 3회 실패하면 미납(past_due) — 그 뒤로는 자동 재시도하지 않는다
+//   다음 날 재시도 (2026-09-28, 전: 3일). 이용권은 기간 만료 + 3일(get_company_entitlement)까지라
+//   3일 간격이면 2·3회차 재시도가 이미 무료로 떨어진 뒤(4일·7일째)에 돌았다. 1일 간격이면 세 번 모두 유예 안.
+const RETRY_AFTER_DAYS = 1;
 const VAT_RATE = 0.1;
 
 function json(body: unknown, status = 200): Response {
@@ -70,6 +72,22 @@ function addPeriod(from: Date, cycle: string): Date {
 type ChargeOutcome = { companyId: string; ok: boolean; amount?: number; error?: string; code?: string };
 
 // 결제 실패를 회사 마스터에게 알린다(인앱) — billing_events 에만 남으면 아무도 못 본다.
+// 고객(회사 마스터)에게 결제 결과 메일 — send-billing-customer-email 이 받는 사람·중복을 맡는다.
+//   메일 실패가 결제 처리를 막지 않게 전부 삼킨다.
+async function emailCustomer(payload: Record<string, unknown>) {
+  try {
+    const secret = Deno.env.get("BILLING_HOOK_SECRET");
+    if (!secret) return;
+    await tfetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-billing-customer-email`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-internal-secret": secret, Authorization: `Bearer ${Deno.env.get("SUPABASE_ANON_KEY") || ""}` },
+      body: JSON.stringify({ provider: "toss", ...payload }),
+    });
+  } catch (e) {
+    console.error("emailCustomer failed", (e as Error)?.message);
+  }
+}
+
 async function notifyPaymentFailed(
   supabase: any, companyId: string, amount: number, message: string, exhausted: boolean,
 ) {
@@ -83,7 +101,7 @@ async function notifyPaymentFailed(
       title: exhausted ? "결제 실패 — 서비스가 곧 제한됩니다" : "구독 결제가 실패했습니다",
       message: exhausted
         ? `${amount.toLocaleString("ko-KR")}원 결제가 3회 모두 실패했습니다. 결제수단을 다시 등록해 주세요. (${message})`
-        : `${amount.toLocaleString("ko-KR")}원 결제가 실패했습니다. 3일 뒤 다시 시도합니다. (${message})`,
+        : `${amount.toLocaleString("ko-KR")}원 결제가 실패했습니다. 내일 다시 시도합니다 — 카드를 바꾸면 새 카드로 결제합니다. (${message})`,
       link: "/billing",
     }));
     if (rows.length) await supabase.from("notifications").insert(rows);
@@ -349,9 +367,20 @@ serve(withSentry("toss-charge", async (req: Request) => {
   const { data: subs, error: subErr } = await q;
   if (subErr) return json({ error: subErr.message }, 500);
 
-  const targets = (subs || []).filter((s: any) =>
-    mode === "one" || mode === "start" || !s.next_retry_at || s.next_retry_at <= nowIso
-  );
+  const targets = (subs || []).filter((s: any) => {
+    if (mode === "one" || mode === "start") return true;
+    //   재시도를 다 쓴 미납은 cron 이 더 부르지 않는다 — 전에는 next_retry_at 이 비어 매일 청구 시도·
+    //   '결제 실패' 알림을 되풀이했다. 고객이 카드를 바꿔 결제하기(start)로 다시 시작한다.
+    if (s.status === "past_due" && (s.payment_retry_count || 0) >= MAX_RETRIES) return false;
+    return !s.next_retry_at || s.next_retry_at <= nowIso;
+  });
+  //   mode "one"(마스터 본인)은 청구일이 됐거나 미납인 구독만 — 전에는 아무 때나 다음 주기를 미리 청구할 수 있었다.
+  if (mode === "one" && !isService) {
+    const t = targets[0] as any;
+    if (t && t.status !== "past_due" && t.current_period_end && t.current_period_end > nowIso) {
+      return json({ error: "아직 결제일이 아닙니다." }, 400);
+    }
+  }
   if (targets.length === 0) {
     if (mode === "start" && startRollback) {
       await startRollback();
@@ -527,6 +556,12 @@ serve(withSentry("toss-charge", async (req: Request) => {
       // 첫 결제 도중 죽은 행의 회수 — 그때 쓰던 키를 재사용해야 이중 출금이 안 된다 (R-1).
       orderId = s.last_payment_error.slice("start_in_progress:".length) || orderId;
     }
+    else if ((s.payment_retry_count || 0) > 0) {
+      //   재시도는 회차마다 새 주문번호 — 같은 번호(=같은 Idempotency-Key)로 다시 보내면 토스가
+      //   첫 실패 응답을 그대로 돌려줘 카드를 바꿔도 영영 성공하지 못했다. 승인됐는데 기록 전에 죽은
+      //   경우는 실패 횟수가 안 올라가 같은 번호로 돌아오므로 이중 출금은 그대로 막힌다.
+      orderId = `${orderId}-r${s.payment_retry_count}`;
+    }
     const orderName = `오너뷰 ${plan.slug === "standard" ? "구독" : plan.slug} ${yearly ? "연간" : "월"} 이용료`;
 
     let payment: Record<string, any> | null = null;
@@ -571,6 +606,8 @@ serve(withSentry("toss-charge", async (req: Request) => {
         status: "paid",
         toss_payment_key: payment.paymentKey,
         toss_order_id: orderId,
+        //   카드 매출전표 — 고객의 부가세 매입 증빙. 전에는 저장하지 않아 고객이 받을 길이 없었다.
+        receipt_url: payment.receipt?.url || null,
         paid_at: payment.approvedAt || new Date().toISOString(),
         description: prorationAmount > 0
           ? `${orderName} (좌석 ${actualSeats}명, 중도 합류 일할 ${prorationAmount.toLocaleString("ko-KR")}원 가산)`
@@ -608,6 +645,12 @@ serve(withSentry("toss-charge", async (req: Request) => {
         metadata: { orderId, amount: total, paymentKey: payment.paymentKey, provider: "toss",
           seats: actualSeats, previousSeats: oldSeats, proration: prorationAmount, prorationDetail, creditUnapplied },
       });
+      await emailCustomer({
+        kind: "paid", company_id: s.company_id, dedupe_key: `toss:${orderId}:paid`,
+        amount_krw: total, supply_krw: supply, vat_krw: tax, description: orderName,
+        period_start: periodStart.toISOString(), period_end: periodEnd.toISOString(), next_billing_at: periodEnd.toISOString(),
+        receipt_url: payment.receipt?.url || null,
+      });
       results.push({ companyId: s.company_id, ok: true, amount: total });
       continue;
     }
@@ -628,7 +671,16 @@ serve(withSentry("toss-charge", async (req: Request) => {
       metadata: { orderId, amount: total, code: failCode, message: failMsg, attempt: nextCount, exhausted, provider: "toss" },
     });
     // start 실패는 아래서 즉시 화면에 보여주고 구독을 되돌린다 — "3일 뒤 재시도" 알림은 갱신 결제만.
-    if (mode !== "start") await notifyPaymentFailed(supabase, s.company_id, total, failMsg, exhausted);
+    if (mode !== "start") {
+      await notifyPaymentFailed(supabase, s.company_id, total, failMsg, exhausted);
+      //   이용권은 결제일(= 지난 주기 끝) + 3일까지 — get_company_entitlement 와 같은 유예
+      await emailCustomer({
+        kind: "failed", company_id: s.company_id, dedupe_key: `toss:${orderId}:failed`,
+        amount_krw: total, fail_reason: failMsg, exhausted,
+        next_retry_at: exhausted ? null : nextRetry.toISOString(),
+        access_until: new Date(periodStart.getTime() + 3 * 86400_000).toISOString(),
+      });
+    }
     results.push({ companyId: s.company_id, ok: false, error: failMsg, code: failCode });
   }
 
