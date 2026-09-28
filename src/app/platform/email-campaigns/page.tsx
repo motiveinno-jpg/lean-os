@@ -10,7 +10,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { appConfirm } from "@/components/global-confirm";
-import { kstDateStr } from "@/lib/kst";
+import { kstDateStr, kstDateTime } from "@/lib/kst";
 import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfEmpty, PfSkeleton } from "@/app/platform/_components/pf/ui";
 
 const db = supabase;
@@ -29,6 +29,25 @@ const STATUS: Record<string, { tone: "ok" | "info" | "warn" | "muted"; label: st
   failed: { tone: "warn", label: "실패" },
   draft: { tone: "muted", label: "초안" },
 };
+
+/** 이력 표에서 눌러 주소를 볼 수 있는 결과 */
+const DETAIL_LABEL: Record<string, string> = {
+  bounced: "반송", complained: "스팸 신고", skipped_duplicate: "중복 제외", skipped_optout: "수신거부 제외", failed: "실패",
+};
+type Recipient = { email: string; status: string; error: string | null; sent_at: string | null; updated_at: string | null };
+
+/** Resend 가 주는 영어 사유를 한 줄 우리말로 — 원문은 title 로 남긴다 */
+function reasonOf(r: Recipient): string {
+  const e = (r.error || "").toLowerCase();
+  if (r.status === "complained") return "받는 사람이 스팸으로 신고";
+  if (r.status === "skipped_duplicate") return "최근에 이미 받은 주소";
+  if (r.status === "skipped_optout") return "수신거부·반송 이력";
+  if (e.includes("hard bounce")) return "없는 주소이거나 영구 거부 (영구 반송)";
+  if (e.includes("general bounce")) return "받는 쪽 일시 문제 (일시 반송)";
+  if (e.includes("mailbox") && e.includes("full")) return "받은편지함 용량 초과";
+  if (r.status === "bounced") return "반송 (사유 미상)";
+  return r.error || "";
+}
 
 /** 이전 발송과 겹치는 주소를 어디까지 거슬러 올라가 뺄지 (일) */
 const DEDUPE_OPTIONS = [
@@ -51,6 +70,8 @@ export default function PlatformEmailCampaignsPage() {
   const [bodyText, setBodyText] = useState("");
   const [listText, setListText] = useState("");
   const [dedupeDays, setDedupeDays] = useState(30);
+  const [detail, setDetail] = useState<{ campaign: Campaign; status: string } | null>(null);
+  const [copied, setCopied] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState<"preview" | "send" | null>(null);
   const [msg, setMsg] = useState<{ tone: "ok" | "warn"; text: string } | null>(null);
@@ -67,6 +88,25 @@ export default function PlatformEmailCampaignsPage() {
     },
     refetchInterval: 30_000,
   });
+
+  const { data: detailRows = [], isLoading: detailLoading } = useQuery<Recipient[]>({
+    queryKey: ["op-email-campaign-recipients", detail?.campaign.id, detail?.status],
+    enabled: !!detail,
+    queryFn: async () => {
+      const { data, error } = await (db.rpc as any)("operator_list_campaign_recipients",
+        { p_campaign: detail!.campaign.id, p_status: detail!.status, p_limit: 1000 });
+      if (error) throw error;
+      return (data || []) as Recipient[];
+    },
+  });
+
+  const openDetail = (campaign: Campaign, status: string) => {
+    setCopied(false);
+    setDetail((d) => (d && d.campaign.id === campaign.id && d.status === status ? null : { campaign, status }));
+  };
+  const copyEmails = () => {
+    try { navigator.clipboard?.writeText(detailRows.map((r) => r.email).join("\n")).then(() => setCopied(true)).catch(() => {}); } catch { /* ignore */ }
+  };
 
   const call = async (dryRun: boolean) => {
     const { data, error } = await db.functions.invoke("email-campaign-send", {
@@ -207,12 +247,12 @@ export default function PlatformEmailCampaignsPage() {
                         <td><PfBadge tone={st.tone}>{st.label}</PfBadge></td>
                         <td className="text-right mono-number">{c.total.toLocaleString()}</td>
                         <td className="text-right mono-number">{c.sent_count.toLocaleString()}</td>
-                        <td className="text-right mono-number">{c.skipped_optout.toLocaleString()}</td>
-                        <td className="text-right mono-number">{(c.skipped_duplicate ?? 0).toLocaleString()}</td>
-                        <td className="text-right mono-number">{c.failed_count.toLocaleString()}</td>
+                        <td className="text-right mono-number"><CountCell n={c.skipped_optout} active={detail?.campaign.id === c.id && detail.status === "skipped_optout"} onClick={() => openDetail(c, "skipped_optout")} /></td>
+                        <td className="text-right mono-number"><CountCell n={(c.skipped_duplicate ?? 0)} active={detail?.campaign.id === c.id && detail.status === "skipped_duplicate"} onClick={() => openDetail(c, "skipped_duplicate")} /></td>
+                        <td className="text-right mono-number"><CountCell n={c.failed_count} active={detail?.campaign.id === c.id && detail.status === "failed"} onClick={() => openDetail(c, "failed")} /></td>
                         <td className="text-right mono-number">{Number(c.delivered).toLocaleString()}</td>
-                        <td className="text-right mono-number">{Number(c.bounced).toLocaleString()}</td>
-                        <td className="text-right mono-number">{Number(c.complained).toLocaleString()}</td>
+                        <td className="text-right mono-number"><CountCell n={Number(c.bounced)} active={detail?.campaign.id === c.id && detail.status === "bounced"} onClick={() => openDetail(c, "bounced")} /></td>
+                        <td className="text-right mono-number"><CountCell n={Number(c.complained)} active={detail?.campaign.id === c.id && detail.status === "complained"} onClick={() => openDetail(c, "complained")} /></td>
                       </tr>
                     );
                   })}
@@ -220,8 +260,52 @@ export default function PlatformEmailCampaignsPage() {
               </table>
             </div>
           )}
+          {detail && (
+            <div className="mt-4 rounded-md border border-[var(--border)] p-3">
+              <div className="flex items-center gap-2 flex-wrap mb-2">
+                <b className="text-sm">{DETAIL_LABEL[detail.status]} 주소 {detailLoading ? "" : `${detailRows.length.toLocaleString()}개`}</b>
+                <span className="text-xs text-[var(--text-dim)] truncate max-w-[420px]">{kstDateTime(detail.campaign.sent_at || detail.campaign.created_at)} · {detail.campaign.subject}</span>
+                <span className="ml-auto" />
+                {detailRows.length > 0 && (
+                  <button type="button" className="btn-secondary btn-sm" onClick={copyEmails}>{copied ? "복사했습니다" : "주소 복사"}</button>
+                )}
+                <button type="button" className="btn-secondary btn-sm" onClick={() => setDetail(null)}>닫기</button>
+              </div>
+              {(detail.status === "bounced" || detail.status === "complained") && (
+                <p className="text-xs text-[var(--text-dim)] mb-2">이 주소들은 수신거부 목록에 들어가 다음 발송부터 자동으로 빠집니다.</p>
+              )}
+              {detailLoading ? <PfSkeleton rows={3} /> : detailRows.length === 0 ? <PfEmpty>해당 주소가 없습니다.</PfEmpty> : (
+                <div className="overflow-auto max-h-[360px]">
+                  <table className="pf-table">
+                    <thead><tr><th>주소</th><th>사유</th><th>시각</th></tr></thead>
+                    <tbody>
+                      {detailRows.map((r) => (
+                        <tr key={r.email}>
+                          <td className="font-mono text-[12px]">{r.email}</td>
+                          <td className="text-[var(--text-muted)]" title={r.error || undefined}>{reasonOf(r)}</td>
+                          <td className="whitespace-nowrap text-[var(--text-muted)]">{kstDateTime(r.updated_at)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </PfCardBody>
       </PfCard>
     </PfPage>
+  );
+}
+
+/** 이력 표 숫자 — 0 이 아니면 눌러서 그 주소 목록을 연다 */
+function CountCell({ n, active, onClick }: { n: number; active: boolean; onClick: () => void }) {
+  const v = Number(n || 0);
+  if (v === 0) return <>0</>;
+  return (
+    <button type="button" onClick={onClick} title="눌러서 주소 보기"
+      className={`underline decoration-dotted underline-offset-2 hover:text-[var(--primary)] ${active ? "text-[var(--primary)] font-semibold" : ""}`}>
+      {v.toLocaleString()}
+    </button>
   );
 }
