@@ -214,9 +214,9 @@ ${COMMON_RULES}
 - 계정과목별 비용·수익("복리후생비 얼마 썼어", "계정별 비용", "어디에 돈 많이 썼어")은 get_expense_by_account 로 답하세요. "회계 모듈에 없다"고 답하지 마세요 — 확정 전표(장부) 기준으로 집계됩니다. 결과가 0이면 전표 미처리 자료가 있다는 뜻이니 수집·전표 화면 안내를 곁들이세요.
 - 돈 숫자는 화면과 같은 기준 한 벌만 씁니다(스냅샷의 cash·receivables·payables·month_pnl 과 아래 툴이 같은 값). 같은 질문에 날마다 다른 기준으로 답하면 신뢰를 잃습니다.
   · 현금·잔고 = cash.total(경영요약 화면과 같음). 계좌별은 list_bank_accounts.
-  · 미수금·외상매출금 = receivables.balance, 미지급·외상매입금 = payables.balance (확정 전표 잔액 = 재무상태표·거래처 원장과 같음). 거래처별은 list_receivables. top_partners 를 더해 총액을 만들지 마세요. 세금계산서 발행액·get_tax_invoices 로 미수를 계산하지 마세요.
+  · 미수금·외상매출금 = receivables.balance, 미지급·외상매입금 = payables.balance (거래처별 세금계산서 잔액 — 발행액에서 입금 정산·수정 계산서를 뺀 것, 대시보드 미수금·경영요약과 같음. over30 은 30일 넘게 밀린 몫). 거래처별은 list_receivables. top_partners 를 더해 총액을 만들지 마세요. 세금계산서 발행액·get_tax_invoices 로 미수를 계산하지 마세요.
   · 손익(매출·비용·영업이익·순이익) = month_pnl(확정 전표 기준 = 손익계산서 화면과 같음). 과거 월은 get_month_summary 의 pnl. 통장 입출금(this_month.bank_*)이나 세금계산서 발행액을 손익이라고 부르지 마세요 — 그건 "통장에 들어온 돈", "계산서 발행액"이라고 따로 부릅니다.
-  · 숫자마다 기준을 한 줄로 밝히세요(예: "장부(확정 전표) 기준", "통장 마지막 동기화 기준").
+  · 숫자마다 기준을 한 줄로 밝히세요(예: "세금계산서 잔액 기준", "확정 전표 기준", "통장 마지막 동기화 기준").
   · 빠진 자료가 있으면 숫자와 함께 반드시 말하세요: receivables.unposted_sales_invoices·payables.unposted_purchase_invoices(전표 안 친 계산서), month_pnl.unposted_in_month(이달 전표 안 친 계산서·카드·통장). 예: "장부 기준 X억 원 — 단, 전표 안 친 매출 계산서 N건(약 Y억 원)은 빠져 있습니다". 손익이 0인데 미처리가 있으면 "이익이 0"이 아니라 "이달 전표가 아직 안 쳐져 손익을 알 수 없다"고 답하고 수집·전표 화면을 안내하세요.
   · 사용자가 "올해 발행분만"처럼 기간을 정해 계산서 기준을 원하면 get_tax_invoices 로 발행액을 답하되, 그것이 장부 미수와 다른 숫자라고 밝히세요.
 - 결재 양식(신청서·품의서 등 서식)의 존재·목록은 list_approval_forms, 특정 양식의 현재 항목 구성은 get_approval_form 으로 확인하세요.
@@ -632,7 +632,7 @@ const MANAGER_READ_TOOLS = [
   },
   {
     name: "list_receivables",
-    description: "장부(확정 전표) 기준 외상매출금(미수)·외상매입금(미지급) 총액과 거래처별 상위 잔액을 반환합니다. 재무상태표·거래처 원장과 같은 숫자입니다. '미수금 얼마야', '누가 돈 안 줬어', '갚을 돈 얼마야' 질문에 쓰세요.",
+    description: "받을 돈(미수)·낼 돈(미지급) 총액, 30일 넘게 밀린 몫, 거래처별 상위 잔액을 반환합니다(세금계산서 잔액 기준 — 대시보드 미수금과 같은 숫자). '미수금 얼마야', '누가 돈 안 줬어', '갚을 돈 얼마야' 질문에 쓰세요.",
     input_schema: {
       type: "object", additionalProperties: false,
       properties: {
@@ -1803,7 +1803,7 @@ async function executeReadTool(
   }
 
   if (name === "list_receivables") {
-    // 장부(확정 전표) 외상매출금·외상매입금 잔액 — 재무상태표·거래처 원장과 같은 기준.
+    // 거래처별 세금계산서 잔액(receivables_by_partner) — 대시보드 미수금 위젯·경영요약과 같은 기준.
     //   종전엔 올해 발행 계산서를 금액순으로 N건만 돌려줘 모델이 그걸 더해 '미수 합계'를 만들었고,
     //   입금 정산 기록(settled_amount)을 안 봐 받은 돈도 미수로 남았다.
     const facts = await loadFinanceFacts(admin, companyId);
@@ -1815,7 +1815,7 @@ async function executeReadTool(
       top_partners: ((side.top_partners ?? []) as unknown[]).slice(0, n),
       note: input.type === "purchase"
         ? "balance 가 외상매입금(갚을 돈) 총액입니다 — top_partners 를 더해 총액을 만들지 마세요. unposted_purchase_invoices 는 아직 전표를 안 친 매입 계산서라 balance 에 빠져 있으니, 건수가 있으면 '전표 미처리 N건(약 X원)은 빠진 숫자'라고 함께 말하세요."
-        : "balance 가 외상매출금(받을 돈) 총액입니다 — top_partners 를 더해 총액을 만들지 마세요. unposted_sales_invoices 는 아직 전표를 안 친 매출 계산서라 balance 에 빠져 있으니, 건수가 있으면 '전표 미처리 N건(약 X원)은 빠진 숫자'라고 함께 말하세요. 입금을 받았는데 전표(수금 처리)를 안 했으면 실제보다 크게 보입니다.",
+        : "balance 가 외상매출금(받을 돈) 총액입니다 — top_partners 를 더해 총액을 만들지 마세요. unposted_sales_invoices 는 아직 전표를 안 친 매출 계산서라 balance 에 빠져 있으니, 건수가 있으면 '전표 미처리 N건(약 X원)은 빠진 숫자'라고 함께 말하세요. 입금을 받았는데 통장 입금을 계산서에 맞춰(정산) 두지 않았으면 실제보다 크게 보입니다 — settled_invoice_count 가 0 이면 입금 정산을 한 번도 안 한 회사이니 '받은 돈이 반영되지 않아 실제보다 클 수 있다'고 꼭 말하세요.",
     };
   }
 

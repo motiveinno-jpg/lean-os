@@ -1,5 +1,3 @@
-import { daysSinceKst } from "@/lib/kst";
-import { ledgerInvoiceFilter } from "@/lib/ledger-sheet";
 // 손익 현황 — 확정 전표 기준 집계 (2026-08-19 기획: docs/20260819_PLAN_pnl_status_redesign.md)
 //   ★ 손익계산서와 같은 줄(fetchJournalLines)만 본다. 세금계산서·카드·통장은 원천 드릴다운·미처리 건수로만.
 //   이 파일은 셈만 한다 — 화면은 reports/profit·revenue·expense 가 그린다.
@@ -7,6 +5,7 @@ import { ledgerInvoiceFilter } from "@/lib/ledger-sheet";
 import { supabase } from "@/lib/supabase";
 import { fetchPaged, fetchPagedRes } from "@/lib/fetch-paged";
 import { fetchJournalLines, pnlAmount, countUnposted, type JournalLine } from "@/lib/journal-reports";
+import { fetchPartnerBalances, summarizeBalances } from "@/lib/receivables";
 
 export type PnlSummary = {
   revenue: number; cogs: number; gross: number; opex: number; operating: number;
@@ -96,26 +95,15 @@ export const rangeLabel = (r: MonthRange) => r.fromYm === r.toYm ? `${Number(r.f
 export const pctChange = (cur: number, prev: number): number | null => (prev === 0 ? null : Math.round(((cur - prev) / Math.abs(prev)) * 100));
 
 // ── 살펴볼 것 재료 ────────────────────────────────────────────────────────
-/** 미수금 — 발행 매출 세금계산서의 **미정산 잔액**(total − settled) 기준.
- *  2026-08-31 통일(구조 과제 3/3): 종전엔 status 만 보고 판정해 돈을 다 받아도 status 가
- *  issued 로 남으면 영구 미수로 셌다(부분입금도 전액으로). 미수금 위젯·AI 브리핑과 같은
- *  "발행분 잔액" 기준으로 맞춘다 — 정산을 입력하면 즉시 빠진다. */
+/** 미수금 — 발행 매출 세금계산서의 **미정산 잔액**(total − settled) 기준, 거래처별.
+ *  계산은 lib/receivables(DB receivables_by_partner) 한 곳 — 마이너스(수정·환입) 계산서를 거래처 안에서 상계한다.
+ *  종전엔 잔액 1원 이하 줄을 걸러 취소분이 빠지고 원본만 남아 미수가 부풀었다. rows 는 거래처 한 줄씩. */
 export async function fetchReceivables(companyId: string): Promise<{ total: number; over30: number; over30Partners: number; rows: { name: string; amount: number; issueDate: string; days: number }[] }> {
-  //   원장 에이징과 같은 기준(전표처리된 발행분만) — 발행만 되고 전표가 없는 계산서까지 미수로 세면
-  //   원장·경영요약과 다른(부풀린) 숫자가 됐다 (2026-09-01 전수점검 ①, 2026-08-26 대표 기준)
-  const data = await fetchPaged<any>("pnl-status:ar", () => ledgerInvoiceFilter(supabase.from("tax_invoices")
-    .select("counterparty_name, total_amount, supply_amount, settled_amount, issue_date, status")
-    .eq("company_id", companyId).eq("type", "sales")).neq("status", "cancelled").order("id"), 50000);
-  const rows = ((data || []) as any[])
-    .map((r) => {
-      const d = r.issue_date ? daysSinceKst(String(r.issue_date)) : 0;
-      const bal = Number(r.total_amount || r.supply_amount || 0) - Number(r.settled_amount || 0);
-      return { name: r.counterparty_name || "(미상)", amount: bal, issueDate: String(r.issue_date || ""), days: d };
-    })
-    .filter((r) => r.amount > 1);
-  const total = rows.reduce((s, r) => s + r.amount, 0);
-  const over = rows.filter((r) => r.days > 30);
-  return { total, over30: over.reduce((s, r) => s + r.amount, 0), over30Partners: new Set(over.map((r) => r.name)).size, rows };
+  const sum = summarizeBalances(await fetchPartnerBalances(companyId, "sales"));
+  return {
+    total: sum.total, over30: sum.over30, over30Partners: sum.over30Partners,
+    rows: sum.partners.map((p) => ({ name: p.name, amount: p.balance, issueDate: p.oldestOpenDate ?? "", days: p.oldestDays })),
+  };
 }
 
 /** 미분류 출금 — 전표도 없고 처리도 안 된 통장 출금(판관비에서 빠져 있는 돈) */

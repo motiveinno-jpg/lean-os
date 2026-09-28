@@ -9,6 +9,7 @@ import type { User, Company, Deal, DealNode, CashSnapshot, BankAccount, SubDeal,
 // data 는 그대로 반환해 기존 빈 폴백(`data || []` 등) 동작을 바꾸지 않는다.
 // 대형 select 절단 방지 페이징 — 구현/규약은 fetch-paged.ts 참조
 import { fetchPaged, fetchPagedRes } from './fetch-paged';
+import { fetchPartnerBalances } from './receivables';
 
 // ── Auth helpers ──
 export type CurrentUser = {
@@ -576,13 +577,9 @@ export async function getFounderData(companyId: string) {
     fetchPagedRes<any>('getFounderData.salesInv', () => supabase.from('tax_invoices').select('supply_amount, issue_date')
       .eq('company_id', companyId).eq('type', 'sales').neq('status', 'void')
       .gte('issue_date', `${year}-01-01`).lt('issue_date', `${Number(year) + 1}-01-01`).order('id'), 50000),
-    // 미수 = 계산서 잔액(총액 − 정산액) 이 남은 매출 계산서. lib/invoice-arap 과 같은 기준.
-    //   상태(issued 등)로 판정하면 홈택스 수집 계산서는 발행되면 전부 issued 라 받은 돈까지 미수로 잡힌다.
-    fetchPagedRes<any>('getFounderData.arInv', () => supabase.from('tax_invoices')
-      .select('counterparty_name, total_amount, supply_amount, settled_amount, issue_date')
-      .eq('company_id', companyId).eq('type', 'sales').neq('status', 'void').neq('status', 'draft')
-      .gte('issue_date', (() => { const d = new Date(); d.setDate(d.getDate() - 730); return d.toISOString().slice(0, 10); })())
-      .order('id'), 50000),
+    // 미수 = 거래처별 계산서 잔액 — lib/receivables 한 곳(마이너스 계산서 상계, 전표 처리된 것, 전 기간).
+    //   종전엔 여기만 2년·전표 무관·취소 포함으로 따로 세어 아침 브리핑 30일+ 가 다른 화면과 달랐다.
+    fetchPartnerBalances(companyId, 'sales'),
   ]);
   const bankTxCount = bankTxRes.count || 0;
   const taxInvoiceCount = taxRes.count || 0;
@@ -647,18 +644,16 @@ export async function getFounderData(companyId: string) {
 
   // ── 라이브 미수금 items (tax_invoices 미정산) — 계산서 사용 회사는 엑셀 receivable 대체 ──
   //   due_date := issue_date → engines 의 30일 경과 판정이 요약 위젯(issue_date 30일 컷오프)과 동일해짐
-  const liveReceivables = ((arInvRes.data || []) as any[])
-    .map((inv: any) => ({
-      category: 'receivable',
-      name: inv.counterparty_name || '세금계산서',
-      amount: Number(inv.total_amount || inv.supply_amount || 0) - Number(inv.settled_amount || 0),
-      due_date: inv.issue_date,
-      status: 'pending',
-      risk_label: null,
-      project_name: null,
-      account_type: null,
-    }))
-    .filter((r) => r.amount > 1);
+  //   engines 가 due_date 30일 경과로 30일+ 를 가르므로, 거래처 잔액을 '30일+ 몫'(가장 오래 밀린 날짜)과
+  //   '최근 몫'(오늘)으로 나눠 넣는다 — 합계·30일+ 가 receivables_by_partner 와 같아진다.
+  const todayIso = kstDateStr(new Date());
+  const liveReceivables = arInvRes.flatMap((p) => {
+    const base = { category: 'receivable', name: p.name, status: 'pending', risk_label: null, project_name: null, account_type: null };
+    const out: any[] = [];
+    if (p.over30 > 1) out.push({ ...base, amount: p.over30, due_date: p.oldestOpenDate ?? todayIso });
+    if (p.balance - p.over30 > 1) out.push({ ...base, amount: p.balance - p.over30, due_date: todayIso });
+    return out;
+  });
 
   // 이번 달 매출 — 라이브(계산서 공급가액) 우선
   const liveMonthRevenue = invoiceMonthlyRevenue.get(thisMonth) ?? 0;
@@ -2373,7 +2368,7 @@ export async function touchDealActivity(dealId: string) {
 export async function getCashPulseData(companyId: string, userId?: string) {
   const db = supabase;
 
-  const [banks, revenue, costs, recurring, employees, paymentQ, riskItems, approvalItems, myApprovalSteps, snapshot, fixedCostsRows, loanRows] = await Promise.all([
+  const [banks, revenue, costs, recurring, employees, paymentQ, riskItems, approvalItems, myApprovalSteps, snapshot, fixedCostsRows, loanRows, arPartners] = await Promise.all([
     // 1. Bank balances
     supabase.from('bank_accounts').select('balance').eq('company_id', companyId),
     // 2. Revenue schedules
@@ -2404,6 +2399,7 @@ export async function getCashPulseData(companyId: string, userId?: string) {
     // 11. 고정비 표 · 12. 대출 — 월 고정 지출에 들어간다
     db.from('fixed_costs').select('name, amount, end_date').eq('company_id', companyId).eq('is_recurring', true).limit(1000),
     db.from('loans').select('*').eq('company_id', companyId).eq('status', 'active').limit(1000),
+    fetchPartnerBalances(companyId, 'sales'),
   ]);
   const { estimateMonthlyPayment } = await import('./cash-budget');
   const recNamesForFixed = new Set((recurring.data || []).map((r: any) => String(r.name || '').toLowerCase().replace(/\s+/g, '')));
@@ -2413,15 +2409,10 @@ export async function getCashPulseData(companyId: string, userId?: string) {
 
   const employeeSalaryTotal = (employees.data || []).reduce((s: number, e: any) => s + Number(e.salary || 0), 0);
 
-  // Calculate AR over 30 days
-  const now = new Date();
-  let arOver30Amount = 0;
-  (revenue.data || []).forEach((r: any) => {
-    if (r.status === 'scheduled' && r.due_date) {
-      const overdueDays = Math.floor((now.getTime() - new Date(r.due_date).getTime()) / (1000 * 60 * 60 * 24));
-      if (overdueDays > 30) arOver30Amount += Number(r.amount || 0);
-    }
-  });
+  // 미수금 30일+ — 세금계산서 잔액(lib/receivables). 종전엔 프로젝트 수금 스케줄로 세어
+  //   대시보드 '미수금' 점수·브리핑 문구가 미수금 위젯·원장과 다른 숫자를 말했다.
+  const arOver30Amount = arPartners.reduce((s, p) => s + p.over30, 0);
+  const arTotalAmount = arPartners.reduce((s, p) => s + p.balance, 0);
 
   // Calculate matched rate from revenue schedules
   const totalRevItems = (revenue.data || []).length;
@@ -2466,6 +2457,7 @@ export async function getCashPulseData(companyId: string, userId?: string) {
     riskCount,
     pendingApprovalCount,
     arOver30Amount,
+    arTotalAmount,
     matchedRate,
     fixedCostsMonthly,
     loanMonthly,

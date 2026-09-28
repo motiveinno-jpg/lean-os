@@ -5,32 +5,18 @@
 //       입금되면 바로 줄어든다. 원장(외상매출금 계정) 기준은 전표 처리 상태에 따라 흔들려 이름과 어긋났다.
 //     · 미수금 위젯·회수 관리·AI 참모·아침 브리핑이 이미 같은 기준 — 어긋나던 6칸 KPI 하나를 맞춘 것.
 //     · 원장(회계) 기준은 분석 › 회계 자료·거래처 원장에 그대로 둔다(lib/ledger-arap 는 그쪽 전용).
-//   '30일+' = 발행일 기준 30일 경과한 매출 계산서 잔액(전표 처리 여부와 무관).
-import { supabase } from "@/lib/supabase";
-import { fetchPaged } from "@/lib/fetch-paged";
-import { daysSinceKst } from "@/lib/kst";
-import { ledgerInvoiceFilter } from "@/lib/ledger-sheet";
-
-const db = supabase as any;
+//   '30일+' = 거래처 순잔액 중 최근 30일 발행분을 뺀 몫(받은 돈·취소분은 오래된 계산서부터 지운다).
+import { fetchPartnerBalances, summarizeBalances } from "@/lib/receivables";
 
 export type InvoiceArAp = { ar: number; ap: number; over30: number; over30Partners: number };
 
+//   계산은 lib/receivables(DB receivables_by_partner) 한 곳 — 거래처 안에서 마이너스 계산서를 상계하고,
+//   30일+ 는 순잔액에서 최근 30일 발행분을 뺀 몫(종전엔 양수 계산서만 봐 취소된 원본이 30일+ 로 남았다).
 export async function fetchInvoiceArAp(companyId: string): Promise<InvoiceArAp> {
-  //   원장과 같은 포함 기준(무효·초안·취소 제외, 전표처리된 것) — 화면마다 다른 '미수금' 이 나오던 뿌리
-  const rows = await fetchPaged<any>("invoice-arap:rows", () => ledgerInvoiceFilter(db.from("tax_invoices")
-    .select("type, total_amount, supply_amount, settled_amount, issue_date, status, counterparty_name")
-    .eq("company_id", companyId)).neq("status", "cancelled").order("issue_date").order("id"), 50000);
-  let ar = 0, ap = 0, over30 = 0; const overPartners = new Set<string>();
-  for (const r of ((rows || []) as any[])) {
-    const bal = Number(r.total_amount || r.supply_amount || 0) - Number(r.settled_amount || 0);
-    //   마이너스(수정·환입) 계산서는 원본을 상계해야 한다 — 건너뛰면 계약 해제 뒤에도 받을 돈이 그대로였다
-    if (Math.abs(bal) <= 1) continue;
-    if (r.type === "purchase") { ap += bal; continue; }
-    if (r.type !== "sales") continue;
-    ar += bal;
-    if (bal <= 0) continue;
-    const days = r.issue_date ? daysSinceKst(String(r.issue_date)) : 0;
-    if (days > 30) { over30 += bal; overPartners.add(r.counterparty_name || "(미상)"); }
-  }
-  return { ar, ap, over30, over30Partners: overPartners.size };
+  const [sales, purchase] = await Promise.all([
+    fetchPartnerBalances(companyId, "sales"),
+    fetchPartnerBalances(companyId, "purchase"),
+  ]);
+  const ar = summarizeBalances(sales), ap = summarizeBalances(purchase);
+  return { ar: ar.total, ap: ap.total, over30: ar.over30, over30Partners: ar.over30Partners };
 }

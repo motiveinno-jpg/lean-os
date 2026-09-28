@@ -20,6 +20,7 @@ export interface CashPulseInput {
   riskCount: number;
   pendingApprovalCount: number;
   arOver30Amount: number;
+  arTotalAmount?: number;           // 미수금 총액(세금계산서 잔액) — 없으면 수금 스케줄 합으로 대신
   matchedRate: number; // 0~1
   // 설정 → 일반설정 → 현금 현황의 사용자 보정값 (cash_snapshot 테이블)
   manualCashAdjustment?: number;     // 시재금/미연동 계좌 등 추가 현금. 잔액에 더함.
@@ -153,7 +154,7 @@ export function buildCashPulse(input: CashPulseInput): CashPulseResult {
   else cashflowScore = 0;
 
   // 5c. AR health score (15 points)
-  const totalAR = input.revenueSchedules
+  const totalAR = input.arTotalAmount ?? input.revenueSchedules
     .filter(r => r.status === 'scheduled')
     .reduce((s, r) => s + Number(r.amount || 0), 0);
   let arScore: number;

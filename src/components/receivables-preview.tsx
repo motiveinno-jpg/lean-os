@@ -1,7 +1,5 @@
 "use client";
-import { daysSinceKst } from "@/lib/kst";
-import { ledgerInvoiceFilter } from "@/lib/ledger-sheet";
-import { fetchPaged }  from "@/lib/fetch-paged";
+import { fetchPartnerBalances } from "@/lib/receivables";
 
 // 미수금 회수 미리보기 · 대시보드 카드(2026-07-14). 발행한 매출 세금계산서 중 아직 입금(settled)이
 //   안 된 잔액을 거래처별로 모아 "누가 얼마 밀렸는지 + 연체일"을 보여주고, 클릭 시 거래처 원장으로 이동.
@@ -10,10 +8,8 @@ import { fetchPaged }  from "@/lib/fetch-paged";
 import Link from "next/link";
 import  { ActivityCard } from "@/components/dashboard-activity";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 
-const db = supabase;
 
 function won(n: number): string {
   if (!n) return "0";
@@ -50,23 +46,11 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
     enabled: !!companyId,
     staleTime: 60_000,
     queryFn: async () => {
-      //   원장·6칸 KPI 와 같은 기준(전표처리된 발행분, 무효·초안·취소 제외) — 위젯만 400일·전표 무관으로 세어 숫자가 달랐다
-      const rows = await fetchPaged<any>('components/receivables-preview:rows', () => ledgerInvoiceFilter(db.from("tax_invoices")
-        .select("counterparty_name, total_amount, supply_amount, settled_amount, issue_date, status")
-        .eq("company_id", companyId).eq("type", "sales")).neq("status", "cancelled")
-        .order("id"), 50000);
-      const byCp: Record<string, CpGroup> = {};
-      for (const r of (rows || []) as any[]) {
-        const bal = Number(r.total_amount || r.supply_amount || 0) - Number(r.settled_amount || 0);
-        if (bal <= 1) continue;
-        const name = r.counterparty_name || "미상";
-        const days = r.issue_date ? daysSinceKst(String(r.issue_date)) : 0;
-        const g = byCp[name] || (byCp[name] = { name, outstanding: 0, oldestDays: 0, count: 0 });
-        g.outstanding += bal;
-        g.count += 1;
-        g.oldestDays = Math.max(g.oldestDays, days);
-      }
-      const list = Object.values(byCp).sort((a, b) => b.oldestDays - a.oldestDays || b.outstanding - a.outstanding);
+      //   거래처별 잔액은 lib/receivables 한 곳에서 — 마이너스(수정·환입) 계산서를 상계해 원장·보고서·AI 참모와 같은 숫자
+      const partners = await fetchPartnerBalances(companyId!, "sales");
+      const list: CpGroup[] = partners
+        .map((p) => ({ name: p.name, outstanding: p.balance, oldestDays: p.oldestDays, count: p.invoiceCount }))
+        .sort((a, b) => b.oldestDays - a.oldestDays || b.outstanding - a.outstanding);
       const total = list.reduce((s, g) => s + g.outstanding, 0);
       return { list, total };
     },
