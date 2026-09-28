@@ -860,7 +860,7 @@ export default function ApprovalsPage() {
          <div className="ap-scroll">
       {/* Tab content */}
       {tab === "my-approvals" && companyId && userId && (
-        <MyApprovalsTab companyId={companyId} userId={userId} invalidate={invalidate} onGoToMyRequests={() => setTab("my-requests")} initialView={initialInboxView} />
+        <MyApprovalsTab companyId={companyId} userId={userId} invalidate={invalidate} onGoToMyRequests={() => setTab("my-requests")} initialView={initialInboxView} focusRequestId={tab === deepLinkTab ? focusRequestId : null} />
       )}
       {tab === "my-requests" && companyId && userId && (
         <MyRequestsTab companyId={companyId} userId={userId} invalidate={invalidate} focusRequestId={focusRequestId} />
@@ -915,8 +915,10 @@ function ExpenseVoucherBadge({ req, form, voucherNo }: { req: any; form?: Approv
   );
 }
 
-function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initialView }: {
+function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initialView, focusRequestId }: {
   initialView?: "pending" | "processed" | "referenced";
+  /** 알림 '결재 요청'에서 들어오면 그 건의 결재 창을 바로 연다(?request=<id>) */
+  focusRequestId?: string | null;
   companyId: string; userId: string; invalidate: () => void; onGoToMyRequests?: () => void;
 }) {
   const { toast } = useToast();
@@ -937,6 +939,13 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
     queryFn: () => getMyPendingApprovals(userId, companyId),
     enabled: !!userId && !!companyId,
   });
+  //   알림에서 온 건 — 대기 목록에 있으면 결재 창을 연다(이미 처리했으면 목록만 보인다). 한 번만.
+  const focusedInboxRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!focusRequestId || focusedInboxRef.current === focusRequestId) return;
+    const hit = (pendingApprovals as any[]).find((a) => a.requestId === focusRequestId);
+    if (hit) { focusedInboxRef.current = focusRequestId; setSelectedStepId(hit.stepId); setComment(""); }
+  }, [focusRequestId, pendingApprovals]);
 
   const { data: processedApprovals = [], isLoading: processedLoading } = useQuery({
     queryKey: ["my-processed-approvals", userId, companyId],

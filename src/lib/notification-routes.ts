@@ -10,6 +10,8 @@ export interface NotificationRow {
   entity_id: string | null;
   is_read: boolean;
   created_at: string;
+  /** 알림을 만든 쪽이 정한 이동 주소. 있으면 entity/type 매핑보다 우선한다(재고·브리핑·결제 예정 등). */
+  link?: string | null;
 }
 
 export const ENTITY_HREF: Record<string, (id: string) => string> = {
@@ -92,6 +94,15 @@ export function resolveNotificationHref(
   // 운영자용 AI 진단 알림은 entity_type 이 support_ticket 이라 고객 화면 매핑에 걸린다 — type 우선 분기
   if (n.type === "support_ai") {
     return `/platform/support`;
+  }
+  // 결재 요청(결재자에게) — 내 결재함에서 그 건 상세를 바로 연다
+  if (n.type === "approval_request" && n.entity_type === "approval_request" && n.entity_id) {
+    return `/approvals?tab=my-approvals&request=${encodeURIComponent(n.entity_id)}`;
+  }
+  // 만든 쪽이 정한 주소 — 종전엔 이 칸을 읽지 않아 entity 가 없는 알림(재고 점검·AI 브리핑 등)이 전부
+  //   /dashboard 로 떨어졌다("눌러도 아무 데도 안 간다"). 우리 화면 경로만 받는다.
+  if (n.link && n.link.startsWith("/") && !n.link.startsWith("//")) {
+    return n.link;
   }
   if (n.entity_type && n.entity_id && ENTITY_HREF[n.entity_type]) {
     return ENTITY_HREF[n.entity_type](n.entity_id);

@@ -53,7 +53,7 @@ export default function NotificationsPage() {
       if (!u) return { rows: [], quoteMap: {} };
       const nRows = logRead('notifications/page:nRows', await supabase
         .from('notifications')
-        .select('id, type, title, message, entity_type, entity_id, is_read, created_at')
+        .select('id, type, title, message, entity_type, entity_id, is_read, created_at, link')
         .eq('user_id', u.id)
         .order('created_at', { ascending: false })
         .limit(500));

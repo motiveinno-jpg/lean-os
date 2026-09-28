@@ -872,19 +872,25 @@ export async function approveStep(
     afterJson: { stage: step.stage, comment, requestId: step.request_id },
   });
 
-  // Notify the original requester
-  try {
-    await createNotification({
-      companyId: request.company_id,
-      userId: request.requester_id,
-      type: 'approval_approved',
-      title: `결재 승인: ${request.title}`,
-      message: comment || `${step.stage}단계 승인되었습니다.`,
-      entityType: 'approval_request',
-      entityId: request.id,
-    });
-  } catch {
-    // Notification failure should not break the workflow
+  // 요청자 알림 — 최종 승인 때만 '결재 승인'. 종전엔 단계마다 같은 제목('결재 승인: …')으로 보내
+  //   2단계 결재면 승인 알림이 두 개 오고, 첫 알림은 아직 최종이 아닌데도 '승인'으로 읽혔다.
+  //   중간 단계는 결재자가 의견을 남겼을 때만 '결재 진행'으로 알린다(참조자 통보와 같은 규칙).
+  if (finallyApproved || comment) {
+    try {
+      await createNotification({
+        companyId: request.company_id,
+        userId: request.requester_id,
+        type: 'approval_approved',
+        title: finallyApproved ? `결재 승인: ${request.title}` : `결재 진행: ${request.title}`,
+        message: finallyApproved
+          ? (comment ? `최종 승인되었습니다. 의견: ${comment}` : '최종 승인되었습니다.')
+          : `${step.stage}단계 승인 · 의견: ${comment}`,
+        entityType: 'approval_request',
+        entityId: request.id,
+      });
+    } catch {
+      // Notification failure should not break the workflow
+    }
   }
 
   // 참조자 결과 통보 — 최종 승인 확정 시에만(중간 단계마다 알리면 소음)

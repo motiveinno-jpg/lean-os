@@ -137,7 +137,7 @@ async function collectSnapshot(admin: ReturnType<typeof createClient>, companyId
 export async function collectInventory(admin: ReturnType<typeof createClient>, companyId: string, today: string) {
   const lines: string[] = [];
   let short = 0, out = 0, late = 0, unshipped = 0, noVoucher = 0;
-  const shortNames: string[] = [];
+  const shortNames: string[] = [], outNames: string[] = [], lateNos: string[] = [];
   try {
     const [{ data: prods }, { data: onhand }] = await Promise.all([
       admin.from("products").select("id, name, safety_stock, track_stock, is_active").eq("company_id", companyId),
@@ -148,7 +148,7 @@ export async function collectInventory(admin: ReturnType<typeof createClient>, c
     for (const p of (prods || []) as any[]) {
       if (!p.track_stock || p.is_active === false) continue;
       const q = have.get(p.id) || 0;
-      if (q <= 0) out++;
+      if (q <= 0) { out++; if (outNames.length < 3) outNames.push(String(p.name)); }
       else if (p.safety_stock != null && q < Number(p.safety_stock)) { short++; if (shortNames.length < 3) shortNames.push(`${p.name} ${q}/${p.safety_stock}`); }
     }
   } catch { /* skip */ }
@@ -159,7 +159,10 @@ export async function collectInventory(admin: ReturnType<typeof createClient>, c
       const { data: used } = await admin.from("v_order_line_used").select("order_id, ordered_qty, used_qty").in("order_id", ids);
       const remain = new Map<string, number>();
       for (const u of (used || []) as any[]) remain.set(u.order_id, (remain.get(u.order_id) || 0) + Math.max(0, Number(u.ordered_qty || 0) - Number(u.used_qty || 0)));
-      late = ids.filter((id) => (remain.get(id) || 0) > 0).length;
+      const lateIds = ids.filter((id) => (remain.get(id) || 0) > 0);
+      late = lateIds.length;
+      const noById = new Map(((ords || []) as any[]).map((o) => [o.id, o.order_no || ""]));
+      for (const id of lateIds.slice(0, 3)) lateNos.push(String(noById.get(id) || ""));
     }
   } catch { /* skip */ }
   try {
@@ -193,7 +196,7 @@ export async function collectInventory(admin: ReturnType<typeof createClient>, c
     if (good + defect > 0 && defect > 0 && good / (good + defect) < yw) lines.push(`최근 7일 양품률 ${(good / (good + defect) * 100).toFixed(1)}% (불량 ${defect}개) — 재고 › 현황 › 생산현황`);
     if (std > 0 && (act - std) / std > lw) lines.push(`최근 7일 자재 로스율 ${((act - std) / std * 100).toFixed(1)}% — 재고 › 현황 › 생산현황에서 원인별로 보기`);
   } catch { /* skip */ }
-  return { lines, short, out, late, unshipped, noVoucher };
+  return { lines, short, out, late, unshipped, noVoucher, shortNames, outNames, lateNos };
 }
 
 // ── 구조화 출력 스키마 — 액션 플랜 ──
@@ -363,18 +366,25 @@ async function runCron(admin: ReturnType<typeof createClient>): Promise<Response
       try {
         const inv = await collectInventory(admin, companyId as string, briefDate);
         if (inv.short + inv.out + inv.late + inv.unshipped > 0) {
+          //   무엇 때문에 온 알림인지 이름으로 적는다 — 종전엔 '재고 부족 0·품절 2' 숫자만 있어 왜 왔는지 몰랐다.
+          const more = (names: string[], n: number) => names.filter(Boolean).join(", ") + (n > names.length ? ` 외 ${n - names.length}` : "");
           const parts = [
-            inv.short + inv.out ? `재고 부족 ${inv.short}·품절 ${inv.out}` : "",
-            inv.late ? `납기 지난 주문 ${inv.late}건` : "",
-            inv.unshipped ? `미발송 온라인 주문 ${inv.unshipped}건` : "",
+            inv.out ? `품절 ${inv.out}개(${more(inv.outNames, inv.out)})` : "",
+            inv.short ? `안전재고 밑 ${inv.short}개(${more(inv.shortNames, inv.short)})` : "",
+            inv.late ? `납기 지났는데 덜 나간 주문 ${inv.late}건(${more(inv.lateNos, inv.late)})` : "",
+            inv.unshipped ? `출고 등록 후 발송 안 한 온라인 주문 ${inv.unshipped}건` : "",
           ].filter(Boolean).join(" · ");
           const { data: admins } = await admin.from("users")
             .select("id").eq("company_id", companyId).eq("is_master", true).limit(10);
           for (const u of (admins || []) as any[]) {
-            //   같은 날 같은 알림이 이미 있으면 안 보낸다(하루 한 번)
-            const { count } = await admin.from("notifications").select("id", { count: "exact", head: true })
-              .eq("company_id", companyId).eq("user_id", u.id).eq("type", "inventory").gte("created_at", `${briefDate}T00:00:00+09:00`);
-            if (count) continue;
+            //   같은 내용이면 7일에 한 번만 — 종전엔 하루 한 번씩 똑같은 알림이 매일 쌓였다(변한 게 없는데도).
+            //   내용이 바뀌면(새로 품절·새 지연 주문) 바로 보낸다.
+            const { data: last } = await admin.from("notifications").select("message, created_at")
+              .eq("company_id", companyId).eq("user_id", u.id).eq("type", "inventory")
+              .order("created_at", { ascending: false }).limit(1).maybeSingle();
+            const lastAt = last ? Date.parse(String((last as any).created_at)) : 0;
+            if (last && (last as any).message === parts && Date.now() - lastAt < 7 * 86400000) continue;
+            if (last && Date.now() - lastAt < 20 * 3600000) continue;   // 하루 한 번 상한은 그대로
             await admin.from("notifications").insert({
               company_id: companyId, user_id: u.id, type: "inventory",
               title: "재고·주문 점검", message: parts, link: inv.unshipped && !inv.short && !inv.out && !inv.late ? "/inventory/channels" : "/inventory/status",

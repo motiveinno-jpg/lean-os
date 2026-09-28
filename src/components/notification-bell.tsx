@@ -91,7 +91,7 @@ export function NotificationBell() {
       if (!u) return;
       const nRows = logRead('components/notification-bell:nRows', await supabase
         .from("notifications")
-        .select("id, type, title, message, entity_type, entity_id, is_read, created_at")
+        .select("id, type, title, message, entity_type, entity_id, is_read, created_at, link")
         .eq("user_id", u.id)
         .eq("is_read", false)
         .order("created_at", { ascending: false })

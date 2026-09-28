@@ -1,4 +1,4 @@
-import { withSentry } from "../_shared/sentry.ts";
+import { withSentry, logEdgeError } from "../_shared/sentry.ts";
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -255,22 +255,28 @@ serve(withSentry("ads-sync", async (req: Request) => {
             await naverCampaigns({ api_key: sec.api_secret, api_secret: sec.api_key }, acc.external_id);
             swapWorks = true;
           } catch { /* 바꿔도 안 되면 아래 안내로 */ }
-          throw new Error(swapWorks
+          throw Object.assign(new Error(swapWorks
             ? "API 키와 비밀키가 서로 바뀌어 있습니다. 설정에서 두 값을 맞바꿔 다시 저장해 주세요."
-            : `네이버가 인증을 거부했습니다(Auth Failed). 확인할 것 — ①API 키·비밀키를 한 글자도 빠짐없이 복사했는지 ②CUSTOMER ID(${acc.external_id})가 그 키를 발급한 광고주 계정이 맞는지 ③검색광고 > 도구 > API 사용 관리에서 키가 '사용' 상태인지.`);
+            : `네이버가 인증을 거부했습니다(Auth Failed). 확인할 것 — ①API 키·비밀키를 한 글자도 빠짐없이 복사했는지 ②CUSTOMER ID(${acc.external_id})가 그 키를 발급한 광고주 계정이 맞는지 ③검색광고 > 도구 > API 사용 관리에서 키가 '사용' 상태인지.`),
+            { userFixable: true });
         }
         await admin.from("ad_accounts")
           .update({ status: "connected", sync_error: null, last_synced_at: new Date().toISOString() })
           .eq("id", acc.id);
         results.push({ id: acc.id, label: acc.label, ok: true, ...r });
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
+        const raw = e instanceof Error ? e.message : String(e);
+        // 고객이 고칠 수 있는 오류(키·인증)만 고객에게 그대로 보인다. 그 밖(우리 DB·서버 오류)은
+        //   운영자 오류 기록장(error_logs)으로 보내고 고객에겐 '확인 중'으로만 — 종전엔
+        //   "function pgp_sym_decrypt(bytea, text) does not exist" 같은 내부 문장이 대표 알림·설정 화면에 그대로 떴다.
+        const userFixable = (e as { userFixable?: boolean })?.userFixable === true;
+        const msg = userFixable ? raw : "일시적인 서버 문제로 광고 데이터를 가져오지 못했습니다. 운영팀이 확인하고 있습니다.";
+        if (!userFixable) await logEdgeError("ads-sync", raw, { adAccountId: acc.id, platform: acc.platform }, acc.company_id);
         await admin.from("ad_accounts").update({ status: "error", sync_error: msg.slice(0, 500) }).eq("id", acc.id);
         results.push({ id: acc.id, label: acc.label, ok: false, error: msg.slice(0, 300) });
-        // 무음 실패 방지: 실패가 ad_accounts.sync_error 컬럼에만 남아
-        //   광고 성과가 몇 주간 0으로 보여도 아무도 몰랐다 — 은행·카드 감시와 동일하게
-        //   마스터 인앱 알림(24시간 dedup).
-        try {
+        // 무음 실패 방지: 고객이 고쳐야 하는 실패만 마스터 인앱 알림(24시간 dedup). 서버 쪽 실패는
+        //   위 error_logs → 운영자 알림으로 간다(고객 화면엔 시스템 오류 신호를 띄우지 않는다).
+        if (userFixable) try {
           const title = `광고 수집 실패: ${acc.label || acc.platform}`;
           const { data: dup } = await admin.from("notifications")
             .select("id").eq("company_id", acc.company_id).eq("title", title)
