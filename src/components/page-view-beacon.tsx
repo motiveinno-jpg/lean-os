@@ -21,6 +21,7 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { captureEmailClick, markSignupIfNewAccount } from "@/lib/email-click";
+import { endEngagement, startEngagement } from "@/lib/page-engagement";
 
 // page_views 는 생성된 DB 타입에 아직 없다(신규 테이블). 저장소 관례대로 any 캐스트.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -138,6 +139,8 @@ export function PageViewBeacon() {
     if (!pathname) return;
     // 광고 메일 링크(?ec=) 로 들어왔으면 클릭으로 적는다 — 스캐너·봇은 빼고
     if (!isAutomated()) captureEmailClick();
+    // 직전 화면의 체류를 '이 화면으로 이동'으로 마감한다(직전 화면을 적지 않았으면 아무것도 안 함)
+    endEngagement(pathname.split("?")[0].slice(0, 300));
     if (SKIP_PREFIXES.some((p) => pathname.startsWith(p))) return;
     if (isAutomated()) return;
 
@@ -146,6 +149,10 @@ export function PageViewBeacon() {
 
     const path = pathname.split("?")[0].slice(0, 300);
     if (seenRecently(path)) return;
+
+    //   이 방문의 체류(머문 시간·스크롤·떠난 방식)를 나중에 이 키로 채운다 — page_view_end
+    const viewKey = crypto.randomUUID?.() ?? null;
+    if (viewKey) startEngagement(viewKey, visitorKey);
 
     let cancelled = false;
     (async () => {
@@ -173,6 +180,7 @@ export function PageViewBeacon() {
           referrer_host: referrerHost(),
           company_id: companyId,
           is_internal: internal,
+          view_key: viewKey,
         });
       } catch {
         /* 수집 실패는 무시 — 사용자 경험에 영향 없음 */
