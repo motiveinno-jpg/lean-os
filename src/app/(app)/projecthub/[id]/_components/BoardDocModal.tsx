@@ -28,7 +28,7 @@
 //   여기서 끝내는 일: 문서 작성 · 저장 · 검토 요청/승인 · 거래처 발송(메일) · 공유 링크 · 계산서 만들기.
 //   문서 편집기로 넘어가는 일: PDF·전자서명 이력·버전 비교(드물어서 링크만 남긴다).
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -141,6 +141,8 @@ export function BoardDocModal({
   const [clauses, setClauses] = useState<Clause[]>([]);      // 계약 조항 본문
   const [issueTerm, setIssueTerm] = useState("");            // 발행할 회차(라벨). 빈 값 = 전액
   const [showDiff, setShowDiff] = useState(false);           // 견적 ↔ 계약 비교 보기
+  //   계약 기간을 비워 둔 채 저장하려 할 때 한 번 물었는지 — 문서를 열어 둔 동안 한 번만 묻는다(저장마다 물으면 성가시다)
+  const askedPeriod = useRef(false);
   // 미리보기 — **저장 안 해도** 지금 화면 내용 그대로 실제 인쇄될 PDF 를 만들어 보여준다
   const [showPreview, setShowPreview] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -174,6 +176,7 @@ export function BoardDocModal({
     setNotes(c.notes || "");
     setClauses(Array.isArray(c.sections) ? c.sections.map((s: any) => ({ title: s?.title || "", content: s?.content || "" })) : []);
     setDirty(false);
+    askedPeriod.current = false;
   }, [doc?.id, draft?.name]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const existing: any[] = Array.isArray(cj.paymentSchedule) ? cj.paymentSchedule : [];
@@ -349,6 +352,16 @@ export function BoardDocModal({
   // ── 저장 — 문서함과 **같은 saveRevision** 을 쓴다(이력도 똑같이 남는다) ──
   const save = async (silent = false) => {
     if (!userId) return false;
+    //   계약 기간이 비어 있으면 한 번 묻는다 — 결정 2(2026-09-17)로 기간이 컬럼에 쓰이게 됐지만, 칸이 선택이라
+    //   모티브 계약 15건 전부 기간 없이 저장돼 대장이 빈 표였다(2026-09-28 운영 실측). 강제는 않는다 — 대장 「기간 미입력」에서 채울 수 있다.
+    if (!silent && kind === "contract" && !periodStart && !periodEnd && !askedPeriod.current) {
+      askedPeriod.current = true;
+      const go = await appConfirm(
+        "계약 기간(시작일·종료일)이 비어 있습니다.\n그대로 저장하면 계약 대장에 「기간 미입력」으로 들어가고, 만료 알림을 받을 수 없습니다.",
+        { confirmLabel: "그대로 저장" },
+      );
+      if (!go) return false;
+    }
     const schedule = buildSchedule();
     const next = buildContent(schedule);
     //   아직 없는 문서면 이때 만든다 — '만들기' 는 편집기를 열 뿐이고 저장이 실제 생성이다
