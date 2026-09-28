@@ -10,6 +10,7 @@ import { renderCampaignBody, orphanLinkLabels } from "../_shared/campaign-body.t
 //   · 수신거부(email_optouts)는 보내기 직전에 대조해 자동으로 뺀다. 반송·스팸신고로 들어온 주소도 같은 표라 함께 빠진다.
 //   · List-Unsubscribe / List-Unsubscribe-Post 헤더 — 지메일 등이 메일 상단에 '수신거부' 버튼을 띄운다(스팸 신고 대신 이걸 누르게).
 //   · dedupe_days(기본 30): 그 기간 안에 광고 메일을 받은 주소는 빼고 skipped_duplicate 로 남긴다. 0 이면 끔.
+//   · 본문의 owner-view.com 링크에 수신자별 ?ec=토큰 — 사이트가 record_email_click 으로 클릭·가입·상담을 적는다.
 //   · dry_run=true 면 보내지 않고 "총 N · 수신거부 제외 M · 발송 예정 K" 와 실제로 나갈 HTML(preview_html)만 돌려준다.
 
 const corsHeaders = {
@@ -34,8 +35,8 @@ const BATCH_GAP_MS = 700;        // Resend 기본 2 req/s
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
 /** 본문 끝에 법이 요구하는 안내를 붙인다 — 텍스트/HTML 두 벌 */
-function withFooter(bodyText: string, unsubUrl: string) {
-  const body = renderCampaignBody(bodyText);
+function withFooter(bodyText: string, unsubUrl: string, trackToken?: string) {
+  const body = renderCampaignBody(bodyText, trackToken);
   const footerText =
     `\n\n──────────\n` +
     `이 메일은 정보통신망법에 따른 광고성 정보입니다.\n` +
@@ -123,7 +124,12 @@ Deno.serve(withSentry("email-campaign-send", async (req: Request) => {
   if (cErr || !camp) return json({ error: "캠페인 기록 실패: " + (cErr?.message || "") }, 500);
   const campaignId = camp.id as string;
   const rows = recipients.map((email) => ({ campaign_id: campaignId, email, status: opted.has(email) ? "skipped_optout" : dup.has(email) ? "skipped_duplicate" : "queued" }));
-  for (let i = 0; i < rows.length; i += 500) await admin.from("email_campaign_recipients").insert(rows.slice(i, i + 500));
+  //   click_token(DB 기본값) 을 받아 둔다 — 링크에 붙여 누가 눌렀는지 센다
+  const tokenOf = new Map<string, string>();
+  for (let i = 0; i < rows.length; i += 500) {
+    const { data: ins } = await admin.from("email_campaign_recipients").insert(rows.slice(i, i + 500)).select("email, click_token");
+    for (const r of (ins || []) as { email: string; click_token: string }[]) tokenOf.set(r.email, r.click_token);
+  }
 
   // ── 발송 (100통씩 묶어서) ──
   let sent = 0, failed = 0;
@@ -134,7 +140,7 @@ Deno.serve(withSentry("email-campaign-send", async (req: Request) => {
       //   308 을 보내므로 헤더 주소는 처음부터 슬래시를 붙인다(POST 리다이렉트를 안 따르는 메일 앱 대비).
       const unsubUrl = `${SITE}/unsubscribe/?email=${encodeURIComponent(email)}`;
       const oneClickUrl = `${SITE}/api/unsubscribe/?email=${encodeURIComponent(email)}`;
-      const { text, html } = withFooter(bodyText, unsubUrl);
+      const { text, html } = withFooter(bodyText, unsubUrl, tokenOf.get(email));
       return {
         from: FROM_EMAIL, to: [email], reply_to: REPLY_TO, subject, text, html,
         headers: {

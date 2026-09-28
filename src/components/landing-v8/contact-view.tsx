@@ -12,6 +12,7 @@ import Link from "next/link";
 import "@/app/landing-v8.css";
 import { CONTACT, FOOTER, SIGNUP_HREF } from "./content";
 import { track } from "@/lib/analytics";
+import { markEmailConversion } from "@/lib/email-click";
 import { SiteFooter } from "./site-shell";
 import { useLandingLightTheme } from "@/components/theme-context";
 
@@ -56,7 +57,10 @@ export default function ContactView() {
       if (!res.ok) throw new Error(json?.error || "접수에 실패했습니다. 잠시 후 다시 시도해주세요.");
       setSent(true);
       // 계측 — 상담 신청 접수(개인정보는 보내지 않는다: 인원 구간·관심 업무 개수만)
-      if (!honeypot) track("contact_submit", { size: size || "none", interests: interests.length }); // 허니팟이 찬 봇 제출은 세지 않는다
+      if (!honeypot) {   // 허니팟이 찬 봇 제출은 세지 않는다
+        track("contact_submit", { size: size || "none", interests: interests.length });
+        markEmailConversion("contact");
+      }
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "접수에 실패했습니다. 잠시 후 다시 시도해주세요.");

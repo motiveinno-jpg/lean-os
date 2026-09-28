@@ -20,6 +20,7 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { captureEmailClick, markSignupIfNewAccount } from "@/lib/email-click";
 
 // page_views 는 생성된 DB 타입에 아직 없다(신규 테이블). 저장소 관례대로 any 캐스트.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -135,6 +136,8 @@ export function PageViewBeacon() {
 
   useEffect(() => {
     if (!pathname) return;
+    // 광고 메일 링크(?ec=) 로 들어왔으면 클릭으로 적는다 — 스캐너·봇은 빼고
+    if (!isAutomated()) captureEmailClick();
     if (SKIP_PREFIXES.some((p) => pathname.startsWith(p))) return;
     if (isAutomated()) return;
 
@@ -153,6 +156,7 @@ export function PageViewBeacon() {
         let companyId: string | null = null;
         let internal = internalFlag();
         if (session?.user) {
+          markSignupIfNewAccount(session.user.created_at);
           const { data } = await supabase
             .from("users").select("company_id").eq("auth_id", session.user.id).maybeSingle();
           companyId = (data as { company_id?: string } | null)?.company_id ?? null;

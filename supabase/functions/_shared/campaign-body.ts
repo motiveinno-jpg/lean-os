@@ -6,6 +6,8 @@
 //   · 링크: [보일 글자](https://주소) → 글자에 링크.  그냥 적은 https://주소 도 링크.
 //     텍스트판에는 "보일 글자 (https://주소)" 로 남긴다.
 //   · http/https 만 링크로 만든다(javascript: 등은 글자 그대로).
+//   · trackToken 을 주면 우리 사이트(owner-view.com) 링크에만 ?ec=<토큰> 을 붙인다 — 누가 눌렀는지 사이트가 적는다.
+//     남의 사이트 링크엔 붙이지 않는다(토큰이 외부로 새지 않게).
 import { escapeHtml } from "./mail-guard.ts";
 
 const LINK_RE = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>\[\]()]+[^\s<>\[\]().,!?'"])/g;
@@ -15,24 +17,37 @@ function keepSpaces(escaped: string): string {
   return escaped.replace(/^ +/, (m) => "&nbsp;".repeat(m.length)).replace(/ {2,}/g, (m) => " " + "&nbsp;".repeat(m.length - 1));
 }
 
-function lineToHtml(line: string): string {
+const TRACK_HOSTS = new Set(["owner-view.com", "www.owner-view.com"]);
+
+function withTrack(url: string, token?: string): string {
+  if (!token) return url;
+  try {
+    const u = new URL(url);
+    if (!TRACK_HOSTS.has(u.hostname)) return url;
+    u.searchParams.set("ec", token);
+    return u.toString();
+  } catch { return url; }
+}
+
+function lineToHtml(line: string, token?: string): string {
   let out = "";
   let last = 0;
   for (const m of line.matchAll(LINK_RE)) {
     out += keepSpaces(escapeHtml(line.slice(last, m.index)));
     const [, label, labelUrl, bareUrl] = m;
-    const url = labelUrl || bareUrl;
+    const url = withTrack(labelUrl || bareUrl, token);
     out += `<a href="${escapeHtml(url)}" style="${A_STYLE}" target="_blank">${escapeHtml(label || bareUrl)}</a>`;
     last = (m.index ?? 0) + m[0].length;
   }
   return out + keepSpaces(escapeHtml(line.slice(last)));
 }
 
-export function renderCampaignBody(bodyText: string): { html: string; text: string } {
+export function renderCampaignBody(bodyText: string, trackToken?: string): { html: string; text: string } {
   const lines = bodyText.replace(/\r\n?/g, "\n").split("\n");
-  const html = lines.map(lineToHtml).join("<br>\n");
+  const html = lines.map((l) => lineToHtml(l, trackToken)).join("<br>\n");
   const text = lines
-    .map((l) => l.replace(LINK_RE, (_all, label, labelUrl, bareUrl) => (label ? `${label} (${labelUrl})` : bareUrl)))
+    .map((l) => l.replace(LINK_RE, (_all, label, labelUrl, bareUrl) =>
+      (label ? `${label} (${withTrack(labelUrl, trackToken)})` : withTrack(bareUrl, trackToken))))
     .join("\n");
   return { html, text };
 }

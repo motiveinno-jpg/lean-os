@@ -18,7 +18,7 @@ const db = supabase;
 type Campaign = {
   id: string; subject: string; from_email: string; status: string;
   total: number; sent_count: number; skipped_optout: number; skipped_duplicate: number; failed_count: number;
-  delivered: number; bounced: number; complained: number;
+  delivered: number; bounced: number; complained: number; clicked?: number; converted?: number;
   created_at: string; sent_at: string | null;
 };
 type Preview = { total: number; skipped_optout: number; skipped_duplicate: number; will_send: number; invalid: string[]; preview_html?: string; orphan_links?: string[] };
@@ -32,7 +32,7 @@ const STATUS: Record<string, { tone: "ok" | "info" | "warn" | "muted"; label: st
 
 /** 이력 표에서 눌러 주소를 볼 수 있는 결과 */
 const DETAIL_LABEL: Record<string, string> = {
-  sent: "발송", bounced: "반송", complained: "스팸 신고", skipped_duplicate: "중복 제외", skipped_optout: "수신거부 제외", failed: "실패",
+  sent: "발송", clicked: "링크 누른", converted: "가입·상담 신청한", bounced: "반송", complained: "스팸 신고", skipped_duplicate: "중복 제외", skipped_optout: "수신거부 제외", failed: "실패",
 };
 //   '발송' 은 실제로 Resend 에 넘어간 모든 상태 — 캠페인 sent_count 와 같은 범위
 const KIND_STATUSES: Record<string, string[]> = {
@@ -43,8 +43,11 @@ const STATUS_LABEL: Record<string, string> = {
   skipped_duplicate: "중복 제외", skipped_optout: "수신거부 제외", failed: "실패", queued: "대기",
 };
 const PAGE = 1000;
+const CLICK_KINDS = new Set(["clicked", "converted"]);
+const CONVERTED_LABEL: Record<string, string> = { signup: "회원가입", contact: "상담 신청" };
 type Recipient = {
   email: string; status: string; error: string | null; sent_at: string | null; updated_at: string | null;
+  clicked_at: string | null; click_count: number; converted_at: string | null; converted_kind: string | null;
   campaign_id: string; campaign_subject: string; campaign_sent_at: string; total: number;
 };
 type DetailScope = { campaign: Campaign | null; kind: string };
@@ -150,6 +153,8 @@ export default function PlatformEmailCampaignsPage() {
     sent: campaigns.reduce((s, c) => s + (c.sent_count || 0), 0),
     bounced: campaigns.reduce((s, c) => s + Number(c.bounced || 0), 0),
     complained: campaigns.reduce((s, c) => s + Number(c.complained || 0), 0),
+    clicked: campaigns.reduce((s, c) => s + Number(c.clicked || 0), 0),
+    converted: campaigns.reduce((s, c) => s + Number(c.converted || 0), 0),
   }), [campaigns]);
 
   return (
@@ -157,19 +162,21 @@ export default function PlatformEmailCampaignsPage() {
       <PfPageHead
         eyebrow="매출"
         title="메일 보내기"
-        desc="소개·광고 메일을 hello@owner-view.com 에서 보냅니다. 수신거부한 주소는 자동으로 빠지고, 제목의 (광고) 표시·발신자·수신거부 안내는 자동으로 붙습니다. 반송·스팸신고 주소는 다음 발송부터 자동 제외됩니다."
+        desc="소개·광고 메일을 hello@owner-view.com 에서 보냅니다. 수신거부한 주소는 자동으로 빠지고, 제목의 (광고) 표시·발신자·수신거부 안내는 자동으로 붙습니다. 반송·스팸신고 주소는 다음 발송부터 자동 제외됩니다. 링크 클릭·가입·상담은 본문의 owner-view.com 링크에 받는 사람별 표시를 붙여 셉니다(이 기능 이후 보낸 메일부터)."
       />
 
       <div className="pf-kpi-grid">
         {([
-          { kind: "sent", label: "지금까지 발송", value: totals.sent },
-          { kind: "bounced", label: "반송", value: totals.bounced },
-          { kind: "complained", label: "스팸 신고", value: totals.complained, live: totals.complained > 0 },
+          { kind: "sent", label: "지금까지 발송", value: totals.sent, unit: "통" },
+          { kind: "bounced", label: "반송", value: totals.bounced, unit: "통" },
+          { kind: "complained", label: "스팸 신고", value: totals.complained, unit: "통", live: totals.complained > 0 },
+          { kind: "clicked", label: "링크 누른 사람", value: totals.clicked, unit: "명" },
+          { kind: "converted", label: "가입·상담 신청", value: totals.converted, unit: "명" },
         ] as const).map((t, i) => (
           <PfCard key={t.kind} i={i + 1} className={`pf-kpi-tile ${isOpen(null, t.kind) ? "ring-2 ring-[var(--primary)]" : ""}`}>
             <button type="button" className="block w-full text-left disabled:cursor-default" disabled={t.value === 0}
               onClick={() => openDetail(null, t.kind)} title={t.value > 0 ? "눌러서 주소 보기" : undefined}>
-              <PfKpi label={t.label} value={t.value} unit="통" live={"live" in t ? t.live : false} />
+              <PfKpi label={t.label} value={t.value} unit={t.unit} live={"live" in t ? t.live : false} />
               {t.value > 0 && <span className="text-[11px] text-[var(--text-dim)]">{isOpen(null, t.kind) ? "닫기 ▲" : "눌러서 주소 보기 ▼"}</span>}
             </button>
           </PfCard>
@@ -246,7 +253,7 @@ export default function PlatformEmailCampaignsPage() {
                   <tr>
                     <th>보낸 시각</th><th>제목</th><th>상태</th>
                     <th className="text-right">대상</th><th className="text-right">발송</th><th className="text-right">수신거부 제외</th><th className="text-right">중복 제외</th><th className="text-right">실패</th>
-                    <th className="text-right">도착</th><th className="text-right">반송</th><th className="text-right">스팸 신고</th>
+                    <th className="text-right">도착</th><th className="text-right">반송</th><th className="text-right">스팸 신고</th><th className="text-right">링크 클릭</th><th className="text-right">가입·상담</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -265,6 +272,8 @@ export default function PlatformEmailCampaignsPage() {
                         <td className="text-right mono-number">{Number(c.delivered).toLocaleString()}</td>
                         <td className="text-right mono-number"><CountCell n={Number(c.bounced)} active={isOpen(c, "bounced")} onClick={() => openDetail(c, "bounced")} /></td>
                         <td className="text-right mono-number"><CountCell n={Number(c.complained)} active={isOpen(c, "complained")} onClick={() => openDetail(c, "complained")} /></td>
+                        <td className="text-right mono-number"><CountCell n={Number(c.clicked || 0)} active={isOpen(c, "clicked")} onClick={() => openDetail(c, "clicked")} /></td>
+                        <td className="text-right mono-number"><CountCell n={Number(c.converted || 0)} active={isOpen(c, "converted")} onClick={() => openDetail(c, "converted")} /></td>
                       </tr>
                     );
                   })}
@@ -298,7 +307,8 @@ function RecipientPanel({ scope, onClose }: { scope: DetailScope; onClose: () =>
   const statuses = KIND_STATUSES[scope.kind] || [scope.kind];
   const fetchPage = async (n: number) => {
     const { data, error } = await (db.rpc as any)("operator_list_email_recipients",
-      { p_statuses: statuses, p_campaign: scope.campaign?.id ?? null, p_limit: PAGE, p_offset: n * PAGE });
+      { p_statuses: statuses, p_campaign: scope.campaign?.id ?? null, p_limit: PAGE, p_offset: n * PAGE,
+        p_filter: CLICK_KINDS.has(scope.kind) ? scope.kind : null });
     if (error) throw error;
     return (data || []) as Recipient[];
   };
@@ -308,7 +318,8 @@ function RecipientPanel({ scope, onClose }: { scope: DetailScope; onClose: () =>
   });
   const total = rows[0] ? Number(rows[0].total) : 0;
   const pages = Math.max(1, Math.ceil(total / PAGE));
-  const showStatus = statuses.length > 1;
+  const clickView = CLICK_KINDS.has(scope.kind);
+  const showStatus = statuses.length > 1 && !clickView;
   const showCampaign = !scope.campaign;
 
   const copyAll = async () => {
@@ -346,12 +357,26 @@ function RecipientPanel({ scope, onClose }: { scope: DetailScope; onClose: () =>
         <div className="overflow-auto max-h-[420px]">
           <table className="pf-table">
             <thead>
-              <tr>
-                <th>주소</th>{showStatus && <th>상태</th>}<th>{showStatus ? "비고" : "사유"}</th>{showCampaign && <th>보낸 메일</th>}<th>시각</th>
-              </tr>
+              {clickView ? (
+                <tr>
+                  <th>주소</th><th>처음 누른 시각</th><th className="text-right">누른 횟수</th><th>가입·상담</th>{showCampaign && <th>보낸 메일</th>}
+                </tr>
+              ) : (
+                <tr>
+                  <th>주소</th>{showStatus && <th>상태</th>}<th>{showStatus ? "비고" : "사유"}</th>{showCampaign && <th>보낸 메일</th>}<th>시각</th>
+                </tr>
+              )}
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {clickView ? rows.map((r) => (
+                <tr key={`${r.campaign_id}:${r.email}`}>
+                  <td className="font-mono text-[12px]">{r.email}</td>
+                  <td className="whitespace-nowrap text-[var(--text-muted)]">{kstDateTime(r.clicked_at)}</td>
+                  <td className="text-right mono-number">{Number(r.click_count || 0).toLocaleString()}</td>
+                  <td className="whitespace-nowrap">{r.converted_kind ? <PfBadge tone="ok">{CONVERTED_LABEL[r.converted_kind] || r.converted_kind}</PfBadge> : <span className="text-[var(--text-dim)]">—</span>}</td>
+                  {showCampaign && <td className="max-w-[260px] truncate text-[var(--text-muted)]" title={r.campaign_subject}>{kstDateTime(r.campaign_sent_at)} · {r.campaign_subject}</td>}
+                </tr>
+              )) : rows.map((r) => (
                 <tr key={`${r.campaign_id}:${r.email}`}>
                   <td className="font-mono text-[12px]">{r.email}</td>
                   {showStatus && <td className="whitespace-nowrap">{STATUS_LABEL[r.status] || r.status}</td>}
