@@ -1,4 +1,4 @@
-import { todayKst } from "@/lib/kst";
+import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Data Synchronization System
@@ -1010,6 +1010,44 @@ export async function syncCodefData(
  * 5분 throttle (localStorage) — 짧은 시간 안의 중복 호출은 silent skip.
  * silent: 실패해도 throw 안 함 (대시보드 마운트 시 자동 호출용).
  */
+/** 아직 통장 거래가 한 건도 없는 회사 — 연결 직후 첫 1년치 가져오기 대상 */
+export async function needsInitialImport(companyId: string): Promise<boolean> {
+  const { count } = await supabase.from('bank_transactions')
+    .select('id', { count: 'exact', head: true })
+    .eq('company_id', companyId);
+  return (count || 0) === 0;
+}
+
+/** 연결 직후 첫 가져오기 — 지난 1년치 은행·카드를 3개월씩 4번 + 카드 승인내역.
+ *  (엣지 150초 제한 때문에 한 번에 못 부른다.) 무료 회사도 서버(codef-sync claim_initial_import)가
+ *  첫 호출부터 60분 동안 이 가져오기를 허용한다 — 그 뒤로는 하루 2회 자동 수집만. */
+export async function runInitialImport(companyId: string): Promise<{
+  success: boolean; bankSynced: number; cardSynced: number;
+  errors: CodefSyncError[]; notes: CodefSyncError[]; message: string;
+}> {
+  const toCodef = (d: Date) => kstDateStr(d).replace(/-/g, '');
+  let bank = 0, card = 0;
+  const errors: CodefSyncError[] = [], notes: CodefSyncError[] = [];
+  const today = new Date();
+  for (let i = 3; i >= 0; i--) {
+    const cEnd = new Date(today); cEnd.setMonth(cEnd.getMonth() - i * 3);
+    const cStart = new Date(cEnd); cStart.setMonth(cStart.getMonth() - 3); cStart.setDate(cStart.getDate() + 1);
+    const r = await syncCodefData(companyId, 'bank_card', toCodef(cStart), toCodef(cEnd));
+    bank += r.bankSynced || 0;
+    card += r.cardSynced || 0;
+    if (r.errors) errors.push(...r.errors);
+    if (r.notes) notes.push(...r.notes);
+  }
+  // 카드 승인내역(청구 전 결제) — bank_card 와 묶으면 엣지 시간 초과라 따로
+  const approval = await syncCodefData(companyId, 'card_approval').catch(() => null);
+  if (approval?.errors) errors.push(...approval.errors);
+  card += approval?.cardSynced || 0;
+  return {
+    success: errors.length === 0, bankSynced: bank, cardSynced: card, errors, notes,
+    message: `은행 ${bank}건 + 카드 ${card}건 (1년치)`,
+  };
+}
+
 export async function refreshBankBalances(
   companyId: string,
   opts?: { force?: boolean; throttleMs?: number },

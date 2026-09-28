@@ -2353,11 +2353,18 @@ serve(withSentry("codef-sync", async (req) => {
     //     — 요금제 표의 「무료: 통장·카드 3개까지 연결 · 하루 2회 자동」과 정반대. 3개 한도는
     //     bank_accounts/card 트리거(enforce_free_account_limit)가 따로 지킨다.
     const CONNECT_ACTIONS = new Set(["register", "list-accounts", "sandbox-connect"]);
+    let initialWindow = false;   // 무료 첫 1년치 가져오기 창 — 아래 즉시 동기화 검사(assertBankSyncAllowed)도 이걸 본다
     if (!isInternalAuth && companyId && !CONNECT_ACTIONS.has(action)) {
       try {
         const { data: allowed, error: planErr } = await supabase
           .rpc("is_manual_sync_allowed", { p_company: companyId });
-        if (!planErr && allowed === false) {
+        //   무료라도 연결 직후 첫 1년치 가져오기(은행·카드만)는 한 번 연다 — 첫 호출부터 60분 창 (2026-09-28).
+        //   화면(runInitialImport)이 연결 성공 직후 부른다. 홈택스·그 밖의 수집은 그대로 막는다.
+        if (!planErr && allowed === false && action === "sync" && ["bank_card", "card_approval"].includes(String(syncType))) {
+          const { data: claimed } = await supabase.rpc("claim_initial_import", { p_company: companyId });
+          initialWindow = claimed === true;
+        }
+        if (!planErr && allowed === false && !initialWindow) {
           return new Response(JSON.stringify({
             error: "무료 요금제는 수동 수집을 쓸 수 없습니다 — 자동 수집(하루 2회)은 그대로 됩니다.",
             code: "MANUAL_NOT_ALLOWED",
@@ -3526,7 +3533,8 @@ serve(withSentry("codef-sync", async (req) => {
     const results: Record<string, any> = {};
 
     // 무료 플랜은 수동 동기화도 차단 (2026-08-06) — 홈택스만 쓰는 요청은 통과시킨다.
-    if (syncType !== "hometax") {
+    //   연결 직후 첫 1년치 가져오기 창(initialWindow)은 예외 — 위 수동 수집 검사에서 열었다.
+    if (syncType !== "hometax" && !initialWindow) {
       const denied = await assertBankSyncAllowed(supabase, companyId);
       if (denied) {
         return new Response(JSON.stringify({ error: denied, code: "PLAN_BANK_SYNC_DISABLED" }), {

@@ -40,6 +40,19 @@ const CODEF_PUBLIC: Record<string, string> = {
 };
 
 // 온보딩 '금융 연결' 단계가 같은 등록 폼을 그대로 쓴다 (2026-08-10). export 만 추가, 동작 무변경.
+// 연결 성공 직후 한 번 — 아직 통장 거래가 없으면 지난 1년치를 가져온다 (무료 포함, 2026-09-28).
+//   화면을 떠나도(같은 탭 안 이동) 이어서 돈다. 결과는 토스트로만 알린다.
+async function startInitialImportAfterConnect(companyId: string, toast: (m: string, t?: "success" | "error" | "info") => void, onDone: () => void) {
+  try {
+    const { needsInitialImport, runInitialImport } = await import("@/lib/data-sync");
+    if (!(await needsInitialImport(companyId))) return;
+    toast("지난 1년 거래내역을 가져오는 중입니다 · 몇 분 걸립니다", "info");
+    const r = await runInitialImport(companyId);
+    toast(r.success ? `지난 1년 거래내역을 가져왔습니다 · ${r.message}` : `일부만 가져왔습니다 · ${r.message} · 나머지는 자동 수집으로 채워집니다`, r.success ? "success" : "info");
+    onDone();
+  } catch { /* 첫 가져오기 실패는 하루 2회 자동 수집이 이어서 채운다 */ }
+}
+
 export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = [] }: { companyId: string | null; onRegistered: () => void; connectedOrgs?: string[] }) {
   const { toast } = useToast();
   const [accountType, setAccountType] = useState<"bank" | "card" | "hometax">("bank");
@@ -362,6 +375,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
             toast("금융기관 연결 완료", "success");
             setCertPassword("");
             onRegistered();
+            void startInitialImportAfterConnect(companyId, toast, onRegistered);
           }
         } else {
           setResult({ ok: false, msg: res.error || "연결 실패" });
@@ -385,6 +399,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
             setLoginId("");
             setLoginPw("");
             onRegistered();
+            void startInitialImportAfterConnect(companyId, toast, onRegistered);
           }
         } else {
           setResult({ ok: false, msg: res.error || "연결 실패" });
@@ -819,28 +834,9 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
       let bankCardRes: any;
       if (hasCodefConnection && isFirstSync) {
         toast('첫 동기화 · 1년치 데이터를 4구간으로 나눠 가져오는 중', 'info');
-        let totalBank = 0, totalCard = 0;
-        const allErrors: any[] = [], allNotes: any[] = [];
-        const today = new Date();
-        for (let i = 3; i >= 0; i--) {
-          const cEnd = new Date(today); cEnd.setMonth(cEnd.getMonth() - i * 3);
-          const cStart = new Date(cEnd); cStart.setMonth(cStart.getMonth() - 3); cStart.setDate(cStart.getDate() + 1);
-          const startStr = toCodefDate(kstDateStr(cStart));
-          const endStr = toCodefDate(kstDateStr(cEnd));
-          const r: any = await syncCodefData(companyId, 'bank_card', startStr, endStr);
-          totalBank += r.bankSynced || 0;
-          totalCard += r.cardSynced || 0;
-          if (r.errors) allErrors.push(...r.errors);
-          if (r.notes) allNotes.push(...r.notes);
-        }
-        bankCardRes = {
-          success: allErrors.length === 0,
-          status: allErrors.length === 0 ? 'success' : 'partial',
-          errors: allErrors,
-          notes: allNotes,
-          bankSynced: totalBank, cardSynced: totalCard,
-          message: `은행 ${totalBank}건 + 카드 ${totalCard}건 (1년치)`,
-        };
+        const { runInitialImport } = await import("@/lib/data-sync");
+        const r = await runInitialImport(companyId);
+        bankCardRes = { ...r, status: r.success ? 'success' : 'partial' };
       } else {
         bankCardRes = hasCodefConnection
           ? await syncCodefData(companyId, 'bank_card')
@@ -849,7 +845,8 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
 
       // 1.5단계: 카드 승인내역(실시간) — 반드시 별도 호출 (bank_card 와 묶으면 Edge 150s 초과 HTTP 546).
       //   청구 마감 전 결제건을 즉시 반영. billing 과 동일 external_id 로 중복 없이 수렴.
-      const approvalRes = hasCodefConnection
+      //   첫 가져오기(runInitialImport)는 승인내역까지 이미 불렀다
+      const approvalRes = hasCodefConnection && !isFirstSync
         ? await syncCodefData(companyId, 'card_approval').catch(() => null)
         : null;
 
