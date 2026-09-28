@@ -110,6 +110,7 @@ Deno.serve(withSentry("resend-webhook", async (req) => {
       .select("id, campaign_id, email").eq("resend_id", emailId).maybeSingle();
     //   도착 알림이 발송 함수가 resend_id 를 적기 전에 올 수 있다(100통 묶음 뒤 행을 하나씩 갱신하는 몇 초 사이).
     //   그때는 메일에 붙인 campaign 태그 + 받는 주소로 아직 queued 인 행을 찾는다.
+    let matchedByTag = false;
     if (!rcpt) {
       const tags = d?.tags;
       const campaignId: string | undefined = Array.isArray(tags)
@@ -120,12 +121,14 @@ Deno.serve(withSentry("resend-webhook", async (req) => {
           .select("id, campaign_id, email").eq("campaign_id", campaignId).eq("email", String(to).toLowerCase())
           .in("status", ["queued", "sent"]).maybeSingle();
         rcpt = byTag;
+        matchedByTag = !!byTag;
       }
     }
     if (rcpt) {
       const now = new Date().toISOString();
       await admin.from("email_campaign_recipients")
-        .update({ status, resend_id: emailId, error: status === "bounced" || status === "complained" ? (detailOf() || event.type).slice(0, 300) : null, updated_at: now })
+        //   태그로 찾은 행은 발송 함수가 아직 sent_at 을 못 적었다 — 중복 제외가 이 시각으로 찾으므로 여기서 채운다.
+        .update({ status, resend_id: emailId, ...(matchedByTag ? { sent_at: d?.created_at || now } : {}), error: status === "bounced" || status === "complained" ? (detailOf() || event.type).slice(0, 300) : null, updated_at: now })
         .eq("id", rcpt.id);
       if (status === "bounced" || status === "complained") {
         await admin.from("email_optouts").upsert(

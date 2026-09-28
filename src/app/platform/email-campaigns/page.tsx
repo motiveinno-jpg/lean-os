@@ -17,11 +17,11 @@ const db = supabase;
 
 type Campaign = {
   id: string; subject: string; from_email: string; status: string;
-  total: number; sent_count: number; skipped_optout: number; failed_count: number;
+  total: number; sent_count: number; skipped_optout: number; skipped_duplicate: number; failed_count: number;
   delivered: number; bounced: number; complained: number;
   created_at: string; sent_at: string | null;
 };
-type Preview = { total: number; skipped_optout: number; will_send: number; invalid: string[]; preview_html?: string; orphan_links?: string[] };
+type Preview = { total: number; skipped_optout: number; skipped_duplicate: number; will_send: number; invalid: string[]; preview_html?: string; orphan_links?: string[] };
 
 const STATUS: Record<string, { tone: "ok" | "info" | "warn" | "muted"; label: string }> = {
   sent: { tone: "ok", label: "발송 완료" },
@@ -29,6 +29,15 @@ const STATUS: Record<string, { tone: "ok" | "info" | "warn" | "muted"; label: st
   failed: { tone: "warn", label: "실패" },
   draft: { tone: "muted", label: "초안" },
 };
+
+/** 이전 발송과 겹치는 주소를 어디까지 거슬러 올라가 뺄지 (일) */
+const DEDUPE_OPTIONS = [
+  { days: 30, label: "최근 30일 안에 받은 주소 제외" },
+  { days: 7, label: "최근 7일 안에 받은 주소 제외" },
+  { days: 90, label: "최근 90일 안에 받은 주소 제외" },
+  { days: 36500, label: "한 번이라도 받은 주소 제외" },
+  { days: 0, label: "제외하지 않음 (다시 보내기)" },
+];
 
 /** 붙여 넣은 글에서 이메일만 뽑는다 — 줄바꿈·쉼표·CSV·이름 섞인 목록 전부 */
 function extractEmails(text: string): string[] {
@@ -41,6 +50,7 @@ export default function PlatformEmailCampaignsPage() {
   const [subject, setSubject] = useState("");
   const [bodyText, setBodyText] = useState("");
   const [listText, setListText] = useState("");
+  const [dedupeDays, setDedupeDays] = useState(30);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState<"preview" | "send" | null>(null);
   const [msg, setMsg] = useState<{ tone: "ok" | "warn"; text: string } | null>(null);
@@ -60,7 +70,7 @@ export default function PlatformEmailCampaignsPage() {
 
   const call = async (dryRun: boolean) => {
     const { data, error } = await db.functions.invoke("email-campaign-send", {
-      body: { subject, body_text: bodyText, recipients: emails, dry_run: dryRun },
+      body: { subject, body_text: bodyText, recipients: emails, dedupe_days: dedupeDays, dry_run: dryRun },
     });
     if (error) {
       //   함수가 돌려준 오류 문구를 그대로 보여 준다(HTTP 오류는 context 에 본문이 있다)
@@ -82,13 +92,13 @@ export default function PlatformEmailCampaignsPage() {
   const runSend = async () => {
     if (!preview) return;
     const ok = await appConfirm(
-      `${preview.will_send.toLocaleString()}명에게 보냅니다.\n\n· 제목: (광고) ${subject.replace(/^\(광고\)\s*/, "")}\n· 수신거부 ${preview.skipped_optout}명은 자동으로 뺐습니다\n· 보낸 뒤에는 되돌릴 수 없습니다`,
+      `${preview.will_send.toLocaleString()}명에게 보냅니다.\n\n· 제목: (광고) ${subject.replace(/^\(광고\)\s*/, "")}\n· 수신거부 ${preview.skipped_optout}명은 자동으로 뺐습니다\n${preview.skipped_duplicate ? `· 이전에 받은 ${preview.skipped_duplicate}명은 뺐습니다\n` : ""}· 보낸 뒤에는 되돌릴 수 없습니다`,
       { title: "메일 보내기", confirmLabel: "보내기" });
     if (!ok) return;
     setMsg(null); setBusy("send");
     try {
       const r = await call(false);
-      setMsg({ tone: r.failed ? "warn" : "ok", text: `발송 ${r.sent ?? 0}명 완료${r.failed ? ` · 실패 ${r.failed}명 (아래 이력에서 확인)` : ""} · 수신거부 제외 ${r.skipped_optout}명` });
+      setMsg({ tone: r.failed ? "warn" : "ok", text: `발송 ${r.sent ?? 0}명 완료${r.failed ? ` · 실패 ${r.failed}명 (아래 이력에서 확인)` : ""} · 수신거부 제외 ${r.skipped_optout}명${r.skipped_duplicate ? ` · 중복 제외 ${r.skipped_duplicate}명` : ""}` });
       setPreview(null); setListText("");
       qc.invalidateQueries({ queryKey: ["op-email-campaigns"] });
     } catch (e) { setMsg({ tone: "warn", text: e instanceof Error ? e.message : "발송에 실패했습니다." }); }
@@ -133,13 +143,19 @@ export default function PlatformEmailCampaignsPage() {
               <textarea className="pf-input min-h-[120px] font-mono text-[12px]" value={listText} onChange={(e) => { setListText(e.target.value); setPreview(null); }} placeholder={"ceo@company.com\n대표님, hong@example.com, 02-1234-5678"} />
               <span className="text-[11px] text-[var(--text-dim)]">주소 {emails.length.toLocaleString()}개 인식</span>
             </label>
+            <label className="grid gap-1">
+              <span className="text-xs text-[var(--text-muted)]">이전 발송과 겹치는 주소 <span className="text-[var(--text-dim)]">· 목록을 나눠 보낼 때 같은 사람이 두 번 받지 않게 합니다</span></span>
+              <select className="pf-input max-w-[320px]" value={dedupeDays} onChange={(e) => { setDedupeDays(Number(e.target.value)); setPreview(null); }}>
+                {DEDUPE_OPTIONS.map((o) => <option key={o.days} value={o.days}>{o.label}</option>)}
+              </select>
+            </label>
             <div className="flex items-center gap-2 flex-wrap">
               <button type="button" className="btn-secondary btn-sm" disabled={!canPreview} onClick={runPreview}>
                 {busy === "preview" ? "계산 중…" : "미리 계산"}
               </button>
               {preview && (
                 <span className="text-sm text-[var(--text-muted)]">
-                  총 <b className="mono-number">{preview.total.toLocaleString()}</b>명 · 수신거부 제외 <b className="mono-number">{preview.skipped_optout.toLocaleString()}</b>명 → 발송 예정 <b className="mono-number text-[var(--text)]">{preview.will_send.toLocaleString()}</b>명
+                  총 <b className="mono-number">{preview.total.toLocaleString()}</b>명 · 수신거부 제외 <b className="mono-number">{preview.skipped_optout.toLocaleString()}</b>명 · 중복 제외 <b className="mono-number">{(preview.skipped_duplicate ?? 0).toLocaleString()}</b>명 → 발송 예정 <b className="mono-number text-[var(--text)]">{preview.will_send.toLocaleString()}</b>명
                   {preview.invalid.length > 0 && <> · 형식 오류 {preview.invalid.length}개 제외</>}
                 </span>
               )}
@@ -177,7 +193,7 @@ export default function PlatformEmailCampaignsPage() {
                 <thead>
                   <tr>
                     <th>보낸 시각</th><th>제목</th><th>상태</th>
-                    <th className="text-right">대상</th><th className="text-right">발송</th><th className="text-right">제외</th><th className="text-right">실패</th>
+                    <th className="text-right">대상</th><th className="text-right">발송</th><th className="text-right">수신거부 제외</th><th className="text-right">중복 제외</th><th className="text-right">실패</th>
                     <th className="text-right">도착</th><th className="text-right">반송</th><th className="text-right">스팸 신고</th>
                   </tr>
                 </thead>
@@ -192,6 +208,7 @@ export default function PlatformEmailCampaignsPage() {
                         <td className="text-right mono-number">{c.total.toLocaleString()}</td>
                         <td className="text-right mono-number">{c.sent_count.toLocaleString()}</td>
                         <td className="text-right mono-number">{c.skipped_optout.toLocaleString()}</td>
+                        <td className="text-right mono-number">{(c.skipped_duplicate ?? 0).toLocaleString()}</td>
                         <td className="text-right mono-number">{c.failed_count.toLocaleString()}</td>
                         <td className="text-right mono-number">{Number(c.delivered).toLocaleString()}</td>
                         <td className="text-right mono-number">{Number(c.bounced).toLocaleString()}</td>

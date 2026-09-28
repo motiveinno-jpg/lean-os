@@ -9,6 +9,7 @@ import { renderCampaignBody, orphanLinkLabels } from "../_shared/campaign-body.t
 //   · 정보통신망법 제50조: 제목 앞 "(광고)", 발신자 명칭·연락처, 수신거부 방법을 본문에 반드시 넣는다 → 여기서 자동으로 붙인다.
 //   · 수신거부(email_optouts)는 보내기 직전에 대조해 자동으로 뺀다. 반송·스팸신고로 들어온 주소도 같은 표라 함께 빠진다.
 //   · List-Unsubscribe / List-Unsubscribe-Post 헤더 — 지메일 등이 메일 상단에 '수신거부' 버튼을 띄운다(스팸 신고 대신 이걸 누르게).
+//   · dedupe_days(기본 30): 그 기간 안에 광고 메일을 받은 주소는 빼고 skipped_duplicate 로 남긴다. 0 이면 끔.
 //   · dry_run=true 면 보내지 않고 "총 N · 수신거부 제외 M · 발송 예정 K" 와 실제로 나갈 HTML(preview_html)만 돌려준다.
 
 const corsHeaders = {
@@ -73,6 +74,8 @@ Deno.serve(withSentry("email-campaign-send", async (req: Request) => {
   let subject = String(body?.subject || "").trim().slice(0, 200);
   const bodyText = String(body?.body_text || "").trim().slice(0, 20000);
   const rawList: unknown[] = Array.isArray(body?.recipients) ? body.recipients : [];
+  //   최근 N일 안에 광고 메일을 받은 주소는 뺀다(0 = 끔). 값이 없으면 30일 — 목록을 나눠 보낼 때 두 번 받는 사람이 없게.
+  const dedupeDays = Number.isFinite(Number(body?.dedupe_days)) ? Math.max(0, Math.min(36500, Math.floor(Number(body.dedupe_days)))) : 30;
   if (!subject) return json({ error: "제목을 적어 주세요." }, 400);
   if (!bodyText) return json({ error: "본문을 적어 주세요." }, 400);
   //   법 요건 — 제목 맨 앞에 (광고). 사람이 빼먹어도 여기서 붙인다.
@@ -97,8 +100,16 @@ Deno.serve(withSentry("email-campaign-send", async (req: Request) => {
     const { data } = await admin.from("email_optouts").select("email").in("email", recipients.slice(i, i + 500));
     for (const r of (data || []) as { email: string }[]) opted.add(r.email.toLowerCase());
   }
-  const toSend = recipients.filter((e) => !opted.has(e));
-  const summary = { total: recipients.length, skipped_optout: opted.size, will_send: toSend.length, invalid };
+  // ── 이전 발송과 겹치는 주소 ──  수신거부가 먼저(둘 다면 수신거부로 센다)
+  const dup = new Set<string>();
+  if (dedupeDays > 0) {
+    const since = new Date(Date.now() - dedupeDays * 86400_000).toISOString();
+    const { data, error } = await admin.rpc("email_campaign_recent_recipients", { p_emails: recipients, p_since: since });
+    if (error) return json({ error: "이전 발송 대조 실패: " + error.message }, 500);
+    for (const e of (data || []) as string[]) if (!opted.has(e)) dup.add(e);
+  }
+  const toSend = recipients.filter((e) => !opted.has(e) && !dup.has(e));
+  const summary = { total: recipients.length, skipped_optout: opted.size, skipped_duplicate: dup.size, dedupe_days: dedupeDays, will_send: toSend.length, invalid };
   if (dryRun) {
     //   미리 계산 때 실제로 나갈 모양을 그대로 돌려준다 — 화면이 같은 HTML 로 미리보기를 그린다.
     const sample = withFooter(bodyText, `${SITE}/unsubscribe/?email=`);
@@ -107,11 +118,11 @@ Deno.serve(withSentry("email-campaign-send", async (req: Request) => {
 
   // ── 캠페인 기록 ──
   const { data: camp, error: cErr } = await admin.from("email_campaigns")
-    .insert({ subject, body_text: bodyText, from_email: FROM_EMAIL, status: "sending", total: recipients.length, skipped_optout: opted.size, created_by: ud.user.id })
+    .insert({ subject, body_text: bodyText, from_email: FROM_EMAIL, status: "sending", total: recipients.length, skipped_optout: opted.size, skipped_duplicate: dup.size, dedupe_days: dedupeDays || null, created_by: ud.user.id })
     .select("id").single();
   if (cErr || !camp) return json({ error: "캠페인 기록 실패: " + (cErr?.message || "") }, 500);
   const campaignId = camp.id as string;
-  const rows = recipients.map((email) => ({ campaign_id: campaignId, email, status: opted.has(email) ? "skipped_optout" : "queued" }));
+  const rows = recipients.map((email) => ({ campaign_id: campaignId, email, status: opted.has(email) ? "skipped_optout" : dup.has(email) ? "skipped_duplicate" : "queued" }));
   for (let i = 0; i < rows.length; i += 500) await admin.from("email_campaign_recipients").insert(rows.slice(i, i + 500));
 
   // ── 발송 (100통씩 묶어서) ──
