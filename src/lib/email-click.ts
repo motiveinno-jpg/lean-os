@@ -16,8 +16,15 @@ const rpc = (token: string, path: string | null, kind: "click" | "signup" | "con
   (supabase.rpc as any)("record_email_click", { p_token: token, p_path: path, p_kind: kind }).then(() => {}, () => {});
 };
 
-//   첫 화면에서 두 번 불린다(하이드레이션 직후 라우터가 주소를 다시 맞추며 ec 가 잠깐 되살아남) — 같은 토큰은 한 번만.
-const handled = new Set<string>();
+//   첫 화면에서 두 번 불린다 — 같은 토큰은 탭당 한 번만. 모듈 변수로는 못 막아서(두 번째 호출도 새 값으로 시작) sessionStorage 로.
+function firstTime(token: string): boolean {
+  try {
+    const k = `ov_ec_done:${token}`;
+    if (sessionStorage.getItem(k)) return false;
+    sessionStorage.setItem(k, "1");
+  } catch { /* 저장 불가 — 서버가 30초 안 중복을 접는다 */ }
+  return true;
+}
 
 /** 들어온 주소에 ec 가 있으면 클릭으로 적는다. 페이지마다 불러도 된다(없으면 아무것도 안 함). */
 export function captureEmailClick() {
@@ -25,12 +32,10 @@ export function captureEmailClick() {
     const sp = new URLSearchParams(window.location.search);
     const token = sp.get("ec");
     if (!token) return;
-    const seen = handled.has(token);
-    handled.add(token);
     sp.delete("ec");
     const qs = sp.toString();
     window.history.replaceState(window.history.state, "", window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash);
-    if (seen || !TOKEN_RE.test(token)) return;
+    if (!TOKEN_RE.test(token) || !firstTime(token)) return;
     try { localStorage.setItem(KEY, JSON.stringify({ token, at: Date.now() })); } catch { /* 저장 불가 — 전환만 못 셈 */ }
     rpc(token, window.location.pathname, "click");
   } catch { /* 계측은 화면을 방해하지 않는다 */ }
