@@ -14,7 +14,7 @@ import Link from "next/link";
 import "@/app/landing-v8.css";
 import { SiteFooter, SiteHeader } from "./site-shell";
 import { COMPETITORS, CONSULT_HREF, SIGNUP_HREF } from "./content";
-import { bytes, discountPct, perMonth, tokens, won, type PlanRow } from "./pricing-data";
+import { bytes, discountPct, perMonth, won, type PlanRow } from "./pricing-data";
 
 const Check = () => (
   <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.6" viewBox="0 0 24 24" aria-hidden="true">
@@ -69,14 +69,14 @@ function matrix(free: PlanRow, paid: PlanRow): { group: string; rows: Row[] }[] 
         { name: "세금계산서 발행", free: perMonth(free.monthly_tax_invoice_limit, "건"), paid: perMonth(paid.monthly_tax_invoice_limit, "건") },
         { name: "현금영수증 발행", free: perMonth(free.monthly_cashbill_limit, "건"), paid: perMonth(paid.monthly_cashbill_limit, "건") },
         { name: "홈택스 수집(무제한)", free: "—", paid: "✓" },
-        // 추가 구매 단가 = billing/page.tsx 묶음 표(10건 3,000원 · 50만 토큰 10,000원). 무료는 구매 불가(api/stripe/credits).
-        { name: "월 제공량을 다 썼을 때", free: "다음 달까지 대기", paid: "추가 구매 가능 (발행 10건 3,000원 · 토큰 50만 개 10,000원)" },
+        // 추가 구매 단가 = billing/page.tsx 묶음 표(10건 3,000원). 무료는 구매 불가(api/stripe/credits). AI 토큰 충전은 2026-09-28 종료.
+        { name: "발행 제공량을 다 썼을 때", free: "다음 달까지 대기", paid: "추가 구매 가능 (10건 3,000원)" },
       ],
     },
     {
       group: "AI",
       rows: [
-        { name: "AI 대표 참모(질문·업무 지시)", free: tokens(free.monthly_ai_token_limit), paid: tokens(paid.monthly_ai_token_limit) },
+        { name: "AI 대표 참모(질문·업무 지시)", free: perMonth(free.monthly_ai_call_limit, "회"), paid: perMonth(paid.monthly_ai_call_limit, "회") },
         { name: "AI 브리핑", free: "기본형(요약 규칙)", paid: "매일 자동 분석" },
       ],
     },

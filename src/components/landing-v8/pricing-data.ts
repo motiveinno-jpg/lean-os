@@ -20,7 +20,9 @@ export type PlanRow = {
   monthly_tax_invoice_limit: number | null;
   monthly_cashbill_limit: number | null;
   monthly_contract_limit: number | null;
-  monthly_ai_token_limit: number | null;
+  monthly_ai_token_limit: number | null;   // 2026-09-28 폐지(항상 null) — AI 참모는 질문 횟수로 센다
+  /** AI 참모 월 질문 횟수, null = 무제한 */
+  monthly_ai_call_limit: number | null;
   included_storage_bytes: number;
   storage_per_unit_bytes: number;
   annual_discount: string | number | null;
@@ -28,17 +30,17 @@ export type PlanRow = {
 };
 
 export const PLAN_COLUMNS =
-  "slug, name, base_price, list_price, per_seat_price, included_seats, max_seats, features, monthly_tax_invoice_limit, monthly_cashbill_limit, monthly_contract_limit, monthly_ai_token_limit, included_storage_bytes, storage_per_unit_bytes, annual_discount, sort_order";
+  "slug, name, base_price, list_price, per_seat_price, included_seats, max_seats, features, monthly_tax_invoice_limit, monthly_cashbill_limit, monthly_contract_limit, monthly_ai_token_limit, monthly_ai_call_limit, included_storage_bytes, storage_per_unit_bytes, annual_discount, sort_order";
 
 export const PLAN_FALLBACK: PlanRow[] = [
   {
     slug: "free", name: "무료", base_price: 0, list_price: null, per_seat_price: 0, included_seats: 5, max_seats: 5,
     features: [
       "구성원 5명", "저장공간 500MB", "결재 허브·근태·급여·프로젝트·게시판·파일보관함 무제한",
-      "세금계산서 발행 월 5건 · 현금영수증 발행 월 5건", "전자계약 월 5건", "AI 대표 참모 월 10만 토큰",
+      "세금계산서 발행 월 5건 · 현금영수증 발행 월 5건", "전자계약 월 5건", "AI 대표 참모 질문 월 5회",
       "통장·카드 3개까지 연결 · 하루 2회 자동 동기화", "AI 브리핑은 기본형(요약 규칙)",
     ],
-    monthly_tax_invoice_limit: 5, monthly_cashbill_limit: 5, monthly_contract_limit: 5, monthly_ai_token_limit: 100000,
+    monthly_tax_invoice_limit: 5, monthly_cashbill_limit: 5, monthly_contract_limit: 5, monthly_ai_token_limit: null, monthly_ai_call_limit: 5,
     included_storage_bytes: 524288000, storage_per_unit_bytes: 10737418240, annual_discount: "0.10", sort_order: 0,
   },
   {
@@ -47,9 +49,9 @@ export const PLAN_FALLBACK: PlanRow[] = [
       "기본 5명 포함 · 추가 1명당 ₩5,000/월", "저장공간 500MB + 추가 1명당 10GB · 저장공간 팩(+10GB) ₩5,000/월",
       "세금계산서 발행 월 100건 · 현금영수증 발행 월 100건", "전자계약(서명) 무제한",
       "통장·카드 무제한 연결 · 하루 2회 자동 + 필요할 때 즉시 동기화", "홈택스 수집(무제한) · 부가세 자료 정리",
-      "AI 대표 참모 월 50만 토큰", "AI 브리핑(매일 자동 분석)", "결재 허브·근태·급여·프로젝트 전 기능 무제한",
+      "AI 대표 참모 질문 월 100회", "AI 브리핑(매일 자동 분석)", "결재 허브·근태·급여·프로젝트 전 기능 무제한",
     ],
-    monthly_tax_invoice_limit: 100, monthly_cashbill_limit: 100, monthly_contract_limit: null, monthly_ai_token_limit: 500000,
+    monthly_tax_invoice_limit: 100, monthly_cashbill_limit: 100, monthly_contract_limit: null, monthly_ai_token_limit: null, monthly_ai_call_limit: 100,
     included_storage_bytes: 524288000, storage_per_unit_bytes: 10737418240, annual_discount: "0.10", sort_order: 1,
   },
 ];
@@ -57,6 +59,5 @@ export const PLAN_FALLBACK: PlanRow[] = [
 /* 표시용 — 숫자는 전부 PlanRow 에서 만든다 */
 export const won = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
 export const perMonth = (n: number | null, unit: string) => (n === null ? "무제한" : `월 ${n.toLocaleString("ko-KR")}${unit}`);
-export const tokens = (n: number | null) => (n === null ? "무제한" : `월 ${n >= 10000 ? `${n / 10000}만` : n.toLocaleString("ko-KR")} 토큰`);
 export const bytes = (n: number) => (n >= 1024 ** 3 ? `${+(n / 1024 ** 3).toFixed(1)}GB` : `${Math.round(n / 1024 ** 2)}MB`);
 export const discountPct = (p: PlanRow) => Math.round(Number(p.annual_discount || 0) * 100);

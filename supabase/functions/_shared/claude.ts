@@ -171,37 +171,24 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
     }
   } catch { /* 조회 실패 — 차단 안 함 */ }
 
-  // 요금제별 월 호출 횟수 상한 (2026-08-06 개편 — 무료 5회 / 오너뷰 100회, NULL=무제한).
-  //   비용 상한과 별개로 "몇 회"가 사용자에게 보이는 단위라 횟수로도 막는다. 조회 실패 시 통과.
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const admin = opts.admin as any;
-    const { data: entRow } = await admin.rpc("get_company_entitlement", { p_company_id: opts.companyId }).maybeSingle();
-    const slug = entRow?.effective_plan_slug || "free";
-    const { data: planRow } = await admin
-      .from("subscription_plans").select("name, monthly_ai_call_limit").eq("slug", slug).maybeSingle();
-    const callLimit = planRow?.monthly_ai_call_limit;
-    if (typeof callLimit === "number" && opts.countsTowardCallCap !== false) {
-      const kstYm = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 7);
-      const monthStart = `${kstYm}-01T00:00:00+09:00`;
-      const { count } = await admin
-        .from("ai_usage_log")
-        .select("id", { count: "exact", head: true })
-        .eq("company_id", opts.companyId)
-        .eq("status", "ok")
-        // 질문에 딸린 부수 호출은 횟수에서 제외 — 종전에는 툴 턴마다 1회씩 깎여 '100회'가 실제론 35~40 질문이었다.
-        .not("feature", "in", '("owner_copilot_turn","copilot_memory")')
-        .gte("created_at", monthStart);
-      if ((count || 0) >= callLimit) {
+  // 요금제별 월 질문 횟수 (무료 5회 / 오너뷰 100회, NULL=무제한) — 고객이 직접 한 질문의 첫 호출
+  //   (countsTowardCallCap === true, owner-copilot 첫 턴)만 검사한다. AI 브리핑·사업자등록증 읽기·문의 분석 같은
+  //   자동 호출은 세지도 막지도 않는다 — 전에는 이것들까지 세어 고객이 묻지도 않은 질문이 깎였다(2026-09-28).
+  //   기준은 DB 함수 ai_question_allowance 한 곳. 조회 실패 시 통과(위 비용 상한이 안전망).
+  if (opts.countsTowardCallCap === true) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: qa } = await (opts.admin as any).rpc("ai_question_allowance", { p_company: opts.companyId });
+      if (qa && qa.allowed === false) {
         return {
           ...base,
-          error: `이번 달 AI 사용 횟수(${callLimit}회)를 모두 사용했습니다. 다음 달에 초기화됩니다.`,
+          error: `이번 달 AI 참모 질문 ${qa.limit}회를 모두 사용했습니다. 다음 달 1일에 다시 채워집니다.`,
           errorCode: "CALL_CAP",
           latencyMs: Date.now() - t0,
         };
       }
-    }
-  } catch { /* 조회 실패 — 차단 안 함 */ }
+    } catch { /* 조회 실패 — 차단 안 함 */ }
+  }
 
   let lastErr = "AI 응답 실패";
   let lastCode = "UNKNOWN";

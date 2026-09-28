@@ -112,7 +112,6 @@ function BillingPageInner() {
     enabled: !!companyId && tab === "credits",
   });
   const [issuePacks, setIssuePacks] = useState(1);
-  const [tokenPacks, setTokenPacks] = useState(1);
   const [creditLoading, setCreditLoading] = useState<string | null>(null);
 
   // 결제 후 ?credit=success 로 돌아오면 충전 탭을 열고 잔액을 다시 읽는다.
@@ -132,7 +131,7 @@ function BillingPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function startTopUp(kind: "issue" | "ai_tokens", packs: number) {
+  async function startTopUp(kind: "issue", packs: number) {
     setCreditLoading(kind);
     try {
       const res = await fetch("/api/stripe/credits", {
@@ -745,8 +744,7 @@ function BillingPageInner() {
           {/* 남은 양 한 줄 */}
           <div className="billing-strip billing-strip-inner">
             <span>남은 발행 충전 <b className="mono-number">{(credits?.issue_credits ?? 0).toLocaleString()}</b>건</span>
-            <span>남은 AI 토큰 충전 <b className="mono-number">{(credits?.ai_tokens ?? 0).toLocaleString()}</b>토큰</span>
-            <span className="text-[var(--text-dim)] text-[11px]">월 제공량을 다 쓰면 충전분에서 빠지며 토큰은 유효기간이 없습니다.</span>
+            <span className="text-[var(--text-dim)] text-[11px]">월 제공량을 다 쓰면 충전분에서 빠지며 충전분은 유효기간이 없습니다.</span>
           </div>
 
           {/* 충전 표 */}
@@ -761,13 +759,6 @@ function BillingPageInner() {
                   <td className="text-center"><input type="number" min={1} max={100} value={issuePacks} onChange={(e) => setIssuePacks(Math.min(100, Math.max(1, Number(e.target.value) || 1)))} className="billing-qty" /> <span className="text-[11px] text-[var(--text-dim)]">= {(issuePacks * 10).toLocaleString()}건</span></td>
                   <td className="tr mono-number font-semibold">{(issuePacks * 3000).toLocaleString()}원</td>
                   <td className="text-center"><button onClick={() => startTopUp("issue", issuePacks)} disabled={creditLoading !== null} className="btn-secondary btn-sm disabled:opacity-50">{creditLoading === "issue" ? "이동 중…" : "결제"}</button></td>
-                </tr>
-                <tr>
-                  <td className="text-left font-semibold">AI 참모 토큰</td>
-                  <td className="text-left text-[var(--text-muted)]">50만 토큰 묶음 · 10,000원</td>
-                  <td className="text-center"><input type="number" min={1} max={100} value={tokenPacks} onChange={(e) => setTokenPacks(Math.min(100, Math.max(1, Number(e.target.value) || 1)))} className="billing-qty" /> <span className="text-[11px] text-[var(--text-dim)]">= {(tokenPacks * 50).toLocaleString()}만</span></td>
-                  <td className="tr mono-number font-semibold">{(tokenPacks * 10000).toLocaleString()}원</td>
-                  <td className="text-center"><button onClick={() => startTopUp("ai_tokens", tokenPacks)} disabled={creditLoading !== null} className="btn-secondary btn-sm disabled:opacity-50">{creditLoading === "ai_tokens" ? "이동 중…" : "결제"}</button></td>
                 </tr>
               </tbody>
             </table></div>
@@ -1022,7 +1013,7 @@ function BillingPageInner() {
                 { f: "전자계약", free: "월 5건", std: "무제한", ultra: "무제한" },
                 { f: "통장·카드 연결", free: "3개 · 하루 2회", std: "무제한 · 하루 2회 + 즉시", ultra: "무제한 + 연동 주기 협의" },
                 { f: "홈택스 수집(무제한)", free: "—", std: "✓", ultra: "✓" },
-                { f: "AI 참모", free: "월 10만 토큰", std: "월 50만 토큰", ultra: "협의(전용 한도)" },
+                { f: "AI 참모 질문", free: "월 5회", std: "월 100회", ultra: "무제한" },
                 { f: "AI 브리핑", free: "기본형(규칙)", std: "매일 자동 분석", ultra: "회사 지표에 맞춘 브리핑" },
                 { f: "전자결재·근태·급여·프로젝트·게시판", free: "무제한", std: "무제한", ultra: "무제한" },
                 { f: "회사 시스템에 맞춘 별도 UX 구축", free: "—", std: "—", ultra: "✓ 화면·흐름 맞춤 설계" },

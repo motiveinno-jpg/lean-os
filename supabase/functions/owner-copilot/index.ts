@@ -14,7 +14,7 @@ import { withSentry } from "../_shared/sentry.ts";
  *
  * 보안 불변식:
  *   - company_id·role 은 서버가 JWT→users 로 결정. 클라 입력 신뢰 안 함.
- *   - 유료 플랜(monthly_ai_token_limit != null) 만 이용. 당월 토큰 상한 초과 시 차단.
+ *   - 요금제별 월 질문 횟수(무료 5 · 오너뷰 100, ai_question_allowance) 초과 시 차단. 토큰 한도는 2026-09-28 폐지.
  *   - 직원(employee)은 회사 재무 스냅샷을 못 받는다 — 본인 범위 컨텍스트·툴만.
  *   - 원문 프롬프트/민감정보 저장 안 함(claude.ts 가 메타만 ai_usage_log 기록).
  */
@@ -2096,35 +2096,19 @@ serve(withSentry("owner-copilot", async (req) => {
       return json({ error: "첨부문서 내용이 너무 깁니다. 파일 수를 줄여 주세요.", code: "INVALID_ATTACHMENT" }, 400);
     }
 
-    // 이용 자격: entitlement + 플랜 토큰 상한
+    // 이용 자격: entitlement + 이번 달 질문 횟수 (2026-09-28 토큰 한도 폐지 — 무료 월 5회 · 오너뷰 월 100회)
+    //   센 기준은 고객이 직접 한 질문(ai_usage_log feature='owner_copilot', 첫 턴) — ai_question_allowance 한 곳.
     const { data: entRows } = await admin.rpc("get_company_entitlement", { p_company_id: companyId });
     const ent = Array.isArray(entRows) ? entRows[0] : entRows;
     if (!ent?.entitled) return json({ error: "구독이 활성 상태가 아닙니다.", code: "NOT_ENTITLED" }, 403);
 
-    const { data: planRow } = await admin
-      .from("subscription_plans")
-      .select("monthly_ai_token_limit")
-      .eq("slug", ent.effective_plan_slug)
-      .maybeSingle();
-    const tokenLimit: number | null = planRow?.monthly_ai_token_limit ?? null;
-    if (tokenLimit === null) {
-      return json({ error: "AI 참모는 유료 플랜(프로 이상)에서 이용할 수 있습니다.", code: "PLAN_REQUIRED" }, 403);
-    }
-
-    // 월 제공량 + 충전 잔액을 합쳐 판정 (2026-08-07 충전 도입).
-    const { data: allowance } = await admin.rpc("ai_token_allowance", { p_company_id: companyId });
-    const allow = (allowance || {}) as {
-      unlimited?: boolean; allowed?: boolean; credits?: number; used?: number; total_remaining?: number;
-    };
-    // 이번 달 사용량 — 아래 남은 토큰 계산에서 쓴다.
-    //   ⚠️ 종전에 ai_tokens_used_this_month 로 만들던 `used` 를 판정 교체 때 함께 지워버려
-    //      마지막 응답 조립에서 ReferenceError → 500('요청 처리 중 오류가 발생했습니다')이 났다.
-    //      (2026-08-07 대표 제보로 확인) 여기서 반드시 다시 만든다.
-    const used = Number(allow.used ?? 0);
-    if (!allow.unlimited && allow.allowed === false) {
+    const { data: qa } = await admin.rpc("ai_question_allowance", { p_company: companyId });
+    const quota = (qa || {}) as { limit?: number | null; used?: number; remaining?: number | null; allowed?: boolean };
+    if (quota.allowed === false) {
       return json({
-        error: "이번 달 AI 사용 한도를 모두 사용했습니다. 다음 달에 초기화되며, 요금제 > 충전에서 토큰을 충전하면 지금 바로 이어서 쓸 수 있습니다.",
-        code: "TOKEN_LIMIT",
+        error: `이번 달 AI 참모 질문 ${quota.limit}회를 모두 사용했습니다. 다음 달 1일에 다시 채워집니다.`,
+        code: "QUESTION_LIMIT",
+        question_limit: quota.limit ?? null, questions_used: quota.used ?? null,
       }, 429);
     }
 
@@ -2287,15 +2271,8 @@ serve(withSentry("owner-copilot", async (req) => {
     let requestBudgetExceeded = false;
 
     for (let turn = 0; turn < MAX_TURNS; turn++) {
-      // 2026-09-03 버그 수정: 종전에는 `used + 이번 요청 사용량 >= 월 제공량` 이면 첫 턴부터 respond 를 강제했다.
-      //   월 제공량을 다 쓰고 충전 토큰으로 쓰는 회사는 used 가 이미 제공량을 넘어 있어
-      //   모든 질문이 조회 툴 한 번 없이 "아직 조회하지 못했습니다"로 끝났다(평가에서 재현).
-      //   → 충전분을 합친 남은 토큰(total_remaining)에서 이번 요청 사용량을 뺀 값으로 판정한다.
-      const remainingTokens = allow.unlimited
-        ? Number.POSITIVE_INFINITY
-        : Number(allow.total_remaining ?? Math.max(0, tokenLimit - used));
-      const forceRespond = !attachmentContractMode
-        && (turn === MAX_TURNS - 1 || (totalIn + totalOut) >= remainingTokens);
+      //   마지막 턴에서만 답을 강제한다 — 토큰 한도는 2026-09-28 폐지(질문 횟수만 센다).
+      const forceRespond = !attachmentContractMode && turn === MAX_TURNS - 1;
       const callTimeoutMs = remainingOwnerCopilotCallTimeout(requestStartedAt);
       if (callTimeoutMs === 0) {
         requestBudgetExceeded = true;
@@ -2557,11 +2534,8 @@ serve(withSentry("owner-copilot", async (req) => {
       summary: "일시적으로 응답을 구조화하지 못했습니다. 잠시 후 다시 질문해 주세요.",
       sections: [],
     };
-    // 남은 토큰 = (월 제공량 + 충전 잔액) - 이번 달 사용 - 이번 호출분
-    const remaining = Math.max(
-      0,
-      (allow.total_remaining ?? Math.max(0, tokenLimit - used)) - (totalIn + totalOut),
-    );
+    // 남은 질문 = 이번 달 남은 횟수 − 방금 한 질문(무제한이면 null)
+    const remainingQuestions = quota.remaining == null ? null : Math.max(0, quota.remaining - 1);
     // 자동 기억 — 매니저 모드·첨부 없음·정상 답변일 때만. 실패해도 답변에는 영향 없음.
     const autoNotes = (mode === "manager" && attachments.length === 0 && answer && question)
       ? await extractMemories({ admin, companyId, userId: profile.id, question, answer: finalAnswer, requestStartedAt })
@@ -2572,7 +2546,8 @@ serve(withSentry("owner-copilot", async (req) => {
       action: pendingAction,   // 화면이 실행(immediate) 또는 확인 후 실행(confirm)
       mode,
       usage: { input: totalIn, output: totalOut },
-      remaining_tokens: remaining,
+      remaining_questions: remainingQuestions,
+      question_limit: quota.limit ?? null,
       as_of: (context as { as_of_kst?: string })?.as_of_kst ?? null,
       model: lastModel,
       request_id: lastRequestId,

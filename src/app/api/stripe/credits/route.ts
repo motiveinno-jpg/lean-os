@@ -42,8 +42,10 @@ export async function POST(request: NextRequest) {
   try {
     const { kind, packs, successUrl, cancelUrl } = await request.json();
 
-    if (kind !== 'issue' && kind !== 'ai_tokens') {
-      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: '충전 종류가 올바르지 않습니다' } }, { status: 400 });
+    //   AI 토큰 충전은 2026-09-28 판매 종료 — AI 참모는 토큰이 아니라 질문 횟수로 센다(산 사람 0명).
+    //   가격표(CREDIT_PRICING.ai_tokens)는 옛 충전 기록을 읽는 웹훅을 위해 남긴다.
+    if (kind !== 'issue') {
+      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: kind === 'ai_tokens' ? 'AI 토큰 충전은 더 이상 판매하지 않습니다. AI 참모는 질문 횟수로 이용합니다.' : '충전 종류가 올바르지 않습니다' } }, { status: 400 });
     }
     const packCount = Number(packs);
     if (!Number.isInteger(packCount) || packCount < 1 || packCount > 100) {

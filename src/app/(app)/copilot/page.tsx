@@ -26,7 +26,8 @@ import {
 
 // AI 참모 · 회사 데이터를 읽고 대표가 지금 해야 할 일을 정리하는 읽기전용 AI.
 //   edge(owner-copilot)는 구조화 JSON(answer.headline/summary/actions/risks/opportunities/evidence) 반환.
-//   토큰 사용량은 ai_usage_summary RPC(서버가 company 결정) + ai_usage_log Realtime 로 실시간 표시.
+//   질문 사용량은 ai_question_usage RPC(서버가 company 결정) + ai_usage_log Realtime 로 실시간 표시.
+//   2026-09-28 토큰 한도 폐지 — 무료 월 5회 · 오너뷰 월 100회 '질문 횟수'만 센다(owner_copilot 첫 턴).
 
 type Action =  { priority: "high" | "medium" | "low"; title: string; detail: string; href?: string };
 type Risk = { title: string; detail: string; severity: "high" | "medium" | "low" };
@@ -70,9 +71,10 @@ type AiMsg =
     };
 
 type Usage = {
-  plan_slug: string; plan_name: string | null; monthly_limit: number | null;
-  used_tokens: number; remaining_tokens: number; usage_percent: number | null;
-  reset_at: string; as_of: string;
+  plan: string; plan_name: string | null;
+  limit: number | null;      // 월 질문 횟수, null = 무제한
+  used: number; remaining: number | null; allowed: boolean;
+  resets_at: string; as_of: string;
 };
 
 const MAX_HISTORY = 50; // DB에서 로드할 최대 대화 수
@@ -98,7 +100,6 @@ const LOAD_CEIL = 95;
 function loadPercent(elapsedMs: number): number {
   return LOAD_CEIL * (1 - Math.exp(-elapsedMs / LOAD_TAU_MS));
 }
-const AVG_Q_TOKENS = 1400; // 예상 질문 수 근사(평균 질문당 토큰)
 
 function fmt(n: number) { return n.toLocaleString("ko-KR"); }
 function kstDate(iso?: string | null) {
@@ -166,12 +167,12 @@ export default function CopilotPage() {
     })();
   }, [companyId, historyLoaded]);
 
-  // 토큰 사용량 요약 (서버가 company 결정 · IDOR 불가)
+  // 이번 달 질문 사용량 (서버가 company 결정 · IDOR 불가)
   const  { data: usage, refetch: refetchUsage } = useQuery<Usage | null>({
-    queryKey: ["ai-usage-summary", companyId],
+    queryKey: ["ai-question-usage", companyId],
     queryFn: async () => {
-      const { data } = await (supabase as any).rpc("ai_usage_summary");
-      return (data && !(data as any).error ? (data as Usage) : null);
+      const { data } = await (supabase as any).rpc("ai_question_usage");
+      return (data ? (data as Usage) : null);
     },
     enabled: !!companyId,
     staleTime: 10_000,
@@ -466,7 +467,7 @@ export default function CopilotPage() {
         let code: string | undefined; let msg = "AI 참모 호출에 실패했습니다.";
         try { const j = ctx ? await ctx.json() : null; code = j?.code; msg = j?.error || msg; } catch { /* ignore */ }
         if (code === "PLAN_REQUIRED" || code === "NOT_ENTITLED") setPlanLocked(true);
-        else if (code === "TOKEN_LIMIT") setLimitExceeded(true);
+        else if (code === "QUESTION_LIMIT" || code === "TOKEN_LIMIT") setLimitExceeded(true);
         else toast(msg, "error");
         setMessages((m) => m.slice(0, -1)); // 실패한 질문 카드 롤백
         setAttachments(sentAttachments);
@@ -513,13 +514,12 @@ export default function CopilotPage() {
     }
   }, [attachments, attaching, loading, toast, refetchUsage, runAction]);
 
-  const locked = planLocked || usage?.monthly_limit == null;
-  const pct = usage?.usage_percent ?? 0;
-  const overLimit = limitExceeded || (usage != null && usage.monthly_limit != null && usage.remaining_tokens <= 0);
+  const locked = planLocked;
+  const pct = usage?.limit ? Math.min(100, Math.round((usage.used / usage.limit) * 100)) : 0;
+  const overLimit = limitExceeded || (usage != null && usage.limit != null && (usage.remaining ?? 0) <= 0);
   // copilot2- 프리픽스 — CSS 정의와 불일치(copilot-gauge-*)로 링에 stroke 색이 안 입혀져
   //   게이지가 항상 빈 채로 보이던 버그 ( "사용량 게이지로 차도록")
   const gaugeTone = pct >= 90 ? "copilot2-gauge-danger" : pct >= 70 ? "copilot2-gauge-warn" : "copilot2-gauge-ok";
-  const estQuestions = usage?.remaining_tokens != null ? Math.max(0, Math.floor(usage.remaining_tokens / AVG_Q_TOKENS)) : 0;
 
   return (
     <div className="qk-shell copilot2-page">
@@ -541,7 +541,7 @@ export default function CopilotPage() {
         <div className="copilot2-lock-card">
           <div className="text-3xl mb-2" aria-hidden><Ico e="🔒" /></div>
           <div className="copilot2-lock-title">AI 참모를 쓰려면 요금제가 필요합니다</div>
-          <p className="copilot2-lock-desc">무료는 월 10만 토큰, 오너뷰 요금제는 월 50만 토큰까지 쓸 수 있습니다.</p>
+          <p className="copilot2-lock-desc">무료는 월 5회, 오너뷰 요금제는 월 100회까지 질문할 수 있습니다.</p>
           <a href="/billing" className="btn-primary btn-sm">플랜 보기 · 업그레이드</a>
         </div>
       ) : (
@@ -579,8 +579,8 @@ export default function CopilotPage() {
 
             {overLimit ? (
               <div className="copilot2-limit-card">
-                <div className="font-bold text-sm text-[var(--danger)]">이번 달 AI 사용량을 모두 사용했습니다</div>
-                <div className="text-xs text-[var(--text-muted)] mt-1">{usage?.reset_at ? `${kstDay(usage.reset_at)}에 초기화됩니다.` : "다음 달에 초기화됩니다."}</div>
+                <div className="font-bold text-sm text-[var(--danger)]">이번 달 질문 {usage?.limit ?? ""}회를 모두 사용했습니다</div>
+                <div className="text-xs text-[var(--text-muted)] mt-1">{usage?.resets_at ? `${kstDay(usage.resets_at)}에 다시 채워집니다.` : "다음 달 1일에 다시 채워집니다."}</div>
                 <a href="/billing" className="btn-secondary btn-sm mt-3">요금제 보기</a>
               </div>
             ) : (
@@ -657,7 +657,7 @@ export default function CopilotPage() {
 
           {/* 우: 토큰 사용량 */}
           <aside className="copilot2-side">
-            <TokenCard usage={usage} pct={pct} gaugeTone={gaugeTone} estQuestions={estQuestions} />
+            <QuestionCard usage={usage} pct={pct} gaugeTone={gaugeTone} />
             {/*   물어본 질문 목차 — 대화가 길어지면 한참 올려야 찾던 것을
                   여기서 눌러 바로 간다. 질문이 없으면 그리지 않는다(빈 상자 금지). */}
             <QuestionIndex messages={messages} onJump={jumpTo} />
@@ -1056,14 +1056,15 @@ function QuestionIndex({ messages, onJump }: { messages: AiMsg[]; onJump: (i: nu
   );
 }
 
-function TokenCard({ usage, pct, gaugeTone, estQuestions }: { usage: Usage | null | undefined; pct: number; gaugeTone: string; estQuestions: number }) {
+function QuestionCard({ usage, pct, gaugeTone }: { usage: Usage | null | undefined; pct: number; gaugeTone: string }) {
   const R = 52, C = 2 * Math.PI * R;
-  const clamped = Math.min(100, Math.max(0, pct));
+  const unlimited = usage != null && usage.limit == null;
+  const clamped = unlimited ? 0 : Math.min(100, Math.max(0, pct));
   const off = C - (clamped / 100) * C;
   return (
     <div className="copilot2-token-card">
       <div className="copilot2-token-head">
-        <span className="copilot2-token-title">AI 토큰 사용량</span>
+        <span className="copilot2-token-title">이번 달 질문</span>
         <span className="copilot2-live"><span className="copilot2-live-dot" aria-hidden />실시간</span>
       </div>
       <div className="copilot2-token-plan">{usage?.plan_name || "—"}</div>
@@ -1075,25 +1076,23 @@ function TokenCard({ usage, pct, gaugeTone, estQuestions }: { usage: Usage | nul
             strokeDasharray={C} strokeDashoffset={off} transform="rotate(-90 60 60)" />
         </svg>
         <div className="copilot2-gauge-center">
-          <div className="copilot2-gauge-pct">{usage?.usage_percent != null ? `${usage.usage_percent}%` : "—"}</div>
-          <div className="copilot2-gauge-sub">사용</div>
+          <div className="copilot2-gauge-pct">{usage ? (unlimited ? "무제한" : `${usage.remaining ?? 0}회`) : "—"}</div>
+          <div className="copilot2-gauge-sub">남음</div>
         </div>
       </div>
 
       <div className="copilot2-token-nums">
-        <div><span className="copilot2-token-used">{usage ? fmt(usage.used_tokens) : "—"}</span> <span className="copilot2-token-slash">/ {usage?.monthly_limit != null ? fmt(usage.monthly_limit) : "—"} tokens</span></div>
-        <div className="copilot2-token-remain">{usage ? fmt(usage.remaining_tokens) : "—"} tokens 남음</div>
+        <div><span className="copilot2-token-used">{usage ? fmt(usage.used) : "—"}</span> <span className="copilot2-token-slash">/ {usage ? (unlimited ? "무제한" : `${fmt(usage.limit ?? 0)}회`) : "—"}</span></div>
+        <div className="copilot2-token-remain">질문 한 번에 1회 · 이어지는 조회는 세지 않습니다</div>
       </div>
 
       <div className="copilot2-token-rows">
-        <div className="copilot2-token-row"><span>예상 질문 가능</span><b>약 {fmt(estQuestions)}회</b></div>
-        {/* '현재 모델' 행 — 2026-08-10 대표 지시로 미표기 */}
-        <div className="copilot2-token-row"><span>초기화</span><b>{kstDay(usage?.reset_at)}</b></div>
+        <div className="copilot2-token-row"><span>다시 채워짐</span><b>{kstDay(usage?.resets_at)}</b></div>
         <div className="copilot2-token-row"><span>마지막 갱신</span><b>{usage?.as_of ? new Date(usage.as_of).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" }) : "—"}</b></div>
       </div>
 
-      {usage?.usage_percent != null && usage.usage_percent >= 90 && (
-        <div className="copilot2-token-warn">사용량이 {usage.usage_percent}%로 한도에 가깝습니다.</div>
+      {usage && !unlimited && (usage.remaining ?? 0) > 0 && pct >= 80 && (
+        <div className="copilot2-token-warn">이번 달 질문이 {usage.remaining}회 남았습니다.</div>
       )}
     </div>
   );
