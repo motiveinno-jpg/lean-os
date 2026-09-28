@@ -104,19 +104,28 @@ export function SalesBoard({ open, onClose, companyId }: {
   const thisMonthRev = useMemo(() => lines.filter((l) => l.month === thisYm).reduce((s, l) => s + pnlAmount(l), 0), [lines, thisYm]);
   const rangeHasThisMonth = range.fromYm <= thisYm && thisYm <= range.toYm;
 
-  // ── 판매채널 축 — 채널 주문 합(취소·품목 데이터는 아직 없어 주문 금액만) ──
+  // ── 판매채널 축 — 채널 주문 합 − 취소·반품 환불액(2026-09-28 이커머스 1단계 결정 268). 품목 축은 아직 없다 ──
   const { data: channels = [] } = useQuery({
     queryKey: ["sales-board-channels", companyId, range.fromYm, range.toYm],
     enabled: !!companyId && open,
     queryFn: async () => {
+      const from = rangeDates(range).from, to = rangeDates(range).to;
       const { data } = await (supabase as any).from("channel_order_imports")
         .select("channel, amount").eq("company_id", companyId)
-        .gte("order_date", rangeDates(range).from).lte("order_date", rangeDates(range).to);
+        .gte("order_date", from).lte("order_date", to);
       const m = new Map<string, { amount: number; count: number }>();
       for (const r of (data || []) as { channel: string; amount: number }[]) {
         const cur = m.get(r.channel) || { amount: 0, count: 0 };
         cur.amount += Number(r.amount) || 0; cur.count += 1;
         m.set(r.channel, cur);
+      }
+      //   취소·반품 환불액 — 주문일 기준으로 같은 기간에서 뺀다(교환은 0)
+      const { data: cl } = await (supabase as any).from("channel_order_claims")
+        .select("kind, refund_amount, channel_order_imports!inner(channel, order_date)").eq("company_id", companyId)
+        .in("kind", ["cancel", "return"]).gte("channel_order_imports.order_date", from).lte("channel_order_imports.order_date", to);
+      for (const c of (cl || []) as any[]) {
+        const cur = m.get(c.channel_order_imports?.channel);
+        if (cur) cur.amount -= Number(c.refund_amount) || 0;
       }
       return [...m.entries()].map(([channel, v]) => ({ channel, ...v })).sort((a, b) => b.amount - a.amount);
     },

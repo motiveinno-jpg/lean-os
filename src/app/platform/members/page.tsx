@@ -55,7 +55,8 @@ export default function PlatformMembersPage() {
     queryFn: async () => {
       const data = logRead("platform/members:data", await db
         .from("users")
-        .select("id, name, email, role, company_id, created_at, companies(name)")
+        //   users→companies FK 가 둘(company_id · former_company_id, 2026-09-16)이라 어느 쪽인지 적는다 — 안 적으면 PostgREST 가 모호(PGRST201)로 거절
+        .select("id, name, email, role, company_id, created_at, companies!users_company_id_fkey(name)")
         .order("created_at", { ascending: false }));
       return (data || []) as MemberRow[];
     },

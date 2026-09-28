@@ -26,6 +26,8 @@ import { exportToExcel } from "@/lib/excel-export";
 import { listProducts, listWarehouses, type Product, type Warehouse } from "@/lib/inventory";
 import { useDocEditor, DocHead, DocGrid, FormDialog, blankRow, type DocCtl, type DocRow } from "../_components/doc-editor";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
+import { useClaimsPanel, useSettlePanel } from "./_components/claims-settle";
+import { refundByChannel } from "@/lib/inventory-claims";
 import {
   CHANNELS, channelLabel, listChannelCodes, upsertChannelCode, deleteChannelCode,
   listImports, listSeenOrderNos, importChannelDoc, fetchChannelOrders, CHANNEL_HAS_API,
@@ -35,7 +37,8 @@ import {
 } from "@/lib/inventory-channels";
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
-type Tab = "status" | "import" | "ship" | "codes" | "history";
+//   2026-09-28 이커머스 1단계 — 「클레임」「정산」 갈래(결정 266). 한 줄 7갈래, 부품은 _components/claims-settle.tsx
+type Tab = "status" | "import" | "ship" | "claims" | "settle" | "codes" | "history";
 type CodeKey = "code" | "cname" | "sku" | "pname";
 type ImpKey = "no" | "date" | "buyer" | "amount" | "at";
 
@@ -177,6 +180,15 @@ export default function ChannelsPage() {
   });
   const ship = useShipPanel({ companyId, userId, imports, products, canWrite,
     onDone: () => qc.invalidateQueries({ queryKey: ["ch-imports", companyId] }) });
+  //   클레임·정산 갈래 (2026-09-28). 클레임은 반품 입고 문서를 만드니 재고 캐시도 같이 비운다
+  const claimsPanel = useClaimsPanel({ companyId, userId, imports, products, canWrite,
+    onDone: () => { for (const k of ["inv-onhand", "inv-available", "inv-moves"]) qc.invalidateQueries({ queryKey: [k, companyId] }); } });
+  const settlePanel = useSettlePanel({ companyId, userId, imports, claims: claimsPanel.claims, canWrite });
+  //   현황의 주문 금액에서 취소·반품 환불액을 뺀다(결정 268)
+  const stRefund = useMemo(() => {
+    const m = refundByChannel(claimsPanel.claims, imports, (i) => (i.order_date || "") >= stData.fromStr && (i.order_date || "") <= stData.todayStr && (!stCh || i.channel === stCh));
+    return { total: [...m.values()].reduce((n, v) => n + v, 0), by: m };
+  }, [claimsPanel.claims, imports, stData.fromStr, stData.todayStr, stCh]);
   //   들어오면 첫 칸에 커서(전표 화면과 같다)
   useEffect(() => { if (tab === "import") setTimeout(() => ctl.focusDate(), 250); }, [tab]);   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -193,11 +205,12 @@ export default function ChannelsPage() {
       <QueryScreen>
         <QueryHead>
           <div className="collect-tabs no-print">
-            {([["status", "현황"], ["import", "주문 가져오기"], ["ship", "출고 처리"], ["codes", "상품 연결"], ["history", "가져오기 이력"]] as const).map(([k, l]) => (
+            {([["status", "현황"], ["import", "주문 가져오기"], ["ship", "출고 처리"], ["claims", "클레임"], ["settle", "정산"], ["codes", "상품 연결"], ["history", "가져오기 이력"]] as const).map(([k, l]) => (
               <button key={k} type="button" onClick={() => setTab(k as Tab)}
                 className={tab === k ? "collect-tab collect-tab-on" : "collect-tab"}>
                 {l}
                 {k === "ship" && counts.pending > 0 && <span className="collect-tab-cnt inv-tab-warn">{counts.pending}</span>}
+                {k === "claims" && claimsPanel.claims.length > 0 && <span className="collect-tab-cnt">{claimsPanel.claims.length}</span>}
                 {k === "codes" && counts.allCodes === 0 && <span className="collect-tab-cnt inv-tab-warn">연결 필요</span>}
               </button>
             ))}
@@ -215,11 +228,13 @@ export default function ChannelsPage() {
                 <option value="">채널 전체</option>
                 {CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
-              <span className="inv-hint" title="금액은 수수료 정산 전 주문 금액입니다. 취소·반품은 채널 API 연동 후 반영됩니다">숫자를 누르면 해당 목록이 열립니다. 금액은 <b>주문 금액</b> 기준입니다.</span>
+              <span className="inv-hint" title="금액은 수수료 정산 전 주문 금액에서 취소·반품 환불액을 뺀 값입니다. 수수료 실측은 정산 갈래에서">숫자를 누르면 해당 목록이 열립니다. 금액은 <b>주문 금액 − 취소·반품</b> 기준입니다.</span>
             </QueryBar>
           )}
           {tab === "import" && grid.head}
           {tab === "ship" && ship.head}
+          {tab === "claims" && claimsPanel.head}
+          {tab === "settle" && settlePanel.head}
 
           {tab === "codes" && (
             <>
@@ -275,9 +290,12 @@ export default function ChannelsPage() {
                   <button type="button" className="pjv3-stcard" onClick={() => goList(stCh || undefined)}>
                     <span className="k">기간 주문</span><b className="v num">{won(stData.total)}건</b>
                     <span className="text-[10px] text-[var(--text-dim)]">어제 {stData.yestN} · 오늘 {stData.todayN}</span></button>
-                  <button type="button" className="pjv3-stcard" title="주문 금액 합 · 채널 수수료 정산 전" onClick={() => goList(stCh || undefined)}>
-                    <span className="k">주문 금액</span><b className="v num">{won(stData.amount)}</b>
-                    <span className="text-[10px] text-[var(--text-dim)]">{stData.total ? `평균 ${won(stData.amount / stData.total)}원/건` : "—"}</span></button>
+                  <button type="button" className="pjv3-stcard" title="주문 금액 합 − 취소·반품 환불액 · 채널 수수료 정산 전" onClick={() => goList(stCh || undefined)}>
+                    <span className="k">주문 금액</span><b className="v num">{won(stData.amount - stRefund.total)}</b>
+                    <span className="text-[10px] text-[var(--text-dim)]">{stRefund.total > 0 ? `취소·반품 −${won(stRefund.total)}` : stData.total ? `평균 ${won(stData.amount / stData.total)}원/건` : "—"}</span></button>
+                  <button type="button" className={`pjv3-stcard ${stRefund.total > 0 ? "warn" : ""}`} title="취소·반품 환불액 · 클레임 갈래" onClick={() => setTab("claims")}>
+                    <span className="k">취소·반품</span><b className="v num">{won(stRefund.total)}</b>
+                    <span className="text-[10px] text-[var(--text-dim)]">{claimsPanel.claims.length ? `클레임 ${claimsPanel.claims.length}건` : "클레임 없음"}</span></button>
                   <button type="button" className={`pjv3-stcard ${stData.pending > 0 ? "warn" : ""}`}
                     onClick={() => { ship.setView("pending"); setTab("ship"); }}>
                     <span className="k">출고 대기</span><b className="v num">{won(stData.pending)}건</b>
@@ -369,6 +387,8 @@ export default function ChannelsPage() {
             )}
             {tab === "import" && <div className="doc-editor">{grid.body}</div>}
             {tab === "ship" && ship.body}
+            {tab === "claims" && claimsPanel.body}
+            {tab === "settle" && settlePanel.body}
 
             {tab === "codes" && (
               shownCodes.length === 0 ? (
@@ -453,6 +473,8 @@ export default function ChannelsPage() {
         </QueryBody>
 
         {tab === "ship" && ship.pagerEl}
+        {tab === "claims" && claimsPanel.pagerEl}
+        {tab === "settle" && settlePanel.pagerEl}
         {tab === "codes" && shownCodes.length > 0 && (
           <Pager page={codePager.page} pages={codePager.pages} total={shownCodes.length} size={50}
             from={codePager.from} to={codePager.to} onPage={codePager.setPage} />
@@ -466,6 +488,8 @@ export default function ChannelsPage() {
       {tab === "ship" && ship.selbar}
       {grid.dialogs}
       {ship.dialogs}
+      {claimsPanel.dialog}
+      {settlePanel.dialog}
       {bulkOpen && companyId && (
         <BulkCodeDialog companyId={companyId} channel={channel} products={products} existing={codes}
           onClose={() => setBulkOpen(false)}

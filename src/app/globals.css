@@ -10908,3 +10908,12 @@ table.table-lbl { min-width: 640px; }
 /* 결재 요청 수정 — 휴가: 날짜·종류는 고정 표시, 사유만 입력 */
 .approval-edit-leave-fixed { @apply whitespace-pre-wrap text-xs text-[var(--text-muted)] bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl px-3 py-2.5 mb-1.5; }
 .approval-edit-leave-note { @apply text-[11px] text-[var(--text-dim)] mb-2; }
+/* 재고 › 이커머스 — 클레임·정산 갈래 (2026-09-28 이커머스 1단계, docs/20260928_PLAN_ecommerce_stage1.md) */
+.ch-claim-pick { @apply mb-2 max-h-56 overflow-auto rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]; }
+.ch-claim-pick-row { @apply grid w-full grid-cols-[minmax(0,1.4fr)_auto_minmax(0,1fr)_auto_auto_auto] items-center gap-3 border-b border-[var(--border)] px-3 py-2 text-left text-[12px] last:border-b-0 hover:bg-[var(--bg-card)]; }
+.ch-claim-grid { @apply grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4; }
+.ch-settle-sum { @apply mb-3; }
+.ch-settle-map { @apply grid grid-cols-2 gap-2 md:grid-cols-3; }
+.ch-settle-paste { @apply mt-2 font-mono text-[11.5px]; }
+table.table-inv-ch-claims { min-width: 980px; }
+table.table-inv-ch-settle { min-width: 1120px; }
