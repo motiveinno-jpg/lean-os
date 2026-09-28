@@ -61,6 +61,10 @@ jobs:
       - name: DB enum literal check
         run: node scripts/check-db-enum-literals.mjs
 
+      # 잠금 없는 '있나 확인 → 넣기' DB 함수 금지 (동시 요청이면 같은 것이 두 번 생긴다)
+      - name: dedupe lock check
+        run: node scripts/check-dedupe-locks.mjs
+
       - name: RLS regression smoke
         run: node scripts/rls-smoke.mjs
 
