@@ -39,7 +39,8 @@ const PRICE_PER_MTOK: Record<string, { in: number; out: number }> = {
 //   env(AI_MONTHLY_COST_CAP_USD)로 조정 가능.
 //   2026-08-20 참모 Opus 5 상향으로 호출당 원가 상승(약 1.7배) — 월 100회 한도가 비용 상한에
 //   먼저 막히지 않게 기본값 6 → 12 로 조정. env(AI_MONTHLY_COST_CAP_USD)로 조정 가능.
-const MONTHLY_COST_CAP_USD = Number(Deno.env.get("AI_MONTHLY_COST_CAP_USD") || "12");
+// 남용 방지 안전망 — 약속한 질문 100회(~$25) + 브리핑(~$1.7) 안에서는 걸리지 않게 (2026-09-28, 전 $12)
+const MONTHLY_COST_CAP_USD = Number(Deno.env.get("AI_MONTHLY_COST_CAP_USD") || "35");
 
 export interface ClaudeCallOpts {
   task: ClaudeTask;
