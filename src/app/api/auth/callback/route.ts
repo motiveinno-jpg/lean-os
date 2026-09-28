@@ -2,6 +2,12 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import type { EmailOtpType } from '@supabase/supabase-js';
+
+// 가입 확인·비밀번호 재설정 메일의 링크는 supabase.co 가 아니라 여기로 온다(메일 템플릿 supabase/templates/auth/).
+//   ?token_hash=…&type=signup|recovery 를 서버에서 verifyOtp 로 바꿔 세션 쿠키를 심는다 —
+//   PKCE code 와 달리 가입한 브라우저가 아닌 휴대폰 메일 앱에서 열어도 된다.
+const EMAIL_OTP_TYPES = new Set<EmailOtpType>(['signup', 'recovery', 'email', 'magiclink', 'invite', 'email_change']);
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -10,7 +16,10 @@ export async function GET(request: NextRequest) {
   const rawNext = searchParams.get('next') ?? '/dashboard';
   const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/dashboard';
 
-  if (code) {
+  const tokenHash = searchParams.get('token_hash');
+  const otpType = searchParams.get('type') as EmailOtpType | null;
+
+  if (code || (tokenHash && otpType && EMAIL_OTP_TYPES.has(otpType))) {
     const cookieStore = await cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,9 +42,14 @@ export async function GET(request: NextRequest) {
       },
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+    if (code) {
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (!error) return NextResponse.redirect(`${origin}${next}`);
+    } else {
+      const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash!, type: otpType! });
+      if (!error) return NextResponse.redirect(`${origin}${next}`);
+      //   만료·이미 사용된 링크 — 가입 확인은 대개 이미 끝난 상태라 로그인하면 된다
+      return NextResponse.redirect(`${origin}/auth?error=${otpType === 'recovery' ? 'recovery_link_invalid' : 'email_link_invalid'}`);
     }
   }
 

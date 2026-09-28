@@ -92,6 +92,9 @@ export default function AuthPage() {
       naver_no_email: "네이버 로그인 시 '이메일 주소' 제공에 동의해야 계정을 연결할 수 있습니다.",
       naver_user_failed: "계정 생성에 실패했습니다. 고객센터로 문의해주세요.",
       naver_session_failed: "로그인 세션을 만들지 못했습니다. 다시 시도해주세요.",
+      // 메일 링크(가입 확인·비밀번호 재설정) — /api/auth/callback 이 token_hash 검증에 실패했을 때
+      email_link_invalid: "인증 링크가 만료되었거나 이미 사용되었습니다. 이미 인증을 마치셨다면 로그인해 주세요.",
+      recovery_link_invalid: "비밀번호 재설정 링크가 만료되었거나 이미 사용되었습니다. 비밀번호 찾기에서 다시 요청해 주세요.",
     };
     // 중복 로그인으로 밀려난 경우 · 왜 로그아웃됐는지 안내 (2026-08-11)
     if (sp.get("reason") === "duplicate")  {
