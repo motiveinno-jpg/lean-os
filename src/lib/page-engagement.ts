@@ -39,11 +39,7 @@ function elapsed(c: Current): number {
   return c.accMs + (c.visibleSince != null ? Date.now() - c.visibleSince : 0);
 }
 
-// 점검용 — 브라우저에 localStorage ov_debug_pe=1 일 때만 콘솔에 남긴다(평소엔 아무것도 안 함)
-function dbg(...a: unknown[]) { try { if (localStorage.getItem("ov_debug_pe") === "1") console.log("[PE]", ...a); } catch { /* 무시 */ } }
-
 function send(c: Current, exitKind: "navigate" | "leave", nextPath: string | null) {
-  dbg("send", exitKind, nextPath, Math.round(elapsed(c)), c.maxScroll, c.path, document.visibilityState);
   try {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -63,7 +59,6 @@ function send(c: Current, exitKind: "navigate" | "leave", nextPath: string | nul
 
 function onVisibility() {
   const cur = store().cur;
-  dbg("visibility", document.visibilityState, cur?.path ?? null);
   if (!cur) return;
   if (document.visibilityState === "hidden") {
     if (cur.visibleSince != null) { cur.accMs += Date.now() - cur.visibleSince; cur.visibleSince = null; }
@@ -89,7 +84,6 @@ function wire() {
 export function endEngagement(nextPath: string) {
   if (typeof window === "undefined") return;
   const st = store();
-  dbg("end-call", nextPath, st.cur?.path ?? null);
   if (!st.cur || st.cur.path === nextPath) return;
   if (st.cur.visibleSince != null) { st.cur.accMs += Date.now() - st.cur.visibleSince; st.cur.visibleSince = null; }
   send(st.cur, "navigate", nextPath);
@@ -98,7 +92,6 @@ export function endEngagement(nextPath: string) {
 
 /** 방금 적은 방문 한 건의 체류를 재기 시작한다. */
 export function startEngagement(viewKey: string, visitorKey: string, path: string) {
-  dbg("start", path, document.visibilityState);
   wire();
   store().cur = {
     viewKey, visitorKey, path, accMs: 0,

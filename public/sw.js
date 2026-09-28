@@ -5,9 +5,15 @@
 //   조치: precache 제거, fetch no-op(브라우저 기본 네트워크=항상 최신 해시 자산),
 //   activate 에서 모든 캐시 삭제 + claim + 열린 window 자동 navigate(=강제 새로고침, SW 버전당 1회).
 //   → 사용자가 사이트를 한 번만 열면, 새 SW 가 활성화되며 탭을 최신으로 자동 재로드.
-const SW_VERSION = "v46";
+const SW_VERSION = "v47";
+
+// 2026-09-28 — 새로고침은 '옛 SW 를 새 SW 로 바꿀 때'만. 처음 설치(첫 방문)에도 열린 탭을 navigate 해서
+//   첫 방문자의 첫 화면이 열린 지 1초 만에 한 번 더 로드됐다(랜딩 두 번 받기 + 방문·체류 기록이 끊김).
+//   install 시점에 이미 활성 SW 가 있으면 교체(업데이트), 없으면 첫 설치다.
+let replacingOldWorker = false;
 
 self.addEventListener("install", () => {
+  replacingOldWorker = !!self.registration.active;
   self.skipWaiting();
 });
 
@@ -19,7 +25,9 @@ self.addEventListener("activate", (event) => {
       await Promise.all(keys.map((k) => caches.delete(k)));
       // 2) 현재 페이지들 제어권 확보
       await self.clients.claim();
-      // 3) 열린 탭을 최신으로 강제 새로고침 (activate 는 SW 버전당 1회만 → 새로고침 루프 없음)
+      // 3) 옛 SW 를 바꾼 경우에만 열린 탭을 최신으로 강제 새로고침 (activate 는 SW 버전당 1회만 → 루프 없음)
+      //    첫 설치면 탭은 이미 최신이다 — 새로고침하지 않는다.
+      if (!replacingOldWorker) return;
       const clients = await self.clients.matchAll({ type: "window" });
       for (const client of clients) {
         try { client.navigate(client.url); } catch { /* noop */ }
