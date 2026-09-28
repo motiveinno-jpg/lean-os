@@ -660,7 +660,8 @@ export async function recomputeMonthlyExtraPay(params: {
     .eq('company_id', params.companyId)
     .eq('employee_id', params.employeeId)
     .gte('date', startDate)
-    .lte('date', endDate));
+    .lte('date', endDate)
+    .limit(500));   // 한 사람·한 달 범위라 수십 건을 넘지 않는다
 
   const daily_records: DailyResult[] = (rows || []).map((r: any) => ({
     is_late: !!r.is_late,

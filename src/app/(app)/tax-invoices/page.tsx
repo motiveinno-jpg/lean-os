@@ -761,12 +761,13 @@ function TaxInvoicesPageInner() {
   const { data: partners = [] } = useQuery({
     queryKey: ["partners-for-invoice", companyId],
     queryFn: async () => {
-      const data = logRead('tax-invoices/page:data', await supabase
+      const data = await fetchPaged('tax-invoices/page:partners', () => supabase
         .from("partners")
         .select("id, name, business_number, contact_email, business_type, business_item, representative, address")
         .eq("company_id", companyId!)
         .eq("is_active", true)
-        .order("name"));
+        .order("name")
+        .order("id"));
       return data || [];
     },
     enabled: !!companyId,

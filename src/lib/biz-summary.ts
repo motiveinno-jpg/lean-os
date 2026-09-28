@@ -4,6 +4,7 @@
 //   읽기 전용 — 쓰기·스냅샷 부수효과 없음. 대시보드 '경영 요약' 위젯도 이 함수를 쓴다.
 
 import { supabase } from "@/lib/supabase";
+import { fetchPagedRes } from "@/lib/fetch-paged";
 import { getCashPulseData } from "@/lib/queries";
 import { buildCashPulse } from "@/lib/cash-pulse";
 import { getVATPreview } from "@/lib/tax-invoice";
@@ -47,9 +48,9 @@ export async function fetchBizSummary(companyId: string, month: string, userId?:
     getCashPulseData(companyId, userId),
     fetchJournalLines(companyId, `${from6}-01`, monthEnd),
     countUnposted(companyId, `${month}-01`, monthEnd),
-    supabase.from("tax_invoices").select("total_amount").eq("company_id", companyId).eq("type", "sales").neq("status", "void").is("journal_entry_id", null).gte("issue_date", `${month}-01`).lte("issue_date", monthEnd),
-    (supabase.from("bank_transactions").select("amount, type") as any).eq("company_id", companyId).gte("transaction_date", `${month}-01`).lte("transaction_date", monthEnd),
-    (supabase.from("bank_transactions").select("amount, type") as any).eq("company_id", companyId).gte("transaction_date", `${prevMonth}-01`).lte("transaction_date", lastDay(prevMonth)),
+    fetchPagedRes("biz-summary:unposted-sales", () => supabase.from("tax_invoices").select("total_amount").eq("company_id", companyId).eq("type", "sales").neq("status", "void").is("journal_entry_id", null).gte("issue_date", `${month}-01`).lte("issue_date", monthEnd).order("id")),
+    fetchPagedRes("biz-summary:bank-cur", () => (supabase.from("bank_transactions").select("amount, type") as any).eq("company_id", companyId).gte("transaction_date", `${month}-01`).lte("transaction_date", monthEnd).order("id"), 50000),
+    fetchPagedRes("biz-summary:bank-prev", () => (supabase.from("bank_transactions").select("amount, type") as any).eq("company_id", companyId).gte("transaction_date", `${prevMonth}-01`).lte("transaction_date", lastDay(prevMonth)).order("id"), 50000),
     //   받을 돈·낼 돈 — 세금계산서 잔액 기준(lib/invoice-arap,). 원장 기준(ledger-arap)은
     //   회계 자료 전용으로 남긴다 — 대시보드 6칸만 원장 기준이라 미수금 위젯·AI 요약과 숫자가 달랐다.
     fetchInvoiceArAp(companyId),

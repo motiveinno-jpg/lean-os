@@ -2,6 +2,7 @@
 import { kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
+import { fetchPagedRes } from "@/lib/fetch-paged";
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -152,7 +153,7 @@ export function CardAutoTransferHistory({ companyId }: Props) {
     queryKey: ['card-auto-transfer', companyId, monthLabel],
     queryFn: async () => {
       const [cardRes, bankRes] = await Promise.all([
-        supabase
+        fetchPagedRes<any>('card-insights:auto-card', () => supabase
           .from('card_transactions')
           .select('id, transaction_date, amount, merchant_name, merchant_category, card_name, category, classification, is_fixed_cost')
           .eq('company_id', companyId)
@@ -160,15 +161,17 @@ export function CardAutoTransferHistory({ companyId }: Props) {
           .gte('transaction_date', dateFrom)
           .lte('transaction_date', dateTo)
           .gt('amount', 0)
-          .order('transaction_date', { ascending: false }),
-        supabase
+          .order('transaction_date', { ascending: false })
+          .order('id')),
+        fetchPagedRes<any>('card-insights:auto-bank', () => supabase
           .from('bank_transactions')
           .select('id, transaction_date, amount, counterparty, description, category, classification, is_fixed_cost')
           .eq('company_id', companyId)
           .eq('is_fixed_cost', true)
           .gte('transaction_date', dateFrom)
           .lte('transaction_date', dateTo)
-          .order('transaction_date', { ascending: false }),
+          .order('transaction_date', { ascending: false })
+          .order('id')),
       ]);
       const cardRows = cardRes.data || [];
       // 통장 고정비를 카드행 동일 스키마로 정규화 (지출=양수만 표시)

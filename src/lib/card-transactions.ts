@@ -76,6 +76,7 @@ export async function getCardTransactions(companyId: string, filters?: {
   dateFrom?: string;
   dateTo?: string;
 }) {
+  // 아래 fetchPaged 가 페이지마다 새로 부르는 빌더 — 정렬 끝의 id 가 타이브레이커
   const buildQ = () => {
     let q = supabase
       .from('card_transactions')

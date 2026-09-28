@@ -329,7 +329,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
   //   추정 인건비 = 월급 ÷ 209 × 시간(연장·야간·휴일은 1.5배). 급여 확정값이 아니라 '추정' 이고, 월급이 없는 사람은 뺀다(표에 적는다).
   const { data: siteNames = {} } = useQuery({
     queryKey: ["att-status-sites", companyId],
-    queryFn: async () => { const { data } = await supabase.from("deals").select("id, name").eq("company_id", companyId); const m: Record<string, string> = {}; for (const d of (data || []) as any[]) m[d.id] = d.name; return m; },
+    queryFn: async () => { const data = await fetchPaged<{ id: string; name: string }>("att-status-sites", () => supabase.from("deals").select("id, name").eq("company_id", companyId).order("id")); const m: Record<string, string> = {}; for (const d of (data || []) as any[]) m[d.id] = d.name; return m; },
     enabled: !!companyId && view === "site", staleTime: 300_000,
   });
   const siteRows = useMemo(() => {

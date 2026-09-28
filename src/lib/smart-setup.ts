@@ -6,6 +6,7 @@ import { logRead } from "@/lib/log-read";
  */
 
 import { supabase } from './supabase';
+import { fetchPaged } from './fetch-paged';
 import { upsertRecurringPayment } from './approval-center';
 
 const db = supabase;
@@ -119,13 +120,14 @@ export async function detectRecurringFromBankTx(companyId: string): Promise<Dete
   const threeMonthsAgo = new Date();
   threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
-  const transactions = logRead('lib/smart-setup:transactions', await db
+  const transactions = await fetchPaged<any>('lib/smart-setup:transactions', () => db
     .from('bank_transactions')
     .select('counterparty, amount, transaction_date, description, type')
     .eq('company_id', companyId)
     .eq('type', 'expense') // 출금 = type 'expense' (DB 실제값: expense/income)
     .gte('transaction_date', kstDateStr(threeMonthsAgo))
-    .order('transaction_date', { ascending: true }));
+    .order('transaction_date', { ascending: true })
+    .order('id'));
 
   if (!transactions?.length) return [];
 

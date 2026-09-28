@@ -414,7 +414,8 @@ function ProfilePanel({ companyId, emp, avatarUrl, isManager, onClose, onOpenCon
         .select("regular_minutes, overtime_minutes, work_hours")
         .eq("company_id", companyId).eq("employee_id", emp.id)
         .gte("date", monday.toISOString().slice(0, 10))
-        .lte("date", today.toISOString().slice(0, 10)));
+        .lte("date", today.toISOString().slice(0, 10))
+        .limit(100));   // 한 사람·한 주 범위라 수십 건을 넘지 않는다
       return ((data || []) as any[]).reduce((s, a) => {
         const m = Number(a.regular_minutes || 0) + Number(a.overtime_minutes || 0);
         return s + (m > 0 ? m : Math.round(Number(a.work_hours || 0) * 60));

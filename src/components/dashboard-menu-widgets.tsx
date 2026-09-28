@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { getMyProjectTasks } from "@/lib/my-project-tasks";
 import { todayKst } from "@/lib/kst";
 import { Ico }  from "@/components/ui-icon";
@@ -63,9 +64,9 @@ export function BankRecentCard({ companyId, headExtra }: { companyId: string; he
     queryKey: ["dash-bank-today", companyId, today],
     enabled: !!companyId, staleTime: 60_000,
     queryFn: async () => {
-      const rows = logRead('components/dashboard-menu-widgets:today', await db.from("bank_transactions")
+      const rows = await fetchPaged<any>('components/dashboard-menu-widgets:today', () => db.from("bank_transactions")
         //   transaction_date 는 date 칼럼 — 시각을 붙인 범위(< 오늘T23:59:59)로 물으면 DB 가 끝값을 오늘 날짜로 잘라 "오늘 ≤ x < 오늘" 이 되어 항상 0건이었다.
-        .select("type, amount").eq("company_id", companyId).eq("transaction_date", today)) as any[] | null;
+        .select("type, amount").eq("company_id", companyId).eq("transaction_date", today).order("id"));
       let inn = 0, out = 0, n = 0;
       //   입출금 구분은 통장 화면과 같은 규칙: type === "income" 만 입금. 금액은 출금도 양수로 저장돼 있어 부호로 가르면 전부 입금이 된다.
       for (const t of rows || []) { const a = Number(t.amount || 0); if (isBankIncome(t)) inn += Math.abs(a); else out += Math.abs(a); n += 1; }

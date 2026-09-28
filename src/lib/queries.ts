@@ -1794,6 +1794,7 @@ export async function getBankTransactions(companyId: string, filters?: {
   type?: string;
   accountNo?: string;
 }) {
+  // 아래 fetchPaged 가 페이지마다 새로 부르는 빌더 — 정렬 끝의 id 가 타이브레이커
   const buildQ = () => {
     let q = supabase
       .from('bank_transactions')
@@ -1993,12 +1994,13 @@ export async function getYesterdayTransactions(companyId: string): Promise<Yeste
   yesterday.setDate(yesterday.getDate() - 1);
   const dateStr = kstDateStr(yesterday);
 
-  const data = logRead('getYesterdayTransactions', await supabase
+  const data = await fetchPaged<any>('getYesterdayTransactions', () => supabase
     .from('bank_transactions')
     .select('amount, type, description, counterparty, category, transaction_date')
     .eq('company_id', companyId)
     .eq('transaction_date', dateStr)
-    .order('amount', { ascending: false }));
+    .order('amount', { ascending: false })
+    .order('id'));
 
   const items = data || [];
   const income = items.filter(i => i.type === 'income');
@@ -2217,7 +2219,7 @@ export async function getDrillDownLevel3(companyId: string, month: string, categ
 
 export async function getDrillDownLevel4(companyId: string, month: string, category: string, counterparty: string) {
   // Full ledger items
-  const bankTx = logRead('getDrillDownLevel4', await supabase
+  const bankTx = await fetchPaged<any>('getDrillDownLevel4', () => supabase
     .from('bank_transactions')
     .select('id, transaction_date, amount, type, description, counterparty, deal_id, deals(name)')
     .eq('company_id', companyId)
@@ -2225,7 +2227,8 @@ export async function getDrillDownLevel4(companyId: string, month: string, categ
     .eq('counterparty', counterparty)
     .gte('transaction_date', `${month}-01`)
     .lte('transaction_date', `${month}-${String(new Date(Number(month.slice(0,4)), Number(month.slice(5,7)), 0).getDate()).padStart(2, '0')}`)
-    .order('transaction_date', { ascending: true }));
+    .order('transaction_date', { ascending: true })
+    .order('id'));
 
   return bankTx || [];
 }

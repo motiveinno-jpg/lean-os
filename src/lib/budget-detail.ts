@@ -5,7 +5,7 @@ import { logRead } from "@/lib/log-read";
 //   파생행(수입/지출 총액·순이익·BEP 등)은 이미 로드된 값으로 FlowMatrix 에서 계산(여기 미포함).
 
 import { supabase } from "@/lib/supabase";
-import { fetchPagedRes } from "@/lib/fetch-paged";
+import { fetchPaged, fetchPagedRes } from "@/lib/fetch-paged";
 import { getAccountMap, isCostAccount } from "./account-nature";
 import { getMonthlyTotalSalary } from "./payroll";
 
@@ -45,11 +45,12 @@ export async function getBudgetCellDetail(
   const { start, next } = monthBounds(year, month);
 
   if (rowKey === "salesRevenue") {
-    const data = logRead('lib/budget-detail:data', await db.from("tax_invoices").select("*")
+    const data = await fetchPaged<any>('lib/budget-detail:sales', () => db.from("tax_invoices").select("*")
       .eq("company_id", companyId).eq("type", "sales")
       .neq("status", "void").neq("status", "draft")   // 셀 값과 같은 기준
       .gte("issue_date", start).lt("issue_date", next)
-      .order("issue_date", { ascending: true }));
+      .order("issue_date", { ascending: true })
+      .order("id"));
     return (data ?? []).map((r: any) => ({
       label: pick(r, ["counterparty_name", "partner_name", "buyer_name"], "매출"),
       sub: r.issue_date ?? undefined,
@@ -74,10 +75,11 @@ export async function getBudgetCellDetail(
     const [recRes, fcRes, btRes, accountMap, salaryMonthly] = await Promise.all([
       db.from("recurring_payments").select("*").eq("company_id", companyId).eq("is_active", true),
       db.from("fixed_costs").select("*").eq("company_id", companyId).eq("is_recurring", true),
-      db.from("bank_transactions").select("id, counterparty, description, category, classification, transaction_date, amount")
+      fetchPagedRes("lib/budget-detail:fixed-bank", () => db.from("bank_transactions").select("id, counterparty, description, category, classification, transaction_date, amount")
         .eq("company_id", companyId).eq("type", "expense").eq("is_fixed_cost", true)
         .gte("transaction_date", start).lt("transaction_date", next)
-        .order("transaction_date", { ascending: true }),
+        .order("transaction_date", { ascending: true })
+        .order("id")),
       getAccountMap(companyId),
       getMonthlyTotalSalary(companyId).catch(() => 0),
     ]);

@@ -446,7 +446,7 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
   });
   const { data: partners = [] } = useQuery<any[]>({
     queryKey: ["voucher-partners", companyId],
-    queryFn: async () => { const data = logRead('ledger/shared:data', await db.from("partners").select("id, name, business_number").eq("company_id", companyId).order("name")); return (data || []) as any[]; },
+    queryFn: async () => { const data = await fetchPaged<any>('ledger/shared:partners', () => db.from("partners").select("id, name, business_number").eq("company_id", companyId).order("name").order("id")); return (data || []) as any[]; },
     enabled: !!companyId, staleTime: 300_000,
   });
   // 자산관리에 등록한 통장/카드 · 거래처 피커에서 함께 선택 가능

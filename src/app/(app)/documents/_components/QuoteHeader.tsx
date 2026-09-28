@@ -4,6 +4,7 @@
 //   값은 content_json.header(object)에 저장. 거래처명/결제조건/유효기간은 문서 변수로도 반영.
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
+import { fetchPagedRes } from "@/lib/fetch-paged";
 
 export type QuoteHeaderData = {
   partnerId?: string;
@@ -36,7 +37,7 @@ export function QuoteHeader({
     let alive = true;
     (async () => {
       const [{ data: ps }, { data: us }] = await Promise.all([
-        supabase.from("partners").select("id, name, business_number").eq("company_id", companyId).eq("is_active", true).order("name"),
+        fetchPagedRes("quote-header:partners", () => supabase.from("partners").select("id, name, business_number").eq("company_id", companyId).eq("is_active", true).order("name").order("id")),
         supabase.from("users").select("id, name").eq("company_id", companyId).order("name"),
       ]);
       if (!alive) return;

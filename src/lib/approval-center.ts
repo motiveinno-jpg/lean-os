@@ -1,5 +1,6 @@
 import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged, fetchPagedRes } from "@/lib/fetch-paged";
 /**
  * OwnerView CEO Approval Center
  * 대표 승인센터 — 6개 소스 통합 조회 + 원클릭/일괄 승인
@@ -83,13 +84,14 @@ export async function getCEOPendingActions(companyId: string, userId?: string): 
       .eq('status', 'pending')
       .order('created_at', { ascending: false }),
 
-    // 5. 서명 대기
-    db
+    // 5. 서명 대기 — 일괄 발송이면 대기 건이 1,000을 넘을 수 있다
+    fetchPagedRes('approval-center:signatures', () => db
       .from('signature_requests')
       .select('id, signer_name, status, created_at, documents(name)')
       .eq('company_id', companyId)
       .eq('status', 'pending')
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .order('id')),
 
     // 6. 비용 미승인
     supabase
@@ -570,21 +572,23 @@ export async function refreshRecurringAmounts(companyId: string): Promise<Refres
   threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
   const cutoff = kstDateStr(threeMonthsAgo);
 
-  const bankTxs = logRead('lib/approval-center:bankTxs', await db
+  const bankTxs = await fetchPaged<any>('lib/approval-center:bankTxs', () => db
     .from('bank_transactions')
     .select('id, counterparty, amount, transaction_date, description')
     .eq('company_id', companyId)
     .eq('type', 'expense')
     .gte('transaction_date', cutoff)
-    .order('transaction_date', { ascending: false }));
+    .order('transaction_date', { ascending: false })
+    .order('id'));
 
   // 3. Get recent card transactions
-  const cardTxs = logRead('lib/approval-center:cardTxs', await db
+  const cardTxs = await fetchPaged<any>('lib/approval-center:cardTxs', () => db
     .from('card_transactions')
     .select('id, merchant_name, amount, transaction_date, memo')
     .eq('company_id', companyId)
     .gte('transaction_date', cutoff)
-    .order('transaction_date', { ascending: false }));
+    .order('transaction_date', { ascending: false })
+    .order('id'));
 
   const results: RefreshResult[] = [];
 

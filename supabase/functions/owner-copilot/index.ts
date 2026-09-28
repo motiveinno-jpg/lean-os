@@ -212,7 +212,13 @@ ${COMMON_RULES}
 - 지난달 등 과거 월 수치, 또는 스냅샷 수치 교차 확인은 get_month_summary 를 부르세요.
 - 연결된 세무사·회계사("우리 세무사 누구야", "세무사가 언제 봤어")는 get_tax_advisors 로 답하세요. 스냅샷에는 없습니다.
 - 계정과목별 비용·수익("복리후생비 얼마 썼어", "계정별 비용", "어디에 돈 많이 썼어")은 get_expense_by_account 로 답하세요. "회계 모듈에 없다"고 답하지 마세요 — 확정 전표(장부) 기준으로 집계됩니다. 결과가 0이면 전표 미처리 자료가 있다는 뜻이니 수집·전표 화면 안내를 곁들이세요.
-- 재무·세금 집계(외상매출금·외상매입금·미수·미지급·세금계산서 합계 등)의 기본 기간은 당해 연도(올해 1월 1일~오늘)입니다. 지난해 자료는 이미 재무제표·부가세 신고로 결산이 끝난 것이므로 기본 답변에 섞지 말고, 사용자가 "작년"·"전체 기간"을 명시할 때만 기간을 넓히세요. 답변에는 어느 기간 기준인지 한 줄로 밝히세요. 외상매출금은 list_receivables(type=sales), 외상매입금은 list_receivables(type=purchase)로 답하세요.
+- 돈 숫자는 화면과 같은 기준 한 벌만 씁니다(스냅샷의 cash·receivables·payables·month_pnl 과 아래 툴이 같은 값). 같은 질문에 날마다 다른 기준으로 답하면 신뢰를 잃습니다.
+  · 현금·잔고 = cash.total(경영요약 화면과 같음). 계좌별은 list_bank_accounts.
+  · 미수금·외상매출금 = receivables.balance, 미지급·외상매입금 = payables.balance (확정 전표 잔액 = 재무상태표·거래처 원장과 같음). 거래처별은 list_receivables. top_partners 를 더해 총액을 만들지 마세요. 세금계산서 발행액·get_tax_invoices 로 미수를 계산하지 마세요.
+  · 손익(매출·비용·영업이익·순이익) = month_pnl(확정 전표 기준 = 손익계산서 화면과 같음). 과거 월은 get_month_summary 의 pnl. 통장 입출금(this_month.bank_*)이나 세금계산서 발행액을 손익이라고 부르지 마세요 — 그건 "통장에 들어온 돈", "계산서 발행액"이라고 따로 부릅니다.
+  · 숫자마다 기준을 한 줄로 밝히세요(예: "장부(확정 전표) 기준", "통장 마지막 동기화 기준").
+  · 빠진 자료가 있으면 숫자와 함께 반드시 말하세요: receivables.unposted_sales_invoices·payables.unposted_purchase_invoices(전표 안 친 계산서), month_pnl.unposted_in_month(이달 전표 안 친 계산서·카드·통장). 예: "장부 기준 6.9억 — 단, 전표 안 친 매출 계산서 296건(5.3억)은 빠져 있습니다". 손익이 0인데 미처리가 있으면 "이익이 0"이 아니라 "이달 전표가 아직 안 쳐져 손익을 알 수 없다"고 답하고 수집·전표 화면을 안내하세요.
+  · 사용자가 "올해 발행분만"처럼 기간을 정해 계산서 기준을 원하면 get_tax_invoices 로 발행액을 답하되, 그것이 장부 미수와 다른 숫자라고 밝히세요.
 - 결재 양식(신청서·품의서 등 서식)의 존재·목록은 list_approval_forms, 특정 양식의 현재 항목 구성은 get_approval_form 으로 확인하세요.
 - 양식을 고치거나 새로 만들어 달라는 요청은 upsert_approval_form 액션으로 처리합니다(사용자 확인 후 저장). 순서: ① get_approval_form 으로 현재 구성 확인(수정인 경우) ② 한국 기업 실무 관행을 반영한 개선 항목 구성 ③ upsert_approval_form 호출. 예: 예비군/민방위 휴가 양식이면 소집통지서 첨부 안내, 훈련 구분(동원/동미참/향방작계 등), 훈련 기간, 유급 처리 문구 같은 실무 항목을 반영하세요.
 - 첨부문서를 바탕으로 계약서를 만들어 달라는 요청은 create_contract_draft_from_attachment 액션으로 처리합니다. 원문의 당사자·목적·기간·대금·업무·비밀유지·해지·손해배상·관할 등 실제 내용을 빠뜨리지 말고 HTML 계약서로 재구성하세요. 원문에 없는 사실·금액·날짜·법률효과를 만들지 말고 필요한 곳에 [확인 필요: 항목]을 표시하세요. 반복 사용 값은 {{회사명}}, {{직원명}}, {{계약일}} 같은 변수로 바꾸되 원문의 고정 당사자명이 핵심인 일반 거래계약이면 함부로 바꾸지 마세요. 원문 성격에 맞는 document_type을 고르세요. AI 초안은 외부 발송 없이 전자계약 > 양식 관리에 회사 양식으로 저장됩니다.
@@ -464,7 +470,7 @@ const MANAGER_READ_TOOLS = [
   },
   {
     name: "list_bank_accounts",
-    description: "등록된 통장 계좌와 잔액을 반환합니다. '잔고 얼마야', '어느 통장에 얼마 있어' 질문에 쓰세요.",
+    description: "통장 계좌별 잔액과 회사 현금 합계(경영요약 화면과 같은 기준)를 반환합니다. '잔고 얼마야', '어느 통장에 얼마 있어' 질문에 쓰세요.",
     input_schema: { type: "object", additionalProperties: false, properties: {}, required: [] },
   },
   {
@@ -626,13 +632,12 @@ const MANAGER_READ_TOOLS = [
   },
   {
     name: "list_receivables",
-    description: "정산되지 않은 세금계산서를 금액 큰 순으로 반환합니다. type=sales 는 외상매출금(미수), type=purchase 는 외상매입금(미지급). 기본 기간은 당해 연도(올해 1/1~오늘) — 지난해 이미 결산·신고된 건은 사용자가 '작년'·'전체 기간'을 명시할 때만 from 으로 넓히세요.",
+    description: "장부(확정 전표) 기준 외상매출금(미수)·외상매입금(미지급) 총액과 거래처별 상위 잔액을 반환합니다. 재무상태표·거래처 원장과 같은 숫자입니다. '미수금 얼마야', '누가 돈 안 줬어', '갚을 돈 얼마야' 질문에 쓰세요.",
     input_schema: {
       type: "object", additionalProperties: false,
       properties: {
-        limit: { type: "integer", description: "가져올 건수(기본 10, 최대 30)" },
+        limit: { type: "integer", description: "거래처 몇 곳까지(기본 10, 최대 30)" },
         type: { type: "string", enum: ["sales", "purchase"], description: "sales=외상매출(미수, 기본), purchase=외상매입(미지급)" },
-        from: { type: "string", description: "발행일 시작(YYYY-MM-DD). 생략 시 올해 1월 1일 — 과년도 포함 요청일 때만 지정" },
       },
     },
   },
@@ -651,7 +656,7 @@ const MANAGER_READ_TOOLS = [
   },
   {
     name: "get_month_summary",
-    description: "특정 월의 실데이터 요약(통장 입금·출금 합계와 건수, 매출 세금계산서 건수·발행액)을 반환합니다. 이번 달이 아닌 과거 월 질문, 또는 스냅샷 수치가 이상해 보여 교차 확인이 필요할 때 사용하세요.",
+    description: "특정 월의 손익(확정 전표 기준 매출·비용·영업이익·순이익·비용 상위 계정, 손익계산서 화면과 같음)과 통장 입출금·매출 세금계산서 발행 요약을 반환합니다. 지난달 등 과거 월 질문, 또는 스냅샷 수치 교차 확인에 쓰세요.",
     input_schema: {
       type: "object", additionalProperties: false,
       properties: { month: { type: "string", description: "조회할 월 YYYY-MM" } },
@@ -888,6 +893,25 @@ function clampLimit(v: unknown, def = 10, max = 30): number {
 
 const ATT_COLS = "id, date, check_in, check_out, status, is_late, late_minutes, work_hours, overtime_minutes";
 
+type FinanceFacts = {
+  as_of: string;
+  receivables: Record<string, unknown>;
+  payables: Record<string, unknown>;
+  cash: Record<string, unknown>;
+  month_pnl: Record<string, unknown>;
+};
+
+/** 돈 숫자 한 벌 — 재무상태표·손익계산서·경영요약과 같은 기준(마이그 20260928120000). 실패하면 null. */
+async function loadFinanceFacts(
+  admin: { rpc: (fn: string, args?: Record<string, unknown>) => any },
+  companyId: string,
+  month?: string,
+): Promise<FinanceFacts | null> {
+  const { data, error } = await admin.rpc("copilot_finance_facts", { p_company_id: companyId, p_month: month ?? null });
+  if (error || !data) return null;
+  return data as FinanceFacts;
+}
+
 /**
  * 조회 툴 실행. 모델 입력은 신뢰하지 않는다 — 형식 검증 후 사용하고,
  * 회사 스코프(company_id)는 항상 서버가 결정한 값으로 강제한다.
@@ -896,7 +920,7 @@ const ATT_COLS = "id, date, check_in, check_out, status, is_late, late_minutes, 
 async function executeReadTool(
   name: string,
   input: Record<string, unknown>,
-  admin: { from: (t: string) => any },
+  admin: { from: (t: string) => any; rpc: (fn: string, args?: Record<string, unknown>) => any },
   companyId: string,
   myEmployeeId: string | null,
   // 범용 조회(query_table)용 — 사용자 JWT 클라이언트(RLS 적용). 매니저 모드에서만 전달된다.
@@ -1362,15 +1386,11 @@ async function executeReadTool(
   }
 
   if (name === "list_bank_accounts") {
-    const { data, error } = await admin.from("bank_accounts")
-      .select("bank_name, alias, role, balance, is_primary")
-      .eq("company_id", companyId).order("is_primary", { ascending: false }).limit(50);
-    if (error) return { error: "계좌 조회에 실패했습니다." };
-    const rows = (data ?? []) as { balance: number | null }[];
+    const facts = await loadFinanceFacts(admin, companyId);
+    if (!facts) return { error: "계좌 조회에 실패했습니다." };
     return {
-      accounts: data ?? [],
-      total_balance: rows.reduce((s, r) => s + Number(r.balance ?? 0), 0),
-      note: "잔액은 마지막 동기화 시점 기준입니다. 계좌번호는 보안상 제공하지 않습니다.",
+      ...facts.cash,
+      note: "total = bank_total(통장 잔액 합, 마지막 동기화 시점) + manual_adjustment(설정의 현금 보정값). 경영요약 화면의 통장 잔액과 같은 값입니다. 보정값이 0 이 아니면 둘을 나눠 말하세요. 계좌번호는 보안상 제공하지 않습니다.",
     };
   }
 
@@ -1395,7 +1415,7 @@ async function executeReadTool(
     if (span > 400) return { error: "기간은 최대 400일까지 조회할 수 있습니다." };
     const ty = String(input.type ?? "both");
     let q = admin.from("tax_invoices")
-      .select("type, counterparty_name, supply_amount, tax_amount, total_amount, issue_date, status, item_name, settled_amount, settlement_status, original_invoice_id, modification_reason")
+      .select("type, counterparty_name, supply_amount, tax_amount, total_amount, issue_date, status, item_name, original_invoice_id, modification_reason")
       .eq("company_id", companyId)
       .gte("issue_date", from).lte("issue_date", to);
     if (ty === "sales" || ty === "purchase") q = q.eq("type", ty);
@@ -1403,7 +1423,7 @@ async function executeReadTool(
     if (error) return { error: "세금계산서 조회에 실패했습니다." };
     const rows = (data ?? []) as {
       type: string; counterparty_name: string | null; total_amount: number | null;
-      supply_amount: number | null; tax_amount: number | null; settled_amount: number | null;
+      supply_amount: number | null; tax_amount: number | null;
       original_invoice_id: string | null; modification_reason: string | null;
     }[];
     const side = (want: string) => {
@@ -1413,12 +1433,11 @@ async function executeReadTool(
       const normal = list.filter((r) => !r.original_invoice_id);
       const mods = list.filter((r) => r.original_invoice_id);
       const byCp: Record<string, { amount: number; count: number }> = {};
-      let total = 0, supply = 0, unsettled = 0;
+      let total = 0, supply = 0;
       for (const r of list) {
         const amt = Number(r.total_amount ?? 0);
         total += amt;
         supply += Number(r.supply_amount ?? 0);
-        unsettled += amt - Number(r.settled_amount ?? 0);
         const k = r.counterparty_name || "(거래처 미상)";
         (byCp[k] || (byCp[k] = { amount: 0, count: 0 })).amount += amt;
         byCp[k].count += 1;
@@ -1428,7 +1447,7 @@ async function executeReadTool(
         issued_amount: normal.reduce((s, r) => s + Number(r.total_amount ?? 0), 0),
         modification_count: mods.length,
         modification_amount: mods.reduce((s, r) => s + Number(r.total_amount ?? 0), 0),
-        net_amount: total, supply_amount: supply, unsettled_amount: unsettled,
+        net_amount: total, supply_amount: supply,
         top_counterparties: Object.entries(byCp).sort((a, b) => b[1].amount - a[1].amount).slice(0, 15)
           .map(([name, v]) => ({ name, amount: v.amount, count: v.count })),
       };
@@ -1438,7 +1457,7 @@ async function executeReadTool(
       ...(ty !== "purchase" ? { sales: side("sales") } : {}),
       ...(ty !== "sales" ? { purchase: side("purchase") } : {}),
       truncated: rows.length >= 3000,
-      note: "금액은 공급가+세액입니다. issued_* 는 정상 발행분, modification_* 는 수정·취소 세금계산서(금액이 음수)이고 net_amount 는 둘을 합친 순액입니다. 발행 건수를 물으면 issued_count 로 답하고, 순액이 음수면 그 달에 취소분만 있었다는 뜻이니 그대로 설명하세요. unsettled_amount 는 아직 정산되지 않은 금액(미수/미지급)입니다. 발행일(issue_date) 기준입니다.",
+      note: "금액은 공급가+세액입니다. issued_* 는 정상 발행분, modification_* 는 수정·취소 세금계산서(금액이 음수)이고 net_amount 는 둘을 합친 순액입니다. 발행 건수를 물으면 issued_count 로 답하고, 순액이 음수면 그 달에 취소분만 있었다는 뜻이니 그대로 설명하세요. 발행일(issue_date) 기준입니다. 미수·미지급 잔액은 이 툴로 계산하지 말고 list_receivables 를 쓰세요(계산서의 입금 정산 기록은 대부분 비어 있어 발행액이 곧 미수로 보입니다).",
     };
   }
 
@@ -1784,24 +1803,19 @@ async function executeReadTool(
   }
 
   if (name === "list_receivables") {
-    // 기본 기간 = 당해 연도 (이미 결산·신고 끝난 작년 건은 기본에서 제외).
-    //   과년도가 필요하면 모델이 from 을 명시해 넓힌다.
-    const kstYear = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 4);
-    const from = /^\d{4}-\d{2}-\d{2}$/.test(String(input.from ?? "")) ? String(input.from) : `${kstYear}-01-01`;
-    const invType = input.type === "purchase" ? "purchase" : "sales";
-    const { data, error } = await admin
-      .from("tax_invoices")
-      .select("counterparty_name, total_amount, issue_date, status")
-      .eq("company_id", companyId)
-      .eq("type", invType)
-      .gte("issue_date", from)
-      .in("status", ["issued", "unmatched", "modified"])
-      .order("total_amount", { ascending: false })
-      .limit(clampLimit(input.limit));
-    if (error) return { error: invType === "purchase" ? "미지급 조회에 실패했습니다." : "미수 조회에 실패했습니다." };
+    // 장부(확정 전표) 외상매출금·외상매입금 잔액 — 재무상태표·거래처 원장과 같은 기준.
+    //   종전엔 올해 발행 계산서를 금액순으로 N건만 돌려줘 모델이 그걸 더해 '미수 합계'를 만들었고,
+    //   입금 정산 기록(settled_amount)을 안 봐 받은 돈도 미수로 남았다.
+    const facts = await loadFinanceFacts(admin, companyId);
+    if (!facts) return { error: input.type === "purchase" ? "미지급 조회에 실패했습니다." : "미수 조회에 실패했습니다." };
+    const side = input.type === "purchase" ? facts.payables : facts.receivables;
+    const n = clampLimit(input.limit);
     return {
-      receivables: data ?? [],
-      basis: `${from} 이후 발행분 (${invType === "purchase" ? "외상매입금" : "외상매출금"}) — 지난 결산 연도 제외가 기본`,
+      ...side,
+      top_partners: ((side.top_partners ?? []) as unknown[]).slice(0, n),
+      note: input.type === "purchase"
+        ? "balance 가 외상매입금(갚을 돈) 총액입니다 — top_partners 를 더해 총액을 만들지 마세요. unposted_purchase_invoices 는 아직 전표를 안 친 매입 계산서라 balance 에 빠져 있으니, 건수가 있으면 '전표 미처리 N건(약 X원)은 빠진 숫자'라고 함께 말하세요."
+        : "balance 가 외상매출금(받을 돈) 총액입니다 — top_partners 를 더해 총액을 만들지 마세요. unposted_sales_invoices 는 아직 전표를 안 친 매출 계산서라 balance 에 빠져 있으니, 건수가 있으면 '전표 미처리 N건(약 X원)은 빠진 숫자'라고 함께 말하세요. 입금을 받았는데 전표(수금 처리)를 안 했으면 실제보다 크게 보입니다.",
     };
   }
 
@@ -1849,11 +1863,13 @@ async function executeReadTool(
       .limit(5000);
     if (invErr) return { error: "세금계산서 조회에 실패했습니다." };
     const invRows = (inv ?? []) as { total_amount: number }[];
+    const facts = await loadFinanceFacts(admin, companyId, m);
     return {
       month: m,
+      pnl: facts?.month_pnl ?? null,
       bank: { income, expense, net: income - expense, tx_count: rows.length },
       sales_invoices: { count: invRows.length, amount: invRows.reduce((s, r) => s + Number(r.total_amount || 0), 0) },
-      note: "입출금은 통장(CODEF) 기준, 매출은 세금계산서 발행일 기준",
+      note: "손익(매출·비용·영업이익·순이익)을 물으면 pnl(확정 전표 기준, 손익계산서 화면과 같음)로 답하세요. pnl.unposted_in_month 에 전표 안 친 자료가 있으면 손익이 덜 잡힌 것이니 반드시 함께 말하세요. bank 는 통장 입출금 흐름(현금 기준), sales_invoices 는 세금계산서 발행일 기준 매출(부가세 포함)로 손익과 다른 숫자입니다.",
     };
   }
 
@@ -2127,7 +2143,19 @@ serve(withSentry("owner-copilot", async (req) => {
       if (snapErr || !snapshot || (snapshot as { error?: string })?.error) {
         return json({ error: "회사 데이터를 불러오지 못했습니다." }, 500);
       }
-      context = snapshot;
+      // 돈 숫자(현금·미수·미지급·이번 달 손익)는 재무제표 화면과 같은 기준 한 벌(copilot_finance_facts)로 덮는다.
+      //   스냅샷의 receivables 는 입금 정산을 안 한 계산서를 전부 미수로 세고 음수 계산서를 버려 부풀어 있었다.
+      //   facts 를 못 받으면 틀린 값을 주느니 빼고, 모델은 list_receivables 로 다시 묻는다.
+      const snap = snapshot as Record<string, unknown>;
+      delete snap.receivables;
+      const facts = await loadFinanceFacts(admin, companyId);
+      if (facts) {
+        snap.cash = facts.cash;
+        snap.receivables = facts.receivables;
+        snap.payables = facts.payables;
+        snap.month_pnl = facts.month_pnl;
+      }
+      context = snap;
     } else {
       context = await buildEmployeeContext(admin, companyId, myEmployeeId, todayKst);
     }

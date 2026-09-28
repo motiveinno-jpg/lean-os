@@ -166,21 +166,23 @@ export async function autoExecuteThreeWayMatch(companyId: string) {
 // ══════════════════════════════════════════
 export async function autoMatchTransactions(companyId: string) {
   // Get unmatched bank transactions
-  const bankTxs = logRead('lib/automation:bankTxs', await db
+  const bankTxs = await fetchPaged<any>('lib/automation:bankTxs', () => db
     .from('bank_transactions')
     .select('id, counterparty, amount, transaction_date, type')
     .eq('company_id', companyId)
     .eq('mapping_status', 'unmapped')
     // type 실값은 'income'(입금) — 'deposit' 은 존재하지 않는 값이라 자동매칭이 항상 0건이었음
-    .eq('type', 'income'));
+    .eq('type', 'income')
+    .order('id'));
 
   // Get unmatched invoices
-  const invoices = logRead('lib/automation:invoices', await db
+  const invoices = await fetchPaged<any>('lib/automation:invoices', () => db
     .from('tax_invoices')
     .select('id, counterparty_name, total_amount, issue_date, deal_id')
     .eq('company_id', companyId)
     .neq('status', 'matched')
-    .neq('status', 'void'));
+    .neq('status', 'void')
+    .order('id'));
 
   if (!bankTxs?.length || !invoices?.length) return { matched: 0 };
 
@@ -780,11 +782,12 @@ export async function autoCreateTaxInvoiceOnPayment(companyId: string) {
   if (!executed?.length) return { created: 0 };
 
   // Get existing tax invoices to avoid duplicates
-  const existingInvoices = logRead('lib/automation:existingInvoices', await db
+  const existingInvoices = await fetchPaged<any>('lib/automation:existingInvoices', () => db
     .from('tax_invoices')
     .select('id, total_amount, counterparty_name, issue_date')
     .eq('company_id', companyId)
-    .neq('status', 'void'));
+    .neq('status', 'void')
+    .order('id'));
 
   // Simple duplicate check: same amount + same counterparty + same date
   const invoiceKeys = new Set(

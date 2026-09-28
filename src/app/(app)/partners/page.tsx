@@ -12,6 +12,7 @@ import {
 import { todayKst } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged, fetchPagedRes } from "@/lib/fetch-paged";
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
@@ -322,11 +323,11 @@ export default function PartnersPage() {
       const [y, m] = month.split("-").map(Number);
       const to = `${m === 12 ? y + 1 : y}-${String(m === 12 ? 1 : m + 1).padStart(2, "0")}-01`;
       const [inv, np] = await Promise.all([
-        supabase.from("tax_invoices").select("partner_id")
+        fetchPagedRes("partners/page:activity-inv", () => supabase.from("tax_invoices").select("partner_id")
           .eq("company_id", companyId!).neq("status", "void").not("partner_id", "is", null)
-          .gte("issue_date", from).lt("issue_date", to),
-        supabase.from("partners").select("id")
-          .eq("company_id", companyId!).gte("created_at", from).lt("created_at", to),
+          .gte("issue_date", from).lt("issue_date", to).order("id")),
+        fetchPagedRes("partners/page:activity-new", () => supabase.from("partners").select("id")
+          .eq("company_id", companyId!).gte("created_at", from).lt("created_at", to).order("id")),
       ]);
       const ids = new Set(((inv.data as any[]) || []).map((r) => r.partner_id));
       //   건수만 세면 눌러도 갈 곳이 없다 — 어느 거래처인지 id 까지 들고 온다
@@ -344,9 +345,9 @@ export default function PartnersPage() {
   const { data: kindCounts = {} as Record<KindKey, number> } = useQuery<Record<KindKey, number>>({
     queryKey: ["partner-kind-counts", companyId],
     queryFn: async () => {
-      const data = logRead("partners/page:kinds", await supabase
+      const data = await fetchPaged("partners/page:kinds", () => supabase
         .from("partners").select("type, is_active, is_dormant, business_number, contact_name")
-        .eq("company_id", companyId!));
+        .eq("company_id", companyId!).order("id"));
       const rows = (data as any[]) || [];
       return {
         all: rows.length,
@@ -753,10 +754,11 @@ export default function PartnersPage() {
     // 1) 중복 검출: business_number 또는 (name + contact_email) 매칭 (회사 단위)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase;
-    const existing = logRead('partners/page:existing', await db
+    const existing = await fetchPaged('partners/page:existing', () => db
       .from('partners')
       .select('id, name, business_number, contact_email')
-      .eq('company_id', companyId));
+      .eq('company_id', companyId)
+      .order('id'));
     const existingByBn = new Map<string, { id: string; name: string }>();
     const existingByNameEmail = new Map<string, { id: string; name: string }>();
     for (const e of (existing || []) as { id: string; name: string; business_number?: string; contact_email?: string }[]) {

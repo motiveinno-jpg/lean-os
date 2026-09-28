@@ -10,7 +10,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { logRead } from "@/lib/log-read";
 import { fetchPaged } from "@/lib/fetch-paged";
 import { kstDateStr } from "@/lib/kst";
 import { MonthField } from "@/components/month-field";
@@ -67,7 +66,7 @@ export default function BusinessFlowPage() {
   const { data: settled } = useQuery({
     queryKey: ["flow-settled", companyId, month],
     queryFn: async () => {
-      const data = logRead("flow/page:data", await db.from("invoice_settlements").select("amount, bank_transactions!inner(transaction_date)").eq("company_id", companyId ?? "").eq("status", "confirmed").gte("bank_transactions.transaction_date", start).lt("bank_transactions.transaction_date", end));
+      const data = await fetchPaged<any>("flow/page:settled", () => db.from("invoice_settlements").select("amount, bank_transactions!inner(transaction_date)").eq("company_id", companyId ?? "").eq("status", "confirmed").gte("bank_transactions.transaction_date", start).lt("bank_transactions.transaction_date", end).order("id"), 50000);
       const rows = (data || []) as { amount: number | null }[];
       return { count: rows.length, total: rows.reduce((s, r) => s + Number(r.amount || 0), 0) };
     },

@@ -355,13 +355,14 @@ export async function getMonthlyBudgetOverview(
   // 2026-07-10: 같은 지출이 정기결제(recurring_payments)로도 등록돼 있으면(이름+금액 매칭) 그 거래는
   // 자동 제외해 중복 집계를 차단 — "통장 고정비 체크 + 예전 등록 항목이 중복으로 나온다" (대표 QA).
   const [bankFixedRes, accountMap, salaryMonthly] = await Promise.all([
-    db.from('bank_transactions')
+    fetchPagedRes('cashBudget.bankFixed', () => db.from('bank_transactions')
       .select('amount, transaction_date, counterparty, description, category')
       .eq('company_id', companyId)
       .eq('type', 'expense')
       .eq('is_fixed_cost', true)
       .gte('transaction_date', startDate)
-      .lte('transaction_date', endDate),
+      .lte('transaction_date', endDate)
+      .order('id', { ascending: true })),
     getAccountMap(companyId),
     // 급여 — 예전엔 월별표에만 빠져 있어서 위 카드(총비용)와 아래 세부내역이 서로 달랐다 (2026-08-10)
     getMonthlyTotalSalary(companyId).catch(() => 0),
@@ -551,13 +552,14 @@ export async function getCostBreakdown(
       .lte('transaction_date', endDate)
       .order('id', { ascending: true })),
     // 통장 '고정비' 체크 거래 (전표처리/매핑에서 체크) — YTD 실적. 정기결제와 매칭되는 건 제외(중복 차단)
-    db.from('bank_transactions')
+    fetchPagedRes('fixedCosts.bankFixed', () => db.from('bank_transactions')
       .select('amount, transaction_date, counterparty, description, category')
       .eq('company_id', companyId)
       .eq('type', 'expense')
       .eq('is_fixed_cost', true)
       .gte('transaction_date', startDate)
-      .lte('transaction_date', endDate),
+      .lte('transaction_date', endDate)
+      .order('id', { ascending: true })),
     // 계정 성격 판정용 — 대출 상환·미지급금 상환처럼 매달 나가지만 비용이 아닌 것을 걸러낸다 (2026-08-10)
     getAccountMap(companyId),
     // 변동비의 나머지 한 축 — 월별표에는 들어가는데 세부내역에는 없어서 위아래 합계가 어긋났다 (2026-08-10)
@@ -781,11 +783,12 @@ export async function getDailyCashProjection(
       .eq('is_active', true),
 
     // Receivable invoices due this month
-    db.from('tax_invoices')
+    fetchPagedRes('cashBudget.monthInvoices', () => db.from('tax_invoices')
       .select('supply_amount, tax_amount, issue_date, counterparty_name, type')
       .eq('company_id', companyId)
       .gte('issue_date', startDate)
-      .lte('issue_date', endDate),
+      .lte('issue_date', endDate)
+      .order('id', { ascending: true })),
 
     // Payment queue items due this month
     db.from('payment_queue')

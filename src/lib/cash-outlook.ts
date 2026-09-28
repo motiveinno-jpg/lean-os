@@ -73,9 +73,9 @@ export async function fetchOutlook(companyId: string, days: number, userId?: str
     fetchReceivables(companyId),
     //   회사 급여일 · 거래처 결제조건 — 둘 다 비어 있으면 종전 가정(25일 · +30일)으로 돈다
     supabase.from("company_settings").select("payroll_day").eq("company_id", companyId).maybeSingle(),
-    supabase.from("partners").select("id, payment_terms_days").eq("company_id", companyId).not("payment_terms_days", "is", null),
+    fetchPagedRes("cash-outlook:partner-terms", () => supabase.from("partners").select("id, payment_terms_days").eq("company_id", companyId).not("payment_terms_days", "is", null).order("id")),
     //   계약 정기 청구(2026-09-21) — 계약 대장에 적은 매월 청구일·금액. 기간 안에서만
-    supabase.from("documents").select("id, name, billing_day, billing_amount, contract_start_date, contract_end_date, partners(name)").eq("company_id", companyId).not("billing_day", "is", null),
+    fetchPagedRes("cash-outlook:billing", () => supabase.from("documents").select("id, name, billing_day, billing_amount, contract_start_date, contract_end_date, partners(name)").eq("company_id", companyId).not("billing_day", "is", null).order("id")),
   ]);
   const pulse = pulseRaw ? buildCashPulse(pulseRaw) : null;
   const balance = pulse?.currentBalance ?? 0;

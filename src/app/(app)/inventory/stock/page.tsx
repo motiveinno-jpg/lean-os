@@ -119,8 +119,8 @@ export default function StockPage() {
     queryKey: ["inv-expiry", companyId],
     enabled: !!companyId,
     queryFn: async () => {
-      const { data } = await (supabase as any).from("stock_cost_layers").select("product_id, qty_left, stock_moves!inner(lot_no, expiry_date)")
-        .eq("company_id", companyId).gt("qty_left", 0).not("stock_moves.expiry_date", "is", null);
+      const data = await fetchPaged("inv-expiry", () => (supabase as any).from("stock_cost_layers").select("id, product_id, qty_left, stock_moves!inner(lot_no, expiry_date)")
+        .eq("company_id", companyId).gt("qty_left", 0).not("stock_moves.expiry_date", "is", null).order("id"));
       const m = new Map<string, { date: string; lot: string | null }>();
       for (const r of (data || []) as any[]) {
         const d = String(r.stock_moves?.expiry_date || ""); if (!d) continue;

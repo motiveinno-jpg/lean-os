@@ -225,7 +225,7 @@ export default function VoucherEntryPage() {
   const { data: partners = [] } = useQuery<Pt[]>({
     queryKey: ["voucher-partners", companyId],
     queryFn: async () => {
-      const data = logRead('voucher-entry/page:data', await db.from("partners").select("id, name, business_number").eq("company_id", companyId ?? "").order("name"));
+      const data = await fetchPaged('voucher-entry/page:partners', () => db.from("partners").select("id, name, business_number").eq("company_id", companyId ?? "").order("name").order("id"));
       return (data || []) as Pt[];
     },
     enabled: !!companyId, staleTime: 300_000,
@@ -580,9 +580,10 @@ export default function VoucherEntryPage() {
         if (!linkedSrc) {
           const total = vtype === "cash_in" ? gCredit : vtype === "cash_out" ? gDebit : Math.max(gDebit, gCredit);
           if (total > 0) {
+            // 하루·같은 금액으로 좁힌 확인용 목록이라 몇 건이면 충분하다
             const [bk, cd] = await Promise.all([
-              db.from("bank_transactions").select("id, amount, counterparty, journal_entry_id").eq("company_id", companyId ?? "").eq("transaction_date", gDate).not("journal_entry_id", "is", null).or(`amount.eq.${total},amount.eq.${-total}`),
-              db.from("card_transactions").select("id, amount, merchant_name, journal_entry_id").eq("company_id", companyId ?? "").eq("transaction_date", gDate).not("journal_entry_id", "is", null).eq("amount", total),
+              db.from("bank_transactions").select("id, amount, counterparty, journal_entry_id").eq("company_id", companyId ?? "").eq("transaction_date", gDate).not("journal_entry_id", "is", null).or(`amount.eq.${total},amount.eq.${-total}`).limit(20),
+              db.from("card_transactions").select("id, amount, merchant_name, journal_entry_id").eq("company_id", companyId ?? "").eq("transaction_date", gDate).not("journal_entry_id", "is", null).eq("amount", total).limit(20),
             ]);
             const dups = [...((bk.data || []) as any[]).map((r) => `통장 ${r.counterparty || ""} ${Number(r.amount).toLocaleString()}`), ...((cd.data || []) as any[]).map((r) => `카드 ${r.merchant_name || ""} ${Number(r.amount).toLocaleString()}`)];
             if (dups.length > 0) {

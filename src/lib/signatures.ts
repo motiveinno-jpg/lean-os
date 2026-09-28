@@ -1122,11 +1122,13 @@ export async function applyCompanySeal(params: {
  *  회사 사용자가 전자계약 화면을 열 때 훑어서 밀린 것을 마무리한다(권한이 있는 세션에서 실행).
  *  @returns 마무리한 문서 수 */
 export async function finalizeFullySignedDocuments(companyId: string): Promise<number> {
-  const rows = logRead('lib/signatures:finalizeScan', await db
+  // 일부만 받으면 남은 서명이 안 보여 '전부 서명됨'으로 잘못 마무리한다 — 끝까지 받고, 실패하면 멈춘다
+  const rows = await fetchPaged<{ document_id: string | null; status: string | null }>('lib/signatures:finalizeScan', () => db
     .from('signature_requests')
     .select('document_id, status')
     .eq('company_id', companyId)
-    .not('document_id', 'is', null));
+    .not('document_id', 'is', null)
+    .order('id'), 20000, { strict: true });
   if (!rows || rows.length === 0) return 0;
 
   // 문서별로 모아 '전부 signed' 인 것만 고른다

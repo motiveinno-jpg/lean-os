@@ -175,7 +175,7 @@ export async function fetchCashFlow(companyId: string, from: string, to: string)
     supabase.from("companies").select("name, representative").eq("id", companyId).maybeSingle(),
     supabase.from("bank_accounts").select("id, bank_name, alias, balance, is_hidden").eq("company_id", companyId),
     (supabase as any).from("employees").select("name").eq("company_id", companyId),
-    (supabase as any).from("loans").select("id, lender").eq("company_id", companyId),
+    fetchPaged("cash-flow:loans", () => (supabase as any).from("loans").select("id, lender").eq("company_id", companyId).order("id")).then((data) => ({ data })),
     getAccountMap(companyId),
   ]);
   const accts = ((accounts.data || []) as any[]).filter((a) => !a.is_hidden);

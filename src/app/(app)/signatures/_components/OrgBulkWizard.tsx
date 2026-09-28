@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { Ico } from "@/components/ui-icon";
 
 import { useEffect, useMemo, useState } from "react";
@@ -238,11 +239,12 @@ export function OrgBulkWizard({
     (async () => {
       setLoadingPartners(true);
       try {
-        const data = logRead('_components/OrgBulkWizard:data', await supabase
+        const data = await fetchPaged('_components/OrgBulkWizard:partners', () => supabase
           .from("partners")
           .select("id, name, type, representative, contact_name, contact_email, contact_phone, business_number, address")
           .eq("company_id", companyId)
-          .order("name", { ascending: true }));
+          .order("name", { ascending: true })
+          .order("id"));
         if (alive) setPartners((data || []) as OrgPartner[]);
       } catch (e) {
         if (alive) toast(friendlyError(e, "거래처를 불러오지 못했습니다"), "error");

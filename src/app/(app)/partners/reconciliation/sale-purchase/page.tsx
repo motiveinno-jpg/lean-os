@@ -237,8 +237,8 @@ function SalePurchaseInner() {
   const { data: partners = [] } = useQuery({
     queryKey: ["sp-partners", companyId],
     queryFn: async () => {
-      const data = logRead("sale-purchase:partners", await supabase
-        .from("partners").select("id, code, name, business_number").eq("company_id", companyId!).eq("is_active", true).order("name"));
+      const data = await fetchPaged("sale-purchase:partners", () => supabase
+        .from("partners").select("id, code, name, business_number").eq("company_id", companyId!).eq("is_active", true).order("name").order("id"));
       return (data || []) as Pt[];
     },
     enabled: !!companyId, staleTime: 300_000,

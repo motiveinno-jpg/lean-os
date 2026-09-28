@@ -8,6 +8,7 @@ import {
 } from "@/components/query-kit";
 import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 import { useEffect, useRef, useState, useMemo } from "react";
 import { DateField } from "@/components/date-field";
@@ -372,11 +373,12 @@ export default function CashReceiptsPage() {
   const { data: partners = [] } = useQuery({
     queryKey: ["partners-for-cash", companyId],
     queryFn: async () => {
-      const data = logRead('cash-receipts/page:data', await supabase
+      const data = await fetchPaged<any>('cash-receipts/page:partners', () => supabase
         .from("partners")
         .select("id, name, business_number")
         .eq("company_id", companyId!)
-        .order("name"));
+        .order("name")
+        .order("id"));
       return data || [];
     },
     enabled: !!companyId,

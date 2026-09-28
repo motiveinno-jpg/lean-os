@@ -10,6 +10,7 @@ import { DateField } from "@/components/date-field";
 import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { assertStorageQuotaMany } from "@/lib/storage-quota";
 import { useUser } from "@/components/user-context";
 import { useMyPermissions } from "@/lib/permissions";
@@ -199,7 +200,7 @@ export default function BoardPage() {
     queryKey: ["board-post-reads", companyId],
     enabled: !!companyId,
     staleTime: 30_000,
-    queryFn: async () => (logRead("board:reads", await (db as any).from("board_post_reads").select("post_id, user_id, read_at").eq("company_id", companyId!)) || []) as { post_id: string; user_id: string; read_at: string }[],
+    queryFn: async () => fetchPaged<{ post_id: string; user_id: string; read_at: string }>("board:reads", () => (db as any).from("board_post_reads").select("post_id, user_id, read_at").eq("company_id", companyId!).order("post_id").order("user_id")),
   });
   const readsByPost = useMemo(() => { const m = new Map<string, { user_id: string; read_at: string }[]>(); for (const r of postReads) { const a = m.get(r.post_id) || []; a.push(r); m.set(r.post_id, a); } return m; }, [postReads]);
   const [readListFor, setReadListFor] = useState<string | null>(null);
@@ -222,12 +223,13 @@ export default function BoardPage() {
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ["board-posts", companyId],
     queryFn: async () => {
-      const data = logRead('board/page:data', await db
+      const data = await fetchPaged("board/page:data", () => db
         .from("board_posts")
         .select("*")
         .eq("company_id", companyId!)
         .order("pinned", { ascending: false })
-        .order("created_at", { ascending: false }));
+        .order("created_at", { ascending: false })
+        .order("id"));
       return (data || []) as Post[];
     },
     enabled: !!companyId,

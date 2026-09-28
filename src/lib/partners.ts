@@ -5,6 +5,7 @@ import { logRead } from "@/lib/log-read";
  */
 
 import { supabase } from './supabase';
+import { fetchPaged } from './fetch-paged';
 
 // ── Types ──
 
@@ -42,31 +43,33 @@ export interface UpsertPartnerParams {
 // ── List partners ──
 
 export async function getPartners(companyId: string, filters?: PartnerFilters) {
-  let query = supabase
-    .from('partners')
-    .select('*, deals!deals_partner_id_fkey(name)')
-    .eq('company_id', companyId);
+  // 거래처가 1,000곳을 넘는 회사가 있어 아래 fetchPaged 로 나눠 받는다 — 페이지마다 새 빌더
+  const build = () => {
+    let query = supabase
+      .from('partners')
+      .select('*, deals!deals_partner_id_fkey(name)')
+      .eq('company_id', companyId);
 
-  if (filters?.search) {
-    query = query.ilike('name', `%${filters.search}%`);
-  }
+    if (filters?.search) {
+      query = query.ilike('name', `%${filters.search}%`);
+    }
 
-  if (filters?.type) {
-    query = query.eq('type', filters.type);
-  }
+    if (filters?.type) {
+      query = query.eq('type', filters.type);
+    }
 
-  if (filters?.isActive !== undefined) {
-    query = query.eq('is_active', filters.isActive);
-  }
+    if (filters?.isActive !== undefined) {
+      query = query.eq('is_active', filters.isActive);
+    }
 
-  if (filters?.tags && filters.tags.length > 0) {
-    query = query.contains('tags', filters.tags);
-  }
+    if (filters?.tags && filters.tags.length > 0) {
+      query = query.contains('tags', filters.tags);
+    }
 
-  query = query.order('name', { ascending: true });
+    return query.order('name', { ascending: true }).order('id');
+  };
 
-  const { data } = await query;
-  return data || [];
+  return fetchPaged<any>('getPartners', build);
 }
 
 // ── Create or update partner ──

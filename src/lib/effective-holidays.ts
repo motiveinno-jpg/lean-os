@@ -35,7 +35,7 @@ export async function fetchHolidayDates(
   const hi = from <= to ? to : from;
   const set = new Set<string>();
   const [nat, comp] = await Promise.all([
-    (client.from("national_holidays") as any).select("date").gte("date", lo).lte("date", hi),
+    (client.from("national_holidays") as any).select("date").gte("date", lo).lte("date", hi).limit(1000),
     companyId
       ? (client.from("holidays") as any).select("date").eq("company_id", companyId).gte("date", lo).lte("date", hi)
       : Promise.resolve({ data: [], error: null }),

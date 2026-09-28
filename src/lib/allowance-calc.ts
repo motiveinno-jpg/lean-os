@@ -211,7 +211,8 @@ export async function recomputeMonthlyAllowances(
     .eq('company_id', companyId)
     .eq('employee_id', employeeId)
     .gte('date', start)
-    .lte('date', end));
+    .lte('date', end)
+    .limit(500));   // 한 사람·한 달 범위라 수십 건을 넘지 않는다
 
   const allRecords: AttendanceRecordRow[] = (arRaw || []) as AttendanceRecordRow[];
   // 휴가 행 제외 — annual_leave / sick_leave / official_leave / etc 는 가산 계산에 미반영.

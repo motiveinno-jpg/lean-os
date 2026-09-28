@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { fetchPagedRes } from "@/lib/fetch-paged";
 import { fetchTaxDeadlineChecks } from "@/lib/tax-deadline-checks";
 
 interface UpcomingScheduleCardProps {
@@ -171,29 +172,33 @@ export function UpcomingScheduleCard({ companyId, windowDays = 30 }: UpcomingSch
       //   상태 필터 추가. 세금 마감은 '납부 완료' 체크(tax_deadline_checks)를 읽어 걸러낸다
       //   (신호 6칸·브리핑은 이미 거르는데 정작 이 카드만 안 걸렀다).
       const [loans, docs, vault, taxChecked, billing] = await Promise.all([
-        db.from("loans")
+        fetchPagedRes("upcoming:loans", () => db.from("loans")
           .select("id, name, lender, maturity_date, remaining_balance, status")
           .eq("company_id", companyId)
           .or("status.eq.active,status.is.null")
           .not("maturity_date", "is", null)
-          .lte("maturity_date", windowEndIso),
-        db.from("documents")
+          .lte("maturity_date", windowEndIso)
+          .order("id")),
+        fetchPagedRes("upcoming:contracts", () => db.from("documents")
           .select("id, name, contract_end_date, contract_amount, counterparty")
           .eq("company_id", companyId)
           .not("contract_end_date", "is", null)
-          .lte("contract_end_date", windowEndIso),
-        db.from("vault_accounts")
+          .lte("contract_end_date", windowEndIso)
+          .order("id")),
+        fetchPagedRes("upcoming:vault", () => db.from("vault_accounts")
           .select("id, service_name, renewal_date, monthly_cost")
           .eq("company_id", companyId)
           .eq("status", "active")
           .not("renewal_date", "is", null)
-          .lte("renewal_date", windowEndIso),
+          .lte("renewal_date", windowEndIso)
+          .order("id")),
         fetchTaxDeadlineChecks(companyId).catch(() => new Set<string>()),
         //   정기 청구 — 계약 기간 안(종료일 지남 제외)의 매월 청구일. 다음 청구일 하나만 올린다
-        db.from("documents")
+        fetchPagedRes("upcoming:billing", () => db.from("documents")
           .select("id, name, billing_day, billing_amount, contract_start_date, contract_end_date, partners(name)")
           .eq("company_id", companyId)
-          .not("billing_day", "is", null),
+          .not("billing_day", "is", null)
+          .order("id")),
       ]);
 
       const merged: ScheduleItem[] = [];

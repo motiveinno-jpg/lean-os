@@ -896,7 +896,7 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
     enabled: !!companyId,
     staleTime: 60_000,
     queryFn: async () => {
-      const { data } = await (supabase as any).from("documents").select("id, name, billing_day, billing_amount, contract_start_date, contract_end_date, partners(name)").eq("company_id", companyId!).not("billing_day", "is", null);
+      const data = await fetchPaged("dashboard:billing-docs", () => (supabase as any).from("documents").select("id, name, billing_day, billing_amount, contract_start_date, contract_end_date, partners(name)").eq("company_id", companyId!).not("billing_day", "is", null).order("id"));
       const t0 = new Date(); t0.setHours(0, 0, 0, 0);
       const key = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       const todayKey = key(t0);
@@ -1202,7 +1202,7 @@ function BurnRateTrendWidget({ companyId }: { companyId: string }) {
     queryFn: async () => {
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-      const data = logRead('dashboard/page:data', await (supabase).from('transactions').select('amount, type, transaction_date').eq('company_id', companyId).gte('transaction_date', kstDateStr(sixMonthsAgo)).order('transaction_date'));
+      const data = await fetchPaged('dashboard/page:burn-trend', () => (supabase).from('transactions').select('amount, type, transaction_date').eq('company_id', companyId).gte('transaction_date', kstDateStr(sixMonthsAgo)).order('transaction_date').order('id'));
       if (!data) return [];
       const monthly: Record<string, { expense: number; income: number }> = {};
       data.forEach((tx: any) => {
@@ -1927,12 +1927,11 @@ function DealFunnel({ companyId }: { companyId: string }) {
     queryKey: ["deal-funnel", companyId],
     queryFn: async () => {
       const db = supabase;
-      const { data, error } = await db
+      const deals = await fetchPaged("dashboard:funnel-deals", () => db
         .from("deals")
         .select("id, status, is_dormant, contract_total")
-        .eq("company_id", companyId);
-      if (error) throw error;
-      const deals = data || [];
+        .eq("company_id", companyId)
+        .order("id"), 20000, { strict: true });
       return FUNNEL_STAGES.map((s) => {
         const matched = deals.filter(s.matches);
         return {

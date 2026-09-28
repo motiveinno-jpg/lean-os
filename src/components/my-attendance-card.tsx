@@ -5,6 +5,7 @@ import { logRead } from "@/lib/log-read";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { checkIn as hrCheckIn, checkOut as hrCheckOut, cancelCheckOut as hrCancelCheckOut } from "@/lib/hr";
 import { useToast } from "@/components/toast";
 import { AttendanceBadges }  from "@/components/attendance-badges";
@@ -66,8 +67,7 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
   const { data: sites = [] } = useQuery({
     queryKey: ["att-sites", companyId],
     queryFn: async () => {
-      const { data } = await db.from("deals").select("id, name").eq("company_id", companyId).is("archived_at", null).eq("status", "active").order("name");
-      return (data || []) as { id: string; name: string }[];
+      return fetchPaged<{ id: string; name: string }>("att-sites", () => db.from("deals").select("id, name").eq("company_id", companyId).is("archived_at", null).eq("status", "active").order("name").order("id"));
     },
     enabled: !!companyId,
     staleTime: 300_000,

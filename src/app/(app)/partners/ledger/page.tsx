@@ -114,7 +114,7 @@ export default function PartnerLedgerPage() {
   const { data: partnerInfo = { names: {}, codes: {} } } = useQuery<{ names: Record<string, string>; codes: Record<string, number> }>({
     queryKey: ["partner-ledger-names", companyId],
     queryFn: async () => {
-      const data = logRead('ledger/page:data', await db.from("partners").select("id, name, code").eq("company_id", companyId ?? ""));
+      const data = await fetchPaged<any>('ledger/page:partners', () => db.from("partners").select("id, name, code").eq("company_id", companyId ?? "").order("id"));
       const names: Record<string, string> = {};
       const codes: Record<string, number> = {};
       for (const p of (data || []) as any[]) { names[p.id] = p.name; if (p.code != null) codes[p.id] = p.code; }
