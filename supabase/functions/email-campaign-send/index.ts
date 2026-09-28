@@ -1,15 +1,15 @@
 import { withSentry } from "../_shared/sentry.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { escapeHtml } from "../_shared/mail-guard.ts";
+import { renderCampaignBody, orphanLinkLabels } from "../_shared/campaign-body.ts";
 
-// 광고·소개 메일 직접 발송 (2026-09-16) — 운영자 화면 「매출 › 메일 보내기」가 부른다.
+// 광고·소개 메일 직접 발송 — 운영자 화면 「매출 › 메일 보내기」가 부른다.
 //
 //   · 플랫폼 운영자만(is_platform_operator). 회사 사용자 권한으로는 호출 불가.
 //   · 발신은 제품 도메인 owner-view.com — 계약서·급여 메일(mo-tive.com)과 도메인이 달라 평판이 섞이지 않는다.
 //   · 정보통신망법 제50조: 제목 앞 "(광고)", 발신자 명칭·연락처, 수신거부 방법을 본문에 반드시 넣는다 → 여기서 자동으로 붙인다.
 //   · 수신거부(email_optouts)는 보내기 직전에 대조해 자동으로 뺀다. 반송·스팸신고로 들어온 주소도 같은 표라 함께 빠진다.
 //   · List-Unsubscribe / List-Unsubscribe-Post 헤더 — 지메일 등이 메일 상단에 '수신거부' 버튼을 띄운다(스팸 신고 대신 이걸 누르게).
-//   · dry_run=true 면 보내지 않고 "총 N · 수신거부 제외 M · 발송 예정 K" 만 돌려준다.
+//   · dry_run=true 면 보내지 않고 "총 N · 수신거부 제외 M · 발송 예정 K" 와 실제로 나갈 HTML(preview_html)만 돌려준다.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,6 +34,7 @@ const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
 /** 본문 끝에 법이 요구하는 안내를 붙인다 — 텍스트/HTML 두 벌 */
 function withFooter(bodyText: string, unsubUrl: string) {
+  const body = renderCampaignBody(bodyText);
   const footerText =
     `\n\n──────────\n` +
     `이 메일은 정보통신망법에 따른 광고성 정보입니다.\n` +
@@ -42,14 +43,14 @@ function withFooter(bodyText: string, unsubUrl: string) {
     `수신거부: ${unsubUrl}\n`;
   const html =
     `<div style="font-family:-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:15px;line-height:1.7;color:#18181b;max-width:640px">` +
-    `<div style="white-space:pre-wrap">${escapeHtml(bodyText)}</div>` +
+    `<div>${body.html}</div>` +
     `<hr style="border:0;border-top:1px solid #e5e8f0;margin:28px 0 16px">` +
     `<p style="font-size:12px;line-height:1.7;color:#71717a;margin:0">` +
     `이 메일은 정보통신망법에 따른 광고성 정보입니다.<br>` +
     `발신: 주식회사 모티브이노베이션 (오너뷰) · ${REPLY_TO}<br>` +
     `수신을 원하지 않으시면 <a href="${unsubUrl}" style="color:#4f46e5">여기서 바로 거부</a>하실 수 있습니다.` +
     `</p></div>`;
-  return { text: bodyText + footerText, html };
+  return { text: body.text + footerText, html };
 }
 
 Deno.serve(withSentry("email-campaign-send", async (req: Request) => {
@@ -98,7 +99,11 @@ Deno.serve(withSentry("email-campaign-send", async (req: Request) => {
   }
   const toSend = recipients.filter((e) => !opted.has(e));
   const summary = { total: recipients.length, skipped_optout: opted.size, will_send: toSend.length, invalid };
-  if (dryRun) return json({ ok: true, dry_run: true, ...summary });
+  if (dryRun) {
+    //   미리 계산 때 실제로 나갈 모양을 그대로 돌려준다 — 화면이 같은 HTML 로 미리보기를 그린다.
+    const sample = withFooter(bodyText, `${SITE}/unsubscribe/?email=`);
+    return json({ ok: true, dry_run: true, ...summary, preview_html: sample.html, orphan_links: orphanLinkLabels(bodyText) });
+  }
 
   // ── 캠페인 기록 ──
   const { data: camp, error: cErr } = await admin.from("email_campaigns")

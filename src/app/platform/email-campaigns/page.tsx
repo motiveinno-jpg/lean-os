@@ -21,7 +21,7 @@ type Campaign = {
   delivered: number; bounced: number; complained: number;
   created_at: string; sent_at: string | null;
 };
-type Preview = { total: number; skipped_optout: number; will_send: number; invalid: string[] };
+type Preview = { total: number; skipped_optout: number; will_send: number; invalid: string[]; preview_html?: string; orphan_links?: string[] };
 
 const STATUS: Record<string, { tone: "ok" | "info" | "warn" | "muted"; label: string }> = {
   sent: { tone: "ok", label: "발송 완료" },
@@ -125,7 +125,7 @@ export default function PlatformEmailCampaignsPage() {
               <input className="pf-input" value={subject} onChange={(e) => { setSubject(e.target.value); setPreview(null); }} placeholder="사장님 대신 회사 상황을 매일 정리해 드립니다" maxLength={200} />
             </label>
             <label className="grid gap-1">
-              <span className="text-xs text-[var(--text-muted)]">본문 <span className="text-[var(--text-dim)]">· 줄바꿈 그대로 나갑니다. 발신자·수신거부 안내는 끝에 자동으로 붙습니다</span></span>
+              <span className="text-xs text-[var(--text-muted)]">본문 <span className="text-[var(--text-dim)]">· 줄바꿈 그대로 나갑니다. 링크는 <code>[바로가기](https://주소)</code> 처럼 쓰거나 주소를 그대로 적으세요. 발신자·수신거부 안내는 끝에 자동으로 붙습니다</span></span>
               <textarea className="pf-input min-h-[220px] font-[inherit]" value={bodyText} onChange={(e) => { setBodyText(e.target.value); setPreview(null); }} placeholder="안녕하세요, 오너뷰입니다. …" />
             </label>
             <label className="grid gap-1">
@@ -149,6 +149,20 @@ export default function PlatformEmailCampaignsPage() {
                 {busy === "send" ? "보내는 중…" : preview ? `${preview.will_send.toLocaleString()}명에게 보내기` : "보내기"}
               </button>
             </div>
+            {preview?.orphan_links && preview.orphan_links.length > 0 && (
+              <p className="text-sm text-[var(--danger)]">
+                링크 주소가 없는 곳이 있습니다: {preview.orphan_links.map((l) => `[${l}]`).join(", ")} — 다른 곳에서 복사하면 링크가 떨어집니다.
+                <code>[{preview.orphan_links[0]}](https://주소)</code> 처럼 주소를 붙여 주세요.
+              </p>
+            )}
+            {preview?.preview_html && (
+              <div className="grid gap-1">
+                <span className="text-xs text-[var(--text-muted)]">받는 사람에게 보이는 모양</span>
+                {/* 스크립트 없는 샌드박스 — 링크는 새 창으로만 열린다 */}
+                <iframe title="메일 미리보기" sandbox="allow-popups allow-popups-to-escape-sandbox" className="w-full h-[420px] rounded-md border border-[var(--border)] bg-white"
+                  srcDoc={`<base target="_blank"><body style="margin:16px;background:#fff">${preview.preview_html}</body>`} />
+              </div>
+            )}
             {msg && <p className={`text-sm ${msg.tone === "ok" ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{msg.text}</p>}
           </div>
         </PfCardBody>
