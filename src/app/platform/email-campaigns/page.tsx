@@ -1,7 +1,7 @@
 "use client";
 
 // 플랫폼 운영자 — 광고·소개 메일 보내기 (2026-09-16 신설).
-//   주소 목록을 붙여 넣으면 엣지 함수 email-campaign-send 가 news.mo-tive.com 으로 보낸다.
+//   주소 목록을 붙여 넣으면 엣지 함수 email-campaign-send 가 hello@owner-view.com 으로 보낸다.
 //   · 수신거부(email_optouts)는 보내기 직전에 자동으로 뺀다 — "미리 계산"으로 몇 명이 빠지는지 먼저 본다.
 //   · 제목 앞 (광고)·발신자·수신거부 안내는 함수가 붙인다. 여기서는 제목·본문·주소만.
 //   · 반송·스팸신고는 웹훅이 수신거부 목록에 넣어 다음 발송부터 빠진다. 아래 이력 표에서 건수를 본다.
@@ -107,7 +107,7 @@ export default function PlatformEmailCampaignsPage() {
       <PfPageHead
         eyebrow="매출"
         title="메일 보내기"
-        desc="소개·광고 메일을 news.mo-tive.com 에서 보냅니다. 수신거부한 주소는 자동으로 빠지고, 제목의 (광고) 표시·발신자·수신거부 안내는 자동으로 붙습니다. 반송·스팸신고 주소는 다음 발송부터 자동 제외됩니다."
+        desc="소개·광고 메일을 hello@owner-view.com 에서 보냅니다. 수신거부한 주소는 자동으로 빠지고, 제목의 (광고) 표시·발신자·수신거부 안내는 자동으로 붙습니다. 반송·스팸신고 주소는 다음 발송부터 자동 제외됩니다."
       />
 
       <div className="pf-kpi-grid">

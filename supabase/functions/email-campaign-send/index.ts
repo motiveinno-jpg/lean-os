@@ -5,7 +5,7 @@ import { escapeHtml } from "../_shared/mail-guard.ts";
 // 광고·소개 메일 직접 발송 (2026-09-16) — 운영자 화면 「매출 › 메일 보내기」가 부른다.
 //
 //   · 플랫폼 운영자만(is_platform_operator). 회사 사용자 권한으로는 호출 불가.
-//   · 발신은 광고 전용 서브도메인 news.mo-tive.com — 계약서·급여 메일(mo-tive.com)과 평판을 섞지 않는다.
+//   · 발신은 제품 도메인 owner-view.com — 계약서·급여 메일(mo-tive.com)과 도메인이 달라 평판이 섞이지 않는다.
 //   · 정보통신망법 제50조: 제목 앞 "(광고)", 발신자 명칭·연락처, 수신거부 방법을 본문에 반드시 넣는다 → 여기서 자동으로 붙인다.
 //   · 수신거부(email_optouts)는 보내기 직전에 대조해 자동으로 뺀다. 반송·스팸신고로 들어온 주소도 같은 표라 함께 빠진다.
 //   · List-Unsubscribe / List-Unsubscribe-Post 헤더 — 지메일 등이 메일 상단에 '수신거부' 버튼을 띄운다(스팸 신고 대신 이걸 누르게).
@@ -23,7 +23,7 @@ const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 
-const FROM_EMAIL = "오너뷰 <hello@news.mo-tive.com>";
+const FROM_EMAIL = "오너뷰 <hello@owner-view.com>";
 const REPLY_TO = "creative@mo-tive.com";
 const SITE = "https://www.owner-view.com";
 const MAX_RECIPIENTS = 2000;
