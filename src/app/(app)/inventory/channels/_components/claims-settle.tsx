@@ -16,11 +16,13 @@ import { SimpleCond, SimpleApplied, condHit, type CondLive } from "../../_compon
 import { ExcelPasteHelper } from "../../_components/excel-paste-helper";
 import { exportToExcel } from "@/lib/excel-export";
 import { CHANNELS, channelLabel, SHIP_STATUS_LABEL, type OrderImport } from "@/lib/inventory-channels";
-import { loadChannelFees, saveChannelFees, type ChannelFees } from "@/lib/inventory-settings";
+import Link from "next/link";
+import { loadChannelFees, saveChannelFees, loadSettlementAccounts, saveSettlementAccounts, SETTLEMENT_ACCOUNT_DEFAULT_CODES, type ChannelFees, type SettlementAccounts } from "@/lib/inventory-settings";
 import type { Product } from "@/lib/inventory";
 import {
   listClaims, createClaim, deleteClaim, orderLinesOf, CLAIM_KIND_LABEL, type Claim, type ClaimKind, type OrderLine,
   listSettlements, importSettlements, deleteSettlementBatch, parseSettlementTsv, guessSettleColumns, settlementSummary, unsettledImports,
+  makeSettlementVoucherDraft, batchTotals, listAccountOptions, unlinkRejectedVoucher,
   SETTLE_FIELDS, UNSETTLED_DAYS, type Settlement, type SettleField, type SettleRow,
 } from "@/lib/inventory-claims";
 
@@ -245,6 +247,47 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite }:
     catch (e) { toast(friendlyError(e, "삭제 실패"), "error"); }
   };
 
+  // ── 정산 전표 초안 팝업 (결정 271) — 묶음 합계로 일반전표 초안. 계정은 한 번 고르면 기억, 확정은 전표 현황 ──
+  const [voucherBatch, setVoucherBatch] = useState<string | null>(null);
+  const [acc, setAcc] = useState<SettlementAccounts>({});
+  const [entryDate, setEntryDate] = useState(todayKst());
+  const [vDesc, setVDesc] = useState("");
+  const [vBusy, setVBusy] = useState(false);
+  const [lastEntry, setLastEntry] = useState<string | null>(null);
+  const { data: acctOpts = [] } = useQuery({ queryKey: ["ch-accounts", companyId], queryFn: () => listAccountOptions(companyId!), enabled: !!companyId && !!voucherBatch });
+  const { data: savedAcc } = useQuery({ queryKey: ["ch-settle-accounts", companyId], queryFn: () => loadSettlementAccounts(companyId!), enabled: !!companyId && !!voucherBatch });
+  const batchRows = useMemo(() => (voucherBatch ? settlements.filter((s) => s.batch_id === voucherBatch) : []), [settlements, voucherBatch]);
+  const totals = useMemo(() => batchTotals(batchRows), [batchRows]);
+  useEffect(() => {
+    if (!voucherBatch || !acctOpts.length) return;
+    //   기억한 계정이 이 회사 표에 있으면 그것, 없으면 표준 코드로 제안. 사람이 바꿀 수 있다
+    const byCode = (code: string) => acctOpts.find((a) => a.code === code)?.id;
+    const has = (id?: string) => !!id && acctOpts.some((a) => a.id === id);
+    const next: SettlementAccounts = {};
+    for (const k of Object.keys(SETTLEMENT_ACCOUNT_DEFAULT_CODES) as (keyof SettlementAccounts)[]) next[k] = has(savedAcc?.[k]) ? savedAcc![k] : byCode(SETTLEMENT_ACCOUNT_DEFAULT_CODES[k]);
+    setAcc(next);
+    setEntryDate(totals.to || todayKst());
+    setVDesc("");
+  }, [voucherBatch, acctOpts, savedAcc, totals.to]);
+  //   반려된 초안은 '없는 것'으로 본다 — 다시 만들 때 연결을 풀고 만든다
+  const liveVoucher = (s: Settlement) => !!s.journal_entry_id && s.journal_status !== "rejected";
+  const batchHasVoucher = (batchId: string) => settlements.some((s) => s.batch_id === batchId && liveVoucher(s));
+  const acctLabel = (id?: string) => { const a = acctOpts.find((x) => x.id === id); return a ? `${a.code || ""} ${a.name}`.trim() : "—"; };
+  const voucherReady = !!(acc.bank && acc.fee && acc.ship && acc.sales) && (totals.diff === 0 || !!acc.diff);
+  const makeVoucher = async () => {
+    if (!companyId || !voucherBatch || vBusy || !voucherReady) return;
+    setVBusy(true);
+    try {
+      await unlinkRejectedVoucher(companyId, voucherBatch);
+      const id = await makeSettlementVoucherDraft({ batchId: voucherBatch, entryDate, acctBank: acc.bank!, acctFee: acc.fee!, acctShip: acc.ship!, acctSales: acc.sales!, acctDiff: totals.diff !== 0 ? acc.diff : null, description: vDesc });
+      try { await saveSettlementAccounts(companyId, acc); } catch { /* 기억 실패는 전표와 무관 */ }
+      setLastEntry(id); setVoucherBatch(null);
+      toast("정산 전표 초안을 만들었습니다. 전표 현황 › 처리할 것에서 확정하세요.", "success");
+      qc.invalidateQueries({ queryKey: ["ch-settlements", companyId] }); qc.invalidateQueries({ queryKey: ["ch-settle-accounts", companyId] });
+    } catch (e) { toast(friendlyError(e, "전표 초안 만들기 실패"), "error"); }
+    finally { setVBusy(false); }
+  };
+
   // ── 붙여넣기 팝업 ──
   const [open, setOpen] = useState(false);
   const [channel, setChannel] = useState<string>("smartstore");
@@ -331,6 +374,7 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite }:
         )}
       </div>
     )}
+    {lastEntry && <p className="inv-hint">정산 전표 초안이 생겼습니다. <Link href="/finance/status?tab=todo" className="bz-link">전표 현황 › 처리할 것에서 확정 →</Link></p>}
     {shown.length === 0 ? (
       <div className="collect-empty">{settlements.length === 0 ? <>아직 정산 내역이 없습니다. 채널 판매자센터의 정산 내역 엑셀을 <b>정산 내역 붙여넣기</b>로 넣으세요.</> : "조건에 맞는 정산 줄이 없습니다."}</div>
     ) : (
@@ -345,7 +389,7 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite }:
             <SortableTh label="수수료" sortKey="fee" sort={sort} onSort={onSort} />
             <th>배송비</th>
             <SortableTh label="정산금" sortKey="settle" sort={sort} onSort={onSort} />
-            <th>대조</th>{canWrite && <th></th>}
+            <th>대조</th><th>전표</th>{canWrite && <th></th>}
           </tr></thead>
           <tbody>{pager.view.map((s) => { const i = s.import_id ? impById.get(s.import_id) : undefined; return (
             <tr key={s.id}>
@@ -358,7 +402,11 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite }:
               <td className="tr mono-number">₩{won(s.shipping_amount)}</td>
               <td className={`tr mono-number ${s.settle_amount < 0 ? "vr-warn" : ""}`}><b>₩{won(s.settle_amount)}</b></td>
               <td className="tc">{s.import_id ? <span title="주문 가져오기 기록과 이어짐">주문 있음</span> : <span className="ev-dim" title="주문 가져오기에 이 주문번호가 없습니다">주문 없음</span>}</td>
-              {canWrite && <td className="tc"><button type="button" className="btn-secondary btn-sm" onClick={() => removeBatch(s)} title="이 줄이 속한 붙여넣기 묶음을 지웁니다">묶음 지우기</button></td>}
+              <td className="tc">{liveVoucher(s) ? <span title={s.journal_status === "confirmed" ? "정산 전표가 확정됐습니다" : "이 묶음의 정산 전표 초안이 있습니다 · 전표 현황에서 확정"}>{s.journal_status === "confirmed" ? "확정" : "초안 있음"}</span> : s.journal_entry_id ? <span className="ev-dim" title="전표가 반려됐습니다 · 다시 만들 수 있습니다">반려됨</span> : <span className="ev-dim">—</span>}</td>
+              {canWrite && <td className="tc"><span className="ol-gap-actions">
+                {!liveVoucher(s) && <button type="button" className="btn-secondary btn-sm" onClick={() => setVoucherBatch(s.batch_id)} title="이 줄이 속한 붙여넣기 묶음 합계로 정산 전표 초안을 만듭니다">전표 초안</button>}
+                <button type="button" className="btn-secondary btn-sm" disabled={batchHasVoucher(s.batch_id)} onClick={() => removeBatch(s)} title={batchHasVoucher(s.batch_id) ? "전표 초안이 있는 묶음은 지울 수 없습니다 — 전표를 먼저 반려하세요" : "이 줄이 속한 붙여넣기 묶음을 지웁니다"}>묶음 지우기</button>
+              </span></td>}
             </tr>
           ); })}</tbody>
         </table>
@@ -367,7 +415,50 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite }:
   </>);
   const pagerEl = shown.length > 0 ? <Pager page={pager.page} pages={pager.pages} total={shown.length} size={50} from={pager.from} to={pager.to} onPage={pager.setPage} /> : null;
 
-  const dialog = open ? (
+  const acctSelect = (k: keyof SettlementAccounts, label: string, hint: string) => (
+    <label className="inv-field" title={hint}><span>{label}{k === "diff" && totals.diff !== 0 ? " *" : k === "diff" ? "" : " *"}</span>
+      <select className="field-input" value={acc[k] || ""} onChange={(e) => setAcc((a) => ({ ...a, [k]: e.target.value || undefined }))}>
+        <option value="">(고르세요)</option>
+        {acctOpts.map((a) => <option key={a.id} value={a.id}>{a.code ? `${a.code} ` : ""}{a.name}</option>)}
+      </select></label>
+  );
+  const voucherDialog = voucherBatch ? (
+    <div className="inv-modal" onClick={() => setVoucherBatch(null)}>
+      <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
+        <h3 className="inv-modal-title">정산 전표 초안</h3>
+        <p className="inv-modal-desc">이 붙여넣기 묶음의 합계로 일반전표 <b>초안</b>을 만듭니다. 확정은 재무 › 전표 현황 › 처리할 것에서 합니다. 계정은 한 번 고르면 다음부터 기억합니다.</p>
+        <div className="ch-settle-sum pjv3-stpanel">
+          <h3>{totals.channels.map(channelLabel).join(", ")} · {totals.from}{totals.to !== totals.from ? ` ~ ${totals.to}` : ""} · {totals.n}건</h3>
+          <table className="ev-table ev-lined ch-st-table"><tbody>
+            <tr><td className="text-left">차) {acctLabel(acc.bank)} <span className="ev-dim">정산금(입금)</span></td><td className="tr mono-number">₩{won(totals.settle)}</td></tr>
+            {totals.fee !== 0 && <tr><td className="text-left">차) {acctLabel(acc.fee)} <span className="ev-dim">수수료</span></td><td className="tr mono-number">₩{won(totals.fee)}</td></tr>}
+            {totals.ship !== 0 && <tr><td className="text-left">차) {acctLabel(acc.ship)} <span className="ev-dim">배송비</span></td><td className="tr mono-number">₩{won(totals.ship)}</td></tr>}
+            {totals.diff > 0 && <tr><td className="text-left">차) {acctLabel(acc.diff)} <span className="ev-dim">차액(기타 공제)</span></td><td className="tr mono-number vr-warn">₩{won(totals.diff)}</td></tr>}
+            <tr className="vr-total"><td className="text-left">대) {acctLabel(acc.sales)} <span className="ev-dim">{totals.sale > 0 ? "판매금액" : "판매금액 없음 → 정산금+수수료+배송비"}</span></td><td className="tr mono-number">₩{won(totals.creditSales)}</td></tr>
+            {totals.diff < 0 && <tr><td className="text-left">대) {acctLabel(acc.diff)} <span className="ev-dim">차액(기타 수입)</span></td><td className="tr mono-number vr-warn">₩{won(-totals.diff)}</td></tr>}
+          </tbody></table>
+          {totals.diff !== 0 && <p className="inv-hint vr-warn">판매금액과 정산 합이 ₩{won(Math.abs(totals.diff))} 다릅니다(쿠폰·광고비·보정 등). 차액 계정을 골라야 전표가 맞습니다.</p>}
+        </div>
+        <div className="ch-claim-grid">
+          {acctSelect("bank", "입금 계정", "정산금이 들어오는 통장 계정 · 표준 103 보통예금")}
+          {acctSelect("fee", "수수료 계정", "채널 판매·결제 수수료 · 표준 831 지급수수료")}
+          {acctSelect("ship", "배송비 계정", "채널이 정산에서 뺀 배송비 · 표준 824 운반비")}
+          {acctSelect("sales", "매출 계정", "채널 판매금액 · 표준 404 제품매출 (상품이면 401)")}
+          {totals.diff !== 0 && acctSelect("diff", "차액 계정", "판매금액 − 정산 합 · 표준 406 매출할인")}
+          <label className="inv-field"><span>전표 일자 *</span><DateField value={entryDate} onChange={(e) => setEntryDate(e.target.value)} /></label>
+          <label className="inv-field"><span>적요</span><input className="field-input" value={vDesc} onChange={(e) => setVDesc(e.target.value)} placeholder="비우면 채널·기간·건수로 자동" /></label>
+        </div>
+        <div className="inv-modal-actions">
+          <button type="button" className="btn-secondary btn-sm" onClick={() => setVoucherBatch(null)}>닫기</button>
+          <button type="button" className="btn-primary btn-sm" disabled={vBusy || !voucherReady || totals.n === 0} onClick={makeVoucher}>{vBusy ? "만드는 중…" : "초안 만들기"}</button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  const dialog = (<>
+    {voucherDialog}
+    {open && (
     <div className="inv-modal" onClick={() => setOpen(false)}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">정산 내역 붙여넣기</h3>
@@ -401,7 +492,8 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite }:
         </div>
       </div>
     </div>
-  ) : null;
+    )}
+  </>);
 
   return { head, body, pagerEl, dialog, settlements };
 }

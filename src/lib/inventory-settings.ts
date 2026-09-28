@@ -40,6 +40,26 @@ export async function loadChannelFees(companyId: string): Promise<ChannelFees> {
   return out;
 }
 
+// ── 채널 정산 전표 계정 (2026-09-28 이커머스 1단계 결정 271) ──
+//   company_settings.settings->inventory.settlement_accounts { bank, fee, ship, sales, diff } = chart_of_accounts.id
+//   정산 전표 초안 팝업에서 한 번 고르면 기억한다. 비어 있으면 표준 코드(103 보통예금·831 지급수수료·824 운반비·404 제품매출·406 매출할인)로 제안.
+export type SettlementAccounts = { bank?: string; fee?: string; ship?: string; sales?: string; diff?: string };
+export const SETTLEMENT_ACCOUNT_DEFAULT_CODES: Record<keyof SettlementAccounts, string> = { bank: "103", fee: "831", ship: "824", sales: "404", diff: "406" };
+
+export async function loadSettlementAccounts(companyId: string): Promise<SettlementAccounts> {
+  const { data } = await supabase.from("company_settings").select("settings").eq("company_id", companyId).maybeSingle();
+  const raw = ((data as any)?.settings?.inventory?.settlement_accounts ?? {}) as Record<string, unknown>;
+  const pick = (k: string) => (typeof raw[k] === "string" && raw[k] ? (raw[k] as string) : undefined);
+  return { bank: pick("bank"), fee: pick("fee"), ship: pick("ship"), sales: pick("sales"), diff: pick("diff") };
+}
+export async function saveSettlementAccounts(companyId: string, acc: SettlementAccounts) {
+  const { data } = await supabase.from("company_settings").select("id, settings").eq("company_id", companyId).maybeSingle();
+  const prev = (((data as any)?.settings as Record<string, unknown>) || {});
+  const settings = { ...prev, inventory: { ...((prev.inventory as Record<string, unknown>) || {}), settlement_accounts: acc } };
+  if ((data as any)?.id) { const { error } = await supabase.from("company_settings").update({ settings } as never).eq("company_id", companyId); if (error) throw error; }
+  else { const { error } = await supabase.from("company_settings").insert({ company_id: companyId, settings } as never); if (error) throw error; }
+}
+
 export async function saveChannelFees(companyId: string, fees: ChannelFees) {
   const { data } = await supabase.from("company_settings").select("id, settings").eq("company_id", companyId).maybeSingle();
   const prev = (((data as any)?.settings as Record<string, unknown>) || {});

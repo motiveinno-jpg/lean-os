@@ -119,6 +119,8 @@ export type Settlement = {
   id: string; channel: string; channel_order_no: string; settled_at: string;
   sale_amount: number; fee_amount: number; shipping_amount: number; settle_amount: number;
   raw: Record<string, unknown> | null; import_id: string | null; batch_id: string; journal_entry_id: string | null; created_at: string;
+  /** 연결된 전표 초안의 상태 — rejected 면 '초안 없음'으로 보고 다시 만들 수 있게 연결을 푼다 */
+  journal_status: string | null;
 };
 export type SettleField = "order_no" | "settled_at" | "sale_amount" | "fee_amount" | "shipping_amount" | "settle_amount";
 export const SETTLE_FIELDS: { key: SettleField; label: string; required?: boolean; desc: string }[] = [
@@ -183,9 +185,10 @@ export async function listSettlements(companyId: string): Promise<Settlement[]> 
   if (!companyId) return [];
   const rows = await fetchPaged<any>("inventory:settlements", () => db.from("channel_settlements")
     //   raw 는 화면이 안 쓰므로 읽지 않는다(보안 검토 W3) — 필요하면 줄 하나만 따로 읽는다
-    .select("id, channel, channel_order_no, settled_at, sale_amount, fee_amount, shipping_amount, settle_amount, import_id, batch_id, journal_entry_id, created_at")
+    .select("id, channel, channel_order_no, settled_at, sale_amount, fee_amount, shipping_amount, settle_amount, import_id, batch_id, journal_entry_id, created_at, journal_entries(status)")
     .eq("company_id", companyId).order("settled_at", { ascending: false }).order("id"));
-  return rows.map((r) => ({ ...r, raw: null, sale_amount: Number(r.sale_amount || 0), fee_amount: Number(r.fee_amount || 0), shipping_amount: Number(r.shipping_amount || 0), settle_amount: Number(r.settle_amount || 0) })) as Settlement[];
+  return rows.map((r) => ({ ...r, raw: null, journal_status: r.journal_entries?.status ?? null, journal_entries: undefined,
+    sale_amount: Number(r.sale_amount || 0), fee_amount: Number(r.fee_amount || 0), shipping_amount: Number(r.shipping_amount || 0), settle_amount: Number(r.settle_amount || 0) })) as Settlement[];
 }
 
 /** 정산 줄 저장 — 주문번호로 주문 기록을 잇고(없으면 null), 이미 있는 줄(같은 주문번호·정산일·정산금)은 건너뛴다 */
@@ -219,11 +222,54 @@ export async function importSettlements(companyId: string, channel: string, rows
 
 /** 붙여넣기 묶음 삭제 — 전표 초안이 붙었으면 막는다 */
 export async function deleteSettlementBatch(companyId: string, batchId: string): Promise<number> {
-  const { data: bound } = await db.from("channel_settlements").select("id").eq("company_id", companyId).eq("batch_id", batchId).not("journal_entry_id", "is", null).limit(1);
-  if ((bound || []).length) throw new Error("이 묶음은 이미 전표 초안이 만들어져 지울 수 없습니다. 전표를 먼저 반려하세요.");
+  const { data: bound } = await db.from("channel_settlements").select("id, journal_entries(status)").eq("company_id", companyId).eq("batch_id", batchId).not("journal_entry_id", "is", null);
+  if (((bound || []) as any[]).some((r) => r.journal_entries?.status !== "rejected")) throw new Error("이 묶음은 이미 전표 초안이 만들어져 지울 수 없습니다. 전표를 먼저 반려하세요.");
   const { data, error } = await db.from("channel_settlements").delete().eq("company_id", companyId).eq("batch_id", batchId).select("id");
   if (error) throw error;
   return (data || []).length;
+}
+
+/** 정산 전표 초안(결정 271) — 서버 RPC 가 묶음 합계로 일반전표 초안(ai_suggested)을 만들고 정산 줄에 전표 id 를 적는다.
+ *  확정은 전표 현황 › 처리할 것. 차) 보통예금(정산금)·지급수수료·운반비 [·차액] / 대) 채널 매출(판매금액). */
+export async function makeSettlementVoucherDraft(params: {
+  batchId: string; entryDate: string; acctBank: string; acctFee: string; acctShip: string; acctSales: string; acctDiff?: string | null; description?: string | null;
+}): Promise<string> {
+  const { data, error } = await db.rpc("make_my_channel_settlement_voucher", {
+    p_batch_id: params.batchId, p_entry_date: params.entryDate,
+    p_acct_bank: params.acctBank, p_acct_fee: params.acctFee, p_acct_ship: params.acctShip, p_acct_sales: params.acctSales,
+    p_acct_diff: params.acctDiff ?? null, p_description: params.description?.trim() || null,
+  });
+  if (error) {
+    const m: Record<string, string> = {
+      FORBIDDEN: "전표를 만들 권한이 없습니다 (이커머스 입력·수정 권한 필요)",
+      PERIOD_LOCKED: "그 달은 마감돼 전표를 만들 수 없습니다 — 전표 일자를 바꾸거나 마감을 먼저 여세요",
+      NO_DATE: "전표 일자를 고르세요", NO_COMPANY: "회사를 찾을 수 없습니다",
+      NEED_TWO_LINES: "금액이 전부 0 이라 전표를 만들 수 없습니다", UNBALANCED: "차변과 대변이 맞지 않습니다 — 차액 계정을 확인하세요",
+    };
+    throw new Error(m[error.message] || error.message);
+  }
+  return data as string;
+}
+/** 반려된 초안이 묶음에 걸려 있으면 연결을 푼다 — 그래야 같은 묶음으로 다시 만들 수 있다(RPC 는 journal_entry_id 가 비어 있는 줄만 집는다) */
+export async function unlinkRejectedVoucher(companyId: string, batchId: string): Promise<number> {
+  const { data: ents } = await db.from("channel_settlements").select("journal_entry_id, journal_entries(status)").eq("company_id", companyId).eq("batch_id", batchId).not("journal_entry_id", "is", null);
+  const rejected = [...new Set(((ents || []) as any[]).filter((r) => r.journal_entries?.status === "rejected").map((r) => r.journal_entry_id as string))];
+  if (!rejected.length) return 0;
+  const { data, error } = await db.from("channel_settlements").update({ journal_entry_id: null }).eq("company_id", companyId).eq("batch_id", batchId).in("journal_entry_id", rejected).select("id");
+  if (error) throw error;
+  return (data || []).length;
+}
+/** 묶음 합계 — 팝업 미리보기용. 차액 = 판매금액 − (정산금 + 수수료 + 배송비) */
+export function batchTotals(rows: Settlement[]): { n: number; sale: number; fee: number; ship: number; settle: number; creditSales: number; diff: number; from: string; to: string; channels: string[] } {
+  const sale = rows.reduce((n, r) => n + r.sale_amount, 0), fee = rows.reduce((n, r) => n + r.fee_amount, 0), ship = rows.reduce((n, r) => n + r.shipping_amount, 0), settle = rows.reduce((n, r) => n + r.settle_amount, 0);
+  const creditSales = sale > 0 ? sale : settle + fee + ship;
+  const dates = rows.map((r) => r.settled_at).sort();
+  return { n: rows.length, sale: Math.round(sale), fee: Math.round(fee), ship: Math.round(ship), settle: Math.round(settle), creditSales: Math.round(creditSales), diff: Math.round(creditSales - (settle + fee + ship)), from: dates[0] || "", to: dates[dates.length - 1] || "", channels: [...new Set(rows.map((r) => r.channel))] };
+}
+export type AccountOpt = { id: string; code: string | null; name: string; account_type: string | null };
+export async function listAccountOptions(companyId: string): Promise<AccountOpt[]> {
+  const data = logRead("inventory:accounts", await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId).order("code"));
+  return ((data || []) as any[]).map((a) => ({ id: a.id, code: a.code ? String(a.code) : null, name: a.name, account_type: a.account_type ?? null }));
 }
 
 /** 채널별 정산 요약 + 실측 수수료율 vs 설정(결정 270). 미정산 = 출고 14일 지난 주문에 정산 줄이 없는 것 */
