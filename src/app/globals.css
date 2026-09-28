@@ -10904,3 +10904,7 @@ table.table-lbl { min-width: 640px; }
 
 /* 증명서 발급 팝업 — 폼 격자 (2026-09-28, 표 위 상자를 팝업으로) */
 .cert-issue-grid { @apply grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3; }
+
+/* 결재 요청 수정 — 휴가: 날짜·종류는 고정 표시, 사유만 입력 */
+.approval-edit-leave-fixed { @apply whitespace-pre-wrap text-xs text-[var(--text-muted)] bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl px-3 py-2.5 mb-1.5; }
+.approval-edit-leave-note { @apply text-[11px] text-[var(--text-dim)] mb-2; }

@@ -61,7 +61,8 @@ import { ApprovalFormsManager } from "@/components/approval-forms-manager";
 import { useConfirm } from "@/components/confirm-dialog";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { useAvatarMap } from "@/hooks/use-avatar-map";
-import { listApprovalForms, titleWithAdVendor, type ApprovalForm } from "@/lib/approval-forms";
+import { listApprovalForms, type ApprovalForm } from "@/lib/approval-forms";
+import { composeFormRequest, isHtmlDesc, plainToHtml, isEmptyHtml, splitLeaveReason, joinLeaveReason } from "@/lib/approval-compose";
 import { computeHalfDaySlot, LEAVE_TYPES, calcLeaveDays } from "@/lib/hr";
 import { generateApprovalPdf } from "@/lib/document-generator";
 import { approvalDraftDate } from "@/lib/approval-pdf";
@@ -428,25 +429,7 @@ async function buildApprovalPdfBlob(args:  {
 }
 
 // ── 상세 내용 서식(HTML) 지원 (2026-07-16) — RichEditor 로 작성한 결재 내용(표·서식 포함) ──
-const isHtmlDesc = (s?: string | null) => !!s && /^\s*</.test(String(s).trim());
-
-function escapeHtmlText(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-}
-
-/** 평문(템플릿 등) → RichEditor 초기값 HTML. 이미 HTML 이면 그대로. */
-function plainToHtml(text: string): string {
-  if (!text) return "";
-  if (isHtmlDesc(text)) return text;
-  return text.split("\n").map((line) => (line.trim() === "" ? "<p><br/></p>" : `<p>${escapeHtmlText(line)}</p>`)).join("");
-}
-
-/** RichEditor 빈 문서(<p></p>  등) 판별 · 텍스트·이미지·표 전부 없으면 빈 것으로 취급 */
-function isEmptyHtml(html: string): boolean  {
-  if (!html) return true;
-  if (/<(img|table)/i.test(html)) return false;
-  return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim() === "";
-}
+//   isHtmlDesc·plainToHtml·isEmptyHtml 은 lib/approval-compose (새 요청·수정 저장이 같이 쓴다)
 
 
 
@@ -1649,6 +1632,8 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
   const [editReq, setEditReq] = useState<any | null>(null);
   const [editForm, setEditForm] = useState({ title: "", amount: "", description: "" });
   const [editFieldValues, setEditFieldValues] = useState<Record<string, string>>({});
+  // 휴가 수정 — 자동 생성 부분(날짜·종류)은 고정, 사유만 editForm.description 으로 고친다
+  const [editLeaveParts, setEditLeaveParts] = useState<{ fixed: string; hasMark: boolean }>({ fixed: "", hasMark: false });
   const [savingEdit, setSavingEdit] = useState(false);
   // 첨부파일 편집 · 유지할 기존 첨부 URL + 새로 추가할 파일
   const [editAttachments, setEditAttachments] = useState<string[]>([]);
@@ -1664,10 +1649,12 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
     const pairs = fields.map((fd) => ({ label: fd.label, value: String(req.custom_fields?.[fd.key] ?? "") })).filter((p) => p.value);
     setEditFieldValues(Object.fromEntries(fields.map((fd) => [fd.key, String(req.custom_fields?.[fd.key] ?? (fd.type === "fixed" ? fd.default_value || "" : ""))])));
     const stripped = contentWithoutFieldLines(req.description || "", pairs);
+    const leaveParts = splitLeaveReason(req.description || "");
+    setEditLeaveParts({ fixed: leaveParts.fixed, hasMark: leaveParts.hasMark });
     setEditForm({
       title: req.title || "",
       amount: req.amount ? String(req.amount) : "",
-      description: req.request_type === "leave" ? stripped : plainToHtml(stripped),
+      description: req.request_type === "leave" ? leaveParts.reason : plainToHtml(stripped),
     });
     setEditAttachments(Array.isArray(req.attachments) ? req.attachments : []);
     setEditNewFiles([]);
@@ -1696,29 +1683,32 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
       }
       const fields = editFieldsFor(editReq);
       const isLeaveReq = editReq.request_type === "leave";
-      let finalDesc: string;
-      if (isLeaveReq) {
-        finalDesc = editForm.description;
-      } else {
-        const descHtml = isEmptyHtml(editForm.description) ? "" : plainToHtml(editForm.description);
-        const fieldHtml = fields.map((fd) => `<p>${escapeHtmlText(`${fd.label}: ${editFieldValues[fd.key] || ""}`)}</p>`).join("");
-        finalDesc = fieldHtml + descHtml;
+      // 새 요청과 같은 함수로 제목·본문·금액·필수 검사를 만든다(composeFormRequest)
+      const editFormDef = editReq.form_id ? (editForms as ApprovalForm[]).find((f) => f.id === editReq.form_id) : undefined;
+      const vendorKey = fields.find((fd) => /업체명/.test(String(fd.label || "")))?.key;
+      const composedEdit = composeFormRequest({
+        formName: editFormDef?.name ?? editReq.request_type,
+        fields, values: editFieldValues,
+        title: editForm.title.trim() || editReq.title,
+        body: editForm.description,
+        prevVendor: vendorKey ? String(editReq.custom_fields?.[vendorKey] ?? "") : undefined,
+        isExpense: !!editFormDef?.is_expense,
+      });
+      if (!isLeaveReq && composedEdit.missing.length > 0) {
+        toast(`${composedEdit.missing.join(" · ")} 을(를) 입력해 주세요`, "error");
+        return;
       }
-      const amountField = fields.find((fd) => fd.type === "amount");
+      const finalDesc = isLeaveReq ? joinLeaveReason(editLeaveParts, editForm.description) : composedEdit.description;
       const amount = isLeaveReq
         ? undefined
         : fields.length > 0
-          ? (amountField ? (Number(String(editFieldValues[amountField.key] ?? "").replace(/[^0-9.-]/g, "")) || 0) : undefined)
+          ? (composedEdit.amount ?? undefined)
           : (Number(String(editForm.amount).replace(/[^0-9.-]/g, "")) || 0);
-      const formName = editReq.form_id
-        ? (editForms as ApprovalForm[]).find((f) => f.id === editReq.form_id)?.name
-        : editReq.request_type;
-      const vendorKey = fields.find((fd) => /업체명/.test(String(fd.label || "")))?.key;
       await updateApprovalRequest({
         requestId: editReq.id,
         userId,
-        title: titleWithAdVendor(formName, fields, editFieldValues, editForm.title.trim() || editReq.title,
-          vendorKey ? String(editReq.custom_fields?.[vendorKey] ?? "") : undefined),
+        // 휴가 제목은 날짜에서 만들어진 것이라 그대로 둔다(날짜는 여기서 못 바꾼다)
+        title: isLeaveReq ? editReq.title : composedEdit.title,
         amount,
         description: finalDesc,
         // 구조화 데이터(휴가·초과근무)는 양식 필드 목록에 없으므로 여기서 살려 둬야 한다 —
@@ -1964,7 +1954,8 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">제목</label>
-                  <input value={editForm.title} onChange={(e) => setEditForm((s) => ({ ...s, title: e.target.value }))} className="field-input" />
+                  <input value={editForm.title} onChange={(e) => setEditForm((s) => ({ ...s, title: e.target.value }))} className="field-input"
+                    readOnly={isLeaveReq} disabled={isLeaveReq} />
                 </div>
                 {/* 금액 칸은 새 요청에서 없앴다 — 여기서는 이미 금액이 들어간
                     예전 결재를 고칠 때만 보인다. 앞으로 금액은 양식의 '금액' 입력 필드로 받는다. */}
@@ -2010,10 +2001,16 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
                   </div>
                 ))}
                 <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">상세 내용</label>
+                  <label className="block text-xs text-[var(--text-muted)] mb-1">{isLeaveReq ? "휴가 내용" : "상세 내용"}</label>
                   {isLeaveReq ? (
-                    <textarea value={editForm.description} onChange={(e) => setEditForm((s) => ({ ...s, description: e.target.value }))} rows={6}
-                      className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none" />
+                    <>
+                      {/* 날짜·종류는 연차 차감 기준 데이터라 여기서 글자로 고쳐도 실제 차감은 안 바뀐다 — 고정 표시 */}
+                      <div className="approval-edit-leave-fixed">{editLeaveParts.fixed}</div>
+                      <p className="approval-edit-leave-note">휴가 날짜·종류를 바꾸려면 이 요청을 삭제하고 다시 신청해 주세요.</p>
+                      <label className="block text-xs text-[var(--text-muted)] mb-1">사유</label>
+                      <textarea value={editForm.description} onChange={(e) => setEditForm((s) => ({ ...s, description: e.target.value }))} rows={3}
+                        className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none" />
+                    </>
                   ) : (
                     <div className="approval-desc-editor">
                       <RichEditor key={editReq.id} content={editForm.description}
@@ -3223,13 +3220,13 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     enabled: !!companyId && isExpenseForm,
     staleTime: 300_000,
   });
-  // 광고비 지출결의서만 제목 뒤에 업체명 — 규칙은 titleWithAdVendor 한 곳(수정 저장도 같이 쓴다)
-  const effectiveTitle = isLeave
-    ? leaveTitle
-    : titleWithAdVendor(selectedForm?.name, activeFields as any[], customFieldValues, form.title);
-  // 커스텀 결재양식은 양식 자체 필드가 기준 — 일반 '금액' 입력은 숨기고(중복·혼란),
-  //   양식(또는 기본 유형 정책)에 금액 타입 필드가 있으면 그 값을 결재 금액으로 사용, 없으면 금액 없는 결재(0).
-  const formAmountField = activeFields.find((fd: any) => fd.type === "amount") || null;
+  // 제목·본문·금액·필수 검사는 composeFormRequest 한 곳 — 수정 저장(saveEdit)도 같은 함수를 쓴다
+  const composed = composeFormRequest({
+    formName: selectedForm?.name, fields: activeFields as any[], values: customFieldValues,
+    title: form.title, body: effectiveDescription, isExpense: !!selectedForm?.is_expense,
+  });
+  const effectiveTitle = isLeave ? leaveTitle : composed.title;
+  // 커스텀 결재양식은 양식 자체 필드가 기준 — 금액 타입 필드가 있으면 그 값(composed.amount), 없으면 금액 없는 결재(0).
 
   //  — 양식 필드 자동 프리필(수정 가능한 기본값):
   //   "부서-이름" 텍스트 필드 → 내 직원 정보의 부서 - 이름, 기안일·결제요청일 date 필드 → 오늘(KST).
@@ -3256,17 +3253,12 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     setAutoFieldsInited(form.requestType);
   }, [isLeave, activeFields, autoFieldsInited, form.requestType, currentEmployee]);
   // 금액은 양식의 '금액' 입력 필드에서만 온다 — 기본 금액 칸은 제거했다.
-  const effectiveAmount = isLeave ? 0
-    : (activeFields.length > 0 && formAmountField)
-      ? (Number(String(customFieldValues[formAmountField.key] ?? "").replace(/[^0-9.-]/g, "")) || 0)
-      : 0;
+  const effectiveAmount = isLeave ? 0 : (composed.amount ?? 0);
 
   // 초과근무는 일자·종료시각이 그대로 근태로 넘어간다 — 둘 다 있어야 제출.
   //   양식의 필수(*) 칸 — 별표는 그려 놓고 검사는 어디에도 없어서, 빈 칸("-") 문서가
   //   그대로 결재자에게 갔다. 표시한 대로 막는다.
-  const missingRequired = (activeFields as any[])
-    .filter((fd) => fd?.required && !String(customFieldValues[fd.key] ?? "").trim())
-    .map((fd) => String(fd.label || fd.key));
+  const missingRequired = isLeave ? [] : composed.missing;
 
   //   ⚠️ 일수가 0이면 올리지 않는다. 근무일 계산이 끝나기 전(종료일을 막 바꾼 직후)에 제출하면
   //   days: 0 으로 저장되고, 승인 트리거가 `일수 > 0` 일 때만 차감하므로 연차가 전혀 안 깎였다.
@@ -3318,14 +3310,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       // 입력 필드(양식 필드) 값을 기본 템플릿 문구보다 위에 · 결재자가 실제 입력값을 먼저 보게 (2026-07-14)
       //   2026-07-16: 상세 내용이 리치에디터 HTML 이 되면서 필드 라인도 HTML  <p> 로 병합
       //   (contentWithoutFieldLines 가 동일 규칙으로 중복 제거).
-      let finalDesc: string;
-      if (isLeave) {
-        finalDesc = effectiveDescription;
-      } else {
-        const descHtml = isEmptyHtml(effectiveDescription) ? "" : plainToHtml(effectiveDescription);
-        const fieldHtml = activeFields.map((fd) => `<p>${escapeHtmlText(`${fd.label}: ${customFieldValues[fd.key] || ""}`)}</p>`).join("");
-        finalDesc = fieldHtml + descHtml;
-      }
+      const finalDesc = isLeave ? effectiveDescription : composed.description;
       // 반차 오전/오후 → 시간 산정 (직원탭 신청과 동일 규칙 computeHalfDaySlot) —
       //   시간이 leave_requests 에 저장돼야 워크보드 반차 게이지·지각 보정이 방향을 안다 (2026-08-11)
       let leaveTimes: { start_time?: string; end_time?: string } = {};
