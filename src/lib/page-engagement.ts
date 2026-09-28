@@ -7,8 +7,13 @@
 //   전송은 fetch keepalive(페이지가 닫히는 중에도 나간다). 실패는 조용히 버린다.
 
 type Current = { viewKey: string; visitorKey: string; path: string; accMs: number; visibleSince: number | null; maxScroll: number };
-let cur: Current | null = null;
-let wired = false;
+//   상태는 window 에 하나만 둔다 — 이 모듈이 화면에 두 벌 실려(번들 중복) 각자 cur 를 들고 있었고,
+//   방문을 시작한 쪽과 화면 이동을 받은 쪽이 달라 첫 화면이 마감되지 않았다(2026-09-28 점검 로그로 확인).
+type Store = { cur: Current | null; wired: boolean };
+function store(): Store {
+  const w = window as unknown as { __ovPageEngagement?: Store };
+  return (w.__ovPageEngagement ||= { cur: null, wired: false });
+}
 
 function scrollPctOf(el: Element | null): number {
   if (!el) {
@@ -23,6 +28,7 @@ function scrollPctOf(el: Element | null): number {
 }
 
 function onScroll(ev: Event) {
+  const cur = store().cur;
   if (!cur) return;
   const t = ev.target;
   const pct = t === document || t === window ? scrollPctOf(null) : scrollPctOf(t as Element);
@@ -56,6 +62,7 @@ function send(c: Current, exitKind: "navigate" | "leave", nextPath: string | nul
 }
 
 function onVisibility() {
+  const cur = store().cur;
   dbg("visibility", document.visibilityState, cur?.path ?? null);
   if (!cur) return;
   if (document.visibilityState === "hidden") {
@@ -67,30 +74,35 @@ function onVisibility() {
 }
 
 function wire() {
-  if (wired || typeof window === "undefined") return;
-  wired = true;
+  if (typeof window === "undefined") return;
+  const st = store();
+  if (st.wired) return;
+  st.wired = true;
   window.addEventListener("scroll", onScroll, { passive: true, capture: true });
   document.addEventListener("visibilitychange", onVisibility);
-  window.addEventListener("pagehide", () => { if (cur) { onVisibility(); send(cur, "leave", null); } });
+  window.addEventListener("pagehide", () => { const cur = store().cur; if (cur) { onVisibility(); send(cur, "leave", null); } });
 }
 
 /** 직전 화면을 '다른 화면으로 이동'으로 마감한다. 새 화면 경로를 넘긴다.
  *  같은 화면이면 아무것도 안 한다 — 비콘 효과가 한 화면에서 두 번 돌면서, 막 시작한 방문을
  *  '같은 화면으로 이동'으로 곧바로 마감해 체류가 0.1초·스크롤 0%로 남았다(2026-09-28 실측). */
 export function endEngagement(nextPath: string) {
-  dbg("end-call", nextPath, cur?.path ?? null);
-  if (!cur || cur.path === nextPath) return;
-  send(cur, "navigate", nextPath);
-  cur = null;
+  if (typeof window === "undefined") return;
+  const st = store();
+  dbg("end-call", nextPath, st.cur?.path ?? null);
+  if (!st.cur || st.cur.path === nextPath) return;
+  if (st.cur.visibleSince != null) { st.cur.accMs += Date.now() - st.cur.visibleSince; st.cur.visibleSince = null; }
+  send(st.cur, "navigate", nextPath);
+  st.cur = null;
 }
 
 /** 방금 적은 방문 한 건의 체류를 재기 시작한다. */
 export function startEngagement(viewKey: string, visitorKey: string, path: string) {
   dbg("start", path, document.visibilityState);
   wire();
-  cur = {
+  store().cur = {
     viewKey, visitorKey, path, accMs: 0,
     visibleSince: document.visibilityState === "visible" ? Date.now() : null,
-    maxScroll: scrollPctOf(null) === 100 ? 100 : 0,
+    maxScroll: scrollPctOf(null),   // 첫 화면에 보이는 만큼은 이미 본 것
   };
 }
