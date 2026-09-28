@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { assertSameOrigin } from '@/lib/api-authz';
+import { SEAT_PRICE_MAP, billableSeats, type BillingCycle } from '@/lib/stripe-seat-prices';
 
 // 결제 뒤 돌아올 주소는 우리 사이트 안으로만 — 임의 주소를 넣으면 checkout.stripe.com 을 거쳐 피싱 페이지로 보낼 수 있다
 function safeReturnUrl(candidate: unknown, origin: string, fallback: string): string {
@@ -22,31 +23,6 @@ function getStripe() {
 
 // 무료체험 폐지 ("무료는 무료요금제뿐, 오너뷰는 즉시 결제")
 //   결제 완료 즉시 청구·이용 개시. 영업코드는 추적용으로만 기록(체험 연장 혜택 소멸).
-
-type BillingCycle = 'monthly' | 'annual';
-
-// 플랜별 price (2026-07-23 좌석 구조 + 2026-07-27 연간 추가).
-//   기본 좌석(5명) 초과분만 추가좌석 price 로 별도 line item. VAT 10% 별도.
-//   연간 env 가 없으면 연간 선택은 400 으로 막는다(가격 미생성 상태에서 잘못 결제되는 것 방지).
-//   2026-08-07 구 요금제(프로·울트라·엔터프라이즈) 제거 — 판매 요금제는 '오너뷰' 하나뿐이다.
-//     기존 구독자는 subscriptions 에 남은 plan_id 로 계속 유지되고 한도도 그대로 적용된다.
-//     여기서 빠지면 '새로 결제'만 막힌다(알 수 없는 플랜은 아래에서 400).
-const SEAT_PRICE_MAP: Record<string, Record<BillingCycle, { base?: string; extraSeat?: string }> & { includedSeats: number }> = {
-  // 요금제 — 단일 유료 플랜(2026-08-11부터 월 39,000원 + 추가좌석 5,000원, VAT 별도).
-  //   Stripe 대시보드에서 price 를 만든 뒤 Vercel env 에 아래 4개를 등록해야 결제가 열린다.
-  //   env 가 비어 있으면 checkout 이 400 으로 막히므로 잘못 결제될 위험은 없다.
-  standard: {
-    monthly: {
-      base: process.env.STRIPE_PRICE_STANDARD_MONTHLY,
-      extraSeat: process.env.STRIPE_PRICE_STANDARD_EXTRA_SEAT_MONTHLY,
-    },
-    annual: {
-      base: process.env.STRIPE_PRICE_STANDARD_ANNUAL,
-      extraSeat: process.env.STRIPE_PRICE_STANDARD_EXTRA_SEAT_ANNUAL,
-    },
-    includedSeats: 5,
-  },
-};
 
 export async function POST(request: NextRequest) {
   { const csrf = assertSameOrigin(request); if (csrf) return csrf; }
@@ -144,20 +120,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 좌석 수는 서버에서 재계산 — 클라 값 그대로 신뢰하지 않음. 추가좌석 = max(0, 좌석 - 기본좌석 - 무료쿠폰좌석).
-    //   무료쿠폰좌석: 연간 결제 혜택 쿠폰(추가인원 12명 무료)을 사용(redeemed)한 회사는 그만큼 과금 제외
-    //   ("쿠폰으로 등록된 인원은 추가인원 비용으로 빠져나가지 않게").
-    const requestedSeats = Math.max(1, Math.min(Number(seatCount) || 1, 500));
-    let freeCouponSeats = 0;
-    try {
-      const { data: coupons } = await (supabase as any)
-        .from('billing_seat_coupons')
-        .select('free_seats')
-        .eq('company_id', companyId)
-        .eq('status', 'redeemed');
-      freeCouponSeats = (coupons || []).reduce((s: number, c: any) => s + Number(c.free_seats || 0), 0);
-    } catch { /* 쿠폰 조회 실패 시 무료좌석 0 으로 진행(과소청구 방지) */ }
-    const extraSeats = Math.max(0, requestedSeats - plan.includedSeats - freeCouponSeats);
+    // 좌석 수는 서버에서 센다 — 재직 구성원(company_seat_count, 토스 월 청구와 같은 함수).
+    //   전에는 주석과 달리 화면이 보낸 seatCount 를 그대로 써서, 인원을 적게 보내면 적게 청구됐다.
+    const seatInfo = await billableSeats(supabase, companyId, plan.includedSeats);
+    if (!seatInfo) {
+      return NextResponse.json({ error: { code: 'SEAT_COUNT_FAILED', message: '구성원 수를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.' } }, { status: 500 });
+    }
+    const requestedSeats = seatInfo.seats;
+    const extraSeats = seatInfo.extraSeats;
+    void seatCount; // 화면 값은 표시용 — 청구에는 쓰지 않는다
 
     const lineItems: { price: string; quantity: number }[] = [{ price: priceSet.base, quantity: 1 }];
     if (extraSeats > 0 && priceSet.extraSeat) {
