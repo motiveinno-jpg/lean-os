@@ -136,17 +136,7 @@ export async function POST(req: NextRequest) {
     }
     const appUserId = existingAppUser?.id || authUserId;   // employees.user_id 는 users.id 를 가리킨다
 
-    // 5) invitation status accepted
-    const table = inviteType === 'employee' ? 'employee_invitations' : 'partner_invitations';
-    const { error: inviteErr } = await admin.from(table).update({
-      status: 'accepted',
-      accepted_at: new Date().toISOString(),
-    }).eq('invite_token', token);
-    if (inviteErr) {
-      return NextResponse.json({ error: `초대 상태 갱신 실패: ${inviteErr.message}` }, { status: 500 });
-    }
-
-    // 6) employees row 있으면 join (직원만)
+    // 5) employees row 있으면 join (직원만)
     if (inviteType === 'employee') {
       const emp = logRead('invite-accept/route:emp', await admin
         .from('employees')
@@ -164,6 +154,7 @@ export async function POST(req: NextRequest) {
           ...(name ? { name } : {}),
         }).eq('id', emp.id);
         if (empErr) {
+          await logServerError({ where: 'invite-accept/employee-link', message: empErr.message });
           return NextResponse.json({ error: `구성원 연결 실패: ${empErr.message}` }, { status: 500 });
         }
         //   H8 (2026-08-27 인사 6차) — 합류 즉시 입사서류 체크리스트와 '입사' 발령 행을 만들어 둔다. 사람이 할 일은 서류를 받고 체크하는 것.
@@ -182,6 +173,17 @@ export async function POST(req: NextRequest) {
           }
         } catch (e) { await logServerError({ where: 'invite-accept/onboarding', message: (e as Error)?.message || 'onboarding auto failed' }); }
       }
+    }
+
+    // 6) 초대 수락 표시는 구성원 연결까지 끝난 뒤에 — 앞에서 표시하면 연결이 실패해도 초대 링크가
+    //    '이미 쓴 초대'가 되어 받은 사람이 다시 시도할 수 없었다.
+    const table = inviteType === 'employee' ? 'employee_invitations' : 'partner_invitations';
+    const { error: inviteErr } = await admin.from(table).update({
+      status: 'accepted',
+      accepted_at: new Date().toISOString(),
+    }).eq('invite_token', token);
+    if (inviteErr) {
+      return NextResponse.json({ error: `초대 상태 갱신 실패: ${inviteErr.message}` }, { status: 500 });
     }
 
     return NextResponse.json({
