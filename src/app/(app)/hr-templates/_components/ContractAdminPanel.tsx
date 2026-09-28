@@ -669,7 +669,8 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
                       <>
                         <button
                           onClick={() => handleSendSignRequest(p.id)}
-                          disabled={sending === p.id}
+                          disabled={sending === p.id || docCount(p) === 0}
+                          title={docCount(p) === 0 ? "문서가 없는 패키지는 보낼 수 없습니다 — 삭제하고 서식을 골라 다시 만드세요" : undefined}
                           className="btn-primary btn-sm"
                         >
                           {sending === p.id ? "발송 중..." : "서명 요청"}

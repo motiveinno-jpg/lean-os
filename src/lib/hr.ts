@@ -2205,6 +2205,19 @@ export async function sendLeavePromotionNotice(params: {
 }
 
 /**
+ * 연차촉진 직원 회신 기록 (2026-09-28) — 1차 통보를 받은 직원이 정한 사용 시기를 사람이 적는다.
+ *   근로기준법 §61: 근로자가 10일 안에 사용 시기를 통보하면 회사는 2차 지정을 하지 않아도 된다 — 그 근거를 남기는 칸.
+ */
+export async function recordLeavePromotionResponse(noticeId: string, response: string): Promise<void> {
+  const text = response.trim();
+  const { error } = await db
+    .from('leave_promotion_notices')
+    .update({ employee_response: text || null, responded_at: text ? new Date().toISOString() : null })
+    .eq('id', noticeId);
+  if (error) throw error;
+}
+
+/**
  * 연차촉진 통보 이력 조회
  */
 export async function getLeavePromotionNotices(companyId: string, year: number) {

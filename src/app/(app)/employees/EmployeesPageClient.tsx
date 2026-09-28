@@ -33,8 +33,9 @@ import {
   getLeaveGrantMethod, setLeaveGrantMethod, type LeaveGrantMethod,
   LEAVE_TYPES, LEAVE_UNITS, ATTENDANCE_STATUS, LEAVE_REQUEST_STATUS, isNonDeductLeave,
   // Leave Promotion
-  getLeavePromotionCandidates, sendLeavePromotionNotice, getLeavePromotionNotices,
+  getLeavePromotionCandidates, sendLeavePromotionNotice, getLeavePromotionNotices, recordLeavePromotionResponse,
 } from "@/lib/hr";
+import { generateLeavePromotionNoticePdf } from "@/lib/leave-promotion-pdf";
 import {
   getMonthlyAccrualSettings, setMonthlyAccrualSettings, syncLeaveAccruals, setRemainingLeaveDays,
   getHalfDaySlots, setHalfDaySlots,
@@ -2658,6 +2659,37 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     onError: (err: any) => toast("촉진 알림 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
   //   직원별 통보 여부 — 같은 차수를 두 번 보내지 않게, 표에서 '보냄 날짜'로 보인다 (2026-09-28)
+  //   직원 회신(사용 시기 지정) 기록 + 통지서 PDF (2026-09-28 촉진 후속) — 회신은 사람이 적고, PDF 는 통보 기록 한 줄에서 만든다
+  const [respFor, setRespFor] = useState<any | null>(null);
+  const [respText, setRespText] = useState("");
+  const [pdfBusy, setPdfBusy] = useState<string | null>(null);
+  const { data: promoCompany } = useQuery({
+    queryKey: ["company-info", companyId],
+    queryFn: async () => logRead("employees/leave:company", await (supabase as any).from("companies").select("name, representative, address, business_number, seal_url").eq("id", companyId).maybeSingle()),
+    enabled: !!companyId && leaveView === "promotion",
+  });
+  const saveResponse = useMutation({
+    mutationFn: () => recordLeavePromotionResponse(respFor.id, respText),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["leave-promotion-notices"] }); setRespFor(null); setRespText(""); toast("직원 회신을 기록했습니다.", "success"); },
+    onError: (err: any) => toast("회신 기록 실패: " + friendlyError(err, "알 수 없는 오류"), "error"),
+  });
+  const downloadNoticePdf = async (n: any) => {
+    if (!promoCompany || pdfBusy) return;
+    setPdfBusy(n.id);
+    try {
+      const sealDataUrl = promoCompany.seal_url ? await sealAsDataUrl(promoCompany.seal_url) : null;
+      const blob = await generateLeavePromotionNoticePdf({
+        noticeType: n.notice_type === "second" ? "second" : "first", year: Number(n.year), unusedDays: Number(n.unused_days), sentAt: n.sent_at, deadline: n.deadline,
+        employee: { name: n.employees?.name || "", department: n.employees?.department },
+        company: { name: promoCompany.name, representative: promoCompany.representative, address: promoCompany.address, business_number: promoCompany.business_number, sealDataUrl },
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `연차촉진통보서_${n.notice_type === "second" ? "2차" : "1차"}_${n.employees?.name || "직원"}_${String(n.sent_at || "").slice(0, 10)}.pdf`; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (e: any) { toast("통지서 PDF 생성 실패: " + friendlyError(e, "알 수 없는 오류"), "error"); }
+    finally { setPdfBusy(null); }
+  };
   const promoSent = useMemo(() => {
     const m = new Map<string, { first?: string; second?: string }>();
     for (const n of promotionNotices as any[]) {
@@ -3845,6 +3877,8 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                           <th className="text-center px-5 py-2 font-medium">미사용</th>
                           <th className="text-center px-5 py-2 font-medium">발송일</th>
                           <th className="text-center px-5 py-2 font-medium">기한</th>
+                          <th className="text-center px-5 py-2 font-medium" title="1차 통보를 받은 직원이 정한 사용 시기 — 사람이 적습니다">직원 회신</th>
+                          <th className="text-center px-5 py-2 font-medium">통지서</th>
                         </tr></thead>
                         <tbody>
                           {promotionNotices.map((n: any) => (
@@ -3858,6 +3892,14 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                               <td className="px-5 py-2.5 text-sm text-center">{Number(n.unused_days)}일</td>
                               <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{n.sent_at ? kstDateStr(new Date(n.sent_at)) : "—"}</td>
                               <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{n.deadline || "—"}</td>
+                              <td className="px-5 py-2.5 text-xs text-center">
+                                {n.employee_response
+                                  ? <button type="button" className="bz-link" title={`${n.responded_at ? kstDateStr(new Date(n.responded_at)) : ""} 기록 · 누르면 고칩니다`} onClick={() => { setRespFor(n); setRespText(n.employee_response || ""); }}>{n.employee_response}</button>
+                                  : <button type="button" className="btn-secondary btn-sm" onClick={() => { setRespFor(n); setRespText(""); }} title="직원이 정한 사용 시기를 적어 둡니다(예: 10/20~10/22 사용)">회신 기록</button>}
+                              </td>
+                              <td className="px-5 py-2.5 text-center">
+                                <button type="button" className="btn-secondary btn-sm" disabled={!promoCompany || pdfBusy === n.id} onClick={() => downloadNoticePdf(n)} title="이 통보 내용으로 서면 통보서 PDF 를 만듭니다(직인 포함)">{pdfBusy === n.id ? "만드는 중…" : "PDF"}</button>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -3875,6 +3917,21 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
             </div>
           )}
       </>)}
+
+      {/* 촉진 직원 회신 기록 팝업 (2026-09-28) */}
+      {respFor && (
+        <div className="inv-modal" onClick={() => setRespFor(null)}>
+          <div className="inv-modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="inv-modal-head"><h3 className="text-sm font-bold">직원 회신 기록 — {respFor.employees?.name || ""} {respFor.notice_type === "first" ? "1차" : "2차"} 통보</h3><button type="button" className="inv-modal-x" aria-label="닫기" onClick={() => setRespFor(null)}>✕</button></div>
+            <p className="inv-modal-desc">직원이 정한 연차 사용 시기를 적어 둡니다. 1차 통보 뒤 10일 안에 회신이 오면 2차 지정 통보는 필요 없습니다. 비워 저장하면 기록이 지워집니다.</p>
+            <textarea className="field-input" rows={3} value={respText} onChange={(e) => setRespText(e.target.value)} placeholder="예: 10/20~10/22 3일 사용, 나머지 11월 중 사용 예정" />
+            <div className="inv-modal-actions">
+              <button type="button" className="btn-secondary btn-sm" onClick={() => setRespFor(null)}>닫기</button>
+              <button type="button" className="btn-primary btn-sm" disabled={saveResponse.isPending} onClick={() => saveResponse.mutate()}>{saveResponse.isPending ? "저장 중…" : "저장"}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 휴가 캘린더 — 시안대로 팝업 (2026-08-06) */}
       {calendarOpen && (

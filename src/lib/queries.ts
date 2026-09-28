@@ -1114,6 +1114,21 @@ export async function getDocuments(companyId: string) {
 // RPC는 Storage 버킷을 지울 수 없어(SQL 직접 접근 차단) document_files 첨부(PDF 삽입 이미지 등)는
 //   여기서 먼저 정리 — 안 그러면 문서 삭제 후에도 파일이 고아로 남아 파일보관함에 계속 쌓임.
 export async function deleteDocument(documentId: string): Promise<void> {
+  //   근로계약 패키지에 묶인 문서 보호 (2026-09-28) — RPC 는 서명요청(signature_requests)만 막고 인사 계약 패키지 항목은 같이 지운다.
+  //   모티브 실측: 문서함에서 계약 문서 5건을 지우자 발송된 패키지가 '문서 0건' 으로 남아 직원이 서명할 것 없는 링크를 받았다.
+  //   발송·진행·완료 패키지의 문서는 여기서 막고, 정리는 계약 발송·현황(취소/정리)에서 하게 안내한다. 초안(draft)·취소 패키지의 문서는 지울 수 있다.
+  //   ⚠️ 서버(RPC) 쪽 같은 가드는 DB 변경이라 별도(db-architect) — 화면 밖 경로가 생기면 그때 막힌다.
+  const { data: bound } = await (supabase as any)
+    .from('hr_contract_package_items')
+    .select('package_id, hr_contract_packages!inner(status, title)')
+    .eq('document_id', documentId);
+  const live = ((bound || []) as any[]).filter((b) => ['sent', 'partially_signed', 'completed'].includes(b.hr_contract_packages?.status));
+  if (live.length > 0) {
+    const st = live[0].hr_contract_packages?.status;
+    throw new Error(st === 'completed'
+      ? `서명이 끝난 근로계약 패키지(${live[0].hr_contract_packages?.title || ''})의 문서라 삭제할 수 없습니다. 서명본은 보관 대상입니다.`
+      : `발송된 근로계약 패키지(${live[0].hr_contract_packages?.title || ''})에 묶인 문서입니다. 근로계약·서식 › 계약 발송·현황에서 패키지를 취소(정리)한 뒤 지우세요.`);
+  }
   const { deleteFilesForDocument } = await import('./file-storage');
   await deleteFilesForDocument(documentId).catch(() => {});
   const { error } = await supabase.rpc('delete_document', { p_doc_id: documentId });

@@ -666,11 +666,16 @@ export async function sendContractPackage(
   // Get package with employee info
   const pkg = logRead('lib/hr-contracts:pkg', await db
     .from('hr_contract_packages')
-    .select('*, employees(id, name, email, user_id)')
+    .select('*, employees(id, name, email, user_id), hr_contract_package_items(id)')
     .eq('id', packageId)
     .single());
 
   if (!pkg) throw new Error('계약 패키지를 찾을 수 없습니다');
+  //   문서 0건은 보내지 않는다 (2026-09-28) — 모티브 실측: 문서함에서 계약 문서를 지우면 delete_document RPC 가 패키지 항목까지
+  //   지워 '문서 없는 발송 패키지' 5건이 남았고, 직원은 서명할 것이 없는 링크를 받았다.
+  if (!((pkg as any).hr_contract_package_items || []).length) {
+    return { success: false, error: '문서가 없는 패키지는 보낼 수 없습니다. 패키지를 취소하고 서식을 골라 다시 만드세요.' };
+  }
   // 이메일이 없어도 직원이 OwnerView 계정이 있으면 인앱 전달 가능. 둘 다 없을 때만 실패.
   if (!pkg.employees?.email && !pkg.employees?.user_id) {
     throw new Error('직원 이메일도 OwnerView 계정도 등록돼 있지 않습니다. 인앱·이메일 모두 발송 불가');
