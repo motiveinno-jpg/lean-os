@@ -9,10 +9,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { DateField } from "@/components/date-field";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
+import { useMyPermissions } from "@/lib/permissions";
+import { useToast } from "@/components/toast";
 import { AccessDenied } from "@/components/access-denied";
+import { suggestPartnerTerms, applyPartnerTerms, suggestPayrollDay, applyPayrollDay } from "@/lib/cash-outlook-suggest";
 import { ReportHead } from "../_components/ReportHead";
 import { ConditionPanel, ConditionRow, Stat, ExcelMenu, AppliedChips, type AppliedChip } from "@/components/query-kit";
 import { downloadCsv } from "@/lib/csv-export";
@@ -35,6 +38,60 @@ export default function OutlookPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [pick, setPick] = useState<{ title: string; items: OutlookItem[] } | null>(null);
   useEffect(() => { getCurrentUser().then((u) => { if (u) { setCompanyId(u.company_id); setUserId(u.id); } }); }, []);
+
+  // ── 「이력으로 제안 보기」 — 결제조건·급여일 (2026-09-28, docs/20260928_PLAN_cash_outlook_terms_suggest.md) ──
+  //   제안은 이력에서 자동으로 만들고, 저장은 사람이 체크해서 누른다. 값이 이미 있는 거래처·회사는 대상에서 빠진다.
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { isMaster, hasPerm } = useMyPermissions();
+  const canPartners = isMaster || hasPerm("/partners");
+  const canSettings = isMaster || hasPerm("/settings");
+  const [sg, setSg] = useState<"terms" | "payroll" | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [applying, setApplying] = useState(false);
+  const termsQ = useQuery({
+    queryKey: ["cash-outlook-suggest-terms", companyId],
+    queryFn: () => suggestPartnerTerms(companyId!),
+    enabled: !!companyId && sg === "terms",
+    staleTime: 60_000,
+  });
+  const payrollQ = useQuery({
+    queryKey: ["cash-outlook-suggest-payroll", companyId],
+    queryFn: () => suggestPayrollDay(companyId!),
+    enabled: !!companyId && sg === "payroll",
+    staleTime: 60_000,
+  });
+  //   기본 체크는 표본 2건 이상만 — 1건짜리는 보이되 사람이 골라 넣는다(결정 263)
+  useEffect(() => {
+    if (sg === "terms" && termsQ.data) setPicked(new Set(termsQ.data.rows.filter((r) => r.samples >= 2).map((r) => r.partnerId)));
+  }, [sg, termsQ.data]);
+  const togglePick = (id: string) => setPicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const applyTerms = async () => {
+    if (!companyId || !termsQ.data || applying) return;
+    const picks = termsQ.data.rows.filter((r) => picked.has(r.partnerId)).map((r) => ({ partnerId: r.partnerId, days: r.days }));
+    if (picks.length === 0) return;
+    setApplying(true);
+    try {
+      const n = await applyPartnerTerms(companyId, picks);
+      toast(`거래처 ${n}곳에 결제조건을 저장했습니다. 자금 전망을 다시 계산합니다.`, "success");
+      setSg(null);
+      qc.invalidateQueries({ queryKey: ["cash-outlook"] });
+      qc.invalidateQueries({ queryKey: ["cash-outlook-suggest-terms"] });
+    } catch (e: any) { toast(e?.message || "저장 실패", "error"); }
+    finally { setApplying(false); }
+  };
+  const applyPayroll = async () => {
+    if (!companyId || !payrollQ.data || applying) return;
+    setApplying(true);
+    try {
+      await applyPayrollDay(companyId, payrollQ.data.day);
+      toast(`급여 지급일을 매월 ${payrollQ.data.day === 31 ? "말일" : `${payrollQ.data.day}일`}로 저장했습니다.`, "success");
+      setSg(null);
+      qc.invalidateQueries({ queryKey: ["cash-outlook"] });
+    } catch (e: any) { toast(e?.message || "저장 실패", "error"); }
+    finally { setApplying(false); }
+  };
+  const dayLabel = (d: number) => (d === 31 ? "말일" : `${d}일`);
 
   const { data, isLoading } = useQuery({
     queryKey: ["cash-outlook", companyId, days],
@@ -183,7 +240,15 @@ export default function OutlookPage() {
               <h3>전망 오차 요인</h3>
               <p>담당자 확인이 필요한 항목입니다.</p>
               {data.gaps.length === 0 ? <div className="collect-empty">확인할 항목이 없습니다</div> : (
-                <ul className="ol-gaps">{data.gaps.map((g) => <li key={g.key}><span>{g.text}</span><Link href={g.href} className="bz-link">수정 →</Link></li>)}</ul>
+                <ul className="ol-gaps">{data.gaps.map((g) => (
+                  <li key={g.key}>
+                    <span>{g.text}</span>
+                    <span className="ol-gap-actions">
+                      {g.suggest && <button type="button" className="btn-secondary btn-sm" onClick={() => setSg(g.suggest!)}>이력으로 제안 보기</button>}
+                      <Link href={g.href} className="bz-link">수정 →</Link>
+                    </span>
+                  </li>
+                ))}</ul>
               )}
             </section>
             <section className="pnl-panel">
@@ -197,6 +262,75 @@ export default function OutlookPage() {
               </dl>
               <p className="bz-why">'예정 항목 반영'은 {days}일 내 자금 부족이 없을 경우 해당 기간 평균 소진 속도로 연장한 추정값입니다. 항목 상세: <Link href="/reports/upcoming" className="bz-link">예정 항목 →</Link></p>
             </section>
+          </div>
+        </div>
+      )}
+
+      {sg === "terms" && (
+        <div className="approval-detail-modal" onClick={() => setSg(null)}>
+          <div className="pnl-drill ol-pick" onClick={(e) => e.stopPropagation()}>
+            <div className="pnl-drill-head"><h3 className="text-sm font-bold">거래처 결제조건 제안 — 장부 대조 기준</h3><button type="button" className="btn-secondary btn-sm" onClick={() => setSg(null)}>닫기</button></div>
+            <p className="ol-sg-note">
+              세금계산서 발행일에서 대조된 통장 거래일(첫 입금·지급)까지의 일수 중앙값입니다. 결제조건이 비어 있는 거래처만 보이고, 체크한 곳만 저장됩니다.
+              사람이 확정하지 않은 자동 대조도 근거에 넣었으니 「확정」 수를 보고 고르세요. 표본이 1건뿐인 줄은 기본으로 빠져 있습니다.
+            </p>
+            {termsQ.isLoading ? <div className="collect-empty">이력을 읽는 중…</div>
+              : !termsQ.data || termsQ.data.rows.length === 0 ? (
+                <div className="collect-empty">제안할 근거가 없습니다 — 계산서와 통장 거래가 대조된 거래처가 없습니다. <Link href="/collect" className="bz-link">수집·전표에서 대조 →</Link></div>
+              ) : (
+                <>
+                  <div className="pnl-drill-body"><table className="ev-table ev-lined pnl-mini-table ol-sg-table">
+                    <thead><tr>
+                      <th><input type="checkbox" aria-label="전부 고르기" checked={picked.size === termsQ.data.rows.length} onChange={(e) => setPicked(e.target.checked ? new Set(termsQ.data!.rows.map((r) => r.partnerId)) : new Set())} /></th>
+                      <th className="text-left">거래처</th><th>제안</th><th>근거</th><th>매출 / 매입</th><th>마지막 거래일</th>
+                    </tr></thead>
+                    <tbody>{termsQ.data.rows.map((r) => (
+                      <tr key={r.partnerId} onClick={() => togglePick(r.partnerId)} className="pnl-row-acct">
+                        <td className="text-center"><input type="checkbox" checked={picked.has(r.partnerId)} onChange={() => togglePick(r.partnerId)} onClick={(e) => e.stopPropagation()} aria-label={r.name} /></td>
+                        <td className="text-left">{r.name}</td>
+                        <td className="text-center mono-number font-bold">{r.days === 0 ? "발행일 당일" : `${r.days}일`}</td>
+                        <td className="text-center text-[var(--text-muted)]">{r.samples}건 <span className="ev-dim">(확정 {r.confirmed})</span></td>
+                        <td className="text-center mono-number">{r.sales} / {r.purchase}</td>
+                        <td className="text-center mono-number">{r.lastPaid}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table></div>
+                  <div className="ol-sg-foot">
+                    <span>{termsQ.data.rows.length}곳 제안 · 대조 이력이 없는 거래처 {termsQ.data.noHistory}곳은 30일 가정이 유지됩니다.{!canPartners && " 거래처 권한이 없어 저장할 수 없습니다."}</span>
+                    <button type="button" className="btn-primary btn-sm" disabled={!canPartners || picked.size === 0 || applying} onClick={applyTerms}>
+                      {applying ? "저장 중…" : `선택 ${picked.size}곳에 저장`}
+                    </button>
+                  </div>
+                </>
+              )}
+          </div>
+        </div>
+      )}
+
+      {sg === "payroll" && (
+        <div className="approval-detail-modal" onClick={() => setSg(null)}>
+          <div className="pnl-drill ol-pick" onClick={(e) => e.stopPropagation()}>
+            <div className="pnl-drill-head"><h3 className="text-sm font-bold">급여 지급일 제안 — 통장 이력 기준</h3><button type="button" className="btn-secondary btn-sm" onClick={() => setSg(null)}>닫기</button></div>
+            <p className="ol-sg-note">최근 6개월 통장 출금 중 현금흐름표와 같은 기준으로 급여로 잡힌 건의, 달마다 가장 큰 지급일입니다. 28일 이후 말일 근처는 「말일」로 봅니다.</p>
+            {payrollQ.isLoading ? <div className="collect-empty">이력을 읽는 중…</div>
+              : !payrollQ.data ? (
+                <div className="collect-empty">최근 6개월에 급여로 분류된 통장 출금이 없어 제안할 수 없습니다. <Link href="/settings/finance?tab=cash" className="bz-link">회사설정에서 직접 입력 →</Link></div>
+              ) : (
+                <>
+                  <div className="pnl-drill-body"><table className="ev-table ev-lined pnl-mini-table ol-sg-table">
+                    <thead><tr><th>월</th><th>지급일</th><th>급여 출금 합</th></tr></thead>
+                    <tbody>{payrollQ.data.sample.map((s) => (
+                      <tr key={s.month}><td className="text-center mono-number">{s.month}</td><td className="text-center mono-number">{s.date}</td><td className="text-right mono-number">{won(-s.amount)}</td></tr>
+                    ))}</tbody>
+                  </table></div>
+                  <div className="ol-sg-foot">
+                    <span>{payrollQ.data.months}개월 기준 매월 <b>{dayLabel(payrollQ.data.day)}</b> 지급으로 보입니다.{!canSettings && " 회사설정 권한이 없어 저장할 수 없습니다."}</span>
+                    <button type="button" className="btn-primary btn-sm" disabled={!canSettings || applying} onClick={applyPayroll}>
+                      {applying ? "저장 중…" : `매월 ${dayLabel(payrollQ.data.day)}로 저장`}
+                    </button>
+                  </div>
+                </>
+              )}
           </div>
         </div>
       )}

@@ -36,7 +36,8 @@ export type OutlookData = {
   today: string; balance: number; burn: number; hasBank: boolean;
   items: OutlookItem[];      // 오늘 ~ 오늘+days, 날짜순
   arOver30: number; arOver30Partners: number;
-  gaps: { key: string; text: string; href: string; count?: number }[];   // 틀릴 수 있는 곳
+  //   suggest: 이력으로 값을 제안할 수 있는 줄(결제조건·급여일) — 화면이 「이력으로 제안 보기」를 붙인다 (lib/cash-outlook-suggest.ts)
+  gaps: { key: string; text: string; href: string; count?: number; suggest?: "terms" | "payroll" }[];   // 틀릴 수 있는 곳
 };
 export type CurvePoint = { date: string; day: number; balance: number; items: OutlookItem[] };
 export type Curve = { points: CurvePoint[]; min: CurvePoint; shortfall: CurvePoint | null; end: number };
@@ -98,6 +99,7 @@ export async function fetchOutlook(companyId: string, days: number, userId?: str
       ? `급여는 등록 급여 합계를 매월 ${payDay}일 지급으로 반영합니다 (실지급액이 다르면 오차 발생)`
       : "급여 지급일이 설정되지 않아 매월 25일로 가정했습니다. 회사설정 › 자금·통장에서 실제 지급일을 넣어 주세요",
     href: payrollDay ? "/employees" : "/settings/finance?tab=cash",
+    ...(payrollDay ? {} : { suggest: "payroll" as const }),
   });
 
   // 정기 지출 + 고정비 (이름 겹치면 정기 지출만)
@@ -158,7 +160,7 @@ export async function fetchOutlook(companyId: string, days: number, userId?: str
       href: "/tax-invoices",
     });
   }
-  if (noDue > 0) gaps.push({ key: "ti-due", text: `세금계산서 ${noDue}건은 거래처 결제조건이 없어 발행일 + 30일로 반영했습니다. 거래처에 결제조건을 넣으면 정확해집니다`, href: "/partners", count: noDue });
+  if (noDue > 0) gaps.push({ key: "ti-due", text: `세금계산서 ${noDue}건은 거래처 결제조건이 없어 발행일 + 30일로 반영했습니다. 거래처에 결제조건을 넣으면 정확해집니다`, href: "/partners", count: noDue, suggest: "terms" });
   if (apOverdue > 0) gaps.push({ key: "ap-overdue", text: `발행 30일 지난 미지급 세금계산서 ${apOverdue}건 ${Math.round(apOverdueAmt / 10000).toLocaleString()}만원은 지급일 미확정으로 잔액 추이에서 제외했습니다. 시나리오 '큰 지출'로 넣어 봅니다`, href: "/tax-invoices", count: apOverdue });
 
   // 계약 정기 청구 — 매월 청구일에 청구액이 들어온다고 본다(확정 · 계약에 적은 값). 세금계산서가 발행되면 그건 별도 항목이라 겹칠 수 있다 → 계약 대장 링크로 안내

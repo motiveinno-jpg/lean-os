@@ -10892,3 +10892,9 @@ table.table-lbl { min-width: 640px; }
 
 /* ── 회사 설정 › 재고 기준 (2026-09-22 재고 점검 G) ── */
 .inv-set-row { @apply flex flex-wrap items-center gap-2; }
+
+/* 자금 전망 › 전망 오차 요인 — 「이력으로 제안 보기」 팝업 (2026-09-28, docs/20260928_PLAN_cash_outlook_terms_suggest.md) */
+.ol-gap-actions { @apply flex shrink-0 items-center gap-2; }
+.ol-sg-note { @apply mb-2 text-[11px] leading-relaxed text-[var(--text-dim)]; }
+.ol-sg-foot { @apply mt-3 flex items-center justify-between gap-3 border-t border-[var(--border)] pt-3 text-[12px] text-[var(--text-muted)]; }
+.ol-sg-table th, .ol-sg-table td { @apply text-[12px]; }
