@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Ico } from "@/components/ui-icon";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getDocTemplates } from "@/lib/queries";
@@ -25,7 +26,9 @@ export default function HrTemplatesPage() {
   const qc = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [tab, setTab] = useState<"library" | "contracts">("library");
+  //   ?tab=contracts — 인사 처리할 것(계약서 미서명)의 「처리하러 가기」가 계약 발송·현황 탭으로 바로 온다 (2026-09-28)
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<"library" | "contracts">(() => (searchParams?.get("tab") === "contracts" ? "contracts" : "library"));
   // 통합 '새 양식' — 선택 팝오버 + 각 생성 흐름 신호(증가 시 해당 폼 오픈)
   const [chooserOpen, setChooserOpen] = useState(false);
   const [pdfSignal, setPdfSignal] = useState(0);

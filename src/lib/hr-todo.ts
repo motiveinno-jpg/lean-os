@@ -22,7 +22,7 @@ export async function fetchHrTodos(companyId: string, employees: { id: string; n
   //   2026-08-31 스윕: 이미 처리한 일이 계속 뜨던 3건 보정 재료 — 발령(수습 전환 완료 판정)·연차 부여(1주년 완료 판정)
   const [contracts, pkgs, appts, grants] = await Promise.all([
     logRead("hr-todo:contracts", await (supabase as any).from("employee_contracts").select("employee_id, end_date, probation_end_date, status").eq("company_id", companyId).eq("status", "active")),
-    logRead("hr-todo:pkgs", await (supabase as any).from("hr_contract_packages").select("employee_id, status, sent_at").eq("company_id", companyId).eq("status", "sent")),
+    logRead("hr-todo:pkgs", await (supabase as any).from("hr_contract_packages").select("employee_id, status, sent_at, expires_at, hr_contract_package_items(id)").eq("company_id", companyId).eq("status", "sent")),
     logRead("hr-todo:appts", await (supabase as any).from("hr_appointments").select("employee_id, effective_date").eq("company_id", companyId)),
     logRead("hr-todo:grants", await (supabase as any).from("leave_grants").select("employee_id, grant_date").eq("company_id", companyId).eq("grant_type", "annual")),
   ]);
@@ -64,8 +64,17 @@ export async function fetchHrTodos(companyId: string, employees: { id: string; n
   }
   if (anniv.length) groups.push({ key: "anniv", label: "입사 1주년(연차 전환)", source: "규칙", hint: "자동 발생 cron 이 처리하지만, 수동 부여 회사는 휴가 탭에서 확인", go: "leave", items: anniv });
   const unsigned: HrTodoItem[] = [];
-  for (const p of ((pkgs || []) as any[])) { if (!p.sent_at || !nameOf.has(p.employee_id)) continue; const n = -dday(String(p.sent_at).slice(0, 10), today); if (n >= 7) unsigned.push({ employee_id: p.employee_id, name: nameOf.get(p.employee_id)!, text: `계약서 미서명 ${n}일 · 재발송·독촉`, date: String(p.sent_at).slice(0, 10) }); }
-  if (unsigned.length) groups.push({ key: "unsigned", label: "계약서 미서명 7일+", source: "규칙", hint: "근로계약·서식 › 계약 발송·현황에서 재발송", go: "contracts", items: unsigned });
+  //   2026-09-28: 만료(14일 기한 지남)·문서 0건(빈 패키지)도 적는다 — 모티브 발송 6건이 전부 만료·5건이 빈 패키지였는데 "재발송·독촉"만 보였다.
+  for (const p of ((pkgs || []) as any[])) {
+    if (!p.sent_at || !nameOf.has(p.employee_id)) continue;
+    const n = -dday(String(p.sent_at).slice(0, 10), today);
+    if (n < 7) continue;
+    const exp = p.expires_at ? -dday(String(p.expires_at).slice(0, 10), today) : null;
+    const docs = Array.isArray(p.hr_contract_package_items) ? p.hr_contract_package_items.length : null;
+    const tail = exp !== null && exp > 0 ? ` · 기한 ${exp}일 지남 → 정리(취소) 또는 재발송` : " · 재발송·독촉";
+    unsigned.push({ employee_id: p.employee_id, name: nameOf.get(p.employee_id)!, text: `계약서 미서명 ${n}일${docs === 0 ? " · 문서 0건(빈 패키지)" : ""}${tail}`, date: String(p.sent_at).slice(0, 10) });
+  }
+  if (unsigned.length) groups.push({ key: "unsigned", label: "계약서 미서명 7일+", source: "규칙", hint: "근로계약·서식 › 계약 발송·현황에서 재발송하거나, 기한 지난 건은 취소로 정리", go: "contracts", items: unsigned });
 
   const thisY = today.slice(0, 4), nextY = String(Number(thisY) + 1);
   void nextY;

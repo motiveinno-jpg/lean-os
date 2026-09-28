@@ -10901,3 +10901,7 @@ table.table-lbl { min-width: 640px; }
 
 /* 부가세 신고서 준비 — 직전 기수 대비 한 줄 (2026-09-28) */
 .vr-prev td { @apply text-[11.5px] text-[var(--text-muted)]; }
+
+/* 계약 발송·현황 — 상태 뒤 표시(기한 지남·문서 0건) (2026-09-28) */
+.ca-flag { @apply ml-1 inline-block rounded-full border border-[var(--border)] px-1.5 py-0.5 text-[10px] not-italic text-[var(--text-dim)]; }
+.ca-flag-warn { @apply border-[var(--danger)]/40 text-[var(--danger)]; }

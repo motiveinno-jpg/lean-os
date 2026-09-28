@@ -843,6 +843,43 @@ export async function cancelSentContractPackage(packageId: string): Promise<{ su
   return { success: true };
 }
 
+// ── 만료된 발송 패키지 정리 (2026-09-28) ──
+//   왜: 모티브 실측 — 발송 6건 전부 만료(14일)를 넘겨 최대 136일 미서명, 그중 5건은 문서 0건으로 발송된 빈 패키지.
+//   cancelSentContractPackage 는 '열람 전' 취소라 열람만 하고 안 서명한 만료 건은 닫을 길이 없었다.
+//   만료(expires_at 지남) + 서명된 문서 0 이면 닫는다. 서명이 하나라도 있으면 사람이 봐야 하므로 막는다.
+export async function closeExpiredContractPackage(packageId: string): Promise<{ success: boolean; error?: string }> {
+  const { data: pkg } = await db
+    .from('hr_contract_packages')
+    .select('id, status, expires_at, hr_contract_package_items(id, status)')
+    .eq('id', packageId)
+    .maybeSingle();
+  if (!pkg) return { success: false, error: '계약서를 찾을 수 없습니다.' };
+  const p = pkg as any;
+  if (p.status !== 'sent' && p.status !== 'partially_signed') return { success: false, error: '발송된 계약서만 정리할 수 있습니다.' };
+  if (!p.expires_at || new Date(p.expires_at).getTime() > Date.now()) return { success: false, error: '아직 서명 기한이 지나지 않았습니다. 기한 안에는 발송 취소를 쓰세요.' };
+  if ((p.hr_contract_package_items || []).some((it: any) => it.status === 'signed')) {
+    return { success: false, error: '서명이 시작된 계약서입니다. 직원과 확인한 뒤 처리하세요.' };
+  }
+  const { error } = await db
+    .from('hr_contract_packages')
+    .update({ status: 'cancelled', sign_token: null, updated_at: new Date().toISOString() })
+    .eq('id', packageId)
+    .in('status', ['sent', 'partially_signed']);
+  if (error) return { success: false, error: error.message };
+  try {
+    await db.from('notifications').delete().eq('entity_type', 'hr_contract_package').eq('entity_id', packageId);
+  } catch { /* 비차단 */ }
+  try {
+    await logAuditTrail(packageId, {
+      action: 'expired_closed',
+      timestamp: new Date().toISOString(),
+      actor: 'company',
+      details: `서명 기한(${String(p.expires_at).slice(0, 10)}) 지난 미서명 계약 정리 · 서명 링크 무효화`,
+    });
+  } catch { /* 비차단 */ }
+  return { success: true };
+}
+
 // ── Post-signing: Update salary + leave balance ──
 
 // ⚠️ 이 함수와 signContractItem 은 **호출되지 않는다**(2026-08-21 확인).
@@ -951,9 +988,10 @@ async function onAllContractsSigned(packageId: string) {
 // ── Get Contract Packages List ──
 
 export async function getContractPackages(companyId: string, status?: string) {
+  //   항목(문서) 수·서명 여부도 같이 — 문서 0건으로 발송된 빈 패키지와 만료 건을 화면이 표시한다(2026-09-28)
   let query = db
     .from('hr_contract_packages')
-    .select('*, employees(name, department, position)')
+    .select('*, employees(name, department, position), hr_contract_package_items(id, status)')
     .eq('company_id', companyId)
     .order('created_at', { ascending: false });
 

@@ -23,7 +23,8 @@ export type AuditAction =
   | 'signature_submitted'
   | 'document_completed'
   | 'document_locked'
-  | 'sending_cancelled'; // 열람 전 발송 취소 (2026-08-19)
+  | 'sending_cancelled' // 열람 전 발송 취소 (2026-08-19)
+  | 'expired_closed';   // 서명 기한 지난 미서명 계약 정리 (2026-09-28)
 
 export interface AuditTrailEntry {
   action: AuditAction;
@@ -47,6 +48,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   document_completed: '서명 완료',
   document_locked: '문서 잠금',
   sending_cancelled: '발송 취소 (열람 전)',
+  expired_closed: '기한 지난 미서명 계약 정리',
 };
 
 // ── Log Audit Trail ──

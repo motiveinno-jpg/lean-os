@@ -18,7 +18,7 @@ import { supabase } from "@/lib/supabase";
 import { friendlyError } from "@/lib/friendly-error";
 import { useToast } from "@/components/toast";
 import { CONTRACT_TYPES } from "@/lib/hr";
-import { getContractPackages, sendContractPackage, getContractTemplates, cancelContractPackage, PACKAGE_STATUS } from "@/lib/hr-contracts";
+import { getContractPackages, sendContractPackage, getContractTemplates, cancelContractPackage, cancelSentContractPackage, closeExpiredContractPackage, PACKAGE_STATUS } from "@/lib/hr-contracts";
 import { getCurrentUser } from "@/lib/queries";
 import { uploadFile } from "@/lib/file-storage";
 import type { RichEditorRef } from "@/components/rich-editor";
@@ -148,6 +148,26 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contract-packages"] }),
     onError: (err: any) => toast("계약 취소 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
+  //   발송된 건의 취소 (2026-09-28) — 기한 안이면 '열람 전 발송 취소'(cancelSent), 기한이 지났으면 '만료 정리'(closeExpired).
+  //   전에는 발송 상태 줄에 재발송만 있어, 모티브 만료 6건(5건은 문서 0건)이 처리할 것에 136일째 남아 있었다.
+  const isExpired = (p: any) => !!p.expires_at && new Date(p.expires_at).getTime() < Date.now();
+  const docCount = (p: any) => (Array.isArray(p.hr_contract_package_items) ? p.hr_contract_package_items.length : null);
+  const daysPast = (v: string) => Math.floor((Date.now() - new Date(v).getTime()) / 86_400_000);
+  async function handleCancelSent(p: any) {
+    const expired = isExpired(p);
+    const ok = await appConfirm(
+      expired
+        ? `서명 기한(${day(p.expires_at)})이 지난 계약입니다. 취소로 정리할까요?\n서명 링크가 무효가 되고, 다시 보내려면 새 패키지를 만듭니다.`
+        : "발송을 취소할까요? 직원이 아직 열람하지 않은 경우에만 됩니다.\n서명 링크가 무효가 되고 알림도 회수됩니다.",
+      { danger: true, confirmLabel: expired ? "정리(취소)" : "발송 취소" },
+    );
+    if (!ok) return;
+    const r = expired ? await closeExpiredContractPackage(p.id) : await cancelSentContractPackage(p.id);
+    if (!r.success) { toast(r.error || "취소하지 못했습니다", "error"); return; }
+    toast(expired ? "기한 지난 계약을 정리했습니다" : "발송을 취소했습니다", "success");
+    queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
+    queryClient.invalidateQueries({ queryKey: ["hr-todos"] });
+  }
 
   // 일괄 발송
   async function handleBatchSend() {
@@ -634,7 +654,12 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
                 <td className="text-left font-semibold truncate" title={p.title}>{p.title}</td>
                 <td className="text-center">{p.employees?.name || "미지정"}</td>
                 <td className="text-center">{p.employees?.department || "—"}</td>
-                <td className="text-center"><span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${st.bg} ${st.text}`}>{st.label}</span></td>
+                <td className="text-center">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${st.bg} ${st.text}`}>{st.label}</span>
+                  {/* 만료·빈 패키지 표시 (2026-09-28) — 발송 상태 뒤에 왜 처리해야 하는지를 적는다 */}
+                  {(p.status === "sent" || p.status === "partially_signed") && isExpired(p) && <em className="ca-flag ca-flag-warn" title={`서명 기한 ${day(p.expires_at)} · 14일`}>기한 {daysPast(p.expires_at)}일 지남</em>}
+                  {(p.status === "sent" || p.status === "partially_signed") && docCount(p) === 0 && <em className="ca-flag" title="문서가 하나도 없이 발송된 패키지 · 서명할 것이 없습니다">문서 0건</em>}
+                </td>
                 <td className="text-center mono-number">{day(p.created_at) || "—"}</td>
                 <td className="text-center mono-number">{day(p.sent_at) || "—"}</td>
                 <td className="text-center mono-number">{day(p.completed_at) || "—"}</td>
@@ -658,13 +683,22 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
                       </>
                     )}
                     {(p.status === "sent" || p.status === "partially_signed") && (
-                      <button
-                        onClick={() => handleSendSignRequest(p.id)}
-                        disabled={sending === p.id}
-                        className="px-2 py-1 text-[11px] font-medium text-blue-400 rounded-lg hover:bg-blue-500/10 transition"
-                      >
-                        {sending === p.id ? "발송 중..." : "재발송"}
-                      </button>
+                      <>
+                        <button
+                          onClick={() => handleSendSignRequest(p.id)}
+                          disabled={sending === p.id}
+                          className="px-2 py-1 text-[11px] font-medium text-blue-400 rounded-lg hover:bg-blue-500/10 transition"
+                        >
+                          {sending === p.id ? "발송 중..." : "재발송"}
+                        </button>
+                        <button
+                          onClick={() => handleCancelSent(p)}
+                          className="px-2 py-1 text-[11px] text-[var(--text-dim)] hover:text-red-400 rounded-lg hover:bg-red-500/10 transition"
+                          title={isExpired(p) ? "기한이 지난 미서명 계약을 취소로 정리합니다" : "열람 전이면 발송을 취소합니다"}
+                        >
+                          {isExpired(p) ? "정리" : "취소"}
+                        </button>
+                      </>
                     )}
                     {p.status === "completed" && (
                       <>
