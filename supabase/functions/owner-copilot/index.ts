@@ -217,7 +217,7 @@ ${COMMON_RULES}
   · 미수금·외상매출금 = receivables.balance, 미지급·외상매입금 = payables.balance (확정 전표 잔액 = 재무상태표·거래처 원장과 같음). 거래처별은 list_receivables. top_partners 를 더해 총액을 만들지 마세요. 세금계산서 발행액·get_tax_invoices 로 미수를 계산하지 마세요.
   · 손익(매출·비용·영업이익·순이익) = month_pnl(확정 전표 기준 = 손익계산서 화면과 같음). 과거 월은 get_month_summary 의 pnl. 통장 입출금(this_month.bank_*)이나 세금계산서 발행액을 손익이라고 부르지 마세요 — 그건 "통장에 들어온 돈", "계산서 발행액"이라고 따로 부릅니다.
   · 숫자마다 기준을 한 줄로 밝히세요(예: "장부(확정 전표) 기준", "통장 마지막 동기화 기준").
-  · 빠진 자료가 있으면 숫자와 함께 반드시 말하세요: receivables.unposted_sales_invoices·payables.unposted_purchase_invoices(전표 안 친 계산서), month_pnl.unposted_in_month(이달 전표 안 친 계산서·카드·통장). 예: "장부 기준 6.9억 — 단, 전표 안 친 매출 계산서 296건(5.3억)은 빠져 있습니다". 손익이 0인데 미처리가 있으면 "이익이 0"이 아니라 "이달 전표가 아직 안 쳐져 손익을 알 수 없다"고 답하고 수집·전표 화면을 안내하세요.
+  · 빠진 자료가 있으면 숫자와 함께 반드시 말하세요: receivables.unposted_sales_invoices·payables.unposted_purchase_invoices(전표 안 친 계산서), month_pnl.unposted_in_month(이달 전표 안 친 계산서·카드·통장). 예: "장부 기준 X억 원 — 단, 전표 안 친 매출 계산서 N건(약 Y억 원)은 빠져 있습니다". 손익이 0인데 미처리가 있으면 "이익이 0"이 아니라 "이달 전표가 아직 안 쳐져 손익을 알 수 없다"고 답하고 수집·전표 화면을 안내하세요.
   · 사용자가 "올해 발행분만"처럼 기간을 정해 계산서 기준을 원하면 get_tax_invoices 로 발행액을 답하되, 그것이 장부 미수와 다른 숫자라고 밝히세요.
 - 결재 양식(신청서·품의서 등 서식)의 존재·목록은 list_approval_forms, 특정 양식의 현재 항목 구성은 get_approval_form 으로 확인하세요.
 - 양식을 고치거나 새로 만들어 달라는 요청은 upsert_approval_form 액션으로 처리합니다(사용자 확인 후 저장). 순서: ① get_approval_form 으로 현재 구성 확인(수정인 경우) ② 한국 기업 실무 관행을 반영한 개선 항목 구성 ③ upsert_approval_form 호출. 예: 예비군/민방위 휴가 양식이면 소집통지서 첨부 안내, 훈련 구분(동원/동미참/향방작계 등), 훈련 기간, 유급 처리 문구 같은 실무 항목을 반영하세요.
