@@ -2348,7 +2348,12 @@ serve(withSentry("codef-sync", async (req) => {
     //   · **요금제만** 본다. 30분 쿨타임은 화면에 남긴다 — '한 번에 수집'이 홈택스 3종을 차례로
     //     부르는데 셋 다 sync_type='hometax' 라 여기서 쿨타임을 걸면 두 번째부터 스스로 막힌다.
     //   · 조회 자체가 실패하면 막지 않는다(fail-open) — 검사 장애가 수집을 멈추면 안 된다.
-    if (!isInternalAuth && companyId) {
+    //   · 수집이 아닌 **연결** 단계(기관 등록·계좌 목록·데모 연결)는 요금제와 무관하게 연다 (2026-09-28).
+    //     이 검사가 register 까지 막아 무료 회사는 통장·카드를 처음 연결하는 것부터 403 이었다
+    //     — 요금제 표의 「무료: 통장·카드 3개까지 연결 · 하루 2회 자동」과 정반대. 3개 한도는
+    //     bank_accounts/card 트리거(enforce_free_account_limit)가 따로 지킨다.
+    const CONNECT_ACTIONS = new Set(["register", "list-accounts", "sandbox-connect"]);
+    if (!isInternalAuth && companyId && !CONNECT_ACTIONS.has(action)) {
       try {
         const { data: allowed, error: planErr } = await supabase
           .rpc("is_manual_sync_allowed", { p_company: companyId });
