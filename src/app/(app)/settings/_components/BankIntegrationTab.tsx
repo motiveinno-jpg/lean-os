@@ -1074,10 +1074,10 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
             <div className="bank-connected-note">
               <p className="text-xs text-green-600 font-semibold">
                 {hasCodefConnection && hasHometaxConnection
-                  ? "은행·카드와 홈택스가 연결되어 거래내역과 세금계산서가 자동 수집됩니다."
+                  ? "은행·카드 거래내역은 하루 2회 자동 수집되고, 세금계산서는 세금·증빙 화면의 [가져오기 → 홈택스에서 가져오기]로 받아옵니다."
                   : hasCodefConnection
                     ? "은행·카드가 연결되어 거래내역이 자동 수집됩니다."
-                    : "홈택스가 연결되어 세금계산서가 자동 수집됩니다."}
+                    : "홈택스가 연결되었습니다. 세금계산서는 세금·증빙 화면의 [가져오기 → 홈택스에서 가져오기]로 받아옵니다."}
               </p>
               {connectionStatus?.codef_connected_at && (
                 <p className="text-[10px] text-[var(--text-dim)] mt-1">은행/카드 연결일: {kstDateStr(new Date(connectionStatus.codef_connected_at))}</p>

@@ -127,7 +127,7 @@ export default function VatCalculatorView() {
       <section className="tl8-section tl8-bg-tint">
         <div className="tl8-narrow tl8-sec-head-c">
           <h2 className="tl8-h2">세금계산서·부가세, 오너뷰가 자동으로 정리합니다</h2>
-          <p className="tl8-sub">오너뷰는 홈택스 세금계산서와 카드·현금 매입매출을 자동으로 모아 부가세 신고 자료를 정리해 드립니다. 매번 계산기 두드리지 않아도 됩니다. 카드 등록 없이 무료로 시작하세요.</p>
+          <p className="tl8-sub">오너뷰는 카드·통장 매입매출을 자동으로 모으고 홈택스 세금계산서는 버튼 한 번에 가져와 부가세 신고 자료를 정리해 드립니다. 매번 계산기 두드리지 않아도 됩니다. 카드 등록 없이 무료로 시작하세요.</p>
           <div className="tl8-feat-cta">
             <Link href="/auth?mode=signup" className="btn btn-fill" data-cta="signup:tool_vat">무료로 시작하기</Link>
             <Link href="/features" className="btn btn-soft">기능 둘러보기</Link>

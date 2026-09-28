@@ -167,7 +167,7 @@ export function RecentInvoices({ companyId }: { companyId: string }) {
   });
   return (
     <ActivityCard title="최근 세금계산서" href="/tax-invoices" empty={data.length === 0}
-      emptyText="수집된 세금계산서가 없습니다." emptyAction={{ label: "홈택스 연결하고 자동 수집하기", href: "/settings?tab=bank" }}>
+      emptyText="수집된 세금계산서가 없습니다." emptyAction={{ label: "홈택스 연결하고 세금계산서 가져오기", href: "/settings?tab=bank" }}>
       {data.map((inv) => {
         const isSales = inv.type === "sales";
         return (

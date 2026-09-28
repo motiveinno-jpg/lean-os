@@ -496,7 +496,7 @@ const WORKFLOWS: Workflow[] = [
     id: 'codef-cert',
     icon: '🔐',
     title: '공동인증서 등록 · 자동화의 시작',
-    description: '공동인증서를 등록하면 은행·카드·홈택스 자료가 자동으로 들어옵니다.',
+    description: '공동인증서를 등록하면 은행·카드 자료는 하루 2회 자동으로 들어오고, 홈택스 세금계산서는 버튼 한 번으로 가져옵니다.',
     steps: [
       { title: '설정 → 연동·API 키', description: '연동·API 키의 은행연동에서 등록을 시작합니다.', route: '/settings/integration' },
       { title: '인증서 불러오기', description: '저장된 공동인증서를 불러오거나 인증서 파일을 올립니다.' },

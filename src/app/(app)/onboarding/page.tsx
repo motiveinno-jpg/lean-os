@@ -777,8 +777,8 @@ function Step2Finance({ companyId, onConnected }: { companyId: string | null; on
             <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
           </svg>
           <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-            공동인증서 한 번 등록으로 <b>통장 거래내역·카드 승인내역·홈택스 세금계산서</b>가 자동으로
-            모입니다. 등록을 마치면 대시보드로 이동해요. 나중에 <b>설정 &gt; 연동·인증</b>에서도 언제든 등록할 수 있습니다.
+            공동인증서 한 번 등록으로 <b>통장 거래내역·카드 승인내역</b>은 하루 2회 자동으로 모이고,
+            <b>홈택스 세금계산서</b>는 버튼 한 번으로 가져옵니다. 등록을 마치면 대시보드로 이동해요. 나중에 <b>설정 &gt; 연동·인증</b>에서도 언제든 등록할 수 있습니다.
           </p>
         </div>
       </div>
