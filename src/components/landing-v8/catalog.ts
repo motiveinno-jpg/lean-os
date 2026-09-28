@@ -60,7 +60,7 @@ export const CATALOG: Group[] = [
   {
     key: "inventory", name: "재고", short: "재고", icon: "box",
     lead: "물건이 들어오고 나가는 흐름을 한곳에서 관리합니다.",
-    legacy: ["products", "stock", "orders", "sales", "purchase", "production", "channels"],
+    legacy: ["products", "stock", "orders", "sales", "purchase", "production"],
     menus: [
       { key: "products", name: "품목", href: "/inventory/products", icon: "box", src: shot("f-inv-products-v2"),
         desc: "파는 것을 한 번만 등록하면 재고·판매·구매·생산이 같은 품목을 씁니다.",
@@ -81,16 +81,24 @@ export const CATALOG: Group[] = [
         //   2026-09-22 정직화 — 작업지시 화면은 없다. 주문서를 불러와 완성 수량을 저장하면 자재가 빠지고 완제품이 든다(production 머리 주석).
         desc: "자재구성(BOM)을 정해 두면 주문서를 불러와 완성 수량만 저장해도 자재가 빠지고 완제품이 입고됩니다.",
         items: ["자재구성(BOM) 등록", "주문서 불러와 완성 처리", "자재 자동 차감", "완제품 자동 입고"] },
-      // 이커머스: 엑셀 붙여넣기가 기본(결정 18). 채널 API 가져오기는 코드가 있으나 실제 회사 키로 검증 전(lib/channel-api.ts 머리주석).
-      { key: "channels", name: "이커머스", href: "/inventory/channels", icon: "link", src: shot("f-inv-channels-v2"),
-        desc: "판매채널 주문을 엑셀로 붙여넣어 가져옵니다. 같은 주문은 두 번 들어가지 않습니다.",
-        items: ["주문 엑셀 붙여넣기", "중복 주문 자동 차단", "채널 상품코드 ↔ SKU 연결", "가져온 이력 조회"] },
       { key: "inventory-status", name: "현황", href: "/inventory/status", icon: "chart", src: shot("f-inv-status-v1"),
         desc: "주문·판매·구매·생산을 한 화면에서 집계와 그래프로 봅니다.",
         items: ["주문 진행률·납기 지남", "판매·매입 집계(반품 차감)", "자재 부족 예상", "채널별 판매 비중"] },
       { key: "profit", name: "이익관리", href: "/inventory/profit", icon: "trend", src: shot("f-inv-profit-v1"),
         desc: "출고 원가를 반영한 판매 이익과 손실을 품목·거래처·채널별로 봅니다.",
         items: ["출고 원가(FIFO·이동평균)", "품목·거래처·채널별 이익", "폐기·감모 손실", "원가 미확정 건 따로 표시"] },
+    ],
+  },
+  {
+    //   이커머스 (2026-09-28 결정 272) — 사이드바 레일 그룹으로 승격. 주소는 그대로(/inventory/channels).
+    //   엑셀 붙여넣기가 기본(결정 18). 채널 API 자동 수집은 코드만 있고 실제 회사 키로 검증 전 — 광고하지 않는다(문구 정직화 2026-09-21).
+    key: "ecommerce", name: "이커머스", short: "커머스", icon: "link",
+    lead: "판매채널 주문부터 취소·반품, 정산 대조까지 한곳에서 관리합니다.",
+    legacy: ["channels"],
+    menus: [
+      { key: "channels", name: "채널 관리", href: "/inventory/channels", icon: "link", src: shot("f-inv-channels-v2"),
+        desc: "판매채널 주문을 엑셀로 붙여넣어 가져오고, 취소·반품은 재고로 되돌리며, 채널 정산 내역을 주문과 대조합니다.",
+        items: ["주문 엑셀 붙여넣기 · 중복 차단", "채널 상품코드 ↔ SKU 연결 · 세트 구성품 차감", "취소·반품·교환 → 재고 되돌림·매출 차감", "정산 대조 · 실측 수수료율 · 정산 전표 초안"] },
     ],
   },
   {

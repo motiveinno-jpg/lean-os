@@ -71,13 +71,23 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/inventory/sales", label: "판매", icon: "arrow-right-left" },
       { href: "/inventory/purchase", label: "구매", icon: "download" },
       { href: "/inventory/production", label: "생산", icon: "kanban" },
-      { href: "/inventory/channels", label: "이커머스", icon: "link", layer: "연동" },
+      //   이커머스는 2026-09-28 자기 그룹으로 나갔다(결정 272) — 아래 「이커머스」 그룹
       //   ★ 현황 · 주문·판매·구매·생산을 한 화면에 집계·그래프로. 맨 아래("현황이 제일 아래쪽으로").
       
       { href: "/inventory/status", label: "현황", icon: "bar-chart", layer: "현황" },
       //   ★ 이익관리 (결정 40, 2026-08-26 대표). 원가(FIFO) 반영 이익. 4글자는 예외.
       
       { href: "/inventory/profit", label: "이익관리", icon: "trending-up" },
+    ],
+  },
+  {
+    //   이커머스 — 2026-09-28 사장님 "이커머스를 통합적으로 관리하는 메뉴로"(결정 272, docs/20260928_PLAN_ecommerce_stage1.md).
+    //   ★ 재고 그룹 안 한 줄이던 것을 레일 그룹으로 올렸다. 주소·권한 키(/inventory/channels)는 그대로라 백필이 없다.
+    //   ★ 안쪽은 화면 갈래(현황·주문·출고·클레임·정산·상품 연결·이력)로 편다 — "더할 것은 메뉴가 아니라 갈래 탭"(재고 그룹 주석) 그대로.
+    //     2단계(채널 실키)로 자동 수집·재고 반영이 오면 그때 메뉴를 늘릴지 본다.
+    label: "이커머스", short: "커머스", icon: "shopping-cart",
+    items: [
+      { href: "/inventory/channels", label: "채널 관리", icon: "shopping-cart" },
     ],
   },
   {
@@ -298,6 +308,7 @@ function NavIcon({ name, href, className = "" }: { name: string; href?: string; 
     case "file-text": return <svg {...props}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>;
     case "arrow-right-left": return <svg {...props}><path d="M21 7H3M21 7l-4-4M21 7l-4 4M3 17h18M3 17l4-4M3 17l4 4"/></svg>;
     case "link": return <svg {...props}><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>;
+    case "shopping-cart": return <svg {...props}><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 002 1.58h9.78a2 2 0 001.95-1.57l1.65-7.43H5.12"/></svg>;
     case "folder": return <svg {...props}><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>;
     case "clipboard": return <svg {...props}><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>;
     case "clipboard-check": return <svg {...props}><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>;
