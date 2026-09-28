@@ -162,6 +162,7 @@ export function EvidenceTab({
   const [pick, setPick] = useState<{ id: string; q: string } | null>(null);
   //   고른 줄 전부의 계정과목을 한 번에 바꾸는 목록이 열려 있는지
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkVatOpen, setBulkVatOpen] = useState(false);   // 부가세 유형 일괄변경 (2026-09-28)
   const [saving, setSaving] = useState(false);
   //   머리단 정렬 — 기본은 일자 오름차순(장부는 날짜 순으로 본다) (2026-08-12)
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "date", dir: "asc" });
@@ -454,6 +455,19 @@ export function EvidenceTab({
     });
     setBulkOpen(false);
     toast(`${bulkRows.length}건을 ${a.code} ${a.name} 으로 바꿨습니다. 전표는 '전표 만들기'를 눌러야 만들어집니다.`, "success");
+  };
+  //   ── 부가세 유형 일괄변경 (2026-09-28, 백로그 104차) ──
+  //   계정과목과 같은 규칙: 줄 하나의 셀렉트와 **같은 자리**(override[id].vatCode)에 넣고, 확정은 '전표 만들기'가 한다.
+  //   같은 쪽(매출/매입) 유형만 고를 수 있다 — 매출 줄에 매입 유형을 밀어 넣으면 신고서 칸이 뒤바뀐다.
+  //   비과세 유형(58·59·53…)으로 바꾸면 amountsOf 가 부가세를 0 으로 옮기므로 줄마다 바꿀 때와 결과가 같다.
+  const bulkVatApply = (code: string, label: string) => {
+    setOverride((o) => {
+      const n = { ...o };
+      for (const r of bulkRows) n[r.id] = { ...n[r.id], vatCode: code };
+      return n;
+    });
+    setBulkVatOpen(false);
+    toast(`${bulkRows.length}건의 부가세 유형을 ${label} 으로 바꿨습니다. 전표는 '전표 만들기'를 눌러야 만들어집니다.`, "success");
   };
 
   /**
@@ -1227,6 +1241,23 @@ export function EvidenceTab({
           {bulkOpen && bulkSide && (
             <PickList items={acctsOf(bulkSide)} placeholder="계정과목 검색 (이름·코드)"
               onPick={bulkApply} onClose={() => setBulkOpen(false)} />
+          )}
+        </span>
+        {/*   부가세 유형 일괄변경 — 줄 셀렉트와 같은 후보(typeOptions), 같은 쪽만. 계정과목 버튼과 같은 이유로 회색 버튼 */}
+        <span className="relative inline-block ev-bulk-pick">
+          <button type="button" disabled={saving || !bulkSide}
+            onClick={() => { setBulkVatOpen((v) => !v); setBulkOpen(false); }}
+            className="btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            title={bulkSide
+              ? `고른 ${bulkRows.length}건의 부가세 유형을 한 번에 바꿉니다 (전표는 따로 '전표 만들기')`
+              : "매출·매입이 섞여 있습니다. 검색조건의 매출·매입을 한쪽으로 좁힌 뒤 다시 고르세요"}>
+            부가세 유형 바꾸기
+          </button>
+          {bulkVatOpen && bulkSide && (
+            <PickList
+              items={typeOptions.filter((v) => ((v as { side?: string }).side ?? "purchase") === bulkSide).map((v) => ({ id: v.code, code: v.code, name: v.label.replace(/^\S+\s/, "") }))}
+              placeholder="부가세 유형 검색 (이름·코드)"
+              onPick={(it) => bulkVatApply(it.id, `${it.code}. ${it.name}`)} onClose={() => setBulkVatOpen(false)} />
           )}
         </span>
         <button type="button" onClick={makeVouchers} disabled={saving}
