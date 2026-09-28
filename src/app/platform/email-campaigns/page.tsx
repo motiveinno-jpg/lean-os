@@ -322,7 +322,10 @@ function RecipientPanel({ scope, onClose }: { scope: DetailScope; onClose: () =>
   };
 
   return (
-    <div className="mt-4 rounded-md border border-[var(--border)] p-3">
+    //   페이지 바탕 위에 바로 뜨는 경우(상단 합계에서 연 목록)가 있어 카드와 같은 불투명 바탕을 깐다.
+    //   머리줄도 불투명하게 — pf-table 머리줄은 반투명(90%)이라 스크롤한 주소가 비쳐 겹쳐 보였다.
+    <div className="mt-4 rounded-[var(--pf-radius)] border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] shadow-[var(--pf-shadow)] p-4
+      [&_thead_th]:!bg-[var(--bg-card)] [&_thead_th]:!backdrop-blur-none">
       <div className="flex items-center gap-2 flex-wrap mb-2">
         <b className="text-sm">{DETAIL_LABEL[scope.kind]} 주소 {isLoading ? "" : `${total.toLocaleString()}개`}</b>
         <span className="text-xs text-[var(--text-dim)] truncate max-w-[420px]">
