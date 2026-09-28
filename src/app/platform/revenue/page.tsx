@@ -28,6 +28,16 @@ const STATUS_KO: Record<string, { label: string; tone: "ok" | "warn" | "danger" 
   failed: { label: "실패", tone: "danger" },
 };
 
+type BillingIssue = {
+  kind: "payment_failed" | "past_due" | "customer_email"; company_id: string | null; company_name: string | null; at: string;
+  amount: number | null; provider: string | null; detail: string | null; attempt: number | null; exhausted: boolean | null;
+};
+const ISSUE_KO: Record<BillingIssue["kind"], { label: string; tone: "danger" | "warn" | "muted" }> = {
+  payment_failed: { label: "결제 실패", tone: "danger" },
+  past_due: { label: "지금 미납", tone: "warn" },
+  customer_email: { label: "고객 메일 실패", tone: "muted" },
+};
+
 export default function RevenuePage() {
   const [search, setSearch] = useState("");
   const [companyFilter, setCompanyFilter] = useState("all");
@@ -38,6 +48,16 @@ export default function RevenuePage() {
       return data || [];
     },
     refetchInterval: 60_000,
+  });
+
+  const { data: billingIssues = [], isLoading: issuesLoading } = useQuery<BillingIssue[]>({
+    queryKey: ["p-billing-issues"],
+    queryFn: async () => {
+      //   생성 타입에 아직 없는 RPC(마이그 20260928240000)
+      const { data, error } = await (db.rpc as any)("operator_billing_issues", { p_days: 90 });
+      if (error) throw error;
+      return (data || []) as BillingIssue[];
+    },
   });
 
   const { data: invoices = [], isLoading: invLoading } = useQuery({
@@ -182,6 +202,32 @@ export default function RevenuePage() {
           </div>
         </PfCard>
       </div>
+
+      {/* 결제 실패·미납 — 토스 실패는 billing_events 에만 있어 전엔 운영자가 볼 곳이 없었다 (2026-09-28) */}
+      <PfCard i={5} hover={false}>
+        <PfCardHead title="결제 실패·미납" sub="최근 90일 · 토스·Stripe 결제 실패, 지금 미납인 구독, 고객 결제 메일 발송 실패" />
+        <PfCardBody>
+          {issuesLoading ? <PfSkeleton rows={2} /> : billingIssues.length === 0 ? <PfEmpty ok>결제 실패·미납이 없습니다.</PfEmpty> : (
+            <div className="overflow-x-auto">
+              <table className="pf-table">
+                <thead><tr><th>시각</th><th>구분</th><th>회사</th><th>결제</th><th className="text-right">금액</th><th>내용</th></tr></thead>
+                <tbody>
+                  {billingIssues.map((r, idx) => (
+                    <tr key={`${r.kind}-${r.company_id}-${r.at}-${idx}`}>
+                      <td className="whitespace-nowrap text-[var(--text-muted)]">{kstDateStr(new Date(r.at))}</td>
+                      <td><PfBadge tone={ISSUE_KO[r.kind].tone}>{ISSUE_KO[r.kind].label}{r.exhausted ? " · 재시도 소진" : r.attempt ? ` · ${r.attempt}회차` : ""}</PfBadge></td>
+                      <td>{r.company_name || "—"}</td>
+                      <td className="text-[var(--text-muted)]">{r.provider === "toss" ? "국내카드" : r.provider === "stripe" ? "해외카드" : "—"}</td>
+                      <td className="text-right mono-number">{r.amount != null ? `₩${Number(r.amount).toLocaleString()}` : "—"}</td>
+                      <td className="max-w-[360px] truncate text-[var(--text-muted)]" title={r.detail || undefined}>{r.detail || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </PfCardBody>
+      </PfCard>
 
       {/* 시각화 — 월별 매출 · 요금제 구성 · 수금률 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

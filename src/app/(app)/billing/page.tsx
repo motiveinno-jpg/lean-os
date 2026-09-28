@@ -628,6 +628,23 @@ function BillingPageInner() {
     setShowCancelModal(false);
   }
 
+  // 해지 취소 — 환불규정 제5조 4항. 토스·Stripe 모두 서버(/api/billing/resume)가 처리한다.
+  async function handleResume() {
+    if (isPaymentLoading) return;
+    setIsPaymentLoading(true);
+    try {
+      const res = await fetch('/api/billing/resume', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error?.message || '해지 취소 실패');
+      qc.invalidateQueries({ queryKey: ['subscription'] });
+      qc.invalidateQueries({ queryKey: ['entitlement'] });
+      toast("해지를 취소했습니다. 구독이 그대로 이어지고 다음 결제일에 결제됩니다.", "success");
+    } catch (err: any) {
+      toast(friendlyError(err, "해지 취소 중 오류가 발생했습니다."), "error");
+    }
+    setIsPaymentLoading(false);
+  }
+
   useModalKeys(!!showUpgradeModal, () => setShowUpgradeModal(null), isPaymentLoading ? undefined : handleUpgradeConfirm);
   useModalKeys(showCancelModal, () => setShowCancelModal(false), handleCancelConfirm);
 
@@ -1082,7 +1099,7 @@ function BillingPageInner() {
             {entitlement?.entitled && currentSlug !== "free" && (
               <p className="billing-cancel-line">
                 {cancelScheduled && effectiveUntilStr ? (
-                  <>해지 예약됨 — {effectiveUntilStr}까지 그대로 이용하고 이후 무료로 전환됩니다.{hasStripeSubscription && !hasTossSubscription && <> 예약 취소는 <button type="button" className="billing-cancel-link" onClick={handleOpenPortal} disabled={isPaymentLoading}>구독 관리</button>에서.</>}</>
+                  <>해지 예약됨 — {effectiveUntilStr}까지 그대로 이용하고 이후 무료로 전환됩니다. 계속 쓰시려면 <button type="button" className="billing-cancel-link" onClick={handleResume} disabled={isPaymentLoading}>해지 취소</button>.</>
                 ) : (
                   <>요금제를 더 쓰지 않으려면 <button type="button" className="billing-cancel-link" onClick={() => setShowCancelModal(true)}>구독 해지…</button> (결제 기간이 끝나면 무료로 전환)</>
                 )}
