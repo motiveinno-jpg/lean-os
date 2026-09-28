@@ -42,6 +42,9 @@ export interface CashPulseResult {
   forecast90d: number;
   forecastPoints: ForecastPoint[];
   monthlyBurn: number;
+  /** 자금 운용 가능 기간(개월) — 현재 잔액 ÷ 월 고정 지출(정기 지출·급여·고정비·대출). 앱 전체의 단일 값.
+   *  대시보드(sixPack)·아침 브리핑·경영 요약·자금 전망이 이 값을 쓴다(2026-09-28, 전엔 화면마다 달랐다). */
+  runwayMonths: number;
   pulseScore: number; // 0-100
   // 2026-07-28: 입력 데이터가 하나도 없으면 점수가 기본 조합(50점)으로 나와 신규 가입사를 오도.
   //   false 면 표시단에서 점수를 "—" 처리한다.
@@ -206,6 +209,7 @@ export function buildCashPulse(input: CashPulseInput): CashPulseResult {
     forecast90d,
     forecastPoints,
     monthlyBurn,
+    runwayMonths,
     pulseScore,
     hasData,
     scoreBreakdown: {

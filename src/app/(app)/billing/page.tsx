@@ -710,7 +710,11 @@ function BillingPageInner() {
 
       {/* 요약 한 줄 — 모든 탭 공통 (2026-08-19 재편: KPI 카드 4장 → 한 줄. 경고 칩을 누르면 결제 탭) */}
       {(() => {
-        const extraSeats = Math.max(0, (subscription?.seat_count || 1) - (currentPlan?.included_seats || 0));
+        //   추가좌석은 지금 재직 인원으로 — 다음 청구(토스 월 청구·Stripe 매일 좌석 맞추기)와 같은 셈
+        //   (company_seat_count − 기본 − 쿠폰 무료좌석). 전에는 구독 행의 seat_count(마지막 청구 때 값)를 써서
+        //   구성원 12명인데 10명분 요금이 보였다(2026-09-28).
+        const liveSeats = usage?.employees ?? subscription?.seat_count ?? 1;
+        const extraSeats = Math.max(0, liveSeats - (currentPlan?.included_seats || 0) - redeemedFreeSeats);
         const storagePacks = (subscription as any)?.storage_pack_count || 0;
         // 청구액 = 기본가 + (추가좌석 + 스토리지팩) × 좌석단가 (팩은 좌석과 동일 단가)
         const monthly = (currentPlan?.base_price || 0) + (currentPlan?.per_seat_price || 0) * (extraSeats + storagePacks);

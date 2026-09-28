@@ -408,7 +408,7 @@ export async function sendPayslipEmails(
   const errors: string[] = [];
 
   // PDF 생성기 + 미리보기 엔진 동적 import — 번들 분리 + 순환참조 회피
-  const { generatePayslipPDF, birthDateToPassword } = await import('./payslip-pdf');
+  const { generatePayslipPDF, birthDateToPassword, payslipPeriodTag } = await import('./payslip-pdf');
   const { previewPayroll } = await import('./payroll');
 
   // 2026-05-22 메일 PDF = 화면 단일 진실.
@@ -475,7 +475,7 @@ export async function sendPayslipEmails(
           // 2026-05-22 본문에서 급여 금액 전부 제거 — PDF(비밀번호 보호) 첨부만 발송.
           //   금액 필드를 보내지 않으므로 메일 본문엔 수령자 안내 + 비밀번호 안내만 노출.
           pdfBase64,
-          pdfFilename: `급여명세서_${item.employeeName}_${monthLabel.replace(/[^\w]/g, '')}.pdf`,
+          pdfFilename: `급여명세서_${item.employeeName}_${payslipPeriodTag(monthLabel)}.pdf`,
           hasPassword: !!password,
         }),
       });

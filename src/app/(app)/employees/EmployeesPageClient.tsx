@@ -74,7 +74,7 @@ import {
 import  { HrAllowancePolicyPanel } from "@/components/hr-attendance-settings";
 import { AttendanceBadges } from "@/components/attendance-badges";
 import { FlexPeopleDirectory } from "@/components/flex-people-directory";
-import { payrollStats, useCertificateStats } from "@/components/flex-hr-heroes";
+import { useCertificateStats } from "@/components/flex-hr-heroes";
 import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup, ConditionPanel, ConditionRow, AppliedChips, QuickSearch, quickSearchHit, HelperMenu, ExcelMenu, Pager, usePager, type AppliedChip } from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, useColWidths, useColFilters, type SortState } from "@/components/sortable-th";
 import { useModalKeys }  from "@/hooks/use-modal-keys";
@@ -170,7 +170,15 @@ export default function EmployeesPage()  {
   });
   const pendingInviteCount = (invitationsForBadge as any[]).filter((i) => i.status === "pending").length;
   const certStats = useCertificateStats(tab === "certificates" ? companyId : null);
-  const pay = payrollStats(employees);
+  //   급여 탭 요약 줄은 아래 급여 명세 카드와 같은 계산(previewPayroll, 법정 요율·수당 포함)을 쓴다 —
+  //   전에는 기본급 × 추정 요율로 따로 셈해 같은 화면에 4대보험 회사부담이 두 숫자로 보였다(2026-09-28).
+  const thisMonthKey = (() => { const k = new Date(Date.now() + 9 * 3600 * 1000); return `${k.getUTCFullYear()}-${String(k.getUTCMonth() + 1).padStart(2, "0")}`; })();
+  const { data: payThisMonth } = useQuery({
+    queryKey: ["payroll-preview-summary", companyId, thisMonthKey],
+    queryFn: () => previewPayroll(companyId!, thisMonthKey),
+    enabled: !!companyId && tab === "salary",
+    staleTime: 60_000,
+  });
   // 재직자만 합산: 퇴사자 급여가 섞여 급여 탭 합계와 다른 인건비가 표시됐다.
   const activeForPay = employees.filter((e: any) => ["active", "joined"].includes(e.status));
   const totalSalary = activeForPay.reduce((s: number, e: any) => s + Number(e.salary || 0), 0);
@@ -283,10 +291,10 @@ export default function EmployeesPage()  {
             {/* P1-3: 급여 = 이력 ↔ 명세 서브뷰 단일 탭. 히어로 카드(지급 대상·월 급여 총액·4대보험·연 인건비)는 결과 요약 줄로 */}
             {effectiveTab === "salary" && !isEmployee && (
               <ResultStrip>
-                <Stat label="지급 대상" value={`${pay.active.length}명`} />
-                <Stat label="월 급여 총액" value={`₩${pay.monthly.toLocaleString()}`} />
-                <Stat label="4대보험 회사부담(추정)" title="기본급과 표준 요율로 어림한 값입니다." value={`₩${pay.insurance.toLocaleString()}`} />
-                <Stat label="연 인건비" value={`₩${(pay.monthly * 12).toLocaleString()}`} />
+                <Stat label="지급 대상(이번 달)" value={payThisMonth ? `${payThisMonth.items.length}명` : "—"} />
+                <Stat label="월 급여 총액" value={payThisMonth ? `₩${payThisMonth.totalGross.toLocaleString()}` : "—"} />
+                <Stat label="4대보험 회사부담" title="아래 급여 명세와 같은 법정 요율 계산입니다." value={payThisMonth ? `₩${(payThisMonth.totalEmployer || 0).toLocaleString()}` : "—"} />
+                <Stat label="연 인건비(이번 달 × 12)" value={payThisMonth ? `₩${((payThisMonth.totalGross + (payThisMonth.totalEmployer || 0)) * 12).toLocaleString()}` : "—"} />
               </ResultStrip>
             )}
             {effectiveTab === "certificates" && (<>
@@ -1950,6 +1958,7 @@ function QuickAttendanceButtons({ employees, records, onCheckIn, onCheckOut }: a
 function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
   const { toast } = useToast();
   const [preview, setPreview] = useState<{ items: PayrollItem[]; totalGross: number; totalDeductions: number; totalNet: number; skippedNoBirth?: string[]; totalEmployer?: number; rates?: InsuranceRates } | null>(null);
+  const noBirthToastKey = useRef("");   // 생년월일 미등록 안내는 같은 달·같은 인원수로 한 번만
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   // 편집 모드 — 직원별 기본급(과세) / 비과세 직접 수정 + v4 H1 임의 수당/공제
@@ -2105,7 +2114,13 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
       // 생년월일 누락 안내
       if (result.skippedNoBirth && result.skippedNoBirth.length > 0) {
         // 실명 나열 제거 — 토스트는 공용 화면·화면공유에서 가장 잘 보이는 위치.
-        toast(`⚠ 생년월일 미등록 ${result.skippedNoBirth.length}명 · 해당 직원 명세서는 PDF 비밀번호 보호가 안 됩니다. 인력관리에서 생년월일을 등록하세요.`, 'error');
+        //   오류가 아니라 안내라 파란색(info), 같은 달·같은 인원수로는 한 번만 — 탭을 열 때 계산이
+        //   두 번 돌면서 빨간 오류창이 두 번씩 떠 '무언가 실패한 것'처럼 보였다(2026-09-28).
+        const key = `${companyId}:${periodMonth}:${result.skippedNoBirth.length}`;
+        if (noBirthToastKey.current !== key) {
+          noBirthToastKey.current = key;
+          toast(`생년월일 미등록 ${result.skippedNoBirth.length}명 · 해당 직원 명세서는 PDF 비밀번호 보호가 안 됩니다. 인력관리에서 생년월일을 등록하세요.`, 'info');
+        }
       }
     } catch (e: unknown) {
       // 무음 실패 금지: 종전엔 실패를 삼켜 직전 달 미리보기가 새 달 라벨을

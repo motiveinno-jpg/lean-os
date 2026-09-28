@@ -438,8 +438,14 @@ export async function generatePayslipPDF(params: PayslipParams): Promise<jsPDF> 
   return doc;
 }
 
+/** 파일 이름용 기간 — "2026년 9월" → "202609". 전에는 한글만 지워 "20269"(월 한 자리)가 됐다. */
+export function payslipPeriodTag(label: string): string {
+  const m = label.match(/(\d{4})\D+(\d{1,2})/);
+  return m ? `${m[1]}${m[2].padStart(2, '0')}` : label.replace(/[^\w]/g, '');
+}
+
 export async function downloadPayslipPDF(params: PayslipParams) {
   const doc = await generatePayslipPDF(params);
   const safeName = params.item.employeeName.replace(/[^\w가-힣]/g, '_');
-  doc.save(`급여명세서_${safeName}_${params.periodLabel.replace(/[^\w]/g, '')}.pdf`);
+  doc.save(`급여명세서_${safeName}_${payslipPeriodTag(params.periodLabel)}.pdf`);
 }

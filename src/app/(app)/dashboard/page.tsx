@@ -277,6 +277,7 @@ export default function DashboardPage() {
         rawData.quarterRevenue,
         rawData.yearRevenue,
         realBurnData || undefined,
+        cashPulse?.hasData ? cashPulse.runwayMonths : null,
       )
     : buildFounderDashboard(null, [], [], { monthTarget: 0, quarterTarget: 0, yearTarget: 0 }, 0, 0);
 

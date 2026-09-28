@@ -100,6 +100,7 @@ export default function MasterPage()  {
         rawData.quarterRevenue,
         rawData.yearRevenue,
         realBurnData || undefined,
+        cashPulse?.hasData ? cashPulse.runwayMonths : null,
       )
     : buildFounderDashboard(null, [], [], { monthTarget: 0, quarterTarget: 0, yearTarget: 0 }, 0, 0);
   if (arapU) { dashboard.sixPack = { ...dashboard.sixPack, arTotal: arapU.ar, arOver30: arapU.over30 }; }

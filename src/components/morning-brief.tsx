@@ -239,29 +239,29 @@ export function MorningBrief({
       const payload = await buildBriefPayload();
       if (!payload) return null;
       try {
-        let { data, error } = await supabase.functions.invoke("ai-briefing", { body: payload });
-        if (error || !data?.content) return null;
-        //   생성 시각 · "오늘 생성"으로 뭉뚱그리면 아침 스냅샷을 저녁까지 최신으로 오독한다.
+        //   오늘 브리핑의 생성 시각을 먼저 본다 — 4시간 넘게 낡았으면 처음부터 재생성(force) 한 번만 부른다.
+        //   전에는 캐시를 한 번 받아 온 뒤 낡은 걸 알고 다시 불러, 화면을 열 때마다 호출이 두 번 나갔다(2026-09-28).
+        //   자동 신선도 (2026-08-31 구조 과제 2/3): 08:00 cron 스냅샷(근사치)이 하루 종일 고정돼 "이미 처리한 일"을
+        //   긴급으로 말하던 것 — 열람 시점 기준 4시간 한도라 하루 재생성이 2~3회를 넘지 않는다(비용 상한).
         //   company_id 명시: 운영자 계정은 RLS 예외로 타사 행이 잡힐 수 있다.
-        let generatedAt: string | null = null;
+        const AGE_LIMIT_MS = 4 * 60 * 60 * 1000;
+        let cachedAt: string | null = null;
         try  {
           const { data: row } = await (supabase as any).from("ai_briefings").select("created_at")
             .eq("company_id", myCompanyId ?? "").eq("brief_date", todayKst()).maybeSingle();
-          generatedAt = row?.created_at ?? null;
-        } catch { /* 시각 조회 실패는 표기만 생략 */ }
-        //   자동 신선도 (2026-08-31 구조 과제 2/3): 캐시 브리핑이 4시간 넘게 낡았으면 지금 숫자로 재생성.
-        //   08:00 cron 스냅샷(근사치)이 하루 종일 고정돼 "이미 처리한 일"을 긴급으로 말하던 것 —
-        //   열람 시점 기준 4시간 한도라 하루 재생성이 2~3회를 넘지 않는다(비용 상한).
-        const AGE_LIMIT_MS = 4 * 60 * 60 * 1000;
-        if (generatedAt && Date.now() - new Date(generatedAt).getTime() > AGE_LIMIT_MS) {
-          try {
-            const fresh = await supabase.functions.invoke("ai-briefing", { body: { ...payload, force: true } });
-            if (!fresh.error && fresh.data?.content) {
-              data = fresh.data;
-              generatedAt = new Date().toISOString();
-            }
-          } catch { /* 재생성 실패 시 기존 캐시 유지 */ }
+          cachedAt = row?.created_at ?? null;
+        } catch { /* 시각 조회 실패 — 캐시 그대로 받는다 */ }
+        const stale = !!cachedAt && Date.now() - new Date(cachedAt).getTime() > AGE_LIMIT_MS;
+        let { data, error } = await supabase.functions.invoke("ai-briefing", { body: stale ? { ...payload, force: true } : payload });
+        let fresh = stale && !error && !!data?.content;
+        if ((error || !data?.content) && stale) {
+          // 재생성 실패 — 기존 캐시라도 보여 준다
+          ({ data, error } = await supabase.functions.invoke("ai-briefing", { body: payload }));
+          fresh = false;
         }
+        if (error || !data?.content) return null;
+        //   생성 시각 · "오늘 생성"으로 뭉뚱그리면 아침 스냅샷을 저녁까지 최신으로 오독한다.
+        const generatedAt: string | null = fresh || !cachedAt ? new Date().toISOString() : cachedAt;
         return { content: data.content as string, generatedAt };
       } catch { return null; }
     },

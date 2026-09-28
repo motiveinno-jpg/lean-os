@@ -209,6 +209,9 @@ export function buildFounderDashboard(
   quarterRevenue: number,
   yearRevenue: number,
   realMonthlyBurn?: number,
+  /** cash-pulse 의 자금 운용 가능 기간 — 있으면 이 값을 쓴다. 이 함수의 재료(월 스냅샷 잔액 ± 예정 입출금,
+   *  정기지출+급여)로 따로 셈하면 경영 요약(현재 잔액 ÷ 정기지출+급여+고정비+대출)과 숫자가 달랐다. */
+  runwayFromPulse?: number | null,
 ): FounderDashboardData {
   const mf = currentMonth;
 
@@ -242,7 +245,9 @@ export function buildFounderDashboard(
     .filter(i => (i.category === 'expense' || i.category === 'payable') && (i.status === 'confirmed' || i.status === 'pending'))
     .reduce((s, i) => s + Math.abs(i.amount), 0);
 
-  const runwayMonths = calcRunwayMonths(cashBalance, confirmedIncome, committedExpense, monthlyBurn);
+  const runwayMonths = runwayFromPulse != null
+    ? runwayFromPulse
+    : calcRunwayMonths(cashBalance, confirmedIncome, committedExpense, monthlyBurn);
 
   const sixPack: SixPack = {
     cashBalance,

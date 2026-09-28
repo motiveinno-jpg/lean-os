@@ -39,13 +39,6 @@ export function FlexTabHero({ icon, title, desc, chips }: {
   );
 }
 
-// ── 급여: 지급 대상·월 급여 총액·4대보험 회사부담(10.554%)·연 인건비 ──
-export function payrollStats(employees: any[]) {
-  const active = employees.filter((e) => ["active", "joined"].includes(String(e.status || "")));
-  const monthly = active.reduce((s, e) => s + Number(e.salary || 0), 0);
-  const insurance = Math.round(monthly * 0.10554); // 사업주 부담률 합계 추정 (PnL 과 동일 기준)
-  return { active, monthly, insurance };
-}
 
 
 

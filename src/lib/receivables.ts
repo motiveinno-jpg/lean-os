@@ -21,7 +21,22 @@ export type PartnerBalance = {
   invoiceCount: number;
 };
 
-export async function fetchPartnerBalances(companyId: string, type: "sales" | "purchase" = "sales"): Promise<PartnerBalance[]> {
+//   대시보드는 위젯 여러 개(미수금·아침 브리핑·경영요약·자금 전망 …)가 같은 순간에 이 함수를 불러
+//   같은 DB 계산이 한 화면에 7번씩 나갔다(2026-09-28 실측). 같은 회사·같은 종류는 진행 중인 요청과
+//   직전 30초 결과를 함께 쓴다 — 값은 같고 요청만 한 번.
+const SHARE_MS = 30_000;
+const shared = new Map<string, { at: number; p: Promise<PartnerBalance[]> }>();
+
+export function fetchPartnerBalances(companyId: string, type: "sales" | "purchase" = "sales"): Promise<PartnerBalance[]> {
+  const key = `${companyId}:${type}`;
+  const hit = shared.get(key);
+  if (hit && Date.now() - hit.at < SHARE_MS) return hit.p;
+  const p = loadPartnerBalances(companyId, type).catch((e) => { shared.delete(key); throw e; });
+  shared.set(key, { at: Date.now(), p });
+  return p;
+}
+
+async function loadPartnerBalances(companyId: string, type: "sales" | "purchase"): Promise<PartnerBalance[]> {
   const rows = await fetchPaged<any>(`receivables:${type}`, () => db
     .rpc("receivables_by_partner", { p_company_id: companyId, p_type: type })
     .order("partner_key"), 50000);
