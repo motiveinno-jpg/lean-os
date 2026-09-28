@@ -2648,12 +2648,34 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
   const sendPromotion = useMutation({
     mutationFn: (params: { employeeId: string; noticeType: "first" | "second"; unusedDays: number; email: string; employeeName: string }) =>
       sendLeavePromotionNotice({ companyId: companyId!, ...params, year: currentYear }),
-    onSuccess: () => {
+    onSuccess: (res: any, vars) => {
       queryClient.invalidateQueries({ queryKey: ["leave-promotion-notices"] });
       queryClient.invalidateQueries({ queryKey: ["leave-promotion-candidates"] });
+      //   2026-09-28: 기록은 남았는데 메일이 안 나간 경우를 조용히 넘기던 것 — 통보가 '됐다'고 믿으면 보상 의무 면제 요건이 빠진다
+      if (res?.emailSent === false) toast(`${vars.employeeName} ${vars.noticeType === "first" ? "1차" : "2차"} 통보 기록은 남았지만 이메일이 발송되지 않았습니다. 이메일 주소·발송 설정을 확인하고 다시 보내세요.`, "error");
+      else toast(`${vars.employeeName} 님에게 ${vars.noticeType === "first" ? "1차" : "2차"} 촉진 통보를 보냈습니다.`, "success");
     },
     onError: (err: any) => toast("촉진 알림 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
+  //   직원별 통보 여부 — 같은 차수를 두 번 보내지 않게, 표에서 '보냄 날짜'로 보인다 (2026-09-28)
+  const promoSent = useMemo(() => {
+    const m = new Map<string, { first?: string; second?: string }>();
+    for (const n of promotionNotices as any[]) {
+      const cur = m.get(n.employee_id) || {};
+      const d = n.sent_at ? kstDateStr(new Date(n.sent_at)) : "";
+      if (n.notice_type === "first" && !cur.first) cur.first = d; else if (n.notice_type === "second" && !cur.second) cur.second = d;
+      m.set(n.employee_id, cur);
+    }
+    return m;
+  }, [promotionNotices]);
+  //   법정 시기(근로기준법 §61, 회계연도 기준) — 1차 7/1~7/10 · 2차 10/31까지. 오늘이 어느 구간인지 한 줄로
+  const promoPhase = useMemo(() => {
+    const t = todayKst(), md = t.slice(5);
+    if (md < "07-01") return { text: "올해 통보는 7월부터입니다 (1차 7/1~7/10 · 2차 10/31까지)", tone: "" };
+    if (md <= "07-10") return { text: "지금이 1차 통보 기간입니다 (7/1~7/10). 미사용 연차가 있는 직원에게 서면(이메일)으로 보내세요", tone: "warn" };
+    if (md <= "10-31") return { text: "1차 기간(7/1~7/10)은 지났고, 2차 통보는 10/31까지입니다. 1차를 못 보낸 직원은 두 통보를 모두 마쳐야 보상 의무가 면제됩니다", tone: "warn" };
+    return { text: "올해 통보 기간(2차 10/31)이 지났습니다. 미통보 직원의 미사용 연차는 보상 대상입니다", tone: "danger" };
+  }, []);
 
   // Approve mutation
   const approveMut = useMutation({
@@ -3755,8 +3777,9 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
             <div className="leave-promotion-section">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-bold text-[var(--text-muted)]">연차촉진 관리</h3>
-                <span className="inv-hint">근로기준법 §61에 따라 소멸 6개월 전과 2개월 전에 통보합니다.</span>
+                <span className="inv-hint">근로기준법 §61 — 소멸 6개월 전(1차)과 2개월 전(2차) 두 번 서면 통보해야 미사용 연차 보상 의무가 면제됩니다.</span>
               </div>
+              <p className={promoPhase.tone === "danger" ? "inv-hint vr-warn" : "inv-hint"}>오늘 {todayKst()} · {promoPhase.text}</p>
 
               {(
                 <div className="space-y-4">
@@ -3784,27 +3807,22 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                               <td className="px-5 py-2.5 text-sm text-center">{c.usedDays}일</td>
                               <td className="px-5 py-2.5 text-sm text-center font-bold text-[var(--warning)]">{c.remainingDays}일</td>
                               <td className="px-5 py-2.5 text-center">
-                                <div className="flex gap-1 justify-center">
-                                  <button
-                                    onClick={() => c.email && sendPromotion.mutate({
-                                      employeeId: c.employeeId, noticeType: "first",
-                                      unusedDays: c.remainingDays, email: c.email, employeeName: c.employeeName,
-                                    })}
-                                    disabled={!c.email || sendPromotion.isPending}
-                                    className="text-[10px] px-2 py-1 rounded bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 disabled:opacity-50"
-                                  >
-                                    1차
-                                  </button>
-                                  <button
-                                    onClick={() => c.email && sendPromotion.mutate({
-                                      employeeId: c.employeeId, noticeType: "second",
-                                      unusedDays: c.remainingDays, email: c.email, employeeName: c.employeeName,
-                                    })}
-                                    disabled={!c.email || sendPromotion.isPending}
-                                    className="text-[10px] px-2 py-1 rounded bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 disabled:opacity-50"
-                                  >
-                                    2차
-                                  </button>
+                                {/*   보낸 차수는 날짜로, 안 보낸 차수만 버튼 — 같은 차수 중복 발송을 막고 누구를 빠뜨렸는지 한눈에 (2026-09-28) */}
+                                <div className="flex gap-1.5 justify-center items-center">
+                                  {(["first", "second"] as const).map((nt) => {
+                                    const sent = promoSent.get(c.employeeId)?.[nt];
+                                    const label = nt === "first" ? "1차" : "2차";
+                                    if (sent) return <span key={nt} className="ev-dim text-[11px] mono-number" title={`${label} 통보 보냄`}>{label} {sent.slice(5)}</span>;
+                                    const noFirst = nt === "second" && !promoSent.get(c.employeeId)?.first;
+                                    return (
+                                      <button key={nt} type="button" className="btn-secondary btn-sm"
+                                        disabled={!c.email || sendPromotion.isPending}
+                                        title={!c.email ? "직원 이메일이 없어 보낼 수 없습니다 — 구성원 정보에 이메일을 넣으세요" : noFirst ? "1차 통보 기록이 없습니다. 1차부터 보내는 것이 원칙입니다(다른 경로로 보냈다면 진행)" : `${label} 촉진 통보 이메일을 보냅니다`}
+                                        onClick={() => c.email && sendPromotion.mutate({ employeeId: c.employeeId, noticeType: nt, unusedDays: c.remainingDays, email: c.email, employeeName: c.employeeName })}>
+                                        {label} 통보
+                                      </button>
+                                    );
+                                  })}
                                 </div>
                               </td>
                             </tr>
