@@ -401,9 +401,19 @@ serve(withSentry("toss-charge", async (req: Request) => {
     const perSeatPeriod = yearly
       ? Math.round(perSeatMonthly * 12 * (1 - Number(plan.annual_discount || 0)))
       : perSeatMonthly;
-    const { count: empCount } = await supabase
-      .from("employees").select("id", { count: "exact", head: true })
-      .eq("company_id", s.company_id).in("status", ["active", "joined"]);
+    //   좌석 = 재직 구성원. 샘플 회사 체험으로 복사한 가짜 구성원은 빼야 해서 DB 함수 하나(company_seat_count)로 센다.
+    //   함수가 실패하면 청구를 멈추지 않고 종전 방식(샘플 포함)으로 센다 — 적게 청구하는 쪽으로 틀리지 않게.
+    const { data: seatRpc, error: seatErr } = await supabase.rpc("company_seat_count", { p_company: s.company_id });
+    let empCount = seatErr || seatRpc == null ? null : Number(seatRpc);
+    if (empCount == null) {
+      const { count } = await supabase
+        .from("employees").select("id", { count: "exact", head: true })
+        .eq("company_id", s.company_id).in("status", ["active", "joined"]);
+      empCount = count || 0;
+    }
+    const { data: sampleRows } = await supabase
+      .from("sample_data_rows").select("row_id").eq("company_id", s.company_id).eq("table_name", "employees");
+    const sampleIds = new Set(((sampleRows || []) as { row_id: string }[]).map((r) => r.row_id));
     const actualSeats = Math.max(1, empCount || 0);
 
     // 지난 주기 도중 좌석이 늘면 일할 가산, 줄면 일할 감액한다(2026-08-07 감액 추가).
@@ -427,8 +437,8 @@ serve(withSentry("toss-charge", async (req: Request) => {
           .eq("company_id", s.company_id).in("status", ["active", "joined"])
           .gte("created_at", new Date(pStartMs).toISOString())
           .order("created_at", { ascending: false })
-          .limit(delta);
-        for (const e of (newcomers || []) as { id: string; created_at: string }[]) {
+          .limit(delta + sampleIds.size);
+        for (const e of ((newcomers || []) as { id: string; created_at: string }[]).filter((x) => !sampleIds.has(x.id)).slice(0, delta)) {
           const days = Math.max(0, Math.round((pEndMs - new Date(e.created_at).getTime()) / 86400000));
           const amt = Math.round(perSeatPeriod * (days / periodDays));
           if (amt > 0) { prorationAmount += amt; prorationDetail.push({ employeeId: e.id, days, amount: amt, kind: "add" }); }

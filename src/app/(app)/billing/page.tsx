@@ -192,7 +192,10 @@ function BillingPageInner() {
       const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
       const iso = monthStart.toISOString();
       const [emp, deals, sigs, partners, codef] = await Promise.all([
-        db.from("employees").select("id", { count: "exact", head: true }).eq("company_id", companyId).in("status", ["active", "joined"]),
+        //   좌석 = 재직 구성원(샘플 체험으로 복사한 가짜 구성원 제외) — 월 청구(toss-charge)와 같은 DB 함수
+        (db.rpc as any)("company_seat_count", { p_company: companyId }).then(async (r: any) => r.error || r.data == null
+          ? await db.from("employees").select("id", { count: "exact", head: true }).eq("company_id", companyId).in("status", ["active", "joined"])
+          : { count: Number(r.data) }),
         db.from("deals").select("id", { count: "exact", head: true }).eq("company_id", companyId),
         db.from("signature_requests").select("id", { count: "exact", head: true }).eq("company_id", companyId).gte("created_at", iso),
         db.from("partners").select("id", { count: "exact", head: true }).eq("company_id", companyId),

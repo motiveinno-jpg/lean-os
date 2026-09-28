@@ -81,6 +81,9 @@ export function friendlyError(err: AnyErr, fallback = "일시적인 오류가 �
   if (raw.includes("CONTRACT_LIMIT_EXCEEDED")) {
     return "이번 달 전자계약 발송 한도를 모두 사용했습니다. 오너뷰 요금제로 올리면 무제한으로 보낼 수 있습니다. (설정 → 요금제)";
   }
+  if (raw.includes("SEAT_LIMIT_EXCEEDED")) {
+    return "무료 요금제는 구성원 5명(초대 중 포함)까지입니다. 오너뷰 요금제로 올리면 인원 제한 없이 등록할 수 있습니다. (설정 → 요금제)";
+  }
 
   // 1.6) Supabase Storage 업로드가 RLS 에 막힌 경우(storage-api 는 statusCode "403" 문자열로 온다).
   //   회사 저장공간 한도 게이트(storage_quota_gate, 2026-09-02)가 가장 흔한 원인 — 이유와 해결 경로를 알려준다.
