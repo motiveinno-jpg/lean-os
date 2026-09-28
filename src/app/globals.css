@@ -1477,8 +1477,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .leave-approval-chain-panel { @apply mt-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)]/50 p-4; }
 .leave-requests-table { @apply overflow-hidden; } /* 카드(.leave-roster) 안에 들어가므로 바깥 여백 없음 */
 .leave-promotion-section { @apply mt-6; }
-.certificate-issue-form { @apply p-6 mb-6; } /* co-exists with glass-card in JSX */
-.certificate-log-table { @apply overflow-hidden; } /* co-exists with glass-card in JSX */
 .certificate-yeartax-panel { @apply p-6 mb-6; } /* co-exists with glass-card in JSX */
 .yeartax-progress-bar { @apply mb-4; }
 .yeartax-status-table { @apply overflow-x-auto -mx-2; }
@@ -3939,11 +3937,8 @@ table.ap-policy-table { min-width: 960px; }
 .leave-req-scroll { max-height: 60vh; }
 /*   급여·증명서 탭 — 카드 껍데기는 얇은 안쪽 판으로, 표는 공용 머리단 */
 .qk-body .payroll-summary-cards .glass-card,
-.qk-body .certificate-issue-form.glass-card,
 .qk-body .certificate-yeartax-panel.glass-card { @apply mb-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-none; }
-.qk-body .certificate-issue-form.glass-card { @apply p-4; }
-.qk-body .payroll-detail-table.glass-card,
-.qk-body .certificate-log-table.glass-card { @apply rounded-none border-0 bg-transparent shadow-none; }
+.qk-body .payroll-detail-table.glass-card { @apply rounded-none border-0 bg-transparent shadow-none; }
 table.cert-log-tbl { min-width: 860px; } /* table. — .ev-table(뒤에 정의) 의 min-width 를 이긴다 */
 table.payroll-tbl { min-width: 1260px; } /* table. — .ev-table(뒤에 정의) 의 min-width 를 이긴다 */
 /* ── 근로계약·서식(/hr-templates) — 조회 표준 (2026-08-18 Wave 4) ── */
@@ -10905,3 +10900,6 @@ table.table-lbl { min-width: 640px; }
 /* 계약 발송·현황 — 상태 뒤 표시(기한 지남·문서 0건) (2026-09-28) */
 .ca-flag { @apply ml-1 inline-block rounded-full border border-[var(--border)] px-1.5 py-0.5 text-[10px] not-italic text-[var(--text-dim)]; }
 .ca-flag-warn { @apply border-[var(--danger)]/40 text-[var(--danger)]; }
+
+/* 증명서 발급 팝업 — 폼 격자 (2026-09-28, 표 위 상자를 팝업으로) */
+.cert-issue-grid { @apply grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3; }

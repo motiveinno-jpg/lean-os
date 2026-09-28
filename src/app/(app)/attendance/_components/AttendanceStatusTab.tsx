@@ -1,7 +1,7 @@
 "use client";
 
 // 근태 관리 › 근태 현황 ('월간 요약'을 근태 현황으로 — 조회기간(여러 달)·사람·부서 다중 지정·지표 조건)
-//   조회 줄 = [조회기간(월) · 검색조건 ▾ · 빠른검색] ‖ 모두 펼침/접기 · 엑셀
+//   조회 줄 = [조회기간(월) · 검색조건 ▾ · 빠른검색 · 보기 칩(직원별/현장별 · 부서 펼침/접기)] ‖ 엑셀
 //   검색조건 = 사람(다중 칩) · 부서(다중) · 이 기간에 …한 사람 · 출근율 이하 · 총 근무 범위
 //   표 = 부서 줄(합계·평균) → 직원 줄 → (여러 달이면) 월별 줄. 계산은 getMonthlyAttendanceSummary 를 달마다 불러 합친다(근태관리 표와 같은 규칙).
 
@@ -283,6 +283,9 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
   }, [rows, sort]);
   const autoOpen = rowsAll.length <= 15;
   const isOpen = (d: string) => (openDept.has(d) ? !!openDept.get(d) : autoOpen);
+  //   부서 펼침/접기 — 조회 줄의 '보기' 칩 하나로(2026-09-28). 전에는 실행 버튼 둘(모두 펼침·모두 접기)이 조회 줄 오른쪽에 있었다 — 값을 바꾸는 버튼은 조회 줄에 두지 않는다.
+  //   섞여 있으면(일부만 펼침) 어느 칩도 켜지지 않는다.
+  const deptFold: "open" | "closed" | "" = deptRows.length && deptRows.every((d) => isOpen(d.department)) ? "open" : deptRows.length && deptRows.every((d) => !isOpen(d.department)) ? "closed" : "";
 
   const allDepts = useMemo(() => [...new Set(rowsAll.map((r) => r.department))].sort(), [rowsAll]);
   const peopleItems = useMemo(() => employees.filter((e) => !["invited", "inactive", "resigned"].includes(e.status)).map((e) => ({ value: e.id, label: e.name || "(이름 없음)", sub: [e.department, e.position].filter(Boolean).join(" · ") })), [employees]);
@@ -358,11 +361,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
 
   return (
     <div className="att-status">
-      <QueryBar right={<>
-        <button type="button" className="btn-secondary btn-sm" onClick={() => setOpenDept(new Map(deptRows.map((d) => [d.department, true])))}>모두 펼침</button>
-        <button type="button" className="btn-secondary btn-sm" onClick={() => setOpenDept(new Map(deptRows.map((d) => [d.department, false])))}>모두 접기</button>
-        <ExcelMenu items={excel} />
-      </>}>
+      <QueryBar right={<ExcelMenu items={excel} />}>
         <DateRangeField label="조회기간" unit="month" parts="segments" from={fromYm} to={toYm} onChange={(f, t) => { setFromYm(f); setToYm(t); }} />
         <ConditionPanel open={panel} onOpenChange={(v) => { if (v) setDraft(cond); setPanel(v); }} activeCount={activeCount}
           foot={<>
@@ -378,6 +377,10 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
         </ConditionPanel>
         <QuickSearch value={q} onApply={setQ} placeholder="이름 · 부서 · 쉼표로 여러 개, Enter" />
         <ChipGroup value={view} onChange={setView} options={[{ value: "people", label: "직원별" }, { value: "site", label: "현장별", title: "출근 카드에서 고른 현장(프로젝트)별 인원·시간" }]} />
+        {view === "people" && deptRows.length > 0 && (
+          <ChipGroup value={deptFold} onChange={(v) => setOpenDept(new Map(deptRows.map((d) => [d.department, v === "open"])))}
+            options={[{ value: "open", label: "부서 펼침", title: "모든 부서의 직원 줄을 펼칩니다" }, { value: "closed", label: "부서 접기", title: "부서 합계 줄만 남깁니다" }] as const} />
+        )}
       </QueryBar>
       <AppliedChips chips={chips} onClearAll={() => { setCond(COND0); setQ(""); }} />
       <ResultStrip>

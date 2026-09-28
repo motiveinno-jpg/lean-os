@@ -74,7 +74,7 @@ import  { HrAllowancePolicyPanel } from "@/components/hr-attendance-settings";
 import { AttendanceBadges } from "@/components/attendance-badges";
 import { FlexPeopleDirectory } from "@/components/flex-people-directory";
 import { payrollStats, useCertificateStats } from "@/components/flex-hr-heroes";
-import { QueryScreen, QueryHead, QueryBody, ResultStrip, Stat, ChipGroup, ConditionPanel, ConditionRow, AppliedChips, QuickSearch, quickSearchHit, HelperMenu, ExcelMenu, type AppliedChip } from "@/components/query-kit";
+import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup, ConditionPanel, ConditionRow, AppliedChips, QuickSearch, quickSearchHit, HelperMenu, ExcelMenu, Pager, usePager, type AppliedChip } from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, useColWidths, useColFilters, type SortState } from "@/components/sortable-th";
 import { useModalKeys }  from "@/hooks/use-modal-keys";
 // recomputeMonthlyAllowancesForCompany 자동 호출은 504 인시던트 3차 (2026-05-21) 후 제거됨.
@@ -177,6 +177,9 @@ export default function EmployeesPage()  {
   const [retireOpen, setRetireOpen] = useState(false);
   const [insReport, setInsReport] = useState<"acquisition" | "loss" | null>(null);   // 4대보험 신고 파일 팝업
   const [todoOpen, setTodoOpen] = useState(false);
+  //   증명서 탭 (2026-09-28 갈래 정리) — 보기 칩 [발급 이력 | 연말정산 자료], 발급 폼은 팝업. 두 층 탭·상자 안 상자를 피한다.
+  const [certView, setCertView] = useState<"logs" | "yearend">("logs");
+  const [certIssueOpen, setCertIssueOpen] = useState(false);
   const { data: hrTodos, isLoading: todoLoading } = useQuery({ queryKey: ["hr-todos", companyId, todayKst(), employees.length], queryFn: () => fetchHrTodos(companyId!, employees), enabled: !!companyId && !isEmployee && employees.length > 0, staleTime: 120_000 });
   const { data: retireRows } = useQuery({ queryKey: ["retirement-est", companyId, todayKst()], queryFn: () => fetchRetirementEstimates(companyId!, todayKst()), enabled: !!companyId, staleTime: 300_000 });
   const retireTotal = retireRows ? retireRows.reduce((s, r) => s + r.estimate, 0) : null;
@@ -285,12 +288,15 @@ export default function EmployeesPage()  {
                 <Stat label="연 인건비" value={`₩${(pay.monthly * 12).toLocaleString()}`} />
               </ResultStrip>
             )}
-            {effectiveTab === "certificates" && (
+            {effectiveTab === "certificates" && (<>
+              <QueryBar right={<button type="button" className="btn-primary btn-sm" onClick={() => setCertIssueOpen(true)} title="재직·경력증명서를 PDF 로 발급합니다">증명서 발급</button>}>
+                <ChipGroup value={certView} onChange={setCertView} options={[{ value: "logs", label: "발급 이력" }, { value: "yearend", label: "연말정산 자료", title: "연말정산 간소화 자료 수집 현황" }] as const} />
+              </QueryBar>
               <ResultStrip>
                 <Stat label="이번 달 발급" value={`${certStats?.month ?? 0}건`} />
                 <Stat label="누적 발급" value={`${certStats?.total ?? 0}건`} />
               </ResultStrip>
-            )}
+            </>)}
           </QueryHead>
           <QueryBody>
             <div className="emp-scroll">
@@ -322,7 +328,7 @@ export default function EmployeesPage()  {
               )}
 
               {effectiveTab === "certificates" && (
-                <div className="certificate-tab-panel"><CertificateTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} /></div>
+                <div className="certificate-tab-panel"><CertificateTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} view={certView} issueOpen={certIssueOpen} onIssueClose={() => setCertIssueOpen(false)} /></div>
               )}
             </div>
           </QueryBody>
@@ -4101,7 +4107,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
 }
 
 // ── Certificate Tab ──
-function CertificateTab({ employees, companyId, userId, queryClient }: any) {
+function CertificateTab({ employees, companyId, userId, queryClient, view = "logs", issueOpen = false, onIssueClose }: any) {
   const { toast } = useToast();
   const [selectedEmpId, setSelectedEmpId] = useState("");
   const [certType, setCertType] = useState<"employment" | "career">("employment");
@@ -4132,6 +4138,8 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
 
   const activeEmployees = employees.filter((e: any) => ["active", "joined"].includes(e.status));
   const allEmployees = employees;
+  //   발급 이력은 표 + 쪽(기본 50) — 훅은 조기 return 앞
+  const pager = usePager(certLogs as any[], 50);
 
   const CERT_TYPES = [
     { value: "employment", label: "재직증명서" },
@@ -4213,6 +4221,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
       setPurpose("");
       setSubmitTo("");
       toast(`증명서가 발급되었습니다.\n증명서번호: ${result.certificateNumber}`, "success");
+      onIssueClose?.();
     } catch (err: any) {
       toast("증명서 발급 실패: " + (err?.message || err), "error");
     } finally {
@@ -4221,11 +4230,14 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
   };
 
   return (
-    <div>
-      {/* Issue Form — 실제 증명서 발급(최상단, 2026-06-29 순서 조정) */}
-      <div className="certificate-issue-form glass-card">
-        <h3 className="section-title">증명서 발급</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+    <>
+      {/* 발급 폼 — 팝업 (2026-09-28). 전에는 표 위의 상자(glass-card)였다 — 조회 화면 표준: 추가 폼은 팝업, 상자 안 상자 금지 */}
+      {issueOpen && (
+      <div className="inv-modal" onClick={onIssueClose}>
+      <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
+        <div className="inv-modal-head"><h3 className="text-sm font-bold">증명서 발급</h3><button type="button" className="inv-modal-x" aria-label="닫기" onClick={onIssueClose}>✕</button></div>
+        <p className="inv-modal-desc">재직·경력증명서를 PDF 로 만들고 발급 이력에 남깁니다. 경력증명서는 퇴사일이 등록된 직원만 됩니다.</p>
+        <div className="cert-issue-grid">
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1">직원 선택 *</label>
             <select
@@ -4263,30 +4275,22 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
               <span className="text-[10px] text-[var(--text-dim)]">(실물 날인 시 해제)</span>
             </label>
           </div>
-          <div className="flex items-end">
-            <button
-              onClick={handleIssue}
-              disabled={!selectedEmpId || isGenerating}
-              className="w-full btn-primary"
-            >
-              {isGenerating ? "발급 중..." : "발급"}
-            </button>
-          </div>
+        </div>
+        <div className="inv-modal-actions">
+          <button type="button" className="btn-secondary btn-sm" onClick={onIssueClose}>닫기</button>
+          <button type="button" className="btn-primary btn-sm" onClick={handleIssue} disabled={!selectedEmpId || isGenerating}>
+            {isGenerating ? "발급 중..." : "발급"}
+          </button>
         </div>
       </div>
+      </div>
+      )}
 
-      {/* Certificate Logs */}
-      <div className="certificate-log-table glass-card">
-        <div className="px-5 py-3 border-b border-[var(--border)]">
-          <span className="text-xs font-bold text-[var(--text-muted)]">발급 이력</span>
-        </div>
-        {certLogs.length === 0 ? (
-          <div className="p-16 text-center">
-            <div className="text-4xl mb-4"><Ico e="📜" /></div>
-            <div className="text-sm text-[var(--text-muted)]">아직 발급된 증명서가 없습니다.</div>
-            <div className="text-xs text-[var(--text-dim)] mt-1">직원을 선택해 발급해 보세요.</div>
-          </div>
-        ) : (
+      {/* 발급 이력 — 표 + 쪽. 연말정산 자료는 보기 칩으로 갈라 본다 */}
+      {view === "logs" && (
+        certLogs.length === 0 ? (
+          <div className="collect-empty">아직 발급된 증명서가 없습니다. 조회 줄의 「증명서 발급」으로 시작하세요.</div>
+        ) : (<>
           <div className="ev-scroll leave-req-scroll"><table className="ev-table ev-lined cert-log-tbl">
             <thead>
               <tr>
@@ -4301,7 +4305,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
               </tr>
             </thead>
             <tbody>
-              {certLogs.map((log: any) => (
+              {pager.view.map((log: any) => (
                 <tr key={log.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
                   <td className="px-5 py-3 text-xs font-mono text-[var(--primary)]">{log.certificate_number}</td>
                   <td className="px-5 py-3">
@@ -4327,14 +4331,13 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
               ))}
             </tbody>
           </table></div>
-        )}
-      </div>
+          <Pager page={pager.page} pages={pager.pages} total={certLogs.length} from={pager.from} to={pager.to} size={50} onPage={pager.setPage} />
+        </>)
+      )}
 
-      {/* 연말정산 간소화 자료 수집 — 증명서 발급/이력 아래로 이동(2026-06-29) */}
-      <div className="mt-6">
-        <YearEndTaxSection employees={activeEmployees} companyId={companyId} />
-      </div>
-    </div>
+      {/* 연말정산 간소화 자료 수집 — 보기 칩 '연말정산 자료' (2026-09-28, 전에는 이력 아래 세 번째 상자) */}
+      {view === "yearend" && <YearEndTaxSection employees={activeEmployees} companyId={companyId} />}
+    </>
   );
 }
 
