@@ -115,3 +115,24 @@ export async function deleteApprovalForm(id: string): Promise<void> {
   const { error } = await db.from("approval_forms").update({ is_active: false, updated_at: new Date().toISOString() }).eq("id", id);
   if (error) throw error;
 }
+
+/** 광고비 지출결의서만: 제목 뒤에 업체명을 붙인다(어느 업체 건인지 제목만으로 구분되게).
+ *  새 요청과 수정 저장이 같이 쓴다 — 새 요청에만 있어서, 업체명을 비워 올렸다가 수정으로 채우면 제목에 안 붙었다.
+ *  prevVendor(수정 전 업체명)가 제목 끝에 붙어 있으면 떼고 새 업체명으로 바꾼다. 이미 제목에 들어 있으면 중복 안 함. */
+export function titleWithAdVendor(
+  formName: string | null | undefined,
+  fields: Pick<ApprovalFormField, "key" | "label">[],
+  values: Record<string, unknown>,
+  title: string,
+  prevVendor?: string,
+): string {
+  if (!String(formName || "").replace(/\s/g, "").includes("광고비지출결의서")) return title;
+  const fd = fields.find((f) => /업체명/.test(String(f?.label || "")));
+  if (!fd) return title;
+  const vendor = String(values[fd.key] ?? "").trim();
+  let base = title.trim();
+  const prev = String(prevVendor ?? "").trim();
+  if (prev && prev !== vendor && base.endsWith(` — ${prev}`)) base = base.slice(0, -` — ${prev}`.length).trim();
+  if (!vendor || !base || base.includes(vendor)) return base || title;
+  return `${base} — ${vendor}`;
+}

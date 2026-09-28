@@ -61,7 +61,7 @@ import { ApprovalFormsManager } from "@/components/approval-forms-manager";
 import { useConfirm } from "@/components/confirm-dialog";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { useAvatarMap } from "@/hooks/use-avatar-map";
-import { listApprovalForms, type ApprovalForm } from "@/lib/approval-forms";
+import { listApprovalForms, titleWithAdVendor, type ApprovalForm } from "@/lib/approval-forms";
 import { computeHalfDaySlot, LEAVE_TYPES, calcLeaveDays } from "@/lib/hr";
 import { generateApprovalPdf } from "@/lib/document-generator";
 import { approvalDraftDate } from "@/lib/approval-pdf";
@@ -1710,10 +1710,15 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
         : fields.length > 0
           ? (amountField ? (Number(String(editFieldValues[amountField.key] ?? "").replace(/[^0-9.-]/g, "")) || 0) : undefined)
           : (Number(String(editForm.amount).replace(/[^0-9.-]/g, "")) || 0);
+      const formName = editReq.form_id
+        ? (editForms as ApprovalForm[]).find((f) => f.id === editReq.form_id)?.name
+        : editReq.request_type;
+      const vendorKey = fields.find((fd) => /업체명/.test(String(fd.label || "")))?.key;
       await updateApprovalRequest({
         requestId: editReq.id,
         userId,
-        title: editForm.title.trim() || editReq.title,
+        title: titleWithAdVendor(formName, fields, editFieldValues, editForm.title.trim() || editReq.title,
+          vendorKey ? String(editReq.custom_fields?.[vendorKey] ?? "") : undefined),
         amount,
         description: finalDesc,
         // 구조화 데이터(휴가·초과근무)는 양식 필드 목록에 없으므로 여기서 살려 둬야 한다 —
@@ -3218,18 +3223,10 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     enabled: !!companyId && isExpenseForm,
     staleTime: 300_000,
   });
-  // 광고비 지출결의서만: 업체명 필드 값을 제목 뒤에 붙인다 (어느 업체 건인지
-  //   제목만으로 구분되게. "다른 건 건들지 말고 광고비지출결의서만"). 이미 제목에 들어 있으면 중복 방지.
-  const vendorFieldVal = (() => {
-    if (!String(selectedForm?.name || "").replace(/\s/g, "").includes("광고비지출결의서")) return "";
-    const fd = (activeFields as any[]).find((f) => /업체명/.test(String(f?.label || "")));
-    return fd ? String(customFieldValues[fd.key] || "").trim() : "";
-  })();
+  // 광고비 지출결의서만 제목 뒤에 업체명 — 규칙은 titleWithAdVendor 한 곳(수정 저장도 같이 쓴다)
   const effectiveTitle = isLeave
     ? leaveTitle
-    : (vendorFieldVal && form.title.trim() && !form.title.includes(vendorFieldVal)
-        ? `${form.title.trim()} — ${vendorFieldVal}`
-        : form.title);
+    : titleWithAdVendor(selectedForm?.name, activeFields as any[], customFieldValues, form.title);
   // 커스텀 결재양식은 양식 자체 필드가 기준 — 일반 '금액' 입력은 숨기고(중복·혼란),
   //   양식(또는 기본 유형 정책)에 금액 타입 필드가 있으면 그 값을 결재 금액으로 사용, 없으면 금액 없는 결재(0).
   const formAmountField = activeFields.find((fd: any) => fd.type === "amount") || null;
