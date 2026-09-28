@@ -22,7 +22,7 @@ import type { Product } from "@/lib/inventory";
 import {
   listClaims, createClaim, deleteClaim, orderLinesOf, CLAIM_KIND_LABEL, type Claim, type ClaimKind, type OrderLine,
   listSettlements, importSettlements, deleteSettlementBatch, parseSettlementTsv, guessSettleColumns, settlementSummary, unsettledImports,
-  makeSettlementVoucherDraft, batchTotals, listAccountOptions, unlinkRejectedVoucher,
+  makeSettlementVoucherDraft, batchTotals, listAccountOptions, unlinkRejectedVoucher, fetchSettlementBankLinks, linkSettlementBankTx,
   SETTLE_FIELDS, UNSETTLED_DAYS, type Settlement, type SettleField, type SettleRow,
 } from "@/lib/inventory-claims";
 
@@ -204,8 +204,10 @@ export function useClaimsPanel({ companyId, userId, imports, products, canWrite,
 
 // ── 정산 ──────────────────────────────────────────────────────────────────
 type SettleKey = "date" | "channel" | "no" | "sale" | "fee" | "settle";
-export function useSettlePanel({ companyId, userId, imports, claims, canWrite }: {
+export function useSettlePanel({ companyId, userId, imports, claims, canWrite, canLink = false }: {
   companyId: string | null; userId: string | null; imports: OrderImport[]; claims: Claim[]; canWrite: boolean;
+  /** 통장 줄을 전표에 걸 권한(수집·전표) — 없으면 후보만 보이고 잇기 버튼은 꺼진다 */
+  canLink?: boolean;
 }): { head: ReactNode; body: ReactNode; pagerEl: ReactNode; dialog: ReactNode; settlements: Settlement[] } {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -271,6 +273,43 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite }:
   }, [voucherBatch, acctOpts, savedAcc, totals.to]);
   //   반려된 초안은 '없는 것'으로 본다 — 다시 만들 때 연결을 풀고 만든다
   const liveVoucher = (s: Settlement) => !!s.journal_entry_id && s.journal_status !== "rejected";
+  //   확정 전표 ↔ 통장 입금 대조 — 전표별 Σ정산금으로 입금 후보를 찾는다(±1원, 전표일 −3~+14일)
+  const confirmedEntries = useMemo(() => {
+    const m = new Map<string, { entryId: string; entryDate: string; settle: number }>();
+    for (const s of settlements) {
+      if (!s.journal_entry_id || s.journal_status !== "confirmed") continue;
+      const cur = m.get(s.journal_entry_id) || { entryId: s.journal_entry_id, entryDate: s.settled_at, settle: 0 };
+      cur.settle += s.settle_amount; if (s.settled_at > cur.entryDate) cur.entryDate = s.settled_at;
+      m.set(s.journal_entry_id, cur);
+    }
+    return [...m.values()];
+  }, [settlements]);
+  const { data: bankLinks } = useQuery({
+    queryKey: ["ch-settle-bank", companyId, confirmedEntries.map((e) => `${e.entryId}:${e.settle}`).join("|")],
+    queryFn: () => fetchSettlementBankLinks(companyId!, confirmedEntries), enabled: !!companyId && confirmedEntries.length > 0, staleTime: 60_000,
+  });
+  const [linkFor, setLinkFor] = useState<string | null>(null);   // 팝업을 연 전표 id
+  const [linking, setLinking] = useState<string | null>(null);
+  const doLink = async (txId: string, entryId: string) => {
+    if (linking) return;
+    setLinking(txId);
+    try {
+      const ok = await linkSettlementBankTx(txId, entryId);
+      toast(ok ? "통장 입금 줄을 정산 전표에 걸었습니다. 수집·전표 통장 탭에서 '전표됨'으로 보입니다." : "이미 다른 전표가 걸린 줄입니다", ok ? "success" : "info");
+      setLinkFor(null);
+      qc.invalidateQueries({ queryKey: ["ch-settle-bank"] }); qc.invalidateQueries({ queryKey: ["bank-rows"] });
+    } catch (e) { toast(friendlyError(e, "연결 실패"), "error"); }
+    finally { setLinking(null); }
+  };
+  const bankCell = (s: Settlement): ReactNode => {
+    if (!liveVoucher(s)) return null;
+    if (s.journal_status !== "confirmed") return <span className="ev-dim" title="전표를 확정하면 통장 입금 줄과 대조합니다">확정 후 대조</span>;
+    const l = bankLinks?.get(s.journal_entry_id!);
+    if (!l) return <span className="ev-dim">…</span>;
+    if (l.linked.length) return <span title={l.linked.map((t) => `${t.transaction_date} ${t.counterparty || ""} ₩${won(t.amount)}`).join("\n")}>입금 대조됨 <span className="mono-number">{l.linked[0].transaction_date.slice(5)}</span></span>;
+    if (l.candidates.length) return <button type="button" className="btn-secondary btn-sm" onClick={() => setLinkFor(s.journal_entry_id!)} title="같은 금액의 통장 입금 줄이 있습니다 — 골라서 전표에 겁니다">입금 잇기 ({l.candidates.length})</button>;
+    return <span className="ev-dim" title="전표일 −3~+14일 안에 정산금과 같은 금액의 입금이 없습니다. 통장이 수집되면 다시 보입니다">입금 후보 없음</span>;
+  };
   const batchHasVoucher = (batchId: string) => settlements.some((s) => s.batch_id === batchId && liveVoucher(s));
   const acctLabel = (id?: string) => { const a = acctOpts.find((x) => x.id === id); return a ? `${a.code || ""} ${a.name}`.trim() : "—"; };
   const voucherReady = !!(acc.bank && acc.fee && acc.ship && acc.sales) && (totals.diff === 0 || !!acc.diff);
@@ -389,7 +428,7 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite }:
             <SortableTh label="수수료" sortKey="fee" sort={sort} onSort={onSort} />
             <th>배송비</th>
             <SortableTh label="정산금" sortKey="settle" sort={sort} onSort={onSort} />
-            <th>대조</th><th>전표</th>{canWrite && <th></th>}
+            <th>대조</th><th>전표</th><th>통장 입금</th>{canWrite && <th></th>}
           </tr></thead>
           <tbody>{pager.view.map((s) => { const i = s.import_id ? impById.get(s.import_id) : undefined; return (
             <tr key={s.id}>
@@ -403,6 +442,7 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite }:
               <td className={`tr mono-number ${s.settle_amount < 0 ? "vr-warn" : ""}`}><b>₩{won(s.settle_amount)}</b></td>
               <td className="tc">{s.import_id ? <span title="주문 가져오기 기록과 이어짐">주문 있음</span> : <span className="ev-dim" title="주문 가져오기에 이 주문번호가 없습니다">주문 없음</span>}</td>
               <td className="tc">{liveVoucher(s) ? <span title={s.journal_status === "confirmed" ? "정산 전표가 확정됐습니다" : "이 묶음의 정산 전표 초안이 있습니다 · 전표 현황에서 확정"}>{s.journal_status === "confirmed" ? "확정" : "초안 있음"}</span> : s.journal_entry_id ? <span className="ev-dim" title="전표가 반려됐습니다 · 다시 만들 수 있습니다">반려됨</span> : <span className="ev-dim">—</span>}</td>
+              <td className="tc">{bankCell(s) ?? <span className="ev-dim">—</span>}</td>
               {canWrite && <td className="tc"><span className="ol-gap-actions">
                 {!liveVoucher(s) && <button type="button" className="btn-secondary btn-sm" onClick={() => setVoucherBatch(s.batch_id)} title="이 줄이 속한 붙여넣기 묶음 합계로 정산 전표 초안을 만듭니다">전표 초안</button>}
                 <button type="button" className="btn-secondary btn-sm" disabled={batchHasVoucher(s.batch_id)} onClick={() => removeBatch(s)} title={batchHasVoucher(s.batch_id) ? "전표 초안이 있는 묶음은 지울 수 없습니다 — 전표를 먼저 반려하세요" : "이 줄이 속한 붙여넣기 묶음을 지웁니다"}>묶음 지우기</button>
@@ -456,8 +496,27 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite }:
     </div>
   ) : null;
 
+  const linkDialog = linkFor && bankLinks?.get(linkFor) ? (() => {
+    const l = bankLinks.get(linkFor)!; const e = confirmedEntries.find((x) => x.entryId === linkFor);
+    return (
+      <div className="inv-modal" onClick={() => setLinkFor(null)}>
+        <div className="inv-modal-box" onClick={(ev) => ev.stopPropagation()}>
+          <h3 className="inv-modal-title">통장 입금 잇기</h3>
+          <p className="inv-modal-desc">정산 전표(정산금 ₩{won(e?.settle || 0)}, {e?.entryDate})와 같은 금액의 통장 입금 줄입니다. 하나를 고르면 그 줄은 이 전표로 처리되고 수집·전표 통장 탭에서 「전표됨」이 됩니다.{!canLink && <b> 수집·전표 권한이 없어 볼 수만 있습니다.</b>}</p>
+          <table className="ev-table ev-lined ch-st-table"><thead><tr><th>거래일</th><th className="text-left">상대</th><th className="text-left">적요</th><th>금액</th><th></th></tr></thead>
+            <tbody>{l.candidates.map((t) => (
+              <tr key={t.id}><td className="mono-number">{t.transaction_date}</td><td className="text-left">{t.counterparty || "—"}</td><td className="text-left ev-dim">{t.description || "—"}</td><td className="tr mono-number">₩{won(t.amount)}</td>
+                <td className="tc"><button type="button" className="btn-primary btn-sm" disabled={!canLink || !!linking} onClick={() => doLink(t.id, linkFor)}>{linking === t.id ? "잇는 중…" : "이 입금으로"}</button></td></tr>
+            ))}</tbody></table>
+          <div className="inv-modal-actions"><button type="button" className="btn-secondary btn-sm" onClick={() => setLinkFor(null)}>닫기</button></div>
+        </div>
+      </div>
+    );
+  })() : null;
+
   const dialog = (<>
     {voucherDialog}
+    {linkDialog}
     {open && (
     <div className="inv-modal" onClick={() => setOpen(false)}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>

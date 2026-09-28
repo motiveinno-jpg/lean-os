@@ -272,6 +272,49 @@ export async function listAccountOptions(companyId: string): Promise<AccountOpt[
   return ((data || []) as any[]).map((a) => ({ id: a.id, code: a.code ? String(a.code) : null, name: a.name, account_type: a.account_type ?? null }));
 }
 
+// ── 정산 전표 ↔ 통장 입금 줄 대조 (2026-09-28 1단계 후속) ──
+//   전표의 보통예금 차변 = Σ정산금. 통장에 그 금액의 입금이 있으면 전표에 건다(link_transaction_to_entry — 확정 전표만, 권한·마감은 서버).
+//   수집·전표의 중복 의심 팝업은 '차변 합계(=매출 총액)'로 찾아 정산 입금(정산금)과 맞지 않는다 — 그래서 여기서 정산금으로 찾는다.
+export type BankTx = { id: string; transaction_date: string; amount: number; counterparty: string | null; description: string | null };
+export type EntryBankLink = { entryId: string; linked: BankTx[]; candidates: BankTx[] };
+export async function fetchSettlementBankLinks(companyId: string, entries: { entryId: string; entryDate: string; settle: number }[]): Promise<Map<string, EntryBankLink>> {
+  const out = new Map<string, EntryBankLink>();
+  if (!companyId || !entries.length) return out;
+  for (const e of entries) out.set(e.entryId, { entryId: e.entryId, linked: [], candidates: [] });
+  const ids = entries.map((e) => e.entryId);
+  const linked = logRead("inventory:settle-bank-linked", await db.from("bank_transactions").select("id, journal_entry_id, transaction_date, amount, counterparty, description").eq("company_id", companyId).in("journal_entry_id", ids));
+  for (const r of ((linked || []) as any[])) out.get(r.journal_entry_id)?.linked.push({ id: r.id, transaction_date: r.transaction_date, amount: Number(r.amount || 0), counterparty: r.counterparty, description: r.description });
+  const open = entries.filter((e) => !(out.get(e.entryId)?.linked.length));
+  if (!open.length) return out;
+  const dates = open.map((e) => e.entryDate).sort();
+  const from = new Date(dates[0]); from.setDate(from.getDate() - 3);
+  const to = new Date(dates[dates.length - 1]); to.setDate(to.getDate() + 14);
+  const ymd = (d: Date) => d.toISOString().slice(0, 10);
+  const cands = await fetchPaged<any>("inventory:settle-bank-cands", () => db.from("bank_transactions")
+    .select("id, transaction_date, amount, counterparty, description, type")
+    .eq("company_id", companyId).is("journal_entry_id", null).is("ledger_excluded_reason", null)
+    .gte("transaction_date", ymd(from)).lte("transaction_date", ymd(to)).gt("amount", 0).order("transaction_date").order("id"), 5000);
+  for (const e of open) {
+    const want = Math.round(e.settle);
+    if (want <= 0) continue;
+    const hits = cands.filter((c) => !["expense", "withdrawal", "출금", "out"].includes(String(c.type || "")) && Math.abs(Math.round(Number(c.amount)) - want) <= 1)
+      .sort((a, b) => Math.abs(new Date(a.transaction_date).getTime() - new Date(e.entryDate).getTime()) - Math.abs(new Date(b.transaction_date).getTime() - new Date(e.entryDate).getTime()))
+      .slice(0, 5)
+      .map((c) => ({ id: c.id, transaction_date: c.transaction_date, amount: Number(c.amount || 0), counterparty: c.counterparty, description: c.description }));
+    out.get(e.entryId)!.candidates = hits;
+  }
+  return out;
+}
+/** 통장 입금 줄을 정산 전표에 건다 — 확정 전표만(서버가 검사). false = 이미 다른 전표가 걸린 줄 */
+export async function linkSettlementBankTx(txId: string, entryId: string): Promise<boolean> {
+  const { linkTransactionToEntry } = await import("@/lib/dup-voucher");
+  try { return await linkTransactionToEntry("bank", txId, entryId); }
+  catch (e: any) {
+    const m: Record<string, string> = { FORBIDDEN: "통장 줄을 전표에 걸 권한이 없습니다 (수집·전표 권한 필요)", NOT_FOUND_OR_INVALID: "확정된 전표에만 걸 수 있습니다. 전표 현황에서 먼저 확정하세요", PERIOD_LOCKED: "그 달은 마감돼 걸 수 없습니다" };
+    throw new Error(m[e?.message] || e?.message || "연결 실패");
+  }
+}
+
 /** 채널별 정산 요약 + 실측 수수료율 vs 설정(결정 270). 미정산 = 출고 14일 지난 주문에 정산 줄이 없는 것 */
 export const UNSETTLED_DAYS = 14;
 export type SettleSummary = { channel: string; n: number; matched: number; sale: number; fee: number; ship: number; settle: number; feeRateActual: number | null; feeRateSet: number | null };

@@ -183,7 +183,8 @@ export default function ChannelsPage() {
   //   클레임·정산 갈래 (2026-09-28). 클레임은 반품 입고 문서를 만드니 재고 캐시도 같이 비운다
   const claimsPanel = useClaimsPanel({ companyId, userId, imports, products, canWrite,
     onDone: () => { for (const k of ["inv-onhand", "inv-available", "inv-moves"]) qc.invalidateQueries({ queryKey: [k, companyId] }); } });
-  const settlePanel = useSettlePanel({ companyId, userId, imports, claims: claimsPanel.claims, canWrite });
+  //   통장 입금 줄을 전표에 거는 권한은 수집·전표(link_transaction_to_entry 가 검사하는 것과 같은 키)
+  const settlePanel = useSettlePanel({ companyId, userId, imports, claims: claimsPanel.claims, canWrite, canLink: isMaster || hasPerm("/collect") });
   //   현황의 주문 금액에서 취소·반품 환불액을 뺀다(결정 268)
   const stRefund = useMemo(() => {
     const m = refundByChannel(claimsPanel.claims, imports, (i) => (i.order_date || "") >= stData.fromStr && (i.order_date || "") <= stData.todayStr && (!stCh || i.channel === stCh));
