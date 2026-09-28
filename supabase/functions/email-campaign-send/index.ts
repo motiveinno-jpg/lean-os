@@ -147,9 +147,10 @@ Deno.serve(withSentry("email-campaign-send", async (req: Request) => {
     const now = new Date().toISOString();
     if (ok) {
       for (let k = 0; k < chunk.length; k++) {
+        //   queued 일 때만 — 도착·반송 알림이 이 갱신보다 먼저 와서 상태를 바꿔 놨으면 'sent' 로 되돌리지 않는다.
         await admin.from("email_campaign_recipients")
           .update({ status: "sent", resend_id: ids[k] || null, sent_at: now, updated_at: now })
-          .eq("campaign_id", campaignId).eq("email", chunk[k]);
+          .eq("campaign_id", campaignId).eq("email", chunk[k]).eq("status", "queued");
       }
       sent += chunk.length;
     } else {

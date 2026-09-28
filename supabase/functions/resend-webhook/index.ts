@@ -106,12 +106,26 @@ Deno.serve(withSentry("resend-webhook", async (req) => {
   //   반송·스팸신고는 수신거부 목록(email_optouts)에 넣어 다음 발송에서 자동으로 빠지게 한다.
   const emailId: string | undefined = d?.email_id;
   if (emailId) {
-    const { data: rcpt } = await admin.from("email_campaign_recipients")
+    let { data: rcpt } = await admin.from("email_campaign_recipients")
       .select("id, campaign_id, email").eq("resend_id", emailId).maybeSingle();
+    //   도착 알림이 발송 함수가 resend_id 를 적기 전에 올 수 있다(100통 묶음 뒤 행을 하나씩 갱신하는 몇 초 사이).
+    //   그때는 메일에 붙인 campaign 태그 + 받는 주소로 아직 queued 인 행을 찾는다.
+    if (!rcpt) {
+      const tags = d?.tags;
+      const campaignId: string | undefined = Array.isArray(tags)
+        ? tags.find((t: { name?: string }) => t?.name === "campaign")?.value
+        : tags?.campaign;
+      if (campaignId) {
+        const { data: byTag } = await admin.from("email_campaign_recipients")
+          .select("id, campaign_id, email").eq("campaign_id", campaignId).eq("email", String(to).toLowerCase())
+          .in("status", ["queued", "sent"]).maybeSingle();
+        rcpt = byTag;
+      }
+    }
     if (rcpt) {
       const now = new Date().toISOString();
       await admin.from("email_campaign_recipients")
-        .update({ status, error: status === "bounced" || status === "complained" ? (detailOf() || event.type).slice(0, 300) : null, updated_at: now })
+        .update({ status, resend_id: emailId, error: status === "bounced" || status === "complained" ? (detailOf() || event.type).slice(0, 300) : null, updated_at: now })
         .eq("id", rcpt.id);
       if (status === "bounced" || status === "complained") {
         await admin.from("email_optouts").upsert(
