@@ -71,10 +71,10 @@ export function ScheduleItemDialog({
         allDay: true, color: d.color,
         visibility: d.visibility, targetUserIds: d.targetUserIds, targetDepartments: d.targetDepartments,
         attachments: d.attachments,
-        //   반복(결정 145). 날짜 없으면 반복도 없음. 반복 일정의 알림은 1차 미지원이라 비운다
+        //   반복(결정 145). 날짜 없으면 반복도 없음. 반복 일정의 알림은 회차마다 간다(schedule_reminders_tick)
         recurrence: a && d.recurFreq ?  { freq: d.recurFreq, ...(d.recurFreq === "weekly" ? { weekday: d.recurWeekday } : {}) } : null,
         reminder: null,
-        reminders: a && !d.recurFreq ? d.reminders : [],
+        reminders: a ? d.reminders : [],
       });
     },
     onSuccess: () => { refresh(); onClose(); toast("저장했습니다.", "success"); },

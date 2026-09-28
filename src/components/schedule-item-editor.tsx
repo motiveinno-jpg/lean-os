@@ -53,8 +53,10 @@ export type ScheduleDraft = {
   recurWeekday: number;
   /** 반복의 한 회차(가상 `id@날짜`)를 여는 중 — 저장하면 그 날짜만 바뀐다. 반복 규칙은 원본에서 */
   occurrence?: boolean;
-  /** 알림 목록 — 며칠 전 · 몇 시(KST). 반복 일정은 저장 시 비워진다(1차 미지원) (시간대·하루 전·일주일 전·여러 개) */
+  /** 알림 목록 — 며칠 전 · 몇 시(KST). 반복 일정이면 회차마다 그 회차 날짜 기준 */
   reminders: ScheduleReminder[];
+  /** 반복에서 떼어낸 회차 행 — 알림을 비워 두면 반복 전체의 알림을 따른다 */
+  seriesChild?: boolean;
 };
 
 /** 저장된 일정 → 편집용 초안. 새로 만들 때는 날짜만 넣어 부르면 된다. */
@@ -77,6 +79,7 @@ export function draftFromEvent(e?: Partial<ScheduleEvent> | null, fallback?: { f
     recurFreq: (e?.recurrence?.freq as ScheduleDraft["recurFreq"]) || "",
     recurWeekday: e?.recurrence?.weekday ?? new Date(`${from || "2026-01-05"}T00:00:00`).getDay(),
     reminders: remindersOf(e),
+    seriesChild: !!e?.recurrence_parent_id,
   };
 }
 
@@ -282,7 +285,7 @@ export function ScheduleItemEditor({
         {draft.recurFreq && !draft.occurrence && <p className="sched-note" title="매월 반복은 그 날짜가 없는 달을 건너뜁니다. 달력에서 회차 하나를 열어 고치면 그 날짜만 바뀝니다.">달력에 회차가 펼쳐집니다. 각 회차의 완료·수정·삭제는 <b>그 날짜만</b>, 여기서 고치면 <b>아직 손대지 않은 회차 전체</b>에 적용됩니다.</p>}
 
         {/* 알림 — 발송 게이트가 켜진 회사에만 보인다(안 켜진 회사에 보여주면 거짓말) */}
-        {remindReady && (
+        {remindReady && !draft.occurrence && (
           <div className="sched-field sched-field-top">
             <span>알림</span>
             <div className="sched-rem-list">
@@ -292,7 +295,7 @@ export function ScheduleItemEditor({
                 const upd = (patch: Partial<ScheduleReminder>) => set({ reminders: draft.reminders.map((x, k) => (k === i ? { ...x, ...patch } : x)) });
                 return (
                   <div key={i} className="sched-rem-row">
-                    <select className="sched-in sched-rem-when" value={preset} disabled={!draft.from || !!draft.recurFreq} aria-label="며칠 전"
+                    <select className="sched-in sched-rem-when" value={preset} disabled={!draft.from} aria-label="며칠 전"
                       onChange={(e) => { const v = e.target.value; if (v === "custom") upd({ days_before: 5 }); else upd({ days_before: Number(v) }); }}>
                       <option value="0">당일</option>
                       <option value="1">1일 전</option>
@@ -309,16 +312,16 @@ export function ScheduleItemEditor({
                         <span className="sched-rem-unit">일 전</span>
                       </span>
                     )}
-                    <select className="sched-in sched-rem-hh" value={hh} disabled={!draft.from || !!draft.recurFreq} aria-label="시"
+                    <select className="sched-in sched-rem-hh" value={hh} disabled={!draft.from} aria-label="시"
                       onChange={(e) => upd({ time: `${e.target.value}:${mm || "00"}` })}>
                       {Array.from({ length: 24 }, (_, h) => String(h).padStart(2, "0")).map((h) => <option key={h} value={h}>{h}시</option>)}
                     </select>
-                    <select className="sched-in sched-rem-mm" value={mm || "00"} disabled={!draft.from || !!draft.recurFreq} aria-label="분"
+                    <select className="sched-in sched-rem-mm" value={mm || "00"} disabled={!draft.from} aria-label="분"
                       onChange={(e) => upd({ time: `${hh || "08"}:${e.target.value}` })}>
                       {["00", "10", "20", "30", "40", "50"].map((m) => <option key={m} value={m}>{m}분</option>)}
                     </select>
                     <label className="sched-rem-mail" title="이 알림을 메일로도 받습니다 (일정을 만든 사람에게)">
-                      <input type="checkbox" checked={!!r.email} disabled={!draft.from || !!draft.recurFreq}
+                      <input type="checkbox" checked={!!r.email} disabled={!draft.from}
                         onChange={(e) => upd({ email: e.target.checked })} />
                       <span>메일</span>
                     </label>
@@ -327,7 +330,7 @@ export function ScheduleItemEditor({
                 );
               })}
               {draft.reminders.length < 5 && (
-                <button type="button" className="sched-rem-add" disabled={!draft.from || !!draft.recurFreq}
+                <button type="button" className="sched-rem-add" disabled={!draft.from}
                   onClick={() => set({ reminders: [...draft.reminders, draft.reminders.length === 0 ? { days_before: 0, time: "08:30" } : { days_before: 1, time: "08:30" }] })}>
                   + 알림 추가{draft.reminders.length === 0 ? " (예: 당일 08:30)" : ""}
                 </button>
@@ -335,7 +338,10 @@ export function ScheduleItemEditor({
             </div>
           </div>
         )}
-        {remindReady && !!draft.recurFreq && <p className="sched-note">반복 일정에는 아직 알림을 보내지 않습니다.</p>}
+        {/* 가상 회차 저장은 그 날짜 내용만 떼어내고 알림은 싣지 않는다 — 칸을 보여 주면 저장되는 척이 된다 */}
+        {remindReady && draft.occurrence && <p className="sched-note">알림은 반복 전체 설정을 따릅니다. 바꾸려면 <b>반복 전체</b>를 고칩니다.</p>}
+        {remindReady && !draft.occurrence && !!draft.recurFreq && draft.reminders.length > 0 && <p className="sched-note">알림은 <b>회차마다</b> 그 회차 날짜 기준으로 <b>나에게</b> 옵니다.</p>}
+        {remindReady && !draft.recurFreq && draft.seriesChild && draft.reminders.length === 0 && <p className="sched-note">비워 두면 반복 전체의 알림을 따릅니다.</p>}
         {remindReady && !draft.recurFreq && draft.reminders.length > 0 && <p className="sched-note">알림은 시작 날짜 기준으로 <b>나에게</b> 옵니다.</p>}
 
         <div className="sched-field">
