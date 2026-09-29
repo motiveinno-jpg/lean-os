@@ -86,7 +86,6 @@ function extractTokens(...sources: any[]): string[] {
 export function OrgBulkWizard({
   companyId,
   userId,
-  documents,
   contractTemplates = [],
   templateOrder = [],
   onClose,
@@ -94,7 +93,7 @@ export function OrgBulkWizard({
 }: {
   companyId: string;
   userId: string;
-  documents: any[];
+  documents?: any[];             // 레거시(호환용) — 실체화 사본은 발송 시 DB 에서 찾는다
   docTemplates?: any[];          // 레거시(호환용) — 발송 양식 소스는 contractTemplates 로 일원화(2026-07-23)
   contractTemplates?: any[];
   templateOrder?: string[];      // 회사 공통 노출 순서(id 배열) — 드래그로 변경, company_settings 저장
@@ -108,7 +107,7 @@ export function OrgBulkWizard({
   // 100개+ 대량 발송 진행률 (chunk 완료마다 갱신)
   const [progress, setProgress] = useState<{ done: number; total: number; sent: number; failed: number } | null>(null);
 
-  // 계약 양식(contract_templates)을 발송 목록에 노출 — 선택 시 실제 documents 행으로 실체화.
+  // 계약 양식(contract_templates)을 발송 목록에 노출 — 발송할 때 실제 documents 행으로 실체화.
   const bizTemplates = useMemo(() => contractTemplates, [contractTemplates]);
   // 2026-08-03 대표: 우리 회사 양식은 '문서' 그룹에, 표준(기본) 양식은 '양식 관리' 그룹에.
   const companyTpls = useMemo(() => (contractTemplates as any[]).filter((t: any) => !t.is_system), [contractTemplates]);
@@ -122,7 +121,7 @@ export function OrgBulkWizard({
   const effectiveOrder = localOrder ?? templateOrder;
   type PickItem = { kind: "tpl"; id: string; tpl: any };
   // 2026-08-10 대표: 발송 목록에는 양식관리의 계약서 양식만 — documents 원본(프로젝트에서
-  //   생성된 계약서 등)은 목록에서 제외. documents 는 실체화 사본 재사용(중복 방지)에만 쓴다.
+  //   생성된 계약서 등)은 목록에서 제외. 실체화 사본 재사용은 materializeContractTemplate 가 DB 에서 찾는다.
   const docSection: PickItem[] = useMemo(() => sortTemplatesByOrder(
     companyTpls.map((t: any) => ({ kind: "tpl" as const, id: t.id as string, tpl: t })),
     effectiveOrder), [companyTpls, effectiveOrder]);
@@ -170,31 +169,15 @@ export function OrgBulkWizard({
     onDrop: () => handleDrop(section, id),
     onDragEnd: () => { setDragKey(null); setDropKey(null); },
   });
-  const [materializedDocs, setMaterializedDocs] = useState<any[]>([]);
-  const [materializing, setMaterializing] = useState(false);
-  const allDocuments = useMemo(() => [...documents, ...materializedDocs], [documents, materializedDocs]);
-
-  // Step 1: 계약서 선택
-  const [docId, setDocId] = useState<string>("");
-  const selectedDoc = useMemo(() => allDocuments.find((d) => d.id === docId), [allDocuments, docId]);
-
-  const selectTemplate = async (tpl: any) => {
-    if (materializing) return;
-    // 이미 실체화된 적 있으면(같은 이름 문서 존재) 재사용 — 매번 새 문서로 중복 생성 방지.
-    // 양식 id 연결 우선 — 이름은 양식관리에서 바뀔 수 있다(2026-08-03)
-    const already = allDocuments.find((d) => (tpl.id && (d.content_json as any)?.source_template_id === tpl.id) || d.name === tpl.name);
-    if (already) { setDocId(already.id); return; }
-    setMaterializing(true);
-    try {
-      const doc = await materializeContractTemplate(companyId, tpl);
-      setMaterializedDocs((prev) => [...prev, doc]);
-      setDocId(doc.id);
-    } catch (e: any) {
-      toast(friendlyError(e, "양식을 문서로 만들지 못했습니다"), "error");
-    } finally {
-      setMaterializing(false);
-    }
-  };
+  // Step 1: 계약서(양식) 선택
+  //   고르기만 해서는 documents 행을 만들지 않는다 — 마법사를 닫으면 흔적 없이 끝나야 한다.
+  //   미리보기·변수 추출은 양식 본문으로 하고, 실제 documents 사본은 발송 직전(submit)에 만든다.
+  const [tplId, setTplId] = useState<string>("");
+  const selectedTpl = useMemo(() => (contractTemplates as any[]).find((t: any) => t.id === tplId) || null, [contractTemplates, tplId]);
+  const selectedDoc = useMemo(() => (selectedTpl
+    ? { name: selectedTpl.name as string, content_json: { body: selectedTpl.body_html || selectedTpl.body_markdown || "" } }
+    : null), [selectedTpl]);
+  const selectTemplate = (tpl: any) => setTplId(tpl.id);
 
   // Step 2: 거래처
   const [partners, setPartners] = useState<OrgPartner[]>([]);
@@ -481,7 +464,7 @@ export function OrgBulkWizard({
   }, [previewPartner, selectedDoc, company, variableMap, commonVariables, perPartnerOverrides, applyOurSeal, hasCompanySeal]);
 
   const canNext = (() => {
-    if (step === 1) return !!docId;
+    if (step === 1) return !!selectedTpl;
     if (step === 2) return selectedPartners.length > 0;
     if (step === 3) {
       // 공통값으로 매핑된 토큰은 값이 있어야 함 (덮어쓰기 표에서 일부 단체만 다르면 OK)
@@ -509,10 +492,12 @@ export function OrgBulkWizard({
   };
 
   const submit = async () => {
-    if (!docId || selectedPartners.length === 0) return;
+    if (!selectedTpl || selectedPartners.length === 0) return;
     setSubmitting(true);
     setProgress({ done: 0, total: selectedPartners.length, sent: 0, failed: 0 });
     try {
+      // 발송 원본 documents 사본 — 같은 양식의 기존 사본이 있으면 최신 양식 본문으로 맞춰 재사용한다.
+      const doc = await materializeContractTemplate(companyId, selectedTpl);
       // variableMap → 빈 값('') 키는 commonVariables 쪽으로 보냄
       const finalMap: Record<string, PartnerVarColumn> = {};
       for (const [token, col] of Object.entries(variableMap)) {
@@ -521,7 +506,7 @@ export function OrgBulkWizard({
       const r = await createBulkSignatureRequestsToOrgs({
         companyId,
         createdBy: userId,
-        documentId: docId,
+        documentId: doc.id,
         titleTemplate: titleTemplate.trim(),
         expiresInDays,
         partnerIds: selectedPartners.map((p) => p.id),
@@ -618,7 +603,7 @@ export function OrgBulkWizard({
           <div className="bulk-wizard-step-doc">
             <div className="text-sm font-semibold text-[var(--text)]">발송할 계약서를 선택하세요</div>
             <div className="text-xs text-[var(--text-muted)]">
-              양식 관리에 등록된 계약서 양식 중에서 고릅니다.
+              양식 관리에 등록된 계약서 양식 중에서 고릅니다. 발송할 때 이 양식으로 계약서가 만들어집니다.
               <br />
               <span className="caption">
                 <Ico e="💡" /> <code className="text-[var(--primary)]">{`{{을_회사명}}`}</code> · <code className="text-[var(--primary)]">{`{{을_사업자번호}}`}</code> · <code className="text-[var(--primary)]">{`{{을_대표자}}`}</code> · <code className="text-[var(--primary)]">{`{{을_주소}}`}</code> 변수는 거래처별로 자동 치환됩니다.
@@ -645,15 +630,14 @@ export function OrgBulkWizard({
                     const rowKey = `doc|${item.id}`;
                     const dropHl = dropKey === rowKey ? "ring-1 ring-[var(--primary)]" : "";
                     const t = item.tpl;
-                    const materialized = allDocuments.find((d) => (d.content_json as any)?.source_template_id === t.id || d.name === t.name);
-                    const checked = !!materialized && docId === materialized.id;
+                    const checked = tplId === t.id;
                     return (
                       <label
                         key={t.id}
                         {...(docQ ? {} : dragProps("doc", item.id))}
                         className={`flex items-center gap-3 p-3 cursor-pointer border-b border-[var(--border)] last:border-b-0 ${
                           checked ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"
-                        } ${materializing ? "opacity-60 pointer-events-none" : ""} ${dropHl}`}
+                        } ${dropHl}`}
                       >
                         {!docQ && <span className="bulk-wizard-drag-handle" title="드래그로 순서 변경">⠿</span>}
                         <input
@@ -664,7 +648,6 @@ export function OrgBulkWizard({
                         />
                         <div className="flex-1">
                           <div className="text-sm text-[var(--text)]">{t.name}</div>
-                          <div className="text-[10px] text-[var(--text-muted)]">선택하면 문서로 만들어집니다.</div>
                         </div>
                       </label>
                     );
@@ -675,15 +658,14 @@ export function OrgBulkWizard({
                   {(stdSectionShown as any[]).map((t: any) => {
                     const rowKey = `std|${t.id}`;
                     const dropHl = dropKey === rowKey ? "ring-1 ring-[var(--primary)]" : "";
-                    const materialized = allDocuments.find((d) => (d.content_json as any)?.source_template_id === t.id || d.name === t.name);
-                    const checked = !!materialized && docId === materialized.id;
+                    const checked = tplId === t.id;
                     return (
                       <label
                         key={t.id}
                         {...(docQ ? {} : dragProps("std", t.id))}
                         className={`flex items-center gap-3 p-3 cursor-pointer border-b border-[var(--border)] last:border-b-0 ${
                           checked ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"
-                        } ${materializing ? "opacity-60 pointer-events-none" : ""} ${dropHl}`}
+                        } ${dropHl}`}
                       >
                         {!docQ && <span className="bulk-wizard-drag-handle" title="드래그로 순서 변경">⠿</span>}
                         <input
@@ -694,7 +676,6 @@ export function OrgBulkWizard({
                         />
                         <div className="flex-1">
                           <div className="text-sm text-[var(--text)]">{t.name}</div>
-                          <div className="text-[10px] text-[var(--text-muted)]">선택하면 문서로 만들어집니다.</div>
                         </div>
                       </label>
                     );
@@ -702,7 +683,6 @@ export function OrgBulkWizard({
                 </>
               )}
             </div>
-            {materializing && <div className="text-xs text-[var(--text-muted)]">양식을 문서로 만드는 중...</div>}
           </div>
         )}
 

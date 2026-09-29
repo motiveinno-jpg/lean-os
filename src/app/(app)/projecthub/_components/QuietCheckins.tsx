@@ -18,6 +18,7 @@ import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { computePeriodStart } from "@/lib/project-checkin";
 import { todayKst } from "@/lib/kst";
+import { quietDaysOf } from "@/lib/project-v3-rollup";
 
 const MAX_ROWS = 3;          // 한 주에 묻는 최대 개수
 const QUIET_DAYS = 14;       // 이 기간 아무 변화가 없으면 '조용'
@@ -28,11 +29,13 @@ type Task = { deal_id: string; status?: string | null; updated_at?: string | nul
 
 const daysBetween = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
 
-export function QuietCheckins({ companyId, userId, deals, tasks, outstandingOf, won, toast, open, onCount }: {
+export function QuietCheckins({ companyId, userId, deals, tasks, lastActByDeal, outstandingOf, won, toast, open, onCount }: {
   companyId: string;
   userId: string | null;
   deals: Deal[];
   tasks: Task[];
+  /** 프로젝트별 마지막 움직임(ms) — 목록 '마지막 업데이트' 열과 같은 값(lastActivityByDeal). 여기서 따로 세지 않는다 */
+  lastActByDeal: Record<string, number>;
   outstandingOf: (dealId: string) => number;
   won: (n: number | null | undefined) => string;
   toast: (msg: string, kind?: any) => void;
@@ -73,16 +76,6 @@ export function QuietCheckins({ companyId, userId, deals, tasks, outstandingOf, 
 
   const rows = useMemo(() => {
     if (!deals.length) return [] as { deal: Deal; quietDays: number; draft: string }[];
-    // 프로젝트별 마지막 움직임. 프로젝트 자체 수정 / 업무 변경 / 지난 체크인 중 가장 최근
-    const lastAct: Record<string, number> = {};
-    const touch = (id: string, iso?: string | null) => {
-      if (!id || !iso) return;
-      const t = new Date(iso).getTime();
-      if (!lastAct[id] || t > lastAct[id]) lastAct[id] = t;
-    };
-    for (const d of deals) touch(d.id, d.updated_at || d.created_at);
-    for (const t of tasks) touch(t.deal_id, t.updated_at);
-    for (const u of updates as any[]) touch(u.deal_id, u.created_at);
 
     // 이번 주에 이미 남긴 프로젝트는 묻지 않는다
     const done = new Set((updates as any[])
@@ -101,8 +94,7 @@ export function QuietCheckins({ companyId, userId, deals, tasks, outstandingOf, 
       .filter((d) => d.stage !== "completed" && d.stage !== "settlement")
       .filter((d) => !done.has(d.id) && !snoozed.includes(`${week}:${d.id}`))
       .map((d) => {
-        const last = lastAct[d.id];
-        const quietDays = last ? Math.floor((Date.now() - last) / 86_400_000) : QUIET_DAYS;
+        const quietDays = quietDaysOf(lastActByDeal[d.id]) ?? QUIET_DAYS;
         const bits: string[] = [];
         if (recentDone[d.id]) bits.push(`지난 2주 완료 ${recentDone[d.id]}건`);
         const out = outstandingOf(d.id);
@@ -113,7 +105,7 @@ export function QuietCheckins({ companyId, userId, deals, tasks, outstandingOf, 
       .filter((r) => r.quietDays >= QUIET_DAYS)
       .sort((a, b) => b.quietDays - a.quietDays)
       .slice(0, MAX_ROWS);
-  }, [deals, tasks, updates, snoozed, week, outstandingOf, won]);
+  }, [deals, tasks, lastActByDeal, updates, snoozed, week, outstandingOf, won]);
 
   const [text, setText] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);

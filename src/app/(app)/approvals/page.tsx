@@ -41,6 +41,7 @@ import { isCompanyWidePolicy,
   deleteApprovalRequest,
   updateApprovalStepComment,
   REQUEST_TYPE_LABELS,
+  requestTypeLabel,
   type RequestType,
   type ApprovalPolicy,
   type ApprovalRequest,
@@ -495,7 +496,7 @@ function contentWithoutFieldLines(description: string, formFields: { label: stri
 type LCond = { types: string[]; statuses: string[]; from: string; to: string; requester: string[]; min: string; max: string; rows: number };
 const LEMPTY: LCond = { types: [], statuses: [], from: "", to: "", requester: [], min: "", max: "", rows: 50 };
 const lCount = (c: LCond) => c.types.length + c.statuses.length + ((c.from || c.to) ? 1 : 0) + c.requester.length + ((c.min || c.max) ? 1 : 0);
-const typeLabelOf = (t: string) => REQUEST_TYPE_LABELS[t as RequestType] || t || "";
+const typeLabelOf = (t: string) => requestTypeLabel(t);
 const L_STATUSES: { value: string; label: string }[] = [
   { value: "pending", label: "대기" }, { value: "approved", label: "승인" }, { value: "rejected", label: "반려" }, { value: "cancelled", label: "취소" },
 ];
@@ -508,10 +509,11 @@ function useListFilter(opts: { types: string[]; requesters?: string[]; withStatu
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<LCond>(LEMPTY);
   const [live, setLive] = useState<LCond>(LEMPTY);
-  const typeOpts = [...new Set(opts.types.filter(Boolean))].map((t) => ({ value: t, label: typeLabelOf(t) }));
+  //   유형 칩은 표시 이름 기준으로 하나 — 'expense_report' 와 '지출결의서'처럼 저장값이 달라도 같은 이름이면 한 칩이 둘 다 거른다.
+  const typeOpts = [...new Set(opts.types.filter(Boolean).map(typeLabelOf))].map((l) => ({ value: l, label: l }));
   const reqOpts = [...new Set((opts.requesters || []).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ko")).map((v) => ({ value: v, label: v }));
   const hit = (r: LRow) => {
-    if (live.types.length && !live.types.includes(r.type)) return false;
+    if (live.types.length && !live.types.includes(typeLabelOf(r.type))) return false;
     if (live.statuses.length && !live.statuses.includes(r.status || "")) return false;
     if (live.from && String(r.created || "").slice(0, 10) < live.from) return false;
     if (live.to && String(r.created || "").slice(0, 10) > live.to) return false;
@@ -522,7 +524,7 @@ function useListFilter(opts: { types: string[]; requesters?: string[]; withStatu
   const drop = (patch: Partial<LCond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
   const chips: AppliedChip[] = [
     ...(q ? [{ group: "빠른검색", label: q, onRemove: () => setQ("") }] : []),
-    ...live.types.map((t) => ({ group: "유형", label: typeLabelOf(t), onRemove: () => drop({ types: live.types.filter((x) => x !== t) }) })),
+    ...live.types.map((t) => ({ group: "유형", label: t, onRemove: () => drop({ types: live.types.filter((x) => x !== t) }) })),
     ...live.statuses.map((v) => ({ group: "상태", label: statusLabelOf(v), onRemove: () => drop({ statuses: live.statuses.filter((x) => x !== v) }) })),
     ...((live.from || live.to) ? [{ group: "요청일", label: `${live.from || "…"} ~ ${live.to || "…"}`, onRemove: () => drop({ from: "", to: "" }) }] : []),
     ...live.requester.map((v) => ({ group: "요청자", label: v, onRemove: () => drop({ requester: live.requester.filter((x) => x !== v) }) })),

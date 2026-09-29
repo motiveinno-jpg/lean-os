@@ -140,6 +140,20 @@ export const REQUEST_TYPE_LABELS: Record<RequestType, string> = {
   custom: '기타',
 };
 
+/** 기본 유형 이름 → 유형 키. 사용자 양식 이름이 기본 유형 이름과 같으면 목록에 같은 이름이 둘 생긴다(값이 둘로 갈림). */
+export function builtinRequestTypeOfLabel(name: string | null | undefined): RequestType | null {
+  const n = String(name || '').trim();
+  if (!n) return null;
+  for (const [k, v] of Object.entries(REQUEST_TYPE_LABELS)) if (v === n) return k as RequestType;
+  return null;
+}
+
+/** 목록·검색조건에 쓰는 유형 표시 이름 — 기본 유형은 한글 이름, 사용자 양식은 저장된 이름 그대로. */
+export function requestTypeLabel(t: string | null | undefined): string {
+  const v = String(t || '');
+  return REQUEST_TYPE_LABELS[v as RequestType] || v;
+}
+
 // ══════════════════════════════════════════════
 // Policy Management
 // ══════════════════════════════════════════════

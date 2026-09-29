@@ -32,6 +32,7 @@ import { useCanAccessTab } from "@/lib/tab-access";
 import { useMyPermissions } from "@/lib/permissions";
 import { CreateProjectV3 } from "./_components/CreateProjectV3";
 import { QuietCheckins } from "./_components/QuietCheckins";
+import { lastActivityByDeal, quietDaysOf, isFlowColumn, tallySignals, countQuoteContractAcross } from "@/lib/project-v3-rollup";
 import { rollupProject, listStatusOf, listReasons, type ProjectRollup, type ListStatus } from "@/lib/project-list-summary";
 import { BOARD_TEMPLATES }  from "@/lib/project-boards";
 // 워크플로우 보드 · 회사 전체 프로젝트를 커스텀 컬럼으로 보는 도구. 실행형 프로젝트 상세 탭에
@@ -405,20 +406,24 @@ export default function ProjectHubPage() {
   const isDone = (d: any) => d.stage === "completed" || d.stage === "settlement";
   const ddOf = (d: any) => daysToEnd(d.end_date, todayStr);
 
+  //   v3 표 줄 — 목록 요약·'마지막 업데이트'·상태·변동 없는 프로젝트·현황판이 모두 이 한 벌을 쓴다.
+  const { data: v3Items = [] } = useQuery({
+    queryKey: ["ph-v3items", companyId],
+    queryFn: async () => {
+      const data = await fetchPaged<any>("projecthub/page:v3items", () => (supabase as any).from("project_items")
+        .select("id, deal_id, name, status, due_date, updated_at, fields, assignee_id, assignee_ids, parent_id").is("archived_at", null).eq("company_id", companyId!)
+        .order("id"), 50000);
+      return (data || []) as { id: string; deal_id: string; name: string; status: string; due_date: string | null; updated_at: string; fields: Record<string, unknown> | null; assignee_id: string | null; assignee_ids: string[] | null; parent_id: string | null }[];
+    },
+    enabled: !!companyId,
+  });
   // ── 상태(정상·주의·지연) — 화면 전체가 이 한 곳에서 받는다(2026-08-03 개편 ①) ──
-  //   프로젝트별 마지막 움직임: 업무 변경 / 생성 시각 중 최신.
+  //   프로젝트별 마지막 움직임: 표 줄 수정 / 옛 업무 변경 / 생성 시각 중 최신(lastActivityByDeal 한 곳).
   //   (deals 에는 updated_at 컬럼이 없다 — 그래서 프로젝트 자체 수정 시각은 알 수 없다)
-  const lastActByDeal = useMemo(() => {
-    const m: Record<string, number> = {};
-    const touch = (id: string, iso?: string | null) => {
-      if (!id || !iso) return;
-      const t = new Date(iso).getTime();
-      if (!m[id] || t > m[id]) m[id] = t;
-    };
-    for (const d of topDeals as any[]) touch(d.id, d.created_at);
-    for (const t of tasksRows as any[]) touch(t.deal_id, t.updated_at);
-    return m;
-  }, [topDeals, tasksRows]);
+  const lastActByDeal = useMemo(
+    () => lastActivityByDeal({ deals: topDeals as any[], items: v3Items, tasks: tasksRows as any[] }),
+    [topDeals, v3Items, tasksRows],
+  );
   // 가장 오래된 미수 계산서의 경과일 — 60일 넘으면 '주의'가 아니라 '지연'
   const oldestUnpaidByDeal = useMemo(() => {
     const m: Record<string, number> = {};
@@ -440,7 +445,7 @@ export default function ProjectHubPage() {
         overdueTasks: !!headlineByDeal[d.id]?.delayed,
         outstanding: outstandingByDeal[d.id] || 0,
         oldestUnpaidDays: oldestUnpaidByDeal[d.id] ?? null,
-        quietDays: last ? Math.floor((Date.now() - last) / 86_400_000) : null,
+        quietDays: quietDaysOf(last),
         metricRisk: !!headlineByDeal[d.id]?.risk,
       });
     }
@@ -521,17 +526,8 @@ export default function ProjectHubPage() {
   // ── 목록 '요약'(규칙 기반 — 토큰 0, 2026-09-01 대표 A안) ──
   //   '입력·확인 사항·마지막 입력' 열이 옛 보드(project_board_items)를 읽어 v3 표와 끊겨 있었다.
   //   v3 project_items 를 집계해 요약 문장과 '마지막 업데이트'를 만든다 — AI 호출 없이 숫자를 문장 틀에 끼운다.
-  const { data: v3Items = [] } = useQuery({
-    queryKey: ["ph-v3items", companyId],
-    queryFn: async () => {
-      const data = logRead("projecthub/page:v3items", await (supabase as any).from("project_items")
-        .select("id, deal_id, name, status, due_date, updated_at, fields, assignee_id, assignee_ids, parent_id").is("archived_at", null).eq("company_id", companyId!));
-      return (data || []) as { id: string; deal_id: string; name: string; status: string; due_date: string | null; updated_at: string; fields: Record<string, unknown> | null; assignee_id: string | null; assignee_ids: string[] | null; parent_id: string | null }[];
-    },
-    enabled: !!companyId,
-  });
   const v3ByDeal = useMemo(() => {
-    const m: Record<string, { total: number; done: number; overdue: { name: string; days: number }[]; soon: number; lastAt: number | null }> = {};
+    const m: Record<string, { total: number; done: number; overdue: { name: string; days: number }[]; soon: number }> = {};
     //   완료 판정 = 그 프로젝트 단계의 마지막 그룹(간트·표와 같은 규칙). item_stages 가 null 이면 기본 3단계의 'done'.
     const lastStage: Record<string, string> = {};
     for (const d of topDeals as any[]) {
@@ -539,7 +535,7 @@ export default function ProjectHubPage() {
     }
     const day = 86400000;
     for (const it of v3Items) {
-      const e = (m[it.deal_id] ||= { total: 0, done: 0, overdue: [], soon: 0, lastAt: null });
+      const e = (m[it.deal_id] ||= { total: 0, done: 0, overdue: [], soon: 0 });
       e.total += 1;
       const isDone = it.status === (lastStage[it.deal_id] ?? "done");
       if (isDone) e.done += 1;
@@ -548,8 +544,6 @@ export default function ProjectHubPage() {
         if (dd < todayStr) e.overdue.push({ name: it.name, days: Math.max(1, Math.round((+new Date(todayStr) - +new Date(dd)) / day)) });
         else if ((+new Date(dd) - +new Date(todayStr)) / day <= 7) e.soon += 1;
       }
-      const t = +new Date(it.updated_at);
-      if (!e.lastAt || t > e.lastAt) e.lastAt = t;
     }
     for (const k in m) m[k].overdue.sort((a, b) => b.days - a.days);
     return m;
@@ -559,9 +553,9 @@ export default function ProjectHubPage() {
   const  { data: v3Cols = [] } = useQuery({
     queryKey: ["ph-v3cols", companyId],
     queryFn: async () => {
-      const data = logRead("projecthub/page:v3cols", await (supabase as any).from("project_item_columns")
+      const data = await fetchPaged<any>("projecthub/page:v3cols", () => (supabase as any).from("project_item_columns")
         .select("deal_id, key, name, type, settings, position").is("archived_at", null)
-        .eq("company_id", companyId!).order("position"));
+        .eq("company_id", companyId!).order("position").order("id"), 50000);
       return (data || []) as { deal_id: string; key: string; name: string; type: string; settings: { options?: { id: string; label: string; color?: string }[] } | null; position: number }[];
     },
     enabled: !!companyId,
@@ -569,11 +563,8 @@ export default function ProjectHubPage() {
   const bottleneckByDeal = useMemo(() => {
     const colsByDeal: Record<string, typeof v3Cols> = {};
     for (const c of v3Cols) {
-      const opts = c.settings?.options || [];
-      //   흐름 컬럼만 — 마지막 선택지가 초록(완료 톤)인 select. '유형·채널' 같은 분류 select 는
-      //   마지막 값이 완료가 아니라 병목 오탐이 난다(실측에서 '유형 2건 끝났는데…' 발견).
-      const flowish = opts.length >= 2 && (opts[opts.length - 1].color || "").toLowerCase() === "#00c875";
-      if (c.type === "select" && flowish) (colsByDeal[c.deal_id] ||= []).push(c);
+      //   흐름 컬럼만(isFlowColumn) — '유형·채널' 같은 분류 select 는 마지막 값이 완료가 아니라 병목 오탐이 난다.
+      if (isFlowColumn(c)) (colsByDeal[c.deal_id] ||= []).push(c);
     }
     const itemsByDeal: Record<string, typeof v3Items> = {};
     for (const it of v3Items) (itemsByDeal[it.deal_id] ||= []).push(it);
@@ -598,10 +589,7 @@ export default function ProjectHubPage() {
     return m;
   }, [v3Cols, v3Items]);
 
-  const v3QuietDays = (d: any): number | null => {
-    const at = v3ByDeal[d.id]?.lastAt;
-    return at ? Math.floor((Date.now() - at) / 86400000) : null;
-  };
+  const v3QuietDays = (d: any): number | null => quietDaysOf(lastActByDeal[d.id]);
   // ── 전체 현황판(결정 141·142). 기본 판 + 내 판(위젯 카탈로그, 홈 대시보드와 같은 문법·같은 그릇) ──
   const DASH_KEY = "pjv3-board";
   const DASH_DEFAULT = ["nums", "progress", "load", "signal"];
@@ -654,9 +642,10 @@ export default function ProjectHubPage() {
   const { data: dealSignals = [] } = useQuery({
     queryKey: ["ph-signals", companyId],
     enabled: !!companyId && dashOpen,
-    queryFn: async () => (logRead("projecthub/page:signals", await (supabase as any).from("project_status_reports")
+    //   최신 보고만 쓰지만 300건 자르기로는 오래 보고 안 한 프로젝트의 마지막 신호가 잘려 '보고 없음'으로 샜다 — 전부 읽는다.
+    queryFn: async () => ((await fetchPaged<any>("projecthub/page:signals", () => (supabase as any).from("project_status_reports")
       .select("deal_id, signal, created_at").eq("company_id", companyId!)
-      .order("created_at", { ascending: false }).limit(300)) || []) as { deal_id: string; signal: "blue" | "orange" | "red"; created_at: string }[],
+      .order("created_at", { ascending: false }).order("id"), 50000)) || []) as { deal_id: string; signal: "blue" | "orange" | "red"; created_at: string }[],
   });
   const dashData = useMemo(() => {
     const dealName: Record<string, string> = {};
@@ -697,23 +686,15 @@ export default function ProjectHubPage() {
       cur.open += 1; am.set(key, cur);
     }
     const load = [...am.values()].sort((a, b) => b.open - a.open).slice(0, 8);
-    //   신호등 — 프로젝트별 최신 보고 하나(정렬이 최신순이라 처음 만난 것)
-    const sig = new Map<string, string>();
-    for (const r of dealSignals) if (dealName[r.deal_id] !== undefined && !sig.has(r.deal_id)) sig.set(r.deal_id, r.signal);
-    const withItems = new Set(parents.map((it) => it.deal_id));
-    const signal = {
-      blue: [...sig.values()].filter((s) => s === "blue").length,
-      orange: [...sig.values()].filter((s) => s === "orange").length,
-      red: [...sig.values()].filter((s) => s === "red").length,
-      none: [...withItems].filter((id) => !sig.has(id)).length,
-    };
+    //   신호등 — 프로젝트별 최신 보고 하나. 진행 중 프로젝트 전부가 네 칸 중 하나에 들어가 합이 '진행 중'과 같다.
+    const signal = tallySignals((topDeals as any[]).map((d) => d.id), dealSignals);
     const nextDue = parents.filter((it) => !isDone(it) && it.due_date)
       .sort((a, b) => (a.due_date! < b.due_date! ? -1 : 1)).slice(0, 6)
       .map((it) => ({ ...it, dealName: dealName[it.deal_id], who: userName[it.assignee_id || ""] || "" }));
-    const quoteN = parents.filter((it) => (it.fields || {})["__quote"]).length;
-    const contractN = parents.filter((it) => (it.fields || {})["__contract"]).length;
+    //   견적·계약 — 상세 보고·목록 요약과 같은 판정(countQuoteContractAcross)
+    const { quoteN, contractN } = countQuoteContractAcross(parents, v3Cols, new Set(Object.keys(dealName)));
     return { activeN: (topDeals as any[]).length, late, week, weekDone, per, load, signal, nextDue, quoteN, contractN, todayStr };
-  }, [topDeals, v3Items, userName, dealSignals]);
+  }, [topDeals, v3Items, v3Cols, userName, dealSignals]);
 
   // ── 내 작업(오두 갭 2차, 2026-09-01 승인) — 전 프로젝트에서 내 담당 미완 줄만 급한 순 한 표 ──
   const [myWorkOpen, setMyWorkOpen] = useState(false);
@@ -767,8 +748,7 @@ export default function ProjectHubPage() {
       const old = days != null && days > 60;
       list.push({ text: old ? `미수금 ${days}일째` : "미수금 있음", tone: old ? "risk" : "warn" });
     }
-    const last = lastActByDeal[d.id];
-    const quiet = last ? Math.floor((Date.now() - last) / 86_400_000) : null;
+    const quiet = quietDaysOf(lastActByDeal[d.id]);
     if (quiet != null && quiet >= 14) list.push({ text: `${quiet}일째 변동 없음`, tone: "dim" });
     if (headlineByDeal[d.id]?.risk) list.push({ text: "마진 적자", tone: "risk" });
     return list;
@@ -823,7 +803,7 @@ export default function ProjectHubPage() {
         case "progress": c = (headlineByDeal[a.id]?.pct ?? -1) - (headlineByDeal[b.id]?.pct ?? -1); break;
         case "period": c = (a.start_date || "").localeCompare(b.start_date || ""); break;
         case "items": c = (rollupByDeal[a.id]?.itemCount || 0) - (rollupByDeal[b.id]?.itemCount || 0); break;
-        case "quiet": c = (v3ByDeal[b.id]?.lastAt ?? 0) - (v3ByDeal[a.id]?.lastAt ?? 0); break; // 최근 움직인 것 먼저 — v3 표 기준
+        case "quiet": c = (lastActByDeal[b.id] ?? 0) - (lastActByDeal[a.id] ?? 0); break; // 최근 움직인 것 먼저 — '마지막 업데이트' 열과 같은 값
         default: c = Number(a.contract_total || 0) - Number(b.contract_total || 0);
       }
       if (c === 0) c = Number(a.contract_total || 0) - Number(b.contract_total || 0);
@@ -969,7 +949,7 @@ export default function ProjectHubPage() {
           {companyId && (
             <QuietCheckins
               companyId={companyId} userId={userId}
-              deals={topDeals as any[]} tasks={tasksRows as any[]}
+              deals={topDeals as any[]} tasks={tasksRows as any[]} lastActByDeal={lastActByDeal}
               outstandingOf={(id) => outstandingByDeal[id] || 0}
               won={won} toast={toast}
               open={nudge === "quiet"} onCount={setQuietCount} />

@@ -17,6 +17,7 @@ import { useToast } from "@/components/toast";
 import { usePrintIsolation } from "@/lib/use-print-isolation";
 import { resolveSealUrl } from "@/lib/signatures";
 import { useModalKeys } from "@/hooks/use-modal-keys";
+import { contractViewState } from "@/lib/contract-view-state";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
@@ -100,6 +101,7 @@ interface SignedRow {
   // 갑 (우리 회사) 서명 — quote_approvals 에만 컬럼 존재. signature_requests 는 null
   our_signature_data_url: string | null;
   our_signed_at: string | null;
+  expires_at?: string | null;
   payload: {
     template_name?: string;
     template_snapshot_html?: string;
@@ -152,12 +154,19 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
       );
       if (error) throw error;
       const r = res as { ok?: boolean; code?: string } | null;
-      if (r && r.ok === false) throw new Error(r.code || '서명 적용 실패');
+      if (r && r.ok === false) {
+        throw new Error(
+          r.code === 'wrong_status' ? '상대 서명이 끝난 계약에만 우리 서명을 더할 수 있습니다 (만료·취소·거절된 건은 불가)'
+          : r.code === 'already_signed' ? '이미 우리 서명이 들어간 계약입니다'
+          : r.code || '서명 적용 실패');
+      }
       // 로컬 row 갱신 (재조회 대신 in-memory)
       setRow({
         ...row,
         our_signature_data_url: ourSigDataUrl,
         our_signed_at: new Date().toISOString(),
+        // 단건 계약은 서버가 fully_signed 로 넘긴다 — 제목·버튼이 바로 바뀌게 맞춘다.
+        status: isReq ? row.status : 'fully_signed',
       });
       setShowOurSignModal(false);
       setOurSigMethod(null);
@@ -181,7 +190,7 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
         const qa = logRead('components/contract-viewer:qa', await db
           .from("quote_approvals")
           .select(
-            "id, stage, status, recipient_name, signature_method, signed_at_external, signer_ip, signer_user_agent, signed_contract_html, signed_contract_url, signature_data_url, our_signature_data_url, our_signed_at, payload, deals(id, name), companies(name, representative, business_number, seal_url)",
+            "id, stage, status, recipient_name, signature_method, signed_at_external, signer_ip, signer_user_agent, signed_contract_html, signed_contract_url, signature_data_url, our_signature_data_url, our_signed_at, expires_at, payload, deals(id, name), companies(name, representative, business_number, seal_url)",
           )
           .eq("id", id)
           .maybeSingle());
@@ -207,7 +216,7 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
         const sr = logRead('components/contract-viewer:sr', await db
           .from("signature_requests")
           .select(
-            "id, status, signer_name, signer_email, signature_method, signature_data_url, signed_contract_html, signed_contract_url, template_snapshot_html, batch_id, signed_at, sent_at, ip_address, partner_id, companies(name, representative, business_number, seal_url), documents(name)",
+            "id, status, signer_name, signer_email, signature_method, signature_data_url, signed_contract_html, signed_contract_url, template_snapshot_html, batch_id, signed_at, sent_at, expires_at, ip_address, partner_id, our_signature_data_url, our_signed_at, companies(name, representative, business_number, seal_url), documents(name)",
           )
           .eq("id", id)
           .maybeSingle());
@@ -247,9 +256,9 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
             signed_contract_url: sr.signed_contract_url,
             signature_data_url: sr.signature_data_url,
             template_snapshot_html: sr.template_snapshot_html,
-            // signature_requests 는 회사(갑) 서명 컬럼 없음 — null
-            our_signature_data_url: null,
-            our_signed_at: null,
+            our_signature_data_url: sr.our_signature_data_url ?? null,
+            our_signed_at: sr.our_signed_at ?? null,
+            expires_at: sr.expires_at ?? null,
             payload: { template_name: sr.documents?.name },
             deals: null,
             companies: sr.companies || null,
@@ -298,7 +307,15 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
     ? row.signed_contract_html
     : baseHtml
       ? baseHtml
-      : "<div style='padding:40px;text-align:center;color:#6b7280'>서명된 계약서 본문이 저장되지 않았습니다. 발송자에게 문의하세요.</div>";
+      : "<div style='padding:40px;text-align:center;color:#6b7280'>계약서 본문이 저장되지 않았습니다.</div>";
+  const view = contractViewState({
+    source: row._source,
+    status: row.status,
+    partnerSignedAt: row.signed_at_external,
+    ourSignedAt: row.our_signed_at,
+    ourSignatureDataUrl: row.our_signature_data_url,
+    expiresAt: row.expires_at,
+  }, { dealId: row.deals?.id ?? null });
   const methodLabel = row.signature_method === "draw" ? "손글씨 서명"
                      : row.signature_method === "type" ? "타이핑 서명"
                      : row.signature_method === "upload" || row.signature_method === "seal" ? "도장/사인"
@@ -315,10 +332,18 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
           {backHref && (
             <Link href={backHref} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition">← 프로젝트 목록</Link>
           )}
-          <h1 className="text-lg font-bold text-[var(--text)] mt-1">서명된 계약서</h1>
+          <h1 className="text-lg font-bold text-[var(--text)] mt-1">{view.title}</h1>
           <div className="text-[11px] text-[var(--text-dim)] mt-0.5">
             {row.deals?.name || "프로젝트"}{row.payload?.template_name ? ` · ${row.payload.template_name}` : ""}
           </div>
+          {view.notice && (
+            <div className="text-[11px] text-[var(--text-muted)] mt-1 print:hidden">
+              {view.notice}
+              {view.resend && (
+                <Link href={view.resend.href} className="ml-1.5 text-[var(--primary)] hover:underline font-semibold">{view.resend.label} →</Link>
+              )}
+            </div>
+          )}
         </div>
         <button
           onClick={() => window.print()}
@@ -367,7 +392,7 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
             <div>
               <div className="text-sm font-bold mb-2 flex items-center gap-2">
                 <span>갑</span>
-                {!row.our_signature_data_url && !row.companies?.seal_url && (
+                {view.canOurSign && !row.companies?.seal_url && (
                   <button
                     onClick={() => setShowOurSignModal(true)}
                     className="px-2 py-0.5 text-[10px] bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded font-semibold print:hidden"

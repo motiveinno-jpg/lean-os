@@ -2,6 +2,7 @@
 //   회사가 만든 결재 양식(커스텀 필드 + 내용 템플릿 + 결재선 단계)을 관리. 새 요청에서 선택해 사용.
 
 import { supabase } from "@/lib/supabase";
+import { builtinRequestTypeOfLabel } from "@/lib/approval-workflow";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
@@ -84,6 +85,11 @@ export interface SaveApprovalFormInput {
 }
 
 export async function saveApprovalForm(input: SaveApprovalFormInput): Promise<string> {
+  //   요청의 유형 값은 양식 이름으로 저장된다 — 기본 유형과 같은 이름이면 같은 '지출결의서'가
+  //   'expense_report' 와 '지출결의서' 두 값으로 갈려 검색조건에 두 번 뜨고 서로 안 걸러진다.
+  if (builtinRequestTypeOfLabel(input.name)) {
+    throw new Error(`'${input.name.trim()}'은(는) 기본 결재 유형 이름입니다. 기본 유형 설정을 고치거나 다른 이름을 쓰세요.`);
+  }
   const row: Record<string, unknown> = {
     company_id: input.companyId,
     name: input.name.trim(),

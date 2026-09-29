@@ -34,6 +34,7 @@ import { exportToExcel } from "@/lib/excel-export";
 import { xNum, isDate, type ExcelColumn, type ExcelRow } from "@/lib/excel-io";
 import { ExcelUploadDialog, type ParseResult } from "@/app/(app)/inventory/_components/excel-upload";
 import type { ItemRow } from "./HubV3";
+import { countQuoteContract, moneyPredicates } from "@/lib/project-v3-rollup";
 
 const db = supabase as any;
 
@@ -1224,6 +1225,7 @@ export function TableV3() {
       return { people: people.size, days: rows.length, hours: (reg + extra) / 60, cost };
     },
   });
+  const moneyPred = useMemo(() => moneyPredicates(cols as any), [cols]);
   const localYmd = (t: Date) => `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
   const statusData = useMemo(() => {
     const parents = items.filter((it) => !(it as any).parent_id);
@@ -1264,13 +1266,13 @@ export function TableV3() {
     }
     let cum = doneBefore;
     const flow = weeks.map((w) => { cum += w.done; return { label: w.label, done: w.done, remain: parents.length - cum }; });
-    const quoteN = parents.filter((it) => (it.fields || {})[QUOTE_KEY]).length;
-    const contractN = parents.filter((it) => (it.fields || {})[CONTRACT_KEY]).length;
+    //   견적·계약 — 붙은 문서 + '견적·계약' 흐름 칸의 끝(확정·완료). 목록 요약·전체 현황판과 같은 판정.
+    const { quoteN, contractN } = countQuoteContract(parents, cols as any);
     const nextDue = parents.filter((it) => !isDone(it) && it.due_date)
       .sort((a, b) => (a.due_date! < b.due_date! ? -1 : 1)).slice(0, 5);
     return { parents, done, late, week, amount, byGroup, etcN, byAssignee, flow, quoteN, contractN, nextDue, todayStr, lastId };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, stages, users]);
+  }, [items, stages, users, cols]);
   //   집계 축 — 그룹·담당 + 거래처/선택형 커스텀 컬럼 전부(내가 만든 컬럼도 축이 된다)
   const pivotAxes = useMemo(() => [
     { id: "group", name: "그룹" },
@@ -1859,10 +1861,10 @@ export function TableV3() {
                 {featOn("billing") && (<>
                   <h3>돈 흐름 <small>칸을 누르면 그 줄만 보입니다.</small></h3>
                   <div className="pjv3-stmoney">
-                    <button type="button" className="mstep" onClick={() => openFiltered("견적 붙은 줄", (it) => !!(it.fields || {})[QUOTE_KEY])}>
+                    <button type="button" className="mstep" onClick={() => openFiltered("견적까지 간 줄", (it) => moneyPred.isQuote(it as any))}>
                       <span className="t">견적</span><b className="n num">{statusData.quoteN}건</b></button>
                     <span className="ar">→</span>
-                    <button type="button" className="mstep hot" onClick={() => openFiltered("계약까지 간 줄", (it) => !!(it.fields || {})[CONTRACT_KEY])}>
+                    <button type="button" className="mstep hot" onClick={() => openFiltered("계약까지 간 줄", (it) => moneyPred.isContract(it as any))}>
                       <span className="t">계약</span><b className="n num">{statusData.contractN}건</b></button>
                   </div>
                 </>)}
