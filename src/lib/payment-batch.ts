@@ -59,6 +59,8 @@ export interface PayrollItem {
   businessIncome?: boolean;
   /** 2026-08-27 H9 — 전월 명세 대비 ±20% 등 이상 감지 문구(표시만) */
   warn?: string;
+  /** 입사·퇴사한 달 일할 계산 — 그 달 역일 중 재직한 날 */
+  proration?: { worked: number; days: number; reason: string };
   employerCosts: {
     nationalPension: number;
     healthInsurance: number;
@@ -102,6 +104,10 @@ export interface PayrollOptions {
   /** 사업소득자(프리랜서) — 2026-08-31 세무 2차 결정 102. 간이세액표·4대보험 대신
    *  지급액 × 소득세 3% + 지방소득세 0.3%. employment_type='freelance' 구성원이 이 길로 온다. */
   businessIncome?: boolean;
+  /** 국민연금·건강보험 기준 월액 — 일할로 줄어든 달에도 보험료는 원래 월 보수로 매긴다. 없으면 과세소득 */
+  insuranceBase?: number;
+  /** 1일이 아닌 날 입사한 달 — 국민연금·건강보험(장기요양)은 취득일이 속한 달엔 걷지 않는다(다음 달부터) */
+  pensionHealthExempt?: boolean;
 }
 
 export function calculatePayroll(
@@ -145,13 +151,17 @@ export function calculatePayroll(
   // 지급총액 (세전) = 과세 기본급 + 비과세
   const grossPay = baseSalary + nonTaxableAmount;
 
+  // 국민연금·건강보험은 월 보수 기준 — 일할 달엔 insuranceBase(원래 월 보수)로, 취득월(1일 아님)은 0
+  const phOn = insured && !options.pensionHealthExempt;
+  const insBase = Math.max(0, options.insuranceBase ?? taxableIncome);
+
   // 국민연금: 상한/하한 적용
-  const pensionBase = Math.min(R.np_ceiling, Math.max(R.np_floor, taxableIncome));
-  const np = insured ? Math.round(pensionBase * R.np_emp) : 0;
+  const pensionBase = Math.min(R.np_ceiling, Math.max(R.np_floor, insBase));
+  const np = phOn ? Math.round(pensionBase * R.np_emp) : 0;
 
   // 건강보험: 상한/하한 적용
-  const healthBase = Math.min(R.hi_ceiling, Math.max(R.hi_floor, taxableIncome));
-  const hi = insured ? Math.round(healthBase * R.hi_emp) : 0;
+  const healthBase = Math.min(R.hi_ceiling, Math.max(R.hi_floor, insBase));
+  const hi = phOn ? Math.round(healthBase * R.hi_emp) : 0;
   const ltc = Math.round(hi * R.ltc_pct);
 
   // 고용보험
@@ -167,8 +177,8 @@ export function calculatePayroll(
   const deductions = np + hi + ltc + ei + it + lit;
 
   // 사업주 부담분 (직원 급여에서 차감하지 않음)
-  const employerNp = insured ? Math.round(pensionBase * R.np_er) : 0;
-  const employerHiOnly = insured ? Math.round(healthBase * R.hi_er) : 0;
+  const employerNp = phOn ? Math.round(pensionBase * R.np_er) : 0;
+  const employerHiOnly = phOn ? Math.round(healthBase * R.hi_er) : 0;
   const employerHi = employerHiOnly + Math.round(employerHiOnly * R.ltc_pct);   // 아래 employerCosts 가 장기요양을 다시 뺀다
   const employerEi = insured ? Math.round(taxableIncome * R.ei_er) : 0;
   const employerIa = insured ? Math.round(taxableIncome * industrialAccidentRate) : 0;

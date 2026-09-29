@@ -33,9 +33,12 @@ export async function previewPayroll(
   const rates = await fetchInsuranceRates(companyId, rateYear);
   const employees = logRead('lib/payroll:employees', await db
     .from('employees')
-    .select('id, name, salary, status, meal_allowance_included, hire_date, birth_date, non_taxable_amount, is_4_insurance, employee_number, employment_type, dependents')
+    .select('id, name, salary, status, meal_allowance_included, hire_date, resignation_date, birth_date, non_taxable_amount, is_4_insurance, employee_number, employment_type, dependents')
     .eq('company_id', companyId)
-    .in('status', ['active', 'joined', 'invited']));
+    //   그 달 안에 퇴사한 사람도 마지막 달 급여는 나간다 — 상태가 이미 퇴사로 바뀌었어도 퇴사일이 이 달이면 넣는다
+    .or(monthKey
+      ? `status.in.(active,joined,invited),resignation_date.gte.${monthKey}-01`
+      : 'status.in.(active,joined,invited)'));
 
   if (!employees?.length) return { items: [], totalGross: 0, totalDeductions: 0, totalNet: 0, skippedNoBirth: [], totalEmployer: 0, rates };
 
@@ -99,8 +102,13 @@ export async function previewPayroll(
     const salary = ov ? ov.base_salary : Number(emp.salary || 0);
     if (salary <= 0) continue;
 
-    // 입사일 이후 월만 — 해당 월 말일까지 입사한 직원
+    // 입사일 이후 월만 — 해당 월 말일까지 입사한 직원 · 지난달 이전에 퇴사한 사람은 뺀다
     if (monthEnd && emp.hire_date && emp.hire_date > monthEnd) continue;
+    if (monthKey && emp.resignation_date && String(emp.resignation_date).slice(0, 10) < `${monthKey}-01`) continue;
+
+    //   입사·퇴사한 달은 일할 — 월급 × 재직한 역일 ÷ 그 달 역일. 사람이 그 달 명세를 직접 고쳤으면(ov) 그 값을 그대로 쓴다.
+    //   예전엔 3/11 입사자의 3월분을 한 달 치 전액으로 계산했다.
+    const pr = monthKey && !ov ? monthProration(monthKey, emp.hire_date, emp.resignation_date) : null;
 
     //   사업소득자(프리랜서 3.3%) — 2026-08-31 세무 2차 결정 102. 고용형태가 '프리랜서'면
     //   간이세액표·4대보험 대신 3.3% 경로(calculatePayroll businessIncome)로 계산한다.
@@ -127,15 +135,20 @@ export async function previewPayroll(
     const allowance = valid.filter((e) => e.type === 'allowance').reduce((s, e) => s + e.amount, 0);
     const deduction = valid.filter((e) => e.type === 'deduction').reduce((s, e) => s + e.amount, 0);
 
-    const item = calculatePayroll(salary, emp.name, emp.id, {
+    const paySalary = pr ? Math.round(salary * pr.worked / pr.days) : salary;
+    const payNonTaxable = pr ? Math.round(nonTaxable * pr.worked / pr.days) : nonTaxable;
+    const item = calculatePayroll(paySalary, emp.name, emp.id, {
       rates, insured: !isBiz && emp.is_4_insurance !== false,
-      nonTaxableAmount: nonTaxable,
+      nonTaxableAmount: payNonTaxable,
+      insuranceBase: pr ? salary + allowance : undefined,
+      pensionHealthExempt: pr?.hiredMidMonth,
       //   부양가족 수(본인 포함) — 종전엔 1 고정이라 부양가족 있는 직원 소득세가 과다했다.
       dependents: Math.max(1, Number((emp as any).dependents) || 1),
       taxableAllowance: allowance, // 과세 수당 → 소득세·국민연금·건강·고용보험 자동 가산
       businessIncome: isBiz,
     });
     item.employeeNumber = emp.employee_number || undefined;
+    if (pr) item.proration = { worked: pr.worked, days: pr.days, reason: pr.reason };
     // 수당/공제 항목 표시 + 실수령 가감 (세금은 calculatePayroll 이 이미 반영)
     //   ⚠️ 사업소득 경로는 수당이 지급액에 이미 들어 netPay 에 반영돼 있다 — 다시 더하면 이중 가산
     if (valid.length > 0) {
@@ -166,7 +179,7 @@ export async function previewPayroll(
     }
     items.push(item);
     // 세전 총급여 = 과세 기본급 + 비과세(식대) + 과세수당 (지급총액 기준)
-    totalGross += item.baseSalary + nonTaxable + allowance;
+    totalGross += item.baseSalary + payNonTaxable + allowance;
     totalDeductions += item.deductionsTotal;
     totalNet += item.netPay;
 
@@ -187,6 +200,46 @@ export async function previewPayroll(
     }
   }
   return { items, totalGross, totalDeductions, totalNet, skippedNoBirth, totalEmployer: items.reduce((s, it) => s + Number(it.employerCosts?.total || 0), 0), rates };
+}
+
+/** 그 달에 입사·퇴사가 끼면 재직한 역일 수. 한 달 내내 재직이면 null */
+export function monthProration(monthKey: string, hireDate?: string | null, resignationDate?: string | null): { worked: number; days: number; hiredMidMonth: boolean; reason: string } | null {
+  const [y, m] = monthKey.split('-').map(Number);
+  const days = new Date(y, m, 0).getDate();
+  const hire = hireDate ? String(hireDate).slice(0, 10) : '';
+  const resign = resignationDate ? String(resignationDate).slice(0, 10) : '';
+  const startDay = hire.startsWith(monthKey) ? Number(hire.slice(8, 10)) : 1;
+  const endDay = resign.startsWith(monthKey) ? Number(resign.slice(8, 10)) : days;
+  if (startDay === 1 && endDay === days) return null;
+  const worked = Math.max(0, endDay - startDay + 1);
+  const reason = [startDay > 1 ? `${m}/${startDay} 입사` : '', endDay < days ? `${m}/${endDay} 퇴사` : ''].filter(Boolean).join(' · ');
+  return { worked, days, hiredMidMonth: startDay > 1, reason };
+}
+
+/** 달별 급여 합계 — 그 달에 재직한 사람만, 입사·퇴사한 달은 일할. 비용 분석·월별 흐름이 쓴다.
+ *  예전엔 지금 재직자 급여 합계를 1월부터 모든 달에 똑같이 넣어 입사 전 달까지 인건비가 잡혔다. */
+export async function getSalaryByMonth(companyId: string): Promise<(monthKey: string) => number> {
+  const employees = logRead('lib/payroll:salary-by-month', await db
+    .from('employees')
+    .select('salary, status, hire_date, resignation_date')
+    .eq('company_id', companyId)
+    .or('status.in.(active,joined),resignation_date.not.is.null'));
+  const list = ((employees || []) as any[]).filter((e) => Number(e.salary || 0) > 0);
+  return (monthKey: string) => {
+    const [y, m] = monthKey.split('-').map(Number);
+    const monthStart = `${monthKey}-01`;
+    const monthEnd = `${monthKey}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`;
+    let sum = 0;
+    for (const e of list) {
+      const hire = e.hire_date ? String(e.hire_date).slice(0, 10) : '';
+      const resign = e.resignation_date ? String(e.resignation_date).slice(0, 10) : '';
+      if (hire && hire > monthEnd) continue;
+      if (resign && resign < monthStart) continue;
+      const pr = monthProration(monthKey, hire, resign);
+      sum += pr ? Math.round(Number(e.salary) * pr.worked / pr.days) : Number(e.salary);
+    }
+    return sum;
+  };
 }
 
 // ── Get total monthly salary for burn calculation ──

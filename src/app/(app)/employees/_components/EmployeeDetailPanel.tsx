@@ -970,7 +970,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                 <span>총 부여 <b className="mono-number">{empLeaveBalance.total_days}일</b></span>
                 <span>사용 <b className="mono-number">{empLeaveBalance.used_days}일</b></span>
                 <span>잔여 <b className={`mono-number ${(empLeaveBalance.remaining_days ?? (empLeaveBalance.total_days ?? 0) - (empLeaveBalance.used_days ?? 0)) <= 3 ? "text-[var(--warning)]" : "text-[var(--success)]"}`}>{empLeaveBalance.remaining_days ?? ((empLeaveBalance.total_days ?? 0) - (empLeaveBalance.used_days ?? 0))}일</b></span>
-                <span className="text-[var(--text-dim)]">{currentYear}년 · 사용일수는 승인된 휴가 기준입니다.</span>
+                <span className="text-[var(--text-dim)]">{currentYear}년 · 사용일수는 승인된 휴가에 관리자 보정을 더한 값입니다.</span>
               </div>
             ) : (
               <div className="collect-empty">아직 {currentYear}년 연차가 없습니다. 아래에서 부여일수를 정하세요.</div>

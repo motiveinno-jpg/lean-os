@@ -7,7 +7,7 @@ import { logRead } from "@/lib/log-read";
 import { supabase } from "@/lib/supabase";
 import { fetchPaged, fetchPagedRes } from "@/lib/fetch-paged";
 import { getAccountMap, isCostAccount } from "./account-nature";
-import { getMonthlyTotalSalary } from "./payroll";
+import { getSalaryByMonth } from "./payroll";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
@@ -81,7 +81,7 @@ export async function getBudgetCellDetail(
         .order("transaction_date", { ascending: true })
         .order("id")),
       getAccountMap(companyId),
-      getMonthlyTotalSalary(companyId).catch(() => 0),
+      getSalaryByMonth(companyId).then((f) => f(`${year}-${String(month).padStart(2, "0")}`)).catch(() => 0),
     ]);
     const items: BudgetDetailItem[] = (recRes.data ?? []).map((r: any) => ({
       label: pick(r, ["name", "memo", "description", "category"], "정기지출"),
@@ -100,7 +100,7 @@ export async function getBudgetCellDetail(
     }
     //   급여 — 셀 값에 들어가므로 내역에도 세운다 (2026-08-10, 예전엔 셀에도 내역에도 없었다)
     if (salaryMonthly > 0) {
-      items.push({ label: "급여 (재직 직원 합계)", sub: "인사관리 등록 급여", amount: Number(salaryMonthly) });
+      items.push({ label: "급여 (그 달 재직 직원 합계)", sub: "인사관리 등록 급여 · 입사·퇴사 달은 일할", amount: Number(salaryMonthly) });
     }
     // 통장 거래 중 '고정비' 체크(전표처리/매핑) — 당월 실적. 매핑한 분류(계정과목)를 함께 표시
     for (const t of (btRes.data ?? [])) {

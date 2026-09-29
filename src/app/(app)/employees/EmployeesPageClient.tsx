@@ -2297,6 +2297,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                     <td className="px-4 py-3 text-sm font-medium">
                       {item.employeeName}{item.employeeNumber && <span className="emp-no">#{item.employeeNumber}</span>}
                       {!editMode && item.warn && <span className="hr-src-tag hr-src-warn" title={item.warn}>전월 대비 ±20%</span>}
+                      {!editMode && item.proration && <span className="hr-src-tag" title={`${item.proration.reason} — 월급 × ${item.proration.worked}일 ÷ ${item.proration.days}일로 일할 계산했습니다.${item.proration.reason.includes("입사") ? " 1일이 아닌 날 입사한 달은 국민연금·건강보험을 걷지 않습니다(다음 달부터)." : ""}`}>일할 {item.proration.worked}/{item.proration.days}일</span>}
                       {!editMode && item.extras?.some((e) => e.auto) && <span className="hr-src-tag" title="근태 집계에서 자동으로 더해진 수당입니다.">근태 집계</span>}
                       {!editMode && (allowanceSum > 0 || deductionSum > 0) && (
                         <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
@@ -2893,17 +2894,21 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     //   순서 = 사번 순 → 가나다 → ABC (lib/people-sort, 2026-08-27 대표 — 디렉토리·급여표와 같은 순서)
     return [...(targets as any[])].sort(comparePeople).map((e: any) => {
       const r = byEmp.get(e.id) || { total: 0, months: Array(12).fill(0), used: 0 };
-      // 총 사용일수는 월별 칸의 합 — 표 안에서 눈으로 더한 값과 어긋나지 않게(시안 규약).
-      //   leave_balances.used_days 는 차감 원장이라 조정분까지 포함될 수 있어 표의 합과 다를 수 있다.
-      const usedTotal = r.months.reduce((a, b) => a + b, 0);
+      //   총 사용·잔여는 연차 원장(leave_balances.used_days = 승인 휴가 + 관리자 보정, DB 트리거 계산)을 그대로 쓴다 —
+      //   직원 상세·연차 촉진과 같은 숫자. 예전엔 월별 칸 합으로 따로 세고 잔여를 0에서 잘라
+      //   같은 사람의 잔여가 표와 상세에서 달랐고 초과 사용이 가려졌다.
+      //   월별 칸 합과 원장의 차이는 관리자 보정분이라 따로 적는다.
+      const monthSum = r.months.reduce((a, b) => a + b, 0);
+      const used = byEmp.has(e.id) ? r.used : monthSum;
       return {
         id: e.id,
         name: e.name || "-",
         employee_number: e.employee_number || null,
         total: r.total,
         months: r.months,
-        used: usedTotal,
-        remain: Math.max(0, r.total - usedTotal),
+        used,
+        adjust: Math.round((used - monthSum) * 10) / 10,
+        remain: Math.round((r.total - used) * 10) / 10,
         hasBalance: byEmp.has(e.id),
       };
     });
@@ -3128,8 +3133,8 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                           )}
                         </td>
                       ))}
-                      <td className="leave-roster-td mono-number font-semibold">{row.used}</td>
-                      <td className="leave-roster-td mono-number font-bold">{row.remain}</td>
+                      <td className="leave-roster-td mono-number font-semibold" title={row.adjust ? `월별 승인 휴가 ${row.used - row.adjust}일 + 관리자 보정 ${row.adjust > 0 ? "+" : ""}${row.adjust}일` : undefined}>{row.used}{row.adjust ? <span className="block text-[10px] font-normal text-[var(--text-dim)]">보정 {row.adjust > 0 ? "+" : ""}{row.adjust}</span> : null}</td>
+                      <td className={`leave-roster-td mono-number font-bold${row.remain < 0 ? " text-[var(--danger)]" : ""}`} title={row.remain < 0 ? "부여된 연차보다 더 썼습니다." : undefined}>{row.remain}</td>
                     </tr>
                   ))}
                 </tbody>

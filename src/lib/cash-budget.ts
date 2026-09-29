@@ -8,7 +8,7 @@ import { logRead } from "@/lib/log-read";
 import { supabase } from './supabase';
 import { fetchPaged, fetchPagedRes } from './fetch-paged';
 import { calculateRetirementPay } from './payment-batch';
-import { getMonthlyTotalSalary } from './payroll';
+import { getMonthlyTotalSalary, getSalaryByMonth } from './payroll';
 import { getAccountMap, isCostAccount } from './account-nature';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -225,6 +225,7 @@ function mapRepaymentType(loanType: string): LoanStatus['repaymentType'] {
   return map[loanType] || 'equal_principal';
 }
 
+// supabase/functions/ai-briefing/index.ts 에 같은 식이 옮겨져 있다 — 바꿀 땐 둘 다
 export function estimateMonthlyPayment(row: any): number {
   const remaining = Number(row.remaining_balance || 0);
   const rate = Number(row.interest_rate || 0) / 100 / 12;
@@ -354,7 +355,7 @@ export async function getMonthlyBudgetOverview(
   // 통장 거래 중 '고정비' 체크(is_fixed_cost — 전표처리/매핑에서 체크)된 지출 — 고정비 실적으로 합산.
   // 2026-07-10: 같은 지출이 정기결제(recurring_payments)로도 등록돼 있으면(이름+금액 매칭) 그 거래는
   // 자동 제외해 중복 집계를 차단 — "통장 고정비 체크 + 예전 등록 항목이 중복으로 나온다" (대표 QA).
-  const [bankFixedRes, accountMap, salaryMonthly] = await Promise.all([
+  const [bankFixedRes, accountMap, salaryForMonth] = await Promise.all([
     fetchPagedRes('cashBudget.bankFixed', () => db.from('bank_transactions')
       .select('amount, transaction_date, counterparty, description, category')
       .eq('company_id', companyId)
@@ -365,7 +366,8 @@ export async function getMonthlyBudgetOverview(
       .order('id', { ascending: true })),
     getAccountMap(companyId),
     // 급여 — 예전엔 월별표에만 빠져 있어서 위 카드(총비용)와 아래 세부내역이 서로 달랐다 (2026-08-10)
-    getMonthlyTotalSalary(companyId).catch(() => 0),
+    //   달마다 그 달 재직자만(입사·퇴사 달은 일할) — 인원별 급여 화면과 같은 기준
+    getSalaryByMonth(companyId).catch(() => () => 0),
   ]);
 
   const snapshots = bankAccountsRes.data || [];
@@ -436,6 +438,7 @@ export async function getMonthlyBudgetOverview(
       .filter((t: any) => t.transaction_date?.startsWith(monthPrefix))
       .reduce((sum: number, t: any) => sum + Math.abs(Number(t.amount || 0)), 0);
 
+    const salaryMonthly = salaryForMonth(monthPrefix);
     const totalFixed = recurringTotal + fixedCostTotal + bankFixedMonth + salaryMonthly;
 
     // ── Variable Costs ──
