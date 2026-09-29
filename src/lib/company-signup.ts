@@ -89,6 +89,22 @@ export async function assertBizNoOwnerValid(
   }
 }
 
+// 가입 뒤 사업자등록번호 등록·변경 — 서버(/api/company/business-number)만 바꿀 수 있다(2026-09-29).
+//   회사 설정 › 회사정보와 온보딩이 쓴다. 형식·국세청 상태(미등록·휴업·폐업 차단)·중복을 서버가 한 번에 본다.
+//   빈 값을 넘기면 번호를 지운다.
+export async function saveCompanyBusinessNumber(bizNo: string): Promise<{
+  ok: boolean; error?: string; code?: string; unchanged?: boolean; taxType?: string | null;
+}> {
+  const res = await fetch("/api/company/business-number", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ businessNumber: bizNoDigits(bizNo) }),
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok || !j?.ok) return { ok: false, error: j?.error || `사업자등록번호를 저장하지 못했습니다 (HTTP ${res.status})`, code: j?.code };
+  return { ok: true, unchanged: !!j.unchanged, taxType: j.taxType ?? null };
+}
+
 // 합류 요청 생성 (로그인 세션 필요 — 쿠키 인증)
 export async function submitJoinRequest(bizNo: string, name?: string): Promise<{ ok: boolean; status?: string; error?: string }> {
   const res = await fetch("/api/join-request", {

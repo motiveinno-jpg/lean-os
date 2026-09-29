@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { appConfirm } from "@/components/global-confirm";
+import { saveCompanyBusinessNumber } from "@/lib/company-signup";
 import { verifyBusinessNumber } from "@/lib/business-verification";
 import {
   VAT_BUSINESS_TYPES, vatBusinessTypeOf, guessVatBusinessType, type VatBusinessType,
@@ -85,7 +86,8 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
         .from("companies")
         .update({
           name: form.name,
-          business_number: form.business_number || null,
+          //   사업자등록번호는 여기서 쓰지 않는다 — handleSave 가 서버(saveCompanyBusinessNumber)로 먼저 저장한다.
+          //   DB 트리거가 브라우저의 직접 변경을 막는다(2026-09-29).
           representative: form.representative || null,
           address: form.address || null,
           phone: form.phone || null,
@@ -143,16 +145,13 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     if (!form.name) return;
     const digits = form.business_number.replace(/\D/g, "");
     const savedDigits = (company?.business_number || "").replace(/\D/g, "");
-    if (digits && digits !== savedDigits) {
-      if (digits.length !== 10) { toast("사업자번호는 10자리여야 합니다.", "error"); return; }
-      const r = await verifyBusinessNumber(digits);
-      if (!r.valid) { toast("올바르지 않은 사업자번호입니다 (검증 실패). 다시 확인해 주세요.", "error"); return; }
-      if (r.status === "미등록") { toast("국세청에 등록되지 않은 사업자번호입니다. 확인 후 다시 입력해 주세요.", "error"); return; }
-      if (r.status === "휴업자" || r.status === "폐업자") {
-        const ok = await appConfirm(`국세청 기준 ${r.status} 상태의 번호입니다. 이 번호로 저장할까요?`, { title: "사업자 상태 확인", confirmLabel: "저장" });
-        if (!ok) return;
-      }
-      // 확인불가(API 장애)는 저장 허용 — 장애로 대표 발이 묶이지 않게 (fail-open)
+    if (digits !== savedDigits) {
+      if (digits && digits.length !== 10) { toast("사업자번호는 10자리여야 합니다.", "error"); return; }
+      //   번호가 바뀌었으면 서버가 먼저 검사·저장한다(형식·국세청 상태·중복, 가입과 같은 기준 — 휴·폐업 차단).
+      //   실패하면 나머지 칸도 저장하지 않는다 — 번호만 빠진 채 '저장되었습니다'가 뜨지 않게.
+      if (digits && savedDigits && !(await appConfirm("사업자등록번호를 바꾸면 세금계산서·통장 연동 등에 쓰는 번호가 바뀝니다. 바꿀까요?", { title: "사업자등록번호 변경", confirmLabel: "변경" }))) return;
+      const r = await saveCompanyBusinessNumber(digits);
+      if (!r.ok) { toast(r.error || "사업자등록번호를 저장하지 못했습니다.", "error"); return; }
     }
     saveMut.mutate();
   };
@@ -387,8 +386,8 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
               }`}>
                 {bizStatus.loading ? "국세청 조회중..."
                   : bizStatus.status === "계속사업자" ? "✓ 정상 사업자"
-                  : bizStatus.status === "휴업자" ? "휴업 상태의 번호입니다"
-                  : bizStatus.status === "폐업자" ? "폐업된 번호입니다"
+                  : bizStatus.status === "휴업자" ? "휴업 상태의 번호입니다. 저장할 수 없습니다"
+                  : bizStatus.status === "폐업자" ? "폐업된 번호입니다. 저장할 수 없습니다"
                   : bizStatus.status === "미등록" ? "국세청에 등록되지 않은 번호입니다. 저장할 수 없습니다"
                   : bizStatus.status === "체크섬오류" ? "올바르지 않은 번호입니다. 저장할 수 없습니다"
                   : "국세청 확인 불가 (일시 장애)"}

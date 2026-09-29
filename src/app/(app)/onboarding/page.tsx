@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
+import { saveCompanyBusinessNumber } from "@/lib/company-signup";
 // 설정 > 연동·인증의 금융기관 등록 폼을 그대로 재사용 — 온보딩과 설정이 같은 코드를 본다 (2026-08-10)
 import { CodefAccountRegister } from "@/app/(app)/settings/_components/BankIntegrationTab";
 import { useSampleStatus, sampleErrorText }  from "@/components/sample-data-banner";
@@ -102,6 +103,7 @@ export default function OnboardingPage() {
   const [introRole, setIntroRole] = useState("");
   const [introPain, setIntroPain] = useState("");
   const automationSettingsRef = useRef<Record<string, unknown>>({});
+  const savedBizNo = useRef("");   // DB 에 저장돼 있는 사업자번호 — 바뀌었을 때만 서버로 보낸다
 
   const companyId = user?.company_id ?? null;
 
@@ -122,9 +124,8 @@ export default function OnboardingPage() {
   const companyValidation = useCallback(() => {
     const errors: string[] = [];
     if (!company.name.trim()) errors.push("회사명을 입력해주세요");
-    if (!company.businessNumber.trim()) {
-      errors.push("사업자번호를 입력해주세요");
-    } else if (!BUSINESS_NUMBER_REGEX.test(company.businessNumber)) {
+    //   사업자번호는 선택(2026-09-29) — 가입·회사 설정과 같다. 넣었으면 형식만 여기서, 나머지는 서버가 본다.
+    if (company.businessNumber.trim() && !BUSINESS_NUMBER_REGEX.test(company.businessNumber)) {
       errors.push("사업자번호 형식이 올바르지 않습니다 (XXX-XX-XXXXX)");
     }
     if (!company.representative.trim()) errors.push("대표자명을 입력해주세요");
@@ -159,7 +160,9 @@ export default function OnboardingPage() {
           .eq("id", companyId ?? "")
           .maybeSingle());
 
-        const hasCompany = !!(comp?.name && comp?.business_number);
+        //   사업자번호가 없는 회사도 대표자까지 적었으면 이 단계는 끝난 것(번호는 선택, 2026-09-29)
+        const hasCompany = !!(comp?.name && (comp?.business_number || comp?.representative));
+        savedBizNo.current = comp?.business_number || "";
         if (comp) {
           setCompany({
             name: comp.name || "",
@@ -216,9 +219,15 @@ export default function OnboardingPage() {
       //   ⚠️ .select() 로 실제 바뀐 행을 받아야 한다. 0행 매칭(RLS 차단·companyId 빈 문자열)은
       //   오류가 아니라서, 예전엔 아무것도 안 바뀐 채 "저장되었습니다" 가 뜨고 다음 단계로 넘어갔다.
       if (!companyId) throw new Error("회사 정보를 찾지 못했습니다. 새로고침한 뒤 다시 시도해 주세요.");
+      //   사업자등록번호는 서버가 검사·저장한다(형식·국세청 상태·중복) — 전에는 여기서 검사 없이 바로 썼다.
+      //   DB 트리거가 브라우저의 직접 변경을 막는다(2026-09-29).
+      if (company.businessNumber.replace(/\D/g, "") !== savedBizNo.current.replace(/\D/g, "")) {
+        const r = await saveCompanyBusinessNumber(company.businessNumber);
+        if (!r.ok) throw new Error(r.error || "사업자등록번호를 저장하지 못했습니다.");
+        savedBizNo.current = company.businessNumber;
+      }
       const { data: saved, error: e } = await db.from("companies").update({
         name: company.name.trim(),
-        business_number: company.businessNumber.trim(),
         industry: company.industry || null,
         address: company.address || null,
         representative: company.representative.trim(),
@@ -600,13 +609,12 @@ function Step1Company({
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField
-            label="사업자등록번호"
-            required
+            label="사업자등록번호 (선택)"
             value={data.businessNumber}
             onChange={(v) => onChange({ ...data, businessNumber: formatBusinessNumber(v) })}
             placeholder="000-00-00000"
             maxLength={12}
-            hint="하이픈(-) 포함 10자리"
+            hint="세금계산서 발행·통장 연동에 필요합니다. 나중에 회사 설정에서 넣어도 됩니다"
           />
           <FormField
             label="대표자명"
