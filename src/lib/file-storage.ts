@@ -18,7 +18,8 @@ const db = supabase;
 
 // ── Types ──
 
-type BucketName = "document-files" | "company-assets" | "certificates" | "employee-files";
+import { validateFileMeta, type BucketName } from "@/lib/file-rules";
+export type { BucketName };
 
 interface UploadParams {
   companyId: string;
@@ -53,14 +54,7 @@ interface UploadResult {
 
 // ── Constants ──
 
-const MAX_SIZES: Record<BucketName, number> = {
-  //   50MB → 500MB (결정 146 ①, 드팜므 문의발 P4) — 6MB 넘는 파일은 이어올리기(TUS)로 올린다.
-  //   버킷 한도(storage.buckets.file_size_limit)도 500MB 로 같이 올렸다(20260902050000).
-  "document-files": 500 * 1024 * 1024,
-  "company-assets": 5 * 1024 * 1024,
-  certificates: 10 * 1024 * 1024,
-  "employee-files": 50 * 1024 * 1024,
-};
+
 
 //   이어올리기 경계 — 이보다 크면 TUS(6MB 청크, 끊겨도 이어서). Supabase 권장 청크 = 정확히 6MB
 const RESUMABLE_THRESHOLD = 6 * 1024 * 1024;
@@ -98,53 +92,14 @@ async function uploadResumable(bucket: string, storagePath: string, file: File, 
   });
 }
 
-const ALLOWED_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/svg+xml",
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-powerpoint",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "text/csv",
-  "text/plain",
-  "application/zip",
-  "application/x-zip-compressed",
-  "application/x-hwp",
-  "application/haansofthwp",
-  "application/vnd.hancom.hwp",
-];
+
 
 // ── Helpers ──
 
-// Extensions allowed when browser reports empty or generic MIME type
-const ALLOWED_EXTENSIONS = [
-  "jpg", "jpeg", "png", "gif", "webp", "svg",
-  "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
-  "csv", "txt", "zip", "hwp",
-];
+
 
 function validateFile(file: File, bucket: BucketName): void {
-  const maxSize = MAX_SIZES[bucket];
-  if (file.size > maxSize) {
-    const limitMB = Math.round(maxSize / (1024 * 1024));
-    throw new Error(`파일 크기는 ${limitMB}MB 이하만 가능합니다.`);
-  }
-
-  const ext = file.name.split(".").pop()?.toLowerCase() || "";
-  const isAllowedType = ALLOWED_TYPES.includes(file.type);
-  const isAllowedExt = ALLOWED_EXTENSIONS.includes(ext);
-
-  // Accept if MIME type matches OR if extension matches (browsers may report
-  // empty/generic MIME for less common formats like .hwp)
-  if (!isAllowedType && !isAllowedExt) {
-    throw new Error(`지원하지 않는 파일 형식입니다: ${file.type || ext}`);
-  }
+  validateFileMeta(file.name, file.size, file.type, bucket);
 }
 
 function buildStoragePath(companyId: string, context?: UploadParams["context"]): string {

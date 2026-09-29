@@ -3,6 +3,8 @@
 //   파일 내용은 그 판정을 통과한 파일만 서버가 내려받아 글자를 뽑는다(AI 참모 첨부와 같은 추출기).
 import { oauthDb } from "@/lib/mcp-oauth";
 import { extractDocumentText, DOCUMENT_TEXT_EXTS } from "@/lib/copilot-attachments";
+import { validateFileMeta } from "@/lib/file-rules";
+import { randomBytes } from "node:crypto";
 
 const MAX_BYTES = 100 * 1024 * 1024;      // 글자 뽑기는 100MB 까지(함수 300초 안). 원본 내려받기(download_vault_files)는 크기 제한 없음
 const PAGE_CHARS = 60_000;                // 한 번에 돌려주는 글자 수 — 긴 문서는 offset 으로 이어 읽는다
@@ -51,8 +53,71 @@ export const VAULT_TOOLS = [
       required: ["file_ids"],
     },
   },
+  {
+    name: "create_vault_folder",
+    description:
+      "파일보관함에 폴더를 만든다. 같은 자리에 같은 이름 폴더가 이미 있으면 새로 만들지 않고 그 폴더를 돌려준다. " +
+      "visibility: company(회사 전체, 기본)·private(나만)·departments(departments 에 적은 부서만). 특정 사람 지정은 오너뷰 화면에서.",
+    inputSchema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        name: { type: "string", description: "폴더 이름" },
+        parent_id: { type: "string", description: "상위 폴더 id(없으면 맨 위)" },
+        visibility: { type: "string", enum: ["company", "private", "departments"], description: "공개 범위(기본 company)" },
+        departments: { type: "array", items: { type: "string" }, description: "visibility=departments 일 때 부서 이름들" },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "upload_vault_file",
+    description:
+      "파일보관함에 파일을 올리는 1단계 — 올리기 링크(2시간)를 받는다. 받은 upload_url 로 파일을 PUT 한 뒤 반드시 finish_vault_upload 를 불러야 목록에 등록된다. " +
+      "터미널: curl -X PUT -H \"Content-Type: <mime_type>\" --data-binary @\"로컬파일\" \"<upload_url>\". " +
+      "형식·크기(500MB)·저장공간 한도는 오너뷰 화면에서 올릴 때와 같다. 같은 폴더에 같은 이름이면 덮지 않고 새 판(v2, v3…)으로 쌓인다.",
+    inputSchema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        file_name: { type: "string", description: "저장될 파일 이름(확장자 포함)" },
+        size_bytes: { type: "integer", description: "파일 크기(바이트)" },
+        folder_id: { type: "string", description: "넣을 폴더 id(없으면 폴더 밖)" },
+        mime_type: { type: "string", description: "파일 형식(모르면 비워 두면 확장자로 정함)" },
+        tags: { type: "array", items: { type: "string" }, description: "태그(선택)" },
+      },
+      required: ["file_name", "size_bytes"],
+    },
+  },
+  {
+    name: "finish_vault_upload",
+    description: "파일보관함 올리기 2단계 — upload_url 로 파일을 다 올린 뒤 upload_id 를 넘기면 실물을 확인하고 목록에 등록한다.",
+    inputSchema: {
+      type: "object", additionalProperties: false,
+      properties: { upload_id: { type: "string", description: "upload_vault_file 이 준 upload_id" } },
+      required: ["upload_id"],
+    },
+  },
 ];
 export const isVaultTool = (name: string) => VAULT_TOOLS.some((t) => t.name === name);
+const UPLOAD_TTL_MS = 2 * 3600 * 1000;
+const MIME_BY_EXT: Record<string, string> = {
+  pdf: "application/pdf", txt: "text/plain", csv: "text/csv", zip: "application/zip", hwp: "application/x-hwp",
+  jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml",
+  doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xls: "application/vnd.ms-excel", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ppt: "application/vnd.ms-powerpoint", pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+};
+const mb = (n: number) => `${Math.round((n / 1048576) * 10) / 10}MB`;
+
+/** 올리기 링크만 받고 등록하지 않은 실물 치우기 — 목록에 없이 저장공간만 먹지 않게(2시간 지난 것) */
+async function sweepExpiredUploads() {
+  const db = oauthDb();
+  const { data } = await db.from("mcp_pending_uploads").select("id, storage_path")
+    .is("done_file_id", null).is("cleaned_at", null).lt("expires_at", new Date().toISOString()).limit(50);
+  const rows = (data || []) as { id: string; storage_path: string }[];
+  if (!rows.length) return;
+  await db.storage.from("document-files").remove(rows.map((r) => r.storage_path));
+  await db.from("mcp_pending_uploads").update({ cleaned_at: new Date().toISOString() }).in("id", rows.map((r) => r.id));
+}
 const DOWNLOAD_TTL_SEC = 600;
 
 type Tok = { user_id: string; company_id: string; client_id: string };
@@ -76,6 +141,94 @@ export async function callVaultTool(tok: Tok, name: string, args: Record<string,
     if (error) { await log(tok, name, false, error.message.slice(0, 200)); return { content: text({ error: "파일 목록을 불러오지 못했습니다." }), isError: true }; }
     await log(tok, name, true, null);
     return { content: text({ ...data, note: "로그인한 사람이 볼 수 있는 파일만입니다(폴더 공개 범위 적용). 최신 판만, 파일보관함에 직접 올린 파일만." }), isError: false };
+  }
+
+  if (name === "create_vault_folder") {
+    const parent = typeof args.parent_id === "string" && UUID.test(args.parent_id) ? args.parent_id : null;
+    const deps = Array.isArray(args.departments) ? args.departments.map(String).map((x) => x.trim()).filter(Boolean).slice(0, 20) : [];
+    const { data, error } = await db.rpc("mcp_vault_create_folder", {
+      p_auth: tok.user_id, p_company: tok.company_id, p_name: String(args.name || ""), p_parent: parent,
+      p_visibility: typeof args.visibility === "string" ? args.visibility : "company", p_departments: deps,
+    });
+    if (error) { await log(tok, name, false, error.message.slice(0, 200)); return { content: text({ error: "폴더를 만들지 못했습니다." }), isError: true }; }
+    const r = data as { error?: string; id?: string; existed?: boolean };
+    await log(tok, name, !r.error, r.error ?? null);
+    return { content: text(r.error ? r : { ...r, note: r.existed ? "같은 이름 폴더가 이미 있어 그 폴더를 씁니다." : "폴더를 만들었습니다." }), isError: !!r.error };
+  }
+
+  if (name === "upload_vault_file") {
+    await sweepExpiredUploads().catch(() => {});
+    const fileName = String(args.file_name || "").replace(/[\u0000-\u001f/\\]/g, "").trim().slice(0, 200);
+    const size = Math.trunc(Number(args.size_bytes));
+    const ext = (fileName.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1]) || "";
+    const mime = (typeof args.mime_type === "string" && args.mime_type.trim()) || MIME_BY_EXT[ext] || "application/octet-stream";
+    if (!fileName || !ext) return { content: text({ error: "file_name 에 확장자까지 적어 주세요." }), isError: true };
+    if (!Number.isFinite(size) || size <= 0) return { content: text({ error: "size_bytes 에 파일 크기(바이트)를 적어 주세요." }), isError: true };
+    try { validateFileMeta(fileName, size, mime, "document-files"); }
+    catch (e) { return { content: text({ error: (e as Error).message }), isError: true }; }
+    const folder = typeof args.folder_id === "string" && UUID.test(args.folder_id) ? args.folder_id : null;
+    const { data: chk, error: cErr } = await db.rpc("mcp_vault_upload_check", { p_auth: tok.user_id, p_company: tok.company_id, p_folder: folder });
+    if (cErr) { await log(tok, name, false, cErr.message.slice(0, 200)); return { content: text({ error: "올리기 준비에 실패했습니다." }), isError: true }; }
+    const c = chk as { ok: boolean; error?: string; used_bytes: number; quota_bytes: number };
+    if (!c.ok) return { content: text({ error: c.error }), isError: true };
+    if (c.quota_bytes > 0 && c.used_bytes + size > c.quota_bytes) {
+      return { content: text({ error: `저장공간이 부족합니다 — 사용 ${mb(c.used_bytes)} / 한도 ${mb(c.quota_bytes)}, 이 파일 ${mb(size)}. 오너뷰 요금제에서 저장공간을 늘리거나 파일을 정리해 주세요.` }), isError: true };
+    }
+    //   저장 경로는 앱 uploadFile 과 같은 꼴 — 스토리지 RLS 가 경로의 폴더 id 로 공개 범위를 가른다
+    const storagePath = `${tok.company_id}/${folder ? `folders/${folder}` : "general"}/${Date.now()}_${randomBytes(4).toString("hex")}.${ext}`;
+    const { data: signed, error: sErr } = await db.storage.from("document-files").createSignedUploadUrl(storagePath);
+    if (sErr || !signed?.signedUrl) { await log(tok, name, false, "sign_failed"); return { content: text({ error: "올리기 링크를 만들지 못했습니다." }), isError: true }; }
+    const tags = Array.isArray(args.tags) ? args.tags.map(String).map((x) => x.trim()).filter(Boolean).slice(0, 20) : [];
+    const { data: pend, error: pErr } = await db.from("mcp_pending_uploads").insert({
+      company_id: tok.company_id, user_id: tok.user_id, client_id: tok.client_id, folder_id: folder, file_name: fileName,
+      storage_path: storagePath, declared_size: size, mime_type: mime, tags, expires_at: new Date(Date.now() + UPLOAD_TTL_MS).toISOString(),
+    }).select("id").single();
+    if (pErr || !pend) return { content: text({ error: "올리기 준비를 기록하지 못했습니다." }), isError: true };
+    await log(tok, name, true, null);
+    return {
+      content: text({
+        upload_id: pend.id, upload_url: signed.signedUrl, method: "PUT", headers: { "Content-Type": mime },
+        expires_in_seconds: UPLOAD_TTL_MS / 1000,
+        next: `1) curl -X PUT -H "Content-Type: ${mime}" --data-binary @"<로컬 파일 경로>" "<upload_url>"  2) finish_vault_upload(upload_id) — 부르지 않으면 2시간 뒤 치워진다`,
+      }),
+      isError: false,
+    };
+  }
+
+  if (name === "finish_vault_upload") {
+    const uid = String(args.upload_id || "");
+    if (!UUID.test(uid)) return { content: text({ error: "upload_id 가 올바르지 않습니다." }), isError: true };
+    const { data: pu } = await db.from("mcp_pending_uploads").select("*").eq("id", uid).maybeSingle();
+    const p = pu as null | { id: string; user_id: string; company_id: string; folder_id: string | null; file_name: string; storage_path: string; mime_type: string; category: string | null; tags: string[]; expires_at: string; done_file_id: string | null; cleaned_at: string | null };
+    if (!p || p.user_id !== tok.user_id || p.company_id !== tok.company_id) return { content: text({ error: "올리기 기록을 찾을 수 없습니다." }), isError: true };
+    if (p.done_file_id) return { content: text({ file_id: p.done_file_id, note: "이미 등록된 파일입니다." }), isError: false };
+    if (p.cleaned_at || Date.parse(p.expires_at) <= Date.now()) return { content: text({ error: "올리기 링크가 만료됐습니다. upload_vault_file 부터 다시 해 주세요." }), isError: true };
+    //   실물이 정말 올라왔는지 — 크기는 선언값이 아니라 저장소가 잰 값으로 등록한다
+    const slash = p.storage_path.lastIndexOf("/");
+    const { data: objs } = await db.storage.from("document-files").list(p.storage_path.slice(0, slash), { search: p.storage_path.slice(slash + 1), limit: 5 });
+    const obj = ((objs || []) as { name: string; metadata?: { size?: number } }[]).find((o) => o.name === p.storage_path.slice(slash + 1));
+    if (!obj) return { content: text({ error: "아직 파일이 올라오지 않았습니다. upload_url 로 PUT 한 뒤 다시 불러 주세요." }), isError: true };
+    const actual = Number(obj.metadata?.size || 0);
+    try { validateFileMeta(p.file_name, actual, p.mime_type, "document-files"); }
+    catch (e) { await db.storage.from("document-files").remove([p.storage_path]); return { content: text({ error: (e as Error).message }), isError: true }; }
+    const { data: chk } = await db.rpc("mcp_vault_upload_check", { p_auth: tok.user_id, p_company: tok.company_id, p_folder: p.folder_id });
+    const c = chk as { ok: boolean; error?: string; used_bytes: number; quota_bytes: number } | null;
+    if (c && c.ok && c.quota_bytes > 0 && c.used_bytes > c.quota_bytes) {
+      //   올린 실물까지 더해 한도를 넘었다 — 등록하지 않고 치운다(앱은 올리기 전에 막는 것과 같은 결과)
+      await db.storage.from("document-files").remove([p.storage_path]);
+      await db.from("mcp_pending_uploads").update({ cleaned_at: new Date().toISOString() }).eq("id", p.id);
+      return { content: text({ error: `저장공간 한도를 넘어 등록하지 않았습니다(사용 ${mb(c.used_bytes)} / 한도 ${mb(c.quota_bytes)}).` }), isError: true };
+    }
+    const { data: pub } = db.storage.from("document-files").getPublicUrl(p.storage_path);
+    const { data: reg, error: rErr } = await db.rpc("mcp_vault_register", {
+      p_auth: tok.user_id, p_company: tok.company_id, p_folder: p.folder_id, p_name: p.file_name, p_path: p.storage_path,
+      p_url: pub.publicUrl, p_size: actual, p_mime: p.mime_type, p_category: p.category, p_tags: p.tags,
+    });
+    if (rErr || !reg) { await log(tok, name, false, rErr?.message.slice(0, 200) ?? "register_failed"); return { content: text({ error: "목록에 등록하지 못했습니다." }), isError: true }; }
+    const r = reg as { id: string; version: number };
+    await db.from("mcp_pending_uploads").update({ done_file_id: r.id }).eq("id", p.id);
+    await log(tok, name, true, null);
+    return { content: text({ file_id: r.id, name: p.file_name, version: r.version, size: actual, note: r.version > 1 ? `같은 이름이 있어 v${r.version} 으로 쌓았습니다.` : "파일보관함에 등록했습니다." }), isError: false };
   }
 
   if (name === "download_vault_files") {

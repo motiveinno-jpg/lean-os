@@ -8,6 +8,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;   // 파일보관함 큰 파일(100MB) 글자 뽑기
 
 const SUPPORTED = ["2025-06-18", "2025-03-26", "2024-11-05"];
+//   무언가를 만드는 도구 — AI 쪽에 읽기 전용으로 표시하지 않는다(지우거나 고치는 도구는 없다)
+const WRITE_TOOLS = new Set(["create_vault_folder", "upload_vault_file", "finish_vault_upload"]);
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, content-type, mcp-protocol-version, mcp-session-id",
@@ -78,9 +80,9 @@ export async function POST(req: Request) {
             capabilities: { tools: { listChanged: false } },
             serverInfo: { name: "ownerview", title: "오너뷰", version: "1.0.0" },
             instructions:
-              "오너뷰(한국 중소기업 경영 관리 앱)의 회사 데이터를 조회합니다. 조회만 가능하고 수정은 하지 않습니다. " +
+              "오너뷰(한국 중소기업 경영 관리 앱)의 회사 데이터를 조회합니다. 파일보관함 폴더 만들기·파일 올리기 외에는 조회만 합니다. " +
               "회사 전체 질문은 get_company_overview 부터 보고, 직원·근태·급여·미수금·통장·세금계산서·결재·일정 등은 해당 도구를 부르세요. " +
-              "업무 › 파일보관함 파일은 list_vault_files 로 찾고 read_vault_file 로 내용을 읽으며, 원본 파일이 필요하면 download_vault_files 로 10분짜리 다운로드 링크를 받습니다. " +
+              "업무 › 파일보관함 파일은 list_vault_files 로 찾고 read_vault_file 로 내용을 읽으며, 원본 파일이 필요하면 download_vault_files 로 10분짜리 다운로드 링크를 받습니다. 폴더는 create_vault_folder, 파일 올리기는 upload_vault_file → (링크로 PUT) → finish_vault_upload 순서입니다. " +
               "돈 숫자는 오너뷰 화면과 같은 기준이며, 결과의 basis·note 에 적힌 기준과 '빠진 자료(전표 안 친 건 등)'를 답에 함께 밝히세요. " +
               `연결 주소: ${mcpUrl(originOf(req))}`,
           }));
@@ -100,7 +102,7 @@ export async function POST(req: Request) {
               })),
               //   파일보관함 — 권한은 DB 가 그 사람 RLS 로 판정하므로 대표·직원 모두에게 준다(볼 수 있는 것만 나온다)
               ...VAULT_TOOLS,
-            ].map((t) => ({ ...t, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } })),
+            ].map((t) => ({ ...t, annotations: { readOnlyHint: !WRITE_TOOLS.has(t.name), destructiveHint: false, openWorldHint: false } })),
           }));
           break;
         }

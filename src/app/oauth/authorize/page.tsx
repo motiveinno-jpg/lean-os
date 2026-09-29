@@ -66,11 +66,11 @@ function Consent() {
               <dt>계정</dt><dd>{info.user.name || "-"} · {info.user.email || "-"}</dd>
               <dt>회사</dt><dd>{info.user.company || "-"}</dd>
               <dt>볼 수 있는 범위</dt><dd>{info.user.scope}</dd>
-              <dt>할 수 있는 일</dt><dd>조회만 — 오너뷰 데이터를 고치거나 지우지 않습니다</dd>
+              <dt>할 수 있는 일</dt><dd>조회, 그리고 파일보관함에 폴더 만들기·파일 올리기 — 기존 데이터를 고치거나 지우지 않습니다</dd>
               <dt>허용 후 돌아갈 곳</dt><dd>{info.redirect_host}</dd>
             </dl>
             <p className="oauth-consent-muted">
-              허용하면 이 AI 가 대화 중에 오너뷰의 회사 데이터(직원·근태·급여·미수금·통장·결재 등)를 조회해 답에 씁니다.
+              허용하면 이 AI 가 대화 중에 오너뷰의 회사 데이터(직원·근태·급여·미수금·통장·결재·파일보관함 등)를 조회해 답에 쓰고, 파일보관함에 폴더를 만들거나 파일을 올릴 수 있습니다.
               계좌번호·카드번호는 내보내지 않습니다. 연결은 설정 › 연동 · API 키에서 언제든 끊을 수 있습니다.
             </p>
             {!info.enabled ? (
