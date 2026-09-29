@@ -260,7 +260,7 @@ function AiConnectorCard({ companyId }: { companyId: string }) {
         <div className="apik-head"><b>AI 커넥터 (Claude 등)</b></div>
         <p className="text-xs text-[var(--text-muted)] mt-1">
           Claude 의 설정 › 커넥터 › 커스텀 커넥터 추가에 아래 주소를 넣고 오너뷰로 로그인하면, 대화 중에 오너뷰 데이터를 조회해 답합니다.
-          조회와 파일보관함 폴더 만들기·파일 올리기만 하며(고치기·지우기 없음), 범위는 로그인한 사람의 오너뷰 권한과 같습니다.
+          조회와 파일보관함 폴더 만들기·파일 올리기·파일 삭제만 하며, 범위는 로그인한 사람의 오너뷰 권한과 같습니다(지울 수 있는 파일도 화면과 같음).
         </p>
         <div className="mt-2 flex items-center gap-2">
           <code className="text-xs break-all select-all px-2 py-1 rounded bg-[var(--bg-surface)]">{url}</code>

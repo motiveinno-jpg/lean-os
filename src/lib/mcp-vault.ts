@@ -96,6 +96,26 @@ export const VAULT_TOOLS = [
       required: ["upload_id"],
     },
   },
+  {
+    name: "delete_vault_files",
+    description:
+      "파일보관함 파일을 지운다(지난 판까지 함께, 되돌릴 수 없음). 파일마다 id 와 이름(list_vault_files 그대로)을 둘 다 넣어야 하고, " +
+      "이름이 맞지 않으면 지우지 않는다. 본인이 올린 파일만 지울 수 있고 남의 파일은 마스터·파일 삭제 권한자만(오너뷰 화면과 같음). 한 번에 20개까지.",
+    inputSchema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        files: {
+          type: "array", description: "지울 파일들(1~20개)",
+          items: {
+            type: "object", additionalProperties: false,
+            properties: { id: { type: "string", description: "list_vault_files 의 id" }, name: { type: "string", description: "그 파일의 이름(확인용)" } },
+            required: ["id", "name"],
+          },
+        },
+      },
+      required: ["files"],
+    },
+  },
 ];
 export const isVaultTool = (name: string) => VAULT_TOOLS.some((t) => t.name === name);
 const UPLOAD_TTL_MS = 2 * 3600 * 1000;
@@ -141,6 +161,28 @@ export async function callVaultTool(tok: Tok, name: string, args: Record<string,
     if (error) { await log(tok, name, false, error.message.slice(0, 200)); return { content: text({ error: "파일 목록을 불러오지 못했습니다." }), isError: true }; }
     await log(tok, name, true, null);
     return { content: text({ ...data, note: "로그인한 사람이 볼 수 있는 파일만입니다(폴더 공개 범위 적용). 최신 판만, 파일보관함에 직접 올린 파일만." }), isError: false };
+  }
+
+  if (name === "delete_vault_files") {
+    //   행 삭제·권한 판정·지난 판·감사 기록은 DB 함수가 그 사람 권한으로(앱 deleteFile 과 같은 순서) —
+    //   여기서는 함수가 지웠다고 돌려준 경로의 실물만 치운다(행이 안 지워졌으면 실물도 그대로).
+    const items = (Array.isArray(args.files) ? args.files : []) as { id?: unknown; name?: unknown }[];
+    const list = items.map((x) => ({ id: String(x?.id || ""), name: String(x?.name || "") }))
+      .filter((x) => UUID.test(x.id) && x.name).slice(0, 20);
+    if (list.length === 0) return { content: text({ error: "files 에 {id, name} 을 넣어 주세요(list_vault_files 의 값 그대로)." }), isError: true };
+    const results: unknown[] = [];
+    let okCount = 0;
+    for (const it of list) {
+      const { data, error } = await db.rpc("mcp_vault_delete_file", { p_auth: tok.user_id, p_company: tok.company_id, p_file: it.id, p_name: it.name });
+      if (error) { results.push({ id: it.id, name: it.name, error: "지우지 못했습니다." }); continue; }
+      const r = data as { deleted?: boolean; error?: string; paths?: string[]; versions_removed?: number };
+      if (!r.deleted) { results.push({ id: it.id, name: it.name, error: r.error }); continue; }
+      if (r.paths?.length) await db.storage.from("document-files").remove(r.paths);
+      okCount++;
+      results.push({ id: it.id, name: it.name, deleted: true, versions_removed: r.versions_removed ?? 0 });
+    }
+    await log(tok, name, okCount > 0, okCount === list.length ? null : `${list.length - okCount} not deleted`);
+    return { content: text({ results, deleted: okCount, note: "지운 파일은 되돌릴 수 없습니다." }), isError: okCount === 0 };
   }
 
   if (name === "create_vault_folder") {
