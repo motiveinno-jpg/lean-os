@@ -9,6 +9,9 @@
  *   npm run qa:seed        — QA 회사(qa-seed-*@mo-tive.com) 생성. 이미 있으면 정보만 출력.
  *   npm run qa:teardown    — QA 회사와 딸린 데이터 전부 삭제(잔여 0 검증까지).
  *   node scripts/qa-seed.mjs status — 현재 시드 존재 여부만 확인.
+ *   npm run qa:reset-password — 두 시드 계정 비밀번호를 QA_SEED_PASSWORD 로 되돌린다(값은 출력 안 함).
+ *     2026-09-29: 비밀번호 재설정 기능을 QA 대표 계정으로 시험하다 대표만 비밀번호가 바뀌어
+ *     다른 PC 의 브라우저 검증이 하루 막혔다. seed 는 계정이 있으면 건너뛰므로 복구 길이 따로 필요했다.
  *
  * ⚠️ prod DB 를 변경한다 — 두 PC 동시 DB 작업 금지 규칙 적용. 실행 전 다른 PC 확인.
  *
@@ -234,15 +237,33 @@ async function teardown() {
   console.log("✅ QA 시드 삭제 완료 — 잔여 0 확인.");
 }
 
+/** 시드 두 계정의 비밀번호를 기준값(QA_SEED_PASSWORD)으로 — 시드 이메일 밖은 건드리지 않는다. */
+async function resetPassword() {
+  const rows = await sql(`select id, email from auth.users where email in ('${OWNER_EMAIL}','${MEMBER_EMAIL}') order by email;`);
+  if (rows.length === 0) { console.log("QA 시드 계정이 없습니다 — npm run qa:seed 먼저."); return; }
+  console.log("⚠️  prod 인증 계정(QA 시드 2개)의 비밀번호를 기준값으로 되돌립니다.");
+  const svc = await serviceKey();
+  for (const r of rows) {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${r.id}`, {
+      method: "PUT",
+      headers: { apikey: svc, Authorization: `Bearer ${svc}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ password: PASSWORD }),
+    });
+    if (!res.ok) throw new Error(`비밀번호 되돌리기 실패 (${r.email}): ${res.status}`);
+    console.log(`   ✅ ${r.email}`);
+  }
+}
+
 const cmd = process.argv[2];
 try {
   if (cmd === "seed") await seed();
   else if (cmd === "teardown") await teardown();
+  else if (cmd === "reset-password") await resetPassword();
   else if (cmd === "status") {
     const rows = await status();
     console.log(rows.length ? rows : "QA 시드 없음");
   } else {
-    console.log("Usage: node scripts/qa-seed.mjs <seed|teardown|status>");
+    console.log("Usage: node scripts/qa-seed.mjs <seed|teardown|status|reset-password>");
     process.exit(1);
   }
 } catch (e) {
