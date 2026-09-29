@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { isPublicRoute, requiresLogin } from '@/lib/route-access';
 
 // 요청 IP — x-forwarded-for 의 첫 값은 클라이언트가 임의로 붙일 수 있어(속도 제한 우회) Vercel 이 확정하는 헤더를 먼저 본다
 function clientIp(r: { headers: { get(name: string): string | null } }): string {
@@ -42,54 +43,7 @@ function isRateLimited(key: string, maxRequests: number): boolean {
 const gateCache = new Map<string, { ok: boolean; reason?: string; at: number }>();
 const GATE_TTL_MS = 60_000;
 
-const PUBLIC_ROUTES = [
-  '/',
-  '/auth',
-  '/auth/verify',
-  '/auth/reset',
-  '/auth/find-email',
-  '/api/auth/callback',
-  '/terms',
-  '/privacy',
-  '/refund',
-  '/security',  // 보안 안내 — 비로그인 노출이 목적
-  '/invite',
-  '/sign',
-  '/share',
-  '/guide',
-  '/advisor',  // 세무사 파트너 포털 랜딩(로그인/가입) — 하위 라우트는 세션 필요 (2026-08-11)
-  '/tax-partners',  // 세무사 제휴 모집 랜딩 (2026-08-11)
-  '/platform',
-  '/demo',
-  '/pricing',   // 랜딩에서 분리한 요금제 페이지 — 비로그인 노출이 목적 (2026-07-27)
-  '/features',  // 랜딩에서 분리한 기능 둘러보기 페이지 — 동일 (2026-07-27)
-  '/ai',        // AI 자동화 페이지 — 동일 (2026-07-27)
-  '/contact',   // 도입 상담 신청 — 랜딩 「전문 상담 예약」 (2026-09-14)
-  '/unsubscribe', // 광고 메일 수신거부 — 정보통신망법 제50조. 로그인을 요구하면 「쉬운 방법」 요건에 어긋난다 (2026-09-16)
-  '/maintenance',
-  '/status',
-  '/tools', // 무료 계산기 허브(모음) — 검색 유입용 공개 인덱스 (2026-08-31)
-  '/tools/leave-calculator', // 무료 연차 계산기 — 검색 유입용 공개 도구 (2026-08-13)
-  '/tools/severance-calculator', // 무료 퇴직금 계산기 — 공개 도구 2탄 (2026-08-13)
-  '/tools/insurance-calculator', // 무료 4대보험 계산기 — 공개 도구 3탄 (2026-08-13)
-  '/tools/salary-calculator', // 무료 실수령액 계산기 — 공개 도구 4탄 (2026-08-13)
-  '/tools/weekly-holiday-calculator', // 무료 주휴수당 계산기 — 공개 도구 5탄 (2026-08-25)
-  '/tools/vat-calculator', // 무료 부가세 계산기 — 공개 도구 6탄 (2026-08-25)
-];
-
-// 토큰이 경로 조각으로 붙는 외부 공개 라우트 — 정확 일치로는 /quote/<token> 이 걸리지 않아
-//   비로그인 거래처가 로그인으로 튕겼다(2026-08-31 QA 실측 — 견적 외부 승인 실사용 0건의 원인).
-//   /sign·/share 는 토큰을 쿼리로 받아 정확 일치로 충분, 여기엔 경로형만 넣는다.
-const PUBLIC_PREFIXES = ['/quote/', '/portal/', '/blog', '/industries'];  // /blog — GEO 콘텐츠 허브(2026-09-08) · /industries — 업종별 활용 페이지, 비로그인 공개(2026-09-16)
-
-function isPublicRoute(pathname: string): boolean {
-  // API 라우트는 자체 인증 처리
-  if (pathname.startsWith('/api/')) return true;
-  if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) return true;
-  return PUBLIC_ROUTES.some(
-    (route) => pathname === route || pathname === `${route}/`,
-  );
-}
+// 공개 목록·로그인 필요 목록·판정 함수는 lib/route-access.ts 한 곳에 있다(목록과 src/app 대조 테스트 포함).
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -169,7 +123,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // 서버(DB/인증) 미응답 + 보호 라우트 → 504 대신 점검 화면
-  if (authDown && !isPublicRoute(pathname)) {
+  if (authDown && requiresLogin(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = '/maintenance';
     return NextResponse.rewrite(url);
@@ -227,7 +181,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // 비인증 유저가 보호 라우트 접근 → /auth로 리다이렉트
-  if (!user && !isPublicRoute(pathname)) {
+  //   공개도 앱 화면도 아닌 주소(없는 주소)는 그대로 보내 Next 가 404 를 그린다.
+  if (!user && requiresLogin(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = '/auth';
     url.searchParams.set('redirectTo', pathname);

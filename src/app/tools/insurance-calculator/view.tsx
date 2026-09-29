@@ -4,10 +4,10 @@
 //   2026년 요율 (출처: 보건복지부 고시·국민연금공단·건강보험공단, 2026-08 확인):
 //     · 국민연금 9.5% (근로자 4.75 / 회사 4.75) — 연금개혁으로 2026년 9%→9.5% 인상.
 //       기준소득월액 상한 659만·하한 41만 (2026.7~2027.6 고시)
-//     · 건강보험 7.19% (3.595 / 3.595) · 장기요양 0.9448% (0.4724 / 0.4724, 보수월액 기준)
+//     · 건강보험 7.19% (3.595 / 3.595) · 장기요양 = 건강보험료 × 13.14% (보수월액 대비 0.9448%), 둘 다 10원 미만 버림
 //     · 고용보험 실업급여 1.8% (0.9 / 0.9) + 회사만 고용안정·직능개발 0.25% (150인 미만)
 //     · 산재보험 — 업종별 상이(회사 전액), 선택 입력
-//   ⚠️ 요율 개정 시 이 파일 상수만 고치면 된다 (RATES 블록).
+//   ⚠️ 요율 개정은 lib/insurance-legal.ts 에서만 — 여기 RATES 는 그 표에서 뽑은 표시용 값이다.
 
 import "@/app/landing-v8.css";
 import Link from "next/link";
@@ -17,17 +17,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { SiteFooter, SiteHeader } from "@/components/landing-v8/site-shell";
 import { FAQS } from "./faqs";
 import { track }  from "@/lib/analytics";
+import { legalInsuranceRates, monthlyInsurance } from "@/lib/insurance-legal";
 
-// ── 2026년 요율 상수 · 개정 시 여기만 수정 ──
-const RATES =  {
-  yearLabel: "2026년",
-  pensionRate: 0.095,          // 국민연금 총 9.5%
-  pensionCapHigh: 6_590_000,   // 기준소득월액 상한 (2026.7~2027.6)
-  pensionCapLow: 410_000,      // 하한
-  healthRate: 0.0719,          // 건강보험 총 7.19%
-  careRate: 0.009448,          // 장기요양 총 0.9448% (보수월액 기준)
-  empRate: 0.018,              // 고용보험 실업급여 총 1.8%
-  empBizExtra: 0.0025,         // 고용안정·직능개발 (150인 미만, 회사 전액)
+// ── 요율 · 원본은 lib/insurance-legal.ts(앱 급여 계산의 법정 기본값과 같은 표). 개정 시 그 파일만 고친다 ──
+const R = legalInsuranceRates(2026);
+const RATES = {
+  yearLabel: `${R.year}년`,
+  pensionRate: R.np_emp + R.np_er,          // 국민연금 총
+  pensionCapHigh: R.np_ceiling,             // 기준소득월액 상한
+  pensionCapLow: R.np_floor,                // 하한
+  healthRate: R.hi_emp + R.hi_er,           // 건강보험 총
+  careRate: (R.hi_emp + R.hi_er) * R.ltc_pct, // 장기요양 총(보수월액 대비 환산 — 요율표 표시용)
+  empRate: R.ei_emp * 2,                    // 고용보험 실업급여 총
+  empBizExtra: R.ei_er - R.ei_emp,          // 고용안정·직능개발 (150인 미만, 회사 전액)
 };
 
 const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
@@ -44,19 +46,21 @@ export default function InsuranceCalculatorView() {
   const r = useMemo(() => {
     const pay = Number(salary.replace(/[^0-9]/g, ""));
     if (!pay) return null;
-    // 국민연금 — 기준소득월액 상·하한 클램프
-    const pensionBase = Math.min(RATES.pensionCapHigh, Math.max(RATES.pensionCapLow, pay));
-    const pensionEach = (pensionBase * RATES.pensionRate) / 2;
-    const healthEach = (pay * RATES.healthRate) / 2;
-    const careEach = (pay * RATES.careRate) / 2;
-    const empEach = (pay * RATES.empRate) / 2;
-    const empBiz = pay * RATES.empBizExtra;
-    const accident = accidentRate ? (pay * Number(accidentRate)) / 100 : 0;
+    // 계산은 lib/insurance-legal.ts monthlyInsurance 하나 — 건강·장기요양은 10원 미만 버림(공단 산정 방식)
+    const m = monthlyInsurance(pay, R);
+    const pensionBase = m.pensionBase;
+    const pensionEach = m.pension;
+    const healthEach = m.health;
+    const careEach = m.care;
+    const empEach = m.emp;
+    const empBiz = m.empBizExtra;
+    const accident = accidentRate ? Math.round((pay * Number(accidentRate)) / 100) : 0;
 
-    const workerTotal = pensionEach + healthEach + careEach + empEach;
-    const bizTotal = pensionEach + healthEach + careEach + empEach + empBiz + accident;
+    const workerTotal = m.workerTotal;
+    const bizTotal = m.pension + m.healthEr + m.careEr + m.empEr + empBiz + accident;
     return {
       pay, pensionBase, pensionEach, healthEach, careEach, empEach, empBiz, accident,
+      healthEr: m.healthEr, careEr: m.careEr, empEr: m.empEr,
       workerTotal, bizTotal,
       afterDeduct: pay - workerTotal,
       totalCost: pay + bizTotal,
@@ -74,9 +78,9 @@ export default function InsuranceCalculatorView() {
     { name: "국민연금",
       calc: `${won(r.pensionBase)}${r.capped ? " (상한)" : r.floored ? " (하한)" : ""} × ${pct(RATES.pensionRate / 2)}`,
       worker: r.pensionEach, biz: r.pensionEach },
-    { name: "건강보험", calc: `${won(r.pay)} × ${pct(RATES.healthRate / 2)}`, worker: r.healthEach, biz: r.healthEach },
-    { name: "장기요양", calc: `${won(r.pay)} × ${pct(RATES.careRate / 2)}`, worker: r.careEach, biz: r.careEach },
-    { name: "고용보험", calc: `${won(r.pay)} × ${pct(RATES.empRate / 2)}`, worker: r.empEach, biz: r.empEach },
+    { name: "건강보험", calc: `${won(r.pay)} × ${pct(R.hi_emp)} · 10원 미만 버림`, worker: r.healthEach, biz: r.healthEr },
+    { name: "장기요양", calc: `건강보험료 × ${pct(R.ltc_pct)} · 10원 미만 버림`, worker: r.careEach, biz: r.careEr },
+    { name: "고용보험", calc: `${won(r.pay)} × ${pct(R.ei_emp)}`, worker: r.empEach, biz: r.empEr },
     { name: "고용안정·직능개발", calc: `${won(r.pay)} × ${pct(RATES.empBizExtra)} · 회사만`, worker: null, biz: r.empBiz },
     ...(r.accident > 0 ? [{ name: "산재보험", calc: `${won(r.pay)} × ${accidentRate}% · 회사만`, worker: null, biz: r.accident }] : []),
   ] : [];
@@ -168,7 +172,7 @@ export default function InsuranceCalculatorView() {
           </div>
 
           <p className="tl8-note">
-            * {RATES.yearLabel} 요율 기준(국민연금 9.5%·건강 7.19%·장기요양 0.9448%·고용 1.8%, 국민연금 상·하한은 2026.7~2027.6 고시). 고용안정·직능개발 0.25%는 150인 미만 사업장 기준이며, 근로소득세·지방소득세는 별도입니다.
+            * {RATES.yearLabel} 요율 기준(국민연금 {pct(RATES.pensionRate)}·건강 {pct(RATES.healthRate)}·장기요양 건강보험료의 {pct(R.ltc_pct)}·고용 {pct(RATES.empRate)}, 국민연금 상·하한은 2026.7~2027.6 고시). 건강·장기요양 보험료는 10원 미만을 버립니다. 고용안정·직능개발 {pct(RATES.empBizExtra)}는 150인 미만 사업장 기준이며, 근로소득세·지방소득세는 별도입니다.
           </p>
 
           {/* 요율표 — 검색 스니펫·본문 텍스트 겸용 */}
@@ -179,10 +183,10 @@ export default function InsuranceCalculatorView() {
                 <tr><th>보험</th><th>총 요율</th><th>직원</th><th>회사</th></tr>
               </thead>
               <tbody>
-                <tr><td>국민연금</td><td>9.5% <span className="tl8-dim">(2026년 9%→9.5% 인상)</span></td><td>4.75%</td><td>4.75%</td></tr>
-                <tr><td>건강보험</td><td>7.19%</td><td>3.595%</td><td>3.595%</td></tr>
-                <tr><td>장기요양보험</td><td>0.9448%</td><td>0.4724%</td><td>0.4724%</td></tr>
-                <tr><td>고용보험 (실업급여)</td><td>1.8%</td><td>0.9%</td><td>0.9%</td></tr>
+                <tr><td>국민연금</td><td>{pct(RATES.pensionRate)} <span className="tl8-dim">(2026년 9%→9.5% 인상)</span></td><td>{pct(R.np_emp)}</td><td>{pct(R.np_er)}</td></tr>
+                <tr><td>건강보험</td><td>{pct(RATES.healthRate)}</td><td>{pct(R.hi_emp)}</td><td>{pct(R.hi_er)}</td></tr>
+                <tr><td>장기요양보험</td><td>건강보험료의 {pct(R.ltc_pct)} <span className="tl8-dim">(보수월액 대비 약 {pct(RATES.careRate)})</span></td><td>절반</td><td>절반</td></tr>
+                <tr><td>고용보험 (실업급여)</td><td>{pct(RATES.empRate)}</td><td>{pct(R.ei_emp)}</td><td>{pct(R.ei_emp)}</td></tr>
                 <tr><td>고용안정·직능개발</td><td>0.25%~0.85%</td><td>—</td><td>전액 (150인 미만 0.25%)</td></tr>
                 <tr><td>산재보험</td><td>업종별 상이</td><td>—</td><td>전액</td></tr>
               </tbody>

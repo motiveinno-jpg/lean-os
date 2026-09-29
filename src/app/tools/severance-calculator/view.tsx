@@ -101,11 +101,13 @@ export default function SeveranceCalculatorView() {
 . onChange 가 input 호환이라 계산 로직은 그대로다. */}
               <label className="tl8-field">
                 <span className="tl8-label">입사일</span>
-                <DateField className="tl8-input" value={hire} max={leave || undefined} onChange={(e) => setHire(e.target.value)} />
+                {/* min·max 를 걸지 않는다 — 범위 밖 날짜를 달력이 조용히 되돌리면 이전 결과가 그대로 남는다.
+                    받아 두고 결과 자리에서 "퇴직일은 입사일보다 뒤여야 합니다"로 알린다 */}
+                <DateField className="tl8-input" value={hire} onChange={(e) => setHire(e.target.value)} />
               </label>
               <label className="tl8-field">
                 <span className="tl8-label">퇴직일 (마지막 근무일)</span>
-                <DateField className="tl8-input" value={leave} min={hire || undefined} onChange={(e) => setLeave(e.target.value)} />
+                <DateField className="tl8-input" value={leave} onChange={(e) => setLeave(e.target.value)} />
               </label>
               <label className="tl8-field">
                 <span className="tl8-label">월급 (세전 기본급+고정수당)</span>
@@ -197,7 +199,10 @@ export default function SeveranceCalculatorView() {
                 </div>
               )
             ) : (
-              <div className="tl8-empty">입사일 · 퇴직일 · 월급을 넣으면 바로 계산됩니다</div>
+              <div className="tl8-empty">
+                {hire && leave && leave <= hire ? "퇴직일은 입사일보다 뒤여야 합니다"
+                  : "입사일 · 퇴직일 · 월급을 넣으면 바로 계산됩니다"}
+              </div>
             )}
             {(result && !result.under1) && (
               <ResultCta tool="severance" menuHref={menuHref("hr", "employees")} menuLabel="구성원 기능 보기">

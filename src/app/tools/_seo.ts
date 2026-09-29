@@ -9,7 +9,7 @@ export type Tool = { slug: string; name: string; desc: string };
 
 // 허브 페이지(/tools)·사이트맵·크로스링크가 공유하는 단일 목록.
 export const TOOLS: Tool[] = [
-  { slug: "leave-calculator", name: "연차 계산기", desc: "입사일만 넣으면 발생 연차·연차수당 자동 계산" },
+  { slug: "leave-calculator", name: "연차 계산기", desc: "입사일만 넣으면 근로기준법 기준 발생 연차 일수 자동 계산" },
   { slug: "severance-calculator", name: "퇴직금 계산기", desc: "고용노동부 방식 예상 퇴직금 계산" },
   { slug: "insurance-calculator", name: "4대보험 계산기", desc: "직원 공제액·회사 부담 총액 (2026년 요율)" },
   { slug: "salary-calculator", name: "실수령액 계산기", desc: "간이세액표 기준 월급 실수령액 계산" },

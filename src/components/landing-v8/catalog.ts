@@ -291,3 +291,5 @@ export function menuHref(gKey: string, mKey?: string): string {
 }
 
 export const MENU_COUNT = CATALOG.reduce((n, g) => n + g.menus.length, 0);
+/** 영역(그룹) 수 — 랜딩 「N개 영역」 */
+export const GROUP_COUNT = CATALOG.length;

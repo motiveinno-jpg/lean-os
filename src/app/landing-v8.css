@@ -33,7 +33,8 @@
   --app-ink: #1b1b22; --app-ink-3: #55555f; --app-ink-4: #8a8a96; --app-brand: #4f46e5;
 
   --container: 1320px; --gut: 24px;
-  --f: 'Inter', 'Pretendard Variable', Pretendard, 'Noto Sans KR', system-ui, sans-serif;
+  /* 공개 페이지 전체가 같은 글꼴 — 랜딩 v9·업종·보안과 같게 Pretendard 우선(Inter 는 라틴 대체) */
+  --f: 'Pretendard Variable', Pretendard, 'Inter', 'Noto Sans KR', system-ui, sans-serif;
 }
 @media (prefers-color-scheme: dark){
   html:not([data-theme="light"]) .lp8{
@@ -728,3 +729,23 @@ html[data-theme="dark"] .lp8{
 .lp8 .tl8-rcta-l:hover{ text-decoration: underline }
 /* 업종별 메가메뉴 바닥 — 업종 목록으로 가는 링크 (2026-09-16) */
 .lp8 .mega-foot a{ color: var(--ind); font-weight: 700 }
+
+/* ── 서비스 상태 (/status) ── */
+.lp8 .st8{ padding: 64px 0 96px; background: var(--bg-100) }
+.lp8 .st8-in{ max-width: 760px }
+.lp8 .st8-h1{ font-size: clamp(28px, 3.4vw, 40px) }
+.lp8 .st8-badge{ display: inline-flex; align-items: center; gap: 10px; margin-top: 24px; padding: 12px 18px; border-radius: 8px; font-weight: 700; font-size: 16px; color: #fff }
+.lp8 .st8-badge i{ width: 10px; height: 10px; border-radius: 50%; background: #fff }
+.lp8 .st8-badge.st8-ok{ background: var(--ok) } .lp8 .st8-badge.st8-warn{ background: var(--warn) } .lp8 .st8-badge.st8-bad{ background: var(--bad) }
+.lp8 .st8-time{ margin-top: 10px; font-size: 13px; color: var(--ink-3) }
+.lp8 .st8-list{ list-style: none; margin: 28px 0 0; padding: 0; display: grid; gap: 8px }
+.lp8 .st8-list li{ display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px }
+.lp8 .st8-dot{ flex: none; width: 9px; height: 9px; border-radius: 50% }
+.lp8 .st8-dot.st8-ok{ background: var(--ok) } .lp8 .st8-dot.st8-bad{ background: var(--bad) }
+.lp8 .st8-name{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px }
+.lp8 .st8-name b{ font-size: 15px; font-weight: 600; color: var(--ink) }
+.lp8 .st8-name small{ font-size: 13px; color: var(--ink-3) }
+.lp8 .st8-state{ flex: none; font-size: 14px; font-weight: 600 }
+.lp8 .st8-state.st8-ok{ color: var(--ok) } .lp8 .st8-state.st8-bad{ color: var(--bad) }
+.lp8 .st8-note{ margin-top: 24px; font-size: 14px; color: var(--ink-3) }
+.lp8 .st8-note a{ color: var(--brand); text-decoration: underline }

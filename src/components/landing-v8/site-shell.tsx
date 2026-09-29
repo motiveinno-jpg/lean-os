@@ -94,7 +94,7 @@ export function SiteHeader() {
         </nav>
         <div className="nav-cta">
           <Link className="btn btn-sm btn-line lp8-sh-login" href="/auth">로그인</Link>
-          <Link className="btn btn-sm btn-fill" href={SIGNUP_HREF} data-cta="signup:nav">무료 체험하기</Link>
+          <Link className="btn btn-sm btn-fill" href={SIGNUP_HREF} data-cta="signup:nav">무료로 시작하기</Link>
           <button
             type="button"
             className="lp8-sh-burger"
@@ -158,7 +158,6 @@ export function SiteFooter() {
           <div>
             <h6>자료</h6>
             <Link href="/blog">블로그</Link>
-            <Link href="/guide">사용 가이드</Link>
             <Link href="/status">서비스 상태</Link>
             <Link href="/security">보안</Link>
           </div>

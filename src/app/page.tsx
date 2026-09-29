@@ -57,7 +57,7 @@ function structuredData() {
     operatingSystem: "Web",
     description: DESC,
     url: SITE,
-    // 화면에 실제로 있는 것만 적는다 — 대표 기능 아홉 + 메뉴 서른둘
+    // 화면에 실제로 있는 것만 적는다 — 대표 기능(FEATS) + 메뉴 목록(MENUS)
     featureList: [...FEATS.map(([, title]) => title), ...MENUS.map(({ name }) => name)],
     offers: [
       {

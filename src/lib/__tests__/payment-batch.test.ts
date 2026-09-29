@@ -12,12 +12,12 @@ describe("calculatePayroll — 4대보험·소득세 (2026 요율)", () => {
     expect(r.taxableIncome).toBe(3_000_000);
     expect(r.nationalPension).toBe(142_500);        // 4.75% (2026 연금개혁)
     expect(r.healthInsurance).toBe(107_850);        // 3.595%
-    expect(r.longTermCareInsurance).toBe(14_171);   // 건보의 13.14%
+    expect(r.longTermCareInsurance).toBe(14_170);   // 건보의 13.14%, 10원 미만 버림
     expect(r.employmentInsurance).toBe(27_000);     // 0.9%
     expect(r.incomeTax).toBe(74_350);               // 간이세액표(2026-02-27) 300만 구간·가족 1
     expect(r.localIncomeTax).toBe(7_435);           // 소득세의 10%
-    expect(r.deductionsTotal).toBe(373_306);
-    expect(r.netPay).toBe(3_200_000 - 373_306);     // 지급총액(기본급+식대) − 공제
+    expect(r.deductionsTotal).toBe(373_305);
+    expect(r.netPay).toBe(3_200_000 - 373_305);     // 지급총액(기본급+식대) − 공제
   });
 
   it("국민연금 상한 — 과세소득이 상한(659만) 초과 시 상한 기준", () => {
@@ -55,10 +55,10 @@ describe("calculatePayroll — 4대보험·소득세 (2026 요율)", () => {
     const r = calculatePayroll(3_000_000, "a", "e1");
     const ec = r.employerCosts;
     expect(ec.nationalPension).toBe(142_500);
-    expect(ec.healthInsurance + (ec.longTermCareInsurance ?? 0)).toBe(107_850 + 14_171);
+    expect(ec.healthInsurance + (ec.longTermCareInsurance ?? 0)).toBe(107_850 + 14_170);
     expect(ec.employmentInsurance).toBe(Math.round(3_000_000 * 0.0115)); // 34,500
     expect(ec.industrialAccident).toBe(Math.round(3_000_000 * 0.007));   // 21,000
-    expect(ec.total).toBe(142_500 + 122_021 + 34_500 + 21_000);
+    expect(ec.total).toBe(142_500 + 122_020 + 34_500 + 21_000);
   });
 });
 

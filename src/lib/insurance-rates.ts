@@ -3,34 +3,9 @@
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 
-export type InsuranceRates = {
-  year: number;
-  np_emp: number; np_er: number;
-  hi_emp: number; hi_er: number;
-  ltc_pct: number;
-  ei_emp: number; ei_er: number;
-  ia_rate: number;
-  np_floor: number; np_ceiling: number;
-  hi_floor: number; hi_ceiling: number;
-  /** true = 저장된 회사 행이 아니라 법정 기본값 */
-  isDefault: boolean;
-  note?: string | null;
-};
-
-/** 법정 기본값 — 연도별. 모르는 연도는 가장 가까운 아는 연도.
- *  2026 요율 출처: 보건복지부 고시·국민연금공단·건강보험공단 (공개 4대보험 계산기 RATES 와 동일 기준).
- *    · 국민연금 9.5%(연금개혁 인상, 4.75/4.75) · 기준소득월액 하한 41만·상한 659만(2026.7~)
- *    · 건강보험 7.19%(3.595/3.595) · 장기요양 13.14%(건강보험료 대비, 보수월액 대비 0.9448%)
- *    · 고용보험 실업급여 1.8%(0.9/0.9) + 회사 고용안정·직능개발 0.25%(150인 미만) → 회사 1.15%
- *    · 산재 0.7%(업종별 상이, 기본값) */
-const LEGAL: Record<number, Omit<InsuranceRates, "year" | "isDefault">> = {
-  2026: { np_emp: 0.0475, np_er: 0.0475, hi_emp: 0.03595, hi_er: 0.03595, ltc_pct: 0.1314, ei_emp: 0.009, ei_er: 0.0115, ia_rate: 0.007,
-          np_floor: 410_000, np_ceiling: 6_590_000, hi_floor: 279266, hi_ceiling: 119625307 },
-};
-export function legalInsuranceRates(year: number): InsuranceRates {
-  const ys = Object.keys(LEGAL).map(Number).sort((a, b) => Math.abs(a - year) - Math.abs(b - year));
-  return { year, isDefault: true, ...LEGAL[ys[0]] };
-}
+// 요율 표·법정 기본값은 순수 모듈(insurance-legal.ts)에 있다 — 공개 계산기도 같은 값을 쓴다.
+import { legalInsuranceRates, type InsuranceRates } from "@/lib/insurance-legal";
+export { legalInsuranceRates, type InsuranceRates };
 
 export async function fetchInsuranceRates(companyId: string, year: number): Promise<InsuranceRates> {
   const row = logRead("lib/insurance-rates:get", await (supabase as any).from("company_insurance_rates").select("*").eq("company_id", companyId).eq("year", year).maybeSingle());

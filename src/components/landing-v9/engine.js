@@ -6,6 +6,8 @@
 //  ▸ 움직임을 줄인 사용자(prefers-reduced-motion)는 끝 상태로 보여 준다 — 목업과 같은 분기.
 // ══════════════════════════════════════════════════════════════
 /* eslint-disable */
+import { OUTLOOK_DEFAULT_WEEKS } from "@/lib/outlook-horizon";
+
 export function startLanding() {
   let alive = true;
   let rafId = 0;
@@ -291,7 +293,7 @@ export function startLanding() {
   }
 
   /* ⓔ 메뉴 모음 → 경영 요약 한 칸이 화면 가득 */
-  const TILES = [["i-bank","통장 거래","오늘 31건 수집",""],["i-card","카드 승인","632건","p1"],["i-receipt","세금·증빙","42건",""],["i-file","일반전표","128건 확정","p3"],["i-brief","거래처 원장","미수 1곳",""],["i-clock","자금 캘린더","13주","p2"],
+  const TILES = [["i-bank","통장 거래","오늘 31건 수집",""],["i-card","카드 승인","632건","p1"],["i-receipt","세금·증빙","42건",""],["i-file","일반전표","128건 확정","p3"],["i-brief","거래처 원장","미수 1곳",""],["i-clock","자금 캘린더",`${OUTLOOK_DEFAULT_WEEKS}주`,"p2"],
     ["i-box","재고 현황","창고 6곳","p2"],["i-cart","구매","발주 3건",""],["i-chart","경영 요약","영업이익 +₩30,620,000","key"],["i-cart","판매","주문 128건","p1"],["i-brief","프로젝트","진행 12건",""],["i-pen","전자계약","서명 4건","p3"],
     ["i-clock","근태","출근 11명",""],["i-users","급여","12명 배치","p3"],["i-pen","결재 허브","대기 3건","p1"],["i-gift","지원사업","매칭 3건",""],["i-search","AI 참모","질문하기","p2"],["i-receipt","세무 신고","원천세 D-5",""]];
   $("#cz").innerHTML = TILES.map(([ic, n, m, c]) => `<div class="tile ${c}"><i><svg><use href="#${ic}"/></svg></i><div><b>${n}</b><small>${m}</small></div></div>`).join("");

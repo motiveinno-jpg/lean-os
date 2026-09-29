@@ -36,7 +36,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // /ai 는 2026-09-14 메인(/#ai)으로 308 — 사이트맵에서 뺐다
     { url: `${BASE}/demo`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE}/contact`, changeFrequency: "yearly", priority: 0.7, lastModified: "2026-09-14" },
-    { url: `${BASE}/guide`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE}/tax-partners`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE}/advisor`, changeFrequency: "monthly", priority: 0.6 },
     // 무료 도구 — 검색 유입용 공개 계산기 (2026-08-31 허브·신선도 정비)

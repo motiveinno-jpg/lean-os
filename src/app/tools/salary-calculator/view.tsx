@@ -5,7 +5,7 @@
 //   2026-02-27 개정, 법제처 PDF에서 추출)을 그대로 조회한다 — ganyi-2026.json (646구간 × 가족수 11).
 //     · 월급여 정확히 1,000만원: anchor10000 · 1,000만원 초과: 별표 주7 산식(high 밴드)
 //     · 가족수 11명 초과: 주4 산식 t11 − (t10−t11)×초과수 · 8~20세 자녀: 주3 월정액 공제
-//   4대보험 요율은 insurance-calculator 의 RATES 와 같은 값 (2026년 — 개정 시 두 곳 함께 수정).
+//   4대보험 요율·계산은 lib/insurance-legal.ts 한 곳(4대보험 계산기와 같은 함수).
 
 import "@/app/landing-v8.css";
 import Link from "next/link";
@@ -16,12 +16,11 @@ import { SiteFooter, SiteHeader } from "@/components/landing-v8/site-shell";
 import { FAQS } from "./faqs";
 import { track }  from "@/lib/analytics";
 import { simplifiedIncomeTax } from "@/lib/income-tax";
+import { legalInsuranceRates, monthlyInsurance } from "@/lib/insurance-legal";
 
-// ── 2026년 4대보험 요율 (원본: tools/insurance-calculator RATES · 개정 시 함께 수정) ──
-const RATES =  {
-  pensionRate: 0.095, pensionCapHigh: 6_590_000, pensionCapLow: 410_000,
-  healthRate: 0.0719, careRate: 0.009448, empRate: 0.018,
-};
+// ── 4대보험 요율 · 원본은 lib/insurance-legal.ts(4대보험 계산기·앱 급여 기본값과 같은 표) ──
+const R = legalInsuranceRates(2026);
+const RATES = { pensionRate: R.np_emp + R.np_er, pensionCapHigh: R.np_ceiling, pensionCapLow: R.np_floor };
 
 const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
 /** 요율을 화면 글자로 — 0.0475 → "4.75%". 손으로 또 적으면 RATES 만 고쳤을 때 어긋난다. */
@@ -41,11 +40,9 @@ export default function SalaryCalculatorView() {
     const free = Math.min(gross, Number(taxFree.replace(/[^0-9]/g, "")) || 0);
     const base = gross - free; // 과세대상 = 보험료 산정 보수월액
 
-    const pensionBase = Math.min(RATES.pensionCapHigh, Math.max(RATES.pensionCapLow, base));
-    const pension = (pensionBase * RATES.pensionRate) / 2;
-    const health = (base * RATES.healthRate) / 2;
-    const care = (base * RATES.careRate) / 2;
-    const emp = (base * RATES.empRate) / 2;
+    // 4대보험은 lib/insurance-legal.ts monthlyInsurance 하나 — 건강·장기요양은 10원 미만 버림
+    const m = monthlyInsurance(base, R);
+    const { pensionBase, pension, health, care, emp } = m;
     const tax = simplifiedIncomeTax(base, family, children);
     const localTax = Math.floor(tax * 0.1);
     const total = pension + health + care + emp + tax + localTax;
@@ -119,9 +116,9 @@ export default function SalaryCalculatorView() {
                   <tbody>
                     <tr><td>과세대상</td><td>{won(r.base)}원</td><td className="tl8-dim">세전 {won(r.gross)} − 비과세 {won(r.free)}</td></tr>
                     <tr><td>국민연금</td><td>−{won(r.pension)}원</td><td className="tl8-dim">{won(r.pensionBase)}{r.capped ? " (상한)" : r.floored ? " (하한)" : ""} × {pct(RATES.pensionRate / 2)}</td></tr>
-                    <tr><td>건강보험</td><td>−{won(r.health)}원</td><td className="tl8-dim">{won(r.base)} × {pct(RATES.healthRate / 2)}</td></tr>
-                    <tr><td>장기요양보험</td><td>−{won(r.care)}원</td><td className="tl8-dim">{won(r.base)} × {pct(RATES.careRate / 2)}</td></tr>
-                    <tr><td>고용보험</td><td>−{won(r.emp)}원</td><td className="tl8-dim">{won(r.base)} × {pct(RATES.empRate / 2)}</td></tr>
+                    <tr><td>건강보험</td><td>−{won(r.health)}원</td><td className="tl8-dim">{won(r.base)} × {pct(R.hi_emp)} · 10원 미만 버림</td></tr>
+                    <tr><td>장기요양보험</td><td>−{won(r.care)}원</td><td className="tl8-dim">건강보험료 × {pct(R.ltc_pct)} · 10원 미만 버림</td></tr>
+                    <tr><td>고용보험</td><td>−{won(r.emp)}원</td><td className="tl8-dim">{won(r.base)} × {pct(R.ei_emp)}</td></tr>
                     <tr><td>근로소득세</td><td>−{won(r.tax)}원</td><td className="tl8-dim">간이세액표 · 가족 {family}명{children > 0 ? ` · 자녀 ${children}명` : ""}</td></tr>
                     <tr><td>지방소득세</td><td>−{won(r.localTax)}원</td><td className="tl8-dim">소득세 {won(r.tax)} × 10%</td></tr>
                     <tr><td><b>공제 합계</b></td><td><b>−{won(r.total)}원</b></td><td className="tl8-dim">4대보험 + 소득세</td></tr>

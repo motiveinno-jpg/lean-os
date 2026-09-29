@@ -15,13 +15,12 @@ AI 참모가 회사 데이터를 근거로 "오늘 챙길 것"과 경영 질문�
 - [AI 엔진](https://www.owner-view.com/ai): AI 참모 — 회사 데이터 기반 경영 브리핑과 질의응답
 - [가격](https://www.owner-view.com/pricing): 무료 플랜 범위와 유료 플랜(회사당 월 39,000원 · 정상가 80,000원, 기본 5명 포함, 추가 1명당 월 5,000원, VAT 별도)
 - [데모](https://www.owner-view.com/demo): 가입 없이 실제 화면을 그대로 보는 라이브 데모
-- [도입 가이드](https://www.owner-view.com/guide): 시작 방법과 온보딩 안내
 - [세무사 제휴](https://www.owner-view.com/tax-partners): 세무 전문가 파트너 프로그램
 - [보안](https://www.owner-view.com/security): 회사별 데이터 분리 보관과 보안 정책
 
 ## 무료 도구 (사장님·실무자용 계산기)
 
-- [연차 계산기](https://www.owner-view.com/tools/leave-calculator): 입사일 기준 연차 발생·잔여 계산
+- [연차 계산기](https://www.owner-view.com/tools/leave-calculator): 입사일 기준 발생 연차 일수 계산
 - [퇴직금 계산기](https://www.owner-view.com/tools/severance-calculator): 평균임금 기준 퇴직금 산정
 - [4대보험 계산기](https://www.owner-view.com/tools/insurance-calculator): 급여 기준 보험료 회사·근로자 부담분
 - [실수령액 계산기](https://www.owner-view.com/tools/salary-calculator): 세전 연봉→월 실수령액

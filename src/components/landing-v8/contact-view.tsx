@@ -4,7 +4,7 @@
 //
 //  ▸ 전에는 mailto 였다. 신청이 회사에 남지 않았고, 메일 앱이 없는 PC 에서는 눌러도 아무 일이 없었다.
 //  ▸ 접수는 옛 랜딩 폼과 같은 /api/partnership → partnership_inquiries → 운영자 문의함(/platform/partnership).
-//  ▸ 머리는 랜딩보다 덜어냈다(로고 · 로그인 · 무료 체험). 신청하러 온 사람을 다른 곳으로 흘리지 않는다.
+//  ▸ 머리는 랜딩보다 덜어냈다(로고 · 로그인 · 무료로 시작하기). 신청하러 온 사람을 다른 곳으로 흘리지 않는다.
 //  ▸ 스타일은 landing-v8.css 의 `.lp8` 안 `lp8-ct-*` 규칙.
 // ══════════════════════════════════════════════════════════════
 import { useState } from "react";
@@ -83,7 +83,7 @@ export default function ContactView() {
           </Link>
           <div className="nav-cta lp8-ct-nav-cta">
             <Link className="btn btn-sm btn-line" href="/auth">로그인</Link>
-            <Link className="btn btn-sm btn-fill" href={SIGNUP_HREF} data-cta="signup:contact_nav">무료 체험하기</Link>
+            <Link className="btn btn-sm btn-fill" href={SIGNUP_HREF} data-cta="signup:contact_nav">무료로 시작하기</Link>
           </div>
         </div>
       </header>

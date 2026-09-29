@@ -154,7 +154,9 @@ export default function LeaveCalculatorView() {
 . onChange 가 input 호환이라 계산 로직은 그대로다. */}
               <label className="tl8-field">
                 <span className="tl8-label">입사일</span>
-                <DateField className="tl8-input" value={hire} max={base} onChange={(e) => setHire(e.target.value)} />
+                {/* min·max 를 걸지 않는다 — 범위 밖 날짜를 달력이 조용히 되돌리면 이전 입사일의 결과가 그대로 남는다.
+                    받아 두고 아래에서 "기준일은 입사일보다 뒤여야 합니다"로 알린다 */}
+                <DateField className="tl8-input" value={hire} onChange={(e) => setHire(e.target.value)} />
               </label>
               <label className="tl8-field">
                 <span className="tl8-label">기준일 (오늘)</span>

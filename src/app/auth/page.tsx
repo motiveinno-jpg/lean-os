@@ -66,6 +66,10 @@ export default function AuthPage() {
   const [bizCheck, setBizCheck] = useState<"unchecked" | "checking" | "available" | "registered" | "error">("unchecked");
   const [bizCheckedDigits, setBizCheckedDigits] = useState("");
   const [error, setError] = useState("");
+  //   사업자번호 칸에서 난 오류 — 번호를 고치면 지운다(다른 칸 오류는 그대로 둔다).
+  //   전에는 번호를 지우거나 고쳐도 "10자리를 입력하거나 비워 두세요"가 제출 전까지 남았다.
+  const bizErrorRef = useRef("");
+  const setBizError = (msg: string) => { bizErrorRef.current = msg; setError(msg); };
   // 오류가 아닌 안내(메일 링크 처리 결과 등) — /api/auth/callback 이 ?notice= 로 넘긴다
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
@@ -231,7 +235,7 @@ export default function AuthPage() {
     setError("");
     setJoinPrompt(null);
     const digits = bizNoDigits(bizNo);
-    if (digits.length !== 10) { setBizCheck("unchecked"); return setError("사업자번호 10자리를 입력해주세요."); }
+    if (digits.length !== 10) { setBizCheck("unchecked"); return setBizError("사업자번호 10자리를 입력해주세요."); }
     setBizCheck("checking");
     try {
       const dup = await checkBusinessNumberRegistered(bizNo);
@@ -244,7 +248,7 @@ export default function AuthPage() {
       }
     } catch (err: any) {
       setBizCheck("error");
-      setError(err?.message || "사업자번호 확인 중 오류가 발생했습니다.");
+      setBizError(err?.message || "사업자번호 확인 중 오류가 발생했습니다.");
     }
   }
 
@@ -263,7 +267,7 @@ export default function AuthPage() {
 
     // ── 우리 회사에 합류 — 번호로 기존 회사를 찾아 합류 요청 ──
     if (signupKind === "join") {
-      if (digitsNow.length !== 10) return setError("합류할 회사의 사업자번호 10자리를 입력해주세요.");
+      if (digitsNow.length !== 10) return setBizError("합류할 회사의 사업자번호 10자리를 입력해주세요.");
       setError("");
       setLoading(true);
       try {
@@ -272,7 +276,7 @@ export default function AuthPage() {
         if (!dup.registered) {
           setLoading(false);
           setBizCheck("available");
-          return setError("이 사업자번호로 가입된 회사가 없습니다. '새 회사로 시작'을 고르거나, 회사 대표에게 초대 링크를 받아 주세요.");
+          return setBizError("이 사업자번호로 가입된 회사가 없습니다. '새 회사로 시작'을 고르거나, 회사 대표에게 초대 링크를 받아 주세요.");
         }
         setBizCheck("registered");
         setJoinPrompt(dup.companyNameMasked || "등록된 회사");
@@ -286,14 +290,14 @@ export default function AuthPage() {
 
     // ── 새 회사로 시작 — 사업자번호는 선택(2026-09-29). 넣었으면 종전과 같은 확인을 모두 거친다 ──
     if (!companyName.trim()) return setError("회사명을 입력해주세요.");
-    if (digitsNow.length > 0 && digitsNow.length !== 10) return setError("사업자번호 10자리를 입력하거나 비워 두세요.");
+    if (digitsNow.length > 0 && digitsNow.length !== 10) return setBizError("사업자번호 10자리를 입력하거나 비워 두세요.");
     if (digitsNow.length === 10) {
       // 중복 확인을 완료(available)하고, 그 이후 번호가 바뀌지 않았어야 제출 가능.
       if (bizCheck === "registered" && bizCheckedDigits === digitsNow) {
-        return setError("이미 오너뷰에 가입된 회사입니다. 위의 '가입하고 합류 요청 보내기'를 누르거나, 새 회사로 시작하려면 번호를 비워 주세요.");
+        return setBizError("이미 오너뷰에 가입된 회사입니다. 위의 '가입하고 합류 요청 보내기'를 누르거나, 새 회사로 시작하려면 번호를 비워 주세요.");
       }
       if (bizCheck !== "available" || bizCheckedDigits !== digitsNow) {
-        return setError("사업자번호 '중복 확인'을 먼저 진행해주세요.");
+        return setBizError("사업자번호 '중복 확인'을 먼저 진행해주세요.");
       }
       setError("");
       setLoading(true);
@@ -310,7 +314,7 @@ export default function AuthPage() {
         const gate = await assertBizNoActive(bizNo);
         if (!gate.ok)  {
           setLoading(false);
-          return setError(gate.error || "사업자번호를 확인할 수 없습니다.");
+          return setBizError(gate.error || "사업자번호를 확인할 수 없습니다.");
         }
       } catch (err: any) {
         setLoading(false);
@@ -717,7 +721,7 @@ export default function AuthPage() {
                     type="text"
                     inputMode="numeric"
                     value={bizNo}
-                    onChange={(e) => { setBizNo(formatBizNo(bizNoDigits(e.target.value))); setBizCheck("unchecked"); setJoinPrompt(null); }}
+                    onChange={(e) => { setBizNo(formatBizNo(bizNoDigits(e.target.value))); setBizCheck("unchecked"); setJoinPrompt(null); setError((prev) => (prev && prev === bizErrorRef.current ? "" : prev)); }}
                     placeholder="123-45-67890"
                     maxLength={12}
                     className="field-input mono-number biz-no-check-input"

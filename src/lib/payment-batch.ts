@@ -1,6 +1,7 @@
 import { resolveSealUrl } from '@/lib/signatures';
 import { legalInsuranceRates, type InsuranceRates } from './insurance-rates';
 import { simplifiedIncomeTax } from './income-tax';
+import { floor10 } from './insurance-legal';
 import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Payment Batch Engine
@@ -161,8 +162,9 @@ export function calculatePayroll(
 
   // 건강보험: 상한/하한 적용
   const healthBase = Math.min(R.hi_ceiling, Math.max(R.hi_floor, insBase));
-  const hi = phOn ? Math.round(healthBase * R.hi_emp) : 0;
-  const ltc = Math.round(hi * R.ltc_pct);
+  //   건강·장기요양은 10원 미만 버림(공단 고지 방식) — 공개 계산기와 같은 floor10
+  const hi = phOn ? floor10(healthBase * R.hi_emp) : 0;
+  const ltc = floor10(hi * R.ltc_pct);
 
   // 고용보험
   const ei = insured ? Math.round(taxableIncome * R.ei_emp) : 0;
@@ -178,8 +180,8 @@ export function calculatePayroll(
 
   // 사업주 부담분 (직원 급여에서 차감하지 않음)
   const employerNp = phOn ? Math.round(pensionBase * R.np_er) : 0;
-  const employerHiOnly = phOn ? Math.round(healthBase * R.hi_er) : 0;
-  const employerHi = employerHiOnly + Math.round(employerHiOnly * R.ltc_pct);   // 아래 employerCosts 가 장기요양을 다시 뺀다
+  const employerHiOnly = phOn ? floor10(healthBase * R.hi_er) : 0;
+  const employerHi = employerHiOnly + floor10(employerHiOnly * R.ltc_pct);   // 아래 employerCosts 가 장기요양을 다시 뺀다
   const employerEi = insured ? Math.round(taxableIncome * R.ei_er) : 0;
   const employerIa = insured ? Math.round(taxableIncome * industrialAccidentRate) : 0;
   const employerTotal = employerNp + employerHi + employerEi + employerIa;

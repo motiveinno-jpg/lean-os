@@ -1,64 +1,96 @@
-// P0-9: 공개 상태 페이지 (/status). /api/health 결과 시각화.
-//   외부 uptime 감시(UptimeRobot 등) 는 /api/health 를 모니터링하면 충분 —
-//   이 페이지는 사람 눈으로 즉시 보기 위함.
+// 공개 상태 페이지 (/status) — /api/health 결과를 사람이 읽는 말로 보여 준다.
+//   머리·바닥·글꼴은 다른 공개 페이지와 같은 site-shell(.lp8)을 쓴다.
+//   점검 항목 이름은 아래 CHECK_LABELS 에서만 정한다 — /api/health 에 항목이 늘면 여기에도 이름을 붙인다
+//   (이름이 없는 항목은 내부 키가 그대로 드러나지 않게 목록에서 뺀다).
+import type { Metadata } from 'next';
 import { headers } from 'next/headers';
+import '@/app/landing-v8.css';
+import { SiteFooter, SiteHeader } from '@/components/landing-v8/site-shell';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-async function fetchHealth() {
+export const metadata: Metadata = {
+  title: '서비스 상태',
+  description: '오너뷰 서비스와 결제·자동 수집 경로가 지금 정상인지 확인합니다.',
+};
+
+type Check = { ok: boolean; ms?: number; note?: string };
+
+/** /api/health 의 점검 키 → 화면 이름·설명. 순서도 이 차례를 따른다 */
+const CHECK_LABELS: { key: string; name: string; desc: string }[] = [
+  { key: 'db', name: '서비스 데이터베이스', desc: '로그인·자료 조회·저장' },
+  { key: 'toss', name: '국내 카드 결제', desc: '토스페이먼츠 결제 서버 응답' },
+  { key: 'stripe', name: '해외 카드 결제', desc: 'Stripe 결제 서버 응답' },
+  { key: 'codef', name: '은행·카드 자동 수집', desc: '최근 하루 안에 정기 수집이 돌았는지' },
+];
+
+async function fetchHealth(): Promise<{ status: string; timestamp?: string; checks: Record<string, Check>; limited: boolean }> {
   const h = await headers();
   const proto = h.get('x-forwarded-proto') || 'https';
   const host = h.get('host');
   const base = host ? `${proto}://${host}` : '';
   try {
     const res = await fetch(`${base}/api/health`, { cache: 'no-store' });
-    return { http: res.status, body: await res.json() };
-  } catch (e: unknown) {
-    return { http: 0, body: { status: 'unhealthy', error: e instanceof Error ? e.message : String(e), checks: {} } };
+    if (res.status === 429) return { status: 'unknown', checks: {}, limited: true };
+    const body = await res.json();
+    return { status: body?.status ?? 'unknown', timestamp: body?.timestamp, checks: body?.checks ?? {}, limited: false };
+  } catch {
+    return { status: 'unhealthy', checks: {}, limited: false };
   }
 }
 
-type CheckMap = Record<string, { ok: boolean; ms?: number; note?: string }>;
+const SUMMARY: Record<string, { label: string; tone: 'ok' | 'warn' | 'bad' }> = {
+  healthy: { label: '모든 서비스가 정상입니다', tone: 'ok' },
+  degraded: { label: '일부 서비스가 지연되고 있습니다', tone: 'warn' },
+  unhealthy: { label: '서비스에 장애가 있습니다', tone: 'bad' },
+};
 
 export default async function StatusPage() {
-  const { http, body } = await fetchHealth();
-  const status: string = body?.status ?? 'unknown';
-  const checks: CheckMap = body?.checks ?? {};
-
-  const color = status === 'healthy' ? '#16a34a' : status === 'degraded' ? '#f59e0b' : '#dc2626';
-  const label = status === 'healthy' ? '정상' : status === 'degraded' ? '부분 장애' : '장애';
+  const { status, timestamp, checks, limited } = await fetchHealth();
+  const summary = limited
+    ? { label: '잠시 후 다시 확인해 주세요', tone: 'warn' as const }
+    : SUMMARY[status] ?? { label: '상태를 확인하지 못했습니다', tone: 'warn' as const };
+  const rows = CHECK_LABELS.filter((c) => checks[c.key]).map((c) => ({ ...c, check: checks[c.key] }));
 
   return (
-    <main className="status-page" style={{ maxWidth: 720, margin: '40px auto', padding: '0 24px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>OwnerView 상태</h1>
-      <div style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
-        {body?.timestamp ? new Date(body.timestamp).toLocaleString('ko-KR') : ''} · HTTP {http}
-      </div>
-      <div className="status-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 10, background: color, color: 'white', fontWeight: 700, marginBottom: 24 }}>
-        <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'white', display: 'inline-block' }} />
-        {label}
-      </div>
-
-      <div className="status-checks-list" style={{ display: 'grid', gap: 8 }}>
-        {Object.entries(checks).map(([name, c]) => (
-          <div key={name} className="status-check-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.ok ? '#16a34a' : '#dc2626', display: 'inline-block' }} />
-              <strong style={{ fontSize: 14 }}>{name.toUpperCase()}</strong>
-              {typeof c.ms === 'number' && <span style={{ fontSize: 11, color: '#6b7280' }}>{c.ms}ms</span>}
-            </div>
-            <div style={{ fontSize: 12, color: c.ok ? '#16a34a' : '#dc2626' }}>
-              {c.ok ? 'OK' : (c.note || 'FAIL')}
-            </div>
+    <div className="lp8">
+      <SiteHeader />
+      <main className="st8">
+        <div className="container st8-in">
+          <p className="tl8-eyebrow">서비스 상태</p>
+          <h1 className="st8-h1">오너뷰 서비스 상태</h1>
+          <div className={`st8-badge st8-${summary.tone}`}>
+            <i aria-hidden="true" />
+            {summary.label}
           </div>
-        ))}
-      </div>
+          {timestamp && (
+            <p className="st8-time">
+              {new Date(timestamp).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} 기준
+            </p>
+          )}
 
-      <p style={{ marginTop: 24, fontSize: 11, color: '#9ca3af' }}>
-        외부 모니터링: UptimeRobot/Pingdom 등에서 <code>/api/health</code> 를 1분 간격으로 폴링하세요.
-        HTTP 503 또는 status=&quot;unhealthy&quot; 시 알림(P0-1 텔레그램 채널)으로 라우팅.
-      </p>
-    </main>
+          {rows.length > 0 && (
+            <ul className="st8-list">
+              {rows.map(({ key, name, desc, check }) => (
+                <li key={key}>
+                  <span className={`st8-dot ${check.ok ? 'st8-ok' : 'st8-bad'}`} aria-hidden="true" />
+                  <div className="st8-name">
+                    <b>{name}</b>
+                    <small>{desc}</small>
+                  </div>
+                  <span className={`st8-state ${check.ok ? 'st8-ok' : 'st8-bad'}`}>{check.ok ? '정상' : '문제 있음'}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <p className="st8-note">
+            문제가 계속되면 <a href="mailto:creative@mo-tive.com">creative@mo-tive.com</a> 으로 알려 주세요.
+          </p>
+        </div>
+      </main>
+      <SiteFooter />
+    </div>
   );
 }

@@ -94,8 +94,14 @@ export default function PricingView({ plans, source }: { plans: PlanRow[]; sourc
   const save = compTotal - owvTotal;
   const d = discountPct(paid);
 
+  // 무료에서 안 되는 기능 — 요금 카드 문구를 아래 표의 「—」 칸에서 뽑는다(표와 문구가 따로 놀지 않게).
+  //   연간 결제는 기능이 아니라 결제 조건이라 뺀다.
+  const paidOnly = matrix(free, paid).flatMap((g) => g.rows)
+    .filter((r) => r.free === "—" && r.name !== "연간 결제")
+    .map((r) => r.name.replace(/\s*\(.*\)$/, ""));
+
   const cards = [
-    { p: free, desc: "메뉴는 같고, 사용 한도만 다릅니다", period: "카드 등록 없이 계속 무료", cta: "무료로 시작하기", hl: false },
+    { p: free, desc: `사용 한도가 있고, ${paidOnly.join("·")}은 유료 요금제에서 열립니다`, period: "카드 등록 없이 계속 무료", cta: "무료로 시작하기", hl: false },
     {
       p: paid,
       desc: "회사 운영 전체를 맡기는 요금제",

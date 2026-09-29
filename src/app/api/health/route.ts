@@ -72,6 +72,18 @@ export async function GET(request: Request) {
     checks.stripe = { ok: !r.error, ms: r.ms };
   }
 
+  // ── 토스페이먼츠: 국내 카드 결제 경로 ──
+  //   결제 키는 엣지 함수(toss-charge 등)에만 있어 여기선 키 없이 API 서버가 응답하는지만 본다.
+  //   키 없는 요청은 401(UNAUTHORIZED_KEY)이 정상 응답이다 — 5xx·시간 초과·연결 실패만 장애로 본다.
+  {
+    const r = await timed(async () => {
+      const res = await fetch('https://api.tosspayments.com/v1/payments/orders/health-probe', { cache: 'no-store' });
+      if (res.status >= 500) throw new Error(`HTTP ${res.status}`);
+      return true;
+    }, 3000);
+    checks.toss = { ok: !r.error, ms: r.ms };
+  }
+
   // ── CODEF: 내부 sync_logs 기록으로 cron 생존 확인 ──
   //   bank/card 동기화 cron(net.http_post → codef-sync)이 남기는 codef_*_cron 기록.
   //   ⚠️ 반드시 service role — anon+RLS 는 행이 안 보여 0건 거짓 degraded (2026-07-22 진단).

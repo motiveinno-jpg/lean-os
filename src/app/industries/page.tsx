@@ -23,7 +23,7 @@ export default function Page() {
       <div className="lp8"><SiteHeader /></div>
       <section className="ipg-sec"><div className="ipg-wrap">
         <p className="ipg-eyebrow">업종별 활용법</p>
-        <h2 className="ipg-h2">업종마다 일하는 순서가 다릅니다</h2>
+        <h1 className="ipg-h2">업종마다 일하는 순서가 다릅니다</h1>
         <p className="ipg-lead">쓰는 메뉴와 순서를 업종별로 정리했습니다. 우리 회사와 가까운 곳부터 보세요.</p>
         {PARENTS.map((p) => (
           <div className="ipg-group" key={p.key}>

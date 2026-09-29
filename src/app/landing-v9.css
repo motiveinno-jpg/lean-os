@@ -1472,7 +1472,8 @@
 .lp9m .demo .hd b{ font-size:15px }
 .lp9m .demo .collect{ height:34px; padding:0 12px; font-size:12px }
 /* ⓐ 검은 카드 — 부채꼴로 겹친 계산서를 카드 폭 안에 */
-.lp9m .bvis{ height:300px }
+/*   높이 300 이면 왼쪽 아래 「9월 발행·수취」 칸이 앞 계산서의 마지막 줄(입금 대사)과 겹친다 — 칸이 계산서 아래로 가게 늘린다 */
+.lp9m .bvis{ height:340px }
 .lp9m .inv{ width:min(250px,84%); margin-left:min(-125px,-42%); top:28px; height:212px }
 .lp9m #bcards.in .inv.i3{ transform:translate(-20px,18px) rotate(-8deg) }
 .lp9m #bcards.in .inv.i2{ transform:translate(18px,10px) rotate(6deg) }
@@ -1540,3 +1541,17 @@
 .lp9m .tpl-board{ padding:9px }
 .lp9m .tpl-k{ padding:8px }
 }
+
+/* ── 공개 페이지 정비: 대비·마지막 상담 구역 ── */
+/* 보조 글씨(--ink-3)가 흰 바탕 대비 3.0 이었다 — 연한 회색 바탕(#f1f3f8·#eef0ff)에서도 4.5 이상이 되게 한 단계 진하게.
+   차트 눈금·「예시」 표시는 --ink-4(대비 2.0)였던 것을 보조 글씨와 같은 색으로 */
+.lp9m{ --ink-3:#636d7b }
+.lp9m .ex, .lp9m .cylab span, .lp9m .bylab span, .lp9m .bxlab span, .lp9m .lp9-note{ color:var(--ink-3) }
+/* 마지막 상담 구역 — 한 화면 높이(100svh)에 글·버튼을 절대 위치로 띄워 두어 아래에 300px 넘는 빈 보라 띠가 남았다.
+   내용 높이만큼만 차지하게 흐름 배치로 바꾼다 */
+.lp9m .s12{ height:auto }
+.lp9m .s12 .sticky{ position:static; height:auto; overflow:visible }
+.lp9m .s12 .full{ height:auto; padding:clamp(72px,10vw,128px) 0 }
+.lp9m .s12 .full .cta{ position:static }
+.lp9m .s12 .ctop, .lp9m .s12 .cmid{ position:static; transform:none }
+.lp9m .s12 .cmid{ margin-top:clamp(28px,4vw,44px) }
