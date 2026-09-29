@@ -90,9 +90,12 @@ export async function callVaultTool(tok: Tok, name: string, args: Record<string,
       const f = meta as { id: string; name: string; size: number | null; bucket: string; storage_path: string | null; folder: string | null } | null;
       if (!f) { files.push({ id, error: "파일이 없거나 볼 권한이 없습니다." }); continue; }
       if (!f.storage_path) { files.push({ id, name: f.name, error: "저장된 실물이 없는 파일입니다." }); continue; }
-      const { data: signed, error: sErr } = await db.storage.from(f.bucket).createSignedUrl(f.storage_path, DOWNLOAD_TTL_SEC, { download: f.name });
+      const { data: signed, error: sErr } = await db.storage.from(f.bucket).createSignedUrl(f.storage_path, DOWNLOAD_TTL_SEC);
       if (sErr || !signed?.signedUrl) { files.push({ id, name: f.name, error: "링크를 만들지 못했습니다." }); continue; }
-      files.push({ id, name: f.name, folder: f.folder, size: f.size, download_url: signed.signedUrl });
+      //   파일 이름은 직접 한 번만 인코딩해 붙인다 — SDK 의 download 옵션은 두 번 인코딩해
+      //   브라우저로 받으면 한글 이름이 %EC%9B… 로 깨졌다(2026-09-29 머리글 실측)
+      const url = `${signed.signedUrl}${signed.signedUrl.includes("?") ? "&" : "?"}download=${encodeURIComponent(f.name)}`;
+      files.push({ id, name: f.name, folder: f.folder, size: f.size, download_url: url });
     }
     const okCount = files.filter((x) => (x as { download_url?: string }).download_url).length;
     await log(tok, name, okCount > 0, okCount === uniq.length ? null : `${uniq.length - okCount} failed`);
