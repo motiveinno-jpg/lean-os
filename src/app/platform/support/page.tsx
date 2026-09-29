@@ -10,6 +10,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { OpsSearch, OpsCompanySelect, OpsExportButton, exportCsv } from "../_components/ops-kit";
+import { dropTestCompanies } from "../_components/test-companies";
 import { getCurrentUser } from "@/lib/queries";
 import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSeg, PfEmpty, PfSkeleton } from "@/app/platform/_components/pf/ui";
 import { PfDonut, PfBars } from "@/app/platform/_components/pf/charts";
@@ -147,7 +148,8 @@ export default function PlatformSupportPage() {
         // 2026-07-16: users FK 가 2개(user_id·answered_by)라 무힌트 임베드는 400 — 문의자 기준으로 명시
         .select("*, users!support_tickets_user_id_fkey(name, email), companies(name)")
         .order("created_at", { ascending: false }));
-      return (data || []) as Ticket[];
+      // 테스트 회사(자동 QA)가 남긴 문의는 목록·미처리 숫자에서 뺀다
+      return dropTestCompanies((data || []) as Ticket[]);
     },
     refetchInterval: 60_000,
   });

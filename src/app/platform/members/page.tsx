@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { PlatformMemberActions, PLATFORM_ROLE_META } from "@/components/platform-member-actions";
 import { OpsSearch, exportCsv } from "../_components/ops-kit";
+import { dropTestCompanies } from "../_components/test-companies";
 import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSeg, PfSkeleton, PfEmpty } from "@/app/platform/_components/pf/ui";
 import { PfDonut, PfBars } from "@/app/platform/_components/pf/charts";
 
@@ -58,7 +59,8 @@ export default function PlatformMembersPage() {
         //   users→companies FK 가 둘(company_id · former_company_id, 2026-09-16)이라 어느 쪽인지 적는다 — 안 적으면 PostgREST 가 모호(PGRST201)로 거절
         .select("id, name, email, role, company_id, created_at, companies!users_company_id_fkey(name)")
         .order("created_at", { ascending: false }));
-      return (data || []) as MemberRow[];
+      // 테스트 회사(자동 QA) 계정은 목록·숫자에서 뺀다 — 계정 조치가 필요하면 회사 상세 화면의 멤버 목록에서 한다
+      return dropTestCompanies((data || []) as MemberRow[]);
     },
     refetchInterval: 60_000,
   });

@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useMemo, useState } from "react";
 import { OpsSearch, OpsCompanySelect, OpsExportButton, exportCsv } from "../_components/ops-kit";
+import { dropTestCompanies } from "../_components/test-companies";
 import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpiKrw, PfKpi, PfBadge, PfRows, PfRow, PfEmpty, PfSkeleton } from "../_components/pf/ui";
 import { PfBars, PfDonut, PfGauge, PfTrend }  from "../_components/pf/charts";
 
@@ -46,7 +47,8 @@ export default function RevenuePage() {
     queryKey: ["p-subs-rev"],
     queryFn: async () => {
       const data = logRead('revenue/page:data', await db.from("subscriptions").select("*, subscription_plans(*), companies(name)").order("created_at", { ascending: false }));
-      return data || [];
+      // 테스트 회사(자동 QA)의 구독·청구는 매출 집계에서 뺀다
+      return dropTestCompanies(data);
     },
     refetchInterval: 60_000,
   });
@@ -57,7 +59,7 @@ export default function RevenuePage() {
       //   생성 타입에 아직 없는 RPC(마이그 20260928240000)
       const { data, error } = await (db.rpc as any)("operator_billing_issues", { p_days: 90 });
       if (error) throw error;
-      return (data || []) as BillingIssue[];
+      return dropTestCompanies((data || []) as BillingIssue[]);
     },
   });
 
@@ -65,7 +67,7 @@ export default function RevenuePage() {
     queryKey: ["p-invoices-rev"],
     queryFn: async () => {
       const data = await fetchPaged<any>("p-invoices-rev", () => db.from("invoices").select("*, companies(name)").order("created_at", { ascending: false }), 100000);
-      return data || [];
+      return dropTestCompanies(data);
     },
     refetchInterval: 60_000,
   });

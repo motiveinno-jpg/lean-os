@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { OpsSearch, exportCsv } from "../_components/ops-kit";
+import { dropTestCompanies, loadTestCompanyIds } from "../_components/test-companies";
 import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSeg, PfSkeleton, PfEmpty } from "@/app/platform/_components/pf/ui";
 import { PfDonut, PfBars }  from "@/app/platform/_components/pf/charts";
 
@@ -54,9 +55,15 @@ export default function CustomersPage() {
     queryKey: ["p-companies-detail"],
     queryFn: async () => {
       const data = logRead('customers/page:data', await db.from("companies").select("*, users(count), subscriptions(*, subscription_plans(*))").order("created_at", { ascending: false }));
-      return data || [];
+      // 테스트 회사(자동 QA)는 목록·숫자에서 뺀다 — 회사 상세는 주소로 직접 열면 그대로 보인다
+      return dropTestCompanies(data, (c: any) => c.id);
     },
     refetchInterval: 60_000,
+  });
+  const { data: hiddenTestCount = 0 } = useQuery({
+    queryKey: ["p-test-company-count"],
+    queryFn: async () => (await loadTestCompanyIds()).size,
+    staleTime: 5 * 60_000,
   });
 
   const filtered = useMemo(() => {
@@ -107,7 +114,7 @@ export default function CustomersPage() {
       <PfPageHead
         eyebrow="고객"
         title="고객사 관리"
-        desc="오너뷰에 가입한 모든 회사입니다. 1분마다 자동으로 새로 고쳐지고, 행을 누르면 그 회사의 상세 화면으로 갑니다."
+        desc={`오너뷰에 가입한 모든 회사입니다. 1분마다 자동으로 새로 고쳐지고, 행을 누르면 그 회사의 상세 화면으로 갑니다.${hiddenTestCount > 0 ? ` 테스트 회사 ${hiddenTestCount}곳은 목록과 숫자에서 뺐습니다.` : ""}`}
         actions={
           <>
             <OpsSearch value={search} onChange={setSearch} placeholder="회사명·사업자번호 검색" />

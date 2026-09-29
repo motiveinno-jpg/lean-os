@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfBar, PfRows, PfRow, PfEmpty, PfSkeleton } from "../_components/pf/ui";
 import { PfDonut } from "../_components/pf/charts";
+import { dropTestCompanies } from "../_components/test-companies";
 
 const db = supabase;
 
@@ -27,7 +28,8 @@ export default function SystemPage() {
         .from("companies")
         .select("id, name, business_number, created_at")
         .order("created_at", { ascending: false }));
-      return data || [];
+      // 테스트 회사(자동 QA)는 데이터 규모 집계에서 뺀다
+      return dropTestCompanies(data, (c: any) => c.id);
     },
   });
 
@@ -38,7 +40,7 @@ export default function SystemPage() {
         .from("users")
         .select("id, name, email, role, created_at, company_id")
         .order("created_at", { ascending: false }));
-      return data || [];
+      return dropTestCompanies(data);
     },
   });
 
@@ -56,6 +58,8 @@ export default function SystemPage() {
   //   회사별 상한($10/월 ≈ 14,000원)은 공용 호출기(claude.ts)가 강제한다.
   type AiCosts =  {
     month: string; total_usd: number; total_calls: number; cap_usd: number;
+    // 합계에서 뺀 테스트 회사(자동 QA) 사용액 — 실제로 나간 돈이라 따로 밝힌다
+    excluded_test_usd?: number;
     companies: { company: string | null; company_id: string; usd: number; calls: number; tokens: number; by_feature: Record<string, number> }[];
   };
   const { data: aiCosts } = useQuery<AiCosts | null>({
@@ -226,6 +230,11 @@ export default function SystemPage() {
                     ₩{Math.round(aiCosts.total_usd * FX).toLocaleString()} <span className="text-[10px] text-[var(--text-dim)] font-normal">(${aiCosts.total_usd.toFixed(2)})</span>
                   </span>
                 </div>
+                {(aiCosts.excluded_test_usd ?? 0) > 0 && (
+                  <p className="px-3 text-[11px] text-[var(--text-dim)]">
+                    테스트 회사 사용분 ₩{Math.round((aiCosts.excluded_test_usd ?? 0) * FX).toLocaleString()} (${(aiCosts.excluded_test_usd ?? 0).toFixed(2)})은 합계와 목록에서 뺐습니다
+                  </p>
+                )}
                 {aiCosts.companies.length === 0 ? (
                   <PfEmpty>이번 달 AI 사용 내역이 없습니다</PfEmpty>
                 ) : (

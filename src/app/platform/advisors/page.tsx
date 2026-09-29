@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useMemo, useState } from "react";
 import { OpsSearch } from "../_components/ops-kit";
+import { dropTestCompanies } from "../_components/test-companies";
 import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfEmpty, PfSkeleton } from "@/app/platform/_components/pf/ui";
@@ -48,7 +49,8 @@ export default function PlatformAdvisorsPage() {
     queryFn: async () => {
       const data = logRead("platform/advisors:companies", await (db as any)
         .from("companies").select("id, name, business_number").order("name"));
-      return (data || []) as { id: string; name: string; business_number: string | null }[];
+      // 연결 후보에서 테스트 회사(자동 QA)는 뺀다 — 이미 연결된 건은 연결 목록(RPC)에 그대로 보인다
+      return dropTestCompanies((data || []) as { id: string; name: string; business_number: string | null }[], (c) => c.id);
     },
   });
 

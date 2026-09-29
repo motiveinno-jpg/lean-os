@@ -7,6 +7,7 @@ import { fetchPaged } from "@/lib/fetch-paged";
 import { planOf, countPlanKinds, type PlanKind as PK } from "./_components/plan-kind";
 import { AnalyticsSection } from "./_components/analytics-section";
 import { EngagementCard } from "./_components/engagement-card";
+import { dropTestCompanies } from "./_components/test-companies";
 import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfKpiKrw, PfBadge, PfRows, PfRow, PfEmpty, PfBar, fmtKrwShort } from "./_components/pf/ui";
 import { PfDonut, PfGauge, PfFunnel } from "./_components/pf/charts";
 
@@ -113,7 +114,8 @@ export default function PlatformOverview() {
     queryKey: ["p-companies"],
     queryFn: async () => {
       const data = logRead('platform/page:data', await db.from("companies").select("*, users(count), subscriptions(*, subscription_plans(*))").order("created_at", { ascending: false }));
-      return data || [];
+      // 테스트 회사(자동 QA)는 가입사 수·등급 집계에서 뺀다
+      return dropTestCompanies(data, (c: any) => c.id);
     },
     refetchInterval: 60_000,
   });
@@ -122,7 +124,7 @@ export default function PlatformOverview() {
     queryKey: ["p-subs"],
     queryFn: async () => {
       const data = logRead('platform/page:data', await db.from("subscriptions").select("*, subscription_plans(*), companies(name)").order("created_at", { ascending: false }));
-      return data || [];
+      return dropTestCompanies(data);
     },
     refetchInterval: 60_000,
   });
@@ -131,7 +133,7 @@ export default function PlatformOverview() {
     queryKey: ["p-invoices"],
     queryFn: async () => {
       const data = await fetchPaged<any>("p-invoices", () => db.from("invoices").select("*, companies(name)").order("created_at", { ascending: false }), 100000);
-      return data || [];
+      return dropTestCompanies(data);
     },
     refetchInterval: 60_000,
   });
@@ -139,8 +141,8 @@ export default function PlatformOverview() {
   const { data: users = [] } = useQuery({
     queryKey: ["p-users"],
     queryFn: async () => {
-      const data = logRead('platform/page:data', await db.from("users").select("id").order("created_at", { ascending: false }));
-      return data || [];
+      const data = logRead('platform/page:data', await db.from("users").select("id, company_id").order("created_at", { ascending: false }));
+      return dropTestCompanies(data);
     },
     refetchInterval: 60_000,
   });
@@ -196,12 +198,12 @@ export default function PlatformOverview() {
       // 처리(resolved)된 오류는 제외 — 시스템상태 신호등과 같은 기준
       // 로컬 개발 서버(localhost) 에러도 제외 — 운영 신호가 아니다
       const data = logRead('platform/page:data', await db.from("error_logs")
-        .select("id, error_type, message, source, created_at, dup_count")
+        .select("id, error_type, message, source, created_at, dup_count, company_id")
         .eq("resolved", false).gte("created_at", since)
         .not("url", "ilike", "%//localhost%")
         .not("url", "ilike", "%//127.0.0.1%")
         .order("created_at", { ascending: false }).limit(200));
-      return data || [];
+      return dropTestCompanies(data);
     },
     refetchInterval: 60_000,
   });
@@ -220,10 +222,10 @@ export default function PlatformOverview() {
     queryKey: ["p-inbox-support"],
     queryFn: async () => {
       const data = logRead('platform/page:tickets', await db.from("support_tickets")
-        .select("id, subject, category, created_at, companies(name)")
+        .select("id, subject, category, created_at, company_id, companies(name)")
         .eq("status", "open")
         .order("created_at", { ascending: false }).limit(200));
-      return data || [];
+      return dropTestCompanies(data);
     },
     refetchInterval: 60_000,
   });
