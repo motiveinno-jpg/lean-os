@@ -123,7 +123,7 @@ export function useClaimsPanel({ companyId, userId, imports, products, canWrite,
     <div className="collect-empty">{claims.length === 0 ? <>취소·반품·교환이 없습니다. 생기면 <b>+ 클레임 등록</b>으로 주문을 골라 적으세요.</> : "조건에 맞는 클레임이 없습니다."}</div>
   ) : (
     <div className="stg-table-wrap">
-      <table className="ev-table ev-lined table-inv-ch-claims">
+      <table className="ev-table ev-lined table-inv-ch-claims ch-claims-fit">
         <thead><tr>
           <SortableTh label="일자" sortKey="date" sort={sort} onSort={onSort} />
           <SortableTh label="채널" sortKey="channel" sort={sort} onSort={onSort} />
@@ -142,7 +142,7 @@ export function useClaimsPanel({ companyId, userId, imports, products, canWrite,
               <td className="text-left">{i?.buyer_name || "—"}</td>
               <td className="tc">{CLAIM_KIND_LABEL[c.kind]}</td>
               <td className="tr mono-number">{c.kind === "exchange" ? <span className="ev-dim">—</span> : `₩${won(c.refund_amount)}`}</td>
-              <td className="text-left ev-dim">{c.reason || "—"}</td>
+              <td className="text-left ev-dim ch-claims-reason">{c.reason || "—"}</td>
               <td className="tc">{c.restock ? <span title="반품 입고 문서로 되돌림">되돌림</span> : <span className="ev-dim">변동 없음</span>}</td>
               {canWrite && <td className="tc"><button type="button" className="btn-secondary btn-sm" onClick={() => remove(c)}>지우기</button></td>}
             </tr>
