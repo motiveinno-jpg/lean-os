@@ -36,6 +36,7 @@ import { DateRangeField } from "@/components/date-range-field";
 import { supabase } from "@/lib/supabase";
 import { getDeals } from "@/lib/queries";
 import { getMyProjectTasks } from "@/lib/my-project-tasks";
+import { applyDayOrder, moveKey, fetchDayOrders, saveDayOrder } from "@/lib/schedule-day-order";
 
 type Tab = "calendar" | "list";
 
@@ -136,6 +137,26 @@ function CalendarTab({ companyId, userId, myEmail, toast, tabs }: { companyId: s
   );
 
   const grid = useMemo(() => buildMonthGrid(view.year, view.monthIdx0), [view.year, view.monthIdx0]);
+  //   하루 칸 안 일정 순서(본인 전용) — 칸 안에서 끌어 놓으면 바뀐다. 달력 화면(앞뒤 달 칸 포함) 범위만 읽는다.
+  const gridFrom = toLocalDateStr(grid[0].date), gridTo = toLocalDateStr(grid[grid.length - 1].date);
+  const dayOrdersKey = ["schedule-day-orders", companyId, gridFrom, gridTo];
+  const { data: dayOrders = {} } = useQuery({
+    queryKey: dayOrdersKey,
+    queryFn: () => fetchDayOrders(gridFrom, gridTo),
+    enabled: !!companyId, staleTime: 60_000,
+  });
+  //   끌고 있는 일정(그 칸 안에서만 놓을 수 있다)과 놓일 자리 표시
+  const dragRef = useRef<{ day: string; key: string } | null>(null);
+  const [dropMark, setDropMark] = useState<{ day: string; key: string; before: boolean } | null>(null);
+  const reorderMut = useMutation({
+    mutationFn: ({ day, keys }: { day: string; keys: string[] }) => saveDayOrder(companyId, day, keys),
+    onMutate: ({ day, keys }) => {
+      const prev = queryClient.getQueryData<Record<string, string[]>>(dayOrdersKey);
+      queryClient.setQueryData(dayOrdersKey, { ...(prev || {}), [day]: keys });
+      return { prev };
+    },
+    onError: (e: any, _v, ctx) => { if (ctx?.prev) queryClient.setQueryData(dayOrdersKey, ctx.prev); toast(`순서 저장 실패: ${e.message}`, "error"); },
+  });
   //   공휴일 — 근태와 같은 회사 공휴일 표(비어 있으면 전국 표). 예전엔 달력이 공휴일을 안 그렸다.
   const holidays = useCompanyHolidays(companyId, [view.year, view.year + 1]);
 
@@ -149,9 +170,10 @@ function CalendarTab({ companyId, userId, myEmail, toast, tabs }: { companyId: s
         map.get(dateKey)!.push(e);
       }
     }
+    for (const [k, list] of map) map.set(k, applyDayOrder(list, dayOrders[k]));
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events, dept, deptOf]);
+  }, [events, dept, deptOf, dayOrders]);
 
   const toggleDoneMut = useMutation({
     mutationFn: ({ id, completed }: { id: string; completed: boolean }) => toggleEventCompleted(id, completed),
@@ -288,11 +310,33 @@ function CalendarTab({ companyId, userId, myEmail, toast, tabs }: { companyId: s
                       <div
                         key={`${e.id}-${dateStr}`}
                         onClick={(ev) => { ev.stopPropagation(); setDialog({ mode: "view", event: e }); }}
-                        className={`group/ev flex items-center gap-1 text-[9px] px-1.5 py-0.5 border ${barShape} ${EVENT_COLOR_BG[e.color]} cursor-pointer ${e.completed ? "opacity-50" : ""}`}
+                        //   칸 안에서 끌어 순서 바꾸기 — 다른 날짜 칸에는 놓이지 않는다(날짜 이동은 수정 창에서)
+                        draggable={cellEvents.length > 1}
+                        onDragStart={(ev) => { ev.stopPropagation(); ev.dataTransfer.effectAllowed = "move"; ev.dataTransfer.setData("text/plain", e.id); dragRef.current = { day: dateStr, key: e.id }; }}
+                        onDragOver={(ev) => {
+                          const d = dragRef.current;
+                          if (!d || d.day !== dateStr || d.key === e.id) return;
+                          ev.preventDefault(); ev.stopPropagation();
+                          const r = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+                          const before = ev.clientY < r.top + r.height / 2;
+                          if (!dropMark || dropMark.key !== e.id || dropMark.before !== before || dropMark.day !== dateStr) setDropMark({ day: dateStr, key: e.id, before });
+                        }}
+                        onDrop={(ev) => {
+                          const d = dragRef.current;
+                          if (!d || d.day !== dateStr) return;
+                          ev.preventDefault(); ev.stopPropagation();
+                          const r = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+                          const keys = moveKey(cellEvents.map((x) => x.id), d.key, e.id, ev.clientY < r.top + r.height / 2);
+                          dragRef.current = null; setDropMark(null);
+                          if (keys.join() !== cellEvents.map((x) => x.id).join()) reorderMut.mutate({ day: dateStr, keys });
+                        }}
+                        onDragEnd={() => { dragRef.current = null; setDropMark(null); }}
+                        className={`group/ev flex items-center gap-1 text-[9px] px-1.5 py-0.5 border ${barShape} ${EVENT_COLOR_BG[e.color]} cursor-pointer ${e.completed ? "opacity-50" : ""} ${
+                          dropMark?.day === dateStr && dropMark.key === e.id ? (dropMark.before ? "shadow-[0_-2px_0_0_var(--primary)]" : "shadow-[0_2px_0_0_var(--primary)]") : ""}`}
                         title={
                           multi
-                            ? `${e.title} (${formatEventRange(e)}) · 클릭하면 내용 보기`
-                            : "클릭하면 내용 보기"
+                            ? `${e.title} (${formatEventRange(e)}) · 클릭하면 내용 보기${cellEvents.length > 1 ? " · 끌어서 순서 바꾸기" : ""}`
+                            : `클릭하면 내용 보기${cellEvents.length > 1 ? " · 끌어서 순서 바꾸기" : ""}`
                         }
                       >
                         {showLabel ? (
