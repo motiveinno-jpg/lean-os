@@ -23,11 +23,12 @@ import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat } from "
 import { DateRangeField } from "@/components/date-range-field";
 import { exportToExcel } from "@/lib/excel-export";
 import { LineChart, BarChart, DonutChart, Legend, vizColor } from "@/components/charts/kit";
-import { listMoves, listProducts, listAvgCost, type MoveRow, type Product } from "@/lib/inventory";
+import { listMoves, listProducts, listStockUnitCost, type MoveRow, type Product } from "@/lib/inventory";
 import { listBoms } from "@/lib/inventory-production";
 import { listImports, channelLabel, CHANNELS } from "@/lib/inventory-channels";
 import { loadChannelFees, saveChannelFees, type ChannelFees } from "@/lib/inventory-settings";
 import { listMoveCosts, listLayers, getCostState, rebuildMyCosts, loadCostingMethod, saveCostingMethod, COSTING_METHODS, listRevaluations, addRevaluation, cancelRevaluation, REVAL_REASONS, revalReasonLabel, type CostingMethod, type MoveCost, type CostLayer } from "@/lib/inventory-cost";
+import { costOfMove } from "@/lib/inventory-costing-calc";
 import { SalesBoard } from "../../reports/_components/SalesBoard";
 import { DateField } from "@/components/date-field";
 import { dayKeys, dayLabel } from "@/components/finance-status-panels";
@@ -75,7 +76,7 @@ export default function InventoryProfitPage() {
   const { data: moves = [], isLoading } = q("inv-moves", () => listMoves(companyId!, from, to), [from, to]);
   const { data: costs = [] } = q("inv-move-costs", () => listMoveCosts(companyId!, from, to), [from, to]);
   const { data: layers = [] } = q("inv-cost-layers", () => listLayers(companyId!));
-  const { data: avgCost = new Map<string, number>() } = q("inv-avgcost", () => listAvgCost(companyId!));
+  const { data: avgCost = new Map<string, number>() } = q("inv-unitcost", () => listStockUnitCost(companyId!));
   const { data: state } = q("inv-cost-state", () => getCostState(companyId!));
   const { data: method = "fifo" as CostingMethod } = q("inv-cost-method", () => loadCostingMethod(companyId!));
   const { data: imports = [] } = q("ch-imports", () => listImports(companyId!, 2000));
@@ -130,17 +131,14 @@ export default function InventoryProfitPage() {
     const perChannel = new Map<string, { rev: number; cost: number }>();
     const lossBy = new Map<string, number>();
     const saleRows: { m: MoveRow; rev: number; cost: number; unc: number }[] = [];
-    const costOfMove = (m: MoveRow): { cost: number; unc: number } => {
-      if (m.qty < 0) { const c = costByMove.get(m.id); return c ? { cost: c.cost_amount, unc: c.qty_uncosted } : { cost: 0, unc: -m.qty }; }
-      //   되돌아온 것(반품·취소)은 그때 층 단가로 원가가 줄어든다
-      const l = layerByMove.get(m.id); return l && l.unit_cost != null ? { cost: -m.qty * l.unit_cost, unc: 0 } : { cost: 0, unc: m.qty };
-    };
+    //   한 줄의 원가는 재고 › 현황 마진과 같은 함수(costOfMove) — 되돌아온 것(반품·취소)은 그때 층 단가로 원가가 줄어든다
+    const costOf = (m: MoveRow) => costOfMove(m, costByMove, layerByMove);
     for (const m of moves) {
       const reason = m.doc?.reason; if (!reason) continue;
       if (reason === "sale" || reason === "return_in") {
         //   판매: 출고(qty<0)가 매출, 취소·반품(qty>0)은 매출 차감
         const rev = Math.abs(Number(m.amount || 0)) * (m.qty < 0 ? 1 : -1);
-        const { cost, unc } = costOfMove(m);
+        const { cost, unc } = costOf(m);
         revenue += rev; cogs += cost; uncosted += unc; soldQty += -m.qty;
         const d = perDay.get(m.moved_at) || { rev: 0, cost: 0 }; d.rev += rev; d.cost += cost; perDay.set(m.moved_at, d);
         const pp = perProduct.get(m.product_id) || { qty: 0, rev: 0, cost: 0, unc: 0 }; pp.qty += -m.qty; pp.rev += rev; pp.cost += cost; pp.unc += unc; perProduct.set(m.product_id, pp);
@@ -148,7 +146,7 @@ export default function InventoryProfitPage() {
         const ch = (m.doc && docChannel.get(m.doc.id)) || "direct"; const pc = perChannel.get(ch) || { rev: 0, cost: 0 }; pc.rev += rev; pc.cost += cost; perChannel.set(ch, pc);
         saleRows.push({ m, rev, cost, unc });
       } else if (LOSS_REASONS.has(reason) && m.qty < 0) {
-        const { cost, unc } = costOfMove(m);
+        const { cost, unc } = costOf(m);
         loss += cost; uncosted += unc; lossBy.set(reason, (lossBy.get(reason) || 0) + cost);
       }
     }
@@ -191,7 +189,7 @@ export default function InventoryProfitPage() {
   const rebuild = async () => {
     setBusy(true);
     try { const r = await rebuildMyCosts(); toast(`다시 계산했습니다. 층 ${r.layers} · 출고 원가 ${r.costs} (${r.method === "avg" ? "이동평균" : "선입선출"})`, "success");
-      qc.invalidateQueries({ queryKey: ["inv-move-costs"] }); qc.invalidateQueries({ queryKey: ["inv-cost-layers"] }); qc.invalidateQueries({ queryKey: ["inv-cost-state"] }); qc.invalidateQueries({ queryKey: ["inv-avgcost"] }); }
+      qc.invalidateQueries({ queryKey: ["inv-move-costs"] }); qc.invalidateQueries({ queryKey: ["inv-cost-layers"] }); qc.invalidateQueries({ queryKey: ["inv-cost-state"] }); qc.invalidateQueries({ queryKey: ["inv-unitcost"] }); }
     catch (e) { toast(friendlyError(e), "error"); } finally { setBusy(false); }
   };
   const changeMethod = async (m: CostingMethod) => {
@@ -245,13 +243,13 @@ export default function InventoryProfitPage() {
     if (!(await appConfirm(`${rv.date}부터 ${p?.name || "이 품목"} 남은 재고 ${won(leftQty)}개의 원가를 ₩${won(unit)}로 봅니다.${diff ? ` 차액 ₩${won(Math.abs(diff))}은 ${diff < 0 ? "평가손실" : "평가이익"}로 잡힙니다.` : ""} 이 날 이후 출고부터 새 단가가 나가고, 이전 출고는 바뀌지 않습니다. 계속할까요?`, { confirmLabel: "진행" }))) return;
     setBusy(true);
     try { await addRevaluation({ product_id: histProduct, reval_date: rv.date, unit_cost: unit, reason: rv.reason, note: rv.note || null }); toast("재평가를 기록하고 다시 계산했습니다", "success"); setRv((s) => ({ ...s, unit: "", note: "" }));
-      for (const k of ["inv-cost-revals", "inv-move-costs", "inv-cost-layers", "inv-cost-state", "inv-avgcost"]) qc.invalidateQueries({ queryKey: [k] }); }
+      for (const k of ["inv-cost-revals", "inv-move-costs", "inv-cost-layers", "inv-cost-state", "inv-unitcost"]) qc.invalidateQueries({ queryKey: [k] }); }
     catch (e) { toast(friendlyError(e), "error"); } finally { setBusy(false); }
   };
   const undoReval = async (id: string) => {
     if (!(await appConfirm("이 재평가를 취소하고 다시 계산합니다. 계속할까요?", { danger: true, confirmLabel: "재평가 취소" }))) return;
     setBusy(true);
-    try { await cancelRevaluation(id); toast("재평가를 취소했습니다", "success"); for (const k of ["inv-cost-revals", "inv-move-costs", "inv-cost-layers", "inv-cost-state", "inv-avgcost"]) qc.invalidateQueries({ queryKey: [k] }); }
+    try { await cancelRevaluation(id); toast("재평가를 취소했습니다", "success"); for (const k of ["inv-cost-revals", "inv-move-costs", "inv-cost-layers", "inv-cost-state", "inv-unitcost"]) qc.invalidateQueries({ queryKey: [k] }); }
     catch (e) { toast(friendlyError(e), "error"); } finally { setBusy(false); }
   };
   const stats: Record<Tab, React.ReactNode> = {

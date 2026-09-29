@@ -12,7 +12,7 @@ import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
-import { listOnHand, listWarehouses, listAvgCost, createStockDoc, DEFECT_WAREHOUSE_CODE, type Product } from "@/lib/inventory";
+import { listOnHand, listWarehouses, listStockUnitCost, createStockDoc, DEFECT_WAREHOUSE_CODE, type Product } from "@/lib/inventory";
 import { todayKst } from "@/lib/kst";
 import { docWon as won } from "./doc-editor";
 
@@ -23,7 +23,7 @@ export function DefectDisposeDialog({ companyId, userId, products, onClose }: { 
   const qc = useQueryClient();
   const { data: warehouses = [] } = useQuery({ queryKey: ["inv-warehouses", companyId], queryFn: () => listWarehouses(companyId) });
   const { data: onhand = [], refetch } = useQuery({ queryKey: ["inv-onhand", companyId], queryFn: () => listOnHand(companyId) });
-  const { data: avgCost = new Map<string, number>() } = useQuery({ queryKey: ["inv-avg-cost", companyId], queryFn: () => listAvgCost(companyId) });
+  const { data: avgCost = new Map<string, number>() } = useQuery({ queryKey: ["inv-unitcost", companyId], queryFn: () => listStockUnitCost(companyId) });
   const defectWh = warehouses.find((w) => w.code === DEFECT_WAREHOUSE_CODE) || null;
   const mainWh = warehouses.find((w) => w.is_default) || warehouses.find((w) => w.code !== DEFECT_WAREHOUSE_CODE) || null;
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);

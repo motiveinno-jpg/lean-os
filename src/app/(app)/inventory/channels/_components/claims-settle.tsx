@@ -8,7 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { appConfirm } from "@/components/global-confirm";
-import { todayKst } from "@/lib/kst";
+import { todayKst, kstDateTime } from "@/lib/kst";
 import { DateField } from "@/components/date-field";
 import { QueryBar, ResultStrip, Stat, QuickSearch, quickSearchHit, Pager, usePager } from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
@@ -409,7 +409,7 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite, c
           <div className="stg-table-wrap"><table className="ev-table ev-lined ch-st-table">
             <thead><tr><th>채널</th><th className="text-left">주문번호</th><th>주문일</th><th>출고일</th><th>주문자</th><th>금액</th></tr></thead>
             <tbody>{unsettled.slice(0, 100).map((i) => (
-              <tr key={i.id}><td className="tc">{channelLabel(i.channel)}</td><td className="mono-number text-left"><b>{i.channel_order_no}</b></td><td className="mono-number">{i.order_date || "—"}</td><td className="mono-number">{(i.shipped_at || "").slice(0, 10) || "—"}</td><td className="text-left">{i.buyer_name || "—"}</td><td className="tr mono-number">{i.amount != null ? `₩${won(i.amount)}` : "—"}</td></tr>
+              <tr key={i.id}><td className="tc">{channelLabel(i.channel)}</td><td className="mono-number text-left"><b>{i.channel_order_no}</b></td><td className="mono-number">{i.order_date || "—"}</td><td className="mono-number">{i.shipped_at ? kstDateTime(i.shipped_at).slice(0, 10) : "—"}</td><td className="text-left">{i.buyer_name || "—"}</td><td className="tr mono-number">{i.amount != null ? `₩${won(i.amount)}` : "—"}</td></tr>
             ))}</tbody>
           </table>{unsettled.length > 100 && <p className="inv-hint">앞 100건만 보입니다.</p>}</div>
         )}

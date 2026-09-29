@@ -30,7 +30,7 @@ import { fetchOutflowStats, fetchLastOutAll } from "@/lib/inventory-suggest";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { useStockCount, CountBar, CountBody, NewCountDialog, CountPasteDialog } from "../_components/count";
 import {
-  listProducts, listOnHand, listWarehouses, listMoves, listAvgCost, createStockDoc, type OnHand,
+  listProducts, listOnHand, listWarehouses, listMoves, listStockUnitCost, createStockDoc, type OnHand,
   ensureDefaultWarehouse, upsertWarehouse, STOCK_REASONS, reasonOf, reasonLabel,
   type Product, type Warehouse, type StockReason,
 } from "@/lib/inventory";
@@ -142,8 +142,8 @@ export default function StockPage() {
     queryFn: () => listMoves(companyId!, "2000-01-01", to),
     enabled: !!companyId && tab === "summary" && sumView === "ledger",
   });
-  //   이동평균 원가(결정 27). 재고금액은 이것으로, 없으면 품목 매입가로
-  const  { data: avgCost = new Map<string, number>() } = useQuery({ queryKey: ["inv-avgcost", companyId], queryFn: () => listAvgCost(companyId!), enabled: !!companyId });
+  //   재고 단가 — 회사 원가 방법으로 쌓인 남은 입고 층 기준(listStockUnitCost). 재고금액은 이것으로, 없으면 품목 매입가로
+  const  { data: avgCost = new Map<string, number>() } = useQuery({ queryKey: ["inv-unitcost", companyId], queryFn: () => listStockUnitCost(companyId!), enabled: !!companyId });
   const { data: partners = [] } = useQuery({
     queryKey: ["inv-partners", companyId],
     queryFn: async () => {
@@ -460,7 +460,7 @@ export default function StockPage() {
                       <SortableTh label="체류일" sortKey="stay" sort={agingSort} onSort={onAgingSort} title="오늘 − 마지막 출고일" />
                       <SortableTh label="일평균 출고" sortKey="perDay" sort={agingSort} onSort={onAgingSort} title="최근 30일 판매·투입 수량 ÷ 30" />
                       <SortableTh label="회전일수" sortKey="turn" sort={agingSort} onSort={onAgingSort} title="현재고 ÷ 일평균 출고 — 지금 속도면 며칠 치인가" />
-                      <SortableTh label="재고 금액" sortKey="value" sort={agingSort} onSort={onAgingSort} title="현재고 × 평균단가(없으면 품목 매입가)" />
+                      <SortableTh label="재고 금액" sortKey="value" sort={agingSort} onSort={onAgingSort} title="현재고 × 재고단가(없으면 품목 매입가)" />
                       <th>신호</th>
                     </tr></thead>
                     <tbody>
@@ -497,7 +497,7 @@ export default function StockPage() {
                         <SortableTh label="규격" sortKey="spec" sort={sort} onSort={onSort} />
                         <SortableTh label="창고" sortKey="wh" sort={sort} onSort={onSort} />
                         <SortableTh label="현재고" sortKey="qty" sort={sort} onSort={onSort} />
-                        <SortableTh label="평균단가" sortKey="avg" sort={sort} onSort={onSort} title="이동평균 · 매입·기초 입고의 (수량×단가)합 ÷ 수량합. 없으면 품목 매입가" />
+                        <SortableTh label="재고단가" sortKey="avg" sort={sort} onSort={onSort} title="남은 입고분의 (수량×원가)합 ÷ 수량합 · 회사 원가 방법(재고 › 이익관리 › 원가 이력) 기준이라 이익관리 재고자산 명세와 같습니다. 없으면 품목 매입가" />
                         <SortableTh label="안전재고" sortKey="safety" sort={sort} onSort={onSort} />
                         {hasExpiry && <SortableTh label="유통기한" sortKey="expiry" sort={sort} onSort={onSort} title="남아 있는 입고분 중 가장 이른 유통기한 · 구매 양식에서 로트·유통기한 칸을 켜면 적힙니다" />}
                         <SortableTh label="상태" sortKey="state" sort={sort} onSort={onSort} />
@@ -807,14 +807,14 @@ function WarehouseDialog({ wh, onhand, products, avgCost, onClose }: {
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">{wh.name}{wh.code ? <span className="ev-dim"> · {wh.code}</span> : null}</h3>
-        <p className="inv-modal-desc" title="재고 금액은 이동평균 원가 기준입니다. 부족은 안전재고보다 적은 품목">품목 <b>{rows.length}종</b> · 수량 <b>{won(totalQty)}</b> · 재고 금액 <b>₩{won(totalAmt)}</b>입니다.</p>
+        <p className="inv-modal-desc" title="재고 금액은 남은 입고분의 원가(회사 원가 방법) 기준입니다. 부족은 안전재고보다 적은 품목">품목 <b>{rows.length}종</b> · 수량 <b>{won(totalQty)}</b> · 재고 금액 <b>₩{won(totalAmt)}</b>입니다.</p>
         <input className="field-input inv-wh-search" placeholder="품목명 · SKU · 규격으로 좁히기" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
         {rows.length === 0 ? (
           <div className="inv-status-empty">{q ? "맞는 품목이 없습니다." : "아직 이 창고에는 재고가 없습니다."}</div>
         ) : (
           <div className="stg-table-wrap ch-ship-list">
             <table className="ev-table ev-lined table-inv-status-sm">
-              <thead><tr><th>SKU</th><th>품목</th><th>규격</th><th>수량</th><th>안전재고</th><th>상태</th><th>평균단가</th><th>금액</th></tr></thead>
+              <thead><tr><th>SKU</th><th>품목</th><th>규격</th><th>수량</th><th>안전재고</th><th>상태</th><th>재고단가</th><th>금액</th></tr></thead>
               <tbody>{rows.map((x) => (
                 <tr key={x.r.product_id} className={x.short ? "inv-row-fix" : undefined}>
                   <td className="mono-number text-left">{x.p?.sku || "—"}</td>

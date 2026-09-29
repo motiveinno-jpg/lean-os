@@ -14,7 +14,7 @@ import { appConfirm } from "@/components/global-confirm";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import { fetchLastDocLines, fetchPartnerWarehouse, fetchBuyPriceStats, type LastDocLine, type PriceStat } from "@/lib/inventory-suggest";
-import { listAvgCost } from "@/lib/inventory";
+import { listStockUnitCost } from "@/lib/inventory";
 import { friendlyError } from "@/lib/friendly-error";
 import { todayKst } from "@/lib/kst";
 import { DateField } from "@/components/date-field";
@@ -136,7 +136,7 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
   useEffect(() => {
     if (!companyId) return;
     if (side === "buy") fetchBuyPriceStats(companyId).then(setPriceStats).catch(() => {});
-    else listAvgCost(companyId).then(setCostMap).catch(() => {});
+    else listStockUnitCost(companyId).then(setCostMap).catch(() => {});
   }, [companyId, side]);
   /** 줄의 단가가 이상하면 그 이유(없으면 null) — 출처: 장부 대조 */
   const priceWarn = useCallback((r: DocRow): string | null => {

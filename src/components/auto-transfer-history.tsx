@@ -180,11 +180,9 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
               <div key={String(rp.id)} className={`auto-transfer-history-row ${state === "due" ? "opacity-70" : ""}`}>
                 <div className="text-[10px] text-[var(--text-dim)] w-10 mono-number">{state === "paid" && tx ? md(tx.transaction_date) : md(dueDate)}</div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-[var(--text)] truncate">{rp.name || rp.recipient_name || "(이름 없음)"}</span>
-                    {badge}
-                  </div>
-                  <div className="text-[10px] text-[var(--text-dim)] truncate">{sub}</div>
+                  {/*   이름은 한 줄을 다 쓰고 두 줄까지 접는다 — 배지가 같은 줄이면 좁은 칸에서 "클…"로 잘린다 */}
+                  <div className="text-xs font-semibold text-[var(--text)] line-clamp-2 break-keep" title={rp.name || rp.recipient_name || ""}>{rp.name || rp.recipient_name || "(이름 없음)"}</div>
+                  <div className="flex items-center gap-1.5 min-w-0">{badge}<span className="text-[10px] text-[var(--text-dim)] truncate">{sub}</span></div>
                 </div>
                 <div className={`text-sm font-bold mono-number shrink-0 ${state === "paid" ? "text-[var(--danger)]" : "text-[var(--text-muted)]"}`}>
                   ₩{fmtKRW(state === "paid" && tx ? Math.abs(Number(tx.amount || 0)) : Number(rp.amount || 0))}
@@ -196,11 +194,11 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
             <div key={String(t.id)} className="auto-transfer-history-row">
               <div className="text-[10px] text-[var(--text-dim)] w-10 mono-number">{md(t.transaction_date)}</div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold text-[var(--text)] truncate">{t.counterparty || "(거래처 미상)"}</span>
+                <div className="text-xs font-semibold text-[var(--text)] line-clamp-2 break-keep" title={t.counterparty || ""}>{t.counterparty || "(거래처 미상)"}</div>
+                <div className="flex items-center gap-1.5 min-w-0">
                   <span className="text-[9px] px-1 py-0.5 rounded bg-sky-500/10 text-sky-600 shrink-0" title="거래내역에서 직접 표시한 줄">직접 표시</span>
+                  <span className="text-[10px] text-[var(--text-dim)] truncate">{t.source === "card" ? `카드 결제${t.sourceLabel ? `(${t.sourceLabel})` : ""}` : "통장 출금"} · 정기 지출에는 없음</span>
                 </div>
-                <div className="text-[10px] text-[var(--text-dim)] truncate">{t.source === "card" ? `카드 결제${t.sourceLabel ? `(${t.sourceLabel})` : ""}` : "통장 출금"} · 정기 지출에는 없음</div>
               </div>
               <div className="text-sm font-bold mono-number text-[var(--danger)] shrink-0">₩{fmtKRW(Math.abs(Number(t.amount || 0)))}</div>
             </div>

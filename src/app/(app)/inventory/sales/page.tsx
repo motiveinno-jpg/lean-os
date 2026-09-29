@@ -8,7 +8,7 @@ import { DocScreen, type HistRow } from "../_components/doc-screen";
 import { PullOrderButton } from "../_components/pull-order";
 import { TradeDocButton } from "../_components/trade-doc-button";
 import {
-  createStockDoc, updateStockDoc, getStockDoc, listStockDocs, listProducts, listWarehouses, returnStockDoc, cancelStockDoc, rememberPartnerPrices,
+  createStockDoc, updateStockDoc, getStockDoc, listStockDocs, returnStockDoc, cancelStockDoc, rememberPartnerPrices,
   editQtyOf,
 } from "@/lib/inventory";
 import { listOrders } from "@/lib/inventory-orders";
@@ -58,15 +58,15 @@ export default function SalesPage() {
           + " · 전표는 매입매출전표 › 증빙에서 불러오기로 만듭니다";
       }}
       history={async ({ companyId, from, to }) => {
-        const [docs, prods, whs, orders] = await Promise.all([
+        const [docs, orders] = await Promise.all([
           listStockDocs(companyId, ["sale"], from, to),
-          listProducts(companyId), listWarehouses(companyId),
           listOrders(companyId, "1900-01-01", "2999-12-31"),
         ]);
         const orderNo = new Map(orders.map((o) => [o.id, o.order_no]));
         return docs.map((d): HistRow => ({
           id: d.id, no: d.doc_no, date: d.doc_date,
-          who: d.note || whs.find((w) => w.id === d.warehouse_id)?.name || "",
+          //   거래처 칸엔 거래처만 — 창고·메모를 대신 채우지 않는다(없으면 표가 "—")
+          who: d.partner_name || "",
           label: (d.order_id ? `${orderNo.get(d.order_id) || "주문"} 에서 · ` : "") + `${d.lines}품목`,
           lines: d.lines, total: d.supply + d.vat,
           //   전표가 섰는지 · 매입매출전표 › 증빙에서 불러오기로 만든다(제안은 자동, 확정은 사람)

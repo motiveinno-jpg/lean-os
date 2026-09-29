@@ -49,6 +49,11 @@ import {
 const db = supabase;
 
 const fmtW = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
+/** 통장 이름 — 별명, 없으면 은행+끝 4자리. 개요 그래프·거래내역 계좌 열·조건 칩이 같은 이름을 쓴다 */
+const labelOfAccount = (a: { alias?: string; bankName?: string; accountNo?: string }) => {
+  const no = a.accountNo || "";
+  return a.alias || (a.bankName ? `${a.bankName}${no.slice(-4) ? " " + no.slice(-4) : ""}` : no) || "계좌";
+};
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 type Tab = "overview" | "accounts" | "transactions";
@@ -566,10 +571,21 @@ export default function BankPage() {
   const [colF, setColF] = useState<Record<string, Set<string> | null>>({});
   const tableRef = useRef<HTMLTableElement | null>(null);
   const [colW, setColW] = useColWidths("bank-tx-colw", {
-    counterparty: 200, description: 220, classification: 110, amount: 120, balance: 120, date: 100, state: 140,
+    counterparty: 200, description: 220, classification: 110, amount: 120, account: 120, balance: 120, date: 100, state: 140,
   });
+  //   계좌 열 — 여러 통장 거래가 한 표에 섞이면 잔액이 계좌마다 따로 이어져 널뛰는 것처럼 보인다.
+  //   이 기간 거래에 계좌가 둘 이상이면 어느 통장 줄인지(그래서 어느 통장 잔액인지) 보이게 한다.
+  const txAcctName = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const a of accounts as any[]) if (a.accountNo) m.set(String(a.accountNo), labelOfAccount(a));
+    return m;
+  }, [accounts]);
+  const acctOfTx = (tx: any): string => { const no = String(tx.raw_data?.accountNo || ""); return no ? (txAcctName.get(no) || `…${no.slice(-4)}`) : ""; };
+  const multiAcct = useMemo(() => new Set((recentTx as any[]).map((t) => String(t.raw_data?.accountNo || "")).filter(Boolean)).size > 1, [recentTx]);
+  const acctShift = multiAcct ? 1 : 0;
   const colVal = (tx: any, k: string): string => {
     switch (k) {
+      case "account": return acctOfTx(tx);
       case "counterparty": return tx.counterparty || "";
       case "description": return displayMemo(tx);
       case "classification": return tx.classification || tx.category || "";
@@ -659,10 +675,7 @@ export default function BankPage() {
 
   const totalBalance = accounts.reduce((s, a) => s + Number(a.balance || 0), 0);
   //   그래프에 올릴 계좌 — 잔액이 있는 것만 많은 순으로. 마이너스 통장은 길이로 비교가 안 돼 뺀다(뺀 개수는 적는다)
-  const accountLabelOf = (a: { alias?: string; bankName?: string; accountNo?: string }) => {
-    const no = a.accountNo || "";
-    return a.alias || (a.bankName ? `${a.bankName}${no.slice(-4) ? " " + no.slice(-4) : ""}` : no) || "계좌";
-  };
+  const accountLabelOf = labelOfAccount;
   const positiveAccounts = accounts
     .map((a) => ({ label: accountLabelOf(a), balance: Number(a.balance || 0) }))
     .filter((a) => a.balance > 0)
@@ -1104,21 +1117,35 @@ export default function BankPage() {
                   <SortableTh label="거래내용" sortKey="description" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} filter={thFilter("description")} resize={thResize("description", 2)} />
                   <SortableTh label="분류" sortKey="classification" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} filter={thFilter("classification")} resize={thResize("classification", 3)} />
                   <SortableTh label="금액" sortKey="amount" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} filter={thFilter("amount")} resize={thResize("amount", 4)} />
+                  {multiAcct && <SortableTh label="계좌" filter={thFilter("account")} resize={thResize("account", 5)} />}
                   {/* 잔액은 줄마다 다 달라 깔때기가 의미 없다 — 너비 손잡이만 */}
-                  <SortableTh label="잔액" resize={thResize("balance", 5)} />
-                  <SortableTh label="날짜" sortKey="transaction_date" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} filter={thFilter("date")} resize={thResize("date", 6)} />
-                  <SortableTh label="상태" sortKey="type" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} filter={thFilter("state")} resize={thResize("state", 7)} />
+                  <SortableTh label="잔액" title={multiAcct ? "그 줄 계좌의 거래 후 잔액입니다. 계좌마다 따로 이어집니다" : undefined} resize={thResize("balance", 5 + acctShift)} />
+                  <SortableTh label="날짜" sortKey="transaction_date" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} filter={thFilter("date")} resize={thResize("date", 6 + acctShift)} />
+                  <SortableTh label="상태" sortKey="type" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} filter={thFilter("state")} resize={thResize("state", 7 + acctShift)} />
                 </tr>
               </thead>
               <tbody>
                 {shownTx.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-3 py-2.5">
-                      <EmptyState
-                        icon="📄"
-                        title={txChips.length > 0 ? "조건에 맞는 거래가 없습니다." : "아직 거래내역이 없습니다."}
-                        desc="기간을 정하고 통장 연동을 누르면 불러옵니다."
-                      />
+                    <td colSpan={8 + acctShift} className="px-3 py-2.5">
+                      {/*   불러온 거래가 있는데 비었으면 조건(기본 '미처리' 포함) 때문이다 — "거래내역이 없다"고 말하지 않는다 */}
+                      {recentTx.length > 0 ? (
+                        <EmptyState
+                          icon="📄"
+                          title="조건에 맞는 거래가 없습니다."
+                          desc={`이 기간 전체 ${recentTx.length.toLocaleString("ko-KR")}건${txLive.state === "unposted" ? " · 기본 조건은 '미처리'라 전표·증빙 연결·장부 제외된 거래는 빠집니다." : ""}`}
+                          action={<button type="button" className="btn-secondary btn-sm" onClick={() => {
+                            const c = { ...TX_EMPTY, state: "all" as const, size: txLive.size };
+                            setTxQ(""); setColF({}); setTxLive(c); setTxDraft(c);
+                          }}>필터 해제하고 전체 보기</button>}
+                        />
+                      ) : (
+                        <EmptyState
+                          icon="📄"
+                          title="이 기간에 거래내역이 없습니다."
+                          desc="기간을 바꾸거나 통장 연동을 누르면 불러옵니다."
+                        />
+                      )}
                     </td>
                   </tr>
                 ) : pager.view.map((tx) => {
@@ -1169,6 +1196,7 @@ export default function BankPage() {
                       <td className={`px-3 py-2.5 font-semibold mono-number text-right ${isIncome ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
                         {isIncome ? "+" : "-"}{fmtW(Math.abs(Number(tx.amount || 0)))}
                       </td>
+                      {multiAcct && <td className="px-3 py-2.5 text-[12.5px] text-[var(--text-muted)] whitespace-nowrap"><span className="block truncate" title={String(tx.raw_data?.accountNo || "")}>{acctOfTx(tx) || "—"}</span></td>}
                       <td className="px-3 py-2.5 text-[12.5px] text-[var(--text-muted)] mono-number text-right whitespace-nowrap">{tx.balance_after != null ? fmtW(Number(tx.balance_after)) : "—"}</td>
                       <td className="px-3 py-2.5 text-[12.5px] text-[var(--text-muted)] mono-number">{tx.transaction_date}</td>
                       <td className="px-3 py-2.5 relative">

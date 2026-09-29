@@ -14,7 +14,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { PickList } from "@/components/pick-list";
-import { listOnHand, listAvgCost, type Product } from "@/lib/inventory";
+import { listOnHand, listStockUnitCost, type Product } from "@/lib/inventory";
 import { listBoms, upsertBomLine, deleteBomLine, perUnit, materialShortages, LOSS_REASONS, type BomLine, type MatInput } from "@/lib/inventory-production";
 import { docWon as won } from "./doc-editor";
 
@@ -175,7 +175,7 @@ export function BomNeedDialog({ companyId, warehouseId, items, products, onClose
 }) {
   const { data: boms = [] } = useQuery({ queryKey: ["inv-boms", companyId], queryFn: () => listBoms(companyId), enabled: !!companyId });
   const { data: onhand = [] } = useQuery({ queryKey: ["inv-onhand", companyId], queryFn: () => listOnHand(companyId), enabled: !!companyId });
-  const { data: avgCost = new Map<string, number>() } = useQuery({ queryKey: ["inv-avg-cost", companyId], queryFn: () => listAvgCost(companyId), enabled: !!companyId && !!onApply });
+  const { data: avgCost = new Map<string, number>() } = useQuery({ queryKey: ["inv-unitcost", companyId], queryFn: () => listStockUnitCost(companyId), enabled: !!companyId && !!onApply });
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   //   실투입 편집값 — 키 = 완제품|자재. 비어 있으면 표준. 저장된 문서를 열었을 때는 product_id 가 빈 값으로 오므로 자재만으로 맞춘다.
   const [edit, setEdit] = useState<Map<string, { qty: string; reason: string }>>(() => {

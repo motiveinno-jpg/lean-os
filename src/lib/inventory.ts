@@ -14,6 +14,7 @@ import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { fetchPaged } from "@/lib/fetch-paged";
 import { todayKst } from "@/lib/kst";
+import { unitCostFromLayers, mergeUnitCost } from "@/lib/inventory-costing-calc";
 
 export type Product = {
   id: string; sku: string; name: string;
@@ -550,7 +551,14 @@ export type DocRowHead = {
   journal_entry_id: string | null;
   status: "active" | "cancelled"; cancel_reason: string | null;
   lines: number; supply: number; vat: number;
+  //   이력 '거래처' 칸 — 등록 거래처 이름, 없으면 저장 때 메모에 남긴 "거래처: 이름", 그것도 없으면 null
+  partner_name: string | null;
 };
+//   거래처를 목록에서 고르지 않고 이름만 친 경우 createStockDoc 메모에 "거래처: 이름" 으로 남는다
+export function partnerNameFromNote(note: string | null | undefined): string | null {
+  const m = /(?:^|·\s*)거래처:\s*([^·]+?)\s*(?:·|$)/.exec(note || "");
+  return m ? m[1].trim() || null : null;
+}
 export async function listStockDocs(
   companyId: string, reasons: string[], from: string, to: string,
 ): Promise<DocRowHead[]> {
@@ -559,7 +567,7 @@ export async function listStockDocs(
   //     재고 전표 이력·합계가 누락된다 (2026-08-28).
   const data = await fetchPaged<any>("inventory:doc-list", () => supabase
     .from("stock_docs")
-    .select("id, doc_no, reason, doc_date, partner_id, warehouse_id, order_id, note, journal_entry_id, status, cancel_reason, stock_moves(qty, unit_price, vat_amount)")
+    .select("id, doc_no, reason, doc_date, partner_id, warehouse_id, order_id, note, journal_entry_id, status, cancel_reason, partners(name), stock_moves(qty, unit_price, vat_amount)")
     .eq("company_id", companyId).in("reason", reasons)
     .gte("doc_date", from).lte("doc_date", to)
     .order("doc_date", { ascending: false }).order("created_at", { ascending: false }), 50000);
@@ -573,6 +581,7 @@ export async function listStockDocs(
       lines: ms.length,
       supply: ms.reduce((n, m) => n + Math.abs(Number(m.unit_price || 0) * Number(m.qty || 0)), 0),
       vat: ms.reduce((n, m) => n + Math.abs(Number(m.vat_amount || 0)), 0),
+      partner_name: (d.partners?.name as string | undefined) || partnerNameFromNote(d.note),
     };
   });
 }
@@ -617,13 +626,24 @@ export async function cancelStockDoc(docId: string, reason: string, userId?: str
   if (error) throw error;
 }
 
-// ── 이동평균 원가 (결정 27) ───────────────────────────────────────────────────
-export async function listAvgCost(companyId: string): Promise<Map<string, number>> {
+// ── 재고 단가 — 회사 원가 방법 하나로 (결정 27·36) ─────────────────────────────────
+//   DB 가 회사 원가 방법(선입선출/이동평균)으로 쌓은 입고 층의 남은 분량으로 단가를 정한다(inventory-costing-calc).
+//   현황의 재고 금액·창고관리 재고금액·품목 재고금액·이익관리 재고자산 명세가 모두 이 값이라 서로 맞는다.
+//   남은 층이 없는 품목(다 팔렸거나 아직 계산 전)만 매입·기초 입고 평균(v_stock_avg_cost)으로 채운다.
+export async function listStockUnitCost(companyId: string): Promise<Map<string, number>> {
   if (!companyId) return new Map();
-  const data = logRead("inventory:avg-cost", await supabase
-    .from("v_stock_avg_cost").select("product_id, avg_cost").eq("company_id", companyId));
-  return new Map(((data || []) as any[]).filter((r) => r.product_id && r.avg_cost != null)
+  const [layers, avg] = await Promise.all([
+    fetchPaged<any>("inventory:stock-unit-cost", () => (supabase as any).from("stock_cost_layers")
+      .select("id, product_id, move_id, qty_left, unit_cost")
+      .eq("company_id", companyId).gt("qty_left", 0).order("id"), 50000),
+    supabase.from("v_stock_avg_cost").select("product_id, avg_cost").eq("company_id", companyId),
+  ]);
+  const fallback = new Map(((logRead("inventory:avg-cost", avg) || []) as any[]).filter((r) => r.product_id && r.avg_cost != null)
     .map((r) => [r.product_id as string, Number(r.avg_cost)]));
+  const fromLayers = unitCostFromLayers(((layers || []) as any[]).map((r) => ({
+    product_id: r.product_id, move_id: r.move_id, qty_left: Number(r.qty_left), unit_cost: r.unit_cost == null ? null : Number(r.unit_cost),
+  })));
+  return mergeUnitCost(fromLayers, fallback);
 }
 
 // ── 거래처별 단가 (결정 26) — 관리 화면 없이 마지막 거래 단가가 저절로 남는다 ─────

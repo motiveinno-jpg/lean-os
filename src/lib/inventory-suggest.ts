@@ -98,7 +98,7 @@ export async function fetchPartnerWarehouse(companyId: string, partnerId: string
   return best;
 }
 export type PriceStat = { avg: number; n: number };
-/** 품목별 최근 매입 단가 평균(최근 3건) — 단가 이상 감지 (A7). 매출 쪽은 listAvgCost(원가)를 쓴다 */
+/** 품목별 최근 매입 단가 평균(최근 3건) — 단가 이상 감지 (A7). 매출 쪽은 listStockUnitCost(재고 단가)를 쓴다 */
 export async function fetchBuyPriceStats(companyId: string): Promise<Map<string, PriceStat>> {
   const data = await fetchPaged<any>("inv-suggest:buyprice", () => (supabase as any).from("stock_moves")
     .select("product_id, unit_price, moved_at, stock_docs!inner(reason, status)")

@@ -21,7 +21,7 @@ import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat,
   Pager, usePager, QuickSearch, quickSearchHit, ExcelMenu } from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
-import { listProducts, listOnHand, upsertProduct, type Product } from "@/lib/inventory";
+import { listProducts, listOnHand, listStockUnitCost, upsertProduct, type Product } from "@/lib/inventory";
 import { listBoms } from "@/lib/inventory-production";
 import { BomEditorDialog } from "../_components/bom-editor";
 import { LabelPrintDialog } from "../_components/label-print";   // 바코드 라벨 PDF (2026-09-22 재고 점검 F)
@@ -104,9 +104,11 @@ export default function ProductsPage() {
   }, [products, q, cond, sort, qtyOf]);
 
   const pager = usePager(shown, 50, `${q}|${JSON.stringify(cond)}|${sort.key}${sort.dir}`);
+  //   재고금액은 창고관리·현황과 같은 재고 단가(회사 원가 방법의 남은 입고분)로 — 품목 매입가로 따로 세면 화면마다 금액이 달라진다
+  const { data: unitCost = new Map<string, number>() } = useQuery({ queryKey: ["inv-unitcost", companyId], queryFn: () => listStockUnitCost(companyId!), enabled: !!companyId });
   const stockValue = useMemo(
-    () => products.reduce((n, p) => n + (qtyOf.get(p.id) ?? 0) * Number(p.cost_price || 0), 0),
-    [products, qtyOf]);
+    () => products.reduce((n, p) => n + (qtyOf.get(p.id) ?? 0) * (unitCost.get(p.id) ?? Number(p.cost_price || 0)), 0),
+    [products, qtyOf, unitCost]);
   const trackedCount = products.filter((p) => p.track_stock).length;
 
   const onSort = (k: string) => setSort((s) => nextSort(s, k as SortKey));
@@ -137,7 +139,7 @@ export default function ProductsPage() {
           <ResultStrip>
             <Stat label="품목" value={`${won(shown.length)}개`} />
             <Stat label="수량 관리" value={`${won(trackedCount)}개`} />
-            <Stat label="재고금액 (매입가 기준)" value={`₩${won(stockValue)}`} />
+            <Stat label="재고금액 (재고단가 기준)" value={`₩${won(stockValue)}`} />
           </ResultStrip>
         </QueryHead>
         <QueryBody>
@@ -193,7 +195,7 @@ export default function ProductsPage() {
                     </tbody>
                   </table>
                 </div>
-                <p className="inv-foot" title="매입가가 없는 품목은 0으로 계산합니다">줄을 누르면 그 품목을 고칩니다. 재고금액은 <b>매입가</b> 기준입니다.</p>
+                <p className="inv-foot" title="재고단가 = 남은 입고분의 원가(회사 원가 방법) · 창고관리 재고금액과 같습니다. 입고 원가가 없는 품목만 매입가로 계산합니다">줄을 누르면 그 품목을 고칩니다. 재고금액은 <b>재고단가</b>(창고관리와 같은 원가) 기준입니다.</p>
               </>
             )}
           </div>

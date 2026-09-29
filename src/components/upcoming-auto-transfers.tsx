@@ -8,6 +8,8 @@ import { TileIcon } from "@/components/ui/icon-tile";
 import { getRecurringPayments } from "@/lib/approval-center";
 import { supabase } from "@/lib/supabase";
 import { ColumnChart } from "@/components/charts/kit";
+import { nextDueDate } from "@/lib/recurring-match";
+import { todayKst, addDaysStr, mondayOfStr, daysBetweenStr } from "@/lib/kst";
 
 interface Props {
   companyId: string;
@@ -20,8 +22,9 @@ interface UpcomingItem {
   name: string;
   amount: number;
   category: string;
-  dueDate: Date;
-  daysLeft: number;
+  dueDate: string;            // YYYY-MM-DD (한국 날짜)
+  daysLeft: number;           // 오늘=0, 지난 날은 음수
+  overdue: boolean;           // 예정일이 지났다 — '오늘'로 뭉개지 않고 'N일 지남'으로
   accountLabel: string;       // "농협 1234"
   accountAliasOrDisplay: string;
   recipient?: string;
@@ -39,43 +42,8 @@ function fmtKRW(n: number): string {
   return n.toLocaleString('ko-KR');
 }
 
-function fmtDate(d: Date): string {
-  return `${d.getMonth() + 1}월 ${d.getDate()}일`;
-}
-
-function startOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
-/**
- * recurring_payments 1건의 다음 출금 예정일 계산.
- * 우선순위: next_due_date > auto_transfer_date > day_of_month.
- * 일자만 있는 경우, 오늘 기준 이번달 vs 다음달 중 가까운 미래로 산출.
- */
-function computeNextDue(row: any, today: Date): Date | null {
-  if (row.next_due_date) {
-    const d = startOfDay(new Date(row.next_due_date));
-    if (!isNaN(d.getTime())) return d;
-  }
-  const day = Number(row.auto_transfer_date || row.day_of_month || 0);
-  if (!day || day < 1 || day > 31) return null;
-
-  const t = startOfDay(today);
-  const thisMonth = new Date(t.getFullYear(), t.getMonth(), day);
-  if (thisMonth.getMonth() !== t.getMonth()) {
-    // day=31 같은 월말 보정 (해당월 마지막 일자로)
-    thisMonth.setDate(0);
-  }
-  if (thisMonth.getTime() >= t.getTime()) return thisMonth;
-
-  // 이미 지남 → 다음 달
-  const nextMonth = new Date(t.getFullYear(), t.getMonth() + 1, day);
-  if (nextMonth.getMonth() !== (t.getMonth() + 1) % 12) {
-    nextMonth.setDate(0);
-  }
-  return nextMonth;
+function fmtDate(d: string): string {
+  return `${Number(d.slice(5, 7))}월 ${Number(d.slice(8, 10))}일`;
 }
 
 export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems = 8 }: Props) {
@@ -102,16 +70,15 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
   });
 
   const allItems = useMemo<UpcomingItem[]>(() => {
-    const today = startOfDay(new Date());
-    const horizon = new Date(today);
-    horizon.setDate(horizon.getDate() + windowDays);
+    //   다음 예정일은 nextDueDate 한 함수 — '정기 지출 출금 확인' 카드와 같은 날을 말한다(날짜는 한국 기준)
+    const today = todayKst();
+    const horizon = addDaysStr(today, windowDays);
 
     const list: UpcomingItem[] = [];
     for (const r of rows as any[]) {
       if (r.is_active === false) continue;
-      const due = computeNextDue(r, today);
-      if (!due) continue;
-      if (due.getTime() > horizon.getTime()) continue;
+      const due = nextDueDate(r, today);
+      if (!due || due.date > horizon) continue;
 
       const ba = r.bank_accounts || {};
       const accNo = ba.account_number || '';
@@ -123,16 +90,14 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
             : accNo)
         : '';
 
-      const ms = due.getTime() - today.getTime();
-      const daysLeft = Math.max(0, Math.round(ms / (1000 * 60 * 60 * 24)));
-
       list.push({
         id: r.id,
         name: r.name || '(이름 없음)',
         amount: Number(r.amount || 0),
         category: r.category || 'other',
-        dueDate: due,
-        daysLeft,
+        dueDate: due.date,
+        daysLeft: due.daysLeft,
+        overdue: due.overdue,
         accountLabel,
         accountAliasOrDisplay: aliasOrDisplay,
         recipient: r.recipient_name || undefined,
@@ -140,24 +105,20 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
       });
     }
 
-    
-
     // 대출 상환일 · 상환액은 알 수 없어(스케줄 미저장) 금액 대신 '잔액'을 리마인더로 표시.
     for (const l of loans as any[])  {
       const day = Number(l.payment_day || 0);
       if (!day || day < 1 || day > 31) continue;
-      const due = computeNextDue({ day_of_month: day }, today);
-      if (!due) continue;
-      if (due.getTime() > horizon.getTime()) continue;
-      const ms = due.getTime() - today.getTime();
-      const daysLeft = Math.max(0, Math.round(ms / (1000 * 60 * 60 * 24)));
+      const due = nextDueDate({ frequency: 'monthly', day_of_month: day }, today);
+      if (!due || due.date > horizon) continue;
       list.push({
         id: `loan-${l.id}`,
         name: l.name || l.lender || '대출',
         amount: 0,
         category: 'loan',
-        dueDate: due,
-        daysLeft,
+        dueDate: due.date,
+        daysLeft: due.daysLeft,
+        overdue: due.overdue,
         accountLabel: l.lender || '',
         accountAliasOrDisplay: '',
         kind: 'loan',
@@ -165,7 +126,7 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
       });
     }
 
-    list.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+    list.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
     return list;
   }, [rows, loans, windowDays]);
 
@@ -176,18 +137,18 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
   //   날짜별로 그리면 대부분의 날이 0이라 듬성듬성해진다 → 주 단위로 모은다.
   //   대출은 상환액을 모르므로(잔액만 안다) 막대에 넣지 않는다 — 금액을 지어내지 않는다.
   const weekBars = useMemo(() => {
-    const today = startOfDay(new Date());
-    const mondayOffset = (today.getDay() + 6) % 7;              // 월요일 시작
-    const firstMon = new Date(today); firstMon.setDate(firstMon.getDate() - mondayOffset);
-    const weeks = Math.ceil((windowDays + mondayOffset) / 7);
+    const today = todayKst();
+    const firstMon = mondayOfStr(today);                        // 월요일 시작
+    const weeks = Math.ceil((windowDays + daysBetweenStr(today, firstMon)) / 7);
     const bars = Array.from({ length: weeks }, (_, i) => {
-      const from = new Date(firstMon); from.setDate(from.getDate() + i * 7);
-      return { label: i === 0 ? '이번 주' : `${from.getMonth() + 1}/${from.getDate()}`, value: 0 };
+      const from = addDaysStr(firstMon, i * 7);
+      return { label: i === 0 ? '이번 주' : `${Number(from.slice(5, 7))}/${Number(from.slice(8, 10))}`, value: 0 };
     });
     for (const it of allItems) {
       if (it.kind === 'loan') continue;
-      const idx = Math.floor((startOfDay(it.dueDate).getTime() - firstMon.getTime()) / (7 * 86400000));
-      if (idx >= 0 && idx < bars.length) bars[idx].value += it.amount;
+      //   지난 예정(일자를 몰라 굴리지 못한 것)은 이번 주에 얹는다 — 아직 안 나간 돈이다
+      const idx = Math.max(0, Math.floor(daysBetweenStr(it.dueDate, firstMon) / 7));
+      if (idx < bars.length) bars[idx].value += it.amount;
     }
     return bars;
   }, [allItems, windowDays]);
@@ -236,26 +197,23 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
               className="upcoming-transfer-row">
               {/* 날짜 박스 */}
               <div className={`upcoming-transfer-date-box ${
-                it.daysLeft <= 3 ? 'bg-[var(--danger)]/15 text-[var(--danger)]' :
+                it.overdue || it.daysLeft <= 3 ? 'bg-[var(--danger)]/15 text-[var(--danger)]' :
                 it.daysLeft <= 7 ? 'bg-[var(--warning)]/15 text-[var(--warning)]' :
                                    'bg-[var(--bg-card)] text-[var(--text-muted)]'
               }`}>
                 <div className="text-[10px] font-semibold leading-tight">{fmtDate(it.dueDate)}</div>
                 <div className="text-[9px] leading-tight opacity-80">
-                  {it.daysLeft === 0 ? '오늘' : `D-${it.daysLeft}`}
+                  {it.overdue ? `${-it.daysLeft}일 지남` : it.daysLeft === 0 ? '오늘' : `D-${it.daysLeft}`}
                 </div>
               </div>
 
               {/* 상세 */}
               <div className="upcoming-transfer-detail">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold text-[var(--text)] truncate">{it.name}</span>
-                  <span className="text-[9px] px-1 py-0.5 rounded bg-[var(--bg-card)] text-[var(--text-dim)] shrink-0">
-                    {CAT_LABEL[it.category] || koFallback(it.category)}
-                  </span>
-                </div>
+                {/*   좁은 칸(개요 3단)에선 분류 칩이 이름 폭을 먹어 "사…"로 잘렸다 — 이름은 한 줄을 다 쓰고 두 줄까지 접는다 */}
+                <div className="text-xs font-semibold text-[var(--text)] line-clamp-2 break-keep" title={it.name}>{it.name}</div>
                 <div className="text-[10px] text-[var(--text-dim)] truncate">
-                  {it.accountLabel}
+                  {CAT_LABEL[it.category] || koFallback(it.category)}
+                  {it.accountLabel ? ` · ${it.accountLabel}` : ''}
                   {it.recipient ? ` → ${it.recipient}` : ''}
                 </div>
               </div>

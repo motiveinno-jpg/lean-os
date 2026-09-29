@@ -17,7 +17,7 @@ import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { useMyPermissions } from "@/lib/permissions";
 import { AccessDenied } from "@/components/access-denied";
-import { todayKst } from "@/lib/kst";
+import { todayKst, addDaysStr, kstDateTime } from "@/lib/kst";
 import { DateRangeField } from "@/components/date-range-field";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup,
@@ -113,30 +113,29 @@ export default function ChannelsPage() {
   const [stRange, setStRange] = useState<"today" | "7d" | "30d" | "month">("7d");
   const [stCh, setStCh] = useState<string>("");   // "" = 전체
   const stData = useMemo(() => {
-    const ymd = (t: Date) => `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
-    const todayStr = ymd(new Date());
-    const fromD = new Date();
-    if (stRange === "7d") fromD.setDate(fromD.getDate() - 6);
-    else if (stRange === "30d") fromD.setDate(fromD.getDate() - 29);
-    else if (stRange === "month") fromD.setDate(1);
-    const fromStr = ymd(fromD);
-    const inRange = imports.filter((i) => (i.order_date || "") >= fromStr && (i.order_date || "") <= todayStr && (!stCh || i.channel === stCh));
+    //   날짜는 한국 기준 — 브라우저 시간대에 따라 '오늘'이 바뀌지 않게
+    const todayStr = todayKst();
+    const fromStr = stRange === "7d" ? addDaysStr(todayStr, -6) : stRange === "30d" ? addDaysStr(todayStr, -29)
+      : stRange === "month" ? todayStr.slice(0, 8) + "01" : todayStr;
+    const inCh = (i: OrderImport) => !stCh || i.channel === stCh;
+    const inRange = imports.filter((i) => (i.order_date || "") >= fromStr && (i.order_date || "") <= todayStr && inCh(i));
     const amt = (list: OrderImport[]) => list.reduce((n, i) => n + Number(i.amount || 0), 0);
-    const yestD = new Date(); yestD.setDate(yestD.getDate() - 1);
-    const twoD = new Date(); twoD.setDate(twoD.getDate() - 2);
-    const pendingList = inRange.filter((i) => i.ship_status === "pending");
+    const yestStr = addDaysStr(todayStr, -1), twoStr = addDaysStr(todayStr, -2);
+    //   출고 대기·밀림은 '지금 할 일' — 조회 기간과 상관없이 아직 안 보낸 전부(출고 처리 탭 숫자와 같다)
+    const pendingList = imports.filter((i) => i.ship_status === "pending" && inCh(i));
     const byChannel = CHANNELS.map((c) => {
       const list = inRange.filter((i) => i.channel === c.value);
       return {
         ch: c.value, label: c.label, n: list.length, amount: amt(list),
-        pending: list.filter((i) => i.ship_status === "pending").length,
+        //   출고 대기는 위 카드·합계와 같은 셈(기간 무관)
+        pending: pendingList.filter((i) => i.channel === c.value).length,
         done: list.filter((i) => i.ship_status === "done").length,
       };
-    }).filter((r) => r.n > 0).sort((a, b) => b.amount - a.amount);
+    }).filter((r) => r.n > 0 || r.pending > 0).sort((a, b) => b.amount - a.amount);
     //   일별은 기간과 무관하게 최근 14일 — 흐름 감각용
     const days: { d: string; label: string; n: number }[] = [];
     for (let k = 13; k >= 0; k--) {
-      const t = new Date(); t.setDate(t.getDate() - k); const s = ymd(t);
+      const s = addDaysStr(todayStr, -k);
       days.push({ d: s, label: k === 0 ? "오늘" : String(Number(s.slice(8, 10))), n: 0 });
     }
     for (const i of imports) {
@@ -156,9 +155,9 @@ export default function ChannelsPage() {
       fromStr, todayStr,
       total: inRange.length, amount: amt(inRange),
       todayN: inRange.filter((i) => i.order_date === todayStr).length,
-      yestN: inRange.filter((i) => i.order_date === ymd(yestD)).length,
+      yestN: inRange.filter((i) => i.order_date === yestStr).length,
       pending: pendingList.length,
-      pendingOld: pendingList.filter((i) => (i.order_date || "") <= ymd(twoD)).length,
+      pendingOld: pendingList.filter((i) => (i.order_date || "") <= twoStr).length,
       shipped: inRange.filter((i) => i.ship_status === "shipped").length,
       done: inRange.filter((i) => i.ship_status === "done").length,
       byChannel, days, sync,
@@ -262,7 +261,7 @@ export default function ChannelsPage() {
                     "채널": channelLabel(i.channel), "주문번호": i.channel_order_no, "주문일": i.order_date || "", "주문자": i.buyer_name || "",
                     "수취인": i.recipient_name || "", "연락처": i.recipient_phone || "", "주소": i.address || "", "배송 요청": i.shipping_note || "",
                     "금액": i.amount ?? "", "출고 상태": SHIP_STATUS_LABEL[i.ship_status], "택배사": i.carrier || "", "송장번호": i.tracking_no || "",
-                    "등록 시각": i.imported_at.slice(0, 16).replace("T", " "),
+                    "등록 시각": kstDateTime(i.imported_at),
                   })), "가져오기 이력", `채널주문_${channelLabel(channel)}_${todayKst()}`)}>엑셀</button>
               }>
                 <SimpleCond groups={[{ key: "channel", label: "채널", hint: "비우면 전체", options: chChips.map((c) => ({ value: c.value, label: c.label })) }]} live={cond} onApply={setCond} />
@@ -297,7 +296,7 @@ export default function ChannelsPage() {
                   <button type="button" className={`pjv3-stcard ${stRefund.total > 0 ? "warn" : ""}`} title="취소·반품 환불액 · 클레임 갈래" onClick={() => setTab("claims")}>
                     <span className="k">취소·반품</span><b className="v num">{won(stRefund.total)}</b>
                     <span className="text-[10px] text-[var(--text-dim)]">{claimsPanel.claims.length ? `클레임 ${claimsPanel.claims.length}건` : "클레임 없음"}</span></button>
-                  <button type="button" className={`pjv3-stcard ${stData.pending > 0 ? "warn" : ""}`}
+                  <button type="button" className={`pjv3-stcard ${stData.pending > 0 ? "warn" : ""}`} title="조회 기간과 상관없이 아직 보내지 않은 주문 전부 · 출고 처리 탭과 같은 숫자"
                     onClick={() => { ship.setView("pending"); setTab("ship"); }}>
                     <span className="k">출고 대기</span><b className="v num">{won(stData.pending)}건</b>
                     <span className="text-[10px] text-[var(--text-dim)]">{stData.pendingOld > 0 ? <>2일+ 경과 <b className="text-[var(--danger)]">{stData.pendingOld}건</b></> : "밀린 것 없음"}</span></button>
@@ -370,7 +369,7 @@ export default function ChannelsPage() {
                       <b className="w-24">{s.label}</b>
                       {/*   자동 수집(스케줄러)이 없으므로 오래됐다고 빨간 '끊김'으로 겁주지 않는다 — 마지막 수집 시각만 담담히 */}
                       <span className="text-[11px] text-[var(--text-dim)]">
-                        마지막 등록 {s.at.slice(5, 16).replace("T", " ")}{s.ageDays >= 3 ? ` · ${s.ageDays}일 전` : ""}{s.api ? " · API 연동 가능 채널" : ""}
+                        마지막 등록 {kstDateTime(s.at).slice(5)}{s.ageDays >= 3 ? ` · ${s.ageDays}일 전` : ""}{s.api ? " · API 연동 가능 채널" : ""}
                       </span>
                       {/* API 채널은 가져오기 갈래로 오면서 API 팝업이 바로 열린다 — 클릭 한 번 절약 */}
                       {s.api ? (
@@ -462,7 +461,7 @@ export default function ChannelsPage() {
                           <td className="text-left ch-addr" title={i.address || undefined}>{i.address || "—"}</td>
                           <td className="text-left ev-dim">{i.shipping_note || "—"}</td>
                           <td className="tr mono-number">{i.amount != null ? `₩${won(i.amount)}` : "—"}</td>
-                          <td className="tc ev-dim">{i.imported_at.slice(5, 16).replace("T", " ")}</td>
+                          <td className="tc ev-dim">{kstDateTime(i.imported_at).slice(5)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -829,7 +828,7 @@ function PasteDialog({ tabs, pick, openForm, onClose, onRows }: { tabs?: React.R
 
 // ── 채널 API 에서 한 번에 가져오기 · 키가 등록된 채널을 모두 부른다 ──────────
 function FetchDialog({ tabs, pick, openForm, onClose, onRows }: { tabs?: React.ReactNode; pick: FieldPick; openForm: () => void; onClose: () => void; onRows: (r: (RawOrderRow & { channel: string })[]) => void }) {
-  const [from, setFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().slice(0, 10); });
+  const [from, setFrom] = useState(() => addDaysStr(todayKst(), -7));
   const [to, setTo] = useState(todayKst);
   const [busy, setBusy] = useState(false);
   const [report, setReport] = useState<{ ch: string; text: string; noKey?: boolean; ok: boolean }[] | null>(null);

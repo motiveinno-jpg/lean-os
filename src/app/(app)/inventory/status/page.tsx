@@ -8,7 +8,9 @@
 //   · 숫자는 전부 **살아 있는 전표의 줄(stock_moves)** 과 **주문서 줄** 에서 그 자리에서 센다 — 재고와 같은 눈(결정 3·25).
 //     따로 집계 표를 두면 전표를 고쳤을 때 둘이 어긋난다.
 //   · 반품은 판매·매입에서 **뺀다**(창고관리 › 집계와 같은 규칙). 취소 전표는 애초에 안 온다(listMoves 가 뺀다).
-//   · 원가·마진은 이동평균(결정 27) — 없으면 품목 매입가. 원가가 하나도 없으면 마진을 '—' 로 둔다(0 이라고 거짓말하지 않는다).
+//   · 마진의 원가는 이익관리와 같은 출고 원가(stock_move_costs · 회사 원가 방법) — costOfMove 한 함수. 원가를 못 정한 출고는
+//     '원가 미확정'으로 따로 적고, 원가가 하나도 없으면 마진을 '—' 로 둔다(0 이라고 거짓말하지 않는다).
+//   · 재고 금액은 재고 단가(listStockUnitCost · 남은 입고분 원가) — 창고관리·품목·이익관리 재고자산 명세와 같은 값.
 //   · 주문 진행률 = 가져간 수량 ÷ 주문 수량(v_order_line_used). 납기 지남 = 납기일 < 오늘 이고 아직 남은 수량이 있는 열린 주문.
 //   · 자재 부족 = 열린 주문의 남은 수량 × 자재구성 − 현재고. 자재구성이 없는 완제품은 셈에서 빠진다(화면에 적는다).
 //   · 채널 비중 = 판매 전표가 채널 주문 기록(channel_order_imports)에 매여 있으면 그 채널, 아니면 '직접'.
@@ -30,9 +32,11 @@ import { DateRangeField } from "@/components/date-range-field";
 import { exportToExcel } from "@/lib/excel-export";
 import { ColumnChart, LineChart, DonutChart, BarChart, Legend, vizColor } from "@/components/charts/kit";
 import {
-  listMoves, listStockDocs, listOnHand, listAvgCost, listProducts, listWarehouses,
+  listMoves, listStockDocs, listOnHand, listStockUnitCost, listProducts, listWarehouses,
   type MoveRow, type Product, DEFECT_WAREHOUSE_CODE,
 } from "@/lib/inventory";
+import { listMoveCosts, listLayers, loadCostingMethod } from "@/lib/inventory-cost";
+import { costOfMove, costingMethodLabel } from "@/lib/inventory-costing-calc";
 import { listOrders, listUsed, listOrderLinesAll, type Order } from "@/lib/inventory-orders";
 import { fetchOutflowStats, fetchDefectAging, soonShort } from "@/lib/inventory-suggest";
 import { listBoms, perUnit, lossReasonLabel } from "@/lib/inventory-production";
@@ -87,8 +91,14 @@ export default function InventoryStatusPage() {
   const { data: products = [] } = q("inv-products", () => listProducts(companyId!));
   const { data: warehouses = [] } = q("inv-warehouses", () => listWarehouses(companyId!));
   const { data: onhand = [] } = q("inv-onhand", () => listOnHand(companyId!));
-  const { data: avgCost = new Map<string, number>() } = q("inv-avgcost", () => listAvgCost(companyId!));
+  const { data: unitCost = new Map<string, number>() } = q("inv-unitcost", () => listStockUnitCost(companyId!));
   const { data: moves = [], isLoading: movesLoading } = q("inv-moves", () => listMoves(companyId!, from, to), [from, to]);
+  //   판매 원가 — 이익관리와 같은 재료(출고 원가·입고 층·원가 방법)를 같은 쿼리 키로 읽는다
+  const { data: moveCosts = [] } = q("inv-move-costs", () => listMoveCosts(companyId!, from, to), [from, to]);
+  const { data: layers = [] } = q("inv-cost-layers", () => listLayers(companyId!));
+  const { data: costMethod = "fifo" } = q("inv-cost-method", () => loadCostingMethod(companyId!));
+  const costByMove = useMemo(() => new Map(moveCosts.map((c) => [c.move_id, c])), [moveCosts]);
+  const layerByMove = useMemo(() => new Map(layers.map((l) => [l.move_id, l])), [layers]);
   const { data: docs = [] } = q("inv-status-docs", () => listStockDocs(companyId!, ["sale", "purchase", "produce", "consume"], from, to), [from, to]);
   const { data: orders = [] } = q("inv-status-orders", () => listOrders(companyId!, from, to), [from, to]);
   //   열린 주문은 기간과 상관없이 — 납기 지남·자재 부족은 '지금' 의 일이다
@@ -111,7 +121,7 @@ export default function InventoryStatusPage() {
   const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const partnerName = useMemo(() => new Map(partners.map((p) => [p.id, p.name])), [partners]);
   const whName = useMemo(() => new Map(warehouses.map((w) => [w.id, w.name])), [warehouses]);
-  const costOf = (pid: string) => avgCost.get(pid) ?? productById.get(pid)?.cost_price ?? null;
+  const costOf = (pid: string) => unitCost.get(pid) ?? productById.get(pid)?.cost_price ?? null;
   const days = useMemo(() => dayKeys(from, to), [from, to]);
 
   // ── 종합 ──
@@ -134,11 +144,11 @@ export default function InventoryStatusPage() {
     }
     soonList.sort((a, b) => a.days - b.days); staleList.sort((a, b) => (b.qty * (costOf(b.p.id) ?? 0)) - (a.qty * (costOf(a.p.id) ?? 0)));
     return { amount, short, out, priced, byProduct, shortList, outList, soonList, staleList };
-  }, [onhand, products, avgCost, outflow]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [onhand, products, unitCost, outflow]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const sale = useMemo(() => {
-    let amt = 0, qty = 0, ret = 0, cost = 0, costed = 0;
-    const perDay = new Map<string, number>(), perProduct = new Map<string, { qty: number; amt: number }>(),
+    let amt = 0, qty = 0, ret = 0, cost = 0, costed = 0, uncosted = 0;
+    const perDay = new Map<string, number>(), perProduct = new Map<string, { qty: number; amt: number; cost: number; unc: number; costed: number }>(),
       perPartner = new Map<string, number>(), perChannel = new Map<string, number>();
     const docChannel = new Map<string, string>();
     for (const i of imports) if (i.doc_id) docChannel.set(i.doc_id, i.channel);
@@ -148,21 +158,25 @@ export default function InventoryStatusPage() {
       const n = netOf(m, "sale");
       amt += n.amt; qty += n.qty;
       if (n.qty < 0) ret += Math.abs(n.amt);
-      const c = costOf(m.product_id);
-      if (c != null) { cost += n.qty * c; costed++; }
+      const c = costOfMove(m, costByMove, layerByMove);
+      cost += c.cost; uncosted += c.unc;
+      const hasCost = c.unc === 0 || c.cost !== 0;
+      if (hasCost) costed++;
       perDay.set(m.moved_at, (perDay.get(m.moved_at) || 0) + n.amt);
-      const pp = perProduct.get(m.product_id) || { qty: 0, amt: 0 }; pp.qty += n.qty; pp.amt += n.amt; perProduct.set(m.product_id, pp);
+      const pp = perProduct.get(m.product_id) || { qty: 0, amt: 0, cost: 0, unc: 0, costed: 0 };
+      pp.qty += n.qty; pp.amt += n.amt; pp.cost += c.cost; pp.unc += c.unc; if (hasCost) pp.costed++;
+      perProduct.set(m.product_id, pp);
       const pk = m.doc?.partner_id || "-"; perPartner.set(pk, (perPartner.get(pk) || 0) + n.amt);
       const ch = (m.doc && docChannel.get(m.doc.id)) || "direct"; perChannel.set(ch, (perChannel.get(ch) || 0) + n.amt);
       if (m.doc) docIds.add(m.doc.id);
     }
     const saleDocs = docs.filter((d) => d.reason === "sale" && d.status === "active");
     return {
-      amt, qty, ret, cost, margin: costed ? amt - cost : null, docs: saleDocs.length,
+      amt, qty, ret, cost, uncosted, margin: costed ? amt - cost : null, docs: saleDocs.length,
       noVoucher: saleDocs.filter((d) => !d.journal_entry_id).length, noVoucherDocs: saleDocs.filter((d) => !d.journal_entry_id),
       products: perProduct.size, perDay, perProduct, perPartner, perChannel,
     };
-  }, [moves, docs, imports, avgCost]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [moves, docs, imports, costByMove, layerByMove]);
 
   const buy = useMemo(() => {
     let amt = 0, qty = 0, ret = 0;
@@ -209,11 +223,11 @@ export default function InventoryStatusPage() {
         pp.qty += act; pp.amt += a; pp.std += std; pp.loss += act - std; matPer.set(m.product_id, pp);
         if (m.std_qty != null) { lossRecords++; stdSum += std; actSum += act; if (act !== std) lossReasonSum.set(m.loss_reason || "other", (lossReasonSum.get(m.loss_reason || "other") || 0) + (act - std) * c); }
       } else if (m.doc?.reason === "disposal" && defectWh && m.warehouse_id === defectWh) {
-        //   불량 폐기 = 손실(결정 31). 금액이 없으면 이동평균으로.
+        //   불량 폐기 = 손실(결정 31). 금액이 없으면 재고 단가로.
         scrapLoss += Math.abs(Number(m.amount || 0)) || Math.abs(m.qty) * (costOf(m.product_id) ?? 0);
       }
     }
-    //   불량 보류 창고의 지금 재고(수량·이동평균 금액)
+    //   불량 보류 창고의 지금 재고(수량·재고 단가 금액)
     let defectOnhand = 0, defectOnhandAmt = 0;
     if (defectWh) for (const o of onhand) if (o.warehouse_id === defectWh && Number(o.qty) > 0) { defectOnhand += Number(o.qty); defectOnhandAmt += Number(o.qty) * (costOf(o.product_id) ?? 0); }
     const yieldRate = doneQty + defectQty > 0 ? doneQty / (doneQty + defectQty) : null;
@@ -236,7 +250,7 @@ export default function InventoryStatusPage() {
       .filter((x) => x.have < x.need).sort((a, b) => (b.need - b.have) - (a.need - a.have));
     return { doneQty, doneAmt, matAmt, docs: docs.filter((d) => d.reason === "produce" && d.status === "active").length, perDay, perProduct, matPer, shortage, noBom, noBomNames: [...noBomNames],
       defectQty, yieldRate, lossRate, lossRecords, lossReasonSum, scrapLoss, defectOnhand, defectOnhandAmt };
-  }, [moves, docs, used, orderLines, boms, openOrders, stock.byProduct, avgCost, defectWh, onhand]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [moves, docs, used, orderLines, boms, openOrders, stock.byProduct, unitCost, defectWh, onhand]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const order = useMemo(() => {
     const usedByLine = new Map(used.map((u) => [u.order_line_id, u]));
@@ -274,7 +288,7 @@ export default function InventoryStatusPage() {
       .map(([pid, v], i) => ({ label: productById.get(pid)?.name || "?", value: v.amt, color: vizColor(i) }));
   const perPartnerRows = (m: Map<string, number>) => [...m.entries()].sort((a, b) => b[1] - a[1])
     .map(([pid, amt]) => ({ key: pid, label: pid === "-" ? "거래처 없음" : (partnerName.get(pid) || "?"), amt }));
-  const perProductRows = (m: Map<string, { qty: number; amt: number }>) => [...m.entries()].sort((a, b) => b[1].amt - a[1].amt)
+  const perProductRows = <V extends { qty: number; amt: number }>(m: Map<string, V>) => [...m.entries()].sort((a, b) => b[1].amt - a[1].amt)
     .map(([pid, v]) => ({ key: pid, p: productById.get(pid), ...v }));
   const empty = !movesLoading && moves.length === 0 && orders.length === 0;
 
@@ -301,7 +315,7 @@ export default function InventoryStatusPage() {
     rows: order.open.map((r) => [<b key="n">{r.o.order_no}</b>, r.o.partner_name || partnerName.get(r.o.partner_id || "") || "—", r.o.due_date || "—", won(r.ordered), won(r.used), won(r.remain)]), go: { href: "/inventory/orders", label: "주문으로 →" } });
   const openMatShort = () => setDetail({ title: `자재 부족 ${make.shortage.length}품목`, desc: "열린 주문을 만드는 데 모자라는 자재입니다.", head: ["자재", "필요", "현재고", "부족"],
     rows: make.shortage.map((x) => [<b key="n">{nm(x.product_id)}</b>, won(x.need), won(x.have), won(x.need - x.have)]), go: { href: "/inventory/purchase?fill=1", label: "구매 입력에서 부족분 채우기 →" } });
-  const openDefect = () => setDetail({ title: `불량 보류 ${won(make.defectOnhand)}개`, desc: "불량 보류 창고의 재고입니다.", head: ["품목", "수량", "금액(이동평균)"],
+  const openDefect = () => setDetail({ title: `불량 보류 ${won(make.defectOnhand)}개`, desc: "불량 보류 창고의 재고입니다.", head: ["품목", "수량", "금액(재고단가)"],
     rows: defectWh ? onhand.filter((o) => o.warehouse_id === defectWh && Number(o.qty) > 0).map((o) => [<b key="n">{nm(o.product_id)}</b>, won(Number(o.qty)), `₩${won(Number(o.qty) * (costOf(o.product_id) ?? 0))}`]) : [], go: { href: "/inventory/production", label: "생산 › 불량 처분 →" } });
   const stats: Record<Tab, React.ReactNode> = {
     all: (<>
@@ -310,7 +324,7 @@ export default function InventoryStatusPage() {
       <Stat label="품절" value={<button type="button" className="inv-stat-btn" onClick={openOut}>{stock.out}개</button>} tone={stock.out ? "minus" : undefined} />
       <Stat label="기간 매출" value={`₩${won(sale.amt)}`} />
       <Stat label="기간 매입" value={`₩${won(buy.amt)}`} />
-      <Stat label="마진(매출−원가)" value={sale.margin == null ? "—" : `₩${won(sale.margin)}`} tone={sale.margin != null && sale.margin < 0 ? "minus" : undefined} />
+      <Stat label={`마진(매출−원가 · ${costingMethodLabel(costMethod)})`} value={sale.margin == null ? "—" : `₩${won(sale.margin)}`} tone={sale.margin != null && sale.margin < 0 ? "minus" : undefined} />
       <Stat label="전표 없는 판매" value={<button type="button" className="inv-stat-btn" onClick={openNoVoucher}>{sale.noVoucher}건</button>} tone={sale.noVoucher ? "minus" : undefined} />
       <Stat label="전표 없는 매입" value={<button type="button" className="inv-stat-btn" onClick={openNoVoucherBuy}>{buy.noVoucher}건</button>} tone={buy.noVoucher ? "minus" : undefined} />
       <Stat label="납기 지난 주문" value={<button type="button" className="inv-stat-btn" onClick={openLate}>{order.late.length}건</button>} tone={order.late.length ? "minus" : undefined} />
@@ -328,7 +342,8 @@ export default function InventoryStatusPage() {
       <Stat label="수량" value={won(sale.qty)} />
       <Stat label="품목" value={`${sale.products}종`} />
       <Stat label="반품" value={`₩${won(sale.ret)}`} tone={sale.ret ? "minus" : undefined} />
-      <Stat label="마진" value={sale.margin == null ? "—" : `₩${won(sale.margin)}`} />
+      <Stat label={`마진 · ${costingMethodLabel(costMethod)}`} value={sale.margin == null ? "—" : `₩${won(sale.margin)}`} />
+      {sale.uncosted > 0 && <Stat label="원가 미확정" value={`${won(sale.uncosted)}개`} tone="minus" />}
       <Stat label="전표 없음" value={<button type="button" className="inv-stat-btn" onClick={openNoVoucher}>{sale.noVoucher}건</button>} tone={sale.noVoucher ? "minus" : undefined} />
     </>),
     buy: (<>
@@ -365,7 +380,7 @@ export default function InventoryStatusPage() {
               const name = TABS.find(([k]) => k === tab)?.[1] || "현황";
               const rows: Record<string, unknown>[] =
                 tab === "order" ? order.rows.map((r) => ({ "번호": r.o.order_no, "주문일": r.o.order_date, "거래처": r.o.partner_name || partnerName.get(r.o.partner_id || "") || "", "납기": r.o.due_date || "", "주문 수량": r.ordered, "가져간 수량": r.used, "잔량": r.remain, "진행률": r.pct, "금액": r.amt, "상태": r.o.status === "cancelled" ? "취소" : r.remain <= 0 ? "완료" : r.late ? "납기 지남" : "진행 중" }))
-                : tab === "sale" ? perProductRows(sale.perProduct).map((r) => { const c = costOf(r.key); return { "SKU": r.p?.sku || "", "품목": r.p?.name || "", "수량": r.qty, "매출": r.amt, "원가": c == null ? "" : c * r.qty, "마진": c == null ? "" : r.amt - c * r.qty }; })
+                : tab === "sale" ? perProductRows(sale.perProduct).map((r) => ({ "SKU": r.p?.sku || "", "품목": r.p?.name || "", "수량": r.qty, "매출": r.amt, "원가": r.costed ? r.cost : "", "마진": r.costed ? r.amt - r.cost : "", "원가 미확정 수량": r.unc || "" }))
                 : tab === "buy" ? perProductRows(buy.perProduct).map((r) => ({ "SKU": r.p?.sku || "", "품목": r.p?.name || "", "수량": r.qty, "매입": r.amt, "평균 단가": r.qty ? r.amt / r.qty : "", "현재고": stock.byProduct.get(r.key) || 0 }))
                 : tab === "make" ? [...make.perProduct.entries()].map(([id, r]) => ({ "완제품": productById.get(id)?.name || "", "양품": r.qty, "불량": r.defect, "양품률": r.qty + r.defect ? `${(r.qty / (r.qty + r.defect) * 100).toFixed(1)}%` : "", "완성 금액": r.amt }))
                 : [{ "재고 금액": stock.amount, "부족": stock.short, "품절": stock.out, "기간 매출": sale.amt, "기간 매입": buy.amt, "마진": sale.margin ?? "", "전표 없는 판매": sale.noVoucher, "납기 지난 주문": order.late.length }];
@@ -373,7 +388,7 @@ export default function InventoryStatusPage() {
             }}>엑셀</button>
           }>
             <DateRangeField from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
-            <span className="inv-hint" title="취소 전표는 빼고 반품은 차감한 순 금액입니다. 원가는 이동평균, 없으면 매입가">반품을 뺀 순 금액 기준입니다.</span>
+            <span className="inv-hint" title={`취소 전표는 빼고 반품은 차감한 순 금액입니다. 원가는 이익관리와 같은 출고 원가(${costingMethodLabel(costMethod)})이고, 재고 금액은 남은 입고분의 원가입니다`}>반품을 뺀 순 금액 · 원가 {costingMethodLabel(costMethod)} 기준입니다.</span>
           </QueryBar>
           <ResultStrip>{stats[tab]}</ResultStrip>
         </QueryHead>
@@ -480,7 +495,7 @@ export default function InventoryStatusPage() {
                         {saleView === "product" ? (<>
                           <thead><tr><th>SKU</th><th>품목</th><th>수량</th><th>매출</th><th>원가</th><th>마진</th><th>마진율</th></tr></thead>
                           <tbody>{perProductRows(sale.perProduct).map((r) => {
-                            const c = costOf(r.key); const cost = c == null ? null : c * r.qty; const mg = cost == null ? null : r.amt - cost;
+                            const cost = r.costed ? r.cost : null; const mg = cost == null ? null : r.amt - cost;
                             return (<tr key={r.key}>
                               <td className="mono-number text-left">{r.p?.sku || "—"}</td><td className="text-left"><b>{r.p?.name || "?"}</b></td>
                               <td className="tr mono-number">{won(r.qty)}</td><td className="tr mono-number">₩{won(r.amt)}</td>
@@ -586,7 +601,7 @@ export default function InventoryStatusPage() {
                       </table>
                     </div>
                     <div className="pnl-panel">
-                      <h3>자재 투입 · 로스</h3><p title="로스는 실투입에서 표준 소요를 뺀 값입니다. 금액은 이동평균 원가">표준보다 더 들어간 자재입니다.{make.lossRecords === 0 && make.matPer.size > 0 ? " 이 기간엔 로스 기록이 없습니다." : ""}{make.lossReasonSum.size ? ` 원인별 로스비 ${[...make.lossReasonSum.entries()].map(([k, v]) => `${lossReasonLabel(k) || "기타"} ₩${won(v)}`).join(", ")}.` : ""}</p>
+                      <h3>자재 투입 · 로스</h3><p title="로스는 실투입에서 표준 소요를 뺀 값입니다. 금액은 재고 단가(회사 원가 방법)">표준보다 더 들어간 자재입니다.{make.lossRecords === 0 && make.matPer.size > 0 ? " 이 기간엔 로스 기록이 없습니다." : ""}{make.lossReasonSum.size ? ` 원인별 로스비 ${[...make.lossReasonSum.entries()].map(([k, v]) => `${lossReasonLabel(k) || "기타"} ₩${won(v)}`).join(", ")}.` : ""}</p>
                       <table className="ev-table ev-lined table-inv-status-sm">
                         <thead><tr><th>자재</th><th>표준</th><th>실투입</th><th>로스</th><th>로스율</th><th>금액</th></tr></thead>
                         <tbody>{[...make.matPer.entries()].sort((a, b) => b[1].loss - a[1].loss).map(([id, r]) => {
