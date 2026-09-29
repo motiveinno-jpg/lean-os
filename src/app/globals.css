@@ -10985,3 +10985,5 @@ table.ch-settle-fit { min-width: 0; }
 .ch-settle-nowrap { @apply whitespace-nowrap; }
 .ch-settle-actions { @apply flex flex-col items-stretch gap-1; }
 .ch-settle-actions > button { @apply whitespace-nowrap; }
+/*   배포 뒤 재실측(내용 폭 939 > 918) — 이 표만 칸 좌우 여백 10→8px. 1280 이하는 가로 스크롤을 받아들인다. */
+table.ch-settle-fit tbody td, table.ch-settle-fit thead th { @apply px-2; }

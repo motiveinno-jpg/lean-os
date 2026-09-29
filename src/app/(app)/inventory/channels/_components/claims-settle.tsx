@@ -306,7 +306,7 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite, c
     if (s.journal_status !== "confirmed") return <span className="ev-dim" title="전표를 확정하면 통장 입금 줄과 대조합니다">확정 후 대조</span>;
     const l = bankLinks?.get(s.journal_entry_id!);
     if (!l) return <span className="ev-dim">…</span>;
-    if (l.linked.length) return <span title={l.linked.map((t) => `${t.transaction_date} ${t.counterparty || ""} ₩${won(t.amount)}`).join("\n")}><span className="ch-settle-nowrap">입금 대조됨</span> <span className="mono-number">{l.linked[0].transaction_date.slice(5)}</span></span>;
+    if (l.linked.length) return <span title={l.linked.map((t) => `${t.transaction_date} ${t.counterparty || ""} ₩${won(t.amount)}`).join("\n")}><span className="ch-settle-nowrap">입금 대조됨</span> <span className="mono-number ch-settle-nowrap">{l.linked[0].transaction_date.slice(5)}</span></span>;
     if (l.candidates.length) return <button type="button" className="btn-secondary btn-sm ch-settle-nowrap" onClick={() => setLinkFor(s.journal_entry_id!)} title="같은 금액의 통장 입금 줄이 있습니다 — 골라서 전표에 겁니다">입금 잇기 ({l.candidates.length})</button>;
     return <span className="ev-dim" title="전표일 −3~+14일 안에 정산금과 같은 금액의 입금이 없습니다. 통장이 수집되면 다시 보입니다">입금 후보 없음</span>;
   };
