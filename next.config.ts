@@ -81,7 +81,8 @@ const nextConfig: NextConfig = {
   //   홈 전체로 오인해 빌드/dev 가 수 분씩 느려짐 — 프로젝트 루트를 명시 고정.
   turbopack: { root: process.cwd() },
   // headless Chrome(서버 PDF 렌더)용 네이티브 패키지는 번들하지 않고 런타임 require
-  serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],
+  // pdfjs-dist: AI 커넥터(/api/mcp)가 파일보관함 PDF 글자를 서버에서 뽑는다 — 작업자 파일을 런타임에 불러야 해 묶지 않는다
+  serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core", "pdfjs-dist"],
   // ⚠️ sparticuz 의 bin/*.br(chromium 본체 + al2023 공유 라이브러리 tar)은 fs.readdir 로
   //   읽혀 정적 트레이싱이 못 잡는다 — 빠지면 프로덕션에서 /tmp/chromium 이
   //   "libnss3.so: cannot open shared object file" 로 즉사한다(2026-08-25 채우기·출력 500 실사고,
@@ -93,6 +94,9 @@ const nextConfig: NextConfig = {
     "/api/html-pdf/route": ["./node_modules/@sparticuz/chromium/bin/**", "./node_modules/dompurify/dist/purify.min.js"],
     "/api/contract-pdf": ["./node_modules/@sparticuz/chromium/bin/**", "./node_modules/dompurify/dist/purify.min.js"],
     "/api/contract-pdf/route": ["./node_modules/@sparticuz/chromium/bin/**", "./node_modules/dompurify/dist/purify.min.js"],
+    //   pdfjs 는 작업자(pdf.worker.mjs)를 동적 import 해 정적 트레이싱이 못 잡는다
+    "/api/mcp": ["./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs", "./node_modules/pdfjs-dist/legacy/build/pdf.mjs"],
+    "/api/mcp/route": ["./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs", "./node_modules/pdfjs-dist/legacy/build/pdf.mjs"],
   },
   images: {
     remotePatterns: [

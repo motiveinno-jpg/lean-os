@@ -74,19 +74,41 @@ async function extractHwpx(buffer: ArrayBuffer): Promise<string> {
 
 async function extractPdf(buffer: ArrayBuffer): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pdfjs: any = await import("pdfjs-dist");
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    "pdfjs-dist/build/pdf.worker.min.mjs",
-    import.meta.url,
-  ).toString();
-  const pdf = await pdfjs.getDocument({ data: buffer }).promise;
+  let pdfjs: any;
+  if (typeof window === "undefined") {
+    //   서버(AI 커넥터 파일보관함 읽기) — Node 용 legacy 판. next.config serverExternalPackages 에 pdfjs-dist 가 있어야
+    //   작업자 파일을 런타임에 찾는다.
+    pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    pdfjs.GlobalWorkerOptions.workerSrc = "pdfjs-dist/legacy/build/pdf.worker.mjs";
+  } else {
+    pdfjs = await import("pdfjs-dist");
+    pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+      "pdfjs-dist/build/pdf.worker.min.mjs",
+      import.meta.url,
+    ).toString();
+  }
+  const pdf = await pdfjs.getDocument({ data: new Uint8Array(buffer), isEvalSupported: false }).promise;
   const pages: string[] = [];
   for (let pageNo = 1; pageNo <= pdf.numPages; pageNo++) {
     const page = await pdf.getPage(pageNo);
     const content = await page.getTextContent();
-    const text = (content.items as { str?: string; hasEOL?: boolean }[])
-      .map((item) => `${item.str || ""}${item.hasEOL ? "\n" : " "}`)
-      .join("");
+    //   조각 사이에 무조건 공백을 넣으면 글자마다 따로 저장된 PDF(브라우저 인쇄 등)가 "결 산 보 고"가 된다.
+    //   앞 조각 끝과 이 조각 시작의 실제 간격이 글자 높이의 0.2배를 넘을 때만 띄운다.
+    let text = "";
+    let prevEnd: number | null = null, prevY: number | null = null;
+    for (const item of content.items as { str?: string; hasEOL?: boolean; transform?: number[]; width?: number; height?: number }[]) {
+      const str = item.str || "";
+      const x = item.transform?.[4] ?? 0, y = item.transform?.[5] ?? 0;
+      const h = Math.abs(item.height || item.transform?.[3] || 10);
+      if (prevEnd !== null && str && !text.endsWith("\n")) {
+        const sameLine = prevY !== null && Math.abs(y - prevY) < h * 0.5;
+        if (!sameLine) text += "\n";
+        else if (x - prevEnd > h * 0.2 && !text.endsWith(" ") && !str.startsWith(" ")) text += " ";
+      }
+      text += str;
+      if (item.hasEOL) text += "\n";
+      if (str) { prevEnd = x + (item.width || 0); prevY = y; }
+    }
     pages.push(`[${pageNo}페이지]\n${text}`);
   }
   return pages.join("\n\n");
@@ -120,6 +142,33 @@ function friendlyHwpError(error: unknown): Error {
   return error instanceof Error ? error : new Error("한글 파일을 읽지 못했습니다.");
 }
 
+/** 파일 이름·바이트로 글자 뽑기 — AI 참모 첨부(브라우저)와 AI 커넥터 파일보관함 읽기(서버)가 같이 쓴다.
+ *  지원: HWP·HWPX·PDF·DOCX·XLSX·XLS·CSV·TXT(+MD·JSON). 뽑은 글자는 정리(normalize)까지 한 상태로 돌려준다. */
+export const DOCUMENT_TEXT_EXTS = ["hwp", "hwpx", "pdf", "docx", "xlsx", "xls", "csv", "txt", "md", "json"];
+export async function extractDocumentText(name: string, buffer: ArrayBuffer): Promise<string> {
+  const ext = extOf(name);
+  let text = "";
+  try {
+    if (ext === "hwp") text = await extractHwp(new Uint8Array(buffer));
+    else if (ext === "hwpx") text = await extractHwpx(buffer);
+    else if (ext === "pdf") text = await extractPdf(buffer);
+    else if (ext === "docx") text = await extractDocx(buffer);
+    else if (ext === "xlsx" || ext === "xls") text = await extractSpreadsheet(buffer);
+    else text = decodeText(buffer);
+  } catch (error) {
+    if (ext === "hwp" || ext === "hwpx") throw friendlyHwpError(error);
+    throw error;
+  }
+  return normalizeCopilotDocumentText(text);
+}
+
+/** 텍스트 파일 — UTF-8 이 깨지면(엑셀에서 저장한 CSV 등) 한국어 윈도 인코딩(CP949)으로 다시 읽는다 */
+function decodeText(buffer: ArrayBuffer): string {
+  const utf8 = new TextDecoder("utf-8", { fatal: false }).decode(buffer);
+  if (!utf8.includes("\uFFFD")) return utf8;
+  try { return new TextDecoder("euc-kr").decode(buffer); } catch { return utf8; }
+}
+
 export async function extractCopilotAttachment(file: File): Promise<CopilotAttachment> {
   if (file.size <= 0) throw new Error("빈 파일은 첨부할 수 없습니다.");
   if (file.size > COPILOT_MAX_FILE_BYTES) throw new Error("파일은 10MB 이하만 첨부할 수 있습니다.");
@@ -131,20 +180,7 @@ export async function extractCopilotAttachment(file: File): Promise<CopilotAttac
   }
 
   const buffer = await file.arrayBuffer();
-  let text = "";
-  try {
-    if (ext === "hwp") text = await extractHwp(new Uint8Array(buffer));
-    else if (ext === "hwpx") text = await extractHwpx(buffer);
-    else if (ext === "pdf") text = await extractPdf(buffer);
-    else if (ext === "docx") text = await extractDocx(buffer);
-    else if (ext === "xlsx" || ext === "xls") text = await extractSpreadsheet(buffer);
-    else text = new TextDecoder("utf-8", { fatal: false }).decode(buffer);
-  } catch (error) {
-    if (ext === "hwp" || ext === "hwpx") throw friendlyHwpError(error);
-    throw error;
-  }
-
-  text = normalizeCopilotDocumentText(text);
+  let text = await extractDocumentText(file.name, buffer);
   if (!text) {
     throw new Error(ext === "pdf"
       ? "PDF에서 읽을 수 있는 글자를 찾지 못했습니다. 스캔 PDF는 텍스트 PDF로 변환해 주세요."

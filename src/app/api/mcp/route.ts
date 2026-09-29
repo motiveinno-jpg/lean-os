@@ -1,7 +1,8 @@
 // 오너뷰 MCP 입구(Streamable HTTP, JSON 응답) — Claude 커넥터 주소: https://www.owner-view.com/api/mcp/
 //   토큰이 없거나 만료면 401 + WWW-Authenticate 로 로그인 연결(OAuth)을 시작시킨다.
 //   도구 목록·실행은 AI 참모 함수(owner-copilot)의 MCP 입구에 맡긴다 — 같은 도구·같은 권한 규칙 한 벌.
-import { lookupAccessToken, mcpUrl, originOf } from "@/lib/mcp-oauth";
+import { lookupAccessToken, mcpEnabledFor, mcpUrl, originOf } from "@/lib/mcp-oauth";
+import { VAULT_TOOLS, isVaultTool, callVaultTool } from "@/lib/mcp-vault";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -79,6 +80,7 @@ export async function POST(req: Request) {
             instructions:
               "오너뷰(한국 중소기업 경영 관리 앱)의 회사 데이터를 조회합니다. 조회만 가능하고 수정은 하지 않습니다. " +
               "회사 전체 질문은 get_company_overview 부터 보고, 직원·근태·급여·미수금·통장·세금계산서·결재·일정 등은 해당 도구를 부르세요. " +
+              "업무 › 파일보관함 파일은 list_vault_files 로 찾고 read_vault_file 로 내용을 읽습니다(PDF·한글·워드·엑셀 등). " +
               "돈 숫자는 오너뷰 화면과 같은 기준이며, 결과의 basis·note 에 적힌 기준과 '빠진 자료(전표 안 친 건 등)'를 답에 함께 밝히세요. " +
               `연결 주소: ${mcpUrl(originOf(req))}`,
           }));
@@ -92,16 +94,24 @@ export async function POST(req: Request) {
           if (r.status === 401) return unauthorized(req, "토큰이 만료됐거나 끊겼습니다");
           if (r.status !== 200) { out.push(fail(m.id, -32000, String(r.data?.message || r.data?.error || "도구 목록을 불러오지 못했습니다"))); break; }
           out.push(ok(m.id, {
-            tools: (r.data.tools || []).map((t: { name: string; description: string; input_schema: unknown }) => ({
-              name: t.name, description: t.description, inputSchema: t.input_schema,
-              annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-            })),
+            tools: [
+              ...(r.data.tools || []).map((t: { name: string; description: string; input_schema: unknown }) => ({
+                name: t.name, description: t.description, inputSchema: t.input_schema,
+              })),
+              //   파일보관함 — 권한은 DB 가 그 사람 RLS 로 판정하므로 대표·직원 모두에게 준다(볼 수 있는 것만 나온다)
+              ...VAULT_TOOLS,
+            ].map((t) => ({ ...t, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false } })),
           }));
           break;
         }
         case "tools/call": {
           const name = String(m.params?.name || "");
           const args = (m.params?.arguments && typeof m.params.arguments === "object") ? m.params.arguments : {};
+          if (isVaultTool(name)) {
+            if (!(await mcpEnabledFor(tok.company_id))) { out.push(fail(m.id, -32000, "이 회사는 아직 AI 커넥터가 켜져 있지 않습니다")); break; }
+            out.push(ok(m.id, await callVaultTool(tok, name, args as Record<string, unknown>)));
+            break;
+          }
           const r = await callTools(token, { op: "call", name, args });
           if (r.status === 401) return unauthorized(req, "토큰이 만료됐거나 끊겼습니다");
           if (r.status === 400 && r.data?.error === "unknown_tool") { out.push(fail(m.id, -32602, `알 수 없는 도구입니다: ${name}`)); break; }
