@@ -46,13 +46,20 @@ export async function POST(request: NextRequest) {
     // Verify user belongs to the company
     const userRow = logRead('portal/route:userRow', await supabase
       .from('users')
-      .select('company_id')
+      .select('company_id, is_master')
       .eq('auth_id', user.id)
       .single());
 
     if (!userRow || userRow.company_id !== companyId) {
       return NextResponse.json(
         { error: { code: 'FORBIDDEN', message: '권한이 없습니다' } },
+        { status: 403 },
+      );
+    }
+    // 포털에서 요금제 변경·해지·결제수단 교체가 다 된다 — 해지 라우트와 같은 기준으로 마스터만
+    if (!userRow.is_master) {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: '결제 관리는 마스터만 가능합니다' } },
         { status: 403 },
       );
     }

@@ -57,10 +57,13 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: { code: 'UNAUTHORIZED', message: '로그인이 필요합니다' } }, { status: 401 });
     }
-    const { data: me } = await supabase.from('users').select('company_id').eq('auth_id', user.id).maybeSingle();
+    const { data: me } = await supabase.from('users').select('company_id, is_master').eq('auth_id', user.id).maybeSingle();
     const companyId = me?.company_id;
     if (!companyId) {
       return NextResponse.json({ error: { code: 'NO_COMPANY', message: '회사 정보를 찾을 수 없습니다' } }, { status: 400 });
+    }
+    if (!me?.is_master) {
+      return NextResponse.json({ error: { code: 'FORBIDDEN', message: '충전 결제는 마스터만 가능합니다' } }, { status: 403 });
     }
 
     // 구독자만 충전 가능 — 무료는 기본 제공량까지만.

@@ -34,10 +34,13 @@ export async function POST(request: NextRequest) {
     }
 
     // 내 회사
-    const { data: userRow } = await supabase.from('users').select('company_id').eq('auth_id', user.id).single();
+    const { data: userRow } = await supabase.from('users').select('company_id, is_master').eq('auth_id', user.id).single();
     const companyId = userRow?.company_id;
     if (!companyId) {
       return NextResponse.json({ error: { code: 'FORBIDDEN', message: '회사 정보를 찾을 수 없습니다' } }, { status: 403 });
+    }
+    if (!userRow?.is_master) {
+      return NextResponse.json({ error: { code: 'FORBIDDEN', message: '스토리지 팩 변경은 마스터만 가능합니다' } }, { status: 403 });
     }
 
     // 현재 구독 + 플랜 파라미터
@@ -56,7 +59,9 @@ export async function POST(request: NextRequest) {
     const prevCount = Number(sub.storage_pack_count) || 0;
     const includedBytes = Number(plan.included_storage_bytes) || 524288000;
     const unitBytes = Number(plan.storage_per_unit_bytes) || 10737418240;
-    const extraSeats = Math.max(0, (Number(sub.seat_count) || 1) - (Number(plan.included_seats) || 0));
+    //   좌석 = 지금 재직 인원 — 저장공간 한도(storage_quota_params)·갱신 청구와 같은 수
+    const { data: liveSeats } = await (supabase as any).rpc('company_seat_count', { p_company: companyId });
+    const extraSeats = Math.max(0, (Number(liveSeats ?? sub.seat_count) || 1) - (Number(plan.included_seats) || 0));
 
     // 감소 시 사용량 가드 — 줄인 뒤 쿼터보다 현재 사용량이 크면 접근이 막히므로 거부.
     if (count < prevCount) {

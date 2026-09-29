@@ -762,7 +762,7 @@ function BillingPageInner() {
                   <td className="text-left text-[var(--text-muted)]">10건 묶음 · 3,000원 (건당 300원)</td>
                   <td className="text-center"><input type="number" min={1} max={100} value={issuePacks} onChange={(e) => setIssuePacks(Math.min(100, Math.max(1, Number(e.target.value) || 1)))} className="billing-qty" /> <span className="text-[11px] text-[var(--text-dim)]">= {(issuePacks * 10).toLocaleString()}건</span></td>
                   <td className="tr mono-number font-semibold">{(issuePacks * 3000).toLocaleString()}원</td>
-                  <td className="text-center"><button onClick={() => startTopUp("issue", issuePacks)} disabled={creditLoading !== null} className="btn-secondary btn-sm disabled:opacity-50">{creditLoading === "issue" ? "이동 중…" : "결제"}</button></td>
+                  <td className="text-center">{isOwner ? <button onClick={() => startTopUp("issue", issuePacks)} disabled={creditLoading !== null} className="btn-secondary btn-sm disabled:opacity-50">{creditLoading === "issue" ? "이동 중…" : "결제"}</button> : <span className="text-[11px] text-[var(--text-dim)]">마스터만 결제</span>}</td>
                 </tr>
               </tbody>
             </table></div>
@@ -918,7 +918,7 @@ function BillingPageInner() {
                       <button type="button" className="btn-secondary btn-sm" onClick={() => document.getElementById("billing-plan-cards")?.scrollIntoView({ behavior: "smooth", block: "start" })}>요금제 보기</button>
                     </div>
                   ) : !isOwner ? (
-                    <div className="text-[11px] text-[var(--text-dim)]">저장공간 팩은 대표만 바꿀 수 있습니다. 현재 팩 <b className="mono-number">{packs}</b>개.</div>
+                    <div className="text-[11px] text-[var(--text-dim)]">저장공간 팩은 마스터만 바꿀 수 있습니다. 현재 팩 <b className="mono-number">{packs}</b>개.</div>
                   ) : (
                     <>
                       <div className="billing-storage-buy">
@@ -1036,7 +1036,7 @@ function BillingPageInner() {
                         <div className="billing-col-price mono-number">₩0</div>
                         <div className="billing-col-sub">카드 등록 없이 계속 무료</div>
                         {isFree ? <span className="billing-col-btn-cur">사용 중</span>
-                          : freeP ? <button type="button" onClick={() => setShowUpgradeModal("free")} className="btn-secondary btn-sm">이 요금제로 변경</button> : null}
+                          : freeP && isOwner ? <button type="button" onClick={() => setShowUpgradeModal("free")} className="btn-secondary btn-sm">이 요금제로 변경</button> : null}
                       </th>
                       <th className={`billing-col-rec ${isStd ? "billing-col-cur" : ""}`}>
                         <div className="billing-col-name">오너뷰 <span className="billing-col-tag">추천</span></div>
@@ -1050,7 +1050,7 @@ function BillingPageInner() {
                         <div className="billing-col-price mono-number">₩{stdMonthly.toLocaleString()} <small>/월</small></div>
                         <div className="billing-col-sub">{cycle === "annual" ? `연 ₩${(stdMonthly * 12).toLocaleString()} 일시 청구 · ` : ""}추가 1명 ₩{stdSeat.toLocaleString()}/월{isStd ? " · 지금 쓰는 요금제" : ""}</div>
                         {isStd ? <span className="billing-col-btn-cur">사용 중</span>
-                          : std ? <button type="button" onClick={() => setShowUpgradeModal("standard")} className={primaryCol === "standard" ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>이 요금제로 변경</button> : null}
+                          : std && isOwner ? <button type="button" onClick={() => setShowUpgradeModal("standard")} className={primaryCol === "standard" ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>이 요금제로 변경</button> : null}
                       </th>
                       <th className={isLegacy ? "billing-col-cur" : ""}>
                         {/* 울트라는 항상 '비용 협의' — 옛 울트라 구독 계정이라도 금액을 여기 안 적는다(내는 금액은 위 요약 줄, 2026-08-20 대표) */}
@@ -1091,7 +1091,9 @@ function BillingPageInner() {
             {/* 결제 가능 카드 안내 — 배너 대신 각주로 */}
             <p className="billing-note">국내카드는 토스페이먼츠, 해외카드는 Stripe 로 결제됩니다. 해외 결제를 차단해 둔 카드(법인카드 포함)는 Stripe 승인이 거절될 수 있으니 국내카드를 쓰거나 카드사에 확인하세요 · 요금은 원화, VAT 10% 별도 · 월간은 매월 같은 날 자동 결제.</p>
 
-            {entitlement?.entitled && currentSlug !== "free" && (
+            {!isOwner && <p className="billing-note">요금제 변경·해지·충전 결제는 회사 마스터만 할 수 있습니다.</p>}
+
+            {isOwner && entitlement?.entitled && currentSlug !== "free" && (
               <p className="billing-cancel-line">
                 {cancelScheduled && effectiveUntilStr ? (
                   <>해지 예약됨 — {effectiveUntilStr}까지 그대로 이용하고 이후 무료로 전환됩니다. 계속 쓰시려면 <button type="button" className="billing-cancel-link" onClick={handleResume} disabled={isPaymentLoading}>해지 취소</button>.</>

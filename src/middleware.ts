@@ -105,7 +105,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // Rate limit auth endpoints (brute force protection)
-  if (pathname.startsWith('/auth') || pathname.startsWith('/api/auth')) {
+  //   /auth 화면(GET)은 세지 않는다 — 로그인·가입 자체는 Supabase 로 바로 가고 거기서 따로 제한한다.
+  //   화면까지 세면 공개 페이지의 링크 미리 불러오기(한 장당 3번)만으로 한도가 차서 가입 버튼이 429 로 막혔다.
+  if (pathname.startsWith('/api/auth')) {
     const ip = clientIp(request);
     if (isRateLimited(`auth:${ip}`, RATE_LIMIT_MAX_AUTH)) {
       return new NextResponse('Too Many Requests', { status: 429, headers: { 'Retry-After': '60' } });
