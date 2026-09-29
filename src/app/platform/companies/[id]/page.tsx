@@ -1,4 +1,5 @@
 "use client";
+import { subscriptionMonthlyFee } from "@/lib/subscription-fee";
 import { appConfirm } from "@/components/global-confirm";
 import { logRead }  from "@/lib/log-read";
 
@@ -162,7 +163,7 @@ export default function PlatformCompanyDetailPage({ params }: { params: Promise<
   const userCount = Number(data.user_count || 0);
   const seatPct = seatCount > 0 ? Math.round((userCount / seatCount) * 100) : 0;
   const errors24h = Number(data.errors_24h || 0);
-  const monthlyFee = plan ? (plan.base_price || 0) + (plan.per_seat_price || 0) * seatCount : 0;
+  const monthlyFee = sub ? subscriptionMonthlyFee(sub, plan) : 0;
   const lastActivity = data.last_login_at as string | null;
   const activeRecently = !!lastActivity && Date.now() - new Date(lastActivity).getTime() < 24 * 3600 * 1000;
 

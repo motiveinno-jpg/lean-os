@@ -1,4 +1,5 @@
 "use client";
+import { subscriptionMonthlyFee, isBilledSubscription } from "@/lib/subscription-fee";
 import { kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
@@ -289,11 +290,9 @@ export default function PlatformOverview() {
   const activeSubs = kindCounts.paid + kindCounts.trial;
   // 실결제 구독만 — stripe 미연동(내부 부여) 구독이 MRR 을 부풀리던 것 제외 (2026-07-29)
   const mrr = subscriptions
-    .filter((s: any) => s.status === "active" && s.stripe_subscription_id)
+    .filter((s: any) => s.status === "active" && isBilledSubscription(s))
     .reduce((sum: number, s: any) => {
-      const plan = s.subscription_plans;
-      if (!plan) return sum;
-      return sum + (plan.base_price || 0) + (plan.per_seat_price || 0) * (s.seat_count || 1);
+      return sum + subscriptionMonthlyFee(s, s.subscription_plans);
     }, 0);
   const paidInvoices = invoices.filter((i: any) => i.status === "paid");
   const totalRevenue = paidInvoices.reduce((s: number, i: any) => s + (i.total_amount || 0), 0);

@@ -1,4 +1,5 @@
 "use client";
+import { subscriptionMonthlyFee, isBilledSubscription } from "@/lib/subscription-fee";
 import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 import { fetchPaged } from "@/lib/fetch-paged";
@@ -70,22 +71,18 @@ export default function RevenuePage() {
   });
 
   // MRR = 실제 돈이 들어오는 구독만 ("수익 0인데 왜 금액이 찍혀있어").
-  //   stripe_subscription_id 없는 구독은 내부 부여(자사·수동)라 과금이 없고,
+  //   Stripe 구독도 토스 자동결제 키도 없는 구독은 내부 부여(자사·수동)라 과금이 없고,
   //   trialing 은 아직 결제 전 — 둘 다 제외해야 실매출과 일치한다.
   const mrr = subscriptions
-    .filter((s: any) => s.status === "active" && s.stripe_subscription_id)
+    .filter((s: any) => s.status === "active" && isBilledSubscription(s))
     .reduce((sum: number, s: any) => {
-      const plan = s.subscription_plans;
-      if (!plan) return sum;
-      return sum + (plan.base_price || 0) + (plan.per_seat_price || 0) * (s.seat_count || 1);
+      return sum + subscriptionMonthlyFee(s, s.subscription_plans);
     }, 0);
   // 무료체험 중인 구독이 전부 유료 전환될 경우의 예상 월 매출 (참고 지표)
   const trialMrr = subscriptions
-    .filter((s: any) => s.status === "trialing" && s.stripe_subscription_id)
+    .filter((s: any) => s.status === "trialing" && isBilledSubscription(s))
     .reduce((sum: number, s: any) => {
-      const plan = s.subscription_plans;
-      if (!plan) return sum;
-      return sum + (plan.base_price || 0) + (plan.per_seat_price || 0) * (s.seat_count || 1);
+      return sum + subscriptionMonthlyFee(s, s.subscription_plans);
     }, 0);
 
   // 회사명·청구서번호 검색 + 회사별 보기 (2026-07-28 전면 정비)
@@ -132,7 +129,7 @@ export default function RevenuePage() {
 
   // 유료 구독 누적 추이 — 구독 시작일 기준으로 결제 중인 구독이 몇 곳인지 (일 단위, 최근 90일)
   const paidTrend = useMemo(() => {
-    const paid = subscriptions.filter((s: any) => s.status === "active" && s.stripe_subscription_id);
+    const paid = subscriptions.filter((s: any) => s.status === "active" && isBilledSubscription(s));
     const days = 90;
     const out: { date: Date; 결제중: number }[] = [];
     for (let i = days - 1; i >= 0; i--) {
@@ -146,14 +143,14 @@ export default function RevenuePage() {
   // 요금제 구성 — 결제 중인 구독의 요금제별 수
   const planMix = useMemo(() => {
     const m = new Map<string, number>();
-    subscriptions.filter((s: any) => s.status === "active" && s.stripe_subscription_id).forEach((s: any) => {
+    subscriptions.filter((s: any) => s.status === "active" && isBilledSubscription(s)).forEach((s: any) => {
       const name = s.subscription_plans?.name || "미지정";
       m.set(name, (m.get(name) || 0) + 1);
     });
     return [...m.entries()].map(([label, value]) => ({ label, value }));
   }, [subscriptions]);
 
-  const paidCount = subscriptions.filter((s: any) => s.status === "active" && s.stripe_subscription_id).length;
+  const paidCount = subscriptions.filter((s: any) => s.status === "active" && isBilledSubscription(s)).length;
   const trialCount = subscriptions.filter((s: any) => s.status === "trialing").length;
   const collectRate = totalRevenue + pendingAmount > 0 ? Math.round((totalRevenue / (totalRevenue + pendingAmount)) * 100) : 100;
   const loading = subsLoading || invLoading;
