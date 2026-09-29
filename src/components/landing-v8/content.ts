@@ -111,13 +111,13 @@ export const FIGURES: [string, string][] = [
 ];
 
 /* 관련 검색어 — [검색어, 그 일을 다루는 공개 페이지] (2026-09-14 링크 복구)
-   ▸ 계산기·요금·세무사·블로그 글이 있는 주제는 그 페이지로, 나머지는 /features 의 해당 메뉴.
+   ▸ 계산기·요금·세무사 페이지가 있는 주제는 그 페이지로, 나머지는 /features 의 해당 메뉴.
    ▸ 메뉴 주소는 catalog 의 메뉴 key 로 만든다(같은 날 3단계 — 순번을 적던 것을 key 로. catalog 에 없는 key 면 첫 메뉴로 열린다). */
 export const TOPICS: [string, string][] = [
-  ["중소기업 ERP", "/blog/smb-erp-guide"],
+  ["중소기업 ERP", "/features"],
   ["올인원 ERP", "/features"],
   ["클라우드 ERP", "/features"],
-  ["회계 프로그램", "/blog/accounting-program-vs-all-in-one-erp"],
+  ["회계 프로그램", "/features"],
   ["부가세 신고", menuHref("finance", "tax-filing")],
   ["전자세금계산서 발행", menuHref("finance", "tax-invoices")],
   ["홈택스 연동", menuHref("finance", "collect")],

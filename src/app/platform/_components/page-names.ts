@@ -4,7 +4,7 @@ import { getRouteCrumb } from "@/lib/route-labels";
 // 공개 페이지 이름 — 앱 화면은 route-labels 가 이름을 준다
 const PUBLIC_NAMES: Record<string, string> = {
   "/": "첫 화면(랜딩)", "/pricing/": "요금제", "/features/": "기능 소개", "/contact/": "도입 상담", "/auth/": "로그인·회원가입",
-  "/blog/": "블로그 목록", "/tax-partners/": "세무 파트너", "/privacy/": "개인정보처리방침", "/terms/": "이용약관",
+  "/tax-partners/": "세무 파트너", "/privacy/": "개인정보처리방침", "/terms/": "이용약관",
   "/refund/": "환불규정", "/security/": "보안", "/unsubscribe/": "메일 수신거부", "/tools/vat-calculator/": "부가세 계산기",
 };
 
@@ -12,7 +12,6 @@ export function pageName(path: string): string {
   if (PUBLIC_NAMES[path]) return PUBLIC_NAMES[path];
   const crumb = getRouteCrumb(path.replace(/\/$/, "") || "/");
   if (crumb?.title) return crumb.group ? `${crumb.group} › ${crumb.title}` : crumb.title;
-  if (path.startsWith("/blog/")) return "블로그 글";
   if (path.startsWith("/industries/")) return "업종별 소개";
   return path;
 }

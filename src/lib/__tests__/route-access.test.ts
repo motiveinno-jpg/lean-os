@@ -25,6 +25,9 @@ describe("route-access", () => {
   it("없는 주소는 로그인으로 보내지 않는다(404)", () => {
     expect(requiresLogin("/nonexistent-xyz")).toBe(false);
     expect(requiresLogin("/nonexistent-xyz/")).toBe(false);
+    // 블로그는 없앴다 — 옛 주소는 공개도 로그인도 아닌 404
+    expect(isPublicRoute("/blog/smb-erp-guide/")).toBe(false);
+    expect(requiresLogin("/blog/")).toBe(false);
     expect(requiresLogin("/wp-admin/")).toBe(false);
   });
 
@@ -38,7 +41,7 @@ describe("route-access", () => {
   });
 
   it("공개 화면은 로그인 불필요", () => {
-    for (const p of ["/", "/pricing/", "/tools/vat-calculator/", "/blog/abc/", "/industries/ecommerce/", "/advisor/", "/platform/", "/quote/tok/", "/survey/tok/", "/status/"]) {
+    for (const p of ["/", "/pricing/", "/tools/vat-calculator/", "/industries/ecommerce/", "/advisor/", "/platform/", "/quote/tok/", "/survey/tok/", "/status/"]) {
       expect(isPublicRoute(p), p).toBe(true);
       expect(requiresLogin(p), p).toBe(false);
     }

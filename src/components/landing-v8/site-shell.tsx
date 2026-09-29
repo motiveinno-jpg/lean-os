@@ -4,7 +4,7 @@
 //
 //  ▸ 전에는 머리가 두 벌이었다: `/` 는 v8 머리(업종별·메뉴·일하는 방식…), 계산기·요금·기능 페이지는
 //    옛 LandingNav(OwnerView 로고·FAQ→/#faq 빈 링크). v8 머리에서는 요금·계산기·블로그로 가는 길이 없었다.
-//  ▸ 쓰는 곳: `/` · /features · /pricing · /tools 허브·계산기 6 · /tax-partners · /blog (2026-09-14 이관 1~5단계 끝).
+//  ▸ 쓰는 곳: `/` · /features · /pricing · /tools 허브·계산기 6 · /tax-partners (2026-09-14 이관 1~5단계 끝).
 //    /contact 는 일부러 덜어낸 머리를 따로 쓰고 바닥만 쓴다(결정 221). /demo 는 앱 모양이라 쓰지 않는다.
 //  ▸ 스타일은 landing-v8.css — 부모에 `.lp8` 이 있어야 한다.
 //  ▸ 랜딩 계열은 늘 밝게 — 옛 LandingNav 가 하던 useLandingLightTheme 를 여기서 이어받는다
@@ -22,7 +22,6 @@ type Open = null | "mega" | "tools" | "drawer";
 const LINKS = [
   { href: "/features", label: "기능" },
   { href: "/pricing", label: "요금" },
-  { href: "/blog", label: "블로그" },
   { href: "/tax-partners", label: "세무사 제휴" },
 ];
 
@@ -89,7 +88,6 @@ export function SiteHeader() {
               </div>
             )}
           </span>
-          <Link href="/blog" aria-current={on("/blog")}>블로그</Link>
           <Link href="/tax-partners" aria-current={on("/tax-partners")}>세무사 제휴</Link>
         </nav>
         <div className="nav-cta">
@@ -157,7 +155,6 @@ export function SiteFooter() {
           </div>
           <div>
             <h6>자료</h6>
-            <Link href="/blog">블로그</Link>
             <Link href="/status">서비스 상태</Link>
             <Link href="/security">보안</Link>
           </div>

@@ -47,9 +47,9 @@ export const PUBLIC_ROUTES = [
 // 토큰이 경로 조각으로 붙는 외부 공개 라우트 — 정확 일치로는 /quote/<token> 이 걸리지 않아
 //   비로그인 거래처가 로그인으로 튕겼다(2026-08-31 QA 실측 — 견적 외부 승인 실사용 0건의 원인).
 //   /sign·/share 는 토큰을 쿼리로 받아 정확 일치로 충분, 여기엔 경로형만 넣는다.
-//   /blog — GEO 콘텐츠 허브(2026-09-08) · /industries — 업종별 활용 페이지, 비로그인 공개(2026-09-16)
+//   /industries — 업종별 활용 페이지, 비로그인 공개(2026-09-16)
 //   /survey/ — 프로젝트 설문 응답(로그인 없는 외부 공개, 내용은 project-survey 엣지가 토큰으로 검증)
-export const PUBLIC_PREFIXES = ['/quote/', '/portal/', '/survey/', '/blog', '/industries'];
+export const PUBLIC_PREFIXES = ['/quote/', '/portal/', '/survey/', '/industries'];
 
 /** 로그인이 필요한 화면의 첫 주소 조각. `(app)` 묶음 전부 + 묶음 밖 로그인 화면 */
 export const APP_ROUTE_SEGMENTS = [
