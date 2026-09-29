@@ -9,7 +9,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { fetchPaged } from "@/lib/fetch-paged";
-import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfSeg, PfSkeleton, PfEmpty, PfBadge } from "../_components/pf/ui";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfSeg, PfSkeleton, PfEmpty, PfBadge, PfState } from "../_components/pf/ui";
 import { PfTrend, PfBars, PfFunnel } from "../_components/pf/charts";
 
 type Ev = { event: string; params: any; path: string | null; referrer: string | null; created_at: string; is_internal?: boolean };
@@ -55,7 +55,7 @@ export default function PlatformMarketingPage() {
     staleTime: 60_000,
   });
 
-  const { data: visits } = useQuery<Visits>({
+  const { data: visits, isLoading: visitsLoading, error: visitsError } = useQuery<Visits>({
     queryKey: ["platform-marketing-visits", days],
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc("operator_marketing_visits", { p_days: days });
@@ -114,7 +114,10 @@ export default function PlatformMarketingPage() {
   const pathBars = (visits?.paths || []).map((r) => ({ name: r.path, 방문자: r.visitors }));
   const ctaBars = view.ctas.map(([name, n]) => ({ name, 클릭: n }));
   const countOf = (key: string) => (key === "page_view" ? visits?.visitors ?? 0 : view.counts[key] || 0);
-  const funnelStages = FUNNEL.map((s) => ({ label: s.label, value: countOf(s.key) }));
+  // 단위: 1단계(방문자)는 사람 수(명), 2단계부터는 이벤트 건수(건) — 이벤트엔 사람 식별값이 없어 사람 수로 못 센다.
+  //   명과 건을 나눠 %로 쓰면 "전환율"처럼 읽혀 틀린다. 그래서 방문자→계산기는 '방문자 100명당 N건',
+  //   건→건 사이만 '이전 단계 건수의 N%'로 적고, 퍼널 그림은 같은 단위(건) 단계만 그린다.
+  const funnelStages = FUNNEL.filter((s) => s.key !== "page_view").map((s) => ({ label: s.label, value: countOf(s.key) }));
   const funnelHasData = funnelStages.some((s) => s.value > 0);
 
   return (
@@ -136,13 +139,25 @@ export default function PlatformMarketingPage() {
           <div className="pf-kpi-grid">
             {FUNNEL.map((s, i) => {
               const n = countOf(s.key);
-              const prev = i > 0 ? countOf(FUNNEL[i - 1].key) : 0;
-              const rate = i > 0 && prev > 0 ? Math.round((n / prev) * 1000) / 10 : null;
+              const isVisitors = s.key === "page_view";
+              const prevKey = i > 0 ? FUNNEL[i - 1].key : null;
+              const prev = prevKey ? countOf(prevKey) : 0;
+              const rate = prevKey && prev > 0 ? Math.round((n / prev) * 1000) / 10 : null;
+              // 이전 단계가 방문자(명)면 비율이 아니라 '방문자 100명당 건수'
+              const rateText = rate === null ? null : prevKey === "page_view" ? `방문자 100명당 ${rate}건` : `이전 단계 건수의 ${rate}%`;
+              const visitorsUnknown = isVisitors && (visitsLoading || !!visitsError);
               return (
                 <PfCard key={s.key} i={i + 1} className="pf-kpi-tile">
-                  <PfKpi label={s.label} value={n} unit={s.key === "page_view" ? "명" : "건"} accent={i === 0} />
-                  <div className="text-[10.5px] text-[var(--text-dim)] mt-1.5">{s.hint}</div>
-                  {rate !== null && <div className="mt-1.5"><PfBadge tone={rate >= 10 ? "ok" : rate > 0 ? "warn" : "muted"}>이전 단계의 {rate}%</PfBadge></div>}
+                  {visitorsUnknown ? (
+                    <div>
+                      <span className="pf-kpi-label">{s.label}</span>
+                      <div className="pf-kpi-value mono-number mt-1 text-[var(--text-dim)]">—</div>
+                    </div>
+                  ) : (
+                    <PfKpi label={s.label} value={n} unit={isVisitors ? "명" : "건"} accent={i === 0} />
+                  )}
+                  <div className="text-[10.5px] text-[var(--text-dim)] mt-1.5">{visitsError && isVisitors ? "방문자 수를 불러오지 못했습니다" : s.hint}</div>
+                  {rateText !== null && !(prevKey === "page_view" && (visitsLoading || visitsError)) && <div className="mt-1.5"><PfBadge tone={rate! >= 10 ? "ok" : rate! > 0 ? "warn" : "muted"}>{rateText}</PfBadge></div>}
                 </PfCard>
               );
             })}
@@ -151,7 +166,7 @@ export default function PlatformMarketingPage() {
           {/* 퍼널 그림 + 일별 추이 */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
             <PfCard i={6} className="lg:col-span-2">
-              <PfCardHead title="유입 퍼널" sub="첫 단계(방문) 대비 각 단계에 도달한 비율" />
+              <PfCardHead title="유입 퍼널" sub="계산기 사용부터 결제 시작까지 이벤트 건수 · 첫 단계 대비 비율 · 한 사람이 여러 번 누르면 여러 건 · 방문자(명)는 단위가 달라 넣지 않았습니다" />
               <PfCardBody>
                 {funnelHasData ? <PfFunnel stages={funnelStages} vertical height={260} /> : <PfEmpty>아직 기록이 없습니다</PfEmpty>}
               </PfCardBody>
@@ -186,7 +201,7 @@ export default function PlatformMarketingPage() {
             <PfCard i={9}>
               <PfCardHead title="유입 출처 (외부)" sub="어느 사이트를 거쳐 들어왔는지 · 직접 접속·앱 내 이동은 제외" />
               <PfCardBody>
-                {refBars.length === 0 ? <PfEmpty>외부 유입 기록이 없습니다. 직접 접속·앱 내 이동뿐</PfEmpty> : (
+                {visitsLoading || visitsError ? <PfState loading={visitsLoading} error={visitsError} pad={false} skeletonRows={3} /> : refBars.length === 0 ? <PfEmpty>외부 유입 기록이 없습니다. 직접 접속·앱 내 이동뿐</PfEmpty> : (
                   <PfBars data={refBars} horizontal height={Math.max(140, refBars.length * 36)} series={[{ key: "방문자", label: "방문자" }]} revealKey={String(days)} />
                 )}
               </PfCardBody>
@@ -210,7 +225,7 @@ export default function PlatformMarketingPage() {
           <PfCard i={10}>
             <PfCardHead title="많이 본 공개 페이지" sub="로그인 없이 볼 수 있는 페이지 중 방문자 상위 8개 · 머문 시간은 매출 › 페이지 체류" />
             <PfCardBody>
-              {pathBars.length === 0 ? <PfEmpty>아직 기록이 없습니다</PfEmpty> : (
+              {visitsLoading || visitsError ? <PfState loading={visitsLoading} error={visitsError} pad={false} skeletonRows={3} /> : pathBars.length === 0 ? <PfEmpty>아직 기록이 없습니다</PfEmpty> : (
                 <PfBars data={pathBars} horizontal height={Math.max(160, pathBars.length * 36)} series={[{ key: "방문자", label: "방문자" }]} revealKey={String(days)} />
               )}
             </PfCardBody>

@@ -11,7 +11,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { appConfirm } from "@/components/global-confirm";
 import { kstDateStr, kstDateTime } from "@/lib/kst";
-import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfEmpty, PfSkeleton } from "@/app/platform/_components/pf/ui";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfEmpty, PfSkeleton, PfState } from "@/app/platform/_components/pf/ui";
 
 const db = supabase;
 
@@ -94,7 +94,7 @@ export default function PlatformEmailCampaignsPage() {
 
   const emails = useMemo(() => extractEmails(listText), [listText]);
 
-  const { data: campaigns = [], isLoading } = useQuery<Campaign[]>({
+  const { data: campaigns = [], isLoading, error: loadError, refetch } = useQuery<Campaign[]>({
     queryKey: ["op-email-campaigns"],
     queryFn: async () => {
       //   생성 타입에 아직 없는 RPC(마이그 20260916190000) — 재생성 전까지 넓게 부른다
@@ -246,7 +246,7 @@ export default function PlatformEmailCampaignsPage() {
       <PfCard i={5} hover={false}>
         <PfCardHead title="발송 이력" sub={`${campaigns.length}건 · 도착·반송·스팸신고는 Resend 알림이 오는 대로 채워집니다`} />
         <PfCardBody>
-          {isLoading ? <PfSkeleton rows={3} /> : campaigns.length === 0 ? <PfEmpty>아직 보낸 메일이 없습니다.</PfEmpty> : (
+          {isLoading || loadError ? <PfState loading={isLoading} error={loadError} onRetry={() => refetch()} skeletonRows={3} pad={false} /> : campaigns.length === 0 ? <PfEmpty>아직 보낸 메일이 없습니다.</PfEmpty> : (
             <div className="overflow-x-auto">
               <table className="pf-table">
                 <thead>
@@ -312,7 +312,7 @@ function RecipientPanel({ scope, onClose }: { scope: DetailScope; onClose: () =>
     if (error) throw error;
     return (data || []) as Recipient[];
   };
-  const { data: rows = [], isLoading } = useQuery<Recipient[]>({
+  const { data: rows = [], isLoading, error: rowsError, refetch: refetchRows } = useQuery<Recipient[]>({
     queryKey: ["op-email-recipients", scope.campaign?.id ?? "all", scope.kind, page],
     queryFn: () => fetchPage(page),
   });
@@ -353,7 +353,7 @@ function RecipientPanel({ scope, onClose }: { scope: DetailScope; onClose: () =>
       {(scope.kind === "bounced" || scope.kind === "complained") && (
         <p className="text-xs text-[var(--text-dim)] mb-2">이 주소들은 수신거부 목록에 들어가 다음 발송부터 자동으로 빠집니다.</p>
       )}
-      {isLoading ? <PfSkeleton rows={3} /> : rows.length === 0 ? <PfEmpty>해당 주소가 없습니다.</PfEmpty> : (
+      {isLoading || rowsError ? <PfState loading={isLoading} error={rowsError} onRetry={() => refetchRows()} skeletonRows={3} pad={false} /> : rows.length === 0 ? <PfEmpty>해당 주소가 없습니다.</PfEmpty> : (
         <div className="overflow-auto max-h-[420px]">
           <table className="pf-table">
             <thead>

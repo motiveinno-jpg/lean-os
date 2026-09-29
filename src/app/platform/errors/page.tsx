@@ -14,11 +14,14 @@ import {
   type ErrorExplanation,
   type ErrorSeverity,
 } from "@/lib/operator-error-explain";
-import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSkeleton, PfEmpty, PfSeg } from "../_components/pf/ui";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfEmpty, PfSeg, PfState } from "../_components/pf/ui";
+import { kstDayStartMs, hourStartMs, kstDayLabel, kstHourLabel } from "../_components/kst-bucket";
 import { PfDonut, PfTrend } from "../_components/pf/charts";
 import { appConfirm } from "@/components/global-confirm";
 
 const db = supabase;
+// 한 번에 불러오는 최근 오류 수(함수 상한 500 안)
+const ERROR_LIMIT = 200;
 
 // 심각도 → 배지 톤 (SEVERITY_TONE 의 라벨은 그대로 쓴다)
 const SEV_BADGE: Record<ErrorSeverity, "ok" | "warn" | "danger" | "muted"> = {
@@ -69,16 +72,27 @@ export default function PlatformErrorsPage() {
   const [filter, setFilter] = useState<"all" | "unresolved" | "critical">("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const { data: errors = [], isLoading } = useQuery<ErrorRow[]>({
+  const { data: errors = [], isLoading, error: loadError, refetch } = useQuery<ErrorRow[]>({
     queryKey: ["op-errors", hours],
     queryFn: async () => {
       const { data, error } = await db.rpc("operator_recent_errors", {
-        p_limit: 200,
+        p_limit: ERROR_LIMIT,
         p_hours: hours,
       });
       if (error) throw error;
       return (data || []) as ErrorRow[];
     },
+  });
+  // 목록은 최근 ERROR_LIMIT 건만 온다 — 기간 안 전체 건수·미해결 수는 따로 센다
+  const { data: counts } = useQuery<{ total: number; unresolved: number } | null>({
+    queryKey: ["op-errors-count", hours],
+    queryFn: async () => {
+      const { data, error } = await (db.rpc as any)("operator_recent_error_counts", { p_hours: hours });
+      if (error) throw error;
+      const r = (data || [])[0];
+      return r ? { total: Number(r.total), unresolved: Number(r.unresolved) } : null;
+    },
+    retry: 1,
   });
 
   const resolve = useMutation({
@@ -86,7 +100,7 @@ export default function PlatformErrorsPage() {
       const { error } = await db.rpc("operator_resolve_error", { p_id: id, p_resolved: resolved });
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["op-errors"] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["op-errors"] }); qc.invalidateQueries({ queryKey: ["op-errors-count"] }); },
   });
 
   // 일괄 해결 (고쳐 놓은 건이 대시보드에 계속 쌓인다). 한 건씩만 누를 수
@@ -98,7 +112,7 @@ export default function PlatformErrorsPage() {
       const { error } = await (db as any).rpc("operator_resolve_errors", { p_ids: ids, p_resolved: resolved });
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["op-errors"] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["op-errors"] }); qc.invalidateQueries({ queryKey: ["op-errors-count"] }); },
   });
 
   const unresolvedIds = useMemo(() => errors.filter((e) => !e.resolved).map((e) => e.id), [errors]);
@@ -139,18 +153,20 @@ export default function PlatformErrorsPage() {
   // 시간 추이 — 24h 이하면 시간 단위, 그 이상은 하루 단위 버킷
   const trend = useMemo(() => {
     if (errors.length === 0) return [] as { date: Date; count: number; unresolved: number }[];
+    // 하루 단위는 KST 자정으로 끊는다(UTC 로 끊으면 KST 00~09시 오류가 전날 막대에 들어간다)
     const byDay = hours > 48;
     const bucketMs = byDay ? 86_400_000 : 3_600_000;
+    const bucketOf = (t: number) => (byDay ? kstDayStartMs(t) : hourStartMs(t)) as number;
     const now = Date.now();
     const start = now - hours * 3_600_000;
     const buckets = new Map<number, { count: number; unresolved: number }>();
     const nBuckets = Math.ceil((hours * 3_600_000) / bucketMs);
     for (let i = 0; i <= nBuckets; i++) {
-      const t = Math.floor((start + i * bucketMs) / bucketMs) * bucketMs;
+      const t = bucketOf(start + i * bucketMs);
       buckets.set(t, { count: 0, unresolved: 0 });
     }
     for (const e of errors) {
-      const t = Math.floor(new Date(e.created_at).getTime() / bucketMs) * bucketMs;
+      const t = bucketOf(new Date(e.created_at).getTime());
       const b = buckets.get(t) ?? { count: 0, unresolved: 0 };
       b.count += 1;
       if (!e.resolved) b.unresolved += 1;
@@ -158,11 +174,12 @@ export default function PlatformErrorsPage() {
     }
     return [...buckets.entries()].sort((a, b) => a[0] - b[0]).map(([t, b]) => ({ date: new Date(t), ...b }));
   }, [errors, hours]);
-  const trendLabel = hours > 48
-    ? (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`
-    : (d: Date) => `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}시`;
+  const trendLabel = hours > 48 ? (d: Date) => kstDayLabel(d) : (d: Date) => kstHourLabel(d);
 
   const hoursLabel = hours === 24 ? "최근 24시간" : hours === 72 ? "최근 3일" : "최근 7일";
+  // 상한에 닿았으면 아래 종류·그래프·일괄 해결은 불러온 최근 건만 기준이다 — 그렇다고 적는다
+  const truncated = counts ? counts.total > errors.length : errors.length >= ERROR_LIMIT;
+  const loadedNote = truncated ? `최근 ${errors.length.toLocaleString()}건만 불러옴` : `${errors.length.toLocaleString()}건`;
 
   return (
     <PfPage>
@@ -181,13 +198,13 @@ export default function PlatformErrorsPage() {
               type="button"
               onClick={async () => {
                 if (unresolvedIds.length === 0) return;
-                if (!(await appConfirm(`미해결 ${unresolvedIds.length}건을 모두 해결로 표시할까요?\n(다시 발생하면 새 건으로 올라옵니다)`, { confirmLabel: "모두 해결" }))) return;
+                if (!(await appConfirm(`${truncated ? "불러온 최근 기록 중 " : ""}미해결 ${unresolvedIds.length}건을 모두 해결로 표시할까요?\n(다시 발생하면 새 건으로 올라옵니다)`, { confirmLabel: "모두 해결" }))) return;
                 resolveMany.mutate({ ids: unresolvedIds, resolved: true });
               }}
               disabled={unresolvedIds.length === 0 || resolveMany.isPending}
               className="pf-btn pf-btn-primary disabled:opacity-40"
             >
-              ✓ 미해결 {unresolvedIds.length}건 모두 해결
+              ✓ {truncated ? "불러온 " : ""}미해결 {unresolvedIds.length}건 모두 해결
             </button>
           </>
         }
@@ -196,10 +213,14 @@ export default function PlatformErrorsPage() {
 
       {/* 한눈에 — KPI 타일 */}
       <div className="pf-kpi-grid">
-        <PfCard i={2} className="pf-kpi-tile"><PfKpi label={`${hoursLabel} 오류`} value={errors.length} unit="건" /></PfCard>
-        <PfCard i={3} className="pf-kpi-tile"><PfKpi label="미해결" value={unresolvedIds.length} unit="건" accent={unresolvedIds.length > 0} /></PfCard>
-        <PfCard i={4} className="pf-kpi-tile"><PfKpi label="심각(높음 이상)" value={criticalCount} unit="건" /></PfCard>
-        <PfCard i={5} className="pf-kpi-tile"><PfKpi label="오류 종류" value={grouped.length} unit="종" /></PfCard>
+        {/* 전체·미해결은 건수 함수로 기간 전체를 센다. 심각·종류는 메시지를 해석해야 해서 불러온 건 기준 */}
+        <PfCard i={2} className="pf-kpi-tile">
+          <PfKpi label={`${hoursLabel} 오류`} value={counts?.total ?? errors.length} unit={!counts && truncated ? "건+" : "건"} />
+          {truncated && <div className="text-[10.5px] text-[var(--text-dim)] mt-1">목록·그래프는 {loadedNote}</div>}
+        </PfCard>
+        <PfCard i={3} className="pf-kpi-tile"><PfKpi label="미해결" value={counts?.unresolved ?? unresolvedIds.length} unit={!counts && truncated ? "건+" : "건"} accent={(counts?.unresolved ?? unresolvedIds.length) > 0} /></PfCard>
+        <PfCard i={4} className="pf-kpi-tile"><PfKpi label={truncated ? "심각(높음 이상) · 불러온 건" : "심각(높음 이상)"} value={criticalCount} unit="건" /></PfCard>
+        <PfCard i={5} className="pf-kpi-tile"><PfKpi label={truncated ? "오류 종류 · 불러온 건" : "오류 종류"} value={grouped.length} unit="종" /></PfCard>
       </div>
 
       {/* 시각화 — 심각도 구성 · 시간 추이 */}
@@ -238,14 +259,13 @@ export default function PlatformErrorsPage() {
           onChange={setFilter}
           options={[{ value: "all", label: "전체" }, { value: "unresolved", label: "미해결" }, { value: "critical", label: "심각" }]}
         />
-        <span className="text-[11px] text-[var(--text-dim)]">{hoursLabel} · {errors.length}건 · 종류별로 묶어 {grouped.length}종</span>
+        <span className="text-[11px] text-[var(--text-dim)]">{hoursLabel} · {counts && truncated ? `전체 ${counts.total.toLocaleString()}건 중 ` : ""}{loadedNote} · 종류별로 묶어 {grouped.length}종</span>
       </div>
 
-      {isLoading && (
-        <PfCard i={9}><PfCardBody className="pt-5"><PfSkeleton rows={4} h={16} /></PfCardBody></PfCard>
-      )}
-      {!isLoading && errors.length === 0 && (
-        <PfCard i={9}><PfEmpty ok>이 기간에 오류가 없습니다. 잘 돌아가고 있어요 ✓</PfEmpty></PfCard>
+      {(isLoading || loadError || errors.length === 0) && (
+        <PfCard i={9}>
+          <PfState loading={isLoading} error={loadError} onRetry={() => refetch()} empty={errors.length === 0} ok emptyText="이 기간에 오류가 없습니다. 잘 돌아가고 있어요 ✓" />
+        </PfCard>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

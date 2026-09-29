@@ -10,6 +10,7 @@
 import React from "react";
 import Link from "next/link";
 import NumberFlow, { type Format as NumberFlowFormat } from "@number-flow/react";
+import { friendlyError } from "@/lib/friendly-error";
 
 type Cls = { className?: string };
 
@@ -134,6 +135,39 @@ export function PfSkeleton({ h = 14, w = "100%", className = "", rows = 1 }: { h
 
 export function PfEmpty({ children, ok = false }: React.PropsWithChildren<{ ok?: boolean }>) {
   return <div className={`pf-empty ${ok ? "pf-empty-ok" : ""}`}>{children}</div>;
+}
+
+/**
+ * 목록·카드 본문의 네 가지 상태 — 불러오는 중 / 불러오지 못함 / 비어 있음 / 내용 — 를 한 곳에서 가른다.
+ *   조회가 실패했거나 아직 오는 중인데 빈 배열 기본값 때문에 "없습니다 ✓"가 뜨면 운영자는 문제없다고 믿는다.
+ *   그래서 빈 상태 문구(와 ✓)는 조회가 성공했을 때만 보인다. error 는 react-query 의 error 를 그대로 넘긴다.
+ */
+export function PfState({ loading, error, empty, emptyText, ok = false, onRetry, skeletonRows = 4, skeletonH = 16, pad = true, children }: React.PropsWithChildren<{
+  loading?: boolean;
+  error?: unknown;
+  empty?: boolean;
+  emptyText?: React.ReactNode;
+  ok?: boolean;
+  onRetry?: () => void;
+  skeletonRows?: number;
+  skeletonH?: number;
+  pad?: boolean;
+}>) {
+  if (error) return <PfLoadError error={error} onRetry={onRetry} />;
+  if (loading) return <div className={pad ? "px-5 py-4" : ""}><PfSkeleton rows={skeletonRows} h={skeletonH} /></div>;
+  if (empty) return <PfEmpty ok={ok}>{emptyText}</PfEmpty>;
+  return <>{children}</>;
+}
+
+/** 조회 실패 안내 — 숫자·목록을 믿으면 안 된다는 걸 분명히 하고, 다시 불러오기를 준다. */
+export function PfLoadError({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
+  return (
+    <div className="px-5 py-6 text-center text-[12px]">
+      <div className="font-semibold text-[var(--danger)]">불러오지 못했습니다 — 지금 보이는 숫자는 실제와 다를 수 있습니다.</div>
+      <div className="mt-1 text-[11px] text-[var(--text-dim)] break-all">{friendlyError(error)}</div>
+      {onRetry && <button type="button" onClick={onRetry} className="pf-btn pf-btn-sm mt-3">다시 불러오기</button>}
+    </div>
+  );
 }
 
 export function PfRows({ children }: React.PropsWithChildren) {

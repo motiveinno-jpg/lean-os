@@ -1,7 +1,6 @@
 "use client";
 import { subscriptionMonthlyFee, isBilledSubscription } from "@/lib/subscription-fee";
 import { kstDateStr } from "@/lib/kst";
-import { logRead } from "@/lib/log-read";
 import { fetchPaged } from "@/lib/fetch-paged";
 
 import { useQuery } from "@tanstack/react-query";
@@ -9,7 +8,8 @@ import { supabase } from "@/lib/supabase";
 import { useMemo, useState } from "react";
 import { OpsSearch, OpsCompanySelect, OpsExportButton, exportCsv } from "../_components/ops-kit";
 import { dropTestCompanies } from "../_components/test-companies";
-import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpiKrw, PfKpi, PfBadge, PfRows, PfRow, PfEmpty, PfSkeleton } from "../_components/pf/ui";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpiKrw, PfKpi, PfBadge, PfRows, PfRow, PfSkeleton, PfState, PfLoadError } from "../_components/pf/ui";
+import { kstMonthKey, kstMonthsBack } from "../_components/kst-bucket";
 import { PfBars, PfDonut, PfGauge, PfTrend }  from "../_components/pf/charts";
 
 // 운영자 › 수익 · v2 디자인 (2026-09-03). 데이터 조회·MRR 계산은 종전과 동일, 표시만 바꿨다.
@@ -43,17 +43,17 @@ const ISSUE_KO: Record<BillingIssue["kind"], { label: string; tone: "danger" | "
 export default function RevenuePage() {
   const [search, setSearch] = useState("");
   const [companyFilter, setCompanyFilter] = useState("all");
-  const { data: subscriptions = [], isLoading: subsLoading } = useQuery({
+  const { data: subscriptions = [], isLoading: subsLoading, error: subsError, refetch: refetchSubs } = useQuery({
     queryKey: ["p-subs-rev"],
     queryFn: async () => {
-      const data = logRead('revenue/page:data', await db.from("subscriptions").select("*, subscription_plans(*), companies(name)").order("created_at", { ascending: false }));
+      const data = await fetchPaged<any>("p-subs-rev", () => db.from("subscriptions").select("*, subscription_plans(*), companies(name)").order("created_at", { ascending: false }).order("id"), 100000, { strict: true });
       // 테스트 회사(자동 QA)의 구독·청구는 매출 집계에서 뺀다
       return dropTestCompanies(data);
     },
     refetchInterval: 60_000,
   });
 
-  const { data: billingIssues = [], isLoading: issuesLoading } = useQuery<BillingIssue[]>({
+  const { data: billingIssues = [], isLoading: issuesLoading, error: issuesError, refetch: refetchIssues } = useQuery<BillingIssue[]>({
     queryKey: ["p-billing-issues"],
     queryFn: async () => {
       //   생성 타입에 아직 없는 RPC(마이그 20260928240000)
@@ -63,10 +63,10 @@ export default function RevenuePage() {
     },
   });
 
-  const { data: invoices = [], isLoading: invLoading } = useQuery({
+  const { data: invoices = [], isLoading: invLoading, error: invError, refetch: refetchInv } = useQuery({
     queryKey: ["p-invoices-rev"],
     queryFn: async () => {
-      const data = await fetchPaged<any>("p-invoices-rev", () => db.from("invoices").select("*, companies(name)").order("created_at", { ascending: false }), 100000);
+      const data = await fetchPaged<any>("p-invoices-rev", () => db.from("invoices").select("*, companies(name)").order("created_at", { ascending: false }).order("id"), 100000, { strict: true });
       return dropTestCompanies(data);
     },
     refetchInterval: 60_000,
@@ -111,16 +111,15 @@ export default function RevenuePage() {
   // ── 시각화용 파생값 (이미 불러온 데이터에서만 계산, 추가 조회 없음) ──
   // 월별 결제완료 매출 — 최근 12개월, 빈 달 0 포함
   const monthlyRevenue = useMemo(() => {
-    const now = new Date();
+    // 월 경계는 KST — UTC 로 자르면 매달 1일 00~09시 청구가 전달로 간다
     const months: { key: string; name: string; 결제완료: number; 미수금: number }[] = [];
     for (let i = 11; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      months.push({ key, name: `${d.getMonth() + 1}월`, 결제완료: 0, 미수금: 0 });
+      const { key, name } = kstMonthsBack(i);
+      months.push({ key, name, 결제완료: 0, 미수금: 0 });
     }
     const idx = new Map(months.map((m, i) => [m.key, i]));
     invoices.forEach((inv: any) => {
-      const k = String(inv.created_at || "").slice(0, 7);
+      const k = kstMonthKey(inv.created_at);
       const i = idx.get(k);
       if (i == null) return;
       if (inv.status === "paid") months[i].결제완료 += inv.total_amount || 0;
@@ -156,6 +155,8 @@ export default function RevenuePage() {
   const trialCount = subscriptions.filter((s: any) => s.status === "trialing").length;
   const collectRate = totalRevenue + pendingAmount > 0 ? Math.round((totalRevenue / (totalRevenue + pendingAmount)) * 100) : 100;
   const loading = subsLoading || invLoading;
+  const loadError = subsError || invError;
+  const retryAll = () => { refetchSubs(); refetchInv(); };
 
   return (
     <PfPage>
@@ -197,7 +198,7 @@ export default function RevenuePage() {
         <PfCard i={4} className="pf-kpi-tile">
           <PfKpiKrw label="미수금" value={pendingAmount} large />
           <div className="text-[10.5px] text-[var(--text-dim)] mt-2">
-            {pendingInvoices.length > 0 ? <PfBadge tone="warn">대기 {pendingInvoices.length}건</PfBadge> : <PfBadge tone="ok">밀린 결제 없음</PfBadge>}
+            {invLoading || invError ? <PfBadge tone="muted">{invError ? "불러오지 못함" : "불러오는 중"}</PfBadge> : pendingInvoices.length > 0 ? <PfBadge tone="warn">대기 {pendingInvoices.length}건</PfBadge> : <PfBadge tone="ok">밀린 결제 없음</PfBadge>}
           </div>
         </PfCard>
       </div>
@@ -206,7 +207,7 @@ export default function RevenuePage() {
       <PfCard i={5} hover={false}>
         <PfCardHead title="결제 실패·미납" sub="최근 90일 · 토스·Stripe 결제 실패, 지금 미납인 구독, 고객 결제 메일 발송 실패" />
         <PfCardBody>
-          {issuesLoading ? <PfSkeleton rows={2} /> : billingIssues.length === 0 ? <PfEmpty ok>결제 실패·미납이 없습니다.</PfEmpty> : (
+          <PfState loading={issuesLoading} error={issuesError} onRetry={() => refetchIssues()} empty={billingIssues.length === 0} ok emptyText="결제 실패·미납이 없습니다." skeletonRows={2} pad={false}>
             <div className="overflow-x-auto">
               <table className="pf-table">
                 <thead><tr><th>시각</th><th>구분</th><th>회사</th><th>결제</th><th className="text-right">금액</th><th>내용</th></tr></thead>
@@ -224,9 +225,13 @@ export default function RevenuePage() {
                 </tbody>
               </table>
             </div>
-          )}
+          </PfState>
         </PfCardBody>
       </PfCard>
+
+      {loadError && (
+        <PfCard hover={false}><PfLoadError error={loadError} onRetry={retryAll} /></PfCard>
+      )}
 
       {/* 시각화 — 월별 매출 · 요금제 구성 · 수금률 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -284,11 +289,7 @@ export default function RevenuePage() {
       {/* 결제 내역 목록 */}
       <PfCard i={9} hover={false}>
         <PfCardHead title="전체 결제 내역" sub={`${shownInvoices.length.toLocaleString()}건 · 회사별 보기와 검색이 적용된 결과`} />
-        {invLoading ? (
-          <PfCardBody><PfSkeleton rows={5} /></PfCardBody>
-        ) : shownInvoices.length === 0 ? (
-          <PfEmpty>결제 내역이 없습니다</PfEmpty>
-        ) : (
+        <PfState loading={invLoading} error={invError} onRetry={() => refetchInv()} empty={shownInvoices.length === 0} emptyText={search || companyFilter !== "all" ? "조건에 맞는 결제 내역이 없습니다" : "결제 내역이 없습니다"} skeletonRows={5}>
           <PfRows>
             {shownInvoices.map((inv: any) => {
               const st = STATUS_KO[inv.status] || { label: inv.status || "-", tone: "muted" as const };
@@ -307,7 +308,7 @@ export default function RevenuePage() {
               );
             })}
           </PfRows>
-        )}
+        </PfState>
       </PfCard>
     </PfPage>
   );

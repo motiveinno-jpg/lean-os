@@ -6,7 +6,7 @@ import { useState } from "react";
 import { DateTimeField } from "@/components/datetime-field";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSkeleton, PfEmpty } from "../_components/pf/ui";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSkeleton, PfEmpty, PfState } from "../_components/pf/ui";
 
 const db = supabase;
 
@@ -65,7 +65,7 @@ export default function PlatformIncidentsPage() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState<Partial<Incident> | null>(null);
 
-  const { data: items = [], isLoading } = useQuery<Incident[]>({
+  const { data: items = [], isLoading, error: loadError, refetch } = useQuery<Incident[]>({
     queryKey: ["op-incidents"],
     queryFn: async () => {
       const { data, error } = await db.from("operator_incidents").select("*").order("occurred_at", { ascending: false });
@@ -136,10 +136,10 @@ export default function PlatformIncidentsPage() {
         />
       )}
 
-      {isLoading && <PfCard i={6}><PfCardBody className="pt-5"><PfSkeleton rows={4} h={16} /></PfCardBody></PfCard>}
-
-      {!isLoading && items.length === 0 && (
-        <PfCard i={6}><PfEmpty ok>기록된 사고가 없습니다. 오른쪽 위 버튼으로 첫 사고를 기록하세요.</PfEmpty></PfCard>
+      {(isLoading || loadError || items.length === 0) && (
+        <PfCard i={6}>
+          <PfState loading={isLoading} error={loadError} onRetry={() => refetch()} empty={items.length === 0} ok emptyText="기록된 사고가 없습니다. 오른쪽 위 버튼으로 첫 사고를 기록하세요." />
+        </PfCard>
       )}
 
       <div className="space-y-3">

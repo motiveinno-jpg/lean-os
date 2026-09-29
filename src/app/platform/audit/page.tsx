@@ -5,10 +5,12 @@ import { SystemTabs } from "../_components/system-tabs";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSeg, PfSkeleton, PfEmpty } from "../_components/pf/ui";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSeg, PfState } from "../_components/pf/ui";
 import { PfBars } from "../_components/pf/charts";
 
 const db = supabase;
+// 한 번에 불러오는 최근 기록 수(함수 상한 1,000 안)
+const ACTION_LIMIT = 500;
 
 type Action = {
   id: string;
@@ -59,14 +61,25 @@ export default function PlatformAuditPage() {
   const [hours, setHours] = useState<number>(168);
   const [actionFilter, setActionFilter] = useState<string>("all");
 
-  const { data: items = [], isLoading } = useQuery<Action[]>({
+  const { data: items = [], isLoading, error: loadError, refetch } = useQuery<Action[]>({
     queryKey: ["op-actions", hours],
     queryFn: async () => {
-      const { data, error } = await db.rpc("operator_list_actions", { p_limit: 500, p_hours: hours });
+      const { data, error } = await db.rpc("operator_list_actions", { p_limit: ACTION_LIMIT, p_hours: hours });
       if (error) throw error;
       return (data || []) as Action[];
     },
   });
+  // 목록은 최근 ACTION_LIMIT 건만 온다 — 기간 안 전체 건수는 따로 센다
+  const { data: totalCount = null } = useQuery<number | null>({
+    queryKey: ["op-actions-count", hours],
+    queryFn: async () => {
+      const { data, error } = await (db.rpc as any)("operator_action_count", { p_hours: hours });
+      if (error) throw error;
+      return data == null ? null : Number(data);
+    },
+    retry: 1,
+  });
+  const truncated = totalCount != null ? totalCount > items.length : items.length >= ACTION_LIMIT;
 
   // 행동별 건수 (막대 차트 + 필터 칩)
   const byAction = useMemo(() => {
@@ -96,10 +109,13 @@ export default function PlatformAuditPage() {
       <SystemTabs />
 
       <div className="pf-kpi-grid">
-        <PfCard i={2} className="pf-kpi-tile"><PfKpi label={`${hoursLabel} 기록`} value={items.length} unit="건" /></PfCard>
-        <PfCard i={3} className="pf-kpi-tile"><PfKpi label="계정·구독 변경" value={sensitiveCount} unit="건" accent={sensitiveCount > 0} /></PfCard>
-        <PfCard i={4} className="pf-kpi-tile"><PfKpi label="활동한 운영자" value={operators} unit="명" /></PfCard>
-        <PfCard i={5} className="pf-kpi-tile"><PfKpi label="행동 종류" value={byAction.length} unit="가지" /></PfCard>
+        <PfCard i={2} className="pf-kpi-tile">
+          <PfKpi label={`${hoursLabel} 기록`} value={totalCount ?? items.length} unit={totalCount == null && truncated ? "건+" : "건"} />
+          {truncated && <div className="text-[10.5px] text-[var(--text-dim)] mt-1">아래 숫자·목록은 최근 {items.length.toLocaleString()}건 기준</div>}
+        </PfCard>
+        <PfCard i={3} className="pf-kpi-tile"><PfKpi label="계정·구독 변경" value={sensitiveCount} unit={truncated ? "건+" : "건"} accent={sensitiveCount > 0} /></PfCard>
+        <PfCard i={4} className="pf-kpi-tile"><PfKpi label="활동한 운영자" value={operators} unit={truncated ? "명+" : "명"} /></PfCard>
+        <PfCard i={5} className="pf-kpi-tile"><PfKpi label="행동 종류" value={byAction.length} unit={truncated ? "가지+" : "가지"} /></PfCard>
       </div>
 
       {byAction.length > 0 && (
@@ -117,20 +133,26 @@ export default function PlatformAuditPage() {
         </PfCard>
       )}
 
-      {isLoading && <PfCard i={7}><PfCardBody className="pt-5"><PfSkeleton rows={5} h={14} /></PfCardBody></PfCard>}
-
-      {!isLoading && items.length === 0 && (
+      {(isLoading || loadError || items.length === 0) && (
         <PfCard i={7}>
-          <PfEmpty>
-            이 기간에 운영자 기록이 없습니다.
-            <div className="mt-2 text-[11px]">회사 상세로 들어가거나 업종을 분류하거나 오류를 해결하면 자동으로 쌓입니다.</div>
-          </PfEmpty>
+          <PfState
+            loading={isLoading}
+            error={loadError}
+            onRetry={() => refetch()}
+            empty={items.length === 0}
+            skeletonRows={5}
+            skeletonH={14}
+            emptyText={<>
+              이 기간에 운영자 기록이 없습니다.
+              <div className="mt-2 text-[11px]">회사 상세로 들어가거나 업종을 분류하거나 오류를 해결하면 자동으로 쌓입니다.</div>
+            </>}
+          />
         </PfCard>
       )}
 
-      {!isLoading && items.length > 0 && (
+      {!isLoading && !loadError && items.length > 0 && (
         <PfCard i={7} hover={false}>
-          <PfCardHead title="기록" sub={`${shown.length}건 · 최신순`} />
+          <PfCardHead title="기록" sub={`${shown.length}건 · 최신순${truncated ? ` · ${totalCount != null ? `전체 ${totalCount.toLocaleString()}건 중 ` : ""}최근 ${items.length.toLocaleString()}건만 불러옴` : ""}`} />
           <div className="pf-table-wrap">
             <table className="pf-table">
               <thead>

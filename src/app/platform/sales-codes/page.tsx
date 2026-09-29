@@ -20,7 +20,7 @@ import {
   type SalesCodeSignup,
 } from "@/lib/sales-codes";
 import { kstDateStr } from "@/lib/kst";
-import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfSeg, PfSkeleton, PfEmpty, PfBadge, PfBar } from "../_components/pf/ui";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfSeg, PfSkeleton, PfEmpty, PfBadge, PfBar, PfState } from "../_components/pf/ui";
 import { PfBars } from "../_components/pf/charts";
 
 const BASE_TRIAL_DAYS = 14;
@@ -48,12 +48,12 @@ export default function SalesCodesPage() {
   const [codeFilter, setCodeFilter] = useState("");
   const [companyFilter, setCompanyFilter] = useState("all");
 
-  const { data: codes = [], isLoading: codesLoading } = useQuery({
+  const { data: codes = [], isLoading: codesLoading, error: codesError, refetch: refetchCodes } = useQuery({
     queryKey: ["sales-codes"],
     queryFn: listSalesCodes,
     refetchInterval: 60_000,
   });
-  const { data: signups = [], isLoading: signupsLoading } = useQuery({
+  const { data: signups = [], isLoading: signupsLoading, error: signupsError, refetch: refetchSignups } = useQuery({
     queryKey: ["sales-code-signups"],
     queryFn: listSalesCodeSignups,
     refetchInterval: 60_000,
@@ -148,7 +148,7 @@ export default function SalesCodesPage() {
       <PfCard i={5}>
         <PfCardHead title="코드별 가입과 유료 전환" sub="가입이 많은 코드 상위 10개 · 막대 위에 마우스를 올리면 숫자가 보입니다" />
         <PfCardBody>
-          {loading ? <PfSkeleton h={200} /> : codeBars.length === 0 ? <PfEmpty>아직 영업코드로 가입한 회사가 없습니다</PfEmpty> : (
+          {loading || codesError || signupsError ? <PfState loading={loading} error={codesError || signupsError} onRetry={() => { refetchCodes(); refetchSignups(); }} pad={false} skeletonRows={1} skeletonH={200} /> : codeBars.length === 0 ? <PfEmpty>아직 영업코드로 가입한 회사가 없습니다</PfEmpty> : (
             <PfBars data={codeBars} xKey="name" height={200} series={[{ key: "가입", label: "가입" }, { key: "유료전환", label: "유료 전환" }]} />
           )}
         </PfCardBody>
@@ -179,10 +179,8 @@ export default function SalesCodesPage() {
               </div>
             }
           />
-          {signupsLoading ? (
-            <PfCardBody><PfSkeleton rows={5} /></PfCardBody>
-          ) : filteredSignups.length === 0 ? (
-            <PfEmpty>아직 영업코드로 가입한 회사가 없습니다.</PfEmpty>
+          {signupsLoading || signupsError || filteredSignups.length === 0 ? (
+            <PfState loading={signupsLoading} error={signupsError} onRetry={() => refetchSignups()} empty={filteredSignups.length === 0} emptyText={signups.length === 0 ? "아직 영업코드로 가입한 회사가 없습니다." : "조건에 맞는 회사가 없습니다."} skeletonRows={5} />
           ) : (
             <div className="pf-table-wrap">
               <table className="pf-table min-w-[860px]">
@@ -270,10 +268,8 @@ export default function SalesCodesPage() {
 
           <PfCard i={7} hover={false}>
             <PfCardHead title="발급된 코드" sub="상태 버튼을 누르면 사용 중지 / 다시 사용" />
-            {codesLoading ? (
-              <PfCardBody><PfSkeleton rows={4} /></PfCardBody>
-            ) : codes.length === 0 ? (
-              <PfEmpty>발급된 코드가 없습니다.</PfEmpty>
+            {codesLoading || codesError || codes.length === 0 ? (
+              <PfState loading={codesLoading} error={codesError} onRetry={() => refetchCodes()} empty={codes.length === 0} emptyText="발급된 코드가 없습니다." />
             ) : (
               <div className="pf-table-wrap">
                 <table className="pf-table min-w-[680px]">

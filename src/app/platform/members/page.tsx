@@ -1,6 +1,6 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
-import { logRead }  from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 // 사용자 관리 · 전체 회원 검색 + 계정 지원 액션 (비밀번호/재설정링크/이메일/역할/잠금)
 // 고객 전화 응대 흐름: 이메일·이름으로 검색 → 행 펼침 → 즉시 조치. 모든 액션은 감사 기록됨.
@@ -13,7 +13,8 @@ import { supabase } from "@/lib/supabase";
 import { PlatformMemberActions, PLATFORM_ROLE_META } from "@/components/platform-member-actions";
 import { OpsSearch, exportCsv } from "../_components/ops-kit";
 import { dropTestCompanies } from "../_components/test-companies";
-import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSeg, PfSkeleton, PfEmpty } from "@/app/platform/_components/pf/ui";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSeg, PfSkeleton, PfState } from "@/app/platform/_components/pf/ui";
+import { kstMonthKey } from "@/app/platform/_components/kst-bucket";
 import { PfDonut, PfBars } from "@/app/platform/_components/pf/charts";
 
 const db = supabase;
@@ -51,14 +52,16 @@ export default function PlatformMembersPage() {
   const [companyFilter, setCompanyFilter] = useState("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const { data: members = [], isLoading } = useQuery<MemberRow[]>({
+  const { data: members = [], isLoading, error: loadError, refetch } = useQuery<MemberRow[]>({
     queryKey: ["p-members"],
     queryFn: async () => {
-      const data = logRead("platform/members:data", await db
+      // 전체 계정 — 1,000행 상한에 잘리지 않게 끝까지 넘겨 받는다
+      const data = await fetchPaged<MemberRow>("platform/members:data", () => db
         .from("users")
         //   users→companies FK 가 둘(company_id · former_company_id, 2026-09-16)이라 어느 쪽인지 적는다 — 안 적으면 PostgREST 가 모호(PGRST201)로 거절
         .select("id, name, email, role, company_id, created_at, companies!users_company_id_fkey(name)")
-        .order("created_at", { ascending: false }));
+        .order("created_at", { ascending: false })
+        .order("id"), 100000, { strict: true });
       // 테스트 회사(자동 QA) 계정은 목록·숫자에서 뺀다 — 계정 조치가 필요하면 회사 상세 화면의 멤버 목록에서 한다
       return dropTestCompanies((data || []) as MemberRow[]);
     },
@@ -91,14 +94,15 @@ export default function PlatformMembersPage() {
     const roles = new Map<string, number>();
     const byCompany = new Map<string, number>();
     let orphan = 0;
-    const ym = new Date().toISOString().slice(0, 7);
+    // 이번 달은 KST 기준(UTC 로 자르면 1일 00~09시 가입이 전달로 간다)
+    const ym = kstMonthKey(Date.now());
     let newThisMonth = 0;
     for (const m of members) {
       const r = PLATFORM_ROLE_META[m.role || ""] ? (m.role as string) : "employee";
       roles.set(r, (roles.get(r) || 0) + 1);
       if (!m.company_id) orphan += 1;
       else { const name = m.companies?.name || "이름 없음"; byCompany.set(name, (byCompany.get(name) || 0) + 1); }
-      if ((m.created_at || "").slice(0, 7) === ym) newThisMonth += 1;
+      if (kstMonthKey(m.created_at) === ym) newThisMonth += 1;
     }
     const roleOrder = ["owner", "admin", "employee", "partner"];
     return {
@@ -170,11 +174,7 @@ export default function PlatformMembersPage() {
 
       <PfCard i={7} hover={false}>
         <PfCardHead title="사용자 목록" sub={`${filtered.length}명 · 행을 누르면 계정 지원 조치가 펼쳐집니다`} />
-        {isLoading ? (
-          <div className="px-5 pb-5"><PfSkeleton rows={6} h={16} /></div>
-        ) : filtered.length === 0 ? (
-          <PfEmpty>검색 결과가 없습니다</PfEmpty>
-        ) : (
+        <PfState loading={isLoading} error={loadError} onRetry={() => refetch()} empty={filtered.length === 0} emptyText={members.length === 0 ? "사용자가 없습니다" : "검색 결과가 없습니다"} skeletonRows={6}>
           <div className="pf-rows">
             {filtered.map((m) => {
               const role = PLATFORM_ROLE_META[m.role || ""] || PLATFORM_ROLE_META.employee;
@@ -212,7 +212,7 @@ export default function PlatformMembersPage() {
               );
             })}
           </div>
-        )}
+        </PfState>
       </PfCard>
     </PfPage>
   );

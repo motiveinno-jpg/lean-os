@@ -191,22 +191,33 @@ export default function DashboardPage() {
   });
 
   // 2026-05-22 원천(통장/카드/세금계산서)→monthly_financials 자동 집계 (lazy).
-  //   대시보드 진입 시 30분 throttle 로 1회 재집계 → 차트·KPI 가 최신 거래 반영.
+  //   대시보드 진입 시 1회 재집계 요청 → 차트·KPI 가 최신 거래 반영.
   //   source='auto' 만 재계산하므로 엑셀 수동 업로드분과 충돌 없음. 실패는 조용히 무시.
+  //   다시 집계할지는 서버(recompute_monthly_financials_if_stale)가 정한다 — 마지막 집계 뒤 원천이 바뀌었거나
+  //   30분이 지났을 때만 실제로 집계하고, 아니면 건너뛴다(기기·사람마다 전체 재집계가 돌던 것).
+  //   건너뛰었으면 차트를 다시 불러올 필요도 없다.
   useEffect(() => {
     if (!companyId) return;
-    const key = `mf-recompute-${companyId}`;
-    try {
-      const last = Number(localStorage.getItem(key) || 0);
-      if (Date.now() - last < 30 * 60 * 1000) return;
-      localStorage.setItem(key, String(Date.now()));
-    } catch { /* ignore */ }
-    (supabase)
-      .rpc("recompute_monthly_financials", { p_company_id: companyId })
-      .then(
-        () => { queryClient.invalidateQueries({ queryKey: ["founder-data", companyId] }); },
-        () => { /* 집계 실패는 비차단 — 원천 hasData 안전망이 CTA 숨김 */ },
-      );
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await (supabase.rpc as any)("recompute_monthly_financials_if_stale", { p_company_id: companyId });
+      if (cancelled) return;
+      if (!error) {
+        if (!(data as { skipped?: boolean } | null)?.skipped) queryClient.invalidateQueries({ queryKey: ["founder-data", companyId] });
+        return;
+      }
+      // 판정 함수가 아직 없는 DB — 예전 방식(브라우저별 30분 제한)으로 집계
+      if (error.code !== "PGRST202") return; // 집계 실패는 비차단 — 원천 hasData 안전망이 CTA 숨김
+      const key = `mf-recompute-${companyId}`;
+      try {
+        const last = Number(localStorage.getItem(key) || 0);
+        if (Date.now() - last < 30 * 60 * 1000) return;
+        localStorage.setItem(key, String(Date.now()));
+      } catch { /* ignore */ }
+      const res = await supabase.rpc("recompute_monthly_financials", { p_company_id: companyId });
+      if (!cancelled && !res.error) queryClient.invalidateQueries({ queryKey: ["founder-data", companyId] });
+    })();
+    return () => { cancelled = true; };
   }, [companyId, queryClient]);
 
   // Real monthly burn = recurring payments + total salary + 사용자 입력 (cash_snapshot.monthly_fixed_cost)

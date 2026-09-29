@@ -1,6 +1,6 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
-import { logRead }  from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 // 고객사 관리 · 운영자 페이지 v2 (2026-09-03): 구성 도넛 + 표. 조회·필터·내보내기 동작은 종전 그대로.
 
@@ -11,7 +11,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { OpsSearch, exportCsv } from "../_components/ops-kit";
 import { dropTestCompanies, loadTestCompanyIds } from "../_components/test-companies";
-import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSeg, PfSkeleton, PfEmpty } from "@/app/platform/_components/pf/ui";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSeg, PfSkeleton, PfState } from "@/app/platform/_components/pf/ui";
+import { planOf, type PlanKind } from "@/app/platform/_components/plan-kind";
+import { kstMonthKey, kstMonthsBack } from "@/app/platform/_components/kst-bucket";
 import { PfDonut, PfBars }  from "@/app/platform/_components/pf/charts";
 
 const db = supabase;
@@ -35,7 +37,17 @@ const STATUS_META: Record<string, { tone: Tone; label: string }> = {
   paused: { tone: "muted", label: "일시중지" },
 };
 
-/** 회사 한 곳의 표시 상태 · 표·집계가 같은 판정을 쓴다. */
+// 이용 등급(planOf) → 구성 도넛 라벨·색 (운영자 개요의 고객 구성 도넛과 같은 색)
+const KIND_META: Record<PlanKind, { label: string; color: string }> = {
+  paid: { label: "유료", color: "var(--success)" },
+  trial: { label: "체험 중", color: "var(--chart-2)" },
+  expired: { label: "체험 만료", color: "var(--danger)" },
+  past_due: { label: "미납", color: "var(--chart-4)" },
+  granted: { label: "무상 이용", color: "var(--chart-1)" },
+  free: { label: "미구독", color: "var(--chart-5)" },
+};
+
+/** 표의 '상태' 칸 — 가장 최근 구독의 상태(해지·일시중지 포함)를 그대로 보여 준다. 유료·미구독 판정은 planOf. */
 function statusOf(c: any):  { tone: Tone; label: string; key: string } {
   const sub = latestSub(c);
   if (!sub) return { tone: "muted", label: "미구독", key: "none" };
@@ -51,10 +63,11 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const { data: companies = [], isLoading } = useQuery({
+  const { data: companies = [], isLoading, error: loadError, refetch } = useQuery({
     queryKey: ["p-companies-detail"],
     queryFn: async () => {
-      const data = logRead('customers/page:data', await db.from("companies").select("*, users(count), subscriptions(*, subscription_plans(*))").order("created_at", { ascending: false }));
+      // 전체 회사 — 1,000행 상한에 잘리지 않게 끝까지 넘겨 받는다
+      const data = await fetchPaged<any>("customers/page:data", () => db.from("companies").select("*, users(count), subscriptions(*, subscription_plans(*))").order("created_at", { ascending: false }).order("id"), 100000, { strict: true });
       // 테스트 회사(자동 QA)는 목록·숫자에서 뺀다 — 회사 상세는 주소로 직접 열면 그대로 보인다
       return dropTestCompanies(data, (c: any) => c.id);
     },
@@ -71,35 +84,33 @@ export default function CustomersPage() {
     return companies.filter((c: any) => {
       // 회사명 + 사업자번호로 검색 (2026-07-28 전면 정비)
       if (q && !c.name?.toLowerCase().includes(q) && !String(c.business_number || "").includes(q)) return false;
-      if (statusFilter !== "all") {
-        const sub = latestSub(c);
-        if (statusFilter === "free" && sub?.subscription_plans?.slug !== "free" && sub) return false;
-        if (statusFilter === "paid" && (!sub || sub.subscription_plans?.slug === "free")) return false;
-      }
+      // 유료·미구독 판정은 운영자 개요와 같은 planOf 하나 — 해지·체험 만료·결제 없는 부여 구독은 유료가 아니다
+      if (statusFilter !== "all" && planOf(c).kind !== statusFilter) return false;
       return true;
     });
   }, [companies, search, statusFilter]);
 
   // 요약 — 상태 구성(도넛)과 최근 6개월 가입 추이(막대). 전체 목록 기준(검색·필터 무관).
   const summary = useMemo(() => {
-    const byStatus = new Map<string, { label: string; tone: Tone; n: number }>();
-    let paid = 0, users = 0;
+    // 구성·유료 수는 planOf 기준(개요 화면·필터와 같은 숫자)
+    const byStatus = new Map<string, { label: string; color: string; n: number }>();
+    let users = 0;
     for (const c of companies as any[]) {
-      const st = statusOf(c);
-      const cur = byStatus.get(st.key) || { label: st.label, tone: st.tone, n: 0 };
-      cur.n += 1; byStatus.set(st.key, cur);
-      const sub = latestSub(c);
-      if (sub && sub.subscription_plans?.slug !== "free" && st.key === "active") paid += 1;
+      const k = planOf(c).kind;
+      const meta = KIND_META[k];
+      const cur = byStatus.get(k) || { label: meta.label, color: meta.color, n: 0 };
+      cur.n += 1; byStatus.set(k, cur);
       users += Number(c.users?.[0]?.count ?? 0);
     }
-    const now = new Date();
+    const paid = byStatus.get("paid")?.n ?? 0;
+    // 월 경계는 KST
     const months: { name: string; ym: string; n: number }[] = [];
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      months.push({ name: `${d.getMonth() + 1}월`, ym: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, n: 0 });
+      const { key, name } = kstMonthsBack(i);
+      months.push({ name, ym: key, n: 0 });
     }
     for (const c of companies as any[]) {
-      const ym = String(c.created_at || "").slice(0, 7);
+      const ym = kstMonthKey(c.created_at);
       const m = months.find((x) => x.ym === ym);
       if (m) m.n += 1;
     }
@@ -107,7 +118,6 @@ export default function CustomersPage() {
     return { byStatus: [...byStatus.values()].sort((a, b) => b.n - a.n), paid, users, months, thisMonth };
   }, [companies]);
 
-  const toneColor: Record<Tone, string> = { ok: "var(--chart-3)", info: "var(--chart-1)", warn: "var(--chart-2)", danger: "var(--chart-4)", muted: "var(--chart-5)" };
 
   return (
     <PfPage>
@@ -118,7 +128,7 @@ export default function CustomersPage() {
         actions={
           <>
             <OpsSearch value={search} onChange={setSearch} placeholder="회사명·사업자번호 검색" />
-            <PfSeg value={statusFilter} onChange={setStatusFilter} options={[{ value: "all", label: "전체" }, { value: "paid", label: "유료" }, { value: "free", label: "미구독" }]} />
+            <PfSeg value={statusFilter} onChange={setStatusFilter} options={[{ value: "all", label: "전체" }, { value: "paid", label: "유료" }, { value: "trial", label: "체험 중" }, { value: "free", label: "미구독" }]} />
             <button
               type="button"
               className="pf-btn"
@@ -160,10 +170,10 @@ export default function CustomersPage() {
       {/* 구성 + 추이 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <PfCard i={5}>
-          <PfCardHead title="고객 구성" sub="가장 최근 구독 상태 기준 · 체험이 끝났는데 결제하지 않은 회사는 '체험만료'" />
+          <PfCardHead title="고객 구성" sub="이용 중인 구독 기준 · 유료는 실제 결제되는 구독만, 결제 수단 없이 켜 둔 구독은 '무상 이용'" />
           <PfCardBody>
-            {isLoading ? <PfSkeleton rows={4} h={18} /> : (
-              <PfDonut slices={summary.byStatus.map((s) => ({ label: s.label, value: s.n, color: toneColor[s.tone] }))} size={170} centerLabel="총 가입사" />
+            {isLoading || loadError ? <PfState loading={isLoading} error={loadError} onRetry={() => refetch()} skeletonH={18} pad={false} /> : (
+              <PfDonut slices={summary.byStatus.map((s) => ({ label: s.label, value: s.n, color: s.color }))} size={170} centerLabel="총 가입사" />
             )}
           </PfCardBody>
         </PfCard>
@@ -180,11 +190,7 @@ export default function CustomersPage() {
       {/* 목록 */}
       <PfCard i={7} hover={false}>
         <PfCardHead title="고객사 목록" sub={`${filtered.length}곳 표시 중`} />
-        {isLoading ? (
-          <div className="px-5 pb-5"><PfSkeleton rows={6} h={16} /></div>
-        ) : filtered.length === 0 ? (
-          <PfEmpty>검색 결과가 없습니다</PfEmpty>
-        ) : (
+        <PfState loading={isLoading} error={loadError} onRetry={() => refetch()} empty={filtered.length === 0} emptyText={companies.length === 0 ? "가입한 회사가 없습니다" : "조건에 맞는 회사가 없습니다"} skeletonRows={6}>
           <div className="pf-table-wrap">
             <table className="pf-table">
               <thead>
@@ -228,7 +234,7 @@ export default function CustomersPage() {
               </tbody>
             </table>
           </div>
-        )}
+        </PfState>
       </PfCard>
     </PfPage>
   );

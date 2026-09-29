@@ -1,5 +1,5 @@
 "use client";
-import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 // 플랫폼 운영자 — 고객센터 문의 답변. support_tickets 전체(전사) 조회·답변.
 //   RLS: is_platform_operator() 가 모든 회사 티켓 select/update 허용.
@@ -12,7 +12,7 @@ import { supabase } from "@/lib/supabase";
 import { OpsSearch, OpsCompanySelect, OpsExportButton, exportCsv } from "../_components/ops-kit";
 import { dropTestCompanies } from "../_components/test-companies";
 import { getCurrentUser } from "@/lib/queries";
-import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSeg, PfEmpty, PfSkeleton } from "@/app/platform/_components/pf/ui";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfSeg, PfState } from "@/app/platform/_components/pf/ui";
 import { PfDonut, PfBars } from "@/app/platform/_components/pf/charts";
 import { useToast } from "@/components/toast";
 
@@ -140,14 +140,16 @@ export default function PlatformSupportPage() {
     }
   };
 
-  const { data: tickets = [], isLoading } = useQuery<Ticket[]>({
+  const { data: tickets = [], isLoading, error: loadError, refetch } = useQuery<Ticket[]>({
     queryKey: ["p-support-all"],
     queryFn: async () => {
-      const data = logRead('support/page:data', await db
+      // 전체 문의 — 1,000행 상한에 잘리지 않게 끝까지 넘겨 받는다(미처리 숫자도 이 목록으로 센다)
+      const data = await fetchPaged<Ticket>("support/page:data", () => db
         .from("support_tickets")
         // 2026-07-16: users FK 가 2개(user_id·answered_by)라 무힌트 임베드는 400 — 문의자 기준으로 명시
         .select("*, users!support_tickets_user_id_fkey(name, email), companies(name)")
-        .order("created_at", { ascending: false }));
+        .order("created_at", { ascending: false })
+        .order("id"), 100000, { strict: true });
       // 테스트 회사(자동 QA)가 남긴 문의는 목록·미처리 숫자에서 뺀다
       return dropTestCompanies((data || []) as Ticket[]);
     },
@@ -280,11 +282,15 @@ export default function PlatformSupportPage() {
           sub={`${filtered.length}건 표시`}
           right={<PfSeg value={filter} onChange={setFilter} options={FILTERS} />}
         />
-        {isLoading ? (
-          <div className="px-5 pb-5"><PfSkeleton h={18} rows={4} /></div>
-        ) : filtered.length === 0 ? (
-          <PfEmpty ok={filter !== "all" && filter !== "answered"}>{filter === "open" ? "답변을 기다리는 문의가 없습니다 ✓" : "문의가 없습니다"}</PfEmpty>
-        ) : (
+        <PfState
+          loading={isLoading}
+          error={loadError}
+          onRetry={() => refetch()}
+          empty={filtered.length === 0}
+          ok={filter !== "all" && filter !== "answered"}
+          emptyText={filter === "open" ? "답변을 기다리는 문의가 없습니다 ✓" : "문의가 없습니다"}
+          skeletonH={18}
+        >
           <div className="divide-y divide-[var(--border)]/60">
             {filtered.map((t) => {
               const st = STATUS_META[t.status] || STATUS_META.open;
@@ -397,7 +403,7 @@ export default function PlatformSupportPage() {
               );
             })}
           </div>
-        )}
+        </PfState>
       </PfCard>
     </PfPage>
   );

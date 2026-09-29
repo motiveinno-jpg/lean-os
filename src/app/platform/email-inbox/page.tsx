@@ -11,7 +11,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { appConfirm } from "@/components/global-confirm";
 import { OpsSearch } from "../_components/ops-kit";
-import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfEmpty, PfSkeleton } from "@/app/platform/_components/pf/ui";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfEmpty, PfSkeleton, PfState } from "@/app/platform/_components/pf/ui";
 
 const db = supabase as any;
 
@@ -38,7 +38,7 @@ export default function PlatformEmailInboxPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const { data: rows = [], isLoading } = useQuery<Row[]>({
+  const { data: rows = [], isLoading, error: loadError, refetch } = useQuery<Row[]>({
     queryKey: ["op-email-inbox", unreadOnly],
     queryFn: async () => {
       const { data, error } = await db.rpc("operator_list_email_inbox", { p_limit: 300, p_unread_only: unreadOnly });
@@ -115,7 +115,7 @@ export default function PlatformEmailInboxPage() {
         <PfCard i={4} hover={false}>
           <PfCardHead title="목록" sub={`${shown.length}통 · 최근 받은 순`} />
           <PfCardBody>
-            {isLoading ? <PfSkeleton rows={4} /> : shown.length === 0 ? <PfEmpty>{unreadOnly ? "안 읽은 메일이 없습니다." : "아직 받은 메일이 없습니다."}</PfEmpty> : (
+            {isLoading || loadError ? <PfState loading={isLoading} error={loadError} onRetry={() => refetch()} pad={false} /> : shown.length === 0 ? <PfEmpty>{unreadOnly ? "안 읽은 메일이 없습니다." : "아직 받은 메일이 없습니다."}</PfEmpty> : (
               <ul className="divide-y divide-[var(--border)]">
                 {shown.map((r) => (
                   <li key={r.id}>

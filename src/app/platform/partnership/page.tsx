@@ -10,10 +10,12 @@ import { supabase } from "@/lib/supabase";
 import { useMemo, useState } from "react";
 import { OpsSearch, OpsCompanySelect, OpsExportButton, exportCsv } from "../_components/ops-kit";
 import { kstDateStr } from "@/lib/kst";
-import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfEmpty, PfSkeleton } from "@/app/platform/_components/pf/ui";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfState } from "@/app/platform/_components/pf/ui";
 import { PfDonut } from "@/app/platform/_components/pf/charts";
 
 const db = supabase;
+// 한 번에 불러오는 최근 문의 수 — 닿으면 숫자가 "최근 N건 기준"임을 화면에 적는다
+const INQUIRY_LIMIT = 200;
 
 type Inquiry = {
   id: string;
@@ -49,11 +51,11 @@ export default function PlatformPartnershipPage() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState<string | null>(null);
 
-  const { data: items = [], isLoading } = useQuery<Inquiry[]>({
+  const { data: items = [], isLoading, error: loadError, refetch } = useQuery<Inquiry[]>({
     queryKey: ["op-partnership", filter],
     queryFn: async () => {
       const { data, error } = await db.rpc("operator_list_partnership_inquiries", {
-        p_limit: 200,
+        p_limit: INQUIRY_LIMIT,
         ...(filter ? { p_status: filter } : {}),
       });
       if (error) throw error;
@@ -97,6 +99,7 @@ export default function PlatformPartnershipPage() {
     items.forEach((it) => { if (it.status in c) (c as Record<string, number>)[it.status]++; });
     return c;
   }, [items]);
+  const capped = items.length >= INQUIRY_LIMIT;
   const thisWeek = useMemo(() => {
     const since = Date.now() - 7 * 24 * 3600 * 1000;
     return items.filter((it) => new Date(it.created_at).getTime() >= since).length;
@@ -132,7 +135,7 @@ export default function PlatformPartnershipPage() {
           <PfCard i={4} className="pf-kpi-tile"><PfKpi label="최근 7일 접수" value={thisWeek} unit="건" /></PfCard>
         </div>
         <PfCard i={5}>
-          <PfCardHead title="상태별 구성" sub={filter ? `'${STATUS[filter]?.label || filter}' 만 불러온 상태` : "불러온 문의 전체"} />
+          <PfCardHead title="상태별 구성" sub={`${filter ? `'${STATUS[filter]?.label || filter}' 만 불러온 상태` : "불러온 문의 전체"}${capped ? ` · 최근 ${INQUIRY_LIMIT}건 기준` : ""}`} />
           <PfCardBody>
             <PfDonut
               size={150}
@@ -146,7 +149,7 @@ export default function PlatformPartnershipPage() {
       <PfCard i={6} hover={false}>
         <PfCardHead
           title="문의 목록"
-          sub={`${shown.length}건 표시 · 최근 접수 순`}
+          sub={`${shown.length}건 표시 · 최근 접수 순${capped ? ` · 최근 ${INQUIRY_LIMIT}건까지만 불러옴` : ""}`}
           right={
             <div className="flex items-center gap-1.5 flex-wrap justify-end">
               {[null, "new", "contacted", "closed"].map((s) => (
@@ -157,11 +160,15 @@ export default function PlatformPartnershipPage() {
             </div>
           }
         />
-        {isLoading ? (
-          <div className="px-5 pb-5"><PfSkeleton h={18} rows={4} /></div>
-        ) : shown.length === 0 ? (
-          <PfEmpty ok={filter === "new"}>{filter === "new" ? "연락할 신규 문의가 없습니다 ✓" : "문의가 없습니다"}</PfEmpty>
-        ) : (
+        <PfState
+          loading={isLoading}
+          error={loadError}
+          onRetry={() => refetch()}
+          empty={shown.length === 0}
+          ok={filter === "new" && !search && companyFilter === "all"}
+          emptyText={search || companyFilter !== "all" ? "조건에 맞는 문의가 없습니다" : filter === "new" ? "연락할 신규 문의가 없습니다 ✓" : "문의가 없습니다"}
+          skeletonH={18}
+        >
           <ol className="relative px-5 pb-5">
             {shown.map((it, idx) => {
               const st = STATUS[it.status] || STATUS.new;
@@ -220,7 +227,7 @@ export default function PlatformPartnershipPage() {
               );
             })}
           </ol>
-        )}
+        </PfState>
       </PfCard>
     </PfPage>
   );

@@ -3,13 +3,13 @@
 //   작업일지(빌드 시 git 커밋에서 자동 생성 — scripts/generate-release-log.mjs)는 그대로.
 import releaseLogJson from "@/generated/release-log.json";
 import { kstDateStr } from "@/lib/kst";
-import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfBar, PfRows, PfRow, PfEmpty, PfSkeleton } from "../_components/pf/ui";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfBar, PfRows, PfRow, PfEmpty, PfState } from "../_components/pf/ui";
 import { PfDonut } from "../_components/pf/charts";
 import { dropTestCompanies } from "../_components/test-companies";
 
@@ -21,35 +21,39 @@ export default function SystemPage() {
   const [expanded, setExpanded] = useState<null | "companies" | "users">(null);
   const toggle = (k: "companies" | "users") => setExpanded((cur) => (cur === k ? null : k));
 
-  const { data: companies = [] } = useQuery({
+  // 회사·사용자 전체 — 1,000행 상한에 잘리지 않게 끝까지 넘겨 받는다
+  const { data: companies = [], isLoading: companiesLoading, error: companiesError, refetch: refetchCompanies } = useQuery({
     queryKey: ["p-sys-companies"],
     queryFn: async () => {
-      const data = logRead('system/page:data', await db
+      const data = await fetchPaged<any>("system/page:companies", () => db
         .from("companies")
         .select("id, name, business_number, created_at")
-        .order("created_at", { ascending: false }));
+        .order("created_at", { ascending: false })
+        .order("id"), 100000, { strict: true });
       // 테스트 회사(자동 QA)는 데이터 규모 집계에서 뺀다
       return dropTestCompanies(data, (c: any) => c.id);
     },
   });
 
-  const { data: users = [] } = useQuery({
+  const { data: users = [], isLoading: usersLoading, error: usersError, refetch: refetchUsers } = useQuery({
     queryKey: ["p-sys-users"],
     queryFn: async () => {
-      const data = logRead('system/page:data', await db
+      const data = await fetchPaged<any>("system/page:users", () => db
         .from("users")
         .select("id, name, email, role, created_at, company_id")
-        .order("created_at", { ascending: false }));
+        .order("created_at", { ascending: false })
+        .order("id"), 100000, { strict: true });
       return dropTestCompanies(data);
     },
   });
 
-  const { data: plans = [] } = useQuery({
+  const { data: plans = [], isLoading: plansLoading, error: plansError, refetch: refetchPlans } = useQuery({
     queryKey: ["p-sys-plans"],
     queryFn: async () => {
       // 판매하지 않는 요금제(자사 전용 울트라)는 숨긴다.
-      const data = logRead('system/page:data', await db.from("subscription_plans")
-        .select("*").eq("is_active", true).order("base_price", { ascending: true }));
+      const { data, error } = await db.from("subscription_plans")
+        .select("*").eq("is_active", true).order("base_price", { ascending: true });
+      if (error) throw error;
       return data || [];
     },
   });
@@ -62,12 +66,12 @@ export default function SystemPage() {
     excluded_test_usd?: number;
     companies: { company: string | null; company_id: string; usd: number; calls: number; tokens: number; by_feature: Record<string, number> }[];
   };
-  const { data: aiCosts } = useQuery<AiCosts | null>({
+  const { data: aiCosts, isLoading: aiLoading, error: aiError, refetch: refetchAi } = useQuery<AiCosts | null>({
     queryKey: ["p-sys-ai-costs"],
     queryFn: async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (db as any).rpc("platform_ai_costs");
-      if (error) return null;
+      if (error) throw error;
       return (data as AiCosts) ?? null;
     },
     staleTime: 60_000,
@@ -126,9 +130,7 @@ export default function SystemPage() {
             </button>
             {expanded === "companies" && (
               <div className="rounded-xl border border-[var(--border)]/60 max-h-72 overflow-y-auto">
-                {companies.length === 0 ? (
-                  <PfEmpty>회사가 없습니다</PfEmpty>
-                ) : (
+                <PfState loading={companiesLoading} error={companiesError} onRetry={() => refetchCompanies()} empty={companies.length === 0} emptyText="회사가 없습니다" skeletonRows={3}>
                   <PfRows>
                     {companies.map((c: any) => (
                       <PfRow key={c.id} href={`/platform/companies/${c.id}`} className="px-3">
@@ -143,7 +145,7 @@ export default function SystemPage() {
                       </PfRow>
                     ))}
                   </PfRows>
-                )}
+                </PfState>
               </div>
             )}
 
@@ -160,9 +162,7 @@ export default function SystemPage() {
             </button>
             {expanded === "users" && (
               <div className="rounded-xl border border-[var(--border)]/60 max-h-72 overflow-y-auto">
-                {users.length === 0 ? (
-                  <PfEmpty>사용자가 없습니다</PfEmpty>
-                ) : (
+                <PfState loading={usersLoading} error={usersError} onRetry={() => refetchUsers()} empty={users.length === 0} emptyText="사용자가 없습니다" skeletonRows={3}>
                   <PfRows>
                     {users.map((u: any) => (
                       <PfRow key={u.id} href={`/platform/members?q=${encodeURIComponent(u.email || "")}`} className="px-3">
@@ -177,7 +177,7 @@ export default function SystemPage() {
                       </PfRow>
                     ))}
                   </PfRows>
-                )}
+                </PfState>
               </div>
             )}
 
@@ -194,10 +194,8 @@ export default function SystemPage() {
         <PfCard i={6} hover={false}>
           <PfCardHead title="요금제" sub="지금 판매 중인 것만 보입니다" />
           <PfCardBody className="space-y-2">
-            {plans.length === 0 ? (
-              <PfEmpty>요금제가 없습니다</PfEmpty>
-            ) : (
-              plans.map((p: any) => (
+            <PfState loading={plansLoading} error={plansError} onRetry={() => refetchPlans()} empty={plans.length === 0} emptyText="요금제가 없습니다" skeletonRows={3} pad={false}>
+              {plans.map((p: any) => (
                 <div key={p.id} className="rounded-xl px-3 py-2.5 bg-[var(--bg-surface)]">
                   <div className="flex items-center justify-between mb-0.5">
                     <span className="font-bold text-[13px] text-[var(--text)]">{p.name}</span>
@@ -211,8 +209,8 @@ export default function SystemPage() {
                     <span className="font-mono"> · {p.slug}</span>
                   </div>
                 </div>
-              ))
-            )}
+              ))}
+            </PfState>
           </PfCardBody>
         </PfCard>
 
@@ -220,8 +218,8 @@ export default function SystemPage() {
         <PfCard i={7} hover={false}>
           <PfCardHead title={`AI 비용 (${aiCosts?.month || "이번 달"})`} sub="회사마다 월 한도가 있고, 넘으면 AI 호출이 자동으로 막힙니다" />
           <PfCardBody className="space-y-3">
-            {!aiCosts ? (
-              <PfSkeleton rows={3} h={16} />
+            {aiLoading || aiError || !aiCosts ? (
+              <PfState loading={aiLoading} error={aiError} onRetry={() => refetchAi()} empty={!aiCosts} emptyText="AI 비용 집계가 없습니다" skeletonRows={3} pad={false} />
             ) : (
               <>
                 <div className="flex justify-between items-center px-3 h-11 rounded-xl bg-[var(--bg-surface)]">

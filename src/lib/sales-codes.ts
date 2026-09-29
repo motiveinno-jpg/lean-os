@@ -1,4 +1,3 @@
-import { logRead } from "@/lib/log-read";
 import { supabase } from "@/lib/supabase";
 
 /**
@@ -96,9 +95,8 @@ export async function setSalesCodeActive(id: string, isActive: boolean): Promise
 
 /** 코드별 유입 회사 목록 (운영자 전용 RPC — 게이트는 함수 내부에서 검증) */
 export async function listSalesCodeSignups(): Promise<SalesCodeSignup[]> {
-  const data = logRead(
-    "lib/sales-codes:signups",
-    await db.rpc("operator_sales_code_signups"),
-  );
+  // 실패를 빈 목록으로 삼키면 운영자 화면이 "가입한 회사가 없습니다"로 거짓 표시한다 — 던져서 화면이 실패로 보이게
+  const { data, error } = await db.rpc("operator_sales_code_signups");
+  if (error) throw error;
   return (data || []) as SalesCodeSignup[];
 }

@@ -1,7 +1,7 @@
 "use client";
 import { logRead } from "@/lib/log-read";
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import {
   PRESET_VIEWS, ROLE_PRESETS, getDefaultWidgets, makeRolePresetConfigs,
   type WidgetConfig, type WidgetId, type RolePreset,
@@ -33,6 +33,20 @@ interface StoredConfig {
 }
 
 // ── Supabase persistence helpers ──
+// DB 에 저장될 모양의 서명 — 보이는 위젯 집합과 역할 프리셋만 본다.
+//   편집 모드 진입은 지금 보이는 위젯을 custom 으로 옮겨 적을 뿐 보이는 것이 같으니 저장할 게 없다.
+function prefsSignature(visibleIds: string[], rolePreset: RolePreset | null | undefined): string {
+  return JSON.stringify([[...visibleIds].sort(), rolePreset || "ceo"]);
+}
+
+// 보기 id·custom 설정 → 보이는 위젯 id (Provider 의 resolveWidgets 와 같은 규칙)
+function visibleIdsOf(viewId: string, custom: Record<string, boolean> | null | undefined): string[] {
+  const list = viewId === "custom" && custom
+    ? getDefaultWidgets().map(w => ({ ...w, visible: custom[w.id] ?? w.visible }))
+    : (PRESET_VIEWS.find(v => v.id === viewId)?.widgets || getDefaultWidgets());
+  return list.filter(w => w.visible).map(w => w.id);
+}
+
 async function loadPrefsFromDB(): Promise<StoredConfig | null> {
   try {
     // getSession(로컬) — 랜딩마다 getUser 인증 서버 왕복 제거. RLS 가 서버에서 권한 강제.
@@ -69,11 +83,11 @@ async function loadPrefsFromDB(): Promise<StoredConfig | null> {
   }
 }
 
-async function savePrefsToDB(config: StoredConfig): Promise<void> {
+async function savePrefsToDB(config: StoredConfig): Promise<boolean> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     const user = session?.user;
-    if (!user) return;
+    if (!user) return false;
 
     // Get company_id
     // auth uid 는 auth_id 컬럼과 비교 (id 와 다른 계정 존재 → 위젯 설정 저장 조용히 실패했음)
@@ -83,7 +97,7 @@ async function savePrefsToDB(config: StoredConfig): Promise<void> {
       .eq("auth_id", user.id)
       .maybeSingle());
 
-    if (!userData?.company_id) return;
+    if (!userData?.company_id) return false;
 
     // Build dashboard_widgets JSONB from customWidgets
     const dashboardWidgets: Record<string, { visible: boolean; order: number }> = {};
@@ -93,7 +107,7 @@ async function savePrefsToDB(config: StoredConfig): Promise<void> {
       });
     }
 
-    await (supabase)
+    const { error } = await (supabase)
       .from("user_preferences")
       .upsert({
         user_id: user.id,
@@ -102,8 +116,10 @@ async function savePrefsToDB(config: StoredConfig): Promise<void> {
         dashboard_widgets: Object.keys(dashboardWidgets).length > 0 ? dashboardWidgets : null,
         updated_at: new Date().toISOString(),
       }, { onConflict: "user_id,company_id" });
+    return !error;
   } catch {
     // Silent fail — localStorage is fallback
+    return false;
   }
 }
 
@@ -113,7 +129,13 @@ export function BoardProvider({ children }: { children: ReactNode }) {
   const [customWidgets, setCustomWidgets] = useState<Record<string, boolean> | null>(null);
   const [editing, setEditing] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [dbReadAt, setDbReadAt] = useState(0);
   const [rolePreset, setRolePresetState] = useState<RolePreset | null>(null);
+  //   DB 에 있는(또는 방금 저장한) 설정의 서명. null = DB 를 아직 못 읽음 → 저장하지 않는다.
+  //   예전엔 열기만 해도 기본값(role_preset "ceo")이 저장됐고, DB 값이 도착하면 한 번 더, 편집 모드 진입에 또 한 번 저장됐다.
+  const dbSig = useRef<string | null>(null);
+  const viewRef = useRef(activeViewId);
+  useEffect(() => { viewRef.current = activeViewId; }, [activeViewId]);
 
   // 1) Instant hydration from localStorage
   useEffect(() => {
@@ -135,12 +157,19 @@ export function BoardProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     loadPrefsFromDB().then(dbConfig => {
-      if (!dbConfig) return;
+      // DB 에 위젯 설정이 없으면(행 없음·프리셋 보기) 지금 보고 있는 프리셋 보기와 같은 것으로 본다 —
+      //   DB 는 프리셋 보기를 구분해 담지 못하므로(위젯 칸 null), 다시 써 봐야 같은 값이다.
+      const localView = viewRef.current !== "custom" ? viewRef.current : "default";
+      dbSig.current = prefsSignature(
+        dbConfig?.customWidgets ? visibleIdsOf("custom", dbConfig.customWidgets) : visibleIdsOf(localView, null),
+        dbConfig?.rolePreset);
+      if (!dbConfig) { setDbReadAt(Date.now()); return; }
       if (dbConfig.rolePreset) setRolePresetState(dbConfig.rolePreset);
       if (dbConfig.customWidgets) {
         setCustomWidgets(dbConfig.customWidgets);
         setActiveViewId("custom");
       }
+      setDbReadAt(Date.now());
     });
   }, [hydrated]);
 
@@ -155,12 +184,15 @@ export function BoardProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
     } catch {}
 
-    // Debounced DB save
+    // Debounced DB save — DB 를 읽은 뒤, 보이는 위젯·프리셋이 DB 와 달라졌을 때만
+    if (dbSig.current === null) return;
+    const sig = prefsSignature(visibleIdsOf(activeViewId, customWidgets), rolePreset);
+    if (sig === dbSig.current) return;
     const timer = setTimeout(() => {
-      savePrefsToDB(config);
+      savePrefsToDB(config).then(ok => { if (ok) dbSig.current = sig; });
     }, 1500);
     return () => clearTimeout(timer);
-  }, [activeViewId, customWidgets, rolePreset, hydrated]);
+  }, [activeViewId, customWidgets, rolePreset, hydrated, dbReadAt]);
 
   const isCustom = activeViewId === "custom";
 

@@ -11,6 +11,7 @@ import { explainError } from "@/lib/operator-error-explain";
 import { useMemo, useState } from "react";
 import { SystemTabs } from "../_components/system-tabs";
 import { PfPage, PfPageHead, PfCard, PfCardHead, PfKpi, PfBadge, PfSkeleton, PfEmpty, PfRows } from "../_components/pf/ui";
+import { judgeDependencies, type DepKey, type DepsHealthRpc } from "../_components/dependency-status";
 
 const db = supabase;
 
@@ -24,11 +25,6 @@ type Feed = {
     active_users_24h: number;
   };
   feed: { at: string; kind: string; who: string | null; what: string | null; extra: string | null }[];
-};
-type DepsHealth = {
-  supabase: { errors_1h: number };
-  stripe: { failed_invoices_24h: number };
-  codef: { bank_tx_24h: number; card_tx_24h: number };
 };
 
 // 고객 활동(audit_logs)의 entity.action → 사람 언어
@@ -79,13 +75,15 @@ function feedLine(f: Feed["feed"][number]): { icon: string; text: string; sub: s
   }
 }
 
-type LightTone = "ok" | "warn" | "danger" | "loading";
-const LIGHT_LABEL: Record<LightTone, string> = { ok: "정상", warn: "주의", danger: "문제", loading: "확인 중" };
-const LIGHT_BADGE: Record<LightTone, "ok" | "warn" | "danger" | "muted"> = { ok: "ok", warn: "warn", danger: "danger", loading: "muted" };
+// unknown = 조회 실패로 판정하지 못함(불러오는 중과 구분해 "확인 중"이 영영 떠 있지 않게)
+type LightTone = "ok" | "warn" | "danger" | "loading" | "unknown";
+const LIGHT_LABEL: Record<LightTone, string> = { ok: "정상", warn: "주의", danger: "문제", loading: "확인 중", unknown: "확인 못 함" };
+const LIGHT_BADGE: Record<LightTone, "ok" | "warn" | "danger" | "muted"> = { ok: "ok", warn: "warn", danger: "danger", loading: "muted", unknown: "muted" };
+const DEP_NAME: Record<DepKey, string> = { supabase: "DB", codef: "은행/카드 수집", stripe: "결제", resend: "메일", signatures: "전자서명", vercel: "서버" };
 
 /** 신호등 타일 · 한 항목의 지금 상태. */
 function Light({ label, tone, desc, i }: { label: string; tone: LightTone; desc: string; i: number }) {
-  const dot = tone === "ok" ? "pf-live" : tone === "loading" ? "pf-live pf-live-off" : "";
+  const dot = tone === "ok" ? "pf-live" : tone === "loading" || tone === "unknown" ? "pf-live pf-live-off" : "";
   const dotColor = tone === "warn" ? "#D97706" : tone === "danger" ? "var(--danger)" : undefined;
   return (
     <PfCard i={i} className="p-4">
@@ -112,23 +110,32 @@ export default function PlatformHealthPage() {
     refetchInterval: 30_000,
     retry: 1,
   });
-  const { data: deps } = useQuery<DepsHealth | null>({
+  const { data: deps, error: depsError } = useQuery<DepsHealthRpc | null>({
     queryKey: ["op-deps-health"],
     queryFn: async () => {
       const { data, error } = await (db as any).rpc("operator_dependencies_health");
-      if (error) return null;
-      return data as DepsHealth;
+      if (error) throw error;
+      return data as DepsHealthRpc;
     },
     refetchInterval: 60_000,
   });
 
   const h = data?.health;
+  const noFeed: LightTone = feedError ? "unknown" : "loading";
   // 신호 판정 — 실측 기반. "계정만 생기고 회사 등록이 없는 날"은 가입 흐름 점검 신호.
-  const signupTone: LightTone = !h ? "loading" : h.signup.accounts > 0 && h.signup.companies === 0 ? "warn" : "ok";
-  const payTone: LightTone = !h ? "loading" : h.payment.failures > 0 ? "danger" : "ok";
-  const errTone: LightTone = !h ? "loading" : h.errors_24h > 10 ? "danger" : h.errors_24h > 0 ? "warn" : "ok";
-  const depsTone: LightTone = !deps ? "loading" :
-    (deps.supabase.errors_1h > 50 || deps.stripe.failed_invoices_24h > 5) ? "warn" : "ok";
+  const signupTone: LightTone = !h ? noFeed : h.signup.accounts > 0 && h.signup.companies === 0 ? "warn" : "ok";
+  const payTone: LightTone = !h ? noFeed : h.payment.failures > 0 ? "danger" : "ok";
+  const errTone: LightTone = !h ? noFeed : h.errors_24h > 10 ? "danger" : h.errors_24h > 0 ? "warn" : "ok";
+  // 외부 서비스 — 외부 서비스 화면과 같은 판정(dependency-status). 서버 경로(Vercel) 점검은 그 화면에서만 한다.
+  const depJ = deps ? judgeDependencies(deps) : null;
+  const depKeys: DepKey[] = ["supabase", "codef", "stripe", "resend", "signatures"];
+  const depWarn = depJ ? depKeys.filter((k) => depJ[k].status === "warn" || depJ[k].status === "down") : [];
+  const depUnchecked = depJ ? depKeys.filter((k) => depJ[k].status === "unchecked") : [];
+  const depsTone: LightTone = !depJ ? (depsError ? "unknown" : "loading")
+    : depKeys.some((k) => depJ[k].status === "down") ? "danger"
+    : depWarn.length > 0 ? "warn" : "ok";
+  const depsDesc = !depJ ? (depsError ? "상태를 불러오지 못했습니다" : "확인 중")
+    : `${depWarn.length > 0 ? `주의: ${depWarn.map((k) => DEP_NAME[k]).join(" · ")}` : "확인한 항목은 정상 범위"}${depUnchecked.length > 0 ? ` · 확인 안 함: ${depUnchecked.map((k) => DEP_NAME[k]).join(" · ")}` : ""}`;
 
   // 회사별 필터 — 전 회사 활동이 한데 섞여 회사가 늘면 못 쓰게 되는 문제.
   //   피드에 등장한 회사명으로 드롭다운을 만들고, 선택 시 그 회사 관련 항목만 표시.
@@ -149,12 +156,16 @@ export default function PlatformHealthPage() {
   }, [data, companyFilter]);
 
   // 전체 판정 한 줄 · 신호등 5개 중 가장 나쁜 것
-  const worst: LightTone = [signupTone, payTone, errTone, depsTone].includes("danger") ? "danger"
-    : [signupTone, payTone, errTone, depsTone].includes("warn") ? "warn"
-    : !h ? "loading" : "ok";
+  const tones = [signupTone, payTone, errTone, depsTone];
+  const worst: LightTone = tones.includes("danger") ? "danger"
+    : tones.includes("warn") ? "warn"
+    : tones.includes("unknown") ? "unknown"
+    : tones.includes("loading") ? "loading" : "ok";
   const headline = worst === "danger" ? "지금 확인이 필요한 항목이 있어요"
     : worst === "warn" ? "대체로 정상, 주의할 항목이 있어요"
+    : worst === "unknown" ? "일부 항목을 확인하지 못했어요"
     : worst === "loading" ? "상태를 확인하는 중이에요"
+    : depUnchecked.length > 0 ? "확인한 항목은 모두 정상이에요"
     : "모든 항목이 정상이에요";
 
   return (
@@ -182,15 +193,14 @@ export default function PlatformHealthPage() {
       {/* ① 지금 문제 있나 — 신호등 타일 */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         <Light i={2} label="가입" tone={signupTone}
-          desc={h ? `24시간 계정 ${h.signup.accounts}명 · 회사 등록 ${h.signup.companies}곳${signupTone === "warn" ? " · 계정만 생기고 회사 등록이 없어요" : ""}` : "확인 중"} />
+          desc={h ? `24시간 계정 ${h.signup.accounts}명 · 회사 등록 ${h.signup.companies}곳${signupTone === "warn" ? " · 계정만 생기고 회사 등록이 없어요" : ""}` : LIGHT_LABEL[noFeed]} />
         <Light i={3} label="결제" tone={payTone}
-          desc={h ? (h.payment.failures > 0 ? `결제 실패 ${h.payment.failures}건 · 확인이 필요해요` : `구독 시작 ${h.payment.subs_started}건 · 실패 없음`) : "확인 중"} />
+          desc={h ? (h.payment.failures > 0 ? `결제 실패 ${h.payment.failures}건 · 확인이 필요해요` : `구독 시작 ${h.payment.subs_started}건 · 실패 없음`) : LIGHT_LABEL[noFeed]} />
         <Light i={4} label="오류" tone={errTone}
-          desc={h ? (h.errors_24h === 0 ? "24시간 동안 오류 없음" : `24시간 동안 ${h.errors_24h}건`) : "확인 중"} />
-        <Light i={5} label="외부 서비스" tone={depsTone}
-          desc={deps ? "DB · 결제 · 은행/카드 수집 모두 정상 범위" : "확인 중"} />
-        <Light i={6} label="이용" tone={h ? "ok" : "loading"}
-          desc={h ? `24시간 접속 ${h.active_users_24h}명 · 알림 ${h.notifications_24h}건` : "확인 중"} />
+          desc={h ? (h.errors_24h === 0 ? "24시간 동안 오류 없음" : `24시간 동안 ${h.errors_24h}건`) : LIGHT_LABEL[noFeed]} />
+        <Light i={5} label="외부 서비스" tone={depsTone} desc={depsDesc} />
+        <Light i={6} label="이용" tone={h ? "ok" : noFeed}
+          desc={h ? `24시간 접속 ${h.active_users_24h}명 · 알림 ${h.notifications_24h}건` : LIGHT_LABEL[noFeed]} />
       </div>
 
       {/* 숫자 요약 — 24시간 */}

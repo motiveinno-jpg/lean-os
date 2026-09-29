@@ -87,6 +87,15 @@ function useContainerWidth(): [(node: HTMLDivElement | null) => void, number] {
 
 export type WidgetPreset = { id: string; label: string; ids: string[] };
 
+//   저장 비교용 서명 — 격자가 붙이는 부가 속성(minW·moved 등)과 순서는 무시하고 자리·크기·켠 위젯·마이그레이션 표식만 본다.
+//   active 가 null(저장된 선택 없음)이면 그대로 null 로 둔다.
+function gridSignature(layout: Layout[], active: string[] | null, layoutMig?: string | null, activeMig?: string | null): string {
+  const l = [...(layout || [])]
+    .map((x) => [x.i, x.x ?? 0, x.y ?? 0, x.w ?? 0, x.h ?? 0])
+    .sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+  return JSON.stringify([l, active, layoutMig ?? null, activeMig ?? null]);
+}
+
 export function DashboardGrid({
   storageKey, catalog, defaultActiveIds, title = "", recommended = [], sidebarCollapsed = false,
   layoutMigration, activeMigration, presets = [], headLeft,
@@ -148,9 +157,18 @@ export function DashboardGrid({
   const stateRef = useRef({ layout, activeIds });
   useEffect(() => { stateRef.current = { layout, activeIds }; });
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  //   서버에 있는 것과 같은 배치면 저장하지 않는다 — 격자는 마운트·폭 변화 때도 onLayoutChange 를 부르므로
+  //   열기만 해도 조회+저장이 몇 번씩 나갔다. 서버 저장본을 받기 전에는 비교할 기준이 없어 저장을 미룬다.
+  const serverSig = useRef<string | null>(null);
+  const serverLoaded = useRef(false);
+  const savePending = useRef(false);
   const scheduleServerSave = useCallback(() => {
     if (syncTimer.current) clearTimeout(syncTimer.current);
     syncTimer.current = setTimeout(async () => {
+      if (!serverLoaded.current) { savePending.current = true; return; }
+      savePending.current = false;
+      const sig = gridSignature(stateRef.current.layout, stateRef.current.activeIds, layoutMigration?.id, activeMigration);
+      if (sig === serverSig.current) return;
       try {
         const { data: { session } }  = await supabase.auth.getSession();
         const authUser = session?.user;
@@ -171,12 +189,13 @@ export function DashboardGrid({
             saved_at: new Date().toISOString(),
           },
         };
-        await (supabase as any).from("user_preferences").upsert({
+        const { error } = await (supabase as any).from("user_preferences").upsert({
           user_id: authUser.id,
           company_id: userData.company_id,
           dashboard_grid: grid,
           updated_at: new Date().toISOString(),
         }, { onConflict: "user_id,company_id" });
+        if (!error) serverSig.current = sig;
       } catch { /* 동기화 실패는 비치명 — 로컬 저장은 이미 됨 */ }
     }, 800);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -232,10 +251,20 @@ export function DashboardGrid({
         const { data: { session } } = await supabase.auth.getSession();
         const authUser = session?.user;
         if (!authUser) return;
-        const { data: rows } = await (supabase as any)
+        const { data: rows, error: loadErr } = await (supabase as any)
           .from("user_preferences").select("dashboard_grid").eq("user_id", authUser.id);
+        //   서버 값을 모르면 열자마자 덮어쓰지는 않는다 — 대기 저장은 버리고, 이후 사람이 바꾼 것만 올린다
+        if (loadErr) { serverLoaded.current = true; savePending.current = false; return; }
         const saved = (rows || []).map((r: any) => r?.dashboard_grid?.[storageKey]).find(Boolean);
-        if (!saved) return;
+        if (!saved) {
+          //   서버 저장본이 없다 — 대기 중이던 저장(격자가 그린 배치)이 있으면 한 번 올린다
+          serverLoaded.current = true;
+          if (savePending.current) scheduleServerSave();
+          return;
+        }
+        serverSig.current = gridSignature(
+          Array.isArray(saved.layout) ? saved.layout : [], Array.isArray(saved.active) ? saved.active : null,
+          saved.layout_mig ?? undefined, saved.active_mig ?? undefined);
         let srvLayout: Layout[] = Array.isArray(saved.layout) ? saved.layout : [];
         let srvActive: string[] | null = Array.isArray(saved.active) ? saved.active : null;
         let migrated = false;
@@ -261,8 +290,11 @@ export function DashboardGrid({
           if (layoutMigration) localStorage.setItem(`${storageKey}::mig`, layoutMigration.id);
           if (activeMigration) localStorage.setItem(`${activeKey}::mig`, activeMigration);
         } catch { /* noop */ }
-        if (migrated) scheduleServerSave();
-      } catch { /* 서버 로드 실패 — 로컬 캐시로 동작 */ }
+        serverLoaded.current = true;
+        //   받은 값을 state 에 넣었으므로 stateRef 도 맞춰 둔다(다음 렌더 전 저장 타이머가 옛 값을 비교하지 않게)
+        stateRef.current = { layout: srvLayout.length ? srvLayout : stateRef.current.layout, activeIds: srvActive ?? stateRef.current.activeIds };
+        if (migrated || savePending.current) scheduleServerSave();
+      } catch { serverLoaded.current = true; savePending.current = false; /* 서버 로드 실패 — 로컬 캐시로 동작 */ }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);

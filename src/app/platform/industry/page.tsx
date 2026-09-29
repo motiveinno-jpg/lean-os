@@ -7,7 +7,7 @@ import { kstDateStr } from "@/lib/kst";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfEmpty, PfRows, PfRow, PfBar } from "@/app/platform/_components/pf/ui";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfState, PfRows, PfRow, PfBar } from "@/app/platform/_components/pf/ui";
 import { PfDonut, PfBars }  from "@/app/platform/_components/pf/charts";
 
 const db = supabase;
@@ -52,7 +52,7 @@ export default function PlatformIndustryPage() {
   const qc = useQueryClient();
   const [selectedIndustry, setSelectedIndustry] = useState<string>("");
 
-  const { data: dist = [] } = useQuery<Dist[]>({
+  const { data: dist = [], isLoading: distLoading, error: distError, refetch: refetchDist } = useQuery<Dist[]>({
     queryKey: ["op-industry-dist"],
     queryFn: async () => {
       const { data, error } = await db.rpc("operator_industry_distribution");
@@ -61,7 +61,7 @@ export default function PlatformIndustryPage() {
     },
   });
 
-  const { data: unclassified = [] } = useQuery<Unclassified[]>({
+  const { data: unclassified = [], isLoading: unclLoading, error: unclError, refetch: refetchUncl } = useQuery<Unclassified[]>({
     queryKey: ["op-industry-unclassified"],
     queryFn: async () => {
       const { data, error } = await db.rpc("operator_unclassified_companies");
@@ -70,7 +70,7 @@ export default function PlatformIndustryPage() {
     },
   });
 
-  const { data: industryAvg = [] } = useQuery<AvgRow[]>({
+  const { data: industryAvg = [], isLoading: avgLoading, error: avgError, refetch: refetchAvg } = useQuery<AvgRow[]>({
     queryKey: ["op-industry-avg", selectedIndustry],
     queryFn: async () => {
       const { data, error } = await db.rpc("operator_financial_averages_by_industry", {
@@ -132,7 +132,7 @@ export default function PlatformIndustryPage() {
         </div>
         <div className="pf-kpi-tile pf-in" style={{ ["--pf-i" as string]: 3 }}>
           <PfKpi label="미분류" value={unclassifiedCount} unit="곳" />
-          <div className="mt-1">{unclassifiedCount > 0 ? <PfBadge tone="warn">아래에서 분류</PfBadge> : <PfBadge tone="ok">모두 분류됨</PfBadge>}</div>
+          <div className="mt-1">{distLoading || distError ? <PfBadge tone="muted">{distError ? "불러오지 못함" : "불러오는 중"}</PfBadge> : unclassifiedCount > 0 ? <PfBadge tone="warn">아래에서 분류</PfBadge> : <PfBadge tone="ok">모두 분류됨</PfBadge>}</div>
         </div>
         <div className="pf-kpi-tile pf-in" style={{ ["--pf-i" as string]: 4 }}>
           <PfKpi label="업종 수" value={classified.length} unit="개" />
@@ -150,9 +150,7 @@ export default function PlatformIndustryPage() {
 
         <PfCard i={6} className="lg:col-span-3" hover={false}>
           <PfCardHead title="업종별 회사 수" sub="업종을 누르면 아래에 그 업종의 재무 평균이 열립니다" right={selectedIndustry ? <button type="button" onClick={() => setSelectedIndustry("")} className="pf-btn pf-btn-sm pf-btn-ghost">선택 해제</button> : undefined} />
-          {dist.length === 0 ? (
-            <PfEmpty>아직 분포 데이터가 없습니다.</PfEmpty>
-          ) : (
+          <PfState loading={distLoading} error={distError} onRetry={() => refetchDist()} empty={dist.length === 0} emptyText="아직 분포 데이터가 없습니다.">
             <PfRows>
               {dist.map((d) => {
                 const pct = totalCompanies > 0 ? (d.company_count / totalCompanies) * 100 : 0;
@@ -170,7 +168,7 @@ export default function PlatformIndustryPage() {
                   : <PfRow key={d.industry} onClick={() => setSelectedIndustry(on ? "" : d.industry)} className={on ? "bg-[var(--primary-light)]" : ""}>{inner}</PfRow>;
               })}
             </PfRows>
-          )}
+          </PfState>
         </PfCard>
       </div>
 
@@ -179,10 +177,7 @@ export default function PlatformIndustryPage() {
         <PfCard i={7}>
           <PfCardHead title={<><span className="text-[var(--primary)]">{selectedIndustry}</span> 업종 재무 평균</>} sub="최신 월 · 단위 만원 · 평균이 중앙값보다 크면 큰 회사가 끌어올린 것" />
           <PfCardBody>
-            {industryAvg.length === 0 ? (
-              <PfEmpty>이 업종에는 아직 재무 데이터가 없습니다.</PfEmpty>
-            ) : (
-              <>
+            <PfState loading={avgLoading} error={avgError} onRetry={() => refetchAvg()} empty={industryAvg.length === 0} emptyText="이 업종에는 아직 재무 데이터가 없습니다." pad={false}>
                 <PfBars
                   data={industryChartRows}
                   xKey="name"
@@ -201,8 +196,7 @@ export default function PlatformIndustryPage() {
                     </div>
                   ))}
                 </div>
-              </>
-            )}
+            </PfState>
           </PfCardBody>
         </PfCard>
       )}
@@ -213,9 +207,7 @@ export default function PlatformIndustryPage() {
           title={<>업종을 정하지 않은 회사 {unclassified.length > 0 && <PfBadge tone="warn">{unclassified.length}곳</PfBadge>}</>}
           sub="업종을 고르면 바로 저장됩니다. 지금은 운영자만 분류할 수 있습니다."
         />
-        {unclassified.length === 0 ? (
-          <PfEmpty ok>모든 회사의 업종이 정해져 있습니다.</PfEmpty>
-        ) : (
+        <PfState loading={unclLoading} error={unclError} onRetry={() => refetchUncl()} empty={unclassified.length === 0} ok emptyText="모든 회사의 업종이 정해져 있습니다.">
           <PfRows>
             {unclassified.map((c) => (
               <PfRow key={c.id} className="cursor-default">
@@ -246,7 +238,7 @@ export default function PlatformIndustryPage() {
               </PfRow>
             ))}
           </PfRows>
-        )}
+        </PfState>
         {setIndustry.isError && (
           <div className="px-5 pb-4 text-[11px] text-[var(--danger)]">{(setIndustry.error as any)?.message || "분류를 저장하지 못했습니다"}</div>
         )}

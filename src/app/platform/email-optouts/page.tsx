@@ -11,7 +11,8 @@ import { supabase } from "@/lib/supabase";
 import { useMemo, useState } from "react";
 import { OpsSearch, OpsExportButton, exportCsv } from "../_components/ops-kit";
 import { kstDateStr } from "@/lib/kst";
-import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfEmpty, PfSkeleton } from "@/app/platform/_components/pf/ui";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfState } from "@/app/platform/_components/pf/ui";
+import { appConfirm } from "@/components/global-confirm";
 
 const db = supabase;
 
@@ -32,6 +33,15 @@ const SOURCE: Record<string, { tone: "ok" | "info" | "warn" | "muted"; label: st
   complaint: { tone: "warn", label: "스팸 신고" },
 };
 
+function KpiPending({ label }: { label: string }) {
+  return (
+    <div>
+      <span className="pf-kpi-label">{label}</span>
+      <div className="pf-kpi-value mono-number mt-1 text-[var(--text-dim)]">—</div>
+    </div>
+  );
+}
+
 export default function PlatformEmailOptoutsPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
@@ -39,12 +49,40 @@ export default function PlatformEmailOptoutsPage() {
   const [addNote, setAddNote] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
 
-  const { data: items = [], isLoading } = useQuery<Optout[]>({
+  // 목록은 1,000행씩 끝까지 넘겨 받는다 — 발송 전 대조용이라 잘리면 거부한 주소로 다시 나간다.
+  const { data: items = [], isLoading, error: listError, refetch } = useQuery<Optout[]>({
     queryKey: ["op-email-optouts"],
     queryFn: async () => {
-      const { data, error } = await db.rpc("operator_list_email_optouts", { p_limit: 2000 });
+      const PAGE = 1000;
+      const out: Optout[] = [];
+      for (let offset = 0; offset < 200_000; offset += PAGE) {
+        const { data, error } = await (db.rpc as any)("operator_list_email_optouts", { p_limit: PAGE, p_offset: offset });
+        if (error) {
+          // 페이지 인자(p_offset)를 받는 함수가 아직 없는 DB — 예전 방식(최대 2,000건 한 번)으로 받는다
+          if (offset === 0 && error.code === "PGRST202") {
+            const old = await db.rpc("operator_list_email_optouts", { p_limit: 2000 });
+            if (old.error) throw old.error;
+            return (old.data || []) as Optout[];
+          }
+          throw error;
+        }
+        const rows = (data || []) as Optout[];
+        out.push(...rows);
+        if (rows.length < PAGE) break;
+      }
+      return out;
+    },
+    refetchInterval: 60_000,
+  });
+
+  // 건수는 목록과 따로 센다(목록 길이로 세면 목록이 잘릴 때 숫자도 같이 틀린다)
+  const { data: counts } = useQuery<{ total: number; by_self: number; last_7d: number } | null>({
+    queryKey: ["op-email-optout-counts"],
+    queryFn: async () => {
+      const { data, error } = await (db.rpc as any)("operator_email_optout_counts");
       if (error) throw error;
-      return (data || []) as Optout[];
+      const r = (data || [])[0];
+      return r ? { total: Number(r.total), by_self: Number(r.by_self), last_7d: Number(r.last_7d) } : null;
     },
     refetchInterval: 60_000,
   });
@@ -61,6 +99,7 @@ export default function PlatformEmailOptoutsPage() {
     return items.filter((it) => new Date(it.created_at).getTime() >= since).length;
   }, [items]);
   const bySelf = useMemo(() => items.filter((it) => it.source === "self").length, [items]);
+  const kpiReady = !isLoading && !listError;
 
   const add = useMutation({
     mutationFn: async () => {
@@ -78,6 +117,7 @@ export default function PlatformEmailOptoutsPage() {
       setAddEmail(""); setAddNote("");
       setMsg(`${email} 등록했습니다. 앞으로 이 주소로는 보내지 마세요.`);
       qc.invalidateQueries({ queryKey: ["op-email-optouts"] });
+      qc.invalidateQueries({ queryKey: ["op-email-optout-counts"] });
     },
     onError: (e) => setMsg(e instanceof Error ? e.message : "등록에 실패했습니다."),
   });
@@ -92,6 +132,7 @@ export default function PlatformEmailOptoutsPage() {
     onSuccess: (email) => {
       setMsg(`${email} 를 목록에서 뺐습니다.`);
       qc.invalidateQueries({ queryKey: ["op-email-optouts"] });
+      qc.invalidateQueries({ queryKey: ["op-email-optout-counts"] });
     },
     onError: (e) => setMsg(e instanceof Error ? e.message : "삭제에 실패했습니다."),
   });
@@ -119,9 +160,10 @@ export default function PlatformEmailOptoutsPage() {
       />
 
       <div className="pf-kpi-grid">
-        <PfCard i={1} className="pf-kpi-tile"><PfKpi label="수신거부 전체" value={items.length} unit="건" /></PfCard>
-        <PfCard i={2} className="pf-kpi-tile"><PfKpi label="본인이 직접 신청" value={bySelf} unit="건" /></PfCard>
-        <PfCard i={3} className="pf-kpi-tile"><PfKpi label="최근 7일" value={thisWeek} unit="건" live={thisWeek > 0} /></PfCard>
+        {/* 건수 함수가 있으면 그것, 없으면(적용 전) 끝까지 받은 목록으로 센다. 목록도 못 받았으면 숫자를 내지 않는다. */}
+        <PfCard i={1} className="pf-kpi-tile">{counts || kpiReady ? <PfKpi label="수신거부 전체" value={counts?.total ?? items.length} unit="건" /> : <KpiPending label="수신거부 전체" />}</PfCard>
+        <PfCard i={2} className="pf-kpi-tile">{counts || kpiReady ? <PfKpi label="본인이 직접 신청" value={counts?.by_self ?? bySelf} unit="건" /> : <KpiPending label="본인이 직접 신청" />}</PfCard>
+        <PfCard i={3} className="pf-kpi-tile">{counts || kpiReady ? <PfKpi label="최근 7일" value={counts?.last_7d ?? thisWeek} unit="건" live={(counts?.last_7d ?? thisWeek) > 0} /> : <KpiPending label="최근 7일" />}</PfCard>
       </div>
 
       <PfCard i={4} hover={false}>
@@ -165,12 +207,16 @@ export default function PlatformEmailOptoutsPage() {
       </PfCard>
 
       <PfCard i={5} hover={false}>
-        <PfCardHead title="수신거부 목록" sub={`${shown.length}건 표시 · 최근 접수 순`} />
-        {isLoading ? (
-          <div className="px-5 pb-5"><PfSkeleton h={18} rows={4} /></div>
-        ) : shown.length === 0 ? (
-          <PfEmpty ok>{search ? "검색 결과가 없습니다" : "수신거부가 없습니다 ✓"}</PfEmpty>
-        ) : (
+        <PfCardHead title="수신거부 목록" sub={`${shown.length}건 표시 · 최근 접수 순${counts && counts.total > items.length ? ` · 전체 ${counts.total.toLocaleString()}건 중 ${items.length.toLocaleString()}건만 받았습니다` : ""}`} />
+        <PfState
+          loading={isLoading}
+          error={listError}
+          onRetry={() => refetch()}
+          empty={shown.length === 0}
+          ok={!search}
+          emptyText={search ? "검색 결과가 없습니다" : "수신거부가 없습니다 ✓"}
+          skeletonH={18}
+        >
           <div className="px-5 pb-5">
             {shown.map((it) => {
               const src = SOURCE[it.source] || { tone: "muted" as const, label: it.source };
@@ -186,7 +232,11 @@ export default function PlatformEmailOptoutsPage() {
                     {it.note && <div className="text-[12px] text-[var(--text-muted)] mt-1">{it.note}</div>}
                   </div>
                   <button
-                    onClick={() => remove.mutate(it.email)}
+                    onClick={async () => {
+                      // 빼면 그 주소로 광고 메일이 다시 나갈 수 있다 — 잘못 등록한 건인지 한 번 더 묻는다
+                      if (!(await appConfirm(`${it.email} 를 수신거부 목록에서 뺄까요?\n빼면 이 주소로 광고·소개 메일을 다시 보낼 수 있게 됩니다. 본인이 거부한 주소라면 빼지 마세요.`, { confirmLabel: "목록에서 빼기", danger: true }))) return;
+                      remove.mutate(it.email);
+                    }}
                     disabled={remove.isPending}
                     className="btn btn-secondary btn-sm shrink-0"
                     title="잘못 등록한 건만 빼세요"
@@ -197,7 +247,7 @@ export default function PlatformEmailOptoutsPage() {
               );
             })}
           </div>
-        )}
+        </PfState>
       </PfCard>
     </PfPage>
   );

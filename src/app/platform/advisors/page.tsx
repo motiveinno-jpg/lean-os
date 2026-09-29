@@ -11,8 +11,8 @@ import { useMemo, useState } from "react";
 import { OpsSearch } from "../_components/ops-kit";
 import { dropTestCompanies } from "../_components/test-companies";
 import { appConfirm } from "@/components/global-confirm";
-import { logRead } from "@/lib/log-read";
-import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfEmpty, PfSkeleton } from "@/app/platform/_components/pf/ui";
+import { fetchPaged } from "@/lib/fetch-paged";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfState } from "@/app/platform/_components/pf/ui";
 
 const db = supabase;
 
@@ -33,7 +33,7 @@ export default function PlatformAdvisorsPage() {
   const [search, setSearch] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
 
-  const { data: advisors = [], isLoading } = useQuery<Advisor[]>({
+  const { data: advisors = [], isLoading, error: loadError, refetch } = useQuery<Advisor[]>({
     queryKey: ["op-advisors"],
     queryFn: async () => {
       const { data, error } = await (db as any).rpc("operator_list_advisors");
@@ -47,14 +47,15 @@ export default function PlatformAdvisorsPage() {
   const  { data: companies = [] } = useQuery({
     queryKey: ["op-advisor-companies"],
     queryFn: async () => {
-      const data = logRead("platform/advisors:companies", await (db as any)
-        .from("companies").select("id, name, business_number").order("name"));
+      // 연결 후보 전체 — 1,000행 상한에서 잘리면 뒤쪽 이름의 회사는 고를 수가 없다
+      const data = await fetchPaged<{ id: string; name: string; business_number: string | null }>("platform/advisors:companies", () => (db as any)
+        .from("companies").select("id, name, business_number").order("name").order("id"), 100000);
       // 연결 후보에서 테스트 회사(자동 QA)는 뺀다 — 이미 연결된 건은 연결 목록(RPC)에 그대로 보인다
       return dropTestCompanies((data || []) as { id: string; name: string; business_number: string | null }[], (c) => c.id);
     },
   });
 
-  const { data: links = [] } = useQuery<AdvisorLink[]>({
+  const { data: links = [], isLoading: linksLoading, error: linksError } = useQuery<AdvisorLink[]>({
     queryKey: ["op-advisor-links", openId],
     queryFn: async () => {
       const { data, error } = await (db as any).rpc("operator_advisor_links", { p_advisor_id: openId });
@@ -128,15 +129,19 @@ export default function PlatformAdvisorsPage() {
         <PfCard i={4} className="pf-kpi-tile"><PfKpi label="연결된 회사" value={counts.linked} unit="곳" /></PfCard>
       </div>
 
-      {isLoading ? (
-        <PfCard i={5}><PfCardBody className="pt-5"><PfSkeleton h={18} rows={3} /></PfCardBody></PfCard>
-      ) : shown.length === 0 ? (
+      {isLoading || loadError || shown.length === 0 ? (
         <PfCard i={5}>
-          <PfEmpty>
-            {advisors.length === 0
+          <PfState
+            loading={isLoading}
+            error={loadError}
+            onRetry={() => refetch()}
+            empty={shown.length === 0}
+            skeletonRows={3}
+            skeletonH={18}
+            emptyText={advisors.length === 0
               ? <>아직 가입한 세무사가 없습니다. 세무사에게 <span className="font-semibold text-[var(--text)]">owner-view.com/advisor</span> 가입을 안내하세요.</>
               : "검색 결과가 없습니다"}
-          </PfEmpty>
+          />
         </PfCard>
       ) : (
         <div className="space-y-3">
@@ -179,8 +184,10 @@ export default function PlatformAdvisorsPage() {
                         <button className="pf-btn pf-btn-primary" disabled={!linkCompanyId || linkMut.isPending}
                           onClick={() => linkMut.mutate({ advisorId: a.id, companyId: linkCompanyId })}>연결</button>
                       </div>
-                      {links.length === 0 ? (
-                        <div className="text-[12px] text-[var(--text-dim)] py-2">연결된 회사가 없습니다.</div>
+                      {linksLoading || linksError || links.length === 0 ? (
+                        <div className={`text-[12px] py-2 ${linksError ? "text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>
+                          {linksError ? "연결 목록을 불러오지 못했습니다." : linksLoading ? "불러오는 중…" : "연결된 회사가 없습니다."}
+                        </div>
                       ) : (
                         <div className="pf-rows">
                           {links.map((l) => (

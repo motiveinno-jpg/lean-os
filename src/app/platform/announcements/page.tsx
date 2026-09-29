@@ -10,9 +10,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { appConfirm } from "@/components/global-confirm";
-import { logRead } from "@/lib/log-read";
 import { Ico } from "@/components/ui-icon";
-import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfEmpty, PfSkeleton } from "@/app/platform/_components/pf/ui";
+import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfBadge, PfEmpty, PfSkeleton, PfState } from "@/app/platform/_components/pf/ui";
 
 type Announcement = {
   id: string;
@@ -43,14 +42,15 @@ export default function PlatformAnnouncementsPage() {
   const [editing, setEditing] = useState<Announcement | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [], isLoading, error: loadError, refetch } = useQuery({
     queryKey: ["op-announcements"],
     queryFn: async () => {
-      const data = logRead('platform/announcements:data', await supabase
+      const { data, error } = await supabase
         .from("announcements")
         .select("*")
         .order("pinned", { ascending: false })
-        .order("created_at", { ascending: false }));
+        .order("created_at", { ascending: false });
+      if (error) throw error;
       return (data || []) as Announcement[];
     },
   });
@@ -192,10 +192,8 @@ export default function PlatformAnnouncementsPage() {
 
       <PfCard i={6} hover={false}>
         <PfCardHead title="공지 목록" sub="고정된 공지가 먼저, 그다음 최신순" />
-        {isLoading ? (
-          <div className="px-5 pb-5"><PfSkeleton h={18} rows={3} /></div>
-        ) : rows.length === 0 ? (
-          <PfEmpty>등록된 공지가 없습니다</PfEmpty>
+        {isLoading || loadError || rows.length === 0 ? (
+          <PfState loading={isLoading} error={loadError} onRetry={() => refetch()} empty={rows.length === 0} emptyText="등록된 공지가 없습니다" skeletonRows={3} skeletonH={18} />
         ) : (
           <div className="divide-y divide-[var(--border)]/60">
             {rows.map((a) => {
