@@ -32,7 +32,7 @@ import { DateRangeField } from "@/components/date-range-field";
 import { exportToExcel } from "@/lib/excel-export";
 import { ColumnChart, LineChart, DonutChart, BarChart, Legend, vizColor } from "@/components/charts/kit";
 import {
-  listMoves, listStockDocs, listOnHand, listStockUnitCost, listProducts, listWarehouses,
+  listMoves, listStockDocs, listOnHand, listStockUnitCost, listProducts, listWarehouses, partnerCountText,
   type MoveRow, type Product, DEFECT_WAREHOUSE_CODE,
 } from "@/lib/inventory";
 import { listMoveCosts, listLayers, loadCostingMethod } from "@/lib/inventory-cost";
@@ -351,7 +351,7 @@ export default function InventoryStatusPage() {
       <Stat label="전표" value={`${buy.docs}건`} />
       <Stat label="수량" value={won(buy.qty)} />
       <Stat label="반품" value={`₩${won(buy.ret)}`} tone={buy.ret ? "minus" : undefined} />
-      <Stat label="거래처" value={`${buy.perPartner.size}곳`} />
+      <Stat label="거래처" value={partnerCountText(buy.perPartner.keys())} />
       <Stat label="전표 없음" value={<button type="button" className="inv-stat-btn" onClick={openNoVoucherBuy}>{buy.noVoucher}건</button>} tone={buy.noVoucher ? "minus" : undefined} />
     </>),
     make: (<>

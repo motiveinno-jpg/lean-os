@@ -52,7 +52,7 @@ export function LabelPrintDialog({ products, onClose }: { products: Product[]; o
         </div>
         <div className="stg-table-wrap lbl-scroll">
           <table className="ev-table ev-lined table-lbl">
-            <thead><tr><th><input type="checkbox" checked={checked.size === list.length && list.length > 0} onChange={(e) => setChecked(e.target.checked ? new Set(list.map((p) => p.id)) : new Set())} aria-label="전체 선택" /></th><th className="text-left">SKU</th><th className="text-left">품목명</th><th className="text-left">바코드(찍힐 값)</th><th>장수</th></tr></thead>
+            <thead><tr><th><input type="checkbox" checked={checked.size === list.length && list.length > 0} onChange={(e) => setChecked(e.target.checked ? new Set(list.map((p) => p.id)) : new Set())} aria-label="전체 선택" /></th><th>SKU</th><th>품목명</th><th>바코드(찍힐 값)</th><th>장수</th></tr></thead>
             <tbody>
               {list.map((p) => (
                 <tr key={p.id} className={checked.has(p.id) ? undefined : "ins-edi-off"}>

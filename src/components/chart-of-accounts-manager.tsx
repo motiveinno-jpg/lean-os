@@ -145,7 +145,7 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
                 options={[{ value: "", label: "전체" }, { value: "system", label: "기본" }, { value: "custom", label: "자체" }] as const} />
             </ConditionRow>
           </ConditionPanel>
-          <QuickSearch value={q} onApply={setQ} placeholder="코드 · 계정명 · 구분 검색" />
+          <QuickSearch value={q} onApply={setQ} placeholder="코드 · 계정명 · 구분 · 쉼표로 여러 개, Enter" />
           <ChipGroup value={typeKey} onChange={setTypeKey}
             options={[{ value: "all", label: `전체 ${(accounts as Acct[]).length}` }, ...typeCounts.map((t) => ({ value: t.v, label: t.n > 0 ? `${t.l} ${t.n}` : t.l }))]} />
         </QueryBar>

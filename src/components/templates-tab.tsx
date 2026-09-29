@@ -33,6 +33,7 @@ import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import { DEFAULT_DOC_TEMPLATES } from "@/lib/default-doc-templates";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // ── 인사(HR) 양식 type 집합 ──
 //   전자계약(비즈니스) 양식과 분리해 관리 화면을 나눈다. 데이터(doc_templates)는 그대로.
@@ -109,6 +110,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
   };
   const [editingId, setEditingId] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
+  useModalKeys(!!previewId, () => setPreviewId(null));   // 미리보기 창도 Esc 로 닫힌다
   const [form, setForm] = useState({
     name: "", type: defaultType, content_json: { title: "", sections: [{ title: "", content: "" }] }, variables: [] as string[],
   });

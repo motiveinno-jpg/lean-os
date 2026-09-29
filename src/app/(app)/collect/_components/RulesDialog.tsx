@@ -54,7 +54,7 @@ export function RulesDialog({ companyId, onClose }: { companyId: string; onClose
       .from("voucher_account_rules").delete().eq("id", id).select("id");
     if (error) { toast("규칙을 지우지 못했습니다", "error"); return; }
     if (!data || (data as any[]).length === 0) {
-      toast("규칙을 지울 권한이 없습니다. 대표·관리자만 지울 수 있습니다", "error");
+      toast("규칙을 지울 권한이 없습니다. 마스터나 재무 권한이 있는 사람만 지울 수 있습니다", "error");
       return;
     }
     qc.invalidateQueries({ queryKey: ["voucher-rules-all"] });

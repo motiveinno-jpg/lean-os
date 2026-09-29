@@ -1428,7 +1428,7 @@ export default function PartnersPage() {
                                 }`}>{d.status}</span>
                               </td>
                               <td className="px-4 py-2.5 text-sm text-right">{Number(d.contract_total || 0).toLocaleString()}원</td>
-                              <td className="px-4 py-2.5 text-xs text-right text-[var(--text-muted)]">{d.created_at?.slice(0, 10)}</td>
+                              <td className="px-4 py-2.5 text-xs text-center text-[var(--text-muted)]">{d.created_at?.slice(0, 10)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1469,7 +1469,7 @@ export default function PartnersPage() {
                                 : "bg-yellow-500/10 text-yellow-400"
                               }`}>{p.status === "received" ? "수금완료" : p.status === "overdue" ? "연체" : "대기"}</span>
                             </td>
-                            <td className="px-4 py-2.5 text-xs text-right text-[var(--text-muted)]">{p.due_date || "—"}</td>
+                            <td className="px-4 py-2.5 text-xs text-center text-[var(--text-muted)]">{p.due_date || "—"}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1507,7 +1507,7 @@ export default function PartnersPage() {
                                 : "bg-yellow-500/10 text-yellow-400"
                               }`}>{doc.status}</span>
                             </td>
-                            <td className="px-4 py-2.5 text-xs text-right text-[var(--text-muted)]">{doc.created_at?.slice(0, 10)}</td>
+                            <td className="px-4 py-2.5 text-xs text-center text-[var(--text-muted)]">{doc.created_at?.slice(0, 10)}</td>
                           </tr>
                         ))}
                       </tbody>

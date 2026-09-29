@@ -598,7 +598,7 @@ export default function StockPage() {
                 <div className="stg-table-wrap">
                   <table className="ev-table ev-lined table-inv-ledger">
                     <thead><tr>
-                      <th className="text-left">품목</th><th>단위</th><th>기초</th><th>매입</th><th>판매</th><th>생산 완성</th><th>자재 투입</th><th>조정·기타</th><th>창고 이동</th><th>기말</th><th>매입 금액</th><th>판매 금액</th>
+                      <th>품목</th><th>단위</th><th>기초</th><th>매입</th><th>판매</th><th>생산 완성</th><th>자재 투입</th><th>조정·기타</th><th>창고 이동</th><th>기말</th><th>매입 금액</th><th>판매 금액</th>
                     </tr></thead>
                     <tbody>
                       {ledger.rows.map((r) => (
@@ -712,7 +712,7 @@ export default function StockPage() {
             <p className="inv-modal-desc">{from} ~ {to}{ledgerWh ? ` · ${whById.get(ledgerWh)?.name || ""}` : " · 전체 창고"} · 기초 {won(ledgerOpen.opening)} → 기말 {won(ledgerOpen.closing)}. 취소 전표는 빠집니다.</p>
             <div className="stg-table-wrap inv-ledger-detail">
               <table className="ev-table ev-lined table-inv-ledger-detail">
-                <thead><tr><th>일자</th><th>사유</th><th>문서</th><th className="text-left">창고</th><th className="text-left">비고</th><th>수량</th><th>단가</th><th>금액</th><th>잔량</th></tr></thead>
+                <thead><tr><th>일자</th><th>사유</th><th>문서</th><th>창고</th><th>비고</th><th>수량</th><th>단가</th><th>금액</th><th>잔량</th></tr></thead>
                 <tbody>
                   <tr className="inv-ledger-carry"><td className="tc mono-number">{from}</td><td className="tc">기초</td><td /><td /><td /><td /><td /><td /><td className="tr mono-number">{won(ledgerOpen.opening)}</td></tr>
                   {ledgerDetail.map((m) => (

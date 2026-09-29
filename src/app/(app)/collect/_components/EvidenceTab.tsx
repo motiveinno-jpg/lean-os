@@ -1111,7 +1111,7 @@ export function EvidenceTab({
                           className={on ? "collect-chk collect-chk-on" : "collect-chk"}>{on ? "✓" : ""}</button>
                       )}
                     </td>
-                    <td className="mono-number">{r.date.slice(5)}</td>
+                    <td className="tc mono-number">{r.date.slice(5)}</td>
                     <td className="ev-ell">{r.partnerName}</td>
                     <td className="mono-number ev-dim">{r.bizno || "—"}</td>
                     {/*   구분 — 법인·일반·간이·면세. 카드 원자료엔 없어 국세청 조회로 채운다 (2026-08-12)

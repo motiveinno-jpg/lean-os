@@ -25,6 +25,7 @@ import { ScheduleItemDialog, type ScheduleDialogTarget } from "@/components/sche
 import { fetchLeaveCalendar, buildLeaveByDate, isMyLeave, type LeaveCalRow } from "@/lib/leave-calendar";
 import { useCompanyHolidays } from "@/hooks/use-company-holidays";
 import { useToast } from "@/components/toast";
+import { ScheduleDayAgenda, CalendarInfoDialog, DayDots, useNarrowScreen, type CalendarInfo } from "@/components/schedule-day-agenda";
 import Link from "next/link";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ChipGroup, ConditionPanel, ConditionRow, AppliedChips,
@@ -83,6 +84,11 @@ function CalendarTab({ companyId, userId, myEmail, toast, tabs }: { companyId: s
   //   달력에서 여는 창 · 일정을 누르면 **내용부터**, 날짜를 누르면 새로 만들기(2026-08-10)
   const [dialog, setDialog] = useState<ScheduleDialogTarget | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  //   휴가·공휴일 칩을 누르면 읽기 전용 창 — 공휴일을 눌러 '일정 넣기' 가 열리던 것을 막는다
+  const [info, setInfo] = useState<CalendarInfo | null>(null);
+  //   폰 폭: 칸에 점만 찍고, 날짜를 누르면 고르기만 한다(그날 목록은 달력 아래)
+  const narrow = useNarrowScreen();
+  const [pickedDay, setPickedDay] = useState<string>(() => toLocalDateStr(new Date()));
   //   달력 셀 '+N개 더' 를 누르면 **그 칸이 아래로 늘어나** 전부 보인다 (팝업은 날짜와 멀리 떨어져 보여 별로).
   //   달을 옮기면 접힌 상태로 돌아간다.
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
@@ -242,11 +248,12 @@ function CalendarTab({ companyId, userId, myEmail, toast, tabs }: { companyId: s
                 key={i}
                 role="button"
                 tabIndex={0}
-                onClick={() => openAdd(dateStr)}
-                onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); openAdd(dateStr); } }}
+                onClick={() => (narrow ? setPickedDay(dateStr) : openAdd(dateStr))}
+                onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); if (narrow) setPickedDay(dateStr); else openAdd(dateStr); } }}
+                aria-pressed={narrow ? pickedDay === dateStr : undefined}
                 className={`schedule-day-cell ${
                   !cell.inMonth ? "bg-[var(--bg)] opacity-50" : ""
-                } ${isToday ? "ring-1 ring-inset ring-[var(--primary)]" : ""}`}
+                } ${isToday ? "ring-1 ring-inset ring-[var(--primary)]" : ""} ${narrow && pickedDay === dateStr ? "sched-cell-picked" : ""}`}
               >
                 <div className={`text-[11px] font-semibold ${
                   isToday ? "text-[var(--primary)]" :
@@ -256,7 +263,13 @@ function CalendarTab({ companyId, userId, myEmail, toast, tabs }: { companyId: s
                 }`}>
                   {cell.date.getDate()}
                 </div>
-                {holidays[dateStr] && <div className="schedule-holiday-chip" title={holidays[dateStr]}>{holidays[dateStr]}</div>}
+                {narrow ? (
+                  <DayDots events={cellEvents} leaveCount={(leaveByDate[dateStr] || []).length} holiday={!!holidays[dateStr]} />
+                ) : (<>
+                {holidays[dateStr] && (
+                  <div className="schedule-holiday-chip" title={`${holidays[dateStr]} · 누르면 내용 보기`}
+                    onClick={(ev) => { ev.stopPropagation(); setInfo({ kind: "holiday", date: dateStr, name: holidays[dateStr] }); }}>{holidays[dateStr]}</div>
+                )}
                 <div className="mt-1 space-y-0.5">
                   {(expandedDays.has(weekKey) ? cellEvents : cellEvents.slice(0, 3)).map((e) => {
                     const role = segmentRole(e, dateStr);
@@ -326,17 +339,26 @@ function CalendarTab({ companyId, userId, myEmail, toast, tabs }: { companyId: s
                   {(leaveByDate[dateStr] || []).map((lv) => {
                     const showLabel = lv.role === "single" || lv.role === "start" || dow === 0;
                     return (
-                      <div key={`${lv.key}-${dateStr}`} className={`sched-leave-chip is-${lv.role}`} title={`${lv.name} ${lv.label}`} onClick={(ev) => ev.stopPropagation()}>
+                      <div key={`${lv.key}-${dateStr}`} className={`sched-leave-chip is-${lv.role}`} title={`${lv.name} ${lv.label} · 누르면 내용 보기`}
+                        onClick={(ev) => { ev.stopPropagation(); setInfo({ kind: "leave", leave: lv }); }}>
                         {showLabel ? (<><span className="sched-leave-dot" /><span className="truncate">{lv.name} <span className="opacity-70">{lv.label}</span></span></>) : <span className="truncate opacity-0">·</span>}
                       </div>
                     );
                   })}
                 </div>
+                </>)}
               </div>
             );
           })}
         </div>
       </div>
+      {narrow && (
+        <ScheduleDayAgenda date={pickedDay} holiday={holidays[pickedDay] || null}
+          events={eventsByDate.get(pickedDay) || []} leaves={leaveByDate[pickedDay] || []}
+          onOpenEvent={(e) => setDialog({ mode: "view", event: e })}
+          onOpenLeave={(lv) => setInfo({ kind: "leave", leave: lv })}
+          onAdd={openAdd} />
+      )}
       {isLoading && <div className="px-3 py-2 text-xs text-[var(--text-dim)]">불러오는 중...</div>}
       </div>
       </QueryBody>
@@ -345,6 +367,7 @@ function CalendarTab({ companyId, userId, myEmail, toast, tabs }: { companyId: s
         <ScheduleItemDialog companyId={companyId} userId={userId} target={dialog}
           onClose={() => setDialog(null)} />
       )}
+      {info && <CalendarInfoDialog info={info} onClose={() => setInfo(null)} />}
     </QueryScreen>
   );
 }
@@ -368,7 +391,7 @@ function ScheduleListTab({ companyId, userId, toast, tabs }: { companyId: string
   const [sort, setSort] = useState<SortState<SKey>>({ key: "when", dir: "asc" });
   const onSort = (k: SKey) => setSort((c) => nextSort(c, k));
   const tableRef = useRef<HTMLTableElement | null>(null);
-  const [colW, setColW] = useColWidths("schedule-list-colw-v1", { done: 60, title: 320, desc: 320, when: 220, vis: 100 });
+  const [colW, setColW] = useColWidths("schedule-list-colw-v2", { done: 56, title: 260, desc: 250, when: 210, vis: 90 });
   const thResize = (k: string, colIndex: number) => ({ k, colIndex, widths: colW, onResize: setColW, tableRef });
 
   const { data: items = [], isLoading } = useQuery({
@@ -427,7 +450,7 @@ function ScheduleListTab({ companyId, userId, toast, tabs }: { companyId: string
     <QueryScreen>
       <QueryHead>
         {tabs}
-        <QueryBar right={<button type="button" className="btn-primary btn-sm whitespace-nowrap" onClick={() => setDialog({ mode: "new" })}>+ 새로 만들기</button>}>
+        <QueryBar right={<button type="button" className="btn-primary btn-sm whitespace-nowrap" onClick={() => setDialog({ mode: "new" })}>+ 일정 추가</button>}>
           <ConditionPanel open={panelOpen} onOpenChange={(v) => { if (v) setDraft(live); setPanelOpen(v); }} activeCount={lCount(live)}
             foot={<>
               <button type="button" className="btn-secondary btn-sm" disabled={lCount(draft) === 0} onClick={() => setDraft({ ...LEMPTY, rows: draft.rows })}>조건 지우기</button>
@@ -465,7 +488,7 @@ function ScheduleListTab({ companyId, userId, toast, tabs }: { companyId: string
         {isLoading ? (
           <div className="collect-empty">불러오는 중…</div>
         ) : shown.length === 0 ? (
-          <div className="collect-empty">일정이 없습니다. 새로 만들거나 검색조건을 풀어 보세요.</div>
+          <div className="collect-empty">일정이 없습니다. 일정을 추가하거나 검색조건을 풀어 보세요.</div>
         ) : (
           <div className="ev-scroll">
             <table ref={tableRef} className="ev-table ev-lined ev-cols-fixed sched-table">

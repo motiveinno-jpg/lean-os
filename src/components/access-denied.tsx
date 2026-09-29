@@ -42,9 +42,13 @@ const ROLE_LABEL: Record<UserRole, string> = {
 export function AccessDenied({
   title = "이 페이지에 접근 권한이 없습니다",
   detail,
+  grantable = true,
 }: {
   title?: string;
   detail?: string;
+  /** 회사 안에서 권한을 줘서 열 수 있는 화면인가. 서비스 운영자 전용처럼 마스터도 못 여는 화면은 false —
+   *  '권한을 부여하면 열립니다' 안내와 자동 재확인을 빼야 문구가 사실과 맞는다 */
+  grantable?: boolean;
 }) {
   const { role, user } = useUser();
   const qc = useQueryClient();
@@ -57,24 +61,30 @@ export function AccessDenied({
   // 이 화면이 떠 있는 동안 10초마다 권한 재확인 — 마스터가 방금 부여하면 자동으로 풀린다
   //   (2026-07-31: 템플릿 부여 직후 캐시로 '권한 없음'이 유지되던 문제)
   useEffect(() => {
+    if (!grantable) return;
     const iv = setInterval(() => qc.invalidateQueries({ queryKey: ["my-permissions"] }), 10_000);
     return () => clearInterval(iv);
-  }, [qc]);
+  }, [qc, grantable]);
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center p-6">
       <div className="access-denied-panel glass-card">
         <div className="text-4xl mb-3"><Ico e="🔒" /></div>
         <h1 className="text-2xl font-extrabold text-[var(--text)] mb-2">{title}</h1>
-        <p className="text-sm text-[var(--text-muted)] mb-1">
-          현재 <strong>{roleLabel}</strong> 권한으로는 이 화면을 열 수 없습니다.
-        </p>
+        {grantable && (
+          <p className="text-sm text-[var(--text-muted)] mb-1">
+            현재 <strong>{roleLabel}</strong> 권한으로는 이 화면을 열 수 없습니다.
+          </p>
+        )}
         {/* "여기를 눌러 다시 확인" 버튼 제거 (반응이 없어 보여 헷갈림)
             아래 10초 자동 재확인이 이미 돌고 있어 버튼 없이도 권한 부여가 곧 반영된다. */}
-        {detail && <p className="text-xs text-[var(--text-dim)] mb-2">{detail}</p>}
-        <p className="text-xs text-[var(--text-dim)] mb-5">
-          대표나 관리자가 권한을 부여하면 자동으로 열립니다.
-        </p>
+        {detail && <p className={`text-xs text-[var(--text-dim)] ${grantable ? "mb-2" : "mb-5"}`}>{detail}</p>}
+        {/* 역할 제도가 없어져 권한을 주는 사람은 마스터뿐이다 */}
+        {grantable && (
+          <p className="text-xs text-[var(--text-dim)] mb-5">
+            마스터가 권한을 부여하면 자동으로 열립니다.
+          </p>
+        )}
 
         <Link
           href="/dashboard"

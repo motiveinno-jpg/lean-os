@@ -126,12 +126,12 @@ export function DataExportPanel({ companyId }: { companyId: string | null }) {
         <button type="button" className="btn-primary btn-sm" disabled={!companyId || !!busy} onClick={all}>{busy === "all" ? "만드는 중…" : "전부 한 파일로"}</button>
       </div>
       <table className="ev-table ev-lined data-export-table">
-        <thead><tr><th className="text-left">자료</th><th className="text-left">들어 있는 것</th><th>건수</th><th></th></tr></thead>
+        <thead><tr><th>자료</th><th>들어 있는 것</th><th>건수</th><th></th></tr></thead>
         <tbody>
           {DATASETS.map((d) => (
             <tr key={d.key}>
               <td className="text-left"><b>{d.label}</b></td>
-              <td className="text-left ev-dim">{d.desc}</td>
+              <td className="text-left ev-dim data-export-desc">{d.desc}</td>
               <td className="tc mono-number">{counts[d.key] == null ? "…" : counts[d.key].toLocaleString("ko-KR")}</td>
               <td className="tc"><button type="button" className="btn-secondary btn-sm" disabled={!companyId || !!busy || counts[d.key] === 0} onClick={() => one(d)}>{busy === d.key ? "만드는 중…" : "내려받기"}</button></td>
             </tr>

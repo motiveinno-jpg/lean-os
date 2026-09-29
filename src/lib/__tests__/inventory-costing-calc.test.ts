@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { unitCostFromLayers, mergeUnitCost, costOfMove } from "../inventory-costing-calc";
+import { unitCostFromLayers, mergeUnitCost, costOfMove, nextOutUnitCost } from "../inventory-costing-calc";
 import { partnerNameFromNote } from "../inventory";
 
 //   재고 › 현황 마진과 이익관리 매출총이익이 같은 원가를 쓰는지, 재고금액이 한 단가로 모이는지 고정한다.
@@ -45,5 +45,25 @@ describe("이력 거래처 칸 — 이름만 친 거래처", () => {
   it("거래처 표시가 없으면 null — 창고·메모로 채우지 않는다", () => {
     expect(partnerNameFromNote("본사창고")).toBeNull();
     expect(partnerNameFromNote(null)).toBeNull();
+  });
+});
+
+describe("다음 출고 단가 — 이익 › 품목별", () => {
+  const layers = [
+    { product_id: "p", move_id: "a", qty_left: 0, unit_cost: 40000 },
+    { product_id: "p", move_id: "b", qty_left: 3, unit_cost: 50000 },
+    { product_id: "p", move_id: "c", qty_left: 10, unit_cost: 52000 },
+    { product_id: "q", move_id: "d", qty_left: 2, unit_cost: null },
+    { product_id: "q", move_id: "e", qty_left: 2, unit_cost: 900 },
+  ];
+  it("선입선출은 남은 층 중 가장 먼저 들어온 층 단가 — 마지막 입고 단가가 아니다", () => {
+    const m = nextOutUnitCost(layers, "fifo");
+    expect(m.get("p")).toBe(50000);
+  });
+  it("먼저 나갈 층에 단가가 없으면 null(미확정)", () => {
+    expect(nextOutUnitCost(layers, "fifo").get("q")).toBeNull();
+  });
+  it("이동평균은 남은 층 가중평균", () => {
+    expect(nextOutUnitCost(layers, "avg").get("p")).toBeCloseTo((3 * 50000 + 10 * 52000) / 13);
   });
 });

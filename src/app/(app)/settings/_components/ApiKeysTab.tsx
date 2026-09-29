@@ -30,7 +30,7 @@ const fmt = (iso: string | null) =>
 
 // 외부 자동화(n8n 등) 인입 키 · 회사별 비밀키. 발급 즉시 한 번만 보이고, 다시 발급하면 이전 키는 즉시 막힌다.
 function IngestKeyCard({ companyId }: { companyId: string }) {
-  //   인입 키는 DB 가 대표·관리자만 받는다(company_ingest_keys 정책 + rotate_ingest_key).
+  //   인입 키는 DB 가 마스터만 받는다(company_ingest_keys 정책 + rotate_ingest_key → is_company_admin = users.is_master).
   //   탭은 /settings:api-keys·/settings:ads 로 열려, 위임받은 사람 눈에는 목록이 빈 채로 '발급' 버튼만
   //   활성으로 보이고 누르면 권한 오류만 났다 (2026-09-11). 할 수 없는 일은 버튼으로 보여 주지 않는다.
   const { isMaster } = useMyPermissions();
@@ -74,7 +74,7 @@ function IngestKeyCard({ companyId }: { companyId: string }) {
       <div className="apik-acts">
         {canIssue
           ? <button type="button" className="btn-secondary btn-sm" onClick={rotate}>{active ? "다시 발급" : "발급"}</button>
-          : <span className="text-[11px] text-[var(--text-dim)]">대표·관리자만 발급할 수 있습니다</span>}
+          : <span className="text-[11px] text-[var(--text-dim)]">회사 마스터만 발급할 수 있습니다</span>}
       </div>
     </div>
   );

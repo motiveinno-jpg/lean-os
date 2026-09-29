@@ -10,13 +10,14 @@ function label(m: string): string {
   return `${y}년 ${Number(mm)}월`;
 }
 
-export function MonthSelect({ value, onChange, className = "inv-input", from = "2022-01", aheadMonths = 12, ariaLabel }: {
+export function MonthSelect({ value, onChange, className = "inv-input", from = "2022-01", aheadMonths = 0, ariaLabel }: {
   value: string;
   onChange: (v: string) => void;
   className?: string;
   /** 목록 시작 월(포함) — 오래된 자산 상각 시작 월 등은 넉넉히 과거까지 */
   from?: string;
-  /** 현재 월 이후로 몇 달까지 보여줄지 */
+  /** 현재 월 이후로 몇 달까지 보여줄지. 기본 0 — 신고·마감·상각은 지난 달·이번 달만 대상이다
+   *  (미래 달을 고르면 빈 결과가 나오거나 오지 않은 달을 마감하게 된다). 앞으로의 날짜가 필요한 칸만 넘긴다. */
   aheadMonths?: number;
   ariaLabel?: string;
 }) {

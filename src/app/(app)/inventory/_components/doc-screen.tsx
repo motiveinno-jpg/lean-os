@@ -24,11 +24,17 @@ import { DateRangeField } from "@/components/date-range-field";
 import { exportToExcel } from "@/lib/excel-export";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { listProducts, listWarehouses, type Product, type Warehouse } from "@/lib/inventory";
-import { FORM_LABEL, type FormKey } from "@/lib/inventory-orders";
+import { FORM_LABEL, DOC_NOUN, type FormKey } from "@/lib/inventory-orders";
 import {
   useDocEditor, DocHead, DocGrid, DocSums, FormDialog, blankRow, docWon as won,
   type DocCtl, type Partner,
 } from "./doc-editor";
+
+//   받침 유무로 조사 고르기 — 문서 이름이 화면마다 달라서(주문서·생산 기록·판매 전표)
+const hasBatchim = (w: string) => { const c = w.charCodeAt(w.length - 1); return c >= 0xac00 && c <= 0xd7a3 && (c - 0xac00) % 28 !== 0; };
+const josa = (w: string) => (hasBatchim(w) ? "이" : "가");
+const objJosa = (w: string) => (hasBatchim(w) ? "을" : "를");
+const topicJosa = (w: string) => (hasBatchim(w) ? "은" : "는");
 
 export type SaveAction = { key: string; label: string; primary?: boolean; hint?: string };
 
@@ -96,6 +102,8 @@ export function DocScreen({
   const [userId, setUserId] = useState<string | null>(null);
   useEffect(() => { getCurrentUser().then((u) => { setCompanyId(u?.company_id ?? null); setUserId(u?.id ?? null); }); }, []);
 
+  //   이 화면의 문서 이름 — 주문서·생산 이력에 '전표'라고 쓰면 회계 전표가 생긴 것처럼 읽힌다
+  const noun = DOC_NOUN[formKey];
   const [tab, setTab] = useState<"edit" | "list">("edit");
   const [xlsOpen, setXlsOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -302,7 +310,7 @@ export function DocScreen({
                 <QuickSearch value={q} onApply={setQ} placeholder="번호 · 거래처 · 품목 · 쉼표로 여러 개, Enter" />
               </QueryBar>
               <ResultStrip>
-                <Stat label="전표" value={`${won(shown.length)}건`} />
+                <Stat label={noun} value={`${won(shown.length)}건`} />
                 <Stat label="합계" value={`₩${won(shown.reduce((n, h) => n + h.total, 0))}`} />
                 <span className="spv-toolbar-hint">줄을 누르면 <b>입력 화면</b>에서 수정합니다.</span>
               </ResultStrip>
@@ -316,7 +324,7 @@ export function DocScreen({
             {tab === "edit" ? <div className="doc-editor">{editor}</div> : (
               shown.length === 0 ? (
                 <div className="collect-empty">
-                  아직 이 기간에 저장된 전표가 없습니다. <b>입력</b> 탭에서 저장하면 여기에 보입니다.
+                  아직 이 기간에 저장된 {noun}{josa(noun)} 없습니다. <b>입력</b> 탭에서 저장하면 여기에 보입니다.
                 </div>
               ) : (
                 <div className="stg-table-wrap">
@@ -365,8 +373,8 @@ export function DocScreen({
           <div className="inv-modal-box doc-popup" onClick={(e) => e.stopPropagation()}>
             <div className="doc-popup-head">
               <div>
-                <h3 className="inv-modal-title">{ctl.editing?.order_no || "전표"} 수정</h3>
-                <p className="inv-modal-desc">{ctl.editing?.status === "cancelled" ? "취소된 전표입니다. 보기만 할 수 있습니다." : "입력 화면과 같은 방식으로 수정합니다."}</p>
+                <h3 className="inv-modal-title">{ctl.editing?.order_no || noun} 수정</h3>
+                <p className="inv-modal-desc">{ctl.editing?.status === "cancelled" ? `취소된 ${noun}입니다. 보기만 할 수 있습니다.` : "입력 화면과 같은 방식으로 수정합니다."}</p>
               </div>
               <button type="button" className="btn-secondary btn-sm" onClick={ctl.openForm}>입력 항목</button>
             </div>
@@ -381,7 +389,7 @@ export function DocScreen({
               {onDelete && canWrite && (
                 <button type="button" className="btn-secondary btn-sm doc-del" disabled={busy}
                   onClick={async () => {
-                    if (!(await appConfirm("이 전표를 삭제할까요?", { danger: true, confirmLabel: "삭제" }))) return;
+                    if (!(await appConfirm(`이 ${noun}${objJosa(noun)} 삭제할까요?`, { danger: true, confirmLabel: "삭제" }))) return;
                     setBusy(true);
                     try { await onDelete({ id: ctl.editing!.id, ctl }); toast("삭제했습니다", "success"); closePopup(); invalidate(); }
                     catch (e) { toast(friendlyError(e), "error"); }
@@ -392,7 +400,7 @@ export function DocScreen({
                 <button type="button" className="btn-secondary btn-sm doc-del" disabled={busy}
                   onClick={async () => {
                     //   지우지 않는다 — 누가 언제 왜 취소했는지가 남아야 한다(결정 25)
-                    const reason = window.prompt("취소 사유를 적어 주세요 (전표는 지워지지 않고 취소로 남습니다)");
+                    const reason = window.prompt(`취소 사유를 적어 주세요 (${noun}${topicJosa(noun)} 지워지지 않고 취소로 남습니다)`);
                     if (reason == null) return;
                     setBusy(true);
                     try { await onCancel({ id: ctl.editing!.id, ctl, reason }); toast("취소했습니다. 재고가 되돌아갔습니다", "success"); closePopup(); invalidate(); }

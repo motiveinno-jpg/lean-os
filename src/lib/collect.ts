@@ -47,8 +47,10 @@ export type SourceStatus = {
   pending: number;
   /** 가진 자료 중 가장 최근 일자 */
   latestDate: string | null;
-  /** 마지막 수집 시각 */
+  /** 마지막으로 **받아 온** 시각 (성공한 수집만 — '새로 들어온 것만' 시작일이 이걸 쓴다) */
   lastSyncAt: string | null;
+  /** 마지막 성공보다 뒤에 실패·부분 실패한 시도가 있으면 그 시각. 없으면 null */
+  lastFailedAt: string | null;
   /** 지난번 수집에 걸린 시간(초). 기록이 없으면 null */
   lastSeconds: number | null;
   /** 수집이 도는데 계속 0건이면 뭔가 고장난 것 — 카드에 빨갛게 띄운다 */
@@ -65,6 +67,12 @@ export type SourceStatus = {
 //   ※ 새 기준을 만든 게 아니다. 세금·증빙 화면이 쓰는 판정(isSent)과 같은 규칙을 여기에도 적용한 것이다
 //     (tax-invoices/page.tsx: nts_issue_status === 'issued' || !!nts_confirm_no).
 export const ISSUED_AT_NTS = "nts_confirm_no.not.is.null,nts_issue_status.eq.issued";
+
+//   통장·카드 수집이 sync_logs 에 남기는 sync_type — 사람이 누른 것과 자동(cron) 모두
+const LOG_TYPES: Record<"bank" | "card", string[]> = {
+  bank: ["codef_bank", "codef_bank_cron", "codef_bank_card", "codef_all"],
+  card: ["codef_card", "codef_card_cron", "codef_bank_card", "codef_all"],
+};
 
 export async function fetchCollectStatus(companyId: string, from: string, to: string): Promise<Record<SourceKey, SourceStatus>> {
 
@@ -134,7 +142,7 @@ export async function fetchCollectStatus(companyId: string, from: string, to: st
   }));
   const statOf = new Map(perSource.map((r) => [r.key, r]));
 
-  const [cooldowns, jobs] = await Promise.all([
+  const [cooldowns, jobs, logs] = await Promise.all([
     supabase.from("sync_cooldowns")
       .select("sync_type, last_run_at, last_duration_sec")
       .eq("company_id", companyId),
@@ -143,7 +151,23 @@ export async function fetchCollectStatus(companyId: string, from: string, to: st
       .select("job_type, status, total_synced, completed_at, started_at")
       .eq("company_id", companyId).eq("status", "completed")
       .order("completed_at", { ascending: false }).limit(60),
+    //   통장·카드는 '최근 수집 이력'과 같은 기록(sync_logs)을 본다 — 자동 수집(cron)이나 통장 화면에서
+    //   누른 수집은 쿨타임 기록을 남기지 않아, 이력엔 있는데 표는 '아직 없음'으로 어긋났다.
+    supabase.from("sync_logs")
+      .select("sync_type, status, created_at")
+      .eq("company_id", companyId)
+      .in("sync_type", [...LOG_TYPES.bank, ...LOG_TYPES.card].filter((t, i, a) => a.indexOf(t) === i))
+      .order("created_at", { ascending: false }).limit(100),
   ]);
+
+  //   자료별 마지막 성공 · 그 뒤의 마지막 실패
+  const logLast = new Map<SourceKey, { ok: string | null; failed: string | null }>();
+  for (const k of ["bank", "card"] as const) {
+    const mine = (((logs as any).data as any[]) || []).filter((r) => LOG_TYPES[k].includes(r.sync_type));
+    const ok = mine.find((r) => r.status === "success")?.created_at ?? null;
+    const failed = mine.find((r) => r.status !== "success" && (!ok || r.created_at > ok))?.created_at ?? null;
+    logLast.set(k, { ok, failed });
+  }
 
   const cd = new Map<string, { at: string | null; sec: number | null }>();
   for (const r of ((cooldowns.data as any[]) || [])) {
@@ -186,8 +210,10 @@ export async function fetchCollectStatus(companyId: string, from: string, to: st
       total: st.total,
       pending: st.pending,
       latestDate: st.latestDate,
-      //   홈택스 3종은 job 기록이 자료별로 정확하다. 통장·카드는 쿨타임 기록을 쓴다.
-      lastSyncAt: (HOMETAX_SOURCES.includes(key) ? job?.at : cool?.at) ?? null,
+      //   홈택스 3종은 job 기록이 자료별로 정확하다. 통장·카드는 수집 이력(sync_logs)의 마지막 성공.
+      //   쿨타임 기록은 누른 시각이라 실패한 시도도 '수집함'으로 읽혀 쓰지 않는다(소요시간만 쓴다).
+      lastSyncAt: HOMETAX_SOURCES.includes(key) ? (job?.at ?? null) : (logLast.get(key)?.ok ?? null),
+      lastFailedAt: HOMETAX_SOURCES.includes(key) ? null : (logLast.get(key)?.failed ?? null),
       lastSeconds: (HOMETAX_SOURCES.includes(key) ? job?.sec : cool?.sec) ?? null,
       brokenNote: brokenOf(key, st.total),
     };

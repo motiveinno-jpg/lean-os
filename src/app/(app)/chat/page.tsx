@@ -571,7 +571,8 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
       </nav>
 
       {/* ── 목록 패널 — 레일에서 고른 것에 따라 구성원 또는 채팅방 ── */}
-      <aside className={`chat-sidebar chat-sidebar-railed ${selectedChannel ? "hidden md:flex" : "flex"}`}>
+      {/*  폰 폭에서 '일정' 은 한 단 — 목록 칸을 숨기고 달력(아래 날짜별 목록 포함)만 둔다. 셋을 좁혀 세우면 날짜가 '1/0' 처럼 쪼개졌다 */}
+      <aside className={`chat-sidebar chat-sidebar-railed ${selectedChannel || rail === "schedule" ? "hidden md:flex" : "flex"}`}>
         <div className="px-3 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-dim)]">{rail === "people" ? "구성원" : rail === "schedule" ? "일정 · 할 일" : "채팅방"}</span>

@@ -11,6 +11,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { ScheduleItemDialog, type ScheduleDialogTarget } from "@/components/schedule-item-dialog";
 import { todayKst } from "@/lib/kst";
+import { fetchLeaveCalendar, leaveEntryOf, type LeaveByDateEntry } from "@/lib/leave-calendar";
+import { CalendarInfoDialog, type CalendarInfo } from "@/components/schedule-day-agenda";
 import {
   getScheduleItems,
   VISIBILITY_LABEL, type ScheduleEvent, type EventColor,
@@ -23,6 +25,7 @@ const DOT: Record<EventColor, string> = {
 
 export function ChatSchedulePanel({ companyId, userId }: { companyId: string | null; userId: string | null }) {
   const [open, setOpen] = useState<ScheduleDialogTarget | null>(null);
+  const [info, setInfo] = useState<CalendarInfo | null>(null);
 
   const { data: items = [] } = useQuery({
     queryKey: ["schedule-items", companyId, userId, false, false],
@@ -31,11 +34,22 @@ export function ChatSchedulePanel({ companyId, userId }: { companyId: string | n
   });
 
 
+  //   승인 휴가 — 옆 달력과 같은 소스·같은 캐시 키. 목록이 일정만 읽어 달력엔 휴가가 보이는데
+  //   목록은 '일정이 없습니다' 로 나와 두 곳이 달랐다.
+  const { data: leaves = [] } = useQuery({
+    queryKey: ["chat-cal-leaves", companyId],
+    queryFn: fetchLeaveCalendar,
+    enabled: !!companyId, staleTime: 60_000,
+  });
+
   const today = todayKst();
   const list = items as ScheduleEvent[];
   //   지난 일정은 굳이 안 보여 준다 — '앞으로 할 것' 만 본다
   const upcoming = list.filter((e) => e.start_at && String(e.end_at || e.start_at).slice(0, 10) >= today);
   const undated = list.filter((e) => !e.start_at);
+  const upcomingLeaves = (leaves.map((l) => leaveEntryOf(l)).filter(Boolean) as LeaveByDateEntry[])
+    .filter((lv) => lv.to >= today)
+    .sort((a, b) => a.from.localeCompare(b.from) || a.name.localeCompare(b.name, "ko"));
 
   const row = (e: ScheduleEvent) => (
     //   목록에 체크박스를 두지 않는다 — 지나가다 잘못 눌러 완료되는 일이
@@ -59,7 +73,7 @@ export function ChatSchedulePanel({ companyId, userId }: { companyId: string | n
       {/*  넣는 방법 안내는 **달력 위에만** 둔다 — 여기에도 적어 두면 같은 말이 두 번이다
 . '새로 만들기' 단추도 같은 이유로 뺐다. */}
       <div className="chat-sched-list">
-        {upcoming.length === 0 && undated.length === 0 && <p className="chat-sched-empty">일정이 없습니다.</p>}
+        {upcoming.length === 0 && undated.length === 0 && upcomingLeaves.length === 0 && <p className="chat-sched-empty">일정이 없습니다.</p>}
         {/*  무슨 목록인지 머리에 적어 준다 */}
         {upcoming.length > 0 && <p className="chat-sched-sub chat-sched-sub-top">다가오는 일정 {upcoming.length}</p>}
         {upcoming.map(row)}
@@ -67,6 +81,19 @@ export function ChatSchedulePanel({ companyId, userId }: { companyId: string | n
           <p className="chat-sched-sub">날짜 없는 것 {undated.length}</p>
         )}
         {undated.map(row)}
+        {upcomingLeaves.length > 0 && (
+          <p className={upcoming.length === 0 && undated.length === 0 ? "chat-sched-sub chat-sched-sub-top" : "chat-sched-sub"}>다가오는 휴가 {upcomingLeaves.length}</p>
+        )}
+        {upcomingLeaves.map((lv) => (
+          <div key={lv.key} className="chat-sched-row">
+            <i className="chat-sched-dot sched-dot-leave" />
+            <button type="button" className="chat-sched-row-body" title="눌러서 내용 보기"
+              onClick={() => setInfo({ kind: "leave", leave: lv })}>
+              <b>{lv.name} {lv.label}</b>
+              <em>{lv.from}{lv.to !== lv.from ? ` ~ ${lv.to}` : ""} · 휴가</em>
+            </button>
+          </div>
+        ))}
       </div>
 
       <a href="/schedule" target="_blank" rel="noopener noreferrer" className="chat-sched-more">일정 화면 열기 ↗</a>
@@ -74,6 +101,7 @@ export function ChatSchedulePanel({ companyId, userId }: { companyId: string | n
       {open && (
         <ScheduleItemDialog companyId={companyId} userId={userId} target={open} onClose={() => setOpen(null)} />
       )}
+      {info && <CalendarInfoDialog info={info} onClose={() => setInfo(null)} />}
     </div>
   );
 }

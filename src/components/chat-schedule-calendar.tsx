@@ -17,6 +17,8 @@ import {
   type ScheduleEvent,
 } from "@/lib/schedule";
 import { fetchLeaveCalendar, buildLeaveByDate } from "@/lib/leave-calendar";
+import { useCompanyHolidays } from "@/hooks/use-company-holidays";
+import { ScheduleDayAgenda, CalendarInfoDialog, DayDots, useNarrowScreen, type CalendarInfo } from "@/components/schedule-day-agenda";
 
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -28,6 +30,11 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
   const [view, setView] = useState({ y: now.getFullYear(), m0: now.getMonth() });
   //   날짜를 누르면 그 날짜로 여는 입력 창. 여러 날에 걸치는 일이 흔해 **시작~종료**를 함께 잡는다.
   const [open, setOpen] = useState<ScheduleDialogTarget | null>(null);
+  //   휴가 칩은 읽기 전용 창으로(결재로 정해진 것이라 여기서 고치지 않는다)
+  const [info, setInfo] = useState<CalendarInfo | null>(null);
+  //   폰 폭: 칸에 점만 찍고 날짜를 누르면 고르기만 한다 — 그날 것은 달력 아래 목록. 끌어서 여러 날 고르기도 폰에선 끈다
+  const narrow = useNarrowScreen();
+  const [pickedDay, setPickedDay] = useState<string>(() => todayKst());
   //   달력에서 **끌어서** 여러 날을 한 번에 고른다(누르고 옆으로 끌면 그 구간이 잡힌다)
   const dragRef = useRef<{ start: string } | null>(null);
   const [dragTo, setDragTo] = useState<string | null>(null);
@@ -63,6 +70,8 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
     enabled: !!companyId, staleTime: 60_000,
   });
   const leaveByDay = useMemo(() => buildLeaveByDate(leaves), [leaves]);
+  //   공휴일 — 일정 메뉴 달력과 같은 회사 공휴일 표
+  const holidays = useCompanyHolidays(companyId, [view.y, view.y + 1]);
 
   //   날짜별로 모아 둔다 — 기간 일정은 걸친 날마다 들어간다(일정 화면과 같은 규칙)
   const byDay = useMemo(() => {
@@ -117,21 +126,27 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
           const inDrag = !!dragRange && c.key >= dragRange[0] && c.key <= dragRange[1];
           return (
             <button key={c.key} type="button"
-              className={`chat-cal-day ${c.key === today ? "chat-cal-day-today" : ""} ${inDrag ? "chat-cal-day-pick" : ""}`}
+              className={`chat-cal-day ${c.key === today ? "chat-cal-day-today" : ""} ${inDrag || (narrow && pickedDay === c.key) ? "chat-cal-day-pick" : ""}`}
               
               //   눌러서 끌면 여러 날 · 손을 떼는 순간(window mouseup) 입력 창이 열린다
-              onMouseDown={() => { dragRef.current = { start: c.key }; setDragTo(c.key); }}
+              onMouseDown={() => { if (narrow) return; dragRef.current = { start: c.key }; setDragTo(c.key); }}
               onMouseEnter={() => { if (dragRef.current) setDragTo(c.key); }}
+              onClick={() => { if (narrow) setPickedDay(c.key); }}
+              aria-pressed={narrow ? pickedDay === c.key : undefined}
               
               //   키보드로도 열 수 있게 · Enter/Space 는 하루짜리로 연다
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  setOpen({ mode: "new", from: c.key, to: c.key });
+                  if (narrow) setPickedDay(c.key);
+                  else setOpen({ mode: "new", from: c.key, to: c.key });
                 }
               }}
               title={`${c.key} · 누르면 그 날, 끌면 여러 날 일정`}>
-              <span className={`chat-cal-daynum ${dow === 0 ? "chat-cal-sun" : dow === 6 ? "chat-cal-sat" : ""}`}>{c.d}</span>
+              <span className={`chat-cal-daynum ${dow === 0 || holidays[c.key] ? "chat-cal-sun" : dow === 6 ? "chat-cal-sat" : ""}`} title={holidays[c.key] || undefined}>{c.d}</span>
+              {narrow ? (
+                <DayDots events={list} leaveCount={(leaveByDay[c.key] || []).length} holiday={!!holidays[c.key]} />
+              ) : (<>
               {list.slice(0, 3).map((e) => (
                 <span key={e.id} className={`chat-cal-ev ${EVENT_COLOR_BG[e.color] || ""}`} title={`${e.title} · 누르면 내용을 봅니다`}
                   onMouseDown={(ev) => { ev.stopPropagation(); }}
@@ -140,13 +155,23 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
               {list.length > 3 && <span className="chat-cal-more">+{list.length - 3}</span>}
               {/* 직원 휴가 — 일정 아래에 초록 칩 */}
               {(leaveByDay[c.key] || []).map((lv, li) => (
-                <span key={`lv${li}`} className="chat-cal-leave" title={`${lv.name} ${lv.label}`}
-                  onMouseDown={(ev) => ev.stopPropagation()}>{lv.name} {lv.label}</span>
+                <span key={`lv${li}`} className="chat-cal-leave" title={`${lv.name} ${lv.label} · 누르면 내용 보기`}
+                  onMouseDown={(ev) => ev.stopPropagation()}
+                  onClick={(ev) => { ev.stopPropagation(); setInfo({ kind: "leave", leave: lv }); }}>{lv.name} {lv.label}</span>
               ))}
+              </>)}
             </button>
           );
         })}
       </div>
+
+      {narrow && (
+        <ScheduleDayAgenda date={pickedDay} holiday={holidays[pickedDay] || null} events={byDay.get(pickedDay) || []} leaves={leaveByDay[pickedDay] || []}
+          onOpenEvent={(e) => setOpen({ mode: "view", event: e })}
+          onOpenLeave={(lv) => setInfo({ kind: "leave", leave: lv })}
+          onAdd={(d) => setOpen({ mode: "new", from: d, to: d })} />
+      )}
+      {info && <CalendarInfoDialog info={info} onClose={() => setInfo(null)} />}
 
       {/* 날짜를 누르면(또는 일정을 누르면) 뜨는 창 — 일정 메뉴와 **같은 부품** */}
       {open && (

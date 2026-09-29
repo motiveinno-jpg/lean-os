@@ -1082,7 +1082,7 @@ function QuestionCard({ usage, pct, gaugeTone }: { usage: Usage | null | undefin
       </div>
 
       <div className="copilot2-token-nums">
-        <div><span className="copilot2-token-used">{usage ? fmt(usage.used) : "—"}</span> <span className="copilot2-token-slash">/ {usage ? (unlimited ? "무제한" : `${fmt(usage.limit ?? 0)}회`) : "—"}</span></div>
+        <div><span className="copilot2-token-slash">이번 달 사용</span> <span className="copilot2-token-used">{usage ? fmt(usage.used) : "—"}</span> <span className="copilot2-token-slash">/ {usage ? (unlimited ? "무제한" : `${fmt(usage.limit ?? 0)}회`) : "—"}</span></div>
         <div className="copilot2-token-remain">질문 한 번에 1회 · 이어지는 조회는 세지 않습니다</div>
       </div>
 

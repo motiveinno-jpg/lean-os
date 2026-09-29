@@ -364,6 +364,12 @@ export const EVENT_COLOR_BG: Record<EventColor, string> = {
   gray: "bg-gray-500/15 text-gray-400 border-gray-500/30",
 };
 
+//   점 하나로 색만 보일 때(모바일 달력 칸·날짜별 목록)
+export const EVENT_COLOR_DOT: Record<EventColor, string> = {
+  blue: "bg-blue-500", green: "bg-green-500", red: "bg-red-500",
+  amber: "bg-amber-500", violet: "bg-violet-500", gray: "bg-gray-400",
+};
+
 export const PRIORITY_LABEL: Record<0 | 1 | 2, { label: string; color: string }> = {
   0: { label: "낮음", color: "text-gray-400" },
   1: { label: "보통", color: "text-blue-400" },

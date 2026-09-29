@@ -311,7 +311,7 @@ export default function ChannelsPage() {
                   <div className="pjv3-stpanel">
                     <h3>채널별 <small>줄을 누르면 그 채널 주문만 봅니다.</small></h3>
                     <div className="stg-table-wrap"><table className="ev-table ev-lined ch-st-table">
-                      <thead><tr><th className="text-left">채널</th><th>주문</th><th>금액</th><th>평균</th><th>출고 대기</th><th>완료율</th></tr></thead>
+                      <thead><tr><th>채널</th><th>주문</th><th>금액</th><th>평균</th><th>출고 대기</th><th>완료율</th></tr></thead>
                       <tbody>
                         {stData.byChannel.map((r) => {
                           const max = Math.max(1, ...stData.byChannel.map((x) => x.amount));

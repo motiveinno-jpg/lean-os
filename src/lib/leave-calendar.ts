@@ -49,7 +49,22 @@ export function leaveDisplayLabel(
 }
 
 /** role — 하루짜리(single) / 여러 날의 시작(start)·중간(mid)·끝(end). 달력이 연속 막대로 이어 그릴 때 쓴다. key 는 같은 휴가를 날짜 사이에서 묶는 값. */
-export type LeaveByDateEntry = { name: string; label: string; key: string; role: "single" | "start" | "mid" | "end" };
+//   from·to·days 는 칩을 눌렀을 때 휴가 내용(기간·일수)을 보여 주려고 함께 싣는다.
+export type LeaveByDateEntry = { name: string; label: string; key: string; role: "single" | "start" | "mid" | "end"; from: string; to: string; days: number | null };
+
+/** 휴가 한 건을 달력 칩 한 개 모양으로 — 날짜별 펼치기(buildLeaveByDate)와 '다가오는 휴가' 목록이 같이 쓴다. 시작일이 없으면 null */
+export function leaveEntryOf(l: LeaveCalRow, typeLabel?: (v: string) => string): LeaveByDateEntry | null {
+  const from = String(l.start_date || "").slice(0, 10);
+  if (!from) return null;
+  const to = String(l.end_date || from).slice(0, 10);
+  const name = l.employee_name || "";
+  return {
+    name, label: leaveDisplayLabel(l, typeLabel),
+    key: `${l.employee_id || l.user_id || name}|${from}|${to}`,
+    role: from === to ? "single" : "start",
+    from, to, days: l.days == null ? null : Number(l.days),
+  };
+}
 
 // 기간(start_date~end_date)을 날짜별로 펼쳐 map[YYYY-MM-DD] = [{name,label}] 로.
 //   ⚠️ 날짜 문자열끼리만 더한다(UTC 자정 기준) — new Date 로 로컬 변환하면 KST 자정이 전날로 밀려 하루 어긋난다.
@@ -63,16 +78,13 @@ export function buildLeaveByDate(
     return new Date(Date.UTC(y, m - 1, dd + 1)).toISOString().slice(0, 10);
   };
   for (const l of leaves || []) {
-    const from = String(l.start_date || "").slice(0, 10);
-    const to = String(l.end_date || from).slice(0, 10);
-    if (!from) continue;
-    const name = l.employee_name || "";
-    const label = leaveDisplayLabel(l, typeLabel);
-    const key = `${l.employee_id || l.user_id || name}|${from}|${to}`;
+    const base = leaveEntryOf(l, typeLabel);
+    if (!base) continue;
+    const { from, to } = base;
     let cur = from;
     for (let i = 0; i < 366 && cur <= to; i++) {
       const role: LeaveByDateEntry["role"] = from === to ? "single" : cur === from ? "start" : cur === to ? "end" : "mid";
-      (map[cur] || (map[cur] = [])).push({ name, label, key, role });
+      (map[cur] || (map[cur] = [])).push({ ...base, role });
       cur = nextDay(cur);
     }
   }

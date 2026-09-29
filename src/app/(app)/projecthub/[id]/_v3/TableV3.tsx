@@ -1738,7 +1738,13 @@ export function TableV3() {
           <button key={v} type="button" className={`pjv3-vchip ${curView === v ? "on" : ""}`}
             onClick={() => setCurView(v as "kanban" | "calendar" | "gantt" | "status")}>
             {VIEW_LABELS[v]}
-            {curView === v && <span className="x" title="이 보기 빼기" onClick={(e) => { e.stopPropagation(); removeView(v); }}>✕</span>}
+            {/* 이름 바로 옆이라 잘못 누르기 쉽다 — 마우스를 올렸을 때만 보이고, 두 번 눌러야 뺀다(다른 ✕ 와 같은 패턴) */}
+            {curView === v && (
+              <span className={`x ${delArm === `view:${v}` ? "armed" : ""}`} title="이 보기 빼기 · 한 번 더 누르면 빠집니다"
+                onClick={(e) => { e.stopPropagation(); armOrRun(`view:${v}`, () => removeView(v)); }}>
+                {delArm === `view:${v}` ? "한 번 더" : "✕"}
+              </span>
+            )}
           </button>
         ))}
         <button type="button" className="pjv3-addview" onClick={(e) => setPop({ kind: "addview", ...at(e) })}>＋ 보기</button>

@@ -863,11 +863,11 @@ export default function BankPage() {
               )}
               <span className="text-[11px] text-[var(--text-dim)]">{tab === "accounts" ? "연동된 통장과 잔액을 봅니다." : "통장 잔액과 이번 달 흐름을 봅니다."}</span>
             </QueryBar>
-            {/* 결과 요약 — 예전 stat 4 그라데이션 카드(총 자산·이번 달 수익·지출·분류 완료율)를 Stat 줄로 (2026-08-19 자금 메뉴 점검) */}
+            {/* 결과 요약 — 예전 stat 4 그라데이션 카드(총 자산·입금·출금·분류 완료율)를 Stat 줄로. 통장 입금은 수익이 아니므로(대여금 회수·이체 포함) 입금·출금으로 부른다 */}
             <ResultStrip>
               <QStat label="총 자산" value={<>{fmtW(totalBalance)} <small className="font-normal text-[var(--text-dim)]">{accounts.length}개 계좌</small></>} />
-              <QStat label="이번 달 수익" value={<>+{fmtW(income)} {incomeDelta != null && income > 0 && <small className={`font-bold ${incomeDelta >= 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{incomeDelta >= 0 ? "▲" : "▼"}{Math.abs(incomeDelta).toFixed(1)}%</small>}</>} tone="plus" />
-              <QStat label="이번 달 지출" value={<>−{fmtW(expense)} {expenseDelta != null && expense > 0 && <small className={`font-bold ${expenseDelta <= 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{expenseDelta >= 0 ? "▲" : "▼"}{Math.abs(expenseDelta).toFixed(1)}%</small>}</>} tone="minus" />
+              <QStat label="이번 달 입금" value={<>+{fmtW(income)} {incomeDelta != null && income > 0 && <small className={`font-bold ${incomeDelta >= 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{incomeDelta >= 0 ? "▲" : "▼"}{Math.abs(incomeDelta).toFixed(1)}%</small>}</>} tone="plus" />
+              <QStat label="이번 달 출금" value={<>−{fmtW(expense)} {expenseDelta != null && expense > 0 && <small className={`font-bold ${expenseDelta <= 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{expenseDelta >= 0 ? "▲" : "▼"}{Math.abs(expenseDelta).toFixed(1)}%</small>}</>} tone="minus" />
               <QStat label="분류 완료율" value={<>{mappingRate != null ? `${mappingRate}%` : "—"} <small className="font-normal text-[var(--text-dim)]">{flow && flow.total > 0 ? `${flow.mapped}/${flow.total}건` : "거래 없음"}</small></>} />
             </ResultStrip>
           </QueryHead>
@@ -899,7 +899,7 @@ export default function BankPage() {
       {/* 통장 — portfolio 카드(이름·잔액·이번달 증감). 2026-05-29 카드 크기 축소(p-4·3열). */}
       {tab === "accounts" && accountsView === "list" && accounts.length > 0 && (
         <table className="ev-table ev-lined bank-accounts-table">
-          <thead><tr><th className="text-left">통장</th><th>계좌</th><th className="text-left">메모</th><th>잔액</th><th>이번 달 변화</th><th>동작</th></tr></thead>
+          <thead><tr><th>통장</th><th>계좌</th><th>메모</th><th>잔액</th><th>이번 달 변화</th><th>동작</th></tr></thead>
           <tbody>
             {accounts.filter((a) => showHiddenAccts || !a.isHidden).map((a) => {
               const accNo = a.accountNo || "";
@@ -1198,7 +1198,7 @@ export default function BankPage() {
                       </td>
                       {multiAcct && <td className="px-3 py-2.5 text-[12.5px] text-[var(--text-muted)] whitespace-nowrap"><span className="block truncate" title={String(tx.raw_data?.accountNo || "")}>{acctOfTx(tx) || "—"}</span></td>}
                       <td className="px-3 py-2.5 text-[12.5px] text-[var(--text-muted)] mono-number text-right whitespace-nowrap">{tx.balance_after != null ? fmtW(Number(tx.balance_after)) : "—"}</td>
-                      <td className="px-3 py-2.5 text-[12.5px] text-[var(--text-muted)] mono-number">{tx.transaction_date}</td>
+                      <td className="px-3 py-2.5 text-center text-[12.5px] text-[var(--text-muted)] mono-number">{tx.transaction_date}</td>
                       <td className="px-3 py-2.5 relative">
                         <button
                           type="button"

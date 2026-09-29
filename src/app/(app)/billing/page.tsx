@@ -328,7 +328,7 @@ function BillingPageInner() {
     const paymentStatus = params.get('payment');
     if (paymentStatus === 'success') {
       qc.invalidateQueries({ queryKey: ['subscription'] });
-      toast("결제가 완료되었습니다! 플랜이 업그레이드되었습니다.", "success");
+      toast("결제가 완료되었습니다! 요금제가 바뀌었습니다.", "success");
       window.history.replaceState({}, '', '/billing');
     } else if (paymentStatus === 'cancel') {
       toast("결제가 취소되었습니다.", "info");
@@ -379,8 +379,8 @@ function BillingPageInner() {
     onError: (e: any) => toast(friendlyError(e, "카드 삭제에 실패했습니다."), "error"),
   });
   const planDisplayName = entitlement?.entitled
-    ? (currentPlan?.name || "Free")
-    : "Free";
+    ? (currentPlan?.name || "무료")
+    : "무료";
   const effectiveUntilStr = entitlement?.effective_until
     ? kstDateStr(new Date(entitlement.effective_until))
     : null;
@@ -509,7 +509,7 @@ function BillingPageInner() {
       qc.invalidateQueries({ queryKey: ["invoices"] });
       toast(
         j.chargedNow
-          ? "국내카드 결제가 완료되었습니다! 플랜이 열렸습니다."
+          ? "국내카드 결제가 완료되었습니다! 요금제가 열렸습니다."
           : "남은 이용 기간 종료 후 국내카드로 자동 결제됩니다.",
         "success",
       );
@@ -582,11 +582,11 @@ function BillingPageInner() {
           body: JSON.stringify({ reason: '사용자 다운그레이드 (Free)', immediate: true }),
         });
         const result = await res.json();
-        if (!res.ok) throw new Error(result.error?.message || 'Free 전환 실패');
+        if (!res.ok) throw new Error(result.error?.message || '무료 요금제 전환 실패');
         qc.invalidateQueries({ queryKey: ['subscription'] });
-        toast("Free 플랜으로 변경되었습니다.", "success");
+        toast("무료 요금제로 변경되었습니다.", "success");
       } catch (err: any) {
-        toast(friendlyError(err, "Free 전환 중 오류가 발생했습니다."), "error");
+        toast(friendlyError(err, "무료 요금제 전환 중 오류가 발생했습니다."), "error");
       }
       return;
     }
@@ -620,7 +620,7 @@ function BillingPageInner() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error?.message || '해지 처리 실패');
       qc.invalidateQueries({ queryKey: ['subscription'] });
-      toast("해지 요청이 접수되었습니다. 현재 결제 기간 종료 후 Free로 전환됩니다.", "success");
+      toast("해지 요청이 접수되었습니다. 현재 결제 기간 종료 후 무료 요금제로 전환됩니다.", "success");
     } catch (err: any) {
       toast(friendlyError(err, "해지 처리 중 오류가 발생했습니다."), "error");
     }
@@ -676,7 +676,7 @@ function BillingPageInner() {
       {entitlement && entitlement.effective_plan_slug === "free" && subscription?.status !== "trialing" && (
         <div className="billing-trial-start-banner">
           <div>
-            <div className="font-bold text-sm text-[var(--text)]">지금은 무료 플랜입니다</div>
+            <div className="font-bold text-sm text-[var(--text)]">지금은 무료 요금제입니다</div>
             <div className="text-xs text-[var(--text-muted)] mt-0.5">
               월 <b>39,000원</b>(VAT 별도)이면 세금계산서 월 100건·현금영수증 월 100건, 전자계약 무제한,
               <b> 통장·카드 무제한 연결 + 필요할 때 즉시 동기화</b>까지 열립니다. 기본 5명 포함, 추가 1명당 5,000원.
@@ -704,7 +704,7 @@ function BillingPageInner() {
               setTimeout(() => document.getElementById("billing-plan-cards")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
             }}
             className="btn-primary btn-sm whitespace-nowrap"
-          >플랜 선택하고 시작</button>
+          >요금제 선택하고 시작</button>
         </div>
       )}
 
@@ -755,11 +755,11 @@ function BillingPageInner() {
           <div className="billing-sec">
             <div className="billing-sec-head"><span className="billing-sec-title">충전하기</span><span className="billing-sec-sub">결제 즉시 잔액에 더해짐 · VAT 별도 · 유료 요금제만</span></div>
             <div className="ev-scroll"><table className="ev-table ev-lined billing-table">
-              <thead><tr><th className="text-left">항목</th><th className="text-left">단위 · 가격</th><th style={{ width: 120 }}>수량</th><th style={{ width: 110 }}>금액</th><th style={{ width: 90 }}></th></tr></thead>
+              <thead><tr><th>항목</th><th>단위 · 가격</th><th style={{ width: 120 }}>수량</th><th style={{ width: 110 }}>금액</th><th style={{ width: 90 }}></th></tr></thead>
               <tbody>
                 <tr>
-                  <td className="text-left font-semibold">세금계산서·현금영수증 발행</td>
-                  <td className="text-left text-[var(--text-muted)]">10건 묶음 · 3,000원 (건당 300원)</td>
+                  <td className="text-left font-semibold billing-wrap">세금계산서·현금영수증 발행</td>
+                  <td className="text-left text-[var(--text-muted)] billing-wrap">10건 묶음 · 3,000원 (건당 300원)</td>
                   <td className="text-center"><input type="number" min={1} max={100} value={issuePacks} onChange={(e) => setIssuePacks(Math.min(100, Math.max(1, Number(e.target.value) || 1)))} className="billing-qty" /> <span className="text-[11px] text-[var(--text-dim)]">= {(issuePacks * 10).toLocaleString()}건</span></td>
                   <td className="tr mono-number font-semibold">{(issuePacks * 3000).toLocaleString()}원</td>
                   <td className="text-center">{isOwner ? <button onClick={() => startTopUp("issue", issuePacks)} disabled={creditLoading !== null} className="btn-secondary btn-sm disabled:opacity-50">{creditLoading === "issue" ? "이동 중…" : "결제"}</button> : <span className="text-[11px] text-[var(--text-dim)]">마스터만 결제</span>}</td>
@@ -775,7 +775,7 @@ function BillingPageInner() {
               <div className="collect-empty">아직 충전한 내역이 없습니다</div>
             ) : (
               <div className="ev-scroll"><table className="ev-table ev-lined billing-table">
-                <thead><tr><th style={{ width: 110 }}>날짜</th><th className="text-left">항목</th><th style={{ width: 120 }}>수량</th><th style={{ width: 110 }}>금액</th><th style={{ width: 90 }}>상태</th></tr></thead>
+                <thead><tr><th style={{ width: 110 }}>날짜</th><th>항목</th><th style={{ width: 120 }}>수량</th><th style={{ width: 110 }}>금액</th><th style={{ width: 90 }}>상태</th></tr></thead>
                 <tbody>
                   {creditHistory.map((h) => (
                     <tr key={h.id}>
@@ -1030,7 +1030,7 @@ function BillingPageInner() {
                 <div className="ev-scroll"><table className="ev-table ev-lined billing-table billing-matrix">
                   <thead>
                     <tr>
-                      <th className="text-left align-bottom" style={{ width: 220 }}>기능</th>
+                      <th className="text-left align-bottom billing-matrix-fcol">기능</th>
                       <th className={isFree ? "billing-col-cur" : ""}>
                         <div className="billing-col-name">무료</div>
                         <div className="billing-col-price mono-number">₩0</div>
@@ -1228,11 +1228,11 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
       {showUpgradeModal && (
         <div className="billing-upgrade-modal fixed inset-0" onClick={() => setShowUpgradeModal(null)}>
           <div className="bg-[var(--bg-card)] rounded-2xl p-6 max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-extrabold text-[var(--text)] mb-2">플랜 변경</h3>
+            <h3 className="text-lg font-extrabold text-[var(--text)] mb-2">요금제 변경</h3>
             <p className="text-sm text-[var(--text-muted)] mb-4">
               {showUpgradeModal === "free"
-                ? "Free 플랜으로 다운그레이드하시겠습니까? 현재 결제 기간이 끝나면 기능이 제한됩니다."
-                : `${(plans || []).find((pl: any) => pl.slug === showUpgradeModal)?.name || showUpgradeModal} 플랜으로 업그레이드합니다.`}
+                ? "무료 요금제로 바꾸시겠습니까? 현재 결제 기간이 끝나면 기능이 제한됩니다."
+                : `${(plans || []).find((pl: any) => pl.slug === showUpgradeModal)?.name || showUpgradeModal} 요금제로 바꿉니다.`}
             </p>
             {/* 금액 내역 — 기본요금 + 인원 추가를 항목으로 풀어서 (
                 "39,000원 눌렀는데 74,000원이라고 나오면 오해한다"). 좌석 기준은 실제 결제와
@@ -1355,7 +1355,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
           <div className="bg-[var(--bg-card)] rounded-2xl p-6 max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-extrabold text-red-600 dark:text-red-400 mb-2">구독 해지</h3>
             <p className="text-sm text-[var(--text-muted)] mb-4">
-              현재 결제 기간이 끝나면 Free 플랜으로 전환됩니다. 데이터는 유지됩니다.
+              현재 결제 기간이 끝나면 무료 요금제로 전환됩니다. 데이터는 유지됩니다.
             </p>
             <textarea
               value={cancelReason}

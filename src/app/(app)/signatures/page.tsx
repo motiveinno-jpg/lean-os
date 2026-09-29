@@ -680,7 +680,7 @@ function SignaturesDashboardInner() {
               <div className="collect-empty">조건에 맞는 계약 요청이 없습니다. 검색조건을 풀어 보세요.</div>
             ) : (
               <div className="ev-scroll">
-                <table className="ev-table ev-lined signature-table">
+                <table className="ev-table ev-lined ev-cols-fixed signature-table">
                   <thead>
                     <tr>
                       <th className="signature-table-check">
@@ -690,15 +690,15 @@ function SignaturesDashboardInner() {
                           {pager.view.length > 0 && (pager.view as any[]).every((r) => selectedIds.has(r.id)) ? "✓" : ""}
                         </button>
                       </th>
-                      <SortableTh label="문서번호" sortKey="docNo" sort={sort} onSort={toggleSort} style={{ width: 84 }} />
-                      <SortableTh label="상태" sortKey="status" sort={sort} onSort={toggleSort} style={{ width: 110 }} filter={cfSpec("status")} />
-                      <SortableTh label="그룹" sortKey="batch" sort={sort} onSort={toggleSort} style={{ width: 96 }} filter={cfSpec("batch")} />
+                      <SortableTh label="문서번호" sortKey="docNo" sort={sort} onSort={toggleSort} style={{ width: 64 }} />
+                      <SortableTh label="상태" sortKey="status" sort={sort} onSort={toggleSort} style={{ width: 88 }} filter={cfSpec("status")} />
+                      <SortableTh label="그룹" sortKey="batch" sort={sort} onSort={toggleSort} style={{ width: 64 }} filter={cfSpec("batch")} />
                       <SortableTh label="제목" sortKey="title" sort={sort} onSort={toggleSort} />
-                      <SortableTh label="대표자" sortKey="signer" sort={sort} onSort={toggleSort} style={{ width: 208 }} filter={cfSpec("signer")} />
-                      <SortableTh label="담당자" sortKey="manager" sort={sort} onSort={toggleSort} style={{ width: 110 }} filter={cfSpec("manager")} />
-                      <SortableTh label="요청일" sortKey="created" sort={sort} onSort={toggleSort} style={{ width: 100 }} />
-                      <SortableTh label="서명완료일" sortKey="signed" sort={sort} onSort={toggleSort} style={{ width: 100 }} />
-                      <SortableTh label="관리" style={{ width: 190 }} />
+                      <SortableTh label="대표자" sortKey="signer" sort={sort} onSort={toggleSort} style={{ width: 110 }} filter={cfSpec("signer")} />
+                      <SortableTh label="담당자" sortKey="manager" sort={sort} onSort={toggleSort} style={{ width: 80 }} filter={cfSpec("manager")} />
+                      <SortableTh label="요청일" sortKey="created" sort={sort} onSort={toggleSort} style={{ width: 88 }} />
+                      <SortableTh label="서명완료일" sortKey="signed" sort={sort} onSort={toggleSort} style={{ width: 88 }} />
+                      <SortableTh label="관리" style={{ width: 170 }} />
                     </tr>
                   </thead>
                   <tbody>

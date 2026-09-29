@@ -66,7 +66,8 @@ export function DocumentViewerProvider({ children }: { children: React.ReactNode
             >
               ✕
             </button>
-            <div className="p-4 sm:p-6">
+            {/* 닫기 ✕ 가 머리의 '인쇄 / PDF 저장' 단추를 덮지 않게 위쪽에 ✕ 자리(3.5rem)를 비운다 */}
+            <div className="p-4 pt-14 sm:p-6 sm:pt-14 print:pt-0">
               {target.type === "contract" && <ContractViewer id={target.id} />}
             </div>
           </div>

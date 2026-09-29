@@ -17,6 +17,7 @@ import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { todayKst } from "@/lib/kst";
 import { FloatingWindow }  from "@/components/floating-window";
+import { useGuide } from "@/components/guide-context";
 
 /* ── 계산 · eval 없이 (숫자 · + − × ÷ · 괄호 · %) ── */
 function calc(expr: string): number | null  {
@@ -329,6 +330,55 @@ const TOOLS: { key: "calc" | "capture" | "note"; label: string; icon: React.Reac
   { key: "note", label: "메모", icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z" /><path d="M14 3v6h6M8 13h8M8 17h5" /></svg> },
 ];
 
+//   모바일 머리 줄 — 아이콘 6개가 폭을 다 차지해 화면 제목이 한 글자만 남았다.
+//   계산기·캡처·메모·도움말을 '더보기' 하나로 접는다(검색·알림·내 계정은 그대로 둔다).
+//   화면 캡처는 화면 공유 API(getDisplayMedia)가 없는 브라우저(iOS·안드로이드)에서는 메뉴에 넣지 않는다 — 눌러도 실패만 한다.
+function HeaderMoreMenu({ onOf, onPick, noteCount }: { onOf: Record<string, boolean>; onPick: (k: "calc" | "capture" | "note") => void; noteCount: number }) {
+  const { open: guideOpen, toggleGuide } = useGuide();
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [canCapture, setCanCapture] = useState(false);
+  useEffect(() => { setCanCapture(!!(navigator.mediaDevices as any)?.getDisplayMedia); }, []);
+  useEffect(() => {
+    if (!open) return;
+    const place = () => { const r = btnRef.current?.getBoundingClientRect(); if (r) setPos({ top: r.bottom + 8, right: Math.max(8, window.innerWidth - r.right) }); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    place();
+    window.addEventListener("resize", place);
+    document.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener("resize", place); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+  const items = TOOLS.filter((t) => t.key !== "capture" || canCapture);
+  const anyOn = items.some((t) => onOf[t.key]) || guideOpen;
+  return (
+    <>
+      <button ref={btnRef} type="button" onClick={() => setOpen((v) => !v)} className={anyOn ? "notification-bell-btn ht-btn ht-btn-on ht-mobile-only" : "notification-bell-btn ht-btn ht-mobile-only"}
+        aria-label="더보기" aria-haspopup="menu" aria-expanded={open} title="더보기">
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
+        {noteCount > 0 && <span className="ht-cnt">{noteCount}</span>}
+      </button>
+      {open && pos && createPortal(
+        <div className="account-chip-popover-overlay" onClick={() => setOpen(false)}>
+          <div className="account-chip-popover glass-card ht-more-menu" role="menu" style={{ top: pos.top, right: pos.right }} onClick={(e) => e.stopPropagation()}>
+            {items.map((t) => (
+              <button key={t.key} type="button" role="menuitem" className={onOf[t.key] ? "ht-more-item is-on" : "ht-more-item"} onClick={() => { setOpen(false); onPick(t.key); }}>
+                {t.icon}<span>{t.label}</span>
+                {t.key === "note" && noteCount > 0 && <span className="ht-more-cnt mono-number">{noteCount}장 열림</span>}
+              </button>
+            ))}
+            <button type="button" role="menuitem" className={guideOpen ? "ht-more-item is-on" : "ht-more-item"} onClick={() => { setOpen(false); toggleGuide(); }}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+              <span>이 메뉴 도움말</span>
+            </button>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
+
 export function HeaderTools() {
   const { toast } = useToast();
   const api = useNotes();
@@ -354,11 +404,12 @@ export function HeaderTools() {
   return (
     <>
       {TOOLS.map((t) => (
-        <button key={t.key} type="button" onClick={() => toggle(t.key)} className={onOf[t.key] ? "notification-bell-btn ht-btn ht-btn-on" : "notification-bell-btn ht-btn"} aria-label={t.label} title={t.label}>
+        <button key={t.key} type="button" onClick={() => toggle(t.key)} className={onOf[t.key] ? "notification-bell-btn ht-btn ht-btn-on ht-desk-only" : "notification-bell-btn ht-btn ht-desk-only"} aria-label={t.label} title={t.label}>
           {t.icon}
           {t.key === "note" && stickies.length > 0 && <span className="ht-cnt">{stickies.length}</span>}
         </button>
       ))}
+      <HeaderMoreMenu onOf={onOf} onPick={toggle} noteCount={stickies.length} />
       {calcOpen && <FloatingWindow title="계산기" onClose={() => setCalcOpen(false)} width={320}><Calculator /></FloatingWindow>}
       {capOpen && <FloatingWindow title="화면 캡처" onClose={() => setCapOpen(false)} width={340}><Capture onDone={() => setCapOpen(false)} /></FloatingWindow>}
       {listOpen && <FloatingWindow title="메모 목록" onClose={() => setListOpen(false)} width={380}><NoteList open={openIds} onOpen={openSticky} onNew={newSticky} /></FloatingWindow>}

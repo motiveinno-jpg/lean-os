@@ -188,9 +188,20 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
     setBusy(false);
   };
 
-  // 한 줄 압축 모드 · 상태점 + 시각 요약 + 소형 버튼. 미연결 계정은 표시 안 함(오너 화면 노이즈 방지)
+  // 한 줄 압축 모드 · 상태점 + 시각 요약 + 소형 버튼.
+  //   미연결 계정도 빈 칸으로 두지 않는다 — 마이페이지 '오늘 출퇴근' 카드가 설명·버튼 없이 비어 보였다
   if (compact)  {
-    if (empLoading || !employeeId) return null;
+    if (empLoading) return <div className="attendance-card-compact glass-card"><span className="flex-1 text-xs text-[var(--text-dim)]">불러오는 중…</span></div>;
+    if (!employeeId) {
+      return (
+        <div className="attendance-card-compact glass-card">
+          <div className="w-2 h-2 rounded-full shrink-0 bg-[var(--text-dim)]" />
+          <span className="flex-1 min-w-0 text-xs text-[var(--text-muted)]">
+            내 계정이 구성원(직원 기록)과 연결되지 않아 출퇴근을 기록할 수 없습니다. 마스터에게 인사 › 구성원에서 계정 연결을 요청하세요.
+          </span>
+        </div>
+      );
+    }
     return (
       <div className="attendance-card-compact glass-card">
         <div className={`w-2 h-2 rounded-full shrink-0 ${isCheckedIn && !isCheckedOut ? "bg-[var(--success)] animate-pulse" : isCheckedOut ? "bg-[var(--text-dim)]" : "bg-[var(--warning)]"}`} />

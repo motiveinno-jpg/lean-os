@@ -1023,7 +1023,7 @@ export function BankTab({
                           className={on ? "collect-chk collect-chk-on" : "collect-chk"}>{on ? "✓" : ""}</button>
                       )}
                     </td>
-                    <td className="mono-number">{r.date.slice(5)}</td>
+                    <td className="tc mono-number">{r.date.slice(5)}</td>
                     <td>
                       <em className={r.isIn ? "spv-type spv-type-s" : "spv-type spv-type-b"}>{r.isIn ? "입금" : "출금"}</em>
                       {matchable && cands.length === 0 && (

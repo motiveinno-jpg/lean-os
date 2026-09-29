@@ -1,12 +1,14 @@
 "use client";
 //   인사 처리할 것 팝업 (2026-08-27 인사 5차) — 요약 줄 숫자를 누르면 내역. 확정·통보는 사람.
 import type { HrTodoGroup } from "@/lib/hr-todo";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 //   contracts — 근로계약·서식 페이지의 탭 값은 "contracts"(계약 발송·현황). 전엔 "packages"라 첫 탭(서식)에 떨어졌다(2026-09-28).
 const GO: Record<string, string> = { contracts: "/hr-templates?tab=contracts", history: "/employees", leave: "/employees?tab=leave", attendance: "/attendance?tab=records" };
 
 export function HrTodoDialog({ groups, loading, onClose, onEmployee }: { groups: HrTodoGroup[]; loading: boolean; onClose: () => void; onEmployee?: (id: string, go?: string) => void }) {
   const total = groups.reduce((s, g) => s + g.items.length, 0);
+  useModalKeys(true, onClose);   // Esc 로 닫기 — 다른 팝업과 같은 규칙
   return (
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>

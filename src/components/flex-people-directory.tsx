@@ -220,11 +220,14 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
           )}
           <span className="min-w-0">
             <span className="flex items-center gap-1.5">
-              <span className="text-[14px] font-bold text-[var(--text)] truncate group-hover:text-[var(--primary)]">{e.name}</span>
-              {e.employee_number && <span className="emp-no">#{e.employee_number}</span>}
+              {/*   사번 칩이 이름 옆에 서면 좁은 카드에서 이름이 '강...'으로 잘린다 — 사번은 아랫줄로 내려 이름 자리를 비운다 */}
+              <span className="min-w-0 truncate text-[14px] font-bold text-[var(--text)] group-hover:text-[var(--primary)]" title={e.name}>{e.name}</span>
               <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: sm.bg, color: sm.color }}>{sm.label}</span>
             </span>
-            <span className="block text-[11px] text-[var(--text-muted)] truncate mt-0.5">{[e.job_title || e.position, e.department].filter(Boolean).join(" · ") || "직책 미지정"}</span>
+            <span className="block text-[11px] text-[var(--text-muted)] truncate mt-0.5">
+              {e.employee_number && <span className="mono-number text-[var(--text-dim)]">#{e.employee_number} · </span>}
+              {[e.job_title || e.position, e.department].filter(Boolean).join(" · ") || "직책 미지정"}
+            </span>
           </span>
         </div>
         <div className="mt-3 pt-3 border-t border-[var(--border)]/60 flex items-center justify-between text-[10px] text-[var(--text-dim)]">
@@ -277,7 +280,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
                   onClear={() => setDraft((c) => ({ ...c, from: "", to: "" }))} />
               </ConditionRow>
             </ConditionPanel>
-            <QuickSearch value={q} onApply={setQ} placeholder="이름 · 부서 · 직책 · 사번" />
+            <QuickSearch value={q} onApply={setQ} placeholder="이름 · 부서 · 직책 · 사번 · 쉼표로 여러 개, Enter" />
             <ChipGroup value={sort.key === "position" ? "grade" : "name"}
               onChange={(v) => setSort({ key: v === "grade" ? "position" : "name", dir: "asc" })}
               options={SORT_OPTS} />

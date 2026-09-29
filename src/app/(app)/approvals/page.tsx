@@ -827,6 +827,24 @@ export default function ApprovalsPage() {
     }
   };
 
+  //   요청 현황 요약 — '요청 현황' 지표라 요청 탭(내 요청·전체 현황)에만. 누르면 그 상태로 좁혀 본다.
+  //   조회 줄 **아래**(2줄)에 둔다 — 머리에 두면 이 두 탭만 검색조건 단추가 한 줄 아래로 밀려 탭마다 위치가 달랐다.
+  const requestStats = (
+    <ResultStrip>
+      {([
+        ["대기 중", stats?.pending ?? 0, "pending", "minus"],
+        ["승인 완료", stats?.approved ?? 0, "approved", "plus"],
+        ["반려", stats?.rejected ?? 0, "rejected", undefined],
+        [statsCompanyScope ? "전체 요청" : "내 요청 전체", stats?.total ?? 0, "", undefined],
+      ] as const).map(([label, value, status, tone]) => (
+        <button key={label} type="button" className="ap-stat-btn"
+          onClick={() => { if (statsCompanyScope) goToAllWithStatus(status); else setTab("my-requests"); }}>
+          <Stat label={label} value={`${value}건`} tone={tone as "plus" | "minus" | undefined} />
+        </button>
+      ))}
+    </ResultStrip>
+  );
+
   return (
     <div className="qk-shell">
       {/* ── 조회 화면 표준 뼈대 (2026-08-18 Wave 3) — 갈래 탭은 상자 안 맨 위 파란 밑줄, 본문은 상자 안에서 스크롤 ── */}
@@ -841,22 +859,6 @@ export default function ApprovalsPage() {
               </button>
             ))}
           </div>
-          {/* 요청 현황 요약 — '요청 현황' 지표라 요청 탭(내 요청·전체 현황)에만. 누르면 그 상태로 좁혀 본다 */}
-          {(tab === "my-requests" || tab === "all") && (
-            <ResultStrip>
-              {([
-                ["대기 중", stats?.pending ?? 0, "pending", "minus"],
-                ["승인 완료", stats?.approved ?? 0, "approved", "plus"],
-                ["반려", stats?.rejected ?? 0, "rejected", undefined],
-                [statsCompanyScope ? "전체 요청" : "내 요청 전체", stats?.total ?? 0, "", undefined],
-              ] as const).map(([label, value, status, tone]) => (
-                <button key={label} type="button" className="ap-stat-btn"
-                  onClick={() => { if (statsCompanyScope) goToAllWithStatus(status); else setTab("my-requests"); }}>
-                  <Stat label={label} value={`${value}건`} tone={tone as "plus" | "minus" | undefined} />
-                </button>
-              ))}
-            </ResultStrip>
-          )}
         </QueryHead>
         <QueryBody>
          <div className="ap-scroll">
@@ -865,10 +867,10 @@ export default function ApprovalsPage() {
         <MyApprovalsTab companyId={companyId} userId={userId} invalidate={invalidate} onGoToMyRequests={() => setTab("my-requests")} initialView={initialInboxView} focusRequestId={tab === deepLinkTab ? focusRequestId : null} />
       )}
       {tab === "my-requests" && companyId && userId && (
-        <MyRequestsTab companyId={companyId} userId={userId} invalidate={invalidate} focusRequestId={focusRequestId} />
+        <MyRequestsTab companyId={companyId} userId={userId} invalidate={invalidate} focusRequestId={focusRequestId} summary={requestStats} />
       )}
       {tab === "all" && companyId && (
-        <AllRequestsTab companyId={companyId} initialStatusFilter={allTabStatusFilter} userId={userId} userRole={userRole} invalidate={invalidate} />
+        <AllRequestsTab companyId={companyId} initialStatusFilter={allTabStatusFilter} userId={userId} userRole={userRole} invalidate={invalidate} summary={requestStats} />
       )}
       {tab === "new-request" && companyId && userId && (
         <div className="ap-pad"><NewRequestTab companyId={companyId} userId={userId} invalidate={invalidate} onComplete={() => setTab("my-requests")} presetType={presetType} /></div>
@@ -1573,8 +1575,8 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
 // Tab 2: 내 요청
 // ══════════════════════════════════════════════
 
-function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
-  companyId: string; userId: string; invalidate: () => void; focusRequestId?: string | null;
+function MyRequestsTab({ companyId, userId, invalidate, focusRequestId, summary }: {
+  companyId: string; userId: string; invalidate: () => void; focusRequestId?: string | null; summary?: React.ReactNode;
 }) {
   const { toast } = useToast();
   const { confirm, confirmElement } = useConfirm();
@@ -1799,6 +1801,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
         {lf.quick}
       </QueryBar>
       {lf.applied}
+      {summary}
 
       {requests.length === 0 ? (
         <div className="ap-empty">
@@ -2272,7 +2275,7 @@ function ReferencedRequestsTab({ companyId, userId, embedded }: { companyId: str
 // Tab 4: 전체 현황 (Admin)
 // ══════════════════════════════════════════════
 
-function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, invalidate }: { invalidate: () => void; companyId: string; initialStatusFilter?: string; userId?: string | null; userRole?: string | null }) {
+function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, invalidate, summary }: { invalidate: () => void; companyId: string; initialStatusFilter?: string; userId?: string | null; userRole?: string | null; summary?: React.ReactNode }) {
   // 직원 계정은 회사 전체가 아니라 본인이 신청한 요청만 조회 (관리자/대표는 전체)
   // (P3) 전체 현황 권한(:all)이 없으면 본인 신청분만 — 구 employee 분기 대체
   const { isMaster: rMaster, hasPerm: rHasPerm } = useMyPermissions();
@@ -2535,6 +2538,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
         {lf.quick}
       </QueryBar>
       {lf.applied}
+      {summary}
 
       {/* 선택 줄 — 체크한 결재건을 PDF 로 일괄 다운로드(zip). 고른 순간에만 보인다 (조회 표준 SelectionBar) */}
       <SelectionBar count={selectedCount} onClear={clearSelection}
@@ -3086,7 +3090,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const  { data: companyUsers = [] } = useQuery({
     queryKey: ["company-users-approvers", companyId],
     queryFn: async () => {
-      const data = logRead('approvals/page:members', await db.from("users").select("id, name, email, role, avatar_url").eq("company_id", companyId).order("name"));
+      const data = logRead('approvals/page:members', await db.from("users").select("id, name, email, role, is_master, avatar_url").eq("company_id", companyId).order("name"));
       return (data || []).filter((u: any) => u.id !== userId);
     },
     enabled: !!companyId,
@@ -3894,7 +3898,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                   >
                     <option value="">+ {selectedApprovers.length === 0 ? "1차" : selectedApprovers.length === 1 ? "2차" : "최종"} 승인자 추가</option>
                     {companyUsers.filter((u: any) => !selectedApprovers.some(a => a.userId === u.id)).map((u: any) => (
-                      <option key={u.id} value={u.id}>{u.name || u.email} ({u.role})</option>
+                      <option key={u.id} value={u.id}>{u.name || u.email} ({u.is_master ? "마스터" : "구성원"})</option>
                     ))}
                   </select>
                 )}
@@ -3942,7 +3946,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                     {companyUsers
                       .filter((u: any) => !selectedReferences.some((r) => r.userId === u.id) && !selectedApprovers.some((a) => a.userId === u.id))
                       .map((u: any) => (
-                        <option key={u.id} value={u.id}>{u.name || u.email} ({u.role})</option>
+                        <option key={u.id} value={u.id}>{u.name || u.email} ({u.is_master ? "마스터" : "구성원"})</option>
                       ))}
                   </select>
                 )}
@@ -4144,7 +4148,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                   1
                 </div>
                 <div className="text-xs font-bold pt-1 text-[var(--text)]">최종 승인</div>
-                <div className="text-[11px] text-[var(--text-dim)]">승인자: CEO</div>
+                {/* 기본 결재선은 직책이 '대표·대표이사' 인 구성원, 없으면 마스터에게 간다(approval-workflow 기본 단계 ceo) */}
+                <div className="text-[11px] text-[var(--text-dim)]">승인자: 대표(직책) · 없으면 마스터</div>
               </div>
             </div>
           )}

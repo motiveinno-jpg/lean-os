@@ -1105,7 +1105,7 @@ export default function VoucherEntryPage() {
             <div className="ve-import-body">
               {importLoading ? <div className="collect-empty">불러오는 중…</div> : importShown.length === 0 ? <div className="collect-empty">아직 전표로 만들 {importKind === "bank" ? "통장" : "카드"} 거래가 없습니다.</div> : (
                 <table className="ev-table ev-lined ve-import-table">
-                  <thead><tr><th>날짜</th><th>구분</th><th className="text-left">{importKind === "bank" ? "예금주 · 적요" : "가맹점 · 카드"}</th><th>{importKind === "bank" ? "계좌" : "분류"}</th><th>금액</th><th></th></tr></thead>
+                  <thead><tr><th>날짜</th><th>구분</th><th>{importKind === "bank" ? "예금주 · 적요" : "가맹점 · 카드"}</th><th>{importKind === "bank" ? "계좌" : "분류"}</th><th>금액</th><th></th></tr></thead>
                   <tbody>{importShown.map((r) => (
                     <tr key={r.id} className="pnl-row-acct" onClick={() => applyImport(r)}>
                       <td className="text-center mono-number">{r.date}</td>

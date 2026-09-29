@@ -14,7 +14,20 @@ export function OwnerViewIcon({ size = 28, className = "" }: { size?: number; cl
   );
 }
 
-/* ── Rolling Brand Text: OwnerView ↔ 오너뷰 ── */
+/* ── Rolling Brand Text: OwnerView ↔ 오너뷰 ──
+ *   두 글자가 같은 시간에 엇갈려 움직이면 중간에 반쯤 투명한 두 이름이 한 칸에 겹쳐 보인다.
+ *   나가는 쪽이 먼저 완전히 사라진 뒤(OUT_MS) 들어오는 쪽이 시작하도록 들어오는 쪽에만 지연을 준다. */
+const OUT_MS = 260;
+const IN_MS = 320;
+function rollStyle(visible: boolean, hiddenShift: string): React.CSSProperties {
+  return {
+    transform: visible ? "translateY(0)" : `translateY(${hiddenShift})`,
+    opacity: visible ? 1 : 0,
+    transition: visible
+      ? `transform ${IN_MS}ms ease-out ${OUT_MS}ms, opacity ${IN_MS}ms ease-out ${OUT_MS}ms`
+      : `transform ${OUT_MS}ms ease-in, opacity ${OUT_MS}ms ease-in`,
+  };
+}
 export function RollingBrandText({ className = "", interval = 2000 }: { className?: string; interval?: number }) {
   const [showKr, setShowKr] = useState(false);
 
@@ -27,22 +40,10 @@ export function RollingBrandText({ className = "", interval = 2000 }: { classNam
     <span className={`brand-rolling-text ${className}`}>
       {/* Invisible sizer — ensures container is wide enough for longest text */}
       <span className="brand-rolling-sizer" aria-hidden="true">OwnerView</span>
-      <span
-        className="brand-rolling-en"
-        style={{
-          transform: showKr ? "translateY(-100%)" : "translateY(0)",
-          opacity: showKr ? 0 : 1,
-        }}
-      >
+      <span className="brand-rolling-en" style={rollStyle(!showKr, "-100%")}>
         OwnerView
       </span>
-      <span
-        className="brand-rolling-kr"
-        style={{
-          transform: showKr ? "translateY(0)" : "translateY(100%)",
-          opacity: showKr ? 1 : 0,
-        }}
-      >
+      <span className="brand-rolling-kr" style={rollStyle(showKr, "100%")}>
         오너뷰
       </span>
     </span>

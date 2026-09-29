@@ -203,7 +203,7 @@ export default function FixedAssetsPage() {
                 </select>
               </label>
               <label>취득일 <DateField value={form.acquired_on} onChange={(e: any) => setForm({ ...form, acquired_on: e.target.value })} className="inv-input" /></label>
-              <label>상각 시작 월 <MonthSelect className="inv-input" from="2015-01" value={form.depr_start_month} onChange={(v) => setForm({ ...form, depr_start_month: v })} ariaLabel="상각 시작 월" /></label>
+              <label>상각 시작 월 <MonthSelect className="inv-input" from="2015-01" aheadMonths={12} value={form.depr_start_month} onChange={(v) => setForm({ ...form, depr_start_month: v })} ariaLabel="상각 시작 월" /></label>
               <label>취득가 <input className="inv-input mono-number tr" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} placeholder="부가세 제외" /></label>
               <label>잔존가 <input className="inv-input mono-number tr" value={form.salvage} onChange={(e) => setForm({ ...form, salvage: e.target.value })} /></label>
               <label>내용월수 <input className="inv-input mono-number tr" value={form.useful_months} onChange={(e) => setForm({ ...form, useful_months: e.target.value })} placeholder="60 = 5년" /></label>

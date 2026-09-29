@@ -1816,7 +1816,7 @@ function TaxInvoicesPageInner() {
                               <span className="text-[9px] text-emerald-500 font-semibold" title="전표처리됨">전표</span>
                             ) : null}
                           </td>
-                          <td className="px-3 py-2 text-[var(--text-muted)] mono-number border-l border-[var(--border)]/40 whitespace-nowrap">{inv.issue_date}</td>
+                          <td className="px-3 py-2 text-center text-[var(--text-muted)] mono-number border-l border-[var(--border)]/40 whitespace-nowrap">{inv.issue_date}</td>
                           <td className="px-3 py-2 border-l border-[var(--border)]/40 max-w-[200px]">
                             <span className="flex items-center gap-1.5 min-w-0">
                               <span className="font-semibold text-[var(--text)] truncate">{inv.counterparty_name}</span>
@@ -2793,7 +2793,7 @@ function TaxInvoicesPageInner() {
                         </td>
                         <td className="px-5 py-3 text-sm font-medium max-w-[200px]"><span className="block truncate" title={p.counterparty_name || undefined}>{p.counterparty_name || '—'}</span></td>
                         <td className="px-5 py-3 text-sm text-right">{fmt(Number(p.total_amount || 0))}</td>
-                        <td className="px-5 py-3 text-xs text-[var(--text-dim)]">{p.issue_date || '—'}</td>
+                        <td className="px-5 py-3 text-center text-xs text-[var(--text-dim)]">{p.issue_date || '—'}</td>
                         <td className="px-5 py-3 text-xs text-[var(--text-muted)] max-w-[180px]"><span className="block truncate" title={(q as any).deals?.name || p.deal_name || undefined}>{(q as any).deals?.name || p.deal_name || '—'}</span></td>
                         <td className="px-5 py-3 text-center">
                           <span className={`text-xs px-2 py-0.5 rounded-full ${
@@ -2965,7 +2965,7 @@ function TaxInvoicesPageInner() {
                       </td>
                       <td className="px-5 py-2 text-right">{log.invoices_fetched || 0}</td>
                       <td className="px-5 py-2 text-right font-bold text-green-400">{log.invoices_created || 0}</td>
-                      <td className="px-5 py-2 text-[var(--text-dim)]">{log.completed_at ? new Date(log.completed_at).toLocaleString('ko') : '—'}</td>
+                      <td className="px-5 py-2 text-center text-[var(--text-dim)]">{log.completed_at ? new Date(log.completed_at).toLocaleString('ko') : '—'}</td>
                       <td className="px-5 py-2 text-red-400 truncate max-w-[150px]">{log.error_message || '—'}</td>
                     </tr>
                   ))}

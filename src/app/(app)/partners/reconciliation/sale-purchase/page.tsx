@@ -1277,7 +1277,7 @@ function SalePurchaseInner() {
                   <tbody>
                     {pendingShown.map((r) => (
                       <tr key={r.key}>
-                        <td className="mono-number">{r.date}</td>
+                        <td className="tc mono-number">{r.date}</td>
                         <td>{EVIDENCE_LABEL[r.kind]}</td>
                         <td className="truncate max-w-[150px]">{r.who}</td>
                         <td className="truncate max-w-[150px]">

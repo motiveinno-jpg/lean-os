@@ -303,7 +303,7 @@ export function ExpenseClaimTab({ companyId, from, to, tabsNode, onRange }: {
                           className={on ? "collect-chk collect-chk-on" : "collect-chk"}>{on ? "✓" : ""}</button>
                       )}
                     </td>
-                    <td className="mono-number">{r.date.slice(5)}</td>
+                    <td className="tc mono-number">{r.date.slice(5)}</td>
                     <td className="ev-ell"><span className="xc-req-title" title={r.title}>{r.title}</span></td>
                     <td className="ev-ell">{r.requester || "—"}</td>
                     <td className="tc">

@@ -8,7 +8,8 @@
 //
 //   실행 경로는 lib/collect 가 기존 화면들의 호출을 그대로 재사용한다 — 여기서 새로 만들지 않는다.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useUrlTabSync } from "@/lib/use-tab-param";
 import { useMyPermissions } from "@/lib/permissions";
 import { DateField } from "@/components/date-field";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -40,13 +41,15 @@ const fmtSec = (s: number | null) => {
   return m < 60 ? `${m}분` : `${Math.round(m / 60)}시간 ${m % 60}분`;
 };
 
+const COLLECT_TABS: readonly ("status" | "expense" | SourceKey)[] = ["status", "expense", ...SOURCES.map((s) => s.key)];
+
 export default function CollectPage() {
   //   2026-09-11 역할 폐지 — 마스터 또는 수집 권한자
   const { isMaster, hasPerm } = useMyPermissions();
   if (!(isMaster || hasPerm("/collect"))) {
     return <AccessDenied detail="자료 수집 권한이 없습니다. 마스터에게 요청하세요." />;
   }
-  return <CollectInner />;
+  return <Suspense fallback={null}><CollectInner /></Suspense>;
 }
 
 function CollectInner() {
@@ -67,6 +70,8 @@ function CollectInner() {
     const t = new URLSearchParams(window.location.search).get("tab");
     return (t && (t === "status" || t === "expense" || SOURCES.some((s) => s.key === t)) ? t : "status") as "status" | "expense" | SourceKey;
   });
+  //   옛 주소(/matching → ?tab=bank)에서 넘어오거나 이 화면에서 ?tab= 링크를 누르면 주소가 나중에 바뀐다 — 따라간다
+  useUrlTabSync<"status" | "expense" | SourceKey>(COLLECT_TABS, setTab);
   const [rulesOpen, setRulesOpen] = useState(false);
   //   결재 경비 탭 배지 — 조회기간 안에서 승인됐고(경비 양식·개인 돈) 아직 전표가 없는 건. 다른 탭 배지와 같은 기간 기준.
   const { data: expensePending } = useQuery({
@@ -333,7 +338,11 @@ function CollectInner() {
                             )}
                           </td>
                           <td className="tc mono-number cs-dim">{st?.latestDate ?? "—"}</td>
-                          <td className="tc cs-dim">{fmtWhen(st?.lastSyncAt ?? null)}</td>
+                          <td className="tc cs-dim">
+                            {fmtWhen(st?.lastSyncAt ?? null)}
+                            {/*   아래 이력과 같은 기록 — 성공 뒤에 실패한 시도가 있으면 같이 알린다 */}
+                            {st?.lastFailedAt && <span className="cs-fail" title={`${fmtWhen(st.lastFailedAt)} 수집이 실패했습니다. 아래 최근 수집 이력에서 사유를 보세요.`}>· {fmtWhen(st.lastFailedAt)} 실패</span>}
+                          </td>
                           <td className="tc cs-dim">{fmtSec(st?.lastSeconds ?? null) ?? "—"}</td>
                           <td className="tc cs-dim">{cd.disabled ? cd.label : "지금 가능"}</td>
                           <td className="tc">
@@ -382,7 +391,7 @@ function CollectInner() {
                             {h.what}
                           </td>
                           <td className="tr mono-number cs-hist-n">{h.count != null ? `${won(h.count)}건` : "—"}</td>
-                          <td className="cs-hist-note">{h.note ?? ""}</td>
+                          <td className="cs-hist-note" title={h.note ?? undefined}>{h.note ?? ""}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -431,6 +440,7 @@ function CollectInner() {
                         <span className="collect-pick-name">{s.icon} {s.label}</span>
                         <span className="collect-pick-sub mono-number">
                           마지막 수집 {fmtWhen(st?.lastSyncAt ?? null)}
+                          {st?.lastFailedAt && <span className="collect-pick-block"> · {fmtWhen(st.lastFailedAt)} 실패</span>}
                           {cd.disabled && <span className="collect-pick-block"> · {cd.label}</span>}
                         </span>
                       </span>

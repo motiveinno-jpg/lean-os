@@ -47,3 +47,19 @@ export function costOfMove(
 }
 
 export const costingMethodLabel = (m: string | null | undefined) => (m === "avg" ? "이동평균" : "선입선출");
+
+/**
+ * 품목별 **다음 출고에 쓰일 단가** — 층은 들어온 순서(층 일자·순번)대로 받는다.
+ *   · 선입선출: 아직 남은 층 중 가장 먼저 들어온 층의 단가(다음에 나갈 입고분). 마지막 입고 단가가 아니다.
+ *   · 이동평균: 남은 층의 가중평균 단가(unitCostFromLayers 와 같다).
+ * 가장 먼저 나갈 층에 단가가 없으면 null(그 출고는 '미확정'이 된다). 남은 층이 없는 품목은 빠진다.
+ */
+export function nextOutUnitCost(layers: LayerLite[], method: "fifo" | "avg"): Map<string, number | null> {
+  if (method === "avg") return unitCostFromLayers(layers);
+  const out = new Map<string, number | null>();
+  for (const l of layers) {
+    if (!(l.qty_left > 0) || out.has(l.product_id)) continue;
+    out.set(l.product_id, l.unit_cost);
+  }
+  return out;
+}

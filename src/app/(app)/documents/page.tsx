@@ -487,9 +487,10 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             <h1 className="text-2xl font-extrabold">{doc.name}</h1>
           </div>
           <div className="flex items-center gap-3 mt-2 text-xs text-[var(--text-muted)]">
-            <span>v{doc.version}</span>
+            {/* 내부 코드(quote·invoice 등) 대신 사람 말로. 견적 양식(quote·invoice)은 이 화면에서 둘 다 견적서로 그린다 */}
+            <span>버전 {doc.version}</span>
             <span>|</span>
-            <span>{contentType}</span>
+            <span>{contentType === "quote" || contentType === "invoice" ? "견적서" : (DOC_TYPES.find((t) => t.value === contentType)?.label || "문서")}</span>
             {(doc as any).deals?.name && (
               <>
                 <span>|</span>
@@ -3309,7 +3310,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
               <div className="collect-empty">{fileSearchTerm ? "조건에 맞는 파일이 없습니다. 검색조건을 풀어 보세요." : "아직 파일이 없습니다. 파일을 올려 보세요."}</div>
             ) : (
               <div className="ev-scroll">
-                <table className="ev-table ev-lined doc-file-table">
+                <table className="ev-table ev-lined ev-cols-fixed doc-file-table">
                   <thead>
                     <tr>
                       {/* 고르기는 삭제에만 쓰인다 — 내가 못 지우는 파일은 아예 못 고르게 해서
@@ -3322,12 +3323,12 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
                         </button>
                       </th>
                       <SortableTh label="파일명" sortKey="name" sort={sort} onSort={onSort} />
-                      <SortableTh label="종류" sortKey="kind" sort={sort} onSort={onSort} style={{ width: 110 }} filter={cfSpec("kind")} />
-                      <SortableTh label="크기" sortKey="size" sort={sort} onSort={onSort} style={{ width: 96 }} />
-                      <SortableTh label="올린 사람" sortKey="by" sort={sort} onSort={onSort} style={{ width: 130 }} filter={cfSpec("by")} />
-                      <SortableTh label="올린 날짜" sortKey="at" sort={sort} onSort={onSort} style={{ width: 120 }} />
-                      <SortableTh label="버전" sortKey="ver" sort={sort} onSort={onSort} style={{ width: 64 }} />
-                      <SortableTh label="관리" style={{ width: 120 }} />
+                      <SortableTh label="종류" sortKey="kind" sort={sort} onSort={onSort} style={{ width: 76 }} filter={cfSpec("kind")} />
+                      <SortableTh label="크기" sortKey="size" sort={sort} onSort={onSort} style={{ width: 70 }} />
+                      <SortableTh label="올린 사람" sortKey="by" sort={sort} onSort={onSort} style={{ width: 96 }} filter={cfSpec("by")} />
+                      <SortableTh label="올린 날짜" sortKey="at" sort={sort} onSort={onSort} style={{ width: 92 }} />
+                      <SortableTh label="버전" sortKey="ver" sort={sort} onSort={onSort} style={{ width: 54 }} />
+                      <SortableTh label="관리" style={{ width: 96 }} />
                     </tr>
                   </thead>
                   <tbody>

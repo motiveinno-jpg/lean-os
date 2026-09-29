@@ -14,12 +14,13 @@ import { findMenuGuide } from "@/lib/menu-guides";
 import { useGuide } from "@/components/guide-context";
 
 // ─── 헤더의 '?' 버튼 ───
-export function MenuGuide() {
+//   className — 모바일 머리 줄에서는 '더보기' 메뉴로 접히므로(header-tools) 앱 셸이 ht-desk-only 를 넘긴다
+export function MenuGuide({ className = "" }: { className?: string }) {
   const { open, toggleGuide } = useGuide();
   return (
     <button
       onClick={toggleGuide}
-      className={`menu-guide-toggle ${
+      className={`menu-guide-toggle ${className} ${
         open
           ? "bg-[var(--primary)] text-white border-[var(--primary)]"
           : "bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"

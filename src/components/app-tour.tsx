@@ -10,7 +10,9 @@
 //   ?tour=1 은 명시적 요청이므로 완료 기록과 무관하게 항상 시작한다 — 기기 localStorage 게이트는
 //   같은 브라우저의 다른 계정(QA 등)까지 막아서 제거했다.
 //
-//   사이드바 항목을 못 찾는 화면(모바일·접힘)에서는 하이라이트 없이 카드만 가운데에 띄운다.
+//   사이드바 항목을 못 찾는 화면(모바일·접힘)에서는 하이라이트 없이 카드만 띄운다 — 데스크톱은 가운데,
+//   모바일은 하단 탭바 위에 붙이고 화면을 어둡게 덮지 않는다(본문 탭·버튼을 그대로 누를 수 있게).
+//   자동 시작은 대시보드에서만 한다 — 다른 화면에서 갑자기 첫 스텝(대시보드)부터 가리키면 맥락이 없다.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -228,7 +230,8 @@ export function AppTourHost({ companyId }: { companyId: string | null }) {
 
     // 자동 1회 노출 — 신규 가입 온보딩(/onboarding)과 겹치지 않게 그 화면에서는 시작하지 않는다.
     //   온보딩을 마치면 ?tour=1 로 오므로 위 분기가 잡고, 여기는 기존 계정의 첫 로그인용.
-    if (dismissedAt || autoCheckedRef.current || !companyId || pathname?.startsWith("/onboarding")) return;
+    //   대시보드가 아닌 화면(딥링크로 들어온 첫 화면 등)에서는 기다렸다가 대시보드에 오면 시작한다.
+    if (dismissedAt || autoCheckedRef.current || !companyId || !pathname?.startsWith("/dashboard")) return;
     autoCheckedRef.current = true;
     (async () => {
       try {
@@ -343,14 +346,16 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
     // 없으면 마지막 매치(사이드바 메뉴가 로고보다 뒤에 렌더된다). 첫 매치를 쓰면 로고가 잡힌다(2026-08-10 prod 확인).
     // 사이드바 안에서만 찾는다 — 본문·위젯에도 같은 href(예: 대시보드의 재고 위젯 → /inventory/products)가
     //   있어, 전체 문서에서 고르면 엉뚱한 본문 링크가 잡힌다. 데스크톱 래퍼는 패널+플라이아웃을 감싸고 본문·모바일은 뺀다.
-    const scope: ParentNode = document.querySelector(".sidebar-desktop-wrapper") ?? document;
+    //   데스크톱 래퍼가 없으면(모바일 등) 문서 전체에서 찾지 않는다 — 본문 링크가 잡혀 엉뚱한 곳을 가리켰다.
+    const scope = document.querySelector(".sidebar-desktop-wrapper");
+    if (!scope) { setRect(null); return; }
     const els = Array.from(scope.querySelectorAll(`a[href="${step.href}"], a[href="${step.href}/"]`)) as HTMLElement[];
     const label = step.title.split(" ")[0];
     // 같은 href 가 데스크톱 패널·모바일 내비에 중복 존재한다. 숨은(크기 0) 복제본을 걸러
     //   보이는 요소만 후보로 둔다 — 안 그러면 0×0 인 모바일 링크가 잡혀 하이라이트가 좌상단 구석에 찍힌다.
     const shown = els.filter((e) => { const b = e.getBoundingClientRect(); return b.width > 0 && b.height > 0; });
-    const pool = shown.length ? shown : els;
-    const el = pool.find((e) => e.textContent?.includes(label)) || pool[pool.length - 1] || null;
+    //   보이는 항목이 없으면(모바일에서 숨은 사이드바) 하이라이트 없이 카드만 — 크기 0 복제본을 쓰면 좌상단 구석에 작은 테두리가 찍힌다.
+    const el = shown.find((e) => e.textContent?.includes(label)) || shown[shown.length - 1] || null;
     if (!el) { setRect(null); return; }
     if (scroll) el.scrollIntoView({ block: "center", behavior: "smooth" });
     const r = el.getBoundingClientRect();
@@ -408,38 +413,42 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
   }, [companyId, onClose]);
 
   const isLast = safeIdx === steps.length - 1;
-  // 말풍선 위치 · 하이라이트 오른쪽(사이드바 옆). 못 찾으면 화면 가운데.
+  // 말풍선 위치 · 하이라이트 오른쪽(사이드바 옆). 못 찾으면 데스크톱은 화면 가운데, 모바일은 하단 탭바 바로 위.
   const zt = appZoom(); // rect 는 줌 로컬 좌표라 뷰포트 경계도 같은 좌표계(치수 ÷ 줌)로 맞춘다
+  const docked = !rect && typeof window !== "undefined" && window.innerWidth < 768;
+  const navTop = docked ? (document.querySelector(".mobile-bottom-nav-items")?.getBoundingClientRect().top ?? window.innerHeight) : 0;
   const tipStyle: React.CSSProperties = rect
     ?  {
         position: "fixed",
         left: Math.min(rect.left + rect.width + 16, window.innerWidth / zt - 340),
         top: Math.max(16, Math.min(rect.top - 8, window.innerHeight / zt - 240)),
       }
-    : { position: "fixed", left: "50%", top: "50%", transform: "translate(-50%, -50%)" };
+    : docked
+      ? { position: "fixed", left: 12, right: 12, bottom: Math.max(12, (window.innerHeight - navTop) / zt + 8) }
+      : { position: "fixed", left: "50%", top: "50%", transform: "translate(-50%, -50%)" };
 
   if (loadingPrefs || noContent) return null;
 
   return (
     <div className="app-tour-root" role="dialog" aria-label="사용 안내 투어">
-      {/* 어두운 배경 — 하이라이트가 있으면 구멍(박스섀도 트릭), 없으면 전체 덮개 */}
+      {/* 어두운 배경 — 하이라이트가 있으면 구멍(박스섀도 트릭), 없으면 전체 덮개. 모바일 하단 카드는 덮개 없음 */}
       {rect ? (
         <div
           className="app-tour-highlight"
           style={{ top: rect.top - 6, left: rect.left - 6, width: rect.width + 12, height: rect.height + 12 }}
         />
-      ) : (
+      ) : docked ? null : (
         <div className="app-tour-backdrop" />
       )}
 
-      <div className="app-tour-tip glass-card" style={tipStyle}>
-        {/* 모바일 전용 닫기 — 모바일에선 '다음'만 11번 눌러야 끝나던 것.
-            체크 없이 닫는 것과 동일(persist=false) — 다음 로그인에 다시 뜬다. 데스크톱은
-            건너뛰기 제거(2026-08-11 지시) 유지라 sm 이상에선 숨김. */}
+      <div className={docked ? "app-tour-tip app-tour-tip-docked glass-card" : "app-tour-tip glass-card"} style={tipStyle}>
+        {/* 닫기 — 체크 없이 닫는 것과 같다(persist=false): 이번 세션엔 다시 안 뜨고 다음 로그인에 다시 안내한다.
+            영구히 끄는 것은 마지막 스텝의 '다시 보지 않기' 체크. */}
         <button
           type="button"
           className="app-tour-close-m"
           aria-label="투어 닫기"
+          title="닫기 · 다음 로그인 때 다시 안내합니다"
           onClick={() => finish(false)}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" /></svg>

@@ -204,7 +204,7 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8, onOpenTransac
             </div>
           ))}
           <div className="text-[10px] text-[var(--text-dim)] pt-1">
-            잡히지 않은 {variant === "card" ? "결제" : "출금"}는 {txLink}에서 &quot;{variant === "card" ? "정기결제 표시" : "자동이체 표시"}&quot;를 눌러 추가합니다.
+            잡히지 않은 {variant === "card" ? "결제는" : "출금은"} {txLink}에서 &quot;{variant === "card" ? "정기결제 표시" : "자동이체 표시"}&quot;를 눌러 추가합니다.
           </div>
         </div>
       )}

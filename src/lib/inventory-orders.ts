@@ -21,6 +21,12 @@ export const FORM_LABEL: Record<FormKey, string> = {
   channel: "채널 주문",
 };
 
+/** 이력 목록·팝업에서 문서를 부르는 말. 주문서·생산은 회계 전표가 아니다(재고만 움직이거나 아예 안 움직인다). */
+export const DOC_NOUN: Record<FormKey, string> = {
+  order: "주문서", sale: "판매 전표", buy: "구매 전표", make: "생산 기록",
+  channel: "채널 주문",
+};
+
 /** 칸 하나 — `lock` 은 끌 수 없는 칸(없으면 전표가 서지 않는다). */
 export type Field = {
   field_id: string; name: string; on: boolean; custom: boolean;
@@ -73,6 +79,8 @@ export const CH_ONLY = ["ch", "ono", "ccode", "buyer", "rcv", "tel", "zip", "add
 export const MAKE_ONLY = ["defect"];
 /** 입고 양식(구매·생산 완성)에만 있는 줄 칸 — 로트·유통기한 (2026-09-21) */
 export const BUY_ONLY = ["lot", "expiry"];
+/** 생산 양식에는 없는 줄 칸 — 안에서 만드는 일이라 세금계산서가 없어 부가세가 생기지 않는다 */
+export const NOT_IN_MAKE = ["vat"];
 
 export function defaultLayout(form: FormKey): { head: Field[]; line: Field[] } {
   const head = baseHead(), line = baseLine();
@@ -87,6 +95,8 @@ export function defaultLayout(form: FormKey): { head: Field[]; line: Field[] } {
   if (form === "make") {
     head[1].on = false;
     const q = line.find((f) => f.field_id === "qty")!; q.name = "양품"; q.why = "팔 수 있게 완성된 수량 · 고른 창고로 들어갑니다";
+    //   공급가액은 세금 말이다 — 생산에선 완성품 원가의 근거(자재 투입이 없을 때 금액 ÷ 양품 = 완성품 단가)
+    const sup = line.find((f) => f.field_id === "supply")!; sup.name = "원가 금액"; sup.why = "자재 투입이 없으면 이 금액 ÷ 수량이 완성품 단가가 됩니다 · 자재를 투입하면 자재 원가를 씁니다";
   } else {
     for (const id of MAKE_ONLY) { const f = line.find((x) => x.field_id === id); if (f) f.on = false; }
   }
@@ -98,7 +108,7 @@ export function defaultLayout(form: FormKey): { head: Field[]; line: Field[] } {
     rest.find((f) => f.field_id === "price")!.on = true;
     return { head, line: [pick("ch"), pick("ono"), pick("ccode"), ...rest, pick("buyer"), pick("rcv"), pick("tel"), pick("zip"), pick("addr"), pick("memo")] };
   }
-  return { head, line: line.filter((f) => !CH_ONLY.includes(f.field_id) && (form === "make" || !MAKE_ONLY.includes(f.field_id)) && (form === "buy" || form === "make" || !BUY_ONLY.includes(f.field_id))) };
+  return { head, line: line.filter((f) => !CH_ONLY.includes(f.field_id) && (form === "make" || !MAKE_ONLY.includes(f.field_id)) && (form === "buy" || form === "make" || !BUY_ONLY.includes(f.field_id)) && !(form === "make" && NOT_IN_MAKE.includes(f.field_id))) };
 }
 
 export type Layout = { head: Field[]; line: Field[] };
@@ -110,7 +120,8 @@ export async function loadLayout(companyId: string, form: FormKey): Promise<Layo
   const data = logRead("inventory:form-layout", await supabase
     .from("form_layouts").select("section, field_id, name, sort_no, is_on, is_custom")
     .eq("company_id", companyId).eq("form_key", form).order("sort_no"));
-  const rows = (data || []) as any[];
+  //   생산에 없는 칸(부가세)은 예전에 저장한 양식에 남아 있어도 읽지 않는다 — 회사가 만든 칸으로 잘못 붙는다
+  const rows = ((data || []) as any[]).filter((r) => !(form === "make" && NOT_IN_MAKE.includes(r.field_id)));
   if (!rows.length) return def;
 
   const apply = (base: Field[], section: Section): Field[] => {
@@ -119,7 +130,9 @@ export async function loadLayout(companyId: string, form: FormKey): Promise<Layo
     //   기본 칸은 자리를 지키고, 저장된 값(이름·켜짐)만 덮어쓴다
     const out = base.map((f) => {
       const r = byId.get(f.field_id);
-      return r ? { ...f, name: r.name, on: r.is_on } : f;
+      //   생산 양식에 옛 이름('공급가액')이 저장돼 있으면 생산에 맞는 기본 이름을 쓴다
+      const keepDefaultName = form === "make" && f.field_id === "supply" && r?.name === "공급가액";
+      return r ? { ...f, name: keepDefaultName ? f.name : r.name, on: r.is_on } : f;
     });
     //   회사가 만든 칸은 뒤에 붙인다
     for (const r of mine) {

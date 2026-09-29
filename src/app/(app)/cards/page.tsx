@@ -1047,7 +1047,7 @@ export default function CardsPage() {
             {/* 카드 미니 그리드 — 클릭 시 그 카드 거래내역 영역으로 스크롤+필터 */}
             {cardsView === "list" ? (
               <table className="ev-table ev-lined cards-table">
-                <thead><tr>{canReorder && <th className="w-16" title="끌거나 ▲▼ 로 순서 변경">순서</th>}<th className="text-left">카드</th><th>종류</th><th>끝번호</th><th>카드사</th><th className="text-left">메모</th><th>결제일</th><th>한도</th><th>동작</th></tr></thead>
+                <thead><tr>{canReorder && <th className="w-16" title="끌거나 ▲▼ 로 순서 변경">순서</th>}<th>카드</th><th>종류</th><th>끝번호</th><th>카드사</th><th>메모</th><th>결제일</th><th>한도</th><th>동작</th></tr></thead>
                 <tbody>
                   {(() => { const visibleCards = cards.map((card: any, idx: number) => ({ card, idx })).filter(({ card }) => showHiddenCards || card.is_active !== false); return visibleCards.map(({ card, idx }, vi) => (
                     <tr key={card.id}
@@ -1129,7 +1129,7 @@ export default function CardsPage() {
                     <thead>
                       <tr>
                         {([["transaction_date", "날짜"], ["merchant_name", "가맹점"], ["category", "계정과목"], ["card_name", "카드"]] as [string, string][]).map(([k, l]) => (
-                          <th key={k} className={k === "merchant_name" ? "text-left" : ""}>
+                          <th key={k}>
                             <button type="button" className="ev-th-btn" onClick={() => { if (cardSortKey === k) setCardSortDir((d) => (d === "asc" ? "desc" : "asc")); else { setCardSortKey(k); setCardSortDir(k === "transaction_date" ? "desc" : "asc"); } }}>
                               {l}{cardSortKey === k ? (cardSortDir === "asc" ? " ▲" : " ▼") : ""}
                             </button>
@@ -1219,7 +1219,7 @@ export default function CardsPage() {
               <p className="text-sm text-[var(--text-muted)] text-center py-4">아직 이번 달 카드 지출이 없습니다.</p>
             ) : (
               <div className="stg-table-wrap"><table className="ev-table ev-lined table-card-users">
-                <thead><tr><th className="text-left">사용자</th><th>건수</th><th>금액</th><th>비중</th></tr></thead>
+                <thead><tr><th>사용자</th><th>건수</th><th>금액</th><th>비중</th></tr></thead>
                 <tbody>{employeeStats.rows.map((r) => (
                   <tr key={r.id || "none"} className={r.id ? "" : "text-[var(--text-dim)]"}>
                     <td className="text-left"><b>{r.name}</b></td>

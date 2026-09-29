@@ -682,7 +682,7 @@ export default function LoansPage() {
                         <tr key={p.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]/50">
                           <td className="px-4 py-3 text-xs font-mono text-[var(--primary)]">{p.payment_number || "-"}</td>
                           <td className="px-4 py-3 text-xs font-medium">{loan?.name || "-"}</td>
-                          <td className="px-4 py-3 text-xs text-[var(--text-muted)]">{p.payment_date}</td>
+                          <td className="px-4 py-3 text-center text-xs text-[var(--text-muted)]">{p.payment_date}</td>
                           <td className="px-4 py-3 text-xs text-right font-medium">₩{Number(p.principal_amount || 0).toLocaleString()}</td>
                           <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]">₩{Number(p.interest_amount || 0).toLocaleString()}</td>
                           <td className="px-4 py-3 text-xs text-right font-bold">₩{Number(p.total_amount || 0).toLocaleString()}</td>

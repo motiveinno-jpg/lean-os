@@ -23,12 +23,12 @@ import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat } from "
 import { DateRangeField } from "@/components/date-range-field";
 import { exportToExcel } from "@/lib/excel-export";
 import { LineChart, BarChart, DonutChart, Legend, vizColor } from "@/components/charts/kit";
-import { listMoves, listProducts, listStockUnitCost, type MoveRow, type Product } from "@/lib/inventory";
+import { listMoves, listProducts, listStockUnitCost, reasonLabel, partnerCountText, type MoveRow, type Product } from "@/lib/inventory";
 import { listBoms } from "@/lib/inventory-production";
 import { listImports, channelLabel, CHANNELS } from "@/lib/inventory-channels";
 import { loadChannelFees, saveChannelFees, type ChannelFees } from "@/lib/inventory-settings";
 import { listMoveCosts, listLayers, getCostState, rebuildMyCosts, loadCostingMethod, saveCostingMethod, COSTING_METHODS, listRevaluations, addRevaluation, cancelRevaluation, REVAL_REASONS, revalReasonLabel, type CostingMethod, type MoveCost, type CostLayer } from "@/lib/inventory-cost";
-import { costOfMove } from "@/lib/inventory-costing-calc";
+import { costOfMove, nextOutUnitCost } from "@/lib/inventory-costing-calc";
 import { SalesBoard } from "../../reports/_components/SalesBoard";
 import { DateField } from "@/components/date-field";
 import { dayKeys, dayLabel } from "@/components/finance-status-panels";
@@ -178,7 +178,10 @@ export default function InventoryProfitPage() {
   }, [moves, layers, from, to]);
 
   const onhandCost = (pid: string) => layers.filter((l) => l.product_id === pid && l.qty_left > 0 && l.unit_cost != null).reduce((n, l) => n + l.qty_left * l.unit_cost!, 0);
-  const lastLayerCost = (pid: string) => { const ls = layers.filter((l) => l.product_id === pid && l.qty_left > 0 && l.unit_cost != null); return ls.length ? ls[ls.length - 1].unit_cost : (avgCost.get(pid) ?? null); };
+  //   다음 출고에 쓰일 단가 — 선입선출이면 남은 층 중 가장 먼저 들어온 층(마지막 입고 단가가 아니다), 이동평균이면 남은 층 평균.
+  //   남은 층이 없으면 재고 단가 대체값(listStockUnitCost). 먼저 나갈 층에 단가가 없으면 null(미확정).
+  const nextCostMap = useMemo(() => nextOutUnitCost(layers, method), [layers, method]);
+  const nextOutCost = (pid: string): number | null => (nextCostMap.has(pid) ? nextCostMap.get(pid)! : (avgCost.get(pid) ?? null));
   const histLayers = useMemo(() => layers.filter((l) => !histProduct || l.product_id === histProduct), [layers, histProduct]);
   const histCosts = useMemo(() => costs.filter((c) => !histProduct || c.product_id === histProduct).sort((a, b) => (a.moved_at < b.moved_at ? 1 : -1)), [costs, histProduct]);
 
@@ -264,7 +267,7 @@ export default function InventoryProfitPage() {
       <Stat label="원가 미확정 출고" value={<button type="button" className="inv-stat-btn" onClick={() => setUncOpen(true)}>{won(S.uncosted)}개</button>} tone={S.uncosted ? "minus" : undefined} />
     </>),
     product: (<><Stat label="품목" value={`${S.perProduct.size}종`} /><Stat label="판매 수량" value={won(S.soldQty)} /><Stat label="매출총이익" value={`₩${won(S.gp)}`} /><Stat label="이익률" value={pct(S.rate)} /></>),
-    partner: (<><Stat label="거래처" value={`${S.perPartner.size}곳`} /><Stat label="채널" value={`${S.perChannel.size}개`} /><Stat label="매출총이익" value={`₩${won(S.gp)}`} />{feesConfigured && <Stat label="수수료·배송비 뺀 순이익" title="회사가 정한 채널별 수수료율·주문당 배송비로 계산한 추정" value={`₩${won(netTotal)}`} tone={netTotal < 0 ? "minus" : undefined} />}</>),
+    partner: (<><Stat label="거래처" value={partnerCountText(S.perPartner.keys())} /><Stat label="채널" value={`${S.perChannel.size}개`} /><Stat label="매출총이익" value={`₩${won(S.gp)}`} />{feesConfigured && <Stat label="수수료·배송비 뺀 순이익" title="회사가 정한 채널별 수수료율·주문당 배송비로 계산한 추정" value={`₩${won(netTotal)}`} tone={netTotal < 0 ? "minus" : undefined} />}</>),
     buymake: (<><Stat label="매입 품목" value={`${BM.buy.size}종`} /><Stat label="기간 매입" value={`₩${won([...BM.buy.values()].reduce((n, b) => n + b.amt, 0))}`} /><Stat label="생산 품목" value={`${BM.make.size}종`} /><Stat label="생산 원가" value={`₩${won([...BM.make.values()].reduce((n, b) => n + b.amt, 0))}`} /><Stat label="손실" value={`₩${won(S.loss)}`} tone={S.loss ? "minus" : undefined} /></>),
     valuation: (<><Stat label="기준일" value={asof} /><Stat label="품목" value={`${valuation.rows.length}종`} /><Stat label="재고 수량" value={won(valuation.qty)} /><Stat label="재고자산 금액" value={`₩${won(valuation.total)}`} /><Stat label="제품 / 상품 / 원재료" value={`₩${won(valuation.kinds.제품.value)} / ₩${won(valuation.kinds.상품.value)} / ₩${won(valuation.kinds.원재료.value)}`} />{valuation.uncosted > 0 && <Stat label="원가 미확정 수량" value={won(valuation.uncosted)} tone="minus" />}</>),
     history: (<><Stat label="원가 방법" value={method === "avg" ? "이동평균" : "선입선출"} /><Stat label="마지막 계산" value={state ? state.computed_at.slice(0, 16).replace("T", " ") : "—"} /><Stat label="층" value={`${state?.layers ?? 0}`} /><Stat label="미확정 출고" value={`${state?.uncosted_moves ?? 0}건`} tone={state?.uncosted_moves ? "minus" : undefined} /></>),
@@ -283,7 +286,7 @@ export default function InventoryProfitPage() {
             <button type="button" className="btn-secondary btn-sm" onClick={() => {
               const name = TABS.find(([k]) => k === tab)?.[1] || "이익";
               const rows: Record<string, unknown>[] =
-                tab === "product" ? productRows.map((r) => ({ "SKU": r.p?.sku || "", "품목": r.p?.name || "", "판매 수량": r.qty, "매출": r.rev, "매출원가": r.cost, "이익": r.gp, "이익률": pct(r.rate), "미확정": r.unc, "현재 층 단가": lastLayerCost(r.id) ?? "", "현재고 원가": onhandCost(r.id) }))
+                tab === "product" ? productRows.map((r) => ({ "SKU": r.p?.sku || "", "품목": r.p?.name || "", "판매 수량": r.qty, "매출": r.rev, "매출원가": r.cost, "이익": r.gp, "이익률": pct(r.rate), "미확정": r.unc, "다음 출고 단가": nextOutCost(r.id) ?? "", "현재고 원가": onhandCost(r.id) }))
                 : tab === "partner" ? [...partnerRows.map((r) => ({ "구분": "거래처", "이름": r.name, "매출": r.rev, "원가": r.cost, "이익": r.gp, "이익률": pct(r.rate) })), ...channelRows.map((r) => ({ "구분": "채널", "이름": r.name, "매출": r.rev, "원가": r.cost, "이익": r.gp, "이익률": pct(r.rate), "주문 건수": r.orders, "수수료(추정)": Math.round(r.fee), "배송비(추정)": Math.round(r.ship), "순이익(추정)": Math.round(r.net), "순이익률": pct(r.netRate) }))]
                 : tab === "buymake" ? [...[...BM.buy.entries()].map(([id, b]) => ({ "구분": "매입", "품목": productById.get(id)?.name || "", "수량": b.qty, "평균 단가": b.qty ? b.amt / b.qty : "", "최저": b.min, "최고": b.max, "판매가": productById.get(id)?.sale_price ?? "" })), ...[...BM.make.entries()].map(([id, k]) => ({ "구분": "생산", "품목": productById.get(id)?.name || "", "수량": k.qty, "평균 단가": k.qty ? k.amt / k.qty : "", "노무·경비": k.overhead, "판매가": productById.get(id)?.sale_price ?? "" }))]
                 : tab === "valuation" ? valuation.rows.map((r) => ({ "구분": r.kind, "SKU": r.sku, "품목": r.name, "단위": r.unit, "수량": r.qty, "평균 단가": r.avg == null ? "" : Math.round(r.avg), "재고자산 금액": Math.round(r.value), "원가 미확정 수량": r.uncosted || "" }))
@@ -354,13 +357,13 @@ export default function InventoryProfitPage() {
                     <div className="pnl-panel"><h3>이익률 하위</h3><p>이익률이 낮은 순서입니다.</p>{productRows.length ? <BarChart unit="%" data={[...productRows].filter((r) => r.rate != null).sort((a, b) => (a.rate! - b.rate!)).slice(0, 8).map((r, i) => ({ label: r.p?.name || "?", value: Math.round(r.rate! * 1000) / 10, color: r.rate! < 0 ? "var(--danger)" : vizColor(i) }))} /> : <div className="inv-status-empty">판매가 없습니다.</div>}</div>
                   </div>
                   <div className="pnl-panel">
-                    <h3>품목별</h3><p title="매출·원가·이익은 조회 기간, 층 단가와 현재고 원가는 지금 기준입니다">품목을 누르면 원가 이력이 열립니다.</p>
+                    <h3>품목별</h3><p title="매출·원가·이익은 조회 기간, 다음 출고 단가와 현재고 원가는 지금 기준입니다">품목을 누르면 원가 이력이 열립니다.</p>
                     <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status">
-                      <thead><tr><th>SKU</th><th>품목</th><th>판매 수량</th><th>매출</th><th>매출원가</th><th>이익</th><th>이익률</th>{feesConfigured && <th title="이익에서 채널 수수료(회사가 정한 비율)를 뺀 값 · 배송비는 주문 단위라 품목에 나누지 않습니다">수수료 뺀 이익</th>}<th>판매가</th><th>현재 층 단가</th><th>현재고 원가</th></tr></thead>
+                      <thead><tr><th>SKU</th><th>품목</th><th>판매 수량</th><th>매출</th><th>매출원가</th><th>이익</th><th>이익률</th>{feesConfigured && <th title="이익에서 채널 수수료(회사가 정한 비율)를 뺀 값 · 배송비는 주문 단위라 품목에 나누지 않습니다">수수료 뺀 이익</th>}<th>판매가</th><th title={method === "avg" ? "이동평균 — 남은 재고의 평균 단가로 다음 출고 원가가 잡힙니다" : "선입선출 — 남은 입고분 중 가장 먼저 들어온 층의 단가로 다음 출고 원가가 잡힙니다"}>다음 출고 단가</th><th>현재고 원가</th></tr></thead>
                       <tbody>{productRows.map((r) => (
                         <tr key={r.id} className={r.unc ? "inv-row-fix" : undefined}><td className="mono-number text-left">{r.p?.sku}</td><td className="text-left"><button type="button" className="bz-link" onClick={() => { setHistProduct(r.id); setTab("history"); }}><b>{r.p?.name || "?"}</b></button>{r.unc ? <span className="ev-dim"> · 미확정 {won(r.unc)}</span> : null}</td>
                           <td className="tr mono-number">{won(r.qty)}</td><td className="tr mono-number">₩{won(r.rev)}</td><td className="tr mono-number">₩{won(r.cost)}</td><td className={`tr mono-number${r.gp < 0 ? " inv-diff-minus" : ""}`}>₩{won(r.gp)}</td><td className="tr mono-number">{pct(r.rate)}</td>{feesConfigured && <td className={`tr mono-number${r.gp - r.fee < 0 ? " inv-diff-minus" : ""}`}>{r.fee ? `₩${won(r.gp - r.fee)}` : "—"}</td>}
-                          <td className="tr mono-number">{r.p?.sale_price != null ? `₩${won(r.p.sale_price)}` : "—"}</td><td className="tr mono-number">{lastLayerCost(r.id) != null ? `₩${won(lastLayerCost(r.id)!)}` : "—"}</td><td className="tr mono-number">₩{won(onhandCost(r.id))}</td></tr>
+                          <td className="tr mono-number">{r.p?.sale_price != null ? `₩${won(r.p.sale_price)}` : "—"}</td><td className="tr mono-number">{nextOutCost(r.id) != null ? `₩${won(nextOutCost(r.id)!)}` : nextCostMap.has(r.id) ? <span className="inv-diff-minus">단가 없음</span> : "—"}</td><td className="tr mono-number">₩{won(onhandCost(r.id))}</td></tr>
                       ))}{productRows.length === 0 && <tr><td colSpan={10} className="tc ev-dim">이 기간에 판매가 없습니다.</td></tr>}</tbody>
                     </table></div>
                   </div>
@@ -422,7 +425,7 @@ export default function InventoryProfitPage() {
                     <div className="pnl-panel">
                       <h3>재고자산 명세 · {asof}</h3><p>구분은 결산 초안과 같습니다 — 생산 층이 있는 품목은 제품, 자재구성에 쓰이는 품목은 원재료, 나머지는 상품. 평균 단가 = 금액 ÷ 수량.</p>
                       <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-valuation">
-                        <thead><tr><th>구분</th><th className="text-left">품목</th><th>단위</th><th>수량</th><th>평균 단가</th><th>재고자산 금액</th><th>원가 미확정</th></tr></thead>
+                        <thead><tr><th>구분</th><th>품목</th><th>단위</th><th>수량</th><th>평균 단가</th><th>재고자산 금액</th><th>원가 미확정</th></tr></thead>
                         <tbody>
                           {(["제품", "상품", "원재료"] as ValKind[]).map((k) => { const rs = valuation.rows.filter((r) => r.kind === k); if (!rs.length) return null; return [
                             ...rs.map((r) => (
@@ -503,7 +506,7 @@ export default function InventoryProfitPage() {
                       <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status-sm">
                         <thead><tr><th>일자</th><th>품목</th><th>사유</th><th>수량</th><th>원가</th><th>단가</th><th>층</th></tr></thead>
                         <tbody>{histCosts.slice(0, 300).map((c: MoveCost) => (
-                          <tr key={c.move_id} className={c.qty_uncosted ? "inv-row-fix" : undefined}><td className="mono-number tc">{c.moved_at}</td><td className="text-left"><b>{productById.get(c.product_id)?.name || "?"}</b></td><td className="tc">{c.reason}</td>
+                          <tr key={c.move_id} className={c.qty_uncosted ? "inv-row-fix" : undefined}><td className="mono-number tc">{c.moved_at}</td><td className="text-left"><b>{productById.get(c.product_id)?.name || "?"}</b></td><td className="tc">{reasonLabel(c.reason)}</td>
                             <td className="tr mono-number">{won(-c.qty)}</td><td className="tr mono-number">₩{won(c.cost_amount)}{c.qty_uncosted ? <span className="inv-diff-minus"> · 미확정 {won(c.qty_uncosted)}</span> : null}</td><td className="tr mono-number">{c.unit_cost != null ? `₩${won(c.unit_cost)}` : "—"}</td>
                             <td className="text-left ev-dim">{(c.layers || []).map((x) => `${x.date} ${SOURCE_LABEL[x.source] || koFallback(x.source)} ${won(x.qty)}@${won(x.unit_cost)}`).join(", ") || "—"}</td></tr>
                         ))}{histCosts.length === 0 && <tr><td colSpan={7} className="tc ev-dim">이 기간에 출고가 없습니다.</td></tr>}</tbody>
@@ -529,7 +532,7 @@ export default function InventoryProfitPage() {
             </div>
             <div className="inv-fee-body">
               <table className="ev-table ev-lined table-inv-status-sm">
-                <thead><tr><th className="text-left">채널</th><th>수수료율 (%)</th><th>주문당 배송비 (원)</th></tr></thead>
+                <thead><tr><th>채널</th><th>수수료율 (%)</th><th>주문당 배송비 (원)</th></tr></thead>
                 <tbody>
                   {[...CHANNELS.map((c) => ({ value: c.value as string, label: c.label as string })), { value: "direct", label: "직접 (채널 기록 없는 판매)" }].map((c) => (
                     <tr key={c.value}>
@@ -556,7 +559,7 @@ export default function InventoryProfitPage() {
             <p className="inv-modal-desc" title="0으로 잡지 않았습니다. 원가 이력에서 기초 원가나 매입 단가를 넣고 다시 계산하면 채워집니다">아직 원가가 정해지지 않은 출고입니다.</p>
             <div className="stg-table-wrap ch-ship-list"><table className="ev-table ev-lined table-inv-status-sm">
               <thead><tr><th>일자</th><th>문서</th><th>품목</th><th>사유</th><th>미확정 수량</th></tr></thead>
-              <tbody>{costs.filter((c) => c.qty_uncosted > 0).map((c) => <tr key={c.move_id}><td className="mono-number tc">{c.moved_at}</td><td className="tc">{moves.find((m) => m.id === c.move_id)?.doc?.doc_no || "—"}</td><td className="text-left"><b>{productById.get(c.product_id)?.name || "?"}</b></td><td className="tc">{c.reason}</td><td className="tr mono-number">{won(c.qty_uncosted)}</td></tr>)}
+              <tbody>{costs.filter((c) => c.qty_uncosted > 0).map((c) => <tr key={c.move_id}><td className="mono-number tc">{c.moved_at}</td><td className="tc">{moves.find((m) => m.id === c.move_id)?.doc?.doc_no || "—"}</td><td className="text-left"><b>{productById.get(c.product_id)?.name || "?"}</b></td><td className="tc">{reasonLabel(c.reason)}</td><td className="tr mono-number">{won(c.qty_uncosted)}</td></tr>)}
                 {!costs.some((c) => c.qty_uncosted > 0) && <tr><td colSpan={5} className="tc ev-dim">없습니다.</td></tr>}</tbody>
             </table></div>
             <div className="inv-modal-actions"><button type="button" className="bz-link" onClick={() => { setUncOpen(false); setTab("history"); }}>원가 이력에서 기초 원가 입력 →</button><span className="doc-sums-sp" /><button type="button" className="btn-secondary btn-sm" onClick={() => setUncOpen(false)}>닫기</button></div>

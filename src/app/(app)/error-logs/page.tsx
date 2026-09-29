@@ -152,7 +152,7 @@ export default function ErrorLogsPage() {
     return <div className="p-8 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>;
   }
   if (!isOperator) {
-    return <AccessDenied title="서비스 운영자 전용 페이지" detail="에러 로그 열람은 OwnerView 운영자만 가능합니다." />;
+    return <AccessDenied title="서비스 운영자 전용 페이지" detail="에러 로그는 오너뷰 서비스 운영자만 봅니다. 회사 안에서 권한을 줘서 여는 화면이 아닙니다." grantable={false} />;
   }
 
   return (

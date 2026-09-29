@@ -1506,7 +1506,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .schedule-calendar-grid { @apply flex flex-col; } /* 2026-08-18 상자 안 격자 — glass-card 껍데기 없음. 2026-09-03: overflow-hidden 제거 — 마지막 주가 잘렸다. 상자 높이를 채우고 넘치면 ev-scroll 이 스크롤 */
 .schedule-calendar-grid > .schedule-cells-grid { @apply auto-rows-[minmax(88px,auto)]; } /* 줄 높이는 내용만큼 — 펼친 칸이 있는 줄만 커진다 ("다른 줄도 같이 커진다") */
 /* .schedule-page — 순수 마커 (뿌리는 .qk-shell) */
-table.sched-table { min-width: 900px; }
+table.sched-table { min-width: 760px; }
 .sched-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 text-xs; }
 .sched-table td.truncate { max-width: 0; }
 .sched-table tbody tr.sched-row { @apply cursor-pointer; }
@@ -1559,7 +1559,7 @@ table.sched-table { min-width: 900px; }
   .vault-file-panel > .qk-screen { height: auto; min-height: 0; @apply min-h-0 flex-1; }
 }
 
-.doc-file-table { min-width: 860px; }
+.doc-file-table { min-width: 640px; }
 /*   남이 올려서 내가 못 지우는 파일 — 고를 수 없다는 걸 눈으로 알린다 */
 .doc-file-chk-locked { @apply cursor-not-allowed border-dashed opacity-40; }
 .vault-filter-bar { @apply flex gap-3; }
@@ -1601,7 +1601,7 @@ table.sched-table { min-width: 900px; }
 /* mono-number 는 커스텀 클래스라 @apply 에 넣으면 규칙이 통째로 무효가 된다 — JSX 에 병기한다 */
 /* ── 계약 목록 표 (2026-08-05 대표 시안) — 머리 고정 + 본문만 스크롤 ── */
 /* 표 본문만 움직이고 머리·툴바는 제자리 — 화면 자리를 적게 쓰기 위해 높이 제한 */
-.signature-table { min-width: 1120px; }
+.signature-table { min-width: 900px; }
 .signature-table tbody td { @apply px-2.5 py-1.5 border-b border-[var(--border)]/60 align-middle; }
 .signature-table tbody tr:hover { background: var(--bg-surface); }
 .signature-table-check { @apply w-9 text-center; }
@@ -2124,7 +2124,8 @@ table.bs-t-table { min-width: 360px; }
 /* 휴가 유형 — 작은 칩 한 줄 + 회사별 유형·일수 편집 (2026-08-06) */
 .leave-type-head { @apply flex items-center justify-between gap-3 mb-2.5; }
 .leave-type-edit-btn { @apply text-[11px] font-semibold px-3 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--bg-surface)] transition shrink-0; }
-.leave-type-chip-row { @apply flex items-center gap-1.5 overflow-x-auto pb-1; }
+/* 유형이 많으면 오른쪽 끝에서 잘려 뒤 칩(보상휴가 등)이 안 보였다 — 가로 스크롤 대신 줄을 바꾼다 */
+.leave-type-chip-row { @apply flex flex-wrap items-center gap-1.5 pb-1; }
 .leave-type-chip { @apply inline-flex items-baseline gap-1.5 shrink-0 px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] whitespace-nowrap; }
 .leave-type-chip-label { @apply text-[11px] text-[var(--text-muted)]; }
 .leave-type-chip-days { @apply text-xs font-bold; }
@@ -4239,7 +4240,7 @@ table.leave-req-table { min-width: 960px; } /* table. — .ev-table(뒤에 정�
 /* dashboard-activity.tsx */
 .activity-card { @apply p-4 flex flex-col; }
 .activity-card-header { @apply flex items-center justify-between gap-2 mb-2; }
-.activity-card-title { @apply text-[14px] font-extrabold text-[var(--text)] truncate; }
+.activity-card-title { @apply text-[14px] font-extrabold text-[var(--text)] truncate shrink-0 max-w-full; }
 .activity-card-count { @apply text-[12.5px] font-bold text-[var(--text-muted)]; }
 /* 빈 위젯 = 한 줄(격자 h:1) — 이름 · 빈 상태 문장 · 다음 행동 · → 가로 (2026-09-03 v2 결정 149) */
 .activity-card-quiet { @apply flex-row items-center gap-3 px-4 py-0 overflow-hidden whitespace-nowrap; }
@@ -4263,7 +4264,7 @@ table.leave-req-table { min-width: 960px; } /* table. — .ev-table(뒤에 정�
 
 .activity-card-rows { @apply flex flex-col divide-y divide-[var(--border)]/60; }
 .project-row { @apply flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition; }
-
+.revenue-row { @apply flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition; }
 .invoice-row { @apply flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition; }
 
 /* chart-of-accounts-manager.tsx */
@@ -7618,7 +7619,7 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .payment-risky-label { @apply mt-2 flex items-start gap-1.5 text-[10px] text-[var(--text-muted)] cursor-pointer select-none; }
 
 /* 앱 투어 — 모바일 전용 닫기 X (모바일에서 닫기 없이 11번 '다음'만 있던 것) */
-.app-tour-close-m { @apply absolute top-3 right-3 p-1.5 rounded-lg text-[var(--text-dim)] hover:text-[var(--text)] sm:hidden; }
+.app-tour-close-m { @apply absolute top-3 right-3 p-1.5 rounded-lg text-[var(--text-dim)] hover:text-[var(--text)]; }
 
 /* ══════════ 목록 화면 공용 표준 ("메뉴별로 크기가 제각각") ══════════
    기준은 세금·증빙 화면을 실제로 재서 잡았다 —
@@ -8096,7 +8097,9 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 .cs-hist-when { @apply w-[128px]; }
 .cs-hist-who { @apply w-[86px] text-[var(--text-dim)]; }
 .cs-hist-n { @apply w-[80px]; }
-.cs-hist-note { @apply max-w-0 truncate text-[11px] text-[var(--danger)]; }
+/* 사유는 잘라 버리면 원인을 못 읽는다 — 넓게 두고 넘치면 줄을 바꾼다 */
+.cs-hist-note { @apply min-w-[220px] whitespace-normal text-[11px] leading-snug text-[var(--danger)]; }
+.cs-fail { @apply ml-1 text-[10.5px] font-bold text-[var(--danger)]; }
 .cs-auto { @apply not-italic rounded-md bg-[var(--bg-surface)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--text-dim)]; }
 .cs-dot { @apply mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 align-middle; }
 .cs-dot-warn { @apply bg-amber-500; }
@@ -10999,3 +11002,132 @@ table.ch-settle-fit tbody td, table.ch-settle-fit thead th { @apply px-2; }
    최소 폭을 풀고 긴 사유 칸만 줄바꿈한다. 1280 이하는 가로 스크롤을 받아들인다(정산 표와 같은 기준). */
 table.ch-claims-fit { min-width: 0; }
 .ev-table tbody td.ch-claims-reason { @apply whitespace-normal break-keep min-w-[160px]; }
+
+/* ── 앱 공통 껍데기(머리 줄·투어·로고) ── */
+/* 모바일 머리 줄: 계산기·캡처·메모·도움말은 '더보기' 하나로 접는다(header-tools HeaderMoreMenu) — 화면 제목 자리를 남긴다 */
+.ht-desk-only { @apply max-md:hidden; }
+.ht-mobile-only { @apply md:hidden; }
+.ht-more-menu { @apply w-[220px] p-1.5 flex flex-col gap-0.5; }
+.ht-more-item { @apply flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--text)] hover:bg-[var(--bg-surface)]; }
+.ht-more-item > svg { @apply shrink-0 text-[var(--text-muted)]; }
+.ht-more-item.is-on, .ht-more-item.is-on > svg { @apply text-[var(--primary)]; }
+.ht-more-cnt { @apply ml-auto text-[11px] text-[var(--text-dim)]; }
+/* 투어 카드 — 닫기(✕)와 제목이 겹치지 않게, 모바일은 하단 탭바 위에 붙여 본문을 덜 가린다 */
+.app-tour-tip-step, .app-tour-tip-title { @apply pr-8; }
+.app-tour-tip-docked { @apply w-auto max-w-none max-h-[55vh] overflow-y-auto; }
+
+/* ── 요금제(/billing) 비교표·충전·자료 내려받기 ── */
+/* 비교표: 요금제 칸 설명·값이 212px 칸을 넘쳐 잘렸다 — .ev-table 의 nowrap 을 풀고 줄을 바꾼다 */
+.ev-table.billing-matrix thead th, .ev-table.billing-matrix tbody td { white-space: normal; word-break: keep-all; overflow-wrap: anywhere; }
+.billing-matrix-fcol { width: 220px; }
+/* 충전 표의 항목·단가 설명, 자료 내려받기의 '들어 있는 것' — 긴 글이 버튼을 화면 밖으로 밀지 않게 줄을 바꾼다 */
+.ev-table tbody td.billing-wrap, .ev-table tbody td.data-export-desc { white-space: normal; word-break: keep-all; }
+@media (max-width: 640px) {
+  /* 모바일: 기능 칸을 좁히고 표 최소 폭을 풀어 세 요금제 칸이 화면 안에 들어오게 */
+  .billing-matrix-fcol { width: 92px; }
+  .billing-table { min-width: 0; }
+  .billing-matrix .billing-col-price { @apply whitespace-nowrap text-[14px]; }  /* 금액이 "₩39,00 / 0" 처럼 쪼개지지 않게 */
+  .ev-table.billing-matrix thead th, .ev-table.billing-matrix tbody td { @apply px-1.5 text-[11px]; }
+  .ev-table.billing-matrix thead th .btn-sm { @apply whitespace-normal px-2; }
+  .data-export-table { @apply w-full; }
+  .data-export-table tbody td { @apply px-1.5; }
+  .ev-table tbody td.data-export-desc { min-width: 0; }
+}
+
+/* ── 업무(일정·메신저 일정·전자계약·파일보관함·결재·프로젝트) ── */
+/* 달력 칩 — 휴가·공휴일도 눌러서 내용을 본다 */
+.sched-leave-chip, .schedule-holiday-chip, .chat-cal-leave { cursor: pointer; }
+/* 폰 달력 칸의 점(일정 색 · 휴가 초록 · 공휴일 빨강) */
+.sched-dots { @apply mt-1 flex flex-wrap items-center justify-center gap-[3px]; }
+.sched-dots > i { @apply block h-1.5 w-1.5 rounded-full; }
+.sched-dots > em { @apply not-italic text-[9px] font-semibold leading-none text-[var(--text-dim)]; }
+.sched-dot-leave { background: var(--success); }
+.sched-dot-holiday { background: var(--danger); }
+.sched-cell-picked { @apply bg-[var(--primary)]/10; }
+/* 폰 달력 아래 '그날 목록' */
+.sched-agenda { @apply flex flex-col gap-0.5 border-t border-[var(--border)] px-3 py-3; }
+.sched-agenda > header { @apply mb-1 flex items-center gap-2; }
+.sched-agenda > header > b { @apply text-[14px] font-extrabold text-[var(--text)]; }
+.sched-agenda > header > button { @apply ml-auto; }
+.sched-agenda-row { @apply flex w-full items-start gap-2.5 rounded-lg px-2 py-2 text-left transition hover:bg-[var(--bg-surface)]; }
+.sched-agenda-static { @apply hover:bg-transparent; }
+.sched-agenda-row > i { @apply mt-1.5 block h-2 w-2 shrink-0 rounded-full; }
+.sched-agenda-row > span { @apply flex min-w-0 flex-1 flex-col; }
+.sched-agenda-row > span > b { @apply truncate text-[13px] font-semibold text-[var(--text)]; }
+.sched-agenda-row > span > em { @apply truncate not-italic text-[11px] text-[var(--text-dim)]; }
+.sched-agenda-empty { @apply px-2 py-4 text-center text-[12px] text-[var(--text-dim)]; }
+@media (max-width: 767px) {
+  .schedule-day-cell { @apply min-h-[52px] p-1 text-center; }
+  .schedule-calendar-grid > .schedule-cells-grid { @apply auto-rows-[minmax(52px,auto)]; }
+  /* 메신저 › 일정: 한 단 — 달력은 줄 높이를 고정하고 아래 목록까지 이 칸 안에서 스크롤 */
+  .chat-cal { @apply overflow-y-auto; }
+  .chat-cal-head > b { @apply whitespace-nowrap; }
+  .chat-cal-hint { @apply hidden; }
+  .chat-cal-grid { @apply flex-none auto-rows-[48px]; }
+  .chat-cal-day { @apply items-center; }
+  .chat-cal .sched-agenda { @apply px-0; }
+}
+/* 프로젝트 목록 요약 문장 — 칸(460px) 밖으로 넘지 않게 줄을 바꾼다 */
+.ph-table tbody td.ph-sum { white-space: normal; word-break: keep-all; overflow-wrap: anywhere; }
+/* 프로젝트 보기 탭의 빼기 ✕ — 이름 바로 옆이라 마우스를 올렸을 때만 보인다(터치 화면은 늘 보임). 한 번 누르면 '한 번 더' */
+@media (hover: hover) {
+  .pjv3-vchip .x { opacity: 0; transition: opacity .15s; }
+  .pjv3-vchip:hover .x, .pjv3-vchip .x.armed { opacity: 1; }
+}
+.pjv3-vchip .x.armed { @apply font-semibold text-[var(--danger)]; }
+
+/* ── 분석 리포트 머리·표·차트 (회계 자료·손익 현황·자금 전망 공용) ── */
+/*   조회 줄 칸 — 라벨 + 한 줄 셀렉트/날짜. 조회 기간(.drf)과 같은 높이·글자(12px/600) — 탭마다 34↔39px·14↔12px 로 달랐다 */
+.rpt-field { @apply inline-flex items-center gap-1.5; }
+.qk-input.rpt-select { @apply h-8 px-2.5 text-[12px] font-semibold; }
+.date-field-button.date-field-button.rpt-date { @apply h-8 w-[132px] rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2 py-0 text-[12px] font-semibold; }
+/*   엑셀·인쇄 — 같은 높이·같은 아이콘 크기. 엑셀 글자색은 성공 토큰에서 — emerald-700 고정색은 다크에서 배경에 묻혔다 */
+.rpt-act-ico { @apply h-3.5 w-3.5 shrink-0; }
+.btn-sm.rpt-print-btn { @apply inline-flex items-center gap-1.5; }
+.qk-xls-btn { color: color-mix(in srgb, var(--success) 78%, var(--text)); border-color: color-mix(in srgb, var(--success) 40%, transparent); background: color-mix(in srgb, var(--success) 6%, transparent); }
+.qk-xls-btn:hover { border-color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); }
+.qk-xls-btn:disabled { @apply cursor-not-allowed opacity-50; }
+/*   리포트 머리에선 엑셀 한 개(아이콘)·여러 개(▾ 메뉴) 폭을 맞춘다 — 인쇄 버튼이 탭마다 같은 자리에 서도록 */
+#report-head-slot .qk-xls-btn { @apply min-w-[66px] justify-center; }
+/*   리포트 머리 빠른검색은 남는 폭만 쓴다(최소 200px) — 320px 고정 하한이면 엑셀·인쇄 폭만큼 넘쳐 머리가 두 줄이 됐다 */
+#report-head-slot .qk-qs { @apply min-w-[200px]; }
+/*   인쇄 — 본문(.report-body)에 print-area 를 달 때 스크롤 상자·고정 높이 조상이 종이를 자르지 않게 */
+@media print {
+  body :has(> .report-body.print-area), body :has(.report-body.print-area) { height: auto !important; max-height: none !important; overflow: visible !important; }
+  .qk-body > .report-body.print-area { overflow: visible !important; inset: auto !important; }
+  /*   종이 폭(≈190mm)에 표가 들어가게 — 화면용 최소 폭·가로 스크롤을 풀고 글자를 줄인다 */
+  .report-body.print-area * { overflow: visible !important; }
+  .report-body.print-area table { min-width: 0 !important; width: 100% !important; }
+  .report-body.print-area th, .report-body.print-area td { font-size: 9px !important; padding: 2px 4px !important; white-space: normal !important; }
+  /*   표 칸 안 버튼은 항목 이름(누르면 원천 내역)이다 — 인쇄 규칙의 button 숨김에서 뺀다 */
+  .report-body.print-area td button { display: inline !important; }
+}
+/*   손익계산서 추이 차트 — 상자 폭을 재서 그린다(예전 viewBox 고정 + 높이 제한으로 폭의 2/3 만 썼다) */
+.pnl-chart-box { @apply w-full overflow-hidden; }
+.pnl-chart-svg-fluid { @apply block; }
+/*   차트 말풍선 — 끝 점은 안쪽으로 붙인다(가운데 정렬이면 오른쪽 끝에서 잘렸다) */
+.viz-tip.viz-tip-at-l { left: 0; right: auto; translate: 0 0; transform: none; }
+.viz-tip.viz-tip-at-r { left: auto; right: 0; translate: 0 0; transform: none; }
+/*   예정 항목 표 — 열 폭 고정, 항목·근거는 말줄임(근거는 왼쪽 정렬: 글 길이가 달라 가운데 정렬이면 줄마다 들쭉날쭉) */
+table.ol-items-table { min-width: 760px; table-layout: fixed; }
+.ol-items-table col.ol-c-date { width: 92px; }
+.ol-items-table col.ol-c-kind { width: 80px; }
+.ol-items-table col.ol-c-amt { width: 112px; }
+.ol-items-table col.ol-c-basis { width: 22%; }
+.ol-items-table col.ol-c-sure { width: 64px; }
+.ol-items-table col.ol-c-flag { width: 72px; }
+.ol-items-table tbody td.ol-cell-ell { @apply truncate; }
+/*   거래처 원장 오른쪽 원장 표 — 열 폭 고정, 적요가 남는 폭. 좁으면 가로 스크롤(600px 아래로는 안 줄인다) */
+.ledger-sheet-table { @apply w-full min-w-[600px] table-fixed border-collapse text-xs; }
+/*   경영 요약 — 전월 대비 표의 계정 코드·구분(같은 이름 계정 구분), 모바일에선 전월 칸을 당월 아래 작은 글씨로 */
+.bz-chg-code { @apply ml-1 text-[10.5px] font-normal text-[var(--text-dim)]; }
+.bz-prev-m { @apply hidden; }
+@media (max-width: 640px) {
+  .bz-todo { @apply flex-wrap; }
+  .bz-todo-text { flex: 1 1 calc(100% - 96px); }
+  .bz-todo-amt { @apply ml-auto; }
+  .pnl-mini-table .bz-col-prev { @apply hidden; }
+  .bz-prev-m { @apply block text-[10px] font-normal text-[var(--text-dim)]; }
+  .pnl-mini-table tbody td { @apply px-1.5; }
+  .pnl-mini-table .bz-chg-code { @apply ml-0 block; }
+}

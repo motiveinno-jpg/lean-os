@@ -4,7 +4,8 @@ import { todayKst, kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useUrlTabSync } from "@/lib/use-tab-param";
 import { SortableTh } from "@/components/sortable-th";
 import { SelectionBar, QueryScreen, QueryHead, QueryBody, Stat, ConditionPanel, ConditionRow, AppliedChips } from "@/components/query-kit";
 import { SlotHead } from "@/components/slot-head";
@@ -32,6 +33,7 @@ import { useModalKeys }  from "@/hooks/use-modal-keys";
 
 // 2026-07-08 "정기 지출" 재편 · 자동 추천을 첫 화면으로. 지출결의→결재관리, 급여→인사, 구독 흡수(구독 탭).
 type Tab = 'recommend' | 'recurring' | 'subscriptions' | 'fixed' | 'queue';
+const PAYMENT_TABS: readonly Tab[] = ['recommend', 'recurring', 'subscriptions', 'fixed', 'queue'];
 
 export default function PaymentsPage()  {
   const { role } = useUser();
@@ -50,7 +52,7 @@ export default function PaymentsPage()  {
   if (!tabAllowed)  {
     return <AccessDenied detail="정기 지출 접근 권한이 없습니다. 마스터에게 권한을 요청하세요." />;
   }
-  return <PaymentsPageInner />;
+  return <Suspense fallback={null}><PaymentsPageInner /></Suspense>;
 }
 
 function PaymentsPageInner() {
@@ -62,9 +64,10 @@ function PaymentsPageInner() {
   const [tab, setTab] = useState<Tab>(() => {
     if (typeof window === 'undefined') return 'recurring';
     const t = new URLSearchParams(window.location.search).get('tab');
-    const valid: Tab[] = ['recommend', 'recurring', 'subscriptions', 'fixed', 'queue'];
-    return (valid as string[]).includes(t || '') ? (t as Tab) : 'recurring';
+    return (PAYMENT_TABS as readonly string[]).includes(t || '') ? (t as Tab) : 'recurring';
   });
+  //   옛 주소(/subscriptions → ?tab=subscriptions)는 화면이 먼저 뜨고 주소가 나중에 바뀐다 — 주소가 바뀌면 탭도 따라간다
+  useUrlTabSync<Tab>(PAYMENT_TABS, setTab);
   const [filter, setFilter] = useState<string>("all");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ amount: "", description: "" });
@@ -1495,7 +1498,7 @@ function SmartSetupBanner({ companyId, userId, invalidate, onRegistered }: { com
             <div className="collect-empty">아직 신규 후보가 없습니다.</div>
           ) : (
             <div className="ev-scroll"><table className="ev-table ev-lined pay-detect-table">
-              <thead><tr><th>횟수</th><th className="text-left">거래처</th><th>추정 구분</th><th>금액 (월)</th><th>확신</th><th>동작</th></tr></thead>
+              <thead><tr><th>횟수</th><th>거래처</th><th>추정 구분</th><th>금액 (월)</th><th>확신</th><th>동작</th></tr></thead>
               <tbody>
                 {freshDetected.map((d) => (
                   <tr key={detKey(d)}>

@@ -429,8 +429,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
         {/* 알림 벨 — 클릭 시 현재 페이지 유지, 최근 알림 팝오버 (전체보기 → /notifications) */}
         <NotificationBell />
 
-        {/* 이 메뉴 도움말 '?' 토글 */}
-        <MenuGuide />
+        {/* 이 메뉴 도움말 '?' 토글 — 모바일은 더보기 메뉴 안에 있다 */}
+        <MenuGuide className="ht-desk-only" />
 
         {/* 프로필 칩 — 클릭 시 현재 페이지 유지, 내 계정 상태 팝오버 (마이페이지로 이동 버튼) */}
         <AccountChip />

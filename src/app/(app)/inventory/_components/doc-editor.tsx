@@ -240,12 +240,15 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
   }, [cells, focusCell]);
 
   const live = useMemo(() => rows.filter((r) => r.product_id || r.sku.trim() || num(r.qty) || num(r.supply) || r.ono.trim() || r.ccode.trim()), [rows]);
+  //   생산은 세금계산서가 없어 부가세가 없다 — 칸이 없어도 입력 중 계산값(r.vat)이 합계에 끼지 않게 0 으로 본다
+  const noVat = formKey === "make";
+  const vatOf = useCallback((r: DocRow) => (noVat ? 0 : num(r.vat)), [noVat]);
   const sums = useMemo(() => ({
     lines: live.length,
     supply: live.reduce((n, r) => n + num(r.supply), 0),
-    vat: live.reduce((n, r) => n + num(r.vat), 0),
-    total: live.reduce((n, r) => n + num(r.supply) + num(r.vat), 0),
-  }), [live]);
+    vat: live.reduce((n, r) => n + vatOf(r), 0),
+    total: live.reduce((n, r) => n + num(r.supply) + vatOf(r), 0),
+  }), [live, vatOf]);
 
   const reset = useCallback(() => {
     setHead({ date: todayKst() }); setRows(Array.from({ length: 5 }, blankRow)); setEditing(null);
@@ -326,7 +329,7 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
         id: r.id || null, srcLineId: r.srcLineId || null,
         product_id: p?.id || "", qty: num(r.qty),
         unit_price: num(r.price) || (num(r.qty) ? num(r.supply) / num(r.qty) : null),
-        supply_amount: num(r.supply), vat_amount: num(r.vat),
+        supply_amount: num(r.supply), vat_amount: vatOf(r),
         defect: num(r.defect),
         note: r.lnote || null, custom: customLine,
         lot_no: r.lot.trim() || null, expiry_date: normExpiry(r.expiry),
@@ -341,7 +344,7 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
       head: { ...head, custom: customHead } as Record<string, string> & { custom: Record<string, string> },
       lines, sums,
     };
-  }, [head, live, onHead, onLine, byId, bySku, sums]);
+  }, [head, live, onHead, onLine, byId, bySku, sums, vatOf]);
 
   // ── 양식 고치기 ──
   const openForm = useCallback(() => { setDraft(JSON.parse(JSON.stringify(layout))); setFormOpen(true); }, [layout]);
@@ -531,7 +534,7 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
         </thead>
         <tbody>
           {rows.map((r, i) => {
-            const tot = num(r.supply) + num(r.vat);
+            const tot = num(r.supply) + (ctl.formKey === "make" ? 0 : num(r.vat));
             const has = !!(r.product_id || r.sku.trim() || num(r.qty) || num(r.supply));
             return (
               <tr key={r.key} className={r.flag === "nocode" ? "inv-row-fix" : r.flag === "dup" ? "doc-row-dup" : r.flag === "suggest" ? "inv-row-suggest" : undefined}
@@ -719,8 +722,11 @@ export function DocSums({ ctl, right }: { ctl: DocCtl; right?: React.ReactNode }
   return (
     <div className="doc-sums">
       <span><em>줄</em><b>{won(sums.lines)}</b></span>
-      <span><em>공급가액</em><b>{won(sums.supply)}</b></span>
-      <span><em>부가세</em><b>{won(sums.vat)}</b></span>
+      {/*   생산은 부가세가 없다 — 공급가액·부가세 대신 원가 금액 하나 */}
+      {ctl.formKey === "make" ? null : <>
+        <span><em>공급가액</em><b>{won(sums.supply)}</b></span>
+        <span><em>부가세</em><b>{won(sums.vat)}</b></span>
+      </>}
       <span><em>합계</em><b className="doc-total">₩{won(sums.total)}</b></span>
       <span className="doc-sums-sp" />
       {right}

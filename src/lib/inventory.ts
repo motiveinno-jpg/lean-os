@@ -53,6 +53,14 @@ export type StockReason = (typeof STOCK_REASONS)[number]["value"];
 export const reasonOf = (v: string) => STOCK_REASONS.find((r) => r.value === v);
 export const reasonLabel = (v: string) => reasonOf(v)?.label ?? v;
 
+/** 거래처별 묶음의 '거래처 N곳' — 거래처 없이 쓴 줄(키 "-")은 곳 수에 넣지 않고 따로 붙인다.
+ *  (그 줄만 있는데 '거래처 1곳'이라 하면 실제 거래처가 있는 것처럼 읽힌다) */
+export function partnerCountText(keys: Iterable<string>, none = "-"): string {
+  let n = 0, hasNone = false;
+  for (const k of keys) { if (k === none) hasNone = true; else n++; }
+  return hasNone ? `${n}곳 · 거래처 없음 포함` : `${n}곳`;
+}
+
 /**
  *  저장된 줄(stock_moves.qty)을 **화면에서 고칠 수 있는 수량** 으로 되돌린다.
  *

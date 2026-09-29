@@ -380,7 +380,7 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite, c
       <div className="pjv3-stpanel ch-settle-sum">
         <h3>채널별 <small>실측 수수료율 = 수수료 ÷ 판매금액. 설정과 1%p 넘게 다르면 갱신을 제안합니다(확정은 사람).</small></h3>
         <div className="stg-table-wrap"><table className="ev-table ev-lined ch-st-table">
-          <thead><tr><th className="text-left">채널</th><th>정산 줄</th><th>주문 대조</th><th>판매금액</th><th>수수료</th><th>실측 수수료율</th><th>설정 수수료율</th><th>배송비</th><th>정산금</th>{canWrite && <th></th>}</tr></thead>
+          <thead><tr><th>채널</th><th>정산 줄</th><th>주문 대조</th><th>판매금액</th><th>수수료</th><th>실측 수수료율</th><th>설정 수수료율</th><th>배송비</th><th>정산금</th>{canWrite && <th></th>}</tr></thead>
           <tbody>{summary.map((r) => {
             const diff = r.feeRateActual != null && r.feeRateSet != null ? r.feeRateActual - r.feeRateSet : null;
             const propose = r.feeRateActual != null && (r.feeRateSet == null || (diff != null && Math.abs(diff) > 0.01));
@@ -407,7 +407,7 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite, c
         <h3>미정산 의심 {won(unsettled.length)}건 <small>출고(또는 주문) {UNSETTLED_DAYS}일이 지났는데 정산 줄이 없는 주문 · 취소 클레임은 뺐습니다.</small></h3>
         {unsettled.length === 0 ? <div className="collect-empty">없습니다.</div> : (
           <div className="stg-table-wrap"><table className="ev-table ev-lined ch-st-table">
-            <thead><tr><th>채널</th><th className="text-left">주문번호</th><th>주문일</th><th>출고일</th><th>주문자</th><th>금액</th></tr></thead>
+            <thead><tr><th>채널</th><th>주문번호</th><th>주문일</th><th>출고일</th><th>주문자</th><th>금액</th></tr></thead>
             <tbody>{unsettled.slice(0, 100).map((i) => (
               <tr key={i.id}><td className="tc">{channelLabel(i.channel)}</td><td className="mono-number text-left"><b>{i.channel_order_no}</b></td><td className="mono-number">{i.order_date || "—"}</td><td className="mono-number">{i.shipped_at ? kstDateTime(i.shipped_at).slice(0, 10) : "—"}</td><td className="text-left">{i.buyer_name || "—"}</td><td className="tr mono-number">{i.amount != null ? `₩${won(i.amount)}` : "—"}</td></tr>
             ))}</tbody>
@@ -505,7 +505,7 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite, c
         <div className="inv-modal-box" onClick={(ev) => ev.stopPropagation()}>
           <h3 className="inv-modal-title">통장 입금 잇기</h3>
           <p className="inv-modal-desc">정산 전표(정산금 ₩{won(e?.settle || 0)}, {e?.entryDate})와 같은 금액의 통장 입금 줄입니다. 하나를 고르면 그 줄은 이 전표로 처리되고 수집·전표 통장 탭에서 「전표됨」이 됩니다.{!canLink && <b> 수집·전표 권한이 없어 볼 수만 있습니다.</b>}</p>
-          <table className="ev-table ev-lined ch-st-table"><thead><tr><th>거래일</th><th className="text-left">상대</th><th className="text-left">적요</th><th>금액</th><th></th></tr></thead>
+          <table className="ev-table ev-lined ch-st-table"><thead><tr><th>거래일</th><th>상대</th><th>적요</th><th>금액</th><th></th></tr></thead>
             <tbody>{l.candidates.map((t) => (
               <tr key={t.id}><td className="mono-number">{t.transaction_date}</td><td className="text-left">{t.counterparty || "—"}</td><td className="text-left ev-dim">{t.description || "—"}</td><td className="tr mono-number">₩{won(t.amount)}</td>
                 <td className="tc"><button type="button" className="btn-primary btn-sm" disabled={!canLink || !!linking} onClick={() => doLink(t.id, linkFor)}>{linking === t.id ? "잇는 중…" : "이 입금으로"}</button></td></tr>
