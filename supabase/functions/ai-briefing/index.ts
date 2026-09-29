@@ -4,6 +4,19 @@ import { collectDataHealth } from "../_shared/data-health.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// 대출 월 상환 추정 — src/lib/cash-budget.ts estimateMonthlyPayment 와 같은 식(화면과 숫자를 맞추려고 옮겨 둔 것, 바꿀 땐 둘 다)
+function estimateMonthlyPayment(row: any): number {
+  const remaining = Number(row.remaining_balance || 0);
+  const rate = Number(row.interest_rate || 0) / 100 / 12;
+  const maturity = row.maturity_date ? new Date(row.maturity_date) : null;
+  if (!maturity || remaining <= 0) return 0;
+  const monthsLeft = Math.max(1, Math.round((maturity.getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30)));
+  if ((row.loan_type || "term") === "bullet") return Math.round(remaining * rate);
+  if (rate === 0) return Math.round(remaining / monthsLeft);
+  const factor = Math.pow(1 + rate, monthsLeft);
+  return Math.round(remaining * (rate * factor) / (factor - 1));
+}
+
 // AI 경영 브리핑 2.0 (2026-07-10) — "숫자 요약 한 단락" → "실행 가능한 아침 액션 플랜".
 //   ① 서버가 직접 데이터 수집(service role): 미수 상위 거래처(이름·금액·경과일), 결재 대기 상위,
 //      이번달/지난달 매출, 최근 7일 대형 지출 — 클라이언트가 준 요약 숫자에만 의존하지 않음(정확성).
@@ -47,7 +60,6 @@ const PRIO = ["보통", "높음", "긴급"];
 async function collectSnapshot(admin: ReturnType<typeof createClient>, companyId: string) {
   const kstNow = new Date(Date.now() + 9 * 3600 * 1000);
   const today = kstNow.toISOString().slice(0, 10);
-  const d30 = new Date(kstNow.getTime() - 30 * 86400000).toISOString().slice(0, 10);
   const monthStart = today.slice(0, 7) + "-01";
   const prev = new Date(kstNow.getFullYear(), kstNow.getMonth() - 1, 1);
   const prevStart = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}-01`;
@@ -56,28 +68,17 @@ async function collectSnapshot(admin: ReturnType<typeof createClient>, companyId
   const out: string[] = [];
   // 1) 30일+ 미수 상위 거래처 (이름·금액·최장 경과) — "누구한테 얼마 받을지"를 콕 집게
   try {
-    //   2026-08-31 정정: draft(미발행)를 미수로 세고 부분입금(settled_amount)을 안 빼던 것 —
-    //   브리핑이 실제보다 부풀린 미수를 말하는 원인. 발행분 잔액 기준으로 통일(data-health §90일 미정산과 동일 사상).
-    const { data } = await admin.from("tax_invoices")
-      .select("counterparty_name, total_amount, settled_amount, issue_date")
-      .eq("company_id", companyId).eq("type", "sales")
-      .not("status", "in", "(matched,void,draft,cancelled)")
-      .lte("issue_date", d30).order("total_amount", { ascending: false }).limit(200);
-    if (data && data.length) {
-      const byName = new Map<string, { sum: number; oldest: string }>();
-      for (const r of data as any[]) {
-        const outstanding = Number(r.total_amount || 0) - Number(r.settled_amount || 0);
-        if (outstanding <= 1) continue; // 이미 다 받은 계산서는 미수가 아니다
-        const k = String(r.counterparty_name || "미상").replace(/\+/g, " ");
-        const cur = byName.get(k) || { sum: 0, oldest: r.issue_date };
-        cur.sum += outstanding;
-        if (r.issue_date < cur.oldest) cur.oldest = r.issue_date;
-        byName.set(k, cur);
-      }
-      const top = [...byName.entries()].sort((a, b) => b[1].sum - a[1].sum).slice(0, 5);
+    //   대시보드 미수금·경영요약·AI 참모와 같은 함수(receivables_by_partner) — 전표 처리된 계산서 잔액, 수정 계산서 상계.
+    //   예전엔 여기서 따로 세어 브리핑만 다른 미수금을 말했다.
+    const { data } = await admin.rpc("receivables_by_partner", { p_company_id: companyId, p_type: "sales" });
+    const top = ((data || []) as any[])
+      .filter((r) => Number(r.over30 || 0) > 1)
+      .sort((a, b) => Number(b.over30) - Number(a.over30))
+      .slice(0, 5);
+    if (top.length) {
       const days = (d: string) => Math.round((kstNow.getTime() - new Date(d).getTime()) / 86400000);
-      out.push("30일+ 미수 상위 거래처(발행 매출 계산서의 미정산 잔액 기준):\n" +
-        top.map(([n, v]) => `- ${n}: ${won(v.sum)} (최장 ${days(v.oldest)}일 경과)`).join("\n"));
+      out.push("30일+ 미수 상위 거래처(전표 처리된 매출 계산서 잔액 기준):\n" +
+        top.map((r) => `- ${String(r.name || "미상")}: ${won(Number(r.over30))}${r.oldest_open_date ? ` (최장 ${days(String(r.oldest_open_date))}일 경과)` : ""}`).join("\n"));
     }
   } catch { /* skip */ }
   // 2) 결재 대기 상위
@@ -309,17 +310,32 @@ async function runCron(admin: ReturnType<typeof createClient>): Promise<Response
       if (cached) continue; // 이미 생성됨
 
       const { data: comp } = await admin.from("companies").select("name").eq("id", companyId).maybeSingle();
-      // 서버 측 근사 재무: 잔고=bank_accounts 합, 번레이트=정기결제+급여, 런웨이=잔고/번
+      // 서버 측 재무 — 화면(src/lib/queries.ts getCashPulseData → cash-pulse.ts)과 같은 재료·같은 식.
+      //   잔고 = 계좌 합 + 수동 보정, 월 고정 지출 = 정기결제 + 재직자 급여 + 수동 추가분 + 고정비(정기결제와 이름 겹치면 제외) + 대출 상환.
+      //   예전엔 급여를 status='active' 로만 세어 초대로 합류한 직원('joined')이 빠졌고, 고정비·대출도 없어
+      //   오전 8시 브리핑이 런웨이를 화면보다 훨씬 길게 안내했다.
       let nums: Nums | null = null;
       try {
-        const [{ data: accts }, { data: recs }, { data: emps }] = await Promise.all([
+        const [{ data: accts }, { data: recs }, { data: emps }, { data: snap }, { data: fixed }, { data: loans }] = await Promise.all([
           admin.from("bank_accounts").select("balance").eq("company_id", companyId),
-          admin.from("recurring_payments").select("amount").eq("company_id", companyId).eq("is_active", true),
-          admin.from("employees").select("salary").eq("company_id", companyId).eq("status", "active"),
+          admin.from("recurring_payments").select("name, amount").eq("company_id", companyId).eq("is_active", true),
+          admin.from("employees").select("salary").eq("company_id", companyId).in("status", ["active", "joined"]),
+          admin.from("cash_snapshot").select("current_balance, monthly_fixed_cost").eq("company_id", companyId).maybeSingle(),
+          admin.from("fixed_costs").select("name, amount, end_date").eq("company_id", companyId).eq("is_recurring", true).limit(1000),
+          admin.from("loans").select("*").eq("company_id", companyId).eq("status", "active").limit(1000),
         ]);
-        const balance = (accts || []).reduce((s: number, r: any) => s + Number(r.balance || 0), 0);
+        const norm = (v: unknown) => String(v || "").toLowerCase().replace(/\s+/g, "");
+        const recNames = new Set((recs || []).map((r: any) => norm(r.name)));
+        const todayStr = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+        const fixedMonthly = (fixed || [])
+          .filter((f: any) => !(f.end_date && String(f.end_date) < todayStr) && !recNames.has(norm(f.name)))
+          .reduce((s: number, f: any) => s + Number(f.amount || 0), 0);
+        const loanMonthly = (loans || []).reduce((s: number, l: any) => s + estimateMonthlyPayment(l), 0);
+        const balance = (accts || []).reduce((s: number, r: any) => s + Number(r.balance || 0), 0)
+          + Number((snap as any)?.current_balance || 0);
         const burn = (recs || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0)
-          + (emps || []).reduce((s: number, r: any) => s + Number(r.salary || 0), 0);
+          + (emps || []).reduce((s: number, r: any) => s + Number(r.salary || 0), 0)
+          + Number((snap as any)?.monthly_fixed_cost || 0) + fixedMonthly + loanMonthly;
         nums = {
           balance, monthlyBurn: burn, runwayMonths: burn > 0 ? balance / burn : 0,
           forecast30: 0, forecast90: 0, arOver30: 0, pendingApprovals: 0, riskCount: 0,

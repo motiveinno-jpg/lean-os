@@ -1,5 +1,6 @@
 "use client";
 import { fetchPaged } from "@/lib/fetch-paged";
+import { fetchPartnerBalances, summarizeBalances } from "@/lib/receivables";
 import { GroupedColumnChart } from "@/components/charts/kit";
 import { appConfirm } from "@/components/global-confirm";
 import { Ico } from "@/components/ui-icon";
@@ -782,26 +783,11 @@ function SummaryKpisWidget({
     refetchInterval: 60_000,
   });
 
-  // 미수금 · 발행/미수 상태 세금계산서 합계 (OverdueReceivablesWidget 동일 소스)
+  // 미수금 — 미수금 위젯·경영요약·AI 참모와 같은 계산(lib/receivables → DB receivables_by_partner).
+  //   예전엔 여기서 계산서를 따로 더해 전표 여부·수정 계산서 상계가 빠졌고, 위젯과 다른 숫자를 냈다.
   const  { data: receivable = 0 } = useQuery({
     queryKey: ["summary-receivable", companyId],
-    queryFn: async () => {
-      // 회사 전체 매출 계산서 — 1,000장 넘는 회사(모티브 1,565장)는 페이징 없이는 합계가 잘린다
-      const data = await fetchPaged<any>('dashboard/page:receivable', () => (supabase)
-        .from('tax_invoices')
-        .select('total_amount, supply_amount, settled_amount, status')
-        .eq('company_id', companyId)
-        .eq('type', 'sales') // 2026-06-11 미수금=매출 계산서만 (매입 혼입 차단)
-        .neq('status', 'void').order('id'), 50000);
-      if (!data) return 0;
-      // 2026-09-03 전 화면 점검: 총액만 더해 부분 입금(정산액)을 빼지 않아 미수금 위젯(총액−정산액)과 3배 차이 —
-      //   미수금 위젯·AI 참모와 같은 "남은 잔액" 기준으로 통일(초안·취소 제외, 잔액 0 이하 제외).
-      return (data as any[]).reduce((s, inv) => {
-        if (inv.status === 'draft') return s;
-        const bal = Number(inv.total_amount || inv.supply_amount || 0) - Number(inv.settled_amount || 0);
-        return s + (bal > 0 ? bal : 0);
-      }, 0);
-    },
+    queryFn: async () => summarizeBalances(await fetchPartnerBalances(companyId!, "sales")).total,
     enabled: !!companyId,
     refetchInterval: 60_000,
   });

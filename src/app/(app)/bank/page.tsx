@@ -420,7 +420,7 @@ export default function BankPage() {
   const  { data: bankEmployees = [] } = useQuery({
     queryKey: ["bank-page-employees", companyId],
     queryFn: async () => {
-      const data = logRead('bank/page:data', await db.from("employees").select("id, name").eq("company_id", companyId ?? "").eq("status", "active").order("name"));
+      const data = logRead('bank/page:data', await db.from("employees").select("id, name").eq("company_id", companyId ?? "").in("status", ["active", "joined"]).order("name"));
       return (data || []) as any[];
     },
     enabled: !!companyId, staleTime: 300_000,

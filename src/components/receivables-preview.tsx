@@ -1,5 +1,5 @@
 "use client";
-import { fetchPartnerBalances } from "@/lib/receivables";
+import { fetchPartnerBalances, fetchUnpostedInvoices } from "@/lib/receivables";
 
 // 미수금 회수 미리보기 · 대시보드 카드(2026-07-14). 발행한 매출 세금계산서 중 아직 입금(settled)이
 //   안 된 잔액을 거래처별로 모아 "누가 얼마 밀렸는지 + 연체일"을 보여주고, 클릭 시 거래처 원장으로 이동.
@@ -47,12 +47,12 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
     staleTime: 60_000,
     queryFn: async () => {
       //   거래처별 잔액은 lib/receivables 한 곳에서 — 마이너스(수정·환입) 계산서를 상계해 원장·보고서·AI 참모와 같은 숫자
-      const partners = await fetchPartnerBalances(companyId!, "sales");
+      const [partners, unposted] = await Promise.all([fetchPartnerBalances(companyId!, "sales"), fetchUnpostedInvoices(companyId!, "sales")]);
       const list: CpGroup[] = partners
         .map((p) => ({ name: p.name, outstanding: p.balance, oldestDays: p.oldestDays, count: p.invoiceCount }))
         .sort((a, b) => b.oldestDays - a.oldestDays || b.outstanding - a.outstanding);
       const total = list.reduce((s, g) => s + g.outstanding, 0);
-      return { list, total };
+      return { list, total, unposted };
     },
   });
 
@@ -63,7 +63,7 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
   return (
     <ActivityCard title="미수금" href="/partners/ledger?type=sales" empty={!data || n === 0}
       summary={n > 0 ? <><b className="mono-number text-[var(--text)]">{won(data!.total)}</b> · {n}곳</> : undefined}
-      emptyText="미수금이 없습니다.">
+      emptyText={data?.unposted.count ? `전표 처리된 미수금은 없습니다. 전표 안 친 매출 계산서 ${data.unposted.count}건(${won(data.unposted.amount)}원)은 빠져 있습니다.` : "미수금이 없습니다."}>
       <div className="receivables-preview-list">
         {top.map((g) => (
           <div key={g.name} className="receivables-preview-row">
@@ -79,6 +79,7 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
           </div>
         ))}
         {n > 5 && <Link href="/partners/ledger?type=sales" className="dash-more">외 {n - 5}곳 →</Link>}
+        {!!data?.unposted.count && <p className="text-[11px] text-[var(--text-dim)] m-0">전표 안 친 매출 계산서 {data.unposted.count}건({won(data.unposted.amount)}원)은 빠져 있습니다.</p>}
       </div>
     </ActivityCard>
   );

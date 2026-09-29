@@ -265,7 +265,7 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
   const [fixed, setFixed] = useState(!!tx.is_fixed_cost);
   const  { data: employees = [] } = useQuery({
     queryKey: ["bank-page-employees", companyId],
-    queryFn: async () => (logRead("bank-line:employees", await supabase.from("employees").select("id, name").eq("company_id", companyId).eq("status", "active").order("name")) || []) as Pt[],
+    queryFn: async () => (logRead("bank-line:employees", await supabase.from("employees").select("id, name").eq("company_id", companyId).in("status", ["active", "joined"]).order("name")) || []) as Pt[],
     staleTime: 300_000,
   });
   const saveNote = async () => {

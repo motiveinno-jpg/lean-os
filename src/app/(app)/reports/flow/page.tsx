@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { fetchPaged } from "@/lib/fetch-paged";
+import { fetchPartnerBalances, summarizeBalances } from "@/lib/receivables";
 import { kstDateStr } from "@/lib/kst";
 import { MonthField } from "@/components/month-field";
 import { getCurrentUser } from "@/lib/queries";
@@ -72,15 +73,11 @@ export default function BusinessFlowPage() {
     },
     enabled: !!companyId && view === "month", staleTime: 60_000,
   });
-  /* ③ 미수금 잔액 (세금계산서 status 기준 · 거래처 원장 표시와 같은 방식) */
+  /* ③ 미수금 잔액 — 대시보드 미수금·경영요약과 같은 계산(lib/receivables → DB receivables_by_partner).
+   *   예전엔 발행 총액을 그대로 더해 입금 정산분·수정 계산서를 빼지 않았다. */
   const  { data: receivable } = useQuery({
     queryKey: ["flow-receivable", companyId],
-    queryFn: async () => {
-      const data = await fetchPaged<any>("flow/page:tax_invoices", () => db.from("tax_invoices").select("total_amount, issue_date").eq("company_id", companyId ?? "").eq("type", "sales").in("status", ["issued", "sent", "pending", "overdue"]).order("id"), 50000);
-      const rows = (data || []) as { total_amount: number | null; issue_date: string | null }[];
-      const cutoff = kstDateStr(new Date(Date.now() - 30 * 24 * 3600 * 1000));
-      return { total: rows.reduce((s, r) => s + Number(r.total_amount || 0), 0), over30: rows.filter((r) => (r.issue_date || "") < cutoff).reduce((s, r) => s + Number(r.total_amount || 0), 0) };
-    },
+    queryFn: async () => summarizeBalances(await fetchPartnerBalances(companyId!, "sales")),
     enabled: !!companyId && view === "month", staleTime: 60_000,
   });
   /* ④·⑤ 비용/손익 · cash-budget 월별 집계 (월별 표와 같은 소스) */

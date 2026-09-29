@@ -407,7 +407,7 @@ export default function CardsPage() {
   const { data: cardEmployees = [] } = useQuery({
     queryKey: ["cards-page-employees", companyId],
     queryFn: async () => {
-      const data = logRead('cards/page:data', await db.from("employees").select("id, name").eq("company_id", companyId ?? "").eq("status", "active").order("name"));
+      const data = logRead('cards/page:data', await db.from("employees").select("id, name").eq("company_id", companyId ?? "").in("status", ["active", "joined"]).order("name"));
       return (data || []) as any[];
     },
     enabled: !!companyId, staleTime: 300_000,

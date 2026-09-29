@@ -62,3 +62,18 @@ export function summarizeBalances(partners: PartnerBalance[]): BalanceSummary {
     partners,
   };
 }
+
+export type UnpostedInvoices = { count: number; amount: number };
+
+//   위 잔액은 전표 처리된 계산서만 센다. 전표를 안 친 계산서가 있으면 '미수금 0' 이 거짓처럼 보이니
+//   화면이 "N건은 빠져 있다"고 같이 말하게 한다 — 조건은 receivables_by_partner 와 짝(무효·초안·취소 제외, 전표 없음).
+export async function fetchUnpostedInvoices(companyId: string, type: "sales" | "purchase" = "sales"): Promise<UnpostedInvoices> {
+  const rows = await fetchPaged<any>(`receivables:unposted:${type}`, () => db
+    .from("tax_invoices").select("id, total_amount, supply_amount")
+    .eq("company_id", companyId).eq("type", type)
+    .not("status", "in", "(void,draft,cancelled)")
+    .is("journal_entry_id", null)
+    .order("id"), 50000);
+  const list = (rows || []) as any[];
+  return { count: list.length, amount: list.reduce((s, r) => s + Number(r.total_amount || r.supply_amount || 0), 0) };
+}

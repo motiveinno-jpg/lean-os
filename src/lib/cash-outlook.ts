@@ -63,7 +63,7 @@ export async function fetchOutlook(companyId: string, days: number, userId?: str
   const year = Number(today.slice(0, 4));
   const [pulseRaw, ti, fixed, recur, vat, loans, revSched, costSched, pq, recv, cs, ptTerms, billing] = await Promise.all([
     getCashPulseData(companyId, userId),
-    fetchPagedRes<any>("cash-outlook:ti", () => supabase.from("tax_invoices").select("id, type, partner_id, counterparty_name, total_amount, settled_amount, issue_date, status").eq("company_id", companyId).neq("status", "void").gte("issue_date", addDays(today, -180)).order("id"), 50000),
+    fetchPagedRes<any>("cash-outlook:ti", () => supabase.from("tax_invoices").select("id, type, partner_id, counterparty_name, total_amount, settled_amount, issue_date, status").eq("company_id", companyId).not("status", "in", "(void,draft,cancelled)").gte("issue_date", addDays(today, -180)).order("id"), 50000),
     supabase.from("fixed_costs").select("id, name, amount, payment_day, is_recurring, end_date").eq("company_id", companyId),
     supabase.from("recurring_payments").select("id, name, amount, day_of_month, is_active").eq("company_id", companyId).eq("is_active", true),
     Promise.all([getVATPreview(companyId, year - 1), getVATPreview(companyId, year)]).then(([a, b]) => [...a, ...b]),
