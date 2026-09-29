@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { ReportHead } from "../_components/ReportHead";
-import { Stat } from "@/components/query-kit";
+import { ReportHead, ReportYearSelect } from "../_components/ReportHead";
+import { Stat, type ExcelItem } from "@/components/query-kit";
+import { exportToExcel } from "@/lib/excel-export";
 import { Ico } from "@/components/ui-icon";
 import { useQuery } from "@tanstack/react-query";
 import { useModalKeys } from "@/hooks/use-modal-keys";
@@ -178,6 +179,18 @@ export default function CostsPage() {
     return { fixed, variable, total: fixed + variable };
   }, [shownRows]);
 
+  //   엑셀 — 화면의 월별 표와 세부내역 두 표를 그대로. 불러오기 전에는 누를 수 없는 버튼으로 자리만 지킨다
+  const excel: ExcelItem[] = shownRows && breakdown ? [
+    { label: "월별 고정비 · 변동비", count: shownRows.length, onClick: () => exportToExcel([
+      ...shownRows.map((r) => { const sum = r.fixedCosts + r.variableCosts; return { "월": r.month, "고정비": Math.round(r.fixedCosts), "변동비": Math.round(r.variableCosts), "합계": Math.round(sum), "고정비 비중(%)": sum > 0 ? Math.round((r.fixedCosts / sum) * 100) : 0 }; }),
+      { "월": "합계", "고정비": Math.round(totals.fixed), "변동비": Math.round(totals.variable), "합계": Math.round(totals.total), "고정비 비중(%)": totals.total > 0 ? Math.round((totals.fixed / totals.total) * 100) : 0 },
+    ], "월별 비용", `비용분석_월별_${year}`) },
+    { label: "고정비 · 변동비 세부내역", count: breakdown.fixed.length + breakdown.variable.length, onClick: () => exportToExcel([
+      ...breakdown.fixed.map((r) => ({ "구분": "고정비", "항목": r.label, "월 평균": Math.round(r.monthly), "올해 누계": Math.round(r.amount), "비중(%)": breakdown.fixedTotal > 0 ? Math.round((r.amount / breakdown.fixedTotal) * 100) : 0 })),
+      ...breakdown.variable.map((r) => ({ "구분": "변동비", "항목": r.label, "월 평균": "", "올해 누계": Math.round(r.amount), "비중(%)": breakdown.variableTotal > 0 ? Math.round((r.amount / breakdown.variableTotal) * 100) : 0 })),
+    ], "세부내역", `비용분석_세부내역_${year}`) },
+  ] : [];
+
   if (blocked) {
     return <AccessDenied detail="비용 리포트는 회사 구성원 전용입니다 (외부 파트너 제외)." />;
   }
@@ -188,14 +201,11 @@ export default function CostsPage() {
       {/* 리포트 표준 2차(2026-08-19) — 조회 줄(연도)과 핵심 지표는 상자 머리에 고정 */}
       <ReportHead
         bar={<>
-          <label className="text-xs font-semibold text-[var(--text-dim)]">연도</label>
-          <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs">
-            {[YEAR_NOW, YEAR_NOW - 1, YEAR_NOW - 2].map((y) => (
-              <option key={y} value={y}>{y}년</option>
-            ))}
-          </select>
+          <ReportYearSelect value={year} onChange={setYear} years={[YEAR_NOW, YEAR_NOW - 1, YEAR_NOW - 2]} />
           <span className="text-[11px] text-[var(--text-dim)]">고정비는 급여·임대료·정기결제, 변동비는 카드와 일회성 지출입니다.</span>
         </>}
+        excel={excel}
+        print
         stats={!isLoading && !error && shownRows ? (<>
           <Stat label={`${year}년 고정비`} value={`₩${fmtKrw(totals.fixed)}`} />
           <Stat label={`${year}년 변동비`} value={`₩${fmtKrw(totals.variable)}`} />

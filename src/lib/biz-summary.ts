@@ -18,7 +18,8 @@ import { todayKst, addDaysStr } from "@/lib/kst";
 
 export type Tone = "g" | "y" | "r";
 export type Todo = { key: string; kind: string; text: string; sub?: string; amount?: number; href?: string; tone: Tone };
-export type ChangeRow = { key: string; label: string; prev: number; cur: number; invert: boolean; href?: string };
+//   code·part — 같은 이름 계정이 원가(6xx)와 판관비(8xx)에 둘 다 있으면(지급수수료 631·831) 이름만으로는 두 줄이 구분되지 않는다
+export type ChangeRow = { key: string; label: string; code?: string | null; part?: "매출" | "원가" | "판관비"; prev: number; cur: number; invert: boolean; href?: string };
 
 export type BizSummary = {
   month: string; prevMonth: string; today: string;
@@ -132,8 +133,9 @@ export async function fetchBizSummary(companyId: string, month: string, userId?:
   const keys = new Set([...gCur.map((g) => g.key), ...gPrev.map((g) => g.key)]);
   const changes: ChangeRow[] = [...keys].map((k) => {
     const c = gCur.find((g) => g.key === k), p = gPrev.find((g) => g.key === k);
-    const label = (c || p)!.label; const sec = secOf.get(k);
-    return { key: k, label, prev: p?.amount || 0, cur: c?.amount || 0, invert: sec !== "revenue", href: sec === "revenue" ? "/reports/revenue" : "/reports/expense" };
+    const g = (c || p)!; const sec = secOf.get(k);
+    const part = sec === "revenue" ? "매출" as const : sec === "cogs" ? "원가" as const : "판관비" as const;
+    return { key: k, label: g.label, code: g.code, part, prev: p?.amount || 0, cur: c?.amount || 0, invert: sec !== "revenue", href: sec === "revenue" ? "/reports/revenue" : "/reports/expense" };
   }).filter((r) => r.cur !== r.prev).sort((a, b) => Math.abs(b.cur - b.prev) - Math.abs(a.cur - a.prev)).slice(0, 6);
   changes.push({ key: "bank-net", label: "통장 순현금흐름", prev: prevNet, cur: inflow - outflow, invert: false, href: "/bank" });
 

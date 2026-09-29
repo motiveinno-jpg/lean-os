@@ -8,6 +8,9 @@ import { useUser } from "@/components/user-context";
 import { useMyPermissions } from "@/lib/permissions";
 import { AccessDenied }  from "@/components/access-denied";
 import ByPersonChart from "./by-person-chart";
+import { ReportHead, ReportYearSelect } from "../_components/ReportHead";
+import { Stat } from "@/components/query-kit";
+import { exportToExcel } from "@/lib/excel-export";
 
 /* ------------------------------------------------------------------ */
 /*  회계 › 인원별 지출                                                  */
@@ -171,25 +174,33 @@ export default function ByPersonPage() {
     };
   }, [rows]);
 
+  //   엑셀 — 아래 '월별 급여 추이' 표 그대로(인원 × 월) + 연 합계
+  const exportXlsx = () => {
+    if (!rows) return;
+    exportToExcel(rows.map((r) => ({
+      "인원": r.key,
+      ...Object.fromEntries(months.map((m) => [monthLabel(m), Math.round(r.byMonth[m]?.pay || 0)])),
+      "합계": Math.round(r.payroll),
+    })), "인원별 급여", `인원별급여_${year}`);
+  };
+
   if (blocked) {
     return <AccessDenied detail="인별 리포트는 회사 구성원 전용입니다 (외부 파트너 제외)." />;
   }
 
   return (
     <div>
-      {/* 툴바 — 연도 필터. 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
-      <div className="by-person-toolbar page-sticky-header">
-        <select
-          value={year}
-          onChange={(e) => setYear(Number(e.target.value))}
-          className="by-person-year-select"
-          style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text)", fontSize: 13 }}
-        >
-          {[YEAR_NOW, YEAR_NOW - 1, YEAR_NOW - 2].map((y) => (
-            <option key={y} value={y}>{y}년</option>
-          ))}
-        </select>
-      </div>
+      {/* 조회 줄(연도 ‖ 엑셀·인쇄)과 핵심 지표는 다른 회계 자료 탭과 같이 상자 머리에 — 예전엔 본문 첫 줄에 자체 셀렉트·지표 카드가 있어 탭마다 자리가 달랐다 */}
+      <ReportHead
+        bar={<ReportYearSelect value={year} onChange={setYear} years={[YEAR_NOW, YEAR_NOW - 1, YEAR_NOW - 2]} />}
+        excel={rows && rows.length > 0 ? [{ label: `${year}년 인원별 월 급여`, count: rows.length, onClick: exportXlsx }] : []}
+        print
+        stats={!isLoading && !error && rows && rows.length > 0 ? <>
+          <Stat label={`${year}년 급여 합계`} value={`₩${fmtKrw(totals.pay)}`} title="명세서 값, 없으면 기본 월급여 추정" />
+          <Stat label="인원 수" value={`${rows.length}명`} title="급여 집계 인원" />
+          <Stat label="1인 평균" value={`₩${fmtKrw(Math.round(totals.pay / Math.max(rows.length, 1)))}`} title="합계 ÷ 인원" />
+        </> : undefined}
+      />
 
       {isLoading && (
         <div style={{ padding: "60px 0", textAlign: "center", color: "var(--text-dim)", fontSize: 13 }}>불러오는 중…</div>
@@ -211,21 +222,6 @@ export default function ByPersonPage() {
 
       {!isLoading && !error && rows && rows.length > 0 && (
         <>
-          {/* 스탯 3카드 — 대시보드 글래스카드 (2026-06-10) */}
-          <div className="by-person-stat-cards" style={{ marginBottom: 24 }}>
-            {[
-              { label: `${year}년 급여 합계`, big: `₩${fmtKrw(totals.pay)}`, color: "var(--warning)", hint: "명세서/기본급여 추정" },
-              { label: "인원 수", big: `${rows.length}명`, color: "var(--primary)", hint: "급여 집계 인원" },
-              { label: "1인 평균", big: `₩${fmtKrw(Math.round(totals.pay / Math.max(rows.length, 1)))}`, color: "var(--success)", hint: "합계 ÷ 인원" },
-            ].map((c) => (
-              <div key={c.label} className="by-person-stat-tile stat-tile">
-                <div className="stat-tile-label">{c.label}</div>
-                <div className="stat-tile-value mono-number [overflow-wrap:anywhere]" style={{ color: c.color }}>{c.big}</div>
-                <div className="text-[10px] text-[var(--text-dim)] truncate">{c.hint}</div>
-              </div>
-            ))}
-          </div>
-
           <ByPersonChart
             people={rows.map((r) => r.key)}
             payByPerson={Object.fromEntries(rows.map((r) => [r.key, r.payroll]))}

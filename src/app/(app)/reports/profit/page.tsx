@@ -10,7 +10,7 @@ import Link from "next/link";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { WaterfallChart } from "@/components/charts/kit";
-import { downloadCsv } from "@/lib/csv-export";
+import { downloadXlsx } from "@/lib/excel-export";
 import { groupByAccount, fetchReceivables, pnlAmount, rangeLabel, type JournalLine } from "@/lib/pnl-status";
 import { usePnlStatus, PnlHead, BasisNote, CoreStats, Delta, DrillModal, won, num, cmpRangeLabel, type Drill } from "../_components/PnlStatusKit";
 
@@ -71,7 +71,7 @@ export default function ProfitSummaryPage() {
 
   const excel = [{
     label: "무엇이 달라졌나 표", count: rowsBySection.reduce((n, r) => n + r.accts.length + 1, 0),
-    onClick: () => downloadCsv(`손익요약_${s.range.fromYm}_${s.range.toYm}`, ["구분", "항목", rangeLabel(s.range), cmpRangeLabel(s), "증감"],
+    onClick: () => downloadXlsx(`손익요약_${s.range.fromYm}_${s.range.toYm}`, ["구분", "항목", rangeLabel(s.range), cmpRangeLabel(s), "증감"],
       rowsBySection.flatMap((r) => [[r.label, "합계", Math.round(r.cur), Math.round(r.cmp), Math.round(r.cur - r.cmp)], ...r.accts.map((a) => [r.label, a.name, Math.round(a.cur), Math.round(a.cmp), Math.round(a.cur - a.cmp)])])),
   }];
 

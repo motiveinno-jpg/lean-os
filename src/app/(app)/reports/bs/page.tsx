@@ -5,9 +5,9 @@ import { GroupedColumnChart, Legend, vizColor } from "@/components/charts/kit";
 import { todayKst } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { useEffect, useState, useCallback, Fragment } from "react";
-import { DateField } from "@/components/date-field";
-import { ReportHead } from "../_components/ReportHead";
+import { ReportHead, ReportDateField } from "../_components/ReportHead";
 import { Stat } from "@/components/query-kit";
+import { exportRowsToExcel } from "@/lib/excel-export";
 import { fetchJournalLines, countUnposted, bsAmount } from "@/lib/journal-reports";
 import { getAccountingClosing, lineDebit, lineCredit } from "@/lib/accounting-closing";
 import { ClosingSnapshotButton } from "@/components/closing-snapshot-button";
@@ -396,59 +396,51 @@ function BalanceSheetPageInner() {
   }, [companyId, cutoffInput, compareBase]);
 
   /* ---------------------------------------------------------------- */
-  /*  CSV Export                                                       */
+  /*  Excel Export                                                     */
   /* ---------------------------------------------------------------- */
-  const handleExportCsv = useCallback(() => {
+  const handleExportXlsx = useCallback(() => {
     if (!data) return;
-    const lines: string[] = [];
-    lines.push("구분,항목,금액");
+    const lines: (string | number)[][] = [];
+    lines.push(["구분", "항목", "금액"]);
 
-    lines.push("유동자산,,");
-    lines.push(`유동자산,현금 및 예금,${Math.round(data.cashAndDeposits)}`);
+    lines.push(["유동자산", "", ""]);
+    lines.push(["유동자산", "현금 및 예금", Math.round(data.cashAndDeposits)]);
     for (const b of data.bankAccountDetails) {
-      lines.push(`유동자산 > 현금 및 예금,${b.name},${Math.round(b.balance)}`);
+      lines.push(["유동자산 > 현금 및 예금", `${b.name}`, Math.round(b.balance)]);
     }
-    lines.push(`유동자산,매출채권,${Math.round(data.accountsReceivable)}`);
+    lines.push(["유동자산", "매출채권", Math.round(data.accountsReceivable)]);
     for (const r of data.receivableDetails) {
-      lines.push(`유동자산 > 매출채권,${r.name},${Math.round(r.amount)}`);
+      lines.push(["유동자산 > 매출채권", `${r.name}`, Math.round(r.amount)]);
     }
-    lines.push(`유동자산 소계,,${Math.round(data.currentAssets)}`);
-    lines.push("");
-    lines.push("고정자산,,");
+    lines.push(["유동자산 소계", "", Math.round(data.currentAssets)]);
+    lines.push([]);
+    lines.push(["고정자산", "", ""]);
     for (const a of data.fixedAssetDetails) {
-      lines.push(`고정자산,${a.name} (${a.type}),${Math.round(a.value)}`);
+      lines.push(["고정자산", `${a.name} (${a.type})`, Math.round(a.value)]);
     }
-    lines.push(`고정자산 소계,,${Math.round(data.fixedAssets)}`);
-    lines.push(`자산 합계,,${Math.round(data.totalAssets)}`);
+    lines.push(["고정자산 소계", "", Math.round(data.fixedAssets)]);
+    lines.push(["자산 합계", "", Math.round(data.totalAssets)]);
 
-    lines.push("");
-    lines.push("부채,,");
-    lines.push(`부채,차입금,${Math.round(data.borrowings)}`);
+    lines.push([]);
+    lines.push(["부채", "", ""]);
+    lines.push(["부채", "차입금", Math.round(data.borrowings)]);
     for (const l of data.loanDetails) {
-      lines.push(`부채 > 차입금,${l.name},${Math.round(l.remainingAmount)}`);
+      lines.push(["부채 > 차입금", `${l.name}`, Math.round(l.remainingAmount)]);
     }
-    lines.push(`부채,미지급금,${Math.round(data.accountsPayable)}`);
+    lines.push(["부채", "미지급금", Math.round(data.accountsPayable)]);
     for (const p of data.payableDetails) {
-      lines.push(`부채 > 미지급금,${p.name},${Math.round(p.amount)}`);
+      lines.push(["부채 > 미지급금", `${p.name}`, Math.round(p.amount)]);
     }
-    lines.push(`부채 합계,,${Math.round(data.totalLiabilities)}`);
+    lines.push(["부채 합계", "", Math.round(data.totalLiabilities)]);
 
-    lines.push("");
-    lines.push("자본,,");
-    lines.push(`자본,자본금,${Math.round(data.capital)}`);
-    lines.push(`자본,이익잉여금,${Math.round(data.retainedEarnings)}`);
-    lines.push(`자본 합계,,${Math.round(data.totalEquity)}`);
+    lines.push([]);
+    lines.push(["자본", "", ""]);
+    lines.push(["자본", "자본금", Math.round(data.capital)]);
+    lines.push(["자본", "이익잉여금", Math.round(data.retainedEarnings)]);
+    lines.push(["자본 합계", "", Math.round(data.totalEquity)]);
 
-    const bom = "\uFEFF";
-    const blob = new Blob([bom + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    const today = todayKst();
-    a.download = `재무상태표_${today}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [data]);
+    exportRowsToExcel(lines, "재무상태표", `재무상태표_${cutoffInput || todayKst()}`);
+  }, [data, cutoffInput]);
 
   /* ---------------------------------------------------------------- */
   /*  Render helpers                                                   */
@@ -516,13 +508,11 @@ function BalanceSheetPageInner() {
   return (
     <div id="bs-printable">
       <style>{PRINT_CSS}</style>
-      {/* 리포트 표준 2차(2026-08-19) — 조회 줄(기준일·채권채무 안내 ‖ 전월 비교·CSV·인쇄)과 핵심 지표는 상자 머리에 고정 */}
+      {/* 리포트 표준 2차(2026-08-19) — 조회 줄(기준일·채권채무 안내 ‖ 비교 기준·엑셀·인쇄)과 핵심 지표는 상자 머리에 고정 */}
       <ReportHead
         bar={<>
-          <span className="flex items-center gap-2">
-            <label className="text-xs font-semibold text-[var(--text-dim)]">기준일</label>
-            <DateField value={cutoffInput || today} max={today} onChange={(e) => setCutoffInput(e.target.value)}
-              className="h-8 px-2.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text)]" />
+          <span className="rpt-field">
+            <ReportDateField label="기준일" value={cutoffInput || today} max={today} onChange={setCutoffInput} />
             {cutoffInput && cutoffInput !== today && (
               <button onClick={() => setCutoffInput('')} className="text-[11px] text-[var(--primary)] font-semibold hover:underline" title="오늘로 초기화">↺ 오늘</button>
             )}
@@ -532,22 +522,16 @@ function BalanceSheetPageInner() {
         right={<>
           {/*   마감 확정본 — 잠근 달의 재무상태표, 지금과 다르면 ⚠ (2026-08-27 ERP ③) */}
           <ClosingSnapshotButton companyId={companyId} kind="bs" year={(cutoffInput || today).slice(0, 4)} />
-          <select value={compareBase} onChange={(e) => setCompareBase(e.target.value as CompareBase)} className="qk-input h-8 px-2 text-xs" aria-label="비교 기준" title="전월 말 · 전기 말(전년 12/31) · 전년 동월 말과 견줍니다">
+          <select value={compareBase} onChange={(e) => setCompareBase(e.target.value as CompareBase)} className="qk-input rpt-select" aria-label="비교 기준" title="전월 말 · 전기 말(전년 12/31) · 전년 동월 말과 견줍니다">
             <option value="off">비교 안 함</option><option value="prev_month">전월 비교</option><option value="prev_year_end">전기 말 비교</option><option value="prev_year_same">전년 동월 비교</option>
           </select>
           <button hidden aria-hidden onClick={() => setCompareBase((v) => (v === "off" ? "prev_month" : "off"))} aria-label="전월 비교" className={isCompareMode ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4" /></svg>
             전월 비교
           </button>
-          <button onClick={handleExportCsv} aria-label="CSV 다운로드" className="btn-secondary btn-sm">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
-            CSV
-          </button>
-          <button onClick={() => window.print()} aria-label="인쇄" className="btn-secondary btn-sm">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" /></svg>
-            인쇄
-          </button>
         </>}
+        excel={[{ label: "재무상태표", onClick: handleExportXlsx }]}
+        print
         stats={<>
           {[
             { key: "asset", label: "총 자산", value: data.totalAssets, prev: prevData?.totalAssets, tone: undefined as "plus" | "minus" | undefined },

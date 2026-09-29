@@ -9,39 +9,45 @@
 
 import { useEffect } from "react";
 
+/**
+ * pa(인쇄할 영역) → body 까지 올라가며 각 단계의 "자신이 아닌 형제"에 [data-print-hidden] 을 붙인다.
+ *   print-area 경로(조상 체인)만 살아남아 빈 공간이 0 이 된다. 돌려주는 함수로 원복한다.
+ */
+export function isolatePrintArea(pa: Element): () => void {
+  const marked: Element[] = [];
+  let el: Element | null = pa;
+  while (el && el !== document.body && el.parentElement) {
+    const parent: HTMLElement = el.parentElement;
+    for (const sib of Array.from(parent.children)) {
+      if (sib !== el && !sib.hasAttribute("data-print-hidden")) {
+        sib.setAttribute("data-print-hidden", "");
+        marked.push(sib);
+      }
+    }
+    el = parent;
+  }
+  return () => { marked.forEach((e) => e.removeAttribute("data-print-hidden")); marked.length = 0; };
+}
+
 export function usePrintIsolation() {
   useEffect(() => {
-    const marked: Element[] = [];
+    let restore: (() => void) | null = null;
 
     const isolate = () => {
       const pa = document.querySelector(".print-area");
       if (!pa) return;
-      let el: Element | null = pa;
-      // print-area → body 까지 올라가며, 각 단계에서 "자신이 아닌 형제"를 숨김.
-      //   print-area 경로(조상 체인)만 살아남아 빈 공간이 0 이 된다.
-      while (el && el !== document.body && el.parentElement) {
-        const parent: HTMLElement = el.parentElement;
-        for (const sib of Array.from(parent.children)) {
-          if (sib !== el && !sib.hasAttribute("data-print-hidden")) {
-            sib.setAttribute("data-print-hidden", "");
-            marked.push(sib);
-          }
-        }
-        el = parent;
-      }
+      restore?.();
+      restore = isolatePrintArea(pa);
     };
 
-    const restore = () => {
-      marked.forEach((e) => e.removeAttribute("data-print-hidden"));
-      marked.length = 0;
-    };
+    const undo = () => { restore?.(); restore = null; };
 
     window.addEventListener("beforeprint", isolate);
-    window.addEventListener("afterprint", restore);
+    window.addEventListener("afterprint", undo);
     return () => {
       window.removeEventListener("beforeprint", isolate);
-      window.removeEventListener("afterprint", restore);
-      restore();
+      window.removeEventListener("afterprint", undo);
+      undo();
     };
   }, []);
 }

@@ -10,7 +10,7 @@ import Link from "next/link";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { GroupedColumnChart, Legend, vizColor } from "@/components/charts/kit";
-import { downloadCsv } from "@/lib/csv-export";
+import { downloadXlsx } from "@/lib/excel-export";
 import { ConditionPanel, ConditionRow, TokenField, QuickSearch, quickSearchHit, AppliedChips, ChipGroup, Stat, RowsPerPage, Pager, usePager, type AppliedChip } from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, useColWidths, useColFilters, type SortState } from "@/components/sortable-th";
 import { groupByAccount, groupByPartner, monthlySeries, rangeDates, rangeLabel, fetchFixedCostCompare, type JournalLine } from "@/lib/pnl-status";
@@ -56,7 +56,9 @@ export default function ExpensePage() {
   const amt = (l: JournalLine) => l.debit - l.credit;
   const total = linesF.reduce((x, l) => x + amt(l), 0), cmpTotal = cmpF.reduce((x, l) => x + amt(l), 0);
   const byKind = (ls: JournalLine[]) => ls.reduce((m, l) => { const k = kindOf(l.name); m[k] += amt(l); return m; }, { labor: 0, fixed: 0, variable: 0 } as Record<Kind, number>);
-  const kindsCur = byKind(costCur), kindsCmp = byKind(costCmp);
+  //   성격별 카드도 걸린 조건(성격 칩·계정·거래처·빠른검색)을 그대로 따른다 — 예전엔 거르기 전 줄로 세어
+  //   '인건비'만 걸어 비용 합계가 ₩0 인데 변동비 카드는 그대로인 식으로 카드끼리 말이 달랐다
+  const kindsCur = byKind(linesF), kindsCmp = byKind(cmpF);
   const byAccount = useMemo(() => groupByAccount(linesF), [linesF]);
   const cmpByAccount = useMemo(() => new Map(groupByAccount(cmpF).map((g) => [g.key, g.amount])), [cmpF]);
   const byPartner = useMemo(() => groupByPartner(linesF).slice(0, 30), [linesF]);
@@ -98,8 +100,8 @@ export default function ExpensePage() {
   ];
   const openDrill = (title: string, f: (l: JournalLine) => boolean) => setDrill({ title, sub: `${rangeLabel(s.range)} · 비용`, lines: linesF.filter(f) });
   const excel = [
-    { label: "계정별 비용", count: rows.length, onClick: () => downloadCsv(`비용_계정별_${s.range.fromYm}_${s.range.toYm}`, ["계정", "성격", "건수", "금액", "비중%", cmpRangeLabel(s)], rows.map((g) => [g.label, KIND_LABEL[kindOf(g.label)], g.count, Math.round(g.amount), total ? Math.round((g.amount / total) * 100) : 0, Math.round(cmpByAccount.get(g.key) || 0)])) },
-    { label: "거래처별 지출", count: byPartner.length, onClick: () => downloadCsv(`비용_거래처별_${s.range.fromYm}_${s.range.toYm}`, ["거래처", "건수", "금액", "주 계정"], byPartner.map((g) => [g.label, g.count, Math.round(g.amount), g.mainAccount])) },
+    { label: "계정별 비용", count: rows.length, onClick: () => downloadXlsx(`비용_계정별_${s.range.fromYm}_${s.range.toYm}`, ["계정", "성격", "건수", "금액", "비중%", cmpRangeLabel(s)], rows.map((g) => [g.label, KIND_LABEL[kindOf(g.label)], g.count, Math.round(g.amount), total ? Math.round((g.amount / total) * 100) : 0, Math.round(cmpByAccount.get(g.key) || 0)])) },
+    { label: "거래처별 지출", count: byPartner.length, onClick: () => downloadXlsx(`비용_거래처별_${s.range.fromYm}_${s.range.toYm}`, ["거래처", "건수", "금액", "주 계정"], byPartner.map((g) => [g.label, g.count, Math.round(g.amount), g.mainAccount])) },
   ];
 
   return (
@@ -117,8 +119,9 @@ export default function ExpensePage() {
             <ConditionRow label="거래처" hint="여러 곳"><TokenField items={partnerOpts} value={draft.partners} onChange={(v) => setDraft((c) => ({ ...c, partners: v }))} placeholder="거래처 이름 일부" /></ConditionRow>
           </ConditionPanel>
           <QuickSearch value={q} onApply={setQ} placeholder="계정 · 거래처 · 적요. 쉼표로 여러 개, Enter" />
-          <ChipGroup value={kind} onChange={setKind} options={[{ value: "all", label: "전체" }, { value: "labor", label: "인건비" }, { value: "fixed", label: "고정비" }, { value: "variable", label: "변동비" }] as const} />
         </>}
+        //   성격 칩은 결과 요약 줄 오른쪽 — 조회 줄에 두면 한 줄을 넘쳐 이 탭만 머리가 한 줄 더 높았다(본문이 다른 탭보다 아래로)
+        statsRight={<ChipGroup value={kind} onChange={setKind} options={[{ value: "all", label: "전체" }, { value: "labor", label: "인건비" }, { value: "fixed", label: "고정비" }, { value: "variable", label: "변동비" }] as const} />}
         stats={<>
           <Stat label="비용 합계" value={<>{won(total)} <Delta cur={total} prev={cmpTotal} invert /></>} tone="minus" />
           <Stat label="인건비" value={<>{won(kindsCur.labor)} <Delta cur={kindsCur.labor} prev={kindsCmp.labor} invert size="xs" /></>} />

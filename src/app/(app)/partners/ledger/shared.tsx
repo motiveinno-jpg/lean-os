@@ -249,11 +249,12 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
 
       {/* 원장 그리드 — 머리단 위 고정 · 합계 줄 바닥 고정 · 몸통만 스크롤 */}
       <div className="ledger-sheet-grid ledger-sheet-grid-fill">
-        <table className="w-full min-w-[720px] text-xs border-collapse">
+        {/*   열 폭 고정(table-layout: fixed) — 적요가 남는 폭을 받는다. 예전 min-w 720 은 오른쪽 칸(≈680px)보다 넓어 잔액 열이 잘렸다 */}
+        <table className="ledger-sheet-table">
           <thead className="sticky top-0 z-10">
             <tr className="bg-[var(--bg-card)] text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
               <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-center w-[100px]">일자</th>
-              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-left">적요</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-center">적요</th>
               <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-center w-[84px]">전표</th>
               <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-center w-[120px]">차변{isSales ? " (발생)" : " (지급)"}</th>
               <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-center w-[120px]">대변{isSales ? " (회수)" : " (발생)"}</th>
@@ -285,7 +286,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
                         running += isSales ? e.debit - e.credit : e.credit - e.debit;
                         return (
                           <tr key={`${m}-${i}`} className="border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/60 transition-colors">
-                            <td className="px-3 py-2 text-[var(--text-muted)] mono-number whitespace-nowrap">{e.date}</td>
+                            <td className="px-3 py-2 text-center text-[var(--text-muted)] mono-number whitespace-nowrap">{e.date}</td>
                             <td className={`px-3 py-2 truncate max-w-0 font-medium ${e.isAdj ? "text-amber-500" : "text-[var(--text)]"}`} title={e.desc}>
                               {e.isAdj && e.sid ? (
                                 <button onClick={() => setAdjView(e.sid!)}

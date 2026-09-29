@@ -10,7 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { GroupedColumnChart, Legend, vizColor } from "@/components/charts/kit";
-import { downloadCsv } from "@/lib/csv-export";
+import { downloadXlsx } from "@/lib/excel-export";
 import { ConditionPanel, ConditionRow, TokenField, QuickSearch, quickSearchHit, AppliedChips, Stat, RowsPerPage, Pager, usePager, type AppliedChip } from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, useColWidths, useColFilters, type SortState } from "@/components/sortable-th";
 import { groupByAccount, groupByPartner, monthlySeries, fetchReceivables, rangeDates, rangeLabel, type JournalLine } from "@/lib/pnl-status";
@@ -33,7 +33,7 @@ export default function RevenuePage() {
   const onSort = (k: PSort) => setSort((c) => nextSort(c, k));
   const cf = useColFilters();
   const tableRef = useRef<HTMLTableElement | null>(null);
-  const [colW, setColW] = useColWidths("pnl-revenue-partner-colw-v1", { name: 220, count: 70, amount: 140, share: 70, prev: 140, delta: 80, ar: 130, last: 110 });
+  const [colW, setColW] = useColWidths("pnl-revenue-partner-colw-v2", { name: 190, count: 56, amount: 120, share: 56, prev: 120, delta: 72, ar: 116, last: 96 });
   const thResize = (k: string, colIndex: number) => ({ k, colIndex, widths: colW, onResize: setColW, tableRef });
   const { data: ar } = useQuery({ queryKey: ["pnl-status-ar", s.companyId], queryFn: () => fetchReceivables(s.companyId!), enabled: !!s.companyId, staleTime: 60_000 });
 
@@ -85,8 +85,8 @@ export default function RevenuePage() {
   const condCount = live.partners.length + live.accounts.length;
   const openDrill = (title: string, f: (l: JournalLine) => boolean) => setDrill({ title, sub: `${rangeLabel(s.range)} · 매출`, lines: linesF.filter(f) });
   const excel = [
-    { label: "거래처별 매출", count: rows.length, onClick: () => downloadCsv(`매출_거래처별_${s.range.fromYm}_${s.range.toYm}`, ["거래처", "건수", "금액", "비중%", cmpRangeLabel(s), "미수금", "최근 거래"], rows.map((g) => [g.label, g.count, Math.round(g.amount), total ? Math.round((g.amount / total) * 100) : 0, Math.round(cmpByPartner.get(g.key) || 0), Math.round(arByPartner.get(g.label) || 0), g.lastDate])) },
-    { label: "계정별 매출", count: byAccount.length, onClick: () => downloadCsv(`매출_계정별_${s.range.fromYm}_${s.range.toYm}`, ["계정", "금액", "비중%", cmpRangeLabel(s)], byAccount.map((g) => [g.label, Math.round(g.amount), total ? Math.round((g.amount / total) * 100) : 0, Math.round(cmpByAccount.get(g.key) || 0)])) },
+    { label: "거래처별 매출", count: rows.length, onClick: () => downloadXlsx(`매출_거래처별_${s.range.fromYm}_${s.range.toYm}`, ["거래처", "건수", "금액", "비중%", cmpRangeLabel(s), "미수금", "최근 거래"], rows.map((g) => [g.label, g.count, Math.round(g.amount), total ? Math.round((g.amount / total) * 100) : 0, Math.round(cmpByPartner.get(g.key) || 0), Math.round(arByPartner.get(g.label) || 0), g.lastDate])) },
+    { label: "계정별 매출", count: byAccount.length, onClick: () => downloadXlsx(`매출_계정별_${s.range.fromYm}_${s.range.toYm}`, ["계정", "금액", "비중%", cmpRangeLabel(s)], byAccount.map((g) => [g.label, Math.round(g.amount), total ? Math.round((g.amount / total) * 100) : 0, Math.round(cmpByAccount.get(g.key) || 0)])) },
   ];
 
   return (

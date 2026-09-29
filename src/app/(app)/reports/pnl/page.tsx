@@ -7,6 +7,7 @@ import { useModalKeys } from "@/hooks/use-modal-keys";
 import { DateRangeField } from "@/components/date-range-field";
 import { ReportHead } from "../_components/ReportHead";
 import { Stat } from "@/components/query-kit";
+import { exportRowsToExcel } from "@/lib/excel-export";
 import { fetchJournalLines, countUnposted, pnlAmount, type JournalLine } from "@/lib/journal-reports";
 import { ClosingSnapshotButton } from "@/components/closing-snapshot-button";
 import Link from "next/link";
@@ -405,47 +406,39 @@ function PnlPageInner() {
     };
   }, [data]);
 
-  const handleExportCsv = useCallback(() => {
+  const handleExportXlsx = useCallback(() => {
     if (!data || !computed) return;
     const { months } = data;
-    const lines: string[] = [];
-    const header = ["항목", ...months.map(formatMonthLabel), "합계"];
-    lines.push(header.join(","));
+    const lines: (string | number)[][] = [];
+    lines.push(["항목", ...months.map(formatMonthLabel), "합계"]);
 
     const addLine = (label: string, row: MonthlyRow) => {
       const vals = months.map((m) => Math.round(row[m]));
       const total = vals.reduce((a, b) => a + b, 0);
-      lines.push([label, ...vals, total].join(","));
+      lines.push([label, ...vals, total]);
     };
 
-    addLine("매출 (세금계산서 기준)", data.revenue);
-    lines.push("");
-    addLine("매입원가 (매입 세금계산서)", data.purchaseCost);
+    addLine("매출액", data.revenue);
+    lines.push([]);
+    addLine("매출원가", data.purchaseCost);
     addLine("매출총이익", computed.grossProfit);
-    lines.push("");
+    lines.push([]);
     for (const [name, row] of Object.entries(data.opexByCategory)) {
       addLine(name, row);
     }
     addLine("판매관리비 합계", computed.totalOpex);
-    lines.push("");
+    lines.push([]);
     addLine("영업이익", computed.operatingIncome);
-    lines.push("");
+    lines.push([]);
     for (const [name, row] of Object.entries(data.nonOpIncomeByCategory)) addLine(`영업외수익 - ${name}`, row);
     addLine("영업외수익 합계", computed.totalNonOpIncome);
     for (const [name, row] of Object.entries(data.nonOpExpenseByCategory)) addLine(`영업외비용 - ${name}`, row);
     addLine("영업외비용 합계", computed.totalNonOpExpense);
     addLine("법인세비용", computed.totalTax);
-    lines.push("");
+    lines.push([]);
     addLine("당기순이익", computed.netIncome);
 
-    const bom = "\uFEFF";
-    const blob = new Blob([bom + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `손익계산서_${data.months[0]}_${data.months[data.months.length - 1]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    exportRowsToExcel(lines, "손익계산서", `손익계산서_${data.months[0]}_${data.months[data.months.length - 1]}`);
   }, [data, computed]);
 
   /* ---------------------------------------------------------------- */
@@ -607,7 +600,7 @@ function PnlPageInner() {
   return (
     <div id="pnl-printable">
       <style>{PRINT_CSS}</style>
-      {/* 리포트 표준 2차(2026-08-19) — 조회 줄(기간·비교 ‖ 새로고침·CSV·인쇄)과 핵심 지표는 상자 머리에 고정 */}
+      {/* 리포트 표준 2차(2026-08-19) — 조회 줄(기간·비교 ‖ 엑셀·인쇄)과 핵심 지표는 상자 머리에 고정 */}
       <ReportHead
         bar={<>
           <DateRangeField
@@ -627,32 +620,9 @@ function PnlPageInner() {
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4" /></svg>
             전기 비교
           </button>
-          <button
-            onClick={handleExportCsv}
-            aria-label="CSV 다운로드"
-            className="btn-secondary btn-sm"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            CSV
-          </button>
-          <button
-            onClick={() => window.print()}
-            aria-label="인쇄"
-            className="btn-secondary btn-sm"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="6 9 6 2 18 2 18 9" />
-              <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" />
-              <rect x="6" y="14" width="12" height="8" />
-            </svg>
-            인쇄
-          </button>
-        
         </>}
+        excel={[{ label: "손익계산서 (월별)", onClick: handleExportXlsx }]}
+        print
         stats={<>
           {[
             { label: "총 매출", value: computed.sumCurr(computed.totalRevenue), prev: computed.prevTotals.totalRevenue, tone: undefined as "plus" | "minus" | undefined },
@@ -882,15 +852,16 @@ function PnlPageInner() {
         />
       </div>
 
-      {/* 정확도 안내 배너 — 미분류 비용 제외 한계 */}
+      {/* 산출 기준 한 줄 — 위 배너(미처리 자료)와 같은 사실: 이 표는 확정 전표만 읽는다 */}
       <div className="pnl-accuracy-banner kpi-callout">
         <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 16v-4m0-4h.01" /></svg>
         <p className="text-[11.5px] leading-relaxed">
-          <b>매출·매입원가는 세금계산서(발생주의) 기준</b>이라 정확합니다. 단 <b>판매관리비는 계정과목이 분류된 출금만</b>  반영됩니다. 미분류 출금은 무엇인지 알 수 없어 제외되므로, 비용이 실제보다 적게(이익은 많게) 보일 수 있습니다.  <Link href="/collect?tab=bank" className="underline font-semibold">수집·전표 › 통장</Link>에서 계정을 골라 전표를 만들수록 정확해집니다.
+          이 표는 <b>확정된 전표(일반전표·매입매출전표)</b>만 계정과목의 성격·코드대로 모읍니다(전표일자 기준). 세금계산서·카드·통장 자료는 <b>전표로 만들어야</b> 반영되고, 임시·반려 전표는 빠집니다.{" "}
+          <Link href="/collect" className="underline font-semibold">수집·전표</Link>에서 전표를 만들면 바로 반영됩니다.
         </p>
       </div>
 
-      {/* 산출 기준 — 접이식 */}
+      {/* 산출 기준 — 접이식. 계산은 lib/account-nature(코드 → 자리) · lib/journal-reports(확정 전표) */}
       <details className="pnl-basis-details group">
         <summary className="flex items-center justify-between px-4 py-3 cursor-pointer select-none list-none">
           <span className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)]">
@@ -900,12 +871,13 @@ function PnlPageInner() {
           <svg className="w-4 h-4 text-[var(--text-dim)] transition-transform group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" /></svg>
         </summary>
         <div className="px-4 pb-4 grid sm:grid-cols-2 gap-x-6 gap-y-2 text-[11.5px] leading-relaxed text-[var(--text-dim)] border-t border-[var(--border)] pt-3">
-          <div>· <b className="text-[var(--text-muted)]">Ⅰ. 매출액</b> = 매출 세금계산서 공급가액(발생주의)</div>
-          <div>· <b className="text-[var(--text-muted)]">Ⅱ. 매출원가</b> = <b className="text-[var(--text-muted)]">계정과목 미지정</b>  매입 세금계산서 공급가액 + 매출원가(451)·매입(501) 계정으로 분류한 출금 · 매입 계산서에 판관비 계정을 지정하면 그쪽으로 이동(Ⅱ 클릭 → 건별 지정 가능)</div>
-          <div>· <b className="text-[var(--text-muted)]">Ⅳ. 판매비와관리비</b> = ① 판관비 계정(코드 8xx)으로 분류된 통장 출금(AI 자동분류 포함) + ② 판관비 계정을 지정한 매입 세금계산서 + ③ <b className="text-[var(--text-muted)]">법인카드 사용액</b>(분류→계정 매핑이 있으면 그 계정, 없으면 &lsquo;{CARD_UNMAPPED_LABEL}&rsquo; 한 줄). 카드 취소·환불은 음수로 상계되고, 카드대금 통장 출금은 부채 상환이라 빠지므로 이중계상되지 않습니다</div>
-          <div>· <b className="text-[var(--text-muted)]">급여</b>  = 재직 중인 직원(재직·합류) 월급여 자동 반영 · 초대만 하고 합류 전인 사람은 제외.  <b className="text-[var(--text-muted)]">4대보험</b>  = 급여×약 10.55%(사업주 부담 추정). 거래가 없어도 직원 등록만으로 자동 계상</div>
-          <div>· <b className="text-[var(--text-muted)]">Ⅵ·Ⅶ·Ⅷ 영업외손익·법인세</b> = 영업외 계정(코드 9xx)으로 분류한 거래. 이자비용·기부금 등은 판관비에 섞지 않고 여기로 갑니다. 입금은 <b className="text-[var(--text-muted)]">영업외수익 계정</b>만 인식(매출 계정 입금은 세금계산서 매출과 중복이라 제외)</div>
-          <div className="sm:col-span-2">· <b className="text-[var(--text-muted)]">계정 성격 기준</b> · 자리는  <Link href="/settings" className="underline">회사설정 → 계정과목</Link>의 성격(자산·부채·자본·수익·비용)과 코드로 정합니다. <b className="text-[var(--text-muted)]">자산·부채·자본 계정(미지급금 상환·이체·보증금 등)은 손익계산서가 아니라 재무상태표 항목</b>이라 제외되며, 미분류 출금도 제외됩니다</div>
+          <div>· <b className="text-[var(--text-muted)]">Ⅰ. 매출액</b> = 수익 계정(코드 900 미만)의 대변 − 차변</div>
+          <div>· <b className="text-[var(--text-muted)]">Ⅱ. 매출원가</b> = 비용 계정 중 코드 800 미만(451 매출원가·501 매입 등)의 차변 − 대변</div>
+          <div>· <b className="text-[var(--text-muted)]">Ⅳ. 판매비와관리비</b> = 비용 계정 코드 801~899(급여·지급수수료·임차료 등)</div>
+          <div>· <b className="text-[var(--text-muted)]">Ⅵ·Ⅶ 영업외손익</b> = 코드 900 이상 수익·비용 계정(이자수익·이자비용·기부금 등) · <b className="text-[var(--text-muted)]">Ⅷ. 법인세비용</b> = 998</div>
+          <div>· <b className="text-[var(--text-muted)]">코드가 없는 계정</b>은 이름으로 자리를 정합니다 — 이자비용·기부금·잡손실은 영업외비용, 법인세는 법인세비용, 그 밖의 비용은 판관비</div>
+          <div>· <b className="text-[var(--text-muted)]">자산·부채·자본 계정</b>(미지급금 상환·이체·보증금 등)은 손익이 아니라 <Link href="/reports/bs" className="underline">재무상태표</Link> 항목입니다</div>
+          <div className="sm:col-span-2">· 계정의 성격·코드는 <Link href="/settings" className="underline">회사설정 → 계정과목</Link>에서 정합니다. 확정 전표만 읽으므로 같은 기간의 <Link href="/reports/bs" className="underline">재무상태표</Link>·<Link href="/reports/ledger" className="underline">계정별 원장</Link>과 숫자가 같습니다</div>
         </div>
       </details>
 

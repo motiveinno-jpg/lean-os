@@ -10,8 +10,8 @@ import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { ReportHead } from "../_components/ReportHead";
-import { ConditionPanel, ConditionRow, ChipGroup, QuickSearch, quickSearchHit, Stat, ExcelMenu, AppliedChips, Pager, usePager, type AppliedChip } from "@/components/query-kit";
-import { downloadCsv } from "@/lib/csv-export";
+import { ConditionPanel, ConditionRow, ChipGroup, QuickSearch, quickSearchHit, Stat, AppliedChips, Pager, usePager, type AppliedChip } from "@/components/query-kit";
+import { downloadXlsx } from "@/lib/excel-export";
 import { fetchOutlook, buildCurve, type ItemKind, type OutlookItem } from "@/lib/cash-outlook";
 
 const won = (n: number) => `${n < 0 ? "−" : ""}₩${Math.abs(Math.round(n)).toLocaleString("ko-KR")}`;
@@ -64,14 +64,14 @@ export default function UpcomingPage() {
     ...(q ? [{ group: "빠른검색", label: q, onRemove: () => setQ("") }] : []),
   ];
   const toggle = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
-  const excel = [{ label: `예정 항목 ${rows.length}건`, count: rows.length, onClick: () => downloadCsv(`예정항목_${days}일`, ["날짜", "항목", "구분", "금액", "그때 잔액", "근거", "확실도", "상태"], rows.map((r) => [r.date, r.label, r.kind, Math.round(r.amount), balAt.get(r.date) ?? "", r.basis, r.sure, r.flag || ""])) }];
+  const excel = [{ label: `예정 항목 ${rows.length}건`, count: rows.length, onClick: () => downloadXlsx(`예정항목_${days}일`, ["날짜", "항목", "구분", "금액", "그때 잔액", "근거", "확실도", "상태"], rows.map((r) => [r.date, r.label, r.kind, Math.round(r.amount), balAt.get(r.date) ?? "", r.basis, r.sure, r.flag || ""])) }];
   const minDate = data ? buildCurve(data, days).min.date : "";
 
   return (
     <>
       <ReportHead
         bar={<>
-          <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs" aria-label="기간">
+          <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="qk-input rpt-select" aria-label="기간">
             {[30, 90, 180].map((h) => <option key={h} value={h}>앞으로 {h}일</option>)}
           </select>
           <ConditionPanel open={panelOpen} onOpenChange={(v) => { if (v) setDraft(cond); setPanelOpen(v); }} activeCount={chips.filter((c) => c.group !== "빠른검색").length}
@@ -91,7 +91,7 @@ export default function UpcomingPage() {
           <QuickSearch value={q} onApply={setQ} placeholder="빠른검색 · 항목·구분·근거·금액 (쉼표=또는)" />
           <ChipGroup value={dir} onChange={setDir} options={[{ value: "all", label: `전체 ${data?.items.length ?? 0}` }, { value: "in", label: `들어올 돈 ${data?.items.filter((i) => i.amount > 0).length ?? 0}` }, { value: "out", label: `나갈 돈 ${data?.items.filter((i) => i.amount < 0).length ?? 0}` }] as const} />
         </>}
-        right={<ExcelMenu items={excel} />}
+        excel={excel} print
         stats={<>
           <Stat label="들어올 돈" value={won(inflow)} tone="plus" />
           <Stat label="나갈 돈" value={won(outflow)} tone="minus" />
@@ -107,7 +107,9 @@ export default function UpcomingPage() {
       ) : (
         <>
           <div className="pnl-tbl-wrap">
+            {/*   열 폭 고정 — 항목·근거 글이 길면 표가 상자보다 넓어져 오른쪽 상태 열이 가려졌다. 긴 글은 말줄임 + 마우스를 올리면 전문 */}
             <table className="ev-table ev-lined ol-items-table">
+              <colgroup><col className="ol-c-date" /><col /><col className="ol-c-kind" /><col className="ol-c-amt" /><col className="ol-c-amt" /><col className="ol-c-basis" /><col className="ol-c-sure" /><col className="ol-c-flag" /></colgroup>
               <thead><tr><th>날짜</th><th className="text-left">항목</th><th>구분</th><th>금액</th><th>그때 잔액</th><th>근거</th><th>확실도</th><th>상태</th></tr></thead>
               <tbody>
                 {pager.view.map((it: OutlookItem) => {
@@ -115,11 +117,11 @@ export default function UpcomingPage() {
                   return (
                     <tr key={it.id} className={it.href ? "pnl-row-acct" : ""} onClick={() => it.href && (window.location.href = it.href)}>
                       <td className="text-center mono-number">{md(it.date)}<small className="ml-1 text-[var(--text-dim)]">{it.date.slice(0, 4)}</small></td>
-                      <td className="text-left font-semibold">{it.label}</td>
+                      <td className="text-left font-semibold ol-cell-ell" title={it.label}>{it.label}</td>
                       <td className="text-center">{it.kind}</td>
                       <td className={`text-right mono-number font-bold ${it.amount >= 0 ? "bz-plus" : "bz-minus"}`}>{it.amount >= 0 ? "+" : "−"}{Math.abs(Math.round(it.amount)).toLocaleString()}</td>
                       <td className={`text-right mono-number ${bal !== undefined && bal < 0 ? "bz-minus" : it.date === minDate ? "bz-tone-y font-bold" : ""}`}>{bal !== undefined ? Math.round(bal).toLocaleString() : "—"}</td>
-                      <td className="text-center text-[var(--text-muted)]">{it.basis}</td>
+                      <td className="text-left text-[var(--text-muted)] ol-cell-ell" title={it.basis}>{it.basis}</td>
                       <td className="text-center"><span className={it.sure === "확정" ? "ol-sure ol-sure-ok" : "ol-sure ol-sure-est"}>{it.sure}</span></td>
                       <td className="text-center">{it.date === minDate ? <span className="ol-sure ol-sure-est">최저점</span> : it.flag ? <span className="ol-sure">{it.flag}</span> : "—"}</td>
                     </tr>

@@ -13,6 +13,7 @@
 //     · 값은 글자색(먹)으로 쓴다. 시리즈 색을 글자에 입히지 않는다.
 
 import { useId, useState } from "react";
+import { fmtAxisKrw, tipEdge } from "@/lib/chart-axis";
 
 export const VIZ = ["var(--viz-1)", "var(--viz-2)", "var(--viz-3)", "var(--viz-4)",
   "var(--viz-5)", "var(--viz-6)", "var(--viz-7)", "var(--viz-8)"];
@@ -72,14 +73,14 @@ export function ColumnChart({ data, height = 200, unit = "" }: { data: Datum[]; 
   const allZero = data.every((d) => d.value <= 0);
   return (
     <div className="viz-wrap" style={{ height }}>
-      <div className="viz-yaxis">{allZero ? <><em></em><em></em><em>0</em></> : <><em>{fmt(max)}</em><em>{fmt(max / 2)}</em><em>0</em></>}</div>
+      <div className="viz-yaxis">{allZero ? <><em></em><em></em><em>0</em></> : <><em>{fmtAxisKrw(max)}</em><em>{fmtAxisKrw(max / 2)}</em><em>0</em></>}</div>
       <div className="viz-plot" onMouseLeave={() => setHover(null)}>
         <span className="viz-grid" /><span className="viz-grid viz-grid-mid" />
         {data.map((d, i) => (
           <span key={`${d.label}-${i}`} className="viz-col" onMouseEnter={() => setHover(i)}>
             <i style={{ height: `${Math.max(1, (d.value / max) * 100)}%`, background: d.color || vizColor(0) }} />
             {hover === i && (
-              <b className="viz-tip">{d.label}<em>{fmt(d.value)}{unit}</em></b>
+              <b className={`viz-tip ${tipEdge(data.length <= 1 ? 50 : (i / (data.length - 1)) * 100)}`}>{d.label}<em>{fmt(d.value)}{unit}</em></b>
             )}
           </span>
         ))}
@@ -107,7 +108,7 @@ export function GroupedColumnChart({ labels, series, height = 200, unit = "", tr
   const trendColor = vizColor(series.length);
   return (
     <div className="viz-wrap" style={{ height }}>
-      <div className="viz-yaxis"><em>{fmt(max)}</em><em>{fmt(max / 2)}</em><em>0</em></div>
+      <div className="viz-yaxis"><em>{fmtAxisKrw(max)}</em><em>{fmtAxisKrw(max / 2)}</em><em>0</em></div>
       <div className="viz-plot" onMouseLeave={() => setHover(null)}>
         <span className="viz-grid" /><span className="viz-grid viz-grid-mid" />
         {trend && (
@@ -125,7 +126,7 @@ export function GroupedColumnChart({ labels, series, height = 200, unit = "", tr
               <i key={s.name} style={{ height: `${Math.max(1, (Math.abs(s.values[i] || 0) / max) * 100)}%`, background: vizColor(si) }} />
             ))}
             {hover === i && (
-              <b className="viz-tip viz-tip-line">{l}
+              <b className={`viz-tip viz-tip-line ${tipEdge(labels.length <= 1 ? 50 : (i / (labels.length - 1)) * 100)}`}>{l}
                 {series.map((s, si) => (
                   <em key={s.name}><i style={{ background: vizColor(si) }} />{s.name} {fmt(s.values[i] || 0)}{unit}</em>
                 ))}
@@ -183,7 +184,7 @@ export function LineChart({ series, height = 200, unit = "", styles, colors, yFm
   const W = 100, H = 100;
   const x = (i: number) => (labels.length <= 1 ? 0 : (i / (labels.length - 1)) * W);
   const y = (v: number) => H - ((v - min) / (max - min)) * H;
-  const yf = yFmt || fmt;
+  const yf = yFmt || fmtAxisKrw;
   const dash = (st?: "solid" | "dashed" | "dotted") => (st === "dashed" ? "6 5" : st === "dotted" ? "2 4" : undefined);
   return (
     <div className="viz-wrap" style={{ height }}>
@@ -201,7 +202,7 @@ export function LineChart({ series, height = 200, unit = "", styles, colors, yFm
         {labels.map((l, i) => (
           <span key={`${id}-${i}`} className="viz-hit" style={{ left: `${x(i)}%` }} onMouseEnter={() => setHover(i)}>
             {hover === i && (
-              <b className="viz-tip viz-tip-line">{l}
+              <b className={`viz-tip viz-tip-line ${tipEdge(x(i))}`}>{l}
                 {series.map((s, si) => (
                   <em key={s.name}><i style={{ background: colors?.[si] || vizColor(si) }} />{s.name} {fmt(s.points[i]?.value || 0)}{unit}</em>
                 ))}
@@ -245,7 +246,7 @@ export function WaterfallChart({ steps, unit = "원", height = 220 }: {
   const colorOf = (k: string) => (k === "sub" ? vizColor(1) : k === "total" ? vizColor(2) : vizColor(0));
   return (
     <div className="viz-wrap" style={{ height }}>
-      <div className="viz-yaxis"><em>{fmt(max)}</em><em>{fmt(minNice + range / 2)}</em><em>{fmt(minNice)}</em></div>
+      <div className="viz-yaxis"><em>{fmtAxisKrw(max)}</em><em>{fmtAxisKrw(minNice + range / 2)}</em><em>{fmtAxisKrw(minNice)}</em></div>
       <div className="viz-plot" onMouseLeave={() => setHover(null)}>
         <span className="viz-grid" /><span className="viz-grid viz-grid-mid" />
         {minNice < 0 && <span className="viz-grid viz-grid-zero" style={{ bottom: `${pct(0)}%` }} />}
@@ -340,7 +341,7 @@ export function ScatterChart({ points, xLabel, yLabel, height = 220 }: {
   const yMax = niceMax(Math.max(1, ...points.map((p) => p.y)));
   return (
     <div className="viz-scatter" style={{ height }}>
-      <div className="viz-yaxis"><em>{fmt(yMax)}</em><em>{fmt(yMax / 2)}</em><em>0</em></div>
+      <div className="viz-yaxis"><em>{fmtAxisKrw(yMax)}</em><em>{fmtAxisKrw(yMax / 2)}</em><em>0</em></div>
       <div className="viz-plot viz-plot-dots" onMouseLeave={() => setHover(null)}>
         <span className="viz-grid" /><span className="viz-grid viz-grid-mid" />
         {points.map((p, i) => (
@@ -415,7 +416,7 @@ export function StackedAreaChart({ labels, series, height = 220, unit = "" }: {
 
   return (
     <div className="viz-wrap" style={{ height }}>
-      <div className="viz-yaxis"><em>{fmt(max)}</em><em>{fmt(max / 2)}</em><em>0</em></div>
+      <div className="viz-yaxis"><em>{fmtAxisKrw(max)}</em><em>{fmtAxisKrw(max / 2)}</em><em>0</em></div>
       <div className="viz-plot" onMouseLeave={() => setHover(null)}>
         <span className="viz-grid" /><span className="viz-grid viz-grid-mid" />
         <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="viz-svg">
@@ -431,7 +432,7 @@ export function StackedAreaChart({ labels, series, height = 220, unit = "" }: {
         {labels.map((l, i) => (
           <span key={`${l}-${i}`} className="viz-hit" style={{ left: `${x(i)}%` }} onMouseEnter={() => setHover(i)}>
             {hover === i && (
-              <b className="viz-tip viz-tip-line">{l}
+              <b className={`viz-tip viz-tip-line ${tipEdge(x(i))}`}>{l}
                 {series.map((s, si) => (
                   <em key={s.name}><i style={{ background: vizColor(si) }} />{s.name} {fmt(s.values[i] || 0)}{unit}</em>
                 ))}

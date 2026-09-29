@@ -23,7 +23,7 @@ import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { ReportHead } from "../_components/ReportHead";
-import { Stat } from "@/components/query-kit";
+import { Stat, ChipGroup } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
 import { PickList } from "@/components/pick-list";
 import { EmptyState } from "@/components/empty-state";
@@ -190,10 +190,7 @@ function AccountLedgerInner() {
         bar={<>
           <DateRangeField unit="day" label="조회 기간" from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
           {/* 보기 칩 — 조회 줄에는 '보기'만(값 필터는 검색조건). 시산표 ↔ 원장 */}
-          <span className="acct-ledger-view">
-            <button type="button" className={view === "tb" ? "acct-ledger-view-btn acct-ledger-view-on" : "acct-ledger-view-btn"} onClick={() => setView("tb")}>시산표</button>
-            <button type="button" className={view === "ledger" ? "acct-ledger-view-btn acct-ledger-view-on" : "acct-ledger-view-btn"} onClick={() => setView("ledger")}>계정별 원장</button>
-          </span>
+          <ChipGroup value={view} onChange={setView} options={[{ value: "tb", label: "시산표" }, { value: "ledger", label: "계정별 원장" }] as const} />
           {view === "ledger" && (
             <span className="acct-ledger-pick">
               <button type="button" className="ledger-nav-btn" disabled={selIdx <= 0} onClick={() => openLedger(accounts[selIdx - 1].id)} title="이전 계정 (시산표 순서)" aria-label="이전 계정">‹</button>
@@ -210,10 +207,10 @@ function AccountLedgerInner() {
             </span>
           )}
         </>}
-        right={<>
-          <button type="button" onClick={view === "tb" ? exportTb : exportLedger} disabled={view === "tb" ? !accounts.length : !ledger} className="btn-secondary btn-sm">엑셀</button>
-          <button type="button" onClick={() => window.print()} className="btn-secondary btn-sm">인쇄</button>
-        </>}
+        excel={[view === "tb"
+          ? { label: "합계잔액시산표", onClick: exportTb, disabled: !accounts.length }
+          : { label: "계정별 원장", onClick: exportLedger, disabled: !ledger }]}
+        print
         stats={view === "tb" ? <>
           <Stat label="계정" value={`${accounts.length}개`} />
           <Stat label="차변 합계" value={`₩${fmtSigned(totals.d)}`} />

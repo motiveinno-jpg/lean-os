@@ -15,6 +15,30 @@ export function exportToExcel(
   XLSX.writeFile(wb, `${fileName}.xlsx`);
 }
 
+/**
+ * 줄 모양 그대로(머리 줄 + 값 줄, 빈 줄로 단락 구분) 엑셀로 — 손익계산서·재무상태표처럼
+ *   항목마다 칸 수가 다른 보고서용. 숫자는 숫자 칸으로 들어가 엑셀에서 바로 합계가 된다.
+ */
+export function exportRowsToExcel(
+  rows: Array<Array<string | number | null>>,
+  sheetName: string,
+  fileName: string,
+) {
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.writeFile(wb, `${fileName}.xlsx`);
+}
+
+/**
+ * csv-export.downloadCsv 와 같은 모양(파일명 · 머리 줄 · 값 줄)으로 **진짜 .xlsx** 를 내려받는다.
+ *   버튼 이름이 '엑셀'인 곳은 이것을 쓴다 — 이름은 엑셀인데 .csv 가 내려오면 파일 형식이 거짓말을 한다.
+ *   xlsx 는 글자 칸을 수식으로 읽지 않으므로 CSV 의 '=·+·-·@' 막기(작은따옴표)가 필요 없다.
+ */
+export function downloadXlsx(fileName: string, header: string[], rows: Array<Array<string | number>>, sheetName = "자료") {
+  exportRowsToExcel([header, ...rows], sheetName, fileName.replace(/\.(csv|xlsx)$/i, ""));
+}
+
 export function exportFinancialReport(
   months: Array<{ month: string; revenue: number; expense: number; netIncome: number }>,
   fileName?: string,

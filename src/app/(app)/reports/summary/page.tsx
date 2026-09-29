@@ -14,8 +14,8 @@ import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { ReportHead } from "../_components/ReportHead";
-import { Stat, ExcelMenu } from "@/components/query-kit";
-import { downloadCsv } from "@/lib/csv-export";
+import { Stat } from "@/components/query-kit";
+import { downloadXlsx } from "@/lib/excel-export";
 import { fetchBizSummary, type Tone, type Todo } from "@/lib/biz-summary";
 import { todayKst } from "@/lib/kst";
 
@@ -76,15 +76,23 @@ export default function ManagementSummaryPage() {
     queryFn: () => fetchBizSummary(companyId!, month, userId || undefined),
     enabled: !!companyId, staleTime: 60_000,
   });
+  //   이번 주 To-do 는 '오늘' 기준이다 — 기준 월을 지난달로 돌려도 이번 주 할 일이 바뀌면 안 된다.
+  //   그래서 할 일만 이번 달 요약(첫 화면과 같은 키라 새로 부르지 않는다)에서 가져온다.
+  const { data: sNow } = useQuery({
+    queryKey: ["biz-summary", companyId, thisMonth],
+    queryFn: () => fetchBizSummary(companyId!, thisMonth, userId || undefined),
+    enabled: !!companyId, staleTime: 60_000,
+  });
+  const todos = sNow?.todos || [];
   const months = useMemo(() => Array.from({ length: 12 }, (_, i) => shift(thisMonth, -i)), [thisMonth]);
 
   if (role === "partner") return <AccessDenied detail="경영 요약은 회사 구성원 전용입니다 (외부 파트너 제외)." />;
 
-  const todosOpen = (s?.todos || []).filter((t) => !done.has(t.key));
-  const todosDone = (s?.todos || []).filter((t) => done.has(t.key));
+  const todosOpen = todos.filter((t) => !done.has(t.key));
+  const todosDone = todos.filter((t) => done.has(t.key));
   const excel = s ? [
-    { label: "이번 주 To-do", count: s.todos.length, onClick: () => downloadCsv(`경영요약_ToDo_${month}`, ["구분", "내용", "메모", "금액", "확인"], s.todos.map((t) => [t.kind, t.text, t.sub || "", t.amount ? Math.round(t.amount) : "", done.has(t.key) ? "확인" : ""])) },
-    { label: "전월 대비 주요 변동", count: s.changes.length, onClick: () => downloadCsv(`경영요약_전월대비_${month}`, ["항목", "전월", "당월", "증감"], s.changes.map((c) => [c.label, Math.round(c.prev), Math.round(c.cur), Math.round(c.cur - c.prev)])) },
+    { label: "이번 주 To-do", count: todos.length, onClick: () => downloadXlsx(`경영요약_ToDo_${wk}`, ["구분", "내용", "메모", "금액", "확인"], todos.map((t) => [t.kind, t.text, t.sub || "", t.amount ? Math.round(t.amount) : "", done.has(t.key) ? "확인" : ""])) },
+    { label: "전월 대비 주요 변동", count: s.changes.length, onClick: () => downloadXlsx(`경영요약_전월대비_${month}`, ["항목", "계정코드", "구분", "전월", "당월", "증감"], s.changes.map((c) => [c.label, c.code || "", c.part || "", Math.round(c.prev), Math.round(c.cur), Math.round(c.cur - c.prev)])) },
   ] : [];
   const seriesMax = Math.max(1, ...(s?.pnl.series.map((x) => Math.abs(x.op)) || [1]));
 
@@ -102,13 +110,15 @@ export default function ManagementSummaryPage() {
     <>
       <ReportHead
         bar={<>
-          <label className="text-xs font-semibold text-[var(--text-dim)]">기준 월</label>
-          <select value={month} onChange={(e) => setMonth(e.target.value)} className="qk-input h-8 px-2.5 text-xs">
-            {months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
-          </select>
+          <span className="rpt-field">
+            <span className="drf-label">기준 월</span>
+            <select value={month} onChange={(e) => setMonth(e.target.value)} className="qk-input rpt-select" aria-label="기준 월">
+              {months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
+            </select>
+          </span>
           <span className="text-[11px] text-[var(--text-dim)]">오늘 {todayKst()}</span>
         </>}
-        right={<><ExcelMenu items={excel} /><button type="button" onClick={() => window.print()} className="btn-secondary btn-sm">인쇄</button></>}
+        excel={excel} print
         stats={s ? <>
           <Stat label="종합 상태" value={<span className={`bz-tone-${s.overall.tone}`}>{s.overall.label}</span>} />
           <Stat label="통장 잔액" value={won(s.cash.balance)} />
@@ -136,7 +146,7 @@ export default function ManagementSummaryPage() {
                   s.arap.tone !== "g" ? (s.cash.balance < s.arap.due30 ? "30일 내 지급 예정액이 통장 잔액 초과" : `30일 초과 미수금 ${man(s.arap.over30)}`) : null,
                 ].filter(Boolean).join(" · ")}`}
             </b>
-            <div className="pnl-headline-sub">통장 잔액 {man(s.cash.balance)} · 당월 순현금흐름 {man(s.cash.inflow - s.cash.outflow)} · 미수금 {man(s.arap.ar)} · 30일 내 지급 예정 {man(s.arap.due30)}{s.todos.length > 0 && <> · 이번 주 To-do <b>{s.todos.length}건</b></>}</div>
+            <div className="pnl-headline-sub">통장 잔액 {man(s.cash.balance)} · 당월 순현금흐름 {man(s.cash.inflow - s.cash.outflow)} · 미수금 {man(s.arap.ar)} · 30일 내 지급 예정 {man(s.arap.due30)}{todos.length > 0 && <> · 이번 주 To-do <b>{todos.length}건</b></>}</div>
           </div>
           {/* ── 세 신호 ── */}
           <div className="bz-grid3">
@@ -199,7 +209,7 @@ export default function ManagementSummaryPage() {
           <div className="bz-grid2">
             <section className="pnl-panel">
               <h3>이번 주 To-do <small className="text-[var(--text-dim)] font-normal">{todosOpen.length}건</small></h3>
-              <p>이번 주 처리할 업무입니다. 완료 체크 시 아래로 이동합니다.</p>
+              <p>오늘({todayKst()}) 기준 이번 주 처리할 업무입니다 — 기준 월과 무관합니다. 완료 체크 시 아래로 이동합니다.</p>
               {todosOpen.length === 0 && todosDone.length === 0 ? <div className="collect-empty">이번 주 To-do가 없습니다</div> : (
                 <ul className="bz-todos">
                   {todosOpen.map((t) => <TodoRow key={t.key} t={t} />)}
@@ -213,15 +223,15 @@ export default function ManagementSummaryPage() {
               {s.changes.length === 0 ? <div className="collect-empty">전월·당월 모두 전표가 없어 비교할 항목이 없습니다</div> : (
                 <div className="pnl-tbl-wrap">
                   <table className="ev-table ev-lined pnl-mini-table">
-                    <thead><tr><th className="text-left">항목</th><th>전월</th><th>당월</th><th>증감</th></tr></thead>
+                    <thead><tr><th className="text-left">항목</th><th className="bz-col-prev">전월</th><th>당월</th><th>증감</th></tr></thead>
                     <tbody>
                       {s.changes.map((c) => {
                         const d = c.cur - c.prev; const good = c.invert ? d < 0 : d > 0;
                         return (
                           <tr key={c.key} className="pnl-row-acct" onClick={() => c.href && (window.location.href = c.href)}>
-                            <td className="text-left font-semibold">{c.label}</td>
-                            <td className="text-right mono-number">{num(c.prev)}</td>
-                            <td className="text-right mono-number">{num(c.cur)}</td>
+                            <td className="text-left font-semibold">{c.label}{(c.code || c.part) && <small className="bz-chg-code">{[c.code, c.part].filter(Boolean).join(" · ")}</small>}</td>
+                            <td className="text-right mono-number bz-col-prev">{num(c.prev)}</td>
+                            <td className="text-right mono-number">{num(c.cur)}<small className="bz-prev-m">전월 {num(c.prev)}</small></td>
                             <td className={`text-right mono-number font-bold ${good ? "bz-plus" : "bz-minus"}`}>{d > 0 ? "▲" : "▼"}{num(Math.abs(d))}</td>
                           </tr>
                         );

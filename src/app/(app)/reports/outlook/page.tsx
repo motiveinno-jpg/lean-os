@@ -17,10 +17,11 @@ import { useToast } from "@/components/toast";
 import { AccessDenied } from "@/components/access-denied";
 import { suggestPartnerTerms, applyPartnerTerms, suggestPayrollDay, applyPayrollDay } from "@/lib/cash-outlook-suggest";
 import { ReportHead } from "../_components/ReportHead";
-import { ConditionPanel, ConditionRow, Stat, ExcelMenu, AppliedChips, type AppliedChip } from "@/components/query-kit";
-import { downloadCsv } from "@/lib/csv-export";
+import { ConditionPanel, ConditionRow, Stat, AppliedChips, type AppliedChip } from "@/components/query-kit";
+import { downloadXlsx } from "@/lib/excel-export";
 import { fetchOutlook, buildCurve, linearBalance, weekBuckets, runwayFromCurve, scenarioActive, SCENARIO_DEFAULT, addDays, type Scenario, type OutlookItem } from "@/lib/cash-outlook";
 import { LineChart, Legend } from "@/components/charts/kit";
+import { OUTLOOK_DEFAULT_DAYS } from "@/lib/outlook-horizon";
 
 const won = (n: number) => `${n < 0 ? "−" : ""}₩${Math.abs(Math.round(n)).toLocaleString("ko-KR")}`;
 const man = (n: number) => { const a = Math.abs(n), sg = n < 0 ? "−" : ""; return a >= 1e8 ? `${sg}${(a / 1e8).toFixed(1)}억` : `${sg}${Math.round(a / 10000).toLocaleString("ko-KR")}만`; };
@@ -31,7 +32,7 @@ export default function OutlookPage() {
   const { role } = useUser();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [days, setDays] = useState<number>(90);
+  const [days, setDays] = useState<number>(OUTLOOK_DEFAULT_DAYS);
   const [sc, setSc] = useState<Scenario>(SCENARIO_DEFAULT);
   const [draft, setDraft] = useState<Scenario>(SCENARIO_DEFAULT);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -120,7 +121,7 @@ export default function OutlookPage() {
   const rw = (m: number) => (m >= 999 ? "제한 없음" : `${m.toFixed(1)}개월`);
   const excel = base ? [{
     label: `잔액 곡선 ${days}일 (날짜별)`, count: base.points.length,
-    onClick: () => downloadCsv(`자금전망_${days}일`, ["날짜", "예정 잔액", ...(scen ? ["시나리오 잔액"] : []), "현재 지출 추세", "당일 항목"],
+    onClick: () => downloadXlsx(`자금전망_${days}일`, ["날짜", "예정 잔액", ...(scen ? ["시나리오 잔액"] : []), "현재 지출 추세", "당일 항목"],
       base.points.map((p, i) => [p.date, p.balance, ...(scen ? [scen.points[i]?.balance ?? ""] : []), linearBalance(data!.balance, data!.burn, p.day), p.items.map((it) => `${it.label} ${Math.round(it.amount)}`).join(" / ")])),
   }] : [];
 
@@ -129,7 +130,7 @@ export default function OutlookPage() {
     .filter((b) => Math.abs(b.sum) >= Math.max(1, data.balance * 0.05)).sort((a, b) => a.p.day - b.p.day).slice(0, 8) : [];
   const chart = base && data ? (
     <>
-      <LineChart height={220} yFmt={(n) => `${man(n)}`}
+      <LineChart height={220}
         series={[
           { name: "예정 반영", points: base.points.map((p) => ({ label: p.day === 0 ? "오늘" : md(p.date), value: p.balance })) },
           { name: "현재 지출 추세", points: base.points.map((p) => ({ label: p.day === 0 ? "오늘" : md(p.date), value: linearBalance(data.balance, data.burn, p.day) })) },
@@ -152,7 +153,7 @@ export default function OutlookPage() {
     <>
       <ReportHead
         bar={<>
-          <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs" aria-label="기간">
+          <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="qk-input rpt-select" aria-label="기간">
             {HORIZONS.map((h) => <option key={h} value={h}>앞으로 {h}일</option>)}
           </select>
           <ConditionPanel label="시나리오" open={panelOpen} onOpenChange={(v) => { if (v) setDraft(sc); setPanelOpen(v); }} activeCount={chips.length}
@@ -188,7 +189,7 @@ export default function OutlookPage() {
           </ConditionPanel>
           <span className="text-[11px] text-[var(--text-dim)]">실선: 예정 반영 · 점선: 현재 지출 추세 · 주황: 시나리오</span>
         </>}
-        right={<><ExcelMenu items={excel} /><button type="button" onClick={() => window.print()} className="btn-secondary btn-sm">인쇄</button></>}
+        excel={excel} print
         stats={data && base ? <>
           <Stat label="현재 잔액" value={won(data.balance)} />
           <Stat label={`${days}일 후 잔액`} value={won(base.end)} tone={base.end >= 0 ? undefined : "minus"} />

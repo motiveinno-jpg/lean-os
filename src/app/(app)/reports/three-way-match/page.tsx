@@ -23,6 +23,9 @@ import {
   type ThreeWayInvoice,
 } from "@/lib/three-way-match";
 import { getCurrentUser } from "@/lib/queries";
+import { ReportHead } from "../_components/ReportHead";
+import { ChipGroup, Stat, type ExcelItem } from "@/components/query-kit";
+import { exportToExcel } from "@/lib/excel-export";
 
 export default function ThreeWayMatchPage() {
   const { role, loading } = useUser();
@@ -92,22 +95,30 @@ function Inner() {
     onError: (err: Error) => toast(friendlyError(err, "매칭 해제 실패"), "error"),
   });
 
+  //   엑셀 — 화면의 두 목록(미매칭 · 매칭됨) 그대로. 지금 고른 유형(전체/매출/매입)만
+  const kindLabel = (t: "sales" | "purchase") => (t === "sales" ? "매출" : "매입");
+  const excel: ExcelItem[] = [
+    { label: "미매칭 세금계산서", count: invoices.length, disabled: invoices.length === 0, onClick: () => exportToExcel(invoices.map((i) => ({
+      "구분": kindLabel(i.type), "거래처": i.counterparty_name || "", "발행일": i.issue_date || "", "공급가액": Math.round(i.supply_amount), "합계금액": Math.round(i.total_amount),
+    })), "미매칭", `3way_미매칭_${typeFilter}`) },
+    { label: "매칭됨", count: matched.length, disabled: matched.length === 0, onClick: () => exportToExcel(matched.map((m) => ({
+      "구분": kindLabel(m.invoiceType), "거래처": m.invoiceCounterparty || "", "계산서 일자": m.invoiceDate || "", "계산서 금액": Math.round(m.invoiceTotal),
+      "입출금 상대": m.bankCounterparty, "입출금 일자": m.bankDate, "입출금 금액": Math.round(m.bankAmount), "차이": Math.round(Math.abs(m.invoiceTotal - m.bankAmount)), "프로젝트": m.dealName || "",
+    })), "매칭됨", `3way_매칭됨_${typeFilter}`) },
+  ];
+
   return (
     <div className="three-way-match-page">
-      {/* 툴바 — 유형 필터 탭. 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
-      <div className="three-way-match-toolbar page-sticky-header">
-        <div className="seg-bar">
-          {(["all", "sales", "purchase"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTypeFilter(t)}
-              className={`seg-item ${typeFilter === t ? 'seg-item-active' : ''}`}
-            >
-              {t === 'all' ? '전체' : t === 'sales' ? '매출' : '매입'}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* 조회 줄(유형 보기 ‖ 엑셀·인쇄)·건수는 다른 회계 자료 탭과 같이 상자 머리에 — 예전 상자 밖 seg-bar 는 탭마다 자리가 달랐다 */}
+      <ReportHead
+        bar={<ChipGroup value={typeFilter} onChange={setTypeFilter} options={[{ value: "all", label: "전체" }, { value: "sales", label: "매출" }, { value: "purchase", label: "매입" }] as const} />}
+        excel={excel}
+        print
+        stats={<>
+          <Stat label="미매칭 세금계산서" value={`${invoices.length.toLocaleString()}건`} tone={invoices.length > 0 ? "minus" : undefined} />
+          <Stat label="매칭됨" value={`${matched.length.toLocaleString()}건`} tone="plus" />
+        </>}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
         {/* 좌측 — 미매칭 세금계산서 */}

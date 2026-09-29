@@ -18,7 +18,7 @@ import { MonthField } from "@/components/month-field";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
-import { ReportHead } from "../_components/ReportHead";
+import { ReportHead, ReportYearSelect } from "../_components/ReportHead";
 import { ChipGroup, ConditionPanel, ConditionRow, Stat } from "@/components/query-kit";
 import { getTaxInvoiceSummary, type PeriodSummary } from "@/lib/tax-invoice";
 import { getVatEstimates, VAT_ESTIMATE_LABEL, VAT_ESTIMATE_BASIS, type VatEstimate } from "@/lib/vat-estimate";
@@ -127,9 +127,7 @@ export default function BusinessFlowPage() {
         bar={<>
           {view === "matrix" ? (
             <>
-              <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs" aria-label="연도">
-                {[curYear, curYear - 1, curYear - 2].map((y) => <option key={y} value={y}>{y}년</option>)}
-              </select>
+              <ReportYearSelect value={year} onChange={setYear} years={[curYear, curYear - 1, curYear - 2]} />
               <ConditionPanel label="보기 설정" open={panelOpen} onOpenChange={(v) => { if (v) setDraftMode(mode); setPanelOpen(v); }} activeCount={mode !== "amount" ? 1 : 0}
                 foot={<>
                   <button type="button" className="btn-secondary btn-sm" onClick={() => setDraftMode("amount")}>기본으로</button>
@@ -147,7 +145,7 @@ export default function BusinessFlowPage() {
           <ChipGroup value={view} onChange={setView} options={[{ value: "matrix", label: "월별 표 (1년치)" }, { value: "month", label: "이번 달 흐름" }] as const} />
           <span className="text-[11px] text-[var(--text-dim)]">통장·세금계산서 기준 (손익 현황의 확정 전표와 다릅니다)</span>
         </>}
-        right={<button type="button" onClick={() => window.print()} className="btn-secondary btn-sm">인쇄</button>}
+        print
         stats={view === "matrix" ? <>
           <Stat label={`${year}년 수입`} value={won(yIn)} tone="plus" />
           <Stat label="지출" value={won(yOut)} tone="minus" />

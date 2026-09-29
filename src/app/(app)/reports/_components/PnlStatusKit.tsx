@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/queries";
 import { DateRangeField } from "@/components/date-range-field";
-import { ChipGroup, Stat, ExcelMenu, type ExcelItem } from "@/components/query-kit";
+import { ChipGroup, Stat, type ExcelItem } from "@/components/query-kit";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { ReportHead } from "./ReportHead";
 import {
@@ -48,7 +48,7 @@ export function Delta({ cur, prev, invert = false, size = "sm" }: { cur: number;
 
 
 /** 상자 머리 · 기간(월 단위) · 비교 칩 · 화면별 추가 조건 ‖ 엑셀 · 인쇄 / 지표 줄 */
-export function PnlHead({ s, bar, stats, excel }: { s: PnlStatusState; bar?: ReactNode; stats: ReactNode; excel?: ExcelItem[] }) {
+export function PnlHead({ s, bar, stats, statsRight, excel }: { s: PnlStatusState; bar?: ReactNode; stats: ReactNode; statsRight?: ReactNode; excel?: ExcelItem[] }) {
   return (
     <ReportHead
       bar={<>
@@ -57,11 +57,10 @@ export function PnlHead({ s, bar, stats, excel }: { s: PnlStatusState; bar?: Rea
         <ChipGroup value={s.compare} onChange={s.setCompare} options={[{ value: "prev", label: "전월 비교" }, { value: "yoy", label: "전년 동기" }] as const} />
         {bar}
       </>}
-      right={<>
-        {excel && excel.length > 0 && <ExcelMenu items={excel} />}
-        <button type="button" onClick={() => window.print()} className="btn-secondary btn-sm">인쇄</button>
-      </>}
+      excel={excel}
+      print
       stats={stats}
+      statsRight={statsRight}
     />
   );
 }

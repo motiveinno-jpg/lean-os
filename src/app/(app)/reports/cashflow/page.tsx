@@ -10,7 +10,7 @@ import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { ReportHead } from "../_components/ReportHead";
-import { Stat } from "@/components/query-kit";
+import { Stat, ChipGroup } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
 import { EmptyState } from "@/components/empty-state";
 import { exportToExcel } from "@/lib/excel-export";
@@ -94,15 +94,10 @@ function CashFlowInner() {
       <ReportHead
         bar={<>
           <DateRangeField unit="month" label="조회 기간" from={fromM} to={toM} onChange={(f, t) => { setFromM(f); setToM(t); }} />
-          <span className="acct-ledger-view">
-            <button type="button" className={view === "total" ? "acct-ledger-view-btn acct-ledger-view-on" : "acct-ledger-view-btn"} onClick={() => setView("total")}>합계</button>
-            <button type="button" className={view === "monthly" ? "acct-ledger-view-btn acct-ledger-view-on" : "acct-ledger-view-btn"} onClick={() => setView("monthly")}>월별</button>
-          </span>
+          <ChipGroup value={view} onChange={setView} options={[{ value: "total", label: "합계" }, { value: "monthly", label: "월별" }] as const} />
         </>}
-        right={<>
-          <button type="button" className="btn-secondary btn-sm" onClick={exportXlsx} disabled={!data}>엑셀</button>
-          <button type="button" className="btn-secondary btn-sm" onClick={() => window.print()}>인쇄</button>
-        </>}
+        excel={[{ label: "현금흐름표", onClick: exportXlsx, disabled: !data }]}
+        print
         stats={data ? <>
           <Stat label="기초 현금" value={`₩${signed(data.opening)}`} />
           <Stat label="영업활동" tone={agg.actNet("op") >= 0 ? "plus" : "minus"} value={`₩${signed(agg.actNet("op"))}`} />

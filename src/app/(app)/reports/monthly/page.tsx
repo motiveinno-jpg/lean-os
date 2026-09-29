@@ -11,10 +11,10 @@ import { useQuery } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
-import { ConditionPanel, ConditionRow, ChipGroup, Stat, ExcelMenu, AppliedChips, SavedTabs, ConditionSave, useSavedQueries, type AppliedChip } from "@/components/query-kit";
-import { downloadCsv } from "@/lib/csv-export";
+import { ConditionPanel, ConditionRow, ChipGroup, Stat, AppliedChips, SavedTabs, ConditionSave, useSavedQueries, type AppliedChip } from "@/components/query-kit";
+import { downloadXlsx } from "@/lib/excel-export";
 import { fetchJournalLines, pnlAmount, type JournalLine } from "@/lib/journal-reports";
-import { ReportHead } from "../_components/ReportHead";
+import { ReportHead, ReportYearSelect } from "../_components/ReportHead";
 import { DrillModal, won, num, type Drill } from "../_components/PnlStatusKit";
 
 const YEAR_NOW = new Date(Date.now() + 9 * 3600 * 1000).getUTCFullYear();
@@ -161,7 +161,7 @@ export default function MonthlyDetailPage() {
   const paramsBasic = { view: DEFAULT_VIEW };
   const excel = [{
     label: `${year}년 월별 표 (지금 보이는 모양)`, count: visibleItems.length,
-    onClick: () => downloadCsv(`손익_월별표_${year}`, ["항목", ...shownGroups.map((g) => g.label), ...(view.cum ? ["누계"] : [])],
+    onClick: () => downloadXlsx(`손익_월별표_${year}`, ["항목", ...shownGroups.map((g) => g.label), ...(view.cum ? ["누계"] : [])],
       visibleItems.map((it) => [it.label, ...shownGroups.map((g) => { const c = valueOf(it, g.i); return it.kind === "rate" ? (Number.isNaN(c) ? "" : Math.round(c * 10) / 10) : Math.round(c); }), ...(view.cum ? [it.kind === "rate" ? totalOf(it) : Math.round(it.v.reduce((x, y) => x + y, 0))] : [])])),
   }];
   const quick = <T extends string>(cur: T, opts: [T, string][], set: (v: T) => void) => (
@@ -172,10 +172,7 @@ export default function MonthlyDetailPage() {
     <>
       <ReportHead
         bar={<>
-          <label className="text-xs font-semibold text-[var(--text-dim)]">연도</label>
-          <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs">
-            {[YEAR_NOW, YEAR_NOW - 1, YEAR_NOW - 2].map((y) => <option key={y} value={y}>{y}년</option>)}
-          </select>
+          <ReportYearSelect value={year} onChange={setYear} years={[YEAR_NOW, YEAR_NOW - 1, YEAR_NOW - 2]} />
           {/* 보기 설정 — 표시값·함께 보기·열 묶음·방향·행 구성·강조·누계 (검색조건 문법: 고르고 → 적용) */}
           <ConditionPanel label="보기 설정" open={panelOpen} onOpenChange={(v) => { if (v) setDraft(view); setPanelOpen(v); }} activeCount={viewCount(view)}
             tabs={<SavedTabs list={saved.list} current={paramsNow} basic={paramsBasic}
@@ -200,7 +197,7 @@ export default function MonthlyDetailPage() {
           </ConditionPanel>
           <span className="text-[11px] text-[var(--text-dim)]">셀을 누르면 그 기간 그 항목의 원천 전표 · 확정 전표 기준</span>
         </>}
-        right={<><ExcelMenu items={excel} /><button type="button" onClick={() => window.print()} className="btn-secondary btn-sm">인쇄</button></>}
+        excel={excel} print
         stats={<>
           <Stat label={`${year}년 매출`} value={won(revItem?.v.reduce((x, y) => x + y, 0) || 0)} />
           <Stat label="판관비" value={won(items.find((x) => x.key === "opex")?.v.reduce((x, y) => x + y, 0) || 0)} />
