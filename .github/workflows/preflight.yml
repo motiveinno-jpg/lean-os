@@ -65,6 +65,10 @@ jobs:
       - name: dedupe lock check
         run: node scripts/check-dedupe-locks.mjs
 
+      # 라이브러리가 붙이는 클래스·상태를 이어 붙인 클래스의 CSS 가 지워지면 실패 (표 칸 선택 음영 사고)
+      - name: runtime CSS class check
+        run: node scripts/check-css-runtime-classes.mjs
+
       - name: RLS regression smoke
         run: node scripts/rls-smoke.mjs
 
