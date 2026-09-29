@@ -61,10 +61,12 @@ const SHOTS = [
   { key: "board",         route: "/board",          name: "f-board-v5" },
   { key: "chat",          route: "/chat",           name: "f-chat-v5" },
   { key: "signatures",    route: "/signatures",     name: "f-contract-v5" },
+  { key: "contracts",     route: "/contracts",      name: "f-contracts-v1", ready: "table" },   // 2026-09-29 공개 목록에 새로 올린 메뉴
   { key: "documents",     route: "/documents",      name: "f-documents-v5" },
   { key: "team",          route: "/team",           name: "f-team-v2" },
   { key: "employees",     route: "/employees",      name: "f-members-v5" },
   { key: "attendance",    route: "/attendance",     name: "f-hr-v7" },
+  { key: "salary",        route: "/employees?tab=salary", name: "f-salary-v1", ready: "table" },   // 2026-09-29 공개 목록에 새로 올린 메뉴
   { key: "hr-templates",  route: "/hr-templates",   name: "f-templates-v5" },
   { key: "summary",       route: "/reports/summary", name: "f-acct-v5" },
   { key: "profit",        route: "/reports/profit", name: "f-profit-v2" },
@@ -100,11 +102,15 @@ const MASK_EMAIL = `() => {
   const nodes = [];
   while (w.nextNode()) nodes.push(w.currentNode);
   let n = 0;
+  //   2026-09-29 — 검증 세션이 남긴 「[QA검증] 」 머리표도 지운다(행은 그대로 둬 건수·합계가 맞게). 공개 이미지에 검증 흔적이 나가지 않게.
+  const QA_TAG = /\\[QA검증\\]\\s*/g;
   for (const node of nodes) {
+    const v = node.nodeValue || "";
     RE.lastIndex = 0;
-    if (!RE.test(node.nodeValue || "")) continue;
+    const hasMail = RE.test(v);
+    if (!hasMail && !v.includes("[QA검증]")) continue;
     RE.lastIndex = 0;
-    node.nodeValue = node.nodeValue.replace(RE, "daepyo@example.com");
+    node.nodeValue = v.replace(RE, "daepyo@example.com").replace(QA_TAG, "");
     n++;
   }
   for (const i of document.querySelectorAll("input")) {

@@ -107,7 +107,9 @@ export default function ContractLedgerPage() {
   }, [rows, today]);
 
   const partnerName = (r: Row) => r.partners?.name || r.content_json?.header?.partnerName || null;
-  const amountOf = (r: Row) => r.contract_amount ?? r.amount ?? null;
+  //   documents.amount 는 기본값이 0 이라, 대신 읽을 때 0 은 '안 넣음'으로 본다(2026-09-29 — 금액 없는 계약이 ₩0 으로 보였다).
+  //   contract_amount 에 직접 넣은 0 은 그대로 0.
+  const amountOf = (r: Row) => r.contract_amount ?? (r.amount || null);
 
   const filtered = useMemo(() => {
     let list = tab === "all" ? rows : rows.filter((r) => bucketOf(r, today) === tab);

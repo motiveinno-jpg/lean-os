@@ -164,8 +164,8 @@ export const CATALOG: Group[] = [
       { key: "signatures", name: "전자계약", href: "/signatures", icon: "sign", src: shot("f-contract-v5"),
         desc: "계약서 작성부터 서명·보관까지 한 흐름으로 끝냅니다.",
         items: ["서식·템플릿", "직인 자동 합성", "발송·열람·서명 추적", "열람 전 발송 취소"] },
-      //   2026-09-29 사이드바에 있는데 목록에 없던 것 — contracts/page.tsx 머리 주석(결정 2-2단계) 기준. 캡처는 QA 시드로 찍을 때까지 없음.
-      { key: "contracts", name: "계약 대장", href: "/contracts", icon: "book", src: null,
+      //   2026-09-29 사이드바에 있는데 목록에 없던 것 — contracts/page.tsx 머리 주석(결정 2-2단계) 기준. 캡처는 QA 시드 예시 계약 5건(cd000000-…c1~c5)으로 찍음.
+      { key: "contracts", name: "계약 대장", href: "/contracts", icon: "book", src: shot("f-contracts-v1"),
         desc: "계약서의 기간·금액·정기 청구일을 한 표로 모아, 끝나 가는 계약을 먼저 보여 드립니다.",
         items: ["진행 중·종료 구분", "만료 60일 전 표시", "기간 빠진 계약 바로 채우기", "월 정기 청구일·금액"] },
       { key: "documents", name: "파일보관함", href: "/documents", icon: "folder", src: shot("f-documents-v5"),
@@ -189,7 +189,7 @@ export const CATALOG: Group[] = [
         desc: "출퇴근·연차·연장근무가 자동으로 집계됩니다.",
         items: ["원클릭 출퇴근", "연차 발생·사용 이력", "주 52시간 사용률", "여러 달 조회·엑셀"] },
       //   2026-09-29 사이드바 「급여」(/employees?tab=salary) — EmployeesPageClient PayrollPreviewTab 기준.
-      { key: "salary", name: "급여", href: "/employees?tab=salary", icon: "won", src: null,
+      { key: "salary", name: "급여", href: "/employees?tab=salary", icon: "won", src: shot("f-salary-v1"),
         desc: "달마다 4대보험·원천세까지 계산한 급여 명세를 만들고, 직원에게 메일로 보냅니다.",
         items: ["4대보험·원천세 자동 계산", "이 달만 급여대장 고치기", "명세서 PDF·메일 발송·열람 확인", "공단 고지서 금액 대조"] },
       { key: "hr-templates", name: "근로계약·서식", href: "/hr-templates", icon: "file", src: shot("f-templates-v5"),
