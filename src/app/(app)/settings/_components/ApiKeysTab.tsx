@@ -216,6 +216,68 @@ export function ApiKeysTab({ companyId, userId }: { companyId: string; userId: s
           onSaved={() => { setEditing(null); invalidate(); }} />
       )}
       <IngestKeyCard companyId={companyId} />
+      <AiConnectorCard companyId={companyId} />
+    </div>
+  );
+}
+
+// AI 커넥터(MCP) — Claude 등에 "커넥터 주소 + 오너뷰 로그인"으로 붙인 연결(2026-09-29).
+//   회사에 켜진 경우에만 보인다(feature_rollout 'mcp_connector'). 목록은 본인이 연결한 것만(oauth_tokens RLS).
+//   끊으면 그 AI 는 다음 요청부터 401 을 받고 다시 로그인해야 한다.
+function AiConnectorCard({ companyId }: { companyId: string }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const url = typeof window !== "undefined" ? `${window.location.origin}/api/mcp/` : "https://www.owner-view.com/api/mcp/";
+  const { data: enabled = false } = useQuery({
+    queryKey: ["feature-on", "mcp_connector", companyId],
+    queryFn: async () => { const { data } = await (supabase as any).rpc("feature_on", { p_feature: "mcp_connector", p_company: companyId }); return !!data; },
+    enabled: !!companyId, staleTime: 300_000,
+  });
+  const { data: conns = [] } = useQuery({
+    queryKey: ["mcp-connections"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("oauth_tokens")
+        .select("id, client_name, created_at, last_used_at, refresh_expires_at")
+        .is("revoked_at", null).gt("refresh_expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false }).limit(20);
+      if (error) throw error;
+      return (data || []) as { id: string; client_name: string; created_at: string; last_used_at: string | null }[];
+    },
+    enabled,
+  });
+  if (!enabled) return null;
+  const revoke = async (id: string, name: string) => {
+    const yes = await appConfirm(`${name || "이 AI"} 연결을 끊으면 그 AI 는 오너뷰를 더 조회하지 못합니다. 다시 쓰려면 AI 쪽에서 다시 연결해야 합니다.`, { title: "연결을 끊을까요?", confirmLabel: "끊기" });
+    if (!yes) return;
+    const { error } = await (supabase as any).from("oauth_tokens").update({ revoked_at: new Date().toISOString() }).eq("id", id);
+    if (error) { toast(friendlyError(error, "끊지 못했습니다"), "error"); return; }
+    toast("연결을 끊었습니다", "success");
+    qc.invalidateQueries({ queryKey: ["mcp-connections"] });
+  };
+  return (
+    <div className="apik-section">
+      <div className="apik-main">
+        <div className="apik-head"><b>AI 커넥터 (Claude 등)</b></div>
+        <p className="text-xs text-[var(--text-muted)] mt-1">
+          Claude 의 설정 › 커넥터 › 커스텀 커넥터 추가에 아래 주소를 넣고 오너뷰로 로그인하면, 대화 중에 오너뷰 데이터를 조회해 답합니다.
+          조회만 하며, 볼 수 있는 범위는 로그인한 사람의 오너뷰 권한과 같습니다.
+        </p>
+        <div className="mt-2 flex items-center gap-2">
+          <code className="text-xs break-all select-all px-2 py-1 rounded bg-[var(--bg-surface)]">{url}</code>
+          <button type="button" className="btn-secondary btn-sm" onClick={() => { navigator.clipboard?.writeText(url).then(() => toast("주소를 복사했습니다", "success")).catch(() => {}); }}>복사</button>
+        </div>
+        {conns.length > 0 && (
+          <ul className="mt-3 space-y-1.5">
+            {conns.map((c) => (
+              <li key={c.id} className="flex items-center gap-2 text-xs">
+                <b className="text-[var(--text)]">{c.client_name || "AI 연결 앱"}</b>
+                <span className="text-[var(--text-dim)]">연결 {fmt(c.created_at)} · 마지막 사용 {fmt(c.last_used_at) || "아직 없음"}</span>
+                <button type="button" className="btn-secondary btn-sm ml-auto" onClick={() => revoke(c.id, c.client_name)}>끊기</button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

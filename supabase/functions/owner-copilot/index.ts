@@ -2020,6 +2020,79 @@ async function buildEmployeeContext(
   };
 }
 
+// ── MCP 커넥터 (Claude 등 외부 AI — 2026-09-29) ─────────────────────────────
+//   외부 AI 가 오너뷰 로그인으로 받은 접속 토큰(ovm_…)을 들고 오면 AI 참모와 같은 조회 툴을 같은 규칙으로 돌려준다.
+//   MCP 규약·OAuth 는 웹(/api/mcp·/api/oauth)이 맡고, 여기는 "토큰 → 사람·회사·권한 → 툴 실행"만 한다
+//   (툴을 두 벌로 만들면 권한·기준이 갈라진다). 조회만 — 액션·메모 툴은 내보내지 않는다.
+//   토큰은 게이트웨이 JWT 검사와 겹치지 않게 x-mcp-token 헤더로 받는다(Authorization 은 anon 키).
+const MCP_EXCLUDED = new Set(["query_table"]);   // 사용자 JWT(RLS)가 있어야 하는 범용 조회 — 토큰으로는 막는다
+const MCP_OVERVIEW_TOOL = {
+  name: "get_company_overview",
+  description: "회사 현황 요약 — 회사 정보·인원, 현금(통장 합계), 받을 돈·낼 돈(세금계산서 잔액), 이번 달 손익(확정 전표), 결재·지급·서명 대기 건수, 최근 12개월 매출. 처음 질문이면 이것부터 보고 필요한 상세 툴을 부르세요.",
+  input_schema: { type: "object", additionalProperties: false, properties: {}, required: [] },
+};
+async function sha256Hex(s: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+async function handleMcp(req: Request, json: (b: Record<string, unknown>, s?: number) => Response): Promise<Response> {
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const raw = String(req.headers.get("x-mcp-token") || "");
+  if (!raw.startsWith("ovm_")) return json({ error: "invalid_token" }, 401);
+  const { data: tok } = await admin.from("oauth_tokens")
+    .select("id, user_id, company_id, client_id, expires_at, revoked_at")
+    .eq("token_hash", await sha256Hex(raw)).maybeSingle();
+  if (!tok || tok.revoked_at || Date.parse(tok.expires_at) <= Date.now()) return json({ error: "invalid_token" }, 401);
+  //   회사·권한은 지금의 사용자 정보로 다시 판정 — 퇴사·회사 이동·권한 변경이 토큰에 남지 않게
+  const { data: profile } = await admin.from("users")
+    .select("id, company_id, role, is_master").eq("auth_id", tok.user_id).maybeSingle();
+  if (!profile?.company_id || profile.company_id !== tok.company_id) return json({ error: "invalid_token" }, 401);
+  const { data: on } = await admin.from("feature_rollout").select("feature")
+    .eq("feature", "mcp_connector").or(`company_id.is.null,company_id.eq.${tok.company_id}`).limit(1);
+  if (!on?.length) return json({ error: "not_enabled", message: "이 회사는 아직 AI 커넥터가 켜져 있지 않습니다." }, 403);
+
+  const mode: Mode = profile.is_master === true || ["owner", "admin"].includes(String(profile.role ?? "")) ? "manager" : "employee";
+  const tools = [
+    ...(mode === "manager" ? [MCP_OVERVIEW_TOOL] : []),
+    ...(mode === "manager" ? MANAGER_READ_TOOLS : EMPLOYEE_READ_TOOLS).filter((t) => !MCP_EXCLUDED.has(t.name)),
+  ];
+  const body = await req.json().catch(() => ({})) as { op?: string; name?: string; args?: Record<string, unknown> };
+  await admin.from("oauth_tokens").update({ last_used_at: new Date().toISOString() }).eq("id", tok.id);
+
+  if (body.op === "list") {
+    return json({ mode, tools: tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.input_schema })) });
+  }
+  if (body.op !== "call") return json({ error: "bad_request" }, 400);
+
+  const name = String(body.name || "");
+  const log = (ok: boolean, error: string | null) => admin.from("mcp_access_log").insert({
+    company_id: tok.company_id, user_id: tok.user_id, client_id: tok.client_id, tool: name.slice(0, 80), ok, error,
+  });
+  if (!tools.some((t) => t.name === name)) { await log(false, "unknown_tool"); return json({ error: "unknown_tool" }, 400); }
+  let payload: unknown;
+  try {
+    if (name === MCP_OVERVIEW_TOOL.name) {
+      const { data: snap, error } = await admin.rpc("copilot_company_snapshot", { p_company_id: tok.company_id });
+      if (error || !snap) throw new Error("회사 요약을 불러오지 못했습니다.");
+      const s = snap as Record<string, unknown>;
+      delete s.receivables;
+      const facts = await loadFinanceFacts(admin, tok.company_id);
+      if (facts) { s.cash = facts.cash; s.receivables = facts.receivables; s.payables = facts.payables; s.month_pnl = facts.month_pnl; }
+      payload = s;
+    } else {
+      const { data: myEmp } = await admin.from("employees").select("id")
+        .eq("company_id", tok.company_id).eq("user_id", profile.id).maybeSingle();
+      payload = await executeReadTool(name, (body.args && typeof body.args === "object") ? body.args : {}, admin, tok.company_id, myEmp?.id ?? null, null);
+    }
+    const err = payload && typeof payload === "object" && "error" in (payload as Record<string, unknown>) ? String((payload as Record<string, unknown>).error).slice(0, 200) : null;
+    await log(!err, err);
+  } catch (e) {
+    await log(false, String((e as Error)?.message || e).slice(0, 200));
+    payload = { error: "조회 중 오류가 발생했습니다. 잠시 뒤 다시 시도하세요." };
+  }
+  return json({ result: payload as Record<string, unknown> });
+}
+
 serve(withSentry("owner-copilot", async (req) => {
   const requestStartedAt = Date.now();
   const corsHeaders = getCorsHeaders(req);
@@ -2028,6 +2101,7 @@ serve(withSentry("owner-copilot", async (req) => {
 
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  if (req.headers.get("x-ownerview-mcp") === "1") return await handleMcp(req, json);
 
   try {
     const authHeader = req.headers.get("Authorization");

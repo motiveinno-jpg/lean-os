@@ -11131,3 +11131,15 @@ table.ol-items-table { min-width: 760px; table-layout: fixed; }
   .pnl-mini-table tbody td { @apply px-1.5; }
   .pnl-mini-table .bz-chg-code { @apply ml-0 block; }
 }
+
+/* AI 커넥터 연결 허용 화면 (/oauth/authorize) */
+.oauth-consent-page { @apply min-h-screen flex items-center justify-center p-4 bg-[var(--bg)]; }
+.oauth-consent-card { @apply w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-6 shadow-sm; }
+.oauth-consent-brand { @apply text-xs font-bold tracking-wide text-[var(--primary)] mb-3; }
+.oauth-consent-title { @apply text-base font-semibold text-[var(--text)] mb-4 leading-snug; }
+.oauth-consent-facts { @apply grid grid-cols-[7.5rem_1fr] gap-x-3 gap-y-2 text-sm mb-4; }
+.oauth-consent-facts dt { @apply text-[var(--text-dim)]; }
+.oauth-consent-facts dd { @apply text-[var(--text)] break-all; }
+.oauth-consent-muted { @apply text-xs text-[var(--text-muted)] leading-relaxed mb-4; }
+.oauth-consent-error { @apply text-sm text-[var(--danger)] mb-2; }
+.oauth-consent-actions { @apply grid grid-cols-2 gap-2; }
