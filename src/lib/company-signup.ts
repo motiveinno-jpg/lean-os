@@ -1,7 +1,8 @@
 import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 // 가입·회사 개설·합류 공용 로직 (2026-07-03)
-//   원칙: 1 사업자번호 = 1 회사. 가입 시 사업자번호 필수 → 형식/실체/중복 3중 검증.
+//   원칙: 1 사업자번호 = 1 회사. 번호를 넣으면 형식/실체/중복 3중 검증(2026-09-29 부터 가입 때 번호는 선택 —
+//   나중에 넣는 길은 서버 창구 /api/company/business-number 하나).
 //   이미 등록된 사업자번호면 회사를 새로 만들지 않고 '합류 요청'으로 전환.
 //   auth/page.tsx(즉시 세션)·auth/verify(이메일 인증·OAuth) 양쪽에서 재사용 — 중복 구현 금지.
 
@@ -215,7 +216,9 @@ export async function provisionCompanyForUser(user: {
   }
 
   const bizDigits = bizNoDigits(meta.business_number || "");
-  if (bizDigits.length !== 10) return "needs_company_setup";
+  //   이메일 가입에서 '새 회사로 시작'을 고르고 번호를 비운 경우(2026-09-29, new_company=1) — 회사명으로 바로 연다.
+  //   번호는 나중에 회사 설정에서(서버 창구). 그 밖(소셜 가입·옛 가입)은 종전대로 /company-setup.
+  if (bizDigits.length !== 10 && !(meta.new_company === "1" && (meta.company_name || "").trim())) return "needs_company_setup";
 
   const companyName = meta.company_name || user.email?.split("@")[0] || "내 회사";
   const displayName = meta.display_name || user.email?.split("@")[0] || "사용자";

@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { useCompanyBizNo } from "@/lib/use-company-bizno";
 import { fetchPaged } from "@/lib/fetch-paged";
 import { Ico } from "@/components/ui-icon";
 
@@ -102,6 +103,7 @@ export function OrgBulkWizard({
 }) {
   const { toast } = useToast();
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const { hasBizNo: hasOwnBizNo } = useCompanyBizNo();
   const [submitting, setSubmitting] = useState(false);
   // 100개+ 대량 발송 진행률 (chunk 완료마다 갱신)
   const [progress, setProgress] = useState<{ done: number; total: number; sent: number; failed: number } | null>(null);
@@ -1104,6 +1106,12 @@ export function OrgBulkWizard({
               {hasCompanySeal === true && applyOurSeal && (
                 <div className="mt-1.5 text-[11px] text-[var(--text-muted)]">
                   갑 서명란에 직인이 찍혀 발송됩니다.
+                </div>
+              )}
+              {/* 사업자번호가 선택이 되면서(2026-09-29) 번호 없는 회사도 계약서를 보낸다 — 빈칸으로 나간다고 미리 알린다 */}
+              {!hasOwnBizNo && (
+                <div className="mt-1.5 text-[11px] text-amber-500">
+                  우리 회사 사업자등록번호가 등록되지 않아 계약서의 사업자번호 칸이 빈칸으로 발송됩니다. 회사 설정 › 회사정보에서 등록할 수 있습니다.
                 </div>
               )}
             </div>

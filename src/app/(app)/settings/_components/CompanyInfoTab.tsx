@@ -106,6 +106,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["company-info"] });
+      queryClient.invalidateQueries({ queryKey: ["company-bizno"] });   // 대시보드 안내·통장 연결 판정이 바로 따라오게
       setSaved(true);
       toast("회사 정보가 저장되었습니다.", "success");
       setTimeout(() => setSaved(false), 2000);
