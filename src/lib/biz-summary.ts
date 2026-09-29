@@ -7,13 +7,14 @@ import { supabase } from "@/lib/supabase";
 import { fetchPagedRes } from "@/lib/fetch-paged";
 import { getCashPulseData } from "@/lib/queries";
 import { buildCashPulse } from "@/lib/cash-pulse";
-import { getVATPreview } from "@/lib/tax-invoice";
+import { getVatEstimatesAround } from "@/lib/vat-estimate";
 import { getLoanStatuses } from "@/lib/cash-budget";
+import { fetchOutlook, buildCurve, type ItemKind } from "@/lib/cash-outlook";
 import { calcRunwayMonths, getRunwayLevel } from "@/lib/engines";
 import { fetchJournalLines, countUnposted, type JournalLine } from "@/lib/journal-reports";
 import { summarize, groupByAccount, fetchFixedCostCompare, type PnlSummary } from "@/lib/pnl-status";
 import { fetchInvoiceArAp } from "@/lib/invoice-arap";
-import { todayKst } from "@/lib/kst";
+import { todayKst, addDaysStr } from "@/lib/kst";
 
 export type Tone = "g" | "y" | "r";
 export type Todo = { key: string; kind: string; text: string; sub?: string; amount?: number; href?: string; tone: Tone };
@@ -22,11 +23,13 @@ export type ChangeRow = { key: string; label: string; prev: number; cur: number;
 export type BizSummary = {
   month: string; prevMonth: string; today: string;
   //   돈 있나 — 통장
-  cash: { balance: number; inflow: number; outflow: number; prevNet: number; burn: number; runway: number; runwayAfterVat: number; tone: Tone; hasBank: boolean };
+  //   forecast30·90 = 자금 전망 곡선(날짜 있는 예정 항목)의 30·90일 뒤 잔액 — 자금 전망 화면과 같은 값
+  cash: { balance: number; inflow: number; outflow: number; prevNet: number; burn: number; runway: number; runwayAfterVat: number; forecast30: number; forecast90: number; tone: Tone; hasBank: boolean };
   //   벌고 있나 — 확정 전표
   pnl: { cur: PnlSummary; prev: PnlSummary; series: { month: string; op: number; revenue: number; cost: number }[]; unposted: { taxInvoice: number; card: number; bank: number; total: number }; unpostedSalesAmt: number; tone: Tone };
   //   받을 돈·낼 돈 — 원장
-  arap: { ar: number; ap: number; over30: number; over30Partners: number; vatNext: { due: string; amount: number; dday: number; pay: boolean } | null; salary: number; loanMonthly: number; recurring: number; due30: number; tone: Tone };
+  //   due30 = 자금 전망 › 예정 항목 '앞으로 30일'의 나갈 돈 합계(같은 목록), due30ByKind 는 그 구분별 합
+  arap: { ar: number; ap: number; over30: number; over30Partners: number; vatNext: { due: string; amount: number; dday: number; pay: boolean } | null; due30: number; due30ByKind: { kind: ItemKind; amount: number; count: number }[]; tone: Tone };
   todos: Todo[];
   changes: ChangeRow[];
   overall: { tone: Tone; label: string };
@@ -54,11 +57,14 @@ export async function fetchBizSummary(companyId: string, month: string, userId?:
     //   받을 돈·낼 돈 — 세금계산서 잔액 기준(lib/invoice-arap,). 원장 기준(ledger-arap)은
     //   회계 자료 전용으로 남긴다 — 대시보드 6칸만 원장 기준이라 미수금 위젯·AI 요약과 숫자가 달랐다.
     fetchInvoiceArAp(companyId),
-    //   1~3월엔 코앞의 납부(전년 2기 확정, 1/25)가 올해 예상에 없다 — 전년도 것도 함께 보고 납부일이 남은 것만 쓴다
-    Promise.all([getVATPreview(companyId, year - 1), getVATPreview(companyId, year)]).then(([a, b]) => [...a, ...b]),
+    //   1~3월엔 코앞의 납부(전년 2기 확정, 1/25)가 올해 예상에 없다 — 전년도 것도 함께 보고 납부일이 남은 것만 쓴다.
+    //   값은 lib/vat-estimate 한 벌(세무 신고 › 부가세 신고서 준비와 같은 확정 매입매출전표 기준)
+    getVatEstimatesAround(companyId, year),
     getLoanStatuses(companyId),
   ]);
   const pulse = pulseRaw ? buildCashPulse(pulseRaw) : null;
+  //   30일 내 지급 예정·30/90일 뒤 잔액은 자금 전망의 예정 항목 목록 그대로 — 여기서 따로 세면 화면마다 빠지는 항목이 달라진다
+  const outlook = await fetchOutlook(companyId, 90, userId, { pulseRaw });
 
   // ── 돈 있나 ──
   const balance = pulse?.currentBalance ?? 0;
@@ -69,10 +75,14 @@ export async function fetchBizSummary(companyId: string, month: string, userId?:
   const bc = (bankCur.data || []) as any[], bp = (bankPrev.data || []) as any[];
   const inflow = sumIn(bc), outflow = sumOut(bc);
   const prevNet = sumIn(bp) - sumOut(bp);
-  const runway = calcRunwayMonths(balance, 0, 0, burn);
-  const vatNextRaw = vat.filter((v) => v.dueDate >= today && Math.abs(v.netVAT) > 0).sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
-  const vatNext = vatNextRaw ? { due: vatNextRaw.dueDate, amount: Math.abs(vatNextRaw.netVAT), dday: Math.max(0, daysUntil(vatNextRaw.dueDate, today)), pay: vatNextRaw.netVAT > 0 } : null;
-  const runwayAfterVat = vatNext && vatNextRaw!.netVAT > 0 ? calcRunwayMonths(balance - vatNext.amount, 0, 0, burn) : runway;
+  //   자금 운용 가능 기간 — cash-pulse 단일 값(대시보드·자금 전망과 같다)
+  const runway = pulse?.runwayMonths ?? 0;
+  const vatNextRaw = vat.filter((v) => v.dueDate >= today && Math.abs(v.payable) > 0).sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+  const vatNext = vatNextRaw ? { due: vatNextRaw.dueDate, amount: Math.abs(vatNextRaw.payable), dday: Math.max(0, daysUntil(vatNextRaw.dueDate, today)), pay: vatNextRaw.payable > 0 } : null;
+  const runwayAfterVat = vatNext && vatNextRaw!.payable > 0 ? calcRunwayMonths(balance - vatNext.amount, 0, 0, burn) : runway;
+  const curve90 = buildCurve(outlook, 90);
+  const forecast30 = curve90.points[30]?.balance ?? balance;
+  const forecast90 = curve90.end;
   const lv = getRunwayLevel(runway);
   const cashTone: Tone = lv === "CRITICAL" || lv === "DANGER" ? "r" : lv === "WARNING" ? "y" : "g";
   const hasBank = (pulseRaw?.bankBalances?.length ?? 0) > 0;
@@ -88,13 +98,15 @@ export async function fetchBizSummary(companyId: string, month: string, userId?:
   // ── 받을 돈·낼 돈 — 원장 기준 단일 값 ──
   const ar = arap0.ar;
   const ap = arap0.ap;
-  const salary = pulseRaw?.employeeSalaryTotal ?? 0;
-  const recurring = (pulseRaw?.recurringPayments || []).filter((r) => r.is_active).reduce((s, r) => s + Number(r.amount || 0), 0);
-  const loanMonthly = loans.reduce((s, l) => s + Number(l.monthlyPayment || 0), 0);   // 만기일시상환도 매달 이자는 나간다
-  const vat30 = vatNext && vatNext.dday <= 30 && vatNextRaw!.netVAT > 0 ? vatNext.amount : 0;
-  //   '30일 안에 낼 돈' = 날짜가 있는 예정(급여·정기 지출·대출 월 상환·부가세 30일 내). 미지급금은 만기를 모르므로 잔액으로만 따로 보여 준다
-  //   (원장 미지급 잔액이 수억이면 전부 30일 안에 나가는 것처럼 읽혀 신호가 늘 빨갛다).
-  const due30 = salary + recurring + loanMonthly + vat30;
+  //   '30일 안에 낼 돈' = 자금 전망 › 예정 항목 앞으로 30일의 나갈 돈(급여·정기 지출·고정비·대출·부가세·매입 세금계산서 만기·계약 지출·결재 대기).
+  //   예전엔 급여·정기 지출·대출·부가세만 따로 더해 고정비(4대보험·통신비)와 매입 세금계산서가 빠졌다.
+  //   만기를 모르는 미지급금(발행 후 결제조건이 지난 것)은 예정 항목과 같이 빠지고 잔액으로만 따로 보여 준다.
+  const end30 = addDaysStr(today, 30);
+  const out30 = outlook.items.filter((it) => it.amount < 0 && it.date >= today && it.date <= end30);
+  const due30 = out30.reduce((s, it) => s - it.amount, 0);
+  const byKind = new Map<ItemKind, { kind: ItemKind; amount: number; count: number }>();
+  for (const it of out30) { const k = byKind.get(it.kind) || { kind: it.kind, amount: 0, count: 0 }; k.amount -= it.amount; k.count++; byKind.set(it.kind, k); }
+  const due30ByKind = [...byKind.values()].sort((a, b) => b.amount - a.amount);
   const arapTone: Tone = balance < due30 ? "r" : arap0.over30 > 0 ? "y" : "g";
 
   // ── 이번 주 챙길 것 (규칙 — 찾아만 놓는다, 확인은 사람이) ──
@@ -102,7 +114,7 @@ export async function fetchBizSummary(companyId: string, month: string, userId?:
   if (arap0.over30 > 0) todos.push({ key: "ar30", kind: "미수", tone: "r", text: `30일 초과 미수금 ${arap0.over30Partners}곳`, sub: "세금계산서 발행일 기준 · 잔액 = 총액 − 입금", amount: arap0.over30, href: "/partners/ledger" });
   if (unposted.taxInvoice > 0) todos.push({ key: "unposted-ti", kind: "전표", tone: "y", text: `세금계산서 ${unposted.taxInvoice}건 미처리 · 손익 미반영`, amount: unpostedSalesAmt > 0 ? unpostedSalesAmt : undefined, href: "/collect" });
   if (unposted.card + unposted.bank > 0) todos.push({ key: "unposted-etc", kind: "전표", tone: "y", text: `카드 ${unposted.card}건 · 통장 ${unposted.bank}건 미처리`, href: "/collect" });
-  if (vatNext && vatNextRaw!.netVAT > 0) todos.push({ key: "vat", kind: "세금", tone: vatNext.dday <= 14 ? "r" : "y", text: `부가세 납부 D-${vatNext.dday}`, sub: `${vatNext.due} · 예상`, amount: vatNext.amount, href: "/reports/vat" });
+  if (vatNext && vatNextRaw!.payable > 0) todos.push({ key: "vat", kind: "세금", tone: vatNext.dday <= 14 ? "r" : "y", text: `부가세 납부 D-${vatNext.dday}`, sub: `${vatNext.due} · ${vatNextRaw!.year}년 ${vatNextRaw!.periodLabel} 납부 예상 (전표 기준)`, amount: vatNext.amount, href: `/finance/tax-filing?tab=vat&year=${vatNextRaw!.year}&period=${vatNextRaw!.key}` });
   if (balance < due30) todos.push({ key: "short", kind: "자금", tone: "r", text: "30일 내 지급 예정액이 통장 잔액 초과", sub: `지급 예정 ${Math.round(due30).toLocaleString()} > 잔액 ${Math.round(balance).toLocaleString()}`, href: "/reports/outlook" });
   const bullet = loans.filter((l) => l.repaymentType === "bullet" && l.maturityDate >= today && daysUntil(l.maturityDate, today) <= 60);
   for (const l of bullet) todos.push({ key: `bullet:${l.name}`, kind: "대출", tone: "r", text: `${l.name} 만기 일시상환 D-${daysUntil(l.maturityDate, today)}`, sub: l.maturityDate, amount: l.remainingAmount, href: "/loans" });
@@ -131,9 +143,9 @@ export async function fetchBizSummary(companyId: string, month: string, userId?:
 
   return {
     month, prevMonth, today,
-    cash: { balance, inflow, outflow, prevNet, burn, runway, runwayAfterVat, tone: cashTone, hasBank },
+    cash: { balance, inflow, outflow, prevNet, burn, runway, runwayAfterVat, forecast30, forecast90, tone: cashTone, hasBank },
     pnl: { cur, prev, series, unposted, unpostedSalesAmt, tone: pnlTone },
-    arap: { ar, ap, over30: arap0.over30, over30Partners: arap0.over30Partners, vatNext, salary, loanMonthly, recurring, due30, tone: arapTone },
+    arap: { ar, ap, over30: arap0.over30, over30Partners: arap0.over30Partners, vatNext, due30, due30ByKind, tone: arapTone },
     todos, changes, overall,
   };
 }

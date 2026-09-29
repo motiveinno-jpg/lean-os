@@ -151,7 +151,7 @@ export default function ManagementSummaryPage() {
               </dl>
               <p className="bz-why">
                 {!s.cash.hasBank ? <>연결된 통장이 없습니다 — <Link href="/bank" className="bz-link">통장 연결 →</Link></>
-                  : <>월 고정 지출 약 {man(s.cash.burn)}(정기 지출+급여) 기준.{s.arap.vatNext && s.arap.vatNext.pay && s.cash.runwayAfterVat !== s.cash.runway && <> 부가세 {man(s.arap.vatNext.amount)}이 {s.arap.vatNext.due.slice(5).replace("-", "/")} 납부 후 <b>{s.cash.runwayAfterVat.toFixed(1)}개월</b>.</>} <Link href="/reports/outlook" className="bz-link">자금 전망 →</Link></>}
+                  : <>월 고정 지출 약 {man(s.cash.burn)}(급여·정기 지출·고정비·대출) 기준.{s.arap.vatNext && s.arap.vatNext.pay && s.cash.runwayAfterVat !== s.cash.runway && <> 부가세 {man(s.arap.vatNext.amount)}이 {s.arap.vatNext.due.slice(5).replace("-", "/")} 납부 후 <b>{s.cash.runwayAfterVat.toFixed(1)}개월</b>.</>} <Link href="/reports/outlook" className="bz-link">자금 전망 →</Link></>}
               </p>
             </section>
 
@@ -184,14 +184,13 @@ export default function ManagementSummaryPage() {
                 <div><dt>매출채권 (미수금)</dt><dd className="mono-number bz-plus">{num(s.arap.ar)}</dd></div>
                 <div className="bz-kv-sub"><dt>└ 30일 초과 · {s.arap.over30Partners}곳</dt><dd className={`mono-number ${s.arap.over30 > 0 ? "bz-minus" : ""}`}>{num(s.arap.over30)}</dd></div>
                 <div><dt>미지급금 잔액 <small className="text-[var(--text-dim)]">(만기 없음)</small></dt><dd className="mono-number">{num(s.arap.ap)}</dd></div>
-                {s.arap.vatNext && <div><dt>부가세 {s.arap.vatNext.pay ? "납부" : "환급"} ({s.arap.vatNext.due.slice(5).replace("-", "/")} · D-{s.arap.vatNext.dday})</dt><dd className={`mono-number ${s.arap.vatNext.pay ? "" : "bz-plus"}`}>{s.arap.vatNext.pay ? "" : "+"}{num(s.arap.vatNext.amount)}</dd></div>}
-                <div><dt>급여 (등록 급여 합계)</dt><dd className="mono-number">{num(s.arap.salary)}</dd></div>
-                {s.arap.loanMonthly > 0 && <div><dt>대출 월 상환</dt><dd className="mono-number">{num(s.arap.loanMonthly)}</dd></div>}
-                {s.arap.recurring > 0 && <div><dt>정기 지출</dt><dd className="mono-number">{num(s.arap.recurring)}</dd></div>}
+                {s.arap.vatNext && <div><dt>부가세 {s.arap.vatNext.pay ? "납부" : "환급"} 예상 ({s.arap.vatNext.due.slice(5).replace("-", "/")} · D-{s.arap.vatNext.dday} · 전표 기준)</dt><dd className={`mono-number ${s.arap.vatNext.pay ? "" : "bz-plus"}`}>{s.arap.vatNext.pay ? "" : "+"}{num(s.arap.vatNext.amount)}</dd></div>}
+                {/* 30일 내 지급 예정의 구분별 합 — 예정 항목 '앞으로 30일'의 나갈 돈과 같은 목록 */}
+                {s.arap.due30ByKind.map((k) => <div key={k.kind}><dt>30일 내 {k.kind} <small className="text-[var(--text-dim)]">{k.count}건</small></dt><dd className="mono-number">{num(k.amount)}</dd></div>)}
               </dl>
               <p className="bz-why">
-                30일 내 지급 예정(급여·정기 지출·대출·부가세) <b>{won(s.arap.due30)}</b>{s.cash.balance < s.arap.due30 ? <> — <b className="bz-minus">통장 잔액 초과</b>.</> : <> — 통장 잔액으로 충당 가능.</>}
-                {s.arap.over30 > 0 && <> 30일 초과 미수금 {man(s.arap.over30)} 회수 시 자금 여력이 늘어납니다.</>} <Link href="/partners/ledger" className="bz-link">거래처 원장 →</Link>
+                30일 내 지급 예정 <b>{won(s.arap.due30)}</b> <small className="text-[var(--text-dim)]">(예정 항목 앞으로 30일의 나갈 돈)</small>{s.cash.balance < s.arap.due30 ? <> — <b className="bz-minus">통장 잔액 초과</b>.</> : <> — 통장 잔액으로 충당 가능.</>}
+                {s.arap.over30 > 0 && <> 30일 초과 미수금 {man(s.arap.over30)} 회수 시 자금 여력이 늘어납니다.</>} <Link href="/reports/upcoming" className="bz-link">예정 항목 →</Link> · <Link href="/partners/ledger" className="bz-link">거래처 원장 →</Link>
               </p>
             </section>
           </div>

@@ -199,8 +199,9 @@ export function MorningBrief({
     if (!cashPulse) return null;
     const nums = {
       balance: cashPulse.currentBalance,
-      forecast30: cashPulse.forecast30d,
-      forecast90: cashPulse.forecast90d,
+      //   30·90일 뒤 잔액은 자금 전망 곡선(날짜 있는 예정 항목) 값 — 경영 요약·자금 전망과 같다. 못 읽었을 때만 옛 직선 추정
+      forecast30: bizSum?.cash.forecast30 ?? cashPulse.forecast30d,
+      forecast90: bizSum?.cash.forecast90 ?? cashPulse.forecast90d,
       runwayMonths: dashboard?.sixPack.runwayMonths ?? 0,
       monthlyBurn: cashPulse.monthlyBurn,
       arOver30: bizSum?.arap.over30 ?? dashboard?.sixPack.arOver30 ?? 0,

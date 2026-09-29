@@ -1,6 +1,6 @@
 // 통장 출금 ↔ 정기 지출 짝 맞추기 — 통장 개요 '자동이체 연결 내역' 이 이 규칙으로 채워진다 (2026-09-07).
 import { describe, it, expect } from "vitest";
-import { buildRecurringPatterns, matchRecurring, isAutoTransferTx, dueDateInMonth, reconcileRecurringMonth, cardTxToLite, inferPayMethods } from "../recurring-match";
+import { buildRecurringPatterns, matchRecurring, isAutoTransferTx, dueDateInMonth, reconcileRecurringMonth, cardTxToLite, inferPayMethods, nextDueDate } from "../recurring-match";
 
 const RP = [
   { id: "r1", name: "사무실 임대료", recipient_name: "한빛빌딩", amount: 1_500_000, category: "rent", is_active: true },
@@ -86,5 +86,24 @@ describe("결제 수단 판별 — 통장 화면엔 통장 것, 카드 화면엔
     ];
     const m = inferPayMethods(RP4, hist);
     expect(m.get(RP4[0])).toBe("bank"); expect(m.get(RP4[1])).toBe("card"); expect(m.get(RP4[2])).toBe("unknown");
+  });
+});
+
+describe("nextDueDate — 다음 출금 예정일 한 함수", () => {
+  it("갱신 안 된 지난 next_due_date 는 버리고 day_of_month 로 다음 도래일", () => {
+    const rp = { frequency: "monthly", day_of_month: 25, next_due_date: "2026-08-25" };
+    expect(nextDueDate(rp, "2026-09-10")).toEqual({ date: "2026-09-25", daysLeft: 15, overdue: false });
+    expect(nextDueDate(rp, "2026-09-29")).toEqual({ date: "2026-10-25", daysLeft: 26, overdue: false });
+  });
+  it("오늘이 예정일이면 오늘(0일)", () => {
+    expect(nextDueDate({ day_of_month: 5 }, "2026-09-05")?.daysLeft).toBe(0);
+  });
+  it("월말 보정 · 연말 넘김", () => {
+    expect(nextDueDate({ day_of_month: 31 }, "2026-09-01")?.date).toBe("2026-09-30");
+    expect(nextDueDate({ day_of_month: 10 }, "2026-12-20")?.date).toBe("2027-01-10");
+  });
+  it("일자를 모르면 next_due_date 그대로, 지났으면 overdue", () => {
+    expect(nextDueDate({ frequency: "yearly", next_due_date: "2026-09-20" }, "2026-09-29")).toEqual({ date: "2026-09-20", daysLeft: -9, overdue: true });
+    expect(nextDueDate({ frequency: "monthly" }, "2026-09-29")).toBeNull();
   });
 });

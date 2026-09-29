@@ -64,8 +64,9 @@ export function buildRecurringPatterns(list: RecurringLite[] | null | undefined)
   return out;
 }
 
-/** 이 출금이 어느 정기 지출의 것인가 — 없으면 null (입금은 대상이 아니다) */
-export function matchRecurring(tx: BankTxLite, patterns: Pattern[]): RecurringLite | null {
+/** 이 출금이 어느 정기 지출의 것인가 — 없으면 null (입금은 대상이 아니다)
+ *  tolerance: 금액 허용 비율(기본 5%). 비용 집계의 중복 제거(cash-budget)는 요금 인상분까지 같은 항목으로 봐야 해 10% 를 쓴다. */
+export function matchRecurring(tx: BankTxLite, patterns: Pattern[], tolerance = 0.05): RecurringLite | null {
   if (tx?.type !== "expense") return null;
   const cp = norm(tx.counterparty), desc = norm(tx.description);
   if (!cp && !desc) return null;
@@ -75,7 +76,7 @@ export function matchRecurring(tx: BankTxLite, patterns: Pattern[]): RecurringLi
     if (p.amount <= 0) { if (wholeHit) return p.rp; continue; }   // 금액 미등록 정기 지출은 이름이 통째로 겹칠 때만
     const tokenHit = wholeHit || p.tokens.some((t) => (cp && cp.includes(t)) || (desc && desc.includes(t)));
     if (!tokenHit) continue;
-    const tol = Math.max(1000, p.amount * 0.05);
+    const tol = Math.max(1000, p.amount * tolerance);
     if (Math.abs(amt - p.amount) <= tol) return p.rp;
   }
   return null;
@@ -102,6 +103,30 @@ export function dueDateInMonth(rp: RecurringLite, ym: string): string | null {
   if (!day || day < 1 || day > 31) return null;
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
   return `${ym}-${String(Math.min(day, last)).padStart(2, "0")}`;
+}
+
+/** 다음 출금 예정일 — '지출·상환 예정' 카드와 '정기 지출 출금 확인' 카드가 같은 날을 말하게 하는 한 함수.
+ *  · 매월(또는 주기 미지정) + 일자(auto_transfer_date > day_of_month): 이번 달 예정일이 오늘 이후면 그날, 지났으면 다음 달.
+ *    next_due_date 는 dueDateInMonth 와 같은 규칙으로 그 달 안에 있을 때만 믿는다 — 갱신되지 않은 지난 값이 흔하다.
+ *  · 일자를 모르고 next_due_date 만 있으면 그 날짜를 그대로 쓰고, 오늘보다 앞이면 overdue(지남)로 사실대로 알린다.
+ *  반환 daysLeft 는 오늘=0, 지난 날은 음수. */
+export function nextDueDate(rp: RecurringLite, todayStr: string): { date: string; daysLeft: number; overdue: boolean } | null {
+  const today = String(todayStr).slice(0, 10);
+  const diff = (d: string) => Math.round((Date.parse(d + "T00:00:00Z") - Date.parse(today + "T00:00:00Z")) / 86_400_000);
+  const freq = String(rp.frequency || "monthly");
+  const day = Number(rp.auto_transfer_date || rp.day_of_month || 0);
+  if (freq === "monthly" && day >= 1 && day <= 31) {
+    const ym = today.slice(0, 7);
+    const cur = dueDateInMonth(rp, ym);
+    if (cur && cur >= today) return { date: cur, daysLeft: diff(cur), overdue: false };
+    const [y, m] = ym.split("-").map(Number);
+    const nextYm = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
+    const nx = dueDateInMonth(rp, nextYm);
+    if (nx) return { date: nx, daysLeft: diff(nx), overdue: false };
+  }
+  const nd = String(rp.next_due_date || "").slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(nd)) { const d = diff(nd); return { date: nd, daysLeft: d, overdue: d < 0 }; }
+  return null;
 }
 
 export type RecurringMonthRow = {

@@ -6,8 +6,7 @@ import { logRead } from "@/lib/log-read";
 
 import { supabase } from "@/lib/supabase";
 import { fetchPaged, fetchPagedRes } from "@/lib/fetch-paged";
-import { getAccountMap, isCostAccount } from "./account-nature";
-import { getSalaryByMonth } from "./payroll";
+import { loadFixedCostSources, fixedCostLinesForMonth } from "./cash-budget";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
@@ -53,8 +52,8 @@ export async function getBudgetCellDetail(
       .order("id"));
     return (data ?? []).map((r: any) => ({
       label: pick(r, ["counterparty_name", "partner_name", "buyer_name"], "매출"),
-      sub: r.issue_date ?? undefined,
-      amount: Number(r.supply_amount || 0) + Number(r.tax_amount || 0),
+      sub: `${r.issue_date ?? ""} · 공급가액 (부가세 ${Number(r.tax_amount || 0).toLocaleString("ko-KR")} 별도)`,
+      amount: Number(r.supply_amount || 0),   // 셀 값(공급가액)과 같은 기준
     }));
   }
 
@@ -71,50 +70,15 @@ export async function getBudgetCellDetail(
   }
 
   if (rowKey === "fixedCosts") {
-    // getMonthlyBudgetOverview 와 동일: 급여 + recurring_payments(active) + fixed_costs(기간필터) + 통장 고정비 체크 거래(당월)
-    const [recRes, fcRes, btRes, accountMap, salaryMonthly] = await Promise.all([
-      db.from("recurring_payments").select("*").eq("company_id", companyId).eq("is_active", true),
-      db.from("fixed_costs").select("*").eq("company_id", companyId).eq("is_recurring", true),
-      fetchPagedRes("lib/budget-detail:fixed-bank", () => db.from("bank_transactions").select("id, counterparty, description, category, classification, transaction_date, amount")
-        .eq("company_id", companyId).eq("type", "expense").eq("is_fixed_cost", true)
-        .gte("transaction_date", start).lt("transaction_date", next)
-        .order("transaction_date", { ascending: true })
-        .order("id")),
-      getAccountMap(companyId),
-      getSalaryByMonth(companyId).then((f) => f(`${year}-${String(month).padStart(2, "0")}`)).catch(() => 0),
-    ]);
-    const items: BudgetDetailItem[] = (recRes.data ?? []).map((r: any) => ({
-      label: pick(r, ["name", "memo", "description", "category"], "정기지출"),
-      sub: r.day_of_month ? `매월 ${r.day_of_month}일` : (r.category ?? undefined),
-      amount: Number(r.amount || 0),
-      refType: "recurring" as const, refId: r.id,
+    //   셀 값과 같은 줄 — cash-budget.fixedCostLinesForMonth 한 벌(정기 지출·고정비 표·급여·통장 고정비 체크, 중복 제거 포함)
+    const ym = `${year}-${String(month).padStart(2, "0")}`;
+    const src = await loadFixedCostSources(companyId, start, `${ym}-${String(new Date(year, month, 0).getDate()).padStart(2, "0")}`);
+    return fixedCostLinesForMonth(src, ym).map((l) => ({
+      label: l.label, sub: l.sub, amount: l.amount,
+      ...(l.source === "recurring" && l.refId ? { refType: "recurring" as const, refId: l.refId } : {}),
+      ...(l.source === "fixed_cost" && l.refId ? { refType: "fixed_cost" as const, refId: l.refId } : {}),
+      ...(l.source === "bank" && l.refId ? { refType: "bank" as const, refId: l.refId } : {}),
     }));
-    const mm = String(month).padStart(2, "0");
-    const lastDay = new Date(year, month, 0).getDate();
-    const recNames = new Set((recRes.data ?? []).map((r: any) => String(r.name || "").toLowerCase().replace(/\s+/g, "")));
-    for (const fc of (fcRes.data ?? [])) {
-      if (fc.start_date && fc.start_date > `${year}-${mm}-${String(lastDay).padStart(2, "0")}`) continue;
-      if (fc.end_date && fc.end_date < `${year}-${mm}-01`) continue;
-      if (recNames.has(String(fc.name || "").toLowerCase().replace(/\s+/g, ""))) continue;   // 정기 지출과 겹치면 셀과 같이 한 번만
-      items.push({ label: pick(fc, ["name", "memo", "description", "category"], "고정비"), sub: fc.category ?? undefined, amount: Number(fc.amount || 0), refType: "fixed_cost", refId: fc.id });
-    }
-    //   급여 — 셀 값에 들어가므로 내역에도 세운다 (2026-08-10, 예전엔 셀에도 내역에도 없었다)
-    if (salaryMonthly > 0) {
-      items.push({ label: "급여 (그 달 재직 직원 합계)", sub: "인사관리 등록 급여 · 입사·퇴사 달은 일할", amount: Number(salaryMonthly) });
-    }
-    // 통장 거래 중 '고정비' 체크(전표처리/매핑) — 당월 실적. 매핑한 분류(계정과목)를 함께 표시
-    for (const t of (btRes.data ?? [])) {
-      const cat = t.category || t.classification || "";
-      //   대출 상환·미지급금 상환처럼 비용이 아닌 계정은 셀 값에서도 빠지므로 내역에서도 뺀다 (2026-08-10)
-      if (!isCostAccount(cat, accountMap)) continue;
-      items.push({
-        label: pick(t, ["counterparty", "description"], "통장 지출"),
-        sub: `${t.transaction_date ?? ""}${cat ? ` · ${cat}` : ""} · 통장 고정비 체크`,
-        amount: Math.abs(Number(t.amount || 0)),
-        refType: "bank", refId: t.id,
-      });
-    }
-    return items;
   }
 
   if (rowKey === "variableCosts") {
@@ -139,12 +103,28 @@ export async function getBudgetCellDetail(
   }
 
   if (rowKey === "bankBalance") {
-    const data = logRead('lib/budget-detail:data', await db.from("bank_accounts").select("*").eq("company_id", companyId));
-    return (data ?? []).map((a: any) => ({
-      label: pick(a, ["alias", "bank_name"], "통장"),
+    //   셀 값 = 현재 잔액 − (그 달 말일 다음 날 ~ 오늘 통장 순입출금). cash-budget.monthEndBalances 와 같은 식
+    const ym = `${year}-${String(month).padStart(2, "0")}`;
+    const end = `${ym}-${String(new Date(year, month, 0).getDate()).padStart(2, "0")}`;
+    const [accRes, flows] = await Promise.all([
+      db.from("bank_accounts").select("*").eq("company_id", companyId),
+      fetchPaged<any>("lib/budget-detail:bank-after", () => db.from("bank_transactions").select("id, amount, type, transaction_date")
+        .eq("company_id", companyId).gt("transaction_date", end)
+        .order("transaction_date", { ascending: true }).order("id"), 100000),
+    ]);
+    const accounts = ((accRes.data ?? []) as any[]).map((a: any) => ({
+      label: `${pick(a, ["alias", "bank_name"], "통장")} · 현재 잔액`,
       sub: pick(a, ["account_number"], ""),
       amount: Number(a.balance || 0),
     }));
+    const inflow = flows.filter((f: any) => f.type === "income").reduce((s: number, f: any) => s + Math.abs(Number(f.amount || 0)), 0);
+    const outflow = flows.filter((f: any) => f.type !== "income").reduce((s: number, f: any) => s + Math.abs(Number(f.amount || 0)), 0);
+    if (flows.length === 0) return accounts;
+    return [
+      ...accounts,
+      { label: `${end} 이후 입금 빼기`, sub: `통장 거래 ${flows.filter((f: any) => f.type === "income").length}건`, amount: -inflow },
+      { label: `${end} 이후 출금 되돌리기`, sub: `통장 거래 ${flows.filter((f: any) => f.type !== "income").length}건`, amount: outflow },
+    ];
   }
 
   return [];

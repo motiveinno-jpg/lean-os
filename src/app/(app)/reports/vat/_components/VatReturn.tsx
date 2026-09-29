@@ -18,7 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
-import { vatType } from "@/lib/vat-voucher";
+import { vatType, summarizeByVatType } from "@/lib/vat-voucher";
 import { todayKst } from "@/lib/kst";
 import { Stat } from "@/components/query-kit";
 import { useToast } from "@/components/toast";
@@ -87,10 +87,9 @@ async function fetchVatRows(companyId: string, from: string, to: string): Promis
   return out;
 }
 
-/** 납부(환급)세액만 — 직전 기수 비교용. 본 집계(R)와 같은 유형 코드로 센다 */
+/** 납부(환급)세액만 — 직전 기수 비교용. 앱 전체의 부가세 납부 예상(lib/vat-estimate)과 같은 계산(summarizeByVatType)이다 */
 function payableOf(rows: Row[]): number {
-  const vat = (codes: string[]) => rows.filter((x) => codes.includes(String(x.vat_type || ""))).reduce((s, x) => s + x.vat_amount, 0);
-  return vat(["11"]) + vat(["17", "22"]) + vat(["12"]) - (vat(["51"]) + vat(["57", "61"]));
+  return summarizeByVatType(rows).payable;
 }
 
 //   2026-09-03 대표: 신고기간은 칩 줄이 아니라 연도 옆 셀렉트로 — 조회 줄에 값 칩을 늘어놓지 않는다. 상태는 페이지(세무 신고)가 들고 내려준다.

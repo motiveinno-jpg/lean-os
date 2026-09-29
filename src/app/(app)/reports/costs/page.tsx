@@ -394,7 +394,7 @@ export default function CostsPage() {
           >
             <strong style={{ color: "var(--text-muted)" }}>참고</strong>
             <br />
-            - 고정비는 <strong style={{ color: "var(--text-muted)" }}>재직 직원 급여</strong>·정기결제·등록 고정비에 <strong style={{ color: "var(--text-muted)" }}>통장 거래에서 &lsquo;고정비&rsquo;로 체크한 지출</strong>을 더해 합산합니다.
+            - 고정비는 <strong style={{ color: "var(--text-muted)" }}>재직 직원 급여</strong>·정기결제·등록 고정비에 <strong style={{ color: "var(--text-muted)" }}>통장 거래에서 &lsquo;고정비&rsquo;로 체크한 지출</strong>을 더해 합산합니다. 급여는 그 달 재직자만(입사·퇴사 달은 일할), 정기결제는 등록한 달부터 셉니다. 정기결제와 이름이 같은 등록 고정비, 그리고 이미 등록된 항목의 실제 통장 출금은 한 번만 셉니다 — 위 월별 표와 이 세부내역은 같은 계산이라 합계가 같습니다.
             <br />
             - 변동비는 법인카드 사용액과 일회성 지출(결제 대기, 취소 건 제외)을 합산합니다.
             <br />

@@ -20,7 +20,6 @@ import { ReportHead } from "../_components/ReportHead";
 import { ConditionPanel, ConditionRow, Stat, ExcelMenu, AppliedChips, type AppliedChip } from "@/components/query-kit";
 import { downloadCsv } from "@/lib/csv-export";
 import { fetchOutlook, buildCurve, linearBalance, weekBuckets, runwayFromCurve, scenarioActive, SCENARIO_DEFAULT, addDays, type Scenario, type OutlookItem } from "@/lib/cash-outlook";
-import { calcRunwayMonths } from "@/lib/engines";
 import { LineChart, Legend } from "@/components/charts/kit";
 
 const won = (n: number) => `${n < 0 ? "−" : ""}₩${Math.abs(Math.round(n)).toLocaleString("ko-KR")}`;
@@ -115,7 +114,9 @@ export default function OutlookPage() {
   const quick = <T extends string | number>(cur: T, opts: [T, string][], set: (v: T) => void) => (
     <span className="qk-quicks">{opts.map(([v, l]) => <button key={String(v)} type="button" onClick={() => set(v)} className={cur === v ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>)}</span>
   );
-  const runwayNow = data ? calcRunwayMonths(data.balance, 0, 0, data.burn) : 0;
+  //   자금 운용 가능 기간 = cash-pulse 단일 값(대시보드·경영 요약과 같다). 기간 선택과 무관하다.
+  //   곡선에서 나오는 값(runwayFromCurve)은 고른 기간마다 달라져 '예정 반영 소진 추정'으로 따로 부른다.
+  const runwayNow = data ? data.runwayMonths : 0;
   const rw = (m: number) => (m >= 999 ? "제한 없음" : `${m.toFixed(1)}개월`);
   const excel = base ? [{
     label: `잔액 곡선 ${days}일 (날짜별)`, count: base.points.length,
@@ -194,7 +195,7 @@ export default function OutlookPage() {
           <Stat label="최저점" value={<>{won(base.min.balance)} <small className="font-normal text-[var(--text-dim)]">{md(base.min.date)}</small></>} tone={base.min.balance < 0 ? "minus" : undefined} />
           <Stat label="자금 부족 예상 시점" value={base.shortfall ? md(base.shortfall.date) : "없음"} tone={base.shortfall ? "minus" : "plus"} />
           {scen && <Stat label="시나리오 최저" value={<>{won(scen.min.balance)} <small className="font-normal text-[var(--text-dim)]">{md(scen.min.date)}</small></>} tone={scen.min.balance < 0 ? "minus" : undefined} />}
-          <Stat label="자금 운용 가능 기간" value={rw(runwayFromCurve(base, days))} />
+          <Stat label="자금 운용 가능 기간" value={rw(runwayNow)} title={`통장 잔액 ÷ 월 고정 지출 ${man(data.burn)}원 · 경영 요약·대시보드와 같은 값`} />
         </> : <span className="text-[11px] text-[var(--text-dim)]">불러오는 중…</span>}
       />
       <AppliedChips chips={chips} onClearAll={() => apply(SCENARIO_DEFAULT)} />
@@ -212,7 +213,7 @@ export default function OutlookPage() {
                 : `향후 ${days}일 내 자금 부족 없음. 최저 잔액 ${md(base.min.date)} ${man(base.min.balance)}.`}
               {scen && (scen.shortfall ? ` 시나리오 적용 시 ${md(scen.shortfall.date)} 자금 부족 예상.` : ` 시나리오 적용 시에도 ${days}일 내 자금 부족 없음.`)}
             </b>
-            <div className="pnl-headline-sub">현재 잔액 {man(data.balance)} → {days}일 후 {man(base.end)} · 현재 지출 추세(월 {man(data.burn)}원) 기준 {rw(runwayNow)} · 예정 반영 {rw(runwayFromCurve(base, days))}</div>
+            <div className="pnl-headline-sub">현재 잔액 {man(data.balance)} → {days}일 후 {man(base.end)} · 자금 운용 가능 기간 {rw(runwayNow)}(월 고정 지출 {man(data.burn)}원 기준) · {days}일 예정 반영 소진 추정 {rw(runwayFromCurve(base, days))}</div>
           </div>
           <section className="pnl-panel">
             <h3>잔액 추이 — 향후 {days}일</h3>
@@ -253,14 +254,14 @@ export default function OutlookPage() {
             </section>
             <section className="pnl-panel">
               <h3>자금 운용 가능 기간</h3>
-              <p>현재 지출 추세 · 예정 반영 · 시나리오별 비교. 자금 부족 예상 시 빨간색으로 표시합니다.</p>
+              <p>자금 운용 가능 기간은 기간 선택과 무관한 하나의 값입니다. 아래 '소진 추정'은 고른 기간({days}일)의 예정 곡선으로 본 비교값입니다. 자금 부족 예상 시 빨간색으로 표시합니다.</p>
               <dl className="bz-kv">
-                <div><dt>현재 지출 추세 (월 지출 {man(data.burn)}원 기준)</dt><dd className="mono-number">{rw(runwayNow)}</dd></div>
-                <div><dt>예정 항목 반영 (부가세·급여·대출 일정 기준)</dt><dd className={`mono-number ${base.shortfall ? "bz-minus" : ""}`}>{rw(runwayFromCurve(base, days))}</dd></div>
+                <div><dt><b>자금 운용 가능 기간</b> (잔액 ÷ 월 고정 지출 {man(data.burn)}원)</dt><dd className="mono-number"><b>{rw(runwayNow)}</b></dd></div>
+                <div><dt>예정 반영 소진 추정 ({days}일 곡선 · 부가세·급여·대출 일정)</dt><dd className={`mono-number ${base.shortfall ? "bz-minus" : ""}`}>{rw(runwayFromCurve(base, days))}</dd></div>
                 {scen && <div><dt>시나리오 ({chips.map((c) => `${c.group} ${c.label}`).join(" · ")})</dt><dd className={`mono-number ${scen.shortfall ? "bz-minus" : "bz-tone-y"}`}>{rw(runwayFromCurve(scen, days))}</dd></div>}
                 {data.arOver30 > 0 && <div><dt>30일 초과 미수금 전액 회수 시</dt><dd className="mono-number bz-plus">{rw(runwayFromCurve(buildCurve(data, days, { ...SCENARIO_DEFAULT, recoveryPct: 100 }), days))}</dd></div>}
               </dl>
-              <p className="bz-why">'예정 항목 반영'은 {days}일 내 자금 부족이 없을 경우 해당 기간 평균 소진 속도로 연장한 추정값입니다. 항목 상세: <Link href="/reports/upcoming" className="bz-link">예정 항목 →</Link></p>
+              <p className="bz-why">'소진 추정'은 {days}일 내 자금 부족이 없을 경우 그 기간 평균 소진 속도로 연장한 값이라 기간을 바꾸면 달라집니다. 항목 상세: <Link href="/reports/upcoming" className="bz-link">예정 항목 →</Link></p>
             </section>
           </div>
         </div>

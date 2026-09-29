@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { fetchPaged, fetchPagedRes } from "@/lib/fetch-paged";
 import { fetchJournalLines, pnlAmount, countUnposted, type JournalLine } from "@/lib/journal-reports";
 import { fetchPartnerBalances, summarizeBalances } from "@/lib/receivables";
+import { buildRecurringPatterns, matchRecurring } from "@/lib/recurring-match";
 
 export type PnlSummary = {
   revenue: number; cogs: number; gross: number; opex: number; operating: number;
@@ -123,13 +124,16 @@ export async function fetchFixedCostCompare(companyId: string, range: MonthRange
   const months = (() => { const [ay, am] = range.fromYm.split("-").map(Number); const [by, bm] = range.toYm.split("-").map(Number); return (by * 12 + bm) - (ay * 12 + am) + 1; })();
   const [rec, fixed, bank] = await Promise.all([
     supabase.from("recurring_payments").select("id, name, amount, day_of_month, recipient_name, is_active").eq("company_id", companyId).eq("is_active", true),
-    supabase.from("fixed_costs").select("id, name, amount, payment_day, is_recurring").eq("company_id", companyId),
+    supabase.from("fixed_costs").select("id, name, amount, payment_day, is_recurring, end_date").eq("company_id", companyId),
     fetchPagedRes<any>("pnl-status:fixedcost-bank", () => (supabase.from("bank_transactions").select("counterparty, description, amount") as any).eq("company_id", companyId).lt("amount", 0).gte("transaction_date", from).lte("transaction_date", to).order("id"), 50000),
   ]);
   const norm = (s: string) => String(s || "").toLowerCase().replace(/\s+/g, "");
   const items: { key: string; name: string; alt: string; source: "recurring" | "fixed_cost"; monthly: number; day: number | null }[] = [
     ...((rec.data || []) as any[]).map((r) => ({ key: `r:${r.id}`, name: String(r.name || ""), alt: String(r.recipient_name || ""), source: "recurring" as const, monthly: Number(r.amount || 0), day: r.day_of_month ?? null })),
-    ...((fixed.data || []) as any[]).map((r) => ({ key: `f:${r.id}`, name: String(r.name || ""), alt: "", source: "fixed_cost" as const, monthly: Number(r.amount || 0), day: r.payment_day ?? null })),
+    //   고정비 표는 정기 지출과 이름이 같으면 한 번만(월별 표·자금 전망과 같은 규칙 — 같은 임차료가 두 줄로 보이던 것), 끝난 것은 뺀다
+    ...((fixed.data || []) as any[])
+      .filter((r) => r.is_recurring !== false && !(r.end_date && String(r.end_date) < from) && !((rec.data || []) as any[]).some((x) => norm(x.name) === norm(r.name)))
+      .map((r) => ({ key: `f:${r.id}`, name: String(r.name || ""), alt: "", source: "fixed_cost" as const, monthly: Number(r.amount || 0), day: r.payment_day ?? null })),
   ].filter((i) => norm(i.name).length >= 2);
   const costLines = lines.filter((l) => l.section === "cogs" || l.section === "opex");
   const bankRows = ((bank.data || []) as any[]);
@@ -141,7 +145,10 @@ export async function fetchFixedCostCompare(companyId: string, range: MonthRange
       const actual = matched.reduce((s, l) => s + pnlAmount(l), 0);
       return { key: it.key, name: it.name, source: it.source, monthly: it.monthly, expected: it.monthly * months, actual, basis: "전표" as const, day: it.day, matchedLines: matched };
     }
-    const bankHit = bankRows.filter((b) => hitTxt(norm([b.counterparty, b.description].filter(Boolean).join(" "))));
+    //   통장 출금은 비용 집계(cash-budget)와 같은 판정 — 이름·낱말 + 금액 ±10% (recurring-match)
+    const pat = buildRecurringPatterns([{ id: it.key, name: it.name, recipient_name: it.alt || null, amount: it.monthly, is_active: true }]);
+    const bankHit = bankRows.filter((b) => hitTxt(norm([b.counterparty, b.description].filter(Boolean).join(" ")))
+      || !!matchRecurring({ type: "expense", counterparty: b.counterparty, description: b.description, amount: Math.abs(Number(b.amount || 0)) }, pat, 0.1));
     const actual = bankHit.reduce((s, b) => s + Math.abs(Number(b.amount || 0)), 0);
     return { key: it.key, name: it.name, source: it.source, monthly: it.monthly, expected: it.monthly * months, actual, basis: bankHit.length ? "통장" as const : "없음" as const, day: it.day, matchedLines: [] };
   }).sort((a, b) => b.expected - a.expected);

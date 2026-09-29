@@ -4,7 +4,8 @@
 //   · 콕핏은 '전망' 갈래(날짜별 예정 곡선)가 대신하므로 뺐다(FlowTrend·FlowSchedule·CashPulseHeader 삭제, docs/REMOVED_CODE_LOG.md).
 //   · 보기 = [월별 표 · 이번 달 흐름] 칩 하나. 조회 줄 = 연도/기준 달 · 보기 설정(셀 표시) ‖ 인쇄. 결과 요약 = Stat.
 //   · KPI 카드 4장·경고 배너·타임라인·StepCard(상자 안 상자) → Stat + 얇은 판(pnl-panel + bz-kv) 로. 숫자·소스는 그대로.
-//   숫자 기준: 매출·부가세 = 세금계산서(발행), 수금 = 입금 매칭 확정, 비용 = 정기결제+카드+일회성 (통장·세금계산서 기준 — 손익 현황의 확정 전표와 다르다).
+//   숫자 기준: 매출 = 세금계산서(발행), 부가세 = lib/vat-estimate(확정 매입매출전표 — 세무 신고와 같은 값), 수금 = 입금 매칭 확정,
+//   비용 = 정기결제+카드+일회성 (통장·세금계산서 기준 — 손익 현황의 확정 전표와 다르다).
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -19,7 +20,8 @@ import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { ReportHead } from "../_components/ReportHead";
 import { ChipGroup, ConditionPanel, ConditionRow, Stat } from "@/components/query-kit";
-import { getTaxInvoiceSummary, getVATPreview, type PeriodSummary, type VATPreview } from "@/lib/tax-invoice";
+import { getTaxInvoiceSummary, type PeriodSummary } from "@/lib/tax-invoice";
+import { getVatEstimates, VAT_ESTIMATE_LABEL, VAT_ESTIMATE_BASIS, type VatEstimate } from "@/lib/vat-estimate";
 import { getMonthlyBudgetOverview, type MonthlyBudget } from "@/lib/cash-budget";
 import { getOrCreateChecklist } from "@/lib/closing";
 import { FlowMatrix, FLOW_CELL_MODES, FLOW_MODE_HINT, type FlowCellMode } from "./_components/FlowMatrix";
@@ -86,12 +88,13 @@ export default function BusinessFlowPage() {
   });
   const monthBudget = budget.find((b) => b.month === month);
   const monthNet = monthBudget ? monthBudget.incomeTotal - monthBudget.expenseTotal : 0;
-  /* ⑤ 부가세 */
-  const { data: vat = [] } = useQuery<VATPreview[]>({
-    queryKey: ["flow-vat", companyId, mYear], queryFn: () => getVATPreview(companyId!, mYear), enabled: !!companyId && view === "month", staleTime: 60_000,
+  /* ⑤ 부가세 — 월별 표·경영 요약·자금 전망·세무 신고와 같은 한 벌(lib/vat-estimate) */
+  const { data: vat = [] } = useQuery<VatEstimate[]>({
+    queryKey: ["vat-estimates", companyId, mYear], queryFn: () => getVatEstimates(companyId!, mYear), enabled: !!companyId && view === "month", staleTime: 60_000,
   });
   const quarter = `${mYear}-Q${Math.ceil(Number(month.split("-")[1]) / 3)}`;
-  const monthVat = vat.find((v) => v.quarter === quarter);
+  const monthVatRaw = vat.find((v) => v.quarter === quarter);
+  const monthVat = monthVatRaw ? { ...monthVatRaw, netVAT: monthVatRaw.payable } : undefined;
   const vatDday = useMemo(() => (monthVat?.dueDate ? Math.ceil((new Date(monthVat.dueDate).getTime() - Date.now()) / 864e5) : null), [monthVat]);
   /* ⑥ 월결산 체크리스트 */
   const { data: checklist } = useQuery({ queryKey: ["closing-checklist", companyId, month], queryFn: () => getOrCreateChecklist(companyId!, month), enabled: !!companyId && view === "month", staleTime: 60_000 });
@@ -151,11 +154,11 @@ export default function BusinessFlowPage() {
           <Stat label="순" value={won(yIn - yOut)} tone={yIn - yOut >= 0 ? "plus" : "minus"} />
           {mode !== "amount" && <Stat label="셀 표시" value={FLOW_CELL_MODES.find((m) => m.key === mode)?.label || ""} />}
         </> : <>
-          <Stat label={`${mLabel} 발행 매출`} value={won(issued)} />
+          <Stat label={`${mLabel} 발행 합계 (부가세 포함)`} value={won(issued)} />
           <Stat label="수금" value={won(got)} tone="plus" />
           <Stat label="지출" value={won(monthBudget?.expenseTotal ?? 0)} tone="minus" />
           <Stat label="순 흐름" value={won(monthNet)} tone={monthNet >= 0 ? "plus" : "minus"} />
-          <Stat label={`부가세 예상 (${quarter.split("-")[1]})`} value={won(monthVat?.netVAT ?? 0)} />
+          <Stat label={`${VAT_ESTIMATE_LABEL} (${monthVat?.periodLabel ?? quarter.split("-")[1]})`} title={VAT_ESTIMATE_BASIS} value={won(monthVat?.netVAT ?? 0)} />
         </>}
       />
 
@@ -169,7 +172,7 @@ export default function BusinessFlowPage() {
               <ul className="ol-gaps">
                 {(receivable?.over30 ?? 0) > 0 && <li><span>30일 넘은 미수금 <b className="mono-number bz-minus">{won(receivable!.over30)}</b> · 거래처 원장에서 확인·독촉</span><Link href="/partners/ledger" className="bz-link">원장 →</Link></li>}
                 {gap > 0 && <li><span>{mLabel} 발행액 중 <b className="mono-number">{won(gap)}</b>  아직 수금 확인 안 됨. 입금 매칭으로 확정</span><Link href="/collect?tab=bank" className="bz-link">수집·전표 →</Link></li>}
-                {vatDday !== null && vatDday <= 30 && (monthVat?.netVAT ?? 0) > 0 && <li><span>부가세 신고 D-{vatDday} ({monthVat!.dueDate}). 예상 납부  <b className="mono-number">{won(monthVat!.netVAT)}</b></span><Link href="/reports/vat" className="bz-link">부가세 →</Link></li>}
+                {vatDday !== null && vatDday <= 30 && (monthVat?.netVAT ?? 0) > 0 && <li><span>부가세 신고 D-{vatDday} ({monthVat!.dueDate}). {VAT_ESTIMATE_LABEL}  <b className="mono-number">{won(monthVat!.netVAT)}</b> ({VAT_ESTIMATE_BASIS}{monthVat!.unpostedInvoices > 0 ? ` · 전표 없는 세금계산서 ${monthVat!.unpostedInvoices}건 제외` : ""})</span><Link href={`/finance/tax-filing?tab=vat&year=${monthVat!.year}&period=${monthVat!.key}`} className="bz-link">세무 신고 →</Link></li>}
               </ul>
             </section>
           )}
@@ -198,7 +201,7 @@ export default function BusinessFlowPage() {
             <Panel no={5} title="손익 · 세금" links={[{ href: "/reports/pnl", label: "손익계산서" }, { href: "/reports/vat", label: "부가세" }]}>
               <KV k="수입 합계 (자금 기준)" v={num(monthBudget?.incomeTotal ?? 0)} />
               <KV k="이번 달 순흐름" v={num(monthNet)} tone={monthNet >= 0 ? "plus" : "minus"} />
-              <KV k={`부가세 예상 (${quarter.split("-")[1]})`} v={num(monthVat?.netVAT ?? 0)} />
+              <KV k={`${VAT_ESTIMATE_LABEL} (${monthVat?.periodLabel ?? quarter.split("-")[1]} · 전표 기준)`} v={num(monthVat?.netVAT ?? 0)} />
               {vatDday !== null && <KV k="신고 기한" v={vatDday >= 0 ? `${monthVat!.dueDate} (D-${vatDday})` : monthVat!.dueDate} tone={vatDday >= 0 && vatDday <= 30 ? "minus" : undefined} />}
             </Panel>
             <Panel no={6} title="결산" links={[{ href: "/dashboard", label: "월결산 체크리스트" }]}>

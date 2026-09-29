@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { fetchPagedRes } from "@/lib/fetch-paged";
 import { getCashPulseData } from "@/lib/queries";
 import { buildCashPulse } from "@/lib/cash-pulse";
-import { getVATPreview } from "@/lib/tax-invoice";
+import { getVatEstimatesAround, VAT_ESTIMATE_LABEL, VAT_ESTIMATE_BASIS } from "@/lib/vat-estimate";
 import { getLoanStatuses } from "@/lib/cash-budget";
 import { fetchReceivables } from "@/lib/pnl-status";
 import { todayKst, addDaysStr, daysBetweenStr } from "@/lib/kst";
@@ -34,6 +34,8 @@ export const scenarioActive = (s: Scenario) => s.spendPct !== 0 || s.delayDays !
 
 export type OutlookData = {
   today: string; balance: number; burn: number; hasBank: boolean;
+  /** 자금 운용 가능 기간(개월) — CashPulseResult.runwayMonths 그대로. 기간(30/90/180일) 선택과 무관한 앱 전체의 단일 값 */
+  runwayMonths: number;
   items: OutlookItem[];      // 오늘 ~ 오늘+days, 날짜순
   arOver30: number; arOver30Partners: number;
   //   suggest: 이력으로 값을 제안할 수 있는 줄(결제조건·급여일) — 화면이 「이력으로 제안 보기」를 붙인다 (lib/cash-outlook-suggest.ts)
@@ -57,16 +59,17 @@ function monthlyDates(today: string, days: number, day: number): string[] {
 }
 const norm = (s: string) => String(s || "").toLowerCase().replace(/\s+/g, "");
 
-export async function fetchOutlook(companyId: string, days: number, userId?: string): Promise<OutlookData> {
+export async function fetchOutlook(companyId: string, days: number, userId?: string, pre?: { pulseRaw?: Awaited<ReturnType<typeof getCashPulseData>> }): Promise<OutlookData> {
   const today = todayKst();
   const end = addDays(today, days);
   const year = Number(today.slice(0, 4));
   const [pulseRaw, ti, fixed, recur, vat, loans, revSched, costSched, pq, recv, cs, ptTerms, billing] = await Promise.all([
-    getCashPulseData(companyId, userId),
+    //   경영 요약처럼 이미 읽어 온 곳은 넘겨 준다 — 같은 조회를 두 번 하지 않게
+    pre?.pulseRaw !== undefined ? Promise.resolve(pre.pulseRaw) : getCashPulseData(companyId, userId),
     fetchPagedRes<any>("cash-outlook:ti", () => supabase.from("tax_invoices").select("id, type, partner_id, counterparty_name, total_amount, settled_amount, issue_date, status").eq("company_id", companyId).not("status", "in", "(void,draft,cancelled)").gte("issue_date", addDays(today, -180)).order("id"), 50000),
     supabase.from("fixed_costs").select("id, name, amount, payment_day, is_recurring, end_date").eq("company_id", companyId),
     supabase.from("recurring_payments").select("id, name, amount, day_of_month, is_active").eq("company_id", companyId).eq("is_active", true),
-    Promise.all([getVATPreview(companyId, year - 1), getVATPreview(companyId, year)]).then(([a, b]) => [...a, ...b]),
+    getVatEstimatesAround(companyId, year),
     getLoanStatuses(companyId),
     supabase.from("deal_revenue_schedule").select("id, amount, due_date, status, label, deals!inner(company_id, name)").eq("deals.company_id", companyId),
     supabase.from("deal_cost_schedule").select("id, amount, due_date, status, deal_nodes!inner(deal_id, name, deals!inner(company_id))").eq("deal_nodes.deals.company_id", companyId),
@@ -81,6 +84,7 @@ export async function fetchOutlook(companyId: string, days: number, userId?: str
   const pulse = pulseRaw ? buildCashPulse(pulseRaw) : null;
   const balance = pulse?.currentBalance ?? 0;
   const burn = pulse?.monthlyBurn ?? 0;
+  const runwayMonths = pulse?.runwayMonths ?? 0;
   const hasBank = (pulseRaw?.bankBalances?.length ?? 0) > 0;
   const items: OutlookItem[] = [];
   const gaps: OutlookData["gaps"] = [];
@@ -122,10 +126,14 @@ export async function fetchOutlook(companyId: string, days: number, userId?: str
     if (l.repaymentType === "bullet" && l.monthlyPayment > 0) for (const d of monthlyDates(today, days, l.interestDay || l.paymentDay || 5)) { if (!l.maturityDate || d <= l.maturityDate) items.push({ id: `loani:${l.id}:${d}`, date: d, label: `${l.name} 이자`, kind: "대출 상환", amount: -Number(l.monthlyPayment || 0), basis: "만기일시상환 · 월 이자(잔액×이율÷12)", sure: "예상", href: "/loans" } as any); }
   }
 
-  // 부가세 (예상)
+  // 부가세 (예상) — lib/vat-estimate 한 벌(신고서 준비와 같은 확정 매입매출전표 기준)
   //   납부(+)는 나가는 돈, 환급(−)은 들어오는 돈 — 둘 다 예상
-  for (const v of vat) if (within(v.dueDate) && Math.abs(v.netVAT) > 0) items.push({ id: `vat:${v.dueDate}`, date: v.dueDate, label: `부가세 ${v.quarter} ${v.netVAT > 0 ? "납부" : "환급"}`, kind: "세금", amount: -Math.round(v.netVAT), basis: "매입매출전표 예상", sure: "추정", href: "/reports/vat" });
-  if (vat.some((v) => within(v.dueDate) && Math.abs(v.netVAT) > 0)) gaps.push({ key: "vat", text: "부가세는 전표 기준 예상액입니다. 신고 확정 금액과 차이가 날 수 있습니다", href: "/reports/vat" });
+  const vatIn = vat.filter((v) => within(v.dueDate) && Math.abs(v.payable) > 0);
+  for (const v of vatIn) items.push({ id: `vat:${v.dueDate}`, date: v.dueDate, label: `부가세 ${v.year}년 ${v.periodLabel} ${v.payable > 0 ? "납부" : "환급"} 예상`, kind: "세금", amount: -v.payable, basis: `${VAT_ESTIMATE_LABEL} · ${VAT_ESTIMATE_BASIS}`, sure: "추정", href: `/finance/tax-filing?tab=vat&year=${v.year}&period=${v.key}` });
+  if (vatIn.length) {
+    const miss = vatIn.reduce((s, v) => s + v.unpostedInvoices, 0);
+    gaps.push({ key: "vat", text: `부가세는 ${VAT_ESTIMATE_BASIS} 예상액입니다${miss > 0 ? `. 전표로 옮기지 않은 세금계산서 ${miss}건은 빠져 있어 실제 납부액과 차이가 날 수 있습니다` : ". 신고 확정 금액과 차이가 날 수 있습니다"}`, href: miss > 0 ? "/collect?tab=evidence" : "/finance/tax-filing?tab=vat", ...(miss > 0 ? { count: miss } : {}) });
+  }
 
   // 세금계산서 — 미정산 잔액. 만기는 **거래처 결제조건**(발행 후 며칠)을 쓰고, 없으면 30일로 가정한다.
   //   건건이 만기를 받지 않는 이유: 실무에서 만기는 거래처와 맺은 조건이지 계산서마다 정하는 값이 아니다.
@@ -188,7 +196,7 @@ export async function fetchOutlook(companyId: string, days: number, userId?: str
   if (recv.over30 > 0) gaps.push({ key: "ar30", text: `30일 초과 미수금 ${recv.over30Partners}곳 ${Math.round(recv.over30 / 10000).toLocaleString()}만원은 잔액 추이에서 제외했습니다. 시나리오 '미수 회수율'로 반영할 수 있습니다`, href: "/partners/ledger" });
 
   items.sort((a, b) => a.date.localeCompare(b.date) || b.amount - a.amount);
-  return { today, balance, burn, hasBank, items, arOver30: recv.over30, arOver30Partners: recv.over30Partners, gaps };
+  return { today, balance, burn, runwayMonths, hasBank, items, arOver30: recv.over30, arOver30Partners: recv.over30Partners, gaps };
 }
 
 /** 예정 항목 → 날짜별 잔액. 시나리오를 주면 항목을 바꿔서(복사) 그린다 */
@@ -233,7 +241,8 @@ export function weekBuckets(curve: Curve): { start: string; inflow: number; outf
   return out;
 }
 
-/** 운영 가능 개월 — 곡선 기준: 부족 시점이 있으면 거기까지, 없으면 기간 평균 소진 속도로 늘려 본다 */
+/** 예정 반영 소진 추정(개월) — 곡선 기준: 부족 시점이 있으면 거기까지, 없으면 그 기간 평균 소진 속도로 늘려 본다.
+ *  고른 기간(30/90/180일)에 따라 값이 달라지는 비교용 지표다. '자금 운용 가능 기간'(OutlookData.runwayMonths)과 섞어 부르지 않는다. */
 export function runwayFromCurve(curve: Curve, days: number): number {
   if (curve.shortfall) return Math.round((curve.shortfall.day / 30) * 10) / 10;
   const start = curve.points[0].balance; const spent = start - curve.end;

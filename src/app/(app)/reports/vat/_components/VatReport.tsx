@@ -58,7 +58,7 @@ export function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeduc
                 <th className="th-cell text-center">매입 건수</th>
                 <th className="th-cell text-center">매입 공급가</th>
                 <th className="th-cell text-center">매입 세액</th>
-                <th className="th-cell text-center">VAT 납부</th>
+                <th className="th-cell text-center" title="세금계산서만의 매출세액 − 매입세액. 납부 예상은 부가세 예상 탭(전표 기준)">세액 차 (계산서만)</th>
               </tr>
             </thead>
             <tbody>
@@ -213,15 +213,19 @@ export function VatByVoucherType({ companyId, year }: { companyId: string | null
 }
 
 // ── VAT Preview Tab ──
-export function VATPreviewTab({ vatPreview, cardDeductions }: any) {
+//   '납부 예상'은 앱 전체가 lib/vat-estimate(확정 매입매출전표) 한 값을 쓴다 — 세무 신고·경영 요약·자금 전망·월별 흐름과 같다.
+//   여기 원본 자료(세금계산서 + 현금영수증 − 카드 공제 추정) 숫자는 전표로 옮기기 전 자료와 대조하는 참고값이라 이름을 달리 붙인다.
+export function VATPreviewTab({ vatPreview, cardDeductions, estimates = [] }: any) {
   const totalVAT = vatPreview.reduce((s: number, v: any) => s + v.netVAT, 0);
+  const estOf = (quarter: string) => (estimates as any[]).find((e) => e.quarter === quarter);
+  const totalEst = (estimates as any[]).reduce((s: number, e: any) => s + Number(e.payable || 0), 0);
 
   return (
     <div className="tax-invoice-vat-preview-tab">
       <div className="glass-card p-5 mb-6">
         <div className="text-xs text-[var(--text-muted)] leading-relaxed">
-          <strong className="text-[var(--text)]">VAT 미리보기</strong>: 분기별 부가가치세 납부/환급 예상액입니다.
-          매출세액(세금계산서 + 현금영수증 발행분) - 매입세액 - 카드매입세액공제 = 최종 납부세액
+          <strong className="text-[var(--text)]">원본 자료 대조</strong>: <b>납부 예상</b>은 확정 매입매출전표 기준(세무 신고 › 부가세와 같은 값)입니다.
+          옆의 원본 기준 = 매출세액(세금계산서 + 현금영수증 발행분) − 매입세액 − 카드 공제 추정은 전표로 옮기기 전 자료로 본 참고값이고, 둘의 차이만큼이 아직 전표로 안 옮긴 자료입니다.
         </div>
       </div>
 
@@ -236,11 +240,11 @@ export function VATPreviewTab({ vatPreview, cardDeductions }: any) {
           <div className="text-base sm:text-xl font-black mono-number truncate text-orange-500">₩{vatPreview.reduce((s: number, v: any) => s + v.purchaseTax + v.cardDeduction, 0).toLocaleString()}</div>
         </div>
         <div className="glass-card p-5">
-          <div className="text-xs text-[var(--text-dim)] mb-1">연간 예상 납부세액</div>
+          <div className="text-xs text-[var(--text-dim)] mb-1">연간 원본 기준 차감액 (참고)</div>
           <div className={`text-base sm:text-xl font-black mono-number truncate ${totalVAT >= 0 ? "text-[var(--primary)]" : "text-red-400"}`}>
             ₩{totalVAT.toLocaleString()}
           </div>
-          <div className="text-xs text-[var(--text-muted)] mt-1">{totalVAT >= 0 ? "납부" : "환급"}</div>
+          <div className="text-xs text-[var(--text-muted)] mt-1">납부 예상(전표 기준) 연간 ₩{Math.round(totalEst).toLocaleString()}</div>
         </div>
       </div>
 
@@ -248,8 +252,8 @@ export function VATPreviewTab({ vatPreview, cardDeductions }: any) {
           그림으로 옮긴 것. 무엇이 얼마를 깎는지는 막대 여럿으로는 안 보인다 (2026-08-07) */}
       <div className="glass-card p-5 mb-6">
         <div className="mb-3">
-          <h3 className="text-sm font-bold text-[var(--text)]">부가세 구조</h3>
-          <p className="mt-0.5 text-[10px] text-[var(--text-dim)]">올해 합계 · 매출세액에서 무엇이 빠져 납부세액이 남는지</p>
+          <h3 className="text-sm font-bold text-[var(--text)]">부가세 구조 (원본 자료 기준)</h3>
+          <p className="mt-0.5 text-[10px] text-[var(--text-dim)]">올해 합계 · 원본 자료의 매출세액에서 무엇이 빠지는지 · 납부 예상(전표 기준)과 다를 수 있습니다</p>
         </div>
         {(() => {
           const sales = vatPreview.reduce((n: number, v: any) => n + (v.salesTax || 0), 0);
@@ -263,7 +267,7 @@ export function VATPreviewTab({ vatPreview, cardDeductions }: any) {
               { label: "매출세액", value: sales, kind: "add" },
               { label: "매입세액", value: purchase, kind: "sub" },
               { label: "카드공제", value: card, kind: "sub" },
-              { label: totalVAT >= 0 ? "납부세액" : "환급세액", value: Math.abs(sales - purchase - card), kind: "total" },
+              { label: totalVAT >= 0 ? "원본 기준 차감액" : "원본 기준 환급", value: Math.abs(sales - purchase - card), kind: "total" },
             ]} />
           );
         })()}
@@ -278,7 +282,8 @@ export function VATPreviewTab({ vatPreview, cardDeductions }: any) {
               <th className="th-cell text-center">매출세액</th>
               <th className="th-cell text-center">매입세액</th>
               <th className="th-cell text-center">카드공제</th>
-              <th className="th-cell text-center">납부세액</th>
+              <th className="th-cell text-center">원본 기준 (참고)</th>
+              <th className="th-cell text-center">납부 예상 (전표 기준)</th>
               <th className="th-cell text-center">납부기한</th>
               <th className="th-cell text-center">상태</th>
             </tr>
@@ -296,6 +301,11 @@ export function VATPreviewTab({ vatPreview, cardDeductions }: any) {
                   <td className={`px-5 py-3 text-sm text-right font-bold ${v.netVAT >= 0 ? "text-[var(--text)]" : "text-red-400"}`}>
                     ₩{v.netVAT.toLocaleString()}
                   </td>
+                  {(() => { const e = estOf(v.quarter); return (
+                    <td className="px-5 py-3 text-sm text-right font-bold" title={e?.unpostedInvoices ? `전표 없는 세금계산서 ${e.unpostedInvoices}건은 빠져 있습니다` : undefined}>
+                      {e ? `₩${Math.round(e.payable).toLocaleString()}` : "—"}
+                    </td>
+                  ); })()}
                   <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{v.dueDate}</td>
                   <td className="px-5 py-3 text-center">
                     <span className={`text-xs px-2 py-0.5 rounded-full ${

@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import { getVATPreview, getTaxInvoiceSummary, type PeriodType } from "@/lib/tax-invoice";
 import { getCardDeductionSummary } from "@/lib/card-transactions";
+import { getVatEstimates } from "@/lib/vat-estimate";
 import { todayKst } from "@/lib/kst";
 import { SummaryTab, VatByVoucherType, VATPreviewTab, VatEvidenceCheck } from "./_components/VatReport";
 
@@ -40,6 +41,12 @@ export default function VatReportPage() {
   const { data: vatPreview = [] } = useQuery({
     queryKey: ["vat-preview", companyId, year],
     queryFn: () => getVATPreview(companyId!, year),
+    enabled: !!companyId && tab === "vat",
+  });
+  //   납부 예상 — 앱 전체 한 벌(확정 매입매출전표 기준)
+  const { data: vatEstimates = [] } = useQuery({
+    queryKey: ["vat-estimates", companyId, year],
+    queryFn: () => getVatEstimates(companyId!, year),
     enabled: !!companyId && tab === "vat",
   });
   const { data: periodSummary = [] } = useQuery({
@@ -84,7 +91,7 @@ export default function VatReportPage() {
         <>
           <VatEvidenceCheck companyId={companyId} year={year} />
           <VatByVoucherType companyId={companyId} year={year} />
-          <VATPreviewTab vatPreview={vatPreview} cardDeductions={cardDeductions} />
+          <VATPreviewTab vatPreview={vatPreview} cardDeductions={cardDeductions} estimates={vatEstimates} />
         </>
       )}
     </div>

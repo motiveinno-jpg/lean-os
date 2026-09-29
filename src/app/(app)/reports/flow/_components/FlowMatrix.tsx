@@ -1,14 +1,16 @@
 "use client";
 
 // 경영흐름 — 월별 자금예산현황 매트릭스 (1년치, 엑셀 ▶자금예산현황 자동판) P3b §4-2.
-//   행=지표(수입 비목 / 지출 고정·변동 / 부가세 / 순이익·영업이익률·자금수지누적·통장월말잔액·차액·BEP), 열=월.
+//   행=지표(수입 비목 / 지출 고정·변동 / 부가세 / 수지·수지율·자금수지누적·통장월말잔액·BEP), 열=월.
 //   셀 모드 토글: 금액 / 전월대비 / 전년동월(YoY) / 누계(YTD) / 구성비. 과거=실적·미래=예측 배지.
-//   소스: getMonthlyBudgetOverview(과거+YoY), getTaxInvoiceSummary 분기(부가세). 비목 중립.
+//   소스: getMonthlyBudgetOverview(과거+YoY), lib/vat-estimate(부가세 — 세무 신고·경영 요약·자금 전망과 같은 값). 비목 중립.
+//   '순이익'·'영업이익률'이라 부르던 행은 수지·수지율로 바꿨다 — 여기 숫자는 통장·세금계산서 기준 수입−지출이라
+//   손익(확정 전표)의 영업이익률과 같은 이름을 쓰면 서로 다른 값이 같은 이름으로 보인다.
 
 import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getMonthlyBudgetOverview, type MonthlyBudget } from "@/lib/cash-budget";
-import { getTaxInvoiceSummary } from "@/lib/tax-invoice";
+import { getVatEstimates, VAT_ESTIMATE_LABEL, VAT_ESTIMATE_BASIS } from "@/lib/vat-estimate";
 import { MetricInfo } from "./MetricInfo";
 import { CellDetail } from "./CellDetail";
 import { RECORD_BACKED_KEYS, type BudgetDetailItem } from "@/lib/budget-detail";
@@ -37,7 +39,7 @@ const fmtCell = (n: number | null, fmt: "won" | "pct") => {
   return `${sign}${won(Math.abs(n))}`;
 };
 
-const EMPTY_B = (month: string): MonthlyBudget => ({ month, incomeTotal: 0, bankBalance: 0, salesRevenue: 0, subsidies: 0, ownerInjection: 0, otherIncome: 0, expenseTotal: 0, fixedCosts: 0, variableCosts: 0, netProfit: 0 });
+const EMPTY_B = (month: string): MonthlyBudget => ({ month, incomeTotal: 0, bankBalance: null, salesRevenue: 0, subsidies: 0, ownerInjection: 0, otherIncome: 0, expenseTotal: 0, fixedCosts: 0, variableCosts: 0, netProfit: 0 });
 
 type Row = {
   key: string; label: string; fmt: "won" | "pct"; section: "income" | "expense" | "vat" | "summary";
@@ -53,7 +55,7 @@ const cmRate = (b: MonthlyBudget) => { const s = Number(b.salesRevenue || 0); re
 
 const ROWS: Row[] = [
   { key: "incomeTotal", label: "수입 총액", fmt: "won", section: "income", strong: true, get: (b) => b.incomeTotal },
-  { key: "salesRevenue", label: "매출", fmt: "won", section: "income", indent: true, get: (b) => b.salesRevenue, ratioBase: (b) => b.incomeTotal },
+  { key: "salesRevenue", label: "매출 (공급가액)", fmt: "won", section: "income", indent: true, get: (b) => b.salesRevenue, ratioBase: (b) => b.incomeTotal },
   { key: "subsidies", label: "보조금/지원금", fmt: "won", section: "income", indent: true, get: (b) => b.subsidies, ratioBase: (b) => b.incomeTotal },
   { key: "ownerInjection", label: "대표 가수금", fmt: "won", section: "income", indent: true, get: (b) => b.ownerInjection, ratioBase: (b) => b.incomeTotal },
   { key: "otherIncome", label: "기타 수입", fmt: "won", section: "income", indent: true, get: (b) => b.otherIncome, ratioBase: (b) => b.incomeTotal },
@@ -62,13 +64,14 @@ const ROWS: Row[] = [
   { key: "fixedCosts", label: "고정비", fmt: "won", section: "expense", indent: true, get: (b) => b.fixedCosts, ratioBase: (b) => b.expenseTotal },
   { key: "variableCosts", label: "변동비", fmt: "won", section: "expense", indent: true, get: (b) => b.variableCosts, ratioBase: (b) => b.expenseTotal },
 
-  { key: "vat", label: "부가세 (분기 신고)", fmt: "won", section: "vat", noCompare: true, get: () => null },
+  { key: "vat", label: `${VAT_ESTIMATE_LABEL} (분기)`, fmt: "won", section: "vat", noCompare: true, get: () => null },
 
-  { key: "netProfit", label: "순이익 (수입−지출)", fmt: "won", section: "summary", strong: true, get: (b) => monthNet(b) },
-  { key: "opMargin", label: "영업이익률", fmt: "pct", section: "summary", noCompare: true, get: (b) => { const i = Number(b.incomeTotal || 0); return i > 0 ? (monthNet(b) / i) * 100 : null; } },
+  { key: "netProfit", label: "수지 (수입−지출)", fmt: "won", section: "summary", strong: true, get: (b) => monthNet(b) },
+  { key: "opMargin", label: "수지율 (수지÷수입)", fmt: "pct", section: "summary", noCompare: true, get: (b) => { const i = Number(b.incomeTotal || 0); return i > 0 ? (monthNet(b) / i) * 100 : null; } },
   { key: "cumNet", label: "자금수지 누적 (YTD)", fmt: "won", section: "summary", noCompare: true, get: () => null }, // 별도 누적 계산
-  { key: "bankBalance", label: "통장 월말잔액", fmt: "won", section: "summary", strong: true, get: (b) => b.bankBalance },
-  { key: "gap", label: "누적순익 − 통장 차액", fmt: "won", section: "summary", noCompare: true, get: () => null }, // 별도
+  //   월말 잔액은 거래 이력으로 거꾸로 구한 값 — 근거가 없는 달(수집 전·미래)은 비운다(get 이 null)
+  //   '누적순익 − 통장 차액' 행은 뺐다: 연초부터 쌓은 수지와 통장 잔액(연초 잔액 포함)을 빼면 연초 잔액만큼 늘 어긋나 뜻이 없었다.
+  { key: "bankBalance", label: "통장 월말잔액 (역산)", fmt: "won", section: "summary", strong: true, get: (b) => b.bankBalance },
   { key: "bep", label: "손익분기점(BEP) 매출", fmt: "won", section: "summary", noCompare: true, get: (b) => { const r = cmRate(b); return r > 0 ? Number(b.fixedCosts || 0) / r : null; } },
   { key: "bepRate", label: "BEP 달성률", fmt: "pct", section: "summary", noCompare: true, get: (b) => { const r = cmRate(b); if (r <= 0) return null; const bep = Number(b.fixedCosts || 0) / r; return bep > 0 ? (Number(b.salesRevenue || 0) / bep) * 100 : null; } },
 ];
@@ -99,9 +102,15 @@ export function FlowMatrix({ companyId, currentMonth, year: yearProp, mode: mode
     queryFn: () => getMonthlyBudgetOverview(companyId, year - 1),
     enabled: !!companyId && mode === "yoy", staleTime: 60_000,
   });
-  const { data: quarterly = [] } = useQuery({
-    queryKey: ["flow-matrix-vat", companyId, year],
-    queryFn: () => getTaxInvoiceSummary(companyId, year, "quarterly"),
+  //   부가세 — 올해 1·2·3분기는 4·7·10월, 1월은 전년 4분기(2기 확정)
+  const { data: vatEst = [] } = useQuery({
+    queryKey: ["vat-estimates", companyId, year],
+    queryFn: () => getVatEstimates(companyId, year),
+    enabled: !!companyId, staleTime: 60_000,
+  });
+  const { data: vatEstPrev = [] } = useQuery({
+    queryKey: ["vat-estimates", companyId, year - 1],
+    queryFn: () => getVatEstimates(companyId, year - 1),
     enabled: !!companyId, staleTime: 60_000,
   });
 
@@ -118,16 +127,19 @@ export function FlowMatrix({ companyId, currentMonth, year: yearProp, mode: mode
     return m;
   }, [prevBudget]);
 
-  // 부가세: 분기 netVAT(매출세액−매입세액)을 신고월에 배치 (예정 4·10 / 확정 7·익1[전년Q4를 1월])
+  // 부가세: 분기 납부 예상(lib/vat-estimate)을 신고월에 배치 (예정 4·10 / 확정 7·익1 — 1월은 전년 4분기)
+  const vatAt = useMemo(() => {
+    const m: Record<number, (typeof vatEst)[number] | undefined> = {
+      4: vatEst.find((v) => v.key === "1p"), 7: vatEst.find((v) => v.key === "1c"), 10: vatEst.find((v) => v.key === "2p"),
+      1: vatEstPrev.find((v) => v.key === "2c"),
+    };
+    return m;
+  }, [vatEst, vatEstPrev]);
   const vatByMonth = useMemo(() => {
-    const q: Record<string, number> = {};
-    for (const r of quarterly as any[]) {
-      const net = Number(r.salesTax || 0) - Number(r.purchaseTax || 0);
-      q[r.quarter || r.period || ""] = net;
-    }
-    const pick = (suffix: string) => q[`${year}-${suffix}`] ?? 0;
-    return { 4: pick("Q1"), 7: pick("Q2"), 10: pick("Q3"), 1: pick("Q4") } as Record<number, number>;
-  }, [quarterly, year]);
+    const out: Record<number, number> = {};
+    for (const [mo, v] of Object.entries(vatAt)) if (v) out[Number(mo)] = v.payable;
+    return out;
+  }, [vatAt]);
 
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
   const ctx: RowCtx = { vatByMonth };
@@ -143,7 +155,6 @@ export function FlowMatrix({ companyId, currentMonth, year: yearProp, mode: mode
     const b = byMonth[mo];
     if (row.key === "vat") return vatByMonth[mo] || null;
     if (row.key === "cumNet") return cumNetByMonth[mo];
-    if (row.key === "gap") return Number(b.bankBalance || 0) - cumNetByMonth[mo];
 
     const base = row.get(b, ctx);
     if (base == null) return null;
@@ -182,17 +193,13 @@ export function FlowMatrix({ companyId, currentMonth, year: yearProp, mode: mode
       for (let i = 1; i <= mo; i++) items.push({ label: `${i}월 순이익`, amount: monthNet(byMonth[i]) });
       return { items };
     }
-    if (rowKey === "gap") return { items: [
-      { label: "통장 월말잔액", amount: Number(b.bankBalance || 0) },
-      { label: "누적순익", amount: -cumNetByMonth[mo] },
-    ] };
     if (rowKey === "vat") {
-      const qMap: Record<number, string> = { 4: "Q1", 7: "Q2", 10: "Q3", 1: "Q4" };
-      const q = qMap[mo];
-      if (!q) return null;
-      const r = (quarterly as any[]).find((x) => (x.quarter || x.period) === `${year}-${q}`);
-      const s = Number(r?.salesTax || 0), p = Number(r?.purchaseTax || 0);
-      return { items: [{ label: "매출세액", amount: s }, { label: "매입세액", amount: -p }], note: `${q} 매출세액 − 매입세액 = 순부가세` };
+      const v = vatAt[mo];
+      if (!v) return null;
+      return {
+        items: [{ label: "매출세액", amount: v.salesVat }, { label: "공제 매입세액", amount: -v.deductibleVat }],
+        note: `${v.year}년 ${v.periodLabel} (${v.from} ~ ${v.to}) · ${VAT_ESTIMATE_BASIS} · 기한 ${v.dueDate}${v.unpostedInvoices > 0 ? ` · 전표 없는 세금계산서 ${v.unpostedInvoices}건은 빠져 있습니다` : ""}`,
+      };
     }
     if (rowKey === "bep") {
       const r = cmRate(b);
@@ -286,7 +293,8 @@ export function FlowMatrix({ companyId, currentMonth, year: yearProp, mode: mode
         </div>
         <div className="flow-matrix-legend">
           <span className="inline-block px-1.5 py-0.5 rounded-full bg-[var(--success)]/12 text-[var(--success)] font-bold mr-1">실적</span> 과거 월=자동집계(다른 화면과 동일 소스) ·
-          <span className="inline-block px-1.5 py-0.5 rounded-full bg-[var(--warning)]/12 text-[var(--warning)] font-bold mx-1">예측</span> 미래 월=예산/예측. 부가세=분기 매출세액−매입세액을 신고월(4·7·10·익1)에 표기.
+          <span className="inline-block px-1.5 py-0.5 rounded-full bg-[var(--warning)]/12 text-[var(--warning)] font-bold mx-1">예측</span> 미래 월=예산/예측. 매출=공급가액. 부가세=분기 {VAT_ESTIMATE_LABEL}({VAT_ESTIMATE_BASIS}, 세무 신고와 같은 값)을 신고월(1·4·7·10)에 표기.
+          통장 월말잔액=현재 잔액에서 그 뒤 통장 입출금을 거꾸로 뺀 값(통장 거래 수집 전·미래 달은 비움).
           금액 모드에서 셀을 클릭하면 구성 내역이 열립니다.
         </div>
       </div>
