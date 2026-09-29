@@ -454,7 +454,6 @@ export async function sendPayslipEmails(
         periodLabel: monthLabel,
         department: emp.department || undefined,
         position: emp.position || undefined,
-        employeeCode: emp.id ? String(emp.id).slice(-4).toUpperCase() : undefined,
         birthDate: emp.birth_date || undefined,
         password,
       });

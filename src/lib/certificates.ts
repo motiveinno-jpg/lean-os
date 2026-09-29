@@ -10,6 +10,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { supabase } from '@/lib/supabase';
 import { logAudit } from './audit';
+import { tenureBetween, formatTenure } from './tenure';
 import { loadKoreanFont, setKoreanFont } from './pdf-korean-font';
 
 /** jsPDF에 한글 폰트를 등록하고 설정 (NanumGothic CDN 로드) */
@@ -618,28 +619,9 @@ function formatKoreanDate(date: Date): string {
 }
 
 /** 재직기간/경력기간 계산 */
+//   근속 — 직원 상세·구성원 목록·퇴직금과 같은 계산(lib/tenure). 1년 이상이면 일수 생략
 function calculateTenure(from: Date, to: Date): string {
-  let years = to.getFullYear() - from.getFullYear();
-  let months = to.getMonth() - from.getMonth();
-  let days = to.getDate() - from.getDate();
-
-  if (days < 0) {
-    months -= 1;
-    // 이전 달의 마지막 일
-    const prevMonth = new Date(to.getFullYear(), to.getMonth(), 0);
-    days += prevMonth.getDate();
-  }
-  if (months < 0) {
-    years -= 1;
-    months += 12;
-  }
-
-  const parts: string[] = [];
-  if (years > 0) parts.push(`${years}년`);
-  if (months > 0) parts.push(`${months}개월`);
-  if (days > 0 && years === 0) parts.push(`${days}일`); // 1년 이상이면 일수 생략
-
-  return parts.length > 0 ? parts.join(' ') : '0일';
+  return formatTenure(tenureBetween(from, to), 'under-year');
 }
 
 /** 이미지 URL을 data URL로 변환 */

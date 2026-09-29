@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { todayKst } from "@/lib/kst";
+import { tenureBetween, formatTenure } from "@/lib/tenure";
 import { DateField } from "@/components/date-field";
 import { fetchRetirementEstimates, makeRetirementVoucherDraft, buildSettlement, type Settlement } from "@/lib/retirement";
 
@@ -41,7 +42,7 @@ export function RetirementDialog({ companyId, onClose }: { companyId: string; on
                 <tr key={r.employee_id}>
                   <td className="text-left"><b>{r.name}</b></td>
                   <td className="mono-number">{r.hire_date}</td>
-                  <td className="tr mono-number">{r.total_days >= 365 ? `${Math.floor(r.total_days / 365)}년 ${Math.floor((r.total_days % 365) / 30)}개월` : <span className="ev-dim">{r.total_days}일 (1년 미만)</span>}</td>
+                  <td className="tr mono-number" title={`재직일수 ${r.total_days}일(입사일~기준일 포함)`}>{r.total_days >= 365 ? formatTenure(tenureBetween(r.hire_date, asof)) : <span className="ev-dim">{r.total_days}일 (1년 미만)</span>}</td>
                   <td className="tr mono-number">₩{won(r.daily_wage)}</td>
                   <td className="tr mono-number"><b>₩{won(r.estimate)}</b></td>
                   <td className="tr mono-number ev-dim">{r.manual ? `₩${won(r.manual)}` : "—"}</td>

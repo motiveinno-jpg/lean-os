@@ -21,7 +21,7 @@ export interface PayslipParams {
   department?: string;
   position?: string;
   paymentDate?: string;
-  /** 사원코드 — 회계 프로그램 호환 양식의 좌상단 사원코드 */
+  /** 사원코드 — 회계 프로그램 호환 양식의 좌상단 사원코드. 비우면 item.employeeNumber(사번), 사번도 없으면 '-' */
   employeeCode?: string;
   /** 생년월일 YYYY-MM-DD */
   birthDate?: string;
@@ -132,7 +132,8 @@ export async function generatePayslipPDF(params: PayslipParams): Promise<jsPDF> 
     body: [
       [
         { content: '· 사원코드', styles: { fontStyle: 'bold', fillColor: [255, 255, 255] } },
-        employeeCode || '-',
+        //   사번(employees.employee_number). 내부 ID 조각은 실제 사번처럼 보여 쓰지 않는다
+        employeeCode || item.employeeNumber || '-',
         { content: '· 사원명', styles: { fontStyle: 'bold', fillColor: [255, 255, 255] } },
         item.employeeName,
         { content: '· 생년월일', styles: { fontStyle: 'bold', fillColor: [255, 255, 255] } },

@@ -76,7 +76,7 @@ export function AppointmentsSection({ employeeId, companyId, emp, userId }: { em
         <button type="button" className="btn-primary btn-sm" onClick={() => setOpen(true)}>+ 발령 등록</button>
       </div>
       {isLoading ? <div className="collect-empty">읽는 중…</div> : list.length === 0 ? (
-        <div className="collect-empty">아직 발령 기록이 없습니다. <b>+ 발령 등록</b>{legacyCount > 0 ? "이나 옛 기록 가져오기" : ""}로 추가하세요.</div>
+        <div className="collect-empty">아직 발령 기록이 없습니다. <b>+ 발령 등록</b>{legacyCount > 0 ? "이나 옛 기록 가져오기로" : "으로"} 추가하세요.</div>
       ) : (
         <div className="stg-table-wrap">
           <table className="ev-table ev-lined table-appt">

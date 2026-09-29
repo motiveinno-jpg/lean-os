@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const m = vi.hoisted(() => ({ from: vi.fn(), session: vi.fn(), pdf: vi.fn(), preview: vi.fn(), fetch: vi.fn(), upsert: vi.fn() }));
 vi.mock("@/lib/supabase", () => ({ supabase: { from: m.from, auth: { getSession: m.session } } }));
-vi.mock("@/lib/payslip-pdf", () => ({ generatePayslipPDF: m.pdf, birthDateToPassword: () => "19900101" }));
+vi.mock("@/lib/payslip-pdf", () => ({ generatePayslipPDF: m.pdf, birthDateToPassword: () => "19900101", payslipPeriodTag: (l: string) => l }));
 vi.mock("@/lib/payroll", () => ({ previewPayroll: m.preview }));
 vi.mock("@/lib/signatures", () => ({ resolveSealUrl: async () => null }));
 import { sendPayslipEmails } from "@/lib/payment-batch";

@@ -3,6 +3,7 @@ import { comparePeople, compareByName } from "@/lib/people-sort";
 import { comparePosition } from "@/lib/position-rank";
 import { usePositionOptions } from "@/components/org-option-fields";
 import { formatPhone } from "@/lib/phone";
+import { tenureBetween, formatTenure } from "@/lib/tenure";
 import { logRead } from "@/lib/log-read";
 
 // 플렉스(flex.team) 스타일 구성원 디렉토리 (2026-06-12).
@@ -50,17 +51,9 @@ function avatarColor(id: string): string {
 }
 const initials = (name: string) => (/[가-힣]/.test(name) ? name.slice(-2) : name.slice(0, 2).toUpperCase());
 
-// 근속: N년 N개월
+// 근속: N년 N개월 — 계산은 lib/tenure 한 곳(직원 상세·퇴직금 추계와 같은 값)
 function tenure(hire?: string | null): string {
-  if (!hire) return "—";
-  const h = new Date(hire);
-  if (isNaN(h.getTime())) return "—";
-  const now = new Date();
-  let months = (now.getFullYear() - h.getFullYear()) * 12 + (now.getMonth() - h.getMonth());
-  if (now.getDate() < h.getDate()) months -= 1;
-  months = Math.max(0, months);
-  const y = Math.floor(months / 12), m = months % 12;
-  return y > 0 ? `${y}년 ${m}개월` : `${m}개월`;
+  return formatTenure(tenureBetween(hire));
 }
 
 const kstYmd = (d: Date) => {

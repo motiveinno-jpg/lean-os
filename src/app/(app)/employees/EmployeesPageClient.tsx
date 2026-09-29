@@ -42,6 +42,7 @@ import {
   ACCRUAL_BASIS_LABELS, type MonthlyAccrualBasis,
   getCompanyLeaveTypes, setCompanyLeaveTypes, defaultCompanyLeaveTypes, type CompanyLeaveType,
 } from "@/lib/leave-grants";
+import { promotionSchedule, promotionPhase, promotionNoticeDeadline } from "@/lib/leave-promotion-schedule";
 import { EmployeeDetailPanel } from "./_components/EmployeeDetailPanel";
 import { getExpenseRequests } from "@/lib/expenses";
 import { getSignedUrl } from "@/lib/file-storage";
@@ -170,15 +171,10 @@ export default function EmployeesPage()  {
   });
   const pendingInviteCount = (invitationsForBadge as any[]).filter((i) => i.status === "pending").length;
   const certStats = useCertificateStats(tab === "certificates" ? companyId : null);
-  //   급여 탭 요약 줄은 아래 급여 명세 카드와 같은 계산(previewPayroll, 법정 요율·수당 포함)을 쓴다 —
-  //   전에는 기본급 × 추정 요율로 따로 셈해 같은 화면에 4대보험 회사부담이 두 숫자로 보였다(2026-09-28).
-  const thisMonthKey = (() => { const k = new Date(Date.now() + 9 * 3600 * 1000); return `${k.getUTCFullYear()}-${String(k.getUTCMonth() + 1).padStart(2, "0")}`; })();
-  const { data: payThisMonth } = useQuery({
-    queryKey: ["payroll-preview-summary", companyId, thisMonthKey],
-    queryFn: () => previewPayroll(companyId!, thisMonthKey),
-    enabled: !!companyId && tab === "salary",
-    staleTime: 60_000,
-  });
+  //   급여 탭 요약 줄은 아래 급여 명세가 계산한 결과(previewPayroll, 법정 요율·수당 포함)를 그대로 받는다 —
+  //   요약 줄이 따로 '이번 달'을 셈하면 다른 달을 골라도 위 숫자가 이번 달 값으로 남아 아래 카드와 어긋났다.
+  const [paySummary, setPaySummary] = useState<{ month: string; items: number; totalGross: number; totalEmployer: number } | null>(null);
+  const payMonthLabel = paySummary ? `${Number(paySummary.month.slice(5, 7))}월` : "";
   // 재직자만 합산: 퇴사자 급여가 섞여 급여 탭 합계와 다른 인건비가 표시됐다.
   const activeForPay = employees.filter((e: any) => ["active", "joined"].includes(e.status));
   const totalSalary = activeForPay.reduce((s: number, e: any) => s + Number(e.salary || 0), 0);
@@ -241,7 +237,8 @@ export default function EmployeesPage()  {
     {/* 인건비·퇴직충당금은 급여 권한자만 — 급여 탭 KPI(tabAllowed) 와 일관.
         소규모 팀에선 총액만으로 개인 급여가 역산된다. */}
     {tabAllowed("salary") && (<>
-      <Stat label="연 인건비" value={<>₩{(totalSalary * 12).toLocaleString()} <small className="font-normal text-[var(--text-dim)]">월 ₩{totalSalary.toLocaleString()}</small></>} />
+      {/*   약정 월급 합계 × 12 — 4대보험 회사부담·수당은 빠진다. 급여 탭 '연 인건비(회사부담 포함)'와 이름을 갈라 두 숫자를 같은 것으로 읽지 않게 한다 */}
+      <Stat label="연 급여(월급 × 12)" title="재직자 약정 월급 합계 × 12 입니다. 4대보험 회사부담·수당은 빠져 있어 급여 탭의 '연 인건비(회사부담 포함)'보다 작습니다." value={<>₩{(totalSalary * 12).toLocaleString()} <small className="font-normal text-[var(--text-dim)]">월 ₩{totalSalary.toLocaleString()}</small></>} />
       {/*   G1 (2026-08-27) — 누르면 직원별 추계 표 + 충당부채 전표 초안. 직접 입력값 합계는 참고로. */}
       <button type="button" className="qk-stat-link" title="직원별 퇴직금 추계를 봅니다." onClick={() => setRetireOpen(true)}>
         <Stat label="퇴직충당금" value={<>₩{(retireTotal ?? totalRetirement).toLocaleString()} <small className="font-normal text-[var(--text-dim)]">{retireTotal != null ? "추계" : "직접 입력"}</small></>} />
@@ -291,10 +288,10 @@ export default function EmployeesPage()  {
             {/* P1-3: 급여 = 이력 ↔ 명세 서브뷰 단일 탭. 히어로 카드(지급 대상·월 급여 총액·4대보험·연 인건비)는 결과 요약 줄로 */}
             {effectiveTab === "salary" && !isEmployee && (
               <ResultStrip>
-                <Stat label="지급 대상(이번 달)" value={payThisMonth ? `${payThisMonth.items.length}명` : "—"} />
-                <Stat label="월 급여 총액" value={payThisMonth ? `₩${payThisMonth.totalGross.toLocaleString()}` : "—"} />
-                <Stat label="4대보험 회사부담" title="아래 급여 명세와 같은 법정 요율 계산입니다." value={payThisMonth ? `₩${(payThisMonth.totalEmployer || 0).toLocaleString()}` : "—"} />
-                <Stat label="연 인건비(이번 달 × 12)" value={payThisMonth ? `₩${((payThisMonth.totalGross + (payThisMonth.totalEmployer || 0)) * 12).toLocaleString()}` : "—"} />
+                <Stat label={paySummary ? `지급 대상(${payMonthLabel})` : "지급 대상"} value={paySummary ? `${paySummary.items}명` : "—"} />
+                <Stat label="월 급여 총액" title="세전 지급합계(기본급 + 비과세 + 수당)" value={paySummary ? `₩${paySummary.totalGross.toLocaleString()}` : "—"} />
+                <Stat label="4대보험 회사부담" title="아래 급여 명세와 같은 법정 요율 계산입니다." value={paySummary ? `₩${paySummary.totalEmployer.toLocaleString()}` : "—"} />
+                <Stat label={paySummary ? `연 인건비(${payMonthLabel} × 12, 회사부담 포함)` : "연 인건비(회사부담 포함)"} title="(월 급여 총액 + 4대보험 회사부담) × 12. 인력관리 탭의 '연 급여'는 약정 월급 합계 × 12 라 회사부담이 빠져 있습니다." value={paySummary ? `₩${((paySummary.totalGross + paySummary.totalEmployer) * 12).toLocaleString()}` : "—"} />
               </ResultStrip>
             )}
             {effectiveTab === "certificates" && (<>
@@ -311,7 +308,7 @@ export default function EmployeesPage()  {
             <div className="emp-scroll">
               {effectiveTab === "salary" && (
                 <>
-                  <div className="payroll-tab-panel"><PayrollPreviewTab companyId={companyId} /></div>
+                  <div className="payroll-tab-panel"><PayrollPreviewTab companyId={companyId} onSummary={setPaySummary} /></div>
                   {/* 수당 기준 — 가산수당 정책(주 소정근로·통상시급 분모·당직 단가·5인 미만·포괄임금) + 수당 카탈로그.
                       매일 보는 것(급여 이력·명세) 아래에 둔다 — 기준은 자주 바꾸지 않는다.
                       이 탭 자체가 급여 권한(money)이라, 금액을 만드는 값이 금액 권한과 같은 자리에 놓인다. */}
@@ -1955,7 +1952,7 @@ function QuickAttendanceButtons({ employees, records, onCheckIn, onCheckOut }: a
 }
 
 // ── Payroll Preview Tab ──
-function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
+function PayrollPreviewTab({ companyId, onSummary }: { companyId: string | null; onSummary?: (s: { month: string; items: number; totalGross: number; totalEmployer: number } | null) => void }) {
   const { toast } = useToast();
   const [preview, setPreview] = useState<{ items: PayrollItem[]; totalGross: number; totalDeductions: number; totalNet: number; skippedNoBirth?: string[]; totalEmployer?: number; rates?: InsuranceRates } | null>(null);
   const noBirthToastKey = useRef("");   // 생년월일 미등록 안내는 같은 달·같은 인원수로 한 번만
@@ -2015,8 +2012,6 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
     try {
       const { downloadPayslipPDF } = await import("@/lib/payslip-pdf");
       const meta = (empMap as Record<string, { department: string | null; position: string | null; birthDate: string | null }>)[item.employeeId] || {} as any;
-      // 사원코드 — employee.id 의 끝 4자리(UUID 접미)를 사용
-      const employeeCode = item.employeeId ? item.employeeId.slice(-4).toUpperCase() : undefined;
       // 2026-05-22 PDF = 화면 단일 진실. 임의 수당/공제는 PDF 가 item.extras 에서 직접 읽고
       //   합계는 item.netPay 를 그대로 신뢰 — 여기서 별도 변환·전달 불필요.
       await downloadPayslipPDF({
@@ -2029,7 +2024,6 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
         periodLabel,
         department: meta.department || undefined,
         position: meta.position || undefined,
-        employeeCode,
         birthDate: meta.birthDate || undefined,
       });
       toast(`${item.employeeName} 명세서 PDF 생성 완료`, "success");
@@ -2136,6 +2130,10 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
   // employees.salary(연봉) 는 건드리지 않음 → 인력관리 연봉 유지 + 월별 독립.
   //   H1 — 탭을 열면·월을 바꾸면 저절로 계산(버튼 없음). generate 는 읽기+계산만이라 마운트마다 돌아도 무겁지 않다(504 는 재계산 RPC 였다).
   useEffect(() => { if (companyId) void generate(); }, [companyId, periodMonth]);   // eslint-disable-line react-hooks/exhaustive-deps
+  //   위 요약 줄(부모)은 이 달 계산 결과를 그대로 보여 준다 — 달을 바꾸면 같이 바뀐다
+  useEffect(() => {
+    onSummary?.(preview ? { month: periodMonth, items: preview.items.length, totalGross: preview.totalGross, totalEmployer: preview.totalEmployer || 0 } : null);
+  }, [preview, periodMonth]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveEdits = async () => {
     if (!companyId || !preview) return;
@@ -2663,7 +2661,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
 
   // Send promotion notice
   const sendPromotion = useMutation({
-    mutationFn: (params: { employeeId: string; noticeType: "first" | "second"; unusedDays: number; email: string; employeeName: string }) =>
+    mutationFn: (params: { employeeId: string; noticeType: "first" | "second"; unusedDays: number; email: string; employeeName: string; deadline?: string }) =>
       sendLeavePromotionNotice({ companyId: companyId!, ...params, year: currentYear }),
     onSuccess: (res: any, vars) => {
       queryClient.invalidateQueries({ queryKey: ["leave-promotion-notices"] });
@@ -2716,15 +2714,6 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     }
     return m;
   }, [promotionNotices]);
-  //   법정 시기(근로기준법 §61, 회계연도 기준) — 1차 7/1~7/10 · 2차 10/31까지. 오늘이 어느 구간인지 한 줄로
-  const promoPhase = useMemo(() => {
-    const t = todayKst(), md = t.slice(5);
-    if (md < "07-01") return { text: "올해 통보는 7월부터입니다 (1차 7/1~7/10 · 2차 10/31까지)", tone: "" };
-    if (md <= "07-10") return { text: "지금이 1차 통보 기간입니다 (7/1~7/10). 미사용 연차가 있는 직원에게 서면(이메일)으로 보내세요", tone: "warn" };
-    if (md <= "10-31") return { text: "1차 기간(7/1~7/10)은 지났고, 2차 통보는 10/31까지입니다. 1차를 못 보낸 직원은 두 통보를 모두 마쳐야 보상 의무가 면제됩니다", tone: "warn" };
-    return { text: "올해 통보 기간(2차 10/31)이 지났습니다. 미통보 직원의 미사용 연차는 보상 대상입니다", tone: "danger" };
-  }, []);
-
   // Approve mutation
   const approveMut = useMutation({
     mutationFn: (id: string) => approveLeaveRequest(id, userId!),
@@ -2815,6 +2804,20 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     queryFn: () => getMonthlyAccrualSettings(companyId!),
     enabled: !!companyId,
   });
+  //   촉진 일정(근로기준법 §61) — 회사의 연차 부여 기준(입사일/회계연도)과 직원 근속(1년 미만 월 연차는 §61②)에 따라
+  //   직원마다 계산한다(lib/leave-promotion-schedule). 전에는 회계연도 일정(7/1~7/10 · 10/31) 하나만 보여 줬다.
+  const promoToday = todayKst();
+  const promoRows = useMemo(() => (promotionCandidates as any[]).map((c) => {
+    const sched = promotionSchedule(c.hireDate, accrual.basis, promoToday);
+    return { ...c, sched, phase: sched ? promotionPhase(sched, promoToday) : null };
+  }).sort((a, b) => (a.sched?.firstFrom || "9999").localeCompare(b.sched?.firstFrom || "9999")), [promotionCandidates, accrual.basis, promoToday]);
+  //   회계연도 기준이면 1년 이상 직원의 일정이 모두 같아 한 줄로 안내한다
+  const promoFiscalPhase = useMemo(() => {
+    if (accrual.basis !== "fiscal") return null;
+    const y = Number(promoToday.slice(0, 4));
+    const sched = promotionSchedule(`${y - 2}-01-01`, "fiscal", promoToday);
+    return sched ? promotionPhase(sched, promoToday) : null;
+  }, [accrual.basis, promoToday]);
 
   // 회사별 휴가 유형·기본 일수 · 저장값이 없으면 법정 기본값
   const  { data: companyLeaveTypes = defaultCompanyLeaveTypes() } = useQuery({
@@ -3636,9 +3639,10 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
               {leaveTypeSummary.map(lt => (
                 <div key={lt.value} className="leave-type-chip">
                   <span className="leave-type-chip-label">{lt.label}</span>
-                  <span className="leave-type-chip-days">{lt.defaultDays}일</span>
-                  {lt.used > 0 && <span className="leave-type-chip-used">-{lt.used}</span>}
-                  {lt.pending > 0 && <span className="leave-type-chip-pending">{lt.pending}건 대기</span>}
+                  <span className="leave-type-chip-days" title="1인 기본 일수">{lt.defaultDays}일</span>
+                  {/*   단위 없는 '-37.5' 는 잔여가 모자란 것처럼 읽혔다 — 승인된 신청 합계(전 직원)라는 뜻을 글자로 적는다 */}
+                  {lt.used > 0 && <span className="leave-type-chip-used" title="승인된 휴가 신청의 사용 일수 합계(전 직원)">사용 {lt.used}일</span>}
+                  {lt.pending > 0 && <span className="leave-type-chip-pending" title="승인 대기 중인 신청 건수">{lt.pending}건 대기</span>}
                 </div>
               ))}
             </div>
@@ -3829,9 +3833,15 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
             <div className="leave-promotion-section">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-bold text-[var(--text-muted)]">연차촉진 관리</h3>
-                <span className="inv-hint">근로기준법 §61 — 소멸 6개월 전(1차)과 2개월 전(2차) 두 번 서면 통보해야 미사용 연차 보상 의무가 면제됩니다.</span>
+                <span className="inv-hint">근로기준법 §61 — 두 번 서면으로 통보해야 미사용 연차 보상 의무가 면제됩니다.</span>
               </div>
-              <p className={promoPhase.tone === "danger" ? "inv-hint vr-warn" : "inv-hint"}>오늘 {todayKst()} · {promoPhase.text}</p>
+              <p className="inv-hint">
+                {accrual.basis === "fiscal"
+                  ? <>회계연도 기준 · 1년 이상 직원은 사용기간(1/1~12/31)이 끝나기 <b>6개월 전 기준 10일 안에 1차 촉구</b>, <b>2개월 전까지 2차 통보</b>(7/1~7/10 · 10/31까지).</>
+                  : <>입사일 기준 · 1년 이상 직원은 직원마다 사용기간(입사 응당일 ~ 다음 응당일 전날)이 끝나기 <b>6개월 전 기준 10일 안에 1차 촉구</b>, <b>2개월 전까지 2차 통보</b>합니다.</>}
+                {" "}1년 미만 직원의 월 연차(§61②)는 입사 1주년이 되기 <b>3개월 전 기준 10일 안에 1차</b>, <b>1개월 전까지 2차</b>이고, 1차 촉구 뒤에 생긴 휴가는 1개월 전 기준 5일 안에 촉구, 10일 전까지 통보합니다.
+              </p>
+              {promoFiscalPhase && <p className={promoFiscalPhase.tone === "danger" ? "inv-hint vr-warn" : "inv-hint"}>오늘 {promoToday} · 1년 이상 직원: {promoFiscalPhase.text}</p>}
 
               {(
                 <div className="space-y-4">
@@ -3848,16 +3858,26 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                           <th className="text-center px-5 py-2 font-medium">총 연차</th>
                           <th className="text-center px-5 py-2 font-medium">사용</th>
                           <th className="text-center px-5 py-2 font-medium">미사용</th>
+                          <th className="text-center px-5 py-2 font-medium" title="1년 이상 = §61① 연차 · 1년 미만 = §61② 월 연차(입사 1주년까지)">구분</th>
+                          <th className="text-center px-5 py-2 font-medium" title="이 직원의 연차 사용기간 기준 1차 촉구 기간 · 2차 통보 기한">촉진 일정</th>
                           <th className="text-center px-5 py-2 font-medium">촉진 통보</th>
                         </tr></thead>
                         <tbody>
-                          {promotionCandidates.map((c: any) => (
+                          {promoRows.map((c: any) => (
                             <tr key={c.employeeId} className="border-b border-[var(--border)]/50">
                               <td className="px-5 py-2.5 text-sm font-medium">{c.employeeName}</td>
                               <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{c.department || "—"}</td>
                               <td className="px-5 py-2.5 text-sm text-center">{c.totalDays}일</td>
                               <td className="px-5 py-2.5 text-sm text-center">{c.usedDays}일</td>
                               <td className="px-5 py-2.5 text-sm text-center font-bold text-[var(--warning)]">{c.remainingDays}일</td>
+                              <td className="px-5 py-2.5 text-xs text-center">{!c.sched ? "—" : c.sched.kind === "under-year" ? <span className="hr-src-tag" title={`월 연차 사용기간 ${c.sched.periodStart} ~ ${c.sched.periodEnd}(입사 1주년 전날)`}>1년 미만 · 월 연차</span> : <span title={`사용기간 ${c.sched.periodStart} ~ ${c.sched.periodEnd}`}>1년 이상</span>}</td>
+                              <td className="px-5 py-2.5 text-xs text-center mono-number" title={c.phase?.text || "입사일이 없어 일정을 셀 수 없습니다 — 구성원 정보에 입사일을 넣으세요"}>
+                                {c.sched ? (<>
+                                  <div className={c.phase?.tone === "danger" ? "vr-warn" : undefined}>1차 {c.sched.firstFrom.slice(5)}~{c.sched.firstTo.slice(5)} · 2차 {c.sched.secondBy.slice(5)}까지</div>
+                                  {c.sched.laterFirstFrom && <div className="ev-dim" title="1차 촉구 뒤에 생긴 월 연차 — 1주년 1개월 전 기준 5일 안에 촉구, 10일 전까지 통보">추가분 {c.sched.laterFirstFrom.slice(5)}~{c.sched.laterFirstTo!.slice(5)} · {c.sched.laterSecondBy!.slice(5)}까지</div>}
+                                  <div className="ev-dim">만료 {c.sched.periodEnd}</div>
+                                </>) : "—"}
+                              </td>
                               <td className="px-5 py-2.5 text-center">
                                 {/*   보낸 차수는 날짜로, 안 보낸 차수만 버튼 — 같은 차수 중복 발송을 막고 누구를 빠뜨렸는지 한눈에 (2026-09-28) */}
                                 <div className="flex gap-1.5 justify-center items-center">
@@ -3870,7 +3890,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                                       <button key={nt} type="button" className="btn-secondary btn-sm"
                                         disabled={!c.email || sendPromotion.isPending}
                                         title={!c.email ? "직원 이메일이 없어 보낼 수 없습니다 — 구성원 정보에 이메일을 넣으세요" : noFirst ? "1차 통보 기록이 없습니다. 1차부터 보내는 것이 원칙입니다(다른 경로로 보냈다면 진행)" : `${label} 촉진 통보 이메일을 보냅니다`}
-                                        onClick={() => c.email && sendPromotion.mutate({ employeeId: c.employeeId, noticeType: nt, unusedDays: c.remainingDays, email: c.email, employeeName: c.employeeName })}>
+                                        onClick={() => c.email && sendPromotion.mutate({ employeeId: c.employeeId, noticeType: nt, unusedDays: c.remainingDays, email: c.email, employeeName: c.employeeName, deadline: promotionNoticeDeadline(c.sched, nt, todayKst()) })}>
                                         {label} 통보
                                       </button>
                                     );

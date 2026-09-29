@@ -5,6 +5,8 @@ import { logRead } from "@/lib/log-read";
 import { fetchPaged } from "@/lib/fetch-paged";
 import { todayKst } from "@/lib/kst";
 import { getLeavePromotionCandidates } from "@/lib/hr";
+import { getMonthlyAccrualSettings } from "@/lib/leave-grants";
+import { promotionSchedule, promotionPhase } from "@/lib/leave-promotion-schedule";
 
 export type HrTodoItem = { employee_id?: string; name: string; text: string; date?: string };
 export type HrTodoGroup = { key: string; label: string; source: "규칙" | "근태 집계"; hint: string; go?: string; items: HrTodoItem[] };
@@ -81,9 +83,15 @@ export async function fetchHrTodos(companyId: string, employees: { id: string; n
 
   // ── H5 연차촉진 대상 ──
   try {
-    const cands = await getLeavePromotionCandidates(companyId, Number(thisY));
-    const promo = (cands as any[]).filter((c) => c.remainingDays >= 5 && nameOf.has(c.employeeId)).map((c) => ({ employee_id: c.employeeId, name: c.employeeName, text: `미사용 연차 ${c.remainingDays}일` }));
-    if (promo.length && today.slice(5) >= "07-01") groups.push({ key: "promotion", label: "연차촉진 대상", source: "규칙", hint: "잔여 5일 이상 · 7월부터 · 1차 통보(6개월 전)·2차(2개월 전)는 휴가 탭 촉진에서", go: "leave", items: promo });
+    //   통보 시기는 직원마다 다르다(입사일/회계연도 기준 · 1년 미만 월 연차 §61②) — 1차 촉구 기간이 시작된 직원만 올린다
+    const [cands, accrual] = await Promise.all([getLeavePromotionCandidates(companyId, Number(thisY)), getMonthlyAccrualSettings(companyId)]);
+    const promo = (cands as any[]).filter((c) => c.remainingDays >= 5 && nameOf.has(c.employeeId)).flatMap((c) => {
+      const sched = promotionSchedule(c.hireDate, accrual.basis, today);
+      const ph = sched ? promotionPhase(sched, today) : null;
+      if (!sched || !ph || !["first", "between", "late"].includes(ph.code)) return [];
+      return [{ employee_id: c.employeeId, name: c.employeeName, text: `미사용 연차 ${c.remainingDays}일 · ${ph.code === "first" ? `1차 ${sched.firstTo.slice(5)}까지` : ph.code === "between" ? `2차 ${sched.secondBy.slice(5)}까지` : "2차 기한 지남"}`, date: ph.code === "first" ? sched.firstTo : sched.secondBy }];
+    });
+    if (promo.length) groups.push({ key: "promotion", label: "연차촉진 대상", source: "규칙", hint: "잔여 5일 이상 · 직원별 촉진 일정(1차 촉구·2차 통보)은 휴가 탭 촉진에서", go: "leave", items: promo });
   } catch { /* 권한 없으면 건너뜀 */ }
 
   // ── H4 근태 이상 ──

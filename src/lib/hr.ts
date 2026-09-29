@@ -1,4 +1,5 @@
 import { todayKst, kstDateStr } from "@/lib/kst";
+import { promotionNoticeDeadline } from "@/lib/leave-promotion-schedule";
 import { logRead } from "@/lib/log-read";
 import { logError } from "@/lib/error-logger";
 /**
@@ -2127,8 +2128,10 @@ export async function getLeavePromotionCandidates(companyId: string, year: numbe
 
 /**
  * 연차촉진 통보 발송
- * 근로기준법 §61: 사용자는 연차 소멸 6개월 전(1차) / 2개월 전(2차)에 통보해야 함
- * 통보 미이행 시 미사용 연차에 대한 보상의무 발생
+ * 근로기준법 §61: 1년 이상은 사용기간 만료 6개월 전(1차)·2개월 전(2차), 1년 미만 월 연차는 3개월 전·1개월 전
+ *   (일정 계산은 lib/leave-promotion-schedule). 통보 미이행 시 미사용 연차에 대한 보상의무 발생.
+ * deadline — 1차: 촉구를 받은 날부터 10일(사용 시기 회신 기한), 2차: 사용기간 마지막 날.
+ *   넘기지 않으면 같은 규칙으로 오늘부터 센다(사용기간을 모르면 2차는 30일).
  */
 export async function sendLeavePromotionNotice(params: {
   companyId: string;
@@ -2138,16 +2141,11 @@ export async function sendLeavePromotionNotice(params: {
   unusedDays: number;
   email: string;
   employeeName: string;
+  deadline?: string;
 }) {
   const { companyId, employeeId, year, noticeType, unusedDays, email, employeeName } = params;
-
-  // Calculate deadline based on notice type
-  const deadline = new Date();
-  if (noticeType === 'first') {
-    deadline.setMonth(deadline.getMonth() + 4); // 4개월 내 사용 계획 제출
-  } else {
-    deadline.setMonth(deadline.getMonth() + 1); // 1개월 내 사용
-  }
+  //   종전 1차 기한 '오늘 + 4개월' 은 법(촉구 받은 때부터 10일 안에 사용 시기 통보)과 달랐다
+  const deadlineStr = params.deadline || promotionNoticeDeadline(null, noticeType, todayKst());
 
   // Record the notice
   const { data: notice, error } = await db
@@ -2160,7 +2158,7 @@ export async function sendLeavePromotionNotice(params: {
       unused_days: unusedDays,
       sent_via: 'email',
       email_to: email,
-      deadline: kstDateStr(deadline),
+      deadline: deadlineStr,
     })
     .select()
     .single();
@@ -2194,7 +2192,7 @@ export async function sendLeavePromotionNotice(params: {
         year,
         noticeType,
         unusedDays,
-        deadline: kstDateStr(deadline),
+        deadline: deadlineStr,
       }),
     });
 

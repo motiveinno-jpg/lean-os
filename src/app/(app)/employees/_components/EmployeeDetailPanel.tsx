@@ -28,6 +28,7 @@ import { useMyPermissions } from "@/lib/permissions";
 import { DepartmentField, PositionField } from "@/components/org-option-fields";
 import { DEFAULT_LOSS_REASONS } from "@/lib/insurance-edi";
 import { calculateRetirementPay } from "@/lib/payment-batch";
+import { tenureBetween, tenureToday, formatTenure } from "@/lib/tenure";
 import { useUser } from "@/components/user-context";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { cancelSentContractPackage, getContractTemplates, createContractPackage, sendContractPackage, buildContractFieldsForTemplates, type ContractField }  from "@/lib/hr-contracts";
@@ -525,7 +526,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                   <InfoRow label="직책" value={emp.position} />
                   <InfoRow label="직급" value={emp.job_grade} />
                   <InfoRow label="입사일" value={emp.hire_date} />
-                  <InfoRow label="근속기간" copy={false} value={emp.hire_date ? (() => { const d = new Date(emp.hire_date); const now = new Date(); const months = (now.getFullYear() - d.getFullYear()) * 12 + now.getMonth() - d.getMonth(); const y = Math.floor(months / 12); const m = months % 12; return y > 0 ? `${y}년 ${m}개월` : `${m}개월`; })() : undefined} />
+                  <InfoRow label="근속기간" copy={false} value={emp.hire_date ? formatTenure(tenureToday(emp.hire_date, emp.resignation_date)) : undefined} />
                   <InfoRow label="고용형태" value={ETYPE_LABEL[emp.employment_type ?? ""] || emp.employment_type || ""} />
                   <InfoRow label="4대보험" copy={false} value={emp.is_4_insurance ? "가입" : "미가입"} />
                   <InfoRow label="부양가족 수" copy={false} value={`${(emp as any).dependents ?? 1}명`} />
@@ -666,13 +667,8 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                 endDate: retirementEndDate,
                 last3MonthsSalary: Number(emp.salary || 0) * 3,
               });
-              const hireDate = new Date(emp.hire_date);
-              const endDate = new Date(retirementEndDate);
-              const diffMs = endDate.getTime() - hireDate.getTime();
-              const totalDaysRaw = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
-              const tenureYears = Math.floor(totalDaysRaw / 365);
-              const tenureMonths = Math.floor((totalDaysRaw % 365) / 30);
-              const tenureDays = totalDaysRaw % 365 % 30;
+              //   근속은 lib/tenure(달력 기준 년·개월·일), 괄호 안 일수는 퇴직금 산정 재직일수(입사일~퇴직일 포함)
+              const ten = tenureBetween(emp.hire_date, retirementEndDate);
 
               return (
                 <div className="employee-retirement-calc">
@@ -697,8 +693,8 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                       <div>
                         <div className="caption mb-0.5">근속기간</div>
                         <div className="font-medium">
-                          {tenureYears > 0 && `${tenureYears}년 `}{tenureMonths > 0 && `${tenureMonths}개월 `}{tenureDays}일
-                          <span className="text-[var(--text-dim)] ml-1">({totalDaysRaw}일)</span>
+                          {formatTenure(ten, "always")}
+                          <span className="text-[var(--text-dim)] ml-1">({retCalcResult.totalDays > 0 ? retCalcResult.totalDays : 0}일)</span>
                         </div>
                       </div>
                       <div>

@@ -2128,7 +2128,7 @@ table.bs-t-table { min-width: 360px; }
 .leave-type-chip { @apply inline-flex items-baseline gap-1.5 shrink-0 px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] whitespace-nowrap; }
 .leave-type-chip-label { @apply text-[11px] text-[var(--text-muted)]; }
 .leave-type-chip-days { @apply text-xs font-bold; }
-.leave-type-chip-used { @apply text-[10px] text-[var(--danger)]; }
+.leave-type-chip-used { @apply text-[10px] text-[var(--text-muted)]; }   /* 사용 합계는 경고가 아니다 — 빨간색이면 모자람으로 읽힌다 */
 .leave-type-chip-pending { @apply text-[10px] text-[var(--warning)]; }
 .leave-type-editor { @apply p-4; }
 .leave-type-editor-rows { @apply flex flex-col gap-2; }
@@ -3943,6 +3943,13 @@ table.ap-policy-table { min-width: 960px; }
 .qk-body .payroll-detail-table.glass-card { @apply rounded-none border-0 bg-transparent shadow-none; }
 table.cert-log-tbl { min-width: 860px; } /* table. — .ev-table(뒤에 정의) 의 min-width 를 이긴다 */
 table.payroll-tbl { min-width: 1260px; } /* table. — .ev-table(뒤에 정의) 의 min-width 를 이긴다 */
+/*   급여표 직원 칸 고정 — 표가 보이는 폭보다 넓어 오른쪽 PDF·발송 칸을 볼 때 누구 줄인지 사라졌다.
+     고정 칸은 불투명해야 밑으로 지나가는 금액이 비치지 않는다. 수당 편집 줄(colspan)은 제외. */
+table.payroll-tbl thead th:first-child,
+table.payroll-tbl tbody td:first-child:not([colspan]) { position: sticky; left: 0; box-shadow: 1px 0 0 var(--border); }
+table.payroll-tbl thead th:first-child { z-index: 3; background-color: var(--bg-card); background-image: linear-gradient(var(--bg-surface), var(--bg-surface)); }
+table.payroll-tbl tbody td:first-child:not([colspan]) { z-index: 2; background-color: var(--bg-card); }
+table.payroll-tbl tbody tr:hover td:first-child:not([colspan]) { background-image: linear-gradient(var(--bg-surface), var(--bg-surface)); }
 /* ── 근로계약·서식(/hr-templates) — 조회 표준 (2026-08-18 Wave 4) ── */
 .qk-body > .ht-scroll { @apply absolute inset-0 flex flex-col gap-3 overflow-auto p-3; }
 .qk-body .hr-form-manager.glass-card,
