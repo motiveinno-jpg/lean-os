@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
       params,
       path: cut(body?.path, 300),
       referrer: cut(body?.ref, 300),
+      is_internal: body?.internal === true,   // 우리 팀 브라우저 — 운영자 집계에서 뺀다
     });
     if (error) console.error("[track] insert 실패:", error.message); // Vercel 함수 로그로만 — 클라이언트엔 항상 204
   } catch { /* 계측은 절대 실서비스를 방해하지 않는다 */ }

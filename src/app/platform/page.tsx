@@ -5,6 +5,7 @@ import { logRead } from "@/lib/log-read";
 import { fetchPaged } from "@/lib/fetch-paged";
 import { planOf, countPlanKinds, type PlanKind as PK } from "./_components/plan-kind";
 import { AnalyticsSection } from "./_components/analytics-section";
+import { EngagementCard } from "./_components/engagement-card";
 import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfKpiKrw, PfBadge, PfRows, PfRow, PfEmpty, PfBar, fmtKrwShort } from "./_components/pf/ui";
 import { PfDonut, PfGauge, PfFunnel } from "./_components/pf/charts";
 
@@ -630,6 +631,9 @@ export default function PlatformOverview() {
 
         <SignupFunnelCard funnel={funnel ?? null} i={15} />
       </div>
+
+      {/* 페이지 체류 — 어느 공개 페이지에서 금방 떠나는지 (2026-09-29) */}
+      <EngagementCard i={16} />
 
       {/* 고객 현황 스트립(클릭=아래 목록 필터) + 가입사 목록 */}
       <PfCard i={16} hover={false}>

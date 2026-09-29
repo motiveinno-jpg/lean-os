@@ -13,6 +13,8 @@
 //   contact_submit  { size, interests } /contact 상담 신청 접수 성공
 // page_view 자체 기록은 마케팅 공개 페이지만 — 앱 내부 이동까지 쌓으면 표만 커진다 (GA4는 전부 받음)
 //   2026-09-14 contact·blog 추가 — 상담 신청·블로그 방문이 한 건도 안 세어졌다
+import { isAutomatedBrowser, isInternalBrowser } from "@/lib/visitor-flags";
+
 const MARKETING_PATHS = /^\/($|pricing|features|ai|demo|guide|tools\/|tax-partners|advisor|contact|blog)/;
 
 export function track(event: string, params?: Record<string, string | number | boolean>) {
@@ -23,10 +25,12 @@ export function track(event: string, params?: Record<string, string | number | b
     if (typeof gtag === "function") gtag("event", event, params || {});
   } catch { /* 계측 실패는 무해 */ }
   // 자체 DB 병행 기록 (운영자 페이지 실시간 시각화용) — sendBeacon: 페이지 이탈에도 유실 적음
+  //   자동화·봇은 보내지 않고, 우리 팀 브라우저는 internal 로 표시해 집계에서 뺀다 — 방문 기록(page_views)과 같은 기준.
   try {
+    if (isAutomatedBrowser()) return;
     const path = String(params?.page_path || window.location.pathname);
     if (event === "page_view" && !MARKETING_PATHS.test(path)) return;
-    const payload = JSON.stringify({ event, params, path, ref: document.referrer || null });
+    const payload = JSON.stringify({ event, params, path, ref: document.referrer || null, internal: isInternalBrowser() });
     if (navigator.sendBeacon) navigator.sendBeacon("/api/track/", new Blob([payload], { type: "application/json" }));
     else void fetch("/api/track/", { method: "POST", headers: { "Content-Type": "application/json" }, body: payload, keepalive: true });
   } catch { /* 무해 */ }

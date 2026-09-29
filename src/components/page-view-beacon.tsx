@@ -22,6 +22,7 @@ import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { captureEmailClick, markSignupIfNewAccount } from "@/lib/email-click";
 import { endEngagement, startEngagement } from "@/lib/page-engagement";
+import { isAutomatedBrowser } from "@/lib/visitor-flags";
 
 // page_views 는 생성된 DB 타입에 아직 없다(신규 테이블). 저장소 관례대로 any 캐스트.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,15 +46,7 @@ const SKIP_PREFIXES = ["/sign/", "/share/", "/api/", "/_next", "/platform"];
 //   - navigator.webdriver: Playwright·Selenium·agent-browser 등 자동화 브라우저가 전부 true
 //   - UA 의 봇 시그니처: 헤드리스 크롬·크롤러·라이트하우스 등 (UA 는 판별에만 쓰고 저장 안 함)
 //   - document.prerendering: 크롬이 미리 렌더만 해둔 화면 — 사람이 본 게 아님
-function isAutomated(): boolean {
-  try {
-    if ((navigator as unknown as { webdriver?: boolean }).webdriver) return true;
-    const ua = navigator.userAgent || "";
-    if (/bot|crawler|spider|headless|lighthouse|prerender|scanner|monitor|pingdom|uptime/i.test(ua)) return true;
-    if ((document as unknown as { prerendering?: boolean }).prerendering) return true;
-  } catch { /* 판별 실패 시 사람으로 취급 */ }
-  return false;
-}
+const isAutomated = isAutomatedBrowser;   // 마케팅 이벤트(lib/analytics)와 같은 기준 — lib/visitor-flags
 
 function getVisitorKey(): string | null {
   try {
