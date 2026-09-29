@@ -423,6 +423,15 @@ export async function saveRevision(params: {
   //   계약이면 기간·금액·거래처 컬럼도 함께 — 문서함 편집기·프로젝트 모달·계약 대장 인라인 입력이 전부 이 길을 지난다
   const isContract = (doc?.content_type || (doc as any)?.auto_classified_type) === 'contract';
 
+  //   문서를 먼저 고치고, 실패하면 멈춘다 (2026-09-29) — 전에는 이력을 먼저 넣고 문서 수정 오류를 보지 않아,
+  //   수정 권한(DB 트리거 documents_content_edit_guard)에 막혀도 화면엔 '저장됨'이 뜨고 이력만 쌓였다.
+  const { error: upErr } = await supabase.from('documents').update({
+    content_json: params.contentJson,
+    version: newVersion,
+    ...(isContract ? contractColumnsOf(params.contentJson) : {}),
+  }).eq('id', params.documentId);
+  if (upErr) throw new Error(upErr.message || '문서 저장에 실패했습니다.');
+
   // Save revision
   await supabase.from('doc_revisions').insert({
     document_id: params.documentId,
@@ -431,13 +440,6 @@ export async function saveRevision(params: {
     comment: params.comment || null,
     version: newVersion,
   });
-
-  // Update document
-  await supabase.from('documents').update({
-    content_json: params.contentJson,
-    version: newVersion,
-    ...(isContract ? contractColumnsOf(params.contentJson) : {}),
-  }).eq('id', params.documentId);
 }
 
 // ── Submit for review ──

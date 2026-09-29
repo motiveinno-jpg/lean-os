@@ -374,7 +374,10 @@ export function BoardDocModal({
       await saveRevision({ documentId: doc.id, authorId: userId, contentJson: next as any });
       //   문서명은 본문이 아니라 documents.name · 바뀐 때만 따로 고친다
       const nm = docName.trim();
-      if (nm && nm !== doc.name) await db.from("documents").update({ name: nm }).eq("id", doc.id);
+      if (nm && nm !== doc.name) {
+        const { error: nmErr } = await db.from("documents").update({ name: nm }).eq("id", doc.id);
+        if (nmErr) throw new Error(nmErr.message || "문서명 저장 실패");
+      }
       setDirty(false);
       refreshDoc();
     }
@@ -593,7 +596,7 @@ export function BoardDocModal({
 
   useModalKeys(true,
     showPreview ? closePreview : showDiff ? () => setShowDiff(false) : onClose,
-    busy ? undefined : showPreview ? printPreview : showDiff ? undefined : kind === "issue" ? makeInvoice : () => save());
+    busy ? undefined : showPreview ? printPreview : showDiff ? undefined : kind === "issue" ? makeInvoice : () => { save().catch((e: any) => toast(e?.message || "저장 실패", "error")); });
 
   const field = (label: string, node: React.ReactNode) => (
     <label className="pb-doc-field"><span>{label}</span>{node}</label>
@@ -835,7 +838,7 @@ export function BoardDocModal({
           {kind === "issue" && <Link href="/tax-invoices" className="pb-doc-link">세금계산서 화면 ↗</Link>}
           <span className="pb-doc-spacer" />
           {kind !== "issue" && (<>
-            <button type="button" className="pb-doc-sub" disabled={busy || !canEdit} onClick={() => save()}>저장</button>
+            <button type="button" className="pb-doc-sub" disabled={busy || !canEdit} onClick={() => save().catch((e: any) => toast(e?.message || "저장 실패", "error"))}>저장</button>
             <button type="button" className="pb-doc-sub" disabled={busy} onClick={openPreview}
               title="인쇄될 PDF를 미리 봅니다.">미리보기</button>
             {status === "draft" && <button type="button" className="pb-doc-sub" disabled={busy || !doc?.id}

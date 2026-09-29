@@ -145,7 +145,8 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       //   삭제는 기본이 '본인이 올린 파일만'. 남의 파일까지 지우려면 아래 세부권한이 있어야 한다
       //   ("모든 사람이 삭제가 가능해" — 회사 구성원 누구나 남의 파일을 지우던 문제)
       { route: "/documents", label: "파일보관함", tabs: [
-        { key: "delete", label: "남의 파일 삭제", desc: "다른 사람이 올린 파일도 삭제 (미부여 시 본인이 올린 것만)" },
+        //   2026-09-29 문서(documents)의 남의 문서 수정·삭제도 이 권한 하나로 (키 불변 — 기존 부여자 그대로)
+        { key: "delete", label: "남의 파일·문서 수정·삭제", desc: "다른 사람이 올린 파일·만든 문서도 수정·삭제 (미부여 시 본인 것만)" },
       ] },
       { route: "/team", label: "구성원 디렉토리", always: true },   // 2026-08-26 인사 → 업무 (연락처. 인사 그룹은 직원 기본 비노출)
       { route: "/chat", label: "메신저", always: true },
