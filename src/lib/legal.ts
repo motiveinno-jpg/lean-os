@@ -10,9 +10,9 @@ import { supabase } from "@/lib/supabase";
  *    두 곳이 어긋나면 기록된 동의 버전이 실제 본 문서와 달라진다.
  */
 export const LEGAL_DOC_VERSIONS = {
-  terms: "2026-03-05",   // /terms 시행일
+  terms: "2026-09-29",   // /terms 시행일 (무료체험 문구 삭제·국내 토스/해외 Stripe 결제대행사 반영 개정)
   privacy: "2026-04-29", // /privacy 시행일
-  refund: "2026-07-27",  // /refund 시행일 (연간 결제·체험 44일 반영 개정)
+  refund: "2026-09-29",  // /refund 시행일 (결제대행사 국내·해외 구분 반영 개정)
 } as const;
 
 export type ConsentType =
