@@ -1117,7 +1117,8 @@ export async function deleteDocument(documentId: string): Promise<void> {
   //   근로계약 패키지에 묶인 문서 보호 (2026-09-28) — RPC 는 서명요청(signature_requests)만 막고 인사 계약 패키지 항목은 같이 지운다.
   //   모티브 실측: 문서함에서 계약 문서 5건을 지우자 발송된 패키지가 '문서 0건' 으로 남아 직원이 서명할 것 없는 링크를 받았다.
   //   발송·진행·완료 패키지의 문서는 여기서 막고, 정리는 계약 발송·현황(취소/정리)에서 하게 안내한다. 초안(draft)·취소 패키지의 문서는 지울 수 있다.
-  //   ⚠️ 서버(RPC) 쪽 같은 가드는 DB 변경이라 별도(db-architect) — 화면 밖 경로가 생기면 그때 막힌다.
+  //   서버(RPC delete_document)에도 같은 가드가 있다(2026-09-29 20260929120000). 여기서 먼저 막는 이유는 아래
+  //   deleteFilesForDocument 가 RPC 보다 먼저 첨부를 지우기 때문 — 서버에서만 막으면 첨부만 사라진다.
   const { data: bound } = await (supabase as any)
     .from('hr_contract_package_items')
     .select('package_id, hr_contract_packages!inner(status, title)')
