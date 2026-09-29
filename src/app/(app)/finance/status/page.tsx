@@ -247,14 +247,14 @@ export default function FinanceStatusPage() {
     return (
       <div className="pnl-panel">
         <h3>{title}</h3><p>{sub} · {list.length}건{list.length > 300 ? " · 앞 300줄만 보입니다." : ""}</p>
-        <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status">
+        <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status fs-entry-table">
           <thead><tr><th>일자</th><th>번호</th><th>종류</th>{sp && <th>부가세 유형</th>}<th>적요</th><th>거래처</th>{sp && <><th>공급가액</th><th>세액</th></>}<th>금액</th><th>출처</th><th>상태</th><th></th></tr></thead>
           <tbody>{view.map((e) => (
             <tr key={e.id} className={e.status === "rejected" ? "inv-row-fix" : undefined}>
               <td className="mono-number tc">{e.entry_date}</td><td className="mono-number tc">{e.voucher_no ?? "—"}</td>
               <td className="tc">{e.entry_kind === "sale_purchase" ? `매입매출·${kindLabel(e)}` : `일반·${kindLabel(e)}`}</td>
               {sp && <td className="tc">{vatType(e.vat_type)?.label || e.vat_type || "—"}</td>}
-              <td className="text-left">{e.description || <span className="ev-dim">—</span>}</td><td className="text-left">{partnerOf(e) || <span className="ev-dim">—</span>}</td>
+              <td className="text-left fs-entry-desc">{e.description || <span className="ev-dim">—</span>}</td><td className="text-left">{partnerOf(e) || <span className="ev-dim">—</span>}</td>
               {sp && <><td className="tr mono-number">₩{won(Number(e.supply_amount || 0))}</td><td className="tr mono-number">₩{won(Number(e.vat_amount || 0))}</td></>}
               <td className="tr mono-number">₩{won(amountOf(e))}</td><td className="tc">{SRC[e.source] || koFallback(e.source)}</td>
               <td className="tc"><span className={e.status === "confirmed" ? (e.is_approved ? "inv-pill inv-pill-ok" : "inv-pill") : e.status === "rejected" ? "inv-pill inv-pill-danger" : "inv-pill inv-pill-warn"}>{statusLabel(e.status)}{e.status === "confirmed" && !e.is_approved ? " · 미승인" : ""}</span></td>

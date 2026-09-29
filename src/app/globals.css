@@ -10972,3 +10972,16 @@ table.table-inv-ch-settle { min-width: 1120px; }
 .apik-pill-error { @apply bg-[var(--danger-dim)] text-[var(--danger)]; }
 .apik-pill-pending { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
 .apik-pill-none { @apply bg-[var(--bg-surface)] text-[var(--text-dim)]; }
+
+/* 재무 › 현황 전표 목록 (2026-09-29) — 적요가 길면(채널 정산 등) 한 줄로 늘어나 표가 상자보다 넓어지고
+   맨 끝 반려·확정 버튼이 가로 스크롤 밖에 숨었다. 적요만 줄바꿈하고 표는 상자 폭에 맞춘다(table-inv-status 는 다른 화면도 씀). */
+table.fs-entry-table { min-width: 0; }
+.ev-table tbody td.fs-entry-desc { @apply whitespace-normal break-keep min-w-[200px]; }
+
+/* 이커머스 › 정산 표 (2026-09-29 실측) — 1440 화면에서 표(최소 1120)가 상자(918)보다 넓어 맨 끝 「전표 초안」「묶음 지우기」가
+   가로 스크롤 밖에 숨었다. 최소 폭을 풀고, 통장 입금 칸만 두 줄 허용·버튼은 위아래로 쌓아 상자 안에 넣는다. */
+table.ch-settle-fit { min-width: 0; }
+.ev-table tbody td.ch-settle-wrap { @apply whitespace-normal; }
+.ch-settle-nowrap { @apply whitespace-nowrap; }
+.ch-settle-actions { @apply flex flex-col items-stretch gap-1; }
+.ch-settle-actions > button { @apply whitespace-nowrap; }

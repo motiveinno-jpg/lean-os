@@ -306,8 +306,8 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite, c
     if (s.journal_status !== "confirmed") return <span className="ev-dim" title="전표를 확정하면 통장 입금 줄과 대조합니다">확정 후 대조</span>;
     const l = bankLinks?.get(s.journal_entry_id!);
     if (!l) return <span className="ev-dim">…</span>;
-    if (l.linked.length) return <span title={l.linked.map((t) => `${t.transaction_date} ${t.counterparty || ""} ₩${won(t.amount)}`).join("\n")}>입금 대조됨 <span className="mono-number">{l.linked[0].transaction_date.slice(5)}</span></span>;
-    if (l.candidates.length) return <button type="button" className="btn-secondary btn-sm" onClick={() => setLinkFor(s.journal_entry_id!)} title="같은 금액의 통장 입금 줄이 있습니다 — 골라서 전표에 겁니다">입금 잇기 ({l.candidates.length})</button>;
+    if (l.linked.length) return <span title={l.linked.map((t) => `${t.transaction_date} ${t.counterparty || ""} ₩${won(t.amount)}`).join("\n")}><span className="ch-settle-nowrap">입금 대조됨</span> <span className="mono-number">{l.linked[0].transaction_date.slice(5)}</span></span>;
+    if (l.candidates.length) return <button type="button" className="btn-secondary btn-sm ch-settle-nowrap" onClick={() => setLinkFor(s.journal_entry_id!)} title="같은 금액의 통장 입금 줄이 있습니다 — 골라서 전표에 겁니다">입금 잇기 ({l.candidates.length})</button>;
     return <span className="ev-dim" title="전표일 −3~+14일 안에 정산금과 같은 금액의 입금이 없습니다. 통장이 수집되면 다시 보입니다">입금 후보 없음</span>;
   };
   const batchHasVoucher = (batchId: string) => settlements.some((s) => s.batch_id === batchId && liveVoucher(s));
@@ -318,7 +318,9 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite, c
     setVBusy(true);
     try {
       await unlinkRejectedVoucher(companyId, voucherBatch);
-      const id = await makeSettlementVoucherDraft({ batchId: voucherBatch, entryDate, acctBank: acc.bank!, acctFee: acc.fee!, acctShip: acc.ship!, acctSales: acc.sales!, acctDiff: totals.diff !== 0 ? acc.diff : null, description: vDesc });
+      //   적요를 비우면 RPC 가 채널 '코드'(smartstore)로 채운다 — 전표 현황에 그대로 보이므로 같은 형식을 채널 이름으로 만들어 넘긴다 (2026-09-29 실측)
+      const autoDesc = `채널 정산 ${totals.channels.map(channelLabel).join(", ")} · ${totals.from}~${totals.to} · ${totals.n}건 · 정산금 ₩${won(totals.settle)} · 수수료 ₩${won(totals.fee)} · 배송비 ₩${won(totals.ship)}`;
+      const id = await makeSettlementVoucherDraft({ batchId: voucherBatch, entryDate, acctBank: acc.bank!, acctFee: acc.fee!, acctShip: acc.ship!, acctSales: acc.sales!, acctDiff: totals.diff !== 0 ? acc.diff : null, description: vDesc.trim() || autoDesc });
       try { await saveSettlementAccounts(companyId, acc); } catch { /* 기억 실패는 전표와 무관 */ }
       setLastEntry(id); setVoucherBatch(null);
       toast("정산 전표 초안을 만들었습니다. 전표 현황 › 처리할 것에서 확정하세요.", "success");
@@ -418,7 +420,7 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite, c
       <div className="collect-empty">{settlements.length === 0 ? <>아직 정산 내역이 없습니다. 채널 판매자센터의 정산 내역 엑셀을 <b>정산 내역 붙여넣기</b>로 넣으세요.</> : "조건에 맞는 정산 줄이 없습니다."}</div>
     ) : (
       <div className="stg-table-wrap">
-        <table className="ev-table ev-lined table-inv-ch-settle">
+        <table className="ev-table ev-lined table-inv-ch-settle ch-settle-fit">
           <thead><tr>
             <SortableTh label="정산일" sortKey="date" sort={sort} onSort={onSort} />
             <SortableTh label="채널" sortKey="channel" sort={sort} onSort={onSort} />
@@ -442,8 +444,8 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite, c
               <td className={`tr mono-number ${s.settle_amount < 0 ? "vr-warn" : ""}`}><b>₩{won(s.settle_amount)}</b></td>
               <td className="tc">{s.import_id ? <span title="주문 가져오기 기록과 이어짐">주문 있음</span> : <span className="ev-dim" title="주문 가져오기에 이 주문번호가 없습니다">주문 없음</span>}</td>
               <td className="tc">{liveVoucher(s) ? <span title={s.journal_status === "confirmed" ? "정산 전표가 확정됐습니다" : "이 묶음의 정산 전표 초안이 있습니다 · 전표 현황에서 확정"}>{s.journal_status === "confirmed" ? "확정" : "초안 있음"}</span> : s.journal_entry_id ? <span className="ev-dim" title="전표가 반려됐습니다 · 다시 만들 수 있습니다">반려됨</span> : <span className="ev-dim">—</span>}</td>
-              <td className="tc">{bankCell(s) ?? <span className="ev-dim">—</span>}</td>
-              {canWrite && <td className="tc"><span className="ol-gap-actions">
+              <td className="tc ch-settle-wrap">{bankCell(s) ?? <span className="ev-dim">—</span>}</td>
+              {canWrite && <td className="tc"><span className="ch-settle-actions">
                 {!liveVoucher(s) && <button type="button" className="btn-secondary btn-sm" onClick={() => setVoucherBatch(s.batch_id)} title="이 줄이 속한 붙여넣기 묶음 합계로 정산 전표 초안을 만듭니다">전표 초안</button>}
                 <button type="button" className="btn-secondary btn-sm" disabled={batchHasVoucher(s.batch_id)} onClick={() => removeBatch(s)} title={batchHasVoucher(s.batch_id) ? "전표 초안이 있는 묶음은 지울 수 없습니다 — 전표를 먼저 반려하세요" : "이 줄이 속한 붙여넣기 묶음을 지웁니다"}>묶음 지우기</button>
               </span></td>}
