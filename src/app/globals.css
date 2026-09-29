@@ -970,7 +970,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .auth-divider { @apply flex items-center gap-3 mb-5; }
 .company-name-field { @apply mb-4; }
 .biz-no-field { @apply mb-4; }
-.signup-kind-tabs { @apply mb-4; }
+.signup-kind-tabs { @apply w-full mb-4; }
 
 .join-prompt-card { @apply mb-4 p-4 rounded-xl bg-[var(--info-dim)] border border-[var(--info)]/25; }
 .email-field { @apply mb-4; }

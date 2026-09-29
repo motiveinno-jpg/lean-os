@@ -289,6 +289,9 @@ export default function AuthPage() {
     if (digitsNow.length > 0 && digitsNow.length !== 10) return setError("사업자번호 10자리를 입력하거나 비워 두세요.");
     if (digitsNow.length === 10) {
       // 중복 확인을 완료(available)하고, 그 이후 번호가 바뀌지 않았어야 제출 가능.
+      if (bizCheck === "registered" && bizCheckedDigits === digitsNow) {
+        return setError("이미 오너뷰에 가입된 회사입니다. 위의 '가입하고 합류 요청 보내기'를 누르거나, 새 회사로 시작하려면 번호를 비워 주세요.");
+      }
       if (bizCheck !== "available" || bizCheckedDigits !== digitsNow) {
         return setError("사업자번호 '중복 확인'을 먼저 진행해주세요.");
       }
