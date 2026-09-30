@@ -11,6 +11,7 @@ import { logRead } from "@/lib/log-read";
 import { fetchPaged } from "@/lib/fetch-paged";
 
 import { useEffect, useState, useMemo, useRef, Fragment } from "react";
+import { createPortal } from "react-dom";
 import { MonthField } from "@/components/month-field";
 import { InsuranceNoticeDialog } from "@/components/insurance-notice-dialog";
 import type { InsuranceRates } from "@/lib/insurance-rates";
@@ -176,7 +177,9 @@ export default function EmployeesPage()  {
   const certStats = useCertificateStats(tab === "certificates" ? companyId : null);
   //   급여 탭 요약 줄은 아래 급여 명세가 계산한 결과(previewPayroll, 법정 요율·수당 포함)를 그대로 받는다 —
   //   요약 줄이 따로 '이번 달'을 셈하면 다른 달을 골라도 위 숫자가 이번 달 값으로 남아 아래 카드와 어긋났다.
-  const [paySummary, setPaySummary] = useState<{ month: string; items: number; totalGross: number; totalEmployer: number } | null>(null);
+  //   휴가 화면의 하위 탭 줄을 상자 머리에 그릴 자리(2026-09-30) — LeaveTab 이 createPortal 로 여기에
+  const [leaveHeadEl, setLeaveHeadEl] = useState<HTMLDivElement | null>(null);
+  const [paySummary, setPaySummary] = useState<{ month: string; items: number; totalGross: number; totalEmployer: number; totalDeductions: number; totalNet: number; ratesLabel: string; openNotice: () => void } | null>(null);
   const payMonthLabel = paySummary ? `${Number(paySummary.month.slice(5, 7))}월` : "";
   // 재직자만 합산: 퇴사자 급여가 섞여 급여 탭 합계와 다른 인건비가 표시됐다.
   const activeForPay = employees.filter((e: any) => ["active", "joined"].includes(e.status));
@@ -275,13 +278,18 @@ export default function EmployeesPage()  {
       {effectiveTab !== "employees" && (
         <QueryScreen>
           <QueryHead>
+            {effectiveTab === "leave" && <div ref={setLeaveHeadEl} />}
             {/* P1-3: 급여 = 이력 ↔ 명세 서브뷰 단일 탭. 히어로 카드(지급 대상·월 급여 총액·4대보험·연 인건비)는 결과 요약 줄로 */}
             {effectiveTab === "salary" && !isEmployee && (
               <ResultStrip>
                 <Stat label={paySummary ? `지급 대상(${payMonthLabel})` : "지급 대상"} value={paySummary ? `${paySummary.items}명` : "—"} />
                 <Stat label="월 급여 총액" title="세전 지급합계(기본급 + 비과세 + 수당)" value={paySummary ? `₩${paySummary.totalGross.toLocaleString()}` : "—"} />
-                <Stat label="4대보험 회사부담" title="아래 급여 명세와 같은 법정 요율 계산입니다." value={paySummary ? `₩${paySummary.totalEmployer.toLocaleString()}` : "—"} />
+                {/*   2026-09-30 명세 위 KPI 카드 4장을 없애며 카드에만 있던 공제·실수령·요율 출처·고지서 대조를 이 줄로 */}
+                <Stat label="총 공제액" value={paySummary ? `−₩${paySummary.totalDeductions.toLocaleString()}` : "—"} tone={paySummary && paySummary.totalDeductions ? "minus" : undefined} />
+                <Stat label="총 실수령액" value={paySummary ? `₩${paySummary.totalNet.toLocaleString()}` : "—"} />
+                <Stat label={paySummary ? `4대보험 회사부담(${paySummary.ratesLabel})` : "4대보험 회사부담"} title="회사설정 › 회계·세무 › 4대보험 요율 기준 · 아래 급여 명세와 같은 계산입니다." value={paySummary ? `₩${paySummary.totalEmployer.toLocaleString()}` : "—"} />
                 <Stat label={paySummary ? `연 인건비(${payMonthLabel} × 12, 회사부담 포함)` : "연 인건비(회사부담 포함)"} title="(월 급여 총액 + 4대보험 회사부담) × 12. 인력관리 탭의 '연 급여'는 약정 월급 합계 × 12 라 회사부담이 빠져 있습니다." value={paySummary ? `₩${((paySummary.totalGross + paySummary.totalEmployer) * 12).toLocaleString()}` : "—"} />
+                {paySummary && <button type="button" className="qk-stat-link" title="공단 고지서 금액과 이 달 회사부담을 맞춰 봅니다" onClick={paySummary.openNotice}><Stat label="고지서" value="맞춰 보기" /></button>}
               </ResultStrip>
             )}
             {effectiveTab === "certificates" && (<>
@@ -320,6 +328,7 @@ export default function EmployeesPage()  {
                   isEmployee={false}
                   autoNew={sp?.get("new") === "1"}
                   focusPending={sp?.get("focus") === "pending"}
+                  headSlot={leaveHeadEl}
                 />
               )}
 
@@ -1942,7 +1951,7 @@ function QuickAttendanceButtons({ employees, records, onCheckIn, onCheckOut }: a
 }
 
 // ── Payroll Preview Tab ──
-function PayrollPreviewTab({ companyId, onSummary }: { companyId: string | null; onSummary?: (s: { month: string; items: number; totalGross: number; totalEmployer: number } | null) => void }) {
+function PayrollPreviewTab({ companyId, onSummary }: { companyId: string | null; onSummary?: (s: { month: string; items: number; totalGross: number; totalEmployer: number; totalDeductions: number; totalNet: number; ratesLabel: string; openNotice: () => void } | null) => void }) {
   const { toast } = useToast();
   const [preview, setPreview] = useState<{ items: PayrollItem[]; totalGross: number; totalDeductions: number; totalNet: number; skippedNoBirth?: string[]; totalEmployer?: number; rates?: InsuranceRates } | null>(null);
   const noBirthToastKey = useRef("");   // 생년월일 미등록 안내는 같은 달·같은 인원수로 한 번만
@@ -2122,7 +2131,12 @@ function PayrollPreviewTab({ companyId, onSummary }: { companyId: string | null;
   useEffect(() => { if (companyId) void generate(); }, [companyId, periodMonth]);   // eslint-disable-line react-hooks/exhaustive-deps
   //   위 요약 줄(부모)은 이 달 계산 결과를 그대로 보여 준다 — 달을 바꾸면 같이 바뀐다
   useEffect(() => {
-    onSummary?.(preview ? { month: periodMonth, items: preview.items.length, totalGross: preview.totalGross, totalEmployer: preview.totalEmployer || 0 } : null);
+    onSummary?.(preview ? {
+      month: periodMonth, items: preview.items.length, totalGross: preview.totalGross, totalEmployer: preview.totalEmployer || 0,
+      totalDeductions: preview.totalDeductions, totalNet: preview.totalNet,
+      ratesLabel: preview.rates?.isDefault !== false ? "법정 기본값" : `${preview.rates?.year}년 회사 요율`,
+      openNotice: () => setNoticeOpen(true),
+    } : null);
   }, [preview, periodMonth]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveEdits = async () => {
@@ -2232,27 +2246,7 @@ function PayrollPreviewTab({ companyId, onSummary }: { companyId: string | null;
         </div>
       ) : (
         <>
-          {/* Summary Cards */}
-          <div className="payroll-summary-cards">
-            <div className="glass-card p-4">
-              <div className="text-xs text-[var(--text-dim)]">총 급여 (세전)</div>
-              <div className="text-lg font-bold mt-1">{fmtKRW(preview.totalGross)}</div>
-            </div>
-            <div className="glass-card p-4">
-              <div className="text-xs text-[var(--text-dim)]">총 공제액</div>
-              <div className="text-lg font-bold text-[var(--danger)] mt-1">-{fmtKRW(preview.totalDeductions)}</div>
-            </div>
-            <div className="glass-card p-4">
-              <div className="text-xs text-[var(--text-dim)]">총 실수령액</div>
-              <div className="text-lg font-bold text-[var(--success)] mt-1">{fmtKRW(preview.totalNet)}</div>
-            </div>
-            <div className="glass-card p-4" title="회사설정 › 회계·세무 › 4대보험 요율 기준">
-              <div className="text-xs text-[var(--text-dim)]">회사 부담 4대보험 {preview.rates?.isDefault !== false ? <span className="hr-src-tag">법정 기본값</span> : <span className="hr-src-tag">{preview.rates?.year}년 회사 요율</span>}</div>
-              <div className="text-lg font-bold mt-1">{fmtKRW(preview.totalEmployer || 0)}</div>
-              <div className="text-[11px] text-[var(--text-muted)] mt-0.5">인건비 총액 {fmtKRW(preview.totalGross + (preview.totalEmployer || 0))} · <button type="button" className="bz-link" onClick={() => setNoticeOpen(true)}>고지서와 맞춰 보기</button></div>
-            </div>
-          </div>
-
+          {/*   KPI 카드 4장은 없앴다(2026-09-30) — 위 요약 줄과 같은 숫자가 두 번 나왔고 「상자 안 상자 금지」와 달랐다 */}
           {/* Detail Table */}
           <div className="payroll-detail-table glass-card">
             <div className="ev-scroll leave-req-scroll"><table className="ev-table ev-lined payroll-tbl">
@@ -2448,7 +2442,7 @@ function PayrollPreviewTab({ companyId, onSummary }: { companyId: string | null;
 }
 
 // ── Leave Tab ──
-export function LeaveTab({ employees, directory, companyId, userId, queryClient, isEmployee, autoNew, focusPending }: any) {
+export function LeaveTab({ employees, directory, companyId, userId, queryClient, isEmployee, autoNew, focusPending, headSlot }: any) {
   const { toast } = useToast();
   const currentYear = new Date().getFullYear();
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -3068,15 +3062,21 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     <div>
       {/* ── 휴가 탭 서브뷰 (2026-08-06 대표 시안) ──
           상단 KPI 카드는 이 탭에서 감추고, '직원별 연차'(표) / '설정'(부여 방식·휴가 유형) 로 나눈다. */}
-      {/*   2026-09-30 위 갈래 탭 줄이 없어져 이 줄이 휴가 화면의 유일한 갈래 탭이 됐다 — 표준 collect-tabs 그대로
-            (.leave-subtabs 는 양끝 벌림 justify-between 이라 모양이 표준과 달랐다) */}
-      <div className="collect-tabs">
-        {([["roster", "직원별 연차"], ["requests", "신청"], ...(!isEmployee ? [["promotion", "촉진"]] : []), ["settings", "설정"]] as const).map(([k, l]) => (
-          <button key={k} type="button" onClick={() => setLeaveView(k as typeof leaveView)} className={leaveView === k ? "collect-tab collect-tab-on" : "collect-tab"}>
-            {l}{k === "requests" && visibleRequests.filter((r: any) => r.status === "pending").length > 0 && <span className="collect-tab-cnt inv-tab-warn">{visibleRequests.filter((r: any) => r.status === "pending").length}</span>}
-          </button>
-        ))}
-      </div>
+      {/*   2026-09-30 위 갈래 탭 줄이 없어져 이 줄이 휴가 화면의 유일한 갈래 탭이 됐다 — 표준 collect-tabs 그대로.
+            부모가 상자 머리(QueryHead)에 자리(headSlot)를 주면 거기에 그린다 — 표준 파란 밑줄(.qk-head .collect-tab-on)이 걸리고
+            표를 스크롤해도 탭이 고정된다. 자리가 없으면(다른 화면) 여기 본문에 그대로. */}
+      {(() => {
+        const row = (
+          <div className="collect-tabs">
+            {([["roster", "직원별 연차"], ["requests", "신청"], ...(!isEmployee ? [["promotion", "촉진"]] : []), ["settings", "설정"]] as const).map(([k, l]) => (
+              <button key={k} type="button" onClick={() => setLeaveView(k as typeof leaveView)} className={leaveView === k ? "collect-tab collect-tab-on" : "collect-tab"}>
+                {l}{k === "requests" && visibleRequests.filter((r: any) => r.status === "pending").length > 0 && <span className="collect-tab-cnt inv-tab-warn">{visibleRequests.filter((r: any) => r.status === "pending").length}</span>}
+              </button>
+            ))}
+          </div>
+        );
+        return headSlot ? createPortal(row, headSlot) : row;
+      })()}
 
       {leaveView === "roster" && (<>
         {/*   2026-08-18 상자 안 상자 금지 — 카드 껍데기(glass-card) 대신 선으로만 구역을 가른다 */}

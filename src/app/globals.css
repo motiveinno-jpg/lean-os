@@ -1469,7 +1469,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .attendance-checkout-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4; }
 .attendance-quick-buttons { @apply flex gap-2 items-center; }
 .payroll-toolbar { @apply flex items-center justify-between mb-4; }
-.payroll-summary-cards { @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6; }   /* 2026-08-27 회사 부담 카드 추가로 4칸 */
 .payroll-detail-table { @apply overflow-hidden; } /* co-exists with glass-card in JSX */
 .leave-type-overview { @apply mb-6; }
 .leave-grant-method-panel { @apply mb-5 p-4; } /* co-exists with glass-card in JSX */
@@ -3939,7 +3938,6 @@ table.ap-policy-table { min-width: 960px; }
 .qk-body .leave-request-form.glass-card { @apply mb-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-none; }
 .leave-req-scroll { max-height: 60vh; }
 /*   급여·증명서 탭 — 카드 껍데기는 얇은 안쪽 판으로, 표는 공용 머리단 */
-.qk-body .payroll-summary-cards .glass-card,
 .qk-body .certificate-yeartax-panel.glass-card { @apply mb-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-none; }
 .qk-body .payroll-detail-table.glass-card { @apply rounded-none border-0 bg-transparent shadow-none; }
 table.cert-log-tbl { min-width: 860px; } /* table. — .ev-table(뒤에 정의) 의 min-width 를 이긴다 */
