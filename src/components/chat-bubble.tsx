@@ -5,6 +5,7 @@ import { Avatar } from "@/components/avatar";
 import { Ico } from "@/components/ui-icon";
 import { ActionCard } from "./action-card";
 import { SignedImg, useSignedUrl } from "@/components/signed-media";
+import type { WorkStatus } from "@/lib/work-status";
 
 interface Reaction {
   emoji: string;
@@ -19,6 +20,8 @@ interface ReplyInfo {
 
 interface ChatBubbleProps {
   senderName: string;
+  /** 보낸 사람의 지금 근무 상태(내 상태 + 오늘 근태, lib/work-status) — 근무중이 아니면 이름 옆에 점 (2026-09-30) */
+  senderStatus?: WorkStatus | null;
   senderAvatar?: string | null;   // 보낸 사람 프로필 사진(users.avatar_url) — 없으면 이름 첫 글자 (2026-09-07)
   content: string;
   time: string;
@@ -84,7 +87,7 @@ function renderContent(text: string, isOwn: boolean, glass?: boolean) {
 }
 
 export function ChatBubble({
-  senderName, senderAvatar, content, time, isOwn, type, pinned,
+  senderName, senderStatus, senderAvatar, content, time, isOwn, type, pinned,
   editedAt, deletedAt, replyTo, reactions, metadata, actionCard,
   onPin, onReply, onReact, onEdit, onDelete, glass, unreadCount,
 }: ChatBubbleProps) {
@@ -126,7 +129,15 @@ export function ChatBubble({
       {!isOwn && <Avatar name={senderName} src={senderAvatar} size={24} className="chat-bubble-avatar" />}
       <div className={`chat-bubble-column ${isOwn ? "items-end" : "items-start"}`}>
         {!isOwn && (
-          <div className="chat-bubble-sender-name">{senderName}</div>
+          <div className="chat-bubble-sender-name">
+            {senderName}
+            {/*   구성원 목록·1:1 머리와 같은 규칙 — 평소(근무중)엔 아무 표시 없고 회의중·외근·퇴근·휴가 등만 점으로. 글자는 툴팁 */}
+            {senderStatus && senderStatus.id !== "working" && (
+              <i className={`presence-dot chat-bubble-status work-tone-${senderStatus.tone}`}
+                title={senderStatus.detail ? `${senderStatus.label} · ${senderStatus.detail}` : senderStatus.label}
+                aria-label={senderStatus.label} />
+            )}
+          </div>
         )}
 
         {/* Reply indicator */}

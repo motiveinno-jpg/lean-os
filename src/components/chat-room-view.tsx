@@ -971,6 +971,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
                       <ChatBubble
                         glass={compact}
                         senderName={msg.users?.name || msg.users?.email || "—"}
+                        senderStatus={isDMChannel || msg.sender_id === userId ? null : statusForUser(msg.sender_id)}   // 1:1 은 머리에 이미 상대 상태가 있다
                         senderAvatar={msg.users?.avatar_url || null}
                         content={msg.content}
                         time={formatTime(msg.created_at)}

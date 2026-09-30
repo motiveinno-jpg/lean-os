@@ -4844,6 +4844,8 @@ table.pnl-drill-table { min-width: 760px; }
 .work-tone-blue { color: #2563eb; }
 .work-tone-purple { color: var(--primary); }
 .work-tone-grey { color: var(--text-dim); }
+/*   말풍선 보낸 사람 이름 옆 상태 점 (2026-09-30) — 색은 work-tone-* 의 글자색을 점 배경으로 */
+.chat-bubble-status { @apply ml-1; background: currentColor; }
 /* 메신저 구성원 줄 안에서는 세로 flex 자식이라 늘어나지 않게 */
 .chat-person-body .presence-chip-ro { align-self: flex-start; max-width: 100%; }
 .account-chip-avatar-wrap { @apply relative inline-flex shrink-0; }
