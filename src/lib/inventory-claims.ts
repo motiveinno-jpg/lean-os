@@ -101,18 +101,19 @@ export async function deleteClaim(claim: Claim): Promise<void> {
   if (error) throw error;
 }
 
-/** 채널별 환불 합 — KPI·현황이 주문 금액에서 뺀다(결정 268). 교환은 0 */
-export function refundByChannel(claims: Claim[], imports: OrderImport[], inRange?: (i: OrderImport) => boolean): Map<string, number> {
-  const impById = new Map(imports.map((i) => [i.id, i]));
-  const m = new Map<string, number>();
-  for (const c of claims) {
-    if (c.kind === "exchange") continue;
-    const i = impById.get(c.import_id);
-    if (!i || (inRange && !inRange(i))) continue;
-    m.set(i.channel, (m.get(i.channel) || 0) + c.refund_amount);
-  }
-  return m;
+/** 클레임 고치기 — 사유·환불액만 (2026-09-30).
+ *  종류·일자는 반품 입고·교환 출고 문서(문서 일자·줄)와 묶여 있어 여기서 바꾸지 않는다 — 바꾸려면 지우고 다시 등록한다.
+ *  교환은 환불액이 늘 0 이다. */
+export async function updateClaim(claim: Claim, patch: { refundAmount: number; reason: string | null }): Promise<void> {
+  if (!(patch.refundAmount >= 0)) throw new Error("환불 금액은 0 이상이어야 합니다");
+  const { error } = await db.from("channel_order_claims").update({
+    refund_amount: claim.kind === "exchange" ? 0 : Math.round(patch.refundAmount),
+    reason: patch.reason?.trim() || null,
+  }).eq("id", claim.id);
+  if (error) throw error;
 }
+
+//   채널별 환불 합(refundByChannel)은 2026-09-30 현황이 클레임 일자 기준으로 바뀌며 쓰는 곳이 없어 지웠다 — 현황은 page.tsx stRefund
 
 // ── 정산 ──────────────────────────────────────────────────────────────────
 export type Settlement = {

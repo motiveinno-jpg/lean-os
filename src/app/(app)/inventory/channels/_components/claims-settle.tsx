@@ -10,6 +10,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { appConfirm } from "@/components/global-confirm";
 import { todayKst, kstDateTime } from "@/lib/kst";
 import { DateField } from "@/components/date-field";
+import { DateRangeField } from "@/components/date-range-field";
 import { QueryBar, ResultStrip, Stat, QuickSearch, quickSearchHit, Pager, usePager } from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { SimpleCond, SimpleApplied, condHit, type CondLive } from "../../_components/simple-cond";
@@ -20,7 +21,7 @@ import Link from "next/link";
 import { loadChannelFees, saveChannelFees, loadSettlementAccounts, saveSettlementAccounts, SETTLEMENT_ACCOUNT_DEFAULT_CODES, type ChannelFees, type SettlementAccounts } from "@/lib/inventory-settings";
 import type { Product } from "@/lib/inventory";
 import {
-  listClaims, createClaim, deleteClaim, orderLinesOf, CLAIM_KIND_LABEL, type Claim, type ClaimKind, type OrderLine,
+  listClaims, createClaim, updateClaim, deleteClaim, orderLinesOf, CLAIM_KIND_LABEL, type Claim, type ClaimKind, type OrderLine,
   listSettlements, importSettlements, deleteSettlementBatch, parseSettlementTsv, guessSettleColumns, settlementSummary, unsettledImports,
   makeSettlementVoucherDraft, batchTotals, listAccountOptions, unlinkRejectedVoucher, fetchSettlementBankLinks, linkSettlementBankTx,
   SETTLE_FIELDS, UNSETTLED_DAYS, type Settlement, type SettleField, type SettleRow,
@@ -30,32 +31,41 @@ const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
 const pct = (r: number | null) => (r == null ? "—" : `${(r * 100).toFixed(1)}%`);
 const CH_GROUP = [{ key: "channel", label: "채널", hint: "비우면 전체", options: CHANNELS.map((c) => ({ value: c.value, label: c.label })) }];
 
+/** 기간 — 빈 값이면 전체 기간(DateRangeField 의 onClear) */
+export type Range = { from: string; to: string };
+export const NO_RANGE: Range = { from: "", to: "" };
+/** 날짜가 기간 안인가 — 기간이 비었으면 늘 참, 날짜가 없는 줄은 기간을 걸면 빠진다 (2026-09-30 현황 드릴다운과 목록 숫자 맞추기) */
+export const inRange = (d: string | null | undefined, r: Range) => !r.from || !r.to || (!!d && d.slice(0, 10) >= r.from && d.slice(0, 10) <= r.to);
+
 // ── 클레임 ────────────────────────────────────────────────────────────────
 type ClaimKey = "date" | "channel" | "no" | "kind" | "refund";
 export function useClaimsPanel({ companyId, userId, imports, products, canWrite, onDone }: {
   companyId: string | null; userId: string | null; imports: OrderImport[]; products: Product[]; canWrite: boolean; onDone: () => void;
-}): { head: ReactNode; body: ReactNode; pagerEl: ReactNode; dialog: ReactNode; claims: Claim[]; openNew: (imp?: OrderImport) => void } {
+}): { head: ReactNode; body: ReactNode; pagerEl: ReactNode; dialog: ReactNode; claims: Claim[]; openNew: (imp?: OrderImport) => void;
+  setCond: (c: CondLive) => void; setRange: (r: Range) => void } {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const { data: claims = [] } = useQuery({ queryKey: ["ch-claims", companyId], queryFn: () => listClaims(companyId!), enabled: !!companyId });
+  const { data: claims = [], isLoading, isError } = useQuery({ queryKey: ["ch-claims", companyId], queryFn: () => listClaims(companyId!), enabled: !!companyId });
   const impById = useMemo(() => new Map(imports.map((i) => [i.id, i])), [imports]);
   const productName = useMemo(() => new Map(products.map((p) => [p.id, p.name])), [products]);
   const [cond, setCond] = useState<CondLive>({});
+  //   클레임 일자 기간 — 기본 비움(전체). 클레임은 몇 건 안 되는 목록이라 기간으로 가리면 놓친다. 현황 숫자를 누르면 현황 기간이 걸린다
+  const [range, setRange] = useState<Range>(NO_RANGE);
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<SortState<ClaimKey>>({ key: "date", dir: "desc" });
   const KIND_GROUP = [...CH_GROUP, { key: "kind", label: "종류", hint: "비우면 전체", options: (Object.keys(CLAIM_KIND_LABEL) as ClaimKind[]).map((k) => ({ value: k, label: CLAIM_KIND_LABEL[k] })) }];
   const shown = useMemo(() => claims.filter((c) => {
     const i = impById.get(c.import_id);
-    return condHit(cond, "channel", i?.channel || "") && condHit(cond, "kind", c.kind)
+    return condHit(cond, "channel", i?.channel || "") && condHit(cond, "kind", c.kind) && inRange(c.claimed_at, range)
       && quickSearchHit(q, [i?.channel_order_no, i?.buyer_name, c.reason]);
-  }), [claims, cond, q, impById]);
+  }), [claims, cond, range, q, impById]);
   const sorted = useMemo(() => {
     const d = sort.dir === "asc" ? 1 : -1;
     const val = (c: Claim) => sort.key === "date" ? c.claimed_at : sort.key === "channel" ? (impById.get(c.import_id)?.channel || "")
       : sort.key === "no" ? (impById.get(c.import_id)?.channel_order_no || "") : sort.key === "kind" ? c.kind : c.refund_amount;
     return [...shown].sort((a, b) => cmp(val(a), val(b)) * d);
   }, [shown, sort, impById]);
-  const pager = usePager(sorted, 50, `${JSON.stringify(cond)}|${q}|${sort.key}${sort.dir}`);
+  const pager = usePager(sorted, 50, `${JSON.stringify(cond)}|${range.from}~${range.to}|${q}|${sort.key}${sort.dir}`);
   const onSort = (k: string) => setSort((s) => nextSort(s, k as ClaimKey));
   const refund = shown.filter((c) => c.kind !== "exchange").reduce((n, c) => n + c.refund_amount, 0);
   const cnt = (k: ClaimKind) => shown.filter((c) => c.kind === k).length;
@@ -98,6 +108,19 @@ export function useClaimsPanel({ companyId, userId, imports, products, canWrite,
     } catch (e) { toast(friendlyError(e, "클레임 등록 실패"), "error"); }
     finally { setBusy(false); }
   };
+  //   고치기 — 사유·환불액만(종류·일자는 재고 문서와 묶여 있어 지우고 다시 등록, 2026-09-30)
+  const [edit, setEdit] = useState<{ c: Claim; refund: string; reason: string } | null>(null);
+  const saveEdit = async () => {
+    if (!edit || busy) return;
+    setBusy(true);
+    try {
+      await updateClaim(edit.c, { refundAmount: Number(edit.refund || 0), reason: edit.reason });
+      toast("클레임을 고쳤습니다", "success");
+      setEdit(null);
+      qc.invalidateQueries({ queryKey: ["ch-claims", companyId] });
+    } catch (e) { toast(friendlyError(e, "고치지 못했습니다"), "error"); }
+    finally { setBusy(false); }
+  };
   const remove = async (c: Claim) => {
     const i = impById.get(c.import_id);
     if (!(await appConfirm(`${i?.channel_order_no || ""} ${CLAIM_KIND_LABEL[c.kind]} 클레임을 지울까요?\n되돌린 재고 문서도 함께 지워져 재고가 다시 빠집니다.`, { danger: true, confirmLabel: "지우기" }))) return;
@@ -105,21 +128,35 @@ export function useClaimsPanel({ companyId, userId, imports, products, canWrite,
     catch (e) { toast(friendlyError(e, "삭제 실패"), "error"); }
   };
 
+  //   엑셀 — 정산·이력에는 있는데 클레임에만 없었다(2026-09-30). 지금 보이는 줄(조건·정렬 그대로)
+  const exportClaims = () => exportToExcel(sorted.map((c) => { const i = impById.get(c.import_id); return {
+    "일자": c.claimed_at, "채널": i ? channelLabel(i.channel) : "", "주문번호": i?.channel_order_no || "", "주문자": i?.buyer_name || "",
+    "종류": CLAIM_KIND_LABEL[c.kind], "환불액": c.kind === "exchange" ? 0 : c.refund_amount, "사유": c.reason || "",
+    "재고": c.restock ? "되돌림" : "변동 없음",
+  }; }), "클레임", `클레임_${range.from && range.to ? `${range.from}~${range.to}` : "전체"}_${todayKst()}`);
   const head = (<>
-    <QueryBar right={canWrite ? <button type="button" className="btn-primary btn-sm" onClick={() => openNew()}>+ 클레임 등록</button> : undefined}>
+    <QueryBar right={<>
+      <button type="button" className="btn-secondary btn-sm" disabled={!shown.length} onClick={exportClaims}>엑셀</button>
+      {canWrite && <button type="button" className="btn-primary btn-sm" onClick={() => openNew()}>+ 클레임 등록</button>}
+    </>}>
       <SimpleCond groups={KIND_GROUP} live={cond} onApply={setCond} />
+      <DateRangeField label={null} from={range.from} to={range.to} onChange={(f, t) => setRange({ from: f, to: t })} onClear={() => setRange(NO_RANGE)} />
       <QuickSearch value={q} onApply={setQ} placeholder="주문번호 · 주문자 · 사유 · 쉼표로 여러 개, Enter" />
-      <span className="inv-hint">취소·반품 환불액은 <b>현황·매출 KPI 에서 빠집니다</b>. 재고는 반품 입고 문서로 되돌립니다.</span>
     </QueryBar>
     <SimpleApplied groups={KIND_GROUP} live={cond} onApply={setCond} />
     <ResultStrip>
       <Stat label="클레임" value={`${won(shown.length)}건`} />
       <Stat label="환불액" value={`₩${won(refund)}`} tone={refund > 0 ? "minus" : undefined} />
       <Stat label="취소 · 반품 · 교환" value={`${cnt("cancel")} · ${cnt("return")} · ${cnt("exchange")}`} />
+      <span className="spv-toolbar-hint">클레임 일자 기준 · 환불액은 <b>현황·매출 KPI 에서 빠집니다</b>. 재고는 반품 입고 문서로 되돌립니다.</span>
     </ResultStrip>
   </>);
 
-  const body = shown.length === 0 ? (
+  const body = isError ? (
+    <div className="collect-empty">클레임 목록을 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>
+  ) : isLoading ? (
+    <div className="collect-empty">불러오는 중…</div>
+  ) : shown.length === 0 ? (
     <div className="collect-empty">{claims.length === 0 ? <>취소·반품·교환이 없습니다. 생기면 <b>+ 클레임 등록</b>으로 주문을 골라 적으세요.</> : "조건에 맞는 클레임이 없습니다."}</div>
   ) : (
     <div className="stg-table-wrap">
@@ -144,7 +181,10 @@ export function useClaimsPanel({ companyId, userId, imports, products, canWrite,
               <td className="tr mono-number">{c.kind === "exchange" ? <span className="ev-dim">—</span> : `₩${won(c.refund_amount)}`}</td>
               <td className="text-left ev-dim ch-claims-reason">{c.reason || "—"}</td>
               <td className="tc">{c.restock ? <span title="반품 입고 문서로 되돌림">되돌림</span> : <span className="ev-dim">변동 없음</span>}</td>
-              {canWrite && <td className="tc"><button type="button" className="btn-secondary btn-sm" onClick={() => remove(c)}>지우기</button></td>}
+              {canWrite && <td className="tc ch-claims-acts">
+                <button type="button" className="btn-secondary btn-sm" onClick={() => setEdit({ c, refund: String(c.refund_amount), reason: c.reason || "" })}>고치기</button>
+                <button type="button" className="btn-secondary btn-sm" onClick={() => remove(c)}>지우기</button>
+              </td>}
             </tr>
           ); })}
         </tbody>
@@ -199,7 +239,26 @@ export function useClaimsPanel({ companyId, userId, imports, products, canWrite,
     </div>
   ) : null;
 
-  return { head, body, pagerEl, dialog, claims, openNew };
+  const editDialog = edit ? (() => { const i = impById.get(edit.c.import_id); return (
+    <div className="inv-modal" onClick={() => setEdit(null)}>
+      <div className="inv-modal-box" onClick={(e) => e.stopPropagation()}>
+        <h3 className="inv-modal-title">클레임 고치기</h3>
+        <p className="inv-modal-desc">{i ? `${channelLabel(i.channel)} ${i.channel_order_no}` : ""} · {CLAIM_KIND_LABEL[edit.c.kind]} · {edit.c.claimed_at}<br />
+          종류·일자는 재고 문서와 묶여 있어 여기서 바꾸지 않습니다. 바꾸려면 지우고 다시 등록하세요.</p>
+        <label className="inv-field"><span>환불액{edit.c.kind === "exchange" ? " (교환은 0)" : ""}</span>
+          <input className="field-input mono-number" inputMode="numeric" disabled={edit.c.kind === "exchange"} value={edit.refund}
+            onChange={(e) => setEdit({ ...edit, refund: e.target.value.replace(/[^0-9]/g, "") })} placeholder="0" /></label>
+        <label className="inv-field"><span>사유</span>
+          <input className="field-input" value={edit.reason} onChange={(e) => setEdit({ ...edit, reason: e.target.value })} placeholder="예: 단순 변심 · 파손 · 오배송" /></label>
+        <div className="inv-modal-actions">
+          <button type="button" className="btn-secondary btn-sm" onClick={() => setEdit(null)}>닫기</button>
+          <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={saveEdit}>{busy ? "저장 중…" : "저장"}</button>
+        </div>
+      </div>
+    </div>
+  ); })() : null;
+
+  return { head, body, pagerEl, dialog: <>{dialog}{editDialog}</>, claims, openNew, setCond, setRange };
 }
 
 // ── 정산 ──────────────────────────────────────────────────────────────────
@@ -211,7 +270,7 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite, c
 }): { head: ReactNode; body: ReactNode; pagerEl: ReactNode; dialog: ReactNode; settlements: Settlement[] } {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const { data: settlements = [] } = useQuery({ queryKey: ["ch-settlements", companyId], queryFn: () => listSettlements(companyId!), enabled: !!companyId });
+  const { data: settlements = [], isLoading: stLoading, isError: stError } = useQuery({ queryKey: ["ch-settlements", companyId], queryFn: () => listSettlements(companyId!), enabled: !!companyId });
   const { data: fees = {} as ChannelFees } = useQuery({ queryKey: ["ch-fees", companyId], queryFn: () => loadChannelFees(companyId!), enabled: !!companyId });
   const impById = useMemo(() => new Map(imports.map((i) => [i.id, i])), [imports]);
   const MATCH_GROUP = [...CH_GROUP, { key: "match", label: "대조", hint: "비우면 전체", options: [{ value: "yes", label: "주문 있음" }, { value: "no", label: "주문 없음" }] }];
@@ -375,7 +434,12 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite, c
     </ResultStrip>
   </>);
 
-  const body = (<>
+  //   조회 실패·불러오는 중을 '정산 내역 없음'과 구별한다(2026-09-30)
+  const body = stError ? (
+    <div className="collect-empty">정산 내역을 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>
+  ) : stLoading ? (
+    <div className="collect-empty">불러오는 중…</div>
+  ) : (<>
     {summary.length > 0 && (
       <div className="pjv3-stpanel ch-settle-sum">
         <h3>채널별 <small>실측 수수료율 = 수수료 ÷ 판매금액. 설정과 1%p 넘게 다르면 갱신을 제안합니다(확정은 사람).</small></h3>

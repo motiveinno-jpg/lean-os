@@ -11002,6 +11002,9 @@ table.ch-settle-fit tbody td, table.ch-settle-fit thead th { @apply px-2; }
    최소 폭을 풀고 긴 사유 칸만 줄바꿈한다. 1280 이하는 가로 스크롤을 받아들인다(정산 표와 같은 기준). */
 table.ch-claims-fit { min-width: 0; }
 .ev-table tbody td.ch-claims-reason { @apply whitespace-normal break-keep min-w-[160px]; }
+/*   클레임 줄의 고치기·지우기 (2026-09-30) — 두 버튼을 한 줄에 */
+.ev-table tbody td.ch-claims-acts { @apply whitespace-nowrap; }
+.ch-claims-acts > button + button { @apply ml-1; }
 
 /* ── 앱 공통 껍데기(머리 줄·투어·로고) ── */
 /* 모바일 머리 줄: 계산기·캡처·메모·도움말은 '더보기' 하나로 접는다(header-tools HeaderMoreMenu) — 화면 제목 자리를 남긴다 */
