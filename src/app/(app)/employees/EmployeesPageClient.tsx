@@ -307,10 +307,8 @@ export default function EmployeesPage()  {
               {effectiveTab === "salary" && (
                 <>
                   <div className="payroll-tab-panel"><PayrollPreviewTab companyId={companyId} onSummary={setPaySummary} /></div>
-                  {/* 수당 기준 — 가산수당 정책(주 소정근로·통상시급 분모·당직 단가·5인 미만·포괄임금) + 수당 카탈로그.
-                      매일 보는 것(급여 이력·명세) 아래에 둔다 — 기준은 자주 바꾸지 않는다.
-                      이 탭 자체가 급여 권한(money)이라, 금액을 만드는 값이 금액 권한과 같은 자리에 놓인다. */}
-                  <div className="hr-rule-panel"><HrAllowancePolicyPanel companyId={companyId} /></div>
+                  {/* 수당 기준(가산수당 정책 + 수당 카탈로그)은 명세 아래 판 → 「도구 ▾ › 수당 기준」 팝업으로 (2026-09-30 사장님 "정리해줘").
+                      급여 화면에 두는 이유는 그대로 — 금액을 만드는 값이라 급여 권한(money) 자리(2026-08-24 회사 설정에서 이관). */}
                 </>
               )}
 
@@ -1962,6 +1960,7 @@ function PayrollPreviewTab({ companyId, onSummary }: { companyId: string | null;
   const [editValues, setEditValues] = useState<Record<string, { baseSalary: number; nonTaxable: number; extras: { type: 'allowance' | 'deduction'; name: string; amount: number }[]; deductions?: Record<string, number> }>>({});
   const [savingEdit, setSavingEdit] = useState(false);
   const [noticeOpen, setNoticeOpen] = useState(false);   // H2 고지서 대조 팝업 (2026-08-27)
+  const [ruleOpen, setRuleOpen] = useState(false);   // 수당 기준 팝업(2026-09-30)
   // 조회 월 — month picker (YYYY-MM) + 표시용 라벨 변환
   const [periodMonth, setPeriodMonth] = useState(() => {
     const d = new Date();
@@ -2225,6 +2224,7 @@ function PayrollPreviewTab({ companyId, onSummary }: { companyId: string | null;
                 { label: "전체 PDF 내려받기", source: "출력", hint: "직원별 명세서 PDF 를 한 번에", disabled: !preview || preview.items.length === 0, onClick: downloadAll },
                 { label: loading ? "계산 중…" : "다시 계산", source: "입력", hint: "근태·수당·수정값을 다시 읽어 미리보기를 새로 만듭니다.", disabled: loading || !companyId, onClick: generate },
                 { label: "고지서 대조", source: "장부 대조", hint: "공단 고지 금액과 급여 계산 합계의 차이를 봅니다.", disabled: !preview || preview.items.length === 0, onClick: () => setNoticeOpen(true) },
+                { label: "수당 기준", source: "설정", hint: "가산수당 정책(주 소정근로·통상시급 분모·당직 단가·5인 미만·포괄임금)과 수당 카탈로그", disabled: !companyId, onClick: () => setRuleOpen(true) },
               ]} />
               <button onClick={() => handleSendPayslips()} disabled={sending || !preview || preview.items.length === 0} className="btn-primary btn-sm">
                 {sending ? "발송 중..." : `전 직원 발송${preview && preview.items.length ? ` (${preview.items.length}명)` : ""}`}
@@ -2234,6 +2234,17 @@ function PayrollPreviewTab({ companyId, onSummary }: { companyId: string | null;
         </div>
       </div>
 
+      {/*   수당 기준 팝업 — 저장은 패널 안 버튼(자기 칸만 patch). 바꾼 뒤 급여는 「다시 계산」으로 반영 */}
+      {ruleOpen && companyId && (
+        <div className="inv-modal" onClick={() => setRuleOpen(false)}>
+          <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
+            <h3 className="inv-modal-title">수당 기준</h3>
+            <p className="inv-modal-desc">가산수당 정책과 수당 카탈로그입니다. 바꾼 값은 다음 계산부터 반영됩니다 — 이 달 명세는 「도구 › 다시 계산」.</p>
+            <div className="hr-rule-panel"><HrAllowancePolicyPanel companyId={companyId} /></div>
+            <div className="inv-modal-actions"><button type="button" className="btn-secondary btn-sm" onClick={() => setRuleOpen(false)}>닫기</button></div>
+          </div>
+        </div>
+      )}
       {noticeOpen && preview && companyId && <InsuranceNoticeDialog companyId={companyId} userId={null} month={periodMonth} items={preview.items} onClose={() => setNoticeOpen(false)} />}
       {!preview ? (
         <div className="glass-card p-16 text-center">
