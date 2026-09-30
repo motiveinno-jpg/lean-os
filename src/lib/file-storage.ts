@@ -706,10 +706,9 @@ export async function getFolderFileCounts(companyId: string): Promise<Record<str
 //   폴더에 넣은 파일은 저장소 경로에도 폴더가 박혀 있고(`{company}/folders/{folderId}/…`) 스토리지 RLS 가
 //   그 경로로 공개 범위를 판단한다. 그래서 folder_id 만 바꾸면 목록과 실물의 범위가 어긋난다 — 실물을 먼저 옮기고
 //   성공한 것만 행을 고친다. 지난 판(parent_file_id 가 이 파일인 행)도 같이 따라간다.
-//   파일은 반드시 폴더 안에 있다(document_files_vault_needs_folder) — 폴더 밖으로 빼는 이동은 없다.
 export async function moveFilesToFolder(
   fileIds: string[],
-  folderId: string,
+  folderId: string | null,
   companyId: string,
 ): Promise<{ moved: number; skipped: number; failed: string[] }> {
   if (fileIds.length === 0) return { moved: 0, skipped: 0, failed: [] };
@@ -720,7 +719,7 @@ export async function moveFilesToFolder(
     .or(`id.in.(${fileIds.join(",")}),parent_file_id.in.(${fileIds.join(",")})`);
   if (error) throw error;
 
-  const targetSegment = `folders/${folderId}`;
+  const targetSegment = folderId ? `folders/${folderId}` : "general";
   let moved = 0, skipped = 0;
   const failed: string[] = [];
   for (const f of (rows || []) as any[]) {

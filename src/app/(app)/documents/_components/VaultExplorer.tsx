@@ -1,6 +1,6 @@
 "use client";
 // 업무 › 파일보관함 — 폴더 탐색형.
-//   맨 위(전체 폴더)에는 폴더만, 파일은 반드시 폴더 안(document_files_vault_needs_folder).
+//   맨 위(전체 폴더)에는 폴더 아래에 폴더 밖 파일(folder_id 없음)이 이어서 보인다.
 //   폴더를 누르면 그 안으로 들어가 하위 폴더(위) + 파일(아래). 폴더는 몇 단계든 중첩된다.
 //   하위 폴더는 맨 위 폴더의 공개 범위를 따른다(document_folders_tree_guard) — 범위 바꾸기는 맨 위 폴더에서만.
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -109,14 +109,13 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
     queryKey: ["schedule-departments", companyId], enabled: !!companyId, staleTime: 300_000,
     queryFn: () => getDepartments(companyId),
   });
-  //   지금 폴더의 파일(최신 판만, 파일보관함에 직접 올린 것만). 맨 위에는 파일이 없다.
+  //   지금 폴더의 파일(최신 판만, 파일보관함에 직접 올린 것만). 맨 위면 폴더 밖 파일.
   const { data: folderFiles = [], isLoading: filesLoading } = useQuery<VFile[]>({
     queryKey: ["storage-files", companyId, current],
-    enabled: !!companyId && !!current,
+    enabled: !!companyId,
     queryFn: async () => {
-      const data = logRead("documents/vault:files", await supabase
-        .from("document_files").select("*")
-        .eq("folder_id", current!)
+      const base = supabase.from("document_files").select("*");
+      const data = logRead("documents/vault:files", await (current ? base.eq("folder_id", current) : base.eq("company_id", companyId).is("folder_id", null))
         .is("parent_file_id", null)
         .is("document_id", null).is("vault_doc_id", null).is("deal_id", null)
         .order("created_at", { ascending: false }));
@@ -184,13 +183,13 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
   const shownFolders: Folder[] = searching
     ? folders.filter((f) => f.name.toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name, "ko"))
     : children.get(current) || [];
-  const shownFiles: VFile[] = searching ? foundFiles : current ? folderFiles : [];
+  const shownFiles: VFile[] = searching ? foundFiles : folderFiles;
   const selectable = shownFiles.filter(canDeleteFile);
   const allOn = selectable.length > 0 && selectable.every((f) => selectedIds.has(f.id));
   const summary = searching
     ? `‘${debounced}’ 검색 결과 ${shownFolders.length + shownFiles.length}건`
-    : current ? `폴더 ${shownFolders.length}개 · 파일 ${shownFiles.length}개` : `폴더 ${shownFolders.length}개`;
-  const isEmpty = !shownFolders.length && !shownFiles.length && !creating && !(current && filesLoading);
+    : `폴더 ${shownFolders.length}개 · 파일 ${shownFiles.length}개`;
+  const isEmpty = !shownFolders.length && !shownFiles.length && !creating && !filesLoading;
   const storagePct = storageInfo && storageInfo.quotaBytes > 0 ? Math.min(100, Math.floor((storageInfo.usedBytes / storageInfo.quotaBytes) * 100)) : 0;
 
   const refreshFiles = () => {
@@ -228,10 +227,9 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
     } catch (e) { toast(errText(e, "폴더를 지우지 못했습니다"), "error"); }
   };
 
-  // ── 올리기 — 폴더 안에서만 ──
+  // ── 올리기 — 지금 폴더로(맨 위면 폴더 밖) ──
   const uploadedRef = useRef<WeakSet<File>>(new WeakSet());
   const uploadMany = async (list: File[]) => {
-    if (!current) { toast("파일은 폴더 안에 올립니다. 폴더를 먼저 열어 주세요.", "info"); return; }
     const files = list.filter((f) => !uploadedRef.current.has(f));
     if (!files.length) return;
     const failed: string[] = [];
@@ -239,7 +237,7 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
       uploadedRef.current.add(file);
       try {
         await uploadFile({
-          companyId, bucket: "document-files", file, context: { folderId: current }, userId,
+          companyId, bucket: "document-files", file, context: { folderId: current || undefined }, userId,
           register: true,
           onProgress: (pct) => setUpProg({ name: file.name, pct }),
         });
@@ -256,8 +254,9 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
     if (!moveTarget || !selectedIds.size) return;
     setMoving(true);
     try {
-      const r = await moveFilesToFolder([...selectedIds], moveTarget, companyId);
-      const where = `"${byId.get(moveTarget)?.name || "폴더"}"`;
+      const target = moveTarget === "__root" ? null : moveTarget;
+      const r = await moveFilesToFolder([...selectedIds], target, companyId);
+      const where = target ? `"${byId.get(target)?.name || "폴더"}"` : "폴더 밖(맨 위)";
       if (r.failed.length) toast(`${r.moved}개는 ${where}(으)로 옮겼고 ${r.failed.length}개는 실패했습니다: ${r.failed.slice(0, 3).join(", ")}${r.failed.length > 3 ? " …" : ""}`, "error");
       else if (r.moved === 0) toast("이미 그 폴더에 있는 파일입니다", "info");
       else toast(`파일 ${r.moved}개를 ${where}(으)로 옮겼습니다`, "success");
@@ -410,8 +409,8 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
           <button type="button" className="btn-secondary btn-sm vx-tool-btn" onClick={startCreate}>
             <svg width="18" height="16" viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round"><path d="M2 5a2 2 0 0 1 2-2h6.5l2.5 3H24a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2Z" /><path d="M14 10.5v7M10.5 14h7" strokeLinecap="round" /></svg>새 폴더
           </button>
-          <button type="button" className="btn-primary btn-sm vx-tool-btn" disabled={!current}
-            title={current ? `「${cur?.name}」 폴더에 올립니다` : "파일은 폴더 안에 올립니다. 폴더를 먼저 열어 주세요."}
+          <button type="button" className="btn-primary btn-sm vx-tool-btn"
+            title={current ? `「${cur?.name}」 폴더에 올립니다` : "폴더 밖(맨 위)에 올립니다"}
             onClick={() => fileInputRef.current?.click()}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16" /></svg>올리기
           </button>
@@ -419,9 +418,9 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
         </div>
 
         <div className={dragOver ? "vx-box vx-box-drop" : "vx-box"}
-          onDragOver={(e) => { if (current && e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragOver(true); } }}
+          onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragOver(true); } }}
           onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOver(false); }}
-          onDrop={(e) => { if (!current) return; e.preventDefault(); setDragOver(false); void uploadMany(Array.from(e.dataTransfer.files || [])); }}>
+          onDrop={(e) => { e.preventDefault(); setDragOver(false); void uploadMany(Array.from(e.dataTransfer.files || [])); }}>
           <div className="vx-box-head">
             <div className="vx-summary">
               {view === "list" && shownFiles.length > 0 && (
@@ -494,16 +493,16 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
                     </div>
                   );
                 })}
-                {current && filesLoading && !searching && <div className="collect-empty">불러오는 중…</div>}
+                {filesLoading && !searching && <div className="collect-empty">불러오는 중…</div>}
                 {isEmpty && (
                   <div className="vx-empty">
                     <FolderGlyph size={56} muted />
-                    <div className="vx-empty-title">{searching ? "검색 결과가 없습니다" : current ? "이 폴더는 비어 있습니다" : "아직 폴더가 없습니다"}</div>
-                    <div className="vx-empty-text">{searching ? "다른 이름으로 검색해 보세요." : current ? "‘새 폴더’로 하위 폴더를 만들거나, 파일을 끌어다 놓아 올리세요." : "‘새 폴더’로 첫 폴더를 만드세요. 파일은 폴더 안에 올립니다."}</div>
+                    <div className="vx-empty-title">{searching ? "검색 결과가 없습니다" : current ? "이 폴더는 비어 있습니다" : "아직 폴더도 파일도 없습니다"}</div>
+                    <div className="vx-empty-text">{searching ? "다른 이름으로 검색해 보세요." : current ? "‘새 폴더’로 하위 폴더를 만들거나, 파일을 끌어다 놓아 올리세요." : "‘새 폴더’로 폴더를 만들거나, 파일을 끌어다 놓아 올리세요."}</div>
                   </div>
                 )}
-                {current && !searching && (
-                  <div className="vx-drop-hint">여기에 파일을 끌어다 놓으면 <b>{cur?.name}</b> 폴더에 올라갑니다 · 파일당 {MAX_FILE_MB}MB까지</div>
+                {!searching && (
+                  <div className="vx-drop-hint">여기에 파일을 끌어다 놓으면 {current ? <><b>{cur?.name}</b> 폴더에</> : <>폴더 밖(맨 위)에</>} 올라갑니다 · 파일당 {MAX_FILE_MB}MB까지</div>
                 )}
               </div>
             </>
@@ -542,12 +541,12 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
               </div>
               {isEmpty && (
                 <div className="vx-empty">
-                  <div className="vx-empty-title">{searching ? "검색 결과가 없습니다" : current ? "이 폴더는 비어 있습니다" : "아직 폴더가 없습니다"}</div>
-                  <div className="vx-empty-text">{searching ? "다른 이름으로 검색해 보세요." : current ? "‘새 폴더’로 하위 폴더를 만들거나, 파일을 끌어다 놓아 올리세요." : "‘새 폴더’로 첫 폴더를 만드세요. 파일은 폴더 안에 올립니다."}</div>
+                  <div className="vx-empty-title">{searching ? "검색 결과가 없습니다" : current ? "이 폴더는 비어 있습니다" : "아직 폴더도 파일도 없습니다"}</div>
+                  <div className="vx-empty-text">{searching ? "다른 이름으로 검색해 보세요." : current ? "‘새 폴더’로 하위 폴더를 만들거나, 파일을 끌어다 놓아 올리세요." : "‘새 폴더’로 폴더를 만들거나, 파일을 끌어다 놓아 올리세요."}</div>
                 </div>
               )}
-              {current && !searching && (
-                <div className="vx-drop-hint">여기에 파일을 끌어다 놓으면 <b>{cur?.name}</b> 폴더에 올라갑니다 · 파일당 {MAX_FILE_MB}MB까지</div>
+              {!searching && (
+                <div className="vx-drop-hint">여기에 파일을 끌어다 놓으면 {current ? <><b>{cur?.name}</b> 폴더에</> : <>폴더 밖(맨 위)에</>} 올라갑니다 · 파일당 {MAX_FILE_MB}MB까지</div>
               )}
             </div>
           )}
@@ -555,6 +554,7 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
           <SelectionBar count={selectedIds.size} onClear={() => setSelectedIds(new Set())}>
             <select className="qk-input vx-move-select" value={moveTarget} onChange={(e) => setMoveTarget(e.target.value)} aria-label="옮길 폴더">
               <option value="">옮길 폴더…</option>
+              <option value="__root">폴더 밖(맨 위)</option>
               {flatFolders.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
             </select>
             <button type="button" className="btn-secondary btn-sm" disabled={!moveTarget || moving} onClick={() => void moveSelected()}>

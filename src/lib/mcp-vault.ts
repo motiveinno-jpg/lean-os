@@ -16,7 +16,7 @@ export const VAULT_TOOLS = [
     name: "list_vault_files",
     description:
       "업무 › 파일보관함의 폴더와 파일 목록(이름·폴더·크기·종류·태그·올린 날짜·id). 로그인한 사람이 볼 수 있는 것만 나온다. " +
-      "폴더는 폴더 안에 폴더를 둘 수 있고 folders[].path 가 맨 위부터의 경로다. 파일의 folder 도 경로. " +
+      "폴더는 폴더 안에 폴더를 둘 수 있고 folders[].path 가 맨 위부터의 경로다. 파일의 folder 도 경로(null = 폴더 밖·맨 위). " +
       "folder_id 로 한 폴더만, query 로 파일 이름·태그·폴더 경로 검색. 내용을 보려면 read_vault_file 에 id 를 넘긴다.",
     inputSchema: {
       type: "object", additionalProperties: false,
@@ -75,18 +75,18 @@ export const VAULT_TOOLS = [
     description:
       "파일보관함에 파일을 올리는 1단계 — 올리기 링크(2시간)를 받는다. 받은 upload_url 로 파일을 PUT 한 뒤 반드시 finish_vault_upload 를 불러야 목록에 등록된다. " +
       "터미널: curl -X PUT -H \"Content-Type: <mime_type>\" --data-binary @\"로컬파일\" \"<upload_url>\". " +
-      "파일은 반드시 폴더 안에 둔다 — folder_id 필수(list_vault_files 의 folders, 알맞은 폴더가 없으면 create_vault_folder). " +
+      "folder_id 를 주면 그 폴더에, 비우면 폴더 밖(맨 위)에 올린다. " +
       "형식·크기(500MB)·저장공간 한도는 오너뷰 화면에서 올릴 때와 같다. 같은 폴더에 같은 이름이면 덮지 않고 새 판(v2, v3…)으로 쌓인다.",
     inputSchema: {
       type: "object", additionalProperties: false,
       properties: {
         file_name: { type: "string", description: "저장될 파일 이름(확장자 포함)" },
         size_bytes: { type: "integer", description: "파일 크기(바이트)" },
-        folder_id: { type: "string", description: "넣을 폴더 id(필수)" },
+        folder_id: { type: "string", description: "넣을 폴더 id(비우면 폴더 밖·맨 위)" },
         mime_type: { type: "string", description: "파일 형식(모르면 비워 두면 확장자로 정함)" },
         tags: { type: "array", items: { type: "string" }, description: "태그(선택)" },
       },
-      required: ["file_name", "size_bytes", "folder_id"],
+      required: ["file_name", "size_bytes"],
     },
   },
   {
@@ -162,15 +162,15 @@ export const VAULT_TOOLS = [
   {
     name: "move_vault_files",
     description:
-      "파일 여러 개를 다른 폴더로 옮긴다(한 번에 50개, 지난 판도 함께). 폴더 통째로 옮길 때는 move_vault_folder 가 낫다. " +
+      "파일 여러 개를 다른 폴더로(또는 folder_id 를 비워 폴더 밖·맨 위로) 옮긴다(한 번에 50개, 지난 판도 함께). 폴더 통째로 옮길 때는 move_vault_folder 가 낫다. " +
       "본인이 올린 파일만, 다른 사람의 파일은 마스터·파일 삭제 권한자만.",
     inputSchema: {
       type: "object", additionalProperties: false,
       properties: {
         file_ids: { type: "array", items: { type: "string" }, description: "옮길 파일 id 들(list_vault_files 의 id)" },
-        folder_id: { type: "string", description: "옮겨 넣을 폴더 id" },
+        folder_id: { type: "string", description: "옮겨 넣을 폴더 id(비우면 폴더 밖·맨 위)" },
       },
-      required: ["file_ids", "folder_id"],
+      required: ["file_ids"],
     },
   },
 ];
@@ -261,9 +261,11 @@ export async function callVaultTool(tok: Tok, name: string, args: Record<string,
   if (name === "move_vault_files") {
     //   권한·대상 확인은 DB 가 그 사람으로(mcp_vault_file_move_plan). 실물이 경로의 폴더 id 로 공개 범위를 가르므로
     //   앱 moveFilesToFolder 와 같이 실물을 먼저 옮기고 성공한 것만 행을 고친다. 행을 못 고치면 실물을 되돌린다.
-    const folder = typeof args.folder_id === "string" && UUID.test(args.folder_id) ? args.folder_id : null;
+    const rawFolder = typeof args.folder_id === "string" ? args.folder_id.trim() : "";
+    if (rawFolder && !UUID.test(rawFolder)) return { content: text({ error: "folder_id 가 폴더 id 형식이 아닙니다." }), isError: true };
+    const folder = rawFolder || null;
     const ids = (Array.isArray(args.file_ids) ? args.file_ids.map(String) : []).filter((x) => UUID.test(x)).slice(0, 50);
-    if (!folder || !ids.length) return { content: text({ error: "file_ids 와 folder_id 를 넣어 주세요." }), isError: true };
+    if (!ids.length) return { content: text({ error: "file_ids 를 넣어 주세요." }), isError: true };
     const results: unknown[] = [];
     let moved = 0;
     for (const id of ids) {
@@ -277,9 +279,9 @@ export async function callVaultTool(tok: Tok, name: string, args: Record<string,
         const parts = String(row.storage_path || "").split("/");
         const vaultShaped = row.bucket === "document-files" && parts[0] === tok.company_id
           && (parts[1] === "general" && parts.length === 3 || parts[1] === "folders" && parts.length === 4);
-        const patch: { folder_id: string; storage_path?: string; file_url?: string } = { folder_id: folder };
+        const patch: { folder_id: string | null; storage_path?: string; file_url?: string } = { folder_id: folder };
         if (vaultShaped) {
-          const next = `${tok.company_id}/folders/${folder}/${parts[parts.length - 1]}`;
+          const next = `${tok.company_id}/${folder ? `folders/${folder}` : "general"}/${parts[parts.length - 1]}`;
           const { error: mvErr } = await db.storage.from(row.bucket).move(row.storage_path!, next);
           if (mvErr) { ok = false; break; }
           patch.storage_path = next;
@@ -330,8 +332,7 @@ export async function callVaultTool(tok: Tok, name: string, args: Record<string,
       return { content: text({ error: `저장공간이 부족합니다 — 사용 ${mb(c.used_bytes)} / 한도 ${mb(c.quota_bytes)}, 이 파일 ${mb(size)}. 오너뷰 요금제에서 저장공간을 늘리거나 파일을 정리해 주세요.` }), isError: true };
     }
     //   저장 경로는 앱 uploadFile 과 같은 꼴 — 스토리지 RLS 가 경로의 폴더 id 로 공개 범위를 가른다
-    if (!folder) return { content: text({ error: c.error || "folder_id 가 필요합니다." }), isError: true };
-    const storagePath = `${tok.company_id}/folders/${folder}/${Date.now()}_${randomBytes(4).toString("hex")}.${ext}`;
+    const storagePath = `${tok.company_id}/${folder ? `folders/${folder}` : "general"}/${Date.now()}_${randomBytes(4).toString("hex")}.${ext}`;
     const { data: signed, error: sErr } = await db.storage.from("document-files").createSignedUploadUrl(storagePath);
     if (sErr || !signed?.signedUrl) { await log(tok, name, false, "sign_failed"); return { content: text({ error: "올리기 링크를 만들지 못했습니다." }), isError: true }; }
     const tags = Array.isArray(args.tags) ? args.tags.map(String).map((x) => x.trim()).filter(Boolean).slice(0, 20) : [];
