@@ -118,6 +118,61 @@ export const VAULT_TOOLS = [
       required: ["files"],
     },
   },
+  {
+    name: "move_vault_folder",
+    description:
+      "폴더의 상위 폴더를 바꾼다(폴더째 옮기기) — 안에 든 하위 폴더·파일이 모두 함께 따라간다. parent_id 를 비우면 맨 위로. " +
+      "자기 자신이나 자기 하위 폴더 안으로는 못 옮기고, 옮긴 자리에 같은 이름 폴더가 있으면 거절된다. " +
+      "옮긴 폴더는 새 상위 폴더의 공개 범위를 따른다. 폴더를 만든 사람·파일 삭제 권한자만.",
+    inputSchema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        folder_id: { type: "string", description: "옮길 폴더 id(list_vault_files 의 folders[].id)" },
+        parent_id: { type: "string", description: "새 상위 폴더 id — 비우면 맨 위" },
+      },
+      required: ["folder_id"],
+    },
+  },
+  {
+    name: "rename_vault_folder",
+    description: "폴더 이름을 바꾼다. 같은 자리에 같은 이름 폴더가 있으면 거절. 폴더를 만든 사람·파일 삭제 권한자만.",
+    inputSchema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        folder_id: { type: "string", description: "폴더 id" },
+        name: { type: "string", description: "새 이름" },
+      },
+      required: ["folder_id", "name"],
+    },
+  },
+  {
+    name: "delete_vault_folder",
+    description:
+      "빈 폴더를 지운다(하위 폴더·파일이 하나라도 있으면 거절 — 안을 먼저 옮기거나 지운다). " +
+      "id 와 이름(list_vault_files 그대로)이 둘 다 맞아야 지운다. 폴더를 만든 사람·파일 삭제 권한자만.",
+    inputSchema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        folder_id: { type: "string", description: "폴더 id" },
+        name: { type: "string", description: "그 폴더의 이름(확인용)" },
+      },
+      required: ["folder_id", "name"],
+    },
+  },
+  {
+    name: "move_vault_files",
+    description:
+      "파일 여러 개를 다른 폴더로 옮긴다(한 번에 50개, 지난 판도 함께). 폴더 통째로 옮길 때는 move_vault_folder 가 낫다. " +
+      "본인이 올린 파일만, 다른 사람의 파일은 마스터·파일 삭제 권한자만.",
+    inputSchema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        file_ids: { type: "array", items: { type: "string" }, description: "옮길 파일 id 들(list_vault_files 의 id)" },
+        folder_id: { type: "string", description: "옮겨 넣을 폴더 id" },
+      },
+      required: ["file_ids", "folder_id"],
+    },
+  },
 ];
 export const isVaultTool = (name: string) => VAULT_TOOLS.some((t) => t.name === name);
 const UPLOAD_TTL_MS = 2 * 3600 * 1000;
@@ -185,6 +240,62 @@ export async function callVaultTool(tok: Tok, name: string, args: Record<string,
     }
     await log(tok, name, okCount > 0, okCount === list.length ? null : `${list.length - okCount} not deleted`);
     return { content: text({ results, deleted: okCount, note: "지운 파일은 되돌릴 수 없습니다." }), isError: okCount === 0 };
+  }
+
+  if (name === "move_vault_folder" || name === "rename_vault_folder" || name === "delete_vault_folder") {
+    const folder = typeof args.folder_id === "string" && UUID.test(args.folder_id) ? args.folder_id : null;
+    if (!folder) return { content: text({ error: "folder_id 를 넣어 주세요(list_vault_files 의 folders[].id)." }), isError: true };
+    const parentRaw = typeof args.parent_id === "string" ? args.parent_id.trim() : "";
+    if (name === "move_vault_folder" && parentRaw && !UUID.test(parentRaw)) return { content: text({ error: "parent_id 가 폴더 id 형식이 아닙니다." }), isError: true };
+    const { data, error } = name === "move_vault_folder"
+      ? await db.rpc("mcp_vault_move_folder", { p_auth: tok.user_id, p_company: tok.company_id, p_folder: folder, p_parent: parentRaw || null })
+      : name === "rename_vault_folder"
+        ? await db.rpc("mcp_vault_rename_folder", { p_auth: tok.user_id, p_company: tok.company_id, p_folder: folder, p_name: String(args.name || "") })
+        : await db.rpc("mcp_vault_delete_folder", { p_auth: tok.user_id, p_company: tok.company_id, p_folder: folder, p_name: String(args.name || "") });
+    if (error) { await log(tok, name, false, error.message.slice(0, 200)); return { content: text({ error: "처리하지 못했습니다." }), isError: true }; }
+    const r = data as { error?: string };
+    await log(tok, name, !r.error, r.error ?? null);
+    return { content: text(r), isError: !!r.error };
+  }
+
+  if (name === "move_vault_files") {
+    //   권한·대상 확인은 DB 가 그 사람으로(mcp_vault_file_move_plan). 실물이 경로의 폴더 id 로 공개 범위를 가르므로
+    //   앱 moveFilesToFolder 와 같이 실물을 먼저 옮기고 성공한 것만 행을 고친다. 행을 못 고치면 실물을 되돌린다.
+    const folder = typeof args.folder_id === "string" && UUID.test(args.folder_id) ? args.folder_id : null;
+    const ids = (Array.isArray(args.file_ids) ? args.file_ids.map(String) : []).filter((x) => UUID.test(x)).slice(0, 50);
+    if (!folder || !ids.length) return { content: text({ error: "file_ids 와 folder_id 를 넣어 주세요." }), isError: true };
+    const results: unknown[] = [];
+    let moved = 0;
+    for (const id of ids) {
+      const { data, error } = await db.rpc("mcp_vault_file_move_plan", { p_auth: tok.user_id, p_company: tok.company_id, p_file: id, p_folder: folder });
+      if (error) { results.push({ id, error: "옮기지 못했습니다." }); continue; }
+      const plan = data as { error?: string; name?: string; same?: boolean; to_name?: string; rows?: { id: string; storage_path: string | null; bucket: string }[] };
+      if (plan.error) { results.push({ id, error: plan.error }); continue; }
+      if (plan.same) { results.push({ id, name: plan.name, moved: false, note: "이미 그 폴더에 있습니다." }); continue; }
+      let ok = true;
+      for (const row of plan.rows || []) {
+        const parts = String(row.storage_path || "").split("/");
+        const vaultShaped = row.bucket === "document-files" && parts[0] === tok.company_id
+          && (parts[1] === "general" && parts.length === 3 || parts[1] === "folders" && parts.length === 4);
+        const patch: { folder_id: string; storage_path?: string; file_url?: string } = { folder_id: folder };
+        if (vaultShaped) {
+          const next = `${tok.company_id}/folders/${folder}/${parts[parts.length - 1]}`;
+          const { error: mvErr } = await db.storage.from(row.bucket).move(row.storage_path!, next);
+          if (mvErr) { ok = false; break; }
+          patch.storage_path = next;
+          patch.file_url = db.storage.from(row.bucket).getPublicUrl(next).data.publicUrl;
+        }
+        const { error: upErr } = await db.from("document_files").update(patch).eq("id", row.id).eq("company_id", tok.company_id);
+        if (upErr) {
+          if (vaultShaped) await db.storage.from(row.bucket).move(patch.storage_path!, row.storage_path!);
+          ok = false; break;
+        }
+      }
+      if (ok) { moved++; results.push({ id, name: plan.name, moved: true, to: plan.to_name }); }
+      else results.push({ id, name: plan.name, error: "옮기다 실패했습니다. 다시 시도해 주세요." });
+    }
+    await log(tok, name, moved > 0, moved === ids.length ? null : `${ids.length - moved} not moved`);
+    return { content: text({ results, moved }), isError: moved === 0 };
   }
 
   if (name === "create_vault_folder") {

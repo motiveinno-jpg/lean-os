@@ -9,9 +9,9 @@ export const maxDuration = 300;   // 파일보관함 큰 파일(100MB) 글자 �
 
 const SUPPORTED = ["2025-06-18", "2025-03-26", "2024-11-05"];
 //   무언가를 만드는 도구 — AI 쪽에 읽기 전용으로 표시하지 않는다(지우거나 고치는 도구는 없다)
-const WRITE_TOOLS = new Set(["create_vault_folder", "upload_vault_file", "finish_vault_upload", "delete_vault_files"]);
+const WRITE_TOOLS = new Set(["create_vault_folder", "upload_vault_file", "finish_vault_upload", "delete_vault_files", "move_vault_folder", "rename_vault_folder", "delete_vault_folder", "move_vault_files"]);
 //   지우는 도구 — AI 쪽이 쓰기 전에 사람에게 확인받도록 destructive 로 표시한다
-const DESTRUCTIVE_TOOLS = new Set(["delete_vault_files"]);
+const DESTRUCTIVE_TOOLS = new Set(["delete_vault_files", "delete_vault_folder"]);
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, content-type, mcp-protocol-version, mcp-session-id",
