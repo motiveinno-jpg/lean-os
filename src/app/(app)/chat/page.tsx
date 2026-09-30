@@ -580,7 +580,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
           </div>
           {rail === "rooms" && (
             <button onClick={() => { setCreating("team"); }} title="새로 만들기"
-              className="w-7 h-7 rounded-lg bg-[var(--primary)] text-white flex items-center justify-center text-base leading-none hover:opacity-90 transition">+</button>
+              className="btn-secondary btn-sm">+</button>
           )}
         </div>
         {rail !== "schedule" && (
@@ -689,7 +689,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
                   <input value={teamName} onChange={(e) => setTeamName(e.target.value)} autoFocus placeholder="마케팅팀, 개발팀..."
                     className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm mb-4 focus:outline-none focus:border-[var(--primary)]" />
                   <button onClick={() => teamName.trim() && createTeamMut.mutate()} disabled={!teamName.trim() || createTeamMut.isPending}
-                    className="btn-primary w-full">만들기</button>
+                    className="btn-primary btn-sm">만들기</button>
                 </>
               )}
               {creating === "deal" && (
@@ -711,7 +711,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
                     <option value="general">일반 채널</option>
                   </select>
                   <button onClick={() => form.name.trim() && createMut.mutate()} disabled={!form.name.trim() || createMut.isPending}
-                    className="btn-primary w-full">만들기</button>
+                    className="btn-primary btn-sm">만들기</button>
                 </>
               )}
               {creating === "dm" && (
@@ -725,7 +725,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
                     ))}
                   </select>
                   <button onClick={() => dmUserId && createDMMut.mutate()} disabled={!dmUserId || createDMMut.isPending}
-                    className="btn-primary w-full">대화 시작</button>
+                    className="btn-primary btn-sm">대화 시작</button>
                 </>
               )}
             </div>

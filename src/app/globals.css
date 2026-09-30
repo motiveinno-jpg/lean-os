@@ -11281,3 +11281,7 @@ table.ol-items-table { min-width: 760px; table-layout: fixed; }
 .vx-ver-get { @apply ml-auto; }
 .vx-danger-btn { @apply text-[var(--danger)]; }
 .vx-move-select { @apply h-8 px-2 text-xs; }
+/*   결재 승인·반려 (2026-09-30 버튼 표준화) — 폭 전체 알약(초록·빨강 자체 색) → 오른쪽 끝 btn-secondary·btn-primary btn-sm */
+.ap-decide-actions { @apply flex justify-end gap-2; }
+.ap-decide-approve { @apply inline-flex items-center gap-1; }
+.ap-modal-actions { @apply mt-5 flex justify-end gap-2; }

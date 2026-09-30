@@ -1077,7 +1077,7 @@ export default function BoardPage() {
               /*   빈 본문 판정은 canSavePost(isEmptyHtml) 로 통일 — content 는 리치 에디터 HTML 이라
                    빈 글도 '<p></p>' 로 truthy 여서 .trim() 게이트가 헛돌아 눌리면 에러가 났다(2026-09-09). */
               disabled={!canSavePost}
-              className="btn-primary"
+              className="btn-primary btn-sm"
             >
               {uploading
                 ? "첨부 업로드 중..."
@@ -1114,7 +1114,7 @@ export default function BoardPage() {
                 resetForm();
                 setShowForm(true);
               }}
-              className="btn-primary mt-5"
+              className="btn-secondary btn-sm mt-5"   /* 빈 상태의 글쓰기 — 조회 줄에 파란 「+ 글쓰기」가 이미 있다(2026-09-30) */
             >
               + 글쓰기
             </button>
@@ -1583,7 +1583,7 @@ export default function BoardPage() {
                                         addComment.isPending ||
                                         !(replyDraft[c.id] || "").trim()
                                       }
-                                      className="btn-primary self-start"
+                                      className="btn-secondary btn-sm self-start"
                                     >
                                       답글
                                     </button>
@@ -1660,7 +1660,7 @@ export default function BoardPage() {
                             addComment.isPending ||
                             (!(commentDraft[p.id] || "").trim() && !(commentFiles[p.id]?.length))
                           }
-                          className="btn-primary self-start"
+                          className="btn-secondary btn-sm self-start"
                         >
                           등록
                         </button>

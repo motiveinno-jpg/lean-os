@@ -1291,18 +1291,18 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
                
                 className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none mb-4"
               />
-              <div className="flex gap-2.5">
+              <div className="ap-decide-actions">
                 <button
                   onClick={handleReject}
                   disabled={rejectMut.isPending}
-                  className="flex-1 py-3.5 rounded-full text-sm font-bold text-[var(--danger)] bg-[var(--danger-dim)] hover:opacity-90 disabled:opacity-50 transition"
+                  className="btn-secondary btn-sm"
                 >
                   {rejectMut.isPending ? "처리 중..." : "반려"}
                 </button>
                 <button
                   onClick={handleApprove}
                   disabled={approveMut.isPending}
-                  className="flex-1 py-3.5 rounded-full text-sm font-bold text-white bg-[var(--success)] hover:opacity-90 disabled:opacity-50 transition inline-flex items-center justify-center gap-1.5"
+                  className="btn-primary btn-sm ap-decide-approve"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7"/></svg>
                   {approveMut.isPending ? "처리 중..." : "승인"}
@@ -2094,9 +2094,9 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId, summary 
                   </label>
                 </div>
               </div>
-              <div className="flex gap-2 mt-5">
-                <button onClick={() => setEditReq(null)} className="btn-secondary flex-1">취소</button>
-                <button onClick={saveEdit} disabled={savingEdit} className="btn-primary flex-1">{savingEdit ? "저장 중…" : "수정 저장"}</button>
+              <div className="ap-modal-actions">
+                <button onClick={() => setEditReq(null)} className="btn-secondary btn-sm">취소</button>
+                <button onClick={saveEdit} disabled={savingEdit} className="btn-primary btn-sm">{savingEdit ? "저장 중…" : "수정 저장"}</button>
               </div>
             </div>
           </div>
@@ -2735,21 +2735,21 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                      
                       className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none mb-4"
                     />
-                    <div className="flex gap-2.5">
+                    <div className="ap-decide-actions">
                       <button
                         onClick={() => {
                           if (!decisionComment.trim()) { toast("반려 사유를 입력하세요", "error"); return; }
                           decideRejectMut.mutate({ stepId: myStep.id, comment: decisionComment });
                         }}
                         disabled={decideRejectMut.isPending || decideApproveMut.isPending}
-                        className="flex-1 py-3.5 rounded-full text-sm font-bold text-[var(--danger)] bg-[var(--danger-dim)] hover:opacity-90 disabled:opacity-50 transition"
+                        className="btn-secondary btn-sm"
                       >
                         {decideRejectMut.isPending ? "처리 중..." : "반려"}
                       </button>
                       <button
                         onClick={() => decideApproveMut.mutate({ stepId: myStep.id, comment: decisionComment || undefined })}
                         disabled={decideApproveMut.isPending || decideRejectMut.isPending}
-                        className="flex-1 py-3.5 rounded-full text-sm font-bold text-white bg-[var(--success)] hover:opacity-90 disabled:opacity-50 transition inline-flex items-center justify-center gap-1.5"
+                        className="btn-primary btn-sm ap-decide-approve"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7"/></svg>
                         {decideApproveMut.isPending ? "처리 중..." : "승인"}
@@ -3976,7 +3976,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             <button
               onClick={() => canSubmit && createMut.mutate()}
               disabled={!canSubmit || createMut.isPending}
-              className="btn-primary disabled:opacity-50"
+              className="btn-primary btn-sm"
             >
               {createMut.isPending ? "제출 중..." : "결재 요청"}
             </button>
@@ -4917,7 +4917,7 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
                     <button
                       onClick={() => reassignTo && reassignMut.mutate({ stepId: step.id, newApproverId: reassignTo })}
                       disabled={!reassignTo || reassignMut.isPending}
-                      className="px-2.5 py-1.5 text-[10px] font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-lg transition disabled:opacity-50"
+                      className="btn-secondary btn-sm"
                     >
                       {reassignMut.isPending ? "변경 중..." : "변경"}
                     </button>
@@ -4940,7 +4940,7 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
                     />
                     <div className="flex gap-2 mt-1.5">
                       <button onClick={() => setEditingStepId(null)} className="px-2.5 py-1 text-[10px] font-semibold text-[var(--text-dim)] hover:text-[var(--text)] transition">취소</button>
-                      <button onClick={() => saveComment(step.id)} className="px-2.5 py-1 text-[10px] font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-lg transition">저장</button>
+                      <button onClick={() => saveComment(step.id)} className="btn-secondary btn-sm">저장</button>
                     </div>
                   </div>
                 ) : step.comment ? (
@@ -5079,7 +5079,7 @@ function ApprovalCommentThread({ requestId }: { requestId: string }) {
           className="flex-1 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-xs focus:outline-none focus:border-[var(--primary)]"
         />
         <button onClick={postComment} disabled={posting || (!commentText.trim() && pendingFiles.length === 0)}
-          className="px-3 py-2 rounded-xl text-xs font-semibold bg-[var(--primary)] text-white hover:opacity-90 disabled:opacity-40">{posting ? "등록 중..." : "등록"}</button>
+          className="btn-secondary btn-sm">{posting ? "등록 중..." : "등록"}</button>
       </div>
     </div>
   );
