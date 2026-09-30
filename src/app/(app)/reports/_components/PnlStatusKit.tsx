@@ -33,7 +33,7 @@ export function usePnlStatus() {
   const cur = useMemo(() => summarize(q.data?.curLines || []), [q.data]);
   const cmp = useMemo(() => summarize(q.data?.cmpLines || []), [q.data]);
   const cmpLabel = q.data ? (compare === "prev" ? (range.fromYm === range.toYm ? "전월" : "직전 기간") : "전년 동기") : "";
-  return { companyId, range, setRange, compare, setCompare, data: q.data, loading: !companyId || q.isLoading, cur, cmp, cmpLabel, curLines: q.data?.curLines || [], cmpLines: q.data?.cmpLines || [] };
+  return { companyId, range, setRange, compare, setCompare, data: q.data, loading: !companyId || q.isLoading, error: q.isError, cur, cmp, cmpLabel, curLines: q.data?.curLines || [], cmpLines: q.data?.cmpLines || [] };
 }
 export type PnlStatusState = ReturnType<typeof usePnlStatus>;
 

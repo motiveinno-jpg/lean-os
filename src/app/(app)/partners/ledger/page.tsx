@@ -102,7 +102,7 @@ export default function PartnerLedgerPage() {
     try { window.history.replaceState({}, "", `/partners/ledger?type=${t}`); } catch { /* noop */ }
   };
 
-  const { data: rows = [], isLoading: lLoading } = useQuery<LedgerRow[]>({
+  const { data: rows = [], isLoading: lLoading, isError: lError } = useQuery<LedgerRow[]>({
     queryKey: ["partner-ledger", companyId, rpcYear],
     queryFn: async () => {
       const data = logRead('ledger/page:data', await (db as any).rpc("get_partner_ledger_by_period", { p_from: periodStart, p_to: periodEnd }));
@@ -417,7 +417,10 @@ export default function PartnerLedgerPage() {
             onOpen={(pid) => setDetail({ partnerId: pid, type: ledgerType, focus: "all" })} />
          ) : (
          <div className={`ledger-body ${wide ? "ledger-body-wide" : ""}`}>
-          {lLoading ? (
+          {/*   실패를 '거래 없음'과 구별(2026-09-30) */}
+          {lError ? (
+            <div className="collect-empty">원장을 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>
+          ) : lLoading ? (
             <div className="collect-empty">불러오는 중…</div>
           ) : (
             <>

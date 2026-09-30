@@ -19,7 +19,7 @@ import { WaterfallChart } from "@/components/charts/kit";
 import { summarizeByVatType } from "@/lib/vat-voucher";
 
 // ── Summary Tab ──
-export function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, currentYear }: any) {
+export function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, currentYear, loading }: any) {
   const totalCardDeduction = cardDeductions.reduce((s: number, c: any) => s + c.estimatedVatDeduction, 0);
 
   return (
@@ -41,7 +41,9 @@ export function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeduc
       </div>
 
       <div className="glass-card overflow-hidden">
-        {periodSummary.length === 0 ? (
+        {periodSummary.length === 0 && loading ? (
+          <div className="collect-empty">불러오는 중…</div>
+        ) : periodSummary.length === 0 ? (
           <div className="py-16 px-6 text-center">
             <div className="empty-state-icon mx-auto"><Ico e="📊" /></div>
             <div className="text-base font-semibold text-[var(--text)]">{currentYear}년 세금계산서 데이터가 없습니다</div>

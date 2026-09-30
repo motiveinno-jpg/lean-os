@@ -49,7 +49,8 @@ export default function VatReportPage() {
     queryFn: () => getVatEstimates(companyId!, year),
     enabled: !!companyId && tab === "vat",
   });
-  const { data: periodSummary = [] } = useQuery({
+  //   isPending — 불러오는 중을 '세금계산서 데이터가 없습니다'와 구별(2026-09-30)
+  const { data: periodSummary = [], isPending: periodPending } = useQuery({
     queryKey: ["tax-period-summary", companyId, year, periodType],
     queryFn: () => getTaxInvoiceSummary(companyId!, year, periodType),
     enabled: !!companyId && tab === "summary",
@@ -77,6 +78,7 @@ export default function VatReportPage() {
 
       {tab === "summary" && (
         <SummaryTab
+          loading={periodPending}
           periodSummary={periodSummary}
           periodType={periodType}
           setPeriodType={setPeriodType}

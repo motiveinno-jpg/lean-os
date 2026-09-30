@@ -46,7 +46,8 @@ export default function MasterPage()  {
     if (!permLoading && !isMaster) router.replace("/dashboard");
   }, [permLoading, isMaster, router]);
 
-  const { data: rawData } = useQuery({
+  //   isPending — 불러오는 동안 '재무 데이터 없음 · 샘플 데이터 생성'을 권하지 않게(2026-09-30). 누르면 샘플이 실제 회사에 들어간다
+  const { data: rawData, isPending: founderPending, isError: founderError } = useQuery({
     queryKey: ["founder-data", companyId],
     queryFn: () => getFounderData(companyId!),
     enabled: !!companyId && isMaster,
@@ -191,8 +192,9 @@ export default function MasterPage()  {
         />
       )}
 
-      {/* ═══ 데이터 없음 — 시작 CTA (대시보드에서 이동) ═══ */}
-      {!hasData && (
+      {/* ═══ 데이터 없음 — 시작 CTA (대시보드에서 이동) ═══ — 다 불러온 뒤에만(불러오는 중·실패엔 권하지 않는다) */}
+      {founderError && <div className="collect-empty">재무 데이터를 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>}
+      {!hasData && !founderPending && !founderError && (
         <div className="dashboard-empty-state-cta">
           <div className="text-sm font-bold text-[var(--text)] mb-1">아직 재무 데이터가 없습니다</div>
           <p className="text-xs text-[var(--text-muted)] mb-4">아래 방법 중 하나를 선택해 시작하세요.</p>

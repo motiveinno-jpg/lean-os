@@ -59,7 +59,8 @@ export default function ProfitSummaryPage() {
   const man = (n: number) => `${Math.round(Math.abs(n) / 10000).toLocaleString("ko-KR")}만원`;
   const pct = (a: number, b: number) => (b === 0 ? null : Math.round(((a - b) / Math.abs(b)) * 100));
   const revP = pct(cur.revenue, cmp.revenue), opexP = pct(cur.opex, cmp.opex);
-  const headline = s.loading ? "불러오는 중…" : cur.lines === 0
+  //   실패를 '확정 전표가 없습니다'로 말하지 않는다(2026-09-30)
+  const headline = s.error ? "손익 자료를 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요." : s.loading ? "불러오는 중…" : cur.lines === 0
     ? `${rangeLabel(s.range)}에는 확정 전표가 없습니다. 수집·전표에서 전표를 만들면 여기 손익이 채워집니다.`
     : `${rangeLabel(s.range)}은 ${cur.operating >= 0 ? `${man(cur.operating)} 남았습니다` : `${man(cur.operating)} 손실입니다`}. 매출은 ${s.cmpLabel}보다 ${revP === null ? "비교할 값이 없고" : revP > 0 ? `${revP}% 늘고` : revP < 0 ? `${Math.abs(revP)}% 줄고` : "비슷하고"}, 판관비는 ${opexP === null ? "비교할 값이 없습니다" : opexP > 0 ? `${opexP}% 늘었습니다` : opexP < 0 ? `${Math.abs(opexP)}% 줄었습니다` : "비슷합니다"}.`;
   const subline = spikes.length > 0

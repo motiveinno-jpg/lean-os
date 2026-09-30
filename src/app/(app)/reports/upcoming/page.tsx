@@ -33,7 +33,7 @@ export default function UpcomingPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   useEffect(() => { getCurrentUser().then((u) => { if (u) { setCompanyId(u.company_id); setUserId(u.id); } }); }, []);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["cash-outlook", companyId, days],
     queryFn: () => fetchOutlook(companyId!, days, userId || undefined),
     enabled: !!companyId, staleTime: 60_000,
@@ -102,7 +102,7 @@ export default function UpcomingPage() {
       />
       <AppliedChips chips={chips} onClearAll={() => { apply(COND0); setQ(""); }} />
 
-      {isLoading || !data ? <div className="collect-empty">불러오는 중…</div> : rows.length === 0 ? (
+      {isError ? <div className="collect-empty">자료를 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div> : isLoading || !data ? <div className="collect-empty">불러오는 중…</div> : rows.length === 0 ? (
         <div className="collect-empty">{data.items.length === 0 ? `앞으로 ${days}일 안에 날짜가 있는 예정 항목이 없습니다. 세금계산서·급여·대출·정기 지출을 등록하면 여기 쌓입니다` : "조건에 맞는 항목이 없습니다"}</div>
       ) : (
         <>

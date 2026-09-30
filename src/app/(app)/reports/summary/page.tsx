@@ -71,7 +71,7 @@ export default function ManagementSummaryPage() {
     } catch { /* 실패 시 다음 클릭에서 재시도 */ }
   };
 
-  const { data: s, isLoading } = useQuery({
+  const { data: s, isLoading, isError } = useQuery({
     queryKey: ["biz-summary", companyId, month],
     queryFn: () => fetchBizSummary(companyId!, month, userId || undefined),
     enabled: !!companyId, staleTime: 60_000,
@@ -129,7 +129,8 @@ export default function ManagementSummaryPage() {
         </> : <span className="text-[11px] text-[var(--text-dim)]">불러오는 중…</span>}
       />
 
-      {isLoading || !s ? <div className="collect-empty">불러오는 중…</div> : (
+      {/*   실패하면 '불러오는 중'에 멈추지 않고 알린다(2026-09-30) */}
+      {isError ? <div className="collect-empty">자료를 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div> : isLoading || !s ? <div className="collect-empty">불러오는 중…</div> : (
         <div className="bz-body">
           {/* 손익 현황과 같은 머리 — 기준 한 줄 + 한 문장 결론 (규칙 기반, LLM 아님) */}
           <div className="pnl-basis-note">

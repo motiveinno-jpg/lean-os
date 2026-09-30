@@ -93,7 +93,7 @@ export default function OutlookPage() {
   };
   const dayLabel = (d: number) => (d === 31 ? "말일" : `${d}일`);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["cash-outlook", companyId, days],
     queryFn: () => fetchOutlook(companyId!, days, userId || undefined),
     enabled: !!companyId, staleTime: 60_000,
@@ -201,7 +201,7 @@ export default function OutlookPage() {
       />
       <AppliedChips chips={chips} onClearAll={() => apply(SCENARIO_DEFAULT)} />
 
-      {isLoading || !data || !base ? <div className="collect-empty">불러오는 중…</div> : (
+      {isError ? <div className="collect-empty">자료를 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div> : isLoading || !data || !base ? <div className="collect-empty">불러오는 중…</div> : (
         <div className="bz-body">
           <div className="pnl-basis-note">
             <b>현재 통장 잔액 + 일자 지정 예정 항목 {data.items.length}건</b> · 세금계산서(발행+30일)·급여·대출·정기 지출·부가세·계약 회차·결재 대기. 확정  {data.items.filter((i) => i.sure === "확정").length}건 · 추정 {data.items.filter((i) => i.sure === "추정").length}건.

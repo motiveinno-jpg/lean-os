@@ -51,7 +51,7 @@ export default function MonthlyDetailPage() {
   useEffect(() => { getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); }); }, []);
 
   //   올해 + 전년(전년동월 비교용) 줄
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["pnl-monthly", companyId, year],
     queryFn: async () => {
       const [cur, prev] = await Promise.all([
@@ -207,7 +207,8 @@ export default function MonthlyDetailPage() {
       />
       <AppliedChips chips={chips} onClearAll={() => apply(DEFAULT_VIEW)} />
 
-      {isLoading ? <div className="collect-empty">불러오는 중…</div> : lines.length === 0 ? (
+      {isError ? <div className="collect-empty">자료를 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>
+        : isLoading ? <div className="collect-empty">불러오는 중…</div> : lines.length === 0 ? (
         <div className="collect-empty">{year}년 확정 전표가 없습니다. 수집·전표에서 전표를 만들면 여기 표가 채워집니다</div>
       ) : view.dir === "wide" ? (
         <div className="pnl-tbl-wrap">
