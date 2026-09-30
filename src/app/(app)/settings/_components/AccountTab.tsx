@@ -160,7 +160,7 @@ export function AccountTab() {
           <button
             type="submit"
             disabled={saving || !currentPw || !newPw || newPw !== confirmPw}
-            className="btn-primary w-full"
+            className="btn-primary btn-sm"
           >
             {saving ? "변경 중..." : "비밀번호 변경"}
           </button>

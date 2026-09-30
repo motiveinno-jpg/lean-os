@@ -380,7 +380,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
       </div>
 
       <button onClick={() => companyId && saveMut.mutate()} disabled={!companyId || saveMut.isPending}
-        className="btn-primary w-full">
+        className="btn-primary btn-sm">
         {saveMut.isPending ? "저장 중..." : "저장"}
       </button>
     </div>

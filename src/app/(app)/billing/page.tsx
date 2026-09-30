@@ -1336,7 +1336,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
               </button>
               <button
                 disabled={isPaymentLoading}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] transition disabled:opacity-50"
+                className="btn-primary btn-sm"
                 onClick={handleUpgradeConfirm}
               >
                 {isPaymentLoading ? "로딩 중..."

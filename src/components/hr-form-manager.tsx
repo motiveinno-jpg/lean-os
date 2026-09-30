@@ -348,7 +348,7 @@ export function HrFormManager({ companyId, collapseUpload, openUploadSignal, hid
             )}
             <div className="hr-form-fill-actions">
               <button onClick={() => setFilling(null)} className="flex-1 py-2 rounded-lg border border-[var(--border)] text-sm text-[var(--text-muted)]">취소</button>
-              <button onClick={exportFilled} className="flex-1 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-semibold">채워서 PDF 출력</button>
+              <button onClick={exportFilled} className="btn-primary btn-sm">채워서 PDF 출력</button>
             </div>
           </div>
         </div>,

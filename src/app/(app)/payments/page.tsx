@@ -541,7 +541,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
             </div>
             <div className="flex gap-2 p-4 border-t border-[var(--border)]">
               <button onClick={() => setReceiptItem(null)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[var(--bg-surface)] text-[var(--text)] hover:bg-[var(--border)] transition">닫기</button>
-              <button onClick={printReceipt} className="flex-1 btn-primary">PDF / 인쇄</button>
+              <button onClick={printReceipt} className="btn-primary btn-sm">PDF / 인쇄</button>
             </div>
           </div>
         </div>
@@ -581,7 +581,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
                 </button>
                 {refundStep === 1 ? (
                   <button disabled={!refundReason.trim()} onClick={() => setRefundStep(2)}
-                    className="btn-primary flex-1">다음</button>
+                    className="btn-primary btn-sm">다음</button>
                 ) : (
                   <button disabled={refundSubmitting} onClick={submitRefund}
                     className="btn-danger-solid flex-1">
@@ -921,7 +921,7 @@ function RecurringDetailModal({
             >닫기</button>
             <button
               onClick={onEdit}
-              className="btn-primary"
+              className="btn-primary btn-sm"
             >수정</button>
           </div>
         </div>

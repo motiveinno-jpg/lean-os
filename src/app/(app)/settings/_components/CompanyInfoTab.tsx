@@ -488,7 +488,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
           <button
             onClick={() => { void handleSave(); }}
             disabled={!form.name || saveMut.isPending}
-            className="btn-primary"
+            className="btn-primary btn-sm"
           >
             {saveMut.isPending ? "저장 중..." : saved ? "저장 완료" : "회사 정보 저장"}
           </button>

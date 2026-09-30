@@ -465,7 +465,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
                 </div>
               </div>
               <div className="mt-4">
-                <button onClick={save} className="btn-primary">{saved ? "저장 완료" : "저장"}</button>
+                <button onClick={save} className="btn-primary btn-sm">{saved ? "저장 완료" : "저장"}</button>
               </div>
             </section>
 
@@ -593,7 +593,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
                     <button
                       onClick={() => bankForm.bank_name.trim() && bankForm.account_number.trim() && addBankMut.mutate()}
                       disabled={!bankForm.bank_name.trim() || !bankForm.account_number.trim() || addBankMut.isPending}
-                      className="btn-primary"
+                      className="btn-primary btn-sm"
                     >
                       추가
                     </button>
@@ -689,7 +689,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
                     <button
                       onClick={() => ruleForm.bank_account_id && addRuleMut.mutate()}
                       disabled={!ruleForm.bank_account_id || addRuleMut.isPending}
-                      className="btn-primary"
+                      className="btn-primary btn-sm"
                     >
                       추가
                     </button>

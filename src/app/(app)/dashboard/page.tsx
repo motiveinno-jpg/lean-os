@@ -441,7 +441,7 @@ export default function DashboardPage() {
         <div className="rounded-xl border border-[var(--warning)]/30 bg-[var(--warning-dim)] p-6 text-center">
           <p className="text-sm font-semibold text-[var(--text)] mb-2">계정 정보를 불러올 수 없습니다</p>
           <p className="text-xs text-[var(--text-muted)] mb-4">회원가입 직후라면 잠시 후 새로고침해주세요.</p>
-          <button onClick={() => window.location.reload()} className="px-4 py-2 rounded-lg text-xs font-bold text-white bg-[var(--primary)]">
+          <button onClick={() => window.location.reload()} className="btn-primary btn-sm">
             새로고침
           </button>
         </div>

@@ -1567,7 +1567,7 @@ export default function PartnersPage() {
                         <button
                           onClick={() => commForm.summary && addCommMutation.mutate()}
                           disabled={!commForm.summary || addCommMutation.isPending}
-                          className="btn-primary">
+                          className="btn-primary btn-sm">
                           {addCommMutation.isPending ? "저장 중..." : "저장"}
                         </button>
                       </div>
@@ -1678,7 +1678,7 @@ export default function PartnersPage() {
               )}
             </div>
             <div className="px-6 py-3 border-t border-[var(--border)] flex justify-end">
-              <button onClick={() => setImportResult(null)} className="btn-primary">확인</button>
+              <button onClick={() => setImportResult(null)} className="btn-primary btn-sm">확인</button>
             </div>
           </div>
         </div>
@@ -1745,11 +1745,11 @@ export default function PartnersPage() {
                 )}
                 <div className="flex justify-end gap-2 px-6 py-4 border-t border-[var(--border)]">
                   <button onClick={() => setImportPreview(null)} disabled={importing}
-                    className="px-4 py-2 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] rounded-xl text-sm font-semibold hover:bg-[var(--border)] transition disabled:opacity-50">
+                    className="btn-secondary btn-sm">
                     취소
                   </button>
                   <button onClick={confirmImport} disabled={importing}
-                    className="btn-primary">
+                    className="btn-primary btn-sm">
                     {importing ? `처리 중...` : `${importPreview.length}건 저장`}
                   </button>
                 </div>
@@ -1875,11 +1875,11 @@ export default function PartnersPage() {
               </div>
               <div className="flex gap-2">
                 <button onClick={closeModal}
-                  className="px-4 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] rounded-xl text-sm font-semibold transition hover:bg-[var(--border)]">
+                  className="btn-secondary btn-sm">
                   취소
                 </button>
                 <button onClick={() => form.name && saveMutation.mutate()} disabled={!form.name || saveMutation.isPending}
-                  className="btn-primary">
+                  className="btn-primary btn-sm">
                   {saveMutation.isPending ? "저장 중..." : "저장"}
                 </button>
               </div>
@@ -1944,10 +1944,10 @@ function PortalLinkModal({ url, partnerName, onClose }: { url: string; partnerNa
           </ul>
         </div>
         <div className="flex justify-end gap-2 px-5 py-3 border-t border-[var(--border)]">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-semibold rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--border)] transition">
+          <button onClick={onClose} className="btn-secondary btn-sm">
             닫기
           </button>
-          <button onClick={copy} className="btn-primary">
+          <button onClick={copy} className="btn-primary btn-sm">
             {copied ? "복사됨 ✓" : "복사하기"}
           </button>
         </div>

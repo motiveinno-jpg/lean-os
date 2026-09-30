@@ -107,7 +107,7 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
         <input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && newName.trim()) addMut.mutate(newName); }}
           placeholder="새 부서 이름" className="flex-1 h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
         <button onClick={() => newName.trim() && addMut.mutate(newName)} disabled={!newName.trim() || addMut.isPending}
-          className="btn-primary h-9">추가</button>
+          className="btn-primary btn-sm">추가</button>
       </div>
 
       {unregistered.length > 0 && (
@@ -141,7 +141,7 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
                   <input value={editName} onChange={(e) => setEditName(e.target.value)} autoFocus
                     onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && editName.trim()) renameMut.mutate({ id: d.id, name: editName }); if (e.key === "Escape") setEditId(null); }}
                     className="flex-1 h-8 px-2.5 rounded-md bg-[var(--bg)] border border-[var(--primary)]/40 text-sm" />
-                  <button onClick={() => editName.trim() && renameMut.mutate({ id: d.id, name: editName })} className="text-xs px-2 py-1 rounded bg-[var(--primary)] text-white">저장</button>
+                  <button onClick={() => editName.trim() && renameMut.mutate({ id: d.id, name: editName })} className="btn-secondary btn-sm">저장</button>
                   <button onClick={() => setEditId(null)} className="text-xs px-2 py-1 text-[var(--text-muted)]">취소</button>
                 </>
               ) : (

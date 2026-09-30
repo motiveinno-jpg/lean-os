@@ -95,7 +95,7 @@ export function DealClassificationManager({ companyId }: { companyId: string | n
             <button
               onClick={() => form.name && upsertMut.mutate()}
               disabled={!form.name || upsertMut.isPending}
-              className="btn-primary"
+              className="btn-primary btn-sm"
             >
               {editId ? '수정' : '추가'}
             </button>

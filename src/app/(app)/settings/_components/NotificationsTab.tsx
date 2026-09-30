@@ -631,7 +631,7 @@ function DailyReportCard({ companyId }: { companyId: string | null }) {
             <button
               onClick={save}
               disabled={saving}
-              className="btn-primary flex-1"
+              className="btn-primary btn-sm"
             >
               {saving ? "저장중..." : "설정 저장"}
             </button>

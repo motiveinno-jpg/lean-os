@@ -279,7 +279,7 @@ export function ClosingChecklistWidget({ companyId, userId }: { companyId: strin
               <button
                 onClick={() => completeMut.mutate()}
                 disabled={completeMut.isPending}
-                className="mt-2 w-full py-2 bg-[var(--success)] text-white rounded-lg text-xs font-semibold hover:bg-[var(--success)]/90 transition disabled:opacity-50"
+                className="btn-secondary btn-sm closing-auto-btn"
               >
                 {completeMut.isPending ? '처리 중...' : '월 마감 수동 완료'}
               </button>

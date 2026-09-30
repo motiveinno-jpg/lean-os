@@ -11285,3 +11285,4 @@ table.ol-items-table { min-width: 760px; table-layout: fixed; }
 .ap-decide-actions { @apply flex justify-end gap-2; }
 .ap-decide-approve { @apply inline-flex items-center gap-1; }
 .ap-modal-actions { @apply mt-5 flex justify-end gap-2; }
+.closing-auto-btn { @apply mt-2; }   /* 마감 체크리스트 자동 마감 — 폭 전체 초록 → btn-secondary btn-sm(2026-09-30) */

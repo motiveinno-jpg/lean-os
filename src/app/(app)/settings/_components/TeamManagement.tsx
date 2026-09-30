@@ -409,7 +409,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
             <button
               onClick={() => inviteEmail && inviteMut.mutate()}
               disabled={!inviteEmail || inviteMut.isPending}
-              className="btn-primary"
+              className="btn-primary btn-sm"
             >
               {inviteMut.isPending ? "전송 중..." : "초대 전송"}
             </button>
