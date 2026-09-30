@@ -370,6 +370,10 @@ export async function materializeContractTemplate(
       .select("*")
       .eq("company_id", companyId)
       .eq("name", tpl.name)
+      //   서식 사본만 — 이 함수가 만드는 사본은 늘 작성자 없음·계약 유형이다(아래 insert). 전에는 이름만 봐서
+      //   같은 이름의 **실제 문서**(사람이 만든 계약서)를 사본으로 잡아 서식 본문으로 덮어쓸 수 있었다(마스터는 서버 가드도 통과) — 2026-09-30
+      .is("created_by", null)
+      .eq("auto_classified_type", "contract")
       .limit(1));
     existing = (rows as any[])?.[0] || null;
   }
@@ -380,15 +384,21 @@ export async function materializeContractTemplate(
     const curBody = (existing.content_json as any)?.body ?? "";
     const linked = (existing.content_json as any)?.source_template_id;
     if (existing.name !== tpl.name || curBody !== body || (tpl.id && linked !== tpl.id)) {
-      const { data: updated } = await supabase
+      const { data: updated, error: upErr } = await supabase
         .from("documents")
         .update({ name: tpl.name, content_json: contentJson as unknown as Json })
         .eq("id", existing.id)
         .select()
         .single();
-      return updated ?? existing;
+      if (!upErr && updated) return updated;
+      //   고치지 못했으면 옛 사본을 쓰지 않는다 (2026-09-30) — 전에는 오류를 보지 않고 existing 을 돌려줘
+      //   **옛 본문으로 일괄 계약이 나갔다**. 막히는 경우: 서버 가드(documents_content_edit_guard)가 이름으로 찾은 옛 사본
+      //   (source_template_id 없음 → 「전자계약」 권한 예외에 안 걸림)이나 잠긴 문서를 거절할 때. 이름이 같은 **다른 문서**
+      //   (서명 끝난 계약 등)를 사본으로 잘못 잡은 경우도 여기로 온다 → 그 문서 내용을 섞지 않고 서식 본문만으로 새 사본을 만든다.
+      //   새 사본엔 source_template_id 가 있어 다음부터는 이것을 찾는다.
+    } else {
+      return existing;
     }
-    return existing;
   }
 
   const { data, error } = await supabase
@@ -396,7 +406,7 @@ export async function materializeContractTemplate(
     .insert({
       company_id: companyId,
       name: tpl.name,
-      content_json: contentJson as unknown as Json,
+      content_json: (existing ? { body, ...(tpl.id ? { source_template_id: tpl.id } : {}) } : contentJson) as unknown as Json,
       auto_classified_type: "contract",
       status: "draft",
     })
