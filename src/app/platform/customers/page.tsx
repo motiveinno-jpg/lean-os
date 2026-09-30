@@ -67,7 +67,7 @@ export default function CustomersPage() {
     queryKey: ["p-companies-detail"],
     queryFn: async () => {
       // 전체 회사 — 1,000행 상한에 잘리지 않게 끝까지 넘겨 받는다
-      const data = await fetchPaged<any>("customers/page:data", () => db.from("companies").select("*, users(count), subscriptions(*, subscription_plans(*))").order("created_at", { ascending: false }).order("id"), 100000, { strict: true });
+      const data = await fetchPaged<any>("customers/page:data", () => db.from("companies").select("*, users!users_company_id_fkey(count), subscriptions(*, subscription_plans(*))").order("created_at", { ascending: false }).order("id"), 100000, { strict: true });
       // 테스트 회사(자동 QA)는 목록·숫자에서 뺀다 — 회사 상세는 주소로 직접 열면 그대로 보인다
       return dropTestCompanies(data, (c: any) => c.id);
     },

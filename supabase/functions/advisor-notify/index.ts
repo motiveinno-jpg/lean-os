@@ -115,7 +115,7 @@ serve(withSentry("advisor-notify", async (req) => {
       let companyName = "";
       if (!isOperator) {
         const { data: caller } = await admin.from("users")
-          .select("company_id, companies(name)").eq("auth_id", user.id).maybeSingle();
+          .select("company_id, companies!users_company_id_fkey(name)").eq("auth_id", user.id).maybeSingle();
         if (!caller?.company_id) return json({ error: "forbidden" }, 403);
         const { data: link } = await admin.from("advisor_company_links")
           .select("id").eq("advisor_id", advisor_id).eq("company_id", caller.company_id).maybeSingle();

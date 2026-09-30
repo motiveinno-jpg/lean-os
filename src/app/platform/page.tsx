@@ -114,7 +114,8 @@ export default function PlatformOverview() {
   const  { data: companies = [], isLoading: companiesLoading, error: companiesError } = useQuery({
     queryKey: ["p-companies"],
     queryFn: async () => {
-      const data = await fetchPaged<any>("p-companies", () => db.from("companies").select("*, users(count), subscriptions(*, subscription_plans(*))").order("created_at", { ascending: false }).order("id"), 100000, { strict: true });
+      //   users 로 가는 외래키가 둘(company_id·former_company_id)이라 이름을 적지 않으면 PGRST201 로 조회 전체가 실패한다
+      const data = await fetchPaged<any>("p-companies", () => db.from("companies").select("*, users!users_company_id_fkey(count), subscriptions(*, subscription_plans(*))").order("created_at", { ascending: false }).order("id"), 100000, { strict: true });
       // 테스트 회사(자동 QA)는 가입사 수·등급 집계에서 뺀다
       return dropTestCompanies(data, (c: any) => c.id);
     },
@@ -433,9 +434,9 @@ export default function PlatformOverview() {
 
       {/* ── KPI 줄 — 숫자가 굴러가며 바뀐다 ── */}
       <div className="pf-kpi-grid">
-        <PfCard i={1} className="pf-kpi-tile"><PfKpiKrw label="MRR (월 반복 매출)" value={mrr} accent /></PfCard>
-        <PfCard i={2} className="pf-kpi-tile"><PfKpi label="총 가입사" value={totalCompanies} unit="곳" delta={thisMonth} deltaLabel="이번 달" /></PfCard>
-        <PfCard i={3} className="pf-kpi-tile"><PfKpi label="유료 전환율" value={Number(conversionRate)} unit="%" format={{ maximumFractionDigits: 1 }} /></PfCard>
+        <PfCard i={1} className="pf-kpi-tile">{subsError ? <PfKpi label="MRR (월 반복 매출)" value="—" accent /> : <PfKpiKrw label="MRR (월 반복 매출)" value={mrr} accent />}</PfCard>
+        <PfCard i={2} className="pf-kpi-tile"><PfKpi label="총 가입사" value={companiesError ? "—" : totalCompanies} unit={companiesError ? "" : "곳"} delta={companiesError ? null : thisMonth} deltaLabel="이번 달" /></PfCard>
+        <PfCard i={3} className="pf-kpi-tile"><PfKpi label="유료 전환율" value={companiesError ? "—" : Number(conversionRate)} unit={companiesError ? "" : "%"} format={{ maximumFractionDigits: 1 }} /></PfCard>
         <PfCard i={4} className="pf-kpi-tile"><PfKpi label="오늘 활동한 사람" value={usage?.accounts?.dau ?? 0} unit="명" /></PfCard>
         <PfCard i={5} className="pf-kpi-tile"><PfKpi label="지금 접속 중인 회사" value={activeNow.length} unit="곳" live={activeNow.length > 0} /></PfCard>
         <PfCard i={6} className="pf-kpi-tile"><PfKpi label="전체 사용자" value={totalUsers} unit="명" /></PfCard>
