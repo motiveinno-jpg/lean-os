@@ -268,7 +268,7 @@ export const TRADE: Industry[] = [
     title: ["주문은 세 곳에서,", "재고와 장부는 한 곳에서"],
     lead: "채널마다 엑셀을 맞추지 않습니다. 가져온 주문이 출고·재고·전표로 그대로 이어집니다.",
     kpis: [["65건", "오늘 주문"], ["12건", "출고 대기"], ["31.2%", "수수료 뺀 이익률"]],
-    shot: "/product/f-inv-channels-v2.png",
+    shot: "/product/f-ch-status-v1.png",
     hero: { kind: "inbox",
       tiles: [["스마트스토어", "38"], ["쿠팡", "21"], ["자사몰", "6"]],
       orders: [["데스크 매트 2개", "₩38,000", "ok"], ["노트북 파우치 1개", "₩24,000", "warn"],
