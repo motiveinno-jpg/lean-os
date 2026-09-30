@@ -22,6 +22,7 @@ import { OwnerViewIcon } from "@/components/brand-logo";
 import { UserProvider, useUser } from "@/components/user-context";
 import { BoardProvider } from "@/components/board-context";
 import { HometaxBackgroundChain } from "@/components/hometax-background-chain";
+import { CollectRunNotice } from "@/components/collect-run-notice";
 import { AppTourHost } from "@/components/app-tour";
 import { MaintenanceNoticeHost } from "@/components/maintenance-notice";
 import { SingleSessionGuard } from "@/components/single-session-guard";
@@ -321,6 +322,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
     return (
       <div className="embed-page min-h-screen p-4 md:p-5">
         <div className="app-content-scale w-full">
+          <CollectRunNotice />
           <RouteGuard>
             <SubscriptionGate>{children}</SubscriptionGate>
           </RouteGuard>
@@ -452,6 +454,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
           {role === "advisor" && <AdvisorViewingBanner companyName={(user as any)?.companies?.name || "고객사"} />}
           {/* 파이낸스 허브(거래처/세금·증빙/거래 장부) 하위 탭 — 해당 라우트에서만 렌더(그 외 null) */}
           <FinanceTabs />
+          <CollectRunNotice />
           {/* 유료 출시 게이트(2026-06-11): trial D-N 배너 + 만료/해지 페이월. 운영자·레거시(구독행 없음) 비차단. */}
           <RouteGuard>
             <SubscriptionGate>{children}</SubscriptionGate>

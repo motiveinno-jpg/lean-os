@@ -56,12 +56,14 @@ export function startCollect(opts: Omit<CollectOptions, "onChange">): boolean {
 
 /** 새로고침·탭 닫힘 뒤 — 스냅샷을 되살린다. 홈택스는 서버 job 을 이어 기다리고, 통장·카드는 끊긴 것으로 적는다. */
 let restored = false;
-export function restoreCollectRun() {
+export function restoreCollectRun(companyId: string) {
   if (restored || typeof window === "undefined") return;
-  restored = true;
+  // 이미 이 탭에서 시작한 실행을 저장된 옛 스냅샷으로 덮지 않는다.
+  if (cur.startedAt) { restored = true; return; }
   let snap: CollectRun | null = null;
   try { snap = JSON.parse(localStorage.getItem(KEY) || "null"); } catch { snap = null; }
-  if (!snap || !snap.startedAt) return;
+  if (!snap || !snap.startedAt || snap.companyId !== companyId) return;
+  restored = true;
   if (!snap.running) { cur = { ...snap, running: false }; emit(); return; }
   //   돌던 중에 끊겼다
   const state: Record<string, RunState> = { ...snap.state };
@@ -79,8 +81,12 @@ export function restoreCollectRun() {
   //   홈택스 job 은 서버(pg_cron)가 계속 돌린다 — 끝날 때까지 다시 기다린다
   Promise.all(resumable.map(async ({ key, jobId }) => {
     set({ state: { ...cur.state, [key]: { phase: "running", jobId, message: "서버에서 계속 받는 중 (이어 보기)" } } });
-    const { synced, error } = await waitForJob(jobId, (done, total) => set({ state: { ...cur.state, [key]: { phase: "running", jobId, message: total ? `${done}/${total}` : undefined } } }));
-    set({ state: { ...cur.state, [key]: error ? { phase: "error", message: error, synced } : { phase: "done", synced } } });
+    try {
+      const { synced, error } = await waitForJob(jobId, (done, total) => set({ state: { ...cur.state, [key]: { phase: "running", jobId, message: total ? `${done}/${total}` : undefined } } }));
+      set({ state: { ...cur.state, [key]: error ? { phase: "error", message: error, synced } : { phase: "done", synced } } });
+    } catch (e) {
+      set({ state: { ...cur.state, [key]: { phase: "error", message: e instanceof Error ? e.message : "수집 결과를 확인하지 못했습니다. 수집 이력을 확인하세요." } } });
+    }
   })).finally(() => set({ running: false, finishedAt: Date.now() }));
 }
 

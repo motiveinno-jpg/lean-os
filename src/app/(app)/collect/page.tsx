@@ -8,14 +8,13 @@
 //
 //   실행 경로는 lib/collect 가 기존 화면들의 호출을 그대로 재사용한다 — 여기서 새로 만들지 않는다.
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useUrlTabSync } from "@/lib/use-tab-param";
 import { useMyPermissions } from "@/lib/permissions";
 import { DateField } from "@/components/date-field";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useUser } from "@/components/user-context";
 import { supabase } from "@/lib/supabase";
-import { useToast } from "@/components/toast";
 import { AccessDenied } from "@/components/access-denied";
 import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { todayKst } from "@/lib/kst";
@@ -23,7 +22,7 @@ import {
   SOURCES, HOMETAX_SOURCES, fetchCollectStatus, fetchSyncHistory,
   type SourceKey,
 } from "@/lib/collect";
-import { useCollectRun, startCollect, restoreCollectRun } from "@/lib/collect-run";
+import { useCollectRun, startCollect } from "@/lib/collect-run";
 import { EvidenceTab } from "./_components/EvidenceTab";
 import { BankTab } from "./_components/BankTab";
 import { ExpenseClaimTab } from "./_components/ExpenseClaimTab";
@@ -54,8 +53,6 @@ export default function CollectPage() {
 
 function CollectInner() {
   const { user } = useUser();
-  const { toast }  = useToast();
-  const qc = useQueryClient();
   const companyId = user?.company_id ?? null;
 
   //   조회기간 · 기본은 **최근 1개월**.
@@ -95,21 +92,9 @@ function CollectInner() {
   //   ★ 진행 상태는 화면 밖(collect-run 싱글턴)에 있다 — 다른 메뉴로 갔다 와도 그대로 보이고, 통장·카드 수집도 끊기지 않는다
   //     ("전표 수집 시 백그라운드 수집이 안 됨"). 새로고침 뒤에는 스냅샷을 되살려 홈택스 job 을 이어 기다린다.
   const run = useCollectRun();
-  const running = run.running;
-  const state = run.state;
-  useEffect(() => { restoreCollectRun(); }, []);
-  //   끝났을 때 알린다. 시작한 화면이 아니어도(여기로 돌아온 순간) 한 번
-  const seenFinish = useRef<number | null>(null);
-  useEffect(() => {
-    if (!run.finishedAt || seenFinish.current === run.finishedAt) return;
-    seenFinish.current = run.finishedAt;
-    qc.invalidateQueries({ queryKey: ["collect-status"] });
-    qc.invalidateQueries({ queryKey: ["sync-cooldowns"] });
-    if (Date.now() - run.finishedAt < 60_000) {
-      const errs = Object.values(run.state).filter((r) => r.phase === "error").length;
-      toast(errs ? `수집이 끝났습니다. ${errs}종은 받지 못했습니다(창을 열어 확인)` : "수집이 끝났습니다", errs ? "info" : "success");
-    }
-  }, [run.finishedAt]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const running = run.companyId === companyId && run.running;
+  const state = run.companyId === companyId ? run.state : {};
+  // 완료 알림과 목록 갱신은 앱 셸의 CollectRunNotice가 맡는다.
 
   //   쿨타임·요금제 — 자료마다 세는 단위가 달라 셋을 다 본다
   const cdHometax = useSyncCooldown(companyId, "hometax");

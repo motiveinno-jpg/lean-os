@@ -418,17 +418,25 @@ const SKIP_TYPES = ["bank-balance", "register_"];
 
 /** 최근 수집 이력 — 자료를 실제로 받아 온 기록만 (잔액 새로고침 등은 뺀다) */
 export async function fetchSyncHistory(companyId: string, limit = 30): Promise<SyncHistoryRow[]> {
-  const data = logRead("collect:sync-history", await supabase
+  const [logResult, jobResult] = await Promise.all([supabase
     .from("sync_logs")
     .select("id, sync_type, status, details, created_at, synced_by")
     .eq("company_id", companyId)
     .order("created_at", { ascending: false })
-    .limit(limit * 3));            // 걸러낼 것이 있어 넉넉히 받아 자른다
+    .limit(limit * 3),            // 걸러낼 것이 있어 넉넉히 받아 자른다
+    supabase.from("hometax_sync_jobs")
+      .select("id, job_type, status, total_synced, errors, triggered_by, completed_at, created_at")
+      .eq("company_id", companyId).in("job_type", HOMETAX_SOURCES)
+      .in("status", ["completed", "failed"])
+      .order("created_at", { ascending: false }).limit(limit),
+  ]);
+  const data = logRead("collect:sync-history", logResult);
+  const jobs = (logRead("collect:sync-history-jobs", jobResult) || []) as any[];
   const rows = ((data as any[]) || []);
 
   //   ★ sync_logs.synced_by 에는 **users.id 도 auth_id 도** 들어 있다(옛 기록 섞임).
   //     외래키가 없어 조인(users:synced_by(name))은 400 이 난다 — 이름은 따로 찾아 둘 다로 맞춘다.
-  const ids = [...new Set(rows.map((r) => r.synced_by).filter(Boolean))] as string[];
+  const ids = [...new Set([...rows.map((r) => r.synced_by), ...jobs.map((j) => j.triggered_by)].filter(Boolean))] as string[];
   const nameBy = new Map<string, string>();
   if (ids.length > 0) {
     const list = ids.join(",");
@@ -441,11 +449,13 @@ export async function fetchSyncHistory(companyId: string, limit = 30): Promise<S
   }
 
   const out: SyncHistoryRow[] = [];
+  const jobIds = new Set(jobs.map((j) => j.id));
   for (const r of rows) {
     const type = String(r.sync_type || "");
     if (SKIP_TYPES.some((t) => type.includes(t))) continue;
 
     const d = (r.details || {}) as Record<string, any>;
+    if (jobIds.has(d.job)) continue; // 같은 홈택스 작업이 두 기록에 있어도 한 번만 표시한다.
     //   채널별로 { synced, errors } 가 들어 있다 — 있는 것만 모은다
     const chans = Object.entries(d).filter(([, v]) => v && typeof v === "object" && "synced" in v);
     const what = chans.length
@@ -469,7 +479,19 @@ export async function fetchSyncHistory(companyId: string, limit = 30): Promise<S
       status: (r.status === "error" || r.status === "partial") ? r.status : "success",
       note: firstErr ? String(typeof firstErr === "string" ? firstErr : firstErr?.message ?? firstErr).slice(0, 120) : null,
     });
-    if (out.length >= limit) break;
   }
-  return out;
+  for (const j of jobs) {
+    const firstErr = Array.isArray(j.errors) ? j.errors[0] : null;
+    const failed = j.status === "failed";
+    out.push({
+      id: `job:${j.id}`, at: j.completed_at || j.created_at,
+      by: nameBy.get(j.triggered_by) ?? null, auto: !j.triggered_by,
+      what: SOURCES.find((s) => s.key === j.job_type)?.label ?? j.job_type,
+      count: Number(j.total_synced || 0),
+      status: failed ? "error" : firstErr ? "partial" : "success",
+      note: firstErr ? String(typeof firstErr === "string" ? firstErr : firstErr.hint || firstErr.message || "수집 실패").slice(0, 120)
+        : failed ? "수집 실패" : "처리 건수 · 기존 자료 확인 포함",
+    });
+  }
+  return out.sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, limit);
 }
