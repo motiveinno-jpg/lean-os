@@ -10125,7 +10125,6 @@ table.phv3-table { min-width: 640px; }
 .pjv3-dprow .flags .ok { background: #e6f9f1; color: #00a05e; }
 
 /* ── 채널 주문 현황(결정 148, 2026-09-02) — 재고 › 채널 주문 첫 갈래. pjv3-st* 부품 재사용 ── */
-.ch-st-sel { @apply rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2 py-1.5 text-xs text-[var(--text)] outline-none; font: inherit; font-size: 12px; }
 /* 2026-09-03 대표가 "일별 주문 공간이 좁아 깨진다": 공용.ev-table min-width 1260px 가 채널별 표를 밀어 왼쪽 칸이 부풀고
    오른쪽 칸(일별·배송 흐름)이 266px 로 눌렸다. 표는 6열이라 전용 min-width, 격자 칸은 minmax(0) 로 내용에 안 밀리게, 좁으면 한 줄로. */
 .ch-st-grid { @apply mt-3 grid gap-3; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); } /* 뷰포트 media query 는 --app-zoom 때문에 늦게 걸려 칸 너비 기준으로 */
@@ -10139,6 +10138,14 @@ table.ch-st-table { min-width: 520px; } /* table. — .ev-table(뒤에 정의) �
 .ch-st-flow .wk { @apply text-[9px] text-[var(--text-dim)]; }
 .ch-st-flow .cnt { @apply text-[9.5px] font-bold text-[var(--primary)]; min-height: 13px; }
 .ch-st-sync { @apply mb-1.5 flex items-center gap-2.5 rounded-lg border border-[var(--border)] px-3 py-2 text-xs; }
+/*   이커머스 현황 표준 전환 (2026-09-30) — 인라인 유틸을 옮긴 시맨틱 마커 */
+.ch-st-row { @apply cursor-pointer; }
+.ev-table tbody td.ch-st-hot { @apply font-bold text-[var(--danger)]; }
+.ev-table tbody tr.ch-st-total td { @apply font-bold; }
+.pnl-panel > h3.ch-st-subh { @apply mt-4; }
+.ch-st-sync-name { @apply w-24; }
+.ch-st-sync-meta { @apply text-[11px] text-[var(--text-dim)]; }
+.ch-st-sync-go { @apply ml-auto; }
 .pjv3-stmoney .mstep.ch-st-warn { border-color: rgba(226, 68, 92, 0.4); }
 .pjv3-stmoney .mstep.ch-st-warn .n { color: var(--danger, #e2445c); }
 .pjv3-gr { @apply flex items-stretch border-b border-[var(--border)]; }
