@@ -112,7 +112,10 @@ export default function EmployeesPage()  {
   const isEmployee = !(isMaster || hasPerm("/employees:employees"));
 
   // URL ?tab=... 동기화. payroll/salary → '급여' 탭(명세).
+  //   주소에 탭이 없으면 인력관리로 — 사이드바 「구성원」(/employees)을 누르면 보던 급여·휴가에 남던 것(2026-09-30,
+  //   상단 탭 줄을 없애며 사이드바가 유일한 이동이 됐다). 모르는 값은 무시.
   useEffect(() => {
+    if (!urlTab) { setTab("employees"); return; }
     if (!isValidTab(urlTab)) return;
     setTab(normalizeTab(urlTab));
   }, [urlTab]);
@@ -212,19 +215,8 @@ export default function EmployeesPage()  {
   //     폭은 공통 토큰(--content-max-wide)으로 통일.
   //   2026-08-18 조회 화면 표준 · 갈래 탭은 상자 안 맨 위 파란 밑줄, KPI 타일은 결과 요약 줄(Stat)로,
   //   본문은 상자 안에서 스크롤(끝선 = 사이드바). 인력관리 탭은 디렉토리 부품이 상자 전체를 그린다.
-  const tabsEl = (
-    
-    <div className="collect-tabs no-print">
-      {tabs.map((t) => (
-        <button key={t.key} type="button" onClick={() => setTab(t.key)}
-          className={effectiveTab === t.key ? "collect-tab collect-tab-on" : "collect-tab"}>
-          {t.label}
-          {t.count !== undefined && t.count > 0 && <span className="collect-tab-cnt">{t.count}</span>}
-        </button>
-      ))}
-    </div>
-  
-  );
+  //   상단 갈래 탭 줄은 없앴다 (2026-09-30 사장님 "정리해줘" — 이커머스와 같은 방식) — 이동은 사이드바 인사 그룹
+  //   (구성원 · 휴가 · 급여 · 증명서 발급)이 맡고 머리 제목도 그 메뉴 이름을 따른다(route-labels tabs).
   //   요약 · Employee 역할에게는 급여/인원/퇴직충당금 숨김.
   //   휴가 탭은 시안대로 표가 주인공이라 상단 KPI 를 감춘다.
   const peopleStats = !isEmployee ? (<>
@@ -260,7 +252,6 @@ export default function EmployeesPage()  {
           직원 정보 수정은 디렉토리 카드 → 상세보기에서. */}
       {effectiveTab === "employees" && (
         <FlexPeopleDirectory companyId={companyId} employees={employees} isManager={!isEmployee}
-          tabs={tabsEl}
           stats={peopleStats}
           actions={!isEmployee ? (<>
             {/*   2026-08-27 인사 5차 — 조회 줄은 엑셀▾ + 파란 1개. 초대 대기·처리할 것은 요약 줄 Stat 클릭 */}
@@ -284,7 +275,6 @@ export default function EmployeesPage()  {
       {effectiveTab !== "employees" && (
         <QueryScreen>
           <QueryHead>
-            {tabsEl}
             {/* P1-3: 급여 = 이력 ↔ 명세 서브뷰 단일 탭. 히어로 카드(지급 대상·월 급여 총액·4대보험·연 인건비)는 결과 요약 줄로 */}
             {effectiveTab === "salary" && !isEmployee && (
               <ResultStrip>

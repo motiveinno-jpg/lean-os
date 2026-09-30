@@ -172,11 +172,15 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/employees", label: "구성원", icon: "user-check" },
       { href: "/attendance", label: "근태 관리", icon: "calendar" },
+      //   휴가·증명서 발급 — 구성원 화면 안 탭이던 것을 급여처럼 편다(2026-09-30, 상단 탭 줄 제거 · 이커머스와 같은 방식).
+      //     권한 키는 이미 있는 세부 권한(/employees:leave · /employees:certificates) — 새 키가 아니라 백필 없음.
+      { href: "/employees?tab=leave", tab: "leave", permKey: "/employees:leave", label: "휴가", icon: "umbrella" },
       //   급여 — 화면은 구성원 안 탭이지만 사이드바에서 한 번에 가게 편다 (2026-09-17, docs/20260917_PLAN_menu_gap_audit.md 결정 1).
       //   랜딩·요금제·소개 메일이 '급여'를 앞세우는데 사이드바에 없어 가입한 사람이 못 찾았다.
       //   ★ 새 권한 키를 만들지 않는다 — 이미 있는 `/employees:salary`(금액) 를 permKey 로 쓴다.
       //     새 키는 member_permissions 에 행이 없어 백필 전까지 마스터 외 아무에게도 안 보인다.
-      { href: "/employees?tab=salary", tab: "salary", permKey: "/employees:salary", label: "급여", icon: "dollar-sign" },
+      { href: "/employees?tab=salary", tab: ["salary", "payroll"], permKey: "/employees:salary", label: "급여", icon: "dollar-sign" },
+      { href: "/employees?tab=certificates", tab: "certificates", permKey: "/employees:certificates", label: "증명서 발급", icon: "clipboard-check" },
       { href: "/hr-templates", label: "근로계약·서식", icon: "file-text" },
     ],
   },
@@ -289,6 +293,7 @@ const NAV_ITEM_COLOR: Record<string, string> = {
   "/board": "#a78bfa", "/chat": "#c084fc", "/signatures": "#9333ea", "/contracts": "#7c3aed", "/my-contracts": "#c4b5fd", "/documents": "#8b5cf6",
   // 인사관리 — 오렌지
   "/employees": "#f97316", "/attendance": "#fb923c", "/hr-templates": "#f59e0b",
+  "/employees?tab=leave": "#ea8a2f", "/employees?tab=salary": "#f97316", "/employees?tab=certificates": "#d97706",
   "/team": "#ea580c",
   // 재고 — 앰버(돈은 그린, 물건은 앰버로 갈라 본다)
   "/inventory/status": "#b7791f", "/inventory/profit": "#a16207", "/inventory/products": "#d97706", "/inventory/stock": "#b45309", "/inventory/sales": "#f59e0b",

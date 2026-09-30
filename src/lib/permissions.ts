@@ -169,7 +169,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         // 열람 범위 — 이 키가 없으면 구성원 화면에서 '본인 정보'만 보인다(RLS 가 행 단위로 차단).
         { key: "all", label: "전 직원 열람", desc: "미부여 시 본인 정보만 보임" },
         { key: "salary", label: "급여", money: true },
-        { key: "leave", label: "휴가 관리" },
+        { key: "leave", label: "휴가" },   // 사이드바 메뉴 이름과 같게(2026-09-30)
         { key: "certificates", label: "증명서 발급" },
         { key: "permissions", label: "권한 부여", desc: "다른 구성원에게 권한 위임. 마스터만 부여 가능", masterOnly: true },
       ] },
