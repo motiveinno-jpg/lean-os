@@ -6,7 +6,7 @@ export const PARENTS: Parent[] = [
     lead: "자재와 완제품을 나눠 세고, 작업지시 한 번으로 재고·원가·이익까지 이어 둡니다." },
   { key: "wholesale", name: "유통 · 판매", accent: "indigo", shot: "/product/f-inv-stock-v4.png",
     lead: "여러 창고 재고와 거래처 단가를 한 화면에서 보고, 받을 돈까지 이어 관리합니다." },
-  { key: "ecommerce", name: "온라인 판매", accent: "blue", shot: "/product/f-inv-channels-v2.png",
+  { key: "ecommerce", name: "온라인 판매", accent: "blue", shot: "/product/f-ch-status-v1.png",
     lead: "채널 주문을 한곳에 모아 출고·재고·전표·정산까지 한 줄로 처리합니다." },
   { key: "agency", name: "용역 · 프로젝트", accent: "violet", shot: "/product/f-projects-v6.png",
     lead: "견적·계약·진행·회차 청구를 프로젝트 하나에 담고 건별로 남는 돈을 봅니다." },

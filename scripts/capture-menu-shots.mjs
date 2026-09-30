@@ -74,6 +74,13 @@ const SHOTS = [
   { key: "statements",    route: "/reports/statements", name: "f-statements-v2" },
   { key: "ledger",        route: "/partners/ledger", name: "f-ledger-v2" },
   { key: "vat",           route: "/reports/vat",    name: "f-vat-v2" },
+  //   이커머스 갈래 6메뉴 (2026-09-30 사이드바에 폄) — QA 시드에 상품 연결·클레임·정산 시연 데이터를 앱 화면으로 넣고 찍었다
+  { key: "ch-codes",      route: "/inventory/channels?tab=codes",  name: "f-ch-codes-v1",  ready: "table" },
+  { key: "ch-import",     route: "/inventory/channels?tab=import", name: "f-ch-import-v1" },
+  { key: "ch-ship",       route: "/inventory/channels?tab=ship",   name: "f-ch-ship-v1",   ready: "table" },
+  { key: "ch-claims",     route: "/inventory/channels?tab=claims", name: "f-ch-claims-v1", ready: "table" },
+  { key: "ch-settle",     route: "/inventory/channels?tab=settle", name: "f-ch-settle-v1", ready: "table" },
+  { key: "ch-status",     route: "/inventory/channels?tab=status", name: "f-ch-status-v1", ready: "table" },
   { key: "settings",      route: "/settings/company", name: "f-settings-v2" },
   { key: "billing",       route: "/billing",        name: "f-billing-v2" },
   { key: "announcements", route: "/announcements",  name: "f-announcements-v2" },

@@ -10125,13 +10125,17 @@ table.phv3-table { min-width: 640px; }
 .pjv3-dprow .flags .ok { background: #e6f9f1; color: #00a05e; }
 
 /* ── 채널 주문 현황(결정 148, 2026-09-02) — 재고 › 채널 주문 첫 갈래. pjv3-st* 부품 재사용 ── */
-.ch-st-sel { @apply rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2 py-1.5 text-xs text-[var(--text)] outline-none; font: inherit; font-size: 12px; }
 /* 2026-09-03 대표가 "일별 주문 공간이 좁아 깨진다": 공용.ev-table min-width 1260px 가 채널별 표를 밀어 왼쪽 칸이 부풀고
    오른쪽 칸(일별·배송 흐름)이 266px 로 눌렸다. 표는 6열이라 전용 min-width, 격자 칸은 minmax(0) 로 내용에 안 밀리게, 좁으면 한 줄로. */
 .ch-st-grid { @apply mt-3 grid gap-3; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); } /* 뷰포트 media query 는 --app-zoom 때문에 늦게 걸려 칸 너비 기준으로 */
 .ch-st-grid > * { @apply min-w-0; }
 table.ch-st-table { min-width: 520px; } /* table. — .ev-table(뒤에 정의) 의 min-width 를 이긴다 */
 @media (max-width: 900px) { .ch-st-grid { grid-template-columns: 1fr; } }
+/*   현황 표준 전환(2026-09-30) — 판(pnl-panel) 안쪽 폭이 ~430px 라 520px 고정이면 출고 대기·완료율 칸이 가로 스크롤 밖으로 잘렸다.
+     판 안에서는 칸 폭대로 줄인다(정산 팝업의 같은 표는 넓은 상자라 그대로). 카드 줄이 빠져 첫 구역 위 여백이 겹치던 것도 없앤다 */
+.ch-st-grid table.ch-st-table { min-width: 0; }
+.ch-st-grid table.ch-st-table th, .ch-st-grid table.ch-st-table td { @apply px-2; }   /* 6칸이 판 폭(~430px)에 들어가게 — 완료율이 잘렸다 */
+.inv-status > .ch-st-grid:first-child { @apply mt-0; }
 .ch-st-mini { @apply mr-1.5 inline-block h-2 rounded align-middle; background: var(--primary); }
 .ch-st-flow { @apply flex items-end gap-1.5 px-1; height: 88px; }
 .ch-st-flow .fcol { @apply flex flex-1 flex-col items-center gap-1; }
@@ -10139,6 +10143,14 @@ table.ch-st-table { min-width: 520px; } /* table. — .ev-table(뒤에 정의) �
 .ch-st-flow .wk { @apply text-[9px] text-[var(--text-dim)]; }
 .ch-st-flow .cnt { @apply text-[9.5px] font-bold text-[var(--primary)]; min-height: 13px; }
 .ch-st-sync { @apply mb-1.5 flex items-center gap-2.5 rounded-lg border border-[var(--border)] px-3 py-2 text-xs; }
+/*   이커머스 현황 표준 전환 (2026-09-30) — 인라인 유틸을 옮긴 시맨틱 마커 */
+.ch-st-row { @apply cursor-pointer; }
+.ev-table tbody td.ch-st-hot { @apply font-bold text-[var(--danger)]; }
+.ev-table tbody tr.ch-st-total td { @apply font-bold; }
+.pnl-panel > h3.ch-st-subh { @apply mt-4; }
+.ch-st-sync-name { @apply w-24; }
+.ch-st-sync-meta { @apply text-[11px] text-[var(--text-dim)]; }
+.ch-st-sync-go { @apply ml-auto; }
 .pjv3-stmoney .mstep.ch-st-warn { border-color: rgba(226, 68, 92, 0.4); }
 .pjv3-stmoney .mstep.ch-st-warn .n { color: var(--danger, #e2445c); }
 .pjv3-gr { @apply flex items-stretch border-b border-[var(--border)]; }
@@ -10993,8 +11005,9 @@ table.fs-entry-table { min-width: 0; }
 table.ch-settle-fit { min-width: 0; }
 .ev-table tbody td.ch-settle-wrap { @apply whitespace-normal; }
 .ch-settle-nowrap { @apply whitespace-nowrap; }
-.ch-settle-actions { @apply flex flex-col items-stretch gap-1; }
-.ch-settle-actions > button { @apply whitespace-nowrap; }
+/*   정산 묶음 줄의 전표 초안·지우기 (2026-09-30 — 정산 줄마다 붙던 .ch-settle-actions 를 묶음 보기로 옮김) */
+.ev-table tbody td.ch-batch-acts { @apply whitespace-nowrap; }
+.ch-batch-acts > button + button { @apply ml-1; }
 /*   배포 뒤 재실측(내용 폭 939 > 918) — 이 표만 칸 좌우 여백 10→8px. 1280 이하는 가로 스크롤을 받아들인다. */
 table.ch-settle-fit tbody td, table.ch-settle-fit thead th { @apply px-2; }
 
@@ -11002,6 +11015,12 @@ table.ch-settle-fit tbody td, table.ch-settle-fit thead th { @apply px-2; }
    최소 폭을 풀고 긴 사유 칸만 줄바꿈한다. 1280 이하는 가로 스크롤을 받아들인다(정산 표와 같은 기준). */
 table.ch-claims-fit { min-width: 0; }
 .ev-table tbody td.ch-claims-reason { @apply whitespace-normal break-keep min-w-[160px]; }
+/*   클레임 줄의 고치기·지우기 (2026-09-30) — 두 버튼을 한 줄에 */
+.ev-table tbody td.ch-claims-acts { @apply whitespace-nowrap; }
+.ch-claims-acts > button + button { @apply ml-1; }
+/*   가져오기 이력 줄의 클레임·되돌리기 (2026-09-30) */
+.ev-table tbody td.ch-imp-acts { @apply whitespace-nowrap; }
+.ch-imp-acts > button + button { @apply ml-1; }
 
 /* ── 앱 공통 껍데기(머리 줄·투어·로고) ── */
 /* 모바일 머리 줄: 계산기·캡처·메모·도움말은 '더보기' 하나로 접는다(header-tools HeaderMoreMenu) — 화면 제목 자리를 남긴다 */

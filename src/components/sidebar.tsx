@@ -24,8 +24,9 @@ import { SETTINGS_GROUPS, groupPermKeys } from "@/lib/settings-nav";
 //     백필 전까지 마스터 외 아무에게도 안 보인다(2026-08-21에 실제로 밟은 함정).
 //   layer — 이 항목부터 새 '층'이 시작된다는 소제목 (긴 그룹을 패널 안에서 읽히게, 2026-08-19 파이낸스 A안: 기초/자료/기장/예정)
 type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean; masterOnly?: boolean; match?: string[]; permKey?: string;
-  /** 같은 경로를 탭으로 나눠 다는 메뉴(구성원 vs 급여) — 이 탭일 때만 활성 (2026-09-17) */
-  tab?: string; anyPerm?: string[]; children?: NavItem[]; layer?: string };
+  /** 같은 경로를 탭으로 나눠 다는 메뉴(구성원 vs 급여) — 이 탭일 때만 활성 (2026-09-17)
+   *  배열이면 그중 하나일 때 활성 — 메뉴로 펴지 않은 갈래를 가까운 메뉴에 붙인다 (2026-09-30, 가져오기 이력 → 주문 가져오기) */
+  tab?: string | string[]; anyPerm?: string[]; children?: NavItem[]; layer?: string };
 //   short/icon · 레일(왼쪽 60px 세로 줄)에 그리는 두세 글자 이름과 아이콘 (2026-08-19 레일+패널 사이드바)
 type NavGroup =  { label: string; short: string; icon: string; items: NavItem[] };
 
@@ -85,9 +86,19 @@ const NAV_GROUPS: NavGroup[] = [
     //   ★ 재고 그룹 안 한 줄이던 것을 레일 그룹으로 올렸다. 주소·권한 키(/inventory/channels)는 그대로라 백필이 없다.
     //   ★ 안쪽은 화면 갈래(현황·주문·출고·클레임·정산·상품 연결·이력)로 편다 — "더할 것은 메뉴가 아니라 갈래 탭"(재고 그룹 주석) 그대로.
     //     2단계(채널 실키)로 자동 수집·재고 반영이 오면 그때 메뉴를 늘릴지 본다.
+    //   ★ 2026-09-30 사장님 "커머스를 따로 뺐는데 채널관리 하나뿐 — 메뉴 사용 편하게 사이드 레일도 강화" →
+    //     화면 갈래를 메뉴로 편다(급여와 같은 ?tab= 방식). 차례는 재고 그룹과 같이 기초 → 거래 → 현황(맨 아래).
+    //     권한 키는 전부 /inventory/channels 하나(새 키 없음 → 백필 없음). '가져오기 이력'은 주문 가져오기에 붙인다.
     label: "이커머스", short: "커머스", icon: "shopping-cart",
     items: [
-      { href: "/inventory/channels", label: "채널 관리", icon: "shopping-cart" },
+      { href: "/inventory/channels?tab=codes", tab: "codes", permKey: "/inventory/channels", label: "상품 연결", icon: "link", layer: "기초" },
+      { href: "/inventory/channels?tab=import", tab: ["import", "history"], permKey: "/inventory/channels", label: "주문 가져오기", icon: "download", layer: "거래" },
+      { href: "/inventory/channels?tab=ship", tab: "ship", permKey: "/inventory/channels", label: "출고 처리", icon: "package" },
+      { href: "/inventory/channels?tab=claims", tab: "claims", permKey: "/inventory/channels", label: "클레임", icon: "arrow-right-left" },
+      { href: "/inventory/channels?tab=settle", tab: "settle", permKey: "/inventory/channels", label: "정산", icon: "receipt" },
+      //   현황도 ?tab=status 로 간다 — 탭 없는 주소로 보내면 화면이 보던 갈래(예: 정산)에 그대로 남는다
+      //     (useUrlTabSync 는 주소에 탭이 있을 때만 따라간다, 2026-09-30 운영 실측). 처음 들어올 때(탭 없음)도 켜지게 "" 를 같이 둔다.
+      { href: "/inventory/channels?tab=status", tab: ["status", ""], permKey: "/inventory/channels", label: "현황", icon: "bar-chart", layer: "현황" },
     ],
   },
   {
@@ -282,6 +293,10 @@ const NAV_ITEM_COLOR: Record<string, string> = {
   // 재고 — 앰버(돈은 그린, 물건은 앰버로 갈라 본다)
   "/inventory/status": "#b7791f", "/inventory/profit": "#a16207", "/inventory/products": "#d97706", "/inventory/stock": "#b45309", "/inventory/sales": "#f59e0b",
   "/inventory/orders": "#f0b429", "/inventory/purchase": "#ea9a17", "/inventory/production": "#c2740c", "/inventory/channels": "#a35f0a",
+  //   이커머스 갈래 메뉴 (2026-09-30) — 같은 그룹이라 채널 관리 색(#a35f0a) 계열로
+  "/inventory/channels?tab=codes": "#b8740f", "/inventory/channels?tab=import": "#a35f0a", "/inventory/channels?tab=ship": "#8f5209",
+  "/inventory/channels?tab=claims": "#c2410c", "/inventory/channels?tab=settle": "#9a5b13",
+  "/inventory/channels?tab=status": "#a35f0a",
   // 자산관리 — 시안
   "/bank": "#06b6d4", "/cards": "#0ea5e9", "/payments": "#22d3ee", "/finance/status": "#0891b2", "/finance/assets": "#0e7490", "/finance/tax-filing": "#155e75",
   // 회사 관리·도움말 — 슬레이트
@@ -436,14 +451,14 @@ export function Sidebar() {
     for (const it of allNavItems) {
       if (!it.tab) continue;
       const base = basePath(it.href);
-      m.set(base, [...(m.get(base) || []), it.tab]);
+      m.set(base, [...(m.get(base) || []), ...([] as string[]).concat(it.tab)]);
     }
     return m;
   }, [allNavItems]);
   const isItemActive = (item: NavItem) => {
     const l = itemMatchLen(item, pathname);
     if (l < 0 || l !== bestMatchLen) return false;
-    if (item.tab != null) return curTab === item.tab;
+    if (item.tab != null) return ([] as string[]).concat(item.tab).includes(curTab);
     const peers = tabPeers.get(basePath(pathname));
     if (peers) return !peers.includes(curTab);
     return true;

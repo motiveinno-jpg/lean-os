@@ -2,7 +2,9 @@
 //   사이드바 NAV_GROUPS 라벨과 정렬(중복 정의지만 셸 순환 import 회피용 독립 사전).
 //   매칭은 최장 prefix 우선 — /partners/ledger 가 /partners 보다 먼저 잡힘.
 
-export type RouteCrumb = { group: string | null; title: string; desc?: string };
+export type RouteCrumb = { group: string | null; title: string; desc?: string;
+  /** 사이드바에 ?tab= 으로 편 메뉴의 제목 — 그 탭이면 title 대신 쓴다 (2026-09-30, 급여·이커머스 갈래) */
+  tabs?: Record<string, string> };
 
 const ROUTE_LABELS: Record<string, RouteCrumb> = {
   // desc 가 있으면 리포트형 표준 헤더(제목+설명)가 화면 상단에 자동 표시됨(app-shell 주입).
@@ -62,7 +64,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/contracts/signed": { group: "업무", title: "서명 완료 계약서" },
   "/my-contracts": { group: "홈", title: "내 서명 요청", desc: "나에게 온 서명 요청 전체 목록 (마이페이지 › 급여·계약·증명에서 옵니다)." },
 
-  "/employees": { group: "인사", title: "구성원", desc: "직원 정보·급여·계약을 관리합니다." },
+  "/employees": { group: "인사", title: "구성원", desc: "직원 정보·급여·계약을 관리합니다.", tabs: { salary: "급여" } },
   "/team": { group: "업무", title: "구성원 디렉토리", desc: "누가 어느 부서·직책에 있는지 봅니다." },
   "/attendance": { group: "인사", title: "근태 관리", desc: "출퇴근·근태 현황을 관리합니다." },
   "/leave": { group: "업무", title: "휴가 신청", desc: "휴가 신청은 결재 허브에서 처리합니다." },
@@ -88,7 +90,9 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/inventory/sales": { group: "재고", title: "판매" },
   "/inventory/purchase": { group: "재고", title: "구매" },
   "/inventory/production": { group: "재고", title: "생산" },
-  "/inventory/channels": { group: "이커머스", title: "채널 관리", desc: "채널 주문 가져오기·출고·취소반품·정산 대조·상품 연결을 한곳에서" },
+  //   2026-09-30 사이드바에 갈래를 메뉴로 폈다 — 머리 제목도 그 메뉴 이름을 따른다(탭 없음 = 현황)
+  "/inventory/channels": { group: "이커머스", title: "현황", desc: "채널 주문 가져오기·출고·취소반품·정산 대조·상품 연결을 한곳에서",
+    tabs: { codes: "상품 연결", import: "주문 가져오기", history: "주문 가져오기", ship: "출고 처리", claims: "클레임", settle: "정산" } },
   "/settings": { group: "설정", title: "회사 설정", desc: "회사 기본·회계·인사 설정을 관리합니다." },
   //   설정 5그룹 (2026-08-24) — 사이드바에 편 다섯 줄. 최장 prefix 우선이라 /settings 보다 먼저 잡힌다.
   //   설정 화면은 self-헤더(상자 안 탭 + 설명 줄)를 가지므로 desc 는 두지 않는다.
@@ -112,9 +116,13 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
 // 최장 prefix 우선 정렬(한 번만 계산)
 const SORTED_PREFIXES = Object.keys(ROUTE_LABELS).sort((a, b) => b.length - a.length);
 
-export function getRouteCrumb(pathname: string): RouteCrumb | null {
+export function getRouteCrumb(pathname: string, tab?: string | null): RouteCrumb | null {
   for (const p of SORTED_PREFIXES) {
-    if (pathname === p || pathname.startsWith(p + "/")) return ROUTE_LABELS[p];
+    if (pathname === p || pathname.startsWith(p + "/")) {
+      const c = ROUTE_LABELS[p];
+      const t = tab ? c.tabs?.[tab] : undefined;
+      return t ? { ...c, title: t } : c;
+    }
   }
   return null;
 }

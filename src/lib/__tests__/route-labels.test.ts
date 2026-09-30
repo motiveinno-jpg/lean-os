@@ -16,6 +16,16 @@ describe("getRouteCrumb — 최장 prefix 우선", () => {
     expect(getRouteCrumb("/reports/pnl")?.title).toBe("회계 자료");
   });
 
+  //   사이드바에 ?tab= 으로 편 메뉴는 머리 제목도 그 메뉴 이름 (2026-09-30)
+  it("탭 메뉴는 탭 제목, 모르는 탭·탭 없음은 기본 제목", () => {
+    expect(getRouteCrumb("/employees/", "salary")?.title).toBe("급여");
+    expect(getRouteCrumb("/employees/")?.title).toBe("구성원");
+    expect(getRouteCrumb("/inventory/channels/", "settle")?.title).toBe("정산");
+    expect(getRouteCrumb("/inventory/channels/", "history")?.title).toBe("주문 가져오기");
+    expect(getRouteCrumb("/inventory/channels/", "status")?.title).toBe("현황");
+    expect(getRouteCrumb("/inventory/channels/", "zzz")?.group).toBe("이커머스");
+  });
+
   it("미등록 경로 → null", () => {
     expect(getRouteCrumb("/nonexistent")).toBeNull();
   });

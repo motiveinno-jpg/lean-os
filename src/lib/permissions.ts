@@ -73,7 +73,9 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     //   :write 가 클레임 등록·정산 붙여넣기·수수료율 갱신·전표 초안까지 덮는다. 통장 입금 잇기는 /collect(수집·전표) 권한.
     group: "이커머스",
     menus: [
-      { route: "/inventory/channels", defaultGrant: true, label: "채널 관리", money: true, desc: "채널 주문 가져오기 · 출고 · 취소·반품 · 정산 대조 · 상품 연결 · 주문 금액이 보인다", tabs: [
+      //   2026-09-30 사이드바에 갈래 6개(상품 연결·주문 가져오기·출고 처리·클레임·정산·현황)를 폈지만 권한은 이 키 하나다 —
+      //     「채널 관리」 메뉴가 사라져 이름을 그룹 이름으로 바꿨다(키 그대로 → 백필 없음).
+      { route: "/inventory/channels", defaultGrant: true, label: "이커머스 전체", money: true, desc: "상품 연결 · 주문 가져오기 · 출고 처리 · 클레임 · 정산 · 현황 메뉴 · 주문 금액이 보인다", tabs: [
         { key: "write", label: "입력·수정", desc: "미부여 시 보기만 · 주문 가져오기·출고·클레임·정산 붙여넣기·수수료율·전표 초안 불가" },
       ] },
     ],

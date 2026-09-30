@@ -10,6 +10,7 @@ import { SimpleCond, SimpleApplied, condHit, type CondLive } from "../_component
 import { appConfirm } from "@/components/global-confirm";
 import { ExcelPasteHelper } from "../_components/excel-paste-helper";
 import { useEffect, useMemo, useState } from "react";
+import { useTabParam } from "@/lib/use-tab-param";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
@@ -21,24 +22,27 @@ import { todayKst, addDaysStr, kstDateTime } from "@/lib/kst";
 import { DateRangeField } from "@/components/date-range-field";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup,
-  Pager, usePager, QuickSearch, quickSearchHit, SelectionBar, HelperMenu } from "@/components/query-kit";
+  Pager, usePager, QuickSearch, quickSearchHit, SelectionBar, HelperMenu, defaultRange } from "@/components/query-kit";
 import { exportToExcel } from "@/lib/excel-export";
 import { listProducts, listWarehouses, type Product, type Warehouse } from "@/lib/inventory";
 import { useDocEditor, DocHead, DocGrid, FormDialog, blankRow, type DocCtl, type DocRow } from "../_components/doc-editor";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
-import { useClaimsPanel, useSettlePanel } from "./_components/claims-settle";
-import { refundByChannel } from "@/lib/inventory-claims";
+import { useClaimsPanel, useSettlePanel, inRange, NO_RANGE } from "./_components/claims-settle";
 import {
   CHANNELS, channelLabel, listChannelCodes, upsertChannelCode, deleteChannelCode,
   listImports, listSeenOrderNos, importChannelDoc, fetchChannelOrders, CHANNEL_HAS_API,
-  updateShipping, listImportItems, CARRIERS, SHIP_STATUS_LABEL,
+  updateShipping, listImportItems, CARRIERS, SHIP_STATUS_LABEL, revertImport,
   CARRIER_SHEETS, SHEET_FIELDS, listSheetLayouts, saveSheetLayout, deleteSheetLayout, sheetRow, type SheetLayout, type SheetColumn,
   type ChannelValue, type RawOrderRow, type ChannelCode, type OrderImport,
 } from "@/lib/inventory-channels";
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
+//   주문의 날짜 — 주문일이 없으면(주문일 칸 없이 붙여넣은 줄) 등록한 날(한국 기준). 기간을 걸어도 그런 주문이 사라지지 않게 (2026-09-30)
+//     현황 집계·가져오기 이력·출고 처리가 같은 기준을 써야 숫자를 눌러 넘어갔을 때 건수가 맞는다
+const orderDay = (i: OrderImport) => i.order_date || kstDateTime(i.imported_at).slice(0, 10);
 //   2026-09-28 이커머스 1단계 — 「클레임」「정산」 갈래(결정 266). 한 줄 7갈래, 부품은 _components/claims-settle.tsx
 type Tab = "status" | "import" | "ship" | "claims" | "settle" | "codes" | "history";
+const TAB_KEYS: readonly Tab[] = ["status", "import", "ship", "claims", "settle", "codes", "history"];
 type CodeKey = "code" | "cname" | "sku" | "pname";
 type ImpKey = "no" | "date" | "buyer" | "amount" | "at";
 
@@ -51,13 +55,17 @@ export default function ChannelsPage() {
   useEffect(() => { getCurrentUser().then((u) => { setCompanyId(u?.company_id ?? null); setUserId(u?.id ?? null); }); }, []);
 
   //   첫 갈래 = 현황(결정 148,). 들어오면 수집·판매·배송이 먼저 보인다
-  const [tab, setTab] = useState<Tab>("status");
+  //   갈래는 주소(?tab=)에 싣는다 — 사이드바 「이커머스」 그룹이 갈래로 바로 들어온다 (2026-09-30)
+  const [tab, setTab] = useTabParam<Tab>("status", { valid: TAB_KEYS });
   const { data: products = [] } = useQuery({ queryKey: ["inv-products", companyId], queryFn: () => listProducts(companyId!), enabled: !!companyId });
   const ctl = useDocEditor(companyId, userId, "channel", products);
-  //   상품 연결·이력 갈래가 보는 채널(칩). 주문 가져오기 격자는 줄마다 채널 칸이 따로 있다.
-  const [channel, setChannel] = useState<ChannelValue>("smartstore");   // 새 연결·붙여넣기 팝업의 기본 채널
   //   목록의 채널 필터는 검색조건(다중, 비우면 전체). 조회 줄에 채널 칩을 늘어놓지 않는다
   const [cond, setCond] = useState<CondLive>({});
+  //   새 연결·붙여넣기 팝업의 처음 채널 — 검색조건에 채널이 하나만 걸렸으면 그것, 아니면 스마트스토어.
+  //     팝업 안에서 고른다(2026-09-30 — 전에는 고르는 칸이 없어 「+ 상품 연결」이 늘 스마트스토어로만 저장됐다)
+  const pickCh = (cond.channel?.length === 1 ? cond.channel[0] : "smartstore") as ChannelValue;
+  //   가져오기 이력의 주문일 기간 — 기본 최근 1개월(조회 화면 표준). 현황 숫자를 누르면 현황 기간이 걸린다
+  const [hRange, setHRange] = useState(defaultRange);
   const [q, setQ] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -68,8 +76,8 @@ export default function ChannelsPage() {
   const canWrite = isMaster || hasPerm("/inventory/channels:write");
 
   const { data: warehouses = [] } = useQuery({ queryKey: ["inv-warehouses", companyId], queryFn: () => listWarehouses(companyId!), enabled: !!companyId });
-  const { data: codes = [] } = useQuery({ queryKey: ["ch-codes", companyId], queryFn: () => listChannelCodes(companyId!), enabled: !!companyId });
-  const { data: imports = [] } = useQuery({ queryKey: ["ch-imports", companyId], queryFn: () => listImports(companyId!), enabled: !!companyId });
+  const { data: codes = [], isError: codesErr } = useQuery({ queryKey: ["ch-codes", companyId], queryFn: () => listChannelCodes(companyId!), enabled: !!companyId });
+  const { data: imports = [], isLoading: impLoading, isError: impErr } = useQuery({ queryKey: ["ch-imports", companyId], queryFn: () => listImports(companyId!), enabled: !!companyId });
 
   const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
@@ -87,11 +95,12 @@ export default function ChannelsPage() {
     return [...shownCodes].sort((a, b) => cmp(val(a), val(b)) * d);
   }, [shownCodes, cSort, productById]);
   const onCSort = (k: string) => setCSort((s) => nextSort(s, k as CodeKey));
-  const codePager = usePager(sortedCodes, 50, `${channel}|${q}|${cSort.key}${cSort.dir}`);
+  const codePager = usePager(sortedCodes, 50, `${JSON.stringify(cond)}|${q}|${cSort.key}${cSort.dir}`);
 
   const shownImports = useMemo(() => imports.filter((i) =>
-    condHit(cond, "channel", i.channel) && quickSearchHit(q, [i.channel_order_no, i.buyer_name, i.recipient_name, i.recipient_phone, i.address])
-  ), [imports, cond, q]);
+    condHit(cond, "channel", i.channel) && inRange(orderDay(i), hRange)
+    && quickSearchHit(q, [i.channel_order_no, i.buyer_name, i.recipient_name, i.recipient_phone, i.address])
+  ), [imports, cond, q, hRange]);
   const sortedImports = useMemo(() => {
     const d = iSort.dir === "asc" ? 1 : -1;
     const val = (i: (typeof shownImports)[number]) => iSort.key === "no" ? i.channel_order_no
@@ -100,27 +109,27 @@ export default function ChannelsPage() {
     return [...shownImports].sort((a, b) => cmp(val(a), val(b)) * d);
   }, [shownImports, iSort]);
   const onISort = (k: string) => setISort((s) => nextSort(s, k as ImpKey));
-  const importPager = usePager(sortedImports, 50, `${channel}|${q}|${iSort.key}${iSort.dir}`);
+  const importPager = usePager(sortedImports, 50, `${JSON.stringify(cond)}|${hRange.from}~${hRange.to}|${q}|${iSort.key}${iSort.dir}`);
 
   const counts = useMemo(() => ({
-    codes: codes.filter((c) => c.channel === channel).length,
     allCodes: codes.length,
-    imports: imports.filter((i) => i.channel === channel).length,
     pending: imports.filter((i) => i.ship_status === "pending").length,
-  }), [codes, imports, channel]);
+  }), [codes, imports]);
 
   // ── 현황(결정 148). 운영 콕핏: 수집·판매·배송을 첫 갈래에서 한눈에. 모든 숫자는 눌러서 갈래로 ──
-  const [stRange, setStRange] = useState<"today" | "7d" | "30d" | "month">("7d");
-  const [stCh, setStCh] = useState<string>("");   // "" = 전체
+  //   ★ 2026-09-30 조회 화면 표준으로(사장님 "표준으로") — 기간은 기간 칸(기본 최근 1개월, 전에는 7일 셀렉트),
+  //     채널은 검색조건(다중, 전에는 조회 줄 셀렉트 하나). 숫자는 카드 6장 → 결과 요약 줄, 구역은 pnl-panel(재고 › 현황과 같은 틀)
+  const [stFrom, setStFrom] = useState(() => defaultRange().from);
+  const [stTo, setStTo] = useState(() => defaultRange().to);
+  const [stCond, setStCond] = useState<CondLive>({});
   const stData = useMemo(() => {
     //   날짜는 한국 기준 — 브라우저 시간대에 따라 '오늘'이 바뀌지 않게
     const todayStr = todayKst();
-    const fromStr = stRange === "7d" ? addDaysStr(todayStr, -6) : stRange === "30d" ? addDaysStr(todayStr, -29)
-      : stRange === "month" ? todayStr.slice(0, 8) + "01" : todayStr;
-    const inCh = (i: OrderImport) => !stCh || i.channel === stCh;
-    const inRange = imports.filter((i) => (i.order_date || "") >= fromStr && (i.order_date || "") <= todayStr && inCh(i));
+    const fromStr = stFrom, toStr = stTo;
+    const inCh = (i: OrderImport) => condHit(stCond, "channel", i.channel);
+    const inRange = imports.filter((i) => orderDay(i) >= fromStr && orderDay(i) <= toStr && inCh(i));
     const amt = (list: OrderImport[]) => list.reduce((n, i) => n + Number(i.amount || 0), 0);
-    const yestStr = addDaysStr(todayStr, -1), twoStr = addDaysStr(todayStr, -2);
+    const twoStr = addDaysStr(todayStr, -2);
     //   출고 대기·밀림은 '지금 할 일' — 조회 기간과 상관없이 아직 안 보낸 전부(출고 처리 탭 숫자와 같다)
     const pendingList = imports.filter((i) => i.ship_status === "pending" && inCh(i));
     const byChannel = CHANNELS.map((c) => {
@@ -139,8 +148,8 @@ export default function ChannelsPage() {
       days.push({ d: s, label: k === 0 ? "오늘" : String(Number(s.slice(8, 10))), n: 0 });
     }
     for (const i of imports) {
-      if (stCh && i.channel !== stCh) continue;
-      const hit = days.find((x) => x.d === i.order_date);
+      if (!inCh(i)) continue;
+      const hit = days.find((x) => x.d === orderDay(i));
       if (hit) hit.n += 1;
     }
     
@@ -152,19 +161,19 @@ export default function ChannelsPage() {
       return { ch: c.value, label: c.label, at, ageDays: Math.floor((Date.now() - new Date(at).getTime()) / 86400000), api: CHANNEL_HAS_API.has(c.value) };
     });
     return {
-      fromStr, todayStr,
+      fromStr, toStr,
       total: inRange.length, amount: amt(inRange),
-      todayN: inRange.filter((i) => i.order_date === todayStr).length,
-      yestN: inRange.filter((i) => i.order_date === yestStr).length,
       pending: pendingList.length,
-      pendingOld: pendingList.filter((i) => (i.order_date || "") <= twoStr).length,
+      pendingOld: pendingList.filter((i) => orderDay(i) <= twoStr).length,
       shipped: inRange.filter((i) => i.ship_status === "shipped").length,
       done: inRange.filter((i) => i.ship_status === "done").length,
       byChannel, days, sync,
     };
-  }, [imports, stRange, stCh]);
+  }, [imports, stFrom, stTo, stCond]);
   //   숫자 클릭 = 그 갈래로(주문 목록은 '가져오기 이력'이 목록 갈래다)
-  const goList = (ch?: string) => { setCond(ch ? { channel: [ch] } : {}); setTab("history"); };
+  //   ★ 2026-09-30 현황의 기간·채널을 그대로 싣는다 — 전에는 "7일 12건"을 눌러도 전체 기간이 떠 숫자가 안 맞았다
+  const stPeriod = () => ({ from: stData.fromStr, to: stData.toStr });
+  const goList = (c: CondLive) => { setCond(c); setHRange(stPeriod()); setTab("history"); };
 
   //   훅은 권한 조기 return 앞에 (훅 순서 규칙)
   const grid = useImportGrid({
@@ -185,10 +194,44 @@ export default function ChannelsPage() {
   //   통장 입금 줄을 전표에 거는 권한은 수집·전표(link_transaction_to_entry 가 검사하는 것과 같은 키)
   const settlePanel = useSettlePanel({ companyId, userId, imports, claims: claimsPanel.claims, canWrite, canLink: isMaster || hasPerm("/collect") });
   //   현황의 주문 금액에서 취소·반품 환불액을 뺀다(결정 268)
+  //   ★ 2026-09-30 환불은 **클레임 일자**가 기간 안인 것 — 카드를 누르면 가는 클레임 갈래(같은 기간·채널)와 숫자가 같아야 한다.
+  //     전에는 '기간 안 주문의 환불'이라 클레임 목록(일자 기준)과 어긋났다. 매출 KPI 현황판(SalesBoard)은 주문일 기준 그대로.
   const stRefund = useMemo(() => {
-    const m = refundByChannel(claimsPanel.claims, imports, (i) => (i.order_date || "") >= stData.fromStr && (i.order_date || "") <= stData.todayStr && (!stCh || i.channel === stCh));
-    return { total: [...m.values()].reduce((n, v) => n + v, 0), by: m };
-  }, [claimsPanel.claims, imports, stData.fromStr, stData.todayStr, stCh]);
+    const impById = new Map(imports.map((i) => [i.id, i]));
+    const m = new Map<string, number>();
+    let n = 0;
+    for (const c of claimsPanel.claims) {
+      if (!inRange(c.claimed_at, { from: stData.fromStr, to: stData.toStr })) continue;
+      const i = impById.get(c.import_id);
+      if (!i || !condHit(stCond, "channel", i.channel)) continue;
+      n += 1;
+      if (c.kind !== "exchange") m.set(i.channel, (m.get(i.channel) || 0) + c.refund_amount);
+    }
+    return { total: [...m.values()].reduce((a, v) => a + v, 0), by: m, n };
+  }, [claimsPanel.claims, imports, stData.fromStr, stData.toStr, stCond]);
+  //   출고 대기는 기간 무관(지금 할 일 — 카드 숫자도 기간 무관), 발송됨·배송 완료는 현황 기간 안 주문
+  const goShip = (view: "pending" | "shipped" | "done") => {
+    ship.setCond(stCond); ship.setRange(view === "pending" ? NO_RANGE : stPeriod()); ship.setView(view); setTab("ship");
+  };
+  //   잘못 가져온 주문 되돌리기(2026-09-30) — 막는 이유가 있으면 버튼을 끄고 이유를 보인다(서버 함수도 다시 확인한다)
+  const claimedIds = useMemo(() => new Set(claimsPanel.claims.map((c) => c.import_id)), [claimsPanel.claims]);
+  const settledIds = useMemo(() => new Set(settlePanel.settlements.map((x) => x.import_id).filter(Boolean) as string[]), [settlePanel.settlements]);
+  const revertBlock = (i: OrderImport): string | null =>
+    i.ship_status !== "pending" ? "이미 발송한 주문입니다 — 반품·취소는 클레임으로"
+    : claimedIds.has(i.id) ? "클레임이 있는 주문입니다"
+    : settledIds.has(i.id) ? "정산 줄이 이어진 주문입니다 — 취소면 클레임으로" : null;
+  const revert = async (i: OrderImport) => {
+    if (!(await appConfirm(`${channelLabel(i.channel)} ${i.channel_order_no} 주문을 되돌릴까요?
+
+잘못 가져온 주문일 때 씁니다. 이 주문의 출고 줄을 지워 재고가 돌아오고, 주문 기록도 지워져 다시 가져올 수 있습니다.
+실제로 취소·반품된 주문이면 되돌리지 말고 클레임으로 등록하세요.`, { danger: true, confirmLabel: "되돌리기" }))) return;
+    try {
+      const r = await revertImport(i);
+      toast(`되돌렸습니다 · 출고 줄 ${r.removedLines}개${r.docDeleted ? " · 빈 출고 문서 삭제" : ""}`, "success");
+      for (const k of ["ch-imports", "inv-onhand", "inv-available", "inv-moves", "ch-ship-items"]) qc.invalidateQueries({ queryKey: [k, companyId] });
+    } catch (e) { toast(friendlyError(e, "되돌리지 못했습니다"), "error"); }
+  };
+  const goClaims = () => { claimsPanel.setCond(stCond); claimsPanel.setRange(stPeriod()); setTab("claims"); };
   //   들어오면 첫 칸에 커서(전표 화면과 같다)
   useEffect(() => { if (tab === "import") setTimeout(() => ctl.focusDate(), 250); }, [tab]);   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -205,7 +248,9 @@ export default function ChannelsPage() {
       <QueryScreen>
         <QueryHead>
           <div className="collect-tabs no-print">
-            {([["status", "현황"], ["import", "주문 가져오기"], ["ship", "출고 처리"], ["claims", "클레임"], ["settle", "정산"], ["codes", "상품 연결"], ["history", "가져오기 이력"]] as const).map(([k, l]) => (
+            {/*   차례는 사이드바 「이커머스」와 같다 — 기초 → 거래 → 현황 (2026-09-30 사장님 "사이드바에 맞추기").
+                  가져오기 이력은 사이드바에서 주문 가져오기에 붙어 있어 그 뒤. 처음 들어오면 여는 갈래는 그대로 현황(결정 148) */}
+            {([["codes", "상품 연결"], ["import", "주문 가져오기"], ["history", "가져오기 이력"], ["ship", "출고 처리"], ["claims", "클레임"], ["settle", "정산"], ["status", "현황"]] as const).map(([k, l]) => (
               <button key={k} type="button" onClick={() => setTab(k as Tab)}
                 className={tab === k ? "collect-tab collect-tab-on" : "collect-tab"}>
                 {l}
@@ -217,19 +262,28 @@ export default function ChannelsPage() {
           </div>
 
           {tab === "status" && (
-            <QueryBar>
-              <select className="ch-st-sel" value={stRange} onChange={(e) => setStRange(e.target.value as typeof stRange)} aria-label="기간">
-                <option value="today">오늘</option>
-                <option value="7d">최근 7일</option>
-                <option value="30d">최근 30일</option>
-                <option value="month">이번 달</option>
-              </select>
-              <select className="ch-st-sel" value={stCh} onChange={(e) => setStCh(e.target.value)} aria-label="채널">
-                <option value="">채널 전체</option>
-                {CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
-              <span className="inv-hint" title="금액은 수수료 정산 전 주문 금액에서 취소·반품 환불액을 뺀 값입니다. 수수료 실측은 정산 갈래에서">숫자를 누르면 해당 목록이 열립니다. 금액은 <b>주문 금액 − 취소·반품</b> 기준입니다.</span>
-            </QueryBar>
+            <>
+              <QueryBar>
+                <SimpleCond groups={CH_COND} live={stCond} onApply={setStCond} />
+                <DateRangeField label={null} from={stFrom} to={stTo} onChange={(f, t) => { setStFrom(f); setStTo(t); }} />
+              </QueryBar>
+              <SimpleApplied groups={CH_COND} live={stCond} onApply={setStCond} />
+              {/*   숫자를 누르면 그 목록이 이 기간·채널로 열린다(출고 대기만 기간 무관 — 지금 할 일) */}
+              <ResultStrip>
+                <Stat label="기간 주문" value={<button type="button" className="inv-stat-btn" onClick={() => goList(stCond)}>{won(stData.total)}건</button>} />
+                <Stat label="주문 금액" title="기간 주문 금액 합 − 기간에 접수된 취소·반품 환불액 · 채널 수수료 정산 전"
+                  value={<button type="button" className="inv-stat-btn" onClick={() => goList(stCond)}>₩{won(stData.amount - stRefund.total)}</button>} />
+                <Stat label="취소·반품" tone={stRefund.total > 0 ? "minus" : undefined}
+                  value={<button type="button" className="inv-stat-btn" onClick={goClaims}>₩{won(stRefund.total)}{stRefund.n ? ` · ${stRefund.n}건` : ""}</button>} />
+                <Stat label="출고 대기" title="조회 기간과 상관없이 아직 보내지 않은 주문 전부 · 출고 처리 갈래와 같은 숫자" tone={stData.pending > 0 ? "minus" : undefined}
+                  value={<button type="button" className="inv-stat-btn" onClick={() => goShip("pending")}>{won(stData.pending)}건{stData.pendingOld > 0 ? ` · 2일+ ${stData.pendingOld}` : ""}</button>} />
+                <Stat label="배송 완료율"
+                  value={<button type="button" className="inv-stat-btn" onClick={() => goShip("done")}>{stData.total ? Math.round(stData.done / stData.total * 100) : 0}% ({won(stData.done)}/{won(stData.total)})</button>} />
+                <Stat label="상품 연결" tone={counts.allCodes === 0 ? "minus" : undefined}
+                  value={<button type="button" className="inv-stat-btn" onClick={() => setTab("codes")}>{won(counts.allCodes)}종</button>} />
+                <span className="spv-toolbar-hint" title="금액은 수수료 정산 전 주문 금액에서 취소·반품 환불액을 뺀 값입니다. 수수료 실측은 정산 갈래에서">숫자를 누르면 목록이 열립니다 · 금액은 <b>주문 − 취소·반품</b></span>
+              </ResultStrip>
+            </>
           )}
           {tab === "import" && grid.head}
           {tab === "ship" && ship.head}
@@ -262,16 +316,17 @@ export default function ChannelsPage() {
                     "수취인": i.recipient_name || "", "연락처": i.recipient_phone || "", "주소": i.address || "", "배송 요청": i.shipping_note || "",
                     "금액": i.amount ?? "", "출고 상태": SHIP_STATUS_LABEL[i.ship_status], "택배사": i.carrier || "", "송장번호": i.tracking_no || "",
                     "등록 시각": kstDateTime(i.imported_at),
-                  })), "가져오기 이력", `채널주문_${channelLabel(channel)}_${todayKst()}`)}>엑셀</button>
+                  })), "가져오기 이력", `채널주문_${hRange.from && hRange.to ? `${hRange.from}~${hRange.to}` : "전체"}_${todayKst()}`)}>엑셀</button>
               }>
                 <SimpleCond groups={[{ key: "channel", label: "채널", hint: "비우면 전체", options: chChips.map((c) => ({ value: c.value, label: c.label })) }]} live={cond} onApply={setCond} />
+                <DateRangeField label={null} from={hRange.from} to={hRange.to} onChange={(f, t) => setHRange({ from: f, to: t })} onClear={() => setHRange(NO_RANGE)} />
                 <QuickSearch value={q} onApply={setQ} placeholder="주문번호 · 주문자 · 수취인 · 연락처 · 주소 · 쉼표로 여러 개, Enter" />
-                <span className="inv-hint">등록된 주문번호는 <b>다시 가져와도 건너뜁니다</b>.</span>
               </QueryBar>
               <SimpleApplied groups={[{ key: "channel", label: "채널", options: chChips.map((c) => ({ value: c.value, label: c.label })) }]} live={cond} onApply={setCond} />
               <ResultStrip>
                 <Stat label="등록 주문" value={`${won(shownImports.length)}건`} />
                 <Stat label="금액" value={`₩${won(shownImports.reduce((n, i) => n + Number(i.amount || 0), 0))}`} />
+                <span className="spv-toolbar-hint">주문일 기준 · 등록된 주문번호는 <b>다시 가져와도 건너뜁니다</b>.</span>
               </ResultStrip>
             </>
           )}
@@ -279,54 +334,39 @@ export default function ChannelsPage() {
 
         <QueryBody>
           <div className="inv-scroll">
+            {/*   조회 실패·불러오는 중을 '아직 없습니다'와 구별한다(2026-09-30) */}
+            {(impErr || codesErr) ? (
+              <div className="collect-empty">채널 주문 목록을 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>
+            ) : impLoading ? (
+              <div className="collect-empty">불러오는 중…</div>
+            ) : (<>
             {tab === "status" && (
               imports.length === 0 ? (
                 <div className="collect-empty">
                   아직 채널 주문이 없습니다. <b>주문 가져오기</b>에서 주문을 붙여넣으세요.
                 </div>
               ) : (
-              <div className="p-3">
-                <div className="pjv3-strow">
-                  <button type="button" className="pjv3-stcard" onClick={() => goList(stCh || undefined)}>
-                    <span className="k">기간 주문</span><b className="v num">{won(stData.total)}건</b>
-                    <span className="text-[10px] text-[var(--text-dim)]">어제 {stData.yestN} · 오늘 {stData.todayN}</span></button>
-                  <button type="button" className="pjv3-stcard" title="주문 금액 합 − 취소·반품 환불액 · 채널 수수료 정산 전" onClick={() => goList(stCh || undefined)}>
-                    <span className="k">주문 금액</span><b className="v num">{won(stData.amount - stRefund.total)}</b>
-                    <span className="text-[10px] text-[var(--text-dim)]">{stRefund.total > 0 ? `취소·반품 −${won(stRefund.total)}` : stData.total ? `평균 ${won(stData.amount / stData.total)}원/건` : "—"}</span></button>
-                  <button type="button" className={`pjv3-stcard ${stRefund.total > 0 ? "warn" : ""}`} title="취소·반품 환불액 · 클레임 갈래" onClick={() => setTab("claims")}>
-                    <span className="k">취소·반품</span><b className="v num">{won(stRefund.total)}</b>
-                    <span className="text-[10px] text-[var(--text-dim)]">{claimsPanel.claims.length ? `클레임 ${claimsPanel.claims.length}건` : "클레임 없음"}</span></button>
-                  <button type="button" className={`pjv3-stcard ${stData.pending > 0 ? "warn" : ""}`} title="조회 기간과 상관없이 아직 보내지 않은 주문 전부 · 출고 처리 탭과 같은 숫자"
-                    onClick={() => { ship.setView("pending"); setTab("ship"); }}>
-                    <span className="k">출고 대기</span><b className="v num">{won(stData.pending)}건</b>
-                    <span className="text-[10px] text-[var(--text-dim)]">{stData.pendingOld > 0 ? <>2일+ 경과 <b className="text-[var(--danger)]">{stData.pendingOld}건</b></> : "밀린 것 없음"}</span></button>
-                  <button type="button" className="pjv3-stcard good" onClick={() => { ship.setView("done"); setTab("ship"); }}>
-                    <span className="k">배송 완료율</span><b className="v num">{stData.total ? Math.round(stData.done / stData.total * 100) : 0}%</b>
-                    <span className="text-[10px] text-[var(--text-dim)]">기간 내 {won(stData.done)}/{won(stData.total)}</span></button>
-                  <button type="button" className={`pjv3-stcard ${counts.allCodes === 0 ? "warn" : ""}`} onClick={() => setTab("codes")}>
-                    <span className="k">상품 연결</span><b className="v num">{won(counts.allCodes)}종</b>
-                    <span className="text-[10px] text-[var(--text-dim)]">{counts.allCodes === 0 ? "연결하면 이익 계산에 잡힙니다." : "채널 상품코드 ↔ SKU"}</span></button>
-                </div>
+              <div className="inv-status">
                 <div className="ch-st-grid">
-                  <div className="pjv3-stpanel">
-                    <h3>채널별 <small>줄을 누르면 그 채널 주문만 봅니다.</small></h3>
+                  <div className="pnl-panel">
+                    <h3>채널별</h3><p>줄을 누르면 그 채널 주문만 봅니다.</p>
                     <div className="stg-table-wrap"><table className="ev-table ev-lined ch-st-table">
                       <thead><tr><th>채널</th><th>주문</th><th>금액</th><th>평균</th><th>출고 대기</th><th>완료율</th></tr></thead>
                       <tbody>
                         {stData.byChannel.map((r) => {
                           const max = Math.max(1, ...stData.byChannel.map((x) => x.amount));
                           return (
-                            <tr key={r.ch} className="cursor-pointer" onClick={() => goList(r.ch)}>
+                            <tr key={r.ch} className="ch-st-row" onClick={() => goList({ channel: [r.ch] })}>
                               <td className="text-left"><span className="ch-st-mini" style={{ width: `${Math.max(8, r.amount / max * 70)}px` }} />{r.label}</td>
                               <td className="tr mono-number">{won(r.n)}</td>
                               <td className="tr mono-number">{won(r.amount)}</td>
                               <td className="tr mono-number">{r.n ? won(r.amount / r.n) : "—"}</td>
-                              <td className={`tc mono-number ${r.pending > 0 ? "font-bold text-[var(--danger)]" : ""}`}>{r.pending || "—"}</td>
+                              <td className={`tc mono-number ${r.pending > 0 ? "ch-st-hot" : ""}`}>{r.pending || "—"}</td>
                               <td className="tc mono-number">{r.n ? Math.round(r.done / r.n * 100) : 0}%</td>
                             </tr>
                           );
                         })}
-                        <tr className="font-bold"><td className="text-left">합계</td>
+                        <tr className="ch-st-total"><td className="text-left">합계</td>
                           <td className="tr mono-number">{won(stData.total)}</td><td className="tr mono-number">{won(stData.amount)}</td>
                           <td className="tr mono-number">{stData.total ? won(stData.amount / stData.total) : "—"}</td>
                           <td className="tc mono-number">{stData.pending || "—"}</td>
@@ -334,8 +374,8 @@ export default function ChannelsPage() {
                       </tbody>
                     </table></div>
                   </div>
-                  <div className="pjv3-stpanel">
-                    <h3>일별 주문 <small>최근 14일 주문 수입니다.</small></h3>
+                  <div className="pnl-panel">
+                    <h3>일별 주문</h3><p>최근 14일 주문 수입니다.</p>
                     <div className="ch-st-flow">
                       {stData.days.map((d) => {
                         const max = Math.max(1, ...stData.days.map((x) => x.n));
@@ -348,35 +388,35 @@ export default function ChannelsPage() {
                         );
                       })}
                     </div>
-                    <h3 className="!mt-4">배송 흐름 <small>칸을 누르면 출고 처리로 갑니다.</small></h3>
+                    <h3 className="ch-st-subh">배송 흐름</h3><p>칸을 누르면 출고 처리로 갑니다.</p>
                     <div className="pjv3-stmoney">
                       <button type="button" className={`mstep ${stData.pending > 0 ? "ch-st-warn" : ""}`}
-                        onClick={() => { ship.setView("pending"); setTab("ship"); }}>
+                        onClick={() => goShip("pending")}>
                         <span className="t">출고 대기</span><b className="n num">{won(stData.pending)}</b></button>
                       <span className="ar">→</span>
-                      <button type="button" className="mstep" onClick={() => { ship.setView("shipped"); setTab("ship"); }}>
+                      <button type="button" className="mstep" onClick={() => goShip("shipped")}>
                         <span className="t">발송됨</span><b className="n num">{won(stData.shipped)}</b></button>
                       <span className="ar">→</span>
-                      <button type="button" className="mstep hot" onClick={() => { ship.setView("done"); setTab("ship"); }}>
+                      <button type="button" className="mstep hot" onClick={() => goShip("done")}>
                         <span className="t">배송 완료</span><b className="n num">{won(stData.done)}</b></button>
                     </div>
                   </div>
                 </div>
-                <div className="pjv3-stpanel !mt-3">
-                  <h3>수집 상태 <small>채널별 마지막 주문 시각입니다. 수집은 수동(버튼/엑셀)이라 시간이 지나도 '끊긴' 것이 아닙니다.</small></h3>
+                <div className="pnl-panel">
+                  <h3>수집 상태</h3><p>채널별 마지막 주문 시각입니다. 수집은 수동(버튼/엑셀)이라 시간이 지나도 &apos;끊긴&apos; 것이 아닙니다.</p>
                   {stData.sync.map((s) => (
                     <div key={s.ch} className="ch-st-sync">
-                      <b className="w-24">{s.label}</b>
+                      <b className="ch-st-sync-name">{s.label}</b>
                       {/*   자동 수집(스케줄러)이 없으므로 오래됐다고 빨간 '끊김'으로 겁주지 않는다 — 마지막 수집 시각만 담담히 */}
-                      <span className="text-[11px] text-[var(--text-dim)]">
+                      <span className="ch-st-sync-meta">
                         마지막 등록 {kstDateTime(s.at).slice(5)}{s.ageDays >= 3 ? ` · ${s.ageDays}일 전` : ""}{s.api ? " · API 연동 가능 채널" : ""}
                       </span>
                       {/* API 채널은 가져오기 갈래로 오면서 API 팝업이 바로 열린다 — 클릭 한 번 절약 */}
-                      {s.api ? (
-                        <button type="button" className="btn-secondary btn-sm ml-auto" title="가져오기 갈래에서 API 수집 창이 바로 열립니다"
+                      {!canWrite ? null : s.api ? (
+                        <button type="button" className="btn-secondary btn-sm ch-st-sync-go" title="가져오기 갈래에서 API 수집 창이 바로 열립니다"
                           onClick={() => { setTab("import"); grid.openApiFetch(); }}>지금 수집</button>
                       ) : (
-                        <button type="button" className="btn-secondary btn-sm ml-auto" onClick={() => setTab("import")}>가져오기로</button>
+                        <button type="button" className="btn-secondary btn-sm ch-st-sync-go" onClick={() => setTab("import")}>가져오기로</button>
                       )}
                     </div>
                   ))}
@@ -385,7 +425,9 @@ export default function ChannelsPage() {
               </div>
               )
             )}
-            {tab === "import" && <div className="doc-editor">{grid.body}</div>}
+            {tab === "import" && (canWrite ? <div className="doc-editor">{grid.body}</div> : (
+              <div className="collect-empty">주문 가져오기·출고 등록은 <b>입력·수정</b> 권한이 있어야 합니다. 등록된 주문은 <b>가져오기 이력</b>에서 봅니다.</div>
+            ))}
             {tab === "ship" && ship.body}
             {tab === "claims" && claimsPanel.body}
             {tab === "settle" && settlePanel.body}
@@ -448,7 +490,9 @@ export default function ChannelsPage() {
                       <SortableTh label="주문자" sortKey="buyer" sort={iSort} onSort={onISort} />
                       <th>수취인</th><th>연락처</th><th>주소</th><th>배송 요청</th>
                       <SortableTh label="금액" sortKey="amount" sort={iSort} onSort={onISort} />
+                      <th>출고 상태</th><th>송장</th>
                       <SortableTh label="등록 시각" sortKey="at" sort={iSort} onSort={onISort} />
+                      {canWrite && <th></th>}
                     </tr></thead>
                     <tbody>
                       {importPager.view.map((i) => (
@@ -461,7 +505,16 @@ export default function ChannelsPage() {
                           <td className="text-left ch-addr" title={i.address || undefined}>{i.address || "—"}</td>
                           <td className="text-left ev-dim">{i.shipping_note || "—"}</td>
                           <td className="tr mono-number">{i.amount != null ? `₩${won(i.amount)}` : "—"}</td>
+                          {/*   출고 상태·송장 — 엑셀엔 있는데 표에 없었다(2026-09-30) */}
+                          <td className="tc"><span className={i.ship_status === "done" ? "inv-pill inv-pill-ok" : i.ship_status === "shipped" ? "inv-pill inv-pill-warn" : "inv-pill inv-pill-danger"}>{SHIP_STATUS_LABEL[i.ship_status]}</span></td>
+                          <td className="mono-number text-left" title={i.carrier ? (CARRIERS.find((c) => c.value === i.carrier)?.label || i.carrier) : undefined}>{i.tracking_no || "—"}</td>
                           <td className="tc ev-dim">{kstDateTime(i.imported_at).slice(5)}</td>
+                          {/*   주문에서 바로 클레임 — 주문을 다시 찾지 않게 · 되돌리기는 잘못 가져온 주문(2026-09-30) */}
+                          {canWrite && <td className="tc ch-imp-acts">
+                            <button type="button" className="btn-secondary btn-sm" onClick={() => claimsPanel.openNew(i)}>클레임</button>
+                            <button type="button" className="btn-secondary btn-sm" disabled={!!revertBlock(i)} title={revertBlock(i) || "잘못 가져온 주문 — 재고를 되돌리고 기록을 지워 다시 가져올 수 있게 합니다"}
+                              onClick={() => revert(i)}>되돌리기</button>
+                          </td>}
                         </tr>
                       ))}
                     </tbody>
@@ -469,6 +522,7 @@ export default function ChannelsPage() {
                 </div>
               )
             )}
+            </>)}
           </div>
         </QueryBody>
 
@@ -491,12 +545,12 @@ export default function ChannelsPage() {
       {claimsPanel.dialog}
       {settlePanel.dialog}
       {bulkOpen && companyId && (
-        <BulkCodeDialog companyId={companyId} channel={channel} products={products} existing={codes}
+        <BulkCodeDialog companyId={companyId} channel={pickCh} products={products} existing={codes}
           onClose={() => setBulkOpen(false)}
           onSaved={(n) => { setBulkOpen(false); qc.invalidateQueries({ queryKey: ["ch-codes", companyId] }); toast(`${n}건을 연결했습니다`, "success"); }} />
       )}
       {addOpen && companyId && (
-        <CodeDialog companyId={companyId} channel={channel} products={products}
+        <CodeDialog companyId={companyId} channel={pickCh} products={products}
           onClose={() => setAddOpen(false)}
           onSaved={() => { setAddOpen(false); qc.invalidateQueries({ queryKey: ["ch-codes", companyId] }); toast("연결했습니다", "success"); }} />
       )}
@@ -828,6 +882,7 @@ function PasteDialog({ tabs, pick, openForm, onClose, onRows }: { tabs?: React.R
 
 // ── 채널 API 에서 한 번에 가져오기 · 키가 등록된 채널을 모두 부른다 ──────────
 function FetchDialog({ tabs, pick, openForm, onClose, onRows }: { tabs?: React.ReactNode; pick: FieldPick; openForm: () => void; onClose: () => void; onRows: (r: (RawOrderRow & { channel: string })[]) => void }) {
+  const { toast } = useToast();
   const [from, setFrom] = useState(() => addDaysStr(todayKst(), -7));
   const [to, setTo] = useState(todayKst);
   const [busy, setBusy] = useState(false);
@@ -867,6 +922,9 @@ function FetchDialog({ tabs, pick, openForm, onClose, onRows }: { tabs?: React.R
                   : { ch, ok: false, text: r.message, noKey: r.noKey });
                 if (rows.length) onRows(rows);
                 else setReport(rep);
+              } catch (e) {
+                //   네트워크·함수 오류 — 전에는 catch 가 없어 아무 안내 없이 멈췄다(2026-09-30)
+                toast(friendlyError(e, "채널에서 주문을 가져오지 못했습니다"), "error");
               } finally { setBusy(false); }
             }}>{busy ? "가져오는 중…" : "가져오기"}</button>
         </div>
@@ -883,6 +941,7 @@ function FetchDialog({ tabs, pick, openForm, onClose, onRows }: { tabs?: React.R
 //     CJ·한진 등 회사별 양식은 회사가 쓰는 택배사가 정해지면 그 열 순서로 맞춘다(지금은 '기타' 양식 하나).
 //   ★ 송장번호 붙여넣기 = 택배사 프로그램이 돌려준 "주문번호 ⇥ 송장번호" 를 그대로 붙이면 줄이 맞춰진다.
 //   ★ 채널로 발송 통보(역동기화)는 API 키 이후 — 지금은 이 화면이 사실을 갖고 있고, 채널엔 사람이 올린다.
+const CH_COND = [{ key: "channel", label: "채널", hint: "비우면 전체", options: CHANNELS.map((c) => ({ value: c.value, label: c.label })) }];
 const SHIP_VIEWS = [["pending", "출고 대기"], ["shipped", "발송됨"], ["done", "배송 완료"], ["all", "전체"]] as const;
 type ShipView = (typeof SHIP_VIEWS)[number][0];
 
@@ -898,6 +957,9 @@ function useShipPanel({ companyId, userId, imports, products, canWrite, onDone }
   const [sheetOpen, setSheetOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [sort, setSort] = useState<SortState<"ch" | "no" | "date" | "rcv" | "status" | "at">>({ key: "at", dir: "desc" });
+  //   채널(검색조건)·주문일 기간(2026-09-30). 기간은 기본 비움 — 출고 대기는 날짜와 상관없이 전부 봐야 하는 '할 일'이다
+  const [cond, setCond] = useState<CondLive>({});
+  const [range, setRange] = useState(NO_RANGE);
 
   //   주문별 상품 — 출고 전표 줄의 비고("채널명 주문번호")로 맞춘다
   const docIds = useMemo(() => [...new Set(imports.map((i) => i.doc_id).filter(Boolean) as string[])], [imports]);
@@ -909,10 +971,12 @@ function useShipPanel({ companyId, userId, imports, products, canWrite, onDone }
   const itemsOf = (i: OrderImport) => items.get(`${i.channel}|${i.channel_order_no}`) || [];
   const itemText = (i: OrderImport) => itemsOf(i).map((x) => `${x.name} ×${x.qty}`).join(", ");
 
-  const shown = useMemo(() => imports.filter((i) =>
+  //   조건(채널·기간)에 든 주문 — 상태 칩 숫자도 이것으로 센다(칩 숫자와 목록이 어긋나지 않게)
+  const base = useMemo(() => imports.filter((i) => condHit(cond, "channel", i.channel) && inRange(orderDay(i), range)), [imports, cond, range]);
+  const shown = useMemo(() => base.filter((i) =>
     (view === "all" || i.ship_status === view) &&
     quickSearchHit(q, [i.channel_order_no, channelLabel(i.channel), i.buyer_name, i.recipient_name, i.recipient_phone, i.address, i.tracking_no, itemText(i)])
-  ), [imports, view, q, items]);   // eslint-disable-line react-hooks/exhaustive-deps
+  ), [base, view, q, items]);   // eslint-disable-line react-hooks/exhaustive-deps
   const sorted = useMemo(() => {
     const d = sort.dir === "asc" ? 1 : -1;
     const order: Record<string, number> = { pending: 0, shipped: 1, done: 2 };
@@ -922,12 +986,12 @@ function useShipPanel({ companyId, userId, imports, products, canWrite, onDone }
     return [...shown].sort((a, b) => cmp(val(a), val(b)) * d);
   }, [shown, sort]);
   const onSort = (k: string) => setSort((s) => nextSort(s, k as typeof sort.key));
-  const pager = usePager(sorted, 50, `${view}|${q}|${sort.key}${sort.dir}`);
+  const pager = usePager(sorted, 50, `${view}|${JSON.stringify(cond)}|${range.from}~${range.to}|${q}|${sort.key}${sort.dir}`);
   const counts = useMemo(() => ({
-    pending: imports.filter((i) => i.ship_status === "pending").length,
-    shipped: imports.filter((i) => i.ship_status === "shipped").length,
-    done: imports.filter((i) => i.ship_status === "done").length,
-  }), [imports]);
+    pending: base.filter((i) => i.ship_status === "pending").length,
+    shipped: base.filter((i) => i.ship_status === "shipped").length,
+    done: base.filter((i) => i.ship_status === "done").length,
+  }), [base]);
 
   const selected = useMemo(() => imports.filter((i) => sel.has(i.id)), [imports, sel]);
   const toggle = (id: string) => setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -957,18 +1021,21 @@ function useShipPanel({ companyId, userId, imports, products, canWrite, onDone }
 
   const head = (
     <>
-      <QueryBar right={canWrite ? (
+      {/*   송장 파일은 읽기 동작이라 보기 권한자도 받는다(2026-09-30). 발송 처리·송장번호 넣기는 아래 선택 바(쓰기 권한) */}
+      <QueryBar right={
         <button type="button" className="btn-secondary btn-sm" onClick={downloadSheet}>송장 파일 내려받기</button>
-      ) : undefined}>
+      }>
+        <SimpleCond groups={CH_COND} live={cond} onApply={(c) => { setCond(c); setSel(new Set()); }} />
         <ChipGroup value={view} onChange={(v) => { setView(v as ShipView); setSel(new Set()); }}
           options={SHIP_VIEWS.map(([k, l]) => ({ value: k, label: k === "all" ? l : `${l} ${counts[k as keyof typeof counts]}` }))} />
+        <DateRangeField label={null} from={range.from} to={range.to} onChange={(f, t) => { setRange({ from: f, to: t }); setSel(new Set()); }} onClear={() => setRange(NO_RANGE)} />
         <QuickSearch value={q} onApply={setQ} placeholder="주문번호 · 수취인 · 연락처 · 주소 · 상품 · 송장번호 · 쉼표로 여러 개, Enter" />
       </QueryBar>
+      <SimpleApplied groups={CH_COND} live={cond} onApply={setCond} />
+      {/*   상태별 건수는 위 보기 칩에 있다 — 같은 숫자를 누를 수 없는 줄로 한 번 더 두지 않는다(2026-09-30) */}
       <ResultStrip>
-        <Stat label="출고 대기" value={`${counts.pending}건`} tone={counts.pending ? "minus" : undefined} />
-        <Stat label="발송됨" value={`${counts.shipped}건`} />
-        <Stat label="배송 완료" value={`${counts.done}건`} />
-        <span className="spv-toolbar-hint" title="재고는 출고 등록 때 이미 차감되었고 여기서는 실제 발송만 기록합니다">줄을 고르면 아래에 <b>발송 처리</b>가 뜹니다.</span>
+        <Stat label="보이는 주문" value={`${shown.length}건`} />
+        <span className="spv-toolbar-hint" title="재고는 출고 등록 때 이미 차감되었고 여기서는 실제 발송만 기록합니다">주문일 기준{canWrite ? <> · 줄을 고르면 아래에 <b>발송 처리</b>가 뜹니다.</> : null}</span>
       </ResultStrip>
     </>
   );
@@ -976,12 +1043,12 @@ function useShipPanel({ companyId, userId, imports, products, canWrite, onDone }
   const body = imports.length === 0 ? (
     <div className="collect-empty">아직 출고 등록한 주문이 없습니다. <b>주문 가져오기</b>에서 출고 등록하세요.</div>
   ) : shown.length === 0 ? (
-    <div className="collect-empty">{SHIP_VIEWS.find(([k]) => k === view)?.[1]} 주문이 없습니다.</div>
+    <div className="collect-empty">조건에 맞는 {SHIP_VIEWS.find(([k]) => k === view)?.[1]} 주문이 없습니다.</div>
   ) : (
     <div className="stg-table-wrap">
       <table className="ev-table ev-lined table-inv-ch-ship">
         <thead><tr>
-          <th className="w-8"><input type="checkbox" checked={allOn} onChange={toggleAll} aria-label="이 쪽 전부 선택" /></th>
+          {canWrite && <th className="w-8"><input type="checkbox" checked={allOn} onChange={toggleAll} aria-label="이 쪽 전부 선택" /></th>}
           <SortableTh label="채널" sortKey="ch" sort={sort} onSort={onSort} />
           <SortableTh label="주문번호" sortKey="no" sort={sort} onSort={onSort} />
           <SortableTh label="주문일" sortKey="date" sort={sort} onSort={onSort} />
@@ -991,8 +1058,9 @@ function useShipPanel({ companyId, userId, imports, products, canWrite, onDone }
         </tr></thead>
         <tbody>
           {pager.view.map((i) => (
-            <tr key={i.id} className={sel.has(i.id) ? "inv-row-sel" : undefined} onClick={() => toggle(i.id)}>
-              <td className="tc" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={sel.has(i.id)} onChange={() => toggle(i.id)} /></td>
+            //   보기 권한만이면 고를 수 없다 — 골라도 할 수 있는 일이 없다(선택 바는 쓰기 권한)
+            <tr key={i.id} className={sel.has(i.id) ? "inv-row-sel" : undefined} onClick={canWrite ? () => toggle(i.id) : undefined}>
+              {canWrite && <td className="tc" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={sel.has(i.id)} onChange={() => toggle(i.id)} /></td>}
               <td className="tc">{channelLabel(i.channel)}</td>
               <td className="mono-number text-left"><b>{i.channel_order_no}</b></td>
               <td className="mono-number">{i.order_date || "—"}</td>
@@ -1053,7 +1121,8 @@ function useShipPanel({ companyId, userId, imports, products, canWrite, onDone }
     </>
   );
   //   setView — 현황 갈래의 배송 숫자가 그 상태 보기로 바로 열게(결정 148 후속)
-  return { head, body, pagerEl, selbar, dialogs, setView };
+  //   setCond·setRange — 현황 숫자를 누르면 현황의 채널·기간을 싣고 들어온다(2026-09-30)
+  return { head, body, pagerEl, selbar, dialogs, setView, setCond, setRange };
 }
 
 
@@ -1305,11 +1374,13 @@ function BulkCodeDialog({ companyId, channel: init, products, existing, onClose,
 }
 
 // ── 채널 상품 잇기 ────────────────────────────────────────────────────────────
-function CodeDialog({ companyId, channel, products, onClose, onSaved }: {
+function CodeDialog({ companyId, channel: init, products, onClose, onSaved }: {
   companyId: string; channel: ChannelValue; products: { id: string; sku: string; name: string; spec: string | null; is_active: boolean }[];
   onClose: () => void; onSaved: () => void;
 }) {
   const { toast } = useToast();
+  //   채널은 팝업 안에서 고른다(엑셀 붙여넣기 팝업과 같다) — 2026-09-30 전에는 고르는 칸이 없어 늘 스마트스토어로 저장됐다
+  const [channel, setChannel] = useState<ChannelValue>(init);
   const [productId, setProductId] = useState("");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
@@ -1322,10 +1393,14 @@ function CodeDialog({ companyId, channel, products, onClose, onSaved }: {
   return (
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box" onClick={(e) => e.stopPropagation()}>
-        <h3 className="inv-modal-title">{channelLabel(channel)} 상품 연결</h3>
+        <h3 className="inv-modal-title">상품 연결</h3>
         <p className="inv-modal-desc">
           채널 상품코드와 품목을 <b>한 번</b> 연결하면 주문 가져오기에서 자동으로 맞춥니다. 세트·묶음 상품이면 아래에서 구성품을 적으세요.
         </p>
+        <label className="inv-field"><span>채널 *</span>
+          <select className="field-input" value={channel} onChange={(e) => setChannel(e.target.value as ChannelValue)}>
+            {CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select></label>
         <label className="inv-field"><span>채널 상품코드 *</span>
           <input className="field-input" value={code} onChange={(e) => setCode(e.target.value)}
             placeholder="스마트스토어 상품번호 · 쿠팡 옵션ID" /></label>

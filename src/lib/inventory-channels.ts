@@ -316,6 +316,51 @@ export async function importChannelDoc(
   return { docNo: doc.docNo, lines: use.length, orders: first.size, skipped };
 }
 
+/**
+ * 잘못 가져온 주문 되돌리기 (2026-09-30, 이커머스 화면 점검 후속)
+ *   ▸ 기준 — '잘못 가져온' = 실제로 없던 주문(중복·오입력). 재고를 원래대로 돌리고 주문 기록도 지워 **다시 가져올 수 있게** 한다.
+ *     실제로 취소된 주문은 여기가 아니라 클레임(반품 입고 — 판매 출고를 지우지 않고 기록을 남긴다).
+ *   ▸ 막는 경우(사람이 판단): 발송했으면 물건이 나갔다 → 클레임 · 클레임이 있으면(지우면 cascade 로 같이 사라진다) ·
+ *     정산 줄이 이어졌으면 · 출고 문서가 전표에 묶였으면(장부가 깨진다 — 전표 반려 먼저).
+ *   ▸ 출고 문서는 한 번 저장에 주문 여러 건이 묶인다 → **그 주문 줄만**(비고 "채널명 주문번호…") 지우고, 줄이 안 남으면 문서도 지운다.
+ *     문서번호를 그대로 두려고 문서를 새로 만들지 않는다(updateStockDoc 과 같은 결). 현재고는 줄의 합이라 저절로 맞는다.
+ *   ▸ 순서 — 줄을 먼저 지우고 주문 기록을 지운다. 기록 삭제가 실패하면 지운 줄을 되살린다(재고만 돌아가고 기록이 남는 반쪽을 막는다).
+ */
+export async function revertImport(imp: OrderImport): Promise<{ removedLines: number; docDeleted: boolean }> {
+  if (imp.ship_status !== "pending") throw new Error("이미 발송한 주문은 되돌릴 수 없습니다. 반품·취소는 클레임으로 등록하세요.");
+  const { count: claimN } = await supabase.from("channel_order_claims").select("id", { count: "exact", head: true }).eq("import_id", imp.id);
+  if (claimN) throw new Error("클레임이 있는 주문입니다. 클레임을 먼저 지우거나, 취소 클레임으로 처리하세요.");
+  const { count: settleN } = await supabase.from("channel_settlements").select("id", { count: "exact", head: true }).eq("import_id", imp.id);
+  if (settleN) throw new Error("정산 줄이 이어진 주문입니다. 채널이 정산한 주문은 실제 주문이라 되돌리지 않습니다 — 취소면 클레임으로 등록하세요.");
+
+  let removed: any[] = [], docDeleted = false, emptyAfter = false;
+  if (imp.doc_id) {
+    const { data: doc } = await supabase.from("stock_docs").select("id, doc_no, journal_entry_id").eq("id", imp.doc_id).maybeSingle();
+    if ((doc as any)?.journal_entry_id) throw new Error(`출고 문서 ${(doc as any).doc_no} 가 전표에 묶여 있습니다. 전표를 먼저 반려하세요.`);
+    const moves = logRead("inventory:revert-import-moves", await supabase.from("stock_moves").select("*").eq("doc_id", imp.doc_id)) as any[] | null;
+    const tag = `${channelLabel(imp.channel)} ${imp.channel_order_no.trim()}`;
+    //   비고가 "태그" 로 끝나거나 "태그 · …"(세트 구성) — 주문번호가 다른 번호의 앞부분인 경우(123 vs 1234)를 가른다
+    removed = (moves || []).filter((m) => { const n = String(m.note || ""); return n === tag || n.startsWith(`${tag} `); });
+    if (removed.length) {
+      const { error } = await supabase.from("stock_moves").delete().in("id", removed.map((m) => m.id));
+      if (error) throw error;
+    }
+    emptyAfter = removed.length === (moves || []).length;
+  }
+  const { error: dErr } = await supabase.from("channel_order_imports").delete().eq("id", imp.id);
+  if (dErr) {
+    //   기록을 못 지우면 지운 줄을 되살린다 — 문서는 아직 안 지웠다(아래에서 기록 삭제 뒤에 지운다)
+    if (removed.length) await supabase.from("stock_moves").insert(removed);
+    throw dErr;
+  }
+  //   줄이 하나도 안 남은 문서는 지운다. 실패해도 빈 문서라 재고엔 영향이 없다
+  if (imp.doc_id && emptyAfter) {
+    const { error } = await supabase.from("stock_docs").delete().eq("id", imp.doc_id);
+    docDeleted = !error;
+  }
+  return { removedLines: removed.length, docDeleted };
+}
+
 /** 채널 API 에서 주문을 받아 온다 — 서버가 회사 키로 부른다. 재고에는 넣지 않는다. */
 export async function fetchChannelOrders(channel: string, from: string, to: string): Promise<
   { ok: true; rows: (RawOrderRow & { product_name?: string | null })[] } | { ok: false; message: string; noKey?: boolean; noApi?: boolean }
