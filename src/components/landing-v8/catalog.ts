@@ -198,17 +198,24 @@ export const CATALOG: Group[] = [
     lead: "입사부터 급여까지 사람에 대한 기록이 끊기지 않습니다.",
     legacy: ["employees", "attendance", "hr-templates"],
     menus: [
-      { key: "employees", name: "구성원", href: "/employees", icon: "user", src: shot("f-members-v5"),
+      { key: "employees", name: "구성원", href: "/employees", icon: "user", src: shot("f-members-v6"),
         //   2026-09-29 급여가 사이드바 별도 메뉴라 급여 문구는 아래 「급여」로 옮김.
         desc: "부서·직급·입사일을 관리하고, 인사 발령과 메뉴별 권한을 한 곳에서 정합니다.",
         items: ["구성원 등록·상세", "엑셀로 여러 명 초대", "인사 발령 기록", "메뉴별 권한 부여"] },
       { key: "attendance", name: "근태 관리", href: "/attendance", icon: "clock", src: shot("f-hr-v7"),
         desc: "출퇴근·연차·연장근무가 자동으로 집계됩니다.",
         items: ["원클릭 출퇴근", "연차 발생·사용 이력", "주 52시간 사용률", "여러 달 조회·엑셀"] },
+      //   2026-09-30 구성원 화면 탭 줄을 없애며 사이드바에 편 두 메뉴 — 휴가(연차 대장·신청·촉진)·증명서 발급. 캡처는 QA 시드.
+      { key: "leave", name: "휴가", href: "/employees?tab=leave", icon: "calendar", src: shot("f-leave-v2"),
+        desc: "직원별 연차를 달마다 한 표로 보고, 휴가 신청과 연차 사용 촉진을 한 곳에서 처리합니다.",
+        items: ["직원별 연차 · 월별 사용 · 잔여일수", "휴가 신청 · 결재", "연차 사용 촉진 통보", "부여 방식 · 휴가 유형 설정"] },
       //   2026-09-29 사이드바 「급여」(/employees?tab=salary) — EmployeesPageClient PayrollPreviewTab 기준.
-      { key: "salary", name: "급여", href: "/employees?tab=salary", icon: "won", src: shot("f-salary-v1"),
+      { key: "salary", name: "급여", href: "/employees?tab=salary", icon: "won", src: shot("f-salary-v2"),
         desc: "달마다 4대보험·원천세까지 계산한 급여 명세를 만들고, 직원에게 메일로 보냅니다.",
         items: ["4대보험·원천세 자동 계산", "이 달만 급여대장 고치기", "명세서 PDF·메일 발송·열람 확인", "공단 고지서 금액 대조"] },
+      { key: "certificates", name: "증명서 발급", href: "/employees?tab=certificates", icon: "doc", src: shot("f-certificates-v1"),
+        desc: "재직·경력증명서를 발급 번호를 붙여 PDF 로 발급하고, 발급 이력과 보관본을 남깁니다.",
+        items: ["재직·경력증명서 PDF", "발급 번호 · 발급 이력", "연말정산 자료"] },
       { key: "hr-templates", name: "근로계약·서식", href: "/hr-templates", icon: "file", src: shot("f-templates-v5"),
         desc: "근로계약서를 서식으로 만들고 전자서명으로 받습니다.",
         items: ["변수 치환 서식", "계약 발송·서명 현황", "직원 기록 연동"] },
