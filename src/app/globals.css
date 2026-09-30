@@ -2144,7 +2144,6 @@ table.bs-t-table { min-width: 360px; }
 .leave-type-editor-cancel { @apply px-4 py-2 rounded-lg text-xs font-semibold border border-[var(--border)] hover:bg-[var(--bg-surface)] transition disabled:opacity-50; }
 
 /* 휴가 탭 — '직원별 연차' 표 + 서브탭 + 팝업 (2026-08-06 대표 시안) */
-.leave-subtabs { @apply flex items-center justify-between gap-3 mb-4 flex-wrap; }
 /* 표 + 필터 + 신청 목록을 한 카드에 담는다 ("신청 목록도 표 안에") */
 .leave-roster { @apply mb-6 p-4; } /* co-exists with glass-card in JSX */
 .leave-roster-divider { @apply my-4 border-t border-[var(--border)]; }
@@ -3934,7 +3933,6 @@ table.ap-policy-table { min-width: 960px; }
 .emp-table tbody tr.emp-row { @apply cursor-pointer; }
 .emp-table tbody tr.emp-row:hover td { background: var(--bg-surface); }
 /*   휴가 탭 — 카드 껍데기 없이 선으로 구역: 서브탭 칩 줄 / 직원별 연차 표 / 신청 내역 표 */
-.qk-body .leave-subtabs { @apply mb-0; }
 .qk-body .leave-roster { @apply mb-0 p-0; }
 .qk-body .leave-roster-divider { @apply my-3; }
 .qk-body .leave-filter-toolbar { @apply mb-3; }

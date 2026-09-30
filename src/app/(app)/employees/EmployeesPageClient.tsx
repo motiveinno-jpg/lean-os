@@ -3068,7 +3068,9 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     <div>
       {/* ── 휴가 탭 서브뷰 (2026-08-06 대표 시안) ──
           상단 KPI 카드는 이 탭에서 감추고, '직원별 연차'(표) / '설정'(부여 방식·휴가 유형) 로 나눈다. */}
-      <div className="collect-tabs leave-subtabs">
+      {/*   2026-09-30 위 갈래 탭 줄이 없어져 이 줄이 휴가 화면의 유일한 갈래 탭이 됐다 — 표준 collect-tabs 그대로
+            (.leave-subtabs 는 양끝 벌림 justify-between 이라 모양이 표준과 달랐다) */}
+      <div className="collect-tabs">
         {([["roster", "직원별 연차"], ["requests", "신청"], ...(!isEmployee ? [["promotion", "촉진"]] : []), ["settings", "설정"]] as const).map(([k, l]) => (
           <button key={k} type="button" onClick={() => setLeaveView(k as typeof leaveView)} className={leaveView === k ? "collect-tab collect-tab-on" : "collect-tab"}>
             {l}{k === "requests" && visibleRequests.filter((r: any) => r.status === "pending").length > 0 && <span className="collect-tab-cnt inv-tab-warn">{visibleRequests.filter((r: any) => r.status === "pending").length}</span>}
