@@ -143,9 +143,7 @@ function HrAttendanceSettingsPanel({ companyId, section }: { companyId: string; 
 
   if (!form) {
     return (
-      <div className="glass-card p-6">
-        <p className="text-sm text-[var(--text-muted)]">불러오는 중…</p>
-      </div>
+      <div className="collect-empty">불러오는 중…</div>
     );
   }
 
@@ -164,7 +162,8 @@ function HrAttendanceSettingsPanel({ companyId, section }: { companyId: string; 
     <div className="attendance-settings-panel">
       {/* 근무시간 */}
       {section === "work" && (
-        <div className="work-hours-section glass-card">
+        //   2026-09-30 상자(glass-card) → 선으로 가른 구역(hr-rule-sec) — 「상자 안 상자 금지」. 근태 › 근무 기준 · 급여 › 수당 기준 팝업 공용
+        <div className="work-hours-section hr-rule-sec">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-bold">근무시간</h2>
             <span className="caption" title="지각 기준은 출근 시각에 유예 시간을 더한 시각입니다.">
@@ -254,7 +253,7 @@ function HrAttendanceSettingsPanel({ companyId, section }: { companyId: string; 
 
       {/* 가산수당 정책 */}
       {section === "allowance" && (
-        <div className="allowance-policy-section glass-card">
+        <div className="allowance-policy-section hr-rule-sec">
           <h2 className="section-title">가산수당 정책</h2>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -316,13 +315,12 @@ function HrAttendanceSettingsPanel({ companyId, section }: { companyId: string; 
         </div>
       )}
 
-      <button
-        onClick={onSave}
-        disabled={saveMut.isPending}
-        className="w-full py-3 bg-[var(--primary)] hover:opacity-90 text-white rounded-xl text-sm font-semibold disabled:opacity-40 transition"
-      >
-        {saveMut.isPending ? "저장 중…" : section === "work" ? "근무 기준 저장" : "수당 기준 저장"}
-      </button>
+      {/*   저장 — 표준 작은 버튼, 구역 오른쪽 끝(2026-09-30 · 전엔 폭 전체 자체 색 버튼) */}
+      <div className="hr-rule-save">
+        <button type="button" onClick={onSave} disabled={saveMut.isPending} className="btn-primary btn-sm">
+          {saveMut.isPending ? "저장 중…" : section === "work" ? "근무 기준 저장" : "수당 기준 저장"}
+        </button>
+      </div>
 
       {/* L 수당 카탈로그 — 법정 4종 + 회사 커스텀 */}
       {section === "allowance" && (
@@ -331,7 +329,7 @@ function HrAttendanceSettingsPanel({ companyId, section }: { companyId: string; 
 
       {/* 휴일 캘린더 */}
       {section === "work" && (
-        <div className="holiday-calendar-section glass-card">
+        <div className="holiday-calendar-section hr-rule-sec">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-sm font-bold">회사 지정 휴일 ({year}년)</h2>
             <input

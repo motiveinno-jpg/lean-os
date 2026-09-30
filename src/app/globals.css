@@ -4046,6 +4046,10 @@ table.leave-req-table { min-width: 960px; } /* table. — .ev-table(뒤에 정�
 .workday-picker { @apply mt-4; }
 .allowance-policy-section { @apply p-6; }
 .holiday-calendar-section { @apply p-6; }
+/*   근무 기준·수당 기준 패널 구역 (2026-09-30) — 상자 대신 위 선으로 가른다. 첫 구역은 선 없음 */
+.hr-rule-sec { @apply border-t border-[var(--border)]; }
+.attendance-settings-panel > .hr-rule-sec:first-child { @apply border-t-0; }
+.hr-rule-save { @apply flex justify-end px-6; }
 .holiday-form-row { @apply grid grid-cols-4 gap-2 mb-3; }
 .holiday-list { @apply space-y-1 max-h-72 overflow-y-auto; }
 .holiday-row { @apply flex items-center justify-between px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]; }

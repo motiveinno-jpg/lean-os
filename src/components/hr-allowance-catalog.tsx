@@ -95,7 +95,7 @@ export default function HrAllowanceCatalogPanel({ companyId }: { companyId: stri
   });
 
   return (
-    <div className="allowance-catalog glass-card">
+    <div className="allowance-catalog hr-rule-sec">
       <div className="allowance-catalog-header">
         <h2 className="text-sm font-bold">수당 관리</h2>
         <button
