@@ -2,7 +2,7 @@
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { GlobalModalGuard } from "@/components/global-modal-guard";
 import { supabase } from "@/lib/supabase";
@@ -214,6 +214,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
   const { open: guideOpen } = useGuide();
   const { role, user } = useUser();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isLimitedRole = role === "partner"; // (P3) 멤버는 전원 동일 레이아웃
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState<"expired" | "clock" | null>(null);
@@ -223,7 +224,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
   const [isEmbed] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("embed") === "1");
 
   // 라운드6.5 TeamHub 헤더바 — 브레드크럼. 알림 벨 배지/최근목록은 NotificationBell 컴포넌트가 자체 관리.
-  const crumb = getRouteCrumb(pathname);
+  //   ?tab= 으로 편 메뉴(급여·이커머스 갈래)는 머리 제목도 그 메뉴 이름으로 (2026-09-30)
+  const crumb = getRouteCrumb(pathname, searchParams?.get("tab"));
 
   // P0-D: 모바일 햄버거 first-time hint — 첫 진입 한 번만 펄스 + 작은 툴팁.
   //   localStorage 키 'hint:hamburger' 가 비어있을 때만 활성, 클릭하면 dismiss.

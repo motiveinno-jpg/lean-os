@@ -10,6 +10,7 @@ import { SimpleCond, SimpleApplied, condHit, type CondLive } from "../_component
 import { appConfirm } from "@/components/global-confirm";
 import { ExcelPasteHelper } from "../_components/excel-paste-helper";
 import { useEffect, useMemo, useState } from "react";
+import { useTabParam } from "@/lib/use-tab-param";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
@@ -39,6 +40,7 @@ import {
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
 //   2026-09-28 이커머스 1단계 — 「클레임」「정산」 갈래(결정 266). 한 줄 7갈래, 부품은 _components/claims-settle.tsx
 type Tab = "status" | "import" | "ship" | "claims" | "settle" | "codes" | "history";
+const TAB_KEYS: readonly Tab[] = ["status", "import", "ship", "claims", "settle", "codes", "history"];
 type CodeKey = "code" | "cname" | "sku" | "pname";
 type ImpKey = "no" | "date" | "buyer" | "amount" | "at";
 
@@ -51,7 +53,8 @@ export default function ChannelsPage() {
   useEffect(() => { getCurrentUser().then((u) => { setCompanyId(u?.company_id ?? null); setUserId(u?.id ?? null); }); }, []);
 
   //   첫 갈래 = 현황(결정 148,). 들어오면 수집·판매·배송이 먼저 보인다
-  const [tab, setTab] = useState<Tab>("status");
+  //   갈래는 주소(?tab=)에 싣는다 — 사이드바 「이커머스」 그룹이 갈래로 바로 들어온다 (2026-09-30)
+  const [tab, setTab] = useTabParam<Tab>("status", { valid: TAB_KEYS });
   const { data: products = [] } = useQuery({ queryKey: ["inv-products", companyId], queryFn: () => listProducts(companyId!), enabled: !!companyId });
   const ctl = useDocEditor(companyId, userId, "channel", products);
   //   상품 연결·이력 갈래가 보는 채널(칩). 주문 가져오기 격자는 줄마다 채널 칸이 따로 있다.
