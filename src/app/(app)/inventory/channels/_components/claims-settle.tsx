@@ -311,7 +311,7 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite, c
   };
   const removeBatch = async (s: Settlement) => {
     const n = settlements.filter((x) => x.batch_id === s.batch_id).length;
-    if (!companyId || !(await appConfirm(`이 줄이 속한 붙여넣기 묶음 ${n}건을 모두 지울까요?`, { danger: true, confirmLabel: "지우기" }))) return;
+    if (!companyId || !(await appConfirm(`이 붙여넣기 묶음의 정산 줄 ${n}건을 모두 지울까요?`, { danger: true, confirmLabel: "지우기" }))) return;
     try { const d = await deleteSettlementBatch(companyId, s.batch_id); toast(`${d}건을 지웠습니다`, "success"); qc.invalidateQueries({ queryKey: ["ch-settlements", companyId] }); }
     catch (e) { toast(friendlyError(e, "삭제 실패"), "error"); }
   };
