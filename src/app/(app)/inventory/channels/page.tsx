@@ -113,8 +113,7 @@ export default function ChannelsPage() {
 
   const counts = useMemo(() => ({
     allCodes: codes.length,
-    pending: imports.filter((i) => i.ship_status === "pending").length,
-  }), [codes, imports]);
+  }), [codes]);
 
   // ── 현황(결정 148). 운영 콕핏: 수집·판매·배송을 첫 갈래에서 한눈에. 모든 숫자는 눌러서 갈래로 ──
   //   ★ 2026-09-30 조회 화면 표준으로(사장님 "표준으로") — 기간은 기간 칸(기본 최근 1개월, 전에는 7일 셀렉트),
@@ -175,8 +174,13 @@ export default function ChannelsPage() {
   const stPeriod = () => ({ from: stData.fromStr, to: stData.toStr });
   const goList = (c: CondLive) => { setCond(c); setHRange(stPeriod()); setTab("history"); };
 
+  //   주문 가져오기 ↔ 가져오기 이력 — 사이드바엔 「주문 가져오기」 하나라 두 화면을 보기 칩으로 오간다(2026-09-30)
+  const impView = (
+    <ChipGroup value={tab === "history" ? "history" : "import"} onChange={(v) => setTab(v as Tab)}
+      options={[{ value: "import", label: "입력" }, { value: "history", label: "이력" }]} />
+  );
   //   훅은 권한 조기 return 앞에 (훅 순서 규칙)
-  const grid = useImportGrid({
+  const grid = useImportGrid({ viewChip: impView,
     ctl, products, warehouses, codes, canWrite,
     onDone: () => {
       qc.invalidateQueries({ queryKey: ["ch-imports", companyId] });
@@ -247,20 +251,8 @@ export default function ChannelsPage() {
     <div className="qk-shell">
       <QueryScreen>
         <QueryHead>
-          <div className="collect-tabs no-print">
-            {/*   차례는 사이드바 「이커머스」와 같다 — 기초 → 거래 → 현황 (2026-09-30 사장님 "사이드바에 맞추기").
-                  가져오기 이력은 사이드바에서 주문 가져오기에 붙어 있어 그 뒤. 처음 들어오면 여는 갈래는 그대로 현황(결정 148) */}
-            {([["codes", "상품 연결"], ["import", "주문 가져오기"], ["history", "가져오기 이력"], ["ship", "출고 처리"], ["claims", "클레임"], ["settle", "정산"], ["status", "현황"]] as const).map(([k, l]) => (
-              <button key={k} type="button" onClick={() => setTab(k as Tab)}
-                className={tab === k ? "collect-tab collect-tab-on" : "collect-tab"}>
-                {l}
-                {k === "ship" && counts.pending > 0 && <span className="collect-tab-cnt inv-tab-warn">{counts.pending}</span>}
-                {k === "claims" && claimsPanel.claims.length > 0 && <span className="collect-tab-cnt">{claimsPanel.claims.length}</span>}
-                {k === "codes" && counts.allCodes === 0 && <span className="collect-tab-cnt inv-tab-warn">연결 필요</span>}
-              </button>
-            ))}
-          </div>
-
+          {/*   상단 갈래 탭 줄은 없앴다 (2026-09-30 사장님 "사이드로 메뉴를 정리했는데 들어가면 상단에 탭이 그대로") —
+                이동은 사이드바 「이커머스」 6메뉴가 맡는다. 메뉴가 없는 가져오기 이력은 주문 가져오기와 보기 칩(입력 | 이력)으로 오간다 */}
           {tab === "status" && (
             <>
               <QueryBar>
@@ -318,6 +310,7 @@ export default function ChannelsPage() {
                     "등록 시각": kstDateTime(i.imported_at),
                   })), "가져오기 이력", `채널주문_${hRange.from && hRange.to ? `${hRange.from}~${hRange.to}` : "전체"}_${todayKst()}`)}>엑셀</button>
               }>
+                {impView}
                 <SimpleCond groups={[{ key: "channel", label: "채널", hint: "비우면 전체", options: chChips.map((c) => ({ value: c.value, label: c.label })) }]} live={cond} onApply={setCond} />
                 <DateRangeField label={null} from={hRange.from} to={hRange.to} onChange={(f, t) => setHRange({ from: f, to: t })} onClear={() => setHRange(NO_RANGE)} />
                 <QuickSearch value={q} onApply={setQ} placeholder="주문번호 · 주문자 · 수취인 · 연락처 · 주소 · 쉼표로 여러 개, Enter" />
@@ -570,7 +563,9 @@ const CH_ORDER = new Map<string, number>(CHANNELS.map((c, i) => [c.value, i]));
 const sortByChannel = (rows: DocRow[]) =>
   [...rows].sort((a, b) => (CH_ORDER.get(a.ch) ?? 99) - (CH_ORDER.get(b.ch) ?? 99) || a.ono.localeCompare(b.ono));
 
-function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goCodes }: {
+function useImportGrid({ viewChip, ctl, products, warehouses, codes, canWrite, onDone, goCodes }: {
+  /** 입력 | 이력 보기 칩 — 조회 줄 맨 앞 */
+  viewChip?: React.ReactNode;
   ctl: DocCtl; products: Product[]; warehouses: Warehouse[]; codes: ChannelCode[];
   canWrite: boolean; onDone: () => void; goCodes: () => void;
 }) {
@@ -754,6 +749,7 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
           <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={save}>출고 등록</button>
         </>
       ) : undefined}>
+        {viewChip}
         <span className="inv-hint doc-note-move" title="채널마다 전표 한 건씩 만들고 같은 주문번호는 중복 등록되지 않습니다">저장하면 <b>재고가 즉시 차감</b>되고 주문번호가 기록됩니다.</span>
       </QueryBar>
       <ResultStrip>
