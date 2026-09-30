@@ -4050,6 +4050,7 @@ table.leave-req-table { min-width: 960px; } /* table. — .ev-table(뒤에 정�
 .hr-rule-sec { @apply border-t border-[var(--border)]; }
 .attendance-settings-panel > .hr-rule-sec:first-child { @apply border-t-0; }
 .hr-rule-save { @apply flex justify-end px-6; }
+.holiday-auto-note { @apply mb-2 text-[11px] text-[var(--text-dim)]; }   /* 정의가 없어 본문 기본 크기(16px)로 크게 보였다 */
 .holiday-form-row { @apply grid grid-cols-4 gap-2 mb-3; }
 .holiday-list { @apply space-y-1 max-h-72 overflow-y-auto; }
 .holiday-row { @apply flex items-center justify-between px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]; }

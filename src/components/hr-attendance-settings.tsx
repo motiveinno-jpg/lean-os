@@ -366,10 +366,11 @@ function HrAttendanceSettingsPanel({ companyId, section }: { companyId: string; 
               <option value="substitute">대체공휴일</option>
               <option value="legal">법정공휴일</option>
             </select>
+            {/*   자체 색 버튼 → 표준(2026-09-30). 파란 버튼은 이 화면의 '근무 기준 저장' 하나 */}
             <button
               onClick={() => newHoliday.date && newHoliday.name && addHolidayMut.mutate()}
               disabled={!newHoliday.date || !newHoliday.name || addHolidayMut.isPending}
-              className="px-2 py-1.5 bg-[var(--primary)] text-white rounded text-xs font-semibold disabled:opacity-40"
+              className="btn-secondary btn-sm"
             >
               추가
             </button>
