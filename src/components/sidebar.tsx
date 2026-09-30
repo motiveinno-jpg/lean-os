@@ -96,8 +96,9 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/inventory/channels?tab=ship", tab: "ship", permKey: "/inventory/channels", label: "출고 처리", icon: "package" },
       { href: "/inventory/channels?tab=claims", tab: "claims", permKey: "/inventory/channels", label: "클레임", icon: "arrow-right-left" },
       { href: "/inventory/channels?tab=settle", tab: "settle", permKey: "/inventory/channels", label: "정산", icon: "receipt" },
-      //   현황은 탭 없는 형제 — 주소에 탭이 없거나(처음 들어올 때) ?tab=status 면 켜진다
-      { href: "/inventory/channels", label: "현황", icon: "bar-chart", layer: "현황" },
+      //   현황도 ?tab=status 로 간다 — 탭 없는 주소로 보내면 화면이 보던 갈래(예: 정산)에 그대로 남는다
+      //     (useUrlTabSync 는 주소에 탭이 있을 때만 따라간다, 2026-09-30 운영 실측). 처음 들어올 때(탭 없음)도 켜지게 "" 를 같이 둔다.
+      { href: "/inventory/channels?tab=status", tab: ["status", ""], permKey: "/inventory/channels", label: "현황", icon: "bar-chart", layer: "현황" },
     ],
   },
   {
@@ -295,6 +296,7 @@ const NAV_ITEM_COLOR: Record<string, string> = {
   //   이커머스 갈래 메뉴 (2026-09-30) — 같은 그룹이라 채널 관리 색(#a35f0a) 계열로
   "/inventory/channels?tab=codes": "#b8740f", "/inventory/channels?tab=import": "#a35f0a", "/inventory/channels?tab=ship": "#8f5209",
   "/inventory/channels?tab=claims": "#c2410c", "/inventory/channels?tab=settle": "#9a5b13",
+  "/inventory/channels?tab=status": "#a35f0a",
   // 자산관리 — 시안
   "/bank": "#06b6d4", "/cards": "#0ea5e9", "/payments": "#22d3ee", "/finance/status": "#0891b2", "/finance/assets": "#0e7490", "/finance/tax-filing": "#155e75",
   // 회사 관리·도움말 — 슬레이트
