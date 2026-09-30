@@ -19859,6 +19859,7 @@ export type Database = {
         Args: { p_purchase_id: string }
         Returns: boolean
       }
+      apply_document_seal: { Args: { p_doc_id: string }; Returns: string }
       apply_toss_payment_void: {
         Args: { p_order_id: string; p_payment_key: string; p_status: string }
         Returns: Json
@@ -20285,6 +20286,7 @@ export type Database = {
       issue_allowance:
         | { Args: { p_company_id: string }; Returns: Json }
         | { Args: { p_company_id: string; p_kind: string }; Returns: Json }
+      issue_document: { Args: { p_doc_id: string }; Returns: string }
       learn_voucher_account: {
         Args: {
           p_account_id: string

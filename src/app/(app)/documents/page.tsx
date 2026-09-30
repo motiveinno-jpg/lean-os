@@ -410,8 +410,9 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
 
   const status = doc.status || "draft";
   const sc = (DOC_STATUS as any)[status] || DOC_STATUS.draft;
-  const isLocked = status === "locked" || status === "executed";
-  const canEdit = status === "draft" || status === "review";
+  //   발행(issued)·잠금 시각이 있는 문서도 잠긴 문서 — DB 트리거(documents_content_edit_guard R1·R2)와 같은 기준 (2026-09-30)
+  const isLocked = status === "locked" || status === "executed" || status === "issued" || !!doc.locked_at;
+  const canEdit = (status === "draft" || status === "review") && !isLocked;
   const canSubmit = status === "draft";
   const canApprove = status === "review";
   const canLock = status === "approved";
@@ -712,20 +713,23 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             className="btn-secondary">
             PDF 다운로드
           </button>
-          <button
-            onClick={async () => {
-              if (!companyId || !userId) return;
-              try {
-                await issueDocument(id, userId, companyId);
-                toast('문서번호가 발급되었습니다.', "success");
-                invalidate();
-              } catch (err: any) {
-                toast('문서번호 발급 실패: ' + (err?.message || err), "error");
-              }
-            }}
-            className="btn-secondary">
-            문서번호 발급
-          </button>
+          {/* 번호가 이미 있으면 숨긴다 — 전에는 다시 누르면 번호가 바뀌었다(2026-09-30) */}
+          {!doc.document_number && (
+            <button
+              onClick={async () => {
+                if (!companyId || !userId) return;
+                try {
+                  await issueDocument(id, userId, companyId);
+                  toast('문서번호가 발급되었습니다.', "success");
+                  invalidate();
+                } catch (err: any) {
+                  toast('문서번호 발급 실패: ' + (err?.message || err), "error");
+                }
+              }}
+              className="btn-secondary">
+              문서번호 발급
+            </button>
+          )}
           <button onClick={() => sendToPartnerMut.mutate()} disabled={sendToPartnerMut.isPending}
             className="btn-primary"
             title="거래처에 서명 링크를 이메일로 보냅니다.">

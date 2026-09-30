@@ -1,5 +1,4 @@
 import { todayKst } from "@/lib/kst";
-import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Document Generation Engine
  * PDF 렌더링 + 템플릿 변수 + 문서번호 채번 + 직인 오버레이
@@ -41,40 +40,7 @@ export interface DocTemplate {
   variables: string[];
 }
 
-// ────────────────────────────────────────────
-// 1. 문서번호 채번
-// ────────────────────────────────────────────
-
-/**
- * 문서번호를 자동 채번합니다.
- * Format: {prefix}-YYYYMM-XXXX (예: DOC-202603-0001)
- */
-export async function generateDocumentNumber(
-  companyId: string,
-  prefix = 'DOC',
-): Promise<string> {
-  const now = new Date();
-  const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const like = `${prefix}-${ym}-%`;
-
-  const data = logRead('lib/document-generator:data', await db
-    .from('documents')
-    .select('document_number')
-    .eq('company_id', companyId)
-    .like('document_number', like)
-    .order('document_number', { ascending: false })
-    .limit(1));
-
-  let seq = 1;
-  if (data && data.length > 0 && data[0].document_number) {
-    const last: string = data[0].document_number;
-    const parts = last.split('-');
-    const lastSeq = parseInt(parts[parts.length - 1], 10);
-    if (!isNaN(lastSeq)) seq = lastSeq + 1;
-  }
-
-  return `${prefix}-${ym}-${String(seq).padStart(4, '0')}`;
-}
+// 1. 문서번호 채번 — 서버 RPC issue_document 로 옮김(2026-09-30, 아래 issueDocument 참고)
 
 // ────────────────────────────────────────────
 // 3. 일반 문서 PDF 생성
@@ -1314,45 +1280,30 @@ export async function generateApprovalPdf(params: ApprovalPdfParams): Promise<Bl
 
 /**
  * 문서를 발행 처리합니다.
- * - 문서번호 자동 채번
- * - status = 'issued', issued_at 기록
- * - 문서 잠금 (locked_at)
+ * - 문서번호 채번·status 'issued'·issued_at·잠금(locked_at)은 서버 RPC issue_document 가 한 번에 한다
+ *   (2026-09-30) — 전에는 여기서 max+1 로 채번해 동시에 누르면 번호가 겹쳤고, 이미 번호가 있는 문서도
+ *   다시 누르면 번호가 바뀌었다. 이제 번호가 있으면 서버가 그 번호를 그대로 돌려준다.
+ *   documents.document_number 직접 수정은 DB 트리거가 막는다.
  * - 감사 로그 기록
  */
 export async function issueDocument(
   documentId: string,
   userId: string,
   companyId: string,
-): Promise<void> {
-  // 문서번호 채번
-  const docNumber = await generateDocumentNumber(companyId);
-  const now = new Date().toISOString();
-
-  const { error } = await db
-    .from('documents')
-    .update({
-      document_number: docNumber,
-      status: 'issued',
-      issued_at: now,
-      locked_at: now,
-    })
-    .eq('id', documentId);
-
+): Promise<string> {
+  const { data: docNumber, error } = await db.rpc('issue_document', { p_doc_id: documentId });
   if (error) throw error;
 
+  //   상태·시각은 서버가 정한다(잠긴 문서는 상태 유지, 번호가 이미 있으면 아무것도 안 바뀜) — 확실한 번호만 적는다
   await logAudit({
     companyId,
     userId,
     entityType: 'document',
     entityId: documentId,
     action: 'issue',
-    afterJson: {
-      document_number: docNumber,
-      status: 'issued',
-      issued_at: now,
-      locked_at: now,
-    },
+    afterJson: { document_number: docNumber },
   });
+  return docNumber;
 }
 
 // ────────────────────────────────────────────

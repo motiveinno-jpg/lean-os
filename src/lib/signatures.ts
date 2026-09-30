@@ -1043,7 +1043,15 @@ export async function cancelSignature(id: string) {
       .eq('document_id', data.document_id)
       .neq('id', id));
     const hasLive = (others || []).some((r) => r.status !== 'expired');
-    if (!hasLive) {
+    //   잠긴 문서는 되돌리지 않는다 — DB 트리거(documents_content_edit_guard R1)가 막으므로
+    //   부르면 요청은 이미 취소됐는데 오류가 뜬다(2026-09-30).
+    const cur = logRead('lib/signatures:cancelDoc', await db
+      .from('documents')
+      .select('status, locked_at')
+      .eq('id', data.document_id)
+      .maybeSingle());
+    const locked = !!cur?.locked_at || ['locked', 'executed', 'issued'].includes(cur?.status || '');
+    if (!hasLive && !locked) {
       const { error: docErr } = await db
         .from('documents')
         .update({ status: 'draft' })
@@ -1071,43 +1079,13 @@ export async function applyCompanySeal(params: {
   companyId: string;
   appliedBy: string;
 }): Promise<{ success: boolean; sealUrl?: string }> {
-  const { documentId, companyId, appliedBy } = params;
-
-  // 1. Check company seal_url exists
-  const company = logRead('lib/signatures:company', await db
-    .from('companies')
-    .select('id, name, seal_url')
-    .eq('id', companyId)
-    .maybeSingle());
-
-  if (!company?.seal_url) {
-    throw new Error('직인 이미지가 등록되지 않았습니다. 설정에서 직인을 먼저 업로드하세요.');
-  }
-
-  // 2. Update document seal_applied flag
-  await db
-    .from('documents')
-    .update({ seal_applied: true })
-    .eq('id', documentId);
-
-  // 3. Add seal record to signature_requests
-  await db
-    .from('signature_requests')
-    .insert({
-      company_id: companyId,
-      document_id: documentId,
-      title: '회사 직인 적용',
-      status: 'signed',
-      signer_name: company.name || '회사 직인',
-      signer_email: 'seal@company',
-      sign_token: generateSignToken(),
-      expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-      signed_at: new Date().toISOString(),
-      signature_data: { type: 'seal', data: company.seal_url },
-      created_by: appliedBy,
-    });
-
-  return { success: true, sealUrl: company.seal_url };
+  // 직인 표시(seal_applied)와 직인 기록(signature_requests)은 서버 RPC apply_document_seal 이 한 번에 한다
+  //   (2026-09-30) — 전에는 여기서 직접 PATCH 해 같은 회사 누구나 아무 문서에 직인 표시를 켤 수 있었고,
+  //   두 쓰기 오류도 보지 않았다. 서버가 직인 등록·잠금·수정 권한(내용 수정과 같은 기준)을 확인한다.
+  //   companyId·appliedBy 는 호출부 호환용 — 서버는 로그인 세션의 회사·사용자를 쓴다.
+  const { data: sealUrl, error } = await db.rpc('apply_document_seal', { p_doc_id: params.documentId });
+  if (error) throw error;
+  return { success: true, sealUrl: sealUrl || undefined };
 }
 
 // ── Expire Overdue Signatures ──

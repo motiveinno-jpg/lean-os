@@ -35,6 +35,7 @@ export const DOC_STATUS = {
   approved: { label: '승인', bg: 'bg-blue-500/10', text: 'text-blue-400' },
   executed: { label: '체결', bg: 'bg-green-500/10', text: 'text-green-400' },
   locked: { label: '잠금', bg: 'bg-purple-500/10', text: 'text-purple-400' },
+  issued: { label: '발행', bg: 'bg-purple-500/10', text: 'text-purple-400' },
 } as const;
 
 // ── 견적No. 고정 채번 (YYYY/MM/DD-N, 회사·날짜 단위) ──
