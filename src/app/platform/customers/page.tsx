@@ -128,7 +128,7 @@ export default function CustomersPage() {
         actions={
           <>
             <OpsSearch value={search} onChange={setSearch} placeholder="회사명·사업자번호 검색" />
-            <PfSeg value={statusFilter} onChange={setStatusFilter} options={[{ value: "all", label: "전체" }, { value: "paid", label: "유료" }, { value: "trial", label: "체험 중" }, { value: "free", label: "미구독" }]} />
+            <PfSeg value={statusFilter} onChange={setStatusFilter} options={[{ value: "all", label: "전체" }, { value: "paid", label: "유료" }, { value: "free", label: "미구독" }]} />
             <button
               type="button"
               className="pf-btn"

@@ -1,7 +1,7 @@
 "use client";
 
 // 성장 분석 섹션 (2026-07-29 리디자인 · 2026-09-03 v2: Bklit 차트 + pf 부품) — 기존 "트래픽·이용 현황" 을 대체.
-//   일/월/년 단위로 방문자·페이지뷰·신규 가입자·신규 회사·체험 시작을 한 화면에서.
+//   일/월/년 단위로 방문자·페이지뷰·신규 가입자·신규 회사·유료 결제 시작을 한 화면에서.
 //   데이터는 platform_analytics RPC(운영자 게이트 내장, 빈 버킷 0 채움) 하나로 받는다.
 //
 // 차트 설계 원칙(dataviz):
@@ -51,7 +51,7 @@ const METRICS: { key: MetricKey; label: string; unit: string }[] = [
   { key: "views", label: "페이지뷰", unit: "회" },
   { key: "accounts", label: "신규 가입자", unit: "명" },
   { key: "companies", label: "신규 회사", unit: "곳" },
-  { key: "trials", label: "체험 시작", unit: "건" },
+  { key: "trials", label: "유료 결제 시작", unit: "건" },
 ];
 
 const fmt = (n: number) => n.toLocaleString("ko-KR");
@@ -335,7 +335,7 @@ export function AnalyticsSection({ usage, traffic, companies, companyActivity, t
                     <th className="text-right">비로그인</th>
                     <th className="text-right">신규 가입자</th>
                     <th className="text-right">신규 회사</th>
-                    <th className="text-right">체험 시작</th>
+                    <th className="text-right">유료 결제 시작</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -371,8 +371,9 @@ export function AnalyticsSection({ usage, traffic, companies, companyActivity, t
                 centerLabel="활동 가입사"
                 slices={[
                   { label: "유료", value: kinds.paid, color: "var(--success)" },
-                  { label: "체험 중", value: kinds.trial, color: "var(--chart-2)" },
-                  { label: "체험 만료", value: kinds.expired, color: "var(--danger)" },
+                  // 무료체험 폐지 — 옛 체험 구독이 남아 있을 때만
+                  ...(kinds.trial > 0 ? [{ label: "체험 중(옛 구독)", value: kinds.trial, color: "var(--chart-2)" }] : []),
+                  ...(kinds.expired > 0 ? [{ label: "체험 만료(옛 구독)", value: kinds.expired, color: "var(--danger)" }] : []),
                   { label: "미구독", value: kinds.free, color: "var(--chart-5)" },
                 ]}
               />

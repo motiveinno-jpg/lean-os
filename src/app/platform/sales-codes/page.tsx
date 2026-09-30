@@ -1,7 +1,7 @@
 "use client";
 
 // 운영자 — 영업사원 영업코드 발급 + 유입 회사 추적 (2026-07-27 가격정책).
-//   코드를 입력하고 가입한 회사는 기본 체험 14일 + 보너스(기본 30일) = 44일.
+//   무료체험은 폐지됐다 — 코드는 어느 영업사원 경로로 가입했는지 추적하는 용도만 남는다(체험 연장 없음).
 //   데이터 접근은 RLS/RPC 로 운영자만 가능 — 이 화면은 그 위의 표시 계층이다.
 //   2026-09-03 v2 디자인 — 발급·중지·목록·내보내기 동작은 그대로, 표시를 pf 부품 + Bklit 차트로.
 
@@ -23,7 +23,6 @@ import { kstDateStr } from "@/lib/kst";
 import { PfPage, PfPageHead, PfCard, PfCardHead, PfCardBody, PfKpi, PfSeg, PfSkeleton, PfEmpty, PfBadge, PfBar, PfState } from "../_components/pf/ui";
 import { PfBars } from "../_components/pf/charts";
 
-const BASE_TRIAL_DAYS = 14;
 
 function fmtDate(iso: string | null) {
   if (!iso) return "-";
@@ -31,7 +30,7 @@ function fmtDate(iso: string | null) {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  trialing: "체험중", active: "결제중", past_due: "결제실패",
+  trialing: "체험중(옛 기록)", active: "결제중", past_due: "결제실패",
   canceled: "해지", paused: "일시정지",
 };
 const STATUS_TONE: Record<string, "ok" | "warn" | "danger" | "info" | "muted"> = {
@@ -44,7 +43,7 @@ export default function SalesCodesPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<"signups" | "codes">("signups");
-  const [form, setForm] = useState({ code: "", ownerName: "", ownerEmail: "", ownerPhone: "", memo: "", bonusTrialDays: "30" });
+  const [form, setForm] = useState({ code: "", ownerName: "", ownerEmail: "", ownerPhone: "", memo: "" });
   const [codeFilter, setCodeFilter] = useState("");
   const [companyFilter, setCompanyFilter] = useState("all");
 
@@ -67,11 +66,11 @@ export default function SalesCodesPage() {
         ownerEmail: form.ownerEmail,
         ownerPhone: form.ownerPhone,
         memo: form.memo,
-        bonusTrialDays: Math.max(0, Math.min(365, Number(form.bonusTrialDays) || 30)),
+        bonusTrialDays: 0,   // 체험 폐지 — 칸은 옛 기록 호환용으로만 남음
       }),
     onSuccess: () => {
       toast("영업코드를 발급했습니다.", "success");
-      setForm({ code: "", ownerName: "", ownerEmail: "", ownerPhone: "", memo: "", bonusTrialDays: "30" });
+      setForm({ code: "", ownerName: "", ownerEmail: "", ownerPhone: "", memo: "" });
       queryClient.invalidateQueries({ queryKey: ["sales-codes"] });
     },
     onError: (e: any) => toast(e?.message || "발급에 실패했습니다.", "error"),
@@ -132,7 +131,7 @@ export default function SalesCodesPage() {
       <PfPageHead
         eyebrow="매출"
         title="영업코드"
-        desc={`영업사원별 코드를 발급하고, 그 코드로 가입한 회사를 추적합니다. 코드 입력 시 무료체험이 기본 ${BASE_TRIAL_DAYS}일 + 보너스일 만큼 늘어납니다.`}
+        desc="영업사원별 코드를 발급하고, 그 코드로 가입한 회사와 유료 전환을 추적합니다."
         actions={<PfSeg value={tab} onChange={setTab} options={[{ value: "signups", label: "유입 회사" }, { value: "codes", label: "코드 관리" }]} />}
       />
 
@@ -141,7 +140,6 @@ export default function SalesCodesPage() {
         <PfCard i={1} className="pf-kpi-tile"><PfKpi label="사용 중인 코드" value={activeCodes} unit="개" accent /><div className="text-[10.5px] text-[var(--text-dim)] mt-1.5">발급 {codes.length}개 중</div></PfCard>
         <PfCard i={2} className="pf-kpi-tile"><PfKpi label="코드로 가입한 회사" value={totalSignups} unit="곳" /></PfCard>
         <PfCard i={3} className="pf-kpi-tile"><PfKpi label="그중 유료 전환" value={totalConverted} unit="곳" /><div className="mt-1.5"><PfBadge tone={convRate >= 20 ? "ok" : convRate > 0 ? "warn" : "muted"}>전환율 {convRate}%</PfBadge></div></PfCard>
-        <PfCard i={4} className="pf-kpi-tile"><PfKpi label="기본 체험 기간" value={BASE_TRIAL_DAYS} unit="일" /><div className="text-[10.5px] text-[var(--text-dim)] mt-1.5">코드마다 보너스일을 더해 적용</div></PfCard>
       </div>
 
       {/* 코드별 가입 vs 전환 */}
@@ -172,7 +170,7 @@ export default function SalesCodesPage() {
                   disabled={filteredSignups.length === 0}
                   onClick={() => exportCsv((filteredSignups as any[]).map((r: any) => ({
                     코드: r.code || "", 영업사원: r.owner_name || "", 회사: r.company_name || "",
-                    체험일수: r.applied_trial_days ?? "", 유입일: r.redeemed_at ? String(r.redeemed_at).slice(0, 10) : "",
+                    유입일: r.redeemed_at ? String(r.redeemed_at).slice(0, 10) : "",
                     유료전환: r.converted_at ? String(r.converted_at).slice(0, 10) : "미전환",
                   })), "영업코드_유입회사")}
                 />
@@ -190,7 +188,6 @@ export default function SalesCodesPage() {
                     <th>영업사원</th>
                     <th>회사</th>
                     <th>사업자번호</th>
-                    <th className="text-center">적용 체험일</th>
                     <th>가입일</th>
                     <th className="text-center">구독상태</th>
                     <th>유료전환일</th>
@@ -203,7 +200,6 @@ export default function SalesCodesPage() {
                       <td>{s.owner_name}</td>
                       <td className="font-medium">{s.company_name}</td>
                       <td className="text-[var(--text-muted)] mono-number">{s.business_number || "-"}</td>
-                      <td className="text-center mono-number">{s.applied_trial_days ?? "-"}일</td>
                       <td className="text-[var(--text-muted)]">{fmtDate(s.redeemed_at)}</td>
                       <td className="text-center">
                         <PfBadge tone={STATUS_TONE[s.subscription_status || ""] || "muted"}>
@@ -243,20 +239,6 @@ export default function SalesCodesPage() {
               <Field label="연락처 (선택)">
                 <input value={form.ownerPhone} onChange={(e) => setForm({ ...form, ownerPhone: e.target.value })} className={inputCls} />
               </Field>
-              <Field label="보너스 체험일">
-                <input
-                  type="number"
-                  min={0}
-                  max={365}
-                  value={form.bonusTrialDays}
-                  onChange={(e) => setForm({ ...form, bonusTrialDays: e.target.value })}
-                  className={inputCls}
-                />
-                <div className="text-[11px] text-[var(--text-dim)] mt-1">
-                  기본 {BASE_TRIAL_DAYS}일 + {Number(form.bonusTrialDays) || 0}일 ={" "}
-                  <b className="text-[var(--text)]">{BASE_TRIAL_DAYS + (Number(form.bonusTrialDays) || 0)}일</b>
-                </div>
-              </Field>
               <Field label="메모 (선택)">
                 <input value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} className={inputCls} />
               </Field>
@@ -277,7 +259,6 @@ export default function SalesCodesPage() {
                     <tr>
                       <th>코드</th>
                       <th>영업사원</th>
-                      <th className="text-center">체험일</th>
                       <th className="text-center">가입</th>
                       <th>유료 전환</th>
                       <th className="text-center">상태</th>
@@ -296,7 +277,6 @@ export default function SalesCodesPage() {
                               <div className="text-[11px] text-[var(--text-dim)]">{c.owner_email}</div>
                             )}
                           </td>
-                          <td className="text-center mono-number">{BASE_TRIAL_DAYS + c.bonus_trial_days}일</td>
                           <td className="text-center mono-number">{st.signups}</td>
                           <td className="min-w-[160px]">
                             <div className="flex items-center gap-2">

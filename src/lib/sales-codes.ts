@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabase";
 
 /**
  * 영업사원 영업코드 (2026-07-27 가격정책).
- *   가입자가 카드 등록 시 코드를 입력하면 기본 체험 14일 + 보너스(기본 30일) = 44일.
+ *   무료체험 폐지 뒤로는 가입 경로 추적용 — 체험 연장 혜택은 없다(bonus_trial_days 는 옛 기록 호환 칸).
  *   referral_codes(고객사 추천인 코드)와는 별개 — 이쪽은 회사에 속하지 않는 플랫폼 전역 코드다.
  *
  * 접근 권한: sales_codes / sales_code_redemptions 는 RLS 로 운영자(is_platform_operator)만
@@ -73,7 +73,7 @@ export async function createSalesCode(input: {
     owner_email: input.ownerEmail?.trim() || null,
     owner_phone: input.ownerPhone?.trim() || null,
     memo: input.memo?.trim() || null,
-    bonus_trial_days: input.bonusTrialDays ?? 30,
+    bonus_trial_days: input.bonusTrialDays ?? 0,
     created_by: input.createdBy || null,
   });
   if (error) {

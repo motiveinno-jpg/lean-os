@@ -291,7 +291,7 @@ export default function PlatformOverview() {
 
   // KPI 카드 클릭 → 아래 "가입사" 목록을 해당 그룹으로 필터.
   //   숫자만 보고 "그게 어떤 회사인지" 알 방법이 없던 문제.
-  const [kpiFilter, setKpiFilter] = useState<"all" | "paid" | "trial" | "free" | "new" | "expired">("all");
+  const [kpiFilter, setKpiFilter] = useState<"all" | "paid" | "trial" | "free" | "new" | "expired" | "other">("all");
 
   const totalCompanies = companies.length;
   const totalUsers = users.length;
@@ -299,7 +299,6 @@ export default function PlatformOverview() {
   //    "카드 숫자 1인데 눌러도 목록 0" 같은 어긋남이 원천적으로 안 생긴다.
   const kindCounts = countPlanKinds(companies as any[]);
   const paidSubs = kindCounts.paid;
-  const activeSubs = kindCounts.paid + kindCounts.trial;
   // 실결제 구독만 — stripe 미연동(내부 부여) 구독이 MRR 을 부풀리던 것 제외 (2026-07-29)
   const mrr = subscriptions
     .filter((s: any) => s.status === "active" && isBilledSubscription(s))
@@ -380,8 +379,9 @@ export default function PlatformOverview() {
   //   검증된 카테고리 팔레트를 고정 순서로 배정(순환 금지, dataviz 규칙).
   const planSlices = [
     { label: "유료", value: kindCounts.paid, color: "var(--success)" },
-    { label: "체험 중", value: kindCounts.trial, color: "var(--chart-2)" },
-    { label: "체험 만료", value: kindCounts.expired, color: "var(--danger)" },
+    // 무료체험은 폐지 — 옛 체험 구독이 남아 있을 때만 조각을 낸다. 미납·무상 이용도 있을 때만
+    ...(kindCounts.trial > 0 ? [{ label: "체험 중(옛 구독)", value: kindCounts.trial, color: "var(--chart-2)" }] : []),
+    ...(kindCounts.expired > 0 ? [{ label: "체험 만료(옛 구독)", value: kindCounts.expired, color: "var(--danger)" }] : []),
     // 미납·무상 이용은 있을 때만 조각을 낸다(늘 0인 범례 줄이 생기지 않게)
     ...(kindCounts.past_due > 0 ? [{ label: "미납", value: kindCounts.past_due, color: "var(--chart-4)" }] : []),
     ...(kindCounts.granted > 0 ? [{ label: "무상 이용", value: kindCounts.granted, color: "var(--chart-1)" }] : []),
@@ -460,7 +460,7 @@ export default function PlatformOverview() {
               {[
                 { v: fmtKrwShort(mrr * 12), l: "ARR" },
                 { v: fmtKrwShort(totalRevenue), l: "누적 매출" },
-                { v: `${activeSubs}곳`, l: "유료+체험" },
+                { v: `${kindCounts.paid}곳`, l: "유료" },
               ].map((x) => (
                 <div key={x.l} className="flex flex-col gap-0.5 px-3 first:pl-0 min-w-0">
                   <span className="text-sm font-extrabold whitespace-nowrap mono-number">{x.v}</span>
@@ -617,7 +617,7 @@ export default function PlatformOverview() {
         </PfCard>
 
         <PfCard i={14}>
-          <PfCardHead title="위험 신호" sub="체험 만료 임박 · 해지 예약 · 결제 실패 · 휴면" right={<PfBadge tone={riskRows.length > 0 ? "warn" : riskLoading || riskError ? "muted" : "ok"}>{riskLoading || riskError ? "—" : riskRows.length}</PfBadge>} />
+          <PfCardHead title="위험 신호" sub="해지 예약 · 결제 실패 · 휴면" right={<PfBadge tone={riskRows.length > 0 ? "warn" : riskLoading || riskError ? "muted" : "ok"}>{riskLoading || riskError ? "—" : riskRows.length}</PfBadge>} />
           <PfState loading={riskLoading} error={riskError} empty={riskRows.length === 0} ok emptyText="위험 신호가 없습니다. 안정적입니다." skeletonRows={3}>
             <PfRows>
               {riskRows.slice(0, 6).map((r, i) => (
@@ -648,8 +648,8 @@ export default function PlatformOverview() {
             { label: "총 가입사", value: totalCompanies, sub: `이번 달 +${thisMonth}`, f: "all" as const, dot: "var(--primary)" },
             { label: "이번 달 신규", value: thisMonth, sub: "신규 가입", f: "new" as const, dot: "var(--chart-1)" },
             { label: "유료 구독", value: kindCounts.paid, sub: `전환율 ${conversionRate}%`, f: "paid" as const, dot: "var(--success)" },
-            { label: "체험 중", value: kindCounts.trial, sub: "카드 등록 · 전환 대기", f: "trial" as const, dot: "var(--chart-2)" },
-            { label: "체험 만료", value: kindCounts.expired, sub: "차단 중 · 연락 대상", f: "expired" as const, dot: "var(--danger)" },
+            { label: "무료 이용", value: kindCounts.free, sub: "무료 요금제 · 전환 대상", f: "free" as const, dot: "var(--chart-5)" },
+            { label: "무상·미납", value: kindCounts.granted + kindCounts.past_due, sub: "결제 없이 켠 구독 · 결제 밀림", f: "other" as const, dot: "var(--chart-4)" },
           ].map((kpi) => (
             <button key={kpi.label} type="button" onClick={() => setKpiFilter(kpi.f)}
               className={`flex flex-col gap-0.5 px-4 py-3 text-left transition ${kpiFilter === kpi.f ? "bg-[var(--primary)]/8" : "hover:bg-[var(--bg-surface)]"}`}>
@@ -696,7 +696,7 @@ function SignupFunnelCard({ funnel, i }: { funnel: FunnelStats | null; i: number
     { label: "계정 생성", value: t?.accounts ?? 0 },
     { label: "로그인", value: t?.signed_in ?? 0 },
     { label: "회사 등록", value: t?.companies ?? 0 },
-    { label: "체험 시작", value: t?.trials ?? 0 },
+    { label: "유료 결제 시작", value: t?.trials ?? 0 },
   ];
   return (
     <PfCard i={i}>
@@ -725,7 +725,7 @@ function SignupFunnelSection({ funnel, loading, error }: { funnel: FunnelStats |
     { label: "계정 생성", n: t?.accounts ?? 0 },
     { label: "로그인", n: t?.signed_in ?? 0 },
     { label: "회사 등록", n: t?.companies ?? 0 },
-    { label: "체험 시작", n: t?.trials ?? 0 },
+    { label: "유료 결제 시작", n: t?.trials ?? 0 },
   ];
   // 가장 크게 빠지는 구간 · 여기가 오늘의 병목
   let worstIdx = -1, worstDrop = 0;
@@ -759,7 +759,7 @@ function SignupFunnelSection({ funnel, loading, error }: { funnel: FunnelStats |
     return detail.trials.map((tr) => ({
       key: tr.company_id,
       who: <Link href={`/platform/companies/${tr.company_id}`} className="font-semibold text-[var(--primary)] hover:underline">{tr.company}</Link>,
-      sub: `${tr.status === "trialing" ? "체험" : "유료"} 시작 · ${fmtKst(tr.created_at)}`,
+      sub: `유료 결제 시작 · ${fmtKst(tr.created_at)}`,
     }));
   })();
 
@@ -861,8 +861,8 @@ function SignupFunnelSection({ funnel, loading, error }: { funnel: FunnelStats |
 //   1건만 보고 있었다("총 가입사 1"). 정책 추가 후 전체가 보이므로 목록을 붙인다.
 function RecentCompanies({ companies, filter, onFilter, activityById, nowMs }: {
   companies: any[];
-  filter: "all" | "paid" | "trial" | "free" | "new" | "expired";
-  onFilter: (f: "all" | "paid" | "trial" | "free" | "new" | "expired") => void;
+  filter: "all" | "paid" | "trial" | "free" | "new" | "expired" | "other";
+  onFilter: (f: "all" | "paid" | "trial" | "free" | "new" | "expired" | "other") => void;
   activityById: Map<string, CompanyActivity>;
   nowMs: number;
 }) {
@@ -881,6 +881,7 @@ function RecentCompanies({ companies, filter, onFilter, activityById, nowMs }: {
     if (filter === "trial") return k === "trial";
     if (filter === "expired") return k === "expired";
     if (filter === "free") return k === "free";
+    if (filter === "other") return k === "granted" || k === "past_due";
     if (filter === "new") return isThisMonth(c);
     return true;
   };
@@ -897,7 +898,7 @@ function RecentCompanies({ companies, filter, onFilter, activityById, nowMs }: {
   useEffect(() => { setPage(0); }, [filter]);
 
   const FILTER_LABEL: Record<string, string> = {
-    all: "전체", new: "이번 달 신규", paid: "유료", trial: "체험 중", free: "미구독", expired: "체험 만료",
+    all: "전체", new: "이번 달 신규", paid: "유료", trial: "체험 중(옛 구독)", free: "무료 이용", expired: "체험 만료(옛 구독)", other: "무상·미납",
   };
   const kindTone = (kind: string): "ok" | "warn" | "danger" | "muted" | "info" =>
     kind === "paid" ? "ok" : kind === "trial" ? "warn" : kind === "expired" || kind === "past_due" ? "danger" : kind === "granted" ? "info" : "muted";
