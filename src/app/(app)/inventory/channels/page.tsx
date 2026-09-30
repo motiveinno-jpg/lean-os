@@ -31,7 +31,7 @@ import { useClaimsPanel, useSettlePanel, inRange, NO_RANGE } from "./_components
 import {
   CHANNELS, channelLabel, listChannelCodes, upsertChannelCode, deleteChannelCode,
   listImports, listSeenOrderNos, importChannelDoc, fetchChannelOrders, CHANNEL_HAS_API,
-  updateShipping, listImportItems, CARRIERS, SHIP_STATUS_LABEL,
+  updateShipping, listImportItems, CARRIERS, SHIP_STATUS_LABEL, revertImport,
   CARRIER_SHEETS, SHEET_FIELDS, listSheetLayouts, saveSheetLayout, deleteSheetLayout, sheetRow, type SheetLayout, type SheetColumn,
   type ChannelValue, type RawOrderRow, type ChannelCode, type OrderImport,
 } from "@/lib/inventory-channels";
@@ -212,6 +212,24 @@ export default function ChannelsPage() {
   //   출고 대기는 기간 무관(지금 할 일 — 카드 숫자도 기간 무관), 발송됨·배송 완료는 현황 기간 안 주문
   const goShip = (view: "pending" | "shipped" | "done") => {
     ship.setCond(stCond); ship.setRange(view === "pending" ? NO_RANGE : stPeriod()); ship.setView(view); setTab("ship");
+  };
+  //   잘못 가져온 주문 되돌리기(2026-09-30) — 막는 이유가 있으면 버튼을 끄고 이유를 보인다(서버 함수도 다시 확인한다)
+  const claimedIds = useMemo(() => new Set(claimsPanel.claims.map((c) => c.import_id)), [claimsPanel.claims]);
+  const settledIds = useMemo(() => new Set(settlePanel.settlements.map((x) => x.import_id).filter(Boolean) as string[]), [settlePanel.settlements]);
+  const revertBlock = (i: OrderImport): string | null =>
+    i.ship_status !== "pending" ? "이미 발송한 주문입니다 — 반품·취소는 클레임으로"
+    : claimedIds.has(i.id) ? "클레임이 있는 주문입니다"
+    : settledIds.has(i.id) ? "정산 줄이 이어진 주문입니다 — 취소면 클레임으로" : null;
+  const revert = async (i: OrderImport) => {
+    if (!(await appConfirm(`${channelLabel(i.channel)} ${i.channel_order_no} 주문을 되돌릴까요?
+
+잘못 가져온 주문일 때 씁니다. 이 주문의 출고 줄을 지워 재고가 돌아오고, 주문 기록도 지워져 다시 가져올 수 있습니다.
+실제로 취소·반품된 주문이면 되돌리지 말고 클레임으로 등록하세요.`, { danger: true, confirmLabel: "되돌리기" }))) return;
+    try {
+      const r = await revertImport(i);
+      toast(`되돌렸습니다 · 출고 줄 ${r.removedLines}개${r.docDeleted ? " · 빈 출고 문서 삭제" : ""}`, "success");
+      for (const k of ["ch-imports", "inv-onhand", "inv-available", "inv-moves", "ch-ship-items"]) qc.invalidateQueries({ queryKey: [k, companyId] });
+    } catch (e) { toast(friendlyError(e, "되돌리지 못했습니다"), "error"); }
   };
   const goClaims = () => { claimsPanel.setCond(stCond); claimsPanel.setRange(stPeriod()); setTab("claims"); };
   //   들어오면 첫 칸에 커서(전표 화면과 같다)
@@ -472,6 +490,7 @@ export default function ChannelsPage() {
                       <SortableTh label="주문자" sortKey="buyer" sort={iSort} onSort={onISort} />
                       <th>수취인</th><th>연락처</th><th>주소</th><th>배송 요청</th>
                       <SortableTh label="금액" sortKey="amount" sort={iSort} onSort={onISort} />
+                      <th>출고 상태</th><th>송장</th>
                       <SortableTh label="등록 시각" sortKey="at" sort={iSort} onSort={onISort} />
                       {canWrite && <th></th>}
                     </tr></thead>
@@ -486,9 +505,16 @@ export default function ChannelsPage() {
                           <td className="text-left ch-addr" title={i.address || undefined}>{i.address || "—"}</td>
                           <td className="text-left ev-dim">{i.shipping_note || "—"}</td>
                           <td className="tr mono-number">{i.amount != null ? `₩${won(i.amount)}` : "—"}</td>
+                          {/*   출고 상태·송장 — 엑셀엔 있는데 표에 없었다(2026-09-30) */}
+                          <td className="tc"><span className={i.ship_status === "done" ? "inv-pill inv-pill-ok" : i.ship_status === "shipped" ? "inv-pill inv-pill-warn" : "inv-pill inv-pill-danger"}>{SHIP_STATUS_LABEL[i.ship_status]}</span></td>
+                          <td className="mono-number text-left" title={i.carrier ? (CARRIERS.find((c) => c.value === i.carrier)?.label || i.carrier) : undefined}>{i.tracking_no || "—"}</td>
                           <td className="tc ev-dim">{kstDateTime(i.imported_at).slice(5)}</td>
-                          {/*   주문에서 바로 클레임 — 주문을 다시 찾지 않게(2026-09-30) */}
-                          {canWrite && <td className="tc"><button type="button" className="btn-secondary btn-sm" onClick={() => claimsPanel.openNew(i)}>클레임</button></td>}
+                          {/*   주문에서 바로 클레임 — 주문을 다시 찾지 않게 · 되돌리기는 잘못 가져온 주문(2026-09-30) */}
+                          {canWrite && <td className="tc ch-imp-acts">
+                            <button type="button" className="btn-secondary btn-sm" onClick={() => claimsPanel.openNew(i)}>클레임</button>
+                            <button type="button" className="btn-secondary btn-sm" disabled={!!revertBlock(i)} title={revertBlock(i) || "잘못 가져온 주문 — 재고를 되돌리고 기록을 지워 다시 가져올 수 있게 합니다"}
+                              onClick={() => revert(i)}>되돌리기</button>
+                          </td>}
                         </tr>
                       ))}
                     </tbody>

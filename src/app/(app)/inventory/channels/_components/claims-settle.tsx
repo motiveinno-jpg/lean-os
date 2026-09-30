@@ -108,6 +108,51 @@ export function useClaimsPanel({ companyId, userId, imports, products, canWrite,
     } catch (e) { toast(friendlyError(e, "클레임 등록 실패"), "error"); }
     finally { setBusy(false); }
   };
+  //   엑셀 붙여넣기로 여러 건 등록(2026-09-30) — 채널 판매자센터의 취소·반품 목록을 그대로. 한 건씩 등록과 같은 createClaim 을 차례로 부른다
+  //     열: 주문번호 · 종류(취소/반품/교환) · 환불액 · 일자 · 사유 · 재고 되돌림(O/X, 비우면 O — 출고 문서가 없는 주문은 X)
+  //     건너뜀: 주문 없음(그 채널에 없는 번호) · 종류 인식 실패 · 같은 주문·종류·일자 클레임이 이미 있음(다시 붙여넣기 방지 — 결정 17 과 같은 결)
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkCh, setBulkCh] = useState<string>(CHANNELS[0].value);
+  const [bulkText, setBulkText] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const bulk = useMemo(() => {
+    const KIND: Record<string, ClaimKind> = { "취소": "cancel", cancel: "cancel", "반품": "return", "return": "return", "교환": "exchange", exchange: "exchange" };
+    const byNo = new Map(imports.filter((i) => i.channel === bulkCh).map((i) => [i.channel_order_no.trim(), i]));
+    const have = new Set(claims.map((c) => `${c.import_id}|${c.kind}|${c.claimed_at}`));
+    const ok: { imp: OrderImport; kind: ClaimKind; refund: number; date: string; reason: string; restock: boolean }[] = [];
+    const noOrder: string[] = [], badKind: string[] = [], dup: string[] = [];
+    for (const raw of bulkText.split(/\r?\n/)) {
+      if (!raw.trim()) continue;
+      const p = raw.includes("\t") ? raw.split("\t").map((x) => x.trim()) : raw.split(/,|\s{2,}/).map((x) => x.trim());
+      const no = p[0] || "";
+      if (!no || no === "주문번호") continue;   // 머리글 줄은 건너뛴다
+      const imp = byNo.get(no);
+      if (!imp) { noOrder.push(no); continue; }
+      const kind = KIND[(p[1] || "").toLowerCase()];
+      if (!kind) { badKind.push(`${no}(${p[1] || "빈칸"})`); continue; }
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(p[3] || "") ? p[3] : todayKst();
+      if (have.has(`${imp.id}|${kind}|${date}`)) { dup.push(no); continue; }
+      const refund = kind === "exchange" ? 0 : Number(String(p[2] || "").replace(/[,₩원\s]/g, "")) || 0;
+      const r = (p[5] || "").toUpperCase();
+      ok.push({ imp, kind, refund, date, reason: p[4] || "", restock: !!imp.doc_id && !["X", "N", "NO", "아니오", "안함"].includes(r) });
+    }
+    return { ok, noOrder, badKind, dup };
+  }, [bulkText, bulkCh, imports, claims]);
+  const saveBulk = async () => {
+    if (!companyId || bulkBusy || !bulk.ok.length) return;
+    setBulkBusy(true);
+    let done = 0; const fail: string[] = [];
+    for (const x of bulk.ok) {
+      try { await createClaim(companyId, { imp: x.imp, kind: x.kind, refundAmount: x.refund, reason: x.reason, claimedAt: x.date, restock: x.restock }, userId); done += 1; }
+      catch (e) { fail.push(`${x.imp.channel_order_no}: ${friendlyError(e)}`); }
+    }
+    setBulkBusy(false);
+    qc.invalidateQueries({ queryKey: ["ch-claims", companyId] });
+    onDone();
+    if (fail.length) toast(`${done}건 등록 · ${fail.length}건 실패 — ${fail.slice(0, 2).join(" / ")}${fail.length > 2 ? " …" : ""}`, "error");
+    else { toast(`클레임 ${done}건을 등록했습니다`, "success"); setBulkOpen(false); setBulkText(""); }
+  };
+
   //   고치기 — 사유·환불액만(종류·일자는 재고 문서와 묶여 있어 지우고 다시 등록, 2026-09-30)
   const [edit, setEdit] = useState<{ c: Claim; refund: string; reason: string } | null>(null);
   const saveEdit = async () => {
@@ -137,6 +182,7 @@ export function useClaimsPanel({ companyId, userId, imports, products, canWrite,
   const head = (<>
     <QueryBar right={<>
       <button type="button" className="btn-secondary btn-sm" disabled={!shown.length} onClick={exportClaims}>엑셀</button>
+      {canWrite && <button type="button" className="btn-secondary btn-sm" onClick={() => setBulkOpen(true)}>엑셀 붙여넣기</button>}
       {canWrite && <button type="button" className="btn-primary btn-sm" onClick={() => openNew()}>+ 클레임 등록</button>}
     </>}>
       <SimpleCond groups={KIND_GROUP} live={cond} onApply={setCond} />
@@ -258,7 +304,37 @@ export function useClaimsPanel({ companyId, userId, imports, products, canWrite,
     </div>
   ); })() : null;
 
-  return { head, body, pagerEl, dialog: <>{dialog}{editDialog}</>, claims, openNew, setCond, setRange };
+  const bulkDialog = bulkOpen ? (
+    <div className="inv-modal" onClick={() => setBulkOpen(false)}>
+      <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
+        <h3 className="inv-modal-title">클레임 엑셀 붙여넣기</h3>
+        <p className="inv-modal-desc">열 순서: <b>주문번호 · 종류(취소/반품/교환)</b> · 환불액 · 일자 · 사유 · 재고 되돌림(O/X). 일자를 비우면 오늘, 재고 되돌림을 비우면 O(반품 입고 문서 생성)입니다. 같은 주문·종류·일자 클레임이 있으면 건너뜁니다.</p>
+        <label className="inv-field"><span>채널 *</span>
+          <select className="field-input" value={bulkCh} onChange={(e) => setBulkCh(e.target.value)}>
+            {CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select></label>
+        <label className="inv-field"><span>클레임 목록</span>
+          <ExcelPasteHelper templateName="클레임_양식" sheetName="클레임" onText={setBulkText}
+            cols={[{ key: "no", label: "주문번호", required: true, example: "2026090500094" }, { key: "kind", label: "종류", required: true, hint: "취소 · 반품 · 교환", example: "반품" },
+              { key: "refund", label: "환불액", kind: "number", example: 89000 }, { key: "date", label: "일자", kind: "date", example: "2026-09-30" },
+              { key: "reason", label: "사유", example: "단순 변심" }, { key: "restock", label: "재고 되돌림", hint: "O / X", example: "O" }]} />
+          <textarea className="field-input inv-paste ch-paste" rows={8} value={bulkText} onChange={(e) => setBulkText(e.target.value)} autoFocus
+            placeholder={"주문번호\t종류\t환불액\t일자\t사유\t재고 되돌림\n2026090500094\t반품\t89000\t2026-09-30\t단순 변심\tO"} /></label>
+        <p className="inv-foot">
+          <b>{bulk.ok.length}건 등록 예정</b>{bulk.ok.length > 0 && <> · 환불 합 ₩{won(bulk.ok.reduce((n, x) => n + x.refund, 0))} · 재고 되돌림 {bulk.ok.filter((x) => x.restock).length}건</>}
+          {bulk.noOrder.length > 0 && <span className="inv-paste-bad"> · 주문 없음 {bulk.noOrder.length}건: {bulk.noOrder.slice(0, 3).join(", ")}{bulk.noOrder.length > 3 ? " …" : ""}</span>}
+          {bulk.badKind.length > 0 && <span className="inv-paste-bad"> · 종류 인식 실패 {bulk.badKind.length}건: {bulk.badKind.slice(0, 3).join(", ")}</span>}
+          {bulk.dup.length > 0 && <span className="ev-dim"> · 이미 있는 클레임 {bulk.dup.length}건 건너뜀</span>}
+        </p>
+        <div className="inv-modal-actions">
+          <button type="button" className="btn-secondary btn-sm" onClick={() => setBulkOpen(false)}>닫기</button>
+          <button type="button" className="btn-primary btn-sm" disabled={bulkBusy || !bulk.ok.length} onClick={saveBulk}>{bulkBusy ? "등록 중…" : `등록 (${bulk.ok.length})`}</button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  return { head, body, pagerEl, dialog: <>{dialog}{editDialog}{bulkDialog}</>, claims, openNew, setCond, setRange };
 }
 
 // ── 정산 ──────────────────────────────────────────────────────────────────

@@ -11018,6 +11018,9 @@ table.ch-claims-fit { min-width: 0; }
 /*   클레임 줄의 고치기·지우기 (2026-09-30) — 두 버튼을 한 줄에 */
 .ev-table tbody td.ch-claims-acts { @apply whitespace-nowrap; }
 .ch-claims-acts > button + button { @apply ml-1; }
+/*   가져오기 이력 줄의 클레임·되돌리기 (2026-09-30) */
+.ev-table tbody td.ch-imp-acts { @apply whitespace-nowrap; }
+.ch-imp-acts > button + button { @apply ml-1; }
 
 /* ── 앱 공통 껍데기(머리 줄·투어·로고) ── */
 /* 모바일 머리 줄: 계산기·캡처·메모·도움말은 '더보기' 하나로 접는다(header-tools HeaderMoreMenu) — 화면 제목 자리를 남긴다 */
