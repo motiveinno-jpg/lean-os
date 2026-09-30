@@ -374,7 +374,10 @@ export function AnalyticsSection({ usage, traffic, companies, companyActivity, t
                   // 무료체험 폐지 — 옛 체험 구독이 남아 있을 때만
                   ...(kinds.trial > 0 ? [{ label: "체험 중(옛 구독)", value: kinds.trial, color: "var(--chart-2)" }] : []),
                   ...(kinds.expired > 0 ? [{ label: "체험 만료(옛 구독)", value: kinds.expired, color: "var(--danger)" }] : []),
-                  { label: "미구독", value: kinds.free, color: "var(--chart-5)" },
+                  // 무상 이용·미납도 조각을 낸다 — 빠지면 가운데 합계가 실제 활동 가입사보다 적게 나온다
+                  ...(kinds.past_due > 0 ? [{ label: "미납", value: kinds.past_due, color: "var(--chart-4)" }] : []),
+                  ...(kinds.granted > 0 ? [{ label: "무상 이용", value: kinds.granted, color: "var(--chart-1)" }] : []),
+                  { label: "무료 이용", value: kinds.free, color: "var(--chart-5)" },
                 ]}
               />
             </PfCardBody>

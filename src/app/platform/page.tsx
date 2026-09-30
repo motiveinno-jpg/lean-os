@@ -385,7 +385,7 @@ export default function PlatformOverview() {
     // 미납·무상 이용은 있을 때만 조각을 낸다(늘 0인 범례 줄이 생기지 않게)
     ...(kindCounts.past_due > 0 ? [{ label: "미납", value: kindCounts.past_due, color: "var(--chart-4)" }] : []),
     ...(kindCounts.granted > 0 ? [{ label: "무상 이용", value: kindCounts.granted, color: "var(--chart-1)" }] : []),
-    { label: "미구독", value: kindCounts.free, color: "var(--chart-5)" },
+    { label: "무료 이용", value: kindCounts.free, color: "var(--chart-5)" },
   ];
   // CODEF API별 사용률 — API(상품)당 월 10만원까지 포함, 초과분부터 과금.
   //   10만원 = 100% 로 두고 각 API 사용액을 링으로 보여준다.
