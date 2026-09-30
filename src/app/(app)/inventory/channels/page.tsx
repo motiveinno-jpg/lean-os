@@ -231,7 +231,9 @@ export default function ChannelsPage() {
       <QueryScreen>
         <QueryHead>
           <div className="collect-tabs no-print">
-            {([["status", "현황"], ["import", "주문 가져오기"], ["ship", "출고 처리"], ["claims", "클레임"], ["settle", "정산"], ["codes", "상품 연결"], ["history", "가져오기 이력"]] as const).map(([k, l]) => (
+            {/*   차례는 사이드바 「이커머스」와 같다 — 기초 → 거래 → 현황 (2026-09-30 사장님 "사이드바에 맞추기").
+                  가져오기 이력은 사이드바에서 주문 가져오기에 붙어 있어 그 뒤. 처음 들어오면 여는 갈래는 그대로 현황(결정 148) */}
+            {([["codes", "상품 연결"], ["import", "주문 가져오기"], ["history", "가져오기 이력"], ["ship", "출고 처리"], ["claims", "클레임"], ["settle", "정산"], ["status", "현황"]] as const).map(([k, l]) => (
               <button key={k} type="button" onClick={() => setTab(k as Tab)}
                 className={tab === k ? "collect-tab collect-tab-on" : "collect-tab"}>
                 {l}

@@ -11,7 +11,7 @@ import { appConfirm } from "@/components/global-confirm";
 import { todayKst, kstDateTime } from "@/lib/kst";
 import { DateField } from "@/components/date-field";
 import { DateRangeField } from "@/components/date-range-field";
-import { QueryBar, ResultStrip, Stat, QuickSearch, quickSearchHit, Pager, usePager } from "@/components/query-kit";
+import { QueryBar, ResultStrip, Stat, QuickSearch, quickSearchHit, Pager, usePager, ChipGroup } from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { SimpleCond, SimpleApplied, condHit, type CondLive } from "../../_components/simple-cond";
 import { ExcelPasteHelper } from "../../_components/excel-paste-helper";
@@ -263,6 +263,7 @@ export function useClaimsPanel({ companyId, userId, imports, products, canWrite,
 
 // ── 정산 ──────────────────────────────────────────────────────────────────
 type SettleKey = "date" | "channel" | "no" | "sale" | "fee" | "settle";
+type BatchKey = "at" | "period" | "n" | "settle";
 export function useSettlePanel({ companyId, userId, imports, claims, canWrite, canLink = false }: {
   companyId: string | null; userId: string | null; imports: OrderImport[]; claims: Claim[]; canWrite: boolean;
   /** 통장 줄을 전표에 걸 권한(수집·전표) — 없으면 후보만 보이고 잇기 버튼은 꺼진다 */
@@ -277,6 +278,11 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite, c
   const [cond, setCond] = useState<CondLive>({});
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<SortState<SettleKey>>({ key: "date", dir: "desc" });
+  //   보기 (2026-09-30 화면 점검 #15) — 「전표 초안」「묶음 지우기」는 **묶음** 단위 일인데 정산 줄마다 붙어 있어
+  //     같은 묶음 50줄에 같은 버튼이 50번 나왔다. 정산 줄 = 읽기, 묶음 = 붙여넣기 한 번이 한 줄(전표·지우기·입금 대조는 여기서).
+  const [view, setView] = useState<"lines" | "batches">("lines");
+  const [bSort, setBSort] = useState<SortState<BatchKey>>({ key: "at", dir: "desc" });
+  const [sumOpen, setSumOpen] = useState(false);
   const shown = useMemo(() => settlements.filter((s) => condHit(cond, "channel", s.channel) && condHit(cond, "match", s.import_id ? "yes" : "no")
     && quickSearchHit(q, [s.channel_order_no, impById.get(s.import_id || "")?.buyer_name])), [settlements, cond, q, impById]);
   const sorted = useMemo(() => {
@@ -290,6 +296,8 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite, c
   const summary = useMemo(() => settlementSummary(shown, fees), [shown, fees]);
   const unsettled = useMemo(() => unsettledImports(imports, settlements, claims, todayKst()), [imports, settlements, claims]);
   const [showUnsettled, setShowUnsettled] = useState(false);
+  //   실측 수수료율이 설정과 1%p 넘게 다른 채널 — 결과 줄에 '갱신 제안 N'으로 띄운다(요약은 팝업)
+  const proposeN = summary.filter((r) => r.feeRateActual != null && (r.feeRateSet == null || Math.abs(r.feeRateActual - r.feeRateSet) > 0.01)).length;
   const total = { settle: shown.reduce((n, s) => n + s.settle_amount, 0), fee: shown.reduce((n, s) => n + s.fee_amount, 0), unmatched: shown.filter((s) => !s.import_id).length };
 
   const applyFee = async (ch: string, rate: number) => {
@@ -369,7 +377,23 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite, c
     if (l.candidates.length) return <button type="button" className="btn-secondary btn-sm ch-settle-nowrap" onClick={() => setLinkFor(s.journal_entry_id!)} title="같은 금액의 통장 입금 줄이 있습니다 — 골라서 전표에 겁니다">입금 잇기 ({l.candidates.length})</button>;
     return <span className="ev-dim" title="전표일 −3~+14일 안에 정산금과 같은 금액의 입금이 없습니다. 통장이 수집되면 다시 보입니다">입금 후보 없음</span>;
   };
-  const batchHasVoucher = (batchId: string) => settlements.some((s) => s.batch_id === batchId && liveVoucher(s));
+  //   묶음 보기 — 조건에 걸린 줄이 든 묶음만, 합계는 묶음 전체(전표 초안이 묶음 합계로 만들어지므로 같은 숫자)
+  const batches = useMemo(() => [...new Set(shown.map((s) => s.batch_id))].map((id) => {
+    const rows = settlements.filter((s) => s.batch_id === id);
+    const live = rows.find((s) => !!s.journal_entry_id && s.journal_status !== "rejected");
+    return {
+      id, rows, t: batchTotals(rows), live,
+      rejected: !live && rows.some((s) => !!s.journal_entry_id),
+      at: rows.reduce((m, r) => (r.created_at > m ? r.created_at : m), ""),
+    };
+  }), [shown, settlements]);
+  const sortedBatches = useMemo(() => {
+    const d = bSort.dir === "asc" ? 1 : -1;
+    const val = (b: (typeof batches)[number]) => bSort.key === "at" ? b.at : bSort.key === "period" ? b.t.to : bSort.key === "n" ? b.t.n : b.t.settle;
+    return [...batches].sort((a, b) => cmp(val(a), val(b)) * d);
+  }, [batches, bSort]);
+  const bPager = usePager(sortedBatches, 50, `${JSON.stringify(cond)}|${q}|${bSort.key}${bSort.dir}`);
+  const onBSort = (k: string) => setBSort((s) => nextSort(s, k as BatchKey));
   const acctLabel = (id?: string) => { const a = acctOpts.find((x) => x.id === id); return a ? `${a.code || ""} ${a.name}`.trim() : "—"; };
   const voucherReady = !!(acc.bank && acc.fee && acc.ship && acc.sales) && (totals.diff === 0 || !!acc.diff);
   const makeVoucher = async () => {
@@ -417,20 +441,29 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite, c
       {canWrite && <button type="button" className="btn-primary btn-sm" onClick={() => setOpen(true)}>정산 내역 붙여넣기</button>}
     </>}>
       <SimpleCond groups={MATCH_GROUP} live={cond} onApply={setCond} />
+      <ChipGroup value={view} onChange={(v) => setView(v as "lines" | "batches")}
+        options={[{ value: "lines", label: "정산 줄" }, { value: "batches", label: `묶음 ${batches.length}` }]} />
       <QuickSearch value={q} onApply={setQ} placeholder="주문번호 · 주문자 · 쉼표로 여러 개, Enter" />
-      <span className="inv-hint">채널이 준 정산 내역을 붙여넣으면 <b>주문과 대조</b>하고 실측 수수료율을 냅니다. 같은 줄은 다시 넣어도 건너뜁니다.</span>
     </QueryBar>
     <SimpleApplied groups={MATCH_GROUP} live={cond} onApply={setCond} />
     <ResultStrip>
       <Stat label="정산 줄" value={`${won(shown.length)}건`} />
       <Stat label="정산금" value={`₩${won(total.settle)}`} />
       <Stat label="수수료" value={`₩${won(total.fee)}`} tone={total.fee > 0 ? "minus" : undefined} />
-      <button type="button" className="qk-stat-link" onClick={() => setShowUnsettled((v) => !v)} title={`출고 ${UNSETTLED_DAYS}일이 지났는데 정산 줄이 없는 주문`}>
+      {summary.length > 0 && (
+        <button type="button" className="qk-stat-link" onClick={() => setSumOpen(true)} title="채널별 판매금액·수수료·실측 수수료율 — 설정과 1%p 넘게 다르면 갱신을 제안합니다">
+          <Stat label="채널별 수수료율" value={proposeN ? `갱신 제안 ${proposeN}` : `${summary.length}개 채널`} tone={proposeN ? "minus" : undefined} />
+        </button>
+      )}
+      <button type="button" className="qk-stat-link" onClick={() => setShowUnsettled(true)} title={`출고 ${UNSETTLED_DAYS}일이 지났는데 정산 줄이 없는 주문`}>
         <Stat label="미정산 의심" value={`${won(unsettled.length)}건`} tone={unsettled.length ? "minus" : undefined} />
       </button>
       <button type="button" className="qk-stat-link" onClick={() => setCond((c) => ({ ...c, match: ["no"] }))} title="주문 가져오기에 없는 주문번호의 정산 줄 · 광고비·보정 줄도 여기">
         <Stat label="주문 없음" value={`${won(total.unmatched)}건`} />
       </button>
+      <span className="spv-toolbar-hint" title="채널이 준 정산 내역을 붙여넣으면 주문과 대조하고 실측 수수료율을 냅니다. 같은 줄은 다시 넣어도 건너뜁니다">
+        {view === "lines" ? <>전표 초안·묶음 지우기·통장 입금 대조는 <b>묶음</b> 보기에서</> : <>붙여넣기 한 번이 한 묶음 · 전표 초안은 <b>묶음 합계</b>로</>}
+      </span>
     </ResultStrip>
   </>);
 
@@ -440,9 +473,85 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite, c
   ) : stLoading ? (
     <div className="collect-empty">불러오는 중…</div>
   ) : (<>
-    {summary.length > 0 && (
-      <div className="pjv3-stpanel ch-settle-sum">
-        <h3>채널별 <small>실측 수수료율 = 수수료 ÷ 판매금액. 설정과 1%p 넘게 다르면 갱신을 제안합니다(확정은 사람).</small></h3>
+    {lastEntry && <p className="inv-hint">정산 전표 초안이 생겼습니다. <Link href="/finance/status?tab=todo" className="bz-link">전표 현황 › 처리할 것에서 확정 →</Link></p>}
+    {shown.length === 0 ? (
+      <div className="collect-empty">{settlements.length === 0 ? <>아직 정산 내역이 없습니다. 채널 판매자센터의 정산 내역 엑셀을 <b>정산 내역 붙여넣기</b>로 넣으세요.</> : "조건에 맞는 정산 줄이 없습니다."}</div>
+    ) : view === "batches" ? (
+      <div className="stg-table-wrap">
+        <table className="ev-table ev-lined ch-settle-fit">
+          <thead><tr>
+            <SortableTh label="붙인 때" sortKey="at" sort={bSort} onSort={onBSort} />
+            <SortableTh label="정산 기간" sortKey="period" sort={bSort} onSort={onBSort} />
+            <th>채널</th>
+            <SortableTh label="줄" sortKey="n" sort={bSort} onSort={onBSort} />
+            <th>판매금액</th><th>수수료</th><th>배송비</th>
+            <SortableTh label="정산금" sortKey="settle" sort={bSort} onSort={onBSort} />
+            <th>전표</th><th>통장 입금</th>{canWrite && <th></th>}
+          </tr></thead>
+          <tbody>{bPager.view.map((b) => (
+            <tr key={b.id}>
+              <td className="tc ev-dim">{b.at ? kstDateTime(b.at).slice(5) : "—"}</td>
+              <td className="mono-number">{b.t.from}{b.t.to !== b.t.from ? ` ~ ${b.t.to}` : ""}</td>
+              <td className="tc">{b.t.channels.map(channelLabel).join(", ")}</td>
+              <td className="tr mono-number">{won(b.t.n)}</td>
+              <td className="tr mono-number">₩{won(b.t.sale)}</td>
+              <td className="tr mono-number">₩{won(b.t.fee)}</td>
+              <td className="tr mono-number">₩{won(b.t.ship)}</td>
+              <td className="tr mono-number"><b>₩{won(b.t.settle)}</b></td>
+              <td className="tc">{b.live ? (b.live.journal_status === "confirmed" ? "확정" : <span title="전표 현황 › 처리할 것에서 확정">초안 있음</span>)
+                : b.rejected ? <span className="ev-dim" title="전표가 반려됐습니다 · 다시 만들 수 있습니다">반려됨</span> : <span className="ev-dim">—</span>}</td>
+              <td className="tc ch-settle-wrap">{(b.live && bankCell(b.live)) ?? <span className="ev-dim">—</span>}</td>
+              {canWrite && <td className="tc ch-batch-acts">
+                {!b.live && <button type="button" className="btn-secondary btn-sm" onClick={() => setVoucherBatch(b.id)} title="이 묶음 합계로 정산 전표 초안을 만듭니다">전표 초안</button>}
+                <button type="button" className="btn-secondary btn-sm" disabled={!!b.live} onClick={() => removeBatch(b.rows[0])}
+                  title={b.live ? "전표 초안이 있는 묶음은 지울 수 없습니다 — 전표를 먼저 반려하세요" : "이 묶음의 정산 줄을 모두 지웁니다"}>지우기</button>
+              </td>}
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+    ) : (
+      <div className="stg-table-wrap">
+        <table className="ev-table ev-lined table-inv-ch-settle ch-settle-fit">
+          <thead><tr>
+            <SortableTh label="정산일" sortKey="date" sort={sort} onSort={onSort} />
+            <SortableTh label="채널" sortKey="channel" sort={sort} onSort={onSort} />
+            <SortableTh label="주문번호" sortKey="no" sort={sort} onSort={onSort} />
+            <th>주문자</th>
+            <SortableTh label="판매금액" sortKey="sale" sort={sort} onSort={onSort} />
+            <SortableTh label="수수료" sortKey="fee" sort={sort} onSort={onSort} />
+            <th>배송비</th>
+            <SortableTh label="정산금" sortKey="settle" sort={sort} onSort={onSort} />
+            <th>대조</th><th>전표</th>
+          </tr></thead>
+          <tbody>{pager.view.map((s) => { const i = s.import_id ? impById.get(s.import_id) : undefined; return (
+            <tr key={s.id}>
+              <td className="mono-number">{s.settled_at}</td>
+              <td className="tc">{channelLabel(s.channel)}</td>
+              <td className="mono-number text-left"><b>{s.channel_order_no}</b></td>
+              <td className="text-left">{i?.buyer_name || <span className="ev-dim">—</span>}</td>
+              <td className="tr mono-number">₩{won(s.sale_amount)}</td>
+              <td className="tr mono-number">₩{won(s.fee_amount)}</td>
+              <td className="tr mono-number">₩{won(s.shipping_amount)}</td>
+              <td className={`tr mono-number ${s.settle_amount < 0 ? "vr-warn" : ""}`}><b>₩{won(s.settle_amount)}</b></td>
+              <td className="tc">{s.import_id ? <span title="주문 가져오기 기록과 이어짐">주문 있음</span> : <span className="ev-dim" title="주문 가져오기에 이 주문번호가 없습니다">주문 없음</span>}</td>
+              <td className="tc">{liveVoucher(s) ? <span title={s.journal_status === "confirmed" ? "정산 전표가 확정됐습니다" : "이 묶음의 정산 전표 초안이 있습니다 · 전표 현황에서 확정"}>{s.journal_status === "confirmed" ? "확정" : "초안 있음"}</span> : s.journal_entry_id ? <span className="ev-dim" title="전표가 반려됐습니다 · 다시 만들 수 있습니다">반려됨</span> : <span className="ev-dim">—</span>}</td>
+            </tr>
+          ); })}</tbody>
+        </table>
+      </div>
+    )}
+  </>);
+  const pagerEl = shown.length === 0 ? null : view === "batches"
+    ? <Pager page={bPager.page} pages={bPager.pages} total={batches.length} size={50} from={bPager.from} to={bPager.to} onPage={bPager.setPage} />
+    : <Pager page={pager.page} pages={pager.pages} total={shown.length} size={50} from={pager.from} to={pager.to} onPage={pager.setPage} />;
+
+  //   채널별 요약 팝업 (2026-09-30 화면 점검 #14 — 표 위에 펼쳐 표를 밀던 것을 결과 줄 숫자 → 팝업으로)
+  const sumDialog = sumOpen ? (
+    <div className="inv-modal" onClick={() => setSumOpen(false)}>
+      <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
+        <h3 className="inv-modal-title">채널별 수수료율</h3>
+        <p className="inv-modal-desc">지금 조건에 걸린 정산 줄 기준입니다. 실측 수수료율 = 수수료 ÷ 판매금액. 설정과 1%p 넘게 다르면 갱신을 제안합니다(확정은 사람).</p>
         <div className="stg-table-wrap"><table className="ev-table ev-lined ch-st-table">
           <thead><tr><th>채널</th><th>정산 줄</th><th>주문 대조</th><th>판매금액</th><th>수수료</th><th>실측 수수료율</th><th>설정 수수료율</th><th>배송비</th><th>정산금</th>{canWrite && <th></th>}</tr></thead>
           <tbody>{summary.map((r) => {
@@ -464,62 +573,33 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite, c
             );
           })}</tbody>
         </table></div>
+        <div className="inv-modal-actions"><button type="button" className="btn-secondary btn-sm" onClick={() => setSumOpen(false)}>닫기</button></div>
       </div>
-    )}
-    {showUnsettled && (
-      <div className="pjv3-stpanel ch-settle-sum">
-        <h3>미정산 의심 {won(unsettled.length)}건 <small>출고(또는 주문) {UNSETTLED_DAYS}일이 지났는데 정산 줄이 없는 주문 · 취소 클레임은 뺐습니다.</small></h3>
+    </div>
+  ) : null;
+
+  //   미정산 의심 팝업 — 전부 보이고 엑셀로 받는다(전에는 표 위 인라인·앞 100건만)
+  const unsettledDialog = showUnsettled ? (
+    <div className="inv-modal" onClick={() => setShowUnsettled(false)}>
+      <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
+        <h3 className="inv-modal-title">미정산 의심 {won(unsettled.length)}건</h3>
+        <p className="inv-modal-desc">출고(또는 주문) {UNSETTLED_DAYS}일이 지났는데 정산 줄이 없는 주문입니다. 취소 클레임은 뺐습니다. 채널 판매자센터에서 정산 예정일을 확인하세요.</p>
         {unsettled.length === 0 ? <div className="collect-empty">없습니다.</div> : (
           <div className="stg-table-wrap"><table className="ev-table ev-lined ch-st-table">
             <thead><tr><th>채널</th><th>주문번호</th><th>주문일</th><th>출고일</th><th>주문자</th><th>금액</th></tr></thead>
-            <tbody>{unsettled.slice(0, 100).map((i) => (
+            <tbody>{unsettled.map((i) => (
               <tr key={i.id}><td className="tc">{channelLabel(i.channel)}</td><td className="mono-number text-left"><b>{i.channel_order_no}</b></td><td className="mono-number">{i.order_date || "—"}</td><td className="mono-number">{i.shipped_at ? kstDateTime(i.shipped_at).slice(0, 10) : "—"}</td><td className="text-left">{i.buyer_name || "—"}</td><td className="tr mono-number">{i.amount != null ? `₩${won(i.amount)}` : "—"}</td></tr>
             ))}</tbody>
-          </table>{unsettled.length > 100 && <p className="inv-hint">앞 100건만 보입니다.</p>}</div>
+          </table></div>
         )}
+        <div className="inv-modal-actions">
+          <button type="button" className="btn-secondary btn-sm" disabled={!unsettled.length}
+            onClick={() => exportToExcel(unsettled.map((i) => ({ "채널": channelLabel(i.channel), "주문번호": i.channel_order_no, "주문일": i.order_date || "", "출고일": i.shipped_at ? kstDateTime(i.shipped_at).slice(0, 10) : "", "주문자": i.buyer_name || "", "금액": i.amount ?? "" })), "미정산 의심", `미정산의심_${todayKst()}`)}>엑셀</button>
+          <button type="button" className="btn-secondary btn-sm" onClick={() => setShowUnsettled(false)}>닫기</button>
+        </div>
       </div>
-    )}
-    {lastEntry && <p className="inv-hint">정산 전표 초안이 생겼습니다. <Link href="/finance/status?tab=todo" className="bz-link">전표 현황 › 처리할 것에서 확정 →</Link></p>}
-    {shown.length === 0 ? (
-      <div className="collect-empty">{settlements.length === 0 ? <>아직 정산 내역이 없습니다. 채널 판매자센터의 정산 내역 엑셀을 <b>정산 내역 붙여넣기</b>로 넣으세요.</> : "조건에 맞는 정산 줄이 없습니다."}</div>
-    ) : (
-      <div className="stg-table-wrap">
-        <table className="ev-table ev-lined table-inv-ch-settle ch-settle-fit">
-          <thead><tr>
-            <SortableTh label="정산일" sortKey="date" sort={sort} onSort={onSort} />
-            <SortableTh label="채널" sortKey="channel" sort={sort} onSort={onSort} />
-            <SortableTh label="주문번호" sortKey="no" sort={sort} onSort={onSort} />
-            <th>주문자</th>
-            <SortableTh label="판매금액" sortKey="sale" sort={sort} onSort={onSort} />
-            <SortableTh label="수수료" sortKey="fee" sort={sort} onSort={onSort} />
-            <th>배송비</th>
-            <SortableTh label="정산금" sortKey="settle" sort={sort} onSort={onSort} />
-            <th>대조</th><th>전표</th><th>통장 입금</th>{canWrite && <th></th>}
-          </tr></thead>
-          <tbody>{pager.view.map((s) => { const i = s.import_id ? impById.get(s.import_id) : undefined; return (
-            <tr key={s.id}>
-              <td className="mono-number">{s.settled_at}</td>
-              <td className="tc">{channelLabel(s.channel)}</td>
-              <td className="mono-number text-left"><b>{s.channel_order_no}</b></td>
-              <td className="text-left">{i?.buyer_name || <span className="ev-dim">—</span>}</td>
-              <td className="tr mono-number">₩{won(s.sale_amount)}</td>
-              <td className="tr mono-number">₩{won(s.fee_amount)}</td>
-              <td className="tr mono-number">₩{won(s.shipping_amount)}</td>
-              <td className={`tr mono-number ${s.settle_amount < 0 ? "vr-warn" : ""}`}><b>₩{won(s.settle_amount)}</b></td>
-              <td className="tc">{s.import_id ? <span title="주문 가져오기 기록과 이어짐">주문 있음</span> : <span className="ev-dim" title="주문 가져오기에 이 주문번호가 없습니다">주문 없음</span>}</td>
-              <td className="tc">{liveVoucher(s) ? <span title={s.journal_status === "confirmed" ? "정산 전표가 확정됐습니다" : "이 묶음의 정산 전표 초안이 있습니다 · 전표 현황에서 확정"}>{s.journal_status === "confirmed" ? "확정" : "초안 있음"}</span> : s.journal_entry_id ? <span className="ev-dim" title="전표가 반려됐습니다 · 다시 만들 수 있습니다">반려됨</span> : <span className="ev-dim">—</span>}</td>
-              <td className="tc ch-settle-wrap">{bankCell(s) ?? <span className="ev-dim">—</span>}</td>
-              {canWrite && <td className="tc"><span className="ch-settle-actions">
-                {!liveVoucher(s) && <button type="button" className="btn-secondary btn-sm" onClick={() => setVoucherBatch(s.batch_id)} title="이 줄이 속한 붙여넣기 묶음 합계로 정산 전표 초안을 만듭니다">전표 초안</button>}
-                <button type="button" className="btn-secondary btn-sm" disabled={batchHasVoucher(s.batch_id)} onClick={() => removeBatch(s)} title={batchHasVoucher(s.batch_id) ? "전표 초안이 있는 묶음은 지울 수 없습니다 — 전표를 먼저 반려하세요" : "이 줄이 속한 붙여넣기 묶음을 지웁니다"}>묶음 지우기</button>
-              </span></td>}
-            </tr>
-          ); })}</tbody>
-        </table>
-      </div>
-    )}
-  </>);
-  const pagerEl = shown.length > 0 ? <Pager page={pager.page} pages={pager.pages} total={shown.length} size={50} from={pager.from} to={pager.to} onPage={pager.setPage} /> : null;
+    </div>
+  ) : null;
 
   const acctSelect = (k: keyof SettlementAccounts, label: string, hint: string) => (
     <label className="inv-field" title={hint}><span>{label}{k === "diff" && totals.diff !== 0 ? " *" : k === "diff" ? "" : " *"}</span>
@@ -583,6 +663,8 @@ export function useSettlePanel({ companyId, userId, imports, claims, canWrite, c
   const dialog = (<>
     {voucherDialog}
     {linkDialog}
+    {sumDialog}
+    {unsettledDialog}
     {open && (
     <div className="inv-modal" onClick={() => setOpen(false)}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
