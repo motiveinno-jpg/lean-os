@@ -1548,7 +1548,9 @@ table.sched-table { min-width: 760px; }
 .signature-list-table { @apply overflow-hidden; }
 .signature-detail-panel { @apply p-6; }
 .vault-layout { @apply flex flex-col md:flex-row gap-4 md:gap-6; }
-.vault-folder-tree { @apply w-full md:w-[240px] shrink-0; }
+.vault-folder-tree { @apply w-full md:w-[250px] xl:w-[290px] 2xl:w-[320px] shrink-0; } /* 폴더 이름이 잘려 240 → 250~320. 1024 폭에서 더 넓히면 파일 목록이 너무 좁아진다 (2026-09-30 실측) */
+/* 폴더 이름 — 두 줄까지 보이고 넘치면 … , 전체 이름은 마우스를 올리면(title) */
+.vault-folder-name { @apply flex-1 min-w-0 line-clamp-2 break-words leading-snug; }
 .vault-file-panel { @apply flex min-w-0 flex-1 flex-col gap-3; }
 .vault-file-panel > .qk-screen { height: calc(100vh - 380px); min-height: 480px; } /* 폰 폭 — md 이상은 아래 미디어 규칙이 덮는다 */
 /*   2026-08-18 상자는 사이드바 끝선까지 — md 이상에서 세로 기둥을 고정 높이로, 폴더 트리·상자는 그 안에서 스크롤 */

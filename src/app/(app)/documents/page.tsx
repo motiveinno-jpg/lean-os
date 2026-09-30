@@ -3124,7 +3124,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
           <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M2 7a2 2 0 012-2h5l2 2h9a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V7z" />
           </svg>
-          <span className="truncate flex-1">{folder.name}</span>
+          <span className="vault-folder-name" title={folder.name}>{folder.name}</span>
           {/* 공개 범위 배지 — 범위는 모두에게 보이되, 바꾸기·지우기는 만든 사람과 권한자만
               (RLS 20260902060000 이 어차피 막는다 — 버튼을 숨겨 조용한 실패를 없앤다) */}
           {(() => {
