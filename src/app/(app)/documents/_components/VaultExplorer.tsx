@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { appConfirm } from "@/components/global-confirm";
 import { useToast } from "@/components/toast";
-import { FileTypeIcon, fileKindOf } from "@/components/file-type-icon";
+import { FileTypeIcon } from "@/components/file-type-icon";
 import { SelectionBar, TokenField } from "@/components/query-kit";
 import { useMyPermissions } from "@/lib/permissions";
 import { friendlyError } from "@/lib/friendly-error";
@@ -336,7 +336,7 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
               </button>
             ) : <span className="vx-tree-spacer" />}
             <button type="button" className="vx-tree-open" title={f.name} onClick={() => open(f.id)}>
-              <FolderGlyph size={20} />
+              <FolderGlyph size={18} />
               <span className="vx-tree-name">{f.name}</span>
               {f.visibility && f.visibility !== "company" && !f.parent_id && <span className="vx-vis-dot" title={`공개 범위: ${VIS_LABEL[f.visibility]}`}>{f.visibility === "private" ? "🔒" : "👥"}</span>}
             </button>
@@ -446,15 +446,16 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
                     onKeyDown={(e) => { if (e.key === "Enter") open(f.id); }}>
                     <div className="vx-name-cell">
                       <span className="vx-chk-space" />
-                      <FolderGlyph size={30} />
+                      <FolderGlyph size={22} />
                       <div className="vx-name-stack">
                         <span className="vx-folder-title" title={f.name}>{f.name}</span>
-                        <span className="vx-sub">{searching ? locOf(f.parent_id) : folderSub(f)}</span>
+                        {searching && <span className="vx-sub">{locOf(f.parent_id)}</span>}
                       </div>
                     </div>
                     <div className="vx-cell">{(f.created_by && userNames[f.created_by]) || "—"}</div>
                     <div className="vx-cell mono-number">{String(f.created_at || "").slice(0, 10)}</div>
-                    <div className="vx-cell vx-num vx-dim">—</div>
+                    {/*   폴더 안 개수는 크기 칸에 — 이름 밑 둘째 줄을 없애 한 화면에 더 많이 보이게 */}
+                    <div className="vx-cell vx-num vx-dim vx-count" title={folderSub(f)}>{folderSub(f).replace(/개/g, "")}</div>
                     <div className="vx-actions">
                       {folderMenu(f)}
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="vx-go"><path d="m9 6 6 6-6 6" /></svg>
@@ -464,7 +465,6 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
                 {shownFiles.map((f) => {
                   const mine = canDeleteFile(f);
                   const on = selectedIds.has(f.id);
-                  const k = fileKindOf(f.file_name);
                   return (
                     <div key={f.id} className={on ? "vx-cols vx-row vx-row-on" : "vx-cols vx-row"}>
                       <div className="vx-name-cell">
@@ -472,14 +472,13 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
                           title={mine ? undefined : `${(f.uploaded_by && userNames[f.uploaded_by]) || "다른 사람"} 님이 올린 파일입니다`}
                           onClick={() => toggleSel(f.id)}
                           className={on ? "collect-chk collect-chk-on" : mine ? "collect-chk" : "collect-chk doc-file-chk-locked"}>{on ? "✓" : ""}</button>
-                        <FileTypeIcon name={f.file_name} size={32} />
+                        <FileTypeIcon name={f.file_name} size={24} />
                         <div className="vx-name-stack">
                           <button type="button" className="vx-file-title" title={f.file_name} onClick={() => void downloadStoredFile(f.file_url, f.file_name)}>{f.file_name}</button>
-                          <span className="vx-sub">
-                            {searching
-                              ? <button type="button" className="vx-loc-btn" onClick={() => open(f.folder_id)}>{locOf(f.folder_id)}</button>
-                              : <>{k.label} · {verLabel(f)}</>}
-                          </span>
+                          {Number(f.version || 1) > 1 && <span className="vx-sub">{verLabel(f)}</span>}
+                          {searching && (
+                            <span className="vx-sub"><button type="button" className="vx-loc-btn" onClick={() => open(f.folder_id)}>{locOf(f.folder_id)}</button></span>
+                          )}
                         </div>
                       </div>
                       <div className="vx-cell">{(f.uploaded_by && userNames[f.uploaded_by]) || "—"}</div>

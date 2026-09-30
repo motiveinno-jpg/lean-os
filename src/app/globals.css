@@ -11182,14 +11182,14 @@ table.ol-items-table { min-width: 760px; table-layout: fixed; }
 .vx-side-title { @apply text-lg font-extrabold text-[var(--text)]; }
 .vx-icon-btn { @apply w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[var(--primary)] hover:bg-[var(--bg-surface)]; }
 .vx-tree { @apply flex flex-col gap-0.5 px-2.5 pb-3 overflow-y-auto flex-1 min-h-0; }
-.vx-tree-root { @apply flex items-center gap-2.5 h-[38px] px-2.5 rounded-lg text-sm font-bold text-[var(--text)] text-left hover:bg-[var(--bg-surface)]; }
-.vx-tree-row { @apply flex items-center min-h-[38px] rounded-lg hover:bg-[var(--bg-surface)]; }
+.vx-tree-root { @apply flex items-center gap-2.5 h-[34px] px-2.5 rounded-lg text-[13px] font-bold text-[var(--text)] text-left hover:bg-[var(--bg-surface)]; }
+.vx-tree-row { @apply flex items-center min-h-[32px] rounded-lg hover:bg-[var(--bg-surface)]; }
 .vx-tree-row-on, .vx-tree-row-on:hover { @apply bg-[var(--primary)]/10 text-[var(--primary)]; }
 .vx-tree-toggle { @apply w-6 h-8 flex items-center justify-center shrink-0 text-[var(--text-dim)]; }
 .vx-chev { transition: transform .15s; }
 .vx-chev-open { transform: rotate(90deg); }
 .vx-tree-spacer { @apply w-6 shrink-0; }
-.vx-tree-open { @apply flex-1 min-w-0 flex items-center gap-2 py-2 pr-2 pl-0.5 text-sm text-left font-medium text-[var(--text)]; }
+.vx-tree-open { @apply flex-1 min-w-0 flex items-center gap-2 py-1.5 pr-2 pl-0.5 text-[13px] text-left font-medium text-[var(--text)]; }
 .vx-tree-row-on .vx-tree-open { @apply font-bold text-[var(--primary)]; }
 .vx-tree-name { @apply min-w-0 flex-1 truncate; }
 .vx-vis-dot { @apply shrink-0 text-[11px]; }
@@ -11220,7 +11220,7 @@ table.ol-items-table { min-width: 760px; table-layout: fixed; }
 
 .vx-box { @apply relative flex-1 min-h-[420px] md:min-h-0 flex flex-col rounded-[14px] border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden; }
 .vx-box-drop { @apply border-[var(--primary)] ring-2 ring-[var(--primary)]/30; }
-.vx-box-head { @apply flex items-center justify-between gap-3 px-5 py-3.5 border-b border-[var(--border)]; }
+.vx-box-head { @apply flex items-center justify-between gap-3 px-5 py-2.5 border-b border-[var(--border)]; }
 .vx-summary { @apply flex items-center gap-3 text-sm text-[var(--text-muted)] min-w-0 whitespace-nowrap; }
 .vx-progress { @apply text-xs font-semibold text-[var(--primary)]; }
 .vx-hint { @apply hidden sm:block text-xs text-[var(--text-dim)]; }
@@ -11228,42 +11228,44 @@ table.ol-items-table { min-width: 760px; table-layout: fixed; }
 @container (min-width: 960px) { .vx-cols { grid-template-columns: minmax(0, 1fr) 120px 110px 90px 104px; } }
 /* 열 수는 화면이 아니라 목록 상자 폭으로 — 앱 사이드바를 접고 펴도 맞게 */
 .vx-box { container-type: inline-size; }
-@container (max-width: 600px) { .vx-cols { grid-template-columns: minmax(0, 1fr) 96px 76px 88px; } .vx-cols > :nth-child(2) { display: none; } }
+@container (max-width: 680px) { .vx-cols { grid-template-columns: minmax(0, 1fr) 88px 92px 80px; } .vx-cols > :nth-child(2) { display: none; } }
 @container (max-width: 520px) { .vx-cols { grid-template-columns: minmax(0, 1fr) 84px; } .vx-cols > :nth-child(2), .vx-cols > :nth-child(3), .vx-cols > :nth-child(4) { display: none; } }
 @container (max-width: 640px) { .vx-hint { display: none; } }
 .vx-cols-head { @apply bg-[var(--bg-surface)] border-b border-[var(--border)] text-xs font-bold text-[var(--text-dim)]; }
-.vx-cols-head > div { @apply py-2.5; }
+.vx-cols-head > div { @apply py-2; }
 .vx-scroll { @apply flex-1 min-h-0 overflow-y-auto; }
-.vx-row { @apply min-h-[60px] border-b border-[var(--border)] hover:bg-[var(--bg-surface)]; }
+.vx-row { @apply min-h-[34px] border-b border-[var(--border)] hover:bg-[var(--bg-surface)]; }
 .vx-row-folder { @apply cursor-pointer; }
 .vx-row-on { @apply bg-[var(--primary)]/5; }
-.vx-name-cell { @apply flex items-center gap-3 min-w-0 py-2; }
+.vx-name-cell { @apply flex items-center gap-2.5 min-w-0 py-0.5; }
 .vx-chk-space { @apply w-[18px] shrink-0; }
-.vx-name-stack { @apply flex flex-col gap-0.5 min-w-0; }
-.vx-folder-title { @apply text-[15px] font-bold text-[var(--text)] truncate; }
-.vx-file-title { @apply text-sm font-medium text-[var(--text)] truncate text-left hover:text-[var(--primary)] hover:underline; }
-.vx-sub { @apply text-xs text-[var(--text-dim)] truncate; }
+.vx-name-stack { @apply flex items-baseline gap-2 min-w-0; }
+.vx-folder-title { @apply text-[13.5px] font-semibold text-[var(--text)] truncate; }
+.vx-file-title { @apply text-[13px] font-medium text-[var(--text)] truncate text-left hover:text-[var(--primary)] hover:underline; }
+.vx-sub { @apply shrink-0 max-w-[60%] text-[11.5px] text-[var(--text-dim)] truncate; }
 .vx-ver-btn { @apply font-bold text-[var(--primary)] hover:underline; }
 .vx-loc-btn { @apply truncate text-left hover:text-[var(--primary)] hover:underline; }
-.vx-cell { @apply text-[13px] text-[var(--text-muted)] truncate; }
+.vx-cell { @apply text-[12.5px] text-[var(--text-muted)] truncate; }
 .vx-num { @apply text-right; }
 .vx-dim { @apply text-[var(--text-dim)]; }
 .vx-actions { @apply flex items-center justify-end gap-1; }
 .vx-go { @apply text-[var(--text-dim)]; }
 .vx-get-btn { @apply inline-flex items-center gap-1; }
+.vx-row .vx-get-btn { @apply h-7 py-0; }
+.vx-count { @apply text-[11.5px]; }
 .vx-menu-wrap { @apply relative; }
-.vx-more { @apply w-8 h-8 rounded-lg text-base leading-none text-[var(--text-dim)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
+.vx-more { @apply w-7 h-7 rounded-lg text-base leading-none text-[var(--text-dim)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
 .vx-menu { @apply absolute right-0 top-9 z-30 w-60 py-1 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-lg; }
 .vx-menu-item { @apply block w-full px-3.5 py-2 text-left text-[13px] text-[var(--text)] hover:bg-[var(--bg-surface)]; }
 .vx-menu-danger { @apply text-[var(--danger)]; }
 .vx-menu-note { @apply block px-3.5 py-2 text-xs text-[var(--text-dim)] leading-snug; }
-.vx-create-row { @apply flex items-center gap-3 px-5 py-3 border-b border-[var(--primary)]/20 bg-[var(--primary)]/5; }
+.vx-create-row { @apply flex items-center gap-3 px-5 py-2 border-b border-[var(--primary)]/20 bg-[var(--primary)]/5; }
 .vx-create-card { @apply flex items-center gap-3 px-3.5 py-3 mb-4 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/5; }
 .vx-create-input { @apply flex-1 min-w-0 h-[38px] px-3 rounded-lg border-[1.5px] border-[var(--primary)] bg-[var(--bg-card)] text-sm text-[var(--text)] outline-none; }
 .vx-empty { @apply flex flex-col items-center gap-3 px-5 py-16 text-center; }
 .vx-empty-title { @apply text-base font-bold text-[var(--text)]; }
 .vx-empty-text { @apply text-[13px] text-[var(--text-dim)]; }
-.vx-drop-hint { @apply mx-5 mt-4 mb-5 p-4 rounded-xl border-[1.5px] border-dashed border-[var(--border)] text-center text-[13px] text-[var(--text-muted)]; }
+.vx-drop-hint { @apply mx-5 mt-3 mb-4 p-3 rounded-xl border-[1.5px] border-dashed border-[var(--border)] text-center text-[13px] text-[var(--text-muted)]; }
 .vx-grid-wrap { @apply p-5; }
 .vx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); @apply gap-3.5; }
 .vx-card { @apply relative flex flex-col items-center gap-2.5 min-w-0 px-3 pt-[22px] pb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] cursor-pointer hover:border-[var(--primary)]/40 hover:shadow-md; }
