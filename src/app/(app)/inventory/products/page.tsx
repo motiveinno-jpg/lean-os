@@ -67,7 +67,7 @@ export default function ProductsPage() {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [xlsOpen, setXlsOpen] = useState(false);
 
-  const { data: products = [] } = useQuery({
+  const { data: products = [], isPending: prodPending, isError: prodError } = useQuery({
     queryKey: ["inv-products", companyId],
     queryFn: () => listProducts(companyId!),
     enabled: !!companyId,
@@ -144,10 +144,17 @@ export default function ProductsPage() {
         </QueryHead>
         <QueryBody>
           <div className="inv-scroll">
-            {products.length === 0 ? (
+            {/*   불러오는 중·실패·조건 0건을 '품목 없음'과 구별(2026-09-30) */}
+            {prodError ? (
+              <div className="collect-empty">품목을 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>
+            ) : prodPending ? (
+              <div className="collect-empty">불러오는 중…</div>
+            ) : products.length === 0 ? (
               <div className="collect-empty">
                 아직 등록한 품목이 없습니다. 파는 것과 쓰는 것을 먼저 등록하세요.
               </div>
+            ) : shown.length === 0 ? (
+              <div className="collect-empty">조건에 맞는 품목이 없습니다. 검색조건·빠른검색을 풀어 보세요.</div>
             ) : (
               <>
                 <div className="stg-table-wrap">

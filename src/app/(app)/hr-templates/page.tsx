@@ -44,7 +44,8 @@ export default function HrTemplatesPage() {
     });
   }, []);
 
-  const { data: docTemplates = [] } = useQuery({
+  //   isPending — 회사 id 를 받기 전(조회 전)도 '불러오는 중'으로 본다. isLoading 은 그 순간 false 라 '양식 없음'이 먼저 보였다
+  const { data: docTemplates = [], isPending: tplPending, isError: tplError } = useQuery({
     queryKey: ["doc-templates", companyId],
     queryFn: () => getDocTemplates(companyId!),
     enabled: !!companyId,
@@ -123,6 +124,8 @@ export default function HrTemplatesPage() {
                   hideCreateButton
                   openCreateSignal={textSignal}
                   nameFilter={nameHit}
+                  loading={tplPending}
+                  error={tplError}
                 />
               </div>
             </QueryBody>

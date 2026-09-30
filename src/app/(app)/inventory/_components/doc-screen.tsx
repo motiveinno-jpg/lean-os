@@ -139,7 +139,7 @@ export function DocScreen({
     },
     enabled: !!companyId,
   });
-  const { data: hist = [], refetch: refetchHist } = useQuery({
+  const { data: hist = [], refetch: refetchHist, isPending: histPending, isError: histError } = useQuery({
     queryKey: ["doc-hist", formKey, companyId, from, to],
     queryFn: () => history({ companyId: companyId!, from, to }),
     enabled: !!companyId,
@@ -322,7 +322,14 @@ export function DocScreen({
           <div className="inv-scroll">
             {/*   ★ 입력 화면은 상자 끝까지 차지한다(5줄에서 칸이 끝나 가독성이 떨어짐). + 줄은 맨 아래 고정. */}
             {tab === "edit" ? <div className="doc-editor">{editor}</div> : (
-              shown.length === 0 ? (
+              //   불러오는 중·실패·검색 0건을 '저장된 것 없음'과 구별(2026-09-30) — 주문·판매·구매·생산 공용
+              histError ? (
+                <div className="collect-empty">목록을 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>
+              ) : histPending ? (
+                <div className="collect-empty">불러오는 중…</div>
+              ) : shown.length === 0 && hist.length > 0 ? (
+                <div className="collect-empty">검색에 맞는 {noun}{josa(noun)} 없습니다. 빠른검색을 지워 보세요.</div>
+              ) : shown.length === 0 ? (
                 <div className="collect-empty">
                   아직 이 기간에 저장된 {noun}{josa(noun)} 없습니다. <b>입력</b> 탭에서 저장하면 여기에 보입니다.
                 </div>

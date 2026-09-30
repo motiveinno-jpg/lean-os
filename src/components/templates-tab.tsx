@@ -55,8 +55,12 @@ const HR_TYPE_LABEL: Record<string, string> = { hr_contract: "인사 계약", em
 
 // ── Templates Tab (공용) ──
 //   scope="business" → 전자계약 양식(계약서·견적서 등), scope="hr" → 인사 양식(근로계약서 등).
-export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate, hideCreateButton, openCreateSignal, nameFilter }: {
+export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate, hideCreateButton, openCreateSignal, nameFilter, loading, error }: {
   scope: TemplatesScope;
+  /** 부모의 서식 조회 상태 — 불러오는 중·실패를 '양식 없음'과 구별한다(2026-09-30).
+   *  전에는 불러오는 동안 '아직 양식이 없습니다 + 기본 양식 등록하기'가 보여, 누르면 기본 양식이 중복 등록될 수 있었다 */
+  loading?: boolean;
+  error?: boolean;
   companyId: string;
   userId: string;
   templates: any[];
@@ -414,7 +418,11 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
 
       {/* Templates List — 표 (2026-08-19 인사·전자계약 UI 점검: 이름만 줄줄이 → 이름·유형·변수·수정일·동작 표) */}
       <div className="templates-list">
-        {scopedTemplates.length === 0 ? (
+        {error ? (
+          <div className="collect-empty">양식 목록을 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>
+        ) : loading ? (
+          <div className="collect-empty">불러오는 중…</div>
+        ) : scopedTemplates.length === 0 ? (
           <div className="collect-empty">
             아직 양식이 없습니다. {scope === "hr" ? "기본 인사 양식을 한번에 등록할 수 있습니다." : "기본 문서 양식을 한번에 등록할 수 있습니다."}
             <span className="ml-3"><button type="button" onClick={seedDefaults} disabled={seeding} className="btn-secondary btn-sm">{seeding ? "등록 중…" : "기본 양식 등록하기"}</button></span>

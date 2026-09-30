@@ -83,7 +83,7 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
   }
 
   // 계약 내역
-  const { data: contractList = [] } = useQuery({
+  const { data: contractList = [], isPending: listPending, isError: listError } = useQuery({
     queryKey: ["contract-packages", companyId],
     queryFn: () => getContractPackages(companyId!),
     enabled: !!companyId,
@@ -605,7 +605,12 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
       {/* 회사 문서(법인 서류)는 회사 설정 › 회사정보 › 회사 문서로 이관(2026-07-23). 여기선 발송/현황만. */}
       {contractSubTab === "contracts" && <>
       {/* 계약 내역 — 표 하나. 임시저장 줄만 고를 수 있고(발송 대상), 일괄 발송은 바닥 선택 바의 파란 버튼 */}
-      {filteredContracts.length === 0 ? (
+      {/*   불러오는 중·실패를 '계약 내역 없음'과 구별(2026-09-30) */}
+      {listError ? (
+        <div className="collect-empty">계약 내역을 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>
+      ) : listPending ? (
+        <div className="collect-empty">불러오는 중…</div>
+      ) : filteredContracts.length === 0 ? (
         <div className="collect-empty">
           {contractList.length === 0
             ? <>아직 계약 내역이 없습니다. 구성원 상세에서 계약서를 발송해 보세요.</>

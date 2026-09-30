@@ -108,8 +108,8 @@ export default function StockPage() {
   const canMove = isMaster || hasPerm("/inventory/stock:adjust");
 
   const { data: products = [] } = useQuery({ queryKey: ["inv-products", companyId], queryFn: () => listProducts(companyId!), enabled: !!companyId });
-  const { data: warehouses = [] } = useQuery({ queryKey: ["inv-warehouses", companyId], queryFn: () => listWarehouses(companyId!), enabled: !!companyId });
-  const { data: onhand = [] } = useQuery({ queryKey: ["inv-onhand", companyId], queryFn: () => listOnHand(companyId!), enabled: !!companyId });
+  const { data: warehouses = [], isPending: whPending, isError: whError } = useQuery({ queryKey: ["inv-warehouses", companyId], queryFn: () => listWarehouses(companyId!), enabled: !!companyId });
+  const { data: onhand = [], isPending: ohPending, isError: ohError } = useQuery({ queryKey: ["inv-onhand", companyId], queryFn: () => listOnHand(companyId!), enabled: !!companyId });
   //   체류·회전 재료 — 90일 출고 통계(일평균)와 전 기간 마지막 출고일. 보기 칩을 켤 때만 읽는다
   const { data: outflow } = useQuery({ queryKey: ["inv-outflow", companyId], queryFn: () => fetchOutflowStats(companyId!), enabled: !!companyId && tab === "onhand" && stockView === "aging", staleTime: 60_000 });
   const { data: lastOutAll, isLoading: agingLoading } = useQuery({ queryKey: ["inv-lastout", companyId], queryFn: () => fetchLastOutAll(companyId!), enabled: !!companyId && tab === "onhand" && stockView === "aging", staleTime: 60_000 });
@@ -131,7 +131,8 @@ export default function StockPage() {
     },
   });
   const hasExpiry = expiryByProduct.size > 0;
-  const { data: moves = [] } = useQuery({
+  //   isPending/isError — 불러오는 중·실패를 '기록 없음'과 구별(2026-09-30). 네 탭 공통
+  const { data: moves = [], isPending: mvPending, isError: mvError } = useQuery({
     queryKey: ["inv-moves", companyId, from, to],
     queryFn: () => listMoves(companyId!, from, to),
     enabled: !!companyId && (tab === "moves" || tab === "summary"),
@@ -483,7 +484,9 @@ export default function StockPage() {
               )
             )}
             {tab === "onhand" && stockView === "qty" && (
-              rows.length === 0 ? (
+              ohError ? <div className="collect-empty">현재고를 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>
+              : ohPending ? <div className="collect-empty">불러오는 중…</div>
+              : rows.length === 0 ? (
                 <div className="collect-empty">
                   아직 움직인 기록이 없습니다. <b>기초 재고 올리기</b>로 지금 있는 수량을 넣으세요.
                 </div>
@@ -538,7 +541,9 @@ export default function StockPage() {
             )}
 
             {tab === "moves" && (
-              moves.length === 0 ? (
+              mvError ? <div className="collect-empty">이력을 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>
+              : mvPending ? <div className="collect-empty">불러오는 중…</div>
+              : moves.length === 0 ? (
                 <div className="collect-empty">이 기간에 움직인 기록이 없습니다.</div>
               ) : (
                 <div className="stg-table-wrap">
@@ -636,7 +641,9 @@ export default function StockPage() {
               )
             )}
             {tab === "summary" && sumView !== "ledger" && (
-              summary.rows.length === 0 ? (
+              mvError ? <div className="collect-empty">집계를 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>
+              : mvPending ? <div className="collect-empty">불러오는 중…</div>
+              : summary.rows.length === 0 ? (
                 <div className="collect-empty">이 기간에 판매·매입 전표가 없습니다.</div>
               ) : (
                 <div className="stg-table-wrap">
@@ -664,7 +671,9 @@ export default function StockPage() {
             {tab === "count" && <CountBody ctl={count} warehouses={warehouses} onhand={onhand} productById={productById} />}
 
             {tab === "warehouse" && (
-              warehouses.length === 0 ? (
+              whError ? <div className="collect-empty">창고 목록을 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>
+              : whPending ? <div className="collect-empty">불러오는 중…</div>
+              : warehouses.length === 0 ? (
                 <div className="collect-empty">아직 창고가 없습니다. 첫 입·출고 때 본사창고가 자동으로 만들어집니다.</div>
               ) : (
                 <div className="stg-table-wrap">
