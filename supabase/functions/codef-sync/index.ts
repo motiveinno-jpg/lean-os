@@ -1325,6 +1325,7 @@ async function syncCardApprovals(
 
     let skipNoApproval = 0;
     let skipRejected = 0;
+    let skipCancelled = 0;
     let skipSyncOff = 0;
     for (const a of approvals) {
       const cancelYN = String(a.resCancelYN || "").trim();
@@ -1342,6 +1343,28 @@ async function syncCardApprovals(
       const usedAmt = Number(String(a.resUsedAmount || "0").replace(/,/g, "")) || 0;
       const krwAmt = Number(String(a.resKRWAmt || "0").replace(/,/g, "")) || 0;
       const amount = krwAmt > 0 ? krwAmt : usedAmt;
+      //   전체 취소(resCancelYN=1)인데 금액이 양수 = 원래 승인 줄에 '취소' 표시만 붙어 온 것(취소 줄을 따로 주지 않는
+      //   카드사). 결제와 취소가 한 줄에 겹쳐 실제 쓴 돈은 0 이다. 넣으면 취소된 결제가 지출로 잡힌다(가승인 택시비 등).
+      //   취소를 음수 줄로 따로 주는 카드사는 원래 결제 줄과 합쳐 0 이 되므로 그대로 넣는다. 청구내역에 이미 잡힌
+      //   결제는 청구내역의 환불 줄이 상계한다.
+      //   이미 정상 결제로 들어온 줄(같은 external_id)이 뒤늦게 취소된 경우: 사람이 손대지 않았고 전표도 없으면 지우고,
+      //   손댔거나 전표가 있으면 지우지 않고 장부 제외(etc)로 표시만 한다 — 전표는 사람이 되돌려야 한다.
+      if (cancelYN === "1" && amount > 0) {
+        skipCancelled++;
+        const extId = `codef_card_${org}_${usedDate}_${usedTime}_${approvalNo}`;   // 아래 upsert 와 같은 꼴
+        const { data: prevRows } = await supabase.from("card_transactions")
+          .select("id, journal_entry_id, mapped_by, memo, receipt_url, deal_id, used_by_employee_id, tags, ledger_excluded_reason")
+          .eq("company_id", companyId).eq("external_id", extId).gt("amount", 0).limit(1);
+        const prev = (prevRows as any[] | null)?.[0];
+        if (prev) {
+          const touched = prev.journal_entry_id || prev.mapped_by || (prev.memo || "").trim() || prev.receipt_url || prev.deal_id
+            || prev.used_by_employee_id || (prev.tags || []).length;
+          if (!touched) await supabase.from("card_transactions").delete().eq("id", prev.id);
+          else if (!prev.ledger_excluded_reason) await supabase.from("card_transactions").update({ ledger_excluded_reason: "etc:카드사에서 취소된 결제" }).eq("id", prev.id);
+          debug.push(`card ${org} cancelled after sync: ${extId} ${touched ? "marked excluded" : "removed"}`);
+        }
+        continue;
+      }
 
       const installments = Number(String(a.resInstallmentMonth || "0").replace(/,/g, "")) || null;
       const storeName = a.resMemberStoreName || "";
@@ -1425,8 +1448,8 @@ async function syncCardApprovals(
         biznoFilled += (hit as any[] | null)?.length ?? 0;
       }
     }
-    if (skipNoApproval > 0 || skipRejected > 0 || skipSyncOff > 0) {
-      debug.push(`card ${org} skipped: noApprovalNo=${skipNoApproval}, rejected=${skipRejected}, syncOff=${skipSyncOff}`);
+    if (skipNoApproval > 0 || skipRejected > 0 || skipSyncOff > 0 || skipCancelled > 0) {
+      debug.push(`card ${org} skipped: noApprovalNo=${skipNoApproval}, rejected=${skipRejected}, cancelled=${skipCancelled}, syncOff=${skipSyncOff}`);
     }
     try { await ensureCardsRegistered(supabase, companyId, org, seenCards, debug, errors); } catch (e: any) { debug.push(`card ${org} 자동 등록 오류: ${e?.message || e}`); }
   }

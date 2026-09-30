@@ -73,6 +73,12 @@ export function friendlyError(err: AnyErr, fallback = "일시적인 오류가 �
   if (code && PG_CODE_MSG[code]) return PG_CODE_MSG[code];
   // 1.2) 앱이 만든 안내 에러(저장공간 한도 등) — 문구가 길어도 그대로 보여준다(아래 80자 규칙 예외).
   if (code === "STORAGE_QUOTA") { const m = pickMessage(err); if (m) return m; }
+  //   P0001 = DB 트리거·함수가 raise exception 으로 직접 쓴 안내(중복 사업자번호 등). 우리가 쓴 한국어 문장이라
+  //   길어도 그대로 — 80자 규칙에 걸리면 이유가 사라지고 "알 수 없는 오류"만 남는다.
+  if (code === "P0001") {
+    const m = (pickMessage(err) || "").replace(/^\[P0001\]\s*/, "");
+    if (/[가-힯]/.test(m) && m.length <= 300) return m;
+  }
 
   const raw = pickMessage(err);
   if (!raw) return fallback;
