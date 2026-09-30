@@ -222,7 +222,8 @@ export async function importSettlements(companyId: string, channel: string, rows
 
 /** 붙여넣기 묶음 삭제 — 전표 초안이 붙었으면 막는다 */
 export async function deleteSettlementBatch(companyId: string, batchId: string): Promise<number> {
-  const { data: bound } = await db.from("channel_settlements").select("id, journal_entries(status)").eq("company_id", companyId).eq("batch_id", batchId).not("journal_entry_id", "is", null);
+  //   한 묶음이 1,000줄을 넘을 수 있어 끝까지 읽는다(하나라도 전표가 붙었으면 막아야 한다)
+  const bound = await fetchPaged<any>("claims:settle-bound", () => db.from("channel_settlements").select("id, journal_entries(status)").eq("company_id", companyId).eq("batch_id", batchId).not("journal_entry_id", "is", null).order("id"), 100000, { strict: true });
   if (((bound || []) as any[]).some((r) => r.journal_entries?.status !== "rejected")) throw new Error("이 묶음은 이미 전표 초안이 만들어져 지울 수 없습니다. 전표를 먼저 반려하세요.");
   const { data, error } = await db.from("channel_settlements").delete().eq("company_id", companyId).eq("batch_id", batchId).select("id");
   if (error) throw error;
@@ -252,7 +253,7 @@ export async function makeSettlementVoucherDraft(params: {
 }
 /** 반려된 초안이 묶음에 걸려 있으면 연결을 푼다 — 그래야 같은 묶음으로 다시 만들 수 있다(RPC 는 journal_entry_id 가 비어 있는 줄만 집는다) */
 export async function unlinkRejectedVoucher(companyId: string, batchId: string): Promise<number> {
-  const { data: ents } = await db.from("channel_settlements").select("journal_entry_id, journal_entries(status)").eq("company_id", companyId).eq("batch_id", batchId).not("journal_entry_id", "is", null);
+  const ents = await fetchPaged<any>("claims:settle-ents", () => db.from("channel_settlements").select("id, journal_entry_id, journal_entries(status)").eq("company_id", companyId).eq("batch_id", batchId).not("journal_entry_id", "is", null).order("id"), 100000, { strict: true });
   const rejected = [...new Set(((ents || []) as any[]).filter((r) => r.journal_entries?.status === "rejected").map((r) => r.journal_entry_id as string))];
   if (!rejected.length) return 0;
   const { data, error } = await db.from("channel_settlements").update({ journal_entry_id: null }).eq("company_id", companyId).eq("batch_id", batchId).in("journal_entry_id", rejected).select("id");
