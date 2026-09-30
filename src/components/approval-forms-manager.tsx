@@ -455,7 +455,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
 
             <div className="modal-footer-actions">
               <button onClick={() => setEditing(null)} className="btn-secondary flex-1">취소</button>
-              <button onClick={save} disabled={saving} className="btn-primary flex-1">{saving ? "저장 중…" : "양식 저장"}</button>
+              <button onClick={save} disabled={saving} className="btn-primary btn-sm">{saving ? "저장 중…" : "양식 저장"}</button>
             </div>
           </div>
         </div>,
@@ -602,7 +602,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
 
             <div className="modal-footer-actions">
               <button onClick={() => setEditingDefaultKey(null)} className="btn-secondary flex-1">취소</button>
-              <button onClick={saveDefault} disabled={savingDefault} className="btn-primary flex-1">{savingDefault ? "저장 중…" : "양식 저장"}</button>
+              <button onClick={saveDefault} disabled={savingDefault} className="btn-primary btn-sm">{savingDefault ? "저장 중…" : "양식 저장"}</button>
             </div>
           </div>
         </div>,

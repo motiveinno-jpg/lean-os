@@ -299,7 +299,7 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
                       </button>
                     )}
                     <Link href={meta.href} className="master-todo-ghost-btn">상세</Link>
-                    <button onClick={() => approveMut.mutate(a)} disabled={busyId === a.id} className="btn-primary btn-sm">
+                    <button onClick={() => approveMut.mutate(a)} disabled={busyId === a.id} className="btn-secondary btn-sm">
                       {busyId === a.id ? "..." : "승인"}
                     </button>
                   </div>

@@ -849,7 +849,7 @@ function MatchingRuleCard({ companyId }: { companyId: string | null }) {
             className="field-input"
           />
         </div>
-        <button onClick={saveTolerance} className="btn-primary shrink-0">{saved ? "저장 완료" : "저장"}</button>
+        <button onClick={saveTolerance} className="btn-primary btn-sm shrink-0">{saved ? "저장 완료" : "저장"}</button>
       </div>
     </section>
   );

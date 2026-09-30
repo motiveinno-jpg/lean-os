@@ -615,7 +615,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
                       <button
                         onClick={handleAutoGenerateSeal}
                         disabled={generatingSeal}
-                        className="btn-primary !text-xs !px-3 !py-1.5"
+                        className="btn-primary btn-sm"
                       >
                         {generatingSeal ? "저장 중..." : "이 직인 사용"}
                       </button>
