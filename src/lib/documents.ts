@@ -433,14 +433,16 @@ export async function saveRevision(params: {
   }).eq('id', params.documentId);
   if (upErr) throw new Error(upErr.message || '문서 저장에 실패했습니다.');
 
-  // Save revision
-  await supabase.from('doc_revisions').insert({
+  // Save revision — 실패하면 알린다(2026-09-30). 문서는 이미 저장됐으므로 문구로 그 사실을 같이 적는다.
+  //   전에는 오류를 보지 않아 이력만 조용히 빠졌다(수정 권한 가드 도입 뒤 '누가 언제 고쳤나'가 더 중요해졌다).
+  const { error: revErr } = await supabase.from('doc_revisions').insert({
     document_id: params.documentId,
     author_id: params.authorId,
     changes_json: params.contentJson,
     comment: params.comment || null,
     version: newVersion,
   });
+  if (revErr) throw new Error(`문서는 저장했지만 수정 이력을 남기지 못했습니다: ${revErr.message}`);
 }
 
 // ── Submit for review ──
