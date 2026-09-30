@@ -10131,6 +10131,10 @@ table.phv3-table { min-width: 640px; }
 .ch-st-grid > * { @apply min-w-0; }
 table.ch-st-table { min-width: 520px; } /* table. — .ev-table(뒤에 정의) 의 min-width 를 이긴다 */
 @media (max-width: 900px) { .ch-st-grid { grid-template-columns: 1fr; } }
+/*   현황 표준 전환(2026-09-30) — 판(pnl-panel) 안쪽 폭이 ~430px 라 520px 고정이면 출고 대기·완료율 칸이 가로 스크롤 밖으로 잘렸다.
+     판 안에서는 칸 폭대로 줄인다(정산 팝업의 같은 표는 넓은 상자라 그대로). 카드 줄이 빠져 첫 구역 위 여백이 겹치던 것도 없앤다 */
+.ch-st-grid table.ch-st-table { min-width: 0; }
+.inv-status > .ch-st-grid:first-child { @apply mt-0; }
 .ch-st-mini { @apply mr-1.5 inline-block h-2 rounded align-middle; background: var(--primary); }
 .ch-st-flow { @apply flex items-end gap-1.5 px-1; height: 88px; }
 .ch-st-flow .fcol { @apply flex flex-1 flex-col items-center gap-1; }
