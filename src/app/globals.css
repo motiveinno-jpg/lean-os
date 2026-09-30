@@ -11164,3 +11164,8 @@ table.ol-items-table { min-width: 760px; table-layout: fixed; }
 .oauth-consent-muted { @apply text-xs text-[var(--text-muted)] leading-relaxed mb-4; }
 .oauth-consent-error { @apply text-sm text-[var(--danger)] mb-2; }
 .oauth-consent-actions { @apply grid grid-cols-2 gap-2; }
+
+/* 파일보관함 — 파일 이름 앞 종류 아이콘(탐색기처럼) */
+.doc-file-name-cell { @apply inline-flex items-center gap-2 max-w-full min-w-0 align-middle; }
+.doc-file-name-btn { @apply min-w-0 truncate text-left hover:text-[var(--primary)] hover:underline; }
+.file-type-icon { @apply shrink-0; }

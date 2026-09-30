@@ -29,6 +29,7 @@ import { classifyDocument, getDocTypeInfo, DOC_INTEL_TYPES, saveDocumentIntellig
 import { createSignatureRequest, getSignatureRequests, getDocumentSignatures, updateSignatureStatus, saveSignature, cancelSignature, getSignatureStatusInfo, SIGNATURE_STATUS, applyCompanySeal, sendSignatureEmail, createBulkSignatureRequests, sendSignatureReminder, bulkSendReminders, getDocumentSignatureAudit, resolveSealUrl } from "@/lib/signatures";
 import { createNotification } from "@/lib/notifications";
 import { useMyPermissions } from "@/lib/permissions";
+import { FileTypeIcon } from "@/components/file-type-icon";
 import { uploadFile, getFilesForDocument, createFolder, getFolders, deleteFolder, moveFilesToFolder, searchFiles, deleteFile, pruneUnreferencedDocumentFiles, downloadStoredFile, updateFolderVisibility, getFileVersions, type FolderVisibility } from "@/lib/file-storage";
 import { getCompanyStorage, fmtBytes as fmtQuotaBytes } from "@/lib/storage-quota";
 import { getDepartments } from "@/lib/schedule";
@@ -3352,8 +3353,12 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
                               className={on ? "collect-chk collect-chk-on" : mine ? "collect-chk" : "collect-chk doc-file-chk-locked"}>{on ? "✓" : ""}</button>
                           </td>
                           <td className="ev-ell font-medium">
-                            <button type="button" className="text-left hover:text-[var(--primary)] hover:underline" title={f.file_name}
-                              onClick={() => void downloadStoredFile(f.file_url, f.file_name)}>{f.file_name}</button>
+                            {/* 탐색기처럼 파일 종류 아이콘 — 글자만 있으면 PDF·한글·엑셀이 한눈에 안 갈린다 */}
+                            <span className="doc-file-name-cell">
+                              <FileTypeIcon name={f.file_name} size={30} />
+                              <button type="button" className="doc-file-name-btn" title={f.file_name}
+                                onClick={() => void downloadStoredFile(f.file_url, f.file_name)}>{f.file_name}</button>
+                            </span>
                           </td>
                           <td className="tc ev-dim">{kindOf(f)}</td>
                           <td className="tr mono-number ev-dim">{fmtSize(Number(f.file_size || 0))}</td>
@@ -3466,6 +3471,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
             {(verList as any[]).length === 0 && <div className="collect-empty">지난 판이 없습니다.</div>}
             {(verList as any[]).map((v) => (
               <div key={v.id} className="mb-1 flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-xs">
+                <FileTypeIcon name={v.file_name} size={26} />
                 <b className="mono-number">v{v.version}</b>
                 <span className="mono-number text-[var(--text-dim)]">{String(v.created_at || "").slice(0, 10)}</span>
                 <span className="mono-number text-[var(--text-dim)]">{fmtSize(Number(v.file_size || 0))}</span>
