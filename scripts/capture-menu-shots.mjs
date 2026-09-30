@@ -66,9 +66,9 @@ const SHOTS = [
   { key: "team",          route: "/team",           name: "f-team-v2" },
   { key: "employees",     route: "/employees",      name: "f-members-v6" },
   { key: "attendance",    route: "/attendance",     name: "f-hr-v7" },
-  { key: "salary",        route: "/employees?tab=salary", name: "f-salary-v2", ready: "table" },   // 2026-09-29 공개 목록에 새로 올린 메뉴
+  { key: "salary",        route: "/employees?tab=salary", name: "f-salary-v3", ready: "table" },   // 2026-09-29 공개 목록에 새로 올린 메뉴
   //   2026-09-30 구성원 화면 탭 줄 제거 — 휴가·증명서 발급을 사이드바·공개 목록 메뉴로
-  { key: "leave",         route: "/employees?tab=leave",        name: "f-leave-v2",        ready: "table" },
+  { key: "leave",         route: "/employees?tab=leave",        name: "f-leave-v3",        ready: "table" },
   { key: "certificates",  route: "/employees?tab=certificates", name: "f-certificates-v1", ready: "table" },
   { key: "hr-templates",  route: "/hr-templates",   name: "f-templates-v5" },
   { key: "summary",       route: "/reports/summary", name: "f-acct-v5" },

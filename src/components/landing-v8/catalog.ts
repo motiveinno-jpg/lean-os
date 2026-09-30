@@ -206,11 +206,11 @@ export const CATALOG: Group[] = [
         desc: "출퇴근·연차·연장근무가 자동으로 집계됩니다.",
         items: ["원클릭 출퇴근", "연차 발생·사용 이력", "주 52시간 사용률", "여러 달 조회·엑셀"] },
       //   2026-09-30 구성원 화면 탭 줄을 없애며 사이드바에 편 두 메뉴 — 휴가(연차 대장·신청·촉진)·증명서 발급. 캡처는 QA 시드.
-      { key: "leave", name: "휴가", href: "/employees?tab=leave", icon: "calendar", src: shot("f-leave-v2"),
+      { key: "leave", name: "휴가", href: "/employees?tab=leave", icon: "calendar", src: shot("f-leave-v3"),
         desc: "직원별 연차를 달마다 한 표로 보고, 휴가 신청과 연차 사용 촉진을 한 곳에서 처리합니다.",
         items: ["직원별 연차 · 월별 사용 · 잔여일수", "휴가 신청 · 결재", "연차 사용 촉진 통보", "부여 방식 · 휴가 유형 설정"] },
       //   2026-09-29 사이드바 「급여」(/employees?tab=salary) — EmployeesPageClient PayrollPreviewTab 기준.
-      { key: "salary", name: "급여", href: "/employees?tab=salary", icon: "won", src: shot("f-salary-v2"),
+      { key: "salary", name: "급여", href: "/employees?tab=salary", icon: "won", src: shot("f-salary-v3"),
         desc: "달마다 4대보험·원천세까지 계산한 급여 명세를 만들고, 직원에게 메일로 보냅니다.",
         items: ["4대보험·원천세 자동 계산", "이 달만 급여대장 고치기", "명세서 PDF·메일 발송·열람 확인", "공단 고지서 금액 대조"] },
       { key: "certificates", name: "증명서 발급", href: "/employees?tab=certificates", icon: "doc", src: shot("f-certificates-v1"),
