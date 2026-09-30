@@ -11167,3 +11167,110 @@ table.ol-items-table { min-width: 760px; table-layout: fixed; }
 .doc-file-name-cell { @apply inline-flex items-center gap-2 max-w-full min-w-0 align-middle; }
 .doc-file-name-btn { @apply min-w-0 truncate text-left hover:text-[var(--primary)] hover:underline; }
 .file-type-icon { @apply shrink-0; }
+
+/* ── 파일보관함 폴더 탐색형 (VaultExplorer) ─────────────────────────────
+   왼쪽 폴더 트리 + 오른쪽 경로·도구·목록. md 이상은 사이드바 끝선까지 세로 고정, 목록만 스크롤. */
+.vx-root { @apply flex flex-col md:flex-row min-h-0 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden; }
+@media (min-width: 768px) { .vx-root { height: calc(100vh - 88px); } .app-zoom .vx-root { height: calc(100vh / var(--app-zoom) - 88px); } }
+.vx-side { @apply hidden xl:flex flex-col w-[272px] shrink-0 border-r border-[var(--border)] min-h-0; } /* 1280 아래는 목록이 좁아져 트리를 접는다 — 경로·← 로 이동 */
+.vx-side-head { @apply flex items-center justify-between pl-5 pr-4 pt-5 pb-3; }
+.vx-side-title { @apply text-lg font-extrabold text-[var(--text)]; }
+.vx-icon-btn { @apply w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[var(--primary)] hover:bg-[var(--bg-surface)]; }
+.vx-tree { @apply flex flex-col gap-0.5 px-2.5 pb-3 overflow-y-auto flex-1 min-h-0; }
+.vx-tree-root { @apply flex items-center gap-2.5 h-[38px] px-2.5 rounded-lg text-sm font-bold text-[var(--text)] text-left hover:bg-[var(--bg-surface)]; }
+.vx-tree-row { @apply flex items-center min-h-[38px] rounded-lg hover:bg-[var(--bg-surface)]; }
+.vx-tree-row-on, .vx-tree-row-on:hover { @apply bg-[var(--primary)]/10 text-[var(--primary)]; }
+.vx-tree-toggle { @apply w-6 h-8 flex items-center justify-center shrink-0 text-[var(--text-dim)]; }
+.vx-chev { transition: transform .15s; }
+.vx-chev-open { transform: rotate(90deg); }
+.vx-tree-spacer { @apply w-6 shrink-0; }
+.vx-tree-open { @apply flex-1 min-w-0 flex items-center gap-2 py-2 pr-2 pl-0.5 text-sm text-left font-medium text-[var(--text)]; }
+.vx-tree-row-on .vx-tree-open { @apply font-bold text-[var(--primary)]; }
+.vx-tree-name { @apply min-w-0 flex-1 truncate; }
+.vx-vis-dot { @apply shrink-0 text-[11px]; }
+.vx-folder-glyph { @apply shrink-0; }
+.vx-storage { @apply flex flex-col gap-2 px-5 pt-4 pb-5 border-t border-[var(--border)]; }
+.vx-storage-line { @apply flex justify-between gap-2 text-xs text-[var(--text-muted)]; }
+.vx-storage-track { @apply h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
+.vx-storage-bar { @apply h-1.5 rounded-full; }
+.vx-storage-more { @apply text-[11px] font-semibold text-[var(--warning)] underline; }
+
+.vx-main { @apply flex-1 min-w-0 min-h-0 flex flex-col gap-4 px-4 md:px-7 pt-5 pb-6 bg-[var(--bg)]; }
+.vx-crumbs-row { @apply flex items-center gap-2.5 min-w-0; }
+.vx-up-btn { @apply w-10 h-10 shrink-0 flex items-center justify-center rounded-[10px] border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] hover:bg-[var(--bg-surface)] disabled:opacity-40 disabled:cursor-default; }
+.vx-crumbs { @apply flex flex-wrap items-center gap-0.5 min-w-0; }
+.vx-crumb-wrap { @apply inline-flex items-center min-w-0; }
+.vx-crumb-sep { @apply text-[var(--text-dim)] shrink-0; }
+.vx-crumb { @apply px-2 py-1.5 rounded-lg text-[15px] font-medium text-[var(--text-muted)] hover:bg-[var(--bg-surface)] max-w-[260px] truncate; }
+.vx-crumb-last { @apply text-xl font-extrabold text-[var(--text)]; }
+
+.vx-tools { @apply flex flex-wrap items-center gap-2.5; }
+.vx-search { @apply flex-1 min-w-[200px] h-[42px] flex items-center gap-2.5 px-3.5 rounded-[10px] border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-dim)] focus-within:border-[var(--primary)]; }
+.vx-search-input { @apply flex-1 min-w-0 bg-transparent border-0 outline-none text-sm text-[var(--text)]; }
+.vx-search-clear { @apply text-xs text-[var(--text-dim)] hover:text-[var(--text)]; }
+.vx-seg { @apply flex gap-0.5 p-[3px] rounded-[10px] bg-[var(--bg-surface)]; }
+.vx-seg-btn { @apply h-9 px-3 flex items-center gap-1.5 rounded-lg text-[13px] font-bold text-[var(--text-muted)]; }
+.vx-seg-on { @apply bg-[var(--bg-card)] text-[var(--text)] shadow-sm; }
+.vx-tool-btn { @apply h-[42px] inline-flex items-center gap-1.5; }
+
+.vx-box { @apply relative flex-1 min-h-[420px] md:min-h-0 flex flex-col rounded-[14px] border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden; }
+.vx-box-drop { @apply border-[var(--primary)] ring-2 ring-[var(--primary)]/30; }
+.vx-box-head { @apply flex items-center justify-between gap-3 px-5 py-3.5 border-b border-[var(--border)]; }
+.vx-summary { @apply flex items-center gap-3 text-sm text-[var(--text-muted)] min-w-0 whitespace-nowrap; }
+.vx-progress { @apply text-xs font-semibold text-[var(--primary)]; }
+.vx-hint { @apply hidden sm:block text-xs text-[var(--text-dim)]; }
+.vx-cols { display: grid; grid-template-columns: minmax(0, 1fr) 92px 96px 76px 88px; @apply items-center gap-2 px-5; }
+@container (min-width: 960px) { .vx-cols { grid-template-columns: minmax(0, 1fr) 120px 110px 90px 104px; } }
+/* 열 수는 화면이 아니라 목록 상자 폭으로 — 앱 사이드바를 접고 펴도 맞게 */
+.vx-box { container-type: inline-size; }
+@container (max-width: 600px) { .vx-cols { grid-template-columns: minmax(0, 1fr) 96px 76px 88px; } .vx-cols > :nth-child(2) { display: none; } }
+@container (max-width: 520px) { .vx-cols { grid-template-columns: minmax(0, 1fr) 84px; } .vx-cols > :nth-child(2), .vx-cols > :nth-child(3), .vx-cols > :nth-child(4) { display: none; } }
+@container (max-width: 640px) { .vx-hint { display: none; } }
+.vx-cols-head { @apply bg-[var(--bg-surface)] border-b border-[var(--border)] text-xs font-bold text-[var(--text-dim)]; }
+.vx-cols-head > div { @apply py-2.5; }
+.vx-scroll { @apply flex-1 min-h-0 overflow-y-auto; }
+.vx-row { @apply min-h-[60px] border-b border-[var(--border)] hover:bg-[var(--bg-surface)]; }
+.vx-row-folder { @apply cursor-pointer; }
+.vx-row-on { @apply bg-[var(--primary)]/5; }
+.vx-name-cell { @apply flex items-center gap-3 min-w-0 py-2; }
+.vx-chk-space { @apply w-[18px] shrink-0; }
+.vx-name-stack { @apply flex flex-col gap-0.5 min-w-0; }
+.vx-folder-title { @apply text-[15px] font-bold text-[var(--text)] truncate; }
+.vx-file-title { @apply text-sm font-medium text-[var(--text)] truncate text-left hover:text-[var(--primary)] hover:underline; }
+.vx-sub { @apply text-xs text-[var(--text-dim)] truncate; }
+.vx-ver-btn { @apply font-bold text-[var(--primary)] hover:underline; }
+.vx-loc-btn { @apply truncate text-left hover:text-[var(--primary)] hover:underline; }
+.vx-cell { @apply text-[13px] text-[var(--text-muted)] truncate; }
+.vx-num { @apply text-right; }
+.vx-dim { @apply text-[var(--text-dim)]; }
+.vx-actions { @apply flex items-center justify-end gap-1; }
+.vx-go { @apply text-[var(--text-dim)]; }
+.vx-get-btn { @apply inline-flex items-center gap-1; }
+.vx-menu-wrap { @apply relative; }
+.vx-more { @apply w-8 h-8 rounded-lg text-base leading-none text-[var(--text-dim)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
+.vx-menu { @apply absolute right-0 top-9 z-30 w-60 py-1 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-lg; }
+.vx-menu-item { @apply block w-full px-3.5 py-2 text-left text-[13px] text-[var(--text)] hover:bg-[var(--bg-surface)]; }
+.vx-menu-danger { @apply text-[var(--danger)]; }
+.vx-menu-note { @apply block px-3.5 py-2 text-xs text-[var(--text-dim)] leading-snug; }
+.vx-create-row { @apply flex items-center gap-3 px-5 py-3 border-b border-[var(--primary)]/20 bg-[var(--primary)]/5; }
+.vx-create-card { @apply flex items-center gap-3 px-3.5 py-3 mb-4 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/5; }
+.vx-create-input { @apply flex-1 min-w-0 h-[38px] px-3 rounded-lg border-[1.5px] border-[var(--primary)] bg-[var(--bg-card)] text-sm text-[var(--text)] outline-none; }
+.vx-empty { @apply flex flex-col items-center gap-3 px-5 py-16 text-center; }
+.vx-empty-title { @apply text-base font-bold text-[var(--text)]; }
+.vx-empty-text { @apply text-[13px] text-[var(--text-dim)]; }
+.vx-drop-hint { @apply mx-5 mt-4 mb-5 p-4 rounded-xl border-[1.5px] border-dashed border-[var(--border)] text-center text-[13px] text-[var(--text-muted)]; }
+.vx-grid-wrap { @apply p-5; }
+.vx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); @apply gap-3.5; }
+.vx-card { @apply relative flex flex-col items-center gap-2.5 min-w-0 px-3 pt-[22px] pb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] cursor-pointer hover:border-[var(--primary)]/40 hover:shadow-md; }
+.vx-card-on { @apply border-[var(--primary)] bg-[var(--primary)]/5; }
+.vx-card-menu { @apply absolute right-1.5 top-1.5; }
+.vx-card-chk { @apply absolute left-2.5 top-2.5; }
+.vx-card-title { @apply w-full text-center text-sm font-bold text-[var(--text)] line-clamp-2 leading-snug break-words; }
+.vx-card-file-title { @apply text-[13px] font-medium break-all; }
+.vx-vis-opts { @apply mb-2 flex gap-1.5; }
+.vx-vis-opt { @apply flex-1 rounded-lg border border-[var(--border)] px-2 py-1.5 text-xs font-semibold text-[var(--text-dim)]; }
+.vx-vis-opt-on { @apply border-[var(--primary)] text-[var(--primary)] bg-[var(--primary)]/8; }
+.vx-ver-row { @apply mb-1 flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-xs; }
+.vx-ver-get { @apply ml-auto; }
+.vx-danger-btn { @apply text-[var(--danger)]; }
+.vx-move-select { @apply h-8 px-2 text-xs; }

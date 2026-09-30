@@ -651,7 +651,11 @@ export async function createFolder(
     })
     .select()
     .single();
-  if (error) throw error;
+  if (error) {
+    //   같은 자리 같은 이름(uq_document_folders_sibling_name) — 볼 권한이 없는 폴더와 부딪혔을 수도 있다
+    if ((error as any).code === "23505") throw new Error("이 자리에 같은 이름의 폴더가 이미 있습니다. 다른 이름을 써 주세요.");
+    throw error;
+  }
   return data;
 }
 
@@ -689,13 +693,23 @@ export async function getFolders(companyId: string) {
   return data || [];
 }
 
+/** 폴더마다 파일 개수(최신 판, 파일보관함 파일만) — 행을 다 받아 세면 1,000행 상한에 잘려 DB 가 센다. */
+export async function getFolderFileCounts(companyId: string): Promise<Record<string, number>> {
+  const { data, error } = await (db as any).rpc("vault_folder_file_counts", { p_company: companyId });
+  if (error) throw error;
+  const m: Record<string, number> = {};
+  for (const r of (data || []) as { folder_id: string; files: number }[]) m[r.folder_id] = r.files;
+  return m;
+}
+
 // ── 12b. Move files into a folder ──
 //   폴더에 넣은 파일은 저장소 경로에도 폴더가 박혀 있고(`{company}/folders/{folderId}/…`) 스토리지 RLS 가
 //   그 경로로 공개 범위를 판단한다. 그래서 folder_id 만 바꾸면 목록과 실물의 범위가 어긋난다 — 실물을 먼저 옮기고
 //   성공한 것만 행을 고친다. 지난 판(parent_file_id 가 이 파일인 행)도 같이 따라간다.
+//   파일은 반드시 폴더 안에 있다(document_files_vault_needs_folder) — 폴더 밖으로 빼는 이동은 없다.
 export async function moveFilesToFolder(
   fileIds: string[],
-  folderId: string | null,
+  folderId: string,
   companyId: string,
 ): Promise<{ moved: number; skipped: number; failed: string[] }> {
   if (fileIds.length === 0) return { moved: 0, skipped: 0, failed: [] };
@@ -706,7 +720,7 @@ export async function moveFilesToFolder(
     .or(`id.in.(${fileIds.join(",")}),parent_file_id.in.(${fileIds.join(",")})`);
   if (error) throw error;
 
-  const targetSegment = folderId ? `folders/${folderId}` : "general";
+  const targetSegment = `folders/${folderId}`;
   let moved = 0, skipped = 0;
   const failed: string[] = [];
   for (const f of (rows || []) as any[]) {

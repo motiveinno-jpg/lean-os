@@ -16,12 +16,13 @@ export const VAULT_TOOLS = [
     name: "list_vault_files",
     description:
       "업무 › 파일보관함의 폴더와 파일 목록(이름·폴더·크기·종류·태그·올린 날짜·id). 로그인한 사람이 볼 수 있는 것만 나온다. " +
-      "folder_id 로 한 폴더만, query 로 파일 이름·태그·폴더 이름 검색. 내용을 보려면 read_vault_file 에 id 를 넘긴다.",
+      "폴더는 폴더 안에 폴더를 둘 수 있고 folders[].path 가 맨 위부터의 경로다. 파일의 folder 도 경로. " +
+      "folder_id 로 한 폴더만, query 로 파일 이름·태그·폴더 경로 검색. 내용을 보려면 read_vault_file 에 id 를 넘긴다.",
     inputSchema: {
       type: "object", additionalProperties: false,
       properties: {
         folder_id: { type: "string", description: "이 폴더의 파일만(목록의 folders[].id)" },
-        query: { type: "string", description: "파일 이름·태그·폴더 이름에 들어간 글자" },
+        query: { type: "string", description: "파일 이름·태그·폴더 경로에 들어간 글자" },
         limit: { type: "integer", description: "최대 몇 개(기본 100, 최대 300)" },
       },
     },
@@ -56,14 +57,14 @@ export const VAULT_TOOLS = [
   {
     name: "create_vault_folder",
     description:
-      "파일보관함에 폴더를 만든다. 같은 자리에 같은 이름 폴더가 이미 있으면 새로 만들지 않고 그 폴더를 돌려준다. " +
-      "visibility: company(회사 전체, 기본)·private(나만)·departments(departments 에 적은 부서만). 특정 사람 지정은 오너뷰 화면에서.",
+      "파일보관함에 폴더를 만든다. parent_id 를 주면 그 폴더 안에(몇 단계든), 없으면 맨 위에. 같은 자리에 같은 이름 폴더가 이미 있으면 새로 만들지 않고 그 폴더를 돌려준다. " +
+      "visibility(맨 위 폴더만): company(회사 전체, 기본)·private(나만)·departments(departments 에 적은 부서만). 하위 폴더는 상위 폴더의 공개 범위를 따른다. 특정 사람 지정은 오너뷰 화면에서.",
     inputSchema: {
       type: "object", additionalProperties: false,
       properties: {
         name: { type: "string", description: "폴더 이름" },
         parent_id: { type: "string", description: "상위 폴더 id(없으면 맨 위)" },
-        visibility: { type: "string", enum: ["company", "private", "departments"], description: "공개 범위(기본 company)" },
+        visibility: { type: "string", enum: ["company", "private", "departments"], description: "공개 범위(맨 위 폴더만, 기본 company)" },
         departments: { type: "array", items: { type: "string" }, description: "visibility=departments 일 때 부서 이름들" },
       },
       required: ["name"],
@@ -74,17 +75,18 @@ export const VAULT_TOOLS = [
     description:
       "파일보관함에 파일을 올리는 1단계 — 올리기 링크(2시간)를 받는다. 받은 upload_url 로 파일을 PUT 한 뒤 반드시 finish_vault_upload 를 불러야 목록에 등록된다. " +
       "터미널: curl -X PUT -H \"Content-Type: <mime_type>\" --data-binary @\"로컬파일\" \"<upload_url>\". " +
+      "파일은 반드시 폴더 안에 둔다 — folder_id 필수(list_vault_files 의 folders, 알맞은 폴더가 없으면 create_vault_folder). " +
       "형식·크기(500MB)·저장공간 한도는 오너뷰 화면에서 올릴 때와 같다. 같은 폴더에 같은 이름이면 덮지 않고 새 판(v2, v3…)으로 쌓인다.",
     inputSchema: {
       type: "object", additionalProperties: false,
       properties: {
         file_name: { type: "string", description: "저장될 파일 이름(확장자 포함)" },
         size_bytes: { type: "integer", description: "파일 크기(바이트)" },
-        folder_id: { type: "string", description: "넣을 폴더 id(없으면 폴더 밖)" },
+        folder_id: { type: "string", description: "넣을 폴더 id(필수)" },
         mime_type: { type: "string", description: "파일 형식(모르면 비워 두면 확장자로 정함)" },
         tags: { type: "array", items: { type: "string" }, description: "태그(선택)" },
       },
-      required: ["file_name", "size_bytes"],
+      required: ["file_name", "size_bytes", "folder_id"],
     },
   },
   {
@@ -217,7 +219,8 @@ export async function callVaultTool(tok: Tok, name: string, args: Record<string,
       return { content: text({ error: `저장공간이 부족합니다 — 사용 ${mb(c.used_bytes)} / 한도 ${mb(c.quota_bytes)}, 이 파일 ${mb(size)}. 오너뷰 요금제에서 저장공간을 늘리거나 파일을 정리해 주세요.` }), isError: true };
     }
     //   저장 경로는 앱 uploadFile 과 같은 꼴 — 스토리지 RLS 가 경로의 폴더 id 로 공개 범위를 가른다
-    const storagePath = `${tok.company_id}/${folder ? `folders/${folder}` : "general"}/${Date.now()}_${randomBytes(4).toString("hex")}.${ext}`;
+    if (!folder) return { content: text({ error: c.error || "folder_id 가 필요합니다." }), isError: true };
+    const storagePath = `${tok.company_id}/folders/${folder}/${Date.now()}_${randomBytes(4).toString("hex")}.${ext}`;
     const { data: signed, error: sErr } = await db.storage.from("document-files").createSignedUploadUrl(storagePath);
     if (sErr || !signed?.signedUrl) { await log(tok, name, false, "sign_failed"); return { content: text({ error: "올리기 링크를 만들지 못했습니다." }), isError: true }; }
     const tags = Array.isArray(args.tags) ? args.tags.map(String).map((x) => x.trim()).filter(Boolean).slice(0, 20) : [];
