@@ -331,7 +331,8 @@ export default function BankPage() {
   // 통장 목록 · BankAccountsOverview 와 동일 소스(`getDistinctBankAccountNos`).
   //   bank_accounts 테이블 직접 read 는 빈 회사가 많아 거래에서 derive 한 distinct 가 정합.
   //   반환 shape:  { accountNo, count, balance, alias?, bankName? }
-  const { data: accounts = [] } = useQuery({
+  //   isPending/isError — 불러오는 중·실패를 '연동된 통장 없음'과 구별(2026-09-30)
+  const { data: accounts = [], isPending: accPending, isError: accError } = useQuery({
     queryKey: ["bank-page-accounts-distinct", companyId],
     queryFn: () => getDistinctBankAccountNos(companyId!),
     enabled: !!companyId,
@@ -369,7 +370,7 @@ export default function BankPage() {
 
   // 시안 거래내역 표 — 기간(기본 최근 1개월) 전체, 상한 2000 read-only.
   //   계좌 필터는 client-side (raw_data->>accountNo PostgREST eq 불안정 — transactions 페이지와 동일 패턴).
-  const { data: recentTx = [] } = useQuery({
+  const { data: recentTx = [], isPending: txPending, isError: txError } = useQuery({
     queryKey: ["bank-page-recent-tx", companyId, bankTxFrom, bankTxTo],
     queryFn: async () => {
       const data = await fetchPaged<any>("bank/page:tx", () => {
@@ -936,7 +937,12 @@ export default function BankPage() {
       )}
       {tab === "accounts" && (accountsView === "card" || accounts.length === 0) && (
         <div className="bank-accounts-grid">
-          {accounts.length === 0 ? (
+          {accounts.length === 0 && (accError || accPending) ? (
+            <div className="sm:col-span-2 lg:col-span-3">
+              <EmptyState card icon="🏦" title={accError ? "통장 목록을 불러오지 못했습니다." : "불러오는 중…"}
+                desc={accError ? "잠시 뒤 새로고침해 주세요." : undefined} />
+            </div>
+          ) : accounts.length === 0 ? (
             <div className="sm:col-span-2 lg:col-span-3">
               <EmptyState
                 card
@@ -1129,7 +1135,11 @@ export default function BankPage() {
                   <tr>
                     <td colSpan={8 + acctShift} className="px-3 py-2.5">
                       {/*   불러온 거래가 있는데 비었으면 조건(기본 '미처리' 포함) 때문이다 — "거래내역이 없다"고 말하지 않는다 */}
-                      {recentTx.length > 0 ? (
+                      {txError ? (
+                        <EmptyState icon="📄" title="거래내역을 불러오지 못했습니다." desc="잠시 뒤 새로고침해 주세요." />
+                      ) : txPending ? (
+                        <EmptyState icon="📄" title="불러오는 중…" />
+                      ) : recentTx.length > 0 ? (
                         <EmptyState
                           icon="📄"
                           title="조건에 맞는 거래가 없습니다."

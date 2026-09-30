@@ -61,7 +61,7 @@ export default function FixedAssetsPage() {
     queryFn: async () => (logRead("fa:accounts", await supabase.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId ?? "").order("code")) || []) as PickAcct[],
     enabled: !!companyId, staleTime: 300_000,
   });
-  const { data: histRows = [] } = useQuery({ queryKey: ["fa-depr", hist?.id], queryFn: () => listDepreciations(hist!.id), enabled: !!hist });
+  const { data: histRows = [], isPending: histPending } = useQuery({ queryKey: ["fa-depr", hist?.id], queryFn: () => listDepreciations(hist!.id), enabled: !!hist });
 
   const monthlyOf = (a: FixedAsset) => a.method === "straight" ? monthlyStraight(a.cost, a.salvage, a.useful_months) : Math.round(Math.min(a.cost - a.salvage - a.accum, (a.cost - a.accum) * 2 / a.useful_months));
   const shown = useMemo(() => {
@@ -245,7 +245,8 @@ export default function FixedAssetsPage() {
               <table className="ev-table ev-lined table-inv-status-sm">
                 <thead><tr><th>월</th><th>상각액</th><th>상태</th></tr></thead>
                 <tbody>{histRows.map((r) => <tr key={`${r.month}-${r.entryId}`}><td className="tc mono-number">{r.month}</td><td className="tr mono-number">{won(r.amount)}</td><td className="tc">{r.status === "confirmed" ? <span className="inv-pill inv-pill-ok">확정</span> : r.status === "rejected" ? <span className="inv-pill inv-pill-danger">반려</span> : <span className="inv-pill inv-pill-warn">초안</span>}</td></tr>)}
-                  {!histRows.length && <tr><td colSpan={3} className="tc ev-dim">아직 상각 이력이 없습니다.</td></tr>}</tbody>
+                  {/*   불러오는 중을 '이력 없음'과 구별(2026-09-30) */}
+                  {!histRows.length && <tr><td colSpan={3} className="tc ev-dim">{histPending ? "불러오는 중…" : "아직 상각 이력이 없습니다."}</td></tr>}</tbody>
               </table>
             </div>
             <div className="inv-modal-actions"><span className="doc-sums-sp" /><button type="button" className="btn-secondary btn-sm" onClick={() => setHist(null)}>닫기</button></div>

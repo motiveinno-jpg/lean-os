@@ -46,17 +46,20 @@ export default function NotificationsPage() {
   const router = useRouter();
 
   // react-query 캐시 — 30초 내 재방문은 즉시 표시(staleTime 전역 30s). rows + quote_approval 라우팅 맵 동시 로드.
-  const { data, isLoading: loading } = useQuery<NotifData>({
+  const { data, isLoading: loading, isError: notifError } = useQuery<NotifData>({
     queryKey: ['notifications'],
     queryFn: async () => {
       const u = await getCurrentUser();
       if (!u) return { rows: [], quoteMap: {} };
-      const nRows = logRead('notifications/page:nRows', await supabase
+      //   실패는 던진다(2026-09-30) — 전엔 logRead 가 null 을 돌려줘 '아직 알림이 없습니다'로 보였다. 이 화면 전용 조회라 안전
+      const nRes = await supabase
         .from('notifications')
         .select('id, type, title, message, entity_type, entity_id, is_read, created_at, link')
         .eq('user_id', u.id)
         .order('created_at', { ascending: false })
-        .limit(500));
+        .limit(500);
+      if (nRes.error) throw nRes.error;
+      const nRows = nRes.data;
       const list = (nRows || []) as NotificationRow[];
 
       // quote_approval entity_ids 추려서 deal_id+stage 한 번에 prefetch
@@ -201,7 +204,9 @@ export default function NotificationsPage() {
         </QueryHead>
 
         <QueryBody>
-          {loading ? (
+          {notifError ? (
+            <div className="collect-empty">알림을 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>
+          ) : loading ? (
             <div className="collect-empty">불러오는 중…</div>
           ) : rows.length === 0 ? (
             <div className="collect-empty">아직 알림이 없습니다.</div>

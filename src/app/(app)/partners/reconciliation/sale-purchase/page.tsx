@@ -255,7 +255,8 @@ function SalePurchaseInner() {
   //     원자료의 journal_entry_id 를 비운다. 그래서 수집은 '미처리'로 돌아온다.
   //     이 목록만 status 를 안 걸러서 **취소한 전표가 계속 보였다.** 옆 화면(일반전표)·장부·원장은
   //     전부 status='confirmed' 로 읽는다(journal-reports.ts: "반려·임시분은 장부가 아니다").
-  const  { data: saved = [] } = useQuery({
+  //   isPending — 불러오는 중을 '저장분 없음'과 구별(2026-09-30)
+  const  { data: saved = [], isPending: savedPending } = useQuery({
     queryKey: ["sp-saved", companyId, fromM, toM],
     queryFn: async () => {
       const to = monthAfter(toM);
@@ -1065,7 +1066,7 @@ function SalePurchaseInner() {
       <div className={phoneGrid ? "spv-narrow spv-narrow-off" : "spv-narrow"}>
         <div className="spv-narrow-head"><b>{periodLabel} 저장분 {savedRows.length}건</b></div>
         {savedRows.length === 0 ? (
-          <div className="spv-je-empty">아직 이 기간에 저장된 매입매출전표가 없습니다.</div>
+          <div className="spv-je-empty">{savedPending ? "불러오는 중…" : "아직 이 기간에 저장된 매입매출전표가 없습니다."}</div>
         ) : savedRows.map((r, i) => (
           <div key={`n${i}`} className="spv-narrow-card glass-card">
             <div className="spv-narrow-top">

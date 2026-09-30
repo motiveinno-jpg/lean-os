@@ -106,18 +106,20 @@ export function ExpenseClaimTab({ companyId, from, to, tabsNode, onRange }: {
   const payable = useMemo(() => accounts.find((a) => a.code === STD.payable) || null, [accounts]);
 
   //   승인된 경비 결재 — 승인일(updated_at) 기준 조회기간 안. 한 회사의 결재는 많아야 수백 건이라 한 번에 읽는다.
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [], isLoading, isError } = useQuery({
     queryKey: ["expense-claims", companyId, from, to, formIds.join(",")],
     enabled: !!companyId && formIds.length > 0,
     queryFn: async (): Promise<XRow[]> => {
       const toExcl = new Date(Date.parse(`${to}T00:00:00+09:00`) + 86400000).toISOString();
-      const data = logRead("collect:expense-claims", await (supabase as any)
+      //   목록 조회 실패는 던진다(2026-09-30) — 전엔 '이 기간에 승인된 경비 결재가 없습니다'로 보였다
+      const res = await (supabase as any)
         .from("approval_requests")
         .select("id, title, amount, status, paid_by, expense_account_id, journal_entry_id, attachments, updated_at, form_id, requester_id, users:requester_id(name)")
         .eq("company_id", companyId).eq("status", "approved").in("form_id", formIds)
         .gte("updated_at", `${from}T00:00:00+09:00`).lt("updated_at", toExcl)
-        .order("updated_at", { ascending: false }).limit(2000));
-      const list = (data || []) as any[];
+        .order("updated_at", { ascending: false }).limit(2000);
+      if (res.error) throw res.error;
+      const list = (res.data || []) as any[];
       //   전표 번호 — 걸린 것만 읽는다. 반려된 전표(취소한 것)는 unlink 로 이미 풀려 있다.
       const ids = list.map((r) => r.journal_entry_id).filter(Boolean) as string[];
       const noById = new Map<string, number | null>();
@@ -262,7 +264,9 @@ export function ExpenseClaimTab({ companyId, from, to, tabsNode, onRange }: {
       </QueryHead>
 
       <QueryBody>
-      {isLoading ? (
+      {isError ? (
+        <div className="collect-empty">경비 결재를 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>
+      ) : isLoading ? (
         <div className="collect-empty">읽는 중…</div>
       ) : shown.length === 0 ? (
         <div className="collect-empty">

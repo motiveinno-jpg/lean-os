@@ -282,7 +282,8 @@ export default function CardsPage() {
   }, []);
 
   // 등록 카드 목록
-  const { data: cards = [] } = useQuery({
+  //   isPending — 불러오는 중을 '등록된 카드 없음'과 구별(2026-09-30)
+  const { data: cards = [], isPending: cardsPending } = useQuery({
     queryKey: ["cards-page-corporate", companyId],
     queryFn: async () => {
       const data = logRead('cards/page:data', await db.from("corporate_cards")
@@ -574,7 +575,7 @@ export default function CardsPage() {
 
   // 거래내역 탭 — 조회기간(기본 최근 1개월) 전체, 상한 2000. 탭 진입 시에만 fetch.
   // 카드 필터는 client-side (검색조건의 '카드' 칩 — id 없는 옛 데이터는 카드명으로 거른다).
-  const { data: recentTx = [] } = useQuery({
+  const { data: recentTx = [], isPending: rtxPending } = useQuery({
     queryKey: ["cards-page-recent-tx", companyId, cardTxFrom, cardTxTo],
     queryFn: async () => {
       const data = await fetchPaged<any>("cards/page:recent-tx", () => {
@@ -1035,7 +1036,9 @@ export default function CardsPage() {
 
       {/* ========== 카드 탭 ========== */}
       {tab === "cards" && (
-        cards.length === 0 ? (
+        cards.length === 0 && cardsPending ? (
+          <EmptyState card icon="💳" title="불러오는 중…" />
+        ) : cards.length === 0 ? (
           <EmptyState
             card
             icon="💳"
@@ -1353,7 +1356,8 @@ export default function CardsPage() {
                   {shownTx.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-3 py-2.5">
-                        <EmptyState icon="💳" title={txChips.length > 0 ? "걸린 조건에 맞는 거래가 없습니다." : "이 기간에 카드 거래가 없습니다."} desc="카드 연동으로 거래를 불러오세요." />
+                        {rtxPending ? <EmptyState icon="💳" title="불러오는 중…" />
+                          : <EmptyState icon="💳" title={txChips.length > 0 ? "걸린 조건에 맞는 거래가 없습니다." : "이 기간에 카드 거래가 없습니다."} desc="카드 연동으로 거래를 불러오세요." />}
                       </td>
                     </tr>
                   ) : pager.view.map((tx: any) => {

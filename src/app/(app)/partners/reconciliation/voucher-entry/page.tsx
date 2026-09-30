@@ -234,7 +234,8 @@ export default function VoucherEntryPage() {
   // ── 하단 목록: 조회기간 안의 확정 전표 ──
   // ⚠️ queryKey 앞머리는 "vouchers-of-day" 그대로 둔다. 거래처원장(ledger/shared.tsx)이 이 이름으로
   // 세 군데에서 무효화한다. 이름을 바꾸면 그쪽이 조용히 안 먹는다(화면은 멀쩡해 보인다).
-  const { data: entries = [] } = useQuery<SavedEntry[]>({
+  //   isPending — 불러오는 중을 '저장된 전표 없음'과 구별(2026-09-30)
+  const { data: entries = [], isPending: entriesPending } = useQuery<SavedEntry[]>({
     queryKey: ["vouchers-of-day", companyId, fromM, toM],
     queryFn: async () => {
       // ★ 페이징 필수 — 넓은 기간엔 일반전표가 1,000행(PostgREST 기본 상한)을 넘어
@@ -1251,7 +1252,7 @@ export default function VoucherEntryPage() {
                 <td className="px-2 py-2" />
                 <td className="px-2 py-2 text-center text-[var(--text-dim)] mono-number">{listNo + 1}</td>
                 <td colSpan={10} className={`${TD} text-[var(--text-dim)] text-[11px]`}>
-                  {entries.length === 0 ? "아직 이 기간에 저장된 전표가 없습니다. " : ""}누르면 위 입력 영역에서 이어서 입력합니다.
+                  {entriesPending ? "저장된 전표를 불러오는 중… " : entries.length === 0 ? "아직 이 기간에 저장된 전표가 없습니다. " : ""}누르면 위 입력 영역에서 이어서 입력합니다.
                 
                 </td>
               </tr>

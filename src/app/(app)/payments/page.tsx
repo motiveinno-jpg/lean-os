@@ -192,7 +192,8 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
   form: { amount: string; description: string }; setForm: (f: { amount: string; description: string }) => void;
   invalidate: () => void;
 }) {
-  const { data: queue = [] } = useQuery({
+  //   isPending — 불러오는 중을 '없음'과 구별(2026-09-30) · 세 탭 공통
+  const { data: queue = [], isPending: queuePending } = useQuery({
     queryKey: ["payment-queue", companyId],
     queryFn: () => getPaymentQueue(companyId),
     enabled: !!companyId,
@@ -445,7 +446,9 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
 
       {/* Queue */}
       <div className="payment-queue-table">
-        {filtered.length === 0 ? (
+        {queuePending ? (
+          <div className="collect-empty">불러오는 중…</div>
+        ) : filtered.length === 0 ? (
           <div className="collect-empty">아직 결제 내역이 없습니다. 수동 결제 등록으로 추가하세요.</div>
         ) : (
           <div className="ev-scroll payments-scroll"><table className="ev-table ev-lined payments-table">
@@ -604,7 +607,7 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: batches = [] } = useQuery({
+  const { data: batches = [], isPending: batchesPending } = useQuery({
     queryKey: ["payment-batches", companyId, "fixed_cost"],
     queryFn: async () => {
       const all = await getPaymentBatches(companyId);
@@ -654,7 +657,9 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
       )}
 
       <div className="fixed-cost-batch-table">
-        {batches.length === 0 ? (
+        {batchesPending ? (
+          <div className="collect-empty">불러오는 중…</div>
+        ) : batches.length === 0 ? (
           <div className="collect-empty">아직 고정비 배치가 없습니다. 위에서 이번 달 배치를 만드세요.</div>
         ) : (
           <div className="ev-scroll payments-scroll"><table className="ev-table ev-lined payments-table">
@@ -972,7 +977,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
     onError: (err: Error) => recurToast("삭제 실패: " + (err?.message || ""), "error"),
   });
 
-  const { data: recurring = [] } = useQuery({
+  const { data: recurring = [], isPending: recurringPending } = useQuery({
     queryKey: ["recurring-payments", companyId],
     queryFn: () => getRecurringPayments(companyId),
     enabled: !!companyId,
@@ -1186,7 +1191,9 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
 
       {/* List — 상자 안 상자 없이 표만 (2026-08-19) */}
       <div className="recurring-payments-table">
-        {recurring.length === 0 ? (
+        {recurringPending ? (
+          <div className="collect-empty">불러오는 중…</div>
+        ) : recurring.length === 0 ? (
           <div className="collect-empty">
             아직 반복결제가 없습니다. 매월 고정 지출을 등록하세요.
             {newDetected.length > 0 && <> 통장에서 잡힌 <b>{newDetected.length}건</b>을 <b>전체 자동등록</b>으로 채우세요.</>}

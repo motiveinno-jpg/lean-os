@@ -96,7 +96,7 @@ function SupportProgramsInner() {
   const [draft, setDraft] = useState(applied);
   const [draftSize, setDraftSize] = useState(size);
 
-  const { data: programs = [], isLoading: programsLoading } = useQuery({
+  const { data: programs = [], isLoading: programsLoading, isError: programsError } = useQuery({
     queryKey: ["support-programs"],
     queryFn: listPrograms,
   });
@@ -396,7 +396,9 @@ function SupportProgramsInner() {
         </QueryHead>
 
         <QueryBody>
-          {loading ? (
+          {programsError ? (
+            <div className="collect-empty">지원사업 목록을 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>
+          ) : loading ? (
             <div className="collect-empty">불러오는 중…</div>
           ) : rows.length === 0 ? (
             <div className="collect-empty">

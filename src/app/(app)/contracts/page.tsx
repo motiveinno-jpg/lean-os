@@ -16,7 +16,6 @@ import { AccessDenied } from "@/components/access-denied";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { supabase } from "@/lib/supabase";
-import { logRead } from "@/lib/log-read";
 import { addDaysStr, todayKst } from "@/lib/kst";
 import { saveRevision } from "@/lib/documents";
 import { DateField } from "@/components/date-field";
@@ -85,18 +84,20 @@ export default function ContractLedgerPage() {
     } finally { setSavingId(null); }
   };
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [], isLoading, isError } = useQuery({
     queryKey: ["contract-ledger", companyId],
     enabled: !!companyId,
     queryFn: async () => {
-      const data = logRead("contracts:ledger", await supabase
+      //   실패는 던진다(2026-09-30) — 전엔 logRead 가 null 을 돌려줘 '아직 계약 문서가 없습니다'로 보였다. 이 화면 전용 조회
+      const res = await supabase
         .from("documents")
         .select("id, name, deal_id, partner_id, contract_start_date, contract_end_date, contract_amount, amount, status, created_at, content_json, billing_day, billing_amount, partners(name), deals(name)")
         .eq("company_id", companyId!)
         .or("content_type.eq.contract,auto_classified_type.eq.contract")
         .order("created_at", { ascending: false })
-        .limit(2000));
-      return (data || []) as unknown as Row[];
+        .limit(2000);
+      if (res.error) throw res.error;
+      return (res.data || []) as unknown as Row[];
     },
   });
 
@@ -187,7 +188,8 @@ export default function ContractLedgerPage() {
         </QueryHead>
         <QueryBody>
           <div className="ev-scroll clg-scroll">
-            {isLoading ? <div className="collect-empty">불러오는 중…</div> : pager.view.length === 0 ? (
+            {isError ? <div className="collect-empty">계약 대장을 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요.</div>
+              : isLoading ? <div className="collect-empty">불러오는 중…</div> : pager.view.length === 0 ? (
               <div className="collect-empty">
                 {tab === "none" ? "기간이 비어 있는 계약이 없습니다."
                   : rows.length === 0 ? <>아직 계약 문서가 없습니다. 프로젝트의 <b>견적 → 계약</b> 흐름이나 문서함에서 계약서를 만들면 여기에 모입니다.</>
