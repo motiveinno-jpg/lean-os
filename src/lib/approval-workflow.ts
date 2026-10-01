@@ -462,7 +462,8 @@ export async function createApprovalRequest(params: {
 
   // Check auto-approve threshold
   const autoApproveBelow = matchedPolicy?.auto_approve_below ?? 0;
-  const isAutoApproved = autoApproveBelow > 0 && amount < autoApproveBelow;
+  //   금액 기준 자동 승인은 돈 결재용 — 휴가·초과근무(금액 0)는 사람이 승인한다(2026-10-01, 본인·무인 승인 금지. DB 트리거도 같은 규칙)
+  const isAutoApproved = autoApproveBelow > 0 && amount < autoApproveBelow && params.requestType !== 'leave' && params.requestType !== 'overtime';
 
   // Create the request
   const { data: request, error: reqError } = await db
@@ -516,96 +517,35 @@ export async function createApprovalRequest(params: {
   }
 
   // Create approval steps — use custom approvers if provided
-  if (params.customApprovers && params.customApprovers.length > 0) {
-    for (let i = 0; i < params.customApprovers.length; i++) {
-      const approver = params.customApprovers[i];
-      const stageNum = i + 1;
-      const stageName = params.customApprovers.length === 1
-        ? "최종 승인"
-        : stageNum === params.customApprovers.length ? "최종 승인" : `${stageNum}차 승인`;
+  //   ★ 본인 결재 금지(2026-10-01 사장님: "휴가는 스스로 승인하면 안된다"): 신청자는 어느 단계에서도 승인자가 될 수 없다.
+  //     종전엔 ①'팀장' 단계가 직책으로 찾다 신청자 본인(팀장)을 넣었고 ②결재선 편집에서 본인을 고를 수 있었고
+  //     ③승인자를 못 찾으면 신청자 본인을 승인자로 넣었다 → 7건이 본인 승인(휴가 4). DB 트리거도 같은 규칙으로 막는다.
+  //     본인 자리는 건너뛰고(전결) 단계 번호를 1부터 다시 매긴다(다음 단계 = stage + 1 로 진행하므로 빈 번호가 있으면 멈춘다).
+  const planned: PlannedStage[] = (params.customApprovers && params.customApprovers.length > 0)
+    ? params.customApprovers.filter((a) => a.userId && a.userId !== params.requesterId).map((a) => ({ name: '', approverIds: [a.userId] }))
+    : await planPolicyStages(params.companyId, params.requesterId, stages);
+  if (planned.length === 0) planned.push(...await lastResortStage(params.companyId, params.requesterId));
+  if (planned.length === 0) {
+    await db.from('approval_requests').delete().eq('id', request.id);   // 최선 노력 정리
+    throw new Error(NO_OTHER_APPROVER);
+  }
+
+  for (let i = 0; i < planned.length; i++) {
+    const stageNum = i + 1;
+    //   정책 단계 이름은 그대로, 직접 고른 결재선(이름 없음)은 마지막=최종 승인·나머지=N차 승인 (종전 규칙)
+    const stageName = planned[i].name || (stageNum === planned.length ? '최종 승인' : `${stageNum}차 승인`);
+    for (const approverId of planned[i].approverIds) {
       await insertApprovalStep({
         request_id: request.id,
         stage: stageNum,
         stage_name: stageName,
-        approver_id: approver.userId,
+        approver_id: approverId,
         status: 'pending',
       }, request.id);
     }
-    if (params.customApprovers.length !== totalStages) {
-      await db.from('approval_requests').update({ total_stages: params.customApprovers.length }).eq('id', request.id);
-    }
-  } else {
-    for (const stageConfig of stages) {
-      // 특정 인물 지정(HR 서비스식) — approver_id 가 있으면 role 해석을 건너뛰고 그 사용자로 단계 생성.
-      if (stageConfig.approver_id) {
-        await insertApprovalStep({
-          request_id: request.id,
-          stage: stageConfig.stage,
-          stage_name: stageConfig.name,
-          approver_id: stageConfig.approver_id,
-          status: 'pending',
-        }, request.id);
-        continue;
-      }
-      const approverRole = stageConfig.approver_role;
-      const requiredCount = stageConfig.required_count ?? 1;
-
-      const approvers = logRead('lib/approval-workflow:approvers', await db
-        .from('users')
-        .select('id, name')
-        .eq('company_id', params.companyId)
-        .eq('role', approverRole)
-        .limit(requiredCount));
-
-      const approverList = approvers || [];
-
-      // 결재선의 '팀장·이사·대표·재무' 는 계정 권한(users.role = admin|employee|owner|partner)이
-      //   아니라 **직책**이다. 종전엔 users.role 로만 찾아 늘 0명이 나왔고, 아래 폴백이 조용히
-      //   관리자·소유자에게 배정했다 — 모티브 정책 11단계(팀장 8·대표 3)가 전부 그랬다.
-      //    이제 구성원 직책으로 찾아 의도대로 배정한다.
-      if (approverList.length === 0 && ROLE_POSITION_NAMES[approverRole]) {
-        const byPosition = logRead('lib/approval-workflow:approversByPosition', await db
-          .from('employees')
-          .select('user_id, name, position')
-          .eq('company_id', params.companyId)
-          .in('position', ROLE_POSITION_NAMES[approverRole])
-          .limit(requiredCount));
-        // 계정이 연결되지 않은 구성원은 승인자가 될 수 없다 — 여기서 거른다(쿼리 .not 대신 JS 필터).
-        for (const e of (byPosition || []) as { user_id: string | null; name: string }[]) {
-          if (e.user_id) approverList.push({ id: e.user_id, name: e.name });
-        }
-      }
-
-      if (approverList.length === 0) {
-        const fallbackApprovers = logRead('lib/approval-workflow:fallbackApprovers', await db
-          .from('users')
-          .select('id, name')
-          .eq('company_id', params.companyId)
-          .eq('is_master', true)
-          .limit(requiredCount));
-        approverList.push(...(fallbackApprovers || []));
-      }
-
-      if (approverList.length > 0) {
-        for (const approver of approverList) {
-          await insertApprovalStep({
-            request_id: request.id,
-            stage: stageConfig.stage,
-            stage_name: stageConfig.name,
-            approver_id: approver.id,
-            status: 'pending',
-          }, request.id);
-        }
-      } else {
-        await insertApprovalStep({
-          request_id: request.id,
-          stage: stageConfig.stage,
-          stage_name: stageConfig.name,
-          approver_id: params.requesterId,
-          status: 'pending',
-        }, request.id);
-      }
-    }
+  }
+  if (planned.length !== totalStages) {
+    await db.from('approval_requests').update({ total_stages: planned.length }).eq('id', request.id);
   }
 
   // Log audit
@@ -695,6 +635,81 @@ export async function createApprovalRequest(params: {
  *  종전엔 insert 결과를 안 봐서, RLS·제약으로 막히면 **결재선이 0단계인 요청**이 만들어져
  *  아무 승인자에게도 안 가고 영원히 대기로 남았다. 실패 시 방금 만든 요청을 지우고 던진다
  *  — 그래야 사용자가 다시 올릴 때 유령 요청이 쌓이지 않는다. */
+// ── 결재선 계산 (최초 상신·재상신 공용) ──
+//   ★ 본인 결재 금지(2026-10-01): 신청자는 어느 단계에서도 승인자가 될 수 없다. 본인 자리 단계는 건너뛴다(전결) —
+//     다른 사람으로 메우지 않는다. 승인자를 못 찾은 단계만 마스터(신청자 제외)로. 단계 번호는 넣을 때 1부터 다시 매긴다.
+type PlannedStage = { name: string; approverIds: string[] };
+const NO_OTHER_APPROVER = '본인 말고 승인할 사람이 없습니다. 결재선에 다른 승인자를 지정하거나, 마스터가 구성원 상세에서 휴가를 직접 등록해 주세요.';
+
+async function planPolicyStages(companyId: string, requesterId: string, stages: ApprovalStageConfig[]): Promise<PlannedStage[]> {
+  const planned: PlannedStage[] = [];
+  for (const stageConfig of stages) {
+    // 특정 인물 지정(HR 서비스식) — approver_id 가 있으면 role 해석을 건너뛰고 그 사용자로 단계 생성.
+    if (stageConfig.approver_id) {
+      if (stageConfig.approver_id !== requesterId) planned.push({ name: stageConfig.name, approverIds: [stageConfig.approver_id] });
+      continue;
+    }
+    const approverRole = stageConfig.approver_role;
+    const requiredCount = stageConfig.required_count ?? 1;
+
+    const approvers = logRead('lib/approval-workflow:approvers', await db
+      .from('users')
+      .select('id, name')
+      .eq('company_id', companyId)
+      .eq('role', approverRole)
+      .limit(requiredCount));
+
+    const approverList = (approvers || []) as { id: string; name?: string }[];
+
+    // 결재선의 '팀장·이사·대표·재무' 는 계정 권한(users.role = admin|employee|owner|partner)이
+    //   아니라 **직책**이다. 종전엔 users.role 로만 찾아 늘 0명이 나왔고, 아래 폴백이 조용히
+    //   관리자·소유자에게 배정했다 — 모티브 정책 11단계(팀장 8·대표 3)가 전부 그랬다.
+    //    이제 구성원 직책으로 찾아 의도대로 배정한다.
+    if (approverList.length === 0 && ROLE_POSITION_NAMES[approverRole]) {
+      const byPosition = logRead('lib/approval-workflow:approversByPosition', await db
+        .from('employees')
+        .select('user_id, name, position')
+        .eq('company_id', companyId)
+        .in('position', ROLE_POSITION_NAMES[approverRole])
+        .limit(requiredCount));
+      // 계정이 연결되지 않은 구성원은 승인자가 될 수 없다 — 여기서 거른다(쿼리 .not 대신 JS 필터).
+      for (const e of (byPosition || []) as { user_id: string | null; name: string }[]) {
+        if (e.user_id) approverList.push({ id: e.user_id, name: e.name });
+      }
+    }
+
+    //   이 단계가 신청자 본인 자리였다면(본인이 팀장 등) 단계를 건너뛴다
+    const found = approverList.length > 0;
+    let ids = approverList.map((a) => a.id).filter((id) => id !== requesterId);
+    if (found && ids.length === 0) continue;
+
+    if (ids.length === 0) {
+      const fallbackApprovers = logRead('lib/approval-workflow:fallbackApprovers', await db
+        .from('users')
+        .select('id, name')
+        .eq('company_id', companyId)
+        .eq('is_master', true)
+        .neq('id', requesterId)
+        .limit(requiredCount));
+      ids = ((fallbackApprovers || []) as { id: string }[]).map((a) => a.id);
+    }
+    if (ids.length > 0) planned.push({ name: stageConfig.name, approverIds: ids });
+  }
+  return planned;
+}
+
+//   전부 본인 자리였거나 승인자를 못 찾았으면 — 신청자를 뺀 마스터 한 명. 그마저 없으면 빈 배열(올릴 수 없음).
+async function lastResortStage(companyId: string, requesterId: string): Promise<PlannedStage[]> {
+  const masters = logRead('lib/approval-workflow:lastResortApprovers', await db
+    .from('users')
+    .select('id')
+    .eq('company_id', companyId)
+    .eq('is_master', true)
+    .neq('id', requesterId)
+    .limit(1)) as { id: string }[] | null;
+  return masters?.length ? [{ name: '최종 승인', approverIds: [masters[0].id] }] : [];
+}
+
 async function insertApprovalStep(row: Record<string, unknown>, requestId: string): Promise<void> {
   const { error } = await db.from('approval_steps').insert(row as never);
   if (!error) return;
@@ -1426,65 +1441,26 @@ export async function resubmitRequest(
     if (rule?.stages?.length) stages = rule.stages;
   }
 
-  for (const stageConfig of stages) {
-    const requiredCount = stageConfig.required_count ?? 1;
-
-    // 특정 인물 지정 결재선은 그 사람 그대로: 최초 상신에는 있던 이 분기가
-    //   재상신 경로에만 없어서, 반려 후 재제출 한 번에 지정했던 팀장·이사가 사라지고
-    //   폴백(대표·관리자)으로 결재가 넘어갔다 — 같은 문서인데 결재선이 달라졌다.
-    if (stageConfig.approver_id) {
-      await db.from('approval_steps').insert({
-        request_id: requestId,
-        stage: stageConfig.stage,
-        stage_name: stageConfig.name,
-        approver_id: stageConfig.approver_id,
-        status: 'pending',
-      });
-      continue;
-    }
-
-    const approvers = logRead('lib/approval-workflow:approvers', await db
-      .from('users')
-      .select('id')
-      .eq('company_id', request.company_id)
-      .eq('role', stageConfig.approver_role)
-      .limit(requiredCount));
-
-    const approverList = approvers || [];
-
-    // 역할이 직책(팀장·이사·대표·재무)이면 구성원 직책으로 찾는다 — 최초 상신과 같은 규칙.
-    if (approverList.length === 0 && ROLE_POSITION_NAMES[stageConfig.approver_role]) {
-      const byPosition = logRead('lib/approval-workflow:resubmitByPosition', await db
-        .from('employees')
-        .select('user_id')
-        .eq('company_id', request.company_id)
-        .in('position', ROLE_POSITION_NAMES[stageConfig.approver_role])
-        .limit(requiredCount));
-      for (const e of (byPosition || []) as { user_id: string | null }[]) {
-        if (e.user_id) approverList.push({ id: e.user_id });
-      }
-    }
-
-    if (approverList.length === 0) {
-      const fallback = logRead('lib/approval-workflow:fallback', await db
-        .from('users')
-        .select('id')
-        .eq('company_id', request.company_id)
-        .eq('is_master', true)
-        .limit(requiredCount));
-      approverList.push(...(fallback || []));
-    }
-
-    for (const approver of approverList.length > 0 ? approverList : [{ id: request.requester_id }]) {
+  //   재상신도 최초 상신과 같은 결재선 계산(본인 자리 건너뛰기·번호 다시 매기기) — 종전엔 승인자를 못 찾으면 신청자 본인을 넣었다
+  const planned = await planPolicyStages(request.company_id, request.requester_id, stages);
+  if (planned.length === 0) planned.push(...await lastResortStage(request.company_id, request.requester_id));
+  if (planned.length === 0) throw new Error(NO_OTHER_APPROVER);   // 결재선 없는 재상신을 만들지 않는다
+  for (let i = 0; i < planned.length; i++) {
+    const stageNum = i + 1;
+    const stageName = planned[i].name || (stageNum === planned.length ? '최종 승인' : `${stageNum}차 승인`);
+    for (const approverId of planned[i].approverIds) {
       const { error: stepErr } = await db.from('approval_steps').insert({
         request_id: requestId,
-        stage: stageConfig.stage,
-        stage_name: stageConfig.name,
-        approver_id: approver.id,
+        stage: stageNum,
+        stage_name: stageName,
+        approver_id: approverId,
         status: 'pending',
       });
       if (stepErr) throw stepErr;   // 결재선 없는 재상신을 만들지 않는다
     }
+  }
+  if (planned.length !== request.total_stages) {
+    await db.from('approval_requests').update({ total_stages: planned.length }).eq('id', requestId);
   }
 
   // Log audit

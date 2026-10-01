@@ -3365,7 +3365,8 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                         >
                           <option value="">승인자 선택 (구성원)</option>
                           {(members as any[])
-                            .filter((u: any) => (!usedStepIds.has(u.id) || u.id === stepId) && !usedCc.has(u.id) && u.id !== form.employeeId)
+                            //   휴가 당사자는 승인자가 될 수 없다 — 종전 비교(u.id !== form.employeeId)는 사용자 id 와 직원 id 를 비교해 늘 참이었다(2026-10-01)
+                            .filter((u: any) => (!usedStepIds.has(u.id) || u.id === stepId) && !usedCc.has(u.id) && u.id !== (employees as any[]).find((e: any) => e.id === form.employeeId)?.user_id)
                             .map((u: any) => {
                               const meta = memberMeta[u.id];
                               const sub = [meta?.department, meta?.position].filter(Boolean).join(" · ");
