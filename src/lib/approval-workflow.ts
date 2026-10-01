@@ -643,6 +643,16 @@ const NO_OTHER_APPROVER = '본인 말고 승인할 사람이 없습니다. 결�
 
 async function planPolicyStages(companyId: string, requesterId: string, stages: ApprovalStageConfig[]): Promise<PlannedStage[]> {
   const planned: PlannedStage[] = [];
+  //   신청자 부서 — '팀장' 단계는 같은 부서 팀장에게만(2026-10-01). 종전엔 회사에서 처음 찾은 팀장이라
+  //   모티브는 모든 팀의 결재가 마케팅팀 팀장에게 갔다.
+  let requesterDept: string | null | undefined;
+  const deptOfRequester = async () => {
+    if (requesterDept !== undefined) return requesterDept;
+    const emp = logRead('lib/approval-workflow:requesterDept', await db
+      .from('employees').select('department').eq('company_id', companyId).eq('user_id', requesterId).maybeSingle()) as { department: string | null } | null;
+    requesterDept = String(emp?.department || '').trim() || null;
+    return requesterDept;
+  };
   for (const stageConfig of stages) {
     // 특정 인물 지정(HR 서비스식) — approver_id 가 있으면 role 해석을 건너뛰고 그 사용자로 단계 생성.
     if (stageConfig.approver_id) {
@@ -666,14 +676,23 @@ async function planPolicyStages(companyId: string, requesterId: string, stages: 
     //   관리자·소유자에게 배정했다 — 모티브 정책 11단계(팀장 8·대표 3)가 전부 그랬다.
     //    이제 구성원 직책으로 찾아 의도대로 배정한다.
     if (approverList.length === 0 && ROLE_POSITION_NAMES[approverRole]) {
-      const byPosition = logRead('lib/approval-workflow:approversByPosition', await db
+      const isTeamLead = approverRole === 'manager';
+      let q = db
         .from('employees')
-        .select('user_id, name, position')
+        .select('user_id, name, position, department')
         .eq('company_id', companyId)
-        .in('position', ROLE_POSITION_NAMES[approverRole])
-        .limit(requiredCount));
+        .in('position', ROLE_POSITION_NAMES[approverRole]);
+      //   팀장은 부서를 봐야 해서 전부 가져온다(회사 팀장 수는 수십 명 안쪽). 다른 직책은 종전처럼 필요한 수만.
+      if (!isTeamLead) q = q.limit(requiredCount);
+      let byPosition = (logRead('lib/approval-workflow:approversByPosition', await q) || []) as { user_id: string | null; name: string; department: string | null }[];
+      if (isTeamLead && byPosition.length > 0) {
+        const dept = await deptOfRequester();
+        byPosition = byPosition.filter((e) => dept && String(e.department || '').trim() === dept).slice(0, requiredCount);
+        //   회사에 팀장은 있는데 내 부서엔 없다 → 이 단계는 건너뛴다(남의 팀 팀장·마스터로 메우지 않는다)
+        if (byPosition.length === 0) continue;
+      }
       // 계정이 연결되지 않은 구성원은 승인자가 될 수 없다 — 여기서 거른다(쿼리 .not 대신 JS 필터).
-      for (const e of (byPosition || []) as { user_id: string | null; name: string }[]) {
+      for (const e of byPosition) {
         if (e.user_id) approverList.push({ id: e.user_id, name: e.name });
       }
     }
@@ -1401,12 +1420,16 @@ export async function resubmitRequest(
   if (title) updates.title = title;
   if (amount !== undefined) updates.amount = amount;
 
-  const { error: resubErr } = await db.from('approval_requests').update(updates as never).eq('id', requestId);
-  if (resubErr) throw resubErr;
-
   // Delete old steps
   const { error: delStepsErr } = await db.from('approval_steps').delete().eq('request_id', requestId);
   if (delStepsErr) throw delStepsErr;
+  //   삭제가 권한에 막히면 오류 없이 0건이다 — 옛(반려) 단계가 남으면 새 단계가 붙어도 그 단계는 끝나지 않는다(2026-10-01)
+  const { count: leftSteps } = await db.from('approval_steps').select('id', { count: 'exact', head: true }).eq('request_id', requestId);
+  if ((leftSteps ?? 0) > 0) throw new Error('이전 결재선을 지우지 못해 재제출할 수 없습니다. 관리자에게 문의해 주세요.');
+
+  //   옛 단계를 다 지운 뒤에야 '대기'로 되돌린다 — 지우다 막히면 반려 상태 그대로 남아 다시 시도할 수 있게
+  const { error: resubErr } = await db.from('approval_requests').update(updates as never).eq('id', requestId);
+  if (resubErr) throw resubErr;
 
   // Re-create steps based on policy
   let stages: ApprovalStageConfig[] = [
