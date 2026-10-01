@@ -69,12 +69,13 @@ export default function InventoryProfitPage() {
   const [uncOpen, setUncOpen] = useState(false);   // 미확정 출고 — 숫자를 누르면 어떤 줄인지(2026-08-27)
   //   결정 39 — 재평가 폼(품목·일자·단가·사유·비고). 기초 원가 입력도 같은 폼.
   const [rv, setRv] = useState<{ date: string; unit: string; reason: string; note: string }>({ date: todayKst(), unit: "", reason: "reval_adjust", note: "" });
+  const [revalOpen, setRevalOpen] = useState(false);   //   재평가 폼은 팝업(2026-10-01 UI 점검 9순위 — 원가 이력 위 폼 상자 3개 정리)
 
   const q = <T,>(key: string, fn: () => Promise<T>, extra: unknown[] = []) =>
     useQuery<T>({ queryKey: [key, companyId, ...extra], queryFn: fn, enabled: !!companyId });   // eslint-disable-line react-hooks/rules-of-hooks
   const { data: products = [] } = q("inv-products", () => listProducts(companyId!));
   const { data: moves = [], isLoading } = q("inv-moves", () => listMoves(companyId!, from, to), [from, to]);
-  const { data: costs = [] } = q("inv-move-costs", () => listMoveCosts(companyId!, from, to), [from, to]);
+  const { data: costs = [], isLoading: costsLoading } = q("inv-move-costs", () => listMoveCosts(companyId!, from, to), [from, to]);
   const { data: layers = [] } = q("inv-cost-layers", () => listLayers(companyId!));
   const { data: avgCost = new Map<string, number>() } = q("inv-unitcost", () => listStockUnitCost(companyId!));
   const { data: state } = q("inv-cost-state", () => getCostState(companyId!));
@@ -245,7 +246,7 @@ export default function InventoryProfitPage() {
     const diff = left.reduce((n, l) => n + l.qty_left * (unit - (l.unit_cost ?? unit)), 0);
     if (!(await appConfirm(`${rv.date}부터 ${p?.name || "이 품목"} 남은 재고 ${won(leftQty)}개의 원가를 ₩${won(unit)}로 봅니다.${diff ? ` 차액 ₩${won(Math.abs(diff))}은 ${diff < 0 ? "평가손실" : "평가이익"}로 잡힙니다.` : ""} 이 날 이후 출고부터 새 단가가 나가고, 이전 출고는 바뀌지 않습니다. 계속할까요?`, { confirmLabel: "진행" }))) return;
     setBusy(true);
-    try { await addRevaluation({ product_id: histProduct, reval_date: rv.date, unit_cost: unit, reason: rv.reason, note: rv.note || null }); toast("재평가를 기록하고 다시 계산했습니다", "success"); setRv((s) => ({ ...s, unit: "", note: "" }));
+    try { await addRevaluation({ product_id: histProduct, reval_date: rv.date, unit_cost: unit, reason: rv.reason, note: rv.note || null }); toast("재평가를 기록하고 다시 계산했습니다", "success"); setRv((s) => ({ ...s, unit: "", note: "" })); setRevalOpen(false);
       for (const k of ["inv-cost-revals", "inv-move-costs", "inv-cost-layers", "inv-cost-state", "inv-unitcost"]) qc.invalidateQueries({ queryKey: [k] }); }
     catch (e) { toast(friendlyError(e), "error"); } finally { setBusy(false); }
   };
@@ -301,6 +302,11 @@ export default function InventoryProfitPage() {
               <span className="inv-hint" title="값 = 기준일까지 들어온 층(수량×단가) − 기준일까지 출고 원가. 재무 › 전표 현황의 재고자산 결산 초안과 같은 식입니다">기준일(보통 월말)의 품목별 수량 × 원가. 재고자산 결산 초안의 근거 표입니다.</span>
             </>) : (<>
             <DateRangeField from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+            {tab === "history" && (
+              <select className="qk-input inv-hist-product" aria-label="품목" value={histProduct} onChange={(e) => setHistProduct(e.target.value)}>
+                <option value="">품목 전체</option>{products.filter((p) => p.track_stock).map((p) => <option key={p.id} value={p.id}>{p.sku} {p.name}</option>)}
+              </select>
+            )}
             <span className="inv-hint" title="반품은 매출과 원가에서 뺍니다. 미확정 출고는 기초 원가나 매입 단가를 넣고 다시 계산하면 확정됩니다">원가는 <b>{method === "avg" ? "이동평균" : "선입선출"}</b> 기준입니다.{S.uncosted ? <> <b className="inv-diff-minus">원가 미확정 {won(S.uncosted)}개</b></> : null}</span>
             </>)}
           </QueryBar>
@@ -309,7 +315,7 @@ export default function InventoryProfitPage() {
 
         <QueryBody>
           <div className="inv-scroll inv-status">
-            {isLoading ? <div className="collect-empty">불러오는 중…</div> : (
+            {isLoading || costsLoading ? <div className="collect-empty">불러오는 중…</div> : (
               <>
                 {tab === "all" && (<>
                   <div className="pnl-grid2">
@@ -338,7 +344,7 @@ export default function InventoryProfitPage() {
                     </div>
                   </div>
                   <div className="pnl-panel">
-                    <h3>판매 문서별 이익</h3><p>최신순 {S.saleRows.length}줄입니다.</p>
+                    <h3>판매 문서별 이익</h3><p>최신순 {S.saleRows.length}줄입니다.{S.saleRows.length > 300 ? " 앞 300줄만 보입니다 — 기간을 좁혀 보세요." : ""}</p>
                     <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status">
                       <thead><tr><th>일자</th><th>문서</th><th>품목</th><th>거래처</th><th>수량</th><th>매출</th><th>원가</th><th>이익</th><th>이익률</th></tr></thead>
                       <tbody>{[...S.saleRows].sort((a, b) => (a.m.moved_at < b.m.moved_at ? 1 : -1)).slice(0, 300).map(({ m, rev, cost, unc }) => (
@@ -449,34 +455,19 @@ export default function InventoryProfitPage() {
                 )}
                 {tab === "history" && (<>
                   <div className="pnl-panel">
-                    <h3>원가 방법 · 다시 계산</h3><p title="문서를 저장할 때마다 자동으로 계산하고 매일 새벽에 한 번 더 맞춥니다">방법을 바꾸면 전체를 다시 계산합니다.</p>
-                    <div className="inv-bom-base">
+                    <h3>원가 방법 · 재평가</h3><p title="문서를 저장할 때마다 자동으로 계산하고 매일 새벽에 한 번 더 맞춥니다">방법을 바꾸면 전체를 다시 계산합니다. 품목은 조회 줄에서 고릅니다.</p>
+                    <div className="inv-cost-method-line">
                       <span className="field-label">원가 방법</span>
-                      <select className="field-input inv-loss-reason" style={{ width: 160 }} value={method} disabled={busy} onChange={(e) => changeMethod(e.target.value as CostingMethod)}>
+                      <select className="field-input inv-loss-reason inv-w-160" value={method} disabled={busy} onChange={(e) => changeMethod(e.target.value as CostingMethod)}>
                         {COSTING_METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
                       </select>
                       <em className="inv-hint">{COSTING_METHODS.find((m) => m.value === method)?.desc}</em>
                       <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={rebuild}>다시 계산</button>
                       <span className="ev-dim">마지막 계산 {state ? state.computed_at.slice(0, 16).replace("T", " ") : "—"}</span>
-                    </div>
-                    <div className="inv-bom-base">
-                      <span className="field-label">품목</span>
-                      <select className="field-input" style={{ width: 280 }} value={histProduct} onChange={(e) => setHistProduct(e.target.value)}>
-                        <option value="">전체</option>{products.filter((p) => p.track_stock).map((p) => <option key={p.id} value={p.id}>{p.sku} {p.name}</option>)}
-                      </select>
-                      <em className="inv-hint">품목을 고르면 그 품목만 보입니다.</em>
-                    </div>
-                    {/*   ★ 결정 39 — 특정 시점부터 원가 변경 = 재평가. 남은 층을 새 단가로, 차액은 평가손익. 기초 원가 입력도 같은 폼. 확정은 사람(confirm). */}
-                    <div className="inv-bom-base">
-                      <span className="field-label">원가 재평가 · 기초 원가</span>
-                      <DateField value={rv.date} onChange={(e) => { const v = typeof e === "string" ? e : (e as { target: { value: string } }).target.value; setRv((s) => ({ ...s, date: v })); }} />
-                      <input className="field-input inv-count-input" style={{ width: 120 }} inputMode="numeric" placeholder="새 단가" value={rv.unit} onChange={(e) => setRv((s) => ({ ...s, unit: e.target.value }))} />
-                      <select className="field-input inv-loss-reason" style={{ width: 180 }} value={rv.reason} onChange={(e) => setRv((s) => ({ ...s, reason: e.target.value }))}>
-                        {REVAL_REASONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                      </select>
-                      <input className="field-input" style={{ width: 220 }} placeholder="비고" value={rv.note} onChange={(e) => setRv((s) => ({ ...s, note: e.target.value }))} />
-                      <button type="button" className="btn-secondary btn-sm" disabled={busy || !histProduct} onClick={submitReval}>이 날부터 적용</button>
-                      <em className="inv-hint">{REVAL_REASONS.find((r) => r.value === rv.reason)?.desc}. 이 날 이후 출고부터 새 단가가 적용됩니다.</em>
+                      <span className="doc-sums-sp" />
+                      {/*   ★ 결정 39 — 특정 시점부터 원가 변경 = 재평가. 남은 층을 새 단가로, 차액은 평가손익. 기초 원가 입력도 같은 폼. 확정은 사람(confirm). */}
+                      <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={() => setRevalOpen(true)}
+                        title={histProduct ? undefined : "품목을 고르면 바로 그 품목으로 열립니다"}>원가 재평가 · 기초 원가</button>
                     </div>
                     {revals.filter((r) => !histProduct || r.product_id === histProduct).length > 0 && (
                       <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status-sm">
@@ -492,7 +483,7 @@ export default function InventoryProfitPage() {
                   </div>
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
-                      <h3>입고 층</h3><p>들어온 순서대로 {histLayers.length}층입니다.</p>
+                      <h3>입고 층</h3><p>들어온 순서대로 {histLayers.length}층입니다.{histLayers.length > 300 ? " 최근 300층만 보입니다 — 전부는 엑셀로 받으세요." : ""}</p>
                       <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status-sm">
                         <thead><tr><th>일자</th><th>품목</th><th>원천</th><th>입고</th><th>남음</th><th>단가</th></tr></thead>
                         <tbody>{histLayers.slice(-300).reverse().map((l) => (
@@ -502,7 +493,7 @@ export default function InventoryProfitPage() {
                       </table></div>
                     </div>
                     <div className="pnl-panel">
-                      <h3>출고 원가</h3><p>조회 기간에 나간 {histCosts.length}줄입니다.</p>
+                      <h3>출고 원가</h3><p>조회 기간에 나간 {histCosts.length}줄입니다.{histCosts.length > 300 ? " 앞 300줄만 보입니다 — 기간을 좁혀 보세요." : ""}</p>
                       <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status-sm">
                         <thead><tr><th>일자</th><th>품목</th><th>사유</th><th>수량</th><th>원가</th><th>단가</th><th>층</th></tr></thead>
                         <tbody>{histCosts.slice(0, 300).map((c: MoveCost) => (
@@ -563,6 +554,35 @@ export default function InventoryProfitPage() {
                 {!costs.some((c) => c.qty_uncosted > 0) && <tr><td colSpan={5} className="tc ev-dim">없습니다.</td></tr>}</tbody>
             </table></div>
             <div className="inv-modal-actions"><button type="button" className="bz-link" onClick={() => { setUncOpen(false); setTab("history"); }}>원가 이력에서 기초 원가 입력 →</button><span className="doc-sums-sp" /><button type="button" className="btn-secondary btn-sm" onClick={() => setUncOpen(false)}>닫기</button></div>
+          </div>
+        </div>
+      )}
+      {revalOpen && (
+        <div className="inv-modal" onClick={() => setRevalOpen(false)}>
+          <div className="inv-modal-box" onClick={(e) => e.stopPropagation()}>
+            <h3 className="inv-modal-title">원가 재평가 · 기초 원가</h3>
+            <p className="inv-modal-desc">고른 날부터 남은 재고의 원가를 새 단가로 봅니다. 차액은 평가손익으로 잡히고, 그 날 이전 출고는 바뀌지 않습니다.</p>
+            <div className="inv-reval-form">
+              <label className="field-label">품목</label>
+              <select className="field-input" value={histProduct} onChange={(e) => setHistProduct(e.target.value)}>
+                <option value="">품목을 고르세요</option>{products.filter((p) => p.track_stock).map((p) => <option key={p.id} value={p.id}>{p.sku} {p.name}</option>)}
+              </select>
+              <label className="field-label">적용일</label>
+              <DateField value={rv.date} onChange={(e) => { const v = typeof e === "string" ? e : (e as { target: { value: string } }).target.value; setRv((s) => ({ ...s, date: v })); }} />
+              <label className="field-label">새 단가</label>
+              <input className="field-input" inputMode="numeric" placeholder="새 단가" value={rv.unit} onChange={(e) => setRv((s) => ({ ...s, unit: e.target.value }))} />
+              <label className="field-label">사유</label>
+              <select className="field-input" value={rv.reason} onChange={(e) => setRv((s) => ({ ...s, reason: e.target.value }))}>
+                {REVAL_REASONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </select>
+              <label className="field-label">비고</label>
+              <input className="field-input" placeholder="비고" value={rv.note} onChange={(e) => setRv((s) => ({ ...s, note: e.target.value }))} />
+            </div>
+            <p className="inv-modal-desc">{REVAL_REASONS.find((r) => r.value === rv.reason)?.desc}.</p>
+            <div className="inv-modal-actions">
+              <button type="button" className="btn-secondary btn-sm" onClick={() => setRevalOpen(false)}>닫기</button>
+              <button type="button" className="btn-primary btn-sm" disabled={busy || !histProduct} onClick={submitReval}>이 날부터 적용</button>
+            </div>
           </div>
         </div>
       )}

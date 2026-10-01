@@ -9370,6 +9370,12 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .inv-bom-base { @apply mb-2 flex flex-wrap items-center gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2 text-[12.5px]; }
 .inv-bom-base .inv-count-input { @apply mx-1 inline-block w-[72px]; }
 .inv-bom-base .inv-hint { @apply not-italic text-[11px]; }
+/* 이익관리 › 원가 이력 — 폼 상자 3개 → 선 없는 한 줄 + 재평가 팝업 (2026-10-01 UI 점검 9순위) */
+.inv-cost-method-line { @apply mb-2 flex flex-wrap items-center gap-2.5 text-[12.5px]; }
+.inv-cost-method-line .inv-hint { @apply not-italic text-[11px]; }
+.inv-w-160 { @apply w-40; }
+.inv-hist-product { @apply h-8 w-56 px-2 text-xs; }
+.inv-reval-form { @apply grid grid-cols-[88px_1fr] items-center gap-x-3 gap-y-2; }
 
 /* 생산 자재 소요 — 완제품 목록·부족 배지 (2026-08-26) */
 .inv-bom-list { @apply mb-2 flex flex-wrap gap-1.5; }
@@ -10099,6 +10105,16 @@ table.phv3-table { min-width: 640px; }
 .pjv3-sthbar .track { @apply flex h-4 overflow-hidden rounded-md bg-[var(--bg)]; }
 .pjv3-sthbar .fill { @apply h-full; }
 .pjv3-sthbar .n { @apply text-left font-bold text-[var(--text)]; }
+/* 매출 KPI 현황판(SalesBoard) 막대 줄 — 인라인 style → 클래스 (2026-10-01 UI 점검 9순위) */
+.pjv3-sthbar.sbd-hbar { @apply cursor-default; }
+.pjv3-sthbar.sbd-cols-month { grid-template-columns: 64px 1fr 110px; }
+.pjv3-sthbar.sbd-cols-name { grid-template-columns: 110px 1fr 110px; }
+.pjv3-sthbar.sbd-cols-pct { grid-template-columns: 64px 1fr 56px; }
+.pjv3-sthbar.sbd-cols-wide { grid-template-columns: 110px 1fr 130px; }
+.pjv3-sthbar .fill.sbd-fill-primary { background: var(--primary); }
+.pjv3-sthbar .fill.sbd-fill-ok { background: var(--success); }
+.pjv3-sthbar .fill.sbd-fill-warm { background: var(--viz-2); }
+.pjv3-sthbar .fill.sbd-fill-cat { background: var(--viz-3); }
 .pjv3-stlegend { @apply mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-[var(--text-dim)]; }
 .pjv3-stlegend i { @apply mr-1 inline-block h-2 w-2 rounded; }
 .pjv3-stflow { @apply relative flex items-end gap-2 px-1; height: 100px; }

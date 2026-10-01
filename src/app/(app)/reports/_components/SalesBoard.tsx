@@ -132,6 +132,7 @@ export function SalesBoard({ open, onClose, companyId }: {
   });
 
   if (!open) return null;
+  //   2026-10-01 UI 점검 9순위: 막대 줄의 인라인 style(커서·칸 너비·먼데이 색 hex) → 클래스·시각화 색. 너비만 계산값이라 인라인.
   const bar = (v: number, max: number) => `${max > 0 ? Math.max(2, (v / max) * 100) : 0}%`;
 
   return (
@@ -204,9 +205,9 @@ export function SalesBoard({ open, onClose, companyId }: {
                   {series.map((m) => {
                     const max = Math.max(1, ...series.map((x) => x.amount));
                     return (
-                      <div key={m.month} className="pjv3-sthbar" style={{ cursor: "default", gridTemplateColumns: "64px 1fr 110px" }}>
+                      <div key={m.month} className="pjv3-sthbar sbd-hbar sbd-cols-month">
                         <span className="nm num">{m.month.slice(2)}</span>
-                        <span className="track"><span className="fill" style={{ width: bar(m.amount, max), background: "var(--primary)" }} /></span>
+                        <span className="track"><span className="fill sbd-fill-primary" style={{ width: bar(m.amount, max) }} /></span>
                         <span className="n num">{won0(m.amount)}</span>
                       </div>
                     );
@@ -220,9 +221,9 @@ export function SalesBoard({ open, onClose, companyId }: {
                   {partners.map((g) => {
                     const max = Math.max(1, ...partners.map((x) => x.amount));
                     return (
-                      <div key={g.key} className="pjv3-sthbar" style={{ cursor: "default", gridTemplateColumns: "110px 1fr 110px" }}>
+                      <div key={g.key} className="pjv3-sthbar sbd-hbar sbd-cols-name">
                         <span className="nm">{g.label}</span>
-                        <span className="track"><span className="fill" style={{ width: bar(g.amount, max), background: "var(--primary)" }} /></span>
+                        <span className="track"><span className="fill sbd-fill-primary" style={{ width: bar(g.amount, max) }} /></span>
                         <span className="n num">{won0(g.amount)}</span>
                       </div>
                     );
@@ -236,9 +237,9 @@ export function SalesBoard({ open, onClose, companyId }: {
                   {accounts.map((g) => {
                     const max = Math.max(1, ...accounts.map((x) => x.amount));
                     return (
-                      <div key={g.key} className="pjv3-sthbar" style={{ cursor: "default", gridTemplateColumns: "110px 1fr 110px" }}>
+                      <div key={g.key} className="pjv3-sthbar sbd-hbar sbd-cols-name">
                         <span className="nm">{g.label}</span>
-                        <span className="track"><span className="fill" style={{ width: bar(g.amount, max), background: "#00C875" }} /></span>
+                        <span className="track"><span className="fill sbd-fill-cat" style={{ width: bar(g.amount, max) }} /></span>
                         <span className="n num">{won0(g.amount)}</span>
                       </div>
                     );
@@ -254,9 +255,9 @@ export function SalesBoard({ open, onClose, companyId }: {
                     <div className="pjv3-stempty">기간을 이번 달로 두면 달성률이 보입니다.</div>
                   ) : (
                     <>
-                      <div className="pjv3-sthbar" style={{ cursor: "default", gridTemplateColumns: "64px 1fr 56px" }}>
+                      <div className="pjv3-sthbar sbd-hbar sbd-cols-pct">
                         <span className="nm">달성</span>
-                        <span className="track"><span className="fill" style={{ width: `${Math.min(100, Math.round(thisMonthRev / Number(target.target_revenue) * 100))}%`, background: "#00C875" }} /></span>
+                        <span className="track"><span className="fill sbd-fill-ok" style={{ width: `${Math.min(100, Math.round(thisMonthRev / Number(target.target_revenue) * 100))}%` }} /></span>
                         <span className="n num">{Math.round(thisMonthRev / Number(target.target_revenue) * 100)}%</span>
                       </div>
                       <p className="pjv3-stnote">이번 달 매출 {won0(thisMonthRev)} / 목표 {won0(Number(target.target_revenue))}</p>
@@ -271,9 +272,9 @@ export function SalesBoard({ open, onClose, companyId }: {
                   {channels.map((c) => {
                     const max = Math.max(1, ...channels.map((x) => x.amount));
                     return (
-                      <div key={c.channel} className="pjv3-sthbar" style={{ cursor: "default", gridTemplateColumns: "110px 1fr 130px" }}>
+                      <div key={c.channel} className="pjv3-sthbar sbd-hbar sbd-cols-wide">
                         <span className="nm">{channelLabel(c.channel)}</span>
-                        <span className="track"><span className="fill" style={{ width: bar(c.amount, max), background: "#FDAB3D" }} /></span>
+                        <span className="track"><span className="fill sbd-fill-warm" style={{ width: bar(c.amount, max) }} /></span>
                         <span className="n num">{won0(c.amount)} · {c.count}건</span>
                       </div>
                     );
