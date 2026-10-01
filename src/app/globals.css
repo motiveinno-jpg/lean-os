@@ -11296,3 +11296,4 @@ table.ol-items-table { min-width: 760px; table-layout: fixed; }
 .late-reason-cell { @apply mt-1 block max-w-[28ch] truncate text-left text-[11.5px] text-[var(--text-muted)] hover:text-[var(--primary)]; }
 .late-reason-add { @apply mt-1 flex w-fit; }   /* 배지 옆이 아니라 아래 줄로 */
 .late-reason-line { @apply mx-auto mt-1 max-w-[24ch] truncate text-[11px] text-[var(--text-muted)]; }
+.att-day-reason-mark { @apply rounded bg-[var(--bg)] px-1 text-[10px] font-semibold text-[var(--warning)]; }   /* 근태 달력 날짜 패널 — 지각 사유 있음(마우스를 올리면 내용) */

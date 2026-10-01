@@ -965,7 +965,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     if (!effectiveSelectedDay) return null;
     const dow = new Date(`${effectiveSelectedDay}T00:00:00`).getDay();
     const isPast = effectiveSelectedDay < todayStr;
-    const byStatus: Record<string, { id: string; name: string; department: string }[]> = {};
+    const byStatus: Record<string, { id: string; name: string; department: string; lateReason?: string | null }[]> = {};
     activeEmployees.forEach((emp: any) => {
       const rec = records.find((r: any) => r.employee_id === emp.id && r.date === effectiveSelectedDay);
       let status = rec ? effectiveStatus(rec) : (calendarData.empMap[emp.id]?.[effectiveSelectedDay] || null);
@@ -976,7 +976,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
       }
       if (status) {
         if (!byStatus[status]) byStatus[status] = [];
-        byStatus[status].push({ id: emp.id, name: emp.name, department: emp.department || "미배정" });
+        byStatus[status].push({ id: emp.id, name: emp.name, department: emp.department || "미배정", lateReason: rec?.is_late ? rec.late_reason : null });
       }
     });
     return byStatus;
@@ -1283,9 +1283,10 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                                       {open && (
                                         <div className="flex flex-wrap gap-1.5 pl-4 pt-1 pb-1.5">
                                           {members.map((emp) => (
-                                            <span key={emp.id} className="inline-flex items-center gap-1.5 pl-1 pr-2.5 py-0.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)]">
+                                            <span key={emp.id} className="inline-flex items-center gap-1.5 pl-1 pr-2.5 py-0.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)]" title={emp.lateReason ? `지각 사유: ${emp.lateReason}` : undefined}>
                                               <span className="w-5 h-5 rounded-full flex items-center justify-center overflow-hidden text-white text-[9px] font-bold shrink-0" style={{ background: attAvatarColor(emp.id) }}>{attInitial1(emp.name)}</span>
                                               {emp.name}
+                                              {emp.lateReason && <span className="att-day-reason-mark">사유</span>}
                                             </span>
                                           ))}
                                         </div>
