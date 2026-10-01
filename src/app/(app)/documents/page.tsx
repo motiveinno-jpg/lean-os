@@ -1560,7 +1560,10 @@ function DocumentsPageInner() {
   //   편집 문서 삭제 버튼 = DB 삭제 권한과 같은 기준(delete_document — 본인이 만든 문서 · 마스터 · 「남의 파일·문서 수정·삭제」) (2026-09-30)
   //     전에는 누구에게나 휴지통이 보이고 누르면 서버가 거절했다. 지금 이 탭은 닫혀 있지만(valid ["files"]) 다시 열 때 같은 기준으로.
   const { isMaster: docIsMaster, hasPerm: docHasPerm } = useMyPermissions();
-  const canDeleteDoc = (d: { created_by?: string | null }) => docIsMaster || docHasPerm("/documents:delete") || (!!d.created_by && d.created_by === userId);
+  //   잠긴 문서(서명 완료·문서번호 발급·체결)는 누구도 못 지운다 — 보관 대상(2026-10-01 W6, delete_document 와 같은 기준)
+  const canDeleteDoc = (d: { created_by?: string | null; status?: string | null; locked_at?: string | null }) =>
+    !(d.locked_at || ["locked", "executed", "issued"].includes(String(d.status || "")))
+    && (docIsMaster || docHasPerm("/documents:delete") || (!!d.created_by && d.created_by === userId));
   // 파일 보관함 전용으로 단순화 · 문서/계약서/세금계산서/전자계약/양식 관리는 각 전용 메뉴로 이전.
   //   (탭 타입은 호환 위해 유지하되 진입 시 항상 files 로 고정, 탭 전환 UI 제거)
   const [tab, setTab] = useTabParam<"docs" | "contracts" | "invoices" | "signatures" | "files" | "templates">("files", { valid: ["files"] });

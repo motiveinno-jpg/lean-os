@@ -1130,6 +1130,11 @@ export async function deleteDocument(documentId: string): Promise<void> {
       ? `서명이 끝난 근로계약 패키지(${live[0].hr_contract_packages?.title || ''})의 문서라 삭제할 수 없습니다. 서명본은 보관 대상입니다.`
       : `발송된 근로계약 패키지(${live[0].hr_contract_packages?.title || ''})에 묶인 문서입니다. 근로계약·서식 › 계약 발송·현황에서 패키지를 취소(정리)한 뒤 지우세요.`);
   }
+  //   잠긴 문서(서명 완료·문서번호 발급·체결)는 보관 대상 — 서버도 막지만(20261001210000 W6), 첨부를 먼저 지우기 전에 여기서 멈춘다
+  const { data: lockRow } = await supabase.from('documents').select('status, locked_at').eq('id', documentId).maybeSingle();
+  if (lockRow && (lockRow.locked_at || ['locked', 'executed', 'issued'].includes(String(lockRow.status || '')))) {
+    throw new Error('잠긴 문서(서명 완료·문서번호 발급·체결)는 보관 대상이라 삭제할 수 없습니다.');
+  }
   const { deleteFilesForDocument } = await import('./file-storage');
   await deleteFilesForDocument(documentId).catch(() => {});
   const { error } = await supabase.rpc('delete_document', { p_doc_id: documentId });
