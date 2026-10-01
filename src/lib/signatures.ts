@@ -88,6 +88,19 @@ function generateSignToken(): string {
   return token;
 }
 
+// 견적→계약 자동 생성 계약서(원본 견적 연결 있음)는 만들 때가 아니라 보낼 때 직인을 찍는다(2026-10-01 사장님 (다)).
+//   직인 뒤에는 내용을 못 고치므로(documents_sealed_content_guard) 보내기 전까지는 고칠 수 있게 한 것.
+//   직인 미등록·권한 없음이면 직인 없이 보낸다(종전 자동 직인과 같은 처리 — 조용히 건너뜀).
+async function sealAutoContractOnSend(documentId: string): Promise<void> {
+  try {
+    const d = logRead('lib/signatures:autoSealDoc', await db.from('documents')
+      .select('seal_applied, source_document_id, locked_at, status').eq('id', documentId).maybeSingle()) as
+      { seal_applied: boolean | null; source_document_id: string | null; locked_at: string | null; status: string | null } | null;
+    if (!d || d.seal_applied || !d.source_document_id || d.locked_at || ['locked', 'executed', 'issued'].includes(d.status || '')) return;
+    await db.rpc('apply_document_seal', { p_doc_id: documentId });
+  } catch { /* 직인 없이 진행 */ }
+}
+
 // ── Create Signature Request ──
 export async function createSignatureRequest(params: {
   companyId: string;
@@ -98,6 +111,7 @@ export async function createSignatureRequest(params: {
   signerPhone?: string;
   createdBy: string;
 }) {
+  await sealAutoContractOnSend(params.documentId);
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 14); // 14-day expiry
   const signToken = generateSignToken();

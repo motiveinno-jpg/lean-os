@@ -589,7 +589,9 @@ export function BoardDocModal({
   });
 
   const status = doc?.status || "draft";
-  const canEdit = status === "draft" || status === "review";
+  //   직인이 찍혔거나 잠긴 문서는 내용을 못 고친다 — DB 트리거(documents_sealed_content_guard·documents_content_edit_guard)와 같은 기준(2026-10-01)
+  const frozenReason = doc?.locked_at ? "잠긴 문서라 고칠 수 없습니다" : doc?.seal_applied ? "직인이 찍힌 문서라 고칠 수 없습니다 — 고치려면 개정본" : "";
+  const canEdit = (status === "draft" || status === "review") && !frozenReason;
   const lastSend = sends[0];
   //   편집기에서 서식(HTML 본문)으로 작성한 계약서는 조항 편집을 숨긴다 — 여기서 고치면 서식이 깨진다
   const richBody = kind === "contract" && !!cj.body;
@@ -838,6 +840,7 @@ export function BoardDocModal({
           {kind === "issue" && <Link href="/tax-invoices" className="pb-doc-link">세금계산서 화면 ↗</Link>}
           <span className="pb-doc-spacer" />
           {kind !== "issue" && (<>
+            {frozenReason && <span className="pb-doc-frozen-note">{frozenReason}</span>}
             <button type="button" className="pb-doc-sub" disabled={busy || !canEdit} onClick={() => save().catch((e: any) => toast(e?.message || "저장 실패", "error"))}>저장</button>
             <button type="button" className="pb-doc-sub" disabled={busy} onClick={openPreview}
               title="인쇄될 PDF를 미리 봅니다.">미리보기</button>

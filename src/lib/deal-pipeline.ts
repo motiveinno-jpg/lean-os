@@ -16,7 +16,7 @@ import { createTaxInvoice, markInvoiceMatched, issueTaxInvoice } from './tax-inv
 import { createQueueEntry } from './payment-queue';
 import { dispatchBusinessEvent, type BusinessEventType } from './business-events';
 import { generateContractPDF } from './document-generator';
-import { createSignatureRequest, sendSignatureEmail, applyCompanySeal } from './signatures';
+import { createSignatureRequest, sendSignatureEmail } from './signatures';
 import type { Json } from '@/types/models';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -395,24 +395,8 @@ export async function onDocumentApproved(params: {
       const partnerEmail = deal?.partners?.contact_email || '';
       const partnerName = deal?.partners?.name || '';
 
-      // Auto-apply company seal if available
-      try {
-        await applyCompanySeal({
-          documentId: contractDocId,
-          companyId,
-          appliedBy: approverId,
-        });
-        await dispatchBusinessEvent({
-          dealId: doc.deal_id,
-          eventType: 'document_approved' as BusinessEventType,
-          userId: approverId,
-          referenceId: contractDocId,
-          referenceTable: 'documents',
-          summary: { title: `계약서 직인 자동 적용` },
-        });
-      } catch {
-        // No seal configured — skip silently
-      }
+      //   직인은 만들 때 찍지 않는다(2026-10-01 사장님 (다)) — 직인 뒤엔 내용을 못 고치므로, 보내기 전에 고칠 수 있게
+      //   서명 요청을 만드는 순간(createSignatureRequest → sealAutoContractOnSend) 찍는다. 아래 즉시 발송도 그 길을 탄다.
 
       // Send signature request if partner has a valid email
       if (partnerEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(partnerEmail)) {

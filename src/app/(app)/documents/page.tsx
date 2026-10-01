@@ -406,7 +406,11 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
   const sc = (DOC_STATUS as any)[status] || DOC_STATUS.draft;
   //   발행(issued)·잠금 시각이 있는 문서도 잠긴 문서 — DB 트리거(documents_content_edit_guard R1·R2)와 같은 기준 (2026-09-30)
   const isLocked = status === "locked" || status === "executed" || status === "issued" || !!doc.locked_at;
-  const canEdit = (status === "draft" || status === "review") && !isLocked;
+  //   직인이 찍힌 문서도 내용은 못 고친다(2026-10-01 사장님) — DB 트리거 documents_sealed_content_guard 와 같은 기준.
+  //   상태 진행(서명 요청·잠금)은 그대로. 고쳐야 하면 개정본.
+  const isSealed = !!(doc as any).seal_applied;
+  const contentFrozen = isLocked || isSealed;
+  const canEdit = (status === "draft" || status === "review") && !contentFrozen;
   const canSubmit = status === "draft";
   const canApprove = status === "review";
   const canLock = status === "approved";
@@ -1094,10 +1098,15 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
               이 문서는 <b>잠금 상태</b>라 수정할 수 없습니다.
             </div>
           )}
+          {!isLocked && isSealed && (
+            <div className="kpi-callout warning">
+              <b>직인이 찍힌 문서</b>라 내용을 고칠 수 없습니다. 고쳐야 하면 개정본(새 문서)을 만드세요.
+            </div>
+          )}
 
           {/* ── 견적서 헤더 (거래처/거래유형/결제조건 등) — 견적/계산서면 항상 표시 ── */}
           {(contentType === 'invoice' || contentType === 'quote') && (
-            <QuoteHeader header={quoteHeader} onChange={setQuoteHeader} companyId={companyId} editable={(canEdit && isEditing) || ((contentType === 'invoice' || contentType === 'quote') && !isLocked)} />
+            <QuoteHeader header={quoteHeader} onChange={setQuoteHeader} companyId={companyId} editable={(canEdit && isEditing) || ((contentType === 'invoice' || contentType === 'quote') && !contentFrozen)} />
           )}
 
           {/* ── 품목 편집 테이블 (회사별 컬럼 커스터마이징) ── */}
@@ -1107,7 +1116,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 items={editItems}
                 onChange={setEditItems}
                 companyId={companyId}
-                editable={(canEdit && isEditing) || ((contentType === 'invoice' || contentType === 'quote') && !isLocked)}
+                editable={(canEdit && isEditing) || ((contentType === 'invoice' || contentType === 'quote') && !contentFrozen)}
                 taxRate={quoteHeader.taxType === 'exempt' || quoteHeader.taxType === 'zero' ? 0 : 0.1}
                 discount={Number((quoteHeader as any).discount) || 0}
                 onDiscountChange={(n) => setQuoteHeader({ ...quoteHeader, discount: n } as any)}
@@ -1308,6 +1317,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 <button
                   onClick={async () => {
                     if (!companyId || !userId) return;
+                    if (!(await appConfirm("직인을 찍으면 이 문서의 내용을 더 고칠 수 없습니다.\n고칠 곳이 없는지 확인한 뒤 찍어 주세요."))) return;
                     setSealApplying(true);
                     try {
                       await applyCompanySeal({ documentId: id, companyId, appliedBy: userId });
@@ -1432,7 +1442,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           </div>
           )}
 
-          {(canEdit || ((contentType === 'invoice' || contentType === 'quote') && !isLocked)) && (
+          {(canEdit || ((contentType === 'invoice' || contentType === 'quote') && !contentFrozen)) && (
             <div className="document-save-bar">
               <input value={comment} onChange={(e) => setComment(e.target.value)}
                 placeholder="변경 코멘트 (선택)"
