@@ -97,6 +97,13 @@ if (mode === "inspect") {
     { mode: 0o600 },
   );
   process.stdout.write("로컬 연결 환경 작성 완료 (비밀값 출력 없음)\n");
+} else if (mode === "deployment-status") {
+  const result = await req(`https://api.vercel.com/v6/deployments?projectId=${project.projectId}&teamId=${project.orgId}&limit=5&target=production`,env.VERCEL_API_TOKEN);
+  process.stdout.write(JSON.stringify(result.deployments.map(d=>({id:d.uid,state:d.state,url:d.url,sha:d.meta?.githubCommitSha})))+"\n");
+} else if (mode === "mail-status") {
+  const receipt=JSON.parse(await readFile("deliverables/procurement/live-check/mail-connection-receipt.json","utf8"));
+  const result=await req(`https://api.resend.com/emails/${receipt.id}`,env.RESEND_ADMIN_KEY);
+  process.stdout.write(JSON.stringify({id:result.id,last_event:result.last_event,to:result.to})+"\n");
 } else if (mode === "models") {
   const result = await req(
     "https://api.anthropic.com/v1/models",
