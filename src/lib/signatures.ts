@@ -446,37 +446,112 @@ export async function saveSignature(
   });
 
   // Auto-lock document when all signatures are collected
-  if (data?.document_id) {
-    const allSigs = logRead('lib/signatures:allSigs', await db
-      .from('signature_requests')
-      .select('id, status')
-      .eq('document_id', data.document_id));
-
-    const allSigned = (allSigs || []).length > 0 &&
-      (allSigs || []).every((s: { status: string | null }) => s.status === 'signed');
-
-    if (allSigned) {
-      // Check document status — if not yet approved, approve + lock
-      const doc = logRead('lib/signatures:doc', await db
-        .from('documents')
-        .select('id, status, company_id, deal_id')
-        .eq('id', data.document_id)
-        .maybeSingle());
-
-      if (doc) {
-        if (doc.status !== 'approved' && doc.status !== 'locked') {
-          // Auto-approve triggers pipeline (견적→계약, 계약→세금계산서)
-          const { approveDocument } = await import('./documents');
-          await approveDocument(doc.id, 'system', '전체 서명 완료로 자동 승인');
-        }
-        // Lock the document
-        const { lockDocument } = await import('./documents');
-        await lockDocument(doc.id, 'system');
-      }
-    }
-  }
+  if (data?.document_id) await finalizeDocumentIfAllSigned(data.document_id);
 
   return data;
+}
+
+// 문서의 서명 요청이 전부 '서명 완료'면 승인(파이프라인)·잠금까지 — 전자서명·종이 서명 공용 (2026-10-01 saveSignature 에서 뽑음)
+async function finalizeDocumentIfAllSigned(documentId: string): Promise<void> {
+  const allSigs = logRead('lib/signatures:allSigs', await db
+    .from('signature_requests')
+    .select('id, status')
+    .eq('document_id', documentId));
+
+  const allSigned = (allSigs || []).length > 0 &&
+    (allSigs || []).every((s: { status: string | null }) => s.status === 'signed');
+  if (!allSigned) return;
+
+  // Check document status — if not yet approved, approve + lock
+  const doc = logRead('lib/signatures:doc', await db
+    .from('documents')
+    .select('id, status, company_id, deal_id')
+    .eq('id', documentId)
+    .maybeSingle());
+
+  if (doc) {
+    if (doc.status !== 'approved' && doc.status !== 'locked') {
+      // Auto-approve triggers pipeline (견적→계약, 계약→세금계산서)
+      const { approveDocument } = await import('./documents');
+      await approveDocument(doc.id, 'system', '전체 서명 완료로 자동 승인');
+    }
+    // Lock the document
+    const { lockDocument } = await import('./documents');
+    await lockDocument(doc.id, 'system');
+  }
+}
+
+// ── 종이 서명 등록 (2026-10-01 사장님: 추천 (나)) ──
+//   거래처가 종이에 서명해 돌려준 경우. 전자서명과 섞이지 않게 signature_method='paper' 로 따로 남기고,
+//   서명된 스캔본(PDF·사진)을 반드시 올린다. 문서 수정 권한자만(DB 트리거 signature_requests_guard 가 같은 기준으로 막는다).
+//   전부 서명되면 전자서명과 똑같이 승인·잠금까지 이어진다.
+const PAPER_SIGN_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/heic', 'image/webp'];
+export async function registerPaperSignature(params: {
+  id: string;
+  companyId: string;
+  userId: string;
+  file: File;
+  signedDate: string;   // 'YYYY-MM-DD' — 종이에 서명한 날
+  note?: string;
+}) {
+  if (!params.file) throw new Error('서명된 종이 스캔본을 올려 주세요');
+  if (!PAPER_SIGN_TYPES.includes(params.file.type)) throw new Error('PDF 또는 사진(JPG·PNG) 파일만 올릴 수 있습니다');
+  if (params.file.size > 20 * 1024 * 1024) throw new Error('파일은 20MB 까지 올릴 수 있습니다');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(params.signedDate)) throw new Error('서명한 날짜를 골라 주세요');
+
+  const safe = params.file.name.replace(/[^\w.\-가-힣]/g, '_').slice(-80);
+  const path = `paper-signatures/${params.companyId}/${params.id}/${Date.now()}-${safe}`;
+  const { error: upErr } = await db.storage.from('documents').upload(path, params.file);
+  if (upErr) throw new Error(`스캔본을 올리지 못했습니다: ${upErr.message}`);
+
+  const { data, error } = await db
+    .from('signature_requests')
+    .update({
+      status: 'signed',
+      signed_at: new Date().toISOString(),
+      signature_method: 'paper',
+      signature_data: {
+        type: 'paper',
+        file: path,
+        file_name: params.file.name,
+        signed_date: params.signedDate,
+        registered_by: params.userId,
+        note: params.note?.trim() || null,
+      },
+    } as never)
+    .eq('id', params.id)
+    .in('status', ['pending', 'sent', 'viewed'])
+    .select()
+    .maybeSingle();
+  if (error) {
+    await db.storage.from('documents').remove([path]);   // 기록 실패면 올린 파일도 치운다
+    throw error;
+  }
+  if (!data) {
+    await db.storage.from('documents').remove([path]);
+    throw new Error('이미 처리된 서명 요청입니다');
+  }
+
+  await logAudit({
+    company_id: params.companyId,
+    user_id: params.userId,
+    action: 'sign',
+    entity_type: 'signature',
+    entity_id: params.id,
+    entity_name: (data as { title?: string }).title,
+    metadata: { signature_type: 'paper', file: path, signed_date: params.signedDate, document_id: (data as { document_id?: string }).document_id },
+  });
+
+  const docId = (data as { document_id?: string | null }).document_id;
+  if (docId) await finalizeDocumentIfAllSigned(docId);
+  return data;
+}
+
+/** 종이 서명 스캔본 열기용 짧은 링크 (회사 폴더 RLS 를 따른다) */
+export async function getPaperSignatureUrl(path: string): Promise<string> {
+  const { data, error } = await db.storage.from('documents').createSignedUrl(path, 600);
+  if (error || !data?.signedUrl) throw new Error('스캔본을 열 수 없습니다');
+  return data.signedUrl;
 }
 
 // ── Bulk Signature Requests (일괄 서명 요청) ──

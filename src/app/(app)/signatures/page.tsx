@@ -39,6 +39,7 @@ import {
   getSignatureStatusInfo,
   expireOverdueSignatures,
   finalizeFullySignedDocuments,
+  getPaperSignatureUrl,
   SIGNATURE_STATUS,
   type SignatureStatusValue,
 } from "@/lib/signatures";
@@ -56,6 +57,7 @@ const HR_TEMPLATE_CATEGORIES = new Set([
 import  { FailurePanel } from "./_components/FailurePanel";
 import { OrgBulkWizard } from "./_components/OrgBulkWizard";
 import { useModalKeys } from "@/hooks/use-modal-keys";
+import { PaperSignDialog } from "./_components/PaperSignDialog";
 
 export default function SignaturesDashboardPage() {
   const { role }  = useUser();
@@ -101,7 +103,9 @@ function SignaturesDashboardInner() {
   const [managerFilter, setManagerFilter] = useState(""); // "" 전체 / created_by(uuid)   (표 안 담당자 이름으로도 건다)
   // PR-3: signed 행 서명본 보기 모달 (signature_data jsonb 이미지)
   // 2026-05-28 signer_inputs(라디오/조건부 텍스트 응답) 표시 추가
-  const [viewSignedRow, setViewSignedRow] = useState<{ id: string; signer_name: string; signed_at: string | null; signature_data: { type?: string; data?: string } | null; title: string; signer_inputs?: Record<string, string> | null } | null>(null);
+  const [viewSignedRow, setViewSignedRow] = useState<{ id: string; signer_name: string; signed_at: string | null; signature_data: { type?: string; data?: string; file?: string; file_name?: string; signed_date?: string; note?: string | null } | null; title: string; signer_inputs?: Record<string, string> | null } | null>(null);
+  //   종이 서명 등록 대상 줄 (2026-10-01)
+  const [paperRow, setPaperRow] = useState<{ id: string; signer_name: string | null; title: string | null } | null>(null);
   useModalKeys(!!viewSignedRow, () => setViewSignedRow(null));
   // 2026-05-29 발송 실패 패널 (최근 7일) — 대표/관리자만 노출, RLS 자동 차단.
   //   role 이 employee/partner 면 컴포넌트 상단에서 이미 AccessDenied 로 차단되므로
@@ -726,6 +730,7 @@ function SignaturesDashboardInner() {
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${info.bg} ${info.text}`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${info.dot}`} />{info.label}
                             </span>
+                            {r.status === 'signed' && r.signature_method === 'paper' && <span className="paper-sign-tag" title="종이에 서명한 계약 — 스캔본으로 등록">종이</span>}
                           </td>
                           <td className="signature-table-group">
                             {/* 값을 눌러 그 묶음만 보기 — 다시 누르면 해제 */}
@@ -778,6 +783,9 @@ function SignaturesDashboardInner() {
                               )}
                               {r.sign_token && r.status !== 'signed' && (
                                 <a href={`/sign?token=${r.sign_token}`} target="_blank" rel="noopener noreferrer" className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="서명 링크 열기" title="서명 링크"><Ico e="🔗" /></a>
+                              )}
+                              {['pending', 'sent', 'viewed'].includes(r.status) && (
+                                <button onClick={() => setPaperRow({ id: r.id, signer_name: r.signer_name, title: r.title })} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="종이 서명 등록" title="종이 서명 등록 — 거래처가 종이에 서명해 돌려준 경우(스캔본 필수)"><Ico e="📝" /></button>
                               )}
                               <button onClick={() => openDocViewer({ type: 'contract', id: r.id })} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="계약서 보기 / PDF 다운로드" title="이 계약서 보기 / PDF 다운로드"><Ico e="📄" /></button>
                               {r.status === 'signed' && (
@@ -844,6 +852,11 @@ function SignaturesDashboardInner() {
         />
       )}
 
+      {paperRow && companyId && userId && (
+        <PaperSignDialog row={paperRow} companyId={companyId} userId={userId} onClose={() => setPaperRow(null)}
+          onDone={() => qc.invalidateQueries({ queryKey: ["signature-requests"] })} />
+      )}
+
       {/* PR-3: 서명본 보기 모달 (status='signed' 행) */}
       {viewSignedRow && (
         <div className="signature-proof-modal fixed inset-0" onClick={() => setViewSignedRow(null)}>
@@ -872,13 +885,24 @@ function SignaturesDashboardInner() {
                 <div>
                   <div className="text-[var(--text-muted)] mb-1">서명 방식</div>
                   <div className="font-semibold">
-                    {viewSignedRow.signature_data?.type === "draw" ? "손글씨 서명"
+                    {viewSignedRow.signature_data?.type === "paper" ? `종이 서명 (서명일 ${viewSignedRow.signature_data.signed_date || "—"})`
+                      : viewSignedRow.signature_data?.type === "draw" ? "손글씨 서명"
                       : viewSignedRow.signature_data?.type === "type" ? "타이핑 서명"
                       : viewSignedRow.signature_data?.type === "upload" ? "도장/사인 업로드"
                       : "—"}
                   </div>
                 </div>
               </div>
+              {viewSignedRow.signature_data?.type === "paper" ? (
+              <div className="paper-sign-proof">
+                <div className="paper-sign-proof-label">종이 서명 스캔본</div>
+                <button type="button" className="btn-secondary btn-sm" onClick={async () => {
+                  try { window.open(await getPaperSignatureUrl(String(viewSignedRow.signature_data?.file || "")), "_blank", "noopener"); }
+                  catch (e) { toast(friendlyError(e, "스캔본을 열 수 없습니다"), "error"); }
+                }}>{viewSignedRow.signature_data.file_name || "스캔본"} 열기</button>
+                {viewSignedRow.signature_data.note && <div className="paper-sign-proof-note">메모: {viewSignedRow.signature_data.note}</div>}
+              </div>
+              ) : (
               <div className="border border-[var(--border)] rounded-lg p-3 bg-[var(--bg-surface)]/50">
                 <div className="text-[10px] text-[var(--text-muted)] mb-2">서명 이미지</div>
                 {viewSignedRow.signature_data?.data ? (
@@ -897,6 +921,7 @@ function SignaturesDashboardInner() {
                   <div className="text-xs text-[var(--text-muted)] text-center py-6">서명 이미지가 저장되어 있지 않습니다.</div>
                 )}
               </div>
+              )}
               {/* 2026-05-28 서명자 입력값(라디오/조건부 텍스트) — signer_inputs 가 있을 때만 노출 */}
               {viewSignedRow.signer_inputs && Object.keys(viewSignedRow.signer_inputs).length > 0 && (
                 <div className="border border-[var(--border)] rounded-lg p-3 bg-[var(--bg-surface)]/50">

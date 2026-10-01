@@ -11298,3 +11298,12 @@ table.ol-items-table { min-width: 760px; table-layout: fixed; }
 .late-reason-line { @apply mx-auto mt-1 max-w-[24ch] truncate text-[11px] text-[var(--text-muted)]; }
 .att-day-reason-mark { @apply rounded bg-[var(--bg)] px-1 text-[10px] font-semibold text-[var(--warning)]; }   /* 근태 달력 날짜 패널 — 지각 사유 있음(마우스를 올리면 내용) */
 .pb-doc-frozen-note { @apply text-[11.5px] text-[var(--text-dim)]; }   /* 프로젝트 문서 팝업 — 직인·잠금으로 저장 막힌 이유 (2026-10-01) */
+/* 종이 서명 등록 (2026-10-01) — 전자계약 목록 줄 버튼·팝업·서명본 보기 */
+.paper-sign-box { @apply max-w-md; }
+.paper-sign-who { @apply text-[12px] font-normal text-[var(--text-muted)]; }
+.paper-sign-file { @apply text-[12px]; }
+.paper-sign-note { @apply w-full resize-y rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none; }
+.paper-sign-tag { @apply ml-1 rounded bg-[var(--bg-surface)] px-1 text-[10px] font-semibold text-[var(--text-muted)]; }
+.paper-sign-proof { @apply flex flex-col items-start gap-2 rounded-lg border border-[var(--border)] p-3; }
+.paper-sign-proof-label { @apply text-[10px] text-[var(--text-muted)]; }
+.paper-sign-proof-note { @apply text-[12px] text-[var(--text-muted)]; }

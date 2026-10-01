@@ -16,7 +16,7 @@ import { createTaxInvoice, markInvoiceMatched, issueTaxInvoice } from './tax-inv
 import { createQueueEntry } from './payment-queue';
 import { dispatchBusinessEvent, type BusinessEventType } from './business-events';
 import { generateContractPDF } from './document-generator';
-import { createSignatureRequest, sendSignatureEmail } from './signatures';
+import { createNotification } from './notifications';
 import type { Json } from '@/types/models';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -347,7 +347,7 @@ export async function onDocumentApproved(params: {
   // Fetch the document
   const doc = logRead('lib/deal-pipeline:doc', await supabase
     .from('documents')
-    .select('id, name, deal_id, content_json')
+    .select('id, name, deal_id, content_json, created_by')
     .eq('id', documentId)
     .maybeSingle());
 
@@ -383,46 +383,25 @@ export async function onDocumentApproved(params: {
       summary: { title: `계약서 자동 생성됨 (견적서 승인 기반)` },
     });
 
-    // ── Auto-seal + signature request for the new contract ──
+    // ── 계약서 초안만 만들고 사람이 확인해 보낸다 (2026-10-01 사장님) ──
+    //   종전엔 거래처 이메일이 있으면 승인 즉시 서명 요청을 자동 발송 → 고칠 틈 없이 직인·발송까지 됐다.
+    //   '발송은 사람 버튼'(자동화 기본 구조). 직인은 보낼 때 createSignatureRequest 가 찍는다(sealAutoContractOnSend).
+    //   견적을 승인한 사람과 만든 사람에게 확인 알림 — 알림을 누르면 그 계약서 초안으로 간다.
     try {
-      // Fetch deal + partner info for signature
-      const deal = logRead('lib/deal-pipeline:deal', await db
-        .from('deals')
-        .select('name, partners!deals_partner_id_fkey(name, contact_email, contact_phone)')
-        .eq('id', doc.deal_id)
-        .maybeSingle());
-
-      const partnerEmail = deal?.partners?.contact_email || '';
-      const partnerName = deal?.partners?.name || '';
-
-      //   직인은 만들 때 찍지 않는다(2026-10-01 사장님 (다)) — 직인 뒤엔 내용을 못 고치므로, 보내기 전에 고칠 수 있게
-      //   서명 요청을 만드는 순간(createSignatureRequest → sealAutoContractOnSend) 찍는다. 아래 즉시 발송도 그 길을 탄다.
-
-      // Send signature request if partner has a valid email
-      if (partnerEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(partnerEmail)) {
-        const sigReq = await createSignatureRequest({
+      const notifyIds = [...new Set([approverId, (doc as { created_by?: string | null }).created_by].filter(Boolean) as string[])];
+      for (const uid of notifyIds) {
+        await createNotification({
           companyId,
-          documentId: contractDocId,
-          title: `${deal?.name || '계약'} - 계약서 서명 요청`,
-          signerName: partnerName,
-          signerEmail: partnerEmail,
-          createdBy: approverId,
-        });
-
-        await sendSignatureEmail(sigReq.id);
-
-        await dispatchBusinessEvent({
-          dealId: doc.deal_id,
-          eventType: 'document_approved' as BusinessEventType,
-          userId: approverId,
-          referenceId: sigReq.id,
-          referenceTable: 'signature_requests',
-          summary: { title: `서명 요청 자동 발송 (${partnerEmail})` },
+          userId: uid,
+          type: 'document',
+          title: '계약서 초안이 만들어졌습니다 — 확인 후 보내 주세요',
+          message: `${doc.name || '견적'} 승인으로 계약서 초안을 만들었습니다. 내용을 확인하고 「거래처에게 발송」을 누르면 직인이 찍혀 서명 요청이 나갑니다.`,
+          entityType: 'document',
+          entityId: contractDocId,
         });
       }
-    } catch (sigErr) {
-      // Signature sending failure should not block the pipeline
-      console.error('Auto-signature request failed:', sigErr);
+    } catch {
+      // 알림 실패가 계약서 생성을 막지 않는다
     }
 
     return { nextAction: 'contract_created', createdDocId: contractDocId };
