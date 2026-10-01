@@ -15,7 +15,6 @@ import { supabase } from './supabase';
 import { createTaxInvoice, markInvoiceMatched, issueTaxInvoice } from './tax-invoice';
 import { createQueueEntry } from './payment-queue';
 import { dispatchBusinessEvent, type BusinessEventType } from './business-events';
-import { generateContractPDF } from './document-generator';
 import { createNotification } from './notifications';
 import type { Json } from '@/types/models';
 
@@ -415,13 +414,7 @@ export async function onDocumentApproved(params: {
       .eq('deal_id', doc.deal_id);
     if ((existingSchedules || 0) > 0) return { nextAction: 'already_created' };
     // Generate the contract PDF HTML and store as a document record
-    const contractPdfResult = await generateContractDocumentForDeal({
-      dealId: doc.deal_id,
-      documentId,
-      companyId,
-      content,
-      createdBy: approverId,
-    });
+    const contractPdfResult = await generateContractDocumentForDeal({ documentId });
 
     const result = await onContractApproved({
       dealId: doc.deal_id,
@@ -446,76 +439,20 @@ export async function onDocumentApproved(params: {
 
 // ── 2b. Generate contract PDF when contract is approved ──
 
-async function generateContractDocumentForDeal(params: {
-  dealId: string;
-  documentId: string;
-  companyId: string;
-  content: any;
-  createdBy: string;
-}): Promise<{ pdfDocId?: string }> {
-  const { dealId, documentId, companyId, content, createdBy } = params;
+async function generateContractDocumentForDeal(params: { documentId: string }): Promise<{ pdfDocId?: string }> {
+  const { documentId } = params;
 
   try {
-    // Fetch company info
-    const company = logRead('lib/deal-pipeline:company', await db
-      .from('companies')
-      .select('name, business_number, representative, address, phone')
-      .eq('id', companyId)
-      .maybeSingle());
-
-    // Build items list for the contract
-    const items = (content?.items || []).map((it: any) => ({
-      name: it.name || '',
-      spec: it.spec || '',
-      qty: Number(it.quantity || it.qty || 1),
-      unitPrice: Number(it.unitPrice || 0),
-      amount: Number(it.supplyAmount || it.amount || it.totalAmount || 0),
-    }));
-
-    const contractTotal = Number(content?.contractTotal || content?.supplyAmount || 0);
-
-    const pdfHtml = generateContractPDF({
-      documentNumber: content?.documentNumber || `CTR-${dealId.slice(0, 8).toUpperCase()}`,
-      date: new Date().toLocaleDateString('ko-KR'),
-      partyA: {
-        name: company?.name || '',
-        representative: company?.representative || '',
-        businessNumber: company?.business_number || '',
-        address: company?.address || '',
-        phone: company?.phone || '',
-      },
-      partyB: {
-        name: content?.partnerName || '',
-        representative: content?.counterpartyRepresentative || '',
-        businessNumber: content?.partnerBizNo || '',
-        address: content?.counterpartyAddress || '',
-      },
-      contractAmount: contractTotal,
-      taxAmount: Math.round(contractTotal * 0.1),
-      totalAmount: Math.round(contractTotal * 1.1),
-      items,
-      contractSubject: content?.dealName || '',
-      contractStartDate: content?.contractStartDate || todayKst(),
-      contractEndDate: content?.contractEndDate || '',
-      paymentTerms: content?.paymentTerms || '',
-      deliveryDeadline: content?.deliveryDeadline || '',
-      inspectionPeriod: content?.inspectionPeriod || '7영업일',
-      warrantyPeriod: content?.warrantyPeriod || '납품 후 1년',
-      latePenaltyRate: content?.latePenaltyRate || '0.1',
-      specialTerms: content?.specialTerms || '',
+    //   보관본은 서버가 렌더링해 만든다(2026-10-01 /api/documents/archive-contract) — 원본 계약서 id 만 보낸다.
+    //   본문·회사 정보는 서버가 DB 에서 읽고, 같은 회사·승인된 계약서·원본당 1건을 서버가 확인한다.
+    const res = await fetch('/api/documents/archive-contract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ documentId }),
     });
-
-    // 보관본은 서버 함수로만 만든다(2026-10-01) — 같은 회사의 승인된 계약서에만, 원본당 한 번.
-    //   전에는 여기서 status='issued' 문서를 직접 넣어, 새 문서 가드가 그 조합을 예외로 열어 둬야 했다(누구나 '발행된 보관본'을 꾸며 넣을 수 있었다).
-    const { data: archiveId, error: archiveErr } = await (db as any).rpc('archive_contract_pdf', {
-      p_source_doc: documentId,
-      p_name: `${content?.dealName || '계약'} - 계약서 (PDF)`,
-      p_pdf_html: pdfHtml,
-    });
-    if (archiveErr) throw archiveErr;
-    const pdfDoc = archiveId ? { id: archiveId as string } : null;
-
-    return { pdfDocId: pdfDoc?.id };
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.error?.message || '계약 보관본을 만들지 못했습니다');
+    return { pdfDocId: (json?.data?.id as string | undefined) || undefined };
   } catch (err) {
     // Contract PDF generation failure should not block the pipeline
     console.error('Contract PDF generation failed:', err);
