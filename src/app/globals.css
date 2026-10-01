@@ -1863,10 +1863,15 @@ table.approval-table { min-width: 860px; } /* table. — .ev-table 의 min-width
   @apply rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-surface)]/50
          px-4 py-5 text-center text-xs text-[var(--text-muted)];
 }
-.approval-leave-balance-card { @apply flex items-center gap-3 px-4 py-3 bg-blue-500/5 rounded-xl border border-blue-500/20 shadow-sm; }
-.approval-new-request-sidebar { @apply space-y-4; }
-.approval-document-preview { @apply p-5; }
-.approval-policy-preview { @apply p-5 sticky top-4; }
+/*   새 요청 (2026-10-01 UI 점검 7순위) — 잔여 연차·결재선 미리보기·문서 미리보기의 상자(상자 안 상자)를 걷어 낸다.
+     잔여 연차는 왼쪽 굵은 선 한 줄, 오른쪽 칸은 폼과 세로 선으로 가르고 안의 판·안내는 상자 없이 */
+.approval-leave-balance-card { @apply flex items-center gap-3 border-l-2 border-[var(--primary)] pl-3 py-1; }
+.approval-new-request-sidebar { @apply space-y-5 lg:border-l lg:border-[var(--border)] lg:pl-5; }
+.approval-document-preview { @apply p-0; }
+.approval-policy-preview { @apply p-0 sticky top-4; }
+.approval-new-request-sidebar .glass-card { background: transparent; border: 0; border-radius: 0; box-shadow: none; backdrop-filter: none; }
+.approval-new-request-sidebar .glass-card + .glass-card { @apply border-t border-[var(--border)] pt-5; }
+.approval-new-request-sidebar .kpi-callout { background: transparent; border: 0; box-shadow: none; @apply px-0 py-0; }
 .approval-policy-form { @apply p-6 mb-6; }
 /* 정책 적용 대상 — 직원 복수선택 칩 목록 (2026-08-11) */
 .policy-target-people { @apply flex flex-wrap gap-1.5 mt-2 max-h-36 overflow-y-auto p-2 rounded-xl border border-[var(--border)] bg-[var(--bg)]; }
