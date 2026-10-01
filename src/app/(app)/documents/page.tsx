@@ -1011,7 +1011,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                         <button
                           onClick={(e) => { e.stopPropagation(); sendReminder(sig.id); }}
                           disabled={reminderSendingId === sig.id}
-                          className="text-[10px] px-2 py-0.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded-md font-semibold transition disabled:opacity-50"
+                          className="btn-secondary btn-sm"
                         >
                           {reminderSendingId === sig.id ? "..." : "리마인더"}
                         </button>
@@ -1069,7 +1069,8 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       <ShareStatusPanel documentId={id} />
 
       {/* Tabs */}
-      <div className="document-detail-tabs seg-bar max-w-full overflow-x-auto">
+      {/*   2026-10-01 UI 점검 9순위: 본문 탭 seg-bar → 파란 밑줄 탭(collect-tabs). glass-card 판은 .document-detail-view 범위에서 평판으로 */}
+      <div className="document-detail-tabs collect-tabs" role="tablist">
         {(
           [
             { key: "content" as const, label: "내용" },
@@ -1077,8 +1078,8 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             { key: "approvals" as const, label: `승인 (${approvals.length})` },
           ] as const
         ).map((t) => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className={`seg-item ${tab === t.key ? "seg-item-active" : ""}`}>
+          <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
+            className={tab === t.key ? "collect-tab collect-tab-on" : "collect-tab"}>
             {t.label}
           </button>
         ))}
@@ -1126,16 +1127,16 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
                   <div className="text-base font-bold text-[var(--text)] mb-1"><Ico e="✅" /> 견적서가 저장되었습니다</div>
                   <p className="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">매출 세금계산서를 <b className="text-[var(--text)]">견적서 품목대로</b> 발행할까요? (품목 {issItems.length}개)</p>
-                  <div className="space-y-2">
-                    <button onClick={() => issueInvoices("bulk")} disabled={issuing} className="w-full py-2.5 px-3 rounded-lg bg-[var(--primary)] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 text-left">
-                      <Ico e="📄" tone="mono" /> 품목 일괄 발행 <span className="text-white/80 text-xs">— 합계 1건{issItems.length > 1 ? ` (${issItems[0]?.name || "품목"} 외 ${issItems.length - 1}건)` : ""}</span>
-                    </button>
+                  <ul className="invoice-issue-choices">
+                    <li><b>품목 일괄 발행</b> — 합계 1건{issItems.length > 1 ? ` (${issItems[0]?.name || "품목"} 외 ${issItems.length - 1}건)` : ""}</li>
+                    {issItems.length > 1 && <li><b>품목별 개별 발행</b> — {issItems.length}건을 각각 발행합니다.</li>}
+                  </ul>
+                  <div className="invoice-issue-actions">
+                    <button type="button" onClick={() => setSavedModal(false)} className="btn-secondary btn-sm">나중에</button>
                     {issItems.length > 1 && (
-                      <button onClick={() => issueInvoices("per-item")} disabled={issuing} className="w-full py-2.5 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] text-sm font-semibold hover:border-[var(--primary)] disabled:opacity-50 text-left">
-                        <Ico e="📑" /> 품목별 개별 발행 <span className="text-[var(--text-muted)] text-xs">{issItems.length}건을 각각 발행합니다.</span>
-                      </button>
+                      <button type="button" onClick={() => issueInvoices("per-item")} disabled={issuing} className="btn-secondary btn-sm">품목별 개별 발행</button>
                     )}
-                    <button onClick={() => setSavedModal(false)} className="w-full py-2 rounded-lg text-sm text-[var(--text-muted)] hover:bg-[var(--bg-surface)]">나중에</button>
+                    <button type="button" onClick={() => issueInvoices("bulk")} disabled={issuing} className="btn-primary btn-sm">품목 일괄 발행</button>
                   </div>
                   {issuing && <div className="text-xs text-[var(--text-dim)] mt-2 text-center">발행 중…</div>}
                 </div>
@@ -1596,7 +1597,7 @@ function ShareStatusPanel({ documentId }: { documentId: string }) {
   if (activeShares.length === 0) return null;
 
   const decisionLabel: Record<string, string> = { approved: '승인', hold: '보류', rejected: '거절' };
-  const decisionColor: Record<string, string> = { approved: 'text-green-500', hold: 'text-yellow-500', rejected: 'text-red-500' };
+  const decisionColor: Record<string, string> = { approved: 'text-[var(--success)]', hold: 'text-[var(--warning)]', rejected: 'text-[var(--danger)]' };
 
   return (
     <div className="share-status-panel glass-card">

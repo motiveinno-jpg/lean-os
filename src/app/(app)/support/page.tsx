@@ -1,6 +1,5 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
-import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 // 고객센터 — 사용자가 문의를 등록하고, 내가 보낸 문의·운영자 답변을 확인하는 화면.
@@ -10,13 +9,14 @@ import { logRead } from "@/lib/log-read";
 //     화면을 크게·세련되게 + 스크린샷 첨부(support-attachments 프라이빗 버킷, 회사 폴더 스코프).
 //     첨부는 추후 AI 자동 분석(에러 진단)의 입력이 된다.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { friendlyError, reportError } from "@/lib/friendly-error";
-import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
+import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat } from "@/components/query-kit";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const db = supabase;
 
@@ -46,11 +46,11 @@ const CATEGORIES:  { key: string; label: string; icon: string; desc: string }[] 
 ];
 const catMeta = (k: string) => CATEGORIES.find((c) => c.key === k) || CATEGORIES[CATEGORIES.length - 1];
 
-const STATUS_META: Record<string, { label: string; color: string }> = {
-  open: { label: "대기", color: "var(--warning)" },
-  in_progress: { label: "처리중", color: "var(--primary)" },
-  answered: { label: "완료", color: "var(--success)" },
-  closed: { label: "종료", color: "var(--text-dim)" },
+const STATUS_META: Record<string, { label: string; cls: string }> = {
+  open: { label: "대기", cls: "ol-sure ol-sure-est" },
+  in_progress: { label: "처리중", cls: "ol-sure" },
+  answered: { label: "완료", cls: "ol-sure ol-sure-ok" },
+  closed: { label: "종료", cls: "ol-sure" },
 };
 
 // 진행 단계 표시 ("사용자에게 대기→처리중→완료 단계별로 나타나게")
@@ -124,6 +124,7 @@ export default function SupportPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [composeOpen, setComposeOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // 답변 알림 딥링크(?id=티켓) — 해당 문의를 펼치고 내역으로 스크롤 (
@@ -216,7 +217,7 @@ export default function SupportPage() {
           : "문의가 접수되었습니다. 영업일 1일 이내에 처리 후 답변드리겠습니다.",
         r.failed > 0 ? "info" : "success",
       );
-      setSubject(""); setContent(""); setCategory("general"); setFiles([]);
+      setSubject(""); setContent(""); setCategory("general"); setFiles([]); setComposeOpen(false);
       qc.invalidateQueries({ queryKey: ["support-tickets", userId] });
     },
     onError: (e) => {
@@ -225,184 +226,162 @@ export default function SupportPage() {
     },
   });
 
+  useModalKeys(composeOpen, () => { if (!submitMut.isPending) setComposeOpen(false); });
   const canSubmit = subject.trim().length > 0 && content.trim().length > 0 && !submitMut.isPending;
   const answeredCount = useMemo(() => tickets.filter((t) => t.status === "answered").length, [tickets]);
 
+  //   2026-10-01 UI 점검 9순위: 문의 작성 폼이 본문 위를 차지하고(유형 카드 7장 격자), 내역은 카드 목록이었다 →
+  //   본문 = 내 문의 표(줄 클릭 = 아래 펼침), 작성 = 「새 문의」 팝업(유형은 한 줄 셀렉트). 파란 버튼은 「새 문의」·「접수」 하나씩(팝업 안팎).
   return (
     <div className="qk-shell support-page-root">
-      {/* ── 조회 화면 표준 상자 (2026-08-19 확산) — 히어로 → 설명 줄 하나, 문의 작성·내 문의 내역은 본문(스크롤) 얇은 판 ── */}
       <QueryScreen>
         <QueryHead>
-          <div className="report-desc support-desc">
-            <b>무엇이든 문의하세요<span className="ui-sub">모든 문의는 여기서 받습니다.</span></b> 영업일 1일 이내에 답변드립니다.
-          </div>
+          <QueryBar right={<button type="button" className="btn-primary btn-sm" onClick={() => setComposeOpen(true)}>새 문의</button>}>
+            <span className="support-desc"><b>무엇이든 문의하세요</b> · 모든 문의는 여기서 받고, 영업일 1일 이내에 답변드립니다.</span>
+          </QueryBar>
+          <ResultStrip>
+            <Stat label="내 문의" value={`${tickets.length}건`} />
+            <Stat label="답변 완료" value={`${answeredCount}건`} tone={answeredCount > 0 ? "plus" : undefined} />
+          </ResultStrip>
         </QueryHead>
         <QueryBody>
         <div className="support-scroll">
-
-      {/* ═══ 문의 작성 ═══ */}
-      <div className="support-compose-card glass-card">
-        <div>
-          <span className="support-section-label">1. 문의 유형</span>
-          <div className="support-category-grid">
-            {CATEGORIES.map((c) => (
-              <button
-                key={c.key}
-                type="button"
-                data-active={category === c.key ? "1" : undefined}
-                onClick={() => setCategory(c.key)}
-                className="support-category-card"
-              >
-                <span className="support-category-name"><Ico e={c.icon} /> {c.label}</span>
-                <span className="support-category-desc">{c.desc}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <span className="support-section-label">2. 제목 <span className="text-red-500">*</span></span>
-          <input
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            maxLength={120}
-            placeholder="문의 내용을 한 줄로 요약해 주세요."
-            className="support-input field-input"
-          />
-        </div>
-
-        <div>
-          <span className="support-section-label">3. 내용 <span className="text-red-500">*</span></span>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onPaste={(e) => {
-              const imgs = Array.from(e.clipboardData?.files || []).filter((f) => IMAGE_TYPES.has(f.type));
-              if (imgs.length) { e.preventDefault(); addFiles(imgs); }
-            }}
-            placeholder={"어떤 화면에서 무엇을 했을 때 어떻게 되었는지 적어 주세요.\n캡처 이미지를 붙여넣으면 자동으로 첨부됩니다."}
-            className="support-textarea field-input"
-          />
-        </div>
-
-        <div>
-          <span className="support-section-label">4. 화면 사진 첨부 <span className="text-[var(--text-dim)] font-normal">선택 · 최대 {MAX_FILES}장 · 장당 {MAX_FILE_MB}MB</span></span>
-          <div
-            className="support-dropzone"
-            data-drag={dragging ? "1" : undefined}
-            onClick={() => fileRef.current?.click()}
-            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files); }}
-          >
-            <span className="text-2xl"><Ico e="🖼️" /></span>
-            <span className="text-[13px] font-semibold text-[var(--text)]">클릭해서 사진 선택 또는 여기로 끌어다 놓기</span>
-            <span className="text-[11px] text-[var(--text-dim)]">오류 화면을 첨부하면 원인을 더 빨리 찾습니다.</span>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              multiple
-              className="hidden"
-              onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
-            />
-          </div>
-          {previews.length > 0 && (
-            <div className="support-attach-previews">
-              {previews.map((p, i) => (
-                <div key={p.url} className="support-attach-thumb">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={p.url} alt={p.name} className="w-full h-full object-cover" />
-                  <button type="button" className="support-attach-remove" title="첨부 제거"
-                    onClick={() => setFiles(files.filter((_, idx) => idx !== i))}>×</button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <button
-          type="button"
-          disabled={!canSubmit}
-          onClick={() => submitMut.mutate()}
-          className="support-submit-btn btn-primary"
-        >
-          {submitMut.isPending ? "접수 중…" : `문의 접수하기${files.length ? ` (사진 ${files.length}장 포함)` : ""}`}
-        </button>
-      </div>
-
-      {/* ═══ 내 문의 내역 ═══ */}
-      <div className="support-history-card glass-card">
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">HISTORY</div>
-            <div className="text-base font-bold text-[var(--text)]">내 문의 내역</div>
-          </div>
-          <div className="text-[12px] text-[var(--text-muted)]">
-            전체 {tickets.length}건{answeredCount > 0 && <span className="text-emerald-500 font-semibold"> · 답변 {answeredCount}건</span>}
-          </div>
-        </div>
-
         {isLoading ? (
-          <div className="text-sm text-[var(--text-muted)] py-8 text-center">불러오는 중…</div>
+          <div className="collect-empty">불러오는 중…</div>
         ) : tickets.length === 0 ? (
-          <div className="text-center py-14">
-            <div className="text-4xl mb-3"><Ico e="💬" /></div>
-            <div className="text-sm font-semibold text-[var(--text)]">아직 등록한 문의가 없습니다.</div>
-            <div className="text-[11px] text-[var(--text-dim)] mt-1.5">위에서 첫 문의를 남겨보세요.</div>
-          </div>
+          <div className="collect-empty">아직 등록한 문의가 없습니다. 「새 문의」로 첫 문의를 남겨 보세요.</div>
         ) : (
-          <div className="space-y-3">
+          <table className="ev-table ev-lined support-table">
+            <thead>
+              <tr><th>접수일</th><th>유형</th><th>제목</th><th>사진</th><th>상태</th></tr>
+            </thead>
+            <tbody>
             {tickets.map((t) => {
               const st = STATUS_META[t.status] || STATUS_META.open;
               const cm = catMeta(t.category);
               const expanded = openId === t.id;
               const shots = Array.isArray(t.attachments) ? t.attachments : [];
               return (
-                <div key={t.id} id={`ticket-${t.id}`} className="support-ticket-item">
-                  <button type="button" onClick={() => setOpenId(expanded ? null : t.id)} className="support-ticket-head">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]"><Ico e={cm.icon} /> {cm.label}</span>
-                      <span
-                        className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                        style={{ color: st.color, background: `color-mix(in srgb, ${st.color} 12%, transparent)` }}
-                      >
-                        {st.label}
-                      </span>
-                      {shots.length > 0 && <span className="text-[10px] text-[var(--text-dim)]"><Ico e="📎" /> {shots.length}</span>}
-                      <span className="ml-auto text-[10px] text-[var(--text-dim)] mono-number">{fmtDate(t.created_at)}</span>
-                    </div>
-                    <div className="text-sm font-semibold text-[var(--text)] truncate">{t.subject}</div>
-                    {t.status !== "closed" && <TicketSteps status={t.status} />}
-                  </button>
+                <Fragment key={t.id}>
+                  <tr id={`ticket-${t.id}`} className={`support-row ${expanded ? "support-row-open" : ""}`} onClick={() => setOpenId(expanded ? null : t.id)}>
+                    <td className="support-date mono-number">{fmtDate(t.created_at)}</td>
+                    <td className="support-cat">{cm.label}</td>
+                    <td className="support-subject">{t.subject}</td>
+                    <td className="support-shots-cnt">{shots.length > 0 ? `${shots.length}장` : "—"}</td>
+                    <td className="support-status"><span className={st.cls}>{st.label}</span></td>
+                  </tr>
                   {expanded && (
-                    <div className="support-ticket-body">
-                      <div className="text-[12.5px] text-[var(--text-muted)] whitespace-pre-wrap leading-relaxed py-2">{t.content}</div>
-                      {shots.length > 0 && <TicketShots attachments={shots} />}
-                      {t.answer ? (
-                        <div className="support-answer-block">
-                          <div className="flex items-center gap-1.5 mb-1.5">
-                            <span className="text-[11px] font-bold text-[var(--primary)]">운영팀 답변</span>
-                            {t.answered_at && <span className="text-[10px] text-[var(--text-dim)] mono-number">{fmtDate(t.answered_at)}</span>}
-                          </div>
-                          <div className="text-[12.5px] text-[var(--text)] whitespace-pre-wrap leading-relaxed">{t.answer}</div>
+                    <tr className="support-detail-row">
+                      <td colSpan={5}>
+                        <div className="support-ticket-body">
+                          {t.status !== "closed" && <TicketSteps status={t.status} />}
+                          <div className="support-ticket-content">{t.content}</div>
+                          {shots.length > 0 && <TicketShots attachments={shots} />}
+                          {t.answer ? (
+                            <div className="support-answer-block">
+                              <div className="flex items-center gap-1.5 mb-1.5">
+                                <span className="text-[11px] font-bold text-[var(--primary)]">운영팀 답변</span>
+                                {t.answered_at && <span className="text-[10px] text-[var(--text-dim)] mono-number">{fmtDate(t.answered_at)}</span>}
+                              </div>
+                              <div className="text-[12.5px] text-[var(--text)] whitespace-pre-wrap leading-relaxed">{t.answer}</div>
+                            </div>
+                          ) : (
+                            <div className="support-no-answer">아직 답변이 등록되지 않았습니다. 운영팀이 확인 중입니다.</div>
+                          )}
                         </div>
-                      ) : (
-                        <div className="mt-2 text-[11px] text-[var(--text-dim)] bg-[var(--bg-surface)]/50 rounded-lg px-3 py-2">
-                          아직 답변이 등록되지 않았습니다. 운영팀이 확인 중입니다.
-                        </div>
-                      )}
-                    </div>
+                      </td>
+                    </tr>
                   )}
-                </div>
+                </Fragment>
               );
             })}
-          </div>
+            </tbody>
+          </table>
         )}
-      </div>
         </div>
         </QueryBody>
       </QueryScreen>
+
+      {/* ═══ 새 문의 — 팝업 (목록 줄이 밀리지 않게) ═══ */}
+      {composeOpen && (
+        <div className="support-modal" onClick={() => { if (!submitMut.isPending) setComposeOpen(false); }}>
+          <div className="support-modal-box" role="dialog" aria-modal="true" aria-label="새 문의" onClick={(e) => e.stopPropagation()}>
+            <div className="support-modal-head">
+              <h3>새 문의</h3>
+              <button type="button" className="btn-secondary btn-sm" disabled={submitMut.isPending} onClick={() => setComposeOpen(false)}>닫기</button>
+            </div>
+            <div className="support-compose-grid">
+              <label className="support-section-label">유형</label>
+              <div>
+                <select className="field-input" value={category} onChange={(e) => setCategory(e.target.value)}>
+                  {CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.label} — {c.desc}</option>)}
+                </select>
+              </div>
+
+              <label className="support-section-label">제목 <span className="text-[var(--danger)]">*</span></label>
+              <input
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                maxLength={120}
+                placeholder="문의 내용을 한 줄로 요약해 주세요."
+                className="field-input"
+              />
+
+              <label className="support-section-label">내용 <span className="text-[var(--danger)]">*</span></label>
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                onPaste={(e) => {
+                  const imgs = Array.from(e.clipboardData?.files || []).filter((f) => IMAGE_TYPES.has(f.type));
+                  if (imgs.length) { e.preventDefault(); addFiles(imgs); }
+                }}
+                placeholder={"어떤 화면에서 무엇을 했을 때 어떻게 되었는지 적어 주세요.\n캡처 이미지를 붙여넣으면 자동으로 첨부됩니다."}
+                className="support-textarea field-input"
+              />
+
+              <label className="support-section-label">화면 사진</label>
+              <div>
+                <div
+                  className="support-dropzone"
+                  data-drag={dragging ? "1" : undefined}
+                  onClick={() => fileRef.current?.click()}
+                  onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files); }}
+                >
+                  <span className="text-[12.5px] font-semibold text-[var(--text)]">클릭해서 사진 선택 또는 여기로 끌어다 놓기</span>
+                  <span className="text-[11px] text-[var(--text-dim)]">선택 · 최대 {MAX_FILES}장 · 장당 {MAX_FILE_MB}MB. 오류 화면을 첨부하면 원인을 더 빨리 찾습니다.</span>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
+                  />
+                </div>
+                {previews.length > 0 && (
+                  <div className="support-attach-previews">
+                    {previews.map((p, i) => (
+                      <div key={p.url} className="support-attach-thumb">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={p.url} alt={p.name} className="w-full h-full object-cover" />
+                        <button type="button" className="support-attach-remove" title="첨부 제거"
+                          onClick={() => setFiles(files.filter((_, idx) => idx !== i))}>×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="support-modal-foot">
+              <button type="button" disabled={!canSubmit} onClick={() => submitMut.mutate()} className="btn-primary btn-sm">
+                {submitMut.isPending ? "접수 중…" : `문의 접수${files.length ? ` (사진 ${files.length}장)` : ""}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

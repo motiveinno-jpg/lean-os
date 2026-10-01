@@ -1524,7 +1524,12 @@ table.sched-table { min-width: 760px; }
 .document-share-email-panel { @apply p-5 mb-6; }
 .signature-request-form { @apply p-5 mb-6; }
 .signature-progress-panel { @apply p-4 mb-6; }
-.document-detail-tabs { @apply mb-6; }
+.document-detail-tabs { @apply mb-4; }
+/* 문서 상세 — glass-card(반투명·그림자) 판 → 분석 판과 같은 평판 (2026-10-01 UI 점검 9순위). 팝업·확인 창은 제외 */
+.document-detail-view .glass-card:not(.confirm-dialog-panel):not(.access-denied-panel) { background: var(--bg-card); border: 1px solid var(--border); border-radius: 0.75rem; box-shadow: none; backdrop-filter: none; }
+.invoice-issue-choices { @apply mb-4 space-y-1 text-xs text-[var(--text-muted)]; }
+.invoice-issue-choices b { @apply text-[var(--text)]; }
+.invoice-issue-actions { @apply flex flex-wrap justify-end gap-2; }
 .document-items-table { @apply overflow-hidden p-4; }
 .invoice-issue-modal { @apply fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4; }
 .quote-preview-panel { @apply overflow-x-auto scroll-mt-4; }
@@ -2235,7 +2240,7 @@ table.bs-t-table { min-width: 360px; }
 
 .mypage-withdraw-card { @apply p-6 border border-[var(--danger)]/30; }
 .mypage-settings .glass-card:not(.confirm-dialog-panel):not(.access-denied-panel) { background: transparent; border: 0; border-top: 1px solid var(--border); border-radius: 0; box-shadow: none; backdrop-filter: none; @apply px-0 py-4; }
-.mypage-settings .glass-card.notification-settings-header { @apply border-t-0 pt-0; }
+.mypage-settings .glass-card.notification-settings-header:not(.confirm-dialog-panel):not(.access-denied-panel) { @apply border-t-0 pt-0; }
 .mypage-settings > .space-y-6 { @apply space-y-0; }
 .mypage-settings > .space-y-6 + * { @apply mt-0; }
 /* 근태 탭 — 내 출퇴근 기록(MyAttendance.tsx). 월 네비 + 요약 타일 + 일별 목록 */
@@ -8581,6 +8586,29 @@ table.team-mgmt-table { min-width: 640px; }
 .qk-body > .support-scroll { @apply absolute inset-0 space-y-4 overflow-auto p-4; }
 .support-desc { @apply px-3.5 py-2 text-[12px] text-[var(--text-muted)]; }
 .support-desc > b { @apply text-[var(--text)]; }
+/* 고객센터 — 폼 본문·카드 목록 → 내 문의 표 + 새 문의 팝업 (2026-10-01 UI 점검 9순위) */
+.support-page-root .support-desc { @apply p-0; }
+.support-table { @apply w-full; }
+.support-row { @apply cursor-pointer; }
+.support-row-open > td { @apply bg-[var(--primary-light)]; }
+.support-date { @apply w-36 whitespace-nowrap text-center text-[11.5px] text-[var(--text-dim)]; }
+.support-cat { @apply w-28 whitespace-nowrap text-center text-[12px]; }
+.support-subject { @apply text-left font-semibold text-[var(--text)]; }
+.support-shots-cnt { @apply w-16 text-center text-[11.5px] text-[var(--text-dim)]; }
+.support-status { @apply w-20 text-center; }
+.support-detail-row > td { @apply bg-[var(--bg-card)] text-left; }
+.support-detail-row .support-ticket-body { @apply border-t-0 px-2 pb-3 pt-1; }
+.support-ticket-content { @apply whitespace-pre-wrap py-2 text-[12.5px] leading-relaxed text-[var(--text-muted)]; }
+.support-no-answer { @apply mt-2 text-[11px] text-[var(--text-dim)]; }
+.support-modal { @apply fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-6 backdrop-blur-sm; }
+.support-modal-box { @apply my-6 flex w-full max-w-2xl flex-col gap-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 shadow-2xl; }
+.support-modal-head { @apply flex items-center justify-between gap-3; }
+.support-modal-head h3 { @apply text-[15px] font-bold text-[var(--text)]; }
+.support-modal-foot { @apply flex justify-end border-t border-[var(--border)] pt-3; }
+.support-compose-grid { @apply grid grid-cols-1 items-start gap-x-4 gap-y-3 sm:grid-cols-[88px_1fr]; }
+.support-compose-grid > .support-section-label { @apply mb-0 pt-2; }
+.support-compose-grid .support-textarea { min-height: 8rem; }
+.support-compose-grid .support-dropzone { @apply rounded-xl py-4; }
 .support-scroll .glass-card { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-none backdrop-blur-none; }
 /* ── 요금제 조회 표준 상자 (2026-08-19) ── */
 .qk-body > .billing-scroll { @apply absolute inset-0 space-y-5 overflow-auto p-4; }
