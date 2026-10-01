@@ -17,7 +17,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
-import { nextQuoteNumber, DOC_STATUS } from "@/lib/documents";
+import { DOC_STATUS } from "@/lib/documents";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const db = supabase;
@@ -240,7 +240,6 @@ function CreateQuoteModal({ companyId, userId, onClose, onCreated, toastFn }: {
       const name = quoteName.trim() || `${projectLabel || "프로젝트"} 견적서`;
       const { data: doc, error: ce } = await db.from("documents").insert({
         company_id: companyId, deal_id: useDealId, name, status: "draft",
-        document_number: await nextQuoteNumber(companyId),
         content_type: "invoice", content_json: QUOTE_CONTENT, version: 1, created_by: userId,
       }).select("id").single();
       if (ce) throw new Error(ce.message);

@@ -39,22 +39,8 @@ export const DOC_STATUS = {
 } as const;
 
 // ── 견적No. 고정 채번 (YYYY/MM/DD-N, 회사·날짜 단위) ──
-//   생성 시 document_number 에 영구 저장 → 문서함·PDF·견적서 메뉴 어디서나 동일 번호.
-//   날짜는 created_at 표시(UTC slice)와 일치시키려 UTC 기준. 같은 날 최대 N+1 부여(최신=큰 번호).
-export async function nextQuoteNumber(companyId: string): Promise<string> {
-  const today = todayKst().replace(/-/g, '/'); // YYYY/MM/DD (UTC)
-  const data = logRead('lib/documents:data', await supabase
-    .from('documents')
-    .select('document_number')
-    .eq('company_id', companyId)
-    .like('document_number', `${today}-%`));
-  let maxN = 0;
-  for (const r of (data || [])) {
-    const m = String((r as any).document_number || '').match(/-(\d+)$/);
-    if (m) maxN = Math.max(maxN, parseInt(m[1], 10));
-  }
-  return `${today}-${maxN + 1}`;
-}
+//   2026-10-01: 번호는 DB 가 매긴다(documents_assign_quote_number — 회사·날짜별 잠금으로 동시 생성에도 안 겹침).
+//   전에는 화면이 그날 최대 번호 +1 을 넣어 동시에 만들면 겹칠 수 있었고 임의 번호도 들어갔다. 견적은 번호를 비워 넣는다.
 
 // ── 프로젝트 템플릿 행 → 견적서 ──
 //   '매출 · 청구' 템플릿의 한 줄에서 바로 견적서를 만든다("입력은 무조건
@@ -103,7 +89,6 @@ export async function insertDocument(params: {
     sub_deal_id: null,
     name: params.name,
     status: "draft",
-    document_number: params.contentType === "invoice" ? await nextQuoteNumber(params.companyId) : null,
     content_type: params.contentType,
     content_json: params.contentJson as unknown as Json,
     source_document_id: params.sourceDocumentId || null,
@@ -152,9 +137,8 @@ export async function createFromTemplate(params: {
 
   if (!template) throw new Error('템플릿을 찾을 수 없습니다');
 
-  // 견적서(invoice/quote) 양식이면 고정 채번 부여(계약서 등은 null)
+  //   견적서(invoice/quote) 양식이면 번호는 DB 가 매긴다(documents_assign_quote_number)
   const tType = (template as any).type || null;
-  const documentNumber = (tType === 'invoice' || tType === 'quote') ? await nextQuoteNumber(params.companyId) : null;
 
   const { data, error } = await supabase
     .from('documents')
@@ -164,7 +148,6 @@ export async function createFromTemplate(params: {
       deal_id: params.dealId || null,
       name: params.name,
       status: 'draft',
-      document_number: documentNumber,
       // 양식 type 을 content_type 으로 보존 — 누락 시 편집기가 무조건 'contract'(텍스트)로 fallback 되어
       // 견적서(quote/invoice) 양식도 품목·단가·부가세 표가 안 뜨던 문제 수정.
       content_type: tType,
