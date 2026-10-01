@@ -2097,6 +2097,8 @@ table.bs-t-table { min-width: 360px; }
 .partner-detail-header { @apply flex items-center justify-between px-6 py-4 border-b border-[var(--border)]; }
 /*   거래처 상세 팝업 (2026-10-01 UI 점검 8순위) — 탭은 파란 밑줄, 칸·기록은 상자 없이 선으로 */
 .partner-detail-tabs { @apply px-4 pt-1; }
+/* 팝업 갈래 탭도 파란 밑줄 한 줄(.qk-head 와 같은 모양) — 기본 collect-tab-on 은 폴더 탭 (2026-10-01 8순위) */
+.partner-detail-tabs .collect-tab-on { @apply rounded-b-none border-transparent border-b-[var(--primary)] bg-transparent; margin-bottom: -1px; border-bottom-width: 2px; }
 .partner-info-tab { @apply grid grid-cols-1 sm:grid-cols-2 gap-x-6; }
 .partner-info-field { @apply border-b border-[var(--border)] py-2.5; }
 .partner-tl-item { @apply border-b border-[var(--border)] pb-3; }
