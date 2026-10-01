@@ -13,7 +13,6 @@ import { OwnerViewIcon, RollingBrandText } from "@/components/brand-logo";
 import { SidebarAttendanceButton } from "@/components/sidebar-attendance-button";
 import { useTheme } from "@/components/theme-context";
 import { useUser, type UserRole } from "@/components/user-context";
-import {useFeature} from "@/lib/use-feature";
 import { useMyPermissions } from "@/lib/permissions";
 import { usePopups } from "@/components/popup-windows";
 import { SETTINGS_GROUPS, groupPermKeys } from "@/lib/settings-nav";
@@ -49,7 +48,6 @@ const NAV_GROUPS: NavGroup[] = [
       //   매일 여는 순서 원칙에서 주 1회쯤 여는 성격이라 AI 참모 아래. 직원 인사 정보로 자격을 판정해 대표·관리자 전용.
       
       { href: "/support-programs", label: "지원사업추천", icon: "gift" },
-      { href: "/procurement", label: "입찰 검토", icon: "clipboard", masterOnly: true },
       // 마스터 전용 · 대시보드 하단 경영 종합 3종(커맨드 센터·프로젝트 경영·월결산) 이동
       
       { href: "/master", label: "마스터", icon: "shield", masterOnly: true },
@@ -422,8 +420,7 @@ export function Sidebar() {
   });
   const isOperator = !!user?.email && /@mo-tive\.com$/i.test(user.email);
   const { isMaster, hasMenu }  = useMyPermissions();
-  const procurement=useFeature("procurement",user?.company_id);
-  const filteredNav = filterNavUnified(role, isMaster, hasMenu, isOperator).map(g=>({...g,items:g.items.filter(i=>i.href!=="/procurement"||procurement.data===true)})).filter(g=>g.items.length);
+  const filteredNav = filterNavUnified(role, isMaster, hasMenu, isOperator);
 
   // ── 레일 + 패널 (docs/20260819_PLAN_sidebar_rail_panel.md) ──
   //   왼쪽 레일에 그룹 7개, 오른쪽 패널엔 고른 그룹의 항목만. 지금 그룹은 **주소가 정한다**(화면이 바뀌면 그 화면의 그룹으로).
