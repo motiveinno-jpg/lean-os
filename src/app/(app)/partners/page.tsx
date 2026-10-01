@@ -1257,20 +1257,20 @@ export default function PartnersPage() {
                 </button>
                 {detailPartner.contact_email && (
                   <a href={`mailto:${detailPartner.contact_email}`}
-                    className="px-3 py-1.5 text-xs bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg hover:bg-blue-500/20 transition flex items-center gap-1"
+                    className="btn-secondary btn-sm inline-flex items-center gap-1"
                     title={detailPartner.contact_email}>
                     <Ico e="✉" /> 이메일
                   </a>
                 )}
                 {detailPartner.contact_phone && (
                   <a href={`tel:${detailPartner.contact_phone}`}
-                    className="px-3 py-1.5 text-xs bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg hover:bg-emerald-500/20 transition flex items-center gap-1"
+                    className="btn-secondary btn-sm inline-flex items-center gap-1"
                     title={detailPartner.contact_phone}>
                     <Ico e="📞" /> 전화
                   </a>
                 )}
                 <button onClick={() => { openEdit(detailPartner); setDetailPartner(null); }}
-                  className="px-3 py-1.5 text-xs bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] rounded-lg hover:bg-[var(--primary)]/10 hover:text-[var(--primary)] transition">
+                  className="btn-secondary btn-sm">
                   편집
                 </button>
                 <button onClick={() => setDetailPartner(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl transition">✕</button>
@@ -1278,8 +1278,9 @@ export default function PartnersPage() {
             </div>
 
             {/* Tabs */}
+            {/*   갈래 탭 = 파란 밑줄 한 줄(collect-tabs) — 막대 버튼(seg-bar)이었다(2026-10-01 UI 점검 8순위) */}
             <div className="partner-detail-tabs">
-              <div className="seg-bar w-fit flex-wrap">
+              <div className="collect-tabs" role="tablist">
                 {([
                   { key: "info" as const, label: "기본정보" },
                   { key: "timeline" as const, label: `타임라인 (${timeline.length})` },
@@ -1288,8 +1289,8 @@ export default function PartnersPage() {
                   { key: "docs" as const, label: `문서 (${partnerDocs.length})` },
                   { key: "comms" as const, label: `커뮤니케이션 (${partnerComms.length})` },
                 ]).map((tab) => (
-                  <button key={tab.key} onClick={() => setDetailTab(tab.key)}
-                    className={`seg-item ${detailTab === tab.key ? "seg-item-active" : ""}`}>
+                  <button key={tab.key} type="button" role="tab" aria-selected={detailTab === tab.key} onClick={() => setDetailTab(tab.key)}
+                    className={detailTab === tab.key ? "collect-tab collect-tab-on" : "collect-tab"}>
                     {tab.label}
                   </button>
                 ))}
@@ -1313,13 +1314,13 @@ export default function PartnersPage() {
                     ["은행", detailPartner.bank_name],
                     ["계좌번호", detailPartner.account_number],
                   ].map(([label, value]) => (
-                    <div key={label as string} className="bg-[var(--bg-surface)] rounded-xl p-3">
+                    <div key={label as string} className="partner-info-field">
                       <div className="text-[10px] text-[var(--text-dim)] mb-1">{label}</div>
                       <div className="text-sm">{(value as string) || "—"}</div>
                     </div>
                   ))}
                   {(detailPartner.tags || []).length > 0 && (
-                    <div className="col-span-2 bg-[var(--bg-surface)] rounded-xl p-3">
+                    <div className="partner-info-field sm:col-span-2">
                       <div className="text-[10px] text-[var(--text-dim)] mb-1">태그</div>
                       <div className="flex flex-wrap gap-1">
                         {(detailPartner.tags as string[]).map((tag: string) => (
@@ -1329,7 +1330,7 @@ export default function PartnersPage() {
                     </div>
                   )}
                   {detailPartner.notes && (
-                    <div className="col-span-2 bg-[var(--bg-surface)] rounded-xl p-3">
+                    <div className="partner-info-field sm:col-span-2">
                       <div className="text-[10px] text-[var(--text-dim)] mb-1">메모</div>
                       <div className="text-sm whitespace-pre-wrap">{detailPartner.notes}</div>
                     </div>
@@ -1363,7 +1364,7 @@ export default function PartnersPage() {
                           return (
                             <div key={i} className="relative">
                               <div className={`absolute -left-[22px] top-2 w-3 h-3 rounded-full ${palette.dot} ring-2 ring-[var(--bg-card)]`} />
-                              <div className="bg-[var(--bg-surface)] rounded-xl p-3 border border-[var(--border)]/50">
+                              <div className="partner-tl-item">
                                 <div className="flex items-center gap-2 mb-1">
                                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${palette.tag}`}><Ico e={palette.icon} /> {palette.label}</span>
                                   <span className="text-xs text-[var(--text-dim)]">{(t.date || '').slice(0, 10)}</span>
@@ -1394,18 +1395,10 @@ export default function PartnersPage() {
                     </div>
                   ) : (
                     <>
-                      <div className="bg-[var(--bg-surface)] rounded-xl p-4 mb-4 flex gap-6">
-                        <div>
-                          <div className="caption">총 프로젝트</div>
-                          <div className="text-lg font-bold">{partnerDeals.length}건</div>
-                        </div>
-                        <div>
-                          <div className="caption">총 계약금액</div>
-                          <div className="text-lg font-bold text-[var(--primary)]">
-                            {partnerDeals.reduce((s: number, d: any) => s + Number(d.contract_total || 0), 0).toLocaleString()}원
-                          </div>
-                        </div>
-                      </div>
+                      <ResultStrip>
+                        <Stat label="총 프로젝트" value={`${partnerDeals.length}건`} />
+                        <Stat label="총 계약금액" value={`${partnerDeals.reduce((s: number, d: any) => s + Number(d.contract_total || 0), 0).toLocaleString()}원`} />
+                      </ResultStrip>
                       <table className="w-full">
                         <thead>
                           <tr className="table-head-row">
@@ -1523,7 +1516,7 @@ export default function PartnersPage() {
                     <h3 className="text-sm font-semibold text-[var(--text)]">커뮤니케이션 로그</h3>
                     <button
                       onClick={() => setShowCommForm(!showCommForm)}
-                      className="btn-primary btn-sm">
+                      className="btn-secondary btn-sm">
                       {showCommForm ? "취소" : "+ 새 기록 추가"}
                     </button>
                   </div>
@@ -1581,7 +1574,7 @@ export default function PartnersPage() {
                       <div className="text-xs text-[var(--text-muted)] mt-1">전화·이메일·미팅 내용을 기록하세요.</div>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div>
                       {partnerComms.map((c: any) => {
                         const typeLabel = COMM_TYPE_LABEL[c.comm_type] || c.comm_type;
                         const typeBadge = c.comm_type === "phone" ? "bg-blue-500/10 text-blue-400"
@@ -1589,7 +1582,7 @@ export default function PartnersPage() {
                           : c.comm_type === "meeting" ? "bg-green-500/10 text-green-400"
                           : "bg-gray-500/10 text-gray-400";
                         return (
-                          <div key={c.id} className="bg-[var(--bg-surface)] rounded-xl p-4 border border-[var(--border)]/50">
+                          <div key={c.id} className="partner-comm-item">
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
@@ -1930,9 +1923,7 @@ function PortalLinkModal({ url, partnerName, onClose }: { url: string; partnerNa
             />
             <button
               onClick={copy}
-              className={`px-3 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap ${
-                copied ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/30" : "bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)]"
-              }`}
+              className={`whitespace-nowrap ${copied ? "btn-secondary btn-sm" : "btn-primary btn-sm"}`}
             >
               {copied ? "복사됨 ✓" : "복사"}
             </button>

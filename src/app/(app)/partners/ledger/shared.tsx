@@ -19,6 +19,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { CellDropdown, anchorOf, type Anchor } from "@/components/cell-dropdown";
 import { useModalKeys }  from "@/hooks/use-modal-keys";
+import { ResultStrip, Stat } from "@/components/query-kit";
 
 const db = supabase;
 
@@ -240,7 +241,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
           <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${pal.tintBg} ${pal.tintText}`} title={`${yStart} ~ ${yEnd}`}>{pal.acct}</span>
         </div>
         <div className="ledger-sheet-actions">
-          <button onClick={() => setNewOpen(true)} className="btn-primary btn-sm">+ 전표 입력</button>
+          <button onClick={() => setNewOpen(true)} className="btn-secondary btn-sm">+ 전표 입력</button>
           <button onClick={downloadCsv} className="btn-secondary btn-sm">엑셀</button>
           <button onClick={onOpenDetail} className="btn-secondary btn-sm">상세 · 차액 마감</button>
           {headTail}
@@ -786,13 +787,13 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
             <div className="voucher-edit-footer">
               <span className="text-[11px] font-bold">
                 {totalD === 0 ? <span className="text-[var(--text-dim)] font-semibold">금액을 입력하세요</span>
-                  : diff === 0 ? <span className="text-emerald-500"><Ico e="✅" /> 차대일치</span>
-                  : <span className="text-red-500"><Ico e="⚠" /> 차액 {won(Math.abs(diff))} · 저장 불가</span>}
-                {missingAcct && <span className="text-amber-500 ml-2">· 계정과목 미지정</span>}
+                  : diff === 0 ? <span className="text-[var(--success)]"><Ico e="✅" /> 차대일치</span>
+                  : <span className="text-[var(--danger)]"><Ico e="⚠" /> 차액 {won(Math.abs(diff))} · 저장 불가</span>}
+                {missingAcct && <span className="text-[var(--warning)] ml-2">· 계정과목 미지정</span>}
               </span>
               <div className="flex items-center gap-2">
                 {!isNew && !locked && <button onClick={del} disabled={busy} className="btn-danger-sm px-3 py-2 rounded-lg disabled:opacity-50">삭제</button>}
-                <button onClick={onClose} className="px-3 py-2 text-xs text-[var(--text-muted)]">취소</button>
+                <button onClick={onClose} className="btn-secondary btn-sm">취소</button>
                 <button onClick={save} disabled={!canSave} className="btn-primary btn-sm">{busy ? "저장 중..." : isNew ? "전표 저장" : "수정 저장"}</button>
               </div>
             </div>
@@ -1038,20 +1039,21 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
         </div>
 
         {/* 요약 */}
+        {/*   타일 4장 → 결과 요약 한 줄 (2026-10-01 UI 점검 8순위 — 상자 안 상자·직접 색 정리) */}
         <div className="partner-detail-summary">
-          {([["전기이월", priorOut, "text-amber-500"], ["당기 청구", periodBilled, "text-[var(--text)]"], ["당기 정산", periodSettled, "text-[var(--text-muted)]"], ["잔액", priorOut + periodOut, accent]] as const).map(([label, val, cls]) => (
-            <div key={label} className="bg-[var(--bg-surface)] rounded-lg px-3 py-2">
-              <div className="caption">{label}</div>
-              <div className={`text-sm font-bold mono-number ${cls}`}>{won(val)}</div>
-            </div>
-          ))}
+          <ResultStrip>
+            <Stat label="전기이월" value={won(priorOut)} />
+            <Stat label="당기 청구" value={won(periodBilled)} />
+            <Stat label="당기 정산" value={won(periodSettled)} />
+            <Stat label="잔액" value={<span className={accent}>{won(priorOut + periodOut)}</span>} />
+          </ResultStrip>
         </div>
 
         {/* 필터 탭 */}
         <div className="ledger-partner-detail-tabs">
           {([["all", `전체 ${invoices.length}`], ["period", `당기 ${period.length}`], ["prior", `전기이월 ${prior.length}`]] as const).map(([k, l]) => (
             <button key={k} onClick={() => setView(k)}
-              className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition ${view === k ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]"}`}>{l}</button>
+              className={view === k ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>
           ))}
         </div>
 
