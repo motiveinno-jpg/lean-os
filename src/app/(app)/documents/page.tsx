@@ -701,7 +701,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 toast('PDF 생성 실패: ' + (err?.message || err), "error");
               }
             }}
-            className="btn-secondary">
+            className="btn-secondary btn-sm">
             PDF 다운로드
           </button>
           {/* 번호가 이미 있으면 숨긴다 — 전에는 다시 누르면 번호가 바뀌었다(2026-09-30) */}
@@ -717,17 +717,17 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   toast('문서번호 발급 실패: ' + (err?.message || err), "error");
                 }
               }}
-              className="btn-secondary">
+              className="btn-secondary btn-sm">
               문서번호 발급
             </button>
           )}
           <button onClick={() => sendToPartnerMut.mutate()} disabled={sendToPartnerMut.isPending}
-            className="btn-primary"
+            className="btn-primary btn-sm"
             title="거래처에 서명 링크를 이메일로 보냅니다.">
             {sendToPartnerMut.isPending ? "발송 중..." : "거래처에게 발송"}
           </button>
           <button onClick={() => setShowSignRequestForm(!showSignRequestForm)}
-            className="btn-secondary"
+            className="btn-secondary btn-sm"
             title="받는 사람을 직접 지정해 발송">
             직접 지정 발송
           </button>
@@ -752,18 +752,18 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 toast('공유 링크 생성 실패: ' + (err?.message || err), "error");
               }
             }}
-            className="btn-secondary">
+            className="btn-secondary btn-sm">
             공유 링크
           </button>
           {canSubmit && (
             <button onClick={() => submitMut.mutate()} disabled={submitMut.isPending}
-              className="btn-secondary">
+              className="btn-secondary btn-sm">
               검토 요청
             </button>
           )}
           {canApprove && (
             <button onClick={() => setShowApprovalForm(!showApprovalForm)}
-              className="btn-secondary">
+              className="btn-secondary btn-sm">
               승인
             </button>
           )}
@@ -781,13 +781,13 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   toast('임의 승인 실패: ' + (err?.message || ''), "error");
                 }
               }}
-              className="btn-secondary">
+              className="btn-secondary btn-sm">
               임의 승인
             </button>
           )}
           {canLock && (
             <button onClick={() => lockMut.mutate()} disabled={lockMut.isPending}
-              className="btn-secondary">
+              className="btn-secondary btn-sm">
               잠금 (체결)
             </button>
           )}

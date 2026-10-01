@@ -784,24 +784,17 @@ export default function CashReceiptsPage() {
         {/* Register tab */}
         {tab === "register" && (
           <div className="cash-receipt-register-form">
-            <h2 className="text-sm font-bold text-[var(--text)]">현금영수증 수동 등록</h2>
-
-            <div className="flex gap-2">
-              {(["expense", "income"] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setForm((f) => ({ ...f, type: t }))}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition ${
-                    form.type === t
-                      ? t === "income"
-                        ? "bg-blue-500 text-white"
-                        : "bg-green-500 text-white"
-                      : "bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]"
-                  }`}
-                >
-                  {t === "income" ? "매출 (발행)" : "매입 (수취)"}
-                </button>
-              ))}
+            {/*   2026-10-01 UI 점검 9순위: 직접 칠한 매출/매입 토글 → 칩, 칸마다 다른 입력 모양 → field-input, w-full 등록 버튼 → 오른쪽 btn-sm */}
+            <div className="cash-receipt-register-head">
+              <h2 className="text-sm font-bold text-[var(--text)]">현금영수증 수동 등록</h2>
+              <span className="cash-receipt-type-chips">
+                {(["expense", "income"] as const).map((t) => (
+                  <button key={t} type="button" onClick={() => setForm((f) => ({ ...f, type: t }))}
+                    className={form.type === t ? "qk-quick qk-quick-on" : "qk-quick"}>
+                    {t === "income" ? "매출 (발행)" : "매입 (수취)"}
+                  </button>
+                ))}
+              </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -827,7 +820,7 @@ export default function CashReceiptsPage() {
                     setForm((f) => ({ ...f, amount: raw }));
                   }}
                   placeholder="110,000"
-                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-right font-mono focus:outline-none focus:border-[var(--primary)]"
+                  className="field-input text-right mono-number"
                 />
                 {form.amount && Number(form.amount) > 0 && (
                   <div className="text-[10px] text-[var(--text-dim)] mt-1">
@@ -919,7 +912,7 @@ export default function CashReceiptsPage() {
                       identityNumber: "",
                     }));
                   }}
-                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm"
+                  className="field-input"
                 >
                   <option value="expenditure_proof">지출증빙</option>
                   <option value="income_deduction">소득공제</option>
@@ -961,13 +954,11 @@ export default function CashReceiptsPage() {
               </div>
             </div>
 
-            <button
-              onClick={handleSave}
-              disabled={saving || !companyId}
-              className="btn-primary w-full"
-            >
-              {saving ? "저장 중..." : "현금영수증 등록"}
-            </button>
+            <div className="cash-receipt-register-foot">
+              <button type="button" onClick={handleSave} disabled={saving || !companyId} className="btn-primary btn-sm">
+                {saving ? "저장 중..." : "현금영수증 등록"}
+              </button>
+            </div>
           </div>
         )}
 
@@ -1027,7 +1018,7 @@ export default function CashReceiptsPage() {
                         </td>
                         <td className="px-5 py-3 text-xs text-[var(--text-dim)] mono-number whitespace-nowrap">
                           {r.issue_date}
-                          {posted && <span className="ml-1.5 inline-block px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-emerald-500/10 text-emerald-500">전표</span>}
+                          {posted && <span className="ml-1.5 ol-sure ol-sure-ok">전표</span>}
                         </td>
                         <td className="px-5 py-3 text-sm font-medium text-[var(--text)]">
                           {r.counterparty_name || "—"}
@@ -1165,11 +1156,11 @@ export default function CashReceiptsPage() {
               <div className="text-[11px] text-[var(--text-dim)] mt-0.5" title="발행 즉시 효력이 생기고 당일 밤 국세청으로 전송됩니다. 설정의 회사 정보에 상호·대표자·주소·전화·업태·종목이 입력돼 있어야 합니다.">현금영수증을 국세청에 바로 발행합니다.</div>
             </div>
             <div className="p-5 space-y-3">
-              <div className="flex gap-2">
+              <div className="cash-receipt-type-chips">
                 {([["income_deduction", "소득공제 (개인)"], ["expenditure_proof", "지출증빙 (사업자)"]] as const).map(([v, label]) => (
                   <button key={v} type="button"
                     onClick={() => setIssueForm((f) => ({ ...f, purpose: v, identityType: v === "income_deduction" ? "phone" : "bizno", identityNumber: "" }))}
-                    className={`flex-1 py-2 rounded-xl text-xs font-semibold transition ${issueForm.purpose === v ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]"}`}>
+                    className={issueForm.purpose === v ? "qk-quick qk-quick-on" : "qk-quick"}>
                     {label}
                   </button>
                 ))}
@@ -1180,7 +1171,7 @@ export default function CashReceiptsPage() {
                   value={issueForm.amount}
                   onValueChange={(raw) => setIssueForm((f) => ({ ...f, amount: raw }))}
                   placeholder="110,000"
-                  className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-right font-mono focus:outline-none focus:border-[var(--primary)]"
+                  className="field-input text-right mono-number"
                 />
                 {issueForm.amount && Number(issueForm.amount) > 0 && issueForm.taxationType === "과세" && (
                   <div className="text-[10px] text-[var(--text-dim)] mt-1">
@@ -1191,14 +1182,14 @@ export default function CashReceiptsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">과세형태</label>
-                  <select value={issueForm.taxationType} onChange={(e) => setIssueForm((f) => ({ ...f, taxationType: e.target.value as any }))} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm">
+                  <select value={issueForm.taxationType} onChange={(e) => setIssueForm((f) => ({ ...f, taxationType: e.target.value as any }))} className="field-input">
                     <option value="과세">과세</option>
                     <option value="비과세">비과세</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">식별번호 유형</label>
-                  <select value={issueForm.identityType} onChange={(e) => setIssueForm((f) => ({ ...f, identityType: e.target.value as any }))} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm">
+                  <select value={issueForm.identityType} onChange={(e) => setIssueForm((f) => ({ ...f, identityType: e.target.value as any }))} className="field-input">
                     <option value="phone">휴대폰번호</option>
                     <option value="bizno">사업자번호</option>
                     <option value="card">카드번호</option>
@@ -1254,7 +1245,7 @@ export default function CashReceiptsPage() {
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">계정과목 *</label>
                 <select value={bulkAccountId} onChange={(e) => setBulkAccountId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]">
+                  className="field-input">
                   <option value="">계정 선택</option>
                   {(coaAccounts as any[]).map((a) => (
                     <option key={a.id} value={a.id}>{a.name} ({a.code})</option>
@@ -1270,9 +1261,9 @@ export default function CashReceiptsPage() {
               )}
             </div>
             <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
-              <button onClick={() => setShowBulkPost(false)} className="btn-ghost text-xs">취소</button>
+              <button onClick={() => setShowBulkPost(false)} className="btn-secondary btn-sm">취소</button>
               <button onClick={doBulkPost} disabled={bulkPosting || !bulkAccountId}
-                className="btn-primary text-xs">
+                className="btn-primary btn-sm">
                 {bulkPosting ? "처리 중..." : `${selectedReceipts.length}건 전표 생성`}
               </button>
             </div>
