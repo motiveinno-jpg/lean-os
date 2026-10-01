@@ -11,6 +11,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   //   self-헤더 있는 화면(/dashboard·/reports/*·/projecthub·/settings·/chat)은 desc 생략 → 중복 방지.
   "/dashboard": { group: "홈", title: "대시보드", desc: "오늘의 우선순위 업무 · 내 업무·자금·일정·전자결재 현황을 봅니다." },
   "/copilot": { group: "홈", title: "AI 참모" },
+  "/procurement": { group: "홈", title: "입찰 검토" },
   "/notifications": { group: "홈", title: "알림", desc: "받은 알림을 모아 봅니다." },
   "/support-programs": { group: "홈", title: "지원사업추천", desc: "회사 자료(업종·소재지·직원·매출)로 걸러 낸 정부 지원정책입니다. 신청은 각 기관에서 합니다." },
 

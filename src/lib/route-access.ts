@@ -59,7 +59,7 @@ export const APP_ROUTE_SEGMENTS = [
   'chat', 'collect', 'contracts', 'copilot', 'dashboard', 'deals', 'design', 'documents', 'e-invoices',
   'employees', 'error-logs', 'finance', 'guide', 'hr-templates', 'inventory', 'leave', 'loans', 'master',
   'matching', 'my-contracts', 'mypage', 'notifications', 'onboarding', 'operator-users', 'partners',
-  'payments', 'projecthub', 'projects', 'reports', 'schedule', 'settings', 'signatures', 'subscriptions',
+  'payments', 'procurement', 'projecthub', 'projects', 'reports', 'schedule', 'settings', 'signatures', 'subscriptions',
   'support', 'support-programs', 'tax-invoices', 'team', 'transactions', 'vault',
   // 묶음 밖 로그인 화면 — /advisor·/platform 첫 화면은 위 공개 목록이 먼저 열어 준다
   'company-setup', 'join-pending', 'advisor', 'platform',

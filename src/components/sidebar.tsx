@@ -48,6 +48,7 @@ const NAV_GROUPS: NavGroup[] = [
       //   매일 여는 순서 원칙에서 주 1회쯤 여는 성격이라 AI 참모 아래. 직원 인사 정보로 자격을 판정해 대표·관리자 전용.
       
       { href: "/support-programs", label: "지원사업추천", icon: "gift" },
+      { href: "/procurement", label: "입찰 검토", icon: "clipboard", masterOnly: true },
       // 마스터 전용 · 대시보드 하단 경영 종합 3종(커맨드 센터·프로젝트 경영·월결산) 이동
       
       { href: "/master", label: "마스터", icon: "shield", masterOnly: true },
