@@ -2,12 +2,13 @@
 import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { checkIn as hrCheckIn, checkOut as hrCheckOut, cancelCheckOut as hrCancelCheckOut } from "@/lib/hr";
 import { useToast } from "@/components/toast";
 import { useUser } from "@/components/user-context";
+import { LateReasonDialog, wasLateReasonDismissed, markLateReasonDismissed } from "@/components/late-reason-dialog";
 
 // 사이드바 로고 옆 원클릭 출퇴근 버튼
 //   - 미출근 → "출근" / 근무 중 → "퇴근" / 퇴근 완료 → "퇴근취소" / 직원 미연결 → 미표시
@@ -55,6 +56,13 @@ export function SidebarAttendanceButton() {
   const isCheckedIn = !!todayAtt?.check_in;
   const isCheckedOut = !!todayAtt?.check_out;
 
+  // 지각 사유 — 사이드바는 모든 화면에 떠 있어 어느 출근 경로(대시보드·마이페이지·참모)로 찍어도
+  //   오늘 행이 지각으로 판정되면 여기서 한 번 묻는다. '나중에'로 닫으면 그 행은 다시 안 묻는다.
+  const [lateAsk, setLateAsk] = useState<string | null>(null);
+  useEffect(() => {
+    if (todayAtt?.id && todayAtt.is_late && !todayAtt.late_reason && !todayAtt.check_out && !wasLateReasonDismissed(todayAtt.id)) setLateAsk(todayAtt.id);
+  }, [todayAtt?.id, todayAtt?.is_late, todayAtt?.late_reason, todayAtt?.check_out]);
+
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["my-att-today"] });
     qc.invalidateQueries({ queryKey: ["emp-attendance-today"] });
@@ -90,6 +98,10 @@ export function SidebarAttendanceButton() {
   if (!employeeId) return null;
 
   return (
+    <>
+    {lateAsk && todayAtt?.id === lateAsk && (
+      <LateReasonDialog record={todayAtt} onClose={() => { markLateReasonDismissed(lateAsk); setLateAsk(null); }} />
+    )}
     <button
       type="button"
       onClick={handleClick}
@@ -103,5 +115,6 @@ export function SidebarAttendanceButton() {
     >
       {busy ? "..." : !isCheckedIn ? "출근" : !isCheckedOut ? "퇴근" : "퇴근취소"}
     </button>
+    </>
   );
 }

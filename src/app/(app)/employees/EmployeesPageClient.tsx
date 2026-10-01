@@ -1427,6 +1427,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                             관리자·직원 본인 뷰가 동일 출력 (MyAttendanceCard 도 같은 컴포넌트 사용). */}
                         <AttendanceBadges record={r} compact />
                       </div>
+                      {r.is_late && r.late_reason && <div className="late-reason-line" title={r.late_reason}>사유: {r.late_reason}</div>}
                     </td>
                     {showActionCol && (
                       <td className="px-5 py-3 text-center">

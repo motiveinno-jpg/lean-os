@@ -9,6 +9,7 @@ import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { createAttendanceEditRequest } from "@/lib/hr";
+import { LateReasonDialog } from "@/components/late-reason-dialog";
 import { kstLocalToIso } from "@/lib/kst";
 import { QueryBar, ConditionPanel, ConditionRow, AppliedChips, ResultStrip, Stat, type AppliedChip } from "@/components/query-kit";
 
@@ -64,6 +65,7 @@ export function MyAttendance({ employeeId }: { employeeId: string | null }) {
   const [editCheckIn, setEditCheckIn] = useState("");
   const [editCheckOut, setEditCheckOut] = useState("");
   const [editReason, setEditReason] = useState("");
+  const [lateTarget, setLateTarget] = useState<any | null>(null); // 지각 사유 쓰기 대상 행
 
   const openEdit = (r: any) => {
     setEditTarget(r);
@@ -218,7 +220,12 @@ export function MyAttendance({ employeeId }: { employeeId: string | null }) {
                   <td className="text-right mono-number">{dayMinutes > 0 ? fmtHM(dayMinutes) : "—"}</td>
                   <td className={`text-right mono-number ${ot > 0 ? "text-[var(--warning)]" : "text-[var(--text-dim)]"}`}>{ot > 0 ? fmtHM(ot) : "—"}</td>
                   <td className="text-center"><span className={`ol-sure ${r.status === "present" && !r.is_late ? "ol-sure-ok" : r.is_late || r.status === "absent" ? "" : "ol-sure-est"}`}>{r.is_late ? `지각${r.late_minutes ? ` ${r.late_minutes}분` : ""}` : st.label}</span></td>
-                  <td className="text-left"><span className="inline-flex flex-wrap gap-1"><AttendanceBadges record={r} compact /></span></td>
+                  <td className="text-left">
+                    <span className="inline-flex flex-wrap gap-1"><AttendanceBadges record={r} compact /></span>
+                    {r.is_late && (r.late_reason
+                      ? <button type="button" className="late-reason-cell" title={`지각 사유: ${r.late_reason} (눌러서 고치기)`} onClick={() => setLateTarget(r)}>사유: {r.late_reason}</button>
+                      : <button type="button" className="btn-secondary btn-sm late-reason-add" onClick={() => setLateTarget(r)}>지각 사유 쓰기</button>)}
+                  </td>
                   <td className="text-center">
                     {pendingSet.has(r.id) ? <span className="ol-sure ol-sure-est" title="관리자 승인 대기 중인 정정 요청이 있습니다">정정 대기</span>
                       : <button type="button" onClick={() => openEdit(r)} className="btn-secondary btn-sm" title="관리자에게 정정을 요청합니다.">정정 요청</button>}
@@ -229,6 +236,8 @@ export function MyAttendance({ employeeId }: { employeeId: string | null }) {
           </tbody>
         </table>
       )}
+
+      {lateTarget && <LateReasonDialog record={lateTarget} onClose={() => setLateTarget(null)} />}
 
       {/* ── 정정 요청 모달 ── */}
       {editTarget && (

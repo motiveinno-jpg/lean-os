@@ -11286,3 +11286,13 @@ table.ol-items-table { min-width: 760px; table-layout: fixed; }
 .ap-decide-approve { @apply inline-flex items-center gap-1; }
 .ap-modal-actions { @apply mt-5 flex justify-end gap-2; }
 .closing-auto-btn { @apply mt-2; }   /* 마감 체크리스트 자동 마감 — 폭 전체 초록 → btn-secondary btn-sm(2026-09-30) */
+
+/* 지각 사유 (2026-10-01) — 팝업·마이페이지 내 근태 비고 칸·근태 관리 상태 칸 */
+.late-reason-box { @apply max-w-md; }
+.late-reason-when { @apply text-[12px] font-normal text-[var(--text-muted)]; }
+.late-reason-quicks { @apply flex flex-wrap gap-1; }
+.late-reason-input { @apply w-full resize-y rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-[13px] leading-relaxed focus:border-[var(--primary)] focus:outline-none; }
+.late-reason-count { @apply -mt-2 self-end text-[11px] text-[var(--text-dim)]; }
+.late-reason-cell { @apply mt-1 block max-w-[28ch] truncate text-left text-[11.5px] text-[var(--text-muted)] hover:text-[var(--primary)]; }
+.late-reason-add { @apply mt-1; }
+.late-reason-line { @apply mx-auto mt-1 max-w-[24ch] truncate text-[11px] text-[var(--text-muted)]; }

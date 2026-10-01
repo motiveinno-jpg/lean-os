@@ -2144,6 +2144,8 @@ export type Database = {
           is_holiday: boolean | null
           is_late: boolean | null
           late_minutes: number | null
+          late_reason: string | null
+          late_reason_at: string | null
           night_minutes: number | null
           note: string | null
           overtime_hours: number | null
@@ -2170,6 +2172,8 @@ export type Database = {
           is_holiday?: boolean | null
           is_late?: boolean | null
           late_minutes?: number | null
+          late_reason?: string | null
+          late_reason_at?: string | null
           night_minutes?: number | null
           note?: string | null
           overtime_hours?: number | null
@@ -2196,6 +2200,8 @@ export type Database = {
           is_holiday?: boolean | null
           is_late?: boolean | null
           late_minutes?: number | null
+          late_reason?: string | null
+          late_reason_at?: string | null
           night_minutes?: number | null
           note?: string | null
           overtime_hours?: number | null
@@ -21041,6 +21047,10 @@ export type Database = {
           p_regular_minutes: number
         }
         Returns: boolean
+      }
+      set_late_reason: {
+        Args: { p_reason: string; p_record_id: string }
+        Returns: undefined
       }
       set_employee_rrn: {
         Args: { p_employee: string; p_rrn: string }

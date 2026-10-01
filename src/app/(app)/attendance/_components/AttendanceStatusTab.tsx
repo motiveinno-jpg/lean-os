@@ -92,7 +92,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
   //   숫자 칸 팝업(지각·결근·재택·반차의 날짜·내용)도 같은 행을 쓰므로 상태·시각·메모까지 가져온다.
   const  { data: recordDays = [] } = useQuery({
     queryKey: ["att-status-record-days", companyId, rangeFrom, rangeTo],
-    queryFn: async () => (await fetchPaged("att-status:record-days", () => supabase.from("attendance_records").select("employee_id, date, status, is_late, late_minutes, check_in, check_out, work_hours, note, deal_id, regular_minutes, overtime_minutes, night_minutes, holiday_minutes").eq("company_id", companyId).gte("date", rangeFrom).lte("date", rangeTo).order("date"), 50000)) as any[],
+    queryFn: async () => (await fetchPaged("att-status:record-days", () => supabase.from("attendance_records").select("employee_id, date, status, is_late, late_minutes, check_in, check_out, work_hours, note, late_reason, deal_id, regular_minutes, overtime_minutes, night_minutes, holiday_minutes").eq("company_id", companyId).gte("date", rangeFrom).lte("date", rangeTo).order("date"), 50000)) as any[],
     enabled: !!companyId,
   });
   const { data: allowances = [] } = useQuery({
@@ -250,7 +250,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
       for (const r of recordDays) {
         const ds = String(r.date).slice(0, 10);
         if (!inScope(r.employee_id, ds)) continue;
-        if (detail.kind === "lateDays" && r.is_late) push(r.employee_id, ds, `출근 ${fmtHm(r.check_in)} · ${Number(r.late_minutes || 0) > 0 ? `${Math.round(Number(r.late_minutes))}분 지각` : "지각"}`, r.note);
+        if (detail.kind === "lateDays" && r.is_late) push(r.employee_id, ds, `출근 ${fmtHm(r.check_in)} · ${Number(r.late_minutes || 0) > 0 ? `${Math.round(Number(r.late_minutes))}분 지각` : "지각"}`, [r.late_reason && `사유: ${r.late_reason}`, r.note].filter(Boolean).join(" / "));
         else if (detail.kind === "absentDays" && r.status === "absent") push(r.employee_id, ds, "결근으로 기록", r.note);
         else if (detail.kind === "remoteDays" && r.status === "remote") push(r.employee_id, ds, `재택 · ${inOut(r)}`, r.note);
         else if (detail.kind === "halfDays" && r.status === "half_day") { const lv = leaveOn(r.employee_id, ds); push(r.employee_id, ds, `반차${lv ? ` (${leaveTypeLabel(String(lv.leave_type))})` : ""} · ${inOut(r)}`, [r.note, lv?.reason].filter(Boolean).join(" / ")); }
