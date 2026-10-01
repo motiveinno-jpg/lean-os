@@ -2234,6 +2234,10 @@ table.bs-t-table { min-width: 360px; }
 .employee-leave-grant-form { @apply flex flex-wrap items-center gap-2; }
 
 .mypage-withdraw-card { @apply p-6 border border-[var(--danger)]/30; }
+.mypage-settings .glass-card:not(.confirm-dialog-panel):not(.access-denied-panel) { background: transparent; border: 0; border-top: 1px solid var(--border); border-radius: 0; box-shadow: none; backdrop-filter: none; @apply px-0 py-4; }
+.mypage-settings .glass-card.notification-settings-header { @apply border-t-0 pt-0; }
+.mypage-settings > .space-y-6 { @apply space-y-0; }
+.mypage-settings > .space-y-6 + * { @apply mt-0; }
 /* 근태 탭 — 내 출퇴근 기록(MyAttendance.tsx). 월 네비 + 요약 타일 + 일별 목록 */
 .mypage-attendance-card { @apply p-6 flex flex-col; }
 

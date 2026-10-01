@@ -670,8 +670,12 @@ export default function MyPage() {
               <div><dt>프로필 사진</dt><dd><span className="inline-flex gap-1.5"><button type="button" onClick={() => fileRef.current?.click()} disabled={uploadingAvatar} className="btn-secondary btn-sm">변경</button>{(userInfo as any)?.avatar_url && <button type="button" onClick={handleAvatarRemove} disabled={uploadingAvatar} className="btn-secondary btn-sm">기본으로</button>}</span></dd></div>
             </dl>
           </section>
-          {companyId && <NotificationsTab companyId={companyId} />}
-          <AccountTab />
+          {/*   2026-10-01 UI 점검 9순위: 설정 화면에서 빌려 온 알림·계정 폼이 glass-card 째 펼쳐져 옆 판(pnl-panel)과 모양이 달랐다 →
+                판 하나로 감싸고 안쪽 상자는 위 선으로(설정 화면 .stg-main 과 같은 규칙, 새 이름) */}
+          <section className="pnl-panel mypage-settings">
+            {companyId && <NotificationsTab companyId={companyId} />}
+            <AccountTab />
+          </section>
           <div className="mypage-withdraw-card pnl-panel">
             <h3 className="text-[var(--danger)]">회원 탈퇴</h3>
             <p>탈퇴하면 <b>계정이 영구 삭제</b>되며 <b>되돌릴 수 없습니다.</b>{(ctxUser as any)?.is_master && <span className="block mt-1 text-amber-500">마스터 계정이라도 회사 데이터는 남습니다.</span>}</p>
