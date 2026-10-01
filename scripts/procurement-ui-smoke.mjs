@@ -14,6 +14,24 @@ await symlink(join(repo, "node_modules"), join(root, "node_modules"), "dir");
 const output = join(repo, "deliverables/procurement/screenshots");
 await mkdir(output, { recursive: true });
 const ws = {
+  workforce: {
+    source: "오너뷰 직원·프로젝트 업무",
+    observedAt: "2026-10-01T00:00:00Z",
+    members: [
+      {
+        id: "qa-person",
+        name: "QA 재직 직원",
+        department: "QA 부서",
+        position: "QA 직책",
+        role: null,
+        linked: true,
+        assignments: [],
+      },
+    ],
+    excludedCount: 1,
+    unassignedCount: 0,
+    caveat: "검증용 명단이며 가용 시간은 미확인입니다.",
+  },
   company: {
     id: "qa-company",
     name: "QA 검증용 회사 · 실제 회사 자료 아님",
@@ -201,24 +219,26 @@ try {
   );
   await page.getByRole("button", { name: "회사 자료", exact: true }).click();
   await page
-    .getByLabel("실적 분석 JSON 파일", { exact: true })
-    .setInputFiles({
-      name: "qa-projects.json",
-      mimeType: "application/json",
-      buffer: Buffer.from(
-        JSON.stringify({
-          companyBusinessNumber: "0000000000",
-          items: [
-            {
-              category: "project",
-              title: "QA 실적",
-              text: "QA 원본",
-              source: "QA 시트",
-            },
-          ],
-        }),
-      ),
-    });
+    .getByRole("heading", { name: "오너뷰 기준 현재 인력", exact: true })
+    .waitFor();
+  await page.getByRole("heading", { name: /QA 재직 직원/ }).waitFor();
+  await page.getByLabel("실적 분석 JSON 파일", { exact: true }).setInputFiles({
+    name: "qa-projects.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        companyBusinessNumber: "0000000000",
+        items: [
+          {
+            category: "project",
+            title: "QA 실적",
+            text: "QA 원본",
+            source: "QA 시트",
+          },
+        ],
+      }),
+    ),
+  });
   await page
     .getByRole("button", { name: "실적 자료 저장", exact: true })
     .click();

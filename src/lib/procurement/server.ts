@@ -15,6 +15,12 @@ import {
 } from "./types";
 import { ProcurementError } from "./validation";
 import { evidenceHash } from "./fingerprint";
+import {
+  workforceSummary,
+  type StaffRecord,
+  type WorkRecord,
+  type StaffProject,
+} from "./workforce";
 
 // 신규 테이블은 운영 스키마 반영 후 database.ts 재생성 대상. any는 이 DB 어댑터 경계에만 둔다.
 export type ProcurementDb = ReturnType<typeof createSupabaseAdminClient> & {
@@ -105,7 +111,15 @@ export async function workspace(
   db: ProcurementDb,
   companyId: string,
 ): Promise<Workspace> {
-  const [companyResult, profileResult, fileResult] = await Promise.all([
+  const [
+    companyResult,
+    profileResult,
+    fileResult,
+    staff,
+    tasks,
+    items,
+    projects,
+  ] = await Promise.all([
     db
       .from("companies")
       .select(
@@ -124,6 +138,30 @@ export async function workspace(
       companyId,
       "id,file_name,created_at",
     ),
+    rows<StaffRecord>(
+      db,
+      "employees",
+      companyId,
+      "id,name,user_id,department,position,job_role,job_title,status,hire_date,resignation_date,contract_end_date,created_at",
+    ),
+    rows<WorkRecord>(
+      db,
+      "project_tasks",
+      companyId,
+      "id,deal_id,title,status,assignee_id,due_date,archived_at,created_at",
+    ),
+    rows<Omit<WorkRecord, "title"> & { name: string }>(
+      db,
+      "project_items",
+      companyId,
+      "id,deal_id,name,status,assignee_id,assignee_ids,due_date,archived_at,kind,created_at",
+    ),
+    rows<StaffProject>(
+      db,
+      "deals",
+      companyId,
+      "id,name,item_stages,archived_at,created_at",
+    ),
   ]);
   const company = checked(companyResult) as CompanyBasics;
   const profile = checked(profileResult) as Workspace["profile"];
@@ -138,6 +176,12 @@ export async function workspace(
       process.env.PROCUREMENT_COMPANY_ID === companyId,
   };
   const base: Workspace = {
+    workforce: workforceSummary(
+      staff,
+      tasks,
+      items.map((i) => ({ ...i, title: i.name })),
+      projects,
+    ),
     company,
     profile,
     files,

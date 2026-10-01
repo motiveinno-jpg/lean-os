@@ -546,6 +546,49 @@ export function ProcurementWorkspace({
               ))}
             </dl>
             <a href="/settings?tab=company">회사 기초정보 확인</a>
+            <section className={styles.section}>
+              <h2>오너뷰 기준 현재 인력</h2>
+              {ws.workforce ? (
+                <>
+                  <p>
+                    재직 명단 {ws.workforce.members.length}명 · 조회{" "}
+                    {fmt(ws.workforce.observedAt)} · 재직 기준 제외{" "}
+                    {ws.workforce.excludedCount}명 · 미담당 업무{" "}
+                    {ws.workforce.unassignedCount}건
+                  </p>
+                  <p>{ws.workforce.caveat}</p>
+                  {ws.workforce.members.map((e) => (
+                    <article className={styles.section} key={e.id}>
+                      <h3>
+                        {e.name} · {e.department || "부서 미기재"} ·{" "}
+                        {e.position || "직책 미기재"}
+                      </h3>
+                      <p>
+                        직무: {e.role || "미기재 · 역량 확인 필요"} · 미완료
+                        배정 {e.assignments.length}건
+                      </p>
+                      {!e.linked && (
+                        <p>
+                          직원과 사용자 계정이 연결되지 않아 업무 배정을 대조할
+                          수 없습니다.
+                        </p>
+                      )}
+                      {e.assignments.map((t) => (
+                        <p key={t.source + t.id}>
+                          <a href={`/projects/${t.dealId}`}>
+                            {t.project} / {t.title}
+                          </a>{" "}
+                          · 기한 {t.dueDate || "미기재"}
+                          {t.overdue ? " · 기한 경과" : ""}
+                        </p>
+                      ))}
+                    </article>
+                  ))}
+                </>
+              ) : (
+                <p>현재 인력 조회 결과가 아직 없습니다.</p>
+              )}
+            </section>
             {!!ws.profile?.certifications.length && (
               <p>
                 회사 카드에 기록된 인증: {ws.profile.certifications.join(", ")}{" "}

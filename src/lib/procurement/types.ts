@@ -193,6 +193,7 @@ export type RunRow = {
   created_at: string;
 };
 export type Workspace = {
+  workforce?: ReturnType<typeof import("./workforce").workforceSummary>;
   company: CompanyBasics;
   profile: {
     open_date: string | null;
