@@ -154,7 +154,8 @@ export async function callProcurementAI(
     workforce: ws.workforce,
     notice,
     rubric: RUBRIC,
-    citationRules: "documentId는 documents[].id를 그대로 사용한다. quote는 해당 문서 text에서 복사한 8자 이상의 연속 구절이다. 줄임표·재작성·요약 인용은 금지한다. 근거 없는 항목의 citation은 null이다.",
+    citationRules:
+      "documentId는 documents[].id를 그대로 사용한다. quote는 해당 문서 text에서 복사한 8자 이상의 연속 구절이다. 줄임표·재작성·요약 인용은 금지한다. 근거 없는 항목의 citation은 null이다.",
   });
   if (input.length > 450000)
     throw new ProcurementError(
@@ -175,9 +176,11 @@ export async function callProcurementAI(
         model,
         max_tokens: kind === "proposal" ? 16000 : 12000,
         thinking: { type: "disabled" },
-        system: SYSTEM + (kind === "analysis"
-          ? "\n분석 결과는 반복 없이 간결하게 작성한다. 요약은 1200자 이내, 각 사유는 500자 이내로 쓴다. 원문에 실제 등장하는 조건만 추출하고 일반적인 가정 조건을 필수조건으로 늘리지 않는다. 인용은 판단을 뒷받침하는 짧은 연속 구절만 쓴다."
-          : "\n제안서는 최대 12개 장으로 구성하고 각 장은 2500자 이내로 작성한다. 같은 내용을 여러 장에서 반복하지 않는다. 제공된 원문이 짧으면 문서도 그 범위에 맞춘다."),
+        system:
+          SYSTEM +
+          (kind === "analysis"
+            ? "\n분석 결과는 반복 없이 간결하게 작성한다. 요약은 1200자 이내, 각 사유는 500자 이내로 쓴다. 원문에 실제 등장하는 조건만 추출하고 일반적인 가정 조건을 필수조건으로 늘리지 않는다. 인용은 판단을 뒷받침하는 짧은 연속 구절만 쓴다."
+            : "\n제안서는 최대 12개 장으로 구성하고 각 장은 2500자 이내로 작성한다. 같은 내용을 여러 장에서 반복하지 않는다. 제공된 원문이 짧으면 문서도 그 범위에 맞춘다."),
         messages: [{ role: "user", content: input }],
         tools: [
           {
@@ -243,11 +246,27 @@ function validCitation(c: unknown, n: Notice, allowNull = true) {
   if (c === null && allowNull) return null;
   // 실제 연속 구절이지만 너무 짧은 인용은 원문 문장으로만 확장한다. 없는 문구는 복구하지 않는다.
   if (c && typeof c === "object") {
-    const value = c as {documentId?: string;quote?: string;location?: string};
-    if (typeof value.quote === "string" && value.quote.trim().length >= 4 && value.quote.trim().length < 8) {
-      const doc = n.documents.find(d => d.id === value.documentId);
-      const sentences = doc?.text.split(/(?<=[.!?。])\s+|\n+/).filter(s => s.includes(value.quote!.trim())) || [];
-      if (sentences.length === 1 && sentences[0].trim().length >= 8 && sentences[0].length <= 500) c = {...value, quote:sentences[0].trim()};
+    const value = c as {
+      documentId?: string;
+      quote?: string;
+      location?: string;
+    };
+    if (
+      typeof value.quote === "string" &&
+      value.quote.trim().length >= 4 &&
+      value.quote.trim().length < 8
+    ) {
+      const doc = n.documents.find((d) => d.id === value.documentId);
+      const sentences =
+        doc?.text
+          .split(/(?<=[.!?。])\s+|\n+/)
+          .filter((s) => s.includes(value.quote!.trim())) || [];
+      if (
+        sentences.length === 1 &&
+        sentences[0].trim().length >= 8 &&
+        sentences[0].length <= 500
+      )
+        c = { ...value, quote: sentences[0].trim() };
     }
   }
   if (

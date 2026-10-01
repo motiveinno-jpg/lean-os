@@ -2,6 +2,7 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createServer } from "vite";
+if (!globalThis.WebSocket) globalThis.WebSocket = (await import("ws")).WebSocket;
 function parse(s) {
   return Object.fromEntries(
     s.split(/\r?\n/).flatMap((l) => {
@@ -54,8 +55,19 @@ try {
           },
         );
         if (!response.ok) {
-          const diagnostic = await response.clone().json().catch(() => ({}));
-          process.stdout.write(JSON.stringify({ status: response.status, upstreamStatus:diagnostic.upstreamStatus, reasonCode: diagnostic.reasonCode, errorKind: diagnostic.errorKind, error: diagnostic.error }) + "\n");
+          const diagnostic = await response
+            .clone()
+            .json()
+            .catch(() => ({}));
+          process.stdout.write(
+            JSON.stringify({
+              status: response.status,
+              upstreamStatus: diagnostic.upstreamStatus,
+              reasonCode: diagnostic.reasonCode,
+              errorKind: diagnostic.errorKind,
+              error: diagnostic.error,
+            }) + "\n",
+          );
         }
         return response;
       },
@@ -66,6 +78,32 @@ try {
     );
     process.stdout.write(
       `PASS: 나라장터 홍보 최근7일 ${notices.length}건 정규화\n`,
+    );
+  } else if (process.argv[2] === "workspace") {
+    const { createClient } = await import("@supabase/supabase-js");
+    const { workspace } = await server.ssrLoadModule(
+      "/src/lib/procurement/server.ts",
+    );
+    const db = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
+    const ws = await workspace(db, process.env.PROCUREMENT_COMPANY_ID);
+    if (
+      !ws.ready ||
+      ws.settings.recipients[0] !== "ksc@mo-tive.com" ||
+      ws.evidence.length !== 28
+    )
+      throw new Error("운영 입찰 회사·자료·수신 설정 불일치");
+    process.stdout.write(
+      JSON.stringify({
+        ready: ws.ready,
+        evidence: ws.evidence.length,
+        members: ws.workforce.members.length,
+        recipients: ws.settings.recipients,
+        integration: ws.integration,
+      }) + "\n",
     );
   } else {
     const { callProcurementAI } = await server.ssrLoadModule(
@@ -82,7 +120,11 @@ try {
       "가상 검증 공고. 실제 사업 수행이나 증빙 확정을 주장하지 말 것.",
       async (url, options) => {
         const response = await fetch(url, options);
-        if (response.ok) await writeFile(resolve(out, `synthetic-${process.argv[2]}-provider.json`), await response.clone().text());
+        if (response.ok)
+          await writeFile(
+            resolve(out, `synthetic-${process.argv[2]}-provider.json`),
+            await response.clone().text(),
+          );
         return response;
       },
     );

@@ -38,7 +38,15 @@ try {
     "utf8",
   );
   await db.exec(sql);
-  await db.exec(await readFile(new URL("../supabase/migrations/20261001110000_procurement_ai_jobs.sql", import.meta.url), "utf8"));
+  await db.exec(
+    await readFile(
+      new URL(
+        "../supabase/migrations/20261001140000_procurement_ai_jobs.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   ok(
     (
       await db.query(

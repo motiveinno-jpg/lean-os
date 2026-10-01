@@ -120,70 +120,228 @@ if (mode === "inspect") {
     ) + "\n",
   );
 } else if (mode === "mail-test") {
-  const receiptPath=resolve("deliverables/procurement/live-check/mail-connection-receipt.json");
-  const result = await req("https://api.resend.com/emails", env.RESEND_ADMIN_KEY, {method:"POST",headers:{"Idempotency-Key":"motive-procurement-connection-20261001"},body:JSON.stringify({from:"모티브 입찰 알림 <noreply@mo-tive.com>",to:["ksc@mo-tive.com"],subject:"[모티브 입찰 자동화] 메일 연결 확인",text:"요청하신 입찰 알림 수신 주소 연결 시험입니다. 수신 주소: ksc@mo-tive.com. 나라장터 공고 수집 권한과 AI 분석을 검증하고 있습니다. 이 메일은 실제 입찰 추천 목록이 아닙니다. 자동 정기 발송은 검증 후 활성화합니다."})});
-  await writeFile(receiptPath,JSON.stringify({id:result.id,to:"ksc@mo-tive.com",acceptedAt:new Date().toISOString()},null,2),{mode:0o600});
-  process.stdout.write(`메일 제공사 발송 접수 확인: ksc@mo-tive.com / ${result.id}\n`);
+  const receiptPath = resolve(
+    "deliverables/procurement/live-check/mail-connection-receipt.json",
+  );
+  const result = await req(
+    "https://api.resend.com/emails",
+    env.RESEND_ADMIN_KEY,
+    {
+      method: "POST",
+      headers: { "Idempotency-Key": "motive-procurement-connection-20261001" },
+      body: JSON.stringify({
+        from: "모티브 입찰 알림 <noreply@mo-tive.com>",
+        to: ["ksc@mo-tive.com"],
+        subject: "[모티브 입찰 자동화] 메일 연결 확인",
+        text: "요청하신 입찰 알림 수신 주소 연결 시험입니다. 수신 주소: ksc@mo-tive.com. 나라장터 공고 수집 권한과 AI 분석을 검증하고 있습니다. 이 메일은 실제 입찰 추천 목록이 아닙니다. 자동 정기 발송은 검증 후 활성화합니다.",
+      }),
+    },
+  );
+  await writeFile(
+    receiptPath,
+    JSON.stringify(
+      {
+        id: result.id,
+        to: "ksc@mo-tive.com",
+        acceptedAt: new Date().toISOString(),
+      },
+      null,
+      2,
+    ),
+    { mode: 0o600 },
+  );
+  process.stdout.write(
+    `메일 제공사 발송 접수 확인: ksc@mo-tive.com / ${result.id}\n`,
+  );
 } else if (mode === "proxy-auth") {
   const local = parse(await readFile(".env.local", "utf8"));
-  const secret = local.PROCUREMENT_PROXY_SECRET || randomBytes(32).toString("hex");
-  await req(`https://api.supabase.com/v1/projects/${ref}/secrets`, env.SUPABASE_ACCESS_TOKEN, {
-    method: "POST", body: JSON.stringify([{name:"PROCUREMENT_PROXY_SECRET",value:secret}]),
-  });
+  const secret =
+    local.PROCUREMENT_PROXY_SECRET || randomBytes(32).toString("hex");
+  await req(
+    `https://api.supabase.com/v1/projects/${ref}/secrets`,
+    env.SUPABASE_ACCESS_TOKEN,
+    {
+      method: "POST",
+      body: JSON.stringify([
+        { name: "PROCUREMENT_PROXY_SECRET", value: secret },
+      ]),
+    },
+  );
   local.PROCUREMENT_PROXY_SECRET = secret;
-  await writeFile(".env.local", Object.entries(local).map(([k,v])=>`${k}=${JSON.stringify(v)}`).join("\n")+"\n", {mode:0o600});
+  await writeFile(
+    ".env.local",
+    Object.entries(local)
+      .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+      .join("\n") + "\n",
+    { mode: 0o600 },
+  );
   process.stdout.write("입찰 프록시 전용 인증키 연결 완료 (값 비공개)\n");
 } else if (mode === "db-inspect") {
-  const result = await req(`https://api.supabase.com/v1/projects/${ref}/database/query`, env.SUPABASE_ACCESS_TOKEN, {
-    method: "POST", body: JSON.stringify({query:"SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name LIKE 'procurement_%' ORDER BY table_name"}),
-  });
-  process.stdout.write(JSON.stringify(result)+"\n");
+  const result = await req(
+    `https://api.supabase.com/v1/projects/${ref}/database/query`,
+    env.SUPABASE_ACCESS_TOKEN,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        query:
+          "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name LIKE 'procurement_%' ORDER BY table_name",
+      }),
+    },
+  );
+  process.stdout.write(JSON.stringify(result) + "\n");
 } else if (mode === "configure-production") {
-  const local=parse(await readFile(".env.local","utf8"));
-  if(!local.PROCUREMENT_RESEND_SCOPED){
-    const domains=await req("https://api.resend.com/domains",env.RESEND_ADMIN_KEY);
-    const domain=domains.data.find(d=>d.name==="mo-tive.com"&&d.status==="verified");
-    if(!domain)throw new Error("모티브 발신 도메인 인증 필요");
-    const key=await req("https://api.resend.com/api-keys",env.RESEND_ADMIN_KEY,{method:"POST",body:JSON.stringify({name:"Motive procurement alerts",permission:"sending_access",domain_id:domain.id})});
-    local.RESEND_API_KEY=key.token;local.PROCUREMENT_RESEND_SCOPED="true";
-    if(!key.token)throw new Error("발신 전용 메일 인증키 생성 실패");
-    await writeFile(".env.local",Object.entries(local).map(([k,v])=>`${k}=${JSON.stringify(v)}`).join("\n")+"\n",{mode:0o600});
+  const local = parse(await readFile(".env.local", "utf8"));
+  if (!local.PROCUREMENT_RESEND_SCOPED) {
+    const domains = await req(
+      "https://api.resend.com/domains",
+      env.RESEND_ADMIN_KEY,
+    );
+    const domain = domains.data.find(
+      (d) => d.name === "mo-tive.com" && d.status === "verified",
+    );
+    if (!domain) throw new Error("모티브 발신 도메인 인증 필요");
+    const key = await req(
+      "https://api.resend.com/api-keys",
+      env.RESEND_ADMIN_KEY,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          name: "Motive procurement alerts",
+          permission: "sending_access",
+          domain_id: domain.id,
+        }),
+      },
+    );
+    local.RESEND_API_KEY = key.token;
+    local.PROCUREMENT_RESEND_SCOPED = "true";
+    if (!key.token) throw new Error("발신 전용 메일 인증키 생성 실패");
+    await writeFile(
+      ".env.local",
+      Object.entries(local)
+        .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+        .join("\n") + "\n",
+      { mode: 0o600 },
+    );
   }
-  const wanted=Object.fromEntries(["SUPABASE_SERVICE_ROLE_KEY","ANTHROPIC_API_KEY","RESEND_API_KEY","RESEND_FROM_EMAIL","PROCUREMENT_COMPANY_ID","PROCUREMENT_AI_MODEL","PROCUREMENT_PROXY_SECRET","PROCUREMENT_G2B_PROXY"].map(k=>[k,local[k]]));
-  wanted.PROCUREMENT_SCHEDULER_ENABLED="true";
-  const url=`https://api.vercel.com/v10/projects/${project.projectId}/env?teamId=${project.orgId}&upsert=true`;
-  for(const [key,value]of Object.entries(wanted)){
-    if(!value)throw new Error(`연결 설정 누락: ${key}`);
-    await req(url,env.VERCEL_API_TOKEN,{method:"POST",body:JSON.stringify({key,value,type:"encrypted",target:["production"]})});
+  const wanted = Object.fromEntries(
+    [
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "ANTHROPIC_API_KEY",
+      "RESEND_API_KEY",
+      "RESEND_FROM_EMAIL",
+      "PROCUREMENT_COMPANY_ID",
+      "PROCUREMENT_AI_MODEL",
+      "PROCUREMENT_PROXY_SECRET",
+      "PROCUREMENT_G2B_PROXY",
+    ].map((k) => [k, local[k]]),
+  );
+  wanted.PROCUREMENT_SCHEDULER_ENABLED = "true";
+  const url = `https://api.vercel.com/v10/projects/${project.projectId}/env?teamId=${project.orgId}&upsert=true`;
+  for (const [key, value] of Object.entries(wanted)) {
+    if (!value) throw new Error(`연결 설정 누락: ${key}`);
+    await req(url, env.VERCEL_API_TOKEN, {
+      method: "POST",
+      body: JSON.stringify({
+        key,
+        value,
+        type: "encrypted",
+        target: ["production"],
+      }),
+    });
   }
-  process.stdout.write("운영 AI·모티브 발신 전용 메일·작업 실행 설정 연결 완료. 공고 자동수집/정기발송 설정은 비활성 유지.\n");
+  process.stdout.write(
+    "운영 AI·모티브 발신 전용 메일·작업 실행 설정 연결 완료. 공고 자동수집/정기발송 설정은 비활성 유지.\n",
+  );
 } else if (mode === "import-source") {
   const local = parse(await readFile(".env.local", "utf8"));
   const companyId = "c361afb9-8a52-4cac-add9-8992f0f7c09c";
-  const headers = {apikey:local.SUPABASE_SERVICE_ROLE_KEY};
-  const companies = await req(`${local.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/companies?id=eq.${companyId}&select=id,business_number`,local.SUPABASE_SERVICE_ROLE_KEY,{headers});
-  if (companies.length!==1) throw new Error("모티브 회사 정보를 확인하지 못했습니다.");
-  const {createServer}=await import("vite");
-  const server=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,ws:false},resolve:{alias:{"@":resolve("src")}}});
+  const headers = { apikey: local.SUPABASE_SERVICE_ROLE_KEY };
+  const companies = await req(
+    `${local.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/companies?id=eq.${companyId}&select=id,business_number`,
+    local.SUPABASE_SERVICE_ROLE_KEY,
+    { headers },
+  );
+  if (companies.length !== 1)
+    throw new Error("모티브 회사 정보를 확인하지 못했습니다.");
+  const { createServer } = await import("vite");
+  const server = await createServer({
+    configFile: false,
+    server: { middlewareMode: true, hmr: false, ws: false },
+    resolve: { alias: { "@": resolve("src") } },
+  });
   try {
-    const {parseEvidenceImport}=await server.ssrLoadModule("/src/lib/procurement/validation.ts");
-    const {fingerprint}=await server.ssrLoadModule("/src/lib/procurement/fingerprint.ts");
-    const bundle=JSON.parse(await readFile("deliverables/procurement/company-source/모티브_실적분석_가져오기.json","utf8"));
-    const items=parseEvidenceImport(bundle,companies[0].business_number);
-    const result=await req(`${local.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/procurement_import_evidence`,local.SUPABASE_SERVICE_ROLE_KEY,{method:"POST",headers,body:JSON.stringify({p_company:companyId,p_user:null,p_items:items.map(e=>({payload:e,import_key:fingerprint({category:e.category,title:e.title,text:e.text,source:e.source,project:e.project||null})}))})});
-    process.stdout.write(`실제 회사 사업자번호 대조 및 미검증 근거 ${result}건 가져오기 완료\n`);
-  } finally {await server.close();}
-} else if (mode === "provision") {
-  const query = async (sql) => req(`https://api.supabase.com/v1/projects/${ref}/database/query`, env.SUPABASE_ACCESS_TOKEN, {method:"POST", body:JSON.stringify({query:sql})});
-  for (const [table,file] of [["procurement_settings","20260930170000_procurement_foundation.sql"],["procurement_jobs","20261001110000_procurement_ai_jobs.sql"]]) {
-    const result = await query(`SELECT to_regclass('public.${table}') AS present`);
-    if (!result[0].present) await query(await readFile(resolve("supabase/migrations",file),"utf8"));
-    const verification=await query(`SELECT count(*)::int AS n FROM pg_class WHERE relnamespace='public'::regnamespace AND relname='${table}' AND relrowsecurity`);
-    if(verification[0].n!==1)throw new Error("입찰 마이그레이션 RLS 확인 실패");
-    await query(`INSERT INTO public.applied_migrations(version) VALUES('${file.replace(/\.sql$/,"")}') ON CONFLICT(version) DO NOTHING`);
+    const { parseEvidenceImport } = await server.ssrLoadModule(
+      "/src/lib/procurement/validation.ts",
+    );
+    const { fingerprint } = await server.ssrLoadModule(
+      "/src/lib/procurement/fingerprint.ts",
+    );
+    const bundle = JSON.parse(
+      await readFile(
+        "deliverables/procurement/company-source/모티브_실적분석_가져오기.json",
+        "utf8",
+      ),
+    );
+    const items = parseEvidenceImport(bundle, companies[0].business_number);
+    const result = await req(
+      `${local.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/procurement_import_evidence`,
+      local.SUPABASE_SERVICE_ROLE_KEY,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          p_company: companyId,
+          p_user: null,
+          p_items: items.map((e) => ({
+            payload: e,
+            import_key: fingerprint({
+              category: e.category,
+              title: e.title,
+              text: e.text,
+              source: e.source,
+              project: e.project || null,
+            }),
+          })),
+        }),
+      },
+    );
+    process.stdout.write(
+      `실제 회사 사업자번호 대조 및 미검증 근거 ${result}건 가져오기 완료\n`,
+    );
+  } finally {
+    await server.close();
   }
-  await query(`INSERT INTO public.procurement_settings(company_id,settings) VALUES('c361afb9-8a52-4cac-add9-8992f0f7c09c','{"keywords":["홍보"],"recipients":["ksc@mo-tive.com"],"digestHour":8,"digestEnabled":false,"collectionEnabled":false,"minimumScore":75}'::jsonb) ON CONFLICT(company_id) DO UPDATE SET settings=procurement_settings.settings||'{"recipients":["ksc@mo-tive.com"]}'::jsonb,updated_at=now(); INSERT INTO public.feature_rollout(feature,company_id,note) VALUES('procurement','c361afb9-8a52-4cac-add9-8992f0f7c09c','모티브 사용자 요청 입찰 자동화') ON CONFLICT DO NOTHING;`);
-  process.stdout.write("입찰 운영 테이블·모티브 기능 범위·ksc@mo-tive.com 수신 설정 저장 완료. 자동발송은 검증 후 활성화.\n");
+} else if (mode === "provision") {
+  const query = async (sql) =>
+    req(
+      `https://api.supabase.com/v1/projects/${ref}/database/query`,
+      env.SUPABASE_ACCESS_TOKEN,
+      { method: "POST", body: JSON.stringify({ query: sql }) },
+    );
+  for (const [table, file] of [
+    ["procurement_settings", "20260930170000_procurement_foundation.sql"],
+    ["procurement_jobs", "20261001140000_procurement_ai_jobs.sql"],
+  ]) {
+    const result = await query(
+      `SELECT to_regclass('public.${table}') AS present`,
+    );
+    if (!result[0].present)
+      await query(await readFile(resolve("supabase/migrations", file), "utf8"));
+    const verification = await query(
+      `SELECT count(*)::int AS n FROM pg_class WHERE relnamespace='public'::regnamespace AND relname='${table}' AND relrowsecurity`,
+    );
+    if (verification[0].n !== 1)
+      throw new Error("입찰 마이그레이션 RLS 확인 실패");
+    await query(
+      `INSERT INTO public.applied_migrations(version) VALUES('${file.replace(/\.sql$/, "")}') ON CONFLICT(version) DO NOTHING`,
+    );
+  }
+  await query(
+    `INSERT INTO public.procurement_settings(company_id,settings) VALUES('c361afb9-8a52-4cac-add9-8992f0f7c09c','{"keywords":["홍보"],"recipients":["ksc@mo-tive.com"],"digestHour":8,"digestEnabled":false,"collectionEnabled":false,"minimumScore":75}'::jsonb) ON CONFLICT(company_id) DO UPDATE SET settings=procurement_settings.settings||'{"recipients":["ksc@mo-tive.com"]}'::jsonb,updated_at=now(); INSERT INTO public.feature_rollout(feature,company_id,note) VALUES('procurement','c361afb9-8a52-4cac-add9-8992f0f7c09c','모티브 사용자 요청 입찰 자동화') ON CONFLICT DO NOTHING;`,
+  );
+  process.stdout.write(
+    "입찰 운영 테이블·모티브 기능 범위·ksc@mo-tive.com 수신 설정 저장 완료. 자동발송은 검증 후 활성화.\n",
+  );
 } else if (mode === "deploy-g2b") {
   for (const args of [
     [
