@@ -10027,18 +10027,15 @@ table.phv3-table { min-width: 640px; }
 
 /* ── 현황 보기(결정 138·139, 2026-09-01) — 그림·집계표. 모든 숫자는 눌러서 표로 ── */
 .pjv3-statwrap { @apply min-h-0 flex-1 overflow-y-auto p-3; }
-.pjv3-sttabs { @apply mb-3 flex items-center gap-1.5; }
-.pjv3-sttabs button { @apply cursor-pointer rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-3 py-1.5 text-xs font-semibold text-[var(--text-dim)]; font: inherit; font-size: 12px; }
-.pjv3-sttabs button.on { @apply border-[var(--primary)] bg-[var(--primary)]/8 text-[var(--primary)]; }
-.pjv3-sttabs .hint { @apply ml-auto text-[10.5px] text-[var(--text-dim)]; }
-.pjv3-strow { @apply mb-3 flex flex-wrap gap-2.5; }
-.pjv3-stcard { @apply min-w-[120px] flex-1 cursor-pointer rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5 text-left; font: inherit; }
-.pjv3-stcard:hover { @apply border-[var(--primary)]; }
-.pjv3-stcard .k { @apply block text-[10.5px] text-[var(--text-dim)]; }
-.pjv3-stcard .v { @apply mt-0.5 block text-lg font-extrabold text-[var(--text)]; }
-.pjv3-stcard .v small { @apply text-[11px] font-semibold text-[var(--text-dim)]; }
-.pjv3-stcard.warn .v { color: var(--danger, #e2445c); }
-.pjv3-stcard.good .v { color: #00a05e; }
+/*   현황 요약 — 카드 6장 → 결과 요약 한 줄(2026-10-01 UI 점검 6순위, 조회 화면 표준 Stat 모양). 누르면 그 줄만 표 */
+.pjv3-strow { @apply mb-3 flex flex-wrap items-baseline gap-x-5 gap-y-1 border-b border-[var(--border)] px-1 pb-2.5; }
+.pjv3-stcard { @apply inline-flex cursor-pointer items-baseline gap-1.5 border-0 bg-transparent p-0 text-left; font: inherit; }
+.pjv3-stcard:hover .v { @apply text-[var(--primary)] underline underline-offset-2; }
+.pjv3-stcard .k { @apply text-[11px] text-[var(--text-dim)]; }
+.pjv3-stcard .v { @apply text-[13px] font-bold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.pjv3-stcard .v small { @apply text-[10.5px] font-semibold text-[var(--text-dim)]; }
+.pjv3-stcard.warn .v { color: var(--danger); }
+.pjv3-stcard.good .v { color: var(--success); }
 .pjv3-stgrid { @apply grid gap-3; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 .pjv3-stpanel { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3.5; }
 .pjv3-stpanel h3 { @apply mb-2.5 text-xs font-extrabold text-[var(--text)]; }

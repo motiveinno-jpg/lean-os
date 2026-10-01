@@ -30,6 +30,7 @@ import { evalFormula, type FormulaResult } from "./formula";
 import { downloadStoredFile } from "@/lib/file-storage";
 import { buildQuoteContent, buildContractContent, insertDocument } from "@/lib/documents";
 import { BoardDocModal, type DocKind } from "../_components/BoardDocModal";
+import { ChipGroup } from "@/components/query-kit";
 import { exportToExcel } from "@/lib/excel-export";
 import { xNum, isDate, type ExcelColumn, type ExcelRow } from "@/lib/excel-io";
 import { ExcelUploadDialog, type ParseResult } from "@/app/(app)/inventory/_components/excel-upload";
@@ -1753,6 +1754,11 @@ export function TableV3() {
       </div>
 
       <div className="pjv3-toolbar">
+        {/*   현황 보기의 그림/집계표 — 본문 안 두 번째 탭 줄이었다(2026-10-01 UI 점검 6순위). 같은 조회 줄의 보기 칩으로 */}
+        {curView === "status" && (
+          <ChipGroup value={statTab} onChange={setStatTab}
+            options={[{ value: "charts", label: "그림", title: "숫자나 막대를 누르면 해당 줄만 표시됩니다." }, { value: "pivot", label: "집계표", title: "숫자를 누르면 해당 줄만 표시됩니다." }] as const} />
+        )}
         <span className="pjv3-search">🔍<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름 · 담당 · 칸에 든 글자 · 검색" aria-label="검색" /></span>
         {statFilter && (
           <button type="button" className="pjv3-statchip" title="누르면 조건을 해제합니다."
@@ -1770,12 +1776,8 @@ export function TableV3() {
 
       {curView === "status" ? (
         <div className="pjv3-statwrap">
-          <div className="pjv3-sttabs">
-            <button type="button" className={statTab === "charts" ? "on" : ""} onClick={() => setStatTab("charts")}>그림</button>
-            <button type="button" className={statTab === "pivot" ? "on" : ""} onClick={() => setStatTab("pivot")}>집계표</button>
-            <span className="hint">숫자나 막대를 누르면 해당 줄만 표시됩니다.</span>
-          </div>
-          <div className="pjv3-strow">
+          {/*   요약 — KPI 카드 6장(상자 안 상자) → 결과 요약 한 줄. 누르면 그 줄만 표(종전과 같은 동작) */}
+          <div className="pjv3-strow" title="숫자나 막대를 누르면 해당 줄만 표시됩니다.">
             <button type="button" className="pjv3-stcard" onClick={() => { setStatFilter(null); setCurView("table"); }}>
               <span className="k">전체 건</span><b className="v num">{statusData.parents.length}</b></button>
             <button type="button" className="pjv3-stcard good" onClick={() => openFiltered("끝남", (it) => it.status === statusData.lastId)}>
