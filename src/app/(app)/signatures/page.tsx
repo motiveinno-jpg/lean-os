@@ -897,8 +897,12 @@ function SignaturesDashboardInner() {
               <div className="paper-sign-proof">
                 <div className="paper-sign-proof-label">종이 서명 스캔본</div>
                 <button type="button" className="btn-secondary btn-sm" onClick={async () => {
-                  try { window.open(await getPaperSignatureUrl(String(viewSignedRow.signature_data?.file || "")), "_blank", "noopener"); }
-                  catch (e) { toast(friendlyError(e, "스캔본을 열 수 없습니다"), "error"); }
+                  //   창은 누른 순간 먼저 연다 — 링크를 받아 온 뒤 열면 브라우저가 팝업으로 막거나 빈 창이 된다
+                  const w = window.open("", "_blank");
+                  try {
+                    const url = await getPaperSignatureUrl(String(viewSignedRow.signature_data?.file || ""));
+                    if (w) { w.opener = null; w.location.href = url; } else window.location.href = url;
+                  } catch (e) { w?.close(); toast(friendlyError(e, "스캔본을 열 수 없습니다"), "error"); }
                 }}>{viewSignedRow.signature_data.file_name || "스캔본"} 열기</button>
                 {viewSignedRow.signature_data.note && <div className="paper-sign-proof-note">메모: {viewSignedRow.signature_data.note}</div>}
               </div>
