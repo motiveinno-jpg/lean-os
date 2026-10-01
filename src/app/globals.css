@@ -11294,5 +11294,5 @@ table.ol-items-table { min-width: 760px; table-layout: fixed; }
 .late-reason-input { @apply w-full resize-y rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-[13px] leading-relaxed focus:border-[var(--primary)] focus:outline-none; }
 .late-reason-count { @apply -mt-2 self-end text-[11px] text-[var(--text-dim)]; }
 .late-reason-cell { @apply mt-1 block max-w-[28ch] truncate text-left text-[11.5px] text-[var(--text-muted)] hover:text-[var(--primary)]; }
-.late-reason-add { @apply mt-1; }
+.late-reason-add { @apply mt-1 flex w-fit; }   /* 배지 옆이 아니라 아래 줄로 */
 .late-reason-line { @apply mx-auto mt-1 max-w-[24ch] truncate text-[11px] text-[var(--text-muted)]; }

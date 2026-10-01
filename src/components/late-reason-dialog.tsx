@@ -46,13 +46,14 @@ export function LateReasonDialog({ record, onClose }: { record: LateReasonRecord
     setBusy(false);
   };
 
-  const m = Number(record.late_minutes || 0);
+  const m = Math.round(Number(record.late_minutes || 0));
+  const late = m >= 60 ? `${Math.floor(m / 60)}시간${m % 60 ? ` ${m % 60}분` : ""}` : `${m}분`;
   const body = (
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box late-reason-box" onClick={(e) => e.stopPropagation()}>
         <div className="inv-modal-head">
           <b>지각 사유</b>
-          <span className="late-reason-when mono-number">{record.date} · {hm(record.check_in)} 출근{m > 0 ? ` · ${m}분 늦음` : ""}</span>
+          <span className="late-reason-when mono-number">{record.date} · {hm(record.check_in)} 출근{m > 0 ? ` · ${late} 늦음` : ""}</span>
         </div>
         <p className="inv-modal-desc">근태 관리자가 지각 내역에서 이 사유를 봅니다. 사유를 적어도 지각 기록은 그대로 남습니다. 출근 시각이 잘못 찍혔다면 마이페이지 › 내 근태에서 정정 요청을 보내세요.</p>
         <span className="qk-quicks late-reason-quicks">
