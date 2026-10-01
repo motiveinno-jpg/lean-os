@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { enqueueJob, processJob } from "@/lib/procurement/jobs";
 import { assertSameOrigin } from "@/lib/api-authz";
 import { authorize, checked, workspace } from "@/lib/procurement/server";
 import {
@@ -21,7 +22,7 @@ import { collectForCompany, sendDigest } from "@/lib/procurement/automation";
 import { buildDigest } from "@/lib/procurement/email";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 function fail(error: unknown) {
   return NextResponse.json(
     {
@@ -83,7 +84,46 @@ export async function POST(req: Request) {
     const ws = await workspace(db, companyId);
     if (!ws.ready)
       throw new ProcurementError("저장소 준비 후 사용할 수 있습니다.", 503);
-    if (action === "import-evidence") {
+    if (action === "analyze" || action === "prepare-proposal") {
+      if (!ws.integration.ai)
+        throw new ProcurementError("AI 연결 설정을 확인하세요.", 503);
+      const id = text(body.noticeId, "선택 공고", 100);
+      await enqueueJob(
+        db,
+        ws,
+        id,
+        action === "analyze" ? "analysis" : "proposal",
+        userId,
+        body.instructions === undefined
+          ? ""
+          : text(body.instructions, "작성 방향", 10000, false),
+      );
+      after(async () => {
+        await processJob(db, companyId);
+      });
+    } else if (action === "retry-job") {
+      const id = text(body.jobId, "작업", 100);
+      const job = ws.jobs?.find((j) => j.id === id && j.status === "failed");
+      if (!job)
+        throw new ProcurementError(
+          "재시도할 실패 작업을 찾지 못했습니다.",
+          404,
+        );
+      checked(
+        await db
+          .from("procurement_jobs")
+          .update({ status: "queued", attempts: 0, error: null })
+          .eq("company_id", companyId)
+          .eq("id", id),
+      );
+      after(async () => {
+        await processJob(db, companyId, id);
+      });
+    } else if (action === "process-jobs") {
+      after(async () => {
+        await processJob(db, companyId);
+      });
+    } else if (action === "import-evidence") {
       const items = parseEvidenceImport(
         body.bundle,
         ws.company.business_number,

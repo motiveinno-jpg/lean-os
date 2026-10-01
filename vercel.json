@@ -4,6 +4,9 @@
   "installCommand": "npm install",
   "outputDirectory": ".next",
   "crons": [
+    {"path":"/api/procurement/worker/collect","schedule":"0 * * * *"},
+    {"path":"/api/procurement/worker/jobs","schedule":"*/10 * * * *"},
+    {"path":"/api/procurement/worker/digest","schedule":"0 * * * *"},
     {
       "path": "/api/stripe/sync-seats",
       "schedule": "30 18 * * *"

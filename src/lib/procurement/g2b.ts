@@ -142,7 +142,7 @@ export async function fetchG2bNotices(
       try {
         const res = await fetcher(url, {
           signal: AbortSignal.timeout(
-            Math.min(10000, Math.max(1000, 40000 - (Date.now() - started))),
+            Math.min(20000, Math.max(1000, 40000 - (Date.now() - started))),
           ),
           cache: "no-store",
           redirect: "error",

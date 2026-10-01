@@ -38,13 +38,14 @@ try {
     "utf8",
   );
   await db.exec(sql);
+  await db.exec(await readFile(new URL("../supabase/migrations/20261001110000_procurement_ai_jobs.sql", import.meta.url), "utf8"));
   ok(
     (
       await db.query(
         "select count(*)::int as n from pg_class where relname like 'procurement_%' and relkind='r' and relrowsecurity",
       )
-    ).rows[0].n === 8,
-    "8개 테이블 모두 RLS 활성화",
+    ).rows[0].n === 10,
+    "10개 테이블 모두 RLS 활성화",
   );
   await db.exec(
     `insert into procurement_settings values('${companyA}','{}',now()),('${companyB}','{}',now());set role authenticated;`,

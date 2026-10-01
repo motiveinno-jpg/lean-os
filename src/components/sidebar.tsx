@@ -13,6 +13,7 @@ import { OwnerViewIcon, RollingBrandText } from "@/components/brand-logo";
 import { SidebarAttendanceButton } from "@/components/sidebar-attendance-button";
 import { useTheme } from "@/components/theme-context";
 import { useUser, type UserRole } from "@/components/user-context";
+import {useFeature} from "@/lib/use-feature";
 import { useMyPermissions } from "@/lib/permissions";
 import { usePopups } from "@/components/popup-windows";
 import { SETTINGS_GROUPS, groupPermKeys } from "@/lib/settings-nav";
@@ -421,7 +422,8 @@ export function Sidebar() {
   });
   const isOperator = !!user?.email && /@mo-tive\.com$/i.test(user.email);
   const { isMaster, hasMenu }  = useMyPermissions();
-  const filteredNav = filterNavUnified(role, isMaster, hasMenu, isOperator);
+  const procurement=useFeature("procurement",user?.company_id);
+  const filteredNav = filterNavUnified(role, isMaster, hasMenu, isOperator).map(g=>({...g,items:g.items.filter(i=>i.href!=="/procurement"||procurement.data===true)})).filter(g=>g.items.length);
 
   // ── 레일 + 패널 (docs/20260819_PLAN_sidebar_rail_panel.md) ──
   //   왼쪽 레일에 그룹 7개, 오른쪽 패널엔 고른 그룹의 항목만. 지금 그룹은 **주소가 정한다**(화면이 바뀌면 그 화면의 그룹으로).

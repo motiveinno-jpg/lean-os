@@ -9,13 +9,15 @@ import {
   type Action,
 } from "@/components/procurement/workspace";
 import type { Workspace } from "@/lib/procurement/types";
+import { useFeature } from "@/lib/use-feature";
 
 export default function ProcurementPage() {
   const { user, loading } = useUser();
   const { isMaster, loading: permissionLoading } = useMyPermissions();
-  if (loading || permissionLoading)
+  const feature = useFeature("procurement", user?.company_id);
+  if (loading || permissionLoading || feature.isLoading)
     return <p className="p-6">회사 정보를 확인하고 있습니다.</p>;
-  if (!isMaster || !user?.company_id)
+  if (!isMaster || !user?.company_id || feature.data !== true)
     return (
       <AccessDenied detail="입찰 검토는 회사 마스터만 사용할 수 있습니다." />
     );
@@ -26,6 +28,10 @@ function ProcurementInner({ companyId }: { companyId: string }) {
   const key = ["procurement-workspace", companyId];
   const query = useQuery<Workspace>({
     queryKey: key,
+    refetchInterval: (q) =>
+      q.state.data?.jobs?.some((j) => ["queued", "running"].includes(j.status))
+        ? 10000
+        : false,
     queryFn: async () => {
       const res = await fetch("/api/procurement", { cache: "no-store" });
       const data = await res.json();

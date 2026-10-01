@@ -1,5 +1,11 @@
 import { createHash } from "node:crypto";
-import type { Notice, Evidence, CompanyBasics, Settings } from "./types";
+import type {
+  Notice,
+  Evidence,
+  CompanyBasics,
+  Settings,
+  Workspace,
+} from "./types";
 function stable(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stable);
   if (value && typeof value === "object")
@@ -29,4 +35,8 @@ export function evidenceHash(
     company,
     minimumScore: settings.minimumScore,
   });
+}
+export function workforceHash(ws: Workspace) {
+  const { observedAt: _at, ...data } = ws.workforce || { observedAt: null };
+  return fingerprint({ workforce: data, profile: ws.profile });
 }

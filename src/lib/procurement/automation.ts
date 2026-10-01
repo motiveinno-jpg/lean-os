@@ -4,6 +4,8 @@ import { evidenceHash, noticeHash, fingerprint } from "./fingerprint";
 import { buildDigest, kstDay } from "./email";
 import type { Workspace } from "./types";
 import { ProcurementError } from "./validation";
+import { enqueueJob } from "./jobs";
+import { scopePrecheck } from "./scope";
 
 async function beginRun(
   db: ProcurementDb,
@@ -51,11 +53,37 @@ async function finishRun(
 }
 export async function collectForCompany(db: ProcurementDb, ws: Workspace) {
   const key = process.env.G2B_SERVICE_KEY;
-  if (!key)
+  const proxy = process.env.PROCUREMENT_G2B_PROXY === "true";
+  if (!key && !proxy)
     throw new ProcurementError("나라장터 API 키를 서버에 설정하세요.", 503);
   const run = await beginRun(db, ws.company.id, "collect");
   try {
-    const notices = await fetchG2bNotices(ws.settings.keywords, key);
+    const fetcher: typeof fetch = proxy
+      ? async (input, init) => {
+          const u = new URL(String(input));
+          const parameters = Object.fromEntries(u.searchParams);
+          delete parameters.serviceKey;
+          return fetch(
+            `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/procurement-g2b`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${process.env.PROCUREMENT_PROXY_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+                apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ companyId: ws.company.id, parameters }),
+              signal: init?.signal,
+            },
+          );
+        }
+      : fetch;
+    const notices = await fetchG2bNotices(
+      ws.settings.keywords,
+      key || "edge-proxy",
+      new Date(),
+      fetcher,
+    );
     const changed = notices.filter((notice) => {
       const previous = ws.notices.find(
         (n) =>
@@ -84,6 +112,29 @@ export async function collectForCompany(db: ProcurementDb, ws: Workspace) {
       "completed",
       `최근 7일 게시 공고 ${notices.length}건 수집. 첨부 원문 확보·자격 상세 검토 대기. 정정·취소 전체 감시는 아직 활성화 전입니다.`,
     );
+    if (ws.integration.ai) {
+      const { workspace } = await import("./server");
+      const latest = await workspace(db, ws.company.id);
+      const candidates = latest.notices
+        .filter(
+          (n) =>
+            n.payload.status !== "cancelled" &&
+            n.payload.deadline &&
+            Date.parse(n.payload.deadline) > Date.now(),
+        )
+        .sort(
+          (a, b) =>
+            scopePrecheck(b.payload, latest.evidence).tasks.filter(
+              (t) => t.evidence.length,
+            ).length -
+            scopePrecheck(a.payload, latest.evidence).tasks.filter(
+              (t) => t.evidence.length,
+            ).length,
+        )
+        .slice(0, 5);
+      for (const n of candidates)
+        await enqueueJob(db, latest, n.id, "analysis", null);
+    }
   } catch (e) {
     await finishRun(
       db,

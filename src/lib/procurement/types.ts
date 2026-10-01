@@ -193,9 +193,29 @@ export type RunRow = {
   created_at: string;
 };
 export type Workspace = {
+  jobs?: {
+    id: string;
+    notice_id: string;
+    kind: "analysis" | "proposal";
+    status: string;
+    error: string | null;
+    created_at: string;
+  }[];
+  artifacts?: {
+    id: string;
+    notice_id: string;
+    kind: "analysis" | "proposal";
+    content_hash: string;
+    evidence_hash: string;
+    workforce_hash: string;
+    body: unknown;
+    created_at: string;
+    stale?: boolean;
+  }[];
   workforce?: ReturnType<typeof import("./workforce").workforceSummary>;
   company: CompanyBasics;
   profile: {
+    ksic_main?: string | null;
     open_date: string | null;
     size_class: string | null;
     certifications: string[];
@@ -210,6 +230,7 @@ export type Workspace = {
   runs: RunRow[];
   ready: boolean;
   integration: {
+    ai?: boolean;
     g2b: boolean;
     g2bVerified?: boolean;
     mail: boolean;

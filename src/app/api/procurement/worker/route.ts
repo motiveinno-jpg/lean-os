@@ -3,12 +3,14 @@ import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { workspace, type ProcurementDb } from "@/lib/procurement/server";
 import { collectForCompany, sendDigest } from "@/lib/procurement/automation";
+import { processJob } from "@/lib/procurement/jobs";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 /** 예약 실행기는 해당 회사만 처리한다. 배포 후 매시간 호출 연결; 비밀키·회사 범위 필수. */
 export async function GET(req: Request) {
-  const secret = process.env.PROCUREMENT_CRON_SECRET || "";
+  const secret =
+    process.env.PROCUREMENT_CRON_SECRET || process.env.CRON_SECRET || "";
   const token = (req.headers.get("authorization") || "").replace(
     /^Bearer /,
     "",
@@ -29,14 +31,21 @@ export async function GET(req: Request) {
   try {
     const db = createSupabaseAdminClient() as unknown as ProcurementDb;
     let ws = await workspace(db, companyId);
-    if (!ws.ready || !ws.settings.collectionEnabled)
-      return NextResponse.json({ status: "disabled" });
-    if (!ws.integration.g2bVerified)
-      return NextResponse.json(
-        { error: "나라장터 실응답 검증이 필요합니다." },
-        { status: 503 },
-      );
-    await collectForCompany(db, ws);
+    if (!ws.ready) return NextResponse.json({ status: "disabled" });
+    const mode = new URL(req.url).searchParams.get("mode") || "pipeline";
+    if (
+      ["collect", "pipeline"].includes(mode) &&
+      ws.settings.collectionEnabled
+    ) {
+      if (!ws.integration.g2bVerified)
+        return NextResponse.json(
+          { error: "나라장터 실응답 검증이 필요합니다." },
+          { status: 503 },
+        );
+      await collectForCompany(db, ws);
+    }
+    if (["jobs", "pipeline"].includes(mode) && ws.integration.ai)
+      await processJob(db, companyId);
     ws = await workspace(db, companyId);
     const hour = Number(
       new Intl.DateTimeFormat("en-US", {
@@ -45,7 +54,11 @@ export async function GET(req: Request) {
         hourCycle: "h23",
       }).format(new Date()),
     );
-    if (ws.settings.digestEnabled && hour >= ws.settings.digestHour)
+    if (
+      ["digest", "pipeline"].includes(mode) &&
+      ws.settings.digestEnabled &&
+      hour >= ws.settings.digestHour
+    )
       await sendDigest(db, ws);
     return NextResponse.json({ ok: true });
   } catch {

@@ -10,6 +10,7 @@ import {
 import { DateTimeField } from "@/components/datetime-field";
 import { evaluate } from "@/lib/procurement/core";
 import { scopePrecheck } from "@/lib/procurement/scope";
+import type { Analysis, Proposal } from "@/lib/procurement/ai";
 import { INTAKE, intakeMarkdown } from "@/lib/procurement/intake";
 import {
   RUBRIC,
@@ -254,6 +255,11 @@ export function ProcurementWorkspace({
   };
   const row = ws.notices.find((n) => n.id === selected),
     savedReview = row && ws.reviews.find((r) => r.notice_id === row.id);
+  const aiAnalysis =
+    row &&
+    ws.artifacts?.find(
+      (a) => a.notice_id === row.id && a.kind === "analysis" && !a.stale,
+    );
   return (
     <main className={styles.root}>
       <header className={styles.header}>
@@ -441,6 +447,62 @@ export function ProcurementWorkspace({
                     </a>
                   )}
                   <ScopePanel notice={row.payload} evidence={ws.evidence} />
+                  <section className={styles.section}>
+                    <h3>AI 상세 검토와 사업 선택</h3>
+                    <p>
+                      업종코드·필수 조건·실적·인력·원가를 원문과 대조합니다. AI
+                      초안은 확정 자격·최종 제출 검수를 대신하지 않습니다.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={!ws.ready || !ws.integration.ai}
+                      onClick={() =>
+                        safeRun({ action: "analyze", noticeId: row.id })
+                      }
+                    >
+                      AI로 상세 검토
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!ws.ready || !ws.integration.ai}
+                      onClick={() =>
+                        safeRun({
+                          action: "prepare-proposal",
+                          noticeId: row.id,
+                        })
+                      }
+                    >
+                      이 사업 선택 · 기획서·제안서 작성
+                    </button>
+                    {ws.jobs
+                      ?.filter((j) => j.notice_id === row.id)
+                      .slice(0, 3)
+                      .map((j) => (
+                        <p key={j.id}>
+                          {j.kind === "analysis"
+                            ? "상세 검토"
+                            : "기획·제안서 작성"}{" "}
+                          ·{" "}
+                          {j.status === "queued"
+                            ? "대기"
+                            : j.status === "running"
+                              ? "작성 중"
+                              : j.status === "completed"
+                                ? "완료"
+                                : "실패"}
+                          {j.error ? " / " + j.error : ""}
+                        </p>
+                      ))}
+                    {aiAnalysis && (
+                      <AIAnalysisPanel
+                        data={
+                          aiAnalysis.body as Analysis & {
+                            sourceIssues?: string[];
+                          }
+                        }
+                      />
+                    )}
+                  </section>
                   {row.payload.attachments.length > 0 && (
                     <div className={styles.section}>
                       <h3>공고 첨부 · 전문 확보 필요</h3>
@@ -472,7 +534,7 @@ export function ProcurementWorkspace({
                     </div>
                   )}
                   <ReviewEditor
-                    key={`${row.id}:${savedReview?.id || "new"}`}
+                    key={`${row.id}:${savedReview?.id || aiAnalysis?.id || "new"}`}
                     notice={row.payload}
                     ws={ws}
                     initial={
@@ -487,7 +549,8 @@ export function ProcurementWorkspace({
                               points: null,
                             })),
                           }
-                        : savedReview?.review
+                        : savedReview?.review ||
+                          (aiAnalysis?.body as Analysis | undefined)?.review
                     }
                     onSave={(review) =>
                       run({ action: "review", noticeId: row.id, review })
@@ -536,6 +599,7 @@ export function ProcurementWorkspace({
                 업종: ws.company.industry,
                 업태: ws.company.business_type,
                 종목: ws.company.business_category,
+                표준산업분류코드: ws.profile?.ksic_main,
                 개업일: ws.profile?.open_date,
                 기업규모: ws.profile?.size_class,
               }).map(([k, v]) => (
@@ -700,16 +764,23 @@ export function ProcurementWorkspace({
         {tab === "drafts" && (
           <>
             <h2>진행 결정 후 서류 준비</h2>
+            {ws.artifacts
+              ?.filter((a) => a.kind === "proposal")
+              .map((a) => (
+                <ProposalPanel key={a.id} artifact={a} />
+              ))}
             <p>
               검토용 목차·회사 기본정보·조건 대응표·제출서류 점검표를 만듭니다.
               실제 기획 내용, 원가, 지정 서식과 발표자료는 자료 확보 후
               작성·검수해야 합니다.
             </p>
-            {!ws.drafts.length && (
-              <div className={styles.empty}>
-                진행 결정한 공고가 없습니다. 자격과 평가 근거를 먼저 확인하세요.
-              </div>
-            )}
+            {!ws.drafts.length &&
+              !ws.artifacts?.some((a) => a.kind === "proposal") && (
+                <div className={styles.empty}>
+                  진행 결정한 공고가 없습니다. 자격과 평가 근거를 먼저
+                  확인하세요.
+                </div>
+              )}
             {ws.drafts.map((d) => {
               const c = ws.cases.find((c) => c.id === d.case_id);
               const active =
@@ -751,6 +822,26 @@ export function ProcurementWorkspace({
         {tab === "history" && (
           <>
             <h2>수집·메일 실행 이력</h2>
+            <h3>AI 처리 작업</h3>
+            {ws.jobs?.map((j) => (
+              <article key={j.id} className={styles.section}>
+                <p>
+                  {j.kind === "analysis" ? "상세 검토" : "기획·제안서"} ·{" "}
+                  {j.status} · {fmt(j.created_at)}
+                </p>
+                {j.error && <p>{j.error}</p>}
+                {j.status === "failed" && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      safeRun({ action: "retry-job", jobId: j.id })
+                    }
+                  >
+                    이 작업 재시도
+                  </button>
+                )}
+              </article>
+            ))}
             <p>
               실행 완료 여부와 확인해야 할 오류를 기록합니다. 메일 접수 완료는
               실제 수신 완료와 구분합니다.
@@ -776,6 +867,105 @@ export function ProcurementWorkspace({
         )}
       </fieldset>
     </main>
+  );
+}
+function AIAnalysisPanel({
+  data,
+}: {
+  data: Analysis & { sourceIssues?: string[] };
+}) {
+  return (
+    <section className={styles.section}>
+      <h4>AI 분석 초안</h4>
+      <p className={styles.wrap}>{data.summary}</p>
+      {data.sourceIssues?.map((s, i) => (
+        <p key={i}>원문 확보: {s}</p>
+      ))}
+      {data.tasks.map((t, i) => (
+        <p key={i}>
+          {t.label}: {t.reason}
+          <br />
+          {t.citation
+            ? `${t.citation.location} / ${t.citation.quote}`
+            : "원문 근거 확인 필요"}
+        </p>
+      ))}
+      {data.review.scores.map((s) => (
+        <p key={s.key}>
+          AI 초안 {RUBRIC.find((r) => r.key === s.key)?.label}:{" "}
+          {s.points === null ? "미확인" : s.points + "점"} · {s.rationale}
+        </p>
+      ))}
+      <h4>확인해야 할 항목</h4>
+      <ul>
+        {data.questions.map((q, i) => (
+          <li key={i}>{q}</li>
+        ))}
+      </ul>
+      <p>
+        아래 검토 양식에 초안을 넣었습니다. 원문·증빙을 대조한 뒤 검토 완료
+        체크와 평가 저장을 진행하세요.
+      </p>
+    </section>
+  );
+}
+function ProposalPanel({
+  artifact,
+}: {
+  artifact: NonNullable<Workspace["artifacts"]>[number];
+}) {
+  const p = artifact.body as Proposal;
+  return (
+    <article className={styles.section}>
+      <h3>{p.title} · AI 작성 검토본</h3>
+      {artifact.stale ? (
+        <p>공고·회사·인력이 변경되었습니다. 선택한 사업에서 다시 작성하세요.</p>
+      ) : (
+        <div className={styles.toolbar}>
+          <a href={`/api/procurement/artifacts/${artifact.id}?format=docx`}>
+            편집 가능한 DOCX 내려받기
+          </a>
+          <a
+            href={`/api/procurement/artifacts/${artifact.id}?format=html`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            인쇄·PDF 저장 화면
+          </a>
+          <a href={`/api/procurement/artifacts/${artifact.id}?format=md`}>
+            본문·준비 목록 내려받기
+          </a>
+        </div>
+      )}
+      <p>
+        최종 제출 전 지정 양식·익명성·가격·인력·발급증명·서명·날인을 확인해야
+        합니다.
+      </p>
+      {p.sections.map((s, i) => (
+        <section key={i}>
+          <h4>{s.heading}</h4>
+          <p className={styles.wrap}>{s.body}</p>
+        </section>
+      ))}
+      <h4>직접 발급·서명·확정해야 할 서류</h4>
+      {p.manualDocuments.map((d, i) => (
+        <p key={i}>
+          {d.name}: {d.reason}
+          <br />
+          발급처: {d.issuer} · 담당: {d.owner} · 기한: {d.deadline}
+          <br />
+          {d.citation
+            ? d.citation.location + " / " + d.citation.quote
+            : "공고 요구 여부 확인 제안"}
+        </p>
+      ))}
+      <h4>추가 자료·확인 사항</h4>
+      <ul>
+        {p.missingInputs.map((s, i) => (
+          <li key={i}>{s}</li>
+        ))}
+      </ul>
+    </article>
   );
 }
 

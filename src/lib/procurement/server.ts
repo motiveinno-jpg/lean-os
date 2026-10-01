@@ -14,7 +14,7 @@ import {
   type Settings,
 } from "./types";
 import { ProcurementError } from "./validation";
-import { evidenceHash } from "./fingerprint";
+import { evidenceHash, workforceHash } from "./fingerprint";
 import {
   workforceSummary,
   type StaffRecord,
@@ -39,6 +39,14 @@ export async function authorize() {
   if (!gate.caller.isMaster)
     throw new ProcurementError(
       "입찰 검토 기본 기능은 회사 마스터만 사용할 수 있습니다.",
+      403,
+    );
+  if (
+    process.env.PROCUREMENT_COMPANY_ID &&
+    gate.caller.companyId !== process.env.PROCUREMENT_COMPANY_ID
+  )
+    throw new ProcurementError(
+      "입찰 자동화는 현재 모티브 회사에 한해 운영합니다.",
       403,
     );
   return {
@@ -129,7 +137,7 @@ export async function workspace(
       .single(),
     db
       .from("company_profile_ext")
-      .select("open_date,size_class,certifications")
+      .select("open_date,size_class,certifications,ksic_main")
       .eq("company_id", companyId)
       .maybeSingle(),
     rows<{ id: string; file_name: string; created_at: string | null }>(
@@ -167,11 +175,15 @@ export async function workspace(
   const profile = checked(profileResult) as Workspace["profile"];
   const files = fileResult;
   const integration = {
-    g2b: !!process.env.G2B_SERVICE_KEY,
+    ai: !!process.env.ANTHROPIC_API_KEY,
+    g2b:
+      !!process.env.G2B_SERVICE_KEY ||
+      process.env.PROCUREMENT_G2B_PROXY === "true",
     g2bVerified: process.env.PROCUREMENT_G2B_VERIFIED === "true",
     mail: !!process.env.RESEND_API_KEY && !!process.env.RESEND_FROM_EMAIL,
     scheduler:
-      (process.env.PROCUREMENT_CRON_SECRET?.length || 0) >= 32 &&
+      ((process.env.PROCUREMENT_CRON_SECRET || process.env.CRON_SECRET)
+        ?.length || 0) >= 32 &&
       process.env.PROCUREMENT_SCHEDULER_ENABLED === "true" &&
       process.env.PROCUREMENT_COMPANY_ID === companyId,
   };
@@ -228,8 +240,32 @@ export async function workspace(
     currentNotices = notices.filter((n) => n.is_current);
   const settings = saved?.settings || { ...DEFAULT_SETTINGS };
   const basis = evidenceHash(currentEvidence, company, settings);
+  const [jobs, artifacts] = await Promise.all([
+    rows<NonNullable<Workspace["jobs"]>[number]>(
+      db,
+      "procurement_jobs",
+      companyId,
+      "id,notice_id,kind,status,error,created_at",
+    ),
+    rows<NonNullable<Workspace["artifacts"]>[number]>(
+      db,
+      "procurement_artifacts",
+      companyId,
+      "id,notice_id,kind,content_hash,evidence_hash,workforce_hash,body,created_at",
+    ),
+  ]);
   return {
     ...base,
+    jobs,
+    artifacts: artifacts.map((a) => ({
+      ...a,
+      stale:
+        a.evidence_hash !== basis ||
+        a.workforce_hash !== workforceHash(base) ||
+        !currentNotices.some(
+          (n) => n.id === a.notice_id && n.content_hash === a.content_hash,
+        ),
+    })),
     settings,
     ready: true,
     evidence: currentEvidence,
