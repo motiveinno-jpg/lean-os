@@ -495,13 +495,17 @@ export async function registerPaperSignature(params: {
   note?: string;
 }) {
   if (!params.file) throw new Error('서명된 종이 스캔본을 올려 주세요');
-  if (!PAPER_SIGN_TYPES.includes(params.file.type)) throw new Error('PDF 또는 사진(JPG·PNG) 파일만 올릴 수 있습니다');
+  //   브라우저가 형식(type)을 비워 주는 경우가 있다(윈도우 HEIC 등) — 그땐 확장자로 판단한다
+  const ext = (params.file.name.split('.').pop() || '').toLowerCase();
+  const EXT_TYPE: Record<string, string> = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', heic: 'image/heic', webp: 'image/webp' };
+  const contentType = PAPER_SIGN_TYPES.includes(params.file.type) ? params.file.type : EXT_TYPE[ext];
+  if (!contentType) throw new Error('PDF 또는 사진(JPG·PNG) 파일만 올릴 수 있습니다');
   if (params.file.size > 20 * 1024 * 1024) throw new Error('파일은 20MB 까지 올릴 수 있습니다');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(params.signedDate)) throw new Error('서명한 날짜를 골라 주세요');
 
   const safe = params.file.name.replace(/[^\w.\-가-힣]/g, '_').slice(-80);
   const path = `paper-signatures/${params.companyId}/${params.id}/${Date.now()}-${safe}`;
-  const { error: upErr } = await db.storage.from('documents').upload(path, params.file);
+  const { error: upErr } = await db.storage.from('documents').upload(path, params.file, { contentType });
   if (upErr) throw new Error(`스캔본을 올리지 못했습니다: ${upErr.message}`);
 
   const { data, error } = await db
