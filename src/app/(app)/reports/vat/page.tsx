@@ -70,6 +70,10 @@ export default function VatReportPage() {
       <ReportHead
         bar={<>
           <ChipGroup value={tab} onChange={setTab} options={[{ value: "vat", label: "부가세 예상" }, { value: "summary", label: "기간별 집계" }] as const} />
+          {/*   기간별 집계의 단위 — 본문 안 막대 버튼(seg-bar)이었다(두 층 탭). 같은 조회 줄 칩으로(2026-10-01) */}
+          {tab === "summary" && (
+            <ChipGroup value={periodType} onChange={setPeriodType} options={[{ value: "monthly", label: "월별" }, { value: "quarterly", label: "분기별" }, { value: "annual", label: "연간" }] as const} />
+          )}
           {/*   연도 — 부가세는 해 단위 신고라 달까지 고를 이유가 없다 */}
           <ReportYearSelect value={year} onChange={setYear} years={years} />
         </>}
@@ -80,8 +84,6 @@ export default function VatReportPage() {
         <SummaryTab
           loading={periodPending}
           periodSummary={periodSummary}
-          periodType={periodType}
-          setPeriodType={setPeriodType}
           cardDeductions={cardDeductions}
           currentYear={year}
         />

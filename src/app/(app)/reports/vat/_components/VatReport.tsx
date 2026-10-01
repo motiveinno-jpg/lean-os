@@ -17,30 +17,16 @@ import { fetchPaged } from "@/lib/fetch-paged";
 import { Ico } from "@/components/ui-icon";
 import { WaterfallChart } from "@/components/charts/kit";
 import { summarizeByVatType } from "@/lib/vat-voucher";
+import { ResultStrip, Stat } from "@/components/query-kit";
 
 // ── Summary Tab ──
-export function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, currentYear, loading }: any) {
+export function SummaryTab({ periodSummary, cardDeductions, currentYear, loading }: any) {
   const totalCardDeduction = cardDeductions.reduce((s: number, c: any) => s + c.estimatedVatDeduction, 0);
 
   return (
     <div className="tax-invoice-summary-tab">
-      <div className="seg-bar w-fit mb-4">
-        {([
-          { key: "monthly", label: "월별" },
-          { key: "quarterly", label: "분기별" },
-          { key: "annual", label: "연간" },
-        ] as const).map(p => (
-          <button
-            key={p.key}
-            onClick={() => setPeriodType(p.key)}
-            className={`seg-item ${periodType === p.key ? "seg-item-active" : ""}`}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="glass-card overflow-hidden">
+      {/*   월별·분기별·연간은 상자 머리 조회 줄(page.tsx)로 올렸다 — 본문 안 두 번째 탭 줄 금지(2026-10-01 UI 점검 5순위) */}
+      <div className="vat-table-wrap">
         {periodSummary.length === 0 && loading ? (
           <div className="collect-empty">불러오는 중…</div>
         ) : periodSummary.length === 0 ? (
@@ -68,12 +54,12 @@ export function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeduc
                 <tr key={s.period} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
                   <td className="px-5 py-3 text-sm font-medium">{s.period}</td>
                   <td className="px-5 py-3 text-sm text-center">{s.salesCount}</td>
-                  <td className="px-5 py-3 text-sm text-right text-green-500">₩{s.salesSupply.toLocaleString()}</td>
+                  <td className="px-5 py-3 text-sm text-right text-[var(--success)]">₩{s.salesSupply.toLocaleString()}</td>
                   <td className="px-5 py-3 text-xs text-right text-[var(--text-muted)]">₩{s.salesTax.toLocaleString()}</td>
                   <td className="px-5 py-3 text-sm text-center">{s.purchaseCount}</td>
-                  <td className="px-5 py-3 text-sm text-right text-orange-500">₩{s.purchaseSupply.toLocaleString()}</td>
+                  <td className="px-5 py-3 text-sm text-right text-[var(--warning)]">₩{s.purchaseSupply.toLocaleString()}</td>
                   <td className="px-5 py-3 text-xs text-right text-[var(--text-muted)]">₩{s.purchaseTax.toLocaleString()}</td>
-                  <td className={`px-5 py-3 text-sm text-right font-bold ${s.vatPayable >= 0 ? "text-[var(--primary)]" : "text-red-400"}`}>
+                  <td className={`px-5 py-3 text-sm text-right font-bold ${s.vatPayable >= 0 ? "text-[var(--primary)]" : "text-[var(--danger)]"}`}>
                     ₩{s.vatPayable.toLocaleString()}
                   </td>
                 </tr>
@@ -83,10 +69,10 @@ export function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeduc
               <tr className="border-t border-[var(--border)] bg-[var(--bg-surface)]">
                 <td className="px-5 py-3 text-xs font-bold text-[var(--text-muted)]">합계</td>
                 <td className="px-5 py-3 text-sm text-center font-bold">{periodSummary.reduce((s: number, p: any) => s + p.salesCount, 0)}</td>
-                <td className="px-5 py-3 text-sm text-right font-bold text-green-500">₩{periodSummary.reduce((s: number, p: any) => s + p.salesSupply, 0).toLocaleString()}</td>
+                <td className="px-5 py-3 text-sm text-right font-bold text-[var(--success)]">₩{periodSummary.reduce((s: number, p: any) => s + p.salesSupply, 0).toLocaleString()}</td>
                 <td className="px-5 py-3 text-xs text-right font-bold text-[var(--text-muted)]">₩{periodSummary.reduce((s: number, p: any) => s + p.salesTax, 0).toLocaleString()}</td>
                 <td className="px-5 py-3 text-sm text-center font-bold">{periodSummary.reduce((s: number, p: any) => s + p.purchaseCount, 0)}</td>
-                <td className="px-5 py-3 text-sm text-right font-bold text-orange-500">₩{periodSummary.reduce((s: number, p: any) => s + p.purchaseSupply, 0).toLocaleString()}</td>
+                <td className="px-5 py-3 text-sm text-right font-bold text-[var(--warning)]">₩{periodSummary.reduce((s: number, p: any) => s + p.purchaseSupply, 0).toLocaleString()}</td>
                 <td className="px-5 py-3 text-xs text-right font-bold text-[var(--text-muted)]">₩{periodSummary.reduce((s: number, p: any) => s + p.purchaseTax, 0).toLocaleString()}</td>
                 <td className="px-5 py-3 text-sm text-right font-bold text-[var(--primary)]">₩{periodSummary.reduce((s: number, p: any) => s + p.vatPayable, 0).toLocaleString()}</td>
               </tr>
@@ -99,7 +85,7 @@ export function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeduc
       {cardDeductions.length > 0 && (
         <div className="mt-6">
           <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">법인카드 매입세액 공제 추정</h3>
-          <div className="glass-card overflow-hidden">
+          <div className="vat-table-wrap">
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
               <thead>
                 <tr className="table-head-row">
@@ -117,8 +103,8 @@ export function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeduc
                     <td className="px-5 py-3 text-sm font-medium">{c.month.slice(0, 7)}</td>
                     <td className="px-5 py-3 text-sm text-center">{c.txCount}</td>
                     <td className="px-5 py-3 text-sm text-right">₩{c.totalAmount.toLocaleString()}</td>
-                    <td className="px-5 py-3 text-sm text-right text-green-500">₩{c.deductible.toLocaleString()}</td>
-                    <td className="px-5 py-3 text-sm text-right text-red-400">₩{c.nonDeductible.toLocaleString()}</td>
+                    <td className="px-5 py-3 text-sm text-right text-[var(--success)]">₩{c.deductible.toLocaleString()}</td>
+                    <td className="px-5 py-3 text-sm text-right text-[var(--danger)]">₩{c.nonDeductible.toLocaleString()}</td>
                     <td className="px-5 py-3 text-sm text-right font-bold text-[var(--primary)]">₩{c.estimatedVatDeduction.toLocaleString()}</td>
                   </tr>
                 ))}
@@ -166,7 +152,7 @@ export function VatByVoucherType({ companyId, year }: { companyId: string | null
   const won = (n: number) => `₩${Math.round(n || 0).toLocaleString("ko-KR")}`;
 
   return (
-    <div className="vat-voucher-card glass-card">
+    <div className="vat-voucher-card pnl-panel">
       <div className="vat-voucher-head">
         <div>
           <b>전표 기준 집계</b>
@@ -224,35 +210,24 @@ export function VATPreviewTab({ vatPreview, cardDeductions, estimates = [] }: an
 
   return (
     <div className="tax-invoice-vat-preview-tab">
-      <div className="glass-card p-5 mb-6">
-        <div className="text-xs text-[var(--text-muted)] leading-relaxed">
+      <div className="vat-preview-note">
+        <div>
           <strong className="text-[var(--text)]">원본 자료 대조</strong>: <b>납부 예상</b>은 확정 매입매출전표 기준(세무 신고 › 부가세와 같은 값)입니다.
           옆의 원본 기준 = 매출세액(세금계산서 + 현금영수증 발행분) − 매입세액 − 카드 공제 추정은 전표로 옮기기 전 자료로 본 참고값이고, 둘의 차이만큼이 아직 전표로 안 옮긴 자료입니다.
         </div>
       </div>
 
-      {/* Annual Total Card */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="glass-card p-5">
-          <div className="text-xs text-[var(--text-dim)] mb-1">연간 매출세액</div>
-          <div className="text-base sm:text-xl font-black mono-number truncate text-green-500">₩{vatPreview.reduce((s: number, v: any) => s + v.salesTax, 0).toLocaleString()}</div>
-        </div>
-        <div className="glass-card p-5">
-          <div className="text-xs text-[var(--text-dim)] mb-1">연간 매입세액 + 카드공제</div>
-          <div className="text-base sm:text-xl font-black mono-number truncate text-orange-500">₩{vatPreview.reduce((s: number, v: any) => s + v.purchaseTax + v.cardDeduction, 0).toLocaleString()}</div>
-        </div>
-        <div className="glass-card p-5">
-          <div className="text-xs text-[var(--text-dim)] mb-1">연간 원본 기준 차감액 (참고)</div>
-          <div className={`text-base sm:text-xl font-black mono-number truncate ${totalVAT >= 0 ? "text-[var(--primary)]" : "text-red-400"}`}>
-            ₩{totalVAT.toLocaleString()}
-          </div>
-          <div className="text-xs text-[var(--text-muted)] mt-1">납부 예상(전표 기준) 연간 ₩{Math.round(totalEst).toLocaleString()}</div>
-        </div>
-      </div>
+      {/*   연간 합계 — KPI 카드 3장을 결과 요약 줄로(2026-10-01 UI 점검 5순위) */}
+      <ResultStrip>
+        <Stat label="연간 매출세액" value={`₩${vatPreview.reduce((s: number, v: any) => s + v.salesTax, 0).toLocaleString()}`} />
+        <Stat label="연간 매입세액 + 카드공제" value={`₩${vatPreview.reduce((s: number, v: any) => s + v.purchaseTax + v.cardDeduction, 0).toLocaleString()}`} />
+        <Stat label="연간 원본 기준 차감액 (참고)" value={`₩${totalVAT.toLocaleString()}`} tone={totalVAT < 0 ? "minus" : undefined} />
+        <Stat label="납부 예상(전표 기준) 연간" value={`₩${Math.round(totalEst).toLocaleString()}`} />
+      </ResultStrip>
 
       {/* 부가세 구조 — 화면에 글로 적힌 수식(매출세액 − 매입세액 − 카드공제 = 납부세액)을
           그림으로 옮긴 것. 무엇이 얼마를 깎는지는 막대 여럿으로는 안 보인다 (2026-08-07) */}
-      <div className="glass-card p-5 mb-6">
+      <div className="pnl-panel vat-structure-panel">
         <div className="mb-3">
           <h3 className="text-sm font-bold text-[var(--text)]">부가세 구조 (원본 자료 기준)</h3>
           <p className="mt-0.5 text-[10px] text-[var(--text-dim)]">올해 합계 · 원본 자료의 매출세액에서 무엇이 빠지는지 · 납부 예상(전표 기준)과 다를 수 있습니다</p>
@@ -276,7 +251,7 @@ export function VATPreviewTab({ vatPreview, cardDeductions, estimates = [] }: an
       </div>
 
       {/* Quarterly Breakdown */}
-      <div className="glass-card overflow-hidden">
+      <div className="vat-table-wrap">
         <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
           <thead className="sticky-bar">
             <tr className="table-head-row">
@@ -297,10 +272,10 @@ export function VATPreviewTab({ vatPreview, cardDeductions, estimates = [] }: an
               return (
                 <tr key={v.quarter} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
                   <td className="px-5 py-3 text-sm font-bold">{v.quarter}</td>
-                  <td className="px-5 py-3 text-sm text-right text-green-500" title={v.cashReceiptSalesTax > 0 ? `세금계산서 ₩${(v.invoiceSalesTax ?? 0).toLocaleString()} + 현금영수증 ₩${v.cashReceiptSalesTax.toLocaleString()}` : undefined}>₩{v.salesTax.toLocaleString()}</td>
-                  <td className="px-5 py-3 text-sm text-right text-orange-500">₩{v.purchaseTax.toLocaleString()}</td>
+                  <td className="px-5 py-3 text-sm text-right text-[var(--success)]" title={v.cashReceiptSalesTax > 0 ? `세금계산서 ₩${(v.invoiceSalesTax ?? 0).toLocaleString()} + 현금영수증 ₩${v.cashReceiptSalesTax.toLocaleString()}` : undefined}>₩{v.salesTax.toLocaleString()}</td>
+                  <td className="px-5 py-3 text-sm text-right text-[var(--warning)]">₩{v.purchaseTax.toLocaleString()}</td>
                   <td className="px-5 py-3 text-sm text-right text-[var(--primary)]">₩{v.cardDeduction.toLocaleString()}</td>
-                  <td className={`px-5 py-3 text-sm text-right font-bold ${v.netVAT >= 0 ? "text-[var(--text)]" : "text-red-400"}`}>
+                  <td className={`px-5 py-3 text-sm text-right font-bold ${v.netVAT >= 0 ? "text-[var(--text)]" : "text-[var(--danger)]"}`}>
                     ₩{v.netVAT.toLocaleString()}
                   </td>
                   {(() => { const e = estOf(v.quarter); return (
@@ -310,11 +285,7 @@ export function VATPreviewTab({ vatPreview, cardDeductions, estimates = [] }: an
                   ); })()}
                   <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{v.dueDate}</td>
                   <td className="px-5 py-3 text-center">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      !hasActivity ? "bg-[var(--bg-surface)] text-[var(--text-muted)]"
-                      : isPast ? "bg-green-500/10 text-green-400"
-                      : "bg-yellow-500/10 text-yellow-400"
-                    }`}>
+                    <span className={`ol-sure ${!hasActivity ? "" : isPast ? "ol-sure-ok" : "ol-sure-est"}`}>
                       {!hasActivity ? "데이터 없음" : isPast ? "기한 경과" : "예정"}
                     </span>
                   </td>
@@ -356,7 +327,7 @@ export function VatEvidenceCheck({ companyId, year }: { companyId: string | null
     { label: "부가세 유형 없는 매입매출전표", n: data?.noVat, href: "/partners/reconciliation/sale-purchase", why: "유형이 없으면 신고서 줄에 못 들어갑니다." },
   ];
   return (
-    <div className="vat-voucher-card glass-card">
+    <div className="vat-voucher-card pnl-panel">
       <div className="vat-voucher-head">
         <div>
           <b>증빙 누락 점검</b>

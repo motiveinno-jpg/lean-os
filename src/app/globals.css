@@ -2020,8 +2020,6 @@ table.bs-t-table { min-width: 360px; }
 .flow-cell-detail-item { @apply flex items-center justify-between gap-3 py-2; }
 .flow-cell-detail-total { @apply flex items-center justify-between px-5 py-3 border-t border-[var(--border)] mt-1; }
 
-.statements-hub-grid { @apply grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3; }
-.statements-hub-card { @apply flex flex-col p-5 no-underline transition-all duration-150 hover:-translate-y-0.5 hover:border-[var(--primary)]; }
 .reports-hub-loading { @apply flex items-center justify-center py-20; }
 .by-person-toolbar { @apply mb-5 flex flex-wrap items-center justify-between gap-2; }
 .by-person-empty-state { @apply py-16 text-center; }
@@ -11306,3 +11304,7 @@ table.ol-items-table { min-width: 760px; table-layout: fixed; }
 .paper-sign-proof-label { @apply text-[10px] text-[var(--text-muted)]; }
 .paper-sign-proof-note { @apply text-[12px] text-[var(--text-muted)]; }
 .card-tx-row-open { @apply cursor-pointer; }   /* 카드 거래내역 — 미처리 줄을 누르면 처리 팝업 (2026-10-01) */
+/* 분석 › 부가세 (2026-10-01 UI 점검 5순위) — 표는 상자 없이, 안내는 얇은 글, 구조 그래프는 분석 판 */
+.vat-table-wrap { @apply overflow-hidden; }
+.vat-preview-note { @apply mb-3 text-xs leading-relaxed text-[var(--text-muted)]; }
+.vat-structure-panel { @apply mb-6; }
