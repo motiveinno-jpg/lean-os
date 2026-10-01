@@ -209,7 +209,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
             )}
           </span>
           <button onClick={() => toggleParty(acc)} title="거래처별로 나눠 입력"
-            className={`text-[10px] px-1.5 py-1 rounded whitespace-nowrap ${isParty ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:bg-[var(--bg-surface)] border border-[var(--border)]"}`}>거래처별</button>
+            className={`qk-quick whitespace-nowrap ${isParty ? "qk-quick-on" : ""}`} aria-pressed={isParty}>거래처별</button>
           {isParty ? (
             <>
               <span className="w-24 h-8 flex items-center justify-end px-2 text-sm text-[var(--text-muted)] mono-number">{fmtNum(d) || "0"}</span>
@@ -336,7 +336,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
                   <input value={l.name} onChange={(e) => setLine(l.id, (x) => ({ ...x, name: e.target.value }))} placeholder="계정명 직접입력"
                     className="flex-1 min-w-[120px] h-8 px-3 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-sm" />
                   <button onClick={() => setLine(l.id, (x) => ({ ...x, mode: x.mode === "party" ? "account" : "party", parties: x.mode !== "party" && x.parties.length === 0 ? [newParty()] : x.parties }))}
-                    className={`text-[10px] px-1.5 py-1 rounded ${l.mode === "party" ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] border border-[var(--border)]"}`}>거래처별</button>
+                    className={`qk-quick whitespace-nowrap ${l.mode === "party" ? "qk-quick-on" : ""}`} aria-pressed={l.mode === "party"}>거래처별</button>
                   {l.mode === "party" ? (
                     <>
                       <span className="w-24 h-8 flex items-center justify-end px-2 text-sm text-[var(--text-muted)] mono-number">{fmtNum(lineDebit(l)) || "0"}</span>

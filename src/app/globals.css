@@ -7748,17 +7748,13 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .stg-main { @apply min-w-0 space-y-0; }
 /* 기존 탭 컴포넌트 일괄 재스킨 — 셸 스코프에서 glass-card/section-title 을 새 카드 문법으로.
    (12개 탭 내부를 파일마다 고치는 대신 한 곳에서 — 로직·마크업 무변경) */
-.stg-main .glass-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 1rem; box-shadow: none; @apply px-5 sm:px-7 py-5 sm:py-6; }
-.stg-main .glass-card + .glass-card { @apply mt-5; }
+/*   2026-10-01 UI 점검 4순위: 둥근 상자 → 위쪽 선 구역(상자 안 상자 금지, 근무 기준 hr-rule-sec 와 같은 문법). 확인 창·권한 없음 판은 상자 그대로 */
+.stg-main .glass-card:not(.confirm-dialog-panel):not(.access-denied-panel) { background: transparent; border: 0; border-top: 1px solid var(--border); border-radius: 0; box-shadow: none; backdrop-filter: none; @apply px-0 py-5 sm:py-6; }
+.stg-main .glass-card + .glass-card { @apply mt-0; }
 .stg-main .section-title { @apply text-[15px] font-bold mb-4 tracking-tight; }
 
-/* 자금·통장 — 요약 밴드(헤어라인 분할 그리드) + 카드 */
-.stg-statband { @apply grid grid-cols-2 sm:grid-cols-4 gap-px rounded-2xl overflow-hidden border border-[var(--border)] bg-[var(--border)]; }
-.stg-stat { @apply bg-[var(--bg-card)] px-4 py-3.5 min-w-0; }
-.stg-stat-label { @apply text-[11px] font-medium text-[var(--text-dim)]; }
-.stg-stat-value { @apply text-lg font-bold mt-1 truncate; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
-.stg-stat-sub { @apply text-[10.5px] text-[var(--text-dim)] mt-0.5 truncate; }
-.stg-card { @apply rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 sm:p-6; }
+/* 자금·통장 — 요약은 결과 요약 줄(ResultStrip·Stat, 2026-10-01) + 선 구역 */
+.stg-card { @apply border-t border-[var(--border)] px-0 py-5 sm:py-6; }
 .stg-card-head { @apply flex items-start justify-between gap-3 mb-4; }
 .stg-card-title { @apply text-sm font-bold; }
 .stg-card-desc { @apply text-xs text-[var(--text-dim)] mt-0.5; }
@@ -7772,8 +7768,10 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 
 /* ── 설정 세부탭 내부 문법 (2026-08-13 5차 — 대표: 세부탭 "안" 디자인을 바꿔라) ──
    시안 B 작업면 그대로: 정의형 필드 행(좌 라벨 | 우 컨트롤) + 헤어라인. 카드 속 카드 금지. */
-.stg-sec { @apply rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-5 sm:px-7 py-5 sm:py-6; }
-.stg-sec + .stg-sec { @apply mt-5; }
+.stg-sec { @apply border-t border-[var(--border)] px-0 py-5 sm:py-6; }
+.stg-sec + .stg-sec { @apply mt-0; }
+/*   맨 위 구역은 위 선이 머리 줄 밑선과 겹치니 뺀다 */
+.stg-main .space-y-5 > .stg-sec:first-child, .stg-main .space-y-5 > .stg-card:first-child, .stg-main .space-y-6 > .stg-sec:first-child, .stg-main .space-y-6 > .stg-card:first-child { @apply border-t-0 pt-1; }
 .stg-sec-head { @apply flex items-start justify-between gap-3 pb-4 border-b border-[var(--border)]; }
 .stg-sec-title { @apply text-[15px] font-bold tracking-tight; }
 .stg-sec-desc { @apply text-xs text-[var(--text-dim)] mt-0.5; }

@@ -30,7 +30,7 @@ import { ProjectSalesAccountCard } from "./ProjectSalesAccountCard";
 import { CompanyDeleteTab } from "./CompanyDeleteTab";
 import { CompanyInfoTab, TaxAdvisorSection, IpRestrictionSection, MfaPolicySection } from "./CompanyInfoTab";
 import { InventorySettingsTab } from "./InventorySettingsTab";   // 재고 기준 (2026-09-22)
-import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
+import { QueryScreen, QueryHead, QueryBody, ResultStrip, Stat } from "@/components/query-kit";
 import { AccountingClosingTab } from "./AccountingClosingTab";
 import { InsuranceRatesTab } from "./InsuranceRatesTab";
 import { loadLinkedIntegrations, listApiKeys } from "@/lib/api-keys";
@@ -388,35 +388,16 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
         {/* ═══ 자금·통장 — 가용 현금 집계 + 직접 등록한 통장 + 비용 라우팅 ═══ */}
         {tab === "cash" && (
           <div className="space-y-5">
-            {/* 요약 밴드 — 대시보드 숫자 문법(라벨 위·값 아래) */}
-            <div className="stg-statband">
-              <div className="stg-stat">
-                {/* 라벨 정정 (2026-08-19): 이 값은 연동+수기 전체 합산 — "연동"이라 쓰면
-                    수기 계좌만 있는 회사가 연동된 것으로 오해한다 */}
-                <div className="stg-stat-label">전체 통장 합산 (연동+수기)</div>
-                <div className="stg-stat-value">₩{totalBankBalance.toLocaleString()}</div>
-                <div className="stg-stat-sub">{bankAccounts.length}개 계좌</div>
-              </div>
-              <div className="stg-stat">
-                <div className="stg-stat-label">추가 현금</div>
-                <div className="stg-stat-value">₩{(Number(balance) || 0).toLocaleString()}</div>
-                {/*   '미연동 계좌' 라고 적어 두면 아래 '직접 등록한 통장'과 겹쳐 같은 돈이 두 번 잡힌다
-                      (그 통장 잔고는 이미 위 '전체 통장 합산'에 들어 있다). 2026-09-11 */}
-                <div className="stg-stat-sub">통장에 없는 현금(시재금)</div>
-              </div>
-              <div className="stg-stat">
-                <div className="stg-stat-label">총 가용 현금</div>
-                <div className="stg-stat-value" style={{ color: "var(--primary)" }}>₩{totalCash.toLocaleString()}</div>
-                <div className="stg-stat-sub">대시보드 반영</div>
-              </div>
-              <div className="stg-stat">
-                <div className="stg-stat-label">예상 생존 개월수</div>
-                <div className="stg-stat-value" style={runwayMonths != null ? { color: runwayMonths < 3 ? "var(--danger)" : "var(--success)" } : undefined}>
-                  {runwayMonths != null ? `${runwayMonths.toFixed(1)}개월` : "—"}
-                </div>
-                <div className="stg-stat-sub">총 가용 현금 ÷ 월 고정비</div>
-              </div>
-            </div>
+            {/*   요약 줄 — KPI 타일 4장(상자 안 상자)을 결과 요약 줄로(2026-10-01 UI 점검 4순위, 조회 화면 표준 Stat).
+                  라벨 정정 (2026-08-19): '전체 통장 합산'은 연동+수기 전체 — "연동"이라 쓰면 수기 계좌만 있는 회사가 연동된 것으로 오해한다.
+                  '추가 현금'을 '미연동 계좌'라 적으면 아래 '직접 등록한 통장'과 같은 돈이 두 번 잡힌다(2026-09-11). */}
+            <ResultStrip>
+              <Stat label="전체 통장 합산 (연동+수기)" value={`₩${totalBankBalance.toLocaleString()}`} title={`${bankAccounts.length}개 계좌`} />
+              <Stat label="추가 현금" value={`₩${(Number(balance) || 0).toLocaleString()}`} title="통장에 없는 현금(시재금)" />
+              <Stat label="총 가용 현금" value={`₩${totalCash.toLocaleString()}`} title="대시보드에 반영됩니다" />
+              <Stat label="예상 생존 개월수" value={runwayMonths != null ? `${runwayMonths.toFixed(1)}개월` : "—"}
+                tone={runwayMonths != null && runwayMonths < 3 ? "minus" : undefined} title="총 가용 현금 ÷ 월 고정비" />
+            </ResultStrip>
 
             {/* 수기 보정 입력 */}
             <section className="stg-card">

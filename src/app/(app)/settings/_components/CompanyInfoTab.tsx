@@ -601,11 +601,8 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
                         <button
                           key={opt.v}
                           onClick={() => { setSealVariant(opt.v); regenerateSealPreview(opt.v); }}
-                          className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition ${
-                            sealVariant === opt.v
-                              ? "bg-[var(--primary)] text-white"
-                              : "bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)]"
-                          }`}
+                          className={`qk-quick ${sealVariant === opt.v ? "qk-quick-on" : ""}`}
+                          aria-pressed={sealVariant === opt.v}
                         >
                           {opt.label}
                         </button>
