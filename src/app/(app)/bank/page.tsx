@@ -939,21 +939,16 @@ export default function BankPage() {
         <div className="bank-accounts-grid">
           {accounts.length === 0 && (accError || accPending) ? (
             <div className="sm:col-span-2 lg:col-span-3">
-              <EmptyState card icon="🏦" title={accError ? "통장 목록을 불러오지 못했습니다." : "불러오는 중…"}
+              <EmptyState icon="🏦" title={accError ? "통장 목록을 불러오지 못했습니다." : "불러오는 중…"}
                 desc={accError ? "잠시 뒤 새로고침해 주세요." : undefined} />
             </div>
           ) : accounts.length === 0 ? (
             <div className="sm:col-span-2 lg:col-span-3">
+              {/*   상자 안 상자·파란 버튼 두 개 정리(2026-10-01 UI 점검 3순위) — 연동은 위 조회 줄의 「통장 연동」 하나로 */}
               <EmptyState
-                card
                 icon="🏦"
                 title="아직 연동된 통장이 없습니다."
-                desc="통장을 연동하면 거래내역을 자동으로 불러옵니다."
-                action={
-                  <button type="button" onClick={handleSyncBank} disabled={syncing} className="btn-primary">
-                    {syncing ? "연동 중..." : "통장 연동하기"}
-                  </button>
-                }
+                desc="위의 「통장 연동」을 누르면 통장을 등록하고 거래내역을 자동으로 불러옵니다."
               />
             </div>
           ) : accounts.filter((a) => showHiddenAccts || !a.isHidden).map((a) => {

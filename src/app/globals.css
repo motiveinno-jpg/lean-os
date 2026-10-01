@@ -11307,3 +11307,4 @@ table.ol-items-table { min-width: 760px; table-layout: fixed; }
 .paper-sign-proof { @apply flex flex-col items-start gap-2 rounded-lg border border-[var(--border)] p-3; }
 .paper-sign-proof-label { @apply text-[10px] text-[var(--text-muted)]; }
 .paper-sign-proof-note { @apply text-[12px] text-[var(--text-muted)]; }
+.card-tx-row-open { @apply cursor-pointer; }   /* 카드 거래내역 — 미처리 줄을 누르면 처리 팝업 (2026-10-01) */
