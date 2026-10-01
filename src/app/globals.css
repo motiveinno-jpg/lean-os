@@ -3921,7 +3921,7 @@ table.ap-policy-table { min-width: 960px; }
 .ap-fav-cap { @apply text-[10.5px] font-bold text-[var(--warning)]; }
 /*   새 요청 폼·미리보기 — 상자 안 상자 대신 얇은 판 */
 .ap-pad .approval-new-request-form > .glass-card { @apply rounded-none border-0 bg-transparent p-2 shadow-none; }
-.ap-pad .approval-policy-preview.glass-card, .ap-pad .approval-document-preview.glass-card { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-none; }
+.ap-pad .approval-policy-preview.glass-card, .ap-pad .approval-document-preview.glass-card { @apply rounded-none border-0 bg-transparent shadow-none; }   /* 2026-10-01 7순위: 미리보기 판 상자 제거(오른쪽 칸 세로 선으로 가름) */
 /*   결재 허브 목록 탭 — 상자 안 상자 금지: 빈 상태·펼침 줄은 카드 없이 */
 .ap-empty { @apply px-6 py-16 text-center; }
 .ap-row-open td { background: color-mix(in srgb, var(--primary) 5%, transparent); }
