@@ -38,6 +38,13 @@ export async function POST(request: NextRequest) {
     if (span > MAX_DAYS) {
       return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: `기간은 ${MAX_DAYS}일까지입니다` } }, { status: 400 });
     }
+    //   지난달 1일보다 이전은 직원 경로로 다시 쓰지 않는다(보안 검토 L4) — 급여가 끝난 달의 분은 관리자 재계산 몫
+    const kstToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
+    const [ty, tm] = kstToday.split('-').map(Number);
+    const prevMonthFirst = tm === 1 ? `${ty - 1}-12-01` : `${ty}-${String(tm - 1).padStart(2, '0')}-01`;
+    if (from < prevMonthFirst || to > kstToday) {
+      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: '지난달 1일부터 오늘까지만 다시 계산할 수 있습니다' } }, { status: 400 });
+    }
 
     const admin = createSupabaseAdminClient();
     // 본인 확인 — 이 회사에서 내 계정에 연결된 직원 행만 (한 사람이 여러 회사 직원일 수 있다)
@@ -97,6 +104,8 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ data: { updated, total: (rows || []).length } });
   } catch (e) {
-    return NextResponse.json({ error: { code: 'INTERNAL', message: (e as Error)?.message || '재계산 실패' } }, { status: 500 });
+    //   DB 오류 원문은 응답에 싣지 않는다(보안 검토 L2) — 서버 로그로만
+    console.error('[attendance/recompute-self]', e);
+    return NextResponse.json({ error: { code: 'INTERNAL', message: '근무 시간 재계산 중 오류가 발생했습니다' } }, { status: 500 });
   }
 }

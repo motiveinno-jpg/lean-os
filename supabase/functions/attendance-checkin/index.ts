@@ -1,4 +1,4 @@
-import { withSentry } from "../_shared/sentry.ts";
+import { withSentry, logEdgeError } from "../_shared/sentry.ts";
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -77,7 +77,9 @@ serve(withSentry("attendance-checkin", async (req) => {
       });
     }
 
-    const { action, companyId, employeeId, status, date, overtimeRequestId } = await req.json();
+    //   date·overtimeRequestId 는 더 이상 받지 않는다(2026-10-01 보안 검토 H2·M1) — 날짜는 서버 KST 오늘,
+    //   연장 승인 연결은 서버가 check_can_clock_in_after_hours 로 찾는다. 옛 클라이언트가 보내도 무시된다.
+    const { action, companyId, employeeId, status } = await req.json();
 
     if (!companyId || !employeeId) {
       return new Response(JSON.stringify({ error: "companyId, employeeId required" }), {
@@ -92,7 +94,8 @@ serve(withSentry("attendance-checkin", async (req) => {
 
     // ⚠️ toISOString().slice(0,10) 은 UTC 날짜라 KST 00:00~08:59 출근이 "어제" 로 기록됐다.
     //    근태는 전부 KST 기준이므로 날짜도 KST 로 뽑는다(2026-07-27).
-    const today = date || new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
+    //   클라이언트가 보낸 date 를 쓰면 지난 날 퇴근을 취소했다가 '지금'으로 다시 찍어 며칠치를 근무·연장으로 만들 수 있었다.
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
     const now = new Date().toISOString();
 
     // 소속 검증: 종전엔 body 의 companyId/employeeId 를 그대로 믿어
@@ -106,7 +109,7 @@ serve(withSentry("attendance-checkin", async (req) => {
       });
     }
 
-    const { data: empCheck } = await admin.from("employees").select("id, company_id").eq("id", employeeId).maybeSingle();
+    const { data: empCheck } = await admin.from("employees").select("id, company_id, user_id").eq("id", employeeId).maybeSingle();
     if (!empCheck) {
       return new Response(JSON.stringify({ error: "직원 정보를 찾을 수 없습니다. 관리자에게 문의하세요." }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -114,6 +117,13 @@ serve(withSentry("attendance-checkin", async (req) => {
     }
     if (empCheck.company_id !== companyId) {
       return new Response(JSON.stringify({ error: "권한이 없습니다." }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    //   본인 확인(2026-10-01 보안 검토 H1): 같은 회사 확인만 있어 동료의 출근·퇴근·퇴근취소를 대신 찍을 수 있었다.
+    //   화면의 모든 경로(사이드바·마이페이지·참모)는 본인 직원 행만 보낸다. 관리자 대리 기록은 근태 관리 › 기록(직접 저장)이 맡는다.
+    if (empCheck.user_id !== callerRow.id) {
+      return new Response(JSON.stringify({ error: "본인 출퇴근만 기록할 수 있습니다." }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -146,8 +156,22 @@ serve(withSentry("attendance-checkin", async (req) => {
 
       // check_in 은 실제로 찍은 시각 그대로 저장·표시한다.
       //   이른 출근이 연장근무로 잡히지 않게 하는 clamp 는 근무시간 산정(checkout·attendance-calc)에서만 한다.
-      // overtime_request_id: 클라이언트가 check_can_clock_in_after_hours 게이트 통과 시 전달.
-      const otReqId = typeof overtimeRequestId === "string" && overtimeRequestId ? overtimeRequestId : null;
+      // 퇴근시각 이후 출근 게이트 — 종전엔 브라우저만 check_can_clock_in_after_hours 를 불러 엣지를 직접 부르면 건너뛰었고,
+      //   overtime_request_id 도 클라이언트 값을 그대로 저장했다(남의·미승인 신청 연결 가능). 이제 서버가 판정하고 그 결과 id 만 쓴다.
+      const { data: gate, error: gateErr } = await admin.rpc("check_can_clock_in_after_hours", { p_employee_id: employeeId });
+      if (gateErr) throw gateErr;
+      const g = Array.isArray(gate) ? gate[0] : gate;
+      if (g && g.allowed === false) {
+        const msg: Record<string, string> = {
+          NO_OVERTIME_REQUEST: "회사 퇴근시간 이후 출근은 연장근무 신청 승인이 필요합니다",
+          OVERTIME_EXPIRED: "승인된 연장 종료시각을 지났습니다",
+          EMPLOYEE_NOT_FOUND: "직원 등록이 안 되어 있습니다. 관리자에게 문의",
+        };
+        return new Response(JSON.stringify({ error: msg[String(g.reason)] || "출근할 수 없는 시간입니다" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const otReqId = (g?.overtime_request_id as string | null | undefined) ?? null;
 
       const rowValues = {
         company_id: companyId,
@@ -245,7 +269,9 @@ serve(withSentry("attendance-checkin", async (req) => {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: (err as Error).message }), {
+    //   내부 오류 문구(DB 메시지)는 응답에 싣지 않는다(보안 검토 L3) — 원문은 오류 기록장으로
+    await logEdgeError("attendance-checkin", (err as Error)?.message || String(err), { phase: "handler" });
+    return new Response(JSON.stringify({ error: "출퇴근 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요." }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
