@@ -27,6 +27,73 @@ export type AttendanceCompanySettings = {
   workdays_mask: number;         // 비트마스크 월=1,화=2,수=4,목=8,금=16,토=32,일=64
 };
 
+// ── 회사 설정 행 → 계산 입력 (2026-10-01: hr.ts 에서 옮김 — 서버 재계산 라우트와 브라우저가 같은 해석을 쓰게) ──
+//   컬럼 우선 · settings JSONB fallback · 기본값 3단 우선순위.
+export const DEFAULT_ATTENDANCE_COMPANY_SETTINGS: AttendanceCompanySettings = {
+  work_start_time: '09:00',
+  work_end_time: '18:00',
+  lunch_minutes: 60,
+  late_grace_minutes: 0,
+  night_start_time: '22:00',
+  night_end_time: '06:00',
+  weekly_work_hours: 40,
+  is_under_5_employees: false,
+  is_inclusive_wage: false,
+  monthly_standard_hours: 209,
+  on_duty_pay_per_shift: 0,
+  workdays_mask: 31, // 월~금 (1+2+4+8+16)
+};
+
+function settingHhmm(v: unknown, fallback: string): string {
+  if (typeof v === 'string') {
+    const m = v.match(/^(\d{2}):(\d{2})/);
+    if (m) return `${m[1]}:${m[2]}`;
+  }
+  return fallback;
+}
+
+function settingNum(v: unknown, fallback: number, min = -Infinity, max = Infinity): number {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+
+/** company_settings 한 행(없으면 null) → AttendanceCompanySettings */
+export function parseAttendanceCompanySettings(data: Record<string, any> | null | undefined): AttendanceCompanySettings {
+  const D = DEFAULT_ATTENDANCE_COMPANY_SETTINGS;
+  const s = (data?.settings as Record<string, unknown> | null) || {};
+  const pick = (col: unknown, jsonKey: string) =>
+    col !== null && col !== undefined ? col : s[jsonKey];
+  return {
+    work_start_time: settingHhmm(pick(data?.work_start_time, 'work_start_time'), D.work_start_time),
+    work_end_time: settingHhmm(pick(data?.work_end_time, 'work_end_time'), D.work_end_time),
+    lunch_minutes: settingNum(pick(data?.lunch_minutes, 'lunch_minutes'), D.lunch_minutes, 0, 480),
+    late_grace_minutes: settingNum(pick(data?.late_grace_minutes, 'late_grace_minutes'),
+      settingNum(s.late_threshold_minutes, D.late_grace_minutes, 0, 240), 0, 240),
+    night_start_time: settingHhmm(pick(data?.night_start_time, 'night_start_time'), D.night_start_time),
+    night_end_time: settingHhmm(pick(data?.night_end_time, 'night_end_time'), D.night_end_time),
+    weekly_work_hours: settingNum(pick(data?.weekly_work_hours, 'weekly_work_hours'), D.weekly_work_hours, 1, 80),
+    is_under_5_employees: Boolean(pick(data?.is_under_5_employees, 'is_under_5_employees')) || false,
+    is_inclusive_wage: Boolean(pick(data?.is_inclusive_wage, 'is_inclusive_wage')) || false,
+    monthly_standard_hours: settingNum(pick(data?.monthly_standard_hours, 'monthly_standard_hours'), D.monthly_standard_hours, 1, 400),
+    on_duty_pay_per_shift: settingNum(pick(data?.on_duty_pay_per_shift, 'on_duty_pay_per_shift'), D.on_duty_pay_per_shift, 0, 10_000_000),
+    workdays_mask: settingNum(pick(data?.workdays_mask, 'workdays_mask'), D.workdays_mask, 0, 127),
+  };
+}
+
+/** 회사 기본 설정에 직원 개인 override(있으면)를 덮어써 그 직원 기준 유효 설정을 만든다. */
+export function applyEmployeeWorkTimeOverride(
+  base: AttendanceCompanySettings,
+  override?: { work_start_time: string | null; work_end_time: string | null } | null,
+): AttendanceCompanySettings {
+  if (!override) return base;
+  return {
+    ...base,
+    work_start_time: override.work_start_time ? settingHhmm(override.work_start_time, base.work_start_time) : base.work_start_time,
+    work_end_time: override.work_end_time ? settingHhmm(override.work_end_time, base.work_end_time) : base.work_end_time,
+  };
+}
+
 export type DailyInput = {
   check_in: Date | string | null;  // ISO 또는 Date
   check_out: Date | string | null;

@@ -17,6 +17,9 @@ import {
   calcLegacyWorkHours,
   calcOvertimePay,
   classifyLeaveForLate,
+  parseAttendanceCompanySettings,
+  applyEmployeeWorkTimeOverride,
+  DEFAULT_ATTENDANCE_COMPANY_SETTINGS,
   type AttendanceCompanySettings,
   type DailyResult,
   type MonthlyPayResult,
@@ -269,41 +272,12 @@ export async function getAttendancePolicy(companyId: string, employeeId?: string
 }
 
 // ── L 근태: 전체 회사 설정 (가산수당 계산 엔진 입력 타입) ──
-
-const DEFAULT_ATTENDANCE_COMPANY_SETTINGS: AttendanceCompanySettings = {
-  work_start_time: '09:00',
-  work_end_time: '18:00',
-  lunch_minutes: 60,
-  late_grace_minutes: 0,
-  night_start_time: '22:00',
-  night_end_time: '06:00',
-  weekly_work_hours: 40,
-  is_under_5_employees: false,
-  is_inclusive_wage: false,
-  monthly_standard_hours: 209,
-  on_duty_pay_per_shift: 0,
-  workdays_mask: 31, // 월~금 (1+2+4+8+16)
-};
-
-function hhmm(v: unknown, fallback: string): string {
-  if (typeof v === 'string') {
-    const m = v.match(/^(\d{2}):(\d{2})/);
-    if (m) return `${m[1]}:${m[2]}`;
-  }
-  return fallback;
-}
-
-function num(v: unknown, fallback: number, min = -Infinity, max = Infinity): number {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.max(min, Math.min(max, n));
-}
+//   기본값·해석(hhmm·num)은 attendance-calc 의 parseAttendanceCompanySettings 로 옮김(2026-10-01)
 
 /** L 근태 — 회사 전체 설정 조회 (calcDailyAttendance/calcOvertimePay 입력용).
  *  컬럼 우선·JSONB fallback·기본값 3단 우선순위.
  */
 export async function getAttendanceCompanySettings(companyId: string): Promise<AttendanceCompanySettings> {
-  const D = DEFAULT_ATTENDANCE_COMPANY_SETTINGS;
   try {
     const data = logRead('lib/hr:data', await db
       .from('company_settings')
@@ -311,27 +285,10 @@ export async function getAttendanceCompanySettings(companyId: string): Promise<A
       .select('work_start_time, work_end_time, lunch_minutes, late_grace_minutes, night_start_time, night_end_time, weekly_work_hours, is_under_5_employees, is_inclusive_wage, monthly_standard_hours, on_duty_pay_per_shift, workdays_mask, settings')
       .eq('company_id', companyId)
       .maybeSingle());
-    const s = (data?.settings as Record<string, unknown> | null) || {};
-    const pick = (col: unknown, jsonKey: string) =>
-      col !== null && col !== undefined ? col : s[jsonKey];
-
-    return {
-      work_start_time: hhmm(pick(data?.work_start_time, 'work_start_time'), D.work_start_time),
-      work_end_time: hhmm(pick(data?.work_end_time, 'work_end_time'), D.work_end_time),
-      lunch_minutes: num(pick(data?.lunch_minutes, 'lunch_minutes'), D.lunch_minutes, 0, 480),
-      late_grace_minutes: num(pick(data?.late_grace_minutes, 'late_grace_minutes'),
-        num(s.late_threshold_minutes, D.late_grace_minutes, 0, 240), 0, 240),
-      night_start_time: hhmm(pick(data?.night_start_time, 'night_start_time'), D.night_start_time),
-      night_end_time: hhmm(pick(data?.night_end_time, 'night_end_time'), D.night_end_time),
-      weekly_work_hours: num(pick(data?.weekly_work_hours, 'weekly_work_hours'), D.weekly_work_hours, 1, 80),
-      is_under_5_employees: Boolean(pick(data?.is_under_5_employees, 'is_under_5_employees')) || false,
-      is_inclusive_wage: Boolean(pick(data?.is_inclusive_wage, 'is_inclusive_wage')) || false,
-      monthly_standard_hours: num(pick(data?.monthly_standard_hours, 'monthly_standard_hours'), D.monthly_standard_hours, 1, 400),
-      on_duty_pay_per_shift: num(pick(data?.on_duty_pay_per_shift, 'on_duty_pay_per_shift'), D.on_duty_pay_per_shift, 0, 10_000_000),
-      workdays_mask: num(pick(data?.workdays_mask, 'workdays_mask'), D.workdays_mask, 0, 127),
-    };
+    //   해석은 attendance-calc 한 곳 — 서버 재계산 라우트(/api/attendance/recompute-self)도 같은 함수를 쓴다
+    return parseAttendanceCompanySettings(data as Record<string, any> | null);
   } catch {
-    return { ...D };
+    return { ...DEFAULT_ATTENDANCE_COMPANY_SETTINGS };
   }
 }
 
@@ -355,18 +312,8 @@ export async function getEmployeeWorkTimeOverrides(
   return map;
 }
 
-/** 회사 기본 설정에 직원 개인 override(있으면)를 덮어써 그 직원 기준 유효 설정을 만든다. */
-export function applyEmployeeWorkTimeOverride(
-  base: AttendanceCompanySettings,
-  override?: { work_start_time: string | null; work_end_time: string | null } | null,
-): AttendanceCompanySettings {
-  if (!override) return base;
-  return {
-    ...base,
-    work_start_time: override.work_start_time ? hhmm(override.work_start_time, base.work_start_time) : base.work_start_time,
-    work_end_time: override.work_end_time ? hhmm(override.work_end_time, base.work_end_time) : base.work_end_time,
-  };
-}
+//   applyEmployeeWorkTimeOverride 는 attendance-calc 로 옮김(2026-10-01) — 기존 import 호환용 재수출
+export { applyEmployeeWorkTimeOverride };
 
 /** L 근태 — 직원 1인 기준 유효 설정 (회사 기본값 + 개인 출퇴근시간 override). */
 export async function getEffectiveAttendanceSettings(
@@ -495,9 +442,13 @@ export async function recomputeAttendance(params: {
   //   직원이 본인 employeeId 한정 호출은 허용하되, 그 외(전체 또는 타인)는
   //   클라이언트 단에서 명시 차단해 update 0 rows silent fail 회피.
   //   서버 권한은 RLS 가 최종 가드 — 클라이언트 체크는 UX 만.
+  //   2026-10-01: 관리자 기준을 DB 와 같게(마스터·/attendance:records — set_attendance_minutes·RLS 가 보는 권한).
+  //   관리자가 아니면 본인 행만, 그리고 계산·저장은 서버(/api/attendance/recompute-self)가 한다 —
+  //   브라우저가 계산한 분을 RPC 로 넘기던 길은 직원이 연장 분을 부풀릴 수 있어 관리자 전용으로 닫았다.
+  let selfOnly = false;
   try {
     const me = await getCurrentUser();
-    const isAdmin = await currentUserIsManager(me as any, '/employees');
+    const isAdmin = await currentUserIsManager(me as any, '/attendance:records');
     if (!isAdmin) {
       const myEmpId = await db
         .from('employees')
@@ -509,10 +460,22 @@ export async function recomputeAttendance(params: {
       if (!params.employeeId || params.employeeId !== selfId) {
         throw new Error('근태 재계산 권한이 없습니다. 본인 기록만 재계산할 수 있습니다.');
       }
+      selfOnly = true;
     }
   } catch (e) {
     if ((e as Error)?.message?.startsWith('근태 재계산 권한')) throw e;
     // 사용자 조회 실패 등은 RLS 에 위임 (silent fallback)
+  }
+  if (selfOnly) {
+    const res = await fetch('/api/attendance/recompute-self', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ companyId: params.companyId, from: params.from, to: params.to }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.error?.message || '근태 재계산 실패');
+    //   수당(allowance_entries) 연쇄는 관리자 몫 — RLS 가 직원 쓰기를 막아 예전에도 직원 경로에선 조용히 실패했다
+    return json.data as { updated: number; total: number };
   }
 
   const settings = await getAttendanceCompanySettings(params.companyId);
