@@ -1974,7 +1974,14 @@ table.bs-t-table { min-width: 360px; }
 .bs-detail-name { @apply pl-7; }
 .bs-t-table tr.bs-subtotal-row > td { @apply bg-[var(--bg-surface)] font-bold text-[var(--text)]; }
 .bs-t-table tr.bs-total-row > td { @apply border-t-2 border-[var(--border)] bg-[var(--primary)]/6 font-extrabold text-[var(--text)]; }
-.bs-balance-summary { @apply mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 p-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] shadow-[var(--shadow-sm)]; }
+.bs-balance-summary { @apply mt-3 border-b border-[var(--border)] pb-1; }
+.bs-balance-diff { @apply px-1 pb-1.5 text-[11px] font-semibold text-[var(--warning)]; }
+.bs-ratio-grid { @apply grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-[var(--border)]; }
+.bs-ratio-cell { @apply px-4 py-2 first:pl-0; }
+.bs-ratio-label { @apply mb-2 flex items-center gap-2 text-[11px] font-bold text-[var(--text-muted)]; }
+.bs-ratio-dot { @apply h-2 w-2 shrink-0 rounded-full; }
+.bs-ratio-value { @apply mb-1.5 text-2xl font-extrabold tracking-tight; }
+.bs-ratio-desc { @apply text-[11px] leading-relaxed text-[var(--text-dim)]; }
 .bs-composition-chart { @apply mt-8 p-5; }
 .bs-capital-warning { @apply mt-4 flex items-start gap-2.5; }
 .bs-accuracy-callout { @apply mt-4 flex items-start gap-2.5; }
@@ -2002,7 +2009,7 @@ table.bs-t-table { min-width: 360px; }
 /* 리포트 공통 막대 — 값이 붙는 쪽만 둥글게(4px). 양끝을 다 둥글리면 막대가 축에서 떠 보여
    길이가 실제보다 짧게 읽힌다 (2026-08-07 차트 키트 규칙 확산) */
 
-.costs-chart-container { @apply p-5; }
+.costs-chart-container { @apply p-3.5; }
 .costs-chart-container .viz-legend { @apply justify-center mt-3; }
 .metric-info-trigger { @apply ml-1 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-[var(--border)] text-[9px] font-bold leading-none text-[var(--text-dim)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition align-middle; }
 .metric-info-popover { @apply fixed z-[999] w-[280px] max-h-[60vh] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-3 animate-[slide-in_0.12s_ease]; }
@@ -2018,6 +2025,23 @@ table.bs-t-table { min-width: 360px; }
 .costs-fixed-ratio-bar { @apply flex items-center justify-end gap-2; }
 .costs-fixed-breakdown-row { @apply hover:bg-[var(--bg-surface)]/60; }
 .costs-variable-breakdown-row { @apply hover:bg-[var(--bg-surface)]/60; }
+/* 비용 분석 — 인라인 style 을 클래스로 (2026-10-01 UI 점검 9순위) */
+.costs-label { @apply text-left text-[var(--text)]; }
+.costs-num { @apply text-right; }
+.costs-strong { @apply font-bold text-[var(--text)]; }
+.costs-muted { @apply text-[var(--text-muted)]; }
+.costs-dim { @apply text-[var(--text-dim)]; }
+.costs-pct { @apply min-w-[30px] text-right text-xs text-[var(--text-dim)]; }
+.costs-ratio-track { @apply hidden h-1.5 w-16 overflow-hidden rounded-full bg-[var(--bg-surface)] sm:block; }
+.costs-ratio-fill { @apply h-full rounded-full bg-[var(--viz-1)]; }
+.costs-total-row > td { @apply border-t-2 border-[var(--border)] bg-[var(--bg-surface)] font-bold; }
+.costs-fixed-cell, .costs-variable-cell { @apply cursor-pointer font-semibold; }
+.costs-fixed-breakdown-row, .costs-variable-breakdown-row { @apply cursor-pointer; }
+.costs-monthly-table-card { @apply overflow-x-auto; }
+.costs-breakdown-grid { @apply grid grid-cols-1 gap-x-3 lg:grid-cols-2; }
+.costs-fixed-breakdown-card, .costs-variable-breakdown-card { @apply overflow-x-auto; }
+.costs-footer-note { @apply mt-2 px-1 text-xs leading-relaxed text-[var(--text-dim)]; }
+.costs-footer-note strong { @apply text-[var(--text-muted)]; }
 
 .flow-cell-detail-overlay { @apply fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4; }
 .flow-cell-detail-panel { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col; }
@@ -2035,10 +2059,24 @@ table.bs-t-table { min-width: 360px; }
 .by-person-row { @apply flex items-center gap-3; }
 .by-person-avatar { @apply bg-gradient-to-br shrink-0; }
 .by-person-ranked-list-footer { @apply flex items-center justify-between; }
-.by-person-monthly-trend { @apply mt-6; }
+.by-person-monthly-trend { @apply mt-0; }
 .by-person-monthly-trend-card { @apply overflow-hidden; }
 .by-person-monthly-trend-header { @apply flex items-center justify-between; }
 .by-person-monthly-trend-scroll { @apply overflow-x-auto; }
+/* 인원별 급여 — 카드 랭크 목록 → 표 (2026-10-01 UI 점검 9순위) */
+.by-person-rank { @apply w-12 text-center text-[11px] text-[var(--text-dim)]; }
+.by-person-name { @apply whitespace-nowrap text-left font-semibold text-[var(--text)]; }
+.by-person-num { @apply whitespace-nowrap text-right; }
+.by-person-zero { @apply text-[var(--text-dim)]; }
+.by-person-share { @apply flex items-center gap-2.5; }
+.by-person-share-track { @apply h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--bg-surface)]; }
+.by-person-share-fill { @apply h-full rounded-full bg-[var(--viz-2)]; }
+.by-person-share-pct { @apply w-10 shrink-0 text-right text-[10px] text-[var(--text-dim)]; }
+.by-person-total-row > td { @apply border-t-2 border-[var(--border)] bg-[var(--bg-surface)] font-bold; }
+.by-person-monthly-table { @apply min-w-[760px]; }
+.by-person-monthly-table .by-person-sticky-col { @apply sticky left-0 z-[1] bg-[var(--bg-card)] text-left; }
+.by-person-note { @apply mt-2 px-1 text-xs leading-relaxed text-[var(--text-dim)]; }
+.by-person-note strong { @apply text-[var(--text-muted)]; }
 
 .pnl-chart-card { @apply mb-7 p-5; }
 .pnl-chart-header { @apply mb-4; }
@@ -2063,6 +2101,10 @@ table.bs-t-table { min-width: 360px; }
 .three-way-matched-header { @apply px-4 py-3 border-b border-[var(--border)] flex items-center justify-between; }
 .three-way-matched-list { @apply divide-y divide-[var(--border)]/50; }
 .three-way-matched-row { @apply px-4 py-3 transition; }
+/* 3-Way 매칭 — 세 판을 분석 판으로, 머리 띠가 판 머리(안쪽 여백 0) (2026-10-01 UI 점검 9순위) */
+.three-way-grid { @apply grid grid-cols-1 gap-x-3 lg:grid-cols-6; }
+.three-way-unmatched-panel.pnl-panel, .three-way-candidates-panel.pnl-panel, .three-way-matched-panel.pnl-panel { @apply p-0; }
+.three-way-row-on { @apply bg-[var(--primary-light)]; }
 
 .flow-matrix-toolbar { @apply p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between; }
 .flow-matrix-year-switch { @apply flex items-center gap-1; }

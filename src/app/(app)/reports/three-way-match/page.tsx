@@ -6,7 +6,6 @@
 //   기존 /tax-invoices·/matching 의 3-way 매칭 UI 는 본 페이지로 일원화.
 
 import { appConfirm } from "@/components/global-confirm";
-import { Ico } from "@/components/ui-icon";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -120,9 +119,11 @@ function Inner() {
         </>}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
+      {/*   2026-10-01 UI 점검 9순위: glass-card 판 3 → 분석 판, 직접 색(emerald·orange·blue·purple·amber·red) → 상태 칩·토큰, 이모지 빈 상태 → 글.
+          후보 줄 클릭 = 즉시 확정은 그대로 둔다 — 확정 버튼을 따로 둘지는 사장님 결정 6번 대기. */}
+      <div className="three-way-grid">
         {/* 좌측 — 미매칭 세금계산서 */}
-        <div className="three-way-unmatched-panel glass-card">
+        <div className="three-way-unmatched-panel pnl-panel">
           <div className="three-way-panel-header">
             <div className="text-sm font-bold">미매칭 세금계산서 ({invoices.length})</div>
           </div>
@@ -140,10 +141,10 @@ function Inner() {
                   <li key={inv.id}>
                     <button
                       onClick={() => setSelectedInvoice(inv)}
-                      className={`three-way-invoice-row ${selectedInvoice?.id === inv.id ? 'bg-[var(--primary)]/10' : ''}`}
+                      className={`three-way-invoice-row ${selectedInvoice?.id === inv.id ? 'three-way-row-on' : ''}`}
                     >
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-semibold ${inv.type === 'sales' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-orange-500/15 text-orange-400'}`}>
+                        <span className="ol-sure">
                           {inv.type === 'sales' ? '매출' : '매입'}
                         </span>
                         <span className="text-xs font-semibold truncate flex-1">{inv.counterparty_name || '거래처 미상'}</span>
@@ -161,7 +162,7 @@ function Inner() {
         </div>
 
         {/* 가운데 — 매칭 후보 */}
-        <div className="three-way-candidates-panel glass-card">
+        <div className="three-way-candidates-panel pnl-panel">
           <div className="three-way-candidates-header">
             <div className="text-sm font-bold">매칭 후보 추천</div>
             {selectedInvoice ? (
@@ -193,14 +194,14 @@ function Inner() {
                     <button
                       onClick={() => matchMut.mutate({ bankTxId: c.bankTxId, invoiceId: selectedInvoice.id })}
                       disabled={matchMut.isPending}
-                      className={`three-way-candidate-row ${c.score >= 3 ? 'bg-emerald-500/5' : ''}`}
+                      className="three-way-candidate-row"
                     >
                       <div className="flex items-center justify-between gap-2 mb-1.5">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className={`text-xs font-semibold truncate ${c.score >= 3 ? 'text-emerald-400' : ''}`}>
+                          <span className="text-xs font-semibold truncate">
                             {c.bankCounterparty || '입금자 미상'}
                           </span>
-                          {c.score >= 3 && <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">강력 추천</span>}
+                          {c.score >= 3 && <span className="ol-sure ol-sure-ok">강력 추천</span>}
                         </div>
                         <span className="text-xs font-bold text-[var(--text)] shrink-0 mono-number">₩{c.bankAmount.toLocaleString()}</span>
                       </div>
@@ -211,11 +212,7 @@ function Inner() {
                       </div>
                       <div className="three-way-candidate-reasons">
                         {c.reasons.map((r, i) => (
-                          <span key={i} className={`text-[9px] px-1.5 py-0.5 rounded font-semibold ${
-                            r.startsWith('거래처명') ? 'bg-blue-500/15 text-blue-400'
-                            : r.startsWith('대표자명') ? 'bg-purple-500/15 text-purple-400'
-                            : 'bg-amber-500/15 text-amber-400'
-                          }`}>
+                          <span key={i} className="ol-sure">
                             {r}
                           </span>
                         ))}
@@ -229,7 +226,7 @@ function Inner() {
         </div>
 
         {/* 우측 — 매칭됨 (확정된 결과) */}
-        <div className="three-way-matched-panel glass-card">
+        <div className="three-way-matched-panel pnl-panel">
           <div className="three-way-matched-header">
             <div>
               <div className="text-sm font-bold">매칭됨 ({matched.length})</div>
@@ -241,7 +238,6 @@ function Inner() {
               <div className="p-8 text-center text-xs text-[var(--text-muted)]">불러오는 중...</div>
             ) : matched.length === 0 ? (
               <div className="py-14 px-4 text-center">
-                <div className="text-3xl mb-2"><Ico e="🧾" /></div>
                 <div className="text-xs font-semibold text-[var(--text)]">매칭된 항목 없음</div>
                 <div className="text-[10px] text-[var(--text-dim)] mt-1">가운데 후보를 클릭해 매칭을 확정하면 여기에 쌓입니다</div>
               </div>
@@ -265,11 +261,11 @@ function Inner() {
                         title={hasDeal ? `클릭 시 '${m.dealName}' 프로젝트로 이동` : '연결된 프로젝트 없음'}
                       >
                         <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-semibold ${m.invoiceType === 'sales' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-orange-500/15 text-orange-400'}`}>
+                          <span className="ol-sure">
                             {m.invoiceType === 'sales' ? '매출' : '매입'}
                           </span>
                           <span className="text-xs font-semibold truncate flex-1">{m.invoiceCounterparty || '거래처'}</span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded font-semibold bg-emerald-500/15 text-emerald-400 shrink-0">완료</span>
+                          <span className="ol-sure ol-sure-ok shrink-0">완료</span>
                           <button
                             type="button"
                             onClick={async (e) => {
@@ -279,7 +275,7 @@ function Inner() {
                               }
                             }}
                             disabled={unmatchMut.isPending}
-                            className="text-[9px] px-1.5 py-0.5 rounded font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition disabled:opacity-50 shrink-0"
+                            className="btn-secondary btn-sm shrink-0"
                             title="매칭 해제"
                           >
                             ✕ 해제
@@ -294,7 +290,7 @@ function Inner() {
                           <span className="text-[var(--text)] font-semibold mono-number">₩{m.bankAmount.toLocaleString()}</span>
                         </div>
                         {diff > 0 && (
-                          <div className="text-[9px] text-amber-400 mb-1">차이 ₩{diff.toLocaleString()}</div>
+                          <div className="text-[10px] text-[var(--warning)] mb-1">차이 ₩{diff.toLocaleString()}</div>
                         )}
                         {hasDeal && (
                           <button

@@ -4,7 +4,6 @@ import { useEffect, useState, useMemo } from "react";
 import { ReportHead, ReportYearSelect } from "../_components/ReportHead";
 import { Stat, type ExcelItem } from "@/components/query-kit";
 import { exportToExcel } from "@/lib/excel-export";
-import { Ico } from "@/components/ui-icon";
 import { useQuery } from "@tanstack/react-query";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { getCurrentUser } from "@/lib/queries";
@@ -213,17 +212,11 @@ export default function CostsPage() {
         </>) : undefined}
       />
 
-      {isLoading && (
-        <div style={{ padding: "60px 0", textAlign: "center", color: "var(--text-dim)", fontSize: 13 }}>
-          불러오는 중…
-        </div>
-      )}
+      {/*   2026-10-01 UI 점검 9순위: glass-card 판 4장·인라인 style·이모지 빈 상태 → 분석 판(pnl-panel)·클래스·글 빈 상태.
+            고정비·변동비 칸의 경고/정보 색도 뺐다 — 아래 차트 주석대로 '상태'가 아니라 분류라서. */}
+      {isLoading && <div className="collect-empty">불러오는 중…</div>}
 
-      {error && !isLoading && (
-        <div style={{ padding: "16px", borderRadius: 8, background: "var(--bg-surface)", border: "1px solid var(--border)", color: "var(--text-muted)", fontSize: 13 }}>
-          {error}
-        </div>
-      )}
+      {error && !isLoading && <div className="collect-empty">{error}</div>}
 
       {!isLoading && !error && shownRows && (
         <>
@@ -231,7 +224,7 @@ export default function CostsPage() {
                달마다의 정확한 값은 바로 아래 표가 담당하므로, 이 자리의 일은 흐름을 보여 주는 것이다.
                (2026-08-07: 자체 SVG 누적 막대 → 차트 키트. 손을 올리면 그 달의 고정·변동·합계가 함께 뜬다.
                 색도 계열색으로 바꿨다 — 고정비·변동비는 경고/정보 같은 '상태'가 아니라 분류다.) */}
-          <div className="costs-chart-container glass-card">
+          <div className="costs-chart-container pnl-panel">
             <div className="mb-4">
               <h3 className="text-sm font-bold text-[var(--text)]">월별 고정비 · 변동비</h3>
               <p className="text-[10px] text-[var(--text-dim)] mt-0.5">아래쪽이 고정비 · 쌓은 높이가 그 달의 총비용</p>
@@ -246,9 +239,9 @@ export default function CostsPage() {
           </div>
 
           {/* Monthly table */}
-          <div className="costs-monthly-table-card glass-card" style={{ overflowX: "auto", marginTop: 24 }}>
+          <div className="costs-monthly-table-card pnl-panel">
             {/* 머리단은 공용 표 머리단(색·선) — 조회 표준 Wave 5 (2026-08-18) */}
-            <table className="ev-table ev-lined rpt-table costs-monthly-table" style={{ fontSize: 13 }}>
+            <table className="ev-table ev-lined rpt-table costs-monthly-table">
               <thead>
                 <tr>
                   <th>월</th>
@@ -263,38 +256,36 @@ export default function CostsPage() {
                   const sum = r.fixedCosts + r.variableCosts;
                   const fixedPct = sum > 0 ? Math.round((r.fixedCosts / sum) * 100) : 0;
                   return (
-                    <tr key={r.month} className="costs-monthly-table-row" style={{ borderTop: "1px solid var(--border)" }}>
-                      <td style={{ padding: "11px 16px", color: "var(--text)" }}>{monthLabel(r.month)}</td>
-                      <td style={{ padding: "11px 16px", textAlign: "right", color: "var(--warning)", fontWeight: 600, cursor: "pointer" }}
-                        title="클릭하면 이 달 고정비 산출 내역을 봅니다"
+                    <tr key={r.month} className="costs-monthly-table-row">
+                      <td className="costs-label">{monthLabel(r.month)}</td>
+                      <td title="클릭하면 이 달 고정비 산출 내역을 봅니다"
                         onClick={() => setMonthDetail({ month: r.month, rowKey: "fixedCosts", title: `${monthLabel(r.month)} 고정비` })}
-                        className="costs-fixed-cell">{fmtKrw(r.fixedCosts)}</td>
-                      <td style={{ padding: "11px 16px", textAlign: "right", color: "var(--info)", fontWeight: 600, cursor: "pointer" }}
-                        title="클릭하면 이 달 변동비 산출 내역을 봅니다"
+                        className="costs-fixed-cell costs-num">{fmtKrw(r.fixedCosts)}</td>
+                      <td title="클릭하면 이 달 변동비 산출 내역을 봅니다"
                         onClick={() => setMonthDetail({ month: r.month, rowKey: "variableCosts", title: `${monthLabel(r.month)} 변동비` })}
-                        className="costs-variable-cell">{fmtKrw(r.variableCosts)}</td>
-                      <td style={{ padding: "11px 16px", textAlign: "right", color: "var(--text)", fontWeight: 700 }}>{fmtKrw(sum)}</td>
-                      <td style={{ padding: "11px 16px" }}>
+                        className="costs-variable-cell costs-num">{fmtKrw(r.variableCosts)}</td>
+                      <td className="costs-num costs-strong">{fmtKrw(sum)}</td>
+                      <td>
                         {sum > 0 ? (
                           <div className="costs-fixed-ratio-bar">
-                            <div className="hidden sm:block w-16 h-1.5 rounded-full overflow-hidden bg-[var(--bg-surface)]">
-                              <div className="h-full rounded-full" style={{ width: `${fixedPct}%`, background: "var(--viz-1)" }} />
+                            <div className="costs-ratio-track">
+                              <div className="costs-ratio-fill" style={{ width: `${fixedPct}%` }} />
                             </div>
-                            <span className="mono-number tabular-nums" style={{ fontSize: 12, color: "var(--text-dim)", minWidth: 30, textAlign: "right" }}>{fixedPct}%</span>
+                            <span className="costs-pct mono-number tabular-nums">{fixedPct}%</span>
                           </div>
-                        ) : <span style={{ color: "var(--text-dim)" }}>-</span>}
+                        ) : <span className="costs-dim">-</span>}
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
               <tfoot>
-                <tr style={{ borderTop: "2px solid var(--border)", background: "var(--bg-surface)" }}>
-                  <td style={{ padding: "12px 16px", fontWeight: 700, color: "var(--text)" }}>합계</td>
-                  <td style={{ padding: "12px 16px", textAlign: "right", fontWeight: 700, color: "var(--warning)" }}>{fmtKrw(totals.fixed)}</td>
-                  <td style={{ padding: "12px 16px", textAlign: "right", fontWeight: 700, color: "var(--info)" }}>{fmtKrw(totals.variable)}</td>
-                  <td style={{ padding: "12px 16px", textAlign: "right", fontWeight: 700, color: "var(--text)" }}>{fmtKrw(totals.total)}</td>
-                  <td style={{ padding: "12px 16px", textAlign: "right", fontWeight: 700, color: "var(--text-dim)" }}>
+                <tr className="costs-total-row">
+                  <td className="costs-label">합계</td>
+                  <td className="costs-num">{fmtKrw(totals.fixed)}</td>
+                  <td className="costs-num">{fmtKrw(totals.variable)}</td>
+                  <td className="costs-num">{fmtKrw(totals.total)}</td>
+                  <td className="costs-num costs-dim">
                     {totals.total > 0 ? `${Math.round((totals.fixed / totals.total) * 100)}%` : "-"}
                   </td>
                 </tr>
@@ -304,20 +295,16 @@ export default function CostsPage() {
 
           {/* 고정비/변동비 세부내역 (category별) */}
           {breakdown && (
-            <div className="costs-breakdown-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 18, marginTop: 24 }}>
+            <div className="costs-breakdown-grid">
               {/* 고정비 세부내역 */}
-              <div className="costs-fixed-breakdown-card glass-card" style={{ overflowX: "auto" }}>
-                <div style={{ padding: "12px 16px", background: "var(--bg-surface)", borderBottom: "1px solid var(--border)", fontWeight: 700, fontSize: 14, color: "var(--warning)" }}>
-                  고정비 세부내역 ({year}년)
-                </div>
+              <div className="costs-fixed-breakdown-card pnl-panel">
+                <h3>고정비 세부내역 ({year}년)</h3>
                 {breakdown.fixed.length === 0 ? (
-                  <div className="py-12 px-5 text-center">
-                    <div className="text-3xl mb-2"><Ico e="🏢" /></div>
-                    <div className="text-[13px] font-semibold text-[var(--text)]">등록된 고정비가 없습니다.</div>
-                    <div className="text-xs text-[var(--text-dim)] mt-1.5">결제 → 정기결제 등록에서 임차료·급여·4대보험 등을 추가하세요.</div>
+                  <div className="collect-empty">
+                    등록된 고정비가 없습니다. 결제 → 정기결제 등록에서 임차료·급여·4대보험 등을 추가하세요.
                   </div>
                 ) : (
-                  <table className="ev-table ev-lined costs-detail-tbl" style={{ fontSize: 13 }}>
+                  <table className="ev-table ev-lined costs-detail-tbl">
                     <thead><tr>
                       <th>항목</th>
                       <th>월 평균</th>
@@ -326,40 +313,36 @@ export default function CostsPage() {
                     </tr></thead>
                     <tbody>
                       {breakdown.fixed.map((r) => (
-                        <tr key={r.category} style={{ borderTop: "1px solid var(--border)", cursor: "pointer" }}
+                        <tr key={r.category}
                           title="클릭하면 이 항목의 산출 내역을 봅니다"
                           className="costs-fixed-breakdown-row"
                           onClick={() => setCatDetail({ kind: "fixed", category: r.category, label: r.label })}>
-                          <td style={{ padding: "10px 16px", color: "var(--text)" }}>{r.label}</td>
-                          <td style={{ padding: "10px 16px", textAlign: "right", color: "var(--text-muted)" }}>{fmtKrw(r.monthly)}</td>
-                          <td style={{ padding: "10px 16px", textAlign: "right", color: "var(--warning)", fontWeight: 600 }}>{fmtKrw(r.amount)}</td>
-                          <td style={{ padding: "10px 16px", textAlign: "right", color: "var(--text-dim)" }}>{breakdown.fixedTotal > 0 ? `${Math.round(r.amount / breakdown.fixedTotal * 100)}%` : "-"}</td>
+                          <td className="costs-label">{r.label}</td>
+                          <td className="costs-num costs-muted">{fmtKrw(r.monthly)}</td>
+                          <td className="costs-num costs-strong">{fmtKrw(r.amount)}</td>
+                          <td className="costs-num costs-dim">{breakdown.fixedTotal > 0 ? `${Math.round(r.amount / breakdown.fixedTotal * 100)}%` : "-"}</td>
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot><tr style={{ borderTop: "2px solid var(--border)", background: "var(--bg-surface)" }}>
-                      <td style={{ padding: "11px 16px", fontWeight: 700 }}>합계</td>
-                      <td style={{ padding: "11px 16px", textAlign: "right", fontWeight: 700, color: "var(--text-muted)" }}>{fmtKrw(breakdown.fixed.reduce((s, r) => s + r.monthly, 0))}</td>
-                      <td style={{ padding: "11px 16px", textAlign: "right", fontWeight: 700, color: "var(--warning)" }}>{fmtKrw(breakdown.fixedTotal)}</td>
-                      <td style={{ padding: "11px 16px", textAlign: "right", fontWeight: 700, color: "var(--text-dim)" }}>100%</td>
+                    <tfoot><tr className="costs-total-row">
+                      <td className="costs-label">합계</td>
+                      <td className="costs-num">{fmtKrw(breakdown.fixed.reduce((s, r) => s + r.monthly, 0))}</td>
+                      <td className="costs-num">{fmtKrw(breakdown.fixedTotal)}</td>
+                      <td className="costs-num costs-dim">100%</td>
                     </tr></tfoot>
                   </table>
                 )}
               </div>
 
               {/* 변동비 세부내역 */}
-              <div className="costs-variable-breakdown-card glass-card" style={{ overflowX: "auto" }}>
-                <div style={{ padding: "12px 16px", background: "var(--bg-surface)", borderBottom: "1px solid var(--border)", fontWeight: 700, fontSize: 14, color: "var(--info)" }}>
-                  변동비 세부내역 ({year}년)
-                </div>
+              <div className="costs-variable-breakdown-card pnl-panel">
+                <h3>변동비 세부내역 ({year}년)</h3>
                 {breakdown.variable.length === 0 ? (
-                  <div className="py-12 px-5 text-center">
-                    <div className="text-3xl mb-2"><Ico e="💳" /></div>
-                    <div className="text-[13px] font-semibold text-[var(--text)]">집계된 변동비가 없습니다.</div>
-                    <div className="text-xs text-[var(--text-dim)] mt-1.5">카드 사용액·일회성 지출이 쌓이면 여기에 집계됩니다.</div>
+                  <div className="collect-empty">
+                    집계된 변동비가 없습니다. 카드 사용액·일회성 지출이 쌓이면 여기에 집계됩니다.
                   </div>
                 ) : (
-                  <table className="ev-table ev-lined costs-detail-tbl" style={{ fontSize: 13 }}>
+                  <table className="ev-table ev-lined costs-detail-tbl">
                     <thead><tr>
                       <th>항목</th>
                       <th>올해 누계</th>
@@ -367,20 +350,20 @@ export default function CostsPage() {
                     </tr></thead>
                     <tbody>
                       {breakdown.variable.map((r) => (
-                        <tr key={r.category} style={{ borderTop: "1px solid var(--border)", cursor: "pointer" }}
+                        <tr key={r.category}
                           title="클릭하면 이 항목의 산출 내역을 봅니다"
                           className="costs-variable-breakdown-row"
                           onClick={() => setCatDetail({ kind: "variable", category: r.category, label: r.label })}>
-                          <td style={{ padding: "10px 16px", color: "var(--text)" }}>{r.label}</td>
-                          <td style={{ padding: "10px 16px", textAlign: "right", color: "var(--info)", fontWeight: 600 }}>{fmtKrw(r.amount)}</td>
-                          <td style={{ padding: "10px 16px", textAlign: "right", color: "var(--text-dim)" }}>{breakdown.variableTotal > 0 ? `${Math.round(r.amount / breakdown.variableTotal * 100)}%` : "-"}</td>
+                          <td className="costs-label">{r.label}</td>
+                          <td className="costs-num costs-strong">{fmtKrw(r.amount)}</td>
+                          <td className="costs-num costs-dim">{breakdown.variableTotal > 0 ? `${Math.round(r.amount / breakdown.variableTotal * 100)}%` : "-"}</td>
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot><tr style={{ borderTop: "2px solid var(--border)", background: "var(--bg-surface)" }}>
-                      <td style={{ padding: "11px 16px", fontWeight: 700 }}>합계</td>
-                      <td style={{ padding: "11px 16px", textAlign: "right", fontWeight: 700, color: "var(--info)" }}>{fmtKrw(breakdown.variableTotal)}</td>
-                      <td style={{ padding: "11px 16px", textAlign: "right", fontWeight: 700, color: "var(--text-dim)" }}>100%</td>
+                    <tfoot><tr className="costs-total-row">
+                      <td className="costs-label">합계</td>
+                      <td className="costs-num">{fmtKrw(breakdown.variableTotal)}</td>
+                      <td className="costs-num costs-dim">100%</td>
                     </tr></tfoot>
                   </table>
                 )}
@@ -388,30 +371,17 @@ export default function CostsPage() {
             </div>
           )}
 
-          {/* Footer note */}
-          <div
-            className="costs-footer-note"
-            style={{
-              marginTop: 16,
-              padding: "12px 16px",
-              borderRadius: 8,
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border)",
-              fontSize: 12,
-              color: "var(--text-dim)",
-              lineHeight: 1.6,
-            }}
-          >
-            <strong style={{ color: "var(--text-muted)" }}>참고</strong>
+          {/* Footer note — 상자 → 글 */}
+          <div className="costs-footer-note">
+            <strong>참고</strong>
             <br />
-            - 고정비는 <strong style={{ color: "var(--text-muted)" }}>재직 직원 급여</strong>·정기결제·등록 고정비에 <strong style={{ color: "var(--text-muted)" }}>통장 거래에서 &lsquo;고정비&rsquo;로 체크한 지출</strong>을 더해 합산합니다. 급여는 그 달 재직자만(입사·퇴사 달은 일할), 정기결제는 등록한 달부터 셉니다. 정기결제와 이름이 같은 등록 고정비, 그리고 이미 등록된 항목의 실제 통장 출금은 한 번만 셉니다 — 위 월별 표와 이 세부내역은 같은 계산이라 합계가 같습니다.
+            - 고정비는 <strong>재직 직원 급여</strong>·정기결제·등록 고정비에 <strong>통장 거래에서 &lsquo;고정비&rsquo;로 체크한 지출</strong>을 더해 합산합니다. 급여는 그 달 재직자만(입사·퇴사 달은 일할), 정기결제는 등록한 달부터 셉니다. 정기결제와 이름이 같은 등록 고정비, 그리고 이미 등록된 항목의 실제 통장 출금은 한 번만 셉니다 — 위 월별 표와 이 세부내역은 같은 계산이라 합계가 같습니다.
             <br />
             - 변동비는 법인카드 사용액과 일회성 지출(결제 대기, 취소 건 제외)을 합산합니다.
             <br />
-            - <strong style={{ color: "var(--text-muted)" }}>계정 성격이 비용이 아닌 거래는 제외</strong>합니다. 대출 원금 상환·미지급금 상환·보증금·이체는 돈이 나가도 비용이 아니라 재무상태표 항목입니다.
-            
+            - <strong>계정 성격이 비용이 아닌 거래는 제외</strong>합니다. 대출 원금 상환·미지급금 상환·보증금·이체는 돈이 나가도 비용이 아니라 재무상태표 항목입니다.
             <br />
-            - 이 화면은 <strong style={{ color: "var(--text-muted)" }}>지나간 달의 실적</strong>만 봅니다(앞날 전망은 경영흐름). 손익계산서와는 기준이 다릅니다. 여기는 <strong style={{ color: "var(--text-muted)" }}>돈이 나간 시점</strong>, 손익계산서는 세금계산서 발행 시점(발생주의)입니다.
+            - 이 화면은 <strong>지나간 달의 실적</strong>만 봅니다(앞날 전망은 경영흐름). 손익계산서와는 기준이 다릅니다. 여기는 <strong>돈이 나간 시점</strong>, 손익계산서는 세금계산서 발행 시점(발생주의)입니다.
             <br />
             - 금액을 클릭하면 어떤 내역으로 산출됐는지 팝업으로 확인할 수 있습니다.
             <br />

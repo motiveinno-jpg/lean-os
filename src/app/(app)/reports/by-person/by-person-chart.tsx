@@ -33,7 +33,7 @@ export default function ByPersonChart({ people, payByPerson }: ByPersonChartProp
   }
 
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+    <div className="pnl-panel">
       <div className="mb-3">
         <h3 className="text-sm font-bold text-[var(--text)]">인원별 급여</h3>
         <p className="mt-0.5 text-[10px] text-[var(--text-dim)]">

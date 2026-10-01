@@ -6,7 +6,7 @@ import { todayKst } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { useEffect, useState, useCallback, Fragment } from "react";
 import { ReportHead, ReportDateField } from "../_components/ReportHead";
-import { Stat } from "@/components/query-kit";
+import { ResultStrip, Stat } from "@/components/query-kit";
 import { exportRowsToExcel } from "@/lib/excel-export";
 import { fetchJournalLines, countUnposted, bsAmount } from "@/lib/journal-reports";
 import { getAccountingClosing, lineDebit, lineCredit } from "@/lib/accounting-closing";
@@ -588,18 +588,16 @@ function BalanceSheetPageInner() {
       </div>
 
       {/* 합계 요약 — 자산 vs 부채+자본 (표 바로 아래 정적 요약, sticky 제거: 하단 콘텐츠 위로 떠다니고 헤더와 z충돌하던 문제 수정 2026-06-10) */}
+      {/*   2026-10-01 UI 점검 9순위: 칠한 합계 상자 2개 → 결과 요약 한 줄(머리 Stat 과 겹치지 않게 '맞는지'만 보여 준다) */}
       <div className="bs-balance-summary">
-        <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-[var(--primary)]/8 border border-[var(--primary)]/20">
-          <div className="text-xs font-bold text-[var(--primary)]">자산 합계</div>
-          <div className="text-base font-extrabold text-[var(--primary)] mono-number">₩{Math.round(data.totalAssets).toLocaleString("ko-KR")}</div>
-        </div>
-        <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-[var(--warning)]/8 border border-[var(--warning)]/20">
-          <div className="text-xs font-bold text-[var(--warning)]">부채 + 자본 합계</div>
-          <div className="text-base font-extrabold text-[var(--warning)] mono-number">₩{Math.round(data.totalLiabilities + data.totalEquity).toLocaleString("ko-KR")}</div>
-        </div>
+        <ResultStrip>
+          <Stat label="자산 합계" value={`₩${Math.round(data.totalAssets).toLocaleString("ko-KR")}`} />
+          <Stat label="부채 + 자본 합계" value={`₩${Math.round(data.totalLiabilities + data.totalEquity).toLocaleString("ko-KR")}`} />
+          {Math.abs(data.totalAssets - (data.totalLiabilities + data.totalEquity)) <= 1 && <span className="ol-sure ol-sure-ok">차변·대변 일치</span>}
+        </ResultStrip>
         {/* 균형 여부 표시 — 회계 정합성 */}
         {Math.abs(data.totalAssets - (data.totalLiabilities + data.totalEquity)) > 1 && (
-          <div className="md:col-span-2 px-3 py-1.5 rounded-lg bg-[var(--warning)]/10 border border-[var(--warning)]/30 text-[10px] text-[var(--warning)]">
+          <div className="bs-balance-diff">
             <Ico e="⚠" /> 차변(자산) - 대변(부채+자본) 차이 ₩{Math.round(data.totalAssets - (data.totalLiabilities + data.totalEquity)).toLocaleString("ko-KR")} · 자본금 / 이익잉여금 데이터 확인 필요
           
           </div>
@@ -607,7 +605,7 @@ function BalanceSheetPageInner() {
       </div>
 
       {/* Asset vs Liability Composition Bar — 섹션 제목을 카드 안 헤더로 흡수 (2026-07-03 라운드6.5) */}
-      <div className="bs-composition-chart glass-card">
+      <div className="bs-composition-chart pnl-panel">
         <div className="flex items-center justify-between mb-4">
           <h3 className="m-0 text-sm font-bold text-[var(--text)]">자산/부채 구성</h3>
         </div>
@@ -818,7 +816,7 @@ function BalanceSheetPageInner() {
       {/* Monthly Trend Chart — 섹션 제목을 카드 안 헤더로 흡수 (2026-07-03 라운드6.5) */}
       {trend.length > 0 && (
         <div className="bs-trend-section">
-          <div style={{ padding: "20px", borderRadius: 12, background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+          <div className="pnl-panel">
             <div className="flex items-center justify-between mb-4">
               <h3 className="m-0 text-sm font-bold text-[var(--text)]">월별 추이 (최근 6개월)</h3>
             </div>
@@ -847,26 +845,20 @@ function BalanceSheetPageInner() {
       {/* 통합 세부 모달 — 자산/부채 항목 클릭 시 열림 */}
 
       {/* Financial Ratios */}
-      <div className="bs-ratios-section">
-        <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">Ratios</div>
-        <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", margin: "0 0 16px" }}>
-          재무 비율 분석
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/*   2026-10-01 UI 점검 9순위: 비율 KPI 카드 3장 → 분석 판 하나 안 세 칸(세로 선으로 가름) */}
+      <div className="bs-ratios-section pnl-panel">
+        <h3>재무 비율 분석</h3>
+        <div className="bs-ratio-grid">
           {computeRatios(data).map((ratio) => (
-            <div key={ratio.label} className="bs-ratio-card glass-card" style={{ padding: 20 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <div style={{ width: 9, height: 9, borderRadius: "50%", background: HEALTH_COLORS[ratio.health], flexShrink: 0 }} />
-                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.02em", color: "var(--text-muted)" }}>
-                  {ratio.label}
-                </span>
+            <div key={ratio.label} className="bs-ratio-cell">
+              <div className="bs-ratio-label">
+                <span className="bs-ratio-dot" style={{ background: HEALTH_COLORS[ratio.health] }} />
+                {ratio.label}
               </div>
-              <div className="mono-number" style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", color: HEALTH_COLORS[ratio.health], marginBottom: 8 }}>
+              <div className="bs-ratio-value mono-number" style={{ color: HEALTH_COLORS[ratio.health] }}>
                 {ratio.value === 999 ? "N/A" : `${ratio.value}${ratio.unit}`}
               </div>
-              <div style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.5 }}>
-                {ratio.description}
-              </div>
+              <div className="bs-ratio-desc">{ratio.description}</div>
             </div>
           ))}
         </div>
