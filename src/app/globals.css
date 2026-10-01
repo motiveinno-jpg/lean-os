@@ -1419,9 +1419,11 @@ thead th { white-space: nowrap; word-break: keep-all; }
 /* 카드 › 분석 › 사용자별 지출 (2026-09-21) */
 .card-user-spending-panel { @apply p-6; }
 /* 분석 › 부가세 › 증빙 누락 점검 (2026-09-21) */
-.vat-check-grid { @apply grid grid-cols-2 gap-2 px-4 pb-4 md:grid-cols-4; }
-.vat-check-item { @apply flex flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2.5 no-underline; }
-.vat-check-item-warn { @apply border-[var(--warning)]/40; }
+/*   증빙 누락 건수 — 판 안 테두리 타일(상자 안 상자) → 세로 구분선 한 줄(2026-10-01 UI 점검 5순위). 누르면 그 화면으로 */
+.vat-check-grid { @apply grid grid-cols-2 px-2 py-2 md:grid-cols-4; }
+.vat-check-item { @apply flex flex-col gap-1 border-l border-[var(--border)] px-3 py-2 no-underline transition-colors hover:bg-[var(--bg-surface)]; }
+.vat-check-item:first-child { @apply border-l-0; }
+.vat-check-item-warn { @apply border-[var(--border)]; }
 .vat-check-label { @apply text-[11px] text-[var(--text-muted)]; }
 .vat-check-n { @apply text-sm font-bold text-[var(--text)]; }
 .vat-check-item-warn .vat-check-n { @apply text-[var(--warning)]; }
@@ -11308,3 +11310,5 @@ table.ol-items-table { min-width: 760px; table-layout: fixed; }
 .vat-table-wrap { @apply overflow-hidden; }
 .vat-preview-note { @apply mb-3 text-xs leading-relaxed text-[var(--text-muted)]; }
 .vat-structure-panel { @apply mb-6; }
+/*   부가세 판 — 머리 띠(vat-voucher-head)가 판의 머리가 되게 안쪽 여백 0 (pnl-panel 안에 또 상자로 보이지 않게) */
+.vat-voucher-card.pnl-panel { @apply p-0; }
