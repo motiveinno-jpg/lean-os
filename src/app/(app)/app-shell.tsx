@@ -11,6 +11,7 @@ import { Sidebar } from "@/components/sidebar";
 import { FinanceTabs } from "@/components/finance-tabs";
 import { GlobalSearch, openGlobalSearch } from "@/components/global-search";
 import { getRouteCrumb } from "@/lib/route-labels";
+import { SETTINGS_GROUPS, groupPermKeys } from "@/lib/settings-nav";
 import { FloatingMessenger } from "@/components/floating-messenger";
 import { MenuGuide, MenuGuideDrawer } from "@/components/menu-guide";
 import { GuideProvider, useGuide } from "@/components/guide-context";
@@ -163,7 +164,12 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
   if (isMaster) return <>{children}</>;
   if (permsLoading) return null;
   const route = matchCatalogRoute(pathname);
-  if (route && !hasPerm(route)) {
+  //   설정 그룹 화면(/settings/<group>)은 그 그룹 leaf 키 중 하나라도 있으면 연다 — 사이드바 노출 기준(groupPermKeys)과 같게.
+  //   2026-10-06 결재 양식·결재선이 결재 허브에서 옮겨 오며 /approvals:forms·policies 키를 그대로 쓴다(settings-nav fullPerms).
+  //   그 키만 있고 '/settings' 가 없는 사람(실측 1명)이 사이드바엔 보이는데 들어가면 막히던 것을 여기서 받는다.
+  const settingsGrp = SETTINGS_GROUPS.find((g) => pathname === g.route || pathname.startsWith(g.route + "/"));
+  const settingsGrpOk = !!settingsGrp && groupPermKeys(settingsGrp).some((k) => hasPerm(k));
+  if (route && !hasPerm(route) && !settingsGrpOk) {
     return <AccessDenied detail="이 메뉴에 접근 권한이 없습니다. 마스터에게 권한을 요청하세요." />;
   }
   return <>{children}</>;
