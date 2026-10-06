@@ -1105,7 +1105,7 @@ function useShipPanel({ companyId, userId, imports, products, canWrite, onDone }
           }); }} />
       )}
       {sheetOpen && companyId && (
-        <SheetDialog companyId={companyId} userId={userId} count={(selected.length ? selected : shown).length}
+        <SheetDialog companyId={companyId} userId={userId} canWrite={canWrite} count={(selected.length ? selected : shown).length}
           onClose={() => setSheetOpen(false)} onExport={exportWith} />
       )}
       {pasteOpen && (
@@ -1124,8 +1124,10 @@ function useShipPanel({ companyId, userId, imports, products, canWrite, onDone }
 
 
 /** 송장 양식 고르기 · 표준 택배사 양식 + 내 양식. 미리보기(열 머리글)와 [양식 만들기/고치기] */
-function SheetDialog({ companyId, userId, count, onClose, onExport }: {
-  companyId: string; userId: string | null; count: number; onClose: () => void; onExport: (l: SheetLayout) => void;
+//   canWrite — 내 양식(shipping_sheet_layouts)은 회사가 같이 쓰는 설정이라 만들기·고치기·지우기는 입력·수정 권한자만(2026-10-06,
+//   DB 쓰기 정책도 같은 기준). 보기 권한자는 표준·내 양식을 골라 내려받기만 한다(09-30 '송장 파일 누구나' 유지).
+function SheetDialog({ companyId, userId, canWrite, count, onClose, onExport }: {
+  companyId: string; userId: string | null; canWrite: boolean; count: number; onClose: () => void; onExport: (l: SheetLayout) => void;
 }) {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -1142,7 +1144,7 @@ function SheetDialog({ companyId, userId, count, onClose, onExport }: {
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">송장 파일 내려받기 — {count}건</h3>
         <p className="inv-modal-desc" title="고른 양식은 이 컴퓨터에 기억됩니다">
-          택배사 양식을 고르면 그 열 순서로 엑셀을 만듭니다. 안 맞으면 <b>내 양식으로 복사</b>해 고치세요.
+          택배사 양식을 고르면 그 열 순서로 엑셀을 만듭니다.{canWrite ? <> 안 맞으면 <b>내 양식으로 복사</b>해 고치세요.</> : null}
         </p>
         <label className="inv-field"><span>양식</span>
           <select className="field-input" value={pick} onChange={(e) => setPick(e.target.value)}>
@@ -1153,9 +1155,9 @@ function SheetDialog({ companyId, userId, count, onClose, onExport }: {
           {cur.columns.map((c, i) => <span key={i} className="ch-sheet-col"><em>{i + 1}</em>{c.label}<i>{SHEET_FIELDS.find((f) => f.key === c.key)?.label}</i></span>)}
         </div>
         <div className="inv-modal-actions">
-          <button type="button" className="btn-secondary btn-sm" onClick={() => setEditing({ id: "", name: `${cur.name.replace(/ \(.*\)$/, "")} 내 양식`, columns: cur.columns.map((c) => ({ ...c })) })}>내 양식으로 복사</button>
-          {!cur.builtin && <button type="button" className="btn-secondary btn-sm" onClick={() => setEditing({ ...cur, columns: cur.columns.map((c) => ({ ...c })) })}>양식 고치기</button>}
-          {!cur.builtin && <button type="button" className="btn-secondary btn-sm doc-del" onClick={async () => {
+          {canWrite && <button type="button" className="btn-secondary btn-sm" onClick={() => setEditing({ id: "", name: `${cur.name.replace(/ \(.*\)$/, "")} 내 양식`, columns: cur.columns.map((c) => ({ ...c })) })}>내 양식으로 복사</button>}
+          {canWrite && !cur.builtin && <button type="button" className="btn-secondary btn-sm" onClick={() => setEditing({ ...cur, columns: cur.columns.map((c) => ({ ...c })) })}>양식 고치기</button>}
+          {canWrite && !cur.builtin && <button type="button" className="btn-secondary btn-sm doc-del" onClick={async () => {
             if (!(await appConfirm(`'${cur.name}' 양식을 지울까요?`, { danger: true, confirmLabel: "지우기" }))) return;
             try { await deleteSheetLayout(cur.id); qc.invalidateQueries({ queryKey: ["sheet-layouts", companyId] }); setPick("std"); toast("지웠습니다", "success"); }
             catch (e) { toast(friendlyError(e), "error"); }

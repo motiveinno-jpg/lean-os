@@ -86,7 +86,8 @@ export async function upsertChannelCode(companyId: string, c: {
 }
 
 export async function deleteChannelCode(id: string) {
-  const { error } = await supabase.from("product_channel_codes").delete().eq("id", id);
+  const { data, error } = await supabase.from("product_channel_codes").delete().eq("id", id).select("id");
+  if (!error && !(data || []).length) throw new Error("연결을 해제할 권한이 없습니다 (이커머스 입력·수정 권한 필요).");
   if (error) throw error;
 }
 
@@ -347,11 +348,12 @@ export async function revertImport(imp: OrderImport): Promise<{ removedLines: nu
     }
     emptyAfter = removed.length === (moves || []).length;
   }
-  const { error: dErr } = await supabase.from("channel_order_imports").delete().eq("id", imp.id);
-  if (dErr) {
+  //   RLS 가 막으면 오류 없이 0행이 지워진다(2026-10-06 쓰기 = 입력·수정 권한자) — 지운 행 수로 판정한다
+  const { data: delRows, error: dErr } = await supabase.from("channel_order_imports").delete().eq("id", imp.id).select("id");
+  if (dErr || !(delRows || []).length) {
     //   기록을 못 지우면 지운 줄을 되살린다 — 문서는 아직 안 지웠다(아래에서 기록 삭제 뒤에 지운다)
     if (removed.length) await supabase.from("stock_moves").insert(removed);
-    throw dErr;
+    throw dErr || new Error("주문 기록을 지울 권한이 없습니다 (이커머스 입력·수정 권한 필요). 재고 줄은 되돌려 놓았습니다.");
   }
   //   줄이 하나도 안 남은 문서는 지운다. 실패해도 빈 문서라 재고엔 영향이 없다
   if (imp.doc_id && emptyAfter) {
@@ -390,8 +392,10 @@ export async function updateShipping(
   if (patch.ship_status === "shipped") { row.shipped_at = now; row.shipped_by = userId ?? null; row.delivered_at = null; }
   if (patch.ship_status === "done") row.delivered_at = now;
   if (patch.ship_status === "pending") { row.shipped_at = null; row.shipped_by = null; row.delivered_at = null; }
-  const { error } = await supabase.from("channel_order_imports").update(row).in("id", ids);
+  const { data, error } = await supabase.from("channel_order_imports").update(row).in("id", ids).select("id");
   if (error) throw error;
+  //   RLS 가 막으면 오류 없이 0행 — 성공 알림이 거짓말하지 않게(2026-10-06)
+  if ((data || []).length < ids.length) throw new Error(`${ids.length}건 중 ${(data || []).length}건만 바뀌었습니다. 이커머스 입력·수정 권한을 확인하세요.`);
 }
 
 /** 주문별 상품 — 출고 전표 줄의 비고("채널명 주문번호")로 주문번호를 되찾는다. 열쇠 `채널|주문번호` */
@@ -463,7 +467,8 @@ export async function saveSheetLayout(companyId: string, layout: { id?: string; 
   if (error) throw error;
 }
 export async function deleteSheetLayout(id: string) {
-  const { error } = await supabase.from("shipping_sheet_layouts").delete().eq("id", id);
+  const { data, error } = await supabase.from("shipping_sheet_layouts").delete().eq("id", id).select("id");
+  if (!error && !(data || []).length) throw new Error("양식을 지울 권한이 없습니다 (이커머스 입력·수정 권한 필요).");
   if (error) throw error;
 }
 
