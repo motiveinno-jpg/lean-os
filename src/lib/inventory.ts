@@ -116,8 +116,10 @@ export async function upsertProduct(companyId: string, p: Partial<Product> & { i
     (["sku", "name", "category", "spec", "unit", "barcode", "track_stock", "sale_price",
       "cost_price", "overhead_per_unit", "lead_time_days", "auto_suggest", "safety_stock",
       "is_active", "memo"] as (keyof typeof row)[]).forEach(keep);
-    const { error } = await supabase.from("products").update(patch as never).eq("id", p.id);
+    const { data: upd, error } = await supabase.from("products").update(patch as never).eq("id", p.id).select("id");
     if (error) throw error;
+    //   RLS 가 막으면 오류 없이 0행(2026-10-06 품목 쓰기 = 재고 쓰기 키 하나라도)
+    if (!(upd || []).length) throw new Error("품목을 고칠 권한이 없습니다 (재고 입력·수정 권한 필요).");
     return p.id;
   }
   const { data, error } = await supabase.from("products")
@@ -162,8 +164,9 @@ export async function ensureDefaultWarehouse(companyId: string): Promise<Warehou
 export async function upsertWarehouse(companyId: string, w: { id?: string; name: string; code?: string; is_default?: boolean }) {
   const row = { company_id: companyId, name: w.name.trim(), code: w.code?.trim() || null, is_default: !!w.is_default };
   if (w.id) {
-    const { error } = await supabase.from("warehouses").update(row).eq("id", w.id);
+    const { data: upd, error } = await supabase.from("warehouses").update(row).eq("id", w.id).select("id");
     if (error) throw error;
+    if (!(upd || []).length) throw new Error("창고를 고칠 권한이 없습니다 (창고관리 「입·출고와 조정」 권한 필요).");
     return w.id;
   }
   const { data, error } = await supabase.from("warehouses").insert(row).select("id").single();
@@ -502,13 +505,15 @@ export async function updateStockDoc(
   const { data: cur } = await supabase.from("stock_docs").select("doc_no").eq("id", docId).single();
   const docNo = (cur as { doc_no: string } | null)?.doc_no || "";
 
-  const { error: hErr } = await supabase.from("stock_docs").update({
+  const { data: hRows, error: hErr } = await supabase.from("stock_docs").update({
     reason: input.reason, doc_date: docDate,
     partner_id: input.partnerId || null, warehouse_id: input.warehouseId,
     order_id: input.orderId || null, note: input.note?.trim() || null,
     updated_at: new Date().toISOString(),
-  }).eq("id", docId);
+  }).eq("id", docId).select("id");
   if (hErr) throw hErr;
+  //   머리를 못 고쳤으면(RLS 0행) 줄을 건드리기 전에 멈춘다 — 줄만 지워지는 반쪽을 막는다(2026-10-06)
+  if (!(hRows || []).length) throw new Error("이 전표를 고칠 권한이 없습니다 (그 메뉴의 입력·수정 권한 필요).");
 
   //   옛 줄을 걷어내고 새 줄을 깐다 — 사이에 아무도 못 읽게 한 번에 이어서 한다.
   const { error: dErr } = await supabase.from("stock_moves").delete().eq("doc_id", docId);
@@ -554,8 +559,9 @@ export async function getStockDoc(docId: string) {
 
 /** 전표를 지운다 — 줄도 같이 지워지고, 재고는 그만큼 되돌아간다. */
 export async function deleteStockDoc(docId: string) {
-  const { error } = await supabase.from("stock_docs").delete().eq("id", docId);
+  const { data, error } = await supabase.from("stock_docs").delete().eq("id", docId).select("id");
   if (error) throw error;
+  if (!(data || []).length) throw new Error("이 전표를 지울 권한이 없습니다 (그 메뉴의 입력·수정 권한 필요).");
 }
 
 /** 그 갈래의 전표 목록 — 이력 화면이 쓴다. */
@@ -633,11 +639,12 @@ export async function cancelStockDoc(docId: string, reason: string, userId?: str
   if (!d) throw new Error("전표를 찾을 수 없습니다");
   if (d.status === "cancelled") throw new Error("이미 취소한 전표입니다");
   if (d.journal_entry_id) throw new Error("회계 전표가 붙어 있습니다. 매입매출전표에서 먼저 되돌리세요");
-  const { error } = await supabase.from("stock_docs").update({
+  const { data: rows, error } = await supabase.from("stock_docs").update({
     status: "cancelled", cancelled_at: new Date().toISOString(), cancelled_by: userId ?? null,
     cancel_reason: reason.trim() || null, updated_at: new Date().toISOString(),
-  }).eq("id", docId);
+  }).eq("id", docId).select("id");
   if (error) throw error;
+  if (!(rows || []).length) throw new Error("이 전표를 취소할 권한이 없습니다 (그 메뉴의 입력·수정 권한 필요).");
 }
 
 // ── 재고 단가 — 회사 원가 방법 하나로 (결정 27·36) ─────────────────────────────────

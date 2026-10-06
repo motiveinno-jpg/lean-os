@@ -26,6 +26,9 @@ import { listBoms } from "@/lib/inventory-production";
 import { BomEditorDialog } from "../_components/bom-editor";
 import { LabelPrintDialog } from "../_components/label-print";   // 바코드 라벨 PDF (2026-09-22 재고 점검 F)
 
+//   재고 쓰기 키 — 이 중 하나라도 있으면 품목을 고칠 수 있다(DB products_write 와 같은 목록, 2026-10-06)
+const INV_WRITE_KEYS = ["/inventory/sales:write", "/inventory/purchase:write", "/inventory/orders:write", "/inventory/production:write", "/inventory/stock:adjust", "/inventory/channels:write"];
+
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
 
 const PRODUCT_CONDS = [{ key: "state", label: "상태", hint: "비우면 전체", options: [{ value: "active", label: "판매중" }, { value: "inactive", label: "단종" }] }];
@@ -113,6 +116,9 @@ export default function ProductsPage() {
 
   const onSort = (k: string) => setSort((s) => nextSort(s, k as SortKey));
 
+  //   품목 쓰기 = 재고 쓰기 키 하나라도(2026-10-06 사장님 결정 A — 「품목 입력·수정」 키를 따로 만들지 않는다).
+  //   품목엔 판매가·매입가가 있어 문서를 입력하는 사람만 고친다. DB 쓰기 정책(products_write)도 같은 목록이다.
+  const canEdit = isMaster || INV_WRITE_KEYS.some((k) => hasPerm(k));
   if (!permLoading && !(isMaster || hasPerm("/inventory/products"))) {
     return <AccessDenied detail="품목 화면에 대한 권한이 없습니다. 회사 마스터에게 요청하세요." />;
   }
@@ -125,12 +131,14 @@ export default function ProductsPage() {
           <QueryBar right={<>
             {/*   ★ 엑셀 — 양식·올리기·붙여넣기·내려받기를 한 버튼 안에 */}
             <ExcelMenu items={[
-              { label: "양식 내려받기 · 올리기", hint: "양식을 받아 채운 파일을 올립니다.", onClick: () => setXlsOpen(true) },
-              { label: "붙여넣기", hint: "엑셀에서 복사한 줄을 붙여넣습니다.", onClick: () => setPasteOpen(true) },
+              ...(canEdit ? [
+                { label: "양식 내려받기 · 올리기", hint: "양식을 받아 채운 파일을 올립니다.", onClick: () => setXlsOpen(true) },
+                { label: "붙여넣기", hint: "엑셀에서 복사한 줄을 붙여넣습니다.", onClick: () => setPasteOpen(true) },
+              ] : []),
               { label: "조회 결과 내려받기", count: shown.length, disabled: !shown.length, onClick: () => exportToExcel(shown.map((p) => ({ "SKU": p.sku, "품목명": p.name, "분류": p.category || "", "규격": p.spec || "", "단위": p.unit || "", "바코드": p.barcode || "", "판매가": p.sale_price ?? "", "매입가": p.cost_price ?? "", "단위당 노무·경비": p.overhead_per_unit || 0, "안전재고": p.safety_stock ?? "", "수량관리": p.track_stock ? "예" : "아니오", "현재고": qtyOf.get(p.id) ?? 0, "상태": p.is_active ? "판매중" : "단종", "메모": p.memo || "" })), "품목", `품목_${todayKst()}`) },
             ]} />
             <button type="button" className="btn-secondary btn-sm" disabled={!shown.length} onClick={() => setLabelOpen(true)} title="조회된 품목의 바코드 라벨 PDF">라벨 인쇄</button>
-            <button type="button" className="btn-primary btn-sm" onClick={() => setEditing({ track_stock: true, unit: "EA", is_active: true })}>+ 품목 등록</button>
+            {canEdit && <button type="button" className="btn-primary btn-sm" onClick={() => setEditing({ track_stock: true, unit: "EA", is_active: true })}>+ 품목 등록</button>}
           </>}>
             <SimpleCond groups={PRODUCT_CONDS} live={cond} onApply={setCond} />
             <QuickSearch value={q} onApply={setQ} placeholder="품목명 · SKU · 분류 · 규격 · 바코드 · 쉼표로 여러 개, Enter" />
@@ -235,7 +243,7 @@ export default function ProductsPage() {
           save={(v) => upsertProduct(companyId, v, userId)} />
       )}
       {editing && companyId && (
-        <ProductDialog others={products}
+        <ProductDialog others={products} canEdit={canEdit}
           initial={editing}
           bomCount={editing.id ? (bomOf.get(editing.id) || 0) : 0}
           onOpenBom={(p) => setBomFor(p)}
@@ -272,8 +280,10 @@ const PRODUCT_CATS = [
   { key: "상품", hint: "사서 그대로 파는 것" },
   { key: "서비스", hint: "셀 물건이 없는 것" },
 ];
-function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }: {
+function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave, canEdit }: {
   initial: Partial<Product>;
+  /** false 면 보기만 — 저장 버튼 없음(재고 쓰기 키가 하나도 없는 사람) */
+  canEdit: boolean;
   /** 바코드 중복 확인용 — 다른 품목들 */
   others: Product[];
   /** 이 품목에 등록된 자재구성 줄 수 */
@@ -385,8 +395,9 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
           <input className="field-input" value={v.memo || ""} onChange={(e) => set("memo", e.target.value)} /></label>
 
         <div className="inv-modal-actions">
-          <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
-          <button type="button" className="btn-primary btn-sm" disabled={!ready} onClick={() => onSave(v, wantBom && !initial.id && bomCount === 0)}>저장</button>
+          {!canEdit && <span className="ev-dim">보기만 — 품목을 고치려면 재고 입력·수정 권한(판매·구매·주문·생산·조정·이커머스 중 하나)이 필요합니다</span>}
+          <button type="button" className="btn-secondary btn-sm" onClick={onClose}>{canEdit ? "취소" : "닫기"}</button>
+          {canEdit && <button type="button" className="btn-primary btn-sm" disabled={!ready} onClick={() => onSave(v, wantBom && !initial.id && bomCount === 0)}>저장</button>}
         </div>
       </div>
     </div>
