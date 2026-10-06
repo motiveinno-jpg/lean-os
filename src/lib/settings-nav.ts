@@ -11,7 +11,7 @@
 //      lib/permissions.ts(부여 키)·lib/route-labels.ts(제목)만 순환 import 회피용 독립 사전으로 남는다.
 
 export type SettingsLeafKey =
-  | "company-info" | "forms"
+  | "company-info" | "forms" | "approval-forms" | "approval-lines"
   | "team"
   | "cash" | "chart" | "closing" | "tax-partner" | "insurance" | "inventory"
   | "api-keys" | "bank"
@@ -31,6 +31,10 @@ export type SettingsLeaf = {
   desc: string;
   masterOnly?: boolean;
   danger?: boolean;
+  //   fullPerms — `/settings:` 밖의 부여 키(전체 경로). 다른 메뉴에서 옮겨 온 항목이 **원래 키를 그대로** 쓰게 한다.
+  //     결재 양식은 DB 쓰기 정책(approval_forms RLS)이 has_perm('/approvals:forms') 를 본다 — 키를 바꾸면
+  //     화면은 열려도 저장이 막힌다. 그래서 새 키를 만들지 않고 옛 키로 보인다(백필 0건, 2026-10-06).
+  fullPerms?: string[];
 };
 
 export type SettingsGroup = {
@@ -51,6 +55,15 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
       { key: "forms", label: "회사 양식", perms: ["forms"],
         title: "회사 양식", desc: "회사 공용 PDF 양식을 등록하고 관리합니다.",
         icon: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6M9 13h6M9 17h6" },
+      //   결재 양식·결재선 — 2026-10-06 결정 5(사장님 추천안 승인)로 결재 허브 탭에서 옮겨 왔다.
+      //   결재함은 '처리하는 곳'이라 설정 탭이 섞이면 안 된다. 회사 양식 옆에 두어 양식이 한곳에 모이게 했다
+      //   (양식 4곳 통합은 데이터 구조가 달라 하지 않았다). 부여 키는 결재 허브 키 그대로(fullPerms).
+      { key: "approval-forms", label: "결재 양식", perms: [], fullPerms: ["/approvals:forms"],
+        title: "결재 양식", desc: "결재 요청에 쓰는 양식과 입력 칸을 관리합니다.",
+        icon: "M3 3h18v18H3zM3 9h18M9 21V9" },
+      { key: "approval-lines", label: "결재선", perms: [], fullPerms: ["/approvals:policies"],
+        title: "결재선", desc: "결재 종류별로 누가 어떤 순서로 승인할지 정합니다.",
+        icon: "M6 19a3 3 0 100-6 3 3 0 000 6zM18 11a3 3 0 100-6 3 3 0 000 6zM12 19h4.5a3.5 3.5 0 000-7h-9a3.5 3.5 0 010-7H12" },
     ],
   },
   {
@@ -149,7 +162,10 @@ export function groupOfLeaf(leaf: string): SettingsGroup | undefined {
 //     마스터 외 아무에게도 안 보인다(2026-08-21에 실제로 밟은 함정). 그래서 그룹은
 //     "안의 leaf 중 하나라도 부여됐으면 보인다"로 판정한다 — 백필 0건.
 export function groupPermKeys(g: SettingsGroup): string[] {
-  return [...new Set(g.leaves.flatMap((l) => l.perms))].map((p) => `/settings:${p}`);
+  return [...new Set([
+    ...g.leaves.flatMap((l) => l.perms).map((p) => `/settings:${p}`),
+    ...g.leaves.flatMap((l) => l.fullPerms ?? []),
+  ])];
 }
 
 // 옛 ?tab= 딥링크 호환 — 재편 전 키를 leaf 로 매핑. 지우지 않는다(대표 즐겨찾기·알림 주소가 산다).
@@ -158,12 +174,13 @@ export const TAB_COMPAT: Record<string, SettingsLeafKey> = {
   danger: "delete-company", data: "delete-company",
   departments: "team", deal: "chart", tax: "closing",   // 2026-08-13 탭 통합
   ads: "api-keys",                                      // 2026-08-24 광고 계정 → API 키 탭으로 합침
+  approval: "approval-lines",                           // 2026-10-06 결재선이 설정으로 돌아옴(결정 5) — 옛 ?tab=approval
 };
 
 // 다른 화면으로 이관된 옛 키 — 그 주소로 보낸다.
 export const TAB_MOVED: Record<string, string> = {
   account: "/mypage", notifications: "/mypage",          // 개인 설정 — 마이페이지로 이관(2026-07-08)
-  approval: "/approvals?tab=policies",                    // 결재 정책 — 결재 허브로 일원화(2026-08-12)
+  //   approval(결재 정책) — 2026-08-12 결재 허브로 갔다가 2026-10-06 결정 5로 설정 › 결재선에 돌아왔다(TAB_COMPAT 가 받는다)
   //   근태·가산수당 — 2026-08-24 인사관리로 이관. 출퇴근 기준을 찾아온 사람은 근무 기준으로 보낸다
   //   (가산수당은 구성원 › 급여로 갔지만, 옛 탭 하나를 두 곳으로 보낼 수는 없어 더 자주 찾는 쪽으로 보낸다).
   attendance: "/attendance?view=rules",

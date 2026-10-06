@@ -135,8 +135,10 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "references", label: "참조" },
         { key: "all", label: "전체 현황" },
         { key: "new-request", label: "새 요청" },
-        { key: "forms", label: "양식 관리" },
-        { key: "policies", label: "결재 정책" },
+        //   2026-10-06 결정 5: 이 두 화면은 설정 › 회사 기초정보 › 결재 양식·결재선으로 옮겼다.
+        //   키는 그대로 둔다 — 결재 양식 쓰기 RLS 가 has_perm('/approvals:forms') 를 본다(settings-nav fullPerms).
+        { key: "forms", label: "결재 양식", desc: "설정 › 회사 기초정보 › 결재 양식 (옛 결재 허브 양식 관리)" },
+        { key: "policies", label: "결재선", desc: "설정 › 회사 기초정보 › 결재선 (옛 결재 허브 결재선 관리)" },
       ] },
       // 게시판 자체는 전원 기본, 상단 고정만 부여 대상 (아무나 고정·해제하던 문제)
       { route: "/board", label: "게시판", always: true, tabs: [

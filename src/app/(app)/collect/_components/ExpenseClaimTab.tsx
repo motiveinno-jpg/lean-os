@@ -258,7 +258,7 @@ export function ExpenseClaimTab({ companyId, from, to, tabsNode, onRange }: {
         <Stat label="합계" value={won(shown.reduce((s, r) => s + r.amount, 0))} />
         <Stat label="전표 대기" value={`${won(pending.length)}건`} />
         {formIds.length === 0 && (
-          <span className="ev-draft-note">경비 양식이 없습니다. <Link href="/approvals?tab=forms" className="bz-link">결재 허브 &gt; 양식 관리</Link>에서 양식에 '경비 양식'을 켜면 승인된 건이 여기에 올라옵니다.</span>
+          <span className="ev-draft-note">경비 양식이 없습니다. <Link href="/settings/company?tab=approval-forms" className="bz-link">설정 &gt; 결재 양식</Link>에서 양식에 '경비 양식'을 켜면 승인된 건이 여기에 올라옵니다.</span>
         )}
       </ResultStrip>
       </QueryHead>

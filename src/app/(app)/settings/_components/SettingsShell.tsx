@@ -25,6 +25,8 @@ import { ApiKeysTab } from "./ApiKeysTab";
 import { TeamManagement } from "./TeamManagement";
 import { DepartmentsTab } from "./DepartmentsTab";
 import { FormTemplateManager } from "@/components/form-template-manager";
+import { ApprovalFormsManager } from "@/components/approval-forms-manager";
+import { ApprovalPoliciesManager } from "@/components/approval-policies-manager";
 import { DealClassificationManager } from "./DealClassificationManager";
 import { ProjectSalesAccountCard } from "./ProjectSalesAccountCard";
 import { CompanyDeleteTab } from "./CompanyDeleteTab";
@@ -84,7 +86,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
   //   통합 탭은 구성 키 중 하나라도 부여돼 있으면 노출 (옛 부여 존중).
   const  { isMaster: permMaster, hasPerm: permHas, loading: permLoading } = useMyPermissions();
   const visibleTabs = groupLeaves.filter((t) =>
-    t.masterOnly ? permMaster : (permMaster || t.perms.some((p) => permHas(`/settings:${p}`))));
+    t.masterOnly ? permMaster : (permMaster || t.perms.some((p) => permHas(`/settings:${p}`)) || (t.fullPerms ?? []).some((k) => permHas(k))));
   const firstAllowedLeaf = visibleTabs[0]?.key;
   useEffect(() => {
     const allowed = visibleTabs.some((t) => t.key === tab);
@@ -103,6 +105,10 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
   const [showRuleForm, setShowRuleForm] = useState(false);
   const [ruleForm, setRuleForm] = useState({ cost_type: "default", bank_account_id: "" });
   const queryClient = useQueryClient();
+  //   결재선 저장 뒤 결재 화면들이 낡은 결재선을 쥐고 있지 않게 — 결재 허브 invalidate 와 같은 키
+  const invalidateApprovals = () => {
+    ["approval-policies", "my-pending-approvals", "my-requests", "all-requests", "approval-stats"].forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
+  };
   const [pageLoading, setPageLoading] = useState(true);
 
   useEffect(() => {
@@ -767,6 +773,10 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
 
         {/* ═══ 회사 양식 ═══ */}
         {tab === "forms" && <FormTemplateManager companyId={companyId} />}
+
+        {/* ═══ 결재 양식·결재선 — 결재 허브에서 옮겨 옴 (2026-10-06 결정 5) ═══ */}
+        {tab === "approval-forms" && companyId && <ApprovalFormsManager companyId={companyId} />}
+        {tab === "approval-lines" && companyId && <ApprovalPoliciesManager companyId={companyId} invalidate={invalidateApprovals} />}
 
         {tab === "delete-company" && companyId && permMaster && <CompanyDeleteTab companyId={companyId} />}
       </div>
