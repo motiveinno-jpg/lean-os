@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { contractViewState } from "../contract-view-state";
+import { canResendSignature } from "../signatures";
 
 const now = new Date("2026-09-29T00:00:00Z");
 
@@ -9,7 +10,7 @@ describe("contractViewState", () => {
     expect(v.kind).toBe("expired");
     expect(v.title).not.toContain("서명된");
     expect(v.canOurSign).toBe(false);
-    expect(v.resend?.href).toBe("/signatures?bulk=1");
+    expect(v.resend?.action).toBe("resend_request");
     expect(v.notice).not.toContain("발송자에게");
   });
   it("기한 지난 발송 건도 만료로 본다", () => {
@@ -38,5 +39,21 @@ describe("contractViewState", () => {
     expect(contractViewState({ source: "quote_approval", status: "fully_signed", now }).canOurSign).toBe(false);
     expect(contractViewState({ source: "quote_approval", status: "expired", now }).canOurSign).toBe(false);
     expect(contractViewState({ source: "quote_approval", status: "sent", now }).canOurSign).toBe(false);
+  });
+});
+
+describe("canResendSignature", () => {
+  const t = new Date("2026-10-06T00:00:00Z").getTime();
+  it("만료·취소(expired)는 다시 보낼 수 있다", () => {
+    expect(canResendSignature({ status: "expired" }, t)).toBe(true);
+  });
+  it("기한 지난 발송·열람 건도 다시 보낼 수 있다", () => {
+    expect(canResendSignature({ status: "sent", expires_at: "2026-10-01T00:00:00Z" }, t)).toBe(true);
+    expect(canResendSignature({ status: "viewed", expires_at: "2026-10-01T00:00:00Z" }, t)).toBe(true);
+  });
+  it("아직 기한 안의 발송 건·서명 완료·거절은 안 된다", () => {
+    expect(canResendSignature({ status: "sent", expires_at: "2026-10-20T00:00:00Z" }, t)).toBe(false);
+    expect(canResendSignature({ status: "signed", signed_at: "2026-10-01T00:00:00Z" }, t)).toBe(false);
+    expect(canResendSignature({ status: "rejected" }, t)).toBe(false);
   });
 });

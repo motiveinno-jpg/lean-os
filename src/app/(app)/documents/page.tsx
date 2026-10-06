@@ -1036,6 +1036,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                         create: { icon: "📝", color: "text-blue-400", label: "생성" },
                         sign: { icon: "✍️", color: "text-green-400", label: "서명" },
                         remind: { icon: "🔔", color: "text-amber-400", label: "리마인더" },
+                        resend: { icon: "🔄", color: "text-sky-400", label: "다시 보냄" },
                         update: { icon: "🔄", color: "text-[var(--text-muted)]", label: "변경" },
                       };
                       const meta = ACTION_META[log.action] || { icon: "•", color: "text-[var(--text-muted)]", label: log.action };

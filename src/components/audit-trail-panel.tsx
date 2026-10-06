@@ -23,7 +23,7 @@ const TYPE_LABEL: Record<string, string> = {
 };
 const ACTION_LABEL: Record<string, string> = {
   create: "생성", created: "생성", update: "수정", delete: "삭제", lock: "잠금", unlock: "잠금 해제", approve: "승인", approved: "승인", rejected: "반려", confirmed: "확정",
-  ai_suggested: "초안", issue: "발행", issued: "발급", sign: "서명", remind: "재알림", file_uploaded: "올림", file_deleted: "삭제", folder_deleted: "폴더 삭제",
+  ai_suggested: "초안", issue: "발행", issued: "발급", sign: "서명", remind: "재알림", resend: "다시 보냄", file_uploaded: "올림", file_deleted: "삭제", folder_deleted: "폴더 삭제",
   execute_success: "지급 성공", issue_certificate: "증명서 발급", amount_changed: "금액 수정",
 };
 const COND_GROUPS = [{ key: "type", label: "종류", hint: "비우면 전체", options: Object.entries(TYPE_LABEL).map(([value, label]) => ({ value, label })) }];

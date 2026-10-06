@@ -230,6 +230,95 @@ export async function sendSignatureEmail(signatureRequestId: string): Promise<{ 
   return { success: false, error: `이메일 발송 실패 (서명 링크는 생성됨, 재시도 필요): ${lastErr?.message || lastErr || '알 수 없는 오류'}` };
 }
 
+// ── 만료된 계약 다시 보내기 ──
+//   만료(취소 포함)된 요청은 되살리지 않고 새 요청을 만든다 — 서명자·문서는 DB 가드가 바꾸지 못하게 막고,
+//   옛 요청은 만료 기록으로 그대로 남아야 한다. 새 요청은 새 서명 링크·새 만료일(14일)로 같은 서명자에게 간다.
+//   본문은 처음 보낸 그대로(template_snapshot_html) — 없으면 createSignatureRequest 가 지금 문서로 다시 만든다.
+//   만료일이 지났는데 상태가 아직 발송·열람인 요청은 먼저 만료로 정리해 살아 있는 링크가 둘이 되지 않게 한다.
+//   새 요청도 이번 달 전자계약 한도에 들어간다(INSERT 트리거).
+export function canResendSignature(r: { status?: string | null; signed_at?: string | null; expires_at?: string | null }, now = Date.now()): boolean {
+  if (r.signed_at || r.status === 'signed' || r.status === 'rejected') return false;
+  if (r.status === 'expired') return true;
+  return ['pending', 'sent', 'viewed'].includes(String(r.status)) && !!r.expires_at && new Date(r.expires_at).getTime() < now;
+}
+
+export async function resendExpiredSignature(params: { requestId: string; createdBy: string }): Promise<{ id: string; emailSent: boolean; error?: string }> {
+  const old = await getSignatureRequest(params.requestId);
+  if (!old) throw new Error('계약 요청을 찾을 수 없습니다.');
+  if (!canResendSignature(old as any)) throw new Error('만료된 계약만 다시 보낼 수 있습니다.');
+  const oldSnap = ((old as any).template_snapshot_html as string | null) || null;
+  if (!old.document_id && !oldSnap) {
+    throw new Error('계약서 문서도 보낸 본문도 남아 있지 않은 옛 요청이라 다시 보낼 수 없습니다. 새 계약 요청으로 보내 주세요.');
+  }
+
+  // 같은 계약·같은 서명자에게 이미 살아 있는 요청이 있으면 또 만들지 않는다(두 번 누름·이미 다시 보냄)
+  let liveQ = db.from('signature_requests').select('id, status, expires_at')
+    .eq('company_id', old.company_id).eq('signer_email', old.signer_email).neq('id', old.id)
+    .in('status', ['pending', 'sent', 'viewed']);
+  liveQ = old.document_id ? liveQ.eq('document_id', old.document_id) : liveQ.is('document_id', null).eq('title', old.title);
+  const live = logRead('lib/signatures:resendLive', await liveQ.limit(20));
+  if (((live || []) as any[]).some((r) => !r.expires_at || new Date(r.expires_at).getTime() >= Date.now())) {
+    throw new Error('이 서명자에게 이미 서명 대기 중인 같은 계약이 있습니다. 목록에서 확인해 주세요.');
+  }
+
+  if (old.status !== 'expired') {
+    const { error: expErr } = await db.from('signature_requests').update({ status: 'expired' }).eq('id', old.id);
+    if (expErr) throw expErr;
+  }
+
+  let created: { id: string };
+  if (old.document_id) {
+    created = await createSignatureRequest({
+      companyId: old.company_id,
+      documentId: old.document_id,
+      title: old.title,
+      signerName: old.signer_name,
+      signerEmail: old.signer_email,
+      signerPhone: old.signer_phone || undefined,
+      createdBy: params.createdBy,
+    });
+  } else {
+    // 계약서 문서는 지워졌지만 보낸 본문이 남은 요청 — 본문만으로 서명 화면이 열린다
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 14);
+    const { data, error } = await db.from('signature_requests').insert({
+      company_id: old.company_id,
+      document_id: null,
+      title: old.title,
+      status: 'pending',
+      signer_name: old.signer_name,
+      signer_email: old.signer_email,
+      signer_phone: old.signer_phone || null,
+      sign_token: generateSignToken(),
+      expires_at: expiresAt.toISOString(),
+      created_by: params.createdBy,
+      template_snapshot_html: oldSnap,
+    } as never).select('id').single();
+    if (error) throw error;
+    created = data as { id: string };
+  }
+  const carry: Record<string, unknown> = {};
+  if ((old as any).partner_id) carry.partner_id = (old as any).partner_id;
+  if (oldSnap && old.document_id) carry.template_snapshot_html = oldSnap;
+  if (Object.keys(carry).length) {
+    const { error: upErr } = await db.from('signature_requests').update(carry as never).eq('id', created.id);
+    if (upErr) throw upErr;
+  }
+
+  await logAudit({
+    company_id: old.company_id,
+    user_id: params.createdBy,
+    action: 'resend',
+    entity_type: 'signature',
+    entity_id: created.id,
+    entity_name: old.title,
+    metadata: { from_request_id: old.id, signer_email: old.signer_email, document_id: old.document_id },
+  });
+
+  const r = await sendSignatureEmail(created.id);
+  return { id: created.id, emailSent: r.success, error: r.error };
+}
+
 // ── Get Signature Requests ──
 export async function getSignatureRequests(companyId: string, status?: string) {
   // 목록 전용 컬럼만 — 거대 HTML/base64 컬럼(signed_contract_html, template_snapshot_html,

@@ -15,7 +15,9 @@ import { friendlyError, reportError }  from "@/lib/friendly-error";
 import  { SignatureCapture, type SignatureMethod } from "@/components/signature-capture";
 import { useToast } from "@/components/toast";
 import { usePrintIsolation } from "@/lib/use-print-isolation";
-import { resolveSealUrl } from "@/lib/signatures";
+import { resolveSealUrl, resendExpiredSignature } from "@/lib/signatures";
+import { useUser } from "@/components/user-context";
+import { appConfirm } from "@/components/global-confirm";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { contractViewState } from "@/lib/contract-view-state";
 
@@ -140,6 +142,26 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
   const [ourSigDataUrl, setOurSigDataUrl] = useState<string | null>(null);
   const [submittingOurSig, setSubmittingOurSig] = useState(false);
   const { toast } = useToast();
+  const { user: me } = useUser();
+  const [resending, setResending] = useState(false);
+  const [resentId, setResentId] = useState<string | null>(null);
+
+  // 만료된 전자계약 요청 — 같은 계약서·같은 서명자에게 새 링크로 다시 보낸다(옛 요청은 만료 기록으로 남음)
+  const resendRequest = async () => {
+    if (!row || !me?.id || resending) return;
+    if (!(await appConfirm(`${row.recipient_name || "서명자"}님(${row.signer_email || "이메일 없음"})에게 처음 보낸 내용 그대로 새 서명 링크를 보낼까요?\n새 요청은 14일 뒤 만료되고, 이번 달 전자계약 발송 건수에 들어갑니다.`, { confirmLabel: "다시 보내기" }))) return;
+    setResending(true);
+    try {
+      const r = await resendExpiredSignature({ requestId: row.id, createdBy: me.id });
+      setResentId(r.id);
+      if (r.emailSent) toast("새 서명 링크를 보냈습니다", "success");
+      else toast(r.error || "요청은 만들었지만 메일 발송에 실패했습니다 — 목록에서 리마인더로 다시 보내 주세요", "error");
+    } catch (e) {
+      toast(friendlyError(e, "다시 보내지 못했습니다"), "error");
+    } finally {
+      setResending(false);
+    }
+  };
 
   const submitOurSignature = async () => {
     if (!row || !ourSigMethod || !ourSigDataUrl) return;
@@ -339,9 +361,12 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
           {view.notice && (
             <div className="text-[11px] text-[var(--text-muted)] mt-1 print:hidden">
               {view.notice}
-              {view.resend && (
+              {view.resend?.href && (
                 <Link href={view.resend.href} className="ml-1.5 text-[var(--primary)] hover:underline font-semibold">{view.resend.label} →</Link>
               )}
+              {view.resend?.action === "resend_request" && (resentId
+                ? <span className="ml-1.5 font-semibold text-[var(--success)]">다시 보냈습니다 · 전자계약 목록에 새 요청이 생겼습니다</span>
+                : <button type="button" onClick={resendRequest} disabled={resending || !me?.id} className="ml-1.5 text-[var(--primary)] hover:underline font-semibold disabled:opacity-50">{resending ? "보내는 중…" : `${view.resend.label} →`}</button>)}
             </div>
           )}
         </div>

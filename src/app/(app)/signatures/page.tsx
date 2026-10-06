@@ -41,8 +41,7 @@ import {
   finalizeFullySignedDocuments,
   getPaperSignatureUrl,
   SIGNATURE_STATUS,
-  type SignatureStatusValue,
-} from "@/lib/signatures";
+  type SignatureStatusValue, resendExpiredSignature, canResendSignature } from "@/lib/signatures";
 import { getContractIssuanceStatus } from "@/lib/billing";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
@@ -502,6 +501,17 @@ function SignaturesDashboardInner() {
     onError: (err: any) => toast("일괄 리마인더 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
+  //   만료된 계약 다시 보내기 — 같은 계약서·같은 서명자에게 새 링크(옛 요청은 만료 기록으로 남음)
+  const resendMut = useMutation({
+    mutationFn: (id: string) => resendExpiredSignature({ requestId: id, createdBy: userId! }),
+    onSuccess: (r) => {
+      if (r.emailSent) toast("새 서명 링크를 보냈습니다", "success");
+      else toast(r.error || "요청은 만들었지만 메일 발송에 실패했습니다 — 리마인더로 다시 보내 주세요", "error");
+      qc.invalidateQueries({ queryKey: ["signature-requests"] });
+    },
+    onError: (err: any) => toast(friendlyError(err, "다시 보내지 못했습니다"), "error"),
+  });
+
   const cancelMut = useMutation({
     mutationFn: (id: string) => cancelSignature(id),
     onSuccess: () => {
@@ -781,7 +791,10 @@ function SignaturesDashboardInner() {
                               {canRemind && (
                                 <button onClick={async () => { if (await appConfirm(`${r.signer_name}님에게 리마인더를 발송하시겠습니까?`, { confirmLabel: "발송" })) reminderMut.mutate(r.id); }} disabled={reminderMut.isPending} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition disabled:opacity-50" aria-label="리마인더 발송" title="리마인더 발송"><Ico e="🔔" /></button>
                               )}
-                              {r.sign_token && r.status !== 'signed' && (
+                              {userId && canResendSignature(r) && (
+                                <button onClick={async () => { if (await appConfirm(`${r.signer_name || "서명자"}님(${r.signer_email || "이메일 없음"})에게 처음 보낸 내용 그대로 새 서명 링크를 보낼까요?\n새 요청은 14일 뒤 만료되고, 이번 달 전자계약 발송 건수에 들어갑니다.`, { confirmLabel: "다시 보내기" })) resendMut.mutate(r.id); }} disabled={resendMut.isPending} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition disabled:opacity-50" aria-label="다시 보내기" title="만료된 계약 다시 보내기 — 같은 내용·같은 서명자에게 새 링크"><Ico e="🔄" /></button>
+                              )}
+                              {r.sign_token && r.status !== 'signed' && !canResendSignature(r) && (
                                 <a href={`/sign?token=${r.sign_token}`} target="_blank" rel="noopener noreferrer" className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="서명 링크 열기" title="서명 링크"><Ico e="🔗" /></a>
                               )}
                               {['pending', 'sent', 'viewed'].includes(r.status) && (

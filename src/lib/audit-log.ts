@@ -7,7 +7,7 @@ import { supabase } from './supabase';
 export type AuditAction =
   | 'create' | 'update' | 'delete' | 'approve' | 'reject'
   | 'sign' | 'send' | 'lock' | 'unlock' | 'login' | 'export'
-  | 'remind' | 'revoke' | 'view';
+  | 'remind' | 'resend' | 'revoke' | 'view';
 
 export interface AuditLogEntry {
   company_id: string;

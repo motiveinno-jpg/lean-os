@@ -32,8 +32,8 @@ export interface ContractViewState {
   notice: string | null;
   /** '우리 서명' 버튼 노출 여부 — 서버가 받아 주는 상태에서만. */
   canOurSign: boolean;
-  /** 같은 내용으로 다시 보내는 곳 — 실제 발송 화면이 있는 경우만. */
-  resend: { href: string; label: string } | null;
+  /** 다시 보내는 길 — 실제로 되는 것만. href 는 그 화면으로 이동, action 은 이 자리에서 바로 다시 보낸다. */
+  resend: { href: string; label: string; action?: undefined } | { action: "resend_request"; label: string; href?: undefined } | null;
 }
 
 export function contractViewState(i: ContractViewInput, opts: { dealId?: string | null } = {}): ContractViewState {
@@ -82,10 +82,10 @@ export function contractViewState(i: ContractViewInput, opts: { dealId?: string 
         kind,
         title: isReq ? "만료된 계약 요청" : "만료된 계약서",
         notice: isReq
-          ? "서명 기한이 지났거나 취소된 요청이라 더 이상 서명할 수 없습니다. 같은 내용이 필요하면 새 계약 요청으로 다시 보내세요."
+          ? "서명 기한이 지났거나 취소된 요청이라 이 링크로는 더 이상 서명할 수 없습니다. 같은 내용·같은 서명자에게 새 링크로 다시 보낼 수 있습니다."
           : "서명 기한이 지나 더 이상 서명할 수 없습니다.",
         canOurSign: false,
-        resend: isReq ? newRequest : projectLink,
+        resend: isReq ? { action: "resend_request", label: "같은 내용으로 다시 보내기" } : projectLink,
       };
     case "rejected":
       return {
