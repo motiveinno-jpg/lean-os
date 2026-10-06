@@ -116,6 +116,13 @@ async function main() {
   if (!hungRes.ok) checks.hung_5s = { ok: false, error: hungRes.error };
   else { const n = hungRes.data?.[0]?.h ?? -1; checks.hung_5s = { ok: n === 0, value: n }; }
 
+  // 5) 세무대리인 쓰기 가드(advisor_ro_*)가 PERMISSIVE 면 회사 격리와 OR 로 묶여 아무 회사·비로그인 INSERT 가 통과한다
+  //    (2026-10-06 23개 표 사고 — 20261006110000). 운영 DB 에서 0건이어야 한다. 정적 검사는 check:rls-advisor.
+  const advRes = await runSql(pat,
+    `SELECT count(*)::int AS bad, json_agg(tablename||'.'||policyname) AS hits FROM pg_policies WHERE schemaname='public' AND policyname LIKE 'advisor_ro_%' AND permissive='PERMISSIVE';`);
+  if (!advRes.ok) checks.advisor_guard_restrictive = { ok: false, error: advRes.error };
+  else { const n = advRes.data?.[0]?.bad ?? -1; checks.advisor_guard_restrictive = { ok: n === 0, value: n, hits: n ? advRes.data?.[0]?.hits : undefined }; }
+
   const allOk = Object.values(checks).every(c => c.ok);
   const summary = { ok: allOk, ts: new Date().toISOString(), checks };
 
