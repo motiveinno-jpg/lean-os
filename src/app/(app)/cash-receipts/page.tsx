@@ -3,7 +3,7 @@ import { SortableTh, nextSort, cmp, type SortState, useColFilters } from "@/comp
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, SavedTabs, ConditionSave,
   ConditionPanel, ConditionRow, TokenField, AmountRange, amountHit, AppliedChips, QuickSearch, quickSearchHit, quickTerms,
-  RowsPerPage, Pager, usePager, useSavedQueries, SelectionBar, defaultRange, periodQuicks,
+  RowsPerPage, Pager, usePager, useSavedQueries, defaultRange, periodQuicks,
   type AppliedChip,
 } from "@/components/query-kit";
 import { todayKst } from "@/lib/kst";
@@ -11,6 +11,7 @@ import { logRead } from "@/lib/log-read";
 import { fetchPaged } from "@/lib/fetch-paged";
 
 import { useEffect, useRef, useState, useMemo } from "react";
+import Link from "next/link";
 import { DateField } from "@/components/date-field";
 import { DateRangeField } from "@/components/date-range-field";
 import { friendlyError } from "@/lib/friendly-error";
@@ -294,65 +295,11 @@ export default function CashReceiptsPage() {
   const clearAll = () => { setQ(""); setLive(EMPTY_COND); setDraft(EMPTY_COND); };
   const toggleIn = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
-  // ─── 체크박스 다중선택 + 일괄 전표처리 (post_cash_voucher) ───
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [showBulkPost, setShowBulkPost] = useState(false);
-  const [bulkAccountId, setBulkAccountId] = useState("");
-  const [bulkPosting, setBulkPosting] = useState(false);
-  // 탭·기간 변경 시 선택 초기화
-  useEffect(() => { setSelectedIds(new Set()); }, [tab, startDate, endDate]);
-
-  //   고를 수 없는 건 = 이미 전표가 있거나, **없던 일이 된 건**(우리가 취소·무효 처리 → sign 0).
-  //   홈택스 취소거래는 원본을 깎는 **마이너스 전표**가 필요하므로 고를 수 있다. (2026-08-12)
-  //   post_cash_voucher 도 같은 기준으로 판정한다(sign 0 이면 CANCELLED_RECEIPT).
-  const isPosted = (r: any) => !!r.journal_entry_id || cashReceiptSign(r) === 0;
-  const selectableReceipts = displayReceipts.filter((r: any) => !isPosted(r));
-  const selectedReceipts = selectableReceipts.filter((r: any) => selectedIds.has(r.id));
-  const allSelected = selectableReceipts.length > 0 && selectableReceipts.every((r: any) => selectedIds.has(r.id));
-  const someSelected = selectableReceipts.some((r: any) => selectedIds.has(r.id)) && !allSelected;
-  const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-  const toggleSelectAll = () => {
-    setSelectedIds((prev) => {
-      if (selectableReceipts.every((r: any) => prev.has(r.id))) return new Set();
-      return new Set(selectableReceipts.map((r: any) => r.id));
-    });
-  };
-
-  // 전표처리용 계정과목
-  const { data: coaAccounts = [] } = useQuery({
-    queryKey: ["cash-receipt-coa-accounts", companyId],
-    queryFn: async () => {
-      const db = supabase;
-      const data = logRead('cash-receipts/page:data', await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId ?? "").order("code"));
-      return (data || []) as any[];
-    },
-    enabled: !!companyId, staleTime: 300_000,
-  });
-
-  const doBulkPost = async () => {
-    if (!bulkAccountId || bulkPosting) { if (!bulkAccountId) toast("계정과목을 선택하세요", "error"); return; }
-    setBulkPosting(true);
-    const db = supabase;
-    let ok = 0, fail = 0, skip = 0;
-    try {
-      const ids = Array.from(selectedIds);
-      for (const id of ids) {
-        const r = (receipts as any[]).find((x) => x.id === id);
-        if (!r || isPosted(r)) { skip++; continue; }
-        const { error } = await db.rpc("post_cash_voucher", { p_cash_receipt_id: id, p_account_id: bulkAccountId, p_remember: false });
-        if (error) fail++; else ok++;
-      }
-      toast(`${ok}건 전표처리 완료${fail > 0 ? ` · ${fail}건 실패` : ""}${skip > 0 ? ` · ${skip}건 건너뜀` : ""}`, fail > 0 ? "info" : "success");
-      setShowBulkPost(false); setBulkAccountId(""); setSelectedIds(new Set());
-      queryClient.invalidateQueries({ queryKey: ["cash-receipts"] });
-    } finally { setBulkPosting(false); }
-  };
+  //   2026-10-06 결정 1(사장님 추천안 승인): 여기서 고른 건을 전표로 만들던 「전표처리」(post_cash_voucher, 계정 1개 일괄)를 뺐다.
+  //   전표를 만드는 입구는 수집·전표 하나 — 거기선 부가세 유형·공제 여부까지 같이 정한다. 세금·증빙(tax-invoices)도 같은 이유로 먼저 뺐다.
+  //   고를 일이 전표뿐이었으므로 체크 칸·선택 바도 같이 뺐다. 전표 안 된 건수는 결과 줄에서 수집·전표로 바로 보낸다.
+  //   전표 안 된 건 = 전표가 없고 **없던 일이 된 건**(우리가 취소·무효 → sign 0)이 아닌 것. 홈택스 취소거래는 마이너스 전표가 필요하므로 센다(2026-08-12).
+  const unpostedCount = displayReceipts.filter((r: any) => !r.journal_entry_id && cashReceiptSign(r) !== 0).length;
 
   // Summary
   const { data: summary } = useQuery({
@@ -772,6 +719,10 @@ export default function CashReceiptsPage() {
           ) : undefined}>
             <Stat label="건수" value={`${displayReceipts.length.toLocaleString("ko")}건`} />
             <Stat label="합계" value={`₩${displayReceipts.reduce((s0: number, r: any) => s0 + cashReceiptSign(r) * Number(r.amount || 0), 0).toLocaleString()}`} />
+            {unpostedCount > 0 && (
+              <Stat label="전표 안 된 건" title="전표는 수집·전표 › 현금영수증에서 만듭니다"
+                value={<Link href="/collect?tab=cash_receipt" className="cash-receipt-unposted-link">{unpostedCount.toLocaleString("ko")}건 · 수집·전표에서 처리 →</Link>} />
+            )}
             {summary && <>
               <Stat label={`매출 발행 ${summary.incomeCount.toLocaleString()}건`} value={`₩${summary.incomeTotal.toLocaleString()}`} />
               <Stat label={`매입 수취 ${summary.expenseCount.toLocaleString()}건`} value={`₩${summary.expenseTotal.toLocaleString()}`} />
@@ -979,10 +930,6 @@ export default function CashReceiptsPage() {
               <table className="ev-table ev-lined cr-table">
                 <thead>
                   <tr>
-                    <th className="w-9">
-                      <button type="button" aria-label="전체 선택" onClick={toggleSelectAll}
-                        className={allSelected ? "collect-chk collect-chk-on" : "collect-chk"}>{allSelected ? "✓" : someSelected ? "–" : ""}</button>
-                    </th>
                     {crSortTh("issue_date", "발행일")}
                     {crSortTh("counterparty_name", "거래처")}
                     {crSortTh("amount", "합계금액")}
@@ -1003,19 +950,11 @@ export default function CashReceiptsPage() {
                     const amtCls = neg ? " text-[var(--danger)]" : "";
                     const show = (v: unknown) => (neg ? -Number(v || 0) : Number(v || 0)).toLocaleString();
                     const posted = !!r.journal_entry_id;
-                    const selectable = !isPosted(r);
-                    const checked = selectedIds.has(r.id);
                     return (
                       <tr
                         key={r.id}
-                        className={checked ? "cash-receipt-row ev-on" : "cash-receipt-row"}
+                        className="cash-receipt-row"
                       >
-                        <td>
-                          {selectable ? (
-                            <button type="button" onClick={() => toggleSelect(r.id)} aria-label="선택"
-                              className={checked ? "collect-chk collect-chk-on" : "collect-chk"}>{checked ? "✓" : ""}</button>
-                          ) : <span className="text-[9px] text-emerald-500 font-semibold" title="전표처리됐거나 취소된 건입니다.">{posted ? "전표" : "—"}</span>}
-                        </td>
                         <td className="px-5 py-3 text-xs text-[var(--text-dim)] mono-number whitespace-nowrap">
                           {r.issue_date}
                           {posted && <span className="ml-1.5 ol-sure ol-sure-ok">전표</span>}
@@ -1090,7 +1029,7 @@ export default function CashReceiptsPage() {
                 <tfoot className="sticky bottom-0 z-10 bg-[var(--bg-surface)] shadow-[0_-1px_0_0_var(--border)]">
                   <tr className="border-t border-[var(--border)] bg-[var(--bg-surface)]">
                     <td
-                      colSpan={3}
+                      colSpan={2}
                       className="px-5 py-3 text-xs font-bold text-[var(--text-muted)]"
                     >
                       합계 ({displayReceipts.length}건)
@@ -1131,16 +1070,6 @@ export default function CashReceiptsPage() {
             </div>
           )
         )}
-
-          {/* ── 3줄 · 고른 건으로 하는 일 — 파란(확정) 버튼은 여기 하나 ── */}
-          {tab !== "register" && (
-            <SelectionBar count={selectedReceipts.length} onClear={() => setSelectedIds(new Set())}
-              summary={<>합계 <b className="mono-number">₩{selectedReceipts.reduce((s0: number, r: any) => s0 + cashReceiptSign(r) * Number(r.amount || 0), 0).toLocaleString()}</b></>}>
-              <button type="button" onClick={() => { setBulkAccountId(""); setShowBulkPost(true); }} className="btn-primary btn-sm">
-                전표처리 ({selectedReceipts.length})
-              </button>
-            </SelectionBar>
-          )}
         </QueryBody>
 
         <Pager page={pager.page} pages={pager.pages} total={displayReceipts.length} size={live.rows}
@@ -1233,43 +1162,6 @@ export default function CashReceiptsPage() {
         </div>
       )}
 
-      {/* 일괄 전표처리 모달 — 선택된 미처리 현금영수증을 계정 1개로 일괄 생성 */}
-      {showBulkPost && (
-        <div className="cash-receipt-bulk-post-modal fixed inset-0" onClick={() => setShowBulkPost(false)}>
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-[var(--border)]">
-              <div className="text-sm font-bold text-[var(--text)]">일괄 전표처리</div>
-              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">선택한 {selectedReceipts.length}건을 한 계정으로 전표 생성합니다.</div>
-            </div>
-            <div className="p-5 space-y-3">
-              <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">계정과목 *</label>
-                <select value={bulkAccountId} onChange={(e) => setBulkAccountId(e.target.value)}
-                  className="field-input">
-                  <option value="">계정 선택</option>
-                  {(coaAccounts as any[]).map((a) => (
-                    <option key={a.id} value={a.id}>{a.name} ({a.code})</option>
-                  ))}
-                </select>
-              </div>
-              <p className="text-[10px] text-[var(--text-dim)] leading-relaxed" title="차변 선택 계정과 대변 보통예금으로 건마다 전표가 생성됩니다.">현금영수증 내역은 그대로 남고 전표처리됨으로 표시됩니다.</p>
-              {/*   취소거래를 같이 골랐으면 무슨 일이 일어나는지 미리 말해 준다 (2026-08-12) */}
-              {selectedReceipts.some((r: any) => cashReceiptSign(r) === -1) && (
-                <p className="text-[10px] text-[var(--warning)] leading-relaxed">
-                  취소거래 {selectedReceipts.filter((r: any) => cashReceiptSign(r) === -1).length}건은 <b>반대 분개</b>로 만들어집니다.
-                </p>
-              )}
-            </div>
-            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
-              <button onClick={() => setShowBulkPost(false)} className="btn-secondary btn-sm">취소</button>
-              <button onClick={doBulkPost} disabled={bulkPosting || !bulkAccountId}
-                className="btn-primary btn-sm">
-                {bulkPosting ? "처리 중..." : `${selectedReceipts.length}건 전표 생성`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {confirmElement}
     </div>
   );

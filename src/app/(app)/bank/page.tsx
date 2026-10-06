@@ -10,6 +10,7 @@ import { fetchPaged } from "@/lib/fetch-paged";
 //   표시 전용 — 새 mutation·RPC 0. read-only 쿼리만.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { BarChart } from "@/components/charts/kit";
 import { supabase } from "@/lib/supabase";
@@ -28,8 +29,6 @@ import { useLedgerExcludePrompt } from "@/components/ledger-exclude-prompt";
 import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers";
 import { EmptyState } from "@/components/empty-state";
 import { useConfirm } from "@/components/confirm-dialog";
-import { useModalKeys } from "@/hooks/use-modal-keys";
-import { AccountPicker } from "@/components/account-picker";
 import { BankLineDialog, bankLineState, BANK_LINE_META, type BankLineTx } from "@/components/bank-line-dialog";
 import { AutoTransferHistoryCard } from "@/components/auto-transfer-history";
 import { getRecurringPayments } from "@/lib/approval-center";
@@ -395,16 +394,6 @@ export default function BankPage() {
     enabled: !!companyId && tab === "transactions",
   });
 
-  // 전표처리용 계정과목 (일괄 전표 모달)
-  const { data: coaAccounts = [] } = useQuery({
-    queryKey: ["bank-page-coa-accounts", companyId],
-    queryFn: async () => {
-      const data = logRead('bank/page:data', await db.from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId ?? "").order("code"));
-      return (data || []) as any[];
-    },
-    enabled: !!companyId, staleTime: 300_000,
-  });
-
   //   연결 대기 · 사람이 고른 정산 초안(match_source manual · suggested)이 걸린 통장 줄. 엔진·AI 제안은 팝업 안에서만 보인다(결정 46). 확정은 팝업·재무 › 전표 현황 › 처리할 것에서
   const  { data: pendingSettles = [] } = useQuery({
     queryKey: ["bank-page-pending-settles", companyId],
@@ -451,11 +440,8 @@ export default function BankPage() {
     return tx.description || "";
   };
 
-  // 일괄 전표처리 · 선택된 미처리 통장거래를 계정 1개로 순차 post_bank_voucher(방향 자동 분기).
-  const [showBulkPost, setShowBulkPost] = useState(false);
-  const [bulkAccountId, setBulkAccountId] = useState<string>("");
-  const [bulkFixed, setBulkFixed] = useState(false); // 고정비로 표시 — 전표처리와 함께 is_fixed_cost 저장
-  const [bulkPosting, setBulkPosting] = useState(false);
+  //   2026-10-06 결정 1: 선택 바의 「전표처리」(post_bank_voucher 계정 1개 일괄 · 고정비 표시)를 뺐다 — 전표 입구는 수집·전표 하나.
+  //   한 줄씩은 줄 처리 팝업(BankLineDialog, 고정비 표시 포함)이 그대로 맡는다.
   //   장부 제외 (2026-08-19) — 선택한 미전표 거래를 사유와 함께 전표 없이 끝낸다 / 제외 해제
   const { askExclude, excludePromptElement }  = useLedgerExcludePrompt();
   //   자동이체 · 정기 지출(재무 › 정기 지출)과 짝이 맞는 출금은 자동으로, 안 잡히는 줄은 사람이 표시한다.
@@ -496,32 +482,6 @@ export default function BankPage() {
     try { await setLedgerExcluded("bank", [id], null); toast("제외를 해제했습니다. 미전표로 돌아옵니다", "success"); queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] }); }
     catch (e) { toast(friendlyError(e, "해제 실패"), "error"); }
   };
-  const doBulkPostBank = async () => {
-    if (!bulkAccountId || bulkPosting) { if (!bulkAccountId) toast("계정과목을 선택하세요", "error"); return; }
-    setBulkPosting(true);
-    let ok = 0, fail = 0, skip = 0;
-    const okIds: string[] = [];
-    try {
-      const ids = Array.from(selectedTxIds);
-      for (const id of ids) {
-        const tx = (recentTx as any[]).find((t) => t.id === id);
-        if (!tx || tx.journal_entry_id) { skip++; continue; } // 이미 처리된 건 skip
-        const { error } = await db.rpc("post_bank_voucher", { p_bank_tx_id: id, p_account_id: bulkAccountId, p_remember: false });
-        if (error) fail++; else { ok++; okIds.push(id); }
-      }
-      // 고정비 체크 시 처리된 거래를 일괄 마킹 → 경영흐름·고정비 리포트에 고정비로 집계 (실패해도 전표는 유지)
-      if (bulkFixed && okIds.length > 0) {
-        try { await db.from("bank_transactions").update({ is_fixed_cost: true }).in("id", okIds); } catch { /* best-effort */ }
-      }
-      toast(`${ok}건 전표처리 완료${bulkFixed && ok > 0 ? " · 고정비 표시" : ""}${fail > 0 ? ` · ${fail}건 실패` : ""}${skip > 0 ? ` · ${skip}건 건너뜀` : ""}`, fail > 0 ? "info" : "success");
-      setShowBulkPost(false); setBulkAccountId(""); setBulkFixed(false); setSelectedTxIds(new Set());
-      queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] });
-    } finally { setBulkPosting(false); }
-  };
-
-  // 일괄 전표처리 모달 — ESC 닫기 · Enter 확인(계정과목 미선택/처리중이면 비활성)
-  useModalKeys(showBulkPost, () => setShowBulkPost(false), bulkPosting || !bulkAccountId ? undefined : doBulkPostBank);
-
   //   엑셀 — 지금 화면에 걸린 조건·정렬 그대로 뽑는다(보이는 것과 파일이 달라지면 안 된다).
   const exportBankCsv = (list: any[], tag = "") => {
     downloadCsv(
@@ -1231,8 +1191,8 @@ export default function BankPage() {
             <button type="button" onClick={() => setAutoTransfer(false)} className="btn-secondary btn-sm">표시 해제</button>
           )}
           <button type="button" onClick={excludeSelected} className="btn-secondary btn-sm" title="전표 없이 장부에서 제외합니다.">장부 제외</button>
-          <button type="button" onClick={() => { setBulkAccountId(""); setBulkFixed(false); setShowBulkPost(true); }}
-            className="btn-primary btn-sm">전표처리({selectedTxIds.size})</button>
+          {/*   전표는 수집·전표 › 통장에서 만든다(결정 1) — 고른 줄을 넘기진 않는다, 그 화면도 같은 기간·미처리 기본으로 연다 */}
+          <Link href="/collect?tab=bank" className="btn-secondary btn-sm">수집·전표에서 전표 만들기 →</Link>
         </SelectionBar>
         {excludePromptElement}
         </QueryBody>
@@ -1241,36 +1201,6 @@ export default function BankPage() {
         <Pager page={pager.page} pages={pager.pages} total={shownTx.length} size={txLive.size}
           from={pager.from} to={pager.to} onPage={pager.setPage} />
         </QueryScreen>
-      )}
-
-      {/* 일괄 전표처리 모달 — 선택된 미처리 통장거래를 계정 1개로 일괄 생성(입출금 방향 자동) */}
-      {showBulkPost && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowBulkPost(false)}>
-          <div className="bank-bulk-post-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-[var(--border)]">
-              <div className="text-sm font-bold text-[var(--text)]">일괄 전표처리</div>
-              <div className="text-[11px] text-[var(--text-dim)] mt-0.5">선택한 {selectedTxIds.size}건을 한 계정으로 전표 생성합니다.</div>
-            </div>
-            <div className="p-5 space-y-3">
-              <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">계정과목 *</label>
-                <AccountPicker accounts={coaAccounts as any[]} value={bulkAccountId} onChange={(id) => setBulkAccountId(id)} />
-              </div>
-              <label className="flex items-center gap-2 text-xs text-[var(--text)] cursor-pointer">
-                <input type="checkbox" checked={bulkFixed} onChange={(e) => setBulkFixed(e.target.checked)} className="accent-[var(--warning)]" />
-                고정비로 표시 <span className="text-[var(--text-dim)]">매월 반복되는 지출이면 체크합니다.</span>
-              </label>
-              <p className="text-[10px] text-[var(--text-dim)] leading-relaxed" title="출금은 차변 선택 계정과 대변 보통예금, 입금은 그 반대로 기록됩니다.">통장 내역은 그대로 남고 전표처리됨으로 표시됩니다.</p>
-            </div>
-            <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
-              <button onClick={() => setShowBulkPost(false)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
-              <button onClick={doBulkPostBank} disabled={bulkPosting || !bulkAccountId}
-                className="btn-primary btn-sm">
-                {bulkPosting ? "처리 중..." : `${selectedTxIds.size}건 전표 생성`}
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* 통장 수정 팝업 — 이름·메모 (2026-08-19) */}

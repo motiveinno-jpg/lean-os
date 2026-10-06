@@ -1383,7 +1383,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .tx-acct-nature { @apply rounded bg-[var(--bg-surface)] px-1 text-[10px] font-semibold text-[var(--text-dim)]; }
 .tx-acct-nature-hint { @apply mb-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-2 py-1.5 text-[10px] leading-relaxed text-amber-600; }
 .card-acct-nature-hint { @apply mt-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 px-2 py-1.5 text-[10px] leading-relaxed text-amber-600; }
-.bank-bulk-post-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl; }
 .loans-toolbar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
 .loans-summary-cards { @apply grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6; }
 .loans-list-panel { @apply overflow-hidden; }
@@ -1435,7 +1434,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .board-read-unread { @apply text-[11px] not-italic text-[var(--text-dim)]; }
 .table-card-users tfoot td { @apply border-t border-[var(--border)] px-3 py-1.5 text-xs font-semibold; }
 .card-post-voucher-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
-.card-bulk-post-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
 .card-mini-card { @apply p-5 transition-all; }
 
 .cash-receipt-issuance-badge { @apply px-2.5 py-1 rounded-md text-[11px] font-semibold border; }
@@ -1447,7 +1445,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .cash-receipt-register-foot { @apply flex justify-end border-t border-[var(--border)] pt-3; }
 .cash-receipt-row { @apply border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]/60 transition; }
 .cash-receipt-issue-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4; }
-.cash-receipt-bulk-post-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4; }
+/* 결정 1(2026-10-06): 현금영수증 결과 줄 '전표 안 된 건' → 수집·전표 */
+.cash-receipt-unposted-link { @apply text-[var(--primary)] hover:underline; }
 
 /* ═══ 클래스명 가독성 정리 재작업 — 배치3(hr) 마커 스타일 (2026-07-16) ═══ */
 /* .employee-view-toggle — pure marker, styled via co-existing seg-bar in JSX */

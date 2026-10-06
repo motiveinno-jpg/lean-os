@@ -1584,10 +1584,27 @@ function TaxInvoicesPageInner() {
               hint: "입금이나 프로젝트가 연결되지 않은 발행 건만 봅니다.",
               onClick: () => { setTab("done"); setGapOnly(true); },
             }]} />
-            {/* 주 실행 — 파란 채움은 조회 줄에 이거 하나. 확정(전송)은 아래 SelectionBar 가 맡는다 */}
-            <button onClick={() => setShowForm(true)} className="btn-primary btn-sm" title="세금계산서를 씁니다">
-              + 발행
-            </button>
+            {/* 주 실행 — 파란 채움은 조회 줄에 이거 하나. 확정(전송)은 아래 SelectionBar 가 맡는다
+                  2026-10-06 결정 4(사장님 추천안 승인): 전자계산서(/e-invoices)·현금영수증(/cash-receipts)은 메뉴를 늘리지 않고
+                  여기 「+ 발행」 안에 둔다 — 셋 다 '오너뷰가 발행하는 것'이고, 그동안 주소·수집 링크로만 들어갈 수 있었다.
+                  권한 없는 종류는 안 보인다(그 화면 권한 = 메뉴 권한). 둘 다 없으면 예전처럼 바로 세금계산서 쓰기. */}
+            {(taxTabMaster || taxTabPerm("/e-invoices") || taxTabPerm("/cash-receipts")) ? (
+              <ToolbarPopover label="+ 발행" title="무엇을 발행할까요" primary width={220}>
+                {(close) => (<>
+                  <ToolbarPopoverItem onClick={() => { close(); setShowForm(true); }} hint="과세 거래 · 이 화면에서 씁니다">세금계산서</ToolbarPopoverItem>
+                  {(taxTabMaster || taxTabPerm("/e-invoices")) && (
+                    <ToolbarPopoverItem onClick={() => { close(); router.push("/e-invoices"); }} hint="면세 거래 · 전자계산서 화면으로 갑니다">전자계산서 (면세)</ToolbarPopoverItem>
+                  )}
+                  {(taxTabMaster || taxTabPerm("/cash-receipts")) && (
+                    <ToolbarPopoverItem onClick={() => { close(); router.push("/cash-receipts"); }} hint="현금영수증 화면으로 갑니다 · 발행·수동 등록·내역">현금영수증</ToolbarPopoverItem>
+                  )}
+                </>)}
+              </ToolbarPopover>
+            ) : (
+              <button onClick={() => setShowForm(true)} className="btn-primary btn-sm" title="세금계산서를 씁니다">
+                + 발행
+              </button>
+            )}
           </>}>
             {/* 기간을 치는 칸은 화면에 하나뿐. 달력은 검색조건 안에 있고,
                   오른쪽 끝에 '검색조건'이 붙어 한 덩어리로 보인다. */}

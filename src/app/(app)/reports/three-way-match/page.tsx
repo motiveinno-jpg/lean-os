@@ -23,7 +23,7 @@ import {
 } from "@/lib/three-way-match";
 import { getCurrentUser } from "@/lib/queries";
 import { ReportHead } from "../_components/ReportHead";
-import { ChipGroup, Stat, type ExcelItem } from "@/components/query-kit";
+import { ChipGroup, Stat, SelectionBar, type ExcelItem } from "@/components/query-kit";
 import { exportToExcel } from "@/lib/excel-export";
 
 export default function ThreeWayMatchPage() {
@@ -42,6 +42,9 @@ function Inner() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<'all' | 'sales' | 'purchase'>("all");
   const [selectedInvoice, setSelectedInvoice] = useState<ThreeWayInvoice | null>(null);
+  //   2026-10-06 결정 6: 후보 줄 클릭 = 고르기만, 확정은 아래 바의 버튼(확정은 사람 버튼 원칙). 계산서를 바꾸면 고른 후보도 비운다
+  const [pickedTxId, setPickedTxId] = useState<string | null>(null);
+  useEffect(() => { setPickedTxId(null); }, [selectedInvoice?.id]);
 
   // 회사 id — useState 초기화자에서 side effect(렌더 중 fetch, strict mode 2회) → useEffect 로 교정
   useEffect(() => {
@@ -69,6 +72,8 @@ function Inner() {
     enabled: !!companyId,
   });
 
+  const pickedCand = candidates.find((c) => c.bankTxId === pickedTxId) ?? null;
+
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ["three-way-invoices"] });
     qc.invalidateQueries({ queryKey: ["three-way-candidates"] });
@@ -81,6 +86,7 @@ function Inner() {
       toast("매칭 완료", "success");
       invalidateAll();
       setSelectedInvoice(null);
+      setPickedTxId(null);
     },
     onError: (err: Error) => toast(friendlyError(err, "매칭 실패"), "error"),
   });
@@ -120,7 +126,7 @@ function Inner() {
       />
 
       {/*   2026-10-01 UI 점검 9순위: glass-card 판 3 → 분석 판, 직접 색(emerald·orange·blue·purple·amber·red) → 상태 칩·토큰, 이모지 빈 상태 → 글.
-          후보 줄 클릭 = 즉시 확정은 그대로 둔다 — 확정 버튼을 따로 둘지는 사장님 결정 6번 대기. */}
+          2026-10-06 결정 6(사장님 추천안 승인): 후보 줄 클릭 = 고르기, 확정은 SelectionBar 의 파란 버튼 하나. */}
       <div className="three-way-grid">
         {/* 좌측 — 미매칭 세금계산서 */}
         <div className="three-way-unmatched-panel pnl-panel">
@@ -192,9 +198,10 @@ function Inner() {
                 {candidates.map((c) => (
                   <li key={c.bankTxId}>
                     <button
-                      onClick={() => matchMut.mutate({ bankTxId: c.bankTxId, invoiceId: selectedInvoice.id })}
+                      onClick={() => setPickedTxId((p) => (p === c.bankTxId ? null : c.bankTxId))}
                       disabled={matchMut.isPending}
-                      className="three-way-candidate-row"
+                      aria-pressed={pickedTxId === c.bankTxId}
+                      className={`three-way-candidate-row ${pickedTxId === c.bankTxId ? 'three-way-row-on' : ''}`}
                     >
                       <div className="flex items-center justify-between gap-2 mb-1.5">
                         <div className="flex items-center gap-2 min-w-0">
@@ -239,7 +246,7 @@ function Inner() {
             ) : matched.length === 0 ? (
               <div className="py-14 px-4 text-center">
                 <div className="text-xs font-semibold text-[var(--text)]">매칭된 항목 없음</div>
-                <div className="text-[10px] text-[var(--text-dim)] mt-1">가운데 후보를 클릭해 매칭을 확정하면 여기에 쌓입니다</div>
+                <div className="text-[10px] text-[var(--text-dim)] mt-1">가운데 후보를 골라 「매칭 확정」을 누르면 여기에 쌓입니다</div>
               </div>
             ) : (
               <ul className="three-way-matched-list">
@@ -311,6 +318,23 @@ function Inner() {
           </div>
         </div>
       </div>
+
+      {selectedInvoice && pickedCand && (
+        <SelectionBar
+          count={1}
+          summary={`${selectedInvoice.counterparty_name || '거래처 미상'} ₩${Number(selectedInvoice.total_amount || 0).toLocaleString()} ↔ ${pickedCand.bankCounterparty || '입금자 미상'} ${pickedCand.bankDate} ₩${pickedCand.bankAmount.toLocaleString()}`}
+          onClear={() => setPickedTxId(null)}
+        >
+          <button
+            type="button"
+            className="btn-primary btn-sm"
+            disabled={matchMut.isPending}
+            onClick={() => matchMut.mutate({ bankTxId: pickedCand.bankTxId, invoiceId: selectedInvoice.id })}
+          >
+            {matchMut.isPending ? "확정 중…" : "매칭 확정"}
+          </button>
+        </SelectionBar>
+      )}
     </div>
   );
 }
