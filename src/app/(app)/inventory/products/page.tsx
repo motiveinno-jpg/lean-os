@@ -256,7 +256,8 @@ export default function ProductsPage() {
       )}
       {labelOpen && <LabelPrintDialog products={shown} onClose={() => setLabelOpen(false)} />}
       {bomFor && companyId && (
-        <BomEditorDialog companyId={companyId} product={bomFor} products={products} onClose={() => setBomFor(null)} />
+        <BomEditorDialog companyId={companyId} product={bomFor} products={products} onClose={() => setBomFor(null)}
+          canEdit={isMaster || hasPerm("/inventory/production:write")} />
       )}
     </div>
   );

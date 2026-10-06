@@ -98,11 +98,11 @@ export default function OrdersPage() {
       onDelete={async ({ id, ctl }) => { await deleteOrder(ctl.companyId!, id); }}
       
       //   ★ 주문서는 견적 역할이라 상대에게 보낼 수 있어야 한다. 프로젝트 견적서 PDF 부품을 그대로 쓴다(1순위 ②)
-      popupExtra={({ ctl, products }) => (
+      popupExtra={({ ctl, products, canWrite }) => (
         <>
         {/*   주문 마감 (2026-08-31 대표 스윕) — 닫는 경로가 없어 납기 지난 주문이 AI 브리핑에 영구히 떴다.
               더 진행하지 않을 주문은 마감 → 브리핑·납기 경고에서 빠진다. 실수면 다시 열기. */}
-        {ctl.editing && ctl.editing.status !== "cancelled" && (
+        {canWrite && ctl.editing && ctl.editing.status !== "cancelled" && (
           <button type="button" className="btn-secondary btn-sm"
             onClick={async () => {
               const toClosed = ctl.editing!.status !== "closed";

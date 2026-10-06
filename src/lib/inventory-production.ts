@@ -76,10 +76,12 @@ export async function upsertBomLine(companyId: string, line: { id?: string; prod
     company_id: companyId, product_id: line.product_id, component_id: line.component_id,
     qty: Number(line.qty), base_qty: Number(line.base_qty || 1), note: line.note?.trim() || null, updated_at: new Date().toISOString(),
   };
-  const { error } = line.id
-    ? await supabase.from("product_boms").update(row).eq("id", line.id)
-    : await supabase.from("product_boms").upsert(row, { onConflict: "product_id,component_id" });
+  const { data, error } = line.id
+    ? await supabase.from("product_boms").update(row).eq("id", line.id).select("id")
+    : await supabase.from("product_boms").upsert(row, { onConflict: "product_id,component_id" }).select("id");
   if (error) throw error;
+  //   RLS 가 막으면 update 는 오류 없이 0행(2026-10-06 쓰기 = 생산 입력·수정 권한)
+  if (!(data || []).length) throw new Error("자재구성을 저장할 권한이 없습니다 (생산 「입력·수정」 권한 필요).");
 }
 
 export async function deleteBomLine(id: string) {

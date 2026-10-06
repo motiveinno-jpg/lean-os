@@ -330,9 +330,11 @@ export async function saveOrder(
 /** 주문 마감/재개 (2026-08-31) — 종전엔 open 을 닫는 경로가 아예 없어, 납기 지난 주문이
  *  AI 브리핑에 "납기가 지났는데 남은 주문"으로 영구히 떴다. 마감하면 브리핑·경고에서 빠진다. */
 export async function setOrderStatus(companyId: string, orderId: string, status: "open" | "closed") {
-  const { error } = await supabase.from("orders").update({ status })
-    .eq("company_id", companyId).eq("id", orderId);
+  const { data, error } = await supabase.from("orders").update({ status })
+    .eq("company_id", companyId).eq("id", orderId).select("id");
   if (error) throw error;
+  //   RLS 가 막으면 오류 없이 0행(2026-10-06 쓰기 = 주문 입력·수정 권한)
+  if (!(data || []).length) throw new Error("주문 상태를 바꿀 권한이 없습니다 (주문 「입력·수정」 권한 필요).");
 }
 
 export async function deleteOrder(companyId: string, orderId: string) {

@@ -24,8 +24,10 @@ const blank = (): Row => ({ key: K++, component_id: "", label: "", qty: "", note
 const num = (v: string) => { const n = Number(String(v).replace(/[,\s]/g, "")); return Number.isNaN(n) ? 0 : n; };
 
 /** 자재구성 편집 · 품목 하나의 "1개를 만들 때 드는 자재" */
-export function BomEditorDialog({ companyId, product, products, onClose }: {
-  companyId: string; product: Product; products: Product[]; onClose: () => void;
+//   canEdit — 자재구성 저장은 생산 「입력·수정」 권한(/inventory/production:write) 기준(권한 화면 설명과 같게, DB 쓰기 정책도 같은 키).
+//   품목 화면에서 열리는데 품목엔 쓰기 키가 없어 그동안 품목 메뉴만 있으면 누구나 고칠 수 있었다(2026-10-06).
+export function BomEditorDialog({ companyId, product, products, onClose, canEdit }: {
+  companyId: string; product: Product; products: Product[]; onClose: () => void; canEdit: boolean;
 }) {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -154,8 +156,9 @@ export function BomEditorDialog({ companyId, product, products, onClose }: {
           {product.cost_price != null && <span className="ev-dim"> · 등록된 매입가 ₩{won(Number(product.cost_price))}{cost && Number(product.cost_price) ? ` (차이 ₩${won(cost - Number(product.cost_price))})` : ""}</span>}
         </div>
         <div className="inv-modal-actions">
-          <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
-          <button type="button" className="btn-primary btn-sm" disabled={busy || isLoading} onClick={save}>저장</button>
+          {!canEdit && <span className="ev-dim">보기만 — 자재구성을 고치려면 생산 「입력·수정」 권한이 필요합니다</span>}
+          <button type="button" className="btn-secondary btn-sm" onClick={onClose}>{canEdit ? "취소" : "닫기"}</button>
+          {canEdit && <button type="button" className="btn-primary btn-sm" disabled={busy || isLoading} onClick={save}>저장</button>}
         </div>
       </div>
     </div>

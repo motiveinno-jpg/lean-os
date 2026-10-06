@@ -413,9 +413,11 @@ export async function createCount(
 
 export async function saveCountedQty(countId: string, edits: { id: string; counted_qty: number | null }[]) {
   for (const e of edits) {
-    const { error } = await supabase.from("stock_count_lines")
-      .update({ counted_qty: e.counted_qty }).eq("id", e.id).eq("count_id", countId);
+    const { data, error } = await supabase.from("stock_count_lines")
+      .update({ counted_qty: e.counted_qty }).eq("id", e.id).eq("count_id", countId).select("id");
     if (error) throw error;
+    //   RLS 가 막으면 오류 없이 0행(2026-10-06 쓰기 = 입·출고와 조정 권한) — 저장된 줄 알면 안 된다
+    if (!(data || []).length) throw new Error("실사 수량을 저장할 권한이 없습니다 (창고관리 「입·출고와 조정」 권한 필요).");
   }
 }
 
@@ -463,10 +465,14 @@ export async function applyCount(
     docNo = r.docNo; docId = r.id;
   }
 
-  const { error } = await supabase.from("stock_counts")
+  const { data: doneRows, error } = await supabase.from("stock_counts")
     .update({ status: "done", adjust_doc_id: docId, updated_at: new Date().toISOString() })
-    .eq("id", countId);
-  if (error) throw error;
+    .eq("id", countId).select("id");
+  //   실사를 '반영됨'으로 못 바꾸면(오류·RLS 0행) 방금 만든 조정 문서를 취소한다 — 실사가 초안으로 남아 두 번 반영되는 것을 막는다
+  if (error || !(doneRows || []).length) {
+    if (docId) await cancelStockDoc(docId, "실사 반영 실패 되돌림", userId).catch(() => { /* 취소도 막히면 아래 오류로 알린다 */ });
+    throw error || new Error("실사를 반영할 권한이 없습니다 (창고관리 「입·출고와 조정」 권한 필요). 만든 조정 문서는 취소했습니다.");
+  }
   return { docNo, changed: moveLines.length, counted: lines.length, drifted };
 }
 
@@ -692,7 +698,8 @@ export async function revertCount(countId: string, userId?: string | null) {
   if (!c) throw new Error("실사를 찾을 수 없습니다");
   if (c.status !== "done") throw new Error("반영하지 않은 실사입니다");
   if (c.adjust_doc_id) await cancelStockDoc(c.adjust_doc_id, "실사 되돌림", userId);
-  const { error } = await supabase.from("stock_counts")
-    .update({ status: "draft", adjust_doc_id: null, updated_at: new Date().toISOString() }).eq("id", countId);
+  const { data: rows, error } = await supabase.from("stock_counts")
+    .update({ status: "draft", adjust_doc_id: null, updated_at: new Date().toISOString() }).eq("id", countId).select("id");
   if (error) throw error;
+  if (!(rows || []).length) throw new Error("실사를 되돌릴 권한이 없습니다 (창고관리 「입·출고와 조정」 권한 필요).");
 }
