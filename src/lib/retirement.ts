@@ -15,7 +15,7 @@ export async function makeRetirementVoucherDraft(companyId: string, asof: string
 }
 
 /** 퇴사 정산 초안 — 퇴직금 + 미사용 연차 수당 + 마지막 달 일할 (H7). 확정은 사람. */
-export type Settlement = { retirement: number; eligible: boolean; totalDays: number; dailyWage: number; source: string; leaveRemain: number; leavePay: number; ordinaryDaily: number; lastMonthPay: number; lastMonthDays: number; monthDays: number; total: number };
+export type Settlement = { retirement: number; eligible: boolean; totalDays: number; hireDate: string | null; dailyWage: number; source: string; leaveRemain: number; leavePay: number; ordinaryDaily: number; lastMonthPay: number; lastMonthDays: number; monthDays: number; total: number };
 export async function buildSettlement(companyId: string, employeeId: string, monthlySalary: number, endDate: string): Promise<Settlement> {
   const [est] = await fetchRetirementEstimates(companyId, endDate, employeeId);
   const year = Number(endDate.slice(0, 4));
@@ -28,5 +28,37 @@ export async function buildSettlement(companyId: string, employeeId: string, mon
   const d = new Date(endDate); const monthDays = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); const lastMonthDays = d.getDate();
   const lastMonthPay = Math.round((monthlySalary * lastMonthDays) / monthDays);
   const retirement = est?.estimate || 0;
-  return { retirement, eligible: (est?.total_days || 0) >= 365, totalDays: est?.total_days || 0, dailyWage: est?.daily_wage || 0, source: est?.source || "약정 월급", leaveRemain, leavePay, ordinaryDaily, lastMonthPay, lastMonthDays, monthDays, total: retirement + leavePay + lastMonthPay };
+  return { retirement, eligible: (est?.total_days || 0) >= 365, totalDays: est?.total_days || 0, hireDate: est?.hire_date || null, dailyWage: est?.daily_wage || 0, source: est?.source || "약정 월급", leaveRemain, leavePay, ordinaryDaily, lastMonthPay, lastMonthDays, monthDays, total: retirement + leavePay + lastMonthPay };
+}
+
+/** 퇴직금 지급 기록 (2026-10-07 ERP 3차 A) — 원천세 신고서 A22·A20 의 원천. 세액은 저장 시점 계산값을 그대로 쓴다 */
+export type RetirementPayment = {
+  id: string; employee_id: string | null; employee_name: string; paid_on: string;
+  service_start: string; service_end: string; service_years: number;
+  retirement_pay: number; income_tax: number; local_tax: number; irp_deferred: boolean; note: string | null;
+};
+export type RetirementPaymentInput = Omit<RetirementPayment, "id" | "employee_name">;
+const RP_SELECT = "id, employee_id, employee_name, paid_on, service_start, service_end, service_years, retirement_pay, income_tax, local_tax, irp_deferred, note";
+const toRp = (r: any): RetirementPayment => ({ ...r, retirement_pay: Number(r.retirement_pay), income_tax: Number(r.income_tax), local_tax: Number(r.local_tax), service_years: Number(r.service_years) });
+
+/** 지급일 기준 [from, to] (YYYY-MM-DD) */
+export async function listRetirementPayments(companyId: string, from: string, to: string): Promise<RetirementPayment[]> {
+  const data = logRead("lib/retirement:payments", await (supabase as any).from("retirement_payments").select(RP_SELECT)
+    .eq("company_id", companyId).gte("paid_on", from).lte("paid_on", to).order("paid_on").order("employee_name"));
+  return ((data || []) as any[]).map(toRp);
+}
+export async function saveRetirementPayment(companyId: string, input: RetirementPaymentInput, id?: string): Promise<void> {
+  const row = { ...input, note: input.note?.trim() || null };
+  const q = id
+    ? (supabase as any).from("retirement_payments").update(row).eq("id", id).eq("company_id", companyId).select("id")
+    : (supabase as any).from("retirement_payments").insert({ ...row, company_id: companyId }).select("id");
+  const { data, error } = await q;
+  if (error) throw error;
+  //   막힌 UPDATE 는 오류 없이 0행 — 저장된 것처럼 보이지 않게
+  if (!data?.length) throw new Error("저장 권한이 없거나 이미 지워진 기록입니다");
+}
+export async function deleteRetirementPayment(companyId: string, id: string): Promise<void> {
+  const { data, error } = await (supabase as any).from("retirement_payments").delete().eq("id", id).eq("company_id", companyId).select("id");
+  if (error) throw error;
+  if (!data?.length) throw new Error("지울 권한이 없거나 이미 지워진 기록입니다");
 }

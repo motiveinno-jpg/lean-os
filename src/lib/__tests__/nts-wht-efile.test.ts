@@ -78,6 +78,20 @@ describe("buildWhtEfile — C103900 규격 바이트 대조", () => {
     expect(asc(rec, 132, 150)).toBe(" ".repeat(18));
   });
 
+  it("퇴직소득 A22·A20 — 근로 다음에 같은 150바이트 레코드 (2026-10-07)", () => {
+    const b = buildWhtEfile({ ...BASE, rows: [
+      ...BASE.rows.slice(0, 2),
+      { code: "A22", n: 1, pay: 30_000_000, tax: 100_000 },
+      { code: "A20", n: 1, pay: 30_000_000, tax: 100_000 },
+      { code: "A99", n: 3, pay: 35_000_000, tax: 164_000 },
+    ] }).bytes!;
+    expect(b.length).toBe(400 + 2 + 200 + 2 + (150 + 2) * 5);
+    const rec = b.slice(604 + 152 * 2, 604 + 152 * 2 + 150);
+    expect(asc(rec, 9, 12)).toBe("A22");
+    expect(asc(rec, 27, 42)).toBe("000000030000000");
+    expect(asc(rec, 42, 57)).toBe("000000000100000");
+  });
+
   it("한글 상호는 2바이트로 세도 전체 길이 400 유지", () => {
     const r = buildWhtEfile({ ...BASE, companyName: "모티브이노베이션", ceoName: "홍길동" });
     expect(r.issues).toEqual([]);

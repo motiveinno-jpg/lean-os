@@ -14,8 +14,9 @@
 import { buildNtsFile, type NtsField, type NtsIssue } from "@/lib/nts-efile";
 
 export type WhtEfileRow = {
-  /** 원천징수소득코드 — A01 근로 간이세액 · A10 근로 가감계 · A25 사업소득 매월징수 · A30 사업소득 가감계 · A99 총합계 */
-  code: "A01" | "A10" | "A25" | "A30" | "A99";
+  /** 원천징수소득코드 — A01 근로 간이세액 · A10 근로 가감계 · A22 퇴직소득 그 외 · A20 퇴직소득 가감계(2026-10-07) ·
+   *  A25 사업소득 매월징수 · A30 사업소득 가감계 · A99 총합계 */
+  code: "A01" | "A10" | "A22" | "A20" | "A25" | "A30" | "A99";
   n: number; pay: number; tax: number;
 };
 export type WhtEfileInput = {

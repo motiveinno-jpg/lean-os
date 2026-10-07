@@ -8,6 +8,7 @@ import { todayKst } from "@/lib/kst";
 import { tenureBetween, formatTenure } from "@/lib/tenure";
 import { DateField } from "@/components/date-field";
 import { fetchRetirementEstimates, makeRetirementVoucherDraft, buildSettlement, type Settlement } from "@/lib/retirement";
+import { calcRetirementTax } from "@/lib/retirement-tax";
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
 
@@ -65,6 +66,7 @@ export function RetirementDialog({ companyId, onClose }: { companyId: string; on
 export function RetirementSettlementBox({ companyId, employeeId, monthlySalary, endDate }: { companyId: string; employeeId: string; monthlySalary: number; endDate: string }) {
   const [s, setS] = useState<Settlement | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const tax = s && s.eligible && s.hireDate ? calcRetirementTax(s.retirement, s.hireDate, endDate) : null;
   useEffect(() => { let alive = true; setS(null); setErr(null); buildSettlement(companyId, employeeId, monthlySalary, endDate).then((v) => { if (alive) setS(v); }).catch((e) => { if (alive) setErr(friendlyError(e, "계산 실패")); }); return () => { alive = false; }; }, [companyId, employeeId, monthlySalary, endDate]);
   return (
     <div className="ret-settle">
@@ -73,10 +75,12 @@ export function RetirementSettlementBox({ companyId, employeeId, monthlySalary, 
         <table className="ev-table ev-lined table-ret-settle">
           <tbody>
             <tr><td className="text-left">퇴직금 <span className="ev-dim">{s.eligible ? `평균임금 ₩${won(s.dailyWage)}/일 × 30 × ${s.totalDays}/365 · ${s.source}` : `근속 ${s.totalDays}일 · 1년 미만이라 법정 퇴직금 없음`}</span></td><td className="tr mono-number">₩{won(s.retirement)}</td></tr>
+            {/* 퇴직소득세 (2026-10-07 ERP 3차 A) — 퇴직금에만 붙는다. 지급하면 세무 신고 › 원천세 › 퇴직소득 지급에 기록 */}
+            {tax && tax.incomeTax > 0 && <tr><td className="text-left">퇴직소득세·지방소득세 (예상) <span className="ev-dim">근속 {tax.years}년 · 지급 후 재무 › 세무 신고 › 원천세에 기록</span></td><td className="tr mono-number">−₩{won(tax.incomeTax + tax.localTax)}</td></tr>}
             <tr><td className="text-left">미사용 연차 수당 <span className="ev-dim">{s.leaveRemain}일 × 통상임금 일급 ₩{won(s.ordinaryDaily)}(월급÷209h×8h)</span></td><td className="tr mono-number">₩{won(s.leavePay)}</td></tr>
             <tr><td className="text-left">마지막 달 급여 일할 <span className="ev-dim">{s.lastMonthDays}/{s.monthDays}일</span></td><td className="tr mono-number">₩{won(s.lastMonthPay)}</td></tr>
           </tbody>
-          <tfoot><tr className="vr-sum"><td className="text-left">합계 (세전 · 소득세·4대보험 정산 전)</td><td className="tr mono-number"><b>₩{won(s.total)}</b></td></tr></tfoot>
+          <tfoot><tr className="vr-sum"><td className="text-left">합계 <span className="ev-dim">(퇴직금은 세후 · 연차 수당·마지막 달은 근로소득세·4대보험 정산 전)</span></td><td className="tr mono-number"><b>₩{won(s.total - (tax ? tax.incomeTax + tax.localTax : 0))}</b></td></tr></tfoot>
         </table>
       )}
     </div>
