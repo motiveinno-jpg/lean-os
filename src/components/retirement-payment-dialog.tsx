@@ -90,9 +90,10 @@ export function RetirementPaymentDialog({ companyId, defaultPaidOn, edit, onClos
   };
   useModalKeys(true, onClose);
 
-  return (
+  //   확인창은 팝업 바깥에 — 안에 두면 확인창 배경 클릭이 이 팝업의 onClick 까지 올라가 같이 닫힌다
+  return (<>
+    {confirmElement}
     <div className="inv-modal" onClick={onClose}>
-      {confirmElement}
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">{edit ? "퇴직금 지급 기록 고치기" : "퇴직금 지급 기록"}</h3>
         <p className="inv-modal-desc" title="미사용 연차 수당·마지막 달 급여는 근로소득이라 급여 명세로 정산합니다">
@@ -145,5 +146,5 @@ export function RetirementPaymentDialog({ companyId, defaultPaidOn, edit, onClos
         </div>
       </div>
     </div>
-  );
+  </>);
 }
