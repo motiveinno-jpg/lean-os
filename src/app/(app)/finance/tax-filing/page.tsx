@@ -44,6 +44,7 @@ import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import { fetchTaxDeadlineChecks, setTaxDeadlineChecked, taxCheckTitle, type TaxCheckInfo } from "@/lib/tax-deadline-checks";
 import { listRetirementPayments, type RetirementPayment } from "@/lib/retirement";
 import { RetirementPaymentDialog } from "@/components/retirement-payment-dialog";
+import { entertainmentLimit, isEntertainmentAccount, isSalesAccount } from "@/lib/entertainment-limit";
 
 const won = (n: number) => `₩${Math.round(n || 0).toLocaleString("ko-KR")}`;
 const num = (n: number) => Math.round(n || 0);
@@ -233,14 +234,23 @@ export default function TaxFilingPage() {
     enabled: !!companyId && tab === "cit",
     queryFn: () => computeStatements(companyId!, `${year}-12`),
   });
+  //   기업업무추진비 한도 (2026-10-07 ERP 3차 C) — 중소기업 여부는 회사 설정에 칸이 없어 화면에서 고른다(기본 중소기업:
+  //   오너뷰 고객 대부분이 5~20명 회사). 값은 기억하지 않는다(조회값 자동 기억 금지).
+  const [citSme, setCitSme] = useState(true);
   const cit = useMemo(() => {
+    const pnl = citStmt?.pnl || [];
     //   과세표준은 법인세비용 차감 전 이익 — 손익의 당기순이익엔 998 법인세비용이 이미 빠져 있어 더해 준다
-    const taxExpense = (citStmt?.pnl || []).filter((p) => String(p.code || "") === "998").reduce((s, p) => s + Number(p.ytd || 0), 0);
+    const taxExpense = pnl.filter((p) => String(p.code || "") === "998").reduce((s, p) => s + Number(p.ytd || 0), 0);
     const income = Math.round((citStmt?.totals.ytdNet || 0) + taxExpense);
-    const c = citOf(income);
+    //   한도 초과분은 손금불산입 → 과세표준에 더한다. 수입금액 = 매출 계정(401~450) 순액
+    const entLines = pnl.filter((p) => p.nature === "expense" && isEntertainmentAccount(p.code, p.name));
+    const sales = Math.round(pnl.filter((p) => p.nature === "revenue" && isSalesAccount(p.code)).reduce((s, p) => s + Number(p.ytd || 0), 0));
+    const ent = entertainmentLimit(entLines.reduce((s, p) => s + Number(p.ytd || 0), 0), sales, citSme);
+    const base = income + ent.excess;
+    const c = citOf(base);
     const local = Math.floor(c.total * 0.1);
-    return { income, ...c, local, sum: c.total + local };
-  }, [citStmt]);
+    return { income, base, entLines, sales, ent, ...c, local, sum: c.total + local };
+  }, [citStmt, citSme]);
   const [packBusy, setPackBusy] = useState(false);
 
   //   ── 전자신고 파일 베타 (세무 4차, 결정 106). feature_rollout 'tax_efile' 게이트: 모티브 먼저,
@@ -676,7 +686,7 @@ export default function TaxFilingPage() {
             ) : tab === "cit" ? (
               citLoading ? <div className="collect-empty">연간 손익을 계산하는 중…</div> : (
                 <div className="vr-wrap">
-                  <p className="inv-hint" title="접대비 한도·감가상각 한도·이월결손금 공제는 반영되지 않았습니다">
+                  <p className="inv-hint" title="감가상각 한도·이월결손금 공제는 반영되지 않았습니다. 기업업무추진비 한도는 아래 표대로 반영했습니다">
                     {year}년 확정 전표로 계산한 예상치입니다.
                     <b className="vr-warn"> 세무조정 전 근사치이며 확정 세액은 세무사가 계산합니다.</b>
                     {" 자료는 세무사 전달 패키지로 보냅니다."}
@@ -688,8 +698,10 @@ export default function TaxFilingPage() {
                       <table className="ev-table ev-lined table-inv-status-sm">
                         <thead><tr><th>구간</th><th>과세표준</th><th>세율</th><th>세액</th></tr></thead>
                         <tbody>
-                          <tr className="vr-sum"><td className="text-left">회계이익 (세무조정 전 과세표준)</td><td className="tr mono-number">{won(cit.income)}</td><td></td><td></td></tr>
-                          {cit.income <= 0 ? (
+                          <tr><td className="text-left">회계이익 (세무조정 전)</td><td className="tr mono-number">{won(cit.income)}</td><td></td><td></td></tr>
+                          {cit.ent.excess > 0 && <tr><td className="text-left">+ 기업업무추진비 한도 초과 (손금불산입)</td><td className="tr mono-number">{won(cit.ent.excess)}</td><td></td><td></td></tr>}
+                          <tr className="vr-sum"><td className="text-left">예상 과세표준</td><td className="tr mono-number">{won(cit.base)}</td><td></td><td></td></tr>
+                          {cit.base <= 0 ? (
                             <tr><td className="text-left" colSpan={3}>결손이라 산출세액이 없습니다.</td><td className="tr mono-number">₩0</td></tr>
                           ) : cit.brackets.map((b) => (
                             <tr key={b.label}><td className="text-left">{b.label}</td><td className="tr mono-number">{won(b.amt)}</td><td className="tc mono-number">{Math.round(b.rate * 100)}%</td><td className="tr mono-number">{won(b.tax)}</td></tr>
@@ -700,6 +712,32 @@ export default function TaxFilingPage() {
                         </tbody>
                       </table>
                       </div>
+                    </div>
+                    <div className="pnl-panel">
+                      <h3>기업업무추진비 (접대비) 한도</h3>
+                      <p title="법인세법 제25조: 기본한도 + 수입금액 × 0.3%(100억 이하)·0.2%(500억 이하)·0.03%(초과)">한도를 넘은 금액은 비용으로 인정되지 않아 과세표준에 더해집니다.</p>
+                      <ChipGroup value={citSme ? "sme" : "general"} onChange={(v) => setCitSme(v === "sme")}
+                        options={[{ value: "sme", label: "중소기업 (기본 3,600만)" }, { value: "general", label: "일반 (기본 1,200만)" }] as const} />
+                      <div className="stg-table-wrap vr-scroll">
+                      <table className="ev-table ev-lined table-inv-status-sm">
+                        <thead><tr><th>항목</th><th>금액</th></tr></thead>
+                        <tbody>
+                          {cit.entLines.length === 0 ? (
+                            <tr><td className="text-left ev-dim" colSpan={2}>{year}년 확정 전표에 기업업무추진비(접대비) 계정 사용이 없습니다.</td></tr>
+                          ) : cit.entLines.map((l) => (
+                            <tr key={l.accountId}><td className="text-left">{l.code ? `${l.code} ` : ""}{l.name}</td><td className="tr mono-number">{won(Number(l.ytd || 0))}</td></tr>
+                          ))}
+                          <tr className="vr-sum"><td className="text-left">지출 합계</td><td className="tr mono-number">{won(cit.ent.spent)}</td></tr>
+                          <tr><td className="text-left">기본한도</td><td className="tr mono-number">{won(cit.ent.base)}</td></tr>
+                          <tr><td className="text-left">수입금액 한도 <span className="ev-dim">매출 {won(cit.sales)} 기준</span></td><td className="tr mono-number">{won(cit.ent.byRevenue)}</td></tr>
+                          <tr className="vr-sum"><td className="text-left">한도 합계</td><td className="tr mono-number">{won(cit.ent.limit)}</td></tr>
+                          <tr className="vr-total"><td className="text-left"><b>한도 초과 (손금불산입)</b></td><td className="tr mono-number"><b className={cit.ent.excess > 0 ? "vr-warn" : undefined}>{won(cit.ent.excess)}</b></td></tr>
+                        </tbody>
+                      </table>
+                      </div>
+                      <p className="inv-foot" title="진행 중인 해는 지금까지 확정된 지출·매출 기준입니다">
+                        문화·전통시장 추가 한도, 특수관계인 매출, 부동산임대업 주업 법인(한도 절반), 3만 원 초과 적격증빙 미수취분은 계산하지 않습니다. 세무사와 확인하세요.
+                      </p>
                     </div>
                     <div className="pnl-panel">
                       <h3>신고 일정 · To-do</h3><p>12월 결산 법인 기준 일정입니다.</p>
