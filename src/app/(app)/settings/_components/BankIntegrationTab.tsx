@@ -66,6 +66,12 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
   //   등록 실패 응답이 같은 요구를 내면 칸을 띄운다.
   const [phoneNo, setPhoneNo] = useState("");
   const [askPhone, setAskPhone] = useState(false);
+  const [telecom, setTelecom] = useState("");
+  //   문자 인증번호 단계(CF-03002) — 1단계 응답을 들고 있다가 인증번호와 함께 그대로 돌려보낸다
+  const [smsStep, setSmsStep] = useState<import("@/lib/data-sync").CodefTwoWay | null>(null);
+  const [smsCode, setSmsCode] = useState("");
+  //   다른 기관을 고르면 이전 기관의 인증 단계는 버린다(다른 경로로 인증번호를 보내지 않게)
+  useEffect(() => { setSmsStep(null); setSmsCode(""); }, [organization, accountType]);
   const [showPw, setShowPw] = useState(false);
   // Certificate states
   const [certPassword, setCertPassword] = useState("");
@@ -390,15 +396,29 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
           setRegistering(false);
           return;
         }
-        if (needPhone && phoneNo.replace(/\D/g, "").length < 10) {
-          setResult({ ok: false, msg: "이 카드사는 휴대폰 번호가 필요합니다. 카드사에 등록된 휴대폰 번호를 입력하세요." });
+        if (needPhone && (phoneNo.replace(/\D/g, "").length < 10 || !telecom)) {
+          setResult({ ok: false, msg: "이 카드사는 휴대폰 번호와 통신사가 필요합니다. 카드사에 등록된 번호와 통신사를 입력하세요." });
+          setRegistering(false);
+          return;
+        }
+        if (smsStep && smsCode.replace(/\D/g, "").length < 4) {
+          setResult({ ok: false, msg: "문자로 받은 인증번호를 입력하세요." });
           setRegistering(false);
           return;
         }
         const { registerCodefAccount } = await import("@/lib/data-sync");
         const res = await registerCodefAccount(companyId, accountType, organization, loginId, loginPw, clientType,
-          needPhone ? { phoneNo } : undefined);
-        if (!res.success && /reqPhoneNo/.test(res.error || "")) setAskPhone(true);
+          needPhone || smsStep ? { phoneNo, telecom, twoWay: smsStep ? { ...smsStep, smsAuthNo: smsCode } : undefined } : undefined);
+        if (!res.success && /reqPhoneNo|reqTelecom/.test(res.error || "")) setAskPhone(true);
+        if (!res.success && res.twoWay) {
+          //   카드사가 인증번호를 보냈다 — 오류가 아니라 다음 단계
+          setSmsStep(res.twoWay);
+          setSmsCode("");
+          setResult({ ok: false, msg: "카드사가 휴대폰으로 인증번호를 보냈습니다. 받은 번호를 아래 칸에 넣고 다시 눌러 주세요(제한 시간 안에)." });
+          setRegistering(false);
+          return;
+        }
+        setSmsStep(null);
         if (res.success) {
           if (res.verify && !res.verify.ok) {
             setResult({ ok: false, msg: `연결은 등록됐지만 계좌 조회가 안 됩니다 (${res.verify.code || "확인 실패"}). ${res.verify.message || ""}\n개인/법인 구분이나 아이디·비밀번호를 다시 확인해 주세요.` });
@@ -646,7 +666,28 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
                 <div className="bank-integration-phone-field">
                   <label className="field-label">휴대폰 번호</label>
                   <input value={phoneNo} onChange={(e) => setPhoneNo(e.target.value)} inputMode="tel" placeholder="010-0000-0000" className="field-input" />
-                  <p className="bank-integration-phone-hint">카드사 홈페이지에 등록된 휴대폰 번호입니다. 카드사가 로그인할 때 이 번호를 함께 요구합니다.</p>
+                  <p className="bank-integration-phone-hint">카드사 홈페이지에 등록된 휴대폰 번호입니다. 카드사가 로그인할 때 이 번호로 인증번호를 보냅니다.</p>
+                </div>
+              )}
+              {needPhone && (
+                <div className="bank-integration-phone-field">
+                  <label className="field-label">통신사</label>
+                  <select value={telecom} onChange={(e) => setTelecom(e.target.value)} className="field-input">
+                    <option value="">통신사 선택</option>
+                    <option value="0">SKT</option>
+                    <option value="1">KT</option>
+                    <option value="2">LG U+</option>
+                    <option value="3">SKT 알뜰폰</option>
+                    <option value="4">KT 알뜰폰</option>
+                    <option value="5">LG U+ 알뜰폰</option>
+                  </select>
+                </div>
+              )}
+              {smsStep && (
+                <div className="bank-integration-phone-field">
+                  <label className="field-label">문자 인증번호</label>
+                  <input value={smsCode} onChange={(e) => setSmsCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" placeholder="인증번호 6자리" className="field-input" />
+                  <p className="bank-integration-phone-hint">휴대폰으로 온 인증번호를 넣고 아래 버튼을 다시 누르세요. 시간이 지나 실패하면 처음부터 다시 누르면 새 번호가 옵니다.</p>
                 </div>
               )}
             </>
@@ -676,7 +717,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
           disabled={registering || !isReady}
           className="btn-primary btn-sm"
         >
-          {registering ? "연결 중..." : `${orgList[organization] || (accountType === "bank" ? "은행" : "카드사")} 연결하기`}
+          {registering ? "연결 중..." : smsStep ? "인증번호 확인하고 연결" : `${orgList[organization] || (accountType === "bank" ? "은행" : "카드사")} 연결하기`}
         </button>
       </div>
       </>

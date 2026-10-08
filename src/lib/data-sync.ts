@@ -638,10 +638,12 @@ export async function registerCodefAccount(
   loginPw: string,
   clientType: 'P' | 'B' = 'B',
   //   기관이 아이디·비밀번호 밖에 더 요구하는 항목(롯데카드 법인: 휴대폰 번호, 2026-10)
-  extra?: { phoneNo?: string },
-): Promise<{ success: boolean; connectedId?: string; accountList?: any[]; error?: string; verify?: { ok: boolean; code?: string; message?: string } }> {
-  const params: Record<string, string> = { accountType, organization, loginType: '1', loginId, loginPw, clientType };
+  extra?: { phoneNo?: string; telecom?: string; twoWay?: CodefTwoWay & { smsAuthNo: string } },
+): Promise<CodefRegisterResult> {
+  const params: Record<string, unknown> = { accountType, organization, loginType: '1', loginId, loginPw, clientType };
   if (extra?.phoneNo) params.phoneNo = extra.phoneNo;
+  if (extra?.telecom) params.telecom = extra.telecom;
+  if (extra?.twoWay) params.twoWay = extra.twoWay;
   return callCodefRegister(companyId, params);
 }
 
@@ -717,10 +719,14 @@ export async function verifyHometaxRegistration(
   }
 }
 
+/** 기관이 문자 인증번호를 요구할 때(CF-03002) 2단계에 그대로 돌려줄 값 */
+export type CodefTwoWay = { path: string; method: string; info: Record<string, unknown> };
+type CodefRegisterResult = { success: boolean; connectedId?: string; accountList?: any[]; error?: string; verify?: { ok: boolean; code?: string; message?: string }; twoWay?: CodefTwoWay };
+
 async function callCodefRegister(
   companyId: string,
-  params: Record<string, string>,
-): Promise<{ success: boolean; connectedId?: string; accountList?: any[]; error?: string; verify?: { ok: boolean; code?: string; message?: string } }> {
+  params: Record<string, unknown>,
+): Promise<CodefRegisterResult> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return { success: false, error: '로그인이 필요합니다' };
@@ -739,6 +745,8 @@ async function callCodefRegister(
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: '계정 등록 오류' }));
+      //   문자 인증번호 단계 — 오류가 아니라 다음 단계. 진단 꼬리를 붙이지 않고 화면이 입력칸을 띄우게 넘긴다.
+      if (err.twoWay) return { success: false, error: err.error, twoWay: err.twoWay };
       const diagParts: string[] = [];
       if (err.diagnostics) {
         const d = err.diagnostics;

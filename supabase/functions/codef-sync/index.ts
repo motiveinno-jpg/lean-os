@@ -1533,6 +1533,9 @@ async function registerAccount(
     pfxFile?: string;
     clientType?: "P" | "B";
     phoneNo?: string;   // 기관이 추가로 요구할 때만(롯데카드 법인 2026-10 — extraMessage reqPhoneNo)
+    telecom?: string;   // 통신사 코드(0 SKT·1 KT·2 LG U+·3~5 알뜰폰) — 롯데카드 법인 reqTelecom
+    //   추가인증(문자 인증번호) 2단계 — 1단계 응답 CF-03002 의 twoWayInfo 와 같은 경로로 인증번호를 붙여 다시 보낸다
+    twoWay?: { smsAuthNo: string; info: Record<string, unknown>; path: string };
   },
   existingConnectedId?: string,
 ): Promise<{ connectedId: string; accountList?: any[] }> {
@@ -1572,6 +1575,8 @@ async function registerAccount(
     accountEntry.password = encryptedPw;
     const phone = String(loginOpts.phoneNo || "").replace(/\D/g, "");
     if (phone) accountEntry.phoneNo = phone;
+    const tel = String(loginOpts.telecom || "").trim();
+    if (/^[0-5]$/.test(tel)) accountEntry.telecom = tel;
   } else {
     // 공동인증서 로그인
     const encryptedCertPw = publicKey ? rsaEncrypt(loginOpts.certPassword || "", publicKey) : (loginOpts.certPassword || "");
@@ -1594,7 +1599,31 @@ async function registerAccount(
     body.connectedId = existingConnectedId;
   }
 
+  //   추가인증 2단계: 1단계와 같은 경로·같은 계정 정보에 인증번호와 twoWayInfo 를 붙인다.
+  const TWO_WAY_PATHS = new Set(["/v1/account/update", "/v1/account/add", "/v1/account/create"]);
+  if (loginOpts.twoWay && TWO_WAY_PATHS.has(loginOpts.twoWay.path)) {
+    path = loginOpts.twoWay.path;
+    if (path === "/v1/account/create") delete body.connectedId;
+    body.is2Way = true;
+    body.twoWayInfo = loginOpts.twoWay.info;
+    body.smsAuthNo = String(loginOpts.twoWay.smsAuthNo || "").replace(/\D/g, "");
+  }
+
   let result = await codefRequest(token, path, body);
+
+  //   기관이 문자 인증번호를 요구(CF-03002 + continue2Way) — 기존 계정은 손대지 않고 화면에 인증번호 입력을 요청한다.
+  //   update 실패 폴백(검증·삭제·재등록)으로 넘어가면 인증 도중에 멀쩡한 연결을 지울 수 있다.
+  if (result.result?.code === "CF-03002") {
+    const d = result.data || {};
+    const err: any = new Error(d.extraInfo?.reqSMSAuthNo ? "카드사가 보낸 문자 인증번호를 입력해 주세요." : (result.result?.message || "추가 인증이 필요합니다."));
+    err.twoWay = {
+      path,
+      method: d.method || "smsAuthNo",
+      info: { jobIndex: d.jobIndex, threadIndex: d.threadIndex, jti: d.jti, twoWayTimestamp: d.twoWayTimestamp },
+    };
+    err.codefResponse = { result: result.result };
+    throw err;
+  }
 
   // update 폴백 (2026-08-04 대표 실기기 CF-04010 재현): 기관·기존 등록 방식에 따라 update 를
   //   거부하는 계정이 있어 "기존 계정 삭제 → 새 자격증명으로 add" 로 전환한다.
@@ -1673,7 +1702,7 @@ async function registerAccount(
     const innerMsg: string = inner?.message || "";
     //   기관이 로그인 항목을 새로 요구하면 extraMessage 에 "{phoneNo(userError:reqPhoneNo)}" 꼴로 온다(롯데카드 법인 2026-10).
     //   CF-12401 기본 힌트("점검 시간을 피해 재시도")는 틀린 안내라, 무엇을 넣으면 되는지로 바꾼다.
-    const REQ_LABEL: Record<string, string> = { reqPhoneNo: "휴대폰 번호", reqBirthDate: "생년월일", reqCardNo: "카드번호", reqCardPassword: "카드 비밀번호", reqIdentity: "주민·법인등록번호" };
+    const REQ_LABEL: Record<string, string> = { reqTelecom: "통신사", reqPhoneNo: "휴대폰 번호", reqBirthDate: "생년월일", reqCardNo: "카드번호", reqCardPassword: "카드 비밀번호", reqIdentity: "주민·법인등록번호" };
     const reqFields = [...String(inner?.extraMessage || result.result?.extraMessage || "").matchAll(/userError:(req[A-Za-z]+)/g)].map((m) => m[1]);
     const needText = reqFields.length ? `기관이 추가 정보를 요구합니다: ${reqFields.map((f) => REQ_LABEL[f] || f).join(", ")}. 그 칸을 채워 다시 연결해 주세요.` : "";
     const hint = needText || codefErrorHint(innerCode || result.result?.code);
@@ -3355,7 +3384,7 @@ serve(withSentry("codef-sync", async (req) => {
 
     // --- Action: register (계정 등록 → connectedId 발급) ---
     if (action === "register") {
-      const { accountType = "bank", organization, loginId, loginPw, loginType = "1", derFile, keyFile, certPassword, pfxFile, clientType = "B", phoneNo } = body;
+      const { accountType = "bank", organization, loginId, loginPw, loginType = "1", derFile, keyFile, certPassword, pfxFile, clientType = "B", phoneNo, telecom, twoWay } = body;
 
       if (loginType === "0") {
         // 공동인증서 로그인 — PFX 또는 DER+KEY 둘 중 하나 필수
@@ -3374,7 +3403,7 @@ serve(withSentry("codef-sync", async (req) => {
 
       let result;
       try {
-        result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType, phoneNo }, cid);
+        result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType, phoneNo, telecom, twoWay }, cid);
       } catch (regErr: any) {
         // CF-04019(connectedId 무효)일 때만 fresh /v1/account/create 로 재시도.
         //   CF-04000 은 기관 측 인증 실패(예: 미등록 인증서 CF-12805) — 같은 자격증명으로
@@ -3382,7 +3411,7 @@ serve(withSentry("codef-sync", async (req) => {
         //   아래 upsert 가 새 connectedId 로 덮어써 기존 기관 계정이 전부 고아가 된다.
         if (cid && regErr.message?.includes("CF-04019")) {
           try {
-            result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType, phoneNo });
+            result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType, phoneNo, telecom, twoWay });
           } catch (retryErr: any) {
             return new Response(JSON.stringify({
               error: retryErr.message || "계정 등록 실패",
@@ -3395,6 +3424,7 @@ serve(withSentry("codef-sync", async (req) => {
             error: regErr.message || "계정 등록 실패",
             codefResponse: regErr.codefResponse || null,
             diagnostics: regErr.diagnostics || null,
+            twoWay: regErr.twoWay || null,
           }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
       }
