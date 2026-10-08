@@ -804,6 +804,53 @@ async function syncBankTransactions(
   return { synced: totalSynced, errors, debug, orgs: [...bankOrgs.keys()] };
 }
 
+// 연속 실패 감시 — 은행·카드가 목록엔 있는데 조회가 두 번 연속(약 반나절) 실패하면 알린다.
+//   롯데카드(법인)가 카드사 화면 변경(CF-12701) 뒤 로그인 항목 변경(CF-12401)으로 이틀간 수집이 멈췄는데,
+//   감시가 '목록에서 사라짐'과 은행 인증오류(CF-03/04)만 봐서 아무도 몰랐다(2026-10-08).
+//   한 번 실패는 카드사 점검·일시 오류일 수 있어 알리지 않고, 직전 크론에도 같은 기관이 실패했을 때만 알린다.
+//   받는 사람은 연결을 고칠 수 있는 사람 — 마스터와 '/settings:bank' 권한자(설정 은행연동 탭과 같은 기준). 24시간 dedup.
+async function alertPersistentOrgFailures(
+  supabase: any, companyId: string, syncType: string, detailKey: string,
+  errors: SyncError[], names: Record<string, string>, kindLabel: string,
+): Promise<void> {
+  try {
+    const SKIP = new Set(["NO_BANK_ACCOUNTS", "NO_CARD_ACCOUNTS", "ORG_MISSING"]);
+    const failing = new Map<string, SyncError>();
+    for (const e of errors || []) {
+      if (!e?.organization || SKIP.has(e.code)) continue;
+      if (kindLabel === "은행" && /^CF-0[34]/.test(e.code || "")) continue;   // alertBankSyncIssues ② 가 이미 알린다
+      if (!failing.has(e.organization)) failing.set(e.organization, e);
+    }
+    if (failing.size === 0) return;
+    const { data: prev } = await supabase.from("sync_logs")
+      .select("details").eq("company_id", companyId).eq("sync_type", syncType)
+      .gte("created_at", new Date(Date.now() - 30 * 3600000).toISOString())
+      .order("created_at", { ascending: false }).limit(1);
+    const prevErrs: SyncError[] = (prev?.[0]?.details?.[detailKey]?.errors) || [];
+    const prevOrgs = new Set(prevErrs.map((e) => e.organization));
+    for (const [org, e] of failing) {
+      if (!prevOrgs.has(org)) continue;
+      const name = names[org] || org;
+      const title = `${kindLabel} 수집 실패: ${name}`;
+      const { data: dup } = await supabase.from("notifications")
+        .select("id").eq("company_id", companyId).eq("title", title)
+        .gte("created_at", new Date(Date.now() - 24 * 3600000).toISOString()).limit(1);
+      if (dup && dup.length > 0) continue;
+      const { data: masters } = await supabase.from("users").select("id").eq("company_id", companyId).eq("is_master", true);
+      const { data: permitted } = await supabase.from("member_permissions").select("user_id").eq("company_id", companyId).eq("perm_key", "/settings:bank");
+      const ids = [...new Set([...(masters || []).map((m: any) => m.id), ...(permitted || []).map((m: any) => m.user_id)])];
+      const rows = ids.map((id) => ({
+        company_id: companyId, user_id: id, type: "system", title, link: "/settings/integration",
+        message: `${name} 자동 수집이 연속으로 실패하고 있습니다(${e.code} ${e.message || ""}). ` +
+          `설정 › 연동·인증 › 은행 연결에서 ${name}을(를) 지금 쓰는 로그인 정보로 다시 연결해 주세요. 다시 연결해도 같으면 ${kindLabel === "카드" ? "카드사" : "은행"} 쪽 변경일 수 있으니 고객센터로 알려 주세요.`,
+      }));
+      if (rows.length) await supabase.from("notifications").insert(rows);
+    }
+  } catch (err) {
+    console.error("alertPersistentOrgFailures failed", err); // 감시 실패가 수집을 막지 않게
+  }
+}
+
 // 은행 수집 중단 감시 — 카드(alertMissingCardOrgs)의 은행판 + 인증오류 감시. (2026-08-19)
 //   드림세무회계 실사고: 농협이 P(개인) 유형으로 등록돼 법인 API 조회가 CF-04015 로
 //   3주간 무음 실패했는데, 감시가 카드에만 있어 아무도 몰랐다. 은행은 두 갈래를 잡는다:
@@ -2614,6 +2661,7 @@ serve(withSentry("codef-sync", async (req) => {
       }
       // e39b351 동일 산식 잔액 재계산 (서버측 RPC — 마이그레이션 미적용 시 graceful skip)
       try { await supabase.rpc("recompute_bank_balances", { p_company: companyId }); } catch { /* RPC 미배포 — 다음 syncBankBalances 가 보정 */ }
+      await alertPersistentOrgFailures(supabase, companyId, "codef_bank_cron", "bank", bankRes?.errors || [], BANK_CODES, "은행");
       try {
         await supabase.from("sync_logs").insert({
           company_id: companyId,
@@ -2676,6 +2724,7 @@ serve(withSentry("codef-sync", async (req) => {
       if ((cardRes?.errors?.length ?? 0) > 0 && cardRes.errors.every((e: any) => e.code === "NO_CARD_ACCOUNTS")) {
         return new Response(JSON.stringify({ ok: true, skipped: "no card accounts" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
+      await alertPersistentOrgFailures(supabase, companyId, "codef_card_cron", "card", cardRes?.errors || [], CARD_CODES, "카드");
       try {
         await supabase.from("sync_logs").insert({
           company_id: companyId,
