@@ -13,7 +13,9 @@
 //   전체 바이트쌍을 한 번 디코드해 역테이블(문자 → 바이트쌍)을 만든다. 의존성 0.
 
 export type NtsFieldType = "X" | "9"; // X=문자(좌측 정렬·공백 채움) / 9=숫자(우측 정렬·0 채움)
-export type NtsField = { name: string; len: number; type: NtsFieldType; value: string | number };
+/** sign — 음수 표기(2026-10-08 부가세): 'minus' = 왼쪽 첫 자리 '-' + 0 채움(폭에 부호 포함, 부가세 신고서 §수록시 유의사항),
+ *         'multikey' = 마지막 자리를 문자로(0→'}' 1→'J' … 9→'R', 세금계산서·계산서 합계표 디스켓 양식). 없으면 음수는 이슈. */
+export type NtsField = { name: string; len: number; type: NtsFieldType; value: string | number; sign?: "minus" | "multikey" };
 export type NtsIssue = { field: string; message: string };
 
 // ── EUC-KR(CP949) 인코딩 ──────────────────────────────────────────────────
@@ -55,6 +57,17 @@ export function encodeEucKr(s: string): { bytes: number[]; bad: string[] } {
   return { bytes, bad };
 }
 
+/** 사업자등록번호 검증번호(체크 디짓) — 규격의 '사업자번호 CHECK DIGIT' 점검. 10자리 숫자만 받는다 */
+export function bizNoValid(raw: string): boolean {
+  const d = String(raw || "").replace(/[^0-9]/g, "");
+  if (d.length !== 10) return false;
+  const w = [1, 3, 7, 1, 3, 7, 1, 3, 5];
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += Number(d[i]) * w[i];
+  sum += Math.floor((Number(d[8]) * 5) / 10);
+  return (10 - (sum % 10)) % 10 === Number(d[9]);
+}
+
 /** EUC-KR 바이트 길이 — 규격의 '길이'는 글자 수가 아니라 바이트 수다 */
 export function eucKrLen(s: string): number {
   return encodeEucKr(s).bytes.length;
@@ -63,6 +76,7 @@ export function eucKrLen(s: string): number {
 // ── 필드·레코드 채우기 ─────────────────────────────────────────────────────
 
 const SPACE = 0x20, ZERO = 0x30;
+const MULTIKEY = "}JKLMNOPQR";   // 음수 마지막 자리 0~9 → 문자 (부가세 설명서 Multi-Key 요령)
 
 /** 필드 하나를 규격 폭으로. 초과·미지원 문자·음수는 이슈 — 자르지 않는다. */
 export function packField(f: NtsField): { bytes: number[]; issues: NtsIssue[] } {
@@ -70,11 +84,15 @@ export function packField(f: NtsField): { bytes: number[]; issues: NtsIssue[] } 
   if (f.type === "9") {
     const n = typeof f.value === "number" ? f.value : Number(String(f.value).trim() || 0);
     if (!Number.isFinite(n)) { issues.push({ field: f.name, message: `숫자가 아닙니다: ${String(f.value)}` }); return { bytes: new Array(f.len).fill(ZERO), issues }; }
-    if (n < 0) issues.push({ field: f.name, message: `음수는 이 필드에 직접 못 넣습니다(규격의 부호 필드 사용): ${n}` });
+    const neg = Math.round(n) < 0;
+    if (neg && !f.sign) issues.push({ field: f.name, message: `음수는 이 필드에 직접 못 넣습니다(규격의 부호 필드 사용): ${n}` });
     const digits = String(Math.abs(Math.round(n)));
-    if (digits.length > f.len) { issues.push({ field: f.name, message: `자릿수 초과 · ${digits.length}자리 > 폭 ${f.len}` }); return { bytes: new Array(f.len).fill(ZERO), issues }; }
+    const room = neg && f.sign === "minus" ? f.len - 1 : f.len;   // '-' 는 폭 안에 든다
+    if (digits.length > room) { issues.push({ field: f.name, message: `자릿수 초과 · ${digits.length}자리 > 폭 ${room}` }); return { bytes: new Array(f.len).fill(ZERO), issues }; }
     const out = new Array<number>(f.len).fill(ZERO);
     for (let i = 0; i < digits.length; i++) out[f.len - digits.length + i] = digits.charCodeAt(i);
+    if (neg && f.sign === "minus") out[0] = 0x2d;
+    if (neg && f.sign === "multikey") out[f.len - 1] = MULTIKEY.charCodeAt(out[f.len - 1] - ZERO);
     return { bytes: out, issues };
   }
   const s = String(f.value ?? "");

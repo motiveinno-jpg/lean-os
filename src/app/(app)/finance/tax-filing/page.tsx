@@ -39,6 +39,7 @@ import { fetchJournalLines } from "@/lib/journal-reports";
 import { friendlyError } from "@/lib/friendly-error";
 import { downloadNtsBytes, type NtsIssue } from "@/lib/nts-efile";
 import { buildWhtEfile, type WhtEfileRow } from "@/lib/nts-wht-efile";
+import { VatEfileDialog } from "@/components/vat-efile-dialog";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import { fetchTaxDeadlineChecks, setTaxDeadlineChecked, taxCheckTitle, type TaxCheckInfo } from "@/lib/tax-deadline-checks";
@@ -263,6 +264,13 @@ export default function TaxFilingPage() {
       return !!data;
     },
   });
+  //   부가세 전자신고 파일 (2026-10-08 ERP 3차 D) — 원천세와 별도 게이트 'tax_efile_vat': 모티브 먼저, 홈택스 변환 검증 + 실신고 통과 후 전체
+  const { data: vatEfileOn = false } = useQuery({
+    queryKey: ["feature-tax-efile-vat", companyId],
+    enabled: !!companyId,
+    queryFn: async () => !!(await (supabase as any).rpc("feature_on", { p_feature: "tax_efile_vat", p_company: companyId })).data,
+  });
+  const [vatEfileOpen, setVatEfileOpen] = useState(false);
   const [efileOpen, setEfileOpen] = useState(false);
   useModalKeys(efileOpen, () => setEfileOpen(false));
   //   홈택스 사용자ID — 회사 상수라 브라우저에 기억해 준다(조회 조건이 아니라 설정값)
@@ -586,6 +594,7 @@ export default function TaxFilingPage() {
           </div>
         </div>
       )}
+      {vatEfileOpen && companyId && <VatEfileDialog companyId={companyId} year={year} period={vatPeriod} onClose={() => setVatEfileOpen(false)} />}
       {retDialog && companyId && (
         <RetirementPaymentDialog companyId={companyId} edit={retDialog.edit} onClose={() => setRetDialog(null)}
           defaultPaidOn={month === todayKst().slice(0, 7) ? todayKst() : `${month}-01`}
@@ -627,7 +636,10 @@ export default function TaxFilingPage() {
             </ResultStrip>
           </>)}
           {tab === "vat" && (
-            <QueryBar right={<button type="button" className="btn-secondary btn-sm" onClick={() => vatExportRef.current?.()} title="신고서 · 매출처별 · 매입처별 합계표 · 전표 목록 · 4개 시트">세무사 전달 엑셀</button>}>
+            <QueryBar right={<>
+              {vatEfileOn && <button type="button" className="btn-secondary btn-sm" onClick={() => setVatEfileOpen(true)} title="홈택스 '신고서 파일 변환' 업로드용 파일 (일반과세자 정기신고 · 전자세금계산서). 베타">전자신고 파일 (베타)</button>}
+              <button type="button" className="btn-secondary btn-sm" onClick={() => vatExportRef.current?.()} title="신고서 · 매출처별 · 매입처별 합계표 · 전표 목록 · 4개 시트">세무사 전달 엑셀</button>
+            </>}>
               <label className="text-xs font-semibold text-[var(--text-dim)]">연도</label>
               <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs" aria-label="연도">
                 {years.map((y) => <option key={y} value={y}>{y}년</option>)}

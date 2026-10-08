@@ -2,7 +2,7 @@
 //   오프셋이 한 바이트 밀리면 숫자가 엉뚱한 칸으로 들어가므로, 패딩·길이·미지원 문자를 바이트 단위로 검증한다.
 import { describe, it, expect } from "vitest";
 
-import { encodeEucKr, eucKrLen, packField, packRecord, buildNtsFile } from "@/lib/nts-efile";
+import { encodeEucKr, eucKrLen, packField, packRecord, buildNtsFile, bizNoValid } from "@/lib/nts-efile";
 
 describe("encodeEucKr — 역테이블 인코딩", () => {
   it("'가' = B0A1 (KS X 1001 첫 음절)", () => {
@@ -67,5 +67,36 @@ describe("packRecord / buildNtsFile — 레코드·파일", () => {
   it("이슈에 몇 번째 레코드인지 붙는다", () => {
     const r = buildNtsFile([[{ name: "a", len: 1, type: "X", value: "가" }]]);
     expect(r.issues[0].message).toContain("1번째 레코드");
+  });
+});
+
+//   2026-10-08 부가세 — 설명서 §수록시 유의사항·Multi-Key 요령의 예시를 그대로 시험한다
+describe("음수 표기 — 부가세 설명서 예시", () => {
+  const str = (b: number[]) => String.fromCharCode(...b);
+  it("minus: -5,230 폭 10 → '-000005230', 5,230 → '0000005230'", () => {
+    expect(str(packField({ name: "a", len: 10, type: "9", value: -5230, sign: "minus" }).bytes)).toBe("-000005230");
+    expect(str(packField({ name: "a", len: 10, type: "9", value: 5230, sign: "minus" }).bytes)).toBe("0000005230");
+  });
+  it("minus: NUMBER(9) -100 → '-00000100'", () => {
+    expect(str(packField({ name: "a", len: 9, type: "9", value: -100, sign: "minus" }).bytes)).toBe("-00000100");
+  });
+  it("minus: 부호까지 폭을 넘으면 이슈", () => {
+    expect(packField({ name: "a", len: 3, type: "9", value: -100, sign: "minus" }).issues.length).toBe(1);
+  });
+  it("multikey: NUMBER(15) -50000 → '00000000005000}', -50001 → J, -50009 → R", () => {
+    expect(str(packField({ name: "a", len: 15, type: "9", value: -50000, sign: "multikey" }).bytes)).toBe("00000000005000}");
+    expect(str(packField({ name: "a", len: 15, type: "9", value: -50001, sign: "multikey" }).bytes)).toBe("00000000005000J");
+    expect(str(packField({ name: "a", len: 15, type: "9", value: -50009, sign: "multikey" }).bytes)).toBe("00000000005000R");
+  });
+  it("sign 이 없으면 음수는 여전히 이슈", () => {
+    expect(packField({ name: "a", len: 5, type: "9", value: -1 }).issues.length).toBe(1);
+  });
+});
+
+describe("bizNoValid — 사업자번호 검증번호", () => {
+  it("국세청 검증식: 1558802209 통과, 끝자리 바꾸면 실패, 자릿수 틀리면 실패", () => {
+    expect(bizNoValid("155-88-02209")).toBe(true);
+    expect(bizNoValid("1558802208")).toBe(false);
+    expect(bizNoValid("12345")).toBe(false);
   });
 });

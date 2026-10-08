@@ -23,8 +23,9 @@ import { todayKst } from "@/lib/kst";
 import { Stat } from "@/components/query-kit";
 import { useToast } from "@/components/toast";
 
-type Row = { id: string; entry_date: string; vat_type: string | null; supply_amount: number; vat_amount: number; description: string | null;
-  partnerName: string | null; partnerBizno: string | null; partnerKey: string };
+export type VatRow = { id: string; entry_date: string; vat_type: string | null; supply_amount: number; vat_amount: number; description: string | null;
+  partnerName: string | null; partnerBizno: string | null; partnerKey: string; electronic: boolean };
+type Row = VatRow;
 
 export const VAT_PERIODS = [
   //   due = 신고·납부 기한(그 기간이 끝난 다음 달 25일). 2기 확정·반기는 다음 해 1/25 라 nextYear.
@@ -66,12 +67,12 @@ export function prevVatPeriod(year: number, key: VatPeriodKey): { year: number; 
   }
 }
 
-/** 확정 매입매출전표 — 신고기간 안. 이번 기수와 직전 기수가 같은 함수를 쓴다 */
-async function fetchVatRows(companyId: string, from: string, to: string): Promise<Row[]> {
+/** 확정 매입매출전표 — 신고기간 안. 이번 기수와 직전 기수가 같은 함수를 쓴다 · 전자신고 파일(lib/nts-vat-efile)도 같은 행을 읽는다 */
+export async function fetchVatRows(companyId: string, from: string, to: string): Promise<Row[]> {
   const out: Row[] = []; const PAGE = 1000;
   for (let page = 0; ; page++) {
     const data = logRead("vat-return:rows", await (supabase as any).from("journal_entries")
-      .select("id, entry_date, vat_type, supply_amount, vat_amount, description, tax_invoices:linked_invoice_id(counterparty_name, counterparty_bizno), journal_lines(partner_id, partners(name, business_number))")
+      .select("id, entry_date, vat_type, supply_amount, vat_amount, description, is_electronic, tax_invoices:linked_invoice_id(counterparty_name, counterparty_bizno), journal_lines(partner_id, partners(name, business_number))")
       .eq("company_id", companyId).eq("entry_kind", "sale_purchase").eq("status", "confirmed")
       .gte("entry_date", from).lte("entry_date", to).order("entry_date").range(page * PAGE, page * PAGE + PAGE - 1));
     const list = (data || []) as any[];
@@ -80,7 +81,7 @@ async function fetchVatRows(companyId: string, from: string, to: string): Promis
       const name = pl?.partners?.name || e.tax_invoices?.counterparty_name || null;
       const bizno = pl?.partners?.business_number || e.tax_invoices?.counterparty_bizno || null;
       out.push({ id: e.id, entry_date: e.entry_date, vat_type: e.vat_type, supply_amount: Number(e.supply_amount || 0), vat_amount: Number(e.vat_amount || 0), description: e.description,
-        partnerName: name, partnerBizno: bizno, partnerKey: bizno || name || "(거래처 없음)" });
+        partnerName: name, partnerBizno: bizno, partnerKey: bizno || name || "(거래처 없음)", electronic: !!e.is_electronic });
     }
     if (list.length < PAGE) break;
   }
