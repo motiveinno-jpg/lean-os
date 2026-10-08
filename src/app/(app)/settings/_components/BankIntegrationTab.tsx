@@ -414,7 +414,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
           //   카드사가 인증번호를 보냈다 — 오류가 아니라 다음 단계
           setSmsStep(res.twoWay);
           setSmsCode("");
-          setResult({ ok: false, msg: "카드사가 휴대폰으로 인증번호를 보냈습니다. 받은 번호를 아래 칸에 넣고 다시 눌러 주세요(제한 시간 안에)." });
+          setResult({ ok: true, msg: "카드사가 휴대폰으로 인증번호를 보냈습니다. 아래 칸에 넣고 연결하기를 눌러 주세요(제한 시간 안에)." });
           setRegistering(false);
           return;
         }
@@ -687,7 +687,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
                 <div className="bank-integration-phone-field">
                   <label className="field-label">문자 인증번호</label>
                   <input value={smsCode} onChange={(e) => setSmsCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" placeholder="인증번호 6자리" className="field-input" />
-                  <p className="bank-integration-phone-hint">휴대폰으로 온 인증번호를 넣고 아래 버튼을 다시 누르세요. 시간이 지나 실패하면 처음부터 다시 누르면 새 번호가 옵니다.</p>
+                  <p className="bank-integration-phone-hint">휴대폰으로 온 인증번호를 넣고 연결하기를 누르세요. 시간이 지나 실패하면 인증번호 받기부터 다시 하면 새 번호가 옵니다.</p>
                 </div>
               )}
             </>
@@ -717,7 +717,11 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
           disabled={registering || !isReady}
           className="btn-primary btn-sm"
         >
-          {registering ? "연결 중..." : smsStep ? "인증번호 확인하고 연결" : `${orgList[organization] || (accountType === "bank" ? "은행" : "카드사")} 연결하기`}
+          {/*   문자 인증이 필요한 카드사(롯데카드 법인): 처음엔 '인증번호 받기', 번호가 오면 '연결하기' */}
+          {registering ? (smsStep ? "연결 중..." : needPhone ? "인증번호 요청 중..." : "연결 중...")
+            : smsStep ? `${orgList[organization] || "카드사"} 연결하기`
+            : needPhone ? "인증번호 받기"
+            : `${orgList[organization] || (accountType === "bank" ? "은행" : "카드사")} 연결하기`}
         </button>
       </div>
       </>

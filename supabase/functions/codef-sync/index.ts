@@ -1523,6 +1523,21 @@ function rsaEncrypt(plainText: string, publicKeyRaw: string): string {
 }
 
 // Register account and get connectedId (ID/PW or certificate)
+/** CODEF 추가인증(문자 인증번호) 신호 찾기 — 바깥 result·data, 계정별 errorList[0], 그 안의 data 순 */
+function extractTwoWay(res: any): { method: string; message: string; info: Record<string, unknown> } | null {
+  const d = res?.data || {};
+  const inner = Array.isArray(d.errorList) ? d.errorList[0] : null;
+  const codes = [res?.result?.code, inner?.code];
+  const src = [d, inner, inner?.data, d?.data].find((x: any) => x && (x.continue2Way || x.jti || x.jobIndex !== undefined));
+  if (!src && !codes.includes("CF-03002")) return null;
+  const s: any = src || {};
+  return {
+    method: s.method || "smsAuthNo",
+    message: "카드사가 휴대폰으로 인증번호를 보냈습니다. 받은 번호를 넣고 연결하기를 눌러 주세요.",
+    info: { jobIndex: s.jobIndex, threadIndex: s.threadIndex, jti: s.jti, twoWayTimestamp: s.twoWayTimestamp },
+  };
+}
+
 async function registerAccount(
   token: string, accountType: "bank" | "card",
   organization: string,
@@ -1613,14 +1628,12 @@ async function registerAccount(
 
   //   기관이 문자 인증번호를 요구(CF-03002 + continue2Way) — 기존 계정은 손대지 않고 화면에 인증번호 입력을 요청한다.
   //   update 실패 폴백(검증·삭제·재등록)으로 넘어가면 인증 도중에 멀쩡한 연결을 지울 수 있다.
-  if (result.result?.code === "CF-03002") {
-    const d = result.data || {};
-    const err: any = new Error(d.extraInfo?.reqSMSAuthNo ? "카드사가 보낸 문자 인증번호를 입력해 주세요." : (result.result?.message || "추가 인증이 필요합니다."));
-    err.twoWay = {
-      path,
-      method: d.method || "smsAuthNo",
-      info: { jobIndex: d.jobIndex, threadIndex: d.threadIndex, jti: d.jti, twoWayTimestamp: d.twoWayTimestamp },
-    };
+  //   계정 API 는 신호를 바깥 result 가 아니라 data.errorList[0](계정별 결과) 안에 담아 보낸다(롯데카드 법인 2026-10-08 —
+  //   바깥만 봐서 문자는 갔는데 입력칸이 안 떴다). 바깥·안쪽·안쪽 data 를 모두 본다.
+  const twoWay = extractTwoWay(result);
+  if (twoWay) {
+    const err: any = new Error(twoWay.message);
+    err.twoWay = { path, method: twoWay.method, info: twoWay.info };
     err.codefResponse = { result: result.result };
     throw err;
   }
