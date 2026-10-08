@@ -112,6 +112,11 @@ export function CertAutoPicker({ onExtracted, purpose = "register" }: {
       if (!tokenRes.ok) {
         // 토큰 실패는 프로그램 미설치가 아니다 — 설치 안내로 오인되지 않게 별도 상태로.
         setEngineStatus("error");
+        //   자동 인식 토큰은 마스터·은행연동 권한자에게만 나간다(codef-cert-token) — 권한 문제를 '잠시 후 재시도'로 안내하지 않는다
+        if (tokenRes.status === 403) {
+          setError("PC 인증서 자동 인식은 회사 마스터나 '은행연동' 권한을 받은 사람만 쓸 수 있습니다. 마스터에게 설정 › 구성원 권한에서 '은행연동'을 받아 주세요.");
+          return;
+        }
         setError(`서버 인증 토큰 발급 실패 (HTTP ${tokenRes.status}). PC 프로그램 문제가 아닙니다. 잠시 후 다시 시도해주세요.`);
         return;
       }

@@ -28,7 +28,8 @@ export async function GET(req: Request) {
     console.warn(`[codef/cert-token] 엣지 위임 실패: HTTP ${res.status}`);
     return NextResponse.json(
       { error: body?.error || "CODEF token request failed" },
-      { status: res.status === 401 ? 401 : 502 },
+      //   401·403 은 그대로 — 권한 거절을 502 로 바꾸면 화면이 "잠시 후 다시 시도"로 안내해 이유가 사라진다
+      { status: res.status === 401 || res.status === 403 ? res.status : 502 },
     );
   }
 

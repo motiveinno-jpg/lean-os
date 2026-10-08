@@ -118,6 +118,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
       { key: "api-keys", label: "API 키", perms: ["api-keys", "ads"],
         title: "API 키", desc: "외부 서비스의 API 키를 등록합니다.",
         icon: "M15 7a5 5 0 11-4.9 6H7v3H4v-3H2l3-3h5.1A5 5 0 0115 7z" },
+      //   서버도 같은 기준(마스터 또는 /settings:bank)으로 인증서 자동 인식 토큰을 준다 — codef-cert-token. 바꾸면 함께
       { key: "bank", label: "은행연동", perms: ["bank"],
         title: "은행연동", desc: "공동인증서로 은행·카드 자동 수집과 홈택스 수집을 연결합니다.",
         icon: "M13.828 10.172a4 4 0 010 5.656l-3 3a4 4 0 01-5.656-5.656l1.5-1.5M10.172 13.828a4 4 0 010-5.656l3-3a4 4 0 015.656 5.656l-1.5 1.5" },

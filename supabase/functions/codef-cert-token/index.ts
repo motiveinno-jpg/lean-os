@@ -73,10 +73,19 @@ serve(withSentry("codef-cert-token", async (req) => {
   );
   const { data: { user } } = await supabase.auth.getUser(jwt);
   if (!user) return json({ error: "Unauthorized" }, 401);
-  //   플랫폼 공용 CODEF 토큰이 브라우저로 나간다 — 인증서를 등록할 수 있는 대표·관리자·마스터만 (2026-09-07 보안 정비)
+  //   플랫폼 공용 CODEF 토큰이 브라우저로 나간다 — 인증서를 등록할 수 있는 사람만.
+  //   기준은 설정 화면이 은행연동 탭을 보여 주는 규칙과 같다: 마스터 또는 '/settings:bank' 권한(has_perm).
+  //   마스터만 받던 때(09-11 역할 정리 뒤)는 탭은 보이는데 버튼이 늘 403 이 났다 — 화면과 서버 기준을 갈라 두지 않는다.
   const admin = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
   const { data: me } = await admin.from("users").select("is_master, company_id").eq("auth_id", user.id).maybeSingle();
-  if (!me?.company_id || !me.is_master) return json({ error: "Forbidden" }, 403);
+  if (!me?.company_id) return json({ error: "Forbidden", reason: "no_company" }, 403);
+  if (!me.is_master) {
+    const asUser = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
+      global: { headers: { Authorization: `Bearer ${jwt}` } },
+    });
+    const { data: allowed } = await asUser.rpc("has_perm", { p_key: "/settings:bank" });
+    if (allowed !== true) return json({ error: "Forbidden", reason: "no_bank_permission" }, 403);
+  }
 
   const clientId = (Deno.env.get("CODEF_CLIENT_ID") || "").trim();
   const clientSecret = (Deno.env.get("CODEF_CLIENT_SECRET") || "").trim();
