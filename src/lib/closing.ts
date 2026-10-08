@@ -34,6 +34,23 @@ const DEFAULT_ITEMS = [
   { title: '월간 손익 리포트 생성', description: 'PDF 리포트 다운로드 및 저장', sort_order: 10, is_required: false },
 ];
 
+// ── 읽기만 — 없으면 null (2026-10-08) ──
+//   보기만 해도 그 달 체크리스트를 만들던 곳(경영흐름·마스터)이 미래 달 행을 남겼고,
+//   마감 쓰기가 회계마감 권한자로 좁혀져(20261008100000) 권한 없는 사람이 열면 INSERT 가 거절된다. 만드는 건 마감 판에서만.
+export async function getChecklist(companyId: string, month: string) {
+  const existing = logRead('lib/closing:get', await supabase
+    .from('closing_checklists')
+    .select('*, closing_checklist_items(*)')
+    .eq('company_id', companyId)
+    .eq('month', month)
+    .maybeSingle());
+  if (!existing) return null;
+  const items = (existing.closing_checklist_items || []).sort(
+    (a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0)
+  );
+  return { ...existing, items };
+}
+
 // ── Get or create checklist for a month ──
 export async function getOrCreateChecklist(companyId: string, month: string) {
   // Try to find existing

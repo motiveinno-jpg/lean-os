@@ -9555,6 +9555,19 @@ table.table-inv-ch-ship { min-width: 1480px; }
 /* 재무 › 전표 현황 › 처리할 것 — 결산 초안 만들기 (2026-08-27) */
 .fin-close-row { @apply mt-2 flex flex-wrap items-center gap-2; }
 .fin-close-month { @apply h-8 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-2 text-[12.5px] text-[var(--text)]; }
+/* 재무 › 전표 현황 › 처리할 것 — 월 마감 판 (2026-10-08, components/closing-month-panel.tsx) */
+.cm-head { @apply flex flex-wrap items-start justify-between gap-3; }
+.cm-status { @apply ml-1 text-[12px] font-semibold text-[var(--text-dim)]; }
+.cm-actions { @apply flex flex-wrap items-center gap-2; }
+.cm-warn { @apply mt-2 text-[12.5px] text-[var(--warning)]; }
+.cm-note { @apply mt-1 text-[12.5px]; }
+.cm-empty-act { @apply mt-3; }
+.cm-empty-sub { @apply mt-1 text-[12px] text-[var(--text-dim)]; }
+.cm-req { @apply ml-1.5 text-[10.5px] font-semibold text-[var(--danger)]; }
+/* 마스터 › 월 마감 한 줄 (2026-10-08) — 누르면 전표 현황 처리할 것으로 */
+.master-closing-meta { @apply text-[11px] text-[var(--text-dim)] shrink-0; }
+.master-closing-count { @apply text-[12px] font-bold text-[var(--text)] shrink-0 tabular-nums; }
+.master-closing-go { @apply text-[11.5px] font-semibold text-[var(--primary)] shrink-0; }
 
 /* 마감 확정본 (2026-08-27) */
 .cs-btn-drift { @apply border-[var(--warning)] text-[var(--warning)]; }

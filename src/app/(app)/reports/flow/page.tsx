@@ -23,7 +23,7 @@ import { ChipGroup, ConditionPanel, ConditionRow, Stat } from "@/components/quer
 import { getTaxInvoiceSummary, type PeriodSummary } from "@/lib/tax-invoice";
 import { getVatEstimates, VAT_ESTIMATE_LABEL, VAT_ESTIMATE_BASIS, type VatEstimate } from "@/lib/vat-estimate";
 import { getMonthlyBudgetOverview, type MonthlyBudget } from "@/lib/cash-budget";
-import { getOrCreateChecklist } from "@/lib/closing";
+import { getChecklist } from "@/lib/closing";
 import { FlowMatrix, FLOW_CELL_MODES, FLOW_MODE_HINT, type FlowCellMode } from "./_components/FlowMatrix";
 
 const db = supabase;
@@ -97,7 +97,8 @@ export default function BusinessFlowPage() {
   const monthVat = monthVatRaw ? { ...monthVatRaw, netVAT: monthVatRaw.payable } : undefined;
   const vatDday = useMemo(() => (monthVat?.dueDate ? Math.ceil((new Date(monthVat.dueDate).getTime() - Date.now()) / 864e5) : null), [monthVat]);
   /* ⑥ 월결산 체크리스트 */
-  const { data: checklist } = useQuery({ queryKey: ["closing-checklist", companyId, month], queryFn: () => getOrCreateChecklist(companyId!, month), enabled: !!companyId && view === "month", staleTime: 60_000 });
+  //   읽기만 — 보기만 해도 그 달 체크리스트를 만들던 것을 고침(2026-10-08). 시작·체크는 전표 현황 › 처리할 것에서
+  const { data: checklist, isLoading: checklistLoading } = useQuery({ queryKey: ["closing-checklist", companyId, month], queryFn: () => getChecklist(companyId!, month), enabled: !!companyId && view === "month", staleTime: 60_000 });
   const closing = useMemo(() => {
     if (!checklist) return null;
     const items = (checklist.items || []) as { is_required: boolean; is_completed: boolean }[];
@@ -202,12 +203,12 @@ export default function BusinessFlowPage() {
               <KV k={`${VAT_ESTIMATE_LABEL} (${monthVat?.periodLabel ?? quarter.split("-")[1]} · 전표 기준)`} v={num(monthVat?.netVAT ?? 0)} />
               {vatDday !== null && <KV k="신고 기한" v={vatDday >= 0 ? `${monthVat!.dueDate} (D-${vatDday})` : monthVat!.dueDate} tone={vatDday >= 0 && vatDday <= 30 ? "minus" : undefined} />}
             </Panel>
-            <Panel no={6} title="결산" links={[{ href: "/dashboard", label: "월결산 체크리스트" }]}>
+            <Panel no={6} title="결산" links={[{ href: `/finance/status?tab=todo&month=${month}`, label: "월 마감 하러 가기" }]}>
               {closing ? <>
                 <KV k="필수 항목" v={`${closing.requiredDone} / ${closing.requiredTotal} 완료`} tone={closing.requiredDone === closing.requiredTotal ? "plus" : undefined} />
                 <KV k="전체 진행" v={`${closing.done} / ${closing.total}${closing.total ? ` (${Math.round((closing.done / closing.total) * 100)}%)` : ""}`} />
                 <KV k="상태" v={closing.status === "locked" ? "잠금" : closing.status === "completed" ? "마감 완료" : "진행 중"} />
-              </> : <KV k="체크리스트" v="불러오는 중…" />}
+              </> : <KV k="체크리스트" v={checklistLoading ? "불러오는 중…" : "아직 시작 전"} />}
             </Panel>
           </div>
         </div>

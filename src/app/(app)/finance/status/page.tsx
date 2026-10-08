@@ -38,6 +38,7 @@ import { BudgetEditor, fetchBudgets } from "@/components/budget-editor";
 import { BANK_LINE_META, decideSettlement, settlementResultToast } from "@/components/bank-line-dialog";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
+import { ClosingMonthPanel } from "@/components/closing-month-panel";
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
 const wonShort = (n: number) => {
@@ -441,7 +442,7 @@ export default function FinanceStatusPage() {
                         <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("depreciation")} title="등록된 고정자산의 그 달 감가상각 · 차) 감가상각비 / 대) 감가상각누계액, 자산별 줄">{closeBusy === "depreciation" ? "만드는 중…" : "감가상각"}</button>
                         <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("retirement")} title="재직자 퇴직금 추계와 퇴직급여충당부채 잔액의 차액을 전표 초안으로 만듭니다">{closeBusy === "retirement" ? "만드는 중…" : "퇴직급여충당"}</button>
                       </div>
-                      <p className="inv-hint">계정은 회사설정의 생산 전표 계정을 따릅니다.</p>
+                      <p className="inv-hint">계정은 회사설정의 생산 전표 계정을 따릅니다. 감가상각은 <Link href="/finance/assets" className="bz-link">고정자산</Link>에 등록된 자산으로 만듭니다.</p>
                     </div>
                     <div className="pnl-panel">
                       <h3>전표 없는 증빙</h3><p>전표가 아직 없는 증빙입니다.</p>
@@ -455,6 +456,8 @@ export default function FinanceStatusPage() {
                     </table>
                     </div>
                   </div>
+                  {/*   월 마감 (2026-10-08) — 위 결산 초안과 같은 달. 마스터 위젯에서 옮겨 왔다(지난달을 열 수 없던 문제) */}
+                  {companyId && <ClosingMonthPanel companyId={companyId} userId={userId} month={closeMonth} canClose={isMaster || hasPerm("/settings:closing") || hasPerm("/settings:tax")} />}
                   {pendingLinks.length > 0 && (
                     <div className="pnl-panel">
                       <h3>증빙 연결 대기 {pendingLinks.length}건</h3><p>통장 거래와 계산서를 짝지은 초안이며 확정하면 정산 전표가 만들어집니다.</p>
