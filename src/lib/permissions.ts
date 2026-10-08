@@ -99,6 +99,8 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "wait", label: "발행 대기" },
         { key: "done", label: "발행 내역" },
         { key: "issue-status", label: "발행 현황" },
+        { key: "requests", label: "발행 요청" },
+        { key: "received", label: "받은 발행 요청" },
       ] },
       //   사이드바에선 세금·증빙 한 메뉴 안(match)이지만 권한 키는 따로다 — 하위 줄로 그린다
       { route: "/e-invoices", label: "전자계산서", money: true, sub: true },

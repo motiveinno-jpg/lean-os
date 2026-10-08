@@ -11456,3 +11456,105 @@ table.ol-items-table { min-width: 760px; table-layout: fixed; }
 .fw-sized.sn .sn-body { flex: 1 1 auto; height: auto; min-height: 0; }
 
 .fw-resizable .sn-foot { padding-right: 20px; }   /* 오른쪽 아래 크기 손잡이가 휴지통 버튼과 겹치지 않게 */
+
+/* ── 세금·증빙 › 발행 요청 / 받은 발행 요청 (tir-*) ─────────────────────── */
+.qk-body > .tir-scroll { @apply absolute inset-0 overflow-auto; }
+table.tir-table { min-width: 860px; }
+.tir-row { @apply cursor-pointer hover:bg-[var(--bg-surface)]; }
+.tir-c { @apply text-center; }
+.tir-r { @apply text-right; }
+.tir-strong { @apply font-bold; }
+.tir-name { @apply text-left; }
+.tir-name b { @apply mr-1.5 font-semibold text-[var(--text)]; }
+.tir-title { @apply max-w-[220px] truncate text-left; }
+.tir-chip { @apply inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-0.5 text-[10.5px] font-semibold text-[var(--text-muted)]; }
+.tir-chip-seen { @apply border-[var(--primary)]/40 bg-[var(--primary)]/10 text-[var(--primary)]; }
+.tir-chip-done { @apply border-emerald-500/40 bg-emerald-500/10 text-emerald-600; }
+.tir-chip-off { @apply text-[var(--text-dim)] line-through; }
+.tir-issued { @apply inline-flex flex-wrap items-center justify-center gap-1.5; }
+.tir-issued em { @apply text-[10.5px] not-italic text-[var(--text-dim)]; }
+.tir-confirm { @apply font-mono text-[10.5px] text-[var(--text-muted)]; }
+.tir-acts { @apply inline-flex items-center gap-1; }
+.ti-cfm.tir-modal { @apply max-w-4xl; }
+.tir-sec { @apply space-y-2 border-b border-[var(--border)]/60 pb-3 last:border-b-0; }
+.tir-sec-title { @apply text-[11.5px] font-bold text-[var(--text-muted)]; }
+.tir-grid { @apply grid grid-cols-1 gap-2 sm:grid-cols-2; }
+.tir-fld { @apply flex items-center gap-2 text-[11.5px]; }
+.tir-fld > span:first-child { @apply w-20 shrink-0 text-right font-semibold text-[var(--text-muted)]; }
+.tir-fld > .qk-input, .tir-fld > select, .tir-fld > textarea { @apply w-full; }
+.tir-fld-wide { @apply sm:col-span-2; }
+.tir-pick-anchor { @apply relative block w-full; }
+.tir-pick-btn { @apply w-full truncate text-left; }
+.tir-items { @apply max-h-[33vh] overflow-auto rounded-lg border border-[var(--border)]; }
+table.tir-items-table { min-width: 640px; }
+.tir-items-table td { @apply px-1 py-1; }
+.tir-items-table .qk-input { @apply h-7 w-full; }
+.tir-num { @apply text-right; }
+.tir-memo { @apply h-14 py-1.5; }
+.tir-issue-slot { @apply flex flex-wrap items-center gap-3 text-[12px] text-[#333]; }
+.tir-guide { @apply rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[11.5px] leading-relaxed text-[var(--text-muted)]; }
+.tir-guide a { @apply font-semibold text-[var(--primary)] underline; }
+.tir-guide-warn { @apply border-[var(--warning)]/40 text-[var(--warning)]; }
+
+/* 발행 요청서(미리 채운 세금계산서) — 종이처럼 늘 밝게 (irv-*) */
+.irv-paper { @apply overflow-hidden rounded-xl border border-[#e3e5ea] bg-white text-[#1c2030]; }
+.irv-head { @apply flex flex-wrap items-end justify-between gap-3 border-b border-[#e3e5ea] bg-[#f7f8fa] px-4 py-3; }
+.irv-kicker { @apply text-[11px] font-semibold text-[#6b7080]; }
+.irv-title { @apply text-[15px] font-bold; }
+.irv-total { @apply flex flex-col items-end; }
+.irv-total span { @apply text-[11px] text-[#6b7080]; }
+.irv-total b { @apply text-[18px] font-extrabold; }
+.irv-parties { @apply grid grid-cols-1 border-b border-[#e3e5ea] md:grid-cols-2; }
+.irv-party { @apply px-4 py-3 md:border-r md:border-[#e3e5ea] md:last:border-r-0; }
+.irv-party-title { @apply mb-1.5 text-[12px] font-bold; }
+.irv-party-title em { @apply ml-1 text-[11px] font-normal not-italic text-[#8a8f9c]; }
+.irv-sum { @apply mt-2 border-t border-dashed border-[#e3e5ea] pt-2; }
+.irv-field { @apply flex items-center gap-2 py-[3px] text-[12px]; }
+.irv-field-label { @apply w-24 shrink-0 text-[11px] font-semibold text-[#6b7080]; }
+.irv-field-value { @apply min-w-0 flex-1 break-words; }
+.irv-mono { font-variant-numeric: tabular-nums; }
+.irv-copy { @apply shrink-0 rounded border border-[#d7dae1] bg-white px-1.5 py-0.5 text-[10.5px] font-semibold text-[#4f46e5] hover:bg-[#f1f0ff]; }
+.irv-table-wrap { @apply overflow-x-auto; }
+.irv-table { @apply w-full border-collapse text-[12px]; min-width: 640px; }
+.irv-table th { @apply whitespace-nowrap border-b border-[#e3e5ea] bg-[#f7f8fa] px-2 py-1.5 text-center text-[11px] font-bold text-[#555]; }
+.irv-table td { @apply border-b border-[#eef0f3] px-2 py-1.5; }
+.irv-table tfoot td { @apply border-b-0 bg-[#fafbfc] font-semibold; }
+.irv-c { @apply text-center; }
+.irv-r { @apply text-right; }
+.irv-strong { @apply font-extrabold; }
+.irv-empty { @apply py-6 text-center text-[#8a8f9c]; }
+.irv-foot { @apply border-t border-[#e3e5ea] px-4 py-3; }
+.irv-slot { @apply border-t border-[#e3e5ea] bg-[#fbfbfd] px-4 py-3; }
+
+/* 발행 요청 외부 링크 화면 /issue-request — 라이트 고정 (irp-*) */
+.irp-shell { @apply min-h-screen bg-gray-50 text-gray-900; }
+.irp-center { @apply flex min-h-screen items-center justify-center bg-gray-50 px-4; }
+.irp-wrap { @apply mx-auto w-full max-w-4xl px-4; }
+.irp-header { @apply border-b border-gray-200 bg-white; }
+.irp-header-in { @apply flex flex-wrap items-center justify-between gap-2 py-4; }
+.irp-main { @apply space-y-4 py-6; }
+.irp-footer { @apply mt-8 border-t border-gray-200 bg-white py-4 text-center; }
+.irp-h1 { @apply text-lg font-bold text-gray-900; }
+.irp-h2 { @apply text-[15px] font-bold text-gray-900; }
+.irp-dim { @apply text-[12.5px] leading-relaxed text-gray-500; }
+.irp-card { @apply space-y-3 rounded-2xl border border-gray-200 bg-white p-5; }
+.irp-card-narrow { @apply w-full max-w-md text-center; }
+.irp-badge { @apply rounded-full px-2.5 py-1 text-xs font-semibold; }
+.irp-badge-ok { @apply bg-emerald-50 text-emerald-700; }
+.irp-msg { @apply rounded-lg border border-gray-200 bg-white px-3 py-2 text-[12.5px] text-gray-700; }
+.irp-msg-ok { @apply border-emerald-200 bg-emerald-50 text-emerald-800; }
+.irp-msg-err { @apply border-red-200 bg-red-50 text-red-700; }
+.irp-member { @apply flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-[13px]; }
+.irp-modes { @apply flex gap-1 border-b border-gray-200; }
+.irp-mode { @apply -mb-px border-b-2 border-transparent px-3 py-2 text-[13px] font-semibold text-gray-500 hover:text-gray-800; }
+.irp-mode-on { @apply border-indigo-600 text-indigo-700; }
+.irp-steps { @apply list-decimal space-y-1 pl-5 text-[12.5px] text-gray-700; }
+.irp-link { @apply font-semibold text-indigo-600 underline; }
+.irp-form { @apply grid grid-cols-1 gap-2 sm:grid-cols-2; }
+.irp-fld { @apply flex flex-col gap-1 text-[12px] font-semibold text-gray-600; }
+.irp-fld-wide { @apply sm:col-span-2; }
+.irp-input { @apply h-9 w-full rounded-lg border border-gray-300 bg-white px-2.5 text-[13px] font-normal text-gray-900 read-only:bg-gray-100 focus:border-indigo-500 focus:outline-none; }
+.irp-actions { @apply flex justify-end gap-2; }
+.irp-btn { @apply inline-flex h-9 items-center rounded-lg border border-gray-300 bg-white px-4 text-[13px] font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-50; }
+.irp-btn-primary { @apply border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700; }
+.irp-hr { @apply border-gray-200; }

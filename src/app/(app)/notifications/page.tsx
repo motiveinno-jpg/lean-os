@@ -28,6 +28,7 @@ const TYPE_LABEL: Record<string, string> = {
   payment_due: "결제 예정", tax_due: "세금 마감", inventory: "재고", board: "게시판", board_post: "게시판 글", chat: "메신저", schedule: "일정",
   company_join_request: "합류 요청", announcement: "공지", system: "시스템",
   dormant_deal: "휴면 프로젝트", dormant_partner: "휴면 거래처",   // 2026-09-17 — 없으면 '기타' 로 뜬다
+  tax_invoice_request: "세금계산서 발행 요청",
 };
 const typeLabel = (t?: string | null) => (t ? TYPE_LABEL[t] || "기타" : "—");
 

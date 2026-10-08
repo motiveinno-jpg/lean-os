@@ -46,6 +46,8 @@ import {
   itemsLabel,
 } from "@/lib/tax-invoice";
 import { getTaxInvoiceIssuanceStatus } from "@/lib/billing";
+import { countOpenReceivedRequests } from "@/lib/tax-invoice-request";
+import { IssueRequestsScreen } from "./_components/issue-requests";
 import type { PeriodType } from "@/lib/tax-invoice";
 import * as XLSX from "xlsx";
 import { TaxInvoiceBulkIssueModal } from "@/components/tax-invoice-bulk-issue";
@@ -285,7 +287,7 @@ function TaxInvoicesPageInner() {
    * 화면 진입 자체는 위쪽 `useCanAccessTab("/tax-invoices")` 가 이미 막고 있으므로,
    * 탭 권한은 '더 좁히는' 용도다 — 안 정했으면 좁힐 이유가 없다.
    */
-  const taxTabKeys = ["wait", "done", "issue-status"] as const;
+  const taxTabKeys = ["wait", "done", "issue-status", "requests", "received"] as const;
   const anyTaxTabGranted = taxTabKeys.some((k) => taxTabPerm(`/tax-invoices:${k}`));
   const taxTabAllowed = (k: string) =>
     taxTabMaster || !anyTaxTabGranted || taxTabPerm(`/tax-invoices:${k}`);
@@ -315,11 +317,15 @@ function TaxInvoicesPageInner() {
    */
   // 순서: 발행 대기(할 일) → 발행 내역 → 발행 현황 (2026-08-13 대표 — 할 일이 맨앞).
   // '거래처 발행정보' 탭은 뺐다 — 빠진 정보는 전송 전 확인 창이 그 자리에서 채우게 한다.
-  type TaxTab = "wait" | "done" | "issue-status";
+  //   발행 요청 · 받은 발행 요청 — 거래처에게 받을 계산서를 미리 채워 보내고(요청), 받은 요청은 작성일만 넣어 발행한다.
+  //   목록 모양이 계산서 표와 달라 화면은 _components/issue-requests 가 따로 그린다(탭 줄만 같이 쓴다).
+  type TaxTab = "wait" | "done" | "issue-status" | "requests" | "received";
   const TAX_TABS: { key: TaxTab; label: string }[] = [
     { key: "wait", label: "발행 대기" },
     { key: "done", label: "발행 내역" },
     { key: "issue-status", label: "발행 현황" },
+    { key: "requests", label: "발행 요청" },
+    { key: "received", label: "받은 발행 요청" },
   ];
   const isTaxTab = (t: unknown): t is TaxTab => TAX_TABS.some((x) => x.key === t);
   const router = useRouter();
@@ -763,7 +769,7 @@ function TaxInvoicesPageInner() {
     queryFn: async () => {
       const data = await fetchPaged('tax-invoices/page:partners', () => supabase
         .from("partners")
-        .select("id, name, business_number, contact_email, business_type, business_item, representative, address")
+        .select("id, name, business_number, contact_email, business_type, business_item, representative, address, bank_name, account_number")
         .eq("company_id", companyId!)
         .eq("is_active", true)
         .order("name")
@@ -1006,6 +1012,13 @@ function TaxInvoicesPageInner() {
     enabled: !!companyId,
   });
   const isHometaxConnected = !!hometaxConnection?.connected;
+  // 받은 발행 요청 중 아직 발행 안 한 것 — 탭 배지(할 일 수)
+  const { data: receivedOpenCount = 0 } = useQuery({
+    queryKey: ["tax-invoice-requests-open", companyId],
+    queryFn: () => countOpenReceivedRequests(companyId!),
+    enabled: !!companyId,
+    staleTime: 60_000,
+  });
 
   // Excel import handler
   const [showBulkIssue, setShowBulkIssue] = useState(false);
@@ -1529,21 +1542,14 @@ function TaxInvoicesPageInner() {
     return <div className="p-6 text-center text-red-400">데이터를 불러올 수 없습니다. 새로고침해 주세요.</div>;
   }
 
-  return (
-    <div className="qk-shell" data-print-area>
-      {confirmElement}
-      <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-
-      {/* ── 조회 화면 표준 — 탭·조회 줄·걸린 조건·결과 요약·표·쪽 넘김을 **한 상자**에.
-             수집·전표와 같은 껍데기다 ("UI구조는 수집전표를 따라야 함").
-             예전엔 탭 줄·요약 스트립·표 카드가 낱장으로 흩어져 어디까지가 '조회하는 곳'인지 안 갈렸다. ── */}
-      <QueryScreen>
-        <QueryHead>
+  // 탭 줄 — 발행 요청 두 탭도 같은 줄을 쓴다(그 두 탭의 조회 줄·표는 IssueRequestsScreen 이 그린다)
+  const tabStrip = (
           <div className="collect-tabs no-print">
             {/* 건수는 **할 일 수** — 수집·전표의 탭 배지와 같은 규칙 */}
             {TAX_TABS.filter((t) => taxTabAllowed(t.key)).map((t) => {
               const count = t.key === "wait" ? waitInvoices.length
                 : t.key === "done" ? doneInvoices.length
+                : t.key === "received" && receivedOpenCount > 0 ? receivedOpenCount
                 : null;
               return (
                 <button key={t.key} type="button" onClick={() => setTab(t.key)}
@@ -1554,6 +1560,25 @@ function TaxInvoicesPageInner() {
               );
             })}
           </div>
+  );
+  const isRequestTab = tab === "requests" || tab === "received";
+
+  return (
+    <div className="qk-shell" data-print-area>
+      {confirmElement}
+      <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
+
+      {/* ── 조회 화면 표준 — 탭·조회 줄·걸린 조건·결과 요약·표·쪽 넘김을 **한 상자**에.
+             수집·전표와 같은 껍데기다 ("UI구조는 수집전표를 따라야 함").
+             예전엔 탭 줄·요약 스트립·표 카드가 낱장으로 흩어져 어디까지가 '조회하는 곳'인지 안 갈렸다. ── */}
+      {isRequestTab && companyId ? (
+        <IssueRequestsScreen kind={tab as "requests" | "received"} tabStrip={tabStrip} companyId={companyId}
+          partners={partners as any[]} isHometaxConnected={isHometaxConnected} issuanceStatus={issuanceStatus}
+          initialRequestId={searchParams?.get("request")} />
+      ) : (
+      <QueryScreen>
+        <QueryHead>
+          {tabStrip}
 
           <QueryBar right={<>
             {/* 무제한 플랜도 사용량은 보이게 — 한도 없으면 '이번 달 발행 N건' */}
@@ -2126,6 +2151,7 @@ function TaxInvoicesPageInner() {
             from={tiPager.from} to={tiPager.to} onPage={tiPager.setPage} />
         )}
       </QueryScreen>
+      )}
 
       {/* Registration Form — 2026-06-12 인라인 카드 → 중앙 팝업(모달) 전환. 폼/등록 로직 무변경 */}
       {showBulkIssue && companyId && (

@@ -24,6 +24,7 @@ export const PUBLIC_ROUTES = [
   '/invite',
   '/sign',
   '/share',
+  '/issue-request', // 세금계산서 발행 요청 — 거래처(공급자)가 메일 링크로 연다. 내용은 토큰 RPC 로만 읽는다
   '/advisor',  // 세무사 파트너 포털 랜딩(로그인/가입) — 하위 라우트는 세션 필요 (2026-08-11)
   '/tax-partners',  // 세무사 제휴 모집 랜딩 (2026-08-11)
   '/platform',
