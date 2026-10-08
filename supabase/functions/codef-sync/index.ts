@@ -1523,13 +1523,16 @@ function rsaEncrypt(plainText: string, publicKeyRaw: string): string {
 }
 
 // Register account and get connectedId (ID/PW or certificate)
-/** CODEF 추가인증(문자 인증번호) 신호 찾기 — 바깥 result·data, 계정별 errorList[0], 그 안의 data 순 */
+/** CODEF 추가인증(문자 인증번호) 신호 찾기 — 바깥 result·data, 계정별 successList[0]·errorList[0], 그 안의 data.
+ *  계정 등록은 바깥 CF-04034("계정 등록이 진행 중 — 추가 인증 필요") + successList[0] 에 continue2Way·jti 가 온다
+ *  (롯데카드 법인 2026-10-08 실측). */
 function extractTwoWay(res: any): { method: string; message: string; info: Record<string, unknown> } | null {
   const d = res?.data || {};
+  const okItem = Array.isArray(d.successList) ? d.successList[0] : null;
   const inner = Array.isArray(d.errorList) ? d.errorList[0] : null;
-  const codes = [res?.result?.code, inner?.code];
-  const src = [d, inner, inner?.data, d?.data].find((x: any) => x && (x.continue2Way || x.jti || x.jobIndex !== undefined));
-  if (!src && !codes.includes("CF-03002")) return null;
+  const codes = [res?.result?.code, okItem?.code, inner?.code];
+  const src = [d, okItem, inner, okItem?.data, inner?.data, d?.data].find((x: any) => x && (x.continue2Way || x.jti || x.jobIndex !== undefined));
+  if (!src && !codes.includes("CF-03002") && !codes.includes("CF-04034")) return null;
   const s: any = src || {};
   return {
     method: s.method || "smsAuthNo",
@@ -1648,6 +1651,7 @@ async function registerAccount(
     //     지워졌다. 그래서 지우기 전에 임시 connectedId(/v1/account/create, 무과금 관리 API)로 새 자격증명을
     //     한 번 검증한다 — 기관 로그인이 안 되는 자격증명이면 기존 계정은 손대지 않고 그 오류를 그대로 돌려준다.
     console.log(`[CODEF] update failed (${result.result?.code}) — probing new credential on scratch connectedId before delete+add`);
+    const updateCodes = `${result.result?.code || "-"}/${(Array.isArray(result.data?.errorList) && result.data.errorList[0]?.code) || (Array.isArray(result.data?.successList) && result.data.successList[0]?.code) || "-"}`;
     const probe = await codefRequest(token, "/v1/account/create", { accountList: [accountEntry] });
     const probeErrors = Array.isArray(probe.data?.errorList) ? probe.data.errorList : [];
     const probeOk = probe.result?.code === "CF-00000" && probeErrors.length === 0;
@@ -1656,7 +1660,7 @@ async function registerAccount(
       result = probe;
       result.result = {
         ...result.result,
-        message: `${result.result?.message || "등록 실패"} — 기존 ${organization} 연결은 그대로 두었습니다(자동 수집 계속됨).`,
+        message: `${result.result?.message || "등록 실패"} — 기존 ${organization} 연결은 그대로 두었습니다(자동 수집 계속됨). [수정 요청 응답 ${updateCodes}]`,
       };
     } else {
       //   임시 cid 정리 — 실패해도 무해(고아 cid 하나 남을 뿐), 본 흐름을 막지 않는다.
