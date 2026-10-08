@@ -11429,3 +11429,7 @@ table.ol-items-table { min-width: 760px; table-layout: fixed; }
 .vat-structure-panel { @apply mb-6; }
 /*   부가세 판 — 머리 띠(vat-voucher-head)가 판의 머리가 되게 안쪽 여백 0 (pnl-panel 안에 또 상자로 보이지 않게) */
 .vat-voucher-card.pnl-panel { @apply p-0; }
+
+/* 은행연동 · 카드사가 추가로 요구하는 휴대폰 번호 칸 (롯데카드 법인) */
+.bank-integration-phone-field { @apply mt-1; }
+.bank-integration-phone-hint { @apply text-[10px] text-[var(--text-dim)] mt-1; }

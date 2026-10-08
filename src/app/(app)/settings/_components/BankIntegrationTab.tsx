@@ -62,6 +62,10 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
   // ID/PW states
   const [loginId, setLoginId] = useState("");
   const [loginPw, setLoginPw] = useState("");
+  //   기관이 휴대폰 번호를 추가로 요구한다(롯데카드 법인 2026-10, CODEF extraMessage reqPhoneNo). 그 외 기관도
+  //   등록 실패 응답이 같은 요구를 내면 칸을 띄운다.
+  const [phoneNo, setPhoneNo] = useState("");
+  const [askPhone, setAskPhone] = useState(false);
   const [showPw, setShowPw] = useState(false);
   // Certificate states
   const [certPassword, setCertPassword] = useState("");
@@ -386,8 +390,15 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
           setRegistering(false);
           return;
         }
+        if (needPhone && phoneNo.replace(/\D/g, "").length < 10) {
+          setResult({ ok: false, msg: "이 카드사는 휴대폰 번호가 필요합니다. 카드사에 등록된 휴대폰 번호를 입력하세요." });
+          setRegistering(false);
+          return;
+        }
         const { registerCodefAccount } = await import("@/lib/data-sync");
-        const res = await registerCodefAccount(companyId, accountType, organization, loginId, loginPw, clientType);
+        const res = await registerCodefAccount(companyId, accountType, organization, loginId, loginPw, clientType,
+          needPhone ? { phoneNo } : undefined);
+        if (!res.success && /reqPhoneNo/.test(res.error || "")) setAskPhone(true);
         if (res.success) {
           if (res.verify && !res.verify.ok) {
             setResult({ ok: false, msg: `연결은 등록됐지만 계좌 조회가 안 됩니다 (${res.verify.code || "확인 실패"}). ${res.verify.message || ""}\n개인/법인 구분이나 아이디·비밀번호를 다시 확인해 주세요.` });
@@ -413,6 +424,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
 
   // auto 탭: 홈택스는 추출 PFX 로 등록 가능. 은행/카드 auto 는 위치 안내 전용(추출 없음)이라 ready 불가.
   const isCertReady = ((certSource === "auto" && !!autoPfxB64) || (!!derFileB64 && !!keyFileB64)) && !!certPassword && !!organization;
+  const needPhone = accountType === "card" && (organization === "0311" || askPhone);
   const isIdPwReady = !!loginId && !!loginPw && !!organization;
   const isReady = authMethod === "cert" ? isCertReady : isIdPwReady;
 
@@ -630,6 +642,13 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
                 </div>
                 <p className="text-[10px] text-[var(--text-dim)] mt-1">비밀번호는 회사 전용 영역에 암호화해 보관하며, 자료를 가져올 때만 서버가 꺼내 씁니다.</p>
               </div>
+              {needPhone && (
+                <div className="bank-integration-phone-field">
+                  <label className="field-label">휴대폰 번호</label>
+                  <input value={phoneNo} onChange={(e) => setPhoneNo(e.target.value)} inputMode="tel" placeholder="010-0000-0000" className="field-input" />
+                  <p className="bank-integration-phone-hint">카드사 홈페이지에 등록된 휴대폰 번호입니다. 카드사가 로그인할 때 이 번호를 함께 요구합니다.</p>
+                </div>
+              )}
             </>
           )}
         </div>

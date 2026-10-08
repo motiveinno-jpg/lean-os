@@ -637,10 +637,12 @@ export async function registerCodefAccount(
   loginId: string,
   loginPw: string,
   clientType: 'P' | 'B' = 'B',
+  //   기관이 아이디·비밀번호 밖에 더 요구하는 항목(롯데카드 법인: 휴대폰 번호, 2026-10)
+  extra?: { phoneNo?: string },
 ): Promise<{ success: boolean; connectedId?: string; accountList?: any[]; error?: string; verify?: { ok: boolean; code?: string; message?: string } }> {
-  return callCodefRegister(companyId, {
-    accountType, organization, loginType: '1', loginId, loginPw, clientType,
-  });
+  const params: Record<string, string> = { accountType, organization, loginType: '1', loginId, loginPw, clientType };
+  if (extra?.phoneNo) params.phoneNo = extra.phoneNo;
+  return callCodefRegister(companyId, params);
 }
 
 export async function registerCodefCertificate(

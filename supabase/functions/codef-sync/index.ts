@@ -1532,6 +1532,7 @@ async function registerAccount(
     derFile?: string; keyFile?: string; certPassword?: string;
     pfxFile?: string;
     clientType?: "P" | "B";
+    phoneNo?: string;   // 기관이 추가로 요구할 때만(롯데카드 법인 2026-10 — extraMessage reqPhoneNo)
   },
   existingConnectedId?: string,
 ): Promise<{ connectedId: string; accountList?: any[] }> {
@@ -1569,6 +1570,8 @@ async function registerAccount(
     const encryptedPw = publicKey ? rsaEncrypt(loginOpts.loginPw || "", publicKey) : (loginOpts.loginPw || "");
     accountEntry.id = loginOpts.loginId || "";
     accountEntry.password = encryptedPw;
+    const phone = String(loginOpts.phoneNo || "").replace(/\D/g, "");
+    if (phone) accountEntry.phoneNo = phone;
   } else {
     // 공동인증서 로그인
     const encryptedCertPw = publicKey ? rsaEncrypt(loginOpts.certPassword || "", publicKey) : (loginOpts.certPassword || "");
@@ -1668,7 +1671,12 @@ async function registerAccount(
     const inner = Array.isArray(result.data?.errorList) ? result.data.errorList[0] : null;
     const innerCode: string = inner?.code || "";
     const innerMsg: string = inner?.message || "";
-    const hint = codefErrorHint(innerCode || result.result?.code);
+    //   기관이 로그인 항목을 새로 요구하면 extraMessage 에 "{phoneNo(userError:reqPhoneNo)}" 꼴로 온다(롯데카드 법인 2026-10).
+    //   CF-12401 기본 힌트("점검 시간을 피해 재시도")는 틀린 안내라, 무엇을 넣으면 되는지로 바꾼다.
+    const REQ_LABEL: Record<string, string> = { reqPhoneNo: "휴대폰 번호", reqBirthDate: "생년월일", reqCardNo: "카드번호", reqCardPassword: "카드 비밀번호", reqIdentity: "주민·법인등록번호" };
+    const reqFields = [...String(inner?.extraMessage || result.result?.extraMessage || "").matchAll(/userError:(req[A-Za-z]+)/g)].map((m) => m[1]);
+    const needText = reqFields.length ? `기관이 추가 정보를 요구합니다: ${reqFields.map((f) => REQ_LABEL[f] || f).join(", ")}. 그 칸을 채워 다시 연결해 주세요.` : "";
+    const hint = needText || codefErrorHint(innerCode || result.result?.code);
     const extraMessage = result.result?.extraMessage || result.data?.errorMessage || "";
     console.error(`[CODEF] Registration failed: ${result?.result?.code || "unknown"}${innerCode ? "/" + innerCode : ""}`);
     const err: any = new Error(`계정 등록 실패: ${result.result?.message || "알 수 없는 오류"} (${result.result?.code}${innerCode ? "/" + innerCode : ""}, tx:${result.result?.transactionId || "-"})${innerMsg ? " [기관 응답: " + innerMsg + "]" : ""}${extraMessage ? " [" + extraMessage + "]" : ""}${hint ? " — " + hint : ""}`);
@@ -3347,7 +3355,7 @@ serve(withSentry("codef-sync", async (req) => {
 
     // --- Action: register (계정 등록 → connectedId 발급) ---
     if (action === "register") {
-      const { accountType = "bank", organization, loginId, loginPw, loginType = "1", derFile, keyFile, certPassword, pfxFile, clientType = "B" } = body;
+      const { accountType = "bank", organization, loginId, loginPw, loginType = "1", derFile, keyFile, certPassword, pfxFile, clientType = "B", phoneNo } = body;
 
       if (loginType === "0") {
         // 공동인증서 로그인 — PFX 또는 DER+KEY 둘 중 하나 필수
@@ -3366,7 +3374,7 @@ serve(withSentry("codef-sync", async (req) => {
 
       let result;
       try {
-        result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType }, cid);
+        result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType, phoneNo }, cid);
       } catch (regErr: any) {
         // CF-04019(connectedId 무효)일 때만 fresh /v1/account/create 로 재시도.
         //   CF-04000 은 기관 측 인증 실패(예: 미등록 인증서 CF-12805) — 같은 자격증명으로
@@ -3374,7 +3382,7 @@ serve(withSentry("codef-sync", async (req) => {
         //   아래 upsert 가 새 connectedId 로 덮어써 기존 기관 계정이 전부 고아가 된다.
         if (cid && regErr.message?.includes("CF-04019")) {
           try {
-            result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType });
+            result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType, phoneNo });
           } catch (retryErr: any) {
             return new Response(JSON.stringify({
               error: retryErr.message || "계정 등록 실패",
