@@ -3418,6 +3418,17 @@ serve(withSentry("codef-sync", async (req) => {
         }
       }
 
+      //   연결 시도 기록 — 단계(1 = 처음/인증번호 요청, 2 = 인증번호 확인)와 결과 코드만. 비밀번호·번호는 남기지 않는다.
+      //   "인증번호까지 넣었는데 아무것도 안 나왔다"(롯데카드 2026-10-08)를 추측 없이 되짚으려고.
+      const logRegister = async (status: string, info: Record<string, unknown>) => {
+        try {
+          await supabase.from("sync_logs").insert({
+            company_id: companyId, sync_type: "register_codef", status,
+            details: { organization, accountType, loginType, step: twoWay ? 2 : 1, hasPhone: !!phoneNo, hasTelecom: !!telecom, ...info },
+            synced_by: user?.id ?? null,
+          });
+        } catch { /* 기록 실패가 연결을 막지 않게 */ }
+      };
       let result;
       try {
         result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType, phoneNo, telecom, twoWay }, cid);
@@ -3437,6 +3448,11 @@ serve(withSentry("codef-sync", async (req) => {
             }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
           }
         } else {
+          await logRegister(regErr.twoWay ? "two_way" : "error", {
+            code: regErr.codefResponse?.result?.code || null,
+            message: String(regErr.message || "").slice(0, 300),
+            twoWayPath: regErr.twoWay?.path || null,
+          });
           return new Response(JSON.stringify({
             error: regErr.message || "계정 등록 실패",
             codefResponse: regErr.codefResponse || null,
@@ -3515,6 +3531,7 @@ serve(withSentry("codef-sync", async (req) => {
         }
       }
 
+      await logRegister(verify && !verify.ok ? "registered_unverified" : "success", { verify });
       //   결과를 알림으로도 남긴다 — 화면을 닫아도 '연결됐는지' 알 수 있게. 연결한 사람 + 마스터.
       try {
         const orgName = (accountType === "card" ? CARD_CODES[organization] : BANK_CODES[organization]) || organization;
