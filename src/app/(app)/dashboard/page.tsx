@@ -14,6 +14,8 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getCurrentUser, getFounderData, saveExcelData, getFinancialDashboardData, getDrillDownLevel2, getDrillDownLevel3, getDrillDownLevel4, getCashPulseData } from "@/lib/queries";
 import { getCurrentSubscription } from "@/lib/billing";
 import { getMyProjectTasks } from "@/lib/my-project-tasks";
+import { getChecklist } from "@/lib/closing";
+import { monthEnd } from "@/lib/closing-snapshot";
 import { buildCashPulse, getPulseLevel, type CashPulseResult } from "@/lib/cash-pulse";
 import { buildFounderDashboard, buildFinancialDashboard as buildFinDash, type FounderDashboardData, type FinancialDashboardData, type RiskLabel, type RiskItem, getRunwayLevel } from "@/lib/engines";
 import { parseExcel, type ParsedExcelData } from "@/lib/excel-parser";
@@ -913,6 +915,30 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
     },
   });
 
+  //   지난달 마감(2026-10-08 결산 진입로) — 마감은 다음 달 초에 하는 일인데 아무도 알려 주지 않아 체크리스트가 전부 open 이었다.
+  //   기준: 마감할 수 있는 사람(마스터|회계마감 권한자)에게만, 지난달 전표가 1건 이상일 때만(회계를 안 쓰는 회사에 매달 뜨지 않게),
+  //         지난달이 잠기기 전까지. 정해진 기한이 없어 '지연' 표시는 만들지 않는다 — 오른쪽엔 상태만.
+  const { isMaster, hasPerm } = useMyPermissions();
+  const canClose = isMaster || hasPerm("/settings:closing") || hasPerm("/settings:tax");
+  const closeMonth = (() => { const t = todayKst(); const y = Number(t.slice(0, 4)), m = Number(t.slice(5, 7)); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`; })();
+  const { data: closingTodo = null } = useQuery({
+    queryKey: ["dash-closing-todo", companyId, closeMonth],
+    enabled: !!companyId && canClose,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const cl = await getChecklist(companyId!, closeMonth);
+      if (cl?.status === "locked") return null;
+      const range = (q: any) => q.eq("company_id", companyId!).gte("entry_date", `${closeMonth}-01`).lte("entry_date", monthEnd(closeMonth));
+      const [{ count: total }, { count: pending }] = await Promise.all([
+        range((supabase as any).from("journal_entries").select("id", { count: "exact", head: true })),
+        range((supabase as any).from("journal_entries").select("id", { count: "exact", head: true })).not("status", "in", "(confirmed,rejected)"),
+      ]);
+      if (!total) return null;
+      const items = (cl?.items || []) as { is_completed: boolean }[];
+      return { month: closeMonth, status: (cl?.status as string | undefined) ?? null, done: items.filter((i) => i.is_completed).length, total: items.length, pending: pending || 0 };
+    },
+  });
+
   // 캘린더 일정(이번 달, 공유+개인). 다가오는 일정도 할일 위젯에 표시
   const now = new Date();
   const  { data: events = [] } = useQuery({
@@ -942,7 +968,9 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
   // 다가오는 일정(완료 제외, 오늘 이후) — 캘린더 내용도 위젯에 통합
   const upcomingEvents = (events as any[]).filter((e) => !e.completed && (e.end_at ?? e.start_at) >= startOfTodayIso);
   // 할일 + 프로젝트 업무 + 일정 통합 목록(날짜순)
-  const items: { kind: "todo" | "event" | "task" | "billing"; id: string; title: string; date: string | null; raw: any }[] = [
+  const items: { kind: "todo" | "event" | "task" | "billing" | "closing"; id: string; title: string; date: string | null; raw: any }[] = [
+    //   지난달 마감은 기한이 없어 정렬용으로 이번 달 1일 — 늘 맨 위
+    ...(closingTodo ? [{ kind: "closing" as const, id: closingTodo.month, title: `${Number(closingTodo.month.slice(5, 7))}월 마감`, date: `${todayKst().slice(0, 7)}-01T00:00:00`, raw: closingTodo }] : []),
     ...todos.map((t) => ({ kind: "todo" as const, id: t.id, title: t.title, date: null, raw: t })),
     ...billings.map((b) => ({ kind: "billing" as const, id: b.id, title: b.title, date: `${b.date}T09:00:00`, raw: b })),
     ...(myTasks as any[]).map((t) => ({ kind: "task" as const, id: t.id, title: t.title, date: t.due_date, raw: t })),
@@ -984,6 +1012,19 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
                 <span className="dash-mytask-deal">업무 · {it.raw.dealName}</span>
               </span>
               {due && <span className="dash-mytask-due" style={{ color: due.color }}>{due.text}</span>}
+            </Link>
+          );
+        }
+        if (it.kind === "closing") {
+          const c = it.raw as { month: string; status: string | null; done: number; total: number; pending: number };
+          const st = !c.status ? "시작 전" : c.status === "completed" ? "잠금 전" : "진행 중";
+          return (
+            <Link key={`cl-${it.id}`} href={`/finance/status?tab=todo&month=${c.month}`} className="dash-mytask-row" title={`${it.title} · 재무 › 전표 현황 › 처리할 것`}>
+              <span className="min-w-0 flex-1">
+                <span className="dash-mytask-title">{it.title}</span>
+                <span className="dash-mytask-deal">결산{c.total ? ` · 점검 ${c.done}/${c.total}` : ""}{c.pending ? ` · 미확정 전표 ${c.pending}건` : ""}</span>
+              </span>
+              <span className="dash-mytask-due" style={{ color: "var(--text-dim)" }}>{st}</span>
             </Link>
           );
         }
