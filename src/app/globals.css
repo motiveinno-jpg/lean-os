@@ -9673,7 +9673,7 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .sn .fw-head { @apply border-b-0; }
 .sn .fw-body { @apply p-0; }
 .sn-title { @apply min-w-0 flex-1 bg-transparent text-[13px] font-bold text-[var(--text)] outline-none placeholder:font-normal placeholder:text-[var(--text-dim)]; }
-.sn-body { @apply block h-44 w-full resize-y bg-transparent px-3 py-2 text-[13px] leading-relaxed text-[var(--text)] outline-none; }
+.sn-body { @apply block h-44 w-full resize-none bg-transparent px-3 py-2 text-[13px] leading-relaxed text-[var(--text)] outline-none; }   /* 크기는 창 모서리(.fw-resize)로 — 글 칸 자체 손잡이는 세로만 돼서 끈다 */
 .sn-foot { @apply flex items-center gap-1 px-2 py-1.5 text-[11px]; }
 .sn-colors { @apply inline-flex items-center gap-1; }
 .sn-dot { @apply h-3.5 w-3.5 rounded-full border border-black/10; }
@@ -11445,3 +11445,14 @@ table.ol-items-table { min-width: 760px; table-layout: fixed; }
 .bank-linked-health-ok { @apply bg-green-500/10 text-green-600; }
 .bank-linked-health-bad { @apply bg-red-500/10 text-red-600; }
 .bank-linked-health-wait { @apply bg-[var(--bg)] text-[var(--text-dim)]; }
+
+/* ── 떠 있는 창 크기 조절(오른쪽 아래 모서리, 대각선) ── */
+.fw-resize { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; touch-action: none; z-index: 2;
+  background: linear-gradient(135deg, transparent 0 55%, color-mix(in srgb, currentColor 35%, transparent) 55% 62%, transparent 62% 72%, color-mix(in srgb, currentColor 35%, transparent) 72% 79%, transparent 79%); opacity: .7; }
+.fw-resize:hover { opacity: 1; }
+/* 높이를 정한 창은 본문이 남는 높이를 채운다 — 스티커는 글 칸이 늘어난다 */
+.fw-sized .fw-body { flex: 1 1 auto; }
+.sn .fw-body { display: flex; flex-direction: column; }
+.fw-sized.sn .sn-body { flex: 1 1 auto; height: auto; min-height: 0; }
+
+.fw-resizable .sn-foot { padding-right: 20px; }   /* 오른쪽 아래 크기 손잡이가 휴지통 버튼과 겹치지 않게 */

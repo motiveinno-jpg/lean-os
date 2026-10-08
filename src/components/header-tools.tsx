@@ -285,6 +285,7 @@ function Sticky({ note, onClose, onDelete, api }: { note: Note; onClose: () => v
   }, [title, body, color]);   // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <FloatingWindow title={<input className="sn-title" value={title} placeholder="제목" onChange={(e) => setTitle(e.target.value)} />} onClose={onClose} width={300} className={`sn sn-${color}`}
+      resizable={{ minW: 220, minH: 170, storageKey: `ov-sticky-size-${note.id}` }}
       initial={{ x: 120 + Math.floor(Math.random() * 240), y: 110 + Math.floor(Math.random() * 160) }}
       headExtra={<span className="sn-colors">{NOTE_COLORS.map((c) => <button key={c.key} type="button" className={`sn-dot sn-dot-${c.key} ${color === c.key ? "sn-dot-on" : ""}`} title={c.label} onClick={() => setColor(c.key)} />)}</span>}>
       <textarea className="sn-body" value={body} autoFocus={!note.body} placeholder="메모…" onChange={(e) => setBody(e.target.value)} />
