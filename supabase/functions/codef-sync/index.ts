@@ -1622,9 +1622,16 @@ async function registerAccount(
   if (loginOpts.twoWay && TWO_WAY_PATHS.has(loginOpts.twoWay.path)) {
     path = loginOpts.twoWay.path;
     if (path === "/v1/account/create") delete body.connectedId;
+    const sms = String(loginOpts.twoWay.smsAuthNo || "").replace(/\D/g, "");
+    //   계정 API 는 추가인증 정보를 계정별 결과(successList[0])로 돌려주므로 이어 보낼 때도 계정 항목(accountList[0])
+    //   안에 넣는다. 바깥에만 넣었을 때 CODEF 가 이어받지 못하고 새 인증번호를 보냈다(롯데카드 2026-10-08 13:38·13:39).
+    //   상품 API 방식(바깥)도 함께 둔다 — 바깥은 무시되는 것으로 보였고, 둘 중 하나만 읽힌다.
+    accountEntry.is2Way = true;
+    accountEntry.twoWayInfo = loginOpts.twoWay.info;
+    accountEntry.smsAuthNo = sms;
     body.is2Way = true;
     body.twoWayInfo = loginOpts.twoWay.info;
-    body.smsAuthNo = String(loginOpts.twoWay.smsAuthNo || "").replace(/\D/g, "");
+    body.smsAuthNo = sms;
   }
 
   let result = await codefRequest(token, path, body);
@@ -3452,6 +3459,9 @@ serve(withSentry("codef-sync", async (req) => {
             code: regErr.codefResponse?.result?.code || null,
             message: String(regErr.message || "").slice(0, 300),
             twoWayPath: regErr.twoWay?.path || null,
+            //   같은 인증이 이어졌는지(같은 jti) 새로 시작됐는지 구분하려고 — 인증 비밀값이 아니다
+            twoWayJob: regErr.twoWay ? `${regErr.twoWay.info?.jobIndex}/${regErr.twoWay.info?.threadIndex}/${String(regErr.twoWay.info?.jti || "").slice(0, 12)}` : null,
+            sentJob: twoWay ? `${(twoWay as any).info?.jobIndex}/${(twoWay as any).info?.threadIndex}/${String((twoWay as any).info?.jti || "").slice(0, 12)}` : null,
           });
           return new Response(JSON.stringify({
             error: regErr.message || "계정 등록 실패",

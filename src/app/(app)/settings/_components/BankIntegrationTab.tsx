@@ -414,7 +414,9 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
           //   카드사가 인증번호를 보냈다 — 오류가 아니라 다음 단계
           setSmsStep(res.twoWay);
           setSmsCode("");
-          setResult({ ok: true, msg: "카드사가 휴대폰으로 인증번호를 보냈습니다. 아래 칸에 넣고 연결하기를 눌러 주세요(제한 시간 안에)." });
+          setResult(smsStep
+            ? { ok: false, msg: "카드사가 넣은 인증번호를 받지 않고 새 인증번호를 보냈습니다. 새로 온 번호로 한 번 더 시도해 주세요. 계속 반복되면 알려 주세요." }
+            : { ok: true, msg: "카드사가 휴대폰으로 인증번호를 보냈습니다. 아래 칸에 넣고 연결하기를 눌러 주세요(제한 시간 안에)." });
           setRegistering(false);
           return;
         }
