@@ -5,6 +5,7 @@
 //   기록은 append-only 라 개정 이력이 그대로 쌓인다.
 //   조회 실패 시에는 통과시킨다 — 일시적 오류로 사용자를 서비스에서 막지 않는다.
 
+import { logoutHere } from "@/lib/session-health";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -88,7 +89,7 @@ export function ConsentGate({ children }: { children: React.ReactNode }) {
 
         <div className="flex items-center gap-2 mt-5">
           <button
-            onClick={() => supabase.auth.signOut()}
+            onClick={() => logoutHere()}
             className="px-4 py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition"
           >
             로그아웃

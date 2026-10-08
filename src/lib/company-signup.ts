@@ -203,7 +203,11 @@ export async function provisionCompanyForUser(user: {
 }): Promise<ProvisionResult> {
   // 2026-07-28 P0: company_id 없는 행(레거시 limbo)을 "exists" 로 통과시키면 대시보드에서
   //   무한 로딩/리다이렉트 — 회사 연결까지 있어야 exists, 아니면 아래 개설/합류 흐름으로.
-  const existingUser = logRead('lib/company-signup:existingUser', await db.from("users").select("id, company_id").eq("auth_id", user.id).maybeSingle());
+  const existingRes = await db.from("users").select("id, company_id").eq("auth_id", user.id).maybeSingle();
+  //   조회 자체가 실패하면(로그인이 깨짐·일시 장애) 회사가 없다고 단정하지 않는다 — 그대로 진행하면
+  //   이미 회사가 있는 계정에 회사 개설·합류 흐름을 띄우거나 회사를 하나 더 만들 수 있었다.
+  if (existingRes.error) { logRead('lib/company-signup:existingUser', existingRes); return "error"; }
+  const existingUser = existingRes.data as { id: string; company_id: string | null } | null;
   if (existingUser?.company_id) return "exists";
 
   const meta = user.user_metadata || {};

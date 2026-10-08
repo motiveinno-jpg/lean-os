@@ -106,8 +106,14 @@ export default function AuthPage() {
       recovery_link_invalid: "비밀번호 재설정 링크가 만료되었거나 이미 사용되었습니다. 비밀번호 찾기에서 다시 요청해 주세요.",
     };
     // 중복 로그인으로 밀려난 경우 · 왜 로그아웃됐는지 안내 (2026-08-11)
-    if (sp.get("reason") === "duplicate")  {
-      setError("다른 기기에서 같은 계정으로 로그인되어 이 기기는 로그아웃되었습니다. 계속 쓰시려면 다시 로그인하세요.");
+    const REASONS: Record<string, string> = {
+      duplicate: "다른 기기나 브라우저에서 같은 계정으로 로그인되어 이 화면은 로그아웃되었습니다. 계속 쓰시려면 다시 로그인하세요. (오너뷰는 한 계정을 한 곳에서만 쓸 수 있습니다)",
+      expired: "로그인 시간이 지나 로그아웃되었습니다. 다시 로그인하세요.",
+      ip: "회사에서 허용한 접속 위치가 아니라 로그아웃되었습니다. 회사 마스터에게 확인해 주세요.",
+    };
+    const reasonMsg = REASONS[sp.get("reason") || ""];
+    if (reasonMsg)  {
+      setError(reasonMsg);
       sp.delete("reason");
       const qs0 = sp.toString();
       window.history.replaceState(null, "", window.location.pathname + (qs0 ? `?${qs0}` : ""));
@@ -148,9 +154,11 @@ export default function AuthPage() {
       const result = await provisionCompanyForUser(session.user).catch(() => "error" as const);
       if (cancelled) return;
       if (result === "join_pending") router.replace("/join-pending");
-      else if (result === "needs_company_setup" || result === "error") router.replace("/company-setup");
+      else if (result === "needs_company_setup") router.replace("/company-setup");
       else if (result === "created") router.replace("/onboarding");
-      else router.replace(getRedirectPath()); // "exists" — 정상 계정
+      //   회사 정보를 못 읽은 것(로그인이 깨짐·일시 장애)은 '회사 없음'이 아니다 — 회사 설정으로 보내지 않고 이 화면에서 다시 로그인하게 한다
+      else if (result === "error") { try { await supabase.auth.signOut({ scope: "local" }); } catch { /* 무시 */ } }
+      else window.location.assign(getRedirectPath()); // "exists" — 정상 계정 · 화면을 새로 띄워 이전 로그인 상태를 남기지 않는다
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -211,15 +219,16 @@ export default function AuthPage() {
       
       // 2026-07-28 P0: "error" 를 흘려보내면 대시보드 무한 로딩 · 회사 설정 재시도로
       if (result === "error")  {
-        logError({ source: "manual", message: "[가입/로그인] 회사 연결 처리 실패 · 회사 설정 재시도로 안내됨", context: { page: "login" } });
+        //   회사 정보를 못 읽은 것이지 회사가 없는 게 아니다 — 회사 설정(사업자번호 입력)으로 보내지 않는다
+        logError({ source: "manual", message: "[가입/로그인] 로그인 직후 회사 정보 조회 실패 · 다시 시도 안내", context: { page: "login" } });
         setLoading(false);
-        router.push("/company-setup");
-        return;
+        return setError("로그인은 됐지만 회사 정보를 불러오지 못했습니다. 잠시 후 다시 로그인해 주세요.");
       }
     }
 
-    setLoading(false);
-    router.push(getRedirectPath());
+    //   전체 새로고침으로 들어간다 — 로그인이 풀렸다 다시 로그인한 경우 화면에 남은 옛 사용자 상태(빈 사용자 캐시 등) 때문에
+    //   무한 로딩되다 새로고침해야 풀리던 것을 없앤다
+    window.location.assign(getRedirectPath());
   }
 
   // 10자리 입력 즉시 자동 중복확인 — 버튼 클릭 단계 제거(2026-08-05 관문 단순화). 버튼은 재시도용으로 유지.

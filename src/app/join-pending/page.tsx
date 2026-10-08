@@ -3,6 +3,7 @@
 // 회사 합류 요청 대기 화면 — 가입 시 기존 회사에 합류 요청을 보낸 사용자용.
 //   승인 전에는 회사 데이터 접근 0 (public.users 미생성 상태). 승인되면 대시보드 진입.
 
+import { logoutHere } from "@/lib/session-health";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -37,7 +38,7 @@ export default function JoinPendingPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const logout = async () => { await supabase.auth.signOut(); router.push("/auth"); };
+  const logout = async () => { await logoutHere(); };
 
   const box = (icon: string, title: string, desc: React.ReactNode, tone: string) => (
     <div className="join-status-box empty-state">

@@ -1,4 +1,5 @@
 "use client";
+import { logoutHere, sessionProblemOf, leaveForLogin } from "@/lib/session-health";
 import { logRead } from "@/lib/log-read";
 import { Ico }  from "@/components/ui-icon";
 
@@ -38,8 +39,18 @@ export default function CompanySetupPage() {
       // 이미 회사 소속(기존 회원·승인 완료)이면 통과.
       //   2026-07-28 P0: company_id 까지 확인해야 한다. 행만 있고 회사가 NULL 인 레거시 계정을
       //   대시보드로 보내면 앱 셸 가드(getCurrentUser null → /company-setup)와 무한 리다이렉트 루프.
-      const existing = logRead('company-setup/page:existing', await supabase.from("users").select("id, company_id").eq("auth_id", user.id).maybeSingle());
-      if (existing?.company_id)  { router.push("/dashboard"); return; }
+      const existingRes = await supabase.from("users").select("id, company_id").eq("auth_id", user.id).maybeSingle();
+      //   못 읽은 이유가 로그인 문제면 회사 개설 화면을 띄우지 않고 로그인 화면으로 — 이미 회사가 있는 계정이
+      //   가만히 두다 로그인이 풀린 뒤 여기로 와 '사업자번호를 입력하라'는 신규 가입 화면을 봤다.
+      if (existingRes.error) {
+        logRead('company-setup/page:existing', existingRes);
+        const problem = sessionProblemOf(existingRes.error);
+        if (problem) { await leaveForLogin(problem); return; }
+        setError("회사 정보를 확인하지 못했습니다. 잠시 후 새로고침해 주세요.");
+        return;
+      }
+      const existing = existingRes.data as { id: string; company_id: string | null } | null;
+      if (existing?.company_id)  { window.location.assign("/dashboard"); return; }
       setAuthUser(user as any);
       //   회사명을 비워 두면 시작 버튼이 잠긴 채 보이고(placeholder 를 값으로 오해), 소셜 가입자 상당수가 여기서 나갔다.
       //   이름을 알면 "○○님의 회사"로 채워 두고 한 번에 들어가게 한다 — 회사명은 설정에서 언제든 바꿀 수 있다. (2026-09-16)
@@ -136,10 +147,20 @@ export default function CompanySetupPage() {
     } finally { setLoading(false); }
   };
 
-  const logout = async () => { await supabase.auth.signOut(); router.push("/auth"); };
+  const logout = async () => { await logoutHere(); };
 
   if (!ready) {
-    return <div className="min-h-screen flex items-center justify-center text-sm text-[var(--text-muted)]">확인 중...</div>;
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 text-sm text-[var(--text-muted)]">
+        {error ? <>
+          <span>{error}</span>
+          <span className="flex gap-2">
+            <button type="button" className="btn-primary btn-sm" onClick={() => window.location.reload()}>다시 시도</button>
+            <button type="button" className="btn-secondary btn-sm" onClick={logout}>로그인 화면으로</button>
+          </span>
+        </> : "확인 중..."}
+      </div>
+    );
   }
 
   return (

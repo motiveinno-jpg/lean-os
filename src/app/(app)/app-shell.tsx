@@ -496,7 +496,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
               : "로그인 세션이 만료되었습니다. 다시 로그인해 주세요."}
           </span>
           <button type="button" className="btn-primary btn-sm shrink-0"
-            onClick={async () => { try { await supabase.auth.signOut(); } catch { /* 이미 만료 */ } window.location.assign("/auth?reason=expired"); }}>
+            onClick={async () => { try { await supabase.auth.signOut({ scope: "local" }); } catch { /* 이미 만료 */ } window.location.assign("/auth?reason=expired"); }}>
             다시 로그인
           </button>
         </div>
@@ -529,8 +529,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       //   /company-setup 이탈, users 행 없음)이 모든 앱 페이지에서 무한 "불러오는 중"에 갇힌다.
       //   users 행·company_id 가 없으면 회사 설정으로 보낸다. /company-setup 은 (app) 밖이고
       //   회사가 이미 있으면 스스로 /dashboard 로 돌려보내므로 루프 없음.
-      const  { getCurrentUser } = await import("@/lib/queries");
-      const u = await getCurrentUser().catch(() => null);
+      const  { getCurrentUserChecked } = await import("@/lib/queries");
+      const { user: u, error: uErr } = await getCurrentUserChecked().catch((e) => ({ user: null, error: e }));
+      //   못 읽은 이유가 로그인 문제(다른 곳 로그인·IP 제한·만료)면 회사 설정이 아니라 로그인 화면으로.
+      //   예전엔 이것도 '회사 없음'으로 봐서 가만히 두다 로그인이 풀리면 사업자번호 입력 화면이 떴다.
+      if (!u && uErr) {
+        const { sessionProblemOf, leaveForLogin } = await import("@/lib/session-health");
+        const problem = sessionProblemOf(uErr);
+        if (problem) { await leaveForLogin(problem); return; }
+        throw uErr;   // 일시 장애 — 아래 catch 가 '다시 시도'를 보여 준다
+      }
       if (!u) {
         // 세무사 계정(users 행 없음)이 회사 미선택/연결 해제 상태로 앱에 오면
         //   회사 개설이 아니라 파트너 포털로 보낸다 (2026-08-11).
@@ -551,6 +559,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") { import("@/lib/queries").then(m => m.clearCurrentUserCache()); router.replace("/auth"); }
+      if (event === "SIGNED_IN") import("@/lib/queries").then(m => m.clearCurrentUserCache());
     });
     return () => subscription.unsubscribe();
   }, [router]);

@@ -198,7 +198,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
       (i.href === "/platform/customers" && pathname.startsWith("/platform/companies")),
   );
   const currentGroup = NAV_GROUPS.find((g) => g.items.some((i) => i === currentItem));
-  const logout = async () => { await supabase.auth.signOut(); router.replace("/auth"); };
+  const logout = async () => { await supabase.auth.signOut({ scope: "local" }); router.replace("/auth"); };
   const initial = (userName || "O").trim().charAt(0).toUpperCase();
 
   return (

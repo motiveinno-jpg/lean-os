@@ -5,6 +5,7 @@
 //   2026-09-04 대표: "내 이름을 눌렀을 때 현재 상태(회의중·자리비움 등)를 설정, 메신저에도 표시"
 //   팝오버 안 '내 상태' 절: 상태 6개 중 하나 + 언제까지 + 한 줄 메모. users 행에 저장(lib/presence.ts), 메신저는 같은 값을 읽는다.
 
+import { logoutHere } from "@/lib/session-health";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { LogOut } from "lucide-react";
@@ -74,8 +75,7 @@ export function AccountChip() {
 
   //   로그아웃 — 사이드바와 같은 경로(세션 종료 후 통째로 새로 뜬다). 팝오버에도 둔다.
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.href = "/auth";
+    await logoutHere();
   };
 
   //   저장 · 본인 users 행만(RLS auth_id = auth.uid()). 근무중으로 돌리면 메모·해제 시각도 지운다.

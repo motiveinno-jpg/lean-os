@@ -1,5 +1,6 @@
 "use client";
 
+import { logoutHere } from "@/lib/session-health";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -663,9 +664,9 @@ export function Sidebar() {
   // 모바일 사이드바 드로어 — ESC로 닫기 (내비게이션 전용이라 Enter 확인 액션 없음)
   useModalKeys(mobileOpen, () => setMobileOpen(false));
 
+  //   이 브라우저만 로그아웃 — 같은 계정의 다른 PC·브라우저는 그대로(lib/session-health)
   async function handleLogout() {
-    await supabase.auth.signOut();
-    window.location.href = "/auth";
+    await logoutHere();
   }
 
   //   지금 주소가 속한 그룹(최장 매치 항목이 있는 그룹). 아무 데도 안 맞으면 첫 그룹.

@@ -32,14 +32,25 @@ const USER_CACHE_TTL = 30_000;
 
 export function clearCurrentUserCache() { _userCache = null; }
 
+//   마지막 조회가 '사용자 없음'이 아니라 '조회 실패'였으면 그 오류. 실패는 캐시하지 않는다 —
+//   예전엔 실패로 받은 null 을 30초 캐시해, 로그인이 풀린 직후 다시 로그인해도 빈 사용자로 무한 로딩됐다.
+let _lastUserError: unknown = null;
+
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   const now = Date.now();
   if (_userCache && now - _userCache.at < USER_CACHE_TTL) return _userCache.promise;
   const p = _fetchCurrentUser();
   _userCache = { at: now, promise: p };
   // 실패하면 캐시 비워서 다음 호출이 재시도하게
-  p.catch(() => { if (_userCache?.promise === p) _userCache = null; });
+  p.then((u) => { if (!u && _lastUserError && _userCache?.promise === p) _userCache = null; }, () => { if (_userCache?.promise === p) _userCache = null; });
   return p;
+}
+
+/** getCurrentUser 와 같되, null 이 '없음'인지 '조회 실패'인지 함께 돌려준다(앱 진입 판정용) */
+export async function getCurrentUserChecked(): Promise<{ user: CurrentUser | null; error: unknown }> {
+  clearCurrentUserCache();
+  const user = await getCurrentUser();
+  return { user, error: user ? null : _lastUserError };
 }
 
 //   ⚠ companies 임베드는 FK 이름을 박아 둔다: users↔companies 사이에 관계가 하나 더 생기면(조인 표 등)
@@ -50,7 +61,7 @@ async function _fetchCurrentUser(): Promise<CurrentUser | null> {
   //   데이터는 RLS 가 서버에서 강제하므로 클라이언트 신원은 세션 uid 로 충분.
   const { data: { session } } = await supabase.auth.getSession();
   const user = session?.user;
-  if (!user) return null;
+  if (!user) { _lastUserError = null; return null; }
   // maybeSingle: users 테이블에 행이 없어도 에러 대신 null 반환
   //
   //   ⚠️ 조회 실패와 '사용자 없음' 은 다르다. 예전엔 둘 다 null 로 뭉개서, 잠깐의 네트워크
@@ -72,7 +83,8 @@ async function _fetchCurrentUser(): Promise<CurrentUser | null> {
   }
   //   세 번 다 실패하면 null 을 돌려준다(호출부 69곳의 계약을 바꾸지 않는다). 대신
   //   UserProvider 가 뒤에서 다시 시도해, 네트워크가 돌아오면 새로고침 없이 복구된다.
-  if (error) { console.error('getCurrentUser error:', error.message); return null; }
+  if (error) { console.error('getCurrentUser error:', error.message); _lastUserError = error; return null; }
+  _lastUserError = null;
   // auth_id로 못 찾으면 id로 폴백 (이전 데이터 호환)
   if (!data) {
     const fallback = logRead('_fetchCurrentUser', await supabase
