@@ -1101,6 +1101,35 @@ export function autoSyncDue(companyId: string, throttleMs = 2 * 60 * 60 * 1000):
   }
 }
 
+/** 기관별 수집 상태 — 연결 목록 칩에 "정상 · 마지막 수집" / "수집 실패"를 보이려고.
+ *  '연결됨'(CODEF 목록에 있음)과 '실제로 수집됨'은 다르다 — 롯데카드는 목록엔 있는데 이틀간 수집이 실패했다(2026-10-08).
+ *  자동 수집 기록(은행·카드 청구) 중 그 기관을 다룬 가장 최근 기록 하나가 판정한다. */
+export type CodefOrgHealth = { ok: boolean; at: string; code?: string; message?: string };
+export async function getCodefOrgHealth(companyId: string): Promise<Record<string, CodefOrgHealth>> {
+  const rows = logRead('lib/data-sync:org-health', await supabase
+    .from('sync_logs')
+    .select('sync_type, details, created_at')
+    .eq('company_id', companyId)
+    .in('sync_type', ['codef_bank_cron', 'codef_card_cron', 'codef_bank_card', 'codef_bank', 'codef_card'])
+    .gte('created_at', new Date(Date.now() - 4 * 86400000).toISOString())
+    .order('created_at', { ascending: false })
+    .limit(40)) as Array<{ sync_type: string; details: any; created_at: string }> | null;
+  const out: Record<string, CodefOrgHealth> = {};
+  for (const r of rows || []) {
+    for (const part of [r.details?.bank, r.details?.card]) {
+      if (!part) continue;
+      const errs: any[] = Array.isArray(part.errors) ? part.errors : [];
+      const orgs: string[] = Array.isArray(part.orgs) ? part.orgs.map(String) : [];
+      for (const org of new Set([...orgs, ...errs.map((e) => String(e.organization || '')).filter(Boolean)])) {
+        if (out[org]) continue;   // 더 최근 기록이 이미 판정
+        const e = errs.find((x) => String(x.organization) === org);
+        out[org] = e ? { ok: false, at: r.created_at, code: e.code, message: e.message } : { ok: true, at: r.created_at };
+      }
+    }
+  }
+  return out;
+}
+
 export async function getRecentCodefSyncLogs(companyId: string, limit = 5) {
   const data = logRead('lib/data-sync:data', await supabase
     .from('sync_logs')

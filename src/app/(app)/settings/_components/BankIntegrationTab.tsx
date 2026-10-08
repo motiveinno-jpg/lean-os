@@ -381,7 +381,7 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
             toast("연결 확인 실패 · 수집이 안 되는 상태입니다", "error");
             onRegistered();
           } else {
-            setResult({ ok: true, msg: res.verify?.ok ? "금융기관 연결 성공! (계좌 조회까지 확인됨)" : "금융기관 연결 성공!" });
+            setResult({ ok: true, msg: res.verify?.ok ? `${orgList[organization] || "금융기관"} 연결 성공 — ${accountType === "card" ? "카드 사용내역" : "계좌"} 조회까지 확인했습니다. 알림에도 남겼습니다.` : "금융기관 연결 성공!" });
             toast("금융기관 연결 완료", "success");
             setCertPassword("");
             onRegistered();
@@ -421,11 +421,11 @@ export function CodefAccountRegister({ companyId, onRegistered, connectedOrgs = 
         setSmsStep(null);
         if (res.success) {
           if (res.verify && !res.verify.ok) {
-            setResult({ ok: false, msg: `연결은 등록됐지만 계좌 조회가 안 됩니다 (${res.verify.code || "확인 실패"}). ${res.verify.message || ""}\n개인/법인 구분이나 아이디·비밀번호를 다시 확인해 주세요.` });
+            setResult({ ok: false, msg: `연결은 등록됐지만 ${accountType === "card" ? "카드 사용내역" : "계좌"} 조회가 안 됩니다 (${res.verify.code || "확인 실패"}). ${res.verify.message || ""}\n개인/법인 구분이나 아이디·비밀번호를 다시 확인해 주세요.` });
             toast("연결 확인 실패 · 수집이 안 되는 상태입니다", "error");
             onRegistered();
           } else {
-            setResult({ ok: true, msg: res.verify?.ok ? "금융기관 연결 성공! (계좌 조회까지 확인됨)" : "금융기관 연결 성공!" });
+            setResult({ ok: true, msg: res.verify?.ok ? `${orgList[organization] || "금융기관"} 연결 성공 — ${accountType === "card" ? "카드 사용내역" : "계좌"} 조회까지 확인했습니다. 알림에도 남겼습니다.` : "금융기관 연결 성공!" });
             toast("금융기관 연결 완료", "success");
             setLoginId("");
             setLoginPw("");
@@ -840,6 +840,21 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
   });
   const [rangeTo, setRangeTo] = useState(() => todayKst());
   const [recentSyncLogs, setRecentSyncLogs] = useState<any[]>([]);
+  //   기관별 실제 수집 상태 — '연결됨' 칩만으론 수집이 되는지 알 수 없었다
+  const { data: orgHealth = {} } = useQuery({
+    queryKey: ["codef-org-health", companyId],
+    enabled: !!companyId,
+    staleTime: 60_000,
+    queryFn: async () => (await import("@/lib/data-sync")).getCodefOrgHealth(companyId!),
+  });
+  const healthBadge = (org: string) => {
+    const h = (orgHealth as Record<string, import("@/lib/data-sync").CodefOrgHealth>)[String(org)];
+    if (!h) return <span className="bank-linked-health bank-linked-health-wait" title="아직 자동 수집 기록이 없습니다">확인 전</span>;
+    const when = new Date(h.at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    return h.ok
+      ? <span className="bank-linked-health bank-linked-health-ok" title={`${when} 자동 수집 정상`}>정상 · {when}</span>
+      : <span className="bank-linked-health bank-linked-health-bad" title={`${when} ${h.code || ""} ${h.message || ""}`}>수집 실패</span>;
+  };
 
   // 은행/카드 ConnectedID 또는 홈택스 자격증명 등록 시 모두 "연결됨" 표시.
   const hasCodefConnection = !!connectionStatus?.codef_connected_id;
@@ -1166,6 +1181,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
                       <span key={`b${i}`} className="bank-linked-chip">
                         <b>{acc.displayName || acc.resAccountName || acc.organization || "계좌"}</b>
                         <em>{acc.resAccount || acc.resAccountDisplay || ""}</em>
+                        {acc.organization && healthBadge(acc.organization)}
                         {acc.resAccountBalance && (
                           <span className="bank-linked-chip-amt mono-number">{Number(acc.resAccountBalance).toLocaleString()}원</span>
                         )}
@@ -1175,6 +1191,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
                       <span key={`c${i}`} className="bank-linked-chip bank-linked-chip-card">
                         <b>{card.displayName || card.resCardName || card.organization || "카드"}</b>
                         <em>{card.resCardNo || ""}</em>
+                        {card.organization && healthBadge(card.organization)}
                       </span>
                     ))}
                   </div>

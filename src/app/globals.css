@@ -11439,3 +11439,9 @@ table.ol-items-table { min-width: 760px; table-layout: fixed; }
 /* 은행연동 · 카드사가 추가로 요구하는 휴대폰 번호 칸 (롯데카드 법인) */
 .bank-integration-phone-field { @apply mt-1; }
 .bank-integration-phone-hint { @apply text-[10px] text-[var(--text-dim)] mt-1; }
+
+/* 은행연동 · 연결 칩의 기관별 실제 수집 상태 */
+.bank-linked-health { @apply ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold; }
+.bank-linked-health-ok { @apply bg-green-500/10 text-green-600; }
+.bank-linked-health-bad { @apply bg-red-500/10 text-red-600; }
+.bank-linked-health-wait { @apply bg-[var(--bg)] text-[var(--text-dim)]; }

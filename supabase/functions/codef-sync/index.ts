@@ -3495,6 +3495,40 @@ serve(withSentry("codef-sync", async (req) => {
         }
       }
 
+      //   카드도 같은 원칙 — 등록 직후 최근 7일 승인내역을 한 번 조회해 실제로 쓸 수 있는 연결인지 확인한다.
+      //   ("연결은 됐는데 제대로 된 건지 모르겠다" — 롯데카드 재연결 2026-10-08)
+      if (accountType === "card" && result.connectedId) {
+        try {
+          const isP = clientType === "P";
+          const kst = new Date(Date.now() + 9 * 3600 * 1000);
+          const end = kst.toISOString().slice(0, 10).replace(/-/g, "");
+          const st = new Date(kst.getTime() - 7 * 86400000).toISOString().slice(0, 10).replace(/-/g, "");
+          const req: Record<string, any> = { connectedId: result.connectedId, organization, startDate: st, endDate: end, orderBy: "0", inquiryType: "1", memberStoreInfoType: "1" };
+          if (!isP) req.applicationType = "0";
+          const probe = await codefRequest(token, `/v1/kr/card/${isP ? "p" : "b"}/account/approval-list`, req);
+          const code = probe.result?.code;
+          verify = code === "CF-00000"
+            ? { ok: true, code }
+            : { ok: false, code, message: probe.result?.message || codefErrorHint(code) };
+        } catch (e) {
+          verify = { ok: false, code: "VERIFY_FAILED", message: (e as Error)?.message || "연결 확인에 실패했습니다." };
+        }
+      }
+
+      //   결과를 알림으로도 남긴다 — 화면을 닫아도 '연결됐는지' 알 수 있게. 연결한 사람 + 마스터.
+      try {
+        const orgName = (accountType === "card" ? CARD_CODES[organization] : BANK_CODES[organization]) || organization;
+        const ok = verify ? verify.ok : true;
+        const title = ok ? `연결 완료: ${orgName}` : `연결 확인 실패: ${orgName}`;
+        const message = ok
+          ? (verify ? `${orgName} 연결 후 실제 ${accountType === "card" ? "카드 사용내역" : "계좌"} 조회까지 확인했습니다. 다음 자동 수집부터 자료가 들어옵니다.` : `${orgName}을(를) 연결했습니다.`)
+          : `${orgName} 연결은 등록됐지만 실제 조회가 안 됩니다(${verify?.code || ""} ${verify?.message || ""}). 설정 › 은행 연결에서 다시 확인해 주세요.`;
+        const { data: me } = await supabase.from("users").select("id").eq("auth_id", user?.id || "").eq("company_id", companyId).maybeSingle();
+        const { data: masters } = await supabase.from("users").select("id").eq("company_id", companyId).eq("is_master", true);
+        const ids = [...new Set([me?.id, ...(masters || []).map((m: any) => m.id)].filter(Boolean))];
+        if (ids.length) await supabase.from("notifications").insert(ids.map((id) => ({ company_id: companyId, user_id: id, type: "system", title, message, link: "/settings/integration" })));
+      } catch { /* 알림 실패가 연결 결과를 막지 않게 */ }
+
       return new Response(JSON.stringify({
         success: true,
         connectedId: result.connectedId,
