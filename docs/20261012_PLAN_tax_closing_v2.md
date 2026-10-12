@@ -174,3 +174,25 @@
 - 과표 및 세액경정청구서: 마감 신고본 vs 지금 계산(사람 칸 포함, 서식 부품 onFigures) — 세액이 줄 때만 환급액 표시, 사유·환급 계좌 저장.
 - 서식 사람 칸(④·⑧)에 '부속서류 +N = 합계' 표시.
 - 남은 확인(사장님): 환급 계좌번호는 평문 jsonb(권한자만 읽힘) — 암호화 저장 여부, 세무대리인 열람 허용 여부.
+
+---
+
+## ▶ 재개 지점 (2026-10-14 수요일부터 — 사장님 일정)
+
+**완료**: 1단계 935ed9e3 · 2단계 ad40479e · 3단계 87bdd654 (모두 운영 배포 확인, 모티브 실데이터 화면 확인은 아직 — lkw 계정 평일 낮 금지).
+
+**다음 = 4단계 원천세 소득 확장 (결정 262)** — 착수 전 확인할 것:
+1. 사장님 답 대기 2건(3단계 보안 경고): 환급 계좌번호 암호화 저장 여부 · 세무대리인 열람 허용 여부.
+2. 설계 초안
+   - 일용: `CONTRACT_TYPES`(lib/hr.ts)에 `daily` 추가(라벨 사전엔 이미 있음) + 근무일·일당 기록 표(`daily_work_logs`: employee_id·work_date·daily_wage·non_taxable) →
+     세액 = (일당 − 15만원) × 6% × (1 − 55%), 원 미만 절사, 1천원 미만 소액부징수(일 단위) → 원천세 A03. 지방소득세 10%.
+   - 기타·이자·배당: `income_payments`(payee_name·payee_kind 개인/법인·income_kind other/interest/dividend·sub_code(A41~A47 등)·paid_on·amount·necessary_expense·tax_rate·income_tax·local_tax) →
+     A40대·A50·A60. 기타소득 필요경비 60%(강연료 등)·세율 20%·과세최저한(건 5만원 이하) 자동 계산, 사람이 고침.
+   - 주민번호는 employee_rrn 처럼 별도 암호화(결정 108 패턴) — 지급 기록에 평문 금지.
+   - 급여대장: 원천세 마감 때 그 달 payroll_items 스냅샷을 schedules.payrollLedger 로 + 서식 화면 '급여대장' 서류 · 엑셀 시트.
+   - wht-form.ts computeWhtForm 에 A03·A4x·A50·A60 실계산, 전자신고 파일(nts-wht-efile) 코드 확장은 같은 단계 끝에.
+   - DB 2개 신설 → L 티어(db-architect → security-reviewer), feature_rollout 불필요(사람이 넣을 때만 행 생김).
+3. 그다음: 5단계 지급명세서 체계(간이 월/반기·일용 월·연간) → 6단계 일용 근로내용확인신고·보수총액·보수월액 변경 → 7단계 세무 이월(원천세 차월이월환급세액).
+
+**검증 방법(이 세션에서 쓴 것)**: 로컬 `npx next dev -p 3456` 에 운영 공개키(NEXT_PUBLIC_SUPABASE_URL/ANON_KEY)를 env 로 주고 QA 시드 대표(qa-seed-owner, .env.qa.local)로 Playwright.
+테스트로 만든 tax_returns·tax_schedule_inputs 행은 QA 회사(4d2157e8…)로 좁혀 delete … returning 으로 지울 것. 이 PC 는 `next build` 가 Windows 0xc0000142 로 실패 → 운영 배포 후 화면으로 확인.
