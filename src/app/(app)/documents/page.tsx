@@ -478,7 +478,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-extrabold">{doc.name}</h1>
           </div>
-          <div className="flex items-center gap-3 mt-2 text-xs text-[var(--text-muted)]">
+          <div className="document-detail-meta">
             {/* 내부 코드(quote·invoice 등) 대신 사람 말로. 견적 양식(quote·invoice)은 이 화면에서 둘 다 견적서로 그린다 */}
             <span>버전 {doc.version}</span>
             <span>|</span>
@@ -1099,6 +1099,8 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             </div>
           )}
 
+          {/*   2026-10-12 UI 점검 9순위 남은 것: 판마다 따로 선 상자 → 상자 하나(document-detail-sheet) 안에서 판 사이는 선 */}
+          <div className="document-detail-sheet">
           {/* ── 견적서 헤더 (거래처/거래유형/결제조건 등) — 견적/계산서면 항상 표시 ── */}
           {(contentType === 'invoice' || contentType === 'quote') && (
             <QuoteHeader header={quoteHeader} onChange={setQuoteHeader} companyId={companyId} editable={(canEdit && isEditing) || ((contentType === 'invoice' || contentType === 'quote') && !contentFrozen)} />
@@ -1324,7 +1326,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     }
                   }}
                   disabled={sealApplying || isLocked}
-                  className="btn-secondary">
+                  className="btn-secondary btn-sm">
                   {sealApplying ? '적용 중...' : '직인 적용하기'}
                 </button>
               )}
@@ -1332,7 +1334,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
               {!isLocked && (
                 <button
                   onClick={() => setShowSelfSign(!showSelfSign)}
-                  className="btn-secondary">
+                  className="btn-secondary btn-sm">
                   자체 서명
                 </button>
               )}
@@ -1364,7 +1366,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                       }
                     }}
                     disabled={!selfSignName.trim()}
-                    className="btn-primary">
+                    className="btn-primary btn-sm">
                     서명 완료
                   </button>
                 </div>
@@ -1436,6 +1438,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
             </div>
           </div>
           )}
+          </div>
 
           {(canEdit || ((contentType === 'invoice' || contentType === 'quote') && !contentFrozen)) && (
             <div className="document-save-bar">
@@ -1443,12 +1446,12 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 placeholder="변경 코멘트 (선택)"
                 className="flex-1 px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
               <button onClick={() => saveMut.mutate()} disabled={saveMut.isPending}
-                className="btn-primary">
+                className="btn-primary btn-sm">
                 {saveMut.isPending ? "저장 중..." : "저장"}
               </button>
               {(contentType === 'invoice' || contentType === 'quote') && (
                 <button onClick={() => saveAndInvoiceMut.mutate()} disabled={saveAndInvoiceMut.isPending}
-                  className="btn-secondary whitespace-nowrap"
+                  className="btn-secondary btn-sm whitespace-nowrap"
                   title="저장하고 매출 세금계산서 초안을 만듭니다.">
                   {saveAndInvoiceMut.isPending ? "처리 중..." : "저장/전표"}
                 </button>

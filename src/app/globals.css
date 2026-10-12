@@ -1541,6 +1541,12 @@ table.sched-table { min-width: 760px; }
 .document-seal-panel { @apply p-5; }
 .document-content-panel { @apply overflow-hidden; }
 .document-save-bar { @apply flex items-center gap-3; }
+/* 문서 상세 내용 탭 — 판들을 상자 하나에 담고 판 사이는 선 (2026-10-12). 위 .document-detail-view .glass-card 평판 규칙보다 뒤에 둬야 이긴다 */
+.document-detail-sheet { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)]; }
+.document-detail-view .document-detail-sheet > .glass-card:not(.confirm-dialog-panel):not(.access-denied-panel) { border: 0; border-radius: 0; background: transparent; }
+.document-detail-view .document-detail-sheet > .glass-card:not(.confirm-dialog-panel):not(.access-denied-panel) ~ .glass-card { border-top: 1px solid var(--border); }
+.document-detail-meta { @apply flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs text-[var(--text-muted)]; }
+.document-detail-meta > span { @apply whitespace-nowrap; }
 .document-revisions-list { @apply overflow-hidden; }
 .document-approvals-list { @apply overflow-hidden; }
 .document-create-form { @apply p-6 mb-6; }

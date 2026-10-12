@@ -58,6 +58,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url, 308);
   }
 
+  //   결재 허브 양식·결재선 탭은 설정으로 옮겼다(2026-10-06 결정 5). 옛 주소는 화면이 권한을 따지기 전에 보낸다 —
+  //   결재 화면 안에서 보내면 /approvals 권한이 없는 사람(결재 양식 권한만 있는 사람)은 '권한 없음'에서 멈췄다. (2026-10-12)
+  if (pathname === '/approvals' || pathname === '/approvals/') {
+    const moved = ({ forms: 'approval-forms', policies: 'approval-lines' } as Record<string, string>)[request.nextUrl.searchParams.get('tab') || ''];
+    if (moved) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/settings/company/';   // trailingSlash: true — 한 번 더 튕기지 않게
+      url.search = `?tab=${moved}`;
+      return NextResponse.redirect(url);
+    }
+  }
+
   // Rate limit auth endpoints (brute force protection)
   //   /auth 화면(GET)은 세지 않는다 — 로그인·가입 자체는 Supabase 로 바로 가고 거기서 따로 제한한다.
   //   화면까지 세면 공개 페이지의 링크 미리 불러오기(한 장당 3번)만으로 한도가 차서 가입 버튼이 429 로 막혔다.
